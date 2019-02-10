@@ -1,6 +1,6 @@
-# A Programming Langauge Created By Daniel Rehman.
+# A Programming Language Created By Daniel Rehman.
 
-this is a programming lang. its pretty awesome.
+this is a programming language. its pretty awesome.
 
 
 ### hello world program:
@@ -11,3 +11,8 @@ this is a programming lang. its pretty awesome.
     print "Hello, world!"
 }
 ~~~~
+
+
+Its designed for readability (like python), while still being as fast as C or C++.
+It uses a new function syntax i made.
+
