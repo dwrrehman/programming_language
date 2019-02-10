@@ -1,0 +1,5 @@
+in our language, we need a way of unabilgouslty, and intuitively, composiing a type, based on its pieces, j
+
+like var, cosnt, restrict, shared, 
+
+so that we can make arbitrayily complex type expressions, in the same way we would make a arbitr complex numeric expression.

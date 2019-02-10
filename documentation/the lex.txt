@@ -1,0 +1,424 @@
+the lex:
+
+
+text:
+ :::
+
+
+{vector element: anything}: inherited_class [mynamespace, myglobal] {
+
+;; this is the type signature. this is within the constructors. the inheritied class is implicitly brought
+;; in using the [] syntax, no need to put it there.
+
+
+
+.array: [element]*             ;; private by default.
+
+.count: int                    ;; private by default.
+
+.capacity: int                 ;; private by default.
+
+
+;; all these must be noted mutable, because there is no code that inits them in this scope.
+
+
+(reserve capacity) [.] {
+
+;; this function is a method, cuz we're taking in the object ".",
+;; which is a reference to this object.
+
+.capacity = capacity            ;; the preceding dot means that its coming from the "this object"
+
+
+;; we could also technically take in other things from the [] thingy. like a whole other global     ;; variable or namespace or something.
+
+} on creation         ;; implies public, because you cant have a private constructor.
+;; note: (signature can be "()[.]{}", if you want.
+
+() [.] {
+print "in destructor!"
+} on destruction
+
+
+(= v) [.] {
+.array = v.(get array)
+.capacity = v.(get capacity)
+} on copy
+
+
+(this is a static method) {
+print "static method!"
+}
+}
+
+
+
+(main) {
+
+v = {}                              ;; best way to declare it. type is infered by the method calls.
+
+v2: {vector int} = {}              ;; calling empty constructor. (always uses {}, for constructor.)
+
+v3 = {vector int reserve 5}         ;; this is first calling the template, "{vector int", and then
+;; calling the constructor, "reserve 5}".
+
+v.push back 5
+
+v.this is a static method                      ;; you can call static methods on objects.
+
+{vector int}.this is a static method          ;; this is good too.    note, this wont create an instance. it will just access
+
+}
+
+
+:::
+preprocessed text:::
+
+
+{vector element: anything}: inherited_class [mynamespace, myglobal] {
+
+
+
+
+
+
+.array: [element]*             
+
+.count: int                    
+
+.capacity: int                 
+
+
+
+
+
+(reserve capacity) [.] {
+
+
+
+
+.capacity = capacity            
+
+
+
+
+} on creation         
+
+
+() [.] {
+print "in destructor!"
+} on destruction
+
+
+(= v) [.] {
+.array = v.(get array)
+.capacity = v.(get capacity)
+} on copy
+
+
+(this is a static method) {
+print "static method!"
+}
+}
+
+
+
+(main) {
+
+v = {}                              
+
+v2: {vector int} = {}              
+
+v3 = {vector int reserve 5}         
+
+
+v.push back 5
+
+v.this is a static method                      
+
+{vector int}.this is a static method          
+
+}
+
+
+ :::
+::::::::::LEX:::::::::::
+TOKEN(type: keyword, value: "
+")
+TOKEN(type: keyword, value: "
+")
+TOKEN(type: operator, value: "{")
+TOKEN(type: identifier, value: "vector")
+TOKEN(type: identifier, value: "element")
+TOKEN(type: operator, value: ":")
+TOKEN(type: keyword, value: "anything")
+TOKEN(type: operator, value: "}")
+TOKEN(type: operator, value: ":")
+TOKEN(type: keyword, value: "in")
+TOKEN(type: identifier, value: "herited_class")
+TOKEN(type: operator, value: "[")
+TOKEN(type: identifier, value: "mynamespace")
+TOKEN(type: identifier, value: "myglobal")
+TOKEN(type: operator, value: "]")
+TOKEN(type: operator, value: "{")
+TOKEN(type: keyword, value: "
+")
+TOKEN(type: keyword, value: "
+")
+TOKEN(type: keyword, value: "
+")
+TOKEN(type: keyword, value: "
+")
+TOKEN(type: keyword, value: "
+")
+TOKEN(type: keyword, value: "
+")
+TOKEN(type: keyword, value: "
+")
+TOKEN(type: operator, value: ".")
+TOKEN(type: identifier, value: "array")
+TOKEN(type: operator, value: ":")
+TOKEN(type: operator, value: "[")
+TOKEN(type: identifier, value: "element")
+TOKEN(type: operator, value: "]")
+TOKEN(type: operator, value: "*")
+TOKEN(type: keyword, value: "
+")
+TOKEN(type: keyword, value: "
+")
+TOKEN(type: operator, value: ".")
+TOKEN(type: identifier, value: "count")
+TOKEN(type: operator, value: ":")
+TOKEN(type: keyword, value: "int")
+TOKEN(type: keyword, value: "
+")
+TOKEN(type: keyword, value: "
+")
+TOKEN(type: operator, value: ".")
+TOKEN(type: identifier, value: "capacity")
+TOKEN(type: operator, value: ":")
+TOKEN(type: keyword, value: "int")
+TOKEN(type: keyword, value: "
+")
+TOKEN(type: keyword, value: "
+")
+TOKEN(type: keyword, value: "
+")
+TOKEN(type: keyword, value: "
+")
+TOKEN(type: keyword, value: "
+")
+TOKEN(type: keyword, value: "
+")
+TOKEN(type: operator, value: "(")
+TOKEN(type: identifier, value: "reserve")
+TOKEN(type: identifier, value: "capacity")
+TOKEN(type: operator, value: ")")
+TOKEN(type: operator, value: "[")
+TOKEN(type: operator, value: ".")
+TOKEN(type: operator, value: "]")
+TOKEN(type: operator, value: "{")
+TOKEN(type: keyword, value: "
+")
+TOKEN(type: keyword, value: "
+")
+TOKEN(type: keyword, value: "
+")
+TOKEN(type: keyword, value: "
+")
+TOKEN(type: keyword, value: "
+")
+TOKEN(type: operator, value: ".")
+TOKEN(type: identifier, value: "capacity")
+TOKEN(type: operator, value: "=")
+TOKEN(type: identifier, value: "capacity")
+TOKEN(type: keyword, value: "
+")
+TOKEN(type: keyword, value: "
+")
+TOKEN(type: keyword, value: "
+")
+TOKEN(type: keyword, value: "
+")
+TOKEN(type: keyword, value: "
+")
+TOKEN(type: operator, value: "}")
+TOKEN(type: keyword, value: "on creation")
+TOKEN(type: keyword, value: "
+")
+TOKEN(type: keyword, value: "
+")
+TOKEN(type: keyword, value: "
+")
+TOKEN(type: operator, value: "(")
+TOKEN(type: operator, value: ")")
+TOKEN(type: operator, value: "[")
+TOKEN(type: operator, value: ".")
+TOKEN(type: operator, value: "]")
+TOKEN(type: operator, value: "{")
+TOKEN(type: keyword, value: "
+")
+TOKEN(type: identifier, value: "print")
+TOKEN(type: string, value: "in destructor!")
+TOKEN(type: keyword, value: "
+")
+TOKEN(type: operator, value: "}")
+TOKEN(type: keyword, value: "on destruction")
+TOKEN(type: keyword, value: "
+")
+TOKEN(type: keyword, value: "
+")
+TOKEN(type: keyword, value: "
+")
+TOKEN(type: operator, value: "(")
+TOKEN(type: operator, value: "=")
+TOKEN(type: identifier, value: "v")
+TOKEN(type: operator, value: ")")
+TOKEN(type: operator, value: "[")
+TOKEN(type: operator, value: ".")
+TOKEN(type: operator, value: "]")
+TOKEN(type: operator, value: "{")
+TOKEN(type: keyword, value: "
+")
+TOKEN(type: operator, value: ".")
+TOKEN(type: identifier, value: "array")
+TOKEN(type: operator, value: "=")
+TOKEN(type: identifier, value: "v")
+TOKEN(type: operator, value: ".")
+TOKEN(type: operator, value: "(")
+TOKEN(type: identifier, value: "get")
+TOKEN(type: identifier, value: "array")
+TOKEN(type: operator, value: ")")
+TOKEN(type: keyword, value: "
+")
+TOKEN(type: operator, value: ".")
+TOKEN(type: identifier, value: "capacity")
+TOKEN(type: operator, value: "=")
+TOKEN(type: identifier, value: "v")
+TOKEN(type: operator, value: ".")
+TOKEN(type: operator, value: "(")
+TOKEN(type: identifier, value: "get")
+TOKEN(type: identifier, value: "capacity")
+TOKEN(type: operator, value: ")")
+TOKEN(type: keyword, value: "
+")
+TOKEN(type: operator, value: "}")
+TOKEN(type: keyword, value: "on copy")
+TOKEN(type: keyword, value: "
+")
+TOKEN(type: keyword, value: "
+")
+TOKEN(type: keyword, value: "
+")
+TOKEN(type: operator, value: "(")
+TOKEN(type: identifier, value: "this")
+TOKEN(type: identifier, value: "is")
+TOKEN(type: identifier, value: "a")
+TOKEN(type: identifier, value: "static")
+TOKEN(type: identifier, value: "method")
+TOKEN(type: operator, value: ")")
+TOKEN(type: operator, value: "{")
+TOKEN(type: keyword, value: "
+")
+TOKEN(type: identifier, value: "print")
+TOKEN(type: string, value: "static method!")
+TOKEN(type: keyword, value: "
+")
+TOKEN(type: operator, value: "}")
+TOKEN(type: keyword, value: "
+")
+TOKEN(type: operator, value: "}")
+TOKEN(type: keyword, value: "
+")
+TOKEN(type: keyword, value: "
+")
+TOKEN(type: keyword, value: "
+")
+TOKEN(type: keyword, value: "
+")
+TOKEN(type: operator, value: "(")
+TOKEN(type: keyword, value: "main")
+TOKEN(type: operator, value: ")")
+TOKEN(type: operator, value: "{")
+TOKEN(type: keyword, value: "
+")
+TOKEN(type: keyword, value: "
+")
+TOKEN(type: identifier, value: "v")
+TOKEN(type: operator, value: "=")
+TOKEN(type: operator, value: "{")
+TOKEN(type: operator, value: "}")
+TOKEN(type: keyword, value: "
+")
+TOKEN(type: keyword, value: "
+")
+TOKEN(type: identifier, value: "v2")
+TOKEN(type: operator, value: ":")
+TOKEN(type: operator, value: "{")
+TOKEN(type: identifier, value: "vector")
+TOKEN(type: keyword, value: "int")
+TOKEN(type: operator, value: "}")
+TOKEN(type: operator, value: "=")
+TOKEN(type: operator, value: "{")
+TOKEN(type: operator, value: "}")
+TOKEN(type: keyword, value: "
+")
+TOKEN(type: keyword, value: "
+")
+TOKEN(type: identifier, value: "v3")
+TOKEN(type: operator, value: "=")
+TOKEN(type: operator, value: "{")
+TOKEN(type: identifier, value: "vector")
+TOKEN(type: keyword, value: "int")
+TOKEN(type: identifier, value: "reserve")
+TOKEN(type: real, value: "5")
+TOKEN(type: operator, value: "}")
+TOKEN(type: keyword, value: "
+")
+TOKEN(type: keyword, value: "
+")
+TOKEN(type: keyword, value: "
+")
+TOKEN(type: identifier, value: "v")
+TOKEN(type: operator, value: ".")
+TOKEN(type: identifier, value: "push")
+TOKEN(type: identifier, value: "back")
+TOKEN(type: real, value: "5")
+TOKEN(type: keyword, value: "
+")
+TOKEN(type: keyword, value: "
+")
+TOKEN(type: identifier, value: "v")
+TOKEN(type: operator, value: ".")
+TOKEN(type: identifier, value: "this")
+TOKEN(type: identifier, value: "is")
+TOKEN(type: identifier, value: "a")
+TOKEN(type: identifier, value: "static")
+TOKEN(type: identifier, value: "method")
+TOKEN(type: keyword, value: "
+")
+TOKEN(type: keyword, value: "
+")
+TOKEN(type: operator, value: "{")
+TOKEN(type: identifier, value: "vector")
+TOKEN(type: keyword, value: "int")
+TOKEN(type: operator, value: "}")
+TOKEN(type: operator, value: ".")
+TOKEN(type: identifier, value: "this")
+TOKEN(type: identifier, value: "is")
+TOKEN(type: identifier, value: "a")
+TOKEN(type: identifier, value: "static")
+TOKEN(type: identifier, value: "method")
+TOKEN(type: keyword, value: "
+")
+TOKEN(type: keyword, value: "
+")
+TOKEN(type: operator, value: "}")
+TOKEN(type: keyword, value: "
+")
+TOKEN(type: keyword, value: "
+")
+TOKEN(type: keyword, value: "
+")
+:::::::END OF LEX:::::::
+Program ended with exit code: 0

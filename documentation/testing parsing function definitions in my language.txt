@@ -1,0 +1,12 @@
+;; this is a test of parsing function definitions:
+
+(add a: int and b: int together) {
+    return a + b
+}
+
+
+(main) {
+    x = 0
+    y = 1
+    z = (add x and y together)
+}

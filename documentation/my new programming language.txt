@@ -1,0 +1,902 @@
+notes about my new programming language:
+
+
+
+nane:
+
+nostril
+
+trilnos
+strilno
+strinol
+stinolr
+stinorl
+tislnor
+tilsnor
+slornti
+slornit
+lornits
+nitslor
+ritslon
+litsron
+nitsrol
+nitrols
+sitroln
+sinrolt
+sintorl
+noltris    *
+trislon
+ristlon
+istronl
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+....in this language, comments are as bad as gotos.
+
+
+
+
+we will be using LLVM for our optimization and code gen.
+
+
+
+
+
+commas are ignored! they are just like whitespace, or comments.
+
+
+
+
+
+taking from the D language, dependancies are definition dependant! not file dependant!
+
+
+
+
+
+it will have pointers, and references. (but you need to signify it on the caller side.)
+
+and will have user defined types.
+
+and will have reals, and ints, 
+
+and will allow the user to code in assembly,
+
+and will allow for vector operations by default.
+
+and will have a type system which includes, vectors, arrays, reals, ints, and pointers, user defined types, 
+
+pointers will be built into the type system.
+
+functions will be built into the type system, and these will be "first class citezens". (you can pass functions into functions)
+
+
+
+
+
+we will add  type/function qualifiers, "runtime", and "compiletime", that go after decl.
+
+this is because everythign is compile time by default, unless specfied otherwise, or its IMPOSSIBLE to make it compiletime. 
+
+everything is compiletime by default, if possible. however you can specify it to be compiletime, if you need to, in the function qualifier 
+
+
+
+
+the system of user defined types must be extremely powerful, and general.
+
+
+
+something like:
+
+type_name {                           ;; not using generics/templates
+
+}
+
+or
+
+{type_name element} {
+
+}
+
+or 
+
+{type_name element: type other: type} {
+
+}
+
+
+
+;;ex:
+
+
+;; note: where the word anything is, is where we would actually allow for concepts. 
+;; essentially functions which allow for a specification of the type to subset "anything"
+
+;; what will happen, is at compile time, 
+
+
+
+{vector element: anything}: inherited_class [mynamespace, myglobal] { 
+
+;; this is the type signature. this is within the constructors. the inheritied class is implicitly brought 
+;; in using the [] syntax, no need to put it there.
+
+    
+
+    .array: [element]*             ;; private by default.
+    
+    .count: int                    ;; private by default.
+
+    .capacity: int                 ;; private by default.	           
+			
+
+	;; all these must be noted mutable, because there is no code that inits them in this scope.
+
+
+    (. reserve capacity) {
+
+	;; this function is a method, cuz we're taking in the object ".",
+        ;; which is a reference to this object.
+
+        .capacity = capacity            ;; the preceding dot means that its coming from the "this object"
+
+
+	;; we could also technically take in other things from the [] thingy. like a whole other global 	;; variable or namespace or something.
+
+    } on creation         ;; implies public, because you cant have a private constructor. 
+			  ;; note: (signature can be "()[.]{}", if you want.
+    
+    () [.] {
+        print "in destructor!"
+    } on destruction
+
+
+    (= v) [.] {
+        .array = v.(get array)
+        .capacity = v.(get capacity)
+    } on copy
+
+
+    (this is a static method) {        
+        print "static method!"
+    }
+}
+
+
+
+(main) {
+
+    v = {}                              ;; best way to declare it. type is infered by the method calls.
+
+    v2: {vector int} = {}              ;; calling empty constructor. (always uses {}, for constructor.)
+
+    v3 = {vector int reserve 5}         ;; this is first calling the template, "{vector int", and then 	 
+                                       ;; calling the constructor, "reserve 5}".
+
+    v.push back 5
+
+    v.this is a static method                      ;; you can call static methods on objects.
+
+    {vector int}.this is a static method          ;; this is good too.    note, this wont create an instance. it will just access 
+
+}
+
+
+
+
+
+
+
+
+example of namespaces:
+
+
+blueprints {
+    (compile) {
+        use io
+        print "hello from bp!"
+    }
+    
+}
+
+
+(main) {
+    [using blueprints
+    .compile]
+
+    blueprints.compile
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+things in the type system right now:
+
+	- nothing, anything
+
+	- reals(2,4,8 bytes), ints(1,2,4,8 bytes), signed(1,2,4,8)
+
+	- characters(1,2,4 bytes), (these are always printed as a character, according to its encoding.)
+
+	- () -> () function: a map from one tuple to another.
+	- - a short hand for single return values is accepted, where you leave out the tuple notation.
+
+	- {} user defined types (sorta like templated unions, structures, and classes all in one.)
+
+	- [] vectors/arrays: a collection of homogenous types, thought of as one type. 
+	- - includes opt for 2,3,4,8,16 sizes.
+	
+	- () tuples a collection of possibly hetrogeneous types, thought of as one type. 
+	
+	- always_const is signified by putting "const" in front of the type.
+
+	- mutability is signified by a "." in front of the type or name of the type, on declaration. (or just the word "mutable"
+
+
+example of types:
+
+	i = 0
+	j = 0.0
+	ii: int = 0          ;; native size for machine is assumed, when type size isnt given.
+	jj: real = 0.0           ;; 
+
+	k: (int, int) = (0, 43)
+	b = ((42, 1))
+	l: [int] = [2, 3, 4, 5] 
+	la: [int:4] = [2, 3, 4, 5] 
+	zs: [int:100] = [0..]           ;; can be done for any value here.
+
+	ma: string = "hello world"
+	m = "hello world"
+	
+	i: .int = 0           ;; the dot is part of the type, which says that its a mutable int.
+	.i = 0                        ;;
+	i: mutable int = 0            ;; you can also just use the word "mutable"	
+	
+notes: 
+
+
+	- int is unsigned by default.
+	- - for signed, use "signed" 
+
+	- no type decl neccessary, they are worked out by compiler, most of the time.
+	
+	- the mutability is part of the type. signified by the "." before the type
+
+	- variables are CONST by default, unless mutated within their scope.
+	- members are PRIVATE by default.
+	- pointers are CONST and RESTRICT by default.
+	- functions and their paraemters and returns are CONST by defualt.
+	- functions are PURE by default.
+
+
+
+
+;; scopes!
+
+
+.j = 0                ;; shorthand for "j: .int = 0" the name of the variable, is just "j", though.
+
+i = 0                ;; constant by default untill modified in the same scope.
+
+
+;; these are named scopes. they arent required to be named, however.
+
+myopen (                ;; this is a named scope. (cant be a reserved key word)    (this is specfically a open scope.)
+
+    i++              ;; error, i is const.
+
+)
+
+myclosed [              ;; this is a closed scope, which doesnt bring in other variables unless explcitly taken in.
+
+    using i, j          ;; take in the previous values of i and j from a scope, (parent scope assumed)
+    j += i
+
+]
+
+
+otherscope {            ;; this is the equivalent of a namespace. 
+
+;; if not named, its a lambda. if named, the name cant be a reserved keyword.
+;; its an open scope, so parameters and return are just used directly., and infered later.
+
+
+}
+
+
+
+
+
+
+(add a and b together) -> (int) {   
+
+    ;; types of a and b can be assumed. 
+    ;; if a parameter isnt used in the function, its assumed to be part of the signature.
+    ;; the return type can just be a type, if its a tuple of length 1, 
+    ;; you can have post words as well as pre words. the whole parameter list is the function signature.
+    ;; return type can be infered.
+    ;; the parameters are const by default, just like a varible decl.
+
+    return a + b    
+}
+
+(a equals b) {
+    return a == b
+}
+
+
+num = 234                         ;; this is  const.
+(print (4 equals 5))
+(print (add num and 8 together))
+
+
+
+
+
+
+
+
+(){}     ;; the empty function decl.      (not callable.)
+
+;; this cant be interpreted as two scopes one after another, because you cant have (), a empty open scope.
+
+
+
+
+
+
+concepts, which specify how a type behaves, and the properties of it, are buillt into this language.
+
+
+here, their called "properties".
+
+
+
+
+
+
+
+
+
+
+how do you declare a namespcae? how do you organize functions, and types, and everything?
+
+how do you organize???
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+keywords in this language:
+
+
+nothing, anything, real, int, signed, string, character, 
+return, using, use, from, in, go, to, by
+break, continue, for, while, if, repeat, 
+
+
+
+
+
+loops:
+
+
+array = [1,2,3,4]
+
+for i in array {
+    (print i)
+}
+
+
+for i from 0 to 10 by 2 {
+    break
+}
+
+
+for i in array, if array.size == 3 {
+    continue
+}
+
+i = 5
+while i > 0 {
+    i--
+    (print i)
+}
+
+
+
+
+
+also, delcaring an empty open or closed scope yields an error, but declaring a empty {} scope, doesnt.
+
+
+
+
+
+
+
+
+also, there are certain conditions in which you are allowed to actually drop the "(call function)" syntax:
+
+
+- if none of the variables used or function signature parts, are keywords, 
+- and if there is no function composition.
+
+
+
+
+
+so our call to add a and b together, can just be:
+
+
+
+i = 4
+j = 5
+
+r = add i and j together
+
+
+
+
+
+
+
+
+there are numerous operators in this language:
+
+
+not and or xor          ;; prose logical operators
+ 
+!   &&  || ^^           ;; logical operators
+
++ - * / %               ;; arithmetic operators
+
+& | ^ ~                 ;; bitwise operators
+
+?: 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  ... i imagine a langauge which is as fast as c code, but which reads just as easily as psuedo code. 
+
+it does this through a complex parsing of syntax, which is all done at compile time, in the front end. everything collapses, and its just straight fast assembly code.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+references with caller signification:
+
+
+
+
+obviously you can declare a reference type, by putting ampersand after the 
+
+
+
+
+
+
+...crap we really need to know about move semantics in order to do this correctly.
+
+
+
+
+
+
+
+
+
+although, we do want the user be able to master the whole langauge. as in, we dont want to make the whole langauge too complicated.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+functions are allowed to be inlined by default.
+
+if you dont want something inlined under any circumstances, you say "noinline" after the function body.
+
+
+(function) -> (nothing) [nothing]{
+    nothing
+}
+
+
+"nothing" is actually
+
+
+
+
+
+
+
+
+
+
+
+;; the full signature of main:
+
+(main args: [string]) -> (int) {                 
+    for argument in args: print argument            ;; you can omit the curly braces, if you put a ":".
+    return 0                                        ;; only if you have a single statement in the body.
+}
+
+
+;; ...but other abbrev are also allowed:
+
+
+(main args: [string]) {
+    print args
+    return 0
+}
+
+(main) {              ;; return type of int, 
+    nothing
+}               ;; 0 return value is implicit, and args arent used, so they arent included in signature.
+
+
+
+
+
+
+
+
+
+the syntax is designed to be readable first and for most, but also its ABLE to be quite terse, if thats what you want. ie,
+
+
+
+
+
+
+
+
+
+
+
+
+some example programs:
+
+
+
+
+
+------------------------------------------------------
+
+; this program will compute the factorial of a number. ;
+
+
+(n !) {
+    if n == 0 {
+	return 1
+    } else {
+        return (n - 1 !) 
+    }
+
+}
+
+(main) {
+    print (10 !)
+}
+
+
+------------------------------------------------------
+
+
+;; the hello world program for this language:
+
+
+
+(x equals y and then insert it into something) {
+    using io
+    use x y
+    (print "hello, world!")
+}
+
+
+
+
+
+------------------------------------------------------
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+we really need to decide: are we going to use:
+
+
+using x, y
+
+
+	or 
+
+(...) [x, y] {...}
+
+
+
+although, they have different uses. the first is used in a closed scope, the second is used in functions, namespaces, etc.
+
+note you can have sub namespaces.
+
+
+
+
+
+
+
+note that the stdandard library is actually implemented as a series of modules, each declaracing its own namespace. to use the namespcae, then, you simply say:
+
+using io
+print "hi there"
+
+
+or alternatively, 
+import io
+io.print "hi there"
+
+
+
+
+
+defaults:
+
+
+- unsigned ints by default.
+- const vars and funcs by default.
+- compiletime exprs and funcs by default.
+- restrict pointers by default.
+- private funcs and member vars by default.
+- pure functions and methods by default.
+
+
+
+
+
+
+
+
+
+
+
+usage of scopes:
+
+- if the user doesnt mutate anythign outside of a given scope, then a closed scope: [ ] is required, and an error is given if a closed scope isnt used.
+
+
+
+
+
+
+
+
+
+
+note there are three types of "bring in" statements in this langauge:
+
+
+	- use        :   bring in a set of things into the current scope, to allow all of those things to be accessible.
+	- using      :   bring in a set of namespaces, and allow their contents to be visible.
+	- import     :   bring in a set of namespaces, but only allow them to be visible.
+
+
+
+
+
+
+
+
+
+"b = [x for x in array if x % 2 == 0]"
+r: list comprehension  in python;
+
+
+
+
+
+list comprehnsion in this language:
+
+
+
+list = from 0 to 10
+
+array = [x]
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+pointers in this language:
+
+
+;; allocate is built into the language. there is no garbage collector.
+
+p: int* = null                 ;; a null pointer.
+
+p = null                       ;; type infered pointer, based on calls to allocate.
+
+p = (allocate 1 int)           ;; calls malloc()
+p = (resize p to 5 int)        ;; calls realloc()
+(free p)                       ;; calls free()
+
+p = (allocate 1 int and set to zero)     ;; calls calloc()
+p = (create 1 int)                       ;; calls, malloc, then calls constructor.
+(destroy p)                              ;; calls free, then calls destructor.
+
+
+
+
+;; there is also other fucntions:
+
+(free p and set to null)          ;; does what it says it does.
+
+
+
+
+
+
+
+
+
+
+
+heres an example of declaraing a pointer which cant be null:  (enforced at compile time.)
+ 
+
+p: {nonnull int*} = null    ;; "Error: p cannot be set to null. (p is of type {nonnull int*})"
+
+p: {nullable int*} = null ;; OK           
+
+;; we are declaring p to be a generic concept type, of the particular pointer value, whcih reduces at compile time to just a pointer.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+optional parameters, aka default parameters:
+
+
+(print name (and say greeting: string = "good day! ")) {
+    print greeting name
+}
+
+
+;; all valid calls:
+
+(print "daniel")
+(print "daniel" and say greeting "hi there, ")
+
+
+
+
+
+
+
+
+

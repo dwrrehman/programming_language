@@ -1,0 +1,9 @@
+
+:: this is the hello world program.
+
+(main) {
+    using io   :: imports the io library from the standard lib, and uses its members in the current scope.
+    print "hello world"
+}
+
+

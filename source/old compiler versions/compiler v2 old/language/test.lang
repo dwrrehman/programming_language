@@ -1,0 +1,6 @@
+:: this is also a comment.
+
+(main) {
+    using io
+    print "hello there"
+}
