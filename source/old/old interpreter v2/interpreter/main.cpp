@@ -65,7 +65,7 @@
 
 #define language_name   "nostril"
 
-const std::string welcome_message = BRIGHT_GREEN "A " language_name " Interpreter." RESET GRAY "\n\t[Created by Daniel Rehman.]\n(type \":help\" for more info.)" RESET;
+const std::string welcome_message = BRIGHT_GREEN "\t\t\t\t\tA " language_name " Interpreter." RESET GRAY "\n\t\t\t\t\t[By Daniel Rehman.]\n\n\t\t\t\t    (type \":help\" for more info.)" RESET;
 
 const size_t number_of_spaces_for_tab = 4;
 
@@ -73,32 +73,27 @@ std::string code_prompt = BRIGHT_GREEN " ║  " RESET;
 std::string command_prompt = CYAN " ╚╡ " RESET;
 std::string output_prompt = GRAY "       :   " RESET;
 
-
-
-
-std::vector<std::pair<std::string, std::vector<std::string>>> input = {{"", {}}};
-
+// Globals:
+std::vector<std::pair<std::string, std::string>> input = {{"", ""}};
 size_t column = 0;
 size_t line = 1;
-
 bool quit = false;
-bool paused = false;
+
+// Helpers:
+
+
 
 
 void process_arrow_key() {
     char direction = getch();
     
     if (direction == 65) { // up
-        if (line > 1) {
-            line--;
-            if (column >= input[line - 1].first.size()) column = input[line - 1].first.size();
-        }
+        if (line > 0) line--;
+        if (input[line - 1].first.size() < column) column = input[line - 1].first.size();
         
     } else if (direction == 66) { // down
-        if (line < input.size()) {
-            line++;
-            if (column >= input[line - 1].first.size()) column = input[line - 1].first.size();
-        }
+        if (line < input.size()) line++;
+        if (input[line - 1].first.size() < column) column = input[line - 1].first.size();
         
     } else if (direction == 67) { // right
         if (column < input[line - 1].first.size()) column++;
@@ -106,130 +101,116 @@ void process_arrow_key() {
         
     } else if (direction == 68) { // left
         if (column > 0) column--;
-        else if (column == 0 && line > 1) column = input[--line - 1].first.size();
+        else if (column == 0 && line > 1) column = input[--line].first.size();
     }
 }
 
-
-void print_tab() {
+void print_tab_representation() {
     for (size_t i = number_of_spaces_for_tab; i--;)
         input[line - 1].first.insert(column++, 1, ' ');
-}
-
-void print_character(char c) {
-    input[line - 1].first.insert(column++, 1, c);
-    
-    if (c == 'q') paused = true;
 }
 
 void delete_character() {
     if (column > 0) {
         input[line - 1].first.erase(input[line - 1].first.begin() + --column);
     } else if (column == 0 && line > 1) {
-        const std::string current_line = input[line - 1].first;
-        input.erase(input.begin() + --line);
-        column = input[line - 1].first.size();
-        input[line - 1].first.insert(input[line - 1].first.size(), current_line);
+        input.pop_back();
+        column = input[--line].first.size();
     }
 }
 
 void print_newline() {
-    if (column == input[line - 1].first.size() && line == input.size()) { // if we are at the last column, and the last line in the file,
-        input.push_back({"", {}});
-        line++; column = 0;
-    } else if (column < input[line - 1].first.size()) {
-        const std::string new_line = input[line - 1].first.substr(column);
-        input[line - 1].first.erase(column);
-        input.insert(input.begin() + line, {new_line, {}});
-        line++; column = 0;
-    }
+    input[line++ - 1].first.insert(column, 1, ' ');
+    input.push_back({"", ""});
+    column = 0;
 }
 
-
-/**
- 
- |msg
- |asdf
- 
- 
- */
-
 void get_input() {
-    
     while (!quit) {
-        if (paused) {sleep(1); continue;}
         char c = getch();
+        
         if (c == '\n') {
             print_newline();
+            
         } else if (c == 9) { // tab
-            print_tab();
+            print_tab_representation();
+            
         } else if (c == 127) { // backspace
             delete_character();
+            
         } else if (c >= ' ' && c < 127) { // normal printable ascii char
-            print_character(c);
+            input[line - 1].first.insert(column++, 1, c);
+            
         } else if (c == 27) { // escape
             char d = getch();
-            if (d == 91) process_arrow_key();
-            else if (d == 27) quit = true;
+            if (d == 91) {
+                process_arrow_key();
+            }
         }
+        
+        if (line == 1 && column == 1 && input[line - 1].first[0] == ':') mode = command_mode;
+        if (line == 1 && column == 1 && input[line - 1].first[0] != ':') mode = code_mode;
+        if (line == 1 && column == 0) mode = code_mode;
         usleep(1000);
     }
 }
 
 void draw() {
     while (!quit) {
-        if (paused) {sleep(1); continue;}
-        clear_screen();
         int i = 0;
         for (auto s : input) {
+            
+            clear_line();
+            std::cout << "\r";
+            
+            print_prompt(mode == command_mode ? command_prompt : code_prompt, i, line);
             std::cout << s.first;
-            if (++i < input.size()) std::cout << "\n";
+            
+            if (s.second != "") {
+                std::cout << "\n";
+                print_prompt(output_prompt, i, line);
+                std::cout << GRAY << s.second << RESET;
+            }
+            i++;
         }
-        
-        const size_t length_of_current_one = input[line - 1].first.size();
-        const size_t length_of_last_one = input[input.size() - 1].first.size();
-        if (length_of_last_one - length_of_current_one > 0) {
-            move_cursor_backwards((int)length_of_last_one - (int)length_of_current_one);
-        }
-        move_cursor_backwards((int) input[line - 1].first.size() - (int) column);
+        move_cursor_backward((int) input[line - 1].first.size() - (int) column);
         move_cursor_upwards((int) input.size() - (int) line);
         fflush(stdout);
+        
         usleep(25000);
+        move_cursor_upwards((int) line - 1);
     }
 }
 
-void interpret() { // this function does syntax highlighting as well.
+void interpret() {
+    // calls the interpreter, to interpret each statement, and output the appropriote print statement.
+
     while (!quit) {
         for (auto& s : input) {
-            if (s.first == "PASTA") s.second = {"linguini."};
-            
-            // note, the print statements always have a
-            // newline at the end, forcibly.
-            
-        }
-        if (paused) {
-            clear_screen();
-            std::cout << "lines: {" << std::endl;
-            for (auto s : input) {
-                std::cout << "\"" << s.first << "\"," << std::endl;
+            if (s.first == "pasta") {
+                s.second = "linguini.";
             }
-            std::cout << "}" << std::endl;
-            std::cout << "line = " << line << ", col = " << column << std::endl;
-            getch();
-            clear_screen();
-            paused = false;
         }
-        
-        sleep(1);
+        sleep(3);
     }
+}
+
+void welcome_screen() {
+    clear_screen();
+    struct winsize size;
+    ioctl(STDOUT_FILENO, TIOCGWINSZ, &size);
+    for (int i = size.ws_row/2; i--;) std::cout << "\n";
+    std::cout << welcome_message << std::endl;
+    getch();
+    clear_screen();
 }
 
 int main() {
-    std::cout << welcome_message << std::endl;
+    welcome_screen();
     std::thread draw_thread = std::thread(draw);
     std::thread interpret_thread = std::thread(interpret);
     get_input();
-    interpret_thread.detach();
+    interpret_thread.join();
     draw_thread.join();
     return 0;
 }

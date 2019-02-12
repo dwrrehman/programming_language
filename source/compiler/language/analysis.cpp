@@ -192,7 +192,7 @@ void parse_all_expressions(node &n, std::vector<node> &list) {
         
         if (!n.post.expression_has_been_parsed)
             n.post.expression = parse_expression(n, function_signatures);
-        
+            n.post.expression_has_been_parsed = true;
         return;
     }
         

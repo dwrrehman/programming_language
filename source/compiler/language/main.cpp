@@ -14,6 +14,47 @@
 
 
 /**
+ --------------------------- todos -----------------------------------
+ 
+ - allow "flags" ie, "{bool which defaults to false}"
+ 
+ - allow type aliasing with x_type := y_type
+ 
+ - allow newlines in function definitions, type defintions, and object defintions.
+
+ - allow newlines in function calls, etc, if the user surrounds the function call in parenthsis, etc.
+ 
+ - allow us to put a statement in curly braces, and not have to put a required newline at the end to terminate the statement.
+ 
+ - make "{" and "}" overridle keywords, in function signatures.
+ 
+ - add a function qualifier, "collapses", which forces an inline for a function.
+ 
+ - add function qualifier, "noinline", and "inline".
+ 
+ - allow "." to be a sudonym for "const" in type expressions.
+ 
+ - allow "~" to be a sudonym for "var" in type expressions.
+ 
+ - allow a conditional expression to be the traditional C   " condition ? expr : expr "        (is that even possible with my lang?)
+ 
+ - change "var" to "mut", like in rust.
+ 
+ - make sure that in expressions, we put the array bracket index notation, AFTER the function call.
+ 
+ 
+ 
+ 
+ 
+ 
+ ------------ analysis todos: -----------------
+ 
+ 
+ - notice that you migth only be usin a library/module in one function, and try including tha  function locally, rather than globallly. (m,inimize scope of things.)
+ 
+ - disallow return statements in a block that is passed to a function.     (note: these are implemented as lambdas)
+ 
+ -
  
  
  
@@ -21,41 +62,50 @@
  
  
  
+ ------------------ compiler interface todo ----------------------------
+ 
+ - allow the user to say "nostril run main.lang"
+ 
+ - allow the user to say "nostril pick main.lang"
  
  
-
-*/
-
-
-// we need to redo this compiler.
-
-// we need to get UD precedence for all new operations or function calls.
-// x:we need no parens needlessly required in function calls.;
-// we need to allow for multiple statements in a while loop or if statement.
-
-// we need to redo the lexer to be cleaner.
-
-// we need all operations to appear to be implemented as a function to the user.
-// ie, the precendence can be changed just like anything else.
-// and the user can hook from it, just like any other function.
-// and the parentesis are needed for the same reason, between these ops and function calls.
-
-// we need this langauge to be interpreteable by a "Read-Eval-Print-Loop" (REPL) interpreter.
-// because making this have a playground for poeple to test stuff out in, is pretty crucial.
-
-
-// header files shouldnt exist. period.
-// we need a good way to seperate impl from if, but still never have a header file.
-
-// one big idea is that files are never included, like in c or cpp.
-// they are only "grouped".
-
-// so when you import something, (eg "import .io"), a interface file will be looked for in the current working directory of where that file is if its not a stdlib module, and if it is, it will looked for in the lib directory specified on the command line.
-// then, the declarations specified in the file "io.interface" in the system include dir, but they will only be accessible for the scope that included them, and its open children.
-/*
+ 
+ 
+ 
  
  
 
+ we need to get UD precedence for all new operations or function calls.
+ x:we need no parens needlessly required in function calls.;
+ we need to allow for multiple statements in a while loop or if statement.
+
+ 
+ we need all operations to appear to be implemented as a function to the user.
+ ie, the precendence can be changed just like anything else.
+ and the user can hook from it, just like any other function.
+ and the parentesis are needed for the same reason, between these ops and function calls.
+
+ 
+ we need this langauge to be interpreteable by a "Read-Eval-Print-Loop" (REPL) interpreter.
+ because making this have a playground for poeple to test stuff out in, is pretty crucial.
+ plottwist: the playground is the interpreter! how cool is that?
+
+ 
+ header files shouldnt exist. period.
+ we need a good way to seperate impl from if, but still never have a header file.
+
+ 
+ one big idea is that files are never included, like in c or cpp.
+ they are only "dependacy-grouped", via imports.
+
+ 
+ so when you import something, (eg "import .io"), a interface file will be looked for in the current working directory of where that file is if its not a stdlib module, and if it is, it will looked for in the lib directory specified on the command line.
+ then, the declarations specified in the file "io.interface" in the system include dir, but they will only be accessible for the scope that included them, and its open children.
+
+ 
+ 
+ 
+ 
  
  for example, if we have three files:
  
@@ -65,21 +115,106 @@
  
  and in main.lang, we write:
  
-    "import module"
+ 
+ 
+        "import module"          or        "using module"       or        "using function in module"
+ 
+    lets us members access the           accesses members in              just imports the member from
+     namespace module, if we           namespace, and puts them           the namespace, and puts in
+      reference them as "m.f"           in our current scope. "f"              our current scope.
+ 
+ 
  
  this will give us access to the decls defined in "module.interface" file.
  
  note, to actually compile, you say:
  
-        >  lang-compiler .
-        >  ./main
+        dwrr:/$ lang-compiler .
+        dwrr:/$ ./main
  
  and since you passed in a dir, it knows to recusrively search that dir for all ".lang" files.
  you can also pass in a different directory to search, if you want to specically search. (you can even pass in a set of dirs.)
  
  but of course, you can also just pass in the filenames manually.
  
- note: the exec name is the filename which contains (main).
+        note: the exec name is the filename which contains "(main){...}"
+ 
+ 
+ 
+ 
+ 
+ 
+ note: this compiler IS actually an REPL interpreter AS WELL, if you done pass in any command line arguments.
+ 
+ 
+ 
+ 
+ 
+ note: if the user has a file strucure that looks like:
+ 
+ 
+   Master:
+     |
+      - master.lang
+     |
+      - directory:
+     |     |
+     |      - mymodule.interface
+     |     |
+     |      - mymodule.lang
+ 
+ 
+ 
+ and they had statements such as:
+ 
+        file: master.lang
+ 
+                (main) {
+                    using (function a with b) in directory.mymodule
+                    function 4 with 6
+                }
+ 
+ 
+ 
+        file: mymodule.interface
+ 
+                ` a function which does a thing with two natruals numbers, and b. `
+                (function d: n with b: n)
+ 
+ 
+ 
+        file: mymodule.lang
+ 
+ 
+                (function a: num with b: num ) {
+                    using .io
+                    print "\{a} + \(b)"
+                }
+ 
+ 
+ 
+ this line of code would look for the file "mymodule.interface", in "directory", and add the function "(function _ with _)", (assuming that parameters are located at the underscores,)
+ 
+  and then the bash command to compile the project would simply be:       (if our PWD is "Master/..")
+ 
+ 
+            dwrr:/$ lang-compiler Master
+            dwrr:/$ ./master
+            4 6
+            dwrr:/$
+ 
+ 
+ 
+
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
  */
 
 
@@ -90,27 +225,17 @@
 
 
 
-// x:we need to make the compiler not ignore commas completely, they should be like newlines. useful, not ignored, bu generally free to put anywhere.
-// just not more than one.;
 
 
-// x:we need to implement the ; in the parser.;
-
-
-// we need to add support for functional function defintions.
-//  ex:    "(add 4 to n) = do 4 + n"
-
-
-
-const std::string filepath = "/Users/deniylreimn/Documents/projects/programming language/compiler/language/test.lang";
+const std::string filepath = "/Users/deniylreimn/Documents/projects/programming language/source/compiler/language/test.lang";
 
 int main(int argc, const char * argv[]) {
     
+    // get_commandline_arguments(argc, argv);
+
+    
     auto text = get_file(filepath);
     frontend(text);
-    
-    // then get the result from frontend(), and feed it into llvm, and compile stuff.
-    /// next, we should work on getting the command line arguments, and be able to accept already compiled stuff, and link them together..? like in gcc.
     
     return 0;
 }
