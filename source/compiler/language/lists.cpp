@@ -31,7 +31,7 @@ std::vector<std::string> overridable_keywords = {
     
     "+", "-", "*", "/", "<", ">",
     "^", "%", "!", "~", "&", ".",
-    "?", "|", "=", "[", "]",
+    "?", "|", "=", "[", "]"
 };
 
 std::vector<std::string> qualifiers =  {

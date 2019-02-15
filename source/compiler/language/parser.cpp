@@ -60,6 +60,11 @@ size_t level = 0;
 
 #define optional() level--; stack_trace.pop_back(); return begin(save, self);
 
+#define operator_(op)     terminal(operator_type, op, p)
+#define keyword_(kw)      terminal(keyword_type, kw, p)
+
+#define b                 begin(save, self)
+
 static bool begin(int save, node &self) {
     if (level > deepest_level) {
         deepest_level = level;
@@ -127,6 +132,17 @@ bool terminated_statement(params);
 bool statement(params);
 bool declaration_list(params);
 
+
+
+
+
+
+
+
+
+
+/// Main Parser Code:
+
 static bool identifier(params){
     declare_node();
     if (begin(save, self) && terminal(identifier_type, "", p)) return success(parent, self);
@@ -156,9 +172,9 @@ static bool generic_free_identifier(params){
 
 static bool symbol(params) {
     declare_node();
-    if (begin(save, self) && terminal(operator_type, "(", p) && expression_list(p) && terminal(operator_type, ")", p)) return success(parent, self);
-    if (begin(save, self) && terminal(operator_type, "{", p) && expression_list(p) && terminal(operator_type, "}", p)) return success(parent, self);
-    if (begin(save, self) && terminal(operator_type, "[", p) && expression_list(p) && terminal(operator_type, "]", p)) return success(parent, self);
+    if (begin(save, self) && operator_("(") && expression_list(p) && operator_(")")) return success(parent, self);
+    if (begin(save, self) && operator_("{") && expression_list(p) && operator_("}")) return success(parent, self);
+    if (begin(save, self) && operator_("[") && expression_list(p) && operator_("]")) return success(parent, self);
     if (begin(save, self) && terminal(number_type, "", p)) return success(parent, self);
     if (begin(save, self) && terminal(string_type, "", p)) return success(parent, self);
     if (begin(save, self) && identifier(p)) return success(parent, self);
@@ -224,7 +240,6 @@ bool expression(params) {
 
 bool expression_list(params) {
     declare_node();
-    if (begin(save, self) && expression(p) && terminal(operator_type, ",", p) && expression_list(p)) return success(parent, self);
     if (begin(save, self) && expression(p) && expression_list(p)) return success(parent, self);
     optional();
 }
@@ -335,7 +350,7 @@ static bool assignment_declaration_statement(params) {
 
 static bool assignment_statement(params) {
     declare_node();
-    if (begin(save, self) && terminal(identifier_type, "", p) && terminal(operator_type, "=", p) && expression(p)) return success(parent, self);
+    if (begin(save, self) && terminal(identifier_type, "", p) && operator_("=") && expression(p)) return success(parent, self);
     return failure(save, self);
 }
 
@@ -355,7 +370,7 @@ bool statement(params) {
 
 bool terminated_statement(params) {
     declare_node();
-    if (begin(save, self) && statement(p) && tokens[pointer+1].type == operator_type && (tokens[pointer+1].value == "}" || tokens[pointer+1].value == "]")) return success(parent, self);
+    if (begin(save, self) && statement(p) && tokens[pointer+1].type == operator_type && (tokens[pointer+1].value == "}")) return success(parent, self);
     if (begin(save, self) && statement(p) && required_newlines(p)) return success(parent, self);
     if (begin(save, self) && statement(p) && terminal(operator_type, ";", p)) return success(parent, self);
     return failure(save, self);
@@ -388,167 +403,167 @@ static bool generic_type_signature(params) {
 
 static bool type_delcaration(params) {
     declare_node();
-    if (begin(save, self) && generic_type_signature(p) && type_signature(p) && inheritance_declaration(p) && block(p)) return success(parent, self);
+    if (b && generic_type_signature(p) && type_signature(p) && inheritance_declaration(p) && block(p)) return success(parent, self);
     return failure(save, self);
 }
 
 static bool type_interface_declaration(params) {
     declare_node();
-    if (begin(save, self) && documentation(p) && type_delcaration(p)) return success(parent, self);
+    if (b && documentation(p) && type_delcaration(p)) return success(parent, self);
     return failure(save, self);
 }
 
 bool space_declaration(params) {
     declare_node();
-    if (begin(save, self) && identifier(p) && declaration_block(p)) return success(parent, self);
+    if (b && identifier(p) && declaration_block(p)) return success(parent, self);
     return failure(save, self);
 }
 
 static bool space_interface_declaration(params) {
     declare_node();
-    if (begin(save, self) && documentation(p) && space_declaration(p)) return success(parent, self);
+    if (b && documentation(p) && space_declaration(p)) return success(parent, self);
     return failure(save, self);
 }
 
 static bool variable_interface_declaration(params) {
     declare_node();
-    if (begin(save, self) && documentation(p) && identifier(p) && terminal(operator_type, ":", p) && type_expression(p)) return success(parent, self);
+    if (b && documentation(p) && identifier(p) && operator_(":") && type_expression(p)) return success(parent, self);
     return failure(save, self);
 }
 
 static bool parameter_declaration(params) {
     declare_node();
-    if (begin(save, self) && identifier(p) && terminal(operator_type, ":", p) && type_expression(p) && terminal(operator_type, "=", p) && expression(p)) return success(parent, self);
-    if (begin(save, self) && identifier(p) && terminal(operator_type, ":", p) && type_expression(p)) return success(parent, self);
-    if (begin(save, self) && identifier(p) && terminal(operator_type, "=", p) && expression(p)) return success(parent, self);
-    if (begin(save, self) && free_identifier(p)) return success(parent, self);
+    if (b && identifier(p) && operator_(":") && type_expression(p) && operator_("=") && expression(p)) return success(parent, self);
+    if (b && identifier(p) && operator_(":") && type_expression(p)) return success(parent, self);
+    if (b && identifier(p) && operator_("=") && expression(p)) return success(parent, self);
+    if (b && free_identifier(p)) return success(parent, self);
     return failure(save, self);
 }
 
 static bool generic_parameter_declaration(params) {
     declare_node();
-    if (begin(save, self) && identifier(p) && terminal(operator_type, ":", p) && type_expression(p) && terminal(operator_type, "=", p) && expression(p)) return success(parent, self);
-    if (begin(save, self) && identifier(p) && terminal(operator_type, ":", p) && type_expression(p)) return success(parent, self);
-    if (begin(save, self) && identifier(p) && terminal(operator_type, "=", p) && expression(p)) return success(parent, self);
-    if (begin(save, self) && generic_free_identifier(p)) return success(parent, self);
+    if (b && identifier(p) && operator_(":") && type_expression(p) &&  operator_("=") && expression(p)) return success(parent, self);
+    if (b && identifier(p) && operator_(":") && type_expression(p)) return success(parent, self);
+    if (b && identifier(p) && operator_("=") && expression(p)) return success(parent, self);
+    if (b && generic_free_identifier(p)) return success(parent, self);
     return failure(save, self);
 }
 
 bool parameter_declaration_list(params) {
     declare_node();
-    if (begin(save, self) && parameter_declaration(p) && parameter_declaration_list(p)) return success(parent, self);
+    if (b && parameter_declaration(p) && parameter_declaration_list(p)) return success(parent, self);
     optional();
 }
 
 bool generic_parameter_declaration_list(params) {
     declare_node();
-    if (begin(save, self) && generic_parameter_declaration(p) && generic_parameter_declaration_list(p)) return success(parent, self);
+    if (b && generic_parameter_declaration(p) && generic_parameter_declaration_list(p)) return success(parent, self);
     optional();
 }
 
 static bool optional_function_signature(params) {
     declare_node();
-    if (begin(save, self) && terminal(operator_type, "(", p) && parameter_declaration_list(p) && terminal(operator_type, ")", p)) return success(parent, self);
+    if (b && operator_("(") && parameter_declaration_list(p) &&  operator_(")")) return success(parent, self);
     return failure(save, self);
 }
 
 static bool optional_function_signature_list(params) {
     declare_node();
-    if (begin(save, self) && optional_function_signature(p) && optional_function_signature_list(p)) return success(parent, self);
+    if (b && optional_function_signature(p) && optional_function_signature_list(p)) return success(parent, self);
     optional();
 }
 
 static bool function_call_signature(params) {
     declare_node();
-    if (begin(save, self) && terminal(operator_type, "(", p) && parameter_declaration_list(p) && optional_function_signature_list(p) && terminal(operator_type, ")", p)) return success(parent, self);
+    if (b && operator_("(") && parameter_declaration_list(p) && optional_function_signature_list(p) &&  operator_(")")) return success(parent, self);
     return failure(save, self);
 }
 
 static bool return_type_signature(params) {
     declare_node();
-    if (begin(save, self) && terminal(operator_type, "-", p) && terminal(operator_type, ">", p) && type_expression(p)) return success(parent, self);
+    if (b &&  operator_("-") &&  operator_(">") && type_expression(p)) return success(parent, self);
     optional();
 }
 
 static bool qualifier(params) {
     declare_node();
     for (auto qualifier : qualifiers)
-        if (begin(save, self) && terminal(keyword_type, qualifier, p)) return success(parent, self);
+        if (b && keyword_(qualifier)) return success(parent, self);
     return failure(save, self);
 }
 
 static bool qualifier_list(params) {
     declare_node();
-    if (begin(save, self) && qualifier(p) && qualifier_list(p)) return success(parent, self);
+    if (b && qualifier(p) && qualifier_list(p)) return success(parent, self);
     optional();
 }
 
 static bool precedence_signature(params) {
     declare_node();
-    if (begin(save, self) && terminal(operator_type, "<", p) && function_call_signature(p) && terminal(operator_type, "+", p) && terminal(number_type, "", p) && terminal(operator_type, ">", p)) return success(parent, self);
-    if (begin(save, self) && terminal(operator_type, "<", p) && terminal(number_type, "", p) && terminal(operator_type, ">", p)) return success(parent, self);
+    if (b && operator_("<") && function_call_signature(p) && operator_("+") && terminal(number_type, "", p) && operator_(">")) return success(parent, self);
+    if (b && operator_("<") && terminal(number_type, "", p) && operator_(">")) return success(parent, self);
     optional();
 }
 
 static bool function_signature(params) {
     declare_node();
-    if (begin(save, self) && function_call_signature(p) && return_type_signature(p) && generic_type_signature(p) && precedence_signature(p) && qualifier_list(p)) return success(parent, self);
+    if (b && function_call_signature(p) && return_type_signature(p) && generic_type_signature(p) && precedence_signature(p) && qualifier_list(p)) return success(parent, self);
     return failure(save, self);
 }
 
 static bool function_interface_declaration(params) {
     declare_node();
-    if (begin(save, self) && documentation(p) && function_signature(p)) return success(parent, self);
+    if (b && documentation(p) && function_signature(p)) return success(parent, self);
     return failure(save, self);
 }
 
 static bool function_implementation_declaration(params) {
     declare_node();
-    if (begin(save, self) && function_signature(p) && block(p)) return success(parent, self);
+    if (b && function_signature(p) && block(p)) return success(parent, self);
     return failure(save, self);
 }
 
 static bool variable_implementation_declaration(params) {
     declare_node();
-    if (begin(save, self) && assignment_declaration_statement(p)) return success(parent, self);
+    if (b && assignment_declaration_statement(p)) return success(parent, self);
     return failure(save, self);
 }
 
 static bool implementation_declaration(params) {
     declare_node();
-    if (begin(save, self) && function_implementation_declaration(p)) return success(parent, self);
-    if (begin(save, self) && variable_implementation_declaration(p)) return success(parent, self);
+    if (b && function_implementation_declaration(p)) return success(parent, self);
+    if (b && variable_implementation_declaration(p)) return success(parent, self);
     return failure(save, self);
 }
 
 static bool interface_declaration(params) {
     declare_node();
-    if (begin(save, self) && function_interface_declaration(p)) return success(parent, self);
-    if (begin(save, self) && type_interface_declaration(p)) return success(parent, self);
-    if (begin(save, self) && space_interface_declaration(p)) return success(parent, self);
-    if (begin(save, self) && variable_interface_declaration(p)) return success(parent, self);
+    if (b && function_interface_declaration(p)) return success(parent, self);
+    if (b && type_interface_declaration(p)) return success(parent, self);
+    if (b && space_interface_declaration(p)) return success(parent, self);
+    if (b && variable_interface_declaration(p)) return success(parent, self);
     return failure(save, self);
 }
 
 static bool declaration(params) {
     declare_node();
     deepest_level = 0;
-    if (begin(save, self) && implementation_declaration(p)) return success(parent, self);
-    if (begin(save, self) && interface_declaration(p)) return success(parent, self);    
+    if (b && implementation_declaration(p)) return success(parent, self);
+    if (b && interface_declaration(p)) return success(parent, self);
     return failure(save, self);
 }
 
 bool declaration_list(params) {
     declare_node();
-    if (begin(save, self) && newlines(p) && declaration(p) && required_newlines(p) && declaration_list(p)) return success(parent, self);
-    if (begin(save, self) && newlines(p)) return success(parent, self);
+    if (b && newlines(p) && declaration(p) && required_newlines(p) && declaration_list(p)) return success(parent, self);
+    if (b && newlines(p)) return success(parent, self);
     optional();
 }
 
 static bool program(params) {
     declare_node();
-    if (begin(save, self) && declaration_list(p)) return success(parent, self);
-    if (begin(save, self) && newlines(p)) return success(parent, self);
+    if (b && declaration_list(p)) return success(parent, self);
+    if (b && newlines(p)) return success(parent, self);
     return failure(save, self);
 }
 

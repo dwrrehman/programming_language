@@ -16,6 +16,20 @@
 /**
  --------------------------- todos -----------------------------------
  
+ 
+ 
+ 
+ - redo the optional parameter parser grammar to allow for ottional parmeters in the beggmnining of the FCS.
+ 
+ - redo the type and space interface decls in the grammar, to have a tifd have only fifd and vifd's, and timd to have actual imd stuff.
+ 
+ - we need to do unit testing with our expression parser.
+ 
+ 
+ - make files local to the file scope only, by default, unless
+ 
+ - add an "implementing" keyword.
+ 
  - allow "flags" ie, "{bool which defaults to false}"
  
  - allow type aliasing with x_type := y_type
@@ -47,15 +61,19 @@
  
  
  
+ 
  ------------ analysis todos: -----------------
  
  
- - notice that you migth only be usin a library/module in one function, and try including tha  function locally, rather than globallly. (m,inimize scope of things.)
+ - notice that you migtht only be usin a library/module in one function, and try including tha  function locally, rather than globallly. (m,inimize scope of things.)
  
  - disallow return statements in a block that is passed to a function.     (note: these are implemented as lambdas)
  
- -
+ - do type checking on the expressions,
  
+ - do checking on the scope of variables, and tying their references to each other, using a symbol table.
+
+ -
  
  
  
@@ -64,14 +82,17 @@
  
  ------------------ compiler interface todo ----------------------------
  
- - allow the user to say "nostril run main.lang"
+ - allow the user to say "nostril run main.lang"              to run the executable produced, immedately after compiling.
  
- - allow the user to say "nostril pick main.lang"
+ - allow the user to say "nostril pick main.lang"              to run the code in a sandbox, and open the interpreter too.
  
+ - allow the user to say "nostril --emit-llvm main.lang"       to emmit llvm and not compile the executable.
  
+ - allow the user to say "nostril . --except dir/other.lang dir2/otherone.lang "     to make the recursive finding customizable.
  
+ - allow the compiler to look into a directory recursively, to find all lang files.
  
- 
+ -
  
  
 
@@ -179,14 +200,15 @@
         file: mymodule.interface
  
                 ` a function which does a thing with two natruals numbers, and b. `
-                (function d: n with b: n)
+                (function d: nat with b: nat)
  
  
  
         file: mymodule.lang
  
  
-                (function a: num with b: num ) {
+ 
+                (function a: nat with b: nat) {
                     using .io
                     print "\{a} + \(b)"
                 }
@@ -207,35 +229,19 @@
  
 
  
- 
- 
- 
- 
- 
- 
- 
- 
  */
-
-
-
-
-
-
-
-
-
 
 
 const std::string filepath = "/Users/deniylreimn/Documents/projects/programming language/source/compiler/language/test.lang";
 
 int main(int argc, const char * argv[]) {
     
-    // get_commandline_arguments(argc, argv);
-
-    
-    auto text = get_file(filepath);
-    frontend(text);
+    // arguments = get_commandline_arguments(argc, argv);
+    auto text = get_file(filepath); // temp
+    // do_something_based_on(arguments);
+    frontend(text); // tree = frontend();
+    // backend(tree);
+    // link, or do something now...
     
     return 0;
 }

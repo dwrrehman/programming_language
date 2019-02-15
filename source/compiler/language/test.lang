@@ -1,8 +1,7 @@
 (add x) {
-    return 1234
+    return x + 5
 }
 
 (main) {
-    add 5
+    add 6
 }
-

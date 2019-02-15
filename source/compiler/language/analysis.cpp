@@ -30,7 +30,7 @@
 
 /**
  
- the idea is that the revise_function_signatures_based_on definiions() function should possible be ran more than once?
+ the idea is that the revise_function_signatures_based_on_definitions() function should possibly be ran more than once?
  
  
  it seems that we have to run this for howwever many function calls we have.
@@ -278,6 +278,7 @@ node analyze(node tree, bool &error) {
         revise_signatures_based_on_definition(tree);
 
     
+    // debug:
     for (auto sig : function_signatures)
         print_function_signature(sig);
     
