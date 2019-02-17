@@ -1,0 +1,7 @@
+(add x) {
+    return x + 5
+}
+
+(main) {
+    add 6
+}

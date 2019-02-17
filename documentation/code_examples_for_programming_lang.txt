@@ -1,0 +1,149 @@
+
+:: note: for types that are only a single name, you can simply put the name, instead of {name}
+
+
+
+
+
+
+
+
+
+:: constructs:
+
+
+if true {
+
+}
+
+
+syntax (for range: r code:{}) [r is a range] {
+    for i in range, code
+}
+
+
+
+syntax (perform this first:{} and then do second: {}) {
+    print "starting..."
+    first
+    print "continuing..."
+    second
+    print "done."
+}
+
+syntax (loop code:{}) {
+    while true, code
+}
+
+
+(main) -> int {
+
+    :: using the new syntax:
+
+    for (0..4) {
+        print "hello there"
+    }
+
+    :: alternatively,
+
+    v: vector = {1, 3, 5, 7}
+
+    for v {
+        print "number"
+    }
+
+
+    :: other dumb uses for the "syntax" feature:
+
+    perform this {
+        x = false
+        if x == true {
+            print "true"
+        }
+    } and then do {
+        v = {vector 1, 2, 3, 4}
+        for i: const int in v {
+            print i
+        }
+    }
+
+    loop {
+        get string from stdin           :: templated functions? is it ok to pass in a type in the signature like this?
+    }
+
+    return 0
+}
+
+
+
+
+
+
+:: we really should move the generic syntax to be AFTER the function signature.
+
+
+
+
+
+
+
+
+
+
+(two times m) <1> {
+    return 2 * m
+}
+
+
+(add x to y and add one) {
+    return x + y + 1
+}
+
+
+
+
+[x is mergeable with y] {
+
+}
+
+[x is numeric] {
+
+}
+
+
+
+{structure} {
+    id: string
+    data: {pair int int}
+}
+
+(first: structure and second: structure are equal) -> bool {
+    return first.id == second.id and first.data == second.data
+}
+
+:: or, we could have implemented it as:
+
+{structure} {
+    id: string
+    data: {pair int int}
+
+    (. == this: structure) -> bool {
+        return .id == this.id and .data == this.data
+    }
+}
+
+:: then we can simply say:
+
+(main) {
+    first: structure = {"daniel" {45 23}}
+    second = {structure "rehman" {pair 35 76}}
+
+    :: note that we always have the default constructors, with and without the names.
+    :: now we can do:
+
+    if first == second {
+        print "hello there from space"
+    }
+
+}
+

@@ -1,0 +1,6 @@
+:: a hello world program.
+
+(main) {
+    using .io
+    print "hello, world"
+}

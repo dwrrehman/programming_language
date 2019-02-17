@@ -1,0 +1,84 @@
+  {as in, "implementing directory.module.interface", 
+or just "implementing directory.module"}     
+
+
+is sorta like a __include "header.hpp"__ when found in a "header.cpp" file, 
+
+but it explicitly says that its using these declarations found in here, because its defining them.
+
+
+
+note: everything has a static (file-local) scope by defualt.
+
+
+example:
+
+
+------------------------------------------------------
+
+
+mod.interface:
+
+	`hello there is good docuemntation.` 
+	
+	(function a: int b: int) -> int
+
+
+
+mod.lang:
+
+	implementing mod.interface          :: lets work on this. its not very clean....
+
+	(add x and y together) {
+		return x + y
+	}
+	
+	(function a b) public {			:: its assumed types must match what its implementing.
+		return add a and b together
+	}
+
+
+
+total.lang:
+
+	(main) {
+		using mod .io
+		x = function 5 6 
+		print x
+	}
+
+
+
+
+
+
+------------------------------------------------------
+
+
+$ pwd
+/docs/code/
+
+$ ls
+main.lang    mod.interface    mod.lang
+
+$ lang-compiler .
+
+$ ./main
+11
+$
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

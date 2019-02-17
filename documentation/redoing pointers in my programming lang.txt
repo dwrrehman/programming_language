@@ -1,0 +1,113 @@
+revision of pointer syntax in my progamming language.
+
+
+
+
+
+
+
+
+// traditionally we would do:
+
+int x = 5;
+int* p = &x;      // note syn for pointer type, as a "postfix type operation". (or a prefix for the variable)
+		  // note syn for address of is prefix.
+
+int o = *p;       // note syn for derefering is prefix.
+
+//
+
+
+
+
+
+
+:: in our programming lang, 
+
+:: 	lets make everything, todo with types, prefix by default.
+
+
+
+
+
+i dont like the prefix nature of the derefernce or address operator.
+
+
+	lets make all pointer addr/deref operations postfix.
+
+
+x = 5
+p = x&      
+o = p*
+
+:: ...is the equivalent code in my lang.
+
+
+
+
+
+
+
+and then, if you wanted to explicitily declare types for statements like that, youd simply do:
+
+
+x: var int = 5
+p: * var int = x&
+o: const int = p*
+
+
+
+
+:: note, if you wanted to make a const pointer to a const int, you could do:
+
+	x: const * const int = null
+
+:: in fact, this is exactly what you mean when you delcare:
+
+	x: *int = null
+
+:: unless you change the pointer x, in the same scope, in which the type becomes:
+
+	x: const int = null
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

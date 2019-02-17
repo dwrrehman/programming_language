@@ -1,0 +1,86 @@
+todo:
+
+- allow a anon ctor to be infered, based on the parameter types.
+
+- allow variables to have a specfic set of qualifiers in them.
+
+
+{type} {
+	.x: public .string
+
+	(create x) public constructor {
+		.x = x + " created"
+	}
+
+	(x) public constructor {
+		.x = x
+	}
+
+}
+
+
+
+(main) {
+	n: {type} = {"hi there!"}     
+
+	v: {type create "hi here!"}
+
+	w = {"hola amigos!"}
+
+	q = {create "bye amigos"}
+
+
+
+	:: n is using both the type and its anonymous constructor, implicitly calling the copy constructor.
+	:: v is constructing it in the type, which is interesting...
+	:: w is infering the type based on the construction parameter types to the anonymous ctor.
+	:: q is doing the same thing as w, but with a named constructor.
+
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+:: another silly example:
+
+
+
+
+
+{name} {
+
+    .first: string
+    .last: string
+
+    (.print) public {
+        import .io
+        io.print .first, .second
+    }
+
+}
+
+(main) {
+
+    x: name = {"daniel" "rehman"}
+
+    x.print         :: "daniel rehman"
+
+}
+
+
+
+
+

@@ -1,0 +1,13 @@
+we need to define a set of function signatures that you cant define, and these are non-negotiable, because the parser (and you) literally could never tell the difference:
+
+
+
+(if something block: {})    :: and its else variants.
+
+(while something block: {}) 
+
+(repeat block: {} while something)
+
+(for something in soemthing block: {})
+
+(using something)

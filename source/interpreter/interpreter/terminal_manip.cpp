@@ -27,6 +27,10 @@
 
 enum display_mode mode = code_mode;
 
+void set_cursor(int x, int y) {
+    printf("\033[%d;%dH", x, y);
+}
+
 void move_cursor_forwards(int amount) {
     if (amount <= 0) return;
     std::cout << "\033[" << amount << "C";

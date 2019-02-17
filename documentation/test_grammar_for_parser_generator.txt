@@ -1,0 +1,12 @@
+hello
+    = node1 bad
+    | good
+    | E
+
+------------------ hello there from space -------------------
+
+grammarhere
+    = hi there
+    | bye
+    | hellopeace
+

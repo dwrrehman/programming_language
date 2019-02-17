@@ -1,0 +1,38 @@
+if we define a function which is generic for [T], 
+	and we call a function called "printf", 
+
+	which must take a concept, 
+
+	the compiler will figure out that the "T" type, must be a specific type of generic.
+
+	and thus the compiler will TYPE INFER  the function as not a general genric, but as a specifc kind of generic specified by printf. (else there could be an error!)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+CTFE  :   compile time funcftion execution.
+
+
+
+

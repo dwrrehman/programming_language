@@ -1,0 +1,47 @@
+sudocode for passing functions into other functions:
+
+
+
+
+
+
+(add func: (int)->(bool)) {...}
+
+(mul x) {...}
+
+
+(main) {
+
+	add (mul)
+}
+
+
+
+:: q: how would we recognize this?
+
+
+
+
+
+
+
+cant we just simply recognize the function as if it didnt have a function passed into a function, and just treat it like (mul) is "another function call expression" inside of parens?
+
+
+yes, then we also need to do type checking, which will validate that you actually passed in a valid function signature of a function that exists, 
+
+and the we will make sure that the selected function (from the signature that was passed in,) has the correct inputs and outputs specified by the function which received the function passed in.
+
+
+
+
+
+
+
+
+
+
+
+
+
+

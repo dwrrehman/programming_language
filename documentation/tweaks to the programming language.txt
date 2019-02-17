@@ -1,0 +1,62 @@
+(parse string using delimiter) {
+    use delimiter      ;; this acts as a full in statement, and a usage staemnet, to keep delimiter as not part of the signature.
+
+}
+
+
+
+(main) {
+
+    s = "hello world"
+
+    parse
+
+}
+
+
+
+
+;; note: you can make all identifiers in a signature be a keyword or symbol, except for the function parameters.
+
+;; we should be making the keyword "using" actually be a function, (or at least have function call syntax. its not a statement, its a function call.)
+
+now, should we allow the user to pass in a block of code?
+
+
+
+
+
+yes i think thats useful.
+
+
+
+
+specfically, we should make the for loop actually accept a block of code as one of its parameters.
+
+
+for i in range {
+    ;; code
+}
+
+
+;; eh, i dont know about this.
+
+i think that we should allow the user to define these with similar style syntax themselves, but not neccessarilymake the for a actual function. because that sorta riducolous.
+
+
+
+
+
+;:
+
+note,
+
+
+also, we really need to redo the comments syntax, do be more clean.
+
+
+possibly be more general...?
+
+ease of typing is not really an issue.
+
+:;

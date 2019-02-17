@@ -1,0 +1,97 @@
+compiler todo:
+
+
+
+
+
+- add a using keyword:     
+
+- do more semantic analysis:
+- - scope analysis
+- - var, func, type, and kind name resolution.
+- - type analysis
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ex:  
+using_statement = keyword_("using") && used_list
+used_list = used_element used_list | used_element operator_(",") used_list | E
+used_element = identifier | fcs | tcs | kcs 
+
+
+
+
+
+
+
+
+shouldnt we also have the full set?
+
+
+using variable
+
+using module
+
+using (function) from module         :: will not import the whole module into the scope, just (function).
+
+using variable from module
+
+import module
+
+
+
+where module can be:
+
+	module = identifier filename_list | filename_list
+	filename_list = filename filename_list | E
+	filename = . identifier
+
+
+
+
+
+
+
+
+
+

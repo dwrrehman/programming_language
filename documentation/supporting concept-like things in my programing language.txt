@@ -1,0 +1,78 @@
+
+::note, whenever you delcare a generic type, you are can optionally supply a "meta-type" (concept) which is the type of type the parameterized type must be, in order to call the function.
+
+
+:: so, for example:
+
+
+{data list: enumerable} {
+    (. sort L: list) {
+        :: sort it.
+    }
+}
+
+
+d: {data [int]}
+
+d.()
+
+
+
+
+
+note that the definiition of concepts, is a boolean that holds if a type meets a set of certain properties, defined by the conept.
+
+
+thats really what they are, i think...
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+function literals and function types:
+
+
+on an unrelated, note, if you wanted to assign a function literal to a variable, you can do that, techincally,
+
+
+add x to y: (int, int)->(nothing) = (x y) {return x + y}
+
+(add 5 to 6)			 :: returns 11
+
+ :: or, you could
+
+b = (x y){return x + y}(5 6)       :: b is 11.
+
+ :: or of course, just:
+
+b = 5 + 6
+
+b = 11
+
+
