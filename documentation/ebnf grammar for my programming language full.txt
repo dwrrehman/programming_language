@@ -10,11 +10,14 @@
 
 ------------------------ declaration lists ---------------------------
 
+- for now, we will just let
+
+program
+	= translation_unit
 
 translation_unit 
 	= declaration_list 
 	| newlines
-
 
 declaration_list 
 	= newlines declaration required_newlines declaration_list 
@@ -70,6 +73,7 @@ enum_assignment
 
 
 ------------------------ declarations ---------------------------
+
 
 declaration 
 	= implementation_declaration 
@@ -285,11 +289,11 @@ function_free_identifier
 	| identifier
 
 type_free_identifier 
-	= overridable_keyword{where x != { or }} 
+	= overridable_keyword not { }
 	| identifier
 
 kind_free_identifier 
-	= overridable_keyword{where x != [ or ]} 
+	= overridable_keyword not [ ]
 	| identifier
 
 
@@ -337,32 +341,32 @@ statement
 --------------------------- specfic types of statements -------------------------------
 
 
+- todo: add a +=, -=, *=, etc statements!! (non decl assignment statement)
 
 assignment_statement 
 	= identifier : type_expression = expression
 	| identifier = expression
 
-
 assignment_declaration_statement 
 	= identifier : type_expression
 
-return_statement 
-	= RETURN expression 
-	| RETURN
 
+return_statement 
+	= return expression 
+	| return
 
 for_statement 
-	= FOR identifier_list IN expression block 
-	| FOR identifier_list  IN expression , newlines statement
+	= for identifier_list in expression block 
+	| for identifier_list in expression , newlines statement
 
 
 repeatwhile_statement 
-	= REPEAT block WHILE expression 
-	| REPEAT statement WHILE expression
+	= repeat block while expression 
+	| repeat statement while expression
 
 while_statement 
-	= WHILE expression block 
-	| WHILE expression , newlines statement
+	= while expression block 
+	| while expression , newlines statement
 
 
 
@@ -370,20 +374,20 @@ if_statement
 	= if_head_statement else_if_statement_list else_statement
 
 if_head_statement 
-	= IF expression block 
-	| IF expression , newlines statement
+	= if expression block 
+	| if expression , newlines statement
 
 else_statement 
-	= newlines ELSE block 
-	| newlines ELSE , newlines statement 
-	| newlines ELSE newlines statement
+	= newlines else block 
+	| newlines else , newlines statement 
+	| newlines else newlines statement
 
 else_if_statement_list 
 	= newlines else_if_statement else_if_statement_list 
 	| E
 
 else_if_statement 
-	= ELSE if_head_statement 
+	= else if_head_statement 
 	| E
 
 
@@ -396,17 +400,10 @@ expression
 	= free_identifier_or_symbol_list
 
 
-
-
-
-
 free_identifier_or_symbol_list 
 	= free_identifier free_identifier_or_symbol_list 
 	| symbol free_identifier_or_symbol_list 
 	| E
-
-
-
 
 
 symbol 
@@ -416,10 +413,6 @@ symbol
 	| number 
 	| string 
 	| identifier
-
-
-
-
 
 
 expression_list 
