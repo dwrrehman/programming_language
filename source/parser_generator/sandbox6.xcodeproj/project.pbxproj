@@ -8,7 +8,7 @@
 
 /* Begin PBXBuildFile section */
 		FD98924F2218C974002E33FB /* main.cpp in Sources */ = {isa = PBXBuildFile; fileRef = FD98924E2218C974002E33FB /* main.cpp */; };
-		FD9892582218D375002E33FB /* lists.cpp in Sources */ = {isa = PBXBuildFile; fileRef = FD9892572218D375002E33FB /* lists.cpp */; };
+		FD989260221912F2002E33FB /* lists.cpp in Sources */ = {isa = PBXBuildFile; fileRef = FD98925F221912F2002E33FB /* lists.cpp */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXCopyFilesBuildPhase section */
@@ -26,11 +26,10 @@
 /* Begin PBXFileReference section */
 		FD98924B2218C974002E33FB /* sandbox6 */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = sandbox6; sourceTree = BUILT_PRODUCTS_DIR; };
 		FD98924E2218C974002E33FB /* main.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = main.cpp; sourceTree = "<group>"; };
-		FD9892552218CA39002E33FB /* grammar.txt */ = {isa = PBXFileReference; lastKnownFileType = text; path = grammar.txt; sourceTree = "<group>"; };
-		FD9892562218D375002E33FB /* lists.hpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.h; name = lists.hpp; path = "../../../../../projects/programming language/source/compiler v3/language/lists.hpp"; sourceTree = "<group>"; };
-		FD9892572218D375002E33FB /* lists.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = lists.cpp; path = "../../../../../projects/programming language/source/compiler v3/language/lists.cpp"; sourceTree = "<group>"; };
 		FD9892592218DEDE002E33FB /* parser.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = parser.cpp; sourceTree = "<group>"; };
 		FD98925C2218E28D002E33FB /* parser_header.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = parser_header.cpp; sourceTree = "<group>"; };
+		FD98925E221912F2002E33FB /* lists.hpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.h; name = lists.hpp; path = ../../compiler/language/lists.hpp; sourceTree = "<group>"; };
+		FD98925F221912F2002E33FB /* lists.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = lists.cpp; path = ../../compiler/language/lists.cpp; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -66,9 +65,8 @@
 				FD98924E2218C974002E33FB /* main.cpp */,
 				FD98925C2218E28D002E33FB /* parser_header.cpp */,
 				FD9892592218DEDE002E33FB /* parser.cpp */,
-				FD9892552218CA39002E33FB /* grammar.txt */,
-				FD9892572218D375002E33FB /* lists.cpp */,
-				FD9892562218D375002E33FB /* lists.hpp */,
+				FD98925F221912F2002E33FB /* lists.cpp */,
+				FD98925E221912F2002E33FB /* lists.hpp */,
 			);
 			path = sandbox6;
 			sourceTree = "<group>";
@@ -130,7 +128,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				FD98924F2218C974002E33FB /* main.cpp in Sources */,
-				FD9892582218D375002E33FB /* lists.cpp in Sources */,
+				FD989260221912F2002E33FB /* lists.cpp in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

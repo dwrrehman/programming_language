@@ -85,6 +85,8 @@ static bool terminal(enum token_type desired_token_type, std::string desired_tok
 //this is a automatically generated parser in cpp, for my language.
 
 
+bool program(params);
+
 bool translation_unit(params);
 
 bool declaration_list(params);
@@ -235,6 +237,12 @@ bool type_expression_list(params);
 
 
 //EBNF Parse Nodes:
+
+bool program(params) {
+	declare_node();
+	if (b && translation_unit(p)) return success(parent, self);
+	return failure(save, self);
+}
 
 bool translation_unit(params) {
 	declare_node();
@@ -561,14 +569,14 @@ bool function_free_identifier(params) {
 
 bool type_free_identifier(params) {
 	declare_node();
-	if (b && overridable_keyword{where(p) && x(p) && !=(p) && operator_("{") && keyword_("or") && }}(p)) return success(parent, self);
+	if (b && overridable_keyword(p) && keyword_("not") && operator_("{") && operator_("}")) return success(parent, self);
 	if (b && identifier(p)) return success(parent, self);
 	return failure(save, self);
 }
 
 bool kind_free_identifier(params) {
 	declare_node();
-	if (b && overridable_keyword{where(p) && x(p) && !=(p) && operator_("[") && keyword_("or") && ]}(p)) return success(parent, self);
+	if (b && overridable_keyword(p) && keyword_("not") && operator_("[") && operator_("]")) return success(parent, self);
 	if (b && identifier(p)) return success(parent, self);
 	return failure(save, self);
 }
@@ -595,7 +603,7 @@ bool statement_list(params) {
 
 bool terminated_statement(params) {
 	declare_node();
-	if (b && statement{next(p) && ==(p) && operator_("}") && operator_("}")) return success(parent, self);
+	if (b && statement(p) && nextis(p) && endcurlybrace(p)) return success(parent, self);
 	if (b && statement(p) && required_newlines(p)) return success(parent, self);
 	if (b && statement(p) && operator_(";")) return success(parent, self);
 	return failure(save, self);
@@ -630,29 +638,29 @@ bool assignment_declaration_statement(params) {
 
 bool return_statement(params) {
 	declare_node();
-	if (b && RETURN(p) && expression(p)) return success(parent, self);
-	if (b && RETURN(p)) return success(parent, self);
+	if (b && keyword_("return") && expression(p)) return success(parent, self);
+	if (b && keyword_("return")) return success(parent, self);
 	return failure(save, self);
 }
 
 bool for_statement(params) {
 	declare_node();
-	if (b && FOR(p) && identifier_list(p) && IN(p) && expression(p) && block(p)) return success(parent, self);
-	if (b && FOR(p) && identifier_list(p) && IN(p) && expression(p) && operator_(",") && newlines(p) && statement(p)) return success(parent, self);
+	if (b && keyword_("for") && identifier_list(p) && keyword_("in") && expression(p) && block(p)) return success(parent, self);
+	if (b && keyword_("for") && identifier_list(p) && keyword_("in") && expression(p) && operator_(",") && newlines(p) && statement(p)) return success(parent, self);
 	return failure(save, self);
 }
 
 bool repeatwhile_statement(params) {
 	declare_node();
-	if (b && REPEAT(p) && block(p) && WHILE(p) && expression(p)) return success(parent, self);
-	if (b && REPEAT(p) && statement(p) && WHILE(p) && expression(p)) return success(parent, self);
+	if (b && keyword_("repeat") && block(p) && keyword_("while") && expression(p)) return success(parent, self);
+	if (b && keyword_("repeat") && statement(p) && keyword_("while") && expression(p)) return success(parent, self);
 	return failure(save, self);
 }
 
 bool while_statement(params) {
 	declare_node();
-	if (b && WHILE(p) && expression(p) && block(p)) return success(parent, self);
-	if (b && WHILE(p) && expression(p) && operator_(",") && newlines(p) && statement(p)) return success(parent, self);
+	if (b && keyword_("while") && expression(p) && block(p)) return success(parent, self);
+	if (b && keyword_("while") && expression(p) && operator_(",") && newlines(p) && statement(p)) return success(parent, self);
 	return failure(save, self);
 }
 
@@ -664,16 +672,16 @@ bool if_statement(params) {
 
 bool if_head_statement(params) {
 	declare_node();
-	if (b && IF(p) && expression(p) && block(p)) return success(parent, self);
-	if (b && IF(p) && expression(p) && operator_(",") && newlines(p) && statement(p)) return success(parent, self);
+	if (b && keyword_("if") && expression(p) && block(p)) return success(parent, self);
+	if (b && keyword_("if") && expression(p) && operator_(",") && newlines(p) && statement(p)) return success(parent, self);
 	return failure(save, self);
 }
 
 bool else_statement(params) {
 	declare_node();
-	if (b && newlines(p) && ELSE(p) && block(p)) return success(parent, self);
-	if (b && newlines(p) && ELSE(p) && operator_(",") && newlines(p) && statement(p)) return success(parent, self);
-	if (b && newlines(p) && ELSE(p) && newlines(p) && statement(p)) return success(parent, self);
+	if (b && newlines(p) && keyword_("else") && block(p)) return success(parent, self);
+	if (b && newlines(p) && keyword_("else") && operator_(",") && newlines(p) && statement(p)) return success(parent, self);
+	if (b && newlines(p) && keyword_("else") && newlines(p) && statement(p)) return success(parent, self);
 	return failure(save, self);
 }
 
@@ -685,7 +693,7 @@ bool else_if_statement_list(params) {
 
 bool else_if_statement(params) {
 	declare_node();
-	if (b && ELSE(p) && if_head_statement(p)) return success(parent, self);
+	if (b && keyword_("else") && if_head_statement(p)) return success(parent, self);
 	optional();
 }
 

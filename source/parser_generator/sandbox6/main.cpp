@@ -19,9 +19,11 @@
 
 // parameters:
 
-const std::string input_grammar_filepath = "/Users/deniylreimn/Documents/code/cpp/sandboxes/sandbox6/sandbox6/grammar.txt";
-const std::string output_cpp_filepath = "/Users/deniylreimn/Documents/code/cpp/sandboxes/sandbox6/sandbox6/parser.cpp";
-const std::string input_header_filepath = "/Users/deniylreimn/Documents/code/cpp/sandboxes/sandbox6/sandbox6/parser_header.cpp";
+const std::string main_directory = "/Users/deniylreimn/Documents/projects/programming language/";
+
+const std::string input_grammar_filepath = main_directory + "specification/ebnf grammar for my programming language full.txt";
+const std::string output_cpp_filepath = main_directory + "source/parser_generator/sandbox6/parser.cpp";
+const std::string input_header_filepath = main_directory + "source/parser_generator/sandbox6/parser_header.cpp";
 
 
 // data structures:
@@ -74,9 +76,21 @@ void print_all_nodes() {
 }
 
 
+static void check_for_error() {
+    if (current_node >= nodes.size() || current_rule >= nodes[current_node].rules.size()) {
+        std::cout << "Syntax error in EBNF grammar file.\n";
+        std::cout << "current node and rule #: node: " << current_node << ", rule: " << current_rule << "\n";
+        std::cout << "generator got this far: \n";
+        print_all_nodes();
+        std::cout << "\n\naborting..." << std::endl;
+        exit(1);
+    }
+}
+
 // helpers:
 
 static void add_element(const std::string &token) {
+    check_for_error();
     nodes[current_node].rules[current_rule].elements.push_back({
         token,
         std::find(keywords.begin(), keywords.end(), token) != keywords.end(),
@@ -116,23 +130,25 @@ static void find_optionals() {
     }
 }
 
-static void process_line(bool &inside_node, const std::string &line, std::string &token) {
+static void process_line(bool &inside_node, const std::string &line) {
+    
+    std::string token = "";
     std::istringstream s {line};
     size_t element_count = 0;
     
     while (s.good()) {
         s >> token;
         element_count++;
-        if (!add_node(inside_node, token)
-            && !add_rule(element_count, token))
+        if (!add_node(inside_node, token) && !add_rule(element_count, token))
             add_element(token);
     }
 }
 
-static void process_nodes(std::ifstream &grammar, bool &inside_node, std::string &line, std::string &token) {
+static void process_nodes(std::ifstream &grammar, bool &inside_node, std::string &line) {
+    
     while (std::getline(grammar, line)) {
         if (line != "" && line[0] == '-') continue;
-        else if (line != "") process_line(inside_node, line, token);
+        else if (line != "") process_line(inside_node, line);
         else if (inside_node) inside_node = false;
     }
 }
@@ -171,10 +187,10 @@ static void generate(std::ofstream &file) {
 int main(int argc, const char * argv[]) {
     
     bool inside_node = false;
-    std::string line = "", token = "";
+    std::string line = "";
     
     std::ifstream grammar {input_grammar_filepath};
-    process_nodes(grammar, inside_node, line, token);
+    process_nodes(grammar, inside_node, line);
     grammar.close();
     
     find_optionals();
