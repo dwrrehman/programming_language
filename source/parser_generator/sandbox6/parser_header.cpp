@@ -67,7 +67,7 @@ level++;                                                        \
 #define params            std::vector<struct token> tokens, node &parent
 #define p                 tokens, self
 
-#define optional() level--; stack_trace.pop_back(); return begin(save, self);
+#define optional()        level--; stack_trace.pop_back(); return begin(save, self);
 
 #define operator_(op)     terminal(operator_type, op, p)
 #define keyword_(kw)      terminal(keyword_type, kw, p)
@@ -75,13 +75,14 @@ level++;                                                        \
 #define b                 begin(save, self)
 
 static bool begin(int save, node &self) {
-    if (level > deepest_level) {
+    if (level >= deepest_level) {
         deepest_level = level;
         deepest_node = self;
         deepest_stack_trace = stack_trace;
     }
-    if (deepest_pointer < pointer)
+    if (deepest_pointer <= pointer)
         deepest_pointer = pointer;
+    
     pointer = save;
     self.children.clear();
     return true;
@@ -101,24 +102,24 @@ static bool success(node &parent, const node &self) {
 }
 static bool push_terminal(node &parent, std::vector<struct token> &tokens) {
     parent.children.push_back(node("terminal", tokens[pointer++], {}, true));
-    if (level > deepest_level) {
+    if (level >= deepest_level) {
         deepest_level = level;
         deepest_node = parent;
         deepest_stack_trace = stack_trace;
     }
-    if (deepest_pointer < pointer)
+    if (deepest_pointer <= pointer)
         deepest_pointer = pointer;
     
     return true;
 }
 
 static bool terminal(enum token_type desired_token_type, std::string desired_token_value, params) {
-    if (level > deepest_level) {
+    if (level >= deepest_level) {
         deepest_level = level;
         deepest_node = parent;
         deepest_stack_trace = stack_trace;
     }
-    if (deepest_pointer < pointer)
+    if (deepest_pointer <= pointer)
         deepest_pointer = pointer;
     
     if (pointer >= tokens.size()) return false;
@@ -154,3 +155,4 @@ bool newlines(params);
 bool documentation(params);
 
 bool terminated_statement(params);
+

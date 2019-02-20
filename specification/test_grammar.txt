@@ -1,7 +1,5 @@
 
 
 program
-    = using identifier string number
-    | using string identifier
-    | for number { }
-
+    = newlines using identifier newlines
+    | newlines for identifier string number using { identifier identifier } newlines

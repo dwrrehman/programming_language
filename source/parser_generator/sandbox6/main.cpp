@@ -161,9 +161,7 @@ static void generate(std::ofstream &file) {
     file << "\n\n\n//EBNF Parse Nodes:\n\n";
     for (auto n : nodes) {
         file << "bool " << n.name << "(params) {\n\tdeclare_node();\n\t";
-        if (n.name == "declaration") {
-            file << "deepest_level = 0;\n\t";
-        }
+        
         for (auto r : n.rules) {
             if (r.elements.size() == 1 && r.elements[0].value == "E") continue;
             file << "if (b && ";

@@ -70,9 +70,9 @@ bool documentation(params) {
 
 bool terminated_statement(params) {
     declare_node();
-    if (b && statement(p) && tokens[pointer+1].type == operator_type && (tokens[pointer+1].value == "}")) return success(parent, self);
-    if (b && statement(p) && required_newlines(p)) return success(parent, self);
-    if (b && statement(p) && operator_(";")) return success(parent, self);
+    //if (b && statement(p) && tokens[pointer+1].type == operator_type && (tokens[pointer+1].value == "}")) return success(parent, self);
+    //if (b && statement(p) && required_newlines(p)) return success(parent, self);
+    //if (b && statement(p) && operator_(";")) return success(parent, self);
     return failure(save, self);
 }
 
@@ -101,10 +101,9 @@ node parse(std::string text, std::vector<struct token> tokens, bool &error) {
     } else {
         std::cout << "\n\n\n\t\tPARSE FAILURE.\n\n\n\n" << std::endl;
         
-        std::cout << "Expected a \"" << deepest_node.name << "\", Found a \"" << tokens[deepest_pointer - 1].value;
-        std::cout << "\", of type: " << convert_token_type_representation(tokens[deepest_pointer - 1].type) << std::endl << std::endl;
+        std::cout << "[filename]:" << tokens[deepest_pointer].line << ":" << tokens[deepest_pointer].column << ": Expected a \"" << deepest_node.name << "\", Found a " << convert_token_type_representation(tokens[deepest_pointer].type) << ", \"" << tokens[deepest_pointer].value << "\"" << std::endl << std::endl;
         
-        auto & t = tokens[deepest_pointer - 1];
+        auto & t = tokens[deepest_pointer];
         std::vector<int> offsets = {-2, -1, 0, 1, 2};
         std::string line = "";
         std::istringstream s {text};
@@ -129,7 +128,7 @@ node parse(std::string text, std::vector<struct token> tokens, bool &error) {
             }
         }
         
-        std::cout << std::endl;
+        std::cout << std::endl << std::endl;
         error = true;
     }
     

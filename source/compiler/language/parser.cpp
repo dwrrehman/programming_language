@@ -67,7 +67,7 @@ level++;                                                        \
 #define params            std::vector<struct token> tokens, node &parent
 #define p                 tokens, self
 
-#define optional() level--; stack_trace.pop_back(); return begin(save, self);
+#define optional()        level--; stack_trace.pop_back(); return begin(save, self);
 
 #define operator_(op)     terminal(operator_type, op, p)
 #define keyword_(kw)      terminal(keyword_type, kw, p)
@@ -75,13 +75,14 @@ level++;                                                        \
 #define b                 begin(save, self)
 
 static bool begin(int save, node &self) {
-    if (level > deepest_level) {
+    if (level >= deepest_level) {
         deepest_level = level;
         deepest_node = self;
         deepest_stack_trace = stack_trace;
     }
-    if (deepest_pointer < pointer)
-    deepest_pointer = pointer;
+    if (deepest_pointer <= pointer)
+        deepest_pointer = pointer;
+    
     pointer = save;
     self.children.clear();
     return true;
@@ -101,25 +102,25 @@ static bool success(node &parent, const node &self) {
 }
 static bool push_terminal(node &parent, std::vector<struct token> &tokens) {
     parent.children.push_back(node("terminal", tokens[pointer++], {}, true));
-    if (level > deepest_level) {
+    if (level >= deepest_level) {
         deepest_level = level;
         deepest_node = parent;
         deepest_stack_trace = stack_trace;
     }
-    if (deepest_pointer < pointer)
-    deepest_pointer = pointer;
+    if (deepest_pointer <= pointer)
+        deepest_pointer = pointer;
     
     return true;
 }
 
 static bool terminal(enum token_type desired_token_type, std::string desired_token_value, params) {
-    if (level > deepest_level) {
+    if (level >= deepest_level) {
         deepest_level = level;
         deepest_node = parent;
         deepest_stack_trace = stack_trace;
     }
-    if (deepest_pointer < pointer)
-    deepest_pointer = pointer;
+    if (deepest_pointer <= pointer)
+        deepest_pointer = pointer;
     
     if (pointer >= tokens.size()) return false;
     if (desired_token_type == identifier_type && tokens[pointer].type == identifier_type) return push_terminal(parent, tokens);
@@ -156,6 +157,7 @@ bool documentation(params);
 bool terminated_statement(params);
 
 
+
 //this is a automatically generated parser in cpp, for my language.
 
 
@@ -168,9 +170,7 @@ bool program(params);
 
 bool program(params) {
     declare_node();
-    if (b && keyword_("using") && identifier(p) && string(p) && number(p)) return success(parent, self);
-    if (b && keyword_("using") && string(p) && identifier(p)) return success(parent, self);
-    if (b && keyword_("for") && number(p) && operator_("{") && operator_("}")) return success(parent, self);
+    if (b && newlines(p) && keyword_("using") && identifier(p) && string(p) && newlines(p)) return success(parent, self);
     return failure(save, self);
 }
 
@@ -220,7 +220,7 @@ bool kind_free_identifier(params){
 bool qualifier(params) {
     declare_node();
     for (auto qualifier : qualifiers)
-    if (b && keyword_(qualifier)) return success(parent, self);
+        if (b && keyword_(qualifier)) return success(parent, self);
     return failure(save, self);
 }
 
@@ -277,7 +277,7 @@ node parse(std::string text, std::vector<struct token> tokens, bool &error) {
     } else {
         std::cout << "\n\n\n\t\tPARSE FAILURE.\n\n\n\n" << std::endl;
         
-        std::cout << "FILENAME:" << tokens[deepest_pointer].line << ":" << tokens[deepest_pointer].column << ": Expected a \"" << deepest_node.name << "\", Found a " << convert_token_type_representation(tokens[deepest_pointer].type) << ", \"" << tokens[deepest_pointer].value << "\"" << std::endl << std::endl;
+        std::cout << "[filename]:" << tokens[deepest_pointer].line << ":" << tokens[deepest_pointer].column << ": Expected \"" << deepest_node.name << "\", Found a " << convert_token_type_representation(tokens[deepest_pointer].type) << ", \"" << tokens[deepest_pointer].value << "\"" << std::endl << std::endl;
         
         auto & t = tokens[deepest_pointer];
         std::vector<int> offsets = {-2, -1, 0, 1, 2};
@@ -304,7 +304,7 @@ node parse(std::string text, std::vector<struct token> tokens, bool &error) {
             }
         }
         
-        std::cout << std::endl;
+        std::cout << std::endl << std::endl;
         error = true;
     }
     
