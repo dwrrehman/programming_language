@@ -25,6 +25,7 @@
 
 /* Begin PBXFileReference section */
 		FD01760B221CDAD300E5D442 /* parser_footer.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = parser_footer.cpp; sourceTree = "<group>"; };
+		FD017611221D145A00E5D442 /* parser.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = parser.cpp; sourceTree = "<group>"; };
 		FD98924B2218C974002E33FB /* sandbox6 */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = sandbox6; sourceTree = BUILT_PRODUCTS_DIR; };
 		FD98924E2218C974002E33FB /* main.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = main.cpp; sourceTree = "<group>"; };
 		FD98925C2218E28D002E33FB /* parser_header.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = parser_header.cpp; sourceTree = "<group>"; };
@@ -65,6 +66,7 @@
 				FD98924E2218C974002E33FB /* main.cpp */,
 				FD98925C2218E28D002E33FB /* parser_header.cpp */,
 				FD01760B221CDAD300E5D442 /* parser_footer.cpp */,
+				FD017611221D145A00E5D442 /* parser.cpp */,
 				FD98925F221912F2002E33FB /* lists.cpp */,
 				FD98925E221912F2002E33FB /* lists.hpp */,
 			);

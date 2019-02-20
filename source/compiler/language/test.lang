@@ -1,13 +1,2 @@
 
-using filename
-
-adsf
-
-:: hellp ther
-(add x) {
-    return x + 5
-}
-
-(main) {
-    add 6
-}
+using filename := int

@@ -93,9 +93,9 @@ interface_declaration
     | enum_interface_declaration
     | variable_interface_declaration
     | kind_interface_declaration
+    | using_type_assignment_statement
     | using_statement
     | import_statement
-    | using_type_assignment_statement
 
 
 implementation_declaration
@@ -105,9 +105,9 @@ implementation_declaration
     | enum_implementation_declaration
     | variable_implementation_declaration
     | kind_implementation_declaration
+    | type_assignment_statement
     | using_statement
     | import_statement
-    | type_assignment_statement
 
 
 
@@ -481,9 +481,11 @@ symbol
     | number
     | string
     | identifier
- 
+
 
 expression_list
     = expression , expression_list
     | expression
     | E
+
+

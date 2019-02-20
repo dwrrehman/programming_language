@@ -14,6 +14,8 @@
 #include "lexer.hpp"
 #include "lists.hpp"
 
+#include "color.h"
+
 #define prep(_level) for (int i = _level; i--;) std::cout << ".   "
 
 void print_node(node &self, int level) {
@@ -22,7 +24,7 @@ void print_node(node &self, int level) {
         prep(level); std::cout << "type = " << convert_token_type_representation(self.data.type) << std::endl;
     }
     if (self.data.value != "") {
-        prep(level); std::cout << "value = " << self.data.value << std::endl;
+        prep(level); std::cout << "value = " << (self.data.value == "\n" ? "\\n" : self.data.value) << std::endl;
     }
     int i = 0;
     for (auto childnode : self.children) {

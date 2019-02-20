@@ -16,13 +16,12 @@
 
 #include "lists.hpp"
 
-
 // parameters:
 
 const std::string main_directory = "/Users/deniylreimn/Documents/projects/programming language/";
 
 const std::string input_grammar_filepath = main_directory + "specification/ebnf grammar for my programming language full.txt";
-const std::string output_cpp_filepath = main_directory + "source/compiler/language/parser.cpp";
+const std::string output_cpp_filepath = main_directory + "source/parser_generator/sandbox6/parser.cpp";
 const std::string input_header_filepath = main_directory + "source/parser_generator/sandbox6/parser_header.cpp";
 const std::string input_footer_filepath = main_directory + "source/parser_generator/sandbox6/parser_footer.cpp";
 

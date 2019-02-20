@@ -5,6 +5,7 @@
 //  Created by Daniel Rehman on 1901126.
 //  Copyright © 2019 Daniel Rehman. All rights reserved.
 //
+
 #include <sstream>
 #include <iostream>
 #include <vector>
@@ -23,7 +24,7 @@ void print_node(node &self, int level) {
         prep(level); std::cout << "type = " << convert_token_type_representation(self.data.type) << std::endl;
     }
     if (self.data.value != "") {
-        prep(level); std::cout << "value = " << (self.data.value == "\n" ? "\\n" : self.data.value) << std::endl;
+        prep(level); std::cout << "value = " << self.data.value << std::endl;
     }
     int i = 0;
     for (auto childnode : self.children) {
@@ -1029,6 +1030,7 @@ node parse(std::string text, std::vector<struct token> tokens, bool &error) {
     } else {
         std::cout << "\n\n\n\t\tPARSE FAILURE.\n\n\n\n" << std::endl;
         
+        
         std::cout << "Expected a \"" << deepest_node.name << "\", Found a \"" << tokens[deepest_pointer - 1].value;
         std::cout << "\", of type: " << convert_token_type_representation(tokens[deepest_pointer - 1].type) << std::endl << std::endl;
         
@@ -1052,7 +1054,7 @@ node parse(std::string text, std::vector<struct token> tokens, bool &error) {
                 std::cout << "\t";
                 for (int i = 0; i < t.column + 5; i++) std::cout << " ";
                 std::cout << BRIGHT_RED << "^";
-                if (t.value.size() > 1) for (int i = 0; i < t.value.size() - 1; i++) std::cout << "~";
+                if (t.value.size() > 1) for (int i = 0; i < t.value.size(); i++) std::cout << "~";
                 std::cout << RESET << std::endl;
             }
         }
