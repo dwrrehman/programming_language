@@ -12,11 +12,38 @@
 
 
 
+
+
+
+
+
+
+
+
+
+- todo: 
+- lets start alittle bit more simpler. 
+- lets make a new grammar, and keep this one for later, and then debug a smaller grammar.
+
+
+
+
+
+
+
+
+
+
+
 ------------------------ declaration lists ---------------------------
 
 
-- for now, we will just let a program be:
+- i think how we have to deal with multiple files, 
+- is to have the parser be run multiple times, 
+- for each file, and then have multiple AST's which 
+- are given to the llvm ir emittter, whihc in turn will link everythign together (hopefully.)
 
+- for now, we will just let a program be:
 
 program
     = translation_unit
@@ -187,17 +214,6 @@ filename
 
 
 
-
-
-
-
-
-
-
-
-
-
-
 ------------------ implementation declarations ------------------------
 
 
@@ -245,11 +261,11 @@ kind_signature
 
 
 function_call_signature
-    = ( function_parameter_list )
+    = ( parameter_list )
 
 
 type_call_signature
-    = { type_parameter_list }
+    = { parameter_list }
 
 
 kind_call_signature
@@ -280,47 +296,19 @@ return_type
 
 
 
+-------------------- function and type parameters  ----------------------
 
--------------------- function parameters  ----------------------
-
-function_parameter_list
-    = function_parameter function_parameter_list
+parameter_list
+    = parameter parameter_list
     | E
 
-function_parameter
-    = required_function_parameter
-    | ( optional_function_parameter_list )
+parameter
+    = ( optional_parameter_list )
+    | required_parameter
 
-required_function_parameter
-    = parameter
-    | function_identifier
-
-optional_function_parameter_list
-    = required_function_parameter optional_function_parameter_list
+optional_parameter_list
+    = optional_parameter optional_parameter_list
     | E
-
-
-
-------------------------- type parameters --------------------
-
-
-
-type_parameter_list
-    = type_parameter type_parameter_list
-    | E
-
-type_parameter
-    = required_type_parameter
-    | ( optional_type_parameter_list )
-
-required_type_parameter
-    = parameter
-    | type_identifier
-
-optional_type_parameter_list
-    = required_type_parameter optional_type_parameter_list
-    | E
-
 
 
 ------------------------ kind parameters --------------------
@@ -331,39 +319,34 @@ kind_parameter_list
     | E
 
 kind_parameter
-    = required_kind_parameter
-    | ( optional_kind_parameter_list )
+    = ( optional_kind_parameter_list )
+    | required_kind_parameter
 
 required_kind_parameter
-    = parameter
-    | kind_identifier
+    = identifier : type_expression
+    | kind_free_identifier
+
+optional_kind_parameter
+    = identifier : type_expression = expression
+    | identifier = expression
+    | kind_free_identifier
 
 optional_kind_parameter_list
-    = required_kind_parameter optional_kind_parameter_list
-    | E
+    = optional_kind_parameter optional_kind_parameter_list
+    | optional_kind_parameter
 
 
 
 
 ------------ general parameter items ------------------------
 
-parameter
+required_parameter
+    = identifier : type_expression
+    | free_identifier
+
+optional_parameter
     = identifier : type_expression = expression
-    | identifier : type_expression
     | identifier = expression
-
-
-function_identifier
-    = free_identifier
-    | identifier
-
-type_identifier
-    = type_free_identifier
-    | identifier
-
-kind_identifier
-    = kind_free_identifier
-    | identifier
 
 
 ---------------------------------- statements -------------------------------------
@@ -400,9 +383,10 @@ statement
     | type_assignment_statement
     | assignment_statement
     | block
-    | expression
     | using_statement
     | import_statement
+    | expression
+
 
 
 
@@ -467,7 +451,8 @@ expression
     = free_identifier_or_symbol_list
 
 type_expression
-    = expression
+    = ( expression ) 
+    | free_identifier
 
 free_identifier_or_symbol_list
     = free_identifier free_identifier_or_symbol_list

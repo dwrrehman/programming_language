@@ -30,17 +30,6 @@ bool free_identifier(params){
     return failure(save, self);
 }
 
-bool type_free_identifier(params){
-    declare_node();
-    if (begin(save, self) && terminal(identifier_type, "", p)) return success(parent, self);
-    for (auto keyword : overridable_keywords) {
-        if (keyword == "{" || keyword == "}") continue;
-        if (b && terminal(keyword_type, keyword, p)) return success(parent, self);
-        if (b && terminal(operator_type, keyword, p)) return success(parent, self);
-    }
-    return failure(save, self);
-}
-
 bool kind_free_identifier(params){
     declare_node();
     if (begin(save, self) && terminal(identifier_type, "", p)) return success(parent, self);

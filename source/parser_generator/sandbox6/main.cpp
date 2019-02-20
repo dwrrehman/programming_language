@@ -161,8 +161,10 @@ static void generate(std::ofstream &file) {
     file << "\n\n\n//EBNF Parse Nodes:\n\n";
     for (auto n : nodes) {
         file << "bool " << n.name << "(params) {\n\tdeclare_node();\n\t";
+        if (n.name == "declaration") {
+            file << "deepest_level = 0;\n\t";
+        }
         for (auto r : n.rules) {
-            
             if (r.elements.size() == 1 && r.elements[0].value == "E") continue;
             file << "if (b && ";
             
@@ -184,14 +186,7 @@ static void generate(std::ofstream &file) {
 }
 
 int main(int argc, const char * argv[]) {
-    
-    std::string s = "";
-    
-    std::cout << "stop! did you save the current parser yet? ";
-    std::cin >> s;
-    if (s != "yes") {
-        exit(0);
-    }
+
     
     bool inside_node = false;
     std::string line = "";
