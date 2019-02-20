@@ -24,7 +24,7 @@ const std::string main_directory = "/Users/deniylreimn/Documents/projects/progra
 const std::string input_grammar_filepath = main_directory + "specification/ebnf grammar for my programming language full.txt";
 const std::string output_cpp_filepath = main_directory + "source/parser_generator/sandbox6/parser.cpp";
 const std::string input_header_filepath = main_directory + "source/parser_generator/sandbox6/parser_header.cpp";
-
+const std::string input_footer_filepath = main_directory + "source/parser_generator/sandbox6/parser_footer.cpp";
 
 // data structures:
 
@@ -196,12 +196,18 @@ int main(int argc, const char * argv[]) {
     find_optionals();
     print_all_nodes();
     
-    std::ifstream header {input_header_filepath};
     std::ofstream cppfile {output_cpp_filepath, std::ofstream::trunc};
+    
+    std::ifstream header {input_header_filepath};
     while (std::getline(header, line)) cppfile << line << std::endl;
     header.close();
     
     generate(cppfile);
+    
+    std::ifstream footer {input_footer_filepath};
+    while (std::getline(footer, line)) cppfile << line << std::endl;
+    footer.close();
+
     cppfile.close();
     
     return 0;
