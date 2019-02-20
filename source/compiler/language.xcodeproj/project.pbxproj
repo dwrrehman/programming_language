@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		FD01760F221CF76900E5D442 /* error.cpp in Sources */ = {isa = PBXBuildFile; fileRef = FD01760D221CF76800E5D442 /* error.cpp */; };
 		FD02050421E7F3C3009C332B /* main.cpp in Sources */ = {isa = PBXBuildFile; fileRef = FD02050321E7F3C3009C332B /* main.cpp */; };
 		FD02050E21E7F59C009C332B /* compiler.cpp in Sources */ = {isa = PBXBuildFile; fileRef = FD02050C21E7F59C009C332B /* compiler.cpp */; };
 		FD1DAC4C2203A32F0014F55E /* analysis.cpp in Sources */ = {isa = PBXBuildFile; fileRef = FD1DAC4A2203A32F0014F55E /* analysis.cpp */; };
@@ -30,6 +31,9 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		FD01760D221CF76800E5D442 /* error.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = error.cpp; sourceTree = "<group>"; };
+		FD01760E221CF76900E5D442 /* error.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = error.hpp; sourceTree = "<group>"; };
+		FD017610221CFD8300E5D442 /* color.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = color.h; sourceTree = "<group>"; };
 		FD02050021E7F3C3009C332B /* language */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = language; sourceTree = BUILT_PRODUCTS_DIR; };
 		FD02050321E7F3C3009C332B /* main.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = main.cpp; sourceTree = "<group>"; };
 		FD02050B21E7F47E009C332B /* test.lang */ = {isa = PBXFileReference; lastKnownFileType = text; path = test.lang; sourceTree = "<group>"; };
@@ -92,6 +96,9 @@
 				FDBFA1FE220EF2FB00CFB007 /* expressions.hpp */,
 				FD1DAC4A2203A32F0014F55E /* analysis.cpp */,
 				FD1DAC4B2203A32F0014F55E /* analysis.hpp */,
+				FD01760D221CF76800E5D442 /* error.cpp */,
+				FD01760E221CF76900E5D442 /* error.hpp */,
+				FD017610221CFD8300E5D442 /* color.h */,
 				FD36010521EB288E005FE844 /* lists.cpp */,
 				FD36010621EB288E005FE844 /* lists.hpp */,
 				FD02050B21E7F47E009C332B /* test.lang */,
@@ -160,6 +167,7 @@
 				FD02050E21E7F59C009C332B /* compiler.cpp in Sources */,
 				FDBFA1FF220EF2FB00CFB007 /* expressions.cpp in Sources */,
 				FD02050421E7F3C3009C332B /* main.cpp in Sources */,
+				FD01760F221CF76900E5D442 /* error.cpp in Sources */,
 				FD36010121EAFE57005FE844 /* lexer.cpp in Sources */,
 				FD3600FE21EAFE4C005FE844 /* preprocessor.cpp in Sources */,
 				FD36010721EB288E005FE844 /* lists.cpp in Sources */,

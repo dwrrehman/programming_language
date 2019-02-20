@@ -6,6 +6,7 @@
 //  Copyright © 2019 Daniel Rehman. All rights reserved.
 //
 
+#include <sstream>
 #include <iostream>
 #include <vector>
 
@@ -126,3 +127,28 @@ static bool terminal(enum token_type desired_token_type, std::string desired_tok
     if (desired_token_type == tokens[pointer].type && desired_token_value == tokens[pointer].value) return push_terminal(parent, tokens);
     return false;
 }
+
+
+/// Hand made EBNF nodes interfaces:
+
+bool identifier(params);
+
+bool number(params);
+
+bool string(params);
+
+bool free_identifier(params);
+
+bool type_free_identifier(params);
+
+bool kind_free_identifier(params);
+
+bool qualifier(params);
+
+bool required_newlines(params);
+
+bool newlines(params);
+
+bool documentation(params);
+
+bool terminated_statement(params);

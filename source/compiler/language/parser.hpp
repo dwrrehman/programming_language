@@ -111,7 +111,7 @@ public:
     parse_error(){}
 };
 
-node parse(std::vector<struct token> tokens, bool &error);
+node parse(std::string text, std::vector<struct token> tokens, bool &error);
 void print_node(node &node, int level);
 
 #endif /* parser_hpp */

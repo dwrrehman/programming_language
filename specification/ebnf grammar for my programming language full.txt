@@ -21,6 +21,8 @@
 program
     = translation_unit
 
+
+
 translation_unit
     = declaration_list
     | newlines
@@ -55,8 +57,8 @@ enum_interface_declaration_block
     = { enum_identifier_list }
 
 enum_identifier_list
-    = identifier required_newlines enum_identifier_list
-    | identifier , newlines enum_identifier_list
+    = newlines identifier required_newlines enum_identifier_list
+    | newlines identifier , newlines enum_identifier_list
     | E
 
 
@@ -64,8 +66,8 @@ enum_implementation_declaration_block
     = { enum_assignment_list }
 
 enum_assignment_list
-    = enum_assignment required_newlines enum_assignment_list
-    | enum_assignment , newlines enum_assignment_list
+    = newlines enum_assignment required_newlines enum_assignment_list
+    | newlines enum_assignment , newlines enum_assignment_list
     | E
 
 enum_assignment
@@ -91,6 +93,9 @@ interface_declaration
     | enum_interface_declaration
     | variable_interface_declaration
     | kind_interface_declaration
+    | using_statement
+    | import_statement
+    | using_type_assignment_statement
 
 
 implementation_declaration
@@ -100,6 +105,9 @@ implementation_declaration
     | enum_implementation_declaration
     | variable_implementation_declaration
     | kind_implementation_declaration
+    | using_statement
+    | import_statement
+    | type_assignment_statement
 
 
 
@@ -110,8 +118,7 @@ function_interface_declaration
     = documentation function_signature
 
 variable_interface_declaration
-    = documentation assignment_declaration_statement
-
+    = documentation identifier : type_expression
 
 
 type_interface_declaration
@@ -121,13 +128,70 @@ kind_interface_declaration
     = documentation kind_signature
 
 
-
 space_interface_declaration
-    = documentation identifier declaration_block
+    = documentation identifier interface_declaration_block
 
 enum_interface_declaration
     = documentation identifier : type_expression enum_interface_declaration_block
     | documentation identifier : enum_interface_declaration_block
+
+
+
+
+
+----------------------- using decls ----------------------
+
+
+
+
+using_type_assignment_statement
+    = using type_assignment_statement
+
+
+import_statement
+    = import module_list
+
+using_statement
+    = using used_list from module
+    | using module_list
+
+
+used_list
+    = used_element , used_list 
+    | used_element
+
+
+used_element
+    = function_call_signature
+    | type_call_signature 
+    | kind_call_signature 
+    | identifier
+
+module_list
+    = module , module_list
+    | module
+
+module
+    = identifier filename_list 
+    | filename_list
+    | identifier
+
+filename_list
+    = filename filename_list 
+    | filename
+
+filename
+    = . identifier
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -173,7 +237,7 @@ function_signature
 
 
 type_signature
-    = type_call_signature parent_type kind_call_signature precedence qualfier_list
+    = type_call_signature parent_type kind_call_signature precedence qualifier_list
 
 
 kind_signature
@@ -184,15 +248,17 @@ function_call_signature
     = ( function_parameter_list )
 
 
-
 type_call_signature
     = { type_parameter_list }
-
 
 
 kind_call_signature
     = [ kind_parameter_list ]
 
+
+parent_type
+    = : type_expression
+    | E
 
 
 precedence
@@ -227,10 +293,10 @@ function_parameter
 
 required_function_parameter
     = parameter
-    | function_free_identifier
+    | function_identifier
 
 optional_function_parameter_list
-    = required_function_parameter optional_functional_parameter_list
+    = required_function_parameter optional_function_parameter_list
     | E
 
 
@@ -249,12 +315,11 @@ type_parameter
 
 required_type_parameter
     = parameter
-    | type_free_identifier
+    | type_identifier
 
 optional_type_parameter_list
     = required_type_parameter optional_type_parameter_list
     | E
-
 
 
 
@@ -271,7 +336,7 @@ kind_parameter
 
 required_kind_parameter
     = parameter
-    | kind_free_identifier
+    | kind_identifier
 
 optional_kind_parameter_list
     = required_kind_parameter optional_kind_parameter_list
@@ -288,18 +353,17 @@ parameter
     | identifier = expression
 
 
-function_free_identifier
-    = overridable_keyword
+function_identifier
+    = free_identifier
     | identifier
 
-type_free_identifier
-    = overridable_keyword not { }
+type_identifier
+    = type_free_identifier
     | identifier
 
-kind_free_identifier
-    = overridable_keyword not [ ]
+kind_identifier
+    = kind_free_identifier
     | identifier
-
 
 
 ---------------------------------- statements -------------------------------------
@@ -315,6 +379,11 @@ implementation_declaration_or_statement_list
 block
     = { statement_list }
 
+code
+    = block
+    | , newlines statement
+    | required_newlines statement
+
 
 statement_list
     = newlines terminated_statement statement_list
@@ -322,70 +391,65 @@ statement_list
     | E
 
 
-terminated_statement
-    = statement nextis endcurlybrace
-    | statement required_newlines
-    | statement ;
-
 statement
     = if_statement
     | while_statement
     | repeatwhile_statement
     | return_statement
     | for_statement
-    | assignment_declaration_statement
+    | type_assignment_statement
     | assignment_statement
     | block
     | expression
-
-
+    | using_statement
+    | import_statement
 
 
 
 --------------------------- specfic types of statements -------------------------------
 
-
-- todo: add a +=, -=, *=, etc statements!! (non decl assignment statement)
-
-
 assignment_statement
     = identifier : type_expression = expression
     | identifier = expression
+    | identifier + = expression
+    | identifier - = expression
+    | identifier * = expression
+    | identifier / = expression
+    | identifier % = expression
+    | identifier | = expression
+    | identifier & = expression
+    | identifier ^ = expression
+    | identifier ! = expression
+    | identifier ~ = expression
 
-assignment_declaration_statement
-    = identifier : type_expression
-
+type_assignment_statement
+    = identifier : = type_expression
 
 return_statement
     = return expression
     | return
 
-for_statement
-    = for identifier_list in expression block
-    | for identifier_list in expression , newlines statement
+identifier_list
+    = identifier , identifier_list
+    | identifier
 
+for_statement
+    = for identifier_list in expression code
 
 repeatwhile_statement
-    = repeat block while expression
-    | repeat statement while expression
+    = repeat code while expression
 
 while_statement
-    = while expression block
-    | while expression , newlines statement
+    = while expression code
 
-
+if_head_statement
+    = if expression code
 
 if_statement
     = if_head_statement else_if_statement_list else_statement
 
-if_head_statement
-    = if expression block
-    | if expression , newlines statement
-
 else_statement
-    = newlines else block
-    | newlines else , newlines statement
-    | newlines else newlines statement
+    = newlines else code
 
 else_if_statement_list
     = newlines else_if_statement else_if_statement_list
@@ -399,16 +463,16 @@ else_if_statement
 -------------------------------------------- expressions -------------------------------------
 
 
-
 expression
     = free_identifier_or_symbol_list
 
+type_expression
+    = expression
 
 free_identifier_or_symbol_list
     = free_identifier free_identifier_or_symbol_list
     | symbol free_identifier_or_symbol_list
     | E
-
 
 symbol
     = ( expression_list )
@@ -417,23 +481,9 @@ symbol
     | number
     | string
     | identifier
-
+ 
 
 expression_list
-    = expression expression_list
+    = expression , expression_list
+    | expression
     | E
-
-
-
-type_expression
-    = unimplemented
-
-
-type_expression_list
-    = type_expression , type_expression_list
-    | free_identifier , type_expression_list
-    | type_expression type_expression_list
-    | free_identifier type_expression_list
-
-
-

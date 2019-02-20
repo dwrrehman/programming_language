@@ -12,6 +12,7 @@
 #include "lists.hpp"
 #include "lexer.hpp"
 
+
 const char* convert_token_type_representation(enum token_type type) {
     switch (type) {
         case null_type: return "{null}";
@@ -111,6 +112,7 @@ void print_lex(const std::vector<struct token> &tokens) {
 }
 
 
+
 std::vector<struct token> lex(std::string text, bool &error) {
         
     sort_lists_by_decreasing_length();
@@ -121,6 +123,7 @@ std::vector<struct token> lex(std::string text, bool &error) {
     std::vector<bool> states = {false, false, false, false};
     std::vector<std::string> strings = {"", "", "", ""};
     size_t line = 1, column = 0;
+    size_t found_line = 1, found_column = 0;
     
     for (int c = 0; c < text_length; c++) {
         column++;
@@ -135,16 +138,24 @@ std::vector<struct token> lex(std::string text, bool &error) {
         } else if (recognize_state(identifier_state, first_char, true, is_leading_delimiting_identifier_char(first_char, second_char), states, strings, true, tokens, true, identifier_type, line, column)) {
             
             // delimiting:
-        } else if (recognize_state(number_state, first_char, false, is_delimiting_number_char(first_char, second_char), states, strings, true, tokens, true, number_type, line, column)) {
-        } else if (recognize_state(identifier_state, first_char, false, is_delimiting_identifier_char(first_char, second_char), states, strings, true, tokens, true, identifier_type, line, column)) {
-        } else if (recognize_state(string_state, first_char, false, first_char == '\"', states, strings, false, tokens, true, string_type, line, column)) {
-        } else if (recognize_state(documentation_state, first_char, false, first_char == '`', states, strings, false, tokens, true, documentation_type, line, column)) {
+        } else if (recognize_state(number_state, first_char, false, is_delimiting_number_char(first_char, second_char), states, strings, true, tokens, true, number_type, found_line, found_column)) {
+        } else if (recognize_state(identifier_state, first_char, false, is_delimiting_identifier_char(first_char, second_char), states, strings, true, tokens, true, identifier_type, found_line, found_column)) {
+        } else if (recognize_state(string_state, first_char, false, first_char == '\"', states, strings, false, tokens, true, string_type, found_line, found_column)) {
+        } else if (recognize_state(documentation_state, first_char, false, first_char == '`', states, strings, false, tokens, true, documentation_type, found_line, found_column)) {
             
             // leading:
         } else if (recognize_state(number_state, first_char, true, is_leading_number_char(first_char, second_char), states, strings, true, tokens)) {
+            found_line = line;
+            found_column = column;
         } else if (recognize_state(identifier_state, first_char, true, is_leading_identifier_char(first_char), states, strings, true, tokens)) {
+            found_line = line;
+            found_column = column;
         } else if (recognize_state(string_state, first_char, true, first_char == '\"', states, strings, false, tokens)) {
+            found_line = line;
+            found_column = column;
         } else if (recognize_state(documentation_state, first_char, true, first_char == '`', states, strings, false, tokens)) {
+            found_line = line;
+            found_column = column;
             
             // neither:
         } else if (recognize_state(number_state, first_char, false, is_number_char(first_char), states, strings, true, tokens)) {

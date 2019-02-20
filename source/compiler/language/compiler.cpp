@@ -27,13 +27,11 @@ std::string get_file(std::string filepath) {
 }
 
 void frontend(std::string text) {
-    auto p_error = false;
-    auto l_error = false;
-    auto t_error = false;
-    auto a_error = false;
+    bool p_error = false, l_error = false, t_error = false, a_error = false;
+    
     auto p = preprocess(text, p_error);
     auto l = lex(p, l_error);
-    auto t = parse(l, t_error);
+    auto t = parse(text, l, t_error);
     auto a = analyze(t, a_error);
     
     
