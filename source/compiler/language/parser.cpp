@@ -1046,8 +1046,9 @@ node parse(std::string text, std::vector<struct token> tokens, bool &error) {
             if ((int) t.line - 1 + offset >= 0 && (int) t.line - 1 + offset < lines.size()) {
                 index = t.line - 1 + offset;
             } else continue;
-            std::cout << "\t" << t.line << "  |  " << line[index] << std::endl;
+            std::cout << "\t" << t.line + offset << "  |  " << lines[index] << std::endl;
             if (!offset) {
+                std::cout << "\t";
                 for (int i = 0; i < t.column + 5; i++) {
                     std::cout << " ";
                 }
