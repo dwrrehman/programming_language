@@ -902,7 +902,7 @@ bool symbol(params) {
 	if (b && operator_("{") && expression_list(p) && operator_("}")) return success(parent, self);
 	if (b && number(p)) return success(parent, self);
 	if (b && string(p)) return success(parent, self);
-	if (b && identifier(p) && (p)) return success(parent, self);
+	if (b && identifier(p)) return success(parent, self);
 	return failure(save, self);
 }
 
@@ -1034,6 +1034,7 @@ node parse(std::string text, std::vector<struct token> tokens, bool &error) {
         std::cout << "Expected a \"" << deepest_node.name << "\", Found a \"" << tokens[deepest_pointer - 1].value;
         std::cout << "\", of type: " << convert_token_type_representation(tokens[deepest_pointer - 1].type) << std::endl << std::endl;
         
+        auto & t = tokens[deepest_pointer - 1];
         std::vector<int> offsets = {-2, -1, 0, 1, 2};
         std::string line = "";
         std::istringstream s {text};
@@ -1041,14 +1042,24 @@ node parse(std::string text, std::vector<struct token> tokens, bool &error) {
         while (std::getline(s, line)) lines.push_back(line);
         
         for (auto offset : offsets) {
-            
-        }
-        
-        std::cout << "\n\n\n\n";
-        std::cout << "current level: " << level << "\n";
-        std::cout << "last error: on level " << deepest_level << "\n";
-        print_node(deepest_node, 0);
-        
+            size_t index = 0;
+            if ((int) t.line - 1 + offset >= 0 && (int) t.line - 1 + offset < lines.size()) {
+                index = t.line - 1 + offset;
+            } else continue;
+            std::cout << "\t" << t.line << "  |  " << line[index] << std::endl;
+            if (!offset) {
+                for (int i = 0; i < t.column + 5; i++) {
+                    std::cout << " ";
+                }
+                std::cout << "^";
+                if (t.value.size() > 1) {
+                    for (int i = 0; i < t.value.size(); i++) {
+                        std::cout << "~";
+                    }
+                }
+                std::cout << std::endl;
+            }
+        }        
         error = true;
     }
     
