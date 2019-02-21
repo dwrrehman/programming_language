@@ -12,6 +12,6 @@
 #include <string>
 
 std::string get_file(std::string filepath);
-void frontend(std::string text);
+void frontend(std::string filename, std::string text);
 
 #endif /* compiler_hpp */

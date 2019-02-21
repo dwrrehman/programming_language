@@ -13,8 +13,7 @@
 #include "parser.hpp"
 #include "lexer.hpp"
 #include "lists.hpp"
-
-#include "color.h"
+#include "error.hpp"
 
 #define prep(_level) for (int i = _level; i--;) std::cout << ".   "
 

@@ -9,25 +9,17 @@
 #include "lists.hpp"
 
 std::vector<std::string> keywords = {
-    "null", "nothing", "anything",
-    "real", "int", "nat", "character", "const", "var", "complex",
-    "return", "import", "using", "use", "from", "in", "go", "to", "by", "where",
-    "break", "continue", "for", "while", "if", "else", "repeat",
-    "and", "not", "or", "xor",
-    "compiletime", "runtime", "pure", "impure", "inline", "noinline",
-    "public", "private", "constructor", "destructor", "on copy", "on move",
-    "main",
+    "return", "import", "using",
+    "break", "continue",
+    "runtime", "noinline",
+    "public", "private",
 };
 
 std::vector<std::string> overridable_keywords = {
-    "null", "nothing", "anything",
-    "real", "int", "nat", "character", "const", "var", "complex",
-    "return", "import", "using", "use", "from", "in", "go", "to", "by", "where",
-    "break", "continue", "for", "while", "if", "else", "repeat",
-    "and", "not", "or", "xor",
-    "compiletime", "runtime", "pure", "impure", "inline", "noinline",
-    "public", "private", "constructor", "destructor", "on copy", "on move",
-    "main",
+    "return", "import", "using",
+    "break", "continue",
+    "runtime", "noinline",
+    "public", "private",
     
     "+", "-", "*", "/", "<", ">",
     "^", "%", "!", "~", "&", ".",
@@ -35,12 +27,11 @@ std::vector<std::string> overridable_keywords = {
 };
 
 std::vector<std::string> qualifiers =  {
-    "compiletime", "runtime", "pure", "impure",
-    "public", "private", "constructor", "destructor", "on copy", "on move",
+    "compiletime", "runtime", "public", "private", "constructor", "destructor",
 };
 
 std::vector<std::string> builtin_types = {
-    "real", "int", "nat", "character", "nothing", "anything", "complex", "const", "var",
+    "i32", "i64"
 };
 
 std::vector<std::string> operators = {

@@ -1,5 +1,4 @@
 
-
 /// Hand made EBNF nodes:
 
 bool identifier(params){
@@ -76,60 +75,23 @@ bool terminated_statement(params) {
     return failure(save, self);
 }
 
-node parse(std::string text, std::vector<struct token> tokens, bool &error) {
+node parse(std::string filename, std::string text, std::vector<struct token> tokens, bool &error) {
+    
     print_lex(tokens);
     node tree = {};
-    bool parse_successful = false;
     
-    if (!program(tokens, tree) || pointer != tokens.size()) {
-        std::cout << "Error: parsing failed." << std::endl;
+    if (!program(tokens, tree) || pointer != tokens.size() || level) {
         
         int i = 0;
-        for (auto n : deepest_stack_trace) {
-            print_node(n, i++);
-        }
-        
-    } else parse_successful = true;
-    
-    print_parse(tree);
-    std::cout << "level = " << level << "\n";
-    
-    if (parse_successful && !level) {
-        std::cout << "------------------------------------------------" << std::endl;
-        std::cout << "\n\n\n\t\tsuccessfully parsed.\n\n\n" << std::endl;
-        std::cout << "------------------------------------------------" << std::endl;
-    } else {
-        std::cout << "\n\n\n\t\tPARSE FAILURE.\n\n\n\n" << std::endl;
-        
-        std::cout << "[filename]:" << tokens[deepest_pointer].line << ":" << tokens[deepest_pointer].column << ": Expected a \"" << deepest_node.name << "\", Found a " << convert_token_type_representation(tokens[deepest_pointer].type) << ", \"" << tokens[deepest_pointer].value << "\"" << std::endl << std::endl;
-        
-        auto & t = tokens[deepest_pointer];
-        std::vector<int> offsets = {-2, -1, 0, 1, 2};
-        std::string line = "";
-        std::istringstream s {text};
-        std::vector<std::string> lines = {};
-        while (std::getline(s, line)) lines.push_back(line);
-        
-        for (auto offset : offsets) {
-            
-            size_t index = 0;
-            if ((int) t.line - 1 + offset >= 0 && (int) t.line - 1 + offset < lines.size()) {
-                index = t.line - 1 + offset;
-            } else continue;
-            
-            std::cout << "\t" << GRAY << t.line + offset << RESET GREEN "  |  " RESET << lines[index] << std::endl;
-            
-            if (!offset) {
-                std::cout << "\t";
-                for (int i = 0; i < t.column + 5; i++) std::cout << " ";
-                std::cout << BRIGHT_RED << "^";
-                if (t.value.size() > 1) for (int i = 0; i < t.value.size() - 1; i++) std::cout << "~";
-                std::cout << RESET << std::endl;
-            }
-        }
-        
-        std::cout << std::endl << std::endl;
+        for (auto n : deepest_stack_trace) print_node(n, i++);
+        print_parse(tree);
+        print_parse_error(filename, tokens[deepest_pointer].line, tokens[deepest_pointer].column, deepest_node.name, tokens[deepest_pointer].type, tokens[deepest_pointer].value);
+        print_source_code(text, {tokens[deepest_pointer]});
         error = true;
+        
+    } else {
+        print_parse(tree);
+        std::cout << "\n\n\tsuccess.\n\n" << std::endl;
     }
     
     return tree;

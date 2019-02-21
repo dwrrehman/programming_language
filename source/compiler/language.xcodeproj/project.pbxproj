@@ -293,7 +293,21 @@
 			buildSettings = {
 				CODE_SIGN_STYLE = Automatic;
 				DEVELOPMENT_TEAM = JTMD2SW5KN;
+				HEADER_SEARCH_PATHS = "";
+				LIBRARY_SEARCH_PATHS = /usr/local/Cellar/llvm/7.0.0/lib;
+				OTHER_LDFLAGS = (
+					"-lz",
+					"-ltermcap",
+					"-lc++",
+					"-lLLVMCore",
+					"-lLLVMSupport",
+					"-lLLVMTransformUtils",
+					"-lLLVMBitReader",
+					"-lLLVMAnalysis",
+					"-lLLVMDemangle",
+				);
 				PRODUCT_NAME = "$(TARGET_NAME)";
+				USER_HEADER_SEARCH_PATHS = /usr/local/Cellar/llvm/7.0.0/include;
 			};
 			name = Debug;
 		};
@@ -302,7 +316,21 @@
 			buildSettings = {
 				CODE_SIGN_STYLE = Automatic;
 				DEVELOPMENT_TEAM = JTMD2SW5KN;
+				HEADER_SEARCH_PATHS = "";
+				LIBRARY_SEARCH_PATHS = /usr/local/Cellar/llvm/7.0.0/lib;
+				OTHER_LDFLAGS = (
+					"-lz",
+					"-ltermcap",
+					"-lc++",
+					"-lLLVMCore",
+					"-lLLVMSupport",
+					"-lLLVMTransformUtils",
+					"-lLLVMBitReader",
+					"-lLLVMAnalysis",
+					"-lLLVMDemangle",
+				);
 				PRODUCT_NAME = "$(TARGET_NAME)";
+				USER_HEADER_SEARCH_PATHS = /usr/local/Cellar/llvm/7.0.0/include;
 			};
 			name = Release;
 		};

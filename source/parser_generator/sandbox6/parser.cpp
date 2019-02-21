@@ -13,8 +13,7 @@
 #include "parser.hpp"
 #include "lexer.hpp"
 #include "lists.hpp"
-
-#include "color.h"
+#include "error.hpp"
 
 #define prep(_level) for (int i = _level; i--;) std::cout << ".   "
 
@@ -163,6 +162,130 @@ bool terminated_statement(params);
 
 bool program(params);
 
+bool translation_unit(params);
+
+bool declaration_list(params);
+
+bool interface_declaration_list(params);
+
+bool implementation_declaration_list(params);
+
+bool interface_declaration_block(params);
+
+bool implementation_declaration_block(params);
+
+bool declaration(params);
+
+bool interface_declaration(params);
+
+bool implementation_declaration(params);
+
+bool function_interface_declaration(params);
+
+bool variable_interface_declaration(params);
+
+bool type_interface_declaration(params);
+
+bool space_interface_declaration(params);
+
+bool enum_interface_declaration(params);
+
+bool using_type_assignment_statement(params);
+
+bool import_statement(params);
+
+bool using_statement(params);
+
+bool used_list(params);
+
+bool used_element(params);
+
+bool module_list(params);
+
+bool module(params);
+
+bool filename_list(params);
+
+bool filename(params);
+
+bool function_implementation_declaration(params);
+
+bool variable_implementation_declaration(params);
+
+bool type_implementation_declaration(params);
+
+bool kind_implementation_declaration(params);
+
+bool space_implementation_declaration(params);
+
+bool enum_implementation_declaration(params);
+
+bool function_signature(params);
+
+bool type_signature(params);
+
+bool kind_signature(params);
+
+bool function_call_signature(params);
+
+bool type_call_signature(params);
+
+bool kind_call_signature(params);
+
+bool parent_type(params);
+
+bool precedence(params);
+
+bool qualifier_list(params);
+
+bool return_type(params);
+
+bool parameter_list(params);
+
+bool parameter(params);
+
+bool optional_parameter_list(params);
+
+bool kind_parameter_list(params);
+
+bool kind_parameter(params);
+
+bool required_kind_parameter(params);
+
+bool optional_kind_parameter(params);
+
+bool optional_kind_parameter_list(params);
+
+bool required_parameter(params);
+
+bool optional_parameter(params);
+
+bool implementation_declaration_or_statement_list(params);
+
+bool block(params);
+
+bool code(params);
+
+bool statement_list(params);
+
+bool statement(params);
+
+bool assignment_statement(params);
+
+bool type_assignment_statement(params);
+
+bool return_statement(params);
+
+bool expression(params);
+
+bool type_expression(params);
+
+bool free_identifier_or_symbol_list(params);
+
+bool symbol(params);
+
+bool expression_list(params);
+
 
 
 
@@ -170,11 +293,447 @@ bool program(params);
 
 bool program(params) {
 	declare_node();
-	if (b && newlines(p) && keyword_("using") && identifier(p) && newlines(p)) return success(parent, self);
-	if (b && newlines(p) && keyword_("for") && identifier(p) && string(p) && number(p) && keyword_("using") && operator_("{") && identifier(p) && identifier(p) && operator_("}") && newlines(p)) return success(parent, self);
+	if (b && translation_unit(p)) return success(parent, self);
 	return failure(save, self);
 }
 
+bool translation_unit(params) {
+	declare_node();
+	if (b && declaration_list(p)) return success(parent, self);
+	if (b && newlines(p)) return success(parent, self);
+	return failure(save, self);
+}
+
+bool declaration_list(params) {
+	declare_node();
+	if (b && newlines(p) && declaration(p) && required_newlines(p) && declaration_list(p)) return success(parent, self);
+	optional();
+}
+
+bool interface_declaration_list(params) {
+	declare_node();
+	if (b && newlines(p) && interface_declaration(p) && required_newlines(p) && interface_declaration_list(p)) return success(parent, self);
+	optional();
+}
+
+bool implementation_declaration_list(params) {
+	declare_node();
+	if (b && newlines(p) && implementation_declaration(p) && required_newlines(p) && implementation_declaration_list(p)) return success(parent, self);
+	optional();
+}
+
+bool interface_declaration_block(params) {
+	declare_node();
+	if (b && operator_("{") && interface_declaration_list(p) && operator_("}")) return success(parent, self);
+	return failure(save, self);
+}
+
+bool implementation_declaration_block(params) {
+	declare_node();
+	if (b && operator_("{") && implementation_declaration_list(p) && operator_("}")) return success(parent, self);
+	return failure(save, self);
+}
+
+bool declaration(params) {
+	declare_node();
+	if (b && implementation_declaration(p)) return success(parent, self);
+	if (b && interface_declaration(p)) return success(parent, self);
+	return failure(save, self);
+}
+
+bool interface_declaration(params) {
+	declare_node();
+	if (b && function_interface_declaration(p)) return success(parent, self);
+	if (b && type_interface_declaration(p)) return success(parent, self);
+	if (b && space_interface_declaration(p)) return success(parent, self);
+	if (b && variable_interface_declaration(p)) return success(parent, self);
+	if (b && using_type_assignment_statement(p)) return success(parent, self);
+	if (b && using_statement(p)) return success(parent, self);
+	if (b && import_statement(p)) return success(parent, self);
+	return failure(save, self);
+}
+
+bool implementation_declaration(params) {
+	declare_node();
+	if (b && function_implementation_declaration(p)) return success(parent, self);
+	if (b && type_implementation_declaration(p)) return success(parent, self);
+	if (b && space_implementation_declaration(p)) return success(parent, self);
+	if (b && variable_implementation_declaration(p)) return success(parent, self);
+	if (b && type_assignment_statement(p)) return success(parent, self);
+	if (b && using_statement(p)) return success(parent, self);
+	if (b && import_statement(p)) return success(parent, self);
+	return failure(save, self);
+}
+
+bool function_interface_declaration(params) {
+	declare_node();
+	if (b && documentation(p) && function_signature(p)) return success(parent, self);
+	return failure(save, self);
+}
+
+bool variable_interface_declaration(params) {
+	declare_node();
+	if (b && documentation(p) && identifier(p) && operator_(":") && type_expression(p)) return success(parent, self);
+	return failure(save, self);
+}
+
+bool type_interface_declaration(params) {
+	declare_node();
+	if (b && documentation(p) && type_signature(p) && interface_declaration_block(p)) return success(parent, self);
+	return failure(save, self);
+}
+
+bool space_interface_declaration(params) {
+	declare_node();
+	if (b && documentation(p) && identifier(p) && interface_declaration_block(p)) return success(parent, self);
+	return failure(save, self);
+}
+
+bool enum_interface_declaration(params) {
+	declare_node();
+	if (b && documentation(p) && identifier(p) && operator_(":") && type_expression(p) && enum_interface_declaration_block(p)) return success(parent, self);
+	if (b && documentation(p) && identifier(p) && operator_(":") && enum_interface_declaration_block(p)) return success(parent, self);
+	return failure(save, self);
+}
+
+bool using_type_assignment_statement(params) {
+	declare_node();
+	if (b && keyword_("using") && type_assignment_statement(p)) return success(parent, self);
+	return failure(save, self);
+}
+
+bool import_statement(params) {
+	declare_node();
+	if (b && keyword_("import") && module_list(p)) return success(parent, self);
+	return failure(save, self);
+}
+
+bool using_statement(params) {
+	declare_node();
+	if (b && keyword_("using") && used_list(p) && from(p) && module(p)) return success(parent, self);
+	if (b && keyword_("using") && module_list(p)) return success(parent, self);
+	return failure(save, self);
+}
+
+bool used_list(params) {
+	declare_node();
+	if (b && used_element(p) && operator_(",") && used_list(p) && used_list(p)) return success(parent, self);
+	if (b && used_element(p)) return success(parent, self);
+	return failure(save, self);
+}
+
+bool used_element(params) {
+	declare_node();
+	if (b && function_call_signature(p)) return success(parent, self);
+	if (b && type_call_signature(p) && type_call_signature(p)) return success(parent, self);
+	if (b && kind_call_signature(p) && kind_call_signature(p)) return success(parent, self);
+	if (b && identifier(p)) return success(parent, self);
+	return failure(save, self);
+}
+
+bool module_list(params) {
+	declare_node();
+	if (b && module(p) && operator_(",") && module_list(p)) return success(parent, self);
+	if (b && module(p)) return success(parent, self);
+	return failure(save, self);
+}
+
+bool module(params) {
+	declare_node();
+	if (b && identifier(p) && filename_list(p) && filename_list(p)) return success(parent, self);
+	if (b && filename_list(p)) return success(parent, self);
+	if (b && identifier(p)) return success(parent, self);
+	return failure(save, self);
+}
+
+bool filename_list(params) {
+	declare_node();
+	if (b && filename(p) && filename_list(p) && filename_list(p)) return success(parent, self);
+	if (b && filename(p)) return success(parent, self);
+	return failure(save, self);
+}
+
+bool filename(params) {
+	declare_node();
+	if (b && operator_(".") && identifier(p)) return success(parent, self);
+	return failure(save, self);
+}
+
+bool function_implementation_declaration(params) {
+	declare_node();
+	if (b && function_signature(p) && block(p)) return success(parent, self);
+	return failure(save, self);
+}
+
+bool variable_implementation_declaration(params) {
+	declare_node();
+	if (b && assignment_statement(p)) return success(parent, self);
+	return failure(save, self);
+}
+
+bool type_implementation_declaration(params) {
+	declare_node();
+	if (b && type_signature(p) && implementation_declaration_block(p)) return success(parent, self);
+	return failure(save, self);
+}
+
+bool kind_implementation_declaration(params) {
+	declare_node();
+	if (b && kind_signature(p) && block(p)) return success(parent, self);
+	return failure(save, self);
+}
+
+bool space_implementation_declaration(params) {
+	declare_node();
+	if (b && identifier(p) && implementation_declaration_block(p)) return success(parent, self);
+	return failure(save, self);
+}
+
+bool enum_implementation_declaration(params) {
+	declare_node();
+	if (b && identifier(p) && operator_(":") && type_expression(p) && enum_implementation_declaration_block(p)) return success(parent, self);
+	if (b && identifier(p) && operator_(":") && enum_implementation_declaration_block(p)) return success(parent, self);
+	return failure(save, self);
+}
+
+bool function_signature(params) {
+	declare_node();
+	if (b && function_call_signature(p) && return_type(p) && kind_call_signature(p) && precedence(p) && qualifier_list(p)) return success(parent, self);
+	return failure(save, self);
+}
+
+bool type_signature(params) {
+	declare_node();
+	if (b && type_call_signature(p) && parent_type(p) && kind_call_signature(p) && precedence(p) && qualifier_list(p)) return success(parent, self);
+	return failure(save, self);
+}
+
+bool kind_signature(params) {
+	declare_node();
+	if (b && kind_call_signature(p) && return_type(p) && precedence(p) && qualifier_list(p)) return success(parent, self);
+	return failure(save, self);
+}
+
+bool function_call_signature(params) {
+	declare_node();
+	if (b && operator_("(") && parameter_list(p) && operator_(")")) return success(parent, self);
+	return failure(save, self);
+}
+
+bool type_call_signature(params) {
+	declare_node();
+	if (b && operator_("{") && parameter_list(p) && operator_("}")) return success(parent, self);
+	return failure(save, self);
+}
+
+bool kind_call_signature(params) {
+	declare_node();
+	if (b && operator_("[") && kind_parameter_list(p) && operator_("]")) return success(parent, self);
+	return failure(save, self);
+}
+
+bool parent_type(params) {
+	declare_node();
+	if (b && operator_(":") && type_expression(p)) return success(parent, self);
+	optional();
+}
+
+bool precedence(params) {
+	declare_node();
+	if (b && operator_("<") && function_call_signature(p) && operator_("+") && number(p) && operator_(">")) return success(parent, self);
+	if (b && operator_("<") && type_call_signature(p) && operator_("+") && number(p) && operator_(">")) return success(parent, self);
+	if (b && operator_("<") && kind_call_signature(p) && operator_("+") && number(p) && operator_(">")) return success(parent, self);
+	if (b && operator_("<") && number(p) && operator_(">")) return success(parent, self);
+	optional();
+}
+
+bool qualifier_list(params) {
+	declare_node();
+	if (b && qualifier(p) && qualifier_list(p)) return success(parent, self);
+	optional();
+}
+
+bool return_type(params) {
+	declare_node();
+	if (b && operator_("-") && operator_(">") && type_expression(p)) return success(parent, self);
+	optional();
+}
+
+bool parameter_list(params) {
+	declare_node();
+	if (b && parameter(p) && parameter_list(p)) return success(parent, self);
+	optional();
+}
+
+bool parameter(params) {
+	declare_node();
+	if (b && operator_("(") && optional_parameter_list(p) && operator_(")")) return success(parent, self);
+	if (b && required_parameter(p)) return success(parent, self);
+	return failure(save, self);
+}
+
+bool optional_parameter_list(params) {
+	declare_node();
+	if (b && optional_parameter(p) && optional_parameter_list(p)) return success(parent, self);
+	optional();
+}
+
+bool kind_parameter_list(params) {
+	declare_node();
+	if (b && kind_parameter(p) && kind_parameter_list(p)) return success(parent, self);
+	optional();
+}
+
+bool kind_parameter(params) {
+	declare_node();
+	if (b && operator_("(") && optional_kind_parameter_list(p) && operator_(")")) return success(parent, self);
+	if (b && required_kind_parameter(p)) return success(parent, self);
+	return failure(save, self);
+}
+
+bool required_kind_parameter(params) {
+	declare_node();
+	if (b && identifier(p) && operator_(":") && type_expression(p)) return success(parent, self);
+	if (b && kind_free_identifier(p)) return success(parent, self);
+	return failure(save, self);
+}
+
+bool optional_kind_parameter(params) {
+	declare_node();
+	if (b && identifier(p) && operator_(":") && type_expression(p) && operator_("=") && expression(p)) return success(parent, self);
+	if (b && identifier(p) && operator_("=") && expression(p)) return success(parent, self);
+	if (b && kind_free_identifier(p)) return success(parent, self);
+	return failure(save, self);
+}
+
+bool optional_kind_parameter_list(params) {
+	declare_node();
+	if (b && optional_kind_parameter(p) && optional_kind_parameter_list(p)) return success(parent, self);
+	if (b && optional_kind_parameter(p)) return success(parent, self);
+	return failure(save, self);
+}
+
+bool required_parameter(params) {
+	declare_node();
+	if (b && identifier(p) && operator_(":") && type_expression(p)) return success(parent, self);
+	if (b && free_identifier(p)) return success(parent, self);
+	return failure(save, self);
+}
+
+bool optional_parameter(params) {
+	declare_node();
+	if (b && identifier(p) && operator_(":") && type_expression(p) && operator_("=") && expression(p)) return success(parent, self);
+	if (b && identifier(p) && operator_("=") && expression(p)) return success(parent, self);
+	return failure(save, self);
+}
+
+bool implementation_declaration_or_statement_list(params) {
+	declare_node();
+	if (b && implementation_declaration(p) && implementation_declaration_or_statement_list(p)) return success(parent, self);
+	if (b && statement(p) && implementation_declaration_or_statement_list(p)) return success(parent, self);
+	optional();
+}
+
+bool block(params) {
+	declare_node();
+	if (b && operator_("{") && statement_list(p) && operator_("}")) return success(parent, self);
+	return failure(save, self);
+}
+
+bool code(params) {
+	declare_node();
+	if (b && block(p)) return success(parent, self);
+	if (b && operator_(",") && newlines(p) && statement(p)) return success(parent, self);
+	if (b && required_newlines(p) && statement(p)) return success(parent, self);
+	return failure(save, self);
+}
+
+bool statement_list(params) {
+	declare_node();
+	if (b && newlines(p) && terminated_statement(p) && statement_list(p)) return success(parent, self);
+	if (b && newlines(p)) return success(parent, self);
+	optional();
+}
+
+bool statement(params) {
+	declare_node();
+	if (b && return_statement(p)) return success(parent, self);
+	if (b && type_assignment_statement(p)) return success(parent, self);
+	if (b && assignment_statement(p)) return success(parent, self);
+	if (b && block(p)) return success(parent, self);
+	if (b && using_statement(p)) return success(parent, self);
+	if (b && import_statement(p)) return success(parent, self);
+	if (b && expression(p)) return success(parent, self);
+	return failure(save, self);
+}
+
+bool assignment_statement(params) {
+	declare_node();
+	if (b && identifier(p) && operator_(":") && type_expression(p) && operator_("=") && expression(p)) return success(parent, self);
+	if (b && identifier(p) && operator_("=") && expression(p)) return success(parent, self);
+	if (b && identifier(p) && operator_("+") && operator_("=") && expression(p)) return success(parent, self);
+	if (b && identifier(p) && operator_("-") && operator_("=") && expression(p)) return success(parent, self);
+	if (b && identifier(p) && operator_("*") && operator_("=") && expression(p)) return success(parent, self);
+	if (b && identifier(p) && operator_("/") && operator_("=") && expression(p)) return success(parent, self);
+	if (b && identifier(p) && operator_("%") && operator_("=") && expression(p)) return success(parent, self);
+	if (b && identifier(p) && operator_("|") && operator_("=") && expression(p)) return success(parent, self);
+	if (b && identifier(p) && operator_("&") && operator_("=") && expression(p)) return success(parent, self);
+	if (b && identifier(p) && operator_("^") && operator_("=") && expression(p)) return success(parent, self);
+	if (b && identifier(p) && operator_("!") && operator_("=") && expression(p)) return success(parent, self);
+	if (b && identifier(p) && operator_("~") && operator_("=") && expression(p)) return success(parent, self);
+	return failure(save, self);
+}
+
+bool type_assignment_statement(params) {
+	declare_node();
+	if (b && identifier(p) && operator_(":") && operator_("=") && type_expression(p)) return success(parent, self);
+	return failure(save, self);
+}
+
+bool return_statement(params) {
+	declare_node();
+	if (b && keyword_("return") && expression(p)) return success(parent, self);
+	if (b && keyword_("return")) return success(parent, self);
+	return failure(save, self);
+}
+
+bool expression(params) {
+	declare_node();
+	if (b && free_identifier_or_symbol_list(p)) return success(parent, self);
+	return failure(save, self);
+}
+
+bool type_expression(params) {
+	declare_node();
+	if (b && operator_("(") && expression(p) && operator_(")") && operator_(")")) return success(parent, self);
+	if (b && free_identifier(p)) return success(parent, self);
+	return failure(save, self);
+}
+
+bool free_identifier_or_symbol_list(params) {
+	declare_node();
+	if (b && free_identifier(p) && free_identifier_or_symbol_list(p)) return success(parent, self);
+	if (b && symbol(p) && free_identifier_or_symbol_list(p)) return success(parent, self);
+	optional();
+}
+
+bool symbol(params) {
+	declare_node();
+	if (b && operator_("(") && expression_list(p) && operator_(")")) return success(parent, self);
+	if (b && operator_("[") && expression_list(p) && operator_("]")) return success(parent, self);
+	if (b && operator_("{") && expression_list(p) && operator_("}")) return success(parent, self);
+	if (b && number(p)) return success(parent, self);
+	if (b && string(p)) return success(parent, self);
+	if (b && identifier(p)) return success(parent, self);
+	return failure(save, self);
+}
+
+bool expression_list(params) {
+	declare_node();
+	if (b && expression(p) && operator_(",") && expression_list(p)) return success(parent, self);
+	if (b && expression(p)) return success(parent, self);
+	optional();
+}
 
 
 /// Hand made EBNF nodes:
@@ -253,60 +812,23 @@ bool terminated_statement(params) {
     return failure(save, self);
 }
 
-node parse(std::string text, std::vector<struct token> tokens, bool &error) {
+node parse(std::string filename, std::string text, std::vector<struct token> tokens, bool &error) {
+    
     print_lex(tokens);
     node tree = {};
-    bool parse_successful = false;
     
-    if (!program(tokens, tree) || pointer != tokens.size()) {
-        std::cout << "Error: parsing failed." << std::endl;
+    if (!program(tokens, tree) || pointer != tokens.size() || level) {
         
         int i = 0;
-        for (auto n : deepest_stack_trace) {
-            print_node(n, i++);
-        }
-        
-    } else parse_successful = true;
-    
-    print_parse(tree);
-    std::cout << "level = " << level << "\n";
-    
-    if (parse_successful && !level) {
-        std::cout << "------------------------------------------------" << std::endl;
-        std::cout << "\n\n\n\t\tsuccessfully parsed.\n\n\n" << std::endl;
-        std::cout << "------------------------------------------------" << std::endl;
-    } else {
-        std::cout << "\n\n\n\t\tPARSE FAILURE.\n\n\n\n" << std::endl;
-        
-        std::cout << "[filename]:" << tokens[deepest_pointer].line << ":" << tokens[deepest_pointer].column << ": Expected a \"" << deepest_node.name << "\", Found a " << convert_token_type_representation(tokens[deepest_pointer].type) << ", \"" << tokens[deepest_pointer].value << "\"" << std::endl << std::endl;
-        
-        auto & t = tokens[deepest_pointer];
-        std::vector<int> offsets = {-2, -1, 0, 1, 2};
-        std::string line = "";
-        std::istringstream s {text};
-        std::vector<std::string> lines = {};
-        while (std::getline(s, line)) lines.push_back(line);
-        
-        for (auto offset : offsets) {
-            
-            size_t index = 0;
-            if ((int) t.line - 1 + offset >= 0 && (int) t.line - 1 + offset < lines.size()) {
-                index = t.line - 1 + offset;
-            } else continue;
-            
-            std::cout << "\t" << GRAY << t.line + offset << RESET GREEN "  |  " RESET << lines[index] << std::endl;
-            
-            if (!offset) {
-                std::cout << "\t";
-                for (int i = 0; i < t.column + 5; i++) std::cout << " ";
-                std::cout << BRIGHT_RED << "^";
-                if (t.value.size() > 1) for (int i = 0; i < t.value.size() - 1; i++) std::cout << "~";
-                std::cout << RESET << std::endl;
-            }
-        }
-        
-        std::cout << std::endl << std::endl;
+        for (auto n : deepest_stack_trace) print_node(n, i++);
+        print_parse(tree);
+        print_parse_error(filename, tokens[deepest_pointer].line, tokens[deepest_pointer].column, deepest_node.name, tokens[deepest_pointer].type, tokens[deepest_pointer].value);
+        print_source_code(text, {tokens[deepest_pointer]});
         error = true;
+        
+    } else {
+        print_parse(tree);
+        std::cout << "\n\n\tsuccess.\n\n" << std::endl;
     }
     
     return tree;

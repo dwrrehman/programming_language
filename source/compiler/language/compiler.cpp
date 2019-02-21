@@ -6,6 +6,8 @@
 //  Copyright © 2019 Daniel Rehman. All rights reserved.
 //
 
+#include "llvm/IR/LLVMContext.h"
+
 #include <iostream>
 #include <fstream>
 #include <vector>
@@ -26,14 +28,13 @@ std::string get_file(std::string filepath) {
     return text;
 }
 
-void frontend(std::string text) {
+void frontend(std::string filename, std::string text) {
     bool p_error = false, l_error = false, t_error = false, a_error = false;
     
     auto p = preprocess(text, p_error);
     auto l = lex(p, l_error);
-    auto t = parse(text, l, t_error);
+    auto t = parse(filename, text, l, t_error);
     auto a = analyze(t, a_error);
-    
     
     std::cout << "total errors in all stages:\n";
     std::cout << std::boolalpha;
@@ -41,4 +42,8 @@ void frontend(std::string text) {
     std::cout << "\t - lexing = " << l_error << std::endl;
     std::cout << "\t - parsing = " << t_error << std::endl;
     std::cout << "\t - analysis = " << a_error << std::endl;
+}
+
+void backend() {
+    
 }

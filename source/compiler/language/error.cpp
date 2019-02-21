@@ -7,68 +7,44 @@
 //
 
 #include "error.hpp"
+#include "lexer.hpp"
+#include "color.h"
 
-///TODO: fill me.
+#include <sstream>
+#include <iostream>
+#include <string>
+#include <vector>
 
+void print_parse_error(std::string filename, size_t line, size_t column, std::string expected, enum token_type type, std::string found) {
+    std::cout << "\n" << filename << ": (" << line << "," << column << "): " BRIGHT_RED "error" RESET ": expected a \"" << expected << "\", Found a " << convert_token_type_representation(type) << ", \"" << (found == "\n" ? "newline" : found) << "\"" << std::endl << std::endl;
+}
 
-/*
-node parse(std::string text, std::vector<struct token> tokens, bool &error) {
-    print_lex(tokens);
-    node tree = {};
-    bool parse_successful = false;
+void print_source_code(std::string text, std::vector<struct token> tokens) {
+    auto& t = tokens[0];
+    std::vector<int> offsets = {-2, -1, 0, 1, 2};
+    std::string line = "";
+    std::istringstream s {text};
+    std::vector<std::string> lines = {};
+    while (std::getline(s, line)) lines.push_back(line);
     
-    if (!program(tokens, tree) || pointer != tokens.size()) {
-        std::cout << "Error: parsing failed." << std::endl;
+    for (auto offset : offsets) {
         
-        int i = 0;
-        for (auto n : deepest_stack_trace) {
-            print_node(n, i++);
+        size_t index = 0;
+        if ((int) t.line - 1 + offset >= 0 && (int) t.line - 1 + offset < lines.size()) {
+            index = t.line - 1 + offset;
+        } else continue;
+        
+        std::cout << "\t" << GRAY << t.line + offset << RESET GREEN "  |  " RESET << lines[index] << std::endl;
+        
+        if (!offset) {
+            std::cout << "\t";
+            for (int i = 0; i < t.column + 5; i++) std::cout << " ";
+            std::cout << BRIGHT_RED << "^";
+            if (t.value.size() > 1) for (int i = 0; i < t.value.size() - 1; i++) std::cout << "~";
+            std::cout << RESET << std::endl;
         }
-        
-    } else parse_successful = true;
-    
-    print_parse(tree);
-    std::cout << "level = " << level << "\n";
-    
-    if (parse_successful && !level) {
-        std::cout << "------------------------------------------------" << std::endl;
-        std::cout << "\n\n\n\t\tsuccessfully parsed.\n\n\n" << std::endl;
-        std::cout << "------------------------------------------------" << std::endl;
-    } else {
-        std::cout << "\n\n\n\t\tPARSE FAILURE.\n\n\n\n" << std::endl;
-        
-        std::cout << "Expected a \"" << deepest_node.name << "\", Found a \"" << tokens[deepest_pointer - 1].value;
-        std::cout << "\", of type: " << convert_token_type_representation(tokens[deepest_pointer - 1].type) << std::endl << std::endl;
-        
-        auto & t = tokens[deepest_pointer - 1];
-        std::vector<int> offsets = {-2, -1, 0, 1, 2};
-        std::string line = "";
-        std::istringstream s {text};
-        std::vector<std::string> lines = {};
-        while (std::getline(s, line)) lines.push_back(line);
-        
-        for (auto offset : offsets) {
-            
-            size_t index = 0;
-            if ((int) t.line - 1 + offset >= 0 && (int) t.line - 1 + offset < lines.size()) {
-                index = t.line - 1 + offset;
-            } else continue;
-            
-            std::cout << "\t" << GRAY << t.line + offset << RESET GREEN "  |  " RESET << lines[index] << std::endl;
-            
-            if (!offset) {
-                std::cout << "\t";
-                for (int i = 0; i < t.column + 5; i++) std::cout << " ";
-                std::cout << BRIGHT_RED << "^";
-                if (t.value.size() > 1) for (int i = 0; i < t.value.size() - 1; i++) std::cout << "~";
-                std::cout << RESET << std::endl;
-            }
-        }
-        
-        std::cout << std::endl;
-        error = true;
     }
     
-    return tree;
+    std::cout << std::endl << std::endl;
 }
-*/
+

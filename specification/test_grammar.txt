@@ -1,5 +1,367 @@
+- a test grammar.
+
+
+------------------------ declaration lists ---------------------------
 
 
 program
-    = newlines using identifier newlines
-    | newlines for identifier string number using { identifier identifier } newlines
+    = translation_unit
+
+
+
+translation_unit
+    = declaration_list
+    | newlines
+
+declaration_list
+    = newlines declaration required_newlines declaration_list
+    | E
+
+interface_declaration_list
+    = newlines interface_declaration required_newlines interface_declaration_list
+    | E
+
+implementation_declaration_list
+    = newlines implementation_declaration required_newlines implementation_declaration_list
+    | E
+
+
+interface_declaration_block
+    = { interface_declaration_list }
+
+
+implementation_declaration_block
+    = { implementation_declaration_list }
+
+
+
+
+
+------------------------ declarations ---------------------------
+
+
+
+declaration
+    = implementation_declaration
+    | interface_declaration
+
+
+interface_declaration
+    = function_interface_declaration
+    | type_interface_declaration
+    | space_interface_declaration
+    | variable_interface_declaration
+    | using_type_assignment_statement
+    | using_statement
+    | import_statement
+
+
+implementation_declaration
+    = function_implementation_declaration
+    | type_implementation_declaration
+    | space_implementation_declaration
+    | variable_implementation_declaration
+    | type_assignment_statement
+    | using_statement
+    | import_statement
+
+
+
+------------- interface declarations --------------------
+
+
+function_interface_declaration
+    = documentation function_signature
+
+variable_interface_declaration
+    = documentation identifier : type_expression
+
+
+type_interface_declaration
+    = documentation type_signature interface_declaration_block
+
+
+space_interface_declaration
+    = documentation identifier interface_declaration_block
+
+enum_interface_declaration
+    = documentation identifier : type_expression enum_interface_declaration_block
+    | documentation identifier : enum_interface_declaration_block
+
+
+
+
+
+----------------------- using decls ----------------------
+
+
+
+
+using_type_assignment_statement
+    = using type_assignment_statement
+
+
+import_statement
+    = import module_list
+
+using_statement
+    = using used_list from module
+    | using module_list
+
+
+used_list
+    = used_element , used_list 
+    | used_element
+
+
+used_element
+    = function_call_signature
+    | type_call_signature 
+    | kind_call_signature 
+    | identifier
+
+module_list
+    = module , module_list
+    | module
+
+module
+    = identifier filename_list 
+    | filename_list
+    | identifier
+
+filename_list
+    = filename filename_list 
+    | filename
+
+filename
+    = . identifier
+
+
+
+
+
+------------------ implementation declarations ------------------------
+
+
+
+function_implementation_declaration
+    = function_signature block
+
+variable_implementation_declaration
+    = assignment_statement
+
+
+type_implementation_declaration
+    = type_signature implementation_declaration_block
+
+kind_implementation_declaration
+    = kind_signature block
+
+
+space_implementation_declaration
+    = identifier implementation_declaration_block
+
+enum_implementation_declaration
+    = identifier : type_expression enum_implementation_declaration_block
+    | identifier : enum_implementation_declaration_block
+
+
+
+
+
+
+
+--------------------------- signatures ----------------------------
+
+
+function_signature
+    = function_call_signature return_type kind_call_signature precedence qualifier_list
+
+
+type_signature
+    = type_call_signature parent_type kind_call_signature precedence qualifier_list
+
+
+kind_signature
+    = kind_call_signature return_type precedence qualifier_list
+
+
+function_call_signature
+    = ( parameter_list )
+
+
+type_call_signature
+    = { parameter_list }
+
+
+kind_call_signature
+    = [ kind_parameter_list ]
+
+
+parent_type
+    = : type_expression
+    | E
+
+
+precedence
+    = < function_call_signature + number >
+    | < type_call_signature + number >
+    | < kind_call_signature + number >
+    | < number >
+    | E
+
+
+qualifier_list
+    = qualifier qualifier_list
+    | E
+
+
+return_type
+    = - > type_expression
+    | E
+
+
+
+-------------------- function and type parameters  ----------------------
+
+parameter_list
+    = parameter parameter_list
+    | E
+
+parameter
+    = ( optional_parameter_list )
+    | required_parameter
+
+optional_parameter_list
+    = optional_parameter optional_parameter_list
+    | E
+
+
+------------------------ kind parameters --------------------
+
+
+kind_parameter_list
+    = kind_parameter kind_parameter_list
+    | E
+
+kind_parameter
+    = ( optional_kind_parameter_list )
+    | required_kind_parameter
+
+required_kind_parameter
+    = identifier : type_expression
+    | kind_free_identifier
+
+optional_kind_parameter
+    = identifier : type_expression = expression
+    | identifier = expression
+    | kind_free_identifier
+
+optional_kind_parameter_list
+    = optional_kind_parameter optional_kind_parameter_list
+    | optional_kind_parameter
+
+
+
+
+------------ general parameter items ------------------------
+
+required_parameter
+    = identifier : type_expression
+    | free_identifier
+
+optional_parameter
+    = identifier : type_expression = expression
+    | identifier = expression
+
+
+---------------------------------- statements -------------------------------------
+
+
+implementation_declaration_or_statement_list
+    = implementation_declaration    implementation_declaration_or_statement_list
+    | statement   implementation_declaration_or_statement_list
+    | E
+
+
+block
+    = { statement_list }
+
+code
+    = block
+    | , newlines statement
+    | required_newlines statement
+
+
+statement_list
+    = newlines terminated_statement statement_list
+    | newlines
+    | E
+
+
+statement
+    = return_statement
+    | type_assignment_statement
+    | assignment_statement
+    | block
+    | using_statement
+    | import_statement
+    | expression
+
+
+assignment_statement
+    = identifier : type_expression = expression
+    | identifier = expression
+    | identifier + = expression
+    | identifier - = expression
+    | identifier * = expression
+    | identifier / = expression
+    | identifier % = expression
+    | identifier | = expression
+    | identifier & = expression
+    | identifier ^ = expression
+    | identifier ! = expression
+    | identifier ~ = expression
+
+type_assignment_statement
+    = identifier : = type_expression
+
+return_statement
+    = return expression
+    | return
+
+
+-------------------------------------------- expressions -------------------------------------
+
+
+
+expression
+    = free_identifier_or_symbol_list
+
+
+type_expression
+    = ( expression ) 
+    | free_identifier
+
+
+free_identifier_or_symbol_list
+    = free_identifier free_identifier_or_symbol_list
+    | symbol free_identifier_or_symbol_list
+    | E
+
+
+symbol
+    = ( expression_list )
+    | [ expression_list ]
+    | { expression_list }
+    | number
+    | string
+    | identifier
+
+
+expression_list
+    = expression , expression_list
+    | expression
+    | E
+
+
