@@ -1,0 +1,36 @@
+
+
+
+import_statement
+    = import module_list
+
+using_statement
+    = using used_list from module
+    | using module_list
+
+
+used_list
+    = used_element , used_list 
+    | used_element
+
+
+used_element
+    = identifier
+
+module_list
+    = module , module_list
+    | module
+
+module
+    = identifier filename_list 
+    | filename_list
+    | identifier
+
+filename_list
+    = filename filename_list 
+    | filename
+
+filename
+    = . identifier
+
+

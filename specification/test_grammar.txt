@@ -3,11 +3,8 @@
 
 ------------------------ declaration lists ---------------------------
 
-
 program
     = translation_unit
-
-
 
 translation_unit
     = declaration_list
@@ -84,12 +81,6 @@ type_interface_declaration
 space_interface_declaration
     = documentation identifier interface_declaration_block
 
-enum_interface_declaration
-    = documentation identifier : type_expression enum_interface_declaration_block
-    | documentation identifier : enum_interface_declaration_block
-
-
-
 
 
 ----------------------- using decls ----------------------
@@ -160,14 +151,6 @@ kind_implementation_declaration
 
 space_implementation_declaration
     = identifier implementation_declaration_block
-
-enum_implementation_declaration
-    = identifier : type_expression enum_implementation_declaration_block
-    | identifier : enum_implementation_declaration_block
-
-
-
-
 
 
 

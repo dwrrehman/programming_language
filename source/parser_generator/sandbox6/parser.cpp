@@ -188,8 +188,6 @@ bool type_interface_declaration(params);
 
 bool space_interface_declaration(params);
 
-bool enum_interface_declaration(params);
-
 bool using_type_assignment_statement(params);
 
 bool import_statement(params);
@@ -217,8 +215,6 @@ bool type_implementation_declaration(params);
 bool kind_implementation_declaration(params);
 
 bool space_implementation_declaration(params);
-
-bool enum_implementation_declaration(params);
 
 bool function_signature(params);
 
@@ -389,13 +385,6 @@ bool space_interface_declaration(params) {
 	return failure(save, self);
 }
 
-bool enum_interface_declaration(params) {
-	declare_node();
-	if (b && documentation(p) && identifier(p) && operator_(":") && type_expression(p) && enum_interface_declaration_block(p)) return success(parent, self);
-	if (b && documentation(p) && identifier(p) && operator_(":") && enum_interface_declaration_block(p)) return success(parent, self);
-	return failure(save, self);
-}
-
 bool using_type_assignment_statement(params) {
 	declare_node();
 	if (b && keyword_("using") && type_assignment_statement(p)) return success(parent, self);
@@ -410,7 +399,7 @@ bool import_statement(params) {
 
 bool using_statement(params) {
 	declare_node();
-	if (b && keyword_("using") && used_list(p) && from(p) && module(p)) return success(parent, self);
+	if (b && keyword_("using") && used_list(p) && keyword_("from") && module(p)) return success(parent, self);
 	if (b && keyword_("using") && module_list(p)) return success(parent, self);
 	return failure(save, self);
 }
@@ -486,13 +475,6 @@ bool kind_implementation_declaration(params) {
 bool space_implementation_declaration(params) {
 	declare_node();
 	if (b && identifier(p) && implementation_declaration_block(p)) return success(parent, self);
-	return failure(save, self);
-}
-
-bool enum_implementation_declaration(params) {
-	declare_node();
-	if (b && identifier(p) && operator_(":") && type_expression(p) && enum_implementation_declaration_block(p)) return success(parent, self);
-	if (b && identifier(p) && operator_(":") && enum_implementation_declaration_block(p)) return success(parent, self);
 	return failure(save, self);
 }
 

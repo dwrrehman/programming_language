@@ -9,14 +9,16 @@
 #include "lists.hpp"
 
 std::vector<std::string> keywords = {
-    "return", "import", "using",
+    "return", "import",
+    "using", "from",
     "break", "continue",
     "runtime", "noinline",
     "public", "private",
 };
 
 std::vector<std::string> overridable_keywords = {
-    "return", "import", "using",
+    "return", "import",
+    "using", "from",
     "break", "continue",
     "runtime", "noinline",
     "public", "private",
