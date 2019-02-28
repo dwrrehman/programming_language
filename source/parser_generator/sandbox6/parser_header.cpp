@@ -58,6 +58,8 @@ static std::vector<node> deepest_stack_trace = {};
 size_t deepest_level = 0;
 size_t level = 0;
 
+bool skipped = false;
+
 #define declare_node()    node self = node(__func__, {}, {}, true);                       \
 int save = pointer;                                             \
 stack_trace.push_back(self);                                    \

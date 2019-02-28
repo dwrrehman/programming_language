@@ -20,7 +20,7 @@
 
 const std::string main_directory = "/Users/deniylreimn/Documents/projects/programming language/";
 
-const std::string input_grammar_filepath = main_directory + "specification/test_grammar.txt";
+const std::string input_grammar_filepath = main_directory + "specification/temp_grammar.txt";
 const std::string output_cpp_filepath = main_directory + "source/parser_generator/sandbox6/parser.cpp";
 const std::string input_header_filepath = main_directory + "source/parser_generator/sandbox6/parser_header.cpp";
 const std::string input_footer_filepath = main_directory + "source/parser_generator/sandbox6/parser_footer.cpp";
@@ -161,7 +161,7 @@ static void generate(std::ofstream &file) {
     file << "\n\n\n//EBNF Parse Nodes:\n\n";
     for (auto n : nodes) {
         file << "bool " << n.name << "(params) {\n\tdeclare_node();\n\t";
-        
+        if (n.name == "declaration") file << "deepest_level = 0;\n\t";
         for (auto r : n.rules) {
             if (r.elements.size() == 1 && r.elements[0].value == "E") continue;
             file << "if (b && ";
@@ -175,9 +175,9 @@ static void generate(std::ofstream &file) {
                     file << " && ";
                 }
             }
-            
             file << ") return success(parent, self);\n\t";
         }
+        if (n.name == "declaration") file << "while (tokens[pointer].value != \"\\n\" && pointer < tokens.size()) {skipped = true; pointer++;}\n\t";
         file << (n.optional ? "optional();" : "return failure(save, self);") << "\n}\n\n";
     }
     

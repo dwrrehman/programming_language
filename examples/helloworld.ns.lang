@@ -1,6 +1,6 @@
 :: a hello world program.
 
-(main) {
-    using .io
+() {
+    use .io
     print "hello, world"
 }

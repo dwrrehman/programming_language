@@ -11,7 +11,24 @@
 
 #include <string>
 
-std::string get_file(std::string filepath);
-void frontend(std::string filename, std::string text);
+
+struct file {
+    std::string name;
+    std::string data;
+};
+
+struct arguments {
+    bool use_interpreter = false;
+    bool error = false;
+    std::vector<struct file> files = {};
+    std::string executable_name = "a.out";
+};
+
+struct action_tree {
+    int unused;
+};
+
+struct action_tree frontend(struct file file);
+void code_generation(struct action_tree tree);
 
 #endif /* compiler_hpp */

@@ -15,8 +15,8 @@
 #include <string>
 #include <vector>
 
-void print_parse_error(std::string filename, size_t line, size_t column, std::string expected, enum token_type type, std::string found) {
-    std::cout << "\n" << filename << ": " << line << ":" << column << " : " BRIGHT_RED "error" RESET ": expected a \"" << expected << "\", Found a " << convert_token_type_representation(type) << ", \"" << (found == "\n" ? "newline" : found) << "\"" << std::endl << std::endl;
+void print_parse_error(std::string filename, size_t line, size_t column, enum token_type type, std::string found) {
+    std::cout << "\n" << filename << ": " << line << ":" << column << " : " BRIGHT_RED "error" RESET ": unexpected " << convert_token_type_representation(type) << ", \"" << (found == "\n" ? "newline" : found) << "\"" << std::endl << std::endl;
 }
 
 void print_source_code(std::string text, std::vector<struct token> tokens) {

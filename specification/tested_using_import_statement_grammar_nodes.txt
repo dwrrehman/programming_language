@@ -1,0 +1,48 @@
+
+- this code works, i tested it.
+
+- it implements the syntax for importing modules, and adding things to the current namespace.
+
+
+
+statement_list
+    = statement required_newlines statement_list
+    | E
+
+statement
+    = import_statement
+    | using_statement
+
+
+
+
+import_statement
+    = import module_list
+
+using_statement
+    = using used_list from module
+    | using module_list
+
+used_list
+    = used_element , used_list 
+    | used_element
+
+used_element
+    = identifier
+
+module_list
+    = module , module_list
+    | module
+
+module
+    = identifier filename_list
+    | identifier
+    | filename_list
+
+filename_list
+    = filename filename_list
+    | filename
+
+filename
+    = . identifier
+

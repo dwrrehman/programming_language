@@ -80,13 +80,16 @@ node parse(std::string filename, std::string text, std::vector<struct token> tok
     print_lex(tokens);
     node tree = {};
     
-    if (!program(tokens, tree) || pointer != tokens.size() || level) {
+    if (!program(tokens, tree) || pointer != tokens.size() || level || skipped) {
+        
+        std::cout << "level = " << level << std::endl;
+        std::cout << "pointer = " << pointer << ", tokens.size() = " << tokens.size() << std::endl;
         
         int i = 0;
         for (auto n : deepest_stack_trace) print_node(n, i++);
         print_parse(tree);
-        print_parse_error(filename, tokens[deepest_pointer].line, tokens[deepest_pointer].column, deepest_node.name, tokens[deepest_pointer].type, tokens[deepest_pointer].value);
-        print_source_code(text, {tokens[deepest_pointer]});
+        print_parse_error(filename, tokens[deepest_pointer - 1].line, tokens[deepest_pointer - 1].column, tokens[deepest_pointer - 1].type, tokens[deepest_pointer - 1].value);
+        print_source_code(text, {tokens[deepest_pointer - 1]});
         error = true;
         
     } else {

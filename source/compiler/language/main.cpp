@@ -8,19 +8,41 @@
 
 #include <iostream>
 #include <fstream>
+#include <vector>
+
+#include "llvm/IR/LLVMContext.h"
+#include "llvm/IR/Module.h"
 
 #include "compiler.hpp"
+#include "interpreter.hpp"
+#include "arguments.hpp"
 
-const std::string filepath = "/Users/deniylreimn/Documents/projects/programming language/source/compiler/language/test.lang";
+//llvm::LLVMContext context;
+//llvm::Module module;
 
-int main(int argc, const char * argv[]) {
+int main(int argc, const char** argv) {
     
-    // arguments = get_commandline_arguments(argc, argv);
-    auto text = get_file(filepath); // temp
-    // do_something_based_on(arguments);
-    frontend("filename", text); // tree = frontend();
-    // backend(tree);
-    // link, or do something now...
+    struct arguments args = get_commandline_arguments(argc, argv);
     
+    if (args.error) {
+        debug_arguments(args);
+        return 1;
+    }
+    
+    if (args.use_interpreter) {
+        interpreter(args.files[0].data);
+        return 0;
+    }
+
+    std::vector<struct action_tree> trees;
+    trees.reserve(args.files.size());
+    
+    // set the llvm data.
+        
+    for (size_t i = 0; i < args.files.size(); i++) {
+        trees[i] = frontend(args.files[i]);
+        code_generation(trees[i]);
+    }
+
     return 0;
 }

@@ -1,6 +1,193 @@
 
 
 
+program
+    = translation_unit
+
+
+translation_unit
+    = declaration_list
+
+
+declaration_list
+    = newlines declaration required_newlines declaration_list
+    | newlines
+    | E
+
+
+declaration
+    = implementation_declaration
+    | E
+
+implementation_declaration
+    = variable_implementation_declaration
+    | using_statement
+    | import_statement
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+variable_implementation_declaration
+    = assignment_statement
+
+
+assignment_statement
+    = identifier : type_expression = expression
+    | identifier = expression
+    | identifier + = expression
+    | identifier - = expression
+    | identifier * = expression
+    | identifier / = expression
+    | identifier % = expression
+    | identifier | = expression
+    | identifier & = expression
+    | identifier ^ = expression
+    | identifier ! = expression
+    | identifier ~ = expression
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+expression
+    = free_identifier_or_symbol_list
+
+
+type_expression
+    = ( expression )
+    | { expression }
+    | identifier
+    | free_identifier
+
+free_identifier_or_symbol_list
+    = symbol free_identifier_or_symbol_list
+    | free_identifier free_identifier_or_symbol_list
+    | E
+
+
+symbol
+    = ( expression_list )
+    | { expression_list }
+    | number
+    | string
+    | identifier
+
+
+expression_list
+    = expression , expression_list
+    | expression ,
+    | expression
+    | E
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+-------------------- tested code ----------------------
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+----------- using and import statements ----------------
+
 import_statement
     = import module_list
 
@@ -8,11 +195,9 @@ using_statement
     = using used_list from module
     | using module_list
 
-
 used_list
     = used_element , used_list 
     | used_element
-
 
 used_element
     = identifier
@@ -22,15 +207,34 @@ module_list
     | module
 
 module
-    = identifier filename_list 
-    | filename_list
+    = identifier filename_list
     | identifier
+    | filename_list
 
 filename_list
-    = filename filename_list 
+    = filename filename_list
     | filename
 
 filename
     = . identifier
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 

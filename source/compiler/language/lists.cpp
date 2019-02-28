@@ -11,7 +11,6 @@
 std::vector<std::string> keywords = {
     "return", "import",
     "using", "from",
-    "break", "continue",
     "runtime", "noinline",
     "public", "private",
 };
@@ -19,17 +18,16 @@ std::vector<std::string> keywords = {
 std::vector<std::string> overridable_keywords = {
     "return", "import",
     "using", "from",
-    "break", "continue",
     "runtime", "noinline",
     "public", "private",
     
     "+", "-", "*", "/", "<", ">",
     "^", "%", "!", "~", "&", ".",
-    "?", "|", "=", "[", "]"
+    "?", "|", "=", "[", "]", ","
 };
 
 std::vector<std::string> qualifiers =  {
-    "compiletime", "runtime", "public", "private", "constructor", "destructor",
+     "runtime", "public", "private",
 };
 
 std::vector<std::string> builtin_types = {
