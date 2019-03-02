@@ -14,11 +14,9 @@
 
 extern std::vector<std::string> keywords;
 extern std::vector<std::string> operators;
-extern std::vector<std::string> qualifiers;
 extern std::vector<std::string> overridable_keywords;
 extern std::vector<std::string> builtin_types;
 
-void sort_lists_by_decreasing_length();
 
 
 #endif /* lists_hpp */

@@ -171,9 +171,6 @@ enum_interface_declaration
 
 
 
-using_type_assignment_statement
-    = using type_assignment_statement
-
 
 import_statement
     = import module_list

@@ -7,12 +7,13 @@
 //
 
 #include "arguments.hpp"
+#include "compiler.hpp"
 
 #include <iostream>
 #include <fstream>
 #include <vector>
 
-#include "compiler.hpp"
+
 
 static void open_file(struct arguments &args, struct file &file) {
     std::ifstream stream {file.name};

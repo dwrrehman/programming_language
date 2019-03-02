@@ -18,6 +18,7 @@
 		FD52D8452226590600A9C309 /* arguments.cpp in Sources */ = {isa = PBXBuildFile; fileRef = FD52D8432226590600A9C309 /* arguments.cpp */; };
 		FD7E425922264D150021E18A /* interpreter.cpp in Sources */ = {isa = PBXBuildFile; fileRef = FD7E425722264D150021E18A /* interpreter.cpp */; };
 		FDBFA1FF220EF2FB00CFB007 /* expressions.cpp in Sources */ = {isa = PBXBuildFile; fileRef = FDBFA1FD220EF2FB00CFB007 /* expressions.cpp */; };
+		FDE4C18E22288E2B00B73B7A /* nodes.cpp in Sources */ = {isa = PBXBuildFile; fileRef = FDE4C18C22288E2B00B73B7A /* nodes.cpp */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXCopyFilesBuildPhase section */
@@ -56,6 +57,9 @@
 		FD7E425822264D150021E18A /* interpreter.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = interpreter.hpp; sourceTree = "<group>"; };
 		FDBFA1FD220EF2FB00CFB007 /* expressions.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = expressions.cpp; sourceTree = "<group>"; };
 		FDBFA1FE220EF2FB00CFB007 /* expressions.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = expressions.hpp; sourceTree = "<group>"; };
+		FDD9B86D22279A6900CA6C69 /* test.ns */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = test.ns; sourceTree = "<group>"; };
+		FDE4C18C22288E2B00B73B7A /* nodes.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = nodes.cpp; sourceTree = "<group>"; };
+		FDE4C18D22288E2B00B73B7A /* nodes.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = nodes.hpp; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -99,6 +103,8 @@
 				FD3600FD21EAFE4C005FE844 /* preprocessor.hpp */,
 				FD3600FF21EAFE57005FE844 /* lexer.cpp */,
 				FD36010021EAFE57005FE844 /* lexer.hpp */,
+				FDE4C18C22288E2B00B73B7A /* nodes.cpp */,
+				FDE4C18D22288E2B00B73B7A /* nodes.hpp */,
 				FD36010221EAFE62005FE844 /* parser.cpp */,
 				FD36010321EAFE62005FE844 /* parser.hpp */,
 				FDBFA1FD220EF2FB00CFB007 /* expressions.cpp */,
@@ -110,6 +116,7 @@
 				FD017610221CFD8300E5D442 /* color.h */,
 				FD36010521EB288E005FE844 /* lists.cpp */,
 				FD36010621EB288E005FE844 /* lists.hpp */,
+				FDD9B86D22279A6900CA6C69 /* test.ns */,
 			);
 			path = language;
 			sourceTree = "<group>";
@@ -173,6 +180,7 @@
 				FD1DAC4C2203A32F0014F55E /* analysis.cpp in Sources */,
 				FD36010421EAFE62005FE844 /* parser.cpp in Sources */,
 				FD02050E21E7F59C009C332B /* compiler.cpp in Sources */,
+				FDE4C18E22288E2B00B73B7A /* nodes.cpp in Sources */,
 				FDBFA1FF220EF2FB00CFB007 /* expressions.cpp in Sources */,
 				FD52D8452226590600A9C309 /* arguments.cpp in Sources */,
 				FD7E425922264D150021E18A /* interpreter.cpp in Sources */,

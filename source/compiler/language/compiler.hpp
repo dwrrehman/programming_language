@@ -9,7 +9,9 @@
 #ifndef compiler_hpp
 #define compiler_hpp
 
+#include "analysis.hpp"
 #include <string>
+#include <vector>
 
 
 struct file {
@@ -22,10 +24,6 @@ struct arguments {
     bool error = false;
     std::vector<struct file> files = {};
     std::string executable_name = "a.out";
-};
-
-struct action_tree {
-    int unused;
 };
 
 struct action_tree frontend(struct file file);

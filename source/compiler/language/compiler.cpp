@@ -6,15 +6,16 @@
 //  Copyright © 2019 Daniel Rehman. All rights reserved.
 //
 
-#include <iostream>
-#include <fstream>
-#include <vector>
-
 #include "compiler.hpp"
 #include "preprocessor.hpp"
 #include "lexer.hpp"
 #include "parser.hpp"
+#include "nodes.hpp"
 #include "analysis.hpp"
+
+#include <iostream>
+#include <fstream>
+#include <vector>
 
 static void print_errors(bool a_error, bool l_error, bool p_error, bool t_error) {
     std::cout << "total errors in all stages:\n";
@@ -25,19 +26,17 @@ static void print_errors(bool a_error, bool l_error, bool p_error, bool t_error)
     std::cout << "\t - analysis = " << a_error << std::endl;
 }
 
-
-
 struct action_tree frontend(struct file file) {
-    bool p_error = false, l_error = false, t_error = false, a_error = false;
+    bool preprocess_error = false, lex_error = false, parse_error = false, analysis_error = false;
     
-    auto p = preprocess(file.data, p_error);
-    auto l = lex(p, l_error);
-    auto t = parse(file.name, file.data, l, t_error);
-    auto a = analyze(t, a_error);
+    auto text = preprocess(file.data, preprocess_error);
+    auto tokens = lex(text, lex_error);
+    auto ast = parse(file.name, file.data, tokens, parse_error);
+    auto action_tree = analyze(ast, analysis_error);
     
-    print_errors(a_error, l_error, p_error, t_error);
+    print_errors(analysis_error, lex_error, preprocess_error, parse_error);
     
-    return {};
+    return action_tree;
 }
 
 void code_generation(struct action_tree tree) {

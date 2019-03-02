@@ -7,9 +7,10 @@
 //
 
 #include "interpreter.hpp"
+
 #include <string>
 
 void interpreter(std::string text) {
-    
+    printf("this is a interpreter.\n");
 }
 

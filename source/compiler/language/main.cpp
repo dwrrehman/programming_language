@@ -5,17 +5,19 @@
 //  Created by Daniel Rehman on 1901104.
 //  Copyright © 2019 Daniel Rehman. All rights reserved.
 //
+#include "nodes.hpp"
 
-#include <iostream>
-#include <fstream>
-#include <vector>
-
-#include "llvm/IR/LLVMContext.h"
-#include "llvm/IR/Module.h"
 
 #include "compiler.hpp"
 #include "interpreter.hpp"
 #include "arguments.hpp"
+
+//#include "llvm/IR/LLVMContext.h"
+//#include "llvm/IR/Module.h"
+
+#include <iostream>
+#include <fstream>
+#include <vector>
 
 //llvm::LLVMContext context;
 //llvm::Module module;

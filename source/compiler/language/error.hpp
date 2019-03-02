@@ -9,9 +9,11 @@
 #ifndef error_hpp
 #define error_hpp
 
+#include "lexer.hpp"
+
 #include <string>
 #include <vector>
-#include "lexer.hpp"
+
 
 void print_parse_error(std::string filename, size_t line, size_t column, enum token_type type, std::string found);
 

@@ -6,8 +6,10 @@
 //  Copyright © 2019 Daniel Rehman. All rights reserved.
 //
 
-#include <iostream>
 #include "preprocessor.hpp"
+
+#include <iostream>
+
 
 std::string preprocess(std::string text, bool &error) {
     
@@ -18,7 +20,7 @@ std::string preprocess(std::string text, bool &error) {
     bool in_line_comment = false;
     
     for (int c = 0; c < text.size(); c++) {
-        if (!in_line_comment && !in_multi_comment && text[c] == ':' && text[c+1] == ':') {
+        if (!in_line_comment && !in_multi_comment && text[c] == ';' && text[c+1] == ';') {
             in_line_comment = true;
             result.push_back(' ');
             
@@ -26,11 +28,11 @@ std::string preprocess(std::string text, bool &error) {
             result.push_back('\n');
             in_line_comment = false;
             
-        } else if (!in_line_comment && !in_multi_comment && text[c] == '/' && text[c+1] == ':') {
+        } else if (!in_line_comment && !in_multi_comment && text[c] == ';' && text[c+1] == ':') {
             in_multi_comment = true;
             result.push_back(' ');
             
-        } else if (!in_line_comment && in_multi_comment && text[c-1] == ':' && text[c] == '/') {
+        } else if (!in_line_comment && in_multi_comment && text[c-1] == ':' && text[c] == ';') {
             in_multi_comment = false;
             result.push_back(' ');
             

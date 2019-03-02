@@ -9,12 +9,17 @@
 #ifndef analysis_hpp
 #define analysis_hpp
 
+#include "parser.hpp"
+#include "expressions.hpp"
+#include "nodes.hpp"
+
 #include <vector>
 #include <string>
 
-#include "parser.hpp"
-#include "expressions.hpp"
+struct action_tree {
+    
+};
 
-node analyze(node tree, bool &error);
+struct action_tree analyze(class program tree, bool &error);
 
 #endif /* analysis_hpp */

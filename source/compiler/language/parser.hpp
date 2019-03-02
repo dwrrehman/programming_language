@@ -9,9 +9,11 @@
 #ifndef parser_hpp
 #define parser_hpp
 
+#include "lexer.hpp"
+
 #include <string>
 #include <vector>
-#include "lexer.hpp"
+
 
 class node;
 
@@ -23,18 +25,10 @@ struct signature_element {
     node* type = nullptr;
 };
 
-struct function_signature {
-    std::vector<struct signature_element> call_signature = {};
-    std::vector<std::string> qualifiers = {};    
-    node* return_type = nullptr;
-    bool is_main = false;
-    size_t precedence = 0;
-};
-
-// unused for now.
-struct type_signature {
+struct signature {
     std::vector<struct signature_element> signature = {};
-    node* derived_type = nullptr;
+    node* return_type = nullptr;
+    size_t precedence = 0;
 };
 
 
@@ -62,7 +56,7 @@ public:
     
     bool expression_has_been_parsed = false;
     expression_node expression = {};
-    struct function_signature signature = {};
+    struct signature signature = {};
     
     postinformation(){}
 };
@@ -83,12 +77,7 @@ public:
         this->name = name;
         this->children = children;
         this->success = success;
-        
-        this->data.type = data.type;
-        this->data.value = data.value;
-        
-        this->data.line  = data.line;
-        this->data.column = data.column;
+        this->data = data;
     }
     node(){}
 };
@@ -98,20 +87,14 @@ public:
     
     std::string expected = "";
     struct token at = {"", null_type, 0, 0};
-    
     parse_error(std::string expected, struct token data) {
         this->expected = expected;
-        
-        this->at.value = data.value;
-        this->at.type = data.type;
-        
-        this->at.line = data.line;
-        this->at.column = data.column;
+        this->at = data;
     }
     parse_error(){}
 };
 
-node parse(std::string filename, std::string text, std::vector<struct token> tokens, bool &error);
+class program parse(std::string filename, std::string text, std::vector<struct token> tokens, bool &error);
 void print_node(node &node, int level);
 
 #endif /* parser_hpp */

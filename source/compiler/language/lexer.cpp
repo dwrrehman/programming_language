@@ -5,13 +5,21 @@
 //  Created by Daniel Rehman on 1901126.
 //  Copyright © 2019 Daniel Rehman. All rights reserved.
 //
+#include "lexer.hpp"
+#include "lists.hpp"
 
 #include <vector>
 #include <iostream>
 #include <iomanip>
-#include "lists.hpp"
-#include "lexer.hpp"
 
+
+void print_lex(const std::vector<struct token> &tokens) {
+    std::cout << "::::::::::LEX:::::::::::" << std::endl;
+    for (auto token : tokens) {
+        std::cout << "TOKEN(type: " << convert_token_type_representation(token.type) << ", value: \"" << (token.value != "\n" ? token.value : "\\n") << "\", [" << token.line << ":" << token.column << "])" << std::endl;
+    }
+    std::cout << ":::::::END OF LEX:::::::" << std::endl;
+}
 
 const char* convert_token_type_representation(enum token_type type) {
     switch (type) {
@@ -22,6 +30,7 @@ const char* convert_token_type_representation(enum token_type type) {
         case keyword_type: return "keyword";
         case operator_type: return "operator";
         case documentation_type: return "documentation";
+        case character_type: return "character_or_llvm";
     }
 }
 
@@ -103,15 +112,6 @@ bool recognize_character_sequence(std::string text, int &start, std::vector<std:
     return false;
 }
 
-void print_lex(const std::vector<struct token> &tokens) {
-    std::cout << "::::::::::LEX:::::::::::" << std::endl;
-    for (auto token : tokens) {
-        std::cout << "TOKEN(type: " << convert_token_type_representation(token.type) << ", value: \"" << (token.value != "\n" ? token.value : "\\n") << "\", [" << token.line << ":" << token.column << "])" << std::endl;
-    }
-    std::cout << ":::::::END OF LEX:::::::" << std::endl;
-}
-
-
 
 std::vector<struct token> lex(std::string text, bool &error) {
         
@@ -120,8 +120,8 @@ std::vector<struct token> lex(std::string text, bool &error) {
     for (int i = 0; i < keywords[0].size() + 1; i++) text.push_back(' ');
     
     std::vector<struct token> tokens = {};
-    std::vector<bool> states = {false, false, false, false};
-    std::vector<std::string> strings = {"", "", "", ""};
+    std::vector<bool> states = {false, false, false, false, false};
+    std::vector<std::string> strings = {"", "", "", "", ""};
     size_t line = 1, column = 0;
     size_t found_line = 1, found_column = 0;
     
@@ -142,6 +142,7 @@ std::vector<struct token> lex(std::string text, bool &error) {
         } else if (recognize_state(identifier_state, first_char, false, is_delimiting_identifier_char(first_char, second_char), states, strings, true, tokens, true, identifier_type, found_line, found_column)) {
         } else if (recognize_state(string_state, first_char, false, first_char == '\"', states, strings, false, tokens, true, string_type, found_line, found_column)) {
         } else if (recognize_state(documentation_state, first_char, false, first_char == '`', states, strings, false, tokens, true, documentation_type, found_line, found_column)) {
+        } else if (recognize_state(character_state, first_char, false, first_char == '\'', states, strings, false, tokens, true, character_type, found_line, found_column)) {
             
             // leading:
         } else if (recognize_state(number_state, first_char, true, is_leading_number_char(first_char, second_char), states, strings, true, tokens)) {
@@ -156,14 +157,20 @@ std::vector<struct token> lex(std::string text, bool &error) {
         } else if (recognize_state(documentation_state, first_char, true, first_char == '`', states, strings, false, tokens)) {
             found_line = line;
             found_column = column;
+        } else if (recognize_state(character_state, first_char, true, first_char == '\'', states, strings, false, tokens)) {
+            found_line = line;
+            found_column = column;
             
             // neither:
         } else if (recognize_state(number_state, first_char, false, is_number_char(first_char), states, strings, true, tokens)) {
         } else if (recognize_state(identifier_state, first_char, false, is_identifier_char(first_char), states, strings, true, tokens)) {
         } else if (recognize_state(string_state, first_char, false, true, states, strings, true, tokens)) {
         } else if (recognize_state(documentation_state, first_char, false, true, states, strings, true, tokens)) {
+        } else if (recognize_state(character_state, first_char, false, true, states, strings, true, tokens)) {
+            
         } else if (first_char == ' ' || first_char == '\t') {
         } else {
+            ///TODO: add a call to print_lex_error(first_char,line, column),     and make sure to print the source code!
             std::cout << "Error: Unexpected \"" << first_char << "\" at line " << line << ", column " << column << "." << std::endl;
             error = true;
         }
@@ -174,5 +181,8 @@ std::vector<struct token> lex(std::string text, bool &error) {
         }
     }
     tokens.push_back({"\n", operator_type, line++, 0});
+    
+    print_lex(tokens); /// debug
+    
     return tokens;
 }

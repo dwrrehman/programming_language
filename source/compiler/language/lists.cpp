@@ -8,41 +8,23 @@
 
 #include "lists.hpp"
 
-std::vector<std::string> keywords = {
-    "return", "import",
-    "using", "from",
-    "runtime", "noinline",
-    "public", "private",
-};
-
-std::vector<std::string> overridable_keywords = {
-    "return", "import",
-    "using", "from",
-    "runtime", "noinline",
-    "public", "private",
-    
-    "+", "-", "*", "/", "<", ">",
-    "^", "%", "!", "~", "&", ".",
-    "?", "|", "=", "[", "]", ","
-};
-
-std::vector<std::string> qualifiers =  {
-     "runtime", "public", "private",
+std::vector<std::string> non_overridable_keywords = {
+    "(", ")", "{", "}", ":", ".", "\\", "_"
 };
 
 std::vector<std::string> builtin_types = {
-    "i32", "i64"
+    "i1", "i8", "i16", "i32", "i64", "i128",
+    "r16", "r32", "r64", "r80","r128",
+};
+
+std::vector<std::string> keywords = {
+    "_"
 };
 
 std::vector<std::string> operators = {
     "(", ")", "[", "]", "{", "}",
     "+", "-", "*", "/", "<", ">",
     "^", "%", "!", "~", "&", ".",
-    "?", ":", ";", "|", "=", "\n", "\\", ","
+    "?", ":", ";", "|", "=", "\n",
+    "\\", ",", "#", "$",
 };
-
-void sort_lists_by_decreasing_length() {
-    std::sort(keywords.begin(), keywords.end(), [](std::string first, std::string second){return first.size() > second.size();});
-    std::sort(qualifiers.begin(), qualifiers.end(), [](std::string first, std::string second){return first.size() > second.size();});
-    std::sort(overridable_keywords.begin(), overridable_keywords.end(), [](std::string first, std::string second){return first.size() > second.size();});
-}

@@ -11,8 +11,8 @@
 
 #include <string>
 
-enum lexing_state {string_state, identifier_state, number_state, documentation_state};
-enum token_type {null_type, string_type, identifier_type, number_type, keyword_type, operator_type, documentation_type};
+enum lexing_state {string_state, identifier_state, number_state, documentation_state, character_state};
+enum token_type {null_type, string_type, identifier_type, number_type, keyword_type, operator_type, documentation_type, character_type};
 
 struct token {
     std::string value;
