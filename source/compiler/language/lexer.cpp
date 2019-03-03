@@ -114,8 +114,7 @@ bool recognize_character_sequence(std::string text, int &start, std::vector<std:
 
 
 std::vector<struct token> lex(std::string text, bool &error) {
-        
-    sort_lists_by_decreasing_length();
+            
     const size_t text_length = text.size();
     for (int i = 0; i < keywords[0].size() + 1; i++) text.push_back(' ');
     

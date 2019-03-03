@@ -1,3 +1,7 @@
-using io
+\replace \{my name here\}
+\\
+\with \integer \{2345\}
 
-i += 9
+\if \{x\} \== \{0\} \\ \(
+    hello wordl this is \\good!
+\) "\hello"

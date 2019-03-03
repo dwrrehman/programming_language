@@ -25,21 +25,19 @@
 #include "llvm/IR/Verifier.h"
 
 
-class program {
-    
-};
-
-
-
-
-/// ExprAST - Base class for all expression nodes.
-
 class ast_node {
 public:
     virtual llvm::Value* codegen() = 0;
 };
 
+class program {
+    
+};
 
+
+/*
+
+/// ExprAST - Base class for all expression nodes.
 
 
 
@@ -87,7 +85,7 @@ public:
 /// which captures its name, and its argument names (thus implicitly the number
 /// of arguments the function takes).
 class signature_node {
-    std::vector<signature_elements> signature;
+    struct signature signature;
     
 public:
     signature_node(const std::string &Name, std::vector<std::string> Args)
@@ -113,6 +111,6 @@ public:
 };
 
 
-
+*/
 
 #endif /* nodes_hpp */

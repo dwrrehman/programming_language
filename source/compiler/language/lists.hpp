@@ -12,11 +12,11 @@
 #include <vector>
 #include <string>
 
+extern const std::string bulitin_prefix;
+
 extern std::vector<std::string> keywords;
 extern std::vector<std::string> operators;
 extern std::vector<std::string> overridable_keywords;
-extern std::vector<std::string> builtin_types;
-
-
+extern std::vector<std::string> builtins;
 
 #endif /* lists_hpp */

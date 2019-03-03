@@ -5,7 +5,39 @@
 //  Created by Daniel Rehman on 1901104.
 //  Copyright © 2019 Daniel Rehman. All rights reserved.
 //
-#include "nodes.hpp"
+#include "nodes.hpp"    // dummy, work in progress.
+
+
+
+
+/*
+ 
+  add user cli hooks to make the compiler stop at any stage, and output the internal represetnation to the user.
+ 
+ 
+ like:
+ 
+ 
+ --emit=preprocessed  or    -p
+ --emit=ast           or    -ast
+ --emit=actiontree   or     -at
+ 
+ --emit-llvm       or       -llvm
+ 
+ 
+ 
+ we need these, they are useful for debugging and they make the compiler alittle bit more featureful.
+ 
+ 
+ 
+ 
+ 
+ */
+
+
+
+
+
 
 
 #include "compiler.hpp"
