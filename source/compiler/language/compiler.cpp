@@ -29,7 +29,7 @@ static void print_errors(bool a_error, bool l_error, bool p_error, bool t_error)
 struct action_tree frontend(struct file file) {
     bool preprocess_error = false, lex_error = false, parse_error = false, analysis_error = false;
     
-    auto text = preprocess(file.data, preprocess_error);
+    auto text = preprocess(file.name, file.data, preprocess_error);
     auto tokens = lex(text, lex_error);
     auto ast = parse(file.name, file.data, tokens, parse_error);
     auto action_tree = analyze(ast, analysis_error);

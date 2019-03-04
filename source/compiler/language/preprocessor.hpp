@@ -11,6 +11,6 @@
 
 #include <string>
 
-std::string preprocess(std::string text, bool &error);
+std::string preprocess(std::string filename, std::string text, bool &error);
 
 #endif /* preprocessor_hpp */

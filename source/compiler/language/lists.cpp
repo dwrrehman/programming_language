@@ -10,6 +10,19 @@
 
 const std::string bulitin_prefix = "__nostril_core__";
 
+
+std::vector<std::string> pp_keywords = {
+    "replace", "with", "begin", "end",
+    "if", "while", "else", "do", "let",
+    "call", "define", "as", "emit",
+    "int", "!", "&", "|",
+    "==", "<", ">", "=", ",",
+    "+", "-", "/", "*", "(", ")",
+    
+    "\\", // not actually a keyword.
+};
+
+
 std::vector<std::string> non_overridable_keywords = {
     "(", ")", "{", "}", ":", ".", "\\", "__", ";",
 };

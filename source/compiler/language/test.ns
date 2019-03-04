@@ -1,7 +1,0 @@
-\replace \{my name here\}
-\\
-\with \integer \{2345\}
-
-\if \{x\} \== \{0\} \\ \(
-    hello wordl this is \\good!
-\) "\hello"

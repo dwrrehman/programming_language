@@ -19,4 +19,7 @@ extern std::vector<std::string> operators;
 extern std::vector<std::string> overridable_keywords;
 extern std::vector<std::string> builtins;
 
+extern std::vector<std::string> pp_keywords;
+
+
 #endif /* lists_hpp */

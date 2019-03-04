@@ -57,7 +57,7 @@
 		FD7E425822264D150021E18A /* interpreter.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = interpreter.hpp; sourceTree = "<group>"; };
 		FDBFA1FD220EF2FB00CFB007 /* expressions.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = expressions.cpp; sourceTree = "<group>"; };
 		FDBFA1FE220EF2FB00CFB007 /* expressions.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = expressions.hpp; sourceTree = "<group>"; };
-		FDD9B86D22279A6900CA6C69 /* test.ns */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = test.ns; sourceTree = "<group>"; };
+		FDD9B86D22279A6900CA6C69 /* test.n */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = test.n; sourceTree = "<group>"; };
 		FDE4C18C22288E2B00B73B7A /* nodes.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = nodes.cpp; sourceTree = "<group>"; };
 		FDE4C18D22288E2B00B73B7A /* nodes.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = nodes.hpp; sourceTree = "<group>"; };
 /* End PBXFileReference section */
@@ -116,7 +116,7 @@
 				FD017610221CFD8300E5D442 /* color.h */,
 				FD36010521EB288E005FE844 /* lists.cpp */,
 				FD36010621EB288E005FE844 /* lists.hpp */,
-				FDD9B86D22279A6900CA6C69 /* test.ns */,
+				FDD9B86D22279A6900CA6C69 /* test.n */,
 			);
 			path = language;
 			sourceTree = "<group>";

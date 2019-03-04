@@ -1,0 +1,128 @@
+
+------------- grammar for our macro language, "boogers". -------------------
+
+program
+    = raw_text macro_list
+    | macro_list
+
+
+macro_list
+    = macro raw_text macro_list
+    | macro macro_list
+    | E
+
+macro
+    = replace pattern with replacement end
+
+pattern
+    = pattern_element pattern
+    | E
+
+pattern_element
+    = raw_text
+    | identifier
+
+replacement
+    = raw_text statement_list
+    | statement_list
+    | E
+
+
+statement_list
+    = statement raw_text statement_list
+    | statement statement_list
+    | E
+
+statement
+    = if_statement
+    | let_statement
+    | assignment_statement
+    | while_statement
+    | block_statement
+    | emit_statement
+    | function_definition
+    | function_call end
+    | expression end
+
+
+block_statement
+    = begin replacement end
+
+if_statement
+    = if ( expression ) do replacement else replacement end
+
+let_statement
+    = let identifier = expression end
+    | let int identifier = expression end
+
+assignment_statement
+    = identifier = expression end
+
+emit_statement
+    = emit identifier end
+
+
+while_statement
+    = while ( expression ) do replacement end
+
+function_definition
+    = define identifier ( parameter_list ) block_statement
+
+parameter_list
+    = parameter , parameter_list
+    | parameter
+    | E
+
+parameter
+    = let int identifier
+    | let identifier
+
+function_call
+    = call identifier ( expression_list )
+
+expression_list
+    = expression , expression_list
+    | expression
+    | E
+
+expression
+    = and_expr | and_expr
+    | and_expr
+
+and_expr
+    = compare_expr & compare_expr
+    | compare_expr
+
+compare_expr
+    = sum_expr == sum_expr
+    | sum_expr < sum_expr
+    | sum_expr > sum_expr
+    | sum_expr
+
+sum_expr
+    = product_expr + product_expr
+    | product_expr - product_expr
+    | product_expr
+
+product_expr
+    = unary_expr * unary_expr
+    | unary_expr / unary_expr
+    | unary_expr
+
+unary_expr
+    = ! symbol   
+    | symbol
+
+symbol
+    = ( expression )
+    | number
+    | function_call
+    | identifier
+    | raw_text
+
+number
+    = int identifier
+    | int + identifier
+    | int - identifier
+
+
