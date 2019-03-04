@@ -6,16 +6,17 @@ this is a programming lang. its awesome.
 ### hello world program:
 
 ```
-1 (main) {
-2    using .io
-3    print "Hello, world!"
-4 }
+ 1  () {
+ 2     use .io
+ 3     print "Hello, world!"
+ 4  }
 ```
 
 To get a feeling of how this language works, ill explain this program.
-the line 1 of the main program is just declaring a function "main", which takes no parameters, and returns "nothing" (aka, "()"). 
+the line 1 of the main program is just declaring a anonymous function (ie, a lambda), which serves as the only entry point for the executable. its sorta like delcaraing "main" in other C like languages.
+you can only have one top-level lambda in a executable, just as you can only have one symbol called "main" in a C program.
 
-line 2 is called a "using statement", and functions to not only allow the system library ".io" itself to be accessed by the current scope by including it,
+line 2 is called a "use statement", and functions to not only allow the system library ".io" itself to be accessed by the current scope by including it,
 but it also works to allow all of the immediate members in the .io system library to be accessed in the current scope as well, without saying ".io.print". 
 if you didnt want all the immediate members of the library to be included in the current scope, you would say "import .io". 
 the "." infront of the filename, means its a system library. note that dependancies are tied to definitions, not to files, quite like the D programming language.
