@@ -735,7 +735,9 @@ struct value {
     pp_node* function_definition = nullptr;
 };
 
-pp_node analyze(pp_node tree, std::unordered_map<std::string, struct value> &symbol_table) {
+//std::unordered_map<std::string, struct value> functions; // do we need this?
+
+pp_node analyze(pp_node tree, std::vector<std::pair<std::string, struct value>> &symbol_table) {
     
     
     /*
@@ -758,6 +760,10 @@ pp_node analyze(pp_node tree, std::unordered_map<std::string, struct value> &sym
         - a let statment will append an element to the symbol table:
      
         - a define statement will append an element to the symbol
+     
+     
+     
+     
      
      */
     
@@ -786,7 +792,7 @@ std::string preprocess(std::string filename, std::string text, bool &error) {
     
     std::cout << "---------orginal text:----------\n:::" << text << ":::\n\n\n";
     
-    std::unordered_map<std::string, struct value> symbol_table = {};
+    std::vector<std::pair<std::string, struct value>> symbol_table = {};
     
     text = strip_comments(text, error);    
     auto tokens = pp_lexer(text, error);
