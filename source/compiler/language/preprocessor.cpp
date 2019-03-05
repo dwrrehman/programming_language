@@ -114,16 +114,7 @@ bool isnt_all_spaces(std::string s) {
     return false;
 }
 
-
-
-
-
-
-
-
 // --------------------------- lexer ------------------------------
-
-
 
 std::vector<struct pp_token> pp_lexer(std::string text, bool &error) {
     
@@ -255,7 +246,7 @@ std::vector<struct pp_token> pp_lexer(std::string text, bool &error) {
         tokens.push_back({pp_text_type, current_text, current_line, current_column});
     }
     
-    print_pp_lex(tokens);
+    
     
     return tokens;
 }
@@ -431,7 +422,7 @@ bool identifier(params);
 bool raw_text(params);
 
 
-//this is a automatically generated parser in cpp, for my language.
+//this is a automatically generated parser in cpp, for boogers.
 
 
 bool program(params);
@@ -581,7 +572,7 @@ bool assignment_statement(params) {
 
 bool emit_statement(params) {
     declare_node();
-    if (b && keyword_("emit") && identifier(p) && keyword_("end")) return success(parent, self);
+    if (b && keyword_("emit") && expression(p) && keyword_("end")) return success(parent, self);
     return failure(save, self);
 }
 
@@ -688,7 +679,6 @@ bool number(params) {
     return failure(save, self);
 }
 
-
 /// Hand made EBNF nodes:
 
 bool identifier(params){
@@ -704,103 +694,325 @@ bool raw_text(params){
 }
 
 pp_node pp_parser(std::string filename, std::vector<struct pp_token> tokens, bool &error) {
-    
     pp_node tree = {};
-    
     if (!program(tokens, tree) || pointer != tokens.size() || level) {
-        
         int i = 0;
         for (auto n : deepest_stack_trace) print_pp_node(n, i++);
-        print_pp_parse(tree);
+        if (deepest_pointer >= tokens.size()) deepest_pointer--;
         print_parse_error(filename, tokens[deepest_pointer].line,  tokens[deepest_pointer].column, convert_pp_token_type_representation(tokens[deepest_pointer].type), tokens[deepest_pointer].value);
-        //print_source_code(text, {tokens[deepest_pointer]});
         error = true;
-        
-    } else {
-        print_pp_parse(tree);
-        std::cout << "\n\n\tsuccess.\n\n" << std::endl;
     }
-    
     return tree;
 }
 
 
-
-
-
+enum value_type {
+    null_value_type,
+    int_value_type,
+    text_value_type,
+    function_value_type
+};
 
 struct value {
     int numeric = 0;
     std::string textual = "";
     pp_node* function_definition = nullptr;
+    std::unordered_map<std::string, struct value> call_scope;
+    enum value_type type = null_value_type;
 };
 
-//std::unordered_map<std::string, struct value> functions; // do we need this?
 
-pp_node analyze(pp_node tree, std::vector<std::pair<std::string, struct value>> &symbol_table) {
+void print_value(struct value v);
+
+void print_current_symbol_table(std::unordered_map<std::string, struct value> symbol_table) {
+    std::cout << "SYMBOL TABLE:" << std::endl;
+    for (auto elem : symbol_table) {
+        std::cout << "--------------------------------------------------\n";
+        std::cout << "[" << elem.first << "] :: ";
+        print_value(elem.second);
+    }
+    std::cout << "--------------------------------------------------\n\n";
+}
+
+void print_value(struct value v) {
+    std::cout << "VALUE(numeric: " << v.numeric << ", textual: " << v.textual << ", node: " << v.function_definition << ", type: " << v.type << ")" << std::endl;
     
-    
-    /*
-     
-     jobs:
-     
-        - resolve identifier uses, function uses.
-     
-     
-     
-     
-     
-     
-     
-     
-     notes:
-     
-     
-     
-        - a let statment will append an element to the symbol table:
-     
-        - a define statement will append an element to the symbol
-     
-     
-     
-     
-     
-     */
-    
-    
-    
-    
-    return tree;
+    if (v.type == function_value_type) {
+        std::cout << "printing call scope:" << std::endl;
+        print_current_symbol_table(v.call_scope);
+    }
 }
 
 
+void print_symbol_table_stack(std::vector<std::unordered_map<std::string, struct value>> symbol_table_stack) {
+    std::cout << "---------------- printing stack ----------------------\n";
+    for (auto s : symbol_table_stack) print_current_symbol_table(s);
+    std::cout << "----------------done printing ----------------------\n";
+}
+
+struct value evaluate_integer_binary_expression(const struct value &first, const struct value &second, int result) {
+    if (first.type == int_value_type && second.type == int_value_type) {
+        return {result, "", nullptr, {}, int_value_type};
+    } else {
+        printf("Error: type Mismatch!\n");
+        printf("{first type: %d, second type: %d}\n", first.type, second.type);
+        return {};
+    }
+}
 
 
+void interpret(pp_node &tree, std::vector<std::unordered_map<std::string, struct value>> &symbol_table_stack, std::string &text);
 
 
-
-
-
-
-
-
-void interpret(pp_node action_tree, std::string &text) {
+struct value evaluate(pp_node expression, std::unordered_map<std::string, struct value> &symbol_table, std::string& text) {
     
+    if (expression.name == "raw_text") {
+        auto string = expression.children[0].data.value;
+        return {0, string, nullptr, {}, text_value_type};
+        
+    } else if (expression.name == "number") {
+        auto number = expression.children[1].children[0].data.value;
+        int value = std::atoi(number.c_str());
+        if (!value && number != "0") {
+            printf("Error: Expected a integer numeric literal after int keyword.\n");
+            return {0, "", nullptr, {}, null_value_type}; // error
+        } else return {value, "", nullptr, {}, int_value_type};
+            
+    } else if (expression.name == "identifier") {
+        
+        const auto name = expression.children[0].data.value;
+        const auto entry = symbol_table.find(name);
+        if (entry != symbol_table.end())
+            return entry->second;
+        else {
+            printf("Error: Undeclared variable \"%s\"\n", name.c_str());
+            return {};
+        }
+    } else if (expression.name == "function_call") {
+        const auto name = expression.children[1].children[0].data.value;
+        const auto function = symbol_table.find(name);
+        printf("calling a function....\n");
+        print_current_symbol_table(symbol_table);
+        if (function != symbol_table.end() && function->second.function_definition) {
+            printf("function available!....\n");
+            std::vector<std::unordered_map<std::string, struct value>> scope = {function->second.call_scope};
+            std::cout << "usiong this scope:\n";
+            print_symbol_table_stack(scope);
+            interpret(*(function->second.function_definition), scope, text);
+        } else {
+            printf("no valid call to function \"%s\"\n", name.c_str());
+        }
+        
+    } else if (expression.name == "sum_expr" && expression.children.size() == 3) {
+        
+        const struct value first = evaluate(expression.children[0], symbol_table, text);
+        const struct value second = evaluate(expression.children[2], symbol_table, text);
+        const std::string the_operator = expression.children[1].data.value;
+        
+        if (the_operator == "+") {
+            if (first.type == int_value_type && second.type == int_value_type) return {first.numeric + second.numeric, "", nullptr, {}, int_value_type};
+            else if (first.type == text_value_type && second.type == text_value_type) return {0, first.textual + second.textual, nullptr, {}, text_value_type};
+            else {
+                printf("Error: type Mismatch!\n");
+                printf("{first type: %d, second type: %d}\n", first.type, second.type);
+                return {};
+            }
+        } else if (the_operator == "-") {
+            return evaluate_integer_binary_expression(first, second, first.numeric - second.numeric);
+        }
+        
+    } else if (expression.name == "product_expr" && expression.children.size() == 3) {
+        
+        const struct value first = evaluate(expression.children[0], symbol_table, text);
+        const struct value second = evaluate(expression.children[2], symbol_table, text);
+        const std::string the_operator = expression.children[1].data.value;
+        
+        if (the_operator == "*") {
+            return evaluate_integer_binary_expression(first, second, first.numeric * second.numeric);
+            
+        } else if (the_operator == "/") {
+            if (!second.numeric) { printf("Error: Division by zero!\n"); return {}; }
+            return evaluate_integer_binary_expression(first, second, first.numeric / second.numeric);
+        }
+        
+    } else if (expression.name == "expression" && expression.children.size() == 3) {
+        
+        const struct value first = evaluate(expression.children[0], symbol_table, text);
+        const struct value second = evaluate(expression.children[2], symbol_table, text);
+        return evaluate_integer_binary_expression(first, second, first.numeric || second.numeric);
+        
+    } else if (expression.name == "and_expr" && expression.children.size() == 3) {
+        
+        const struct value first = evaluate(expression.children[0], symbol_table, text);
+        const struct value second = evaluate(expression.children[2], symbol_table, text);
+        return evaluate_integer_binary_expression(first, second, first.numeric && second.numeric);
+        
+    } else if (expression.name == "compare_expr" && expression.children.size() == 3) {
+        
+        const struct value first = evaluate(expression.children[0], symbol_table, text);
+        const struct value second = evaluate(expression.children[2], symbol_table, text);
+        const std::string the_operator = expression.children[1].data.value;
+        
+        if (the_operator == "==") {
+            return evaluate_integer_binary_expression(first, second, first.numeric == second.numeric);
+            
+        } else if (the_operator == "<") {
+            return evaluate_integer_binary_expression(first, second, first.numeric < second.numeric);
+            
+        } else if (the_operator == ">") {
+            return evaluate_integer_binary_expression(first, second, first.numeric > second.numeric);
+        }
+    }
+    
+    if (expression.children.size())
+        return evaluate(expression.children[0], symbol_table, text);
+    else return {};
+}
+
+void push_arguments_into_symbol_table(pp_node &parameter_list, std::unordered_map<std::string, struct value> &symbol_table) {
+    
+    if (parameter_list.name == "parameter") {
+        std::cout << "found parameter!!!\n";
+        auto name = parameter_list.children.back().children[0].data.value;
+        auto type = parameter_list.children.size() > 2 ? int_value_type : text_value_type;
+        std::cout << "name = " << name << std::endl;
+        std::cout << "type = " << type << std::endl;
+        symbol_table[name] = {0, "", nullptr, {}, type};
+    }
+    
+    for (auto child : parameter_list.children) {
+        push_arguments_into_symbol_table(child, symbol_table);
+    }
+}
+
+void interpret(pp_node &tree, std::vector<std::unordered_map<std::string, struct value>> &symbol_table_stack, std::string &text) {
+
+    if (tree.name == "block_statement") {
+        symbol_table_stack.push_back(symbol_table_stack.back());
+//        print_symbol_table_stack(symbol_table_stack);
+        
+    } else if (tree.name == "function_definition") {
+        const auto name = tree.children[1].children[0].data.value;
+        
+        std::cout << "defining a function....\n";
+        
+        // lets declare all the arguments:
+        //print_pp_parse(tree);
+//        std::cout << "this is the after encountering the name:\n";
+        
+//        std::cout << "before:\n";
+//        print_symbol_table_stack(symbol_table_stack);
+//        std::cout << "after:\n";
+        
+        symbol_table_stack.back()[name] = {0, "", &tree.children.back(), {}, function_value_type};
+        symbol_table_stack.back()[name].call_scope = symbol_table_stack.back();
+        
+//        print_symbol_table_stack(symbol_table_stack);
+        
+//        std::cout << "now we are going into the funftion def:\n";
+        symbol_table_stack.push_back(symbol_table_stack.back());
+        std::unordered_map<std::string, struct value> scope = symbol_table_stack.back();
+        
+        if (tree.children.size() > 5) {
+            auto parameter_list = tree.children[3];
+            //print_current_symbol_table(scope);
+            //std::cout << "this is the scope before pushing arguments:\n";
+            push_arguments_into_symbol_table(parameter_list, scope);
+            //std::cout << "this is the scope after pushing arguments:\n";
+            //print_current_symbol_table(scope);
+            
+            scope[name] = {0, "", &tree.children.back(), scope, function_value_type};
+            //std::cout << "this is the scope after setting:\n";
+            //print_current_symbol_table(scope);
+            
+        } else {
+            //std::cout << "argument list less than 5, no args for func call.\n";
+        }
+//        std::cout << "this is the scope after everythign:\n";
+//        print_current_symbol_table(scope);
+//        std::cout << "also heres the symbol table stack:\n";
+//        print_symbol_table_stack(symbol_table_stack);
+//        std::cout << "popping...\n";
+        
+        symbol_table_stack.pop_back();
+        
+//        std::cout << "after popping:\n";
+//        print_symbol_table_stack(symbol_table_stack);
+        
+        return;
+        
+    } else if (tree.name == "let_statement") {
+        auto identifier = tree.children[1].children[0].data.value;
+        symbol_table_stack.back()[identifier] = evaluate(tree.children[3], symbol_table_stack.back(), text);
+        print_symbol_table_stack(symbol_table_stack);
+        
+    } else if (tree.name == "assignment_statement") {
+        auto identifier = tree.children[0].children[0].data.value;
+        symbol_table_stack.back()[identifier] = evaluate(tree.children[2], symbol_table_stack.back(), text);
+        print_symbol_table_stack(symbol_table_stack);
+        
+    } else if (tree.name == "if_statement") {
+        auto value = evaluate(tree.children[2], symbol_table_stack.back(), text);
+        if (!value.numeric) return;
+        symbol_table_stack.push_back(symbol_table_stack.back());
+        
+    } else if (tree.name == "while_statement") {
+        symbol_table_stack.push_back(symbol_table_stack.back());
+        while_statement_label:
+        auto value = evaluate(tree.children[2], symbol_table_stack.back(), text);
+        if (!value.numeric) {
+            symbol_table_stack.pop_back();
+            return;
+        }
+    
+    } else if (tree.name == "emit_statement") {
+        auto value = evaluate(tree.children[1], symbol_table_stack.back(), text);
+        if (value.type == int_value_type) std::cout << value.numeric;
+        else if (value.type == text_value_type) std::cout << value.textual;
+        else printf("{EMIT ERROR}");
+        
+    } else if (tree.name == "expression") {
+        evaluate(tree, symbol_table_stack.back(), text);
+        
+    } else if (tree.name == "function_call") {
+        evaluate(tree, symbol_table_stack.back(), text);
+    }
+    
+    for (auto child : tree.children) {
+        interpret(child, symbol_table_stack, text);
+    }
+    
+    if (tree.name == "block_statement") {
+        symbol_table_stack.pop_back();
+        
+    } else if (tree.name == "function_definition") {
+        symbol_table_stack.pop_back();
+        
+    } else if (tree.name == "if_statement") {
+        symbol_table_stack.pop_back();
+        
+    } else if (tree.name == "while_statement") {        
+        goto while_statement_label;
+    }
 }
 
 std::string preprocess(std::string filename, std::string text, bool &error) {
     
-    std::cout << "---------orginal text:----------\n:::" << text << ":::\n\n\n";
+    //std::cout << "---------orginal text:----------\n:::" << text << ":::\n\n\n";
     
-    std::vector<std::pair<std::string, struct value>> symbol_table = {};
+    std::vector<std::unordered_map<std::string, struct value>> symbol_table_stack = {{}};
     
-    text = strip_comments(text, error);    
+    text = strip_comments(text, error);
+    
     auto tokens = pp_lexer(text, error);
-    auto ast = pp_parser(filename, tokens, error);
-    auto action_tree = analyze(ast, symbol_table);
-    interpret(action_tree, text);
+    //print_pp_lex(tokens);
     
-    std::cout << "-------preprocessed text:--------\n:::" << text << ":::\n\n\n";
+    auto action_tree = pp_parser(filename, tokens, error);
+    print_pp_parse(action_tree);
+    
+    interpret(action_tree, symbol_table_stack, text);
+        
+    //std::cout << "-------preprocessed text:--------\n:::" << text << ":::\n\n\n";
     
     return text;
 }

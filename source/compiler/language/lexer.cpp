@@ -181,7 +181,7 @@ std::vector<struct token> lex(std::string text, bool &error) {
     }
     tokens.push_back({"\n", operator_type, line++, 0});
     
-    print_lex(tokens); /// debug
+    //print_lex(tokens); /// debug
     
     return tokens;
 }

@@ -14,7 +14,7 @@ const std::string bulitin_prefix = "__nostril_core__";
 std::vector<std::string> pp_keywords = {
     "replace", "with", "begin", "end",
     "if", "while", "else", "do", "let",
-    "call", "define", "as", "emit",
+    "call", "define", "emit",
     "int", "!", "&", "|",
     "==", "<", ">", "=", ",",
     "+", "-", "/", "*", "(", ")",

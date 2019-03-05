@@ -34,7 +34,7 @@ struct action_tree frontend(struct file file) {
     auto ast = parse(file.name, file.data, tokens, parse_error);
     auto action_tree = analyze(ast, analysis_error);
     
-    print_errors(analysis_error, lex_error, preprocess_error, parse_error);
+    //print_errors(analysis_error, lex_error, preprocess_error, parse_error);
     
     return action_tree;
 }

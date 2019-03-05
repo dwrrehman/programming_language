@@ -1,14 +1,11 @@
 \replace start \with
 
-\if \( \int \{0\} \) \do
-    hello
-\else
-    \emit \{45\} \end
+\define \{m\} \( \let \int \{i\} \, \let \{y\} \) \begin
+    \emit hello world! \end
 \end
 
-\while \( \int \{1\} \) \do
-    \{hello there\} \end
-\end
+\call \{m\} \( \int \{0\} \, hello there me \) \end
 
+;;\emit hello world! \end
 
 \end start
