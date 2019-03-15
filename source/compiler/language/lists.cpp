@@ -72,4 +72,6 @@ std::vector<std::string> builtins = { // (requires the prefix)
     "set_relative_precedence_from",
 
     //todo: add the parser AST nodes, to allow recognition of them.
+
+    // example: __core__expression_node__, __core__statement_node__, etc.
 };

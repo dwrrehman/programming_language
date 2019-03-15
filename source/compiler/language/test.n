@@ -1,5 +1,2 @@
-() {
-    hello world = "hello there from \(x + 1) andhe llo ther "
-    print hello world
-}
-
+use .io
+print "hello, world!"

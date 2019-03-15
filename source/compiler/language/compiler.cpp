@@ -13,6 +13,7 @@
 #include "parser.hpp"
 #include "nodes.hpp"
 #include "analysis.hpp"
+#include "codegen.hpp"
 
 #include "llvm/IR/LLVMContext.h"
 #include "llvm/IR/Module.h"
@@ -21,7 +22,7 @@
 #include <fstream>
 #include <vector>
 
-llvm::Module* frontend(struct file file) {
+llvm::Module* frontend(struct file file, llvm::LLVMContext &context) {    
     return code_generation(analyze(parse(file.name, preprocess(file.name, file.data))));
 }
 

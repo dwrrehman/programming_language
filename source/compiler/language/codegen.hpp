@@ -9,6 +9,8 @@
 #ifndef codegen_hpp
 #define codegen_hpp
 
+#include "analysis.hpp"
+
 #include "llvm/IR/Module.h"
 
 llvm::Module* code_generation(struct action_tree tree);

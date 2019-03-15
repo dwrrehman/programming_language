@@ -9,14 +9,14 @@
 #ifndef compiler_hpp
 #define compiler_hpp
 
-#include "analysis.hpp"
 #include "arguments.hpp"
-#include <string>
-#include <vector>
 
 #include "llvm/IR/LLVMContext.h"
 #include "llvm/IR/Module.h"
 
-llvm::Module* frontend(struct file file);
+#include <string>
+#include <vector>
+
+llvm::Module* frontend(struct file file, llvm::LLVMContext &context);
 
 #endif /* compiler_hpp */

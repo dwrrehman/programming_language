@@ -71,51 +71,21 @@ void print_lex(const std::vector<struct token> &tokens) {
 
 const char* convert_token_type_representation(enum token_type type) {
     switch (type) {
-        case null_type: return "{null}";
-        case string_type: return "string";
-        case identifier_type: return "identifier";
-        case number_type: return "number";
-        case keyword_type: return "keyword";
-        case operator_type: return "operator";
-        case documentation_type: return "documentation";
-        case character_type: return "character_or_llvm";
+        case token_type::null: return "{null}";
+        case token_type::string: return "string";
+        case token_type::identifier: return "identifier";
+        case token_type::number: return "number";
+        case token_type::keyword: return "keyword";
+        case token_type::operator_: return "operator";
+        case token_type::documentation: return "documentation";
+        case token_type::character: return "character";
+        case token_type::llvm: return "llvm";
+        case token_type::builtin: return "builtin";
     }
 }
-
-
-
-
 
 
 // ---------------------------- parser -------------------------------
 
 
 #define prep(_level) for (int i = _level; i--;) std::cout << ".   "
-
-void print_node(node &self, int level) {
-    prep(level); std::cout << self.name << " (" << self.children.size() << ")" << std::endl;
-    if (self.data.type != null_type) {
-        prep(level); std::cout << "type = " << convert_token_type_representation(self.data.type) << std::endl;
-    }
-    if (self.data.value != "") {
-        prep(level); std::cout << "value = " << (self.data.value == "\n" ? "\\n" : self.data.value) << std::endl;
-    }
-    int i = 0;
-    for (auto childnode : self.children) {
-        std::cout << std::endl;
-        if (self.children.size() > 1) {prep(level+1); std::cout << "child #" << i++ << ": " << std::endl;}
-        print_node(childnode, level+1);
-    }
-}
-
-void print_token(struct token t) {
-    std::cout << "Error at token: \n\n";
-    std::cout << "\t\t---------------------------------\n";
-    std::cout << "\t\tline " << t.line << "," << t.column << " : "<< t.value << "           "  <<  "(" << convert_token_type_representation(t.type) << ")\n";
-    std::cout << "\t\t---------------------------------\n\n\n";
-}
-
-void print_parse(node &tree) {
-    std::cout << "------------ PARSE: ------------- " << std::endl;
-    print_node(tree, 0);
-}

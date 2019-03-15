@@ -64,17 +64,19 @@ static void get_interpreter_arguments(int argc, struct arguments &args, const ch
  
  ------------------------------ flags ------------------------------
  
- nostril -empty                 : dont include the standard library implicitly.
+ nostril -empty                  : dont include the standard library implicitly.
  
- nostril -link <.a/.bgr>        : a archive file, or a booger to statically link.
+ nostril -link <.a/.bgr>         : a archive file, or a booger to statically link.
  
- nostril -named <name>          : name the executable to the name.
+ nostril -named <name>           : name the executable to the name.
  
- nostril -sneeze                : enable debug output of the compiler, while compiling.
+ nostril -sneeze                 : enable debug output of the compiler, while compiling.
  
- nostril -booger                : create a ".bgr" package, instead of an executable.
+ nostril -booger                 : create a ".bgr" package, instead of an executable.
  
- nostril -color=<ascii/256/...>     : toggle the colors of the compiler output, or interpreter.
+ nostril -color=<ascii/256/...>  : toggle the colors of the compiler output, or interpreter.
+
+ nostril -entry <one file>       : define this file as the entry point, and wrap a anon lambda around the code.
  
  */
 struct arguments get_commandline_arguments(int argc, const char** argv) { // we need to revise this function to fit the new comipiler specfication.

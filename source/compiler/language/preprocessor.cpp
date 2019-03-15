@@ -7,13 +7,13 @@
 //
 
 #include "preprocessor.hpp"
-
-#include <iostream>
-#include <vector>
 #include "lists.hpp"
 #include "error.hpp"
-#include <unordered_map>
 #include "debug.hpp"
+
+#include <unordered_map>
+#include <iostream>
+#include <vector>
 #include <exception>
 
 
@@ -29,7 +29,7 @@ std::string strip_comments(std::string text) {
     bool in_line_comment = false;
     
     for (int c = 0; c < text.size(); c++) {
-        if (!in_line_comment && !in_multi_comment && text[c] == ';' && text[c+1] == ';') {
+        if (!in_line_comment && !in_multi_comment && text[c] == ';' && text[c+1] == ' ') {
             in_line_comment = true;
             result.push_back(' ');
             
@@ -37,11 +37,11 @@ std::string strip_comments(std::string text) {
             result.push_back('\n');
             in_line_comment = false;
             
-        } else if (!in_line_comment && !in_multi_comment && text[c] == ';' && text[c+1] == ':') {
+        } else if (!in_line_comment && !in_multi_comment && text[c] == ';' && text[c+1] != ' ') {
             in_multi_comment = true;
             result.push_back(' ');
             
-        } else if (!in_line_comment && in_multi_comment && text[c-1] == ':' && text[c] == ';') {
+        } else if (!in_line_comment && in_multi_comment && text[c] == ';') {
             in_multi_comment = false;
             result.push_back(' ');
             
@@ -281,10 +281,10 @@ static void print_pp_node(pp_node &self, int level) {
     }
 }
 
-static void print_pp_parse(pp_node &tree) {
-    std::cout << "------------ PARSE: ------------- " << std::endl;
-    print_pp_node(tree, 0);
-}
+//static void print_pp_parse(pp_node &tree) {
+//    std::cout << "------------ PARSE: ------------- " << std::endl;
+//    print_pp_node(tree, 0);
+//}
 
 
 /// Parsing:
@@ -923,15 +923,15 @@ std::string preprocess(std::string filename, std::string text) {
     
     text = strip_comments(text);
     
-    auto tokens = pp_lexer(text);
+    //auto tokens = pp_lexer(text);
     //print_pp_lex(tokens);
     
-    auto action_tree = pp_parser(filename, tokens);
-    print_pp_parse(action_tree);
+    //auto action_tree = pp_parser(filename, tokens);
+    //print_pp_parse(action_tree);
     
-    interpret(action_tree, symbol_table_stack, text);
+    //interpret(action_tree, symbol_table_stack, text);
         
     //std::cout << "-------preprocessed text:--------\n:::" << text << ":::\n\n\n";
     
-    return ""; // DEBUG: CHANGE ME
+    return text; // DEBUG: CHANGE ME
 }
