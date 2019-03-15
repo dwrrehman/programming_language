@@ -9,8 +9,7 @@
 #ifndef nodes_hpp
 #define nodes_hpp
 
-
-
+/*
 
 #include "llvm/ADT/APFloat.h"
 #include "llvm/ADT/STLExtras.h"
@@ -23,23 +22,49 @@
 #include "llvm/IR/Module.h"
 #include "llvm/IR/Type.h"
 #include "llvm/IR/Verifier.h"
+*/
 
+#include <string>
+#include <vector>
 
-class ast_node {
+class node {
 public:
-    virtual llvm::Value* codegen() = 0;
+    bool error = false;
+    // add code gen virtual pure method here?
 };
 
-class program {
+class interface_declaration: public node {
     
 };
+
+class declaration: public node {
+    
+};
+
+class declaration_list: public node {
+    std::vector<declaration> declarations = {};
+};
+
+class program: public node {
+    declaration_list list = {};
+};
+
+
+
+
+
 
 
 /*
 
 /// ExprAST - Base class for all expression nodes.
 
-
+ class ExprAST {
+ public:
+    virtual ~ExprAST() = default;
+ 
+    virtual llvm::Value* codegen() = 0;
+ };
 
 
 

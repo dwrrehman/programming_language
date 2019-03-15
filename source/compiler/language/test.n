@@ -1,11 +1,5 @@
-\replace start \with
+() {
+    hello world = "hello there from \(x + 1) andhe llo ther "
+    print hello world
+}
 
-\define \{m\} \( \let \int \{i\} \, \let \{y\} \) \begin
-    \emit hello world! \end
-\end
-
-\call \{m\} \( \int \{0\} \, hello there me \) \end
-
-;;\emit hello world! \end
-
-\end start

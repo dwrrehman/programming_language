@@ -16,11 +16,11 @@
 #include <vector>
 
 void print_parse_error(std::string filename, size_t line, size_t column, std::string type, std::string found) {
-    std::cout << "\n" << filename << ": " << line << ":" << column << " : " BRIGHT_RED "error" RESET ": unexpected " << type << ", \"" << (found == "\n" ? "newline" : found) << "\"" << std::endl << std::endl;
+    std::cout << "nostril: " BRIGHT_RED "error" RESET ": " << filename << ": " << line << ":" << column << " : unexpected " << type << ", \"" << (found == "\n" ? "newline" : found) << "\"" << std::endl << std::endl;
 }
 
 void print_source_code(std::string text, std::vector<struct token> tokens) {
-    auto& t = tokens[0];
+    auto& t = tokens[0]; //TODO: allow this function to print erros to do with multiple tokens in combintation.
     std::vector<int> offsets = {-2, -1, 0, 1, 2};
     std::string line = "";
     std::istringstream s {text};
@@ -28,7 +28,6 @@ void print_source_code(std::string text, std::vector<struct token> tokens) {
     while (std::getline(s, line)) lines.push_back(line);
     
     for (auto offset : offsets) {
-        
         size_t index = 0;
         if ((int) t.line - 1 + offset >= 0 && (int) t.line - 1 + offset < lines.size()) {
             index = t.line - 1 + offset;

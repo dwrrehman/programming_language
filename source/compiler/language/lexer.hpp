@@ -11,19 +11,17 @@
 
 #include <string>
 
-enum lexing_state {string_state, identifier_state, number_state, documentation_state, character_state};
-enum token_type {null_type, string_type, identifier_type, number_type, keyword_type, operator_type, documentation_type, character_type};
+enum class token_type {null, string, identifier, number, documentation, character, llvm, keyword, operator_, builtin};
 
 struct token {
-    std::string value;
-    enum token_type type;
-    size_t line;
-    size_t column;
+    enum token_type type = token_type::null;
+    std::string value = "";
+    size_t line = 0;
+    size_t column = 0;
 };
 
-void print_lex(const std::vector<struct token> &tokens);
-const char* convert_token_type_representation(enum token_type type);
+void start_lex(std::string given_filename, std::string given_text);
 
-std::vector<struct token> lex(std::string text, bool &error);
+struct token next();
 
 #endif /* lexer_hpp */

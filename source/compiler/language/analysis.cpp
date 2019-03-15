@@ -14,7 +14,7 @@
 #include <vector>
 #include <stdlib.h>
 
-struct action_tree analyze(class program tree, bool &error) {
+struct action_tree analyze(class program tree) {
     
     return {};
 }

@@ -11,6 +11,6 @@
 
 #include "parser.hpp"
 
-expression_node parse_expression(node input, std::vector<struct function_signature> current_signatures);
+//expression_node parse_expression(node input, std::vector<struct function_signature> current_signatures);
 
 #endif /* expressions_hpp */

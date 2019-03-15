@@ -7,10 +7,20 @@
 //
 
 #include "interpreter.hpp"
+#include "parser.hpp"
 
 #include <string>
 
-void interpreter(std::string text) {
-    printf("this is a interpreter.\n");
-}
 
+// we need to add a call the to editor here.
+
+// we also need to add a call to the REPL.
+
+
+
+
+
+
+void interpreter(std::string text) {
+    printf("this is a nostril interpreter.\n");
+}

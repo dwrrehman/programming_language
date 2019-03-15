@@ -8,8 +8,10 @@
 
 #include "lists.hpp"
 
-const std::string bulitin_prefix = "__nostril_core__";
 
+
+
+// ------------------- preprocessor langugae keywords ---------------------------
 
 std::vector<std::string> pp_keywords = {
     "replace", "with", "begin", "end",
@@ -23,60 +25,16 @@ std::vector<std::string> pp_keywords = {
 };
 
 
-std::vector<std::string> non_overridable_keywords = {
-    "(", ")", "{", "}", ":", ".", "\\", "__", ";",
-};
 
-std::vector<std::string> builtins = { // apply the prefix to get the real builtin identifiers.
-    "type_i1__",
-    "type_i8__",
-    "type_i16__",
-    "type_i32__",
-    "type_i64__",
-    "type_i128__",
-    
-    "type_r16__",
-    "type_r32__",
-    "type_r64__",
-    "type_r80__",
-    "type_r128__",
-    
-    "compiler_api__",
-    
-    "set_signature_visible_to",
-    "visibility_all__",
-    "visibility_none__",
-    "visibility_file__",
-    "visibility_module__",
-    "visibility_to_group__",
-    
-    "set_inline_ability_to",
-    "inline_always__",
-    "inline_never__",
-    "inline_if_beneficial__",
-    
-    "use_signature_in_scope",
-    "include_module_from_path",
-    
-    "set_time_marking",
-    "marked_explicit_runtime__",
-    "marked_explicit_compiletime__",
-    "marked_implicit_compiletime__",
-    
-    "set_linkage",
-    "set_calling_convention",
-    
-    
-    "set_precedence",
-    "set_relative_precedence_from",
-    
-    "",
-    "",
-  
+
+// ------------------- nostril language keywords ------------------------------
+
+std::vector<std::string> non_overridable_keywords = {
+    "(", ")", "{", "}", ":", ".", "\\", ";", "_",
 };
 
 std::vector<std::string> keywords = {
-    "__", "_"
+    "_"
 };
 
 std::vector<std::string> operators = {
@@ -85,4 +43,33 @@ std::vector<std::string> operators = {
     "^", "%", "!", "~", "&", ".",
     "?", ":", ";", "|", "=", "\n",
     "\\", ",", "#", "$", "@",
+};
+
+
+// ----------------------- compiler built-in identifiers --------------------------
+
+const std::string builtin_prefix = "__n__";
+
+std::vector<std::string> builtins = { // (requires the prefix)
+
+    "set_signature_visible_to",
+    "visibility_all__",
+    "visibility_none__",
+    "visibility_to_file__",
+    "visibility_to_module__",
+    "visibility_group",
+
+    "bring_signature_into_scope",
+    "include_module_from_path",
+    
+    "set_evaluation",
+    "marked_explicit_runtime__",
+    "marked_explicit_compiletime__",
+    "marked_implicit_compiletime__",
+
+    "set_precedence",
+    "set_associativity",
+    "set_relative_precedence_from",
+
+    //todo: add the parser AST nodes, to allow recognition of them.
 };

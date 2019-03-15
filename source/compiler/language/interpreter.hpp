@@ -9,11 +9,8 @@
 #ifndef interpreter_hpp
 #define interpreter_hpp
 
-
 #include <string>
 
-
 void interpreter(std::string text);
-
 
 #endif /* interpreter_hpp */

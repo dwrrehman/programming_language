@@ -13,52 +13,14 @@
 #include "lists.hpp"
 #include "error.hpp"
 #include <unordered_map>
-
-
-
-// --------------- preprocessor structures ----------------------------
-
-enum pp_token_type {
-    pp_null_type,
-    pp_keyword_type,
-    pp_text_type,
-    pp_identifier_type,
-    pp_ast_node_type
-};
-
-struct pp_token {
-    enum pp_token_type type;
-    std::string value;
-    size_t line;
-    size_t column;
-};
-
-
-// helpers:
-
-const char* convert_pp_token_type_representation(enum pp_token_type type) {
-    switch (type) {
-        case pp_null_type: return "{null}";
-        case pp_text_type: return "text";
-        case pp_identifier_type: return "identifier";
-        case pp_keyword_type: return "keyword";
-        case pp_ast_node_type: return "astnode";
-    }
-}
-
-void print_pp_lex(const std::vector<struct pp_token> &tokens) {
-    std::cout << "::::::::::PP LEX:::::::::::" << std::endl;
-    for (auto token : tokens) {
-        std::cout << "TOKEN(type: " << convert_pp_token_type_representation(token.type) << ", value: \"" << (token.value != "\n" ? token.value : "\\n") << "\", [" << token.line << ":" << token.column << "])" << std::endl;
-    }
-    std::cout << ":::::::END OF PP LEX:::::::\n\n\n" << std::endl;
-}
+#include "debug.hpp"
+#include <exception>
 
 
 
 // ----------------------------- pre-preprocessor -----------------------------------
 
-std::string strip_comments(std::string text, bool &error) {
+std::string strip_comments(std::string text) {
     
     text.append("    ");
     
@@ -100,7 +62,7 @@ std::string strip_comments(std::string text, bool &error) {
     if (in_multi_comment) {
         std::cout << "Error: unterminated multiline comment." << std::endl;
         ///TODO: add call using the standard error printing class.
-        error = true;
+        throw "Unterminated multiline comment";
     }
     
     
@@ -116,7 +78,7 @@ bool isnt_all_spaces(std::string s) {
 
 // --------------------------- lexer ------------------------------
 
-std::vector<struct pp_token> pp_lexer(std::string text, bool &error) {
+std::vector<struct pp_token> pp_lexer(std::string text) {
     
     std::vector<struct pp_token> tokens = {};
     
@@ -317,13 +279,6 @@ static void print_pp_node(pp_node &self, int level) {
         if (self.children.size() > 1) {prep(level+1); std::cout << "child #" << i++ << ": " << std::endl;}
         print_pp_node(childnode, level+1);
     }
-}
-
-static void print_pp_token(struct pp_token t) {
-    std::cout << "Error at token: \n\n";
-    std::cout << "\t\t---------------------------------\n";
-    std::cout << "\t\tline " << t.line << "," << t.column << " : "<< t.value << "           "  <<  "(" << convert_pp_token_type_representation(t.type) << ")\n";
-    std::cout << "\t\t---------------------------------\n\n\n";
 }
 
 static void print_pp_parse(pp_node &tree) {
@@ -693,14 +648,14 @@ bool raw_text(params){
     return failure(save, self);
 }
 
-pp_node pp_parser(std::string filename, std::vector<struct pp_token> tokens, bool &error) {
+pp_node pp_parser(std::string filename, std::vector<struct pp_token> tokens) {
     pp_node tree = {};
     if (!program(tokens, tree) || pointer != tokens.size() || level) {
         int i = 0;
         for (auto n : deepest_stack_trace) print_pp_node(n, i++);
         if (deepest_pointer >= tokens.size()) deepest_pointer--;
         print_parse_error(filename, tokens[deepest_pointer].line,  tokens[deepest_pointer].column, convert_pp_token_type_representation(tokens[deepest_pointer].type), tokens[deepest_pointer].value);
-        error = true;
+        throw "parse error";
     }
     return tree;
 }
@@ -726,8 +681,13 @@ void print_value(struct value v);
 
 void print_current_symbol_table(std::unordered_map<std::string, struct value> symbol_table) {
     std::cout << "SYMBOL TABLE:" << std::endl;
+    
+    if (!symbol_table.size()) {
+        printf("\t{EMPTY}\n");
+        return;
+    }
+    std::cout << "--------------------------------------------------\n";
     for (auto elem : symbol_table) {
-        std::cout << "--------------------------------------------------\n";
         std::cout << "[" << elem.first << "] :: ";
         print_value(elem.second);
     }
@@ -736,7 +696,6 @@ void print_current_symbol_table(std::unordered_map<std::string, struct value> sy
 
 void print_value(struct value v) {
     std::cout << "VALUE(numeric: " << v.numeric << ", textual: " << v.textual << ", node: " << v.function_definition << ", type: " << v.type << ")" << std::endl;
-    
     if (v.type == function_value_type) {
         std::cout << "printing call scope:" << std::endl;
         print_current_symbol_table(v.call_scope);
@@ -870,16 +829,11 @@ struct value evaluate(pp_node expression, std::unordered_map<std::string, struct
 }
 
 void push_arguments_into_symbol_table(pp_node &parameter_list, std::unordered_map<std::string, struct value> &symbol_table) {
-    
     if (parameter_list.name == "parameter") {
-        std::cout << "found parameter!!!\n";
         auto name = parameter_list.children.back().children[0].data.value;
         auto type = parameter_list.children.size() > 2 ? int_value_type : text_value_type;
-        std::cout << "name = " << name << std::endl;
-        std::cout << "type = " << type << std::endl;
         symbol_table[name] = {0, "", nullptr, {}, type};
     }
-    
     for (auto child : parameter_list.children) {
         push_arguments_into_symbol_table(child, symbol_table);
     }
@@ -889,67 +843,32 @@ void interpret(pp_node &tree, std::vector<std::unordered_map<std::string, struct
 
     if (tree.name == "block_statement") {
         symbol_table_stack.push_back(symbol_table_stack.back());
-//        print_symbol_table_stack(symbol_table_stack);
+        std::cout << "ENCOUNTERED A BLOCK STATEMENT!\n";
         
     } else if (tree.name == "function_definition") {
+        
         const auto name = tree.children[1].children[0].data.value;
-        
-        std::cout << "defining a function....\n";
-        
-        // lets declare all the arguments:
-        //print_pp_parse(tree);
-//        std::cout << "this is the after encountering the name:\n";
-        
-//        std::cout << "before:\n";
-//        print_symbol_table_stack(symbol_table_stack);
-//        std::cout << "after:\n";
-        
         symbol_table_stack.back()[name] = {0, "", &tree.children.back(), {}, function_value_type};
-        symbol_table_stack.back()[name].call_scope = symbol_table_stack.back();
-        
-//        print_symbol_table_stack(symbol_table_stack);
-        
-//        std::cout << "now we are going into the funftion def:\n";
-        symbol_table_stack.push_back(symbol_table_stack.back());
-        std::unordered_map<std::string, struct value> scope = symbol_table_stack.back();
         
         if (tree.children.size() > 5) {
+            symbol_table_stack.push_back(symbol_table_stack.back());
+            
             auto parameter_list = tree.children[3];
-            //print_current_symbol_table(scope);
-            //std::cout << "this is the scope before pushing arguments:\n";
-            push_arguments_into_symbol_table(parameter_list, scope);
-            //std::cout << "this is the scope after pushing arguments:\n";
-            //print_current_symbol_table(scope);
+            push_arguments_into_symbol_table(parameter_list, symbol_table_stack.back());
+            std::unordered_map<std::string, struct value> saved_scope = symbol_table_stack.back();
             
-            scope[name] = {0, "", &tree.children.back(), scope, function_value_type};
-            //std::cout << "this is the scope after setting:\n";
-            //print_current_symbol_table(scope);
-            
-        } else {
-            //std::cout << "argument list less than 5, no args for func call.\n";
+            symbol_table_stack.pop_back();
+            symbol_table_stack.back()[name].call_scope = saved_scope;
         }
-//        std::cout << "this is the scope after everythign:\n";
-//        print_current_symbol_table(scope);
-//        std::cout << "also heres the symbol table stack:\n";
-//        print_symbol_table_stack(symbol_table_stack);
-//        std::cout << "popping...\n";
-        
-        symbol_table_stack.pop_back();
-        
-//        std::cout << "after popping:\n";
-//        print_symbol_table_stack(symbol_table_stack);
-        
         return;
         
     } else if (tree.name == "let_statement") {
         auto identifier = tree.children[1].children[0].data.value;
         symbol_table_stack.back()[identifier] = evaluate(tree.children[3], symbol_table_stack.back(), text);
-        print_symbol_table_stack(symbol_table_stack);
         
     } else if (tree.name == "assignment_statement") {
         auto identifier = tree.children[0].children[0].data.value;
         symbol_table_stack.back()[identifier] = evaluate(tree.children[2], symbol_table_stack.back(), text);
-        print_symbol_table_stack(symbol_table_stack);
         
     } else if (tree.name == "if_statement") {
         auto value = evaluate(tree.children[2], symbol_table_stack.back(), text);
@@ -996,23 +915,23 @@ void interpret(pp_node &tree, std::vector<std::unordered_map<std::string, struct
     }
 }
 
-std::string preprocess(std::string filename, std::string text, bool &error) {
+std::string preprocess(std::string filename, std::string text) {
     
     //std::cout << "---------orginal text:----------\n:::" << text << ":::\n\n\n";
     
     std::vector<std::unordered_map<std::string, struct value>> symbol_table_stack = {{}};
     
-    text = strip_comments(text, error);
+    text = strip_comments(text);
     
-    auto tokens = pp_lexer(text, error);
+    auto tokens = pp_lexer(text);
     //print_pp_lex(tokens);
     
-    auto action_tree = pp_parser(filename, tokens, error);
+    auto action_tree = pp_parser(filename, tokens);
     print_pp_parse(action_tree);
     
     interpret(action_tree, symbol_table_stack, text);
         
     //std::cout << "-------preprocessed text:--------\n:::" << text << ":::\n\n\n";
     
-    return text;
+    return ""; // DEBUG: CHANGE ME
 }

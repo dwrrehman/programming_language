@@ -1,0 +1,11 @@
+\replace start \with
+
+\define \{m\} \( \let \int \{i\} \, \let \{y\} \) \begin
+    \emit hello world! \end
+\end
+
+\call \{m\} \( \int \{0\} \, hello there me \) \end
+
+\emit not the right hello world... \end
+
+\end start
