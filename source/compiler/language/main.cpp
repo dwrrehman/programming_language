@@ -1,3 +1,4 @@
+
 //
 //  main.cpp
 //  language
@@ -7,30 +8,23 @@
 //
 
 
-
-
 /*
- 
-  add user cli hooks to make the compiler stop at any stage, and output the internal represetnation to the user.
- 
- 
+
+ add user cli hooks to make the compiler stop at any stage, and output the internal represetnation to the user.
+
+
  like:
- 
- 
+
+
  --emit=preprocessed  or    -p
  --emit=ast           or    -ast
  --emit=actiontree   or     -at
- 
+
  --emit-llvm       or       -llvm
- 
- 
- 
+
+
+
  we need these, they are useful for debugging and they make the compiler alittle bit more featureful.
- 
- 
- 
- 
- 
 
 
 
@@ -39,28 +33,81 @@
 
 
 
-#include "compiler.hpp"
-#include "interpreter.hpp"
-#include "arguments.hpp"
-#include "nodes.hpp"    // dummy, work in progress.
 
 
-#include "llvm/IR/LLVMContext.h"
-#include "llvm/IR/Module.h"
-
-//#include "llvm/ADT/APFloat.h"
-//#include "llvm/ADT/STLExtras.h"
-//#include "llvm/IR/BasicBlock.h"
-//#include "llvm/IR/Constants.h"
-//#include "llvm/IR/DerivedTypes.h"
-//#include "llvm/IR/Function.h"
-//#include "llvm/IR/IRBuilder.h"
 
 
-//#include "llvm/IR/Type.h"
-//#include "llvm/IR/Verifier.h"
+
+ #include "compiler.hpp"
+ #include "interpreter.hpp"
+ #include "arguments.hpp"
+ #include "nodes.hpp"    // dummy, work in progress.
 
 
+ #include "llvm/IR/LLVMContext.h"
+ #include "llvm/IR/Module.h"
+
+ //#include "llvm/ADT/APFloat.h"
+ //#include "llvm/ADT/STLExtras.h"
+ //#include "llvm/IR/BasicBlock.h"
+ //#include "llvm/IR/Constants.h"
+ //#include "llvm/IR/DerivedTypes.h"
+ //#include "llvm/IR/Function.h"
+ //#include "llvm/IR/IRBuilder.h"
+
+
+ //#include "llvm/IR/Type.h"
+ //#include "llvm/IR/Verifier.h"
+
+
+ #include "llvm/ADT/APFloat.h"
+ #include "llvm/ADT/STLExtras.h"
+ #include "llvm/IR/BasicBlock.h"
+ #include "llvm/IR/Constants.h"
+ #include "llvm/IR/DerivedTypes.h"
+ #include "llvm/IR/Function.h"
+ #include "llvm/IR/IRBuilder.h"
+ #include "llvm/IR/LLVMContext.h"
+ #include "llvm/IR/Module.h"
+ #include "llvm/IR/Type.h"
+ #include "llvm/IR/Verifier.h"
+ #include <algorithm>
+ #include <cctype>
+ #include <cstdio>
+ #include <cstdlib>
+ #include <map>
+ #include <memory>
+ #include <string>
+ #include <vector>
+
+ #include <iostream>
+ #include <fstream>
+
+ int main(int argc, const char** argv) {
+
+ struct arguments args = get_commandline_arguments(argc, argv);
+
+ if (args.error) {
+ debug_arguments(args);
+ return 1;
+
+ } else if (args.use_interpreter) {
+ interpreter(args.files[0].data);
+ return 0;
+ }
+
+ std::vector<llvm::Module*> modules = {};
+ modules.reserve(args.files.size());
+
+ //llvm::LLVMContext context;
+
+ for (size_t i = 0; i < args.files.size(); i++) {
+ //modules[i] = frontend(args.files[i]);
+ }
+
+ return 0;
+ }
+ */
 #include "llvm/ADT/APFloat.h"
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/IR/BasicBlock.h"
@@ -72,54 +119,14 @@
 #include "llvm/IR/Module.h"
 #include "llvm/IR/Type.h"
 #include "llvm/IR/Verifier.h"
-#include <algorithm>
-#include <cctype>
-#include <cstdio>
-#include <cstdlib>
-#include <map>
-#include <memory>
-#include <string>
-#include <vector>
+
+#include "llvm/Support/SourceMgr.h"
+#include "llvm/IR/ModuleSummaryIndex.h"
+
+#include "llvm/AsmParser/Parser.h"
+#include "llvm/Support/MemoryBuffer.h"
 
 #include <iostream>
-#include <fstream>
-
-int main(int argc, const char** argv) {
-      
-    struct arguments args = get_commandline_arguments(argc, argv);
-    
-    if (args.error) {
-        debug_arguments(args);
-        return 1;
-        
-    } else if (args.use_interpreter) {
-        interpreter(args.files[0].data);
-        return 0;
-    }
-
-    std::vector<llvm::Module*> modules = {};
-    modules.reserve(args.files.size());
-
-    //llvm::LLVMContext context;
-
-    for (size_t i = 0; i < args.files.size(); i++) {
-        //modules[i] = frontend(args.files[i]);
-    }
-
-    return 0;
-}
-*/
-#include "llvm/ADT/APFloat.h"
-#include "llvm/ADT/STLExtras.h"
-#include "llvm/IR/BasicBlock.h"
-#include "llvm/IR/Constants.h"
-#include "llvm/IR/DerivedTypes.h"
-#include "llvm/IR/Function.h"
-#include "llvm/IR/IRBuilder.h"
-#include "llvm/IR/LLVMContext.h"
-#include "llvm/IR/Module.h"
-#include "llvm/IR/Type.h"
-#include "llvm/IR/Verifier.h"
 #include <algorithm>
 #include <cctype>
 #include <cstdio>
@@ -703,17 +710,62 @@ int main() {
     BinopPrecedence['*'] = 40; // highest.
 
     // Prime the first token.
-    fprintf(stderr, "ready> ");
-    getNextToken();
+    //fprintf(stderr, "ready> ");
+    //getNextToken();
 
     // Make the module, which holds all the code.
-    TheModule = llvm::make_unique<llvm::Module>("my cool jit", TheContext);
+    TheModule = llvm::make_unique<llvm::Module>("My First Module", TheContext);
+
+
+    std::string s = "";
+
+    while (true) {
+        //std::cout << "::> ";
+        std::getline(std::cin, s);
+        //std::cout << "received: \"" << s << "\"\n";
+
+        if (s == "done") {
+            //            std::cout << "quitting...\n";
+            break;
+        } else {
+
+        }
+
+        llvm::MemoryBufferRef reference(s, "this_buffer");
+
+        llvm::ModuleSummaryIndex my_index(true);
+
+        llvm::SMDiagnostic errors;
+
+        if (llvm::parseAssemblyInto(reference, TheModule.get(), &my_index, errors)) {
+            //std::cout << "\nparsed unsuccessfully.\n\n";
+
+            //std::cout << "llvm: ";
+            errors.print("MyProgram.n", llvm::errs());
+
+        } else {
+            //std::cout << "\nparsed successfully.\n\n";
+        }
+
+        //std::cout << "printing all functions:\n";
+        for (auto& function : TheModule->functions()) {
+            //            std::cout << "printing function:\n";
+            function.llvm::Value::print(llvm::errs());
+            //            std::cout << "done printing function!\n";
+        }
+    }
+
+    //std::cout << "printing the results: \n\n";
+    TheModule->print(llvm::errs(), nullptr);
+
+    exit(1);
 
     // Run the main "interpreter loop" now.
     MainLoop();
 
     // Print out all of the generated code.
     TheModule->print(llvm::errs(), nullptr);
+
 
     return 0;
 }
