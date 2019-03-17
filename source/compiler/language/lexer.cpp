@@ -85,7 +85,11 @@ static void check_for_lexing_errors() {
 
 struct token next() {
     while (true) {
-        if (c >= text.size()) check_for_lexing_errors();
+
+        if (c >= text.size()) {
+            check_for_lexing_errors();
+            return {};
+        }
             
         // ------------------- starting and finising ----------------------
 

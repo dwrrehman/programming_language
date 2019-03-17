@@ -10,6 +10,7 @@
 
 
 const std::string language_name = "n3zqx2l";
+const std::string language_version = "0.0.1";
 
 // ------------------- preprocessor langugae keywords ---------------------------
 

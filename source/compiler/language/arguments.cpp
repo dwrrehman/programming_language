@@ -95,7 +95,9 @@ struct arguments get_commandline_arguments(const int argc, const char** argv) { 
     } else if (argc > 1 && std::string(argv[1]) == "compile") { // "nostril compile ..."
         
     } else if (argc == 1) {
-        
+        args.use_interpreter = true;
+        args.files.push_back({"{interpreter}", ""});
+        return args;
     }
     
     for (int i = 1; i < argc; i++) {
