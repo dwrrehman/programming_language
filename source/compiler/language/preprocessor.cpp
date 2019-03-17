@@ -917,7 +917,7 @@ void interpret(pp_node &tree, std::vector<std::unordered_map<std::string, struct
 
 std::string preprocess(std::string filename, std::string text) {
     
-    //std::cout << "---------orginal text:----------\n:::" << text << ":::\n\n\n";
+    std::cout << "---------orginal text:----------\n:::" << text << ":::\n\n\n";
     
     std::vector<std::unordered_map<std::string, struct value>> symbol_table_stack = {{}};
     
@@ -931,7 +931,7 @@ std::string preprocess(std::string filename, std::string text) {
     
     //interpret(action_tree, symbol_table_stack, text);
         
-    //std::cout << "-------preprocessed text:--------\n:::" << text << ":::\n\n\n";
+    std::cout << "-------preprocessed text:--------\n:::" << text << ":::\n\n\n";
     
     return text; // DEBUG: CHANGE ME
 }

@@ -1,2 +1,4 @@
+; this is the hello world program.
 use .io
-print "hello, world!"
+print ;you can put comments basicallt anywhere; "hello, world!"
+

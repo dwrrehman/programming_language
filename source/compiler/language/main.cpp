@@ -7,6 +7,9 @@
 //  Copyright © 2019 Daniel Rehman. All rights reserved.
 //
 
+class A {
+    int g;
+};
 
 /*
 
@@ -30,19 +33,10 @@
 
 
 
-
-
-
-
-
-
-
-
  #include "compiler.hpp"
  #include "interpreter.hpp"
  #include "arguments.hpp"
  #include "nodes.hpp"    // dummy, work in progress.
-
 
  #include "llvm/IR/LLVMContext.h"
  #include "llvm/IR/Module.h"
@@ -83,31 +77,31 @@
  #include <iostream>
  #include <fstream>
 
- int main(int argc, const char** argv) {
+int main(int argc, const char** argv) {
 
- struct arguments args = get_commandline_arguments(argc, argv);
+    struct arguments args = get_commandline_arguments(argc, argv);
 
- if (args.error) {
- debug_arguments(args);
- return 1;
+    if (args.error) {
+        debug_arguments(args);
+        return 1;
 
- } else if (args.use_interpreter) {
- interpreter(args.files[0].data);
- return 0;
- }
+    } else if (args.use_interpreter) {
+        interpreter(args.files[0].data);
+        return 0;
+    }
 
- std::vector<llvm::Module*> modules = {};
- modules.reserve(args.files.size());
+    std::vector<llvm::Module*> modules = {};
+    modules.reserve(args.files.size());
 
- //llvm::LLVMContext context;
+    llvm::LLVMContext context;
 
- for (size_t i = 0; i < args.files.size(); i++) {
- //modules[i] = frontend(args.files[i]);
- }
+    for (size_t i = 0; i < args.files.size(); i++) {
+        modules[i] = frontend(args.files[i], context);
+    }
 
- return 0;
- }
- */
+    return 0;
+}
+*/
 #include "llvm/ADT/APFloat.h"
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/IR/BasicBlock.h"
@@ -159,6 +153,7 @@ static double NumVal;             // Filled in if tok_number
 
 /// gettok - Return the next token from standard input.
 static int gettok() {
+
     static int LastChar = ' ';
 
     // Skip any whitespace.
@@ -176,6 +171,9 @@ static int gettok() {
             return tok_extern;
         return tok_identifier;
     }
+
+    if (LastChar == '#')
+        return '#';
 
     if (isdigit(LastChar) || LastChar == '.') { // Number: [0-9.]+
         std::string NumStr;
@@ -532,8 +530,10 @@ llvm::Value *NumberExprAST::codegen() {
 llvm::Value *VariableExprAST::codegen() {
     // Look this variable up in the function.
     llvm::Value *V = NamedValues[Name];
-    if (!V)
+    if (!V) {
+        std::cout << Name << ": ";
         return LogErrorV("Unknown variable name");
+    }
     return V;
 }
 
@@ -562,13 +562,15 @@ llvm::Value *BinaryExprAST::codegen() {
 llvm::Value *CallExprAST::codegen() {
     // Look up the name in the global module table.
     llvm::Function *CalleeF = TheModule->getFunction(Callee);
-    if (!CalleeF)
+    if (!CalleeF) {
+        std::cout << Callee << ": ";
         return LogErrorV("Unknown function referenced");
-
+    }
     // If argument mismatch error.
-    if (CalleeF->arg_size() != Args.size())
+    if (CalleeF->arg_size() != Args.size()) {
+        std::cout << "Expected " << Args.size() << " arguments, but found " << CalleeF->arg_size() << ".\n";
         return LogErrorV("Incorrect # arguments passed");
-
+    }
     std::vector<llvm::Value *> ArgsV;
     for (unsigned i = 0, e = (unsigned) Args.size(); i != e; ++i) {
         ArgsV.push_back(Args[i]->codegen());
@@ -679,9 +681,11 @@ static void MainLoop() {
     while (true) {
         fprintf(stderr, "ready> ");
         switch (CurTok) {
-            case tok_eof:
-                return;
-            case ';': // ignore top-level semicolons.
+
+            case tok_eof: return;
+            case '#': return;
+
+            case ';':
                 getNextToken();
                 break;
             case tok_def:
@@ -702,6 +706,7 @@ static void MainLoop() {
 //===----------------------------------------------------------------------===//
 
 int main() {
+
     // Install standard binary operators.
     // 1 is lowest precedence.
     BinopPrecedence['<'] = 10;
@@ -710,26 +715,29 @@ int main() {
     BinopPrecedence['*'] = 40; // highest.
 
     // Prime the first token.
-    //fprintf(stderr, "ready> ");
-    //getNextToken();
+    fprintf(stderr, "ready> ");
+    getNextToken();
 
     // Make the module, which holds all the code.
     TheModule = llvm::make_unique<llvm::Module>("My First Module", TheContext);
 
+    // Run the main "interpreter loop" now.
+    MainLoop();
 
     std::string s = "";
 
     while (true) {
-        //std::cout << "::> ";
+        std::cout << "::> ";
         std::getline(std::cin, s);
-        //std::cout << "received: \"" << s << "\"\n";
+        std::cout << "received: \"" << s << "\"\n";
 
-        if (s == "done") {
-            //            std::cout << "quitting...\n";
+        if (s == "done" || s == "") {
+            std::cout << "quitting...\n";
             break;
-        } else {
-
         }
+
+        s.insert(0, "define void @m() {\n");
+        s += "\nret void\n}\n";
 
         llvm::MemoryBufferRef reference(s, "this_buffer");
 
@@ -738,34 +746,41 @@ int main() {
         llvm::SMDiagnostic errors;
 
         if (llvm::parseAssemblyInto(reference, TheModule.get(), &my_index, errors)) {
-            //std::cout << "\nparsed unsuccessfully.\n\n";
+            std::cout << "\nparsed unsuccessfully.\n\n";
 
-            //std::cout << "llvm: ";
-            errors.print("MyProgram.n", llvm::errs());
+            {
+                std::cout << "llvm: "; // TODO: make this have color!
+                errors.print("MyProgram.n", llvm::errs());
+            }
 
         } else {
-            //std::cout << "\nparsed successfully.\n\n";
+            std::cout << "\nparsed successfully.\n\n";
         }
 
-        //std::cout << "printing all functions:\n";
+        std::cout << "printing all functions:\n";
         for (auto& function : TheModule->functions()) {
-            //            std::cout << "printing function:\n";
+            std::cout << "printing function:\n";
             function.llvm::Value::print(llvm::errs());
-            //            std::cout << "done printing function!\n";
+            std::cout << "done printing function!\n";
         }
+
+        std::cout << "now trying to parse s as type!\n";
+
+        llvm::Type* type;
+
+        if ((type = llvm::parseType(s, errors, *TheModule)) != nullptr) {
+            std::cout << "succcesfully parsed type: \n";
+            type->print(llvm::errs());
+            std::cout << "\ndone printing type.\n";
+        } else {
+            std::cout << "{invalid type.}\n";
+        }
+        s = "";
     }
 
-    //std::cout << "printing the results: \n\n";
+    std::cout << "printing the results: \n\n";
     TheModule->print(llvm::errs(), nullptr);
-
-    exit(1);
-
-    // Run the main "interpreter loop" now.
-    MainLoop();
-
-    // Print out all of the generated code.
-    TheModule->print(llvm::errs(), nullptr);
-
 
     return 0;
 }
+
