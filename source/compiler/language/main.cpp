@@ -7,9 +7,6 @@
 //  Copyright © 2019 Daniel Rehman. All rights reserved.
 //
 
-class A {
-    int g;
-};
 
 /*
 
@@ -95,8 +92,11 @@ int main(const int argc, const char** argv) {
     std::vector<llvm::Module*> modules = {};
     modules.reserve(args.files.size());
 
+    bool should_asdf = true;
+
     for (size_t i = 0; i < args.files.size(); i++) {
-        modules[i] = frontend(args.files[i], context); // we need a try catch around this, because it could fail, at any point, and we want those changes to be reflected immediatly,so we can continue processing files, and then NOT link/call-llvm things at the end.
+        try { modules[i] = frontend(args.files[i], context); }
+        catch (...) { should_asdf = false; }
     }
 
     return 0;

@@ -20,24 +20,25 @@
 
 // ----------------------------- pre-preprocessor -----------------------------------
 
-std::string strip_comments(std::string text) {
+std::string strip_comments(std::string filename, std::string text) {
     
-    text.append("    ");
-    
+    text += " ";
+    size_t line = 0;
     std::string result = "";
     bool in_multi_comment = false;
     bool in_line_comment = false;
     
-    for (int c = 0; c < text.size(); c++) {
-        if (!in_line_comment && !in_multi_comment && text[c] == ';' && text[c+1] == ' ') {
+    for (int c = 0; c < text.size() - 1; c++) {
+        if (!in_line_comment && !in_multi_comment && text[c] == ';' && isspace(text[c+1])) {
             in_line_comment = true;
             result.push_back(' ');
             
         } else if (in_line_comment && !in_multi_comment && text[c] == '\n') {
             result.push_back('\n');
+            line++;
             in_line_comment = false;
             
-        } else if (!in_line_comment && !in_multi_comment && text[c] == ';' && text[c+1] != ' ') {
+        } else if (!in_line_comment && !in_multi_comment && text[c] == ';' && !isspace(text[c+1])) {
             in_multi_comment = true;
             result.push_back(' ');
             
@@ -46,6 +47,7 @@ std::string strip_comments(std::string text) {
             result.push_back(' ');
             
         } else if (text[c] == '\n') {
+            line++;
             result.push_back('\n');
             
         } else if (text[c] == '\t') {
@@ -60,11 +62,11 @@ std::string strip_comments(std::string text) {
     }
     
     if (in_multi_comment) {
-        std::cout << "Error: unterminated multiline comment." << std::endl;
-        ///TODO: add call using the standard error printing class.
-        throw "Unterminated multiline comment";
+        print_preprocess_error(filename, "unterminated multi-line comment.", line);
+        throw "preprocessor comment error";
     }
 
+    result.push_back(' ');
     return result;
 }
 
@@ -652,8 +654,8 @@ pp_node pp_parser(std::string filename, std::vector<struct pp_token> tokens) {
         int i = 0;
         for (auto n : deepest_stack_trace) print_pp_node(n, i++);
         if (deepest_pointer >= tokens.size()) deepest_pointer--;
-        print_parse_error(filename, tokens[deepest_pointer].line,  tokens[deepest_pointer].column, convert_pp_token_type_representation(tokens[deepest_pointer].type), tokens[deepest_pointer].value);
-        throw "parse error";
+        print_parse_error(filename, tokens[deepest_pointer].line,  tokens[deepest_pointer].column, convert_pp_token_type_representation(tokens[deepest_pointer].type), tokens[deepest_pointer].value, "");
+        throw "preprocessor parse error";
     }
     return tree;
 }
@@ -919,7 +921,7 @@ std::string preprocess(std::string filename, std::string text) {
     
     std::vector<std::unordered_map<std::string, struct value>> symbol_table_stack = {{}};
     
-    text = strip_comments(text);
+    text = strip_comments(filename, text);
     
     //auto tokens = pp_lexer(text);
     //print_pp_lex(tokens);

@@ -8,6 +8,7 @@
 
 #include "error.hpp"
 #include "lexer.hpp"
+#include "lists.hpp"
 #include "color.h"
 
 #include <sstream>
@@ -15,12 +16,49 @@
 #include <string>
 #include <vector>
 
-void print_parse_error(std::string filename, size_t line, size_t column, std::string type, std::string found) {
-    std::cout << "nostril: " BRIGHT_RED "error" RESET ": " << filename << ": " << line << ":" << column << " : unexpected " << type << ", \"" << (found == "\n" ? "newline" : found) << "\"" << std::endl << std::endl;
+
+// helpers:
+
+static std::string contract_filename(std::string filename) {
+    const size_t threshold_length = 30;
+    if (filename.size() > threshold_length) {
+        std::string shorter(std::find(filename.begin() + (filename.size() - threshold_length), filename.end(), '/'), filename.end());
+        shorter.insert(0, "...");
+        return shorter;
+    } else return filename;
 }
 
-void print_source_code(std::string text, std::vector<struct token> tokens) {
-    auto& t = tokens[0]; //TODO: allow this function to print erros to do with multiple tokens in combintation.
+
+static std::string error_heading( const std::string &filename, size_t line, size_t column) {
+    std::ostringstream s;
+    std::string shorter_filename = contract_filename(filename);
+    s << language_name << ": " BRIGHT_RED "error" RESET ": " GRAY << shorter_filename << ": " << line << ":" << column << " : " RESET;
+    return s.str();
+}
+
+
+// error messager:
+
+void print_preprocess_error(std::string filename, std::string message, size_t line) {
+    std::cerr << error_heading(filename, line, 0) << message << "\n\n";
+}
+
+
+void print_lex_error(std::string filename, std::string state_name, size_t line, size_t column) {
+    std::cerr << error_heading(filename, line, column) << "unterminated " << state_name << "\n\n";
+}
+
+
+void print_parse_error(std::string filename, size_t line, size_t column, std::string type, std::string found, std::string expected) {
+    std::cerr << error_heading(filename, line, column) << " : unexpected " << type << ", \"" << (found == "\n" ? "newline" : found) << "\"\n\n";
+}
+
+
+
+// source printers:
+
+void print_source_code(std::string text, std::vector<struct token> offending_tokens) {
+    auto& t = offending_tokens[0]; //TODO: allow this function to print erros to do with multiple tokens in combintation.
     std::vector<int> offsets = {-2, -1, 0, 1, 2};
     std::string line = "";
     std::istringstream s {text};

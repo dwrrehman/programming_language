@@ -19,12 +19,13 @@
 #include <vector>
 
 program parse_program() {
-    std::vector<struct token> tokens = {};
-    struct token t;
-    while ((t = next()).type != token_type::null) {
-        tokens.push_back(t);
-    }
 
+    // temporarily debugging token stream:
+
+    std::vector<struct token> tokens = {};
+    struct token t = {};
+    while ((t = next()).type != token_type::null)
+        tokens.push_back(t);
     print_lex(tokens);
     
     return {};

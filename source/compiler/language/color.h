@@ -10,7 +10,7 @@
 #define color_h
 
 
-#define use_colored_output 0
+#define use_colored_output 1
 
 
 #if use_colored_output

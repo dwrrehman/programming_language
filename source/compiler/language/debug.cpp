@@ -74,11 +74,11 @@ const char* convert_token_type_representation(enum token_type type) {
         case token_type::null: return "{null}";
         case token_type::string: return "string";
         case token_type::identifier: return "identifier";
-        case token_type::number: return "number";
         case token_type::keyword: return "keyword";
         case token_type::operator_: return "operator";
         case token_type::documentation: return "documentation";
-        case token_type::character_or_llvm: return "character_or_llvm";
+        case token_type::character: return "character";
+        case token_type::llvm: return "llvm";
         case token_type::builtin: return "builtin";
     }
 }

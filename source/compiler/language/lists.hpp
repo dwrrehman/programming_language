@@ -12,6 +12,8 @@
 #include <vector>
 #include <string>
 
+extern const std::string language_name;
+
 extern std::vector<std::string> keywords;
 extern std::vector<std::string> operators;
 extern std::vector<std::string> non_overridable_keywords;
