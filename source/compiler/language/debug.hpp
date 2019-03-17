@@ -35,6 +35,7 @@ void print_symbol_table_stack(std::vector<std::unordered_map<std::string, struct
 // lexer:
 void print_lex(const std::vector<struct token> &tokens);
 const char* convert_token_type_representation(enum token_type type);
+void debug_token_stream();
 
 // parser:
 void print_node(node &node, int level);

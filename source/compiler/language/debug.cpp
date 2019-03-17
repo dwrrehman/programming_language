@@ -150,6 +150,14 @@ const char* convert_token_type_representation(enum token_type type) {
     }
 }
 
+void debug_token_stream() {
+    std::vector<struct token> tokens = {};
+    struct token t = {};
+    while ((t = next()).type != token_type::null) tokens.push_back(t);
+    print_lex(tokens);
+}
+
+
 
 // ---------------------------- parser -------------------------------
 

@@ -9,7 +9,10 @@
 #ifndef nodes_hpp
 #define nodes_hpp
 
-/*
+#include "lexer.hpp"
+
+#include <string>
+#include <vector>
 
 #include "llvm/ADT/APFloat.h"
 #include "llvm/ADT/STLExtras.h"
@@ -22,31 +25,60 @@
 #include "llvm/IR/Module.h"
 #include "llvm/IR/Type.h"
 #include "llvm/IR/Verifier.h"
-*/
 
-#include <string>
-#include <vector>
 
+// base class for ast nodes:
 class node {
 public:
     bool error = false;
-    // add code gen virtual pure method here?
 };
+
+
+
+
+
+// we shouldnt need this....
+
+class required_newlines: public node {
+    std::vector<struct token> terminals = {};
+};
+
+
+
 
 class interface_declaration: public node {
-    
+    node self = {};
 };
 
+class implementation_declaration: public node {
+    node self = {};
+};
+
+
 class declaration: public node {
-    
+    bool interface = false;
+    bool implementation = false;
+    bool has_documentation = false;
+    struct token documentation = {};
+    node self = {};
 };
 
 class declaration_list: public node {
     std::vector<declaration> declarations = {};
 };
 
-class program: public node {
+class terminated_declaration: public node {
+    declaration self = {};
+};
+
+class declaration_block: public node {
+    std::vector<declaration> declarations = {};
+};
+
+class translation_unit: public node {
+    bool is_entry_point = false;
     declaration_list list = {};
+    //statement_list list = {};
 };
 
 

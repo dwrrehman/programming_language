@@ -16,12 +16,12 @@
 extern const std::string language_name;
 extern const std::string language_version;
 
-// linguistic entities:
-extern std::vector<std::string> keywords;
+// main language entities:
 extern std::vector<std::string> operators;
-extern std::vector<std::string> non_overridable_keywords;
+extern std::vector<std::string> non_overridable_operators;
 extern std::vector<std::string> builtins;
-extern std::vector<std::string> pp_keywords;
 
+// preprocessor entities:
+extern std::vector<std::string> pp_keywords;
 
 #endif /* lists_hpp */

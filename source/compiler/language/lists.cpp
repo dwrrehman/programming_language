@@ -27,15 +27,10 @@ std::vector<std::string> pp_keywords = {
 
 
 
+// ------------------- main language keywords ------------------------------
 
-// ------------------- nostril language keywords ------------------------------
-
-std::vector<std::string> non_overridable_keywords = {
-    "(", ")", "{", "}", ":", ".", "\\", ";", "_",
-};
-
-std::vector<std::string> keywords = {
-    "_"
+std::vector<std::string> non_overridable_operators = {
+    "(", ")", "{", "}", ":", ".", "\\",
 };
 
 std::vector<std::string> operators = {
@@ -46,66 +41,7 @@ std::vector<std::string> operators = {
     "\\", ",", "#", "$", "@",
 };
 
-
-
-
-
-
-
-
-// ----------------------- compiler built-in identifiers --------------------------
-
-/*
- __visibility
- __within
- __called
- __when
- __none__
- __scope__
- __self__
- __parent__
- __caller__
- __file__
- __module__
- __all__
-
- __bring
- __import
-
- __evaluation
- __compiletime__
- __runtime__
-
- __precedence                      ;; can be absolute, if user just passed a number, else relative.
- __first__                   ; ie, -inf
- __last__                    ; ie, +inf
-
- __associativity
- __left__
- __right__
-
- --------- some new stuff that was added -------------
-
- __after
- __before
- __inside
-
- __accept
- __expression__              ; this will contain ALL ebnf grammar nodes.
- __statement__
- __program__
- __identifier__
- __number__
- ...
- __intrinsic__                      ; ?!??!?!! what??!!? how
-
-
-
- */
-
-
-std::vector<std::string> builtins = { // (requires the prefix)
-
+std::vector<std::string> builtins = {
     "__visibility", "__within", "__called", "__when",
     "__none__", "__scope__", "__self__", "__parent__",
     "__caller__", "__file__", "__module__", "__all__",
@@ -121,5 +57,5 @@ std::vector<std::string> builtins = { // (requires the prefix)
     "__statement__",
     "__identifier__",
     "__number__",
-    "__intrinsic__", "{this list is unfinished}",
+    "__intrinsic__", // {this list is unfinished}
 };

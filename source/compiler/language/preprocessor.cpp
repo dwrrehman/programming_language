@@ -16,7 +16,6 @@
 #include <vector>
 #include <exception>
 
-
 // --------------------------- preprocessor's lexer ------------------------------
 
 bool isnt_all_spaces(std::string s) {
@@ -743,23 +742,11 @@ void interpret(pp_node &tree, std::vector<std::unordered_map<std::string, struct
 }
 
 std::string preprocess(std::string text, std::string filename) {
-    
     //std::cout << "---------orginal text:----------\n:::" << text << ":::\n\n\n";
-    
     std::vector<std::unordered_map<std::string, struct value>> symbol_table_stack = {{}};
-
-    auto tokens = pp_lexer(text);
-    //print_pp_lex(tokens);
-    
-    auto action_tree = pp_parser(filename, tokens);
-    //print_pp_parse(action_tree);
+    auto tokens = pp_lexer(text); //print_pp_lex(tokens);
+    auto action_tree = pp_parser(filename, tokens); //print_pp_parse(action_tree);
     interpret(action_tree, symbol_table_stack, text);
-
-
-    print_warning_message(filename, "macros are unimplemented.", 0, 0);
-    print_info_message(filename, "macros are deprecated, please use asdflka", 0, 0);
-    print_note("i am really cool.");
-
     //std::cout << "-------preprocessed text:--------\n:::" << text << ":::\n\n\n";
     return text;
 }

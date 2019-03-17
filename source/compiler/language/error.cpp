@@ -94,6 +94,8 @@ void print_source_code(std::string text, std::vector<struct token> offending_tok
     std::vector<std::string> lines = {};
     while (std::getline(s, line)) lines.push_back(line);
 
+    // TODO: add some syntax handling to this printer, just rudimentary stuff, like keyword/operator highlighting, and other simple stuff.
+
     std::cout << "\n";
     for (auto offset : offsets) {
         size_t index = 0;

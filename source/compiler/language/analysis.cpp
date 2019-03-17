@@ -14,12 +14,10 @@
 #include <vector>
 #include <stdlib.h>
 
-struct action_tree analyze(program tree, std::string filename) {
+struct action_tree analyze(translation_unit tree, std::string filename) {
 
     /*
-
         jobs:
-
             - scope checking
             - type inference
             - type checking
@@ -37,9 +35,7 @@ struct action_tree analyze(program tree, std::string filename) {
             - enforcing user defined lifetime rules.
             - put in calls to calls the destructor when a variable goes out of scope!
 
-
      */
-
 
 
     return {};

@@ -1,0 +1,1 @@
+/Users/deniylreimn/Library/Developer/Xcode/DerivedData/language-hifevwjtkfnsawfqlwgtzptgpmfy/Build/Products/Debug/language /Users/deniylreimn/Documents/projects/language/source/compiler/language/test.n

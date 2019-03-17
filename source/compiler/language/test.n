@@ -1,5 +1,3 @@
-\replace \with
-    \define \{hello there\} \( \) \begin
+print "hello there" '
+asldjfk
 
-    \end
-\end

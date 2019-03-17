@@ -14,29 +14,34 @@
 #include "error.hpp"
 #include "debug.hpp"
 
+#include "llvm/IR/LLVMContext.h"
+
 #include <sstream>
 #include <iostream>
 #include <vector>
 
-program parse_program() {
+/*
+static std::unique_ptr<ExprAST> ParseExpression() {
+    auto LHS = ParsePrimary();
+    if (!LHS)
+        return nullptr;
 
-    // temporarily debugging token stream:
+    return ParseBinOpRHS(0, std::move(LHS));
+}*/
 
-    std::vector<struct token> tokens = {};
-    struct token t = {};
-    while ((t = next()).type != token_type::null)
-        tokens.push_back(t);
-    print_lex(tokens);
+
+std::unique_ptr<translation_unit> parse_translation_unit() {
     
-    return {};
+    return llvm::make_unique<translation_unit>();
 }
 
-program parse(std::string text, std::string filename) {
+translation_unit parse(std::string text, std::string filename) {
     start_lex(filename, text);
-    
-    program tree = parse_program();
-    if (tree.error) { 
+
+    auto tree = parse_translation_unit();
+    if (!tree) {
+        // print errors?
         return {};
     }
-    return tree;
+    return std::move(*tree);
 }
