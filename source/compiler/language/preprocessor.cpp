@@ -64,9 +64,7 @@ std::string strip_comments(std::string text) {
         ///TODO: add call using the standard error printing class.
         throw "Unterminated multiline comment";
     }
-    
-    
-    
+
     return result;
 }
 

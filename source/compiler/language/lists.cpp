@@ -1,4 +1,4 @@
-//
+ //
 //  lists.cpp
 //  language
 //
@@ -46,32 +46,79 @@ std::vector<std::string> operators = {
 };
 
 
+
+
+
+
+
+
 // ----------------------- compiler built-in identifiers --------------------------
 
-const std::string builtin_prefix = "__n__";
+/*
+ __visibility
+ __within
+ __called
+ __when
+ __none__
+ __scope__
+ __self__
+ __parent__
+ __caller__
+ __file__
+ __module__
+ __all__
+
+ __bring
+ __import
+
+ __evaluation
+ __compiletime__
+ __runtime__
+
+ __precedence                      ;; can be absolute, if user just passed a number, else relative.
+ __first__                   ; ie, -inf
+ __last__                    ; ie, +inf
+
+ __associativity
+ __left__
+ __right__
+
+ --------- some new stuff that was added -------------
+
+ __after
+ __before
+ __inside
+
+ __accept
+ __expression__              ; this will contain ALL ebnf grammar nodes.
+ __statement__
+ __program__
+ __identifier__
+ __number__
+ ...
+ __intrinsic__                      ; ?!??!?!! what??!!? how
+
+
+
+ */
+
 
 std::vector<std::string> builtins = { // (requires the prefix)
 
-    "set_signature_visible_to",
-    "visibility_all__",
-    "visibility_none__",
-    "visibility_to_file__",
-    "visibility_to_module__",
-    "visibility_group",
+    "__visibility", "__within", "__called", "__when",
+    "__none__", "__scope__", "__self__", "__parent__",
+    "__caller__", "__file__", "__module__", "__all__",
+    "__bring", "__import",
+    "__evaluation", "__compiletime__", "__runtime__",
+    "__precedence", "__first__", "__last__",
+    "__associativity", "__left__", "__right__",
+    "__after", "__before", "__inside",
+    "__accept",
 
-    "bring_signature_into_scope",
-    "include_module_from_path",
-    
-    "set_evaluation",
-    "marked_explicit_runtime__",
-    "marked_explicit_compiletime__",
-    "marked_implicit_compiletime__",
-
-    "set_precedence",
-    "set_associativity",
-    "set_relative_precedence_from",
-
-    //todo: add the parser AST nodes, to allow recognition of them.
-
-    // example: __core__expression_node__, __core__statement_node__, etc.
+    "__program__",
+    "__expression__",
+    "__statement__",
+    "__identifier__",
+    "__number__",
+    "__intrinsic__", "{this list is unfinished}",
 };

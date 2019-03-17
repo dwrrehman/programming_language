@@ -11,7 +11,7 @@
 
 #include <string>
 
-enum class token_type {null, string, identifier, number, documentation, character, llvm, keyword, operator_, builtin};
+enum class token_type {null, string, identifier, number, documentation, character_or_llvm, keyword, operator_, builtin};
 
 struct token {
     enum token_type type = token_type::null;

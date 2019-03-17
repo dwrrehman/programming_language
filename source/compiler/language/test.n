@@ -1,4 +1,1 @@
-; this is the hello world program.
-use .io
-print ;you can put comments basicallt anywhere; "hello, world!"
-
+hi+kid[ko]ok"jello"[]][(**&&&h:k:i:p)

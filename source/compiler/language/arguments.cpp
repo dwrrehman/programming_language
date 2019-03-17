@@ -79,7 +79,7 @@ static void get_interpreter_arguments(int argc, struct arguments &args, const ch
  nostril -entry <one file>       : define this file as the entry point, and wrap a anon lambda around the code.
  
  */
-struct arguments get_commandline_arguments(int argc, const char** argv) { // we need to revise this function to fit the new comipiler specfication.
+struct arguments get_commandline_arguments(const int argc, const char** argv) { // we need to revise this function to fit the new comipiler specfication.
     
     struct arguments args = {};
     

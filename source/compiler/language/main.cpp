@@ -31,7 +31,7 @@ class A {
 
 
 
-
+*/
 
  #include "compiler.hpp"
  #include "interpreter.hpp"
@@ -77,7 +77,7 @@ class A {
  #include <iostream>
  #include <fstream>
 
-int main(int argc, const char** argv) {
+int main(const int argc, const char** argv) {
 
     struct arguments args = get_commandline_arguments(argc, argv);
 
@@ -90,18 +90,19 @@ int main(int argc, const char** argv) {
         return 0;
     }
 
+    llvm::LLVMContext context;
+
     std::vector<llvm::Module*> modules = {};
     modules.reserve(args.files.size());
 
-    llvm::LLVMContext context;
-
     for (size_t i = 0; i < args.files.size(); i++) {
-        modules[i] = frontend(args.files[i], context);
+        modules[i] = frontend(args.files[i], context); // we need a try catch around this, because it could fail, at any point, and we want those changes to be reflected immediatly,so we can continue processing files, and then NOT link/call-llvm things at the end.
     }
 
     return 0;
 }
-*/
+
+/*
 #include "llvm/ADT/APFloat.h"
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/IR/BasicBlock.h"
@@ -172,8 +173,11 @@ static int gettok() {
         return tok_identifier;
     }
 
-    if (LastChar == '#')
-        return '#';
+    if (LastChar == '%') {
+        LastChar = getchar();
+        return '%';
+    }
+
 
     if (isdigit(LastChar) || LastChar == '.') { // Number: [0-9.]+
         std::string NumStr;
@@ -676,54 +680,9 @@ static void HandleTopLevelExpression() {
     }
 }
 
-/// top ::= definition | external | expression | ';'
-static void MainLoop() {
-    while (true) {
-        fprintf(stderr, "ready> ");
-        switch (CurTok) {
 
-            case tok_eof: return;
-            case '#': return;
 
-            case ';':
-                getNextToken();
-                break;
-            case tok_def:
-                HandleDefinition();
-                break;
-            case tok_extern:
-                HandleExtern();
-                break;
-            default:
-                HandleTopLevelExpression();
-                break;
-        }
-    }
-}
-
-//===----------------------------------------------------------------------===//
-// Main driver code.
-//===----------------------------------------------------------------------===//
-
-int main() {
-
-    // Install standard binary operators.
-    // 1 is lowest precedence.
-    BinopPrecedence['<'] = 10;
-    BinopPrecedence['+'] = 20;
-    BinopPrecedence['-'] = 20;
-    BinopPrecedence['*'] = 40; // highest.
-
-    // Prime the first token.
-    fprintf(stderr, "ready> ");
-    getNextToken();
-
-    // Make the module, which holds all the code.
-    TheModule = llvm::make_unique<llvm::Module>("My First Module", TheContext);
-
-    // Run the main "interpreter loop" now.
-    MainLoop();
-
+static void otherLoop() {
     std::string s = "";
 
     while (true) {
@@ -736,8 +695,16 @@ int main() {
             break;
         }
 
-        s.insert(0, "define void @m() {\n");
-        s += "\nret void\n}\n";
+        if (s.size() && s[0]) {
+            s.insert(0, "define void @m() {\n"); // wrap the given llvm statements in a function, named the same as the function we want to insert these statements into.
+            s += "\nret void\n}\n";
+        }
+
+        for (int i = 0; i < s.size(); i++) {    // temp, to make the cli more useable.
+            if (s[i] == '/') {
+                s[i] = '\n';
+            }
+        }
 
         llvm::MemoryBufferRef reference(s, "this_buffer");
 
@@ -780,7 +747,63 @@ int main() {
 
     std::cout << "printing the results: \n\n";
     TheModule->print(llvm::errs(), nullptr);
+}
+
+/// top ::= definition | external | expression | ';'
+static void MainLoop() {
+    while (true) {
+        fprintf(stderr, "ready> ");
+        switch (CurTok) {
+
+            case tok_eof: return;
+
+            case '%':
+                otherLoop();
+                CurTok = ';';
+                break;
+
+            case ';':
+                getNextToken();
+                break;
+            case tok_def:
+                HandleDefinition();
+                break;
+            case tok_extern:
+                HandleExtern();
+                break;
+            default:
+                HandleTopLevelExpression();
+                break;
+        }
+    }
+}
+
+//===----------------------------------------------------------------------===//
+// Main driver code.
+//===----------------------------------------------------------------------===//
+
+int main() {
+
+    // Install standard binary operators.
+    // 1 is lowest precedence.
+    BinopPrecedence['<'] = 10;
+    BinopPrecedence['+'] = 20;
+    BinopPrecedence['-'] = 20;
+    BinopPrecedence['*'] = 40; // highest.
+
+    // Prime the first token.
+    fprintf(stderr, "ready> ");
+    getNextToken();
+
+    // Make the module, which holds all the code.
+    TheModule = llvm::make_unique<llvm::Module>("My First Module", TheContext);
+
+    // Run the main "interpreter loop" now.
+    MainLoop();
+
+    std::cout << "printing the final results: \n\n";
+    TheModule->print(llvm::errs(), nullptr);
 
     return 0;
 }
-
+*/

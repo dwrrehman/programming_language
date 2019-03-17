@@ -26,7 +26,7 @@ struct arguments {
 };
 
 
-struct arguments get_commandline_arguments(int argc, const char** argv);
+struct arguments get_commandline_arguments(const int argc, const char** argv);
 void debug_arguments(struct arguments args);
 
 #endif /* arguments_hpp */

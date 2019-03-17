@@ -12,11 +12,9 @@
 #include <vector>
 #include <string>
 
-extern const std::string bulitin_prefix;
-
 extern std::vector<std::string> keywords;
 extern std::vector<std::string> operators;
-extern std::vector<std::string> overridable_keywords;
+extern std::vector<std::string> non_overridable_keywords;
 extern std::vector<std::string> builtins;
 
 extern std::vector<std::string> pp_keywords;
