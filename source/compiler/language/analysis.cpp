@@ -14,7 +14,7 @@
 #include <vector>
 #include <stdlib.h>
 
-struct action_tree analyze(program tree) {
+struct action_tree analyze(program tree, std::string filename) {
 
     /*
 

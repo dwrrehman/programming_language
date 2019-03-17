@@ -15,10 +15,9 @@
 #include <iomanip>
 #include <unistd.h>
 
-
 #define clear_and_return()  auto result = current; current = {}; return result;
 
-enum class lexing_state {none, string, string_expression, identifier, number, documentation, character_or_llvm};
+enum class lexing_state {none, string, string_expression, identifier, number, documentation, character_or_llvm, comment, multiline_comment};
 
 static std::string text = "";
 static std::string filename = "";
@@ -31,18 +30,22 @@ static struct token current = {};
 
 // helpers:
 
-bool is_operator(char c) {
+static bool is_operator(char c) {
     std::string s = "";
     s.push_back(c);
     for (auto op : operators) if (s == op) return true;
     return false;
 }
 
-bool is_identifierchar(char c) {
+static bool is_identifierchar(char c) {
     return isalnum(c) || c == '_';
 }
 
-bool is_escape_sequence(std::string s) {
+static bool isvalid(size_t c) {
+    return c >= 0 && c < text.size();
+}
+
+static bool is_escape_sequence(std::string s) {
     const std::vector<std::string> sequences = {
         "\\n", "\\t", "\\r", "\\\\", "\\\"", "\\\'", "\\[", "\\b", "\\a",
     };
@@ -60,8 +63,6 @@ static void advance_by(size_t n) {
     }
 }
 
-static bool isvalid(size_t c) { return c >= 0 && c < text.size(); }
-
 static void set_current(enum token_type t, enum lexing_state s) {
     current.type = t;
     current.value = "";
@@ -74,8 +75,12 @@ static void check_for_lexing_errors() {
     if (state == lexing_state::string) print_lex_error(filename, "string", line, column);
     else if (state == lexing_state::documentation) print_lex_error(filename, "documentation", line, column);
     else if (state == lexing_state::character_or_llvm) print_lex_error(filename, "character or llvm", line, column);
+    else if (state == lexing_state::multiline_comment) print_lex_error(filename, "multi-line comment", line, column);
 
-    if (state == lexing_state::string || state == lexing_state::documentation || state == lexing_state::character_or_llvm) {
+    if (state == lexing_state::string ||
+        state == lexing_state::documentation ||
+        state == lexing_state::character_or_llvm ||
+        state == lexing_state::multiline_comment) {
         print_source_code(text, {current});
         throw "lexing error";
     }
@@ -89,11 +94,15 @@ struct token next() {
         if (c >= text.size()) {
             check_for_lexing_errors();
             return {};
-        }
-            
+
+        } else if (text[c] == ';' && isvalid(c+1) && isspace(text[c+1]) && state == lexing_state::none) {
+            state = lexing_state::comment;
+        } else if (text[c] == ';' && !isspace(text[c+1]) && state == lexing_state::none) {
+            state = lexing_state::multiline_comment;
+
         // ------------------- starting and finising ----------------------
 
-        else if (is_identifierchar(text[c]) && isvalid(c+1) && !is_identifierchar(text[c+1]) && state == lexing_state::none) {
+        } else if (is_identifierchar(text[c]) && isvalid(c+1) && !is_identifierchar(text[c+1]) && state == lexing_state::none) {
             set_current(token_type::identifier, lexing_state::none);
             current.value = text[c];
             if (current.value == "_") current.type = token_type::keyword;
@@ -111,7 +120,7 @@ struct token next() {
 
         } else if (text[c] == '\\' && isvalid(c+1) && text[c+1] == ')' && state == lexing_state::none) {
             set_current(token_type::string, lexing_state::string);
-            current.value.push_back((char)65);
+            current.value.push_back((char)31);
             advance_by(1);
 
         // ---------------------- escaping --------------------------
@@ -130,7 +139,7 @@ struct token next() {
                 advance_by(1);
 
             } else if (isvalid(c+1) && text[c+1] == '(') {
-                current.value.push_back((char)65);
+                current.value.push_back((char)31);
                 state = lexing_state::none;
                 advance_by(2);
                 clear_and_return();
@@ -138,10 +147,16 @@ struct token next() {
 
         //---------------------- finishing  ----------------------
 
+        } else if ((text[c] == '\n' && state == lexing_state::comment) ||
+                   (text[c] == ';' && state == lexing_state::multiline_comment)) {
+            state = lexing_state::none;
+
         } else if ((text[c] == '\"' && state == lexing_state::string) ||
-            (text[c] == '\'' && state == lexing_state::character_or_llvm) ||
-            (text[c] == '`' && state == lexing_state::documentation)) {
-            if (state == lexing_state::character_or_llvm && (current.value.size() == 1 || is_escape_sequence(current.value))) current.type = token_type::character;
+                   (text[c] == '\'' && state == lexing_state::character_or_llvm) ||
+                   (text[c] == '`' && state == lexing_state::documentation)) {
+
+            if (state == lexing_state::character_or_llvm && (current.value.size() == 1 || is_escape_sequence(current.value)))
+                current.type = token_type::character;
             state = lexing_state::none;
             advance_by(1);
             clear_and_return();
@@ -160,7 +175,8 @@ struct token next() {
                    state == lexing_state::documentation ||
                    (is_identifierchar(text[c]) && state == lexing_state::identifier)) {
             current.value += text[c];
-
+        } else if (state == lexing_state::comment || state == lexing_state::multiline_comment) {
+            // do nothing;
         } else if (is_operator(text[c]) && state == lexing_state::none) {
             set_current(token_type::operator_, lexing_state::none);
             current.value = text[c];

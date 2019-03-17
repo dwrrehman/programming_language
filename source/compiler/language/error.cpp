@@ -32,28 +32,57 @@ static std::string contract_filename(std::string filename) {
 static std::string error_heading( const std::string &filename, size_t line, size_t column) {
     std::ostringstream s;
     std::string shorter_filename = contract_filename(filename);
-    s << language_name << ": " BRIGHT_RED "error" RESET ": " << shorter_filename << ": " GRAY << line << ":" << column << " : " RESET;
+    s << "\n" CYAN << language_name << RESET GRAY ": " RESET BRIGHT_RED "error" RESET GRAY ": " RESET MAGENTA << shorter_filename << RESET GRAY ": " << line << ":" << column << " : " RESET;
     return s.str();
 }
 
-
-// error messager:
-
-void print_preprocess_error(std::string filename, std::string message, size_t line) {
-    std::cerr << error_heading(filename, line, 0) << message << "\n" << std::endl;
+static std::string warning_heading( const std::string &filename, size_t line, size_t column) {
+    std::ostringstream s;
+    std::string shorter_filename = contract_filename(filename);
+    s << "\n" CYAN << language_name << RESET GRAY ": " RESET BRIGHT_YELLOW "warning" RESET GRAY ": " RESET MAGENTA << shorter_filename << RESET GRAY ": " << line << ":" << column << " : " RESET;
+    return s.str();
 }
 
+static std::string info_heading( const std::string &filename, size_t line, size_t column) {
+    std::ostringstream s;
+    std::string shorter_filename = contract_filename(filename);
+    s << "\n" CYAN << language_name << RESET GRAY ": " RESET BRIGHT_BLUE "info" RESET GRAY ": " RESET MAGENTA << shorter_filename << RESET GRAY ": " << line << ":" << column << " : " RESET;
+    return s.str();
+}
+
+static std::string note_heading() {
+    std::ostringstream s;
+    s << "\n" CYAN << language_name << RESET GRAY ": \tnote: " RESET;
+    return s.str();
+}
+
+// messagers:
+
+void print_error_message(std::string filename, std::string message, size_t line, size_t column) {
+    std::cerr << error_heading(filename, line, column) << message << std::endl;
+}
+
+void print_warning_message(std::string filename, std::string message, size_t line, size_t column) {
+    std::cerr << warning_heading(filename, line, column) << message << std::endl;
+}
+
+void print_info_message(std::string filename, std::string message, size_t line, size_t column) {
+    std::cerr << info_heading(filename, line, column) << message << std::endl;
+}
+
+void print_note(std::string message) {
+    std::cerr << note_heading() << message << std::endl;
+}
+
+// specialized:
 
 void print_lex_error(std::string filename, std::string state_name, size_t line, size_t column) {
-    std::cerr << error_heading(filename, line, column) << "unterminated " << state_name << "\n" << std::endl;
+    std::cerr << error_heading(filename, line, column) << "unterminated " << state_name << std::endl;
 }
-
 
 void print_parse_error(std::string filename, size_t line, size_t column, std::string type, std::string found, std::string expected) {
-    std::cerr << error_heading(filename, line, column) << " : unexpected " << type << ", \"" << (found == "\n" ? "newline" : found) << "\"" << "\n" << std::endl;
+    std::cerr << error_heading(filename, line, column) << "unexpected " << type << ", \"" << (found == "\n" ? "newline" : found) << "\"" << std::endl;
 }
-
-
 
 // source printers:
 
@@ -64,14 +93,15 @@ void print_source_code(std::string text, std::vector<struct token> offending_tok
     std::istringstream s {text};
     std::vector<std::string> lines = {};
     while (std::getline(s, line)) lines.push_back(line);
-    
+
+    std::cout << "\n";
     for (auto offset : offsets) {
         size_t index = 0;
         if ((int) t.line - 1 + offset >= 0 && (int) t.line - 1 + offset < lines.size()) {
             index = t.line - 1 + offset;
         } else continue;
         
-        std::cout << "\t" << GRAY << t.line + offset << RESET GREEN "  |  " RESET << lines[index] << std::endl;
+        std::cout << "\t" << GRAY << t.line + offset << RESET GREEN "  │  " RESET << lines[index] << std::endl;
         
         if (!offset) {
             std::cout << "\t";
@@ -82,6 +112,5 @@ void print_source_code(std::string text, std::vector<struct token> offending_tok
         }
     }
     
-    std::cout << std::endl << std::endl;
+    std::cout << "\n" << std::endl;
 }
-

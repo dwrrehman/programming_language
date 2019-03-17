@@ -12,7 +12,8 @@
 #include "analysis.hpp"
 
 #include "llvm/IR/Module.h"
+#include "llvm/IR/LLVMContext.h"
 
-llvm::Module* code_generation(struct action_tree tree);
+std::unique_ptr<llvm::Module> generate(struct action_tree tree, std::string filename, llvm::LLVMContext &context);
 
 #endif /* codegen_hpp */

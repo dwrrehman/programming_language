@@ -20,6 +20,6 @@ struct action_tree {
     int undefined;
 };
 
-struct action_tree analyze(program tree);
+struct action_tree analyze(program tree, std::string filename);
 
 #endif /* analysis_hpp */

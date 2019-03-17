@@ -26,19 +26,15 @@
 //
 //#include "llvm/AsmParser/Parser.h"
 
-llvm::Module* code_generation(struct action_tree tree) {
-    //llvm::IRBuilder<> Builder(context);
-    
-    return nullptr;
+static std::string module_name(const std::string filename) {
+    static size_t module_number = 0;
+    return filename + std::to_string(module_number++);
 }
 
+std::unique_ptr<llvm::Module> generate(struct action_tree tree, std::string filename, llvm::LLVMContext &context) {
+    llvm::IRBuilder<> builder(context);
+    auto module = llvm::make_unique<llvm::Module>(module_name(filename), context);
+    return module;
+}
 
-//
-//
-//    //llvm::parseAssemblyInto(MemoryBufferRef F, Module *M, ModuleSummaryIndex *Index, SMDiagnostic &Err );;
-//
-//    //llvm::MemoryBufferRef m;
-//    //llvm::ModuleSummaryIndex i;
-//
-//
 

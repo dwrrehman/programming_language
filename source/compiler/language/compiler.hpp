@@ -17,6 +17,13 @@
 #include <string>
 #include <vector>
 
-llvm::Module* frontend(struct file file, llvm::LLVMContext &context);
+std::unique_ptr<llvm::Module> frontend(struct file file, llvm::LLVMContext &context);
+
+void optimize(llvm::Module& module);
+
+void link(llvm::Module &program, std::unique_ptr<llvm::Module> &module);
+
+llvm::Module& pop(std::vector<std::unique_ptr<llvm::Module>> &modules);
+
 
 #endif /* compiler_hpp */

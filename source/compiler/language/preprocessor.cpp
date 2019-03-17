@@ -17,66 +17,12 @@
 #include <exception>
 
 
-
-// ----------------------------- pre-preprocessor -----------------------------------
-
-std::string strip_comments(std::string filename, std::string text) {
-    
-    text += " ";
-    size_t line = 0;
-    std::string result = "";
-    bool in_multi_comment = false;
-    bool in_line_comment = false;
-    
-    for (int c = 0; c < text.size() - 1; c++) {
-        if (!in_line_comment && !in_multi_comment && text[c] == ';' && isspace(text[c+1])) {
-            in_line_comment = true;
-            result.push_back(' ');
-            
-        } else if (in_line_comment && !in_multi_comment && text[c] == '\n') {
-            result.push_back('\n');
-            line++;
-            in_line_comment = false;
-            
-        } else if (!in_line_comment && !in_multi_comment && text[c] == ';' && !isspace(text[c+1])) {
-            in_multi_comment = true;
-            result.push_back(' ');
-            
-        } else if (!in_line_comment && in_multi_comment && text[c] == ';') {
-            in_multi_comment = false;
-            result.push_back(' ');
-            
-        } else if (text[c] == '\n') {
-            line++;
-            result.push_back('\n');
-            
-        } else if (text[c] == '\t') {
-            result.push_back(' ');
-        
-        } else if (!in_line_comment && !in_multi_comment) {
-            result.push_back(text[c]);
-    
-        } else {
-            result.push_back(' ');
-        }
-    }
-    
-    if (in_multi_comment) {
-        print_preprocess_error(filename, "unterminated multi-line comment.", line);
-        throw "preprocessor comment error";
-    }
-
-    result.push_back(' ');
-    return result;
-}
+// --------------------------- preprocessor's lexer ------------------------------
 
 bool isnt_all_spaces(std::string s) {
-    for (auto c : s)
-        if (c != ' ') return true;
+    for (auto c : s) if (c != ' ') return true;
     return false;
 }
-
-// --------------------------- lexer ------------------------------
 
 std::vector<struct pp_token> pp_lexer(std::string text) {
     
@@ -196,8 +142,8 @@ std::vector<struct pp_token> pp_lexer(std::string text) {
             
         } else if (inside_identifier) {
             current_identifier += text[c];
-            
         }
+
         if (text[c] == '\n') {
             line++;
             column = 0;
@@ -207,9 +153,7 @@ std::vector<struct pp_token> pp_lexer(std::string text) {
     if (current_text != "" && isnt_all_spaces(current_text)){
         tokens.push_back({pp_text_type, current_text, current_line, current_column});
     }
-    
-    
-    
+
     return tokens;
 }
 
@@ -217,77 +161,8 @@ std::vector<struct pp_token> pp_lexer(std::string text) {
 
 
 
-/// Header for computer generated parser for boogers.
 
-class postinformation {
-public:
-    
-    postinformation(){}
-};
-
-/// Parser AST nodes:
-
-class pp_node {
-public:
-    
-    std::string name = "";
-    int symbol_index = 0;
-    bool success = false;
-    struct pp_token data = {pp_null_type, "", 0, 0};
-    postinformation post = {};
-    std::vector<pp_node> children = {};
-    
-    pp_node(std::string name, struct pp_token data, std::vector<pp_node> children, bool success) {
-        this->name = name;
-        this->children = children;
-        this->success = success;
-        this->data = data;
-    }
-    pp_node(){}
-};
-
-class parse_error {
-public:
-    
-    std::string expected = "";
-    struct pp_token at = {pp_null_type, "",  0, 0};
-    parse_error(std::string expected, struct pp_token data) {
-        this->expected = expected;
-        this->at = data;
-    }
-    parse_error(){}
-};
-
-class program parse(std::string filename, std::string text, std::vector<struct token> tokens, bool &error);
-void print_node(pp_node &node, int level);
-
-
-
-#define prep(_level) for (int i = _level; i--;) std::cout << ".   "
-
-static void print_pp_node(pp_node &self, int level) {
-    prep(level); std::cout << self.name << " (" << self.children.size() << ")" << std::endl;
-    if (self.data.type != pp_null_type) {
-        prep(level); std::cout << "type = " << convert_pp_token_type_representation(self.data.type) << std::endl;
-    }
-    if (self.data.value != "") {
-        prep(level); std::cout << "value = " << self.data.value << std::endl;
-    }
-    int i = 0;
-    for (auto childnode : self.children) {
-        std::cout << std::endl;
-        if (self.children.size() > 1) {prep(level+1); std::cout << "child #" << i++ << ": " << std::endl;}
-        print_pp_node(childnode, level+1);
-    }
-}
-
-//static void print_pp_parse(pp_node &tree) {
-//    std::cout << "------------ PARSE: ------------- " << std::endl;
-//    print_pp_node(tree, 0);
-//}
-
-
-/// Parsing:
+// --------------------------- preprocessor's parser ------------------------------
 
 static int pointer = 0;
 static std::vector<pp_node> stack_trace = {};
@@ -661,53 +536,7 @@ pp_node pp_parser(std::string filename, std::vector<struct pp_token> tokens) {
 }
 
 
-enum value_type {
-    null_value_type,
-    int_value_type,
-    text_value_type,
-    function_value_type
-};
-
-struct value {
-    int numeric = 0;
-    std::string textual = "";
-    pp_node* function_definition = nullptr;
-    std::unordered_map<std::string, struct value> call_scope;
-    enum value_type type = null_value_type;
-};
-
-
-void print_value(struct value v);
-
-void print_current_symbol_table(std::unordered_map<std::string, struct value> symbol_table) {
-    std::cout << "SYMBOL TABLE:" << std::endl;
-    
-    if (!symbol_table.size()) {
-        printf("\t{EMPTY}\n");
-        return;
-    }
-    std::cout << "--------------------------------------------------\n";
-    for (auto elem : symbol_table) {
-        std::cout << "[" << elem.first << "] :: ";
-        print_value(elem.second);
-    }
-    std::cout << "--------------------------------------------------\n\n";
-}
-
-void print_value(struct value v) {
-    std::cout << "VALUE(numeric: " << v.numeric << ", textual: " << v.textual << ", node: " << v.function_definition << ", type: " << v.type << ")" << std::endl;
-    if (v.type == function_value_type) {
-        std::cout << "printing call scope:" << std::endl;
-        print_current_symbol_table(v.call_scope);
-    }
-}
-
-
-void print_symbol_table_stack(std::vector<std::unordered_map<std::string, struct value>> symbol_table_stack) {
-    std::cout << "---------------- printing stack ----------------------\n";
-    for (auto s : symbol_table_stack) print_current_symbol_table(s);
-    std::cout << "----------------done printing ----------------------\n";
-}
+// --------------------------- preprocessor's analyzer and interpreter ------------------------------
 
 struct value evaluate_integer_binary_expression(const struct value &first, const struct value &second, int result) {
     if (first.type == int_value_type && second.type == int_value_type) {
@@ -719,9 +548,7 @@ struct value evaluate_integer_binary_expression(const struct value &first, const
     }
 }
 
-
 void interpret(pp_node &tree, std::vector<std::unordered_map<std::string, struct value>> &symbol_table_stack, std::string &text);
-
 
 struct value evaluate(pp_node expression, std::unordered_map<std::string, struct value> &symbol_table, std::string& text) {
     
@@ -915,23 +742,25 @@ void interpret(pp_node &tree, std::vector<std::unordered_map<std::string, struct
     }
 }
 
-std::string preprocess(std::string filename, std::string text) {
+std::string preprocess(std::string text, std::string filename) {
     
-    std::cout << "---------orginal text:----------\n:::" << text << ":::\n\n\n";
+    //std::cout << "---------orginal text:----------\n:::" << text << ":::\n\n\n";
     
     std::vector<std::unordered_map<std::string, struct value>> symbol_table_stack = {{}};
-    
-    text = strip_comments(filename, text);
-    
-    //auto tokens = pp_lexer(text);
+
+    auto tokens = pp_lexer(text);
     //print_pp_lex(tokens);
     
-    //auto action_tree = pp_parser(filename, tokens);
+    auto action_tree = pp_parser(filename, tokens);
     //print_pp_parse(action_tree);
-    
-    //interpret(action_tree, symbol_table_stack, text);
-        
-    std::cout << "-------preprocessed text:--------\n:::" << text << ":::\n\n\n";
-    
-    return text; // DEBUG: CHANGE ME
+    interpret(action_tree, symbol_table_stack, text);
+
+
+    print_warning_message(filename, "macros are unimplemented.", 0, 0);
+    print_info_message(filename, "macros are deprecated, please use asdflka", 0, 0);
+    print_note("i am really cool.");
+
+    //std::cout << "-------preprocessed text:--------\n:::" << text << ":::\n\n\n";
+    return text;
 }
+

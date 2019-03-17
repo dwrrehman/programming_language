@@ -30,79 +30,46 @@
 
 */
 
- #include "compiler.hpp"
- #include "interpreter.hpp"
- #include "arguments.hpp"
- #include "nodes.hpp"    // dummy, work in progress.
+#include "arguments.hpp"
+#include "compiler.hpp"
+#include "interpreter.hpp"
 
- #include "llvm/IR/LLVMContext.h"
- #include "llvm/IR/Module.h"
+#include "llvm/IR/LLVMContext.h"
+#include "llvm/IR/Module.h"
 
- //#include "llvm/ADT/APFloat.h"
- //#include "llvm/ADT/STLExtras.h"
- //#include "llvm/IR/BasicBlock.h"
- //#include "llvm/IR/Constants.h"
- //#include "llvm/IR/DerivedTypes.h"
- //#include "llvm/IR/Function.h"
- //#include "llvm/IR/IRBuilder.h"
-
-
- //#include "llvm/IR/Type.h"
- //#include "llvm/IR/Verifier.h"
-
-
- #include "llvm/ADT/APFloat.h"
- #include "llvm/ADT/STLExtras.h"
- #include "llvm/IR/BasicBlock.h"
- #include "llvm/IR/Constants.h"
- #include "llvm/IR/DerivedTypes.h"
- #include "llvm/IR/Function.h"
- #include "llvm/IR/IRBuilder.h"
- #include "llvm/IR/LLVMContext.h"
- #include "llvm/IR/Module.h"
- #include "llvm/IR/Type.h"
- #include "llvm/IR/Verifier.h"
- #include <algorithm>
- #include <cctype>
- #include <cstdio>
- #include <cstdlib>
- #include <map>
- #include <memory>
- #include <string>
- #include <vector>
-
- #include <iostream>
- #include <fstream>
+#include <vector>
+#include <iostream>
 
 int main(const int argc, const char** argv) {
 
-    struct arguments args = get_commandline_arguments(argc, argv);
+    const struct arguments &arguments = get_commandline_arguments(argc, argv);
 
-    if (args.error) {
-        debug_arguments(args);
-        return 1;
-
-    } else if (args.use_interpreter) {
-        interpreter(args.files[0].data);
-        return 0;
+    if (arguments.error) {
+        exit(1);
+    } else if (arguments.use_interpreter) {
+        interpreter(arguments.files[0].data);
+        exit(0);
     }
 
     llvm::LLVMContext context;
+    std::vector<std::unique_ptr<llvm::Module>> modules = {};
+    modules.reserve(arguments.files.size());
+    bool error = false;
 
-    std::vector<llvm::Module*> modules = {};
-    modules.reserve(args.files.size());
+    for (auto file : arguments.files)
+        try {modules.push_back(frontend(file, context));}
+        catch (...) {error = true;}
 
-    bool should_asdf = true;
+    if (error) exit(1);
+    for (auto& module : modules) optimize(*module);
 
-    for (size_t i = 0; i < args.files.size(); i++) {
-        try { modules[i] = frontend(args.files[i], context); }
-        catch (...) { should_asdf = false; }
-    }
-
-    return 0;
+    auto& program = pop(modules);
+    for (auto& module : modules) link(program, module);
 }
 
+
 /*
+
 #include "llvm/ADT/APFloat.h"
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/IR/BasicBlock.h"
@@ -275,11 +242,11 @@ namespace {
     /// of arguments the function takes).
     class PrototypeAST {
         std::string Name;
-        std::vector<std::string> Args;
+        std::vector<std::string> arguments;
 
     public:
         PrototypeAST(const std::string &Name, std::vector<std::string> Args)
-        : Name(Name), Args(std::move(Args)) {}
+        : Name(Name), arguments(std::move(Args)) {}
 
         llvm::Function *codegen();
         const std::string &getName() const { return Name; }
@@ -291,8 +258,7 @@ namespace {
         std::unique_ptr<ExprAST> Body;
 
     public:
-        FunctionAST(std::unique_ptr<PrototypeAST> Proto,
-                    std::unique_ptr<ExprAST> Body)
+        FunctionAST(std::unique_ptr<PrototypeAST> Proto, std::unique_ptr<ExprAST> Body)
         : Proto(std::move(Proto)), Body(std::move(Body)) {}
 
         llvm::Function *codegen();
@@ -321,8 +287,7 @@ static int GetTokPrecedence() {
 
     // Make sure it's a declared binop.
     int TokPrec = BinopPrecedence[CurTok];
-    if (TokPrec <= 0)
-        return -1;
+    if (TokPrec <= 0) return -1;
     return TokPrec;
 }
 
@@ -349,14 +314,13 @@ static std::unique_ptr<ExprAST> ParseNumberExpr() {
 /// parenexpr ::= '(' expression ')'
 static std::unique_ptr<ExprAST> ParseParenExpr() {
     getNextToken(); // eat (.
-    auto V = ParseExpression();
-    if (!V)
-        return nullptr;
+    auto expression = ParseExpression();
+    if (!expression) return nullptr;
 
-    if (CurTok != ')')
-        return LogError("expected ')'");
+    if (CurTok != ')') return LogError("expected ')'");
+
     getNextToken(); // eat ).
-    return V;
+    return expression;
 }
 
 /// identifierexpr
@@ -377,14 +341,11 @@ static std::unique_ptr<ExprAST> ParseIdentifierExpr() {
         while (true) {
             if (auto Arg = ParseExpression())
                 Args.push_back(std::move(Arg));
-            else
-                return nullptr;
+            else return nullptr;
 
-            if (CurTok == ')')
-                break;
+            if (CurTok == ')') break;
 
-            if (CurTok != ',')
-                return LogError("Expected ')' or ',' in argument list");
+            if (CurTok != ',') return LogError("Expected ')' or ',' in argument list");
             getNextToken();
         }
     }
@@ -487,22 +448,22 @@ static std::unique_ptr<PrototypeAST> ParsePrototype() {
 /// definition ::= 'def' prototype expression
 static std::unique_ptr<FunctionAST> ParseDefinition() {
     getNextToken(); // eat def.
-    auto Proto = ParsePrototype();
-    if (!Proto)
-        return nullptr;
 
-    if (auto E = ParseExpression())
-        return llvm::make_unique<FunctionAST>(std::move(Proto), std::move(E));
+    auto prototype = ParsePrototype();
+    if (!prototype) return nullptr;
+
+    if (auto expression = ParseExpression())
+        return llvm::make_unique<FunctionAST>(std::move(prototype), std::move(expression));
+
     return nullptr;
 }
 
 /// toplevelexpr ::= expression
 static std::unique_ptr<FunctionAST> ParseTopLevelExpr() {
-    if (auto E = ParseExpression()) {
+    if (auto expression = ParseExpression()) {
         // Make an anonymous proto.
-        auto Proto = llvm::make_unique<PrototypeAST>("__anon_expr",
-                                                     std::vector<std::string>());
-        return llvm::make_unique<FunctionAST>(std::move(Proto), std::move(E));
+        auto prototype = llvm::make_unique<PrototypeAST>("__anon_expr", std::vector<std::string>());
+        return llvm::make_unique<FunctionAST>(std::move(prototype), std::move(expression));
     }
     return nullptr;
 }
@@ -517,8 +478,8 @@ static std::unique_ptr<PrototypeAST> ParseExtern() {
 // Code Generation
 //===----------------------------------------------------------------------===//
 
-static llvm::LLVMContext TheContext;
-static llvm::IRBuilder<> Builder(TheContext);
+static llvm::LLVMContext context;
+static llvm::IRBuilder<> Builder(context);
 static std::unique_ptr<llvm::Module> TheModule;
 static std::map<std::string, llvm::Value*> NamedValues;
 
@@ -527,13 +488,13 @@ llvm::Value *LogErrorV(const char *Str) {
     return nullptr;
 }
 
-llvm::Value *NumberExprAST::codegen() {
-    return llvm::ConstantFP::get(TheContext, llvm::APFloat(Val));
+llvm::Value* NumberExprAST::codegen() {
+    return llvm::ConstantFP::get(context, llvm::APFloat(Val));
 }
 
-llvm::Value *VariableExprAST::codegen() {
+llvm::Value* VariableExprAST::codegen() {
     // Look this variable up in the function.
-    llvm::Value *V = NamedValues[Name];
+    llvm::Value* V = NamedValues[Name];
     if (!V) {
         std::cout << Name << ": ";
         return LogErrorV("Unknown variable name");
@@ -557,7 +518,7 @@ llvm::Value *BinaryExprAST::codegen() {
         case '<':
             L = Builder.CreateFCmpULT(L, R, "cmptmp");
             // Convert bool 0/1 to double 0.0 or 1.0
-            return Builder.CreateUIToFP(L, llvm::Type::getDoubleTy(TheContext), "booltmp");
+            return Builder.CreateUIToFP(L, llvm::Type::getDoubleTy(context), "booltmp");
         default:
             return LogErrorV("invalid binary operator");
     }
@@ -578,8 +539,7 @@ llvm::Value *CallExprAST::codegen() {
     std::vector<llvm::Value *> ArgsV;
     for (unsigned i = 0, e = (unsigned) Args.size(); i != e; ++i) {
         ArgsV.push_back(Args[i]->codegen());
-        if (!ArgsV.back())
-            return nullptr;
+        if (!ArgsV.back()) return nullptr;
     }
 
     return Builder.CreateCall(CalleeF, ArgsV, "calltmp");
@@ -587,52 +547,40 @@ llvm::Value *CallExprAST::codegen() {
 
 llvm::Function *PrototypeAST::codegen() {
     // Make the function type:  double(double,double) etc.
-    std::vector<llvm::Type *> Doubles(Args.size(), llvm::Type::getDoubleTy(TheContext));
-    llvm::FunctionType *FT =
-    llvm::FunctionType::get(llvm::Type::getDoubleTy(TheContext), Doubles, false);
+    std::vector<llvm::Type*> parameters(arguments.size(), llvm::Type::getDoubleTy(context));
+    llvm::FunctionType* type = llvm::FunctionType::get(llvm::Type::getDoubleTy(context), parameters, false);
+    llvm::Function *function = llvm::Function::Create(type, llvm::Function::ExternalLinkage, Name, TheModule.get());
 
-    llvm::Function *F =
-    llvm::Function::Create(FT, llvm::Function::ExternalLinkage, Name, TheModule.get());
+    size_t i = 0;
+    for (auto &argument : function->args()) argument.setName(arguments[i++]);
 
-    // Set names for all arguments.
-    unsigned Idx = 0;
-    for (auto &Arg : F->args())
-        Arg.setName(Args[Idx++]);
-
-    return F;
+    return function;
 }
 
 llvm::Function *FunctionAST::codegen() {
     // First, check for an existing function from a previous 'extern' declaration.
-    llvm::Function *TheFunction = TheModule->getFunction(Proto->getName());
-
-    if (!TheFunction)
-        TheFunction = Proto->codegen();
-
-    if (!TheFunction)
-        return nullptr;
+    llvm::Function* function = TheModule->getFunction(Proto->getName());
+    if (!function && !(function = Proto->codegen())) return nullptr;
 
     // Create a new basic block to start insertion into.
-    llvm::BasicBlock *BB = llvm::BasicBlock::Create(TheContext, "entry", TheFunction);
-    Builder.SetInsertPoint(BB);
+    llvm::BasicBlock* block = llvm::BasicBlock::Create(context, "entry", function);
+    Builder.SetInsertPoint(block);
 
     // Record the function arguments in the NamedValues map.
     NamedValues.clear();
-    for (auto &Arg : TheFunction->args())
-        NamedValues[Arg.getName()] = &Arg;
+    for (auto &Arg : function->args()) NamedValues[Arg.getName()] = &Arg;
 
-    if (llvm::Value *RetVal = Body->codegen()) {
+    if (llvm::Value* return_value = Body->codegen()) {
         // Finish off the function.
-        Builder.CreateRet(RetVal);
+        Builder.CreateRet(return_value);
 
         // Validate the generated code, checking for consistency.
-        verifyFunction(*TheFunction);
-
-        return TheFunction;
+        verifyFunction(*function);
+        return function;
     }
 
     // Error reading body, remove function.
-    TheFunction->eraseFromParent();
+    function->eraseFromParent();
     return nullptr;
 }
 
@@ -706,10 +654,8 @@ static void otherLoop() {
             }
         }
 
-        llvm::MemoryBufferRef reference(s, "this_buffer");
-
+        llvm::MemoryBufferRef reference(s, "temp_ins_buffer");
         llvm::ModuleSummaryIndex my_index(true);
-
         llvm::SMDiagnostic errors;
 
         if (llvm::parseAssemblyInto(reference, TheModule.get(), &my_index, errors)) {
@@ -796,7 +742,7 @@ int main() {
     getNextToken();
 
     // Make the module, which holds all the code.
-    TheModule = llvm::make_unique<llvm::Module>("My First Module", TheContext);
+    TheModule = llvm::make_unique<llvm::Module>("My First Module", context);
 
     // Run the main "interpreter loop" now.
     MainLoop();
@@ -806,4 +752,5 @@ int main() {
 
     return 0;
 }
+
 */

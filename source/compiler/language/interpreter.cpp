@@ -14,8 +14,6 @@
 #include <iostream>
 #include <vector>
 
-
-
 size_t output_line_number = 0;
 
 void print_welcome_message() {
@@ -49,8 +47,9 @@ void repl() {
     std::string line = "";
     size_t line_number = 0;
     do {
-        std::cout << interpreter_prompt(line_number++);
+        std::cout << interpreter_prompt(line_number);
         std::getline(std::cin, line);
+        if (line != "") line_number++;
 
         if ((line.size() && line[0] == ':') || is_quit_command(line)) {
             if (is_quit_command(line)) break;

@@ -1,2 +1,5 @@
-use .io
-print "hello world!\n"
+\replace \with
+    \define \{hello there\} \( \) \begin
+
+    \end
+\end

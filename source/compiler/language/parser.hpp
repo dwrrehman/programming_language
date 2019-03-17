@@ -13,6 +13,6 @@
 
 #include <string>
 
-program parse(std::string filename, std::string text);
+program parse(std::string text, std::string filename);
 
 #endif /* parser_hpp */

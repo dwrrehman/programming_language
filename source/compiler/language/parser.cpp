@@ -31,7 +31,7 @@ program parse_program() {
     return {};
 }
 
-program parse(std::string filename, std::string text) {
+program parse(std::string text, std::string filename) {
     start_lex(filename, text);
     
     program tree = parse_program();
