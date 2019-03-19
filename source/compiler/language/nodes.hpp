@@ -36,48 +36,76 @@ public:
 
 
 
+class string_literal: public node {
+    struct token literal = {};
+};
 
-// we shouldnt need this....
+class statement: public node {
+    // undefined
+};
 
-class required_newlines: public node {
-    std::vector<struct token> terminals = {};
+class statement_list: public node {
+    std::vector<statement> statements = {};
+};
+
+class variable_signature: public node {
+
+};
+
+class expression: public node {
+
+};
+
+class function_declaration: public node {
+
+};
+
+class type_declaration: public node {
+
+};
+
+class function_definition: public node {
+    //std::unique_ptr<call_signature> call = {};
+    std::unique_ptr<expression> return_type = {};
+    std::unique_ptr<expression> type = {};
+    std::unique_ptr<statement_list> body = {};
+};
+
+class variable_declaration: public node {
+    std::unique_ptr<variable_signature> name = {};
+    std::unique_ptr<expression> type = {};
+};
+
+class alias_statement: public node {
+    std::unique_ptr<node> self = {};
 };
 
 
 
 class interface_declaration: public node {
-    node self = {};
+    std::unique_ptr<node> self = {};
 };
 
 class implementation_declaration: public node {
-    node self = {};
+    std::unique_ptr<node> self = {};
 };
-
 
 class declaration: public node {
     bool interface = false;
     bool implementation = false;
     bool has_documentation = false;
     struct token documentation = {};
-    node self = {};
+    std::unique_ptr<node> self = {};
 };
 
 class declaration_list: public node {
     std::vector<declaration> declarations = {};
 };
 
-class terminated_declaration: public node {
-    declaration self = {};
-};
-
-class declaration_block: public node {
-    std::vector<declaration> declarations = {};
-};
-
 class translation_unit: public node {
     bool is_entry_point = false;
-    declaration_list list = {};
-    //statement_list list = {};
+    std::unique_ptr<declaration_list> unit = {};
+    std::unique_ptr<statement_list> main = {};
 };
 
 
