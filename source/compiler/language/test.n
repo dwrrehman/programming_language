@@ -1,3 +1,1 @@
-print "hello there" '
-asldjfk
-
+print hi there

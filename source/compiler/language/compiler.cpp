@@ -19,6 +19,10 @@
 #include "llvm/IR/Module.h"
 #include "llvm/Linker/Linker.h"
 
+#include "llvm/Transforms/InstCombine/InstCombine.h"
+#include "llvm/Transforms/AggressiveInstCombine/AggressiveInstCombine.h"
+#include "llvm/Transforms/IPO/PassManagerBuilder.h"
+
 #include <iostream>
 #include <fstream>
 #include <vector>
@@ -27,8 +31,9 @@ std::unique_ptr<llvm::Module> frontend(struct file file, llvm::LLVMContext &cont
     return generate(analyze(parse(preprocess(file.data, file.name), file.name), file.name), file.name, context);
 }
 
+
 void optimize(llvm::Module& module) {
-    // call llvm something.
+    // use a pass manager, and string together as many passes as possible.
 }
 
 void link(llvm::Module &program, std::unique_ptr<llvm::Module> &module) {

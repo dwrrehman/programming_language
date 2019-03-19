@@ -45,7 +45,6 @@ class required_newlines: public node {
 
 
 
-
 class interface_declaration: public node {
     node self = {};
 };

@@ -8,6 +8,7 @@
 
 /* Begin PBXBuildFile section */
 		FD61923722128F3800BE481C /* terminal_manip.cpp in Sources */ = {isa = PBXBuildFile; fileRef = FD61923522128F3800BE481C /* terminal_manip.cpp */; };
+		FDC546A82240C05200D99CA9 /* colorfinder.cpp in Sources */ = {isa = PBXBuildFile; fileRef = FDC546A62240C05200D99CA9 /* colorfinder.cpp */; };
 		FDD87F12220FF9C7001D9434 /* main.cpp in Sources */ = {isa = PBXBuildFile; fileRef = FDD87F11220FF9C7001D9434 /* main.cpp */; };
 /* End PBXBuildFile section */
 
@@ -26,6 +27,8 @@
 /* Begin PBXFileReference section */
 		FD61923522128F3800BE481C /* terminal_manip.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = terminal_manip.cpp; sourceTree = "<group>"; };
 		FD61923622128F3800BE481C /* terminal_manip.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = terminal_manip.hpp; sourceTree = "<group>"; };
+		FDC546A62240C05200D99CA9 /* colorfinder.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = colorfinder.cpp; sourceTree = "<group>"; };
+		FDC546A72240C05200D99CA9 /* colorfinder.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = colorfinder.hpp; sourceTree = "<group>"; };
 		FDD87F0E220FF9C7001D9434 /* interpreter */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = interpreter; sourceTree = BUILT_PRODUCTS_DIR; };
 		FDD87F11220FF9C7001D9434 /* main.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = main.cpp; sourceTree = "<group>"; };
 		FDD87F18220FFC85001D9434 /* color.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = color.h; sourceTree = "<group>"; };
@@ -64,6 +67,8 @@
 				FDD87F11220FF9C7001D9434 /* main.cpp */,
 				FD61923522128F3800BE481C /* terminal_manip.cpp */,
 				FD61923622128F3800BE481C /* terminal_manip.hpp */,
+				FDC546A62240C05200D99CA9 /* colorfinder.cpp */,
+				FDC546A72240C05200D99CA9 /* colorfinder.hpp */,
 				FDD87F18220FFC85001D9434 /* color.h */,
 			);
 			path = interpreter;
@@ -125,6 +130,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				FDC546A82240C05200D99CA9 /* colorfinder.cpp in Sources */,
 				FDD87F12220FF9C7001D9434 /* main.cpp in Sources */,
 				FD61923722128F3800BE481C /* terminal_manip.cpp in Sources */,
 			);

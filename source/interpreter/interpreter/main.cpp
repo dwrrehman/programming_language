@@ -6,30 +6,12 @@
 //  Copyright © 2019 Daniel Rehman. All rights reserved.
 //
 
-
 /**
- 
- Manifest: ----------------------------
- 
- - i want to speed of C/C++,
- - the safety of Rust,
- - the style of Swift,
- - the types of Haskell,
- - the flexibility of lisp,
- - and the readability of Python.
-
- --------------------------------------
- 
- 
- 
- 
  
   ------------ TODOS: for this interpreter: ---------------------------------------
  
  - use min and max functions from std alg, instead of all these ternary operators.
- 
 
- 
 */
 
 #include <iostream>
@@ -54,16 +36,17 @@
 
 #include "color.h"
 #include "terminal_manip.hpp"
+#include "colorfinder.hpp"
 
 // Parameters:
 
-#define language_name   "nostril"
+#define language_name   "n3zqx2l"
 
 const std::string welcome_message = BRIGHT_GREEN "A " language_name " Interpreter." RESET GRAY "\n[Created by Daniel Rehman.]\n(type \":help\" for more info.)" RESET;
 
 const size_t number_of_spaces_for_tab = 4;
 
-std::string code_prompt = BRIGHT_GREEN " ║  " RESET;
+std::string code_prompt = BRIGHT_GREEN " ║  " RESET;       // all unused
 std::string command_prompt = CYAN " ╚╡ " RESET;
 std::string output_prompt = GRAY "       :   " RESET;
 
@@ -72,9 +55,8 @@ std::string output_prompt = GRAY "       :   " RESET;
 #define right direction == 67
 #define left direction == 68
 
-#define normal_fmt "\033[38;5;%dm"
-#define reset "\033[0m"
-#define bold_fmt "\033[1;38;5;%dm"
+
+/// Gobals:
 
 std::mutex input_lock;
 std::vector<std::string> input = {""};
@@ -90,8 +72,9 @@ bool quit = false;
 bool paused = false;
 
 
+/// Helpers:
 
-void update_view() {
+void update_view_position() {
     struct winsize size;
     ioctl(STDOUT_FILENO, TIOCGWINSZ, &size);
     
@@ -114,24 +97,26 @@ void process_arrow_key() {
     char direction = getch();
     if (up && line) line--;
     else if (down && line < input.size() - 1) line++;
-    else if (right && column < input[line].size()) column++;
+    else if (right && line < input.size() && column < input[line].size()) column++;
     else if (left && column) column--;
-    update_view();
-}
-
-void print_tab() {
-    for (size_t i = number_of_spaces_for_tab; i--;) input[line].insert(column++, 1, ' ');
+    update_view_position();
 }
 
 void print_character(char c) {
-    column = column > input[line].size() ? input[line].size() : column;
-    input[line].insert(column++, 1, c);                                                                   if (c == 'q') paused = true;     /// temp
+    if (line < input.size()) {
+        column = column > input[line].size() ? input[line].size() : column;
+        input[line].insert(column++, 1, c);                                              if (c == 'q') paused = true;     /// temp
+    }
+}
+
+void print_tab() {
+    for (size_t i = number_of_spaces_for_tab; i--;) print_character(' ');
 }
 
 void delete_character() {
-    if (column) {
+    if (column && line < input.size()) {
         input[line].erase(input[line].begin() + --column);
-    } else if (line) {
+    } else if (line > 0 && line < input.size()) {
         const std::string current_line = input[line];
         input.erase(input.begin() + line--);
         column = input[line].size();
@@ -143,7 +128,7 @@ void print_newline() {
     if (column == input[line].size()) {
         input.insert(input.begin() + line + 1, "");
         column = 0; line++;
-    } else if (column < input[line].size()) {
+    } else if (column < input[line].size() && line < input.size()) {
         const std::string new_line = input[line].substr(column);
         input[line].erase(column);
         input.insert(input.begin() + ++line, new_line);
@@ -168,6 +153,8 @@ void get_input() {
             char d = getch();
             if (d == 91) process_arrow_key();
             else if (d == 27) quit = true;
+            else if (d == '<') column = 0;
+            else if (d == '>') column = input[line].size();
         }
         input_lock.unlock();
         usleep(1000);
@@ -222,24 +209,6 @@ void interpret() { // this function does syntax highlighting as well.
         }
         
         sleep(1);
-    }
-}
-
-static void color_finder_cli() {
-    std::string i = "";
-    while (i != "q") {
-        int one = 0;
-        std::cout << "::> ";
-        std::cin >> i;
-        if (i == "s") {
-            int b = 0;
-            std::cin >> b;
-            std::cin >> one;
-            if (b) printf(bold_fmt "   hello   " reset "\n", one);
-            else printf(normal_fmt "   hello   " reset "\n", one);
-        } else {
-            std::cout << "?" << std::endl;
-        }
     }
 }
 

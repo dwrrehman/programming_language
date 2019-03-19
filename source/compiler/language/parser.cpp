@@ -31,7 +31,7 @@ static std::unique_ptr<ExprAST> ParseExpression() {
 
 
 std::unique_ptr<translation_unit> parse_translation_unit() {
-    
+    debug_token_stream();
     return llvm::make_unique<translation_unit>();
 }
 
