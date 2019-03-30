@@ -9,10 +9,14 @@
 #include "arguments.hpp"
 #include "compiler.hpp"
 #include "debug.hpp"
-
+#include "lists.hpp"
 #include <iostream>
 #include <fstream>
 #include <vector>
+
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <unistd.h>
 
 
 static void open_file(struct arguments &args, struct file &file) {
@@ -24,6 +28,7 @@ static void open_file(struct arguments &args, struct file &file) {
         args.files.push_back(file);
     } else {
         printf("Unable to open \"%s\" \n", file.name.c_str());
+        perror("open");
         args.error = true;
     }
 }
@@ -33,14 +38,25 @@ static void get_interpreter_arguments(int argc, struct arguments &args, const ch
         struct file file = {argv[2], ""};
         open_file(args, file);
     } else if (argc == 2) {
-        struct file file = {"", ""};
+        struct file file = {"()", ""};
         args.files.push_back(file);
     } else {
         args.error = true;
-        printf("Too many files passed to the interpreter\n");
+        printf("pick: error: too many files passed, only 1 allowed\n");
     }
 }
 
+
+int is_file(const char *path) {
+    struct stat path_stat;
+    stat(path, &path_stat);
+    return S_ISREG(path_stat.st_mode);
+}
+
+
+void open_dir() {
+
+}
 
 
 /*
@@ -61,24 +77,30 @@ static void get_interpreter_arguments(int argc, struct arguments &args, const ch
  nostril compile <project>      : compile a nostril project in the current directory.
  
  nostril run <args>             : compile a nostril project, and then run it,
+
+ nostril pack                 : create a package, instead of an executable.
+
+ nostril do <one file>       : define this file as the entry point, and wrap a anon lambda around the code.
  
  ------------------------------ flags ------------------------------
  
  nostril -empty                  : dont include the standard library implicitly.
  
- nostril -link <.a/.bgr>         : a archive file, or a booger to statically link.
+ nostril -link <.a/.np>         : a archive file, or a booger to statically link.
  
  nostril -named <name>           : name the executable to the name.
  
  nostril -sneeze                 : enable debug output of the compiler, while compiling.
  
- nostril -booger                 : create a ".bgr" package, instead of an executable.
- 
  nostril -color=<ascii/256/...>  : toggle the colors of the compiler output, or interpreter.
 
- nostril -entry <one file>       : define this file as the entry point, and wrap a anon lambda around the code.
+
+
+ nostril -spaces <one file>       : define this file as the entry point, and wrap a anon lambda around the code.
  
  */
+
+
 struct arguments get_commandline_arguments(const int argc, const char** argv) { // we need to revise this function to fit the new comipiler specfication.
     
     struct arguments args = {};
@@ -93,26 +115,44 @@ struct arguments get_commandline_arguments(const int argc, const char** argv) { 
     } else if (argc > 1 && std::string(argv[1]) == "run") { // "nostril run ..."
         
     } else if (argc > 1 && std::string(argv[1]) == "compile") { // "nostril compile ..."
+
+    } else if (argc > 1 && std::string(argv[1]) == "entry") { // "nostril entry ..."
         
     } else if (argc == 1) {
         args.use_interpreter = true;
-        args.files.push_back({"{interpreter}", ""});
+        args.files.push_back({"{repl}", ""});
         return args;
     }
     
     for (int i = 1; i < argc; i++) {
         if (std::string(argv[i]) == "-named" && i + 1 < argc) {
             args.executable_name = std::string(argv[++i]);
-            
-        } else if (std::string(argv[i]) == "-n") {
-            // ?
-            
+
+        } else if (std::string(argv[i]) == "-indent-width " && i + 1 < argc) {
+            spaces_count_for_indent = atoi(argv[++i]);
+            if (!spaces_count_for_indent) {
+                printf("error: invalid number for indent width, using the default of 4 spaces.\n");
+                spaces_count_for_indent = 4;
+            }
+
+        } else if (std::string(argv[i]) == "-version") {
+            std::cout << language_name << ": " << language_version << std::endl;
+            exit(0);
+
+        } else if (std::string(argv[i]) == "") {
+
+
         } else if (argv[i][0] == '-') {
             printf("bad option: %s\n", argv[i]);
+            // print_usage();
             
         } else {
             struct file file = {argv[i], ""};
-            open_file(args, file);
+            if (is_file(argv[i])) {
+                open_file(args, file);
+            } else {
+                open_dir(); // TODO: fill in the recursive compiler.
+            }
         }
     }
     return args;

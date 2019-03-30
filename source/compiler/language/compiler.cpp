@@ -38,7 +38,7 @@ void optimize(llvm::Module& module) {
 
 void link(llvm::Module &program, std::unique_ptr<llvm::Module> &module) {
     if (llvm::Linker::linkModules(program, std::move(module))) {
-        std::cout << "Linking Error\n";
+        std::cout << "Linking Error\n"; //TODO: print linking errors
         exit(1);
     }
 }

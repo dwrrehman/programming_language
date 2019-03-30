@@ -22,7 +22,7 @@ struct arguments {
     bool use_interpreter = false;
     bool error = false;
     std::vector<struct file> files = {};
-    std::string executable_name = "a.out";
+    std::string executable_name = "a.out";    
 };
 
 

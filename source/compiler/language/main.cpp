@@ -33,6 +33,7 @@
 #include "arguments.hpp"
 #include "compiler.hpp"
 #include "interpreter.hpp"
+#include "error.hpp"
 
 #include "llvm/IR/LLVMContext.h"
 #include "llvm/IR/Module.h"
@@ -43,13 +44,9 @@
 int main(const int argc, const char** argv) {
 
     const struct arguments &arguments = get_commandline_arguments(argc, argv);
-
-    if (arguments.error) {
-        exit(1);
-    } else if (arguments.use_interpreter) {
-        interpreter(arguments.files[0].data);
-        exit(0);
-    }
+    if (arguments.error) exit(1);
+    else if (arguments.use_interpreter) interpreter(arguments.files[0]);
+    else if (!arguments.files.size()) print_error_no_files();
 
     llvm::LLVMContext context;
     std::vector<std::unique_ptr<llvm::Module>> modules = {};

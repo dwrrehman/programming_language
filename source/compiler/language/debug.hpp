@@ -38,8 +38,6 @@ const char* convert_token_type_representation(enum token_type type);
 void debug_token_stream();
 
 // parser:
-void print_node(node &node, int level);
-void print_token(struct token t);
-void print_parse(node &tree);
+void print_expression_list(expression_list list);
 
 #endif /* debug_hpp */

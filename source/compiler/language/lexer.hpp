@@ -11,7 +11,8 @@
 
 #include <string>
 
-enum class token_type {null, string, identifier, documentation, character, llvm, keyword, operator_, builtin};
+enum class token_type {null, string, identifier, documentation, character, llvm, keyword, operator_, builtin, indent};
+enum class lexing_state {none, string, string_expression, identifier, documentation, character_or_llvm, comment, multiline_comment, indent};
 
 struct token {
     enum token_type type = token_type::null;
@@ -20,8 +21,18 @@ struct token {
     size_t column = 0;
 };
 
+struct saved_state {
+    size_t saved_c = 0;
+    size_t saved_line = 0;
+    size_t saved_column = 0;
+    lexing_state saved_state = lexing_state::none;
+    struct token saved_current = {};
+};
+
 void start_lex(std::string given_filename, std::string given_text);
 
 struct token next();
+struct saved_state save();
+void revert(struct saved_state s);
 
 #endif /* lexer_hpp */

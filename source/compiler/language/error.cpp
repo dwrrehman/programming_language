@@ -81,9 +81,13 @@ void print_lex_error(std::string filename, std::string state_name, size_t line, 
 }
 
 void print_parse_error(std::string filename, size_t line, size_t column, std::string type, std::string found, std::string expected) {
-    std::cerr << error_heading(filename, line, column) << "unexpected " << type << ", \"" << (found == "\n" ? "newline" : found) << "\"" << std::endl;
+    std::cerr << error_heading(filename, line, column) << "unexpected " << type << ", \"" << (found == "\n" ? "newline" : found) << "\", expected " << expected << std::endl;
 }
 
+void print_error_no_files() {
+    std::cerr << WHITE << "nostril" << RESET GRAY ": " RESET BRIGHT_RED "error" RESET GRAY ": " RESET << "no input files" << std::endl;
+    exit(1);
+}
 // source printers:
 
 void print_source_code(std::string text, std::vector<struct token> offending_tokens) {

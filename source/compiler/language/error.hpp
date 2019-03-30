@@ -25,6 +25,8 @@ void print_error_message(std::string filename, std::string message, size_t line,
 void print_lex_error(std::string filename, std::string state_name, size_t line, size_t column);
 void print_parse_error(std::string filename, size_t line, size_t column, std::string type, std::string found, std::string expected);
 
+void print_error_no_files();
+
 
 // source printers:
 

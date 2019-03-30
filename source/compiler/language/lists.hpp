@@ -16,6 +16,8 @@
 extern const std::string language_name;
 extern const std::string language_version;
 
+extern size_t spaces_count_for_indent;
+
 // main language entities:
 extern std::vector<std::string> operators;
 extern std::vector<std::string> non_overridable_operators;

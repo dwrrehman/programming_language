@@ -10,11 +10,12 @@
 #include "parser.hpp"
 #include "color.h"
 #include "lists.hpp"
+#include "arguments.hpp"
 
 #include <iostream>
 #include <vector>
 
-size_t output_line_number = 0;
+static size_t output_line_number = 0;
 
 void print_welcome_message() {
     std::cout << "a " << BRIGHT_CYAN << language_name << RESET << " REPL interpreter " GRAY "(version " << language_version << ").\n" RESET;
@@ -32,8 +33,10 @@ std::string output() {
 void process_repl_command(std::string line) {
     if (line == "clear") {
         std::cout << "\e[1;1H\e[2J";
-    } else if (line == "hello") {
+    } else if (line == "poke") {
         std::cout << output() << "Hello, world!\n";
+    } else if (line == "help") {
+        std::cout << output() << "this is a helpful message.\n";
     }
 }
 
@@ -63,17 +66,21 @@ void repl() {
                 std::cout << output() << "recevied: :::" << line << ":::\n";
         }
     } while (std::cin.good());
-    std::cout << output() << "Quitting REPL...\n";
 }
 
 void editor(std::string text) {
+
     // do somethign cool, with compilation in the back ground.
+    std::cout << "this is an editor! :D\n";
+
+    // i will be calling my other editor code here.
 }
 
-void interpreter(std::string text) {
-    if (text == "") {
+void interpreter(struct file file) {
+    if (file.name == "{repl}") {
         repl();
     } else {
-        editor(text);
+        editor(file.data);
     }
+    exit(0);
 }

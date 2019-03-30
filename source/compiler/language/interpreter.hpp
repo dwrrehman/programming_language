@@ -11,6 +11,6 @@
 
 #include <string>
 
-void interpreter(std::string text);
+void interpreter(struct file file);
 
 #endif /* interpreter_hpp */

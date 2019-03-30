@@ -27,174 +27,221 @@
 #include "llvm/IR/Verifier.h"
 
 
-// base class for ast nodes:
+/* -------------------------- EBNF GRAMMAR FOR THE LANGUAGE: ----------------------------
+
+
+ translation_unit
+ = expression_list
+
+ expression_list
+ = newlines terminated_expression expression_list
+ | E
+
+ terminated_expression
+ = expression required_newlines
+
+ function_signature
+ = call_signature return_type signature_type
+
+ variable_signature
+ = element_list signature_type
+
+ call_signature
+ = ( element_list )
+
+ element_list
+ = element element_list
+ | E
+
+ element
+ = symbol signature_type
+
+ return_type
+ = expression
+ | E
+
+ signature_type
+ = : expression
+ | E
+
+ expression
+ = symbol expression
+ | symbol
+
+ newlines_expression
+ = symbol newlines expression
+ = symbol
+
+ symbol
+ = function_signature
+ | variable_signature
+ | ( newlines newlines_expression )
+ | string_literal
+ | character_literal
+ | documentation
+ | llvm_literal
+ | block
+ | group
+ | builtin
+ | identifier
+
+ block
+ = { expression_list }
+ | {{ expression_list }}
+ | { expression }
+ | {{ expression }}
+
+ ///| newlines expression          ; this is problematic. we will do this as a correction transformation.
+
+ group
+ = ( expression_list )
+ = ( expression )
+
+
+
+----------------------------------------------------------------------------*/
+
+// base class for all ast nodes:
+
 class node {
 public:
-    bool error = false;
+    bool error = true;
 };
 
+// enum classes:
 
+enum class symbol_type {
+    none,
+    function_signature,
+    variable_signature,
+    subexpression,
+    string_literal,
+    character_literal,
+    documentation,
+    llvm_literal,
+    block,
+    group,
+    builtin,
+    identifier,
+};
 
+// prototypes:
+
+class translation_unit;
+class expression_list;
+class terminated_expression;
+class expression;
+class newlines_expression;
+class symbol;
+class function_signature;
+class variable_signature;
+class block;
+class group;
+class element_list;
+class element;
+class return_type;
+class signature_type;
+
+// literals:
 
 class string_literal: public node {
+public:
     struct token literal = {};
 };
 
-class statement: public node {
-    // undefined
+class character_literal: public node {
+public:
+    struct token literal = {};
 };
 
-class statement_list: public node {
-    std::vector<statement> statements = {};
+class documentation: public node {
+public:
+    struct token literal = {};
 };
 
-class variable_signature: public node {
+class llvm_literal: public node {
+public:
+    struct token literal = {};
+};
 
+class identifier: public node {
+public:
+    struct token name = {};
+};
+
+class builtin: public node {
+public:
+    struct token name = {};
 };
 
 class expression: public node {
-
+public:
+    std::vector<symbol> symbols = {};
 };
 
-class function_declaration: public node {
-
+class expression_list: public node {
+public:
+    std::vector<expression> expressions = {};
 };
 
-class type_declaration: public node {
-
+class element_list: public node {
+public:
+    std::vector<element> elements = {};
 };
 
-class function_definition: public node {
-    //std::unique_ptr<call_signature> call = {};
-    std::unique_ptr<expression> return_type = {};
-    std::unique_ptr<expression> type = {};
-    std::unique_ptr<statement_list> body = {};
+class block: public node {
+public:
+    bool is_open = false;
+    bool is_cloed = false;
+    expression_list statements = {};
 };
 
-class variable_declaration: public node {
-    std::unique_ptr<variable_signature> name = {};
-    std::unique_ptr<expression> type = {};
+class group: public node {
+public:
+    expression_list declarations = {};
 };
 
-class alias_statement: public node {
-    std::unique_ptr<node> self = {};
+class function_signature: public node {
+public:
+    bool has_return_type = false;
+    bool has_signature_type = false;
+    element_list call = {};
+    expression return_type = {};
+    expression signature_type = {};
 };
 
-
-
-class interface_declaration: public node {
-    std::unique_ptr<node> self = {};
+class variable_signature: public node {
+public:
+    element_list name = {};
+    expression signature_type = {};
 };
 
-class implementation_declaration: public node {
-    std::unique_ptr<node> self = {};
+class symbol: public node {
+public:
+    enum symbol_type type = symbol_type::none;
+    function_signature function = {};
+    variable_signature variable = {};
+    expression subexpression = {};
+    block block = {};
+    group group = {};
+    string_literal string = {};
+    character_literal character = {};
+    documentation documentation = {};
+    llvm_literal llvm = {};
+    builtin builtin = {};
+    identifier identifier = {};
 };
 
-class declaration: public node {
-    bool interface = false;
-    bool implementation = false;
-    bool has_documentation = false;
-    struct token documentation = {};
-    std::unique_ptr<node> self = {};
-};
-
-class declaration_list: public node {
-    std::vector<declaration> declarations = {};
+class element: public node {
+public:
+    bool has_type = false;
+    symbol name = {};
+    expression type = {};
 };
 
 class translation_unit: public node {
-    bool is_entry_point = false;
-    std::unique_ptr<declaration_list> unit = {};
-    std::unique_ptr<statement_list> main = {};
-};
-
-
-
-
-
-
-
-/*
-
-/// ExprAST - Base class for all expression nodes.
-
- class ExprAST {
- public:
-    virtual ~ExprAST() = default;
- 
-    virtual llvm::Value* codegen() = 0;
- };
-
-
-
-
-/// NumberExprAST - Expression class for numeric literals like "1.0".
-class NumberExprAST : public ast_node {
-    double Val;
-    
 public:
-    NumberExprAST(double Val) : Val(Val) {}
-    
-    llvm::Value* codegen() override;
+    expression_list list = {};
 };
-
-
-
-
-
-
-/// VariableExprAST - Expression class for referencing a variable, like "a".
-class variable_node : public ast_node {
-    std::string Name;
-    
-public:
-    variable_node(const std::string &Name) : Name(Name) {}
-    
-    llvm::Value* codegen() override;
-};
-
-
-
-
-
-
-
-
-
-
-
-
-
-/// PrototypeAST - This class represents the "prototype" for a function,
-/// which captures its name, and its argument names (thus implicitly the number
-/// of arguments the function takes).
-class signature_node {
-    struct signature signature;
-    
-public:
-    signature_node(const std::string &Name, std::vector<std::string> Args)
-    : Name(Name), Args(std::move(Args)) {}
-    
-    llvm::Function* codegen();
-    const std::string &getName() const { return Name; }
-};
-
-
-
-/// FunctionAST - This class represents a function definition itself.
-class FunctionAST {
-    std::unique_ptr<signature_node> signature;
-    std::unique_ptr<ast_node> body;
-    
-public:
-    FunctionAST(std::unique_ptr<signature_node> signature,
-                std::unique_ptr<ast_node> Body)
-    : signature(std::move(signature)), body(std::move(body)) {}
-    
-    llvm::Function* codegen();
-};
-
-
-*/
 
 #endif /* nodes_hpp */

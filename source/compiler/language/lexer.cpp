@@ -17,15 +17,13 @@
 
 #define clear_and_return()  auto result = current; current = {}; return result;
 
-enum class lexing_state {none, string, string_expression, identifier, number, documentation, character_or_llvm, comment, multiline_comment};
-
 static std::string text = "";
 static std::string filename = "";
 
 static size_t c = 0;
 static size_t line = 0;
 static size_t column = 0;
-static lexing_state state = lexing_state::none;
+static lexing_state state = lexing_state::indent;
 static struct token current = {};
 
 // helpers:
@@ -56,7 +54,7 @@ static bool is_escape_sequence(std::string s) {
 static void advance_by(size_t n) {
     for (size_t i = n; i--;) {
         if (text[c] == '\n') {
-            c++; line++; column = 0;
+            c++; line++; column = 1;
         } else {
             c++; column++;
         }
@@ -94,15 +92,20 @@ struct token next() {
         if (c >= text.size()) {
             check_for_lexing_errors();
             return {};
+        }
 
-        } else if (text[c] == ';' && isvalid(c+1) && isspace(text[c+1]) && state == lexing_state::none) {
+        if (text[c] == '\n' && state == lexing_state::none) {
+            state = lexing_state::indent;
+        }
+
+        if (text[c] == ';' && isvalid(c+1) && isspace(text[c+1]) && (state == lexing_state::none || state == lexing_state::indent)) {
             state = lexing_state::comment;
-        } else if (text[c] == ';' && !isspace(text[c+1]) && state == lexing_state::none) {
+        } else if (text[c] == ';' && !isspace(text[c+1]) && (state == lexing_state::none || state == lexing_state::indent)) {
             state = lexing_state::multiline_comment;
 
         // ------------------- starting and finising ----------------------
 
-        } else if (is_identifierchar(text[c]) && isvalid(c+1) && !is_identifierchar(text[c+1]) && state == lexing_state::none) {
+        } else if (is_identifierchar(text[c]) && isvalid(c+1) && !is_identifierchar(text[c+1]) && (state == lexing_state::none || state == lexing_state::indent)) {
             set_current(token_type::identifier, lexing_state::none);
             current.value = text[c];
             if (current.value == "_") current.type = token_type::keyword;
@@ -111,10 +114,10 @@ struct token next() {
 
         // ---------------------- starting --------------------------
 
-        } else if (text[c] == '\"' && state == lexing_state::none) { set_current(token_type::string, lexing_state::string);
-        } else if (text[c] == '`' && state == lexing_state::none) { set_current(token_type::documentation, lexing_state::documentation);
-        } else if (text[c] == '\'' && state == lexing_state::none) { set_current(token_type::llvm, lexing_state::character_or_llvm);
-        } else if (is_identifierchar(text[c]) && state == lexing_state::none) {
+        } else if (text[c] == '\"' && (state == lexing_state::none || state == lexing_state::indent)) { set_current(token_type::string, lexing_state::string);
+        } else if (text[c] == '`' && (state == lexing_state::none || state == lexing_state::indent)) { set_current(token_type::documentation, lexing_state::documentation);
+        } else if (text[c] == '\'' && (state == lexing_state::none || state == lexing_state::indent)) { set_current(token_type::llvm, lexing_state::character_or_llvm);
+        } else if (is_identifierchar(text[c]) && (state == lexing_state::none || state == lexing_state::indent)) {
             set_current(token_type::identifier, lexing_state::identifier);
             current.value += text[c];
 
@@ -175,26 +178,78 @@ struct token next() {
                    state == lexing_state::documentation ||
                    (is_identifierchar(text[c]) && state == lexing_state::identifier)) {
             current.value += text[c];
+
         } else if (state == lexing_state::comment || state == lexing_state::multiline_comment) {
             // do nothing;
-        } else if (is_operator(text[c]) && state == lexing_state::none) {
+
+        } else if (is_operator(text[c]) && (state == lexing_state::none || state == lexing_state::indent)) {
             set_current(token_type::operator_, lexing_state::none);
+            if (text[c] == '\n') state = lexing_state::indent;
             current.value = text[c];
             advance_by(1);
             clear_and_return();
+
+        } else if (text[c] == ' ' && state == lexing_state::indent) {
+
+            bool found_indent = true;
+            for (int i = 0; i < spaces_count_for_indent; i++) {
+                if (isvalid(c+i))
+                    found_indent = found_indent && text[c+i] == ' ';
+                else {
+                    found_indent = false;
+                    break;
+                }
+            }
+            if (found_indent) {
+                current.line = line;
+                current.column = column;
+                current.type = token_type::indent;
+                current.value = " ";
+                advance_by(spaces_count_for_indent);
+                clear_and_return();
+            }
+
+        } else if (text[c] == '\t' && state == lexing_state::indent) {
+            if (state == lexing_state::none) {
+                current.line = line;
+                current.column = column;
+                current.type = token_type::indent;
+                current.value = " ";
+                print_warning_message(filename, "unexpected tab, treating as spaces", line, column);
+                print_source_code(text, {current});
+                advance_by(spaces_count_for_indent);
+                clear_and_return();
+            }
         }
         advance_by(1);
     }
 }
 
-// this function should be called before lexing a given file.
+struct saved_state save() {
+    struct saved_state result;
+    result.saved_c = c;
+    result.saved_line = line;
+    result.saved_column = column;
+    result.saved_state = state;
+    result.saved_current = current;
+    return result;
+}
 
+void revert(struct saved_state s) {
+    c = s.saved_c;
+    line = s.saved_line;
+    column = s.saved_column;
+    state = s.saved_state;
+    current = s.saved_current;
+}
+
+// this function should be called before lexing a given file.
 void start_lex(const std::string given_filename, const std::string given_text) {
-    text = given_text + "    ";
+    text = given_text;
     filename = given_filename;
     c = 0;
     line = 1;
-    column = 0;
-    state = lexing_state::none;
+    column = 1;
+    state = lexing_state::indent;
     current = {};
 }

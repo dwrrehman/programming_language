@@ -66,10 +66,6 @@
             argument = "/Users/deniylreimn/Documents/projects/language/source/compiler/language/test.n"
             isEnabled = "YES">
          </CommandLineArgument>
-         <CommandLineArgument
-            argument = "/Users/deniylreimn/Documents/main.n"
-            isEnabled = "NO">
-         </CommandLineArgument>
       </CommandLineArguments>
       <AdditionalOptions>
       </AdditionalOptions>

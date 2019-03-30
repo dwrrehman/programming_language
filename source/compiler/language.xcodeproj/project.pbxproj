@@ -20,6 +20,7 @@
 		FD52D8452226590600A9C309 /* arguments.cpp in Sources */ = {isa = PBXBuildFile; fileRef = FD52D8432226590600A9C309 /* arguments.cpp */; };
 		FD7E425922264D150021E18A /* interpreter.cpp in Sources */ = {isa = PBXBuildFile; fileRef = FD7E425722264D150021E18A /* interpreter.cpp */; };
 		FDBFA1FF220EF2FB00CFB007 /* expressions.cpp in Sources */ = {isa = PBXBuildFile; fileRef = FDBFA1FD220EF2FB00CFB007 /* expressions.cpp */; };
+		FDC546AB2241864300D99CA9 /* corrector.cpp in Sources */ = {isa = PBXBuildFile; fileRef = FDC546A92241864300D99CA9 /* corrector.cpp */; };
 		FDE4C18E22288E2B00B73B7A /* nodes.cpp in Sources */ = {isa = PBXBuildFile; fileRef = FDE4C18C22288E2B00B73B7A /* nodes.cpp */; };
 /* End PBXBuildFile section */
 
@@ -43,6 +44,7 @@
 		FD02050321E7F3C3009C332B /* main.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = main.cpp; sourceTree = "<group>"; };
 		FD02050C21E7F59C009C332B /* compiler.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = compiler.cpp; sourceTree = "<group>"; };
 		FD02050D21E7F59C009C332B /* compiler.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = compiler.hpp; sourceTree = "<group>"; };
+		FD050B28224F14D7001FBF6D /* test.n */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; name = test.n; path = ../../../examples/test.n; sourceTree = "<group>"; };
 		FD1DAC4A2203A32F0014F55E /* analysis.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = analysis.cpp; sourceTree = "<group>"; };
 		FD1DAC4B2203A32F0014F55E /* analysis.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = analysis.hpp; sourceTree = "<group>"; };
 		FD2C68F52230DF3A00EDCE42 /* debug.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = debug.cpp; sourceTree = "<group>"; };
@@ -63,7 +65,8 @@
 		FD7E425822264D150021E18A /* interpreter.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = interpreter.hpp; sourceTree = "<group>"; };
 		FDBFA1FD220EF2FB00CFB007 /* expressions.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = expressions.cpp; sourceTree = "<group>"; };
 		FDBFA1FE220EF2FB00CFB007 /* expressions.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = expressions.hpp; sourceTree = "<group>"; };
-		FDD9B86D22279A6900CA6C69 /* test.n */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = test.n; sourceTree = "<group>"; };
+		FDC546A92241864300D99CA9 /* corrector.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = corrector.cpp; sourceTree = "<group>"; };
+		FDC546AA2241864300D99CA9 /* corrector.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = corrector.hpp; sourceTree = "<group>"; };
 		FDE4C18C22288E2B00B73B7A /* nodes.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = nodes.cpp; sourceTree = "<group>"; };
 		FDE4C18D22288E2B00B73B7A /* nodes.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = nodes.hpp; sourceTree = "<group>"; };
 /* End PBXFileReference section */
@@ -115,6 +118,8 @@
 				FDE4C18D22288E2B00B73B7A /* nodes.hpp */,
 				FD36010221EAFE62005FE844 /* parser.cpp */,
 				FD36010321EAFE62005FE844 /* parser.hpp */,
+				FDC546A92241864300D99CA9 /* corrector.cpp */,
+				FDC546AA2241864300D99CA9 /* corrector.hpp */,
 				FDBFA1FD220EF2FB00CFB007 /* expressions.cpp */,
 				FDBFA1FE220EF2FB00CFB007 /* expressions.hpp */,
 				FD1DAC4A2203A32F0014F55E /* analysis.cpp */,
@@ -126,7 +131,7 @@
 				FD017610221CFD8300E5D442 /* color.h */,
 				FD36010521EB288E005FE844 /* lists.cpp */,
 				FD36010621EB288E005FE844 /* lists.hpp */,
-				FDD9B86D22279A6900CA6C69 /* test.n */,
+				FD050B28224F14D7001FBF6D /* test.n */,
 			);
 			path = language;
 			sourceTree = "<group>";
@@ -171,6 +176,7 @@
 			hasScannedForEncodings = 0;
 			knownRegions = (
 				en,
+				Base,
 			);
 			mainGroup = FD0204F721E7F3C3009C332B;
 			productRefGroup = FD02050121E7F3C3009C332B /* Products */;
@@ -190,6 +196,7 @@
 				FD1DAC4C2203A32F0014F55E /* analysis.cpp in Sources */,
 				FD36010421EAFE62005FE844 /* parser.cpp in Sources */,
 				FD02050E21E7F59C009C332B /* compiler.cpp in Sources */,
+				FDC546AB2241864300D99CA9 /* corrector.cpp in Sources */,
 				FD2C68FA22334F8200EDCE42 /* codegen.cpp in Sources */,
 				FDE4C18E22288E2B00B73B7A /* nodes.cpp in Sources */,
 				FDBFA1FF220EF2FB00CFB007 /* expressions.cpp in Sources */,

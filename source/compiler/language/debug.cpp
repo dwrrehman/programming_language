@@ -147,6 +147,7 @@ const char* convert_token_type_representation(enum token_type type) {
         case token_type::character: return "character";
         case token_type::llvm: return "llvm";
         case token_type::builtin: return "builtin";
+        case token_type::indent: return "indent";
     }
 }
 
@@ -165,3 +166,11 @@ void debug_token_stream() {
 #define prep(_level) for (int i = _level; i--;) std::cout << ".   "
 
 
+void print_expression_list(expression_list list) {
+    std::cout << "pritning expression list:\n";
+    for (auto e : list.expressions) {
+        std::cout << "length: " << e.symbols.size() << "\n";
+        std::cout << std::boolalpha << "error: " << e.error << "\n";
+        std::cout << "\n";
+    }
+}

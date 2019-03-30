@@ -21,16 +21,16 @@ struct action_tree analyze(translation_unit tree, std::string filename) {
             - scope checking
             - type inference
             - type checking
-            - ICTC checking
-            - UD order chcecking
-            - UD lifetime checking
+            - x:ICTC checking;
+            - UD sig-order chcecking
+            - UD sig-lifetime checking
             - insert implied code: destructors, ...?
 
         ie,
 
             - scoping and name resolution
             - type inference, filling in missing types
-            - strong type checking, (nominative), conforming to implcit conversion type classes
+            - strong type checking, (nominative), conforming to x:implcit conversion type classes;
             - enforcing user defined function call ordering
             - enforcing user defined lifetime rules.
             - put in calls to calls the destructor when a variable goes out of scope!

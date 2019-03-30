@@ -1,6 +1,6 @@
-:: a hello world program.
+; the hello world program.
 
-() {
+()
     use .io
     print "hello, world"
-}
+

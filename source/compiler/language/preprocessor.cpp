@@ -743,11 +743,11 @@ void interpret(pp_node &tree, std::vector<std::unordered_map<std::string, struct
 
 std::string preprocess(std::string text, std::string filename) {
     //std::cout << "---------orginal text:----------\n:::" << text << ":::\n\n\n";
-    std::vector<std::unordered_map<std::string, struct value>> symbol_table_stack = {{}};
-    auto tokens = pp_lexer(text); //print_pp_lex(tokens);
-    auto action_tree = pp_parser(filename, tokens); //print_pp_parse(action_tree);
-    interpret(action_tree, symbol_table_stack, text);
+    //std::vector<std::unordered_map<std::string, struct value>> symbol_table_stack = {{}};
+    //auto tokens = pp_lexer(text); //print_pp_lex(tokens);
+    //auto action_tree = pp_parser(filename, tokens); //print_pp_parse(action_tree);
+    //interpret(action_tree, symbol_table_stack, text);
     //std::cout << "-------preprocessed text:--------\n:::" << text << ":::\n\n\n";
-    return text;
+    return text + "\n";
 }
 
