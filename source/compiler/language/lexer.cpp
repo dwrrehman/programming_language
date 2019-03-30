@@ -190,7 +190,6 @@ struct token next() {
             clear_and_return();
 
         } else if (text[c] == ' ' && state == lexing_state::indent) {
-
             bool found_indent = true;
             for (int i = 0; i < spaces_count_for_indent; i++) {
                 if (isvalid(c+i))
@@ -210,16 +209,14 @@ struct token next() {
             }
 
         } else if (text[c] == '\t' && state == lexing_state::indent) {
-            if (state == lexing_state::none) {
-                current.line = line;
-                current.column = column;
-                current.type = token_type::indent;
-                current.value = " ";
-                print_warning_message(filename, "unexpected tab, treating as spaces", line, column);
-                print_source_code(text, {current});
-                advance_by(spaces_count_for_indent);
-                clear_and_return();
-            }
+            current.line = line;
+            current.column = column;
+            current.type = token_type::indent;
+            current.value = " ";
+            print_warning_message(filename, "unexpected tab, treating as spaces", line, column);
+            print_source_code(text, {current});
+            advance_by(1);
+            clear_and_return();
         }
         advance_by(1);
     }

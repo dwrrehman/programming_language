@@ -11,10 +11,6 @@
 
 #include <string>
 
-enum display_mode {code_mode, command_mode, shell_mode};
-
-extern enum display_mode mode;
-
 void set_cursor(int x, int y);
 void move_cursor_forwards(int amount);
 void move_cursor_backwards(int amount);

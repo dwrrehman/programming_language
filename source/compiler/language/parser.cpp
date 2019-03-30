@@ -335,6 +335,7 @@ translation_unit parse_translation_unit(std::string filename, std::string text) 
 translation_unit parse(std::string text, std::string filename) {
     start_lex(filename, text);
     debug_token_stream();
+    print_source_code(text, {next()});
     return {};
     return parse_translation_unit(filename, text);
 }

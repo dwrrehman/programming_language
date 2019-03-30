@@ -10,7 +10,6 @@
 
 #include <iostream>
 
-
 #define normal_color "\033[38;5;%dm"
 #define reset_color "\033[0m"
 #define bold_color "\033[1;38;5;%dm"
@@ -22,7 +21,6 @@ void color_finder_cli() {
     std::string input = "";
 
     while (input != "q") {
-
 
         std::cout << ":color:> ";
         std::cin >> input;

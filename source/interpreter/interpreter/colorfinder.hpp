@@ -10,8 +10,6 @@
 #define colorfinder_hpp
 
 
-
-
 void color_finder_cli();
 
 #endif /* colorfinder_hpp */

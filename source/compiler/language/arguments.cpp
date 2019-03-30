@@ -96,13 +96,18 @@ void open_dir() {
 
 
 
- nostril -spaces <one file>       : define this file as the entry point, and wrap a anon lambda around the code.
+ nostril -indent <positive number>       : defien the number of spaces per indent.
  
  */
 
 
-struct arguments get_commandline_arguments(const int argc, const char** argv) { // we need to revise this function to fit the new comipiler specfication.
-    
+struct arguments get_commandline_arguments(const int argc, const char** argv) {
+    // we need to revise this function to fit the new comipiler specfication.
+
+    //TODO: redo this function, to parse the modes first, then parse the options for each mode.
+    // then parse all the files.
+    // we should be able to put options in the different modes, and still have it recognize the correct number files correctly. (ie, not based on argc counts. (because there could be arguments.))
+
     struct arguments args = {};
     
     if (argc > 1 && std::string(argv[1]) == "pick") {
@@ -125,17 +130,17 @@ struct arguments get_commandline_arguments(const int argc, const char** argv) { 
     }
     
     for (int i = 1; i < argc; i++) {
-        if (std::string(argv[i]) == "-named" && i + 1 < argc) {
+        if ((std::string(argv[i]) == "-named" || std::string(argv[i]) == "-o") && i + 1 < argc) {
             args.executable_name = std::string(argv[++i]);
 
-        } else if (std::string(argv[i]) == "-indent-width " && i + 1 < argc) {
+        } else if (std::string(argv[i]) == "-indent" && i + 1 < argc) {
             spaces_count_for_indent = atoi(argv[++i]);
             if (!spaces_count_for_indent) {
                 printf("error: invalid number for indent width, using the default of 4 spaces.\n");
                 spaces_count_for_indent = 4;
             }
 
-        } else if (std::string(argv[i]) == "-version") {
+        } else if (std::string(argv[i]) == "-version" || std::string(argv[i]) == "-v") {
             std::cout << language_name << ": " << language_version << std::endl;
             exit(0);
 

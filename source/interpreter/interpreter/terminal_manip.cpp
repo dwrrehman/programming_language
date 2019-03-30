@@ -21,11 +21,6 @@
 #include <sys/ioctl.h>
 #include <sys/stat.h>
 
-#include "color.h"
-
-
-
-enum display_mode mode = code_mode;
 
 void set_cursor(int x, int y) {
     printf("\033[%d;%dH", x, y);
@@ -49,13 +44,6 @@ void move_cursor_upwards(int amount) {
 void move_cursor_downwards(int amount) {
     if (amount <= 0) return;
     std::cout << "\033[" << amount << "B";
-}
-
-void print_prompt(std::string base, size_t offset, size_t line) {
-    if (mode == command_mode)
-        printf("      %s ", base.c_str());
-    else if (mode == code_mode)
-        printf(GRAY "%5lu " RESET "%s ", line + offset, base.c_str());
 }
 
 void clear_screen() {

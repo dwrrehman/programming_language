@@ -88,17 +88,30 @@ void print_error_no_files() {
     std::cerr << WHITE << "nostril" << RESET GRAY ": " RESET BRIGHT_RED "error" RESET GRAY ": " RESET << "no input files" << std::endl;
     exit(1);
 }
+
+
+
+
+
+
+
+
+
 // source printers:
 
+
+
 void print_source_code(std::string text, std::vector<struct token> offending_tokens) {
+
+    //syntax_highlight(text);
+
     auto& t = offending_tokens[0]; //TODO: allow this function to print erros to do with multiple tokens in combintation.
     std::vector<int> offsets = {-2, -1, 0, 1, 2};
+
     std::string line = "";
     std::istringstream s {text};
     std::vector<std::string> lines = {};
     while (std::getline(s, line)) lines.push_back(line);
-
-    // TODO: add some syntax handling to this printer, just rudimentary stuff, like keyword/operator highlighting, and other simple stuff.
 
     std::cout << "\n";
     for (auto offset : offsets) {
