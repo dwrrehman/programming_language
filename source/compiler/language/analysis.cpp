@@ -14,7 +14,7 @@
 #include <vector>
 #include <stdlib.h>
 
-struct action_tree analyze(translation_unit tree, std::string filename) {
+struct action_tree analyze(translation_unit tree, struct file file) {
 
     /*
         jobs:

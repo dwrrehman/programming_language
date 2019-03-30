@@ -15,7 +15,7 @@
 
 struct file {
     std::string name;
-    std::string data;
+    std::string text;
 };
 
 struct arguments {

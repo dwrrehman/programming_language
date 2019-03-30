@@ -23,14 +23,6 @@
 // cli arguments
 void debug_arguments(struct arguments args);
 
-// preprocessor:
-const char* convert_pp_token_type_representation(enum pp_token_type type);
-void print_pp_lex(const std::vector<struct pp_token> &tokens);
-void print_pp_node(pp_node &self, int level);
-void print_pp_parse(pp_node &tree);
-void print_value(struct value v);
-void print_current_symbol_table(std::unordered_map<std::string, struct value> symbol_table);
-void print_symbol_table_stack(std::vector<std::unordered_map<std::string, struct value>> symbol_table_stack);
 
 // lexer:
 void print_lex(const std::vector<struct token> &tokens);

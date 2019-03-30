@@ -241,9 +241,9 @@ void revert(struct saved_state s) {
 }
 
 // this function should be called before lexing a given file.
-void start_lex(const std::string given_filename, const std::string given_text) {
-    text = given_text;
-    filename = given_filename;
+void start_lex(const struct file file) {
+    text = file.text;
+    filename = file.name;
     c = 0;
     line = 1;
     column = 1;

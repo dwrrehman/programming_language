@@ -13,13 +13,19 @@
 #include "error.hpp"
 #include "debug.hpp"
 
+#include "llvm/IR/LLVMContext.h"
+
+#include "preprocessor.hpp"
+#include "compiler.hpp"
+#include "interpreter.hpp"
+
 #include <vector>
 
-symbol parse_symbol(std::string filename, std::string text);
-expression parse_expression(std::string filename, std::string text);
+symbol parse_symbol(struct file file);
+expression parse_expression(struct file file);
 
 
-string_literal parse_string_literal(std::string filename, std::string text) {
+string_literal parse_string_literal(struct file file) {
     string_literal literal = {};
     auto saved = save();
     auto t = next();
@@ -32,7 +38,7 @@ string_literal parse_string_literal(std::string filename, std::string text) {
     return {};
 }
 
-character_literal parse_character_literal(std::string filename, std::string text) {
+character_literal parse_character_literal(struct file file) {
     character_literal literal = {};
     auto saved = save();
     auto t = next();
@@ -45,7 +51,7 @@ character_literal parse_character_literal(std::string filename, std::string text
     return {};
 }
 
-llvm_literal parse_llvm_literal(std::string filename, std::string text) {
+llvm_literal parse_llvm_literal(struct file file) {
     llvm_literal literal = {};
     auto saved = save();
     auto t = next();
@@ -58,7 +64,7 @@ llvm_literal parse_llvm_literal(std::string filename, std::string text) {
     return {};
 }
 
-documentation parse_documentation(std::string filename, std::string text) {
+documentation parse_documentation(struct file file) {
     documentation literal = {};
     auto saved = save();
     auto t = next();
@@ -71,7 +77,7 @@ documentation parse_documentation(std::string filename, std::string text) {
     return {};
 }
 
-builtin parse_builtin(std::string filename, std::string text) {
+builtin parse_builtin(struct file file) {
     builtin literal = {};
     auto saved = save();
     auto t = next();
@@ -84,7 +90,7 @@ builtin parse_builtin(std::string filename, std::string text) {
     return {};
 }
 
-identifier parse_identifier(std::string filename, std::string text) {
+identifier parse_identifier(struct file file) {
     identifier literal = {};
     auto saved = save();
     auto t = next();
@@ -98,11 +104,11 @@ identifier parse_identifier(std::string filename, std::string text) {
 }
 
 
-element parse_element(std::string filename, std::string text) {
+element parse_element(struct file file) {
     element element = {};
 
     auto saved = save();
-    auto name = parse_symbol(filename, text);
+    auto name = parse_symbol(file);
 
     if (!name.error) {
         element.name = name;
@@ -113,7 +119,7 @@ element parse_element(std::string filename, std::string text) {
         if (t.type == token_type::operator_ && t.value == ":") {
 
             auto saved = save();
-            auto expression = parse_expression(filename, text);
+            auto expression = parse_expression(file);
 
             if (!expression.error) {
                 element.has_type = true;
@@ -126,8 +132,8 @@ element parse_element(std::string filename, std::string text) {
             saved = save();
             auto t = next();
 
-            print_parse_error(filename, t.line, t.column,convert_token_type_representation(t.type), t.value, "an expression");
-            print_source_code(text, {t});
+            print_parse_error(file.name, t.line, t.column,convert_token_type_representation(t.type), t.value, "an expression");
+            print_source_code(file.text, {t});
             revert(saved);
             return {};
         }
@@ -139,15 +145,15 @@ element parse_element(std::string filename, std::string text) {
     return {};
 }
 
-element_list parse_element_list(std::string filename, std::string text) {
+element_list parse_element_list(struct file file) {
     std::vector<element> elements = {};
 
     auto saved = save();
-    auto element = parse_element(filename, text);
+    auto element = parse_element(file);
     while (!element.error) {
         elements.push_back(element);
         saved = save();
-        element = parse_element(filename, text);
+        element = parse_element(file);
     }
     revert(saved);
 
@@ -157,7 +163,7 @@ element_list parse_element_list(std::string filename, std::string text) {
     return result;
 }
 
-function_signature parse_function_signature(std::string filename, std::string text) {
+function_signature parse_function_signature(struct file file) {
 
     auto saved = save();
     auto t = next();
@@ -165,7 +171,7 @@ function_signature parse_function_signature(std::string filename, std::string te
     // check that that t is a "(". if it isnt, then simply move along, passing error up.
 
     saved = save();
-    auto call_signature = parse_element_list(filename, text);
+    auto call_signature = parse_element_list(file);
 
     if (call_signature.error) {
         // simply leave, and pass error up. (done give error message)
@@ -180,7 +186,7 @@ function_signature parse_function_signature(std::string filename, std::string te
     return {};
 }
 
-variable_signature parse_variable_signature(std::string filename, std::string text) {
+variable_signature parse_variable_signature(struct file file) {
 
     // tweak ebnf grammar so it isnt non turing decidable to parse. we need our variable name signature to be more simple!
     // note: you canot have literals (string, llvm, char, etc) in the name of a variable, though. this simplifies the grammar.
@@ -189,11 +195,11 @@ variable_signature parse_variable_signature(std::string filename, std::string te
 }
 
 
-symbol parse_symbol(std::string filename, std::string text) {
+symbol parse_symbol(struct file file) {
     symbol s = {};
 
     auto saved = save();
-    auto function_signature = parse_function_signature(filename, text);
+    auto function_signature = parse_function_signature(file);
     if (!function_signature.error) {
         s.type = symbol_type::function_signature;
         s.function = function_signature;
@@ -202,7 +208,7 @@ symbol parse_symbol(std::string filename, std::string text) {
     }
     revert(saved);
 
-    auto variable_signature = parse_variable_signature(filename, text);
+    auto variable_signature = parse_variable_signature(file);
     if (!variable_signature.error) {
         s.type = symbol_type::variable_signature;
         s.variable = variable_signature;
@@ -211,7 +217,7 @@ symbol parse_symbol(std::string filename, std::string text) {
     }
     revert(saved);
 
-    auto string = parse_string_literal(filename, text);
+    auto string = parse_string_literal(file);
     if (!string.error) {
         s.type = symbol_type::string_literal;
         s.string = string;
@@ -220,7 +226,7 @@ symbol parse_symbol(std::string filename, std::string text) {
     }
     revert(saved);
 
-    auto character = parse_character_literal(filename, text);
+    auto character = parse_character_literal(file);
     if (!character.error) {
         s.type = symbol_type::character_literal;
         s.character = character;
@@ -229,7 +235,7 @@ symbol parse_symbol(std::string filename, std::string text) {
     }
     revert(saved);
 
-    auto llvm = parse_llvm_literal(filename, text);
+    auto llvm = parse_llvm_literal(file);
     if (!llvm.error) {
         s.type = symbol_type::llvm_literal;
         s.llvm = llvm;
@@ -238,7 +244,7 @@ symbol parse_symbol(std::string filename, std::string text) {
     }
     revert(saved);
 
-    auto identifier = parse_identifier(filename, text);
+    auto identifier = parse_identifier(file);
     if (!identifier.error) {
         s.type = symbol_type::identifier;
         s.identifier = identifier;
@@ -266,15 +272,15 @@ void newlines() {
     revert(saved);
 }
 
-expression parse_expression(std::string filename, std::string text) {
+expression parse_expression(struct file file) {
     std::vector<symbol> symbols = {};
 
     auto saved = save();
-    auto symbol = parse_symbol(filename, text);
+    auto symbol = parse_symbol(file);
     while (!symbol.error) {
         symbols.push_back(symbol);
         saved = save();
-        symbol = parse_symbol(filename, text);
+        symbol = parse_symbol(file);
     }
     revert(saved);
     if (symbols.empty()) {
@@ -289,31 +295,31 @@ expression parse_expression(std::string filename, std::string text) {
 }
 
 
-expression parse_terminated_expression(std::string filename, std::string text) {
-    auto expression = parse_expression(filename, text);
+expression parse_terminated_expression(struct file file) {
+    auto expression = parse_expression(file);
 
     auto t = next();
     if (t.type != token_type::operator_ || t.value != "\n") {
-        print_parse_error(filename, t.line, t.column, convert_token_type_representation(t.type), t.value, "a newline");
-        print_source_code(text, {t});
+        print_parse_error(file.name, t.line, t.column, convert_token_type_representation(t.type), t.value, "a newline");
+        print_source_code(file.text, {t});
         return {};
     }
     expression.error = false;
     return expression;
 }
 
-expression_list parse_expression_list(std::string filename, std::string text) {
+expression_list parse_expression_list(struct file file) {
 
     std::vector<expression> expressions = {};
 
     newlines();
 
     auto saved = save();
-    auto expression = parse_terminated_expression(filename, text);
+    auto expression = parse_terminated_expression(file);
     while (!expression.error) {
         expressions.push_back(expression);
         saved = save();
-        expression = parse_terminated_expression(filename, text);
+        expression = parse_terminated_expression(file);
     }
     revert(saved);
 
@@ -323,8 +329,8 @@ expression_list parse_expression_list(std::string filename, std::string text) {
     return list;
 }
 
-translation_unit parse_translation_unit(std::string filename, std::string text) {
-    auto expression_list = parse_expression_list(filename, text);
+translation_unit parse_translation_unit(struct file file) {
+    auto expression_list = parse_expression_list(file);
     print_expression_list(expression_list);
     translation_unit result {};
     result.list = expression_list;
@@ -332,10 +338,19 @@ translation_unit parse_translation_unit(std::string filename, std::string text) 
     return result;
 }
 
-translation_unit parse(std::string text, std::string filename) {
-    start_lex(filename, text);
+translation_unit parse(struct preprocessed_file file, llvm::LLVMContext& context) {
+
+    for (auto macro : file.macros) {
+        auto pattern = interpret_llvm(frontend(file.unit, context, true));
+        auto body = interpret_llvm(frontend(file.unit, context, true));
+        macro_replace(pattern, body, file.unit.text);
+    }
+
+    start_lex(file.unit);
+
     debug_token_stream();
-    print_source_code(text, {next()});
+    print_source_code(file.unit.text, {next()});
+
     return {};
-    return parse_translation_unit(filename, text);
+    return parse_translation_unit(file.unit);
 }

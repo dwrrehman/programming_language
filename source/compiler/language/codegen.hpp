@@ -14,6 +14,6 @@
 #include "llvm/IR/Module.h"
 #include "llvm/IR/LLVMContext.h"
 
-std::unique_ptr<llvm::Module> generate(struct action_tree tree, std::string filename, llvm::LLVMContext &context);
+std::unique_ptr<llvm::Module> generate(struct action_tree tree, struct file file, llvm::LLVMContext &context);
 
 #endif /* codegen_hpp */

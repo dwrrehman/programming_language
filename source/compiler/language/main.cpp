@@ -54,7 +54,7 @@ int main(const int argc, const char** argv) {
     bool error = false;
 
     for (auto file : arguments.files)
-        try {modules.push_back(frontend(file, context));}
+        try {modules.push_back(frontend(file, context, false));}
         catch (...) {error = true;}
 
     if (error) exit(1);

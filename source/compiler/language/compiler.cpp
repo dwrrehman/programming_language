@@ -27,8 +27,8 @@
 #include <fstream>
 #include <vector>
 
-std::unique_ptr<llvm::Module> frontend(struct file file, llvm::LLVMContext &context) {
-    return generate(analyze(parse(preprocess(file.data, file.name), file.name), file.name), file.name, context);
+std::unique_ptr<llvm::Module> frontend(struct file file, llvm::LLVMContext &context, bool is_metaprogram) {
+    return generate(analyze(parse(preprocess(file), context), file), file, context);
 }
 
 

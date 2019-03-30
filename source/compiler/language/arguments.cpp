@@ -23,7 +23,7 @@ static void open_file(struct arguments &args, struct file &file) {
     std::ifstream stream {file.name};
     if (stream.good()) {
         std::string text {std::istreambuf_iterator<char>(stream), std::istreambuf_iterator<char>()};
-        file.data = text;
+        file.text = text;
         stream.close();
         args.files.push_back(file);
     } else {

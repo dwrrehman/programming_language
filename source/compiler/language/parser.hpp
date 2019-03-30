@@ -10,9 +10,12 @@
 #define parser_hpp
 
 #include "nodes.hpp"
+#include "preprocessor.hpp"
+
+#include "llvm/IR/LLVMContext.h"
 
 #include <string>
 
-translation_unit parse(std::string text, std::string filename);
+translation_unit parse(struct preprocessed_file text, llvm::LLVMContext& context);
 
 #endif /* parser_hpp */

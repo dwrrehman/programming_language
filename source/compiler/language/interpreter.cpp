@@ -80,7 +80,14 @@ void interpreter(struct file file) {
     if (file.name == "{repl}") {
         repl();
     } else {
-        editor(file.data);
+        editor(file.text);
     }
     exit(0);
+}
+
+
+
+
+std::string interpret_llvm(std::unique_ptr<llvm::Module> module) {
+    return "";
 }
