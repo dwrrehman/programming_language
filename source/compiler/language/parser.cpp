@@ -21,128 +21,117 @@
 
 #include <vector>
 
+
+#define revert_and_return()    revert(saved); return {}
+
 symbol parse_symbol(struct file file);
 expression parse_expression(struct file file);
-
+expression_list parse_expression_list(struct file file);
+variable_symbol_list parse_variable_symbol_list(struct file file);
 
 string_literal parse_string_literal(struct file file) {
     string_literal literal = {};
     auto saved = save();
     auto t = next();
-    if (t.type == token_type::string) {
-        literal.literal = t;
-        literal.error = false;
-        return literal;
-    }
-    revert(saved);
-    return {};
+    if (t.type != token_type::string) { revert_and_return(); }
+    literal.literal = t;
+    literal.error = false;
+    return literal;
 }
 
 character_literal parse_character_literal(struct file file) {
     character_literal literal = {};
     auto saved = save();
     auto t = next();
-    if (t.type == token_type::character) {
-        literal.literal = t;
-        literal.error = false;
-        return literal;
-    }
-    revert(saved);
-    return {};
+    if (t.type != token_type::character) { revert_and_return(); }
+    literal.literal = t;
+    literal.error = false;
+    return literal;
 }
 
 llvm_literal parse_llvm_literal(struct file file) {
     llvm_literal literal = {};
     auto saved = save();
     auto t = next();
-    if (t.type == token_type::llvm) {
-        literal.literal = t;
-        literal.error = false;
-        return literal;
-    }
-    revert(saved);
-    return {};
+    if (t.type != token_type::llvm) { revert_and_return(); }
+    literal.literal = t;
+    literal.error = false;
+    return literal;
 }
 
 documentation parse_documentation(struct file file) {
     documentation literal = {};
     auto saved = save();
     auto t = next();
-    if (t.type == token_type::documentation) {
-        literal.literal = t;
-        literal.error = false;
-        return literal;
-    }
-    revert(saved);
-    return {};
+    if (t.type != token_type::documentation) { revert_and_return(); }
+    literal.literal = t;
+    literal.error = false;
+    return literal;
 }
 
 builtin parse_builtin(struct file file) {
     builtin literal = {};
     auto saved = save();
     auto t = next();
-    if (t.type == token_type::builtin) {
-        literal.name = t;
-        literal.error = false;
-        return literal;
-    }
-    revert(saved);
-    return {};
+    if (t.type != token_type::builtin) { revert_and_return(); }
+    literal.name = t;
+    literal.error = false;
+    return literal;
 }
 
 identifier parse_identifier(struct file file) {
     identifier literal = {};
     auto saved = save();
     auto t = next();
-    if (t.type == token_type::identifier) {
-        literal.name = t;
-        literal.error = false;
-        return literal;
-    }
-    revert(saved);
-    return {};
+    if (t.type != token_type::identifier
+     && t.type != token_type::operator_) { revert_and_return(); }
+    literal.name = t;
+    literal.error = false;
+    return literal;
 }
 
 
+static bool is_close_paren(const token &t) {
+    return t.type == token_type::operator_ && t.value == ")";
+}
+
+static bool is_open_paren(const token &t) {
+    return t.type == token_type::operator_ && t.value == "(";
+}
+
+static bool is_colon(const token &t) {
+    return t.type == token_type::operator_ && t.value == ":";
+}
+
+static bool is_open_brace(const token &t) {
+    return t.type == token_type::operator_ && t.value == "{";
+}
+
+static bool is_close_brace(const token &t) {
+    return t.type == token_type::operator_ && t.value == "}";
+}
+
 element parse_element(struct file file) {
+
     element element = {};
 
     auto saved = save();
     auto name = parse_symbol(file);
 
-    if (!name.error) {
-        element.name = name;
+    if (name.error) {
 
-        auto saved = save();
+        revert(saved);
         auto t = next();
 
-        if (t.type == token_type::operator_ && t.value == ":") {
+        if (is_colon(t))
+            element.is_colon = true;
 
-            auto saved = save();
-            auto expression = parse_expression(file);
-
-            if (!expression.error) {
-                element.has_type = true;
-                element.type = expression;
-                element.error = false;
-                return element;
-            }
-
-            revert(saved);
-            saved = save();
-            auto t = next();
-
-            print_parse_error(file.name, t.line, t.column,convert_token_type_representation(t.type), t.value, "an expression");
-            print_source_code(file.text, {t});
-            revert(saved);
-            return {};
-        }
-        revert(saved);
-        element.error = false;
-        return element;
+        else { revert_and_return(); }
     }
-    revert(saved);
-    return {};
+
+    element.name = name;
+    element.error = false;
+    return element;
 }
 
 element_list parse_element_list(struct file file) {
@@ -150,6 +139,7 @@ element_list parse_element_list(struct file file) {
 
     auto saved = save();
     auto element = parse_element(file);
+
     while (!element.error) {
         elements.push_back(element);
         saved = save();
@@ -165,40 +155,193 @@ element_list parse_element_list(struct file file) {
 
 function_signature parse_function_signature(struct file file) {
 
+    function_signature signature = {};
+
     auto saved = save();
     auto t = next();
+    if (!is_open_paren(t)) {
+        revert_and_return();
+    }
 
-    // check that that t is a "(". if it isnt, then simply move along, passing error up.
+    auto call_signature = parse_element_list(file);
+    if (call_signature.error) { revert_and_return(); }
+
+    t = next();
+    if (!is_close_paren(t)) {
+        std::cout << "statement #6\n";
+        print_parse_error(file.name, t.line, t.column, convert_token_type_representation(t.type), t.value, "\")\"");
+        print_source_code(file.text, {t});
+        revert_and_return();
+    }
 
     saved = save();
-    auto call_signature = parse_element_list(file);
-
-    if (call_signature.error) {
-        // simply leave, and pass error up. (done give error message)
+    auto return_type = parse_expression(file);
+    if (return_type.error) revert(saved);
+    else {
+        signature.has_return_type = true;
+        signature.return_type = return_type;
     }
 
     saved = save();
     t = next();
+    if (!is_colon(t)) {
+        auto signature_type = parse_expression(file);
+        if (signature_type.error) revert(saved);
+        else {
+            signature.has_signature_type = true;
+            signature.signature_type = signature_type;
+        }
+    }
 
-    // if ( is not a ")") then
-        /// given a error message, saying "expected ")" after call signature, found "{something here}".
+    signature.error = false;
+    return signature;
+}
 
+
+variable_symbol parse_variable_symbol(struct file file) {
+
+    variable_symbol s = {};
+    auto saved = save();
+
+    auto t = next();
+    if (is_open_paren(t)) {
+        auto subexpression = parse_expression(file);
+        if (!subexpression.error) {
+            t = next();
+            if (is_close_paren(t)) {
+                s.type = symbol_type::subexpression;
+                s.subexpression = subexpression;
+                s.error = false;
+                return s;
+            }
+        }
+    }
+    revert(saved);
+
+    auto llvm = parse_llvm_literal(file);
+    if (!llvm.error) {
+        s.type = symbol_type::llvm_literal;
+        s.llvm = llvm;
+        s.error = false;
+        return s;
+    }
+    revert(saved);
+
+    auto builtin = parse_builtin(file);
+    if (!builtin.error) {
+        s.type = symbol_type::builtin;
+        s.builtin = builtin;
+        s.error = false;
+        return s;
+    }
+    revert(saved);
+
+    auto identifier = parse_identifier(file);
+    if (!identifier.error) {
+        s.type = symbol_type::identifier;
+        s.identifier = identifier;
+        s.error = false;
+        return s;
+    }
+    revert(saved);
     return {};
+}
+
+
+variable_symbol_list parse_variable_symbol_list(struct file file) {
+
+    std::vector<variable_symbol> variable_symbols = {};
+
+    auto saved = save();
+    auto variable_symbol = parse_variable_symbol(file);
+    while (!variable_symbol.error) {
+        variable_symbols.push_back(variable_symbol);
+        saved = save();
+        variable_symbol = parse_variable_symbol(file);
+    }
+    revert(saved);
+
+    if (variable_symbols.empty()) {
+        revert_and_return();
+    }
+
+    auto result = variable_symbol_list {};
+    result.symbols = variable_symbols;
+    result.error = false;
+    return result;
 }
 
 variable_signature parse_variable_signature(struct file file) {
 
-    // tweak ebnf grammar so it isnt non turing decidable to parse. we need our variable name signature to be more simple!
-    // note: you canot have literals (string, llvm, char, etc) in the name of a variable, though. this simplifies the grammar.
+    variable_signature signature = {};
 
-    return {};
+    auto saved = save();
+    auto variable_symbol_list = parse_variable_symbol_list(file);
+    if (variable_symbol_list.error) { revert_and_return(); }
+    signature.name = variable_symbol_list;
+
+    auto t = next();
+    if (!is_colon(t)) { revert_and_return(); }
+
+    auto expression = parse_expression(file);
+    if (expression.error) { revert_and_return(); }
+    signature.signature_type = expression;
+    signature.error = false;
+    return signature;
 }
 
+block parse_block(struct file file) {
+
+    block block = {};
+
+    auto saved = save();
+    auto t = next();
+    if (!is_open_brace(t)) { revert_and_return(); }
+
+    saved = save();
+    t = next();
+    if (!is_open_brace(t)) {
+
+        block.is_open = true;
+        revert(saved);
+
+        auto expression_list = parse_expression_list(file);
+
+        if (expression_list.error) {
+            revert(saved);
+
+            auto expression = parse_expression(file);
+            if (expression.error) { revert_and_return(); }
+            block.statements.expressions = {expression};
+
+        } else block.statements = expression_list;
+    } else {
+        t = next();
+        if (!is_close_brace(t)) {
+            std::cout << "statement #4\n";
+            print_parse_error(file.name, t.line, t.column, convert_token_type_representation(t.type), t.value, "\"}\"");
+            print_source_code(file.text, {t});
+            revert_and_return();
+        }
+        block.is_closed = true;
+    }
+
+    t = next();
+    if (!is_close_brace(t)) {
+        std::cout << "statement #3\n";
+        print_parse_error(file.name, t.line, t.column, convert_token_type_representation(t.type), t.value, "\"}\"");
+        print_source_code(file.text, {t});
+        revert_and_return();
+    }
+
+    block.error = false;
+    return block;
+}
 
 symbol parse_symbol(struct file file) {
     symbol s = {};
-
     auto saved = save();
+
     auto function_signature = parse_function_signature(file);
     if (!function_signature.error) {
         s.type = symbol_type::function_signature;
@@ -214,6 +357,21 @@ symbol parse_symbol(struct file file) {
         s.variable = variable_signature;
         s.error = false;
         return s;
+    }
+    revert(saved);
+
+    auto t = next();
+    if (is_open_paren(t)) {
+        auto subexpression = parse_expression(file);
+        if (!subexpression.error) {
+            t = next();
+            if (is_close_paren(t)) {
+                s.type = symbol_type::subexpression;
+                s.subexpression = subexpression;
+                s.error = false;
+                return s;
+            }
+        }
     }
     revert(saved);
 
@@ -235,10 +393,37 @@ symbol parse_symbol(struct file file) {
     }
     revert(saved);
 
+    auto documentation = parse_documentation(file);
+    if (!documentation.error) {
+        s.type = symbol_type::documentation;
+        s.documentation = documentation;
+        s.error = false;
+        return s;
+    }
+    revert(saved);
+
     auto llvm = parse_llvm_literal(file);
     if (!llvm.error) {
         s.type = symbol_type::llvm_literal;
         s.llvm = llvm;
+        s.error = false;
+        return s;
+    }
+    revert(saved);
+
+    auto block = parse_block(file);
+    if (!block.error) {
+        s.type = symbol_type::block;
+        s.block = block;
+        s.error = false;
+        return s;
+    }
+    revert(saved);
+
+    auto builtin = parse_builtin(file);
+    if (!builtin.error) {
+        s.type = symbol_type::builtin;
+        s.builtin = builtin;
         s.error = false;
         return s;
     }
@@ -255,13 +440,6 @@ symbol parse_symbol(struct file file) {
     return s;
 }
 
-/*
- auto t = next();
- print_parse_error(filename, t.line, t.column, convert_token_type_representation(t.type), t.value, "symbol");
- print_source_code(text, {t});
- revert(saved);
- */
-
 void newlines() {
     auto saved = save();
     auto newline = next();
@@ -272,7 +450,21 @@ void newlines() {
     revert(saved);
 }
 
+size_t indents() {
+    auto indent_count = 0;
+    auto saved = save();
+    auto indent = next();
+    while (indent.type == token_type::indent) {
+        indent_count++;
+        saved = save();
+        indent = next();
+    }
+    revert(saved);
+    return indent_count;
+}
+
 expression parse_expression(struct file file) {
+
     std::vector<symbol> symbols = {};
 
     auto saved = save();
@@ -283,8 +475,13 @@ expression parse_expression(struct file file) {
         symbol = parse_symbol(file);
     }
     revert(saved);
+
     if (symbols.empty()) {
-        // TODO: print error: expected expression.s
+        auto t = next();
+        std::cout << "statement #2\n";
+        print_parse_error(file.name, t.line, t.column, convert_token_type_representation(t.type), t.value, "expression");
+        print_source_code(file.text, {t});
+        revert(saved);
         return {};
     }
 
@@ -294,11 +491,16 @@ expression parse_expression(struct file file) {
     return result;
 }
 
-
 expression parse_terminated_expression(struct file file) {
+
+    auto indent_count = indents();
     auto expression = parse_expression(file);
+    expression.indent_level = indent_count;
 
     auto t = next();
+
+    if (t.type == token_type::null) return {};
+
     if (t.type != token_type::operator_ || t.value != "\n") {
         print_parse_error(file.name, t.line, t.column, convert_token_type_representation(t.type), t.value, "a newline");
         print_source_code(file.text, {t});
@@ -331,7 +533,6 @@ expression_list parse_expression_list(struct file file) {
 
 translation_unit parse_translation_unit(struct file file) {
     auto expression_list = parse_expression_list(file);
-    print_expression_list(expression_list);
     translation_unit result {};
     result.list = expression_list;
     result.error = expression_list.error;
@@ -339,18 +540,12 @@ translation_unit parse_translation_unit(struct file file) {
 }
 
 translation_unit parse(struct preprocessed_file file, llvm::LLVMContext& context) {
-
-    for (auto macro : file.macros) {
-        auto pattern = interpret_llvm(frontend(file.unit, context, true));
-        auto body = interpret_llvm(frontend(file.unit, context, true));
-        macro_replace(pattern, body, file.unit.text);
-    }
-
     start_lex(file.unit);
 
     debug_token_stream();
-    print_source_code(file.unit.text, {next()});
-
     return {};
-    return parse_translation_unit(file.unit);
+
+    auto unit = parse_translation_unit(file.unit);
+    print_translation_unit(unit);
+    return unit;
 }

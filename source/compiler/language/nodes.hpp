@@ -13,7 +13,7 @@
 
 #include <string>
 #include <vector>
-
+/*
 #include "llvm/ADT/APFloat.h"
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/IR/BasicBlock.h"
@@ -25,7 +25,7 @@
 #include "llvm/IR/Module.h"
 #include "llvm/IR/Type.h"
 #include "llvm/IR/Verifier.h"
-
+*/
 
 /* -------------------------- EBNF GRAMMAR FOR THE LANGUAGE: ----------------------------
 
@@ -44,7 +44,13 @@
  = call_signature return_type signature_type
 
  variable_signature
- = element_list signature_type
+ = variable_element_list signature_type
+
+ variable_element_list
+ = variable_element variable_element_list
+
+ variable_element
+ ...just as a symbol, but with out the variable definition being considered a symbol.
 
  call_signature
  = ( element_list )
@@ -54,7 +60,8 @@
  | E
 
  element
- = symbol signature_type
+ = symbol
+ | :
 
  return_type
  = expression
@@ -81,7 +88,6 @@
  | documentation
  | llvm_literal
  | block
- | group
  | builtin
  | identifier
 
@@ -92,10 +98,6 @@
  | {{ expression }}
 
  ///| newlines expression          ; this is problematic. we will do this as a correction transformation.
-
- group
- = ( expression_list )
- = ( expression )
 
 
 
@@ -120,7 +122,6 @@ enum class symbol_type {
     documentation,
     llvm_literal,
     block,
-    group,
     builtin,
     identifier,
 };
@@ -133,10 +134,11 @@ class terminated_expression;
 class expression;
 class newlines_expression;
 class symbol;
+class variable_symbol;
+class variable_symbol_list;
 class function_signature;
 class variable_signature;
 class block;
-class group;
 class element_list;
 class element;
 class return_type;
@@ -177,6 +179,7 @@ public:
 class expression: public node {
 public:
     std::vector<symbol> symbols = {};
+    size_t indent_level = 0;
 };
 
 class expression_list: public node {
@@ -189,16 +192,16 @@ public:
     std::vector<element> elements = {};
 };
 
+class variable_symbol_list: public node {
+public:
+    std::vector<variable_symbol> symbols = {};
+};
+
 class block: public node {
 public:
     bool is_open = false;
-    bool is_cloed = false;
+    bool is_closed = false;
     expression_list statements = {};
-};
-
-class group: public node {
-public:
-    expression_list declarations = {};
 };
 
 class function_signature: public node {
@@ -212,8 +215,19 @@ public:
 
 class variable_signature: public node {
 public:
-    element_list name = {};
+    variable_symbol_list name = {};
     expression signature_type = {};
+};
+
+class variable_symbol: public node {
+public:
+    enum symbol_type type = symbol_type::none;
+    function_signature function = {};
+    expression subexpression = {};
+    documentation documentation = {};
+    llvm_literal llvm = {};
+    builtin builtin = {};
+    identifier identifier = {};
 };
 
 class symbol: public node {
@@ -223,7 +237,6 @@ public:
     variable_signature variable = {};
     expression subexpression = {};
     block block = {};
-    group group = {};
     string_literal string = {};
     character_literal character = {};
     documentation documentation = {};
@@ -234,9 +247,8 @@ public:
 
 class element: public node {
 public:
-    bool has_type = false;
+    bool is_colon = false;
     symbol name = {};
-    expression type = {};
 };
 
 class translation_unit: public node {

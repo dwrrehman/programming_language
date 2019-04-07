@@ -16,20 +16,6 @@ const std::string language_version = "0.0.1";
 
 size_t spaces_count_for_indent = 4;
 
-// ------------------- preprocessor langugae keywords ---------------------------
-
-std::vector<std::string> pp_keywords = {
-    "replace", "with", "begin", "end",
-    "if", "while", "else", "do", "let",
-    "call", "define", "emit",
-    "int", "!", "&", "|",
-    "==", "<", ">", "=", ",",
-    "+", "-", "/", "*", "(", ")",
-    
-    "\\", // not actually a keyword.
-};
-
-
 
 // ------------------- main language keywords ------------------------------
 
@@ -46,25 +32,25 @@ std::vector<std::string> operators = {
 };
 
 std::vector<std::string> builtins = {
-    "__visibility", "__within", "__called", "__when",
-    "__none__", "__scope__", "__self__", "__parent__",
+    "_visibility", "_within", "_called", "_when",
+    "_none", "_scope", "_self", "_parent",
 
-    "__type__", "__infered__"
-    "__caller__", "__file__", "__module__", "__all__",
-    "__bring", "__import",
+    "_type", "_infered"
+    "_caller", "_file", "_module", "_all",
+    "_bring", "_import",
 
-    "__evaluation", "__compiletime__", "__runtime__",
-    "__precedence", "__associativity", "__left__", "__right__",
+    "_evaluation", "_compiletime__", "_runtime",
+    "_precedence", "_associativity", "_left", "_right",
 
-    "__after", "__before", "__inside",
-    "__accept",
+    "_after", "_before", "_inside",
+    "_accept",
 
-    "__translation_unit__",
-    "__expression__", "__expression_list__",
-    "__symbol", "__string_literal__", "__character_literal__", "__documentation__", "__llvm__"
-    "__identifier__",
-    "__number__",
-    "__intrinsic__",
-
+    "_translation_unit",
+    "_expression", "_expression_list",
+    "_symbol", "_string_literal", "_character_literal", "_documentation", "_llvm"
+    "_identifier",
+    "_number",
+    "_intrinsic",
     // {this list is unfinished}
+
 };

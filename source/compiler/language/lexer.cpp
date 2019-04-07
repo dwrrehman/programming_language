@@ -32,6 +32,7 @@ static bool is_operator(char c) {
     std::string s = "";
     s.push_back(c);
     for (auto op : operators) if (s == op) return true;
+    if (!isascii(c)) return true;
     return false;
 }
 
@@ -91,7 +92,7 @@ struct token next() {
 
         if (c >= text.size()) {
             check_for_lexing_errors();
-            return {};
+            return {token_type::null, "", line, column};            
         }
 
         if (text[c] == '\n' && state == lexing_state::none) {
@@ -158,15 +159,22 @@ struct token next() {
                    (text[c] == '\'' && state == lexing_state::character_or_llvm) ||
                    (text[c] == '`' && state == lexing_state::documentation)) {
 
-            if (state == lexing_state::character_or_llvm && (current.value.size() == 1 || is_escape_sequence(current.value)))
+            if (state == lexing_state::character_or_llvm &&
+                (current.value.size() == 1 || is_escape_sequence(current.value)))
                 current.type = token_type::character;
             state = lexing_state::none;
             advance_by(1);
             clear_and_return();
 
-        } else if (is_identifierchar(text[c]) && isvalid(c+1) && !is_identifierchar(text[c+1]) && state == lexing_state::identifier) {
+        } else if (is_identifierchar(text[c]) && isvalid(c+1) && !is_identifierchar(text[c+1])
+                   && state == lexing_state::identifier) {
+
             current.value += text[c];
-            for (auto builtin : builtins) if (current.value == builtin) current.type = token_type::builtin;
+
+            for (auto builtin : builtins)
+                if (current.value == builtin)
+                    current.type = token_type::builtin;
+
             state = lexing_state::none;
             advance_by(1);
             clear_and_return();

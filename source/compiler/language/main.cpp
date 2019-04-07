@@ -41,12 +41,15 @@
 #include <vector>
 #include <iostream>
 
+
 int main(const int argc, const char** argv) {
 
-    const struct arguments &arguments = get_commandline_arguments(argc, argv);
+    const struct arguments& arguments = get_commandline_arguments(argc, argv);
     if (arguments.error) exit(1);
     else if (arguments.use_interpreter) interpreter(arguments.files[0]);
     else if (!arguments.files.size()) print_error_no_files();
+
+    debug_arguments(arguments);
 
     llvm::LLVMContext context;
     std::vector<std::unique_ptr<llvm::Module>> modules = {};
@@ -54,7 +57,7 @@ int main(const int argc, const char** argv) {
     bool error = false;
 
     for (auto file : arguments.files)
-        try {modules.push_back(frontend(file, context, false));}
+        try {modules.push_back(frontend(file, context));}
         catch (...) {error = true;}
 
     if (error) exit(1);

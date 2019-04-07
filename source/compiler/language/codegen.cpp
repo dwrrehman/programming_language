@@ -28,8 +28,6 @@
 
 
 
-
-
 static std::string module_name(const std::string filename) {
     static size_t module_number = 0;
     return filename + std::to_string(module_number++);
@@ -40,5 +38,3 @@ std::unique_ptr<llvm::Module> generate(struct action_tree tree, struct file file
     auto module = llvm::make_unique<llvm::Module>(module_name(file.name), context);
     return module;
 }
-
-

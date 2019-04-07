@@ -94,11 +94,68 @@ void debug_token_stream() {
 #define prep(_level) for (int i = _level; i--;) std::cout << ".   "
 
 
+
+void print_variable_signature(variable_signature signature) {
+
+}
+
+
+void print_symbol(symbol symbol) {
+    switch (symbol.type) {
+        case symbol_type::identifier:
+            std::cout << symbol.identifier.name.value;
+            break;
+        case symbol_type::llvm_literal:
+            std::cout << "llvm:\'" << symbol.identifier.name.value << "\'";
+            break;
+        case symbol_type::string_literal:
+            std::cout << "\"" << symbol.identifier.name.value << "\"";
+            break;
+        case symbol_type::character_literal:
+            std::cout << "\'" << symbol.identifier.name.value << "\'";
+            break;
+        case symbol_type::documentation:
+            std::cout << "`" << symbol.identifier.name.value << "`";
+            break;
+        case symbol_type::subexpression:
+            std::cout << "expr: (";
+            print_expression(symbol.subexpression);
+            std::cout << ")";
+            break;
+        case symbol_type::variable_signature:
+            std::cout << "variable signature: ";
+            print_variable_signature(symbol.variable);
+            break;
+        default:
+            break;
+    }
+}
+
+void print_expression(expression expression) {
+    std::cout << "indent level = " << expression.indent_level << "\n";
+    std::cout << "symbols: \n(";
+    for (auto symbol : expression.symbols) {
+        print_symbol(symbol);
+        std::cout << " ";
+    }
+    std::cout << ")\n";
+}
+
 void print_expression_list(expression_list list) {
+
     std::cout << "pritning expression list:\n";
     for (auto e : list.expressions) {
         std::cout << "length: " << e.symbols.size() << "\n";
         std::cout << std::boolalpha << "error: " << e.error << "\n";
         std::cout << "\n";
+    }
+}
+
+void print_translation_unit(translation_unit unit) {
+
+    print_expression_list(unit.list);
+
+    for (auto e : unit.list.expressions) {
+        print_expression(e);
     }
 }

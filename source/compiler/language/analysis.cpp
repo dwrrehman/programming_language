@@ -21,7 +21,6 @@ struct action_tree analyze(translation_unit tree, struct file file) {
             - scope checking
             - type inference
             - type checking
-            - x:ICTC checking;
             - UD sig-order chcecking
             - UD sig-lifetime checking
             - insert implied code: destructors, ...?

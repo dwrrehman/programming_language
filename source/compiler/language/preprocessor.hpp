@@ -22,7 +22,7 @@ struct macro {
 };
 
 struct preprocessed_file {
-    struct file unit;
+    struct file unit = {};
     std::vector<struct macro> macros = {};
 };
 

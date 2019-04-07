@@ -31,5 +31,7 @@ void debug_token_stream();
 
 // parser:
 void print_expression_list(expression_list list);
+void print_expression(expression expression);
+void print_translation_unit(translation_unit unit);
 
 #endif /* debug_hpp */

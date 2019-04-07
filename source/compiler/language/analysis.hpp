@@ -10,7 +10,6 @@
 #define analysis_hpp
 
 #include "parser.hpp"
-#include "expressions.hpp"
 #include "nodes.hpp"
 
 #include <vector>

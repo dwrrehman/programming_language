@@ -27,7 +27,7 @@
 #include <fstream>
 #include <vector>
 
-std::unique_ptr<llvm::Module> frontend(struct file file, llvm::LLVMContext &context, bool is_metaprogram) {
+std::unique_ptr<llvm::Module> frontend(struct file file, llvm::LLVMContext &context) {
     return generate(analyze(parse(preprocess(file), context), file), file, context);
 }
 
@@ -37,10 +37,19 @@ void optimize(llvm::Module& module) {
 }
 
 void link(llvm::Module &program, std::unique_ptr<llvm::Module> &module) {
-    if (llvm::Linker::linkModules(program, std::move(module))) {
-        std::cout << "Linking Error\n"; //TODO: print linking errors
-        exit(1);
-    }
+
+
+
+
+
+
+
+/// this method of linking might be useful when making the interpreter:
+
+//    if (llvm::Linker::linkModules(program, std::move(module))) {  // shouldnt we call the systme linker, "lld", and get good LTOs??
+//        std::cout << "Linking Error\n"; //TODO: print linking errors, by making a system call to "lld"
+//        exit(1);
+//    }
 }
 
 llvm::Module& pop(std::vector<std::unique_ptr<llvm::Module>> &modules) {

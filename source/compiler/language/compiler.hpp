@@ -17,7 +17,7 @@
 #include <string>
 #include <vector>
 
-std::unique_ptr<llvm::Module> frontend(struct file file, llvm::LLVMContext &context, bool is_metaprogram);
+std::unique_ptr<llvm::Module> frontend(struct file file, llvm::LLVMContext &context);
 
 void optimize(llvm::Module& module);
 
