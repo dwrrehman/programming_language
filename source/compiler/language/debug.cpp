@@ -118,19 +118,19 @@ void print_symbol(symbol symbol, int d) {
             break;
 
         case symbol_type::llvm_literal:
-            prep(d); std::cout << "llvm literal: \'" << symbol.identifier.name.value << "\'\n";
+            prep(d); std::cout << "llvm literal: \'" << symbol.llvm.literal.value << "\'\n";
             break;
 
         case symbol_type::string_literal:
-            prep(d); std::cout << "string literal: \"" << symbol.identifier.name.value << "\"\n";
+            prep(d); std::cout << "string literal: \"" << symbol.string.literal.value << "\"\n";
             break;
 
         case symbol_type::character_literal:
-            prep(d); std::cout << "chararacter literal: \'" << symbol.identifier.name.value << "\'\n";
+            prep(d); std::cout << "chararacter literal: \'" << symbol.character.literal.value << "\'\n";
             break;
 
         case symbol_type::documentation:
-            prep(d); std::cout << "documentation: `" << symbol.identifier.name.value << "`\n";
+            prep(d); std::cout << "documentation: `" << symbol.documentation.literal.value << "`\n";
             break;
 
         case symbol_type::subexpression:

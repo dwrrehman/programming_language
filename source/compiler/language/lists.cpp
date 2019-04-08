@@ -39,7 +39,7 @@ std::vector<std::string> builtins = {
     "_caller", "_file", "_module", "_all",
     "_bring", "_import",
 
-    "_evaluation", "_compiletime__", "_runtime",
+    "_evaluation", "_compiletime", "_runtime",
     "_precedence", "_associativity", "_left", "_right",
 
     "_after", "_before", "_inside",
