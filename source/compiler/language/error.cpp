@@ -81,7 +81,16 @@ void print_lex_error(std::string filename, std::string state_name, size_t line, 
 }
 
 void print_parse_error(std::string filename, size_t line, size_t column, std::string type, std::string found, std::string expected) {
-    std::cerr << error_heading(filename, line, column) << "unexpected " << type << ", \"" << (found == "\n" ? "newline" : found) << "\", expected " << expected << std::endl;
+    if (type == "{null}" || found == "\n" || type == "indent") {
+
+        if (type == "{null}") found = "end of file";
+        if (found == "\n") found = "newline";
+        if (type == "indent") found = "indent";
+
+        std::cerr << error_heading(filename, line, column) << "unexpected " << found << ", expected " << expected << std::endl;
+    } else {
+        std::cerr << error_heading(filename, line, column) << "unexpected " << type << ", \"" << found << "\", expected " << expected << std::endl;
+    }
 }
 
 void print_error_no_files() {

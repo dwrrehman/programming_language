@@ -153,7 +153,14 @@ struct token next() {
 
         } else if ((text[c] == '\n' && state == lexing_state::comment) ||
                    (text[c] == ';' && state == lexing_state::multiline_comment)) {
+            
             state = lexing_state::none;
+
+            if (state == lexing_state::comment) {
+                current.type = token_type::operator_;
+                current.value = "\n";
+                clear_and_return();
+            }
 
         } else if ((text[c] == '\"' && state == lexing_state::string) ||
                    (text[c] == '\'' && state == lexing_state::character_or_llvm) ||

@@ -106,11 +106,17 @@ struct preprocessed_file pp_parse(std::vector<struct pp_token> tokens, struct fi
     return {file, {}};
 }
 
-struct preprocessed_file preprocess(struct file file) {
-    start_pp_lex(file);
-    auto tokens = pp_lex(file);
-    return pp_parse(tokens, file);
+static void append_trailing_newlines(struct file &file) {
+    file.text += "\n";
+}
 
+struct preprocessed_file preprocess(struct file file) {
+    ///start_pp_lex(file);
+    ///auto tokens = pp_lex(file);
+    ///return pp_parse(tokens, file);
+    append_trailing_newlines(file);
+
+    return {file};
 }
 
 /// this code is useful, but not right now:
@@ -120,8 +126,6 @@ struct preprocessed_file preprocess(struct file file) {
 //        macro_replace(pattern, body, file.unit.text);    //TODO: this is missing ast nodes in macros.
 //    }
 
-
-
 void macro_replace(std::string pattern, std::string body, std::string &text) {
-
+    // unimplemented
 }

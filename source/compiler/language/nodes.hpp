@@ -114,7 +114,7 @@ public:
 
 enum class symbol_type {
     none,
-    function_signature,
+    abstraction_signature,
     variable_signature,
     subexpression,
     string_literal,
@@ -124,6 +124,8 @@ enum class symbol_type {
     block,
     builtin,
     identifier,
+    newline,
+    indent,
 };
 
 // prototypes:
@@ -136,13 +138,11 @@ class newlines_expression;
 class symbol;
 class variable_symbol;
 class variable_symbol_list;
-class function_signature;
+class abstraction_signature;
 class variable_signature;
 class block;
 class element_list;
 class element;
-class return_type;
-class signature_type;
 
 // literals:
 
@@ -204,12 +204,23 @@ public:
     expression_list statements = {};
 };
 
-class function_signature: public node {
+class variable_symbol: public node {
+public:
+    enum symbol_type type = symbol_type::none;
+    expression subexpression = {};
+    documentation documentation = {};
+    llvm_literal llvm = {};
+    block block = {};
+    builtin builtin = {};
+    identifier identifier = {};
+};
+
+class abstraction_signature: public node {
 public:
     bool has_return_type = false;
     bool has_signature_type = false;
     element_list call = {};
-    expression return_type = {};
+    variable_symbol_list return_type = {};
     expression signature_type = {};
 };
 
@@ -219,21 +230,12 @@ public:
     expression signature_type = {};
 };
 
-class variable_symbol: public node {
-public:
-    enum symbol_type type = symbol_type::none;
-    function_signature function = {};
-    expression subexpression = {};
-    documentation documentation = {};
-    llvm_literal llvm = {};
-    builtin builtin = {};
-    identifier identifier = {};
-};
+
 
 class symbol: public node {
 public:
     enum symbol_type type = symbol_type::none;
-    function_signature function = {};
+    abstraction_signature abstraction = {};
     variable_signature variable = {};
     expression subexpression = {};
     block block = {};
@@ -247,7 +249,7 @@ public:
 
 class element: public node {
 public:
-    bool is_colon = false;
+    bool is_colon = false;    
     symbol name = {};
 };
 

@@ -30,8 +30,10 @@ const char* convert_token_type_representation(enum token_type type);
 void debug_token_stream();
 
 // parser:
-void print_expression_list(expression_list list);
-void print_expression(expression expression);
-void print_translation_unit(translation_unit unit);
+void print_expression_list(expression_list list, int d);
+void print_expression(expression expression, int d);
+void print_translation_unit(translation_unit unit, struct file file);
+
+std::string convert_symbol_type(enum symbol_type type);
 
 #endif /* debug_hpp */
