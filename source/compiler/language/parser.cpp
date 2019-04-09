@@ -27,7 +27,7 @@
 symbol parse_symbol(struct file file, bool newlines_are_a_symbol);
 expression parse_expression(struct file file, bool can_be_empty, bool newlines_are_a_symbol);
 expression_list parse_expression_list(struct file file, bool can_be_empty);
-variable_symbol_list parse_variable_symbol_list(struct file file);
+variable_symbol_list parse_variable_symbol_list(struct file file, bool newlines_are_a_symbol);
 size_t indents(void);
 void newlines(void);
 
@@ -126,7 +126,7 @@ element parse_element(struct file file) {
 
     auto saved = save();
     
-    auto name = parse_symbol(file, true);
+    auto name = parse_variable_symbol(file, true);
 
     if (name.error) {
 
@@ -145,7 +145,7 @@ element parse_element(struct file file) {
     return element;
 }
 
-element_list parse_element_list(struct file file) {
+abstraction_symbol_list parse_element_list(struct file file) {
     std::vector<element> elements = {};
 
     auto saved = save();
@@ -158,7 +158,7 @@ element_list parse_element_list(struct file file) {
     }
     revert(saved);
 
-    auto result = element_list {};
+    auto result = abstraction_symbol_list {};
     result.elements = elements;
     result.error = false;
     return result;
@@ -217,6 +217,8 @@ block parse_block(struct file file) {
     auto t = next();
     if (!is_open_brace(t)) { revert_and_return(); }
 
+    newlines();
+    
     saved = save();
 
     auto expression_list = parse_expression_list(file, true);
@@ -242,7 +244,7 @@ block parse_block(struct file file) {
     return block;
 }
 
-variable_symbol parse_variable_symbol(struct file file) {
+variable_symbol parse_variable_symbol(struct file file, bool newlines_are_a_symbol) {
 
     variable_symbol s = {};
     auto saved = save();
@@ -266,6 +268,24 @@ variable_symbol parse_variable_symbol(struct file file) {
     if (!llvm.error) {
         s.type = symbol_type::llvm_literal;
         s.llvm = llvm;
+        s.error = false;
+        return s;
+    }
+    revert(saved);
+
+    auto string = parse_string_literal(file);
+    if (!string.error) {
+        s.type = symbol_type::string_literal;
+        s.string = string;
+        s.error = false;
+        return s;
+    }
+    revert(saved);
+
+    auto character = parse_character_literal(file);
+    if (!character.error) {
+        s.type = symbol_type::character_literal;
+        s.character = character;
         s.error = false;
         return s;
     }

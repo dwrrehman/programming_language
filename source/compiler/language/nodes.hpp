@@ -1,4 +1,4 @@
-//
+    //
 //  nodes.hpp
 //  language
 //
@@ -141,7 +141,7 @@ class variable_symbol_list;
 class abstraction_signature;
 class variable_signature;
 class block;
-class element_list;
+class abstraction_symbol_list;
 class element;
 
 // literals:
@@ -187,7 +187,7 @@ public:
     std::vector<expression> expressions = {};
 };
 
-class element_list: public node {
+class abstraction_symbol_list: public node {
 public:
     std::vector<element> elements = {};
 };
@@ -204,22 +204,11 @@ public:
     expression_list statements = {};
 };
 
-class variable_symbol: public node {
-public:
-    enum symbol_type type = symbol_type::none;
-    expression subexpression = {};
-    documentation documentation = {};
-    llvm_literal llvm = {};
-    block block = {};
-    builtin builtin = {};
-    identifier identifier = {};
-};
-
 class abstraction_signature: public node {
 public:
     bool has_return_type = false;
     bool has_signature_type = false;
-    element_list call = {};
+    abstraction_symbol_list call = {};
     variable_symbol_list return_type = {};
     expression signature_type = {};
 };
@@ -230,6 +219,31 @@ public:
     expression signature_type = {};
 };
 
+class abstraction_symbol: public node {
+    enum symbol_type type = symbol_type::none;
+    abstraction_signature abstraction = {};
+    expression subexpression = {};
+    block block = {};
+    string_literal string = {};
+    character_literal character = {};
+    documentation documentation = {};
+    llvm_literal llvm = {};
+    builtin builtin = {};
+    identifier identifier = {};
+};
+
+class variable_symbol: public node {
+public:
+    enum symbol_type type = symbol_type::none;
+    expression subexpression = {};
+    block block = {};
+    string_literal string = {};
+    character_literal character = {};
+    documentation documentation = {};
+    llvm_literal llvm = {};
+    builtin builtin = {};
+    identifier identifier = {};
+};
 
 
 class symbol: public node {
@@ -250,7 +264,7 @@ public:
 class element: public node {
 public:
     bool is_colon = false;    
-    symbol name = {};
+    abstraction_symbol name = {};
 };
 
 class translation_unit: public node {

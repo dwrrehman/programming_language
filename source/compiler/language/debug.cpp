@@ -95,10 +95,76 @@ void debug_token_stream() {
 
 
 
-void print_variable_signature(variable_signature signature, int d) {
-    prep(d); std::cout << "UNIMPLEMENTED!\n";
+
+void print_symbol(symbol s, int d);
+void print_expression(expression s, int d);
+void print_block(block b, int d);
+
+
+void print_variable_symbol(variable_symbol symbol, int d) {
+    prep(d); std::cout << "variable symbol:\n";
+    prep(d+1); std::cout << "symbol type: " << convert_symbol_type(symbol.type) << "\n";
+    switch (symbol.type) {
+
+        case symbol_type::identifier:
+            prep(d); std::cout << convert_token_type_representation(symbol.identifier.name.type) << ": " << symbol.identifier.name.value << "\n";
+            break;
+
+        case symbol_type::llvm_literal:
+            prep(d); std::cout << "llvm literal: \'" << symbol.llvm.literal.value << "\'\n";
+            break;
+
+        case symbol_type::documentation:
+            prep(d); std::cout << "documentation: `" << symbol.documentation.literal.value << "`\n";
+            break;
+
+        case symbol_type::subexpression:
+            prep(d); std::cout << "sub expr: \n";
+            print_expression(symbol.subexpression, d+1);
+            break;
+
+
+        case symbol_type::none:
+            prep(d); std::cout << "{NO SYMBOL TYPE}\n";
+            break;
+
+        case symbol_type::block:
+            prep(d); std::cout << "block symbol\n";
+            print_block(symbol.block, d+1);
+            break;
+
+        case symbol_type::builtin:
+            prep(d); std::cout << "builtin: " << symbol.builtin.name.value << "\n";
+            break;
+        case symbol_type::newline:
+            prep(d); std::cout << "{newline}\n";
+            break;
+        case symbol_type::indent:
+            prep(d); std::cout << "{indent}\n";
+            break;
+        default:
+            prep(d); std::cout << "Error: variable symbol has undefined type!\n";
+            break;
+    }
 }
 
+void print_variable_symbol_list(variable_symbol_list list, int d) {
+    prep(d); std::cout << "variable symbol list:\n";
+    int i = 0;
+    for (auto symbol : list.symbols) {
+        prep(d+1); std::cout << "var symbol #" << i << "\n";
+        print_variable_symbol(symbol, d+2);
+        i++;
+    }
+}
+
+void print_variable_signature(variable_signature signature, int d) {
+    prep(d); std::cout << "variable signature: \n";
+    prep(d); std::cout << "variable symbol list: \n";
+    print_variable_symbol_list(signature.name, d+1);
+    prep(d); std::cout << "type: \n";
+    print_expression(signature.signature_type, d+1);
+}
 
 void print_block(block block, int d) {
     prep(d); std::cout << "block:\n";
@@ -107,10 +173,39 @@ void print_block(block block, int d) {
     print_expression_list(block.statements, d+1);
 }
 
+void print_element(element e, int d) {
+    prep(d); std::cout << "element: \n";
+    prep(d); std::cout << "element is colon: " << std::boolalpha << e.is_colon << "\n";
+    prep(d); std::cout << "element name: \n";
+    print_symbol(e.name, d+1);
+}
+
+void print_element_list(abstraction_symbol_list list, int d) {
+    prep(d); std::cout << "element list: \n";
+    int i = 0;
+    for (auto element: list.elements) {
+        prep(d+1); std::cout << "element #" << i << ":\n";
+        print_element(element, d+2);
+        i++;
+    }
+}
+
+void print_abstraction_signature(abstraction_signature signature, int d) {
+    prep(d); std::cout << "abstraction signature: \n";
+
+    prep(d+1); std::cout << "element list: \n";
+    print_element_list(signature.call, d+2);
+
+    prep(d+1); std::cout << "return type: \n";
+    print_variable_symbol_list(signature.return_type, d+2);
+
+    prep(d+1); std::cout << "signature type: \n";
+    print_expression(signature.signature_type, d+2);
+}
+
 
 void print_symbol(symbol symbol, int d) {
     prep(d); std::cout << "symbol: \n";
-    //prep(d); std::cout << std::boolalpha << "error: " << symbol.error << "\n";
     switch (symbol.type) {
 
         case symbol_type::identifier:
@@ -139,16 +234,13 @@ void print_symbol(symbol symbol, int d) {
             break;
 
         case symbol_type::variable_signature:
-            std::cout << "variable signature: ";
+            prep(d); std::cout << "variable signature: \n";
             print_variable_signature(symbol.variable, d+1);
-            break;
-
-        case symbol_type::none:
-            prep(d); std::cout << "{NO SYMBOL TYPE}\n";
             break;
 
         case symbol_type::abstraction_signature:
             prep(d); std::cout << "abstraction signature: \n";
+            print_abstraction_signature(symbol.abstraction, d+1);
             break;
 
         case symbol_type::block:
@@ -164,6 +256,10 @@ void print_symbol(symbol symbol, int d) {
             break;
         case symbol_type::indent:
             prep(d); std::cout << "{indent}\n";
+            break;
+
+        case symbol_type::none:
+            prep(d); std::cout << "{NO SYMBOL TYPE}\n";
             break;
     }
 }
