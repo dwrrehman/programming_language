@@ -245,7 +245,6 @@ public:
     identifier identifier = {};
 };
 
-
 class symbol: public node {
 public:
     enum symbol_type type = symbol_type::none;

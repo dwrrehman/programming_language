@@ -148,6 +148,10 @@ void print_variable_symbol(variable_symbol symbol, int d) {
     }
 }
 
+void print_abstraction_symbol(abstraction_symbol symbol, int d) {
+    
+}
+
 void print_variable_symbol_list(variable_symbol_list list, int d) {
     prep(d); std::cout << "variable symbol list:\n";
     int i = 0;
@@ -177,7 +181,7 @@ void print_element(element e, int d) {
     prep(d); std::cout << "element: \n";
     prep(d); std::cout << "element is colon: " << std::boolalpha << e.is_colon << "\n";
     prep(d); std::cout << "element name: \n";
-    print_symbol(e.name, d+1);
+    print_abstraction_symbol(e.name, d+1);
 }
 
 void print_element_list(abstraction_symbol_list list, int d) {

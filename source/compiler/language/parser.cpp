@@ -120,13 +120,13 @@ static bool is_close_brace(const token &t) {
     return t.type == token_type::operator_ && t.value == "}";
 }
 
-element parse_element(struct file file) {
+element parse_element(struct file file) { // DELETE ME.
 
-    element element = {};
+    abstraction_symbol symbol = {};
 
     auto saved = save();
     
-    auto name = parse_variable_symbol(file, true);
+    auto name = parse_abstraction_symbol(file, true);
 
     if (name.error) {
 
@@ -140,7 +140,7 @@ element parse_element(struct file file) {
         else { revert_and_return(); }
     }
 
-    element.name = name;
+    element.name = symbol;
     element.error = false;
     return element;
 }
@@ -185,7 +185,7 @@ abstraction_signature parse_abstraction_signature(struct file file) {
     }
 
     saved = save();
-    auto return_type = parse_variable_symbol_list(file);
+    auto return_type = parse_variable_symbol_list(file, false);
     if (return_type.error) revert(saved);
     else {
         signature.has_return_type = true;
