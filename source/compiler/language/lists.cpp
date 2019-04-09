@@ -20,7 +20,7 @@ size_t spaces_count_for_indent = 4;
 // ------------------- main language keywords ------------------------------
 
 std::vector<std::string> non_overridable_operators = {
-    "(", ")", "{", "}", ":"
+    "(", ")", "{", "}" // and ":", but thats implicit.
 };
 
 std::vector<std::string> operators = {
@@ -43,15 +43,11 @@ std::vector<std::string> builtins = {
     "_precedence", "_associativity", "_left", "_right",
 
     "_after", "_before", "_inside",
-    "_accept",
 
+    // parse tree nodes:
     "_translation_unit",
-    "_expression", "_expression_list",
-    "_symbol", "_string_literal", "_character_literal", "_documentation", "_llvm"
-    "_identifier",
-    "_number",
-    "_intrinsic",
-    // {this list is unfinished}
-
+    "_expression", "_expression_list", "_symbol", "block",
+    "_string", "_character", "_documentation", "_llvm",
+    "_identifier", "_builtin"
 };
 

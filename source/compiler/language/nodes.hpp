@@ -110,12 +110,13 @@ public:
     bool error = true;
 };
 
+
+
+
 // enum classes:
 
 enum class symbol_type {
     none,
-    abstraction_signature,
-    variable_signature,
     subexpression,
     string_literal,
     character_literal,
@@ -128,21 +129,29 @@ enum class symbol_type {
     indent,
 };
 
+
+
+
 // prototypes:
 
 class translation_unit;
-class expression_list;
+
 class terminated_expression;
-class expression;
-class newlines_expression;
-class symbol;
-class variable_symbol;
-class variable_symbol_list;
-class abstraction_signature;
-class variable_signature;
 class block;
+
+class expression_list;
+class expression;
+class symbol;
+
+class variable_signature;
+class variable_symbol_list;
+class variable_symbol;
+
+class abstraction_signature;
 class abstraction_symbol_list;
-class element;
+class abstraction_symbol;
+
+
 
 // literals:
 
@@ -187,16 +196,6 @@ public:
     std::vector<expression> expressions = {};
 };
 
-class abstraction_symbol_list: public node {
-public:
-    std::vector<element> elements = {};
-};
-
-class variable_symbol_list: public node {
-public:
-    std::vector<variable_symbol> symbols = {};
-};
-
 class block: public node {
 public:
     bool is_open = false;
@@ -204,52 +203,9 @@ public:
     expression_list statements = {};
 };
 
-class abstraction_signature: public node {
-public:
-    bool has_return_type = false;
-    bool has_signature_type = false;
-    abstraction_symbol_list call = {};
-    variable_symbol_list return_type = {};
-    expression signature_type = {};
-};
-
-class variable_signature: public node {
-public:
-    variable_symbol_list name = {};
-    expression signature_type = {};
-};
-
-class abstraction_symbol: public node {
-    enum symbol_type type = symbol_type::none;
-    abstraction_signature abstraction = {};
-    expression subexpression = {};
-    block block = {};
-    string_literal string = {};
-    character_literal character = {};
-    documentation documentation = {};
-    llvm_literal llvm = {};
-    builtin builtin = {};
-    identifier identifier = {};
-};
-
-class variable_symbol: public node {
-public:
-    enum symbol_type type = symbol_type::none;
-    expression subexpression = {};
-    block block = {};
-    string_literal string = {};
-    character_literal character = {};
-    documentation documentation = {};
-    llvm_literal llvm = {};
-    builtin builtin = {};
-    identifier identifier = {};
-};
-
 class symbol: public node {
 public:
     enum symbol_type type = symbol_type::none;
-    abstraction_signature abstraction = {};
-    variable_signature variable = {};
     expression subexpression = {};
     block block = {};
     string_literal string = {};
@@ -260,15 +216,15 @@ public:
     identifier identifier = {};
 };
 
-class element: public node {
-public:
-    bool is_colon = false;    
-    abstraction_symbol name = {};
-};
 
 class translation_unit: public node {
 public:
     expression_list list = {};
 };
+
+
+
+
+
 
 #endif /* nodes_hpp */
