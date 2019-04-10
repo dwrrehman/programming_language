@@ -1,1 +1,10 @@
-
+(i : int k) asdf : poi {
+    i : int = 0 "helloi woerod" ; hi there
+    google this
+    (`this is documentation`) {
+        return 4
+    }
+    print ('llvm code here') {
+        llvm string here.
+    }
+}

@@ -14,6 +14,7 @@
 #include "nodes.hpp"
 #include "analysis.hpp"
 #include "codegen.hpp"
+#include "corrector.hpp"
 
 #include "llvm/IR/LLVMContext.h"
 #include "llvm/IR/Module.h"
@@ -28,7 +29,7 @@
 #include <vector>
 
 std::unique_ptr<llvm::Module> frontend(struct file file, llvm::LLVMContext &context) {
-    return generate(analyze(parse(preprocess(file), context), file), file, context);
+    return generate(analyze(correct(parse(preprocess(file), context), file), file), file, context);
 }
 
 
@@ -38,18 +39,14 @@ void optimize(llvm::Module& module) {
 
 void link(llvm::Module &program, std::unique_ptr<llvm::Module> &module) {
 
+    // however, what we are probably going to do, is either call the api for LLD, or simply make a system call to lld.
+    /// this method of linking might be useful when making the interpreter:
 
+    //    if (llvm::Linker::linkModules(program, std::move(module))) {  // shouldnt we call the systme linker, "lld", and get good LTOs??
+    //        std::cout << "Linking Error\n"; //TODO: print linking errors, by making a system call to "lld"
+    //        exit(1);
+    //    }
 
-
-
-
-
-/// this method of linking might be useful when making the interpreter:
-
-//    if (llvm::Linker::linkModules(program, std::move(module))) {  // shouldnt we call the systme linker, "lld", and get good LTOs??
-//        std::cout << "Linking Error\n"; //TODO: print linking errors, by making a system call to "lld"
-//        exit(1);
-//    }
 }
 
 llvm::Module& pop(std::vector<std::unique_ptr<llvm::Module>> &modules) {

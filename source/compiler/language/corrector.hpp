@@ -12,11 +12,6 @@
 #include "parser.hpp"
 #include "nodes.hpp"
 
-class assignment_statement: public node {
-    // signature s = {}       // ???
-    expression value = {};
-};
-
-translation_unit correct_ast(translation_unit unit);
+translation_unit correct(translation_unit unit, struct file file);
 
 #endif /* corrector_hpp */

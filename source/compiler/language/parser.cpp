@@ -362,6 +362,7 @@ translation_unit parse(struct preprocessed_file file, llvm::LLVMContext& context
     translation_unit unit = parse_translation_unit(file.unit);
 
     print_translation_unit(unit, file.unit); // debug
+    
     if (unit.error || next().type != token_type::null) {
         std::cout << "\n\n\tparse error!\n\n"; // debug
         return {};
