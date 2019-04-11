@@ -42,6 +42,17 @@
 #include <iostream>
 
 
+
+//TODO: make the struct file containa  list of flags, which are
+// values from an enum class, and the parser, corrector, etc,
+// looks at these flags to determine the correct behavior/debug info to give.
+// also, this must be completely done in the get cli args function,
+// and not change any external interfaces, only extent interfaces.
+
+
+
+
+
 int main(const int argc, const char** argv) {
 
     const struct arguments& arguments = get_commandline_arguments(argc, argv);

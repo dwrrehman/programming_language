@@ -20,10 +20,9 @@
 #include "interpreter.hpp"
 
 #include <vector>
-
+#include <iostream>
 
 #define revert_and_return()    revert(saved); return {}
-
 
 /// ------------ prototypes -----------------
 
@@ -33,8 +32,6 @@ expression_list parse_expression_list(struct file file, bool can_be_empty);
 variable_symbol_list parse_variable_symbol_list(struct file file, bool newlines_are_a_symbol);
 size_t indents(void);
 void newlines(void);
-
-
 
 /// ------------------ literal parsers ---------------------------
 

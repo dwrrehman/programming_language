@@ -10,27 +10,15 @@
 #include "nodes.hpp"
 #include "parser.hpp"
 #include "arguments.hpp"
-
 #include "debug.hpp"
-
-
 
 /**
 
-nostril do file.n
-
-
-use .io
-print "hello, world!"
-
-
-
  -------------------- STAGES ------------------
-
 
 parsing - corrector:
 
-    stage 1:   indent level raising (ILR) phase
+    stage 1:   indent level raising (ILR) indent correction phase
 
     stage 2    turn indent to block transformations (TIB) indent correction phase
 
@@ -50,7 +38,6 @@ analysis:
     stage 8:    call signature resolution (CSR) phase
 
     stage 9:    numeric value subsitution (NVS) phase
-
 
 
 code generation:
