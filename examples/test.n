@@ -1,4 +1,1 @@
-g
-    j
-        d
-ty
+cx: int = 0

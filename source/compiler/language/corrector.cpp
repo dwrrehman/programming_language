@@ -30,26 +30,27 @@ print "hello, world!"
 
 parsing - corrector:
 
-    stage 1:   indent raising (IR) phase
+    stage 1:   indent level raising (ILR) phase
 
-    stage 1.1  indent to block transformations?
+    stage 2    turn indent to block transformations (TIB) indent correction phase
 
-    stage 2:   expression to abstraction (EA) correction phase
+    stage 3:   expression to abstraction definition (ETA) correction phase
 
-    stage 3:   expression to variable (EV) correction phase
+    stage 4:   expression to variable definition (ETV) correction phase
 
 
 analysis:
 
-    stage 4:    scope and visibility analysis (SVA) phase
-
-    stage 5:    type inference and checking (TIC) phase
+    stage 5:    scope and visibility analysis (SVA) phase
 
     stage 6:    namespace signature subsitution (NSS) phase
 
-    stage 7:    call signature resolution (CSR) phase
+    stage 7:    type inference and checking (TIC) phase
 
-    stage 8:    numeric value subsitution (NVS) phase
+    stage 8:    call signature resolution (CSR) phase
+
+    stage 9:    numeric value subsitution (NVS) phase
+
 
 
 code generation:
@@ -99,12 +100,93 @@ characteristics of each:
 
     2. it will always either have a block, or
 
-
-
-
-
  */
 
+
+
+/// Helpers:
+
+
+// etv/eta helper:
+bool contains_a_colon(expression expression) {
+    for (auto s : expression.symbols) {
+        if (s.type == symbol_type::identifier &&
+            s.identifier.name.type == token_type::operator_ &&
+            s.identifier.name.value == ":") {
+            return true;
+        }
+    }
+    return false;
+}
+
+
+
+
+
+
+
+
+
+
+
+
+/// ------------------- stage 3: ETV --------------------------
+
+void find_variable_definitions(expression_list list, struct file file) {
+
+    for (auto& expression : list.expressions) {
+        if (contains_a_colon(expression) // && is not a abstraction definition.
+            ) {
+            // turn this expression into a variable definition.
+            std::cout << "WE FOUND A VARIABLE!!!\n";
+        }
+    }
+}
+
+/// ------------------- stage 3: ETA --------------------------
+
+void find_abstraction_definitions(expression_list list, struct file file) {
+
+    for (auto& expression : list.expressions) {
+        if (expression.symbols.size() &&
+            expression.symbols.front().type == symbol_type::subexpression &&
+            contains_a_colon(expression)
+        ) {
+            /// overview: turn this expression into a function definition.
+
+            // we need to add a new parse tree node: an "abstraction definition".
+
+//            class abstraction_definition: public node {
+//                public:
+//                    call: expression
+//                    return_type: expression      // possibly empty expression.
+//                    signature_type: expression
+//            };
+
+            /**
+            basically the algorithm goes as follows:
+
+                first push the subexpression into the call member.
+
+                then walk the remaining of the expression:
+                    while you dont find a colon, push symbol onto return type
+                when you do find a symbol thats a colon, stop pushing onto return, and then skip the colon.
+                the finally, push the reamining of the symbol list onto the signature type.
+
+                done!
+
+             pretty simple.
+
+              */
+            std::cout << "WE FOUND AN ABSTRACTION!!!\n";
+        }
+    }
+}
+
+
+
+
+/// ---------------- stage 2: TIB ----------------------------
 
 void turn_indents_into_blocks(expression_list& list, struct file file, const size_t level);
 
@@ -120,7 +202,6 @@ void add_block_to_list(block& block, struct file file, size_t level, expression_
     else new_list.expressions.back().symbols.push_back(s);
 }
 
-/// ---------------- stage 2: TIB ----------------------------
 
 void turn_indents_into_blocks(expression_list& list, struct file file, const size_t level) {
 
@@ -129,14 +210,13 @@ void turn_indents_into_blocks(expression_list& list, struct file file, const siz
     bool inside_block = false;
 
     for (auto& expression : list.expressions) {
-        if (expression.indent_level > level && !inside_block) {
+        if (expression.indent_level > level) {
             block.list.expressions.push_back(expression);
-            inside_block = true;
-        } else if (expression.indent_level > level && inside_block) {
-            block.list.expressions.push_back(expression);
+            if (!inside_block) inside_block = true;
         } else {
             if (block.list.expressions.size())
                 add_block_to_list(block, file, level, new_list);
+
             new_list.expressions.push_back(expression);
             inside_block = false;
             block.list.expressions.clear();
@@ -144,18 +224,11 @@ void turn_indents_into_blocks(expression_list& list, struct file file, const siz
     }
     if (block.list.expressions.size())
         add_block_to_list(block, file, level, new_list);
+
     list = new_list;
 }
 
-
-
-
-
-
-
-
-
-/// ------------------ stage 1: IR --------------------------
+/// ------------------ stage 1: ILR --------------------------
 
 void raise(size_t& value, const size_t minimum) {
     if (value < minimum) value = minimum;
@@ -172,13 +245,17 @@ void raise_indents(expression_list& list, struct file file, const size_t level) 
 
 
 
+
+// the main corrector function:
+
 translation_unit correct(translation_unit unit, struct file file) {
 
     std::cout << "------------------- corrector: -------------------------\n";
 
-
     raise_indents(unit.list, file, 0);
     turn_indents_into_blocks(unit.list, file, 0);
+    find_abstraction_definitions(unit.list, file);
+    find_variable_definitions(unit.list, file);
 
     print_translation_unit(unit, file); // debug
 
