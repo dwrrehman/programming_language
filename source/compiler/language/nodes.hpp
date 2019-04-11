@@ -200,7 +200,7 @@ class block: public node {
 public:
     bool is_open = false;
     bool is_closed = false;
-    expression_list statements = {};
+    expression_list list = {};
 };
 
 class symbol: public node {

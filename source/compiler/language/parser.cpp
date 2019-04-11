@@ -145,8 +145,8 @@ block parse_block(struct file file) {
         revert(saved);
         auto expression = parse_expression(file, /*can_be_empty = */true, /*newlines_are_a_symbol = */false);
         if (expression.error) { revert_and_return(); }
-        block.statements.expressions = {expression};
-    } else block.statements = expression_list;
+        block.list.expressions = {expression};
+    } else block.list = expression_list;
 
     indents();
     t = next();

@@ -101,7 +101,7 @@ void print_block(block block, int d) {
     prep(d); std::cout << "block:\n";
     prep(d); std::cout << "is open = " << std::boolalpha << block.is_open << "\n";
     prep(d); std::cout << "is closed = " << std::boolalpha << block.is_closed << "\n";
-    print_expression_list(block.statements, d+1);
+    print_expression_list(block.list, d+1);
 }
 
 void print_symbol(symbol symbol, int d) {
