@@ -155,7 +155,6 @@ block parse_block(struct file file) {
         revert_and_return();
     }
 
-    block.is_open = true;
     block.error = false;
     return block;
 }

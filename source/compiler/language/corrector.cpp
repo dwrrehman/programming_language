@@ -14,6 +14,25 @@
 
 /**
 
+
+
+
+
+
+
+TODO: remove the "bulitin" list of bulitins.
+
+
+
+
+
+
+
+
+
+
+
+
  -------------------- STAGES ------------------
 
 parsing - corrector:
@@ -60,6 +79,15 @@ linking:
 
 
 
+we need to talktot sw about rp meeting.
+
+
+ we also need to talk with ben about meetin with him to demonstrate our program.
+
+
+
+
+
 
 ------- HOW TO DO EXP_TO_ABS (ETA stage) -------
 
@@ -93,16 +121,15 @@ characteristics of each:
 
 /// Helpers:
 
+static bool is_colon(const symbol &symbol) {
+    return symbol.type == symbol_type::identifier &&
+    symbol.identifier.name.type == token_type::operator_ &&
+    symbol.identifier.name.value == ":";
+}
 
-// etv/eta helper:
 bool contains_a_colon(expression expression) {
-    for (auto s : expression.symbols) {
-        if (s.type == symbol_type::identifier &&
-            s.identifier.name.type == token_type::operator_ &&
-            s.identifier.name.value == ":") {
-            return true;
-        }
-    }
+    for (auto s : expression.symbols)
+        if (is_colon(s)) return true;
     return false;
 }
 
@@ -115,61 +142,278 @@ bool contains_a_colon(expression expression) {
 
 
 
+/*
+
+what we need to allow for is that:
+
+    x: (a b) c = (x: a y: b) c : _runtime {
 
 
-/// ------------------- stage 3: ETV --------------------------
 
-void find_variable_definitions(expression_list list, struct file file) {
+the algorithm of spotting abstraction definitions is as so:
+
+
+  note: we always need to allow for variables
+ to be on their own line, alwaus.
+
+ heres a note though:
+
+
+ we only need to mak abstractions alloweed to be in
+ expressions (in the middleof expressions)
+
+
+ variables cant be in the middle of expressions,
+ they are always on their own line.
+
+
+
+
+ another reason we need to allow for abstraction definitions
+ (but not prototypes) to be anywwehere in a function definition,
+ is for when you want to pass a user defined
+ lambda into a another function call.
+
+
+
+
+
+ heres another idea:
+
+
+ the algorithm for this is as follows:
+
+
+ walk a expression:
+
+
+ if the current symbol is a subexpression,
+
+ then walk untill you find the first block.
+ then, everything from the subexpression and the block mightttt be
+ a abstraction definition, IF AND ONLY IF there is a colon between
+ the two end points.
+
+
+
+
+
+
+
+
+ heres a question:
+
+
+        do we need variables as their own statement, always?
+
+
+
+ i think so, actually. this is because of the nature of the variable definition:
+
+
+
+    its always an expression, followed by a colon, followed by a ;
+
+
+ however there are some restrictions on what you can have on the left hand side: (ie, the identifier side)
+
+
+
+    these restrictions are:
+
+    no strings of any kinds:
+        - no doc strings, no string literals, no llvm strings, and no character strings.
+
+        this is mandatory, i think.
+
+        although... why? why not have those things...?  we will see, i guess.
+
+
+
+        you cannot have parenthesis on this side. if you do, then you are actually defining an abstraction.
+
+
+        however, there are some interesting cavieats.
+
+
+
+
+
+        if you do something like this:      (this is allowable:)
+
+
+            (f): (c) = (my func) {
+                ; body here
+            }
+
+        note: that "f" here, is a abstraction, but is being defined inside of a variable definition.
+
+
+
+
+ this is because a variable can be "of type \"abstraction\""
+
+
+
+
+
+
+
+however, because a abstraction can take on multiple forms:
+
+
+ (x) c : asdf {        ; very easy, this is probably what we will implement first.
+
+ }
+
+ (x) c {                ; this one is impossible, until after CSR.
+
+ }
+
+ (x) c : asdf go          ; this is the hardest one by far, .... but partially possible before csr.
+
+
+ (x): print hi                  ; this is impossible, actually, 
+
+
+ (x)                            ; this one is pretty difficult, but not after csr.
+    print hi
+
+
+ IMPOSSIBLE:
+
+ (x) print hi                    ; this is actually impossible. like actually.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+*/
+
+
+
+
+
+
+
+
+
+
+/// ------------------- stage 4: ETV --------------------------
+
+void find_variable_definitions(expression_list& list, struct file file) {
 
     for (auto& expression : list.expressions) {
-        if (contains_a_colon(expression) // && is not a abstraction definition.
+
+        for (auto& symbol :expression.symbols) {
+            if (symbol.type == symbol_type::block) {
+                find_variable_definitions(symbol.block.list, file);
+            }
+        }
+
+        if (expression.symbols.size() &&
+            expression.
+            contains_a_colon(expression)
             ) {
-            // turn this expression into a variable definition.
-            std::cout << "WE FOUND A VARIABLE!!!\n";
+            abstraction_definition abstraction = {};
+            abstraction.call = expression.symbols.front().subexpression;
+            expression.symbols.erase(expression.symbols.begin());
+
+            size_t i = 0;
+            for (; i < expression.symbols.size(); i++) {
+                if (is_colon(expression.symbols[i])) break;
+                abstraction.return_type.symbols.push_back(expression.symbols[i]);
+            }
+            i++;
+            for (; i < expression.symbols.size(); i++) {
+                abstraction.signature_type.symbols.push_back(expression.symbols[i]);
+            }
+
+            expression.symbols.clear();
+            symbol s {};
+            s.type = symbol_type::abstraction_definition;
+
+            s.abstraction = abstraction;
+            expression.symbols.push_back(s);
         }
     }
 }
 
+
 /// ------------------- stage 3: ETA --------------------------
 
-void find_abstraction_definitions(expression_list list, struct file file) {
+void find_abstraction_definitions(expression_list& list, struct file file) { // todo: make this recursive!!!!!
 
     for (auto& expression : list.expressions) {
+
+        for (auto& symbol :expression.symbols) {
+            if (symbol.type == symbol_type::block) {
+                find_abstraction_definitions(symbol.block.list, file);
+            }
+        }
+
         if (expression.symbols.size() &&
             expression.symbols.front().type == symbol_type::subexpression &&
             contains_a_colon(expression)
         ) {
-            /// overview: turn this expression into a function definition.
+            abstraction_definition abstraction = {};
+            abstraction.call = expression.symbols.front().subexpression;
+            expression.symbols.erase(expression.symbols.begin());
 
-            // we need to add a new parse tree node: an "abstraction definition".
+            size_t i = 0;
+            for (; i < expression.symbols.size(); i++) {
+                if (is_colon(expression.symbols[i])) break;
+                abstraction.return_type.symbols.push_back(expression.symbols[i]);
+            }
+            i++;
+            for (; i < expression.symbols.size(); i++) {
+                abstraction.signature_type.symbols.push_back(expression.symbols[i]);
+            }
 
-//            class abstraction_definition: public node {
-//                public:
-//                    call: expression
-//                    return_type: expression      // possibly empty expression.
-//                    signature_type: expression
-//            };
+            expression.symbols.clear();
+            symbol s {};
+            s.type = symbol_type::abstraction_definition;
 
-            /**
-            basically the algorithm goes as follows:
-
-                first push the subexpression into the call member.
-
-                then walk the remaining of the expression:
-                    while you dont find a colon, push symbol onto return type
-                when you do find a symbol thats a colon, stop pushing onto return, and then skip the colon.
-                the finally, push the reamining of the symbol list onto the signature type.
-
-                done!
-
-             pretty simple.
-
-              */
-            std::cout << "WE FOUND AN ABSTRACTION!!!\n";
+            s.abstraction = abstraction;
+            expression.symbols.push_back(s);
         }
     }
 }
-
 
 
 
@@ -189,7 +433,6 @@ void add_block_to_list(block& block, struct file file, size_t level, expression_
     else new_list.expressions.back().symbols.push_back(s);
 }
 
-
 void turn_indents_into_blocks(expression_list& list, struct file file, const size_t level) {
 
     expression_list new_list {};
@@ -197,6 +440,8 @@ void turn_indents_into_blocks(expression_list& list, struct file file, const siz
     bool inside_block = false;
 
     for (auto& expression : list.expressions) {
+        if (expression.symbols.empty()) continue;
+
         if (expression.indent_level > level) {
             block.list.expressions.push_back(expression);
             if (!inside_block) inside_block = true;
@@ -229,8 +474,6 @@ void raise_indents(expression_list& list, struct file file, const size_t level) 
                 raise_indents(symbol.block.list, file, level + 1);
     }
 }
-
-
 
 
 // the main corrector function:

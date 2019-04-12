@@ -127,6 +127,8 @@ enum class symbol_type {
     identifier,
     newline,
     indent,
+    abstraction_definition,
+    variable_definition,
 };
 
 
@@ -196,12 +198,33 @@ public:
     std::vector<expression> expressions = {};
 };
 
-class block: public node {
+class translation_unit: public node {
 public:
-    bool is_open = false;
-    bool is_closed = false;
     expression_list list = {};
 };
+
+class block: public node {
+public:
+    expression_list list = {};
+};
+
+
+/// --------- classes that are used in the corrector: ---------------
+
+class abstraction_definition: public node {
+public:
+    expression call = {};
+    expression return_type = {};
+    expression signature_type = {};
+};
+
+class variable_definition: public node {
+public:
+    expression name = {};
+    expression type = {};
+};
+/// ----------------------------------------------------------------
+
 
 class symbol: public node {
 public:
@@ -214,15 +237,9 @@ public:
     llvm_literal llvm = {};
     builtin builtin = {};
     identifier identifier = {};
+    abstraction_definition abstraction = {};
+    variable_definition variable = {};
 };
-
-
-class translation_unit: public node {
-public:
-    expression_list list = {};
-};
-
-
 
 
 

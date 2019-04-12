@@ -230,8 +230,6 @@ struct token next() {
             current.column = column;
             current.type = token_type::indent;
             current.value = " ";
-            print_warning_message(filename, "unexpected tab, treating as spaces", line, column);
-            print_source_code(text, {current});
             advance_by(1);
             clear_and_return();
         }
