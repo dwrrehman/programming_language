@@ -30,6 +30,26 @@
 
 */
 
+//TODO: make the struct file contain a list of flags, which are
+// values from an enum class, and the parser, corrector, etc,
+// looks at these flags to determine the correct behavior/debug info to give.
+// also, this must be completely done in the get cli args function,
+// and not change any external interfaces, only extent interfaces.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 #include "arguments.hpp"
 #include "compiler.hpp"
 #include "interpreter.hpp"
@@ -41,18 +61,6 @@
 #include <vector>
 #include <iostream>
 
-
-
-//TODO: make the struct file containa  list of flags, which are
-// values from an enum class, and the parser, corrector, etc,
-// looks at these flags to determine the correct behavior/debug info to give.
-// also, this must be completely done in the get cli args function,
-// and not change any external interfaces, only extent interfaces.
-
-
-
-
-
 int main(const int argc, const char** argv) {
 
     const struct arguments& arguments = get_commandline_arguments(argc, argv);
@@ -60,7 +68,7 @@ int main(const int argc, const char** argv) {
     else if (arguments.use_interpreter) interpreter(arguments.files[0]);
     else if (!arguments.files.size()) print_error_no_files();
 
-    debug_arguments(arguments);
+    debug_arguments(arguments); // debug
 
     llvm::LLVMContext context;
     std::vector<std::unique_ptr<llvm::Module>> modules = {};
@@ -77,6 +85,22 @@ int main(const int argc, const char** argv) {
     auto& program = pop(modules);
     for (auto& module : modules) link(program, module);
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 /*

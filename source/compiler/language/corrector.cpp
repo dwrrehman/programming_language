@@ -16,23 +16,6 @@
 
 
 
-
-
-
-
-TODO: remove the "bulitin" list of bulitins.
-
-
-
-
-
-
-
-
-
-
-
-
  -------------------- STAGES ------------------
 
 parsing - corrector:
@@ -44,6 +27,13 @@ parsing - corrector:
     stage 3:   expression to abstraction definition (ETA) correction phase
 
     stage 4:   expression to variable definition (ETV) correction phase
+
+
+
+ possible stage 5:      turn top level abstraction call expression(s (of form: subexpr, stuff, block) into abstraction definitions. (they cant possibly be a fucntion call, becuase its the top level.
+        aka, top level expression to abstraction definition:      (TEA)
+
+
 
 
 analysis:
@@ -59,30 +49,30 @@ analysis:
     stage 9:    numeric value subsitution (NVS) phase
 
 
+ post analysis:
+
+    stage 10:   wrapper type expansion (WTE) phase
+
+    stage 11:   signature ABI transformation (SAT) phase
+
 code generation:
 
-    ...
+    CGN
 
 
 
 optimization:
 
-    ...
+    OPT
+
+
 
  stage ...:    compiletime abstraction evaluation (CAE) phase
 
 linking:
 
-    ...
+    LNK
 
-
-
-
-
-we need to talktot sw about rp meeting.
-
-
- we also need to talk with ben about meetin with him to demonstrate our program.
 
 
 
@@ -115,23 +105,6 @@ characteristics of each:
 
     2. it will always either have a block, or
 
- */
-
-
-
-/// Helpers:
-
-static bool is_colon(const symbol &symbol) {
-    return symbol.type == symbol_type::identifier &&
-    symbol.identifier.name.type == token_type::operator_ &&
-    symbol.identifier.name.value == ":";
-}
-
-bool contains_a_colon(expression expression) {
-    for (auto s : expression.symbols)
-        if (is_colon(s)) return true;
-    return false;
-}
 
 
 
@@ -140,20 +113,15 @@ bool contains_a_colon(expression expression) {
 
 
 
+ what we need to allow for is that:
+
+        x: (a b) c = (x: a y: b) c : _runtime {
 
 
-/*
-
-what we need to allow for is that:
-
-    x: (a b) c = (x: a y: b) c : _runtime {
+ the algorithm of spotting abstraction definitions is as so:
 
 
-
-the algorithm of spotting abstraction definitions is as so:
-
-
-  note: we always need to allow for variables
+ note: we always need to allow for variables
  to be on their own line, alwaus.
 
  heres a note though:
@@ -166,16 +134,10 @@ the algorithm of spotting abstraction definitions is as so:
  variables cant be in the middle of expressions,
  they are always on their own line.
 
-
-
-
  another reason we need to allow for abstraction definitions
  (but not prototypes) to be anywwehere in a function definition,
  is for when you want to pass a user defined
  lambda into a another function call.
-
-
-
 
 
  heres another idea:
@@ -196,58 +158,41 @@ the algorithm of spotting abstraction definitions is as so:
 
 
 
-
-
-
-
-
  heres a question:
 
 
-        do we need variables as their own statement, always?
-
+ do we need variables as their own statement, always?
 
 
  i think so, actually. this is because of the nature of the variable definition:
 
 
-
-    its always an expression, followed by a colon, followed by a ;
-
+ its always an expression, followed by a colon, followed by a ;
 
  however there are some restrictions on what you can have on the left hand side: (ie, the identifier side)
 
+ these restrictions are:
+
+ no strings of any kinds:
+ - no doc strings, no string literals, no llvm strings, and no character strings.
+
+ this is mandatory, i think.
+
+ although... why? why not have those things...?  we will see, i guess.
+
+ you cannot have parenthesis on this side. if you do, then you are actually defining an abstraction.
 
 
-    these restrictions are:
+ however, there are some interesting cavieats.
 
-    no strings of any kinds:
-        - no doc strings, no string literals, no llvm strings, and no character strings.
-
-        this is mandatory, i think.
-
-        although... why? why not have those things...?  we will see, i guess.
+ if you do something like this:      (this is allowable:)
 
 
+ (f): (c) = (my func) {
+    ; body here
+ }
 
-        you cannot have parenthesis on this side. if you do, then you are actually defining an abstraction.
-
-
-        however, there are some interesting cavieats.
-
-
-
-
-
-        if you do something like this:      (this is allowable:)
-
-
-            (f): (c) = (my func) {
-                ; body here
-            }
-
-        note: that "f" here, is a abstraction, but is being defined inside of a variable definition.
-
+ note: that "f" here, is a abstraction, but is being defined inside of a variable definition.
 
 
 
@@ -255,86 +200,53 @@ the algorithm of spotting abstraction definitions is as so:
 
 
 
-
-
-
-
-however, because a abstraction can take on multiple forms:
+ however, because a abstraction can take on multiple forms:
 
 
  (x) c : asdf {        ; very easy, this is probably what we will implement first.
-
+    print hi
  }
+
+ (x): asdf
+    print hi           ; also very easy.
+
 
  (x) c {                ; this one is impossible, until after CSR.
 
  }
 
- (x) c : asdf go          ; this is the hardest one by far, .... but partially possible before csr.
-
-
- (x): print hi                  ; this is impossible, actually, 
-
-
- (x)                            ; this one is pretty difficult, but not after csr.
+(x)                            ; this one is pretty difficult, but not after csr.
     print hi
+
 
 
  IMPOSSIBLE:
 
  (x) print hi                    ; this is actually impossible. like actually.
 
+ (x): print hi                  ; this is impossible, actually. for functions, the block cannot be implied, because its right next to an expression, the type signature.
+
+ (x) c : asdf print hi          ; this is impossible for the same reason
 
 
+ */
 
+/// Helpers:
 
+static bool is_colon(const symbol &symbol) {
+    return symbol.type == symbol_type::identifier &&
+    symbol.identifier.name.type == token_type::operator_ &&
+    symbol.identifier.name.value == ":";
+}
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-*/
-
-
-
-
-
-
-
-
-
+bool contains_a_colon(expression expression) {
+    for (auto s : expression.symbols)
+        if (is_colon(s)) return true;
+    return false;
+}
 
 /// ------------------- stage 4: ETV --------------------------
+
 
 void find_variable_definitions(expression_list& list, struct file file) {
 
@@ -346,75 +258,68 @@ void find_variable_definitions(expression_list& list, struct file file) {
             }
         }
 
-        if (expression.symbols.size() &&
-            expression.
-            contains_a_colon(expression)
-            ) {
-            abstraction_definition abstraction = {};
-            abstraction.call = expression.symbols.front().subexpression;
-            expression.symbols.erase(expression.symbols.begin());
+        if (expression.symbols.size() && contains_a_colon(expression)) {
+            variable_definition variable = {};
 
             size_t i = 0;
             for (; i < expression.symbols.size(); i++) {
                 if (is_colon(expression.symbols[i])) break;
-                abstraction.return_type.symbols.push_back(expression.symbols[i]);
+                variable.name.symbols.push_back(expression.symbols[i]);
             }
             i++;
             for (; i < expression.symbols.size(); i++) {
-                abstraction.signature_type.symbols.push_back(expression.symbols[i]);
+                variable.type.symbols.push_back(expression.symbols[i]);
             }
 
             expression.symbols.clear();
             symbol s {};
-            s.type = symbol_type::abstraction_definition;
-
-            s.abstraction = abstraction;
+            s.type = symbol_type::variable_definition;
+            s.variable = variable;
             expression.symbols.push_back(s);
         }
     }
 }
 
 
-/// ------------------- stage 3: ETA --------------------------
+/// ---------------- stage 3: ETA ----------------------------
 
-void find_abstraction_definitions(expression_list& list, struct file file) { // todo: make this recursive!!!!!
+void find_abstraction_definitions(expression_list& list, struct file file) {
 
     for (auto& expression : list.expressions) {
+        for (size_t i = 0; i < expression.symbols.size(); i++) {
+            if (expression.symbols[i].type == symbol_type::block) find_abstraction_definitions(expression.symbols[i].block.list, file);
+            if (expression.symbols[i].type == symbol_type::subexpression) { // REDO THIS: use the STL algorithms for the finding/transforming.
 
-        for (auto& symbol :expression.symbols) {
-            if (symbol.type == symbol_type::block) {
-                find_abstraction_definitions(symbol.block.list, file);
+                bool is_abstraction = true;
+                abstraction_definition abstraction = {};
+                abstraction.call = expression.symbols[i].subexpression;
+                const size_t start = i++;
+
+                while (!is_colon(expression.symbols[i])) {
+                    if (i >= expression.symbols.size() || expression.symbols[i].type == symbol_type::block) { is_abstraction = false; break; }
+                    abstraction.return_type.symbols.push_back(expression.symbols[i++]);
+                }
+                if (!is_abstraction) { i = start; continue; }
+                i++;
+                while (expression.symbols[i].type != symbol_type::block) {
+                    if (i >= expression.symbols.size()) { is_abstraction = false; break; }
+                    abstraction.signature_type.symbols.push_back(expression.symbols[i++]);
+                }
+                if (!is_abstraction) { i = start; continue; }
+
+                abstraction.body = expression.symbols[i++].block;
+                find_abstraction_definitions(abstraction.body.list, file);
+                const auto end = i;
+                expression.symbols.erase(expression.symbols.begin() + start, expression.symbols.begin() + end);
+
+                symbol s {};
+                s.type = symbol_type::abstraction_definition;
+                s.abstraction = abstraction;
+                expression.symbols.insert(expression.symbols.begin() + start, s);
             }
-        }
-
-        if (expression.symbols.size() &&
-            expression.symbols.front().type == symbol_type::subexpression &&
-            contains_a_colon(expression)
-        ) {
-            abstraction_definition abstraction = {};
-            abstraction.call = expression.symbols.front().subexpression;
-            expression.symbols.erase(expression.symbols.begin());
-
-            size_t i = 0;
-            for (; i < expression.symbols.size(); i++) {
-                if (is_colon(expression.symbols[i])) break;
-                abstraction.return_type.symbols.push_back(expression.symbols[i]);
-            }
-            i++;
-            for (; i < expression.symbols.size(); i++) {
-                abstraction.signature_type.symbols.push_back(expression.symbols[i]);
-            }
-
-            expression.symbols.clear();
-            symbol s {};
-            s.type = symbol_type::abstraction_definition;
-
-            s.abstraction = abstraction;
-            expression.symbols.push_back(s);
         }
     }
 }
-
 
 
 /// ---------------- stage 2: TIB ----------------------------

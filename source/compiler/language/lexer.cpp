@@ -180,10 +180,6 @@ struct token next() {
 
             current.value += text[c];
 
-            for (auto builtin : builtins)
-                if (current.value == builtin)
-                    current.type = token_type::builtin;
-
             state = lexing_state::none;
             advance_by(1);
             clear_and_return();

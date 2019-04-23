@@ -21,7 +21,6 @@ extern size_t spaces_count_for_indent;
 // main language entities:
 extern std::vector<std::string> operators;
 extern std::vector<std::string> non_overridable_operators;
-extern std::vector<std::string> builtins;
 
 // preprocessor entities:
 extern std::vector<std::string> pp_keywords;

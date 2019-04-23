@@ -73,8 +73,7 @@ const char* convert_token_type_representation(enum token_type type) {
         case token_type::operator_: return "operator";
         case token_type::documentation: return "documentation";
         case token_type::character: return "character";
-        case token_type::llvm: return "llvm";
-        case token_type::builtin: return "builtin";
+        case token_type::llvm: return "llvm";    
         case token_type::indent: return "indent";
     }
 }
@@ -113,6 +112,9 @@ void print_abstraction_definition(abstraction_definition abstraction, int d) {
 
     prep(d+1); std::cout << "signature type: \n";
     print_expression(abstraction.signature_type, d+2);
+
+    prep(d+1); std::cout << "abstraction body: \n";
+    print_block(abstraction.body, d+2);
 }
 
 void print_variable_definition(variable_definition variable, int d) {
@@ -159,9 +161,6 @@ void print_symbol(symbol symbol, int d) {
             print_block(symbol.block, d+1);
             break;
 
-        case symbol_type::builtin:
-            prep(d); std::cout << "builtin: " << symbol.builtin.name.value << "\n";
-            break;
         case symbol_type::newline:
             prep(d); std::cout << "{newline}\n"; 
             break;
@@ -177,7 +176,7 @@ void print_symbol(symbol symbol, int d) {
             print_abstraction_definition(symbol.abstraction, d+1);
             break;
         case symbol_type::variable_definition:
-            prep(d); std::cout << "abstraction definition: \n";
+            prep(d); std::cout << "variable definition: \n";
             print_variable_definition(symbol.variable, d+1);
             break;
     }
@@ -232,9 +231,7 @@ std::string convert_symbol_type(enum symbol_type type) {
         case symbol_type::llvm_literal:
             return "llvm literal";
         case symbol_type::block:
-            return "block";
-        case symbol_type::builtin:
-            return "builtin";
+            return "block";        
         case symbol_type::identifier:
             return "identifier";
         case symbol_type::newline:

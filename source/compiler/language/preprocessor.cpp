@@ -115,7 +115,6 @@ struct preprocessed_file preprocess(struct file file) {
     ///auto tokens = pp_lex(file);
     ///return pp_parse(tokens, file);
     append_trailing_newlines(file);
-
     return {file};
 }
 

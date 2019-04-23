@@ -123,7 +123,6 @@ enum class symbol_type {
     documentation,
     llvm_literal,
     block,
-    builtin,
     identifier,
     newline,
     indent,
@@ -182,11 +181,6 @@ public:
     struct token name = {};
 };
 
-class builtin: public node {
-public:
-    struct token name = {};
-};
-
 class expression: public node {
 public:
     std::vector<symbol> symbols = {};
@@ -216,6 +210,7 @@ public:
     expression call = {};
     expression return_type = {};
     expression signature_type = {};
+    block body = {};
 };
 
 class variable_definition: public node {
@@ -235,7 +230,6 @@ public:
     character_literal character = {};
     documentation documentation = {};
     llvm_literal llvm = {};
-    builtin builtin = {};
     identifier identifier = {};
     abstraction_definition abstraction = {};
     variable_definition variable = {};

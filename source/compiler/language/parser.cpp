@@ -75,17 +75,6 @@ documentation parse_documentation(struct file file) {
     return literal;
 }
 
-builtin parse_builtin(struct file file) {
-    builtin literal = {};
-    auto saved = save();
-    auto t = next();
-    if (t.type != token_type::builtin) { revert_and_return(); }
-    literal.name = t;
-    literal.error = false;
-    return literal;
-}
-
-
 bool is_nonoverridable_operator(std::string value) {
     return std::find(non_overridable_operators.begin(), non_overridable_operators.end(), value) != non_overridable_operators.end();
 }
@@ -218,15 +207,6 @@ symbol parse_symbol(struct file file, bool newlines_are_a_symbol) {
     if (!block.error) {
         s.type = symbol_type::block;
         s.block = block;
-        s.error = false;
-        return s;
-    }
-    revert(saved);
-
-    auto builtin = parse_builtin(file);
-    if (!builtin.error) {
-        s.type = symbol_type::builtin;
-        s.builtin = builtin;
         s.error = false;
         return s;
     }
