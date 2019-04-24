@@ -17,12 +17,10 @@ extern const std::string language_name;
 extern const std::string language_version;
 
 extern size_t spaces_count_for_indent;
+extern size_t max_expression_depth;
 
-// main language entities:
-extern std::vector<std::string> operators;
-extern std::vector<std::string> non_overridable_operators;
+// main language syntax:
+extern const std::vector<std::string> syntax;
 
-// preprocessor entities:
-extern std::vector<std::string> pp_keywords;
 
 #endif /* lists_hpp */

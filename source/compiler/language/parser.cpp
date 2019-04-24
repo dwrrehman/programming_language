@@ -75,8 +75,8 @@ documentation parse_documentation(struct file file) {
     return literal;
 }
 
-bool is_nonoverridable_operator(std::string value) {
-    return std::find(non_overridable_operators.begin(), non_overridable_operators.end(), value) != non_overridable_operators.end();
+bool is_syntax(std::string value) {
+    return std::find(syntax.begin(), syntax.end(), value) != syntax.end();
 }
 
 identifier parse_identifier(struct file file) {
@@ -84,8 +84,7 @@ identifier parse_identifier(struct file file) {
     auto saved = save();
     auto t = next();
     if (t.type != token_type::identifier
-     && (t.type != token_type::operator_ || t.value == "\n"
-         || is_nonoverridable_operator(t.value))) {
+     && (t.type != token_type::operator_ || t.value == "\n" || is_syntax(t.value))) {
         revert_and_return();
     }
     literal.name = t;

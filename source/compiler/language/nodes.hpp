@@ -233,6 +233,9 @@ public:
     identifier identifier = {};
     abstraction_definition abstraction = {};
     variable_definition variable = {};
+
+    symbol(){}
+    symbol(enum symbol_type type) {this->type = type;}
 };
 
 

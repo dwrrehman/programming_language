@@ -27,13 +27,12 @@
 //#include "llvm/AsmParser/Parser.h"
 
 
-
 static std::string module_name(const std::string filename) {
     static size_t module_number = 0;
     return filename + std::to_string(module_number++);
 }
 
-std::unique_ptr<llvm::Module> generate(struct action_tree tree, struct file file, llvm::LLVMContext &context) {
+std::unique_ptr<llvm::Module> generate(const translation_unit unit, struct file file, llvm::LLVMContext &context) {
     llvm::IRBuilder<> builder(context);
     auto module = llvm::make_unique<llvm::Module>(module_name(file.name), context);
     return module;

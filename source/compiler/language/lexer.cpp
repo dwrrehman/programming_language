@@ -28,16 +28,12 @@ static struct token current = {};
 
 // helpers:
 
-static bool is_operator(char c) {
-    std::string s = "";
-    s.push_back(c);
-    for (auto op : operators) if (s == op) return true;
-    if (!isascii(c)) return true;
-    return false;
+static bool is_identifier(char c) {
+    return isalnum(c) || c == '_';
 }
 
-static bool is_identifierchar(char c) {
-    return isalnum(c) || c == '_';
+static bool is_operator(char c) {
+    return (!is_identifier(c) || !isascii(c)) && c != ' ';
 }
 
 static bool isvalid(size_t c) {
@@ -106,7 +102,7 @@ struct token next() {
 
         // ------------------- starting and finising ----------------------
 
-        } else if (is_identifierchar(text[c]) && isvalid(c+1) && !is_identifierchar(text[c+1]) && (state == lexing_state::none || state == lexing_state::indent)) {
+        } else if (is_identifier(text[c]) && isvalid(c+1) && !is_identifier(text[c+1]) && (state == lexing_state::none || state == lexing_state::indent)) {
             set_current(token_type::identifier, lexing_state::none);
             current.value = text[c];
             if (current.value == "_") current.type = token_type::keyword;
@@ -118,7 +114,7 @@ struct token next() {
         } else if (text[c] == '\"' && (state == lexing_state::none || state == lexing_state::indent)) { set_current(token_type::string, lexing_state::string);
         } else if (text[c] == '`' && (state == lexing_state::none || state == lexing_state::indent)) { set_current(token_type::documentation, lexing_state::documentation);
         } else if (text[c] == '\'' && (state == lexing_state::none || state == lexing_state::indent)) { set_current(token_type::llvm, lexing_state::character_or_llvm);
-        } else if (is_identifierchar(text[c]) && (state == lexing_state::none || state == lexing_state::indent)) {
+        } else if (is_identifier(text[c]) && (state == lexing_state::none || state == lexing_state::indent)) {
             set_current(token_type::identifier, lexing_state::identifier);
             current.value += text[c];
 
@@ -175,7 +171,7 @@ struct token next() {
             advance_by(1);
             clear_and_return();
 
-        } else if (is_identifierchar(text[c]) && isvalid(c+1) && !is_identifierchar(text[c+1])
+        } else if (is_identifier(text[c]) && isvalid(c+1) && !is_identifier(text[c+1])
                    && state == lexing_state::identifier) {
 
             current.value += text[c];
@@ -189,7 +185,7 @@ struct token next() {
         } else if (state == lexing_state::string ||
                    state == lexing_state::character_or_llvm ||
                    state == lexing_state::documentation ||
-                   (is_identifierchar(text[c]) && state == lexing_state::identifier)) {
+                   (is_identifier(text[c]) && state == lexing_state::identifier)) {
             current.value += text[c];
 
         } else if (state == lexing_state::comment || state == lexing_state::multiline_comment) {

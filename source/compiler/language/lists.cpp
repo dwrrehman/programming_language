@@ -8,26 +8,10 @@
 
 #include "lists.hpp"
 
-
-
 const std::string language_name = "n3zqx2l";
-const std::string language_version = "0.0.1";
+const std::string language_version = "0.0.2";
 
+const std::vector<std::string> syntax = {"(", ")", "{", "}"};
 
 size_t spaces_count_for_indent = 4;
-
-
-// ------------------- main language keywords ------------------------------
-
-std::vector<std::string> non_overridable_operators = {
-    "(", ")", "{", "}" // and ":", but thats implicit.
-};
-
-std::vector<std::string> operators = {
-    "(", ")", "[", "]", "{", "}",
-    "+", "-", "*", "/", "<", ">",
-    "^", "%", "!", "~", "&", ".",
-    "?", ":", ";", "|", "=", "\n",
-    "\\", ",", "#", "$", "@"
-};
-
+size_t max_expression_depth = 8; // TODO: change to the default of "128" when analysis things work.
