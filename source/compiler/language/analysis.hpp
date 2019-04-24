@@ -22,6 +22,46 @@ translation_unit analyze(translation_unit tree, struct file file);
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+// note: the descion to not allow top level expressions was
+// chosen to eleminte the burden of the compiler, having the make
+// functions, which RUN BEFORE main(). that gets really compilcated and hard to
+// reason about, fast, so we just disallow it. of course,
+//
+// unless the user says: "nostril do ..."
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 /*
  jobs:
  - scope checking

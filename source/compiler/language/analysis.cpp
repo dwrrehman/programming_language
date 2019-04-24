@@ -9,15 +9,20 @@
 #include "analysis.hpp"
 #include "parser.hpp"
 #include "nodes.hpp"
+#include "lists.hpp"
 
 #include <iostream>
 #include <vector>
 #include <stdlib.h>
+#include <sstream>
+#include <algorithm>
+
+#include "csr.hpp"
 
 
 translation_unit analyze(translation_unit tree, struct file file) {
 
-    // first things first: simply start trying to resolve things, using our algorithm.
-
+    
+    
     return {};
 }

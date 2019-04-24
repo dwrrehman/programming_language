@@ -127,7 +127,6 @@ enum class symbol_type {
     newline,
     indent,
     abstraction_definition,
-    variable_definition,
 };
 
 
@@ -203,23 +202,32 @@ public:
 };
 
 
-/// --------- classes that are used in the corrector: ---------------
+
+/// ---------------------- Abstractions ---------------------------
+
+using type = expression;
+struct call_signature;
+struct cs_element;
+
+
+
+struct call_signature {
+    std::vector<cs_element> elements;
+};
+
+struct cs_element {
+    bool is_parameter = false;
+    std::string signature_element_name = "";         // valid if !is_parmaeter
+    type parameter_type = {};                        // valid if is_parmaeter
+    call_signature sub_signature = {};
+};
 
 class abstraction_definition: public node {
 public:
-    expression call = {};
-    expression return_type = {};
-    expression signature_type = {};
+    call_signature call_signature = {};
+    type return_type = {};
     block body = {};
 };
-
-class variable_definition: public node {
-public:
-    expression name = {};
-    expression type = {};
-};
-/// ----------------------------------------------------------------
-
 
 class symbol: public node {
 public:
@@ -231,8 +239,7 @@ public:
     documentation documentation = {};
     llvm_literal llvm = {};
     identifier identifier = {};
-    abstraction_definition abstraction = {};
-    variable_definition variable = {};
+    abstraction_definition abstraction = {};    
 
     symbol(){}
     symbol(enum symbol_type type) {this->type = type;}

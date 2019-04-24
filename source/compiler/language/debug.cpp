@@ -100,32 +100,23 @@ void print_block(block block, int d) {
     prep(d); std::cout << "block:\n";
     print_expression_list(block.list, d+1);
 }
+//
+//void print_abstraction_definition(abstraction_definition abstraction, int d) {
+//    prep(d); std::cout << "abstraction definition: \n";
+//
+//    prep(d+1); std::cout << "call signature: \n";
+//    print_expression(abstraction.call, d+2);
+//
+//    prep(d+1); std::cout << "return type: \n";
+//    print_expression(abstraction.return_type, d+2);
+//
+//    prep(d+1); std::cout << "signature type: \n";
+//    print_expression(abstraction.signature_type, d+2);
+//
+//    prep(d+1); std::cout << "abstraction body: \n";
+//    print_block(abstraction.body, d+2);
+//}
 
-void print_abstraction_definition(abstraction_definition abstraction, int d) {
-    prep(d); std::cout << "abstraction definition: \n";
-
-    prep(d+1); std::cout << "call signature: \n";
-    print_expression(abstraction.call, d+2);
-
-    prep(d+1); std::cout << "return type: \n";
-    print_expression(abstraction.return_type, d+2);
-
-    prep(d+1); std::cout << "signature type: \n";
-    print_expression(abstraction.signature_type, d+2);
-
-    prep(d+1); std::cout << "abstraction body: \n";
-    print_block(abstraction.body, d+2);
-}
-
-void print_variable_definition(variable_definition variable, int d) {
-    prep(d); std::cout << "variable definition: \n";
-
-    prep(d+1); std::cout << "variable name: \n";
-    print_expression(variable.name, d+2);
-
-    prep(d+1); std::cout << "variable type: \n";
-    print_expression(variable.type, d+2);
-}
 
 void print_symbol(symbol symbol, int d) {
     prep(d); std::cout << "symbol: \n";
@@ -171,14 +162,11 @@ void print_symbol(symbol symbol, int d) {
         case symbol_type::none:
             prep(d); std::cout << "{NO SYMBOL TYPE}\n";
             break;
-        case symbol_type::abstraction_definition:
-            prep(d); std::cout << "abstraction definition: \n";
-            print_abstraction_definition(symbol.abstraction, d+1);
-            break;
-        case symbol_type::variable_definition:
-            prep(d); std::cout << "variable definition: \n";
-            print_variable_definition(symbol.variable, d+1);
-            break;
+//        case symbol_type::abstraction_definition:
+//            prep(d); std::cout << "abstraction definition: \n";
+//            print_abstraction_definition(symbol.abstraction, d+1);
+//            break;
+        default: break;
     }
 }
 
@@ -240,7 +228,5 @@ std::string convert_symbol_type(enum symbol_type type) {
             return "indent";
         case symbol_type::abstraction_definition:
             return "abstraction definition";
-        case symbol_type::variable_definition:
-            return "variable definition";
     }
 }
