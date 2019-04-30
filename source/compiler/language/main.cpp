@@ -48,7 +48,7 @@
 
 
 
-
+/*
 
 #include "arguments.hpp"
 #include "compiler.hpp"
@@ -86,6 +86,7 @@ int main(const int argc, const char** argv) {
     for (auto& module : modules) link(program, module);
 }
 
+*/
 
 
 
@@ -103,7 +104,6 @@ int main(const int argc, const char** argv) {
 
 
 
-/*
 
 #include "llvm/ADT/APFloat.h"
 #include "llvm/ADT/STLExtras.h"
@@ -116,22 +116,34 @@ int main(const int argc, const char** argv) {
 #include "llvm/IR/Module.h"
 #include "llvm/IR/Type.h"
 #include "llvm/IR/Verifier.h"
-
+#include "llvm/ADT/Optional.h"
+#include "llvm/IR/Instructions.h"
+#include "llvm/IR/LegacyPassManager.h"
+#include "llvm/Support/FileSystem.h"
+#include "llvm/Support/Host.h"
+#include "llvm/Support/raw_ostream.h"
+#include "llvm/Support/TargetRegistry.h"
+#include "llvm/Support/TargetSelect.h"
+#include "llvm/Target/TargetMachine.h"
+#include "llvm/Target/TargetOptions.h"
 #include "llvm/Support/SourceMgr.h"
 #include "llvm/IR/ModuleSummaryIndex.h"
-
 #include "llvm/AsmParser/Parser.h"
 #include "llvm/Support/MemoryBuffer.h"
 
-#include <iostream>
 #include <algorithm>
+#include <cassert>
 #include <cctype>
 #include <cstdio>
 #include <cstdlib>
 #include <map>
 #include <memory>
 #include <string>
+#include <system_error>
+#include <utility>
 #include <vector>
+#include <sstream>
+#include <iostream>
 
 //===----------------------------------------------------------------------===//
 // Lexer
@@ -179,7 +191,6 @@ static int gettok() {
         LastChar = getchar();
         return '%';
     }
-
 
     if (isdigit(LastChar) || LastChar == '.') { // Number: [0-9.]+
         std::string NumStr;
@@ -537,6 +548,8 @@ llvm::Value* VariableExprAST::codegen() {
     return V;
 }
 
+
+// irrelevant.
 llvm::Value *BinaryExprAST::codegen() {
     llvm::Value *L = LHS->codegen();
     llvm::Value *R = RHS->codegen();
@@ -559,7 +572,14 @@ llvm::Value *BinaryExprAST::codegen() {
     }
 }
 
-llvm::Value *CallExprAST::codegen() {
+
+
+
+
+
+
+
+llvm::Value* CallExprAST::codegen() {
     // Look up the name in the global module table.
     llvm::Function *CalleeF = TheModule->getFunction(Callee);
     if (!CalleeF) {
@@ -571,7 +591,7 @@ llvm::Value *CallExprAST::codegen() {
         std::cout << "Expected " << Args.size() << " arguments, but found " << CalleeF->arg_size() << ".\n";
         return LogErrorV("Incorrect # arguments passed");
     }
-    std::vector<llvm::Value *> ArgsV;
+    std::vector<llvm::Value*> ArgsV;
     for (unsigned i = 0, e = (unsigned) Args.size(); i != e; ++i) {
         ArgsV.push_back(Args[i]->codegen());
         if (!ArgsV.back()) return nullptr;
@@ -580,11 +600,16 @@ llvm::Value *CallExprAST::codegen() {
     return Builder.CreateCall(CalleeF, ArgsV, "calltmp");
 }
 
-llvm::Function *PrototypeAST::codegen() {
+
+
+
+
+
+llvm::Function* PrototypeAST::codegen() {
     // Make the function type:  double(double,double) etc.
     std::vector<llvm::Type*> parameters(arguments.size(), llvm::Type::getDoubleTy(context));
     llvm::FunctionType* type = llvm::FunctionType::get(llvm::Type::getDoubleTy(context), parameters, false);
-    llvm::Function *function = llvm::Function::Create(type, llvm::Function::ExternalLinkage, Name, TheModule.get());
+    llvm::Function* function = llvm::Function::Create(type, llvm::Function::ExternalLinkage, Name, TheModule.get());
 
     size_t i = 0;
     for (auto &argument : function->args()) argument.setName(arguments[i++]);
@@ -592,7 +617,13 @@ llvm::Function *PrototypeAST::codegen() {
     return function;
 }
 
+
+
+
+
+
 llvm::Function *FunctionAST::codegen() {
+
     // First, check for an existing function from a previous 'extern' declaration.
     llvm::Function* function = TheModule->getFunction(Proto->getName());
     if (!function && !(function = Proto->codegen())) return nullptr;
@@ -618,6 +649,14 @@ llvm::Function *FunctionAST::codegen() {
     function->eraseFromParent();
     return nullptr;
 }
+
+
+
+
+
+
+
+
 
 //===----------------------------------------------------------------------===//
 // Top-Level parsing and JIT Driver
@@ -665,65 +704,142 @@ static void HandleTopLevelExpression() {
 
 
 
+std::string random_string() {
+    static int num = 0;
+    std::stringstream stream;
+    stream << std::hex << rand();
+    return std::string(stream.str()) + std::to_string(num++);
+}
+
+
 static void otherLoop() {
-    std::string s = "";
+    std::string code = "";
 
     while (true) {
         std::cout << "::> ";
-        std::getline(std::cin, s);
-        std::cout << "received: \"" << s << "\"\n";
 
-        if (s == "done" || s == "") {
-            std::cout << "quitting...\n";
-            break;
-        }
+        std::string mode = "";
+        std::cin >> mode;
 
-        if (s.size() && s[0]) {
-            s.insert(0, "define void @m() {\n"); // wrap the given llvm statements in a function, named the same as the function we want to insert these statements into.
-            s += "\nret void\n}\n";
-        }
-
-        for (int i = 0; i < s.size(); i++) {    // temp, to make the cli more useable.
-            if (s[i] == '/') {
-                s[i] = '\n';
-            }
-        }
-
-        llvm::MemoryBufferRef reference(s, "temp_ins_buffer");
-        llvm::ModuleSummaryIndex my_index(true);
         llvm::SMDiagnostic errors;
 
-        if (llvm::parseAssemblyInto(reference, TheModule.get(), &my_index, errors)) {
-            std::cout << "\nparsed unsuccessfully.\n\n";
+        if (mode == "expr") {
 
-            {
-                std::cout << "llvm: "; // TODO: make this have color!
-                errors.print("MyProgram.n", llvm::errs());
+            std::getline(std::cin, code);
+            std::cout << "received: \"" << code << "\"\n";
+
+            if (code == "done" || code == "") {
+                std::cout << "quitting...\n";
+                break;
             }
 
-        } else {
-            std::cout << "\nparsed successfully.\n\n";
+            if (code.size() && code[0]) {
+                code.insert(0, "define void @_anonymous_" + random_string() + "() {\n"); // wrap the given llvm statements in a function, named the same as the function we want to insert these statements into.
+                code += "\nret void\n}\n";
+            }
+
+            for (int i = 0; i < code.size(); i++) {    // temp, to make the cli more useable.
+                if (code[i] == '/') {
+                    code[i] = '\n';
+                }
+            }
+
+            llvm::MemoryBufferRef reference(code, "temp_ins_buffer");
+            llvm::ModuleSummaryIndex my_index(true);
+            llvm::SMDiagnostic errors;
+
+            if (llvm::parseAssemblyInto(reference, TheModule.get(), &my_index, errors)) {
+                std::cout << "\nparsed unsuccessfully.\n\n";
+
+
+                std::cout << "llvm: "; // TODO: make this have color!
+                errors.print("MyProgram.n", llvm::errs());
+
+            } else {
+                std::cout << "\nparsed successfully.\n\n";
+            }
+        } else if (mode == "decl") {
+
+            std::getline(std::cin, code);
+            std::cout << "received: \"" << code << "\"\n";
+
+            if (code == "done" || code == "") {
+                std::cout << "quitting...\n";
+                break;
+            }
+
+            for (int i = 0; i < code.size(); i++) {    // temp, to make the cli more useable.
+                if (code[i] == '/') {
+                    code[i] = '\n';
+                }
+            }
+
+            llvm::MemoryBufferRef reference(code, "temp_ins_buffer");
+            llvm::ModuleSummaryIndex my_index(true);
+            llvm::SMDiagnostic errors;
+
+            if (llvm::parseAssemblyInto(reference, TheModule.get(), &my_index, errors)) {
+                std::cout << "\nparsed unsuccessfully.\n\n";
+
+                std::cout << "llvm: "; // TODO: make this have color!
+                errors.print("MyProgram.n", llvm::errs());
+
+            } else {
+                std::cout << "\nparsed successfully.\n\n";
+            }
+
+        } else if (mode == "show") {
+            std::cout << "printing all functions:\n";
+            for (auto& function : TheModule->functions()) {
+                std::cout << "printing function:\n";
+                function.llvm::Value::print(llvm::errs());
+                std::cout << "done printing function!\n";
+            }
+            std::cout << "done printing!\n";
+
+        } else if (mode == "type") {
+
+
+            std::getline(std::cin, code);
+            std::cout << "received: \"" << code << "\"\n";
+
+            if (code == "done" || code == "") {
+                std::cout << "quitting...\n";
+                break;
+            }
+
+            for (int i = 0; i < code.size(); i++) {    // temp, to make the cli more useable.
+                if (code[i] == '/') {
+                    code[i] = '\n';
+                }
+            }
+
+            llvm::MemoryBufferRef reference(code, "temp_ins_buffer");
+            llvm::ModuleSummaryIndex my_index(true);
+            llvm::SMDiagnostic errors;
+
+
+
+            std::cout << "now trying to parse s as type!\n";
+
+            llvm::Type* type;
+
+            if ((type = llvm::parseType(code, errors, *TheModule)) != nullptr) {
+                std::cout << "succcesfully parsed type: \n";
+                type->print(llvm::errs());
+                std::cout << "\ndone printing type.\n";
+            } else {
+                std::cout << "{invalid type.}\n";
+            }
+
+        } else if (mode == "print") {
+            std::cout << "printing the results: \n\n";
+            TheModule->print(llvm::errs(), nullptr);
+
+        } else if (mode == "help") {
+            std::cout << "say: print or type or decl or expr.\n";
         }
-
-        std::cout << "printing all functions:\n";
-        for (auto& function : TheModule->functions()) {
-            std::cout << "printing function:\n";
-            function.llvm::Value::print(llvm::errs());
-            std::cout << "done printing function!\n";
-        }
-
-        std::cout << "now trying to parse s as type!\n";
-
-        llvm::Type* type;
-
-        if ((type = llvm::parseType(s, errors, *TheModule)) != nullptr) {
-            std::cout << "succcesfully parsed type: \n";
-            type->print(llvm::errs());
-            std::cout << "\ndone printing type.\n";
-        } else {
-            std::cout << "{invalid type.}\n";
-        }
-        s = "";
+        code = "";
     }
 
     std::cout << "printing the results: \n\n";
@@ -765,6 +881,8 @@ static void MainLoop() {
 
 int main() {
 
+    srand((unsigned) time(NULL));
+
     // Install standard binary operators.
     // 1 is lowest precedence.
     BinopPrecedence['<'] = 10;
@@ -772,20 +890,58 @@ int main() {
     BinopPrecedence['-'] = 20;
     BinopPrecedence['*'] = 40; // highest.
 
-    // Prime the first token.
     fprintf(stderr, "ready> ");
     getNextToken();
 
-    // Make the module, which holds all the code.
     TheModule = llvm::make_unique<llvm::Module>("My First Module", context);
 
-    // Run the main "interpreter loop" now.
+    llvm::InitializeAllTargetInfos();
+    llvm::InitializeAllTargets();
+    llvm::InitializeAllTargetMCs();
+    llvm::InitializeAllAsmParsers();
+    llvm::InitializeAllAsmPrinters();
+
+
     MainLoop();
 
-    std::cout << "printing the final results: \n\n";
     TheModule->print(llvm::errs(), nullptr);
+
+
+    // after code generation:
+
+    auto TargetTriple = llvm::sys::getDefaultTargetTriple();
+    TheModule->setTargetTriple(TargetTriple);
+    std::string Error = "";
+    auto Target = llvm::TargetRegistry::lookupTarget(TargetTriple, Error);
+    if (!Target) {
+        llvm::errs() << Error;
+        return 1;
+    }
+
+    llvm::TargetOptions opt;
+    auto RM = llvm::Optional<llvm::Reloc::Model>();
+    auto TheTargetMachine = Target->createTargetMachine(TargetTriple, "generic", "", opt, RM);
+    TheModule->setDataLayout(TheTargetMachine->createDataLayout());
+
+    auto Filename = "output.o";
+    std::error_code error;
+    llvm::raw_fd_ostream dest(Filename, error, llvm::sys::fs::F_None);
+    if (error) {
+        llvm::errs() << "Could not open file: " << error.message();
+        return 1;
+    }
+
+    llvm::legacy::PassManager pass;
+    auto FileType = llvm::TargetMachine::CGFT_ObjectFile;
+
+    if (TheTargetMachine->addPassesToEmitFile(pass, dest, nullptr, FileType)) {
+        llvm::errs() << "TheTargetMachine can't emit a file of this type";
+        exit(1);
+    }
+
+    pass.run(*TheModule);
+    dest.flush();
 
     return 0;
 }
 
-*/

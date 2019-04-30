@@ -1,0 +1,108 @@
+// debug csr:
+
+
+
+
+
+
+signature debug_csr(const std::vector<signature> list, const size_t depth, const std::vector<std::string> given_expression, const bool debug, const size_t max_depth) {
+
+    if (depth >= max_expression_depth) {
+        if (debug) {
+            prep(depth); std::cout << "reached the max depth! failing...\n\n";
+        }
+        return {{}, true};
+    }
+    int saved = pointer_save();
+
+    for (auto signature : list) {
+
+        if (debug) {
+            prep(depth); std::cout << "on signature: ";
+            print_signature(signature);
+            std::cout << "\n";
+        }
+
+        struct signature solution = {};
+        pointer_revert(saved);
+        bool failed = false;
+
+        for (auto element : signature.elements) {
+
+            if (debug) {
+                prep(depth); std::cout << "SE: ";
+                if (!element.is_parameter) std::cout << "\"" << element.name << "\"";
+                else std::cout << "(parameter)";
+            }
+
+            if (pointer < given_expression.size() && debug) {
+                std::cout << "\t\t-\t\t";
+                std::cout << "@pointer: " << given_expression[pointer];
+                std::cout << "\n";
+            }
+
+            if (element.is_parameter && depth < max_depth) {
+
+                if (debug) { prep(depth); std::cout << "matched a parmaeter, recursing...\n\n\n";}
+
+                auto s = debug_csr(list, depth + 1, given_expression, debug, max_depth);
+
+                struct element result = {"", s, true};
+
+                if (!s.erroneous) solution.elements.push_back(result);
+                else {
+                    failed = true;
+
+                    if (debug) {
+                        prep(depth); std::cout << "this signature ";
+                        print_signature(signature);
+                        std::cout << " is done, moving on, because failued to parse param...\n\n";
+                    }
+
+                    break;
+                }
+
+            } else if (pointer < given_expression.size() && element.name == given_expression[pointer]) {
+
+                if (debug) {
+                    prep(depth); std::cout << "matched a SE: " << element.name << "\n";
+                }
+
+                solution.elements.push_back(element);
+                pointer++;
+
+                if (debug) {
+                    prep(depth); std::cout << "pointer was " << pointer - 1 << ", now its " << pointer << "\n\n";
+                }
+
+            } else {
+                failed = true;
+
+                if (debug) {
+                    prep(depth); std::cout << "this signature ";
+                    print_signature(signature);
+                    std::cout << " is done, moving on...\n\n";
+                }
+
+                break;
+            }
+        }
+        if (!failed) {
+            if (debug) {
+                prep(depth); std::cout << "this signature was successful! returning solution: ";
+                print_signature(solution);
+                std::cout << "\n\n";
+            }
+            return solution;
+        }
+    }
+    return {{}, true};
+}
+
+// --------------------------------------------------------
+
+
+
+
+
+
