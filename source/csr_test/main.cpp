@@ -6,26 +6,22 @@
 //  Copyright © 2019 Daniel Rehman. All rights reserved.
 //
 
-// ------------------ treating the call graph as a parsabl ebnf grammar, which can be solved using a dynamically made parser.
-
-/*
-
- we need to construct a set of functions, which are all essentially of the same form, they have a particular set of signature elements, which are terminals, (a raw string), (from the signature)
-
- and they all have a (nonoptional) non-terminal "expression" node as their recognizer function for a parameter.
-
- */
-
-
-
-
 #include <iostream>
 #include <sstream>
 #include <vector>
 #include <algorithm>
 
+// ------------------
+/// CSR TEST CODE:
+// -------------------
 
-size_t max_expression_depth = 10;
+/// description: the csr algorithm is responsible for resolving calls to abstractions, based on subexpression shape, types of abstractions, literals, etc.
+/// its fairy involved, and super slow on erroneous input.
+
+size_t max_expression_depth = 10; // the larger the number, the slower the algorithm, on error inputs.
+
+
+
 
 
 
@@ -86,13 +82,21 @@ std::vector<std::string> tokenize(std::string given_expression) {
     return expression;
 }
 
- signature turn_into_expression(std::vector<std::string> given) {
-    std::vector<std::string> expression = {};
-    std::istringstream stream {given_expression};
-    while (stream.good()) {
-        std::string element = "";
-        stream >> element;
-        expression.push_back(element);
+size_t current = 0;
+
+signature turn_into_expression(std::vector<std::string> given) {
+    signature expression = {};
+    while (current < given.size()) {
+        if (given[current] == "(") {
+            current++; // "("
+            auto s = turn_into_expression(given);
+            expression.elements.push_back({"", s, true});
+        } else if (given[current] != ")") {
+            expression.elements.push_back({given[current], {}, false});
+            current++;
+        } else { // is simply ")", skip it.
+            current++;
+        }
     }
     return expression;
 }
@@ -113,7 +117,7 @@ void print_string_array(std::vector<std::string> array) {
         if (i < array.size() - 1) std::cout << " ";
         i++;
     }
-    std::cout << "]\n";
+    std::cout << "]";
 }
 
 
@@ -145,7 +149,6 @@ void print_defined_signatures(const std::vector<signature, std::allocator<signat
     std::cout << "\n";
 }
 
-// --------------------------------------------------------
 
 
 
@@ -153,43 +156,7 @@ void print_defined_signatures(const std::vector<signature, std::allocator<signat
 
 
 
-
-
-
-
-
-/// ----------- solver ------------------
-
-int pointer = 0;
-
-int pointer_save() {
-    return pointer;
-}
-
-void pointer_revert(int saved) {
-    pointer = saved;
-}
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+// ----------------------- csr solver -----------------------
 
 /*
 
@@ -197,35 +164,70 @@ void pointer_revert(int saved) {
  things to add to csr:
 
 
+         IMPORTANT:
 
- IMPORTANT:
+         1    - subsignatures: grouping of signatures.
 
- 1    - subsignatures: grouping of signatures.
-
- 2    - types, incoorperated into signatures.
-
+         2    - types, incoorperated into signatures.
 
 
- HARD:
 
- - implicit abstraction calls, only with type classes.
+         HARD:
 
- - function defined variables, (signatures that arent defined yet, being passed into a function. (coping with undefined signatures.)
+         - implicit abstraction calls, only with type classes.
 
- EASY:
+         - function defined variables, (signatures that arent defined yet, being passed into a function. (coping with undefined signatures.)
 
- - add the compiler builtin signatures to the list, without the user having to define them.
+         EASY:
 
- - literals: blocks, strings, llvm-strings
+         - add the compiler builtin signatures to the list, without the user having to define them.
 
- - regex signatures: numeric literals.
+         - literals: blocks, strings, llvm-strings
+
+         - regex signatures: numeric literals.
 
 
  */
 
 
+signature csr(const std::vector<signature> list, const size_t depth, const signature given, const size_t max_depth, size_t& pointer) {
+    if (depth >= max_expression_depth) return {{}, true};
+    const size_t saved = pointer;
+    for (auto signature : list) {
+        struct signature solution = {};
+        pointer = saved;
+        bool failed = false;
+        for (auto element : signature.elements) {
+            if (element.is_parameter && depth < max_depth) {
+                struct signature s = {};
+                if (pointer < given.elements.size() && given.elements[pointer].is_parameter) {
+                    size_t local_pointer = 0;
+                    s = csr(list, 0, given.elements[pointer].children, max_depth, local_pointer);
+                    if (local_pointer < given.elements[pointer].children.elements.size()) { failed = true; break; }
+                    pointer++;
+                } else {
+                    s = csr(list, depth + 1, given, max_depth, pointer);
+                }
+                if (s.erroneous) { failed = true; break; }
+                struct element result = {"", s, true};
+                solution.elements.push_back(result);
+
+            } else if (pointer < given.elements.size()
+                       && element.name == given.elements[pointer].name
+                       && !given.elements[pointer].is_parameter) {
+                solution.elements.push_back(element);
+                pointer++;
+            } else { failed = true; break; }
+        } if (!failed) return solution;
+    } return {{}, true};
+}
 
 
+
+
+
+
+/*              past csr aglorithmn:   most basic working form.
 
 signature csr(const std::vector<signature> list, const size_t depth, const std::vector<std::string> given_expression, const size_t max_depth) {
     if (depth >= max_expression_depth) return {{}, true};
@@ -248,40 +250,14 @@ signature csr(const std::vector<signature> list, const size_t depth, const std::
         } if (!failed) return solution;
     } return {{}, true};
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+*/
 
 
 
 int main() {
 
-
-    const bool debug = false;
-
-
     std::vector<std::string> string_signatures = {
-        //"_ is a number",
+        "_ is a number",
         "_ is good",
         "print _",
         "print",
@@ -289,8 +265,6 @@ int main() {
         "my good",
         "x",
         "_ + _",
-        "_ * _",
-        "_ ^ _",
     };
     std::vector<struct signature> signatures = convert_all(string_signatures);
 
@@ -311,33 +285,37 @@ int main() {
 
             auto tokens = tokenize(expression);
             tokens.pop_back();
-            auto given = turn_into_expression(tokens);
 
+            current = 0;
+            auto given = turn_into_expression(tokens);
 
             std::cout << "parsing: ";
             print_string_array(tokens);
             std::cout << " and ";
-            print_expression(given);
+            print_signature(given);
             std::cout << "\n";
 
-
+            size_t pointer = 0;
             signature solution = {};
-
             size_t max_depth = 1;
-
             while (max_depth <= max_expression_depth) {
-                std::cout << "trying depth = " << max_depth << std::endl;
+
+                std::cout << "trying depth = " << max_depth << std::endl; // debug
+
                 pointer = 0;
-                solution = csr(signatures, 0, given, max_depth);
-                if (pointer < given.size() || solution.erroneous) max_depth++;
+                solution = csr(signatures, 0, given, max_depth, pointer);
+                if (solution.erroneous || pointer < given.elements.size()) {
+                    max_depth++;
+                }
                 else break;
             }
 
             std::cout << "\nsolution: ";
             print_signature(solution);
             std::cout << "\n";
-            if (pointer < given.size()) std::cout << "(but its erroneous) " << given.size() << " : " << pointer << "\n\n";
-
+            if (pointer < given.elements.size()) {
+                std::cout << "(but its erroenous)...\n";
+            }
 
         } else if (command == "add") {
 
