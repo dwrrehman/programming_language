@@ -18,11 +18,34 @@
 /// description: the csr algorithm is responsible for resolving calls to abstractions, based on subexpression shape, types of abstractions, literals, etc.
 /// its fairy involved, and super slow on erroneous input.
 
-size_t max_expression_depth = 10; // the larger the number, the slower the algorithm, on error inputs.
+size_t max_expression_depth = 7; // the larger the number, the slower the algorithm, on error inputs.
+//                                 ("10" will be the default in the compiler.)
 
 
 
 
+
+
+
+/**
+
+
+
+    problem expressions:
+
+        - ((x) is a number is good)
+
+            solution: ((x) is a number)
+            (but its erroenous)...
+
+
+
+
+
+
+
+
+*/
 
 
 // ------------ data structures -------------
@@ -185,8 +208,7 @@ void print_defined_signatures(const std::vector<signature, std::allocator<signat
 
 
 signature csr(const std::vector<signature> list, const size_t depth, const signature given, const size_t max_depth, size_t& pointer) {
-    if (depth >= max_expression_depth) return {{}, true};
-    if (!given.elements.size()) return {};
+    if (depth > max_depth) return {{}, true};
     const size_t saved = pointer;
     for (auto signature : list) {
         struct signature solution = {};
@@ -194,19 +216,22 @@ signature csr(const std::vector<signature> list, const size_t depth, const signa
         bool failed = false;
         for (auto element : signature.elements) {
             if (element.is_parameter && depth < max_depth) {
-                struct signature s = {};
+                struct signature subexpression = {};
                 if (pointer < given.elements.size() && given.elements[pointer].is_parameter) {
                     size_t local_pointer = 0;
-                    s = csr(list, 0, given.elements[pointer].children, max_depth, local_pointer);
-                    if (local_pointer < given.elements[pointer].children.elements.size()) { failed = true; break; }
+                    subexpression = csr(list, 0, given.elements[pointer].children, max_depth, local_pointer);
+                    if (subexpression.erroneous || local_pointer < given.elements[pointer].children.elements.size()) { failed = true; break; }
                     pointer++;
-                } else s = csr(list, depth + 1, given, max_depth, pointer);
-                if (s.erroneous) { failed = true; break; }
-                struct element result = {"", s, true};
-                solution.elements.push_back(result);
+                } else {
+                    subexpression = csr(list, depth + 1, given, max_depth, pointer);
+                    if (subexpression.erroneous) { failed = true; break; }
+                }
+                solution.elements.push_back({"", subexpression, true});
+
             } else if (pointer < given.elements.size() && element.name == given.elements[pointer].name && !given.elements[pointer].is_parameter) {
                 solution.elements.push_back(element);
                 pointer++;
+
             } else { failed = true; break; }
         } if (!failed) return solution;
     } return {{}, true};
@@ -257,6 +282,7 @@ int main() {
         "_ + _",
     };
     std::vector<struct signature> signatures = convert_all(string_signatures);
+    signatures.push_back({});
 
     std::string command = "";
     while (command != "quit") {
