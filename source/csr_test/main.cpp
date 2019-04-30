@@ -86,24 +86,19 @@ size_t current = 0;
 
 signature turn_into_expression(std::vector<std::string> given) {
     signature expression = {};
-    while (current < given.size()) {
+    while (current < given.size() && given[current] != ")") {
         if (given[current] == "(") {
             current++; // "("
             auto s = turn_into_expression(given);
             expression.elements.push_back({"", s, true});
+            current++; // ")"
         } else if (given[current] != ")") {
             expression.elements.push_back({given[current], {}, false});
-            current++;
-        } else { // is simply ")", skip it.
             current++;
         }
     }
     return expression;
 }
-
-
-
-
 
 // --------------------- debuggers -----------------------------
 
@@ -166,10 +161,9 @@ void print_defined_signatures(const std::vector<signature, std::allocator<signat
 
          IMPORTANT:
 
-         1    - subsignatures: grouping of signatures.
+ done:   1    - x: subsignatures: grouping of signatures.;
 
          2    - types, incoorperated into signatures.
-
 
 
          HARD:
@@ -192,6 +186,7 @@ void print_defined_signatures(const std::vector<signature, std::allocator<signat
 
 signature csr(const std::vector<signature> list, const size_t depth, const signature given, const size_t max_depth, size_t& pointer) {
     if (depth >= max_expression_depth) return {{}, true};
+    if (!given.elements.size()) return {};
     const size_t saved = pointer;
     for (auto signature : list) {
         struct signature solution = {};
@@ -205,16 +200,11 @@ signature csr(const std::vector<signature> list, const size_t depth, const signa
                     s = csr(list, 0, given.elements[pointer].children, max_depth, local_pointer);
                     if (local_pointer < given.elements[pointer].children.elements.size()) { failed = true; break; }
                     pointer++;
-                } else {
-                    s = csr(list, depth + 1, given, max_depth, pointer);
-                }
+                } else s = csr(list, depth + 1, given, max_depth, pointer);
                 if (s.erroneous) { failed = true; break; }
                 struct element result = {"", s, true};
                 solution.elements.push_back(result);
-
-            } else if (pointer < given.elements.size()
-                       && element.name == given.elements[pointer].name
-                       && !given.elements[pointer].is_parameter) {
+            } else if (pointer < given.elements.size() && element.name == given.elements[pointer].name && !given.elements[pointer].is_parameter) {
                 solution.elements.push_back(element);
                 pointer++;
             } else { failed = true; break; }
