@@ -18,7 +18,7 @@
 /// description: the csr algorithm is responsible for resolving calls to abstractions, based on subexpression shape, types of abstractions, literals, etc.
 /// its fairy involved, and super slow on erroneous input.
 
-size_t max_expression_depth = 7; // the larger the number, the slower the algorithm, on error inputs.
+size_t max_expression_depth = 10; // the larger the number, the slower the algorithm, on error inputs.
 //                                 ("10" will be the default in the compiler.)
 
 
@@ -33,17 +33,15 @@ size_t max_expression_depth = 7; // the larger the number, the slower the algori
 
     problem expressions:
 
-        - ((x is good) is a number)
+        - ((print x) + x)
 
             solution: ()
             (but its erroenous)...
 
 
-
-
         - (x + +)
 
-        solution: (((x) + ()) + ())
+            solution: (((x) + ()) + ())
 
 
 
@@ -56,7 +54,10 @@ struct element;
 
 struct signature {
     std::vector<struct element> elements = {};
+    // add somethinghere
+    std::string type = ""; // temp. its just an opaque type. we will change this to be a pointer to a signature, later.
     bool erroneous = false;
+
 };
 
 struct element {
@@ -128,6 +129,7 @@ signature turn_into_expression(std::vector<std::string> given) {
 // --------------------- debuggers -----------------------------
 
 #define prep(l)  for (size_t i = l; i--;) std::cout << ".   ";
+#define prp(l)  for (size_t i = l; i--;) std::cout << "#   ";
 
 void print_string_array(std::vector<std::string> array) {
     std::cout << "[";
@@ -340,18 +342,20 @@ signature csr(const std::vector<signature> list, const size_t depth, const signa
 */
 
 signature csr(const std::vector<signature> list, const signature given, const size_t depth, const size_t max_depth, size_t& pointer) {
-    if (depth > max_depth) return {{}, true};
+    if (depth > max_depth) return {{},"", true};
     const size_t saved = pointer;
     for (auto signature : list) {
         struct signature solution = {};
         pointer = saved;
         bool failed = false;
         for (auto element : signature.elements) {
-            if (pointer >= given.elements.size()) return solution;
-            if (element.is_parameter) {
+
+            if (pointer >= given.elements.size()) { failed = true; break; }
+
+            if (element.is_parameter && pointer < given.elements.size()) {
                 auto subexpression = csr(list, given, depth + 1, max_depth, pointer);
                 if (subexpression.erroneous) {
-                    if (pointer < given.elements.size() && given.elements[pointer].is_parameter) {
+                    if (given.elements[pointer].is_parameter) {
                         size_t local_pointer = 0, current_depth = 0;
                         struct signature subexpression = {};
                         while (current_depth <= max_expression_depth) {
@@ -364,36 +368,46 @@ signature csr(const std::vector<signature> list, const signature given, const si
                         if (subexpression.erroneous || local_pointer < given.elements[pointer].children.elements.size()) { failed = true; break; }
                         solution.elements.push_back({"", subexpression, true});
                         pointer++; continue;
+
                     } else { failed = true; break; }
                 } solution.elements.push_back({"", subexpression, true});
-            } else if (element.name == given.elements[pointer].name) {
+            } else if (pointer < given.elements.size() && element.name == given.elements[pointer].name) {
                 solution.elements.push_back(element);
                 pointer++;
             } else { failed = true; break; }
         } if (!failed) return solution;
-    } return {{}, true};
+    } return {{}, "", true};
 }
+
+
+
+
+
+
 
 /*
 
-
-        ----- working csr with subexpression         - with debug info -        ----------------------
-
+        ----- almost working csr with subexpression         - with debug info -        ----------------------
+*/
 
 bool debug = false;
 
-signature csr(const std::vector<signature> list, const signature given, const size_t depth, const size_t max_depth, size_t& pointer) {
+
+
+signature csr_loud(const std::vector<signature> list, const signature given, const size_t depth, const size_t max_depth, size_t& pointer, const size_t sd) {
 
     if (depth > max_depth) {
         if (debug) {
-            prep(depth); std::cout << "reached maximum depth.\n\n\n";
+           prp(sd); prep(depth); std::cout << "reached maximum depth: [depth=" << depth << ", max_depth=" << max_depth << " ]\n\n\n";
         }
-        return {{}, true};
+        return {{}, "", true};
     }
 
+
+
     if (debug) {
-        prep(depth); std::cout << "------ CALLED CSR ------- \n";
-        prep(depth); std::cout << "given list = {";
+       prp(sd); prep(depth); std::cout << "------ CALLED CSR ------- \n";
+       prp(sd); prep(depth); std::cout << "given list = {";
         for (auto l : list) {
             print_signature(l);
             std::cout << ", ";
@@ -401,11 +415,18 @@ signature csr(const std::vector<signature> list, const signature given, const si
         std::cout << "}\n\n";
     }
 
+    if (!given.elements.size()) {
+        if (debug) {
+            prp(sd); prep(depth); std::cout << "we were given a NULL expression! simply returning an empty call...\n";
+        }
+        return {{}, "", false};
+    }
+
     const size_t saved = pointer;
     for (auto signature : list) {
 
         if (debug) {
-            prep(depth); std::cout << "- TRYING signature: ";
+            prp(sd);prep(depth); std::cout << "- TRYING signature: ";
             print_signature(signature);
             std::cout << "\n\n";
         }
@@ -418,23 +439,23 @@ signature csr(const std::vector<signature> list, const signature given, const si
 
             if (pointer >= given.elements.size()) {
                 if (debug) {
-                    prep(depth); std::cout << "we hit a wall, lets just return the solution...\n";
+                    prp(sd);prep(depth); std::cout << "we hit a wall in given, lets just fail and break...\n";
                 }
-                return solution;
+                failed = true; break;
             }
 
             if (debug) {
 
-                prep(depth); std::cout << "testing element: ";
+                prp(sd);prep(depth); std::cout << "testing element: ";
                 if (!element.is_parameter) {
-                    print_signature({{element}, false});
+                    print_signature({{element}, "", false});
                 } else {
                     std::cout << "{PARAM}";
                 }
                 std::cout << "\n";
 
                 if (pointer < given.elements.size()) {
-                    prep(depth); std::cout << "@pointer: ";
+                    prp(sd);prep(depth); std::cout << "@pointer: ";
                     if (given.elements[pointer].is_parameter) {
                         std::cout << "{SUBEXPR: ";
                         print_signature(given.elements[pointer].children);
@@ -448,28 +469,28 @@ signature csr(const std::vector<signature> list, const signature given, const si
             }
 
 
-            if (element.is_parameter) {
+            if (element.is_parameter && pointer < given.elements.size()) {
 
                 if (debug) {
-                    prep(depth); std::cout << "traversing nested call...\n";
-                    prep(depth); std::cout << "current depth = " << depth << "\n";
+                    prp(sd);prep(depth); std::cout << "traversing nested call...\n";
+                    prp(sd);prep(depth); std::cout << "current depth = " << depth << "\n";
                 }
 
-                auto subexpression = csr(list, given, depth + 1, max_depth, pointer);
+                auto subexpression = csr_loud(list, given, depth + 1, max_depth, pointer, sd);
                 if (subexpression.erroneous) {
                     if (debug) {
-                        prep(depth); std::cout << "failed to parse nested call.\n\n";
+                        prp(sd);prep(depth); std::cout << "failed to parse nested call...  checking to see if its a subexpr...\n\n";
                     }
 
                     if (pointer < given.elements.size() && given.elements[pointer].is_parameter) {
 
                         if (debug) {
-                            prep(depth); std::cout << "trying as a parameter subexpression instead.\n";
-                            prep(depth); std::cout << "found this subexpression : ";
+                            prp(sd);prep(depth); std::cout << "trying as a parameter subexpression instead.\n";
+                            prp(sd);prep(depth); std::cout << "found this subexpression : ";
                             print_signature(given.elements[pointer].children);
                             std::cout << "\n";
 
-                            prep(depth); std::cout << "traversing subexpr...\n";
+                            prp(sd);prep(depth); std::cout << "traversing subexpr...\n";
                         }
 
 
@@ -478,54 +499,57 @@ signature csr(const std::vector<signature> list, const signature given, const si
                         while (current_depth <= max_expression_depth) {
                             local_pointer = 0;
                             if (debug) {
-                                prep(depth); std::cout << "subexpr: trying depth = " << current_depth << std::endl;
+                                prp(sd);prep(depth); std::cout << "subexpr: trying depth = " << current_depth << std::endl;
                             }
-                            subexpression = csr(list, given.elements[pointer].children, 0, current_depth, local_pointer);
+                            subexpression = csr_loud(list, given.elements[pointer].children, 0, current_depth, local_pointer, sd + 1);
                             if (subexpression.erroneous || local_pointer < given.elements[pointer].children.elements.size()) {
                                 current_depth++;
                             } else break;
                         }
                         if (subexpression.erroneous || local_pointer < given.elements[pointer].children.elements.size()) {
                             if (debug) {
-                                prep(depth); std::cout << "failed to parse subexpression.\n\n";
+                                prp(sd);prep(depth); std::cout << "failed to parse subexpression.\n\n";
                             }
                             failed = true; break;
                         }
 
                         if (debug) {
-                            prep(depth); std::cout << "successfully parsed subexpression.\n";
+                            prp(sd);prep(depth); std::cout << "successfully parsed subexpression.\n";
                         }
                         solution.elements.push_back({"", subexpression, true});
                         pointer++;
                         if (debug) {
-                            prep(depth); std::cout << "pointer was " << pointer - 1 << ", now its " << pointer << "\n\n";
+                            prp(sd);prep(depth); std::cout << "pointer was " << pointer - 1 << ", now its " << pointer << "\n\n";
                         }
                         continue;
                     } else {
+                        if (debug) {
+                            prp(sd);prep(depth); std::cout << "it wasnt a subexpression, so nested call has failed.\n\n";
+                        }
+
                         failed = true; break;
                     }
                 }
 
                 if (debug) {
-                    prep(depth); std::cout << "successfully parsed nested call.\n\n";
+                    prp(sd); prep(depth); std::cout << "successfully parsed nested call.\n\n";
                 }
                 solution.elements.push_back({"", subexpression, true});
 
 
-
             } else if (pointer < given.elements.size() && element.name == given.elements[pointer].name) {
                 if (debug) {
-                    prep(depth); std::cout << "found matching element: \"" << element.name << "\"\n";
+                    prp(sd);prep(depth); std::cout << "found matching element: \"" << element.name << "\"\n";
                 }
                 solution.elements.push_back(element);
                 pointer++;
                 if (debug) {
-                    prep(depth); std::cout << "pointer was " << pointer - 1 << ", now its " << pointer << "\n\n";
+                    prp(sd);prep(depth); std::cout << "pointer was " << pointer - 1 << ", now its " << pointer << "\n\n";
                 }
 
             } else {
                 if (debug) {
-                    prep(depth); std::cout << "failed to match: " << element.name << "\n\n";
+                    prp(sd);prep(depth); std::cout << "failed to match: " << element.name << "\n\n";
                 }
                 failed = true; break;
             }
@@ -534,9 +558,9 @@ signature csr(const std::vector<signature> list, const signature given, const si
         }
         if (!failed) {
             if (debug) {
-                prep(depth); std::cout << "[successfully parsed solution]\n";
+                prp(sd);prep(depth); std::cout << "[successfully parsed solution]\n";
 
-                prep(depth); std::cout << "found solution: ";
+                prp(sd);prep(depth); std::cout << "found solution: ";
                 print_signature(solution);
                 std::cout << "\n\n\n";
             }
@@ -544,18 +568,36 @@ signature csr(const std::vector<signature> list, const signature given, const si
         }
     }
     if (debug) {
-        prep(depth); std::cout << "[failed to parse any solution.]\n\n\n";
+        prp(sd);prep(depth); std::cout << "[failed to parse any solution.]\n\n\n";
     }
-    return {{}, true};
+    return {{}, "", true};
 }
 
-*/
+
 
 /*              past csr aglorithmn:   most basic working form.
 
 
 
         we really need to go back to this, and try to add in subexpressions again, and get it right this time.
+
+
+
+
+
+
+
+
+
+
+
+
+            // ((print x is good) is a number is good + print (x))
+
+
+
+
+
 
 
 
@@ -594,12 +636,10 @@ int main() {
         //"my self",
         //"my good",
         "x",
-        //"_ + _",
+        "_ + _",
     };
 
-
     std::vector<struct signature> signatures = convert_all(string_signatures);
-    signatures.push_back({});
 
     std::string command = "";
     while (command != "quit") {
@@ -634,7 +674,8 @@ int main() {
             while (max_depth <= max_expression_depth) {
                 std::cout << "trying depth = " << max_depth << std::endl; // debug
                 pointer = 0;
-                solution = csr(signatures, given, 0, max_depth, pointer);
+                solution = csr_loud(signatures, given, 0, max_depth, pointer, 0);
+                if (debug) std::cout << "\n\n\n\n";
                 if (solution.erroneous || pointer < given.elements.size()) {
                     max_depth++;
                 }

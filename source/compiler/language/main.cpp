@@ -10,6 +10,44 @@
 
 /*
 
+
+
+
+
+
+known bug in compiler:
+
+
+    - the too high indent level problem.
+
+        - - i think its a bug..?
+
+    try testing indent level = 2.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
  add user cli hooks to make the compiler stop at any stage, and output the internal represetnation to the user.
 
 
