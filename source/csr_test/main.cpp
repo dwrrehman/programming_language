@@ -18,41 +18,10 @@
 /// description: the csr algorithm is responsible for resolving calls to abstractions, based on subexpression shape, types of abstractions, literals, etc.
 /// its fairy involved, and super slow on erroneous input.
 
-size_t max_expression_depth = 3; // the larger the number, the slower the algorithm, on error inputs.
+size_t max_expression_depth = 8; // the larger the number, the slower the algorithm, on error inputs.
 //                                 ("10" will be the default in the compiler.)
 
 
-
-
-
-
-
-/*
-
-        todo:
-
-                we need to perform s reductio before we pass a expressiont  ocsr.
-
-
-                lets test more subexpressions, after we implement a function in order to perform s reduction.
-
-
-    s reduction standard for subexpression rediction,
-
-        subexpression referes to the act of reducing: ( x ) ===> x
-
-
-
-            this is very important.
-
-
- this is done preior t parsing expressions for
-
-
- so when type checking, we need to peform s red.
-
-                ie, we need to not only perform sr before csr, but also before performing se-eq.
-*/
 
 
 // ------------ data structures -------------
@@ -73,8 +42,6 @@ struct element {
 
 
 
-
-
 /// Global builtin types. these are fundemental to the language.
 
 // nullptr is the _type type.
@@ -83,36 +50,8 @@ signature nothing_type = {{{"_none"}}};
 signature infered_type = {{{"_infered"}}};
 
 
+// builtin types:       _type, _none, (), _infered
 
-
-
-
-// -------------- formatters ---------------------
-//
-//std::vector<signature> convert_all(std::vector<std::pair<std::string, size_t>> string_signatures) {
-//
-////    std::vector<signature> result = {};
-////    size_t i = 0;
-////
-////    for (auto string_signature : string_signatures) {
-////        result.push_back({});
-////        std::istringstream stream(string_signature.first);
-////        std::string element = "";
-////        while (stream.good()) {
-////            stream >> element;
-////            if (isnumber(element[0])) {
-////                result[i].elements.push_back({"", {elements, type, false}, true});
-////            }
-////
-////            else result[i].elements.push_back({element, {}, false});
-////        }
-////        i++;
-////    }
-//
-//    std::sort(result.begin(), result.end(), [](auto a, auto b) { return a.elements.size() > b.elements.size(); });
-//
-//    return result;
-//}
 
 std::vector<std::string> tokenize(std::string given_expression) {
     std::vector<std::string> expression = {};
@@ -142,9 +81,6 @@ signature turn_into_expression(std::vector<std::string> given) {
     }
     return expression;
 }
-
-
-
 
 
 
@@ -222,112 +158,15 @@ void print_defined_signatures(const std::vector<signature, std::allocator<signat
 }
 
 
-
-
 /*
 
-            note:       about the type system:
+ known bug:
 
+        parse _type end
 
-                - when we find a signature.type of {nullptr}, this means
-
-                            it has type "_type".
-
-
-
-            _type is the type which is the super type of all types.
-
-
-
-
-        note: the difference "has type" and "is a".
-
-            wait, is there a difference?
-
-
-
-                0 has type int.             int has type _type.
-
-                0 is an int.                int is a _type.
-
-
-        tbh, i think there is no difference.
-
-
-
-
-
- what is the type of _type?
-
-
-        good question.
-
-
-        I think we should make this an error.
-
-
-        more specfically, the program should error saying:
-
-
-        "
-
-            n3zqx2l: file.n:4:5: error: attempting to get the type of "_type"
-
-        "
-
-
-
-        alterantively, we could actually try to define it, as _type1, _type2, and so on.
-        this would probably take alot of work for very little gain, though.
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-                    note: when we encounter a parameter which has type     "_type"   (ie, the nullptr)
-
-
-                            we must accept any or all values/types which want to fill that parameter.
-
-
-                this reflects the fact that
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+                solution: {ERROR}
 
  */
-
-
-
-
-
 
 
 void prune_extraneous_subexpressions(signature& given) {
@@ -341,39 +180,6 @@ void prune_extraneous_subexpressions(signature& given) {
 }
 
 
-// ----------------------------------- csr ------------------------------------------
-
-
-
-/*
-
-
-
-
-
- when we go into a parameter, to parse it, we simply
- set the parent type of the recursive call to csr(...) to be the parameter's type.
-
-
-
-
- then crucially:
-
-
- when we are going through each signature, to figure
- out whether this one is the signature we need to call, we simply
- only start to parse the signature if:
-
-
- the return type of the signature *matches* our parent type.
- or
- the return type is "_infered"
-
-
-
- */
-
-
 bool signatures_match(signature first, signature second);
 
 bool elements_match(element first, element second) {
@@ -384,95 +190,32 @@ bool elements_match(element first, element second) {
 }
 
 bool signatures_match(signature first, signature second) {
-
-    std::cout << "testing to see if ";
-    print_signature(first);
-    std::cout << " and ";
-    print_signature(second);
-    std::cout << " match... ";
-
-    if (first.elements.size() != second.elements.size()) {
-        std::cout << "sizes dont match.\n";
-        return false;
-    }
+    if (first.elements.size() != second.elements.size()) return false;
     for (size_t i = 0; i < first.elements.size(); i++) {
-        if (!elements_match(first.elements[i], second.elements[i])) {
-            std::cout << "found a differing element.\n";
-            return false;
-        }
+        if (!elements_match(first.elements[i], second.elements[i])) return false;
     }
-    if (first.erroneous || second.erroneous) {
-        std::cout << "one or more was erronous.\n";
-        return false;
-    }
-    if ((!first.type && !second.type) || signatures_match(*first.type, *second.type)) {
-        std::cout << "they match!\n";
-        return true;
-     } else {
-         std::cout << "they dont match.\n";
-          return false;
-        }
-
-
-
+    if (first.erroneous || second.erroneous) return false;
+    if ((!first.type && !second.type) || signatures_match(*first.type, *second.type)) return true;
+    else return false;
 }
-
-
-bool debug = true;
 
 signature csr(const std::vector<signature> list, const signature given, const size_t depth, const size_t max_depth, size_t& pointer, struct signature*& type) {
 
-    prep(depth);  std::cout << "parent_type = ";
-    if (!type) std::cout << "{{{_anything}}}";
-    else print_signature(*type);
-    std::cout << "\n";
-
     if (depth > max_depth) return {{}, nullptr, true};
-    if (type && signatures_match(*type, nothing_type)) {
-
-        prep(depth); std::cout << "trying to match _nothing... returning failure.\n";
-
-        return {{}, nullptr, true};
-    }
+    if (type && signatures_match(*type, nothing_type)) return {{}, nullptr, true};
     if (given.elements.empty() || (given.elements.size() == 1
                                    && given.elements[0].is_parameter
                                    && given.elements[0].children.elements.empty())) {
-
         if (given.elements.size() == 1
             && given.elements[0].is_parameter
             && given.elements[0].children.elements.empty()) pointer++;
-
-        if (type && signatures_match(*type, infered_type)) {
-            prep(depth); std::cout << "parent type was found to be infered, filling in...\n";
-            type = &unit_type;
-            prep(depth); std::cout << "now pt = ";
-            print_signature(*type);
-            std::cout << "\n";
-        }
-
-        if (!type || signatures_match(*type, unit_type)) {
-            prep(depth); std::cout << "trying to unit type... success!.\n";
-            return {{}, &unit_type};
-        }
-        else {
-            prep(depth); std::cout << "failed to match unit type... returning failure.\n";
-            return {{}, nullptr, true};
-        }
+        if (type && signatures_match(*type, infered_type)) type = &unit_type;
+        if (!type || signatures_match(*type, unit_type)) return {{}, &unit_type};
+        else return {{}, nullptr, true};
     }
     const size_t saved = pointer;
     for (auto signature : list) {
-
-        if (debug) {
-            prep(depth); std::cout << "- TRYING signature: ";
-            print_signature(signature);
-            std::cout << "\n\n";
-        }
-
-        if (type && !signatures_match(*type, infered_type)
-            && (!signature.type || !signatures_match(*type, *signature.type))) {
-            prep(depth); std::cout << "skipping this signature, the types dont line up!\n";
-            continue;
-        }
+        if (type && !signatures_match(*type, infered_type) && (!signature.type || !signatures_match(*type, *signature.type))) continue;
         struct signature solution = {};
         pointer = saved;
         bool failed = false;
@@ -503,23 +246,13 @@ signature csr(const std::vector<signature> list, const signature given, const si
         } if (!failed) {
             if (type && signatures_match(*type, infered_type)) type = signature.type;
             solution.type = signature.type;
-
-            prep(depth); std::cout << "found a solution of type: ";
-            if (solution.type)
-                print_signature(*solution.type);
-            else {
-                std::cout << "{{{_anything}}}";
-            }
-            std::cout << "\n";
-
             return solution;
         }
     } return {{}, nullptr, true};
 }
 
 
-
-
+/*
 
 signature csr_loud(const std::vector<signature> list, const signature given, const size_t depth, const size_t max_depth, size_t& pointer, const size_t sd) {
 
@@ -698,39 +431,7 @@ signature csr_loud(const std::vector<signature> list, const signature given, con
     return {{}, nullptr, true};
 }
 
-
-
-/*              past csr aglorithmn:   most basic working form.
-
-
-
-        we really need to go back to this, and try to add in subexpressions again, and get it right this time.
-
-
-
-signature csr(const std::vector<signature> list, const size_t depth, const std::vector<std::string> given_expression, const size_t max_depth) {
-    if (depth >= max_expression_depth) return {{}, true};
-    int saved = pointer_save();
-    for (auto signature : list) {
-        struct signature solution = {};
-        pointer_revert(saved);
-        bool failed = false;
-        for (auto element : signature.elements) {
-            if (element.is_parameter && depth < max_depth) {
-                auto s = csr(list, depth + 1, given_expression, max_depth);
-                struct element result = {"", s, true};
-                if (!s.erroneous) solution.elements.push_back(result);
-                else { failed = true; break; }
-            } else if (pointer < given_expression.size()
-                       && element.name == given_expression[pointer]) {
-                solution.elements.push_back(element);
-                pointer++;
-            } else { failed = true; break; }
-        } if (!failed) return solution;
-    } return {{}, true};
-}
-*/
-
+ */
 
 
 int main() {
@@ -740,13 +441,25 @@ int main() {
             {"int", {}, false}
         }, &unit_type, false};
 
+    signature dog_type = {
+        {
+            {"dog", {}, false}
+        }, &int_type, false};
+
     signature print_type = {
         {
             {"print", {}, false},
+            {"", {{}, &int_type, false}, true}
+        }, &int_type, false};
+
+    signature unit_to_int_type = {
+        {
             {"", {{}, &unit_type, false}, true}
         }, &int_type, false};
 
-    std::vector<struct signature> signatures = {nothing_type, infered_type, int_type, print_type};
+    std::vector<struct signature> signatures = {nothing_type, infered_type, int_type, print_type, dog_type, unit_to_int_type};
+
+    std::sort(signatures.begin(), signatures.end(), [](auto a, auto b) { return a.elements.size() > b.elements.size(); });
 
     std::string command = "";
     while (command != "quit") {
@@ -780,12 +493,12 @@ int main() {
 
             size_t pointer = 0;
             signature solution = {};
-            signature* type = &infered_type;      //&unit_type;
+            signature* type = &infered_type;
             size_t max_depth = 0;
             while (max_depth <= max_expression_depth) {
                 std::cout << "trying depth = " << max_depth << std::endl; // debug
                 pointer = 0;
-                type = &infered_type;     //&unit_type;
+                type = &infered_type;
                 solution = csr(signatures, given, 0, max_depth, pointer, type);
                 if (debug) std::cout << "\n\n\n\n";
                 if (solution.erroneous || pointer < given.elements.size()) {
@@ -796,6 +509,10 @@ int main() {
 
             std::cout << "\nsolution: ";
             print_signature(solution);
+            std::cout << "\n";
+
+            std::cout << "it has type = ";
+            if (type) print_signature(*type); else std::cout << "{_type}";
             std::cout << "\n";
             if (pointer < given.elements.size()) {
                 std::cout << "(but its erroenous)...\n";

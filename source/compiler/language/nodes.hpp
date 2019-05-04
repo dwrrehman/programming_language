@@ -184,6 +184,20 @@ class expression: public node {
 public:
     std::vector<symbol> symbols = {};
     size_t indent_level = 0;
+    expression* type = nullptr;
+    bool erroneous = false;
+
+    expression() {}
+    expression(std::vector<symbol> symbols){
+        this->symbols = symbols;
+    }
+    expression(std::vector<symbol> symbols, expression* type) {
+        this->symbols = symbols;
+        this->type = type;
+    }
+    expression(bool error) {
+        this->erroneous = error;
+    }
 };
 
 class expression_list: public node {
@@ -242,7 +256,18 @@ public:
     abstraction_definition abstraction = {};    
 
     symbol(){}
-    symbol(enum symbol_type type) {this->type = type;}
+    symbol(enum symbol_type type) {
+        this->type = type;
+    }
+    symbol(std::string given_name, bool unused) {
+        this->type = symbol_type::identifier;
+        this->identifier.name.value = given_name;
+        this->identifier.name.type = token_type::identifier;
+    }
+    symbol(expression subexpression) {
+        this->type = symbol_type::subexpression;
+        this->subexpression = subexpression;
+    }
 };
 
 

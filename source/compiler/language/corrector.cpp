@@ -12,6 +12,15 @@
 #include "arguments.hpp"
 #include "debug.hpp"
 
+
+
+/*
+        known bug:
+
+            when we give a indent level of 2, it only finds 1 block from it...?
+
+ */
+
 /// ---------------- stage 2: TIB ----------------------------
 
 void turn_indents_into_blocks(expression_list& list, struct file file, const size_t level);
@@ -75,5 +84,5 @@ translation_unit correct(translation_unit unit, struct file file) {
     std::cout << "------------------- corrector: -------------------------\n";
     print_translation_unit(unit, file); // debug
 
-    return {};
+    return unit;
 }

@@ -67,7 +67,7 @@ known bug in compiler:
 
 
 
-/*
+
 
 
 
@@ -112,9 +112,7 @@ int main(const int argc, const char** argv) {
 
 
 
-
-
-*/
+/*
 
 
 
@@ -967,3 +965,4 @@ int main() {
     return 0;
 }
 
+*/
