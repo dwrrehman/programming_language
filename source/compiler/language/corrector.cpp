@@ -11,8 +11,7 @@
 #include "parser.hpp"
 #include "arguments.hpp"
 #include "debug.hpp"
-
-
+#include "lists.hpp"
 
 /*
         known bug:
@@ -81,8 +80,10 @@ translation_unit correct(translation_unit unit, struct file file) {
     raise_indents(unit.list, file, 0);
     turn_indents_into_blocks(unit.list, file, 0);
 
-    std::cout << "------------------- corrector: -------------------------\n";
-    print_translation_unit(unit, file); // debug
+    if (debug) {
+        std::cout << "------------------- corrector: -------------------------\n";
+        print_translation_unit(unit, file);
+    }
 
     return unit;
 }

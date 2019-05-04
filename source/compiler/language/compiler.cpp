@@ -29,7 +29,7 @@
 #include <vector>
 
 std::unique_ptr<llvm::Module> frontend(struct file file, llvm::LLVMContext &context) {
-    return generate(analyze(correct(parse(preprocess(file), context), file), file), file, context);
+    return generate(analyze(correct(parse(file, context), file), file), file, context);
 }
 
 

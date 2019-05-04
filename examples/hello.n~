@@ -1,6 +1,0 @@
-; the hello world program.
-
-()
-    use .io
-    print "hello, world"
-

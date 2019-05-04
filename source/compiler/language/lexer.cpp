@@ -33,7 +33,7 @@ static bool is_identifier(char c) {
 }
 
 static bool is_operator(char c) {
-    return (!is_identifier(c) || !isascii(c)) && c != ' ';
+    return (!is_identifier(c) || !isascii(c)) && c != ' ' && c != '\t';
 }
 
 static bool isvalid(size_t c) {
@@ -105,7 +105,6 @@ struct token next() {
         } else if (is_identifier(text[c]) && isvalid(c+1) && !is_identifier(text[c+1]) && (state == lexing_state::none || state == lexing_state::indent)) {
             set_current(token_type::identifier, lexing_state::none);
             current.value = text[c];
-            if (current.value == "_") current.type = token_type::keyword;
             advance_by(1);
             clear_and_return();
 

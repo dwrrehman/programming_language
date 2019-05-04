@@ -12,12 +12,11 @@
 #include "lists.hpp"
 #include "error.hpp"
 #include "debug.hpp"
-
-#include "llvm/IR/LLVMContext.h"
-
-#include "preprocessor.hpp"
+#include "arguments.hpp"
 #include "compiler.hpp"
 #include "interpreter.hpp"
+
+#include "llvm/IR/LLVMContext.h"
 
 #include <vector>
 #include <iostream>
@@ -76,7 +75,7 @@ documentation parse_documentation(struct file file) {
 }
 
 bool is_syntax(std::string value) {
-    return std::find(syntax.begin(), syntax.end(), value) != syntax.end();
+    return std::find(language_syntax.begin(), language_syntax.end(), value) != language_syntax.end();
 }
 
 identifier parse_identifier(struct file file) {
@@ -119,6 +118,7 @@ block parse_block(struct file file) {
 
     auto saved = save();
     auto t = next();
+    auto st = t;
     if (!is_open_brace(t)) { revert_and_return(); }
 
     newlines();
@@ -136,10 +136,8 @@ block parse_block(struct file file) {
     indents();
     t = next();
     if (!is_close_brace(t)) {
-        if (t.type == token_type::null || true) {
-            print_parse_error(file.name, t.line, t.column, convert_token_type_representation(t.type), t.value, "\"}\" to close block");
-            print_source_code(file.text, {t});
-        }
+        print_parse_error(file.name, st.line, st.column, convert_token_type_representation(t.type), t.value, "\"}\" to close block");
+        print_source_code(file.text, {st});
         revert_and_return();
     }
 
@@ -155,12 +153,17 @@ symbol parse_symbol(struct file file, bool newlines_are_a_symbol) {
     if (is_open_paren(t)) {
         auto subexpression = parse_expression(file, /*can_be_empty = */true, /*newlines_are_a_symbol = */true);
         if (!subexpression.error) {
+            auto st = t;
             t = next();
             if (is_close_paren(t)) {
                 s.type = symbol_type::subexpression;
                 s.subexpression = subexpression;
                 s.error = false;
                 return s;
+            } else {
+                print_parse_error(file.name, st.line, st.column, convert_token_type_representation(t.type), t.value, "\")\" to close subexpression");
+                print_source_code(file.text, {st});
+                revert_and_return();
             }
         }
     }
@@ -326,20 +329,22 @@ translation_unit parse_translation_unit(struct file file) {
     return result;
 }
 
-translation_unit parse(struct preprocessed_file file, llvm::LLVMContext& context) {
+translation_unit parse(struct file file, llvm::LLVMContext& context) {
 
-    start_lex(file.unit);
+    start_lex(file);
 
-    debug_token_stream(); // debug
-    start_lex(file.unit); // debug
-    std::cout << "\n\n\n"; // debug
+    if (debug) {
+        debug_token_stream();
+        start_lex(file);
+        std::cout << "\n\n\n";
+    }
 
-    translation_unit unit = parse_translation_unit(file.unit);
+    translation_unit unit = parse_translation_unit(file);
 
-    print_translation_unit(unit, file.unit); // debug
+    if (debug) print_translation_unit(unit, file);
     
     if (unit.error || next().type != token_type::null) {
-        std::cout << "\n\n\tparse error!\n\n"; // debug
+        if (debug) std::cout << "\n\n\tparse error!\n\n";
         return {};
     }
 

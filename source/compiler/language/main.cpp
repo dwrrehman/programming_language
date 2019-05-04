@@ -12,43 +12,18 @@
 
 
 
-
-
-
-known bug in compiler:
-
-
-    - the too high indent level problem.
-
-        - - i think its a bug..?
-
-    try testing indent level = 2.
-
-
-
-
-
-
-
-
-
-
  add user cli hooks to make the compiler stop at any stage, and output the internal represetnation to the user.
 
 
  like:
 
-
- --emit=preprocessed  or    -p
  --emit=ast           or    -ast
  --emit=actiontree   or     -at
 
- --emit-llvm       or       -llvm
-
+ --emit-llvm       or       -ll
 
 
  we need these, they are useful for debugging and they make the compiler alittle bit more featureful.
-
 
 
 */
@@ -64,19 +39,11 @@ known bug in compiler:
 
 
 
-
-
-
-
-
-
-
-
-
 #include "arguments.hpp"
 #include "compiler.hpp"
 #include "interpreter.hpp"
 #include "error.hpp"
+#include "lists.hpp"
 
 #include "llvm/IR/LLVMContext.h"
 #include "llvm/IR/Module.h"
@@ -91,7 +58,7 @@ int main(const int argc, const char** argv) {
     else if (arguments.use_interpreter) interpreter(arguments.files[0]);
     else if (!arguments.files.size()) print_error_no_files();
 
-    debug_arguments(arguments); // debug
+    if (debug) debug_arguments(arguments);
 
     llvm::LLVMContext context;
     std::vector<std::unique_ptr<llvm::Module>> modules = {};
@@ -110,19 +77,7 @@ int main(const int argc, const char** argv) {
 }
 
 
-
-
 /*
-
-
-
-
-
-
-
-
-
-
 
 
 #include "llvm/ADT/APFloat.h"

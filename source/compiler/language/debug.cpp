@@ -183,6 +183,14 @@ void print_expression(expression expression, int d) {
         std::cout << "\n";
         i++;
     }
+    prep(d); std::cout << "type = {\n";
+    if (expression.type) {
+        print_expression(*expression.type, d+1);
+        prep(d); std::cout << "}\n";
+    } else {
+        prep(d+1); std::cout << "_type\n";
+        prep(d); std::cout << "}\n";
+    }
 }
 
 void print_expression_list(expression_list list, int d) {

@@ -1,6 +1,1 @@
-; the hello world program.
-
-()
-    use .io
-    print "hello, world"
-    print 5 + 6 
+print "hello, world!"

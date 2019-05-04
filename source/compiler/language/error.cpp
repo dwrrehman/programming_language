@@ -32,21 +32,21 @@ static std::string contract_filename(std::string filename) {
 static std::string error_heading( const std::string &filename, size_t line, size_t column) {
     std::ostringstream s;
     std::string shorter_filename = contract_filename(filename);
-    s << "\n" CYAN << language_name << RESET GRAY ": " RESET BRIGHT_RED "error" RESET GRAY ": " RESET MAGENTA << shorter_filename << RESET GRAY ": " << line << ":" << column << " : " RESET;
+    s << "\n" CYAN << language_name << RESET GRAY ": " RESET BRIGHT_RED "error" RESET GRAY ": " RESET MAGENTA << shorter_filename << RESET GRAY ":" << line << ":" << column << ": " RESET;
     return s.str();
 }
 
 static std::string warning_heading( const std::string &filename, size_t line, size_t column) {
     std::ostringstream s;
     std::string shorter_filename = contract_filename(filename);
-    s << "\n" CYAN << language_name << RESET GRAY ": " RESET BRIGHT_YELLOW "warning" RESET GRAY ": " RESET MAGENTA << shorter_filename << RESET GRAY ": " << line << ":" << column << " : " RESET;
+    s << "\n" CYAN << language_name << RESET GRAY ": " RESET BRIGHT_YELLOW "warning" RESET GRAY ": " RESET MAGENTA << shorter_filename << RESET GRAY ":" << line << ":" << column << ": " RESET;
     return s.str();
 }
 
 static std::string info_heading( const std::string &filename, size_t line, size_t column) {
     std::ostringstream s;
     std::string shorter_filename = contract_filename(filename);
-    s << "\n" CYAN << language_name << RESET GRAY ": " RESET BRIGHT_BLUE "info" RESET GRAY ": " RESET MAGENTA << shorter_filename << RESET GRAY ": " << line << ":" << column << " : " RESET;
+    s << "\n" CYAN << language_name << RESET GRAY ": " RESET BRIGHT_BLUE "info" RESET GRAY ": " RESET MAGENTA << shorter_filename << RESET GRAY ":" << line << ":" << column << ": " RESET;
     return s.str();
 }
 
@@ -55,6 +55,9 @@ static std::string note_heading() {
     s << "\n" CYAN << language_name << RESET GRAY ": \tnote: " RESET;
     return s.str();
 }
+
+
+
 
 // messagers:
 
@@ -73,6 +76,8 @@ void print_info_message(std::string filename, std::string message, size_t line, 
 void print_note(std::string message) {
     std::cerr << note_heading() << message << std::endl;
 }
+
+
 
 // specialized:
 
@@ -100,11 +105,19 @@ void print_error_no_files() {
 
 
 
+
+
+
+
 // source printers:
+
+void syntax_highlight(std::string& text) {
+    //TODO: fill in this function.
+}
 
 void print_source_code(std::string text, std::vector<struct token> offending_tokens) {
 
-    //syntax_highlight(text);
+    syntax_highlight(text);
 
     auto& t = offending_tokens[0]; //TODO: allow this function to print erros to do with multiple tokens in combintation.
     std::vector<int> offsets = {-2, -1, 0, 1, 2};

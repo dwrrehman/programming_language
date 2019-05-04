@@ -18,9 +18,10 @@ extern const std::string language_version;
 
 extern size_t spaces_count_for_indent;
 extern size_t max_expression_depth;
+extern bool debug;
 
 // main language syntax:
-extern const std::vector<std::string> syntax;
+extern const std::vector<std::string> language_syntax;
 
 
 #endif /* lists_hpp */

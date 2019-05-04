@@ -18,8 +18,6 @@ translation_unit correct(translation_unit unit, struct file file);
 
 /**
 
-
-
  -------------------- STAGES ------------------
 
  parsing - corrector:
@@ -51,6 +49,9 @@ translation_unit correct(translation_unit unit, struct file file);
  stage 8:    call signature resolution (CSR) phase
 
  stage 9:    numeric value subsitution (NVS) phase
+
+
+
 
 
 
@@ -97,8 +98,6 @@ translation_unit correct(translation_unit unit, struct file file);
  3. check if it takes the form of a call signature
  4. check if it takes the form of a type signature.
  5. if not any of these, throw an error: "unresolved expression: my func () hello () from space "
-
-
 
 
 

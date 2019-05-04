@@ -20,26 +20,20 @@
 #include <algorithm>
 
 
+/*   known bug:
 
+        parse _type end
 
-/*
-
- known bug:
-
- parse _type end
-
- solution: {ERROR}
+        solution: {ERROR}
 
  */
 
 
-/// Global builtin types. these are fundemental to the language.
-
+/// Global builtin types. these are fundemental to the language:
 // _type is nullptr
 expression unit_type = {};
-expression nothing_type = {{{"_none", false}}};
+expression none_type = {{{"_none", false}}};
 expression infered_type = {{{"_infered", false}}};
-
 
 
 bool expressions_match(expression first, expression second);
@@ -63,7 +57,6 @@ bool expressions_match(expression first, expression second) {
 }
 
 
-
 void prune_extraneous_subexpressions(expression& given) {
     while (given.symbols.size() == 1
            && given.symbols[0].type == symbol_type::subexpression
@@ -77,11 +70,10 @@ void prune_extraneous_subexpressions(expression& given) {
 
 
 
-
 expression csr(const std::vector<expression> list, const expression given, const size_t depth, const size_t max_depth, size_t& pointer, struct expression*& type) {
     
     if (depth > max_depth) return {true};
-    if (type && expressions_match(*type, nothing_type)) return {true};
+    if (type && expressions_match(*type, none_type)) return {true};
     if (given.symbols.empty() || (given.symbols.size() == 1
                                    && given.symbols[0].type == symbol_type::subexpression
                                    && given.symbols[0].subexpression.symbols.empty())) {
@@ -133,34 +125,42 @@ expression csr(const std::vector<expression> list, const expression given, const
 
 
 
-
-
 void test_csr(translation_unit unit, struct file file) {
 
-
-/*
-    signature int_type = {
+    expression int_type = {
         {
-            {"int", {}, false}
-        }, &unit_type, false};
+            {"int", false}
+        }, &unit_type};
 
-    signature dog_type = {
+    expression dog_type = {
         {
-            {"dog", {}, false}
-        }, &int_type, false};
+            {"dog", false}
+        }, &int_type};
 
-    signature print_type = {
+    expression x_type = {
         {
-            {"print", {}, false},
-            {"", {{}, &int_type, false}, true}
-        }, &int_type, false};
+            {"x", false}
+        }, &dog_type};
 
-    signature unit_to_int_type = {
+    expression print_type = {
         {
-            {"", {{}, &unit_type, false}, true}
-        }, &int_type, false};
-    */
-    std::vector<expression> signatures = {nothing_type, infered_type, /*int_type, print_type, dog_type, unit_to_int_type*/};
+            {"print", false},
+            {{{}, &int_type}},
+        }, &int_type};
+
+    expression is_good_type = {
+        {
+            {{{}, &dog_type}},
+            {"is", false},
+            {"good", false},
+        }, &int_type};
+
+    expression unit_to_int_type = {
+        {
+            {{{}, &unit_type}}
+        }, &int_type};
+
+    std::vector<expression> signatures = {none_type, infered_type, int_type, dog_type, print_type, unit_to_int_type, x_type, is_good_type};
 
     std::sort(signatures.begin(), signatures.end(), [](auto a, auto b) { return a.symbols.size() > b.symbols.size(); });
 
@@ -171,6 +171,10 @@ void test_csr(translation_unit unit, struct file file) {
 
     std::cout << "parsing: ";
     print_expression(given, 0);
+
+
+
+
 
     prune_extraneous_subexpressions(given);
     
@@ -190,6 +194,8 @@ void test_csr(translation_unit unit, struct file file) {
         else break;
     }
 
+
+    
     std::cout << "\nsolution: ";
     print_expression(solution, 0);
     std::cout << "\n";
@@ -202,29 +208,16 @@ void test_csr(translation_unit unit, struct file file) {
     if (pointer < given.symbols.size()) {
         std::cout << "(but its erroenous)...\n";
     }
-
 }
-
-
-
-
-
-
-
-
-
-
-
-
 
 translation_unit analyze(translation_unit unit, struct file file) {
 
-    std::cout << "----------------- analyzer ---------------------\n";
-    print_translation_unit(unit, file);
-
-
     test_csr(unit, file);
 
+    if (debug && false) {
+        std::cout << "----------------- analyzer ---------------------\n";
+        print_translation_unit(unit, file);
+    }
 
     return {};
 }

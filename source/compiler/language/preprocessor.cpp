@@ -16,8 +16,3 @@
 #include <iostream>
 #include <vector>
 #include <exception>
-
-struct preprocessed_file preprocess(struct file file) {    
-    file.text += "\n";
-    return {file};
-}
