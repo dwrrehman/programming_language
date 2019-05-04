@@ -33,21 +33,6 @@ known bug in compiler:
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
  add user cli hooks to make the compiler stop at any stage, and output the internal represetnation to the user.
 
 
@@ -82,11 +67,11 @@ known bug in compiler:
 
 
 
-
-
-
-
 /*
+
+
+
+
 
 #include "arguments.hpp"
 #include "compiler.hpp"
@@ -124,13 +109,12 @@ int main(const int argc, const char** argv) {
     for (auto& module : modules) link(program, module);
 }
 
+
+
+
+
+
 */
-
-
-
-
-
-
 
 
 
