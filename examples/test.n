@@ -1,3 +1,1 @@
-(
-    print x is good
-)
+(((_infered)))

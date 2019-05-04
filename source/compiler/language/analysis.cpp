@@ -35,8 +35,9 @@
 
 /// Global builtin types. these are fundemental to the language.
 
+// _type is nullptr
 expression unit_type = {};
-expression nothing_type = {{{"_nothing", false}}};
+expression nothing_type = {{{"_none", false}}};
 expression infered_type = {{{"_infered", false}}};
 
 
@@ -56,7 +57,7 @@ bool expressions_match(expression first, expression second) {
     for (size_t i = 0; i < first.symbols.size(); i++) {
         if (!symbols_match(first.symbols[i], second.symbols[i])) return false;
     }
-    if (first.error || second.error) return false;
+    if (first.erroneous || second.erroneous) return false;
     if ((!first.type && !second.type) || expressions_match(*first.type, *second.type)) return true;
     else return false;
 }
@@ -134,16 +135,9 @@ expression csr(const std::vector<expression> list, const expression given, const
 
 
 
+void test_csr(translation_unit unit, struct file file) {
 
 
-
-
-
-
-void test_csr() {
-
-
-    bool debug = true;
 /*
     signature int_type = {
         {
@@ -166,95 +160,49 @@ void test_csr() {
             {"", {{}, &unit_type, false}, true}
         }, &int_type, false};
     */
-    std::vector<struct signature> signatures = {nothing_type, infered_type, /*int_type, print_type, dog_type, unit_to_int_type*/};
+    std::vector<expression> signatures = {nothing_type, infered_type, /*int_type, print_type, dog_type, unit_to_int_type*/};
 
-    std::sort(signatures.begin(), signatures.end(), [](auto a, auto b) { return a.elements.size() > b.elements.size(); });
+    std::sort(signatures.begin(), signatures.end(), [](auto a, auto b) { return a.symbols.size() > b.symbols.size(); });
 
-    std::string command = "";
-    while (command != "quit") {
-
-        std::cout << "::> ";
-        std::cin >> command;
-
-        if (command == "parse" || command == "do" || command == "solve" || command == "csr" || command == "f" || command == "p") {
-            std::string expression = "";
-
-            std::string element = "";
-            while (element != "end") {
-                std::cin >> element;
-                if (element != "end") expression += element + " ";
-            }
-
-            auto tokens = tokenize(expression);
-            tokens.pop_back();
-
-            current = 0;
-            auto given = turn_into_expression(tokens);
-
-            std::cout << "parsing: ";
-            print_string_array(tokens);
-            std::cout << " and ";
-            print_signature(given);
-            prune_extraneous_subexpressions(given);
-            std::cout << ", aka ";
-            print_signature(given);
-            std::cout << "\n";
-
-            size_t pointer = 0;
-            expression solution = {};
-            expression* type = &infered_type;
-            size_t max_depth = 0;
-            while (max_depth <= max_expression_depth) {
-                std::cout << "trying depth = " << max_depth << std::endl; // debug
-                pointer = 0;
-                type = &infered_type;
-                solution = csr(signatures, given, 0, max_depth, pointer, type);
-                if (debug) std::cout << "\n\n\n\n";
-                if (solution.erroneous || pointer < given.elements.size()) {
-                    max_depth++;
-                }
-                else break;
-            }
-
-            std::cout << "\nsolution: ";
-            print_signature(solution);
-            std::cout << "\n";
-
-            std::cout << "it has type = ";
-            if (type) print_signature(*type); else std::cout << "{_type}";
-            std::cout << "\n";
-            if (pointer < given.elements.size()) {
-                std::cout << "(but its erroenous)...\n";
-            }
-
-        } else if (command == "add") {
-
-        } else if (command == "show") {
-            print_defined_signatures(signatures);
-
-        } else if (command == "help") {
-            std::cout << "commands:\n\t - add <signature> end\n\t - show\n\t - parse <expression> end\n\t - quit\n\t - clear\n\t - depth <nat>\n\n";
-
-        } else if (command == "clear") {
-            system("clear");
-
-        } else if (command == "depth") {
-
-            std::string mode = "";
-            std::cin >> mode;
-            if (mode == "set") {
-                std::cin >> max_expression_depth;
-                std::cout << "set depth: " << max_expression_depth << "\n";
-            } else if (mode == "get") {
-                std::cout << "maximum depth = " << max_expression_depth << "\n";
-            } else {
-                std::cout << "unrecognized mode.\n";
-            }
-        } else {
-            std::cout << command << ": command not found.\n";
-        }
+    expression given = {};
+    if (unit.list.expressions.size()) {
+        given = unit.list.expressions[0];
     }
-    std::cout << "quitting...\n";
+
+    std::cout << "parsing: ";
+    print_expression(given, 0);
+
+    prune_extraneous_subexpressions(given);
+    
+    size_t pointer = 0;
+    expression solution = {};
+    expression* type = &infered_type;
+    size_t max_depth = 0;
+
+    while (max_depth <= max_expression_depth) {
+        std::cout << "trying depth = " << max_depth << std::endl;
+        pointer = 0;
+        type = &infered_type;
+        solution = csr(signatures, given, 0, max_depth, pointer, type);
+        if (solution.erroneous || pointer < given.symbols.size()) {
+            max_depth++;
+        }
+        else break;
+    }
+
+    std::cout << "\nsolution: ";
+    print_expression(solution, 0);
+    std::cout << "\n";
+
+    std::cout << "it has type = ";
+    if (type) print_expression(*type, 0);
+    else std::cout << "{_type}";
+    std::cout << "\n";
+
+    if (pointer < given.symbols.size()) {
+        std::cout << "(but its erroenous)...\n";
+    }
+
 }
 
 
@@ -275,9 +223,7 @@ translation_unit analyze(translation_unit unit, struct file file) {
     print_translation_unit(unit, file);
 
 
-
-
-    test_csr();
+    test_csr(unit, file);
 
 
     return {};
