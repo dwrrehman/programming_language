@@ -319,9 +319,9 @@
 				CODE_SIGN_STYLE = Automatic;
 				DEVELOPMENT_TEAM = JTMD2SW5KN;
 				HEADER_SEARCH_PATHS = "";
-				LIBRARY_SEARCH_PATHS = /usr/local/Cellar/llvm/7.0.0/lib;
+				LIBRARY_SEARCH_PATHS = /usr/local/Cellar/llvm/8.0.0/lib;
 				OTHER_LDFLAGS = (
-					"-I/usr/local/Cellar/llvm/7.0.0/include",
+					"-I/usr/local/Cellar/llvm/8.0.0/include",
 					"-stdlib=libc++",
 					"-fPIC",
 					"-fvisibility-inlines-hidden",
@@ -484,7 +484,7 @@
 					"-lxml2",
 				);
 				PRODUCT_NAME = "$(TARGET_NAME)";
-				USER_HEADER_SEARCH_PATHS = /usr/local/Cellar/llvm/7.0.0/include;
+				USER_HEADER_SEARCH_PATHS = /usr/local/Cellar/llvm/8.0.0/include;
 			};
 			name = Debug;
 		};
@@ -494,9 +494,9 @@
 				CODE_SIGN_STYLE = Automatic;
 				DEVELOPMENT_TEAM = JTMD2SW5KN;
 				HEADER_SEARCH_PATHS = "";
-				LIBRARY_SEARCH_PATHS = /usr/local/Cellar/llvm/7.0.0/lib;
+				LIBRARY_SEARCH_PATHS = /usr/local/Cellar/llvm/8.0.0/lib;
 				OTHER_LDFLAGS = (
-					"-I/usr/local/Cellar/llvm/7.0.0/include",
+					"-I/usr/local/Cellar/llvm/8.0.0/include",
 					"-stdlib=libc++",
 					"-fPIC",
 					"-fvisibility-inlines-hidden",
@@ -659,7 +659,7 @@
 					"-lxml2",
 				);
 				PRODUCT_NAME = "$(TARGET_NAME)";
-				USER_HEADER_SEARCH_PATHS = /usr/local/Cellar/llvm/7.0.0/include;
+				USER_HEADER_SEARCH_PATHS = /usr/local/Cellar/llvm/8.0.0/include;
 			};
 			name = Release;
 		};

@@ -70,6 +70,32 @@ void prune_extraneous_subexpressions(expression& given) {
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 expression csr(const std::vector<expression> list, const expression given, const size_t depth, const size_t max_depth, size_t& pointer, struct expression*& type) {
     
     if (depth > max_depth) return {true};
