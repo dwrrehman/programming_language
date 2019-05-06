@@ -1,35 +1,16 @@
-# A Programming Langauge Created By Daniel Rehman.
+# n3zqx2l
 
-this is a programming lang. its awesome.
+### Created By Daniel Rehman.
+
+n3zqx2l is a general-purpose, minimalist, multi-paradigm, efficient, extensible, strongly, statically, and nominally typed, statically scoped, aggressively type-infered, expression-based, compiled, JIT-compiled, and interpreted programming language, designed with code readability and runtime performance in mind, and built using the LLVM compiler infrastrcture.
+
+This project is an implementation of a n3zqx2l compiler, called "nostril". It is written in C++, and uses the LLVM C++ API.
 
 
-### hello world program:
+### finally, heres the hello world program:
 
 ```
- 1  () {
- 2     use .io
- 3     print "Hello, world!"
- 4  }
+  print "Hello, world!"
 ```
 
-To get a feeling of how this language works, ill explain this program.
-the line 1 of the main program is just declaring a anonymous function (ie, a lambda), which serves as the only entry point for the executable. its sorta like delcaraing "main" in other C like languages.
-you can only have one top-level lambda in a executable, just as you can only have one symbol called "main" in a C program.
-
-line 2 is called a "use statement", and functions to not only allow the system library ".io" itself to be accessed by the current scope by including it,
-but it also works to allow all of the immediate members in the .io system library to be accessed in the current scope as well, without saying ".io.print". 
-if you didnt want all the immediate members of the library to be included in the current scope, you would say "import .io". 
-the "." infront of the filename, means its a system library. note that dependancies are tied to definitions, not to files, quite like the D programming language.
-
-line 3 is the actual call to "print", to print something to the screen. the function automatically prints a newline by default, however, there are optional parameters 
-you can give to make it not print any terminator. note that "print" is not a keyword, (even though it may look like it, coming from as language like Python), 
-Its actually a function call. this language utilizes a new function call syntax i devised, which is much more intuitive then the traditional widely used "C" function call syntax.
-thus, line 3 is actually passing in a string (which arent built into the language, but provided by including by the .io library) into the function print.
-no need to terminate a lines with semicolons, as newlines are sufficent.
-
-line 4 is your programmatic, warm, familar end curly brace, which terminates main, which will implicitly return 0.
-
-...and thats the hello world program!
-
-
-
+...nothing more or less than what a hello world program should be.
