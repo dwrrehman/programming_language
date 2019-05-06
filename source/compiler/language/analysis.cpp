@@ -30,11 +30,49 @@ TODO:
 
 
 
-        make a quick and simple expression parser, which prints it on one line, very simply, using parens for subexpressions.
+
+        DEBUG:
+
+                make a quick and simple expression parser, which
+                prints it on one line, very simply, using parens for subexpressions.
+
+
+
+
+
+        FUNC:
+
+                - basic ADP
+
+                - literal recognition
+
+                - ast nodes
+
+                - FDI
+
+
+
+
+
+        ERROR MESSAGES:
+
+                - better EM for a extraneous ")", in parser.
+
+                - better EM for unresolved expression,
+
+                - make an error queue, which error messages are depositied onto, (with a limit of the number of errors)
+                    and then pritn the whole stack at the end of the programs compilation, with the error count.
+
+
+
+
+
+
 
  */
 
 /// Global builtin types. these are fundemental to the language:
+
 // _type is also just nullptr.
 
 expression unit_type = {};
@@ -43,15 +81,16 @@ expression none_type = {{{"_none", false}}};
 expression infered_type = {{{"_infered", false}}};
 
 expression i32_type = {{{"_i32", false}}};
-expression exit_abstraction = {
+expression exit_abstraction = {                 // used for returning from main, always.
     {
         {"_exit", false},
         {{{}, &i32_type}}
     }, &unit_type};
 
 
-/////////////// TESTING SIGNATURES //////////////////////////
 
+
+/////////////// TESTING SIGNATURES //////////////////////////
 
 expression int_type = {
     {
@@ -96,8 +135,10 @@ expression int_to_unit_type = {
         {{{}, &int_type}}
     }, &unit_type};
 
-
 ////////////////////////////////////////////////////////////////////
+
+
+
 
 
 
@@ -106,8 +147,12 @@ std::vector<expression> builtins =  {
 
     // TESTING:
     int_type, dog_type, print_type, int_to_unit_type,
-    unit_to_int_type, is_good_type, x_type, int0_literal,
+    unit_to_int_type, is_good_type, x_type, int0_literal, 
 };
+
+
+
+
 
 
 
@@ -145,26 +190,6 @@ void prune_extraneous_subexpressions(expression& given) {
     for (auto& symbol : given.symbols)
         if (symbol.type == symbol_type::subexpression) prune_extraneous_subexpressions(symbol.subexpression);
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 
@@ -228,105 +253,10 @@ expression csr(const std::vector<expression> list, const expression given, const
 }
 
 
+abstraction_definition adp(expression given) {
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-void test_csr(translation_unit unit, struct file file) {
-
-    expression int_type = {
-        {
-            {"int", false}
-        }, &unit_type};
-
-    expression dog_type = {
-        {
-            {"dog", false}
-        }, &int_type};
-
-    expression x_type = {
-        {
-            {"x", false}
-        }, &dog_type};
-
-    expression print_type = {
-        {
-            {"print", false},
-            {{{}, &int_type}},
-        }, &int_type};
-
-    expression is_good_type = {
-        {
-            {{{}, &dog_type}},
-            {"is", false},
-            {"good", false},
-        }, &int_type};
-
-    expression unit_to_int_type = {
-        {
-            {{{}, &unit_type}}
-        }, &int_type};
-
-    std::vector<expression> signatures = {none_type, infered_type, int_type, dog_type, print_type, unit_to_int_type, x_type, is_good_type};
-
-    std::sort(signatures.begin(), signatures.end(), [](auto a, auto b) { return a.symbols.size() > b.symbols.size(); });
-
-    expression given = {};
-    if (unit.list.expressions.size()) {
-        given = unit.list.expressions[0];
-    }
-
-    std::cout << "parsing: ";
-    print_expression(given, 0);
-
-
-//////////////////// how to use csr ////////////////////////
-    prune_extraneous_subexpressions(given);
-    
-    size_t pointer = 0;
-    expression solution = {};
-    expression* type = &infered_type;
-    size_t max_depth = 0;
-
-    while (max_depth <= max_expression_depth) {
-        std::cout << "trying depth = " << max_depth << std::endl; // debug
-        pointer = 0;
-        type = &infered_type;
-        solution = csr(signatures, given, 0, max_depth, pointer, type);
-        if (solution.erroneous || pointer < given.symbols.size()) {
-            max_depth++;
-        }
-        else break;
-    }
-////////////////////////////////////////////////////////////////
-
-    
-    std::cout << "\nsolution: ";
-    print_expression(solution, 0);
-    std::cout << "\n";
-
-    std::cout << "it has type = ";
-    if (type) print_expression(*type, 0);
-    else std::cout << "{_type}";
-    std::cout << "\n";
-
-    if (pointer < given.symbols.size()) {
-        std::cout << "(but its erroenous)...\n";
-    }
+    return {};
 }
-
-
 
 
 expression resolve(std::vector<expression> list, expression given, expression solution_type) {
@@ -334,42 +264,37 @@ expression resolve(std::vector<expression> list, expression given, expression so
     std::sort(list.begin(), list.end(), [](auto a, auto b) { return a.symbols.size() > b.symbols.size(); });
     prune_extraneous_subexpressions(given);
 
-    std::cout << "printing given list:\n";
-    for (auto l : list) {
-        print_expression(l, 0);
-        std::cout << "\n\n";
+    if (debug) {
+        std::cout << "printing given list:\n";
+        for (auto l : list) {
+            print_expression(l, 0);
+            std::cout << "\n\n";
+        }
+        std::cout << "finished printing list..\n";
+
+        std::cout << "given expression:\n";
+        print_expression(given, 0);
+        std::cout << "\n\n\n";
     }
-
-    std::cout << "finished.\n";
-
-    std::cout << "now printing givne expression:\n";
-
-    print_expression(given, 0);
-
-
-    std::cout << "\n\nfinsihed.\n";
-
 
     size_t pointer = 0, max_depth = 0;
     expression solution = {};
-    auto sol_t_cop = solution_type;
+    auto solution_type_copy = solution_type;
     while (max_depth <= max_expression_depth) {
         pointer = 0;
-        solution.type = &sol_t_cop;
+        solution.type = &solution_type_copy;
         solution = csr(list, given, 0, max_depth, pointer, solution.type);
         if (solution.erroneous || pointer < given.symbols.size()) { max_depth++; }
         else break;
     }
     if (pointer < given.symbols.size()) solution.erroneous = true;
+
+    if (solution.erroneous) {
+        adp(given);
+    }
+
     return solution;
 }
-
-
-abstraction_definition adp(expression given) {
-
-    return {};
-}
-
 
 void wrap_into_main(translation_unit& unit) {
     auto main_body = unit.list;
@@ -380,11 +305,6 @@ void wrap_into_main(translation_unit& unit) {
     expression top_level_expression = {{main_symbol}};
     unit.list.expressions.clear();
     unit.list.expressions.push_back(top_level_expression);
-}
-
-void append_test_sigs(std::vector<expression>& table) {
-
-
 }
 
 translation_unit analyze(translation_unit unit, struct file file) {
@@ -425,7 +345,6 @@ translation_unit analyze(translation_unit unit, struct file file) {
 
     return unit;
 }
-
 
 // note for future self:
 
