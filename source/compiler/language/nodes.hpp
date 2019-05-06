@@ -118,6 +118,10 @@ public:
 class block: public node {
 public:
     expression_list list = {};
+    block(){}
+    block(expression_list list) {
+        this->list = list;
+    }
 };
 
 
@@ -129,6 +133,14 @@ public:
     expression call_signature = {};
     expression return_type = {};
     block body = {};
+
+    abstraction_definition(){}
+    abstraction_definition(expression call, expression rt, block body) {
+        this->call_signature = call;
+        this->return_type = rt;
+        this->body = body;
+    }
+
 };
 
 class symbol: public node {
@@ -141,7 +153,7 @@ public:
     documentation documentation = {};
     llvm_literal llvm = {};
     identifier identifier = {};
-    abstraction_definition abstraction = {};
+    abstraction_definition abstraction = {}; 
     
     symbol(){}
     symbol(enum symbol_type type) {
@@ -155,6 +167,10 @@ public:
     symbol(expression subexpression) {
         this->type = symbol_type::subexpression;
         this->subexpression = subexpression;
+    }
+    symbol(abstraction_definition a) {
+        this->type = symbol_type::abstraction_definition;
+        this->abstraction = a;
     }
 };
 

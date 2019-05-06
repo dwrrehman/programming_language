@@ -26,17 +26,95 @@
 
         solution: {ERROR}
 
+TODO:
+
+
+
+        make a quick and simple expression parser, which prints it on one line, very simply, using parens for subexpressions.
+
  */
 
-
 /// Global builtin types. these are fundemental to the language:
-// _type is nullptr
+// _type is also just nullptr.
+
 expression unit_type = {};
+expression type_type = {{{"_type", false}}};
 expression none_type = {{{"_none", false}}};
 expression infered_type = {{{"_infered", false}}};
 
+expression i32_type = {{{"_i32", false}}};
+expression exit_abstraction = {
+    {
+        {"_exit", false},
+        {{{}, &i32_type}}
+    }, &unit_type};
+
+
+/////////////// TESTING SIGNATURES //////////////////////////
+
+
+expression int_type = {
+    {
+        {"int", false}
+    }, &unit_type};
+
+expression int0_literal = {
+    {
+        {"0", false}
+    }, &i32_type};
+
+expression dog_type = {
+    {
+        {"dog", false}
+    }, &int_type};
+
+expression x_type = {
+    {
+        {"x", false}
+    }, &dog_type};
+
+expression print_type = {
+    {
+        {"print", false},
+        {{{}, &int_type}},
+    }, &int_type};
+
+expression is_good_type = {
+    {
+        {{{}, &dog_type}},
+        {"is", false},
+        {"good", false},
+    }, &int_type};
+
+expression unit_to_int_type = {
+    {
+        {{{}, &unit_type}}
+    }, &int_type};
+
+expression int_to_unit_type = {
+    {
+        {{{}, &int_type}}
+    }, &unit_type};
+
+
+////////////////////////////////////////////////////////////////////
+
+
+
+std::vector<expression> builtins =  {
+    unit_type, none_type, infered_type, i32_type, exit_abstraction,
+
+    // TESTING:
+    int_type, dog_type, print_type, int_to_unit_type,
+    unit_to_int_type, is_good_type, x_type, int0_literal,
+};
+
+
+
 
 bool expressions_match(expression first, expression second);
+expression csr(const std::vector<expression> list, const expression given, const size_t depth, const size_t max_depth, size_t& pointer, struct expression*& type);
+
 
 bool symbols_match(symbol first, symbol second) {
     if (first.type == symbol_type::subexpression && second.type == symbol_type::subexpression)
@@ -52,7 +130,7 @@ bool expressions_match(expression first, expression second) {
         if (!symbols_match(first.symbols[i], second.symbols[i])) return false;
     }
     if (first.erroneous || second.erroneous) return false;
-    if ((!first.type && !second.type) || expressions_match(*first.type, *second.type)) return true;
+    if ((!first.type && !second.type) || ((first.type && second.type) && expressions_match(*first.type, *second.type))) return true;
     else return false;
 }
 
@@ -151,6 +229,20 @@ expression csr(const std::vector<expression> list, const expression given, const
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 void test_csr(translation_unit unit, struct file file) {
 
     expression int_type = {
@@ -199,9 +291,7 @@ void test_csr(translation_unit unit, struct file file) {
     print_expression(given, 0);
 
 
-
-
-
+//////////////////// how to use csr ////////////////////////
     prune_extraneous_subexpressions(given);
     
     size_t pointer = 0;
@@ -210,7 +300,7 @@ void test_csr(translation_unit unit, struct file file) {
     size_t max_depth = 0;
 
     while (max_depth <= max_expression_depth) {
-        std::cout << "trying depth = " << max_depth << std::endl;
+        std::cout << "trying depth = " << max_depth << std::endl; // debug
         pointer = 0;
         type = &infered_type;
         solution = csr(signatures, given, 0, max_depth, pointer, type);
@@ -219,7 +309,7 @@ void test_csr(translation_unit unit, struct file file) {
         }
         else break;
     }
-
+////////////////////////////////////////////////////////////////
 
     
     std::cout << "\nsolution: ";
@@ -236,71 +326,109 @@ void test_csr(translation_unit unit, struct file file) {
     }
 }
 
-translation_unit analyze(translation_unit unit, struct file file) {
 
-    test_csr(unit, file);
 
-    if (debug && false) {
-        std::cout << "----------------- analyzer ---------------------\n";
-        print_translation_unit(unit, file);
+
+expression resolve(std::vector<expression> list, expression given, expression solution_type) {
+
+    std::sort(list.begin(), list.end(), [](auto a, auto b) { return a.symbols.size() > b.symbols.size(); });
+    prune_extraneous_subexpressions(given);
+
+    std::cout << "printing given list:\n";
+    for (auto l : list) {
+        print_expression(l, 0);
+        std::cout << "\n\n";
     }
+
+    std::cout << "finished.\n";
+
+    std::cout << "now printing givne expression:\n";
+
+    print_expression(given, 0);
+
+
+    std::cout << "\n\nfinsihed.\n";
+
+
+    size_t pointer = 0, max_depth = 0;
+    expression solution = {};
+    auto sol_t_cop = solution_type;
+    while (max_depth <= max_expression_depth) {
+        pointer = 0;
+        solution.type = &sol_t_cop;
+        solution = csr(list, given, 0, max_depth, pointer, solution.type);
+        if (solution.erroneous || pointer < given.symbols.size()) { max_depth++; }
+        else break;
+    }
+    if (pointer < given.symbols.size()) solution.erroneous = true;
+    return solution;
+}
+
+
+abstraction_definition adp(expression given) {
 
     return {};
 }
 
 
-
-
-/*
-signature csr(const std::vector<signature> list, const signature given, const size_t depth, const size_t max_depth, size_t& pointer, struct signature*& type) {
-
-    if (depth > max_depth) return {{}, nullptr, true};
-    if (type && signatures_match(*type, nothing_type)) return {{}, nullptr, true};
-    if (given.elements.empty() || (given.elements.size() == 1
-                                   && given.elements[0].is_parameter
-                                   && given.elements[0].children.elements.empty())) {
-        if (given.elements.size() == 1
-            && given.elements[0].is_parameter
-            && given.elements[0].children.elements.empty()) pointer++;
-        if (type && signatures_match(*type, infered_type)) type = &unit_type;
-        if (!type || signatures_match(*type, unit_type)) return {{}, &unit_type};
-        else return {{}, nullptr, true};
-    }
-    const size_t saved = pointer;
-    for (auto signature : list) {
-        if (type && !signatures_match(*type, infered_type) && (!signature.type || !signatures_match(*type, *signature.type))) continue;
-        struct signature solution = {};
-        pointer = saved;
-        bool failed = false;
-        for (auto element : signature.elements) {
-            if (pointer >= given.elements.size()) { failed = true; break; }
-            if (element.is_parameter) {
-                auto subexpression = csr(list, given, depth + 1, max_depth, pointer, element.children.type);
-                if (subexpression.erroneous) {
-                    if (given.elements[pointer].is_parameter) {
-                        size_t local_pointer = 0, current_depth = 0;
-                        struct signature subexpression = {};
-                        while (current_depth <= max_expression_depth) {
-                            local_pointer = 0;
-                            subexpression = csr(list, given.elements[pointer].children, 0, current_depth, local_pointer, element.children.type);
-                            if (subexpression.erroneous || local_pointer < given.elements[pointer].children.elements.size()) {
-                                current_depth++;
-                            } else break;
-                        }
-                        if (subexpression.erroneous || local_pointer < given.elements[pointer].children.elements.size()) { failed = true; break; }
-                        solution.elements.push_back({"", subexpression, true});
-                        pointer++; continue;
-                    } else { failed = true; break; }
-                } solution.elements.push_back({"", subexpression, true});
-            } else if (element.name == given.elements[pointer].name) {
-                solution.elements.push_back(element);
-                pointer++;
-            } else { failed = true; break; }
-        } if (!failed) {
-            if (type && signatures_match(*type, infered_type)) type = signature.type;
-            solution.type = signature.type;
-            return solution;
-        }
-    } return {{}, nullptr, true};
+void wrap_into_main(translation_unit& unit) {
+    auto main_body = unit.list;
+    expression main_call_signature = {{{"_main", false}}};
+    expression main_return_type = {{{"_i32", false}}};
+    abstraction_definition main_abstraction = {main_call_signature, main_return_type, {main_body}};
+    symbol main_symbol = {main_abstraction};
+    expression top_level_expression = {{main_symbol}};
+    unit.list.expressions.clear();
+    unit.list.expressions.push_back(top_level_expression);
 }
-*/
+
+void append_test_sigs(std::vector<expression>& table) {
+
+
+}
+
+translation_unit analyze(translation_unit unit, struct file file) {
+
+    wrap_into_main(unit);
+    std::vector<std::vector<expression>> tables = {builtins};
+    auto& main = unit.list.expressions[0].symbols[0].abstraction;
+    auto& body = main.body.list.expressions;
+
+    bool error = false;
+
+    if (body.size()) {
+        std::vector<expression> parsed_body = {};
+        for (size_t i = 0; i < body.size(); i++) {
+            auto solution = resolve(tables.back(), body[i], unit_type);
+            if (solution.erroneous) {
+                std::cout << "n3zqx2l: csr: fake error: Could not parse expression!\n"; // TODO: print an error of some kind!
+                error = true;
+                continue;
+            }
+            parsed_body.push_back(solution);
+        }
+        main.body.list.expressions = parsed_body;
+    } else {
+        main.return_type = unit_type;
+    }
+
+    if (debug) {
+        std::cout << "----------------- analyzer ---------------------\n";
+        print_translation_unit(unit, file);
+    }
+
+    if (error) {
+        std::cout << "\n\n\tCSR ERROR\n\n\n\n";
+    } else {
+        std::cout << "\n\n\tsuccess.\n\n\n";
+    }
+
+    return unit;
+}
+
+
+// note for future self:
+
+    // simply use a static global, which is in common between all calls to analyze().
+    // when we need to make sure that there is only one file which contains top level statements,
+    // we simply look at this global variable, called "found_main". if true, and we want to makr this current file as main, error.
