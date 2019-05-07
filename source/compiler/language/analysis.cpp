@@ -106,19 +106,17 @@ expression unit_type = {{}, &type_type};
 expression infered_type = {{{"_infered", false}}};
 
 expression i32_type = {{{"_i32", false}}, &type_type};
-expression exit_abstraction = {                 // used for returning from main, always.
+expression exit_abstraction = {
     {
         {"_exit", false},
         {{{}, &i32_type}}
     }, &unit_type};
-
 
 /////////////// TESTING SIGNATURES //////////////////////////
 
 expression int_type = {
     {
         {"int", false},
-        {{{}, &type_type}}
     }, &unit_type};
 
 expression int0_literal = {
@@ -144,7 +142,7 @@ expression print_type = {
 
 expression abs_type = {
     {
-        unit_type
+        {{{unit_type}}},
     }, &type_type};
 
 expression print_abs_type = {
@@ -161,11 +159,6 @@ expression is_good_type = {
         {"good", false},
     }, &int_type};
 
-expression type_to_unit_type = {
-    {
-        {{{}, &type_type}}
-    }, &unit_type};
-
 ////////////////////////////////////////////////////////////////////
 
 std::vector<expression> builtins =  {
@@ -173,9 +166,9 @@ std::vector<expression> builtins =  {
 
     // TESTING:
     int_type, dog_type, print_type,
-    is_good_type, x_type, int0_literal, type_to_unit_type,
+    is_good_type, x_type, int0_literal,
 
-    abs_type, print_abs_type,
+    print_abs_type, abs_type,
 };
 
 bool expressions_match(expression first, expression second, const int d);
@@ -231,6 +224,7 @@ expression* generate_abstraction_type_for(abstraction_definition def) {
         type->symbols.push_back(t);
     }
     type->symbols.push_back({def.return_type});
+    type->type = &type_type;
     return type;
 }
 
@@ -276,6 +270,10 @@ bool adp(abstraction_definition& given, std::vector<std::vector<expression>>& st
     if (given.return_type.symbols.size()) {
         auto type = infered_type;
         given.return_type = resolve(stack, given.return_type, type);
+
+        std::cout << "--------------> printing the given return type: \n";
+        print_expression(given.return_type, 0);
+
         if (given.return_type.type && expressions_match(*given.return_type.type, unit_type, 0)) {
             given.return_type = unit_type;
         } else if (given.return_type.type && expressions_match(*given.return_type.type, none_type, 0)) {
@@ -334,8 +332,9 @@ bool adp(abstraction_definition& given, std::vector<std::vector<expression>>& st
         }
         parsed_body.push_back(solution);
         given.body.list.expressions = parsed_body;
-    } else {
-        given.return_type = type_type;
+    } else if (expressions_match(given.return_type, infered_type, 0)) {
+
+        given.return_type = unit_type;
     }
 
     stack.pop_back();
@@ -410,36 +409,36 @@ expression csr(std::vector<std::vector<expression>>& stack, const expression giv
         bool adp_error = adp(definition, stack);
         auto abstraction_type = generate_abstraction_type_for(definition);
 
-//        if (debug) {
-//            std::cout << "found an abstraction, it has type: \n";
-//            print_expression(*abstraction_type, 0);
-//
-//            std::cout << "for your infomation, we were given the type ___ to recognize: \n";
-//            if (expected) print_expression(*expected, 0);
-//            else std::cout << "{{{{TYPE}}}}\n";
-//
-//            std::cout << "\nand we got the following total type from the abstraction definition, :\n";
-//            print_expression(*abstraction_type, 0);
-//            std::cout << "\n\n";
-//        }
+        if (debug) {
+            std::cout << "found an abstraction, it has type: \n";
+            print_expression(*abstraction_type, 0);
+
+            std::cout << "for your infomation, we were given the type ___ to recognize: \n";
+            if (expected) print_expression(*expected, 0);
+            else std::cout << "{{{{TYPE}}}}\n";
+
+            std::cout << "\nand we got the following total type from the abstraction definition, :\n";
+            print_expression(*abstraction_type, 0);
+            std::cout << "\n\n";
+        }
 
         if ((expressions_match(*expected, *abstraction_type, 0) || expressions_match(*expected, infered_type, 0))) {
 
-//            std::cout << "we found them to be equal!!\n";
-//            std::cout << "is_not_type(expected) = " << expected << "\n";
-//            std::cout << "expressions_match(*expected, *abstraction_type) = " << expressions_match(*expected, *abstraction_type, 0) << "\n";
-//            std::cout << "expressions_match(*expected, infered_type) = " << expressions_match(*expected, infered_type, 0) << "\n";
+            std::cout << "we found them to be equal!!\n";
+            std::cout << "is_not_type(expected) = " << expected << "\n";
+            std::cout << "expressions_match(*expected, *abstraction_type) = " << expressions_match(*expected, *abstraction_type, 0) << "\n";
+            std::cout << "expressions_match(*expected, infered_type) = " << expressions_match(*expected, infered_type, 0) << "\n";
 
             if (expressions_match(*expected, infered_type, 0)) expected = abstraction_type;
             expression result = {{definition}, abstraction_type};
             result.erroneous = adp_error;
             return result;
         } else {
-//            std::cout << "THEY ARE NOT equal!!\n";
-//
-//            std::cout << "is_not_type(expected) = " << expected << "\n";
-//            std::cout << "expressions_match(*expected, *abstraction_type) = " << expressions_match(*expected, *abstraction_type, 0) << "\n";
-//            std::cout << "expressions_match(*expected, infered_type) = " << expressions_match(*expected, infered_type, 0) << "\n";
+            std::cout << "THEY ARE NOT equal!!\n";
+
+            std::cout << "is_not_type(expected) = " << expected << "\n";
+            std::cout << "expressions_match(*expected, *abstraction_type) = " << expressions_match(*expected, *abstraction_type, 0) << "\n";
+            std::cout << "expressions_match(*expected, infered_type) = " << expressions_match(*expected, infered_type, 0) << "\n";
 
             pointer = saved;
             delete abstraction_type;
@@ -470,14 +469,13 @@ expression resolve(std::vector<std::vector<expression>>& stack, expression given
         std::cout << "pointer < given.symbols.size() = " << (pointer < given.symbols.size()) << "\n";
         std::cout << "solution: \n";
         print_expression(solution, 0);
+        std::cout << "\n\n";
+
         solution.erroneous = true;
     }
 
     if (expressions_match(solution_type, infered_type, 0)) {
-        if (solution.type)
-            solution_type = *solution.type;
-        else
-            solution_type = type_type;
+        if (solution.type) solution_type = *solution.type; else solution_type = type_type;
     }
     return solution;
 }
@@ -501,23 +499,14 @@ bool contains_top_level_statements(std::vector<expression> list) {
 
 translation_unit analyze(translation_unit unit, struct file file) {
 
-
-//    if (expressions_match(type_type, type_type, 0)) {
-//        std::cout << "they match!\n";
-//    } else {
-//        std::cout << "they DONT match!\n";
-//    }
-//
-//    return {};
-
+    print_expression(abs_type, 0);
     static bool found_main = false;
+    bool error = false;
 
     wrap_into_main(unit);
     std::vector<std::vector<expression>> stack = {builtins};
     auto& main = unit.list.expressions[0].symbols[0].abstraction;
     auto& body = main.body.list.expressions;
-
-    bool error = false;
 
     if (body.size()) {
         std::vector<expression> parsed_body = {};
@@ -552,15 +541,16 @@ translation_unit analyze(translation_unit unit, struct file file) {
                 found_main = true;
             }
         }
-    } else {
-        main.return_type = unit_type;
-    }
+    } else main.return_type = unit_type;
+
+
+
+
 
     if (debug) {
         std::cout << "----------------- analyzer ---------------------\n";
         print_translation_unit(unit, file);
     }
-
     if (error) {
         std::cout << "\n\n\tCSR ERROR\n\n\n\n";
     } else {
