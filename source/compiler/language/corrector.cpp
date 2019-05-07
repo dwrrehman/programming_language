@@ -79,6 +79,9 @@ translation_unit correct(translation_unit unit, struct file file) {
 
     raise_indents(unit.list, file, 0);
     turn_indents_into_blocks(unit.list, file, 0);
+    /// TODO: code:    remove_whitespace_in_expressions(unit.list, file, 0);
+    /// TODO: code:    remove_empty_statements_in_blocks(unit.list, file, 0);
+    ///TODO: delete "clean(block body)" in analysis phase, after coding remove_empty_statements_in_blocks().
 
     if (debug) {
         std::cout << "------------------- corrector: -------------------------\n";

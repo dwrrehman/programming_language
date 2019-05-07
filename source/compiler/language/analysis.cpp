@@ -145,6 +145,11 @@ expression abs_type = {
         {{{unit_type}}},
     }, &type_type};
 
+expression abs_to_unit_type = {
+    {
+        {{{}, &abs_type}},
+    }, &unit_type};
+
 expression print_abs_type = {
     {
         {"print", false},
@@ -168,7 +173,7 @@ std::vector<expression> builtins =  {
     int_type, dog_type, print_type,
     is_good_type, x_type, int0_literal,
 
-    print_abs_type, abs_type,
+    print_abs_type, abs_type, abs_to_unit_type,
 };
 
 bool expressions_match(expression first, expression second, const int d);
@@ -424,22 +429,24 @@ expression csr(std::vector<std::vector<expression>>& stack, const expression giv
 
         if ((expressions_match(*expected, *abstraction_type, 0) || expressions_match(*expected, infered_type, 0))) {
 
-            std::cout << "we found them to be equal!!\n";
-            std::cout << "is_not_type(expected) = " << expected << "\n";
-            std::cout << "expressions_match(*expected, *abstraction_type) = " << expressions_match(*expected, *abstraction_type, 0) << "\n";
-            std::cout << "expressions_match(*expected, infered_type) = " << expressions_match(*expected, infered_type, 0) << "\n";
-
+            if (debug) {
+                std::cout << "we found them to be equal!!\n";
+                std::cout << "is_not_type(expected) = " << expected << "\n";
+                std::cout << "expressions_match(*expected, *abstraction_type) = " << expressions_match(*expected, *abstraction_type, 0) << "\n";
+                std::cout << "expressions_match(*expected, infered_type) = " << expressions_match(*expected, infered_type, 0) << "\n";
+            }
             if (expressions_match(*expected, infered_type, 0)) expected = abstraction_type;
             expression result = {{definition}, abstraction_type};
             result.erroneous = adp_error;
             return result;
         } else {
-            std::cout << "THEY ARE NOT equal!!\n";
+            if (debug) {
+                std::cout << "THEY ARE NOT equal!!\n";
 
-            std::cout << "is_not_type(expected) = " << expected << "\n";
-            std::cout << "expressions_match(*expected, *abstraction_type) = " << expressions_match(*expected, *abstraction_type, 0) << "\n";
-            std::cout << "expressions_match(*expected, infered_type) = " << expressions_match(*expected, infered_type, 0) << "\n";
-
+                std::cout << "is_not_type(expected) = " << expected << "\n";
+                std::cout << "expressions_match(*expected, *abstraction_type) = " << expressions_match(*expected, *abstraction_type, 0) << "\n";
+                std::cout << "expressions_match(*expected, infered_type) = " << expressions_match(*expected, infered_type, 0) << "\n";
+            }
             pointer = saved;
             delete abstraction_type;
             return {true};
@@ -464,13 +471,14 @@ expression resolve(std::vector<std::vector<expression>>& stack, expression given
         else break;
     }
     if (pointer < given.symbols.size() || !solution.type) {
-        std::cout << "CSR didnt finish parsing the expression or solution type was null, treating as an error...\n";
-        std::cout << "solution.type = " << solution.type << "\n";
-        std::cout << "pointer < given.symbols.size() = " << (pointer < given.symbols.size()) << "\n";
-        std::cout << "solution: \n";
-        print_expression(solution, 0);
-        std::cout << "\n\n";
-
+        if (debug) {
+            std::cout << "CSR didnt finish parsing the expression or solution type was null, treating as an error...\n";
+            std::cout << "solution.type = " << solution.type << "\n";
+            std::cout << "pointer < given.symbols.size() = " << (pointer < given.symbols.size()) << "\n";
+            std::cout << "solution: \n";
+            print_expression(solution, 0);
+            std::cout << "\n\n";
+        }
         solution.erroneous = true;
     }
 
@@ -499,7 +507,6 @@ bool contains_top_level_statements(std::vector<expression> list) {
 
 translation_unit analyze(translation_unit unit, struct file file) {
 
-    print_expression(abs_type, 0);
     static bool found_main = false;
     bool error = false;
 
@@ -542,8 +549,6 @@ translation_unit analyze(translation_unit unit, struct file file) {
             }
         }
     } else main.return_type = unit_type;
-
-
 
 
 
