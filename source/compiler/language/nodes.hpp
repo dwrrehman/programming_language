@@ -90,6 +90,7 @@ public:
     std::vector<symbol> symbols = {};
     size_t indent_level = 0;
     expression* type = nullptr;
+    bool is_new = false;
     bool erroneous = false;
 
     expression() {}

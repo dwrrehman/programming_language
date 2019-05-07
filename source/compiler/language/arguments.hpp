@@ -14,8 +14,9 @@
 #include <vector>
 
 struct file {
-    std::string name;
-    std::string text;
+    std::string name = "";
+    std::string text = "";
+    bool is_main = false;
 };
 
 struct arguments {
