@@ -1,1 +1,1 @@
-good _type
+_type

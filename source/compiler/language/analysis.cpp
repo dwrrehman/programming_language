@@ -117,7 +117,8 @@ expression exit_abstraction = {                 // used for returning from main,
 
 expression int_type = {
     {
-        {"int", false}
+        {"int", false},
+        {{{}, &type_type}}
     }, &unit_type};
 
 expression int0_literal = {
@@ -160,18 +161,8 @@ expression is_good_type = {
         {"good", false},
     }, &int_type};
 
-
-
-//expression unit_to_int_type = {
-//    {
-//        {{{}, &unit_type}}
-//    }, &int_type};
-//
-
-
 expression type_to_unit_type = {
     {
-        {"good", false},
         {{{}, &type_type}}
     }, &unit_type};
 
@@ -181,7 +172,7 @@ std::vector<expression> builtins =  {
     type_type, unit_type, none_type, infered_type, i32_type, exit_abstraction,
 
     // TESTING:
-    int_type, dog_type, print_type, //int_to_unit_type, unit_to_int_type
+    int_type, dog_type, print_type,
     is_good_type, x_type, int0_literal, type_to_unit_type,
 
     abs_type, print_abs_type,
@@ -372,10 +363,9 @@ expression csr(std::vector<std::vector<expression>>& stack, const expression giv
         if (expressions_match(*expected, unit_type, 0)) return {{}, &unit_type};
         else return {true};
     }
-
     const size_t saved = pointer;
     for (auto signature : list) {
-        if (!expressions_match(*expected, infered_type, 0) && (!signature.type || !expressions_match(*expected, *signature.type, 0))) continue;
+        if (!expressions_match(*expected, infered_type, 0) && (signature.type && !expressions_match(*expected, *signature.type, 0))) continue;
         expression solution = {};
         pointer = saved;
         bool failed = false;
@@ -406,7 +396,7 @@ expression csr(std::vector<std::vector<expression>>& stack, const expression giv
             } else { failed = true; break; }
         } if (!failed) {
             if (expressions_match(*expected, infered_type, 0)) expected = signature.type;
-            solution.type = signature.type;
+            if (signature.type) solution.type = signature.type; else solution.type = &type_type;
             return solution;
         }
     }
@@ -476,11 +466,18 @@ expression resolve(std::vector<std::vector<expression>>& stack, expression given
     }
     if (pointer < given.symbols.size() || !solution.type) {
         std::cout << "CSR didnt finish parsing the expression or solution type was null, treating as an error...\n";
+        std::cout << "solution.type = " << solution.type << "\n";
+        std::cout << "pointer < given.symbols.size() = " << (pointer < given.symbols.size()) << "\n";
+        std::cout << "solution: \n";
+        print_expression(solution, 0);
         solution.erroneous = true;
     }
 
-    if (!solution.erroneous && expressions_match(solution_type, infered_type, 0)) {
-        solution_type = *solution.type;
+    if (expressions_match(solution_type, infered_type, 0)) {
+        if (solution.type)
+            solution_type = *solution.type;
+        else
+            solution_type = type_type;
     }
     return solution;
 }
