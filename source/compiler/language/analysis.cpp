@@ -236,7 +236,6 @@ static void parse_return_type(abstraction_definition &given, std::vector<std::ve
     } else given.return_type = infered_type;
 }
 
-
 static void parse_signature(abstraction_definition &given, std::vector<std::vector<expression>>& stack) {
     expression result = {};
     auto call = given.call_signature.symbols;
@@ -256,9 +255,11 @@ static void parse_signature(abstraction_definition &given, std::vector<std::vect
                 auto parameter_type = generate_abstraction_type_for(definition);
 
                 expression parameter = {definition.call_signature.symbols, parameter_type};
+
                 stack.back().push_back(parameter);
             } else {
                 expression parameter = {sub.symbols, &infered_type};
+                result.symbols.push_back({parameter}); // HERES WHERE THE PROBLEM IS
                 stack.back().push_back(parameter);
             }
         } else if (call[i].type == symbol_type::identifier) {
@@ -272,7 +273,6 @@ static void parse_signature(abstraction_definition &given, std::vector<std::vect
 }
 
 bool adp(abstraction_definition& given, std::vector<std::vector<expression>>& stack) {
-
     clean(given.body); // delete me, after you code the corrector.
     bool error = false;
     stack.push_back(stack.back());
@@ -399,123 +399,6 @@ expression csr(std::vector<std::vector<expression>>& stack, const expression giv
     }
     return {true};
 }
-
-/* -------- the new code --------------
-
-
-
-expression csr(std::vector<std::vector<expression>>& stack, const expression given, const size_t depth, const size_t max_depth, size_t& pointer, struct expression*& expected, bool can_define_new_signature) {
-    const auto list = stack.back();
-    if (depth > max_depth) return {true};
-    if (not expected) return {true};
-    if (expressions_match(*expected, none_type)) return {true};
-    if (given.symbols.empty() or (given.symbols.size() == 1
-                                  and given.symbols[0].type == symbol_type::subexpression
-                                  and given.symbols[0].subexpression.symbols.empty())) {
-        if (given.symbols.size() == 1
-            and given.symbols[0].type == symbol_type::subexpression
-            and given.symbols[0].subexpression.symbols.empty()) pointer++;
-        if (expressions_match(*expected, infered_type)) expected = &unit_type;
-        if (expressions_match(*expected, unit_type)) return {{}, &unit_type};
-        else return {true};
-    }
-    const size_t saved = pointer;
-    for (auto signature : list) {
-        if (expected and not expressions_match(*expected, infered_type) and expected and signature.type and not expressions_match(*expected, *signature.type)) continue;
-        expression solution = {};
-        pointer = saved;
-        bool failed = false;
-        for (auto element : signature.symbols) {
-            if (pointer >= given.symbols.size()) { failed = true; break; }
-            if (element.type == symbol_type::subexpression) {
-                auto subexpression = csr(stack, given, depth + 1, max_depth, pointer, element.subexpression.type, false);
-                pointer = saved;
-                if (subexpression.erroneous) {
-                    if (given.symbols[pointer].type == symbol_type::subexpression) {
-                        size_t local_pointer = 0, current_depth = 0;
-                        expression subexpression = {};
-                        while (current_depth <= max_expression_depth) {
-                            local_pointer = 0;
-                            subexpression = csr(stack, given.symbols[pointer].subexpression, 0, current_depth, local_pointer, element.subexpression.type, false);
-                            if (subexpression.erroneous or local_pointer < given.symbols[pointer].subexpression.symbols.size()) {
-                                current_depth++;
-                            } else break;
-                        }
-                        if (subexpression.erroneous or local_pointer < given.symbols[pointer].subexpression.symbols.size()) { failed = true; break; }
-                        solution.symbols.push_back({subexpression});
-                        pointer++; continue;
-                    } else { failed = true; break; }
-                } solution.symbols.push_back({subexpression});
-            } else if (element.identifier.name.value == given.symbols[pointer].identifier.name.value
-                       and given.symbols[pointer].type == symbol_type::identifier
-                       and element.type == symbol_type::identifier) {
-                solution.symbols.push_back(element);
-                pointer++;
-            } else { failed = true; break; }
-        } if (!failed) {
-            if (expressions_match(*expected, infered_type)) expected = signature.type;
-            if (signature.type) solution.type = signature.type; else solution.type = &type_type;
-            return solution;
-        }
-    }
-    if (given.symbols[pointer].type == symbol_type::subexpression and contains_a_block_starting_from(pointer + 1, given.symbols)) {
-        abstraction_definition definition = {};
-        definition.call_signature = given.symbols[pointer++].subexpression;
-        while (pointer < given.symbols.size() and given.symbols[pointer].type != symbol_type::block) {
-            definition.return_type.symbols.push_back(given.symbols[pointer++]);
-        } definition.body = given.symbols[pointer++].block;
-
-        bool adp_error = adp(definition, stack);
-        auto abstraction_type = generate_abstraction_type_for(definition);
-
-        if (debug) {
-            std::cout << "about to compare the abstraction types!...\n\n";
-
-            std::cout << "for your infomation, we were given the type ___ to recognize: \n";
-            if (expected) {
-                //print_expression(*expected, 0);
-                std::cout << "ie, ";
-                print_expression_line(*expected);
-            }
-            else std::cout << "{{{{TYPE}}}}\n";
-
-            std::cout << "\nand we got the following total type from the abstraction definition, : abstraction_type = \n";
-            //print_expression(*abstraction_type, 0);
-            std::cout << "ie, ";
-            print_expression_line(*abstraction_type);
-            std::cout << "\n\n";
-        }
-
-        if ((expressions_match(*expected, *abstraction_type) or expressions_match(*expected, infered_type))) {
-
-            if (debug) {
-                std::cout << "we found them to be equal!!\n";
-                std::cout << "is_not_type(expected) = " << expected << "\n";
-                std::cout << "expressions_match(*expected, *abstraction_type) = " << expressions_match(*expected, *abstraction_type) << "\n";
-                std::cout << "expressions_match(*expected, infered_type) = " << expressions_match(*expected, infered_type) << "\n";
-            }
-            if (expressions_match(*expected, infered_type)) expected = abstraction_type;
-            expression result = {{definition}, abstraction_type};
-            result.erroneous = adp_error;
-            return result;
-        } else {
-            if (debug) {
-                std::cout << "THEY ARE NOT equal!!\n";
-
-                std::cout << "is_not_type(expected) = " << expected << "\n";
-                std::cout << "expressions_match(*expected, *abstraction_type) = " << expressions_match(*expected, *abstraction_type) << "\n";
-                std::cout << "expressions_match(*expected, infered_type) = " << expressions_match(*expected, infered_type) << "\n";
-            }
-            pointer = saved;
-            delete abstraction_type;
-            return {true};
-        }
-    }
-    return {true};
-}
-
-*/
-
 
 
 expression resolve(std::vector<std::vector<expression>>& stack, expression given, expression& solution_type) {
