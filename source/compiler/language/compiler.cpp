@@ -8,7 +8,6 @@
 
 #include "compiler.hpp"
 #include "arguments.hpp"
-#include "preprocessor.hpp"
 #include "lexer.hpp"
 #include "parser.hpp"
 #include "nodes.hpp"
@@ -29,7 +28,7 @@
 #include <vector>
 
 std::unique_ptr<llvm::Module> frontend(struct file file, llvm::LLVMContext &context) {
-    return generate(analyze(correct(parse(file, context), file), file), file, context);
+    return generate(analyze(correct(parse(file, context), file), context, file), file, context);
 }
 
 
@@ -47,6 +46,18 @@ void link(llvm::Module &program, std::unique_ptr<llvm::Module> &module) {
     //        exit(1);
     //    }
 
+
+    #if defined(__APPLE__)
+        // apple code
+    #elif defined(__linux__)
+        // linux code
+    #elif defined(_WIN64) || defined(_WIN32)
+        // windows code
+    #else
+        // other platform code.
+    #endif
+    // note:     instead of invokving "lld",
+    // must invoke one of these instead: ld.lld (Unix), ld64.lld (macOS), lld-link (Windows), wasm-ld (WebAssembly) instead
 }
 
 llvm::Module& pop(std::vector<std::unique_ptr<llvm::Module>> &modules) {

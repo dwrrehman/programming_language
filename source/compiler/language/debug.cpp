@@ -9,7 +9,6 @@
 #include "debug.hpp"
 
 #include "arguments.hpp"
-#include "preprocessor.hpp"
 #include "lexer.hpp"
 #include "parser.hpp"
 
@@ -189,6 +188,88 @@ void print_expression(expression expression, int d) {
         prep(d); std::cout << "}\n";
     }
 }
+
+
+void print_abstraction_definition_line(abstraction_definition definition) {
+    print_expression_line(definition.call_signature);
+    std::cout << " -> ";
+    print_expression_line(definition.return_type);
+    std::cout << " ";
+    print_block_line(definition.body);
+}
+
+void print_symbol_line(symbol symbol) {
+
+    switch (symbol.type) {
+
+        case symbol_type::identifier:
+            std::cout << symbol.identifier.name.value;
+            break;
+
+        case symbol_type::llvm_literal:
+            std::cout << "\'" << symbol.llvm.literal.value << "\'";
+            break;
+
+        case symbol_type::string_literal:
+            std::cout << "\"" << symbol.string.literal.value << "\"";
+            break;
+
+        case symbol_type::character_literal:
+            std::cout << "\'" << symbol.character.literal.value << "\'";
+            break;
+
+        case symbol_type::documentation:
+            std::cout << "`" << symbol.documentation.literal.value << "`";
+            break;
+
+        case symbol_type::subexpression:
+            print_expression_line(symbol.subexpression);
+            break;
+
+        case symbol_type::block:
+            print_block_line(symbol.block);
+            break;
+
+        case symbol_type::newline:
+            std::cout << "{NEWLINE}";
+            break;
+        case symbol_type::indent:
+            std::cout << "{INDENT}";
+            break;
+
+        case symbol_type::none:
+            std::cout << "{rliguhakljbndceaklsjnclakwjeblfiuagwefp;awlkdbcjalkjbserfauwe}\n";
+            break;
+        case symbol_type::abstraction_definition:
+            print_abstraction_definition_line(symbol.abstraction);
+            break;
+        default: break;
+    }
+}
+
+void print_expression_line(expression expression) {
+    std::cout << "(";
+    int i = 0;
+    for (auto symbol : expression.symbols) {
+        print_symbol_line(symbol);
+        if (i < expression.symbols.size() - 1) std::cout << " ";
+        i++;
+    }
+    std::cout << ")";
+
+    if (expression.type) {
+        std::cout << " : (";
+        print_expression_line(*expression.type);
+        std::cout << ")";
+    }
+}
+
+void print_block_line(block block) {
+    std::cout << "{\n";
+    print_expression_list(block.list, 1);
+    std::cout << "}";
+}
+
 
 void print_expression_list(expression_list list, int d) {
 

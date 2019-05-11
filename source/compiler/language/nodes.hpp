@@ -24,20 +24,6 @@
 #include "llvm/IR/Type.h"
 #include "llvm/IR/Verifier.h"
 #include "llvm/ADT/Optional.h"
-#include "llvm/IR/Instructions.h"
-#include "llvm/IR/LegacyPassManager.h"
-#include "llvm/Support/FileSystem.h"
-#include "llvm/Support/Host.h"
-#include "llvm/Support/raw_ostream.h"
-#include "llvm/Support/TargetRegistry.h"
-#include "llvm/Support/TargetSelect.h"
-#include "llvm/Target/TargetMachine.h"
-#include "llvm/Target/TargetOptions.h"
-#include "llvm/Support/SourceMgr.h"
-#include "llvm/IR/ModuleSummaryIndex.h"
-#include "llvm/AsmParser/Parser.h"
-#include "llvm/Support/MemoryBuffer.h"
-
 
 #include <string>
 #include <vector>
@@ -118,7 +104,7 @@ public:
     size_t indent_level = 0;
     expression* type = nullptr;
     bool erroneous = false;
-    bool is_new = false;
+    bool was_allocated = false;
     llvm::Type* llvm_type = nullptr;
 
     expression() {}
@@ -131,6 +117,9 @@ public:
     }
     expression(bool error) {
         this->erroneous = error;
+    }
+    expression(llvm::LLVMContext& context, llvm::Type::TypeID llvm_type_id) {
+        this->llvm_type = llvm::Type::getPrimitiveType(context, llvm_type_id);
     }
 };
 

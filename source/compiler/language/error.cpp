@@ -86,7 +86,7 @@ void print_lex_error(std::string filename, std::string state_name, size_t line, 
 }
 
 void print_parse_error(std::string filename, size_t line, size_t column, std::string type, std::string found, std::string expected) {
-    if (type == "{null}" || found == "\n" || type == "indent") {
+    if (type == "{null}" or found == "\n" or type == "indent") {
 
         if (type == "{null}") found = "end of file";
         if (found == "\n") found = "newline";
@@ -130,7 +130,7 @@ void print_source_code(std::string text, std::vector<struct token> offending_tok
     std::cout << "\n";
     for (auto offset : offsets) {
         size_t index = 0;
-        if ((int) t.line - 1 + offset >= 0 && (int) t.line - 1 + offset < lines.size()) {
+        if ((int) t.line - 1 + offset >= 0 and (int) t.line - 1 + offset < lines.size()) {
             index = t.line - 1 + offset;
         } else continue;
         

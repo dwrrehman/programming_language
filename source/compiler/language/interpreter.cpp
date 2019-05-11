@@ -41,7 +41,7 @@ void process_repl_command(std::string line) {
 }
 
 static bool is_quit_command(const std::string &line) {
-    return line == ":quit" || line == "quit" || line == ":exit" || line == "exit";
+    return line == ":quit" or line == "quit" or line == ":exit" or line == "exit";
 }
 
 void repl() {
@@ -54,7 +54,7 @@ void repl() {
         std::getline(std::cin, line);
         if (line != "") line_number++;
 
-        if ((line.size() && line[0] == ':') || is_quit_command(line)) {
+        if ((line.size() and line[0] == ':') or is_quit_command(line)) {
             if (is_quit_command(line)) break;
             else {
                 line.erase(line.begin(), line.begin() + 1);

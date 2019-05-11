@@ -9,7 +9,6 @@
 #ifndef lexer_hpp
 #define lexer_hpp
 
-#include "preprocessor.hpp"
 #include <string>
 
 enum class token_type {null, string, identifier, documentation, character, llvm, keyword, operator_, indent};

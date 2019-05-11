@@ -110,18 +110,18 @@ struct arguments get_commandline_arguments(const int argc, const char** argv) {
 
     struct arguments args = {};
     
-    if (argc > 1 && std::string(argv[1]) == "pick") {
+    if (argc > 1 and std::string(argv[1]) == "pick") {
         args.use_interpreter = true;
         get_interpreter_arguments(argc, args, argv);
         return args;
         
-    } else if (argc > 1 && std::string(argv[1]) == "interpret") { // "nostril interpret"
+    } else if (argc > 1 and std::string(argv[1]) == "interpret") { // "nostril interpret"
         
-    } else if (argc > 1 && std::string(argv[1]) == "run") { // "nostril run ..."
+    } else if (argc > 1 and std::string(argv[1]) == "run") { // "nostril run ..."
         
-    } else if (argc > 1 && std::string(argv[1]) == "compile") { // "nostril compile ..."
+    } else if (argc > 1 and std::string(argv[1]) == "compile") { // "nostril compile ..."
 
-    } else if (argc > 1 && std::string(argv[1]) == "entry") { // "nostril entry ..."
+    } else if (argc > 1 and std::string(argv[1]) == "entry") { // "nostril entry ..."
         
     } else if (argc == 1) {
         args.use_interpreter = true;
@@ -130,17 +130,17 @@ struct arguments get_commandline_arguments(const int argc, const char** argv) {
     }
     
     for (int i = 1; i < argc; i++) {
-        if ((std::string(argv[i]) == "-named" || std::string(argv[i]) == "-o") && i + 1 < argc) {
+        if ((std::string(argv[i]) == "-named" or std::string(argv[i]) == "-o") and i + 1 < argc) {
             args.executable_name = std::string(argv[++i]);
 
-        } else if (std::string(argv[i]) == "-indent" && i + 1 < argc) {
+        } else if (std::string(argv[i]) == "-indent" and i + 1 < argc) {
             spaces_count_for_indent = atoi(argv[++i]);
             if (!spaces_count_for_indent) {
                 printf("error: invalid number for indent width, using the default of 4 spaces.\n");
                 spaces_count_for_indent = 4;
             }
 
-        } else if (std::string(argv[i]) == "-version" || std::string(argv[i]) == "-v") {
+        } else if (std::string(argv[i]) == "-version" or std::string(argv[i]) == "-v") {
             std::cout << language_name << ": " << language_version << std::endl;
             exit(0);
 

@@ -774,8 +774,9 @@ static void otherLoop() {
 
         } else if (mode == "type") {
 
-
             std::getline(std::cin, code);
+
+            code.erase(code.begin());
             std::cout << "received: \"" << code << "\"\n";
 
             if (code == "done" || code == "") {
@@ -793,23 +794,20 @@ static void otherLoop() {
             llvm::ModuleSummaryIndex my_index(true);
             llvm::SMDiagnostic errors;
 
-
-
-            std::cout << "now trying to parse s as type!\n";
-
             llvm::Type* type;
 
             if ((type = llvm::parseType(code, errors, *TheModule)) != nullptr) {
                 std::cout << "succcesfully parsed type: \n";
-                type->print(llvm::errs());
-                std::cout << "\ndone printing type.\n";
+                type->print(llvm::outs());
             } else {
-                std::cout << "{invalid type.}\n";
+                std::cout << "\n\nllvm: "; // TODO: make this have color!
+                errors.print("MyProgram.n", llvm::errs());
+                std::cout << "\n\n";
             }
 
         } else if (mode == "print") {
             std::cout << "printing the results: \n\n";
-            TheModule->print(llvm::errs(), nullptr);
+            TheModule->print(llvm::outs(), nullptr);
 
         } else if (mode == "help") {
             std::cout << "say: print or type or decl or expr.\n";
@@ -818,7 +816,7 @@ static void otherLoop() {
     }
 
     std::cout << "printing the results: \n\n";
-    TheModule->print(llvm::errs(), nullptr);
+    TheModule->print(llvm::outs(), nullptr);
 }
 
 /// top ::= definition | external | expression | ';'
@@ -868,14 +866,18 @@ int main() {
     fprintf(stderr, "ready> ");
     getNextToken();
 
-    TheModule = llvm::make_unique<llvm::Module>("My First Module", context);
 
+
+
+    TheModule = llvm::make_unique<llvm::Module>("My First Module", context);
     llvm::InitializeAllTargetInfos();
     llvm::InitializeAllTargets();
     llvm::InitializeAllTargetMCs();
     llvm::InitializeAllAsmParsers();
     llvm::InitializeAllAsmPrinters();
 
+
+    
 
     MainLoop();
 
@@ -907,6 +909,7 @@ int main() {
     }
 
     llvm::legacy::PassManager pass;
+
     auto FileType = llvm::TargetMachine::CGFT_ObjectFile;
 
     if (TheTargetMachine->addPassesToEmitFile(pass, dest, nullptr, FileType)) {
@@ -919,5 +922,6 @@ int main() {
 
     return 0;
 }
+
 
 */
