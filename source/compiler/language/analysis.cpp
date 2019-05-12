@@ -1,5 +1,3 @@
-
-
 //
 //  analysis.cpp
 //  language
@@ -20,8 +18,6 @@
 #include <stdlib.h>
 #include <sstream>
 #include <algorithm>
-
-
 
 
 /// Global builtin types. these are fundemental to the language:
@@ -166,6 +162,11 @@ void clean(block& body) {
 }
 
 static void parse_abstraction_body(bool &error, abstraction_definition &given, std::vector<std::vector<expression>> &stack) {
+    stack.back().push_back(given.call_signature); // allow for recursion.
+    std::cout << "pushed: ";
+    print_expression_line(given.call_signature);
+    std::cout << "\n";
+
     auto& body = given.body.list.expressions;
     if (body.size()) {
         std::vector<expression> parsed_body = {};
@@ -179,14 +180,10 @@ static void parse_abstraction_body(bool &error, abstraction_definition &given, s
                 auto actual = resolve(stack, body[i], type);
 
                 std::cout << "the actual type was: \n";
-                //print_expression(type, 0);
-                std::cout << "ie, ";
                 print_expression_line(type);
                 std::cout << "\n\n";
 
                 std::cout << "was expecting: \n";
-                //print_expression(unit_type, 0);
-                std::cout << "ie, ";
                 print_expression_line(unit_type);
                 std::cout << "\n\n";
 
@@ -202,41 +199,39 @@ static void parse_abstraction_body(bool &error, abstraction_definition &given, s
             auto type = infered_type;
             auto actual = resolve(stack, body[body.size() - 1], type);
 
-
             std::cout << "the actual type was: \n";
-            //print_expression(type, 0);
-            std::cout << "ie, ";
             print_expression_line(type);
             std::cout << "\n\n";
 
             std::cout << "was expecting: \n";
-            //print_expression(given.return_type, 0);
-            std::cout << "ie, ";
             print_expression_line(given.return_type);
             std::cout << "\n\n";
-
 
             error = true;
         }
         parsed_body.push_back(solution);
         given.body.list.expressions = parsed_body;
     } else if (expressions_match(given.return_type, infered_type)) {
-
         given.return_type = unit_type;
     }
 }
 
-static void parse_return_type(abstraction_definition &given, std::vector<std::vector<expression> > &stack) {
+static void parse_return_type(abstraction_definition &given, std::vector<std::vector<expression> > &stack, bool& error) {
     ///TODO: this function needs to evaluate its return type, at compiletime.
     if (given.return_type.symbols.size()) {
         auto type = infered_type;
         given.return_type = resolve(stack, given.return_type, type);
-        if (given.return_type.type and expressions_match(*given.return_type.type, unit_type)) given.return_type = unit_type;
+        if (given.return_type.erroneous) {
+            std::cout << "n3zqx2l: adp-csr: fake error: Could not parse return type.\n"; // TODO: print an error (IN CSR!) of some kind!
+            error = true;
+        }
+        if (given.return_type.type and expressions_match(*given.return_type.type, unit_type) and expressions_match(given.return_type, unit_type)) given.return_type = unit_type;
         else if (given.return_type.type and expressions_match(*given.return_type.type, none_type)) given.return_type = none_type;
     } else given.return_type = infered_type;
+    given.call_signature.type = &given.return_type;
 }
 
-static void parse_signature(abstraction_definition &given, std::vector<std::vector<expression>>& stack) {
+static void parse_signature(abstraction_definition &given, std::vector<std::vector<expression>>& stack, bool& error) {
     expression result = {};
     auto call = given.call_signature.symbols;
     for (size_t i = 0; i < call.size(); i++) {
@@ -245,39 +240,55 @@ static void parse_signature(abstraction_definition &given, std::vector<std::vect
             auto sub = call[i].subexpression;
             abstraction_definition definition = {};
             size_t pointer = 0;
-            if (sub.symbols[pointer].type == symbol_type::subexpression) {
+
+            if (sub.symbols.empty()) {
+                std::cout << "n3zqx2l: fake error: signature subexpression must not be empty.\n";
+                error = true;
+                continue;
+
+            } else if (sub.symbols[pointer].type == symbol_type::subexpression) {
                 definition.call_signature = sub.symbols[pointer++].subexpression;
                 while (pointer < sub.symbols.size()) {
                     definition.return_type.symbols.push_back(sub.symbols[pointer++]);
                 }
-                parse_signature(definition, stack);
-                parse_return_type(definition, stack);
+                parse_signature(definition, stack, error);
+                parse_return_type(definition, stack, error);
                 auto parameter_type = generate_abstraction_type_for(definition);
-
                 expression parameter = {definition.call_signature.symbols, parameter_type};
-
+                result.symbols.push_back({parameter});
                 stack.back().push_back(parameter);
             } else {
                 expression parameter = {sub.symbols, &infered_type};
-                result.symbols.push_back({parameter}); // HERES WHERE THE PROBLEM IS
+                result.symbols.push_back({parameter});
                 stack.back().push_back(parameter);
             }
         } else if (call[i].type == symbol_type::identifier) {
             result.symbols.push_back(call[i]);
-        } else {
+
+        } else { //TODO: add additional cases for the other symbol types. (like strings, etc.)
             std::cout << "error, unexpected " <<  convert_symbol_type(call[i].type) << "...\n";
             std::cout << "ignoring...\n";
+            error = true;
         }
     }
+    std::cout << "parsing call signature...\n";
+    std::cout << "was: ";
+    print_expression_line(given.call_signature);
+    std::cout << "\n";
+
     given.call_signature = result;
+
+    std::cout << "now its: ";
+    print_expression_line(given.call_signature);
+    std::cout << "\n";
 }
 
 bool adp(abstraction_definition& given, std::vector<std::vector<expression>>& stack) {
-    clean(given.body); // delete me, after you code the corrector.
+    clean(given.body); // move me into the corrector code.
     bool error = false;
     stack.push_back(stack.back());
-    parse_signature(given, stack);
-    parse_return_type(given, stack);
+    parse_signature(given, stack, error);
+    parse_return_type(given, stack, error);
     parse_abstraction_body(error, given, stack);
     stack.pop_back();
     return error;
@@ -360,15 +371,11 @@ expression csr(std::vector<std::vector<expression>>& stack, const expression giv
 
             std::cout << "for your infomation, we were given the type ___ to recognize: \n";
             if (expected) {
-                //print_expression(*expected, 0);
-                std::cout << "ie, ";
                 print_expression_line(*expected);
             }
             else std::cout << "{{{{TYPE}}}}\n";
 
             std::cout << "\nand we got the following total type from the abstraction definition, : abstraction_type = \n";
-            //print_expression(*abstraction_type, 0);
-            std::cout << "ie, ";
             print_expression_line(*abstraction_type);
             std::cout << "\n\n";
         }
@@ -400,7 +407,6 @@ expression csr(std::vector<std::vector<expression>>& stack, const expression giv
     return {true};
 }
 
-
 expression resolve(std::vector<std::vector<expression>>& stack, expression given, expression& solution_type) {
     auto& list = stack.back();
     std::sort(list.begin(), list.end(), [](auto a, auto b) { return a.symbols.size() > b.symbols.size(); });
@@ -421,8 +427,7 @@ expression resolve(std::vector<std::vector<expression>>& stack, expression given
             std::cout << "CSR didnt finish parsing the expression or solution type was null, treating as an error...\n";
             std::cout << "solution.type = " << solution.type << "\n";
             std::cout << "pointer < given.symbols.size() = " << (pointer < given.symbols.size()) << "\n";
-            std::cout << "solution: ";
-            print_expression_line(solution);
+            std::cout << "solution: "; print_expression_line(solution);
             std::cout << "\n\n";
         }
         solution.erroneous = true;
@@ -473,14 +478,10 @@ translation_unit analyze(translation_unit unit, llvm::LLVMContext& context, stru
                 auto actual = resolve(stack, body[i], type);
 
                 std::cout << "the actual type was: \n";
-                //print_expression(type, 0);
-                std::cout << "ie, ";
                 print_expression_line(type);
                 std::cout << "\n\n";
 
                 std::cout << "was expecting: \n";
-                //print_expression(unit_type, 0);
-                std::cout << "ie, ";
                 print_expression_line(unit_type);
                 std::cout << "\n\n";
 
@@ -500,7 +501,6 @@ translation_unit analyze(translation_unit unit, llvm::LLVMContext& context, stru
         }
     } else main.return_type = unit_type;
 
-
     if (debug) {
         std::cout << "----------------- analyzer ---------------------\n";
         print_translation_unit(unit, file);
@@ -513,5 +513,3 @@ translation_unit analyze(translation_unit unit, llvm::LLVMContext& context, stru
 
     return unit;
 }
-
-
