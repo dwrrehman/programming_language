@@ -209,8 +209,10 @@ static void parse_abstraction_body(bool &error, abstraction_definition &given, s
 
             error = true;
         }
+
         parsed_body.push_back(solution);
         given.body.list.expressions = parsed_body;
+
     } else if (expressions_match(given.return_type, infered_type)) {
         given.return_type = unit_type;
     }
@@ -225,10 +227,12 @@ static void parse_return_type(abstraction_definition &given, std::vector<std::ve
             std::cout << "n3zqx2l: adp-csr: fake error: Could not parse return type.\n"; // TODO: print an error (IN CSR!) of some kind!
             error = true;
         }
-        if (given.return_type.type and expressions_match(*given.return_type.type, unit_type) and expressions_match(given.return_type, unit_type)) given.return_type = unit_type;
+        if (expressions_match(given.return_type, unit_type)) given.return_type = unit_type;
         else if (given.return_type.type and expressions_match(*given.return_type.type, none_type)) given.return_type = none_type;
     } else given.return_type = infered_type;
-    given.call_signature.type = &given.return_type;
+    given.call_signature.type = new expression();
+    *given.call_signature.type = given.return_type;
+    given.call_signature.type->was_allocated = true;
 }
 
 static void parse_signature(abstraction_definition &given, std::vector<std::vector<expression>>& stack, bool& error) {
@@ -304,7 +308,7 @@ expression csr(std::vector<std::vector<expression>>& stack, const expression giv
     const auto list = stack.back();
     if (depth > max_depth) return {true};
     if (!expected) return {true};
-    if (expressions_match(*expected, none_type)) return {true};
+    if (expressions_match(*expected, none_type)) return {true};//TODO: should this be here?
     if (given.symbols.empty() or (given.symbols.size() == 1
                                   and given.symbols[0].type == symbol_type::subexpression
                                   and given.symbols[0].subexpression.symbols.empty())) {
@@ -312,7 +316,7 @@ expression csr(std::vector<std::vector<expression>>& stack, const expression giv
             and given.symbols[0].type == symbol_type::subexpression
             and given.symbols[0].subexpression.symbols.empty()) pointer++;
         if (expressions_match(*expected, infered_type)) expected = &unit_type;
-        if (expressions_match(*expected, unit_type)) return {{}, &unit_type};
+        if (expressions_match(*expected, unit_type)) return unit_type;
         else return {true};
     }
     const size_t saved = pointer;
@@ -371,13 +375,17 @@ expression csr(std::vector<std::vector<expression>>& stack, const expression giv
 
             std::cout << "for your infomation, we were given the type ___ to recognize: \n";
             if (expected) {
-                print_expression_line(*expected);
+                print_expression(*expected, 0);
             }
             else std::cout << "{{{{TYPE}}}}\n";
 
             std::cout << "\nand we got the following total type from the abstraction definition, : abstraction_type = \n";
-            print_expression_line(*abstraction_type);
+            print_expression(*abstraction_type, 0);
             std::cout << "\n\n";
+
+            std::cout << "heres the abstraction, as it was parsed by adp: \n";
+            print_abstraction_definition(definition, 0);
+            std::cout << "\n";
         }
 
         if ((expressions_match(*expected, *abstraction_type) || expressions_match(*expected, infered_type))) {
@@ -407,19 +415,19 @@ expression csr(std::vector<std::vector<expression>>& stack, const expression giv
     return {true};
 }
 
-expression resolve(std::vector<std::vector<expression>>& stack, expression given, expression& solution_type) {
+expression resolve(std::vector<std::vector<expression>>& stack, expression given, expression& expected_solution_type) {
     auto& list = stack.back();
     std::sort(list.begin(), list.end(), [](auto a, auto b) { return a.symbols.size() > b.symbols.size(); });
     prune_extraneous_subexpressions(given);
 
     size_t pointer = 0, max_depth = 0;
     expression solution = {};
-    auto solution_type_copy = solution_type;
     while (max_depth <= max_expression_depth) {
         pointer = 0;
+        auto solution_type_copy = expected_solution_type;
         solution.type = &solution_type_copy;
         solution = csr(stack, given, 0, max_depth, pointer, solution.type, false);
-        if (solution.erroneous or pointer < given.symbols.size() or !solution.type) { max_depth++; }
+        if (solution.erroneous or pointer < given.symbols.size() or not solution.type) { max_depth++; }
         else break;
     }
     if (pointer < given.symbols.size() or not solution.type) {
@@ -433,8 +441,9 @@ expression resolve(std::vector<std::vector<expression>>& stack, expression given
         solution.erroneous = true;
     }
 
-    if (expressions_match(solution_type, infered_type)) {
-        if (solution.type) solution_type = *solution.type; else solution_type = type_type;
+    if (expressions_match(expected_solution_type, infered_type)) {
+        if (solution.type) expected_solution_type = *solution.type;
+        else expected_solution_type = type_type;
     }
     return solution;
 }

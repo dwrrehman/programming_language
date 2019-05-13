@@ -10,7 +10,7 @@ This project is an implementation of a n3zqx2l compiler, called "nostril". It is
 ### finally, heres the hello world program:
 
 ```
-  print "Hello, world!"
+  print "hello, world!"
 ```
 
 ...nothing more or less than what a hello world program should be.
