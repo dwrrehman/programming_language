@@ -109,6 +109,31 @@ void print_error_no_files() {
 
 
 
+
+void print_latest_analysis_type_error() {
+    
+}
+
+void set_current_analysis_type_error() {
+
+}
+
+void print_undefined_signature_element_error() {
+
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
 // source printers:
 
 void syntax_highlight(std::string& text) {
