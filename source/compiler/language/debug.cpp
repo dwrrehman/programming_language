@@ -258,7 +258,7 @@ void print_expression_line(expression expression) {
     std::cout << ")";
 
     if (expression.type) {
-        std::cout << " : (";
+        std::cout << ": (";
         print_expression_line(*expression.type);
         std::cout << ")";
     }
@@ -315,4 +315,19 @@ std::string convert_symbol_type(enum symbol_type type) {
         case symbol_type::abstraction_definition:
             return "abstraction definition";
     }
+}
+
+
+void print_stack(std::vector<std::vector<expression>> stack) {
+    std::cout << "\n\n---------------- printing stack -------------------\n\n";
+    for (int i = 0; i < stack.size(); i++) {
+        std::cout << "----- FRAME # " << i << " -------------------\n";
+        for (int j = 0; j < stack[i].size(); j++) {
+            std::cout << "e" << j << ": ";
+            print_expression_line(stack[i][j]);
+            std::cout << "\n";
+        }
+        std::cout << "---------------------------------------------\n\n";
+    }
+    std::cout << "\n\n-----------------------------------------------------------\n\n";
 }

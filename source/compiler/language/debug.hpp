@@ -40,4 +40,10 @@ void print_translation_unit(translation_unit unit, struct file file);
 void print_abstraction_definition(abstraction_definition abstraction, int d);
 void print_expression_line(expression expression);
 void print_block_line(block block);
+
+
+
+void print_stack(std::vector<std::vector<expression>> stack);
+
+
 #endif
