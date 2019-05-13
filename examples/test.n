@@ -1,3 +1,3 @@
-(hi (x)) () {
-    print x
+print abs () () {
+
 }
