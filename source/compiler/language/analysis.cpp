@@ -19,15 +19,52 @@
 #include <sstream>
 #include <algorithm>
 
+/*----------------------- KNOWN BUGS ------------------------
+
+ (int) {}
+ (g) int {}
+ (hello (x)) {
+    hello x
+    hello g
+ }
+
+ ---> succeeds, but doesnt fill in the infered type for x, in the call signature for hello, only in the call to hello using g.
 
 
-/*
- ------------- known bugs ------------------
+
+
+
+------------------------- TODOs ----------------------------
+
+
+                want something to do?
+
+
+
+    0. implement LLVM types.
+
+    1. implement FDI for CSR.
+
+    2. implement _scope1, _scope0, etc.
+
+    3. implement "_define" and "_undefine" / "_undefine all"
+
+    4. implement _level0, _level1, etc.
+
+    5. implement NSS for ADP.parse_signature
+
+    6. implement userdefined precedence and associavity
 
 
 
 
-note: we are working on making abs def a unit statement that defines in the current scope, as normal languages are...;
+
+
+
+
+
+
+
 
 
 
@@ -41,73 +78,15 @@ expression unit_type = {{}, &type_type};
 expression none_type = {{{"_none", false}}, &type_type};
 expression infered_type = {{{"_infered", false}}};
 
-/////////////// TESTING SIGNATURES //////////////////////////
-
-expression int_type = {
-    {
-        {"int", false},
-    }, &unit_type};
-
-expression dog_type = {
-    {
-        {"dog", false}
-    }, &int_type};
-
-expression print_type = {
-    {
-        {"print", false},
-        {{{}, &dog_type}},
-    }, &unit_type};
-
-expression print2_type = {
-    {
-        {"print", false},
-        {"2", false},
-        {{{}, &int_type}},
-    }, &unit_type};
-
-
-expression abs2_type = {
-    {
-        dog_type,
-        unit_type
-    }, &type_type};
-
-expression abs2_to_unit_type = {
-    {
-        {{{}, &abs2_type}},
-    }, &unit_type};
-
-expression print_abs2_type = {
-    {
-        {"print", false},
-        {"abs", false},
-        {{{}, &abs2_type}},
-    }, &unit_type};
-
-expression is_good_type = {
-    {
-        {{{}, &dog_type}},
-        {"is", false},
-        {"good", false},
-    }, &int_type};
-
-////////////////////////////////////////////////////////////////////
-
 std::vector<expression> builtins =  {
-    type_type, unit_type, none_type, infered_type, //i32_type, exit_abstraction,
-
-    // TESTING:
-    int_type, print_type, dog_type, print2_type,
-    //is_good_type, x_type,
-
-    abs2_type, abs2_to_unit_type, print_abs2_type,
+    type_type, unit_type, none_type, infered_type,
 };
 
+
 bool expressions_match(expression first, expression second);
-expression csr(std::vector<std::vector<expression>>& stack, const expression given, const size_t depth, const size_t max_depth, size_t& pointer, struct expression*& expected, bool can_define_new_signature);
+expression csr(std::vector<std::vector<expression>>& stack, const expression given, const size_t depth, const size_t max_depth, size_t& pointer, struct expression*& expected, bool can_define_new_signature, bool is_at_top_level, bool is_parsing_type);
 bool adp(abstraction_definition& given, std::vector<std::vector<expression>>& stack);
-expression resolve(std::vector<std::vector<expression>>& stack, expression given, expression& solution_type);
+expression resolve(std::vector<std::vector<expression>>& stack, expression given, expression& expected_solution_type, bool can_define_new_signature, bool is_at_top_level, bool is_parsing_type);
 
 bool symbols_match(symbol first, symbol second) {
     if (first.type == symbol_type::subexpression and second.type == symbol_type::subexpression and expressions_match(first.subexpression, second.subexpression)) return true;
@@ -123,9 +102,6 @@ bool expressions_match(expression first, expression second) {
     if (first.erroneous or second.erroneous) return false;
     if (!first.type and !second.type) return true;
     else if (first.type and second.type and expressions_match(*first.type, *second.type)) return true;
-    //else if (first.type and second.type and expressions_match(*first.type, infered_type)) return true;
-    //else if (first.type and second.type and expressions_match(*first.type, infered_type)) return true;
-
     else return false;
 }
 
@@ -146,8 +122,7 @@ std::vector<symbol> filter_subexpressions(expression call_signature) {
         if (element.type == symbol_type::subexpression) {
             result.push_back(element);
         }
-    }
-    return result;
+    } return result;
 }
 
 expression* generate_abstraction_type_for(abstraction_definition def) {
@@ -182,12 +157,12 @@ static void parse_abstraction_body(bool &error, abstraction_definition &given, s
         std::vector<expression> parsed_body = {};
         for (size_t i = 0; i < body.size() - 1; i++) {
             auto type = unit_type;
-            auto solution = resolve(stack, body[i], type);
+            auto solution = resolve(stack, body[i], type, false, true, false);
             if (solution.erroneous) {
                 std::cout << "n3zqx2l: adp-csr: fake error: Could not parse expression!\n"; // TODO: print an error (IN CSR!) of some kind!
 
                 auto type = infered_type;
-                auto actual = resolve(stack, body[i], type);
+                auto actual = resolve(stack, body[i], type, false, true, false);
 
                 std::cout << "the actual type was: \n";
                 print_expression_line(type);
@@ -202,12 +177,12 @@ static void parse_abstraction_body(bool &error, abstraction_definition &given, s
             }
             parsed_body.push_back(solution);
         }
-        auto solution = resolve(stack, body[body.size() - 1], given.return_type);
+        auto solution = resolve(stack, body[body.size() - 1], given.return_type, false, true, false);
         if (solution.erroneous) {
             std::cout << "n3zqx2l: adp-csr: fake error: Could not parse return expression!\n"; // TODO: print an error (IN CSR!) of some kind!
 
             auto type = infered_type;
-            auto actual = resolve(stack, body[body.size() - 1], type);
+            auto actual = resolve(stack, body[body.size() - 1], type, false, true, false);
 
             std::cout << "the actual type was: \n";
             print_expression_line(type);
@@ -231,7 +206,7 @@ static void parse_return_type(abstraction_definition &given, std::vector<std::ve
     ///TODO: this function needs to evaluate its return type, at compiletime.
     if (given.return_type.symbols.size()) {
         auto type = infered_type;
-        given.return_type = resolve(stack, given.return_type, type);
+        given.return_type = resolve(stack, given.return_type, type, true, false, true);
         if (given.return_type.erroneous) {
             std::cout << "n3zqx2l: adp-csr: fake error: Could not parse return type.\n"; // TODO: print an error (IN CSR!) of some kind!
             error = true;
@@ -289,9 +264,6 @@ bool adp(abstraction_definition& given, std::vector<std::vector<expression>>& st
     parse_signature(given, stack, error);
     parse_return_type(given, stack, error);
     parse_abstraction_body(error, given, stack);
-    std::cout << "adp produced this abstraction definition: \n";
-    print_abstraction_definition(given, 0);
-    std::cout << "\n\n";
     stack.pop_back();
     return error;
 }
@@ -302,7 +274,7 @@ bool contains_a_block_starting_from(size_t begin, std::vector<symbol> list) {
     return false;
 }
 
-expression csr(std::vector<std::vector<expression>>& stack, const expression given, const size_t depth, const size_t max_depth, size_t& pointer, struct expression*& expected, bool can_define_new_signature) {
+expression csr(std::vector<std::vector<expression>>& stack, const expression given, const size_t depth, const size_t max_depth, size_t& pointer, struct expression*& expected, bool can_define_new_signature, bool is_at_top_level, bool is_parsing_type) {
     if (depth > max_depth) return {true};
     if (!expected) return {true};
     if (expressions_match(*expected, none_type)) return {true};//TODO: should this be here?
@@ -326,7 +298,7 @@ expression csr(std::vector<std::vector<expression>>& stack, const expression giv
             if (pointer >= given.symbols.size()) { failed = true; break; }
             if (element.type == symbol_type::subexpression) {
                 auto& TEMP = element.subexpression.type;
-                auto subexpression = csr(stack, given, depth + 1, max_depth, pointer, TEMP, false);
+                auto subexpression = csr(stack, given, depth + 1, max_depth, pointer, TEMP, /*bool can_define_new_signature, bool is_at_top_level, bool is_parsing_type*/ can_define_new_signature, false, is_parsing_type);
                 if (subexpression.erroneous) {
                     pointer = saved;
                     if (given.symbols[pointer].type == symbol_type::subexpression) {
@@ -335,7 +307,7 @@ expression csr(std::vector<std::vector<expression>>& stack, const expression giv
                         while (current_depth <= max_expression_depth) {
                             local_pointer = 0;
                             auto& TEMP = element.subexpression.type;
-                            subexpression = csr(stack, given.symbols[pointer].subexpression, 0, current_depth, local_pointer, TEMP, false);
+                            subexpression = csr(stack, given.symbols[pointer].subexpression, 0, current_depth, local_pointer, TEMP, /*bool can_define_new_signature, bool is_at_top_level, bool is_parsing_type*/ can_define_new_signature, false, is_parsing_type);
                             if (subexpression.erroneous or local_pointer < given.symbols[pointer].subexpression.symbols.size()) {
                                 current_depth++;
                             } else break;
@@ -371,14 +343,14 @@ expression csr(std::vector<std::vector<expression>>& stack, const expression giv
         auto abstraction_type = generate_abstraction_type_for(definition);
         prune_extraneous_subexpressions(*abstraction_type);
 
-        std::cout << "generated the type for that adp as : ";
-        print_expression_line(*abstraction_type);
-        std::cout << "\n";
-
-        if ((expressions_match(*expected, *abstraction_type) or expressions_match(*expected, infered_type))) {
+        if ((expressions_match(*expected, *abstraction_type) or expressions_match(*expected, infered_type)) or is_at_top_level) {
             if (expressions_match(*expected, infered_type)) expected = abstraction_type;
             expression result = {{definition}, abstraction_type};
             result.erroneous = adp_error;
+            if (is_at_top_level) {
+                *result.type = unit_type;
+                stack.back().push_back(definition.call_signature); ///TODO: make this go through a central function, "add_signature_to_symbol_table(sig, stack)".
+            }
             return result;
         } else {
             pointer = saved;
@@ -389,7 +361,7 @@ expression csr(std::vector<std::vector<expression>>& stack, const expression giv
     return {true};
 }
 
-expression resolve(std::vector<std::vector<expression>>& stack, expression given, expression& expected_solution_type) {
+expression resolve(std::vector<std::vector<expression>>& stack, expression given, expression& expected_solution_type, bool can_define_new_signature, bool is_at_top_level, bool is_parsing_type) {
     auto& list = stack.back();
     std::sort(list.begin(), list.end(), [](auto a, auto b) { return a.symbols.size() > b.symbols.size(); });
     prune_extraneous_subexpressions(given);
@@ -399,7 +371,7 @@ expression resolve(std::vector<std::vector<expression>>& stack, expression given
         pointer = 0;
         auto solution_type_copy = expected_solution_type;
         solution.type = &solution_type_copy;
-        solution = csr(stack, given, 0, max_depth, pointer, solution.type, false);
+        solution = csr(stack, given, 0, max_depth, pointer, solution.type, /*bool can_define_new_signature, bool is_at_top_level, bool is_parsing_type*/ can_define_new_signature, is_at_top_level, is_parsing_type);
         if (solution.erroneous or pointer < given.symbols.size() or not solution.type) { max_depth++; }
         else break;
     }
@@ -443,9 +415,6 @@ translation_unit analyze(translation_unit unit, llvm::LLVMContext& context, stru
 
     auto type = type_type;
 
-
-
-
     auto& main = unit.list.expressions[0].symbols[0].abstraction;
     auto& body = main.body.list.expressions;
 
@@ -456,12 +425,12 @@ translation_unit analyze(translation_unit unit, llvm::LLVMContext& context, stru
         std::vector<expression> parsed_body = {};
         for (size_t i = 0; i < body.size(); i++) {
             auto type = unit_type;
-            auto solution = resolve(stack, body[i], type);
+            auto solution = resolve(stack, body[i], type, false, true, false);
             if (solution.erroneous) {
                 std::cout << "n3zqx2l: csr: fake error: Could not parse expression!\n"; // TODO: print an error (IN CSR!) of some kind!
 
                 auto type = infered_type;
-                auto actual = resolve(stack, body[i], type);
+                auto actual = resolve(stack, body[i], type, false, true, false);
 
                 std::cout << "the actual type was: \n";
                 print_expression_line(type);
@@ -491,6 +460,10 @@ translation_unit analyze(translation_unit unit, llvm::LLVMContext& context, stru
         std::cout << "----------------- analyzer ---------------------\n";
         print_translation_unit(unit, file);
     }
+
+    std::cout << "stack is now: \n";
+    print_stack(stack);
+
     if (error) {
         std::cout << "\n\n\tCSR ERROR\n\n\n\n";
         throw "analysis error";
