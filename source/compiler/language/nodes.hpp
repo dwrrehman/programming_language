@@ -50,26 +50,13 @@ enum class symbol_type {
     abstraction_definition,
 };
 
-
 // prototypes:
 
 class translation_unit;
-
-class terminated_expression;
 class block;
-
 class expression_list;
 class expression;
 class symbol;
-
-class variable_signature;
-class variable_symbol_list;
-class variable_symbol;
-
-class abstraction_signature;
-class abstraction_symbol_list;
-class abstraction_symbol;
-
 
 // literals:
 
@@ -119,9 +106,6 @@ public:
     }
     expression(bool error) {
         this->erroneous = error;
-    }
-    expression(llvm::LLVMContext& context, llvm::Type::TypeID llvm_type_id) {
-        this->llvm_type = llvm::Type::getPrimitiveType(context, llvm_type_id);
     }
 };
 

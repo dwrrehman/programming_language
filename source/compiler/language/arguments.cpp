@@ -126,14 +126,8 @@ struct arguments get_commandline_arguments(const int argc, const char** argv) {
         get_interpreter_arguments(argc, args, argv);
         return args;
         
-    } else if (argc > 1 and std::string(argv[1]) == "interpret") { // "nostril interpret"
-        
     } else if (argc > 1 and std::string(argv[1]) == "run") { // "nostril run ..."
-        
-    } else if (argc > 1 and std::string(argv[1]) == "compile") { // "nostril compile ..."
 
-    } else if (argc > 1 and std::string(argv[1]) == "entry") { // "nostril entry ..."
-        
     } else if (argc == 1) {
         args.use_interpreter = true;
         args.files.push_back({"{repl}", ""});
@@ -155,8 +149,8 @@ struct arguments get_commandline_arguments(const int argc, const char** argv) {
             std::cout << language_name << ": " << language_version << std::endl;
             exit(0);
 
-        } else if (std::string(argv[i]) == "") {
-
+        } else if (std::string(argv[i]) == "-sneeze") {
+            debug = true;
 
         } else if (argv[i][0] == '-') {
             printf("bad option: %s\n", argv[i]);

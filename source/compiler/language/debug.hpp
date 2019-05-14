@@ -22,7 +22,6 @@
 // cli arguments
 void debug_arguments(struct arguments args);
 
-
 // lexer:
 void print_lex(const std::vector<struct token> &tokens);
 const char* convert_token_type_representation(enum token_type type);
@@ -42,8 +41,6 @@ void print_expression_line(expression expression);
 void print_block_line(block block);
 
 
-
 void print_stack(std::vector<std::vector<expression>> stack);
-
 
 #endif

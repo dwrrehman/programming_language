@@ -95,8 +95,9 @@ x: possible stage 5:      turn top level abstraction call expression(s (of form:
  0. check if its a function call.
  1. check if it takes the form of a prototype.
  2. check if it takes the form of a definition signature.
- 3. check if it takes the form of a call signature
- 4. check if it takes the form of a type signature.
+ 3. check if it takes the form of a call signature                 <--------- we are missing these
+ 4. check if it takes the form of a type signature                 <------------|
+
  5. if not any of these, throw an error: "unresolved expression: my func () hello () from space "
 
 

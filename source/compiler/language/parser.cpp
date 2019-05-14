@@ -28,7 +28,6 @@
 symbol parse_symbol(struct file file, bool newlines_are_a_symbol);
 expression parse_expression(struct file file, bool can_be_empty, bool newlines_are_a_symbol);
 expression_list parse_expression_list(struct file file, bool can_be_empty);
-variable_symbol_list parse_variable_symbol_list(struct file file, bool newlines_are_a_symbol);
 size_t indents(void);
 void newlines(void);
 
@@ -339,9 +338,7 @@ translation_unit parse(struct file file, llvm::LLVMContext& context) {
     }
 
     translation_unit unit = parse_translation_unit(file);
-
     if (debug) print_translation_unit(unit, file);
-    
     if (unit.error or next().type != token_type::null) throw "parse error:";
     else return unit;
 }

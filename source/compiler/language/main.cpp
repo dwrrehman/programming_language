@@ -17,10 +17,9 @@
 
  like:
 
- --emit=ast           or    -ast
- --emit=actiontree   or     -at
+ -emit=ast        or       -ast
 
- --emit-llvm       or       -ll
+ -emit-llvm       or       -ll
 
 
  we need these, they are useful for debugging and they make the compiler alittle bit more featureful.
@@ -76,8 +75,10 @@ int main(const int argc, const char** argv) {
     std::vector<std::string> object_files = {};
     object_files.reserve(modules.size());
     for (auto& module : modules)
-        object_files.push_back(generate(module.get(), arguments.files[i++]));
+        try {object_files.push_back(generate(module.get(), arguments.files[i++]));}
+        catch(...) {error = true;}
 
+    if (error) {delete_files(object_files); exit(1);}
     link(object_files, arguments);
 }
 

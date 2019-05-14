@@ -12,7 +12,6 @@
 #include "parser.hpp"
 #include "nodes.hpp"
 #include "analysis.hpp"
-#include "codegen.hpp"
 #include "corrector.hpp"
 
 #include "llvm/IR/LLVMContext.h"
@@ -61,25 +60,22 @@ void optimize(llvm::Module* module) {
 }
 
 
-static std::string parse_just_filename(std::string filepath) {
-    auto last_dot = filepath.find_last_of(".");
-    if (last_dot != std::string::npos) return filepath.substr(0, last_dot);
-    else return filepath;
-}
-
 std::string generate(llvm::Module* module, const struct file& file) {
+
+    exit(0);
 
     auto TargetTriple = llvm::sys::getDefaultTargetTriple();
     module->setTargetTriple(TargetTriple);
     std::string Error = "";
     auto Target = llvm::TargetRegistry::lookupTarget(TargetTriple, Error);
     if (!Target) {
-        llvm::errs() << Error;
+        throw "generate error: Target Registry: " + Error;
     }
 
     llvm::TargetOptions opt;
     auto RM = llvm::Optional<llvm::Reloc::Model>();
-    auto TheTargetMachine = Target->createTargetMachine(TargetTriple, "generic", "", opt, RM);
+    auto CM = llvm::Optional<llvm::CodeModel::Model>();
+    auto TheTargetMachine = Target->createTargetMachine(TargetTriple, "generic", "", opt, RM, CM);
     module->setDataLayout(TheTargetMachine->createDataLayout());
 
     auto object_filemame = file.name + ".o";
@@ -87,20 +83,23 @@ std::string generate(llvm::Module* module, const struct file& file) {
     std::error_code error;
     llvm::raw_fd_ostream dest(object_filemame, error, llvm::sys::fs::F_None);
     if (error) {
-        llvm::errs() << "Could not open file: " << error.message();
+        throw "generate error: cannot open raw object file";
     }
 
     llvm::legacy::PassManager pass;
     auto filetype = llvm::TargetMachine::CGFT_ObjectFile;
     if (TheTargetMachine->addPassesToEmitFile(pass, dest, nullptr, filetype)) {
-        llvm::errs() << "TheTargetMachine can't emit a file of this type";
-        // clean up all other files.
+        delete_files({object_filemame});
         throw "generate error: cannot emit object file on this target";
     }
 
     pass.run(*module);
     dest.flush();
     return object_filemame;
+}
+
+void delete_files(std::vector<std::string> object_filenames) {
+    
 }
 
 void link(std::vector<std::string> object_files, const struct arguments& arguments) {
@@ -113,6 +112,5 @@ void link(std::vector<std::string> object_files, const struct arguments& argumen
     }
 
     std::system(link_command.c_str());
-
-    // remove_files(object_files);
+    delete_files(object_files);
 }

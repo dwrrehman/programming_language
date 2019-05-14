@@ -37,14 +37,14 @@ std::unique_ptr<llvm::Module> analyze(translation_unit unit, llvm::LLVMContext& 
 
  std::vector<std::string> builtins = {
 
- "_visibility", "_within", "_called", "_when",
+ x:"_visibility", "_within", "_called", "_when",;
 
 
- "_scope", "_self", "_parent",
+x: "_scope", "_self", "_parent",;
 
 
- "_caller", "_file", "_module", "_all",
- "_bring", "_import",
+ x:"_caller", "_file", "_module", "_all",;
+ x:"_bring", "_import",;
 
 
 
@@ -59,8 +59,8 @@ x:"_type", "_infered", "_none",;
 x: "_after", "_before", "_inside",;
 
  // parse tree nodes:
- "_translation_unit",
- "_expression", "_expression_list", "_symbol",
- "_string", "_character", "_documentation", "_llvm",
- "_identifier", "_builtin",
+ x:"_translation_unit",
+ "_expression", x:"_expression_list", "_symbol",;
+ x:"_string", "_character", "_documentation",; "_llvm",
+ x:"_identifier", "_builtin",;
  };*/

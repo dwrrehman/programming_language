@@ -663,6 +663,12 @@ std::unique_ptr<llvm::Module> analyze(translation_unit unit, llvm::LLVMContext& 
         }
     } else main.return_type = unit_type;
 
+
+    // generate for main here.
+
+
+
+
     if (debug) {
         std::cout << "----------------- analyzer ---------------------\n";
         print_translation_unit(unit, file);
@@ -678,6 +684,124 @@ std::unique_ptr<llvm::Module> analyze(translation_unit unit, llvm::LLVMContext& 
         throw "analysis error";
     } else {
         std::cout << "\n\n\tsuccess.\n\n\n";
-        return unit;
+        return module;
     }
 }
+
+
+
+/*
+
+ useful:
+
+
+    - llvm::verifyFunction(function)
+
+
+useful:
+
+
+ std::vector<llvm::Type*> parameters(arguments.size(), llvm::Type::getDoubleTy(context));
+
+ llvm::FunctionType* type = llvm::FunctionType::get(llvm::Type::getDoubleTy(context), parameters, false);
+
+ llvm::Function* function = llvm::Function::Create(type, llvm::Function::ExternalLinkage, Name, TheModule.get());
+
+
+
+
+
+ */
+
+
+
+
+
+
+/*
+
+
+---------- this is a very imporant algorithm. --------------- (code generating a call expression.)
+
+llvm::Value* CallExprAST::codegen() {
+    // Look up the name in the global module table.
+    llvm::Function *CalleeF = TheModule->getFunction(Callee);
+    if (!CalleeF) {
+        std::cout << Callee << ": ";
+        return LogErrorV("Unknown function referenced");
+    }
+    // If argument mismatch error.
+    if (CalleeF->arg_size() != Args.size()) {
+        std::cout << "Expected " << Args.size() << " arguments, but found " << CalleeF->arg_size() << ".\n";
+        return LogErrorV("Incorrect # arguments passed");
+    }
+    std::vector<llvm::Value*> ArgsV;
+    for (unsigned i = 0, e = (unsigned) Args.size(); i != e; ++i) {
+        ArgsV.push_back(Args[i]->codegen());
+        if (!ArgsV.back()) return nullptr;
+    }
+
+    return Builder.CreateCall(CalleeF, ArgsV, "calltmp");
+}
+
+the problem with doing this in my language, however, is that in our
+ expressions we might have abstraction definitions in expressions, and
+ we dont really know what to pass in for that.
+
+    i think the only sensible thing to do is to essentially delete that parameter,
+ and then simply have that function be defined on a more global scale, so that
+ it can still be accessed, but we arent passing it into another function. maybe
+ someone else has a better idea.
+
+
+
+
+
+
+
+
+llvm::Function* PrototypeAST::codegen() {
+    // Make the function type:  double(double,double) etc.
+    std::vector<llvm::Type*> parameters(arguments.size(), llvm::Type::getDoubleTy(context));
+    llvm::FunctionType* type = llvm::FunctionType::get(llvm::Type::getDoubleTy(context), parameters, false);
+    llvm::Function* function = llvm::Function::Create(type, llvm::Function::ExternalLinkage, Name, TheModule.get());
+
+    size_t i = 0;
+    for (auto &argument : function->args()) argument.setName(arguments[i++]);
+
+    return function;
+}
+
+
+
+
+llvm::Function* codegen() {
+
+    // First, check for an existing function from a previous 'extern' declaration.
+    llvm::Function* function = TheModule->getFunction(Proto->getName());
+    if (!function && !(function = Proto->codegen())) return nullptr;
+
+    // Create a new basic block to start insertion into.
+    llvm::BasicBlock* block = llvm::BasicBlock::Create(context, "entry", function);
+    Builder.SetInsertPoint(block);
+
+    // Record the function arguments in the NamedValues map.
+    NamedValues.clear();
+    for (auto &Arg : function->args()) NamedValues[Arg.getName()] = &Arg;
+
+    if (llvm::Value* return_value = Body->codegen()) {
+        // Finish off the function.
+        Builder.CreateRet(return_value);
+
+        // Validate the generated code, checking for consistency.
+        verifyFunction(*function);
+
+        return function;
+    }
+
+    // Error reading body, remove function.
+    function->eraseFromParent();
+    return nullptr;
+}
+
+*/
