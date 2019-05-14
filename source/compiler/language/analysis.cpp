@@ -40,6 +40,7 @@
 #include "llvm/IR/ModuleSummaryIndex.h"
 #include "llvm/AsmParser/Parser.h"
 #include "llvm/Support/MemoryBuffer.h"
+#include "llvm/Transforms/Utils/FunctionComparator.h"
 
 #include <algorithm>
 #include <cassert>
@@ -103,12 +104,13 @@
 
 
 
+ might be useful:
 
 
-
-
+ llvm_function->copyAttributesFrom(const Function *Src)
 
  */
+
 
 
 /// Global builtin types. these are fundemental to the language:
@@ -121,15 +123,15 @@ std::vector<expression> builtins =  {
     type_type, unit_type, none_type, infered_type,
 };
 
-
 bool expressions_match(expression first, expression second);
-expression csr(std::vector<std::vector<expression>>& stack, const expression given, const size_t depth, const size_t max_depth, size_t& pointer, struct expression*& expected, bool can_define_new_signature, bool is_at_top_level, bool is_parsing_type);
-bool adp(abstraction_definition& given, std::vector<std::vector<expression>>& stack);
-expression resolve(std::vector<std::vector<expression>>& stack, expression given, expression& expected_solution_type, bool can_define_new_signature, bool is_at_top_level, bool is_parsing_type);
+expression csr(std::vector<std::vector<expression>>& stack, const expression given, const size_t depth, const size_t max_depth, size_t& pointer, struct expression*& expected, bool can_define_new_signature, bool is_at_top_level, bool is_parsing_type, llvm::Module* module, struct file file);
+bool adp(abstraction_definition& given, std::vector<std::vector<expression>>& stack, llvm::Module* module, struct file file);
+expression resolve(std::vector<std::vector<expression>>& stack, expression given, expression& expected_solution_type, bool can_define_new_signature, bool is_at_top_level, bool is_parsing_type, llvm::Module* module, struct file file);
 
 bool symbols_match(symbol first, symbol second) {
     if (first.type == symbol_type::subexpression and second.type == symbol_type::subexpression and expressions_match(first.subexpression, second.subexpression)) return true;
     else if (first.type == symbol_type::identifier and second.type == symbol_type::identifier and first.identifier.name.value == second.identifier.name.value) return true;
+    else if (first.type == symbol_type::llvm_literal and second.type == symbol_type::llvm_literal) return true;
     else return false;
 }
 
@@ -140,6 +142,14 @@ bool expressions_match(expression first, expression second) {
     }
     if (first.erroneous or second.erroneous) return false;
     if (!first.type and !second.type) return true;
+
+    if (first.llvm_type and second.llvm_type) {
+        std::string first_llvm_type = "", second_llvm_type = "";
+        first.llvm_type->print(llvm::raw_string_ostream(first_llvm_type) << "");
+        second.llvm_type->print(llvm::raw_string_ostream(second_llvm_type) << "");
+        return first_llvm_type == second_llvm_type;
+    } else if (first.llvm_type or second.llvm_type) return false;
+
     else if (first.type and second.type and expressions_match(*first.type, *second.type)) return true;
     else return false;
 }
@@ -189,19 +199,19 @@ void clean(block& body) {
     } body = result;
 }
 
-static void parse_abstraction_body(bool &error, abstraction_definition &given, std::vector<std::vector<expression>> &stack) {
+static void parse_abstraction_body(bool &error, abstraction_definition &given, std::vector<std::vector<expression>> &stack, llvm::Module* module, struct file file) {
     stack.back().push_back(given.call_signature);
     auto& body = given.body.list.expressions;
     if (body.size()) {
         std::vector<expression> parsed_body = {};
         for (size_t i = 0; i < body.size() - 1; i++) {
             auto type = unit_type;
-            auto solution = resolve(stack, body[i], type, false, true, false);
+            auto solution = resolve(stack, body[i], type, false, true, false, module, file);
             if (solution.erroneous) {
                 std::cout << "n3zqx2l: adp-csr: fake error: Could not parse expression!\n"; // TODO: print an error (IN CSR!) of some kind!
 
                 auto type = infered_type;
-                auto actual = resolve(stack, body[i], type, false, true, false);
+                auto actual = resolve(stack, body[i], type, false, true, false, module, file);
 
                 std::cout << "the actual type was: \n";
                 print_expression_line(type);
@@ -216,12 +226,12 @@ static void parse_abstraction_body(bool &error, abstraction_definition &given, s
             }
             parsed_body.push_back(solution);
         }
-        auto solution = resolve(stack, body[body.size() - 1], given.return_type, false, true, false);
+        auto solution = resolve(stack, body[body.size() - 1], given.return_type, false, true, false, module, file);
         if (solution.erroneous) {
             std::cout << "n3zqx2l: adp-csr: fake error: Could not parse return expression!\n"; // TODO: print an error (IN CSR!) of some kind!
 
             auto type = infered_type;
-            auto actual = resolve(stack, body[body.size() - 1], type, false, true, false);
+            auto actual = resolve(stack, body[body.size() - 1], type, false, true, false, module, file);
 
             std::cout << "the actual type was: \n";
             print_expression_line(type);
@@ -241,11 +251,11 @@ static void parse_abstraction_body(bool &error, abstraction_definition &given, s
     if (given.call_signature.type) *given.call_signature.type = given.return_type;
 }
 
-static void parse_return_type(abstraction_definition &given, std::vector<std::vector<expression> > &stack, bool& error) {
+static void parse_return_type(abstraction_definition &given, std::vector<std::vector<expression> > &stack, bool& error, llvm::Module* module, struct file file) {
     ///TODO: this function needs to evaluate its return type, at compiletime.
     if (given.return_type.symbols.size()) {
         auto type = infered_type;
-        given.return_type = resolve(stack, given.return_type, type, true, false, true);
+        given.return_type = resolve(stack, given.return_type, type, true, false, true, module, file);
         if (given.return_type.erroneous) {
             std::cout << "n3zqx2l: adp-csr: fake error: Could not parse return type.\n"; // TODO: print an error (IN CSR!) of some kind!
             error = true;
@@ -258,7 +268,7 @@ static void parse_return_type(abstraction_definition &given, std::vector<std::ve
     given.call_signature.type->was_allocated = true;
 }
 
-static void parse_signature(abstraction_definition &given, std::vector<std::vector<expression>>& stack, bool& error) {
+static void parse_signature(abstraction_definition &given, std::vector<std::vector<expression>>& stack, bool& error, llvm::Module* module, struct file file) {
     expression result = {};
     auto call = given.call_signature.symbols;
     for (size_t i = 0; i < call.size(); i++) {
@@ -272,8 +282,8 @@ static void parse_signature(abstraction_definition &given, std::vector<std::vect
                 while (pointer < sub.symbols.size()) {
                     definition.return_type.symbols.push_back(sub.symbols[pointer++]);
                 }
-                parse_signature(definition, stack, error);
-                parse_return_type(definition, stack, error);
+                parse_signature(definition, stack, error, module, file);
+                parse_return_type(definition, stack, error, module, file);
                 auto parameter_type = generate_abstraction_type_for(definition);
                 expression parameter = {definition.call_signature.symbols, parameter_type};
                 result.symbols.push_back({parameter});
@@ -296,13 +306,13 @@ static void parse_signature(abstraction_definition &given, std::vector<std::vect
     given.call_signature = result;
 }
 
-bool adp(abstraction_definition& given, std::vector<std::vector<expression>>& stack) {
+bool adp(abstraction_definition& given, std::vector<std::vector<expression>>& stack, llvm::Module* module, struct file file) {
     clean(given.body); //TODO: move me into the corrector code.
     bool error = false;
     stack.push_back(stack.back());
-    parse_signature(given, stack, error);
-    parse_return_type(given, stack, error);
-    parse_abstraction_body(error, given, stack);
+    parse_signature(given, stack, error, module, file);
+    parse_return_type(given, stack, error, module, file);
+    parse_abstraction_body(error, given, stack, module, file);
     stack.pop_back();
     return error;
 }
@@ -317,71 +327,6 @@ bool contains_a_block_starting_from(size_t begin, std::vector<symbol> list) {
 
 
 
-
-
-llvm::Type* parse_llvm_string_as_type(std::string given) {
-    std::cout << "received LLVM type: ";
-    std::cout << given;
-    std::cout << "\n";
-    return nullptr;
-}
-
-llvm::Instruction* parse_llvm_string_as_instruction(std::string given) {
-    std::cout << "received LLVM instruction: ";
-    std::cout << given;
-    std::cout << "\n";
-    return nullptr;
-}
-
-llvm::Function* parse_llvm_string_as_function(std::string given) {
-    std::cout << "received LLVM function: ";
-    std::cout << given;
-    std::cout << "\n";
-    return nullptr;
-}
-
-
-/*
- might be useful:
-
-
-        llvm_function->copyAttributesFrom(const Function *Src)
-
- */
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 std::string random_string() {
     static int num = 0;
     std::stringstream stream;
@@ -390,173 +335,49 @@ std::string random_string() {
 }
 
 
-static void otherLoop() {
-    std::string code = "";
 
-    while (true) {
-        std::cout << "::> ";
+llvm::Type* parse_llvm_string_as_type(std::string given, llvm::Module* module, struct file file, llvm::SMDiagnostic& errors) {
+    return llvm::parseType(given, errors, *module);
+}
 
-        std::string mode = "";
-        std::cin >> mode;
+llvm::Instruction* parse_llvm_string_as_instruction(std::string given, llvm::Module* module, struct file file, llvm::SMDiagnostic& errors) {
 
-        llvm::SMDiagnostic errors;
+    llvm::MemoryBufferRef reference(given, "llvm_string_buffer");
+    llvm::ModuleSummaryIndex my_index(true);
 
-        if (mode == "expr") {
+    if (given.size()) { // PRONLEM: if this instruction references other variables, then we need to be able to dfine those variuabkes into the llvm symbol table, so that this instruction can reference those variuables.
+        // this might be resolved by making up this anon func, with no ins, then adding in the varuables, by affecting the symbol table, and finally, we simply append this instruction in the middle of the ir, then parse it again.
 
-            std::getline(std::cin, code);
-            std::cout << "received: \"" << code << "\"\n";
-
-            if (code == "done" || code == "") {
-                std::cout << "quitting...\n";
-                break;
-            }
-
-            if (code.size() && code[0]) {
-                code.insert(0, "define void @_anonymous_" + random_string() + "() {\n"); // wrap the given llvm statements in a function, named the same as the function we want to insert these statements into.
-                code += "\nret void\n}\n";
-            }
-
-            for (int i = 0; i < code.size(); i++) {    // temp, to make the cli more useable.
-                if (code[i] == '/') {
-                    code[i] = '\n';
-                }
-            }
-
-            llvm::MemoryBufferRef reference(code, "temp_ins_buffer");
-            llvm::ModuleSummaryIndex my_index(true);
-            llvm::SMDiagnostic errors;
-
-            if (llvm::parseAssemblyInto(reference, TheModule.get(), &my_index, errors)) {
-                std::cout << "\nparsed unsuccessfully.\n\n";
-
-
-                std::cout << "llvm: "; // TODO: make this have color!
-                errors.print("MyProgram.n", llvm::errs());
-
-            } else {
-                std::cout << "\nparsed successfully.\n\n";
-            }
-        } else if (mode == "decl") {
-
-            std::getline(std::cin, code);
-            std::cout << "received: \"" << code << "\"\n";
-
-            if (code == "done" || code == "") {
-                std::cout << "quitting...\n";
-                break;
-            }
-
-            for (int i = 0; i < code.size(); i++) {    // temp, to make the cli more useable.
-                if (code[i] == '/') {
-                    code[i] = '\n';
-                }
-            }
-
-            llvm::MemoryBufferRef reference(code, "temp_ins_buffer");
-            llvm::ModuleSummaryIndex my_index(true);
-            llvm::SMDiagnostic errors;
-
-            if (llvm::parseAssemblyInto(reference, TheModule.get(), &my_index, errors)) {
-                std::cout << "\nparsed unsuccessfully.\n\n";
-
-                std::cout << "llvm: "; // TODO: make this have color!
-                errors.print("MyProgram.n", llvm::errs());
-
-            } else {
-                std::cout << "\nparsed successfully.\n\n";
-            }
-
-        } else if (mode == "show") {
-            std::cout << "printing all functions:\n";
-            for (auto& function : TheModule->functions()) {
-                std::cout << "printing function:\n";
-                function.llvm::Value::print(llvm::errs());
-                std::cout << "done printing function!\n";
-            }
-            std::cout << "done printing!\n";
-
-        } else if (mode == "type") {
-
-            std::getline(std::cin, code);
-
-            code.erase(code.begin());
-            std::cout << "received: \"" << code << "\"\n";
-
-            if (code == "done" || code == "") {
-                std::cout << "quitting...\n";
-                break;
-            }
-
-            for (int i = 0; i < code.size(); i++) {    // temp, to make the cli more useable.
-                if (code[i] == '/') {
-                    code[i] = '\n';
-                }
-            }
-
-            llvm::MemoryBufferRef reference(code, "temp_ins_buffer");
-            llvm::ModuleSummaryIndex my_index(true);
-            llvm::SMDiagnostic errors;
-
-            llvm::Type* type;
-
-            if ((type = llvm::parseType(code, errors, *TheModule)) != nullptr) {
-                std::cout << "succcesfully parsed type: \n";
-                type->print(llvm::outs());
-            } else {
-                std::cout << "\n\nllvm: "; // TODO: make this have color!
-                errors.print("MyProgram.n", llvm::errs());
-                std::cout << "\n\n";
-            }
-
-        } else if (mode == "print") {
-            std::cout << "printing the results: \n\n";
-            TheModule->print(llvm::outs(), nullptr);
-
-        } else if (mode == "help") {
-            std::cout << "say: print or type or decl or expr.\n";
-        }
-        code = "";
+        // this is going to involve possibly calling code_gen(), which will be func.
+        given.insert(0, "define void @_anonymous_" + random_string() + "() {\n");
+        given += "\nret void\n}\n";
     }
 
-    std::cout << "printing the results: \n\n";
-    TheModule->print(llvm::outs(), nullptr);
+    return nullptr;
+
+    if (llvm::parseAssemblyInto(reference, module, &my_index, errors)) {
+        std::cout << "\nparsed unsuccessfully.\n\n";
+
+        errors.print("MyProgram.n", llvm::errs());
+
+    } else {
+
+        std::cout << "\nparsed successfully.\n\n";
+    }
+
+    return nullptr;
 }
 
 
 
+llvm::Function* parse_llvm_string_as_function(std::string given, llvm::Module* module, struct file file, llvm::SMDiagnostic& errors) {
+    llvm::MemoryBufferRef reference(given, "llvm_string_buffer");
+    llvm::ModuleSummaryIndex my_index(true);
+    if (llvm::parseAssemblyInto(reference, module, &my_index, errors)) return nullptr;
+    else return &module->getFunctionList().back();
+}
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-expression csr(std::vector<std::vector<expression>>& stack, const expression given, const size_t depth, const size_t max_depth, size_t& pointer, struct expression*& expected, bool can_define_new_signature, bool is_at_top_level, bool is_parsing_type) {
+expression csr(std::vector<std::vector<expression>>& stack, const expression given, const size_t depth, const size_t max_depth, size_t& pointer, struct expression*& expected, bool can_define_new_signature, bool is_at_top_level, bool is_parsing_type, llvm::Module* module, struct file file) {
     if (depth > max_depth) return {true};
     if (!expected) return {true};
     if (given.symbols.empty() or (given.symbols.size() == 1
@@ -569,53 +390,80 @@ expression csr(std::vector<std::vector<expression>>& stack, const expression giv
         if (expressions_match(*expected, unit_type)) return unit_type;
         else return {true};
     } else if (given.symbols.size() == 1 and given.symbols[0].type == symbol_type::llvm_literal) {
-
+        pointer++;
         auto llvm_string = given.symbols[0].llvm.literal.value;
 
         if (is_at_top_level and not is_parsing_type) {
-            auto llvm_string = given.symbols[0].llvm.literal.value;
 
-            if (auto llvm_instruction = parse_llvm_string_as_instruction(llvm_string)) {
+            llvm::SMDiagnostic instruction_errors;
+            llvm::SMDiagnostic function_errors;
 
+            if (auto llvm_instruction = parse_llvm_string_as_instruction(llvm_string, module, file, instruction_errors)) {
                 expression solution = {};
                 solution.erroneous = false;
                 solution.llvm_instruction = llvm_instruction;
-
-                
-
-
-                solution.symbols = {};
                 solution.type = &unit_type;
-
+                solution.symbols = {};
+                symbol s = {};
+                s.type = symbol_type::llvm_literal;
+                s.llvm = given.symbols[0].llvm;
+                solution.symbols.push_back(s);
                 return solution;
 
-            } else if (auto llvm_function = parse_llvm_string_as_function(llvm_string)) {
-
+            } else if (auto llvm_function = parse_llvm_string_as_function(llvm_string, module, file, function_errors)) {
                 expression solution = {};
                 solution.erroneous = false;
                 solution.llvm_function = llvm_function;
 
+                llvm_function->print(llvm::errs());
 
                 solution.type = &unit_type;
                 solution.symbols = {};
+                symbol s = {};
+                s.type = symbol_type::llvm_literal;
+                s.llvm = given.symbols[0].llvm;
+                solution.symbols.push_back(s);
 
                 return solution;
 
             } else {
                 // print error, assuming instruction, as well as for function.
+
+                std::cout << "llvm: "; // TODO: make this have color!
+                instruction_errors.print(file.name.c_str(), llvm::errs()); // temp
+
+                std::cout << "llvm: "; // TODO: make this have color!
+                function_errors.print(file.name.c_str(), llvm::errs()); // temp
                 return {true};
             }
 
+
+
+
         } else if (is_parsing_type and not is_at_top_level) {
-            if (auto llvm_type = parse_llvm_string_as_type(llvm_string)) {
+
+            llvm::SMDiagnostic type_errors;
+
+            if (auto llvm_type = parse_llvm_string_as_type(llvm_string, module, file, type_errors)) {
 
                 expression solution = {};
                 solution.erroneous = false;
                 solution.llvm_type = llvm_type;
-                solution.symbols = {};
 
+                solution.type = &type_type;
+                solution.symbols = {};
+                symbol s = {};
+                s.type = symbol_type::llvm_literal;
+                s.llvm = given.symbols[0].llvm;
+                solution.symbols.push_back(s);
                 return solution;
 
+            } else {
+
+                std::cout << "llvm: "; // TODO: make this have color!
+                type_errors.print(file.name.c_str(), llvm::errs()); // temp
+
+                return {true};
             }
         } else {
             std::cout << "unexpected llvm string here.\n"; // TODO: make this a proper error.
@@ -632,7 +480,7 @@ expression csr(std::vector<std::vector<expression>>& stack, const expression giv
             if (pointer >= given.symbols.size()) { failed = true; break; }
             if (element.type == symbol_type::subexpression) {
                 auto& TEMP = element.subexpression.type;
-                auto subexpression = csr(stack, given, depth + 1, max_depth, pointer, TEMP, /*bool can_define_new_signature, bool is_at_top_level, bool is_parsing_type*/ can_define_new_signature, false, is_parsing_type);
+                auto subexpression = csr(stack, given, depth + 1, max_depth, pointer, TEMP, /*bool can_define_new_signature, bool is_at_top_level, bool is_parsing_type*/ can_define_new_signature, false, is_parsing_type, module, file);
                 if (subexpression.erroneous) {
                     pointer = saved;
                     if (given.symbols[pointer].type == symbol_type::subexpression) {
@@ -641,7 +489,7 @@ expression csr(std::vector<std::vector<expression>>& stack, const expression giv
                         while (current_depth <= max_expression_depth) {
                             local_pointer = 0;
                             auto& TEMP = element.subexpression.type;
-                            subexpression = csr(stack, given.symbols[pointer].subexpression, 0, current_depth, local_pointer, TEMP, /*bool can_define_new_signature, bool is_at_top_level, bool is_parsing_type*/ can_define_new_signature, false, is_parsing_type);
+                            subexpression = csr(stack, given.symbols[pointer].subexpression, 0, current_depth, local_pointer, TEMP, /*bool can_define_new_signature, bool is_at_top_level, bool is_parsing_type*/ can_define_new_signature, false, is_parsing_type, module, file);
                             if (subexpression.erroneous or local_pointer < given.symbols[pointer].subexpression.symbols.size()) {
                                 current_depth++;
                             } else break;
@@ -672,7 +520,7 @@ expression csr(std::vector<std::vector<expression>>& stack, const expression giv
         while (given.symbols[pointer].type != symbol_type::block) {
             definition.return_type.symbols.push_back(given.symbols[pointer++]);
         } definition.body = given.symbols[pointer++].block;
-        bool adp_error = adp(definition, stack);
+        bool adp_error = adp(definition, stack, module, file);
 
         auto abstraction_type = generate_abstraction_type_for(definition);
         prune_extraneous_subexpressions(*abstraction_type);
@@ -681,7 +529,7 @@ expression csr(std::vector<std::vector<expression>>& stack, const expression giv
             if (expressions_match(*expected, infered_type)) expected = abstraction_type;
             expression result = {{definition}, abstraction_type};
             result.erroneous = adp_error;
-            if (is_at_top_level) {
+            if (not result.erroneous and is_at_top_level) {
                 *result.type = unit_type;
                 stack.back().push_back(definition.call_signature); ///TODO: make this go through a central function, "add_signature_to_symbol_table(sig, stack)".
             }
@@ -695,7 +543,7 @@ expression csr(std::vector<std::vector<expression>>& stack, const expression giv
     return {true};
 }
 
-expression resolve(std::vector<std::vector<expression>>& stack, expression given, expression& expected_solution_type, bool can_define_new_signature, bool is_at_top_level, bool is_parsing_type) {
+expression resolve(std::vector<std::vector<expression>>& stack, expression given, expression& expected_solution_type, bool can_define_new_signature, bool is_at_top_level, bool is_parsing_type, llvm::Module* module, struct file file) {
     auto& list = stack.back();
     std::sort(list.begin(), list.end(), [](auto a, auto b) { return a.symbols.size() > b.symbols.size(); });
     prune_extraneous_subexpressions(given);
@@ -705,7 +553,7 @@ expression resolve(std::vector<std::vector<expression>>& stack, expression given
         pointer = 0;
         auto solution_type_copy = expected_solution_type;
         solution.type = &solution_type_copy;
-        solution = csr(stack, given, 0, max_depth, pointer, solution.type, /*bool can_define_new_signature, bool is_at_top_level, bool is_parsing_type*/ can_define_new_signature, is_at_top_level, is_parsing_type);
+        solution = csr(stack, given, 0, max_depth, pointer, solution.type, /*bool can_define_new_signature, bool is_at_top_level, bool is_parsing_type*/ can_define_new_signature, is_at_top_level, is_parsing_type, module, file);
         if (solution.erroneous or pointer < given.symbols.size() or not solution.type) { max_depth++; }
         else break;
     }
@@ -741,9 +589,10 @@ bool contains_top_level_statements(std::vector<expression> list) {
 
 translation_unit analyze(translation_unit unit, llvm::LLVMContext& context, struct file file) {
 
+    auto module = llvm::make_unique<llvm::Module>("_anonymous_temporary_module_" + file.name + "_" + random_string(), context);
+
     static bool found_main = false;
     bool error = false;
-
     wrap_into_main(unit);
     std::vector<std::vector<expression>> stack = {builtins};
 
@@ -759,12 +608,12 @@ translation_unit analyze(translation_unit unit, llvm::LLVMContext& context, stru
         std::vector<expression> parsed_body = {};
         for (size_t i = 0; i < body.size(); i++) {
             auto type = unit_type;
-            auto solution = resolve(stack, body[i], type, false, true, false);
+            auto solution = resolve(stack, body[i], type, false, true, false, module.get(), file);
             if (solution.erroneous) {
                 std::cout << "n3zqx2l: csr: fake error: Could not parse expression!\n"; // TODO: print an error (IN CSR!) of some kind!
 
                 auto type = infered_type;
-                auto actual = resolve(stack, body[i], type, false, true, false);
+                auto actual = resolve(stack, body[i], type, false, true, false, module.get(), file);
 
                 std::cout << "the actual type was: \n";
                 print_expression_line(type);
@@ -797,6 +646,8 @@ translation_unit analyze(translation_unit unit, llvm::LLVMContext& context, stru
 
     std::cout << "stack is now: \n";
     print_stack(stack);
+
+    module.reset();
 
     if (error) {
         std::cout << "\n\n\tCSR ERROR\n\n\n\n";
