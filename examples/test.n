@@ -1,14 +1,1 @@
-(int) 'i32' {}
-(float) 'float' {}
 
-(hello using ((x) 'float')) () {
-
-}
-
-(hello using ((x) 'i32')) () {
-
-}
-
-hello using int
-
-hello using float

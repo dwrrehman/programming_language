@@ -67,26 +67,37 @@ void open_dir() {
  nostril                        : open the REPL interpreter.
  
  nostril <.n, ...>              : compile the following files, into a executable.
- 
- nostril interpret <s>          : run the interpreter on a given string nostril statment, s
+
+    allowed file extensions:
+
+        .n      n3zqx2l implementation file
+
+        .ni     n3zqx2l interface file
+
+
+    passed to the linker:
+
+        .o      object file
+
+        .a      statically linked library
+
+        ...and anyting else that the linker accepts.
+
+
  
  nostril pick                   : run the picker editor, with an empty temp file.
  
  nostril pick <.n>              : run the picker editor.
-
- nostril compile <project>      : compile a nostril project in the current directory.
  
  nostril run <args>             : compile a nostril project, and then run it,
 
- nostril pack                 : create a package, instead of an executable.
-
- nostril do <one file>       : define this file as the entry point, and wrap a anon lambda around the code.
+ nostril pack                   : create a package, instead of an executable.
  
  ------------------------------ flags ------------------------------
  
- nostril -empty                  : dont include the standard library implicitly.
+ nostril -void                  : dont include the standard library implicitly.
  
- nostril -link <.a/.np>         : a archive file, or a booger to statically link.
+ nostril <.a/.np>                 : a archive file to statically link.
  
  nostril -named <name>           : name the executable to the name.
  

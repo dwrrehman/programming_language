@@ -19,11 +19,12 @@
 
 std::unique_ptr<llvm::Module> frontend(struct file file, llvm::LLVMContext &context);
 
-void optimize(llvm::Module& module);
+void optimize(llvm::Module* module);
 
-void link(llvm::Module &program, std::unique_ptr<llvm::Module> &module);
+std::string generate(llvm::Module* module, const struct file& file);
+void link(std::vector<std::string> object_files, const struct arguments& arguments);
 
-llvm::Module& pop(std::vector<std::unique_ptr<llvm::Module>> &modules);
+
 
 
 #endif /* compiler_hpp */

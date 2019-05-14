@@ -330,7 +330,6 @@ translation_unit parse_translation_unit(struct file file) {
 }
 
 translation_unit parse(struct file file, llvm::LLVMContext& context) {
-
     start_lex(file);
 
     if (debug) {
@@ -343,10 +342,6 @@ translation_unit parse(struct file file, llvm::LLVMContext& context) {
 
     if (debug) print_translation_unit(unit, file);
     
-    if (unit.error or next().type != token_type::null) {
-        if (debug) std::cout << "\n\n\tparse error!\n\n";
-        return {};
-    }
-
-    return unit;
+    if (unit.error or next().type != token_type::null) throw "parse error:";
+    else return unit;
 }

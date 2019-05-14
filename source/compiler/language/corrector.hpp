@@ -22,9 +22,9 @@ translation_unit correct(translation_unit unit, struct file file);
 
  parsing - corrector:
 
- stage 1:   indent level raising (ILR) indent correction phase
+ x:stage 1:   indent level raising (ILR) indent correction phase;
 
- stage 2    turn indent to block transformations (TIB) indent correction phase
+ x:stage 2    turn indent to block transformations (TIB) indent correction phase;
 
            x: stage 3:   expression to abstraction definition (ETA) correction phase;
 
@@ -32,8 +32,8 @@ translation_unit correct(translation_unit unit, struct file file);
 
 
 
- possible stage 5:      turn top level abstraction call expression(s (of form: subexpr, stuff, block) into abstraction definitions. (they cant possibly be a fucntion call, becuase its the top level.
- aka, top level expression to abstraction definition:      (TEA)
+x: possible stage 5:      turn top level abstraction call expression(s (of form: subexpr, stuff, block) into abstraction definitions. (they cant possibly be a fucntion call, becuase its the top level.
+ aka, top level expression to abstraction definition:      (TEA);
 
         -> this is because only abstraction definitions/declarations can appear at the top level.
 
@@ -44,9 +44,9 @@ translation_unit correct(translation_unit unit, struct file file);
 
  stage 6:    namespace signature subsitution (NSS) phase
 
- stage 7:    type inference and checking (TIC) phase
+                            x:stage 7:    type inference and checking (TIC) phase;
 
- stage 8:    call signature resolution (CSR) phase
+                            x:stage 8:    call signature resolution (CSR) phase;
 
  stage 9:    numeric value subsitution (NVS) phase
 

@@ -68,12 +68,17 @@ int main(const int argc, const char** argv) {
     for (auto file : arguments.files)
         try {modules.push_back(frontend(file, context));}
         catch (...) {error = true;}
-
     if (error) exit(1);
-    for (auto& module : modules) optimize(*module);
 
-    auto& program = pop(modules);
-    for (auto& module : modules) link(program, module);
+    for (auto& module : modules) optimize(module.get());
+
+    size_t i = 0;
+    std::vector<std::string> object_files = {};
+    object_files.reserve(modules.size());
+    for (auto& module : modules)
+        object_files.push_back(generate(module.get(), arguments.files[i++]));
+
+    link(object_files, arguments);
 }
 
 
