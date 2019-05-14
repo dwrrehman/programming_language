@@ -26,27 +26,6 @@
 
 
 
- print abs () () {
-
- }
-
-
-CSR ERROR
-
-
-
-
- () () {
-
- }
-
-CSR ERROR
-
-
-
-
-
-
 
 note: we are working on making abs def a unit statement that defines in the current scope, as normal languages are...;
 
@@ -281,7 +260,7 @@ static void parse_return_type(abstraction_definition &given, std::vector<std::ve
             std::cout << "n3zqx2l: adp-csr: fake error: Could not parse return type.\n"; // TODO: print an error (IN CSR!) of some kind!
             error = true;
         }
-        if (expressions_match(given.return_type, unit_type)) given.return_type = unit_type;
+        if (given.return_type.type and expressions_match(*given.return_type.type, unit_type) and given.return_type.symbols.empty()) given.return_type = unit_type;
         else if (given.return_type.type and expressions_match(*given.return_type.type, none_type)) given.return_type = none_type;
     } else given.return_type = infered_type;
     given.call_signature.type = new expression();
@@ -361,12 +340,12 @@ expression csr(std::vector<std::vector<expression>>& stack, const expression giv
         if (expressions_match(*expected, unit_type)) return unit_type;
         else return {true};
     }
-    const size_t saved = pointer;
+    const auto saved = pointer;
     for (auto& signature : stack.back()) {
         if (not expressions_match(*expected, infered_type) and signature.type and not expressions_match(*signature.type, infered_type) and not expressions_match(*expected, *signature.type)) continue;
         expression solution = {};
         pointer = saved;
-        bool failed = false;
+        auto failed = false;
         for (auto& element : signature.symbols) {
             if (pointer >= given.symbols.size()) { failed = true; break; }
             if (element.type == symbol_type::subexpression) {
@@ -412,8 +391,14 @@ expression csr(std::vector<std::vector<expression>>& stack, const expression giv
             definition.return_type.symbols.push_back(given.symbols[pointer++]);
         } definition.body = given.symbols[pointer++].block;
         bool adp_error = adp(definition, stack);
+
         auto abstraction_type = generate_abstraction_type_for(definition);
         prune_extraneous_subexpressions(*abstraction_type);
+
+        std::cout << "generated the type for that adp as : ";
+        print_expression_line(*abstraction_type);
+        std::cout << "\n";
+
         if ((expressions_match(*expected, *abstraction_type) or expressions_match(*expected, infered_type))) {
             if (expressions_match(*expected, infered_type)) expected = abstraction_type;
             expression result = {{definition}, abstraction_type};
@@ -479,6 +464,12 @@ translation_unit analyze(translation_unit unit, llvm::LLVMContext& context, stru
 
     wrap_into_main(unit);
     std::vector<std::vector<expression>> stack = {builtins};
+
+    auto type = type_type;
+
+
+
+
     auto& main = unit.list.expressions[0].symbols[0].abstraction;
     auto& body = main.body.list.expressions;
 
