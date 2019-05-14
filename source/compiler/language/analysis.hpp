@@ -15,7 +15,7 @@
 #include <vector>
 #include <string>
 
-translation_unit analyze(translation_unit tree, llvm::LLVMContext& context, struct file file);
+std::unique_ptr<llvm::Module> analyze(translation_unit unit, llvm::LLVMContext& context, struct file file);
 
 #endif /* analysis_hpp */
 

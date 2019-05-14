@@ -41,6 +41,19 @@
 #include "llvm/AsmParser/Parser.h"
 #include "llvm/Support/MemoryBuffer.h"
 #include "llvm/Transforms/Utils/FunctionComparator.h"
+#include "llvm/IR/LLVMContext.h"
+#include "llvm/IR/Module.h"
+#include "llvm/IR/IRBuilder.h"
+#include "llvm/ADT/APFloat.h"
+#include "llvm/ADT/STLExtras.h"
+#include "llvm/IR/BasicBlock.h"
+#include "llvm/IR/Constants.h"
+#include "llvm/IR/DerivedTypes.h"
+#include "llvm/IR/Function.h"
+#include "llvm/IR/Type.h"
+#include "llvm/IR/Verifier.h"
+#include "llvm/AsmParser/Parser.h"
+
 
 #include <algorithm>
 #include <cassert>
@@ -355,6 +368,8 @@ llvm::Instruction* parse_llvm_string_as_instruction(std::string given, llvm::Mod
 
     return nullptr;
 
+    // we are going to push all things in stack, into function->getValueSymbolTable();
+
     if (llvm::parseAssemblyInto(reference, module, &my_index, errors)) {
         std::cout << "\nparsed unsuccessfully.\n\n";
 
@@ -373,6 +388,9 @@ llvm::Instruction* parse_llvm_string_as_instruction(std::string given, llvm::Mod
 llvm::Function* parse_llvm_string_as_function(std::string given, llvm::Module* module, struct file file, llvm::SMDiagnostic& errors) {
     llvm::MemoryBufferRef reference(given, "llvm_string_buffer");
     llvm::ModuleSummaryIndex my_index(true);
+
+    // we are going to push all things in stack, into module->getValueSymbolTable();
+
     if (llvm::parseAssemblyInto(reference, module, &my_index, errors)) return nullptr;
     else return &module->getFunctionList().back();
 }
@@ -591,9 +609,11 @@ bool contains_top_level_statements(std::vector<expression> list) {
     return false;
 }
 
-translation_unit analyze(translation_unit unit, llvm::LLVMContext& context, struct file file) {
+std::unique_ptr<llvm::Module> analyze(translation_unit unit, llvm::LLVMContext& context, struct file file) {
 
-    auto module = llvm::make_unique<llvm::Module>("_anonymous_temporary_module_" + file.name + "_" + random_string(), context);
+    llvm::IRBuilder<> builder(context);
+    auto module = llvm::make_unique<llvm::Module>(file.name, context);
+
 
     static bool found_main = false;
     bool error = false;

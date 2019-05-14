@@ -53,11 +53,8 @@
 #include <cstdlib>
 
 std::unique_ptr<llvm::Module> frontend(struct file file, llvm::LLVMContext &context) {
-    return generate(analyze(correct(parse(file, context), file), context, file), file, context);
+    return analyze(correct(parse(file, context), file), context, file);
 }
-
-
-
 
 void optimize(llvm::Module* module) {
     // use a pass manager, and string together as many passes as possible.

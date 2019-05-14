@@ -12,7 +12,6 @@
 		FD02050E21E7F59C009C332B /* compiler.cpp in Sources */ = {isa = PBXBuildFile; fileRef = FD02050C21E7F59C009C332B /* compiler.cpp */; };
 		FD1DAC4C2203A32F0014F55E /* analysis.cpp in Sources */ = {isa = PBXBuildFile; fileRef = FD1DAC4A2203A32F0014F55E /* analysis.cpp */; };
 		FD2C68F72230DF3A00EDCE42 /* debug.cpp in Sources */ = {isa = PBXBuildFile; fileRef = FD2C68F52230DF3A00EDCE42 /* debug.cpp */; };
-		FD2C68FA22334F8200EDCE42 /* codegen.cpp in Sources */ = {isa = PBXBuildFile; fileRef = FD2C68F822334F8200EDCE42 /* codegen.cpp */; };
 		FD36010121EAFE57005FE844 /* lexer.cpp in Sources */ = {isa = PBXBuildFile; fileRef = FD3600FF21EAFE57005FE844 /* lexer.cpp */; };
 		FD36010421EAFE62005FE844 /* parser.cpp in Sources */ = {isa = PBXBuildFile; fileRef = FD36010221EAFE62005FE844 /* parser.cpp */; };
 		FD36010721EB288E005FE844 /* lists.cpp in Sources */ = {isa = PBXBuildFile; fileRef = FD36010521EB288E005FE844 /* lists.cpp */; };
@@ -45,8 +44,6 @@
 		FD1DAC4B2203A32F0014F55E /* analysis.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = analysis.hpp; sourceTree = "<group>"; };
 		FD2C68F52230DF3A00EDCE42 /* debug.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = debug.cpp; sourceTree = "<group>"; };
 		FD2C68F62230DF3A00EDCE42 /* debug.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = debug.hpp; sourceTree = "<group>"; };
-		FD2C68F822334F8200EDCE42 /* codegen.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = codegen.cpp; sourceTree = "<group>"; };
-		FD2C68F922334F8200EDCE42 /* codegen.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = codegen.hpp; sourceTree = "<group>"; };
 		FD3600FF21EAFE57005FE844 /* lexer.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = lexer.cpp; sourceTree = "<group>"; };
 		FD36010021EAFE57005FE844 /* lexer.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = lexer.hpp; sourceTree = "<group>"; };
 		FD36010221EAFE62005FE844 /* parser.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = parser.cpp; sourceTree = "<group>"; };
@@ -110,8 +107,6 @@
 				FDC546AA2241864300D99CA9 /* corrector.hpp */,
 				FD1DAC4A2203A32F0014F55E /* analysis.cpp */,
 				FD1DAC4B2203A32F0014F55E /* analysis.hpp */,
-				FD2C68F822334F8200EDCE42 /* codegen.cpp */,
-				FD2C68F922334F8200EDCE42 /* codegen.hpp */,
 				FD01760D221CF76800E5D442 /* error.cpp */,
 				FD01760E221CF76900E5D442 /* error.hpp */,
 				FD36010521EB288E005FE844 /* lists.cpp */,
@@ -182,7 +177,6 @@
 				FD36010421EAFE62005FE844 /* parser.cpp in Sources */,
 				FD02050E21E7F59C009C332B /* compiler.cpp in Sources */,
 				FDC546AB2241864300D99CA9 /* corrector.cpp in Sources */,
-				FD2C68FA22334F8200EDCE42 /* codegen.cpp in Sources */,
 				FD52D8452226590600A9C309 /* arguments.cpp in Sources */,
 				FD7E425922264D150021E18A /* interpreter.cpp in Sources */,
 				FD02050421E7F3C3009C332B /* main.cpp in Sources */,
