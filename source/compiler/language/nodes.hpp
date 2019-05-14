@@ -106,6 +106,8 @@ public:
     bool erroneous = false;
     bool was_allocated = false;
     llvm::Type* llvm_type = nullptr;
+    llvm::Instruction* llvm_instruction = nullptr;
+    llvm::Function* llvm_function = nullptr;
 
     expression() {}
     expression(std::vector<symbol> symbols){

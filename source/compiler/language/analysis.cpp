@@ -13,11 +13,47 @@
 
 #include "debug.hpp"
 
-#include <iostream>
-#include <vector>
-#include <stdlib.h>
-#include <sstream>
+
+
+#include "llvm/ADT/APFloat.h"
+#include "llvm/ADT/STLExtras.h"
+#include "llvm/IR/BasicBlock.h"
+#include "llvm/IR/Constants.h"
+#include "llvm/IR/DerivedTypes.h"
+#include "llvm/IR/Function.h"
+#include "llvm/IR/IRBuilder.h"
+#include "llvm/IR/LLVMContext.h"
+#include "llvm/IR/Module.h"
+#include "llvm/IR/Type.h"
+#include "llvm/IR/Verifier.h"
+#include "llvm/ADT/Optional.h"
+#include "llvm/IR/Instructions.h"
+#include "llvm/IR/LegacyPassManager.h"
+#include "llvm/Support/FileSystem.h"
+#include "llvm/Support/Host.h"
+#include "llvm/Support/raw_ostream.h"
+#include "llvm/Support/TargetRegistry.h"
+#include "llvm/Support/TargetSelect.h"
+#include "llvm/Target/TargetMachine.h"
+#include "llvm/Target/TargetOptions.h"
+#include "llvm/Support/SourceMgr.h"
+#include "llvm/IR/ModuleSummaryIndex.h"
+#include "llvm/AsmParser/Parser.h"
+#include "llvm/Support/MemoryBuffer.h"
+
 #include <algorithm>
+#include <cassert>
+#include <cctype>
+#include <cstdio>
+#include <cstdlib>
+#include <map>
+#include <memory>
+#include <string>
+#include <system_error>
+#include <utility>
+#include <vector>
+#include <sstream>
+#include <iostream>
 
 /*----------------------- KNOWN BUGS ------------------------
 
@@ -37,11 +73,14 @@
 ------------------------- TODOs ----------------------------
 
 
+
                 want something to do?
 
 
 
     0. implement LLVM types.
+
+    0.1. allow llvm interaction with variables, back and forth.
 
     1. implement FDI for CSR.
 
@@ -58,7 +97,7 @@
 
 
 
-
+    N. implement the better error printing/handling system.
 
 
 
@@ -258,7 +297,7 @@ static void parse_signature(abstraction_definition &given, std::vector<std::vect
 }
 
 bool adp(abstraction_definition& given, std::vector<std::vector<expression>>& stack) {
-    clean(given.body); // move me into the corrector code.
+    clean(given.body); //TODO: move me into the corrector code.
     bool error = false;
     stack.push_back(stack.back());
     parse_signature(given, stack, error);
@@ -274,10 +313,252 @@ bool contains_a_block_starting_from(size_t begin, std::vector<symbol> list) {
     return false;
 }
 
+
+
+
+
+
+
+llvm::Type* parse_llvm_string_as_type(std::string given) {
+    std::cout << "received LLVM type: ";
+    std::cout << given;
+    std::cout << "\n";
+    return nullptr;
+}
+
+llvm::Instruction* parse_llvm_string_as_instruction(std::string given) {
+    std::cout << "received LLVM instruction: ";
+    std::cout << given;
+    std::cout << "\n";
+    return nullptr;
+}
+
+llvm::Function* parse_llvm_string_as_function(std::string given) {
+    std::cout << "received LLVM function: ";
+    std::cout << given;
+    std::cout << "\n";
+    return nullptr;
+}
+
+
+/*
+ might be useful:
+
+
+        llvm_function->copyAttributesFrom(const Function *Src)
+
+ */
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+std::string random_string() {
+    static int num = 0;
+    std::stringstream stream;
+    stream << std::hex << rand();
+    return std::string(stream.str()) + std::to_string(num++);
+}
+
+
+static void otherLoop() {
+    std::string code = "";
+
+    while (true) {
+        std::cout << "::> ";
+
+        std::string mode = "";
+        std::cin >> mode;
+
+        llvm::SMDiagnostic errors;
+
+        if (mode == "expr") {
+
+            std::getline(std::cin, code);
+            std::cout << "received: \"" << code << "\"\n";
+
+            if (code == "done" || code == "") {
+                std::cout << "quitting...\n";
+                break;
+            }
+
+            if (code.size() && code[0]) {
+                code.insert(0, "define void @_anonymous_" + random_string() + "() {\n"); // wrap the given llvm statements in a function, named the same as the function we want to insert these statements into.
+                code += "\nret void\n}\n";
+            }
+
+            for (int i = 0; i < code.size(); i++) {    // temp, to make the cli more useable.
+                if (code[i] == '/') {
+                    code[i] = '\n';
+                }
+            }
+
+            llvm::MemoryBufferRef reference(code, "temp_ins_buffer");
+            llvm::ModuleSummaryIndex my_index(true);
+            llvm::SMDiagnostic errors;
+
+            if (llvm::parseAssemblyInto(reference, TheModule.get(), &my_index, errors)) {
+                std::cout << "\nparsed unsuccessfully.\n\n";
+
+
+                std::cout << "llvm: "; // TODO: make this have color!
+                errors.print("MyProgram.n", llvm::errs());
+
+            } else {
+                std::cout << "\nparsed successfully.\n\n";
+            }
+        } else if (mode == "decl") {
+
+            std::getline(std::cin, code);
+            std::cout << "received: \"" << code << "\"\n";
+
+            if (code == "done" || code == "") {
+                std::cout << "quitting...\n";
+                break;
+            }
+
+            for (int i = 0; i < code.size(); i++) {    // temp, to make the cli more useable.
+                if (code[i] == '/') {
+                    code[i] = '\n';
+                }
+            }
+
+            llvm::MemoryBufferRef reference(code, "temp_ins_buffer");
+            llvm::ModuleSummaryIndex my_index(true);
+            llvm::SMDiagnostic errors;
+
+            if (llvm::parseAssemblyInto(reference, TheModule.get(), &my_index, errors)) {
+                std::cout << "\nparsed unsuccessfully.\n\n";
+
+                std::cout << "llvm: "; // TODO: make this have color!
+                errors.print("MyProgram.n", llvm::errs());
+
+            } else {
+                std::cout << "\nparsed successfully.\n\n";
+            }
+
+        } else if (mode == "show") {
+            std::cout << "printing all functions:\n";
+            for (auto& function : TheModule->functions()) {
+                std::cout << "printing function:\n";
+                function.llvm::Value::print(llvm::errs());
+                std::cout << "done printing function!\n";
+            }
+            std::cout << "done printing!\n";
+
+        } else if (mode == "type") {
+
+            std::getline(std::cin, code);
+
+            code.erase(code.begin());
+            std::cout << "received: \"" << code << "\"\n";
+
+            if (code == "done" || code == "") {
+                std::cout << "quitting...\n";
+                break;
+            }
+
+            for (int i = 0; i < code.size(); i++) {    // temp, to make the cli more useable.
+                if (code[i] == '/') {
+                    code[i] = '\n';
+                }
+            }
+
+            llvm::MemoryBufferRef reference(code, "temp_ins_buffer");
+            llvm::ModuleSummaryIndex my_index(true);
+            llvm::SMDiagnostic errors;
+
+            llvm::Type* type;
+
+            if ((type = llvm::parseType(code, errors, *TheModule)) != nullptr) {
+                std::cout << "succcesfully parsed type: \n";
+                type->print(llvm::outs());
+            } else {
+                std::cout << "\n\nllvm: "; // TODO: make this have color!
+                errors.print("MyProgram.n", llvm::errs());
+                std::cout << "\n\n";
+            }
+
+        } else if (mode == "print") {
+            std::cout << "printing the results: \n\n";
+            TheModule->print(llvm::outs(), nullptr);
+
+        } else if (mode == "help") {
+            std::cout << "say: print or type or decl or expr.\n";
+        }
+        code = "";
+    }
+
+    std::cout << "printing the results: \n\n";
+    TheModule->print(llvm::outs(), nullptr);
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 expression csr(std::vector<std::vector<expression>>& stack, const expression given, const size_t depth, const size_t max_depth, size_t& pointer, struct expression*& expected, bool can_define_new_signature, bool is_at_top_level, bool is_parsing_type) {
     if (depth > max_depth) return {true};
     if (!expected) return {true};
-    if (expressions_match(*expected, none_type)) return {true};//TODO: should this be here?
     if (given.symbols.empty() or (given.symbols.size() == 1
                                   and given.symbols[0].type == symbol_type::subexpression
                                   and given.symbols[0].subexpression.symbols.empty())) {
@@ -287,7 +568,60 @@ expression csr(std::vector<std::vector<expression>>& stack, const expression giv
         if (expressions_match(*expected, infered_type)) expected = &unit_type;
         if (expressions_match(*expected, unit_type)) return unit_type;
         else return {true};
+    } else if (given.symbols.size() == 1 and given.symbols[0].type == symbol_type::llvm_literal) {
+
+        auto llvm_string = given.symbols[0].llvm.literal.value;
+
+        if (is_at_top_level and not is_parsing_type) {
+            auto llvm_string = given.symbols[0].llvm.literal.value;
+
+            if (auto llvm_instruction = parse_llvm_string_as_instruction(llvm_string)) {
+
+                expression solution = {};
+                solution.erroneous = false;
+                solution.llvm_instruction = llvm_instruction;
+
+                
+
+
+                solution.symbols = {};
+                solution.type = &unit_type;
+
+                return solution;
+
+            } else if (auto llvm_function = parse_llvm_string_as_function(llvm_string)) {
+
+                expression solution = {};
+                solution.erroneous = false;
+                solution.llvm_function = llvm_function;
+
+
+                solution.type = &unit_type;
+                solution.symbols = {};
+
+                return solution;
+
+            } else {
+                // print error, assuming instruction, as well as for function.
+                return {true};
+            }
+
+        } else if (is_parsing_type and not is_at_top_level) {
+            if (auto llvm_type = parse_llvm_string_as_type(llvm_string)) {
+
+                expression solution = {};
+                solution.erroneous = false;
+                solution.llvm_type = llvm_type;
+                solution.symbols = {};
+
+                return solution;
+
+            }
+        } else {
+            std::cout << "unexpected llvm string here.\n"; // TODO: make this a proper error.
+        }
     }
+
     const auto saved = pointer;
     for (auto& signature : stack.back()) {
         if (not expressions_match(*expected, infered_type) and signature.type and not expressions_match(*signature.type, infered_type) and not expressions_match(*expected, *signature.type)) continue;
