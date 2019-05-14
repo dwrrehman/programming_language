@@ -389,9 +389,9 @@ expression csr(std::vector<std::vector<expression>>& stack, const expression giv
         if (expressions_match(*expected, infered_type)) expected = &unit_type;
         if (expressions_match(*expected, unit_type)) return unit_type;
         else return {true};
-    } else if (given.symbols.size() == 1 and given.symbols[0].type == symbol_type::llvm_literal) {
-        pointer++;
-        auto llvm_string = given.symbols[0].llvm.literal.value;
+    } else if (pointer < given.symbols.size() and given.symbols[pointer].type == symbol_type::llvm_literal) {
+
+        auto llvm_string = given.symbols[pointer].llvm.literal.value;
 
         if (is_at_top_level and not is_parsing_type) {
 
@@ -406,7 +406,7 @@ expression csr(std::vector<std::vector<expression>>& stack, const expression giv
                 solution.symbols = {};
                 symbol s = {};
                 s.type = symbol_type::llvm_literal;
-                s.llvm = given.symbols[0].llvm;
+                s.llvm = given.symbols[pointer++].llvm;
                 solution.symbols.push_back(s);
                 return solution;
 
@@ -421,7 +421,7 @@ expression csr(std::vector<std::vector<expression>>& stack, const expression giv
                 solution.symbols = {};
                 symbol s = {};
                 s.type = symbol_type::llvm_literal;
-                s.llvm = given.symbols[0].llvm;
+                s.llvm = given.symbols[pointer++].llvm;
                 solution.symbols.push_back(s);
 
                 return solution;
@@ -433,12 +433,18 @@ expression csr(std::vector<std::vector<expression>>& stack, const expression giv
                 instruction_errors.print(file.name.c_str(), llvm::errs()); // temp
 
                 std::cout << "llvm: "; // TODO: make this have color!
-                function_errors.print(file.name.c_str(), llvm::errs()); // temp
+                function_errors.print(file.name.c_str(), llvm::errs());
+
+                // temp, when we print the erros,
+                //we are actually just going to extract
+                //the error data from the extractor methods
+                //of the diagnostic error,
+
+                //and then simply format it our self,
+                //in our print_llvm_error(...) function.
+
                 return {true};
             }
-
-
-
 
         } else if (is_parsing_type and not is_at_top_level) {
 
@@ -454,15 +460,13 @@ expression csr(std::vector<std::vector<expression>>& stack, const expression giv
                 solution.symbols = {};
                 symbol s = {};
                 s.type = symbol_type::llvm_literal;
-                s.llvm = given.symbols[0].llvm;
+                s.llvm = given.symbols[pointer++].llvm;
                 solution.symbols.push_back(s);
                 return solution;
 
             } else {
-
                 std::cout << "llvm: "; // TODO: make this have color!
-                type_errors.print(file.name.c_str(), llvm::errs()); // temp
-
+                type_errors.print(file.name.c_str(), llvm::errs()); // temp, see above block comment.
                 return {true};
             }
         } else {
