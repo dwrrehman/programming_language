@@ -35,19 +35,11 @@ note: we are working on making abs def a unit statement that defines in the curr
  */
 
 
-
 /// Global builtin types. these are fundemental to the language:
 expression type_type = {{{"_type", false}}};
 expression unit_type = {{}, &type_type};
 expression none_type = {{{"_none", false}}, &type_type};
 expression infered_type = {{{"_infered", false}}};
-
-expression i32_type = {{{"_i32", false}}, &type_type};
-expression exit_abstraction = {
-    {
-        {"_exit", false},
-        {{{}, &i32_type}}
-    }, &unit_type};
 
 /////////////// TESTING SIGNATURES //////////////////////////
 
@@ -61,21 +53,19 @@ expression dog_type = {
         {"dog", false}
     }, &int_type};
 
-expression x_type = {
-    {
-        {"x", false}
-    }, &dog_type};
-
 expression print_type = {
     {
         {"print", false},
         {{{}, &dog_type}},
     }, &unit_type};
 
-expression abs_type = {
+expression print2_type = {
     {
-        unit_type,
-    }, &type_type};
+        {"print", false},
+        {"2", false},
+        {{{}, &int_type}},
+    }, &unit_type};
+
 
 expression abs2_type = {
     {
@@ -83,28 +73,15 @@ expression abs2_type = {
         unit_type
     }, &type_type};
 
-expression abs_to_unit_type = {
-    {
-        {{{}, &abs_type}},
-    }, &unit_type};
-
 expression abs2_to_unit_type = {
     {
         {{{}, &abs2_type}},
-    }, &unit_type};
-
-expression print_abs_type = {
-    {
-        {"print", false},
-        {"abs", false},
-        {{{}, &abs_type}},
     }, &unit_type};
 
 expression print_abs2_type = {
     {
         {"print", false},
         {"abs", false},
-        {"2", false},
         {{{}, &abs2_type}},
     }, &unit_type};
 
@@ -121,10 +98,9 @@ std::vector<expression> builtins =  {
     type_type, unit_type, none_type, infered_type, //i32_type, exit_abstraction,
 
     // TESTING:
-    int_type, print_type, dog_type,
+    int_type, print_type, dog_type, print2_type,
     //is_good_type, x_type,
 
-    print_abs_type, abs_type, abs_to_unit_type,
     abs2_type, abs2_to_unit_type, print_abs2_type,
 };
 
