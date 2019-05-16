@@ -32,35 +32,241 @@ std::unique_ptr<llvm::Module> analyze(translation_unit unit, llvm::LLVMContext& 
 - - user-defined compiler (symbol table oriented) triggers for calling a function.
 
 
+- ie, the compiler should make everything have a constructor and destructor. (even integers? yes they simply get push and popped off the stack.)
+
+ - ie, we really should be making our compiler care about when a object goes out of scope, delete it.
+
+ however, because we want to be able to transfer ownership, we need to essentially say that:
+
+    v = [1,2,3,4]        ; the compiler should be able to infer that this is a vector.
+
+                        ; based on the signature, appears to return (), defines a
+
+
+ heres the signature of that function.
+
+ (((sig) _signature) = ((v) vector)) () {}
+
+ (vector) {
+    (public) {
+        _define _caller
+    }
+    () public _parent {
+
+    }
+ }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ ok. it seems that this whole _level# and _scope# thing are actually just special cases of a very powerful function call, callled:
+
+ "f"
+
+
+so, basically, the idea is that you will be able to specify a scope, relative to a abstraction level, and this is how you will be able to specify any scope/abstraction.
+
+
+
+
+ so the idea is that when the user writes:
+
+
+                _level1                ; ie, the parent abstraction,
+
+
+
+ what they really mean is:
+
+
+
+
+                f abs=1 scope=0                     ;ie, the scope of the abstraction.
+
+
+
+
+
+
+
+
+
+
+
+ but wait.... thats distinctly not what we mean.....
+
+
+
+
+
+
+
+ maybe if we are trying to get a scope realtive to an abstraction,
+
+
+
+ but when we speicfy a _parent or _self, what we really want isnt a scope.   its an abstraction signature.
+
+
+
+ thats the difference.
+
+
+
+
+
+ ie, we might say, there are two functions,
+
+
+    one which gives you an abstraction, when you give it:           _scope, _abstraction
+
+ and another, which gives you a scope, when you give it:            _abstraction, _scope
+
+
+ interesting huh? lets call these:
+
+
+
+
+
+
+
+
+                _abstraction 0 1        ; the current scope's parent.
+
+                _scope 1 0              ; the current scope of the parent.
+
+
+
+
+    so, we see that these are actually quite different beasts.
+
+
+    most notably, these two functions actually correspond to the scopage of the two core fundmental
+        aspects of n3zqx2l, namely;
+
+
+            - abstraction : code
+and
+            - application : data
+
+
+
+ so, lets actually make it so the signature names reflect that:
+
+
+                _abstraction 0 1              ; the current scope's parent.
+
+                _application 1 0              ; the current scope of the parent.
+
+
+    ah yes. thats better.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+TODO:
+           add in a new builtin:
+
+
+
+                        _recognize <_signature>                                      ; runs at compile time.
+
+
+
+
+
+        note, this is how we are going to do compiletime turing-complete signatures. using the return type as our mechnaism for parameter types.
+
+
+
+
+
+
+
+
+
+
+
+
+
  -------------- useful reminder for when we need the compiler to define a bunch of abstractions for the api.
+
+
+
+
+
+
+
+
+
 
 
  std::vector<std::string> builtins = {
 
- x:"_visibility", "_within", "_called", "_when",;
-
-
-x: "_scope", "_self", "_parent",;
-
-
- x:"_caller", "_file", "_module", "_all",;
- x:"_bring", "_import",;
-
-
-
  "_evaluation", "_compiletime", "_runtime",
- "_precedence", "_associativity", "_left", "_right",
+
+ "_precedence", "_associativity",
+
+ "_expression",
+  "_llvm_string",
+
+ };
 
 
 
-x:"_type", "_infered", "_none",;
 
-
-x: "_after", "_before", "_inside",;
-
- // parse tree nodes:
- x:"_translation_unit",
- "_expression", x:"_expression_list", "_symbol",;
- x:"_string", "_character", "_documentation",; "_llvm",
- x:"_identifier", "_builtin",;
- };*/
+ */
