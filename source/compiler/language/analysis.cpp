@@ -123,7 +123,7 @@
 
  */
 
-
+/// n3zqx2l
 
 /// Global builtin types. these are fundemental to the language:
 expression type_type = {{{"_type", false}}};
@@ -720,6 +720,11 @@ std::unique_ptr<llvm::Module> analyze(translation_unit unit, llvm::LLVMContext& 
         return module;
     }
 }
+
+
+
+
+
 
 
 
