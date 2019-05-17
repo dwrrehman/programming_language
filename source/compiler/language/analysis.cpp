@@ -10,7 +10,7 @@
 #include "parser.hpp"
 #include "nodes.hpp"
 #include "lists.hpp"
-
+#include "builtins.hpp"
 #include "debug.hpp"
 
 #include "llvm/IR/ValueSymbolTable.h"
@@ -123,17 +123,47 @@
 
  */
 
-/// n3zqx2l
+/*
 
-/// Global builtin types. these are fundemental to the language:
-expression type_type = {{{"_type", false}}};
-expression unit_type = {{}, &type_type};
-expression none_type = {{{"_none", false}}, &type_type};
-expression infered_type = {{{"_infered", false}}};
 
-std::vector<expression> builtins =  {
-    type_type, unit_type, none_type, infered_type,
-};
+
+
+
+ _precedence N <_expression>
+
+ _associativity N <_expression>
+
+
+
+
+
+
+
+
+
+ ------------------------------ actions: -----------------------------         (all return void.)
+
+
+ _define <_signature> as <_expression> in <_application>
+
+ _undefine <_signature> in <_application>
+
+ _undefine all in <_application>
+
+
+ _disclose all in <_expression> into <_application>
+
+ _disclose <_expression> from <_expression> into <_application>
+
+
+ ------------------------------ handles: -----------------------------
+
+ _abstraction_N_N
+ _application_N_N
+ */
+
+
+
 
 bool expressions_match(expression first, expression second);
 expression csr(std::vector<std::vector<expression>>& stack, const expression given, const size_t depth, const size_t max_depth, size_t& pointer, struct expression*& expected, bool can_define_new_signature, bool is_at_top_level, bool is_parsing_type, llvm::Module* module, struct file file);
@@ -508,7 +538,11 @@ static expression parse_llvm_string(const struct file &file, const expression &g
     }
 }
 
-expression csr(std::vector<std::vector<expression>>& stack, const expression given, const size_t depth, const size_t max_depth, size_t& pointer, struct expression*& expected, bool can_define_new_signature, bool is_at_top_level, bool is_parsing_type, llvm::Module* module, struct file file) {
+expression csr(std::vector<std::vector<expression>>& stack, const expression given,
+               const size_t depth, const size_t max_depth, size_t& pointer, struct expression*& expected,
+               bool can_define_new_signature, bool is_at_top_level, bool is_parsing_type,
+               llvm::Module* module, struct file file) {
+
     if (depth > max_depth) return {true};
     if (!expected) return {true};
     if (given.symbols.empty() or (given.symbols.size() == 1
