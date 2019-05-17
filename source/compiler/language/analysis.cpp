@@ -13,8 +13,7 @@
 
 #include "debug.hpp"
 
-
-
+#include "llvm/IR/ValueSymbolTable.h"
 #include "llvm/ADT/APFloat.h"
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/IR/BasicBlock.h"
@@ -92,21 +91,21 @@
 
 
 
-    0. implement LLVM types.
+    x: 0. implement LLVM types.;
 
-    0.1. allow llvm interaction with variables, back and forth.
+    x: 0.1. allow llvm interaction with variables, back and forth.;
 
     1. implement FDI for CSR.
 
-    2. implement _scope1, _scope0, etc.
+    2. implement _application_N_N
 
     3. implement "_define" and "_undefine" / "_undefine all"
 
-    4. implement _level0, _level1, etc.
+    4. implement _abstraction_N_N
 
     5. implement NSS for ADP.parse_signature
 
-    6. implement userdefined precedence and associavity
+    6. implement user-defined precedence and associavity
 
 
 
@@ -120,7 +119,7 @@
  might be useful:
 
 
- llvm_function->copyAttributesFrom(const Function *Src)
+ llvm_function->copyAttributesFrom(const Function *Src)       used for transfering function attributes.
 
  */
 
@@ -270,7 +269,7 @@ static void parse_return_type(abstraction_definition &given, std::vector<std::ve
         auto type = infered_type;
         given.return_type = resolve(stack, given.return_type, type, true, false, true, module, file);
         if (given.return_type.erroneous) {
-            std::cout << "n3zqx2l: adp-csr: fake error: Could not parse return type.\n"; // TODO: print an error (IN CSR!) of some kind!
+            std::cout << "n3zqx2l: adp-csr: fake error: Could not parse type expression.\n"; // TODO: print an error (IN CSR!) of some kind!
             error = true;
         }
         if (given.return_type.type and expressions_match(*given.return_type.type, unit_type) and given.return_type.symbols.empty()) given.return_type = unit_type;
@@ -340,6 +339,52 @@ bool contains_a_block_starting_from(size_t begin, std::vector<symbol> list) {
 
 
 
+std::string expression_to_string(expression given) {
+    std::string result = "(";
+    size_t i = 0;
+    for (auto symbol : given.symbols) {
+        if (symbol.type == symbol_type::identifier) result += symbol.identifier.name.value;
+        else if (symbol.type == symbol_type::subexpression) {
+            result += expression_to_string(symbol.subexpression);
+        }
+        if (i < given.symbols.size() - 1) result += " ";
+        i++;
+    }
+    result += ")";
+    if (given.llvm_type) {
+        std::string type = "";
+        given.llvm_type->print(llvm::raw_string_ostream(type) << "");
+        result += " " + type;
+    } else if (given.type) {
+        result += " " + expression_to_string(*given.type);
+    }
+    return result;
+}
+
+
+
+
+//TODO: we need a flag in the resolve and csr function, which says that we DO want to generate code, or not.
+
+
+
+
+
+expression string_to_expression(std::string given, llvm::LLVMContext& context, llvm::Module* module, std::vector<std::vector<expression>>& stack) {
+    struct file file = {};
+    file.name = "<llvm string symbol>";
+    file.text = given;
+    start_lex(file);
+    auto e = parse_expression(file, false, false);
+    auto type = type_type;
+    auto result = resolve(stack, e, type, false, false, false, module, file);
+    return result;
+}
+
+
+
+
+
 std::string random_string() {
     static int num = 0;
     std::stringstream stream;
@@ -349,50 +394,118 @@ std::string random_string() {
 
 
 
-llvm::Type* parse_llvm_string_as_type(std::string given, llvm::Module* module, struct file file, llvm::SMDiagnostic& errors) {
+llvm::Type* parse_llvm_string_as_type(std::string given, llvm::Module* module, struct file file, llvm::SMDiagnostic& errors, std::vector<std::vector<expression>>& stack) {
     return llvm::parseType(given, errors, *module);
 }
 
-llvm::Instruction* parse_llvm_string_as_instruction(std::string given, llvm::Module* module, struct file file, llvm::SMDiagnostic& errors) {
+llvm::Instruction* parse_llvm_string_as_instruction(std::string given, llvm::Module* module, struct file file, llvm::SMDiagnostic& errors, std::vector<std::vector<expression>>& stack/*, llvm::Function* function*/) {
 
-    llvm::MemoryBufferRef reference(given, "llvm_string_buffer");
+    llvm::MemoryBufferRef reference(given, "llvm_string_buffer_" + random_string());
     llvm::ModuleSummaryIndex my_index(true);
 
-    if (given.size()) { // PRONLEM: if this instruction references other variables, then we need to be able to dfine those variuabkes into the llvm symbol table, so that this instruction can reference those variuables.
-        // this might be resolved by making up this anon func, with no ins, then adding in the varuables, by affecting the symbol table, and finally, we simply append this instruction in the middle of the ir, then parse it again.
-
-        // this is going to involve possibly calling code_gen(), which will be func.
+    if (given.size()) {
         given.insert(0, "define void @_anonymous_" + random_string() + "() {\n");
         given += "\nret void\n}\n";
     }
 
-    return nullptr;
-
-    // we are going to push all things in stack, into function->getValueSymbolTable();
-
     if (llvm::parseAssemblyInto(reference, module, &my_index, errors)) {
         std::cout << "\nparsed unsuccessfully.\n\n";
-
         errors.print("MyProgram.n", llvm::errs());
-
+        return nullptr;
     } else {
-
-        std::cout << "\nparsed successfully.\n\n";
+        //TODO: unfinished?
     }
-
-    return nullptr;
+    return nullptr; //TODO: unfinished?
 }
 
-
-
-llvm::Function* parse_llvm_string_as_function(std::string given, llvm::Module* module, struct file file, llvm::SMDiagnostic& errors) {
+bool parse_llvm_string_as_function(std::string given, llvm::Module* module, struct file file, llvm::SMDiagnostic& errors, std::vector<std::vector<expression>>& stack) {
     llvm::MemoryBufferRef reference(given, "llvm_string_buffer");
     llvm::ModuleSummaryIndex my_index(true);
+    ///NOTE: it seems that symbol table coordination will already be done for us, if we are code-gen'ing. which is good.
+    //// we just need to code gen now. lol.
+    if (llvm::parseAssemblyInto(reference, module, &my_index, errors)) {
+        // Error: parsing llvm string.
+        return false;
+    }
+    return true;
+}
 
-    // we are going to push all things in stack, into module->getValueSymbolTable();
+static expression parse_llvm_string(const struct file &file, const expression &given, bool is_at_top_level, bool is_parsing_type, const std::basic_string<char> &llvm_string, llvm::Module *module, size_t &pointer, std::vector<std::vector<expression> > &stack) {
+    if (is_at_top_level and not is_parsing_type) {
 
-    if (llvm::parseAssemblyInto(reference, module, &my_index, errors)) return nullptr;
-    else return &module->getFunctionList().back();
+        llvm::SMDiagnostic instruction_errors;
+        llvm::SMDiagnostic function_errors;
+
+        if (auto llvm_instruction = parse_llvm_string_as_instruction(llvm_string, module, file, instruction_errors, stack)) {
+            expression solution = {};
+            solution.erroneous = false;
+            solution.llvm_instruction = llvm_instruction;
+            solution.type = &unit_type;
+            solution.symbols = {};
+            symbol s = {};
+            s.type = symbol_type::llvm_literal;
+            s.llvm = given.symbols[pointer++].llvm;
+            solution.symbols.push_back(s);
+            return solution;
+
+        } else if (parse_llvm_string_as_function(llvm_string, module, file, function_errors, stack)) {
+            expression solution = {};
+            solution.erroneous = false;
+            solution.type = &unit_type;
+            solution.symbols = {};
+            symbol s = {};
+            s.type = symbol_type::llvm_literal;
+            s.llvm = given.symbols[pointer++].llvm;
+            solution.symbols.push_back(s);
+            return solution;
+
+        } else {
+            // print error, assuming instruction, as well as for function.
+
+            std::cout << "llvm: "; // TODO: make this have color!
+            instruction_errors.print(file.name.c_str(), llvm::errs()); // temp
+
+            std::cout << "llvm: "; // TODO: make this have color!
+            function_errors.print(file.name.c_str(), llvm::errs());
+
+            // temp, when we print the errors,
+            //we are actually just going to extract
+            //the error data from the extractor methods
+            //of the diagnostic error,
+
+            //and then simply format it our self,
+            //in our print_llvm_error(...) function.
+
+            return {true};
+        }
+
+    } else if (is_parsing_type and not is_at_top_level) {
+
+        llvm::SMDiagnostic type_errors;
+
+        if (auto llvm_type = parse_llvm_string_as_type(llvm_string, module, file, type_errors, stack)) {
+
+            expression solution = {};
+            solution.erroneous = false;
+            solution.llvm_type = llvm_type;
+
+            solution.type = &type_type;
+            solution.symbols = {};
+            symbol s = {};
+            s.type = symbol_type::llvm_literal;
+            s.llvm = given.symbols[pointer++].llvm;
+            solution.symbols.push_back(s);
+            return solution;
+
+        } else {
+            std::cout << "llvm: "; // TODO: make this have color!
+            type_errors.print(file.name.c_str(), llvm::errs()); // temp, see above block comment.
+            return {true};
+        }
+    } else {
+        std::cout << "unexpected llvm string here.\n"; // TODO: make this a proper error.
+        return {true};
+    }
 }
 
 expression csr(std::vector<std::vector<expression>>& stack, const expression given, const size_t depth, const size_t max_depth, size_t& pointer, struct expression*& expected, bool can_define_new_signature, bool is_at_top_level, bool is_parsing_type, llvm::Module* module, struct file file) {
@@ -408,88 +521,8 @@ expression csr(std::vector<std::vector<expression>>& stack, const expression giv
         if (expressions_match(*expected, unit_type)) return unit_type;
         else return {true};
     } else if (pointer < given.symbols.size() and given.symbols[pointer].type == symbol_type::llvm_literal) {
-
         auto llvm_string = given.symbols[pointer].llvm.literal.value;
-
-        if (is_at_top_level and not is_parsing_type) {
-
-            llvm::SMDiagnostic instruction_errors;
-            llvm::SMDiagnostic function_errors;
-
-            if (auto llvm_instruction = parse_llvm_string_as_instruction(llvm_string, module, file, instruction_errors)) {
-                expression solution = {};
-                solution.erroneous = false;
-                solution.llvm_instruction = llvm_instruction;
-                solution.type = &unit_type;
-                solution.symbols = {};
-                symbol s = {};
-                s.type = symbol_type::llvm_literal;
-                s.llvm = given.symbols[pointer++].llvm;
-                solution.symbols.push_back(s);
-                return solution;
-
-            } else if (auto llvm_function = parse_llvm_string_as_function(llvm_string, module, file, function_errors)) {
-                expression solution = {};
-                solution.erroneous = false;
-                solution.llvm_function = llvm_function;
-
-                llvm_function->print(llvm::errs());
-
-                solution.type = &unit_type;
-                solution.symbols = {};
-                symbol s = {};
-                s.type = symbol_type::llvm_literal;
-                s.llvm = given.symbols[pointer++].llvm;
-                solution.symbols.push_back(s);
-
-                return solution;
-
-            } else {
-                // print error, assuming instruction, as well as for function.
-
-                std::cout << "llvm: "; // TODO: make this have color!
-                instruction_errors.print(file.name.c_str(), llvm::errs()); // temp
-
-                std::cout << "llvm: "; // TODO: make this have color!
-                function_errors.print(file.name.c_str(), llvm::errs());
-
-                // temp, when we print the erros,
-                //we are actually just going to extract
-                //the error data from the extractor methods
-                //of the diagnostic error,
-
-                //and then simply format it our self,
-                //in our print_llvm_error(...) function.
-
-                return {true};
-            }
-
-        } else if (is_parsing_type and not is_at_top_level) {
-
-            llvm::SMDiagnostic type_errors;
-
-            if (auto llvm_type = parse_llvm_string_as_type(llvm_string, module, file, type_errors)) {
-
-                expression solution = {};
-                solution.erroneous = false;
-                solution.llvm_type = llvm_type;
-
-                solution.type = &type_type;
-                solution.symbols = {};
-                symbol s = {};
-                s.type = symbol_type::llvm_literal;
-                s.llvm = given.symbols[pointer++].llvm;
-                solution.symbols.push_back(s);
-                return solution;
-
-            } else {
-                std::cout << "llvm: "; // TODO: make this have color!
-                type_errors.print(file.name.c_str(), llvm::errs()); // temp, see above block comment.
-                return {true};
-            }
-        } else {
-            std::cout << "unexpected llvm string here.\n"; // TODO: make this a proper error.
-        }
+        return parse_llvm_string(file, given, is_at_top_level, is_parsing_type, llvm_string, module, pointer, stack);
     }
 
     const auto saved = pointer;

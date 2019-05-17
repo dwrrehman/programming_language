@@ -82,7 +82,6 @@ int main(const int argc, const char** argv) {
     link(object_files, arguments);
 }
 
-
 /*
 
 
@@ -685,7 +684,7 @@ static void HandleTopLevelExpression() {
 
 
 
-std::string random_string() {
+std::string my_random_string() {
     static int num = 0;
     std::stringstream stream;
     stream << std::hex << rand();
@@ -715,7 +714,7 @@ static void otherLoop() {
             }
 
             if (code.size() && code[0]) {
-                code.insert(0, "define void @_anonymous_" + random_string() + "() {\n"); // wrap the given llvm statements in a function, named the same as the function we want to insert these statements into.
+                code.insert(0, "define void @_anonymous_" + my_random_string() + "() {\n"); // wrap the given llvm statements in a function, named the same as the function we want to insert these statements into.
                 code += "\nret void\n}\n";
             }
 
@@ -742,7 +741,7 @@ static void otherLoop() {
         } else if (mode == "decl") {
 
             std::getline(std::cin, code);
-            std::cout << "received: \"" << code << "\"\n";
+
 
             if (code == "done" || code == "") {
                 std::cout << "quitting...\n";
@@ -754,6 +753,8 @@ static void otherLoop() {
                     code[i] = '\n';
                 }
             }
+
+            std::cout << "received: \"" << code << "\"\n";
 
             llvm::MemoryBufferRef reference(code, "temp_ins_buffer");
             llvm::ModuleSummaryIndex my_index(true);
@@ -928,6 +929,7 @@ int main() {
 
     return 0;
 }
+
 
 
 */

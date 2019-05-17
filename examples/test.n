@@ -1,2 +1,7 @@
-(int) {}
+'define signext i8 @f() noinline {
+    ret i8 0
+}'
 
+(f) 'i8' {
+
+}

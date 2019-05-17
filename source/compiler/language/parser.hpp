@@ -16,6 +16,7 @@
 #include <string>
 
 translation_unit parse(struct file text, llvm::LLVMContext& context);
+expression parse_expression(struct file file, bool can_be_empty, bool newlines_are_a_symbol);
 
 #endif /* parser_hpp */
 
