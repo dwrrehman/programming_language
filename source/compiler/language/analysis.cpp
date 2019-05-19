@@ -457,6 +457,9 @@ bool parse_llvm_string_as_instruction(std::string given, llvm::Module* module, s
     std::cout << "-------- heres the current state of the module: -------\n";
     module->print(llvm::errs(), nullptr);
     std::cout << "-----------------------------------------\n";
+    std::cout << "is this ok? ";
+    std::string str = "";
+    std::cin >> str;
 
     llvm::MemoryBufferRef reference(body, "<llvm-string>");
     llvm::ModuleSummaryIndex my_index(true);
@@ -467,6 +470,8 @@ bool parse_llvm_string_as_instruction(std::string given, llvm::Module* module, s
         return false;
 
     } else {
+
+
         std::cout << "parse assembly succeeded!!\n";
 
         std::cout << "-------- NOW... heres the current state of the module: -------\n";
@@ -475,13 +480,111 @@ bool parse_llvm_string_as_instruction(std::string given, llvm::Module* module, s
         std::string str = "";
         std::cin >> str;
 
+
+
+
+
+
         auto& made = module->getFunctionList().back();
-        auto& bb = made.getBasicBlockList().back();
-        bb.back().eraseFromParent(); // delete the "unreachable" statment.
+        auto& made_bb = made.getBasicBlockList().back();
+        made_bb.back().eraseFromParent(); // delete the "unreachable" statment.
+
+
+        std::cout << "-------- just deleted the unreachable statement:? -------\n";
+        module->print(llvm::errs(), nullptr);
+        std::cout << "-----------------------------------------\n";
+        str = "";
+        std::cin >> str;
+
+
+
+
+
+        std::cout << "-------- reverted the name of the functions, to be what they were originally:? -------\n";
+        module->print(llvm::errs(), nullptr);
+        std::cout << "-----------------------------------------\n";
+        str = "";
+        std::cin >> str;
+
+
+
+        auto& mybb = function->getBasicBlockList().back();
+        builder.SetInsertPoint(&mybb);
+
+
+        std::cout << "-------- get a new insertion point to functions basic block -------\n";
+        module->print(llvm::errs(), nullptr);
+        std::cout << "-----------------------------------------\n";
+        str = "";
+        std::cin >> str;
+
+
+
+        // delete everything in function
+        for (auto& function_bb : function->getBasicBlockList()) {
+            function_bb.getInstList().clear();
+        }
+
+        std::cout << "-------- deleted everything: -------\n";
+        module->print(llvm::errs(), nullptr);
+        std::cout << "-----------------------------------------\n";
+        str = "";
+        std::cin >> str;
+
+
+
+
+
+        // add a single pointless instruction to that block     in function
+        llvm::Value* value = llvm::ConstantInt::get(llvm::Type::getInt32Ty(module->getContext()), 0);
+        builder.CreateAdd(value, value);
+
+
+        std::cout << "-------- add a pointless instruction -------\n";
+        module->print(llvm::errs(), nullptr);
+        std::cout << "-----------------------------------------\n";
+        str = "";
+        std::cin >> str;
+
+
+
+        // find that newly made add instruction    in function
+        auto& last_instruction = function->getBasicBlockList().back().back();
+        auto last_instruction_address = &last_instruction;
+
+
+
+        std::cout << "iterating over all instructions in made...\n";
+
+        for (auto& bb: made.getBasicBlockList()) {
+            std::cout << "heres a bb: -------\n";
+            bb.print(llvm::errs());
+            std::cout << "------------------\n";;
+            for (auto& ins : bb.getInstList()) {
+
+                std::cout << "moving:\n ";
+                ins.print(llvm::errs());
+                std::cout << "\ninstruction after:\n ";
+                last_instruction_address->print(llvm::errs());
+                std::cout << "\nso yeah.\n";
+
+                ins.moveAfter(last_instruction_address);
+                std::cout << "\nMOVED!\n\n";
+
+                auto& last_instruction = function->getBasicBlockList().back().back();
+                last_instruction_address = &last_instruction;
+                std::cout << "now the last instruction is: \n";
+                last_instruction.print(llvm::errs());
+                std::cout << "\n\n\n";
+            }
+        }
+
 
         made.setName("_anonymous_" + random_string());
+        std::string mades_new_name = made.getName();
 
         function->setName(current_name);
+
 
 
         std::cout << "--------AFTER TRANSFORM: NOW... heres the current state of the module: -------\n";
@@ -783,8 +886,7 @@ std::unique_ptr<llvm::Module> analyze(translation_unit unit, llvm::LLVMContext& 
         }
     }
 
-    llvm::Value* value = nullptr;
-    value = llvm::ConstantInt::get(llvm::Type::getInt32Ty(context), 0);
+    llvm::Value* value = llvm::ConstantInt::get(llvm::Type::getInt32Ty(context), 0);
     builder.CreateRet(value);
 
     if (debug) {
