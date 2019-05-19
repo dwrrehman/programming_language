@@ -62,8 +62,6 @@ void optimize(llvm::Module* module) {
 
 std::string generate(llvm::Module* module, const struct file& file) {
 
-    exit(0);
-
     auto TargetTriple = llvm::sys::getDefaultTargetTriple();
     module->setTargetTriple(TargetTriple);
     std::string Error = "";
@@ -95,6 +93,9 @@ std::string generate(llvm::Module* module, const struct file& file) {
 
     pass.run(*module);
     dest.flush();
+
+    std::cout << "generating code....\n";
+
     return object_filemame;
 }
 
@@ -106,11 +107,13 @@ void link(std::vector<std::string> object_files, const struct arguments& argumen
 
     std::string output_filename = arguments.executable_name;
 
-    std::string link_command = "ld -lc -o " + output_filename + " ";
+    std::string link_command = "ld -macosx_version_min 10.14 -lSystem -lc -o " + output_filename + " ";
     for (auto filename : object_files) {
         link_command += filename + " ";
     }
 
     std::system(link_command.c_str());
+
+    std::cout << "executable linked.\n";
     delete_files(object_files);
 }

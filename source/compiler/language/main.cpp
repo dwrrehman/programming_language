@@ -46,40 +46,76 @@
 
 #include "llvm/IR/LLVMContext.h"
 #include "llvm/IR/Module.h"
+#include "llvm/ADT/APFloat.h"
+#include "llvm/ADT/Optional.h"
+#include "llvm/ADT/STLExtras.h"
+#include "llvm/IR/BasicBlock.h"
+#include "llvm/IR/Constants.h"
+#include "llvm/IR/DerivedTypes.h"
+#include "llvm/IR/Function.h"
+#include "llvm/IR/Instructions.h"
+#include "llvm/IR/IRBuilder.h"
+#include "llvm/IR/LLVMContext.h"
+#include "llvm/IR/LegacyPassManager.h"
+#include "llvm/IR/Module.h"
+#include "llvm/IR/Type.h"
+#include "llvm/IR/Verifier.h"
+#include "llvm/Support/FileSystem.h"
+#include "llvm/Support/Host.h"
+#include "llvm/Support/raw_ostream.h"
+#include "llvm/Support/TargetRegistry.h"
+#include "llvm/Support/TargetSelect.h"
+#include "llvm/Target/TargetMachine.h"
+#include "llvm/Target/TargetOptions.h"
+
+#include "llvm/ExecutionEngine/ExecutionEngine.h"
+#include "llvm/ExecutionEngine/MCJIT.h"
+#include "llvm/ExecutionEngine/Interpreter.h"
 
 #include <vector>
 #include <iostream>
 
-int main(const int argc, const char** argv) {
-
-    const struct arguments& arguments = get_commandline_arguments(argc, argv);
-    if (arguments.error) exit(1);
-    else if (arguments.use_interpreter) interpreter(arguments.files[0]);
-    else if (!arguments.files.size()) print_error_no_files();
-
-    if (debug) debug_arguments(arguments);
+static void compile(const struct arguments &arguments) {
+    llvm::InitializeAllTargetInfos();
+    llvm::InitializeAllTargets();
+    llvm::InitializeAllTargetMCs();
+    llvm::InitializeAllAsmParsers();
+    llvm::InitializeAllAsmPrinters();
 
     llvm::LLVMContext context;
     std::vector<std::unique_ptr<llvm::Module>> modules = {};
     modules.reserve(arguments.files.size());
     bool error = false;
 
-    for (auto file : arguments.files)
+    for (auto file : arguments.files) {
         try {modules.push_back(frontend(file, context));}
         catch (...) {error = true;}
-    if (error) exit(1);
+    }
+    if (error) exit(2);
+
+    if (arguments.use_interpreter) {
+
+        
+
+    }
 
     for (auto& module : modules) optimize(module.get());
 
     size_t i = 0;
     std::vector<std::string> object_files = {};
     object_files.reserve(modules.size());
-    for (auto& module : modules)
+    for (auto& module : modules) {
         try {object_files.push_back(generate(module.get(), arguments.files[i++]));}
-        catch(...) {error = true;}
-
-    if (error) {delete_files(object_files); exit(1);}
+        catch(...) { error = true; }
+    }
+    if (error) {delete_files(object_files); exit(3);}
     link(object_files, arguments);
+}
+
+int main(const int argc, const char** argv) {
+    const struct arguments& arguments = get_commandline_arguments(argc, argv);
+    if (arguments.error) exit(1);
+    compile(arguments);
 }
 
 /*

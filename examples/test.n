@@ -1,1 +1,6 @@
+; (int) {}
+; (dog) int {}
+; (print ((x) int)) {}
+; (int ((x) _signature) up) {}
 
+; print dog

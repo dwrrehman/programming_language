@@ -25,73 +25,65 @@ expression abstraction_type = {{{"_abstraction", false}}, &type_type};
 
 expression compiletime_type = { { {"_compiletime", false}, {{{}, &type_type}} }, &type_type};
 expression runtime_type = { { {"_runtime", false}, {{{}, &type_type}} }, &type_type};
-expression compiletime_abstraction = { { {"_compiletime", false}, {{{}, &expression_type}} }, &unit_type};
-expression runtime_abstraction = { { {"_runtime", false}, {{{}, &expression_type}} }, &unit_type};
 
 expression immutable_type = { { {"_immutable", false}, {{{}, &type_type}} }, &type_type};
 expression mutable_type = { { {"_mutable", false}, {{{}, &type_type}} }, &type_type};
 
-
 expression define_abstraction = {
     {
-        {"_define", false},
-        {{{}, &signature_type}},
-        {"as", false},
-        {{{}, &expression_type}},
-        {"in", false},
-        {{{}, &application_type}},
+        {"_define", false}, {{{}, &signature_type}},
+        {"as", false}, {{{}, &expression_type}},
+        {"in", false}, {{{}, &application_type}},
     }, &unit_type};
 
 expression undefine_abstraction = {
     {
-        {"_undefine", false},
-        {{{}, &expression_type}},
-        {"in", false},
-        {{{}, &application_type}},
+        {"_undefine", false}, {{{}, &signature_type}},
+        {"in", false}, {{{}, &application_type}},
     }, &unit_type};
-
-
-expression undefine_all_abstraction = {
-    {
-        {"_undefine", false},
-        {"all", false},
-        {"in", false},
-        {{{}, &application_type}},
-    }, &unit_type};
-
 
 expression disclose_abstraction = {
     {
-        {"_disclose", false},
-        {{{}, &expression_type}},
-        {"from", false},
-        {{{}, &expression_type}},
-        {"into", false},
-        {{{}, &application_type}},
+        {"_disclose", false}, {{{}, &signature_type}},
+        {"from", false}, {{{}, &expression_type}},
+        {"into", false}, {{{}, &application_type}},
     }, &unit_type};
 
-expression disclose_all_abstraction = {
+expression all_signature = {
     {
-        {"_disclose", false},
-        {"all", false},
-        {"from", false},
-        {{{}, &expression_type}},
-        {"into", false},
-        {{{}, &application_type}},
-    }, &unit_type};
+        {"_all", false}
+    }, &signature_type};
 
 
-///TODO: still missing _precedence, _associativity, and possibly one more...
+
+
+///TODO: still missing _precedence, _associativity, and "_query"(FIX ME)   and "_external" (for C/C++ code)
+
+
+
 
 std::vector<expression> builtins =  {
     type_type, unit_type, none_type, infered_type,
 
     expression_type, block_type, signature_type,
-    application_type, abstraction_type,
+    application_type, abstraction_type, all_signature,
 
     compiletime_type, runtime_type,
-    compiletime_abstraction, runtime_abstraction,
 
-    define_abstraction, undefine_abstraction, undefine_all_abstraction,
-    disclose_abstraction, disclose_all_abstraction,
+    define_abstraction, undefine_abstraction,
+    disclose_abstraction,                                             // note: simulates/encapsulates "_import".
 };
+
+
+
+
+
+
+
+
+
+
+
+// these might be unnecccessary:
+//expression compiletime_abstraction = { { {"_compiletime", false}, {{{}, &expression_type}} }, &unit_type};
+//expression runtime_abstraction = { { {"_runtime", false}, {{{}, &expression_type}} }, &unit_type};
