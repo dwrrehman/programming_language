@@ -24,6 +24,8 @@
 #include "llvm/IR/LLVMContext.h"
 #include "llvm/IR/Module.h"
 #include "llvm/IR/Type.h"
+#include "llvm/IR/ValueMap.h"
+#include "llvm/Transforms/Utils/ValueMapper.h"
 #include "llvm/IR/Verifier.h"
 #include "llvm/ADT/Optional.h"
 #include "llvm/IR/Instructions.h"
@@ -439,10 +441,44 @@ llvm::Type* parse_llvm_string_as_type(std::string given, llvm::Module* module, s
 
 
 
+static void display(llvm::Module *module, std::string message) {
+    std::cout << "-------- "<< message << " -------\n";
+    module->print(llvm::errs(), nullptr);
+    std::cout << "-----------------------------------------\n";
+    std::cout << "ok? ";
+    std::string str = "";
+    //std::cin >> str;
+}
+
+static void print_bbs(llvm::Function *function) {
+    std::cout << "this function has: " << function->getBasicBlockList().size() << " basic blocks.\n";
+    std::cout << "printing bbs: \n\n\n";
+    for (auto& bb: function->getBasicBlockList()) {
+        std::cout << "heres a bb: \n";
+        bb.print(llvm::errs());
+        std::cout << "done printing bb.\n\n";
+        std::cout << "[that bb had " << bb.getInstList().size() << " instructions.]\n";
+    }
+    std::cout << "done printing bbs.\n";
+}
+
+static void verify(llvm::Function &f, std::string functionname) {
+    if (llvm::verifyFunction(f)) {
+        std::cout << "verification of "<< functionname<<" failed.\n";
+        f.print(llvm::errs());
+
+    } else {
+        std::cout << functionname << " VERIFICATION SUCCESS\n";
+        f.print(llvm::errs());
+    }
+}
+
 bool parse_llvm_string_as_instruction(std::string given, llvm::Module* module, struct file file, llvm::SMDiagnostic& errors, std::vector<std::vector<expression>>& stack, llvm::Function* function, llvm::IRBuilder<>& builder) {
 
     std::string body = "";
     function->print(llvm::raw_string_ostream(body) << "");
+
+    const size_t bb_count = function->getBasicBlockList().size();
 
     body.pop_back(); // delete the newline;
     body.pop_back(); //  delete the close brace.
@@ -451,15 +487,15 @@ bool parse_llvm_string_as_instruction(std::string given, llvm::Module* module, s
     const std::string current_name = function->getName();
     function->setName("_anonymous_" + random_string());
 
-    std::cout << "-------- heres what we are passing into the amparser: -------\n";
-    std::cout << body;
-    std::cout << "-----------------------------------------\n";
-    std::cout << "-------- heres the current state of the module: -------\n";
-    module->print(llvm::errs(), nullptr);
-    std::cout << "-----------------------------------------\n";
-    std::cout << "is this ok? ";
-    std::string str = "";
-    std::cin >> str;
+//    std::cout << "-------- heres what we are passing into the amparser: -------\n";
+//    std::cout << body;
+//    std::cout << "-----------------------------------------\n";
+//    std::cout << "-------- heres the current state of the module: -------\n";
+//    module->print(llvm::errs(), nullptr);
+//    std::cout << "-----------------------------------------\n";
+//    std::cout << "is this ok? ";
+//    std::string str = "";
+//    //std::cin >> str;
 
     llvm::MemoryBufferRef reference(body, "<llvm-string>");
     llvm::ModuleSummaryIndex my_index(true);
@@ -469,129 +505,71 @@ bool parse_llvm_string_as_instruction(std::string given, llvm::Module* module, s
         function->setName(current_name);
         return false;
 
+
     } else {
 
+        auto& made = module->getFunctionList().back();
 
         std::cout << "parse assembly succeeded!!\n";
 
-        std::cout << "-------- NOW... heres the current state of the module: -------\n";
-        module->print(llvm::errs(), nullptr);
-        std::cout << "-----------------------------------------\n";
-        std::string str = "";
-        std::cin >> str;
+        //display(module, "current state of module:");
+        //verify(made, "made before deleting unreachable");
 
+        made.getBasicBlockList().back().back().eraseFromParent();
+        if (bb_count != made.getBasicBlockList().size())
+            made.getBasicBlockList().back().eraseFromParent();
 
+        //display(module, "delete unreachable statement in made");
+        //verify(made, "made after deleting unreachable");
 
+        function->getBasicBlockList().clear();
+        builder.SetInsertPoint(llvm::BasicBlock::Create(module->getContext(), "entry", function));
+        builder.CreateUnreachable();
 
+        //display(module, "just added a new unreachable to function");
+        //verify(*function, "function before transfer");
 
-
-        auto& made = module->getFunctionList().back();
-        auto& made_bb = made.getBasicBlockList().back();
-        made_bb.back().eraseFromParent(); // delete the "unreachable" statment.
-
-
-        std::cout << "-------- just deleted the unreachable statement:? -------\n";
-        module->print(llvm::errs(), nullptr);
-        std::cout << "-----------------------------------------\n";
-        str = "";
-        std::cin >> str;
-
-
-
-
-
-        std::cout << "-------- reverted the name of the functions, to be what they were originally:? -------\n";
-        module->print(llvm::errs(), nullptr);
-        std::cout << "-----------------------------------------\n";
-        str = "";
-        std::cin >> str;
-
-
-
-        auto& mybb = function->getBasicBlockList().back();
-        builder.SetInsertPoint(&mybb);
-
-
-        std::cout << "-------- get a new insertion point to functions basic block -------\n";
-        module->print(llvm::errs(), nullptr);
-        std::cout << "-----------------------------------------\n";
-        str = "";
-        std::cin >> str;
-
-
-
-        // delete everything in function
-        for (auto& function_bb : function->getBasicBlockList()) {
-            function_bb.getInstList().clear();
-        }
-
-        std::cout << "-------- deleted everything: -------\n";
-        module->print(llvm::errs(), nullptr);
-        std::cout << "-----------------------------------------\n";
-        str = "";
-        std::cin >> str;
-
-
-
-
-
-        // add a single pointless instruction to that block     in function
-        llvm::Value* value = llvm::ConstantInt::get(llvm::Type::getInt32Ty(module->getContext()), 0);
-        builder.CreateAdd(value, value);
-
-
-        std::cout << "-------- add a pointless instruction -------\n";
-        module->print(llvm::errs(), nullptr);
-        std::cout << "-----------------------------------------\n";
-        str = "";
-        std::cin >> str;
-
-
-
-        // find that newly made add instruction    in function
-        auto& last_instruction = function->getBasicBlockList().back().back();
-        auto last_instruction_address = &last_instruction;
-
-
-
-        std::cout << "iterating over all instructions in made...\n";
-
-        for (auto& bb: made.getBasicBlockList()) {
-            std::cout << "heres a bb: -------\n";
-            bb.print(llvm::errs());
-            std::cout << "------------------\n";;
-            for (auto& ins : bb.getInstList()) {
-
-                std::cout << "moving:\n ";
-                ins.print(llvm::errs());
-                std::cout << "\ninstruction after:\n ";
-                last_instruction_address->print(llvm::errs());
-                std::cout << "\nso yeah.\n";
-
-                ins.moveAfter(last_instruction_address);
-                std::cout << "\nMOVED!\n\n";
-
-                auto& last_instruction = function->getBasicBlockList().back().back();
-                last_instruction_address = &last_instruction;
-                std::cout << "now the last instruction is: \n";
-                last_instruction.print(llvm::errs());
-                std::cout << "\n\n\n";
+        // transfer all instructions from made into function.
+        auto& insert_before_point = function->getBasicBlockList().back().back();
+        for (auto& bb : made.getBasicBlockList()) {
+            llvm::ValueToValueMapTy vmap;
+            for (auto& inst: bb.getInstList()) {
+                auto* new_inst = inst.clone();
+                new_inst->setName(inst.getName());
+                new_inst->insertBefore(&insert_before_point);
+                vmap[&inst] = new_inst;
+                llvm::RemapInstruction(new_inst, vmap, llvm::RF_NoModuleLevelChanges | llvm::RF_IgnoreMissingLocals);
             }
         }
 
+        //display(module, "insert all ins in made, into function");
+        //verify(*function, "function after transfer, but before UNR del");
 
-        made.setName("_anonymous_" + random_string());
-        std::string mades_new_name = made.getName();
+        function->getBasicBlockList().back().back().eraseFromParent();// delete the trailing unreachable.
 
+        //display(module, "deleting the trailing unreachable in function");
+        //verify(*function, "function after transfer");
+
+        made.eraseFromParent();
         function->setName(current_name);
 
+        //display(module, "finally, after renaming: ");
+        //verify(*function, "function after renaming");
 
+        ///// MASTER VERIFICATION:
 
-        std::cout << "--------AFTER TRANSFORM: NOW... heres the current state of the module: -------\n";
-        module->print(llvm::errs(), nullptr);
-        std::cout << "-----------------------------------------\n";
-        str = "";
-        std::cin >> str;
+//        if (llvm::verifyFunction(*function)) {
+//            std::cout << "verification of function failed.\n";
+//            function->print(llvm::errs());
+//            exit(11);
+//        } else {std::cout << "MASTER FUNCTION VERIFICATION SUCCESS\n"; function->print(llvm::errs());}
+//
+//        if (llvm::verifyModule(*module)) {
+//            std::cout << "verification of module after llir failed.\n";
+//            module->print(llvm::errs(), nullptr);
+//
+//            exit(10);
+//        } else {std::cout << "MASTER VERIFICATION SUCCESS\n"; }
 
         return true;
     }
@@ -607,16 +585,11 @@ bool parse_llvm_string_as_function(std::string given, llvm::Module* module, stru
 }
 
 
-
-
-
-
 static expression parse_llvm_string(const struct file &file, const expression &given, bool is_at_top_level, bool is_parsing_type, const std::basic_string<char> &llvm_string, llvm::Module *module, size_t &pointer, std::vector<std::vector<expression> > &stack, llvm::Function* function, llvm::IRBuilder<>& builder) {
     if (is_at_top_level and not is_parsing_type) {
 
         llvm::SMDiagnostic instruction_errors;
         llvm::SMDiagnostic function_errors;
-
 
          if (parse_llvm_string_as_function(llvm_string, module, file, function_errors, stack)) {
             expression solution = {};
@@ -839,6 +812,8 @@ std::unique_ptr<llvm::Module> analyze(translation_unit unit, llvm::LLVMContext& 
 
     auto module = llvm::make_unique<llvm::Module>(file.name, context);
 
+    srand((unsigned)time(nullptr));
+
     static bool found_main = false;
     bool error = false;
     wrap_into_main(unit);
@@ -859,7 +834,6 @@ std::unique_ptr<llvm::Module> analyze(translation_unit unit, llvm::LLVMContext& 
     llvm::FunctionType* main_type = llvm::FunctionType::get(llvm::Type::getInt32Ty(context), parameters, false);
     llvm::Function* function = llvm::Function::Create(main_type, llvm::Function::ExternalLinkage, "main", module.get());
     builder.SetInsertPoint(llvm::BasicBlock::Create(context, "entry", function));
-
     bool should_generate_code = true;
 
     if (body.size()) {
@@ -886,15 +860,27 @@ std::unique_ptr<llvm::Module> analyze(translation_unit unit, llvm::LLVMContext& 
         }
     }
 
-    llvm::Value* value = llvm::ConstantInt::get(llvm::Type::getInt32Ty(context), 0);
-    builder.CreateRet(value);
+//    llvm::Value* value = llvm::ConstantInt::get(llvm::Type::getInt32Ty(context), 0);
+//    builder.CreateRet(value);
+
+    //std::string the_message = "";
+    //auto stream = &(llvm::raw_string_ostream(the_message) << "");
+    if (llvm::verifyModule(*module, &llvm::errs())) {
+        std::cout << "the module is broken. lemme fix it.";
+        std::cout << "heres the error: \n";
+        // std::cout << the_message;
+        std::cout << "\n";
+        error = true;
+    } else {
+        std::cout << "the module is ok!\n";
+    }
 
     if (debug) {
         std::cout << "----------------- analyzer ---------------------\n";
         print_translation_unit(unit, file);
     }
 
-    std::cout << "stack is now: \n";
+    std::cout << "final stack is now: \n";
     print_stack(stack);
 
     module->print(llvm::errs(), nullptr);
@@ -912,31 +898,6 @@ std::unique_ptr<llvm::Module> analyze(translation_unit unit, llvm::LLVMContext& 
 
 
 
-
-
-
-/*
-
- useful:
-
-
-    - llvm::verifyFunction(function)
-
-
-useful:
-
-
- std::vector<llvm::Type*> parameters(arguments.size(), llvm::Type::getDoubleTy(context));
-
- llvm::FunctionType* type = llvm::FunctionType::get(llvm::Type::getDoubleTy(context), parameters, false);
-
- llvm::Function* function = llvm::Function::Create(type, llvm::Function::ExternalLinkage, Name, TheModule.get());
-
-
-
-
-
- */
 
 
 
@@ -1031,18 +992,7 @@ llvm::Function* codegen() {
 
 
 
-
-
-
-
-
-
  llvm_function->copyAttributesFrom(const Function *Src)       used for transfering function attributes.
-
-
-
-
-
 
 
 */
@@ -1060,3 +1010,15 @@ llvm::Function* codegen() {
 //    } else {
 //        std::cout << "the module is ok!\n";
 //    }
+
+
+
+
+
+
+
+//        function->getBasicBlockList().back();
+//        builder.SetInsertPoint(llvm::BasicBlock::Create(module->getContext(), "entry", function));
+//        display(module, "delete everything in function");
+//        verify(*function, "function after deletion");
+//std::cout << "going to transfer instruction now...\n";
