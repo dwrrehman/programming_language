@@ -469,28 +469,26 @@ bool parse_llvm_string_as_instruction(std::string given, llvm::Module* module, s
     } else {
         std::cout << "parse assembly succeeded!!\n";
 
-
         std::cout << "-------- NOW... heres the current state of the module: -------\n";
         module->print(llvm::errs(), nullptr);
         std::cout << "-----------------------------------------\n";
-
+        std::string str = "";
+        std::cin >> str;
 
         auto& made = module->getFunctionList().back();
-        auto& made_blocklist = made.getBasicBlockList().back();
-        size_t i = 0;
-        llvm::Instruction* second_to_last_instruction = &made_blocklist.back();
-        for (auto& ins : made_blocklist) {
-            if (i == made_blocklist.size() - 2) {
-                second_to_last_instruction = &ins;
-                break;
-            }
-            i++;
-        }
-        second_to_last_instruction->moveAfter(&function->getBasicBlockList().back().back());
+        auto& bb = made.getBasicBlockList().back();
+        bb.back().eraseFromParent(); // delete the "unreachable" statment.
 
-        //made.setName("_anonymous_" + random_string());
-        made.removeFromParent();
+        made.setName("_anonymous_" + random_string());
+
         function->setName(current_name);
+
+
+        std::cout << "--------AFTER TRANSFORM: NOW... heres the current state of the module: -------\n";
+        module->print(llvm::errs(), nullptr);
+        std::cout << "-----------------------------------------\n";
+        str = "";
+        std::cin >> str;
 
         return true;
     }
