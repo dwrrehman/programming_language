@@ -487,49 +487,21 @@ bool parse_llvm_string_as_instruction(std::string given, llvm::Module* module, s
     const std::string current_name = function->getName();
     function->setName("_anonymous_" + random_string());
 
-//    std::cout << "-------- heres what we are passing into the amparser: -------\n";
-//    std::cout << body;
-//    std::cout << "-----------------------------------------\n";
-//    std::cout << "-------- heres the current state of the module: -------\n";
-//    module->print(llvm::errs(), nullptr);
-//    std::cout << "-----------------------------------------\n";
-//    std::cout << "is this ok? ";
-//    std::string str = "";
-//    //std::cin >> str;
-
     llvm::MemoryBufferRef reference(body, "<llvm-string>");
     llvm::ModuleSummaryIndex my_index(true);
 
     if (llvm::parseAssemblyInto(reference, module, &my_index, errors)) {
-        std::cout << "parse assembly failed!\n";
         function->setName(current_name);
         return false;
 
-
     } else {
-
         auto& made = module->getFunctionList().back();
-
-        std::cout << "parse assembly succeeded!!\n";
-
-        //display(module, "current state of module:");
-        //verify(made, "made before deleting unreachable");
-
         made.getBasicBlockList().back().back().eraseFromParent();
         if (bb_count != made.getBasicBlockList().size())
             made.getBasicBlockList().back().eraseFromParent();
-
-        //display(module, "delete unreachable statement in made");
-        //verify(made, "made after deleting unreachable");
-
         function->getBasicBlockList().clear();
         builder.SetInsertPoint(llvm::BasicBlock::Create(module->getContext(), "entry", function));
         builder.CreateUnreachable();
-
-        //display(module, "just added a new unreachable to function");
-        //verify(*function, "function before transfer");
-
-        // transfer all instructions from made into function.
         auto& insert_before_point = function->getBasicBlockList().back().back();
         for (auto& bb : made.getBasicBlockList()) {
             llvm::ValueToValueMapTy vmap;
@@ -541,36 +513,9 @@ bool parse_llvm_string_as_instruction(std::string given, llvm::Module* module, s
                 llvm::RemapInstruction(new_inst, vmap, llvm::RF_NoModuleLevelChanges | llvm::RF_IgnoreMissingLocals);
             }
         }
-
-        //display(module, "insert all ins in made, into function");
-        //verify(*function, "function after transfer, but before UNR del");
-
-        function->getBasicBlockList().back().back().eraseFromParent();// delete the trailing unreachable.
-
-        //display(module, "deleting the trailing unreachable in function");
-        //verify(*function, "function after transfer");
-
+        function->getBasicBlockList().back().back().eraseFromParent();      // delete the trailing unreachable.
         made.eraseFromParent();
         function->setName(current_name);
-
-        //display(module, "finally, after renaming: ");
-        //verify(*function, "function after renaming");
-
-        ///// MASTER VERIFICATION:
-
-//        if (llvm::verifyFunction(*function)) {
-//            std::cout << "verification of function failed.\n";
-//            function->print(llvm::errs());
-//            exit(11);
-//        } else {std::cout << "MASTER FUNCTION VERIFICATION SUCCESS\n"; function->print(llvm::errs());}
-//
-//        if (llvm::verifyModule(*module)) {
-//            std::cout << "verification of module after llir failed.\n";
-//            module->print(llvm::errs(), nullptr);
-//
-//            exit(10);
-//        } else {std::cout << "MASTER VERIFICATION SUCCESS\n"; }
-
         return true;
     }
 }
@@ -583,7 +528,6 @@ bool parse_llvm_string_as_function(std::string given, llvm::Module* module, stru
     }
     return true;
 }
-
 
 static expression parse_llvm_string(const struct file &file, const expression &given, bool is_at_top_level, bool is_parsing_type, const std::basic_string<char> &llvm_string, llvm::Module *module, size_t &pointer, std::vector<std::vector<expression> > &stack, llvm::Function* function, llvm::IRBuilder<>& builder) {
     if (is_at_top_level and not is_parsing_type) {
