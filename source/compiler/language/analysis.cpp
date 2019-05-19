@@ -354,6 +354,16 @@ bool adp(abstraction_definition& given, std::vector<std::vector<expression>>& st
     parse_signature(given, stack, error, module, file, function, builder, should_generate_code);
     parse_return_type(given, stack, error, module, file, function, builder, false);
     parse_abstraction_body(error, given, stack, module, file, function, builder, should_generate_code);
+
+
+///    we need to determine the llvm types, from the signature of the function, (or rather the gener abs type.
+//    std::vector<llvm::Type*> parameters = {/*llvm::Type::getInt32Ty(context), llvm::Type::getInt8PtrTy(context)->getPointerTo()*/};
+//    llvm::FunctionType* main_type = llvm::FunctionType::get(llvm::Type::getInt32Ty(module->getContext()), parameters, false);
+//    llvm::Function* function = llvm::Function::Create(main_type, llvm::Function::ExternalLinkage, "main", module);
+//    builder.SetInsertPoint(llvm::BasicBlock::Create(module->getContext(), "entry", function));
+
+
+
     stack.pop_back();
     return error;
 }
@@ -422,52 +432,94 @@ std::string random_string() {
 
 
 
+
 llvm::Type* parse_llvm_string_as_type(std::string given, llvm::Module* module, struct file file, llvm::SMDiagnostic& errors, std::vector<std::vector<expression>>& stack) {
     return llvm::parseType(given, errors, *module);
 }
 
-llvm::Instruction* parse_llvm_string_as_instruction(std::string given, llvm::Module* module, struct file file, llvm::SMDiagnostic& errors, std::vector<std::vector<expression>>& stack/*, llvm::Function* function, llvm::IRBuilder<>& builder*/) {
 
-    llvm::MemoryBufferRef reference(given, "llvm_string_buffer_" + random_string());
+
+bool parse_llvm_string_as_instruction(std::string given, llvm::Module* module, struct file file, llvm::SMDiagnostic& errors, std::vector<std::vector<expression>>& stack, llvm::Function* function, llvm::IRBuilder<>& builder) {
+
+    std::string body = "";
+    function->print(llvm::raw_string_ostream(body) << "");
+
+    body.pop_back(); // delete the newline;
+    body.pop_back(); //  delete the close brace.
+    body += given + "\nunreachable\n}\n";
+
+    const std::string current_name = function->getName();
+    function->setName("_anonymous_" + random_string());
+
+    std::cout << "-------- heres what we are passing into the amparser: -------\n";
+    std::cout << body;
+    std::cout << "-----------------------------------------\n";
+    std::cout << "-------- heres the current state of the module: -------\n";
+    module->print(llvm::errs(), nullptr);
+    std::cout << "-----------------------------------------\n";
+
+    llvm::MemoryBufferRef reference(body, "<llvm-string>");
     llvm::ModuleSummaryIndex my_index(true);
 
-    if (given.size()) {
-        given.insert(0, "define void @_anonymous_" + random_string() + "() {\n");
-        given += "\nret void\n}\n";
-    }
-
     if (llvm::parseAssemblyInto(reference, module, &my_index, errors)) {
-        std::cout << "\nparsed unsuccessfully.\n\n";
-        errors.print("MyProgram.n", llvm::errs());
-        return nullptr;
+        std::cout << "parse assembly failed!\n";
+        function->setName(current_name);
+        return false;
+
     } else {
-        //TODO: unfinished?
+        std::cout << "parse assembly succeeded!!\n";
+
+
+        std::cout << "-------- NOW... heres the current state of the module: -------\n";
+        module->print(llvm::errs(), nullptr);
+        std::cout << "-----------------------------------------\n";
+
+
+        auto& made = module->getFunctionList().back();
+        auto& made_blocklist = made.getBasicBlockList().back();
+        size_t i = 0;
+        llvm::Instruction* second_to_last_instruction = &made_blocklist.back();
+        for (auto& ins : made_blocklist) {
+            if (i == made_blocklist.size() - 2) {
+                second_to_last_instruction = &ins;
+                break;
+            }
+            i++;
+        }
+        second_to_last_instruction->moveAfter(&function->getBasicBlockList().back().back());
+
+        //made.setName("_anonymous_" + random_string());
+        made.removeFromParent();
+        function->setName(current_name);
+
+        return true;
     }
-    return nullptr; //TODO: unfinished?
 }
 
 bool parse_llvm_string_as_function(std::string given, llvm::Module* module, struct file file, llvm::SMDiagnostic& errors, std::vector<std::vector<expression>>& stack) {
-    llvm::MemoryBufferRef reference(given, "llvm_string_buffer");
+    llvm::MemoryBufferRef reference(given, "<llvm-string>");
     llvm::ModuleSummaryIndex my_index(true);
-    ///NOTE: it seems that symbol table coordination will already be done for us, if we are code-gen'ing. which is good.
-    //// we just need to code gen now. lol.
     if (llvm::parseAssemblyInto(reference, module, &my_index, errors)) {
-        // Error: parsing llvm string.
         return false;
     }
     return true;
 }
 
-static expression parse_llvm_string(const struct file &file, const expression &given, bool is_at_top_level, bool is_parsing_type, const std::basic_string<char> &llvm_string, llvm::Module *module, size_t &pointer, std::vector<std::vector<expression> > &stack) {
+
+
+
+
+
+static expression parse_llvm_string(const struct file &file, const expression &given, bool is_at_top_level, bool is_parsing_type, const std::basic_string<char> &llvm_string, llvm::Module *module, size_t &pointer, std::vector<std::vector<expression> > &stack, llvm::Function* function, llvm::IRBuilder<>& builder) {
     if (is_at_top_level and not is_parsing_type) {
 
         llvm::SMDiagnostic instruction_errors;
         llvm::SMDiagnostic function_errors;
 
-        if (auto llvm_instruction = parse_llvm_string_as_instruction(llvm_string, module, file, instruction_errors, stack)) {
+
+         if (parse_llvm_string_as_function(llvm_string, module, file, function_errors, stack)) {
             expression solution = {};
             solution.erroneous = false;
-            solution.llvm_instruction = llvm_instruction;
             solution.type = &unit_type;
             solution.symbols = {};
             symbol s = {};
@@ -476,7 +528,7 @@ static expression parse_llvm_string(const struct file &file, const expression &g
             solution.symbols.push_back(s);
             return solution;
 
-        } else if (parse_llvm_string_as_function(llvm_string, module, file, function_errors, stack)) {
+        } else if (parse_llvm_string_as_instruction(llvm_string, module, file, instruction_errors, stack, function, builder)) {
             expression solution = {};
             solution.erroneous = false;
             solution.type = &unit_type;
@@ -490,10 +542,10 @@ static expression parse_llvm_string(const struct file &file, const expression &g
         } else {
             // print error, assuming instruction, as well as for function.
 
-            std::cout << "llvm: "; // TODO: make this have color!
+            std::cout << "ins: llvm: "; // TODO: make this have color!
             instruction_errors.print(file.name.c_str(), llvm::errs()); // temp
 
-            std::cout << "llvm: "; // TODO: make this have color!
+            std::cout << "func: llvm: "; // TODO: make this have color!
             function_errors.print(file.name.c_str(), llvm::errs());
 
             // temp, when we print the errors,
@@ -569,7 +621,7 @@ expression csr(std::vector<std::vector<expression>>& stack, const expression giv
         else return {true};
     } else if (pointer < given.symbols.size() and given.symbols[pointer].type == symbol_type::llvm_literal) {
         auto llvm_string = given.symbols[pointer].llvm.literal.value;
-        return parse_llvm_string(file, given, is_at_top_level, is_parsing_type, llvm_string, module, pointer, stack);
+        return parse_llvm_string(file, given, is_at_top_level, is_parsing_type, llvm_string, module, pointer, stack, function, builder);
     }
 
     const auto saved = pointer;
@@ -715,18 +767,7 @@ std::unique_ptr<llvm::Module> analyze(translation_unit unit, llvm::LLVMContext& 
             auto type = unit_type;
             auto solution = resolve(stack, body[i], type, false, true, false, module.get(), file, function, builder, should_generate_code);
             if (solution.erroneous) {
-                std::cout << "n3zqx2l: csr: fake error: Could not parse expression!\n"; // TODO: print an error (IN CSR!) of some kind!
-
-                auto type = infered_type;
-                auto actual = resolve(stack, body[i], type, false, true, false, module.get(), file, function, builder, should_generate_code);
-
-                std::cout << "the actual type was: \n";
-                print_expression_line(type);
-                std::cout << "\n\n";
-
-                std::cout << "was expecting: \n";
-                print_expression_line(unit_type);
-                std::cout << "\n\n";
+                std::cout << "n3zqx2l: csr: fake error: Could not parse expression!\n"; // TODO: print an error (IN CSR!) of some kind.
 
                 error = true;
                 continue;
@@ -748,16 +789,6 @@ std::unique_ptr<llvm::Module> analyze(translation_unit unit, llvm::LLVMContext& 
     value = llvm::ConstantInt::get(llvm::Type::getInt32Ty(context), 0);
     builder.CreateRet(value);
 
-    std::string the_message = "";
-    auto stream = &(llvm::raw_string_ostream(the_message) << "");
-    if (llvm::verifyModule(*module.get(), stream)) {
-        std::cout << "the module is broken. lemme fix it.";
-    } else {
-        std::cout << "the module is ok!\n";
-    }
-
-    module->print(llvm::errs(), nullptr);
-
     if (debug) {
         std::cout << "----------------- analyzer ---------------------\n";
         print_translation_unit(unit, file);
@@ -765,6 +796,8 @@ std::unique_ptr<llvm::Module> analyze(translation_unit unit, llvm::LLVMContext& 
 
     std::cout << "stack is now: \n";
     print_stack(stack);
+
+    module->print(llvm::errs(), nullptr);
 
     if (error) {
         std::cout << "\n\n\tCSR ERROR\n\n\n\n";
@@ -913,3 +946,17 @@ llvm::Function* codegen() {
 
 
 */
+
+
+
+//    std::string the_message = "";
+//    auto stream = &(llvm::raw_string_ostream(the_message) << "");
+//    if (llvm::verifyModule(*module, stream)) {
+//        std::cout << "the module is broken. lemme fix it.";
+//        std::cout << "heres the error: \n";
+//        std::cout << the_message;
+//        std::cout << "\n";
+//        error = true;
+//    } else {
+//        std::cout << "the module is ok!\n";
+//    }

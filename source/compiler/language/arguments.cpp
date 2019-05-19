@@ -127,7 +127,7 @@ struct arguments get_commandline_arguments(const int argc, const char** argv) {
         return args;
         
     } else if (argc > 1 and std::string(argv[1]) == "run") { // "nostril run ..."
-
+        args.use_interpreter = true; //
     } else if (argc == 1) {
         args.use_interpreter = true;
         args.files.push_back({"{repl}", ""});
@@ -156,7 +156,7 @@ struct arguments get_commandline_arguments(const int argc, const char** argv) {
             printf("bad option: %s\n", argv[i]);
             // print_usage();
             
-        } else {
+        } else if (std::string(argv[i]) != "run") {
             struct file file = {argv[i], ""};
             if (is_file(argv[i])) {
                 open_file(args, file);

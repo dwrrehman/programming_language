@@ -19,7 +19,7 @@
 
 std::unique_ptr<llvm::Module> frontend(struct file file, llvm::LLVMContext &context);
 void optimize(llvm::Module* module);
-std::string generate(llvm::Module* module, const struct file& file);
+std::string generate(std::unique_ptr<llvm::Module>& module, const struct file& file);
 void delete_files(std::vector<std::string> object_files);
 void link(std::vector<std::string> object_files, const struct arguments& arguments);
 

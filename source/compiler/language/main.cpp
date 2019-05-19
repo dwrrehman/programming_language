@@ -76,7 +76,10 @@
 #include <vector>
 #include <iostream>
 
-static void compile(const struct arguments &arguments) {
+int main(const int argc, const char** argv) {
+    const struct arguments& arguments = get_commandline_arguments(argc, argv);
+    if (arguments.error) exit(1);
+
     llvm::InitializeAllTargetInfos();
     llvm::InitializeAllTargets();
     llvm::InitializeAllTargetMCs();
@@ -94,7 +97,7 @@ static void compile(const struct arguments &arguments) {
     }
     if (error) exit(2);
 
-    if (arguments.use_interpreter or true ) {
+    if (arguments.use_interpreter) {
         auto & wefwef = modules.back();
         auto daniels_interpreter = llvm::Interpreter::create(std::move(wefwef));
         std::cout << "running in the interpreter!!\n";
@@ -108,17 +111,11 @@ static void compile(const struct arguments &arguments) {
     std::vector<std::string> object_files = {};
     object_files.reserve(modules.size());
     for (auto& module : modules) {
-        try {object_files.push_back(generate(module.get(), arguments.files[i++]));}
+        try {object_files.push_back(generate(module, arguments.files[i++]));}
         catch(...) { error = true; }
     }
     if (error) {delete_files(object_files); exit(3);}
     link(object_files, arguments);
-}
-
-int main(const int argc, const char** argv) {
-    const struct arguments& arguments = get_commandline_arguments(argc, argv);
-    if (arguments.error) exit(1);
-    compile(arguments);
 }
 
 /*

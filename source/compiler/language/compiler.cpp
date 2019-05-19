@@ -60,7 +60,7 @@ void optimize(llvm::Module* module) {
 }
 
 
-std::string generate(llvm::Module* module, const struct file& file) {
+std::string generate(std::unique_ptr<llvm::Module>& module, const struct file& file) {
 
     auto TargetTriple = llvm::sys::getDefaultTargetTriple();
     module->setTargetTriple(TargetTriple);
@@ -85,13 +85,25 @@ std::string generate(llvm::Module* module, const struct file& file) {
     }
 
     llvm::legacy::PassManager pass;
+
     auto filetype = llvm::TargetMachine::CGFT_ObjectFile;
     if (TheTargetMachine->addPassesToEmitFile(pass, dest, nullptr, filetype)) {
         delete_files({object_filemame});
         throw "generate error: cannot emit object file on this target";
     }
 
+    module->print(llvm::errs(), nullptr);
+
+//    std::string str = "";
+//    auto& stream = llvm::raw_string_ostream(str) << "";
+//    try {llvm::verifyModule(*module, &stream); }
+//    catch(...) {
+//        std::cout << "llvm error: verifyication failure:\n";
+//        std::cout << str;
+//    }
+
     pass.run(*module);
+
     dest.flush();
 
     std::cout << "generating code....\n";
