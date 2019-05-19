@@ -71,6 +71,7 @@
 #include "llvm/ExecutionEngine/ExecutionEngine.h"
 #include "llvm/ExecutionEngine/MCJIT.h"
 #include "llvm/ExecutionEngine/Interpreter.h"
+#include "llvm/ExecutionEngine/daniels_interpreter/Interpreter.h"
 
 #include <vector>
 #include <iostream>
@@ -93,10 +94,12 @@ static void compile(const struct arguments &arguments) {
     }
     if (error) exit(2);
 
-    if (arguments.use_interpreter) {
-
-        
-
+    if (arguments.use_interpreter or true ) {
+        auto & wefwef = modules.back();
+        auto daniels_interpreter = llvm::Interpreter::create(std::move(wefwef));
+        std::cout << "running in the interpreter!!\n";
+        std::cout << "n3zqx2l program exited with: " << daniels_interpreter->runFunctionAsMain(daniels_interpreter->FindFunctionNamed("main"), {arguments.executable_name}, nullptr) << "\n";
+        exit(0);
     }
 
     for (auto& module : modules) optimize(module.get());
