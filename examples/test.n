@@ -1,34 +1,6 @@
-'@.str = private unnamed_addr constant [14 x i8] c"hello world!\0A\00", align 1'
-
-
-'declare i32 @printf(i8*, ...)'
-
-'%wef = alloca i32, align 4
-%a2 = alloca i32, align 4
-store i32 0, i32* %wef, align 4
-store i32 0, i32* %a2, align 4
-br label %Label3
-
-Label3:                                      ; preds = %8, %0
-%a4 = load i32, i32* %a2, align 4
-%a5 = icmp slt i32 %a4, 5
-br i1 %a5, label %Label6, label %Label11
-
-Label6:                                      ; preds = %3
-%a7 = call i32 (i8*, ...) @printf(i8* getelementptr inbounds ([14 x i8], [14 x i8]* @.str, i32 0, i32 0))
-br label %Label8
-
-Label8:                                      ; preds = %6
-%a9 = load i32, i32* %a2, align 4
-%a10 = add nsw i32 %a9, 1
-store i32 %a10, i32* %a2, align 4
-br label %Label3
-
-Label11:                                     ; preds = %3
-ret i32 0
-'
+'@str = private unnamed_addr constant 
+declare i32 @puts(i8*)'
 
 
 
-
-
+%result
