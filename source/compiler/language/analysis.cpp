@@ -776,15 +776,15 @@ std::unique_ptr<llvm::Module> analyze(translation_unit unit, llvm::LLVMContext& 
 
     std::vector<llvm::Type*> parameters = {llvm::Type::getInt32Ty(context), llvm::Type::getInt8PtrTy(context)->getPointerTo()};
     llvm::FunctionType* main_type = llvm::FunctionType::get(llvm::Type::getInt32Ty(context), parameters, false);
-    llvm::Function* function = llvm::Function::Create(main_type, llvm::Function::ExternalLinkage, "main", module.get());
-    builder.SetInsertPoint(llvm::BasicBlock::Create(context, "entry", function));
+    llvm::Function* main_function = llvm::Function::Create(main_type, llvm::Function::ExternalLinkage, "main", module.get());
+    builder.SetInsertPoint(llvm::BasicBlock::Create(context, "entry", main_function));
     bool should_generate_code = true;
 
     if (body.size()) {
         std::vector<expression> parsed_body = {};
         for (size_t i = 0; i < body.size(); i++) {
             auto type = unit_type;
-            auto solution = resolve(stack, body[i], type, false, true, false, module.get(), file, function, builder, should_generate_code);
+            auto solution = resolve(stack, body[i], type, false, true, false, module.get(), file, main_function, builder, should_generate_code);
             if (solution.erroneous) {
                 std::cout << "n3zqx2l: csr: fake error: Could not parse expression!\n"; // TODO: print an error (IN CSR!) of some kind.
 
@@ -804,8 +804,11 @@ std::unique_ptr<llvm::Module> analyze(translation_unit unit, llvm::LLVMContext& 
         }
     }
 
-//    llvm::Value* value = llvm::ConstantInt::get(llvm::Type::getInt32Ty(context), 0);
-//    builder.CreateRet(value);
+    if (llvm::verifyFunction(*main_function)) {
+        std::cout << "verify function error: main: trying \"adding implicit return value of 0\"...\n";
+        llvm::Value* value = llvm::ConstantInt::get(llvm::Type::getInt32Ty(context), 0);
+        builder.CreateRet(value); 
+    }
 
     //std::string the_message = "";
     //auto stream = &(llvm::raw_string_ostream(the_message) << "");
