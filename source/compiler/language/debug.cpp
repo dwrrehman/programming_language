@@ -22,6 +22,7 @@
 
 
 void debug_arguments(struct arguments args) {
+    std::cout << "file count = " <<  args.files.size() << "\n";
     for (auto a : args.files) {
         std::cout << "file: " << a.name << "\n";
         std::cout << "data: \n:::" << a.text << ":::\n";
@@ -30,7 +31,7 @@ void debug_arguments(struct arguments args) {
     std::cout << std::boolalpha;
     std::cout << "error = " << args.error << std::endl;
     std::cout << "use interpreter = " << args.use_interpreter << std::endl;
-    std::cout << "exec name = " << args.executable_name << std::endl;
+    std::cout << "exec name = " << args.executable_name << std::endl;    
 }
 
 

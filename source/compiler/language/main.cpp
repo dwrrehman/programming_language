@@ -72,13 +72,55 @@
 #include "llvm/ExecutionEngine/MCJIT.h"
 #include "llvm/ExecutionEngine/Interpreter.h"
 #include "llvm/ExecutionEngine/daniels_interpreter/Interpreter.h"
+#include "llvm/ExecutionEngine/daniels_interpreter/MCJIT.h"
+
 
 #include <vector>
 #include <iostream>
 
+
+
+
+
+
+
+
+/*
+static int Execute(std::unique_ptr<llvm::Module> Mod, char *const *envp) {
+    llvm::InitializeNativeTarget();
+    llvm::InitializeNativeTargetAsmPrinter();
+    llvm::Module &M = *Mod;
+    std::string Error;
+    std::unique_ptr<llvm::ExecutionEngine> EE(createExecutionEngine(std::move(Mod), &Error));
+    if (!EE) {
+        llvm::errs() << "unable to make execution engine: " << Error << "\n";
+        return 255;
+    }
+    llvm::Function *EntryFn = M.getFunction("main");
+    if (!EntryFn) {
+        llvm::errs() << "'main' function not found in module.\n";
+        return 255;
+    }
+    // FIXME: Support passing arguments.
+    std::vector<std::string> Args;
+    Args.push_back(M.getModuleIdentifier());
+    EE->finalizeObject();
+    return EE->runFunctionAsMain(EntryFn, Args, envp);
+}
+
+*/
+
+
+
+
+
 int main(const int argc, const char** argv) {
     const struct arguments& arguments = get_commandline_arguments(argc, argv);
     if (arguments.error) exit(1);
+    
+    debug_arguments(arguments);
+    
+    if (!arguments.files.size()) print_error_no_files();
 
     llvm::InitializeAllTargetInfos();
     llvm::InitializeAllTargets();
@@ -98,10 +140,19 @@ int main(const int argc, const char** argv) {
     if (error) exit(2);
 
     if (arguments.use_interpreter) {
-        auto & wefwef = modules.back();
-        auto daniels_interpreter = llvm::Interpreter::create(std::move(wefwef));
+        auto & main_module = modules.back();
+
         std::cout << "running in the interpreter!!\n";
-        std::cout << "n3zqx2l program exited with: " << daniels_interpreter->runFunctionAsMain(daniels_interpreter->FindFunctionNamed("main"), {arguments.executable_name}, nullptr) << "\n";
+
+        
+        
+        auto jit = llvm::EngineBuilder(std::move(main_module))
+        .setEngineKind(llvm::EngineKind::JIT)        
+        .create();
+        jit->finalizeObject();
+        auto fn = jit->FindFunctionNamed("main");                
+        const int exit_code = jit->runFunctionAsMain(fn, {arguments.executable_name}, nullptr);
+        std::cout << "n3zqx2l program exited with: " << exit_code << "\n";            
         exit(0);
     }
 

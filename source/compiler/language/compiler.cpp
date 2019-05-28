@@ -94,14 +94,6 @@ std::string generate(std::unique_ptr<llvm::Module>& module, const struct file& f
 
     module->print(llvm::errs(), nullptr);
 
-//    std::string str = "";
-//    auto& stream = llvm::raw_string_ostream(str) << "";
-//    try {llvm::verifyModule(*module, &stream); }
-//    catch(...) {
-//        std::cout << "llvm error: verifyication failure:\n";
-//        std::cout << str;
-//    }
-
     pass.run(*module);
 
     dest.flush();
