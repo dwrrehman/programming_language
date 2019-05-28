@@ -447,27 +447,50 @@ expression string_to_expression_tail(std::vector<expression> list, llvm::LLVMCon
     
     if (list.size() == 1 and expressions_match(list.back(), type_type)) return type_type;          
     auto signature = list.front();
-    auto signature_copy = signature;
-    int i = 0;
-    for (auto element : signature.symbols) {
+        
+    //// this is trash. rethink it.
+        
+    for (auto& element : signature.symbols) {
+        
         if (element.type == symbol_type::subexpression) {
             std::vector<expression> subexpressions = {};    
             for (auto s : element.subexpression.symbols) 
                if (s.type == symbol_type::subexpression) subexpressions.push_back(s.subexpression);
             
-            auto name = 
-            subexpressions.erase(subexpressions.begin()); // delete the parameter name.            
             auto result = string_to_expression_tail(subexpressions, module->getContext(), module, stack, function, builder, should_generate_code, file);
-            
-            expression* parameter_type = new expression(result);
-            parameter_type->was_allocated = true;            
-            expression parameter {{}, parameter_type};            
-            signature_copy.symbols[i].subexpression = parameter;
+            if (result.erroneous) {
+                std::cout << "csr PARAMETER error while parsing a llvm string signature.\n";
+                std::cout << "heres the stack currently...\n";
+                print_stack(stack);
+                std::cout << "\n\n\n\n";
+            }
+            element.subexpression = result; 
         }
-        i++;
     }
     
-    signature = signature_copy;
+    
+    
+    
+    
+    
+    
+
+    ///// ok i think i see the problem. 
+    
+    
+    
+    /// the problem is that we need to actuallly:
+    
+    
+    ////////// figure out how to implement call signatures. this is vital, 
+    
+            ///because then this whole thing will be much easier.
+    
+    
+    
+    
+    
+    
     
     
     
