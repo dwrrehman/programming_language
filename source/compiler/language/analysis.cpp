@@ -415,7 +415,7 @@ std::string expression_to_string(expression given) {
     for (auto symbol : given.symbols) {
         if (symbol.type == symbol_type::identifier) result += symbol.identifier.name.value;
         else if (symbol.type == symbol_type::subexpression) {
-            result += expression_to_string(symbol.subexpression);
+            result += "(" + expression_to_string(symbol.subexpression) + ")";
         }
         if (i < given.symbols.size() - 1) result += " ";
         i++;
@@ -432,7 +432,7 @@ std::string expression_to_string(expression given) {
 }
 
 
-static void debug_nested_types(const std::vector<expression> &nested_types) {
+void debug_nested_types(const std::vector<expression> &nested_types) {
     std::cout << "there are " << nested_types.size()  << " nested types...\n";
     std::cout << "printing them: {\n";
     for (auto e : nested_types) {
@@ -447,24 +447,48 @@ expression string_to_expression_tail(std::vector<expression> list, llvm::LLVMCon
     
     if (list.size() == 1 and expressions_match(list.back(), type_type)) return type_type;          
     auto signature = list.front();
+    auto signature_copy = signature;
+    int i = 0;
+    for (auto element : signature.symbols) {
+        if (element.type == symbol_type::subexpression) {
+            std::vector<expression> subexpressions = {};    
+            for (auto s : element.subexpression.symbols) 
+               if (s.type == symbol_type::subexpression) subexpressions.push_back(s.subexpression);
+            
+            auto name = 
+            subexpressions.erase(subexpressions.begin()); // delete the parameter name.            
+            auto result = string_to_expression_tail(subexpressions, module->getContext(), module, stack, function, builder, should_generate_code, file);
+            
+            expression* parameter_type = new expression(result);
+            parameter_type->was_allocated = true;            
+            expression parameter {{}, parameter_type};            
+            signature_copy.symbols[i].subexpression = parameter;
+        }
+        i++;
+    }
+    
+    signature = signature_copy;
+    
+    
+    
     list.erase(list.begin());
     auto type = string_to_expression_tail(list, module->getContext(), module, stack, function, builder, should_generate_code, file);
-//    
-//    std::cout <<  "passing the following to resolve: \n\t";
-//    std::cout << "signature: ";
-//    print_expression_line(signature);
-//    std::cout << "\n\ttype: ";
-//    print_expression_line(type);
-//    std::cout << "\n\n\n";
+
+    std::cout <<  "passing the following to resolve: \n\t";
+    std::cout << "signature: ";
+    print_expression_line(signature);
+    std::cout << "\n\ttype: ";
+    print_expression_line(type);
+    std::cout << "\n\n\n";
     
     if (signature.symbols.empty() and expressions_match(type, type_type)) return unit_type;    
     
     auto result = resolve(stack, signature, type, false, false, false, module, file, function, builder, should_generate_code);    
     if (result.erroneous) {
         std::cout << "csr error while parsing a llvm string signature.\n";
-//        std::cout << "heres the stack currently...\n";        
-//        print_stack(stack);        
-//        std::cout << "\n\n\n\n";
+        std::cout << "heres the stack currently...\n";
+        print_stack(stack);
+        std::cout << "\n\n\n\n";
     }
     return result;
 }
@@ -886,7 +910,6 @@ std::unique_ptr<llvm::Module> analyze(translation_unit unit, llvm::LLVMContext& 
     }
 
     if (llvm::verifyFunction(*main_function)) {
-        std::cout << "verify function error: main: trying \"adding implicit return value of 0\"...\n";
         llvm::Value* value = llvm::ConstantInt::get(llvm::Type::getInt32Ty(context), 0);
         builder.CreateRet(value); 
     }
