@@ -163,6 +163,61 @@
 
 
 
+
+
+
+
+///////////// debug functions ////////////////////
+
+
+static void display(llvm::Module *module, std::string message) {
+    std::cout << "-------- "<< message << " -------\n";
+    module->print(llvm::errs(), nullptr);
+    std::cout << "-----------------------------------------\n";
+    std::cout << "ok? ";
+    std::string str = "";
+    //std::cin >> str;
+}
+
+static void print_bbs(llvm::Function *function) {
+    std::cout << "this function has: " << function->getBasicBlockList().size() << " basic blocks.\n";
+    std::cout << "printing bbs: \n\n\n";
+    for (auto& bb: function->getBasicBlockList()) {
+        std::cout << "heres a bb: \n";
+        bb.print(llvm::errs());
+        std::cout << "done printing bb.\n\n";
+        std::cout << "[that bb had " << bb.getInstList().size() << " instructions.]\n";
+    }
+    std::cout << "done printing bbs.\n";
+}
+
+static void verify(llvm::Function &f, std::string functionname) {
+    if (llvm::verifyFunction(f)) {
+        std::cout << "verification of "<< functionname<<" failed.\n";
+        f.print(llvm::errs());
+        
+    } else {
+        std::cout << functionname << " VERIFICATION SUCCESS\n";
+        f.print(llvm::errs());
+    }
+}
+
+
+///////////// end of debug functions ////////////////////
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 bool expressions_match(expression first, expression second);
 expression csr(std::vector<std::vector<expression>>& stack, const expression given, const size_t depth, const size_t max_depth, size_t& pointer, struct expression*& expected, bool can_define_new_signature, bool is_at_top_level, bool is_parsing_type, llvm::Module* module, struct file file, llvm::Function* function, llvm::IRBuilder<>& builder, bool should_generate_code);
 bool adp(abstraction_definition& given, std::vector<std::vector<expression>>& stack, llvm::Module* module, struct file file, llvm::Function* function, llvm::IRBuilder<>& builder, bool should_generate_code);
@@ -349,32 +404,7 @@ static void parse_signature(abstraction_definition &given, std::vector<std::vect
     given.call_signature = result;
 }
 
-bool adp(abstraction_definition& given, std::vector<std::vector<expression>>& stack, llvm::Module* module, struct file file, llvm::Function* function, llvm::IRBuilder<>& builder, bool should_generate_code) {
-    clean(given.body); //TODO: move me into the corrector code.
-    bool error = false;
-    stack.push_back(stack.back());
-    parse_signature(given, stack, error, module, file, function, builder, should_generate_code);
-    parse_return_type(given, stack, error, module, file, function, builder, false);
-    parse_abstraction_body(error, given, stack, module, file, function, builder, should_generate_code);
 
-
-///    we need to determine the llvm types, from the signature of the function, (or rather the gener abs type.
-//    std::vector<llvm::Type*> parameters = {/*llvm::Type::getInt32Ty(context), llvm::Type::getInt8PtrTy(context)->getPointerTo()*/};
-//    llvm::FunctionType* main_type = llvm::FunctionType::get(llvm::Type::getInt32Ty(module->getContext()), parameters, false);
-//    llvm::Function* function = llvm::Function::Create(main_type, llvm::Function::ExternalLinkage, "main", module);
-//    builder.SetInsertPoint(llvm::BasicBlock::Create(module->getContext(), "entry", function));
-
-
-
-    stack.pop_back();
-    return error;
-}
-
-bool contains_a_block_starting_from(size_t begin, std::vector<symbol> list) {
-    for (; begin < list.size(); begin++)
-        if (list[begin].type == symbol_type::block) return true;
-    return false;
-}
 
 
 
@@ -401,25 +431,115 @@ std::string expression_to_string(expression given) {
     return result;
 }
 
-
-
-
-//TODO: we need a flag in the resolve and csr function, which says that we DO want to generate code, or not.
-
-
-
-
-
 expression string_to_expression(std::string given, llvm::LLVMContext& context, llvm::Module* module, std::vector<std::vector<expression>>& stack, llvm::Function* function, llvm::IRBuilder<>& builder, bool should_generate_code) {
     struct file file = {};
     file.name = "<llvm string symbol>";
     file.text = given;
     start_lex(file);
-    auto e = parse_expression(file, false, false);
-    auto type = type_type;
-    auto result = resolve(stack, e, type, false, false, false, module, file, function, builder, should_generate_code);
+    auto full = parse_expression(file, false, false);
+    
+    expression signature = full.symbols.front().subexpression;
+//    expression type = full;                
+//    type.symbols.erase(type.symbols.begin());
+//    
+//    std::vector<expression> nested_types = {};    
+//    for (auto s : type.symbols) {
+//        if (s.type == symbol_type::subexpression) nested_types.push_back(s.subexpression);                 
+//    }
+//    
+//    // debug:
+//    std::cout << "there are " << nested_types.size()  << " nested types...\n";
+//    std::cout << "printing them: {\n";
+//    for (auto e : nested_types) {
+//        std::cout << "\texpression:      ";
+//        print_expression_line(e);
+//        std::cout << "\n";        
+//    }
+//    std::cout << "}\n";
+
+    std::cout << "parsed signature: ";     
+    print_expression_line(signature);
+    std::cout << "\n";
+    
+    auto signatures_type = infered_type;  // just a temporary hack.
+    
+    auto result = resolve(stack, signature, signatures_type, false, false, false, module, file, function, builder, should_generate_code);
+    
+    if (result.erroneous) {
+        std::cout << "I DOING SOMETHING WRONG....\n";
+        std::cout << "heres the stack currently...\n";
+        
+        print_stack(stack);
+        
+        std::cout << "\n\n\n\n";
+    }
     return result;
 }
+
+
+
+
+
+
+
+
+
+bool adp(abstraction_definition& given, std::vector<std::vector<expression>>& stack, llvm::Module* module, struct file file, llvm::Function* function, llvm::IRBuilder<>& builder, bool should_generate_code) {
+    clean(given.body); //TODO: move me into the corrector code.
+    bool error = false;
+    stack.push_back(stack.back());
+    parse_signature(given, stack, error, module, file, function, builder, should_generate_code);
+    parse_return_type(given, stack, error, module, file, function, builder, false);
+    parse_abstraction_body(error, given, stack, module, file, function, builder, should_generate_code);
+
+
+///    we need to determine the llvm types, from the signature of the function, (or rather the gener abs type.
+    
+//  useful:
+//    std::vector<llvm::Type*> parameters = {/*llvm::Type::getInt32Ty(context), llvm::Type::getInt8PtrTy(context)->getPointerTo()*/};
+//    llvm::FunctionType* main_type = llvm::FunctionType::get(llvm::Type::getInt32Ty(module->getContext()), parameters, false);
+//    llvm::Function* function = llvm::Function::Create(main_type, llvm::Function::ExternalLinkage, "main", module);
+//    builder.SetInsertPoint(llvm::BasicBlock::Create(module->getContext(), "entry", function));
+
+
+    
+    std::cout << "DEBUG:::::\n";
+    std::cout << "testing the string to expression func: \n";
+    
+    std::cout << "the signature that we parsed for this ad, is: \n\t";
+    print_expression_line(given.call_signature);
+    std::cout << "\n";
+    
+    auto string_version = expression_to_string(given.call_signature);
+    std::cout << "heres it stringified : \n\n\t";
+    std::cout << string_version;    
+    std::cout << "\n\n";
+    
+    auto back_again = string_to_expression(string_version, module->getContext(), module, stack, function, builder, should_generate_code);
+    std::cout << "..and back to an expression : \n\n\t";
+    print_expression_line(back_again);    
+    std::cout << "\n\n";
+    
+    
+
+    stack.pop_back();
+    return error;
+}
+
+bool contains_a_block_starting_from(size_t begin, std::vector<symbol> list) {
+    for (; begin < list.size(); begin++)
+        if (list[begin].type == symbol_type::block) return true;
+    return false;
+}
+
+
+
+
+
+
+
+
+//TODO: we need a flag in the resolve and csr function, which says that we DO want to generate code, or not.
 
 
 
@@ -433,45 +553,12 @@ std::string random_string() {
 }
 
 
-
-
 llvm::Type* parse_llvm_string_as_type(std::string given, llvm::Module* module, struct file file, llvm::SMDiagnostic& errors, std::vector<std::vector<expression>>& stack) {
     return llvm::parseType(given, errors, *module);
 }
 
 
 
-static void display(llvm::Module *module, std::string message) {
-    std::cout << "-------- "<< message << " -------\n";
-    module->print(llvm::errs(), nullptr);
-    std::cout << "-----------------------------------------\n";
-    std::cout << "ok? ";
-    std::string str = "";
-    //std::cin >> str;
-}
-
-static void print_bbs(llvm::Function *function) {
-    std::cout << "this function has: " << function->getBasicBlockList().size() << " basic blocks.\n";
-    std::cout << "printing bbs: \n\n\n";
-    for (auto& bb: function->getBasicBlockList()) {
-        std::cout << "heres a bb: \n";
-        bb.print(llvm::errs());
-        std::cout << "done printing bb.\n\n";
-        std::cout << "[that bb had " << bb.getInstList().size() << " instructions.]\n";
-    }
-    std::cout << "done printing bbs.\n";
-}
-
-static void verify(llvm::Function &f, std::string functionname) {
-    if (llvm::verifyFunction(f)) {
-        std::cout << "verification of "<< functionname<<" failed.\n";
-        f.print(llvm::errs());
-
-    } else {
-        std::cout << functionname << " VERIFICATION SUCCESS\n";
-        f.print(llvm::errs());
-    }
-}
 
 bool parse_llvm_string_as_instruction(std::string given, llvm::Module* module, struct file file, llvm::SMDiagnostic& errors, std::vector<std::vector<expression>>& stack, llvm::Function* function, llvm::IRBuilder<>& builder) {
 
@@ -481,7 +568,7 @@ bool parse_llvm_string_as_instruction(std::string given, llvm::Module* module, s
     const size_t bb_count = function->getBasicBlockList().size();
 
     body.pop_back(); // delete the newline;
-    body.pop_back(); //  delete the close brace.
+    body.pop_back(); // delete the close brace.
     body += given + "\nunreachable\n}\n";
 
     const std::string current_name = function->getName();
@@ -493,12 +580,10 @@ bool parse_llvm_string_as_instruction(std::string given, llvm::Module* module, s
     if (llvm::parseAssemblyInto(reference, module, &my_index, errors)) {
         function->setName(current_name);
         return false;
-
     } else {
         auto& made = module->getFunctionList().back();
         made.getBasicBlockList().back().back().eraseFromParent();
-        if (bb_count != made.getBasicBlockList().size())
-            made.getBasicBlockList().back().eraseFromParent();
+        if (bb_count != made.getBasicBlockList().size()) made.getBasicBlockList().back().eraseFromParent();
         function->getBasicBlockList().clear();
         builder.SetInsertPoint(llvm::BasicBlock::Create(module->getContext(), "entry", function));
         builder.CreateUnreachable();
@@ -726,7 +811,7 @@ expression resolve(std::vector<std::vector<expression>>& stack, expression given
         pointer = 0;
         auto solution_type_copy = expected_solution_type;
         solution.type = &solution_type_copy;
-        solution = csr(stack, given, 0, max_depth, pointer, solution.type, /*bool can_define_new_signature, bool is_at_top_level, bool is_parsing_type*/ can_define_new_signature, is_at_top_level, is_parsing_type, module, file, function, builder, should_generate_code);
+        solution = csr(stack, given, 0, max_depth, pointer, solution.type, can_define_new_signature, is_at_top_level, is_parsing_type, module, file, function, builder, should_generate_code);
         if (solution.erroneous or pointer < given.symbols.size() or not solution.type) { max_depth++; }
         else break;
     }
@@ -769,11 +854,11 @@ std::unique_ptr<llvm::Module> analyze(translation_unit unit, llvm::LLVMContext& 
 
     std::cout << "starting with stack frame: \n";
     print_stack(stack);
-
+    
     llvm::IRBuilder<> builder(context);
     auto triple = llvm::sys::getDefaultTargetTriple();
     module->setTargetTriple(triple);
-
+    
     std::vector<llvm::Type*> parameters = {llvm::Type::getInt32Ty(context), llvm::Type::getInt8PtrTy(context)->getPointerTo()};
     llvm::FunctionType* main_type = llvm::FunctionType::get(llvm::Type::getInt32Ty(context), parameters, false);
     llvm::Function* main_function = llvm::Function::Create(main_type, llvm::Function::ExternalLinkage, "main", module.get());
