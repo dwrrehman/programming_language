@@ -431,58 +431,56 @@ std::string expression_to_string(expression given) {
     return result;
 }
 
-expression string_to_expression(std::string given, llvm::LLVMContext& context, llvm::Module* module, std::vector<std::vector<expression>>& stack, llvm::Function* function, llvm::IRBuilder<>& builder, bool should_generate_code) {
-    struct file file = {};
-    file.name = "<llvm string symbol>";
-    file.text = given;
-    start_lex(file);
-    auto full = parse_expression(file, false, false);
-    
-    expression signature = full.symbols.front().subexpression;
-//    expression type = full;                
-//    type.symbols.erase(type.symbols.begin());
-//    
-//    std::vector<expression> nested_types = {};    
-//    for (auto s : type.symbols) {
-//        if (s.type == symbol_type::subexpression) nested_types.push_back(s.subexpression);                 
-//    }
-//    
-//    // debug:
-//    std::cout << "there are " << nested_types.size()  << " nested types...\n";
-//    std::cout << "printing them: {\n";
-//    for (auto e : nested_types) {
-//        std::cout << "\texpression:      ";
-//        print_expression_line(e);
-//        std::cout << "\n";        
-//    }
-//    std::cout << "}\n";
 
-    std::cout << "parsed signature: ";     
-    print_expression_line(signature);
-    std::cout << "\n";
+static void debug_nested_types(const std::vector<expression> &nested_types) {
+    std::cout << "there are " << nested_types.size()  << " nested types...\n";
+    std::cout << "printing them: {\n";
+    for (auto e : nested_types) {
+        std::cout << "\texpression:      ";
+        print_expression_line(e);
+        std::cout << "\n";        
+    }
+    std::cout << "}\n";
+}
+
+expression string_to_expression_tail(std::vector<expression> list, llvm::LLVMContext& context, llvm::Module* module, std::vector<std::vector<expression>>& stack, llvm::Function* function, llvm::IRBuilder<>& builder, bool should_generate_code, struct file file) {
     
-    auto signatures_type = infered_type;  // just a temporary hack.
+    if (list.size() == 1 and expressions_match(list.back(), type_type)) return type_type;          
+    auto signature = list.front();
+    list.erase(list.begin());
+    auto type = string_to_expression_tail(list, module->getContext(), module, stack, function, builder, should_generate_code, file);
+//    
+//    std::cout <<  "passing the following to resolve: \n\t";
+//    std::cout << "signature: ";
+//    print_expression_line(signature);
+//    std::cout << "\n\ttype: ";
+//    print_expression_line(type);
+//    std::cout << "\n\n\n";
     
-    auto result = resolve(stack, signature, signatures_type, false, false, false, module, file, function, builder, should_generate_code);
+    if (signature.symbols.empty() and expressions_match(type, type_type)) return unit_type;    
     
+    auto result = resolve(stack, signature, type, false, false, false, module, file, function, builder, should_generate_code);    
     if (result.erroneous) {
-        std::cout << "I DOING SOMETHING WRONG....\n";
-        std::cout << "heres the stack currently...\n";
-        
-        print_stack(stack);
-        
-        std::cout << "\n\n\n\n";
+        std::cout << "csr error while parsing a llvm string signature.\n";
+//        std::cout << "heres the stack currently...\n";        
+//        print_stack(stack);        
+//        std::cout << "\n\n\n\n";
     }
     return result;
 }
 
-
-
-
-
-
-
-
+expression string_to_expression(std::string given, llvm::LLVMContext& context, llvm::Module* module, std::vector<std::vector<expression>>& stack, llvm::Function* function, llvm::IRBuilder<>& builder, bool should_generate_code) {
+    struct file file = {}; 
+    file.name = "<llvm string symbol>";
+    file.text = given;
+    start_lex(file);
+    auto full = parse_expression(file, false, false);
+    std::vector<expression> subexpressions = {};    
+    for (auto s : full.symbols) 
+        if (s.type == symbol_type::subexpression) subexpressions.push_back(s.subexpression);
+    
+    return string_to_expression_tail(subexpressions, module->getContext(), module, stack, function, builder, should_generate_code, file);
+}
 
 bool adp(abstraction_definition& given, std::vector<std::vector<expression>>& stack, llvm::Module* module, struct file file, llvm::Function* function, llvm::IRBuilder<>& builder, bool should_generate_code) {
     clean(given.body); //TODO: move me into the corrector code.
@@ -500,8 +498,6 @@ bool adp(abstraction_definition& given, std::vector<std::vector<expression>>& st
 //    llvm::FunctionType* main_type = llvm::FunctionType::get(llvm::Type::getInt32Ty(module->getContext()), parameters, false);
 //    llvm::Function* function = llvm::Function::Create(main_type, llvm::Function::ExternalLinkage, "main", module);
 //    builder.SetInsertPoint(llvm::BasicBlock::Create(module->getContext(), "entry", function));
-
-
     
     std::cout << "DEBUG:::::\n";
     std::cout << "testing the string to expression func: \n";
