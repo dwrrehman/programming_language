@@ -46,7 +46,7 @@ static bool is_quit_command(const std::string &line) {
 
 void repl() {
     print_welcome_message();
-
+    
     std::string line = "";
     size_t line_number = 0;
     do {

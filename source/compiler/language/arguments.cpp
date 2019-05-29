@@ -18,6 +18,13 @@
 #include <sys/stat.h>
 #include <unistd.h>
 
+//TODO: make the struct file contain a list of flags, which are
+// values from an enum class, and the parser, corrector, etc,
+// looks at these flags to determine the correct behavior/debug info to give.
+// also, this must be completely done in the get cli args function,
+// and not change any external interfaces, only extent interfaces.
+
+
 
 static void open_file(struct arguments &args, struct file &file) {
     std::ifstream stream {file.name};

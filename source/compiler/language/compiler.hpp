@@ -17,11 +17,17 @@
 #include <string>
 #include <vector>
 
-std::unique_ptr<llvm::Module> frontend(struct file file, llvm::LLVMContext &context);
-void optimize(llvm::Module* module);
+
+
+int interpret(const struct arguments &arguments, std::vector<std::unique_ptr<llvm::Module>> &modules) ;
+std::vector<std::string> generate_object_files(const struct arguments& arguments, bool error, std::vector<std::unique_ptr<llvm::Module>>& modules) ;
+void initialize_llvm();
+std::vector<std::unique_ptr<llvm::Module>> frontend(const struct arguments &arguments, llvm::LLVMContext& context, bool error);
+std::unique_ptr<llvm::Module> proccess(struct file file, llvm::LLVMContext &context);
+void optimize(std::vector<std::unique_ptr<llvm::Module>>& modules);
 std::string generate(std::unique_ptr<llvm::Module>& module, const struct file& file);
 void delete_files(std::vector<std::string> object_files);
-void link(std::vector<std::string> object_files, const struct arguments& arguments);
+void link_and_emit_executable(std::vector<std::string> object_files, const struct arguments& arguments);
 
 
 #endif /* compiler_hpp */

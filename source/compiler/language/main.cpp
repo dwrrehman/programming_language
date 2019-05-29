@@ -7,37 +7,6 @@
 //  Copyright © 2019 Daniel Rehman. All rights reserved.
 //
 
-
-/*
-
-
-
- add user cli hooks to make the compiler stop at any stage, and output the internal represetnation to the user.
-
-
- like:
-
- -emit=ast        or       -ast
-
- -emit-llvm       or       -ll
-
-
- we need these, they are useful for debugging and they make the compiler alittle bit more featureful.
-
-
-*/
-
-//TODO: make the struct file contain a list of flags, which are
-// values from an enum class, and the parser, corrector, etc,
-// looks at these flags to determine the correct behavior/debug info to give.
-// also, this must be completely done in the get cli args function,
-// and not change any external interfaces, only extent interfaces.
-
-
-
-
-
-
 #include "arguments.hpp"
 #include "compiler.hpp"
 #include "interpreter.hpp"
@@ -45,129 +14,34 @@
 #include "lists.hpp"
 
 #include "llvm/IR/LLVMContext.h"
-#include "llvm/IR/Module.h"
-#include "llvm/ADT/APFloat.h"
-#include "llvm/ADT/Optional.h"
-#include "llvm/ADT/STLExtras.h"
-#include "llvm/IR/BasicBlock.h"
-#include "llvm/IR/Constants.h"
-#include "llvm/IR/DerivedTypes.h"
-#include "llvm/IR/Function.h"
-#include "llvm/IR/Instructions.h"
-#include "llvm/IR/IRBuilder.h"
-#include "llvm/IR/LLVMContext.h"
-#include "llvm/IR/LegacyPassManager.h"
-#include "llvm/IR/Module.h"
-#include "llvm/IR/Type.h"
-#include "llvm/IR/Verifier.h"
-#include "llvm/Support/FileSystem.h"
-#include "llvm/Support/Host.h"
-#include "llvm/Support/raw_ostream.h"
-#include "llvm/Support/TargetRegistry.h"
-#include "llvm/Support/TargetSelect.h"
-#include "llvm/Target/TargetMachine.h"
-#include "llvm/Target/TargetOptions.h"
-
-#include "llvm/ExecutionEngine/ExecutionEngine.h"
-#include "llvm/ExecutionEngine/MCJIT.h"
-#include "llvm/ExecutionEngine/Interpreter.h"
-#include "llvm/ExecutionEngine/daniels_interpreter/Interpreter.h"
-#include "llvm/ExecutionEngine/daniels_interpreter/MCJIT.h"
-
-
-#include <vector>
-#include <iostream>
-
-
-
-
-
-
-
-
-/*
-static int Execute(std::unique_ptr<llvm::Module> Mod, char *const *envp) {
-    llvm::InitializeNativeTarget();
-    llvm::InitializeNativeTargetAsmPrinter();
-    llvm::Module &M = *Mod;
-    std::string Error;
-    std::unique_ptr<llvm::ExecutionEngine> EE(createExecutionEngine(std::move(Mod), &Error));
-    if (!EE) {
-        llvm::errs() << "unable to make execution engine: " << Error << "\n";
-        return 255;
-    }
-    llvm::Function *EntryFn = M.getFunction("main");
-    if (!EntryFn) {
-        llvm::errs() << "'main' function not found in module.\n";
-        return 255;
-    }
-    // FIXME: Support passing arguments.
-    std::vector<std::string> Args;
-    Args.push_back(M.getModuleIdentifier());
-    EE->finalizeObject();
-    return EE->runFunctionAsMain(EntryFn, Args, envp);
-}
-
-*/
-
-
-
-
 
 int main(const int argc, const char** argv) {
-    const struct arguments& arguments = get_commandline_arguments(argc, argv);
+    auto arguments = get_commandline_arguments(argc, argv);
     if (arguments.error) exit(1);
-    
-    debug_arguments(arguments);
-    
-    if (!arguments.files.size()) print_error_no_files();
-
-    llvm::InitializeAllTargetInfos();
-    llvm::InitializeAllTargets();
-    llvm::InitializeAllTargetMCs();
-    llvm::InitializeAllAsmParsers();
-    llvm::InitializeAllAsmPrinters();
-
+    if (!arguments.files.size()) print_error_no_files();        debug_arguments(arguments);    
+    initialize_llvm();
     llvm::LLVMContext context;
-    std::vector<std::unique_ptr<llvm::Module>> modules = {};
-    modules.reserve(arguments.files.size());
-    bool error = false;
-
-    for (auto file : arguments.files) {
-        try {modules.push_back(frontend(file, context));}
-        catch (...) {error = true;}
-    }
-    if (error) exit(2);
-
-    if (arguments.use_interpreter) {
-        auto & main_module = modules.back();
-
-        std::cout << "running in the interpreter!!\n";
-
-        
-        
-        auto jit = llvm::EngineBuilder(std::move(main_module))
-        .setEngineKind(llvm::EngineKind::JIT)        
-        .create();
-        jit->finalizeObject();
-        auto fn = jit->FindFunctionNamed("main");                
-        const int exit_code = jit->runFunctionAsMain(fn, {arguments.executable_name}, nullptr);
-        std::cout << "n3zqx2l program exited with: " << exit_code << "\n";            
-        exit(0);
-    }
-
-    for (auto& module : modules) optimize(module.get());
-
-    size_t i = 0;
-    std::vector<std::string> object_files = {};
-    object_files.reserve(modules.size());
-    for (auto& module : modules) {
-        try {object_files.push_back(generate(module, arguments.files[i++]));}
-        catch(...) { error = true; }
-    }
-    if (error) {delete_files(object_files); exit(3);}
-    link(object_files, arguments);
+    bool error = false;    
+    auto modules = frontend(arguments, context, error);
+    if (arguments.use_interpreter) exit(interpret(arguments, modules));    
+    optimize(modules);
+    auto object_files = generate_object_files(arguments, error, modules);    
+    link_and_emit_executable(object_files, arguments);
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 /*
 

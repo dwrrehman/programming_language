@@ -84,7 +84,6 @@
 
 
 
-
 ------------------------- TODOs ----------------------------
 
 
@@ -118,38 +117,26 @@
 
 
 
- might be useful:
 
 
 
-
-
-
-
-
+ 
+ 
+ 
+ 
+ 
+------------------------------------------------------------------------
+ 
  _precedence N <_expression>
 
  _associativity N <_expression>
 
 
-
-
-
-
-
-
-
  ------------------------------ actions: -----------------------------         (all return void.)
-
 
  _define <_signature> as <_expression> in <_application>
 
  _undefine <_signature> in <_application>
-
- _undefine all in <_application>
-
-
- _disclose all in <_expression> into <_application>
 
  _disclose <_expression> from <_expression> into <_application>
 
@@ -157,7 +144,29 @@
  ------------------------------ handles: -----------------------------
 
  _abstraction_N_N
+ 
  _application_N_N
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ --------------------------- other important ones ----------------------
+ 
+           
+    _on_undefine            <---- an event?
+ 
+ 
+    _recognize <_identifier>          <-----+---- really hard to implement
+                                            |
+    _recognize <_parameter?>          <-----+
+ 
+ 
+-------------------------------------------------------------------------
+ 
  */
 
 
@@ -208,21 +217,10 @@ static void verify(llvm::Function &f, std::string functionname) {
 
 
 
-
-
-
-
-
-
-
-
-
-
 bool expressions_match(expression first, expression second);
 expression csr(std::vector<std::vector<expression>>& stack, const expression given, const size_t depth, const size_t max_depth, size_t& pointer, struct expression*& expected, bool can_define_new_signature, bool is_at_top_level, bool is_parsing_type, llvm::Module* module, struct file file, llvm::Function* function, llvm::IRBuilder<>& builder, bool should_generate_code);
 bool adp(abstraction_definition& given, std::vector<std::vector<expression>>& stack, llvm::Module* module, struct file file, llvm::Function* function, llvm::IRBuilder<>& builder, bool should_generate_code);
 expression resolve(std::vector<std::vector<expression>>& stack, expression given, expression& expected_solution_type, bool can_define_new_signature, bool is_at_top_level, bool is_parsing_type, llvm::Module* module, struct file file, llvm::Function* function, llvm::IRBuilder<>& builder, bool should_generate_code);
-
 
 
 
@@ -449,7 +447,7 @@ expression string_to_expression_tail(std::vector<expression> list, llvm::LLVMCon
     auto signature = list.front();
         
     //// this is trash. rethink it.
-        
+    
     for (auto& element : signature.symbols) {
         
         if (element.type == symbol_type::subexpression) {
@@ -538,15 +536,24 @@ bool adp(abstraction_definition& given, std::vector<std::vector<expression>>& st
     parse_abstraction_body(error, given, stack, module, file, function, builder, should_generate_code);
 
 
-///    we need to determine the llvm types, from the signature of the function, (or rather the gener abs type.
+///   note:  we need to determine the llvm types, 
+//// from the generated type signature of the function.
+
     
-//  useful:
+    ///we also need to determine the size of the structure which IS the function.
+        //// (ie, determining the size of the struct using a recrusive algorithm).
+    
+///  useful for code geneing for functions::
+    
 //    std::vector<llvm::Type*> parameters = {/*llvm::Type::getInt32Ty(context), llvm::Type::getInt8PtrTy(context)->getPointerTo()*/};
 //    llvm::FunctionType* main_type = llvm::FunctionType::get(llvm::Type::getInt32Ty(module->getContext()), parameters, false);
 //    llvm::Function* function = llvm::Function::Create(main_type, llvm::Function::ExternalLinkage, "main", module);
 //    builder.SetInsertPoint(llvm::BasicBlock::Create(module->getContext(), "entry", function));
     
+    
+    
     std::cout << "DEBUG:::::\n";
+    
     std::cout << "testing the string to expression func: \n";
     
     std::cout << "the signature that we parsed for this ad, is: \n\t";
@@ -563,7 +570,6 @@ bool adp(abstraction_definition& given, std::vector<std::vector<expression>>& st
     print_expression_line(back_again);    
     std::cout << "\n\n";
     
-    
 
     stack.pop_back();
     return error;
@@ -576,16 +582,7 @@ bool contains_a_block_starting_from(size_t begin, std::vector<symbol> list) {
 }
 
 
-
-
-
-
-
-
 //TODO: we need a flag in the resolve and csr function, which says that we DO want to generate code, or not.
-
-
-
 
 
 std::string random_string() {
@@ -595,13 +592,9 @@ std::string random_string() {
     return std::string(stream.str()) + std::to_string(num++);
 }
 
-
 llvm::Type* parse_llvm_string_as_type(std::string given, llvm::Module* module, struct file file, llvm::SMDiagnostic& errors, std::vector<std::vector<expression>>& stack) {
     return llvm::parseType(given, errors, *module);
 }
-
-
-
 
 bool parse_llvm_string_as_instruction(std::string given, llvm::Module* module, struct file file, llvm::SMDiagnostic& errors, std::vector<std::vector<expression>>& stack, llvm::Function* function, llvm::IRBuilder<>& builder) {
 
@@ -714,7 +707,6 @@ static expression parse_llvm_string(const struct file &file, const expression &g
             expression solution = {};
             solution.erroneous = false;
             solution.llvm_type = llvm_type;
-
             solution.type = &type_type;
             solution.symbols = {};
             symbol s = {};
@@ -881,10 +873,9 @@ bool contains_top_level_statements(std::vector<expression> list) {
 }
 
 std::unique_ptr<llvm::Module> analyze(translation_unit unit, llvm::LLVMContext& context, struct file file) {
-
-    auto module = llvm::make_unique<llvm::Module>(file.name, context);
-
+    
     srand((unsigned)time(nullptr));
+    auto module = llvm::make_unique<llvm::Module>(file.name, context);
 
     static bool found_main = false;
     bool error = false;
@@ -1015,11 +1006,6 @@ the problem with doing this in my language, however, is that in our
 
 
 
-
-
-
-
-
 llvm::Function* PrototypeAST::codegen() {
     // Make the function type:  double(double,double) etc.
     std::vector<llvm::Type*> parameters(arguments.size(), llvm::Type::getDoubleTy(context));
@@ -1070,29 +1056,3 @@ llvm::Function* codegen() {
 
 
 */
-
-
-
-//    std::string the_message = "";
-//    auto stream = &(llvm::raw_string_ostream(the_message) << "");
-//    if (llvm::verifyModule(*module, stream)) {
-//        std::cout << "the module is broken. lemme fix it.";
-//        std::cout << "heres the error: \n";
-//        std::cout << the_message;
-//        std::cout << "\n";
-//        error = true;
-//    } else {
-//        std::cout << "the module is ok!\n";
-//    }
-
-
-
-
-
-
-
-//        function->getBasicBlockList().back();
-//        builder.SetInsertPoint(llvm::BasicBlock::Create(module->getContext(), "entry", function));
-//        display(module, "delete everything in function");
-//        verify(*function, "function after deletion");
-//std::cout << "going to transfer instruction now...\n";
