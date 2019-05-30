@@ -1,17 +1,1 @@
 
-`@str = private unnamed_addr constant [24 x i8] c"hello there from space!\00"`
-
-`define i32 @f() {
-    %r = add i32 2,3  
-    ret i32 %r
-}`
-
-
-`declare i32 @puts(i8* nocapture readonly) local_unnamed_addr`
-
-
-`%result = tail call i32 @puts(i8* getelementptr inbounds ([24 x i8], [24 x i8]* @str, i64 0, i64 0))`
-
-`%ret = call i32 @f()`
-`ret i32 %ret`
-

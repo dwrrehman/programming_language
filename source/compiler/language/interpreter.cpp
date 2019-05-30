@@ -115,6 +115,10 @@ std::string output() {
     return "   " BRIGHT_RED "{" RESET GRAY + std::to_string(output_line_number++) + RESET BRIGHT_RED "}" RESET GRAY ": " RESET;
 }
 
+static bool is_quit_command(const std::string &line) {
+    return line == ":quit" or line == "quit" or line == ":exit" or line == "exit" or line == ":q";
+}
+
 void process_repl_command(std::string line) {
     if (line == "clear") {
         std::cout << "\e[1;1H\e[2J";
@@ -125,20 +129,11 @@ void process_repl_command(std::string line) {
     }
 }
 
-static bool is_quit_command(const std::string &line) {
-    return line == ":quit" or line == "quit" or line == ":exit" or line == "exit" or line == ":q";
-}
-
-
-
-
-
 
 
 void analyze(translation_unit unit, std::unique_ptr<llvm::Module>& module, struct file file) {
     
 }
-
 
 int repl_interpret(std::string executable_name, std::vector<std::unique_ptr<llvm::Module> > &modules) {
     auto & main_module = modules.back();        

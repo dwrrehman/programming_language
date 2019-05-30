@@ -442,7 +442,7 @@ void debug_nested_types(const std::vector<expression> &nested_types) {
 }
 
 expression string_to_expression_tail(std::vector<expression> list, llvm::LLVMContext& context, llvm::Module* module, std::vector<std::vector<expression>>& stack, llvm::Function* function, llvm::IRBuilder<>& builder, bool should_generate_code, struct file file) {
-    
+    if (list.empty()) return {};
     if (list.size() == 1 and expressions_match(list.back(), type_type)) return type_type;          
     auto signature = list.front();
         
