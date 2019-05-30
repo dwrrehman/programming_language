@@ -43,31 +43,11 @@ string_literal parse_string_literal(struct file file) {
     return literal;
 }
 
-character_literal parse_character_literal(struct file file) {
-    character_literal literal = {};
-    auto saved = save();
-    auto t = next();
-    if (t.type != token_type::character) { revert_and_return(); }
-    literal.literal = t;
-    literal.error = false;
-    return literal;
-}
-
 llvm_literal parse_llvm_literal(struct file file) {
     llvm_literal literal = {};
     auto saved = save();
     auto t = next();
     if (t.type != token_type::llvm) { revert_and_return(); }
-    literal.literal = t;
-    literal.error = false;
-    return literal;
-}
-
-documentation parse_documentation(struct file file) {
-    documentation literal = {};
-    auto saved = save();
-    auto t = next();
-    if (t.type != token_type::documentation) { revert_and_return(); }
     literal.literal = t;
     literal.error = false;
     return literal;
@@ -176,25 +156,7 @@ symbol parse_symbol(struct file file, bool newlines_are_a_symbol) {
         return s;
     }
     revert(saved);
-
-    auto character = parse_character_literal(file);
-    if (not character.error) {
-        s.type = symbol_type::character_literal;
-        s.character = character;
-        s.error = false;
-        return s;
-    }
-    revert(saved);
-
-    auto documentation = parse_documentation(file);
-    if (not documentation.error) {
-        s.type = symbol_type::documentation;
-        s.documentation = documentation;
-        s.error = false;
-        return s;
-    }
-    revert(saved);
-
+    
     auto llvm = parse_llvm_literal(file);
     if (not llvm.error) {
         s.type = symbol_type::llvm_literal;

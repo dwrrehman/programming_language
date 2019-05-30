@@ -15,4 +15,4 @@ const std::vector<std::string> language_syntax = {"(", ")", "{", "}"};
 
 size_t spaces_count_for_indent = 4;
 size_t max_expression_depth = 8;
-bool debug = true;
+bool debug = false;

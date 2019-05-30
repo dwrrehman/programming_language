@@ -886,8 +886,10 @@ std::unique_ptr<llvm::Module> analyze(translation_unit unit, llvm::LLVMContext& 
     auto& main = unit.list.expressions[0].symbols[0].abstraction;
     auto& body = main.body.list.expressions;
 
-    std::cout << "starting with stack frame: \n";
-    print_stack(stack);
+    if (debug) {
+        std::cout << "starting with stack frame: \n";
+        print_stack(stack);
+    }
     
     llvm::IRBuilder<> builder(context);
     auto triple = llvm::sys::getDefaultTargetTriple();
@@ -931,13 +933,13 @@ std::unique_ptr<llvm::Module> analyze(translation_unit unit, llvm::LLVMContext& 
     //std::string the_message = "";
     //auto stream = &(llvm::raw_string_ostream(the_message) << "");
     if (llvm::verifyModule(*module, &llvm::errs())) {
-        std::cout << "the module is broken. lemme fix it.";
+        std::cout << "the module is broken...";
         std::cout << "heres the error: \n";
         // std::cout << the_message;
         std::cout << "\n";
         error = true;
     } else {
-        std::cout << "the module is ok!\n";
+        if (debug) std::cout << "the module is ok!\n";
     }
 
     if (debug) {
@@ -945,16 +947,18 @@ std::unique_ptr<llvm::Module> analyze(translation_unit unit, llvm::LLVMContext& 
         print_translation_unit(unit, file);
     }
 
-    std::cout << "final stack is now: \n";
-    print_stack(stack);
-
-    module->print(llvm::errs(), nullptr);
-
+    if (debug) {
+        std::cout << "final stack is now: \n";
+        print_stack(stack);
+        
+        module->print(llvm::errs(), nullptr);
+    }
+    
     if (error) {
         std::cout << "\n\n\tCSR ERROR\n\n\n\n";
         throw "analysis error";
     } else {
-        std::cout << "\n\n\tsuccess.\n\n\n";
+        if (debug) std::cout << "\n\n\tsuccess.\n\n\n";
         return module;
     }
 }

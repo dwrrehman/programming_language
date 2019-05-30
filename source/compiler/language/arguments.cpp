@@ -135,9 +135,8 @@ struct arguments get_commandline_arguments(const int argc, const char** argv) {
         
     } else if (argc > 1 and std::string(argv[1]) == "run") { // "nostril run ..."
         args.use_interpreter = true; //        
-    } else if (argc == 1) {
-        args.use_interpreter = true;
-        args.files.push_back({"{repl}", ""});
+    } else if (argc == 1) {        
+        args.use_interpreter = true;        
         return args;
     }
     

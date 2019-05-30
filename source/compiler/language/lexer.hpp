@@ -12,7 +12,7 @@
 #include <string>
 
 enum class token_type {null, string, identifier, documentation, character, llvm, keyword, operator_, indent};
-enum class lexing_state {none, string, string_expression, identifier, documentation, character_or_llvm, comment, multiline_comment, indent};
+enum class lexing_state {none, string, string_expression, identifier, documentation, llvm_string, comment, multiline_comment, indent};
 
 struct token {
     enum token_type type = token_type::null;

@@ -108,8 +108,7 @@ int interpret(const struct arguments &arguments, std::vector<std::unique_ptr<llv
     auto jit = llvm::EngineBuilder(std::move(main_module)).setEngineKind(llvm::EngineKind::JIT).create();
     jit->finalizeObject();
     auto fn = jit->FindFunctionNamed("main");                
-    const int exit_code = jit->runFunctionAsMain(fn, {arguments.executable_name}, nullptr);    
-    std::cerr << "n3zqx2l program exited with: " << exit_code << "\n";        
+    const int exit_code = jit->runFunctionAsMain(fn, {arguments.executable_name}, nullptr);
     return exit_code;
 }
 
@@ -174,7 +173,9 @@ std::string generate(std::unique_ptr<llvm::Module>& module, const struct file& f
 }
 
 void delete_files(std::vector<std::string> object_filenames) {
-    //TODO: code me.
+    for (auto file : object_filenames) {
+        std::remove(file.c_str());
+    }
 }
 
 void link_and_emit_executable(std::vector<std::string> object_files, const struct arguments& arguments) {
@@ -184,6 +185,6 @@ void link_and_emit_executable(std::vector<std::string> object_files, const struc
         link_command += filename + " ";
     }
     std::system(link_command.c_str());
-    std::cout << "executable emitted: " << output_filename << "\n";
+    if (debug) std::cout << "executable emitted: " << output_filename << "\n";
     delete_files(object_files);
 }

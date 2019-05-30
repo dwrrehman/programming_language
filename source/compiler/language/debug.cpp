@@ -130,15 +130,7 @@ void print_symbol(symbol symbol, int d) {
         case symbol_type::string_literal:
             prep(d); std::cout << "string literal: \"" << symbol.string.literal.value << "\"\n";
             break;
-
-        case symbol_type::character_literal:
-            prep(d); std::cout << "chararacter literal: \'" << symbol.character.literal.value << "\'\n";
-            break;
-
-        case symbol_type::documentation:
-            prep(d); std::cout << "documentation: `" << symbol.documentation.literal.value << "`\n";
-            break;
-
+            
         case symbol_type::subexpression:
             prep(d); std::cout << "sub expr: \n";
             print_expression(symbol.subexpression, d+1);
@@ -213,14 +205,6 @@ void print_symbol_line(symbol symbol) {
 
         case symbol_type::string_literal:
             std::cout << "\"" << symbol.string.literal.value << "\"";
-            break;
-
-        case symbol_type::character_literal:
-            std::cout << "\'" << symbol.character.literal.value << "\'";
-            break;
-
-        case symbol_type::documentation:
-            std::cout << "`" << symbol.documentation.literal.value << "`";
             break;
 
         case symbol_type::subexpression:
@@ -299,10 +283,6 @@ std::string convert_symbol_type(enum symbol_type type) {
             return "subexpression";
         case symbol_type::string_literal:
             return "string literal";
-        case symbol_type::character_literal:
-            return "char literal";
-        case symbol_type::documentation:
-            return "docuemntation";
         case symbol_type::llvm_literal:
             return "llvm literal";
         case symbol_type::block:

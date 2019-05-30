@@ -18,7 +18,8 @@
 int main(const int argc, const char** argv) {
     auto arguments = get_commandline_arguments(argc, argv);
     if (arguments.error) exit(1);
-    if (!arguments.files.size()) print_error_no_files();        debug_arguments(arguments);    
+    if (!arguments.files.size()) print_error_no_files();        
+    if (debug) debug_arguments(arguments);    
     initialize_llvm();
     llvm::LLVMContext context;
     bool error = false;    

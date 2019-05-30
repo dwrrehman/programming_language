@@ -40,8 +40,6 @@ enum class symbol_type {
     none,
     subexpression,
     string_literal,
-    character_literal,
-    documentation,
     llvm_literal,
     block,
     identifier,
@@ -61,16 +59,6 @@ class symbol;
 // literals:
 
 class string_literal: public node {
-public:
-    struct token literal = {};
-};
-
-class character_literal: public node {
-public:
-    struct token literal = {};
-};
-
-class documentation: public node {
 public:
     struct token literal = {};
 };
@@ -153,8 +141,6 @@ public:
     expression subexpression = {};
     block block = {};
     string_literal string = {};
-    character_literal character = {};
-    documentation documentation = {};
     llvm_literal llvm = {};
     identifier identifier = {};
     abstraction_definition abstraction = {}; 
