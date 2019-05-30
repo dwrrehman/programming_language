@@ -12,8 +12,8 @@
 #include <string>
 #include "llvm/IR/Module.h"
 
-void interpreter(struct file file);
+#include "llvm/IR/LLVMContext.h"
 
-std::string interpret_llvm(std::unique_ptr<llvm::Module> module);
+void repl(llvm::LLVMContext& context);
 
 #endif /* interpreter_hpp */

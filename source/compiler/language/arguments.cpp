@@ -53,16 +53,16 @@ static void get_interpreter_arguments(int argc, struct arguments &args, const ch
     }
 }
 
-
 int is_file(const char *path) {
     struct stat path_stat;
     stat(path, &path_stat);
     return S_ISREG(path_stat.st_mode);
 }
 
-
-void open_dir() {
-
+void open_dir(struct arguments &args, struct file &file) {
+    printf("Unable to open \"%s\" \n", file.name.c_str());
+    perror("open");
+    args.error = true;
 }
 
 
@@ -102,7 +102,7 @@ void open_dir() {
  
  ------------------------------ flags ------------------------------
  
- nostril -void                  : dont include the standard library implicitly.
+ nostril -empty                  : dont include the standard library implicitly.
  
  nostril <.a/.np>                 : a archive file to statically link.
  
@@ -114,7 +114,16 @@ void open_dir() {
 
 
 
- nostril -indent <positive number>       : defien the number of spaces per indent.
+ nostril -indent <positive number>       : define the number of spaces per indent.
+ 
+ 
+ 
+ 
+ 
+
+ 
+ 
+ 
  
  */
 
@@ -133,10 +142,12 @@ struct arguments get_commandline_arguments(const int argc, const char** argv) {
         get_interpreter_arguments(argc, args, argv);
         return args;
         
-    } else if (argc > 1 and std::string(argv[1]) == "run") { // "nostril run ..."
-        args.use_interpreter = true; //        
+    } else if (argc > 1 and std::string(argv[1]) == "run") { 
+        args.use_interpreter = true;   
+        
+        
     } else if (argc == 1) {        
-        args.use_interpreter = true;        
+        args.use_repl = true;
         return args;
     }
     
@@ -170,7 +181,7 @@ struct arguments get_commandline_arguments(const int argc, const char** argv) {
             if (is_file(argv[i])) {
                 open_file(args, file);
             } else {
-                open_dir(); // TODO: fill in the recursive compiler.
+                open_dir(args, file); // TODO: fill in the recursive compiler.
             }
         }
     }

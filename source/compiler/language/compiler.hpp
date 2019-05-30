@@ -18,8 +18,7 @@
 #include <vector>
 
 
-
-int interpret(const struct arguments &arguments, std::vector<std::unique_ptr<llvm::Module>> &modules) ;
+int interpret(std::string executable_name, std::vector<std::unique_ptr<llvm::Module>> &modules) ;
 std::vector<std::string> generate_object_files(const struct arguments& arguments, bool error, std::vector<std::unique_ptr<llvm::Module>>& modules) ;
 void initialize_llvm();
 std::vector<std::unique_ptr<llvm::Module>> frontend(const struct arguments &arguments, llvm::LLVMContext& context, bool error);

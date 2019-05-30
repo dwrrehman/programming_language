@@ -103,12 +103,12 @@ std::unique_ptr<llvm::Module> proccess(struct file file, llvm::LLVMContext &cont
     return analyze(correct(parse(file, context), file), context, file);
 }
 
-int interpret(const struct arguments &arguments, std::vector<std::unique_ptr<llvm::Module> > &modules) {
+int interpret(std::string executable_name, std::vector<std::unique_ptr<llvm::Module> > &modules) {
     auto & main_module = modules.back();        
     auto jit = llvm::EngineBuilder(std::move(main_module)).setEngineKind(llvm::EngineKind::JIT).create();
     jit->finalizeObject();
     auto fn = jit->FindFunctionNamed("main");                
-    const int exit_code = jit->runFunctionAsMain(fn, {arguments.executable_name}, nullptr);
+    const int exit_code = jit->runFunctionAsMain(fn, {executable_name}, nullptr);
     return exit_code;
 }
 
