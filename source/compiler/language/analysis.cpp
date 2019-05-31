@@ -55,7 +55,6 @@
 #include "llvm/IR/Verifier.h"
 #include "llvm/AsmParser/Parser.h"
 
-
 #include <algorithm>
 #include <cassert>
 #include <cctype>
@@ -70,159 +69,10 @@
 #include <sstream>
 #include <iostream>
 
-/*----------------------- KNOWN BUGS ------------------------
-
- (int) {}
- (g) int {}
- (hello (x)) {
-    hello x
-    hello g
- }
-
- ---> succeeds, but doesnt fill in the infered type for x, in the call signature for hello, only in the call to hello using g.
-
-
-
-
-------------------------- TODOs ----------------------------
-
-
-
-                want something to do?
-
-
-
-    x: 0. implement LLVM types.;
-
-    x: 0.1. allow llvm interaction with variables, back and forth.;
-
-    1. implement FDI for CSR.
-
-    2. implement _application_N_N
-
-    3. implement "_define" and "_undefine" / "_undefine all"
-
-    4. implement _abstraction_N_N
-
-    5. implement NSS for ADP.parse_signature
-
-    6. implement user-defined precedence and associavity
-
-
-
-
-    N. implement the better error printing/handling system.
-
-
-
-
-
-
-
-
- 
- 
- 
- 
- 
-------------------------------------------------------------------------
- 
- _precedence N <_expression>
-
- _associativity N <_expression>
-
-
- ------------------------------ actions: -----------------------------         (all return void.)
-
- _define <_signature> as <_expression> in <_application>
-
- _undefine <_signature> in <_application>
-
- _disclose <_expression> from <_expression> into <_application>
-
-
- ------------------------------ handles: -----------------------------
-
- _abstraction_N_N
- 
- _application_N_N
- 
- 
- 
- 
- 
- 
- 
- 
- --------------------------- other important ones ----------------------
- 
-           
-    _on_undefine            <---- an event?
- 
- 
-    _recognize <_identifier>          <-----+---- really hard to implement
-                                            |
-    _recognize <_parameter?>          <-----+
- 
- 
--------------------------------------------------------------------------
- 
- */
-
-
-
-
-
-
-
-
-///////////// debug functions ////////////////////
-
-
-static void display(llvm::Module *module, std::string message) {
-    std::cout << "-------- "<< message << " -------\n";
-    module->print(llvm::errs(), nullptr);
-    std::cout << "-----------------------------------------\n";
-    std::cout << "ok? ";
-    std::string str = "";
-    //std::cin >> str;
-}
-
-static void print_bbs(llvm::Function *function) {
-    std::cout << "this function has: " << function->getBasicBlockList().size() << " basic blocks.\n";
-    std::cout << "printing bbs: \n\n\n";
-    for (auto& bb: function->getBasicBlockList()) {
-        std::cout << "heres a bb: \n";
-        bb.print(llvm::errs());
-        std::cout << "done printing bb.\n\n";
-        std::cout << "[that bb had " << bb.getInstList().size() << " instructions.]\n";
-    }
-    std::cout << "done printing bbs.\n";
-}
-
-static void verify(llvm::Function &f, std::string functionname) {
-    if (llvm::verifyFunction(f)) {
-        std::cout << "verification of "<< functionname<<" failed.\n";
-        f.print(llvm::errs());
-        
-    } else {
-        std::cout << functionname << " VERIFICATION SUCCESS\n";
-        f.print(llvm::errs());
-    }
-}
-
-
-///////////// end of debug functions ////////////////////
-
-
-
-
 bool expressions_match(expression first, expression second);
 expression csr(std::vector<std::vector<expression>>& stack, const expression given, const size_t depth, const size_t max_depth, size_t& pointer, struct expression*& expected, bool can_define_new_signature, bool is_at_top_level, bool is_parsing_type, llvm::Module* module, struct file file, llvm::Function* function, llvm::IRBuilder<>& builder, bool should_generate_code);
 bool adp(abstraction_definition& given, std::vector<std::vector<expression>>& stack, llvm::Module* module, struct file file, llvm::Function* function, llvm::IRBuilder<>& builder, bool should_generate_code);
 expression resolve(std::vector<std::vector<expression>>& stack, expression given, expression& expected_solution_type, bool can_define_new_signature, bool is_at_top_level, bool is_parsing_type, llvm::Module* module, struct file file, llvm::Function* function, llvm::IRBuilder<>& builder, bool should_generate_code);
-
-
 
 bool symbols_match(symbol first, symbol second) {
     if (first.type == symbol_type::subexpression and second.type == symbol_type::subexpression and expressions_match(first.subexpression, second.subexpression)) return true;
@@ -336,19 +186,15 @@ static void parse_abstraction_body(bool &error, abstraction_definition &given, s
             std::cout << "was expecting: \n";
             print_expression_line(given.return_type);
             std::cout << "\n\n";
-
             error = true;
         }
         parsed_body.push_back(solution);
         given.body.list.expressions = parsed_body;
-    } else if (expressions_match(given.return_type, infered_type)) {
-        given.return_type = unit_type;
-    }
+    } else if (expressions_match(given.return_type, infered_type)) given.return_type = unit_type;    
     if (given.call_signature.type) *given.call_signature.type = given.return_type;
 }
 
-static void parse_return_type(abstraction_definition &given, std::vector<std::vector<expression> > &stack, bool& error, llvm::Module* module, struct file file, llvm::Function* function, llvm::IRBuilder<>& builder, bool should_generate_code) {
-    ///TODO: this function needs to evaluate its return type, at compiletime.
+static void parse_return_type(abstraction_definition &given, std::vector<std::vector<expression> > &stack, bool& error, llvm::Module* module, struct file file, llvm::Function* function, llvm::IRBuilder<>& builder, bool should_generate_code) {    
     if (given.return_type.symbols.size()) {
         auto type = infered_type;
         given.return_type = resolve(stack, given.return_type, type, true, false, true, module, file, function, builder, should_generate_code);
@@ -394,18 +240,10 @@ static void parse_signature(abstraction_definition &given, std::vector<std::vect
             }
         } else if (call[i].type == symbol_type::identifier) {
             result.symbols.push_back(call[i]);
-
-        } else { //TODO: add additional cases for the other symbol types. (like strings, etc.)
-            error = true;
-        }
+        } else error = true;        
     }
     given.call_signature = result;
 }
-
-
-
-
-
 
 std::string expression_to_string(expression given) {
     std::string result = "(";
@@ -445,11 +283,8 @@ expression string_to_expression_tail(std::vector<expression> list, llvm::LLVMCon
     if (list.empty()) return {};
     if (list.size() == 1 and expressions_match(list.back(), type_type)) return type_type;          
     auto signature = list.front();
-        
-    //// this is trash. rethink it.
-    
+   
     for (auto& element : signature.symbols) {
-        
         if (element.type == symbol_type::subexpression) {
             std::vector<expression> subexpressions = {};    
             for (auto s : element.subexpression.symbols) 
@@ -465,43 +300,8 @@ expression string_to_expression_tail(std::vector<expression> list, llvm::LLVMCon
             element.subexpression = result; 
         }
     }
-    
-    
-    
-    
-    
-    
-    
-
-    ///// ok i think i see the problem. 
-    
-    
-    
-    /// the problem is that we need to actuallly:
-    
-    
-    ////////// figure out how to implement call signatures. this is vital, 
-    
-            ///because then this whole thing will be much easier.
-    
-    
-    
-    
-    
-    
-    
-    
-    
     list.erase(list.begin());
     auto type = string_to_expression_tail(list, module->getContext(), module, stack, function, builder, should_generate_code, file);
-
-    std::cout <<  "passing the following to resolve: \n\t";
-    std::cout << "signature: ";
-    print_expression_line(signature);
-    std::cout << "\n\ttype: ";
-    print_expression_line(type);
-    std::cout << "\n\n\n";
-    
     if (signature.symbols.empty() and expressions_match(type, type_type)) return unit_type;    
     
     auto result = resolve(stack, signature, type, false, false, false, module, file, function, builder, should_generate_code);    
@@ -523,54 +323,16 @@ expression string_to_expression(std::string given, llvm::LLVMContext& context, l
     std::vector<expression> subexpressions = {};    
     for (auto s : full.symbols) 
         if (s.type == symbol_type::subexpression) subexpressions.push_back(s.subexpression);
-    
     return string_to_expression_tail(subexpressions, module->getContext(), module, stack, function, builder, should_generate_code, file);
 }
 
 bool adp(abstraction_definition& given, std::vector<std::vector<expression>>& stack, llvm::Module* module, struct file file, llvm::Function* function, llvm::IRBuilder<>& builder, bool should_generate_code) {
-    clean(given.body); //TODO: move me into the corrector code.
+    clean(given.body);
     bool error = false;
     stack.push_back(stack.back());
     parse_signature(given, stack, error, module, file, function, builder, should_generate_code);
     parse_return_type(given, stack, error, module, file, function, builder, false);
     parse_abstraction_body(error, given, stack, module, file, function, builder, should_generate_code);
-
-
-///   note:  we need to determine the llvm types, 
-//// from the generated type signature of the function.
-
-    
-    ///we also need to determine the size of the structure which IS the function.
-        //// (ie, determining the size of the struct using a recrusive algorithm).
-    
-///  useful for code geneing for functions::
-    
-//    std::vector<llvm::Type*> parameters = {/*llvm::Type::getInt32Ty(context), llvm::Type::getInt8PtrTy(context)->getPointerTo()*/};
-//    llvm::FunctionType* main_type = llvm::FunctionType::get(llvm::Type::getInt32Ty(module->getContext()), parameters, false);
-//    llvm::Function* function = llvm::Function::Create(main_type, llvm::Function::ExternalLinkage, "main", module);
-//    builder.SetInsertPoint(llvm::BasicBlock::Create(module->getContext(), "entry", function));
-    
-    
-    
-    std::cout << "DEBUG:::::\n";
-    
-    std::cout << "testing the string to expression func: \n";
-    
-    std::cout << "the signature that we parsed for this ad, is: \n\t";
-    print_expression_line(given.call_signature);
-    std::cout << "\n";
-    
-    auto string_version = expression_to_string(given.call_signature);
-    std::cout << "heres it stringified : \n\n\t";
-    std::cout << string_version;    
-    std::cout << "\n\n";
-    
-    auto back_again = string_to_expression(string_version, module->getContext(), module, stack, function, builder, should_generate_code);
-    std::cout << "..and back to an expression : \n\n\t";
-    print_expression_line(back_again);    
-    std::cout << "\n\n";
-    
-
     stack.pop_back();
     return error;
 }
@@ -580,10 +342,6 @@ bool contains_a_block_starting_from(size_t begin, std::vector<symbol> list) {
         if (list[begin].type == symbol_type::block) return true;
     return false;
 }
-
-
-//TODO: we need a flag in the resolve and csr function, which says that we DO want to generate code, or not.
-
 
 std::string random_string() {
     static int num = 0;
@@ -679,22 +437,10 @@ static expression parse_llvm_string(const struct file &file, const expression &g
             return solution;
 
         } else {
-            // print error, assuming instruction, as well as for function.
-
             std::cout << "ins: llvm: "; // TODO: make this have color!
             instruction_errors.print(file.name.c_str(), llvm::errs()); // temp
-
             std::cout << "func: llvm: "; // TODO: make this have color!
             function_errors.print(file.name.c_str(), llvm::errs());
-
-            // temp, when we print the errors,
-            //we are actually just going to extract
-            //the error data from the extractor methods
-            //of the diagnostic error,
-
-            //and then simply format it our self,
-            //in our print_llvm_error(...) function.
-
             return {true};
         }
 
@@ -726,18 +472,8 @@ static expression parse_llvm_string(const struct file &file, const expression &g
     }
 }
 
-bool add_signature_to_symbol_table(expression new_signature, std::vector<std::vector<expression>>& stack) {
-
+bool add_signature_to_symbol_table(expression new_signature, std::vector<std::vector<expression>>& stack) {    
     stack.back().push_back(new_signature); //TODO: should we do anything else?
-
-    // yes:
-
-        //TODO: merge and/xor override signatures. if it already exists.
-        // we will need to do a find if.
-
-        // give an error, and return false, if the signatures cannot be overriden/merged, and it already exists.
-        // given an error if the type that the signature is, is the "_none" type. (you cannot instantiate the none type.
-
     return false;
 }
 
@@ -757,6 +493,7 @@ expression csr(std::vector<std::vector<expression>>& stack, const expression giv
         if (expressions_match(*expected, infered_type)) expected = &unit_type;
         if (expressions_match(*expected, unit_type)) return unit_type;
         else return {true};
+        
     } else if (pointer < given.symbols.size() and given.symbols[pointer].type == symbol_type::llvm_literal) {
         auto llvm_string = given.symbols[pointer].llvm.literal.value;
         return parse_llvm_string(file, given, is_at_top_level, is_parsing_type, llvm_string, module, pointer, stack, function, builder);
@@ -772,7 +509,7 @@ expression csr(std::vector<std::vector<expression>>& stack, const expression giv
             if (pointer >= given.symbols.size()) { failed = true; break; }
             if (element.type == symbol_type::subexpression) {
                 auto& TEMP = element.subexpression.type;
-                auto subexpression = csr(stack, given, depth + 1, max_depth, pointer, TEMP, /*bool can_define_new_signature, bool is_at_top_level, bool is_parsing_type*/ can_define_new_signature, false, is_parsing_type, module, file, function, builder, should_generate_code);
+                auto subexpression = csr(stack, given, depth + 1, max_depth, pointer, TEMP, can_define_new_signature, /*is_at_top_level=*/false, is_parsing_type, module, file, function, builder, should_generate_code);
                 if (subexpression.erroneous) {
                     pointer = saved;
                     if (given.symbols[pointer].type == symbol_type::subexpression) {
@@ -781,7 +518,7 @@ expression csr(std::vector<std::vector<expression>>& stack, const expression giv
                         while (current_depth <= max_expression_depth) {
                             local_pointer = 0;
                             auto& TEMP = element.subexpression.type;
-                            subexpression = csr(stack, given.symbols[pointer].subexpression, 0, current_depth, local_pointer, TEMP, /*bool can_define_new_signature, bool is_at_top_level, bool is_parsing_type*/ can_define_new_signature, false, is_parsing_type, module, file, function, builder, should_generate_code);
+                            subexpression = csr(stack, given.symbols[pointer].subexpression, 0, current_depth, local_pointer, TEMP, can_define_new_signature, /*is_at_top_level=*/false, is_parsing_type, module, file, function, builder, should_generate_code);
                             if (subexpression.erroneous or local_pointer < given.symbols[pointer].subexpression.symbols.size()) {
                                 current_depth++;
                             } else break;
@@ -856,7 +593,7 @@ expression resolve(std::vector<std::vector<expression>>& stack, expression given
     return solution;
 }
 
-void wrap_into_main(translation_unit& unit) {
+static void wrap_into_main(translation_unit& unit) {
     auto main_body = unit.list;
     expression main_call_signature = {{{"main", false}}};
     expression main_return_type = {{{"i32", false}}};
@@ -867,7 +604,7 @@ void wrap_into_main(translation_unit& unit) {
     unit.list.expressions.push_back(top_level_expression);
 }
 
-bool contains_top_level_statements(std::vector<expression> list) {
+static bool contains_top_level_statements(std::vector<expression> list) {
     for (auto e : list) if (not (e.symbols.size() == 1 and e.symbols[0].type == symbol_type::abstraction_definition)) return true;
     return false;
 }
@@ -930,13 +667,8 @@ std::unique_ptr<llvm::Module> analyze(translation_unit unit, llvm::LLVMContext& 
         builder.CreateRet(value); 
     }
 
-    //std::string the_message = "";
-    //auto stream = &(llvm::raw_string_ostream(the_message) << "");
     if (llvm::verifyModule(*module, &llvm::errs())) {
-        std::cout << "the module is broken...";
-        std::cout << "heres the error: \n";
-        // std::cout << the_message;
-        std::cout << "\n";
+        std::cout << "the module is broken...";        
         error = true;
     } else {
         if (debug) std::cout << "the module is ok!\n";
@@ -945,12 +677,9 @@ std::unique_ptr<llvm::Module> analyze(translation_unit unit, llvm::LLVMContext& 
     if (debug) {
         std::cout << "----------------- analyzer ---------------------\n";
         print_translation_unit(unit, file);
-    }
-
-    if (debug) {
-        std::cout << "final stack is now: \n";
-        print_stack(stack);
         
+        std::cout << "final stack is now: \n";
+        print_stack(stack);        
         module->print(llvm::errs(), nullptr);
     }
     
@@ -962,101 +691,3 @@ std::unique_ptr<llvm::Module> analyze(translation_unit unit, llvm::LLVMContext& 
         return module;
     }
 }
-
-
-
-
-
-
-
-
-
-
-
-/*
-
-
----------- this is a very imporant algorithm. --------------- (code generating a call expression.)
-
-llvm::Value* CallExprAST::codegen() {
-    // Look up the name in the global module table.
-    llvm::Function *CalleeF = TheModule->getFunction(Callee);
-    if (!CalleeF) {
-        std::cout << Callee << ": ";
-        return LogErrorV("Unknown function referenced");
-    }
-    // If argument mismatch error.
-    if (CalleeF->arg_size() != Args.size()) {
-        std::cout << "Expected " << Args.size() << " arguments, but found " << CalleeF->arg_size() << ".\n";
-        return LogErrorV("Incorrect # arguments passed");
-    }
-    std::vector<llvm::Value*> ArgsV;
-    for (unsigned i = 0, e = (unsigned) Args.size(); i != e; ++i) {
-        ArgsV.push_back(Args[i]->codegen());
-        if (!ArgsV.back()) return nullptr;
-    }
-
-    return Builder.CreateCall(CalleeF, ArgsV, "calltmp");
-}
-
-the problem with doing this in my language, however, is that in our
- expressions we might have abstraction definitions in expressions, and
- we dont really know what to pass in for that.
-
-    i think the only sensible thing to do is to essentially delete that parameter,
- and then simply have that function be defined on a more global scale, so that
- it can still be accessed, but we arent passing it into another function. maybe
- someone else has a better idea.
-
-
-
-llvm::Function* PrototypeAST::codegen() {
-    // Make the function type:  double(double,double) etc.
-    std::vector<llvm::Type*> parameters(arguments.size(), llvm::Type::getDoubleTy(context));
-    llvm::FunctionType* type = llvm::FunctionType::get(llvm::Type::getDoubleTy(context), parameters, false);
-    llvm::Function* function = llvm::Function::Create(type, llvm::Function::ExternalLinkage, Name, TheModule.get());
-
-    size_t i = 0;
-    for (auto &argument : function->args()) argument.setName(arguments[i++]);
-
-    return function;
-}
-
-
-
-
-llvm::Function* codegen() {
-
-    // First, check for an existing function from a previous 'extern' declaration.
-    llvm::Function* function = TheModule->getFunction(Proto->getName());
-    if (!function && !(function = Proto->codegen())) return nullptr;
-
-    // Create a new basic block to start insertion into.
-    llvm::BasicBlock* block = llvm::BasicBlock::Create(context, "entry", function, builder, should_generate_code);
-    Builder.SetInsertPoint(block);
-
-    // Record the function arguments in the NamedValues map.
-    NamedValues.clear();
-    for (auto &Arg : function->args()) NamedValues[Arg.getName()] = &Arg;
-
-    if (llvm::Value* return_value = Body->codegen()) {
-        // Finish off the function.
-        Builder.CreateRet(return_value);
-
-        // Validate the generated code, checking for consistency.
-        verifyFunction(*function);
-
-        return function;
-    }
-
-    // Error reading body, remove function.
-    function->eraseFromParent();
-    return nullptr;
-}
-
-
-
- llvm_function->copyAttributesFrom(const Function *Src)       used for transfering function attributes.
-
-
-*/
