@@ -70,7 +70,7 @@
 #include <iostream>
 
 bool expressions_match(expression first, expression second);
-expression csr(std::vector<std::vector<expression>>& stack, const expression given, const size_t depth, const size_t max_depth, size_t& pointer, struct expression*& expected, bool can_define_new_signature, bool is_at_top_level, bool is_parsing_type, llvm::Module* module, struct file file, llvm::Function* function, llvm::IRBuilder<>& builder, bool should_generate_code);
+expression csr(std::vector<std::vector<expression>>& stack, const expression given, const size_t depth, const size_t max_depth, size_t& pointer, struct expression*& expected, bool can_define_new_signature, bool is_at_top_level, bool is_parsing_type, llvm::Module* module, struct file file, llvm::Function* function, llvm::IRBuilder<>& builder, bool should_generate_code, expression& fdi);
 bool adp(abstraction_definition& given, std::vector<std::vector<expression>>& stack, llvm::Module* module, struct file file, llvm::Function* function, llvm::IRBuilder<>& builder, bool should_generate_code);
 expression resolve(std::vector<std::vector<expression>>& stack, expression given, expression& expected_solution_type, bool can_define_new_signature, bool is_at_top_level, bool is_parsing_type, llvm::Module* module, struct file file, llvm::Function* function, llvm::IRBuilder<>& builder, bool should_generate_code);
 
@@ -190,7 +190,15 @@ static void parse_abstraction_body(bool &error, abstraction_definition &given, s
         }
         parsed_body.push_back(solution);
         given.body.list.expressions = parsed_body;
-    } else if (expressions_match(given.return_type, infered_type)) given.return_type = unit_type;    
+    } else if (expressions_match(given.return_type, infered_type)) given.return_type = unit_type;
+    else if (not expressions_match(given.return_type, unit_type)) {
+        error = true;
+        std::cout << "n3zqx2l: fake error: expected return expression of type ";
+        print_expression_line(given.return_type);
+        std::cout << " from ";
+        print_expression_line(given.call_signature);
+        std::cout << ".\n";
+    }
     if (given.call_signature.type) *given.call_signature.type = given.return_type;
 }
 
@@ -480,7 +488,7 @@ bool add_signature_to_symbol_table(expression new_signature, std::vector<std::ve
 expression csr(std::vector<std::vector<expression>>& stack, const expression given,
                const size_t depth, const size_t max_depth, size_t& pointer, struct expression*& expected,
                bool can_define_new_signature, bool is_at_top_level, bool is_parsing_type,
-               llvm::Module* module, struct file file, llvm::Function* function, llvm::IRBuilder<>& builder, bool should_generate_code) {
+               llvm::Module* module, struct file file, llvm::Function* function, llvm::IRBuilder<>& builder, bool should_generate_code, expression& fdi) {
 
     if (depth > max_depth) return {true};
     if (!expected) return {true};
@@ -508,8 +516,9 @@ expression csr(std::vector<std::vector<expression>>& stack, const expression giv
         for (auto& element : signature.symbols) {
             if (pointer >= given.symbols.size()) { failed = true; break; }
             if (element.type == symbol_type::subexpression) {
-                auto& TEMP = element.subexpression.type;
-                auto subexpression = csr(stack, given, depth + 1, max_depth, pointer, TEMP, can_define_new_signature, /*is_at_top_level=*/false, is_parsing_type, module, file, function, builder, should_generate_code);
+                auto& type = element.subexpression.type;
+                auto can_new = type and expressions_match(*type, signature_type);                
+                expression subexpression = csr(stack, given, depth + 1, max_depth, pointer, type, /*can_define_new_signature=*/can_new, /*is_at_top_level=*/false, is_parsing_type, module, file, function, builder, should_generate_code, fdi);                
                 if (subexpression.erroneous) {
                     pointer = saved;
                     if (given.symbols[pointer].type == symbol_type::subexpression) {
@@ -517,8 +526,9 @@ expression csr(std::vector<std::vector<expression>>& stack, const expression giv
                         expression subexpression = {};
                         while (current_depth <= max_expression_depth) {
                             local_pointer = 0;
-                            auto& TEMP = element.subexpression.type;
-                            subexpression = csr(stack, given.symbols[pointer].subexpression, 0, current_depth, local_pointer, TEMP, can_define_new_signature, /*is_at_top_level=*/false, is_parsing_type, module, file, function, builder, should_generate_code);
+                            auto& type = element.subexpression.type;
+                            auto can_new = type and expressions_match(*type, signature_type);
+                            subexpression = csr(stack, given.symbols[pointer].subexpression, 0, current_depth, local_pointer, type, /*can_define_new_signature=*/can_new, /*is_at_top_level=*/false, is_parsing_type, module, file, function, builder, should_generate_code, fdi);
                             if (subexpression.erroneous or local_pointer < given.symbols[pointer].subexpression.symbols.size()) {
                                 current_depth++;
                             } else break;
@@ -568,6 +578,8 @@ expression csr(std::vector<std::vector<expression>>& stack, const expression giv
             delete abstraction_type;
             return {true};
         }
+    } else if (can_define_new_signature and pointer < given.symbols.size()) {
+        fdi.symbols.push_back(given.symbols[pointer++]);
     }
     return {true};
 }
@@ -577,13 +589,16 @@ expression resolve(std::vector<std::vector<expression>>& stack, expression given
     std::sort(list.begin(), list.end(), [](auto a, auto b) { return a.symbols.size() > b.symbols.size(); });
     prune_extraneous_subexpressions(given);
 
+    expression fdi = {};
+    
     size_t pointer = 0, max_depth = 0;
     expression solution = {};
     while (max_depth <= max_expression_depth) {
         pointer = 0;
         auto solution_type_copy = expected_solution_type;
         solution.type = &solution_type_copy;
-        solution = csr(stack, given, 0, max_depth, pointer, solution.type, can_define_new_signature, is_at_top_level, is_parsing_type, module, file, function, builder, should_generate_code);
+        auto can_new = solution.type and expressions_match(*solution.type, signature_type);
+        solution = csr(stack, given, 0, max_depth, pointer, solution.type, /*can_define_new_signature=*/can_new, is_at_top_level, is_parsing_type, module, file, function, builder, should_generate_code, fdi);
         if (solution.erroneous or pointer < given.symbols.size() or not solution.type) { max_depth++; }
         else break;
     }
