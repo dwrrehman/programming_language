@@ -17,6 +17,49 @@
 
 std::unique_ptr<llvm::Module> analyze(translation_unit unit, llvm::LLVMContext& context, struct file file);
 
+struct data {
+    struct file file;
+    llvm::Module* module;
+    llvm::Function* function;
+    llvm::IRBuilder<>& builder;     
+};
+
+struct flags {
+    bool should_allow_undefined_signatures = false;    
+    bool should_generate_code = false;
+    bool is_at_top_level = false; 
+    bool is_parsing_type = false;
+    
+    struct flags& allow_undefined() { should_allow_undefined_signatures = true; return *this; }
+    struct flags& dont_allow_undefined() { should_allow_undefined_signatures = false; return *this; }    
+    struct flags& generate_code() { should_generate_code = true; return *this; }
+    struct flags& dont_generate_code() { should_generate_code = false; return *this; }    
+    struct flags& at_top_level() { is_at_top_level = true; return *this; }
+    struct flags& not_at_top_level() { is_at_top_level = false; return *this; }    
+    struct flags& parsing_a_type() { is_parsing_type = true; return *this; }    
+    struct flags& not_parsing_a_type() { is_parsing_type = false; return *this; }
+    
+    flags(bool given_should_allow_undefined_signatures = false,
+          bool given_should_generate_code = false, 
+          bool given_is_at_top_level = false,
+          bool given_is_parsing_type = false
+          ):  
+    should_allow_undefined_signatures(given_should_allow_undefined_signatures), 
+    should_generate_code(given_should_generate_code), 
+    is_at_top_level(given_is_at_top_level), 
+    is_parsing_type(given_is_parsing_type) {}
+    
+}; 
+
+using stack = std::vector<std::vector<expression>>;
+
+expression csr(
+               const expression& given, expression*& expected, expression& fdi,               
+               const size_t depth, const size_t max_depth, size_t& pointer,               
+               stack& stack, data& data, flags flags, bool& error);
+void adp(abstraction_definition& given, stack& stack, data& data, flags flags, bool& error);
+expression res(expression given, expression& expected_type, stack& stack, data& data, flags flags, bool& error);
+
 #endif /* analysis_hpp */
 
 

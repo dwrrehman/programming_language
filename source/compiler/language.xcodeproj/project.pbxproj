@@ -57,6 +57,7 @@
 		FD52D8442226590600A9C309 /* arguments.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = arguments.hpp; sourceTree = "<group>"; };
 		FD7E425722264D150021E18A /* interpreter.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = interpreter.cpp; sourceTree = "<group>"; };
 		FD7E425822264D150021E18A /* interpreter.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = interpreter.hpp; sourceTree = "<group>"; };
+		FDAB884422A2534E000D9769 /* helpers.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = helpers.h; sourceTree = "<group>"; };
 		FDC546A92241864300D99CA9 /* corrector.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = corrector.cpp; sourceTree = "<group>"; };
 		FDC546AA2241864300D99CA9 /* corrector.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = corrector.hpp; sourceTree = "<group>"; };
 		FDE4C18D22288E2B00B73B7A /* nodes.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = nodes.hpp; sourceTree = "<group>"; };
@@ -110,6 +111,7 @@
 				FDC546AA2241864300D99CA9 /* corrector.hpp */,
 				FD1DAC4A2203A32F0014F55E /* analysis.cpp */,
 				FD1DAC4B2203A32F0014F55E /* analysis.hpp */,
+				FDAB884422A2534E000D9769 /* helpers.h */,
 				FD180DE5228F5BDB00CBB7B1 /* builtins.cpp */,
 				FD180DE6228F5BDB00CBB7B1 /* builtins.hpp */,
 				FD01760D221CF76800E5D442 /* error.cpp */,
