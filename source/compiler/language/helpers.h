@@ -268,7 +268,7 @@ std::string expression_to_string(expression given) {
 }
 
 
-expression string_to_expression_tail(std::vector<expression> list, llvm::LLVMContext& context, llvm::Module* module, std::vector<std::vector<expression>>& stack, llvm::Function* function, llvm::IRBuilder<>& builder, bool should_generate_code, struct file file) {
+expression string_to_expression_tail(std::vector<expression> list, stack& stack, data& data, flags flags, bool& error) {
     if (list.empty()) return {};
     if (list.size() == 1 and expressions_match(list.back(), type_type)) return type_type;          
     auto signature = list.front();
@@ -279,31 +279,24 @@ expression string_to_expression_tail(std::vector<expression> list, llvm::LLVMCon
             for (auto s : element.subexpression.symbols) 
                 if (s.type == symbol_type::subexpression) subexpressions.push_back(s.subexpression);
             
-            auto result = string_to_expression_tail(subexpressions, module->getContext(), module, stack, function, builder, should_generate_code, file);
+            auto result = string_to_expression_tail(subexpressions, stack, data, flags, error);
             if (result.erroneous) {
-                std::cout << "csr PARAMETER error while parsing a llvm string signature.\n";
-                std::cout << "heres the stack currently...\n";
-                print_stack(stack);
-                std::cout << "\n\n\n\n";
-            }
-            element.subexpression = result; 
+                error = true;
+            } else element.subexpression = result; 
         }
     }
     list.erase(list.begin());
-    auto type = string_to_expression_tail(list, module->getContext(), module, stack, function, builder, should_generate_code, file);
+    auto type = string_to_expression_tail(list, stack, data, flags
+                                          .dont_allow_undefined()
+                                          .not_at_top_level()
+                                          .not_parsing_a_type(), error);
     if (signature.symbols.empty() and expressions_match(type, type_type)) return unit_type;    
-    
-    auto result = res(stack, signature, type, false, false, false, module, file, function, builder, should_generate_code);    
-    if (result.erroneous) {
-        std::cout << "csr error while parsing a llvm string signature.\n";
-        std::cout << "heres the stack currently...\n";
-        print_stack(stack);
-        std::cout << "\n\n\n\n";
-    }
+    auto result = res(signature, type, stack, data, flags, error);    
+    if (result.erroneous) error = true;    
     return result;
 }
 
-expression string_to_expression(std::string given, llvm::LLVMContext& context, llvm::Module* module, std::vector<std::vector<expression>>& stack, llvm::Function* function, llvm::IRBuilder<>& builder, bool should_generate_code) {
+expression string_to_expression(std::string given, stack& stack, data& data, flags flags, bool& error) {
     struct file file = {}; 
     file.name = "<llvm string symbol>";
     file.text = given;
@@ -312,7 +305,7 @@ expression string_to_expression(std::string given, llvm::LLVMContext& context, l
     std::vector<expression> subexpressions = {};    
     for (auto s : full.symbols) 
         if (s.type == symbol_type::subexpression) subexpressions.push_back(s.subexpression);
-    return string_to_expression_tail(subexpressions, module->getContext(), module, stack, function, builder, should_generate_code, file);
+    return string_to_expression_tail(subexpressions, stack, data, flags, error);
 }
 
 
@@ -345,37 +338,37 @@ expression string_to_expression(std::string given, llvm::LLVMContext& context, l
 
 
 llvm::Type* parse_llvm_string_as_type(std::string given, stack& stack, data& data, llvm::SMDiagnostic& errors) {
-    return llvm::parseType(given, errors, *module);
+    return llvm::parseType(given, errors, *data.module);
 }
 
 bool parse_llvm_string_as_instruction(std::string given, stack& stack, data& data, llvm::SMDiagnostic& errors) {
     
     std::string body = "";
-    function->print(llvm::raw_string_ostream(body) << "");
+    data.function->print(llvm::raw_string_ostream(body) << "");
     
-    const size_t bb_count = function->getBasicBlockList().size();
+    const size_t bb_count = data.function->getBasicBlockList().size();
     
     body.pop_back(); // delete the newline;
     body.pop_back(); // delete the close brace.
     body += given + "\nunreachable\n}\n";
     
-    const std::string current_name = function->getName();
-    function->setName("_anonymous_" + random_string());
+    const std::string current_name = data.function->getName();
+    data.function->setName("_anonymous_" + random_string());
     
     llvm::MemoryBufferRef reference(body, "<llvm-string>");
     llvm::ModuleSummaryIndex my_index(true);
     
-    if (llvm::parseAssemblyInto(reference, module, &my_index, errors)) {
-        function->setName(current_name);
+    if (llvm::parseAssemblyInto(reference, data.module, &my_index, errors)) {
+        data.function->setName(current_name);
         return false;
     } else {
-        auto& made = module->getFunctionList().back();
+        auto& made = data.module->getFunctionList().back();
         made.getBasicBlockList().back().back().eraseFromParent();
         if (bb_count != made.getBasicBlockList().size()) made.getBasicBlockList().back().eraseFromParent();
-        function->getBasicBlockList().clear();
-        builder.SetInsertPoint(llvm::BasicBlock::Create(module->getContext(), "entry", function));
-        builder.CreateUnreachable();
-        auto& insert_before_point = function->getBasicBlockList().back().back();
+        data.function->getBasicBlockList().clear();
+        data.builder.SetInsertPoint(llvm::BasicBlock::Create(data.module->getContext(), "entry", data.function));
+        data.builder.CreateUnreachable();
+        auto& insert_before_point = data.function->getBasicBlockList().back().back();
         for (auto& bb : made.getBasicBlockList()) {
             llvm::ValueToValueMapTy vmap;
             for (auto& inst: bb.getInstList()) {
@@ -386,9 +379,9 @@ bool parse_llvm_string_as_instruction(std::string given, stack& stack, data& dat
                 llvm::RemapInstruction(new_inst, vmap, llvm::RF_NoModuleLevelChanges | llvm::RF_IgnoreMissingLocals);
             }
         }
-        function->getBasicBlockList().back().back().eraseFromParent();      // delete the trailing unreachable.
+        data.function->getBasicBlockList().back().back().eraseFromParent();      // delete the trailing unreachable.
         made.eraseFromParent();
-        function->setName(current_name);
+        data.function->setName(current_name);
         return true;
     }
 }
@@ -396,28 +389,20 @@ bool parse_llvm_string_as_instruction(std::string given, stack& stack, data& dat
 bool parse_llvm_string_as_function(std::string given, stack& stack, data& data, llvm::SMDiagnostic& errors) {
     llvm::MemoryBufferRef reference(given, "<llvm-string>");
     llvm::ModuleSummaryIndex my_index(true);
-    if (llvm::parseAssemblyInto(reference, module, &my_index, errors)) {
-        return false;
-    }
-    return true;
+    return !llvm::parseAssemblyInto(reference, data.module, &my_index, errors);        
 }
 
 static expression parse_llvm_string(
-                                    const expression &given,
-                                    std::string llvm_string,
-                                    size_t &pointer,
-                                    stack& stack,
-                                    data& data,
-                                    flags flags,
-                                    bool& error                                    
+                                    const expression &given, std::string llvm_string, size_t &pointer,
+                                    stack& stack, data& data, flags flags, bool& error                                    
                                     ) {
     
-    if (is_at_top_level and not is_parsing_type) {
+    if (flags.is_at_top_level and not flags.is_parsing_type) {
         
         llvm::SMDiagnostic instruction_errors;
         llvm::SMDiagnostic function_errors;
         
-        if (parse_llvm_string_as_function(llvm_string, module, file, function_errors, stack)) {
+        if (parse_llvm_string_as_function(llvm_string, stack, data, function_errors)) {
             expression solution = {};
             solution.erroneous = false;
             solution.type = &unit_type;
@@ -428,7 +413,7 @@ static expression parse_llvm_string(
             solution.symbols.push_back(s);
             return solution;
             
-        } else if (parse_llvm_string_as_instruction(llvm_string, module, file, instruction_errors, stack, function, builder)) {
+        } else if (parse_llvm_string_as_instruction(llvm_string, stack, data, instruction_errors)) {
             expression solution = {};
             solution.erroneous = false;
             solution.type = &unit_type;
@@ -441,17 +426,17 @@ static expression parse_llvm_string(
             
         } else {
             std::cout << "ins: llvm: "; // TODO: make this have color!
-            instruction_errors.print(file.name.c_str(), llvm::errs()); // temp
+            instruction_errors.print(data.file.name.c_str(), llvm::errs()); // temp
             std::cout << "func: llvm: "; // TODO: make this have color!
-            function_errors.print(file.name.c_str(), llvm::errs());
+            function_errors.print(data.file.name.c_str(), llvm::errs());
             return {true};
         }
         
-    } else if (is_parsing_type and not is_at_top_level) {
+    } else if (flags.is_parsing_type and not flags.is_at_top_level) {
         
         llvm::SMDiagnostic type_errors;
         
-        if (auto llvm_type = parse_llvm_string_as_type(llvm_string, module, file, type_errors, stack)) {
+        if (auto llvm_type = parse_llvm_string_as_type(llvm_string, stack, data, type_errors)) {
             
             expression solution = {};
             solution.erroneous = false;
@@ -466,15 +451,12 @@ static expression parse_llvm_string(
             
         } else {
             std::cout << "llvm: "; // TODO: make this have color!
-            type_errors.print(file.name.c_str(), llvm::errs()); // temp, see above block comment.
+            type_errors.print(data.file.name.c_str(), llvm::errs()); // temp, see above block comment.
             return {true};
         }
     } else {        
         return {true};
     }
 }
-
-
-
 
 #endif /* helpers_h */

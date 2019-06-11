@@ -19,14 +19,14 @@ struct file {
     bool is_main = false;
 };
 
-struct arguments {
-    bool use_interpreter = false;    
-    bool error = false;
+struct arguments {    
     std::vector<struct file> files = {};
     std::string executable_name = "a.out";
-    bool use_repl = false;    
+    bool use_repl = false;
+    bool include_core = true;
+    bool use_interpreter = false;    
+    bool error = false;
 };
-
 
 struct arguments get_commandline_arguments(const int argc, const char** argv);
 void debug_arguments(struct arguments args);

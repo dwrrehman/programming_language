@@ -12,10 +12,9 @@
 #include "color.h"
 #include "lists.hpp"
 #include "arguments.hpp"
-
-#include "compiler.hpp"
+#include "error.hpp"
+#include "lists.hpp"
 #include "lexer.hpp"
-#include "parser.hpp"
 #include "nodes.hpp"
 #include "analysis.hpp"
 #include "corrector.hpp"
@@ -52,12 +51,6 @@
 #include "llvm/Transforms/AggressiveInstCombine/AggressiveInstCombine.h"
 #include "llvm/Transforms/IPO/PassManagerBuilder.h"
 
-#include "arguments.hpp"
-#include "compiler.hpp"
-#include "interpreter.hpp"
-#include "error.hpp"
-#include "lists.hpp"
-
 #include "llvm/IR/LLVMContext.h"
 #include "llvm/IR/Module.h"
 #include "llvm/ADT/APFloat.h"
@@ -88,17 +81,12 @@
 #include "llvm/ExecutionEngine/daniels_interpreter/Interpreter.h"
 #include "llvm/ExecutionEngine/daniels_interpreter/MCJIT.h"
 
-
 #include <vector>
 #include <iostream>
-
 #include <iostream>
 #include <fstream>
 #include <vector>
 #include <cstdlib>
-
-#include <iostream>
-#include <vector>
 
 static size_t output_line_number = 0;
 
@@ -129,10 +117,8 @@ void process_repl_command(std::string line) {
     }
 }
 
-
-
 void analyze(translation_unit unit, std::unique_ptr<llvm::Module>& module, struct file file) {
-    
+    // code this after we get the regular one finished.
 }
 
 int repl_interpret(std::string executable_name, std::vector<std::unique_ptr<llvm::Module> > &modules) {
@@ -163,10 +149,7 @@ void repl(llvm::LLVMContext& context) {
                 line.erase(line.begin(), line.begin() + 1);
                 process_repl_command(line);
             }
-            
-        } else {
-            
-            
+        } else {                        
             if (line.size() > 10)
                 std::cout << output() << "recevied: :::" << line << ":::\n";
         }

@@ -1,19 +1,6 @@
-(hello) {}
-
-(cat) hello {
-    ()
-}
-(((x) hello) is cool) () {
-    
-}
-
-(((x) hello) is cool) hello {
-    x
-}
-
-( ((x) hello) ) {
+(hello world) {
 
 }
 
-cat is cool
+hello world 
 

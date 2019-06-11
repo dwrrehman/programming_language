@@ -12,7 +12,6 @@
 #include "lexer.hpp"
 #include "parser.hpp"
 
-
 #include <string>
 #include <vector>
 #include <iostream>
@@ -194,7 +193,6 @@ void print_abstraction_definition_line(abstraction_definition definition) {
 void print_symbol_line(symbol symbol) {
 
     switch (symbol.type) {
-
         case symbol_type::identifier:
             std::cout << symbol.identifier.name.value;
             break;
@@ -223,7 +221,8 @@ void print_symbol_line(symbol symbol) {
             break;
 
         case symbol_type::none:
-            std::cout << "{rliguhakljbndceaklsjnclakwjeblfiuagwefp;awlkdbcjalkjbserfauwe}\n";
+            std::cout << "{INTERNAL PRINTING ERROR}\n";
+            assert(false);
             break;
         case symbol_type::abstraction_definition:
             print_abstraction_definition_line(symbol.abstraction);

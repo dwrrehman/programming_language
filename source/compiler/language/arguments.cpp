@@ -117,19 +117,22 @@ void open_dir(struct arguments &args, struct file &file) {
  nostril -indent <positive number>       : define the number of spaces per indent.
  
  
- 
- 
- 
 
- 
- 
- 
  
  */
 
+void print_usage() {
+    std::cout << "modes:\n";
+    std::cout << "\tpick <.n>\n";
+    std::cout << "\trun <sources>\n\n";
+    std::cout << "options:\n";
+    std::cout << "\t-named(-o) <executable name>\n";
+    std::cout << "\t-version(-v)\n";
+    std::cout << "\t-indent <integer>\n";
+    std::cout << "\t-sneeze\n\n";
+}
 
-struct arguments get_commandline_arguments(const int argc, const char** argv) {
-    // we need to revise this function to fit the new comipiler specfication.
+struct arguments get_commandline_arguments(const int argc, const char** argv) {    
 
     //TODO: redo this function, to parse the modes first, then parse the options for each mode.
     // then parse all the files.
@@ -144,8 +147,7 @@ struct arguments get_commandline_arguments(const int argc, const char** argv) {
         
     } else if (argc > 1 and std::string(argv[1]) == "run") { 
         args.use_interpreter = true;   
-        
-        
+                
     } else if (argc == 1) {        
         args.use_repl = true;
         return args;
@@ -168,10 +170,17 @@ struct arguments get_commandline_arguments(const int argc, const char** argv) {
 
         } else if (std::string(argv[i]) == "-sneeze") {
             debug = true;
-
+            
+        } else if (std::string(argv[i]) == "empty") {
+            args.include_core = false;
+            
+            
+            
         } else if (argv[i][0] == '-') {
-            printf("bad option: %s\n", argv[i]);
-            // print_usage();
+            std::cout << "bad option: " << argv[i] << "\n";
+            print_usage();
+            args.error = true;
+            return args;
             
         } else if (std::string(argv[i]) == "run") {
             continue;

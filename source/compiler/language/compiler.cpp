@@ -99,12 +99,12 @@ void initialize_llvm() {
     llvm::InitializeAllAsmPrinters();
 }
 
-std::unique_ptr<llvm::Module> proccess(struct file file, llvm::LLVMContext &context) {
+std::unique_ptr<llvm::Module> process(struct file file, llvm::LLVMContext &context) {
     return analyze(correct(parse(file, context), file), context, file);
 }
 
-int interpret(std::string executable_name, std::vector<std::unique_ptr<llvm::Module> > &modules) {
-    auto & main_module = modules.back();        
+int interpret(std::string executable_name, std::vector<std::unique_ptr<llvm::Module>>& modules) {
+    auto & main_module = modules.back();
     auto jit = llvm::EngineBuilder(std::move(main_module)).setEngineKind(llvm::EngineKind::JIT).create();
     jit->finalizeObject();
     auto fn = jit->FindFunctionNamed("main");                
@@ -128,9 +128,9 @@ std::vector<std::string> generate_object_files(const struct arguments& arguments
 
 std::vector<std::unique_ptr<llvm::Module>> frontend(const struct arguments &arguments, llvm::LLVMContext& context, bool error) {
     std::vector<std::unique_ptr<llvm::Module>> modules = {};    
-    modules.reserve(arguments.files.size());    
+    modules.reserve(arguments.files.size());
     for (auto file : arguments.files) {
-        try {modules.push_back(proccess(file, context));}
+        try {modules.push_back(process(file, context));}
         catch (...) {error = true;}
     }
     if (error) exit(2);
@@ -173,9 +173,7 @@ std::string generate(std::unique_ptr<llvm::Module>& module, const struct file& f
 }
 
 void delete_files(std::vector<std::string> object_filenames) {
-    for (auto file : object_filenames) {
-        std::remove(file.c_str());
-    }
+    for (auto file : object_filenames) std::remove(file.c_str());    
 }
 
 void link_and_emit_executable(std::vector<std::string> object_files, const struct arguments& arguments) {

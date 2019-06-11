@@ -43,15 +43,7 @@
 #include "llvm/AsmParser/Parser.h"
 #include "llvm/Support/MemoryBuffer.h"
 #include "llvm/Transforms/Utils/FunctionComparator.h"
-#include "llvm/IR/LLVMContext.h"
-#include "llvm/IR/Module.h"
-#include "llvm/IR/IRBuilder.h"
-#include "llvm/ADT/APFloat.h"
-#include "llvm/ADT/STLExtras.h"
-#include "llvm/IR/BasicBlock.h"
-#include "llvm/IR/Constants.h"
-#include "llvm/IR/DerivedTypes.h"
-#include "llvm/IR/Function.h"
+
 #include "llvm/IR/Type.h"
 #include "llvm/IR/Verifier.h"
 #include "llvm/AsmParser/Parser.h"
@@ -76,36 +68,6 @@ bool add_signature_to_symbol_table(expression new_signature, stack& stack) {
     return false;
 }
 
-
-bool expressions_fmatch(expression first, expression second);
-
-expression csrf(std::vector<std::vector<expression>>& stack, 
-                const expression given, const size_t depth, 
-                const size_t max_depth, size_t& pointer, 
-                struct expression*& expected, 
-                bool can_define_new_signature, 
-                bool is_at_top_level, bool is_parsing_type, 
-                llvm::Module* module, struct file file, 
-                llvm::Function* function, llvm::IRBuilder<>& builder, 
-                bool should_generate_code, expression& fdi);
-
-bool adpf(abstraction_definition& given, 
-          std::vector<std::vector<expression>>& stack, 
-          llvm::Module* module, struct file file, llvm::Function* function, 
-          llvm::IRBuilder<>& builder, bool should_generate_code);
-
-expression resolvfe(std::vector<std::vector<expression>>& stack, 
-                    expression given, expression& expected_solution_type, 
-                    bool can_define_new_signature,
-                    bool is_at_top_level, bool is_parsing_type, 
-                    llvm::Module* module, struct file file, 
-                    llvm::Function* function, llvm::IRBuilder<>& builder, 
-                    bool should_generate_code);
-
-
-
-
-
 static void parse_abstraction_body(abstraction_definition &given, stack &stack, data& data, flags flags, bool& error) {        
     add_signature_to_symbol_table(given.call_signature, stack);
     auto& body = given.body.list.expressions;    
@@ -117,7 +79,7 @@ static void parse_abstraction_body(abstraction_definition &given, stack &stack, 
             auto solution = res(body[i], type, stack, data, flags
                                 .dont_allow_undefined()
                                 .at_top_level()
-                                .not_parsing_a_type(), error);     
+                                .not_parsing_a_type(), error);
             
             if (solution.erroneous) error = true;                
             else parsed_body.push_back(solution);
@@ -127,7 +89,7 @@ static void parse_abstraction_body(abstraction_definition &given, stack &stack, 
                             .dont_allow_undefined()
                             .at_top_level()
                             .not_parsing_a_type(), error);        
-        if (solution.erroneous) error = true;        
+        if (solution.erroneous) error = true;
         else parsed_body.push_back(solution);
         given.body.list.expressions = parsed_body;
         
@@ -192,13 +154,13 @@ static void parse_signature(abstraction_definition &given, stack &stack, data& d
     given.call_signature = result;
 }
 
-void parse_abstraction(abstraction_definition& given, stack& stack, data& data, flags flags, bool& error) {
-    clean(given.body);    
+static void parse_abstraction(abstraction_definition& given, stack& stack, data& data, flags flags, bool& error) {
+    clean(given.body);
     stack.push_back(stack.back());
     parse_signature(given, stack, data, flags, error);
     parse_return_type(given, stack, data, flags, error);
     parse_abstraction_body(given, stack, data, flags, error);
-    stack.pop_back();    
+    stack.pop_back();
 }
 
 static abstraction_definition preliminary_parse_abstraction(const expression &given, size_t &pointer) {
@@ -211,18 +173,9 @@ static abstraction_definition preliminary_parse_abstraction(const expression &gi
 }
 
 expression csr(               
-               const expression& given,
-               expression*& expected, 
-               expression& fdi,
-               
-               const size_t depth, 
-               const size_t max_depth,
-               size_t& pointer,
-               
-               stack& stack,                 
-               data& data,
-               flags flags,
-               bool& error
+               const expression& given, expression*& expected, expression& fdi,               
+               const size_t depth, const size_t max_depth, size_t& pointer,               
+               stack& stack, data& data, flags flags, bool& error
                ) {
 
     if (depth > max_depth) return {true};
@@ -272,8 +225,7 @@ expression csr(
                                 current_depth++;
                             } else break;
                         }
-                        ///////
-                        
+                        ///////                        
                         if (subexpression.erroneous or local_pointer < given.symbols[pointer].subexpression.symbols.size()) { failed = true; break; }
                         solution.symbols.push_back({subexpression});
                         pointer++; continue;
@@ -320,18 +272,12 @@ expression csr(
     return {true};
 }
 
-expression res(
-               expression given, 
-               expression& expected_type,
-               stack& stack,
-               data& data,
-               flags flags,
-               bool& error
-               ) {    
+expression res(expression given, expression& expected_type, stack& stack, data& data, flags flags, bool& error) {    
     std::sort(stack.back().begin(), stack.back().end(), [](auto a, auto b) { return a.symbols.size() > b.symbols.size(); });
     prune_extraneous_subexpressions(given);
 
     expression fdi = {};
+    
     expression solution = {};
     size_t pointer = 0, max_depth = 0;
     while (max_depth <= max_expression_depth) {
@@ -392,7 +338,7 @@ std::unique_ptr<llvm::Module> analyze(translation_unit unit, llvm::LLVMContext& 
             if (solution.erroneous) error = true;                
             else parsed_body.push_back(solution);
         }
-        main.body.list.expressions = parsed_body;
+        body = parsed_body;
         if (contains_top_level_statements(parsed_body)) {
             if (found_main) error = true;
             else {
@@ -401,12 +347,11 @@ std::unique_ptr<llvm::Module> analyze(translation_unit unit, llvm::LLVMContext& 
             }
         }
     }
-
+    
     if (llvm::verifyFunction(*main_function)) {
         llvm::Value* value = llvm::ConstantInt::get(llvm::Type::getInt32Ty(context), 0);
         builder.CreateRet(value); 
     }
-
     if (llvm::verifyModule(*module, &llvm::errs())) error = true;             
     
     if (error) {

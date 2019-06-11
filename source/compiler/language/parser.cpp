@@ -249,7 +249,7 @@ expression parse_terminated_expression(struct file file) {
 
     auto indent_count = indents();
     auto expression = parse_expression(file, /*can_be_empty = */true, /*newlines_are_a_symbol = */false);
-    expression.indent_level = indent_count;
+    expression.indent_level = indent_count; 
 
     auto saved = save();
     auto t = next();

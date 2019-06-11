@@ -83,7 +83,7 @@ public:
     llvm::Type* llvm_type = nullptr;
     llvm::Instruction* llvm_instruction = nullptr;
     llvm::Function* llvm_function = nullptr;
-
+    
     expression() {}
     expression(std::vector<symbol> symbols){
         this->symbols = symbols;
@@ -132,7 +132,6 @@ public:
         this->return_type = rt;
         this->body = body;
     }
-
 };
 
 class symbol: public node {
@@ -143,7 +142,7 @@ public:
     string_literal string = {};
     llvm_literal llvm = {};
     identifier identifier = {};
-    abstraction_definition abstraction = {}; 
+    abstraction_definition abstraction = {};
     
     symbol(){}
     symbol(enum symbol_type type) {

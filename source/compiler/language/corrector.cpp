@@ -20,7 +20,21 @@
 
  */
 
-/// ---------------- stage 2: TIB ----------------------------
+void remove_whitespace_in_expressions(expression_list& list, struct file file, size_t depth) {    
+    for (auto& expression : list.expressions) {
+        expression.symbols.erase(std::remove_if(
+            expression.symbols.begin(), 
+            expression.symbols.end(), 
+            [](symbol e) {
+                return e.type == symbol_type::indent 
+                    or e.type == symbol_type::newline;            
+            }
+        ));
+        for (auto& symbol : expression.symbols) 
+            if (symbol.type == symbol_type::block) 
+                remove_whitespace_in_expressions(symbol.block.list, file, depth);                    
+    }    
+} 
 
 void turn_indents_into_blocks(expression_list& list, struct file file, const size_t level);
 
@@ -60,8 +74,6 @@ void turn_indents_into_blocks(expression_list& list, struct file file, const siz
     list = new_list;
 }
 
-/// ------------------ stage 1: ILR --------------------------
-
 void raise(size_t& value, const size_t minimum) {
     if (value < minimum) value = minimum;
 }
@@ -79,7 +91,8 @@ translation_unit correct(translation_unit unit, struct file file) {
 
     raise_indents(unit.list, file, 0);
     turn_indents_into_blocks(unit.list, file, 0);
-    /// TODO: code:    remove_whitespace_in_expressions(unit.list, file, 0);
+    remove_whitespace_in_expressions(unit.list, file, 0);
+    
     /// TODO: code:    remove_empty_statements_in_blocks(unit.list, file, 0);
     ///TODO: delete "clean(block body)" in analysis phase, after coding remove_empty_statements_in_blocks().
 

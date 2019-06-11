@@ -56,9 +56,6 @@ static std::string note_heading() {
     return s.str();
 }
 
-
-
-
 // messagers:
 
 void print_error_message(std::string filename, std::string message, size_t line, size_t column) {
@@ -115,11 +112,11 @@ void print_latest_analysis_type_error() {
 }
 
 void set_current_analysis_type_error() {
-
+    
 }
 
 void print_undefined_signature_element_error() {
-
+    
 }
 
 

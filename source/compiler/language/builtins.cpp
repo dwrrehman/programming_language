@@ -54,13 +54,7 @@ expression all_signature = {
         {"_all", false}
     }, &signature_type};
 
-
-
-
 ///TODO: still missing _precedence, _associativity, and "_query"(FIX ME)   and "_external" (for C/C++ code)
-
-
-
 
 std::vector<expression> builtins =  {
     type_type, unit_type, none_type, infered_type,
