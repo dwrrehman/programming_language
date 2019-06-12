@@ -17,19 +17,8 @@
 #include "debug.hpp"
 
 #include "llvm/IR/ValueSymbolTable.h"
-#include "llvm/ADT/APFloat.h"
-#include "llvm/ADT/STLExtras.h"
-#include "llvm/IR/BasicBlock.h"
-#include "llvm/IR/Constants.h"
-#include "llvm/IR/DerivedTypes.h"
-#include "llvm/IR/Function.h"
-#include "llvm/IR/IRBuilder.h"
-#include "llvm/IR/LLVMContext.h"
-#include "llvm/IR/Module.h"
-#include "llvm/IR/Type.h"
 #include "llvm/IR/ValueMap.h"
 #include "llvm/Transforms/Utils/ValueMapper.h"
-#include "llvm/IR/Verifier.h"
 #include "llvm/ADT/Optional.h"
 #include "llvm/IR/Instructions.h"
 #include "llvm/IR/LegacyPassManager.h"
@@ -42,9 +31,7 @@
 #include "llvm/Target/TargetOptions.h"
 #include "llvm/Support/SourceMgr.h"
 #include "llvm/IR/ModuleSummaryIndex.h"
-#include "llvm/AsmParser/Parser.h"
 #include "llvm/Support/MemoryBuffer.h"
-#include "llvm/Transforms/Utils/FunctionComparator.h"
 #include "llvm/IR/LLVMContext.h"
 #include "llvm/IR/Module.h"
 #include "llvm/IR/IRBuilder.h"
@@ -72,18 +59,26 @@
 #include <sstream>
 #include <iostream>
 
-
-
-
-
 ////////////////// comparisons ///////////////////////////
-
 
 bool expressions_match(expression first, expression second);
 
+
+bool subexpression(const symbol& s) {
+    return s.type == symbol_type::subexpression;
+}
+bool identifier(const symbol& s) {
+    return s.type == symbol_type::identifier;
+}
+
+bool are_equal_identifiers(const symbol &first, const symbol &second) {
+    return first.type == symbol_type::identifier and second.type == symbol_type::identifier 
+        and first.identifier.name.value == second.identifier.name.value;
+}
+
 bool symbols_match(symbol first, symbol second) {
-    if (first.type == symbol_type::subexpression and second.type == symbol_type::subexpression and expressions_match(first.subexpression, second.subexpression)) return true;
-    else if (first.type == symbol_type::identifier and second.type == symbol_type::identifier and first.identifier.name.value == second.identifier.name.value) return true;
+    if (subexpression(first) and subexpression(second) and expressions_match(first.subexpression, second.subexpression)) return true;
+    else if (are_equal_identifiers(first, second)) return true;
     else if (first.type == symbol_type::llvm_literal and second.type == symbol_type::llvm_literal) return true;
     else return false;
 }
@@ -143,30 +138,36 @@ std::string random_string() {
 
 void clean(block& body) {
     block result = {};
-    for (auto expression : body.list.expressions) {
+    for (auto expression : body.list.expressions) 
         if (not expression.symbols.empty()) result.list.expressions.push_back(expression);
-    } body = result;
+    body = result;
 }
-
 
 void prune_extraneous_subexpressions(expression& given) {
     while (given.symbols.size() == 1
-           and given.symbols[0].type == symbol_type::subexpression
+           and subexpression(given.symbols[0])
            and given.symbols[0].subexpression.symbols.size()) {
         auto save = given.symbols[0].subexpression.symbols;
         given.symbols = save;
     }
     for (auto& symbol : given.symbols)
-        if (symbol.type == symbol_type::subexpression) prune_extraneous_subexpressions(symbol.subexpression);
+        if (subexpression(symbol)) prune_extraneous_subexpressions(symbol.subexpression);
 }
 
-std::vector<symbol> filter_subexpressions(expression call_signature) {
-    std::vector<symbol> result = {};
-    for (auto element : call_signature.symbols) {
-        if (element.type == symbol_type::subexpression) {
-            result.push_back(element);
-        }
-    } return result;
+std::vector<expression> filter_subexpressions(expression given) {
+    std::vector<expression> subexpressions = {};    
+    for (auto element : given.symbols) 
+        if (subexpression(element)) subexpressions.push_back(element.subexpression);    
+    return subexpressions;
+}
+
+abstraction_definition preliminary_parse_abstraction(const expression &given, size_t &pointer) {
+    abstraction_definition definition = {};
+    definition.call_signature = given.symbols[pointer++].subexpression;
+    while (given.symbols[pointer].type != symbol_type::block) {
+        definition.return_type.symbols.push_back(given.symbols[pointer++]);
+    } definition.body = given.symbols[pointer++].block;
+    return definition;
 }
 
 expression* generate_abstraction_type_for(abstraction_definition def) {
@@ -179,7 +180,7 @@ expression* generate_abstraction_type_for(abstraction_definition def) {
     }
     for (auto parameter : parameter_list) {
         expression t = type_type;
-        if (parameter.subexpression.type) t = *parameter.subexpression.type;
+        if (parameter.type) t = *parameter.type;
         type->symbols.push_back(t);
     }
     type->symbols.push_back({def.return_type});
@@ -193,26 +194,40 @@ bool contains_a_block_starting_from(size_t begin, std::vector<symbol> list) {
     return false;
 }
 
-static bool contains_top_level_statements(std::vector<expression> list) {
+bool contains_top_level_statements(std::vector<expression> list) {
     for (auto e : list) if (not (e.symbols.size() == 1 and e.symbols[0].type == symbol_type::abstraction_definition)) return true;
     return false;
 }
 
-static void wrap_into_main(translation_unit& unit) {
-    auto main_body = unit.list;
-    expression main_call_signature = {{{"main", false}}};
-    expression main_return_type = {{{"i32", false}}};
-    abstraction_definition main_abstraction = {main_call_signature, main_return_type, {main_body}};
-    symbol main_symbol = {main_abstraction};
-    expression top_level_expression = {{main_symbol}};
-    unit.list.expressions.clear();
-    unit.list.expressions.push_back(top_level_expression);
+void append_return_0_statement(llvm::IRBuilder<> &builder, llvm::LLVMContext &context) {
+    llvm::Value* value = llvm::ConstantInt::get(llvm::Type::getInt32Ty(context), 0);
+    builder.CreateRet(value);
 }
 
+bool found_unit_expression(const expression &given) {
+    return given.symbols.empty() or (given.symbols.size() == 1 and subexpression(given.symbols[0]) and given.symbols[0].subexpression.symbols.empty());
+}
 
+expression parse_unit_expression(expression *&expected, const expression &given, size_t &pointer) {
+    if (given.symbols.size() == 1
+        and subexpression(given.symbols[0])
+        and given.symbols[0].subexpression.symbols.empty()) pointer++;
+    if (expressions_match(*expected, infered_type)) expected = &unit_type;
+    if (expressions_match(*expected, unit_type)) return unit_type;
+    else return {true};
+}
 
+bool found_llvm_string(const expression &given, size_t &pointer) {
+    return pointer < given.symbols.size() and given.symbols[pointer].type == symbol_type::llvm_literal;
+}
 
-
+llvm::Function *create_main(llvm::IRBuilder<> &builder, llvm::LLVMContext &context, const std::unique_ptr<llvm::Module, std::default_delete<llvm::Module> > &module) {
+    std::vector<llvm::Type*> parameters = {llvm::Type::getInt32Ty(context), llvm::Type::getInt8PtrTy(context)->getPointerTo()};
+    llvm::FunctionType* main_type = llvm::FunctionType::get(llvm::Type::getInt32Ty(context), parameters, false);
+    llvm::Function* main_function = llvm::Function::Create(main_type, llvm::Function::ExternalLinkage, "main", module.get());
+    builder.SetInsertPoint(llvm::BasicBlock::Create(context, "entry", main_function));
+    return main_function;
+}
 
 
 
@@ -250,7 +265,7 @@ std::string expression_to_string(expression given) {
     size_t i = 0;
     for (auto symbol : given.symbols) {
         if (symbol.type == symbol_type::identifier) result += symbol.identifier.name.value;
-        else if (symbol.type == symbol_type::subexpression) {
+        else if (subexpression(symbol)) {
             result += "(" + expression_to_string(symbol.subexpression) + ")";
         }
         if (i < given.symbols.size() - 1) result += " ";
@@ -268,21 +283,18 @@ std::string expression_to_string(expression given) {
 }
 
 
-expression string_to_expression_tail(std::vector<expression> list, stack& stack, data& data, flags flags, bool& error) {
+expression string_to_expression_tail(std::vector<expression> list, stack& stack, tu_data& data, flags flags, bool& error) {
     if (list.empty()) return {};
     if (list.size() == 1 and expressions_match(list.back(), type_type)) return type_type;          
     auto signature = list.front();
     
     for (auto& element : signature.symbols) {
-        if (element.type == symbol_type::subexpression) {
-            std::vector<expression> subexpressions = {};    
-            for (auto s : element.subexpression.symbols) 
-                if (s.type == symbol_type::subexpression) subexpressions.push_back(s.subexpression);
+        if (subexpression(element)) {
+            auto subexpressions = filter_subexpressions(element.subexpression); 
             
             auto result = string_to_expression_tail(subexpressions, stack, data, flags, error);
-            if (result.erroneous) {
-                error = true;
-            } else element.subexpression = result; 
+            if (result.erroneous) error = true;
+            else element.subexpression = result;
         }
     }
     list.erase(list.begin());
@@ -291,21 +303,15 @@ expression string_to_expression_tail(std::vector<expression> list, stack& stack,
                                           .not_at_top_level()
                                           .not_parsing_a_type(), error);
     if (signature.symbols.empty() and expressions_match(type, type_type)) return unit_type;    
-    auto result = res(signature, type, stack, data, flags, error);    
+    auto result = resolve(signature, type, stack, data, flags, error);    
     if (result.erroneous) error = true;    
     return result;
 }
 
-expression string_to_expression(std::string given, stack& stack, data& data, flags flags, bool& error) {
-    struct file file = {}; 
-    file.name = "<llvm string symbol>";
-    file.text = given;
+expression string_to_expression(std::string given, stack& stack, tu_data& data, flags flags, bool& error) {
+    struct file file = {"<llvm string symbol>", given};
     start_lex(file);
-    auto full = parse_expression(file, false, false);
-    std::vector<expression> subexpressions = {};    
-    for (auto s : full.symbols) 
-        if (s.type == symbol_type::subexpression) subexpressions.push_back(s.subexpression);
-    return string_to_expression_tail(subexpressions, stack, data, flags, error);
+    return string_to_expression_tail(filter_subexpressions(parse_expression(file, false, false)), stack, data, flags, error);
 }
 
 
@@ -337,11 +343,11 @@ expression string_to_expression(std::string given, stack& stack, data& data, fla
 /////////////////////////////////////// PARSE LLVM STRING ///////////////////////////////////////////
 
 
-llvm::Type* parse_llvm_string_as_type(std::string given, stack& stack, data& data, llvm::SMDiagnostic& errors) {
+llvm::Type* parse_llvm_string_as_type(std::string given, stack& stack, tu_data& data, llvm::SMDiagnostic& errors) {
     return llvm::parseType(given, errors, *data.module);
 }
 
-bool parse_llvm_string_as_instruction(std::string given, stack& stack, data& data, llvm::SMDiagnostic& errors) {
+bool parse_llvm_string_as_instruction(std::string given, stack& stack, tu_data& data, llvm::SMDiagnostic& errors) {
     
     std::string body = "";
     data.function->print(llvm::raw_string_ostream(body) << "");
@@ -386,7 +392,7 @@ bool parse_llvm_string_as_instruction(std::string given, stack& stack, data& dat
     }
 }
 
-bool parse_llvm_string_as_function(std::string given, stack& stack, data& data, llvm::SMDiagnostic& errors) {
+bool parse_llvm_string_as_function(std::string given, stack& stack, tu_data& data, llvm::SMDiagnostic& errors) {
     llvm::MemoryBufferRef reference(given, "<llvm-string>");
     llvm::ModuleSummaryIndex my_index(true);
     return !llvm::parseAssemblyInto(reference, data.module, &my_index, errors);        
@@ -394,7 +400,7 @@ bool parse_llvm_string_as_function(std::string given, stack& stack, data& data, 
 
 static expression parse_llvm_string(
                                     const expression &given, std::string llvm_string, size_t &pointer,
-                                    stack& stack, data& data, flags flags, bool& error                                    
+                                    stack& stack, tu_data& data, flags flags, bool& error                                    
                                     ) {
     
     if (flags.is_at_top_level and not flags.is_parsing_type) {

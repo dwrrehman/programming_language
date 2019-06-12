@@ -17,7 +17,7 @@
 
 std::unique_ptr<llvm::Module> analyze(translation_unit unit, llvm::LLVMContext& context, struct file file);
 
-struct data {
+struct tu_data {
     struct file file;
     llvm::Module* module;
     llvm::Function* function;
@@ -51,14 +51,23 @@ struct flags {
     
 }; 
 
-using stack = std::vector<std::vector<expression>>;
+using stack = std::vector<std::vector<expression>>;     ///TODO: Change me, to be a custom class.
 
-expression csr(
-               const expression& given, expression*& expected, expression& fdi,               
+struct parameters {
+    stack& stack;
+    tu_data& data;
+    flags flags;
+    bool& error; 
+};
+
+
+expression csr(const expression& given, expression*& expected, expression& fdi,               
                const size_t depth, const size_t max_depth, size_t& pointer,               
-               stack& stack, data& data, flags flags, bool& error);
-void adp(abstraction_definition& given, stack& stack, data& data, flags flags, bool& error);
-expression res(expression given, expression& expected_type, stack& stack, data& data, flags flags, bool& error);
+               stack& stack, tu_data& data, flags flags, bool& error);
+
+void adp(abstraction_definition& given, stack& stack, tu_data& data, flags flags, bool& error);
+
+expression resolve(expression given, expression& expected_type, stack& stack, tu_data& data, flags flags, bool& error);
 
 #endif /* analysis_hpp */
 
