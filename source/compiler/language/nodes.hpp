@@ -125,6 +125,7 @@ public:
     expression call_signature = {};
     expression return_type = {};
     block body = {};
+    size_t precedence = 0;
 
     abstraction_definition(){}
     abstraction_definition(expression call, expression rt, block body) {

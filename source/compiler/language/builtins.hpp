@@ -42,4 +42,6 @@ extern expression disclose_all_abstraction;
 
 extern std::vector<expression> builtins;
 
+extern expression failure;
+
 #endif /* builtins_hpp */

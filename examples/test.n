@@ -1,5 +1,5 @@
-(hello world) {
+%"struct" = type {i8 }
 
+define void @f(%"struct" %i) {
+    ret void
 }
-
-hello world

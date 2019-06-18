@@ -17,7 +17,7 @@
 
 std::unique_ptr<llvm::Module> analyze(translation_unit unit, llvm::LLVMContext& context, struct file file);
 
-struct tu_data {
+struct translation_unit_data {
     struct file file;
     llvm::Module* module;
     llvm::Function* function;
@@ -51,23 +51,58 @@ struct flags {
     
 }; 
 
-using stack = std::vector<std::vector<expression>>;     ///TODO: Change me, to be a custom class.
+using stack_frame = std::vector<expression>;
 
-struct parameters {
+
+class stack {
+    std::vector<stack_frame> applications = {};
+public:
+    stack() {
+        /// ?
+    }
+    
+    stack(llvm::Module* module, llvm::Function* function) {
+        
+    }
+    
+    void push() {
+        applications.push_back({});
+    }
+    
+    void pop() {
+        applications.pop_back();
+    }
+    
+    stack_frame top() {
+        return {};
+    }
+    
+    
+};
+
+
+class astack {
+    std::vector<abstraction_definition> abstractions;
+    
+    abstraction_definition this_abstraction() {
+        return {};
+    }
+};
+
+
+
+
+struct state {
     stack& stack;
-    tu_data& data;
-    flags flags;
+    astack& astack;
+    translation_unit_data& data;
     bool& error; 
 };
 
 
-expression csr(const expression& given, expression*& expected, expression& fdi,               
-               const size_t depth, const size_t max_depth, size_t& pointer,               
-               stack& stack, tu_data& data, flags flags, bool& error);
-
-void adp(abstraction_definition& given, stack& stack, tu_data& data, flags flags, bool& error);
-
-expression resolve(expression given, expression& expected_type, stack& stack, tu_data& data, flags flags, bool& error);
+expression csr(expression given, size_t& index, const size_t depth, const size_t max_depth, state& state, flags flags); 
+void adp(abstraction_definition& given, state& state, flags flags);
+expression res(expression given, state& state, flags flags);
 
 #endif /* analysis_hpp */
 

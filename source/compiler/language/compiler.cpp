@@ -107,7 +107,7 @@ int interpret(std::string executable_name, std::vector<std::unique_ptr<llvm::Mod
     auto & main_module = modules.back();
     auto jit = llvm::EngineBuilder(std::move(main_module)).setEngineKind(llvm::EngineKind::JIT).create();
     jit->finalizeObject();
-    auto fn = jit->FindFunctionNamed("main");                
+    auto fn = jit->FindFunctionNamed("main");
     const int exit_code = jit->runFunctionAsMain(fn, {executable_name}, nullptr);
     return exit_code;
 }
@@ -160,7 +160,7 @@ std::string generate(std::unique_ptr<llvm::Module>& module, const struct file& f
     std::error_code error;
     llvm::raw_fd_ostream dest(object_filemame, error, llvm::sys::fs::F_None);
     if (error) {throw "generate error: cannot open raw object file";}
-
+    
     llvm::legacy::PassManager pass;
     auto filetype = llvm::TargetMachine::CGFT_ObjectFile;
     if (TheTargetMachine->addPassesToEmitFile(pass, dest, nullptr, filetype)) {
@@ -173,7 +173,7 @@ std::string generate(std::unique_ptr<llvm::Module>& module, const struct file& f
 }
 
 void delete_files(std::vector<std::string> object_filenames) {
-    for (auto file : object_filenames) std::remove(file.c_str());    
+    for (auto file : object_filenames) std::remove(file.c_str());  
 }
 
 void link_and_emit_executable(std::vector<std::string> object_files, const struct arguments& arguments) {

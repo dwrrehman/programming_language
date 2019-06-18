@@ -125,7 +125,7 @@ int repl_interpret(std::string executable_name, std::vector<std::unique_ptr<llvm
     auto & main_module = modules.back();        
     auto jit = llvm::EngineBuilder(std::move(main_module)).setEngineKind(llvm::EngineKind::JIT).create();
     jit->finalizeObject();
-    auto fn = jit->FindFunctionNamed("main");                
+    auto fn = jit->FindFunctionNamed("main");               
     const int exit_code = jit->runFunctionAsMain(fn, {executable_name}, nullptr);
     return exit_code;
 }
