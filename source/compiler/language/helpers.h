@@ -276,7 +276,7 @@ bool found_llvm_string(const expression &given, size_t &pointer) {
     return pointer < given.symbols.size() and given.symbols[pointer].type == symbol_type::llvm_literal;
 }
 
-llvm::Function *create_main(llvm::IRBuilder<>& builder, llvm::LLVMContext& context, const std::unique_ptr<llvm::Module>& module) {
+llvm::Function* create_main(llvm::IRBuilder<>& builder, llvm::LLVMContext& context, const std::unique_ptr<llvm::Module>& module) {
     std::vector<llvm::Type*> state = {llvm::Type::getInt32Ty(context), llvm::Type::getInt8PtrTy(context)->getPointerTo()};
     llvm::FunctionType* main_type = llvm::FunctionType::get(llvm::Type::getInt32Ty(context), state, false);
     llvm::Function* main_function = llvm::Function::Create(main_type, llvm::Function::ExternalLinkage, "main", module.get());
@@ -806,6 +806,31 @@ expression resolve(expression given, expression& expected_type, state& state, fl
 
 
 */
+
+
+
+
+
+
+////////////////////// debuggers //////////////////////////// 
+
+
+static void print_symtable(llvm::ValueSymbolTable &sym_2) {
+    for (auto i = sym_2.begin(); i != sym_2.end(); i++) {
+        std::cout << "key: " << i->getKey().str() << "\n";
+        std::cout << "value: ";
+        i->getValue()->print(llvm::outs());
+        std::cout << "\n";
+        
+        std::cout << "first:" << i->first().str() << "\n";
+        std::cout << "second: ";
+        i->second->print(llvm::outs());
+        
+        std::cout << "\n\n";
+    }    
+    std::cout << "---------------------------------------------\n";
+}
+
 
 
 

@@ -38,18 +38,6 @@ void debug_arguments(struct arguments args) {
 
 
 
-// ---------------------------- preprocessor debugging functions: -------------------------------
-
-
-
-
-
-
-
-
-
-
-
 
 
 // ---------------------------- lexer debugging: ---------------------------------------
@@ -86,7 +74,7 @@ void debug_token_stream() {
 
 
 
-// ---------------------------- parser -------------------------------
+// ---------------------------- parser debugging functions -------------------------------
 
 
 #define prep(_level) for (int i = _level; i--;) std::cout << ".   "
@@ -221,7 +209,7 @@ void print_symbol_line(symbol symbol) {
             break;
 
         case symbol_type::none:
-            std::cout << "{INTERNAL PRINTING ERROR}\n";
+            std::cout << "{NONE}\n";
             assert(false);
             break;
         case symbol_type::abstraction_definition:

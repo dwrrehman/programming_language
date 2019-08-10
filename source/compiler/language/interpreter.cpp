@@ -113,7 +113,7 @@ void process_repl_command(std::string line) {
     } else if (line == "hello") {
         std::cout << output() << "Hello, world!\n";
     } else if (line == "help") {
-        std::cout << output() << "REPL commands: \n\t- clear\n\t- hello\n\t- help\n\t- quit\n\n";
+        std::cout << output() << "REPL commands: \n\t- :clear\n\t- :hello\n\t- :help\n\t- :quit\n\n";
     }
 }
 
@@ -125,8 +125,8 @@ int repl_interpret(std::string executable_name, std::vector<std::unique_ptr<llvm
     auto & main_module = modules.back();        
     auto jit = llvm::EngineBuilder(std::move(main_module)).setEngineKind(llvm::EngineKind::JIT).create();
     jit->finalizeObject();
-    auto fn = jit->FindFunctionNamed("main");               
-    const int exit_code = jit->runFunctionAsMain(fn, {executable_name}, nullptr);
+    auto main = jit->FindFunctionNamed("main");               
+    const int exit_code = jit->runFunctionAsMain(main, {executable_name}, nullptr);
     return exit_code;
 }
 
@@ -149,7 +149,7 @@ void repl(llvm::LLVMContext& context) {
                 line.erase(line.begin(), line.begin() + 1);
                 process_repl_command(line);
             }
-        } else {                        
+        } else {
             if (line.size() > 10)
                 std::cout << output() << "recevied: :::" << line << ":::\n";
         }

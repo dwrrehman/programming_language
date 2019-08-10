@@ -11,7 +11,6 @@
 
 #include "lexer.hpp"
 
-
 #include "llvm/ADT/APFloat.h"
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/IR/BasicBlock.h"
@@ -27,7 +26,6 @@
 
 #include <string>
 #include <vector>
-
 
 class node {    // TODO: delete me
 public:
@@ -75,12 +73,15 @@ public:
 
 class expression: public node {
 public:
+    
     std::vector<symbol> symbols = {};
     size_t indent_level = 0;
     expression* type = nullptr;
+    
     bool erroneous = false;
     bool was_allocated = false;
-    llvm::Type* llvm_type = nullptr;
+    
+    llvm::Type* llvm_type = nullptr;    
     llvm::Instruction* llvm_instruction = nullptr;
     llvm::Function* llvm_function = nullptr;
     
@@ -120,12 +121,24 @@ public:
 
 /// ---------------------- Abstractions ---------------------------
 
+using stack_frame = std::vector<expression>;
+
+
 class abstraction_definition: public node {
 public:
+    
+    enum class associativity {left, right};
+    
     expression call_signature = {};
     expression return_type = {};
     block body = {};
+        
+    /// new:
+    expression value = {}; // used by variables.
+    stack_frame* frame = nullptr;  
+    
     size_t precedence = 0;
+    enum associativity associativity = associativity::left;     
 
     abstraction_definition(){}
     abstraction_definition(expression call, expression rt, block body) {

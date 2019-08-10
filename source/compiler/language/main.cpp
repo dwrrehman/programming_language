@@ -1,17 +1,12 @@
 
-//
-//  main.cpp
-//  language
-//
-//  Created by Daniel Rehman on 1901104.
-//  Copyright © 2019 Daniel Rehman. All rights reserved.
-//
-
 /*
  
  
  known bugs:
  
+ 
+ 
+ """"""""""""""""""""""""""""""
  (hello) {}
  
  (cat) hello {
@@ -30,14 +25,10 @@
  }
  
  cat is cool
- 
+ """"""""""""""""""""""""""""""
 
- 
- 
- ....doesnt succeed, because we cant instantiate any new types, beause we havent implemented type constructors.
- 
- 
- 
+        ....doesnt succeed, because we cant instantiate any new types, 
+            beause we havent implemented type constructors.
  
  */
 
@@ -52,7 +43,7 @@
 int main(const int argc, const char** argv) {
     auto arguments = get_commandline_arguments(argc, argv);
     if (arguments.error) exit(1);
-    if (not arguments.use_repl and arguments.files.empty()) print_error_no_files();        
+    if (not arguments.use_repl and arguments.files.empty()) print_error_no_files();
     if (debug) debug_arguments(arguments);
     initialize_llvm();
     llvm::LLVMContext context;

@@ -29,13 +29,9 @@ static struct token current = {};
 // helpers:
 static bool is_identifier(char c) { return isalnum(c) or c == '_'; }
 static bool is_operator(char c) { return (not is_identifier(c) or not isascii(c)) and c != ' ' and c != '\t'; }
+
 static bool isvalid(size_t c) { return c >= 0 and c < text.size(); }
 
-static bool is_escape_sequence(std::string s) {
-    const std::vector<std::string> sequences = {"\\n", "\\t", "\\r", "\\\\", "\\\"", "\\[", "\\b", "\\a"};
-    for (auto seq : sequences) if (s == seq) return true;
-    return false;
-}
 static void advance_by(size_t n) {
     for (size_t i = n; i--;) {
         if (text[c] == '\n') {
@@ -150,7 +146,7 @@ struct token next() {
             current.value += text[c];
 
         } else if (state == lexing_state::comment or state == lexing_state::multiline_comment) {
-            // do nothing;
+            // do nothing
 
         } else if (is_operator(text[c]) and (state == lexing_state::none or state == lexing_state::indent)) {
             set_current(token_type::operator_, lexing_state::none);

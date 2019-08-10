@@ -59,7 +59,7 @@ int is_file(const char *path) {
     return S_ISREG(path_stat.st_mode);
 }
 
-void open_dir(struct arguments &args, struct file &file) {
+void error_cannot_open(struct arguments &args, struct file &file) {
     printf("Unable to open \"%s\" \n", file.name.c_str());
     perror("open");
     args.error = true;
@@ -122,14 +122,19 @@ void open_dir(struct arguments &args, struct file &file) {
  */
 
 void print_usage() {
+    std::cout << "(nostril: an n3zqx2l compiler)\n";
+    
     std::cout << "modes:\n";
-    std::cout << "\tpick <.n>\n";
-    std::cout << "\trun <sources>\n\n";
+    std::cout << "\tpick <.n>      :: open REPL editor with file. \n";
+    std::cout << "\trun <sources>  :: JIT compile sources.\n";
+    std::cout << "\tusage(-h)      :: print this usage dialog.\n";
+    std::cout << "\tversion(-v)    :: print the compiler and language version. \n\n";
+    
     std::cout << "options:\n";
-    std::cout << "\t-named(-o) <executable name>\n";
-    std::cout << "\t-version(-v)\n";
-    std::cout << "\t-indent <integer>\n";
-    std::cout << "\t-sneeze\n\n";
+    std::cout << "\t-named(-o) <executable name>  :: set the name of the executable.\n";    
+    std::cout << "\t-indent <integer>   :: set the number of spaces counted as an indent. \n";
+    std::cout << "\t-sneeze             :: enable the compilers debug mode. \n\n";
+    std::cout << "\t-empty <.n>             :: disable implicit inclusion of _core for the file. \n\n";
 }
 
 struct arguments get_commandline_arguments(const int argc, const char** argv) {    
@@ -147,7 +152,16 @@ struct arguments get_commandline_arguments(const int argc, const char** argv) {
         
     } else if (argc > 1 and std::string(argv[1]) == "run") { 
         args.use_interpreter = true;   
-                
+
+    } else if (argc > 1 and (std::string(argv[1]) == "version" or std::string(argv[1]) == "-v")) {
+        std::cout << language_name << ": " << language_version << std::endl;
+        //std::cout << compiler_name << ": " << compiler_version << std::endl;
+        exit(0);
+        
+    } else if (argc > 1 and (std::string(argv[1]) == "usage" or std::string(argv[1]) == "-h")) {
+        print_usage();
+        exit(0);
+    
     } else if (argc == 1) {        
         args.use_repl = true;
         return args;
@@ -164,17 +178,12 @@ struct arguments get_commandline_arguments(const int argc, const char** argv) {
                 spaces_count_for_indent = 4;
             }
 
-        } else if (std::string(argv[i]) == "-version" or std::string(argv[i]) == "-v") {
-            std::cout << language_name << ": " << language_version << std::endl;
-            exit(0);
-
         } else if (std::string(argv[i]) == "-sneeze") {
             debug = true;
             
-        } else if (std::string(argv[i]) == "empty") {
+        } else if (std::string(argv[i]) == "-empty") {
             args.include_core = false;
-            
-            
+                        
             
         } else if (argv[i][0] == '-') {
             std::cout << "bad option: " << argv[i] << "\n";
@@ -190,7 +199,7 @@ struct arguments get_commandline_arguments(const int argc, const char** argv) {
             if (is_file(argv[i])) {
                 open_file(args, file);
             } else {
-                open_dir(args, file); // TODO: fill in the recursive compiler.
+                error_cannot_open(args, file); 
             }
         }
     }

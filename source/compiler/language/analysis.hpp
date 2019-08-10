@@ -15,13 +15,11 @@
 #include <vector>
 #include <string>
 
-std::unique_ptr<llvm::Module> analyze(translation_unit unit, llvm::LLVMContext& context, struct file file);
-
 struct translation_unit_data {
     struct file file;
     llvm::Module* module;
     llvm::Function* function;
-    llvm::IRBuilder<>& builder;     
+    llvm::IRBuilder<>& builder;
 };
 
 struct flags {
@@ -55,6 +53,8 @@ using stack_frame = std::vector<expression>;
 
 
 class stack {
+    llvm::Module* module;
+    llvm::Function* function;
     std::vector<stack_frame> applications = {};
 public:
     stack() {
@@ -62,7 +62,8 @@ public:
     }
     
     stack(llvm::Module* module, llvm::Function* function) {
-        
+        this->module = module;
+        this->function = function;
     }
     
     void push() {
@@ -74,7 +75,7 @@ public:
     }
     
     stack_frame top() {
-        return {};
+        return applications.back();
     }
     
     
@@ -89,9 +90,6 @@ class astack {
     }
 };
 
-
-
-
 struct state {
     stack& stack;
     astack& astack;
@@ -100,9 +98,18 @@ struct state {
 };
 
 
+
+
 expression csr(expression given, size_t& index, const size_t depth, const size_t max_depth, state& state, flags flags); 
 void adp(abstraction_definition& given, state& state, flags flags);
 expression res(expression given, state& state, flags flags);
+
+
+
+
+std::unique_ptr<llvm::Module> analyze(translation_unit unit, llvm::LLVMContext& context, struct file file);
+
+
 
 #endif /* analysis_hpp */
 

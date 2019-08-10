@@ -70,7 +70,6 @@ identifier parse_identifier(struct file file) {
     return literal;
 }
 
-
 // ------------------ token comparisons ---------------------------
 
 static bool is_close_paren(const token &t) {

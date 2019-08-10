@@ -5,7 +5,12 @@
 //  Created by Daniel Rehman on 1901314.
 //  Copyright © 2019 Daniel Rehman. All rights reserved.
 //
+
 /*
+ 
+ 
+ 
+ 
  -------------------------------whats missing?------------------------------------------
  
  
@@ -30,13 +35,20 @@
  
  
  
+ ------->  figure out how to implement NSS [IMPORTANT]
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
  
  -----> write a custom stack class, 
  
         which keep tracks if something was defined in the current scope or a parent scope. 
 
- 
- -----> how to implement the "_recognize <_signature>"
  
  
  */
@@ -71,17 +83,25 @@ expression adp(expression given, size_t &pointer, size_t saved, state& state, fl
         return {true};
     }
 }
-*/
 
-/*
-void parse_abstraction(abstraction_definition& given, state& state, flags flags) {
+abstraction_definition adp(expression given, size_t pointer, state& state, flags flags) {
     clean(given.body);
     state.stack.push_back(state.stack.back());
     parse_signature(given, state, flags);
     parse_return_type(given, state, flags);
     parse_abstraction_body(given, state, flags);
     state.stack.pop_back();
-}*/
+}
+
+*/
+
+
+expression parse_abstraction_definition(expression given, size_t& index, state& state, flags flags) {
+    return {};
+}
+
+
+////TODO: this algorithm left out subexpressions. we need to add that back in using "res()".
 
 bool matches(expression given, expression& signature, size_t& index, const size_t depth, const size_t max_depth, state& state, flags flags) {
     if (not signature.type or not expressions_match(*given.type, signature.type)) return false;
@@ -102,39 +122,26 @@ expression csr(expression given, size_t& index, const size_t depth, const size_t
         if (matches(given, signature, index, depth, max_depth, state, flags)) return signature;
     }
     
-    if (found_abstraction_definition(given, index)) {
-        //return adp(...);
+    if (found_abstraction_definition(given, index)) 
+        return parse_abstraction_definition(given, index, state, flags);
     
-    } else if (flags.should_allow_undefined_signatures) {
-        //fdi.symbols.push_back(given.symbols[pointer++]);
-        //return fdi;       //// ?      is this right?
-    }
+//    else if (flags.should_allow_undefined_signatures) {
+//        //fdi.symbols.push_back(given.symbols[pointer++]);
+//        //return fdi;       //// ?      is this right?
+//    }
     return failure;
 }
 
 expression res(expression given, state& state, flags flags) {
-    return {};
-}
-
-
-
-
-
-static void print_symtable(llvm::ValueSymbolTable &sym_2) {
-    for (auto i = sym_2.begin(); i != sym_2.end(); i++) {        
-        std::cout << "key: " << i->getKey().str() << "\n";        
-        std::cout << "value: ";
-        i->getValue()->print(llvm::outs());
-        std::cout << "\n";
-        
-        std::cout << "first:" << i->first().str() << "\n";        
-        std::cout << "second: ";
-        i->second->print(llvm::outs());
-        
-        std::cout << "\n\n";
-        
-    }    
-    std::cout << "---------------------------------------------\n";
+    expression solution {};
+    size_t pointer = 0, max_depth = 0;    
+    while (max_depth <= max_expression_depth) {
+        pointer = 0;        
+        solution = csr(given, pointer, 0, max_depth, state, flags);        
+        if (solution.erroneous or pointer < given.symbols.size()) max_depth++; 
+        else break; 
+    }
+    return solution;
 }
 
 std::unique_ptr<llvm::Module> analyze(translation_unit unit, llvm::LLVMContext& context, struct file file) {
@@ -149,11 +156,14 @@ std::unique_ptr<llvm::Module> analyze(translation_unit unit, llvm::LLVMContext& 
     static bool found_main = false;
     bool error = false;
     stack stack = {};
-    astack astack = {};
+    astack astack = {}; //init with file.name's path.
     flags flags = {};
-    translation_unit_data data = {file, module.get(), main_function, builder};
+    translation_unit_data data = {file, module.get(), main_function, builder}; // get rid of main_function in this data structure.
     state state = {stack, astack, data, error};
     
+    
+    
+    //////////////////////////////////////////////////////
     
     // test, by allowing some llvm random string to be parsed into the file:
     llvm::SMDiagnostic errors;
@@ -165,7 +175,7 @@ std::unique_ptr<llvm::Module> analyze(translation_unit unit, llvm::LLVMContext& 
         abort();
     }
     
-    std::cout << "pritning symbol table:\n";
+    std::cout << "printing symbol table:\n";
     
     auto s = module->getValueSymbolTable();
     
@@ -176,6 +186,9 @@ std::unique_ptr<llvm::Module> analyze(translation_unit unit, llvm::LLVMContext& 
     }
     
     print_symtable(s);
+    
+    
+    //////////////////////////////////////////////////////
     
 
 //    auto& body = unit.list.expressions;
@@ -189,18 +202,12 @@ std::unique_ptr<llvm::Module> analyze(translation_unit unit, llvm::LLVMContext& 
     if (llvm::verifyFunction(*main_function)) append_return_0_statement(builder, context);
     if (llvm::verifyModule(*module, &llvm::errs())) error = true;
     if (debug) print_translation_unit(unit, file);
-    if (debug) module->print(llvm::errs(), NULL);
+    
+    if (debug) module->print(llvm::errs(), NULL); // temp
+    
     if (error) { throw "analysis error"; }
     else { return module; }
 }
-
-
-
-
-
-
-
-
 
 
 //    if (contains_top_level_runtime_statement(body)) found_main = true; 

@@ -117,7 +117,7 @@ std::vector<std::string> generate_object_files(const struct arguments& arguments
     std::vector<std::string> object_files = {};
     object_files.reserve(modules.size());
     for (auto& module : modules) {        
-        try {object_files.push_back(generate(module, arguments.files[i++]));}  
+        try {object_files.push_back(generate_object_file(module, arguments.files[i++]));}  
         catch(...) {error = true;}
     }
     if (error) {
@@ -143,7 +143,7 @@ void optimize(std::vector<std::unique_ptr<llvm::Module>>& modules) {
     }
 }
 
-std::string generate(std::unique_ptr<llvm::Module>& module, const struct file& file) {
+std::string generate_object_file(std::unique_ptr<llvm::Module>& module, const struct file& file) {
     auto TargetTriple = llvm::sys::getDefaultTargetTriple();
     module->setTargetTriple(TargetTriple);
     std::string Error = "";

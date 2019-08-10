@@ -25,7 +25,7 @@ std::unique_ptr<llvm::Module> process(struct file file, llvm::LLVMContext &conte
 
 void optimize(std::vector<std::unique_ptr<llvm::Module>>& modules);
 
-std::string generate(std::unique_ptr<llvm::Module>& module, const struct file& file);
+std::string generate_object_file(std::unique_ptr<llvm::Module>& module, const struct file& file);
 
 std::vector<std::string> generate_object_files(const struct arguments& arguments, bool error, std::vector<std::unique_ptr<llvm::Module>>& modules) ;
 
