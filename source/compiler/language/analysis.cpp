@@ -106,9 +106,10 @@ expression parse_abstraction_definition(expression given, size_t& index, state& 
 bool matches(expression given, expression& signature, size_t& index, const size_t depth, const size_t max_depth, state& state, flags flags) {
     if (not signature.type or not expressions_match(*given.type, signature.type)) return false;
     for (auto& element : signature.symbols) {
+        ///TODO: check to see if the current given node is a subexpression. this means we need to call "res()".
         if (subexpression(element)) {
             element.subexpression = csr(given, index, depth + 1, max_depth, state, flags);
-            if (element.subexpression.erroneous) return false;                        
+            if (element.subexpression.erroneous) return false;        
         } else if (not are_equal_identifiers(element, given.symbols[index])) return false;
         else index++;
     } return true;
@@ -122,26 +123,18 @@ expression csr(expression given, size_t& index, const size_t depth, const size_t
         if (matches(given, signature, index, depth, max_depth, state, flags)) return signature;
     }
     
-    if (found_abstraction_definition(given, index)) 
-        return parse_abstraction_definition(given, index, state, flags);
+    if (found_abstraction_definition(given, index)) return parse_abstraction_definition(given, index, state, flags);
     
-//    else if (flags.should_allow_undefined_signatures) {
-//        //fdi.symbols.push_back(given.symbols[pointer++]);
-//        //return fdi;       //// ?      is this right?
-//    }
     return failure;
 }
 
 expression res(expression given, state& state, flags flags) {
-    expression solution {};
-    size_t pointer = 0, max_depth = 0;    
-    while (max_depth <= max_expression_depth) {
-        pointer = 0;        
-        solution = csr(given, pointer, 0, max_depth, state, flags);        
-        if (solution.erroneous or pointer < given.symbols.size()) max_depth++; 
-        else break; 
-    }
-    return solution;
+    expression solution {};    
+    for (size_t max_depth = 0; max_depth <= max_expression_depth; max_depth++) {
+        size_t pointer = 0;
+        solution = csr(given, pointer, 0, max_depth, state, flags);
+        if (not solution.erroneous and pointer == given.symbols.size()) break;
+    } return solution;
 }
 
 std::unique_ptr<llvm::Module> analyze(translation_unit unit, llvm::LLVMContext& context, struct file file) {
@@ -153,17 +146,20 @@ std::unique_ptr<llvm::Module> analyze(translation_unit unit, llvm::LLVMContext& 
     module->setTargetTriple(triple);
     auto main_function = create_main(builder, context, module);
     
-    static bool found_main = false;
+    llvm::Function* donothing = llvm::Intrinsic::getDeclaration(module.get(), llvm::Intrinsic::donothing);        
+    builder.CreateCall(donothing);
+    
+    
     bool error = false;
     stack stack = {};
     astack astack = {}; //init with file.name's path.
     flags flags = {};
-    translation_unit_data data = {file, module.get(), main_function, builder}; // get rid of main_function in this data structure.
+    translation_unit_data data = {file, module.get(), builder};          // get rid of main_function in this data structure.
     state state = {stack, astack, data, error};
     
     
     
-    //////////////////////////////////////////////////////
+    
     
     // test, by allowing some llvm random string to be parsed into the file:
     llvm::SMDiagnostic errors;
@@ -172,24 +168,50 @@ std::unique_ptr<llvm::Module> analyze(translation_unit unit, llvm::LLVMContext& 
         
     } else {
         std::cout << "failure.\n";
+        errors.print("llvm string program:", llvm::errs());
         abort();
     }
     
-    std::cout << "printing symbol table:\n";
     
-    auto s = module->getValueSymbolTable();
+
+    //    auto& body = unit.list.expressions;
+    //    std::vector<expression> parsed_body = {};
+    //    for (auto expression : body) {
+    //        auto solution = resolve(expression, unit_type, state, flags.generate_code().at_top_level());
+    //        if (solution.erroneous) error = true;
+    //        else parsed_body.push_back(solution);
+    //    } body = parsed_body;
+
     
-    if (auto v = s.lookup("f")) {
-        std::cout << "found F!!\n";
-        v->print(llvm::errs());
-        std::cout << "\n\n";
+    
+    
+    
+    if (llvm::verifyFunction(*main_function)) append_return_0_statement(builder, context);
+    if (llvm::verifyModule(*module, &llvm::errs())) error = true;
+    if (debug) print_translation_unit(unit, file);    
+    
+    if (debug) {
+        std::cout << "emitting the following LLVM: \n";
+        module->print(llvm::errs(), NULL); // temp
     }
     
-    print_symtable(s);
-    
-    
-    //////////////////////////////////////////////////////
-    
+    if (error) { throw "analysis error"; }
+    else { return module; }
+}
+
+
+
+
+
+
+
+//    if (contains_top_level_runtime_statement(body)) found_main = true; 
+//    else if (found_main) main_function->eraseFromParent();
+
+
+
+//////////////////////////////////////////////////////
+
 
 //    auto& body = unit.list.expressions;
 //    std::vector<expression> parsed_body = {};
@@ -198,17 +220,11 @@ std::unique_ptr<llvm::Module> analyze(translation_unit unit, llvm::LLVMContext& 
 //        if (solution.erroneous) error = true;
 //        else parsed_body.push_back(solution);
 //    } body = parsed_body;
-    
-    if (llvm::verifyFunction(*main_function)) append_return_0_statement(builder, context);
-    if (llvm::verifyModule(*module, &llvm::errs())) error = true;
-    if (debug) print_translation_unit(unit, file);
-    
-    if (debug) module->print(llvm::errs(), NULL); // temp
-    
-    if (error) { throw "analysis error"; }
-    else { return module; }
-}
 
 
-//    if (contains_top_level_runtime_statement(body)) found_main = true; 
-//    else if (found_main) main_function->eraseFromParent();
+
+
+//    else if (flags.should_allow_undefined_signatures) {
+//        //fdi.symbols.push_back(given.symbols[pointer++]);
+//        //return fdi;       //// ?      is this right?
+//    }

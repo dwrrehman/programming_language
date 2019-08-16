@@ -260,7 +260,10 @@ void append_return_0_statement(llvm::IRBuilder<> &builder, llvm::LLVMContext &co
 }
 
 bool found_unit_expression(const expression &given) {
-    return given.symbols.empty() or (given.symbols.size() == 1 and subexpression(given.symbols[0]) and given.symbols[0].subexpression.symbols.empty());
+    return given.symbols.empty() 
+    or (given.symbols.size() == 1 
+        and subexpression(given.symbols[0]) 
+        and given.symbols[0].subexpression.symbols.empty());
 }
 
 expression parse_unit_expression(expression *&expected, const expression &given, size_t &pointer) {
@@ -280,7 +283,7 @@ llvm::Function* create_main(llvm::IRBuilder<>& builder, llvm::LLVMContext& conte
     std::vector<llvm::Type*> state = {llvm::Type::getInt32Ty(context), llvm::Type::getInt8PtrTy(context)->getPointerTo()};
     llvm::FunctionType* main_type = llvm::FunctionType::get(llvm::Type::getInt32Ty(context), state, false);
     llvm::Function* main_function = llvm::Function::Create(main_type, llvm::Function::ExternalLinkage, "main", module.get());
-    builder.SetInsertPoint(llvm::BasicBlock::Create(context, "entry", main_function));
+    builder.SetInsertPoint(llvm::BasicBlock::Create(context, "entry", main_function));    
     return main_function;
 }
 
@@ -336,6 +339,11 @@ std::string expression_to_string(expression given) {
     }
     return result;
 }
+
+
+
+
+
 
 
 expression string_to_expression_tail(std::vector<expression> list, state& state, flags flags) {
@@ -411,24 +419,22 @@ llvm::Type* parse_llvm_string_as_type(std::string given, state& state, llvm::SMD
 
 
 
-
-
-
-
 /////TODO:
 //////          rewrite this code by replacing the use of the "unreachable" instruction" with a call to "llvm.donothing()". this makes way more sense.
 
-bool parse_llvm_string_as_instruction(std::string given, state& state, llvm::SMDiagnostic& errors) {
-    /*
-    std::string body = "";
-    data.function->print(llvm::raw_string_ostream(body) << "");
+bool parse_llvm_string_as_instruction(std::string given, llvm::Function* function, state& state, llvm::SMDiagnostic& errors) {
     
-    const size_t bb_count = data.function->getBasicBlockList().size();
+    std::string body = "";
+    function->print(llvm::raw_string_ostream(body) << "");
+    
+    
+    const size_t bb_count = function->getBasicBlockList().size();
     
     body.pop_back(); // delete the newline;
     body.pop_back(); // delete the close brace.
     body += given + "\nunreachable\n}\n";
     
+    /*
     const std::string current_name = data.function->getName();
     data.function->setName("_anonymous_" + random_string());
     
@@ -488,7 +494,7 @@ static expression parse_llvm_string(const expression &given, std::string llvm_st
             solution.symbols.push_back(s);
             return solution;
             
-        } else if (parse_llvm_string_as_instruction(llvm_string, state, instruction_errors)) {
+        } else if (parse_llvm_string_as_instruction(llvm_string, NULL, state, instruction_errors)) {
             expression solution = {};
             solution.erroneous = false;
             solution.type = &unit_type;
@@ -504,7 +510,7 @@ static expression parse_llvm_string(const expression &given, std::string llvm_st
             instruction_errors.print(state.data.file.name.c_str(), llvm::errs()); // temp
             std::cout << "func: llvm: "; // TODO: make this have color!
             function_errors.print(state.data.file.name.c_str(), llvm::errs());
-            return {true};
+            return failure;
         }
         
     } else if (flags.is_parsing_type and not flags.is_at_top_level) {
@@ -526,11 +532,11 @@ static expression parse_llvm_string(const expression &given, std::string llvm_st
             
         } else {
             std::cout << "llvm: "; // TODO: make this have color!
-            type_errors.print(state.data.file.name.c_str(), llvm::errs()); // temp, see above block comment.
-            return {true};
+            type_errors.print(state.data.file.name.c_str(), llvm::errs()); 
+            return failure;
         }
     } else {        
-        return {true};
+        return failure;
     }
 }
 
@@ -815,19 +821,20 @@ expression resolve(expression given, expression& expected_type, state& state, fl
 ////////////////////// debuggers //////////////////////////// 
 
 
-static void print_symtable(llvm::ValueSymbolTable &sym_2) {
-    for (auto i = sym_2.begin(); i != sym_2.end(); i++) {
-        std::cout << "key: " << i->getKey().str() << "\n";
-        std::cout << "value: ";
+static void print_symtable(llvm::ValueSymbolTable& table) {
+    std::cout << "----------------printing symbol table: -----------------\n";
+    for (auto i = table.begin(); i != table.end(); i++) {
+        std::cout << "key: \"" << i->getKey().str() << "\"\n";
+        std::cout << "value: [[[\n\n";
         i->getValue()->print(llvm::outs());
-        std::cout << "\n";
+        std::cout << "]]]\n\n";
         
-        std::cout << "first:" << i->first().str() << "\n";
-        std::cout << "second: ";
+        std::cout << "here is the result of instead using .first and .second: \n";
+        std::cout << "first: \"" << i->first().str() << "\"\n";
+        std::cout << "second: [[[\n\n";
         i->second->print(llvm::outs());
-        
-        std::cout << "\n\n";
-    }    
+        std::cout << "]]] \n\n";
+    }
     std::cout << "---------------------------------------------\n";
 }
 

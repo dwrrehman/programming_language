@@ -17,8 +17,7 @@
 
 struct translation_unit_data {
     struct file file;
-    llvm::Module* module;
-    llvm::Function* function;
+    llvm::Module* module;    
     llvm::IRBuilder<>& builder;
 };
 
@@ -49,12 +48,16 @@ struct flags {
     
 }; 
 
+
+
+
+
 using stack_frame = std::vector<expression>;
 
 
 class stack {
     llvm::Module* module;
-    llvm::Function* function;
+    //llvm::Function* function;
     std::vector<stack_frame> applications = {};
 public:
     stack() {
@@ -63,7 +66,7 @@ public:
     
     stack(llvm::Module* module, llvm::Function* function) {
         this->module = module;
-        this->function = function;
+        //this->function = function;
     }
     
     void push() {
