@@ -122,11 +122,8 @@ std::unique_ptr<llvm::Module> analyze(translation_unit unit, llvm::LLVMContext& 
     auto main_function = create_main(builder, context, module);    
     declare_donothing(builder, module);
     
-    auto dl = llvm::DataLayout(module.get());
-    module->setDataLayout(dl);
-    
     bool error = false;
-    symbol_table stack = {};       // init with      file.name's path,      and builtins.
+    symbol_table stack {module.get(), file, builtins};       // init with      file.name's path,      and builtins.
     flags flags = {};
     translation_unit_data data = {file, module.get(), builder}; 
     state state = {stack, data, error};

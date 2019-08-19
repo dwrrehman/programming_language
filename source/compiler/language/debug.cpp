@@ -242,7 +242,7 @@ void print_expression_line(expression expression) {
 
 /// TODO: put this in analysis or some other important file. this is a avery improtant function.
 
-std::string expression_to_string(expression given) {
+std::string expression_to_string(expression given, symbol_table) {
     std::string result = "(";
     size_t i = 0;
     for (auto symbol : given.symbols) {
@@ -323,19 +323,3 @@ std::string convert_symbol_type(enum symbol_type type) {
 }
 
 
-void print_stack(std::vector<std::vector<expression>> stack) {
-    std::cout << "\n\n---------------- printing stack -------------------\n\n";
-    for (int i = 0; i < stack.size(); i++) {
-        std::cout << "----- FRAME # " << i << " -------------------\n";
-        for (int j = 0; j < stack[i].size(); j++) {
-            std::cout << "#" << j << " : ";
-            
-            //print_expression_line(stack[i][j]);    /// Bad.
-            
-            auto s = expression_to_string(stack[i][j]);
-            std::cout << s << "\n";             
-        }
-        std::cout << "---------------------------------------------\n\n";
-    }
-    std::cout << "\n\n-----------------------------------------------------------\n\n";
-}

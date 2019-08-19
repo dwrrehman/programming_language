@@ -721,22 +721,6 @@ expression resolve(expression given, expression& expected_type, state& state, fl
 ////////////////////// debuggers //////////////////////////// 
 
 
-static void print_symtable(llvm::ValueSymbolTable& table) {
-    std::cout << "----------------printing symbol table: -----------------\n";
-    for (auto i = table.begin(); i != table.end(); i++) {
-        std::cout << "key: \"" << i->getKey().str() << "\"\n";
-        std::cout << "value: [[[\n\n";
-        i->getValue()->print(llvm::outs());
-        std::cout << "]]]\n\n";
-        
-        std::cout << "here is the result of instead using .first and .second: \n";
-        std::cout << "first: \"" << i->first().str() << "\"\n";
-        std::cout << "second: [[[\n\n";
-        i->second->print(llvm::outs());
-        std::cout << "]]] \n\n";
-    }
-    std::cout << "---------------------------------------------\n";
-}
 
 
 

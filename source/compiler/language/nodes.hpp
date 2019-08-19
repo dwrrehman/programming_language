@@ -64,7 +64,16 @@ public:
     
     std::vector<symbol> symbols = {};
     size_t indent_level = 0;
-    expression* type = nullptr;
+    
+    
+    
+    //expression* type = nullptr;
+    
+    
+    
+
+    size_t type = 0;
+    
     
     bool erroneous = false;
     bool was_allocated = false;
