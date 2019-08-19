@@ -1,10 +1,1 @@
-%"struct" = type {i8 }
-
-define void @f(%"struct" %i) {
-
-    call void @llvm.donothing()
-
-    ret void 
-}
-
 

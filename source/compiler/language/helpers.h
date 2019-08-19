@@ -9,105 +9,18 @@
 #ifndef helpers_h
 #define helpers_h
 
-#include "analysis.hpp"
+
 #include "parser.hpp"
-#include "nodes.hpp"
-#include "lists.hpp"
-#include "builtins.hpp"
-#include "debug.hpp"
 
-#include "llvm/IR/ValueSymbolTable.h"
-#include "llvm/IR/ValueMap.h"
-#include "llvm/Transforms/Utils/ValueMapper.h"
-#include "llvm/ADT/Optional.h"
-#include "llvm/IR/Instructions.h"
-#include "llvm/IR/LegacyPassManager.h"
-#include "llvm/Support/FileSystem.h"
-#include "llvm/Support/Host.h"
-#include "llvm/Support/raw_ostream.h"
-#include "llvm/Support/TargetRegistry.h"
-#include "llvm/Support/TargetSelect.h"
-#include "llvm/Target/TargetMachine.h"
-#include "llvm/Target/TargetOptions.h"
-#include "llvm/Support/SourceMgr.h"
-#include "llvm/IR/ModuleSummaryIndex.h"
-#include "llvm/Support/MemoryBuffer.h"
 #include "llvm/IR/LLVMContext.h"
-#include "llvm/IR/Module.h"
-#include "llvm/IR/IRBuilder.h"
-#include "llvm/ADT/APFloat.h"
-#include "llvm/ADT/STLExtras.h"
-#include "llvm/IR/BasicBlock.h"
-#include "llvm/IR/Constants.h"
-#include "llvm/IR/DerivedTypes.h"
-#include "llvm/IR/Function.h"
-#include "llvm/IR/Type.h"
-#include "llvm/IR/Verifier.h"
 #include "llvm/AsmParser/Parser.h"
-
-#include <algorithm>
-#include <cassert>
-#include <cctype>
-#include <cstdio>
-#include <cstdlib>
-#include <map>
-#include <memory>
-#include <string>
-#include <system_error>
-#include <utility>
-#include <vector>
-#include <sstream>
-#include <iostream>
-
-///---------------------------------
-
-#include "llvm/IR/ValueSymbolTable.h"
-#include "llvm/ADT/APFloat.h"
-#include "llvm/ADT/STLExtras.h"
-#include "llvm/IR/BasicBlock.h"
-#include "llvm/IR/Constants.h"
-#include "llvm/IR/DerivedTypes.h"
-#include "llvm/IR/Function.h"
-#include "llvm/IR/IRBuilder.h"
-#include "llvm/IR/LLVMContext.h"
-#include "llvm/IR/Module.h"
-#include "llvm/IR/Type.h"
-#include "llvm/IR/ValueMap.h"
-#include "llvm/Transforms/Utils/ValueMapper.h"
-#include "llvm/IR/Verifier.h"
-#include "llvm/ADT/Optional.h"
-#include "llvm/IR/Instructions.h"
-#include "llvm/IR/LegacyPassManager.h"
-#include "llvm/Support/FileSystem.h"
-#include "llvm/Support/Host.h"
-#include "llvm/Support/raw_ostream.h"
-#include "llvm/Support/TargetRegistry.h"
-#include "llvm/Support/TargetSelect.h"
-#include "llvm/Target/TargetMachine.h"
-#include "llvm/Target/TargetOptions.h"
-#include "llvm/Support/SourceMgr.h"
 #include "llvm/IR/ModuleSummaryIndex.h"
-#include "llvm/AsmParser/Parser.h"
-#include "llvm/Support/MemoryBuffer.h"
-#include "llvm/Transforms/Utils/FunctionComparator.h"
+#include "llvm/Support/SourceMgr.h"
+#include "llvm/IR/ValueSymbolTable.h"
 
-#include "llvm/IR/Type.h"
-#include "llvm/IR/Verifier.h"
-#include "llvm/AsmParser/Parser.h"
-
-#include <algorithm>
-#include <cassert>
-#include <cctype>
-#include <cstdio>
 #include <cstdlib>
-#include <map>
-#include <memory>
-#include <string>
-#include <system_error>
-#include <utility>
-#include <vector>
-#include <sstream>
 #include <iostream>
+#include <sstream>
 
 
 ////////////////// comparisons ///////////////////////////
@@ -232,7 +145,7 @@ expression* generate_abstraction_type_for(abstraction_definition def) {
     for (auto parameter : parameter_list) {
         expression t = type_type;
         if (parameter.type) t = *parameter.type;
-        type->symbols.push_back(t);
+        ////type->symbols.push_back(t);              ///TODO: update me.
     }
     type->symbols.push_back({def.return_type});
     type->type = &type_type;
@@ -318,27 +231,7 @@ llvm::Function* create_main(llvm::IRBuilder<>& builder, llvm::LLVMContext& conte
 
 
 
-std::string expression_to_string(expression given) {
-    std::string result = "(";
-    size_t i = 0;
-    for (auto symbol : given.symbols) {
-        if (identifier(symbol)) result += symbol.identifier.name.value;
-        else if (subexpression(symbol)) {
-            result += "(" + expression_to_string(symbol.subexpression) + ")";
-        }
-        if (i < given.symbols.size() - 1) result += " ";
-        i++;
-    }
-    result += ")";
-    if (given.llvm_type) {
-        std::string type = "";
-        given.llvm_type->print(llvm::raw_string_ostream(type) << "");
-        result += " " + type;
-    } else if (given.type) {
-        result += " " + expression_to_string(*given.type);
-    }
-    return result;
-}
+
 
 
 
@@ -378,7 +271,7 @@ expression string_to_expression_tail(std::vector<expression> list, state& state,
 expression string_to_expression(std::string given, state& state, flags flags, bool& error) {
     struct file file = {"<llvm string symbol>", given};
     start_lex(file);
-    return string_to_expression_tail(filter_subexpressions(parse_expression(file, false, false)), state, flags);
+    return string_to_expression_tail(filter_subexpressions(parse_expression(file, false, false)), state, flags); 
 }
 
 
@@ -428,12 +321,12 @@ bool parse_llvm_string_as_instruction(std::string given, llvm::Function* functio
     function->print(llvm::raw_string_ostream(body) << "");
     
     
-    const size_t bb_count = function->getBasicBlockList().size();
-    
-    body.pop_back(); // delete the newline;
-    body.pop_back(); // delete the close brace.
-    body += given + "\nunreachable\n}\n";
-    
+    //const size_t bb_count = function->getBasicBlockList().size();
+//    
+//    body.pop_back(); // delete the newline;
+//    body.pop_back(); // delete the close brace.
+//    body += given + "\nunreachable\n}\n";
+//    
     /*
     const std::string current_name = data.function->getName();
     data.function->setName("_anonymous_" + random_string());

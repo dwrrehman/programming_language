@@ -9,6 +9,7 @@
 #ifndef error_hpp
 #define error_hpp
 
+
 #include "lexer.hpp"
 #include <string>
 #include <vector>

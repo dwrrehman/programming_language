@@ -9,11 +9,9 @@
 #ifndef analysis_hpp
 #define analysis_hpp
 
-#include "parser.hpp"
+#include "arguments.hpp"
 #include "nodes.hpp"
-
-#include <vector>
-#include <string>
+#include "llvm/IR/IRBuilder.h"
 
 struct translation_unit_data {
     struct file file;
@@ -49,58 +47,64 @@ struct flags {
 }; 
 
 
+using nat = size_t;
 
 
 
-using stack_frame = std::vector<expression>;
-
-
-class stack {
-    llvm::Module* module;
-    //llvm::Function* function;
-    std::vector<stack_frame> applications = {};
-public:
-    stack() {
-        /// ?
-    }
-    
-    stack(llvm::Module* module, llvm::Function* function) {
-        this->module = module;
-        //this->function = function;
-    }
-    
-    void push() {
-        applications.push_back({});
-    }
-    
-    void pop() {
-        applications.pop_back();
-    }
-    
-    stack_frame top() {
-        return applications.back();
-    }
-    
-    
+struct stack_frame {
+    llvm::ValueSymbolTable* llvm = nullptr;
+    std::vector<nat> indicies = {};   // index into master.   
 };
 
+struct signature_entry {
+    expression signature = {};
+    abstraction_definition definition = {};
+    std::vector<nat> parents = {}; // index into master.
+}; 
 
-class astack {
-    std::vector<abstraction_definition> abstractions;
+class symbol_table {
+public:    
+    std::vector<struct signature_entry> master = {};
+    std::vector<struct stack_frame> frames = {};
+    std::vector<nat> blacklist = {}; // index into master.
     
-    abstraction_definition this_abstraction() {
-        return {};
+    void push() {frames.push_back({});}    
+    void pop() {frames.pop_back();}
+    std::vector<nat>& top() {return frames.back().indicies;}    
+    expression& lookup(nat index) {return master[index].signature;}
+    
+
+    void define(expression signature, abstraction_definition definition, 
+                nat stack_frame_index, std::vector<nat> parents = {} ) {
+        
+        /// if in blacklist, 
+                    /// remove from blacklist.
+        
+        frames[frames.size() - 1 - stack_frame_index].indicies.push_back(master.size()); 
+        master.push_back({signature, definition, parents});
+    }
+    
+    void undefine(nat signature_index, nat stack_frame_index) {
+        blacklist.push_back(signature_index);
+        //frames[frames.size() - 1 - stack_frame_index].indicies.push_back(master.size());  // TODO: make this into a    "remove_if(erase(signature_index));"
+        
+    }
+    
+    void disclose(nat desired_signature, expression new_signature, 
+                  nat source_abstraction, nat destination_frame) {
+        
+    }
+
+    symbol_table() {        
+        push();
     }
 };
 
 struct state {
-    stack& stack;
-    astack& astack;
+    symbol_table& stack;    
     translation_unit_data& data;
-    bool& error; 
+    bool& error;
 };
-
-
 
 
 expression csr(expression given, size_t& index, const size_t depth, const size_t max_depth, state& state, flags flags); 
@@ -108,262 +112,7 @@ void adp(abstraction_definition& given, state& state, flags flags);
 expression res(expression given, state& state, flags flags);
 
 
-
-
 std::unique_ptr<llvm::Module> analyze(translation_unit unit, llvm::LLVMContext& context, struct file file);
 
 
-
 #endif /* analysis_hpp */
-
-
-
-/*
-
- jobs:
-
- - scope checking
- - scoping and name resolution
-
-- put in calls to calls the destructor when a variable goes out of scope!;
-- - user-defined compiler (symbol table oriented) triggers for calling a function.
-
-
-- ie, the compiler should make everything have a constructor and destructor. (even integers? yes they simply get push and popped off the stack.)
-
- - ie, we really should be making our compiler care about when a object goes out of scope, delete it.
-
- however, because we want to be able to transfer ownership, we need to essentially say that:
-
-    v = [1,2,3,4]        ; the compiler should be able to infer that this is a vector.
-
-                        ; based on the signature, appears to return (), defines a
-
-
- heres the signature of that function.
-
- (((sig) _signature) = ((v) vector)) () {}
-
- (vector) {
-    (public) {
-        _define _caller
-    }
-    () public _parent {
-
-    }
- }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
- ok. it seems that this whole _level# and _scope# thing are actually just special cases of a very powerful function call, callled:
-
- "f"
-
-
-so, basically, the idea is that you will be able to specify a scope, relative to a abstraction level, and this is how you will be able to specify any scope/abstraction.
-
-
-
-
- so the idea is that when the user writes:
-
-
-                _level1                ; ie, the parent abstraction,
-
-
-
- what they really mean is:
-
-
-
-
-                f abs=1 scope=0                     ;ie, the scope of the abstraction.
-
-
-
-
-
-
-
-
-
-
-
- but wait.... thats distinctly not what we mean.....
-
-
-
-
-
-
-
- maybe if we are trying to get a scope realtive to an abstraction,
-
-
-
- but when we speicfy a _parent or _self, what we really want isnt a scope.   its an abstraction signature.
-
-
-
- thats the difference.
-
-
-
-
-
- ie, we might say, there are two functions,
-
-
-    one which gives you an abstraction, when you give it:           _scope, _abstraction
-
- and another, which gives you a scope, when you give it:            _abstraction, _scope
-
-
- interesting huh? lets call these:
-
-
-
-
-
-
-
-
-                _abstraction 0 1        ; the current scope's parent.
-
-                _scope 1 0              ; the current scope of the parent.
-
-
-
-
-    so, we see that these are actually quite different beasts.
-
-
-    most notably, these two functions actually correspond to the scopage of the two core fundmental
-        aspects of n3zqx2l, namely;
-
-
-            - abstraction : code
-and
-            - application : data
-
-
-
- so, lets actually make it so the signature names reflect that:
-
-
-                _abstraction 0 1              ; the current scope's parent.
-
-                _application 1 0              ; the current scope of the parent.
-
-
-    ah yes. thats better.
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-TODO:
-           add in a new builtin:
-
-
-
-                        _recognize <_signature>                                      ; runs at compile time.
-
-
-
-
-
-        note, this is how we are going to do compiletime turing-complete signatures. using the return type as our mechnaism for parameter types.
-
-
-
-
-
-
-
-
-
-
-
-
-
- -------------- useful reminder for when we need the compiler to define a bunch of abstractions for the api.
-
-
-
-
-
-
-
-
-
-
-
- std::vector<std::string> builtins = {
-
- "_evaluation", "_compiletime", "_runtime",
-
- "_precedence", "_associativity",
-
- "_expression",
-  "_llvm_string",
-
- };
-
-
-
-
- */

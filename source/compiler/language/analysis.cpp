@@ -6,60 +6,15 @@
 //  Copyright © 2019 Daniel Rehman. All rights reserved.
 //
 
-/*
- 
- 
- 
- 
- -------------------------------whats missing?------------------------------------------
- 
- 
-
- -----> code gen for abstractions  [IMPORTANT]
- 
- -----> compiletime evaluation  [IMPORTANT]
- 
- 
- -----> scope/func references:  [IMPORTANT]
-     
-                _abstraction_x_x
- 
-                _application_x_x
-
- 
- -----> interpret the _define and _undefine and _disclose intrins.   [IMPORTANT]
- 
- 
-        
------>  complete the FDI algorithm in CSR  [IMPORTANT]
- 
- 
- 
- ------->  figure out how to implement NSS [IMPORTANT]
- 
- 
- 
- 
- 
- 
- 
- 
- 
- -----> write a custom stack class, 
- 
-        which keep tracks if something was defined in the current scope or a parent scope. 
-
- 
- 
- */
-
 #include "analysis.hpp"
-#include "parser.hpp"
-#include "nodes.hpp"
-#include "lists.hpp"
+
+
 #include "builtins.hpp"
 #include "debug.hpp"
 #include "helpers.h"
+#include "lists.hpp"
+#include "llvm/IR/Verifier.h"
+
 
 
 /*
@@ -100,27 +55,32 @@ expression parse_abstraction_definition(expression given, size_t& index, state& 
     return {};
 }
 
-
-////TODO: this algorithm left out subexpressions. we need to add that back in using "res()".
-
 bool matches(expression given, expression& signature, size_t& index, const size_t depth, const size_t max_depth, state& state, flags flags) {
     if (not signature.type or not expressions_match(*given.type, signature.type)) return false;
-    for (auto& element : signature.symbols) {
-        ///TODO: check to see if the current given node is a subexpression. this means we need to call "res()".
-        if (subexpression(element)) {
-            element.subexpression = csr(given, index, depth + 1, max_depth, state, flags);
-            if (element.subexpression.erroneous) return false;        
-        } else if (not are_equal_identifiers(element, given.symbols[index])) return false;
-        else index++;
+    
+    for (auto& symbol : signature.symbols) {         
+        
+        if (subexpression(symbol) and subexpression(given.symbols[index])) { // found a subexpression.
+            symbol.subexpression = res(given.symbols[index].subexpression, state, flags);
+            if (symbol.subexpression.erroneous) return false;
+            index++;
+        } else if (subexpression(symbol)) {
+            symbol.subexpression = csr(given, index, depth + 1, max_depth, state, flags);
+            if (symbol.subexpression.erroneous) return false;
+            
+        } else if (not are_equal_identifiers(symbol, given.symbols[index])) { 
+            return false;
+        } else index++;
     } return true;
 }
 
 expression csr(expression given, size_t& index, const size_t depth, const size_t max_depth, state& state, flags flags) {
     if (index >= given.symbols.size() or not given.type or depth > max_depth) return failure;
     size_t saved = index;
-    for (auto signature : state.stack.top()) {
+    for (auto signature_index : state.stack.top()) {
         index = saved;
-        if (matches(given, signature, index, depth, max_depth, state, flags)) return signature;
+        if (matches(given, state.stack.lookup(signature_index), index, depth, max_depth, state, flags)) 
+            return state.stack.lookup(signature_index);
     }
     
     if (found_abstraction_definition(given, index)) return parse_abstraction_definition(given, index, state, flags);
@@ -151,15 +111,15 @@ std::unique_ptr<llvm::Module> analyze(translation_unit unit, llvm::LLVMContext& 
     
     
     bool error = false;
-    stack stack = {};
-    astack astack = {}; //init with file.name's path.
+    symbol_table stack = {}; // init with file.name's path. 
     flags flags = {};
-    translation_unit_data data = {file, module.get(), builder};          // get rid of main_function in this data structure.
-    state state = {stack, astack, data, error};
+    translation_unit_data data = {file, module.get(), builder}; 
+    state state = {stack, data, error};
+    
+    print_stack({builtins});
     
     
-    
-    
+
     
     // test, by allowing some llvm random string to be parsed into the file:
     llvm::SMDiagnostic errors;
@@ -173,18 +133,22 @@ std::unique_ptr<llvm::Module> analyze(translation_unit unit, llvm::LLVMContext& 
     }
     
     
+//
+//        auto& body = unit.list.expressions;    
+//        std::vector<expression> parsed_body = {};
+//    
+//        for (auto expression : body) {
+//            
+//            auto type = unit_type;
+//            expression.type = &type;
+//            
+//            auto solution = res(expression, state, flags.generate_code().at_top_level());
+//            if (solution.erroneous) error = true;
+//            
+//            else parsed_body.push_back(solution);            
+//        } 
+//    body = parsed_body;
 
-    //    auto& body = unit.list.expressions;
-    //    std::vector<expression> parsed_body = {};
-    //    for (auto expression : body) {
-    //        auto solution = resolve(expression, unit_type, state, flags.generate_code().at_top_level());
-    //        if (solution.erroneous) error = true;
-    //        else parsed_body.push_back(solution);
-    //    } body = parsed_body;
-
-    
-    
-    
     
     if (llvm::verifyFunction(*main_function)) append_return_0_statement(builder, context);
     if (llvm::verifyModule(*module, &llvm::errs())) error = true;

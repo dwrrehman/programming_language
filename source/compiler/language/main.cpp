@@ -39,6 +39,7 @@
 #include "lists.hpp"
 
 #include "llvm/IR/LLVMContext.h"
+#include <cstdlib>
 
 int main(const int argc, const char** argv) {
     auto arguments = get_commandline_arguments(argc, argv);

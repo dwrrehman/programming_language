@@ -9,23 +9,11 @@
 #ifndef nodes_hpp
 #define nodes_hpp
 
+
 #include "lexer.hpp"
-
-#include "llvm/ADT/APFloat.h"
-#include "llvm/ADT/STLExtras.h"
-#include "llvm/IR/BasicBlock.h"
-#include "llvm/IR/Constants.h"
-#include "llvm/IR/DerivedTypes.h"
-#include "llvm/IR/Function.h"
-#include "llvm/IR/IRBuilder.h"
-#include "llvm/IR/LLVMContext.h"
-#include "llvm/IR/Module.h"
 #include "llvm/IR/Type.h"
-#include "llvm/IR/Verifier.h"
-#include "llvm/ADT/Optional.h"
-
-#include <string>
 #include <vector>
+
 
 class node {    // TODO: delete me
 public:
@@ -81,9 +69,7 @@ public:
     bool erroneous = false;
     bool was_allocated = false;
     
-    llvm::Type* llvm_type = nullptr;    
-    llvm::Instruction* llvm_instruction = nullptr;
-    llvm::Function* llvm_function = nullptr;
+    llvm::Type* llvm_type = nullptr;
     
     expression() {}
     expression(std::vector<symbol> symbols){
@@ -121,9 +107,6 @@ public:
 
 /// ---------------------- Abstractions ---------------------------
 
-using stack_frame = std::vector<expression>;
-
-
 class abstraction_definition: public node {
 public:
     
@@ -133,10 +116,6 @@ public:
     expression return_type = {};
     block body = {};
         
-    /// new:
-    expression value = {}; // used by variables.
-    stack_frame* frame = nullptr;  
-    
     size_t precedence = 0;
     enum associativity associativity = associativity::left;     
 

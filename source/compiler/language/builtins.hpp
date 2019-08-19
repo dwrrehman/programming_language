@@ -14,15 +14,11 @@
 
 extern expression failure;
 
-
 extern expression type_type;
 extern expression unit_type;
 extern expression none_type;
 extern expression any_type;
 extern expression infered_type;
-
-extern expression unevaluated_type;
-extern expression signature_type;
 
 extern expression application_type;
 extern expression abstraction_type;
@@ -35,10 +31,9 @@ extern expression mutable_type;
 
 extern expression define_abstraction;
 extern expression undefine_abstraction;
+extern expression disclose_abstraction;
 
 extern expression all_signature;
-
-extern expression disclose_abstraction;
 
 extern std::vector<expression> builtins;
 

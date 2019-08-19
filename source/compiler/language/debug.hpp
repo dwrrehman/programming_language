@@ -9,13 +9,12 @@
 #ifndef debug_hpp
 #define debug_hpp
 
-#include "arguments.hpp"
-#include "lexer.hpp"
-#include "parser.hpp"
+#include "arguments.hpp" 
+
+#include "lexer.hpp" 
+#include "nodes.hpp"  
 
 #include <vector>
-#include <unordered_map>
-#include <string>
 
 #define prep(_level) for (int i = _level; i--;) std::cout << ".   "
 

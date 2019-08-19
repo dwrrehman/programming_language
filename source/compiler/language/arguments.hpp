@@ -9,8 +9,7 @@
 #ifndef arguments_hpp
 #define arguments_hpp
 
-#include <iostream>
-#include <fstream>
+#include <string>
 #include <vector>
 
 struct file {

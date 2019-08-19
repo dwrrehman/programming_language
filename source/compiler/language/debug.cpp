@@ -9,13 +9,10 @@
 #include "debug.hpp"
 
 #include "arguments.hpp"
-#include "lexer.hpp"
-#include "parser.hpp"
-
-#include <string>
-#include <vector>
+#include "llvm/IR/Type.h"
+#include "llvm/Support/raw_ostream.h"
 #include <iostream>
-#include <unordered_map>
+
 
 // ----------------------- command line arguments debugging: ----------------------------
 
@@ -236,6 +233,46 @@ void print_expression_line(expression expression) {
     }
 }
 
+
+
+
+
+
+
+
+/// TODO: put this in analysis or some other important file. this is a avery improtant function.
+
+std::string expression_to_string(expression given) {
+    std::string result = "(";
+    size_t i = 0;
+    for (auto symbol : given.symbols) {
+        if (symbol.type == symbol_type::identifier) result += symbol.identifier.name.value;
+        else if (symbol.type == symbol_type::subexpression) {
+            result += "(" + expression_to_string(symbol.subexpression) + ")";
+        }
+        if (i < given.symbols.size() - 1) result += " ";
+        i++;
+    }
+    result += ")";
+    if (given.llvm_type) {
+        std::string type = "";
+        given.llvm_type->print(llvm::raw_string_ostream(type) << "");
+        result += " " + type;
+    } else if (given.type) {
+        result += " " + expression_to_string(*given.type);
+    }
+    return result;
+}
+
+
+
+
+
+
+
+
+
+
 void print_block_line(block block) {
     std::cout << "{\n";
     print_expression_list(block.list, 1);
@@ -291,9 +328,12 @@ void print_stack(std::vector<std::vector<expression>> stack) {
     for (int i = 0; i < stack.size(); i++) {
         std::cout << "----- FRAME # " << i << " -------------------\n";
         for (int j = 0; j < stack[i].size(); j++) {
-            std::cout << "e" << j << ": ";
-            print_expression_line(stack[i][j]);
-            std::cout << "\n";
+            std::cout << "#" << j << " : ";
+            
+            //print_expression_line(stack[i][j]);    /// Bad.
+            
+            auto s = expression_to_string(stack[i][j]);
+            std::cout << s << "\n";             
         }
         std::cout << "---------------------------------------------\n\n";
     }

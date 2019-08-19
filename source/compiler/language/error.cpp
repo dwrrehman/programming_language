@@ -7,14 +7,11 @@
 //
 
 #include "error.hpp"
-#include "lexer.hpp"
+
 #include "lists.hpp"
 #include "color.h"
-
 #include <sstream>
 #include <iostream>
-#include <string>
-#include <vector>
 
 
 // helpers:

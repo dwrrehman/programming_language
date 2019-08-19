@@ -7,11 +7,13 @@
 //
 
 #include "corrector.hpp"
-#include "nodes.hpp"
-#include "parser.hpp"
+
+#include "lists.hpp"
 #include "arguments.hpp"
 #include "debug.hpp"
-#include "lists.hpp"
+
+#include <iostream>
+
 
 /*
         known bug:

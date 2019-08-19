@@ -5,15 +5,15 @@
 //  Created by Daniel Rehman on 1901126.
 //  Copyright © 2019 Daniel Rehman. All rights reserved.
 //
-#include "lexer.hpp"
-#include "lists.hpp"
-#include "debug.hpp"
-#include "error.hpp"
 
-#include <vector>
-#include <iostream>
-#include <iomanip>
-#include <unistd.h>
+#include "lexer.hpp"
+
+#include "arguments.hpp"
+#include "error.hpp"
+#include "lists.hpp"
+#include <string>
+#include <cstdlib>
+
 
 #define clear_and_return()  auto result = current; current = {}; return result;
 

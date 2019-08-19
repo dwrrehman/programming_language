@@ -9,7 +9,6 @@
 #ifndef corrector_hpp
 #define corrector_hpp
 
-#include "parser.hpp"
 #include "nodes.hpp"
 
 translation_unit correct(translation_unit unit, struct file file);
