@@ -75,6 +75,9 @@ bool matches(expression given, expression& signature, size_t& index, const size_
 
 expression csr(expression given, size_t& index, const size_t depth, const size_t max_depth, state& state, flags flags) {
     if (index >= given.symbols.size() or not given.type or depth > max_depth) return failure;
+    if (found_unit_expression(given)) return parse_unit_expression(given, index);  
+    else if (found_llvm_string(given, index)) return parse_llvm_string(given, given.symbols[index].llvm.literal.value, index, state, flags); 
+    
     size_t saved = index;
     for (auto signature_index : state.stack.top()) {
         index = saved;
@@ -93,7 +96,20 @@ expression res(expression given, state& state, flags flags) {
         size_t pointer = 0;
         solution = csr(given, pointer, 0, max_depth, state, flags);
         if (not solution.erroneous and pointer == given.symbols.size()) break;
-    } return solution;
+    } 
+    return solution;
+}
+
+static void interpret_file_as_llvm_string(const struct file &file, state &state) { // test, by allowing some llvm random string to be parsed into the file:
+    llvm::SMDiagnostic errors;
+    if (parse_llvm_string_as_function(file.text, state, errors)) {
+        std::cout << "success.\n";
+        
+    } else {
+        std::cout << "failure.\n";
+        errors.print("llvm string program:", llvm::errs());
+        abort();
+    }
 }
 
 std::unique_ptr<llvm::Module> analyze(translation_unit unit, llvm::LLVMContext& context, struct file file) {
@@ -110,44 +126,24 @@ std::unique_ptr<llvm::Module> analyze(translation_unit unit, llvm::LLVMContext& 
     module->setDataLayout(dl);
     
     bool error = false;
-    symbol_table stack = {}; // init with file.name's path. 
+    symbol_table stack = {};       // init with      file.name's path,      and builtins.
     flags flags = {};
     translation_unit_data data = {file, module.get(), builder}; 
     state state = {stack, data, error};
     
-    print_stack({builtins});
-    
-    
+    print_stack({builtins});    
 
-    
-    // test, by allowing some llvm random string to be parsed into the file:
-    llvm::SMDiagnostic errors;
-    if (parse_llvm_string_as_function(file.text, state, errors)) {
-        std::cout << "success.\n";
+    auto& body = unit.list.expressions;    
+    std::vector<expression> parsed_body = {};
+    for (auto expression : body) {        
+        auto type = unit_type;        //TODO: fix me!   use sig idx master lookup method of typing stuff.
+        expression.type = &type;  
         
-    } else {
-        std::cout << "failure.\n";
-        errors.print("llvm string program:", llvm::errs());
-        abort();
+        auto solution = res(expression, state, flags.generate_code().at_top_level());
+        if (solution.erroneous) error = true;
+        else parsed_body.push_back(solution);            
     }
-    
-    
-//
-//        auto& body = unit.list.expressions;    
-//        std::vector<expression> parsed_body = {};
-//    
-//        for (auto expression : body) {
-//            
-//            auto type = unit_type;
-//            expression.type = &type;
-//            
-//            auto solution = res(expression, state, flags.generate_code().at_top_level());
-//            if (solution.erroneous) error = true;
-//            
-//            else parsed_body.push_back(solution);            
-//        } 
-//    body = parsed_body;
-
+    body = parsed_body;
     
     if (llvm::verifyFunction(*main_function)) append_return_0_statement(builder, context);
     if (llvm::verifyModule(*module, &llvm::errs())) error = true;

@@ -1,1 +1,3 @@
-
+`define void @"(hello world)"() {
+    ret void
+}`

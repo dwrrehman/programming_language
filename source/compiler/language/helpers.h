@@ -125,31 +125,32 @@ std::vector<expression> filter_subexpressions(expression given) {
     return subexpressions;
 }
 
-abstraction_definition preliminary_parse_abstraction(const expression &given, size_t &pointer) {
+abstraction_definition preliminary_parse_abstraction(const expression &given, size_t &index) {
     abstraction_definition definition = {};
-    definition.call_signature = given.symbols[pointer++].subexpression;
-    while (given.symbols[pointer].type != symbol_type::block) {
-        definition.return_type.symbols.push_back(given.symbols[pointer++]);
-    } definition.body = given.symbols[pointer++].block;
+    definition.call_signature = given.symbols[index++].subexpression;
+    while (given.symbols[index].type != symbol_type::block) {
+        definition.return_type.symbols.push_back(given.symbols[index++]);
+    } definition.body = given.symbols[index++].block;
     return definition;
 }
 
 expression* generate_abstraction_type_for(abstraction_definition def) {
-    auto type = new expression();
-    type->was_allocated = true;
-    auto parameter_list = filter_subexpressions(def.call_signature);
-    if (parameter_list.empty()) {
-        *type = def.return_type;
-        return type;
-    }
-    for (auto parameter : parameter_list) {
-        expression t = type_type;
-        if (parameter.type) t = *parameter.type;
-        ////type->symbols.push_back(t);              ///TODO: update me.
-    }
-    type->symbols.push_back({def.return_type});
-    type->type = &type_type;
-    return type;
+//    auto type = new expression();
+//    type->was_allocated = true;
+//    auto parameter_list = filter_subexpressions(def.call_signature);
+//    if (parameter_list.empty()) {
+//        *type = def.return_type;
+//        return type;
+//    }
+//    for (auto parameter : parameter_list) {
+//        expression t = type_type;
+//        if (parameter.type) t = *parameter.type;
+//        ////type->symbols.push_back(t);              ///TODO: update me.
+//    }
+//    type->symbols.push_back({def.return_type});
+//    type->type = &type_type;
+//    return type;
+    return nullptr;
 }
 
 bool contains_a_block_starting_from(size_t begin, std::vector<symbol> list) {
@@ -163,7 +164,7 @@ static bool found_abstraction_definition(expression &given, size_t &index) {
 }
 
 bool contains_top_level_runtime_statement(std::vector<expression> list) { //TODO: fix me, to consider only runtime statements.
-    for (auto e : list) if (not (e.symbols.size() == 1 and e.symbols[0].type == symbol_type::abstraction_definition)) return true;
+    //for (auto e : list) if (not (e.symbols.size() == 1 and e.symbols[0].type == symbol_type::abstraction_definition)) return true;
     return false;
 }
 
@@ -174,7 +175,7 @@ void append_return_0_statement(llvm::IRBuilder<> &builder, llvm::LLVMContext &co
 
 static void declare_donothing(llvm::IRBuilder<> &builder, const std::unique_ptr<llvm::Module> &module) {
     llvm::Function* donothing = llvm::Intrinsic::getDeclaration(module.get(), llvm::Intrinsic::donothing);        
-    builder.CreateCall(donothing);
+    builder.CreateCall(donothing); // TODO: TEMP
 }
 
 bool found_unit_expression(const expression &given) {
@@ -184,13 +185,14 @@ bool found_unit_expression(const expression &given) {
         and given.symbols[0].subexpression.symbols.empty());
 }
 
-expression parse_unit_expression(expression *&expected, const expression &given, size_t &pointer) {
-    if (given.symbols.size() == 1
-        and subexpression(given.symbols[0])
-        and given.symbols[0].subexpression.symbols.empty()) pointer++;
-    if (expressions_match(*expected, infered_type)) expected = &unit_type;
-    if (expressions_match(*expected, unit_type)) return unit_type;
-    else return {true};
+expression parse_unit_expression(expression& given, size_t& index) {   ////TODO: this is bad. fix this. 
+//    if (given.symbols.size() == 1
+//        and subexpression(given.symbols[0])
+//        and given.symbols[0].subexpression.symbols.empty()) index++;
+//    if (expressions_match(*given.type, infered_type)) given.type = &unit_type;
+//    if (expressions_match(*given.type, unit_type)) return unit_type;
+//    else 
+    return failure;
 }
 
 bool found_llvm_string(const expression &given, size_t &pointer) {
@@ -323,7 +325,7 @@ llvm::Type* parse_llvm_string_as_type(std::string given, state& state, llvm::SMD
 bool parse_llvm_string_as_instruction(std::string given, llvm::Function* function, state& state, llvm::SMDiagnostic& errors) {
     
     std::string body = "";
-    function->print(llvm::raw_string_ostream(body) << "");
+    //function->print(llvm::raw_string_ostream(body) << "");
     
     
     //const size_t bb_count = function->getBasicBlockList().size();
