@@ -19,7 +19,6 @@
 #include <iostream>
 
 
-
 static size_t output_line_number = 0;
 
 void print_welcome_message() {
@@ -53,19 +52,9 @@ void analyze(translation_unit unit, std::unique_ptr<llvm::Module>& module, struc
     // code this after we get the regular one finished.
 }
 
-int repl_interpret(std::string executable_name, std::vector<std::unique_ptr<llvm::Module> > &modules) {
-    auto & main_module = modules.back();        
-    auto jit = llvm::EngineBuilder(std::move(main_module)).setEngineKind(llvm::EngineKind::JIT).create();
-    jit->finalizeObject();
-    auto main = jit->FindFunctionNamed("main");               
-    const int exit_code = jit->runFunctionAsMain(main, {executable_name}, nullptr);
-    return exit_code;
-}
-
 void repl(llvm::LLVMContext& context) {
     print_welcome_message();
     
-    srand((unsigned)time(nullptr));
     auto module = llvm::make_unique<llvm::Module>("_REPL", context);
     
     std::string line = "";

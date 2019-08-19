@@ -36,12 +36,17 @@ std::unique_ptr<llvm::Module> process(struct file file, llvm::LLVMContext &conte
     return analyze(correct(parse(file, context), file), context, file);
 }
 
+static void set_data_layout(std::unique_ptr<llvm::Module>& main_module) {
+    auto machine = llvm::EngineBuilder(std::unique_ptr<llvm::Module>{main_module.get()}).setEngineKind(llvm::EngineKind::JIT).create();    
+    main_module->setDataLayout(machine->getDataLayout());
+}
+
 int interpret(std::string executable_name, std::vector<std::unique_ptr<llvm::Module>>& modules) {
-    auto & main_module = modules.back();
-    auto jit = llvm::EngineBuilder(std::move(main_module)).setEngineKind(llvm::EngineKind::JIT).create();
+    auto& main_module = modules.back();
+    set_data_layout(main_module);
+    auto jit = llvm::EngineBuilder(std::unique_ptr<llvm::Module>{main_module.get()}).setEngineKind(llvm::EngineKind::JIT).create();
     jit->finalizeObject();
-    auto fn = jit->FindFunctionNamed("main");
-    const int exit_code = jit->runFunctionAsMain(fn, {executable_name}, nullptr);
+    const int exit_code = jit->runFunctionAsMain(jit->FindFunctionNamed("main"), {executable_name}, nullptr);
     return exit_code;
 }
 

@@ -14,8 +14,7 @@
 #include "helpers.h"
 #include "lists.hpp"
 #include "llvm/IR/Verifier.h"
-
-
+#include "llvm/Target/TargetMachine.h"
 
 /*
 expression adp(expression given, size_t &pointer, size_t saved, state& state, flags flags) {
@@ -103,12 +102,12 @@ std::unique_ptr<llvm::Module> analyze(translation_unit unit, llvm::LLVMContext& 
     llvm::IRBuilder<> builder(context);
     auto module = llvm::make_unique<llvm::Module>(file.name, context);
     auto triple = llvm::sys::getDefaultTargetTriple();
-    module->setTargetTriple(triple);
-    auto main_function = create_main(builder, context, module);
+    module->setTargetTriple(triple);    
+    auto main_function = create_main(builder, context, module);    
+    declare_donothing(builder, module);
     
-    llvm::Function* donothing = llvm::Intrinsic::getDeclaration(module.get(), llvm::Intrinsic::donothing);        
-    builder.CreateCall(donothing);
-    
+    auto dl = llvm::DataLayout(module.get());
+    module->setDataLayout(dl);
     
     bool error = false;
     symbol_table stack = {}; // init with file.name's path. 

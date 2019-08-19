@@ -15,7 +15,7 @@
 
 struct translation_unit_data {
     struct file file;
-    llvm::Module* module;    
+    llvm::Module* module;
     llvm::IRBuilder<>& builder;
 };
 
@@ -42,14 +42,11 @@ struct flags {
     should_allow_undefined_signatures(given_should_allow_undefined_signatures), 
     should_generate_code(given_should_generate_code), 
     is_at_top_level(given_is_at_top_level), 
-    is_parsing_type(given_is_parsing_type) {}
-    
+    is_parsing_type(given_is_parsing_type) {}    
 }; 
 
 
 using nat = size_t;
-
-
 
 struct stack_frame {
     llvm::ValueSymbolTable* llvm = nullptr;
@@ -106,13 +103,10 @@ struct state {
     bool& error;
 };
 
-
 expression csr(expression given, size_t& index, const size_t depth, const size_t max_depth, state& state, flags flags); 
 void adp(abstraction_definition& given, state& state, flags flags);
 expression res(expression given, state& state, flags flags);
 
-
 std::unique_ptr<llvm::Module> analyze(translation_unit unit, llvm::LLVMContext& context, struct file file);
-
 
 #endif /* analysis_hpp */

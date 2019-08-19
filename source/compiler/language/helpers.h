@@ -172,6 +172,11 @@ void append_return_0_statement(llvm::IRBuilder<> &builder, llvm::LLVMContext &co
     builder.CreateRet(value);
 }
 
+static void declare_donothing(llvm::IRBuilder<> &builder, const std::unique_ptr<llvm::Module> &module) {
+    llvm::Function* donothing = llvm::Intrinsic::getDeclaration(module.get(), llvm::Intrinsic::donothing);        
+    builder.CreateCall(donothing);
+}
+
 bool found_unit_expression(const expression &given) {
     return given.symbols.empty() 
     or (given.symbols.size() == 1 
