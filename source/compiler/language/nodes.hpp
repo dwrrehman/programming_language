@@ -68,11 +68,7 @@ public:
     
     
     //expression* type = nullptr;
-    
-    
-    
-
-    size_t type = 0;
+    size_t type = 0;                   // 0 means no type.
     
     
     bool erroneous = false;
@@ -84,7 +80,7 @@ public:
     expression(std::vector<symbol> symbols){
         this->symbols = symbols;
     }
-    expression(std::vector<symbol> symbols, expression* type) {
+    expression(std::vector<symbol> symbols, size_t type) {
         this->symbols = symbols;
         this->type = type;
     }

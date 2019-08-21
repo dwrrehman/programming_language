@@ -55,7 +55,7 @@ expression parse_abstraction_definition(expression given, size_t& index, state& 
 }
 
 bool matches(expression given, expression& signature, size_t& index, const size_t depth, const size_t max_depth, state& state, flags flags) {
-    if (not signature.type or not expressions_match(*given.type, signature.type)) return false;
+    if (not signature.type or given.type != signature.type) return false;  
     
     for (auto& symbol : signature.symbols) {         
         
@@ -128,13 +128,13 @@ std::unique_ptr<llvm::Module> analyze(translation_unit unit, llvm::LLVMContext& 
     translation_unit_data data = {file, module.get(), builder}; 
     state state = {stack, data, error};
     
-    print_stack({builtins});    
+    print_stack(stack);    
 
     auto& body = unit.list.expressions;    
     std::vector<expression> parsed_body = {};
     for (auto expression : body) {        
         auto type = unit_type;        //TODO: fix me!   use sig idx master lookup method of typing stuff.
-        expression.type = &type;  
+        expression.type = 2;   
         
         auto solution = res(expression, state, flags.generate_code().at_top_level());
         if (solution.erroneous) error = true;

@@ -9,8 +9,10 @@
 #include "debug.hpp"
 
 #include "arguments.hpp"
+
 #include "llvm/IR/Type.h"
 #include "llvm/Support/raw_ostream.h"
+
 #include <iostream>
 
 
@@ -156,14 +158,8 @@ void print_expression(expression expression, int d) {
         std::cout << "\n";
         i++;
     }
-    prep(d); std::cout << "type = {\n";
-    if (expression.type) {
-        print_expression(*expression.type, d+1);
-        prep(d); std::cout << "}\n";
-    } else {
-        prep(d+1); std::cout << "_type\n";
-        prep(d); std::cout << "}\n";
-    }
+    
+    prep(d); std::cout << "type = " << expression.type << "\n";
 }
 
 
@@ -225,44 +221,13 @@ void print_expression_line(expression expression) {
         i++;
     }
     std::cout << ")";
-
-    if (expression.type) {
-        std::cout << ": (";
-        print_expression_line(*expression.type);
-        std::cout << ")";
-    }
+    if (expression.type) std::cout << ": " << expression.type;
 }
 
 
 
 
 
-
-
-
-/// TODO: put this in analysis or some other important file. this is a avery improtant function.
-
-std::string expression_to_string(expression given, symbol_table) {
-    std::string result = "(";
-    size_t i = 0;
-    for (auto symbol : given.symbols) {
-        if (symbol.type == symbol_type::identifier) result += symbol.identifier.name.value;
-        else if (symbol.type == symbol_type::subexpression) {
-            result += "(" + expression_to_string(symbol.subexpression) + ")";
-        }
-        if (i < given.symbols.size() - 1) result += " ";
-        i++;
-    }
-    result += ")";
-    if (given.llvm_type) {
-        std::string type = "";
-        given.llvm_type->print(llvm::raw_string_ostream(type) << "");
-        result += " " + type;
-    } else if (given.type) {
-        result += " " + expression_to_string(*given.type);
-    }
-    return result;
-}
 
 
 

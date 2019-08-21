@@ -27,7 +27,6 @@
 
 bool expressions_match(expression first, expression second);
 
-
 bool subexpression(const symbol& s) {
     return s.type == symbol_type::subexpression;
 }
@@ -62,7 +61,7 @@ bool expressions_match(expression first, expression second) {
         return first_llvm_type == second_llvm_type;
     } else if (first.llvm_type or second.llvm_type) return false;
     
-    else if (first.type and second.type and expressions_match(*first.type, *second.type)) return true;
+    else if (first.type == second.type) return true;
     else return false;
 }
 
@@ -386,7 +385,7 @@ static expression parse_llvm_string(const expression &given, std::string llvm_st
         if (parse_llvm_string_as_function(llvm_string, state, function_errors)) {
             expression solution = {};
             solution.erroneous = false;
-            solution.type = &unit_type;
+            solution.type = 3;
             solution.symbols = {};
             symbol s = {};
             s.type = symbol_type::llvm_literal;
@@ -397,7 +396,7 @@ static expression parse_llvm_string(const expression &given, std::string llvm_st
         } else if (parse_llvm_string_as_instruction(llvm_string, NULL, state, instruction_errors)) {
             expression solution = {};
             solution.erroneous = false;
-            solution.type = &unit_type;
+            solution.type = 3;
             solution.symbols = {};
             symbol s = {};
             s.type = symbol_type::llvm_literal;
@@ -422,7 +421,7 @@ static expression parse_llvm_string(const expression &given, std::string llvm_st
             expression solution = {};
             solution.erroneous = false;
             solution.llvm_type = llvm_type;
-            solution.type = &type_type;
+            solution.type = 1;
             solution.symbols = {};
             symbol s = {};
             s.type = symbol_type::llvm_literal;
