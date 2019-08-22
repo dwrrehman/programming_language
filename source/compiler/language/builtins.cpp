@@ -86,10 +86,6 @@ std::vector<expression> builtins =  {
     
 };
 
-
-
-
-
 std::string stringify_intrin(size_t i) {
     switch (i) {
         case intrin::typeless: return "typeless";
@@ -109,7 +105,7 @@ std::string stringify_intrin(size_t i) {
         case intrin::disclose: return "disclose";            
         case intrin::all: return "all";            
     }
-    return "uh oh.";
+    return "{compiler error}";
 }
 
 
@@ -128,9 +124,9 @@ std::string stringify_intrin(size_t i) {
  
     
  
-        _instantiate
+        _instantiate <type>
  
- 
+    
  
  
  

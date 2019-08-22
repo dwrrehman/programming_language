@@ -21,35 +21,91 @@
 
 static size_t output_line_number = 0;
 
+
+std::vector<std::string> commands =  {
+    
+    "quit",
+    "help",
+    "clear",
+    
+    "hello?",
+    "session",
+    
+    "do",
+    "emit", 
+    "sneeze",
+};
+
 void print_welcome_message() {
     std::cout << "a " << BRIGHT_CYAN << language_name << RESET << " REPL interpreter " GRAY "(version " << language_version << ").\n" RESET;
-    std::cout << "type \":help\" for more information.\n\n";
+    std::cout << "type \"help\" for more information.\n\n";
 }
 
 std::string interpreter_prompt(size_t line) {
-    return "   " BRIGHT_CYAN "(" RESET WHITE + std::to_string(line) + RESET BRIGHT_CYAN ")" RESET GRAY ": " RESET;
+    return " " BRIGHT_CYAN "(" RESET WHITE + std::to_string(line) + RESET BRIGHT_CYAN ") " RESET;
 }
 
 std::string output() {
-    return "   " BRIGHT_RED "{" RESET GRAY + std::to_string(output_line_number++) + RESET BRIGHT_RED "}" RESET GRAY ": " RESET;
+    return " " RED "{" RESET GRAY + std::to_string(output_line_number++) + RESET RED "} " RESET;
+}
+
+static bool is_command(std::string given) {
+    for (auto i : commands) {
+        if (i == given) return true;
+    }
+    return false;
 }
 
 static bool is_quit_command(const std::string &line) {
-    return line == ":quit" or line == "quit" or line == ":exit" or line == "exit" or line == ":q";
+    return line == "quit" or line == "exit" or line == "q";
 }
 
-void process_repl_command(std::string line) {
+void process_repl_command(std::string line, std::string first) {
+    
+        
     if (line == "clear") {
         std::cout << "\e[1;1H\e[2J";
-    } else if (line == "hello") {
+        
+    } else if (line == "hello?") {
         std::cout << output() << "Hello, world!\n";
+                
+    } else if (first == "do") { // an example command which takes some string as input.
+    
+        auto text = line.substr(3);
+        std::cout << "doing: \"" << text << "\"\n";
+        
     } else if (line == "help") {
-        std::cout << output() << "REPL commands: \n\t- :clear\n\t- :hello\n\t- :help\n\t- :quit\n\n";
+        std::cout << output() << "commands: \n";
+        for (auto i : commands) {
+            std::cout << "\t " << i << "\n";                        
+        }
+        std::cout << "\n";
+    } else {
+        std::cout << output() << "unimplemented.\n";        
     }
 }
 
+void interpret_llvm_string(std::string text) {
+//    llvm::SMDiagnostic errors;
+//    if (parse_llvm_string_as_function(text, state, errors)) {                
+//    } else {
+//        std::cout << "failure.\n";
+//        errors.print("llvm string program:", llvm::errs());
+//        abort();
+//    }
+}
+
+
 void analyze(translation_unit unit, std::unique_ptr<llvm::Module>& module, struct file file) {
     // code this after we get the regular one finished.
+}
+
+static std::string get_first_word(const std::string &line) {
+    auto first = line;
+    size_t i = 0;
+    while (first[i] != ' ' and first[i] != 0) i++;
+    first.erase(i);
+    return first;
 }
 
 void repl(llvm::LLVMContext& context) {
@@ -63,18 +119,17 @@ void repl(llvm::LLVMContext& context) {
         std::cout << interpreter_prompt(line_number);
         std::getline(std::cin, line);
         if (line != "") line_number++;
-
-        if ((line.size() and line[0] == ':') or is_quit_command(line)) {
-            if (is_quit_command(line)) break;
-            else {
-                line.erase(line.begin(), line.begin() + 1);
-                process_repl_command(line);
-            }
-        } else {
+        if (is_quit_command(line)) break;
+        std::string first = get_first_word(line);
+        if ((line.size() and is_command(first))) {
+            process_repl_command(line, first); 
+            
+        } else { // resolve and process expression:
             if (line.size() > 10)
                 std::cout << output() << "recevied: :::" << line << ":::\n";
         }
     } while (std::cin.good());
+    
     exit(0);
 }
 
