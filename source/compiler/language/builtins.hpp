@@ -12,6 +12,49 @@
 #include "nodes.hpp"
 #include <vector>
 
+/**
+ 
+ 
+ 0  :  {typeless}
+ 
+ 1  :  type type 
+ 2  :  infered type 
+ 3  :  unit type 
+ 4  :  none type    
+ 5  :  any type 
+ 6  :  application type 
+ 7  :  abstraction type 
+ 8  :  compiletime type    
+ 9  :  runtime type 
+ 10  :  immutable type 
+ 11  :  mutable type  
+ 12  :  define abstraction 
+ 13  :  undefine abstraction  
+ 14  :  disclose abstraction       
+ 15  :  all signature
+ 
+ */
+namespace intrin {
+    enum intrin_name_index {
+        typeless,
+        type,
+        infered,
+        unit,
+        none,
+        any,
+        application,
+        abstraction,
+        compiletime,
+        runtime,
+        immutable,
+        mutable_,
+        define,
+        undefine,
+        disclose,
+        all,
+    };
+}
+
 extern expression failure;
 
 extern expression type_type;
@@ -38,5 +81,6 @@ extern expression all_signature;
 extern std::vector<expression> builtins;
 
 
+std::string stringify_intrin(size_t i);
 
 #endif /* builtins_hpp */

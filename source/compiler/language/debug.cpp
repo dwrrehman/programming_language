@@ -14,7 +14,7 @@
 #include "llvm/Support/raw_ostream.h"
 
 #include <iostream>
-
+#include "builtins.hpp"
 
 // ----------------------- command line arguments debugging: ----------------------------
 
@@ -212,6 +212,8 @@ void print_symbol_line(symbol symbol) {
     }
 }
 
+
+
 void print_expression_line(expression expression) {
     std::cout << "(";
     int i = 0;
@@ -221,7 +223,8 @@ void print_expression_line(expression expression) {
         i++;
     }
     std::cout << ")";
-    if (expression.type) std::cout << ": " << expression.type;
+    if (expression.type) 
+        std::cout << ": " << stringify_intrin(expression.type);
 }
 
 
@@ -257,6 +260,18 @@ void print_expression_list(expression_list list, int d) {
         prep(d+1); std::cout << "\n";
         i++;
     }
+}
+
+void print_expression_list_line(expression_list list) {
+    std::cout << "{\n";
+    int i = 0;
+    for (auto e : list.expressions) {
+        std::cout << "\t" << i << ": ";
+        print_expression_line(e);        
+        std::cout << "\n";
+        i++;
+    }
+    std::cout << "}\n";
 }
 
 void print_translation_unit(translation_unit unit, struct file file) {

@@ -17,76 +17,61 @@ expression failure = {true};
  
     0  :  {typeless}
     
-    1  :  type type
- 
-    2  :  infered type
- 
-    3  :  unit type
- 
-    4  :  none type
-    
-    5  :  any type
- 
-    6  :  application type
- 
-    7  :  abstraction type
- 
-    8  :  compiletime type
-    
-    9  :  runtime type
- 
-    10  :  immutable type
- 
-    11  :  mutable type 
- 
-    12  :  define abstraction
- 
-    13  :  undefine abstraction
-  
-    14  :  disclose abstraction
-       
+    1  :  type type 
+    2  :  infered type 
+    3  :  unit type 
+    4  :  none type    
+    5  :  any type 
+    6  :  application type 
+    7  :  abstraction type 
+    8  :  compiletime type    
+    9  :  runtime type 
+    10  :  immutable type 
+    11  :  mutable type  
+    12  :  define abstraction 
+    13  :  undefine abstraction  
+    14  :  disclose abstraction       
     15  :  all signature
  
  */
-
 expression type_type = {{{"_type", false}}}; // has no type.
 expression infered_type = {{{"_infered", false}}}; // has no type.
-expression unit_type = {{}, 1};
-expression none_type = {{{"_none", false}}, 1};
-expression any_type = {{{"_any", false}}, 1};
+expression unit_type = {{}, intrin::type};
+expression none_type = {{{"_none", false}}, intrin::type};
+expression any_type = {{{"_any", false}}, intrin::type};
      
-expression application_type = {{{"_application", false}}, 1};
-expression abstraction_type = {{{"_abstraction", false}}, 1};
+expression application_type = {{{"_application", false}}, intrin::type};
+expression abstraction_type = {{{"_abstraction", false}}, intrin::type};
      
-expression compiletime_type = { { {"_compiletime", false}, {{{},1}}},1};
-expression runtime_type = { { {"_runtime", false}, {{{},1}}},1};
+expression compiletime_type = { { {"_compiletime", false}, {{{},intrin::type}}},intrin::type};
+expression runtime_type = { { {"_runtime", false}, {{{},intrin::type}}},intrin::type};
 
-expression immutable_type = { { {"_immutable", false}, {{{},1}}},1};
-expression mutable_type = { { {"_mutable", false}, {{{},1}}},1};
+expression immutable_type = { { {"_immutable", false}, {{{},intrin::type}}},intrin::type};
+expression mutable_type = { { {"_mutable", false}, {{{},intrin::type}}},intrin::type};
 
 /// global builtin abstractions:
 
 expression define_abstraction = {
     {
-        {"_define", false}, {{{}, 7}},
-        {"as", false}, {{{}, 6}},
-        {"in", false}, {{{}, 6}},
-    }, 3};
+        {"_define", false}, {{{}, intrin::abstraction}},
+        {"as", false}, {{{}, intrin::application}},
+        {"in", false}, {{{}, intrin::application}},
+    }, intrin::unit};
 
 expression undefine_abstraction = {
     {
-        {"_undefine", false}, {{{}, 6}},
-        {"in", false}, {{{}, 6}},
-    }, 3};
+        {"_undefine", false}, {{{}, intrin::application}},
+        {"in", false}, {{{}, intrin::application}},
+    }, intrin::unit};
 
 expression disclose_abstraction = {
     {
-        {"_disclose", false}, {{{}, 7}},
-        {"from", false}, {{{}, 6}},
-        {"into", false}, {{{}, 6}},
-    }, 3};
+        {"_disclose", false}, {{{}, intrin::abstraction}},
+        {"from", false}, {{{}, intrin::application}},
+        {"into", false}, {{{}, intrin::application}},
+    }, intrin::unit};
 
-expression all_signature = {{{"_all", false}}, 7};
+expression all_signature = {{{"_all", false}}, intrin::abstraction};
 
 
 std::vector<expression> builtins =  {
@@ -98,7 +83,34 @@ std::vector<expression> builtins =  {
     
     define_abstraction, undefine_abstraction, disclose_abstraction,
     all_signature,
+    
 };
+
+
+
+
+
+std::string stringify_intrin(size_t i) {
+    switch (i) {
+        case intrin::typeless: return "typeless";
+        case intrin::type: return "type";
+        case intrin::infered: return "infered";
+        case intrin::unit: return "unit";    
+        case intrin::none: return "none";
+        case intrin::any: return "any";
+        case intrin::application: return "application";
+        case intrin::abstraction: return "abstraction";
+        case intrin::compiletime: return "compiletime";
+        case intrin::runtime: return "runtime";        
+        case intrin::immutable: return "immutable";
+        case intrin::mutable_: return "mutable";
+        case intrin::define: return "define";            
+        case intrin::undefine: return "undefine";            
+        case intrin::disclose: return "disclose";            
+        case intrin::all: return "all";            
+    }
+    return "uh oh.";
+}
 
 
 

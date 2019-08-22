@@ -22,7 +22,7 @@
 #include <iostream>
 #include <sstream>
 
-
+#ifdef _hi 
 ////////////////// comparisons ///////////////////////////
 
 bool expressions_match(expression first, expression second);
@@ -210,75 +210,6 @@ llvm::Function* create_main(llvm::IRBuilder<>& builder, llvm::LLVMContext& conte
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-//////////////////////////// SYMBOL TABLE CONVERTERS ./////////////////////////////
-
-
-
-
-
-
-
-
-
-
-
-expression string_to_expression_tail(std::vector<expression> list, state& state, flags flags) {
-    
-    /*
-    if (list.empty()) return {};
-    if (list.size() == 1 and expressions_match(list.back(), type_type)) return type_type;          
-    auto signature = list.front();
-    
-    for (auto& element : signature.symbols) {
-        if (subexpression(element)) {
-            auto subexpressions = filter_subexpressions(element.subexpression); 
-            
-            auto result = string_to_expression_tail(subexpressions, state, flags);
-            if (result.erroneous) state.error = true;
-            else element.subexpression = result;
-        }
-    }
-    list.erase(list.begin());
-    auto type = string_to_expression_tail(list, state, flags
-                                          .dont_allow_undefined()
-                                          .not_at_top_level()
-                                          .not_parsing_a_type());
-    if (signature.symbols.empty() and expressions_match(type, type_type)) return unit_type;    
-    auto result = resolve(signature, type, state, flags);    
-    if (result.erroneous) state.error = true;    
-    return result;
-     */
-    return {};
-}
-
-expression string_to_expression(std::string given, state& state, flags flags, bool& error) {
-    struct file file = {"<llvm string symbol>", given};
-    start_lex(file);
-    return string_to_expression_tail(filter_subexpressions(parse_expression(file, false, false)), state, flags); 
-}
 
 
 
@@ -723,6 +654,6 @@ expression resolve(expression given, expression& expected_type, state& state, fl
 
 
 
-
+#endif
 
 #endif /* helpers_h */

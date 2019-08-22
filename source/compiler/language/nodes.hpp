@@ -92,6 +92,12 @@ public:
 class expression_list: public node {
 public:
     std::vector<expression> expressions = {};
+    
+    expression_list() {}
+    
+    expression_list(std::vector<expression> es) {
+        expressions = es;
+    }
 };
 
 class translation_unit: public node {
@@ -146,7 +152,7 @@ public:
     symbol(enum symbol_type type) {
         this->type = type;
     }
-    symbol(std::string given_name, bool unused) {
+    symbol(std::string given_name, bool _ignore_this_parameter) {
         this->type = symbol_type::identifier;
         this->identifier.name.value = given_name;
         this->identifier.name.type = token_type::identifier;

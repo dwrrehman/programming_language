@@ -1,10 +1,27 @@
 
 `
-
-define void @"(hello world)"() {
-    ; tail call void @puts(@)  
+define void @" hello world) () (_type)"() {    
     ret void
-}`
+}
+
+define void @f() {
+    ret void
+}
+`
+
+
+
+
+
+(hello my bum) () {
+    
+}
+
+
+
+
+
+
 
 
 ; ModuleID = 'new.c'

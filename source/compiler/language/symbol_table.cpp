@@ -9,69 +9,86 @@
 #include "symbol_table.hpp"
 
 #include "debug.hpp"
+#include "builtins.hpp"
 
 
-
-
-
-
-
-/// TODO: put this in analysis or some other important file. this is a avery improtant function.
-
-std::string expression_to_string(expression given, symbol_table& stack) {
-    std::string result = "(";
-    size_t i = 0;
-    for (auto symbol : given.symbols) {
-        if (symbol.type == symbol_type::identifier) result += symbol.identifier.name.value;
-        else if (symbol.type == symbol_type::subexpression) {
-            result += "(" + expression_to_string(symbol.subexpression, stack) + ")";
-        }
-        if (i < given.symbols.size() - 1) result += " ";
-        i++;
-    }
-    result += ")";
-    if (given.llvm_type) {
-        std::string type = "";
-        given.llvm_type->print(llvm::raw_string_ostream(type) << "");
-        result += " " + type;
-    } else if (given.type) {
-        result += " " + expression_to_string(stack.lookup(given.type), stack);
-    }
+std::vector<std::string> string_top(symbol_table& stack) {        
+    std::vector<std::string> result = {};
+    auto indicies = stack.top();
+    for (auto i : indicies) {
+        result.push_back(expression_to_string(stack.lookup(i), stack));
+    } 
     return result;
 }
 
 
+void print_simply_master(symbol_table& stack) {
+    auto j = 0;
+    auto indicies = stack.top();
+    for (auto i : indicies) {
+        std::cout << j << ": " << expression_to_string(stack.master[i].signature, stack) << "\n";
+        j++;
+    }     
+}
 
-static void print_symtable(llvm::ValueSymbolTable& table) {
-    std::cout << "----------------printing symbol table: -----------------\n";
+std::vector<expression> get_master(symbol_table& stack) {        
+    std::vector<expression> result = {};
+    for (auto entry : stack.master) result.push_back(entry.signature);
+    return result;
+}
+
+void print_index_top_stack(symbol_table &stack) {
+    expression_list e {top(stack)};    
+    print_expression_list_line(e);
+}
+
+std::vector<expression> top(symbol_table& stack) {        
+    std::vector<expression> result = {};
+    auto indicies = stack.top();
+    for (auto i : indicies) {
+        result.push_back(stack.lookup(i));
+    }
+    return result;
+}
+
+void print_llvm_symtable(llvm::ValueSymbolTable& table) {
+    std::cout << "----------------printing LLVM symbol table: -----------------\n";
+    auto j = 0;
     for (auto i = table.begin(); i != table.end(); i++) {
-        std::cout << "key: \"" << i->getKey().str() << "\"\n";
-        std::cout << "value: [[[\n\n";
+        std::cout << j << ": ";
+        std::cout << "\tkey: \"" << i->getKey().str() << "\"\n";
+        
+        std::cout << "\tvalue: [[[";        
         i->getValue()->print(llvm::outs()); 
         std::cout << "]]]\n\n"; 
-        
-        std::cout << "here is the result of instead using .first and .second: \n";
-        std::cout << "first: \"" << i->first().str() << "\"\n";
-        std::cout << "second: [[[\n\n";
-        i->second->print(llvm::outs());
-        std::cout << "]]] \n\n";
+        j++;        
     }
     std::cout << "---------------------------------------------\n";
 }
 
 void print_stack(symbol_table& stack) {
-    std::cout << "\n\n---------------- printing MASTER stack -------------------\n\n";
+    std::cout << "\n\n---------------- printing n3zqx2l stack -------------------\n\n";
     for (int i = 0; i < stack.frames.size(); i++) {
         std::cout << "----- FRAME # " << i << " -------------------\n";
         for (int j = 0; j < stack.frames[i].indicies.size(); j++) {
             
-            std::cout << "#" << j << " : " << expression_to_string(stack.master[stack.frames[i].indicies[j]].signature, stack) << "   :    [ "; 
+            std::cout << "#" << j << " : " << expression_to_string(stack.master[stack.frames[i].indicies[j]].signature, stack);
+            auto parent = stack.master[stack.frames[i].indicies[j]].parent;
+            std::cout << "   ---> " << parent << "\n";
             
-            for (auto h : stack.master[stack.frames[i].indicies[j]].parents) {
-                std::cout << h << " ";
-            } std::cout << "]\n";
         }
         std::cout << "---------------------------------------------\n\n";
     }
     std::cout << "\n\n-----------------------------------------------------------\n\n";
 }
+
+void print_master(symbol_table& stack) {
+    std::cout << "\n\n---------------- printing n3zqx2l master -------------------\n\n";
+    for (int i = 0; i < stack.master.size(); i++) {        
+        std::cout << "#" << i << " : " << expression_to_string(stack.master[i].signature, stack); 
+        auto parent = stack.master[i].parent;
+        std::cout << "   ---> " << parent << "\n";                        
+    }
+    std::cout << "\n\n-----------------------------------------------------------\n\n";
+}
+
