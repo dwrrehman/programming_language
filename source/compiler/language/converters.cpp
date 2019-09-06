@@ -84,7 +84,7 @@ size_t string_to_expression_tail(std::vector<expression> list, state& state, fla
     
     auto resolved_expression = res(current, state, flags);
     
-    if (resolved_expression.erroneous) state.error = true;
+    if (resolved_expression.error) state.error = true;
     resolved_expression.type = string_to_expression_tail(list, state, flags.dont_allow_undefined().not_at_top_level().not_parsing_a_type());
     
     return 0; // temp
@@ -112,7 +112,7 @@ expression convert_raw_llvm_symbol_to_expression(std::string id, llvm::Value* va
         expression e {};
         e.llvm_type = value->getType();
         e.type = intrin::typeless;
-        e.symbols = {{id, false}};
+        e.symbols = {symbol{id}};
         return e;
     }
 }

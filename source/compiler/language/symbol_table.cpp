@@ -38,7 +38,7 @@ std::vector<expression> get_master(symbol_table& stack) {
 }
 
 void print_index_top_stack(symbol_table &stack) {
-    expression_list e {top(stack)};    
+    expression_list e {top(stack)};
     print_expression_list_line(e);
 }
 

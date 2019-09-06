@@ -8,23 +8,23 @@
 
 #include "builtins.hpp"
 
-expression failure = {true};
+
 
 /// Global builtin types. these are fundemental to the language:
 
 /**
  
  0  :  {typeless}               : 0
- 1  :  infered type             : 0
- 2  :  type type                : 0
- 3  :  none type                : type
- 4  :  unit type                : type
+ 1  :  infered type    __       : 0
+ 2  :  type type       _type    : 0
+ 3  :  none type       _0       : type
+ 4  :  unit type       _1       : type
  
- 5  :  application type         : type
- 6  :  abstraction type         : type  
- 7  :  create                   : unit
- 8  :  define                   : unit
- 9  :  expose                   : unit
+ 5  :  application type   _a    : type
+ 6  :  abstraction type   _b    : type  
+ 7  :  create             _c    : unit
+ 8  :  define             _d    : unit
+ 9  :  expose             _e    : unit
  
  10  : ct                       : type  
  11  : rt                       : type
@@ -32,46 +32,46 @@ expression failure = {true};
  13  : mut                      : type
  
  */
-expression infered_type = {{{"__", false}}}; // has no type.
-expression type_type = {{{"_type", false}}}; // has no type.
-expression unit_type = {{{"_unit", false}}, intrin::type};
-expression none_type = {{{"_none", false}}, intrin::type};
-expression application_type = {{{"_a", false}}, intrin::type};
-expression abstraction_type = {{{"_b", false}}, intrin::type};
+
+expression failure = {true, true};
+
+expression infered_type = {{symbol{"__"}}};     // has no type.
+expression type_type = {{symbol{"_type"}}};     // has no type.
+expression none_type = {{symbol{"_0"}}, intrin::type};
+expression unit_type = {{symbol{"_1"}}, intrin::type};
+expression application_type = {{symbol{"_a"}}, intrin::type};
+expression abstraction_type = {{symbol{"_b"}}, intrin::type};
 
 expression create_abstraction = {
     {
-        {"_c", false},  {{{}, intrin::application}},        
+        {"_c"},  
+        {{expression{intrin::type}}},
     }, intrin::unit};
 
 expression define_abstraction = {
     {
-        {"_d", false}, {{{}, intrin::abstraction}},
-        {{{}, intrin::application}},
-        {{{}, intrin::application}},
-        {{{}, intrin::application}},
+        symbol{"_d"},
+        {{expression{intrin::abstraction}}},
+        {{expression{intrin::type}}},
+        {{expression{intrin::application}}},
+        {{expression{intrin::application}}},
     }, intrin::unit};
 
 expression expose_abstraction = {
     {
-        {"_e", false}, {{{}, intrin::application}},
-        {{{}, intrin::abstraction}},
-        {{{}, intrin::application}},
+        {"_e"},
+        {{expression{intrin::application}}},
+        {{expression{intrin::abstraction}}},
+        {{expression{intrin::application}}},
     }, intrin::unit};
 
 
-
-
-
-
 /// FIX ME
-expression compiletime_type = { { {"_compiletime", false}, {{{},intrin::type}}},intrin::type};
-expression runtime_type = { { {"_runtime", false}, {{{},intrin::type}}},intrin::type};
+//expression compiletime_type = { { {"_compiletime"}, {{{},intrin::type}}},intrin::type};
+//expression runtime_type = { { {"_runtime"}, {{{},intrin::type}}},intrin::type};
 /// FIX ME
-expression immutable_type = { { {"_immutable", false}, {{{},intrin::type}}},intrin::type};
-expression mutable_type = { { {"_mutable", false}, {{{},intrin::type}}},intrin::type};
-
-
+//expression immutable_type = { { {"_immutable"}, {{{},intrin::type}}},intrin::type};
+//expression mutable_type = { { {"_mutable"}, {{{},intrin::type}}},intrin::type};
 
 
 
@@ -80,8 +80,8 @@ std::vector<expression> builtins =  {
     application_type, abstraction_type,
     create_abstraction, define_abstraction, expose_abstraction,
         
-    compiletime_type,   runtime_type,
-    immutable_type,     mutable_type,    
+//    compiletime_type,   runtime_type,
+//    immutable_type,     mutable_type,    
 };
 
 std::string stringify_intrin(size_t i) {
@@ -98,10 +98,10 @@ std::string stringify_intrin(size_t i) {
         case intrin::expose: return "expose";
         case intrin::create: return "create";
             
-        case intrin::compiletime: return "compiletime";
-        case intrin::runtime: return "runtime";        
-        case intrin::immutable: return "immutable";
-        case intrin::mutable_: return "mutable";
+//        case intrin::compiletime: return "compiletime";
+//        case intrin::runtime: return "runtime";        
+//        case intrin::immutable: return "immutable";
+//        case intrin::mutable_: return "mutable";
     }
     return "{compiler error}";
 }

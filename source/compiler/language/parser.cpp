@@ -47,9 +47,19 @@ llvm_literal parse_llvm_literal(struct file file) {
     return literal;
 }
 
+static bool is_close_paren(const token &t) {
+    return t.type == token_type::operator_ and t.value == ")";
+}
+
+static bool is_open_paren(const token &t) {
+    return t.type == token_type::operator_ and t.value == "(";
+}
+
 bool is_syntax(std::string value) {
     return value == "(" or value == ")";
 }
+
+
 
 identifier parse_identifier(struct file file) {
     identifier literal = {};
@@ -60,54 +70,44 @@ identifier parse_identifier(struct file file) {
         revert_and_return();
     }
     literal.name = t;
-    literal.error = false;
+    literal.error = false; 
     return literal;
-}
-
-// ------------------ token comparisons ---------------------------
-
-static bool is_close_paren(const token &t) {
-    return t.type == token_type::operator_ and t.value == ")";
-}
-
-static bool is_open_paren(const token &t) {
-    return t.type == token_type::operator_ and t.value == "(";
 }
 
 
 // -------------------- ebnf parsers --------------------------------
 
 /// FIX ME:
-expression_list parse_block(struct file file) {
-
-    expression_list block = {};
-    
-    auto saved = save();
-    auto t = next();
-    auto st = t;
-    if (not is_open_paren(t)) { revert_and_return(); }
-
-    newlines();    
-    saved = save();
-
-    auto expression_list = parse_expression_list(file, /*can_be_empty = */true);
-    if (expression_list.error or !expression_list.expressions.size()) { // then we know that it must only be a single expression with no newline at the end.
-        revert(saved);
-        auto expression = parse_expression(file, /*can_be_empty = */true, /*newlines_are_a_symbol = */false);
-        if (expression.error) { revert_and_return(); }
-        block.expressions = {expression};
-    } else block = expression_list;
-    indents();
-    t = next();
-    if (not is_close_paren(t)) {
-        print_parse_error(file.name, st.line, st.column, convert_token_type_representation(t.type), t.value, "\")\" to close expression");
-        print_source_code(file.text, {st});
-        revert_and_return();
-    }
-
-    block.error = false;
-    return block;
-}
+//expression_list parse_block(struct file file) {
+//
+//    expression_list block = {};
+//    
+//    auto saved = save();
+//    auto t = next();
+//    auto st = t;
+//    if (not is_open_paren(t)) { revert_and_return(); }
+//
+//    newlines();    
+//    saved = save();
+//
+//    auto expressions = parse_expression_list(file, /*can_be_empty = */true);
+//    if (expressions.error or expressions.empty()) {         // then we know that it must only be a single expression with no newline at the end.
+//        revert(saved);
+//        auto expression = parse_expression(file, /*can_be_empty = */true, /*newlines_are_a_symbol = */false);
+//        if (expression.error) { revert_and_return(); }
+//        block.expressions = {expression};
+//    } else block = expression_list;
+//    indents();
+//    t = next();
+//    if (not is_close_paren(t)) {
+//        print_parse_error(file.name, st.line, st.column, convert_token_type_representation(t.type), t.value, "\")\" to close expression");
+//        print_source_code(file.text, {st});
+//        revert_and_return();
+//    }
+//
+//    block.error = false;
+//    return block;
+//}
 
 symbol parse_symbol(struct file file, bool newlines_are_a_symbol) {
     symbol s = {};
@@ -115,21 +115,21 @@ symbol parse_symbol(struct file file, bool newlines_are_a_symbol) {
 
     auto t = next();
     if (is_open_paren(t)) {
-        auto subexpression = parse_expression(file, /*can_be_empty = */true, /*newlines_are_a_symbol = */true);
-        if (!subexpression.error) {
-            auto st = t;
-            t = next();
-            if (is_close_paren(t)) {
-                s.type = symbol_type::subexpression;
-                s.subexpression = subexpression;
-                s.error = false;
-                return s;
-            } else {
-                print_parse_error(file.name, st.line, st.column, convert_token_type_representation(t.type), t.value, "\")\" to close expression");
-                print_source_code(file.text, {st});
-                revert_and_return();
-            }
-        }
+//        auto subexpression = parse_expression(file, /*can_be_empty = */true, /*newlines_are_a_symbol = */true); /// THIS IS WRONG.
+//        if (!subexpression.error) {
+//            auto st = t;
+//            t = next();
+//            if (is_close_paren(t)) {
+//                s.type = symbol_type::subexpression;
+//                s.expressions = {{subexpression}};
+//                s.error = false;
+//                return s;
+//            } else {
+//                print_parse_error(file.name, st.line, st.column, convert_token_type_representation(t.type), t.value, "\")\" to close expression");
+//                print_source_code(file.text, {st});
+//                revert_and_return();
+//            }
+//        }
     }
     revert(saved);
 
@@ -146,17 +146,6 @@ symbol parse_symbol(struct file file, bool newlines_are_a_symbol) {
     if (not llvm.error) {
         s.type = symbol_type::llvm_literal;
         s.llvm = llvm;
-        s.error = false;
-        return s;
-    }
-    revert(saved);
-
-    
-    /// FIX ME:
-    auto list = parse_block(file);
-    if (not list.error) {
-        s.type = symbol_type::list;
-        s.list = list;
         s.error = false;
         return s;
     }
@@ -213,7 +202,7 @@ size_t indents() {
     return indent_count;
 }
 
-expression parse_expression(struct file file, bool can_be_empty, bool newlines_are_a_symbol) {
+expression parse_expression(file file, bool can_be_empty, bool newlines_are_a_symbol) {
 
     std::vector<symbol> symbols = {};
 
@@ -232,7 +221,7 @@ expression parse_expression(struct file file, bool can_be_empty, bool newlines_a
     return result;
 }
 
-expression parse_terminated_expression(struct file file) {
+expression parse_terminated_expression(file file) {
 
     auto indent_count = indents();
     auto expression = parse_expression(file, /*can_be_empty = */true, /*newlines_are_a_symbol = */false);
@@ -246,13 +235,11 @@ expression parse_terminated_expression(struct file file) {
     return expression;
 }
 
-expression_list parse_expression_list(struct file file, bool can_be_empty) {
-
-    std::vector<expression> expressions = {};
-
-    newlines();
-
+expression_list parse_expression_list(file file, bool can_be_empty) { 
+    
+    newlines(); // is this neccessary?    
     auto saved = save();
+    std::vector<expression> expressions = {};    
     auto expression = parse_terminated_expression(file);
     while (not expression.error) {
         expressions.push_back(expression);
@@ -260,24 +247,10 @@ expression_list parse_expression_list(struct file file, bool can_be_empty) {
         expression = parse_terminated_expression(file);
     }
     revert(saved);
-
-    auto list = expression_list {};
-    list.expressions = expressions;
-    if (expressions.size() or can_be_empty) {
-        list.error = false;
-    }
-    return list;
+    return {expressions, expressions.empty() and not can_be_empty};
 }
 
-translation_unit parse_translation_unit(struct file file) {
-    auto expression_list = parse_expression_list(file, /*can_be_empty = */true);
-    translation_unit result {};
-    result.list = expression_list;
-    result.error = expression_list.error;
-    return result;
-}
-
-translation_unit parse(struct file file, llvm::LLVMContext& context) {
+expression_list parse(file file) {
     start_lex(file);
 
     if (debug) {
@@ -286,8 +259,8 @@ translation_unit parse(struct file file, llvm::LLVMContext& context) {
         std::cout << "\n\n\n";
     }
 
-    translation_unit unit = parse_translation_unit(file);
-    if (debug) print_translation_unit(unit, file);
+    auto unit = parse_expression_list(file, /*can_be_empty = */true);    
+    //if (debug) print_translation_unit(unit, file);
     if (unit.error or next().type != token_type::null) throw "parse error:";
     else return unit;
 }

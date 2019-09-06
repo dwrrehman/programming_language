@@ -44,7 +44,7 @@ bool found_abstraction_definition(expression &given, size_t &index) ;
 bool contains_top_level_runtime_statement(std::vector<expression> list) ;
 void append_return_0_statement(llvm::IRBuilder<> &builder, llvm::LLVMContext &context) ;
 void declare_donothing(llvm::IRBuilder<> &builder, const std::unique_ptr<llvm::Module> &module);
-bool found_unit_expression(const expression &given);
+bool found_unit_value_expression(const expression &given);
 expression parse_unit_expression(expression& given, size_t& index) ;
 bool found_llvm_string(const expression &given, size_t &pointer) ;
 llvm::Function* create_main(llvm::IRBuilder<>& builder, llvm::LLVMContext& context, const std::unique_ptr<llvm::Module>& module);

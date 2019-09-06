@@ -38,7 +38,7 @@ struct signature_entry {
     nat parent = 0;
     llvm::Value* value = nullptr;
     llvm::Function* function = nullptr;
-}; 
+};
 
 class symbol_table {
 public:
@@ -104,25 +104,16 @@ public:
     }    
     
     void define(expression signature, abstraction_definition definition, 
-                nat stack_frame_index, nat parent = 0) {
-        
-        /// if in blacklist, 
-        /// remove from blacklist.
+                nat stack_frame_index, nat parent = 0) {                
         update();
         frames[frames.size() - 1 - stack_frame_index].indicies.push_back(master.size()); 
         master.push_back({signature, definition, parent});
-        // unimplemented
-    }
-    
-    void undefine(nat signature_index, nat stack_frame_index) {
-        update();
-        blacklist.push_back(signature_index);
-        //frames[frames.size() - 1 - stack_frame_index].indicies.push_back(master.size());  // TODO: make this into a    "remove_if(erase(signature_index));"
-        // unimplemented
+        //we need to define it the LLVM symbol table!
         
+        // and we need to define it of the right type, as well.
     }
     
-    void disclose(nat desired_signature, expression new_signature, 
+    void expose(nat desired_signature, expression new_signature, 
                   nat source_abstraction, nat destination_frame) {
         update();
         // unimplemented

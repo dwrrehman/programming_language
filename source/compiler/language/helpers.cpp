@@ -152,7 +152,7 @@ void declare_donothing(llvm::IRBuilder<> &builder, const std::unique_ptr<llvm::M
     builder.CreateCall(donothing); // TODO: TEMP
 }
 
-bool found_unit_expression(const expression &given) {
+bool found_unit_value_expression(const expression &given) {
     return given.symbols.empty() or (given.symbols.size() == 1 
         and subexpression(given.symbols[0]) 
         and given.symbols[0].subexpression.symbols.empty());
@@ -210,50 +210,51 @@ llvm::Type* parse_llvm_string_as_type(std::string given, state& state, llvm::SMD
 //////          rewrite this code by replacing the use of the "unreachable" instruction" with a call to "llvm.donothing()". this makes way more sense.
 
 bool parse_llvm_string_as_instruction(std::string given, llvm::Function* function, state& state, llvm::SMDiagnostic& errors) {
-    
-    std::string body = "";
-    //function->print(llvm::raw_string_ostream(body) << "");
-    
-    
-    //const size_t bb_count = function->getBasicBlockList().size();
-    //    
-    //    body.pop_back(); // delete the newline;
-    //    body.pop_back(); // delete the close brace.
-    //    body += given + "\nunreachable\n}\n";
-    //    
     /*
-     const std::string current_name = data.function->getName();
-     data.function->setName("_anonymous_" + random_string());
-     
-     llvm::MemoryBufferRef reference(body, "<llvm-string>");
-     llvm::ModuleSummaryIndex my_index(true);
-     
-     if (llvm::parseAssemblyInto(reference, data.module, &my_index, errors)) {
-     data.function->setName(current_name);
-     return false;
-     } else {
-     auto& made = data.module->getFunctionList().back();
-     made.getBasicBlockList().back().back().eraseFromParent();
-     if (bb_count != made.getBasicBlockList().size()) made.getBasicBlockList().back().eraseFromParent();
-     data.function->getBasicBlockList().clear();
-     data.builder.SetInsertPoint(llvm::BasicBlock::Create(data.module->getContext(), "entry", data.function));
-     data.builder.CreateUnreachable();
-     auto& insert_before_point = data.function->getBasicBlockList().back().back();
-     for (auto& bb : made.getBasicBlockList()) {
-     llvm::ValueToValueMapTy vmap;
-     for (auto& inst: bb.getInstList()) {
-     auto* new_inst = inst.clone();
-     new_inst->setName(inst.getName());
-     new_inst->insertBefore(&insert_before_point);
-     vmap[&inst] = new_inst;
-     llvm::RemapInstruction(new_inst, vmap, llvm::RF_NoModuleLevelChanges | llvm::RF_IgnoreMissingLocals);
+    std::string body = "";
+    function->print(llvm::raw_string_ostream(body) << "");
+    
+    
+    const size_t bb_count = function->getBasicBlockList().size();
+        
+        body.pop_back(); // delete the newline;
+        body.pop_back(); // delete the close brace.
+        body += given + "\nunreachable\n}\n";
+        
+    
+    const std::string current_name = data.function->getName();
+    data.function->setName("_anonymous_" + random_string());
+    
+    llvm::MemoryBufferRef reference(body, "<llvm-string>");
+    llvm::ModuleSummaryIndex my_index(true);
+    
+    if (llvm::parseAssemblyInto(reference, data.module, &my_index, errors)) {
+        data.function->setName(current_name);
+        return false;
+    } else {
+        auto& made = data.module->getFunctionList().back();
+        made.getBasicBlockList().back().back().eraseFromParent();
+        if (bb_count != made.getBasicBlockList().size()) made.getBasicBlockList().back().eraseFromParent();
+        data.function->getBasicBlockList().clear();
+        data.builder.SetInsertPoint(llvm::BasicBlock::Create(data.module->getContext(), "entry", data.function));
+        data.builder.CreateUnreachable();
+        auto& insert_before_point = data.function->getBasicBlockList().back().back();
+        for (auto& bb : made.getBasicBlockList()) {
+            llvm::ValueToValueMapTy vmap;
+            for (auto& inst: bb.getInstList()) {
+                auto* new_inst = inst.clone();
+                new_inst->setName(inst.getName());
+                new_inst->insertBefore(&insert_before_point);
+                vmap[&inst] = new_inst;
+                llvm::RemapInstruction(new_inst, vmap, llvm::RF_NoModuleLevelChanges | llvm::RF_IgnoreMissingLocals);
+            }
+        }
+        data.function->getBasicBlockList().back().back().eraseFromParent();      // delete the trailing unreachable.
+        made.eraseFromParent();
+        data.function->setName(current_name);
+        return true;
      }
-     }
-     data.function->getBasicBlockList().back().back().eraseFromParent();      // delete the trailing unreachable.
-     made.eraseFromParent();
-     data.function->setName(current_name);
-     return true;
-     }*/
+     */
     return false;
 }
 
@@ -327,7 +328,6 @@ expression parse_llvm_string(const expression &given, std::string llvm_string, s
     }
 }
 
-
 void parse_call_signature(abstraction_definition& given, state& state, flags flags) {
     std::cout << "parsing call signature\n";
 }
@@ -340,8 +340,7 @@ void parse_abstraction_body(abstraction_definition& given, state& state, flags f
     std::cout << "parsing abstraction body\n";
 }
 
-void parse_abstraction(abstraction_definition& given, state& state, flags flags) {
-    //clean(given.body);
+void parse_abstraction(abstraction_definition& given, state& state, flags flags) {    
     parse_call_signature(given, state, flags); 
     parse_return_type(given, state, flags);    
     parse_abstraction_body(given, state, flags);    
@@ -364,7 +363,6 @@ expression adp(expression& given, size_t& index, state& state, flags flags) {
         }
         return result;
     } else return failure;
-    
 }
 
 inline static bool parameter(symbol &symbol) {return subexpression(symbol);}
@@ -376,20 +374,18 @@ bool matches(expression given, expression& signature, size_t& index, const size_
         if (parameter(symbol) and subexpression(given.symbols[index])) { 
             symbol.subexpression = res(given.symbols[index].subexpression, state, flags);
             if (symbol.subexpression.erroneous) return false;
-            index++;            
+            index++;
         } else if (parameter(symbol)) {
             symbol.subexpression = csr(given, index, depth + 1, max_depth, state, flags);
             if (symbol.subexpression.erroneous) return false;            
-        } else if (not are_equal_identifiers(symbol, given.symbols[index])) {
-            return false;            
-        } else index++;        
+        } else if (not are_equal_identifiers(symbol, given.symbols[index])) return false;
+        else index++;
     } return true;
 }
 
-
 expression csr(expression given, size_t& index, const size_t depth, const size_t max_depth, state& state, flags flags) {
     if (index >= given.symbols.size() or not given.type or depth > max_depth) return failure;
-    if (found_unit_expression(given)) return parse_unit_expression(given, index);
+    if (found_unit_value_expression(given)) return parse_unit_expression(given, index);
     else if (found_llvm_string(given, index)) 
         return parse_llvm_string(given, given.symbols[index].llvm.literal.value, index, state, flags);
     
@@ -398,7 +394,7 @@ expression csr(expression given, size_t& index, const size_t depth, const size_t
         index = saved;
         if (matches(given, state.stack.lookup(signature_index), index, depth, max_depth, state, flags)) 
             return state.stack.lookup(signature_index);
-    }        
+    }
     return failure;
 }
 
@@ -408,7 +404,7 @@ expression res(expression given, state& state, flags flags) {
         size_t pointer = 0;
         solution = csr(given, pointer, 0, max_depth, state, flags);
         if (not solution.erroneous and pointer == given.symbols.size()) break;
-    } 
+    }
     return solution;
 }
 

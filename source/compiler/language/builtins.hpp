@@ -46,18 +46,18 @@ namespace intrin {
         define,        
         expose,
         
-        compiletime,
-        runtime,
-        immutable,
-        mutable_,
+//        compiletime,
+//        runtime,
+//        immutable,
+//        mutable_,
     };
 }
 
 extern expression failure;
 extern expression infered_type;
 extern expression type_type;
-extern expression unit_type;
 extern expression none_type;
+extern expression unit_type;
 
 extern expression application_type;
 extern expression abstraction_type;
@@ -66,10 +66,10 @@ extern expression define_abstraction;
 extern expression expose_abstraction;
 
 // FIX ME:
-extern expression compiletime_type;
-extern expression runtime_type;
-extern expression immutable_type;
-extern expression mutable_type;
+//extern expression compiletime_type;
+//extern expression runtime_type;
+//extern expression immutable_type;
+//extern expression mutable_type;
 
 extern std::vector<expression> builtins;
 

@@ -33,7 +33,7 @@ void remove_whitespace_in_expressions(expression_list& list, struct file file, s
         if (std::find_if(s.begin(), s.end(), is_whitespace) != s.end()) 
             s.erase(std::remove_if(s.begin(), s.end(), is_whitespace));        
         for (auto& symbol : s) 
-            if (symbol.type == symbol_type::list) remove_whitespace_in_expressions(symbol.list, file, depth);                    
+            if (symbol.type == symbol_type::subexpression) remove_whitespace_in_expressions(symbol.list, file, depth);                    
     }
 }
 
