@@ -72,11 +72,8 @@ void error_cannot_open(struct arguments &args, struct file &file) {
  nostril <.n, ...>              : compile the following files, into a executable.
 
     allowed file extensions:
-
-        .n      n3zqx2l implementation file
-
-        .ni     n3zqx2l interface file
-
+    
+        .n      n3zqx2l file
 
     passed to the linker:
 

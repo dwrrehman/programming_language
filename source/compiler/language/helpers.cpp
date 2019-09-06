@@ -391,34 +391,31 @@ expression adp(expression& given, size_t& index, state& state, flags flags) {
     
 }
 
+inline static bool parameter(symbol &symbol) {return subexpression(symbol);}
 
-
-bool matches(expression given, expression& signature, size_t& index, const size_t depth, const size_t max_depth, state& state, flags flags) {
-    if (not signature.type or given.type != signature.type) return false;  
-    
-    for (auto& symbol : signature.symbols) {         
-        
-        if (subexpression(symbol) and subexpression(given.symbols[index])) { // found a subexpression.
+bool matches(expression given, expression& signature, size_t& index, const size_t depth, 
+             const size_t max_depth, state& state, flags flags) {
+    if (given.type != signature.type) return false;    
+    for (auto& symbol : signature.symbols) {        
+        if (parameter(symbol) and subexpression(given.symbols[index])) { 
             symbol.subexpression = res(given.symbols[index].subexpression, state, flags);
             if (symbol.subexpression.erroneous) return false;
-            index++;
-        } else if (subexpression(symbol)) {
+            index++;            
+        } else if (parameter(symbol)) {
             symbol.subexpression = csr(given, index, depth + 1, max_depth, state, flags);
-            if (symbol.subexpression.erroneous) return false;
-            
-        } else if (not are_equal_identifiers(symbol, given.symbols[index])) { 
-            return false;
-        } else index++;
+            if (symbol.subexpression.erroneous) return false;            
+        } else if (not are_equal_identifiers(symbol, given.symbols[index])) {
+            return false;            
+        } else index++;        
     } return true;
 }
 
 
-
-
 expression csr(expression given, size_t& index, const size_t depth, const size_t max_depth, state& state, flags flags) {
     if (index >= given.symbols.size() or not given.type or depth > max_depth) return failure;
-    if (found_unit_expression(given)) return parse_unit_expression(given, index);  
-    else if (found_llvm_string(given, index)) return parse_llvm_string(given, given.symbols[index].llvm.literal.value, index, state, flags); 
+    if (found_unit_expression(given)) return parse_unit_expression(given, index);
+    else if (found_llvm_string(given, index)) 
+        return parse_llvm_string(given, given.symbols[index].llvm.literal.value, index, state, flags);
     
     size_t saved = index;
     for (auto signature_index : state.stack.top()) {
@@ -426,15 +423,12 @@ expression csr(expression given, size_t& index, const size_t depth, const size_t
         if (matches(given, state.stack.lookup(signature_index), index, depth, max_depth, state, flags)) 
             return state.stack.lookup(signature_index);
     }
-    
-    if (found_abstraction_definition(given, index)) return adp(given, index, state, flags);
-    
+    if (found_abstraction_definition(given, index)) return adp(given, index, state, flags);    
     return failure;
 }
 
-
 expression res(expression given, state& state, flags flags) {
-    expression solution {};    
+    expression solution {};
     for (size_t max_depth = 0; max_depth <= max_expression_depth; max_depth++) {
         size_t pointer = 0;
         solution = csr(given, pointer, 0, max_depth, state, flags);
@@ -442,6 +436,20 @@ expression res(expression given, state& state, flags flags) {
     } 
     return solution;
 }
+
+expression resolve(expression given, state& state, flags flags) { // interface function:
+    prune_extraneous_subexpressions(given);
+    return res(given, state, flags);
+}
+
+
+
+
+
+
+
+
+// debug tool:
 
 void interpret_file_as_llvm_string(const struct file &file, state &state) { // test, by allowing some llvm random string to be parsed into the file:
     llvm::SMDiagnostic errors;

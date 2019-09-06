@@ -77,35 +77,30 @@ std::string expression_to_string(expression given, symbol_table& stack) {
 
 size_t string_to_expression_tail(std::vector<expression> list, state& state, flags flags) { // returns an index to the correct into the stack.
     if (list.empty()) return intrin::infered;
-    if (list.size() == 1 and expressions_match(list[0], type_type)) return intrin::type;    
+    if (list.size() == 1 and expressions_match(list[0], type_type)) return intrin::type;
+    
     auto current = list.front();
     list.erase(list.begin());
+    
     auto resolved_expression = res(current, state, flags);
+    
     if (resolved_expression.erroneous) state.error = true;
     resolved_expression.type = string_to_expression_tail(list, state, flags.dont_allow_undefined().not_at_top_level().not_parsing_a_type());
-        
-        ///TODO: here, we need to interpret() the resolved expression into actual calls to llvm IR, (hoping that we dont call any external functions...
-        //// we will eventually reduce this the computation returning an abstraction/signature, which is in scope (possibly in parent ones)    
-        ////// this abstraction will then be turned into a index into the (symbol table's) master.        
-        /// this will be challenging, and we need to out source this into another function, and then just call it.
     
-            // on second thought, its not neccessary to be that complicated in a simple llvm signature. lets just ban that.
-    
-                // no compiletime evaluation in llvm signatures....? makes sense.....
-    
-    
-    return intrin::typeless; //TODO: fix me: TEMP
+    return 0; // temp
 }
 
 expression string_to_expression(std::string given, state& state, flags flags) {    
-    struct file file = {"<llvm string symbol>", given};    
-    start_lex(file);        
-    auto subexpressions = filter_subexpressions(parse_expression(file, false, false));    
+    struct file file = {"<llvm string symbol>", given};
+    start_lex(file);
+    auto e = parse_expression(file, false, false);    
+    auto subexpressions = filter_subexpressions(e);    
     auto signature = subexpressions.front();    
+    
     subexpressions.erase(subexpressions.begin());        
     signature.type = string_to_expression_tail(subexpressions, state, flags);
     
-    return signature;    
+    return signature;
 }
 
 expression convert_raw_llvm_symbol_to_expression(std::string id, llvm::Value* value, symbol_table& stack, translation_unit_data& data, flags flags) { 
@@ -116,7 +111,7 @@ expression convert_raw_llvm_symbol_to_expression(std::string id, llvm::Value* va
     } else {
         expression e {};
         e.llvm_type = value->getType();
-        e.type = intrin::typeless;            
+        e.type = intrin::typeless;
         e.symbols = {{id, false}};
         return e;
     }

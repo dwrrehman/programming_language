@@ -1,37 +1,4 @@
-
-/*
- 
- 
- known bugs:
- 
- 
- 
- """"""""""""""""""""""""""""""
- (hello) {}
- 
- (cat) hello {
-    ()
- }
- (((x) hello) is cool) () {
- 
- }
- 
- (((x) hello) is cool) hello {
-    x
- }
- 
- ( ((x) hello) ) {
- 
- }
- 
- cat is cool
- """"""""""""""""""""""""""""""
-
-        ....doesnt succeed, because we cant instantiate any new types, 
-            beause we havent implemented type constructors.
- 
- */
-
+// the main program for "nostril", a n3zqx2l compiler.
 #include "arguments.hpp"
 #include "compiler.hpp"
 #include "interpreter.hpp"

@@ -14,96 +14,94 @@ expression failure = {true};
 
 /**
  
+ 0  :  {typeless}               : 0
+ 1  :  infered type             : 0
+ 2  :  type type                : 0
+ 3  :  none type                : type
+ 4  :  unit type                : type
  
-    0  :  {typeless}
-    
-    1  :  type type 
-    2  :  infered type 
-    3  :  unit type 
-    4  :  none type    
-    5  :  any type 
-    6  :  application type 
-    7  :  abstraction type 
-    8  :  compiletime type    
-    9  :  runtime type 
-    10  :  immutable type 
-    11  :  mutable type  
-    12  :  define abstraction 
-    13  :  undefine abstraction  
-    14  :  disclose abstraction       
-    15  :  all signature
+ 5  :  application type         : type
+ 6  :  abstraction type         : type  
+ 7  :  create                   : unit
+ 8  :  define                   : unit
+ 9  :  expose                   : unit
+ 
+ 10  : ct                       : type  
+ 11  : rt                       : type
+ 12  : imm                      : type
+ 13  : mut                      : type
  
  */
+expression infered_type = {{{"__", false}}}; // has no type.
 expression type_type = {{{"_type", false}}}; // has no type.
-expression infered_type = {{{"_infered", false}}}; // has no type.
-expression unit_type = {{}, intrin::type};
+expression unit_type = {{{"_unit", false}}, intrin::type};
 expression none_type = {{{"_none", false}}, intrin::type};
-expression any_type = {{{"_any", false}}, intrin::type};
-     
-expression application_type = {{{"_application", false}}, intrin::type};
-expression abstraction_type = {{{"_abstraction", false}}, intrin::type};
-     
-expression compiletime_type = { { {"_compiletime", false}, {{{},intrin::type}}},intrin::type};
-expression runtime_type = { { {"_runtime", false}, {{{},intrin::type}}},intrin::type};
+expression application_type = {{{"_a", false}}, intrin::type};
+expression abstraction_type = {{{"_b", false}}, intrin::type};
 
-expression immutable_type = { { {"_immutable", false}, {{{},intrin::type}}},intrin::type};
-expression mutable_type = { { {"_mutable", false}, {{{},intrin::type}}},intrin::type};
-
-/// global builtin abstractions:
+expression create_abstraction = {
+    {
+        {"_c", false},  {{{}, intrin::application}},        
+    }, intrin::unit};
 
 expression define_abstraction = {
     {
-        {"_define", false}, {{{}, intrin::abstraction}},
-        {"as", false}, {{{}, intrin::application}},
-        {"in", false}, {{{}, intrin::application}},
+        {"_d", false}, {{{}, intrin::abstraction}},
+        {{{}, intrin::application}},
+        {{{}, intrin::application}},
+        {{{}, intrin::application}},
     }, intrin::unit};
 
-expression undefine_abstraction = {
+expression expose_abstraction = {
     {
-        {"_undefine", false}, {{{}, intrin::application}},
-        {"in", false}, {{{}, intrin::application}},
+        {"_e", false}, {{{}, intrin::application}},
+        {{{}, intrin::abstraction}},
+        {{{}, intrin::application}},
     }, intrin::unit};
 
-expression disclose_abstraction = {
-    {
-        {"_disclose", false}, {{{}, intrin::abstraction}},
-        {"from", false}, {{{}, intrin::application}},
-        {"into", false}, {{{}, intrin::application}},
-    }, intrin::unit};
 
-expression all_signature = {{{"_all", false}}, intrin::abstraction};
+
+
+
+
+/// FIX ME
+expression compiletime_type = { { {"_compiletime", false}, {{{},intrin::type}}},intrin::type};
+expression runtime_type = { { {"_runtime", false}, {{{},intrin::type}}},intrin::type};
+/// FIX ME
+expression immutable_type = { { {"_immutable", false}, {{{},intrin::type}}},intrin::type};
+expression mutable_type = { { {"_mutable", false}, {{{},intrin::type}}},intrin::type};
+
+
+
 
 
 std::vector<expression> builtins =  {
-    type_type, infered_type, unit_type, none_type, any_type, 
-    
+    infered_type, type_type, none_type, unit_type,
     application_type, abstraction_type,
+    create_abstraction, define_abstraction, expose_abstraction,
+        
     compiletime_type,   runtime_type,
-    immutable_type,     mutable_type,
-    
-    define_abstraction, undefine_abstraction, disclose_abstraction,
-    all_signature,
-    
+    immutable_type,     mutable_type,    
 };
 
 std::string stringify_intrin(size_t i) {
     switch (i) {
         case intrin::typeless: return "typeless";
-        case intrin::type: return "type";
         case intrin::infered: return "infered";
-        case intrin::unit: return "unit";    
+        case intrin::type: return "type";                    
         case intrin::none: return "none";
-        case intrin::any: return "any";
+        case intrin::unit: return "unit";
+            
         case intrin::application: return "application";
         case intrin::abstraction: return "abstraction";
+        case intrin::define: return "define";                                
+        case intrin::expose: return "expose";
+        case intrin::create: return "create";
+            
         case intrin::compiletime: return "compiletime";
         case intrin::runtime: return "runtime";        
         case intrin::immutable: return "immutable";
         case intrin::mutable_: return "mutable";
-        case intrin::define: return "define";            
-        case intrin::undefine: return "undefine";            
-        case intrin::disclose: return "disclose";            
-        case intrin::all: return "all";            
     }
     return "{compiler error}";
 }

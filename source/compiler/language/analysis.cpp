@@ -53,20 +53,19 @@ std::unique_ptr<llvm::Module> analyze(translation_unit unit, llvm::LLVMContext& 
     llvm::IRBuilder<> builder(context);
     auto module = llvm::make_unique<llvm::Module>(file.name, context);
     auto triple = llvm::sys::getDefaultTargetTriple();
-    module->setTargetTriple(triple);    
-    auto main_function = create_main(builder, context, module);    
+    module->setTargetTriple(triple);
+    auto main_function = create_main(builder, context, module);
     declare_donothing(builder, module);
     
     bool error = false;
     flags flags = {};
     translation_unit_data data = {file, module.get(), builder};
-    symbol_table stack {data, flags, builtins};     
+    symbol_table stack {data, flags, builtins};
     state state = {stack, data, error};
     
     auto& body = unit.list.expressions;    
     std::vector<expression> parsed_body = {};
-    for (auto expression : body) {        
-                
+    for (auto expression : body) {
         expression.type = intrin::unit;
         auto solution = res(expression, state, flags.generate_code().at_top_level());
         if (solution.erroneous) error = true;
@@ -77,18 +76,12 @@ std::unique_ptr<llvm::Module> analyze(translation_unit unit, llvm::LLVMContext& 
     debug_table(module, stack);
     
     
+
     
     
     
     
-    
-    
-    
-    
-    
-    
-    
-    
+
     if (llvm::verifyFunction(*main_function)) append_return_0_statement(builder, context);
     if (llvm::verifyModule(*module, &llvm::errs())) error = true;
     if (debug) print_translation_unit(unit, file);    
