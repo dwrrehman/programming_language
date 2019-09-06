@@ -34,7 +34,6 @@ bool expressions_match(expression first, expression second);
 ////////////////////////////////// General helpers ////////////////////////////////
 
 std::string random_string();
-void clean(block& body);
 void print(std::vector<std::string> v);
 void prune_extraneous_subexpressions(expression& given);
 std::vector<expression> filter_subexpressions(expression given);

@@ -27,7 +27,7 @@ enum class symbol_type {
     subexpression,
     string_literal,
     llvm_literal,
-    block,
+    list,
     identifier,
     newline,
     indent,
@@ -37,7 +37,6 @@ enum class symbol_type {
 // prototypes:
 
 class translation_unit;
-class block;
 class expression_list;
 class expression;
 class symbol;
@@ -60,20 +59,12 @@ public:
 };
 
 class expression: public node {
-public:
-    
+public:    
     std::vector<symbol> symbols = {};
     size_t indent_level = 0;
-    
-    
-    
-    //expression* type = nullptr;
-    size_t type = 0;                   // 0 means no type.
-    
-    
+    size_t type = 0;        
     bool erroneous = false;
-    bool was_allocated = false;
-    
+    bool was_allocated = false;    
     llvm::Type* llvm_type = nullptr;
     
     expression() {}
@@ -105,17 +96,6 @@ public:
     expression_list list = {};
 };
 
-class block: public node {
-public:
-    expression_list list = {};
-    block(){}
-    block(expression_list list) {
-        this->list = list;
-    }
-};
-
-
-
 /// ---------------------- Abstractions ---------------------------
 
 class abstraction_definition: public node {
@@ -125,13 +105,13 @@ public:
     
     expression call_signature = {};
     expression return_type = {};
-    block body = {};
+    expression_list body = {};
         
     size_t precedence = 0;
     enum associativity associativity = associativity::left;     
 
     abstraction_definition(){}
-    abstraction_definition(expression call, expression rt, block body) {
+    abstraction_definition(expression call, expression rt, expression_list body) {
         this->call_signature = call;
         this->return_type = rt;
         this->body = body;
@@ -142,10 +122,10 @@ class symbol: public node {
 public:
     enum symbol_type type = symbol_type::none;
     expression subexpression = {};
-    block block = {};
+    expression_list list = {};
     string_literal string = {};
     llvm_literal llvm = {};
-    identifier identifier = {};
+    identifier identifier = {}; 
     abstraction_definition abstraction = {};
     
     symbol(){}

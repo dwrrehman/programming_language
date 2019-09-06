@@ -32,12 +32,10 @@ std::string convert_symbol_type(enum symbol_type type);
 
 void print_symbol(symbol s, int d);
 void print_expression(expression s, int d);
-void print_block(block b, int d);
 void print_expression_list(expression_list list, int d);
 void print_expression_list_line(expression_list list);
 void print_translation_unit(translation_unit unit, struct file file);
 void print_abstraction_definition(abstraction_definition abstraction, int d);
 void print_expression_line(expression expression);
-void print_block_line(block block);
 
 #endif

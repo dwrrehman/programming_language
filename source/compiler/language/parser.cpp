@@ -48,7 +48,7 @@ llvm_literal parse_llvm_literal(struct file file) {
 }
 
 bool is_syntax(std::string value) {
-    return std::find(language_syntax.begin(), language_syntax.end(), value) != language_syntax.end();
+    return value == "(" or value == ")";
 }
 
 identifier parse_identifier(struct file file) {
@@ -74,27 +74,20 @@ static bool is_open_paren(const token &t) {
     return t.type == token_type::operator_ and t.value == "(";
 }
 
-static bool is_open_brace(const token &t) {
-    return t.type == token_type::operator_ and t.value == "{";
-}
-
-static bool is_close_brace(const token &t) {
-    return t.type == token_type::operator_ and t.value == "}";
-}
 
 // -------------------- ebnf parsers --------------------------------
 
-block parse_block(struct file file) {
+/// FIX ME:
+expression_list parse_block(struct file file) {
 
-    block block = {};
-
+    expression_list block = {};
+    
     auto saved = save();
     auto t = next();
     auto st = t;
-    if (not is_open_brace(t)) { revert_and_return(); }
+    if (not is_open_paren(t)) { revert_and_return(); }
 
-    newlines();
-    
+    newlines();    
     saved = save();
 
     auto expression_list = parse_expression_list(file, /*can_be_empty = */true);
@@ -102,13 +95,12 @@ block parse_block(struct file file) {
         revert(saved);
         auto expression = parse_expression(file, /*can_be_empty = */true, /*newlines_are_a_symbol = */false);
         if (expression.error) { revert_and_return(); }
-        block.list.expressions = {expression};
-    } else block.list = expression_list;
-
+        block.expressions = {expression};
+    } else block = expression_list;
     indents();
     t = next();
-    if (not is_close_brace(t)) {
-        print_parse_error(file.name, st.line, st.column, convert_token_type_representation(t.type), t.value, "\"}\" to close block");
+    if (not is_close_paren(t)) {
+        print_parse_error(file.name, st.line, st.column, convert_token_type_representation(t.type), t.value, "\")\" to close expression");
         print_source_code(file.text, {st});
         revert_and_return();
     }
@@ -133,7 +125,7 @@ symbol parse_symbol(struct file file, bool newlines_are_a_symbol) {
                 s.error = false;
                 return s;
             } else {
-                print_parse_error(file.name, st.line, st.column, convert_token_type_representation(t.type), t.value, "\")\" to close subexpression");
+                print_parse_error(file.name, st.line, st.column, convert_token_type_representation(t.type), t.value, "\")\" to close expression");
                 print_source_code(file.text, {st});
                 revert_and_return();
             }
@@ -159,10 +151,12 @@ symbol parse_symbol(struct file file, bool newlines_are_a_symbol) {
     }
     revert(saved);
 
-    auto block = parse_block(file);
-    if (not block.error) {
-        s.type = symbol_type::block;
-        s.block = block;
+    
+    /// FIX ME:
+    auto list = parse_block(file);
+    if (not list.error) {
+        s.type = symbol_type::list;
+        s.list = list;
         s.error = false;
         return s;
     }

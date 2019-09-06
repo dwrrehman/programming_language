@@ -97,15 +97,6 @@ void print(std::vector<std::string> v) {
     std::cout << "]";
 }
 
-
-void clean(block& body) {
-    block result = {};
-    for (auto expression : body.list.expressions) 
-        if (not expression.symbols.empty()) 
-            result.list.expressions.push_back(expression);
-    body = result;
-}
-
 void prune_extraneous_subexpressions(expression& given) {
     while (given.symbols.size() == 1 
            and subexpression(given.symbols[0])
@@ -127,9 +118,9 @@ std::vector<expression> filter_subexpressions(expression given) {
 abstraction_definition generate_abstraction_definition(const expression &given, size_t &index) {
     abstraction_definition definition = {};
     definition.call_signature = given.symbols[index++].subexpression;
-    while (given.symbols[index].type != symbol_type::block) {
+    while (given.symbols[index].type != symbol_type::list) {
         definition.return_type.symbols.push_back(given.symbols[index++]);
-    } definition.body = given.symbols[index++].block;
+    } definition.body = given.symbols[index++].list;
     return definition;
 }
 
@@ -149,21 +140,6 @@ size_t generate_type_for(abstraction_definition definition) {
 //    type->type = &type_type;
 //    return type;
     return 0;
-}
-
-bool contains_a_block_starting_from(size_t begin, std::vector<symbol> list) {
-    for (; begin < list.size(); begin++)
-        if (list[begin].type == symbol_type::block) return true;
-    return false;
-}
-
-bool found_abstraction_definition(expression &given, size_t &index) {
-    return subexpression(given.symbols[index]) and contains_a_block_starting_from(index + 1, given.symbols);
-}
-
-bool contains_top_level_runtime_statement(std::vector<expression> list) { //TODO: fix me, to consider only runtime statements.
-    //for (auto e : list) if (not (e.symbols.size() == 1 and e.symbols[0].type == symbol_type::abstraction_definition)) return true;
-    return false;
 }
 
 void append_return_0_statement(llvm::IRBuilder<> &builder, llvm::LLVMContext &context) {
@@ -365,7 +341,7 @@ void parse_abstraction_body(abstraction_definition& given, state& state, flags f
 }
 
 void parse_abstraction(abstraction_definition& given, state& state, flags flags) {
-    clean(given.body);
+    //clean(given.body);
     parse_call_signature(given, state, flags); 
     parse_return_type(given, state, flags);    
     parse_abstraction_body(given, state, flags);    
@@ -422,8 +398,7 @@ expression csr(expression given, size_t& index, const size_t depth, const size_t
         index = saved;
         if (matches(given, state.stack.lookup(signature_index), index, depth, max_depth, state, flags)) 
             return state.stack.lookup(signature_index);
-    }
-    if (found_abstraction_definition(given, index)) return adp(given, index, state, flags);    
+    }        
     return failure;
 }
 

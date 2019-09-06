@@ -33,16 +33,16 @@ void remove_whitespace_in_expressions(expression_list& list, struct file file, s
         if (std::find_if(s.begin(), s.end(), is_whitespace) != s.end()) 
             s.erase(std::remove_if(s.begin(), s.end(), is_whitespace));        
         for (auto& symbol : s) 
-            if (symbol.type == symbol_type::block) remove_whitespace_in_expressions(symbol.block.list, file, depth);                    
+            if (symbol.type == symbol_type::list) remove_whitespace_in_expressions(symbol.list, file, depth);                    
     }
 }
 
 void turn_indents_into_blocks(expression_list& list, struct file file, const size_t level);
 
-void add_block_to_list(block& block, struct file file, const size_t level, expression_list& new_list) {
-    turn_indents_into_blocks(block.list, file, level + 1);
-    symbol s {symbol_type::block};
-    s.block = block;
+void add_block_to_list(expression_list& list, struct file file, const size_t level, expression_list& new_list) {
+    turn_indents_into_blocks(list, file, level + 1);
+    symbol s {symbol_type::list};
+    s.list = list;
     expression e {};
     e.error = false;
     e.symbols.push_back(s);
@@ -50,25 +50,25 @@ void add_block_to_list(block& block, struct file file, const size_t level, expre
     else new_list.expressions.back().symbols.push_back(s);
 }
 
-static void push_block_onto_list(block& block, const struct file& file, const size_t level, expression_list& new_list) {
-    if (block.list.expressions.size())
-        add_block_to_list(block, file, level, new_list);
+static void push_block_onto_list(expression_list& list, const struct file& file, const size_t level, expression_list& new_list) {
+    if (list.expressions.size()) 
+        add_block_to_list(list, file, level, new_list);
 }
 
 void turn_indents_into_blocks(expression_list& list, struct file file, const size_t level) {
 
     expression_list new_list {};
-    block block {};
+    expression_list block {};
 
     for (auto& expression : list.expressions) {
         if (expression.symbols.empty()) continue;
         
         if (expression.indent_level > level) {
-            block.list.expressions.push_back(expression);
+            block.expressions.push_back(expression);
         } else {
             push_block_onto_list(block, file, level, new_list);
             new_list.expressions.push_back(expression);
-            block.list.expressions.clear();
+            block.expressions.clear();
         }
     }
     push_block_onto_list(block, file, level, new_list);
@@ -83,8 +83,8 @@ void raise_indents(expression_list& list, struct file file, const size_t level) 
     for (auto& expression : list.expressions) {
         raise(expression.indent_level, level);
         for (auto& symbol : expression.symbols)
-            if (symbol.type == symbol_type::block)
-                raise_indents(symbol.block.list, file, level + 1);
+            if (symbol.type == symbol_type::list)
+                raise_indents(symbol.list, file, level + 1);
     }
 }
 

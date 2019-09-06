@@ -80,12 +80,6 @@ void debug_token_stream() {
 
 void print_symbol(symbol s, int d);
 void print_expression(expression s, int d);
-void print_block(block b, int d);
-
-void print_block(block block, int d) {
-    prep(d); std::cout << "block:\n";
-    print_expression_list(block.list, d+1);
-}
 
 void print_abstraction_definition(abstraction_definition abstraction, int d) {
     prep(d); std::cout << "abstraction definition: \n";
@@ -97,7 +91,7 @@ void print_abstraction_definition(abstraction_definition abstraction, int d) {
     print_expression(abstraction.return_type, d+2);
 
     prep(d+1); std::cout << "abstraction body: \n";
-    print_block(abstraction.body, d+2);
+    //print_block(abstraction.body, d+2);
 }
 
 
@@ -122,9 +116,9 @@ void print_symbol(symbol symbol, int d) {
             print_expression(symbol.subexpression, d+1);
             break;
 
-        case symbol_type::block:
-            prep(d); std::cout << "block symbol\n";
-            print_block(symbol.block, d+1);
+        case symbol_type::list:
+            prep(d); std::cout << "list symbol\n";
+            print_expression_list(symbol.list, d+1);
             break;
 
         case symbol_type::newline:
@@ -168,7 +162,7 @@ void print_abstraction_definition_line(abstraction_definition definition) {
     std::cout << " -> ";
     print_expression_line(definition.return_type);
     std::cout << " ";
-    print_block_line(definition.body);
+    //print_block_line(definition.body);
 }
 
 void print_symbol_line(symbol symbol) {
@@ -190,8 +184,8 @@ void print_symbol_line(symbol symbol) {
             print_expression_line(symbol.subexpression);
             break;
 
-        case symbol_type::block:
-            print_block_line(symbol.block);
+        case symbol_type::list:
+            //print_block_line(symbol.block);
             break;
 
         case symbol_type::newline:
@@ -241,12 +235,12 @@ void print_expression_line(expression expression) {
 
 
 
-void print_block_line(block block) {
-    std::cout << "{\n";
-    print_expression_list(block.list, 1);
-    std::cout << "}";
-}
-
+//void print_block_line(block block) {
+//    std::cout << "{\n";
+//    print_expression_list(block.list, 1);
+//    std::cout << "}";
+//}
+//
 
 void print_expression_list(expression_list list, int d) {
 
@@ -289,8 +283,8 @@ std::string convert_symbol_type(enum symbol_type type) {
             return "string literal";
         case symbol_type::llvm_literal:
             return "llvm literal";
-        case symbol_type::block:
-            return "block";        
+        case symbol_type::list:
+            return "list";        
         case symbol_type::identifier:
             return "identifier";
         case symbol_type::newline:

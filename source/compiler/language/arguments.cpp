@@ -147,8 +147,8 @@ struct arguments get_commandline_arguments(const int argc, const char** argv) {
         args.use_interpreter = true;   
 
     } else if (argc > 1 and (std::string(argv[1]) == "version" or std::string(argv[1]) == "-v")) {
-        std::cout << language_name << ": " << language_version << std::endl;
-        //std::cout << compiler_name << ": " << compiler_version << std::endl;
+        std::cout << language_name << ": " << language_version << std::endl;        
+        std::cout << compiler_name << ": " << compiler_version << std::endl;
         exit(0);
         
     } else if (argc > 1 and (std::string(argv[1]) == "usage" or std::string(argv[1]) == "-h")) {
