@@ -61,15 +61,14 @@ static bool is_quit_command(const std::string &line) {
 }
 
 void process_repl_command(std::string line, std::string first) {
-    
-        
+            
     if (line == "clear") {
         std::cout << "\e[1;1H\e[2J";
         
     } else if (line == "hello?") {
         std::cout << output() << "Hello, world!\n";
                 
-    } else if (first == "do") { // an example command which takes some string as input.
+    } else if (first == "do" and line.size() > 3) { // an example command which takes some string as input.
     
         auto text = line.substr(3);
         std::cout << "doing: \"" << text << "\"\n";
