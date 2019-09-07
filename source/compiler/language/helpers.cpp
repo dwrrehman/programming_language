@@ -97,22 +97,24 @@ void print(std::vector<std::string> v) {
     std::cout << "]";
 }
 
-void prune_extraneous_subexpressions(expression& given) {
-    while (given.symbols.size() == 1 
-           and subexpression(given.symbols[0])
-           and given.symbols[0].expressions.symbols.size()) {
-        auto save = given.symbols[0].expressions.symbols;
-        given.symbols = save;
-    }
-    for (auto& symbol : given.symbols)
-        if (subexpression(symbol)) prune_extraneous_subexpressions(symbol.subexpression);
+void prune_extraneous_subexpressions(expression& given) { // unimplemented
+//    while (given.symbols.size() == 1 
+//           and subexpression(given.symbols[0])
+//           and given.symbols[0].expressions.symbols.size()) {
+//        auto save = given.symbols[0].expressions.symbols;
+//        given.symbols = save;
+//    }
+//    for (auto& symbol : given.symbols)
+//        if (subexpression(symbol)) prune_extraneous_subexpressions(symbol.subexpression);
 }
 
-std::vector<expression> filter_subexpressions(expression given) {
-    std::vector<expression> subexpressions = {};    
-    for (auto element : given.symbols) 
-        if (subexpression(element)) subexpressions.push_back(element.subexpression);    
-    return subexpressions;
+std::vector<expression> filter_subexpressions(expression given) { // unimplemented
+//    std::vector<expression> subexpressions = {};    
+//    for (auto element : given.symbols) 
+//        if (subexpression(element)) subexpressions.push_back(element.subexpression);    
+//    return subexpressions;
+    
+    return {};
 }
 
 //abstraction_definition generate_abstraction_definition(const expression &given, size_t &index) {
@@ -152,10 +154,11 @@ void declare_donothing(llvm::IRBuilder<> &builder, const std::unique_ptr<llvm::M
     builder.CreateCall(donothing); // TODO: TEMP
 }
 
-bool found_unit_value_expression(const expression& given) {
-    return given.symbols.empty() or (given.symbols.size() == 1 
-        and subexpression(given.symbols[0]) 
-        and given.symbols[0].expressions.symbols.empty());
+bool found_unit_value_expression(const expression& given) { // unimplemented
+//    return given.symbols.empty() or (given.symbols.size() == 1 
+//        and subexpression(given.symbols[0]) 
+//        and given.symbols[0].expressions.symbols.empty());
+    return false;
 }
 
 expression parse_unit_expression(expression& given, size_t& index) {   ////TODO: this is bad. fix this. 
@@ -352,15 +355,15 @@ expression parse_llvm_string(const expression &given, std::string llvm_string, s
 inline static bool parameter(symbol &symbol) {return subexpression(symbol);}
 
 bool matches(expression given, expression& signature, size_t& index, const size_t depth, 
-             const size_t max_depth, state& state, flags flags) {
+             const size_t max_depth, state& state, flags flags) {  // unimplemented
     if (given.type != signature.type) return false;
     for (auto& symbol : signature.symbols) {
         if (parameter(symbol) and subexpression(given.symbols[index])) { 
-            symbol.expressions = res(given.symbols[index].expressions, state, flags);
+            //symbol.expressions = res(given.symbols[index].expressions, state, flags);
             if (symbol.expressions.error) return false;
             index++;
         } else if (parameter(symbol)) {
-            symbol.expressions = csr(given, index, depth + 1, max_depth, state, flags);
+            //symbol.expressions = csr(given, index, depth + 1, max_depth, state, flags);
             if (symbol.expressions.error) return false;            
         } else if (not are_equal_identifiers(symbol, given.symbols[index])) return false;
         else index++;

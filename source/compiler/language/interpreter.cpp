@@ -96,9 +96,9 @@ void interpret_llvm_string(std::string text) {
 }
 
 
-void analyze(translation_unit unit, std::unique_ptr<llvm::Module>& module, struct file file) {
-    // code this after we get the regular one finished.
-}
+//void analyze(expression_list unit, std::unique_ptr<llvm::Module>& module, struct file file) {
+//    // code this after we get the regular one finished.
+//}
 
 static std::string get_first_word(const std::string &line) {
     auto first = line;

@@ -24,37 +24,48 @@ enum class symbol_type {
     llvm_literal,    
     identifier,    
     newline,
-    indent, 
+    indent,
 };
 
 // literals:
 struct string_literal { 
+    
     token literal = {}; 
-    bool error = 0;    
+    bool error = 0;
+
+    
     string_literal(){}
     string_literal(bool e, bool _ignore_me, bool _also_ignore_me) { error = e; }
     string_literal(token t) {literal = t;}
 };
 
 struct llvm_literal { 
+    
     struct token literal = {}; 
     bool error = 0;
+    
+    
     llvm_literal(){}
     llvm_literal(bool e, bool _ignore_me, bool _also_ignore_me) { error = e; }
     llvm_literal(token t) {literal = t;}
 };
 
 struct identifier { 
+    
     struct token name = {}; 
     bool error = 0;
+    
+    
     identifier(){}
     identifier(bool e, bool _ignore_me, bool _also_ignore_me) { error = e; }
     identifier(token n) {name = n;}
 };
 
 struct expression_list {
+    
     std::vector<expression> list = {};
     bool error = {};
+    
     
     expression_list(){}
     expression_list(bool e, bool _ignore_me, bool _also_ignore_me) { error = e; }
@@ -68,11 +79,17 @@ struct expression_list {
 };
 
 struct expression {
+    
+    
+    
     std::vector<symbol> symbols = {};
     size_t indent_level = 0;
     size_t type = 0;
     llvm::Type* llvm_type = nullptr;
     bool error = false;        
+    
+    
+    
     
     expression() {}
     expression(std::vector<symbol> symbols) {
@@ -90,13 +107,15 @@ struct expression {
     }
 };
 
-struct symbol {    
+struct symbol { 
+    
     enum symbol_type type = symbol_type::none;    
     expression_list expressions = {};
     string_literal string = {};
     llvm_literal llvm = {};
     identifier identifier = {};
     bool error = false;
+    
     
     symbol(){}
     symbol(bool e, bool _ignore_me, bool _also_ignore_me) { error = e; }

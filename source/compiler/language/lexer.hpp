@@ -11,8 +11,8 @@
 
 #include <string>
 
-enum class token_type {null, string, identifier, documentation, character, llvm, keyword, operator_, indent};
-enum class lexing_state {none, string, string_expression, identifier, documentation, llvm_string, comment, multiline_comment, indent};
+enum class token_type {null, string, identifier, character, llvm, keyword, operator_, indent};
+enum class lexing_state {none, string, string_expression, identifier, llvm_string, comment, multiline_comment, indent};
 
 struct token {
     enum token_type type = token_type::null;

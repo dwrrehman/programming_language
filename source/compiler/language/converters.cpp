@@ -19,13 +19,13 @@
 #include <string>
 #include <vector>
 
-std::string expression_to_string(expression given, symbol_table& stack) {
+std::string expression_to_string(expression given, symbol_table& stack) {  // unimplemented
     std::string result = "(";
     size_t i = 0;
     for (auto symbol : given.symbols) {
         if (symbol.type == symbol_type::identifier) result += symbol.identifier.name.value;
         else if (symbol.type == symbol_type::subexpression) {
-            result += "(" + expression_to_string(symbol.expressions, stack) + ")";
+            //result += "(" + expression_to_string(symbol.expressions, stack) + ")";
         }
         if (i < given.symbols.size() - 1) result += " ";
         i++;

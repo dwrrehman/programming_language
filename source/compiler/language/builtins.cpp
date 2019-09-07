@@ -58,10 +58,10 @@ expression define_abstraction = {
 
 expression expose_abstraction = {
     std::vector<symbol> {
-        {"_e"},
-        {{expression{intrin::application}}},
-        {{expression{intrin::abstraction}}},
-        {{expression{intrin::application}}},
+//        {"_e"},
+//        {{expression{intrin::application}}},
+//        {{expression{intrin::abstraction}}},
+//        {{expression{intrin::application}}},
     }, intrin::unit};
 
 
@@ -106,27 +106,8 @@ std::string stringify_intrin(size_t i) {
 }
 
 
-
-
-
-
 ///TODO: still missing:
 /**
- 
- 
- 
- 
- 
- to add:
- 
-    
- 
-        _instantiate <type>
- 
-    
- 
- 
- 
  
  
  
@@ -142,8 +123,5 @@ std::string stringify_intrin(size_t i) {
         _associativity <_signature>
  
         _find <_signature> in <_application>
- 
- 
- 
  
  */

@@ -33,7 +33,6 @@ void debug_arguments(struct arguments args) {
 }
 
 
-
 // ---------------------------- lexer debugging: ---------------------------------------
 
 
@@ -51,8 +50,7 @@ const char* convert_token_type_representation(enum token_type type) {
         case token_type::string: return "string";
         case token_type::identifier: return "identifier";
         case token_type::keyword: return "keyword";
-        case token_type::operator_: return "operator";
-        case token_type::documentation: return "documentation";
+        case token_type::operator_: return "operator";        
         case token_type::character: return "character";
         case token_type::llvm: return "llvm";    
         case token_type::indent: return "indent";
@@ -67,7 +65,6 @@ void debug_token_stream() {
 }
 
 
-
 // ---------------------------- parser debugging functions -------------------------------
 
 
@@ -75,20 +72,6 @@ void debug_token_stream() {
 
 void print_symbol(symbol s, int d);
 void print_expression(expression s, int d);
-
-//void print_abstraction_definition(abstraction_definition abstraction, int d) {
-//    prep(d); std::cout << "abstraction definition: \n";
-//
-//    prep(d+1); std::cout << "call signature: \n";
-//    print_expression(abstraction.call_signature, d+2);
-//
-//    prep(d+1); std::cout << "return type: \n";
-//    print_expression(abstraction.return_type, d+2);
-//
-//    prep(d+1); std::cout << "abstraction body: \n";
-//    //print_block(abstraction.body, d+2);
-//}
-
 
 void print_symbol(symbol symbol, int d) {
     prep(d); std::cout << "symbol: \n";
@@ -126,10 +109,6 @@ void print_symbol(symbol symbol, int d) {
         case symbol_type::none:
             prep(d); std::cout << "{NO SYMBOL TYPE}\n";
             break;
-//        case symbol_type::abstraction_definition:
-//            prep(d); std::cout << "abstraction definition: \n";
-//            print_abstraction_definition(symbol.abstraction, d+1);
-//            break;
         default: break;
     }
 }
@@ -150,15 +129,6 @@ void print_expression(expression expression, int d) {
     
     prep(d); std::cout << "type = " << expression.type << "\n";
 }
-
-
-//void print_abstraction_definition_line(abstraction_definition definition) {
-//    print_expression_line(definition.call_signature);
-//    std::cout << " -> ";
-//    print_expression_line(definition.return_type);
-//    std::cout << " ";
-//    //print_block_line(definition.body);
-//}
 
 void print_symbol_line(symbol symbol) {
 
@@ -194,9 +164,6 @@ void print_symbol_line(symbol symbol) {
             std::cout << "{NONE}\n";
             assert(false);
             break;
-//        case symbol_type::abstraction_definition:
-//            print_abstraction_definition_line(symbol.abstraction);
-//            break;
         default: break;
     }
 }
@@ -215,27 +182,6 @@ void print_expression_line(expression expression) {
     if (expression.type) 
         std::cout << ": " << stringify_intrin(expression.type);
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-//void print_block_line(block block) {
-//    std::cout << "{\n";
-//    print_expression_list(block.list, 1);
-//    std::cout << "}";
-//}
-//
 
 void print_expression_list(expression_list list, int d) {
 
@@ -286,5 +232,3 @@ std::string convert_symbol_type(enum symbol_type type) {
             return "indent";
     }
 }
-
-
