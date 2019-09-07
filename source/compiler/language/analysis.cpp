@@ -57,27 +57,17 @@ std::unique_ptr<llvm::Module> analyze(expression_list unit, file file, llvm::LLV
     symbol_table stack {data, flags, builtins};
     state state = {stack, data, error};
     
-    auto& body = unit.list;
-    std::vector<expression> parsed_body = {};
-    for (auto expression : body) {
-        expression.type = intrin::unit;
-        auto solution = traverse(expression, state, flags.generate_code().at_top_level());
-        if (solution.error) error = true;
-        else parsed_body.push_back(solution);            
-    }
-    body = parsed_body;
-    
-    
-    
+    auto new_unit = resolve(unit, state, flags.generate_code().at_top_level());
     
     // TEMP:
-    debug_table(module, stack);    
+    if (debug) debug_table(module, stack);    
 
-    
-    
     if (llvm::verifyFunction(*main_function)) append_return_0_statement(builder, context);
     if (llvm::verifyModule(*module, &llvm::errs())) error = true;    
     if (debug) {         
+        std::cout << "------------------ analysis ------------------- \n\n";
+        print_translation_unit(new_unit, file);
+        print_expression_list_line(new_unit);
         std::cout << "emitting the following LLVM: \n";
         module->print(llvm::errs(), NULL); // temp
     }    

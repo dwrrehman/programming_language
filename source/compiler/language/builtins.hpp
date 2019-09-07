@@ -39,6 +39,7 @@ namespace intrin {
         type,
         none,
         unit,
+        empty,
         
         application,
         abstraction,
@@ -58,6 +59,7 @@ extern expression infered_type;
 extern expression type_type;
 extern expression none_type;
 extern expression unit_type;
+extern expression unit_value;
 
 extern expression application_type;
 extern expression abstraction_type;

@@ -83,7 +83,7 @@ symbol parse_symbol(file file, bool newlines_are_a_symbol) {
         if (not expressions.error) {
             auto saved_t = t;
             t = next();
-            if (is_close_paren(t)) return {{{expressions}}};
+            if (is_close_paren(t)) return { expressions };
             else {
                 print_parse_error(file.name, saved_t.line, saved_t.column, convert_token_type_representation(t.type), t.value, "\")\" to close expression");
                 print_source_code(file.text, {saved_t});
@@ -143,8 +143,8 @@ expression parse_terminated_expression(file file) {
 
     auto saved = save();
     auto t = next();
-    if (not is_newline(t) and not is_close_paren(t)) { revert_and_return(); }
-    if (is_close_paren(t)) revert(saved);
+    if (not is_newline(t) and not (is_close_paren(t) and expression.symbols.size())) { revert_and_return(); }
+    if (is_close_paren(t) and expression.symbols.size()) revert(saved);
     return expression;
 }
 
@@ -169,7 +169,7 @@ expression_list parse(file file) {
 
     if (debug) {
         debug_token_stream();
-        start_lex(file);        
+        start_lex(file);
     }
 
     auto unit = parse_expression_list(file, /*can_be_empty = */true);    

@@ -25,7 +25,7 @@ std::string expression_to_string(expression given, symbol_table& stack) {  // un
     for (auto symbol : given.symbols) {
         if (symbol.type == symbol_type::identifier) result += symbol.identifier.name.value;
         else if (symbol.type == symbol_type::subexpression) {
-            //result += "(" + expression_to_string(symbol.expressions, stack) + ")";
+            result += "(" + expression_to_string(symbol.subexpression, stack) + ")";
         }
         if (i < given.symbols.size() - 1) result += " ";
         i++;
@@ -112,7 +112,7 @@ expression convert_raw_llvm_symbol_to_expression(std::string id, llvm::Value* va
         expression e {};
         e.llvm_type = value->getType();
         e.type = intrin::typeless;
-        e.symbols = {symbol{id}};
+        e.symbols = {symbol{id}}; /// fix me!!!!!!!!
         return e;
     }
 }

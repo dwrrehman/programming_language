@@ -102,7 +102,7 @@ struct symbol {
     
     enum symbol_type type = symbol_type::none;    
     expression_list expressions = {};
-    expression subexpression = {};
+    expression subexpression = {};         /// DELETE ME
     string_literal string = {};
     llvm_literal llvm = {};
     identifier identifier = {};
@@ -120,9 +120,13 @@ struct symbol {
         this->identifier.name.type = token_type::identifier;
     }
     symbol(expression_list expressions) { 
-        this->type = symbol_type::subexpression; 
+        this->type = symbol_type::subexpression;     // this may be a problem.
         this->expressions = expressions;
     }    
+    symbol(expression expression) {
+        this->type = symbol_type::subexpression;  
+        subexpression = expression;
+    }
     symbol(string_literal literal) {
         this->type = symbol_type::string_literal; 
         this->string = literal;

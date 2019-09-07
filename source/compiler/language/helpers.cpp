@@ -18,6 +18,7 @@
 #include "llvm/IR/ModuleSummaryIndex.h"
 #include "llvm/Support/SourceMgr.h"
 #include "llvm/IR/ValueSymbolTable.h"
+#include "error.hpp"
 
 #include <cstdlib>
 #include <iostream>
@@ -102,6 +103,7 @@ void prune_extraneous_subexpressions(expression& given) { // unimplemented
     for (auto& symbol : given.symbols)
         if (subexpression(symbol)) prune_extraneous_subexpressions(symbol.subexpression);
 }
+
 
 std::vector<expression> filter_subexpressions(expression given) { // unimplemented
     std::vector<expression> subexpressions = {};    
@@ -342,16 +344,15 @@ expression parse_unit_expression(expression& given, size_t& index, state& state)
         and subexpression(given.symbols[0])
         and given.symbols[0].subexpression.symbols.empty()) index++;
     if (given.type == intrin::infered) given.type = intrin::unit;
-    if (given.type == intrin::unit) return state.stack.lookup(intrin::unit);
+    if (given.type == intrin::unit) return state.stack.lookup(intrin::empty);
     else return failure;
 } 
 
-
 bool matches(expression given, expression& signature, size_t& index, const size_t depth, 
              const size_t max_depth, state& state, flags flags) {
-    if (given.type != signature.type) return false;
-    for (auto& symbol : signature.symbols) {
-        if (subexpression(symbol) and subexpression(given.symbols[index])) { 
+    if (given.type != signature.type and given.type != intrin::infered) return false;
+    for (auto& symbol : signature.symbols) {        
+        if (subexpression(symbol) and subexpression(given.symbols[index])) {
             symbol.subexpression = traverse(given.symbols[index].subexpression, state, flags);
             if (symbol.subexpression.error) return false;
             index++;
@@ -365,10 +366,7 @@ bool matches(expression given, expression& signature, size_t& index, const size_
 
 expression csr(expression given, size_t& index, const size_t depth, const size_t max_depth, state& state, flags flags) {
     if (index >= given.symbols.size() or not given.type or depth > max_depth) return failure;
-    if (found_unit_value_expression(given)) return parse_unit_expression(given, index);
-    else if (found_llvm_string(given, index)) 
-        return parse_llvm_string(given, given.symbols[index].llvm.literal.value, index, state, flags);
-    
+    if (found_llvm_string(given, index)) return parse_llvm_string(given, given.symbols[index].llvm.literal.value, index, state, flags);    
     size_t saved = index;
     for (auto signature_index : state.stack.top()) {
         index = saved;
@@ -378,7 +376,14 @@ expression csr(expression given, size_t& index, const size_t depth, const size_t
     return failure;
 }
 
+inline static void sort_top_stack_by_largest_signature(state& state) {           
+    std::sort(state.stack.top().begin(), state.stack.top().end(), [&](nat a, nat b) {
+        return state.stack.lookup(a).symbols.size() > state.stack.lookup(b).symbols.size(); 
+    });
+}
+
 expression traverse(expression given, state& state, flags flags) {
+    sort_top_stack_by_largest_signature(state);
     expression solution {};
     for (size_t max_depth = 0; max_depth <= max_expression_depth; max_depth++) {
         size_t pointer = 0;
@@ -388,12 +393,16 @@ expression traverse(expression given, state& state, flags flags) {
     return solution;
 }
 
-expression_list resolve(expression_list given, state& state, flags flags) { // interface function:   each statement must have the unit type as its value. no returning.        
+expression_list resolve(expression_list given, state& state, flags flags) {         
     for (auto& e : given.list) {
+        auto saved = e;
         e.type = intrin::unit;
         prune_extraneous_subexpressions(e);
         e = traverse(e, state, flags);
         state.error = state.error or e.error;
+        if (e.error) {
+            print_error_message(state.data.file.name, "could not resolve expression: \n\n" + expression_to_string(saved, state.stack) + "\n\n", 0, 0);
+        }
     }
     return given;
 }

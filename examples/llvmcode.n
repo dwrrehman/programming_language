@@ -1,0 +1,9 @@
+`
+define void @"(hello world) () (_type)"() {    
+    ret void
+}
+
+define void @f() {
+    ret void
+}
+`

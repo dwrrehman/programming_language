@@ -89,12 +89,9 @@ void print_symbol(symbol symbol, int d) {
             prep(d); std::cout << "string literal: \"" << symbol.string.literal.value << "\"\n";
             break;
             
-//        case symbol_type::subexpression:
-//            prep(d); std::cout << "sub expr: \n";
-//            print_expression(symbol.subexpression, d+1);
-//            break;
-
         case symbol_type::subexpression:
+            prep(d); std::cout << "sub expr: \n";
+            print_expression(symbol.subexpression, d+1);                
             prep(d); std::cout << "list symbol\n";
             print_expression_list(symbol.expressions, d+1);
             break;
@@ -145,13 +142,9 @@ void print_symbol_line(symbol symbol) {
             std::cout << "\"" << symbol.string.literal.value << "\"";
             break;
 
-//        case symbol_type::subexpression:
-//            print_expression_line(symbol.expressions);
-//            break;
-
-//        case symbol_type::list:
-//            //print_block_line(symbol.block);
-//            break;
+        case symbol_type::subexpression:
+            print_expression_line(symbol.subexpression);
+            break;
 
         case symbol_type::newline:
             std::cout << "{NEWLINE}";
@@ -179,7 +172,7 @@ void print_expression_line(expression expression) {
         i++;
     }
     std::cout << ")";
-    if (expression.type) 
+    if (expression.type)
         std::cout << ": " << stringify_intrin(expression.type);
 }
 
