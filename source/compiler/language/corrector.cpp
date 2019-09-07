@@ -85,10 +85,6 @@ expression_list correct(expression_list unit, file file) {
 }
 
 
-
-
 /// TODO: code:    remove_empty_statements_in_blocks(unit.list, file, 0);           // previously named "clean(body)"
 /// then...
 ///TODO: delete "clean(block body)" in analysis phase, after coding remove_empty_statements_in_blocks().
-
-

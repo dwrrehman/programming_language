@@ -32,7 +32,6 @@ struct string_literal {
     
     token literal = {}; 
     bool error = 0;
-
     
     string_literal(){}
     string_literal(bool e, bool _ignore_me, bool _also_ignore_me) { error = e; }
@@ -43,8 +42,7 @@ struct llvm_literal {
     
     struct token literal = {}; 
     bool error = 0;
-    
-    
+        
     llvm_literal(){}
     llvm_literal(bool e, bool _ignore_me, bool _also_ignore_me) { error = e; }
     llvm_literal(token t) {literal = t;}
@@ -54,8 +52,7 @@ struct identifier {
     
     struct token name = {}; 
     bool error = 0;
-    
-    
+        
     identifier(){}
     identifier(bool e, bool _ignore_me, bool _also_ignore_me) { error = e; }
     identifier(token n) {name = n;}
@@ -65,8 +62,7 @@ struct expression_list {
     
     std::vector<expression> list = {};
     bool error = {};
-    
-    
+        
     expression_list(){}
     expression_list(bool e, bool _ignore_me, bool _also_ignore_me) { error = e; }
     expression_list(std::vector<expression> es) {
@@ -79,17 +75,12 @@ struct expression_list {
 };
 
 struct expression {
-    
-    
-    
+
     std::vector<symbol> symbols = {};
     size_t indent_level = 0;
     size_t type = 0;
     llvm::Type* llvm_type = nullptr;
     bool error = false;        
-    
-    
-    
     
     expression() {}
     expression(std::vector<symbol> symbols) {
@@ -144,50 +135,5 @@ struct symbol {
         this->identifier = id;
     }
 };
-
-
-
-
-
-
-
-//struct expression_list {
-//    std::vector<expression> expressions = {};    
-//    expression_list() {}
-//    expression_list(std::vector<expression> es) {
-//        expressions = es;
-//    }
-//};
-
-
-
-
-/// ---------------------- Abstractions ---------------------------
-
-
-
-/// Delete me:
-
-//class abstraction_definition: public node {
-//public:
-//    
-//    enum class associativity {left, right};
-//    
-//    expression call_signature = {};
-//    expression return_type = {};
-//    std::vector<expression> body = {};
-//        
-//    size_t precedence = 0;
-//    enum associativity associativity = associativity::left;     
-//    
-//    abstraction_definition(){}
-//    abstraction_definition(expression call, expression rt, expression_list body) {
-//        this->call_signature = call;
-//        this->return_type = rt;
-//        this->body = body;
-//    }
-//};
-
-
 
 #endif /* nodes_hpp */

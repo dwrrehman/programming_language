@@ -17,7 +17,6 @@
 #include "llvm/Target/TargetMachine.h"
 
 
-
 static void debug_table(const std::unique_ptr<llvm::Module>& module, symbol_table& stack) {
     std::cout << "NOTE: updating stack...\n";
     stack.update();

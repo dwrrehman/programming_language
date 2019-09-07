@@ -61,6 +61,4 @@ expression csr(expression given, size_t& index, const size_t depth, const size_t
 expression adp(expression& given, size_t& index, state& state, flags flags);
 expression res(expression given, state& state, flags flags);
 
-
-
 #endif /* helpers_hpp */

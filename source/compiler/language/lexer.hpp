@@ -9,6 +9,7 @@
 #ifndef lexer_hpp
 #define lexer_hpp
 
+#include "arguments.hpp"
 #include <string>
 
 enum class token_type {null, string, identifier, character, llvm, keyword, operator_, indent};
@@ -26,10 +27,10 @@ struct saved_state {
     size_t saved_line = 0;
     size_t saved_column = 0;
     lexing_state saved_state = lexing_state::none;
-    struct token saved_current = {};
+    token saved_current = {};
 };
 
-void start_lex(const struct file file);
+void start_lex(file file);
 
 struct token next();
 struct saved_state save();

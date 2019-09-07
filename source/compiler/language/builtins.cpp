@@ -9,7 +9,6 @@
 #include "builtins.hpp"
 
 
-
 /// Global builtin types. these are fundemental to the language:
 
 /**
@@ -42,28 +41,24 @@ expression application_type = {{symbol{"_a"}}, intrin::type};
 expression abstraction_type = {{symbol{"_b"}}, intrin::type};
 
 expression create_abstraction = {
-    std::vector<symbol> {
-        //symbol {"_c"},
-        //symbol {{expression{intrin::type}}},
+    {
+        {"_c"}, {{{expression{intrin::type}}}},
     }, intrin::unit};
 
 expression define_abstraction = {
-    std::vector<symbol> {
-        //symbol{"_d"},
-        //{{expression{intrin::abstraction}}},
-        //{{expression{intrin::type}}},
-        //{{expression{intrin::application}}},
-        //{{expression{intrin::application}}},
+    {
+        {"_d"}, {{{expression{intrin::abstraction}}}},
+        {{{expression{intrin::type}}}},
+        {{{expression{intrin::application}}}},
+        {{{expression{intrin::application}}}},
     }, intrin::unit};
 
 expression expose_abstraction = {
-    std::vector<symbol> {
-//        {"_e"},
-//        {{expression{intrin::application}}},
-//        {{expression{intrin::abstraction}}},
-//        {{expression{intrin::application}}},
+    {
+        {"_e"}, {{{expression{intrin::application}}}},
+        {{{expression{intrin::abstraction}}}},
+        {{{expression{intrin::application}}}},
     }, intrin::unit};
-
 
 /// FIX ME
 //expression compiletime_type = { { {"_compiletime"}, {{{},intrin::type}}},intrin::type};
@@ -104,24 +99,3 @@ std::string stringify_intrin(size_t i) {
     }
     return "{compiler error}";
 }
-
-
-///TODO: still missing:
-/**
- 
- 
- 
- // important:
- 
-        _resolve <_expression> at compiletime
-        _resolve <_expression> at runtime 
- 
- 
- // not as important...
- 
-        _precedence <_signature>
-        _associativity <_signature>
- 
-        _find <_signature> in <_application>
- 
- */

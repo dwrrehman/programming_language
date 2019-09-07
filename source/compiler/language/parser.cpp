@@ -7,9 +7,6 @@
 //
 
 #include "parser.hpp"
-
-
-#include <iostream>
 #include "nodes.hpp"
 #include "lists.hpp"
 #include "error.hpp"
@@ -172,8 +169,7 @@ expression_list parse(file file) {
 
     if (debug) {
         debug_token_stream();
-        start_lex(file);
-        std::cout << "\n\n\n";
+        start_lex(file);        
     }
 
     auto unit = parse_expression_list(file, /*can_be_empty = */true);    
@@ -181,55 +177,3 @@ expression_list parse(file file) {
     if (unit.error or next().type != token_type::null) throw "parse error:";
     else return unit;
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-// -------------------- ebnf parsers --------------------------------
-
-/// FIX ME:
-//expression_list parse_block(struct file file) {
-//
-//    expression_list block = {};
-//    
-//    auto saved = save();
-//    auto t = next();
-//    auto st = t;
-//    if (not is_open_paren(t)) { revert_and_return(); }
-//
-//    newlines();    
-//    saved = save();
-//
-//    auto expressions = parse_expression_list(file, /*can_be_empty = */true);
-//    if (expressions.error or expressions.empty()) {         // then we know that it must only be a single expression with no newline at the end.
-//        revert(saved);
-//        auto expression = parse_expression(file, /*can_be_empty = */true, /*newlines_are_a_symbol = */false);
-//        if (expression.error) { revert_and_return(); }
-//        block.expressions = {expression};
-//    } else block = expression_list;
-//    indents();
-//    t = next();
-//    if (not is_close_paren(t)) {
-//        print_parse_error(file.name, st.line, st.column, convert_token_type_representation(t.type), t.value, "\")\" to close expression");
-//        print_source_code(file.text, {st});
-//        revert_and_return();
-//    }
-//
-//    block.error = false;
-//    return block;
-//}

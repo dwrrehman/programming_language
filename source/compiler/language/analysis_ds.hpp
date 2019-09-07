@@ -46,7 +46,6 @@ struct flags {
     is_parsing_type(given_is_parsing_type) {}    
 }; 
 
-
 class symbol_table;
 
 struct state {
@@ -54,6 +53,5 @@ struct state {
     file_data& data;
     bool& error;
 };
-
 
 #endif /* analysis_ds_hpp */

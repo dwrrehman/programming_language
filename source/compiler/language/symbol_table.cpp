@@ -11,7 +11,6 @@
 #include "debug.hpp"
 #include "builtins.hpp"
 
-
 std::vector<std::string> string_top(symbol_table& stack) {        
     std::vector<std::string> result = {};
     auto indicies = stack.top();
@@ -20,7 +19,6 @@ std::vector<std::string> string_top(symbol_table& stack) {
     } 
     return result;
 }
-
 
 void print_simply_master(symbol_table& stack) {
     auto j = 0;
