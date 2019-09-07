@@ -19,7 +19,7 @@ struct symbol;
 
 enum class symbol_type {
     none,    
-    subexpression,    
+    subexpression,
     string_literal,
     llvm_literal,    
     identifier,    
@@ -29,30 +29,40 @@ enum class symbol_type {
 
 // literals:
 struct string_literal { 
-    struct token literal = {}; 
-    bool error = 0;
+    token literal = {}; 
+    bool error = 0;    
+    string_literal(){}
+    string_literal(bool e, bool _ignore_me, bool _also_ignore_me) { error = e; }
+    string_literal(token t) {literal = t;}
 };
 
 struct llvm_literal { 
     struct token literal = {}; 
     bool error = 0;
+    llvm_literal(){}
+    llvm_literal(bool e, bool _ignore_me, bool _also_ignore_me) { error = e; }
+    llvm_literal(token t) {literal = t;}
 };
 
 struct identifier { 
     struct token name = {}; 
     bool error = 0;
+    identifier(){}
+    identifier(bool e, bool _ignore_me, bool _also_ignore_me) { error = e; }
+    identifier(token n) {name = n;}
 };
 
 struct expression_list {
-    std::vector<expression> expressions = {};
+    std::vector<expression> list = {};
     bool error = {};
     
     expression_list(){}
+    expression_list(bool e, bool _ignore_me, bool _also_ignore_me) { error = e; }
     expression_list(std::vector<expression> es) {
-        expressions = es;
+        list = es;
     }
     expression_list(std::vector<expression> es, bool e) {
-        expressions = es;
+        list = es;
         error = e;
     }
 };
@@ -75,8 +85,8 @@ struct expression {
     expression(size_t type) {        
         this->type = type;
     }
-    expression(bool error, bool _ignore_me) {
-        this->error = error;
+    expression(bool e, bool _ignore_me, bool _also_ignore_me) {
+        error = e;
     }
 };
 
@@ -89,6 +99,7 @@ struct symbol {
     bool error = false;
     
     symbol(){}
+    symbol(bool e, bool _ignore_me, bool _also_ignore_me) { error = e; }
     symbol(enum symbol_type type) {
         this->type = type;
     }
@@ -97,10 +108,22 @@ struct symbol {
         this->identifier.name.value = given_name;
         this->identifier.name.type = token_type::identifier;
     }
-    symbol(expression_list expressions) {
+    symbol(expression_list expressions) { 
         this->type = symbol_type::subexpression; 
         this->expressions = expressions;
-    }            
+    }    
+    symbol(string_literal literal) {
+        this->type = symbol_type::string_literal; 
+        this->string = literal;
+    }    
+    symbol(llvm_literal literal) {
+        this->type = symbol_type::llvm_literal; 
+        this->llvm = literal;
+    }    
+    symbol(struct identifier id) { 
+        this->type = symbol_type::identifier; 
+        this->identifier = id;
+    }
 };
 
 

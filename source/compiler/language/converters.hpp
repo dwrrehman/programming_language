@@ -19,8 +19,7 @@
 #include "llvm/IR/Value.h" 
 
 class symbol_table;
- 
-expression convert_raw_llvm_symbol_to_expression(std::string id, llvm::Value* value, symbol_table& stack, translation_unit_data& data, flags flags);
+expression convert_raw_llvm_symbol_to_expression(std::string id, llvm::Value* value, symbol_table& stack, file_data& data, flags flags);
 std::string expression_to_string(expression given, symbol_table& stack);
 expression string_to_expression(std::string given, state& state, flags flags);
 

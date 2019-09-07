@@ -41,7 +41,7 @@ bool are_equal_identifiers(const symbol &first, const symbol &second) {
 }
 
 bool symbols_match(symbol first, symbol second) {
-    if (subexpression(first) and subexpression(second) and expressions_match(first.subexpression, second.subexpression)) return true;
+    if (subexpression(first) and subexpression(second) and expressions_match(first.expressions.list[0], second.expressions.list[0])) return true;  /// FIX ME: this code is ugly, and is only checking for if the FIRST expressions  in the expression lists are equal.
     else if (are_equal_identifiers(first, second)) return true;
     else if (first.type == symbol_type::llvm_literal and second.type == symbol_type::llvm_literal) return true;
     else return false;
@@ -52,7 +52,7 @@ bool expressions_match(expression first, expression second) {
     for (size_t i = 0; i < first.symbols.size(); i++) {
         if (not symbols_match(first.symbols[i], second.symbols[i])) return false;
     }
-    if (first.erroneous or second.erroneous) return false;
+    if (first.error or second.error) return false;
     if (!first.type and !second.type) return true;
     
     if (first.llvm_type and second.llvm_type) {
@@ -100,8 +100,8 @@ void print(std::vector<std::string> v) {
 void prune_extraneous_subexpressions(expression& given) {
     while (given.symbols.size() == 1 
            and subexpression(given.symbols[0])
-           and given.symbols[0].subexpression.symbols.size()) {
-        auto save = given.symbols[0].subexpression.symbols;
+           and given.symbols[0].expressions.symbols.size()) {
+        auto save = given.symbols[0].expressions.symbols;
         given.symbols = save;
     }
     for (auto& symbol : given.symbols)
@@ -115,16 +115,16 @@ std::vector<expression> filter_subexpressions(expression given) {
     return subexpressions;
 }
 
-abstraction_definition generate_abstraction_definition(const expression &given, size_t &index) {
-    abstraction_definition definition = {};
-    definition.call_signature = given.symbols[index++].subexpression;
-    while (given.symbols[index].type != symbol_type::list) {
-        definition.return_type.symbols.push_back(given.symbols[index++]);
-    } definition.body = given.symbols[index++].list;
-    return definition;
-}
+//abstraction_definition generate_abstraction_definition(const expression &given, size_t &index) {
+//    abstraction_definition definition = {};
+//    definition.call_signature = given.symbols[index++].subexpression;
+//    while (given.symbols[index].type != symbol_type::list) {
+//        definition.return_type.symbols.push_back(given.symbols[index++]);
+//    } definition.body = given.symbols[index++].list;
+//    return definition;
+//}
 
-size_t generate_type_for(abstraction_definition definition) {
+//size_t generate_type_for(abstraction_definition definition) {
 //    size_t type = 0;
 //    auto parameter_list = filter_subexpressions(definition.call_signature);
 //    if (parameter_list.empty()) {
@@ -139,8 +139,8 @@ size_t generate_type_for(abstraction_definition definition) {
 //    type->symbols.push_back({definition.return_type});
 //    type->type = &type_type;
 //    return type;
-    return 0;
-}
+//    return 0;
+//}
 
 void append_return_0_statement(llvm::IRBuilder<> &builder, llvm::LLVMContext &context) {
     llvm::Value* value = llvm::ConstantInt::get(llvm::Type::getInt32Ty(context), 0);
@@ -152,10 +152,10 @@ void declare_donothing(llvm::IRBuilder<> &builder, const std::unique_ptr<llvm::M
     builder.CreateCall(donothing); // TODO: TEMP
 }
 
-bool found_unit_value_expression(const expression &given) {
+bool found_unit_value_expression(const expression& given) {
     return given.symbols.empty() or (given.symbols.size() == 1 
         and subexpression(given.symbols[0]) 
-        and given.symbols[0].subexpression.symbols.empty());
+        and given.symbols[0].expressions.symbols.empty());
 }
 
 expression parse_unit_expression(expression& given, size_t& index) {   ////TODO: this is bad. fix this. 
@@ -272,25 +272,15 @@ expression parse_llvm_string(const expression &given, std::string llvm_string, s
         llvm::SMDiagnostic function_errors;
         
         if (parse_llvm_string_as_function(llvm_string, state, function_errors)) {
-            expression solution = {};
-            solution.erroneous = false;
+            expression solution = {};            
             solution.type = intrin::unit;
-            solution.symbols = {};
-            symbol s = {};
-            s.type = symbol_type::llvm_literal;
-            s.llvm = given.symbols[pointer++].llvm;
-            solution.symbols.push_back(s);
+            solution.symbols = {{given.symbols[pointer++].llvm}};
             return solution;
             
         } else if (parse_llvm_string_as_instruction(llvm_string, NULL, state, instruction_errors)) {
-            expression solution = {};
-            solution.erroneous = false;
+            expression solution = {};            
             solution.type = intrin::unit;
-            solution.symbols = {};
-            symbol s = {};
-            s.type = symbol_type::llvm_literal;
-            s.llvm = given.symbols[pointer++].llvm;
-            solution.symbols.push_back(s);
+            solution.symbols = {{given.symbols[pointer++].llvm}};
             return solution;
             
         } else {
@@ -305,17 +295,11 @@ expression parse_llvm_string(const expression &given, std::string llvm_string, s
         
         llvm::SMDiagnostic type_errors;
         
-        if (auto llvm_type = parse_llvm_string_as_type(llvm_string, state, type_errors)) {
-            
+        if (auto llvm_type = parse_llvm_string_as_type(llvm_string, state, type_errors)) {            
             expression solution = {};
-            solution.erroneous = false;
             solution.llvm_type = llvm_type;
             solution.type = intrin::type;
-            solution.symbols = {};
-            symbol s = {};
-            s.type = symbol_type::llvm_literal;
-            s.llvm = given.symbols[pointer++].llvm;
-            solution.symbols.push_back(s);
+            solution.symbols = {{given.symbols[pointer++].llvm}};
             return solution;
             
         } else {
@@ -328,56 +312,56 @@ expression parse_llvm_string(const expression &given, std::string llvm_string, s
     }
 }
 
-void parse_call_signature(abstraction_definition& given, state& state, flags flags) {
-    std::cout << "parsing call signature\n";
-}
+//void parse_call_signature(abstraction_definition& given, state& state, flags flags) {
+//    std::cout << "parsing call signature\n";
+//}
+//
+//void parse_return_type(abstraction_definition& given, state& state, flags flags) {
+//    std::cout << "parsing return type\n";
+//}
+//
+//void parse_abstraction_body(abstraction_definition& given, state& state, flags flags) {
+//    std::cout << "parsing abstraction body\n";
+//}
+//
+//void parse_abstraction(abstraction_definition& given, state& state, flags flags) {    
+//    parse_call_signature(given, state, flags); 
+//    parse_return_type(given, state, flags);    
+//    parse_abstraction_body(given, state, flags);    
+//}
 
-void parse_return_type(abstraction_definition& given, state& state, flags flags) {
-    std::cout << "parsing return type\n";
-}
-
-void parse_abstraction_body(abstraction_definition& given, state& state, flags flags) {
-    std::cout << "parsing abstraction body\n";
-}
-
-void parse_abstraction(abstraction_definition& given, state& state, flags flags) {    
-    parse_call_signature(given, state, flags); 
-    parse_return_type(given, state, flags);    
-    parse_abstraction_body(given, state, flags);    
-}
-
-expression adp(expression& given, size_t& index, state& state, flags flags) {
-    auto definition = generate_abstraction_definition(given, index);        
-    parse_abstraction(definition, state, flags);
-    size_t abstraction_type = generate_type_for(definition); 
-    
-    if (given.type == abstraction_type or given.type == intrin::infered or flags.is_at_top_level) {
-        if (given.type == intrin::infered) 
-            given.type = abstraction_type;
-        
-        expression result = {{definition}, abstraction_type};
-        result.erroneous = state.error;
-        if (not result.erroneous and flags.is_at_top_level) {
-            result.type = intrin::unit;
-            state.stack.define(definition.call_signature, definition, 0);
-        }
-        return result;
-    } else return failure;
-}
+//expression adp(expression& given, size_t& index, state& state, flags flags) {
+//    auto definition = generate_abstraction_definition(given, index);        
+//    parse_abstraction(definition, state, flags);
+//    size_t abstraction_type = generate_type_for(definition); 
+//    
+//    if (given.type == abstraction_type or given.type == intrin::infered or flags.is_at_top_level) {
+//        if (given.type == intrin::infered) 
+//            given.type = abstraction_type;
+//        
+//        expression result = {{definition}, abstraction_type};
+//        result.erroneous = state.error;
+//        if (not result.erroneous and flags.is_at_top_level) {
+//            result.type = intrin::unit;
+//            state.stack.define(definition.call_signature, definition, 0);
+//        }
+//        return result;
+//    } else return failure;
+//}
 
 inline static bool parameter(symbol &symbol) {return subexpression(symbol);}
 
 bool matches(expression given, expression& signature, size_t& index, const size_t depth, 
              const size_t max_depth, state& state, flags flags) {
-    if (given.type != signature.type) return false;    
-    for (auto& symbol : signature.symbols) {        
+    if (given.type != signature.type) return false;
+    for (auto& symbol : signature.symbols) {
         if (parameter(symbol) and subexpression(given.symbols[index])) { 
-            symbol.subexpression = res(given.symbols[index].subexpression, state, flags);
-            if (symbol.subexpression.erroneous) return false;
+            symbol.expressions = res(given.symbols[index].expressions, state, flags);
+            if (symbol.expressions.error) return false;
             index++;
         } else if (parameter(symbol)) {
-            symbol.subexpression = csr(given, index, depth + 1, max_depth, state, flags);
-            if (symbol.subexpression.erroneous) return false;            
+            symbol.expressions = csr(given, index, depth + 1, max_depth, state, flags);
+            if (symbol.expressions.error) return false;            
         } else if (not are_equal_identifiers(symbol, given.symbols[index])) return false;
         else index++;
     } return true;
@@ -403,7 +387,7 @@ expression res(expression given, state& state, flags flags) {
     for (size_t max_depth = 0; max_depth <= max_expression_depth; max_depth++) {
         size_t pointer = 0;
         solution = csr(given, pointer, 0, max_depth, state, flags);
-        if (not solution.erroneous and pointer == given.symbols.size()) break;
+        if (not solution.error and pointer == given.symbols.size()) break;
     }
     return solution;
 }
@@ -412,13 +396,6 @@ expression resolve(expression given, state& state, flags flags) { // interface f
     prune_extraneous_subexpressions(given);
     return res(given, state, flags);
 }
-
-
-
-
-
-
-
 
 // debug tool:
 
@@ -433,5 +410,4 @@ void interpret_file_as_llvm_string(const struct file &file, state &state) { // t
         abort();
     }
 }
-
 

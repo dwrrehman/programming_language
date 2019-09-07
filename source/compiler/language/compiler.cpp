@@ -32,8 +32,8 @@ void initialize_llvm() {
     llvm::InitializeAllAsmPrinters();
 }
 
-std::unique_ptr<llvm::Module> process(struct file file, llvm::LLVMContext &context) {
-    return analyze(correct(parse(file, context), file), context, file);
+std::unique_ptr<llvm::Module> process(file file, llvm::LLVMContext &context) {
+    return analyze(correct(parse(file), file), file, context);
 }
 
 static void set_data_layout(std::unique_ptr<llvm::Module>& main_module) {

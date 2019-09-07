@@ -25,7 +25,7 @@ std::string expression_to_string(expression given, symbol_table& stack) {
     for (auto symbol : given.symbols) {
         if (symbol.type == symbol_type::identifier) result += symbol.identifier.name.value;
         else if (symbol.type == symbol_type::subexpression) {
-            result += "(" + expression_to_string(symbol.subexpression, stack) + ")";
+            result += "(" + expression_to_string(symbol.expressions, stack) + ")";
         }
         if (i < given.symbols.size() - 1) result += " ";
         i++;
@@ -103,7 +103,7 @@ expression string_to_expression(std::string given, state& state, flags flags) {
     return signature;
 }
 
-expression convert_raw_llvm_symbol_to_expression(std::string id, llvm::Value* value, symbol_table& stack, translation_unit_data& data, flags flags) { 
+expression convert_raw_llvm_symbol_to_expression(std::string id, llvm::Value* value, symbol_table& stack, file_data& data, flags flags) { 
     if (id[0] == '(') {
         bool error = false;
         state state = {stack, data, error};

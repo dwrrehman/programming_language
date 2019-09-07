@@ -34,11 +34,6 @@ void debug_arguments(struct arguments args) {
 
 
 
-
-
-
-
-
 // ---------------------------- lexer debugging: ---------------------------------------
 
 
@@ -81,18 +76,18 @@ void debug_token_stream() {
 void print_symbol(symbol s, int d);
 void print_expression(expression s, int d);
 
-void print_abstraction_definition(abstraction_definition abstraction, int d) {
-    prep(d); std::cout << "abstraction definition: \n";
-
-    prep(d+1); std::cout << "call signature: \n";
-    print_expression(abstraction.call_signature, d+2);
-
-    prep(d+1); std::cout << "return type: \n";
-    print_expression(abstraction.return_type, d+2);
-
-    prep(d+1); std::cout << "abstraction body: \n";
-    //print_block(abstraction.body, d+2);
-}
+//void print_abstraction_definition(abstraction_definition abstraction, int d) {
+//    prep(d); std::cout << "abstraction definition: \n";
+//
+//    prep(d+1); std::cout << "call signature: \n";
+//    print_expression(abstraction.call_signature, d+2);
+//
+//    prep(d+1); std::cout << "return type: \n";
+//    print_expression(abstraction.return_type, d+2);
+//
+//    prep(d+1); std::cout << "abstraction body: \n";
+//    //print_block(abstraction.body, d+2);
+//}
 
 
 void print_symbol(symbol symbol, int d) {
@@ -111,14 +106,14 @@ void print_symbol(symbol symbol, int d) {
             prep(d); std::cout << "string literal: \"" << symbol.string.literal.value << "\"\n";
             break;
             
-        case symbol_type::subexpression:
-            prep(d); std::cout << "sub expr: \n";
-            print_expression(symbol.subexpression, d+1);
-            break;
+//        case symbol_type::subexpression:
+//            prep(d); std::cout << "sub expr: \n";
+//            print_expression(symbol.subexpression, d+1);
+//            break;
 
-        case symbol_type::list:
+        case symbol_type::subexpression:
             prep(d); std::cout << "list symbol\n";
-            print_expression_list(symbol.list, d+1);
+            print_expression_list(symbol.expressions, d+1);
             break;
 
         case symbol_type::newline:
@@ -131,10 +126,10 @@ void print_symbol(symbol symbol, int d) {
         case symbol_type::none:
             prep(d); std::cout << "{NO SYMBOL TYPE}\n";
             break;
-        case symbol_type::abstraction_definition:
-            prep(d); std::cout << "abstraction definition: \n";
-            print_abstraction_definition(symbol.abstraction, d+1);
-            break;
+//        case symbol_type::abstraction_definition:
+//            prep(d); std::cout << "abstraction definition: \n";
+//            print_abstraction_definition(symbol.abstraction, d+1);
+//            break;
         default: break;
     }
 }
@@ -157,13 +152,13 @@ void print_expression(expression expression, int d) {
 }
 
 
-void print_abstraction_definition_line(abstraction_definition definition) {
-    print_expression_line(definition.call_signature);
-    std::cout << " -> ";
-    print_expression_line(definition.return_type);
-    std::cout << " ";
-    //print_block_line(definition.body);
-}
+//void print_abstraction_definition_line(abstraction_definition definition) {
+//    print_expression_line(definition.call_signature);
+//    std::cout << " -> ";
+//    print_expression_line(definition.return_type);
+//    std::cout << " ";
+//    //print_block_line(definition.body);
+//}
 
 void print_symbol_line(symbol symbol) {
 
@@ -180,13 +175,13 @@ void print_symbol_line(symbol symbol) {
             std::cout << "\"" << symbol.string.literal.value << "\"";
             break;
 
-        case symbol_type::subexpression:
-            print_expression_line(symbol.subexpression);
-            break;
+//        case symbol_type::subexpression:
+//            print_expression_line(symbol.expressions);
+//            break;
 
-        case symbol_type::list:
-            //print_block_line(symbol.block);
-            break;
+//        case symbol_type::list:
+//            //print_block_line(symbol.block);
+//            break;
 
         case symbol_type::newline:
             std::cout << "{NEWLINE}";
@@ -199,9 +194,9 @@ void print_symbol_line(symbol symbol) {
             std::cout << "{NONE}\n";
             assert(false);
             break;
-        case symbol_type::abstraction_definition:
-            print_abstraction_definition_line(symbol.abstraction);
-            break;
+//        case symbol_type::abstraction_definition:
+//            print_abstraction_definition_line(symbol.abstraction);
+//            break;
         default: break;
     }
 }
@@ -245,9 +240,9 @@ void print_expression_line(expression expression) {
 void print_expression_list(expression_list list, int d) {
 
     prep(d); std::cout << "expression list:\n";
-    prep(d); std::cout << "expression count = " << list.expressions.size() << "\n";
+    prep(d); std::cout << "expression count = " << list.list.size() << "\n";
     int i = 0;
-    for (auto e : list.expressions) {
+    for (auto e : list.list) {
         prep(d+1); std::cout << "expression #" << i << "\n";
         prep(d+1); std::cout << std::boolalpha << "error: " << e.error << "\n";
         print_expression(e, d+2);
@@ -259,7 +254,7 @@ void print_expression_list(expression_list list, int d) {
 void print_expression_list_line(expression_list list) {
     std::cout << "{\n";
     int i = 0;
-    for (auto e : list.expressions) {
+    for (auto e : list.list) {
         std::cout << "\t" << i << ": ";
         print_expression_line(e);        
         std::cout << "\n";
@@ -268,9 +263,9 @@ void print_expression_list_line(expression_list list) {
     std::cout << "}\n";
 }
 
-void print_translation_unit(translation_unit unit, struct file file) {
+void print_translation_unit(expression_list unit, file file) { 
     std::cout << "translation unit: (" << file.name << ")\n";
-    print_expression_list(unit.list, 1);
+    print_expression_list(unit, 1);
 }
 
 std::string convert_symbol_type(enum symbol_type type) {
@@ -282,17 +277,13 @@ std::string convert_symbol_type(enum symbol_type type) {
         case symbol_type::string_literal:
             return "string literal";
         case symbol_type::llvm_literal:
-            return "llvm literal";
-        case symbol_type::list:
-            return "list";        
+            return "llvm literal";                
         case symbol_type::identifier:
             return "identifier";
         case symbol_type::newline:
             return "newline";
         case symbol_type::indent:
             return "indent";
-        case symbol_type::abstraction_definition:
-            return "abstraction definition";
     }
 }
 

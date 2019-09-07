@@ -14,7 +14,7 @@
 #include "llvm/IR/IRBuilder.h"
 #include <iostream>
 
-struct translation_unit_data {
+struct file_data {
     struct file file;
     llvm::Module* module;
     llvm::IRBuilder<>& builder;
@@ -51,7 +51,7 @@ class symbol_table;
 
 struct state {
     symbol_table& stack;     
-    translation_unit_data& data;
+    file_data& data;
     bool& error;
 };
 

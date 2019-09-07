@@ -10,10 +10,10 @@
 
 #include "lists.hpp"
 #include "arguments.hpp"
+#include "helpers.hpp"
 #include "debug.hpp"
 
 #include <iostream>
-
 
 /*
         known bug:
@@ -22,86 +22,73 @@
 
  */
 
+inline static bool is_whitespace(const symbol& e) { return e.type == symbol_type::indent or e.type == symbol_type::newline; }
 
-bool is_whitespace(const symbol& e) {
-    return e.type == symbol_type::indent or e.type == symbol_type::newline;
-}
-
-void remove_whitespace_in_expressions(expression_list& list, struct file file, size_t depth) {    
-    for (auto& expression : list.expressions) {
+void remove_whitespace_in_expressions(expression_list& list, file file, size_t depth) {    
+    for (auto& expression : list.list) {
         auto& s = expression.symbols;
         if (std::find_if(s.begin(), s.end(), is_whitespace) != s.end()) 
             s.erase(std::remove_if(s.begin(), s.end(), is_whitespace));        
         for (auto& symbol : s) 
-            if (symbol.type == symbol_type::subexpression) remove_whitespace_in_expressions(symbol.list, file, depth);                    
+            if (subexpression(symbol)) remove_whitespace_in_expressions(symbol.expressions, file, depth);                      
     }
 }
 
-void turn_indents_into_blocks(expression_list& list, struct file file, const size_t level);
+void turn_indents_into_blocks(expression_list& list, file file, const size_t level);
 
-void add_block_to_list(expression_list& list, struct file file, const size_t level, expression_list& new_list) {
-    turn_indents_into_blocks(list, file, level + 1);
-    symbol s {symbol_type::list};
-    s.list = list;
-    expression e {};
-    e.error = false;
-    e.symbols.push_back(s);
-    if (new_list.expressions.empty()) new_list.expressions.push_back(e);
-    else new_list.expressions.back().symbols.push_back(s);
+static void push_block_onto_list(expression_list& list, file file, const size_t level, expression_list& new_list) {
+    if (list.list.size()) {
+        turn_indents_into_blocks(list, file, level + 1);
+        if (new_list.list.empty()) new_list.list.push_back({{{list}}});
+        else new_list.list.back().symbols.push_back({list});
+    }
 }
 
-static void push_block_onto_list(expression_list& list, const struct file& file, const size_t level, expression_list& new_list) {
-    if (list.expressions.size()) 
-        add_block_to_list(list, file, level, new_list);
-}
+void turn_indents_into_blocks(expression_list& given, file file, const size_t level) {
 
-void turn_indents_into_blocks(expression_list& list, struct file file, const size_t level) {
-
-    expression_list new_list {};
-    expression_list block {};
-
-    for (auto& expression : list.expressions) {
-        if (expression.symbols.empty()) continue;
-        
-        if (expression.indent_level > level) {
-            block.expressions.push_back(expression);
-        } else {
+    expression_list new_list {}, block {};
+    for (auto& expression : given.list) {
+        if (expression.symbols.empty()) continue;        
+        if (expression.indent_level > level) block.list.push_back(expression);
+        else {
             push_block_onto_list(block, file, level, new_list);
-            new_list.expressions.push_back(expression);
-            block.expressions.clear();
+            new_list.list.push_back(expression);
+            block.list.clear();
         }
     }
     push_block_onto_list(block, file, level, new_list);
-    list = new_list;
+    given = new_list;
 }
 
 void raise(size_t& value, const size_t minimum) {
     if (value < minimum) value = minimum;
 }
 
-void raise_indents(expression_list& list, struct file file, const size_t level) {
-    for (auto& expression : list.expressions) {
+void raise_indents(expression_list& list, file file, const size_t level) {
+    for (auto& expression : list.list) {
         raise(expression.indent_level, level);
         for (auto& symbol : expression.symbols)
-            if (symbol.type == symbol_type::list)
-                raise_indents(symbol.list, file, level + 1);
+            if (symbol.type == symbol_type::subexpression)
+                raise_indents(symbol.expressions, file, level + 1);
     }
 }
 
-translation_unit correct(translation_unit unit, struct file file) {
-
-    raise_indents(unit.list, file, 0);
-    turn_indents_into_blocks(unit.list, file, 0);
-    remove_whitespace_in_expressions(unit.list, file, 0);
-    
-    /// TODO: code:    remove_empty_statements_in_blocks(unit.list, file, 0);           // previously named "clean(body)"
-    /// then...
-    ///TODO: delete "clean(block body)" in analysis phase, after coding remove_empty_statements_in_blocks().
-
+expression_list correct(expression_list unit, file file) {
+    raise_indents(unit, file, 0);
+    turn_indents_into_blocks(unit, file, 0);
+    remove_whitespace_in_expressions(unit, file, 0);
     if (debug) {
         std::cout << "------------------- corrector: -------------------------\n";
         print_translation_unit(unit, file);
     }
-
     return unit;
 }
+
+
+
+
+/// TODO: code:    remove_empty_statements_in_blocks(unit.list, file, 0);           // previously named "clean(body)"
+/// then...
+///TODO: delete "clean(block body)" in analysis phase, after coding remove_empty_statements_in_blocks().
+
+

@@ -20,21 +20,19 @@
 #include "llvm/IR/Function.h"
 #include <iostream>
 
-
-using nat = size_t;
-
 struct signature_entry;
-
 using master = std::vector<struct signature_entry>; 
+using nat = size_t;
 
 struct stack_frame {
     llvm::ValueSymbolTable& llvm;
-    std::vector<nat> indicies = {};   // index into master.   
+    std::vector<nat> indicies = {};  
 };
 
 struct signature_entry {
     expression signature = {};
-    abstraction_definition definition = {};
+    expression_list definition = {};
+    nat precedence = 0;
     nat parent = 0;
     llvm::Value* value = nullptr;
     llvm::Function* function = nullptr;
@@ -43,12 +41,10 @@ struct signature_entry {
 class symbol_table {
 public:
     flags flags;
-    translation_unit_data& data;
+    file_data& data;
     master master = {};
     std::vector<struct stack_frame> frames = {};
-    
-    std::vector<nat> blacklist = {}; /// A list of  
-    
+              
     void push(llvm::ValueSymbolTable& llvm) {        
         frames.push_back({llvm, frames.back().indicies});
     }    
@@ -86,7 +82,7 @@ public:
                     }
                 }
                 if (not found) {
-                    master.push_back({llsymbol, {}, 0});
+                    master.push_back({llsymbol, {}}); /// we need to push its definition properly too!!! 
                     frame.indicies.push_back(master.size() - 1);
                 }
             }
@@ -103,24 +99,26 @@ public:
         return master[index].signature;        
     }    
     
-    void define(expression signature, abstraction_definition definition, 
-                nat stack_frame_index, nat parent = 0) {                
+    void define(expression signature, expression_list definition,
+                nat stack_frame_index, nat parent = 0) {   
         update();
         frames[frames.size() - 1 - stack_frame_index].indicies.push_back(master.size()); 
         master.push_back({signature, definition, parent});
-        //we need to define it the LLVM symbol table!
-        
+        //we need to define it the LLVM symbol table!        
         // and we need to define it of the right type, as well.
+        
+        // unfinsihed
     }
     
     void expose(nat desired_signature, expression new_signature, 
                   nat source_abstraction, nat destination_frame) {
         update();
+        
         // unimplemented
     }
     
-    symbol_table(struct translation_unit_data& data, struct flags flags, std::vector<expression> builtins)
-    : data(data), flags(flags) {         
+    symbol_table(file_data& data, struct flags flags, 
+                 std::vector<expression> builtins) : data(data), flags(flags) {         
         master.push_back({}); // the null entry. a type (index) of 0 means it has no type.        
         
         for (auto signature : builtins) {
@@ -165,7 +163,7 @@ public:
             std::cout << "\t" << j << ": {\"";
             print_expression_line(entry.signature); 
             std::cout << "\" : [ " << entry.parent << "] :: {\n";
-            print_abstraction_definition(entry.definition, 0);            
+            //print_abstraction_definition(entry.definition, 0);      /// TODO: fix me so we can print stuff.            
             std::cout << "}\n";
             std::cout << "LLVM value: \n";
             if (entry.value) entry.value->print(llvm::errs());

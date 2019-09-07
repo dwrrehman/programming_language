@@ -15,6 +15,6 @@
 #include "llvm/IR/IRBuilder.h"
 #include <iostream>
 
-std::unique_ptr<llvm::Module> analyze(translation_unit unit, llvm::LLVMContext& context, struct file file);
+std::unique_ptr<llvm::Module> analyze(expression_list unit, file file, llvm::LLVMContext& context);
 
 #endif /* analysis_hpp */

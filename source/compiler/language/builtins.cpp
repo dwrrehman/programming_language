@@ -33,8 +33,7 @@
  
  */
 
-expression failure = {true, true};
-
+expression failure = {true, true, true};
 expression infered_type = {{symbol{"__"}}};     // has no type.
 expression type_type = {{symbol{"_type"}}};     // has no type.
 expression none_type = {{symbol{"_0"}}, intrin::type};
@@ -43,22 +42,22 @@ expression application_type = {{symbol{"_a"}}, intrin::type};
 expression abstraction_type = {{symbol{"_b"}}, intrin::type};
 
 expression create_abstraction = {
-    {
-        {"_c"},  
-        {{expression{intrin::type}}},
+    std::vector<symbol> {
+        //symbol {"_c"},
+        //symbol {{expression{intrin::type}}},
     }, intrin::unit};
 
 expression define_abstraction = {
-    {
-        symbol{"_d"},
-        {{expression{intrin::abstraction}}},
-        {{expression{intrin::type}}},
-        {{expression{intrin::application}}},
-        {{expression{intrin::application}}},
+    std::vector<symbol> {
+        //symbol{"_d"},
+        //{{expression{intrin::abstraction}}},
+        //{{expression{intrin::type}}},
+        //{{expression{intrin::application}}},
+        //{{expression{intrin::application}}},
     }, intrin::unit};
 
 expression expose_abstraction = {
-    {
+    std::vector<symbol> {
         {"_e"},
         {{expression{intrin::application}}},
         {{expression{intrin::abstraction}}},
