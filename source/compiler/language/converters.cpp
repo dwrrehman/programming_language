@@ -82,7 +82,7 @@ size_t string_to_expression_tail(std::vector<expression> list, state& state, fla
     auto current = list.front();
     list.erase(list.begin());
     
-    auto resolved_expression = res(current, state, flags);
+    auto resolved_expression = traverse(current, state, flags);
     
     if (resolved_expression.error) state.error = true;
     resolved_expression.type = string_to_expression_tail(list, state, flags.dont_allow_undefined().not_at_top_level().not_parsing_a_type());

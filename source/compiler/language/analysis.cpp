@@ -57,15 +57,17 @@ std::unique_ptr<llvm::Module> analyze(expression_list unit, file file, llvm::LLV
     symbol_table stack {data, flags, builtins};
     state state = {stack, data, error};
     
-    auto& body = unit.list;    
+    auto& body = unit.list;
     std::vector<expression> parsed_body = {};
     for (auto expression : body) {
         expression.type = intrin::unit;
-        auto solution = res(expression, state, flags.generate_code().at_top_level());
+        auto solution = traverse(expression, state, flags.generate_code().at_top_level());
         if (solution.error) error = true;
         else parsed_body.push_back(solution);            
     }
     body = parsed_body;
+    
+    
     
     
     // TEMP:

@@ -102,6 +102,7 @@ struct symbol {
     
     enum symbol_type type = symbol_type::none;    
     expression_list expressions = {};
+    expression subexpression = {};
     string_literal string = {};
     llvm_literal llvm = {};
     identifier identifier = {};

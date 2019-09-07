@@ -41,18 +41,19 @@ bool are_equal_identifiers(const symbol &first, const symbol &second) {
 }
 
 bool symbols_match(symbol first, symbol second) {
-    if (subexpression(first) and subexpression(second) and expressions_match(first.expressions.list[0], second.expressions.list[0])) return true;  /// FIX ME: this code is ugly, and is only checking for if the FIRST expressions  in the expression lists are equal.
+    if (subexpression(first) and subexpression(second) 
+        and expressions_match(first.expressions.list[0], 
+                              second.expressions.list[0])) return true;  /// FIX ME: this code is ugly, and is only checking for if the FIRST expressions  in the expression lists are equal.
     else if (are_equal_identifiers(first, second)) return true;
     else if (first.type == symbol_type::llvm_literal and second.type == symbol_type::llvm_literal) return true;
     else return false;
 }
 
 bool expressions_match(expression first, expression second) {
+    if (first.error or second.error) return false;    
     if (first.symbols.size() != second.symbols.size()) return false;
-    for (size_t i = 0; i < first.symbols.size(); i++) {
-        if (not symbols_match(first.symbols[i], second.symbols[i])) return false;
-    }
-    if (first.error or second.error) return false;
+    for (size_t i = 0; i < first.symbols.size(); i++) 
+        if (not symbols_match(first.symbols[i], second.symbols[i])) return false;    
     if (!first.type and !second.type) return true;
     
     if (first.llvm_type and second.llvm_type) {
@@ -92,21 +93,21 @@ void print(std::vector<std::string> v) {
 }
 
 void prune_extraneous_subexpressions(expression& given) { // unimplemented
-//    while (given.symbols.size() == 1 
-//           and subexpression(given.symbols[0])
-//           and given.symbols[0].expressions.symbols.size()) {
-//        auto save = given.symbols[0].expressions.symbols;
-//        given.symbols = save;
-//    }
-//    for (auto& symbol : given.symbols)
-//        if (subexpression(symbol)) prune_extraneous_subexpressions(symbol.subexpression);
+    while (given.symbols.size() == 1 
+           and subexpression(given.symbols[0])
+           and given.symbols[0].subexpression.symbols.size()) {
+        auto save = given.symbols[0].subexpression.symbols;
+        given.symbols = save;
+    }
+    for (auto& symbol : given.symbols)
+        if (subexpression(symbol)) prune_extraneous_subexpressions(symbol.subexpression);
 }
 
 std::vector<expression> filter_subexpressions(expression given) { // unimplemented
-//    std::vector<expression> subexpressions = {};    
-//    for (auto element : given.symbols) 
-//        if (subexpression(element)) subexpressions.push_back(element.subexpression);    
-//    return subexpressions;
+    std::vector<expression> subexpressions = {};    
+    for (auto element : given.symbols) 
+        if (subexpression(element)) subexpressions.push_back(element.subexpression);    
+    return subexpressions;
     
     return {};
 }
@@ -146,23 +147,6 @@ void append_return_0_statement(llvm::IRBuilder<> &builder, llvm::LLVMContext &co
 void declare_donothing(llvm::IRBuilder<> &builder, const std::unique_ptr<llvm::Module> &module) {
     llvm::Function* donothing = llvm::Intrinsic::getDeclaration(module.get(), llvm::Intrinsic::donothing);        
     builder.CreateCall(donothing); // TODO: TEMP
-}
-
-bool found_unit_value_expression(const expression& given) { // unimplemented
-//    return given.symbols.empty() or (given.symbols.size() == 1 
-//        and subexpression(given.symbols[0]) 
-//        and given.symbols[0].expressions.symbols.empty());
-    return false;
-}
-
-expression parse_unit_expression(expression& given, size_t& index) {   ////TODO: this is bad. fix this. 
-    //    if (given.symbols.size() == 1
-    //        and subexpression(given.symbols[0])
-    //        and given.symbols[0].subexpression.symbols.empty()) index++;
-    //    if (expressions_match(*given.type, infered_type)) given.type = &unit_type;
-    //    if (expressions_match(*given.type, unit_type)) return unit_type;
-    //    else 
-    return failure;
 }
 
 bool found_llvm_string(const expression &given, size_t &pointer) {
@@ -346,19 +330,34 @@ expression parse_llvm_string(const expression &given, std::string llvm_string, s
 //    } else return failure;
 //}
 
-inline static bool parameter(symbol &symbol) {return subexpression(symbol);}
+
+bool found_unit_value_expression(const expression& given) { 
+    return given.symbols.empty() or 
+        (given.symbols.size() == 1 and subexpression(given.symbols[0]) 
+         and given.symbols[0].subexpression.symbols.empty());
+}
+
+expression parse_unit_expression(expression& given, size_t& index, state& state) {    
+    if (given.symbols.size() == 1
+        and subexpression(given.symbols[0])
+        and given.symbols[0].subexpression.symbols.empty()) index++;
+    if (given.type == intrin::infered) given.type = intrin::unit;
+    if (given.type == intrin::unit) return state.stack.lookup(intrin::unit);
+    else return failure;
+} 
+
 
 bool matches(expression given, expression& signature, size_t& index, const size_t depth, 
-             const size_t max_depth, state& state, flags flags) {  // unimplemented
+             const size_t max_depth, state& state, flags flags) {
     if (given.type != signature.type) return false;
     for (auto& symbol : signature.symbols) {
-        if (parameter(symbol) and subexpression(given.symbols[index])) { 
-            //symbol.expressions = res(given.symbols[index].expressions, state, flags);
-            if (symbol.expressions.error) return false;
+        if (subexpression(symbol) and subexpression(given.symbols[index])) { 
+            symbol.subexpression = traverse(given.symbols[index].subexpression, state, flags);
+            if (symbol.subexpression.error) return false;
             index++;
-        } else if (parameter(symbol)) {
-            //symbol.expressions = csr(given, index, depth + 1, max_depth, state, flags);
-            if (symbol.expressions.error) return false;            
+        } else if (subexpression(symbol)) {
+            symbol.subexpression = csr(given, index, depth + 1, max_depth, state, flags);
+            if (symbol.subexpression.error) return false;            
         } else if (not are_equal_identifiers(symbol, given.symbols[index])) return false;
         else index++;
     } return true;
@@ -373,13 +372,13 @@ expression csr(expression given, size_t& index, const size_t depth, const size_t
     size_t saved = index;
     for (auto signature_index : state.stack.top()) {
         index = saved;
-        if (matches(given, state.stack.lookup(signature_index), index, depth, max_depth, state, flags)) 
-            return state.stack.lookup(signature_index);
+        auto signature = state.stack.lookup(signature_index);
+        if (matches(given, signature, index, depth, max_depth, state, flags)) return signature;
     }
     return failure;
 }
 
-expression res(expression given, state& state, flags flags) {
+expression traverse(expression given, state& state, flags flags) {
     expression solution {};
     for (size_t max_depth = 0; max_depth <= max_expression_depth; max_depth++) {
         size_t pointer = 0;
@@ -389,9 +388,14 @@ expression res(expression given, state& state, flags flags) {
     return solution;
 }
 
-expression resolve(expression given, state& state, flags flags) { // interface function:
-    prune_extraneous_subexpressions(given);
-    return res(given, state, flags);
+expression_list resolve(expression_list given, state& state, flags flags) { // interface function:   each statement must have the unit type as its value. no returning.        
+    for (auto& e : given.list) {
+        e.type = intrin::unit;
+        prune_extraneous_subexpressions(e);
+        e = traverse(e, state, flags);
+        state.error = state.error or e.error;
+    }
+    return given;
 }
 
 // debug tool:

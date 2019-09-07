@@ -26,21 +26,21 @@ static std::string contract_filename(std::string filename) {
 }
 
 
-static std::string error_heading( const std::string &filename, size_t line, size_t column) {
+static std::string error_heading(const std::string &filename, size_t line, size_t column) {
     std::ostringstream s;
     std::string shorter_filename = contract_filename(filename);
     s << "\n" CYAN << language_name << RESET GRAY ": " RESET BRIGHT_RED "error" RESET GRAY ": " RESET MAGENTA << shorter_filename << RESET GRAY ":" << line << ":" << column << ": " RESET;
     return s.str();
 }
 
-static std::string warning_heading( const std::string &filename, size_t line, size_t column) {
+static std::string warning_heading(const std::string &filename, size_t line, size_t column) {
     std::ostringstream s;
     std::string shorter_filename = contract_filename(filename);
     s << "\n" CYAN << language_name << RESET GRAY ": " RESET BRIGHT_YELLOW "warning" RESET GRAY ": " RESET MAGENTA << shorter_filename << RESET GRAY ":" << line << ":" << column << ": " RESET;
     return s.str();
 }
 
-static std::string info_heading( const std::string &filename, size_t line, size_t column) {
+static std::string info_heading(const std::string &filename, size_t line, size_t column) {
     std::ostringstream s;
     std::string shorter_filename = contract_filename(filename);
     s << "\n" CYAN << language_name << RESET GRAY ": " RESET BRIGHT_BLUE "info" RESET GRAY ": " RESET MAGENTA << shorter_filename << RESET GRAY ":" << line << ":" << column << ": " RESET;

@@ -37,11 +37,6 @@ std::string random_string();
 void print(std::vector<std::string> v);
 void prune_extraneous_subexpressions(expression& given);
 std::vector<expression> filter_subexpressions(expression given);
-//abstraction_definition generate_abstraction_definition(const expression &given, size_t &index);
-//size_t generate_type_for(abstraction_definition def);
-bool contains_a_block_starting_from(size_t begin, std::vector<symbol> list) ;
-bool found_abstraction_definition(expression &given, size_t &index) ;
-bool contains_top_level_runtime_statement(std::vector<expression> list) ;
 void append_return_0_statement(llvm::IRBuilder<> &builder, llvm::LLVMContext &context) ;
 void declare_donothing(llvm::IRBuilder<> &builder, const std::unique_ptr<llvm::Module> &module);
 bool found_unit_value_expression(const expression &given);
@@ -58,7 +53,6 @@ bool parse_llvm_string_as_function(std::string given, state& state, llvm::SMDiag
 expression parse_llvm_string(const expression &given, std::string llvm_string, size_t &pointer, state& state, flags flags) ;
 
 expression csr(expression given, size_t& index, const size_t depth, const size_t max_depth, state& state, flags flags); 
-expression adp(expression& given, size_t& index, state& state, flags flags);
-expression res(expression given, state& state, flags flags);
-
+expression traverse(expression given, state& state, flags flags);
+expression_list resolve(expression_list given, state& state, flags flags); // interface function:
 #endif /* helpers_hpp */

@@ -68,7 +68,6 @@ expression expose_abstraction = {
 //expression mutable_type = { { {"_mutable"}, {{{},intrin::type}}},intrin::type};
 
 
-
 std::vector<expression> builtins =  {
     infered_type, type_type, none_type, unit_type,
     application_type, abstraction_type,
