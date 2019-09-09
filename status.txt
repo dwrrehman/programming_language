@@ -1,0 +1,13 @@
+the current status of the compiler is:
+
+    
+    - we are still working through how to put subexpressions back into csr.
+
+    - we have esssentially decided to make the grammar binary recursive, instead of ternary recursive.
+    - - we are going to have blocks of code be delimited by newlines--- tabs are significant only to determine newlines, essentially... i think.
+
+        - definitely want the language be able to use the indentation as the syntactic form. 
+
+            thats really important. 
+
+
