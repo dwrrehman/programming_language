@@ -348,24 +348,30 @@ expression parse_unit_expression(expression& given, size_t& index, state& state)
     else return failure;
 } 
 
+
+
+
+
+
 bool matches(expression given, expression& signature, size_t& index, const size_t depth, 
              const size_t max_depth, state& state, flags flags) {
     if (given.type != signature.type and given.type != intrin::infered) return false;
     for (auto& symbol : signature.symbols) {        
         if (subexpression(symbol) and subexpression(given.symbols[index])) {
-            symbol.subexpression = traverse(given.symbols[index].subexpression, state, flags);
-            if (symbol.subexpression.error) return false;
+            symbol.expressions = traverse(given.symbols[index].expressions, state, flags);
+            if (symbol.expressions.error) return false;
             index++;
         } else if (subexpression(symbol)) {
-            symbol.subexpression = csr(given, index, depth + 1, max_depth, state, flags);
-            if (symbol.subexpression.error) return false;            
+            //symbol.expressions = csr(given, index, depth + 1, max_depth, state, flags); /// i think this should be csr_single().
+            if (symbol.expressions.error) return false;            
         } else if (not are_equal_identifiers(symbol, given.symbols[index])) return false;
         else index++;
     } return true;
 }
 
-expression csr(expression given, size_t& index, const size_t depth, const size_t max_depth, state& state, flags flags) {
-    if (index >= given.symbols.size() or not given.type or depth > max_depth) return failure;
+
+expression csr_single(expression given, size_t& index, const size_t depth, const size_t max_depth, state& state, flags flags) {
+    if (index >= given.symbols.size() or not given.type or depth > max_depth) return failure; 
     if (found_llvm_string(given, index)) return parse_llvm_string(given, given.symbols[index].llvm.literal.value, index, state, flags);    
     size_t saved = index;
     for (auto signature_index : state.stack.top()) {
@@ -376,34 +382,46 @@ expression csr(expression given, size_t& index, const size_t depth, const size_t
     return failure;
 }
 
+expression_list csr(expression_list given, size_t& index, const size_t depth, const size_t max_depth, state& state, flags flags) {
+    for (auto& e : given.list) e = csr_single(e, index, depth, max_depth, state, flags);
+    return given;
+}
+
 inline static void sort_top_stack_by_largest_signature(state& state) {           
     std::sort(state.stack.top().begin(), state.stack.top().end(), [&](nat a, nat b) {
         return state.stack.lookup(a).symbols.size() > state.stack.lookup(b).symbols.size(); 
     });
 }
 
-expression traverse(expression given, state& state, flags flags) {
+expression_list traverse(expression_list given, state& state, flags flags) {
     sort_top_stack_by_largest_signature(state);
-    expression solution {};
+    
+    expression_list solution {};
     for (size_t max_depth = 0; max_depth <= max_expression_depth; max_depth++) {
         size_t pointer = 0;
-        solution = csr(given, pointer, 0, max_depth, state, flags);
-        if (not solution.error and pointer == given.symbols.size()) break;
+        solution = csr(given, pointer, 0, max_depth, state, flags); 
+        //if (not solution.error and pointer == given.symbols.size()) break;       // i think we need to look through all expressions, and see if any have an error.
     }
-    return solution;
+    return solution; 
+}
+
+static void prepare_expressions(expression_list& given) {
+    for (auto& e : given.list) {        
+        e.type = intrin::unit; 
+        prune_extraneous_subexpressions(e); 
+    }
 }
 
 expression_list resolve(expression_list given, state& state, flags flags) {         
-    for (auto& e : given.list) {
-        auto saved = e;
-        e.type = intrin::unit;
-        prune_extraneous_subexpressions(e);
-        e = traverse(e, state, flags);
-        state.error = state.error or e.error;
-        if (e.error) {
-            print_error_message(state.data.file.name, "could not resolve expression: \n\n" + expression_to_string(saved, state.stack) + "\n\n", 0, 0);
-        }
-    }
+    prepare_expressions(given);
+    auto saved = given;
+    given = traverse(given, state, flags);
+    
+    state.error = state.error or given.error;     
+    if (given.error) 
+        for (auto& e : saved.list) 
+            print_error_message(state.data.file.name, "could not resolve expression: \n\n" + expression_to_string(e, state.stack) + "\n\n", 0, 0);
+    
     return given;
 }
 

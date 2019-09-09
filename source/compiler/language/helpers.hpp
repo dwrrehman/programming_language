@@ -52,7 +52,8 @@ bool parse_llvm_string_as_instruction(std::string given, llvm::Function* functio
 bool parse_llvm_string_as_function(std::string given, state& state, llvm::SMDiagnostic& errors);
 expression parse_llvm_string(const expression &given, std::string llvm_string, size_t &pointer, state& state, flags flags) ;
 
-expression csr(expression given, size_t& index, const size_t depth, const size_t max_depth, state& state, flags flags); 
-expression traverse(expression given, state& state, flags flags);
+expression csr_single(expression given, size_t& index, const size_t depth, const size_t max_depth, state& state, flags flags); 
+expression_list csr(expression_list given, size_t& index, const size_t depth, const size_t max_depth, state& state, flags flags); 
+expression_list traverse(expression_list given, state& state, flags flags);
 expression_list resolve(expression_list given, state& state, flags flags); // interface function:
 #endif /* helpers_hpp */
