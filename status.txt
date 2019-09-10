@@ -1,6 +1,49 @@
 the current status of the compiler is:
 
 
+    1909102.033504:
+        
+            
+                reworked the llvm ir instruction parser code, made it way simplier.
+                    
+
+                    we need to figure out how to remap a function, allow the pointer to point to a complextely different set of instructions, with a different signature/name of the func as well.
+
+
+                        
+                        i know its possible.
+
+
+                        next after that, we should probably figure out how to do llvm symbol table conversions:
+
+
+                            1. we need to make the transition back and forth from llvm and n3zqx2l very smooth.
+
+
+                            2, we need to make the llvm symbol table essentially one of the most important central parts of the symbol table.
+
+                            
+
+                            3. we need to make CSR work well with llvm ir strings, llvm types, the llvm symbol table, 
+                                    and most importantly, 
+
+                                                llvm CODE GEN:   
+
+                                                    - llvm ir for function calls:      simply a call instruction, with fast calling convention- no respect for C calling convetion.... who cares.
+                                                    - llvm ir for _define:         usally a         %t = type {}      as well as a function dfeinition.
+                                                    - llvm ir for _dislclose:  usually a GEP ins.
+                                                    - llvm ir for string literals.....?
+
+
+
+
+
+
+
+
+
+
+
 
 
     1909091.164524:
