@@ -21,6 +21,7 @@
 #include "llvm/Support/SourceMgr.h"
 #include "llvm/IR/ValueSymbolTable.h"
 #include "llvm/Transforms/Utils/ValueMapper.h"
+#include "llvm/Transforms/Utils/Cloning.h"
 
 #include <cstdlib>
 #include <iostream>
@@ -189,11 +190,6 @@ llvm::Type* parse_llvm_string_as_type(std::string given, state& state, llvm::SMD
 
 bool parse_llvm_string_as_instruction(std::string given, llvm::Function* original, state& state, llvm::SMDiagnostic& errors) {
     
-    
-
-    /// append the new code, and a set of terminating/marker instructions. 
-    ///        ...to a (string) copy of the function definition.
-    
     std::string body = "";
     original->print(llvm::raw_string_ostream(body) << "");    
     body.pop_back(); // delete the newline
@@ -201,122 +197,102 @@ bool parse_llvm_string_as_instruction(std::string given, llvm::Function* origina
     body += given + "\n"
         "call void @llvm.donothing()" "\n" 
         "unreachable" "\n" 
-    "}" "\n";
-    
-    
-//
-//    std::cout << "0: new original state: ::::::::::::::: \n";
-//    std::cout << body << "\n";
-//    std::cout << "::::::::::::::: \n";
-    
-    
-
-    /// cache the original function definition, away.         [renaming so theres no name conflicts.]
+    "}" "\n";    
     
     const std::string current_name = original->getName();
     original->setName("_anonymous_" + random_string());
-        
-    /// turn our string version of the function into a real new function, with the original functions name.
-    
+            
     llvm::MemoryBufferRef reference(body, "<llvm-string>");
     llvm::ModuleSummaryIndex my_index(true);
     if (llvm::parseAssemblyInto(reference, state.data.module, &my_index, errors)) {        
-        original->setName(current_name); // revert name
-        return false; // llvm ir parse failure.
-    
-        
-    } else {
-        
-        auto& temporary = state.data.module->getFunctionList().back();
-        
-        
+        original->setName(current_name);
+        return false; 
+            
+    } else {        
+        auto& temporary = state.data.module->getFunctionList().back();                
         auto& original_blocks = original->getBasicBlockList();
-        auto& temporary_blocks = temporary.getBasicBlockList();
-        
+        auto& temporary_blocks = temporary.getBasicBlockList();        
         temporary_blocks.back().back().eraseFromParent();           // erase the unreachable ins
         temporary_blocks.back().back().eraseFromParent();           // erase the donothing() call.
         
-//        std::cout << "1: temporary state: ::::::::::::::: \n";
-//        temporary.print(llvm::errs());
-//        std::cout << ":::::::::: \n";
+        if (original_blocks.size() != temporary_blocks.size()) temporary_blocks.back().eraseFromParent();
+        
+        original_blocks.clear();  
         
         
-        if (original_blocks.size() != temporary_blocks.size())  {
-//            std::cout << "[.]: the block counts where different.\n";                        
-            temporary_blocks.back().eraseFromParent();
-        } else {
-//            std::cout << "[.]: the block counts where NOT different.\n";
-        }
-            
-
-        original_blocks.clear();
-        
-//        std::cout << "2: original state: ::::::::::::::: \n";        
-//        original->print(llvm::errs());
-//        std::cout << "::::::::::::::: \n";
-//        
-//        std::cout << "[::] : ORIOGINAL block count: " << original_blocks.size() << "\n";        
-//        std::cout << "[::] : TEMPOARY block count: " << temporary_blocks.size() << "\n";
         
         
-        for (auto& block : temporary_blocks) {
-            
-            std::string block_name = block.getName();
-//            std::cout << "[::] : ------------- iterating on block: " << block_name << " -----------------\n";
-            
-            state.data.builder.SetInsertPoint(llvm::BasicBlock::Create(state.data.module->getContext(), block_name, original));
-                
-            llvm::ValueToValueMapTy value_map;
-            
-            for (auto& instruction: block.getInstList()) {
-                
-                auto* copy = instruction.clone();
-                copy->setName(instruction.getName());
-                                
-                state.data.builder.Insert(copy);
-                value_map[&instruction] = copy;
-                
-                
-                
-                
-                
-                llvm::RemapInstruction(copy, value_map, llvm::RF_NoModuleLevelChanges | llvm::RF_IgnoreMissingLocals);
-                
-                
-                                
-//                std::cout << "4: original state: ::::::::::::::: \n";        
-//                original->print(llvm::errs());
-//                std::cout << "::::::::::::::: \n";
-                
-            }
-        }
+//        for (auto& block : temporary_blocks) {            
+//            std::string block_name = block.getName();            
+//            state.data.builder.SetInsertPoint(llvm::BasicBlock::Create(state.data.module->getContext(), block_name, original));                
+//            llvm::ValueToValueMapTy value_map;            
+//            for (auto& instruction: block.getInstList()) {                
+//                auto* copy = instruction.clone();
+//                copy->setName(instruction.getName());                                
+//                state.data.builder.Insert(copy);
+//                value_map[&instruction] = copy;
+//                llvm::RemapInstruction(copy, value_map, llvm::RF_NoModuleLevelChanges | llvm::RF_IgnoreMissingLocals);                                                                    
+//            }
+//        }    
         
         
-//        std::cout << "5: original state: ::::::::::::::: \n";        
-//        original->print(llvm::errs());
-//        std::cout << "::::::::::::::: \n";
+        std::cout << "1: original state: ::::::::::::::: \n";        
+        original->print(llvm::errs());
+        std::cout << "::::::::::::::: \n";
+        
+        std::cout << "2: temporary state: ::::::::::::::: \n";        
+        temporary.print(llvm::errs());
+        std::cout << "::::::::::::::: \n";
         
         
-        // original_blocks.back().back().eraseFromParent();      // delete the trailing do_nothing().
         
         
-
-//        std::cout << "6: original state: ::::::::::::::: \n";        
-//        original->print(llvm::errs());
-//        std::cout << "::::::::::::::: \n";
-//        
-                
-        //temporary.eraseFromParent();                          // dont dlete it! rename it!        
         temporary.setName("_unused_" + random_string());
         original->setName(current_name);
-                
+    
+        
+    
+        
+        llvm::ValueToValueMapTy value_map;
+        
+        value_map.insert({original, &temporary});
+        
+        //value_map[original] = &temporary;
+        //value_map[&temporary] = original;
+        
+        //llvm::RemapFunction(*original, value_map);        
+        llvm::RemapFunction(temporary, value_map);
+        
+        
+        
         
 //        
-//        std::cout << "7: original state: ::::::::::::::: \n";        
-//        original->print(llvm::errs());
-//        std::cout << "::::::::::::::: \n";
+//        
+//        llvm::Function *F;
+//        llvm::Value *V = F;
+//        llvm::ValueToValueMapTy VMap;
+//        auto *Clone = llvm::CloneFunction(F, VMap);
+//        // V2 represents essentially the same register as V,
+//        // except it's in Clone instead of F
+//        llvm::Value *V2 = VMap[V];
+//        
         
         
+        
+        
+        
+        
+        
+
+        
+        std::cout << "1: original state: ::::::::::::::: \n";        
+        original->print(llvm::errs());
+        std::cout << "::::::::::::::: \n";
+        
+        std::cout << "2: temporary state: ::::::::::::::: \n";        
+        temporary.print(llvm::errs());
+        std::cout << "::::::::::::::: \n";
+
         return true;
      }
 }

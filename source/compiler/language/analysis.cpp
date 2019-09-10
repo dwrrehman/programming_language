@@ -76,6 +76,15 @@ std::unique_ptr<llvm::Module> analyze(expression_list unit, file file, llvm::LLV
         std::cout << "ins: llvm: "; // TODO: make this have color!
         instruction_errors.print(state.data.file.name.c_str(), llvm::errs()); // temp
     }
+    
+    
+    
+    builder.SetInsertPoint(llvm::BasicBlock::Create(context, "wef", main_function));
+    declare_donothing(builder, module);
+    declare_donothing(builder, module);
+    declare_donothing(builder, module);
+    
+    
         
     //if (debug) debug_table(module, stack);    
 
