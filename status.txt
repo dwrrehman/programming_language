@@ -1,6 +1,61 @@
 the current status of the compiler is:
 
-    
+
+
+
+    1909091.164524:
+        
+            the solution which i found is:
+                
+
+                        simply interpret the expression list as a block whos type is the type of the last expression. 
+                            
+                                for type inference and checking, we need to use the last expression int he list.
+                                    
+
+                                        
+                     the part we are implementing now, is to make the csr function have two parts:
+                        
+                            1. csr_single(): parsesa  single expression.
+
+                            2. csr(): parses a series of expressions, using the last one as the type of the whole set. 
+                                
+
+
+                      we realized that the traverse, and the resolve frontends both take expression lists, and operate on them eclusively, basically.
+                            
+
+
+                      finally, we figured out that we need to:      (eventually)
+                        
+
+                            1. make a huge change to the typr inference system within csr, 
+                                whichis that we need the idea of:     "gradual type-set resolution."
+
+                                        which is simply the idea that we gradually resolve which types a symbol can be, (based on literals, etc....)
+
+                                            as we find it in use of another function, as we continue to parse. 
+
+                                                
+
+                                                we only errror if we find that a given variable was found to have a non singleton type-set (the set of types which are consisntent withthe code.)
+
+                                                    
+                                                        
+                                                        (however, if the code uses numeric literals, then we will simply pick the word size (assumign its wide enough) to choose a type for numeric literals. )
+
+
+
+
+
+
+
+
+
+
+
+
+    1909091.15:
     - we are still working through how to put subexpressions back into csr.
 
     - we have esssentially decided to make the grammar binary recursive, instead of ternary recursive.
@@ -9,5 +64,7 @@ the current status of the compiler is:
         - definitely want the language be able to use the indentation as the syntactic form. 
 
             thats really important. 
+
+      
 
 
