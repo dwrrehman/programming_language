@@ -13,12 +13,14 @@
 #include "builtins.hpp"
 #include "symbol_table.hpp"
 #include "lists.hpp"
+#include "error.hpp"
+
 #include "llvm/IR/LLVMContext.h"
 #include "llvm/AsmParser/Parser.h"
 #include "llvm/IR/ModuleSummaryIndex.h"
 #include "llvm/Support/SourceMgr.h"
 #include "llvm/IR/ValueSymbolTable.h"
-#include "error.hpp"
+#include "llvm/Transforms/Utils/ValueMapper.h"
 
 #include <cstdlib>
 #include <iostream>
@@ -180,65 +182,174 @@ llvm::Function* create_main(llvm::IRBuilder<>& builder, llvm::LLVMContext& conte
 /////////////////////////////////////// PARSE LLVM STRING ///////////////////////////////////////////
 
 
-
-
-
 llvm::Type* parse_llvm_string_as_type(std::string given, state& state, llvm::SMDiagnostic& errors) {
     return llvm::parseType(given, errors, *state.data.module);
 }
 
 
+bool parse_llvm_string_as_instruction(std::string given, llvm::Function* original, state& state, llvm::SMDiagnostic& errors) {
+    
+    
 
-/////TODO:
-//////          rewrite this code by replacing the use of the "unreachable" instruction" with a call to "llvm.donothing()". this makes way more sense.
-
-bool parse_llvm_string_as_instruction(std::string given, llvm::Function* function, state& state, llvm::SMDiagnostic& errors) {
-    /*
+    /// append the new code, and a set of terminating/marker instructions. 
+    ///        ...to a (string) copy of the function definition.
+    
     std::string body = "";
-    function->print(llvm::raw_string_ostream(body) << "");
+    original->print(llvm::raw_string_ostream(body) << "");    
+    body.pop_back(); // delete the newline
+    body.pop_back(); // delete the close brace
+    body += given + "\n"
+        "call void @llvm.donothing()" "\n" 
+        "unreachable" "\n" 
+    "}" "\n";
     
     
-    const size_t bb_count = function->getBasicBlockList().size();
-        
-        body.pop_back(); // delete the newline;
-        body.pop_back(); // delete the close brace.
-        body += given + "\nunreachable\n}\n";
-        
     
-    const std::string current_name = data.function->getName();
-    data.function->setName("_anonymous_" + random_string());
+    
+    std::cout << "new original state: ::::::::::::::: \n";
+    std::cout << body << "\n";
+    std::cout << "::::::::::::::: \n";
+    
+    
+
+    /// cache the original function definition, away.         [renaming so theres no name conflicts.]
+    
+    const std::string current_name = original->getName();
+    original->setName("_anonymous_" + random_string());
+    
+    
+    
+    
+    
+    
+    /// turn our string version of the function into a real new function, with the original functions name.
     
     llvm::MemoryBufferRef reference(body, "<llvm-string>");
     llvm::ModuleSummaryIndex my_index(true);
-    
-    if (llvm::parseAssemblyInto(reference, data.module, &my_index, errors)) {
-        data.function->setName(current_name);
-        return false;
+    if (llvm::parseAssemblyInto(reference, state.data.module, &my_index, errors)) {        
+        original->setName(current_name); // revert name
+        return false; // llvm ir parse failure.
+        
+        
+        
     } else {
-        auto& made = data.module->getFunctionList().back();
-        made.getBasicBlockList().back().back().eraseFromParent();
-        if (bb_count != made.getBasicBlockList().size()) made.getBasicBlockList().back().eraseFromParent();
-        data.function->getBasicBlockList().clear();
-        data.builder.SetInsertPoint(llvm::BasicBlock::Create(data.module->getContext(), "entry", data.function));
-        data.builder.CreateUnreachable();
-        auto& insert_before_point = data.function->getBasicBlockList().back().back();
-        for (auto& bb : made.getBasicBlockList()) {
-            llvm::ValueToValueMapTy vmap;
-            for (auto& inst: bb.getInstList()) {
-                auto* new_inst = inst.clone();
-                new_inst->setName(inst.getName());
-                new_inst->insertBefore(&insert_before_point);
-                vmap[&inst] = new_inst;
-                llvm::RemapInstruction(new_inst, vmap, llvm::RF_NoModuleLevelChanges | llvm::RF_IgnoreMissingLocals);
+        
+        auto& temporary = state.data.module->getFunctionList().back();
+        
+        
+        auto& original_blocks = original->getBasicBlockList();
+        auto& temporary_blocks = temporary.getBasicBlockList();
+        
+        temporary_blocks.back().back().eraseFromParent();           // erase the unreachable ins
+        temporary_blocks.back().back().eraseFromParent();           // erase the donothing() call.
+        
+        std::cout << "temporary state: ::::::::::::::: \n";
+        temporary.print(llvm::errs());
+        std::cout << ":::::::::: \n";
+        
+        
+        if (original_blocks.size() != temporary_blocks.size()) 
+            temporary_blocks.back().eraseFromParent();
+        
+        
+        original_blocks.clear(); 
+        state.data.builder.SetInsertPoint(llvm::BasicBlock::Create(state.data.module->getContext(), "entry", original));
+        
+        
+        std::cout << "original state: ::::::::::::::: \n";        
+        original->print(llvm::errs());
+        std::cout << "::::::::::::::: \n";
+        
+        
+//        { 
+//            llvm::Function* donothing = llvm::Intrinsic::getDeclaration(state.data.module, llvm::Intrinsic::donothing); 
+//            state.data.builder.CreateCall(donothing);
+//        }
+//        
+        
+        state.data.builder.CreateUnreachable();
+        
+        
+        std::cout << "original state: ::::::::::::::: \n";        
+        original->print(llvm::errs());
+        std::cout << "::::::::::::::: \n";
+
+
+
+    
+        std::cout << "[::] : ORIOGINAL block count: " << original_blocks.size() << "\n";        
+        std::cout << "[::] : TEMPOARY block count: " << temporary_blocks.size() << "\n";
+        
+        
+        for (auto& block : temporary_blocks) {
+            
+            std::string block_name = block.getName();
+            std::cout << "[::] : ------------- iterating on block: " << block_name << " -----------------\n";
+            
+            state.data.builder.SetInsertPoint(llvm::BasicBlock::Create(state.data.module->getContext(), block_name, original));
+            
+//            auto& insertion_point = original_blocks.back().back();
+//            
+//            std::cout << "insertion point in original: ";
+//            insertion_point.print(llvm::errs());
+//            
+//            
+        
+            
+            llvm::ValueToValueMapTy value_map;
+            
+            for (auto& instruction: block.getInstList()) {
+                
+                auto* copy = instruction.clone();
+                copy->setName(instruction.getName());
+                
+                //copy->insertBefore(&insertion_point);
+                state.data.builder.Insert(copy);
+    
+                value_map[&instruction] = copy;
+                
+                llvm::RemapInstruction(copy, value_map, llvm::RF_NoModuleLevelChanges | llvm::RF_IgnoreMissingLocals);
+                
+                
+                
+                std::cout << "original state: ::::::::::::::: \n";        
+                original->print(llvm::errs());
+                std::cout << "::::::::::::::: \n";
+                
             }
         }
-        data.function->getBasicBlockList().back().back().eraseFromParent();      // delete the trailing unreachable.
-        made.eraseFromParent();
-        data.function->setName(current_name);
+        
+        
+        std::cout << "original state: ::::::::::::::: \n";        
+        original->print(llvm::errs());
+        std::cout << "::::::::::::::: \n";
+        
+        
+        original_blocks.back().back().eraseFromParent();      // delete the trailing do_nothing().
+        
+        
+        
+        
+        std::cout << "original state: ::::::::::::::: \n";        
+        original->print(llvm::errs());
+        std::cout << "::::::::::::::: \n";
+        
+        
+        
+        temporary.eraseFromParent();
+        
+        original->setName(current_name);
+        
+        
+        
+        
+        std::cout << "original state: ::::::::::::::: \n";        
+        original->print(llvm::errs());
+        std::cout << "::::::::::::::: \n";
+        
+        
         return true;
      }
-     */
-    return false;
 }
 
 bool parse_llvm_string_as_function(std::string given, state& state, llvm::SMDiagnostic& errors) {
@@ -247,7 +358,7 @@ bool parse_llvm_string_as_function(std::string given, state& state, llvm::SMDiag
     return !llvm::parseAssemblyInto(reference, state.data.module, &my_index, errors);        
 }
 
-expression parse_llvm_string(const expression &given, std::string llvm_string, size_t& pointer, state& state, flags flags) {
+expression parse_llvm_string(const expression &given, llvm::Function* function, std::string llvm_string, size_t& pointer, state& state, flags flags) {
     
     if (flags.is_at_top_level and not flags.is_parsing_type) {
         
@@ -260,7 +371,7 @@ expression parse_llvm_string(const expression &given, std::string llvm_string, s
             solution.symbols = {{given.symbols[pointer++].llvm}};
             return solution;
             
-        } else if (parse_llvm_string_as_instruction(llvm_string, NULL, state, instruction_errors)) {
+        } else if (parse_llvm_string_as_instruction(llvm_string, function, state, instruction_errors)) { 
             expression solution = {};            
             solution.type = intrin::unit;
             solution.symbols = {{given.symbols[pointer++].llvm}};
@@ -295,42 +406,6 @@ expression parse_llvm_string(const expression &given, std::string llvm_string, s
     }
 }
 
-//void parse_call_signature(abstraction_definition& given, state& state, flags flags) {
-//    std::cout << "parsing call signature\n";
-//}
-//
-//void parse_return_type(abstraction_definition& given, state& state, flags flags) {
-//    std::cout << "parsing return type\n";
-//}
-//
-//void parse_abstraction_body(abstraction_definition& given, state& state, flags flags) {
-//    std::cout << "parsing abstraction body\n";
-//}
-//
-//void parse_abstraction(abstraction_definition& given, state& state, flags flags) {    
-//    parse_call_signature(given, state, flags); 
-//    parse_return_type(given, state, flags);    
-//    parse_abstraction_body(given, state, flags);    
-//}
-
-//expression adp(expression& given, size_t& index, state& state, flags flags) {
-//    auto definition = generate_abstraction_definition(given, index);        
-//    parse_abstraction(definition, state, flags);
-//    size_t abstraction_type = generate_type_for(definition); 
-//    
-//    if (given.type == abstraction_type or given.type == intrin::infered or flags.is_at_top_level) {
-//        if (given.type == intrin::infered) 
-//            given.type = abstraction_type;
-//        
-//        expression result = {{definition}, abstraction_type};
-//        result.erroneous = state.error;
-//        if (not result.erroneous and flags.is_at_top_level) {
-//            result.type = intrin::unit;
-//            state.stack.define(definition.call_signature, definition, 0);
-//        }
-//        return result;
-//    } else return failure;
-//}
 
 
 bool found_unit_value_expression(const expression& given) { 
@@ -353,12 +428,12 @@ expression parse_unit_expression(expression& given, size_t& index, state& state)
 
 
 
-bool matches(expression given, expression& signature, size_t& index, const size_t depth, 
+bool matches(expression given, llvm::Function* function, expression& signature, size_t& index, const size_t depth, 
              const size_t max_depth, state& state, flags flags) {
     if (given.type != signature.type and given.type != intrin::infered) return false;
     for (auto& symbol : signature.symbols) {        
         if (subexpression(symbol) and subexpression(given.symbols[index])) {
-            symbol.expressions = traverse(given.symbols[index].expressions, state, flags);
+            symbol.expressions = traverse(given.symbols[index].expressions, function, state, flags);
             if (symbol.expressions.error) return false;
             index++;
         } else if (subexpression(symbol)) {
@@ -370,20 +445,24 @@ bool matches(expression given, expression& signature, size_t& index, const size_
 }
 
 
-expression csr_single(expression given, size_t& index, const size_t depth, const size_t max_depth, state& state, flags flags) {
+expression csr_single(expression given, llvm::Function* function, size_t& index, const size_t depth, const size_t max_depth, state& state, flags flags) {
     if (index >= given.symbols.size() or not given.type or depth > max_depth) return failure; 
-    if (found_llvm_string(given, index)) return parse_llvm_string(given, given.symbols[index].llvm.literal.value, index, state, flags);    
+    if (found_llvm_string(given, index)) {
+//        std::cout << "we got here! :)\n";
+//        //std::cin.get();
+        return parse_llvm_string(given, function, given.symbols[index].llvm.literal.value, index, state, flags);
+    }
     size_t saved = index;
     for (auto signature_index : state.stack.top()) {
         index = saved;
         auto signature = state.stack.lookup(signature_index);
-        if (matches(given, signature, index, depth, max_depth, state, flags)) return signature;
+        if (matches(given, function, signature, index, depth, max_depth, state, flags)) return signature;
     }
     return failure;
 }
 
-expression_list csr(expression_list given, size_t& index, const size_t depth, const size_t max_depth, state& state, flags flags) {
-    for (auto& e : given.list) e = csr_single(e, index, depth, max_depth, state, flags);
+expression_list csr(expression_list given, llvm::Function* function,size_t& index, const size_t depth, const size_t max_depth, state& state, flags flags) {
+    for (auto& e : given.list) e = csr_single(e, function, index, depth, max_depth, state, flags);
     return given;
 }
 
@@ -393,13 +472,13 @@ inline static void sort_top_stack_by_largest_signature(state& state) {
     });
 }
 
-expression_list traverse(expression_list given, state& state, flags flags) {
+expression_list traverse(expression_list given, llvm::Function* function, state& state, flags flags) {
     sort_top_stack_by_largest_signature(state);
     
     expression_list solution {};
     for (size_t max_depth = 0; max_depth <= max_expression_depth; max_depth++) {
         size_t pointer = 0;
-        solution = csr(given, pointer, 0, max_depth, state, flags); 
+        solution = csr(given, function, pointer, 0, max_depth, state, flags); 
         //if (not solution.error and pointer == given.symbols.size()) break;       // i think we need to look through all expressions, and see if any have an error.
     }
     return solution; 
@@ -412,10 +491,10 @@ static void prepare_expressions(expression_list& given) {
     }
 }
 
-expression_list resolve(expression_list given, state& state, flags flags) {         
+expression_list resolve(expression_list given, llvm::Function* function, state& state, flags flags) {         
     prepare_expressions(given);
     auto saved = given;
-    given = traverse(given, state, flags);
+    given = traverse(given, function, state, flags);
     
     state.error = state.error or given.error;     
     if (given.error) 

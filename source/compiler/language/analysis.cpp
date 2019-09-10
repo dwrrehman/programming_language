@@ -57,17 +57,34 @@ std::unique_ptr<llvm::Module> analyze(expression_list unit, file file, llvm::LLV
     symbol_table stack {data, flags, builtins};
     state state = {stack, data, error};
     
-    auto new_unit = resolve(unit, state, flags.generate_code().at_top_level());
+    //auto new_unit = resolve(unit, main_function, state, flags.generate_code().at_top_level());
     
-    // TEMP:
-    if (debug) debug_table(module, stack);    
+    
+    
+    llvm::SMDiagnostic instruction_errors;
+    auto s = unit.list.back().symbols.back().llvm.literal.value;
+    bool success = parse_llvm_string_as_instruction(s, main_function, state, instruction_errors);
+    
+    if (success) {
+        std::cout << "yay it worked.\n";
+        std::cin.get();
+        std::cout << "ins: llvm: "; // TODO: make this have color!
+        instruction_errors.print(state.data.file.name.c_str(), llvm::errs()); // temp
+    } else {
+        std::cout << "darn it failed.\n";
+        std::cin.get();
+        std::cout << "ins: llvm: "; // TODO: make this have color!
+        instruction_errors.print(state.data.file.name.c_str(), llvm::errs()); // temp
+    }
+        
+    //if (debug) debug_table(module, stack);    
 
     if (llvm::verifyFunction(*main_function)) append_return_0_statement(builder, context);
     if (llvm::verifyModule(*module, &llvm::errs())) error = true;    
     if (debug) {         
         std::cout << "------------------ analysis ------------------- \n\n";
-        print_translation_unit(new_unit, file);
-        print_expression_list_line(new_unit);
+        print_translation_unit(unit, file); // these should be new unit
+        print_expression_list_line(unit); // these should be new unit
         std::cout << "emitting the following LLVM: \n";
         module->print(llvm::errs(), NULL); // temp
     }    

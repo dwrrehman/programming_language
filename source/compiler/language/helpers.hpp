@@ -17,6 +17,7 @@
 #include "llvm/Support/SourceMgr.h"
 #include "llvm/IR/ValueSymbolTable.h"
 #include "llvm/IR/IRBuilder.h"
+#include "llvm/IR/Function.h"
 
 #include <cstdlib>
 #include <iostream>
@@ -50,10 +51,10 @@ void interpret_file_as_llvm_string(const struct file &file, state &state);
 llvm::Type* parse_llvm_string_as_type(std::string given, state& state, llvm::SMDiagnostic& errors) ;
 bool parse_llvm_string_as_instruction(std::string given, llvm::Function* function, state& state, llvm::SMDiagnostic& errors);
 bool parse_llvm_string_as_function(std::string given, state& state, llvm::SMDiagnostic& errors);
-expression parse_llvm_string(const expression &given, std::string llvm_string, size_t &pointer, state& state, flags flags) ;
+expression parse_llvm_string(const expression &given, llvm::Function* function, std::string llvm_string, size_t &pointer, state& state, flags flags) ;
 
-expression csr_single(expression given, size_t& index, const size_t depth, const size_t max_depth, state& state, flags flags); 
-expression_list csr(expression_list given, size_t& index, const size_t depth, const size_t max_depth, state& state, flags flags); 
-expression_list traverse(expression_list given, state& state, flags flags);
-expression_list resolve(expression_list given, state& state, flags flags); // interface function:
+expression csr_single(expression given, llvm::Function* function,size_t& index, const size_t depth, const size_t max_depth, state& state, flags flags); 
+expression_list csr(expression_list given, llvm::Function* function,size_t& index, const size_t depth, const size_t max_depth, state& state, flags flags); 
+expression_list traverse(expression_list given, llvm::Function* function,state& state, flags flags);
+expression_list resolve(expression_list given, llvm::Function* function,state& state, flags flags); // interface function:
 #endif /* helpers_hpp */
