@@ -204,11 +204,10 @@ bool parse_llvm_string_as_instruction(std::string given, llvm::Function* origina
     "}" "\n";
     
     
-    
-    
-    std::cout << "0: new original state: ::::::::::::::: \n";
-    std::cout << body << "\n";
-    std::cout << "::::::::::::::: \n";
+//
+//    std::cout << "0: new original state: ::::::::::::::: \n";
+//    std::cout << body << "\n";
+//    std::cout << "::::::::::::::: \n";
     
     
 
@@ -216,8 +215,7 @@ bool parse_llvm_string_as_instruction(std::string given, llvm::Function* origina
     
     const std::string current_name = original->getName();
     original->setName("_anonymous_" + random_string());
-    
-    
+        
     /// turn our string version of the function into a real new function, with the original functions name.
     
     llvm::MemoryBufferRef reference(body, "<llvm-string>");
@@ -238,33 +236,33 @@ bool parse_llvm_string_as_instruction(std::string given, llvm::Function* origina
         temporary_blocks.back().back().eraseFromParent();           // erase the unreachable ins
         temporary_blocks.back().back().eraseFromParent();           // erase the donothing() call.
         
-        std::cout << "1: temporary state: ::::::::::::::: \n";
-        temporary.print(llvm::errs());
-        std::cout << ":::::::::: \n";
+//        std::cout << "1: temporary state: ::::::::::::::: \n";
+//        temporary.print(llvm::errs());
+//        std::cout << ":::::::::: \n";
         
         
         if (original_blocks.size() != temporary_blocks.size())  {
-            std::cout << "[.]: the block counts where different.\n";                        
+//            std::cout << "[.]: the block counts where different.\n";                        
             temporary_blocks.back().eraseFromParent();
         } else {
-            std::cout << "[.]: the block counts where NOT different.\n";
+//            std::cout << "[.]: the block counts where NOT different.\n";
         }
             
 
         original_blocks.clear();
         
-        std::cout << "2: original state: ::::::::::::::: \n";        
-        original->print(llvm::errs());
-        std::cout << "::::::::::::::: \n";
-        
-        std::cout << "[::] : ORIOGINAL block count: " << original_blocks.size() << "\n";        
-        std::cout << "[::] : TEMPOARY block count: " << temporary_blocks.size() << "\n";
+//        std::cout << "2: original state: ::::::::::::::: \n";        
+//        original->print(llvm::errs());
+//        std::cout << "::::::::::::::: \n";
+//        
+//        std::cout << "[::] : ORIOGINAL block count: " << original_blocks.size() << "\n";        
+//        std::cout << "[::] : TEMPOARY block count: " << temporary_blocks.size() << "\n";
         
         
         for (auto& block : temporary_blocks) {
             
             std::string block_name = block.getName();
-            std::cout << "[::] : ------------- iterating on block: " << block_name << " -----------------\n";
+//            std::cout << "[::] : ------------- iterating on block: " << block_name << " -----------------\n";
             
             state.data.builder.SetInsertPoint(llvm::BasicBlock::Create(state.data.module->getContext(), block_name, original));
                 
@@ -273,43 +271,50 @@ bool parse_llvm_string_as_instruction(std::string given, llvm::Function* origina
             for (auto& instruction: block.getInstList()) {
                 
                 auto* copy = instruction.clone();
-                copy->setName(instruction.getName());                                
-                state.data.builder.Insert(copy);    
-                value_map[&instruction] = copy;                
+                copy->setName(instruction.getName());
+                                
+                state.data.builder.Insert(copy);
+                value_map[&instruction] = copy;
+                
+                
+                
+                
+                
                 llvm::RemapInstruction(copy, value_map, llvm::RF_NoModuleLevelChanges | llvm::RF_IgnoreMissingLocals);
                 
+                
                                 
-                std::cout << "4: original state: ::::::::::::::: \n";        
-                original->print(llvm::errs());
-                std::cout << "::::::::::::::: \n";
+//                std::cout << "4: original state: ::::::::::::::: \n";        
+//                original->print(llvm::errs());
+//                std::cout << "::::::::::::::: \n";
                 
             }
         }
         
         
-        std::cout << "5: original state: ::::::::::::::: \n";        
-        original->print(llvm::errs());
-        std::cout << "::::::::::::::: \n";
+//        std::cout << "5: original state: ::::::::::::::: \n";        
+//        original->print(llvm::errs());
+//        std::cout << "::::::::::::::: \n";
         
         
         // original_blocks.back().back().eraseFromParent();      // delete the trailing do_nothing().
         
         
 
-        std::cout << "6: original state: ::::::::::::::: \n";        
-        original->print(llvm::errs());
-        std::cout << "::::::::::::::: \n";
-        
+//        std::cout << "6: original state: ::::::::::::::: \n";        
+//        original->print(llvm::errs());
+//        std::cout << "::::::::::::::: \n";
+//        
                 
         //temporary.eraseFromParent();                          // dont dlete it! rename it!        
         temporary.setName("_unused_" + random_string());
         original->setName(current_name);
                 
         
-        
-        std::cout << "7: original state: ::::::::::::::: \n";        
-        original->print(llvm::errs());
-        std::cout << "::::::::::::::: \n";
+//        
+//        std::cout << "7: original state: ::::::::::::::: \n";        
+//        original->print(llvm::errs());
+//        std::cout << "::::::::::::::: \n";
         
         
         return true;
