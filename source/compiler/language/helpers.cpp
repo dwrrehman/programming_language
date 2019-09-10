@@ -206,7 +206,7 @@ bool parse_llvm_string_as_instruction(std::string given, llvm::Function* origina
     
     
     
-    std::cout << "new original state: ::::::::::::::: \n";
+    std::cout << "0: new original state: ::::::::::::::: \n";
     std::cout << body << "\n";
     std::cout << "::::::::::::::: \n";
     
@@ -218,10 +218,6 @@ bool parse_llvm_string_as_instruction(std::string given, llvm::Function* origina
     original->setName("_anonymous_" + random_string());
     
     
-    
-    
-    
-    
     /// turn our string version of the function into a real new function, with the original functions name.
     
     llvm::MemoryBufferRef reference(body, "<llvm-string>");
@@ -229,8 +225,7 @@ bool parse_llvm_string_as_instruction(std::string given, llvm::Function* origina
     if (llvm::parseAssemblyInto(reference, state.data.module, &my_index, errors)) {        
         original->setName(current_name); // revert name
         return false; // llvm ir parse failure.
-        
-        
+    
         
     } else {
         
@@ -243,40 +238,25 @@ bool parse_llvm_string_as_instruction(std::string given, llvm::Function* origina
         temporary_blocks.back().back().eraseFromParent();           // erase the unreachable ins
         temporary_blocks.back().back().eraseFromParent();           // erase the donothing() call.
         
-        std::cout << "temporary state: ::::::::::::::: \n";
+        std::cout << "1: temporary state: ::::::::::::::: \n";
         temporary.print(llvm::errs());
         std::cout << ":::::::::: \n";
         
         
-        if (original_blocks.size() != temporary_blocks.size()) 
+        if (original_blocks.size() != temporary_blocks.size())  {
+            std::cout << "[.]: the block counts where different.\n";                        
             temporary_blocks.back().eraseFromParent();
+        } else {
+            std::cout << "[.]: the block counts where NOT different.\n";
+        }
+            
+
+        original_blocks.clear();
         
-        
-        original_blocks.clear(); 
-        state.data.builder.SetInsertPoint(llvm::BasicBlock::Create(state.data.module->getContext(), "entry", original));
-        
-        
-        std::cout << "original state: ::::::::::::::: \n";        
+        std::cout << "2: original state: ::::::::::::::: \n";        
         original->print(llvm::errs());
         std::cout << "::::::::::::::: \n";
         
-        
-//        { 
-//            llvm::Function* donothing = llvm::Intrinsic::getDeclaration(state.data.module, llvm::Intrinsic::donothing); 
-//            state.data.builder.CreateCall(donothing);
-//        }
-//        
-        
-        state.data.builder.CreateUnreachable();
-        
-        
-        std::cout << "original state: ::::::::::::::: \n";        
-        original->print(llvm::errs());
-        std::cout << "::::::::::::::: \n";
-
-
-
-    
         std::cout << "[::] : ORIOGINAL block count: " << original_blocks.size() << "\n";        
         std::cout << "[::] : TEMPOARY block count: " << temporary_blocks.size() << "\n";
         
@@ -287,32 +267,19 @@ bool parse_llvm_string_as_instruction(std::string given, llvm::Function* origina
             std::cout << "[::] : ------------- iterating on block: " << block_name << " -----------------\n";
             
             state.data.builder.SetInsertPoint(llvm::BasicBlock::Create(state.data.module->getContext(), block_name, original));
-            
-//            auto& insertion_point = original_blocks.back().back();
-//            
-//            std::cout << "insertion point in original: ";
-//            insertion_point.print(llvm::errs());
-//            
-//            
-        
-            
+                
             llvm::ValueToValueMapTy value_map;
             
             for (auto& instruction: block.getInstList()) {
                 
                 auto* copy = instruction.clone();
-                copy->setName(instruction.getName());
-                
-                //copy->insertBefore(&insertion_point);
-                state.data.builder.Insert(copy);
-    
-                value_map[&instruction] = copy;
-                
+                copy->setName(instruction.getName());                                
+                state.data.builder.Insert(copy);    
+                value_map[&instruction] = copy;                
                 llvm::RemapInstruction(copy, value_map, llvm::RF_NoModuleLevelChanges | llvm::RF_IgnoreMissingLocals);
                 
-                
-                
-                std::cout << "original state: ::::::::::::::: \n";        
+                                
+                std::cout << "4: original state: ::::::::::::::: \n";        
                 original->print(llvm::errs());
                 std::cout << "::::::::::::::: \n";
                 
@@ -320,30 +287,27 @@ bool parse_llvm_string_as_instruction(std::string given, llvm::Function* origina
         }
         
         
-        std::cout << "original state: ::::::::::::::: \n";        
+        std::cout << "5: original state: ::::::::::::::: \n";        
         original->print(llvm::errs());
         std::cout << "::::::::::::::: \n";
         
         
-        original_blocks.back().back().eraseFromParent();      // delete the trailing do_nothing().
+        // original_blocks.back().back().eraseFromParent();      // delete the trailing do_nothing().
         
         
-        
-        
-        std::cout << "original state: ::::::::::::::: \n";        
+
+        std::cout << "6: original state: ::::::::::::::: \n";        
         original->print(llvm::errs());
         std::cout << "::::::::::::::: \n";
         
-        
-        
-        temporary.eraseFromParent();
-        
+                
+        //temporary.eraseFromParent();                          // dont dlete it! rename it!        
+        temporary.setName("_unused_" + random_string());
         original->setName(current_name);
+                
         
         
-        
-        
-        std::cout << "original state: ::::::::::::::: \n";        
+        std::cout << "7: original state: ::::::::::::::: \n";        
         original->print(llvm::errs());
         std::cout << "::::::::::::::: \n";
         
