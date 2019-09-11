@@ -251,8 +251,6 @@ bool parse_llvm_string_as_instruction(std::string given, llvm::Function* origina
         original->setName(current_name);
     
         
-    
-        
         llvm::ValueToValueMapTy value_map;
         
         value_map.insert({original, &temporary});

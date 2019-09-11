@@ -80,6 +80,7 @@ std::unique_ptr<llvm::Module> analyze(expression_list unit, file file, llvm::LLV
     
     
     builder.SetInsertPoint(llvm::BasicBlock::Create(context, "wef", main_function));
+    
     declare_donothing(builder, module);
     declare_donothing(builder, module);
     declare_donothing(builder, module);

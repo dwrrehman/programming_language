@@ -21,8 +21,8 @@ enum class symbol_type {
     none,    
     subexpression,
     string_literal,
-    llvm_literal,    
-    identifier,    
+    llvm_literal,
+    identifier, 
     newline,
     indent,
 };
@@ -102,12 +102,12 @@ struct symbol {
     
     enum symbol_type type = symbol_type::none;    
     expression_list expressions = {};
-    expression subexpression = {};         /// DELETE ME
     string_literal string = {};
     llvm_literal llvm = {};
     identifier identifier = {};
     bool error = false;
-    
+        
+    expression subexpression = {};         /// DELETE ME
     
     symbol(){}
     symbol(bool e, bool _ignore_me, bool _also_ignore_me) { error = e; }
