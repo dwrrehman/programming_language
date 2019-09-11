@@ -3,6 +3,6 @@ br label %my_label
 my_label:
 %a = add i32 4, 5
 %c = mul i32 5, 6 
-ret i32 0
+; ret i32 0
 `
 

@@ -66,13 +66,11 @@ std::unique_ptr<llvm::Module> analyze(expression_list unit, file file, llvm::LLV
     bool success = parse_llvm_string_as_instruction(s, main_function, state, instruction_errors);
     
     if (success) {
-        std::cout << "yay it worked.\n";
-        std::cin.get();
+        std::cout << "yay it worked.\n";        
         std::cout << "ins: llvm: "; // TODO: make this have color!
         instruction_errors.print(state.data.file.name.c_str(), llvm::errs()); // temp
     } else {
-        std::cout << "darn it failed.\n";
-        std::cin.get();
+        std::cout << "darn it failed.\n";        
         std::cout << "ins: llvm: "; // TODO: make this have color!
         instruction_errors.print(state.data.file.name.c_str(), llvm::errs()); // temp
     }
@@ -80,7 +78,6 @@ std::unique_ptr<llvm::Module> analyze(expression_list unit, file file, llvm::LLV
     
     
     builder.SetInsertPoint(llvm::BasicBlock::Create(context, "wef", main_function));
-    
     declare_donothing(builder, module);
     declare_donothing(builder, module);
     declare_donothing(builder, module);

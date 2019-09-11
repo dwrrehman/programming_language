@@ -188,7 +188,34 @@ llvm::Type* parse_llvm_string_as_type(std::string given, state& state, llvm::SMD
 }
 
 
-bool parse_llvm_string_as_instruction(std::string given, llvm::Function* original, state& state, llvm::SMDiagnostic& errors) {
+static void print_value_map(const llvm::ValueToValueMapTy &value_map) {
+    std::cout << "printing value map:::::::::::::: \n";
+    size_t j = 0;
+    for (auto i : value_map) {
+        
+        std::cout << "value #" << j++ << ": ";
+        i.first->print(llvm::errs());
+        
+        std::cout << "---> ";
+        i.second->print(llvm::errs());
+        
+        std::cout << "\n";            
+    }
+    std::cout << ":::::::::::::: \n";
+}
+
+static void print_both_functions(llvm::Function *&original, llvm::Function *temporary) {
+    std::cout << "1: original state: ::::::::::::::: \n";        
+    original->print(llvm::errs());
+    std::cout << "::::::::::::::: \n";
+    
+    
+    std::cout << "2: temporary state: ::::::::::::::: \n";        
+    temporary->print(llvm::errs());
+    std::cout << "::::::::::::::: \n";
+}
+
+bool parse_llvm_string_as_instruction(std::string given, llvm::Function*& original, state& state, llvm::SMDiagnostic& errors) {
     
     std::string body = "";
     original->print(llvm::raw_string_ostream(body) << "");    
@@ -206,91 +233,24 @@ bool parse_llvm_string_as_instruction(std::string given, llvm::Function* origina
     llvm::ModuleSummaryIndex my_index(true);
     if (llvm::parseAssemblyInto(reference, state.data.module, &my_index, errors)) {        
         original->setName(current_name);
-        return false; 
+        return false;  
             
-    } else {        
-        auto& temporary = state.data.module->getFunctionList().back();                
+    } else {
+        auto* temporary = state.data.module->getFunction(current_name);
         auto& original_blocks = original->getBasicBlockList();
-        auto& temporary_blocks = temporary.getBasicBlockList();        
+        auto& temporary_blocks = temporary->getBasicBlockList();        
         temporary_blocks.back().back().eraseFromParent();           // erase the unreachable ins
-        temporary_blocks.back().back().eraseFromParent();           // erase the donothing() call.
+        temporary_blocks.back().back().eraseFromParent();           // erase the donothing() call.        
         
-        if (original_blocks.size() != temporary_blocks.size()) temporary_blocks.back().eraseFromParent();
+        if (original_blocks.size() != temporary_blocks.size()) temporary_blocks.back().eraseFromParent();         // TODO: see what this function does without doing this.        
+        original_blocks.clear();
         
-        original_blocks.clear();  
-        
-        
-        
-        
-//        for (auto& block : temporary_blocks) {            
-//            std::string block_name = block.getName();            
-//            state.data.builder.SetInsertPoint(llvm::BasicBlock::Create(state.data.module->getContext(), block_name, original));                
-//            llvm::ValueToValueMapTy value_map;            
-//            for (auto& instruction: block.getInstList()) {                
-//                auto* copy = instruction.clone();
-//                copy->setName(instruction.getName());                                
-//                state.data.builder.Insert(copy);
-//                value_map[&instruction] = copy;
-//                llvm::RemapInstruction(copy, value_map, llvm::RF_NoModuleLevelChanges | llvm::RF_IgnoreMissingLocals);                                                                    
-//            }
-//        }    
-        
-        
-        std::cout << "1: original state: ::::::::::::::: \n";        
-        original->print(llvm::errs());
-        std::cout << "::::::::::::::: \n";
-        
-        std::cout << "2: temporary state: ::::::::::::::: \n";        
-        temporary.print(llvm::errs());
-        std::cout << "::::::::::::::: \n";
+        print_both_functions(original, temporary);
+        original = temporary;
+        print_both_functions(original, temporary);
         
         
         
-        
-        temporary.setName("_unused_" + random_string());
-        original->setName(current_name);
-    
-        
-        llvm::ValueToValueMapTy value_map;
-        
-        value_map.insert({original, &temporary});
-        
-        //value_map[original] = &temporary;
-        //value_map[&temporary] = original;
-        
-        //llvm::RemapFunction(*original, value_map);        
-        llvm::RemapFunction(temporary, value_map);
-        
-        
-        
-        
-//        
-//        
-//        llvm::Function *F;
-//        llvm::Value *V = F;
-//        llvm::ValueToValueMapTy VMap;
-//        auto *Clone = llvm::CloneFunction(F, VMap);
-//        // V2 represents essentially the same register as V,
-//        // except it's in Clone instead of F
-//        llvm::Value *V2 = VMap[V];
-//        
-        
-        
-        
-        
-        
-        
-        
-
-        
-        std::cout << "1: original state: ::::::::::::::: \n";        
-        original->print(llvm::errs());
-        std::cout << "::::::::::::::: \n";
-        
-        std::cout << "2: temporary state: ::::::::::::::: \n";        
-        temporary.print(llvm::errs());
-        std::cout << "::::::::::::::: \n";
-
         return true;
      }
 }
@@ -301,7 +261,7 @@ bool parse_llvm_string_as_function(std::string given, state& state, llvm::SMDiag
     return !llvm::parseAssemblyInto(reference, state.data.module, &my_index, errors);        
 }
 
-expression parse_llvm_string(const expression &given, llvm::Function* function, std::string llvm_string, size_t& pointer, state& state, flags flags) {
+expression parse_llvm_string(const expression &given, llvm::Function*& function, std::string llvm_string, size_t& pointer, state& state, flags flags) {
     
     if (flags.is_at_top_level and not flags.is_parsing_type) {
         
@@ -371,7 +331,7 @@ expression parse_unit_expression(expression& given, size_t& index, state& state)
 
 
 
-bool matches(expression given, llvm::Function* function, expression& signature, size_t& index, const size_t depth, 
+bool matches(expression given, llvm::Function*& function, expression& signature, size_t& index, const size_t depth, 
              const size_t max_depth, state& state, flags flags) {
     if (given.type != signature.type and given.type != intrin::infered) return false;
     for (auto& symbol : signature.symbols) {        
@@ -388,11 +348,10 @@ bool matches(expression given, llvm::Function* function, expression& signature, 
 }
 
 
-expression csr_single(expression given, llvm::Function* function, size_t& index, const size_t depth, const size_t max_depth, state& state, flags flags) {
+expression csr_single(expression given, llvm::Function*& function, size_t& index, const size_t depth, const size_t max_depth, state& state, flags flags) {
     if (index >= given.symbols.size() or not given.type or depth > max_depth) return failure; 
     if (found_llvm_string(given, index)) {
 //        std::cout << "we got here! :)\n";
-//        //std::cin.get();
         return parse_llvm_string(given, function, given.symbols[index].llvm.literal.value, index, state, flags);
     }
     size_t saved = index;
@@ -404,7 +363,7 @@ expression csr_single(expression given, llvm::Function* function, size_t& index,
     return failure;
 }
 
-expression_list csr(expression_list given, llvm::Function* function,size_t& index, const size_t depth, const size_t max_depth, state& state, flags flags) {
+expression_list csr(expression_list given, llvm::Function*& function,size_t& index, const size_t depth, const size_t max_depth, state& state, flags flags) {
     for (auto& e : given.list) e = csr_single(e, function, index, depth, max_depth, state, flags);
     return given;
 }
@@ -415,7 +374,7 @@ inline static void sort_top_stack_by_largest_signature(state& state) {
     });
 }
 
-expression_list traverse(expression_list given, llvm::Function* function, state& state, flags flags) {
+expression_list traverse(expression_list given, llvm::Function*& function, state& state, flags flags) {
     sort_top_stack_by_largest_signature(state);
     
     expression_list solution {};
@@ -434,7 +393,7 @@ static void prepare_expressions(expression_list& given) {
     }
 }
 
-expression_list resolve(expression_list given, llvm::Function* function, state& state, flags flags) {         
+expression_list resolve(expression_list given, llvm::Function*& function, state& state, flags flags) {         
     prepare_expressions(given);
     auto saved = given;
     given = traverse(given, function, state, flags);
