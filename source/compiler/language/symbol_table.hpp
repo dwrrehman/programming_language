@@ -43,7 +43,7 @@ public:
     flags flags;
     file_data& data;
     master master = {};
-    std::vector<struct stack_frame> frames = {};
+    std::vector<stack_frame> frames = {};
               
     void push(llvm::ValueSymbolTable& llvm) {        
         frames.push_back({llvm, frames.back().indicies});

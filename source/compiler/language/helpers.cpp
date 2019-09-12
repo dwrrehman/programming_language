@@ -28,8 +28,6 @@
 #include <sstream>
 
 
-////////////////// comparisons ///////////////////////////
-
 bool expressions_match(expression first, expression second);
 
 bool subexpression(const symbol& s) {
@@ -46,8 +44,8 @@ bool are_equal_identifiers(const symbol &first, const symbol &second) {
 
 bool symbols_match(symbol first, symbol second) {
     if (subexpression(first) and subexpression(second) 
-        and expressions_match(first.expressions.list[0], 
-                              second.expressions.list[0])) return true;  /// FIX ME: this code is ugly, and is only checking for if the FIRST expressions  in the expression lists are equal.
+        and expressions_match(first.expressions..back(), 
+                              second.expressions..back())) return true;    ///TODO: this code is suspicious, alot.
     else if (are_equal_identifiers(first, second)) return true;
     else if (first.type == symbol_type::llvm_literal and second.type == symbol_type::llvm_literal) return true;
     else return false;
@@ -71,22 +69,12 @@ bool expressions_match(expression first, expression second) {
     else return false;
 }
 
-
-
-
-
-
-
-
-////////////////////////////////// General helpers ////////////////////////////////
-
 std::string random_string() {
     static int num = 0;
     std::stringstream stream;
     stream << std::hex << rand();
     return std::string(stream.str()) + std::to_string(num++);
 }
-
 
 void print(std::vector<std::string> v) {
     std::cout << "[ ";
@@ -117,32 +105,17 @@ std::vector<expression> filter_subexpressions(expression given) { // unimplement
     return {};
 }
 
-//abstraction_definition generate_abstraction_definition(const expression &given, size_t &index) {
-//    abstraction_definition definition = {};
-//    definition.call_signature = given.symbols[index++].subexpression;
-//    while (given.symbols[index].type != symbol_type::list) {
-//        definition.return_type.symbols.push_back(given.symbols[index++]);
-//    } definition.body = given.symbols[index++].list;
-//    return definition;
-//}
-
-//size_t generate_type_for(abstraction_definition definition) {
-//    size_t type = 0;
-//    auto parameter_list = filter_subexpressions(definition.call_signature);
-//    if (parameter_list.empty()) {
-//        type = definition.return_type;
-//        return type;
-//    }
-//    for (auto parameter : parameter_list) {
-//        expression t = type_type;
-//        if (parameter.type) t = *parameter.type;
-//        type->symbols.push_back(t);              
-//    }
-//    type->symbols.push_back({definition.return_type});
-//    type->type = &type_type;
-//    return type;
-//    return 0;
-//}
+void interpret_file_as_llvm_string(const struct file &file, state &state) { // test, by allowing some llvm random string to be parsed into the file:
+    llvm::SMDiagnostic errors;
+    if (parse_llvm_string_as_function(file.text, state, errors)) {
+        std::cout << "success.\n";
+        
+    } else {
+        std::cout << "failure.\n";
+        errors.print("llvm string program:", llvm::errs());
+        abort();
+    }
+}
 
 void append_return_0_statement(llvm::IRBuilder<> &builder, llvm::LLVMContext &context) {
     llvm::Value* value = llvm::ConstantInt::get(llvm::Type::getInt32Ty(context), 0);
@@ -154,10 +127,6 @@ void declare_donothing(llvm::IRBuilder<> &builder, const std::unique_ptr<llvm::M
     builder.CreateCall(donothing); // TODO: TEMP
 }
 
-bool found_llvm_string(const expression &given, size_t &pointer) {
-    return pointer < given.symbols.size() and given.symbols[pointer].type == symbol_type::llvm_literal;
-}
-
 llvm::Function* create_main(llvm::IRBuilder<>& builder, llvm::LLVMContext& context, const std::unique_ptr<llvm::Module>& module) {
     std::vector<llvm::Type*> state = {llvm::Type::getInt32Ty(context), llvm::Type::getInt8PtrTy(context)->getPointerTo()};
     llvm::FunctionType* main_type = llvm::FunctionType::get(llvm::Type::getInt32Ty(context), state, false);
@@ -166,54 +135,9 @@ llvm::Function* create_main(llvm::IRBuilder<>& builder, llvm::LLVMContext& conte
     return main_function;
 }
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-/////////////////////////////////////// PARSE LLVM STRING ///////////////////////////////////////////
-
-
 llvm::Type* parse_llvm_string_as_type(std::string given, state& state, llvm::SMDiagnostic& errors) {
     return llvm::parseType(given, errors, *state.data.module);
 }
-
-//
-//static void print_value_map(const llvm::ValueToValueMapTy &value_map) {
-//    std::cout << "printing value map:::::::::::::: \n";
-//    size_t j = 0;
-//    for (auto i : value_map) {
-//        
-//        std::cout << "value #" << j++ << ": ";
-//        i.first->print(llvm::errs());
-//        
-//        std::cout << "---> ";
-//        i.second->print(llvm::errs());
-//        
-//        std::cout << "\n";            
-//    }
-//    std::cout << ":::::::::::::: \n";
-//}
-
-//static void print_both_functions(llvm::Function *&original, llvm::Function *temporary) {
-//    std::cout << "1: original state: ::::::::::::::: \n";        
-//    original->print(llvm::errs());
-//    std::cout << "::::::::::::::: \n";
-//    
-//    
-//    std::cout << "2: temporary state: ::::::::::::::: \n";        
-//    temporary->print(llvm::errs());
-//    std::cout << "::::::::::::::: \n";
-//}
 
 bool parse_llvm_string_as_instruction(std::string given, llvm::Function*& original, state& state, llvm::SMDiagnostic& errors) {    
     std::string body = "";
@@ -236,76 +160,46 @@ bool parse_llvm_string_as_instruction(std::string given, llvm::Function*& origin
     }
 }
 
-//        auto& original_blocks = original->getBasicBlockList();
-//        auto& temporary_blocks = temporary->getBasicBlockList();        
-
-
-//        temporary_blocks.back().back().eraseFromParent();           // erase the unreachable ins
-//        temporary_blocks.back().back().eraseFromParent();           // erase the donothing() call.        
-
-//if (original_blocks.size() != temporary_blocks.size()) temporary_blocks.back().eraseFromParent();         // TODO: see what this function does without doing this.        
-//        original_blocks.clear();
-
-//        print_both_functions(original, temporary);
-
-//        print_both_functions(original, temporary);
-
-
 bool parse_llvm_string_as_function(std::string given, state& state, llvm::SMDiagnostic& errors) {
     llvm::MemoryBufferRef reference(given, "<llvm-string>");
     llvm::ModuleSummaryIndex my_index(true);
     return !llvm::parseAssemblyInto(reference, state.data.module, &my_index, errors);        
 }
 
+
+bool found_llvm_string(const expression &given, size_t &pointer) {
+    return pointer < given.symbols.size() and given.symbols[pointer].type == symbol_type::llvm_literal;
+}
+
 expression parse_llvm_string(const expression &given, llvm::Function*& function, std::string llvm_string, size_t& pointer, state& state, flags flags) {
-    
+    llvm::SMDiagnostic instruction_errors, function_errors, type_errors;
     if (flags.is_at_top_level and not flags.is_parsing_type) {
-        
-        llvm::SMDiagnostic instruction_errors;
-        llvm::SMDiagnostic function_errors;
-        
-        if (parse_llvm_string_as_function(llvm_string, state, function_errors)) {
-            expression solution = {};            
+        if (parse_llvm_string_as_function(llvm_string, state, function_errors) || parse_llvm_string_as_instruction(llvm_string, function, state, instruction_errors)) {
+            expression solution = {};
             solution.type = intrin::unit;
             solution.symbols = {{given.symbols[pointer++].llvm}};
-            return solution;
-            
-        } else if (parse_llvm_string_as_instruction(llvm_string, function, state, instruction_errors)) { 
-            expression solution = {};            
-            solution.type = intrin::unit;
-            solution.symbols = {{given.symbols[pointer++].llvm}};
-            return solution;
-            
+            return solution;            
         } else {
-            std::cout << "ins: llvm: "; // TODO: make this have color!
+            std::cout << "ins: llvm: "; // TODO: make this have color!            
             instruction_errors.print(state.data.file.name.c_str(), llvm::errs()); // temp
             std::cout << "func: llvm: "; // TODO: make this have color!
             function_errors.print(state.data.file.name.c_str(), llvm::errs());
             return failure;
-        }
-        
-    } else if (flags.is_parsing_type and not flags.is_at_top_level) {
-        
-        llvm::SMDiagnostic type_errors;
-        
+        }        
+    } else if (flags.is_parsing_type and not flags.is_at_top_level) {                
         if (auto llvm_type = parse_llvm_string_as_type(llvm_string, state, type_errors)) {            
             expression solution = {};
             solution.llvm_type = llvm_type;
             solution.type = intrin::type;
             solution.symbols = {{given.symbols[pointer++].llvm}};
-            return solution;
-            
+            return solution;            
         } else {
             std::cout << "llvm: "; // TODO: make this have color!
             type_errors.print(state.data.file.name.c_str(), llvm::errs()); 
             return failure;
         }
-    } else {        
-        return failure;
-    }
+    } else return failure;    
 }
-
-
 
 bool found_unit_value_expression(const expression& given) { 
     return given.symbols.empty() or 
@@ -323,10 +217,6 @@ expression parse_unit_expression(expression& given, size_t& index, state& state)
 } 
 
 
-
-
-
-
 bool matches(expression given, llvm::Function*& function, expression& signature, size_t& index, const size_t depth, 
              const size_t max_depth, state& state, flags flags) {
     if (given.type != signature.type and given.type != intrin::infered) return false;
@@ -336,18 +226,17 @@ bool matches(expression given, llvm::Function*& function, expression& signature,
             if (symbol.expressions.error) return false;
             index++;
         } else if (subexpression(symbol)) {
-            //symbol.expressions = csr(given, index, depth + 1, max_depth, state, flags); /// i think this should be csr_single().
+            symbol.expressions = csr(given, index, depth + 1, max_depth, state, flags);       /// i think this should be csr_single().
             if (symbol.expressions.error) return false;            
         } else if (not are_equal_identifiers(symbol, given.symbols[index])) return false;
         else index++;
     } return true;
 }
 
-
 expression csr_single(expression given, llvm::Function*& function, size_t& index, const size_t depth, const size_t max_depth, state& state, flags flags) {
     if (index >= given.symbols.size() or not given.type or depth > max_depth) return failure; 
     if (found_llvm_string(given, index)) {
-//        std::cout << "we got here! :)\n";
+        std::cout << "we got here! :)\n";
         return parse_llvm_string(given, function, given.symbols[index].llvm.literal.value, index, state, flags);
     }
     size_t saved = index;
@@ -377,7 +266,7 @@ expression_list traverse(expression_list given, llvm::Function*& function, state
     for (size_t max_depth = 0; max_depth <= max_expression_depth; max_depth++) {
         size_t pointer = 0;
         solution = csr(given, function, pointer, 0, max_depth, state, flags); 
-        //if (not solution.error and pointer == given.symbols.size()) break;       // i think we need to look through all expressions, and see if any have an error.
+        if (not solution.error and pointer == given.symbols.size()) break;                   // i think we need to look through all expressions, and see if any have an error.
     }
     return solution; 
 }
@@ -401,18 +290,3 @@ expression_list resolve(expression_list given, llvm::Function*& function, state&
     
     return given;
 }
-
-// debug tool:
-
-void interpret_file_as_llvm_string(const struct file &file, state &state) { // test, by allowing some llvm random string to be parsed into the file:
-    llvm::SMDiagnostic errors;
-    if (parse_llvm_string_as_function(file.text, state, errors)) {
-        std::cout << "success.\n";
-        
-    } else {
-        std::cout << "failure.\n";
-        errors.print("llvm string program:", llvm::errs());
-        abort();
-    }
-}
-

@@ -1,6 +1,47 @@
 the current status of the compiler is:
 
 
+	1909113.190244:
+
+		so i finished the instruction parser, its prettyy much as simple as possible now.
+	
+		
+	
+		the next thing i need to do is figure out how to do csr on a expression_list tree, rather than a expression tree.
+
+	
+	so:
+
+
+
+
+			x:0. llvm string parser;
+
+			1. CSR suite
+
+			2. string to expression converter
+
+			3. symbol table management, and covnersion between llvm and n.
+	
+			4. write the (c++) implementation for:
+			
+				4.1.    _a    : no implementation. 
+				4.2.    _b    : no implementation. [FDI?]
+				4.3.    _c    : easy.
+				4.4.    _d    : IMPORTANT.
+				4.5.    _e    : easy.
+				4.6.    _0    : no implementation. 
+				4.7.    _1    : no implementation. 
+
+
+
+
+
+
+
+
+
+
     1909102.033504:
         
             

@@ -1,5 +1,1 @@
-`
-br label %my_label
-my_label:
-ret i32 0
-`
+

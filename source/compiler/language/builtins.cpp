@@ -67,7 +67,7 @@ expression expose_abstraction = {
 
 
 
-
+/////////////////////// test (for csr suite) abstractions //////////////////////////
 
 
 expression hello_abstraction = {
@@ -114,14 +114,13 @@ expression C_abstraction = {
 
 std::vector<expression> builtins =  {
     infered_type, type_type, none_type, unit_type, unit_value,
-    application_type, abstraction_type,
+    application_type, abstraction_type, b nm
     create_abstraction, define_abstraction, expose_abstraction, 
     
     
     
     hello_abstraction,
     dog_abstraction, A_abstraction, B_abstraction, C_abstraction,
-    
     
 //    compiletime_type,   runtime_type,
 //    immutable_type,     mutable_type,    

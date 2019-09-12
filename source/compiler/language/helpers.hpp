@@ -44,8 +44,8 @@ bool found_unit_value_expression(const expression &given);
 expression parse_unit_expression(expression& given, size_t& index, state& state) ;
 bool found_llvm_string(const expression &given, size_t &pointer) ;
 llvm::Function* create_main(llvm::IRBuilder<>& builder, llvm::LLVMContext& context, const std::unique_ptr<llvm::Module>& module);
-
 void interpret_file_as_llvm_string(const struct file &file, state &state);
+
 /////////////////////////////////////// PARSE LLVM STRING ///////////////////////////////////////////
 
 llvm::Type* parse_llvm_string_as_type(std::string given, state& state, llvm::SMDiagnostic& errors) ;

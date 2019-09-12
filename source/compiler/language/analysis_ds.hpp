@@ -20,6 +20,16 @@ struct file_data {
     llvm::IRBuilder<>& builder;
 };
 
+class symbol_table;
+
+struct state {
+    symbol_table& stack;     
+    file_data& data;
+    bool& error;
+};
+
+
+
 struct flags {
     bool should_allow_undefined_signatures = false;    
     bool should_generate_code = false;
@@ -46,12 +56,5 @@ struct flags {
     is_parsing_type(given_is_parsing_type) {}    
 }; 
 
-class symbol_table;
-
-struct state {
-    symbol_table& stack;     
-    file_data& data;
-    bool& error;
-};
 
 #endif /* analysis_ds_hpp */

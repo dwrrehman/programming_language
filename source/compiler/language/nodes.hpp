@@ -107,7 +107,7 @@ struct symbol {
     identifier identifier = {};
     bool error = false;
         
-    expression subexpression = {};         /// DELETE ME
+    //expression subexpression = {};         /// DELETE ME
     
     symbol(){}
     symbol(bool e, bool _ignore_me, bool _also_ignore_me) { error = e; }
