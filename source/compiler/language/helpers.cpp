@@ -187,73 +187,69 @@ llvm::Type* parse_llvm_string_as_type(std::string given, state& state, llvm::SMD
     return llvm::parseType(given, errors, *state.data.module);
 }
 
+//
+//static void print_value_map(const llvm::ValueToValueMapTy &value_map) {
+//    std::cout << "printing value map:::::::::::::: \n";
+//    size_t j = 0;
+//    for (auto i : value_map) {
+//        
+//        std::cout << "value #" << j++ << ": ";
+//        i.first->print(llvm::errs());
+//        
+//        std::cout << "---> ";
+//        i.second->print(llvm::errs());
+//        
+//        std::cout << "\n";            
+//    }
+//    std::cout << ":::::::::::::: \n";
+//}
 
-static void print_value_map(const llvm::ValueToValueMapTy &value_map) {
-    std::cout << "printing value map:::::::::::::: \n";
-    size_t j = 0;
-    for (auto i : value_map) {
-        
-        std::cout << "value #" << j++ << ": ";
-        i.first->print(llvm::errs());
-        
-        std::cout << "---> ";
-        i.second->print(llvm::errs());
-        
-        std::cout << "\n";            
-    }
-    std::cout << ":::::::::::::: \n";
-}
+//static void print_both_functions(llvm::Function *&original, llvm::Function *temporary) {
+//    std::cout << "1: original state: ::::::::::::::: \n";        
+//    original->print(llvm::errs());
+//    std::cout << "::::::::::::::: \n";
+//    
+//    
+//    std::cout << "2: temporary state: ::::::::::::::: \n";        
+//    temporary->print(llvm::errs());
+//    std::cout << "::::::::::::::: \n";
+//}
 
-static void print_both_functions(llvm::Function *&original, llvm::Function *temporary) {
-    std::cout << "1: original state: ::::::::::::::: \n";        
-    original->print(llvm::errs());
-    std::cout << "::::::::::::::: \n";
-    
-    
-    std::cout << "2: temporary state: ::::::::::::::: \n";        
-    temporary->print(llvm::errs());
-    std::cout << "::::::::::::::: \n";
-}
-
-bool parse_llvm_string_as_instruction(std::string given, llvm::Function*& original, state& state, llvm::SMDiagnostic& errors) {
-    
+bool parse_llvm_string_as_instruction(std::string given, llvm::Function*& original, state& state, llvm::SMDiagnostic& errors) {    
     std::string body = "";
     original->print(llvm::raw_string_ostream(body) << "");    
     body.pop_back(); // delete the newline
     body.pop_back(); // delete the close brace
-    body += given + "\n"
-        "call void @llvm.donothing()" "\n" 
-        "unreachable" "\n" 
-    "}" "\n";    
+    body += given + "\n" "call void @llvm.donothing()" "\n" "unreachable" "\n" "}" "\n";
     
     const std::string current_name = original->getName();
     original->setName("_anonymous_" + random_string());
-            
     llvm::MemoryBufferRef reference(body, "<llvm-string>");
     llvm::ModuleSummaryIndex my_index(true);
     if (llvm::parseAssemblyInto(reference, state.data.module, &my_index, errors)) {        
         original->setName(current_name);
-        return false;  
-            
+        return false;
     } else {
-        auto* temporary = state.data.module->getFunction(current_name);
-        auto& original_blocks = original->getBasicBlockList();
-        auto& temporary_blocks = temporary->getBasicBlockList();        
-        temporary_blocks.back().back().eraseFromParent();           // erase the unreachable ins
-        temporary_blocks.back().back().eraseFromParent();           // erase the donothing() call.        
-        
-        if (original_blocks.size() != temporary_blocks.size()) temporary_blocks.back().eraseFromParent();         // TODO: see what this function does without doing this.        
-        original_blocks.clear();
-        
-        print_both_functions(original, temporary);
-        original = temporary;
-        print_both_functions(original, temporary);
-        
-        
-        
+        original->getBasicBlockList().clear();
+        original = state.data.module->getFunction(current_name);
         return true;
-     }
+    }
 }
+
+//        auto& original_blocks = original->getBasicBlockList();
+//        auto& temporary_blocks = temporary->getBasicBlockList();        
+
+
+//        temporary_blocks.back().back().eraseFromParent();           // erase the unreachable ins
+//        temporary_blocks.back().back().eraseFromParent();           // erase the donothing() call.        
+
+//if (original_blocks.size() != temporary_blocks.size()) temporary_blocks.back().eraseFromParent();         // TODO: see what this function does without doing this.        
+//        original_blocks.clear();
+
+//        print_both_functions(original, temporary);
+
+//        print_both_functions(original, temporary);
+
 
 bool parse_llvm_string_as_function(std::string given, state& state, llvm::SMDiagnostic& errors) {
     llvm::MemoryBufferRef reference(given, "<llvm-string>");

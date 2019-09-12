@@ -75,26 +75,23 @@ std::unique_ptr<llvm::Module> analyze(expression_list unit, file file, llvm::LLV
         instruction_errors.print(state.data.file.name.c_str(), llvm::errs()); // temp
     }
     
-    
-    
+
     builder.SetInsertPoint(llvm::BasicBlock::Create(context, "wef", main_function));
     declare_donothing(builder, module);
     declare_donothing(builder, module);
     declare_donothing(builder, module);
     
-    
-        
-    //if (debug) debug_table(module, stack);    
+    //if (debug) debug_table(module, stack);
 
     if (llvm::verifyFunction(*main_function)) append_return_0_statement(builder, context);
     if (llvm::verifyModule(*module, &llvm::errs())) error = true;    
-    if (debug) {         
+    if (debug) {
         std::cout << "------------------ analysis ------------------- \n\n";
         print_translation_unit(unit, file); // these should be new unit
         print_expression_list_line(unit); // these should be new unit
         std::cout << "emitting the following LLVM: \n";
         module->print(llvm::errs(), NULL); // temp
-    }    
+    }
     if (error) { throw "analysis error"; }
     else { return module; }
 }
