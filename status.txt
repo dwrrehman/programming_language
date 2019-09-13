@@ -1,6 +1,17 @@
 the current status of the compiler is:
 
 
+
+
+yeah, im pretty sure that the thing which i have to do now, is figure out how to make CSR actually run properly in my compiler with all my changes. im sure it wont be that hard... i mean its only csr lol.
+
+
+
+
+
+
+
+
 	1909113.190244:
 
 		so i finished the instruction parser, its prettyy much as simple as possible now.

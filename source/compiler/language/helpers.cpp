@@ -139,7 +139,8 @@ llvm::Type* parse_llvm_string_as_type(std::string given, state& state, llvm::SMD
     return llvm::parseType(given, errors, *state.data.module);
 }
 
-bool parse_llvm_string_as_instruction(std::string given, llvm::Function*& original, state& state, llvm::SMDiagnostic& errors) {    
+bool parse_llvm_string_as_instruction(std::string given, llvm::Function*& original, state& state, llvm::SMDiagnostic& errors) {
+        ///TODO: 
     std::string body = "";
     original->print(llvm::raw_string_ostream(body) << "");    
     body.pop_back(); // delete the newline
