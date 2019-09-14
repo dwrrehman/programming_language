@@ -12,14 +12,16 @@
 #include "debug.hpp"
 #include "helpers.hpp"
 #include "lists.hpp"
+#include "llvm_parser.hpp"
 #include "symbol_table.hpp"
+
+
 #include "llvm/IR/Verifier.h"
 #include "llvm/Target/TargetMachine.h"
 
-
 static void debug_table(const std::unique_ptr<llvm::Module>& module, symbol_table& stack) {
     std::cout << "NOTE: updating stack...\n";
-    stack.update();
+    stack.update(module->getValueSymbolTable()); 
     
     std::cout << "print_stack: \n"; 
     print_stack(stack);
@@ -49,7 +51,7 @@ std::unique_ptr<llvm::Module> analyze(expression_list unit, file file, llvm::LLV
     auto triple = llvm::sys::getDefaultTargetTriple();
     module->setTargetTriple(triple);
     auto main_function = create_main(builder, context, module);
-    declare_donothing(builder, module);
+    call_donothing(builder, module);
     
     bool error = false;
     flags flags = {};
@@ -77,9 +79,9 @@ std::unique_ptr<llvm::Module> analyze(expression_list unit, file file, llvm::LLV
     
 
     builder.SetInsertPoint(llvm::BasicBlock::Create(context, "wef", main_function));
-    declare_donothing(builder, module);
-    declare_donothing(builder, module);
-    declare_donothing(builder, module);
+    call_donothing(builder, module);
+    call_donothing(builder, module);
+    call_donothing(builder, module);
     
     //if (debug) debug_table(module, stack);
 

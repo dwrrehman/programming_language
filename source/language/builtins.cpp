@@ -114,7 +114,7 @@ expression C_abstraction = {
 
 std::vector<expression> builtins =  {
     infered_type, type_type, none_type, unit_type, unit_value,
-    application_type, abstraction_type, b nm
+    application_type, abstraction_type, 
     create_abstraction, define_abstraction, expose_abstraction, 
     
     

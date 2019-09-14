@@ -25,35 +25,24 @@
 
 using nat = size_t;
 
-////////////////// comparisons ///////////////////////////
+////////////////// CSR comparison functions ///////////////////////////
 
-bool expressions_match(expression first, expression second);
 bool subexpression(const symbol& s);
 bool identifier(const symbol& s);
+bool llvm_string(const symbol& s);
+
 bool are_equal_identifiers(const symbol &first, const symbol &second);
 bool symbols_match(symbol first, symbol second);
 bool expressions_match(expression first, expression second);
 
-////////////////////////////////// General helpers ////////////////////////////////
+////////////////////////////////// LLVM IR builder helpers ////////////////////////////////
 
-std::string random_string();
-void print(std::vector<std::string> v);
-void prune_extraneous_subexpressions(expression& given);
-std::vector<expression> filter_subexpressions(expression given);
-void append_return_0_statement(llvm::IRBuilder<> &builder, llvm::LLVMContext &context) ;
-void declare_donothing(llvm::IRBuilder<> &builder, const std::unique_ptr<llvm::Module> &module);
-bool found_unit_value_expression(const expression &given);
-expression parse_unit_expression(expression& given, nat& index, state& state) ;
-bool found_llvm_string(const expression &given, nat &pointer) ;
+void append_return_0_statement(llvm::IRBuilder<> &builder, llvm::LLVMContext &context); 
+void call_donothing(llvm::IRBuilder<> &builder, const std::unique_ptr<llvm::Module> &module);
 llvm::Function* create_main(llvm::IRBuilder<>& builder, llvm::LLVMContext& context, const std::unique_ptr<llvm::Module>& module);
-void interpret_file_as_llvm_string(const struct file &file, state &state);
 
-/////////////////////////////////////// PARSE LLVM STRING ///////////////////////////////////////////
 
-llvm::Type* parse_llvm_string_as_type(std::string given, state& state, llvm::SMDiagnostic& errors) ;
-bool parse_llvm_string_as_instruction(std::string given, llvm::Function*& function, state& state, llvm::SMDiagnostic& errors);
-bool parse_llvm_string_as_function(std::string given, state& state, llvm::SMDiagnostic& errors);
-expression parse_llvm_string(const expression &given, llvm::Function*& function, std::string llvm_string, nat &pointer, state& state, flags flags) ;
+/////////////////////////////////////// CSR SUITE ///////////////////////////////////////////
 
 expression csr_single(expression given, llvm::Function*& function,nat& index, const nat depth, const nat max_depth, state& state, flags flags); 
 expression_list csr(expression_list given, llvm::Function*& function,nat& index, const nat depth, const nat max_depth, state& state, flags flags); 

@@ -71,7 +71,7 @@
             isEnabled = "YES">
          </CommandLineArgument>
          <CommandLineArgument
-            argument = "/Users/deniylreimn/Documents/projects/n3zqx2l/language/examples/test.n"
+            argument = "/Users/deniylreimn/Documents/projects/n3zqx2l/examples/test.n"
             isEnabled = "YES">
          </CommandLineArgument>
       </CommandLineArguments>

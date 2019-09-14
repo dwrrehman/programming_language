@@ -125,7 +125,7 @@ struct symbol {
     }    
     symbol(expression expression) {
         this->type = symbol_type::subexpression;  
-        subexpression = expression;
+        expressions = expression_list {std::vector<struct expression> {expression}};
     }
     symbol(string_literal literal) {
         this->type = symbol_type::string_literal; 

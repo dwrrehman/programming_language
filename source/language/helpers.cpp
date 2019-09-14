@@ -47,13 +47,15 @@ bool are_equal_identifiers(const symbol &first, const symbol &second) {
 bool expressions_match(expression first, expression second);
 
 bool symbols_match(symbol first, symbol second) {
-    if (subexpression(first) and subexpression(second) 
-        and expressions_match(first.expressions..back(), 
-                              second.expressions..back())) return true;    ///TODO: this code is suspicious, alot.
-    else if (are_equal_identifiers(first, second)) return true;
-    else if (first.type == symbol_type::llvm_literal and second.type == symbol_type::llvm_literal) return true;
-    else return false;
+//    if (subexpression(first) and subexpression(second) 
+//        and expressions_match(first.expressions..back(), 
+//                              second.expressions..back())) return true;    ///TODO: this code is suspicious, alot.
+//    else if (are_equal_identifiers(first, second)) return true;
+//    else if (first.type == symbol_type::llvm_literal and second.type == symbol_type::llvm_literal) return true;
+//    else return false;
+    return false;
 }
+
 
 bool expressions_match(expression first, expression second) {
     if (first.error or second.error) return false;    
@@ -74,46 +76,9 @@ bool expressions_match(expression first, expression second) {
 }
 
 
-//void print(std::vector<std::string> v) {
-//    std::cout << "[ ";
-//    for (auto i : v) {
-//        std::cout << "\"" << i << "\", ";
-//    }
-//    std::cout << "]";
-//}
-
-//void prune_extraneous_subexpressions(expression& given) { // unimplemented
-//    while (given.symbols.size() == 1 
-//           and subexpression(given.symbols[0])
-//           and given.symbols[0].subexpression.symbols.size()) {
-//        auto save = given.symbols[0].subexpression.symbols;
-//        given.symbols = save;
-//    }
-//    for (auto& symbol : given.symbols)
-//        if (subexpression(symbol)) prune_extraneous_subexpressions(symbol.subexpression);
-//}
 
 
-//std::vector<expression> filter_subexpressions(expression given) { // unimplemented
-//    std::vector<expression> subexpressions = {};    
-//    for (auto element : given.symbols) 
-//        if (subexpression(element)) subexpressions.push_back(element.subexpression);    
-//    return subexpressions;
-//    
-//    return {};
-//}
 
-void interpret_file_as_llvm_string(const struct file &file, state &state) { // test, by allowing some llvm random string to be parsed into the file:
-    llvm::SMDiagnostic errors;
-    if (parse_llvm_string_as_function(file.text, state, errors)) {
-        std::cout << "success.\n";
-        
-    } else {
-        std::cout << "failure.\n";
-        errors.print("llvm string program:", llvm::errs());
-        abort();
-    }
-}
 
 void append_return_0_statement(llvm::IRBuilder<> &builder, llvm::LLVMContext &context) {
     llvm::Value* value = llvm::ConstantInt::get(llvm::Type::getInt32Ty(context), 0);
@@ -183,10 +148,6 @@ nat evaluate(std::unique_ptr<llvm::Module>& module, llvm::Function* function, st
 //} 
 
 
-
-
-
-
 bool matches(expression given, llvm::Function*& function, expression& signature, nat& index, const nat depth, const nat max_depth, state& state, flags flags) {
     if (given.type != signature.type and given.type != intrin::infered) return false;
     for (auto& symbol : signature.symbols) {        
@@ -195,7 +156,7 @@ bool matches(expression given, llvm::Function*& function, expression& signature,
             if (symbol.expressions.error) return false;
             index++;
         } else if (subexpression(symbol)) {
-            symbol.expressions = csr(given, index, depth + 1, max_depth, state, flags);       /// i think this should be csr_single().
+            //symbol.expressions = csr(given, index, depth + 1, max_depth, state, flags);       /// i think this should be csr_single().
             if (symbol.expressions.error) return false;            
         } else if (not are_equal_identifiers(symbol, given.symbols[index])) return false;
         else index++;
@@ -208,9 +169,9 @@ expression csr_single(expression given, llvm::Function*& function, nat& index, c
         return parse_llvm_string(given, function, given.symbols[index].llvm.literal.value, index, state, flags);
     
     size_t saved = index;
-    for (auto signature_index : state.stack.top_frame()) {
+    for (auto signature_index : state.stack.top()) {
         index = saved;
-        auto signature = state.stack.lookup(signature_index);
+        auto signature = state.stack.get(signature_index);
         if (matches(given, function, signature, index, depth, max_depth, state, flags)) return signature;
     }
     return failure;
@@ -223,21 +184,18 @@ expression_list csr(expression_list given, llvm::Function*& function,nat& index,
 }
 
 expression_list traverse(expression_list given, llvm::Function*& function, state& state, flags flags) {
-    sort_top_stack_by_largest_signature(state);
-    
     expression_list solution {};
     for (size_t max_depth = 0; max_depth <= max_expression_depth; max_depth++) {
         size_t pointer = 0;
         solution = csr(given, function, pointer, 0, max_depth, state, flags); 
-        if (not solution.error and pointer == given.symbols.size()) break;                   // i think we need to look through all expressions, and see if any have an error.
+        //if (not solution.error and pointer == given.symbols.size()) break;                   // i think we need to look through all expressions, and see if any have an error.
     }
     return solution; 
 }
 
 static void prepare_expressions(expression_list& given) {
     for (auto& e : given.list) {        
-        e.type = intrin::unit; 
-        prune_extraneous_subexpressions(e); 
+        e.type = intrin::unit;
     }
 }
 

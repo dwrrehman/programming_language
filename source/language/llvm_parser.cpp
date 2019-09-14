@@ -82,3 +82,16 @@ expression parse_llvm_string(expression given, llvm::Function*& function, std::s
             return failure;
         }
 }
+
+// might be useful, for when we are given .ll files? that sounds cool.
+void interpret_file_as_llvm_string(const struct file &file, state &state) { // test, by allowing some llvm random string to be parsed into the file:
+    llvm::SMDiagnostic errors;
+    if (parse_llvm_string_as_function(file.text, state, errors)) {
+        std::cout << "success.\n";
+        
+    } else {
+        std::cout << "failure.\n";
+        errors.print("llvm string program:", llvm::errs());
+        abort();
+    }
+}

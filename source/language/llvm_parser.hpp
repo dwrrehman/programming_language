@@ -48,4 +48,6 @@ void print_llvm_parse_error(const llvm::SMDiagnostic &errors, state &state);
 
 expression parse_llvm_string(expression given, llvm::Function*& function, std::string llvm_string, nat& pointer, state& state, flags flags);
 
+void interpret_file_as_llvm_string(const struct file &file, state &state); 
+    
 #endif /* llvm_parser_hpp */

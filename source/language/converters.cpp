@@ -25,7 +25,9 @@ std::string expression_to_string(expression given, symbol_table& stack) {  // un
     for (auto symbol : given.symbols) {
         if (symbol.type == symbol_type::identifier) result += symbol.identifier.name.value;
         else if (symbol.type == symbol_type::subexpression) {
-            result += "(" + expression_to_string(symbol.subexpression, stack) + ")";
+            //result += "(" + expression_to_string(symbol.subexpression, stack) + ")";
+            
+            ////TODO: fix this function!
         }
         if (i < given.symbols.size() - 1) result += " ";
         i++;
@@ -82,10 +84,11 @@ size_t string_to_expression_tail(std::vector<expression> list, state& state, fla
     auto current = list.front();
     list.erase(list.begin());
     
-    auto resolved_expression = traverse(current, state, flags);
+    //auto resolved_expression = traverse(current, state, flags);
+    ///TODO: fix me
     
-    if (resolved_expression.error) state.error = true;
-    resolved_expression.type = string_to_expression_tail(list, state, flags.dont_allow_undefined().not_at_top_level().not_parsing_a_type());
+    //if (resolved_expression.error) state.error = true;
+    //resolved_expression.type = string_to_expression_tail(list, state, flags.dont_allow_undefined().not_at_top_level().not_parsing_a_type());
     
     return 0; // temp
 }
@@ -94,13 +97,14 @@ expression string_to_expression(std::string given, state& state, flags flags) {
     struct file file = {"<llvm string symbol>", given};
     start_lex(file);
     auto e = parse_expression(file, false, false);    
-    auto subexpressions = filter_subexpressions(e);    
-    auto signature = subexpressions.front();    
+    //auto subexpressions = filter_subexpressions(e);    
+    //auto signature = subexpressions.front();    
     
-    subexpressions.erase(subexpressions.begin());        
-    signature.type = string_to_expression_tail(subexpressions, state, flags);
+    //subexpressions.erase(subexpressions.begin());        
+    //signature.type = string_to_expression_tail(subexpressions, state, flags);
     
-    return signature;
+    //return signature;
+    return {};
 }
 
 expression convert_raw_llvm_symbol_to_expression(std::string id, llvm::Value* value, symbol_table& stack, file_data& data, flags flags) { 
