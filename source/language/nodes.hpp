@@ -35,8 +35,8 @@ struct string_literal {
     bool error = 0;
     
     string_literal(){}
-    string_literal(bool e, bool _, bool __) { error = e; }
-    string_literal(token t) {literal = t;}
+    string_literal(bool e, bool _, bool __): error(e) {}
+    string_literal(token t): literal(t) {}
 };
 
 struct llvm_literal { 
@@ -45,18 +45,18 @@ struct llvm_literal {
     bool error = 0;
         
     llvm_literal(){}
-    llvm_literal(bool e, bool _, bool __) { error = e; }
-    llvm_literal(token t) {literal = t;}
+    llvm_literal(bool e, bool _, bool __): error(e) {}
+    llvm_literal(token t): literal(t) {}
 };
 
 struct identifier { 
     
     struct token name = {}; 
     bool error = 0;
-        
+    
     identifier(){}
-    identifier(bool e, bool _, bool __) { error = e; }
-    identifier(token n) {name = n;}
+    identifier(bool e, bool _, bool __): error(e) {}
+    identifier(token n): name(n) {}
     identifier(std::string given_name) {        
         name.value = given_name;
         name.type = token_type::identifier;
@@ -69,13 +69,9 @@ struct expression_list {
     bool error = {};
         
     expression_list(){}
-    expression_list(bool e, bool _, bool __) { error = e; }    
-    expression_list(std::vector<expression> es) { list = es; }
-    
-    expression_list(std::vector<expression> es, bool e) {
-        list = es;
-        error = e;
-    }
+    expression_list(bool e, bool _, bool __): error(e) {}
+    expression_list(std::vector<expression> es): list(es) {}    
+    expression_list(std::vector<expression> es, bool e): list(es), error(e) {}
 };
 
 struct expression {
@@ -87,15 +83,16 @@ struct expression {
     bool error = false;        
     
     expression() {}
-    expression(bool e, bool _, bool __) { error = e; }    
-    expression(std::vector<symbol> s) { symbols = s; }
-    expression(nat t) { type = t; }
-    expression(std::vector<symbol> s, nat t) { symbols = s; type = t; }
+    expression(bool e, bool _, bool __): error(e) {}
+    expression(std::vector<symbol> s, nat t = 0): symbols(s), type(t) {}
+    expression(nat t): type(t) {}
+    
 };
 
 struct symbol { 
     
-    enum symbol_type type = symbol_type::none;    
+    enum symbol_type type = symbol_type::none;
+    
     expression_list expressions = {};
     string_literal string = {};
     llvm_literal llvm = {};
@@ -103,20 +100,13 @@ struct symbol {
     bool error = false;
     
     symbol(){}
-    symbol(bool e, bool _, bool __) { error = e; }    
-    symbol(enum symbol_type t) { type = t; }
-    symbol(string_literal literal) { type = symbol_type::string_literal; string = literal; }    
-    symbol(llvm_literal literal) { type = symbol_type::llvm_literal; llvm = literal; }    
-    symbol(struct identifier id) { type = symbol_type::identifier;  identifier = id; }
-    
-    symbol(expression_list es) { 
-        type = symbol_type::subexpression; 
-        expressions = es;
-    }    
-    symbol(expression expression) {
-        type = symbol_type::subexpression;  
-        expressions = expression_list {std::vector<struct expression> {expression}};
-    }                
+    symbol(bool e, bool _, bool __): error(e) {}
+    symbol(enum symbol_type t): type(t) {} 
+    symbol(string_literal literal): type(symbol_type::string_literal), string(literal) {}    
+    symbol(llvm_literal literal): type(symbol_type::llvm_literal), llvm(literal) {}    
+    symbol(struct identifier id): type(symbol_type::identifier), identifier(id) {}
+    symbol(expression_list es): type(symbol_type::subexpression), expressions(es) {}
+    symbol(expression e): symbol(expression_list {{e}}) {}
 };
 
 #endif /* nodes_hpp */
