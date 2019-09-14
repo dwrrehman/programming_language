@@ -9,11 +9,13 @@
 #include "helpers.hpp"
 
 #include "analysis_ds.hpp"
+#include "compiler.hpp"
 #include "parser.hpp"
 #include "builtins.hpp"
 #include "symbol_table.hpp"
 #include "lists.hpp"
 #include "error.hpp"
+#include  "llvm_parser.hpp"
 
 #include "llvm/IR/LLVMContext.h"
 #include "llvm/AsmParser/Parser.h"
@@ -23,24 +25,26 @@
 #include "llvm/Transforms/Utils/ValueMapper.h"
 #include "llvm/Transforms/Utils/Cloning.h"
 
+#include "llvm/Support/TargetRegistry.h"
+#include "llvm/Support/TargetSelect.h"
+#include "llvm/ExecutionEngine/daniels_interpreter/MCJIT.h"
+#include "llvm/ExecutionEngine/MCJIT.h"
+#include "llvm/ExecutionEngine/GenericValue.h"
+
 #include <cstdlib>
 #include <iostream>
 #include <sstream>
 
-
-bool expressions_match(expression first, expression second);
-
-bool subexpression(const symbol& s) {
-    return s.type == symbol_type::subexpression;
-}
-bool identifier(const symbol& s) {
-    return s.type == symbol_type::identifier;
-}
+bool subexpression(const symbol& s) { return s.type == symbol_type::subexpression; }
+bool identifier(const symbol& s) { return s.type == symbol_type::identifier; }
+bool llvm_string(const symbol& s) { return s.type == symbol_type::llvm_literal; }
 
 bool are_equal_identifiers(const symbol &first, const symbol &second) {
     return identifier(first) and identifier(second) 
     and first.identifier.name.value == second.identifier.name.value;
 }
+
+bool expressions_match(expression first, expression second);
 
 bool symbols_match(symbol first, symbol second) {
     if (subexpression(first) and subexpression(second) 
@@ -69,41 +73,35 @@ bool expressions_match(expression first, expression second) {
     else return false;
 }
 
-std::string random_string() {
-    static int num = 0;
-    std::stringstream stream;
-    stream << std::hex << rand();
-    return std::string(stream.str()) + std::to_string(num++);
-}
 
-void print(std::vector<std::string> v) {
-    std::cout << "[ ";
-    for (auto i : v) {
-        std::cout << "\"" << i << "\", ";
-    }
-    std::cout << "]";
-}
+//void print(std::vector<std::string> v) {
+//    std::cout << "[ ";
+//    for (auto i : v) {
+//        std::cout << "\"" << i << "\", ";
+//    }
+//    std::cout << "]";
+//}
 
-void prune_extraneous_subexpressions(expression& given) { // unimplemented
-    while (given.symbols.size() == 1 
-           and subexpression(given.symbols[0])
-           and given.symbols[0].subexpression.symbols.size()) {
-        auto save = given.symbols[0].subexpression.symbols;
-        given.symbols = save;
-    }
-    for (auto& symbol : given.symbols)
-        if (subexpression(symbol)) prune_extraneous_subexpressions(symbol.subexpression);
-}
+//void prune_extraneous_subexpressions(expression& given) { // unimplemented
+//    while (given.symbols.size() == 1 
+//           and subexpression(given.symbols[0])
+//           and given.symbols[0].subexpression.symbols.size()) {
+//        auto save = given.symbols[0].subexpression.symbols;
+//        given.symbols = save;
+//    }
+//    for (auto& symbol : given.symbols)
+//        if (subexpression(symbol)) prune_extraneous_subexpressions(symbol.subexpression);
+//}
 
 
-std::vector<expression> filter_subexpressions(expression given) { // unimplemented
-    std::vector<expression> subexpressions = {};    
-    for (auto element : given.symbols) 
-        if (subexpression(element)) subexpressions.push_back(element.subexpression);    
-    return subexpressions;
-    
-    return {};
-}
+//std::vector<expression> filter_subexpressions(expression given) { // unimplemented
+//    std::vector<expression> subexpressions = {};    
+//    for (auto element : given.symbols) 
+//        if (subexpression(element)) subexpressions.push_back(element.subexpression);    
+//    return subexpressions;
+//    
+//    return {};
+//}
 
 void interpret_file_as_llvm_string(const struct file &file, state &state) { // test, by allowing some llvm random string to be parsed into the file:
     llvm::SMDiagnostic errors;
@@ -122,9 +120,9 @@ void append_return_0_statement(llvm::IRBuilder<> &builder, llvm::LLVMContext &co
     builder.CreateRet(value);
 }
 
-void declare_donothing(llvm::IRBuilder<> &builder, const std::unique_ptr<llvm::Module> &module) {
+void call_donothing(llvm::IRBuilder<> &builder, const std::unique_ptr<llvm::Module> &module) {
     llvm::Function* donothing = llvm::Intrinsic::getDeclaration(module.get(), llvm::Intrinsic::donothing);        
-    builder.CreateCall(donothing); // TODO: TEMP
+    builder.CreateCall(donothing);
 }
 
 llvm::Function* create_main(llvm::IRBuilder<>& builder, llvm::LLVMContext& context, const std::unique_ptr<llvm::Module>& module) {
@@ -135,91 +133,61 @@ llvm::Function* create_main(llvm::IRBuilder<>& builder, llvm::LLVMContext& conte
     return main_function;
 }
 
-llvm::Type* parse_llvm_string_as_type(std::string given, state& state, llvm::SMDiagnostic& errors) {
-    return llvm::parseType(given, errors, *state.data.module);
+
+
+
+
+
+
+
+
+
+
+static std::vector<llvm::GenericValue> turn_into_value_array(std::vector<nat> canonical_arguments, std::unique_ptr<llvm::Module>& module) {
+    std::vector<llvm::GenericValue> arguments = {};
+    for (auto index : canonical_arguments) 
+        arguments.push_back(llvm::GenericValue {llvm::ConstantInt::get(llvm::Type::getInt32Ty(module->getContext()), index)});
+    return arguments;
 }
 
-bool parse_llvm_string_as_instruction(std::string given, llvm::Function*& original, state& state, llvm::SMDiagnostic& errors) {
-        ///TODO: 
-    std::string body = "";
-    original->print(llvm::raw_string_ostream(body) << "");    
-    body.pop_back(); // delete the newline
-    body.pop_back(); // delete the close brace
-    body += given + "\n" "call void @llvm.donothing()" "\n" "unreachable" "\n" "}" "\n";
-    
-    const std::string current_name = original->getName();
-    original->setName("_anonymous_" + random_string());
-    llvm::MemoryBufferRef reference(body, "<llvm-string>");
-    llvm::ModuleSummaryIndex my_index(true);
-    if (llvm::parseAssemblyInto(reference, state.data.module, &my_index, errors)) {        
-        original->setName(current_name);
-        return false;
-    } else {
-        original->getBasicBlockList().clear();
-        original = state.data.module->getFunction(current_name);
-        return true;
-    }
-}
-
-bool parse_llvm_string_as_function(std::string given, state& state, llvm::SMDiagnostic& errors) {
-    llvm::MemoryBufferRef reference(given, "<llvm-string>");
-    llvm::ModuleSummaryIndex my_index(true);
-    return !llvm::parseAssemblyInto(reference, state.data.module, &my_index, errors);        
+nat evaluate(std::unique_ptr<llvm::Module>& module, llvm::Function* function, std::vector<nat> args) {    
+    set_data_layout(module);
+    auto jit = llvm::EngineBuilder(std::unique_ptr<llvm::Module>{module.get()}).setEngineKind(llvm::EngineKind::JIT).create();
+    jit->finalizeObject();
+    return jit->runFunction(function, turn_into_value_array(args, module)).IntVal.getLimitedValue();
 }
 
 
-bool found_llvm_string(const expression &given, size_t &pointer) {
-    return pointer < given.symbols.size() and given.symbols[pointer].type == symbol_type::llvm_literal;
-}
-
-expression parse_llvm_string(const expression &given, llvm::Function*& function, std::string llvm_string, size_t& pointer, state& state, flags flags) {
-    llvm::SMDiagnostic instruction_errors, function_errors, type_errors;
-    if (flags.is_at_top_level and not flags.is_parsing_type) {
-        if (parse_llvm_string_as_function(llvm_string, state, function_errors) || parse_llvm_string_as_instruction(llvm_string, function, state, instruction_errors)) {
-            expression solution = {};
-            solution.type = intrin::unit;
-            solution.symbols = {{given.symbols[pointer++].llvm}};
-            return solution;            
-        } else {
-            std::cout << "ins: llvm: "; // TODO: make this have color!            
-            instruction_errors.print(state.data.file.name.c_str(), llvm::errs()); // temp
-            std::cout << "func: llvm: "; // TODO: make this have color!
-            function_errors.print(state.data.file.name.c_str(), llvm::errs());
-            return failure;
-        }        
-    } else if (flags.is_parsing_type and not flags.is_at_top_level) {                
-        if (auto llvm_type = parse_llvm_string_as_type(llvm_string, state, type_errors)) {            
-            expression solution = {};
-            solution.llvm_type = llvm_type;
-            solution.type = intrin::type;
-            solution.symbols = {{given.symbols[pointer++].llvm}};
-            return solution;            
-        } else {
-            std::cout << "llvm: "; // TODO: make this have color!
-            type_errors.print(state.data.file.name.c_str(), llvm::errs()); 
-            return failure;
-        }
-    } else return failure;    
-}
-
-bool found_unit_value_expression(const expression& given) { 
-    return given.symbols.empty() or 
-        (given.symbols.size() == 1 and subexpression(given.symbols[0]) 
-         and given.symbols[0].subexpression.symbols.empty());
-}
-
-expression parse_unit_expression(expression& given, size_t& index, state& state) {    
-    if (given.symbols.size() == 1
-        and subexpression(given.symbols[0])
-        and given.symbols[0].subexpression.symbols.empty()) index++;
-    if (given.type == intrin::infered) given.type = intrin::unit;
-    if (given.type == intrin::unit) return state.stack.lookup(intrin::empty);
-    else return failure;
-} 
 
 
-bool matches(expression given, llvm::Function*& function, expression& signature, size_t& index, const size_t depth, 
-             const size_t max_depth, state& state, flags flags) {
+///////////////////// the csr suite ///////// /////////////////////////
+
+
+
+
+
+//
+//bool found_unit_value_expression(const expression& given) { 
+//    return given.symbols.empty() or 
+//        (given.symbols.size() == 1 and subexpression(given.symbols[0]) 
+//         and given.symbols[0].subexpression.symbols.empty());
+//}
+//
+//expression parse_unit_expression(expression& given, size_t& index, state& state) {    
+//    if (given.symbols.size() == 1
+//        and subexpression(given.symbols[0])
+//        and given.symbols[0].subexpression.symbols.empty()) index++;
+//    if (given.type == intrin::infered) given.type = intrin::unit;
+//    if (given.type == intrin::unit) return state.stack.lookup(intrin::empty);
+//    else return failure;
+//} 
+
+
+
+
+
+
+bool matches(expression given, llvm::Function*& function, expression& signature, nat& index, const nat depth, const nat max_depth, state& state, flags flags) {
     if (given.type != signature.type and given.type != intrin::infered) return false;
     for (auto& symbol : signature.symbols) {        
         if (subexpression(symbol) and subexpression(given.symbols[index])) {
@@ -234,14 +202,13 @@ bool matches(expression given, llvm::Function*& function, expression& signature,
     } return true;
 }
 
-expression csr_single(expression given, llvm::Function*& function, size_t& index, const size_t depth, const size_t max_depth, state& state, flags flags) {
+expression csr_single(expression given, llvm::Function*& function, nat& index, const nat depth, const nat max_depth, state& state, flags flags) {
     if (index >= given.symbols.size() or not given.type or depth > max_depth) return failure; 
-    if (found_llvm_string(given, index)) {
-        std::cout << "we got here! :)\n";
+    if (llvm_string(given.symbols[index]))         
         return parse_llvm_string(given, function, given.symbols[index].llvm.literal.value, index, state, flags);
-    }
+    
     size_t saved = index;
-    for (auto signature_index : state.stack.top()) {
+    for (auto signature_index : state.stack.top_frame()) {
         index = saved;
         auto signature = state.stack.lookup(signature_index);
         if (matches(given, function, signature, index, depth, max_depth, state, flags)) return signature;
@@ -249,15 +216,10 @@ expression csr_single(expression given, llvm::Function*& function, size_t& index
     return failure;
 }
 
-expression_list csr(expression_list given, llvm::Function*& function,size_t& index, const size_t depth, const size_t max_depth, state& state, flags flags) {
-    for (auto& e : given.list) e = csr_single(e, function, index, depth, max_depth, state, flags);
+expression_list csr(expression_list given, llvm::Function*& function,nat& index, const nat depth, const nat max_depth, state& state, flags flags) {
+    for (auto& e : given.list)
+        e = csr_single(e, function, index, depth, max_depth, state, flags);
     return given;
-}
-
-inline static void sort_top_stack_by_largest_signature(state& state) {           
-    std::sort(state.stack.top().begin(), state.stack.top().end(), [&](nat a, nat b) {
-        return state.stack.lookup(a).symbols.size() > state.stack.lookup(b).symbols.size(); 
-    });
 }
 
 expression_list traverse(expression_list given, llvm::Function*& function, state& state, flags flags) {
@@ -291,3 +253,4 @@ expression_list resolve(expression_list given, llvm::Function*& function, state&
     
     return given;
 }
+

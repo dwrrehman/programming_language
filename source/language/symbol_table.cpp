@@ -15,7 +15,7 @@ std::vector<std::string> string_top(symbol_table& stack) {
     std::vector<std::string> result = {};
     auto indicies = stack.top();
     for (auto i : indicies) {
-        result.push_back(expression_to_string(stack.lookup(i), stack));
+        result.push_back(expression_to_string(stack.get(i), stack));
     } 
     return result;
 }
@@ -44,7 +44,7 @@ std::vector<expression> top(symbol_table& stack) {
     std::vector<expression> result = {};
     auto indicies = stack.top();
     for (auto i : indicies) {
-        result.push_back(stack.lookup(i));
+        result.push_back(stack.get(i));
     }
     return result;
 }

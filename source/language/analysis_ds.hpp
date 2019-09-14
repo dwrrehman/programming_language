@@ -20,7 +20,7 @@ struct file_data {
     llvm::IRBuilder<>& builder;
 };
 
-class symbol_table;
+struct symbol_table;
 
 struct state {
     symbol_table& stack;     

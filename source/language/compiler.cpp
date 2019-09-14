@@ -36,7 +36,7 @@ std::unique_ptr<llvm::Module> process(file file, llvm::LLVMContext &context) {
     return analyze(correct(parse(file), file), file, context);
 }
 
-static void set_data_layout(std::unique_ptr<llvm::Module>& main_module) {
+void set_data_layout(std::unique_ptr<llvm::Module>& main_module) {
     auto machine = llvm::EngineBuilder(std::unique_ptr<llvm::Module>{main_module.get()}).setEngineKind(llvm::EngineKind::JIT).create();    
     main_module->setDataLayout(machine->getDataLayout());
 }

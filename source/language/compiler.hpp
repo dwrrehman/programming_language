@@ -32,4 +32,8 @@ void link_and_emit_executable(std::vector<std::string> object_files, const struc
 
 int interpret(std::string executable_name, std::vector<std::unique_ptr<llvm::Module>> &modules) ;
 
+void set_data_layout(std::unique_ptr<llvm::Module>& main_module);
+
+
+
 #endif /* compiler_hpp */

@@ -23,6 +23,8 @@
 #include <iostream>
 #include <sstream>
 
+using nat = size_t;
+
 ////////////////// comparisons ///////////////////////////
 
 bool expressions_match(expression first, expression second);
@@ -41,8 +43,8 @@ std::vector<expression> filter_subexpressions(expression given);
 void append_return_0_statement(llvm::IRBuilder<> &builder, llvm::LLVMContext &context) ;
 void declare_donothing(llvm::IRBuilder<> &builder, const std::unique_ptr<llvm::Module> &module);
 bool found_unit_value_expression(const expression &given);
-expression parse_unit_expression(expression& given, size_t& index, state& state) ;
-bool found_llvm_string(const expression &given, size_t &pointer) ;
+expression parse_unit_expression(expression& given, nat& index, state& state) ;
+bool found_llvm_string(const expression &given, nat &pointer) ;
 llvm::Function* create_main(llvm::IRBuilder<>& builder, llvm::LLVMContext& context, const std::unique_ptr<llvm::Module>& module);
 void interpret_file_as_llvm_string(const struct file &file, state &state);
 
@@ -51,10 +53,10 @@ void interpret_file_as_llvm_string(const struct file &file, state &state);
 llvm::Type* parse_llvm_string_as_type(std::string given, state& state, llvm::SMDiagnostic& errors) ;
 bool parse_llvm_string_as_instruction(std::string given, llvm::Function*& function, state& state, llvm::SMDiagnostic& errors);
 bool parse_llvm_string_as_function(std::string given, state& state, llvm::SMDiagnostic& errors);
-expression parse_llvm_string(const expression &given, llvm::Function*& function, std::string llvm_string, size_t &pointer, state& state, flags flags) ;
+expression parse_llvm_string(const expression &given, llvm::Function*& function, std::string llvm_string, nat &pointer, state& state, flags flags) ;
 
-expression csr_single(expression given, llvm::Function*& function,size_t& index, const size_t depth, const size_t max_depth, state& state, flags flags); 
-expression_list csr(expression_list given, llvm::Function*& function,size_t& index, const size_t depth, const size_t max_depth, state& state, flags flags); 
+expression csr_single(expression given, llvm::Function*& function,nat& index, const nat depth, const nat max_depth, state& state, flags flags); 
+expression_list csr(expression_list given, llvm::Function*& function,nat& index, const nat depth, const nat max_depth, state& state, flags flags); 
 expression_list traverse(expression_list given, llvm::Function*& function,state& state, flags flags);
 expression_list resolve(expression_list given, llvm::Function*& function,state& state, flags flags); // interface function:
 #endif /* helpers_hpp */

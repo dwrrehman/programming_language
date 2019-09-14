@@ -20,39 +20,35 @@
 #include "llvm/IR/Function.h"
 #include <iostream>
 
-struct signature_entry;
-using master = std::vector<struct signature_entry>; 
-using nat = size_t;
 
 struct stack_frame {
-    llvm::ValueSymbolTable& llvm;
     std::vector<nat> indicies = {};  
 };
 
 struct signature_entry {
     expression signature = {};
-    expression_list definition = {};
+    expression_list definition = {};        // is this really neccessary?
     nat precedence = 0;
-    nat parent = 0;
-    llvm::Value* value = nullptr;
+    nat parent = 0;                    // is this really neccessary?
+    llvm::Value* value = nullptr;             // is this really neccessary?
     llvm::Function* function = nullptr;
 };
 
-class symbol_table {
-public:
+struct symbol_table {
+
     flags flags;
     file_data& data;
-    master master = {};
+    std::vector<signature_entry> master = {};
     std::vector<stack_frame> frames = {};
-              
-    void push(llvm::ValueSymbolTable& llvm) {        
-        frames.push_back({llvm, frames.back().indicies});
+
+    void push_new_frame() {        
+        frames.push_back({frames.back().indicies});
     }    
-    void pop() {
+    void pop_last_frame() {
         frames.pop_back();        
     }
-    
-    void update() {
+            
+    void update(llvm::ValueSymbolTable& llvm) {
         /// job:
         /*
          for each stackframe, 
@@ -71,7 +67,7 @@ public:
          */
         
         for (auto& frame : frames) {
-            for (auto i = frame.llvm.begin(); i != frame.llvm.end(); i++) { 
+            for (auto i = llvm.begin(); i != llvm.end(); i++) { 
                 auto key = i->getKey();                                 
                 auto value = i->getValue(); 
                 auto llsymbol = convert_raw_llvm_symbol_to_expression(key, value, *this, data, flags);                
@@ -89,49 +85,43 @@ public:
         }
     }
     
-    std::vector<nat>& top() {
-        update();
-        return frames.back().indicies;        
-    }
-    
-    expression& lookup(nat index) {
-        update();
-        return master[index].signature;        
-    }    
+    std::vector<nat>& top() { return frames.back().indicies; }    
+    expression& get(nat index) { return master[index].signature; }    
     
     void define(expression signature, expression_list definition,
                 nat stack_frame_index, nat parent = 0) {   
-        update();
+        
         frames[frames.size() - 1 - stack_frame_index].indicies.push_back(master.size()); 
         master.push_back({signature, definition, parent});
         //we need to define it the LLVM symbol table!        
         // and we need to define it of the right type, as well.
         
         // unfinsihed
+        sort_top_stack_by_largest_signature();
     }
     
     void expose(nat desired_signature, expression new_signature, 
                   nat source_abstraction, nat destination_frame) {
-        update();
-        
         // unimplemented
     }
     
+    void sort_top_stack_by_largest_signature() {
+        std::sort(top().begin(), top().end(), [&](nat a, nat b) {
+            return get(a).symbols.size() > get(b).symbols.size(); 
+        });
+    }
+    
     symbol_table(file_data& data, struct flags flags, 
-                 std::vector<expression> builtins) : data(data), flags(flags) {         
-        master.push_back({}); // the null entry. a type (index) of 0 means it has no type.        
+                 std::vector<expression> builtins) : data(data), flags(flags) {
         
-        for (auto signature : builtins) {
+        master.push_back({});               // the null entry. a type (index) of 0 means it has no type.                
+        for (auto signature : builtins) 
             master.push_back({signature, {}, {}});
-        }
         
         std::vector<nat> compiler_intrinsics = {};
         for (auto i = 0; i < builtins.size(); i++) compiler_intrinsics.push_back(i + 1);
-        frames.push_back({data.module->getValueSymbolTable(), compiler_intrinsics});
+        frames.push_back({compiler_intrinsics});
     }
-    
-    
-    
     
     std::vector<std::string> llvm_key_symbols_in_table(llvm::ValueSymbolTable llvm) {
         std::vector<std::string> result = {};
@@ -152,9 +142,6 @@ public:
                 std::cout << index << " "; 
             }
             std::cout << "}\n";
-            std::cout << "\t\tllvm keys: ";
-            print(llvm_key_symbols_in_table(frames[i].llvm));
-            std::cout << "\n";
         }
         
         std::cout << "\nmaster: {\n";
