@@ -71,7 +71,8 @@ llvm_literal parse_llvm_literal() {
 identifier parse_identifier() {    
     auto saved = save();
     auto t = next();
-    if (not is_identifier(t) and (is_reserved_operator(t) or not is_operator(t))) { revert_and_return(); }
+    if (not is_identifier(t) and (is_reserved_operator(t) 
+                                  or not is_operator(t))) { revert_and_return(); }
     return {t};
 }
 

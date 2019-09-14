@@ -76,8 +76,7 @@ void raise_indents(expression_list& list, file file, const size_t level) {
 expression_list correct(expression_list unit, file file) {
     
     raise_indents(unit, file, 0);
-    turn_indents_into_blocks(unit, file, 0);
-    
+    turn_indents_into_blocks(unit, file, 0);    
     remove_whitespace_in_expressions(unit, file, 0);
     
     if (debug) {

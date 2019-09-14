@@ -54,36 +54,13 @@ std::unique_ptr<llvm::Module> analyze(expression_list unit, file file, llvm::LLV
     call_donothing(builder, module);
     
     bool error = false;
-    flags flags = {};
-    file_data data = {file, module.get(), builder};
+    flags flags {};
+    file_data data {file, module.get(), builder};
     symbol_table stack {data, flags, builtins};
-    state state = {stack, data, error};
+    state state {stack, data, error};
     
     //auto new_unit = resolve(unit, main_function, state, flags.generate_code().at_top_level());
     
-    
-    
-    llvm::SMDiagnostic instruction_errors;
-    auto s = unit.list.back().symbols.back().llvm.literal.value;
-    bool success = parse_llvm_string_as_instruction(s, main_function, state, instruction_errors);
-    
-    if (success) {
-        std::cout << "yay it worked.\n";        
-        std::cout << "ins: llvm: "; // TODO: make this have color!
-        instruction_errors.print(state.data.file.name.c_str(), llvm::errs()); // temp
-    } else {
-        std::cout << "darn it failed.\n";        
-        std::cout << "ins: llvm: "; // TODO: make this have color!
-        instruction_errors.print(state.data.file.name.c_str(), llvm::errs()); // temp
-    }
-    
-
-    builder.SetInsertPoint(llvm::BasicBlock::Create(context, "wef", main_function));
-    call_donothing(builder, module);
-    call_donothing(builder, module);
-    call_donothing(builder, module);
-    
-    //if (debug) debug_table(module, stack);
 
     if (llvm::verifyFunction(*main_function)) append_return_0_statement(builder, context);
     if (llvm::verifyModule(*module, &llvm::errs())) error = true;    

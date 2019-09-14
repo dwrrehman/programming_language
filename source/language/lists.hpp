@@ -12,6 +12,8 @@
 #include <vector>
 #include <string>
 
+using nat = size_t;
+
 // language info
 extern const std::string language_name;
 extern const std::string language_version;
@@ -20,8 +22,8 @@ extern const std::string compiler_name;
 extern const std::string compiler_version;
 
 
-extern size_t spaces_count_for_indent;
-extern size_t max_expression_depth;
+extern nat spaces_count_for_indent;
+extern nat max_expression_depth;
 extern bool debug;
 
 #endif /* lists_hpp */

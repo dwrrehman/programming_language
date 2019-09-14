@@ -10,6 +10,7 @@
 #define nodes_hpp
 
 #include "lexer.hpp"
+#include "lists.hpp"
 #include "llvm/IR/Type.h"
 #include <vector>
 
@@ -34,7 +35,7 @@ struct string_literal {
     bool error = 0;
     
     string_literal(){}
-    string_literal(bool e, bool _ignore_me, bool _also_ignore_me) { error = e; }
+    string_literal(bool e, bool _, bool __) { error = e; }
     string_literal(token t) {literal = t;}
 };
 
@@ -44,7 +45,7 @@ struct llvm_literal {
     bool error = 0;
         
     llvm_literal(){}
-    llvm_literal(bool e, bool _ignore_me, bool _also_ignore_me) { error = e; }
+    llvm_literal(bool e, bool _, bool __) { error = e; }
     llvm_literal(token t) {literal = t;}
 };
 
@@ -54,8 +55,12 @@ struct identifier {
     bool error = 0;
         
     identifier(){}
-    identifier(bool e, bool _ignore_me, bool _also_ignore_me) { error = e; }
+    identifier(bool e, bool _, bool __) { error = e; }
     identifier(token n) {name = n;}
+    identifier(std::string given_name) {        
+        name.value = given_name;
+        name.type = token_type::identifier;
+    }
 };
 
 struct expression_list {
@@ -64,10 +69,9 @@ struct expression_list {
     bool error = {};
         
     expression_list(){}
-    expression_list(bool e, bool _ignore_me, bool _also_ignore_me) { error = e; }
-    expression_list(std::vector<expression> es) {
-        list = es;
-    }
+    expression_list(bool e, bool _, bool __) { error = e; }    
+    expression_list(std::vector<expression> es) { list = es; }
+    
     expression_list(std::vector<expression> es, bool e) {
         list = es;
         error = e;
@@ -77,25 +81,16 @@ struct expression_list {
 struct expression {
 
     std::vector<symbol> symbols = {};
-    size_t indent_level = 0;
-    size_t type = 0;
+    nat indent_level = 0;
+    nat type = 0;
     llvm::Type* llvm_type = nullptr;
     bool error = false;        
     
     expression() {}
-    expression(std::vector<symbol> symbols) {
-        this->symbols = symbols;
-    }
-    expression(std::vector<symbol> symbols, size_t type) {
-        this->symbols = symbols;
-        this->type = type;
-    }
-    expression(size_t type) {        
-        this->type = type;
-    }
-    expression(bool e, bool _ignore_me, bool _also_ignore_me) {
-        error = e;
-    }
+    expression(bool e, bool _, bool __) { error = e; }    
+    expression(std::vector<symbol> s) { symbols = s; }
+    expression(nat t) { type = t; }
+    expression(std::vector<symbol> s, nat t) { symbols = s; type = t; }
 };
 
 struct symbol { 
@@ -106,39 +101,22 @@ struct symbol {
     llvm_literal llvm = {};
     identifier identifier = {};
     bool error = false;
-        
-    //expression subexpression = {};         /// DELETE ME
     
     symbol(){}
-    symbol(bool e, bool _ignore_me, bool _also_ignore_me) { error = e; }
-    symbol(enum symbol_type type) {
-        this->type = type;
-    }
-    symbol(std::string given_name) {
-        this->type = symbol_type::identifier;
-        this->identifier.name.value = given_name;
-        this->identifier.name.type = token_type::identifier;
-    }
-    symbol(expression_list expressions) { 
-        this->type = symbol_type::subexpression;     // this may be a problem.
-        this->expressions = expressions;
+    symbol(bool e, bool _, bool __) { error = e; }    
+    symbol(enum symbol_type t) { type = t; }
+    symbol(string_literal literal) { type = symbol_type::string_literal; string = literal; }    
+    symbol(llvm_literal literal) { type = symbol_type::llvm_literal; llvm = literal; }    
+    symbol(struct identifier id) { type = symbol_type::identifier;  identifier = id; }
+    
+    symbol(expression_list es) { 
+        type = symbol_type::subexpression; 
+        expressions = es;
     }    
     symbol(expression expression) {
-        this->type = symbol_type::subexpression;  
+        type = symbol_type::subexpression;  
         expressions = expression_list {std::vector<struct expression> {expression}};
-    }
-    symbol(string_literal literal) {
-        this->type = symbol_type::string_literal; 
-        this->string = literal;
-    }    
-    symbol(llvm_literal literal) {
-        this->type = symbol_type::llvm_literal; 
-        this->llvm = literal;
-    }    
-    symbol(struct identifier id) { 
-        this->type = symbol_type::identifier; 
-        this->identifier = id;
-    }
+    }                
 };
 
 #endif /* nodes_hpp */

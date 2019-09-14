@@ -38,66 +38,45 @@ struct symbol_table {
 
     flags flags;
     file_data& data;
+    
     std::vector<signature_entry> master = {};
     std::vector<stack_frame> frames = {};
-
-    void push_new_frame() {        
-        frames.push_back({frames.back().indicies});
-    }    
-    void pop_last_frame() {
-        frames.pop_back();        
-    }
-            
-    void update(llvm::ValueSymbolTable& llvm) {
-        /// job:
-        /*
-         for each stackframe, 
-         
-            for each llsymbol in that sf's LLST, 
-         
-                if that llsymbol is not in our indexed stackframe, 
-                    (which we will determine by indexing each stackframe index into the master, 
-                    and checking if the symbol stringified versions match...                           TODO:  we need to code a fucntion which takes a typical llvm function signture, such as:       void @f(i32 %x, i32 %y)     and convert it into a n3zqx2l signtaure,     in this case:        (f ((x) `i32`)  ((y) `i32`)) () (_type)   
-                    )
-         
-            then we will create a new entry in master, (push_back(something)),
-         
-            and then fill its data with what we know to be the key and value of the thing we found from searching the LLST.
-                  
-         */
-        
+    
+    void update(llvm::ValueSymbolTable& llvm) {        
         for (auto& frame : frames) {
             for (auto i = llvm.begin(); i != llvm.end(); i++) { 
                 auto key = i->getKey();                                 
                 auto value = i->getValue(); 
                 auto llsymbol = convert_raw_llvm_symbol_to_expression(key, value, *this, data, flags);                
                 bool found = false;
-                for (auto i : frame.indicies) {
-                    if (expressions_match(master[i].signature, llsymbol)) { 
-                        found = true;
-                    }
-                }
+                for (auto i : frame.indicies) 
+                    if (expressions_match(master[i].signature, llsymbol)) found = true;
                 if (not found) {
-                    master.push_back({llsymbol, {}}); /// we need to push its definition properly too!!! 
+                    master.push_back({llsymbol, {}}); // dont we need to push more than this?
                     frame.indicies.push_back(master.size() - 1);
                 }
             }
         }
     }
     
-    std::vector<nat>& top() { return frames.back().indicies; }    
-    expression& get(nat index) { return master[index].signature; }    
-    
-    void define(expression signature, expression_list definition,
-                nat stack_frame_index, nat parent = 0) {   
+    void push_new_frame() { frames.push_back({frames.back().indicies}); }
         
-        frames[frames.size() - 1 - stack_frame_index].indicies.push_back(master.size()); 
+    void pop_last_frame() { frames.pop_back(); }
+    
+    std::vector<nat>& top() { return frames.back().indicies; }
+    
+    expression& get(nat index) { return master[index].signature; }
+    
+    void define(expression signature, expression_list definition, nat back_from, nat parent = 0) {
+        // unfinsihed
+        // this function should do a check for if the signature is aclready defined in the current scope. if so, then simply overrite its data.
+                
+        frames[frames.size() - (++back_from)].indicies.push_back(master.size()); 
         master.push_back({signature, definition, parent});
+        
         //we need to define it the LLVM symbol table!        
         // and we need to define it of the right type, as well.
-        
-        // unfinsihed
-        sort_top_stack_by_largest_signature();
+        sort_top_by_largest();
     }
     
     void expose(nat desired_signature, expression new_signature, 
@@ -105,14 +84,14 @@ struct symbol_table {
         // unimplemented
     }
     
-    void sort_top_stack_by_largest_signature() {
+    void sort_top_by_largest() {
         std::sort(top().begin(), top().end(), [&](nat a, nat b) {
             return get(a).symbols.size() > get(b).symbols.size(); 
         });
     }
     
-    symbol_table(file_data& data, struct flags flags, 
-                 std::vector<expression> builtins) : data(data), flags(flags) {
+    symbol_table(file_data& data, struct flags flags, std::vector<expression> builtins) 
+    : data(data), flags(flags) {
         
         master.push_back({});               // the null entry. a type (index) of 0 means it has no type.                
         for (auto signature : builtins) 
@@ -121,21 +100,20 @@ struct symbol_table {
         std::vector<nat> compiler_intrinsics = {};
         for (auto i = 0; i < builtins.size(); i++) compiler_intrinsics.push_back(i + 1);
         frames.push_back({compiler_intrinsics});
+        sort_top_by_largest();
     }
     
     std::vector<std::string> llvm_key_symbols_in_table(llvm::ValueSymbolTable llvm) {
         std::vector<std::string> result = {};
-        for (auto i = llvm.begin(); i != llvm.end(); i++) {            
-            result.push_back(i->getKey());            
-        }
+        for (auto i = llvm.begin(); i != llvm.end(); i++)          
+            result.push_back(i->getKey());
         return result;
     }    
     
     void debug() {
         std::cout << "---- debugging stack: ----\n";
      
-        std::cout << "printing frames: \n";
-        
+        std::cout << "printing frames: \n";        
         for (auto i = 0; i < frames.size(); i++) {
             std::cout << "\t ----- FRAME # "<<i<<"---- \n\t\tidxs: { ";
             for (auto index : frames[i].indicies) {
@@ -149,9 +127,7 @@ struct symbol_table {
         for (auto entry : master) {            
             std::cout << "\t" << j << ": {\"";
             print_expression_line(entry.signature); 
-            std::cout << "\" : [ " << entry.parent << "] :: {\n";
-            //print_abstraction_definition(entry.definition, 0);      /// TODO: fix me so we can print stuff.            
-            std::cout << "}\n";
+            std::cout << "\" : [ parent = " << entry.parent << "]\n";
             std::cout << "LLVM value: \n";
             if (entry.value) entry.value->print(llvm::errs());
             std::cout << "LLVM function: \n";

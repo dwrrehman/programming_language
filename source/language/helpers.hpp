@@ -23,8 +23,6 @@
 #include <iostream>
 #include <sstream>
 
-using nat = size_t;
-
 ////////////////// CSR comparison functions ///////////////////////////
 
 bool subexpression(const symbol& s);

@@ -56,7 +56,6 @@ bool symbols_match(symbol first, symbol second) {
     return false;
 }
 
-
 bool expressions_match(expression first, expression second) {
     if (first.error or second.error) return false;    
     if (first.symbols.size() != second.symbols.size()) return false;
@@ -101,13 +100,6 @@ llvm::Function* create_main(llvm::IRBuilder<>& builder, llvm::LLVMContext& conte
 
 
 
-
-
-
-
-
-
-
 static std::vector<llvm::GenericValue> turn_into_value_array(std::vector<nat> canonical_arguments, std::unique_ptr<llvm::Module>& module) {
     std::vector<llvm::GenericValue> arguments = {};
     for (auto index : canonical_arguments) 
@@ -121,31 +113,6 @@ nat evaluate(std::unique_ptr<llvm::Module>& module, llvm::Function* function, st
     jit->finalizeObject();
     return jit->runFunction(function, turn_into_value_array(args, module)).IntVal.getLimitedValue();
 }
-
-
-
-
-///////////////////// the csr suite ///////// /////////////////////////
-
-
-
-
-
-//
-//bool found_unit_value_expression(const expression& given) { 
-//    return given.symbols.empty() or 
-//        (given.symbols.size() == 1 and subexpression(given.symbols[0]) 
-//         and given.symbols[0].subexpression.symbols.empty());
-//}
-//
-//expression parse_unit_expression(expression& given, size_t& index, state& state) {    
-//    if (given.symbols.size() == 1
-//        and subexpression(given.symbols[0])
-//        and given.symbols[0].subexpression.symbols.empty()) index++;
-//    if (given.type == intrin::infered) given.type = intrin::unit;
-//    if (given.type == intrin::unit) return state.stack.lookup(intrin::empty);
-//    else return failure;
-//} 
 
 
 bool matches(expression given, llvm::Function*& function, expression& signature, nat& index, const nat depth, const nat max_depth, state& state, flags flags) {

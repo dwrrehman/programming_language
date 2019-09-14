@@ -34,50 +34,41 @@
  */
 
 expression failure = {true, true, true};
-expression infered_type = {{{"__"}}};     // has no type.
-expression type_type = {{{"_type"}}};     // has no type.
-expression none_type = {{{"_0"}}, intrin::type};
-expression unit_type = {{{"_1"}}, intrin::type};
-expression unit_value = {{{"_unit"}}, intrin::unit};
+expression infered_type = {{{{"_"}}, {{"?"}}}};     // has no type.
+expression type_type = {{{{"_"}}}};     // has no type.
+expression none_type = {{{{"_0"}}}, intrin::type};
+expression unit_type = {{{{"_1"}}}, intrin::type};
+expression unit_value = {{}, intrin::unit};
 
-expression application_type = {{symbol{"_a"}}, intrin::type};
-expression abstraction_type = {{symbol{"_b"}}, intrin::type};
-
-expression create_abstraction = {
-    {
-        {"_c"}, {expression{intrin::type}},
-    }, intrin::unit};
+expression application_type = {{{{"_a"}}}, intrin::type};
+expression abstraction_type = {{{{"_b"}}}, intrin::type};
+expression create_abstraction = {{{{"_c"}}, {expression{intrin::type}}}, intrin::unit};
 
 expression define_abstraction = {
     {
-        {"_d"}, {expression{intrin::abstraction}},
-        {expression{intrin::type}},
-        {expression{intrin::application}},
-        {expression{intrin::application}},
+        {{"_d"}}, {expression{intrin::abstraction}}, // signature
+        {expression{intrin::type}}, // of type
+        {expression{intrin::application}}, // as definition 
+        {expression{intrin::application}}, // into scope
     }, intrin::unit};
 
 expression expose_abstraction = {
     {
-        {"_e"}, {expression{intrin::application}},
-        {expression{intrin::abstraction}},
-        {expression{intrin::application}},
+        {{"_e"}}, {expression{intrin::application}}, // existing signature
+        {expression{intrin::abstraction}}, // as alias
+        {expression{intrin::application}}, // into scope
     }, intrin::unit};
-
-
-
-
 
 /////////////////////// test (for csr suite) abstractions //////////////////////////
 
-
 expression hello_abstraction = {
     {
-        {"_hello"}, {"world"}, {expression{intrin::unit}}, {"from"}, {"space"}, 
+        {{"_hello"}}, {{"world"}}, {expression{intrin::unit}}, {{"from"}}, {{"space"}}, 
     }, intrin::unit};
 
 expression dog_abstraction = {
     {
-        {"dog"}, 
+        {{"dog"}}, 
     }, intrin::unit};
 
 
@@ -85,21 +76,19 @@ expression dog_abstraction = {
 
 expression A_abstraction = {
     {
-        {"A"}, 
+        {{"A"}}, 
     }, intrin::application};
 
 expression B_abstraction = {
     {
-        {"B"}, 
+        {{"B"}}, 
     }, intrin::abstraction};
 
 
 expression C_abstraction = {
     {
-        {"C"}, 
+        {{"C"}}, 
     }, intrin::empty};
-
-
 
 
 
@@ -117,8 +106,6 @@ std::vector<expression> builtins =  {
     application_type, abstraction_type, 
     create_abstraction, define_abstraction, expose_abstraction, 
     
-    
-    
     hello_abstraction,
     dog_abstraction, A_abstraction, B_abstraction, C_abstraction,
     
@@ -129,17 +116,20 @@ std::vector<expression> builtins =  {
 std::string stringify_intrin(size_t i) {
     switch (i) {
         case intrin::typeless: return "typeless";
-        case intrin::infered: return "__";
-        case intrin::type: return "_type";                    
+                    
+        case intrin::type: return "_";
+        case intrin::infered: return "_?";
         case intrin::none: return "_0";
         case intrin::unit: return "_1";
         case intrin::empty: return "()";
+            
         case intrin::application: return "_a";
         case intrin::abstraction: return "_b";
         case intrin::create: return "_c";
-        case intrin::define: return "_d";                                
+        case intrin::define: return "_d";
         case intrin::expose: return "_e";
-                    
+        /// case intrin::equal: return "_f";             // do we need this?
+        
 //        case intrin::compiletime: return "compiletime";
 //        case intrin::runtime: return "runtime";        
 //        case intrin::immutable: return "immutable";

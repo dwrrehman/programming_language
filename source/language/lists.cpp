@@ -14,6 +14,6 @@ const std::string language_version = "0.0.01";
 const std::string compiler_name = "nostril";
 const std::string compiler_version = "0.0.001";
 
-size_t spaces_count_for_indent = 4;
-size_t max_expression_depth = 8;
+nat spaces_count_for_indent = 4;
+nat max_expression_depth = 8;
 bool debug = false;
