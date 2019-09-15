@@ -91,8 +91,7 @@ struct expression {
 
 struct symbol { 
     
-    enum symbol_type type = symbol_type::none;
-    
+    enum symbol_type type = symbol_type::none;    
     expression_list expressions = {};
     string_literal string = {};
     llvm_literal llvm = {};

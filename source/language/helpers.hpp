@@ -42,8 +42,8 @@ llvm::Function* create_main(llvm::IRBuilder<>& builder, llvm::LLVMContext& conte
 
 /////////////////////////////////////// CSR SUITE ///////////////////////////////////////////
 
-expression csr_single(expression given, llvm::Function*& function,nat& index, const nat depth, const nat max_depth, state& state, flags flags); 
-expression_list csr(expression_list given, llvm::Function*& function,nat& index, const nat depth, const nat max_depth, state& state, flags flags); 
-expression_list traverse(expression_list given, llvm::Function*& function,state& state, flags flags);
-expression_list resolve(expression_list given, llvm::Function*& function,state& state, flags flags); // interface function:
+resolved_expression csr_single(expression given, llvm::Function*& function,nat& index, const nat depth, const nat max_depth, state& state, flags flags); 
+resolved_expression_list csr(expression_list given, llvm::Function*& function,nat& index, const nat depth, const nat max_depth, state& state, flags flags); 
+resolved_expression_list traverse(expression_list given, llvm::Function*& function,state& state, flags flags);
+resolved_expression_list resolve(expression_list given, llvm::Function*& function,state& state, flags flags); // interface function:
 #endif /* helpers_hpp */

@@ -13,6 +13,9 @@
 
 #include "lexer.hpp" 
 #include "nodes.hpp"
+#include "symbol_table.hpp"
+
+#include "llvm/IR/Module.h"
 
 #include <vector>
 
@@ -35,5 +38,8 @@ void print_expression_list(expression_list list, int d);
 void print_expression_list_line(expression_list list);
 void print_expression_line(expression expression);
 void print_translation_unit(expression_list unit, file file);
+
+
+void debug_table(const std::unique_ptr<llvm::Module>& module, symbol_table& stack);
 
 #endif

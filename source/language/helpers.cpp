@@ -116,66 +116,70 @@ nat evaluate(std::unique_ptr<llvm::Module>& module, llvm::Function* function, st
 
 
 bool matches(expression given, llvm::Function*& function, expression& signature, nat& index, const nat depth, const nat max_depth, state& state, flags flags) {
-    if (given.type != signature.type and given.type != intrin::infered) return false;
-    for (auto& symbol : signature.symbols) {        
-        if (subexpression(symbol) and subexpression(given.symbols[index])) {
-            symbol.expressions = traverse(given.symbols[index].expressions, function, state, flags);
-            if (symbol.expressions.error) return false;
-            index++;
-        } else if (subexpression(symbol)) {
-            //symbol.expressions = csr(given, index, depth + 1, max_depth, state, flags);       /// i think this should be csr_single().
-            if (symbol.expressions.error) return false;            
-        } else if (not are_equal_identifiers(symbol, given.symbols[index])) return false;
-        else index++;
-    } return true;
+//    if (given.type != signature.type and given.type != intrin::infered) return false;
+//    for (auto& symbol : signature.symbols) {        
+//        if (subexpression(symbol) and subexpression(given.symbols[index])) {
+//            symbol.expressions = traverse(given.symbols[index].expressions, function, state, flags);
+//            if (symbol.expressions.error) return false;
+//            index++;
+//        } else if (subexpression(symbol)) {
+//            //symbol.expressions = csr(given, index, depth + 1, max_depth, state, flags);       /// i think this should be csr_single().
+//            if (symbol.expressions.error) return false;            
+//        } else if (not are_equal_identifiers(symbol, given.symbols[index])) return false;
+//        else index++;
+//    } return true;
+    return {};
 }
 
-expression csr_single(expression given, llvm::Function*& function, nat& index, const nat depth, const nat max_depth, state& state, flags flags) {
-    if (index >= given.symbols.size() or not given.type or depth > max_depth) return failure; 
-    if (llvm_string(given.symbols[index]))         
-        return parse_llvm_string(given, function, given.symbols[index].llvm.literal.value, index, state, flags);
-    
-    size_t saved = index;
-    for (auto signature_index : state.stack.top()) {
-        index = saved;
-        auto signature = state.stack.get(signature_index);
-        if (matches(given, function, signature, index, depth, max_depth, state, flags)) return signature;
-    }
-    return failure;
+resolved_expression csr_single(expression given, llvm::Function*& function, nat& index, const nat depth, const nat max_depth, state& state, flags flags) {
+//    if (index >= given.symbols.size() or not given.type or depth > max_depth) return failure; 
+//    if (llvm_string(given.symbols[index]))         
+//        return parse_llvm_string(given, function, given.symbols[index].llvm.literal.value, index, state, flags);
+//    
+//    size_t saved = index;
+//    for (auto signature_index : state.stack.top()) {
+//        index = saved;
+//        auto signature = state.stack.get(signature_index);
+//        if (matches(given, function, signature, index, depth, max_depth, state, flags)) return signature;
+//    }
+//    return failure;
+    return {};
 }
 
-expression_list csr(expression_list given, llvm::Function*& function,nat& index, const nat depth, const nat max_depth, state& state, flags flags) {
-    for (auto& e : given.list)
-        e = csr_single(e, function, index, depth, max_depth, state, flags);
-    return given;
+resolved_expression_list csr(expression_list given, llvm::Function*& function,nat& index, const nat depth, const nat max_depth, state& state, flags flags) {
+//    for (auto& e : given.list)
+//        e = csr_single(e, function, index, depth, max_depth, state, flags);
+//    return given;
+    return {};
 }
 
-expression_list traverse(expression_list given, llvm::Function*& function, state& state, flags flags) {
-    expression_list solution {};
-    for (size_t max_depth = 0; max_depth <= max_expression_depth; max_depth++) {
-        size_t pointer = 0;
-        solution = csr(given, function, pointer, 0, max_depth, state, flags); 
-        //if (not solution.error and pointer == given.symbols.size()) break;                   // i think we need to look through all expressions, and see if any have an error.
-    }
-    return solution; 
+resolved_expression_list traverse(expression_list given, llvm::Function*& function, state& state, flags flags) {
+//    expression_list solution {};
+//    for (size_t max_depth = 0; max_depth <= max_expression_depth; max_depth++) {
+//        size_t pointer = 0;
+//        solution = csr(given, function, pointer, 0, max_depth, state, flags); 
+//        //if (not solution.error and pointer == given.symbols.size()) break;                   // i think we need to look through all expressions, and see if any have an error.
+//    }
+//    return solution;
+    return {};
 }
+
 
 static void prepare_expressions(expression_list& given) {
-    for (auto& e : given.list) {        
-        e.type = intrin::unit;
-    }
+//    for (auto& e : given.list) 
+//        e.type = intrin::unit;
 }
 
-expression_list resolve(expression_list given, llvm::Function*& function, state& state, flags flags) {         
-    prepare_expressions(given);
-    auto saved = given;
-    given = traverse(given, function, state, flags);
-    
-    state.error = state.error or given.error;     
-    if (given.error) 
-        for (auto& e : saved.list) 
-            print_error_message(state.data.file.name, "could not resolve expression: \n\n" + expression_to_string(e, state.stack) + "\n\n", 0, 0);
-    
-    return given;
+resolved_expression_list resolve(expression_list given, llvm::Function*& function, state& state, flags flags) {         
+//    prepare_expressions(given);
+//    auto saved = given;
+//    given = traverse(given, function, state, flags);
+//    
+//    state.error = state.error or given.error;     
+//    if (given.error) 
+//        for (auto& e : saved.list) 
+//            print_error_message(state.data.file.name, "could not resolve expression: \n\n" + expression_to_string(e, state.stack) + "\n\n", 0, 0);
+//    
+    return {};
 }
 

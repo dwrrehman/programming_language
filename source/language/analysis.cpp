@@ -15,33 +15,8 @@
 #include "llvm_parser.hpp"
 #include "symbol_table.hpp"
 
-
 #include "llvm/IR/Verifier.h"
 #include "llvm/Target/TargetMachine.h"
-
-static void debug_table(const std::unique_ptr<llvm::Module>& module, symbol_table& stack) {
-    std::cout << "NOTE: updating stack...\n";
-    stack.update(module->getValueSymbolTable()); 
-    
-    std::cout << "print_stack: \n"; 
-    print_stack(stack);
-    
-    std::cout << "print_master: \n";
-    print_master(stack);
-    
-    std::cout << "print_index_top_stack: \n";
-    print_index_top_stack(stack);
-    
-    std::cout << "print_simply_master: \n";
-    print_simply_master(stack);
-    
-    std::cout << "print_llvm_symtable: \n";
-    print_llvm_symtable(module->getValueSymbolTable());
-    
-    std::cout << "\n\n\n\n";
-    stack.debug();
-    std::cout << "\n\n\n\n";
-}
 
 std::unique_ptr<llvm::Module> analyze(expression_list unit, file file, llvm::LLVMContext& context) {
     
@@ -59,17 +34,17 @@ std::unique_ptr<llvm::Module> analyze(expression_list unit, file file, llvm::LLV
     symbol_table stack {data, flags, builtins};
     state state {stack, data, error};
     
-    //auto new_unit = resolve(unit, main_function, state, flags.generate_code().at_top_level());
-    
+    auto new_unit = resolve(unit, main_function, state, flags.generate_code().at_top_level());    
 
     if (llvm::verifyFunction(*main_function)) append_return_0_statement(builder, context);
-    if (llvm::verifyModule(*module, &llvm::errs())) error = true;    
+    if (llvm::verifyModule(*module, &llvm::errs())) error = true;
+    
     if (debug) {
         std::cout << "------------------ analysis ------------------- \n\n";
-        print_translation_unit(unit, file); // these should be new unit
-        print_expression_list_line(unit); // these should be new unit
+        
         std::cout << "emitting the following LLVM: \n";
         module->print(llvm::errs(), NULL); // temp
+        
     }
     if (error) { throw "analysis error"; }
     else { return module; }

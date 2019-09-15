@@ -223,3 +223,28 @@ std::string convert_symbol_type(enum symbol_type type) {
             return "indent";
     }
 }
+
+
+void debug_table(const std::unique_ptr<llvm::Module>& module, symbol_table& stack) {
+    std::cout << "NOTE: updating stack...\n";
+    stack.update(module->getValueSymbolTable()); 
+    
+    std::cout << "print_stack: \n"; 
+    print_stack(stack);
+    
+    std::cout << "print_master: \n";
+    print_master(stack);
+    
+    std::cout << "print_index_top_stack: \n";
+    print_index_top_stack(stack);
+    
+    std::cout << "print_simply_master: \n";
+    print_simply_master(stack);
+    
+    std::cout << "print_llvm_symtable: \n";
+    print_llvm_symtable(module->getValueSymbolTable());
+    
+    std::cout << "\n\n\n\n";
+    stack.debug();
+    std::cout << "\n\n\n\n";
+}

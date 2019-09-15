@@ -13,6 +13,7 @@
 #include "nodes.hpp"
 #include "llvm/IR/IRBuilder.h"
 #include <iostream>
+#include <vector>
 
 struct file_data {
     struct file file;
@@ -27,8 +28,6 @@ struct state {
     file_data& data;
     bool& error;
 };
-
-
 
 struct flags {
     bool should_allow_undefined_signatures = false;    
@@ -55,6 +54,18 @@ struct flags {
     is_at_top_level(given_is_at_top_level), 
     is_parsing_type(given_is_parsing_type) {}    
 }; 
+
+struct resolved_expression_list;
+
+struct resolved_expression {
+    nat index;
+    std::vector<resolved_expression_list> args; 
+};
+
+struct resolved_expression_list {    
+    std::vector<expression_list> list; 
+};
+
 
 
 #endif /* analysis_ds_hpp */

@@ -126,7 +126,7 @@ struct symbol_table {
         auto j = 0;
         for (auto entry : master) {            
             std::cout << "\t" << j << ": {\"";
-            print_expression_line(entry.signature); 
+            //print_expression_line(entry.signature); 
             std::cout << "\" : [ parent = " << entry.parent << "]\n";
             std::cout << "LLVM value: \n";
             if (entry.value) entry.value->print(llvm::errs());
