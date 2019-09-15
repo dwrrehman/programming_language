@@ -37,7 +37,12 @@ std::vector<expression> get_master(symbol_table& stack) {
 
 void print_index_top_stack(symbol_table &stack) {
     expression_list e {top(stack)};
-    print_expression_list_line(e);
+    nat i = 0;
+    std::cout << "{\n";
+    for (auto f : e.list) {
+        std::cout << "\t" << i++ << ": " << expression_to_string(f, stack) << "\n";
+    }
+    std::cout << "}\n";
 }
 
 std::vector<expression> top(symbol_table& stack) {        

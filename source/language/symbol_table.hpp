@@ -14,6 +14,7 @@
 #include "converters.hpp"
 #include "debug.hpp"
 #include "helpers.hpp"
+#include "error.hpp"
 #include "builtins.hpp"
 #include "llvm/IR/ValueSymbolTable.h"
 #include "llvm/IR/IRBuilder.h"
@@ -70,7 +71,7 @@ struct symbol_table {
     
     void define(expression signature, expression_list definition, nat back_from, nat parent = 0) {
         // unfinsihed
-        
+        print_warning_message(data.file.name, "unimplemented function called", 0,0);
         // this function should do a check for if the signature is aclready defined in the current scope. if so, then simply overrite its data.
                 
         frames[frames.size() - (++back_from)].indicies.push_back(master.size()); 
@@ -84,6 +85,7 @@ struct symbol_table {
     void expose(nat desired_signature, expression new_signature, 
                   nat source_abstraction, nat destination_frame) {
         // unimplemented
+        print_warning_message(data.file.name, "unimplemented function called", 0,0);
     }
     
     void sort_top_by_largest() {

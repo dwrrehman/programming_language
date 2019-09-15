@@ -57,11 +57,6 @@ llvm::Type* parse_llvm_string_as_type(std::string given, state& state, llvm::SMD
     return llvm::parseType(given, errors, *state.data.module);
 }
 
-void print_llvm_parse_error(const llvm::SMDiagnostic &errors, state &state) {
-    std::cout << "llvm: ";      // TODO: make this have color!            
-    errors.print(state.data.file.name.c_str(), llvm::errs());
-}
-
 resolved_expression parse_llvm_string(expression given, llvm::Function*& function, std::string llvm_string, nat& pointer, state& state, flags flags) {
     llvm::SMDiagnostic instruction_errors, function_errors, type_errors;
     
@@ -76,9 +71,9 @@ resolved_expression parse_llvm_string(expression given, llvm::Function*& functio
         return {intrin::typeless, {}, false, llvm_type};
         
     } else {
-        print_llvm_parse_error(function_errors, state);
-        print_llvm_parse_error(instruction_errors, state);        
-        print_llvm_parse_error(type_errors, state); 
+        print_llvm_error(function_errors, state);
+        print_llvm_error(instruction_errors, state);        
+        print_llvm_error(type_errors, state); 
         return {0, {}, true};
     }
 }

@@ -67,6 +67,7 @@ struct expression_list {
     
     std::vector<expression> list = {};
     bool error = {};
+    struct token starting_token = {};
         
     expression_list(){}
     expression_list(bool e, bool _, bool __): error(e) {}
@@ -80,13 +81,13 @@ struct expression {
     nat indent_level = 0;
     nat type = 0;
     llvm::Type* llvm_type = nullptr;
-    bool error = false;        
+    bool error = false;
+    struct token starting_token = {};
     
     expression() {}
     expression(bool e, bool _, bool __): error(e) {}
     expression(std::vector<symbol> s, nat t = 0): symbols(s), type(t) {}
     expression(nat t): type(t) {}
-    
 };
 
 struct symbol { 

@@ -13,6 +13,24 @@
 #include <sstream>
 #include <iostream>
 
+#include "analysis_ds.hpp"
+
+
+#include "llvm/IR/LLVMContext.h"
+#include "llvm/AsmParser/Parser.h"
+#include "llvm/IR/ModuleSummaryIndex.h"
+#include "llvm/Support/SourceMgr.h"
+#include "llvm/IR/ValueSymbolTable.h"
+#include "llvm/Transforms/Utils/ValueMapper.h"
+#include "llvm/Transforms/Utils/Cloning.h"
+
+#include "llvm/Support/TargetRegistry.h"
+#include "llvm/Support/TargetSelect.h"
+#include "llvm/ExecutionEngine/daniels_interpreter/MCJIT.h"
+#include "llvm/ExecutionEngine/MCJIT.h"
+#include "llvm/ExecutionEngine/GenericValue.h"
+
+
 
 // helpers:
 
@@ -29,34 +47,60 @@ static std::string contract_filename(std::string filename) {
 static std::string error_heading(const std::string &filename, size_t line, size_t column) {
     std::ostringstream s;
     std::string shorter_filename = contract_filename(filename);
-    s << "\n" CYAN << language_name << RESET GRAY ": " RESET BRIGHT_RED "error" RESET GRAY ": " RESET MAGENTA << shorter_filename << RESET GRAY ":" << line << ":" << column << ": " RESET;
+    s << "\n" 
+    cBOLD cCYAN << language_name << cRESET 
+    cBOLD cGRAY ": " cRESET
+    
+    cBOLD cMAGENTA << shorter_filename << cRESET 
+    cBOLD cWHITE ":" << line << ":" << column << ": " cRESET
+    
+    cBOLD cBRIGHT_RED "error: " cRESET             
+    cBOLD; 
     return s.str();
 }
 
 static std::string warning_heading(const std::string &filename, size_t line, size_t column) {
+        
     std::ostringstream s;
     std::string shorter_filename = contract_filename(filename);
-    s << "\n" CYAN << language_name << RESET GRAY ": " RESET BRIGHT_YELLOW "warning" RESET GRAY ": " RESET MAGENTA << shorter_filename << RESET GRAY ":" << line << ":" << column << ": " RESET;
+    s << "\n" 
+    cBOLD cCYAN << language_name << cRESET 
+    cBOLD cGRAY ": " cRESET
+    
+    cBOLD cMAGENTA << shorter_filename << cRESET 
+    cBOLD cWHITE ":" << line << ":" << column << ": " cRESET
+    
+    cBOLD cBRIGHT_YELLOW "warning: " cRESET  
+    cBOLD; 
     return s.str();
 }
 
 static std::string info_heading(const std::string &filename, size_t line, size_t column) {
+    
     std::ostringstream s;
     std::string shorter_filename = contract_filename(filename);
-    s << "\n" CYAN << language_name << RESET GRAY ": " RESET BRIGHT_BLUE "info" RESET GRAY ": " RESET MAGENTA << shorter_filename << RESET GRAY ":" << line << ":" << column << ": " RESET;
+    s << "\n" 
+    cBOLD cCYAN << language_name << cRESET 
+    cBOLD cGRAY ": " cRESET
+    
+    cBOLD cMAGENTA << shorter_filename << cRESET 
+    cBOLD cWHITE ":" << line << ":" << column << ": " cRESET
+    
+    cBOLD cBRIGHT_BLUE "info: " cRESET   
+    cBOLD; 
     return s.str();
 }
 
 static std::string note_heading() {
     std::ostringstream s;
-    s << "\n" CYAN << language_name << RESET GRAY ": \tnote: " RESET;
+    s << "\n" cCYAN << language_name << cRESET cGRAY ": \tnote: " cRESET;
     return s.str();
 }
 
 // messagers:
 
 void print_error_message(std::string filename, std::string message, size_t line, size_t column) {
-    std::cerr << error_heading(filename, line, column) << message << std::endl;
+    std::cerr << error_heading(filename, line, column) << message << cRESET << std::endl;
 }
 
 void print_warning_message(std::string filename, std::string message, size_t line, size_t column) {
@@ -93,8 +137,16 @@ void print_parse_error(std::string filename, size_t line, size_t column, std::st
 }
 
 void print_error_no_files() {
-    std::cerr << WHITE << "nostril" << RESET GRAY ": " RESET BRIGHT_RED "error" RESET GRAY ": " RESET << "no input files" << std::endl;
+    std::cerr << cWHITE << "nostril" << cRESET cGRAY ": " cRESET cBRIGHT_RED "error" cRESET cGRAY ": " cRESET << "no input files" << std::endl;
     exit(1);
+}
+
+
+void print_llvm_error(const llvm::SMDiagnostic &errors, state &state) { 
+    std::cout << 
+    cBOLD cGRAY << "llvm: " << cRESET << std::flush;    
+    errors.print(state.data.file.name.c_str(), llvm::errs());
+    std::cout << std::flush;    
 }
 
 
@@ -153,16 +205,15 @@ void print_source_code(std::string text, std::vector<struct token> offending_tok
             index = t.line - 1 + offset;
         } else continue;
         
-        std::cout << "\t" << GRAY << t.line + offset << RESET GREEN "  │  " RESET << lines[index] << std::endl;
+        std::cout << "\t" << cGRAY << t.line + offset << cRESET cGREEN "  │  " cRESET << lines[index] << std::endl;
         
         if (!offset) {
             std::cout << "\t";
             for (int i = 0; i < t.column + 5; i++) std::cout << " ";
-            std::cout << BRIGHT_RED << "^";
+            std::cout << cBRIGHT_RED << "^";
             if (t.value.size() > 1) for (int i = 0; i < t.value.size() - 1; i++) std::cout << "~";
-            std::cout << RESET << std::endl;
+            std::cout << cRESET << std::endl;
         }
-    }
-    
-    std::cout << "\n" << std::endl;
+    }    
+    std::cout << std::endl;
 }

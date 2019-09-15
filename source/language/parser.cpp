@@ -83,6 +83,7 @@ symbol parse_symbol(file file, bool newlines_are_a_symbol) {
         if (not expressions.error) {
             auto saved_t = t;
             t = next();
+            expressions.starting_token = t;
             if (is_close_paren(t)) return { expressions };
             else {
                 print_parse_error(file.name, saved_t.line, saved_t.column, convert_token_type_representation(t.type), t.value, "\")\" to close expression");
@@ -119,9 +120,13 @@ symbol parse_symbol(file file, bool newlines_are_a_symbol) {
 }
 
 expression parse_expression(file file, bool can_be_empty, bool newlines_are_a_symbol) {
-
+    
+        
     std::vector<symbol> symbols = {};
-    auto saved = save();
+    auto saved = save();    
+    auto start = next();
+    revert(saved);
+    
     auto symbol = parse_symbol(file, newlines_are_a_symbol);
     while (not symbol.error) {
         symbols.push_back(symbol);
@@ -130,7 +135,8 @@ expression parse_expression(file file, bool can_be_empty, bool newlines_are_a_sy
     }
     revert(saved);
     
-    auto result = expression {symbols};
+    expression result = {symbols};
+    result.starting_token = start;
     result.error = not can_be_empty and symbols.empty();
     return result;
 }

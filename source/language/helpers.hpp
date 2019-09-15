@@ -44,8 +44,18 @@ llvm::Function* create_main(llvm::IRBuilder<>& builder, llvm::LLVMContext& conte
 
 
 void typify(expression_list& list, nat final_type);
-resolved_expression_list resolve_expression_list(expression_list given, llvm::Function*& function,state& state, flags flags); // interface function:
+resolved_expression_list resolve_expression_list(expression_list given, nat type, llvm::Function*& function, state& state, flags flags); // the main interface.
 resolved_expression resolve_expression(expression given, llvm::Function*& function, state& state, flags flags);
 resolved_expression resolve(expression given, llvm::Function*& function,nat& index, const nat depth, const nat max_depth, state& state, flags flags);
+
+std::string emit(const std::unique_ptr<llvm::Module>& module);
+
+bool is_donothing_call(llvm::Instruction* ins);
+
+static void delete_empty_blocks(std::unique_ptr<llvm::Module> &module) ;
+
+void clean(std::unique_ptr<llvm::Module>& module);
+
+
 
 #endif /* helpers_hpp */

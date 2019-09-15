@@ -31,40 +31,11 @@
 #include "llvm/ExecutionEngine/MCJIT.h"
 #include "llvm/ExecutionEngine/GenericValue.h"
 
+#include "llvm/Transforms/Utils/BasicBlockUtils.h"
+
 #include <cstdlib>
 #include <iostream>
 #include <sstream>
-
-//bool expressions_match(expression first, expression second);
-//
-//bool symbols_match(symbol first, symbol second) {
-////    if (subexpression(first) and subexpression(second) 
-////        and expressions_match(first.expressions..back(), 
-////                              second.expressions..back())) return true;    ///TODO: this code is suspicious, alot.
-////    else if (are_equal_identifiers(first, second)) return true;
-////    else if (first.type == symbol_type::llvm_literal and second.type == symbol_type::llvm_literal) return true;
-////    else return false;
-//    return false;
-//}
-//
-//bool expressions_match(expression first, expression second) {
-//    if (first.error or second.error) return false;    
-//    if (first.symbols.size() != second.symbols.size()) return false;
-//    for (size_t i = 0; i < first.symbols.size(); i++) 
-//        if (not symbols_match(first.symbols[i], second.symbols[i])) return false;    
-//    if (!first.type and !second.type) return true;
-//    
-//    if (first.llvm_type and second.llvm_type) {
-//        std::string first_llvm_type = "", second_llvm_type = "";
-//        first.llvm_type->print(llvm::raw_string_ostream(first_llvm_type) << "");
-//        second.llvm_type->print(llvm::raw_string_ostream(second_llvm_type) << "");
-//        return first_llvm_type == second_llvm_type;
-//    } else if (first.llvm_type or second.llvm_type) return false;
-//    
-//    else if (first.type == second.type) return true;
-//    else return false;
-//}
-
 
 const resolved_expression resolution_failure = {0, {}, true};
 
@@ -72,7 +43,6 @@ bool subexpression(const symbol& s) { return s.type == symbol_type::subexpressio
 bool identifier(const symbol& s) { return s.type == symbol_type::identifier; }
 bool llvm_string(const symbol& s) { return s.type == symbol_type::llvm_literal; }
 bool parameter(const symbol &symbol) { return subexpression(symbol); }
-
 
 
 void append_return_0_statement(llvm::IRBuilder<> &builder, llvm::LLVMContext &context) {
@@ -93,6 +63,7 @@ llvm::Function* create_main(llvm::IRBuilder<>& builder, llvm::LLVMContext& conte
     return main_function;
 }
 
+
 static std::vector<llvm::GenericValue> turn_into_value_array(std::vector<nat> canonical_arguments, std::unique_ptr<llvm::Module>& module) {
     std::vector<llvm::GenericValue> arguments = {};
     for (auto index : canonical_arguments) 
@@ -112,21 +83,19 @@ bool are_equal_identifiers(const symbol &first, const symbol &second) {
     and first.identifier.name.value == second.identifier.name.value;
 }
 
-
 void typify(expression_list& list, nat final_type) {
-    for (nat i = 0; i < list.list.size() - 1; i++) {
+    if (list.list.empty()) return; 
+    for (nat i = 0; i < list.list.size() - 1; i++) 
         list.list[i].type = intrin::unit;
-    }
     list.list[list.list.size() - 1].type = final_type;
 }
 
 bool matches(expression given, expression signature, std::vector<resolved_expression_list>& args, llvm::Function*& function, nat& index, const nat depth, const nat max_depth, state& state, flags flags) {
     if (given.type != signature.type and given.type != intrin::infered) return false;
     for (auto symbol : signature.symbols) {
-                
+        
         if (parameter(symbol) and subexpression(given.symbols[index])) {
-            typify(given.symbols[index].expressions, signature.type);
-            auto argument = resolve_expression_list(given.symbols[index].expressions, function, state, flags);
+            auto argument = resolve_expression_list(given.symbols[index].expressions, signature.type, function, state, flags);
             args.push_back(argument);
             if (argument.error) return false;
             index++;
@@ -149,12 +118,12 @@ resolved_expression resolve(expression given, llvm::Function*& function, nat& in
     
     if (index >= given.symbols.size() or not given.type or depth > max_depth) return resolution_failure;
     
-    if (llvm_string(given.symbols[index]))         
+    if (llvm_string(given.symbols[index]))
         return parse_llvm_string(given, function, given.symbols[index].llvm.literal.value, index, state, flags);
     
     size_t saved = index;
     for (auto signature_index : state.stack.top()) {
-        index = saved;        
+        index = saved;
         std::vector<resolved_expression_list> args = {};
         if (matches(given, state.stack.get(signature_index), args, function, index, depth, max_depth, state, flags)) 
             return {signature_index, args, false};
@@ -170,13 +139,67 @@ resolved_expression resolve_expression(expression given, llvm::Function*& functi
         solution = resolve(given, function, pointer, 0, max_depth, state, flags);
         if (not solution.error and pointer == given.symbols.size()) break;
     }
+    if (solution.error) {
+        const std::string name = expression_to_string(given, state.stack);
+        
+        nat line = 0, column = 0;
+        line = given.starting_token.line;
+        column = given.starting_token.column;
+        
+        print_error_message(state.data.file.name, "unresolved expression: " + name, line, column);
+        print_source_code(state.data.file.text, {given.starting_token});
+    }
     return solution;
 }
 
-resolved_expression_list resolve_expression_list(expression_list given, llvm::Function*& function, state& state, flags flags) {
-    /// this is the function we should target in order to implement the last expression being of type <return type / parent exprs type>
+resolved_expression_list resolve_expression_list(expression_list given, nat type, llvm::Function*& function, state& state, flags flags) {
+    
+    typify(given, type);
+    
     resolved_expression_list solutions {};
+    
     for (auto expression : given.list)
         solutions.list.push_back(resolve_expression(expression, function, state, flags));
+    
+    for (auto e : solutions.list)         
+        solutions.error |= e.error;
+        
     return solutions;
+}
+
+
+
+std::string emit(const std::unique_ptr<llvm::Module>& module) {
+    std::string string = "";
+    module->print(llvm::raw_string_ostream(string) << "", NULL); 
+    return string;
+}
+
+bool is_donothing_call(llvm::Instruction* ins) {
+    if (not ins) return false;
+    return std::string(ins->getOpcodeName()) == "call" and std::string(ins->getOperand(0)->getName()) == "llvm.donothing";
+}
+
+static void delete_empty_blocks(std::unique_ptr<llvm::Module> &module) {
+    for (auto& function : module->getFunctionList()) {        
+        llvm::SmallVector<llvm::BasicBlock*, 100> blocks = {};        
+        for (auto& block : function.getBasicBlockList()) {
+            if (block.empty()) blocks.push_back(&block);
+        }
+        llvm::DeleteDeadBlocks(blocks);
+    }
+}
+
+void clean(std::unique_ptr<llvm::Module>& module) {    
+    for (auto& function : module->getFunctionList()) {
+        for (auto& block : function.getBasicBlockList()) {            
+            auto ins = block.getTerminator();
+            if (ins and std::string(ins->getOpcodeName()) == "unreachable" 
+                and is_donothing_call(ins->getPrevNonDebugInstruction())) {
+                ins->getPrevNonDebugInstruction()->eraseFromParent();                
+                ins->eraseFromParent();
+            }
+        }
+    }
+    delete_empty_blocks(module);    
 }

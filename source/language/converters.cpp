@@ -105,6 +105,7 @@ expression string_to_expression(std::string given, state& state, flags flags) {
     //signature.type = string_to_expression_tail(subexpressions, state, flags);
     
     //return signature;
+    print_warning_message(state.data.file.name, "unimplemented function called", 0,0);
     return {};
 }
 

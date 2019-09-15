@@ -34,8 +34,8 @@
  */
 
 expression failure = {true, true, true};
-expression infered_type = {{{{"_"}}, {{"?"}}}};     // has no type.
-expression type_type = {{{{"_"}}}};     // has no type.
+expression infered_type = {{{{"__"}}}};     // has no type.
+expression type_type = {{{{"_"}}}};         // has no type.
 expression none_type = {{{{"_0"}}}, intrin::type};
 expression unit_type = {{{{"_1"}}}, intrin::type};
 expression unit_value = {{{{"_unit_value"}}}, intrin::unit};
@@ -70,8 +70,6 @@ expression dog_abstraction = {
     {
         {{"dog"}}, 
     }, intrin::unit};
-
-
 
 
 expression A_abstraction = {

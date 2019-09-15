@@ -37,16 +37,16 @@ std::vector<std::string> commands =  {
 };
 
 void print_welcome_message() {
-    std::cout << "a " << BRIGHT_CYAN << language_name << RESET << " REPL interpreter " GRAY "(version " << language_version << ").\n" RESET;
+    std::cout << "a " << cBRIGHT_CYAN << language_name << cRESET << " REPL interpreter " cGRAY "(version " << language_version << ").\n" cRESET;
     std::cout << "type \"help\" for more information.\n\n";
 }
 
 std::string interpreter_prompt(size_t line) {
-    return " " BRIGHT_CYAN "(" RESET WHITE + std::to_string(line) + RESET BRIGHT_CYAN ") " RESET;
+    return " " cBRIGHT_CYAN "(" cRESET cWHITE + std::to_string(line) + cRESET cBRIGHT_CYAN ") " cRESET;
 }
 
 std::string output() {
-    return " " RED "{" RESET GRAY + std::to_string(output_line_number++) + RESET RED "} " RESET;
+    return " " cRED "{" cRESET cGRAY + std::to_string(output_line_number++) + cRESET cRED "} " cRESET;
 }
 
 static bool is_command(std::string given) {
