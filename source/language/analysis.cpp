@@ -101,28 +101,15 @@ std::unique_ptr<llvm::Module> analyze(expression_list unit, file file, llvm::LLV
  
     typify(unit, intrin::unit);
     auto res = resolve_expression_list(unit, main_function, state, flags.generate_code().at_top_level());
-    
-    
-    module->print(llvm::errs(), NULL); // temp
-    
+                
     clean(module);
-    
-    module->print(llvm::errs(), NULL); // temp
-    
     if (llvm::verifyFunction(*main_function)) append_return_0_statement(builder, context);
-    
-    
-    module->print(llvm::errs(), NULL); // temp
-    
-    
-    if (llvm::verifyModule(*module, &llvm::errs())) error = true;
-    
+    if (llvm::verifyModule(*module, &llvm::errs())) error = true;    
     if (debug) {        
         std::cout << "------------------ analysis ------------------- \n\n";
         print_resolved_unit(res, state);        
         std::cout << "emitting the following LLVM: \n";
-        module->print(llvm::errs(), NULL); // temp
-        
+        module->print(llvm::errs(), NULL);
     }
     if (error) { throw "analysis error"; }
     else { return module; }
