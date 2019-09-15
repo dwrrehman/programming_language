@@ -11,7 +11,10 @@
 
 #include "arguments.hpp"
 #include "nodes.hpp"
+
 #include "llvm/IR/IRBuilder.h"
+#include "llvm/IR/Type.h"
+
 #include <iostream>
 #include <vector>
 
@@ -58,12 +61,15 @@ struct flags {
 struct resolved_expression_list;
 
 struct resolved_expression {
-    nat index;
-    std::vector<resolved_expression_list> args; 
+    nat index = 0;
+    std::vector<resolved_expression_list> args = {};
+    bool error = false;
+    llvm::Type* llvm_type = nullptr; 
 };
 
 struct resolved_expression_list {    
-    std::vector<expression_list> list; 
+    std::vector<resolved_expression> list = {};
+    bool error = false;
 };
 
 

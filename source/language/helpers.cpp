@@ -35,9 +35,13 @@
 #include <iostream>
 #include <sstream>
 
+
+const resolved_expression resolution_failure = {0, {}, true};
+
 bool subexpression(const symbol& s) { return s.type == symbol_type::subexpression; }
 bool identifier(const symbol& s) { return s.type == symbol_type::identifier; }
 bool llvm_string(const symbol& s) { return s.type == symbol_type::llvm_literal; }
+bool parameter(const symbol &symbol) { return subexpression(symbol); }
 
 bool are_equal_identifiers(const symbol &first, const symbol &second) {
     return identifier(first) and identifier(second) 
@@ -115,71 +119,81 @@ nat evaluate(std::unique_ptr<llvm::Module>& module, llvm::Function* function, st
 }
 
 
-bool matches(expression given, llvm::Function*& function, expression& signature, nat& index, const nat depth, const nat max_depth, state& state, flags flags) {
-//    if (given.type != signature.type and given.type != intrin::infered) return false;
-//    for (auto& symbol : signature.symbols) {        
-//        if (subexpression(symbol) and subexpression(given.symbols[index])) {
-//            symbol.expressions = traverse(given.symbols[index].expressions, function, state, flags);
-//            if (symbol.expressions.error) return false;
-//            index++;
-//        } else if (subexpression(symbol)) {
-//            //symbol.expressions = csr(given, index, depth + 1, max_depth, state, flags);       /// i think this should be csr_single().
-//            if (symbol.expressions.error) return false;            
-//        } else if (not are_equal_identifiers(symbol, given.symbols[index])) return false;
-//        else index++;
-//    } return true;
-    return {};
+
+
+
+bool matches(expression given, expression signature, std::vector<resolved_expression_list>& args, llvm::Function*& function, nat& index, const nat depth, const nat max_depth, state& state, flags flags) {
+    if (given.type != signature.type and given.type != intrin::infered) return false;
+    for (auto symbol : signature.symbols) {
+                
+        if (parameter(symbol) and subexpression(given.symbols[index])) {
+            auto argument = traverse(given.symbols[index].expressions, function, state, flags);
+            args.push_back(argument);            
+            if (argument.error) return false;
+            index++;
+            
+        } else if (parameter(symbol)) {            
+            auto argument = csr_single(given, function, index, depth + 1, max_depth, state, flags);            
+            if (argument.error) return false;
+            args.push_back(resolved_expression_list {std::vector<resolved_expression> {argument}});                                    
+            
+        } else if (not are_equal_identifiers(symbol, given.symbols[index])) {
+            return false;
+        } else {            
+            index++;
+        }
+    }
+    return true;
 }
 
-resolved_expression csr_single(expression given, llvm::Function*& function, nat& index, const nat depth, const nat max_depth, state& state, flags flags) {
-//    if (index >= given.symbols.size() or not given.type or depth > max_depth) return failure; 
-//    if (llvm_string(given.symbols[index]))         
-//        return parse_llvm_string(given, function, given.symbols[index].llvm.literal.value, index, state, flags);
-//    
-//    size_t saved = index;
-//    for (auto signature_index : state.stack.top()) {
-//        index = saved;
-//        auto signature = state.stack.get(signature_index);
-//        if (matches(given, function, signature, index, depth, max_depth, state, flags)) return signature;
-//    }
-//    return failure;
-    return {};
+resolved_expression csr_single(
+                               expression given, llvm::Function*& function, 
+                               nat& index, nat depth, nat max_depth, 
+                               state& state, flags flags
+                               ) {
+    
+    if (index >= given.symbols.size() or not given.type or depth > max_depth) return resolution_failure;
+    
+    if (llvm_string(given.symbols[index]))         
+        return parse_llvm_string(given, function, given.symbols[index].llvm.literal.value, index, state, flags);
+    
+    size_t saved = index;
+    for (auto signature_index : state.stack.top()) {
+        index = saved;
+        
+        auto signature = state.stack.get(signature_index);        
+        std::vector<resolved_expression_list> args = {};
+        
+        if (matches(given, signature, args, function, index, depth, max_depth, state, flags)) 
+            return {signature_index, args, false};
+    }
+    
+    return resolution_failure;
 }
 
 resolved_expression_list csr(expression_list given, llvm::Function*& function,nat& index, const nat depth, const nat max_depth, state& state, flags flags) {
-//    for (auto& e : given.list)
-//        e = csr_single(e, function, index, depth, max_depth, state, flags);
-//    return given;
     return {};
+}
+
+static resolved_expression traverse_single(expression given, llvm::Function*& function, state& state, flags flags) {
+    resolved_expression solution = {};
+    for (nat max_depth = 0; max_depth <= max_expression_depth; max_depth++) {            
+        nat pointer = 0;
+        solution = csr_single(given, function, pointer, 0, max_depth, state, flags);
+        if (not solution.error and pointer == given.symbols.size()) break;
+    }
+    return solution;
 }
 
 resolved_expression_list traverse(expression_list given, llvm::Function*& function, state& state, flags flags) {
-//    expression_list solution {};
-//    for (size_t max_depth = 0; max_depth <= max_expression_depth; max_depth++) {
-//        size_t pointer = 0;
-//        solution = csr(given, function, pointer, 0, max_depth, state, flags); 
-//        //if (not solution.error and pointer == given.symbols.size()) break;                   // i think we need to look through all expressions, and see if any have an error.
-//    }
-//    return solution;
-    return {};
-}
+    resolved_expression_list solutions {};
+    for (auto expression : given.list)
+        solutions.list.push_back(traverse_single(expression, function, state, flags));
+    return solutions;
+} 
 
 
-static void prepare_expressions(expression_list& given) {
-//    for (auto& e : given.list) 
-//        e.type = intrin::unit;
-}
-
-resolved_expression_list resolve(expression_list given, llvm::Function*& function, state& state, flags flags) {         
-//    prepare_expressions(given);
-//    auto saved = given;
-//    given = traverse(given, function, state, flags);
-//    
-//    state.error = state.error or given.error;     
-//    if (given.error) 
-//        for (auto& e : saved.list) 
-//            print_error_message(state.data.file.name, "could not resolve expression: \n\n" + expression_to_string(e, state.stack) + "\n\n", 0, 0);
-//    
-    return {};
+resolved_expression_list resolve(expression_list given, llvm::Function*& function, state& state, flags flags) {    
+    return traverse(given, function, state, flags);
 }
 

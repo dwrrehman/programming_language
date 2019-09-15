@@ -18,6 +18,10 @@
 #include "llvm/IR/Verifier.h"
 #include "llvm/Target/TargetMachine.h"
 
+static void unitize_all_in(expression_list& unit) {
+    for (auto& e : unit.list) e.type = intrin::unit; 
+}
+
 std::unique_ptr<llvm::Module> analyze(expression_list unit, file file, llvm::LLVMContext& context) {
     
     srand((unsigned)time(nullptr));
@@ -34,8 +38,15 @@ std::unique_ptr<llvm::Module> analyze(expression_list unit, file file, llvm::LLV
     symbol_table stack {data, flags, builtins};
     state state {stack, data, error};
     
-    auto new_unit = resolve(unit, main_function, state, flags.generate_code().at_top_level());    
+    // temp;
+    //interpret_file_as_llvm_string(file, state);
+    //builder.CreateCall(module->getFunction("start")); 
+    
+    unitize_all_in(unit);
+    resolved_expression_list new_unit = resolve(unit, main_function, state, flags.generate_code().at_top_level());
 
+    
+    
     if (llvm::verifyFunction(*main_function)) append_return_0_statement(builder, context);
     if (llvm::verifyModule(*module, &llvm::errs())) error = true;
     

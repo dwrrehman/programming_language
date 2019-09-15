@@ -27,11 +27,12 @@ struct stack_frame {
 
 struct signature_entry {
     expression signature = {};
-    expression_list definition = {};        // is this really neccessary?
+    expression_list definition = {}; 
     nat precedence = 0;
-    nat parent = 0;                    // is this really neccessary?
-    llvm::Value* value = nullptr;             // is this really neccessary?
+    nat parent = 0;                              // is this really neccessary?
+    llvm::Value* value = nullptr;           
     llvm::Function* function = nullptr;
+    llvm::Type* llvm_type = nullptr;
 };
 
 struct symbol_table {
@@ -69,6 +70,7 @@ struct symbol_table {
     
     void define(expression signature, expression_list definition, nat back_from, nat parent = 0) {
         // unfinsihed
+        
         // this function should do a check for if the signature is aclready defined in the current scope. if so, then simply overrite its data.
                 
         frames[frames.size() - (++back_from)].indicies.push_back(master.size()); 

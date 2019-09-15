@@ -2,6 +2,49 @@ the current status of the compiler is:
 
 
 
+    ok, so i have cleaned up alot of stuff in the code, and basically set everything up for me to just code the new version of csr using 
+            
+                    resolved expression list
+                        
+                    resolved expression 
+
+                        
+                        data structures.
+                            
+
+
+
+
+              once this csr is done, that marks the next stage which is basically symbol table conversions.
+                
+            
+
+                    this step shouldnt be that hard, assuming i get all my ducks in a row, and realize what i have at my disposal, 
+
+                    becasue:
+
+                        
+                            
+                                expression_list/expression -> string     is a simple signature serializer
+
+                                string -> expression       will most certaintly be using CSR and the rest of the parsing machinery int he compiler, (including the lexer!) to implement this function. however there is alittle fancy ness in the signature that has to be done. thats the trick part.
+
+
+                         anyways, this is all so i can just get values back and forth between the llvm symbol tables, and the n3zqx2l symbol tables.
+
+
+                    
+                  ...and then after that, is code gen!
+
+                  which is the fun part!
+
+
+
+
+
+
+
+
 
 yeah, im pretty sure that the thing which i have to do now, is figure out how to make CSR actually run properly in my compiler with all my changes. im sure it wont be that hard... i mean its only csr lol.
 

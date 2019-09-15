@@ -62,28 +62,32 @@ void print_llvm_parse_error(const llvm::SMDiagnostic &errors, state &state) {
     errors.print(state.data.file.name.c_str(), llvm::errs());
 }
 
-expression parse_llvm_string(expression given, llvm::Function*& function, std::string llvm_string, nat& pointer, state& state, flags flags) {
+resolved_expression parse_llvm_string(expression given, llvm::Function*& function, std::string llvm_string, nat& pointer, state& state, flags flags) {
     llvm::SMDiagnostic instruction_errors, function_errors, type_errors;
     
     if (not flags.is_parsing_type 
         and (parse_llvm_string_as_function(llvm_string, state, function_errors) 
-             or parse_llvm_string_as_instruction(llvm_string, function, state, instruction_errors))) { 
-            return expression {{{given.symbols[pointer++].llvm}}, intrin::unit};
+          or parse_llvm_string_as_instruction(llvm_string, function, state, instruction_errors))) {
+        pointer++;
+        return {intrin::unit, {}, false};            
             
-        } else if (auto llvm_type = parse_llvm_string_as_type(llvm_string, state, type_errors)) {
-            expression solution {{{given.symbols[pointer++].llvm}}, intrin::unit};
-            solution.llvm_type = llvm_type;            
-            return solution;
-            
-        } else {
-            print_llvm_parse_error(function_errors, state);
-            print_llvm_parse_error(instruction_errors, state);        
-            print_llvm_parse_error(type_errors, state); 
-            return failure;
-        }
+    } else if (auto llvm_type = parse_llvm_string_as_type(llvm_string, state, type_errors)) {
+        pointer++;
+        return {intrin::typeless, {}, false, llvm_type};
+        
+    } else {
+        print_llvm_parse_error(function_errors, state);
+        print_llvm_parse_error(instruction_errors, state);        
+        print_llvm_parse_error(type_errors, state); 
+        return {0, {}, true};
+    }
 }
 
+
+
+
 // might be useful, for when we are given .ll files? that sounds cool.
+
 void interpret_file_as_llvm_string(const struct file &file, state &state) { // test, by allowing some llvm random string to be parsed into the file:
     llvm::SMDiagnostic errors;
     if (parse_llvm_string_as_function(file.text, state, errors)) {
