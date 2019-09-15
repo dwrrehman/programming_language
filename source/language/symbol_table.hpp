@@ -44,20 +44,20 @@ struct symbol_table {
     std::vector<stack_frame> frames = {};
     
     void update(llvm::ValueSymbolTable& llvm) {        
-        for (auto& frame : frames) {
-            for (auto i = llvm.begin(); i != llvm.end(); i++) { 
-                auto key = i->getKey();                                 
-                auto value = i->getValue(); 
-                auto llsymbol = convert_raw_llvm_symbol_to_expression(key, value, *this, data, flags);                
-                bool found = false;
-                for (auto i : frame.indicies) 
-                    if (expressions_match(master[i].signature, llsymbol)) found = true;
-                if (not found) {
-                    master.push_back({llsymbol, {}}); // dont we need to push more than this?
-                    frame.indicies.push_back(master.size() - 1);
-                }
-            }
-        }
+//        for (auto& frame : frames) {
+//            for (auto i = llvm.begin(); i != llvm.end(); i++) { 
+//                auto key = i->getKey();                                 
+//                auto value = i->getValue(); 
+//                auto llsymbol = convert_raw_llvm_symbol_to_expression(key, value, *this, data, flags);                
+//                bool found = false;
+//                for (auto i : frame.indicies) 
+//                    if (expressions_match(master[i].signature, llsymbol)) found = true;
+//                if (not found) {
+//                    master.push_back({llsymbol, {}}); // dont we need to push more than this?
+//                    frame.indicies.push_back(master.size() - 1);
+//                }
+//            }
+//        }
     }
     
     void push_new_frame() { frames.push_back({frames.back().indicies}); }

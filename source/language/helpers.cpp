@@ -35,6 +35,36 @@
 #include <iostream>
 #include <sstream>
 
+//bool expressions_match(expression first, expression second);
+//
+//bool symbols_match(symbol first, symbol second) {
+////    if (subexpression(first) and subexpression(second) 
+////        and expressions_match(first.expressions..back(), 
+////                              second.expressions..back())) return true;    ///TODO: this code is suspicious, alot.
+////    else if (are_equal_identifiers(first, second)) return true;
+////    else if (first.type == symbol_type::llvm_literal and second.type == symbol_type::llvm_literal) return true;
+////    else return false;
+//    return false;
+//}
+//
+//bool expressions_match(expression first, expression second) {
+//    if (first.error or second.error) return false;    
+//    if (first.symbols.size() != second.symbols.size()) return false;
+//    for (size_t i = 0; i < first.symbols.size(); i++) 
+//        if (not symbols_match(first.symbols[i], second.symbols[i])) return false;    
+//    if (!first.type and !second.type) return true;
+//    
+//    if (first.llvm_type and second.llvm_type) {
+//        std::string first_llvm_type = "", second_llvm_type = "";
+//        first.llvm_type->print(llvm::raw_string_ostream(first_llvm_type) << "");
+//        second.llvm_type->print(llvm::raw_string_ostream(second_llvm_type) << "");
+//        return first_llvm_type == second_llvm_type;
+//    } else if (first.llvm_type or second.llvm_type) return false;
+//    
+//    else if (first.type == second.type) return true;
+//    else return false;
+//}
+
 
 const resolved_expression resolution_failure = {0, {}, true};
 
@@ -42,44 +72,6 @@ bool subexpression(const symbol& s) { return s.type == symbol_type::subexpressio
 bool identifier(const symbol& s) { return s.type == symbol_type::identifier; }
 bool llvm_string(const symbol& s) { return s.type == symbol_type::llvm_literal; }
 bool parameter(const symbol &symbol) { return subexpression(symbol); }
-
-bool are_equal_identifiers(const symbol &first, const symbol &second) {
-    return identifier(first) and identifier(second) 
-    and first.identifier.name.value == second.identifier.name.value;
-}
-
-bool expressions_match(expression first, expression second);
-
-bool symbols_match(symbol first, symbol second) {
-//    if (subexpression(first) and subexpression(second) 
-//        and expressions_match(first.expressions..back(), 
-//                              second.expressions..back())) return true;    ///TODO: this code is suspicious, alot.
-//    else if (are_equal_identifiers(first, second)) return true;
-//    else if (first.type == symbol_type::llvm_literal and second.type == symbol_type::llvm_literal) return true;
-//    else return false;
-    return false;
-}
-
-bool expressions_match(expression first, expression second) {
-    if (first.error or second.error) return false;    
-    if (first.symbols.size() != second.symbols.size()) return false;
-    for (size_t i = 0; i < first.symbols.size(); i++) 
-        if (not symbols_match(first.symbols[i], second.symbols[i])) return false;    
-    if (!first.type and !second.type) return true;
-    
-    if (first.llvm_type and second.llvm_type) {
-        std::string first_llvm_type = "", second_llvm_type = "";
-        first.llvm_type->print(llvm::raw_string_ostream(first_llvm_type) << "");
-        second.llvm_type->print(llvm::raw_string_ostream(second_llvm_type) << "");
-        return first_llvm_type == second_llvm_type;
-    } else if (first.llvm_type or second.llvm_type) return false;
-    
-    else if (first.type == second.type) return true;
-    else return false;
-}
-
-
-
 
 
 
@@ -102,8 +94,6 @@ llvm::Function* create_main(llvm::IRBuilder<>& builder, llvm::LLVMContext& conte
 }
 
 
-
-
 static std::vector<llvm::GenericValue> turn_into_value_array(std::vector<nat> canonical_arguments, std::unique_ptr<llvm::Module>& module) {
     std::vector<llvm::GenericValue> arguments = {};
     for (auto index : canonical_arguments) 
@@ -118,9 +108,10 @@ nat evaluate(std::unique_ptr<llvm::Module>& module, llvm::Function* function, st
     return jit->runFunction(function, turn_into_value_array(args, module)).IntVal.getLimitedValue();
 }
 
-
-
-
+bool are_equal_identifiers(const symbol &first, const symbol &second) {
+    return identifier(first) and identifier(second) 
+    and first.identifier.name.value == second.identifier.name.value;
+}
 
 bool matches(expression given, expression signature, std::vector<resolved_expression_list>& args, llvm::Function*& function, nat& index, const nat depth, const nat max_depth, state& state, flags flags) {
     if (given.type != signature.type and given.type != intrin::infered) return false;

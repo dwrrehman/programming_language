@@ -42,29 +42,29 @@ expression unit_value = {{{{"_unit_value"}}}, intrin::unit};
 
 expression application_type = {{{{"_a"}}}, intrin::type};
 expression abstraction_type = {{{{"_b"}}}, intrin::type};
-expression create_abstraction = {{{{"_c"}}, {expression{intrin::type}}}, intrin::unit};
+expression create_abstraction = {{{{"_c"}}, {{intrin::type}}}, intrin::unit};
 
 expression define_abstraction = {
     {
-        {{"_d"}}, {expression{intrin::abstraction}}, // signature
-        {expression{intrin::type}}, // of type
-        {expression{intrin::application}}, // as definition 
-        {expression{intrin::application}}, // into scope
+        {{"_d"}}, {{intrin::abstraction}}, // signature
+        {{intrin::type}}, // of type
+        {{intrin::application}}, // as definition 
+        {{intrin::application}}, // into scope
     }, intrin::unit};
 
 expression expose_abstraction = {
     {
-        {{"_e"}}, {expression{intrin::application}}, // existing signature
-        {expression{intrin::abstraction}}, // as alias
-        {expression{intrin::application}}, // into scope
+        {{"_e"}}, {{intrin::application}}, // existing signature
+        {{intrin::abstraction}}, // as alias
+        {{intrin::application}}, // into scope
     }, intrin::unit};
 
 /////////////////////// test (for csr suite) abstractions //////////////////////////
 
 expression hello_abstraction = {
     {
-        {{"_hello"}}, {{"world"}}, {expression{intrin::unit}}, {{"from"}}, {{"space"}}, 
-    }, intrin::unit};
+        {{"_hello"}}, {{"world"}}, {{intrin::unit}}, {{"from"}}, {{"space"}}, 
+    }, intrin::unit}; 
 
 expression dog_abstraction = {
     {

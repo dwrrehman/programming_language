@@ -79,8 +79,8 @@ std::string expression_to_string(expression given, symbol_table& stack) {  // un
 // unimpelented: WIP:
 
 size_t string_to_expression_tail(std::vector<expression> list, state& state, flags flags) { // returns an index to the correct into the stack.
-    if (list.empty()) return intrin::infered;
-    if (list.size() == 1 and expressions_match(list[0], type_type)) return intrin::type;
+//    if (list.empty()) return intrin::infered;
+//    if (list.size() == 1 and expressions_match(list[0], type_type)) return intrin::type;
     
     auto current = list.front();
     list.erase(list.begin());

@@ -30,8 +30,8 @@ bool identifier(const symbol& s);
 bool llvm_string(const symbol& s);
 
 bool are_equal_identifiers(const symbol &first, const symbol &second);
-bool symbols_match(symbol first, symbol second);
-bool expressions_match(expression first, expression second);
+//bool symbols_match(symbol first, symbol second);
+//bool expressions_match(expression first, expression second);
 
 ////////////////////////////////// LLVM IR builder helpers ////////////////////////////////
 
