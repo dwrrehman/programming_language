@@ -127,13 +127,13 @@ bool matches(expression given, expression signature, std::vector<resolved_expres
     for (auto symbol : signature.symbols) {
                 
         if (parameter(symbol) and subexpression(given.symbols[index])) {
-            auto argument = traverse(given.symbols[index].expressions, function, state, flags);
+            auto argument = resolve_expression_list(given.symbols[index].expressions, function, state, flags);
             args.push_back(argument);            
             if (argument.error) return false;
             index++;
             
         } else if (parameter(symbol)) {            
-            auto argument = csr_single(given, function, index, depth + 1, max_depth, state, flags);            
+            auto argument = resolve(given, function, index, depth + 1, max_depth, state, flags);            
             if (argument.error) return false;
             args.push_back(resolved_expression_list {std::vector<resolved_expression> {argument}});                                    
             
@@ -146,7 +146,7 @@ bool matches(expression given, expression signature, std::vector<resolved_expres
     return true;
 }
 
-resolved_expression csr_single(
+resolved_expression resolve(
                                expression given, llvm::Function*& function, 
                                nat& index, nat depth, nat max_depth, 
                                state& state, flags flags
@@ -159,41 +159,29 @@ resolved_expression csr_single(
     
     size_t saved = index;
     for (auto signature_index : state.stack.top()) {
-        index = saved;
-        
-        auto signature = state.stack.get(signature_index);        
+        index = saved;        
         std::vector<resolved_expression_list> args = {};
-        
-        if (matches(given, signature, args, function, index, depth, max_depth, state, flags)) 
+        if (matches(given, state.stack.get(signature_index), args, function, index, depth, max_depth, state, flags)) 
             return {signature_index, args, false};
     }
     
     return resolution_failure;
 }
 
-resolved_expression_list csr(expression_list given, llvm::Function*& function,nat& index, const nat depth, const nat max_depth, state& state, flags flags) {
-    return {};
-}
-
-static resolved_expression traverse_single(expression given, llvm::Function*& function, state& state, flags flags) {
+resolved_expression resolve_expression(expression given, llvm::Function*& function, state& state, flags flags) {
     resolved_expression solution = {};
     for (nat max_depth = 0; max_depth <= max_expression_depth; max_depth++) {            
         nat pointer = 0;
-        solution = csr_single(given, function, pointer, 0, max_depth, state, flags);
+        solution = resolve(given, function, pointer, 0, max_depth, state, flags);
         if (not solution.error and pointer == given.symbols.size()) break;
     }
     return solution;
 }
 
-resolved_expression_list traverse(expression_list given, llvm::Function*& function, state& state, flags flags) {
+resolved_expression_list resolve_expression_list(expression_list given, llvm::Function*& function, state& state, flags flags) {
+    /// this is the function we should target in order to implement the last expression being of type <return type / parent exprs type>
     resolved_expression_list solutions {};
     for (auto expression : given.list)
-        solutions.list.push_back(traverse_single(expression, function, state, flags));
+        solutions.list.push_back(resolve_expression(expression, function, state, flags));
     return solutions;
-} 
-
-
-resolved_expression_list resolve(expression_list given, llvm::Function*& function, state& state, flags flags) {    
-    return traverse(given, function, state, flags);
 }
-

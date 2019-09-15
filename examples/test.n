@@ -1,12 +1,3 @@
-@str = private unnamed_addr constant [24 x i8] c"hello there from space!\00"
-
-
-declare i32 @puts(i8* nocapture readonly) local_unnamed_addr
-
-
-define void @start() {
-entry:
-    %result = tail call i32 @puts(i8* getelementptr inbounds ([24 x i8], [24 x i8]* @str, i64 0, i64 0))
-    ret void
-}
-
+dog
+dog
+_unit_value

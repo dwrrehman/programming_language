@@ -68,8 +68,6 @@ void debug_token_stream() {
 // ---------------------------- parser debugging functions -------------------------------
 
 
-#define prep(_level) for (int i = _level; i--;) std::cout << ".   "
-
 void print_symbol(symbol s, int d);
 void print_expression(expression s, int d);
 

@@ -38,7 +38,7 @@ expression infered_type = {{{{"_"}}, {{"?"}}}};     // has no type.
 expression type_type = {{{{"_"}}}};     // has no type.
 expression none_type = {{{{"_0"}}}, intrin::type};
 expression unit_type = {{{{"_1"}}}, intrin::type};
-expression unit_value = {{}, intrin::unit};
+expression unit_value = {{{{"_unit_value"}}}, intrin::unit};
 
 expression application_type = {{{{"_a"}}}, intrin::type};
 expression abstraction_type = {{{{"_b"}}}, intrin::type};

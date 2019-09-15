@@ -19,7 +19,7 @@
 
 #include <vector>
 
-#define prep(_level) for (int i = _level; i--;) std::cout << ".   "
+#define prep(_level) for (size_t i = _level; i--;) std::cout << ".   "
 
 // cli arguments
 void debug_arguments(struct arguments args);

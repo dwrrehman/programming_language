@@ -19,26 +19,27 @@
 #include <string>
 #include <vector>
 
+//TODO: make a expression list to string function...?
+
+
 std::string expression_to_string(expression given, symbol_table& stack) {  // unimplemented
     std::string result = "(";
     size_t i = 0;
-    for (auto symbol : given.symbols) {
+    for (auto symbol : given.symbols) { 
         if (symbol.type == symbol_type::identifier) result += symbol.identifier.name.value;
         else if (symbol.type == symbol_type::subexpression) {
-            //result += "(" + expression_to_string(symbol.subexpression, stack) + ")";
-            
-            ////TODO: fix this function!
+            result += "(" + expression_to_string(symbol.expressions.list.back(), stack) + ")";
         }
-        if (i < given.symbols.size() - 1) result += " ";
+        if (i < given.symbols.size() - 1) result += " "; 
         i++;
     }
     result += ")";
-    if (given.llvm_type) {
+    if (given.llvm_type) { 
         std::string type = "";
-        given.llvm_type->print(llvm::raw_string_ostream(type) << "");
-        result += " " + type;
-    } else if (given.type) {
-        result += " " + expression_to_string(stack.master[given.type].signature, stack);  
+        given.llvm_type->print(llvm::raw_string_ostream(type) << ""); 
+        result += " " + type; 
+    } else if (given.type) { 
+        result += " " + expression_to_string(stack.master[given.type].signature, stack);   
     }
     return result;
 }
