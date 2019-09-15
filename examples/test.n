@@ -1,2 +1,26 @@
-_hello world dog from space
-_hello world (dog) from space
+`
+@str = private unnamed_addr constant [24 x i8] c"hello there from space!\00"
+
+@str2 = private unnamed_addr constant [24 x i8] c"goodbye from you space!\00"
+
+declare i32 @puts(i8* nocapture readonly) local_unnamed_addr
+`
+
+`
+%c = add i1 0, 0
+br i1 %c, label %first, label %second
+
+first:
+
+%result = tail call i32 @puts(i8* getelementptr inbounds ([24 x i8], [24 x i8]* @str, i64 0, i64 0))
+br label %end
+
+second:
+
+%result1 = tail call i32 @puts(i8* getelementptr inbounds ([24 x i8], [24 x i8]* @str2, i64 0, i64 0))
+br label %end
+
+end:
+ret i32 0
+`
+

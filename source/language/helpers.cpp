@@ -93,7 +93,6 @@ llvm::Function* create_main(llvm::IRBuilder<>& builder, llvm::LLVMContext& conte
     return main_function;
 }
 
-
 static std::vector<llvm::GenericValue> turn_into_value_array(std::vector<nat> canonical_arguments, std::unique_ptr<llvm::Module>& module) {
     std::vector<llvm::GenericValue> arguments = {};
     for (auto index : canonical_arguments) 
@@ -113,13 +112,22 @@ bool are_equal_identifiers(const symbol &first, const symbol &second) {
     and first.identifier.name.value == second.identifier.name.value;
 }
 
+
+void typify(expression_list& list, nat final_type) {
+    for (nat i = 0; i < list.list.size() - 1; i++) {
+        list.list[i].type = intrin::unit;
+    }
+    list.list[list.list.size() - 1].type = final_type;
+}
+
 bool matches(expression given, expression signature, std::vector<resolved_expression_list>& args, llvm::Function*& function, nat& index, const nat depth, const nat max_depth, state& state, flags flags) {
     if (given.type != signature.type and given.type != intrin::infered) return false;
     for (auto symbol : signature.symbols) {
                 
         if (parameter(symbol) and subexpression(given.symbols[index])) {
+            typify(given.symbols[index].expressions, signature.type);
             auto argument = resolve_expression_list(given.symbols[index].expressions, function, state, flags);
-            args.push_back(argument);            
+            args.push_back(argument);
             if (argument.error) return false;
             index++;
             
@@ -137,11 +145,7 @@ bool matches(expression given, expression signature, std::vector<resolved_expres
     return true;
 }
 
-resolved_expression resolve(
-                               expression given, llvm::Function*& function, 
-                               nat& index, nat depth, nat max_depth, 
-                               state& state, flags flags
-                               ) {
+resolved_expression resolve(expression given, llvm::Function*& function, nat& index, nat depth, nat max_depth, state& state, flags flags) {
     
     if (index >= given.symbols.size() or not given.type or depth > max_depth) return resolution_failure;
     

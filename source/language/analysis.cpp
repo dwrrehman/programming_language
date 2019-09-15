@@ -18,9 +18,7 @@
 #include "llvm/IR/Verifier.h"
 #include "llvm/Target/TargetMachine.h"
 
-static void unitize_all_in(expression_list& unit) {
-    for (auto& e : unit.list) e.type = intrin::unit; 
-}
+#include "llvm/Transforms/Utils/BasicBlockUtils.h"
 
 void print_resolved_list(resolved_expression_list list, nat depth, state& state);
 void print_resolved_expr(resolved_expression expr, nat depth, state& state);
@@ -56,6 +54,35 @@ void print_resolved_unit(resolved_expression_list unit, state& state) {
 }
 
 
+bool is_donothing_call(llvm::Instruction* ins) {
+    if (not ins) return false;
+    return std::string(ins->getOpcodeName()) == "call" and std::string(ins->getOperand(0)->getName()) == "llvm.donothing";
+}
+
+static void delete_empty_blocks(std::unique_ptr<llvm::Module> &module) {
+    for (auto& function : module->getFunctionList()) {        
+        llvm::SmallVector<llvm::BasicBlock*, 100> blocks = {};        
+        for (auto& block : function.getBasicBlockList()) {
+            if (block.empty()) blocks.push_back(&block);
+        }
+        llvm::DeleteDeadBlocks(blocks);
+    }
+}
+
+void clean(std::unique_ptr<llvm::Module>& module) {    
+    for (auto& function : module->getFunctionList()) {
+        for (auto& block : function.getBasicBlockList()) {            
+            auto ins = block.getTerminator();
+            if (ins and std::string(ins->getOpcodeName()) == "unreachable" 
+                and is_donothing_call(ins->getPrevNonDebugInstruction())) {
+                ins->getPrevNonDebugInstruction()->eraseFromParent();                
+                ins->eraseFromParent();
+            }
+        }
+    }
+    delete_empty_blocks(module);    
+}
+
 std::unique_ptr<llvm::Module> analyze(expression_list unit, file file, llvm::LLVMContext& context) {
     
     srand((unsigned)time(nullptr));
@@ -71,24 +98,28 @@ std::unique_ptr<llvm::Module> analyze(expression_list unit, file file, llvm::LLV
     file_data data {file, module.get(), builder};
     symbol_table stack {data, flags, builtins};
     state state {stack, data, error};
-    
-    // temp;
-    //interpret_file_as_llvm_string(file, state);
-    //builder.CreateCall(module->getFunction("start")); 
-    
-    unitize_all_in(unit);
-    resolved_expression_list new_unit = resolve_expression_list(unit, main_function, state, flags.generate_code().at_top_level());
-    
-    print_resolved_unit(new_unit, state);
+ 
+    typify(unit, intrin::unit);
+    auto res = resolve_expression_list(unit, main_function, state, flags.generate_code().at_top_level());
     
     
+    module->print(llvm::errs(), NULL); // temp
+    
+    clean(module);
+    
+    module->print(llvm::errs(), NULL); // temp
     
     if (llvm::verifyFunction(*main_function)) append_return_0_statement(builder, context);
+    
+    
+    module->print(llvm::errs(), NULL); // temp
+    
+    
     if (llvm::verifyModule(*module, &llvm::errs())) error = true;
     
-    if (debug) {
+    if (debug) {        
         std::cout << "------------------ analysis ------------------- \n\n";
-        
+        print_resolved_unit(res, state);        
         std::cout << "emitting the following LLVM: \n";
         module->print(llvm::errs(), NULL); // temp
         
@@ -96,7 +127,3 @@ std::unique_ptr<llvm::Module> analyze(expression_list unit, file file, llvm::LLV
     if (error) { throw "analysis error"; }
     else { return module; }
 }
-
-//    if (contains_top_level_runtime_statement(body)) found_main = true; 
-//    else if (found_main) main_function->eraseFromParent();
-

@@ -69,7 +69,7 @@ resolved_expression parse_llvm_string(expression given, llvm::Function*& functio
         and (parse_llvm_string_as_function(llvm_string, state, function_errors) 
           or parse_llvm_string_as_instruction(llvm_string, function, state, instruction_errors))) {
         pointer++;
-        return {intrin::unit, {}, false};            
+        return {intrin::empty, {}, false};            
             
     } else if (auto llvm_type = parse_llvm_string_as_type(llvm_string, state, type_errors)) {
         pointer++;
