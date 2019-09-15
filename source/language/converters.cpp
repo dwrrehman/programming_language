@@ -28,7 +28,13 @@ std::string expression_to_string(expression given, symbol_table& stack) {  // un
     for (auto symbol : given.symbols) { 
         if (symbol.type == symbol_type::identifier) result += symbol.identifier.name.value;
         else if (symbol.type == symbol_type::subexpression) {
-            result += "(" + expression_to_string(symbol.expressions.list.back(), stack) + ")";
+            
+            ///TODO: fix this function to not be dumb. make it cleaner.
+            
+            if (symbol.expressions.list.size()) result += "(" + expression_to_string(symbol.expressions.list.back(), stack) + ")";
+            else result += "((_unit_value) (_1) (_))";
+            
+            
         }
         if (i < given.symbols.size() - 1) result += " "; 
         i++;

@@ -90,33 +90,35 @@ void typify(expression_list& list, nat final_type) {
     list.list[list.list.size() - 1].type = final_type;
 }
 
-bool matches(expression given, expression signature, std::vector<resolved_expression_list>& args, llvm::Function*& function, nat& index, const nat depth, const nat max_depth, state& state, flags flags) {
+bool matches(expression given, expression signature, std::vector<resolved_expression_list>& args, llvm::Function*& function, nat& index, const nat depth, const nat max_depth, state& state, flags flags) {    
     if (given.type != signature.type and given.type != intrin::infered) return false;
+
     for (auto symbol : signature.symbols) {
-        
         if (parameter(symbol) and subexpression(given.symbols[index])) {
-            auto argument = resolve_expression_list(given.symbols[index].expressions, signature.type, function, state, flags);
-            args.push_back(argument);
+            auto argument = resolve_expression_list(given.symbols[index].expressions, signature.type, function, state, flags);            
             if (argument.error) return false;
+            args.push_back(argument);
             index++;
             
         } else if (parameter(symbol)) {            
             auto argument = resolve(given, function, index, depth + 1, max_depth, state, flags);            
             if (argument.error) return false;
-            args.push_back(resolved_expression_list {std::vector<resolved_expression> {argument}});                                    
+            args.push_back({{argument}});
             
-        } else if (not are_equal_identifiers(symbol, given.symbols[index])) {
-            return false;
-        } else {            
-            index++;
-        }
+        } else if (not are_equal_identifiers(symbol, given.symbols[index])) return false;
+        else index++;
     }
     return true;
 }
 
 resolved_expression resolve(expression given, llvm::Function*& function, nat& index, nat depth, nat max_depth, state& state, flags flags) {
-    
     if (index >= given.symbols.size() or not given.type or depth > max_depth) return resolution_failure;
+    
+    if (given.symbols[index].expressions.list.empty()) {        
+        if (given.type == intrin::unit) {
+            index++; return {intrin::empty, {}, false};
+        } else return resolution_failure;
+    }
     
     if (llvm_string(given.symbols[index]))
         return parse_llvm_string(given, function, given.symbols[index].llvm.literal.value, index, state, flags);
@@ -132,38 +134,32 @@ resolved_expression resolve(expression given, llvm::Function*& function, nat& in
     return resolution_failure;
 }
 
+static void print_unresolved_error(const expression &given, state &state) {
+    const std::string name = expression_to_string(given, state.stack);
+    print_error_message(state.data.file.name, "unresolved expression: " + name, given.starting_token.line, given.starting_token.column);
+    print_source_code(state.data.file.text, {given.starting_token});    
+}
+
 resolved_expression resolve_expression(expression given, llvm::Function*& function, state& state, flags flags) {
     resolved_expression solution = {};
+    nat pointer = 0;
     for (nat max_depth = 0; max_depth <= max_expression_depth; max_depth++) {            
-        nat pointer = 0;
+        pointer = 0;
         solution = resolve(given, function, pointer, 0, max_depth, state, flags);
         if (not solution.error and pointer == given.symbols.size()) break;
     }
-    if (solution.error) {
-        const std::string name = expression_to_string(given, state.stack);
-        
-        nat line = 0, column = 0;
-        line = given.starting_token.line;
-        column = given.starting_token.column;
-        
-        print_error_message(state.data.file.name, "unresolved expression: " + name, line, column);
-        print_source_code(state.data.file.text, {given.starting_token});
-    }
+    if (pointer < given.symbols.size()) solution.error = true; 
+    if (solution.error) print_unresolved_error(given, state);
     return solution;
 }
 
-resolved_expression_list resolve_expression_list(expression_list given, nat type, llvm::Function*& function, state& state, flags flags) {
-    
+resolved_expression_list resolve_expression_list(expression_list given, nat type, llvm::Function*& function, state& state, flags flags) {    
     typify(given, type);
+    resolved_expression_list solutions {};    
+    for (auto expression : given.list) 
+        solutions.list.push_back(resolve_expression(expression, function, state, flags));    
     
-    resolved_expression_list solutions {};
-    
-    for (auto expression : given.list)
-        solutions.list.push_back(resolve_expression(expression, function, state, flags));
-    
-    for (auto e : solutions.list)         
-        solutions.error |= e.error;
-        
+    for (auto e : solutions.list) solutions.error |= e.error;
     return solutions;
 }
 
