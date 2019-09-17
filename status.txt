@@ -2,6 +2,89 @@ the current status of the compiler is:
 
 
 
+
+
+1909161.233343:
+
+	ok, so csr, (the "resolver" from here on out)
+
+			is basically totally finished- it can regonize/resolve very complex expressions, and works basically perfectly. (i have yet to find a bug in it)
+
+	
+		and i also fixed a bug in the llvm parse instruction function, which had to do with adding terminator instructions, and lone basic blocks being left over, after the annex was removed.
+	
+				thats all fixed too now!
+
+	
+
+		
+			now it seems the right thing to move onto next is symbol conversion:
+	
+	
+		[done]:	1. 	from n3zqx2l to llvm:          (ie, expression to string)         
+	
+		[todo]:	2. 	from llvm to n3zqx2l:		(ie, string to expression)
+
+
+
+
+	looking at our schedule:
+
+
+
+			x:0. llvm string parser;
+
+
+			x:1. CSR suite;
+
+
+			1.5: csr additions:   
+	
+				FDI:  passing signatures into expressions 
+	
+				TI: aggressive candidate-set-resolution-based type inference
+
+
+			2. string to expression converter
+
+
+			3. symbol table management, and covnersion between llvm and n.
+
+s	
+			4. write the (c++) implementation for:
+			
+				4.1.    _a    : no implementation. 
+				4.2.    _b    : no implementation. [FDI?]
+				4.3.    _c    : easy.
+				4.4.    _d    : IMPORTANT.
+				4.5.    _e    : easy.
+				4.6.    _0    : no implementation. 
+				4.7.    _1    : no implementation. 
+
+
+
+
+
+
+
+
+
+;
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
     ok, so i have cleaned up alot of stuff in the code, and basically set everything up for me to just code the new version of csr using 
             
                     resolved expression list
