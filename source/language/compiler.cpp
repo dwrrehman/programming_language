@@ -20,6 +20,9 @@
 #include "llvm/Support/TargetSelect.h"
 #include "llvm/ExecutionEngine/daniels_interpreter/MCJIT.h"
 #include "llvm/ExecutionEngine/MCJIT.h"
+#include "llvm/IR/Verifier.h"
+#include "llvm/Target/TargetMachine.h"
+
 #include <vector>
 #include <iostream>
 
@@ -46,8 +49,7 @@ int interpret(std::string executable_name, std::vector<std::unique_ptr<llvm::Mod
     set_data_layout(main_module);
     auto jit = llvm::EngineBuilder(std::unique_ptr<llvm::Module>{main_module.get()}).setEngineKind(llvm::EngineKind::JIT).create();
     jit->finalizeObject();
-    const int exit_code = jit->runFunctionAsMain(jit->FindFunctionNamed("main"), {executable_name}, nullptr);
-    return exit_code;
+    return jit->runFunctionAsMain(jit->FindFunctionNamed("main"), {executable_name}, nullptr);
 }
 
 std::vector<std::string> generate_object_files(const struct arguments& arguments, bool error, std::vector<std::unique_ptr<llvm::Module>>& modules) {

@@ -38,6 +38,7 @@
 #include <sstream>
 
 const resolved_expression resolution_failure = {0, {}, true};
+const resolved_expression resolved_unit_value = {intrin::empty, {}, false};
 
 bool subexpression(const symbol& s) { return s.type == symbol_type::subexpression; }
 bool identifier(const symbol& s) { return s.type == symbol_type::identifier; }
@@ -45,8 +46,9 @@ bool llvm_string(const symbol& s) { return s.type == symbol_type::llvm_literal; 
 bool parameter(const symbol &symbol) { return subexpression(symbol); }
 
 
-void append_return_0_statement(llvm::IRBuilder<> &builder, llvm::LLVMContext &context) {
-    llvm::Value* value = llvm::ConstantInt::get(llvm::Type::getInt32Ty(context), 0);
+void append_return_0_statement(llvm::IRBuilder<> &builder, llvm::Function* main_function, llvm::LLVMContext &context) {
+    llvm::Value* value = llvm::ConstantInt::get(llvm::Type::getInt32Ty(context), 0);    
+    builder.SetInsertPoint(&main_function->getBasicBlockList().back());
     builder.CreateRet(value);
 }
 
@@ -62,6 +64,27 @@ llvm::Function* create_main(llvm::IRBuilder<>& builder, llvm::LLVMContext& conte
     builder.SetInsertPoint(llvm::BasicBlock::Create(context, "entry", main_function));    
     return main_function;
 }
+
+void prune_extraneous_subexpressions_in_expression_list(expression_list& given);
+void prune_extraneous_subexpressions_in_expression(expression& given);
+
+void prune_extraneous_subexpressions_in_expression(expression& given) { // unimplemented
+    while (given.symbols.size() == 1
+           and subexpression(given.symbols[0])
+           and given.symbols[0].expressions.list.size() == 1
+           and given.symbols[0].expressions.list.back().symbols.size()) {        
+        auto save = given.symbols[0].expressions.list.back().symbols;
+        given.symbols = save;
+    }
+    for (auto& symbol : given.symbols)
+        if (subexpression(symbol)) prune_extraneous_subexpressions_in_expression_list(symbol.expressions);
+}
+
+void prune_extraneous_subexpressions_in_expression_list(expression_list& given) {
+    for (auto& expression : given.list)
+        prune_extraneous_subexpressions_in_expression(expression);
+}
+
 
 static std::vector<llvm::GenericValue> turn_into_value_array(std::vector<nat> canonical_arguments, std::unique_ptr<llvm::Module>& module) {
     std::vector<llvm::GenericValue> arguments = {};
@@ -82,7 +105,7 @@ bool are_equal_identifiers(const symbol &first, const symbol &second) {
     and first.identifier.name.value == second.identifier.name.value;
 }
 
-bool matches(expression given, expression signature, nat given_type, std::vector<resolved_expression_list>& args, llvm::Function*& function, nat& index, const nat depth, const nat max_depth, state& state, flags flags) {    
+static bool matches(expression given, expression signature, nat given_type, std::vector<resolved_expression_list>& args, llvm::Function*& function, nat& index, const nat depth, const nat max_depth, state& state, flags flags) {    
     if (given_type != signature.type and given.type != intrin::infered) return false;
     for (auto symbol : signature.symbols) {
         if (index >= given.symbols.size()) return false;
@@ -145,24 +168,23 @@ static std::vector<nat> generate_type_list(const expression_list &given, nat giv
     return types;
 }
 
-resolved_expression_list resolve_expression_list(expression_list given, nat given_type, llvm::Function*& function, state& state, flags flags) {
-    
-    resolved_expression_list solutions {};
-    
-    if (given.list.empty()) {
-        if (given_type == intrin::unit) solutions.list.push_back({intrin::empty, {}, false});
-        else solutions.error = true;
-        return solutions;
-    }
-        
-    nat i = 0;
-    auto types = generate_type_list(given, given_type);
+static bool is_unit_value(expression &expression) {
+    return expression.symbols.size() == 1 
+    and subexpression(expression.symbols[0]) 
+    and expression.symbols[0].expressions.list.empty();
+}
 
-    for (auto expression : given.list)
-        solutions.list.push_back(resolve_expression(expression, types[i++], function, state, flags));
-    
-    for (auto e : solutions.list) 
-        solutions.error |= e.error;
+resolved_expression_list resolve_expression_list(expression_list given, nat given_type, llvm::Function*& function, state& state, flags flags) {
+    if (given.list.empty()) return {{resolved_unit_value}, given_type != intrin::unit};
+    nat i = 0;
+    auto types = generate_type_list(given, given_type);    
+    resolved_expression_list solutions {};
+    for (auto expression : given.list) {
+        auto type = types[i++];
+        if (is_unit_value(expression) and type == intrin::unit) solutions.list.push_back(resolved_unit_value);
+        else solutions.list.push_back(resolve_expression(expression, type, function, state, flags));        
+    }
+    for (auto e : solutions.list) solutions.error |= e.error;    
     return solutions;
 }
 
@@ -172,12 +194,19 @@ std::string emit(const std::unique_ptr<llvm::Module>& module) {
     return string;
 }
 
-bool is_donothing_call(llvm::Instruction* ins) {
-    if (not ins) return false;
-    return std::string(ins->getOpcodeName()) == "call" and std::string(ins->getOperand(0)->getName()) == "llvm.donothing";
+
+static bool is_donothing_call(llvm::Instruction* ins) {   
+    return ins 
+    and std::string(ins->getOpcodeName()) == "call" 
+    and std::string(ins->getOperand(0)->getName()) == "llvm.donothing";
 }
 
-static void delete_empty_blocks(std::unique_ptr<llvm::Module> &module) {
+static bool is_unreachable_instruction(llvm::Instruction* ins) {
+    return ins 
+    and std::string(ins->getOpcodeName()) == "unreachable";
+}
+
+void delete_empty_blocks(std::unique_ptr<llvm::Module> &module) { 
     for (auto& function : module->getFunctionList()) {        
         llvm::SmallVector<llvm::BasicBlock*, 100> blocks = {};        
         for (auto& block : function.getBasicBlockList()) {
@@ -187,16 +216,33 @@ static void delete_empty_blocks(std::unique_ptr<llvm::Module> &module) {
     }
 }
 
-void clean(std::unique_ptr<llvm::Module>& module) {    
-    for (auto& function : module->getFunctionList()) {
+
+void move_lone_terminators_into_previous_blocks(std::unique_ptr<llvm::Module>& module) {
+    for (auto& function : module->getFunctionList()) {        
+        llvm::BasicBlock* previous = nullptr;
+        
         for (auto& block : function.getBasicBlockList()) {            
-            auto ins = block.getTerminator();
-            if (ins and std::string(ins->getOpcodeName()) == "unreachable" 
-                and is_donothing_call(ins->getPrevNonDebugInstruction())) {
-                ins->getPrevNonDebugInstruction()->eraseFromParent();                
-                ins->eraseFromParent();
-            }
+            auto& instructions = block.getInstList();            
+            
+            if (previous and instructions.size() == 1 
+                and instructions.back().isTerminator())
+                instructions.back().moveAfter(&previous->getInstList().back());
+            
+            previous = &block;
         }
     }
-    delete_empty_blocks(module);    
+}
+
+void remove_extraneous_insertion_points_in(std::unique_ptr<llvm::Module>& module) {    
+    for (auto& function : module->getFunctionList()) {
+        for (auto& block : function.getBasicBlockList()) {    
+            auto terminator = block.getTerminator();
+            if (!terminator) continue;
+            auto previous = terminator->getPrevNonDebugInstruction();                        
+            if (is_unreachable_instruction(terminator) and is_donothing_call(previous)) {
+                previous->eraseFromParent();                 
+                terminator->eraseFromParent();
+            }
+        }
+    }    
 }

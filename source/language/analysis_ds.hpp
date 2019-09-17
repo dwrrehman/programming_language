@@ -18,7 +18,7 @@
 #include <iostream>
 #include <vector>
 
-struct file_data {
+struct program_data {
     struct file file;
     llvm::Module* module;
     llvm::IRBuilder<>& builder;
@@ -28,8 +28,7 @@ struct symbol_table;
 
 struct state {
     symbol_table& stack;     
-    file_data& data;
-    bool& error;
+    program_data& data;
 };
 
 struct flags {

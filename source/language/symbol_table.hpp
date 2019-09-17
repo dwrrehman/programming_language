@@ -20,6 +20,7 @@
 #include "llvm/IR/IRBuilder.h"
 #include "llvm/IR/Function.h"
 #include <iostream>
+#include <iomanip>
 
 
 struct stack_frame {
@@ -39,7 +40,7 @@ struct signature_entry {
 struct symbol_table {
 
     flags flags;
-    file_data& data;
+    program_data& data;
     
     std::vector<signature_entry> master = {};
     std::vector<stack_frame> frames = {};
@@ -94,7 +95,7 @@ struct symbol_table {
         });
     }
     
-    symbol_table(file_data& data, struct flags flags, std::vector<expression> builtins) 
+    symbol_table(program_data& data, struct flags flags, std::vector<expression> builtins) 
     : data(data), flags(flags) {
         
         master.push_back({});               // the null entry. a type (index) of 0 means it has no type.                
@@ -129,13 +130,18 @@ struct symbol_table {
         std::cout << "\nmaster: {\n";
         auto j = 0;
         for (auto entry : master) {            
-            std::cout << "\t" << j << ": {\"";
-            //print_expression_line(entry.signature); 
-            std::cout << "\" : [ parent = " << entry.parent << "]\n";
-            std::cout << "LLVM value: \n";
-            if (entry.value) entry.value->print(llvm::errs());
-            std::cout << "LLVM function: \n";
-            if (entry.function) entry.function->print(llvm::errs());
+            std::cout << "\t" << std::setw(6) << j << ": ";
+            std::cout << expression_to_string(entry.signature, *this); 
+            std::cout << " :: [parent = " << entry.parent << "]\n";
+            
+            if (entry.value) {
+                std::cout << "\tLLVM value: \n";
+                entry.value->print(llvm::errs());
+            }
+            if (entry.function) {
+                std::cout << "\tLLVM function: \n";
+                entry.function->print(llvm::errs());
+            }
             
             j++;
         }

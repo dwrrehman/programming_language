@@ -15,25 +15,28 @@ std::string random_string() {
     return std::string(stream.str()) + std::to_string(num++);
 }
 
+
+
+
+
+
+///TODO: this deletes the symbol table already inserted for the given function... 
+/// we need to update it to the new symbol table.
+/// ... maybe we should just not import the llvm symbol table, (or, ie, have 
+/// a function update() which takes a llvm sybol tbale.
+
+///important note about this function:     
+/// it leaves artifacts in the function after use, which must be removed: 
+/// any occurence of a unreachable statement which is directly preceeded by 
+/// a llvm.do_nothing() call, should be removed before execution of the function.  
+
 bool parse_llvm_string_as_instruction(std::string given, llvm::Function*& original, state& state, llvm::SMDiagnostic& errors) {
-    
-    ///TODO: this deletes the symbol table already inserted for the given function... 
-    /// we need to update it to the new symbol table.
-    /// ... maybe we should just not import the llvm symbol table, (or, ie, have 
-    /// a function update() which takes a llvm sybol tbale.
-    
-    ///important note about this function:     
-    /// it leaves artifacts in the function after use, which must be removed: 
-    /// any occurence of a unreachable statement which is directly preceeded by 
-    /// a llvm.do_nothing() call, should be removed before execution of the function.  
-    
     std::string body = "";
     original->print(llvm::raw_string_ostream(body) << "");    
     body.pop_back(); // delete the newline
-    body.pop_back(); // delete the close brace
-    body += given + "\n" "call void @llvm.donothing()" "\n" "unreachable" "\n" "}" "\n";
-    
-    const std::string current_name = original->getName();
+    body.pop_back(); // delete the close brace      
+    body += given + "\n call void @llvm.donothing() \n unreachable \n } \n";     
+    const std::string current_name = original->getName(); 
     original->setName("_anonymous_" + random_string());
     llvm::MemoryBufferRef reference(body, "<llvm-string>");
     llvm::ModuleSummaryIndex my_index(true);

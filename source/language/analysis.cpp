@@ -19,36 +19,40 @@
 #include "llvm/Target/TargetMachine.h"
 
 
-std::unique_ptr<llvm::Module> analyze(expression_list unit, file file, llvm::LLVMContext& context) {
+std::unique_ptr<llvm::Module> analyze(expression_list program, file file, llvm::LLVMContext& context) {
     
     srand((unsigned)time(nullptr));
     llvm::IRBuilder<> builder(context);
     auto module = llvm::make_unique<llvm::Module>(file.name, context);
     auto triple = llvm::sys::getDefaultTargetTriple();
     module->setTargetTriple(triple);
-    auto main_function = create_main(builder, context, module);
+    auto main = create_main(builder, context, module);
     call_donothing(builder, module);
-    
-    bool error = false;
     flags flags {};
-    file_data data {file, module.get(), builder};
-    symbol_table stack {data, flags, builtins};
-    state state {stack, data, error};
+    program_data data {file, module.get(), builder};
+    symbol_table stack {data, {}, builtins};
+    state state {stack, data};
     stack.sort_top_by_largest();
+    prune_extraneous_subexpressions_in_expression_list(program);
+    auto resolved_program = resolve_expression_list(program, intrin::unit, main, state, flags.generate_code().at_top_level());
+    remove_extraneous_insertion_points_in(module);
+    delete_empty_blocks(module);
+    move_lone_terminators_into_previous_blocks(module);
+    append_return_0_statement(builder, main, context);
     
-    auto res = resolve_expression_list(unit, intrin::unit, main_function, state, flags.generate_code().at_top_level());
-    error |= res.error;
-    if (debug) debug_table(module, stack);
+    ///TODO: make this function print to a string, and display a n3zqxql made llvm error message using that string.
+    if (llvm::verifyModule(*module, &llvm::errs())) resolved_program.error = true;
     
-    clean(module);
-    if (llvm::verifyFunction(*main_function)) append_return_0_statement(builder, context);
-    if (llvm::verifyModule(*module, &llvm::errs())) error = true;    
-    if (debug) {
-        std::cout << "------------------ analysis ------------------- \n\n";
-        print_resolved_unit(res, state);
-        std::cout << "emitting the following LLVM: \n";
+    if (debug) {        
+        std::cout << "------------------ stack state ------------------- \n\n";
+        stack.debug();
+        
+        std::cout << "------------------ resolution ------------------- \n\n";
+        print_resolved_unit(resolved_program, state);
+        
+        std::cout << "------------ emitting LLVM: ----------- \n";
         std::cout << emit(module);
     }
-    if (error) { throw "analysis error"; }
-    else { return module; }
+    if (resolved_program.error) throw "analysis error";
+    else return module;
 }

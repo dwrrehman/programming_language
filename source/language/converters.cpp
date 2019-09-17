@@ -114,10 +114,9 @@ expression string_to_expression(std::string given, state& state, flags flags) {
     return {};
 }
 
-expression convert_raw_llvm_symbol_to_expression(std::string id, llvm::Value* value, symbol_table& stack, file_data& data, flags flags) { 
+expression convert_raw_llvm_symbol_to_expression(std::string id, llvm::Value* value, symbol_table& stack, program_data& data, flags flags) { 
     if (id[0] == '(') {
-        bool error = false;
-        state state = {stack, data, error};
+        state state = {stack, data};
         return string_to_expression(id, state, flags);
     } else {
         expression e {};

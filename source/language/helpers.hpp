@@ -35,12 +35,14 @@ bool are_equal_identifiers(const symbol &first, const symbol &second);
 
 ////////////////////////////////// LLVM IR builder helpers ////////////////////////////////
 
-void append_return_0_statement(llvm::IRBuilder<> &builder, llvm::LLVMContext &context); 
+void append_return_0_statement(llvm::IRBuilder<> &builder, llvm::Function* main_function, llvm::LLVMContext &context); 
 void call_donothing(llvm::IRBuilder<> &builder, const std::unique_ptr<llvm::Module> &module);
 llvm::Function* create_main(llvm::IRBuilder<>& builder, llvm::LLVMContext& context, const std::unique_ptr<llvm::Module>& module);
 
 
 /////////////////////////////////////// CSR SUITE ///////////////////////////////////////////
+
+void prune_extraneous_subexpressions_in_expression_list(expression_list& given);
 
 
 resolved_expression_list resolve_expression_list(expression_list given, nat given_type, llvm::Function*& function, state& state, flags flags); // the main interface.
@@ -51,12 +53,8 @@ resolved_expression resolve(expression given, nat given_type, llvm::Function*& f
 
 std::string emit(const std::unique_ptr<llvm::Module>& module);
 
-bool is_donothing_call(llvm::Instruction* ins);
-
-static void delete_empty_blocks(std::unique_ptr<llvm::Module> &module) ;
-
-void clean(std::unique_ptr<llvm::Module>& module);
-
-
+void remove_extraneous_insertion_points_in(std::unique_ptr<llvm::Module>& module);
+void delete_empty_blocks(std::unique_ptr<llvm::Module> &module);
+void move_lone_terminators_into_previous_blocks(std::unique_ptr<llvm::Module>& module); 
 
 #endif /* helpers_hpp */
