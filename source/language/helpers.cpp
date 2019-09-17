@@ -84,7 +84,6 @@ bool are_equal_identifiers(const symbol &first, const symbol &second) {
 
 bool matches(expression given, expression signature, nat given_type, std::vector<resolved_expression_list>& args, llvm::Function*& function, nat& index, const nat depth, const nat max_depth, state& state, flags flags) {    
     if (given_type != signature.type and given.type != intrin::infered) return false;
-
     for (auto symbol : signature.symbols) {
         if (index >= given.symbols.size()) return false;
         
@@ -107,13 +106,6 @@ bool matches(expression given, expression signature, nat given_type, std::vector
 
 resolved_expression resolve(expression given, nat given_type, llvm::Function*& function, nat& index, nat depth, nat max_depth, state& state, flags flags) {
     if (index >= given.symbols.size() or not given_type or depth > max_depth) return resolution_failure;
-    
-    if (subexpression(given.symbols[index]) and given.symbols[index].expressions.list.empty()) {        
-        if (given_type == intrin::unit) {
-            index++; return {intrin::empty, {}, false};
-        } else return resolution_failure;
-    }
-    
     if (llvm_string(given.symbols[index]) and given_type == intrin::unit)
         return parse_llvm_string(given, function, given.symbols[index].llvm.literal.value, index, state, flags);
     
@@ -153,22 +145,26 @@ static std::vector<nat> generate_type_list(const expression_list &given, nat giv
     return types;
 }
 
-resolved_expression_list resolve_expression_list(expression_list given, nat given_type, llvm::Function*& function, state& state, flags flags) {                    
+resolved_expression_list resolve_expression_list(expression_list given, nat given_type, llvm::Function*& function, state& state, flags flags) {
+    
+    resolved_expression_list solutions {};
+    
+    if (given.list.empty()) {
+        if (given_type == intrin::unit) solutions.list.push_back({intrin::empty, {}, false});
+        else solutions.error = true;
+        return solutions;
+    }
+        
     nat i = 0;
     auto types = generate_type_list(given, given_type);
-    resolved_expression_list solutions {};
+
     for (auto expression : given.list)
-        solutions.list.push_back(resolve_expression(expression, types[i++], function, state, flags));    
-    for (auto e : solutions.list) solutions.error |= e.error;
+        solutions.list.push_back(resolve_expression(expression, types[i++], function, state, flags));
+    
+    for (auto e : solutions.list) 
+        solutions.error |= e.error;
     return solutions;
 }
-
-
-
-
-
-
-
 
 std::string emit(const std::unique_ptr<llvm::Module>& module) {
     std::string string = "";

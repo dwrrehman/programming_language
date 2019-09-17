@@ -22,18 +22,17 @@
 //TODO: make a expression list to string function...?
 
 
-std::string expression_to_string(expression given, symbol_table& stack) {  // unimplemented
+std::string expression_to_string(expression given, symbol_table& stack) { 
     std::string result = "(";
     size_t i = 0;
     for (auto symbol : given.symbols) { 
         if (symbol.type == symbol_type::identifier) result += symbol.identifier.name.value;
         else if (symbol.type == symbol_type::subexpression) {
-            
-            ///TODO: fix this function to not be dumb. make it cleaner.
-            
-            if (symbol.expressions.list.size()) result += "(" + expression_to_string(symbol.expressions.list.back(), stack) + ")";
-            else result += "((_unit_value) (_1) (_))";
-            
+            result +=
+            "(" + (symbol.expressions.list.size() 
+                             ? expression_to_string(symbol.expressions.list.back(), stack) 
+                             : "") 
+            + ")";
             
         }
         if (i < given.symbols.size() - 1) result += " "; 
