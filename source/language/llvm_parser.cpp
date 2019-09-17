@@ -58,6 +58,7 @@ llvm::Type* parse_llvm_string_as_type(std::string given, state& state, llvm::SMD
 }
 
 resolved_expression parse_llvm_string(expression given, llvm::Function*& function, std::string llvm_string, nat& pointer, state& state, flags flags) {
+    ///TODO: given is unused now.
     llvm::SMDiagnostic instruction_errors, function_errors, type_errors;
     
     if (not flags.is_parsing_type 

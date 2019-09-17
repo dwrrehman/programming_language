@@ -35,6 +35,7 @@ std::unique_ptr<llvm::Module> analyze(expression_list unit, file file, llvm::LLV
     symbol_table stack {data, flags, builtins};
     state state {stack, data, error};
     stack.sort_top_by_largest();
+    
     auto res = resolve_expression_list(unit, intrin::unit, main_function, state, flags.generate_code().at_top_level());
     error |= res.error;
     if (debug) debug_table(module, stack);

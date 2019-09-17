@@ -283,3 +283,22 @@ void print_resolved_unit(resolved_expression_list unit, state& state) {
     std::cout << "---------- printing resolved tranlation unit: ------------\n\n";
     print_resolved_list(unit, 0, state);
 }
+
+
+
+
+
+
+
+
+
+
+void print_nat_vector(std::vector<nat> v, bool newline) {
+    std::cout << "[ ";
+    for (auto e : v) {
+        std::cout << e << " ";
+    }
+    std::cout << "]";
+    if (newline) std::cout << "\n";
+}
+

@@ -50,4 +50,6 @@ void print_resolved_unit(resolved_expression_list unit, state& state);
 
 
 
+void print_nat_vector(std::vector<nat> v, bool newline); 
+
 #endif
