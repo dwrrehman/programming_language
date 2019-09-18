@@ -49,7 +49,7 @@ resolved_expression_list resolve_expression_list(expression_list given, nat give
 
 resolved_expression resolve_expression(expression given, nat given_type, llvm::Function*& function, state& state, flags flags);
 
-resolved_expression resolve(expression given, nat given_type, llvm::Function*& function,nat& index, const nat depth, const nat max_depth, state& state, flags flags);
+resolved_expression resolve(expression given, nat given_type, llvm::Function*& function,nat& index, const nat depth, const nat max_depth, nat fdi_length, state& state, flags flags);
 
 std::string emit(const std::unique_ptr<llvm::Module>& module);
 

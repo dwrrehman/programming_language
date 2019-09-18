@@ -63,7 +63,7 @@ expression expose_abstraction = {
 
 expression hello_abstraction = {
     {
-        {{"_hello"}}, {{"world"}}, {{intrin::unit}}, {{"from"}}, {{"space"}}, 
+        {{"use"}}, {{intrin::unit}}, {{"and"}}, {{"print"}},{{"it"}}, 
     }, intrin::unit}; 
 
 expression dog_abstraction = {
@@ -90,6 +90,13 @@ expression C_abstraction = {
 
 
 
+expression my_define_abstraction = {
+    {
+        {{"define"}}, {{intrin::abstraction}},
+    }, intrin::unit};
+
+
+
 
 /// FIX ME
 //expression compiletime_type = { { {"_compiletime"}, {{{},intrin::type}}},intrin::type};
@@ -106,6 +113,7 @@ std::vector<expression> builtins =  {
     
     hello_abstraction,
     dog_abstraction, A_abstraction, B_abstraction, C_abstraction,
+    my_define_abstraction,
     
 //    compiletime_type,   runtime_type,
 //    immutable_type,     mutable_type,    

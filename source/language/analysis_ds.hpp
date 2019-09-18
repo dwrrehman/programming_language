@@ -63,7 +63,8 @@ struct resolved_expression {
     nat index = 0;
     std::vector<resolved_expression_list> args = {};
     bool error = false;
-    llvm::Type* llvm_type = nullptr; 
+    llvm::Type* llvm_type = nullptr;
+    
 };
 
 struct resolved_expression_list {    
