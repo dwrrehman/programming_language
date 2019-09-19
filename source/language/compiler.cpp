@@ -71,7 +71,7 @@ void set_data_layout(llvm_module& module) {
 }
 
 void interpret(llvm_module& module, arguments arguments) {    
-    set_data_layout(module);
+    set_data_layout(module); 
     auto jit = llvm::EngineBuilder(std::move(module)).setEngineKind(llvm::EngineKind::JIT).create();
     jit->finalizeObject();
     exit(jit->runFunctionAsMain(jit->FindFunctionNamed("main"), {arguments.executable_name}, nullptr));
@@ -94,20 +94,19 @@ std::string generate_object_file(llvm_module& module, arguments arguments) {
     auto TheTargetMachine = Target->createTargetMachine(TargetTriple, "generic", "", opt, RM, CM);
     module->setDataLayout(TheTargetMachine->createDataLayout());
     
-    auto object_filemame = arguments.executable_name + ".o";
+    auto object_filename = arguments.executable_name + ".o";
     std::error_code error;
-    llvm::raw_fd_ostream dest(object_filemame, error, llvm::sys::fs::F_None);
+    llvm::raw_fd_ostream dest(object_filename, error, llvm::sys::fs::F_None);
     if (error) {throw "generate error: cannot open raw object file";}
     
     llvm::legacy::PassManager pass;
-    auto filetype = llvm::TargetMachine::CGFT_ObjectFile;
-    if (TheTargetMachine->addPassesToEmitFile(pass, dest, nullptr, filetype)) {
-        std::remove(object_filemame.c_str());
+    if (TheTargetMachine->addPassesToEmitFile(pass, dest, nullptr, llvm::TargetMachine::CGFT_ObjectFile)) {
+        std::remove(object_filename.c_str());
         throw "generate error: cannot emit object file on this target";
     }
     pass.run(*module);
     dest.flush();
-    return object_filemame;
+    return object_filename;
 }
 
 void emit_executable(std::string object_file, arguments arguments) {

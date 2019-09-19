@@ -43,8 +43,7 @@ static void debug_program(std::unique_ptr<llvm::Module> & module, resolved_expre
 std::unique_ptr<llvm::Module> analyze(expression_list program, file file, llvm::LLVMContext& context) {
     srand((unsigned)time(nullptr));
     auto module = llvm::make_unique<llvm::Module>(file.name, context);
-    auto triple = llvm::sys::getDefaultTargetTriple();
-    module->setTargetTriple(triple);
+    module->setTargetTriple(llvm::sys::getDefaultTargetTriple());
     llvm::IRBuilder<> builder(context);
     flags flags {};
     program_data data {file, module.get(), builder};
@@ -54,13 +53,13 @@ std::unique_ptr<llvm::Module> analyze(expression_list program, file file, llvm::
     call_donothing(builder, module);
     stack.sort_top_by_largest();
     prune_extraneous_subexpressions_in_expression_list(program);
-    auto resolved_program = resolve_expression_list(program, intrin::unit, main, state, flags.generate_code().at_top_level());
+    auto resolved = resolve_expression_list(program, intrin::unit, main, state, flags.generate_code().at_top_level()); 
     remove_extraneous_insertion_points_in(module);
     move_lone_terminators_into_previous_blocks(module);
     delete_empty_blocks(module);
     append_return_0_statement(builder, main, context);
-    verify(file, module, resolved_program);    
-    debug_program(module, resolved_program, state); 
-    if (resolved_program.error) throw "analysis error";
+    verify(file, module, resolved);    
+    debug_program(module, resolved, state); 
+    if (resolved.error) throw "analysis error";
     else return module;
 }
