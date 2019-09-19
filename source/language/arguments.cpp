@@ -57,8 +57,9 @@ int is_file(const char *path) {
 }
 
 void error_cannot_open(struct arguments &args, struct file &file) {
-    printf("Unable to open \"%s\" \n", file.name.c_str());
-    perror("open");
+    print_error_message("", "Unable to open \"" + file.name + "\": " + strerror(errno) , 0, 0);
+    
+    
     args.error = true;
 }
 

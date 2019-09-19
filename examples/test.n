@@ -11,3 +11,5 @@ entry:
 `%result = tail call i32 @puts(i8* getelementptr inbounds ([24 x i8], [24 x i8]* @str, i64 0, i64 0))`
 `%ret = call i32 @f()`
 `ret i32 %ret`
+
+wef

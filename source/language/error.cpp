@@ -31,7 +31,6 @@
 #include "llvm/ExecutionEngine/GenericValue.h"
 
 
-
 // helpers:
 
 static std::string contract_filename(std::string filename) {
@@ -45,32 +44,36 @@ static std::string contract_filename(std::string filename) {
 
 
 static std::string error_heading(const std::string &filename, size_t line, size_t column) {
+
     std::ostringstream s;
     std::string shorter_filename = contract_filename(filename);
-    s << "\n" 
+    s << 
     cBOLD cCYAN << language_name << cRESET 
-    cBOLD cGRAY ": " cRESET
+    cBOLD cGRAY ": " cRESET;
+    if (filename != "")
+        s << cBOLD cMAGENTA << shorter_filename << cGRAY ":" cRESET ;
     
-    cBOLD cMAGENTA << shorter_filename << cRESET 
-    cBOLD cWHITE ":" << line << ":" << column << ": " cRESET
+    if (line and column)
+        s << cBOLD cWHITE << line << cGRAY ":" cRESET cBOLD cWHITE << column << cGRAY ":" cRESET;
     
-    cBOLD cBRIGHT_RED "error: " cRESET             
+    s << cBOLD cBRIGHT_RED " error: " cRESET             
     cBOLD; 
     return s.str();
 }
 
 static std::string warning_heading(const std::string &filename, size_t line, size_t column) {
-        
     std::ostringstream s;
     std::string shorter_filename = contract_filename(filename);
-    s << "\n" 
+    s << 
     cBOLD cCYAN << language_name << cRESET 
-    cBOLD cGRAY ": " cRESET
+    cBOLD cGRAY ": " cRESET;
     
-    cBOLD cMAGENTA << shorter_filename << cRESET 
-    cBOLD cWHITE ":" << line << ":" << column << ": " cRESET
+    if (filename != "")
+        s << cBOLD cMAGENTA << shorter_filename << cGRAY ":" cRESET ;
+    if (line and column)
+        s << cBOLD cWHITE << line << cGRAY ":" cRESET cBOLD cWHITE << column << cGRAY ":" cRESET;
     
-    cBOLD cBRIGHT_YELLOW "warning: " cRESET  
+    s << cBOLD cBRIGHT_YELLOW " warning: " cRESET  
     cBOLD; 
     return s.str();
 }
@@ -79,21 +82,23 @@ static std::string info_heading(const std::string &filename, size_t line, size_t
     
     std::ostringstream s;
     std::string shorter_filename = contract_filename(filename);
-    s << "\n" 
+    s << 
     cBOLD cCYAN << language_name << cRESET 
-    cBOLD cGRAY ": " cRESET
+    cBOLD cGRAY ": " cRESET;
     
-    cBOLD cMAGENTA << shorter_filename << cRESET 
-    cBOLD cWHITE ":" << line << ":" << column << ": " cRESET
+    if (filename != "")
+        s << cBOLD cMAGENTA << shorter_filename << cGRAY ":" cRESET ;
+    if (line and column)
+        s << cBOLD cWHITE << line << cGRAY ":" cRESET cBOLD cWHITE << column << cGRAY ":" cRESET;
     
-    cBOLD cBRIGHT_BLUE "info: " cRESET   
+    s << cBOLD cBRIGHT_BLUE " info: " cRESET   
     cBOLD; 
     return s.str();
 }
 
 static std::string note_heading() {
     std::ostringstream s;
-    s << "\n" cCYAN << language_name << cRESET cGRAY ": \tnote: " cRESET;
+    s <<  cCYAN << language_name << cRESET cGRAY ": \tnote: " cRESET;
     return s.str();
 }
 
