@@ -52,12 +52,9 @@ llvm_modules frontend(arguments arguments, llvm::LLVMContext& context) {
     return modules;
 }
 
-
-
-llvm_module link(llvm_modules& modules, arguments arguments) {
+llvm_module link(llvm_modules modules) {
     
     if (modules.empty()) abort(); // temp, todo fix me
-        
     auto result = std::move(modules.back());
     modules.pop_back();
     
@@ -68,20 +65,17 @@ llvm_module link(llvm_modules& modules, arguments arguments) {
 }
 
 
-
 void set_data_layout(llvm_module& module) {
     auto machine = llvm::EngineBuilder(llvm_module{module.get()}).setEngineKind(llvm::EngineKind::JIT).create();    
     module->setDataLayout(machine->getDataLayout());
 }
 
-int interpret(std::string executable_name, llvm_module& module) {    
+void interpret(llvm_module& module, arguments arguments) {    
     set_data_layout(module);
     auto jit = llvm::EngineBuilder(std::move(module)).setEngineKind(llvm::EngineKind::JIT).create();
     jit->finalizeObject();
-    return jit->runFunctionAsMain(jit->FindFunctionNamed("main"), {executable_name}, nullptr);
+    exit(jit->runFunctionAsMain(jit->FindFunctionNamed("main"), {arguments.executable_name}, nullptr));
 }
-
-
 
 void optimize(llvm_module& module) {
     // use a pass manager, and string together as many passes as possible.
@@ -117,9 +111,8 @@ std::string generate_object_file(llvm_module& module, arguments arguments) {
     return object_filemame;
 }
 
-void link_and_emit_executable(std::string object_file, arguments arguments) {
-    std::string link_command = "ld -macosx_version_min 10.14 -lSystem -lc -o " 
-                                + arguments.executable_name + " " + object_file + " ";
+void emit_executable(std::string object_file, arguments arguments) {
+    std::string link_command = "ld -macosx_version_min 10.14 -lSystem -lc -o " + arguments.executable_name + " " + object_file + " ";
     std::system(link_command.c_str());
     if (debug) std::cout << "executable emitted: " << arguments.executable_name << "\n";
     std::remove(object_file.c_str());
