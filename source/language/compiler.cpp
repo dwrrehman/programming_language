@@ -54,7 +54,7 @@ llvm_modules frontend(arguments arguments, llvm::LLVMContext& context) {
 
 llvm_module link(llvm_modules modules) {
     
-    if (modules.empty()) abort(); // temp, todo fix me
+    if (modules.empty()) return {};
     auto result = std::move(modules.back());
     modules.pop_back();
     
@@ -80,7 +80,6 @@ void interpret(llvm_module& module, arguments arguments) {
 void optimize(llvm_module& module) {
     // use a pass manager, and string together as many passes as possible.
 }
-
 
 std::string generate_object_file(llvm_module& module, arguments arguments) {
     auto TargetTriple = llvm::sys::getDefaultTargetTriple();
