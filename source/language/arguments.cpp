@@ -9,6 +9,7 @@
 #include "arguments.hpp"
 
 #include "lists.hpp"
+#include "error.hpp"
 #include <iostream>
 #include <fstream>
 #include <sys/types.h>
@@ -196,5 +197,8 @@ struct arguments get_commandline_arguments(const int argc, const char** argv) {
             }
         }
     }
+    if (debug) debug_arguments(args);
+    if (args.error) exit(1);
+    if (not args.use_repl and args.files.empty()) print_error_no_files();
     return args;
 }

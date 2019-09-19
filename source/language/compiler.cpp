@@ -22,6 +22,7 @@
 #include "llvm/ExecutionEngine/MCJIT.h"
 #include "llvm/IR/Verifier.h"
 #include "llvm/Target/TargetMachine.h"
+#include "llvm/Linker/Linker.h"
 
 #include <vector>
 #include <iostream>
@@ -35,39 +36,13 @@ void initialize_llvm() {
     llvm::InitializeAllAsmPrinters();
 }
 
-std::unique_ptr<llvm::Module> process(file file, llvm::LLVMContext &context) {
+llvm_module process(file file, llvm::LLVMContext &context) {
     return analyze(correct(parse(file), file), file, context);
 }
 
-void set_data_layout(std::unique_ptr<llvm::Module>& main_module) {
-    auto machine = llvm::EngineBuilder(std::unique_ptr<llvm::Module>{main_module.get()}).setEngineKind(llvm::EngineKind::JIT).create();    
-    main_module->setDataLayout(machine->getDataLayout());
-}
-
-int interpret(std::string executable_name, std::vector<std::unique_ptr<llvm::Module>>& modules) {
-    auto& main_module = modules.back();
-    set_data_layout(main_module);
-    auto jit = llvm::EngineBuilder(std::unique_ptr<llvm::Module>{main_module.get()}).setEngineKind(llvm::EngineKind::JIT).create();
-    jit->finalizeObject();
-    return jit->runFunctionAsMain(jit->FindFunctionNamed("main"), {executable_name}, nullptr);
-}
-
-std::vector<std::string> generate_object_files(const struct arguments& arguments, bool error, std::vector<std::unique_ptr<llvm::Module>>& modules) {
-    size_t i = 0;
-    std::vector<std::string> object_files = {};
-    object_files.reserve(modules.size());
-    for (auto& module : modules) {        
-        try {object_files.push_back(generate_object_file(module, arguments.files[i++]));}  
-        catch(...) {error = true;}
-    }
-    if (error) {
-        delete_files(object_files); 
-        exit(3);        
-    } else return object_files;
-}
-
-std::vector<std::unique_ptr<llvm::Module>> frontend(const struct arguments &arguments, llvm::LLVMContext& context, bool error) {
-    std::vector<std::unique_ptr<llvm::Module>> modules = {};    
+llvm_modules frontend(arguments arguments, llvm::LLVMContext& context) {
+    bool error = false;
+    llvm_modules modules = {};    
     modules.reserve(arguments.files.size());
     for (auto file : arguments.files) {
         try {modules.push_back(process(file, context));}
@@ -77,13 +52,43 @@ std::vector<std::unique_ptr<llvm::Module>> frontend(const struct arguments &argu
     return modules;
 }
 
-void optimize(std::vector<std::unique_ptr<llvm::Module>>& modules) {
-    for (auto& module : modules) {
-        // use a pass manager, and string together as many passes as possible.
-    }
+
+
+llvm_module link(llvm_modules& modules, arguments arguments) {
+    
+    if (modules.empty()) abort(); // temp, todo fix me
+        
+    auto result = std::move(modules.back());
+    modules.pop_back();
+    
+    for (auto& module : modules)         
+        if (llvm::Linker::linkModules(*result, std::move(module))) throw "linkModules failure";
+    
+    return result;
 }
 
-std::string generate_object_file(std::unique_ptr<llvm::Module>& module, const struct file& file) {
+
+
+void set_data_layout(llvm_module& module) {
+    auto machine = llvm::EngineBuilder(llvm_module{module.get()}).setEngineKind(llvm::EngineKind::JIT).create();    
+    module->setDataLayout(machine->getDataLayout());
+}
+
+int interpret(std::string executable_name, llvm_module& module) {    
+    set_data_layout(module);
+    auto jit = llvm::EngineBuilder(std::move(module)).setEngineKind(llvm::EngineKind::JIT).create();
+    jit->finalizeObject();
+    return jit->runFunctionAsMain(jit->FindFunctionNamed("main"), {executable_name}, nullptr);
+}
+
+
+
+void optimize(llvm_module& module) {
+    // use a pass manager, and string together as many passes as possible.
+}
+
+
+std::string generate_object_file(llvm_module& module, arguments arguments) {
     auto TargetTriple = llvm::sys::getDefaultTargetTriple();
     module->setTargetTriple(TargetTriple);
     std::string Error = "";
@@ -96,7 +101,7 @@ std::string generate_object_file(std::unique_ptr<llvm::Module>& module, const st
     auto TheTargetMachine = Target->createTargetMachine(TargetTriple, "generic", "", opt, RM, CM);
     module->setDataLayout(TheTargetMachine->createDataLayout());
     
-    auto object_filemame = file.name + ".o";
+    auto object_filemame = arguments.executable_name + ".o";
     std::error_code error;
     llvm::raw_fd_ostream dest(object_filemame, error, llvm::sys::fs::F_None);
     if (error) {throw "generate error: cannot open raw object file";}
@@ -104,7 +109,7 @@ std::string generate_object_file(std::unique_ptr<llvm::Module>& module, const st
     llvm::legacy::PassManager pass;
     auto filetype = llvm::TargetMachine::CGFT_ObjectFile;
     if (TheTargetMachine->addPassesToEmitFile(pass, dest, nullptr, filetype)) {
-        delete_files({object_filemame});
+        std::remove(object_filemame.c_str());
         throw "generate error: cannot emit object file on this target";
     }
     pass.run(*module);
@@ -112,17 +117,10 @@ std::string generate_object_file(std::unique_ptr<llvm::Module>& module, const st
     return object_filemame;
 }
 
-void delete_files(std::vector<std::string> object_filenames) {
-    for (auto file : object_filenames) std::remove(file.c_str());  
-}
-
-void link_and_emit_executable(std::vector<std::string> object_files, const struct arguments& arguments) {
-    std::string output_filename = arguments.executable_name;
-    std::string link_command = "ld -macosx_version_min 10.14 -lSystem -lc -o " + output_filename + " ";
-    for (auto filename : object_files) {
-        link_command += filename + " ";
-    }
+void link_and_emit_executable(std::string object_file, arguments arguments) {
+    std::string link_command = "ld -macosx_version_min 10.14 -lSystem -lc -o " 
+                                + arguments.executable_name + " " + object_file + " ";
     std::system(link_command.c_str());
-    if (debug) std::cout << "executable emitted: " << output_filename << "\n";
-    delete_files(object_files);
+    if (debug) std::cout << "executable emitted: " << arguments.executable_name << "\n";
+    std::remove(object_file.c_str());
 }

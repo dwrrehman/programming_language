@@ -11,7 +11,6 @@
 
 #include "arguments.hpp"
 #include "nodes.hpp"
-
 #include "llvm/IR/IRBuilder.h"
 #include "llvm/IR/Type.h"
 
@@ -64,7 +63,7 @@ struct resolved_expression {
     std::vector<resolved_expression_list> args = {};
     bool error = false;
     llvm::Type* llvm_type = nullptr;
-    
+    expression signature = {};    
 };
 
 struct resolved_expression_list {    

@@ -117,7 +117,10 @@ static bool matches(expression given, expression signature, nat given_type, std:
             index++;
             
         } else if (parameter(symbol)) {
-            auto argument = resolve(given, symbol.expressions.list.back().type, function, index, depth + 1, max_depth, 0, state, flags); // temp
+            
+            auto argument = resolve(given, symbol.expressions.list.back().type, function, index, depth + 1, max_depth, 0/*temp*/, state, flags); 
+            // temp
+            
             if (argument.error) return false;
             args.push_back({{argument}});            
             
