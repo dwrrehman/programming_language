@@ -36,8 +36,8 @@ std::unique_ptr<llvm::Module> analyze(expression_list program, file file, llvm::
     prune_extraneous_subexpressions_in_expression_list(program);
     auto resolved_program = resolve_expression_list(program, intrin::unit, main, state, flags.generate_code().at_top_level());
     remove_extraneous_insertion_points_in(module);
-    delete_empty_blocks(module);
     move_lone_terminators_into_previous_blocks(module);
+    delete_empty_blocks(module);
     append_return_0_statement(builder, main, context);
     
     ///TODO: make this function print to a string, and display a n3zqxql made llvm error message using that string.

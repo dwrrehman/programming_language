@@ -271,6 +271,9 @@ void move_lone_terminators_into_previous_blocks(std::unique_ptr<llvm::Module>& m
             previous = &block;
         }
     }
+    
+    ///KNOWN BUG: when we have no terminators in sign, this function does remove the unneccessary basic block which is put between the bits of code which should be in the same block.
+    
 }
 
 void remove_extraneous_insertion_points_in(std::unique_ptr<llvm::Module>& module) {    
