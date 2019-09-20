@@ -262,7 +262,7 @@ void move_lone_terminators_into_previous_blocks(std::unique_ptr<llvm::Module>& m
         llvm::BasicBlock* previous = nullptr;
         
         for (auto& block : function.getBasicBlockList()) {            
-            auto& instructions = block.getInstList();            
+            auto& instructions = block.getInstList();
             
             if (previous and instructions.size() == 1 
                 and instructions.back().isTerminator())
@@ -272,7 +272,9 @@ void move_lone_terminators_into_previous_blocks(std::unique_ptr<llvm::Module>& m
         }
     }
     
-    ///KNOWN BUG: when we have no terminators in sign, this function does remove the unneccessary basic block which is put between the bits of code which should be in the same block.
+    ///KNOWN BUG: when we have no terminators in sight, this function 
+    /// does remove the unneccessary basic block which is put between the 
+    /// bits of code which should be in the same block.
     
 }
 
