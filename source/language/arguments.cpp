@@ -127,9 +127,14 @@ void print_usage() {
     
     std::cout << "options:\n";
     std::cout << "\t-named(-o) <executable name>  :: set the name of the executable.\n";    
-    std::cout << "\t-indent <integer>   :: set the number of spaces counted as an indent. \n";
-    std::cout << "\t-sneeze             :: enable the compilers debug mode. \n\n";
-    std::cout << "\t-empty <.n>             :: disable implicit inclusion of _core for the file. \n\n";
+    std::cout << "\t-indent <integer>             :: set the number of spaces counted as an indent. \n";
+    std::cout << "\t-sneeze                       :: enable the compilers debug mode. \n";
+    std::cout << "\t-nothing <.n>                 :: disable implicit inclusion of _core for the file. \n\n";
+    
+    std::cout << "\t-emit <llvm/asm/obj>          :: specify what output the compiler should produce. \n";
+    std::cout << "\t-S                            :: produce assembly file output only\n";
+    std::cout << "\t-c                            :: produce object file output only\n";
+    std::cout << "\t-ll                           :: produce llvm ir file output only\n\n";
 }
 
 struct arguments get_commandline_arguments(const int argc, const char** argv) {    
