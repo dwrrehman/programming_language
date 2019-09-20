@@ -211,11 +211,11 @@ void print_source_code(std::string text, std::vector<struct token> offending_tok
             index = t.line - 1 + offset;
         } else continue;
         
-        std::cout << "\t" << cGRAY << std::setw(3) << t.line + offset << cRESET cGREEN " │  " cRESET << lines[index] << std::endl;
+        std::cout << "\t" << cGRAY << std::setw(4) << t.line + offset << cRESET cGREEN " │  " cRESET << lines[index] << std::endl;
         
         if (!offset) {
             std::cout << "\t";
-            for (int i = 0; i < t.column + 5; i++) std::cout << " ";
+            for (int i = 0; i < t.column + 7; i++) std::cout << " ";
             std::cout << cBRIGHT_RED << "^";
             if (t.value.size() > 1) for (int i = 0; i < t.value.size() - 1; i++) std::cout << "~";
             std::cout << cRESET << std::endl;
