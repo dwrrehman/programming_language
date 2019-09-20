@@ -62,7 +62,7 @@ std::unique_ptr<llvm::Module> analyze(expression_list program, file file, llvm::
     move_lone_terminators_into_previous_blocks(module);
     delete_empty_blocks(module);
     
-    //append_return_0_statement(builder, main, context);
+    if (not contains_final_terminator(main)) append_return_0_statement(builder, main, context);
     verify(file, module, resolved);    
     debug_program(module, resolved, state); 
     if (resolved.error) throw "analysis error";

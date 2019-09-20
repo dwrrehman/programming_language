@@ -12,6 +12,7 @@
 #include "color.h"
 #include <sstream>
 #include <iostream>
+#include <iomanip>
 
 #include "analysis_ds.hpp"
 
@@ -210,7 +211,7 @@ void print_source_code(std::string text, std::vector<struct token> offending_tok
             index = t.line - 1 + offset;
         } else continue;
         
-        std::cout << "\t" << cGRAY << t.line + offset << cRESET cGREEN "  │  " cRESET << lines[index] << std::endl;
+        std::cout << "\t" << cGRAY << std::setw(3) << t.line + offset << cRESET cGREEN " │  " cRESET << lines[index] << std::endl;
         
         if (!offset) {
             std::cout << "\t";

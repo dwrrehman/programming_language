@@ -46,6 +46,16 @@ bool llvm_string(const symbol& s) { return s.type == symbol_type::llvm_literal; 
 bool parameter(const symbol &symbol) { return subexpression(symbol); }
 
 
+bool contains_final_terminator(llvm::Function* main_function) {
+    auto& blocks = main_function->getBasicBlockList();
+    if (blocks.size()) {
+        auto& instructions = blocks.back().getInstList();
+        auto& last = instructions.back();
+        if (last.isTerminator()) return true;
+    }
+    return false;
+}
+
 void append_return_0_statement(llvm::IRBuilder<> &builder, llvm::Function* main_function, llvm::LLVMContext &context) {
     llvm::Value* value = llvm::ConstantInt::get(llvm::Type::getInt32Ty(context), 0);    
     builder.SetInsertPoint(&main_function->getBasicBlockList().back());

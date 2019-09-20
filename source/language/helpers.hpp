@@ -35,6 +35,7 @@ bool are_equal_identifiers(const symbol &first, const symbol &second);
 
 ////////////////////////////////// LLVM IR builder helpers ////////////////////////////////
 
+bool contains_final_terminator(llvm::Function* main_function);
 void append_return_0_statement(llvm::IRBuilder<> &builder, llvm::Function* main_function, llvm::LLVMContext &context); 
 void call_donothing(llvm::IRBuilder<> &builder, const std::unique_ptr<llvm::Module> &module);
 llvm::Function* create_main(llvm::IRBuilder<>& builder, llvm::LLVMContext& context, const std::unique_ptr<llvm::Module>& module);

@@ -15,16 +15,6 @@ std::string random_string() {
     return std::string(stream.str()) + std::to_string(num++);
 }
 
-
-
-
-
-
-///TODO: this deletes the symbol table already inserted for the given function... 
-/// we need to update it to the new symbol table.
-/// ... maybe we should just not import the llvm symbol table, (or, ie, have 
-/// a function update() which takes a llvm sybol tbale.
-
 ///important note about this function:     
 /// it leaves artifacts in the function after use, which must be removed: 
 /// any occurence of a unreachable statement which is directly preceeded by 
