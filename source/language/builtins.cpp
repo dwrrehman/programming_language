@@ -159,7 +159,7 @@ expression C_abstraction = {
 
 expression my_define_abstraction = {
     {
-        {{"define"}}, {{intrin::abstraction}},
+        {{"define"}}, {{intrin::abstraction}}, {{"and"}}, {{"poop"}}, {{intrin::abstraction}}, {{"stop"}}, {{"it"}}
     }, intrin::unit};
 
 
