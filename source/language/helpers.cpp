@@ -150,29 +150,33 @@ static bool is_unit_value(expression &expression) {
     and expression.symbols[0].expressions.list.empty();
 }   
 
+static resolved_expression construct_signature(nat fdi_length, expression &given, nat &index) {
+    resolved_expression result = {intrin::typeless};
+    result.signature = std::vector<symbol>(given.symbols.begin() + index, given.symbols.begin() + index + fdi_length);
+    index += fdi_length;
+    return result;
+}
+
 resolved_expression resolve(expression given, nat given_type, llvm::Function*& function, 
                             nat& index, nat depth, nat max_depth, nat fdi_length,
                             state& state) {
     
-    if (index >= given.symbols.size() or not given_type or depth > max_depth)  return resolution_failure;        
-    if (llvm_string(given.symbols[index]) and given_type == intrin::unit) return parse_llvm_string(function, given.symbols[index].llvm.literal.value, index, state);
+    if (index >= given.symbols.size() or not given_type or depth > max_depth) 
+        return resolution_failure;
     
-    if (given_type == intrin::abstraction) {        
-        resolved_expression result = {intrin::typeless};
-        result.signature = std::vector<symbol>(given.symbols.begin() + index, given.symbols.begin() + index + fdi_length);
-        index += fdi_length;
-        return result;
-    }
+    else if (given_type == intrin::abstraction)
+        return construct_signature(fdi_length, given, index);
+    
+    else if (llvm_string(given.symbols[index]) and given_type == intrin::unit) 
+        return parse_llvm_string(function, given.symbols[index].llvm.literal.value, index, state);
     
     size_t saved = index;
     for (auto signature_index : state.stack.top()) {        
         index = saved;
         std::vector<resolved_expression_list> args = {};                                
-        if (matches(given, state.stack.get(signature_index), given_type, args, function, 
-                    index, depth, max_depth, fdi_length, state))            
+        if (matches(given, state.stack.get(signature_index), given_type, args, function, index, depth, max_depth, fdi_length, state))            
             return {signature_index, args, false};
-    }
-    
+    }    
     return resolution_failure;
 }
 
@@ -185,7 +189,7 @@ static void print_unresolved_error(const expression &given, state &state) {
 resolved_expression resolve_expression(expression given, nat given_type, llvm::Function*& function, state& state) {    
     
     if (is_unit_value(given) and given_type == intrin::unit) return resolved_unit_value;
-       
+    
     resolved_expression solution {};
     nat pointer = 0;
     for (nat max_depth = 0; max_depth <= max_expression_depth; max_depth++) {
