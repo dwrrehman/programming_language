@@ -19,6 +19,7 @@
 #include <string>
 #include <vector>
 
+
 //TODO: make a expression list to string function...?
 
 
@@ -83,7 +84,7 @@ std::string expression_to_string(expression given, symbol_table& stack) {
 
 // unimpelented: WIP:
 
-size_t string_to_expression_tail(std::vector<expression> list, state& state, flags flags) { // returns an index to the correct into the stack.
+size_t string_to_expression_tail(std::vector<expression> list, state& state) { // returns an index to the correct into the stack.
 //    if (list.empty()) return intrin::infered;
 //    if (list.size() == 1 and expressions_match(list[0], type_type)) return intrin::type;
     
@@ -99,7 +100,7 @@ size_t string_to_expression_tail(std::vector<expression> list, state& state, fla
     return 0; // temp
 }
 
-expression string_to_expression(std::string given, state& state, flags flags) {    
+expression string_to_expression(std::string given, state& state) {    
     struct file file = {"<llvm string symbol>", given};
     start_lex(file);
     auto e = parse_expression(file, false, false);    
@@ -107,17 +108,17 @@ expression string_to_expression(std::string given, state& state, flags flags) {
     //auto signature = subexpressions.front();    
     
     //subexpressions.erase(subexpressions.begin());        
-    //signature.type = string_to_expression_tail(subexpressions, state, flags);
+    //signature.type = string_to_expression_tail(subexpressions, state);
     
     //return signature;
     print_warning_message(state.data.file.name, "unimplemented function called", 0,0);
     return {};
 }
 
-expression convert_raw_llvm_symbol_to_expression(std::string id, llvm::Value* value, symbol_table& stack, program_data& data, flags flags) { 
+expression convert_raw_llvm_symbol_to_expression(std::string id, llvm::Value* value, symbol_table& stack, program_data& data) { 
     if (id[0] == '(') {
         state state = {stack, data};
-        return string_to_expression(id, state, flags);
+        return string_to_expression(id, state);
     } else {
         expression e {};
         e.llvm_type = value->getType();

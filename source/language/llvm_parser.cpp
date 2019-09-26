@@ -50,20 +50,15 @@ llvm::Type* parse_llvm_string_as_type(std::string given, state& state, llvm::SMD
     return llvm::parseType(given, errors, *state.data.module);
 }
 
-resolved_expression parse_llvm_string(expression given, llvm::Function*& function, std::string llvm_string, nat& pointer, state& state, flags flags) {
-    ///TODO: given is unused now.
+resolved_expression parse_llvm_string(llvm::Function*& function, std::string llvm_string, nat& pointer, state& state) {
     llvm::SMDiagnostic instruction_errors, function_errors, type_errors;
     
-    if (not flags.is_parsing_type 
-        and (parse_llvm_string_as_function(llvm_string, state, function_errors) 
-          or parse_llvm_string_as_instruction(llvm_string, function, state, instruction_errors))) {
-        pointer++;
-        return {intrin::empty, {}, false};            
-            
+    if (parse_llvm_string_as_function(llvm_string, state, function_errors) or 
+        parse_llvm_string_as_instruction(llvm_string, function, state, instruction_errors)) {
+        pointer++; return {intrin::empty, {}, false};
     } else if (auto llvm_type = parse_llvm_string_as_type(llvm_string, state, type_errors)) {
         pointer++;
-        return {intrin::typeless, {}, false, llvm_type};
-        
+        return {intrin::typeless, {}, false, llvm_type};        
     } else {
         print_llvm_error(function_errors, state);
         print_llvm_error(instruction_errors, state);        

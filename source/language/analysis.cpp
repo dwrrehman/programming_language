@@ -46,16 +46,14 @@ std::unique_ptr<llvm::Module> analyze(expression_list program, file file, llvm::
     module->setTargetTriple(llvm::sys::getDefaultTargetTriple());
     
     llvm::IRBuilder<> builder(context);
-    flags flags {};
     program_data data {file, module.get(), builder};
-    symbol_table stack {data, {}, builtins};
+    symbol_table stack {data, builtins};
     state state {stack, data};
-    
     auto main = create_main(builder, context, module);
     call_donothing(builder, module);
     stack.sort_top_by_largest();
     prune_extraneous_subexpressions_in_expression_list(program);
-    auto resolved = resolve_expression_list(program, intrin::unit, main, state, flags.generate_code().at_top_level());
+    auto resolved = resolve_expression_list(program, intrin::unit, main, state);
     remove_extraneous_insertion_points_in(module);
     move_lone_terminators_into_previous_blocks(module);
     delete_empty_blocks(module);

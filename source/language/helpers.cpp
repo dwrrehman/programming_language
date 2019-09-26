@@ -115,19 +115,19 @@ bool are_equal_identifiers(const symbol &first, const symbol &second) {
 }
 
 static bool matches(expression given, expression signature, nat given_type, std::vector<resolved_expression_list>& args, llvm::Function*& function, 
-                    nat& index, nat depth, nat max_depth, nat fdi_length, state& state, flags flags) {
+                    nat& index, nat depth, nat max_depth, nat fdi_length, state& state) {
         
     if (given_type != signature.type and given.type != intrin::infered) return false;
     for (auto symbol : signature.symbols) {
         if (index >= given.symbols.size()) return false;
         if (parameter(symbol) and subexpression(given.symbols[index])) {
-            auto argument = resolve_expression_list(given.symbols[index].expressions, symbol.expressions.list.back().type, function, state, flags);            
+            auto argument = resolve_expression_list(given.symbols[index].expressions, symbol.expressions.list.back().type, function, state);            
             if (argument.error) return false;
             args.push_back(argument);
             index++;
             
         } else if (parameter(symbol)) {
-            auto argument = resolve(given, symbol.expressions.list.back().type, function, index, depth + 1, max_depth, fdi_length, state, flags);
+            auto argument = resolve(given, symbol.expressions.list.back().type, function, index, depth + 1, max_depth, fdi_length, state);
             if (argument.error) return false;
             args.push_back({{argument}});
             
@@ -152,10 +152,10 @@ static bool is_unit_value(expression &expression) {
 
 resolved_expression resolve(expression given, nat given_type, llvm::Function*& function, 
                             nat& index, nat depth, nat max_depth, nat fdi_length,
-                            state& state, flags flags) {
+                            state& state) {
     
     if (index >= given.symbols.size() or not given_type or depth > max_depth)  return resolution_failure;        
-    if (llvm_string(given.symbols[index]) and given_type == intrin::unit) return parse_llvm_string(given, function, given.symbols[index].llvm.literal.value, index, state, flags);
+    if (llvm_string(given.symbols[index]) and given_type == intrin::unit) return parse_llvm_string(function, given.symbols[index].llvm.literal.value, index, state);
     
     if (given_type == intrin::abstraction) {        
         resolved_expression result = {intrin::typeless};
@@ -169,7 +169,7 @@ resolved_expression resolve(expression given, nat given_type, llvm::Function*& f
         index = saved;
         std::vector<resolved_expression_list> args = {};                                
         if (matches(given, state.stack.get(signature_index), given_type, args, function, 
-                    index, depth, max_depth, fdi_length, state, flags))            
+                    index, depth, max_depth, fdi_length, state))            
             return {signature_index, args, false};
     }
     
@@ -182,7 +182,7 @@ static void print_unresolved_error(const expression &given, state &state) {
     print_source_code(state.data.file.text, {given.starting_token});
 }
 
-resolved_expression resolve_expression(expression given, nat given_type, llvm::Function*& function, state& state, flags flags) {    
+resolved_expression resolve_expression(expression given, nat given_type, llvm::Function*& function, state& state) {    
     
     if (is_unit_value(given) and given_type == intrin::unit) return resolved_unit_value;
        
@@ -191,7 +191,7 @@ resolved_expression resolve_expression(expression given, nat given_type, llvm::F
     for (nat max_depth = 0; max_depth <= max_expression_depth; max_depth++) {
         for (nat fdi_length = given.symbols.size(); fdi_length--;) {
             pointer = 0;
-            solution = resolve(given, given_type, function, pointer, 0, max_depth, fdi_length, state, flags);
+            solution = resolve(given, given_type, function, pointer, 0, max_depth, fdi_length, state);
             if (not solution.error and pointer == given.symbols.size()) break;
         }
         if (not solution.error and pointer == given.symbols.size()) break;
@@ -201,13 +201,13 @@ resolved_expression resolve_expression(expression given, nat given_type, llvm::F
     return solution;
 }
 
-resolved_expression_list resolve_expression_list(expression_list given, nat given_type, llvm::Function*& function, state& state, flags flags) {    
+resolved_expression_list resolve_expression_list(expression_list given, nat given_type, llvm::Function*& function, state& state) {    
     if (given.list.empty()) return {{resolved_unit_value}, given_type != intrin::unit};
     nat i = 0;
     auto types = generate_type_list(given, given_type);    
     resolved_expression_list solutions {};    
     for (auto expression : given.list) 
-        solutions.list.push_back(resolve_expression(expression, types[i++], function, state, flags));        
+        solutions.list.push_back(resolve_expression(expression, types[i++], function, state));        
     for (auto e : solutions.list) solutions.error |= e.error;    
     return solutions;
 }

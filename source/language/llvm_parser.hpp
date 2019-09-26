@@ -46,7 +46,7 @@ llvm::Type* parse_llvm_string_as_type(std::string given, state& state, llvm::SMD
 
 void print_llvm_error(const llvm::SMDiagnostic &errors, state &state);
 
-resolved_expression parse_llvm_string(expression given, llvm::Function*& function, std::string llvm_string, nat& pointer, state& state, flags flags);
+resolved_expression parse_llvm_string(llvm::Function*& function, std::string llvm_string, nat& pointer, state& state);
 
 void interpret_file_as_llvm_string(const struct file &file, state &state); 
     

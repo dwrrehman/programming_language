@@ -42,7 +42,6 @@ struct signature_entry {
 
 struct symbol_table {
 
-    flags flags;
     program_data& data;
     
     std::vector<signature_entry> master = {};
@@ -99,8 +98,8 @@ struct symbol_table {
         });
     }
     
-    symbol_table(program_data& data, struct flags flags, std::vector<expression> builtins) 
-    : data(data), flags(flags) {
+    symbol_table(program_data& data, std::vector<expression> builtins) 
+    : data(data) {
         
         master.push_back({});               // the null entry. a type (index) of 0 means it has no type.                
         for (auto signature : builtins) 

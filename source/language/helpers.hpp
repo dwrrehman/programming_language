@@ -46,11 +46,11 @@ llvm::Function* create_main(llvm::IRBuilder<>& builder, llvm::LLVMContext& conte
 void prune_extraneous_subexpressions_in_expression_list(expression_list& given);
 
 
-resolved_expression_list resolve_expression_list(expression_list given, nat given_type, llvm::Function*& function, state& state, flags flags); // the main interface.
+resolved_expression_list resolve_expression_list(expression_list given, nat given_type, llvm::Function*& function, state& state); // the main interface.
 
-resolved_expression resolve_expression(expression given, nat given_type, llvm::Function*& function, state& state, flags flags);
+resolved_expression resolve_expression(expression given, nat given_type, llvm::Function*& function, state& state);
 
-resolved_expression resolve(expression given, nat given_type, llvm::Function*& function,nat& index, const nat depth, const nat max_depth, nat fdi_length, state& state, flags flags);
+resolved_expression resolve(expression given, nat given_type, llvm::Function*& function,nat& index, const nat depth, const nat max_depth, nat fdi_length, state& state);
 
 std::string emit(const std::unique_ptr<llvm::Module>& module);
 
