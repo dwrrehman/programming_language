@@ -11,6 +11,7 @@
 #include "arguments.hpp"
 #include "error.hpp"
 #include "lists.hpp"
+
 #include <string>
 #include <cstdlib>
 
@@ -24,7 +25,7 @@ static size_t c = 0;
 static size_t line = 0;
 static size_t column = 0;
 static lexing_state state = lexing_state::indent;
-static struct token current = {};
+static token current = {};
 
 // helpers:
 static bool is_identifier(char c) { return isalnum(c) or c == '_'; }
@@ -40,7 +41,7 @@ static void advance_by(size_t n) {
     }
 }
 
-static void set_current(enum token_type t, enum lexing_state s) {
+static void set_current(token_type t, lexing_state s) {
     current.type = t;
     current.value = "";
     current.line = line;
@@ -63,7 +64,7 @@ static void check_for_lexing_errors() {
 
 // the main lexing function:
 
-struct token next() {
+token next() {
     while (true) {
 
         if (c >= text.size()) {
@@ -186,8 +187,8 @@ struct token next() {
     }
 }
 
-struct saved_state save() {
-    struct saved_state result;
+saved_state save() {
+    saved_state result;
     result.saved_c = c;
     result.saved_line = line;
     result.saved_column = column;
@@ -196,7 +197,7 @@ struct saved_state save() {
     return result;
 }
 
-void revert(struct saved_state s) {
+void revert(saved_state s) {
     c = s.saved_c;
     line = s.saved_line;
     column = s.saved_column;

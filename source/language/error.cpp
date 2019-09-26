@@ -10,12 +10,7 @@
 
 #include "lists.hpp"
 #include "color.h"
-#include <sstream>
-#include <iostream>
-#include <iomanip>
-
 #include "analysis_ds.hpp"
-
 
 #include "llvm/IR/LLVMContext.h"
 #include "llvm/AsmParser/Parser.h"
@@ -30,6 +25,10 @@
 #include "llvm/ExecutionEngine/daniels_interpreter/MCJIT.h"
 #include "llvm/ExecutionEngine/MCJIT.h"
 #include "llvm/ExecutionEngine/GenericValue.h"
+
+#include <sstream>
+#include <iostream>
+#include <iomanip>
 
 
 // helpers:

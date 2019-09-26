@@ -12,6 +12,7 @@
 #include "lexer.hpp"
 #include "lists.hpp"
 #include "llvm/IR/Type.h"
+
 #include <vector>
 
 struct expression_list;
@@ -41,7 +42,7 @@ struct string_literal {
 
 struct llvm_literal { 
     
-    struct token literal = {}; 
+    token literal = {}; 
     bool error = 0;
         
     llvm_literal(){}
@@ -51,7 +52,7 @@ struct llvm_literal {
 
 struct identifier { 
     
-    struct token name = {}; 
+    token name = {}; 
     bool error = 0;
     
     identifier(){}
@@ -92,7 +93,7 @@ struct expression {
 
 struct symbol { 
     
-    enum symbol_type type = symbol_type::none;    
+    symbol_type type = symbol_type::none;    
     expression_list expressions = {};
     string_literal string = {};
     llvm_literal llvm = {};

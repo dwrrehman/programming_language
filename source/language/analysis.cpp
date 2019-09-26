@@ -19,7 +19,7 @@
 #include "llvm/Target/TargetMachine.h"
 
 
-static void verify(file file, const std::unique_ptr<llvm::Module>& module, resolved_expression_list& resolved_program) {
+static void verify(file file, std::unique_ptr<llvm::Module>& module, resolved_expression_list& resolved_program) {
     std::string errors = "";
     if (llvm::verifyModule(*module, &(llvm::raw_string_ostream(errors) << ""))) {
         print_error_message(file.name, errors, 0, 0);
@@ -27,7 +27,7 @@ static void verify(file file, const std::unique_ptr<llvm::Module>& module, resol
     }
 }
 
-static void debug_program(std::unique_ptr<llvm::Module> & module, resolved_expression_list resolved_program, state& state) {
+static void debug_program(std::unique_ptr<llvm::Module>& module, resolved_expression_list resolved_program, state& state) {
     if (debug) {        
         std::cout << "------------------ stack state ------------------- \n\n";
         state.stack.debug();
@@ -53,11 +53,9 @@ std::unique_ptr<llvm::Module> analyze(expression_list program, file file, llvm::
     
     auto main = create_main(builder, context, module);
     call_donothing(builder, module);
-    
     stack.sort_top_by_largest();
     prune_extraneous_subexpressions_in_expression_list(program);
     auto resolved = resolve_expression_list(program, intrin::unit, main, state, flags.generate_code().at_top_level());
-    
     remove_extraneous_insertion_points_in(module);
     move_lone_terminators_into_previous_blocks(module);
     delete_empty_blocks(module);

@@ -26,7 +26,7 @@ struct program_data {
 struct symbol_table;
 
 struct state {
-    symbol_table& stack;     
+    symbol_table& stack;
     program_data& data;
 };
 
@@ -63,7 +63,7 @@ struct resolved_expression {
     std::vector<resolved_expression_list> args = {};
     bool error = false;
     llvm::Type* llvm_type = nullptr;
-    expression signature = {};    
+    expression signature = {};
 };
 
 struct resolved_expression_list {    

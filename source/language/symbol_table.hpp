@@ -16,11 +16,14 @@
 #include "helpers.hpp"
 #include "error.hpp"
 #include "builtins.hpp"
+
 #include "llvm/IR/ValueSymbolTable.h"
 #include "llvm/IR/IRBuilder.h"
 #include "llvm/IR/Function.h"
+
 #include <iostream>
 #include <iomanip>
+#include <algorithm>
 
 
 struct stack_frame {
@@ -73,7 +76,8 @@ struct symbol_table {
     void define(expression signature, expression_list definition, nat back_from, nat parent = 0) {
         // unfinsihed
         print_warning_message(data.file.name, "unimplemented function called", 0,0);
-        // this function should do a check for if the signature is aclready defined in the current scope. if so, then simply overrite its data.
+        // this function should do a check for if the signature is already 
+        // defined in the current scope. if so, then simply overrite its data.
                 
         frames[frames.size() - (++back_from)].indicies.push_back(master.size()); 
         master.push_back({signature, definition, parent});
@@ -90,7 +94,7 @@ struct symbol_table {
     }
     
     void sort_top_by_largest() {
-        std::sort(top().begin(), top().end(), [&](nat a, nat b) {
+        std::stable_sort(top().begin(), top().end(), [&](nat a, nat b) {
             return get(a).symbols.size() > get(b).symbols.size(); 
         });
     }

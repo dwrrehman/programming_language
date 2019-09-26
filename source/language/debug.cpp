@@ -9,12 +9,13 @@
 #include "debug.hpp"
 
 #include "arguments.hpp"
+#include "builtins.hpp"
 
 #include "llvm/IR/Type.h"
 #include "llvm/Support/raw_ostream.h"
 
 #include <iostream>
-#include "builtins.hpp"
+
 
 // ----------------------- command line arguments debugging: ----------------------------
 
@@ -256,8 +257,18 @@ void print_resolved_expr(resolved_expression expr, nat depth, state& state);
 
 void print_resolved_expr(resolved_expression expr, nat depth, state& state) {
     prep(depth); std::cout << "[error = " << std::boolalpha << expr.error << "]\n";
-    prep(depth); std::cout << "index = " << expr.index << " :: " 
-    << expression_to_string(state.stack.get(expr.index), state.stack) << "\n";
+    prep(depth);
+    
+    std::cout 
+    << "index = " 
+    << expr.index << " :: " 
+    << expression_to_string(state.stack.get(expr.index), state.stack);
+    
+    if (expr.signature.symbols.size()) {
+        std::cout << " ::: " << expression_to_string(expr.signature, state.stack);
+    }
+    
+    std::cout << "\n";    
     
     if (expr.llvm_type) { prep(depth); std::cout << "llvm type = "; expr.llvm_type->print(llvm::errs()); }
     std::cout << "\n";
@@ -267,7 +278,7 @@ void print_resolved_expr(resolved_expression expr, nat depth, state& state) {
         print_resolved_list(arg, depth + 2, state);
         prep(depth); std::cout << "\n";
     }
-} 
+}
 
 void print_resolved_list(resolved_expression_list list, nat depth, state& state) {
     prep(depth); std::cout << "[error = " << std::boolalpha << list.error << "]\n";

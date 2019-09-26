@@ -16,9 +16,9 @@
 
 /// ------------ prototypes -----------------
 
-symbol parse_symbol(struct file file, bool newlines_are_a_symbol);
-expression parse_expression(struct file file, bool can_be_empty, bool newlines_are_a_symbol);
-expression_list parse_expression_list(struct file file, bool can_be_empty);
+symbol parse_symbol( file file, bool newlines_are_a_symbol);
+expression parse_expression( file file, bool can_be_empty, bool newlines_are_a_symbol);
+expression_list parse_expression_list( file file, bool can_be_empty);
 size_t indents(void);
 void newlines(void);
 

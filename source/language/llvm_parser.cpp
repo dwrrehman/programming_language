@@ -72,9 +72,6 @@ resolved_expression parse_llvm_string(expression given, llvm::Function*& functio
     }
 }
 
-
-
-
 // might be useful, for when we are given .ll files? that sounds cool.
 
 void interpret_file_as_llvm_string(const struct file &file, state &state) { // test, by allowing some llvm random string to be parsed into the file:

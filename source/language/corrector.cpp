@@ -22,7 +22,7 @@
 
  */
 
-inline static bool is_whitespace(const symbol& e) { return e.type == symbol_type::indent or e.type == symbol_type::newline; }
+inline static bool is_whitespace(symbol e) { return e.type == symbol_type::indent or e.type == symbol_type::newline; }
 
 void remove_whitespace_in_expressions(expression_list& list, file file, size_t depth) {    
     for (auto& expression : list.list) {
@@ -34,9 +34,9 @@ void remove_whitespace_in_expressions(expression_list& list, file file, size_t d
     }
 }
 
-void turn_indents_into_blocks(expression_list& list, file file, const size_t level);
+void turn_indents_into_blocks(expression_list& list, file file,  size_t level);
 
-static void push_block_onto_list(expression_list& list, file file, const size_t level, expression_list& new_list) {
+static void push_block_onto_list(expression_list& list, file file,  size_t level, expression_list& new_list) {
     if (list.list.size()) {
         turn_indents_into_blocks(list, file, level + 1);
         if (new_list.list.empty()) new_list.list.push_back({{{list}}});
@@ -44,7 +44,7 @@ static void push_block_onto_list(expression_list& list, file file, const size_t 
     }
 }
 
-void turn_indents_into_blocks(expression_list& given, file file, const size_t level) {
+void turn_indents_into_blocks(expression_list& given, file file, size_t level) {
 
     expression_list new_list {}, block {};
     for (auto& expression : given.list) {
@@ -60,11 +60,11 @@ void turn_indents_into_blocks(expression_list& given, file file, const size_t le
     given = new_list;
 }
 
-void raise(size_t& value, const size_t minimum) {
+void raise(size_t& value, size_t minimum) {
     if (value < minimum) value = minimum;
 }
 
-void raise_indents(expression_list& list, file file, const size_t level) {
+void raise_indents(expression_list& list, file file, size_t level) {
     for (auto& expression : list.list) {
         raise(expression.indent_level, level);
         for (auto& symbol : expression.symbols)

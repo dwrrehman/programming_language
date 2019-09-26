@@ -16,7 +16,7 @@ enum class token_type {null, string, identifier, character, llvm, keyword, opera
 enum class lexing_state {none, string, string_expression, identifier, llvm_string, comment, multiline_comment, indent};
 
 struct token {
-    enum token_type type = token_type::null;
+    token_type type = token_type::null;
     std::string value = "";
     size_t line = 0;
     size_t column = 0;
@@ -32,8 +32,8 @@ struct saved_state {
 
 void start_lex(file file);
 
-struct token next();
-struct saved_state save();
-void revert(struct saved_state s);
+token next();
+saved_state save();
+void revert(saved_state s);
 
 #endif /* lexer_hpp */
