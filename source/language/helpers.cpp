@@ -47,6 +47,7 @@ void prune_extraneous_subexpressions_in_expression(expression& given);
 bool subexpression(const symbol& s) { return s.type == symbol_type::subexpression; }
 bool identifier(const symbol& s) { return s.type == symbol_type::identifier; }
 bool llvm_string(const symbol& s) { return s.type == symbol_type::llvm_literal; }
+bool string_literal(const symbol& s) { return s.type == symbol_type::string_literal; }
 bool parameter(const symbol &symbol) { return subexpression(symbol); }
 
 
@@ -175,6 +176,30 @@ static bool matches(const expression& given, const expression& signature, nat gi
     return true;
 }
 
+llvm::Constant* create_global_constant_string(llvm::Module* module, const std::string& string) {
+    auto type = llvm::ArrayType::get(llvm::Type::getInt8Ty(module->getContext()), string.size() + 1);
+    std::vector<llvm::Constant*> characters (string.size() + 1);        
+    for (nat i = 0; i < string.size(); i++) characters[i] = llvm::ConstantInt::get(llvm::Type::getInt8Ty(module->getContext()), string[i]);    
+    characters[string.size()] = llvm::ConstantInt::get(llvm::Type::getInt8Ty(module->getContext()), '\0');
+    auto llvm_string = new llvm::GlobalVariable(*module, type, true, llvm::GlobalVariable::ExternalLinkage, 
+                                                llvm::ConstantArray::get(type, characters), "string");    
+    return llvm::ConstantExpr::getBitCast(llvm_string, llvm::Type::getInt8Ty(module->getContext())->getPointerTo());
+}
+
+
+
+static resolved_expression parse_string(const expression &given, nat &index, state &state) {
+    auto string_type = llvm::Type::getInt8PtrTy(state.data.module->getContext());
+    auto expected_llvm_type = state.stack.master[intrin::llvm].llvm_type;
+    
+    if (expected_llvm_type == string_type) {            
+        resolved_expression string {};
+        string.index = intrin::llvm;
+        string.constant = create_global_constant_string(state.data.module, given.symbols[index].string.literal.value);
+        return string;
+    } else return resolution_failure;
+}
+
 resolved_expression resolve(const expression& given, nat given_type, llvm::Function*& function, 
                             nat& index, nat depth, nat max_depth, nat fdi_length,
                             state& state) {
@@ -182,11 +207,16 @@ resolved_expression resolve(const expression& given, nat given_type, llvm::Funct
     if (index >= given.symbols.size() or not given_type or depth > max_depth) 
         return resolution_failure;
     
-    else if (given_type == intrin::abstraction)    ///TODO: known bug: passing multiple different length signatures doesnt work with the current fdi solution. 
-        return construct_signature(fdi_length, given, index);
+    else if (given_type == intrin::abstraction)
+        return construct_signature(fdi_length, given, index); 
+    ///TODO: known bug: passing multiple different length signatures doesnt work with the current fdi solution.
     
     else if (llvm_string(given.symbols[index]) and given_type == intrin::unit) 
         return parse_llvm_string(function, given.symbols[index].llvm.literal.value, index, state);
+    
+    else if (string_literal(given.symbols[index]) and given_type == intrin::llvm) 
+        parse_string(given, index, state);
+    
     
     nat saved = index;
     for (auto signature_index : state.stack.top()) {        
@@ -197,6 +227,8 @@ resolved_expression resolve(const expression& given, nat given_type, llvm::Funct
     }    
     return resolution_failure;
 }
+
+
 
 ///TODO: move this into error.cpp
 static void print_unresolved_error(const expression &given, state &state) {

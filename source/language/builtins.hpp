@@ -34,19 +34,22 @@
  
  */
 namespace intrin {
-    enum intrin_name_index {
+    enum intrin_name_index { // index into master.     /// ORDER MATTERS.
         typeless,
-        infered,
         type,
+        infered,
         none,
-        unit,
+        unit,        
         empty,
+        llvm,
         
         application,
         abstraction,
-        create,
+                
         define,        
-        expose,
+        expose,       // do we really need this?
+        print,
+        
         
 //        compiletime,
 //        runtime,

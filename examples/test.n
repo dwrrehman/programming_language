@@ -1,1 +1,1 @@
-
+mystring "hello there from space"

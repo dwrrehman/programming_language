@@ -104,8 +104,10 @@ void symbol_table::update(llvm::ValueSymbolTable& llvm) {
         auto j = 0;
         for (auto entry : master) {            
             std::cout << "\t" << std::setw(6) << j << ": ";
-            std::cout << expression_to_string(entry.signature, *this); 
-            std::cout << " :: [parent = " << entry.parent << "]\n";
+            std::cout << expression_to_string(entry.signature, *this);
+            
+            if (entry.parent) std::cout << " :: [parent = " << entry.parent << "]\n";
+            else std::cout << "\n";
             
             if (entry.value) {
                 std::cout << "\tLLVM value: \n";

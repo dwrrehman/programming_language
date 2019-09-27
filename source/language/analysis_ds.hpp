@@ -39,6 +39,7 @@ struct resolved_expression {
     bool error = false;
     llvm::Type* llvm_type = nullptr;
     expression signature = {};
+    llvm::Value* constant = {};
 };
 
 struct resolved_expression_list {    
