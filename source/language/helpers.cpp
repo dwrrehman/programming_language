@@ -14,7 +14,7 @@
 #include "builtins.hpp"
 #include "symbol_table.hpp"
 //#include "lists.hpp"
-//#include "error.hpp"
+#include "error.hpp"
 #include "llvm_parser.hpp"
 
 //#include "llvm/AsmParser/Parser.h"
@@ -26,9 +26,11 @@
 //
 //#include "llvm/Support/TargetRegistry.h"
 //#include "llvm/Support/TargetSelect.h"
-//#include "llvm/ExecutionEngine/daniels_interpreter/MCJIT.h"
-//#include "llvm/ExecutionEngine/MCJIT.h"
-//#include "llvm/ExecutionEngine/GenericValue.h"
+
+#include "llvm/ExecutionEngine/daniels_interpreter/MCJIT.h"
+#include "llvm/ExecutionEngine/MCJIT.h"
+
+#include "llvm/ExecutionEngine/GenericValue.h"
 //
 #include "llvm/Transforms/Utils/BasicBlockUtils.h"
 
@@ -196,6 +198,7 @@ resolved_expression resolve(const expression& given, nat given_type, llvm::Funct
     return resolution_failure;
 }
 
+///TODO: move this into error.cpp
 static void print_unresolved_error(const expression &given, state &state) {
     const std::string name = expression_to_string(given, state.stack);
     print_error_message(state.data.file.name, "unresolved expression: " + name, given.starting_token.line, given.starting_token.column);

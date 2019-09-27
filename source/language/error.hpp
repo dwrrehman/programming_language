@@ -9,12 +9,9 @@
 #ifndef error_hpp
 #define error_hpp
 
+#include "lists.hpp"
 
-//#include "lexer.hpp"
-//#include "lists.hpp"
-//
-//#include <string>
-//#include <vector>
+#include <string>
 
 // messagers:
 

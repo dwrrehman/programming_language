@@ -9,35 +9,13 @@
 #ifndef llvm_parser_hpp
 #define llvm_parser_hpp
 
-//#include "helpers.hpp"
-
 #include "analysis_ds.hpp"
 #include "arguments.hpp"
-
-//#include "compiler.hpp"
-//#include "parser.hpp"
-//#include "builtins.hpp"
-//#include "symbol_table.hpp"
 #include "lists.hpp"
-//#include "error.hpp"
 
-//#include "llvm/AsmParser/Parser.h"
-//#include "llvm/IR/ModuleSummaryIndex.h"
-
-#include "llvm/Support/SourceMgr.h" // for SMDiagnostic
+#include "llvm/Support/SourceMgr.h" 
 #include "llvm/IR/Function.h"
 
-//#include "llvm/IR/ValueSymbolTable.h"
-//#include "llvm/Transforms/Utils/ValueMapper.h"
-//#include "llvm/Transforms/Utils/Cloning.h"
-//
-//#include "llvm/Support/TargetRegistry.h"
-//#include "llvm/Support/TargetSelect.h"
-//#include "llvm/ExecutionEngine/daniels_interpreter/MCJIT.h"
-//#include "llvm/ExecutionEngine/MCJIT.h"
-//#include "llvm/ExecutionEngine/GenericValue.h"
-
-//#include <cstdlib>
 #include <string>
 
 

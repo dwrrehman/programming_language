@@ -9,14 +9,6 @@
 #ifndef symbol_table_hpp
 #define symbol_table_hpp
 
-//#include "arguments.hpp"
-
-//#include "converters.hpp"
-//#include "debug.hpp"
-//#include "helpers.hpp"
-//#include "error.hpp"
-//#include "builtins.hpp"
-
 #include "lists.hpp" // nat 
 #include "nodes.hpp"
 #include "analysis_ds.hpp" // program_data
@@ -24,17 +16,6 @@
 #include "llvm/IR/Function.h"
 
 #include <vector>
-
-
-//#include "llvm/IR/ValueSymbolTable.h"
-//#include "llvm/IR/IRBuilder.h"
-
-
-//
-//#include <iostream>
-//#include <iomanip>
-//#include <algorithm>
-
 
 struct stack_frame {
     std::vector<nat> indicies = {};  

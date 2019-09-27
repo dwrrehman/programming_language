@@ -7,7 +7,13 @@
 //
 
 #include "llvm_parser.hpp"
+#include "builtins.hpp"
 
+#include "llvm/IR/ModuleSummaryIndex.h"
+#include "llvm/AsmParser/Parser.h"
+
+#include <sstream>
+#include <iostream>
 
 
 std::string random_string() {

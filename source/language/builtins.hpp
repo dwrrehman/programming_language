@@ -10,6 +10,7 @@
 #define builtins_hpp
 
 #include "nodes.hpp"
+
 #include <vector>
 
 /**
@@ -66,12 +67,6 @@ extern expression abstraction_type;
 extern expression create_abstraction;
 extern expression define_abstraction;
 extern expression expose_abstraction;
-
-// FIX ME:
-//extern expression compiletime_type;
-//extern expression runtime_type;
-//extern expression immutable_type;
-//extern expression mutable_type;
 
 extern std::vector<expression> builtins;
 

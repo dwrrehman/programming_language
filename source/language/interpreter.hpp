@@ -9,7 +9,7 @@
 #ifndef interpreter_hpp
 #define interpreter_hpp
 
-//#include "llvm/IR/LLVMContext.h"
+#include "llvm/IR/LLVMContext.h"
 
 void repl(llvm::LLVMContext& context);
 

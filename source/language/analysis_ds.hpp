@@ -11,13 +11,9 @@
 
 #include "arguments.hpp"
 #include "nodes.hpp"
+
 #include "llvm/IR/IRBuilder.h"
-
 #include "llvm/IR/Module.h"
-
-//#include "llvm/IR/Type.h"
-//#include <iostream>
-//#include <vector>
 
 using llvm_modules = std::vector<std::unique_ptr<llvm::Module>>;
 using llvm_module = std::unique_ptr<llvm::Module>;

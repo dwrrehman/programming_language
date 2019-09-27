@@ -8,12 +8,10 @@
 
 #include "lexer.hpp"
 
-#include "arguments.hpp"
 #include "error.hpp"
 #include "lists.hpp"
 
 #include <string>
-#include <cstdlib>
 
 
 #define clear_and_return()  auto result = current; current = {}; return result;
@@ -206,7 +204,7 @@ void revert(saved_state s) {
 }
 
 // this function should be called before lexing a given file.
-void start_lex(file file) {
+void start_lex(const file& file) {
     text = file.text;
     filename = file.name;
     c = 0;

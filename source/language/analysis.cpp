@@ -9,9 +9,15 @@
 #include "analysis.hpp"
 
 #include "debug.hpp"
+#include "error.hpp"
+#include "builtins.hpp"
 #include "symbol_table.hpp"
+#include "helpers.hpp"
 
 #include "llvm/IR/Verifier.h"
+
+#include <iostream>
+
 
 static void verify(const file& file, llvm_module& module, resolved_expression_list& resolved_program) {
     std::string errors = "";

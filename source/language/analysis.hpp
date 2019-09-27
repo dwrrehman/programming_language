@@ -9,11 +9,7 @@
 #ifndef analysis_hpp
 #define analysis_hpp
 
-//#include "arguments.hpp"
-//#include "nodes.hpp"
-//#include "analysis_ds.hpp"
-//
-//#include <iostream>
+#include "analysis_ds.hpp"
 
 llvm_module analyze(expression_list unit, const file& file, llvm::LLVMContext& context);
 

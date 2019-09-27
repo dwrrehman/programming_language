@@ -8,10 +8,13 @@
 
 #include "symbol_table.hpp"
 
-//#include "debug.hpp"
-//#include "builtins.hpp"
+#include "error.hpp"
+
+#include "llvm/IR/ValueSymbolTable.h"
 
 #include <iostream>
+#include <iomanip>
+
 
 
 void symbol_table::update(llvm::ValueSymbolTable& llvm) {        
