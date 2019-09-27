@@ -182,7 +182,7 @@ resolved_expression resolve(const expression& given, nat given_type, llvm::Funct
     if (index >= given.symbols.size() or not given_type or depth > max_depth) 
         return resolution_failure;
     
-    else if (given_type == intrin::abstraction)
+    else if (given_type == intrin::abstraction)    ///TODO: known bug: passing multiple different length signatures doesnt work with the current fdi solution. 
         return construct_signature(fdi_length, given, index);
     
     else if (llvm_string(given.symbols[index]) and given_type == intrin::unit) 

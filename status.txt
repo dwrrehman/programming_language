@@ -4,6 +4,103 @@ the current status of the compiler is:
 
 
 
+
+
+
+
+1909264.223628:
+
+
+
+	so i almost implememnted FDI the other day, which is good...
+
+	however, there are two known bugs:
+
+
+			- FDI: not being able to pass two differently lengthed signatures into an application.
+
+	
+			- parsing llvm instructions:  there is a weird bug with the aftermath of removing the "donothing-unreachables" after parsing the llvm stirngs.
+
+
+	
+		
+	
+
+----------- whats next to implememnt? --------------------------------
+
+
+
+
+	
+			1.5: csr additions:   
+	
+
+
+		70%		_b     :   "FDI":  passing undefined signatures into expressions: 
+				
+		0%		_a     :   "CTAE":  compiletime/lazy computation 
+							(passing in unealutated expressions.)
+	
+		0%		__     :   "TI": aggressive candidate-set-resolution-based type inference
+
+
+
+
+			2. string to expression converter
+
+
+			3. symbol table management, and covnersion between llvm and n.
+
+s	
+			4. write the (c++) implementation for:
+			
+				4.1.    _c    : ???
+
+				4.2.    _d    : IMPORTANT.
+
+				4.3.    _e    : easy: print warning/error/info/note
+
+
+
+			5. code generation (cg):	
+					
+				5.1. cg for _d'efined abstractions: 
+					turning into:
+						llvm functions
+						llvm types
+						llvm variables
+	
+				5.2. cg for evaluated _a's
+
+
+			6. more compiler options
+
+			
+			7. REPL functionality
+
+
+			8. core standard library    
+
+
+			9. public exposure!
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 1909161.233343:
 
 	ok, so csr, (the "resolver" from here on out)

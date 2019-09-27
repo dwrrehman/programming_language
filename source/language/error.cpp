@@ -84,7 +84,8 @@ static std::string info_heading(const std::string& filename, nat line, nat colum
 
 static std::string note_heading() {
     std::ostringstream s;
-    s <<  cCYAN << language_name << cRESET cGRAY ": \tnote: " cRESET;
+    s << cCYAN << language_name 
+    << cRESET cGRAY ": note: " cRESET;
     return s.str();
 }
 

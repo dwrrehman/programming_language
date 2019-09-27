@@ -19,6 +19,21 @@
 #include <iostream>
 
 
+
+
+///TODO: implement compiler intrin functions for each of these:    
+    
+//    print_error_message(file.name, "this is an error message.", 0, 0);
+//    print_warning_message(file.name, "this is a warning.", 0, 0);
+//    print_info_message(file.name, "this is an info message.", 0, 0);
+//    print_note("this is a note.");
+    
+    
+
+
+
+
+
 static void verify(const file& file, llvm_module& module, resolved_expression_list& resolved_program) {
     std::string errors = "";
     if (llvm::verifyModule(*module, &(llvm::raw_string_ostream(errors) << ""))) {
