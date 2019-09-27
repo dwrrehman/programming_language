@@ -11,27 +11,29 @@
 
 
 #include "lexer.hpp"
+#include "lists.hpp"
+
 #include <string>
 #include <vector>
 
 // messagers:
 
-void print_note(std::string message);
-void print_info_message(std::string filename, std::string message, size_t line, size_t column);
-void print_warning_message(std::string filename, std::string message, size_t line, size_t column);
-void print_error_message(std::string filename, std::string message, size_t line, size_t column);
+void print_note(const std::string& message);
+void print_info_message(const std::string& filename, const std::string& message, nat line, nat column);
+void print_warning_message(const std::string& filename, const std::string& message, nat line, nat column);
+void print_error_message(const std::string& filename, const std::string& message, nat line, nat column);
 
 // specialized:
 
-void print_lex_error(std::string filename, std::string state_name, size_t line, size_t column);
-void print_parse_error(std::string filename, size_t line, size_t column, std::string type, std::string found, std::string expected);
+void print_lex_error(const std::string& filename, const std::string& state_name, nat line, nat column);
+void print_parse_error(const std::string& filename, nat line, nat column, const std::string& type, std::string found, const std::string& expected);
 
 void print_error_no_files();
 
 
 // source printers:
 
-void print_end_of_source_code(std::string text, std::string message);
-void print_source_code(std::string text, std::vector<struct token> offending_tokens);
+//void print_end_of_source_code(const std::string& text, const std::string& message);
+void print_source_code(std::string text, const std::vector<struct token>& offending_tokens);
 
 #endif /* error_hpp */

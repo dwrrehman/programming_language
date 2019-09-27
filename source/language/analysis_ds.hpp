@@ -13,12 +13,16 @@
 #include "nodes.hpp"
 #include "llvm/IR/IRBuilder.h"
 #include "llvm/IR/Type.h"
+#include "llvm/IR/Module.h"
 
 #include <iostream>
 #include <vector>
 
+using llvm_modules = std::vector<std::unique_ptr<llvm::Module>>;
+using llvm_module = std::unique_ptr<llvm::Module>;
+
 struct program_data {
-    struct file file;
+    file file;
     llvm::Module* module;
     llvm::IRBuilder<>& builder;
 };
@@ -44,7 +48,5 @@ struct resolved_expression_list {
     std::vector<resolved_expression> list = {};
     bool error = false;
 };
-
-
 
 #endif /* analysis_ds_hpp */

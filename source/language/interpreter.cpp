@@ -12,15 +12,15 @@
 #include "arguments.hpp"
 #include "lists.hpp"
 #include "nodes.hpp"
+
 #include "llvm/ExecutionEngine/daniels_interpreter/MCJIT.h"
 #include "llvm/ExecutionEngine/MCJIT.h"
-#include "llvm/IR/LLVMContext.h"
 #include "llvm/IR/Module.h"
 
 #include <iostream>
 
 
-static size_t output_line_number = 0;
+static nat output_line_number = 0;
 
 
 std::vector<std::string> commands =  {
@@ -42,7 +42,7 @@ void print_welcome_message() {
     std::cout << "type \"help\" for more information.\n\n";
 }
 
-std::string interpreter_prompt(size_t line) {
+std::string interpreter_prompt(nat line) {
     return " " cBRIGHT_CYAN "(" cRESET cWHITE + std::to_string(line) + cRESET cBRIGHT_CYAN ") " cRESET;
 }
 
@@ -50,18 +50,18 @@ std::string output() {
     return " " cRED "{" cRESET cGRAY + std::to_string(output_line_number++) + cRESET cRED "} " cRESET;
 }
 
-static bool is_command(std::string given) {
+static bool is_command(const std::string& given) {
     for (auto i : commands) {
         if (i == given) return true;
     }
     return false;
 }
 
-static bool is_quit_command(const std::string &line) {
+static bool is_quit_command(const std::string& line) {
     return line == "quit" or line == "exit" or line == "q";
 }
 
-void process_repl_command(std::string line, std::string first) {
+void process_repl_command(const std::string& line, const std::string& first) {
             
     if (line == "clear") {
         std::cout << "\e[1;1H\e[2J";
@@ -85,7 +85,7 @@ void process_repl_command(std::string line, std::string first) {
     }
 }
 
-void interpret_llvm_string(std::string text) {
+void interpret_llvm_string(const std::string& text) {
 //    llvm::SMDiagnostic errors;
 //    if (parse_llvm_string_as_function(text, state, errors)) {                
 //    } else {
@@ -100,9 +100,9 @@ void interpret_llvm_string(std::string text) {
 //    // code this after we get the regular one finished.
 //}
 
-static std::string get_first_word(const std::string &line) {
+static std::string get_first_word(const std::string& line) {
     auto first = line;
-    size_t i = 0;
+    nat i = 0;
     while (first[i] != ' ' and first[i] != 0) i++;
     first.erase(i);
     return first;
@@ -114,7 +114,7 @@ void repl(llvm::LLVMContext& context) {
     auto module = llvm::make_unique<llvm::Module>("_REPL", context);
     
     std::string line = "";
-    size_t line_number = 0;
+    nat line_number = 0;
     do {
         std::cout << interpreter_prompt(line_number);
         std::getline(std::cin, line);

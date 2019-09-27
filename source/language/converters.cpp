@@ -19,20 +19,16 @@
 #include <string>
 #include <vector>
 
-
-//TODO: make a expression list to string function...?
-
-
-std::string expression_to_string(expression given, symbol_table& stack) { 
+std::string expression_to_string(const expression& given, symbol_table& stack) { 
     std::string result = "(";
-    size_t i = 0;
+    nat i = 0;
     for (auto symbol : given.symbols) { 
         if (symbol.type == symbol_type::identifier) result += symbol.identifier.name.value;
         else if (symbol.type == symbol_type::subexpression) {
             result +=
             "(" + (symbol.expressions.list.size() 
                              ? expression_to_string(symbol.expressions.list.back(), stack) 
-                             : "") 
+                             : "")
             + ")";
             
         }
@@ -40,13 +36,7 @@ std::string expression_to_string(expression given, symbol_table& stack) {
         i++;
     }
     result += ")";
-    if (given.llvm_type) { 
-        std::string type = "";
-        given.llvm_type->print(llvm::raw_string_ostream(type) << ""); 
-        result += " " + type; 
-    } else if (given.type) { 
-        result += " " + expression_to_string(stack.master[given.type].signature, stack);   
-    }
+    if (given.type) result += " " + expression_to_string(stack.master[given.type].signature, stack);
     return result;
 }
 
@@ -84,12 +74,12 @@ std::string expression_to_string(expression given, symbol_table& stack) {
 
 // unimpelented: WIP:
 
-size_t string_to_expression_tail(std::vector<expression> list, state& state) { // returns an index to the correct into the stack.
+nat string_to_expression_tail(const std::vector<expression>& list, state& state) { // returns an index to the correct into the stack.
 //    if (list.empty()) return intrin::infered;
 //    if (list.size() == 1 and expressions_match(list[0], type_type)) return intrin::type;
     
-    auto current = list.front();
-    list.erase(list.begin());
+    //auto current = list.front();
+    //list.erase(list.begin());
     
     //auto resolved_expression = traverse(current, state, flags);
     ///TODO: fix me
@@ -100,7 +90,7 @@ size_t string_to_expression_tail(std::vector<expression> list, state& state) { /
     return 0; // temp
 }
 
-expression string_to_expression(std::string given, state& state) {    
+expression string_to_expression(const std::string& given, state& state) {    
     struct file file = {"<llvm string symbol>", given};
     start_lex(file);
     auto e = parse_expression(file, false, false);    
@@ -115,13 +105,12 @@ expression string_to_expression(std::string given, state& state) {
     return {};
 }
 
-expression convert_raw_llvm_symbol_to_expression(std::string id, llvm::Value* value, symbol_table& stack, program_data& data) { 
+expression convert_raw_llvm_symbol_to_expression(const std::string& id, llvm::Value* value, symbol_table& stack, program_data& data) { 
     if (id[0] == '(') {
         state state = {stack, data};
         return string_to_expression(id, state);
     } else {
         expression e {};
-        e.llvm_type = value->getType();
         e.type = intrin::typeless;
         e.symbols = {symbol{id}};       /// fix me!!!!!!!!
         return e;

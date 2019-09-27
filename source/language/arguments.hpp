@@ -19,7 +19,7 @@ struct file {
 };
 
 struct arguments {    
-    std::vector<struct file> files = {};
+    std::vector<file> files = {};
     std::string executable_name = "a.out";
     bool use_repl = false;
     bool include_core = true;
@@ -27,7 +27,6 @@ struct arguments {
     bool error = false;
 };
 
-struct arguments get_commandline_arguments(const int argc, const char** argv);
-void debug_arguments(struct arguments args);
+arguments get_commandline_arguments(const int argc, const char** argv);
 
 #endif /* arguments_hpp */

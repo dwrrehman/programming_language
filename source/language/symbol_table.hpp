@@ -40,12 +40,11 @@ struct signature_entry {
     llvm::Type* llvm_type = nullptr;
 };
 
-struct symbol_table {
-
-    program_data& data;
-    
+struct symbol_table {        
     std::vector<signature_entry> master = {};
     std::vector<stack_frame> frames = {};
+    
+    program_data& data;
     
     void update(llvm::ValueSymbolTable& llvm) {        
 //        for (auto& frame : frames) {
@@ -72,7 +71,7 @@ struct symbol_table {
     
     expression& get(nat index) { return master[index].signature; }
     
-    void define(expression signature, expression_list definition, nat back_from, nat parent = 0) {
+    void define(const expression& signature, const expression_list& definition, nat back_from, nat parent = 0) {
         // unfinsihed
         print_warning_message(data.file.name, "unimplemented function called", 0,0);
         // this function should do a check for if the signature is already 
@@ -86,11 +85,11 @@ struct symbol_table {
         sort_top_by_largest();
     }
     
-    void expose(nat desired_signature, expression new_signature, 
-                  nat source_abstraction, nat destination_frame) {
-        // unimplemented
-        print_warning_message(data.file.name, "unimplemented function called", 0,0);
-    }
+//    void expose(nat desired_signature, const expression& new_signature, 
+//                  nat source_abstraction, nat destination_frame) {
+//        // unimplemented
+//        print_warning_message(data.file.name, "unimplemented function called", 0,0);
+//    }
     
     void sort_top_by_largest() {
         std::stable_sort(top().begin(), top().end(), [&](nat a, nat b) {
@@ -98,7 +97,7 @@ struct symbol_table {
         });
     }
     
-    symbol_table(program_data& data, std::vector<expression> builtins) 
+    symbol_table(program_data& data, const std::vector<expression>& builtins) 
     : data(data) {
         
         master.push_back({});               // the null entry. a type (index) of 0 means it has no type.                
@@ -153,7 +152,7 @@ struct symbol_table {
     
 };
 
-std::string expression_to_string(expression given, symbol_table& stack);
+std::string expression_to_string(const expression& given, symbol_table& stack);
 
 std::vector<std::string> string_top(symbol_table& stack);
 std::vector<expression> top(symbol_table& stack);

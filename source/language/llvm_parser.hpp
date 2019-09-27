@@ -38,16 +38,16 @@
 #include <iostream>
 #include <sstream>
 
-bool parse_llvm_string_as_instruction(std::string given, llvm::Function*& original, state& state, llvm::SMDiagnostic& errors);
+bool parse_llvm_string_as_instruction(const std::string& given, llvm::Function*& original, state& state, llvm::SMDiagnostic& errors);
 
-bool parse_llvm_string_as_function(std::string given, state& state, llvm::SMDiagnostic& errors);
+bool parse_llvm_string_as_function(const std::string& given, state& state, llvm::SMDiagnostic& errors);
 
-llvm::Type* parse_llvm_string_as_type(std::string given, state& state, llvm::SMDiagnostic& errors);
+llvm::Type* parse_llvm_string_as_type(const std::string& given, state& state, llvm::SMDiagnostic& errors);
 
-void print_llvm_error(const llvm::SMDiagnostic &errors, state &state);
+void print_llvm_error(const llvm::SMDiagnostic& errors, state& state);
 
-resolved_expression parse_llvm_string(llvm::Function*& function, std::string llvm_string, nat& pointer, state& state);
+resolved_expression parse_llvm_string(llvm::Function*& function, const std::string& llvm_string, nat& pointer, state& state);
 
-void interpret_file_as_llvm_string(const struct file &file, state &state); 
+void interpret_file_as_llvm_string(const file &file, state &state); 
     
 #endif /* llvm_parser_hpp */

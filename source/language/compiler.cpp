@@ -13,15 +13,14 @@
 #include "corrector.hpp"
 #include "analysis.hpp"
 
-#include "llvm/IR/Module.h"
-#include "llvm/IR/LLVMContext.h"
 #include "llvm/IR/LegacyPassManager.h"
 #include "llvm/Support/TargetRegistry.h"
+#include "llvm/Target/TargetMachine.h"
 #include "llvm/Support/TargetSelect.h"
 #include "llvm/ExecutionEngine/daniels_interpreter/MCJIT.h"
 #include "llvm/ExecutionEngine/MCJIT.h"
+
 #include "llvm/IR/Verifier.h"
-#include "llvm/Target/TargetMachine.h"
 #include "llvm/Linker/Linker.h"
 
 #include <vector>
@@ -36,11 +35,11 @@ void initialize_llvm() {
     llvm::InitializeAllAsmPrinters();
 }
 
-llvm_module process(file file, llvm::LLVMContext &context) {
+llvm_module process(const file& file, llvm::LLVMContext& context) {
     return analyze(correct(parse(file), file), file, context);
 }
 
-llvm_modules frontend(arguments arguments, llvm::LLVMContext& context) {
+llvm_modules frontend(const arguments& arguments, llvm::LLVMContext& context) {
     bool error = false;
     llvm_modules modules = {};    
     modules.reserve(arguments.files.size());
@@ -52,7 +51,7 @@ llvm_modules frontend(arguments arguments, llvm::LLVMContext& context) {
     return modules;
 }
 
-llvm_module link(llvm_modules modules) {
+llvm_module link(llvm_modules&& modules) {
     
     if (modules.empty()) return {};
     auto result = std::move(modules.back());
@@ -70,7 +69,7 @@ void set_data_layout(llvm_module& module) {
     module->setDataLayout(machine->getDataLayout());
 }
 
-void interpret(llvm_module& module, arguments arguments) {    
+void interpret(llvm_module& module, const arguments& arguments) {    
     set_data_layout(module); 
     auto jit = llvm::EngineBuilder(std::move(module)).setEngineKind(llvm::EngineKind::JIT).create();
     jit->finalizeObject();
@@ -81,7 +80,7 @@ void optimize(llvm_module& module) {
     // use a pass manager, and string together as many passes as possible.
 }
 
-std::string generate_object_file(llvm_module& module, arguments arguments) {
+std::string generate_object_file(llvm_module& module, const arguments& arguments) {
     auto TargetTriple = llvm::sys::getDefaultTargetTriple();
     module->setTargetTriple(TargetTriple);
     std::string Error = "";
@@ -109,7 +108,7 @@ std::string generate_object_file(llvm_module& module, arguments arguments) {
     return object_filename;
 }
 
-void emit_executable(std::string object_file, arguments arguments) {
+void emit_executable(const std::string& object_file, const arguments& arguments) {
     std::string link_command = "ld -macosx_version_min 10.14 -lSystem -lc -o " + arguments.executable_name + " " + object_file + " ";
     std::system(link_command.c_str());
     if (debug) std::cout << "executable emitted: " << arguments.executable_name << "\n";

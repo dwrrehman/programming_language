@@ -10,6 +10,8 @@
 #define lexer_hpp
 
 #include "arguments.hpp"
+#include "lists.hpp"
+
 #include <string>
 
 enum class token_type {null, string, identifier, character, llvm, keyword, operator_, indent};
@@ -18,14 +20,14 @@ enum class lexing_state {none, string, string_expression, identifier, llvm_strin
 struct token {
     token_type type = token_type::null;
     std::string value = "";
-    size_t line = 0;
-    size_t column = 0;
+    nat line = 0;
+    nat column = 0;
 };
 
 struct saved_state {
-    size_t saved_c = 0;
-    size_t saved_line = 0;
-    size_t saved_column = 0;
+    nat saved_c = 0;
+    nat saved_line = 0;
+    nat saved_column = 0;
     lexing_state saved_state = lexing_state::none;
     token saved_current = {};
 };

@@ -12,10 +12,11 @@
 #include "arguments.hpp"
 #include "nodes.hpp"
 #include "analysis_ds.hpp"
+
 #include "llvm/IR/IRBuilder.h"
 
 #include <iostream>
 
-std::unique_ptr<llvm::Module> analyze(expression_list unit, file file, llvm::LLVMContext& context);
+llvm_module analyze(expression_list unit, const file& file, llvm::LLVMContext& context);
 
 #endif /* analysis_hpp */

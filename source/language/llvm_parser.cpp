@@ -20,7 +20,7 @@ std::string random_string() {
 /// any occurence of a unreachable statement which is directly preceeded by 
 /// a llvm.do_nothing() call, should be removed before execution of the function.  
 
-bool parse_llvm_string_as_instruction(std::string given, llvm::Function*& original, state& state, llvm::SMDiagnostic& errors) {
+bool parse_llvm_string_as_instruction(const std::string& given, llvm::Function*& original, state& state, llvm::SMDiagnostic& errors) {
     std::string body = "";
     original->print(llvm::raw_string_ostream(body) << "");    
     body.pop_back(); // delete the newline
@@ -40,17 +40,17 @@ bool parse_llvm_string_as_instruction(std::string given, llvm::Function*& origin
     }
 }
 
-bool parse_llvm_string_as_function(std::string given, state& state, llvm::SMDiagnostic& errors) {
+bool parse_llvm_string_as_function(const std::string& given, state& state, llvm::SMDiagnostic& errors) {
     llvm::MemoryBufferRef reference(given, "<llvm-string>");
     llvm::ModuleSummaryIndex my_index(true);
     return !llvm::parseAssemblyInto(reference, state.data.module, &my_index, errors);        
 }
 
-llvm::Type* parse_llvm_string_as_type(std::string given, state& state, llvm::SMDiagnostic& errors) {
+llvm::Type* parse_llvm_string_as_type(const std::string& given, state& state, llvm::SMDiagnostic& errors) {
     return llvm::parseType(given, errors, *state.data.module);
 }
 
-resolved_expression parse_llvm_string(llvm::Function*& function, std::string llvm_string, nat& pointer, state& state) {
+resolved_expression parse_llvm_string(llvm::Function*& function, const std::string& llvm_string, nat& pointer, state& state) {
     llvm::SMDiagnostic instruction_errors, function_errors, type_errors;
     
     if (parse_llvm_string_as_function(llvm_string, state, function_errors) or 

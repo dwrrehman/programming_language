@@ -10,6 +10,7 @@
 
 #include "lists.hpp"
 #include "error.hpp"
+#include "debug.hpp"
 
 #include <iostream>
 #include <fstream>
@@ -138,13 +139,13 @@ void print_usage() {
     std::cout << "\t-ll                           :: produce llvm ir file output only\n\n";
 }
 
-struct arguments get_commandline_arguments(const int argc, const char** argv) {    
+arguments get_commandline_arguments(const int argc, const char** argv) {    
 
     //TODO: redo this function, to parse the modes first, then parse the options for each mode.
     // then parse all the files.
     // we should be able to put options in the different modes, and still have it recognize the correct number files correctly. (ie, not based on argc counts. (because there could be arguments.))
 
-    struct arguments args = {};
+    arguments args = {};
     
     if (argc > 1 and std::string(argv[1]) == "pick") {
         args.use_interpreter = true;

@@ -16,17 +16,17 @@
 
 /// ------------ prototypes -----------------
 
-symbol parse_symbol( file file, bool newlines_are_a_symbol);
-expression parse_expression( file file, bool can_be_empty, bool newlines_are_a_symbol);
-expression_list parse_expression_list( file file, bool can_be_empty);
-size_t indents(void);
+symbol parse_symbol(const file& file, bool newlines_are_a_symbol);
+expression parse_expression(const file& file, bool can_be_empty, bool newlines_are_a_symbol);
+expression_list parse_expression_list(const file& file, bool can_be_empty);
+nat indents(void);
 void newlines(void);
 
-inline static bool is_operator(token t) { return t.type == token_type::operator_; }
-inline static bool is_identifier(token t) { return t.type == token_type::identifier; }
-inline static bool is_close_paren(token t) { return is_operator(t) and t.value == ")"; }
-inline static bool is_open_paren(token t) { return is_operator(t) and t.value == "("; }
-inline static bool is_newline(token t) { return is_operator(t) and t.value == "\n"; }
+inline static bool is_operator(const token& t) { return t.type == token_type::operator_; }
+inline static bool is_identifier(const token& t) { return t.type == token_type::identifier; }
+inline static bool is_close_paren(const token& t) { return is_operator(t) and t.value == ")"; }
+inline static bool is_open_paren(const token& t) { return is_operator(t) and t.value == "("; }
+inline static bool is_newline(const token& t) { return is_operator(t) and t.value == "\n"; }
 inline static bool is_reserved_operator(token t) { return is_newline(t) or is_open_paren(t) or is_close_paren(t); }
 
 /// ------------------ parsers ---------------------------
@@ -41,7 +41,7 @@ void newlines() {
     revert(saved);
 }
 
-size_t indents() {
+nat indents() {
     auto indent_count = 0;
     auto saved = save();
     auto indent = next();
@@ -75,7 +75,7 @@ struct identifier parse_identifier() {
     return {t};
 }
 
-symbol parse_symbol(file file, bool newlines_are_a_symbol) {    
+symbol parse_symbol(const file& file, bool newlines_are_a_symbol) {    
     auto saved = save();    
     auto t = next();
     if (is_open_paren(t)) {
@@ -119,9 +119,8 @@ symbol parse_symbol(file file, bool newlines_are_a_symbol) {
     } revert_and_return();
 }
 
-expression parse_expression(file file, bool can_be_empty, bool newlines_are_a_symbol) {
-    
-        
+expression parse_expression(const file& file, bool can_be_empty, bool newlines_are_a_symbol) {
+            
     std::vector<symbol> symbols = {};
     auto saved = save();    
     auto start = next();
@@ -141,7 +140,7 @@ expression parse_expression(file file, bool can_be_empty, bool newlines_are_a_sy
     return result;
 }
 
-expression parse_terminated_expression(file file) {
+expression parse_terminated_expression(const file& file) {
 
     auto indent_count = indents();
     auto expression = parse_expression(file, /*can_be_empty = */true, /*newlines_are_a_symbol = */false);
@@ -154,7 +153,7 @@ expression parse_terminated_expression(file file) {
     return expression;
 }
 
-expression_list parse_expression_list(file file, bool can_be_empty) {     
+expression_list parse_expression_list(const file& file, bool can_be_empty) {     
     newlines();
     
     auto saved = save();
@@ -170,7 +169,7 @@ expression_list parse_expression_list(file file, bool can_be_empty) {
     return {expressions, expressions.empty() and not can_be_empty};
 }
 
-expression_list parse(file file) {
+expression_list parse(const file& file) {
     start_lex(file);
 
     if (debug) {

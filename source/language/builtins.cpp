@@ -7,95 +7,33 @@
 //
 
 #include "builtins.hpp"
-
-
-/// Global builtin types. these are fundemental to the language:
-
 /**
- 
- 
- 
- 
- 
- 0  :    {typeless}               : 0
- 
- 1  :    infered type    _?       : 0
- 
- 2  :    type type       _        : 0
- 
- 3  :    none type       _0       : type
- 4  :    unit type       _1       : type
- 
- 4.5  :  unit value       ()       : unit
- 
- 5  :    application type   _a    : type                        ---> how we pass around unevalatued code.
- 6  :    abstraction type   _b    : type                        ---> how we pass around undefined signatures.
- 
- 7  :    create             _c    : 0             <---- returns something of type T.
- 
- 8  :    define             _d    : unit
- 9  :    expose             _e    : unit        
- 
- 
- 
- 
- 
- ten intrinsics:
- 
-                        _   _?   _0   _1   ()   _a   _b   _c   _d   _e 
- 
-    
- 
- this is all you need, actually:
- 
- 
-                                _     _1    ()    _d    _c     
- 
- 
-        and really, techncailly, you only need: 
-    
- 
-                        _d                 in order to be turing complete...?
- 
-    
-        
-      
- 
- expression define_abstraction = {
-     {
-         {{"_d"}}, {{intrin::abstraction}}, // signature
-         {{intrin::type}}, // of type
-         {{intrin::application}}, // as definition 
-         {{intrin::application}}, // into scope
-     }, intrin::unit};
-
- expression expose_abstraction = {
-     {
-         {{"_e"}}, {{intrin::application}}, // existing signature
-         {{intrin::abstraction}}, // as alias
-         {{intrin::application}}, // from parent        
-         {{intrin::application}}, // into scope
-     }, intrin::unit};
 
 
- 
- 
-_define <signature _b> of <type _> as <definition _a> into  <scope>
+0  :        {typeless}          : 
 
-_expose <existing_signature _a> from <parent_abstraction> into <scope>
+1  :    __  infered type        : 
 
+2  :    _   type type           : 
+
+3  :    _0  none type           : _
+4  :    _1  unit type           : _
+
+5  :    ()  unit value          : _1
+ 
+5  :    _a  application type    : _                       
+ 
+6  :    _b  abstraction type    : _
+
+7  :    _c  define signature    : _1
  
  
+ _a         --->        how we pass around unevalatued code.
  
- 
- /// DELETE ME:
- 
-    10  : ct                       : type  
-    11  : rt                       : type
-    12  : imm                      : type
-    13  : mut                      : type
- 
- */
+ _b         --->        how we pass around undefined signatures.
+
+
+*/
 
 expression failure = {true, true, true};
 expression infered_type = {{{{"__"}}}};     // has no type.
@@ -183,7 +121,7 @@ std::vector<expression> builtins =  {
     my_define_abstraction,        
 };
 
-std::string stringify_intrin(size_t i) {
+std::string stringify_intrin(nat i) {
     switch (i) {
         case intrin::typeless: return "typeless";
                     

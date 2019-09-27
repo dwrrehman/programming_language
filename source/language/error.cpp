@@ -33,8 +33,8 @@
 
 // helpers:
 
-static std::string contract_filename(std::string filename) {
-    const size_t threshold_length = 30;
+static std::string contract_filename(const std::string& filename) {
+    const nat threshold_length = 30;
     if (filename.size() > threshold_length) {
         std::string shorter(std::find(filename.begin() + (filename.size() - threshold_length), filename.end(), '/'), filename.end());
         shorter.insert(0, "...");
@@ -43,7 +43,7 @@ static std::string contract_filename(std::string filename) {
 }
 
 
-static std::string error_heading(const std::string &filename, size_t line, size_t column) {
+static std::string error_heading(const std::string& filename, nat line, nat column) {
 
     std::ostringstream s;
     std::string shorter_filename = contract_filename(filename);
@@ -61,7 +61,7 @@ static std::string error_heading(const std::string &filename, size_t line, size_
     return s.str();
 }
 
-static std::string warning_heading(const std::string &filename, size_t line, size_t column) {
+static std::string warning_heading(const std::string& filename, nat line, nat column) {
     std::ostringstream s;
     std::string shorter_filename = contract_filename(filename);
     s << 
@@ -78,7 +78,7 @@ static std::string warning_heading(const std::string &filename, size_t line, siz
     return s.str();
 }
 
-static std::string info_heading(const std::string &filename, size_t line, size_t column) {
+static std::string info_heading(const std::string& filename, nat line, nat column) {
     
     std::ostringstream s;
     std::string shorter_filename = contract_filename(filename);
@@ -104,19 +104,19 @@ static std::string note_heading() {
 
 // messagers:
 
-void print_error_message(std::string filename, std::string message, size_t line, size_t column) {
+void print_error_message(const std::string& filename, const std::string& message, nat line, nat column) {
     std::cerr << error_heading(filename, line, column) << message << cRESET << std::endl;
 }
 
-void print_warning_message(std::string filename, std::string message, size_t line, size_t column) {
+void print_warning_message(const std::string& filename, const std::string& message, nat line, nat column) {
     std::cerr << warning_heading(filename, line, column) << message << std::endl;
 }
 
-void print_info_message(std::string filename, std::string message, size_t line, size_t column) {
+void print_info_message(const std::string& filename, const std::string& message, nat line, nat column) {
     std::cerr << info_heading(filename, line, column) << message << std::endl;
 }
 
-void print_note(std::string message) {
+void print_note(const std::string& message) {
     std::cerr << note_heading() << message << std::endl;
 }
 
@@ -124,11 +124,13 @@ void print_note(std::string message) {
 
 // specialized:
 
-void print_lex_error(std::string filename, std::string state_name, size_t line, size_t column) {
+void print_lex_error(const std::string& filename, const std::string& state_name, nat line, nat column) {
     std::cerr << error_heading(filename, line, column) << "unterminated " << state_name << std::endl;
 }
 
-void print_parse_error(std::string filename, size_t line, size_t column, std::string type, std::string found, std::string expected) {
+void print_parse_error(const std::string& filename, nat line, nat column, 
+                       const std::string& type, std::string found,
+                       const std::string& expected) {
     if (type == "{null}" or found == "\n" or type == "indent") {
 
         if (type == "{null}") found = "end of file";
@@ -147,7 +149,7 @@ void print_error_no_files() {
 }
 
 
-void print_llvm_error(const llvm::SMDiagnostic &errors, state &state) { 
+void print_llvm_error(const llvm::SMDiagnostic& errors, state &state) { 
     std::cout << 
     cBOLD cGRAY << "llvm: " << cRESET << std::flush;    
     errors.print(state.data.file.name.c_str(), llvm::errs());
@@ -191,7 +193,7 @@ void syntax_highlight(std::string& text) {
     //TODO: fill in this function.
 }
 
-void print_source_code(std::string text, std::vector<struct token> offending_tokens) {
+void print_source_code(std::string text, const std::vector<token>& offending_tokens) {
 
     syntax_highlight(text);
 
@@ -205,8 +207,8 @@ void print_source_code(std::string text, std::vector<struct token> offending_tok
 
     std::cout << "\n";
     for (auto offset : offsets) {
-        size_t index = 0;
-        if ((int) t.line - 1 + offset >= 0 and (int) t.line - 1 + offset < lines.size()) {
+        nat index = 0;
+        if ((nat) t.line - 1 + offset >= 0 and (nat) t.line - 1 + offset < lines.size()) {
             index = t.line - 1 + offset;
         } else continue;
         
@@ -216,7 +218,7 @@ void print_source_code(std::string text, std::vector<struct token> offending_tok
             std::cout << "\t";
             for (int i = 0; i < t.column + 7; i++) std::cout << " ";
             std::cout << cBRIGHT_RED << "^";
-            if (t.value.size() > 1) for (int i = 0; i < t.value.size() - 1; i++) std::cout << "~";
+            if (t.value.size() > 1) for (nat i = 0; i < t.value.size() - 1; i++) std::cout << "~";
             std::cout << cRESET << std::endl;
         }
     }    

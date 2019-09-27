@@ -22,9 +22,9 @@
 
  */
 
-inline static bool is_whitespace(symbol e) { return e.type == symbol_type::indent or e.type == symbol_type::newline; }
+inline static bool is_whitespace(const symbol& e) { return e.type == symbol_type::indent or e.type == symbol_type::newline; }
 
-void remove_whitespace_in_expressions(expression_list& list, file file, size_t depth) {    
+void remove_whitespace_in_expressions(expression_list& list, const file& file, nat depth) {    
     for (auto& expression : list.list) {
         auto& s = expression.symbols;
         if (std::find_if(s.begin(), s.end(), is_whitespace) != s.end()) 
@@ -34,9 +34,9 @@ void remove_whitespace_in_expressions(expression_list& list, file file, size_t d
     }
 }
 
-void turn_indents_into_blocks(expression_list& list, file file,  size_t level);
+void turn_indents_into_blocks(expression_list& list, const file& file,  nat level);
 
-static void push_block_onto_list(expression_list& list, file file,  size_t level, expression_list& new_list) {
+static void push_block_onto_list(expression_list& list, const file& file,  nat level, expression_list& new_list) {
     if (list.list.size()) {
         turn_indents_into_blocks(list, file, level + 1);
         if (new_list.list.empty()) new_list.list.push_back({{{list}}});
@@ -44,7 +44,7 @@ static void push_block_onto_list(expression_list& list, file file,  size_t level
     }
 }
 
-void turn_indents_into_blocks(expression_list& given, file file, size_t level) {
+void turn_indents_into_blocks(expression_list& given, const file& file, nat level) {
 
     expression_list new_list {}, block {};
     for (auto& expression : given.list) {
@@ -60,11 +60,11 @@ void turn_indents_into_blocks(expression_list& given, file file, size_t level) {
     given = new_list;
 }
 
-void raise(size_t& value, size_t minimum) {
+void raise(nat& value, nat minimum) {
     if (value < minimum) value = minimum;
 }
 
-void raise_indents(expression_list& list, file file, size_t level) {
+void raise_indents(expression_list& list, const file& file, nat level) {
     for (auto& expression : list.list) {
         raise(expression.indent_level, level);
         for (auto& symbol : expression.symbols)
@@ -73,9 +73,9 @@ void raise_indents(expression_list& list, file file, size_t level) {
     }
 }
 
-expression_list correct(expression_list unit, file file) {
+expression_list correct(expression_list unit, const file& file) {
     
-    raise_indents(unit, file, 0);
+    raise_indents(unit, file, 0); 
     turn_indents_into_blocks(unit, file, 0);    
     remove_whitespace_in_expressions(unit, file, 0);
     

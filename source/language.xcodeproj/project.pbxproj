@@ -169,7 +169,7 @@
 		FD0204F821E7F3C3009C332B /* Project object */ = {
 			isa = PBXProject;
 			attributes = {
-				LastUpgradeCheck = 1010;
+				LastUpgradeCheck = 1100;
 				ORGANIZATIONNAME = "Daniel Rehman";
 				TargetAttributes = {
 					FD0204FF21E7F3C3009C332B = {
@@ -336,10 +336,16 @@
 		FD02050821E7F3C3009C332B /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				CODE_SIGN_IDENTITY = "-";
 				CODE_SIGN_STYLE = Automatic;
 				DEVELOPMENT_TEAM = JTMD2SW5KN;
 				HEADER_SEARCH_PATHS = "";
 				LIBRARY_SEARCH_PATHS = /usr/local/Cellar/llvm/8.0.0_1/lib;
+				OTHER_CPLUSPLUSFLAGS = (
+					"$(OTHER_CFLAGS)",
+					"-Wno-conversion",
+					"-Wno-comma",
+				);
 				OTHER_LDFLAGS = (
 					"-I/usr/local/Cellar/llvm/8.0.0_1/include",
 					"-std=c++11",
@@ -538,10 +544,16 @@
 		FD02050921E7F3C3009C332B /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				CODE_SIGN_IDENTITY = "-";
 				CODE_SIGN_STYLE = Automatic;
 				DEVELOPMENT_TEAM = JTMD2SW5KN;
 				HEADER_SEARCH_PATHS = "";
 				LIBRARY_SEARCH_PATHS = /usr/local/Cellar/llvm/8.0.0_1/lib;
+				OTHER_CPLUSPLUSFLAGS = (
+					"$(OTHER_CFLAGS)",
+					"-Wno-conversion",
+					"-Wno-comma",
+				);
 				OTHER_LDFLAGS = (
 					"-I/usr/local/Cellar/llvm/8.0.0_1/include",
 					"-std=c++11",

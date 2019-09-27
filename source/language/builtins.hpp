@@ -75,6 +75,6 @@ extern expression expose_abstraction;
 
 extern std::vector<expression> builtins;
 
-std::string stringify_intrin(size_t i);
+std::string stringify_intrin(nat i);
 
 #endif /* builtins_hpp */

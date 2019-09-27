@@ -21,9 +21,9 @@
 static std::string text = "";
 static std::string filename = "";
 
-static size_t c = 0;
-static size_t line = 0;
-static size_t column = 0;
+static nat c = 0;
+static nat line = 0;
+static nat column = 0;
 static lexing_state state = lexing_state::indent;
 static token current = {};
 
@@ -31,10 +31,10 @@ static token current = {};
 static bool is_identifier(char c) { return isalnum(c) or c == '_'; }
 static bool is_operator(char c) { return (not is_identifier(c) or not isascii(c)) and c != ' ' and c != '\t'; }
 
-static bool isvalid(size_t c) { return c >= 0 and c < text.size(); }
+static bool isvalid(nat c) { return c >= 0 and c < text.size(); }
 
-static void advance_by(size_t n) {
-    for (size_t i = n; i--;) {
+static void advance_by(nat n) {
+    for (nat i = n; i--;) {
         if (text[c] == '\n') {
             c++; line++; column = 1;
         } else { c++; column++; }

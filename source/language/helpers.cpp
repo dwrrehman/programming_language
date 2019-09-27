@@ -40,6 +40,9 @@
 const resolved_expression resolution_failure = {0, {}, true};
 const resolved_expression resolved_unit_value = {intrin::empty, {}, false};
 
+void prune_extraneous_subexpressions(expression_list& given);
+void prune_extraneous_subexpressions_in_expression(expression& given);
+
 bool subexpression(const symbol& s) { return s.type == symbol_type::subexpression; }
 bool identifier(const symbol& s) { return s.type == symbol_type::identifier; }
 bool llvm_string(const symbol& s) { return s.type == symbol_type::llvm_literal; }
@@ -56,27 +59,35 @@ bool contains_final_terminator(llvm::Function* main_function) {
     return false;
 }
 
-void append_return_0_statement(llvm::IRBuilder<> &builder, llvm::Function* main_function, llvm::LLVMContext &context) {
+void append_return_0_statement(llvm::IRBuilder<> &builder, llvm::Function* main_function, llvm::LLVMContext& context) {
     llvm::Value* value = llvm::ConstantInt::get(llvm::Type::getInt32Ty(context), 0);    
     builder.SetInsertPoint(&main_function->getBasicBlockList().back());
     builder.CreateRet(value);
 }
 
-void call_donothing(llvm::IRBuilder<> &builder, std::unique_ptr<llvm::Module> &module) {
+void call_donothing(llvm::IRBuilder<> &builder, llvm_module& module) {
     llvm::Function* donothing = llvm::Intrinsic::getDeclaration(module.get(), llvm::Intrinsic::donothing);        
     builder.CreateCall(donothing);
 }
 
-llvm::Function* create_main(llvm::IRBuilder<>& builder, llvm::LLVMContext& context, std::unique_ptr<llvm::Module>& module) {
+static bool is_donothing_call(llvm::Instruction* ins) {   
+    return ins 
+    and std::string(ins->getOpcodeName()) == "call" 
+    and std::string(ins->getOperand(0)->getName()) == "llvm.donothing";
+}
+
+static bool is_unreachable_instruction(llvm::Instruction* ins) {
+    return ins 
+    and std::string(ins->getOpcodeName()) == "unreachable";
+}
+
+llvm::Function* create_main(llvm::IRBuilder<>& builder, llvm::LLVMContext& context, llvm_module& module) {
     std::vector<llvm::Type*> state = {llvm::Type::getInt32Ty(context), llvm::Type::getInt8PtrTy(context)->getPointerTo()};
-    llvm::FunctionType* main_type = llvm::FunctionType::get(llvm::Type::getInt32Ty(context), state, false);
-    llvm::Function* main_function = llvm::Function::Create(main_type, llvm::Function::ExternalLinkage, "main", module.get());
+    auto main_type = llvm::FunctionType::get(llvm::Type::getInt32Ty(context), state, false);
+    auto main_function = llvm::Function::Create(main_type, llvm::Function::ExternalLinkage, "main", module.get());
     builder.SetInsertPoint(llvm::BasicBlock::Create(context, "entry", main_function));    
     return main_function;
 }
-
-void prune_extraneous_subexpressions_in_expression_list(expression_list& given);
-void prune_extraneous_subexpressions_in_expression(expression& given);
 
 void prune_extraneous_subexpressions_in_expression(expression& given) { // unimplemented
     while (given.symbols.size() == 1
@@ -87,24 +98,30 @@ void prune_extraneous_subexpressions_in_expression(expression& given) { // unimp
         given.symbols = save;
     }
     for (auto& symbol : given.symbols)
-        if (subexpression(symbol)) prune_extraneous_subexpressions_in_expression_list(symbol.expressions);
+        if (subexpression(symbol)) prune_extraneous_subexpressions(symbol.expressions);
 }
 
-void prune_extraneous_subexpressions_in_expression_list(expression_list& given) {
+void prune_extraneous_subexpressions(expression_list& given) {
     for (auto& expression : given.list)
         prune_extraneous_subexpressions_in_expression(expression);
 }
 
-static std::vector<llvm::GenericValue> turn_into_value_array(std::vector<nat> canonical_arguments, std::unique_ptr<llvm::Module>& module) {
+static std::vector<llvm::GenericValue> turn_into_value_array(const std::vector<nat>& canonical_arguments, std::unique_ptr<llvm::Module>& module) {
     std::vector<llvm::GenericValue> arguments = {};
     for (auto index : canonical_arguments) 
         arguments.push_back(llvm::GenericValue {llvm::ConstantInt::get(llvm::Type::getInt32Ty(module->getContext()), index)});
     return arguments;
 }
 
-nat evaluate(std::unique_ptr<llvm::Module>& module, llvm::Function* function, std::vector<nat> args) {    
+std::string emit(const llvm_module& module) {
+    std::string string = "";
+    module->print(llvm::raw_string_ostream(string) << "", NULL); 
+    return string;
+}
+
+nat evaluate(llvm_module& module, llvm::Function* function, const std::vector<nat>& args) {    
     set_data_layout(module);
-    auto jit = llvm::EngineBuilder(std::unique_ptr<llvm::Module>{module.get()}).setEngineKind(llvm::EngineKind::JIT).create();
+    auto jit = llvm::EngineBuilder(llvm_module{module.get()}).setEngineKind(llvm::EngineKind::JIT).create();
     jit->finalizeObject();
     return jit->runFunction(function, turn_into_value_array(args, module)).IntVal.getLimitedValue();
 }
@@ -114,7 +131,27 @@ bool are_equal_identifiers(const symbol &first, const symbol &second) {
     and first.identifier.name.value == second.identifier.name.value;
 }
 
-static bool matches(expression given, expression signature, nat given_type, std::vector<resolved_expression_list>& args, llvm::Function*& function, 
+static std::vector<nat> generate_type_list(const expression_list &given, nat given_type) {
+    if (given.list.empty()) return {};
+    std::vector<nat> types (given.list.size() - 1, intrin::unit);
+    types.push_back(given_type);
+    return types;
+}
+
+static bool is_unit_value(const expression& expression) {
+    return expression.symbols.size() == 1 
+    and subexpression(expression.symbols[0]) 
+    and expression.symbols[0].expressions.list.empty();
+}   
+
+static resolved_expression construct_signature(nat fdi_length, const expression& given, nat& index) {
+    resolved_expression result = {intrin::typeless};
+    result.signature = std::vector<symbol>(given.symbols.begin() + index, given.symbols.begin() + index + fdi_length);
+    index += fdi_length;
+    return result;
+}
+
+static bool matches(const expression& given, const expression& signature, nat given_type, std::vector<resolved_expression_list>& args, llvm::Function*& function, 
                     nat& index, nat depth, nat max_depth, nat fdi_length, state& state) {
         
     if (given_type != signature.type and given.type != intrin::infered) return false;
@@ -137,27 +174,7 @@ static bool matches(expression given, expression signature, nat given_type, std:
     return true;
 }
 
-static std::vector<nat> generate_type_list(const expression_list &given, nat given_type) {
-    if (given.list.empty()) return {};
-    std::vector<nat> types (given.list.size() - 1, intrin::unit);
-    types.push_back(given_type);
-    return types;
-}
-
-static bool is_unit_value(expression &expression) {
-    return expression.symbols.size() == 1 
-    and subexpression(expression.symbols[0]) 
-    and expression.symbols[0].expressions.list.empty();
-}   
-
-static resolved_expression construct_signature(nat fdi_length, expression &given, nat &index) {
-    resolved_expression result = {intrin::typeless};
-    result.signature = std::vector<symbol>(given.symbols.begin() + index, given.symbols.begin() + index + fdi_length);
-    index += fdi_length;
-    return result;
-}
-
-resolved_expression resolve(expression given, nat given_type, llvm::Function*& function, 
+resolved_expression resolve(const expression& given, nat given_type, llvm::Function*& function, 
                             nat& index, nat depth, nat max_depth, nat fdi_length,
                             state& state) {
     
@@ -170,7 +187,7 @@ resolved_expression resolve(expression given, nat given_type, llvm::Function*& f
     else if (llvm_string(given.symbols[index]) and given_type == intrin::unit) 
         return parse_llvm_string(function, given.symbols[index].llvm.literal.value, index, state);
     
-    size_t saved = index;
+    nat saved = index;
     for (auto signature_index : state.stack.top()) {        
         index = saved;
         std::vector<resolved_expression_list> args = {};                                
@@ -186,7 +203,7 @@ static void print_unresolved_error(const expression &given, state &state) {
     print_source_code(state.data.file.text, {given.starting_token});
 }
 
-resolved_expression resolve_expression(expression given, nat given_type, llvm::Function*& function, state& state) {    
+resolved_expression resolve_expression(const expression& given, nat given_type, llvm::Function*& function, state& state) {    
     
     if (is_unit_value(given) and given_type == intrin::unit) return resolved_unit_value;
     
@@ -205,42 +222,18 @@ resolved_expression resolve_expression(expression given, nat given_type, llvm::F
     return solution;
 }
 
-resolved_expression_list resolve_expression_list(expression_list given, nat given_type, llvm::Function*& function, state& state) {    
+resolved_expression_list resolve_expression_list(const expression_list& given, nat given_type, llvm::Function*& function, state& state) {    
     if (given.list.empty()) return {{resolved_unit_value}, given_type != intrin::unit};
     nat i = 0;
     auto types = generate_type_list(given, given_type);    
-    resolved_expression_list solutions {};    
+    resolved_expression_list solutions {};
     for (auto expression : given.list) 
         solutions.list.push_back(resolve_expression(expression, types[i++], function, state));        
     for (auto e : solutions.list) solutions.error |= e.error;    
     return solutions;
 }
 
-std::string emit(const std::unique_ptr<llvm::Module>& module) {
-    std::string string = "";
-    module->print(llvm::raw_string_ostream(string) << "", NULL); 
-    return string;
-}
-
-
-
-
-
-
-
-
-static bool is_donothing_call(llvm::Instruction* ins) {   
-    return ins 
-    and std::string(ins->getOpcodeName()) == "call" 
-    and std::string(ins->getOperand(0)->getName()) == "llvm.donothing";
-}
-
-static bool is_unreachable_instruction(llvm::Instruction* ins) {
-    return ins 
-    and std::string(ins->getOpcodeName()) == "unreachable";
-}
-
-void delete_empty_blocks(std::unique_ptr<llvm::Module> &module) { 
+void delete_empty_blocks(llvm_module& module) { 
     for (auto& function : module->getFunctionList()) {        
         llvm::SmallVector<llvm::BasicBlock*, 100> blocks = {};        
         for (auto& block : function.getBasicBlockList()) {
@@ -250,8 +243,7 @@ void delete_empty_blocks(std::unique_ptr<llvm::Module> &module) {
     }
 }
 
-
-void move_lone_terminators_into_previous_blocks(std::unique_ptr<llvm::Module>& module) {
+void move_lone_terminators_into_previous_blocks(llvm_module& module) {
     for (auto& function : module->getFunctionList()) {        
         llvm::BasicBlock* previous = nullptr;
         
@@ -272,7 +264,7 @@ void move_lone_terminators_into_previous_blocks(std::unique_ptr<llvm::Module>& m
     
 }
 
-void remove_extraneous_insertion_points_in(std::unique_ptr<llvm::Module>& module) {    
+void remove_extraneous_insertion_points_in(llvm_module& module) {    
     for (auto& function : module->getFunctionList()) {
         for (auto& block : function.getBasicBlockList()) {    
             auto terminator = block.getTerminator();
