@@ -186,13 +186,11 @@ llvm::Constant* create_global_constant_string(llvm::Module* module, const std::s
     return llvm::ConstantExpr::getBitCast(llvm_string, llvm::Type::getInt8Ty(module->getContext())->getPointerTo());
 }
 
-
-
 static resolved_expression parse_string(const expression &given, nat &index, state &state) {
     auto string_type = llvm::Type::getInt8PtrTy(state.data.module->getContext());
-    auto expected_llvm_type = state.stack.master[intrin::llvm].llvm_type;
+    auto actual_type = state.stack.master[intrin::llvm].llvm_type;
     
-    if (expected_llvm_type == string_type) {            
+    if (actual_type == string_type or true ) {            
         resolved_expression string {};
         string.index = intrin::llvm;
         string.constant = create_global_constant_string(state.data.module, given.symbols[index].string.literal.value);
