@@ -1,7 +1,6 @@
 #include "arguments.hpp"
 #include "compiler.hpp"
 #include "interpreter.hpp"
-#include "llvm/IR/LLVMContext.h"
 
 int main(const int argc, const char** argv) {
     auto args = get_commandline_arguments(argc, argv);

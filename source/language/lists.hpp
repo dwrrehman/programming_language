@@ -10,7 +10,6 @@
 #define lists_hpp
 
 #include <cstdint>
-#include <vector>
 #include <string>
 
 using nat = int_fast64_t;

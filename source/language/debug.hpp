@@ -9,12 +9,12 @@
 #ifndef debug_hpp
 #define debug_hpp
 
-#include "arguments.hpp"
-#include "lexer.hpp" 
-#include "nodes.hpp"
-#include "analysis_ds.hpp"
-
-#include <vector>
+//#include "arguments.hpp"
+//#include "lexer.hpp" 
+//#include "nodes.hpp"
+//#include "analysis_ds.hpp"
+//
+//#include <vector>
 
 #define prep(_level) for (nat i = _level; i--;) std::cout << ".   "
 

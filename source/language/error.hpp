@@ -10,11 +10,11 @@
 #define error_hpp
 
 
-#include "lexer.hpp"
-#include "lists.hpp"
-
-#include <string>
-#include <vector>
+//#include "lexer.hpp"
+//#include "lists.hpp"
+//
+//#include <string>
+//#include <vector>
 
 // messagers:
 

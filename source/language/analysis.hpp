@@ -9,13 +9,11 @@
 #ifndef analysis_hpp
 #define analysis_hpp
 
-#include "arguments.hpp"
-#include "nodes.hpp"
-#include "analysis_ds.hpp"
-
-#include "llvm/IR/IRBuilder.h"
-
-#include <iostream>
+//#include "arguments.hpp"
+//#include "nodes.hpp"
+//#include "analysis_ds.hpp"
+//
+//#include <iostream>
 
 llvm_module analyze(expression_list unit, const file& file, llvm::LLVMContext& context);
 

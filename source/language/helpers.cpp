@@ -8,29 +8,28 @@
 
 #include "helpers.hpp"
 
-#include "analysis_ds.hpp"
+//#include "analysis_ds.hpp"
 #include "compiler.hpp"
-#include "parser.hpp"
+//#include "parser.hpp"
 #include "builtins.hpp"
 #include "symbol_table.hpp"
-#include "lists.hpp"
-#include "error.hpp"
+//#include "lists.hpp"
+//#include "error.hpp"
 #include "llvm_parser.hpp"
 
-#include "llvm/IR/LLVMContext.h"
-#include "llvm/AsmParser/Parser.h"
-#include "llvm/IR/ModuleSummaryIndex.h"
-#include "llvm/Support/SourceMgr.h"
-#include "llvm/IR/ValueSymbolTable.h"
-#include "llvm/Transforms/Utils/ValueMapper.h"
-#include "llvm/Transforms/Utils/Cloning.h"
-
-#include "llvm/Support/TargetRegistry.h"
-#include "llvm/Support/TargetSelect.h"
-#include "llvm/ExecutionEngine/daniels_interpreter/MCJIT.h"
-#include "llvm/ExecutionEngine/MCJIT.h"
-#include "llvm/ExecutionEngine/GenericValue.h"
-
+//#include "llvm/AsmParser/Parser.h"
+//#include "llvm/IR/ModuleSummaryIndex.h"
+//#include "llvm/Support/SourceMgr.h"
+//#include "llvm/IR/ValueSymbolTable.h"
+//#include "llvm/Transforms/Utils/ValueMapper.h"
+//#include "llvm/Transforms/Utils/Cloning.h"
+//
+//#include "llvm/Support/TargetRegistry.h"
+//#include "llvm/Support/TargetSelect.h"
+//#include "llvm/ExecutionEngine/daniels_interpreter/MCJIT.h"
+//#include "llvm/ExecutionEngine/MCJIT.h"
+//#include "llvm/ExecutionEngine/GenericValue.h"
+//
 #include "llvm/Transforms/Utils/BasicBlockUtils.h"
 
 #include <cstdlib>

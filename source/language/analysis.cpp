@@ -8,16 +8,10 @@
 
 #include "analysis.hpp"
 
-#include "builtins.hpp"
 #include "debug.hpp"
-#include "helpers.hpp"
-#include "lists.hpp"
-#include "llvm_parser.hpp"
 #include "symbol_table.hpp"
 
 #include "llvm/IR/Verifier.h"
-#include "llvm/Target/TargetMachine.h"
-
 
 static void verify(const file& file, llvm_module& module, resolved_expression_list& resolved_program) {
     std::string errors = "";

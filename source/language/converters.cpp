@@ -93,7 +93,7 @@ nat string_to_expression_tail(const std::vector<expression>& list, state& state)
 expression string_to_expression(const std::string& given, state& state) {    
     struct file file = {"<llvm string symbol>", given};
     start_lex(file);
-    auto e = parse_expression(file, false, false);    
+//    auto e = parse_expression(file, false, false);    
     //auto subexpressions = filter_subexpressions(e);    
     //auto signature = subexpressions.front();    
     
