@@ -57,10 +57,7 @@ std::string expression_to_string(const expression& given, symbol_table& stack) {
 //std::cout << "\n";
 
 
-
 //    std::cout << "string = \"" << given << "\"\n";
-
-
 
 
 //// unimpelented: WIP:
