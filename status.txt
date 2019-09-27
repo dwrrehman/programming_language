@@ -2,7 +2,60 @@ the current status of the compiler is:
 
 
 
+1909275.021133:
 
+
+ok, so what have we just done?
+
+
+	we almost got string literals working, we just need to make it type check, by
+
+	
+		making sure we set the llvm_type member of a particular entry in the master symbol tbale, known as "llvm", 
+	
+
+
+				when it has the type which is i8*, 
+	
+		then we are able to pass a string into a function.
+
+	
+		its a abit weird, but its the only soltion i could come up wiht.
+	
+	
+			
+tb:
+
+	
+anywaysm i fifured out how to do compiletime execution/population of values to be used at runtime!
+	
+
+		just run a function, then get a Generic value back from it, 
+	
+		then turn that into a actual value (of some type)
+
+	
+			and then create a new global variable cosntant, of that new value.	
+
+	
+	
+		this seems liek it will work in general...
+	
+	
+
+		we just need to make sure that we do reduction of code at compiletime, as well.	
+	
+	
+		this is possibly the much more COOL aspect of CTAE, 
+		
+
+			which is that we can actually simplify parts of logic, which we know can be done at compiletime.	
+
+;
+
+
+
+	
 
 
 
