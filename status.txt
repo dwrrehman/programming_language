@@ -2,6 +2,86 @@ the current status of the compiler is:
 
 
 
+
+
+
+1910104.152555:
+
+
+        current todo:
+        
+        
+            - get string literals working
+            
+            - get fdi working all the way, for multiple abstraction parameters.
+            
+            - get resolution based type inference working.
+            
+            - get the llvm instruction parser working properly, (there is a bug in the aftermath of removing basic blocks, or something.)
+            
+            - add an intrinsic for giving a warning or error at compiletime to the user.
+            
+            - 
+            
+            
+        later todo:
+        
+            - find out if we need _e (expose)
+            
+            - find out what _c (??) is.
+            
+            - implement _a (application)
+            
+            - make sure _b (abstraction) is working.
+            
+            - get _e (expose) and _d (define) working.
+                        
+            - add _0 capabilities to the type system: CSR algorithm wise.
+            
+                - - dont NOT parse an expression which instantiates _0, 
+                
+                    just give an error afterwards, when we recognize that we cannot do that.
+              
+            - think about how namespaces are implemented, at the library level.
+            
+            - think about the capabiltiies of _d (define).
+            
+            
+        questions: 
+        
+        
+            - is _1 special other than how we are using it?    (as the type of statements, technically?)
+            
+            - does the body of soemthing neccessarily have to have a return expression?
+            
+            - how does compiletime evaluation of parameters, and contraction of code, using llvm optimization, work?
+            
+            - what do copmiletime parameters look like?
+            
+            - - is that _c?            no......?
+            
+            - 
+             
+            
+            
+            - get code gen working with _d 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 1909275.021133:
 
 
