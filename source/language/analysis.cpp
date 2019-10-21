@@ -28,10 +28,6 @@
 //    print_info_message(file.name, "this is an info message.", 0, 0);
 //    print_note("this is a note.");
     
-    
-
-
-
 
 
 static void verify(const file& file, llvm_module& module, resolved_expression_list& resolved_program) {

@@ -74,13 +74,13 @@ void call_donothing(llvm::IRBuilder<> &builder, llvm_module& module) {
 
 static bool is_donothing_call(llvm::Instruction* ins) {   
     return ins 
-    and std::string(ins->getOpcodeName()) == "call" 
-    and std::string(ins->getOperand(0)->getName()) == "llvm.donothing";
+        and std::string(ins->getOpcodeName()) == "call" 
+        and std::string(ins->getOperand(0)->getName()) == "llvm.donothing";
 }
 
 static bool is_unreachable_instruction(llvm::Instruction* ins) {
     return ins 
-    and std::string(ins->getOpcodeName()) == "unreachable";
+        and std::string(ins->getOpcodeName()) == "unreachable";
 }
 
 llvm::Function* create_main(llvm::IRBuilder<>& builder, llvm::LLVMContext& context, llvm_module& module) {
@@ -106,6 +106,16 @@ void prune_extraneous_subexpressions_in_expression(expression& given) { // unimp
 void prune_extraneous_subexpressions(expression_list& given) {
     for (auto& expression : given.list)
         prune_extraneous_subexpressions_in_expression(expression);
+}
+
+llvm::Constant* create_global_constant_string(llvm::Module* module, const std::string& string) {
+    auto type = llvm::ArrayType::get(llvm::Type::getInt8Ty(module->getContext()), string.size() + 1);
+    std::vector<llvm::Constant*> characters (string.size() + 1);        
+    for (nat i = 0; i < string.size(); i++) characters[i] = llvm::ConstantInt::get(llvm::Type::getInt8Ty(module->getContext()), string[i]);    
+    characters[string.size()] = llvm::ConstantInt::get(llvm::Type::getInt8Ty(module->getContext()), '\0');
+    auto llvm_string = new llvm::GlobalVariable(*module, type, true, llvm::GlobalVariable::ExternalLinkage, 
+                                                llvm::ConstantArray::get(type, characters), "string");    
+    return llvm::ConstantExpr::getBitCast(llvm_string, llvm::Type::getInt8Ty(module->getContext())->getPointerTo());
 }
 
 static std::vector<llvm::GenericValue> turn_into_value_array(const std::vector<nat>& canonical_arguments, std::unique_ptr<llvm::Module>& module) {
@@ -176,21 +186,11 @@ static bool matches(const expression& given, const expression& signature, nat gi
     return true;
 }
 
-llvm::Constant* create_global_constant_string(llvm::Module* module, const std::string& string) {
-    auto type = llvm::ArrayType::get(llvm::Type::getInt8Ty(module->getContext()), string.size() + 1);
-    std::vector<llvm::Constant*> characters (string.size() + 1);        
-    for (nat i = 0; i < string.size(); i++) characters[i] = llvm::ConstantInt::get(llvm::Type::getInt8Ty(module->getContext()), string[i]);    
-    characters[string.size()] = llvm::ConstantInt::get(llvm::Type::getInt8Ty(module->getContext()), '\0');
-    auto llvm_string = new llvm::GlobalVariable(*module, type, true, llvm::GlobalVariable::ExternalLinkage, 
-                                                llvm::ConstantArray::get(type, characters), "string");    
-    return llvm::ConstantExpr::getBitCast(llvm_string, llvm::Type::getInt8Ty(module->getContext())->getPointerTo());
-}
-
 static resolved_expression parse_string(const expression &given, nat &index, state &state) {
     auto string_type = llvm::Type::getInt8PtrTy(state.data.module->getContext());
     auto actual_type = state.stack.master[intrin::llvm].llvm_type;
     
-    if (actual_type == string_type or true ) {            
+    if (actual_type == string_type or true ) {   ///TODO: delete the "or true".     (why is it even here?)
         resolved_expression string {};
         string.index = intrin::llvm;
         string.constant = create_global_constant_string(state.data.module, given.symbols[index].string.literal.value);

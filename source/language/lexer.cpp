@@ -63,6 +63,7 @@ static void check_for_lexing_errors() {
 // the main lexing function:
 
 token next() {
+    
     while (true) {
 
         if (c >= text.size()) {

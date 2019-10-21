@@ -40,8 +40,8 @@ expression infered_type = {{{{"__"}}}, intrin::typeless};
 expression type_type = {{{{"_"}}}, intrin::typeless};
 expression none_type = {{{{"_0"}}}, intrin::type};
 expression unit_type = {{{{"_1"}}}, intrin::type};
-
 expression unit_value = {{}, intrin::unit};
+expression llvm_type = {{{{"_llvm"}}}, intrin::typeless};    // identical to type_type, but simply a placeholder for me.
 
 expression application_type = {{{{"_a"}}}, intrin::type};
 expression abstraction_type = {{{{"_b"}}}, intrin::type};
@@ -64,14 +64,11 @@ expression expose_abstraction = {
 
 expression print_abstraction = {
     {
-        {{"_c"}},
+        {{"_print"}}, ///TODO: make me a better name.
+        
         {{intrin::abstraction}}, // must be either "warning", "error", "info", or "note".
         {{intrin::llvm}} // a string literal:      i8*
     }, intrin::unit};
-
-
-
-expression llvm_intrin = {{{{"_llvm"}}}, intrin::typeless}; // an llvm type:   such as i8* or i32, etc.
 
 
 /////////////////////// test (for csr suite) abstractions //////////////////////////
@@ -80,7 +77,6 @@ expression hello_abstraction = {
     {
         {{"mystring"}}, {{intrin::llvm}},  
     }, intrin::unit}; 
-
 
 
 expression dog_abstraction = {
@@ -106,10 +102,9 @@ expression C_abstraction = {
     }, intrin::empty};
 
 
-
 expression my_define_abstraction = {
     {
-        {{"define"}}, {{intrin::abstraction}}, {{"and"}}, {{"poop"}}, {{intrin::abstraction}}, {{"stop"}}, {{"it"}}
+        {{"define"}}, {{intrin::abstraction}}, {{"and"}}, {{intrin::abstraction}}, {{"stop"}}, {{"it"}}
     }, intrin::unit};
 
 
@@ -124,7 +119,7 @@ expression my_define_abstraction = {
 
 
 std::vector<expression> builtins =  {
-     type_type, infered_type, none_type, unit_type, unit_value, llvm_intrin,
+     type_type, infered_type, none_type, unit_type, unit_value, llvm_type,
     
     application_type, abstraction_type,
     
@@ -132,7 +127,7 @@ std::vector<expression> builtins =  {
     expose_abstraction,
     print_abstraction,
     
-    hello_abstraction,
+//    hello_abstraction,
 //    dog_abstraction, A_abstraction, B_abstraction, C_abstraction,
 //    my_define_abstraction,        
 };
