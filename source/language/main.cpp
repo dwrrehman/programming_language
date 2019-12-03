@@ -11,4 +11,3 @@ int main(const int argc, const char** argv) {
     if (args.use_interpreter) interpret(module, args); 
     else emit_executable(generate_object_file(module, args), args);  
 }
-

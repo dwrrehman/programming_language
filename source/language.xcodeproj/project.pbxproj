@@ -344,17 +344,19 @@
 				DEVELOPMENT_TEAM = JTMD2SW5KN;
 				GCC_C_LANGUAGE_STANDARD = c11;
 				HEADER_SEARCH_PATHS = "";
-				LIBRARY_SEARCH_PATHS = /usr/local/Cellar/llvm/9.0.0/lib;
+				LIBRARY_SEARCH_PATHS = /usr/local/Cellar/llvm/9.0.0_1/lib;
 				OTHER_CPLUSPLUSFLAGS = (
 					"$(OTHER_CFLAGS)",
 					"-Wno-conversion",
 					"-Wno-comma",
 				);
 				OTHER_LDFLAGS = (
-					"-I/usr/local/Cellar/llvm/9.0.0/include",
+					"-I/usr/local/Cellar/llvm/9.0.0_1/include",
+					"-std=c++11",
+					"-stdlib=libc++",
 					"-D__STDC_CONSTANT_MACROS",
 					"-D__STDC_FORMAT_MACROS",
-					"-D__STDC_LIMIT_MACROS\n-L/usr/local/Cellar/llvm/9.0.0/lib",
+					"-D__STDC_LIMIT_MACROS\n-L/usr/local/Cellar/llvm/9.0.0_1/lib",
 					"-Wl,-search_paths_first",
 					"-Wl,-headerpad_max_install_names\n-lLLVMXRay",
 					"-lLLVMWindowsManifest",
@@ -496,9 +498,13 @@
 					"-lLLVMAArch64Info",
 					"-lLLVMSupport",
 					"-lLLVMDemangle",
+					"-lLLVMCore",
+					"-lLLVMSupport",
+					"-lz",
+					"-lcurses",
 				);
 				PRODUCT_NAME = "$(TARGET_NAME)";
-				USER_HEADER_SEARCH_PATHS = /usr/local/Cellar/llvm/9.0.0/include;
+				USER_HEADER_SEARCH_PATHS = /usr/local/Cellar/llvm/9.0.0_1/include;
 			};
 			name = Debug;
 		};
@@ -511,17 +517,19 @@
 				DEVELOPMENT_TEAM = JTMD2SW5KN;
 				GCC_C_LANGUAGE_STANDARD = c11;
 				HEADER_SEARCH_PATHS = "";
-				LIBRARY_SEARCH_PATHS = /usr/local/Cellar/llvm/9.0.0/lib;
+				LIBRARY_SEARCH_PATHS = /usr/local/Cellar/llvm/9.0.0_1/lib;
 				OTHER_CPLUSPLUSFLAGS = (
 					"$(OTHER_CFLAGS)",
 					"-Wno-conversion",
 					"-Wno-comma",
 				);
 				OTHER_LDFLAGS = (
-					"-I/usr/local/Cellar/llvm/9.0.0/include",
+					"-I/usr/local/Cellar/llvm/9.0.0_1/include",
+					"-std=c++11",
+					"-stdlib=libc++",
 					"-D__STDC_CONSTANT_MACROS",
 					"-D__STDC_FORMAT_MACROS",
-					"-D__STDC_LIMIT_MACROS\n-L/usr/local/Cellar/llvm/9.0.0/lib",
+					"-D__STDC_LIMIT_MACROS\n-L/usr/local/Cellar/llvm/9.0.0_1/lib",
 					"-Wl,-search_paths_first",
 					"-Wl,-headerpad_max_install_names\n-lLLVMXRay",
 					"-lLLVMWindowsManifest",
@@ -663,9 +671,13 @@
 					"-lLLVMAArch64Info",
 					"-lLLVMSupport",
 					"-lLLVMDemangle",
+					"-lLLVMCore",
+					"-lLLVMSupport",
+					"-lz",
+					"-lcurses",
 				);
 				PRODUCT_NAME = "$(TARGET_NAME)";
-				USER_HEADER_SEARCH_PATHS = /usr/local/Cellar/llvm/9.0.0/include;
+				USER_HEADER_SEARCH_PATHS = /usr/local/Cellar/llvm/9.0.0_1/include;
 			};
 			name = Release;
 		};

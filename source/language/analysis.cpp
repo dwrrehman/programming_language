@@ -16,9 +16,17 @@
 
 #include "llvm/IR/Verifier.h"
 
+
+
+
 #include <iostream>
 
 
+
+
+void hellofunc(std::string sdf) {
+    std::cout << sdf;
+}
 
 
 ///TODO: implement compiler intrin functions for each of these:    
@@ -36,6 +44,7 @@ static void verify(const file& file, llvm_module& module, resolved_expression_li
         print_error_message(file.name, errors, 0, 0);
         resolved_program.error = true;
     }
+    
 }
 
 static void debug_program(llvm_module& module, const resolved_expression_list& resolved_program, state& state) {
