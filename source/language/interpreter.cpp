@@ -63,7 +63,7 @@ static bool is_quit_command(const std::string& line) {
 void process_repl_command(const std::string& line, const std::string& first) {
             
     if (line == "clear") {
-        std::cout << "\e[1;1H\e[2J";
+        std::cout << "\033[1;1H\033[2J";
         
     } else if (line == "hello?") {
         std::cout << output() << "Hello, world!\n";
