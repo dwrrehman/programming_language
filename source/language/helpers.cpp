@@ -27,7 +27,6 @@
 //#include "llvm/Support/TargetRegistry.h"
 //#include "llvm/Support/TargetSelect.h"
 
-#include "llvm/ExecutionEngine/daniels_interpreter/MCJIT.h"
 #include "llvm/ExecutionEngine/MCJIT.h"
 
 #include "llvm/ExecutionEngine/GenericValue.h"

@@ -23,15 +23,8 @@
  
  5  :  application type 
  6  :  abstraction type 
- 7  :  create 
- 8  :  define    
- 9  :  expose
  
- 10  : ct  
- 11  : rt 
- 12  : imm
- 13  : mut 
- 
+ 7  :  define
  */
 namespace intrin {
     enum intrin_name_index { // index into master.     /// ORDER MATTERS.
@@ -45,16 +38,9 @@ namespace intrin {
         
         application,
         abstraction,
-                
-        define,        
-        expose,       // do we really need this?
+        
+        define,
         print,
-        
-        
-//        compiletime,
-//        runtime,
-//        immutable,
-//        mutable_,
     };
 }
 
@@ -67,9 +53,7 @@ extern expression unit_value;
 
 extern expression application_type;
 extern expression abstraction_type;
-extern expression create_abstraction;
 extern expression define_abstraction;
-extern expression expose_abstraction;
 
 extern std::vector<expression> builtins;
 

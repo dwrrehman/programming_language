@@ -55,13 +55,7 @@ void symbol_table::update(llvm::ValueSymbolTable& llvm) {
         // and we need to define it of the right type, as well.
         sort_top_by_largest();
     }
-    
-//    void expose(nat desired_signature, const expression& new_signature, 
-//                  nat source_abstraction, nat destination_frame) {
-//        // unimplemented
-//        print_warning_message(data.file.name, "unimplemented function called", 0,0);
-//    }
-    
+
     void symbol_table::sort_top_by_largest() {
         std::stable_sort(top().begin(), top().end(), [&](nat a, nat b) {
             return get(a).symbols.size() > get(b).symbols.size(); 

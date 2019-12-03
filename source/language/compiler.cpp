@@ -17,7 +17,6 @@
 #include "llvm/Support/TargetRegistry.h"
 #include "llvm/Target/TargetMachine.h"
 #include "llvm/Support/TargetSelect.h"
-#include "llvm/ExecutionEngine/daniels_interpreter/MCJIT.h"
 #include "llvm/ExecutionEngine/MCJIT.h"
 
 #include "llvm/IR/Verifier.h"

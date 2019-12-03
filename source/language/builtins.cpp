@@ -48,17 +48,9 @@ expression abstraction_type = {{{{"_b"}}}, intrin::type};
 
 expression define_abstraction = {
     {
-        {{"_d"}}, {{intrin::abstraction}}, // signature
+        {{"_c"}}, {{intrin::abstraction}}, // signature
         {{intrin::type}}, // of type
         {{intrin::application}}, // as definition 
-        {{intrin::application}}, // into scope
-    }, intrin::unit};
-
-expression expose_abstraction = {
-    {
-        {{"_e"}}, {{intrin::application}}, // existing signature
-        // {{intrin::abstraction}}, // as alias                             // dont over compilcate it....?
-        {{intrin::application}}, // from parent        
         {{intrin::application}}, // into scope
     }, intrin::unit};
 
@@ -123,8 +115,7 @@ std::vector<expression> builtins =  {
     
     application_type, abstraction_type,
     
-    define_abstraction, 
-    expose_abstraction,
+    define_abstraction,
     print_abstraction,
     
 //    hello_abstraction,
@@ -144,10 +135,9 @@ std::string stringify_intrin(nat i) {
             
         case intrin::application: return "_a";
         case intrin::abstraction: return "_b";
-        
-        case intrin::define: return "_d";        
-        case intrin::expose: return "_e";
         case intrin::print: return "_c";
+        case intrin::define: return "_d";
+        
             
         /// case intrin::equals: return "_f";             // do we need this?
     }

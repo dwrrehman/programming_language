@@ -3,8 +3,6 @@ the current status of the compiler is:
 
 
 
-
-
 1910104.152555:
 
 
@@ -46,9 +44,9 @@ the current status of the compiler is:
             
             - think about the capabiltiies of _d (define).
             
-            
+
         questions: 
-        
+
         
             - is _1 special other than how we are using it?    (as the type of statements, technically?)
             
@@ -61,7 +59,7 @@ the current status of the compiler is:
             - - is that _c?            no......?
             
             - 
-             
+
             
             
             - get code gen working with _d 
