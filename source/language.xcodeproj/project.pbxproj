@@ -1,0 +1,710 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 50;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		FD01760F221CF76900E5D442 /* error.cpp in Sources */ = {isa = PBXBuildFile; fileRef = FD01760D221CF76800E5D442 /* error.cpp */; };
+		FD02050421E7F3C3009C332B /* main.cpp in Sources */ = {isa = PBXBuildFile; fileRef = FD02050321E7F3C3009C332B /* main.cpp */; };
+		FD02050E21E7F59C009C332B /* compiler.cpp in Sources */ = {isa = PBXBuildFile; fileRef = FD02050C21E7F59C009C332B /* compiler.cpp */; };
+		FD180DE7228F5BDB00CBB7B1 /* builtins.cpp in Sources */ = {isa = PBXBuildFile; fileRef = FD180DE5228F5BDB00CBB7B1 /* builtins.cpp */; };
+		FD1DAC4C2203A32F0014F55E /* analysis.cpp in Sources */ = {isa = PBXBuildFile; fileRef = FD1DAC4A2203A32F0014F55E /* analysis.cpp */; };
+		FD2C68F72230DF3A00EDCE42 /* debug.cpp in Sources */ = {isa = PBXBuildFile; fileRef = FD2C68F52230DF3A00EDCE42 /* debug.cpp */; };
+		FD36010121EAFE57005FE844 /* lexer.cpp in Sources */ = {isa = PBXBuildFile; fileRef = FD3600FF21EAFE57005FE844 /* lexer.cpp */; };
+		FD36010421EAFE62005FE844 /* parser.cpp in Sources */ = {isa = PBXBuildFile; fileRef = FD36010221EAFE62005FE844 /* parser.cpp */; };
+		FD36010721EB288E005FE844 /* lists.cpp in Sources */ = {isa = PBXBuildFile; fileRef = FD36010521EB288E005FE844 /* lists.cpp */; };
+		FD52D8452226590600A9C309 /* arguments.cpp in Sources */ = {isa = PBXBuildFile; fileRef = FD52D8432226590600A9C309 /* arguments.cpp */; };
+		FD60BC8D230A90BC000B0411 /* symbol_table.cpp in Sources */ = {isa = PBXBuildFile; fileRef = FD60BC8B230A90BC000B0411 /* symbol_table.cpp */; };
+		FD67B808230D38AF009B8296 /* converters.cpp in Sources */ = {isa = PBXBuildFile; fileRef = FD67B806230D38AF009B8296 /* converters.cpp */; };
+		FD67B80E230D3B4D009B8296 /* helpers.cpp in Sources */ = {isa = PBXBuildFile; fileRef = FD67B80C230D3B4D009B8296 /* helpers.cpp */; };
+		FD7E425922264D150021E18A /* interpreter.cpp in Sources */ = {isa = PBXBuildFile; fileRef = FD7E425722264D150021E18A /* interpreter.cpp */; };
+		FDBE70C3232D941C006CC0F9 /* llvm_parser.cpp in Sources */ = {isa = PBXBuildFile; fileRef = FDBE70C1232D941C006CC0F9 /* llvm_parser.cpp */; };
+		FDC546AB2241864300D99CA9 /* corrector.cpp in Sources */ = {isa = PBXBuildFile; fileRef = FDC546A92241864300D99CA9 /* corrector.cpp */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		FD0204FE21E7F3C3009C332B /* CopyFiles */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = /usr/share/man/man1/;
+			dstSubfolderSpec = 0;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 1;
+		};
+/* End PBXCopyFilesBuildPhase section */
+
+/* Begin PBXFileReference section */
+		FD01760D221CF76800E5D442 /* error.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = error.cpp; sourceTree = "<group>"; };
+		FD01760E221CF76900E5D442 /* error.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = error.hpp; sourceTree = "<group>"; };
+		FD02050021E7F3C3009C332B /* language */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = language; sourceTree = BUILT_PRODUCTS_DIR; };
+		FD02050321E7F3C3009C332B /* main.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = main.cpp; sourceTree = "<group>"; };
+		FD02050C21E7F59C009C332B /* compiler.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = compiler.cpp; sourceTree = "<group>"; };
+		FD02050D21E7F59C009C332B /* compiler.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = compiler.hpp; sourceTree = "<group>"; };
+		FD180DE5228F5BDB00CBB7B1 /* builtins.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = builtins.cpp; sourceTree = "<group>"; };
+		FD180DE6228F5BDB00CBB7B1 /* builtins.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = builtins.hpp; sourceTree = "<group>"; };
+		FD1DAC4A2203A32F0014F55E /* analysis.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = analysis.cpp; sourceTree = "<group>"; };
+		FD1DAC4B2203A32F0014F55E /* analysis.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = analysis.hpp; sourceTree = "<group>"; };
+		FD2C68F52230DF3A00EDCE42 /* debug.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = debug.cpp; sourceTree = "<group>"; };
+		FD2C68F62230DF3A00EDCE42 /* debug.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = debug.hpp; sourceTree = "<group>"; };
+		FD3600FF21EAFE57005FE844 /* lexer.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = lexer.cpp; sourceTree = "<group>"; };
+		FD36010021EAFE57005FE844 /* lexer.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = lexer.hpp; sourceTree = "<group>"; };
+		FD36010221EAFE62005FE844 /* parser.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = parser.cpp; sourceTree = "<group>"; };
+		FD36010321EAFE62005FE844 /* parser.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = parser.hpp; sourceTree = "<group>"; };
+		FD36010521EB288E005FE844 /* lists.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = lists.cpp; sourceTree = "<group>"; };
+		FD36010621EB288E005FE844 /* lists.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = lists.hpp; sourceTree = "<group>"; };
+		FD52D8432226590600A9C309 /* arguments.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = arguments.cpp; sourceTree = "<group>"; };
+		FD52D8442226590600A9C309 /* arguments.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = arguments.hpp; sourceTree = "<group>"; };
+		FD60BC8B230A90BC000B0411 /* symbol_table.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = symbol_table.cpp; sourceTree = "<group>"; };
+		FD60BC8C230A90BC000B0411 /* symbol_table.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = symbol_table.hpp; sourceTree = "<group>"; };
+		FD67B806230D38AF009B8296 /* converters.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = converters.cpp; sourceTree = "<group>"; };
+		FD67B807230D38AF009B8296 /* converters.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = converters.hpp; sourceTree = "<group>"; };
+		FD67B80A230D3AC3009B8296 /* analysis_ds.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = analysis_ds.hpp; sourceTree = "<group>"; };
+		FD67B80C230D3B4D009B8296 /* helpers.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = helpers.cpp; sourceTree = "<group>"; };
+		FD67B80D230D3B4D009B8296 /* helpers.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = helpers.hpp; sourceTree = "<group>"; };
+		FD7E425722264D150021E18A /* interpreter.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = interpreter.cpp; sourceTree = "<group>"; };
+		FD7E425822264D150021E18A /* interpreter.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = interpreter.hpp; sourceTree = "<group>"; };
+		FDBE70C1232D941C006CC0F9 /* llvm_parser.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = llvm_parser.cpp; sourceTree = "<group>"; };
+		FDBE70C2232D941C006CC0F9 /* llvm_parser.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = llvm_parser.hpp; sourceTree = "<group>"; };
+		FDBE70C4232D97C7006CC0F9 /* test.n */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; name = test.n; path = ../../examples/test.n; sourceTree = "<group>"; };
+		FDC546A92241864300D99CA9 /* corrector.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = corrector.cpp; sourceTree = "<group>"; };
+		FDC546AA2241864300D99CA9 /* corrector.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = corrector.hpp; sourceTree = "<group>"; };
+		FDC9A1D6234FE76100FC2553 /* status.txt */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; name = status.txt; path = ../../status.txt; sourceTree = "<group>"; };
+		FDE4C18D22288E2B00B73B7A /* nodes.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = nodes.hpp; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		FD0204FD21E7F3C3009C332B /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		FD0204F721E7F3C3009C332B = {
+			isa = PBXGroup;
+			children = (
+				FD02050221E7F3C3009C332B /* language */,
+				FD02050121E7F3C3009C332B /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		FD02050121E7F3C3009C332B /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				FD02050021E7F3C3009C332B /* language */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		FD02050221E7F3C3009C332B /* language */ = {
+			isa = PBXGroup;
+			children = (
+				FD02050321E7F3C3009C332B /* main.cpp */,
+				FD02050C21E7F59C009C332B /* compiler.cpp */,
+				FD02050D21E7F59C009C332B /* compiler.hpp */,
+				FD52D8432226590600A9C309 /* arguments.cpp */,
+				FD52D8442226590600A9C309 /* arguments.hpp */,
+				FD2C68F52230DF3A00EDCE42 /* debug.cpp */,
+				FD2C68F62230DF3A00EDCE42 /* debug.hpp */,
+				FD7E425722264D150021E18A /* interpreter.cpp */,
+				FD7E425822264D150021E18A /* interpreter.hpp */,
+				FD3600FF21EAFE57005FE844 /* lexer.cpp */,
+				FD36010021EAFE57005FE844 /* lexer.hpp */,
+				FDE4C18D22288E2B00B73B7A /* nodes.hpp */,
+				FD36010221EAFE62005FE844 /* parser.cpp */,
+				FD36010321EAFE62005FE844 /* parser.hpp */,
+				FDC546A92241864300D99CA9 /* corrector.cpp */,
+				FDC546AA2241864300D99CA9 /* corrector.hpp */,
+				FD1DAC4A2203A32F0014F55E /* analysis.cpp */,
+				FD1DAC4B2203A32F0014F55E /* analysis.hpp */,
+				FD67B80C230D3B4D009B8296 /* helpers.cpp */,
+				FD67B80D230D3B4D009B8296 /* helpers.hpp */,
+				FDBE70C1232D941C006CC0F9 /* llvm_parser.cpp */,
+				FDBE70C2232D941C006CC0F9 /* llvm_parser.hpp */,
+				FD67B80A230D3AC3009B8296 /* analysis_ds.hpp */,
+				FD60BC8B230A90BC000B0411 /* symbol_table.cpp */,
+				FD60BC8C230A90BC000B0411 /* symbol_table.hpp */,
+				FD67B806230D38AF009B8296 /* converters.cpp */,
+				FD67B807230D38AF009B8296 /* converters.hpp */,
+				FD180DE5228F5BDB00CBB7B1 /* builtins.cpp */,
+				FD180DE6228F5BDB00CBB7B1 /* builtins.hpp */,
+				FD01760D221CF76800E5D442 /* error.cpp */,
+				FD01760E221CF76900E5D442 /* error.hpp */,
+				FD36010521EB288E005FE844 /* lists.cpp */,
+				FD36010621EB288E005FE844 /* lists.hpp */,
+				FDBE70C4232D97C7006CC0F9 /* test.n */,
+				FDC9A1D6234FE76100FC2553 /* status.txt */,
+			);
+			path = language;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		FD0204FF21E7F3C3009C332B /* language */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = FD02050721E7F3C3009C332B /* Build configuration list for PBXNativeTarget "language" */;
+			buildPhases = (
+				FD0204FC21E7F3C3009C332B /* Sources */,
+				FD0204FD21E7F3C3009C332B /* Frameworks */,
+				FD0204FE21E7F3C3009C332B /* CopyFiles */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = language;
+			productName = language;
+			productReference = FD02050021E7F3C3009C332B /* language */;
+			productType = "com.apple.product-type.tool";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		FD0204F821E7F3C3009C332B /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				LastUpgradeCheck = 1100;
+				ORGANIZATIONNAME = "Daniel Rehman";
+				TargetAttributes = {
+					FD0204FF21E7F3C3009C332B = {
+						CreatedOnToolsVersion = 10.1;
+					};
+				};
+			};
+			buildConfigurationList = FD0204FB21E7F3C3009C332B /* Build configuration list for PBXProject "language" */;
+			compatibilityVersion = "Xcode 9.3";
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				en,
+				Base,
+			);
+			mainGroup = FD0204F721E7F3C3009C332B;
+			productRefGroup = FD02050121E7F3C3009C332B /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				FD0204FF21E7F3C3009C332B /* language */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXSourcesBuildPhase section */
+		FD0204FC21E7F3C3009C332B /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				FD1DAC4C2203A32F0014F55E /* analysis.cpp in Sources */,
+				FD36010421EAFE62005FE844 /* parser.cpp in Sources */,
+				FD02050E21E7F59C009C332B /* compiler.cpp in Sources */,
+				FD180DE7228F5BDB00CBB7B1 /* builtins.cpp in Sources */,
+				FDC546AB2241864300D99CA9 /* corrector.cpp in Sources */,
+				FD52D8452226590600A9C309 /* arguments.cpp in Sources */,
+				FD67B808230D38AF009B8296 /* converters.cpp in Sources */,
+				FDBE70C3232D941C006CC0F9 /* llvm_parser.cpp in Sources */,
+				FD60BC8D230A90BC000B0411 /* symbol_table.cpp in Sources */,
+				FD7E425922264D150021E18A /* interpreter.cpp in Sources */,
+				FD02050421E7F3C3009C332B /* main.cpp in Sources */,
+				FD01760F221CF76900E5D442 /* error.cpp in Sources */,
+				FD36010121EAFE57005FE844 /* lexer.cpp in Sources */,
+				FD2C68F72230DF3A00EDCE42 /* debug.cpp in Sources */,
+				FD67B80E230D3B4D009B8296 /* helpers.cpp in Sources */,
+				FD36010721EB288E005FE844 /* lists.cpp in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin XCBuildConfiguration section */
+		FD02050521E7F3C3009C332B /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				CODE_SIGN_IDENTITY = "Mac Developer";
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"DEBUG=1",
+					"$(inherited)",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				MACOSX_DEPLOYMENT_TARGET = 10.14;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				SDKROOT = macosx;
+			};
+			name = Debug;
+		};
+		FD02050621E7F3C3009C332B /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				CODE_SIGN_IDENTITY = "Mac Developer";
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				MACOSX_DEPLOYMENT_TARGET = 10.14;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				SDKROOT = macosx;
+			};
+			name = Release;
+		};
+		FD02050821E7F3C3009C332B /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CLANG_CXX_LANGUAGE_STANDARD = "c++17";
+				CODE_SIGN_IDENTITY = "-";
+				CODE_SIGN_STYLE = Automatic;
+				DEVELOPMENT_TEAM = JTMD2SW5KN;
+				GCC_C_LANGUAGE_STANDARD = c11;
+				GCC_WARN_PEDANTIC = YES;
+				HEADER_SEARCH_PATHS = "";
+				LIBRARY_SEARCH_PATHS = /usr/local/Cellar/llvm/9.0.0_1/lib;
+				OTHER_CPLUSPLUSFLAGS = (
+					"$(OTHER_CFLAGS)",
+					"-Wno-conversion",
+					"-Wno-comma",
+				);
+				OTHER_LDFLAGS = (
+					"-I/usr/local/Cellar/llvm/9.0.0_1/include",
+					"-std=c++11",
+					"-stdlib=libc++",
+					"-D__STDC_CONSTANT_MACROS",
+					"-D__STDC_FORMAT_MACROS",
+					"-D__STDC_LIMIT_MACROS\n-L/usr/local/Cellar/llvm/9.0.0_1/lib",
+					"-Wl,-search_paths_first",
+					"-Wl,-headerpad_max_install_names\n-lLLVMXRay",
+					"-lLLVMWindowsManifest",
+					"-lLLVMTextAPI",
+					"-lLLVMTableGen",
+					"-lLLVMSymbolize",
+					"-lLLVMDebugInfoPDB",
+					"-lLLVMOrcJIT",
+					"-lLLVMJITLink",
+					"-lLLVMObjectYAML",
+					"-lLLVMMCA",
+					"-lLLVMLTO",
+					"-lLLVMPasses",
+					"-lLLVMObjCARCOpts",
+					"-lLLVMLineEditor",
+					"-lLLVMLibDriver",
+					"-lLLVMInterpreter",
+					"-lLLVMFuzzMutate",
+					"-lLLVMMCJIT",
+					"-lLLVMExecutionEngine",
+					"-lLLVMRuntimeDyld",
+					"-lLLVMDlltoolDriver",
+					"-lLLVMOption",
+					"-lLLVMDebugInfoGSYM",
+					"-lLLVMCoverage",
+					"-lLLVMCoroutines",
+					"-lLLVMXCoreDisassembler",
+					"-lLLVMXCoreCodeGen",
+					"-lLLVMXCoreDesc",
+					"-lLLVMXCoreInfo",
+					"-lLLVMX86Disassembler",
+					"-lLLVMX86AsmParser",
+					"-lLLVMX86CodeGen",
+					"-lLLVMX86Desc",
+					"-lLLVMX86Utils",
+					"-lLLVMX86Info",
+					"-lLLVMWebAssemblyDisassembler",
+					"-lLLVMWebAssemblyCodeGen",
+					"-lLLVMWebAssemblyDesc",
+					"-lLLVMWebAssemblyAsmParser",
+					"-lLLVMWebAssemblyInfo",
+					"-lLLVMSystemZDisassembler",
+					"-lLLVMSystemZCodeGen",
+					"-lLLVMSystemZAsmParser",
+					"-lLLVMSystemZDesc",
+					"-lLLVMSystemZInfo",
+					"-lLLVMSparcDisassembler",
+					"-lLLVMSparcCodeGen",
+					"-lLLVMSparcAsmParser",
+					"-lLLVMSparcDesc",
+					"-lLLVMSparcInfo",
+					"-lLLVMRISCVDisassembler",
+					"-lLLVMRISCVCodeGen",
+					"-lLLVMRISCVAsmParser",
+					"-lLLVMRISCVDesc",
+					"-lLLVMRISCVUtils",
+					"-lLLVMRISCVInfo",
+					"-lLLVMPowerPCDisassembler",
+					"-lLLVMPowerPCCodeGen",
+					"-lLLVMPowerPCAsmParser",
+					"-lLLVMPowerPCDesc",
+					"-lLLVMPowerPCInfo",
+					"-lLLVMNVPTXCodeGen",
+					"-lLLVMNVPTXDesc",
+					"-lLLVMNVPTXInfo",
+					"-lLLVMMSP430Disassembler",
+					"-lLLVMMSP430CodeGen",
+					"-lLLVMMSP430AsmParser",
+					"-lLLVMMSP430Desc",
+					"-lLLVMMSP430Info",
+					"-lLLVMMipsDisassembler",
+					"-lLLVMMipsCodeGen",
+					"-lLLVMMipsAsmParser",
+					"-lLLVMMipsDesc",
+					"-lLLVMMipsInfo",
+					"-lLLVMLanaiDisassembler",
+					"-lLLVMLanaiCodeGen",
+					"-lLLVMLanaiAsmParser",
+					"-lLLVMLanaiDesc",
+					"-lLLVMLanaiInfo",
+					"-lLLVMHexagonDisassembler",
+					"-lLLVMHexagonCodeGen",
+					"-lLLVMHexagonAsmParser",
+					"-lLLVMHexagonDesc",
+					"-lLLVMHexagonInfo",
+					"-lLLVMBPFDisassembler",
+					"-lLLVMBPFCodeGen",
+					"-lLLVMBPFAsmParser",
+					"-lLLVMBPFDesc",
+					"-lLLVMBPFInfo",
+					"-lLLVMARMDisassembler",
+					"-lLLVMARMCodeGen",
+					"-lLLVMARMAsmParser",
+					"-lLLVMARMDesc",
+					"-lLLVMARMUtils",
+					"-lLLVMARMInfo",
+					"-lLLVMAMDGPUDisassembler",
+					"-lLLVMAMDGPUCodeGen",
+					"-lLLVMMIRParser",
+					"-lLLVMipo",
+					"-lLLVMInstrumentation",
+					"-lLLVMVectorize",
+					"-lLLVMLinker",
+					"-lLLVMIRReader",
+					"-lLLVMAsmParser",
+					"-lLLVMAMDGPUAsmParser",
+					"-lLLVMAMDGPUDesc",
+					"-lLLVMAMDGPUUtils",
+					"-lLLVMAMDGPUInfo",
+					"-lLLVMAArch64Disassembler",
+					"-lLLVMMCDisassembler",
+					"-lLLVMAArch64CodeGen",
+					"-lLLVMGlobalISel",
+					"-lLLVMSelectionDAG",
+					"-lLLVMAsmPrinter",
+					"-lLLVMDebugInfoDWARF",
+					"-lLLVMCodeGen",
+					"-lLLVMTarget",
+					"-lLLVMScalarOpts",
+					"-lLLVMInstCombine",
+					"-lLLVMAggressiveInstCombine",
+					"-lLLVMTransformUtils",
+					"-lLLVMBitWriter",
+					"-lLLVMAnalysis",
+					"-lLLVMProfileData",
+					"-lLLVMObject",
+					"-lLLVMBitReader",
+					"-lLLVMBitstreamReader",
+					"-lLLVMCore",
+					"-lLLVMRemarks",
+					"-lLLVMAArch64AsmParser",
+					"-lLLVMMCParser",
+					"-lLLVMAArch64Desc",
+					"-lLLVMMC",
+					"-lLLVMDebugInfoCodeView",
+					"-lLLVMDebugInfoMSF",
+					"-lLLVMBinaryFormat",
+					"-lLLVMAArch64Utils",
+					"-lLLVMAArch64Info",
+					"-lLLVMSupport",
+					"-lLLVMDemangle",
+					"-lLLVMCore",
+					"-lLLVMSupport",
+					"-lz",
+					"-lcurses",
+				);
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				USER_HEADER_SEARCH_PATHS = /usr/local/Cellar/llvm/9.0.0_1/include;
+			};
+			name = Debug;
+		};
+		FD02050921E7F3C3009C332B /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CLANG_CXX_LANGUAGE_STANDARD = "c++17";
+				CODE_SIGN_IDENTITY = "-";
+				CODE_SIGN_STYLE = Automatic;
+				DEVELOPMENT_TEAM = JTMD2SW5KN;
+				GCC_C_LANGUAGE_STANDARD = c11;
+				GCC_WARN_PEDANTIC = YES;
+				HEADER_SEARCH_PATHS = "";
+				LIBRARY_SEARCH_PATHS = /usr/local/Cellar/llvm/9.0.0_1/lib;
+				OTHER_CPLUSPLUSFLAGS = (
+					"$(OTHER_CFLAGS)",
+					"-Wno-conversion",
+					"-Wno-comma",
+				);
+				OTHER_LDFLAGS = (
+					"-I/usr/local/Cellar/llvm/9.0.0_1/include",
+					"-std=c++11",
+					"-stdlib=libc++",
+					"-D__STDC_CONSTANT_MACROS",
+					"-D__STDC_FORMAT_MACROS",
+					"-D__STDC_LIMIT_MACROS\n-L/usr/local/Cellar/llvm/9.0.0_1/lib",
+					"-Wl,-search_paths_first",
+					"-Wl,-headerpad_max_install_names\n-lLLVMXRay",
+					"-lLLVMWindowsManifest",
+					"-lLLVMTextAPI",
+					"-lLLVMTableGen",
+					"-lLLVMSymbolize",
+					"-lLLVMDebugInfoPDB",
+					"-lLLVMOrcJIT",
+					"-lLLVMJITLink",
+					"-lLLVMObjectYAML",
+					"-lLLVMMCA",
+					"-lLLVMLTO",
+					"-lLLVMPasses",
+					"-lLLVMObjCARCOpts",
+					"-lLLVMLineEditor",
+					"-lLLVMLibDriver",
+					"-lLLVMInterpreter",
+					"-lLLVMFuzzMutate",
+					"-lLLVMMCJIT",
+					"-lLLVMExecutionEngine",
+					"-lLLVMRuntimeDyld",
+					"-lLLVMDlltoolDriver",
+					"-lLLVMOption",
+					"-lLLVMDebugInfoGSYM",
+					"-lLLVMCoverage",
+					"-lLLVMCoroutines",
+					"-lLLVMXCoreDisassembler",
+					"-lLLVMXCoreCodeGen",
+					"-lLLVMXCoreDesc",
+					"-lLLVMXCoreInfo",
+					"-lLLVMX86Disassembler",
+					"-lLLVMX86AsmParser",
+					"-lLLVMX86CodeGen",
+					"-lLLVMX86Desc",
+					"-lLLVMX86Utils",
+					"-lLLVMX86Info",
+					"-lLLVMWebAssemblyDisassembler",
+					"-lLLVMWebAssemblyCodeGen",
+					"-lLLVMWebAssemblyDesc",
+					"-lLLVMWebAssemblyAsmParser",
+					"-lLLVMWebAssemblyInfo",
+					"-lLLVMSystemZDisassembler",
+					"-lLLVMSystemZCodeGen",
+					"-lLLVMSystemZAsmParser",
+					"-lLLVMSystemZDesc",
+					"-lLLVMSystemZInfo",
+					"-lLLVMSparcDisassembler",
+					"-lLLVMSparcCodeGen",
+					"-lLLVMSparcAsmParser",
+					"-lLLVMSparcDesc",
+					"-lLLVMSparcInfo",
+					"-lLLVMRISCVDisassembler",
+					"-lLLVMRISCVCodeGen",
+					"-lLLVMRISCVAsmParser",
+					"-lLLVMRISCVDesc",
+					"-lLLVMRISCVUtils",
+					"-lLLVMRISCVInfo",
+					"-lLLVMPowerPCDisassembler",
+					"-lLLVMPowerPCCodeGen",
+					"-lLLVMPowerPCAsmParser",
+					"-lLLVMPowerPCDesc",
+					"-lLLVMPowerPCInfo",
+					"-lLLVMNVPTXCodeGen",
+					"-lLLVMNVPTXDesc",
+					"-lLLVMNVPTXInfo",
+					"-lLLVMMSP430Disassembler",
+					"-lLLVMMSP430CodeGen",
+					"-lLLVMMSP430AsmParser",
+					"-lLLVMMSP430Desc",
+					"-lLLVMMSP430Info",
+					"-lLLVMMipsDisassembler",
+					"-lLLVMMipsCodeGen",
+					"-lLLVMMipsAsmParser",
+					"-lLLVMMipsDesc",
+					"-lLLVMMipsInfo",
+					"-lLLVMLanaiDisassembler",
+					"-lLLVMLanaiCodeGen",
+					"-lLLVMLanaiAsmParser",
+					"-lLLVMLanaiDesc",
+					"-lLLVMLanaiInfo",
+					"-lLLVMHexagonDisassembler",
+					"-lLLVMHexagonCodeGen",
+					"-lLLVMHexagonAsmParser",
+					"-lLLVMHexagonDesc",
+					"-lLLVMHexagonInfo",
+					"-lLLVMBPFDisassembler",
+					"-lLLVMBPFCodeGen",
+					"-lLLVMBPFAsmParser",
+					"-lLLVMBPFDesc",
+					"-lLLVMBPFInfo",
+					"-lLLVMARMDisassembler",
+					"-lLLVMARMCodeGen",
+					"-lLLVMARMAsmParser",
+					"-lLLVMARMDesc",
+					"-lLLVMARMUtils",
+					"-lLLVMARMInfo",
+					"-lLLVMAMDGPUDisassembler",
+					"-lLLVMAMDGPUCodeGen",
+					"-lLLVMMIRParser",
+					"-lLLVMipo",
+					"-lLLVMInstrumentation",
+					"-lLLVMVectorize",
+					"-lLLVMLinker",
+					"-lLLVMIRReader",
+					"-lLLVMAsmParser",
+					"-lLLVMAMDGPUAsmParser",
+					"-lLLVMAMDGPUDesc",
+					"-lLLVMAMDGPUUtils",
+					"-lLLVMAMDGPUInfo",
+					"-lLLVMAArch64Disassembler",
+					"-lLLVMMCDisassembler",
+					"-lLLVMAArch64CodeGen",
+					"-lLLVMGlobalISel",
+					"-lLLVMSelectionDAG",
+					"-lLLVMAsmPrinter",
+					"-lLLVMDebugInfoDWARF",
+					"-lLLVMCodeGen",
+					"-lLLVMTarget",
+					"-lLLVMScalarOpts",
+					"-lLLVMInstCombine",
+					"-lLLVMAggressiveInstCombine",
+					"-lLLVMTransformUtils",
+					"-lLLVMBitWriter",
+					"-lLLVMAnalysis",
+					"-lLLVMProfileData",
+					"-lLLVMObject",
+					"-lLLVMBitReader",
+					"-lLLVMBitstreamReader",
+					"-lLLVMCore",
+					"-lLLVMRemarks",
+					"-lLLVMAArch64AsmParser",
+					"-lLLVMMCParser",
+					"-lLLVMAArch64Desc",
+					"-lLLVMMC",
+					"-lLLVMDebugInfoCodeView",
+					"-lLLVMDebugInfoMSF",
+					"-lLLVMBinaryFormat",
+					"-lLLVMAArch64Utils",
+					"-lLLVMAArch64Info",
+					"-lLLVMSupport",
+					"-lLLVMDemangle",
+					"-lLLVMCore",
+					"-lLLVMSupport",
+					"-lz",
+					"-lcurses",
+				);
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				USER_HEADER_SEARCH_PATHS = /usr/local/Cellar/llvm/9.0.0_1/include;
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		FD0204FB21E7F3C3009C332B /* Build configuration list for PBXProject "language" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				FD02050521E7F3C3009C332B /* Debug */,
+				FD02050621E7F3C3009C332B /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		FD02050721E7F3C3009C332B /* Build configuration list for PBXNativeTarget "language" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				FD02050821E7F3C3009C332B /* Debug */,
+				FD02050921E7F3C3009C332B /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = FD0204F821E7F3C3009C332B /* Project object */;
+}

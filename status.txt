@@ -1,0 +1,519 @@
+the current status of the compiler is:
+
+
+
+
+1910104.152555:
+
+
+        current todo:
+        
+        
+            - get string literals working
+            
+            - get fdi working all the way, for multiple abstraction parameters.
+            
+            - get resolution based type inference working.
+            
+            - get the llvm instruction parser working properly, (there is a bug in the aftermath of removing basic blocks, or something.)
+            
+            - add an intrinsic for giving a warning or error at compiletime to the user.
+            
+            - 
+            
+            
+        later todo:
+        
+            - find out if we need _e (expose)
+            
+            - find out what _c (??) is.
+            
+            - implement _a (application)
+            
+            - make sure _b (abstraction) is working.
+            
+            - get _e (expose) and _d (define) working.
+                        
+            - add _0 capabilities to the type system: CSR algorithm wise.
+            
+                - - dont NOT parse an expression which instantiates _0, 
+                
+                    just give an error afterwards, when we recognize that we cannot do that.
+              
+            - think about how namespaces are implemented, at the library level.
+            
+            - think about the capabiltiies of _d (define).
+            
+
+        questions: 
+
+        
+            - is _1 special other than how we are using it?    (as the type of statements, technically?)
+            
+            - does the body of soemthing neccessarily have to have a return expression?
+            
+            - how does compiletime evaluation of parameters, and contraction of code, using llvm optimization, work?
+            
+            - what do copmiletime parameters look like?
+            
+            - - is that _c?            no......?
+            
+            - 
+
+            
+            
+            - get code gen working with _d 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+1909275.021133:
+
+
+ok, so what have we just done?
+
+
+	we almost got string literals working, we just need to make it type check, by
+
+	
+		making sure we set the llvm_type member of a particular entry in the master symbol tbale, known as "llvm", 
+	
+
+
+				when it has the type which is i8*, 
+	
+		then we are able to pass a string into a function.
+
+	
+		its a abit weird, but its the only soltion i could come up wiht.
+	
+	
+			
+tb:
+
+	
+anywaysm i fifured out how to do compiletime execution/population of values to be used at runtime!
+	
+
+		just run a function, then get a Generic value back from it, 
+	
+		then turn that into a actual value (of some type)
+
+	
+			and then create a new global variable cosntant, of that new value.	
+
+	
+	
+		this seems liek it will work in general...
+	
+	
+
+		we just need to make sure that we do reduction of code at compiletime, as well.	
+	
+	
+		this is possibly the much more COOL aspect of CTAE, 
+		
+
+			which is that we can actually simplify parts of logic, which we know can be done at compiletime.	
+
+;
+
+
+
+	
+
+
+
+
+
+1909264.223628:
+
+
+
+	so i almost implememnted FDI the other day, which is good...
+
+	however, there are two known bugs:
+
+
+			- FDI: not being able to pass two differently lengthed signatures into an application.
+
+	
+			- parsing llvm instructions:  there is a weird bug with the aftermath of removing the "donothing-unreachables" after parsing the llvm stirngs.
+
+
+	
+		
+	
+
+----------- whats next to implememnt? --------------------------------
+
+
+
+
+	
+			1.5: csr additions:   
+	
+
+
+		70%		_b     :   "FDI":  passing undefined signatures into expressions: 
+				
+		0%		_a     :   "CTAE":  compiletime/lazy computation 
+							(passing in unealutated expressions.)
+	
+		0%		__     :   "TI": aggressive candidate-set-resolution-based type inference
+
+
+
+
+			2. string to expression converter
+
+
+			3. symbol table management, and covnersion between llvm and n.
+
+s	
+			4. write the (c++) implementation for:
+			
+				4.1.    _c    : ???
+
+				4.2.    _d    : IMPORTANT.
+
+				4.3.    _e    : easy: print warning/error/info/note
+
+
+
+			5. code generation (cg):	
+					
+				5.1. cg for _d'efined abstractions: 
+					turning into:
+						llvm functions
+						llvm types
+						llvm variables
+	
+				5.2. cg for evaluated _a's
+
+
+			6. more compiler options
+
+			
+			7. REPL functionality
+
+
+			8. core standard library    
+
+
+			9. public exposure!
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+1909161.233343:
+
+	ok, so csr, (the "resolver" from here on out)
+
+			is basically totally finished- it can regonize/resolve very complex expressions, and works basically perfectly. (i have yet to find a bug in it)
+
+	
+		and i also fixed a bug in the llvm parse instruction function, which had to do with adding terminator instructions, and lone basic blocks being left over, after the annex was removed.
+	
+				thats all fixed too now!
+
+	
+
+		
+			now it seems the right thing to move onto next is symbol conversion:
+	
+	
+		[done]:	1. 	from n3zqx2l to llvm:          (ie, expression to string)         
+	
+		[todo]:	2. 	from llvm to n3zqx2l:		(ie, string to expression)
+
+
+
+
+	looking at our schedule:
+
+
+
+			x:0. llvm string parser;
+
+
+			x:1. CSR suite;
+
+
+			1.5: csr additions:   
+	
+				FDI:  passing signatures into expressions 
+	
+				TI: aggressive candidate-set-resolution-based type inference
+
+
+			2. string to expression converter
+
+
+			3. symbol table management, and covnersion between llvm and n.
+
+s	
+			4. write the (c++) implementation for:
+			
+				4.1.    _a    : no implementation. 
+				4.2.    _b    : no implementation. [FDI?]
+				4.3.    _c    : easy.
+				4.4.    _d    : IMPORTANT.
+				4.5.    _e    : easy.
+				4.6.    _0    : no implementation. 
+				4.7.    _1    : no implementation. 
+
+
+
+
+
+
+
+
+
+;
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    ok, so i have cleaned up alot of stuff in the code, and basically set everything up for me to just code the new version of csr using 
+            
+                    resolved expression list
+                        
+                    resolved expression 
+
+                        
+                        data structures.
+                            
+
+
+
+
+              once this csr is done, that marks the next stage which is basically symbol table conversions.
+                
+            
+
+                    this step shouldnt be that hard, assuming i get all my ducks in a row, and realize what i have at my disposal, 
+
+                    becasue:
+
+                        
+                            
+                                expression_list/expression -> string     is a simple signature serializer
+
+                                string -> expression       will most certaintly be using CSR and the rest of the parsing machinery int he compiler, (including the lexer!) to implement this function. however there is alittle fancy ness in the signature that has to be done. thats the trick part.
+
+
+                         anyways, this is all so i can just get values back and forth between the llvm symbol tables, and the n3zqx2l symbol tables.
+
+
+                    
+                  ...and then after that, is code gen!
+
+                  which is the fun part!
+
+
+
+
+
+
+
+
+
+yeah, im pretty sure that the thing which i have to do now, is figure out how to make CSR actually run properly in my compiler with all my changes. im sure it wont be that hard... i mean its only csr lol.
+
+
+
+
+
+
+
+
+	1909113.190244:
+
+		so i finished the instruction parser, its prettyy much as simple as possible now.
+	
+		
+	
+		the next thing i need to do is figure out how to do csr on a expression_list tree, rather than a expression tree.
+
+	
+	so:
+
+
+
+
+			x:0. llvm string parser;
+
+			1. CSR suite
+
+			2. string to expression converter
+
+			3. symbol table management, and covnersion between llvm and n.
+	
+			4. write the (c++) implementation for:
+			
+				4.1.    _a    : no implementation. 
+				4.2.    _b    : no implementation. [FDI?]
+				4.3.    _c    : easy.
+				4.4.    _d    : IMPORTANT.
+				4.5.    _e    : easy.
+				4.6.    _0    : no implementation. 
+				4.7.    _1    : no implementation. 
+
+
+
+
+
+
+
+
+
+
+    1909102.033504:
+        
+            
+                reworked the llvm ir instruction parser code, made it way simplier.
+                    
+
+                    we need to figure out how to remap a function, allow the pointer to point to a complextely different set of instructions, with a different signature/name of the func as well.
+
+
+                        
+                        i know its possible.
+
+
+                        next after that, we should probably figure out how to do llvm symbol table conversions:
+
+
+                            1. we need to make the transition back and forth from llvm and n3zqx2l very smooth.
+
+
+                            2, we need to make the llvm symbol table essentially one of the most important central parts of the symbol table.
+
+                            
+
+                            3. we need to make CSR work well with llvm ir strings, llvm types, the llvm symbol table, 
+                                    and most importantly, 
+
+                                                llvm CODE GEN:   
+
+                                                    - llvm ir for function calls:      simply a call instruction, with fast calling convention- no respect for C calling convetion.... who cares.
+                                                    - llvm ir for _define:         usally a         %t = type {}      as well as a function dfeinition.
+                                                    - llvm ir for _dislclose:  usually a GEP ins.
+                                                    - llvm ir for string literals.....?
+
+
+
+
+
+
+
+
+
+
+
+
+
+    1909091.164524:
+        
+            the solution which i found is:
+                
+
+                        simply interpret the expression list as a block whos type is the type of the last expression. 
+                            
+                                for type inference and checking, we need to use the last expression int he list.
+                                    
+
+                                        
+                     the part we are implementing now, is to make the csr function have two parts:
+                        
+                            1. csr_single(): parsesa  single expression.
+
+                            2. csr(): parses a series of expressions, using the last one as the type of the whole set. 
+                                
+
+
+                      we realized that the traverse, and the resolve frontends both take expression lists, and operate on them eclusively, basically.
+                            
+
+
+                      finally, we figured out that we need to:      (eventually)
+                        
+
+                            1. make a huge change to the typr inference system within csr, 
+                                whichis that we need the idea of:     "gradual type-set resolution."
+
+                                        which is simply the idea that we gradually resolve which types a symbol can be, (based on literals, etc....)
+
+                                            as we find it in use of another function, as we continue to parse. 
+
+                                                
+
+                                                we only errror if we find that a given variable was found to have a non singleton type-set (the set of types which are consisntent withthe code.)
+
+                                                    
+                                                        
+                                                        (however, if the code uses numeric literals, then we will simply pick the word size (assumign its wide enough) to choose a type for numeric literals. )
+
+
+
+
+
+
+
+
+
+
+
+
+    1909091.15:
+    - we are still working through how to put subexpressions back into csr.
+
+    - we have esssentially decided to make the grammar binary recursive, instead of ternary recursive.
+    - - we are going to have blocks of code be delimited by newlines--- tabs are significant only to determine newlines, essentially... i think.
+
+        - definitely want the language be able to use the indentation as the syntactic form. 
+
+            thats really important. 
+
+      
+
+

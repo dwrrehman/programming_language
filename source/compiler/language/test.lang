@@ -1,8 +1,0 @@
-(add x) {
-    return 1234
-}
-
-(main) {
-    add 5
-}
-
