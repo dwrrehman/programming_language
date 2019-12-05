@@ -51,7 +51,7 @@ bool parse_llvm_string_as_instruction(const std::string& given, llvm::Function*&
 bool parse_llvm_string_as_function(const std::string& given, state& state, llvm::SMDiagnostic& errors) {
     llvm::MemoryBufferRef reference(given, "<llvm-string>");
     llvm::ModuleSummaryIndex my_index(true);
-    return !llvm::parseAssemblyInto(reference, state.data.module, &my_index, errors);        
+    return not llvm::parseAssemblyInto(reference, state.data.module, &my_index, errors);        
 }
 
 llvm::Type* parse_llvm_string_as_type(const std::string& given, state& state, llvm::SMDiagnostic& errors) {

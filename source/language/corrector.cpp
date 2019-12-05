@@ -13,8 +13,6 @@
 #include "helpers.hpp"
 #include "debug.hpp"
 
-#include <iostream>
-
 /*
         known bug:
 
@@ -80,14 +78,10 @@ expression_list correct(expression_list unit, const file& file) {
     remove_whitespace_in_expressions(unit, file, 0);
     
     if (debug) {
-        std::cout << "------------------- corrector: -------------------------\n";
         print_translation_unit(unit, file);
     }
     return unit;
 }
-
-
-
 
 /// TODO: code:    remove_empty_statements_in_blocks(unit.list, file, 0);           // previously named "clean(body)"
 /// then...

@@ -22,10 +22,6 @@
 #include "llvm/IR/Verifier.h"
 #include "llvm/Linker/Linker.h"
 
-#include <vector>
-#include <iostream>
-
-
 void initialize_llvm() {
     llvm::InitializeAllTargetInfos();
     llvm::InitializeAllTargets();
@@ -39,29 +35,19 @@ llvm_module process(const file& file, llvm::LLVMContext& context) {
 }
 
 llvm_modules frontend(const arguments& arguments, llvm::LLVMContext& context) {
-    bool error = false;
     llvm_modules modules = {};    
     modules.reserve(arguments.files.size());
-    for (auto file : arguments.files) {
-        try {modules.push_back(process(file, context));}
-        catch (...) {error = true;}
-    }
-    if (error) exit(2);
+    for (auto file : arguments.files) modules.push_back(process(file, context));
     return modules;
 }
 
 llvm_module link(llvm_modules&& modules) {
-    
     if (modules.empty()) return {};
     auto result = std::move(modules.back());
     modules.pop_back();
-    
-    for (auto& module : modules)         
-        if (llvm::Linker::linkModules(*result, std::move(module))) throw "linkModules failure";
-    
+    for (auto& module : modules) if (llvm::Linker::linkModules(*result, std::move(module))) exit(10);
     return result;
 }
-
 
 void set_data_layout(llvm_module& module) {
     auto machine = llvm::EngineBuilder(llvm_module{module.get()}).setEngineKind(llvm::EngineKind::JIT).create();    
@@ -84,7 +70,7 @@ std::string generate_object_file(llvm_module& module, const arguments& arguments
     module->setTargetTriple(TargetTriple);
     std::string Error = "";
     auto Target = llvm::TargetRegistry::lookupTarget(TargetTriple, Error);
-    if (!Target) {throw "generate error: Target Registry: " + Error;}
+    if (not Target) exit(11);
     
     llvm::TargetOptions opt;
     auto RM = llvm::Optional<llvm::Reloc::Model>();
@@ -95,12 +81,12 @@ std::string generate_object_file(llvm_module& module, const arguments& arguments
     auto object_filename = arguments.executable_name + ".o";
     std::error_code error;
     llvm::raw_fd_ostream dest(object_filename, error, llvm::sys::fs::F_None);
-    if (error) {throw "generate error: cannot open raw object file";}
+    if (error) exit(11);
     
     llvm::legacy::PassManager pass;
     if (TheTargetMachine->addPassesToEmitFile(pass, dest, nullptr, llvm::TargetMachine::CGFT_ObjectFile)) {
         std::remove(object_filename.c_str());
-        throw "generate error: cannot emit object file on this target";
+        exit(11);
     }
     pass.run(*module);
     dest.flush();
@@ -110,6 +96,6 @@ std::string generate_object_file(llvm_module& module, const arguments& arguments
 void emit_executable(const std::string& object_file, const arguments& arguments) {
     std::string link_command = "ld -macosx_version_min 10.14 -lSystem -lc -o " + arguments.executable_name + " " + object_file + " ";
     std::system(link_command.c_str());
-    if (debug) std::cout << "executable emitted: " << arguments.executable_name << "\n";
+    if (debug) printf("executable emitted: %s\n", arguments.executable_name.c_str());
     std::remove(object_file.c_str());
 }

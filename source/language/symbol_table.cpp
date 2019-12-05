@@ -32,6 +32,7 @@ void symbol_table::update(llvm::ValueSymbolTable& llvm) {
 //                }
 //            }
 //        }
+        print_warning_message(data.file.name, "unimplemented function called", 0,0);
     }
     
     void symbol_table::push_new_frame() { frames.push_back({frames.back().indicies}); }
@@ -98,10 +99,7 @@ void symbol_table::update(llvm::ValueSymbolTable& llvm) {
         auto j = 0;
         for (auto entry : master) {            
             std::cout << "\t" << std::setw(6) << j << ": ";
-            std::cout << expression_to_string(entry.signature, *this);
-            
-            if (entry.parent) std::cout << " :: [parent = " << entry.parent << "]\n";
-            else std::cout << "\n";
+            std::cout << expression_to_string(entry.signature, *this) << "\n";
             
             if (entry.value) {
                 std::cout << "\tLLVM value: \n";

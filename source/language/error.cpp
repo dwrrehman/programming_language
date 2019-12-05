@@ -10,6 +10,7 @@
 
 #include "color.h"
 #include "analysis_ds.hpp"
+#include "converters.hpp"
 
 #include "llvm/Support/SourceMgr.h"
 
@@ -143,7 +144,11 @@ void print_llvm_error(const llvm::SMDiagnostic& errors, state &state) {
     std::cout << std::flush;    
 }
 
-
+void print_unresolved_error(const expression &given, state &state) {
+    const std::string name = expression_to_string(given, state.stack);
+    print_error_message(state.data.file.name, "unresolved expression: " + name, given.starting_token.line, given.starting_token.column);
+    print_source_code(state.data.file.text, {given.starting_token});
+}
 
 
 

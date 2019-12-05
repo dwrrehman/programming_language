@@ -16,19 +16,6 @@
 
 #include "llvm/IR/Verifier.h"
 
-
-
-
-#include <iostream>
-
-
-
-
-void hellofunc(std::string sdf) {
-    std::cout << sdf;
-}
-
-
 ///TODO: implement compiler intrin functions for each of these:    
     
 //    print_error_message(file.name, "this is an error message.", 0, 0);
@@ -36,7 +23,6 @@ void hellofunc(std::string sdf) {
 //    print_info_message(file.name, "this is an info message.", 0, 0);
 //    print_note("this is a note.");
     
-
 
 static void verify(const file& file, llvm_module& module, resolved_expression_list& resolved_program) {
     std::string errors = "";
@@ -48,15 +34,10 @@ static void verify(const file& file, llvm_module& module, resolved_expression_li
 }
 
 static void debug_program(llvm_module& module, const resolved_expression_list& resolved_program, state& state) {
-    if (debug) {        
-        std::cout << "------------------ stack state ------------------- \n\n";
+    if (debug) {
         state.stack.debug();
-        
-        std::cout << "------------------ resolution ------------------- \n\n";
         print_resolved_unit(resolved_program, state);
-        
-        std::cout << "------------ emitting LLVM: ----------- \n";
-        std::cout << emit(module);
+        llvm::outs() << emit(module);
     }
 }
 
@@ -84,6 +65,6 @@ llvm_module analyze(expression_list program, const file& file, llvm::LLVMContext
     verify(file, module, resolved);    
     debug_program(module, resolved, state);
     
-    if (resolved.error) throw "analysis error";
+    if (resolved.error) exit(10);
     else return module;
 }

@@ -11,11 +11,9 @@
 
 #include "analysis_ds.hpp"
 
-struct symbol_table;
+expression convert_raw_llvm_symbol_to_expression(const std::string& id, llvm::Value* value, struct symbol_table& stack, struct program_data& data);
 
-expression convert_raw_llvm_symbol_to_expression(const std::string& id, llvm::Value* value, symbol_table& stack, program_data& data);
-
-std::string expression_to_string(const expression& given, symbol_table& stack);
+std::string expression_to_string(const expression& given, struct symbol_table& stack);
 
 expression string_to_expression(const std::string& given, state& state);
 

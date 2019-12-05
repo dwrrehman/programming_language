@@ -137,10 +137,6 @@ void print_symbol_line(symbol symbol) {
             std::cout << "\"" << symbol.string.literal.value << "\"";
             break;
 
-//        case symbol_type::subexpression:
-//            print_expression_line(symbol.subexpression);
-//            break;
-
         case symbol_type::newline:
             std::cout << "{NEWLINE}";
             break;
@@ -155,7 +151,6 @@ void print_symbol_line(symbol symbol) {
         default: break;
     }
 }
-
 
 
 void print_expression_line(expression expression) {
@@ -293,15 +288,6 @@ void print_resolved_unit(resolved_expression_list unit, state& state) {
     print_resolved_list(unit, 0, state);
 }
 
-
-
-
-
-
-
-
-
-
 void print_nat_vector(std::vector<nat> v, bool newline) {
     std::cout << "[ ";
     for (auto e : v) {
@@ -310,4 +296,3 @@ void print_nat_vector(std::vector<nat> v, bool newline) {
     std::cout << "]";
     if (newline) std::cout << "\n";
 }
-

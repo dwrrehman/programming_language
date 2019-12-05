@@ -18,7 +18,6 @@
 
 #include <string>
 
-
 bool parse_llvm_string_as_instruction(const std::string& given, llvm::Function*& original, state& state, llvm::SMDiagnostic& errors);
 
 bool parse_llvm_string_as_function(const std::string& given, state& state, llvm::SMDiagnostic& errors);
