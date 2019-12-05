@@ -13,6 +13,7 @@
 #include "llvm/Linker/Linker.h"
 #include "llvm/Support/TargetRegistry.h"
 #include "llvm/Support/TargetSelect.h"
+#include "llvm/Support/SourceMgr.h"
 #include "llvm/Target/TargetMachine.h"
 #include "llvm/Transforms/Utils/BasicBlockUtils.h"
 
@@ -24,23 +25,6 @@
 #include <string>
 #include <vector>
 
-
-///// MARKED FOR DELETION SOON.
-//// DELETE ME:    this should just be inlined into logic code as simply print statements, using builtin 256 colorings.
-//
-//#include "error.hpp"
-//
-//#include "lexer.hpp"
-//#include "color.h"
-//#include "analysis_ds.hpp"
-//#include "symbol_table.hpp"
-//
-//#include "llvm/Support/SourceMgr.h"
-//
-//#include <sstream>
-//#include <iostream>
-//#include <iomanip>
-//
 //static std::string error_heading(const std::string& filename, nat line, nat column) {
 //
 ////    std::ostringstream s;
@@ -75,20 +59,7 @@
 ////    return s.str();
 //    return "";
 //}
-//
-//
-//void print_error_message(const std::string& filename, const std::string& message, nat line, nat column) {
-////    std::cerr << error_heading(filename, line, column) << message << cRESET << std::endl;
-//}
-//
-//void print_warning_message(const std::string& filename, const std::string& message, nat line, nat column) {
-////    std::cerr << warning_heading(filename, line, column) << message << std::endl;
-//}
-//
-//void print_lex_error(const std::string& filename, const std::string& state_name, nat line, nat column) {
-////    std::cerr << error_heading(filename, line, column) << "unterminated " << state_name << std::endl;
-//}
-//
+
 //void print_parse_error(const std::string& filename, nat line, nat column, const std::string& type, std::string found, const std::string& expected) {
 ////    if (type == "{null}" or found == "\n" or type == "indent") {
 ////        if (type == "{null}") found = "end of file";
@@ -109,17 +80,25 @@
 ////    print_error_message(state.data.file.name, "unresolved expression: " + name, given.starting_token.line, given.starting_token.column);
 //}
 
-
-
-
 #define prep(_level) for (nat i = _level; i--;) std::cout << ".   "
 #define clear_and_return()  auto result = current; current = {}; return result;
 #define revert_and_return()    revert(saved); return {true, true, true}
 
 using nat = int_fast64_t;
+using stack_frame = std::vector<nat>;
+using llvm_module = std::unique_ptr<llvm::Module>;
+using llvm_modules = std::vector<llvm_module>;
+
+struct expression_list;
+struct expression;
+struct symbol;
+struct symbol_table;
+struct resolved_expression_list;
 
 enum class token_type {null, string, identifier, character, llvm, keyword, operator_, indent};
 enum class lexing_state {none, string, string_expression, identifier, llvm_string, comment, multiline_comment, indent};
+enum class symbol_type { none, subexpression, string_literal, llvm_literal, identifier, newline, indent };
+namespace intrin { enum intrin_name_index { typeless, type, infered, none, unit, unit_value, llvm, application, abstraction, define }; }
 
 struct file {
     const char* name = "";
@@ -151,18 +130,9 @@ struct saved_state {
     token saved_current = {};
 };
 
-
-struct expression_list;
-struct expression;
-struct symbol;
-
-enum class symbol_type { none, subexpression, string_literal, llvm_literal, identifier, newline, indent };
-
-// literals:
 struct string_literal {
     token literal = {};
     bool error = 0;
-    
     string_literal(){}
     string_literal(bool e, bool _, bool __): error(e or _ or __) {}
     string_literal(const token& t): literal(t) {}
@@ -171,7 +141,6 @@ struct string_literal {
 struct llvm_literal {
     token literal = {};
     bool error = 0;
-        
     llvm_literal(){}
     llvm_literal(bool e, bool _, bool __): error(e or _ or __) {}
     llvm_literal(const token& t): literal(t) {}
@@ -180,7 +149,6 @@ struct llvm_literal {
 struct identifier {
     token name = {};
     bool error = 0;
-    
     identifier(){}
     identifier(bool e, bool _, bool __): error(e or _ or __) {}
     identifier(const token& n): name(n) {}
@@ -194,16 +162,11 @@ struct expression_list {
     std::vector<expression> list = {};
     bool error = {};
     token starting_token = {};
-        
     expression_list(){}
     expression_list(bool e, bool _, bool __): error(e or _ or __) {}
     expression_list(const std::vector<expression>& es): list(es) {}
     expression_list(const std::vector<expression>& es, bool e): list(es), error(e) {}
 };
-
-
-namespace intrin { enum intrin_name_index { typeless, type, infered, none, unit, unit_value, llvm, application, abstraction, define }; }
-
 
 struct expression {
     std::vector<symbol> symbols = {};
@@ -211,7 +174,6 @@ struct expression {
     nat type = 0;
     bool error = false;
     struct token starting_token = {};
-    
     expression() {}
     expression(bool e, bool _, bool __): error(e or _ or __) {}
     expression(const std::vector<symbol>& s, enum intrin::intrin_name_index t = intrin::typeless): symbols(s), type(t) {}
@@ -236,23 +198,16 @@ struct symbol {
     symbol(const expression& e): symbol(expression_list {{e}}) {}
 };
 
-using llvm_modules = std::vector<std::unique_ptr<llvm::Module>>;
-using llvm_module = std::unique_ptr<llvm::Module>;
-
 struct program_data {
     file file;
     llvm::Module* module;
     llvm::IRBuilder<>& builder;
 };
 
-struct symbol_table;
-
 struct state {
     symbol_table& stack;
     program_data& data;
 };
-
-struct resolved_expression_list;
 
 struct resolved_expression {
     nat index = 0;
@@ -267,8 +222,6 @@ struct resolved_expression_list {
     std::vector<resolved_expression> list = {};
     bool error = false;
 };
-
-using stack_frame = std::vector<nat>;
 
 struct signature_entry {
     expression signature = {};
@@ -295,37 +248,29 @@ struct symbol_table {
     std::vector<std::string> llvm_key_symbols_in_table(llvm::ValueSymbolTable llvm);
 };
 
-
 // constants:
+static expression failure = {true, true, true};
+static expression infered_type = {{{{"__"}}}, intrin::typeless};
+static expression type_type = {{{{"_"}}}, intrin::typeless};
+static expression none_type = {{{{"_0"}}}, intrin::type};
+static expression unit_type = {{{{"_1"}}}, intrin::type};
+static expression unit_value = {{}, intrin::unit};
+static expression llvm_type = {{{{"_llvm"}}}, intrin::typeless}; // placeholder
+static expression application_type = {{{{"_a"}}}, intrin::type};
+static expression abstraction_type = {{{{"_b"}}}, intrin::type};
+static expression define_abstraction = {{{{"_c"}}, {{intrin::abstraction}}, {{intrin::type}}, {{intrin::application}}, {{intrin::application}}}, intrin::unit};
+static const std::vector<expression> builtins = { type_type, infered_type, none_type, unit_type, unit_value, llvm_type, application_type, abstraction_type, define_abstraction };
+static const resolved_expression resolution_failure = {0, {}, true};
+static const resolved_expression resolved_unit_value = {intrin::unit_value, {}, false};
 
-expression failure = {true, true, true};
-expression infered_type = {{{{"__"}}}, intrin::typeless};
-expression type_type = {{{{"_"}}}, intrin::typeless};
-expression none_type = {{{{"_0"}}}, intrin::type};
-expression unit_type = {{{{"_1"}}}, intrin::type};
-expression unit_value = {{}, intrin::unit};
-expression llvm_type = {{{{"_llvm"}}}, intrin::typeless};    // identical to type_type, but simply a placeholder for me.
-expression application_type = {{{{"_a"}}}, intrin::type};
-expression abstraction_type = {{{{"_b"}}}, intrin::type};
-expression define_abstraction = {
-    {
-        {{"_c"}}, {{intrin::abstraction}}, // signature
-        {{intrin::type}},           // of type
-        {{intrin::application}}, // as definition
-        {{intrin::application}}, // into scope
-    }, intrin::unit};
-
-std::vector<expression> builtins = { type_type, infered_type, none_type, unit_type, unit_value, llvm_type, application_type, abstraction_type, define_abstraction };
-
-
-// program globals:
-nat spaces_count_for_indent = 4;
-nat max_expression_depth = 8;
-bool debug = false;
+// global parameters:
+static nat spaces_count_for_indent = 4;
+static nat max_expression_depth = 8;
+static bool debug = false;
 
 // lexer globals:
 static std::string text = "";
-static std::string filename = "";
+static const char* filename = "";
 
 static nat c = 0;
 static nat line = 0;
@@ -333,8 +278,17 @@ static nat column = 0;
 static lexing_state lex_state = lexing_state::indent;
 static token current = {};
 
-
-
+// prototypes:
+void print_expression_list(expression_list list, nat d);
+void print_symbol(symbol s, nat d);
+void print_expression(expression s, nat d);
+symbol parse_symbol(const file& file, bool newlines_are_a_symbol);
+expression parse_expression(const file& file, bool can_be_empty, bool newlines_are_a_symbol);
+expression_list parse_expression_list(const file& file, bool can_be_empty);
+void turn_indents_into_blocks(expression_list& list, const file& file,  nat level);
+void prune_extraneous_subexpressions(expression_list& given);
+resolved_expression resolve(const expression& given, nat given_type, llvm::Function*& function, nat& index, nat depth, nat max_depth, nat fdi_length, state& state);
+resolved_expression_list resolve_expression_list(const expression_list& given, nat given_type, llvm::Function*& function, state& state);
 
 
 static inline void open_file(const char* filename, arguments& args) {
@@ -395,16 +349,28 @@ static inline arguments get_commandline_arguments(const int argc, const char** a
     return args;
 }
 
-
-
-
-
-
-
 static inline bool is_identifier(char c) { return isalnum(c) or c == '_'; }
 static inline bool is_operator(char c) { return (not is_identifier(c) or not isascii(c)) and c != ' ' and c != '\t'; }
-
 static inline bool isvalid(nat c) { return c >= 0 and c < (nat) text.size(); }
+
+inline static bool is_operator(const token& t) { return t.type == token_type::operator_; }
+inline static bool is_identifier(const token& t) { return t.type == token_type::identifier; }
+inline static bool is_close_paren(const token& t) { return is_operator(t) and t.value == ")"; }
+inline static bool is_open_paren(const token& t) { return is_operator(t) and t.value == "("; }
+inline static bool is_newline(const token& t) { return is_operator(t) and t.value == "\n"; }
+inline static bool is_reserved_operator(token t) { return is_newline(t) or is_open_paren(t) or is_close_paren(t); }
+static inline bool is_whitespace(const symbol& e) { return e.type == symbol_type::indent or e.type == symbol_type::newline; }
+
+bool subexpression(const symbol& s) { return s.type == symbol_type::subexpression; }
+static inline bool identifier(const symbol& s) { return s.type == symbol_type::identifier; }
+static inline bool llvm_string(const symbol& s) { return s.type == symbol_type::llvm_literal; }
+static inline bool string_literal(const symbol& s) { return s.type == symbol_type::string_literal; }
+static inline bool parameter(const symbol &symbol) { return subexpression(symbol); }
+static inline bool are_equal_identifiers(const symbol &first, const symbol &second) { return identifier(first) and identifier(second) and first.identifier.name.value == second.identifier.name.value; }
+static inline bool is_donothing_call(llvm::Instruction* ins) { return ins and std::string(ins->getOpcodeName()) == "call" and std::string(ins->getOperand(0)->getName()) == "llvm.donothing"; }
+static inline bool is_unreachable_instruction(llvm::Instruction* ins) { return ins and std::string(ins->getOpcodeName()) == "unreachable"; }
+
+
 
 static inline void advance_by(nat n) {
     for (nat i = n; i--;) {
@@ -423,9 +389,9 @@ static inline void set_current(token_type t, lexing_state s) {
 }
 
 static inline void check_for_lexing_errors() {
-    if (state == lexing_state::string) printf("%s:%lld,%lld: unterminated string", filename, line, column);
-    else if (state == lexing_state::llvm_string) print_lex_error(filename, "llvm_string", line, column);
-    else if (state == lexing_state::multiline_comment) print_lex_error(filename, "multi-line comment", line, column);
+    if (lex_state == lexing_state::string) printf("%s:%lld,%lld: unterminated string", filename, line, column);
+    else if (lex_state == lexing_state::llvm_string) printf("%s:%lld,%lld: unterminated llvm string", filename, line, column);
+    else if (lex_state == lexing_state::multiline_comment) printf("%s:%lld,%lld: unterminated multi-line comment", filename, line, column);
 }
 
 // the main lexing function:
@@ -587,13 +553,6 @@ static inline void debug_token_stream() {
     print_lex(tokens);
 }
 
-
-
-
-void print_expression_list(expression_list list, nat d);
-void print_symbol(symbol s, nat d);
-void print_expression(expression s, nat d);
-
 void print_symbol(symbol symbol, nat d) {
     prep(d); std::cout << "symbol: \n";
     switch (symbol.type) {
@@ -676,6 +635,25 @@ static inline void print_symbol_line(symbol symbol) {
     }
 }
 
+
+static inline std::string stringify_intrin(nat i) {
+    switch (i) {
+        case intrin::typeless: return "typeless";
+        case intrin::type: return "_";
+        case intrin::infered: return "__";
+        case intrin::none: return "_0";
+        case intrin::unit: return "_1";
+        case intrin::unit_value: return "()";
+        case intrin::llvm: return "_llvm";
+            
+        case intrin::application: return "_a";
+        case intrin::abstraction: return "_b";
+        case intrin::define: return "_c";
+    }
+    return "{compiler error}";
+}
+
+
 static inline void print_expression_line(expression expression) {
     std::cout << "(";
     nat i = 0;
@@ -719,18 +697,6 @@ static inline void print_translation_unit(expression_list unit, file file) {
     print_expression_list(unit, 1);
 }
 
-
-symbol parse_symbol(const file& file, bool newlines_are_a_symbol);
-expression parse_expression(const file& file, bool can_be_empty, bool newlines_are_a_symbol);
-expression_list parse_expression_list(const file& file, bool can_be_empty);
-
-inline static bool is_operator(const token& t) { return t.type == token_type::operator_; }
-inline static bool is_identifier(const token& t) { return t.type == token_type::identifier; }
-inline static bool is_close_paren(const token& t) { return is_operator(t) and t.value == ")"; }
-inline static bool is_open_paren(const token& t) { return is_operator(t) and t.value == "("; }
-inline static bool is_newline(const token& t) { return is_operator(t) and t.value == "\n"; }
-inline static bool is_reserved_operator(token t) { return is_newline(t) or is_open_paren(t) or is_close_paren(t); }
-
 static inline void newlines() {
     auto saved = save();
     auto t = next();
@@ -754,7 +720,7 @@ static inline nat indents() {
     return indent_count;
 }
 
-static inline string_literal parse_string_literal() {
+static inline struct string_literal parse_string_literal() {
     auto saved = save();
     auto t = next();
     if (t.type != token_type::string) { revert_and_return(); }
@@ -786,7 +752,7 @@ symbol parse_symbol(const file& file, bool newlines_are_a_symbol) {
             expressions.starting_token = t;
             if (is_close_paren(t)) return { expressions };
             else {
-                print_parse_error(file.name, saved_t.line, saved_t.column, convert_token_type_representation(t.type), t.value, "\")\" to close expression");
+//                print_parse_error(file.name, saved_t.line, saved_t.column, convert_token_type_representation(t.type), t.value, "\")\" to close expression");
                 revert_and_return();
             }
         }
@@ -882,11 +848,6 @@ expression_list parse(const file& file) {
 }
 
 
-
-
-
-static inline bool is_whitespace(const symbol& e) { return e.type == symbol_type::indent or e.type == symbol_type::newline; }
-
 static inline void remove_whitespace_in_expressions(expression_list& list, const file& file, nat depth) {
     for (auto& expression : list.list) {
         auto& s = expression.symbols;
@@ -897,7 +858,7 @@ static inline void remove_whitespace_in_expressions(expression_list& list, const
     }
 }
 
-void turn_indents_into_blocks(expression_list& list, const file& file,  nat level);
+
 
 static inline void push_block_onto_list(expression_list& list, const file& file,  nat level, expression_list& new_list) {
     if (list.list.size()) {
@@ -944,36 +905,112 @@ static inline expression_list correct(expression_list unit, const file& file) {
     return unit;
 }
 
-
-
-static inline std::string stringify_intrin(nat i) {
-    switch (i) {
-        case intrin::typeless: return "typeless";
-        case intrin::type: return "_";
-        case intrin::infered: return "__";
-        case intrin::none: return "_0";
-        case intrin::unit: return "_1";
-        case intrin::unit_value: return "()";
-        case intrin::llvm: return "_llvm";
-            
-        case intrin::application: return "_a";
-        case intrin::abstraction: return "_b";
-        case intrin::define: return "_c";
+static inline std::string expression_to_string(const expression& given, symbol_table& stack) {
+    std::string result = "(";
+    nat i = 0;
+    for (auto symbol : given.symbols) {
+        if (symbol.type == symbol_type::identifier) result += symbol.identifier.name.value;
+        else if (symbol.type == symbol_type::subexpression) result += "(" + (symbol.expressions.list.size() ? expression_to_string(symbol.expressions.list.back(), stack)  : "") + ")";
+        if (i++ < (nat) given.symbols.size() - 1) result += " ";
     }
-    return "{compiler error}";
+    result += ")";
+    if (given.type) result += " " + expression_to_string(stack.master[given.type].signature, stack);
+    return result;
 }
 
-const resolved_expression resolution_failure = {0, {}, true};
-const resolved_expression resolved_unit_value = {intrin::unit_value, {}, false};
+static inline std::string convert_symbol_type(enum symbol_type type) {
+    switch (type) {
+        case symbol_type::none: return "{none}";
+        case symbol_type::subexpression: return "subexpression";
+        case symbol_type::string_literal: return "string literal";
+        case symbol_type::llvm_literal: return "llvm literal";
+        case symbol_type::identifier: return "identifier";
+        case symbol_type::newline: return "newline";
+        case symbol_type::indent: return "indent";
+    }
+}
 
-bool subexpression(const symbol& s) { return s.type == symbol_type::subexpression; }
-static inline bool identifier(const symbol& s) { return s.type == symbol_type::identifier; }
-static inline bool llvm_string(const symbol& s) { return s.type == symbol_type::llvm_literal; }
-static inline bool string_literal(const symbol& s) { return s.type == symbol_type::string_literal; }
-static inline bool parameter(const symbol &symbol) { return subexpression(symbol); }
-static inline bool are_equal_identifiers(const symbol &first, const symbol &second) { return identifier(first) and identifier(second) and first.identifier.name.value == second.identifier.name.value; }
-static inline bool is_donothing_call(llvm::Instruction* ins) { return ins and std::string(ins->getOpcodeName()) == "call" and std::string(ins->getOperand(0)->getName()) == "llvm.donothing"; }
-static inline bool is_unreachable_instruction(llvm::Instruction* ins) { return ins and std::string(ins->getOpcodeName()) == "unreachable"; }
+void print_resolved_list(resolved_expression_list list, nat depth, state& state);
+void print_resolved_expr(resolved_expression expr, nat depth, state& state);
+
+void print_resolved_expr(resolved_expression expr, nat depth, state& state) {
+    prep(depth); std::cout << "[error = " << std::boolalpha << expr.error << "]\n";
+    prep(depth);
+    
+    std::cout << "index = " << expr.index << " :: " << expression_to_string(state.stack.get(expr.index), state.stack);
+    
+    if (expr.signature.symbols.size()) {
+        std::cout << " ::: " << expression_to_string(expr.signature, state.stack);
+    }
+    
+    std::cout << "\n";
+    
+    if (expr.llvm_type) { prep(depth); std::cout << "llvm type = "; expr.llvm_type->print(llvm::errs()); }
+    std::cout << "\n";
+    nat i = 0;
+    for (auto arg : expr.args) {
+        prep(depth + 1); std::cout << "argument #" << i++ << ": \n";
+        print_resolved_list(arg, depth + 2, state);
+        prep(depth); std::cout << "\n";
+    }
+}
+
+void print_resolved_list(resolved_expression_list list, nat depth, state& state) {
+    prep(depth); std::cout << "[error = " << std::boolalpha << list.error << "]\n";
+    nat i = 0;
+    for (auto expr : list.list) {
+        prep(depth + 1); std::cout << "expression #" << i++ << ": \n";
+        print_resolved_expr(expr, depth + 2, state);
+        prep(depth); std::cout << "\n";
+    }
+}
+
+void print_resolved_unit(resolved_expression_list unit, state& state) {
+    std::cout << "---------- printing resolved tranlation unit: ------------\n\n";
+    print_resolved_list(unit, 0, state);
+}
+
+void print_nat_vector(std::vector<nat> v, bool newline) {
+    std::cout << "[ ";
+    for (auto e : v) {
+        std::cout << e << " ";
+    }
+    std::cout << "]";
+    if (newline) std::cout << "\n";
+}
+
+void debug_table(symbol_table table) {
+    std::cout << "---- debugging stack: ----\n";
+    
+    std::cout << "printing frames: \n";
+    for (auto i = 0; i < (nat) table.frames.size(); i++) {
+        std::cout << "\t ----- FRAME # "<<i<<"---- \n\t\tidxs: { ";
+        for (auto index : table.frames[i]) {
+            std::cout << index << " ";
+        }
+        std::cout << "}\n";
+    }
+    
+    std::cout << "\nmaster: {\n";
+    auto j = 0;
+    for (auto entry : table.master) {
+        std::cout << "\t" << std::setw(6) << j << ": ";
+        std::cout << expression_to_string(entry.signature, table) << "\n";
+        
+        if (entry.value) {
+            std::cout << "\tLLVM value: \n";
+            entry.value->print(llvm::errs());
+        }
+        if (entry.function) {
+            std::cout << "\tLLVM function: \n";
+            entry.function->print(llvm::errs());
+        }
+        j++;
+    }
+    std::cout << "}\n";
+}
+
+
 
 bool contains_final_terminator(llvm::Function* main_function) {
     auto& blocks = main_function->getBasicBlockList();
@@ -999,7 +1036,7 @@ static inline llvm::Function* create_main(llvm::IRBuilder<>& builder, llvm::LLVM
     return main_function;
 }
 
-void prune_extraneous_subexpressions(expression_list& given);
+
 static inline void prune_extraneous_subexpressions_in_expression(expression& given) {
     while (given.symbols.size() == 1
            and subexpression(given.symbols[0])
@@ -1018,7 +1055,7 @@ void prune_extraneous_subexpressions(expression_list& given) {
 static inline void verify(const file& file, llvm_module& module, resolved_expression_list& resolved_program) {
     std::string errors = "";
     if (llvm::verifyModule(*module, &(llvm::raw_string_ostream(errors) << ""))) {
-        print_error_message(file.name, errors, 0, 0);
+        printf("%s: %s", file.name, errors.c_str());
         resolved_program.error = true;
     }
 }
@@ -1070,9 +1107,9 @@ static inline resolved_expression parse_llvm_string(llvm::Function*& function, c
         pointer++;
         return {intrin::typeless, {}, false, llvm_type};
     } else {
-        print_llvm_error(function_errors, state);
-        print_llvm_error(instruction_errors, state);
-        print_llvm_error(type_errors, state);
+//        print_llvm_error(function_errors, state);
+//        print_llvm_error(instruction_errors, state);
+//        print_llvm_error(type_errors, state);
         return {0, {}, true};
     }
 }
@@ -1162,7 +1199,7 @@ static inline bool matches(const expression& given, const expression& signature,
 //    } else return resolution_failure;
 //}
 
-static inline resolved_expression resolve(const expression& given, nat given_type, llvm::Function*& function,
+resolved_expression resolve(const expression& given, nat given_type, llvm::Function*& function,
                             nat& index, nat depth, nat max_depth, nat fdi_length,
                             state& state) {
     
@@ -1204,11 +1241,11 @@ static inline resolved_expression resolve_expression(const expression& given, na
         if (not solution.error and pointer == (nat) given.symbols.size()) break;
     }
     if (pointer < (nat) given.symbols.size()) solution.error = true;
-    if (solution.error) print_unresolved_error(given, state);
+    if (solution.error) printf("error: unresolved expression\n"); // print_unresolved_error(given, state);
     return solution;
 }
 
-static inline resolved_expression_list resolve_expression_list(const expression_list& given, nat given_type, llvm::Function*& function, state& state) {
+resolved_expression_list resolve_expression_list(const expression_list& given, nat given_type, llvm::Function*& function, state& state) {
     if (given.list.empty()) return {{resolved_unit_value}, given_type != intrin::unit};
     nat i = 0;
     auto types = generate_type_list(given, given_type);
@@ -1263,35 +1300,22 @@ static inline void remove_extraneous_insertion_points_in(llvm_module& module) {
     }
 }
 
-static inline std::string expression_to_string(const expression& given, symbol_table& stack) {
-    std::string result = "(";
-    nat i = 0;
-    for (auto symbol : given.symbols) {
-        if (symbol.type == symbol_type::identifier) result += symbol.identifier.name.value;
-        else if (symbol.type == symbol_type::subexpression) result += "(" + (symbol.expressions.list.size() ? expression_to_string(symbol.expressions.list.back(), stack)  : "") + ")";
-        if (i++ < (nat) given.symbols.size() - 1) result += " ";
-    }
-    result += ")";
-    if (given.type) result += " " + expression_to_string(stack.master[given.type].signature, stack);
-    return result;
+void symbol_table::update(llvm::ValueSymbolTable& llvm) {
+
 }
 
-static inline void symbol_table::update(llvm::ValueSymbolTable& llvm) {
-    print_warning_message(data.file.name, "unimplemented function called", 0,0);
-}
+void symbol_table::push_new_frame() { frames.push_back({frames.back()}); }
+void symbol_table::pop_last_frame() { frames.pop_back(); }
+std::vector<nat>& symbol_table::top() { return frames.back(); }
+expression& symbol_table::get(nat index) { return master[index].signature; }
 
-static inline void symbol_table::push_new_frame() { frames.push_back({frames.back().indicies}); }
-static inline void symbol_table::pop_last_frame() { frames.pop_back(); }
-static inline std::vector<nat>& symbol_table::top() { return frames.back().indicies; }
-static inline expression& symbol_table::get(nat index) { return master[index].signature; }
-
-static inline void symbol_table::define(const expression& signature, const expression_list& definition, nat back_from, nat parent) {
+void symbol_table::define(const expression& signature, const expression_list& definition, nat back_from, nat parent) {
     // unfinsihed
-    print_warning_message(data.file.name, "unimplemented function called", 0,0);
+    
     // this function should do a check for if the signature is already
     // defined in the current scope. if so, then simply overrite its data.
     
-    frames[frames.size() - (++back_from)].indicies.push_back(master.size());
+    frames[frames.size() - (++back_from)].push_back(master.size());
     master.push_back({signature, definition, parent});
     
     //we need to define it the LLVM symbol table!
@@ -1299,14 +1323,11 @@ static inline void symbol_table::define(const expression& signature, const expre
     sort_top_by_largest();
 }
 
-static inline void symbol_table::sort_top_by_largest() {
-    std::stable_sort(top().begin(), top().end(), [&](nat a, nat b) {
-        return get(a).symbols.size() > get(b).symbols.size();
-    });
+void symbol_table::sort_top_by_largest() {
+    std::stable_sort(top().begin(), top().end(), [&](nat a, nat b) { return get(a).symbols.size() > get(b).symbols.size(); });
 }
 
-static inline symbol_table::symbol_table(program_data& data, const std::vector<expression>& builtins)
-: data(data) {
+symbol_table::symbol_table(program_data& data, const std::vector<expression>& builtins) : data(data) {
     
     master.push_back({});               // the null entry. a type (index) of 0 means it has no type.
     for (auto signature : builtins)
@@ -1318,16 +1339,14 @@ static inline symbol_table::symbol_table(program_data& data, const std::vector<e
     sort_top_by_largest();
 }
 
-static inline std::vector<std::string> symbol_table::llvm_key_symbols_in_table(llvm::ValueSymbolTable llvm) {
+std::vector<std::string> symbol_table::llvm_key_symbols_in_table(llvm::ValueSymbolTable llvm) {
     std::vector<std::string> result = {};
     for (auto i = llvm.begin(); i != llvm.end(); i++)
         result.push_back(i->getKey());
     return result;
 }
 
-
-
-de  static inline llvm_module analyze(expression_list program, const file& file, llvm::LLVMContext& context) {
+static inline llvm_module analyze(expression_list program, const file& file, llvm::LLVMContext& context) {
     auto module = llvm::make_unique<llvm::Module>(file.name, context);
     module->setTargetTriple(llvm::sys::getDefaultTargetTriple());
     llvm::IRBuilder<> builder(context);
@@ -1348,116 +1367,6 @@ de  static inline llvm_module analyze(expression_list program, const file& file,
     if (resolved.error) exit(10);
     else return module;
 }
-
-std::string convert_symbol_type(enum symbol_type type) {
-    switch (type) {
-        case symbol_type::none: return "{none}";
-        case symbol_type::subexpression: return "subexpression";
-        case symbol_type::string_literal: return "string literal";
-        case symbol_type::llvm_literal: return "llvm literal";
-        case symbol_type::identifier: return "identifier";
-        case symbol_type::newline: return "newline";
-        case symbol_type::indent: return "indent";
-    }
-}
-
-void print_resolved_list(resolved_expression_list list, nat depth, state& state);
-void print_resolved_expr(resolved_expression expr, nat depth, state& state);
-
-void print_resolved_expr(resolved_expression expr, nat depth, state& state) {
-    prep(depth); std::cout << "[error = " << std::boolalpha << expr.error << "]\n";
-    prep(depth);
-    
-    std::cout << "index = " << expr.index << " :: " << expression_to_string(state.stack.get(expr.index), state.stack);
-    
-    if (expr.signature.symbols.size()) {
-        std::cout << " ::: " << expression_to_string(expr.signature, state.stack);
-    }
-    
-    std::cout << "\n";
-    
-    if (expr.llvm_type) { prep(depth); std::cout << "llvm type = "; expr.llvm_type->print(llvm::errs()); }
-    std::cout << "\n";
-    nat i = 0;
-    for (auto arg : expr.args) {
-        prep(depth + 1); std::cout << "argument #" << i++ << ": \n";
-        print_resolved_list(arg, depth + 2, state);
-        prep(depth); std::cout << "\n";
-    }
-}
-
-void print_resolved_list(resolved_expression_list list, nat depth, state& state) {
-    prep(depth); std::cout << "[error = " << std::boolalpha << list.error << "]\n";
-    nat i = 0;
-    for (auto expr : list.list) {
-        prep(depth + 1); std::cout << "expression #" << i++ << ": \n";
-        print_resolved_expr(expr, depth + 2, state);
-        prep(depth); std::cout << "\n";
-    }
-}
-
-void print_resolved_unit(resolved_expression_list unit, state& state) {
-    std::cout << "---------- printing resolved tranlation unit: ------------\n\n";
-    print_resolved_list(unit, 0, state);
-}
-
-void print_nat_vector(std::vector<nat> v, bool newline) {
-    std::cout << "[ ";
-    for (auto e : v) {
-        std::cout << e << " ";
-    }
-    std::cout << "]";
-    if (newline) std::cout << "\n";
-}
-
-void debug_table(symbol_table table) {
-    std::cout << "---- debugging stack: ----\n";
-    
-    std::cout << "printing frames: \n";
-    for (auto i = 0; i < (nat) table.frames.size(); i++) {
-        std::cout << "\t ----- FRAME # "<<i<<"---- \n\t\tidxs: { ";
-        for (auto index : table.frames[i].indicies) {
-            std::cout << index << " ";
-        }
-        std::cout << "}\n";
-    }
-    
-    std::cout << "\nmaster: {\n";
-    auto j = 0;
-    for (auto entry : table.master) {
-        std::cout << "\t" << std::setw(6) << j << ": ";
-        std::cout << expression_to_string(entry.signature, table) << "\n";
-        
-        if (entry.value) {
-            std::cout << "\tLLVM value: \n";
-            entry.value->print(llvm::errs());
-        }
-        if (entry.function) {
-            std::cout << "\tLLVM function: \n";
-            entry.function->print(llvm::errs());
-        }
-        j++;
-    }
-    std::cout << "}\n";
-}
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 void initialize_llvm() {
     llvm::InitializeAllTargetInfos();
@@ -1506,7 +1415,7 @@ std::string generate_object_file(llvm_module& module, const arguments& arguments
     auto TheTargetMachine = Target->createTargetMachine(TargetTriple, "generic", "", opt, RM, CM);
     module->setDataLayout(TheTargetMachine->createDataLayout());
     
-    auto object_filename = arguments.executable_name + ".o";
+    auto object_filename = std::string(arguments.executable_name) + ".o";
     std::error_code error;
     llvm::raw_fd_ostream dest(object_filename, error, llvm::sys::fs::F_None);
     if (error) exit(1);
@@ -1522,9 +1431,9 @@ std::string generate_object_file(llvm_module& module, const arguments& arguments
 }
 
 void emit_executable(const std::string& object_file, const arguments& arguments) {
-    std::string link_command = "ld -macosx_version_min 10.14 -lSystem -lc -o " + arguments.executable_name + " " + object_file + " ";
+    std::string link_command = "ld -macosx_version_min 10.14 -lSystem -lc -o " + std::string(arguments.executable_name) + " " + object_file + " ";
     std::system(link_command.c_str());
-    if (debug) printf("executable emitted: %s\n", arguments.executable_name.c_str());
+    if (debug) printf("executable emitted: %s\n", arguments.executable_name);
     std::remove(object_file.c_str());
 }
 

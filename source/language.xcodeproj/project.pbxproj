@@ -7,7 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		FD02050421E7F3C3009C332B /* main.cpp in Sources */ = {isa = PBXBuildFile; fileRef = FD02050321E7F3C3009C332B /* main.cpp */; };
+		FD02050421E7F3C3009C332B /* compiler.cpp in Sources */ = {isa = PBXBuildFile; fileRef = FD02050321E7F3C3009C332B /* compiler.cpp */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXCopyFilesBuildPhase section */
@@ -24,7 +24,7 @@
 
 /* Begin PBXFileReference section */
 		FD02050021E7F3C3009C332B /* language */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = language; sourceTree = BUILT_PRODUCTS_DIR; };
-		FD02050321E7F3C3009C332B /* main.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = main.cpp; sourceTree = "<group>"; };
+		FD02050321E7F3C3009C332B /* compiler.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = compiler.cpp; sourceTree = "<group>"; };
 		FDBE70C4232D97C7006CC0F9 /* test.n */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; name = test.n; path = ../../examples/test.n; sourceTree = "<group>"; };
 		FDC9A1D6234FE76100FC2553 /* status.txt */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; name = status.txt; path = ../../status.txt; sourceTree = "<group>"; };
 /* End PBXFileReference section */
@@ -59,7 +59,7 @@
 		FD02050221E7F3C3009C332B /* language */ = {
 			isa = PBXGroup;
 			children = (
-				FD02050321E7F3C3009C332B /* main.cpp */,
+				FD02050321E7F3C3009C332B /* compiler.cpp */,
 				FDBE70C4232D97C7006CC0F9 /* test.n */,
 				FDC9A1D6234FE76100FC2553 /* status.txt */,
 			);
@@ -144,7 +144,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				FD02050421E7F3C3009C332B /* main.cpp in Sources */,
+				FD02050421E7F3C3009C332B /* compiler.cpp in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
