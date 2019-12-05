@@ -1,11 +1,3 @@
-//
-//  nodes.hpp
-//  language
-//
-//  Created by Daniel Rehman on 1902284.
-//  Copyright © 2019 Daniel Rehman. All rights reserved.
-//
-
 #ifndef nodes_hpp
 #define nodes_hpp
 
@@ -18,15 +10,7 @@ struct expression_list;
 struct expression;
 struct symbol;
 
-enum class symbol_type {
-    none,    
-    subexpression,
-    string_literal,
-    llvm_literal,
-    identifier, 
-    newline,
-    indent,
-};
+enum class symbol_type { none, subexpression, string_literal, llvm_literal, identifier, newline, indent };
 
 // literals:
 struct string_literal { 

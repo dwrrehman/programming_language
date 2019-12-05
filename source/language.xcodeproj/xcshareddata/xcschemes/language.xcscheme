@@ -65,7 +65,7 @@
             isEnabled = "YES">
          </CommandLineArgument>
          <CommandLineArgument
-            argument = "-sneeze"
+            argument = "-s"
             isEnabled = "YES">
          </CommandLineArgument>
          <CommandLineArgument

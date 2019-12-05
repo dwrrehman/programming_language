@@ -1,11 +1,3 @@
-//
-//  symbol_table.hpp
-//  language
-//
-//  Created by Daniel Rehman on 1908191.
-//  Copyright © 2019 Daniel Rehman. All rights reserved.
-//
-
 #ifndef symbol_table_hpp
 #define symbol_table_hpp
 

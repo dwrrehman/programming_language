@@ -1,11 +1,3 @@
-//
-//  lists.hpp
-//  language
-//
-//  Created by Daniel Rehman on 1901137.
-//  Copyright © 2019 Daniel Rehman. All rights reserved.
-//
-
 #ifndef lists_hpp
 #define lists_hpp
 

@@ -1,11 +1,3 @@
-//
-//  analysis_ds.hpp
-//  language
-//
-//  Created by Daniel Rehman on 1908213.
-//  Copyright © 2019 Daniel Rehman. All rights reserved.
-//
-
 #ifndef analysis_ds_hpp
 #define analysis_ds_hpp
 

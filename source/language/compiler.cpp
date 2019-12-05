@@ -1,11 +1,3 @@
-//
-//  compiler.cpp
-//  language
-//
-//  Created by Daniel Rehman on 1901104.
-//  Copyright © 2019 Daniel Rehman. All rights reserved.
-//
-
 #include "compiler.hpp"
 
 #include "lists.hpp"
@@ -30,14 +22,10 @@ void initialize_llvm() {
     llvm::InitializeAllAsmPrinters();
 }
 
-llvm_module process(const file& file, llvm::LLVMContext& context) {
-    return analyze(correct(parse(file), file), file, context);
-}
-
 llvm_modules frontend(const arguments& arguments, llvm::LLVMContext& context) {
     llvm_modules modules = {};    
     modules.reserve(arguments.files.size());
-    for (auto file : arguments.files) modules.push_back(process(file, context));
+    for (auto file : arguments.files) modules.push_back(analyze(correct(parse(file), file), file, context));
     return modules;
 }
 

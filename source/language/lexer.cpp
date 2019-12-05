@@ -1,18 +1,9 @@
-//
-//  lexer.cpp
-//  language
-//
-//  Created by Daniel Rehman on 1901126.
-//  Copyright © 2019 Daniel Rehman. All rights reserved.
-//
-
 #include "lexer.hpp"
 
 #include "error.hpp"
 #include "lists.hpp"
 
 #include <string>
-
 
 #define clear_and_return()  auto result = current; current = {}; return result;
 
@@ -22,7 +13,7 @@ static std::string filename = "";
 static nat c = 0;
 static nat line = 0;
 static nat column = 0;
-static lexing_state state = lexing_state::indent;
+static lexing_state::lexing_state state = lexing_state::indent;
 static token current = {};
 
 // helpers:
@@ -39,7 +30,7 @@ static void advance_by(nat n) {
     }
 }
 
-static void set_current(token_type t, lexing_state s) {
+static void set_current(token_type t, lexing_state::lexing_state s) {
     current.type = t;
     current.value = "";
     current.line = line;
@@ -51,54 +42,46 @@ static void check_for_lexing_errors() {
     if (state == lexing_state::string) print_lex_error(filename, "string", line, column);
     else if (state == lexing_state::llvm_string) print_lex_error(filename, "llvm_string", line, column);
     else if (state == lexing_state::multiline_comment) print_lex_error(filename, "multi-line comment", line, column);
-
-    if (state == lexing_state::string or
-        state == lexing_state::llvm_string or
-        state == lexing_state::multiline_comment) {
-        print_source_code(text, {current});
-        throw "lexing error";
-    }
 }
 
 // the main lexing function:
 
 token next() {
     
+    using namespace lexing_state;
+    
     while (true) {
-
+        
+        
+        
         if (c >= text.size()) {
             check_for_lexing_errors();
             return {token_type::null, "", line, column};            
         }
 
-        if (text[c] == '\n' and state == lexing_state::none) {
-            state = lexing_state::indent;
-        }
-
-        if (text[c] == ';' and isvalid(c+1) and isspace(text[c+1]) and (state == lexing_state::none or state == lexing_state::indent)) {
-            state = lexing_state::comment;
-        } else if (text[c] == ';' and not isspace(text[c+1]) and (state == lexing_state::none or state == lexing_state::indent)) {
-            state = lexing_state::multiline_comment;
+        if (text[c] == '\n' and state == none) state = indent;
+        if (text[c] == ';' and isvalid(c+1) and isspace(text[c+1]) and (state == none or state == indent)) state = comment;
+        else if (text[c] == ';' and not isspace(text[c+1]) and (state == none or state == indent)) state = multiline_comment;
 
         // ------------------- starting and finising ----------------------
 
-        } else if (is_identifier(text[c]) and isvalid(c+1) and not is_identifier(text[c+1]) and (state == lexing_state::none or state == lexing_state::indent)) {
-            set_current(token_type::identifier, lexing_state::none);
+        else if (is_identifier(text[c]) and isvalid(c+1) and not is_identifier(text[c+1]) and (state == none or state == indent)) {
+            set_current(token_type::identifier, none);
             current.value = text[c];
             advance_by(1);
             clear_and_return();
 
         // ---------------------- starting --------------------------
 
-        } else if (text[c] == '\"' and (state == lexing_state::none or state == lexing_state::indent)) { set_current(token_type::string, lexing_state::string);
-        } else if (text[c] == '`' and (state == lexing_state::none or state == lexing_state::indent)) { set_current(token_type::llvm, lexing_state::llvm_string);
-        } else if (is_identifier(text[c]) and (state == lexing_state::none or state == lexing_state::indent)) {
-            set_current(token_type::identifier, lexing_state::identifier);
+        } else if (text[c] == '\"' and (state == none or state == indent)) { set_current(token_type::string, string);
+        } else if (text[c] == '`' and (state == none or state == indent)) { set_current(token_type::llvm, llvm_string);
+        } else if (is_identifier(text[c]) and (state == none or state == indent)) {
+            set_current(token_type::identifier, identifier);
             current.value += text[c];
 
         // ---------------------- escaping --------------------------
 
-        } else if (text[c] == '\\' and state == lexing_state::string) {
+        } else if (text[c] == '\\' and state == string) {
             if (isvalid(c+1) and text[c+1] == '\"') {
                 current.value += "\"";
                 advance_by(1);
@@ -113,49 +96,41 @@ token next() {
             } 
         //---------------------- finishing  ----------------------
 
-        } else if ((text[c] == '\n' and state == lexing_state::comment) or
-                   (text[c] == ';' and state == lexing_state::multiline_comment)) {
+        } else if ((text[c] == '\n' and state == comment) or (text[c] == ';' and state == multiline_comment)) {
 
-            if (state == lexing_state::comment) {
-                state = lexing_state::indent;
+            if (state == comment) {
+                state = indent;
                 current.type = token_type::operator_;
                 current.value = "\n";
                 advance_by(1);
                 clear_and_return();
             }
+            state = none;
 
-            state = lexing_state::none;
-
-        } else if ((text[c] == '\"' and state == lexing_state::string) or
-                   (text[c] == '`' and state == lexing_state::llvm_string)) {
-            state = lexing_state::none;
+        } else if ((text[c] == '\"' and state == string) or (text[c] == '`' and state == llvm_string)) {
+            state = none;
             advance_by(1);
             clear_and_return();
 
-        } else if (is_identifier(text[c]) and isvalid(c+1) and !is_identifier(text[c+1]) and state == lexing_state::identifier) {
+        } else if (is_identifier(text[c]) and isvalid(c+1) and !is_identifier(text[c+1]) and state == identifier) {
             current.value += text[c];
-            state = lexing_state::none;
+            state = none;
             advance_by(1);
             clear_and_return();
 
         // ---------------- pushing ----------------
 
-        } else if (state == lexing_state::string or
-                   state == lexing_state::llvm_string or
-                   (is_identifier(text[c]) and state == lexing_state::identifier)) {
-            current.value += text[c];
+        } else if (state == string or state == llvm_string or (is_identifier(text[c]) and state == identifier)) current.value += text[c];
 
-        } else if (state == lexing_state::comment or state == lexing_state::multiline_comment) {
-            // do nothing
-
-        } else if (is_operator(text[c]) and (state == lexing_state::none or state == lexing_state::indent)) {
-            set_current(token_type::operator_, lexing_state::none);
-            if (text[c] == '\n') state = lexing_state::indent;
+        else if (state == comment or state == multiline_comment) {/* do nothing */}
+        else if (is_operator(text[c]) and (state == none or state == indent)) {
+            set_current(token_type::operator_, none);
+            if (text[c] == '\n') state = indent;
             current.value = text[c];
             advance_by(1);
             clear_and_return();
 
-        } else if (text[c] == ' ' and state == lexing_state::indent) {
+        } else if (text[c] == ' ' and state == indent) {
             bool found_indent = true;
             for (int i = 0; i < spaces_count_for_indent; i++) {
                 if (isvalid(c+i))
@@ -174,7 +149,7 @@ token next() {
                 clear_and_return();
             }
 
-        } else if (text[c] == '\t' and state == lexing_state::indent) {
+        } else if (text[c] == '\t' and state == indent) {
             current.line = line;
             current.column = column;
             current.type = token_type::indent;

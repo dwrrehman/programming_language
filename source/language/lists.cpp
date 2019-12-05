@@ -1,11 +1,3 @@
- //
-//  lists.cpp
-//  language
-//
-//  Created by Daniel Rehman on 1901137.
-//  Copyright © 2019 Daniel Rehman. All rights reserved.
-//
-
 #include "lists.hpp"
 
 const std::string language_name = "n3zqx2l";

@@ -1,11 +1,3 @@
-//
-//  corrector.cpp
-//  language
-//
-//  Created by Daniel Rehman on 1903192.
-//  Copyright © 2019 Daniel Rehman. All rights reserved.
-//
-
 #include "corrector.hpp"
 
 #include "lists.hpp"

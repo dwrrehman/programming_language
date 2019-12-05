@@ -1,11 +1,3 @@
-//
-//  llvm_parser.hpp
-//  language
-//
-//  Created by Daniel Rehman on 1909146.
-//  Copyright © 2019 Daniel Rehman. All rights reserved.
-//
-
 #ifndef llvm_parser_hpp
 #define llvm_parser_hpp
 
