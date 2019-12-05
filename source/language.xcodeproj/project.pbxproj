@@ -20,7 +20,6 @@
 		FD60BC8D230A90BC000B0411 /* symbol_table.cpp in Sources */ = {isa = PBXBuildFile; fileRef = FD60BC8B230A90BC000B0411 /* symbol_table.cpp */; };
 		FD67B808230D38AF009B8296 /* converters.cpp in Sources */ = {isa = PBXBuildFile; fileRef = FD67B806230D38AF009B8296 /* converters.cpp */; };
 		FD67B80E230D3B4D009B8296 /* helpers.cpp in Sources */ = {isa = PBXBuildFile; fileRef = FD67B80C230D3B4D009B8296 /* helpers.cpp */; };
-		FD7E425922264D150021E18A /* interpreter.cpp in Sources */ = {isa = PBXBuildFile; fileRef = FD7E425722264D150021E18A /* interpreter.cpp */; };
 		FDBE70C3232D941C006CC0F9 /* llvm_parser.cpp in Sources */ = {isa = PBXBuildFile; fileRef = FDBE70C1232D941C006CC0F9 /* llvm_parser.cpp */; };
 		FDC546AB2241864300D99CA9 /* corrector.cpp in Sources */ = {isa = PBXBuildFile; fileRef = FDC546A92241864300D99CA9 /* corrector.cpp */; };
 /* End PBXBuildFile section */
@@ -65,8 +64,6 @@
 		FD67B80A230D3AC3009B8296 /* analysis_ds.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = analysis_ds.hpp; sourceTree = "<group>"; };
 		FD67B80C230D3B4D009B8296 /* helpers.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = helpers.cpp; sourceTree = "<group>"; };
 		FD67B80D230D3B4D009B8296 /* helpers.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = helpers.hpp; sourceTree = "<group>"; };
-		FD7E425722264D150021E18A /* interpreter.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = interpreter.cpp; sourceTree = "<group>"; };
-		FD7E425822264D150021E18A /* interpreter.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = interpreter.hpp; sourceTree = "<group>"; };
 		FDBE70C1232D941C006CC0F9 /* llvm_parser.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = llvm_parser.cpp; sourceTree = "<group>"; };
 		FDBE70C2232D941C006CC0F9 /* llvm_parser.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = llvm_parser.hpp; sourceTree = "<group>"; };
 		FDBE70C4232D97C7006CC0F9 /* test.n */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; name = test.n; path = ../../examples/test.n; sourceTree = "<group>"; };
@@ -113,8 +110,6 @@
 				FD52D8442226590600A9C309 /* arguments.hpp */,
 				FD2C68F52230DF3A00EDCE42 /* debug.cpp */,
 				FD2C68F62230DF3A00EDCE42 /* debug.hpp */,
-				FD7E425722264D150021E18A /* interpreter.cpp */,
-				FD7E425822264D150021E18A /* interpreter.hpp */,
 				FD3600FF21EAFE57005FE844 /* lexer.cpp */,
 				FD36010021EAFE57005FE844 /* lexer.hpp */,
 				FDE4C18D22288E2B00B73B7A /* nodes.hpp */,
@@ -232,7 +227,6 @@
 				FD67B808230D38AF009B8296 /* converters.cpp in Sources */,
 				FDBE70C3232D941C006CC0F9 /* llvm_parser.cpp in Sources */,
 				FD60BC8D230A90BC000B0411 /* symbol_table.cpp in Sources */,
-				FD7E425922264D150021E18A /* interpreter.cpp in Sources */,
 				FD02050421E7F3C3009C332B /* main.cpp in Sources */,
 				FD01760F221CF76900E5D442 /* error.cpp in Sources */,
 				FD36010121EAFE57005FE844 /* lexer.cpp in Sources */,

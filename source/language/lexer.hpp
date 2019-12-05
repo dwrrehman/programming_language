@@ -1,11 +1,3 @@
-//
-//  lexer.hpp
-//  language
-//
-//  Created by Daniel Rehman on 1901126.
-//  Copyright © 2019 Daniel Rehman. All rights reserved.
-//
-
 #ifndef lexer_hpp
 #define lexer_hpp
 
@@ -15,7 +7,7 @@
 #include <string>
 
 enum class token_type {null, string, identifier, character, llvm, keyword, operator_, indent};
-enum class lexing_state {none, string, string_expression, identifier, llvm_string, comment, multiline_comment, indent};
+namespace lexing_state { enum lexing_state {none, string, string_expression, identifier, llvm_string, comment, multiline_comment, indent}; }
 
 struct token {
     token_type type = token_type::null;
@@ -28,7 +20,7 @@ struct saved_state {
     nat saved_c = 0;
     nat saved_line = 0;
     nat saved_column = 0;
-    lexing_state saved_state = lexing_state::none;
+    lexing_state::lexing_state saved_state = lexing_state::none;
     token saved_current = {};
 };
 

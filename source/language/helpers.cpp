@@ -1,36 +1,12 @@
-//
-//  helpers.cpp
-//  language
-//
-//  Created by Daniel Rehman on 1908213.
-//  Copyright © 2019 Daniel Rehman. All rights reserved.
-//
-
 #include "helpers.hpp"
-
-//#include "analysis_ds.hpp"
 #include "compiler.hpp"
-//#include "parser.hpp"
 #include "builtins.hpp"
 #include "symbol_table.hpp"
-//#include "lists.hpp"
 #include "error.hpp"
 #include "llvm_parser.hpp"
 
-//#include "llvm/AsmParser/Parser.h"
-//#include "llvm/IR/ModuleSummaryIndex.h"
-//#include "llvm/Support/SourceMgr.h"
-//#include "llvm/IR/ValueSymbolTable.h"
-//#include "llvm/Transforms/Utils/ValueMapper.h"
-//#include "llvm/Transforms/Utils/Cloning.h"
-//
-//#include "llvm/Support/TargetRegistry.h"
-//#include "llvm/Support/TargetSelect.h"
-
 #include "llvm/ExecutionEngine/MCJIT.h"
-
 #include "llvm/ExecutionEngine/GenericValue.h"
-//
 #include "llvm/Transforms/Utils/BasicBlockUtils.h"
 
 #include <cstdlib>
@@ -38,17 +14,19 @@
 #include <sstream>
 
 const resolved_expression resolution_failure = {0, {}, true};
-const resolved_expression resolved_unit_value = {intrin::empty, {}, false};
+const resolved_expression resolved_unit_value = {intrin::unit_value, {}, false};
 
 void prune_extraneous_subexpressions(expression_list& given);
 void prune_extraneous_subexpressions_in_expression(expression& given);
 
 bool subexpression(const symbol& s) { return s.type == symbol_type::subexpression; }
-bool identifier(const symbol& s) { return s.type == symbol_type::identifier; }
-bool llvm_string(const symbol& s) { return s.type == symbol_type::llvm_literal; }
-bool string_literal(const symbol& s) { return s.type == symbol_type::string_literal; }
-bool parameter(const symbol &symbol) { return subexpression(symbol); }
-
+static inline bool identifier(const symbol& s) { return s.type == symbol_type::identifier; }
+static inline bool llvm_string(const symbol& s) { return s.type == symbol_type::llvm_literal; }
+static inline bool string_literal(const symbol& s) { return s.type == symbol_type::string_literal; }
+static inline bool parameter(const symbol &symbol) { return subexpression(symbol); }
+static inline bool are_equal_identifiers(const symbol &first, const symbol &second) { return identifier(first) and identifier(second) and first.identifier.name.value == second.identifier.name.value; }
+static inline bool is_donothing_call(llvm::Instruction* ins) { return ins and std::string(ins->getOpcodeName()) == "call" and std::string(ins->getOperand(0)->getName()) == "llvm.donothing"; }
+static inline bool is_unreachable_instruction(llvm::Instruction* ins) { return ins and std::string(ins->getOpcodeName()) == "unreachable"; }
 
 bool contains_final_terminator(llvm::Function* main_function) {
     auto& blocks = main_function->getBasicBlockList();
@@ -66,22 +44,6 @@ void append_return_0_statement(llvm::IRBuilder<> &builder, llvm::Function* main_
     builder.CreateRet(value);
 }
 
-void call_donothing(llvm::IRBuilder<> &builder, llvm_module& module) {
-    llvm::Function* donothing = llvm::Intrinsic::getDeclaration(module.get(), llvm::Intrinsic::donothing);        
-    builder.CreateCall(donothing);
-}
-
-static bool is_donothing_call(llvm::Instruction* ins) {   
-    return ins 
-        and std::string(ins->getOpcodeName()) == "call" 
-        and std::string(ins->getOperand(0)->getName()) == "llvm.donothing";
-}
-
-static bool is_unreachable_instruction(llvm::Instruction* ins) {
-    return ins 
-        and std::string(ins->getOpcodeName()) == "unreachable";
-}
-
 llvm::Function* create_main(llvm::IRBuilder<>& builder, llvm::LLVMContext& context, llvm_module& module) {
     std::vector<llvm::Type*> state = {llvm::Type::getInt32Ty(context), llvm::Type::getInt8PtrTy(context)->getPointerTo()};
     auto main_type = llvm::FunctionType::get(llvm::Type::getInt32Ty(context), state, false);
@@ -90,7 +52,7 @@ llvm::Function* create_main(llvm::IRBuilder<>& builder, llvm::LLVMContext& conte
     return main_function;
 }
 
-void prune_extraneous_subexpressions_in_expression(expression& given) { // unimplemented
+void prune_extraneous_subexpressions_in_expression(expression& given) {
     while (given.symbols.size() == 1
            and subexpression(given.symbols[0])
            and given.symbols[0].expressions.list.size() == 1
@@ -98,13 +60,11 @@ void prune_extraneous_subexpressions_in_expression(expression& given) { // unimp
         auto save = given.symbols[0].expressions.list.back().symbols;
         given.symbols = save;
     }
-    for (auto& symbol : given.symbols)
-        if (subexpression(symbol)) prune_extraneous_subexpressions(symbol.expressions);
+    for (auto& symbol : given.symbols) if (subexpression(symbol)) prune_extraneous_subexpressions(symbol.expressions);
 }
 
 void prune_extraneous_subexpressions(expression_list& given) {
-    for (auto& expression : given.list)
-        prune_extraneous_subexpressions_in_expression(expression);
+    for (auto& expression : given.list) prune_extraneous_subexpressions_in_expression(expression);
 }
 
 llvm::Constant* create_global_constant_string(llvm::Module* module, const std::string& string) {
@@ -124,22 +84,11 @@ static std::vector<llvm::GenericValue> turn_into_value_array(const std::vector<n
     return arguments;
 }
 
-std::string emit(const llvm_module& module) {
-    std::string string = "";
-    module->print(llvm::raw_string_ostream(string) << "", NULL); 
-    return string;
-}
-
 nat evaluate(llvm_module& module, llvm::Function* function, const std::vector<nat>& args) {    
     set_data_layout(module);
     auto jit = llvm::EngineBuilder(llvm_module{module.get()}).setEngineKind(llvm::EngineKind::JIT).create();
     jit->finalizeObject();
     return jit->runFunction(function, turn_into_value_array(args, module)).IntVal.getLimitedValue();
-}
-
-bool are_equal_identifiers(const symbol &first, const symbol &second) {
-    return identifier(first) and identifier(second) 
-    and first.identifier.name.value == second.identifier.name.value;
 }
 
 static std::vector<nat> generate_type_list(const expression_list &given, nat given_type) {
@@ -225,19 +174,9 @@ resolved_expression resolve(const expression& given, nat given_type, llvm::Funct
     return resolution_failure;
 }
 
-
-
-///TODO: move this into error.cpp
-static void print_unresolved_error(const expression &given, state &state) {
-    const std::string name = expression_to_string(given, state.stack);
-    print_error_message(state.data.file.name, "unresolved expression: " + name, given.starting_token.line, given.starting_token.column);
-    print_source_code(state.data.file.text, {given.starting_token});
-}
-
 resolved_expression resolve_expression(const expression& given, nat given_type, llvm::Function*& function, state& state) {    
     
     if (is_unit_value(given) and given_type == intrin::unit) return resolved_unit_value;
-    
     resolved_expression solution {};
     nat pointer = 0;
     for (nat max_depth = 0; max_depth <= max_expression_depth; max_depth++) {
@@ -292,7 +231,6 @@ void move_lone_terminators_into_previous_blocks(llvm_module& module) {
     ///KNOWN BUG: when we have no terminators in sight, this function 
     /// does remove the unneccessary basic block which is put between the 
     /// bits of code which should be in the same block.
-    
 }
 
 void remove_extraneous_insertion_points_in(llvm_module& module) {    

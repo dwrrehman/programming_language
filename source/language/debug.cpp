@@ -1,11 +1,3 @@
-//
-//  debug.cpp
-//  language
-//
-//  Created by Daniel Rehman on 1903063.
-//  Copyright © 2019 Daniel Rehman. All rights reserved.
-//
-
 #include "debug.hpp"
 
 #include "arguments.hpp"
@@ -13,10 +5,6 @@
 #include "symbol_table.hpp"
 
 #include <iostream>
-
-
-// ----------------------- command line arguments debugging: ----------------------------
-
 
 void debug_arguments(const arguments& args) {
     std::cout << "file count = " <<  args.files.size() << "\n";
@@ -27,13 +15,9 @@ void debug_arguments(const arguments& args) {
     
     std::cout << std::boolalpha;
     std::cout << "error = " << args.error << std::endl;
-    std::cout << "use interpreter = " << args.use_interpreter << std::endl;
+    std::cout << "use interpreter = " << args.interpret << std::endl;
     std::cout << "exec name = " << args.executable_name << std::endl;    
 }
-
-
-// ---------------------------- lexer debugging: ---------------------------------------
-
 
 void print_lex(const std::vector<struct token>& tokens) {
     std::cout << "::::::::::LEX:::::::::::" << std::endl;
@@ -62,9 +46,6 @@ void debug_token_stream() {
     while ((t = next()).type != token_type::null) tokens.push_back(t);
     print_lex(tokens);
 }
-
-
-// ---------------------------- parser debugging functions -------------------------------
 
 
 void print_symbol(symbol s, int d);
@@ -137,10 +118,6 @@ void print_symbol_line(symbol symbol) {
             std::cout << "\"" << symbol.string.literal.value << "\"";
             break;
 
-//        case symbol_type::subexpression:
-//            print_expression_line(symbol.subexpression);
-//            break;
-
         case symbol_type::newline:
             std::cout << "{NEWLINE}";
             break;
@@ -155,8 +132,6 @@ void print_symbol_line(symbol symbol) {
         default: break;
     }
 }
-
-
 
 void print_expression_line(expression expression) {
     std::cout << "(";
@@ -221,35 +196,6 @@ std::string convert_symbol_type(enum symbol_type type) {
     }
 }
 
-
-////void debug_table(const std::unique_ptr<llvm::Module>& module, symbol_table& stack) {
-//////    std::cout << "NOTE: updating stack...\n";
-//////    stack.update(module->getValueSymbolTable()); 
-//////    
-//////    std::cout << "print_stack: \n"; 
-//////    print_stack(stack);
-//////    
-//////    std::cout << "print_master: \n";
-//////    print_master(stack);
-//////    
-//////    std::cout << "print_index_top_stack: \n";
-//////    print_index_top_stack(stack);
-//////    
-//////    std::cout << "print_simply_master: \n";
-//////    print_simply_master(stack);
-//////    
-//////    std::cout << "print_llvm_symtable: \n";
-//////    print_llvm_symtable(module->getValueSymbolTable());
-//////        
-////    
-////    stack.debug();
-////    std::cout << "\n\n\n\n";
-//}
-
-
-
-
-
 void print_resolved_list(resolved_expression_list list, nat depth, state& state);
 void print_resolved_expr(resolved_expression expr, nat depth, state& state);
 
@@ -293,15 +239,6 @@ void print_resolved_unit(resolved_expression_list unit, state& state) {
     print_resolved_list(unit, 0, state);
 }
 
-
-
-
-
-
-
-
-
-
 void print_nat_vector(std::vector<nat> v, bool newline) {
     std::cout << "[ ";
     for (auto e : v) {
@@ -310,4 +247,3 @@ void print_nat_vector(std::vector<nat> v, bool newline) {
     std::cout << "]";
     if (newline) std::cout << "\n";
 }
-

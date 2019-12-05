@@ -1,11 +1,3 @@
-//
-//  compiler.hpp
-//  language
-//
-//  Created by Daniel Rehman on 1901104.
-//  Copyright © 2019 Daniel Rehman. All rights reserved.
-//
-
 #ifndef compiler_hpp
 #define compiler_hpp
 
@@ -21,4 +13,5 @@ void interpret(llvm_module& module, const arguments& arguments);
 void optimize(llvm_module& module);
 std::string generate_object_file(llvm_module& module, const arguments& arguments);
 void emit_executable(const std::string& object_file, const arguments& arguments);
+
 #endif /* compiler_hpp */

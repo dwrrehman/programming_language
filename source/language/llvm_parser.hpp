@@ -1,11 +1,3 @@
-//
-//  llvm_parser.hpp
-//  language
-//
-//  Created by Daniel Rehman on 1909146.
-//  Copyright © 2019 Daniel Rehman. All rights reserved.
-//
-
 #ifndef llvm_parser_hpp
 #define llvm_parser_hpp
 
@@ -17,7 +9,6 @@
 #include "llvm/IR/Function.h"
 
 #include <string>
-
 
 bool parse_llvm_string_as_instruction(const std::string& given, llvm::Function*& original, state& state, llvm::SMDiagnostic& errors);
 

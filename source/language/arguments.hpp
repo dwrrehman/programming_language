@@ -1,11 +1,3 @@
-//
-//  arguments.hpp
-//  language
-//
-//  Created by Daniel Rehman on 1902262.
-//  Copyright © 2019 Daniel Rehman. All rights reserved.
-//
-
 #ifndef arguments_hpp
 #define arguments_hpp
 
@@ -22,8 +14,8 @@ struct arguments {
     std::vector<file> files = {};
     std::string executable_name = "a.out";
     bool use_repl = false;
-    bool include_core = true;
-    bool use_interpreter = false;    
+    bool empty = false;
+    bool interpret = false;    
     bool error = false;
 };
 

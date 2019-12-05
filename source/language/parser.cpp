@@ -1,11 +1,3 @@
-//
-//  parser.cpp
-//  language
-//
-//  Created by Daniel Rehman on 1901126.
-//  Copyright © 2019 Daniel Rehman. All rights reserved.
-//
-
 #include "parser.hpp"
 #include "nodes.hpp"
 #include "lists.hpp"
@@ -87,7 +79,6 @@ symbol parse_symbol(const file& file, bool newlines_are_a_symbol) {
             if (is_close_paren(t)) return { expressions };
             else {
                 print_parse_error(file.name, saved_t.line, saved_t.column, convert_token_type_representation(t.type), t.value, "\")\" to close expression");
-                print_source_code(file.text, {saved_t});
                 revert_and_return();
             }
         }        
