@@ -14,7 +14,7 @@
 /// a llvm.do_nothing() call, should be removed before execution of the function.
 
 bool parse_llvm_string_as_instruction(const std::string& given, llvm::Function*& original, state& state, llvm::SMDiagnostic& errors) {
-    static int num = 0;
+    static nat num = 0;
     std::string body = "";
     original->print(llvm::raw_string_ostream(body) << "");    
     body.pop_back(); // delete the newline

@@ -117,7 +117,7 @@ token next() {
 
         } else if (text[c] == ' ' and state == indent) {
             bool found_indent = true;
-            for (int i = 0; i < spaces_count_for_indent; i++) {
+            for (nat i = 0; i < spaces_count_for_indent; i++) {
                 if (isvalid(c+i))
                     found_indent = found_indent and text[c+i] == ' ';
                 else {

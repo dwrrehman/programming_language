@@ -41,7 +41,7 @@ arguments get_commandline_arguments(const int argc, const char** argv) {
     else if (first == "-v") print_version();
     else if (first == "run") args.interpret = true;
     
-    for (int i = 1 + args.interpret; i < argc; i++) {
+    for (nat i = 1 + args.interpret; i < argc; i++) {
         const auto word = std::string(argv[i]);
         if (word == "-s") debug = true;
         else if (word == "-e") args.empty = true;

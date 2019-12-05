@@ -7,20 +7,16 @@
 
 #define prep(_level) for (nat i = _level; i--;) std::cout << ".   "
 
-// arguments
 void debug_arguments(const arguments& args);
 
-// lexer:
 void print_lex(const std::vector<token>& tokens);
 const char* convert_token_type_representation(token_type type);
 void debug_token_stream();
 
-// parser:
-
 std::string convert_symbol_type( symbol_type type);
-void print_symbol(symbol s, int d);
-void print_expression(expression s, int d);
-void print_expression_list(expression_list list, int d);
+void print_symbol(symbol s, nat d);
+void print_expression(expression s, nat d);
+void print_expression_list(expression_list list, nat d);
 void print_expression_list_line(expression_list list);
 void print_expression_line(expression expression);
 void print_translation_unit(expression_list unit, file file);

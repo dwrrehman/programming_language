@@ -7,7 +7,6 @@
 #include <iostream>
 #include <iomanip>
 
-
 void debug_arguments(const arguments& args) {
     std::cout << "file count = " <<  args.files.size() << "\n";
     for (auto a : args.files) {
@@ -50,10 +49,10 @@ void debug_token_stream() {
 }
 
 
-void print_symbol(symbol s, int d);
-void print_expression(expression s, int d);
+void print_symbol(symbol s, nat d);
+void print_expression(expression s, nat d);
 
-void print_symbol(symbol symbol, int d) {
+void print_symbol(symbol symbol, nat d) {
     prep(d); std::cout << "symbol: \n";
     switch (symbol.type) {
 
@@ -88,13 +87,13 @@ void print_symbol(symbol symbol, int d) {
     }
 }
 
-void print_expression(expression expression, int d) {
+void print_expression(expression expression, nat d) {
     prep(d); std::cout << "expression: \n";
     prep(d); std::cout << std::boolalpha << "error: " << expression.error << "\n";
     prep(d); std::cout << "indent level = " << expression.indent_level << "\n";
     prep(d); std::cout << "symbol count: " << expression.symbols.size() << "\n";
     prep(d); std::cout << "symbols: \n";
-    int i = 0;
+    nat i = 0;
     for (auto symbol : expression.symbols) {
         prep(d+1); std::cout << i << ": \n";
         print_symbol(symbol, d+1);
@@ -137,22 +136,21 @@ void print_symbol_line(symbol symbol) {
 
 void print_expression_line(expression expression) {
     std::cout << "(";
-    int i = 0;
+    nat i = 0;
     for (auto symbol : expression.symbols) {
         print_symbol_line(symbol);
         if (i < (nat) expression.symbols.size() - 1) std::cout << " ";
         i++;
     }
     std::cout << ")";
-    if (expression.type)
-        std::cout << ": " << stringify_intrin(expression.type);
+    if (expression.type) std::cout << ": " << stringify_intrin(expression.type);
 }
 
-void print_expression_list(expression_list list, int d) {
+void print_expression_list(expression_list list, nat d) {
 
     prep(d); std::cout << "expression list:\n";
     prep(d); std::cout << "expression count = " << list.list.size() << "\n";
-    int i = 0;
+    nat i = 0;
     for (auto e : list.list) {
         prep(d+1); std::cout << "expression #" << i << "\n";
         prep(d+1); std::cout << std::boolalpha << "error: " << e.error << "\n";
@@ -164,7 +162,7 @@ void print_expression_list(expression_list list, int d) {
 
 void print_expression_list_line(expression_list list) {
     std::cout << "{\n";
-    int i = 0;
+    nat i = 0;
     for (auto e : list.list) {
         std::cout << "\t" << i << ": ";
         print_expression_line(e);        
