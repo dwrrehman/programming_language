@@ -25,60 +25,19 @@
 #include <string>
 #include <vector>
 
-//static std::string error_heading(const std::string& filename, nat line, nat column) {
-//
-////    std::ostringstream s;
-////    s <<
-////    cBOLD cCYAN << language_name << cRESET
-////    cBOLD cGRAY ": " cRESET;
-////    if (filename != "")
-////        s << cBOLD cMAGENTA << filename << cGRAY ":" cRESET ;
-////
-////    if (line and column)
-////        s << cBOLD cWHITE << line << cGRAY ":" cRESET cBOLD cWHITE << column << cGRAY ":" cRESET;
-////
-////    s << cBOLD cBRIGHT_RED " error: " cRESET
-////    cBOLD;
-////    return s.str();
-//    return "";
-//}
-//
-//static std::string warning_heading(const std::string& filename, nat line, nat column) {
-////    std::ostringstream s;
-////    s <<
-////    cBOLD cCYAN << language_name << cRESET
-////    cBOLD cGRAY ": " cRESET;
-////
-////    if (filename != "")
-////        s << cBOLD cMAGENTA << filename << cGRAY ":" cRESET ;
-////    if (line and column)
-////        s << cBOLD cWHITE << line << cGRAY ":" cRESET cBOLD cWHITE << column << cGRAY ":" cRESET;
-////
-////    s << cBOLD cBRIGHT_YELLOW " warning: " cRESET
-////    cBOLD;
-////    return s.str();
-//    return "";
-//}
+
+/// printf("n3zqx2l: %s:%lld:%lld: error: %s", filename, line, column, message);
+/// printf("%s:%lld:%lld: warning: %s", filename, line, column, message);
+
+///TODO: unfinished.
 
 //void print_parse_error(const std::string& filename, nat line, nat column, const std::string& type, std::string found, const std::string& expected) {
-////    if (type == "{null}" or found == "\n" or type == "indent") {
-////        if (type == "{null}") found = "end of file";
-////        if (found == "\n") found = "newline";
-////        if (type == "indent") found = "indent";
-////        std::cerr << error_heading(filename, line, column) << "unexpected " << found << ", expected " << expected << std::endl;
-////    } else std::cerr << error_heading(filename, line, column) << "unexpected " << type << ", \"" << found << "\", expected " << expected << std::endl;
-//}
-//
-//void print_llvm_error(const llvm::SMDiagnostic& errors, state &state) {
-////    std::cout << cBOLD cGRAY << "llvm: " << cRESET << std::flush;
-////    errors.print(state.data.file.name.c_str(), llvm::errs());
-////    std::cout << std::flush;
-//}
-//
+/// std::cerr << error_heading(filename, line, column) << "unexpected " << type << ", \"" << found << "\", expected " << expected << std::endl;
+
 //void print_unresolved_error(const expression& given, state &state) {
 ////    const std::string name = expression_to_string(given, state.stack);
 ////    print_error_message(state.data.file.name, "unresolved expression: " + name, given.starting_token.line, given.starting_token.column);
-//}
+
 
 #define prep(_level) for (nat i = _level; i--;) std::cout << ".   "
 #define clear_and_return()  auto result = current; current = {}; return result;
@@ -95,9 +54,9 @@ struct symbol;
 struct symbol_table;
 struct resolved_expression_list;
 
-enum class token_type {null, string, identifier, character, llvm, keyword, operator_, indent};
-enum class lexing_state {none, string, string_expression, identifier, llvm_string, comment, multiline_comment, indent};
-enum class symbol_type { none, subexpression, string_literal, llvm_literal, identifier, newline, indent };
+enum class token_type {null, string, identifier, character, llvm, keyword, operator_};
+enum class lex_state {none, string, string_expression, identifier, llvm_string, comment, multiline_comment};
+enum class symbol_type { none, subexpression, string_literal, llvm_literal, identifier };
 namespace intrin { enum intrin_name_index { typeless, type, infered, none, unit, unit_value, llvm, application, abstraction, define }; }
 
 struct file {
@@ -126,7 +85,7 @@ struct saved_state {
     nat saved_c = 0;
     nat saved_line = 0;
     nat saved_column = 0;
-    lexing_state saved_state = lexing_state::none;
+    lex_state saved_state = lex_state::none;
     token saved_current = {};
 };
 
@@ -170,7 +129,6 @@ struct expression_list {
 
 struct expression {
     std::vector<symbol> symbols = {};
-    nat indent_level = 0;
     nat type = 0;
     bool error = false;
     struct token starting_token = {};
@@ -204,7 +162,7 @@ struct program_data {
     llvm::IRBuilder<>& builder;
 };
 
-struct state {
+struct resolve_state {
     symbol_table& stack;
     program_data& data;
 };
@@ -264,7 +222,6 @@ static const resolved_expression resolution_failure = {0, {}, true};
 static const resolved_expression resolved_unit_value = {intrin::unit_value, {}, false};
 
 // global parameters:
-static nat spaces_count_for_indent = 4;
 static nat max_expression_depth = 8;
 static bool debug = false;
 
@@ -275,21 +232,19 @@ static const char* filename = "";
 static nat c = 0;
 static nat line = 0;
 static nat column = 0;
-static lexing_state lex_state = lexing_state::indent;
+static lex_state lex_state = lex_state::none;
 static token current = {};
 
 // prototypes:
 void print_expression_list(expression_list list, nat d);
 void print_symbol(symbol s, nat d);
 void print_expression(expression s, nat d);
-symbol parse_symbol(const file& file, bool newlines_are_a_symbol);
-expression parse_expression(const file& file, bool can_be_empty, bool newlines_are_a_symbol);
+symbol parse_symbol(const file& file);
+expression parse_expression(const file& file, bool can_be_empty);
 expression_list parse_expression_list(const file& file, bool can_be_empty);
-void turn_indents_into_blocks(expression_list& list, const file& file,  nat level);
 void prune_extraneous_subexpressions(expression_list& given);
-resolved_expression resolve(const expression& given, nat given_type, llvm::Function*& function, nat& index, nat depth, nat max_depth, nat fdi_length, state& state);
-resolved_expression_list resolve_expression_list(const expression_list& given, nat given_type, llvm::Function*& function, state& state);
-
+resolved_expression resolve(const expression& given, nat given_type, llvm::Function*& function, nat& index, nat depth, nat max_depth, nat fdi_length, resolve_state& state);
+resolved_expression_list resolve_expression_list(const expression_list& given, nat given_type, llvm::Function*& function, resolve_state& state);
 
 static inline void open_file(const char* filename, arguments& args) {
     std::ifstream stream {filename};
@@ -305,7 +260,7 @@ static inline void open_file(const char* filename, arguments& args) {
 }
 
 static inline void print_usage() {
-    printf("./nostril -[uv] [run] -[sdoei]\n./nostril -version\n./nostril run ...\n");
+    printf("./nostril -[uv] [run] -[sdoe]\n./nostril -version\n./nostril run ...\n");
     exit(0);
 }
 
@@ -315,6 +270,7 @@ static inline void print_version() {
 }
 
 static inline void debug_arguments(const arguments& args) {
+    ///TODO: unfinished.
     std::cout << "file count = " <<  args.files.size() << "\n";
     for (auto a : args.files) {
         std::cout << "file: " << a.name << "\n";
@@ -340,7 +296,7 @@ static inline arguments get_commandline_arguments(const int argc, const char** a
         if (word == "-s") debug = true;
         else if (word == "-e") args.empty = true;
         else if (word == "-o" and i + 1 < argc) args.executable_name = argv[++i];
-        else if (word == "-i" and i + 1 < argc) { auto n = atoi(argv[++i]); spaces_count_for_indent = n ? n : 4; }
+        
         else if (word == "-d" and i + 1 < argc) { auto n = atoi(argv[++i]); max_expression_depth = n ? n : 4; }
         else if (word[0] == '-') { printf("bad option: %s\n", argv[i]); exit(1); }
         else open_file(argv[i], args);
@@ -350,16 +306,14 @@ static inline arguments get_commandline_arguments(const int argc, const char** a
 }
 
 static inline bool is_identifier(char c) { return isalnum(c) or c == '_'; }
-static inline bool is_operator(char c) { return (not is_identifier(c) or not isascii(c)) and c != ' ' and c != '\t'; }
-static inline bool isvalid(nat c) { return c >= 0 and c < (nat) text.size(); }
+static inline bool is_operator(char c) { return (not is_identifier(c) or not isascii(c)) and c != ' ' and c != '\t' and c != '\n'; }
+static inline bool is_valid(nat c) { return c >= 0 and c < (nat) text.size(); }
 
 inline static bool is_operator(const token& t) { return t.type == token_type::operator_; }
 inline static bool is_identifier(const token& t) { return t.type == token_type::identifier; }
 inline static bool is_close_paren(const token& t) { return is_operator(t) and t.value == ")"; }
 inline static bool is_open_paren(const token& t) { return is_operator(t) and t.value == "("; }
-inline static bool is_newline(const token& t) { return is_operator(t) and t.value == "\n"; }
-inline static bool is_reserved_operator(token t) { return is_newline(t) or is_open_paren(t) or is_close_paren(t); }
-static inline bool is_whitespace(const symbol& e) { return e.type == symbol_type::indent or e.type == symbol_type::newline; }
+inline static bool is_reserved_operator(token t) { return is_open_paren(t) or is_close_paren(t); }
 
 bool subexpression(const symbol& s) { return s.type == symbol_type::subexpression; }
 static inline bool identifier(const symbol& s) { return s.type == symbol_type::identifier; }
@@ -370,8 +324,6 @@ static inline bool are_equal_identifiers(const symbol &first, const symbol &seco
 static inline bool is_donothing_call(llvm::Instruction* ins) { return ins and std::string(ins->getOpcodeName()) == "call" and std::string(ins->getOperand(0)->getName()) == "llvm.donothing"; }
 static inline bool is_unreachable_instruction(llvm::Instruction* ins) { return ins and std::string(ins->getOpcodeName()) == "unreachable"; }
 
-
-
 static inline void advance_by(nat n) {
     for (nat i = n; i--;) {
         if (text[c] == '\n') {
@@ -380,7 +332,7 @@ static inline void advance_by(nat n) {
     }
 }
 
-static inline void set_current(token_type t, lexing_state s) {
+static inline void set_current(token_type t, enum lex_state s) {
     current.type = t;
     current.value = "";
     current.line = line;
@@ -389,9 +341,10 @@ static inline void set_current(token_type t, lexing_state s) {
 }
 
 static inline void check_for_lexing_errors() {
-    if (lex_state == lexing_state::string) printf("%s:%lld,%lld: unterminated string", filename, line, column);
-    else if (lex_state == lexing_state::llvm_string) printf("%s:%lld,%lld: unterminated llvm string", filename, line, column);
-    else if (lex_state == lexing_state::multiline_comment) printf("%s:%lld,%lld: unterminated multi-line comment", filename, line, column);
+    if (lex_state == lex_state::string) printf("n3zqx2l: %s:%lld,%lld: error: unterminated string\n", filename, line, column);
+    else if (lex_state == lex_state::llvm_string) printf("n3zqx2l: %s:%lld,%lld: error: unterminated llvm string\n", filename, line, column);
+    else if (lex_state == lex_state::multiline_comment) printf("n3zqx2l: %s:%lld,%lld: error: unterminated multi-line comment\n", filename, line, column);
+    if (lex_state == lex_state::string or lex_state == lex_state::llvm_string or lex_state == lex_state::multiline_comment) exit(1);
 }
 
 // the main lexing function:
@@ -403,91 +356,56 @@ static inline token next() {
             return {token_type::null, "", line, column};
         }
 
-        if (text[c] == '\n' and lex_state == lexing_state::none) lex_state = lexing_state::indent;
-        if (text[c] == ';' and isvalid(c+1) and isspace(text[c+1]) and (lex_state == lexing_state::none or lex_state == lexing_state::indent)) lex_state = lexing_state::comment;
-        else if (text[c] == ';' and not isspace(text[c+1]) and (lex_state == lexing_state::none or lex_state == lexing_state::indent)) lex_state = lexing_state::multiline_comment;
+        if (text[c] == ';' and is_valid(c+1) and isspace(text[c+1]) and lex_state == lex_state::none) lex_state = lex_state::comment;
+        else if (text[c] == ';' and not isspace(text[c+1]) and lex_state == lex_state::none) lex_state = lex_state::multiline_comment;
 
         // ------------------- starting and finising ----------------------
-
-        else if (is_identifier(text[c]) and isvalid(c+1) and not is_identifier(text[c+1]) and (lex_state == lexing_state::none or lex_state == lexing_state::indent)) {
-            set_current(token_type::identifier, lexing_state::none);
+        else if (is_identifier(text[c]) and is_valid(c+1) and not is_identifier(text[c+1]) and lex_state == lex_state::none) {
+            set_current(token_type::identifier, lex_state::none);
             current.value = text[c];
             advance_by(1);
             clear_and_return();
-
+        }
+        
         // ---------------------- starting --------------------------
-
-        } else if (text[c] == '\"' and (lex_state == lexing_state::none or lex_state == lexing_state::indent)) { set_current(token_type::string, lexing_state::string);
-        } else if (text[c] == '`' and (lex_state == lexing_state::none or lex_state == lexing_state::indent)) { set_current(token_type::llvm, lexing_state::llvm_string);
-        } else if (is_identifier(text[c]) and (lex_state == lexing_state::none or lex_state == lexing_state::indent)) {
-            set_current(token_type::identifier, lexing_state::identifier);
+        else if (text[c] == '\"' and lex_state == lex_state::none) { set_current(token_type::string, lex_state::string); }
+        else if (text[c] == '`' and lex_state == lex_state::none) { set_current(token_type::llvm, lex_state::llvm_string); }
+        else if (is_identifier(text[c]) and (lex_state == lex_state::none)) {
+            set_current(token_type::identifier, lex_state::identifier);
             current.value += text[c];
-
-        // ---------------------- escaping --------------------------
-
-        } else if (text[c] == '\\' and lex_state == lexing_state::string) {
-            if (isvalid(c+1) and text[c+1] == '\"') { current.value += "\""; advance_by(1); }
-            else if (isvalid(c+1) and text[c+1] == 'n') { current.value += "\n"; advance_by(1); }
-            else if (isvalid(c+1) and text[c+1] == 't') { current.value += "\t"; advance_by(1); }
+        }
+        
+        // ---------------------- escaping in strings --------------------------
+        else if (text[c] == '\\' and lex_state == lex_state::string) {
+            if (is_valid(c+1) and text[c+1] == '\"') { current.value += "\""; advance_by(1); }
+            else if (is_valid(c+1) and text[c+1] == 'n') { current.value += "\n"; advance_by(1); }
+            else if (is_valid(c+1) and text[c+1] == 't') { current.value += "\t"; advance_by(1); }
+            else if (is_valid(c+1) and text[c+1] == '\\') { current.value += "\\"; advance_by(1); }
+        }
+        
         //---------------------- finishing  ----------------------
-
-        } else if ((text[c] == '\n' and lex_state == lexing_state::comment) or (text[c] == ';' and lex_state == lexing_state::multiline_comment)) {
-            if (lex_state == lexing_state::comment) {
-                lex_state = lexing_state::indent;
-                current.type = token_type::operator_;
-                current.value = "\n";
-                advance_by(1);
-                clear_and_return();
-            }
-            lex_state = lexing_state::none;
-
-        } else if ((text[c] == '\"' and lex_state == lexing_state::string) or (text[c] == '`' and lex_state == lexing_state::llvm_string)) {
-            lex_state = lexing_state::none;
+        else if ((text[c] == '\n' and lex_state == lex_state::comment)
+                 or (text[c] == ';' and lex_state == lex_state::multiline_comment)) lex_state = lex_state::none;
+            
+        else if ((text[c] == '\"' and lex_state == lex_state::string) or (text[c] == '`' and lex_state == lex_state::llvm_string)) {
+            lex_state = lex_state::none;
             advance_by(1);
             clear_and_return();
 
-        } else if (is_identifier(text[c]) and isvalid(c+1) and !is_identifier(text[c+1]) and lex_state == lexing_state::identifier) {
+        } else if (is_identifier(text[c]) and is_valid(c+1) and not is_identifier(text[c+1]) and lex_state == lex_state::identifier) {
             current.value += text[c];
-            lex_state = lexing_state::none;
+            lex_state = lex_state::none;
             advance_by(1);
             clear_and_return();
 
         // ---------------- pushing ----------------
+        } else if (lex_state == lex_state::string or lex_state == lex_state::llvm_string
+                   or (is_identifier(text[c]) and lex_state == lex_state::identifier)) current.value += text[c];
 
-        } else if (lex_state == lexing_state::string or lex_state == lexing_state::llvm_string or (is_identifier(text[c]) and lex_state == lexing_state::identifier)) current.value += text[c];
-
-        else if (lex_state == lexing_state::comment or lex_state == lexing_state::multiline_comment) {/* do nothing */}
-        else if (is_operator(text[c]) and (lex_state == lexing_state::none or lex_state == lexing_state::indent)) {
-            set_current(token_type::operator_, lexing_state::none);
-            if (text[c] == '\n') lex_state = lexing_state::indent;
+        else if (lex_state == lex_state::comment or lex_state == lex_state::multiline_comment) {/* do nothing */}
+        else if (is_operator(text[c]) and lex_state == lex_state::none) {
+            set_current(token_type::operator_, lex_state::none);
             current.value = text[c];
-            advance_by(1);
-            clear_and_return();
-
-        } else if (text[c] == ' ' and lex_state == lexing_state::indent) {
-            bool found_indent = true;
-            for (nat i = 0; i < spaces_count_for_indent; i++) {
-                if (isvalid(c+i))
-                    found_indent = found_indent and text[c+i] == ' ';
-                else {
-                    found_indent = false;
-                    break;
-                }
-            }
-            if (found_indent) {
-                current.line = line;
-                current.column = column;
-                current.type = token_type::indent;
-                current.value = " ";
-                advance_by(spaces_count_for_indent);
-                clear_and_return();
-            }
-
-        } else if (text[c] == '\t' and lex_state == lexing_state::indent) {
-            current.line = line;
-            current.column = column;
-            current.type = token_type::indent;
-            current.value = " ";
             advance_by(1);
             clear_and_return();
         }
@@ -513,27 +431,25 @@ static inline void revert(saved_state s) {
     current = s.saved_current;
 }
 
-// this function should be called before lexing a given file.
-static inline void start_lex(const file& file) {
+static inline void start_lex(const file& file) { // this function should be called before lexing a given file.
     text = file.text;
     filename = file.name;
     c = 0;
     line = 1;
     column = 1;
-    lex_state = lexing_state::indent;
+    lex_state = lex_state::none;
     current = {};
 }
 
 static inline const char* convert_token_type_representation(enum token_type type) {
     switch (type) {
-        case token_type::null: return "{null}";
+        case token_type::null: return "EOF";
         case token_type::string: return "string";
         case token_type::identifier: return "identifier";
         case token_type::keyword: return "keyword";
         case token_type::operator_: return "operator";
         case token_type::character: return "character";
         case token_type::llvm: return "llvm";
-        case token_type::indent: return "indent";
     }
 }
 
@@ -574,13 +490,6 @@ void print_symbol(symbol symbol, nat d) {
             print_expression_list(symbol.expressions, d+1);
             break;
 
-        case symbol_type::newline:
-            prep(d); std::cout << "{newline}\n";
-            break;
-        case symbol_type::indent:
-            prep(d); std::cout << "{indent}\n";
-            break;
-
         case symbol_type::none:
             prep(d); std::cout << "{NO SYMBOL TYPE}\n";
             break;
@@ -591,7 +500,6 @@ void print_symbol(symbol symbol, nat d) {
 void print_expression(expression expression, nat d) {
     prep(d); std::cout << "expression: \n";
     prep(d); std::cout << std::boolalpha << "error: " << expression.error << "\n";
-    prep(d); std::cout << "indent level = " << expression.indent_level << "\n";
     prep(d); std::cout << "symbol count: " << expression.symbols.size() << "\n";
     prep(d); std::cout << "symbols: \n";
     nat i = 0;
@@ -620,13 +528,6 @@ static inline void print_symbol_line(symbol symbol) {
             std::cout << "\"" << symbol.string.literal.value << "\"";
             break;
 
-        case symbol_type::newline:
-            std::cout << "{NEWLINE}";
-            break;
-        case symbol_type::indent:
-            std::cout << "{INDENT}";
-            break;
-
         case symbol_type::none:
             std::cout << "{NONE}\n";
             assert(false);
@@ -645,7 +546,6 @@ static inline std::string stringify_intrin(nat i) {
         case intrin::unit: return "_1";
         case intrin::unit_value: return "()";
         case intrin::llvm: return "_llvm";
-            
         case intrin::application: return "_a";
         case intrin::abstraction: return "_b";
         case intrin::define: return "_c";
@@ -697,29 +597,6 @@ static inline void print_translation_unit(expression_list unit, file file) {
     print_expression_list(unit, 1);
 }
 
-static inline void newlines() {
-    auto saved = save();
-    auto t = next();
-    while (is_newline(t)) {
-        saved = save();
-        t = next();
-    }
-    revert(saved);
-}
-
-static inline nat indents() {
-    auto indent_count = 0;
-    auto saved = save();
-    auto indent = next();
-    while (indent.type == token_type::indent) {
-        indent_count++;
-        saved = save();
-        indent = next();
-    }
-    revert(saved);
-    return indent_count;
-}
-
 static inline struct string_literal parse_string_literal() {
     auto saved = save();
     auto t = next();
@@ -741,7 +618,7 @@ static inline struct identifier parse_identifier() {
     return {t};
 }
 
-symbol parse_symbol(const file& file, bool newlines_are_a_symbol) {
+symbol parse_symbol(const file& file) {
     auto saved = save();
     auto t = next();
     if (is_open_paren(t)) {
@@ -752,7 +629,9 @@ symbol parse_symbol(const file& file, bool newlines_are_a_symbol) {
             expressions.starting_token = t;
             if (is_close_paren(t)) return { expressions };
             else {
-//                print_parse_error(file.name, saved_t.line, saved_t.column, convert_token_type_representation(t.type), t.value, "\")\" to close expression");
+                printf("n3zqx2l: %s:%lld:%lld: unexpected %s, \"%s\", expected \")\" to close expression\n", file.name, saved_t.line, saved_t.column, convert_token_type_representation(t.type), t.value.c_str());
+                
+//                print_parse_error( , , );
                 revert_and_return();
             }
         }
@@ -770,32 +649,21 @@ symbol parse_symbol(const file& file, bool newlines_are_a_symbol) {
     if (not identifier.error) return identifier;
     else revert(saved);
 
-    symbol s = {};
-    t = next();
-    if (is_newline(t) and newlines_are_a_symbol) {
-        s.type = symbol_type::newline;
-        return s;
-    } else revert(saved);
-
-    t = next();
-    if (t.type == token_type::indent and newlines_are_a_symbol) {
-        s.type = symbol_type::indent;
-        return s;
-    } revert_and_return();
+    revert_and_return();
 }
 
-expression parse_expression(const file& file, bool can_be_empty, bool newlines_are_a_symbol) {
+expression parse_expression(const file& file, bool can_be_empty) {
             
     std::vector<symbol> symbols = {};
     auto saved = save();
     auto start = next();
     revert(saved);
     
-    auto symbol = parse_symbol(file, newlines_are_a_symbol);
+    auto symbol = parse_symbol(file);
     while (not symbol.error) {
         symbols.push_back(symbol);
         saved = save();
-        symbol = parse_symbol(file, newlines_are_a_symbol);
+        symbol = parse_symbol(file);
     }
     revert(saved);
     
@@ -806,21 +674,18 @@ expression parse_expression(const file& file, bool can_be_empty, bool newlines_a
 }
 
 expression parse_terminated_expression(const file& file) {
-
-    auto indent_count = indents();
-    auto expression = parse_expression(file, /*can_be_empty = */true, /*newlines_are_a_symbol = */false);
-    expression.indent_level = indent_count;
+    
+    auto expression = parse_expression(file, /*can_be_empty = */true);
 
     auto saved = save();
     auto t = next();
-    if (not is_newline(t) and not (is_close_paren(t) and expression.symbols.size())) { revert_and_return(); }
+    if (not (is_close_paren(t) and expression.symbols.size())) { revert_and_return(); }
     if (is_close_paren(t) and expression.symbols.size()) revert(saved);
     return expression;
 }
 
 expression_list parse_expression_list(const file& file, bool can_be_empty) {
-    newlines();
-    
+        
     auto saved = save();
     std::vector<expression> expressions = {};
     auto expression = parse_terminated_expression(file);
@@ -847,64 +712,6 @@ expression_list parse(const file& file) {
     return unit;
 }
 
-
-static inline void remove_whitespace_in_expressions(expression_list& list, const file& file, nat depth) {
-    for (auto& expression : list.list) {
-        auto& s = expression.symbols;
-        if (std::find_if(s.begin(), s.end(), is_whitespace) != s.end())
-            s.erase(std::remove_if(s.begin(), s.end(), is_whitespace));
-        for (auto& symbol : s)
-            if (symbol.type == symbol_type::subexpression) remove_whitespace_in_expressions(symbol.expressions, file, depth);
-    }
-}
-
-
-
-static inline void push_block_onto_list(expression_list& list, const file& file,  nat level, expression_list& new_list) {
-    if (list.list.size()) {
-        turn_indents_into_blocks(list, file, level + 1);
-        if (new_list.list.empty()) new_list.list.push_back({{{list}}});
-        else new_list.list.back().symbols.push_back({list});
-    }
-}
-
-void turn_indents_into_blocks(expression_list& given, const file& file, nat level) {
-
-    expression_list new_list {}, block {};
-    for (auto& expression : given.list) {
-        if (expression.symbols.empty()) continue;
-        if (expression.indent_level > level) block.list.push_back(expression);
-        else {
-            push_block_onto_list(block, file, level, new_list);
-            new_list.list.push_back(expression);
-            block.list.clear();
-        }
-    }
-    push_block_onto_list(block, file, level, new_list);
-    given = new_list;
-}
-
-static inline void raise(nat& value, nat minimum) {
-    if (value < minimum) value = minimum;
-}
-
-static inline void raise_indents(expression_list& list, const file& file, nat level) {
-    for (auto& expression : list.list) {
-        raise(expression.indent_level, level);
-        for (auto& symbol : expression.symbols)
-            if (symbol.type == symbol_type::subexpression)
-                raise_indents(symbol.expressions, file, level + 1);
-    }
-}
-
-static inline expression_list correct(expression_list unit, const file& file) {
-    raise_indents(unit, file, 0);
-    turn_indents_into_blocks(unit, file, 0);
-    remove_whitespace_in_expressions(unit, file, 0);
-    if (debug) print_translation_unit(unit, file);
-    return unit;
-}
-
 static inline std::string expression_to_string(const expression& given, symbol_table& stack) {
     std::string result = "(";
     nat i = 0;
@@ -918,22 +725,20 @@ static inline std::string expression_to_string(const expression& given, symbol_t
     return result;
 }
 
-static inline std::string convert_symbol_type(enum symbol_type type) {
+static inline const char* convert_symbol_type(enum symbol_type type) {
     switch (type) {
         case symbol_type::none: return "{none}";
         case symbol_type::subexpression: return "subexpression";
         case symbol_type::string_literal: return "string literal";
         case symbol_type::llvm_literal: return "llvm literal";
         case symbol_type::identifier: return "identifier";
-        case symbol_type::newline: return "newline";
-        case symbol_type::indent: return "indent";
     }
 }
 
-void print_resolved_list(resolved_expression_list list, nat depth, state& state);
-void print_resolved_expr(resolved_expression expr, nat depth, state& state);
+void print_resolved_list(resolved_expression_list list, nat depth, resolve_state& state);
+void print_resolved_expr(resolved_expression expr, nat depth, resolve_state& state);
 
-void print_resolved_expr(resolved_expression expr, nat depth, state& state) {
+void print_resolved_expr(resolved_expression expr, nat depth, resolve_state& state) {
     prep(depth); std::cout << "[error = " << std::boolalpha << expr.error << "]\n";
     prep(depth);
     
@@ -955,7 +760,7 @@ void print_resolved_expr(resolved_expression expr, nat depth, state& state) {
     }
 }
 
-void print_resolved_list(resolved_expression_list list, nat depth, state& state) {
+void print_resolved_list(resolved_expression_list list, nat depth, resolve_state& state) {
     prep(depth); std::cout << "[error = " << std::boolalpha << list.error << "]\n";
     nat i = 0;
     for (auto expr : list.list) {
@@ -965,7 +770,7 @@ void print_resolved_list(resolved_expression_list list, nat depth, state& state)
     }
 }
 
-void print_resolved_unit(resolved_expression_list unit, state& state) {
+void print_resolved_unit(resolved_expression_list unit, resolve_state& state) {
     std::cout << "---------- printing resolved tranlation unit: ------------\n\n";
     print_resolved_list(unit, 0, state);
 }
@@ -1010,8 +815,6 @@ void debug_table(symbol_table table) {
     std::cout << "}\n";
 }
 
-
-
 bool contains_final_terminator(llvm::Function* main_function) {
     auto& blocks = main_function->getBasicBlockList();
     if (blocks.size()) {
@@ -1055,12 +858,12 @@ void prune_extraneous_subexpressions(expression_list& given) {
 static inline void verify(const file& file, llvm_module& module, resolved_expression_list& resolved_program) {
     std::string errors = "";
     if (llvm::verifyModule(*module, &(llvm::raw_string_ostream(errors) << ""))) {
-        printf("%s: %s", file.name, errors.c_str());
+        printf("llvm: %s: %s", file.name, errors.c_str());
         resolved_program.error = true;
     }
 }
 
-static inline void debug_program(llvm_module& module, const resolved_expression_list& resolved_program, state& state) {
+static inline void debug_program(llvm_module& module, const resolved_expression_list& resolved_program, resolve_state& state) {
     if (debug) {
         debug_table(state.stack);
         print_resolved_unit(resolved_program, state);
@@ -1073,7 +876,7 @@ static inline void debug_program(llvm_module& module, const resolved_expression_
 /// any occurence of a unreachable statement which is directly preceeded by
 /// a llvm.do_nothing() call, should be removed before execution of the function.
 
-static inline bool parse_llvm_string_as_instruction(const std::string& given, llvm::Function*& original, state& state, llvm::SMDiagnostic& errors) {
+static inline bool parse_llvm_string_as_instruction(const std::string& given, llvm::Function*& original, resolve_state& state, llvm::SMDiagnostic& errors) {
     static nat num = 0;
     std::string body = "";
     original->print(llvm::raw_string_ostream(body) << "");
@@ -1094,7 +897,7 @@ static inline bool parse_llvm_string_as_instruction(const std::string& given, ll
     }
 }
 
-static inline resolved_expression parse_llvm_string(llvm::Function*& function, const std::string& llvm_string, nat& pointer, state& state) {
+static inline resolved_expression parse_llvm_string(llvm::Function*& function, const std::string& llvm_string, nat& pointer, resolve_state& state) {
     llvm::SMDiagnostic instruction_errors, function_errors, type_errors;
     llvm::ModuleSummaryIndex my_index(true);
     llvm::MemoryBufferRef reference(llvm_string, "<llvm-string>");
@@ -1107,14 +910,14 @@ static inline resolved_expression parse_llvm_string(llvm::Function*& function, c
         pointer++;
         return {intrin::typeless, {}, false, llvm_type};
     } else {
-//        print_llvm_error(function_errors, state);
-//        print_llvm_error(instruction_errors, state);
-//        print_llvm_error(type_errors, state);
+        printf("llvm: "); function_errors.print(state.data.file.name, llvm::errs());
+        printf("llvm: "); instruction_errors.print(state.data.file.name, llvm::errs());
+        printf("llvm: "); type_errors.print(state.data.file.name, llvm::errs());
         return {0, {}, true};
     }
 }
 
-
+///TODO: unfinished.
 //llvm::Constant* create_global_constant_string(llvm::Module* module, const std::string& string) {
 //    auto type = llvm::ArrayType::get(llvm::Type::getInt8Ty(module->getContext()), string.size() + 1);
 //    std::vector<llvm::Constant*> characters (string.size() + 1);
@@ -1165,7 +968,7 @@ static resolved_expression construct_signature(nat fdi_length, const expression&
 }
 
 static inline bool matches(const expression& given, const expression& signature, nat given_type, std::vector<resolved_expression_list>& args, llvm::Function*& function,
-                    nat& index, nat depth, nat max_depth, nat fdi_length, state& state) {
+                    nat& index, nat depth, nat max_depth, nat fdi_length, resolve_state& state) {
         
     if (given_type != signature.type and given.type != intrin::infered) return false;
     for (auto symbol : signature.symbols) {
@@ -1186,12 +989,13 @@ static inline bool matches(const expression& given, const expression& signature,
     }
     return true;
 }
-//
+
+///TODO: unfinished.
 //static resolved_expression parse_string(const expression &given, nat &index, state &state) {
 //    auto string_type = llvm::Type::getInt8PtrTy(state.data.module->getContext());
 //    auto actual_type = state.stack.master[intrin::llvm].llvm_type;
 //
-//    if (actual_type == string_type or true ) {   ///TODO: delete the "or true".     (why is it even here?)
+//    if (actual_type == string_type) {
 //        resolved_expression string {};
 //        string.index = intrin::llvm;
 //        string.constant = create_global_constant_string(state.data.module, given.symbols[index].string.literal.value);
@@ -1201,13 +1005,14 @@ static inline bool matches(const expression& given, const expression& signature,
 
 resolved_expression resolve(const expression& given, nat given_type, llvm::Function*& function,
                             nat& index, nat depth, nat max_depth, nat fdi_length,
-                            state& state) {
+                            resolve_state& state) {
     
     if (index >= (nat) given.symbols.size() or not given_type or depth > max_depth)
         return resolution_failure;
     
     else if (given_type == intrin::abstraction)
         return construct_signature(fdi_length, given, index);
+    ///TODO: unfinished.
     ///TODO: known bug: passing multiple different length signatures doesnt work with the current fdi solution.
     
     else if (llvm_string(given.symbols[index]) and given_type == intrin::unit)
@@ -1216,6 +1021,7 @@ resolved_expression resolve(const expression& given, nat given_type, llvm::Funct
 //    else if (string_literal(given.symbols[index]) and given_type == intrin::llvm)
 //        parse_string(given, index, state);
 //
+    ///TODO: unfinished.
     
     nat saved = index;
     for (auto signature_index : state.stack.top()) {
@@ -1227,7 +1033,7 @@ resolved_expression resolve(const expression& given, nat given_type, llvm::Funct
     return resolution_failure;
 }
 
-static inline resolved_expression resolve_expression(const expression& given, nat given_type, llvm::Function*& function, state& state) {
+static inline resolved_expression resolve_expression(const expression& given, nat given_type, llvm::Function*& function, resolve_state& state) {
     
     if (is_unit_value(given) and given_type == intrin::unit) return resolved_unit_value;
     resolved_expression solution {};
@@ -1241,11 +1047,11 @@ static inline resolved_expression resolve_expression(const expression& given, na
         if (not solution.error and pointer == (nat) given.symbols.size()) break;
     }
     if (pointer < (nat) given.symbols.size()) solution.error = true;
-    if (solution.error) printf("error: unresolved expression\n"); // print_unresolved_error(given, state);
+    if (solution.error) printf("n3zqx2l: error: unresolved expression\n"); // print_unresolved_error(given, state);
     return solution;
 }
 
-resolved_expression_list resolve_expression_list(const expression_list& given, nat given_type, llvm::Function*& function, state& state) {
+resolved_expression_list resolve_expression_list(const expression_list& given, nat given_type, llvm::Function*& function, resolve_state& state) {
     if (given.list.empty()) return {{resolved_unit_value}, given_type != intrin::unit};
     nat i = 0;
     auto types = generate_type_list(given, given_type);
@@ -1281,6 +1087,7 @@ static inline void move_lone_terminators_into_previous_blocks(llvm_module& modul
         }
     }
     
+    ///TODO: unfinished.
     ///KNOWN BUG: when we have no terminators in sight, this function
     /// does remove the unneccessary basic block which is put between the
     /// bits of code which should be in the same block.
@@ -1301,7 +1108,7 @@ static inline void remove_extraneous_insertion_points_in(llvm_module& module) {
 }
 
 void symbol_table::update(llvm::ValueSymbolTable& llvm) {
-
+    ///TODO: unfinished.
 }
 
 void symbol_table::push_new_frame() { frames.push_back({frames.back()}); }
@@ -1310,7 +1117,7 @@ std::vector<nat>& symbol_table::top() { return frames.back(); }
 expression& symbol_table::get(nat index) { return master[index].signature; }
 
 void symbol_table::define(const expression& signature, const expression_list& definition, nat back_from, nat parent) {
-    // unfinsihed
+    ///TODO: unfinished.
     
     // this function should do a check for if the signature is already
     // defined in the current scope. if so, then simply overrite its data.
@@ -1352,7 +1159,7 @@ static inline llvm_module analyze(expression_list program, const file& file, llv
     llvm::IRBuilder<> builder(context);
     program_data data {file, module.get(), builder};
     symbol_table stack {data, builtins};
-    state state {stack, data};
+    resolve_state state {stack, data};
     stack.sort_top_by_largest();
     auto main = create_main(builder, context, module);
     builder.CreateCall(llvm::Intrinsic::getDeclaration(module.get(), llvm::Intrinsic::donothing));
@@ -1379,7 +1186,7 @@ void initialize_llvm() {
 llvm_modules frontend(const arguments& arguments, llvm::LLVMContext& context) {
     llvm_modules modules = {};
     modules.reserve(arguments.files.size());
-    for (auto file : arguments.files) modules.push_back(analyze(correct(parse(file), file), file, context));
+    for (auto file : arguments.files) modules.push_back(analyze(parse(file), file, context));
     return modules;
 }
 
@@ -1399,7 +1206,7 @@ void interpret(llvm_module& module, const arguments& arguments) {
 }
 
 void optimize(llvm_module& module) {
-    // use a pass manager, and string together as many passes as possible.
+    ///TODO: unfinished.
 }
 
 std::string generate_object_file(llvm_module& module, const arguments& arguments) {
@@ -1433,7 +1240,7 @@ std::string generate_object_file(llvm_module& module, const arguments& arguments
 void emit_executable(const std::string& object_file, const arguments& arguments) {
     std::string link_command = "ld -macosx_version_min 10.14 -lSystem -lc -o " + std::string(arguments.executable_name) + " " + object_file + " ";
     std::system(link_command.c_str());
-    if (debug) printf("executable emitted: %s\n", arguments.executable_name);
+    if (debug) printf("n3zqx2l: executable emitted: %s\n", arguments.executable_name);
     std::remove(object_file.c_str());
 }
 
