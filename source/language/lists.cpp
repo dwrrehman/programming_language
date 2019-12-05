@@ -2,7 +2,6 @@
 
 const std::string language_name = "n3zqx2l";
 const std::string language_version = "0.0.01";
-
 const std::string compiler_name = "nostril";
 const std::string compiler_version = "0.0.01";
 

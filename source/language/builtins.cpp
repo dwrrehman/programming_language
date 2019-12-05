@@ -1,21 +1,5 @@
 #include "builtins.hpp"
 
-/** --------------- intrins ----------------
-
-0  :        {typeless}          :
-1  :    __  infered type        :
-2  :    _   type type           :
-3  :    _0  none type           : _
-4  :    _1  unit type           : _
-5  :    ()  unit value          : _1
-5  :    _a  application type    : _
-6  :    _b  abstraction type    : _
-7  :    _c  define signature    : _1
- 
- _a         --->        how we pass around unevalatued code.
- _b         --->        how we pass around undefined signatures.
-*/
-
 expression failure = {true, true, true};
 expression infered_type = {{{{"__"}}}, intrin::typeless};  
 expression type_type = {{{{"_"}}}, intrin::typeless};

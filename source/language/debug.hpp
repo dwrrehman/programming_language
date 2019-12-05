@@ -28,6 +28,6 @@ void print_translation_unit(expression_list unit, file file);
 void print_resolved_expr(resolved_expression expr, nat depth, state& state);
 void print_resolved_list(resolved_expression_list list, nat depth, state& state);
 void print_resolved_unit(resolved_expression_list unit, state& state);
-void print_nat_vector(std::vector<nat> v, bool newline); 
-
+void print_nat_vector(std::vector<nat> v, bool newline);
+void debug_table(symbol_table table);
 #endif

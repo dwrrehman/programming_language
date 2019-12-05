@@ -31,7 +31,6 @@ struct symbol_table {
     void update(llvm::ValueSymbolTable& llvm);
     void push_new_frame();        
     void pop_last_frame();
-    void debug();
     std::vector<nat>& top();    
     expression& get(nat index);    
     void define(const expression& signature, const expression_list& definition, nat back_from, nat parent = 0);    
@@ -41,14 +40,4 @@ struct symbol_table {
 
 std::string expression_to_string(const expression& given, symbol_table& stack);
 
-std::vector<std::string> string_top(symbol_table& stack);
-std::vector<expression> top(symbol_table& stack);
-
-void print_stack(symbol_table& stack);
-void print_index_top_stack(symbol_table &stack);
-void print_llvm_symtable(llvm::ValueSymbolTable& table);
-
-std::vector<expression> get_master(symbol_table& stack);
-void print_master(symbol_table& stack);
-void print_simply_master(symbol_table& stack);
 #endif /* symbol_table_hpp */

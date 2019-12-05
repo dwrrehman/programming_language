@@ -170,6 +170,5 @@ expression_list parse(const file& file) {
 
     auto unit = parse_expression_list(file, /*can_be_empty = */true);    
     if (debug) print_translation_unit(unit, file);
-    if (unit.error or next().type != token_type::null) throw "parse error:";
-    else return unit;
+    return unit;
 }

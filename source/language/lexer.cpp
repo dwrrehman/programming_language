@@ -20,7 +20,7 @@ static token current = {};
 static bool is_identifier(char c) { return isalnum(c) or c == '_'; }
 static bool is_operator(char c) { return (not is_identifier(c) or not isascii(c)) and c != ' ' and c != '\t'; }
 
-static bool isvalid(nat c) { return c >= 0 and c < text.size(); }
+static bool isvalid(nat c) { return c >= 0 and c < (nat) text.size(); }
 
 static void advance_by(nat n) {
     for (nat i = n; i--;) {
@@ -47,14 +47,9 @@ static void check_for_lexing_errors() {
 // the main lexing function:
 
 token next() {
-    
     using namespace lexing_state;
-    
     while (true) {
-        
-        
-        
-        if (c >= text.size()) {
+        if (c >= (nat) text.size()) {
             check_for_lexing_errors();
             return {token_type::null, "", line, column};            
         }
@@ -82,22 +77,12 @@ token next() {
         // ---------------------- escaping --------------------------
 
         } else if (text[c] == '\\' and state == string) {
-            if (isvalid(c+1) and text[c+1] == '\"') {
-                current.value += "\"";
-                advance_by(1);
-
-            } else if (isvalid(c+1) and text[c+1] == 'n') {
-                current.value += "\n";
-                advance_by(1);
-
-            } else if (isvalid(c+1) and text[c+1] == 't') {
-                current.value += "\t";
-                advance_by(1);
-            } 
+            if (isvalid(c+1) and text[c+1] == '\"') { current.value += "\""; advance_by(1); }
+            else if (isvalid(c+1) and text[c+1] == 'n') { current.value += "\n"; advance_by(1); }
+            else if (isvalid(c+1) and text[c+1] == 't') { current.value += "\t"; advance_by(1); }
         //---------------------- finishing  ----------------------
 
         } else if ((text[c] == '\n' and state == comment) or (text[c] == ';' and state == multiline_comment)) {
-
             if (state == comment) {
                 state = indent;
                 current.type = token_type::operator_;

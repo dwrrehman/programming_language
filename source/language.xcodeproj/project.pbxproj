@@ -18,8 +18,7 @@
 		FD36010721EB288E005FE844 /* lists.cpp in Sources */ = {isa = PBXBuildFile; fileRef = FD36010521EB288E005FE844 /* lists.cpp */; };
 		FD52D8452226590600A9C309 /* arguments.cpp in Sources */ = {isa = PBXBuildFile; fileRef = FD52D8432226590600A9C309 /* arguments.cpp */; };
 		FD60BC8D230A90BC000B0411 /* symbol_table.cpp in Sources */ = {isa = PBXBuildFile; fileRef = FD60BC8B230A90BC000B0411 /* symbol_table.cpp */; };
-		FD67B808230D38AF009B8296 /* converters.cpp in Sources */ = {isa = PBXBuildFile; fileRef = FD67B806230D38AF009B8296 /* converters.cpp */; };
-		FD67B80E230D3B4D009B8296 /* helpers.cpp in Sources */ = {isa = PBXBuildFile; fileRef = FD67B80C230D3B4D009B8296 /* helpers.cpp */; };
+		FD67B80E230D3B4D009B8296 /* resolver.cpp in Sources */ = {isa = PBXBuildFile; fileRef = FD67B80C230D3B4D009B8296 /* resolver.cpp */; };
 		FDBE70C3232D941C006CC0F9 /* llvm_parser.cpp in Sources */ = {isa = PBXBuildFile; fileRef = FDBE70C1232D941C006CC0F9 /* llvm_parser.cpp */; };
 		FDC546AB2241864300D99CA9 /* corrector.cpp in Sources */ = {isa = PBXBuildFile; fileRef = FDC546A92241864300D99CA9 /* corrector.cpp */; };
 /* End PBXBuildFile section */
@@ -57,13 +56,12 @@
 		FD36010621EB288E005FE844 /* lists.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = lists.hpp; sourceTree = "<group>"; };
 		FD52D8432226590600A9C309 /* arguments.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = arguments.cpp; sourceTree = "<group>"; };
 		FD52D8442226590600A9C309 /* arguments.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = arguments.hpp; sourceTree = "<group>"; };
+		FD54F2302398D650000C7D93 /* color.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = color.h; sourceTree = "<group>"; };
 		FD60BC8B230A90BC000B0411 /* symbol_table.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = symbol_table.cpp; sourceTree = "<group>"; };
 		FD60BC8C230A90BC000B0411 /* symbol_table.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = symbol_table.hpp; sourceTree = "<group>"; };
-		FD67B806230D38AF009B8296 /* converters.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = converters.cpp; sourceTree = "<group>"; };
-		FD67B807230D38AF009B8296 /* converters.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = converters.hpp; sourceTree = "<group>"; };
 		FD67B80A230D3AC3009B8296 /* analysis_ds.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = analysis_ds.hpp; sourceTree = "<group>"; };
-		FD67B80C230D3B4D009B8296 /* helpers.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = helpers.cpp; sourceTree = "<group>"; };
-		FD67B80D230D3B4D009B8296 /* helpers.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = helpers.hpp; sourceTree = "<group>"; };
+		FD67B80C230D3B4D009B8296 /* resolver.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = resolver.cpp; sourceTree = "<group>"; };
+		FD67B80D230D3B4D009B8296 /* resolver.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = resolver.hpp; sourceTree = "<group>"; };
 		FDBE70C1232D941C006CC0F9 /* llvm_parser.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = llvm_parser.cpp; sourceTree = "<group>"; };
 		FDBE70C2232D941C006CC0F9 /* llvm_parser.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = llvm_parser.hpp; sourceTree = "<group>"; };
 		FDBE70C4232D97C7006CC0F9 /* test.n */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; name = test.n; path = ../../examples/test.n; sourceTree = "<group>"; };
@@ -119,21 +117,20 @@
 				FDC546AA2241864300D99CA9 /* corrector.hpp */,
 				FD1DAC4A2203A32F0014F55E /* analysis.cpp */,
 				FD1DAC4B2203A32F0014F55E /* analysis.hpp */,
-				FD67B80C230D3B4D009B8296 /* helpers.cpp */,
-				FD67B80D230D3B4D009B8296 /* helpers.hpp */,
+				FD67B80C230D3B4D009B8296 /* resolver.cpp */,
+				FD67B80D230D3B4D009B8296 /* resolver.hpp */,
 				FDBE70C1232D941C006CC0F9 /* llvm_parser.cpp */,
 				FDBE70C2232D941C006CC0F9 /* llvm_parser.hpp */,
 				FD67B80A230D3AC3009B8296 /* analysis_ds.hpp */,
 				FD60BC8B230A90BC000B0411 /* symbol_table.cpp */,
 				FD60BC8C230A90BC000B0411 /* symbol_table.hpp */,
-				FD67B806230D38AF009B8296 /* converters.cpp */,
-				FD67B807230D38AF009B8296 /* converters.hpp */,
 				FD180DE5228F5BDB00CBB7B1 /* builtins.cpp */,
 				FD180DE6228F5BDB00CBB7B1 /* builtins.hpp */,
 				FD01760D221CF76800E5D442 /* error.cpp */,
 				FD01760E221CF76900E5D442 /* error.hpp */,
 				FD36010521EB288E005FE844 /* lists.cpp */,
 				FD36010621EB288E005FE844 /* lists.hpp */,
+				FD54F2302398D650000C7D93 /* color.h */,
 				FDBE70C4232D97C7006CC0F9 /* test.n */,
 				FDC9A1D6234FE76100FC2553 /* status.txt */,
 			);
@@ -224,14 +221,13 @@
 				FD180DE7228F5BDB00CBB7B1 /* builtins.cpp in Sources */,
 				FDC546AB2241864300D99CA9 /* corrector.cpp in Sources */,
 				FD52D8452226590600A9C309 /* arguments.cpp in Sources */,
-				FD67B808230D38AF009B8296 /* converters.cpp in Sources */,
 				FDBE70C3232D941C006CC0F9 /* llvm_parser.cpp in Sources */,
 				FD60BC8D230A90BC000B0411 /* symbol_table.cpp in Sources */,
 				FD02050421E7F3C3009C332B /* main.cpp in Sources */,
 				FD01760F221CF76900E5D442 /* error.cpp in Sources */,
 				FD36010121EAFE57005FE844 /* lexer.cpp in Sources */,
 				FD2C68F72230DF3A00EDCE42 /* debug.cpp in Sources */,
-				FD67B80E230D3B4D009B8296 /* helpers.cpp in Sources */,
+				FD67B80E230D3B4D009B8296 /* resolver.cpp in Sources */,
 				FD36010721EB288E005FE844 /* lists.cpp in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -361,11 +357,7 @@
 				GCC_WARN_PEDANTIC = YES;
 				HEADER_SEARCH_PATHS = "";
 				LIBRARY_SEARCH_PATHS = /usr/local/Cellar/llvm/9.0.0_1/lib;
-				OTHER_CPLUSPLUSFLAGS = (
-					"$(OTHER_CFLAGS)",
-					"-Wno-conversion",
-					"-Wno-comma",
-				);
+				OTHER_CPLUSPLUSFLAGS = "$(OTHER_CFLAGS) ";
 				OTHER_LDFLAGS = (
 					"-I/usr/local/Cellar/llvm/9.0.0_1/include",
 					"-std=c++11",
@@ -521,6 +513,13 @@
 				);
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				USER_HEADER_SEARCH_PATHS = /usr/local/Cellar/llvm/9.0.0_1/include;
+				WARNING_CFLAGS = (
+					"-Wall",
+					"-Wextra",
+					"-Wno-conversion",
+					"-Wno-comma",
+					"-Wno-unused-parameter",
+				);
 			};
 			name = Debug;
 		};
@@ -536,11 +535,7 @@
 				GCC_WARN_PEDANTIC = YES;
 				HEADER_SEARCH_PATHS = "";
 				LIBRARY_SEARCH_PATHS = /usr/local/Cellar/llvm/9.0.0_1/lib;
-				OTHER_CPLUSPLUSFLAGS = (
-					"$(OTHER_CFLAGS)",
-					"-Wno-conversion",
-					"-Wno-comma",
-				);
+				OTHER_CPLUSPLUSFLAGS = "$(OTHER_CFLAGS) ";
 				OTHER_LDFLAGS = (
 					"-I/usr/local/Cellar/llvm/9.0.0_1/include",
 					"-std=c++11",
@@ -696,6 +691,13 @@
 				);
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				USER_HEADER_SEARCH_PATHS = /usr/local/Cellar/llvm/9.0.0_1/include;
+				WARNING_CFLAGS = (
+					"-Wall",
+					"-Wextra",
+					"-Wno-conversion",
+					"-Wno-comma",
+					"-Wno-unused-parameter",
+				);
 			};
 			name = Release;
 		};

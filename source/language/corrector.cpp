@@ -2,14 +2,11 @@
 
 #include "lists.hpp"
 #include "arguments.hpp"
-#include "helpers.hpp"
+#include "resolver.hpp"
 #include "debug.hpp"
-
 /*
         known bug:
-
             when we give a indent level of 2, it only finds 1 block from it...?
-
  */
 
 inline static bool is_whitespace(const symbol& e) { return e.type == symbol_type::indent or e.type == symbol_type::newline; }
@@ -64,17 +61,9 @@ void raise_indents(expression_list& list, const file& file, nat level) {
 }
 
 expression_list correct(expression_list unit, const file& file) {
-    
     raise_indents(unit, file, 0); 
     turn_indents_into_blocks(unit, file, 0);    
     remove_whitespace_in_expressions(unit, file, 0);
-    
-    if (debug) {
-        print_translation_unit(unit, file);
-    }
+    if (debug) print_translation_unit(unit, file);
     return unit;
 }
-
-/// TODO: code:    remove_empty_statements_in_blocks(unit.list, file, 0);           // previously named "clean(body)"
-/// then...
-///TODO: delete "clean(block body)" in analysis phase, after coding remove_empty_statements_in_blocks().

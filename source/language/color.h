@@ -9,9 +9,7 @@
 #ifndef color_h
 #define color_h
 
-
 #define use_colored_output 1
-
 
 #if use_colored_output
 #define cRED "\x1B[31m"

@@ -1,8 +1,10 @@
+// DELETE ME:    this should just be inlined into logic code as simply print statements, using builtin 256 colorings.
+
 #include "error.hpp"
 
 #include "color.h"
 #include "analysis_ds.hpp"
-#include "converters.hpp"
+#include "symbol_table.hpp"
 
 #include "llvm/Support/SourceMgr.h"
 
@@ -44,8 +46,6 @@ static std::string warning_heading(const std::string& filename, nat line, nat co
 }
 
 
-// messagers:
-
 void print_error_message(const std::string& filename, const std::string& message, nat line, nat column) {
     std::cerr << error_heading(filename, line, column) << message << cRESET << std::endl;
 }
@@ -53,9 +53,6 @@ void print_error_message(const std::string& filename, const std::string& message
 void print_warning_message(const std::string& filename, const std::string& message, nat line, nat column) {
     std::cerr << warning_heading(filename, line, column) << message << std::endl;
 }
-
-
-// specialized:
 
 void print_lex_error(const std::string& filename, const std::string& state_name, nat line, nat column) {
     std::cerr << error_heading(filename, line, column) << "unterminated " << state_name << std::endl;

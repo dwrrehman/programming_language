@@ -5,7 +5,6 @@
 #include "analysis_ds.hpp"
 
 void initialize_llvm();
-llvm_module process(const file& file, llvm::LLVMContext& context);
 llvm_modules frontend(const arguments& arguments, llvm::LLVMContext& context); 
 llvm_module link(llvm_modules&& modules);
 void set_data_layout(llvm_module& module);

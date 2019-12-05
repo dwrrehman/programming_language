@@ -7,7 +7,7 @@
 #include <iostream>
 #include <fstream>
 
-static void open_file(std::string filename, arguments& args) {
+static inline void open_file(std::string filename, arguments& args) {
     std::ifstream stream {filename};
     if (stream.good()) {
         std::string text {std::istreambuf_iterator<char>(stream), std::istreambuf_iterator<char>()};

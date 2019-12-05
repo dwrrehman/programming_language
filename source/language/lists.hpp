@@ -6,10 +6,8 @@
 
 using nat = int_fast64_t;
 
-// language info
 extern const std::string language_name;
 extern const std::string language_version;
-
 extern const std::string compiler_name;
 extern const std::string compiler_version;
 

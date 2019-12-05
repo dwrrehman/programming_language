@@ -1,9 +1,60 @@
-the current status of the compiler is:
+the current status of the nostril compiler:
+=============================================
+
+
+1. i need to go through and delete all the error.cpp code, and redo all the code as inline print statements, in the logic code.
+
+
+2. i need to start removing features from CSR, specfically:       strings,         ...
+
+CSR should only have in it:
+
+
+    - the csr parsing capability
+        
+    - fdi functionality
+    
+    - llvm string parsing capability
+    
+    - 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
 
 1910104.152555:
+
 
 
         current todo:

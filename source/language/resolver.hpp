@@ -5,12 +5,7 @@
 #include "llvm/IR/Function.h"
 
 bool subexpression(const symbol& s);
-
 bool contains_final_terminator(llvm::Function* main_function);
-void append_return_0_statement(llvm::IRBuilder<> &builder, llvm::Function* main_function, llvm::LLVMContext &context);
-llvm::Function* create_main(llvm::IRBuilder<>& builder, llvm::LLVMContext& context, llvm_module& module);
-
-void prune_extraneous_subexpressions(expression_list& given);
 resolved_expression_list resolve_expression_list(const expression_list& given, nat given_type, llvm::Function*& function, state& state);
 resolved_expression resolve_expression(const expression& given, nat given_type, llvm::Function*& function, state& state);
 resolved_expression resolve(const expression& given, nat given_type, llvm::Function*& function, nat& index, const nat depth, const nat max_depth, nat fdi_length, state& state);

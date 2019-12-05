@@ -1,5 +1,6 @@
 #include "llvm_parser.hpp"
 #include "builtins.hpp"
+#include "error.hpp"
 
 #include "llvm/IR/ModuleSummaryIndex.h"
 #include "llvm/AsmParser/Parser.h"

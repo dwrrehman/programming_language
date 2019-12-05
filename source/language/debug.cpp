@@ -5,6 +5,8 @@
 #include "symbol_table.hpp"
 
 #include <iostream>
+#include <iomanip>
+
 
 void debug_arguments(const arguments& args) {
     std::cout << "file count = " <<  args.files.size() << "\n";
@@ -138,7 +140,7 @@ void print_expression_line(expression expression) {
     int i = 0;
     for (auto symbol : expression.symbols) {
         print_symbol_line(symbol);
-        if (i < expression.symbols.size() - 1) std::cout << " ";
+        if (i < (nat) expression.symbols.size() - 1) std::cout << " ";
         i++;
     }
     std::cout << ")";
@@ -179,20 +181,13 @@ void print_translation_unit(expression_list unit, file file) {
 
 std::string convert_symbol_type(enum symbol_type type) {
     switch (type) {
-        case symbol_type::none:
-            return "{none}";        
-        case symbol_type::subexpression:
-            return "subexpression";
-        case symbol_type::string_literal:
-            return "string literal";
-        case symbol_type::llvm_literal:
-            return "llvm literal";                
-        case symbol_type::identifier:
-            return "identifier";
-        case symbol_type::newline:
-            return "newline";
-        case symbol_type::indent:
-            return "indent";
+        case symbol_type::none: return "{none}";
+        case symbol_type::subexpression: return "subexpression";
+        case symbol_type::string_literal: return "string literal";
+        case symbol_type::llvm_literal: return "llvm literal";
+        case symbol_type::identifier: return "identifier";
+        case symbol_type::newline: return "newline";
+        case symbol_type::indent: return "indent";
     }
 }
 
@@ -203,10 +198,7 @@ void print_resolved_expr(resolved_expression expr, nat depth, state& state) {
     prep(depth); std::cout << "[error = " << std::boolalpha << expr.error << "]\n";
     prep(depth);
     
-    std::cout 
-    << "index = " 
-    << expr.index << " :: " 
-    << expression_to_string(state.stack.get(expr.index), state.stack);
+    std::cout << "index = " << expr.index << " :: " << expression_to_string(state.stack.get(expr.index), state.stack);
     
     if (expr.signature.symbols.size()) {
         std::cout << " ::: " << expression_to_string(expr.signature, state.stack);
@@ -247,3 +239,35 @@ void print_nat_vector(std::vector<nat> v, bool newline) {
     std::cout << "]";
     if (newline) std::cout << "\n";
 }
+
+void debug_table(symbol_table table) {
+    std::cout << "---- debugging stack: ----\n";
+    
+    std::cout << "printing frames: \n";
+    for (auto i = 0; i < (nat) table.frames.size(); i++) {
+        std::cout << "\t ----- FRAME # "<<i<<"---- \n\t\tidxs: { ";
+        for (auto index : table.frames[i].indicies) {
+            std::cout << index << " ";
+        }
+        std::cout << "}\n";
+    }
+    
+    std::cout << "\nmaster: {\n";
+    auto j = 0;
+    for (auto entry : table.master) {
+        std::cout << "\t" << std::setw(6) << j << ": ";
+        std::cout << expression_to_string(entry.signature, table) << "\n";
+        
+        if (entry.value) {
+            std::cout << "\tLLVM value: \n";
+            entry.value->print(llvm::errs());
+        }
+        if (entry.function) {
+            std::cout << "\tLLVM function: \n";
+            entry.function->print(llvm::errs());
+        }
+        j++;
+    }
+    std::cout << "}\n";
+}
+

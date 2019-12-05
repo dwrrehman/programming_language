@@ -1,4 +1,4 @@
-#include "helpers.hpp"
+#include "resolver.hpp"
 #include "compiler.hpp"
 #include "builtins.hpp"
 #include "symbol_table.hpp"
@@ -16,13 +16,10 @@
 const resolved_expression resolution_failure = {0, {}, true};
 const resolved_expression resolved_unit_value = {intrin::unit_value, {}, false};
 
-void prune_extraneous_subexpressions(expression_list& given);
-void prune_extraneous_subexpressions_in_expression(expression& given);
-
 bool subexpression(const symbol& s) { return s.type == symbol_type::subexpression; }
 static inline bool identifier(const symbol& s) { return s.type == symbol_type::identifier; }
 static inline bool llvm_string(const symbol& s) { return s.type == symbol_type::llvm_literal; }
-static inline bool string_literal(const symbol& s) { return s.type == symbol_type::string_literal; }
+//static inline bool string_literal(const symbol& s) { return s.type == symbol_type::string_literal; }
 static inline bool parameter(const symbol &symbol) { return subexpression(symbol); }
 static inline bool are_equal_identifiers(const symbol &first, const symbol &second) { return identifier(first) and identifier(second) and first.identifier.name.value == second.identifier.name.value; }
 static inline bool is_donothing_call(llvm::Instruction* ins) { return ins and std::string(ins->getOpcodeName()) == "call" and std::string(ins->getOperand(0)->getName()) == "llvm.donothing"; }
@@ -38,46 +35,17 @@ bool contains_final_terminator(llvm::Function* main_function) {
     return false;
 }
 
-void append_return_0_statement(llvm::IRBuilder<> &builder, llvm::Function* main_function, llvm::LLVMContext& context) {
-    llvm::Value* value = llvm::ConstantInt::get(llvm::Type::getInt32Ty(context), 0);    
-    builder.SetInsertPoint(&main_function->getBasicBlockList().back());
-    builder.CreateRet(value);
-}
+//llvm::Constant* create_global_constant_string(llvm::Module* module, const std::string& string) {
+//    auto type = llvm::ArrayType::get(llvm::Type::getInt8Ty(module->getContext()), string.size() + 1);
+//    std::vector<llvm::Constant*> characters (string.size() + 1);
+//    for (nat i = 0; i < string.size(); i++) characters[i] = llvm::ConstantInt::get(llvm::Type::getInt8Ty(module->getContext()), string[i]);
+//    characters[string.size()] = llvm::ConstantInt::get(llvm::Type::getInt8Ty(module->getContext()), '\0');
+//    auto llvm_string = new llvm::GlobalVariable(*module, type, true, llvm::GlobalVariable::ExternalLinkage,
+//                                                llvm::ConstantArray::get(type, characters), "string");
+//    return llvm::ConstantExpr::getBitCast(llvm_string, llvm::Type::getInt8Ty(module->getContext())->getPointerTo());
+//}
 
-llvm::Function* create_main(llvm::IRBuilder<>& builder, llvm::LLVMContext& context, llvm_module& module) {
-    std::vector<llvm::Type*> state = {llvm::Type::getInt32Ty(context), llvm::Type::getInt8PtrTy(context)->getPointerTo()};
-    auto main_type = llvm::FunctionType::get(llvm::Type::getInt32Ty(context), state, false);
-    auto main_function = llvm::Function::Create(main_type, llvm::Function::ExternalLinkage, "main", module.get());
-    builder.SetInsertPoint(llvm::BasicBlock::Create(context, "entry", main_function));    
-    return main_function;
-}
-
-void prune_extraneous_subexpressions_in_expression(expression& given) {
-    while (given.symbols.size() == 1
-           and subexpression(given.symbols[0])
-           and given.symbols[0].expressions.list.size() == 1
-           and given.symbols[0].expressions.list.back().symbols.size()) {
-        auto save = given.symbols[0].expressions.list.back().symbols;
-        given.symbols = save;
-    }
-    for (auto& symbol : given.symbols) if (subexpression(symbol)) prune_extraneous_subexpressions(symbol.expressions);
-}
-
-void prune_extraneous_subexpressions(expression_list& given) {
-    for (auto& expression : given.list) prune_extraneous_subexpressions_in_expression(expression);
-}
-
-llvm::Constant* create_global_constant_string(llvm::Module* module, const std::string& string) {
-    auto type = llvm::ArrayType::get(llvm::Type::getInt8Ty(module->getContext()), string.size() + 1);
-    std::vector<llvm::Constant*> characters (string.size() + 1);        
-    for (nat i = 0; i < string.size(); i++) characters[i] = llvm::ConstantInt::get(llvm::Type::getInt8Ty(module->getContext()), string[i]);    
-    characters[string.size()] = llvm::ConstantInt::get(llvm::Type::getInt8Ty(module->getContext()), '\0');
-    auto llvm_string = new llvm::GlobalVariable(*module, type, true, llvm::GlobalVariable::ExternalLinkage, 
-                                                llvm::ConstantArray::get(type, characters), "string");    
-    return llvm::ConstantExpr::getBitCast(llvm_string, llvm::Type::getInt8Ty(module->getContext())->getPointerTo());
-}
-
-static std::vector<llvm::GenericValue> turn_into_value_array(const std::vector<nat>& canonical_arguments, std::unique_ptr<llvm::Module>& module) {
+static inline std::vector<llvm::GenericValue> turn_into_value_array(const std::vector<nat>& canonical_arguments, std::unique_ptr<llvm::Module>& module) {
     std::vector<llvm::GenericValue> arguments = {};
     for (auto index : canonical_arguments) 
         arguments.push_back(llvm::GenericValue {llvm::ConstantInt::get(llvm::Type::getInt32Ty(module->getContext()), index)});
@@ -91,14 +59,14 @@ nat evaluate(llvm_module& module, llvm::Function* function, const std::vector<na
     return jit->runFunction(function, turn_into_value_array(args, module)).IntVal.getLimitedValue();
 }
 
-static std::vector<nat> generate_type_list(const expression_list &given, nat given_type) {
+static inline std::vector<nat> generate_type_list(const expression_list &given, nat given_type) {
     if (given.list.empty()) return {};
     std::vector<nat> types (given.list.size() - 1, intrin::unit);
     types.push_back(given_type);
     return types;
 }
 
-static bool is_unit_value(const expression& expression) {
+static inline bool is_unit_value(const expression& expression) {
     return expression.symbols.size() == 1 
     and subexpression(expression.symbols[0]) 
     and expression.symbols[0].expressions.list.empty();
@@ -116,7 +84,7 @@ static bool matches(const expression& given, const expression& signature, nat gi
         
     if (given_type != signature.type and given.type != intrin::infered) return false;
     for (auto symbol : signature.symbols) {
-        if (index >= given.symbols.size()) return false;
+        if (index >= (nat) given.symbols.size()) return false;
         if (parameter(symbol) and subexpression(given.symbols[index])) {
             auto argument = resolve_expression_list(given.symbols[index].expressions, symbol.expressions.list.back().type, function, state);            
             if (argument.error) return false;
@@ -133,24 +101,24 @@ static bool matches(const expression& given, const expression& signature, nat gi
     }
     return true;
 }
-
-static resolved_expression parse_string(const expression &given, nat &index, state &state) {
-    auto string_type = llvm::Type::getInt8PtrTy(state.data.module->getContext());
-    auto actual_type = state.stack.master[intrin::llvm].llvm_type;
-    
-    if (actual_type == string_type or true ) {   ///TODO: delete the "or true".     (why is it even here?)
-        resolved_expression string {};
-        string.index = intrin::llvm;
-        string.constant = create_global_constant_string(state.data.module, given.symbols[index].string.literal.value);
-        return string;
-    } else return resolution_failure;
-}
+//
+//static resolved_expression parse_string(const expression &given, nat &index, state &state) {
+//    auto string_type = llvm::Type::getInt8PtrTy(state.data.module->getContext());
+//    auto actual_type = state.stack.master[intrin::llvm].llvm_type;
+//
+//    if (actual_type == string_type or true ) {   ///TODO: delete the "or true".     (why is it even here?)
+//        resolved_expression string {};
+//        string.index = intrin::llvm;
+//        string.constant = create_global_constant_string(state.data.module, given.symbols[index].string.literal.value);
+//        return string;
+//    } else return resolution_failure;
+//}
 
 resolved_expression resolve(const expression& given, nat given_type, llvm::Function*& function, 
                             nat& index, nat depth, nat max_depth, nat fdi_length,
                             state& state) {
     
-    if (index >= given.symbols.size() or not given_type or depth > max_depth) 
+    if (index >= (nat) given.symbols.size() or not given_type or depth > max_depth)
         return resolution_failure;
     
     else if (given_type == intrin::abstraction)
@@ -160,9 +128,9 @@ resolved_expression resolve(const expression& given, nat given_type, llvm::Funct
     else if (llvm_string(given.symbols[index]) and given_type == intrin::unit) 
         return parse_llvm_string(function, given.symbols[index].llvm.literal.value, index, state);
     
-    else if (string_literal(given.symbols[index]) and given_type == intrin::llvm) 
-        parse_string(given, index, state);
-    
+//    else if (string_literal(given.symbols[index]) and given_type == intrin::llvm)
+//        parse_string(given, index, state);
+//
     
     nat saved = index;
     for (auto signature_index : state.stack.top()) {        
@@ -183,11 +151,11 @@ resolved_expression resolve_expression(const expression& given, nat given_type, 
         for (nat fdi_length = given.symbols.size(); fdi_length--;) {
             pointer = 0;
             solution = resolve(given, given_type, function, pointer, 0, max_depth, fdi_length, state);
-            if (not solution.error and pointer == given.symbols.size()) break;
+            if (not solution.error and pointer == (nat) given.symbols.size()) break;
         }
-        if (not solution.error and pointer == given.symbols.size()) break;
+        if (not solution.error and pointer == (nat) given.symbols.size()) break;
     }
-    if (pointer < given.symbols.size()) solution.error = true; 
+    if (pointer < (nat) given.symbols.size()) solution.error = true;
     if (solution.error) print_unresolved_error(given, state);
     return solution;
 }
