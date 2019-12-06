@@ -214,7 +214,7 @@ static const resolved_expression resolution_failure = {0, {}, true};
 static const resolved_expression resolved_unit_value = {intrin::unit_value, {}, false};
 
 // global parameters:
-static nat max_expression_depth = 2;
+static nat max_expression_depth = 5;
 static bool debug = false;
 
 // lexer globals:
@@ -503,30 +503,6 @@ void print_expression(expression expression, nat d) {
     prep(d); std::cout << "type = " << expression.type << "\n";
 }
 
-static inline void print_symbol_line(symbol symbol) {
-
-    switch (symbol.type) {
-        case symbol_type::identifier:
-            std::cout << symbol.identifier.name.value;
-            break;
-
-        case symbol_type::llvm_literal:
-            std::cout << "\'" << symbol.llvm.literal.value << "\'";
-            break;
-
-        case symbol_type::string_literal:
-            std::cout << "\"" << symbol.string.literal.value << "\"";
-            break;
-
-        case symbol_type::none:
-            std::cout << "{NONE}\n";
-            assert(false);
-            break;
-        default: break;
-    }
-}
-
-
 static inline std::string stringify_intrin(nat i) {
     switch (i) {
         case intrin::typeless: return "typeless";
@@ -541,18 +517,6 @@ static inline std::string stringify_intrin(nat i) {
         case intrin::define: return "_c";
     }
     return "{compiler error}";
-}
-
-static inline void print_expression_line(expression expression) {
-    std::cout << "(";
-    nat i = 0;
-    for (auto symbol : expression.symbols) {
-        print_symbol_line(symbol);
-        if (i < (nat) expression.symbols.size() - 1) std::cout << " ";
-        i++;
-    }
-    std::cout << ")";
-    if (expression.type) std::cout << ": " << stringify_intrin(expression.type);
 }
 
 static inline void print_translation_unit(expression unit, file file) {
@@ -765,7 +729,7 @@ static inline llvm::Function* create_main(llvm::IRBuilder<>& builder, llvm::LLVM
 static inline void prune_extraneous_subexpressions(expression& given) {
     while (given.symbols.size() == 1
            and subexpression(given.symbols[0])
-           and given.symbols[0].subexpression.symbols.size()) {
+           /*and given.symbols[0].subexpression.symbols.size()*/) {
         auto save = given.symbols[0].subexpression.symbols;
         given.symbols = save;
     }
@@ -878,18 +842,12 @@ static inline bool matches(const expression& given, const expression& signature,
     
     for (auto symbol : signature.symbols) {
         if (index >= (nat) given.symbols.size()) return false;
-        if (parameter(symbol) and subexpression(given.symbols[index])) {
-            auto argument = resolve(given.symbols[index].subexpression, symbol.subexpression.type, function, state);
-            if (argument.error) return false;
-            args.push_back(argument);
-            index++;
-            
-        } else if (parameter(symbol)) {
+        if (parameter(symbol)) {
             auto argument = search(given, symbol.subexpression.type, function, index, depth + 1, max_depth, fdi_length, state);
             if (argument.error) return false;
             args.push_back({argument});
-            
         } else if (not are_equal_identifiers(symbol, given.symbols[index])) return false;
+        
         else index++;
     }
     return true;
@@ -911,14 +869,23 @@ static inline bool matches(const expression& given, const expression& signature,
 resolved_expression search(const expression& given, nat given_type, llvm::Function*& function,
                            nat& index, nat depth, nat max_depth, nat fdi_length, resolve_state& state) {
     
-    if (given.symbols.empty() or (given.symbols.size() == 1 and subexpression(given.symbols[0]) and given.symbols[0].subexpression.symbols.empty())) {
-        if (given.symbols.size()) {
-            index++;
-        }
-        return resolved_unit_value;
-    }
+//    if ((given.symbols.empty() or (given.symbols.size() == 1 and subexpression(given.symbols[0]) and given.symbols[0].subexpression.symbols.empty()))
+//        and given_type == intrin::unit) {
+//        if (given.symbols.size()) index++;
+//        return resolved_unit_value;
+//    }
 //    
     if (not given_type or depth > max_depth) return resolution_failure;
+    
+    
+    
+    else if (index < (nat) given.symbols.size() and subexpression(given.symbols[index])) {
+        auto resolved = resolve(given.symbols[index].subexpression, given_type, function, state);
+        if (not resolved.error) index++;
+        return resolved;
+    }
+    
+    
     
     else if (given_type == intrin::abstraction) return construct_signature(fdi_length, given, index);
     
@@ -941,6 +908,7 @@ resolved_expression search(const expression& given, nat given_type, llvm::Functi
 }
 
 resolved_expression resolve(const expression& given, nat given_type, llvm::Function*& function, resolve_state& state) {
+    
     resolved_expression solution {};
     nat pointer = 0;
     for (nat max_depth = 0; max_depth <= max_expression_depth; max_depth++) {
@@ -951,6 +919,9 @@ resolved_expression resolve(const expression& given, nat given_type, llvm::Funct
 //        }
         if (not solution.error and pointer == (nat) given.symbols.size()) break;
     }
+        
+//    if (given.symbols.empty() and given_type == intrin::unit) return resolved_unit_value;
+    
     if (pointer < (nat) given.symbols.size()) solution.error = true;
     if (solution.error) printf("n3zqx2l: error: unresolved expression\n"); // print_unresolved_error(given, state);
     return solution;
@@ -1057,7 +1028,16 @@ static inline llvm_module analyze(expression program, const file& file, llvm::LL
     stack.sort_top_by_largest();
     auto main = create_main(builder, context, module);
     builder.CreateCall(llvm::Intrinsic::getDeclaration(module.get(), llvm::Intrinsic::donothing));
+    
+    
+//    std::cout << "before: " << expression_to_string(program, state.stack) << "\n";
+    
     prune_extraneous_subexpressions(program);
+    
+    std::cout << "after: " << expression_to_string(program, state.stack) << "\n";
+    
+//    exit(1);
+    
     auto resolved = resolve(program, intrin::unit, main, state);
     remove_donothing_remnants_in(module);
     move_lone_terminators_into_previous_blocks(module);
