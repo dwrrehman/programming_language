@@ -836,22 +836,6 @@ static resolved_expression construct_signature(nat fdi_length, const expression&
     return result;
 }
 
-static inline bool matches(const expression& given, const expression& signature, nat given_type, std::vector<resolved_expression>& args, llvm::Function*& function,
-                           nat& index, nat depth, nat max_depth, nat fdi_length, resolve_state& state) {
-    if (given_type != signature.type) return false;
-    
-    for (auto symbol : signature.symbols) {
-        if (index >= (nat) given.symbols.size()) return false;
-        if (parameter(symbol)) {
-            auto argument = search(given, symbol.subexpression.type, function, index, depth + 1, max_depth, fdi_length, state);
-            if (argument.error) return false;
-            args.push_back({argument});
-        } else if (not are_equal_identifiers(symbol, given.symbols[index])) return false;
-        
-        else index++;
-    }
-    return true;
-}
 
 ///TODO: unfinished.
 //static resolved_expression parse_string(const expression &given, nat &index, state &state) {
@@ -866,36 +850,61 @@ static inline bool matches(const expression& given, const expression& signature,
 //    } else return resolution_failure;
 //}
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+static inline bool matches(const expression& given, const expression& signature, nat given_type, std::vector<resolved_expression>& args, llvm::Function*& function,
+                           nat& index, nat depth, nat max_depth, nat fdi_length, resolve_state& state) {
+    if (given_type != signature.type) return false;
+    
+    for (auto symbol : signature.symbols) {
+        if (index >= (nat) given.symbols.size()) return false;
+        if (parameter(symbol)) {
+            auto argument = search(given, symbol.subexpression.type, function, index, depth + 1, max_depth, fdi_length, state);
+            if (argument.error) return false;
+            args.push_back({argument});
+        } else if (not are_equal_identifiers(symbol, given.symbols[index])) return false;
+        else index++;
+    }
+    return true;
+}
+
 resolved_expression search(const expression& given, nat given_type, llvm::Function*& function,
                            nat& index, nat depth, nat max_depth, nat fdi_length, resolve_state& state) {
     
-//    if ((given.symbols.empty() or (given.symbols.size() == 1 and subexpression(given.symbols[0]) and given.symbols[0].subexpression.symbols.empty()))
-//        and given_type == intrin::unit) {
-//        if (given.symbols.size()) index++;
-//        return resolved_unit_value;
-//    }
-//    
     if (not given_type or depth > max_depth) return resolution_failure;
-    
-    
     
     else if (index < (nat) given.symbols.size() and subexpression(given.symbols[index])) {
         auto resolved = resolve(given.symbols[index].subexpression, given_type, function, state);
         if (not resolved.error) index++;
         return resolved;
     }
-    
-    
-    
     else if (given_type == intrin::abstraction) return construct_signature(fdi_length, given, index);
-    
-    ///TODO: unfinished.
-    ///TODO: known bug: passing multiple different length signatures doesnt work with the current fdi solution.
-    
     else if (index < (nat) given.symbols.size() and llvm_string(given.symbols[index]) and given_type == intrin::unit) return parse_llvm_string(function, given.symbols[index].llvm.literal.value, index, state);
-    
-//    else if (string_literal(given.symbols[index]) and given_type == intrin::llvm)
-//        parse_string(given, index, state);
+//    else if (string_literal(given.symbols[index]) and given_type == intrin::llvm)  parse_string(given, index, state);
     
     nat saved = index;
     for (auto s : state.stack.top()) {
@@ -919,13 +928,33 @@ resolved_expression resolve(const expression& given, nat given_type, llvm::Funct
 //        }
         if (not solution.error and pointer == (nat) given.symbols.size()) break;
     }
-        
-//    if (given.symbols.empty() and given_type == intrin::unit) return resolved_unit_value;
     
+//    if (given.symbols.empty() and given_type == intrin::unit) return resolved_unit_value;
     if (pointer < (nat) given.symbols.size()) solution.error = true;
     if (solution.error) printf("n3zqx2l: error: unresolved expression\n"); // print_unresolved_error(given, state);
     return solution;
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 static inline void delete_empty_blocks(llvm_module& module) {
     for (auto& function : module->getFunctionList()) {
