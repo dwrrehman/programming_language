@@ -198,7 +198,7 @@ static expression chain = {
 
 static expression hello_test = {
     {
-        {{"hello"}}, {{"there"}}, {{intrin::unit}}, {{"+"}}
+        {{"hello"}}, //{{"there"}}, {{intrin::unit}}, {{"+"}}
     }, intrin::unit
 };
 
@@ -214,7 +214,7 @@ static const resolved_expression resolution_failure = {0, {}, true};
 static const resolved_expression resolved_unit_value = {intrin::unit_value, {}, false};
 
 // global parameters:
-static nat max_expression_depth = 16;
+static nat max_expression_depth = 2;
 static bool debug = false;
 
 // lexer globals:
@@ -234,8 +234,8 @@ void print_symbol(symbol s, nat d);
 symbol parse_symbol(const file& file);
 expression parse_expression(const file& file, bool can_be_empty);
 
-resolved_expression resolve(const expression& given, nat given_type, llvm::Function*& function, resolve_state& state, int d);
-resolved_expression search(const expression& given, nat given_type, llvm::Function*& function, nat& index, nat depth, nat max_depth, nat fdi_length, resolve_state& state, int d);
+resolved_expression resolve(const expression& given, nat given_type, llvm::Function*& function, resolve_state& state);
+resolved_expression search(const expression& given, nat given_type, llvm::Function*& function, nat& index, nat depth, nat max_depth, nat fdi_length, resolve_state& state);
 
 
 static inline void open_file(const char* filename, arguments& args) {
@@ -873,28 +873,25 @@ static resolved_expression construct_signature(nat fdi_length, const expression&
 }
 
 static inline bool matches(const expression& given, const expression& signature, nat given_type, std::vector<resolved_expression>& args, llvm::Function*& function,
-                           nat& index, nat depth, nat max_depth, nat fdi_length, resolve_state& state,
-                           int d) {
-        prep(d); printf("CHECKING IF MATCHES: "); std::cout << expression_to_string(given, state.stack) << " and " << expression_to_string(signature, state.stack) << "\n";
+                           nat& index, nat depth, nat max_depth, nat fdi_length, resolve_state& state) {
     if (given_type != signature.type) return false;
     
     for (auto symbol : signature.symbols) {
         if (index >= (nat) given.symbols.size()) return false;
         if (parameter(symbol) and subexpression(given.symbols[index])) {
-            auto argument = resolve(given.symbols[index].subexpression, symbol.subexpression.type, function, state, d + 1);
+            auto argument = resolve(given.symbols[index].subexpression, symbol.subexpression.type, function, state);
             if (argument.error) return false;
             args.push_back(argument);
             index++;
             
         } else if (parameter(symbol)) {
-            auto argument = search(given, symbol.subexpression.type, function, index, depth + 1, max_depth, fdi_length, state, d + 1);
+            auto argument = search(given, symbol.subexpression.type, function, index, depth + 1, max_depth, fdi_length, state);
             if (argument.error) return false;
             args.push_back({argument});
             
         } else if (not are_equal_identifiers(symbol, given.symbols[index])) return false;
         else index++;
     }
-    prep(d); printf("THEY MATCH!\n");
     return true;
 }
 
@@ -912,45 +909,44 @@ static inline bool matches(const expression& given, const expression& signature,
 //}
 
 resolved_expression search(const expression& given, nat given_type, llvm::Function*& function,
-                           nat& index, nat depth, nat max_depth, nat fdi_length, resolve_state& state,
-                           int d) {
-    prep(d); printf("SEARCH (depth = %d / %d)", (int) depth, (int) max_depth);
-    if (given.symbols.empty()) return resolved_unit_value;
-    if (index >= (nat) given.symbols.size() or not given_type or depth > max_depth) return resolution_failure;
+                           nat& index, nat depth, nat max_depth, nat fdi_length, resolve_state& state) {
+    
+    if (given.symbols.empty() or (given.symbols.size() == 1 and subexpression(given.symbols[0]) and given.symbols[0].subexpression.symbols.empty())) {
+        if (given.symbols.size()) {
+            index++;
+        }
+        return resolved_unit_value;
+    }
+//    
+    if (not given_type or depth > max_depth) return resolution_failure;
     
     else if (given_type == intrin::abstraction) return construct_signature(fdi_length, given, index);
     
     ///TODO: unfinished.
     ///TODO: known bug: passing multiple different length signatures doesnt work with the current fdi solution.
     
-    else if (llvm_string(given.symbols[index]) and given_type == intrin::unit) return parse_llvm_string(function, given.symbols[index].llvm.literal.value, index, state);
+    else if (index < (nat) given.symbols.size() and llvm_string(given.symbols[index]) and given_type == intrin::unit) return parse_llvm_string(function, given.symbols[index].llvm.literal.value, index, state);
     
 //    else if (string_literal(given.symbols[index]) and given_type == intrin::llvm)
 //        parse_string(given, index, state);
-//
-    ///TODO: unfinished.
     
     nat saved = index;
     for (auto s : state.stack.top()) {
         index = saved;
-        prep(d); std::cout << "checking: " << expression_to_string(state.stack.get(s), state.stack) << "... \n";
         std::vector<resolved_expression> args = {};
-        if (matches(given, state.stack.get(s), given_type, args, function, index, depth, max_depth, fdi_length, state, d))
+        if (matches(given, state.stack.get(s), given_type, args, function, index, depth, max_depth, fdi_length, state))
             return {s, args, false};
     }
     return resolution_failure;
 }
 
-resolved_expression resolve(const expression& given, nat given_type, llvm::Function*& function, resolve_state& state, int d) {
-    prep(d); printf("RESOLVING: "); std::cout << expression_to_string(given, state.stack) << "\n";
-//    if (is_unit_value(given) and given_type == intrin::unit) return resolved_unit_value;
+resolved_expression resolve(const expression& given, nat given_type, llvm::Function*& function, resolve_state& state) {
     resolved_expression solution {};
     nat pointer = 0;
     for (nat max_depth = 0; max_depth <= max_expression_depth; max_depth++) {
 //        for (nat fdi_length = given.symbols.size(); fdi_length--;) {
             pointer = 0;
-            prep(d); printf("------------- trying depth = %d --------------\n", (int) max_depth);
-            solution = search(given, given_type, function, pointer, 0, max_depth, 0/*fdi_length*/, state, 0);
+            solution = search(given, given_type, function, pointer, 0, max_depth, 0/*fdi_length*/, state);
             if (not solution.error and pointer == (nat) given.symbols.size()) break;
 //        }
         if (not solution.error and pointer == (nat) given.symbols.size()) break;
@@ -1062,7 +1058,7 @@ static inline llvm_module analyze(expression program, const file& file, llvm::LL
     auto main = create_main(builder, context, module);
     builder.CreateCall(llvm::Intrinsic::getDeclaration(module.get(), llvm::Intrinsic::donothing));
     prune_extraneous_subexpressions(program);
-    auto resolved = resolve(program, intrin::unit, main, state, 0);
+    auto resolved = resolve(program, intrin::unit, main, state);
     remove_donothing_remnants_in(module);
     move_lone_terminators_into_previous_blocks(module);
     delete_empty_blocks(module);
