@@ -25,34 +25,22 @@
 #include <string>
 #include <vector>
 
-
-/// printf("n3zqx2l: %s:%lld:%lld: error: %s", filename, line, column, message);
-/// printf("%s:%lld:%lld: warning: %s", filename, line, column, message);
-
-///TODO: unfinished.
-
-//void print_parse_error(const std::string& filename, nat line, nat column, const std::string& type, std::string found, const std::string& expected) {
-/// std::cerr << error_heading(filename, line, column) << "unexpected " << type << ", \"" << found << "\", expected " << expected << std::endl;
-
 //void print_unresolved_error(const expression& given, state &state) {
 ////    const std::string name = expression_to_string(given, state.stack);
 ////    print_error_message(state.data.file.name, "unresolved expression: " + name, given.starting_token.line, given.starting_token.column);
 
-
-#define prep(_level) for (nat i = _level; i--;) std::cout << ".   "
-#define clear_and_return()  auto result = current; current = {}; return result;
-#define revert_and_return()    revert(saved); return {true, true, true}
+#define prep(_level)            for (nat i = _level; i--;) std::cout << ".   "
+#define clear_and_return()      auto result = current; current = {}; return result;
+#define revert_and_return()     revert(saved); return {true, true, true}
 
 using nat = int_fast64_t;
 using stack_frame = std::vector<nat>;
 using llvm_module = std::unique_ptr<llvm::Module>;
 using llvm_modules = std::vector<llvm_module>;
 
-struct expression_list;
 struct expression;
 struct symbol;
 struct symbol_table;
-struct resolved_expression_list;
 
 enum class token_type {null, string, identifier, character, llvm, keyword, operator_};
 enum class lex_state {none, string, string_expression, identifier, llvm_string, comment, multiline_comment};
@@ -117,16 +105,6 @@ struct identifier {
     }
 };
 
-struct expression_list {
-    std::vector<expression> list = {};
-    bool error = {};
-    token starting_token = {};
-    expression_list(){}
-    expression_list(bool e, bool _, bool __): error(e or _ or __) {}
-    expression_list(const std::vector<expression>& es): list(es) {}
-    expression_list(const std::vector<expression>& es, bool e): list(es), error(e) {}
-};
-
 struct expression {
     std::vector<symbol> symbols = {};
     nat type = 0;
@@ -140,7 +118,7 @@ struct expression {
 
 struct symbol {
     symbol_type type = symbol_type::none;
-    expression_list expressions = {};
+    expression subexpression = {};
     string_literal string = {};
     llvm_literal llvm = {};
     identifier identifier = {};
@@ -152,8 +130,7 @@ struct symbol {
     symbol(const string_literal& literal): type(symbol_type::string_literal), string(literal) {}
     symbol(const llvm_literal& literal): type(symbol_type::llvm_literal), llvm(literal) {}
     symbol(struct identifier id): type(symbol_type::identifier), identifier(id) {}
-    symbol(const expression_list& es): type(symbol_type::subexpression), expressions(es) {}
-    symbol(const expression& e): symbol(expression_list {{e}}) {}
+    symbol(const expression& e): type(symbol_type::subexpression), subexpression(e) {}
 };
 
 struct program_data {
@@ -169,21 +146,16 @@ struct resolve_state {
 
 struct resolved_expression {
     nat index = 0;
-    std::vector<resolved_expression_list> args = {};
+    std::vector<resolved_expression> args = {};
     bool error = false;
     llvm::Type* llvm_type = nullptr;
     expression signature = {};
     llvm::Value* constant = {};
 };
 
-struct resolved_expression_list {
-    std::vector<resolved_expression> list = {};
-    bool error = false;
-};
-
 struct signature_entry {
     expression signature = {};
-    expression_list definition = {};
+    expression definition = {};
     nat precedence = 0;
     llvm::Value* value = nullptr;
     llvm::Function* function = nullptr;
@@ -201,7 +173,7 @@ struct symbol_table {
     void pop_last_frame();
     std::vector<nat>& top();
     expression& get(nat index);
-    void define(const expression& signature, const expression_list& definition, nat back_from, nat parent = 0);
+    void define(const expression& signature, const expression& definition, nat back_from, nat parent = 0);
     void sort_top_by_largest();
     std::vector<std::string> llvm_key_symbols_in_table(llvm::ValueSymbolTable llvm);
 };
@@ -217,7 +189,21 @@ static expression llvm_type = {{{{"_llvm"}}}, intrin::typeless}; // placeholder
 static expression application_type = {{{{"_a"}}}, intrin::type};
 static expression abstraction_type = {{{{"_b"}}}, intrin::type};
 static expression define_abstraction = {{{{"_c"}}, {{intrin::abstraction}}, {{intrin::type}}, {{intrin::application}}, {{intrin::application}}}, intrin::unit};
-static const std::vector<expression> builtins = { type_type, infered_type, none_type, unit_type, unit_value, llvm_type, application_type, abstraction_type, define_abstraction };
+
+static expression hello_test = {
+    {
+        {{"hello"}}
+    }, intrin::unit
+};
+
+
+static const std::vector<expression> builtins = {
+    type_type, infered_type, none_type, unit_type, unit_value, llvm_type,
+    application_type, abstraction_type, define_abstraction,
+    
+    hello_test
+};
+
 static const resolved_expression resolution_failure = {0, {}, true};
 static const resolved_expression resolved_unit_value = {intrin::unit_value, {}, false};
 
@@ -236,15 +222,15 @@ static lex_state lex_state = lex_state::none;
 static token current = {};
 
 // prototypes:
-void print_expression_list(expression_list list, nat d);
+void print_expression(expression e, nat d);
 void print_symbol(symbol s, nat d);
-void print_expression(expression s, nat d);
+
 symbol parse_symbol(const file& file);
 expression parse_expression(const file& file, bool can_be_empty);
-expression_list parse_expression_list(const file& file, bool can_be_empty);
-void prune_extraneous_subexpressions(expression_list& given);
+
+resolved_expression resolve_expression(const expression& given, nat given_type, llvm::Function*& function, resolve_state& state);
 resolved_expression resolve(const expression& given, nat given_type, llvm::Function*& function, nat& index, nat depth, nat max_depth, nat fdi_length, resolve_state& state);
-resolved_expression_list resolve_expression_list(const expression_list& given, nat given_type, llvm::Function*& function, resolve_state& state);
+
 
 static inline void open_file(const char* filename, arguments& args) {
     std::ifstream stream {filename};
@@ -386,12 +372,12 @@ static inline token next() {
         //---------------------- finishing  ----------------------
         else if ((text[c] == '\n' and lex_state == lex_state::comment)
                  or (text[c] == ';' and lex_state == lex_state::multiline_comment)) lex_state = lex_state::none;
-            
+        
         else if ((text[c] == '\"' and lex_state == lex_state::string) or (text[c] == '`' and lex_state == lex_state::llvm_string)) {
             lex_state = lex_state::none;
             advance_by(1);
             clear_and_return();
-
+        
         } else if (is_identifier(text[c]) and is_valid(c+1) and not is_identifier(text[c+1]) and lex_state == lex_state::identifier) {
             current.value += text[c];
             lex_state = lex_state::none;
@@ -461,7 +447,6 @@ static inline void print_lex(const std::vector<struct token>& tokens) {
     std::cout << ":::::::END OF LEX:::::::" << std::endl;
 }
 
-
 static inline void debug_token_stream() {
     std::vector<struct token> tokens = {};
     struct token t = {};
@@ -470,7 +455,6 @@ static inline void debug_token_stream() {
 }
 
 void print_symbol(symbol symbol, nat d) {
-    prep(d); std::cout << "symbol: \n";
     switch (symbol.type) {
 
         case symbol_type::identifier:
@@ -486,8 +470,8 @@ void print_symbol(symbol symbol, nat d) {
             break;
             
         case symbol_type::subexpression:
-            prep(d); std::cout << "list symbol\n";
-            print_expression_list(symbol.expressions, d+1);
+            prep(d); std::cout << "subexpression:\n";
+            print_expression(symbol.subexpression, d+1);
             break;
 
         case symbol_type::none:
@@ -553,7 +537,6 @@ static inline std::string stringify_intrin(nat i) {
     return "{compiler error}";
 }
 
-
 static inline void print_expression_line(expression expression) {
     std::cout << "(";
     nat i = 0;
@@ -566,35 +549,9 @@ static inline void print_expression_line(expression expression) {
     if (expression.type) std::cout << ": " << stringify_intrin(expression.type);
 }
 
-void print_expression_list(expression_list list, nat d) {
-
-    prep(d); std::cout << "expression list:\n";
-    prep(d); std::cout << "expression count = " << list.list.size() << "\n";
-    nat i = 0;
-    for (auto e : list.list) {
-        prep(d+1); std::cout << "expression #" << i << "\n";
-        prep(d+1); std::cout << std::boolalpha << "error: " << e.error << "\n";
-        print_expression(e, d+2);
-        prep(d+1); std::cout << "\n";
-        i++;
-    }
-}
-
-static inline void print_expression_list_line(expression_list list) {
-    std::cout << "{\n";
-    nat i = 0;
-    for (auto e : list.list) {
-        std::cout << "\t" << i << ": ";
-        print_expression_line(e);
-        std::cout << "\n";
-        i++;
-    }
-    std::cout << "}\n";
-}
-
-static inline void print_translation_unit(expression_list unit, file file) {
+static inline void print_translation_unit(expression unit, file file) {
     std::cout << "translation unit: (" << file.name << ")\n";
-    print_expression_list(unit, 1);
+    print_expression(unit, 1);
 }
 
 static inline struct string_literal parse_string_literal() {
@@ -622,16 +579,15 @@ symbol parse_symbol(const file& file) {
     auto saved = save();
     auto t = next();
     if (is_open_paren(t)) {
-        auto expressions = parse_expression_list(file, true);
+        auto expressions = parse_expression(file, true);
         if (not expressions.error) {
             auto saved_t = t;
             t = next();
             expressions.starting_token = t;
             if (is_close_paren(t)) return { expressions };
             else {
-                printf("n3zqx2l: %s:%lld:%lld: unexpected %s, \"%s\", expected \")\" to close expression\n", file.name, saved_t.line, saved_t.column, convert_token_type_representation(t.type), t.value.c_str());
-                
-//                print_parse_error( , , );
+                printf("n3zqx2l: %s:%lld:%lld: unexpected %s, \"%s\", expected \")\" to close expression\n",
+                       file.name, saved_t.line, saved_t.column, convert_token_type_representation(t.type), t.value.c_str());
                 revert_and_return();
             }
         }
@@ -673,33 +629,7 @@ expression parse_expression(const file& file, bool can_be_empty) {
     return result;
 }
 
-expression parse_terminated_expression(const file& file) {
-    
-    auto expression = parse_expression(file, /*can_be_empty = */true);
-
-    auto saved = save();
-    auto t = next();
-    if (not (is_close_paren(t) and expression.symbols.size())) { revert_and_return(); }
-    if (is_close_paren(t) and expression.symbols.size()) revert(saved);
-    return expression;
-}
-
-expression_list parse_expression_list(const file& file, bool can_be_empty) {
-        
-    auto saved = save();
-    std::vector<expression> expressions = {};
-    auto expression = parse_terminated_expression(file);
-    while (not expression.error) {
-        expressions.push_back(expression);
-        saved = save();
-        expression = parse_terminated_expression(file);
-    }
-    revert(saved);
-    
-    return {expressions, expressions.empty() and not can_be_empty};
-}
-
-expression_list parse(const file& file) {
+expression parse(const file& file) {
     start_lex(file);
 
     if (debug) {
@@ -707,7 +637,7 @@ expression_list parse(const file& file) {
         start_lex(file);
     }
 
-    auto unit = parse_expression_list(file, /*can_be_empty = */true);
+    auto unit = parse_expression(file, /*can_be_empty = */true);
     if (debug) print_translation_unit(unit, file);
     return unit;
 }
@@ -717,7 +647,7 @@ static inline std::string expression_to_string(const expression& given, symbol_t
     nat i = 0;
     for (auto symbol : given.symbols) {
         if (symbol.type == symbol_type::identifier) result += symbol.identifier.name.value;
-        else if (symbol.type == symbol_type::subexpression) result += "(" + (symbol.expressions.list.size() ? expression_to_string(symbol.expressions.list.back(), stack)  : "") + ")";
+        else if (symbol.type == symbol_type::subexpression) result += "(" + expression_to_string(symbol.subexpression, stack) + ")";
         if (i++ < (nat) given.symbols.size() - 1) result += " ";
     }
     result += ")";
@@ -734,9 +664,6 @@ static inline const char* convert_symbol_type(enum symbol_type type) {
         case symbol_type::identifier: return "identifier";
     }
 }
-
-void print_resolved_list(resolved_expression_list list, nat depth, resolve_state& state);
-void print_resolved_expr(resolved_expression expr, nat depth, resolve_state& state);
 
 void print_resolved_expr(resolved_expression expr, nat depth, resolve_state& state) {
     prep(depth); std::cout << "[error = " << std::boolalpha << expr.error << "]\n";
@@ -755,24 +682,14 @@ void print_resolved_expr(resolved_expression expr, nat depth, resolve_state& sta
     nat i = 0;
     for (auto arg : expr.args) {
         prep(depth + 1); std::cout << "argument #" << i++ << ": \n";
-        print_resolved_list(arg, depth + 2, state);
+        print_resolved_expr(arg, depth + 2, state);
         prep(depth); std::cout << "\n";
     }
 }
 
-void print_resolved_list(resolved_expression_list list, nat depth, resolve_state& state) {
-    prep(depth); std::cout << "[error = " << std::boolalpha << list.error << "]\n";
-    nat i = 0;
-    for (auto expr : list.list) {
-        prep(depth + 1); std::cout << "expression #" << i++ << ": \n";
-        print_resolved_expr(expr, depth + 2, state);
-        prep(depth); std::cout << "\n";
-    }
-}
-
-void print_resolved_unit(resolved_expression_list unit, resolve_state& state) {
+void print_resolved_unit(resolved_expression unit, resolve_state& state) {
     std::cout << "---------- printing resolved tranlation unit: ------------\n\n";
-    print_resolved_list(unit, 0, state);
+    print_resolved_expr(unit, 0, state);
 }
 
 void print_nat_vector(std::vector<nat> v, bool newline) {
@@ -839,23 +756,18 @@ static inline llvm::Function* create_main(llvm::IRBuilder<>& builder, llvm::LLVM
     return main_function;
 }
 
-
-static inline void prune_extraneous_subexpressions_in_expression(expression& given) {
+static inline void prune_extraneous_subexpressions(expression& given) {
     while (given.symbols.size() == 1
            and subexpression(given.symbols[0])
-           and given.symbols[0].expressions.list.size() == 1
-           and given.symbols[0].expressions.list.back().symbols.size()) {
-        auto save = given.symbols[0].expressions.list.back().symbols;
+           and given.symbols[0].subexpression.symbols.size()) {
+        auto save = given.symbols[0].subexpression.symbols;
         given.symbols = save;
     }
-    for (auto& symbol : given.symbols) if (subexpression(symbol)) prune_extraneous_subexpressions(symbol.expressions);
+    for (auto& symbol : given.symbols) if (subexpression(symbol)) prune_extraneous_subexpressions(symbol.subexpression);
 }
 
-void prune_extraneous_subexpressions(expression_list& given) {
-    for (auto& expression : given.list) prune_extraneous_subexpressions_in_expression(expression);
-}
 
-static inline void verify(const file& file, llvm_module& module, resolved_expression_list& resolved_program) {
+static inline void verify(const file& file, llvm_module& module, resolved_expression& resolved_program) {
     std::string errors = "";
     if (llvm::verifyModule(*module, &(llvm::raw_string_ostream(errors) << ""))) {
         printf("llvm: %s: %s", file.name, errors.c_str());
@@ -863,7 +775,7 @@ static inline void verify(const file& file, llvm_module& module, resolved_expres
     }
 }
 
-static inline void debug_program(llvm_module& module, const resolved_expression_list& resolved_program, resolve_state& state) {
+static inline void debug_program(llvm_module& module, const resolved_expression& resolved_program, resolve_state& state) {
     if (debug) {
         debug_table(state.stack);
         print_resolved_unit(resolved_program, state);
@@ -947,17 +859,8 @@ static inline nat evaluate(llvm_module& module, llvm::Function* function, const 
     return jit->runFunction(function, turn_into_value_array(args, module)).IntVal.getLimitedValue();
 }
 
-static inline std::vector<nat> generate_type_list(const expression_list &given, nat given_type) {
-    if (given.list.empty()) return {};
-    std::vector<nat> types (given.list.size() - 1, intrin::unit);
-    types.push_back(given_type);
-    return types;
-}
-
 static inline bool is_unit_value(const expression& expression) {
-    return expression.symbols.size() == 1
-    and subexpression(expression.symbols[0])
-    and expression.symbols[0].expressions.list.empty();
+    return expression.symbols.size() == 1 and expression.symbols[0].subexpression.symbols.empty();
 }
 
 static resolved_expression construct_signature(nat fdi_length, const expression& given, nat& index) {
@@ -967,22 +870,22 @@ static resolved_expression construct_signature(nat fdi_length, const expression&
     return result;
 }
 
-static inline bool matches(const expression& given, const expression& signature, nat given_type, std::vector<resolved_expression_list>& args, llvm::Function*& function,
+static inline bool matches(const expression& given, const expression& signature, nat given_type, std::vector<resolved_expression>& args, llvm::Function*& function,
                     nat& index, nat depth, nat max_depth, nat fdi_length, resolve_state& state) {
         
     if (given_type != signature.type and given.type != intrin::infered) return false;
     for (auto symbol : signature.symbols) {
         if (index >= (nat) given.symbols.size()) return false;
         if (parameter(symbol) and subexpression(given.symbols[index])) {
-            auto argument = resolve_expression_list(given.symbols[index].expressions, symbol.expressions.list.back().type, function, state);
+            auto argument = resolve_expression(given.symbols[index].subexpression, symbol.subexpression.type, function, state);
             if (argument.error) return false;
             args.push_back(argument);
             index++;
             
         } else if (parameter(symbol)) {
-            auto argument = resolve(given, symbol.expressions.list.back().type, function, index, depth + 1, max_depth, fdi_length, state);
+            auto argument = resolve(given, symbol.subexpression.type, function, index, depth + 1, max_depth, fdi_length, state);
             if (argument.error) return false;
-            args.push_back({{argument}});
+            args.push_back({argument});
             
         } else if (not are_equal_identifiers(symbol, given.symbols[index])) return false;
         else index++;
@@ -1026,14 +929,14 @@ resolved_expression resolve(const expression& given, nat given_type, llvm::Funct
     nat saved = index;
     for (auto signature_index : state.stack.top()) {
         index = saved;
-        std::vector<resolved_expression_list> args = {};
+        std::vector<resolved_expression> args = {};
         if (matches(given, state.stack.get(signature_index), given_type, args, function, index, depth, max_depth, fdi_length, state))
             return {signature_index, args, false};
     }
     return resolution_failure;
 }
 
-static inline resolved_expression resolve_expression(const expression& given, nat given_type, llvm::Function*& function, resolve_state& state) {
+resolved_expression resolve_expression(const expression& given, nat given_type, llvm::Function*& function, resolve_state& state) {
     
     if (is_unit_value(given) and given_type == intrin::unit) return resolved_unit_value;
     resolved_expression solution {};
@@ -1049,17 +952,6 @@ static inline resolved_expression resolve_expression(const expression& given, na
     if (pointer < (nat) given.symbols.size()) solution.error = true;
     if (solution.error) printf("n3zqx2l: error: unresolved expression\n"); // print_unresolved_error(given, state);
     return solution;
-}
-
-resolved_expression_list resolve_expression_list(const expression_list& given, nat given_type, llvm::Function*& function, resolve_state& state) {
-    if (given.list.empty()) return {{resolved_unit_value}, given_type != intrin::unit};
-    nat i = 0;
-    auto types = generate_type_list(given, given_type);
-    resolved_expression_list solutions {};
-    for (auto expression : given.list)
-        solutions.list.push_back(resolve_expression(expression, types[i++], function, state));
-    for (auto e : solutions.list) solutions.error |= e.error;
-    return solutions;
 }
 
 static inline void delete_empty_blocks(llvm_module& module) {
@@ -1093,7 +985,7 @@ static inline void move_lone_terminators_into_previous_blocks(llvm_module& modul
     /// bits of code which should be in the same block.
 }
 
-static inline void remove_extraneous_insertion_points_in(llvm_module& module) {
+static inline void remove_donothing_remnants_in(llvm_module& module) {
     for (auto& function : module->getFunctionList()) {
         for (auto& block : function.getBasicBlockList()) {
             auto terminator = block.getTerminator();
@@ -1116,7 +1008,7 @@ void symbol_table::pop_last_frame() { frames.pop_back(); }
 std::vector<nat>& symbol_table::top() { return frames.back(); }
 expression& symbol_table::get(nat index) { return master[index].signature; }
 
-void symbol_table::define(const expression& signature, const expression_list& definition, nat back_from, nat parent) {
+void symbol_table::define(const expression& signature, const expression& definition, nat back_from, nat parent) {
     ///TODO: unfinished.
     
     // this function should do a check for if the signature is already
@@ -1153,7 +1045,7 @@ std::vector<std::string> symbol_table::llvm_key_symbols_in_table(llvm::ValueSymb
     return result;
 }
 
-static inline llvm_module analyze(expression_list program, const file& file, llvm::LLVMContext& context) {
+static inline llvm_module analyze(expression program, const file& file, llvm::LLVMContext& context) {
     auto module = llvm::make_unique<llvm::Module>(file.name, context);
     module->setTargetTriple(llvm::sys::getDefaultTargetTriple());
     llvm::IRBuilder<> builder(context);
@@ -1164,8 +1056,8 @@ static inline llvm_module analyze(expression_list program, const file& file, llv
     auto main = create_main(builder, context, module);
     builder.CreateCall(llvm::Intrinsic::getDeclaration(module.get(), llvm::Intrinsic::donothing));
     prune_extraneous_subexpressions(program);
-    auto resolved = resolve_expression_list(program, intrin::unit, main, state);
-    remove_extraneous_insertion_points_in(module);
+    auto resolved = resolve_expression(program, intrin::unit, main, state);
+    remove_donothing_remnants_in(module);
     move_lone_terminators_into_previous_blocks(module);
     delete_empty_blocks(module);
     if (not contains_final_terminator(main)) append_return_0_statement(builder, main, context);
