@@ -915,7 +915,14 @@ static inline void interpret(llvm_module module, const arguments& arguments) {
 
 static inline llvm_module optimize(llvm_module&& module) { return std::move(module); } ///TODO: unfinished.
 
-static inline std::string generate_object_file(llvm_module& module, const arguments& arguments) {
+static inline void generate_ll_file(llvm_module module, const arguments& arguments) {
+    std::error_code error;
+    llvm::raw_fd_ostream dest(std::string(arguments.name) + ".ll", error, llvm::sys::fs::F_None);
+    if (error) exit(1);
+    module->print(dest, nullptr);
+}
+
+static inline std::string generate_object_file(llvm_module module, const arguments& arguments) {
     std::string lookup_error = "";
     auto target_machine = llvm::TargetRegistry::lookupTarget(module->getTargetTriple(), lookup_error)->createTargetMachine(module->getTargetTriple(), "generic", "", {}, {}, {}); ///TODO: make this not generic!
     
@@ -940,19 +947,12 @@ static inline void emit_executable(const std::string& object_file, const argumen
     std::remove(object_file.c_str());
 }
 
-static inline void generate_ll_file(llvm_module& module, const arguments& arguments) {
-    std::error_code error;
-    llvm::raw_fd_ostream dest(std::string(arguments.name) + ".ll", error, llvm::sys::fs::F_None);
-    if (error) exit(1);
-    module->print(dest, nullptr);
-}
-
 static inline void output(const arguments& args, llvm_module&& module) {
     if (args.output == output_type::none) interpret(std::move(module), args);
-    else if (args.output == output_type::llvm) { generate_ll_file(module, args); }
+    else if (args.output == output_type::llvm) { generate_ll_file(std::move(module), args); }
     else if (args.output == output_type::assembly) { printf("cannot output .s file, unimplemented\n"); /*generate_s_file();*/ }
-    else if (args.output == output_type::object_file) generate_object_file(module, args);
-    else if (args.output == output_type::executable) emit_executable(generate_object_file(module, args), args);
+    else if (args.output == output_type::object_file) generate_object_file(std::move(module), args);
+    else if (args.output == output_type::executable) emit_executable(generate_object_file(std::move(module), args), args);
 }
 
 int main(const int argc, const char** argv) {
