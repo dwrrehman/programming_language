@@ -226,21 +226,8 @@ static token current = {};
 void print_expression(expression e, nat d);
 expression parse_expression(const file& file, bool can_be_empty);
 
-resolved_expression resolve(const expression& given, nat given_type, llvm::Function*& function, resolve_state& state);
+resolved_expression resolve_expression(const expression& given, nat given_type, llvm::Function*& function, resolve_state& state);
 resolved_expression search(const expression& given, nat given_type, llvm::Function*& function, nat& index, nat depth, nat max_depth, nat fdi_length, resolve_state& state);
-
-static inline void open_file(const char* filename, arguments& args) {
-    std::ifstream stream {filename};
-    if (stream.good()) {
-        std::string text {std::istreambuf_iterator<char>(stream), std::istreambuf_iterator<char>()};
-        stream.close();
-        args.files.push_back({filename, text});
-    } else {
-        printf("Unable to open \"%s\" \n", filename);
-        perror("open");
-        exit(1);
-    }
-}
 
 static inline void debug_arguments(const arguments& args) {
     std::cout << "file count = " <<  args.files.size() << "\n";
@@ -252,9 +239,9 @@ static inline void debug_arguments(const arguments& args) {
     std::cout << "exec name = " << args.executable_name << std::endl;
 }
 
-static inline arguments get_commandline_arguments(const int argc, const char** argv) {
+static inline arguments get_arguments(const int argc, const char** argv) {
     arguments args = {};
-    if (argc == 1) { printf("n3zqx2l: error: no input files\n"); exit(1); }
+    if (argc == 1) { printf("nostril: error: no input files\n"); exit(1); }
     
     for (nat i = 1; i < argc; i++) {
         const auto word = std::string(argv[i]);
@@ -265,7 +252,18 @@ static inline arguments get_commandline_arguments(const int argc, const char** a
         else if (word == "-o" and i + 1 < argc) args.executable_name = argv[++i];
         else if (word == "-d" and i + 1 < argc) { auto n = atoi(argv[++i]); max_expression_depth = n ? n : 4; }
         else if (word[0] == '-') { printf("bad option: %s\n", argv[i]); exit(1); }
-        else open_file(argv[i], args);
+        else {
+            std::ifstream stream {argv[i]};
+            if (stream.good()) {
+                std::string text {std::istreambuf_iterator<char>(stream), std::istreambuf_iterator<char>()};
+                stream.close();
+                args.files.push_back({argv[i], text});
+            } else {
+                printf("Unable to open \"%s\" \n", argv[i]);
+                perror("open");
+                exit(1);
+            }
+        }
     }
     if (not strlen(args.executable_name)) args.output = output_type::none;
     if (debug) debug_arguments(args);
@@ -583,15 +581,6 @@ static inline void print_resolved_unit(resolved_expression unit, resolve_state& 
     print_resolved_expr(unit, 0, state);
 }
 
-static inline void print_nat_vector(std::vector<nat> v, bool newline) {
-    std::cout << "[ ";
-    for (auto e : v) {
-        std::cout << e << " ";
-    }
-    std::cout << "]";
-    if (newline) std::cout << "\n";
-}
-
 static inline void debug_table(symbol_table table) {
     std::cout << "---- debugging stack: ----\n";
     
@@ -712,19 +701,12 @@ static inline resolved_expression parse_llvm_string(llvm::Function*& function, c
     }
 }
 
-
-static inline void set_data_layout(llvm_module& module) {
-    auto machine = llvm::EngineBuilder(llvm_module{module.get()}).setEngineKind(llvm::EngineKind::JIT).create();
-    module->setDataLayout(machine->getDataLayout());
-}
-
 static resolved_expression construct_signature(nat fdi_length, const expression& given, nat& index) {
     resolved_expression result = {intrin::typeless};
     result.signature = std::vector<symbol>(given.symbols.begin() + index, given.symbols.begin() + index + fdi_length);
     index += fdi_length;
     return result;
 }
-
 
 static inline bool matches(const expression& given, const expression& signature, nat given_type, std::vector<resolved_expression>& args, llvm::Function*& function,
                            nat& index, nat depth, nat max_depth, nat fdi_length, resolve_state& state) {
@@ -748,7 +730,7 @@ resolved_expression search(const expression& given, nat given_type, llvm::Functi
     if (not given_type or depth > max_depth) return resolution_failure;
     
     else if (index < (nat) given.symbols.size() and subexpression(given.symbols[index])) {
-        auto resolved = resolve(given.symbols[index].subexpression, given_type, function, state);
+        auto resolved = resolve_expression(given.symbols[index].subexpression, given_type, function, state);
         if (not resolved.error) index++;
         return resolved;
     }
@@ -766,7 +748,7 @@ resolved_expression search(const expression& given, nat given_type, llvm::Functi
     return resolution_failure;
 }
 
-resolved_expression resolve(const expression& given, nat given_type, llvm::Function*& function, resolve_state& state) {
+resolved_expression resolve_expression(const expression& given, nat given_type, llvm::Function*& function, resolve_state& state) {
     
     resolved_expression solution {};
     nat pointer = 0;
@@ -784,10 +766,6 @@ resolved_expression resolve(const expression& given, nat given_type, llvm::Funct
     if (solution.error) printf("n3zqx2l: %s:%lld:%lld: error: unresolved expression: %s\n", state.data.file.name, given.start.line, given.start.column, expression_to_string(given, state.stack).c_str());
     return solution;
 }
-
-
-
-
 
 static inline void delete_empty_blocks(llvm_module& module) {
     for (auto& function : module->getFunctionList()) {
@@ -876,9 +854,16 @@ std::vector<std::string> symbol_table::llvm_key_symbols_in_table(llvm::ValueSymb
     return result;
 }
 
-static inline llvm_module analyze(expression program, const file& file, llvm::LLVMContext& context) {
-    auto module = llvm::make_unique<llvm::Module>(file.name, context);
+static inline void set_data_for(llvm_module& module) {
     module->setTargetTriple(llvm::sys::getDefaultTargetTriple());
+    std::string lookup_error = "";
+    auto target_machine = llvm::TargetRegistry::lookupTarget(module->getTargetTriple(), lookup_error)->createTargetMachine(module->getTargetTriple(), "generic", "", {}, {}, {});
+    module->setDataLayout(target_machine->createDataLayout());
+}
+
+static inline llvm_module resolve(expression program, const file& file, llvm::LLVMContext& context) {
+    auto module = llvm::make_unique<llvm::Module>(file.name, context);
+    set_data_for(module);
     llvm::IRBuilder<> builder(context);
     program_data data {file, module.get(), builder};
     symbol_table stack {data, builtins};
@@ -887,7 +872,7 @@ static inline llvm_module analyze(expression program, const file& file, llvm::LL
     auto main = create_main(builder, context, module);
     builder.CreateCall(llvm::Intrinsic::getDeclaration(module.get(), llvm::Intrinsic::donothing));
     prune_extraneous_subexpressions(program);
-    auto resolved = resolve(program, intrin::unit, main, state);
+    auto resolved = resolve_expression(program, intrin::unit, main, state);
     remove_donothing_remnants(module);
     move_lone_terminators_into_previous_blocks(module);
     delete_empty_blocks(module);
@@ -902,19 +887,15 @@ static inline llvm_module analyze(expression program, const file& file, llvm::LL
     else return module;
 }
 
-static inline void initialize_llvm() {
+static inline llvm_modules frontend(const arguments& arguments, llvm::LLVMContext& context) {
     llvm::InitializeAllTargetInfos();
     llvm::InitializeAllTargets();
     llvm::InitializeAllTargetMCs();
     llvm::InitializeAllAsmParsers();
     llvm::InitializeAllAsmPrinters();
-}
-
-static inline llvm_modules frontend(const arguments& arguments) {
-    llvm::LLVMContext context;
     llvm_modules modules = {};
     modules.reserve(arguments.files.size());
-    for (auto file : arguments.files) modules.push_back(analyze(parse(file), file, context));
+    for (auto file : arguments.files) modules.push_back(resolve(parse(file), file, context));
     return modules;
 }
 
@@ -926,27 +907,17 @@ static inline llvm_module link(llvm_modules&& modules) {
     return result;
 }
 
-static inline void interpret(llvm_module& module, const arguments& arguments) {
-    set_data_layout(module);
+static inline void interpret(llvm_module module, const arguments& arguments) {
     auto jit = llvm::EngineBuilder(std::move(module)).setEngineKind(llvm::EngineKind::JIT).create();
     jit->finalizeObject();
     exit(jit->runFunctionAsMain(jit->FindFunctionNamed("main"), {arguments.executable_name}, nullptr));
 }
 
-static inline llvm_module optimize(llvm_module module) { return module; } ///TODO: unfinished.
+static inline llvm_module optimize(llvm_module&& module) { return std::move(module); } ///TODO: unfinished.
 
 static inline std::string generate_object_file(llvm_module& module, const arguments& arguments) {
-    auto TargetTriple = llvm::sys::getDefaultTargetTriple();
-    module->setTargetTriple(TargetTriple);
-    std::string Error = "";
-    auto Target = llvm::TargetRegistry::lookupTarget(TargetTriple, Error);
-    if (not Target) exit(1);
-    
-    llvm::TargetOptions opt;
-    auto RM = llvm::Optional<llvm::Reloc::Model>();
-    auto CM = llvm::Optional<llvm::CodeModel::Model>();
-    auto TheTargetMachine = Target->createTargetMachine(TargetTriple, "generic", "", opt, RM, CM);
-    module->setDataLayout(TheTargetMachine->createDataLayout());
+    std::string lookup_error = "";
+    auto target_machine = llvm::TargetRegistry::lookupTarget(module->getTargetTriple(), lookup_error)->createTargetMachine(module->getTargetTriple(), "generic", "", {}, {}, {}); ///TODO: make this not generic!
     
     auto object_filename = std::string(arguments.executable_name) + ".o";
     std::error_code error;
@@ -954,7 +925,7 @@ static inline std::string generate_object_file(llvm_module& module, const argume
     if (error) exit(1);
     
     llvm::legacy::PassManager pass;
-    if (TheTargetMachine->addPassesToEmitFile(pass, dest, nullptr, llvm::TargetMachine::CGFT_ObjectFile)) {
+    if (target_machine->addPassesToEmitFile(pass, dest, nullptr, llvm::TargetMachine::CGFT_ObjectFile)) {
         std::remove(object_filename.c_str());
         exit(1);
     }
@@ -966,12 +937,11 @@ static inline std::string generate_object_file(llvm_module& module, const argume
 static inline void emit_executable(const std::string& object_file, const arguments& arguments) {
     std::string link_command = "ld -macosx_version_min 10.14 -lSystem -lc -o " + std::string(arguments.executable_name) + " " + object_file + " ";
     std::system(link_command.c_str());
-    if (debug) printf("n3zqx2l: executable emitted: %s\n", arguments.executable_name);
     std::remove(object_file.c_str());
 }
 
-static inline void output(const arguments& args, std::unique_ptr<llvm::Module> module) {
-    if (args.output == output_type::none) interpret(module, args);
+static inline void output(const arguments& args, llvm_module&& module) {
+    if (args.output == output_type::none) interpret(std::move(module), args);
     else if (args.output == output_type::llvm) { printf("cannot output .ll file, unimplemented\n"); /*generate_ll_file();*/ }
     else if (args.output == output_type::assembly) { printf("cannot output .s file, unimplemented\n"); /*generate_s_file();*/ }
     else if (args.output == output_type::object_file) generate_object_file(module, args);
@@ -979,7 +949,7 @@ static inline void output(const arguments& args, std::unique_ptr<llvm::Module> m
 }
 
 int main(const int argc, const char** argv) {
-    initialize_llvm();
-    auto args = get_commandline_arguments(argc, argv);
-    output(args, optimize(link(frontend(args))));
+    llvm::LLVMContext context;
+    auto args = get_arguments(argc, argv);
+    output(args, optimize(link(frontend(args, context))));
 }
