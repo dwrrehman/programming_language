@@ -503,22 +503,6 @@ void print_expression(expression expression, nat d) {
     prep(d); std::cout << "type = " << expression.type << "\n";
 }
 
-static inline std::string stringify_intrin(nat i) {
-    switch (i) {
-        case intrin::typeless: return "typeless";
-        case intrin::type: return "_";
-        case intrin::infered: return "__";
-        case intrin::none: return "_0";
-        case intrin::unit: return "_1";
-        case intrin::unit_value: return "()";
-        case intrin::llvm: return "_llvm";
-        case intrin::application: return "_a";
-        case intrin::abstraction: return "_b";
-        case intrin::define: return "_c";
-    }
-    return "{compiler error}";
-}
-
 static inline void print_translation_unit(expression unit, file file) {
     std::cout << "translation unit: (" << file.name << ")\n";
     print_expression(unit, 1);
@@ -623,16 +607,6 @@ static inline std::string expression_to_string(const expression& given, symbol_t
     result += ")";
     if (given.type) result += " " + expression_to_string(stack.master[given.type].signature, stack);
     return result;
-}
-
-static inline const char* convert_symbol_type(enum symbol_type type) {
-    switch (type) {
-        case symbol_type::none: return "{none}";
-        case symbol_type::subexpression: return "subexpression";
-        case symbol_type::string_literal: return "string literal";
-        case symbol_type::llvm_literal: return "llvm literal";
-        case symbol_type::identifier: return "identifier";
-    }
 }
 
 void print_resolved_expr(resolved_expression expr, nat depth, resolve_state& state) {

@@ -1,1 +1,1 @@
-wc -l `find ./source/language/ -type f` | sort
+wc -l `find ../source/language/ -type f` | sort
