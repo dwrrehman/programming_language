@@ -52,8 +52,8 @@ struct file {
 
 struct arguments {
     std::vector<file> files = {};
-    enum output_type output = output_type::executable;
-    const char* executable_name = "";
+    enum output_type output = output_type::none;
+    const char* name = "";
     bool includes_standard_library = true;
 };
 
@@ -236,21 +236,23 @@ static inline void debug_arguments(const arguments& args) {
         std::cout << "data: \n:::" << a.text << ":::\n";
     }
     
-    std::cout << "exec name = " << args.executable_name << std::endl;
+    std::cout << "exec name = " << args.name << std::endl;
 }
 
 static inline arguments get_arguments(const int argc, const char** argv) {
     arguments args = {};
-    if (argc == 1) { printf("nostril: error: no input files\n"); exit(1); }
-    
     for (nat i = 1; i < argc; i++) {
         const auto word = std::string(argv[i]);
         if (word == "-z") debug = true;
-        else if (word == "-u") { printf("./nostril -[zdoeuv]\n"); exit(0); }
+        else if (word == "-u") { printf("./nostril -[cdeorsuvz]\n"); exit(0); }
         else if (word == "-v") { printf("n3zqx2l: 0.0.01\nnostril: 0.0.01\n"); exit(0); }
         else if (word == "-e") args.includes_standard_library = false;
-        else if (word == "-o" and i + 1 < argc) args.executable_name = argv[++i];
+        else if (word == "-r" and i + 1 < argc) { args.output = output_type::llvm; args.name = argv[++i]; }
+        else if (word == "-s" and i + 1 < argc) { args.output = output_type::assembly; args.name = argv[++i]; }
+        else if (word == "-c" and i + 1 < argc) { args.output = output_type::object_file; args.name = argv[++i]; }
+        else if (word == "-o" and i + 1 < argc) { args.output = output_type::executable; args.name = argv[++i]; }
         else if (word == "-d" and i + 1 < argc) { auto n = atoi(argv[++i]); max_expression_depth = n ? n : 4; }
+        else if (word == "-/") { break; /*the linker argumnets start here.*/ }
         else if (word[0] == '-') { printf("bad option: %s\n", argv[i]); exit(1); }
         else {
             std::ifstream stream {argv[i]};
@@ -265,7 +267,7 @@ static inline arguments get_arguments(const int argc, const char** argv) {
             }
         }
     }
-    if (not strlen(args.executable_name)) args.output = output_type::none;
+    if (args.files.empty()) { printf("nostril: error: no input files\n"); exit(1); }
     if (debug) debug_arguments(args);
     return args;
 }
@@ -275,13 +277,11 @@ static inline bool is_operator(char c) { return (not is_identifier(c) or not isa
 static inline bool is_valid(nat c) { return c >= 0 and c < (nat) text.size(); }
 static inline void set_current(token_type t, enum lex_state s) { current = {t, "", line, column}; lex_state = s; }
 static inline void advance_by(nat n) { for (nat i = n; i--;) if (text[c++] == '\n') { line++; column = 1; } else column++; }
-
 static inline bool is_operator(const token& t) { return t.type == token_type::operator_; }
 static inline bool is_identifier(const token& t) { return t.type == token_type::identifier; }
 static inline bool is_close_paren(const token& t) { return is_operator(t) and t.value == ")"; }
 static inline bool is_open_paren(const token& t) { return is_operator(t) and t.value == "("; }
 static inline bool is_reserved_operator(token t) { return is_open_paren(t) or is_close_paren(t); }
-
 static inline bool subexpression(const symbol& s) { return s.type == symbol_type::subexpression; }
 static inline bool identifier(const symbol& s) { return s.type == symbol_type::identifier; }
 static inline bool llvm_string(const symbol& s) { return s.type == symbol_type::llvm_literal; }
@@ -910,7 +910,7 @@ static inline llvm_module link(llvm_modules&& modules) {
 static inline void interpret(llvm_module module, const arguments& arguments) {
     auto jit = llvm::EngineBuilder(std::move(module)).setEngineKind(llvm::EngineKind::JIT).create();
     jit->finalizeObject();
-    exit(jit->runFunctionAsMain(jit->FindFunctionNamed("main"), {arguments.executable_name}, nullptr));
+    exit(jit->runFunctionAsMain(jit->FindFunctionNamed("main"), {arguments.name}, nullptr));
 }
 
 static inline llvm_module optimize(llvm_module&& module) { return std::move(module); } ///TODO: unfinished.
@@ -919,7 +919,7 @@ static inline std::string generate_object_file(llvm_module& module, const argume
     std::string lookup_error = "";
     auto target_machine = llvm::TargetRegistry::lookupTarget(module->getTargetTriple(), lookup_error)->createTargetMachine(module->getTargetTriple(), "generic", "", {}, {}, {}); ///TODO: make this not generic!
     
-    auto object_filename = std::string(arguments.executable_name) + ".o";
+    auto object_filename = std::string(arguments.name) + ".o";
     std::error_code error;
     llvm::raw_fd_ostream dest(object_filename, error, llvm::sys::fs::F_None);
     if (error) exit(1);
@@ -935,14 +935,21 @@ static inline std::string generate_object_file(llvm_module& module, const argume
 }
 
 static inline void emit_executable(const std::string& object_file, const arguments& arguments) {
-    std::string link_command = "ld -macosx_version_min 10.14 -lSystem -lc -o " + std::string(arguments.executable_name) + " " + object_file + " ";
+    std::string link_command = "ld -macosx_version_min 10.14 -lSystem -lc -o " + std::string(arguments.name) + " " + object_file + " ";
     std::system(link_command.c_str());
     std::remove(object_file.c_str());
 }
 
+static inline void generate_ll_file(llvm_module& module, const arguments& arguments) {
+    std::error_code error;
+    llvm::raw_fd_ostream dest(std::string(arguments.name) + ".ll", error, llvm::sys::fs::F_None);
+    if (error) exit(1);
+    module->print(dest, nullptr);
+}
+
 static inline void output(const arguments& args, llvm_module&& module) {
     if (args.output == output_type::none) interpret(std::move(module), args);
-    else if (args.output == output_type::llvm) { printf("cannot output .ll file, unimplemented\n"); /*generate_ll_file();*/ }
+    else if (args.output == output_type::llvm) { generate_ll_file(module, args); }
     else if (args.output == output_type::assembly) { printf("cannot output .s file, unimplemented\n"); /*generate_s_file();*/ }
     else if (args.output == output_type::object_file) generate_object_file(module, args);
     else if (args.output == output_type::executable) emit_executable(generate_object_file(module, args), args);
@@ -950,6 +957,6 @@ static inline void output(const arguments& args, llvm_module&& module) {
 
 int main(const int argc, const char** argv) {
     llvm::LLVMContext context;
-    auto args = get_arguments(argc, argv);
+    const auto args = get_arguments(argc, argv);
     output(args, optimize(link(frontend(args, context))));
 }

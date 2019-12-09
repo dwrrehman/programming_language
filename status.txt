@@ -4,7 +4,22 @@ the current status of the nostril compiler:
 
 
 
-ok, so we deleted a bunch of code, and the whole compiler is now only 1092 lines long.
+we need to add assembly output functioality, and linker flags passing code... but thats all just east dum stuff.
+
+
+we really need to get the:
+
+
+    - csr algortithm working with subexpr
+    
+    - get the llvm symbol table synched up with our symbol table.
+    
+    - get the
+
+
+
+
+ok, so we deleted a bunch of code, and the whole compiler is now only 950ish lines long.
 
 
 the current bug we are trying to solve is trying to get the chain rule to work with our current CSR setup. it was working, and then i changed how subexpressions worked, because i saw a simplication, and not it doesnt work. i might change csr to work as before, just to get it working. its not that great of a simplication.
