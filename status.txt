@@ -2,6 +2,23 @@ the current status of the nostril compiler:
 =============================================
 
 
+
+
+ok, so we deleted a bunch of code, and the whole compiler is now only 1092 lines long.
+
+
+the current bug we are trying to solve is trying to get the chain rule to work with our current CSR setup. it was working, and then i changed how subexpressions worked, because i saw a simplication, and not it doesnt work. i might change csr to work as before, just to get it working. its not that great of a simplication.
+
+
+
+
+
+
+
+
+
+
+
 1. i need to go through and delete all the error.cpp code, and redo all the code as inline print statements, in the logic code.
 
 
