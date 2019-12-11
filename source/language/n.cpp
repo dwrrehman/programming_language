@@ -358,6 +358,7 @@ static inline void start_lex(const file& file) { // this function should be call
     current = {};
 }
 
+///DELETE ME
 static inline const char* convert_token_type_representation(enum token_type type) {
     switch (type) {
         case token_type::null: return "EOF";
@@ -370,12 +371,14 @@ static inline const char* convert_token_type_representation(enum token_type type
     }
 }
 
+///DELETE ME
 static inline void print_lex(const std::vector<struct token>& tokens) {
     std::cout << "::::::::::LEX:::::::::::" << std::endl;
     for (auto token : tokens) std::cout << "TOKEN(type: " << convert_token_type_representation(token.type) << ", value: \"" << (token.value != "\n" ? token.value : "\\n") << "\", [" << token.line << ":" << token.column << "])" << std::endl;
     std::cout << ":::::::END OF LEX:::::::" << std::endl;
 }
 
+///DELETE ME
 static inline void debug_token_stream() {
     std::vector<struct token> tokens = {};
     struct token t = {};
@@ -383,6 +386,7 @@ static inline void debug_token_stream() {
     print_lex(tokens);
 }
 
+///DELETE ME
 static inline void print_symbol(symbol symbol, nat d) {
     switch (symbol.type) {
 
@@ -410,6 +414,7 @@ static inline void print_symbol(symbol symbol, nat d) {
     }
 }
 
+///DELETE ME
 void print_expression(expression expression, nat d) {
     prep(d); std::cout << "expression: \n";
     prep(d); std::cout << std::boolalpha << "error: " << expression.error << "\n";
@@ -517,6 +522,7 @@ static inline std::string expression_to_string(const expression& given, symbol_t
     return result;
 }
 
+///DELETE ME
 static inline void print_resolved_expr(resolved_expression expr, nat depth, resolve_state& state) {
     prep(depth); std::cout << "[error = " << std::boolalpha << expr.error << "]\n";
     prep(depth); std::cout << "index = " << expr.index << " :: " << expression_to_string(state.stack.get(expr.index), state.stack);
@@ -532,6 +538,7 @@ static inline void print_resolved_expr(resolved_expression expr, nat depth, reso
     }
 }
 
+///DELETE ME
 static inline void debug_table(symbol_table table) {
     std::cout << "---- debugging stack: ----\n";
     std::cout << "printing frames: \n";
@@ -707,6 +714,7 @@ resolved_expression resolve_expression(const expression& given, nat given_type, 
     return solution;
 }
 
+///DELETE ME
 static inline void delete_empty_blocks(llvm_module& module) {
     for (auto& function : module->getFunctionList()) {
         llvm::SmallVector<llvm::BasicBlock*, 100> blocks = {};
@@ -716,6 +724,7 @@ static inline void delete_empty_blocks(llvm_module& module) {
     }
 }
 
+///DELETE ME
 static inline void move_lone_terminators_into_previous_blocks(llvm_module& module) {
     for (auto& function : module->getFunctionList()) {
         llvm::BasicBlock* previous = nullptr;
@@ -736,6 +745,7 @@ static inline void move_lone_terminators_into_previous_blocks(llvm_module& modul
     /// bits of code which should be in the same block.
 }
 
+///DELETE ME
 static inline void remove_donothing_remnants(llvm_module& module) {
     for (auto& function : module->getFunctionList()) {
         for (auto& block : function.getBasicBlockList()) {
@@ -776,6 +786,7 @@ symbol_table::symbol_table(program_data& data, const std::vector<expression>& bu
     sort_top_by_largest();
 }
 
+///DELETE ME
 std::vector<std::string> symbol_table::llvm_key_symbols_in_table(llvm::ValueSymbolTable llvm) {
     std::vector<std::string> result = {};
     for (auto& wef : llvm) result.push_back(wef.getKey());
