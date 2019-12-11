@@ -30,7 +30,6 @@
 #define revert_and_return()     revert(saved); return {true, true, true}
 
 using nat = int_fast64_t;
-using stack_frame = std::vector<nat>;
 using llvm_module = std::unique_ptr<llvm::Module>;
 using llvm_modules = std::vector<llvm_module>;
 
@@ -42,7 +41,7 @@ enum class output_type {none, llvm, assembly, object_file, executable};
 enum class token_type {null, string, identifier, character, llvm, keyword, operator_};
 enum class lex_state {none, string, string_expression, identifier, llvm_string, comment, multiline_comment};
 enum class symbol_type { none, subexpression, string_literal, llvm_literal, identifier };
-namespace intrin { enum intrin_name_index { typeless, type, infered, none, unit, unit_value, llvm, application, abstraction, define }; }
+namespace intrinsic { enum intrinsic_index { typeless, type, infered, none, unit, unit_value, llvm, application, abstraction, define }; }
 
 struct file {
     const char* name = "";
@@ -107,7 +106,7 @@ struct expression {
     struct token start = {};
     expression() {}
     expression(bool e, bool _, bool __): error(e or _ or __) {}
-    expression(const std::vector<symbol>& s, enum intrin::intrin_name_index t = intrin::typeless): symbols(s), type(t) {}
+    expression(const std::vector<symbol>& s, enum intrinsic::intrinsic_index t = intrinsic::typeless): symbols(s), type(t) {}
     expression(nat t): type(t) {}
 };
 
@@ -159,7 +158,7 @@ struct signature_entry {
 
 struct symbol_table {
     std::vector<signature_entry> master = {};
-    std::vector<stack_frame> frames = {};
+    std::vector<std::vector<nat>> frames = {};
     struct program_data& data;
     
     symbol_table(program_data& data, const std::vector<expression>& builtins);
@@ -175,26 +174,26 @@ struct symbol_table {
 
 // constants:
 static expression failure = {true, true, true};
-static expression infered_type = {{{{"__"}}}, intrin::typeless};
-static expression type_type = {{{{"_"}}}, intrin::typeless};
-static expression none_type = {{{{"_0"}}}, intrin::type};
-static expression unit_type = {{{{"_1"}}}, intrin::type};
-static expression unit_value = {{}, intrin::unit};
-static expression llvm_type = {{{{"_llvm"}}}, intrin::typeless}; // placeholder
-static expression application_type = {{{{"_a"}}}, intrin::type};
-static expression abstraction_type = {{{{"_b"}}}, intrin::type};
-static expression define_abstraction = {{{{"_c"}}, {{intrin::abstraction}}, {{intrin::type}}, {{intrin::application}}, {{intrin::application}}}, intrin::unit};
+static expression infered_type = {{{{"__"}}}, intrinsic::typeless};
+static expression type_type = {{{{"_"}}}, intrinsic::typeless};
+static expression none_type = {{{{"_0"}}}, intrinsic::type};
+static expression unit_type = {{{{"_1"}}}, intrinsic::type};
+static expression unit_value = {{}, intrinsic::unit};
+static expression llvm_type = {{{{"_llvm"}}}, intrinsic::typeless}; // placeholder
+static expression application_type = {{{{"_a"}}}, intrinsic::type};
+static expression abstraction_type = {{{{"_b"}}}, intrinsic::type};
+static expression define_abstraction = {{{{"_c"}}, {{intrinsic::abstraction}}, {{intrinsic::type}}, {{intrinsic::application}}, {{intrinsic::application}}}, intrinsic::unit};
 
 static expression chain = {
     {
-        {{intrin::unit}}, {{intrin::unit}},
-    }, intrin::unit
+        {{intrinsic::unit}}, {{intrinsic::unit}},
+    }, intrinsic::unit
 };
 
 static expression hello_test = {
     {
-        {{"hello"}}, //{{"there"}}, {{intrin::unit}}, {{"+"}}
-    }, intrin::unit
+        {{"d"}}, //{{"there"}}, {{intrin::unit}}, {{"+"}}
+    }, intrinsic::unit
 };
 
 
@@ -206,13 +205,12 @@ static const std::vector<expression> builtins = {
 };
 
 static const resolved_expression resolution_failure = {0, {}, true};
-static const resolved_expression resolved_unit_value = {intrin::unit_value, {}, false};
+static const resolved_expression resolved_unit_value = {intrinsic::unit_value, {}, false};
 
-// global parameters:
+// globals:
 static nat max_expression_depth = 5;
 static bool debug = false;
 
-// lexer globals:
 static std::string text = "";
 static const char* filename = "";
 
@@ -228,16 +226,6 @@ expression parse_expression(const file& file, bool can_be_empty);
 
 resolved_expression resolve_expression(const expression& given, nat given_type, llvm::Function*& function, resolve_state& state);
 resolved_expression search(const expression& given, nat given_type, llvm::Function*& function, nat& index, nat depth, nat max_depth, nat fdi_length, resolve_state& state);
-
-static inline void debug_arguments(const arguments& args) {
-    std::cout << "file count = " <<  args.files.size() << "\n";
-    for (auto a : args.files) {
-        std::cout << "file: " << a.name << "\n";
-        std::cout << "data: \n:::" << a.text << ":::\n";
-    }
-    
-    std::cout << "exec name = " << args.name << std::endl;
-}
 
 static inline arguments get_arguments(const int argc, const char** argv) {
     arguments args = {};
@@ -268,7 +256,6 @@ static inline arguments get_arguments(const int argc, const char** argv) {
         }
     }
     if (args.files.empty()) { printf("nostril: error: no input files\n"); exit(1); }
-    if (debug) debug_arguments(args);
     return args;
 }
 
@@ -304,45 +291,33 @@ static inline token next() {
 
              if (text[c] == ';' and is_valid(c+1) and     isspace(text[c+1]) and lex_state == lex_state::none) lex_state = lex_state::comment;
         else if (text[c] == ';' and is_valid(c+1) and not isspace(text[c+1]) and lex_state == lex_state::none) lex_state = lex_state::multiline_comment;
-
-        // ------------------- starting and finising ----------------------
         else if (is_identifier(text[c]) and is_valid(c+1) and not is_identifier(text[c+1]) and lex_state == lex_state::none) {
             set_current(token_type::identifier, lex_state::none);
             current.value = text[c];
             advance_by(1);
             clear_and_return();
         }
-        
-        // ---------------------- starting --------------------------
         else if (text[c] == '\"' and lex_state == lex_state::none) { set_current(token_type::string, lex_state::string); }
         else if (text[c] == '`' and lex_state == lex_state::none) { set_current(token_type::llvm, lex_state::llvm_string); }
         else if (is_identifier(text[c]) and (lex_state == lex_state::none)) {
             set_current(token_type::identifier, lex_state::identifier);
             current.value += text[c];
-        }
-        
-        // ---------------------- escaping in strings --------------------------
-        else if (text[c] == '\\' and lex_state == lex_state::string) {
+        } else if (text[c] == '\\' and lex_state == lex_state::string) {
             if (is_valid(c+1) and text[c+1] == '\"') { current.value += "\""; advance_by(1); }
             else if (is_valid(c+1) and text[c+1] == 'n') { current.value += "\n"; advance_by(1); }
             else if (is_valid(c+1) and text[c+1] == 't') { current.value += "\t"; advance_by(1); }
             else if (is_valid(c+1) and text[c+1] == '\\') { current.value += "\\"; advance_by(1); }
         }
-        
-        //---------------------- finishing  ----------------------
         else if ((text[c] == '\n' and lex_state == lex_state::comment) or (text[c] == ';' and lex_state == lex_state::multiline_comment)) lex_state = lex_state::none;
         else if ((text[c] == '\"' and lex_state == lex_state::string)  or (text[c] == '`' and lex_state == lex_state::llvm_string)) {
             lex_state = lex_state::none;
             advance_by(1);
             clear_and_return();
-        
         } else if (is_identifier(text[c]) and is_valid(c+1) and not is_identifier(text[c+1]) and lex_state == lex_state::identifier) {
             current.value += text[c];
             lex_state = lex_state::none;
             advance_by(1);
             clear_and_return();
-
-        // ---------------- pushing ----------------
         } else if (lex_state == lex_state::string or lex_state == lex_state::llvm_string or (is_identifier(text[c]) and lex_state == lex_state::identifier)) current.value += text[c];
         else if (lex_state == lex_state::comment or lex_state == lex_state::multiline_comment) {}
         else if (is_operator(text[c]) and lex_state == lex_state::none) {
@@ -397,9 +372,7 @@ static inline const char* convert_token_type_representation(enum token_type type
 
 static inline void print_lex(const std::vector<struct token>& tokens) {
     std::cout << "::::::::::LEX:::::::::::" << std::endl;
-    for (auto token : tokens) {
-        std::cout << "TOKEN(type: " << convert_token_type_representation(token.type) << ", value: \"" << (token.value != "\n" ? token.value : "\\n") << "\", [" << token.line << ":" << token.column << "])" << std::endl;
-    }
+    for (auto token : tokens) std::cout << "TOKEN(type: " << convert_token_type_representation(token.type) << ", value: \"" << (token.value != "\n" ? token.value : "\\n") << "\", [" << token.line << ":" << token.column << "])" << std::endl;
     std::cout << ":::::::END OF LEX:::::::" << std::endl;
 }
 
@@ -449,13 +422,7 @@ void print_expression(expression expression, nat d) {
         std::cout << "\n";
         i++;
     }
-    
     prep(d); std::cout << "type = " << expression.type << "\n";
-}
-
-static inline void print_translation_unit(expression unit, file file) {
-    std::cout << "translation unit: (" << file.name << ")\n";
-    print_expression(unit, 1);
 }
 
 static inline struct string_literal parse_string_literal() {
@@ -483,12 +450,12 @@ static inline symbol parse_symbol(const file& file) {
     auto saved = save();
     auto t = next();
     if (is_open_paren(t)) {
-        auto expressions = parse_expression(file, true);
-        if (not expressions.error) {
+        auto e = parse_expression(file, true);
+        if (not e.error) {
             auto saved_t = t;
             t = next();
-            expressions.start = t;
-            if (is_close_paren(t)) return { expressions };
+            e.start = t;
+            if (is_close_paren(t)) return {e};
             else {
                 printf("n3zqx2l: %s:%lld:%lld: unexpected %s, \"%s\", expected \")\" to close expression\n",
                        file.name, saved_t.line, saved_t.column, convert_token_type_representation(t.type), t.value.c_str());
@@ -508,17 +475,14 @@ static inline symbol parse_symbol(const file& file) {
     auto identifier = parse_identifier();
     if (not identifier.error) return identifier;
     else revert(saved);
-
     revert_and_return();
 }
 
 expression parse_expression(const file& file, bool can_be_empty) {
-            
     std::vector<symbol> symbols = {};
     auto saved = save();
     auto start = next();
     revert(saved);
-    
     auto symbol = parse_symbol(file);
     while (not symbol.error) {
         symbols.push_back(symbol);
@@ -526,7 +490,6 @@ expression parse_expression(const file& file, bool can_be_empty) {
         symbol = parse_symbol(file);
     }
     revert(saved);
-    
     expression result = {symbols};
     result.start = start;
     result.error = not can_be_empty and symbols.empty();
@@ -537,7 +500,7 @@ static inline expression parse(const file& file) {
     start_lex(file);
     if (debug) { debug_token_stream(); start_lex(file); }
     auto unit = parse_expression(file, /*can_be_empty = */true);
-    if (debug) print_translation_unit(unit, file);
+    if (debug) print_expression(unit, 1);
     return unit;
 }
 
@@ -556,16 +519,9 @@ static inline std::string expression_to_string(const expression& given, symbol_t
 
 static inline void print_resolved_expr(resolved_expression expr, nat depth, resolve_state& state) {
     prep(depth); std::cout << "[error = " << std::boolalpha << expr.error << "]\n";
-    prep(depth);
-    
-    std::cout << "index = " << expr.index << " :: " << expression_to_string(state.stack.get(expr.index), state.stack);
-    
-    if (expr.signature.symbols.size()) {
-        std::cout << " ::: " << expression_to_string(expr.signature, state.stack);
-    }
-    
+    prep(depth); std::cout << "index = " << expr.index << " :: " << expression_to_string(state.stack.get(expr.index), state.stack);
+    if (expr.signature.symbols.size()) std::cout << " ::: " << expression_to_string(expr.signature, state.stack);
     std::cout << "\n";
-    
     if (expr.llvm_type) { prep(depth); std::cout << "llvm type = "; expr.llvm_type->print(llvm::errs()); }
     std::cout << "\n";
     nat i = 0;
@@ -576,14 +532,8 @@ static inline void print_resolved_expr(resolved_expression expr, nat depth, reso
     }
 }
 
-static inline void print_resolved_unit(resolved_expression unit, resolve_state& state) {
-    std::cout << "---------- printing resolved tranlation unit: ------------\n\n";
-    print_resolved_expr(unit, 0, state);
-}
-
 static inline void debug_table(symbol_table table) {
     std::cout << "---- debugging stack: ----\n";
-    
     std::cout << "printing frames: \n";
     for (auto i = 0; i < (nat) table.frames.size(); i++) {
         std::cout << "\t ----- FRAME # "<<i<<"---- \n\t\tidxs: { ";
@@ -598,7 +548,6 @@ static inline void debug_table(symbol_table table) {
     for (auto entry : table.master) {
         std::cout << "\t" << std::setw(6) << j << ": ";
         std::cout << expression_to_string(entry.signature, table) << "\n";
-        
         if (entry.value) {
             std::cout << "\tLLVM value: \n";
             entry.value->print(llvm::errs());
@@ -637,22 +586,11 @@ static inline llvm::Function* create_main(llvm::IRBuilder<>& builder, llvm::LLVM
 }
 
 static inline void prune_extraneous_subexpressions(expression& given) {
-    while (given.symbols.size() == 1
-           and subexpression(given.symbols[0])
-           /*and given.symbols[0].subexpression.symbols.size()*/) {
-        auto save = given.symbols[0].subexpression.symbols;
+    while (given.symbols.size() == 1 and subexpression(given.symbols.front())) {
+        auto save = given.symbols.front().subexpression.symbols;
         given.symbols = save;
     }
     for (auto& symbol : given.symbols) if (subexpression(symbol)) prune_extraneous_subexpressions(symbol.subexpression);
-}
-
-
-static inline void verify(const file& file, llvm_module& module, resolved_expression& resolved_program) {
-    std::string errors = "";
-    if (llvm::verifyModule(*module, &(llvm::raw_string_ostream(errors) << ""))) {
-        printf("llvm: %s: %s", file.name, errors.c_str());
-        resolved_program.error = true;
-    }
 }
 
 ///important note about this function:
@@ -689,10 +627,10 @@ static inline resolved_expression parse_llvm_string(llvm::Function*& function, c
     if (not llvm::parseAssemblyInto(reference, state.data.module, &my_index, function_errors) or
         parse_llvm_string_as_instruction(llvm_string, function, state, instruction_errors)) {
         pointer++;
-        return {intrin::unit_value, {}, false};
+        return {intrinsic::unit_value, {}, false};
     } else if (auto llvm_type = llvm::parseType(llvm_string, type_errors, *state.data.module)) {
         pointer++;
-        return {intrin::typeless, {}, false, llvm_type};
+        return {intrinsic::typeless, {}, false, llvm_type};
     } else {
         printf("llvm: "); function_errors.print(state.data.file.name, llvm::errs());
         printf("llvm: "); instruction_errors.print(state.data.file.name, llvm::errs());
@@ -702,7 +640,7 @@ static inline resolved_expression parse_llvm_string(llvm::Function*& function, c
 }
 
 static resolved_expression construct_signature(nat fdi_length, const expression& given, nat& index) {
-    resolved_expression result = {intrin::typeless};
+    resolved_expression result = {intrinsic::typeless};
     result.signature = std::vector<symbol>(given.symbols.begin() + index, given.symbols.begin() + index + fdi_length);
     index += fdi_length;
     return result;
@@ -730,12 +668,14 @@ resolved_expression search(const expression& given, nat given_type, llvm::Functi
     if (not given_type or depth > max_depth) return resolution_failure;
     
     else if (index < (nat) given.symbols.size() and subexpression(given.symbols[index])) {
+        printf("resolving subexpression...\n");
         auto resolved = resolve_expression(given.symbols[index].subexpression, given_type, function, state);
-        if (not resolved.error) index++;
+        index++;
         return resolved;
     }
-    else if (given_type == intrin::abstraction) return construct_signature(fdi_length, given, index);
-    else if (index < (nat) given.symbols.size() and llvm_string(given.symbols[index]) and given_type == intrin::unit) return parse_llvm_string(function, given.symbols[index].llvm.literal.value, index, state);
+    
+    else if (given_type == intrinsic::abstraction) return construct_signature(fdi_length, given, index);
+    else if (index < (nat) given.symbols.size() and llvm_string(given.symbols[index]) and given_type == intrinsic::unit) return parse_llvm_string(function, given.symbols[index].llvm.literal.value, index, state);
 //    else if (string_literal(given.symbols[index]) and given_type == intrin::llvm)  parse_string(given, index, state);
     
     nat saved = index;
@@ -770,9 +710,8 @@ resolved_expression resolve_expression(const expression& given, nat given_type, 
 static inline void delete_empty_blocks(llvm_module& module) {
     for (auto& function : module->getFunctionList()) {
         llvm::SmallVector<llvm::BasicBlock*, 100> blocks = {};
-        for (auto& block : function.getBasicBlockList()) {
+        for (auto& block : function.getBasicBlockList())
             if (block.empty()) blocks.push_back(&block);
-        }
         llvm::DeleteDeadBlocks(blocks);
     }
 }
@@ -791,7 +730,6 @@ static inline void move_lone_terminators_into_previous_blocks(llvm_module& modul
             previous = &block;
         }
     }
-    
     ///TODO: unfinished.
     ///KNOWN BUG: when we have no terminators in sight, this function
     /// does remove the unneccessary basic block which is put between the
@@ -813,7 +751,7 @@ static inline void remove_donothing_remnants(llvm_module& module) {
 }
 
 void symbol_table::update(llvm::ValueSymbolTable& llvm) {
-    ///TODO: unfinished.
+    
 }
 
 void symbol_table::push_new_frame() { frames.push_back({frames.back()}); }
@@ -822,17 +760,7 @@ std::vector<nat>& symbol_table::top() { return frames.back(); }
 expression& symbol_table::get(nat index) { return master[index].signature; }
 
 void symbol_table::define(const expression& signature, const expression& definition, nat back_from, nat parent) {
-    ///TODO: unfinished.
     
-    // this function should do a check for if the signature is already
-    // defined in the current scope. if so, then simply overrite its data.
-    
-    frames[frames.size() - (++back_from)].push_back(master.size());
-    master.push_back({signature, definition, parent});
-    
-    //we need to define it the LLVM symbol table!
-    // and we need to define it of the right type, as well.
-    sort_top_by_largest();
 }
 
 void symbol_table::sort_top_by_largest() {
@@ -850,7 +778,7 @@ symbol_table::symbol_table(program_data& data, const std::vector<expression>& bu
 
 std::vector<std::string> symbol_table::llvm_key_symbols_in_table(llvm::ValueSymbolTable llvm) {
     std::vector<std::string> result = {};
-    for (auto i = llvm.begin(); i != llvm.end(); i++) result.push_back(i->getKey());
+    for (auto& wef : llvm) result.push_back(wef.getKey());
     return result;
 }
 
@@ -861,26 +789,29 @@ static inline void set_data_for(llvm_module& module) {
     module->setDataLayout(target_machine->createDataLayout());
 }
 
-static inline llvm_module resolve(expression program, const file& file, llvm::LLVMContext& context) {
+static inline llvm_module generate(expression program, const file& file, llvm::LLVMContext& context) {
     auto module = llvm::make_unique<llvm::Module>(file.name, context);
     set_data_for(module);
     llvm::IRBuilder<> builder(context);
     program_data data {file, module.get(), builder};
     symbol_table stack {data, builtins};
     resolve_state state {stack, data};
-    stack.sort_top_by_largest();
     auto main = create_main(builder, context, module);
     builder.CreateCall(llvm::Intrinsic::getDeclaration(module.get(), llvm::Intrinsic::donothing));
     prune_extraneous_subexpressions(program);
-    auto resolved = resolve_expression(program, intrin::unit, main, state);
+    auto resolved = resolve_expression(program, intrinsic::unit, main, state);
     remove_donothing_remnants(module);
     move_lone_terminators_into_previous_blocks(module);
     delete_empty_blocks(module);
     if (not contains_final_terminator(main)) append_return_0_statement(builder, main, context);
-    verify(file, module, resolved);
+    std::string errors = "";
+    if (llvm::verifyModule(*module, &(llvm::raw_string_ostream(errors) << ""))) {
+        printf("llvm: %s: %s", file.name, errors.c_str());
+        resolved.error = true;
+    }
     if (debug) {
         debug_table(state.stack);
-        print_resolved_unit(resolved, state);
+        print_resolved_expr(resolved, 0, state);
         module->print(llvm::outs(), nullptr);
     }
     if (resolved.error) exit(10);
@@ -895,7 +826,7 @@ static inline llvm_modules frontend(const arguments& arguments, llvm::LLVMContex
     llvm::InitializeAllAsmPrinters();
     llvm_modules modules = {};
     modules.reserve(arguments.files.size());
-    for (auto file : arguments.files) modules.push_back(resolve(parse(file), file, context));
+    for (auto file : arguments.files) modules.push_back(generate(parse(file), file, context));
     return modules;
 }
 
