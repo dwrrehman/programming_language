@@ -249,8 +249,7 @@ static inline arguments get_arguments(const int argc, const char** argv) {
                 stream.close();
                 args.files.push_back({argv[i], text});
             } else {
-                printf("Unable to open \"%s\" \n", argv[i]);
-                perror("open");
+                printf("unable to open \"%s\": %s\n", argv[i], strerror(errno));
                 exit(1);
             }
         }
