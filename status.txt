@@ -20,6 +20,8 @@ THE TODO LIST:
 - add compiletime parameters
 - add ct geenration of rt data.
 
+- figure out how to remove the symbol table data structure.
+
 x: - devise a better llvm interop system.;
 
 - figure out how to make _c provide _expose functionality
@@ -33,6 +35,28 @@ x: - possibly get rid ll stirngs. ;
 - add numbers suppport.
 
 =======================
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 

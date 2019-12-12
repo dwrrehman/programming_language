@@ -34,12 +34,7 @@ enum class output_type {none, llvm, assembly, object_file, executable};
 enum class token_type {null, string, identifier, character, llvm, keyword, operator_};
 enum class lex_state {none, string, string_expression, identifier, llvm_string, comment, multiline_comment};
 enum class symbol_type { none, subexpression, string_literal, llvm_literal, identifier };
-
-namespace intrinsic {
-    enum intrinsic_index {
-        typeless, type, llvm, infered, none, application, abstraction, define, evaluate
-    };
-}
+namespace intrinsic { enum intrinsic_index { typeless, type, llvm, infered, none, application, abstraction, define, evaluate }; }
 
 struct file {
     const char* name = "";
@@ -180,21 +175,8 @@ static expression abstraction_type = {{{{"_b"}}}, intrinsic::type};
 static expression define_abstraction = {{{{"_d"}}, {{intrinsic::abstraction}}, {{intrinsic::type}}, {{intrinsic::application}}, {{intrinsic::application}}}, intrinsic::type};
 static expression evaluate_abstraction = {{{{"_evaluate"}}, {{intrinsic::llvm}}, }, intrinsic::llvm};
 
-static expression chain = {
-    {
-        {{intrinsic::type}}, {{intrinsic::type}},
-    }, intrinsic::type
-};
-
-static expression hello_test = {
-    {
-        {{"d"}},
-    }, intrinsic::type
-};
-
-
-
-
+static expression chain = { { {{intrinsic::type}}, {{intrinsic::type}}, }, intrinsic::type };
+static expression hello_test = { { {{"d"}}, }, intrinsic::type };
 
 static const std::vector<expression> builtins = {
     type_type, infered_type, llvm_type, none_type,
@@ -231,7 +213,7 @@ static inline arguments get_arguments(const int argc, const char** argv) {
     for (nat i = 1; i < argc; i++) {
         const auto word = std::string(argv[i]);
         if (word == "-z") debug = true;
-        else if (word == "-u") { printf("./nostril -[zuvrscod/]\n"); exit(0); }
+        else if (word == "-u") { printf("usage: nostril -[zuverscod/] <.n/.ll/.o/.s>\n"); exit(0); }
         else if (word == "-v") { printf("n3zqx2l: 0.0.3 - nostril: 0.0.2\n"); exit(0); }
         else if (word == "-e") args.includes_standard_library = false;
         else if (word == "-r" and i + 1 < argc) { args.output = output_type::llvm; args.name = argv[++i]; }
@@ -247,7 +229,7 @@ static inline arguments get_arguments(const int argc, const char** argv) {
                 std::string text {std::istreambuf_iterator<char>(stream), std::istreambuf_iterator<char>()};
                 stream.close();
                 args.files.push_back({argv[i], text});
-            } else { printf("unable to open \"%s\": %s\n", argv[i], strerror(errno)); exit(1); }
+            } else { printf("nostril: error: unable to open \"%s\": %s\n", argv[i], strerror(errno)); exit(1); }
         }
     }
     if (args.files.empty()) { printf("nostril: error: no input files\n"); exit(1); }
@@ -267,7 +249,6 @@ static inline bool is_reserved_operator(token t) { return is_open_paren(t) or is
 static inline bool subexpression(const symbol& s) { return s.type == symbol_type::subexpression; }
 static inline bool identifier(const symbol& s) { return s.type == symbol_type::identifier; }
 static inline bool llvm_string(const symbol& s) { return s.type == symbol_type::llvm_literal; }
-//static inline bool string_literal(const symbol& s) { return s.type == symbol_type::string_literal; }
 static inline bool parameter(const symbol &symbol) { return subexpression(symbol); }
 static inline bool are_equal_identifiers(const symbol &first, const symbol &second) { return identifier(first) and identifier(second) and first.identifier.name.value == second.identifier.name.value; }
 
@@ -281,7 +262,6 @@ static inline void check_for_lexing_errors() {
 static inline token next() {
     while (true) {
         if (c >= (nat) text.size()) { check_for_lexing_errors(); return {token_type::null, "", line, column}; }
-
              if (text[c] == ';' and is_valid(c+1) and     isspace(text[c+1]) and lex_state == lex_state::none) lex_state = lex_state::comment;
         else if (text[c] == ';' and is_valid(c+1) and not isspace(text[c+1]) and lex_state == lex_state::none) lex_state = lex_state::multiline_comment;
         else if (is_identifier(text[c]) and is_valid(c+1) and not is_identifier(text[c+1]) and lex_state == lex_state::none) {
@@ -352,7 +332,7 @@ static inline void start_lex(const file& file) { // this function should be call
 }
 
 ///DELETE ME
-static inline const char* convert_token_type_representation(enum token_type type) {
+static inline const char* stringify_token(enum token_type type) {
     switch (type) {
         case token_type::null: return "EOF";
         case token_type::string: return "string";
@@ -367,7 +347,7 @@ static inline const char* convert_token_type_representation(enum token_type type
 ///DELETE ME
 static inline void print_lex(const std::vector<struct token>& tokens) {
     std::cout << "::::::::::LEX:::::::::::" << std::endl;
-    for (auto token : tokens) std::cout << "TOKEN(type: " << convert_token_type_representation(token.type) << ", value: \"" << (token.value != "\n" ? token.value : "\\n") << "\", [" << token.line << ":" << token.column << "])" << std::endl;
+    for (auto token : tokens) std::cout << "TOKEN(type: " << stringify_token(token.type) << ", value: \"" << (token.value != "\n" ? token.value : "\\n") << "\", [" << token.line << ":" << token.column << "])" << std::endl;
     std::cout << ":::::::END OF LEX:::::::" << std::endl;
 }
 
@@ -382,27 +362,11 @@ static inline void debug_token_stream() {
 ///DELETE ME
 static inline void print_symbol(symbol symbol, nat d) {
     switch (symbol.type) {
-
-        case symbol_type::identifier:
-            prep(d); std::cout << convert_token_type_representation(symbol.identifier.name.type) << ": " << symbol.identifier.name.value << "\n";
-            break;
-
-        case symbol_type::llvm_literal:
-            prep(d); std::cout << "llvm literal: \'" << symbol.llvm.literal.value << "\'\n";
-            break;
-
-        case symbol_type::string_literal:
-            prep(d); std::cout << "string literal: \"" << symbol.string.literal.value << "\"\n";
-            break;
-            
-        case symbol_type::subexpression:
-            prep(d); std::cout << "subexpression:\n";
-            print_expression(symbol.subexpression, d+1);
-            break;
-
-        case symbol_type::none:
-            prep(d); std::cout << "{NO SYMBOL TYPE}\n";
-            break;
+        case symbol_type::identifier: prep(d); std::cout << stringify_token(symbol.identifier.name.type) << ": " << symbol.identifier.name.value << "\n"; break;
+        case symbol_type::llvm_literal: prep(d); std::cout << "llvm literal: \'" << symbol.llvm.literal.value << "\'\n"; break;
+        case symbol_type::string_literal: prep(d); std::cout << "string literal: \"" << symbol.string.literal.value << "\"\n"; break;
+        case symbol_type::subexpression: prep(d); std::cout << "subexpression:\n"; print_expression(symbol.subexpression, d+1); break;
+        case symbol_type::none: prep(d); std::cout << "{NO SYMBOL TYPE}\n"; break;
         default: break;
     }
 }
@@ -456,7 +420,7 @@ static inline symbol parse_symbol(const file& file) {
             if (is_close_paren(t)) return {e};
             else {
                 printf("n3zqx2l: %s:%lld:%lld: unexpected %s, \"%s\", expected \")\" to close expression\n",
-                       file.name, saved_t.line, saved_t.column, convert_token_type_representation(t.type), t.value.c_str());
+                       file.name, saved_t.line, saved_t.column, stringify_token(t.type), t.value.c_str());
                 revert_and_return();
             }
         }
@@ -537,12 +501,9 @@ static inline void debug_table(symbol_table table) {
     std::cout << "printing frames: \n";
     for (auto i = 0; i < (nat) table.frames.size(); i++) {
         std::cout << "\t ----- FRAME # "<<i<<"---- \n\t\tidxs: { ";
-        for (auto index : table.frames[i]) {
-            std::cout << index << " ";
-        }
+        for (auto index : table.frames[i]) std::cout << index << " ";
         std::cout << "}\n";
     }
-    
     std::cout << "\nmaster: {\n";
     auto j = 0;
     for (auto entry : table.master) {
@@ -555,8 +516,7 @@ static inline void debug_table(symbol_table table) {
         if (entry.function) {
             std::cout << "\tLLVM function: \n";
             entry.function->print(llvm::errs());
-        }
-        j++;
+        } j++;
     }
     std::cout << "}\n";
 }
@@ -567,8 +527,7 @@ static inline bool contains_final_terminator(llvm::Function* main_function) {
         auto& instructions = blocks.back().getInstList();
         auto& last = instructions.back();
         if (last.isTerminator()) return true;
-    }
-    return false;
+    } return false;
 }
 
 static inline void append_return_0_statement(llvm::IRBuilder<> &builder, llvm::Function* main_function, llvm::LLVMContext& context) {
@@ -609,10 +568,10 @@ static inline resolved_expression parse_llvm_string(llvm::Function*& function, c
         
         function_errors.print((std::string("llvm: (") + std::to_string(llvm_string.line) + "," + std::to_string(llvm_string.column) + ")").c_str(), llvm::errs());
         
-        // we should only be doing one of these.b
+        // we should only be doing one of these.
         
         type_errors.print("llvm", llvm::errs());
-        exit(1);
+
         
         return {0, {}, true};
     }
