@@ -232,8 +232,8 @@ static inline arguments get_arguments(const int argc, const char** argv) {
     for (nat i = 1; i < argc; i++) {
         const auto word = std::string(argv[i]);
         if (word == "-z") debug = true;
-        else if (word == "-u") { printf("./nostril -[cdeorsuvz]\n"); exit(0); }
-        else if (word == "-v") { printf("n3zqx2l: 0.0.01\nnostril: 0.0.01\n"); exit(0); }
+        else if (word == "-u") { printf("./nostril -[zuvrscod/]\n"); exit(0); }
+        else if (word == "-v") { printf("n3zqx2l: 0.0.2 - nostril: 0.0.1\n"); exit(0); }
         else if (word == "-e") args.includes_standard_library = false;
         else if (word == "-r" and i + 1 < argc) { args.output = output_type::llvm; args.name = argv[++i]; }
         else if (word == "-s" and i + 1 < argc) { args.output = output_type::assembly; args.name = argv[++i]; }
@@ -804,7 +804,7 @@ static inline llvm_module generate(expression program, const file& file, llvm::L
     symbol_table stack {data, builtins};
     resolve_state state {stack, data};
     auto main = create_main(builder, context, module);
-    builder.CreateCall(llvm::Intrinsic::getDeclaration(module.get(), llvm::Intrinsic::donothing));
+    builder.CreateCall(llvm::Intrinsic::getDeclaration(data.module, llvm::Intrinsic::donothing));
     prune_extraneous_subexpressions(program);
     auto resolved = resolve_expression(program, intrinsic::unit, main, state);
     remove_donothing_remnants(module);
