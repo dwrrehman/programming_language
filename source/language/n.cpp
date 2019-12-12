@@ -212,7 +212,7 @@ static inline arguments get_arguments(const int argc, const char** argv) {
     for (nat i = 1; i < argc; i++) {
         const auto word = std::string(argv[i]);
         if (word == "-z") debug = true;
-        else if (word == "-u") { printf("usage: nostril -[zuverscod/] <.n/.ll/.o/.s>\n"); exit(0); }
+        else if (word == "-u") { printf("usage: nostril -[zuverscod/-] <.n/.ll/.o/.s>\n"); exit(0); }
         else if (word == "-v") { printf("n3zqx2l: 0.0.3 - nostril: 0.0.2\n"); exit(0); }
         else if (word == "-e") args.includes_standard_library = false;
         else if (word == "-r" and i + 1 < argc) { args.output = output_type::llvm; args.name = argv[++i]; }
@@ -221,6 +221,7 @@ static inline arguments get_arguments(const int argc, const char** argv) {
         else if (word == "-o" and i + 1 < argc) { args.output = output_type::executable; args.name = argv[++i]; }
         else if (word == "-d" and i + 1 < argc) { auto n = atoi(argv[++i]); max_expression_depth = n ? n : 4; }
         else if (word == "-/") { break; /*the linker argumnets start here.*/ }
+        else if (word == "--") { break; /*the interpreter argumnets start here.*/ }
         else if (word[0] == '-') { printf("bad option: %s\n", argv[i]); exit(1); }
         else {
             std::ifstream stream {argv[i]};
@@ -367,8 +368,7 @@ static inline symbol parse_symbol(const file& file) {
             e.start = t;
             if (is_close_paren(t)) return {e};
             else {
-                printf("n3zqx2l: %s:%lld:%lld: unexpected %s, \"%s\", expected \")\" to close expression\n",
-                       file.name, saved_t.line, saved_t.column, stringify_token(t.type), t.value.c_str());
+                printf("n3zqx2l: %s:%lld:%lld: unexpected %s, \"%s\", expected \")\" to close expression\n", file.name, saved_t.line, saved_t.column, stringify_token(t.type), t.value.c_str());
                 revert_and_return();
             }
         }
@@ -425,7 +425,6 @@ static inline std::string expression_to_string(const expression& given, symbol_t
     return result;
 }
 
-///DELETE ME
 static inline void print_resolved_expr(resolved_expression expr, nat depth, resolve_state& state) {
     prep(depth); std::cout << "[error = " << std::boolalpha << expr.error << "]\n";
     prep(depth); std::cout << "index = " << expr.index << " :: " << expression_to_string(state.stack.get(expr.index), state.stack);
@@ -441,7 +440,6 @@ static inline void print_resolved_expr(resolved_expression expr, nat depth, reso
     }
 }
 
-///DELETE ME
 static inline void debug_table(symbol_table table) {
     std::cout << "---- debugging stack: ----\n";
     std::cout << "printing frames: \n";
@@ -571,35 +569,24 @@ resolved_expression search(const expression& given, nat given_type, llvm::Functi
 }
 
 resolved_expression resolve_expression(const expression& given, nat given_type, llvm::Function*& function, resolve_state& state) {
-    
     resolved_expression solution {};
     nat pointer = 0;
     for (nat max_depth = 0; max_depth <= max_expression_depth; max_depth++) {
-//        for (nat fdi_length = given.symbols.size(); fdi_length--;) {
-            pointer = 0;
-            solution = search(given, given_type, function, pointer, 0, max_depth, 0/*fdi_length*/, state);
-            if (not solution.error and pointer == (nat) given.symbols.size()) break;
-//        }
+        pointer = 0;
+        solution = search(given, given_type, function, pointer, 0, max_depth, 0/*fdi_length*/, state);
         if (not solution.error and pointer == (nat) given.symbols.size()) break;
     }
-    
     if (pointer < (nat) given.symbols.size()) solution.error = true;
     if (solution.error) printf("n3zqx2l: %s:%lld:%lld: error: unresolved expression: %s\n", state.data.file.name, given.start.line, given.start.column, expression_to_string(given, state.stack).c_str());
     return solution;
 }
 
-void symbol_table::update(llvm::ValueSymbolTable& llvm) {
-    
-}
-
+void symbol_table::update(llvm::ValueSymbolTable& llvm) {}
 void symbol_table::push_new_frame() { frames.push_back({frames.back()}); }
 void symbol_table::pop_last_frame() { frames.pop_back(); }
 std::vector<nat>& symbol_table::top() { return frames.back(); }
 expression& symbol_table::get(nat index) { return master[index].signature; }
-
-void symbol_table::define(const expression& signature, const expression& definition, nat back_from, nat parent) {
-    
-}
+void symbol_table::define(const expression& signature, const expression& definition, nat back_from, nat parent) {}
 
 symbol_table::symbol_table(program_data& data, const std::vector<expression>& builtins) : data(data) {
     master.push_back({});  // the null entry. a type (index) of 0 means it has no type.
@@ -639,24 +626,19 @@ static inline llvm_module generate(expression program, const file& file, llvm::L
         print_resolved_expr(resolved, 0, state);
         module->print(llvm::outs(), nullptr);
     }
-    if (resolved.error) exit(10);
-    else return module;
+    if (resolved.error) return nullptr; else return module;
 }
 
 static inline llvm_modules frontend(const arguments& arguments, llvm::LLVMContext& context) {
-    llvm::InitializeAllTargetInfos();
-    llvm::InitializeAllTargets();
-    llvm::InitializeAllTargetMCs();
-    llvm::InitializeAllAsmParsers();
-    llvm::InitializeAllAsmPrinters();
+    llvm::InitializeAllTargetInfos(); llvm::InitializeAllTargets(); llvm::InitializeAllTargetMCs();
+    llvm::InitializeAllAsmParsers(); llvm::InitializeAllAsmPrinters();
     llvm_modules modules = {};
-    modules.reserve(arguments.files.size());
-    for (auto file : arguments.files) modules.push_back(generate(parse(file), file, context));
+    for (auto file : arguments.files) modules.push_back(generate(parse(file), file, context)); //    std::transform(arguments.files.begin(), arguments.files.end(), std::back_inserter(modules), [&context](const file& file) { return generate(parse(file), file, context); });
+    if (std::find_if(modules.begin(), modules.end(), [](llvm_module& module){return !module;}) != modules.end()) exit(1);
     return modules;
 }
 
 static inline llvm_module link(llvm_modules&& modules) {
-    if (modules.empty()) return {};
     auto result = std::move(modules.back());
     modules.pop_back();
     for (auto& module : modules) if (llvm::Linker::linkModules(*result, std::move(module))) exit(1);
