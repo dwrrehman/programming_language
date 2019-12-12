@@ -161,7 +161,6 @@ struct symbol_table {
     std::vector<nat>& top();
     expression& get(nat index);
     void define(const expression& signature, const expression& definition, nat back_from, nat parent = 0);
-    void sort_top_by_largest();
 };
 
 // constants:
@@ -252,6 +251,10 @@ static inline bool llvm_string(const symbol& s) { return s.type == symbol_type::
 static inline bool parameter(const symbol &symbol) { return subexpression(symbol); }
 static inline bool are_equal_identifiers(const symbol &first, const symbol &second) { return identifier(first) and identifier(second) and first.identifier.name.value == second.identifier.name.value; }
 
+static inline const char* stringify_token(enum token_type type) {
+    switch (type) { case token_type::null: return "EOF"; case token_type::string: return "string"; case token_type::identifier: return "identifier"; case token_type::keyword: return "keyword"; case token_type::operator_: return "operator"; case token_type::character: return "character"; case token_type::llvm: return "llvm"; }
+}
+
 static inline void check_for_lexing_errors() {
     if (lex_state == lex_state::string) printf("n3zqx2l: %s:%lld,%lld: error: unterminated string\n", filename, line, column);
     else if (lex_state == lex_state::llvm_string) printf("n3zqx2l: %s:%lld,%lld: error: unterminated llvm string\n", filename, line, column);
@@ -331,62 +334,6 @@ static inline void start_lex(const file& file) { // this function should be call
     current = {};
 }
 
-///DELETE ME
-static inline const char* stringify_token(enum token_type type) {
-    switch (type) {
-        case token_type::null: return "EOF";
-        case token_type::string: return "string";
-        case token_type::identifier: return "identifier";
-        case token_type::keyword: return "keyword";
-        case token_type::operator_: return "operator";
-        case token_type::character: return "character";
-        case token_type::llvm: return "llvm";
-    }
-}
-
-///DELETE ME
-static inline void print_lex(const std::vector<struct token>& tokens) {
-    std::cout << "::::::::::LEX:::::::::::" << std::endl;
-    for (auto token : tokens) std::cout << "TOKEN(type: " << stringify_token(token.type) << ", value: \"" << (token.value != "\n" ? token.value : "\\n") << "\", [" << token.line << ":" << token.column << "])" << std::endl;
-    std::cout << ":::::::END OF LEX:::::::" << std::endl;
-}
-
-///DELETE ME
-static inline void debug_token_stream() {
-    std::vector<struct token> tokens = {};
-    struct token t = {};
-    while ((t = next()).type != token_type::null) tokens.push_back(t);
-    print_lex(tokens);
-}
-
-///DELETE ME
-static inline void print_symbol(symbol symbol, nat d) {
-    switch (symbol.type) {
-        case symbol_type::identifier: prep(d); std::cout << stringify_token(symbol.identifier.name.type) << ": " << symbol.identifier.name.value << "\n"; break;
-        case symbol_type::llvm_literal: prep(d); std::cout << "llvm literal: \'" << symbol.llvm.literal.value << "\'\n"; break;
-        case symbol_type::string_literal: prep(d); std::cout << "string literal: \"" << symbol.string.literal.value << "\"\n"; break;
-        case symbol_type::subexpression: prep(d); std::cout << "subexpression:\n"; print_expression(symbol.subexpression, d+1); break;
-        case symbol_type::none: prep(d); std::cout << "{NO SYMBOL TYPE}\n"; break;
-        default: break;
-    }
-}
-
-///DELETE ME
-void print_expression(expression expression, nat d) {
-    prep(d); std::cout << "expression: \n";
-    prep(d); std::cout << std::boolalpha << "error: " << expression.error << "\n";
-    prep(d); std::cout << "symbol count: " << expression.symbols.size() << "\n";
-    prep(d); std::cout << "symbols: \n";
-    nat i = 0;
-    for (auto symbol : expression.symbols) {
-        prep(d+1); std::cout << i << ": \n";
-        print_symbol(symbol, d+1);
-        std::cout << "\n";
-        i++;
-    }
-    prep(d); std::cout << "type = " << expression.type << "\n";
-}
-
 static inline struct string_literal parse_string_literal() {
     auto saved = save();
     auto t = next();
@@ -460,9 +407,7 @@ expression parse_expression(const file& file, bool can_be_empty) {
 
 static inline expression parse(const file& file) {
     start_lex(file);
-    if (debug) { debug_token_stream(); start_lex(file); }
     auto unit = parse_expression(file, /*can_be_empty = */true);
-    if (debug) print_expression(unit, 1);
     return unit;
 }
 
@@ -656,17 +601,13 @@ void symbol_table::define(const expression& signature, const expression& definit
     
 }
 
-void symbol_table::sort_top_by_largest() {
-    std::stable_sort(top().begin(), top().end(), [&](nat a, nat b) { return get(a).symbols.size() > get(b).symbols.size(); });
-}
-
 symbol_table::symbol_table(program_data& data, const std::vector<expression>& builtins) : data(data) {
     master.push_back({});  // the null entry. a type (index) of 0 means it has no type.
     for (auto signature : builtins) master.push_back({signature, {}, {}});
     std::vector<nat> compiler_intrinsics = {};
     for (nat i = 0; i < (nat) builtins.size(); i++) compiler_intrinsics.push_back(i + 1);
     frames.push_back({compiler_intrinsics});
-    sort_top_by_largest();
+    std::stable_sort(top().begin(), top().end(), [&](nat a, nat b) { return get(a).symbols.size() > get(b).symbols.size(); });
 }
 
 static inline void set_data_for(llvm_module& module) {
