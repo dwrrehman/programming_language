@@ -248,10 +248,7 @@ static inline arguments get_arguments(const int argc, const char** argv) {
                 std::string text {std::istreambuf_iterator<char>(stream), std::istreambuf_iterator<char>()};
                 stream.close();
                 args.files.push_back({argv[i], text});
-            } else {
-                printf("unable to open \"%s\": %s\n", argv[i], strerror(errno));
-                exit(1);
-            }
+            } else { printf("unable to open \"%s\": %s\n", argv[i], strerror(errno)); exit(1); }
         }
     }
     if (args.files.empty()) { printf("nostril: error: no input files\n"); exit(1); }
