@@ -1,6 +1,11 @@
-()
-()
-()
-()
-()
-
+`
+!0 = !{!"(hello world)"}
+@f = private unnamed_addr constant i32 0
+%f = type {}
+define i32 @"f./"(metadata) {
+    %f = add i32 0, 1
+    
+    ret i32 %f
+}
+f
+`

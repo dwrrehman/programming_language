@@ -1,9 +1,194 @@
-the current status of the compiler is:
+the current status of the nostril compiler:
+=============================================
+
+
+
+THE TODO LIST:
+=====================
+
+- redo how we are handling lexing, our impl sucks. it uses alot of globals.
+- revise our target triple.
+- use more of the stl algorithms.
+
+- get csr working with subexpressions.
+- get fdi functionality fully working, using _b
+
+- add _0 functionality to csr.
+- add lazy code generation using _a
+- add resolution based type inference
+- add compiletime evlauation to this.
+- add compiletime parameters
+- add ct geenration of rt data.
+
+- figure out how to remove the symbol table data structure.
+
+x: - devise a better llvm interop system.;
+
+- figure out how to make _c provide _expose functionality
+
+- add assembly output functioality,
+- code for passing flags to the linker
+- add codegen and support for strings in csr and llvm.
+
+x: - possibly get rid ll stirngs. ;
+
+- add numbers suppport.
+
+=======================
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+our data layout is fine i guess..
+
+
+
+redo how we are doing strings.
+
+
+
+we shouldnt have sgtring literals.
+
+
+i feel like we should also make spaces insignificant, but maybe not, actually.
+
+
+yeah lets not.
+
+
+
+
+
+
+
+so it looks like we have two major tasks as todos for our compiler:
+
+
+    - make the csr algortihm work with subexpressions,
+    
+    - redo our idea of how our language integrates with llvm.
+    
+                this is actually exptremely important.
+            
+                we need to get this right, in just the right way, and make sure that our implementation is clean and concise.
+                
+                
+                
+                
+                
+    
+
+
+
+
+
+
+
+we really need to get the:
+
+
+    - csr algortithm working with subexpr
+    
+    - get the llvm symbol table synched up with our symbol table.
+    
+    - get the
+
+
+
+
+ok, so we deleted a bunch of code, and the whole compiler is now only 950ish lines long.
+
+
+the current bug we are trying to solve is trying to get the chain rule to work with our current CSR setup. it was working, and then i changed how subexpressions worked, because i saw a simplication, and not it doesnt work. i might change csr to work as before, just to get it working. its not that great of a simplication.
+
+
+
+
+
+
+
+
+
+
+
+1. i need to go through and delete all the error.cpp code, and redo all the code as inline print statements, in the logic code.
+
+
+2. i need to start removing features from CSR, specfically:       strings,         ...
+
+CSR should only have in it:
+
+
+    - the csr parsing capability
+        
+    - fdi functionality
+    
+    - llvm string parsing capability
+    
+    - 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
 
 1910104.152555:
+
 
 
         current todo:

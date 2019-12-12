@@ -61,11 +61,7 @@
       </BuildableProductRunnable>
       <CommandLineArguments>
          <CommandLineArgument
-            argument = "run"
-            isEnabled = "YES">
-         </CommandLineArgument>
-         <CommandLineArgument
-            argument = "-s"
+            argument = "-z"
             isEnabled = "YES">
          </CommandLineArgument>
          <CommandLineArgument
