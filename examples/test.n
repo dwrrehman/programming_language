@@ -7,5 +7,5 @@ define i32 @"f./"(metadata) {
     
     ret i32 %f
 }
+f
 `
-d

@@ -593,20 +593,27 @@ static inline void prune_extraneous_subexpressions(expression& given) {
     for (auto& symbol : given.symbols) if (subexpression(symbol)) prune_extraneous_subexpressions(symbol.subexpression);
 }
 
-static inline resolved_expression parse_llvm_string(llvm::Function*& function, const std::string& llvm_string, nat& pointer, resolve_state& state) {
+///TODO: split this function off into a parse type llvm string, and a parse code llvm string. these require different given_type's.
+static inline resolved_expression parse_llvm_string(llvm::Function*& function, const token& llvm_string, nat& pointer, resolve_state& state) {
     llvm::SMDiagnostic function_errors, type_errors;
     llvm::ModuleSummaryIndex my_index(true);
-    llvm::MemoryBufferRef reference(llvm_string, "<llvm-string>");
+    llvm::MemoryBufferRef reference(llvm_string.value, state.data.file.name);
     
     if (not llvm::parseAssemblyInto(reference, state.data.module, &my_index, function_errors)) {
         pointer++;
         return {intrinsic::llvm, {}, false, llvm::Type::getVoidTy(state.data.module->getContext())};
-    } else if (auto llvm_type = llvm::parseType(llvm_string, type_errors, *state.data.module)) {
+    } else if (auto llvm_type = llvm::parseType(llvm_string.value, type_errors, *state.data.module)) {
         pointer++;
         return {intrinsic::llvm, {}, false, llvm_type};
     } else {
-        printf("llvm: "); function_errors.print(state.data.file.name, llvm::errs());
-        printf("llvm: "); type_errors.print(state.data.file.name, llvm::errs());
+        
+        function_errors.print((std::string("llvm: (") + std::to_string(llvm_string.line) + "," + std::to_string(llvm_string.column) + ")").c_str(), llvm::errs());
+        
+        // we should only be doing one of these.b
+        
+        type_errors.print("llvm", llvm::errs());
+        exit(1);
+        
         return {0, {}, true};
     }
 }
@@ -640,14 +647,13 @@ resolved_expression search(const expression& given, nat given_type, llvm::Functi
     if (not given_type or depth > max_depth) return resolution_failure;
     
     else if (index < (nat) given.symbols.size() and subexpression(given.symbols[index])) {
-        printf("resolving subexpression...\n");
         auto resolved = resolve_expression(given.symbols[index].subexpression, given_type, function, state);
         index++;
         return resolved;
     }
     
     else if (given_type == intrinsic::abstraction) return construct_signature(fdi_length, given, index);
-    else if (index < (nat) given.symbols.size() and llvm_string(given.symbols[index]) and given_type == intrinsic::llvm) return parse_llvm_string(function, given.symbols[index].llvm.literal.value, index, state);
+    else if (index < (nat) given.symbols.size() and llvm_string(given.symbols[index]) and given_type == intrinsic::type) return parse_llvm_string(function, given.symbols[index].llvm.literal, index, state);
 //    else if (string_literal(given.symbols[index]) and given_type == intrin::llvm)  parse_string(given, index, state);
     
     nat saved = index;
@@ -673,7 +679,6 @@ resolved_expression resolve_expression(const expression& given, nat given_type, 
         if (not solution.error and pointer == (nat) given.symbols.size()) break;
     }
     
-//    if (given.symbols.empty() and given_type == intrin::unit) return resolved_unit_value;
     if (pointer < (nat) given.symbols.size()) solution.error = true;
     if (solution.error) printf("n3zqx2l: %s:%lld:%lld: error: unresolved expression: %s\n", state.data.file.name, given.start.line, given.start.column, expression_to_string(given, state.stack).c_str());
     return solution;
@@ -776,17 +781,12 @@ static inline void generate_ll_file(llvm_module module, const arguments& argumen
 static inline std::string generate_object_file(llvm_module module, const arguments& arguments) {
     std::string lookup_error = "";
     auto target_machine = llvm::TargetRegistry::lookupTarget(module->getTargetTriple(), lookup_error)->createTargetMachine(module->getTargetTriple(), "generic", "", {}, {}, {}); ///TODO: make this not generic!
-    
     auto object_filename = std::string(arguments.name) + ".o";
     std::error_code error;
     llvm::raw_fd_ostream dest(object_filename, error, llvm::sys::fs::F_None);
     if (error) exit(1);
-    
     llvm::legacy::PassManager pass;
-    if (target_machine->addPassesToEmitFile(pass, dest, nullptr, llvm::TargetMachine::CGFT_ObjectFile)) {
-        std::remove(object_filename.c_str());
-        exit(1);
-    }
+    if (target_machine->addPassesToEmitFile(pass, dest, nullptr, llvm::TargetMachine::CGFT_ObjectFile)) { std::remove(object_filename.c_str()); exit(1); }
     pass.run(*module);
     dest.flush();
     return object_filename;
