@@ -41,7 +41,12 @@ enum class output_type {none, llvm, assembly, object_file, executable};
 enum class token_type {null, string, identifier, character, llvm, keyword, operator_};
 enum class lex_state {none, string, string_expression, identifier, llvm_string, comment, multiline_comment};
 enum class symbol_type { none, subexpression, string_literal, llvm_literal, identifier };
-namespace intrinsic { enum intrinsic_index { typeless, type, infered, none, unit, unit_value, llvm, application, abstraction, define }; }
+
+namespace intrinsic {
+    enum intrinsic_index {
+        typeless, type, llvm, infered, none, application, abstraction, define
+    };
+}
 
 struct file {
     const char* name = "";
@@ -169,43 +174,39 @@ struct symbol_table {
     expression& get(nat index);
     void define(const expression& signature, const expression& definition, nat back_from, nat parent = 0);
     void sort_top_by_largest();
-    std::vector<std::string> llvm_key_symbols_in_table(llvm::ValueSymbolTable llvm);
 };
 
 // constants:
 static expression failure = {true, true, true};
 static expression infered_type = {{{{"__"}}}, intrinsic::typeless};
 static expression type_type = {{{{"_"}}}, intrinsic::typeless};
-static expression none_type = {{{{"_0"}}}, intrinsic::type};
-static expression unit_type = {{{{"_1"}}}, intrinsic::type};
-static expression unit_value = {{}, intrinsic::unit};
 static expression llvm_type = {{{{"_llvm"}}}, intrinsic::typeless}; // placeholder
+static expression none_type = {{{{"_0"}}}, intrinsic::type};
 static expression application_type = {{{{"_a"}}}, intrinsic::type};
 static expression abstraction_type = {{{{"_b"}}}, intrinsic::type};
-static expression define_abstraction = {{{{"_c"}}, {{intrinsic::abstraction}}, {{intrinsic::type}}, {{intrinsic::application}}, {{intrinsic::application}}}, intrinsic::unit};
+static expression define_abstraction = {{{{"_d"}}, {{intrinsic::abstraction}}, {{intrinsic::type}}, {{intrinsic::application}}, {{intrinsic::application}}}, intrinsic::type};
 
 static expression chain = {
     {
-        {{intrinsic::unit}}, {{intrinsic::unit}},
-    }, intrinsic::unit
+        {{intrinsic::type}}, {{intrinsic::type}},
+    }, intrinsic::type
 };
 
 static expression hello_test = {
     {
-        {{"d"}}, //{{"there"}}, {{intrin::unit}}, {{"+"}}
-    }, intrinsic::unit
+        {{"d"}},
+    }, intrinsic::type
 };
 
 
 static const std::vector<expression> builtins = {
-    type_type, infered_type, none_type, unit_type, unit_value, llvm_type,
+    type_type, infered_type, llvm_type, none_type,
     application_type, abstraction_type, define_abstraction,
     
     hello_test, chain
 };
 
 static const resolved_expression resolution_failure = {0, {}, true};
-static const resolved_expression resolved_unit_value = {intrinsic::unit_value, {}, false};
 
 // globals:
 static nat max_expression_depth = 5;
@@ -271,8 +272,6 @@ static inline bool llvm_string(const symbol& s) { return s.type == symbol_type::
 //static inline bool string_literal(const symbol& s) { return s.type == symbol_type::string_literal; }
 static inline bool parameter(const symbol &symbol) { return subexpression(symbol); }
 static inline bool are_equal_identifiers(const symbol &first, const symbol &second) { return identifier(first) and identifier(second) and first.identifier.name.value == second.identifier.name.value; }
-static inline bool is_donothing_call(llvm::Instruction* ins) { return ins and std::string(ins->getOpcodeName()) == "call" and std::string(ins->getOperand(0)->getName()) == "llvm.donothing"; }
-static inline bool is_unreachable_instruction(llvm::Instruction* ins) { return ins and std::string(ins->getOpcodeName()) == "unreachable"; }
 
 static inline void check_for_lexing_errors() {
     if (lex_state == lex_state::string) printf("n3zqx2l: %s:%lld,%lld: error: unterminated string\n", filename, line, column);
@@ -623,20 +622,18 @@ static inline bool parse_llvm_string_as_instruction(const std::string& given, ll
 }
 
 static inline resolved_expression parse_llvm_string(llvm::Function*& function, const std::string& llvm_string, nat& pointer, resolve_state& state) {
-    llvm::SMDiagnostic instruction_errors, function_errors, type_errors;
+    llvm::SMDiagnostic function_errors, type_errors;
     llvm::ModuleSummaryIndex my_index(true);
     llvm::MemoryBufferRef reference(llvm_string, "<llvm-string>");
     
-    if (not llvm::parseAssemblyInto(reference, state.data.module, &my_index, function_errors) or
-        parse_llvm_string_as_instruction(llvm_string, function, state, instruction_errors)) {
+    if (not llvm::parseAssemblyInto(reference, state.data.module, &my_index, function_errors)) {
         pointer++;
-        return {intrinsic::unit_value, {}, false};
+        return {intrinsic::llvm, {}, false};
     } else if (auto llvm_type = llvm::parseType(llvm_string, type_errors, *state.data.module)) {
         pointer++;
-        return {intrinsic::typeless, {}, false, llvm_type};
+        return {intrinsic::llvm, {}, false, llvm_type};
     } else {
         printf("llvm: "); function_errors.print(state.data.file.name, llvm::errs());
-        printf("llvm: "); instruction_errors.print(state.data.file.name, llvm::errs());
         printf("llvm: "); type_errors.print(state.data.file.name, llvm::errs());
         return {0, {}, true};
     }
@@ -678,7 +675,7 @@ resolved_expression search(const expression& given, nat given_type, llvm::Functi
     }
     
     else if (given_type == intrinsic::abstraction) return construct_signature(fdi_length, given, index);
-    else if (index < (nat) given.symbols.size() and llvm_string(given.symbols[index]) and given_type == intrinsic::unit) return parse_llvm_string(function, given.symbols[index].llvm.literal.value, index, state);
+    else if (index < (nat) given.symbols.size() and llvm_string(given.symbols[index]) and given_type == intrinsic::llvm) return parse_llvm_string(function, given.symbols[index].llvm.literal.value, index, state);
 //    else if (string_literal(given.symbols[index]) and given_type == intrin::llvm)  parse_string(given, index, state);
     
     nat saved = index;
@@ -710,52 +707,6 @@ resolved_expression resolve_expression(const expression& given, nat given_type, 
     return solution;
 }
 
-///DELETE ME
-static inline void delete_empty_blocks(llvm_module& module) {
-    for (auto& function : module->getFunctionList()) {
-        llvm::SmallVector<llvm::BasicBlock*, 100> blocks = {};
-        for (auto& block : function.getBasicBlockList())
-            if (block.empty()) blocks.push_back(&block);
-        llvm::DeleteDeadBlocks(blocks);
-    }
-}
-
-///DELETE ME
-static inline void move_lone_terminators_into_previous_blocks(llvm_module& module) {
-    for (auto& function : module->getFunctionList()) {
-        llvm::BasicBlock* previous = nullptr;
-        
-        for (auto& block : function.getBasicBlockList()) {
-            auto& instructions = block.getInstList();
-            
-            if (previous and instructions.size() == 1
-                and instructions.back().isTerminator())
-                instructions.back().moveAfter(&previous->getInstList().back());
-            
-            previous = &block;
-        }
-    }
-    ///TODO: unfinished.
-    ///KNOWN BUG: when we have no terminators in sight, this function
-    /// does remove the unneccessary basic block which is put between the
-    /// bits of code which should be in the same block.
-}
-
-///DELETE ME
-static inline void remove_donothing_remnants(llvm_module& module) {
-    for (auto& function : module->getFunctionList()) {
-        for (auto& block : function.getBasicBlockList()) {
-            auto terminator = block.getTerminator();
-            if (!terminator) continue;
-            auto previous = terminator->getPrevNonDebugInstruction();
-            if (is_unreachable_instruction(terminator) and is_donothing_call(previous)) {
-                previous->eraseFromParent();
-                terminator->eraseFromParent();
-            }
-        }
-    }
-}
-
 void symbol_table::update(llvm::ValueSymbolTable& llvm) {
     
 }
@@ -782,13 +733,6 @@ symbol_table::symbol_table(program_data& data, const std::vector<expression>& bu
     sort_top_by_largest();
 }
 
-///DELETE ME
-std::vector<std::string> symbol_table::llvm_key_symbols_in_table(llvm::ValueSymbolTable llvm) {
-    std::vector<std::string> result = {};
-    for (auto& wef : llvm) result.push_back(wef.getKey());
-    return result;
-}
-
 static inline void set_data_for(llvm_module& module) {
     module->setTargetTriple(llvm::sys::getDefaultTargetTriple());
     std::string lookup_error = "";
@@ -806,10 +750,7 @@ static inline llvm_module generate(expression program, const file& file, llvm::L
     auto main = create_main(builder, context, module);
     builder.CreateCall(llvm::Intrinsic::getDeclaration(data.module, llvm::Intrinsic::donothing));
     prune_extraneous_subexpressions(program);
-    auto resolved = resolve_expression(program, intrinsic::unit, main, state);
-    remove_donothing_remnants(module);
-    move_lone_terminators_into_previous_blocks(module);
-    delete_empty_blocks(module);
+    auto resolved = resolve_expression(program, intrinsic::type, main, state);
     if (not contains_final_terminator(main)) append_return_0_statement(builder, main, context);
     std::string errors = "";
     if (llvm::verifyModule(*module, &(llvm::raw_string_ostream(errors) << ""))) {
