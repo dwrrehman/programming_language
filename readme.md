@@ -1,23 +1,3 @@
-<<<<<<< HEAD
-# A Programming Language Created By Daniel Rehman.
-
-this is a programming language. its pretty awesome.
-
-
-### hello world program:
-
-~~~~
-(main) {
-    using .io
-    print "Hello, world!"
-}
-~~~~
-
-
-Its designed for readability (like python), while still being as fast as C or C++.
-It uses a new function syntax i made.
-
-=======
 # n3zqx2l
 
 ### Created By Daniel Rehman.
@@ -34,4 +14,4 @@ This project is an implementation of a n3zqx2l compiler, called "nostril". It is
 ```
 
 ...nothing more or less than what a hello world program should be.
->>>>>>> develop
+
