@@ -1,28 +1,21 @@
 /// nostril: a n3zqx2l compiler.
 
 #include "llvm/AsmParser/Parser.h"
-#include "llvm/ExecutionEngine/GenericValue.h"
 #include "llvm/ExecutionEngine/MCJIT.h"
 #include "llvm/IR/Function.h"
 #include "llvm/IR/IRBuilder.h"
 #include "llvm/IR/LegacyPassManager.h"
 #include "llvm/IR/Module.h"
 #include "llvm/IR/ModuleSummaryIndex.h"
-#include "llvm/IR/ValueSymbolTable.h"
 #include "llvm/IR/Verifier.h"
 #include "llvm/Linker/Linker.h"
 #include "llvm/Support/TargetRegistry.h"
 #include "llvm/Support/TargetSelect.h"
 #include "llvm/Support/SourceMgr.h"
-#include "llvm/Target/TargetMachine.h"
-#include "llvm/Transforms/Utils/BasicBlockUtils.h"
 
-#include <cstdlib>
 #include <fstream>
 #include <iostream>
-#include <iomanip>
 #include <sstream>
-#include <string>
 #include <vector>
 
 #define prep(_level)            for (nat i = _level; i--;) std::cout << ".   "
@@ -44,7 +37,7 @@ enum class symbol_type { none, subexpression, string_literal, llvm_literal, iden
 
 namespace intrinsic {
     enum intrinsic_index {
-        typeless, type, llvm, infered, none, application, abstraction, define
+        typeless, type, llvm, infered, none, application, abstraction, define, evaluate
     };
 }
 
@@ -185,6 +178,7 @@ static expression none_type = {{{{"_0"}}}, intrinsic::type};
 static expression application_type = {{{{"_a"}}}, intrinsic::type};
 static expression abstraction_type = {{{{"_b"}}}, intrinsic::type};
 static expression define_abstraction = {{{{"_d"}}, {{intrinsic::abstraction}}, {{intrinsic::type}}, {{intrinsic::application}}, {{intrinsic::application}}}, intrinsic::type};
+static expression evaluate_abstraction = {{{{"_evaluate"}}, {{intrinsic::llvm}}, }, intrinsic::llvm};
 
 static expression chain = {
     {
@@ -199,9 +193,13 @@ static expression hello_test = {
 };
 
 
+
+
+
 static const std::vector<expression> builtins = {
     type_type, infered_type, llvm_type, none_type,
-    application_type, abstraction_type, define_abstraction,
+    application_type, abstraction_type,
+    define_abstraction, evaluate_abstraction,
     
     hello_test, chain
 };
@@ -234,7 +232,7 @@ static inline arguments get_arguments(const int argc, const char** argv) {
         const auto word = std::string(argv[i]);
         if (word == "-z") debug = true;
         else if (word == "-u") { printf("./nostril -[zuvrscod/]\n"); exit(0); }
-        else if (word == "-v") { printf("n3zqx2l: 0.0.2 - nostril: 0.0.1\n"); exit(0); }
+        else if (word == "-v") { printf("n3zqx2l: 0.0.3 - nostril: 0.0.2\n"); exit(0); }
         else if (word == "-e") args.includes_standard_library = false;
         else if (word == "-r" and i + 1 < argc) { args.output = output_type::llvm; args.name = argv[++i]; }
         else if (word == "-s" and i + 1 < argc) { args.output = output_type::assembly; args.name = argv[++i]; }
@@ -595,32 +593,6 @@ static inline void prune_extraneous_subexpressions(expression& given) {
     for (auto& symbol : given.symbols) if (subexpression(symbol)) prune_extraneous_subexpressions(symbol.subexpression);
 }
 
-///important note about this function:
-/// it leaves artifacts in the function after use, which must be removed:
-/// any occurence of a unreachable statement which is directly preceeded by
-/// a llvm.do_nothing() call, should be removed before execution of the function.
-
-static inline bool parse_llvm_string_as_instruction(const std::string& given, llvm::Function*& original, resolve_state& state, llvm::SMDiagnostic& errors) {
-    static nat num = 0;
-    std::string body = "";
-    original->print(llvm::raw_string_ostream(body) << "");
-    body.pop_back(); // delete the newline
-    body.pop_back(); // delete the close brace
-    body += given + "\n call void @llvm.donothing() \n unreachable \n } \n";
-    const std::string current_name = original->getName();
-    original->setName("_anonymous_" + std::to_string(num++));
-    llvm::MemoryBufferRef reference(body, "<llvm-string>");
-    llvm::ModuleSummaryIndex my_index(true);
-    if (llvm::parseAssemblyInto(reference, state.data.module, &my_index, errors)) {
-        original->setName(current_name);
-        return false;
-    } else {
-        original->getBasicBlockList().clear();
-        original = state.data.module->getFunction(current_name);
-        return true;
-    }
-}
-
 static inline resolved_expression parse_llvm_string(llvm::Function*& function, const std::string& llvm_string, nat& pointer, resolve_state& state) {
     llvm::SMDiagnostic function_errors, type_errors;
     llvm::ModuleSummaryIndex my_index(true);
@@ -628,7 +600,7 @@ static inline resolved_expression parse_llvm_string(llvm::Function*& function, c
     
     if (not llvm::parseAssemblyInto(reference, state.data.module, &my_index, function_errors)) {
         pointer++;
-        return {intrinsic::llvm, {}, false};
+        return {intrinsic::llvm, {}, false, llvm::Type::getVoidTy(state.data.module->getContext())};
     } else if (auto llvm_type = llvm::parseType(llvm_string, type_errors, *state.data.module)) {
         pointer++;
         return {intrinsic::llvm, {}, false, llvm_type};
