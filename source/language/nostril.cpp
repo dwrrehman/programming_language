@@ -212,7 +212,7 @@ static inline arguments get_arguments(const int argc, const char** argv) {
         const auto word = std::string(argv[i]);
         if (word == "-z") debug = true;
         else if (word == "-u") { printf("usage: nostril -[zuverscod/-] <.n/.ll/.o/.s>\n"); exit(0); }
-        else if (word == "-v") { printf("n3zqx2l: 0.0.3 - nostril: 0.0.3\n"); exit(0); }
+        else if (word == "-v") { printf("n3zqx2l: 0.0.3 \tnostril: 0.0.3\n"); exit(0); }
         else if (word == "-e") args.includes_standard_library = false;
         else if (word == "-r" and i + 1 < argc) { args.output = output_type::llvm; args.name = argv[++i]; }
         else if (word == "-s" and i + 1 < argc) { args.output = output_type::assembly; args.name = argv[++i]; }
@@ -221,7 +221,7 @@ static inline arguments get_arguments(const int argc, const char** argv) {
         else if (word == "-d" and i + 1 < argc) { auto n = atoi(argv[++i]); max_expression_depth = n ? n : 4; }
         else if (word == "-/") { break; /*the linker argumnets start here.*/ }
         else if (word == "--") { break; /*the interpreter argumnets start here.*/ }
-        else if (word[0] == '-') { printf("bad option: %s\n", argv[i]); exit(1); }
+        else if (word[0] == '-') { printf("nostril: error: bad option: %s\n", argv[i]); exit(1); }
         else {
             std::ifstream stream {argv[i]};
             if (stream.good()) {
@@ -598,7 +598,7 @@ static inline llvm_module generate(expression program, const file& file, llvm::L
     builder.CreateRet(llvm::ConstantInt::get(llvm::Type::getInt32Ty(context), 0));
     std::string errors = "";
     if (llvm::verifyModule(*module, &(llvm::raw_string_ostream(errors) << ""))) {
-        printf("llvm: %s: error: %s", file.name, errors.c_str());
+        printf("llvm: %s: error: %s\n", file.name, errors.c_str());
         resolved.error = true;
     }
     if (debug) {
