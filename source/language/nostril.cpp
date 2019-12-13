@@ -1,5 +1,4 @@
 /// nostril: a n3zqx2l compiler.
-
 #include "llvm/AsmParser/Parser.h"
 #include "llvm/ExecutionEngine/MCJIT.h"
 #include "llvm/IR/Function.h"
@@ -20,7 +19,6 @@
 
 #define prep(_level)            for (nat i = _level; i--;) std::cout << ".   "
 #define clear_and_return()      auto result = current; current = {}; return result;
-#define revert_and_return()     revert(saved); return {true, true, true}
 
 using nat = int_fast64_t;
 using llvm_module = std::unique_ptr<llvm::Module>;
@@ -165,6 +163,7 @@ struct symbol_table {
 
 // constants:
 static expression failure = {true, true, true};
+static const resolved_expression resolution_failure = {0, {}, true};
 static expression infered_type = {{{{"__"}}}, intrinsic::typeless};
 static expression type_type = {{{{"_"}}}, intrinsic::typeless};
 static expression llvm_type = {{{{"_llvm"}}}, intrinsic::typeless}; // placeholder
@@ -185,7 +184,7 @@ static const std::vector<expression> builtins = {
     hello_test, chain
 };
 
-static const resolved_expression resolution_failure = {0, {}, true};
+
 
 // globals:
 static nat max_expression_depth = 5;
@@ -213,7 +212,7 @@ static inline arguments get_arguments(const int argc, const char** argv) {
         const auto word = std::string(argv[i]);
         if (word == "-z") debug = true;
         else if (word == "-u") { printf("usage: nostril -[zuverscod/-] <.n/.ll/.o/.s>\n"); exit(0); }
-        else if (word == "-v") { printf("n3zqx2l: 0.0.3 - nostril: 0.0.2\n"); exit(0); }
+        else if (word == "-v") { printf("n3zqx2l: 0.0.3 - nostril: 0.0.3\n"); exit(0); }
         else if (word == "-e") args.includes_standard_library = false;
         else if (word == "-r" and i + 1 < argc) { args.output = output_type::llvm; args.name = argv[++i]; }
         else if (word == "-s" and i + 1 < argc) { args.output = output_type::assembly; args.name = argv[++i]; }
@@ -255,7 +254,6 @@ static inline bool are_equal_identifiers(const symbol &first, const symbol &seco
 static inline const char* stringify_token(enum token_type type) {
     switch (type) { case token_type::null: return "EOF"; case token_type::string: return "string"; case token_type::identifier: return "identifier"; case token_type::keyword: return "keyword"; case token_type::operator_: return "operator"; case token_type::character: return "character"; case token_type::llvm: return "llvm"; }
 }
-
 
 static inline void check_for_lexing_errors() {
     if (lex_state == lex_state::string) printf("n3zqx2l: %s:%lld,%lld: error: unterminated string\n", filename, line, column);
@@ -339,21 +337,21 @@ static inline void start_lex(const file& file) { // this function should be call
 static inline struct string_literal parse_string_literal() {
     auto saved = save();
     auto t = next();
-    if (t.type != token_type::string) { revert_and_return(); }
+    if (t.type != token_type::string) { revert(saved); return {true, true, true}; }
     return {t};
 }
 
 static inline llvm_literal parse_llvm_literal() {
     auto saved = save();
     auto t = next();
-    if (t.type != token_type::llvm) { revert_and_return(); }
+    if (t.type != token_type::llvm) { revert(saved); return {true, true, true}; }
     return {t};
 }
 
 static inline struct identifier parse_identifier() {
     auto saved = save();
     auto t = next();
-    if (not is_identifier(t) and (is_reserved_operator(t) or not is_operator(t))) { revert_and_return(); }
+    if (not is_identifier(t) and (is_reserved_operator(t) or not is_operator(t))) { revert(saved); return {true, true, true}; }
     return {t};
 }
 
@@ -369,23 +367,20 @@ static inline symbol parse_symbol(const file& file) {
             if (is_close_paren(t)) return {e};
             else {
                 printf("n3zqx2l: %s:%lld:%lld: unexpected %s, \"%s\", expected \")\" to close expression\n", file.name, saved_t.line, saved_t.column, stringify_token(t.type), t.value.c_str());
-                revert_and_return();
+                revert(saved); return {true, true, true};
             }
         }
     } else revert(saved);
-
     auto string = parse_string_literal();
     if (not string.error) return string;
     else revert(saved);
-    
     auto llvm = parse_llvm_literal();
     if (not llvm.error) return llvm;
     else revert(saved);
-
     auto identifier = parse_identifier();
     if (not identifier.error) return identifier;
     else revert(saved);
-    revert_and_return();
+    return {true, true, true};
 }
 
 expression parse_expression(const file& file, bool can_be_empty) {
@@ -674,9 +669,8 @@ static inline std::string generate_object_file(llvm_module module, const argumen
     return object_filename;
 }
 
-static inline void emit_executable(const std::string& object_file, const arguments& arguments) {
-    std::string link_command = "ld -macosx_version_min 10.14 -lSystem -lc -o " + std::string(arguments.name) + " " + object_file + " ";
-    std::system(link_command.c_str());
+static inline void emit_executable(const std::string& object_file, const std::string& exec_name) {    ;
+    std::system(std::string("ld -macosx_version_min 10.14 -lSystem -lc -o " + exec_name + " " + object_file).c_str());
     std::remove(object_file.c_str());
 }
 
@@ -685,7 +679,7 @@ static inline void output(const arguments& args, llvm_module&& module) {
     else if (args.output == output_type::llvm) { generate_ll_file(std::move(module), args); }
     else if (args.output == output_type::assembly) { printf("cannot output .s file, unimplemented\n"); /*generate_s_file();*/ }
     else if (args.output == output_type::object_file) generate_object_file(std::move(module), args);
-    else if (args.output == output_type::executable) emit_executable(generate_object_file(std::move(module), args), args);
+    else if (args.output == output_type::executable) emit_executable(generate_object_file(std::move(module), args), args.name);
 }
 
 int main(const int argc, const char** argv) {
