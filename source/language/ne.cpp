@@ -30,7 +30,7 @@ struct symbol_table;
 
 enum class output_type {none, llvm, assembly, object_file, executable};
 enum class token_type {null, string, identifier, character, llvm, keyword, operator_};
-enum class lex_state {none, string, string_expression, identifier, llvm_string, comment, multiline_comment};
+enum class lex_state {none, string, string_expression, identifier, llvm_string};
 enum class symbol_type { none, subexpression, string_literal, llvm_literal, identifier };
 namespace intrinsic { enum intrinsic_index { typeless, type, llvm, infered, none, application, abstraction, define, evaluate }; }
 
@@ -171,7 +171,7 @@ static expression none_type = {{{{"_0"}}}, intrinsic::type};
 static expression application_type = {{{{"_a"}}}, intrinsic::type};
 static expression abstraction_type = {{{{"_b"}}}, intrinsic::type};
 static expression define_abstraction = {{{{"_d"}}, {{intrinsic::abstraction}}, {{intrinsic::type}}, {{intrinsic::application}}, {{intrinsic::application}}}, intrinsic::type};
-static expression evaluate_abstraction = {{{{"_evaluate"}}, {{intrinsic::llvm}}, }, intrinsic::llvm};
+static expression evaluate_abstraction = {{{{"_e"}}, {{intrinsic::llvm}}, }, intrinsic::llvm};
 
 static expression chain = { { {{intrinsic::type}}, {{intrinsic::type}}, }, intrinsic::type };
 static expression hello_test = { { {{"d"}}, }, intrinsic::type };
@@ -254,15 +254,12 @@ static inline const char* stringify_token(enum token_type type) {
 static inline void check_for_lexing_errors() {
     if (lex_state == lex_state::string) printf("n3zqx2l: %s:%lld,%lld: error: unterminated string\n", filename, line, column);
     else if (lex_state == lex_state::llvm_string) printf("n3zqx2l: %s:%lld,%lld: error: unterminated llvm string\n", filename, line, column);
-    else if (lex_state == lex_state::multiline_comment) printf("n3zqx2l: %s:%lld,%lld: error: unterminated multi-line comment\n", filename, line, column);
-    if (lex_state == lex_state::string or lex_state == lex_state::llvm_string or lex_state == lex_state::multiline_comment) exit(1);
+    if (lex_state == lex_state::string or lex_state == lex_state::llvm_string) exit(1);
 }
 
 static inline token next() {
     while (true) {
         if (c >= (nat) text.size()) { check_for_lexing_errors(); return {token_type::null, "", line, column}; }
-             if (text[c] == ';' and is_valid(c+1) and     isspace(text[c+1]) and lex_state == lex_state::none) lex_state = lex_state::comment;
-        else if (text[c] == ';' and is_valid(c+1) and not isspace(text[c+1]) and lex_state == lex_state::none) lex_state = lex_state::multiline_comment;
         else if (is_identifier(text[c]) and is_valid(c+1) and not is_identifier(text[c+1]) and lex_state == lex_state::none) {
             set_current(token_type::identifier, lex_state::none);
             current.value = text[c];
@@ -280,7 +277,6 @@ static inline token next() {
             else if (is_valid(c+1) and text[c+1] == 't') { current.value += "\t"; advance_by(1); }
             else if (is_valid(c+1) and text[c+1] == '\\') { current.value += "\\"; advance_by(1); }
         }
-        else if ((text[c] == '\n' and lex_state == lex_state::comment) or (text[c] == ';' and lex_state == lex_state::multiline_comment)) lex_state = lex_state::none;
         else if ((text[c] == '\"' and lex_state == lex_state::string)  or (text[c] == '`' and lex_state == lex_state::llvm_string)) {
             lex_state = lex_state::none;
             advance_by(1);
@@ -291,7 +287,6 @@ static inline token next() {
             advance_by(1);
             clear_and_return();
         } else if (lex_state == lex_state::string or lex_state == lex_state::llvm_string or (is_identifier(text[c]) and lex_state == lex_state::identifier)) current.value += text[c];
-        else if (lex_state == lex_state::comment or lex_state == lex_state::multiline_comment) {}
         else if (is_operator(text[c]) and lex_state == lex_state::none) {
             set_current(token_type::operator_, lex_state::none);
             current.value = text[c];
