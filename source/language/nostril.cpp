@@ -204,7 +204,7 @@ void print_expression(expression e, nat d);
 expression parse_expression(const file& file, bool can_be_empty);
 
 resolved_expression resolve_expression(const expression& given, nat given_type, llvm::Function*& function, resolve_state& state);
-resolved_expression search(const expression& given, nat given_type, llvm::Function*& function, nat& index, nat depth, nat max_depth, nat fdi_length, resolve_state& state);
+resolved_expression resolve(const expression& given, nat given_type, llvm::Function*& function, nat& index, nat depth, nat max_depth, nat fdi_length, resolve_state& state);
 
 static inline arguments get_arguments(const int argc, const char** argv) {
     arguments args = {};
@@ -460,21 +460,6 @@ static inline void debug_table(symbol_table table) {
     std::cout << "}\n";
 }
 
-static inline bool contains_final_terminator(llvm::Function* main_function) {
-    auto& blocks = main_function->getBasicBlockList();
-    if (blocks.size()) {
-        auto& instructions = blocks.back().getInstList();
-        auto& last = instructions.back();
-        if (last.isTerminator()) return true;
-    } return false;
-}
-
-static inline void append_return_0_statement(llvm::IRBuilder<> &builder, llvm::Function* main_function, llvm::LLVMContext& context) {
-    llvm::Value* value = llvm::ConstantInt::get(llvm::Type::getInt32Ty(context), 0);
-    builder.SetInsertPoint(&main_function->getBasicBlockList().back());
-    builder.CreateRet(value);
-}
-
 static inline llvm::Function* create_main(llvm::IRBuilder<>& builder, llvm::LLVMContext& context, llvm_module& module) {
     std::vector<llvm::Type*> state = {llvm::Type::getInt32Ty(context), llvm::Type::getInt8PtrTy(context)->getPointerTo()};
     auto main_type = llvm::FunctionType::get(llvm::Type::getInt32Ty(context), state, false);
@@ -529,7 +514,7 @@ static inline bool matches(const expression& given, const expression& signature,
     for (auto symbol : signature.symbols) {
         if (index >= (nat) given.symbols.size()) return false;
         if (parameter(symbol)) {
-            auto argument = search(given, symbol.subexpression.type, function, index, depth + 1, max_depth, fdi_length, state);
+            auto argument = resolve(given, symbol.subexpression.type, function, index, depth + 1, max_depth, fdi_length, state);
             if (argument.error) return false;
             args.push_back({argument});
         } else if (not are_equal_identifiers(symbol, given.symbols[index])) return false;
@@ -538,7 +523,7 @@ static inline bool matches(const expression& given, const expression& signature,
     return true;
 }
 
-resolved_expression search(const expression& given, nat given_type, llvm::Function*& function,
+resolved_expression resolve(const expression& given, nat given_type, llvm::Function*& function,
                            nat& index, nat depth, nat max_depth, nat fdi_length, resolve_state& state) {
     
     if (not given_type or depth > max_depth) return resolution_failure;
@@ -568,7 +553,7 @@ resolved_expression resolve_expression(const expression& given, nat given_type, 
     nat pointer = 0;
     for (nat max_depth = 0; max_depth <= max_expression_depth; max_depth++) {
         pointer = 0;
-        solution = search(given, given_type, function, pointer, 0, max_depth, 0/*fdi_length*/, state);
+        solution = resolve(given, given_type, function, pointer, 0, max_depth, 0/*fdi_length*/, state);
         if (not solution.error and pointer == (nat) given.symbols.size()) break;
     }
     if (pointer < (nat) given.symbols.size()) solution.error = true;
@@ -607,13 +592,13 @@ static inline llvm_module generate(expression program, const file& file, llvm::L
     symbol_table stack {data, builtins};
     resolve_state state {stack, data};
     auto main = create_main(builder, context, module);
-    builder.CreateCall(llvm::Intrinsic::getDeclaration(data.module, llvm::Intrinsic::donothing));
     prune_extraneous_subexpressions(program);
     auto resolved = resolve_expression(program, intrinsic::type, main, state);
-    if (not contains_final_terminator(main)) append_return_0_statement(builder, main, context);
+    builder.SetInsertPoint(&main->getBasicBlockList().back());
+    builder.CreateRet(llvm::ConstantInt::get(llvm::Type::getInt32Ty(context), 0));
     std::string errors = "";
     if (llvm::verifyModule(*module, &(llvm::raw_string_ostream(errors) << ""))) {
-        printf("llvm: %s: %s", file.name, errors.c_str());
+        printf("llvm: %s: error: %s", file.name, errors.c_str());
         resolved.error = true;
     }
     if (debug) {
@@ -621,7 +606,7 @@ static inline llvm_module generate(expression program, const file& file, llvm::L
         print_resolved_expr(resolved, 0, state);
         module->print(llvm::outs(), nullptr);
     }
-    if (resolved.error) return nullptr; else return module;
+    if (resolved.error) return nullptr; return module;
 }
 
 static inline llvm_modules frontend(const arguments& arguments, llvm::LLVMContext& context) {
@@ -634,8 +619,7 @@ static inline llvm_modules frontend(const arguments& arguments, llvm::LLVMContex
 }
 
 static inline llvm_module link(llvm_modules&& modules) {
-    auto result = std::move(modules.back());
-    modules.pop_back();
+    auto result = std::move(modules.back()); modules.pop_back();
     for (auto& module : modules) if (llvm::Linker::linkModules(*result, std::move(module))) exit(1);
     return result;
 }
