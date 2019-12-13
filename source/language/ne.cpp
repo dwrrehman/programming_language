@@ -507,9 +507,10 @@ resolved_expression resolve(const expression& given, nat given_type, llvm::Funct
     }
     
     else if (given_type == intrinsic::abstraction) return construct_signature(fdi_length, given, index);
+    else if (index < (nat) given.symbols.size() and given.symbols[index].type == symbol_type::string_literal) {printf("found string: \"%s\"\n", given.symbols[index].string.literal.value.c_str());}
     else if (index < (nat) given.symbols.size() and llvm_string(given.symbols[index])) return parse_llvm_string(function, given.symbols[index].llvm.literal, index, state);
     else if (index < (nat) given.symbols.size() and llvm_string(given.symbols[index]) and given_type == intrinsic::type) return parse_llvm_type_string(function, given.symbols[index].llvm.literal, index, state);
-//    else if (string_literal(given.symbols[index]) and given_type == intrin::llvm)  parse_string(given, index, state);
+    
     
     nat saved = index;
     for (auto s : state.stack.top()) {
