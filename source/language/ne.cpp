@@ -1,4 +1,4 @@
-/// nostril: a n3zqx2l compiler.
+///n: a n3zqx2l compiler written in C++.
 #include "llvm/AsmParser/Parser.h"
 #include "llvm/ExecutionEngine/MCJIT.h"
 #include "llvm/IR/Function.h"
@@ -184,9 +184,6 @@ static const std::vector<expression> builtins = {
     hello_test, chain
 };
 
-
-
-// globals:
 static nat max_expression_depth = 5;
 static bool debug = false;
 
@@ -201,8 +198,7 @@ static token current = {};
 
 // prototypes:
 void print_expression(expression e, nat d);
-expression parse_expression(const file& file, bool can_be_empty);
-
+expression parse(const file& file);
 resolved_expression resolve_expression(const expression& given, nat given_type, llvm::Function*& function, resolve_state& state);
 resolved_expression resolve(const expression& given, nat given_type, llvm::Function*& function, nat& index, nat depth, nat max_depth, nat fdi_length, resolve_state& state);
 
@@ -211,8 +207,8 @@ static inline arguments get_arguments(const int argc, const char** argv) {
     for (nat i = 1; i < argc; i++) {
         const auto word = std::string(argv[i]);
         if (word == "-z") debug = true;
-        else if (word == "-u") { printf("usage: nostril -[zuverscod/-] <.n/.ll/.o/.s>\n"); exit(0); }
-        else if (word == "-v") { printf("n3zqx2l: 0.0.3 \tnostril: 0.0.3\n"); exit(0); }
+        else if (word == "-u") { printf("usage: n -[zuverscod/-] <.n/.ll/.o/.s>\n"); exit(0); }
+        else if (word == "-v") { printf("n3zqx2l: 0.0.3 \tn: 0.0.3\n"); exit(0); }
         else if (word == "-e") args.includes_standard_library = false;
         else if (word == "-r" and i + 1 < argc) { args.output = output_type::llvm; args.name = argv[++i]; }
         else if (word == "-s" and i + 1 < argc) { args.output = output_type::assembly; args.name = argv[++i]; }
@@ -221,17 +217,17 @@ static inline arguments get_arguments(const int argc, const char** argv) {
         else if (word == "-d" and i + 1 < argc) { auto n = atoi(argv[++i]); max_expression_depth = n ? n : 4; }
         else if (word == "-/") { break; /*the linker argumnets start here.*/ }
         else if (word == "--") { break; /*the interpreter argumnets start here.*/ }
-        else if (word[0] == '-') { printf("nostril: error: bad option: %s\n", argv[i]); exit(1); }
+        else if (word[0] == '-') { printf("n: error: bad option: %s\n", argv[i]); exit(1); }
         else {
             std::ifstream stream {argv[i]};
             if (stream.good()) {
                 std::string text {std::istreambuf_iterator<char>(stream), std::istreambuf_iterator<char>()};
                 stream.close();
                 args.files.push_back({argv[i], text});
-            } else { printf("nostril: error: unable to open \"%s\": %s\n", argv[i], strerror(errno)); exit(1); }
+            } else { printf("n: error: unable to open \"%s\": %s\n", argv[i], strerror(errno)); exit(1); }
         }
     }
-    if (args.files.empty()) { printf("nostril: error: no input files\n"); exit(1); }
+    if (args.files.empty()) { printf("n: error: no input files\n"); exit(1); }
     return args;
 }
 
@@ -324,7 +320,7 @@ static inline void revert(saved_state s) {
     current = s.saved_current;
 }
 
-static inline void start_lex(const file& file) { // this function should be called before lexing a given file.
+static inline file start_lex(const file& file) { // this function should be called before lexing a given file.
     text = file.text;
     filename = file.name;
     c = 0;
@@ -332,6 +328,7 @@ static inline void start_lex(const file& file) { // this function should be call
     column = 1;
     lex_state = lex_state::none;
     current = {};
+    return file;
 }
 
 static inline struct string_literal parse_string_literal() {
@@ -356,10 +353,9 @@ static inline struct identifier parse_identifier() {
 }
 
 static inline symbol parse_symbol(const file& file) {
-    auto saved = save();
-    auto t = next();
+    auto saved = save(); auto t = next();
     if (is_open_paren(t)) {
-        auto e = parse_expression(file, true);
+        auto e = parse(file);
         if (not e.error) {
             auto saved_t = t;
             t = next();
@@ -369,25 +365,20 @@ static inline symbol parse_symbol(const file& file) {
                 printf("n3zqx2l: %s:%lld:%lld: unexpected %s, \"%s\", expected \")\" to close expression\n", file.name, saved_t.line, saved_t.column, stringify_token(t.type), t.value.c_str());
                 revert(saved); return {true, true, true};
             }
-        }
+        } else revert(saved);
     } else revert(saved);
     auto string = parse_string_literal();
-    if (not string.error) return string;
-    else revert(saved);
+    if (not string.error) return string; else revert(saved);
     auto llvm = parse_llvm_literal();
-    if (not llvm.error) return llvm;
-    else revert(saved);
+    if (not llvm.error) return llvm; else revert(saved);
     auto identifier = parse_identifier();
-    if (not identifier.error) return identifier;
-    else revert(saved);
+    if (not identifier.error) return identifier; else revert(saved);
     return {true, true, true};
 }
 
-expression parse_expression(const file& file, bool can_be_empty) {
+expression parse(const file& file) {
     std::vector<symbol> symbols = {};
-    auto saved = save();
-    auto start = next();
-    revert(saved);
+    auto saved = save(); auto start = next(); revert(saved);
     auto symbol = parse_symbol(file);
     while (not symbol.error) {
         symbols.push_back(symbol);
@@ -397,14 +388,7 @@ expression parse_expression(const file& file, bool can_be_empty) {
     revert(saved);
     expression result = {symbols};
     result.start = start;
-    result.error = not can_be_empty and symbols.empty();
     return result;
-}
-
-static inline expression parse(const file& file) {
-    start_lex(file);
-    auto unit = parse_expression(file, /*can_be_empty = */true);
-    return unit;
 }
 
 static inline std::string expression_to_string(const expression& given, symbol_table& stack) {
@@ -469,38 +453,32 @@ static inline llvm::Function* create_main(llvm::IRBuilder<>& builder, llvm::LLVM
 }
 
 static inline void prune_extraneous_subexpressions(expression& given) {
-    while (given.symbols.size() == 1 and subexpression(given.symbols.front())) {
-        auto save = given.symbols.front().subexpression.symbols;
-        given.symbols = save;
-    }
+    while (given.symbols.size() == 1 and subexpression(given.symbols.front())) given.symbols = given.symbols.front().subexpression.symbols;
     for (auto& symbol : given.symbols) if (subexpression(symbol)) prune_extraneous_subexpressions(symbol.subexpression);
 }
 
-///TODO: split this function off into a parse type llvm string, and a parse code llvm string. these require different given_type's.
-static inline resolved_expression parse_llvm_string(llvm::Function*& function, const token& llvm_string, nat& pointer, resolve_state& state) {
-    llvm::SMDiagnostic function_errors, type_errors;
-    llvm::ModuleSummaryIndex my_index(true);
-    llvm::MemoryBufferRef reference(llvm_string.value, state.data.file.name);
-    
-    if (not llvm::parseAssemblyInto(reference, state.data.module, &my_index, function_errors)) {
-        pointer++;
-        return {intrinsic::llvm, {}, false, llvm::Type::getVoidTy(state.data.module->getContext())};
-    } else if (auto llvm_type = llvm::parseType(llvm_string.value, type_errors, *state.data.module)) {
-        pointer++;
-        return {intrinsic::llvm, {}, false, llvm_type};
+static inline resolved_expression parse_llvm_type_string(llvm::Function*& function, const token& llvm_string, nat& pointer, resolve_state& state) {
+    llvm::SMDiagnostic type_errors;
+    if (auto llvm_type = llvm::parseType(llvm_string.value, type_errors, *state.data.module)) {
+        pointer++; return {intrinsic::llvm, {}, false, llvm_type};
     } else {
-        
-        function_errors.print((std::string("llvm: (") + std::to_string(llvm_string.line) + "," + std::to_string(llvm_string.column) + ")").c_str(), llvm::errs());
-        
-        // we should only be doing one of these.
-        
-        type_errors.print("llvm", llvm::errs());
-        
+        type_errors.print((std::string("llvm: (") + std::to_string(llvm_string.line) + "," + std::to_string(llvm_string.column) + ")").c_str(), llvm::errs());
         return {0, {}, true};
     }
 }
 
-static resolved_expression construct_signature(nat fdi_length, const expression& given, nat& index) {
+static inline resolved_expression parse_llvm_string(llvm::Function*& function, const token& llvm_string, nat& pointer, resolve_state& state) {
+    llvm::SMDiagnostic function_errors; llvm::ModuleSummaryIndex my_index(true);
+    llvm::MemoryBufferRef reference(llvm_string.value, state.data.file.name);
+    if (not llvm::parseAssemblyInto(reference, state.data.module, &my_index, function_errors)) {
+        pointer++; return {intrinsic::llvm, {}, false, llvm::Type::getVoidTy(state.data.module->getContext())};
+    } else {
+        function_errors.print((std::string("llvm: (") + std::to_string(llvm_string.line) + "," + std::to_string(llvm_string.column) + ")").c_str(), llvm::errs());
+        return {0, {}, true};
+    }
+}
+
+static inline resolved_expression construct_signature(nat fdi_length, const expression& given, nat& index) {
     resolved_expression result = {intrinsic::typeless};
     result.signature = std::vector<symbol>(given.symbols.begin() + index, given.symbols.begin() + index + fdi_length);
     index += fdi_length;
@@ -510,7 +488,6 @@ static resolved_expression construct_signature(nat fdi_length, const expression&
 static inline bool matches(const expression& given, const expression& signature, nat given_type, std::vector<resolved_expression>& args, llvm::Function*& function,
                            nat& index, nat depth, nat max_depth, nat fdi_length, resolve_state& state) {
     if (given_type != signature.type) return false;
-    
     for (auto symbol : signature.symbols) {
         if (index >= (nat) given.symbols.size()) return false;
         if (parameter(symbol)) {
@@ -535,7 +512,8 @@ resolved_expression resolve(const expression& given, nat given_type, llvm::Funct
     }
     
     else if (given_type == intrinsic::abstraction) return construct_signature(fdi_length, given, index);
-    else if (index < (nat) given.symbols.size() and llvm_string(given.symbols[index]) and given_type == intrinsic::type) return parse_llvm_string(function, given.symbols[index].llvm.literal, index, state);
+    else if (index < (nat) given.symbols.size() and llvm_string(given.symbols[index])) return parse_llvm_string(function, given.symbols[index].llvm.literal, index, state);
+    else if (index < (nat) given.symbols.size() and llvm_string(given.symbols[index]) and given_type == intrinsic::type) return parse_llvm_type_string(function, given.symbols[index].llvm.literal, index, state);
 //    else if (string_literal(given.symbols[index]) and given_type == intrin::llvm)  parse_string(given, index, state);
     
     nat saved = index;
@@ -596,25 +574,22 @@ static inline llvm_module generate(expression program, const file& file, llvm::L
     auto resolved = resolve_expression(program, intrinsic::type, main, state);
     builder.SetInsertPoint(&main->getBasicBlockList().back());
     builder.CreateRet(llvm::ConstantInt::get(llvm::Type::getInt32Ty(context), 0));
-    std::string errors = "";
-    if (llvm::verifyModule(*module, &(llvm::raw_string_ostream(errors) << ""))) {
-        printf("llvm: %s: error: %s\n", file.name, errors.c_str());
-        resolved.error = true;
-    }
     if (debug) {
         debug_table(state.stack);
         print_resolved_expr(resolved, 0, state);
         module->print(llvm::outs(), nullptr);
     }
-    if (resolved.error) return nullptr; return module;
+    std::string errors = "";
+    if (llvm::verifyModule(*module, &(llvm::raw_string_ostream(errors) << ""))) { printf("llvm: %s: error: %s\n", file.name, errors.c_str()); return nullptr; }
+    else if (resolved.error) return nullptr; else return module;
 }
 
 static inline llvm_modules frontend(const arguments& arguments, llvm::LLVMContext& context) {
     llvm::InitializeAllTargetInfos(); llvm::InitializeAllTargets(); llvm::InitializeAllTargetMCs();
     llvm::InitializeAllAsmParsers(); llvm::InitializeAllAsmPrinters();
     llvm_modules modules = {};
-    for (auto file : arguments.files) modules.push_back(generate(parse(file), file, context)); //    std::transform(arguments.files.begin(), arguments.files.end(), std::back_inserter(modules), [&context](const file& file) { return generate(parse(file), file, context); });
-    if (std::find_if(modules.begin(), modules.end(), [](llvm_module& module){return !module;}) != modules.end()) exit(1);
+    for (auto file : arguments.files) modules.push_back(generate(parse(start_lex(file)), file, context)); //    std::transform(arguments.files.begin(), arguments.files.end(), std::back_inserter(modules), [&context](const file& file) { return generate(parse(file), file, context); });
+    if (std::find_if(modules.begin(), modules.end(), [](llvm_module& module) { return not module; }) != modules.end()) exit(1);
     return modules;
 }
 
