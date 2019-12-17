@@ -156,6 +156,40 @@ static inline void set_data_for(std::unique_ptr<llvm::Module>& module) {
     module->setDataLayout(target_machine->createDataLayout());
 }
 
+static void parse_ll_file(const program_data &data, const file &file) {
+    llvm::SMDiagnostic function_errors; llvm::ModuleSummaryIndex my_index(true);
+    llvm::MemoryBufferRef reference(file.text, file.name);
+    
+    if (not llvm::parseAssemblyInto(reference, data.module, &my_index, function_errors)) {
+        printf("llvm parse assembly into:  success!\n");
+    } else {
+        function_errors.print("llvm: ", llvm::errs());
+    }
+}
+
+static void open_ll_file(const char *core_name, struct file &core_stdlib) {
+    std::ifstream stream {core_name};
+    if (stream.good()) {
+        std::string text {std::istreambuf_iterator<char>(stream), std::istreambuf_iterator<char>()};
+        stream.close();
+        core_stdlib = {core_name, text};
+    } else { printf("n: error: unable to open \"%s\": %s\n", core_name, strerror(errno)); exit(1); }
+}
+
+static void print_stack(const std::vector<llvm::ValueSymbolTable>& stack) {
+    std::cout << "-----------------------printing stack....--------------------------------\n";
+    for (auto frame : stack) {
+        std::cout << "-------------- printing new frame: ------------\n";
+        for (auto& entry : frame) {
+            std::string key = entry.getKey();
+            llvm::Value* value = entry.getValue();
+            std::cout << "key: \"" << key << "\" == value : \n";
+            value->print(llvm::outs());
+            std::cout << "\n\n";
+        }
+    }
+}
+
 static inline std::unique_ptr<llvm::Module> generate(expression program, const file& file, llvm::LLVMContext& context) {
     auto module = llvm::make_unique<llvm::Module>(file.name, context);
     set_data_for(module);
@@ -164,22 +198,23 @@ static inline std::unique_ptr<llvm::Module> generate(expression program, const f
     std::vector<llvm::ValueSymbolTable> stack {};
     auto main = llvm::Function::Create(llvm::FunctionType::get(llvm::Type::getInt32Ty(context), {llvm::Type::getInt32Ty(context), llvm::Type::getInt8PtrTy(context)->getPointerTo()}, false), llvm::Function::ExternalLinkage, "main", module.get());
     builder.SetInsertPoint(llvm::BasicBlock::Create(context, "entry", main));
+    
     const char* core_name = "/Users/deniylreimn/Documents/projects/n3zqx2l/examples/core.ll";
     struct file core_stdlib = {};
-//    open_ll_file(core_name, core_stdlib);
-//    parse_ll_file(data, core_stdlib);
-//    auto wef = module->getValueSymbolTable();
-//    stack.push_back( wef); //NOTE: we will be calling index(wef) when we do a resolve call, only when we NEED to. thqt should be good.
-    ///note: insertion doesnt invalidate iterators, so our references to llvm symbol table elements by index is valid, techncally.
-    // anwywats. lets do it tomorrow.
-//    print_stack(stack);
-//    auto resolved = resolve_expression(program, intrinsic::type, main, stack);
+    open_ll_file(core_name, core_stdlib);
+    parse_ll_file(data, core_stdlib);
+    
+    stack.push_back(module->getValueSymbolTable());
+    
+    print_stack(stack);
+    
+//    auto error = resolve_expression(program, intrinsic::type, main, stack);
     builder.SetInsertPoint(&main->getBasicBlockList().back());
     builder.CreateRet(llvm::ConstantInt::get(llvm::Type::getInt32Ty(context), 0));
     module->print(llvm::outs(), nullptr);
     std::string errors = "";
     if (llvm::verifyModule(*module, &(llvm::raw_string_ostream(errors) << ""))) { printf("llvm: %s: error: %s\n", file.name, errors.c_str()); return nullptr; }
-//    else if (resolved.error) return nullptr;
+//    else if (error) return nullptr;
     return module;
 }
 
@@ -210,7 +245,7 @@ static inline void interpret(std::unique_ptr<llvm::Module> module, const argumen
     exit(jit->runFunctionAsMain(jit->FindFunctionNamed("main"), {arguments.name}, nullptr));
 }
 
-static inline std::unique_ptr<llvm::Module> optimize(std::unique_ptr<llvm::Module>&& module) { return std::move(module); } ///TODO: unfinished.
+static inline std::unique_ptr<llvm::Module> optimize(std::unique_ptr<llvm::Module>&& module) { return std::move(module); } ///TODO: write me.
 
 static inline void generate_ll_file(std::unique_ptr<llvm::Module> module, const arguments& arguments) {
     std::error_code error;
@@ -233,7 +268,7 @@ static inline std::string generate_object_file(std::unique_ptr<llvm::Module> mod
     return object_filename;
 }
 
-static inline void emit_executable(const std::string& object_file, const std::string& exec_name) {    ;
+static inline void emit_executable(const std::string& object_file, const std::string& exec_name) {
     std::system(std::string("ld -macosx_version_min 10.14 -lSystem -lc -o " + exec_name + " " + object_file).c_str());
     std::remove(object_file.c_str());
 }
