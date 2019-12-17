@@ -473,21 +473,21 @@ static inline void set_data_for(std::unique_ptr<llvm::Module>& module) {
 
 
 
-using stack = std::vector<std::pair<llvm::ValueSymbolTable, std::vector<long>>>;
-
+//using stack = std::vector<std::pair<llvm::ValueSymbolTable, std::vector<long>>>;
+using stack = std::vector<llvm::ValueSymbolTable>;
 
 
 static void print_stack(const stack &stack) {
     std::cout << "-----------------------printing stack....--------------------------------\n";
     for (auto frame : stack) {
         std::cout << "-------------- printing new frame: ------------\n";
-        std::cout << "printing ordered index: \n";
-        for (auto number : frame.second) {
-            std::cout << number << " " ;
-        }
-        std::cout << "\n";
+//        std::cout << "printing ordered index: \n";
+//        for (auto number : frame.second) {
+//            std::cout << number << " " ;
+//        }
+//        std::cout << "\n";
         std::cout << "printing llvm symbols: \n";
-        for (auto& entry : frame.first) {
+        for (auto& entry : frame) {
             std::string key = entry.getKey();
             llvm::Value* value = entry.getValue();
             
@@ -561,10 +561,12 @@ static inline std::unique_ptr<llvm::Module> generate(expression program, const f
     open_ll_file(core_name, core_stdlib);
     parse_ll_file(data, core_stdlib);
     
-    
-    
     auto wef = module->getValueSymbolTable();
-    stack.push_back({wef, index(wef)});
+    stack.push_back( wef); //NOTE: we will be calling index(wef) when we do a resolve call, only when we NEED to. thqt should be good.
+    ///note: insertion doesnt invalidate iterators, so our references to llvm symbol table elements by index is valid, techncally.
+    // anwywats. lets do it tomorrow.
+    
+    
     print_stack(stack);
     
 //    auto resolved = resolve_expression(program, intrinsic::type, main, stack);
