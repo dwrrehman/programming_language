@@ -17,8 +17,6 @@
 #include <sstream>
 #include <vector>
 
-#define prep(_level)            for (nat i = _level; i--;) std::cout << ".   "
-
 using nat = int_fast64_t;
 using llvm_module = std::unique_ptr<llvm::Module>;
 using llvm_modules = std::vector<llvm_module>;
