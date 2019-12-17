@@ -339,7 +339,7 @@ static inline std::vector<std::unique_ptr<llvm::Module>> frontend(const argument
     llvm::InitializeAllAsmParsers(); llvm::InitializeAllAsmPrinters();
     std::vector<std::unique_ptr<llvm::Module>> modules = {};
     for (auto file : arguments.files) { lexing_state state {0, lex::none, {1, 1}}; modules.push_back(generate(parse(file, state), file, context)); }
-    if (std::find_if(modules.begin(), modules.end(), [](std::unique_ptr<llvm::Module>& module) { return not module; }) != modules.end()) exit(1);
+    if (std::find_if(modules.begin(), modules.end(), [](auto& module) { return not module; }) != modules.end()) exit(1);
     return modules;
 }
 
