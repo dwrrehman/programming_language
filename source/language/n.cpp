@@ -4,6 +4,7 @@
 #include "llvm/IR/Function.h"
 #include "llvm/IR/IRBuilder.h"
 #include "llvm/IR/LegacyPassManager.h"
+#include "llvm/IR/ValueSymbolTable.h"
 #include "llvm/IR/Module.h"
 #include "llvm/IR/ModuleSummaryIndex.h"
 #include "llvm/IR/Verifier.h"
@@ -55,33 +56,6 @@ struct program_data {
     file file;
     llvm::Module* module;
     llvm::IRBuilder<>& builder;
-};
-
-symbol id(std::string name) { return {symbol_type::identifier, {}, {}, {}, {{token_type::identifier, name}}}; }
-symbol param(long type) { return {symbol_type::subexpression, {{}, type}}; }
-static expression failure = {{}, 0, {}, true};
-
-static expression infered_type = {{id("__")}, intrinsic::typeless};
-static expression type_type = {{id("_")}, intrinsic::typeless};
-static expression llvm_type = {{id("_llvm")}, intrinsic::typeless};
-
-static expression none_type = {{id("_0")}, intrinsic::type};
-static expression application_type = {{id("_a")}, intrinsic::type};
-static expression abstraction_type = {{id("_b")}, intrinsic::type};
-
-static expression confer_abstraction = {{id("_c"), param(intrinsic::llvm)}, intrinsic::llvm};
-static expression define_abstraction = {{id("_d"), param(intrinsic::abstraction), param(intrinsic::type), param(intrinsic::application), param(intrinsic::application) }, intrinsic::llvm}; // returns unit.
-static expression evaluate_abstraction = {{id("_e"), param(intrinsic::application)}, intrinsic::llvm};  // returns unit.
-
-static expression chain = {{param(intrinsic::type), param(intrinsic::type)}, intrinsic::type};
-static expression hello_test = {{id("hello")}, intrinsic::type};
-
-static const std::vector<expression> builtins = {
-    type_type, infered_type, llvm_type, none_type,
-    application_type, abstraction_type,
-    define_abstraction, evaluate_abstraction,
-    
-    hello_test, chain
 };
 
 static long max_expression_depth = 5;
@@ -243,7 +217,7 @@ expression parse(const file& file, lexing_state& state) {
 //        return {0, {}, nullptr, {}, {}, true};
 //    }
 //}
-//
+
 //static inline bool matches(const expression& given, const expression& signature, long given_type, std::vector<resolved_expression>& args, llvm::Function*& function,
 //                           nat& index, long depth, long max_depth, long fdi_length, resolve_state& state) {
 //    if (given_type != signature.type) return false;
@@ -310,17 +284,6 @@ expression parse(const file& file, lexing_state& state) {
 //    frames.push_back({compiler_intrinsics});
 //    std::stable_sort(top().begin(), top().end(), [&](long a, long b) { return get(a).symbols.size() > get(b).symbols.size(); });
 //}
-
-
-
-
-
-
-
-
-
-
-
 
 
 
@@ -460,9 +423,7 @@ std::string convert_symbol_type(enum symbol_type type) {
 
 
 
-using stack = std::vector<llvm::ValueSymbolTable*>;
-
-
+using stack = std::vector<llvm::ValueSymbolTable>;
 
 static inline void set_data_for(std::unique_ptr<llvm::Module>& module) {
     module->setTargetTriple(llvm::sys::getDefaultTargetTriple());
@@ -470,6 +431,55 @@ static inline void set_data_for(std::unique_ptr<llvm::Module>& module) {
     auto target_machine = llvm::TargetRegistry::lookupTarget(module->getTargetTriple(), lookup_error)->createTargetMachine(module->getTargetTriple(), "generic", "", {}, {}, {});
     module->setDataLayout(target_machine->createDataLayout());
 }
+
+
+
+
+static void print_stack(const stack &stack) {
+    std::cout << "-----------------------printing stack....--------------------------------\n";
+    for (auto frame : stack) {
+        std::cout << "-------------- printing new frame: ------------\n";
+        for (auto& entry : frame) {
+            std::string key = entry.getKey();
+            llvm::Value* value = entry.getValue();
+            
+            std::cout << "key: \""<<key<<"\" == value : \n";
+            value->print(llvm::outs());
+            std::cout << "\n\n";
+        }
+    }
+}
+
+static void parse_ll_file(const program_data &data, const file &file) {
+    llvm::SMDiagnostic function_errors; llvm::ModuleSummaryIndex my_index(true);
+    llvm::MemoryBufferRef reference(file.text, file.name);
+    
+    if (not llvm::parseAssemblyInto(reference, data.module, &my_index, function_errors)) {
+        printf("llvm parse assembly into:  success!\n");
+    } else {
+        function_errors.print("llvm: ", llvm::errs());
+    }
+}
+
+static void open_ll_file(const char *core_name, struct file &core_stdlib) {
+    std::ifstream stream {core_name};
+    if (stream.good()) {
+        std::string text {std::istreambuf_iterator<char>(stream), std::istreambuf_iterator<char>()};
+        stream.close();
+        core_stdlib = {core_name, text};
+    } else { printf("n: error: unable to open \"%s\": %s\n", core_name, strerror(errno)); exit(1); }
+}
+
+//static inline resolved_expression parse_llvm_string(llvm::Function*& function, const token& llvm_string, nat& pointer, resolve_state& state) {
+//    llvm::SMDiagnostic function_errors; llvm::ModuleSummaryIndex my_index(true);
+//    llvm::MemoryBufferRef reference(llvm_string.value, state.data.file.name);
+//    if (not llvm::parseAssemblyInto(reference, state.data.module, &my_index, function_errors)) {
+//        pointer++; return {intrinsic::llvm, {}, llvm::Type::getVoidTy(state.data.module->getContext())};
+//    } else {
+//        function_errors.print((std::string("llvm: (") + std::to_string(llvm_string.line) + "," + std::to_string(llvm_string.column) + ")").c_str(), llvm::errs());
+//        return {0, {}, nullptr, {}, {}, true};
+//    }
+//}
 
 static inline std::unique_ptr<llvm::Module> generate(expression program, const file& file, llvm::LLVMContext& context) {
     
@@ -481,9 +491,24 @@ static inline std::unique_ptr<llvm::Module> generate(expression program, const f
     
     auto main = llvm::Function::Create(llvm::FunctionType::get(llvm::Type::getInt32Ty(context), {llvm::Type::getInt32Ty(context), llvm::Type::getInt8PtrTy(context)->getPointerTo()}, false), llvm::Function::ExternalLinkage, "main", module.get());
     builder.SetInsertPoint(llvm::BasicBlock::Create(context, "entry", main));
+        
     
-    stack.push_back(main->getValueSymbolTable());
-
+    const char* core_name = "/Users/deniylreimn/Documents/projects/n3zqx2l/examples/core.ll";
+    struct file core_stdlib = {};
+    open_ll_file(core_name, core_stdlib);
+    parse_ll_file(data, core_stdlib);
+    
+    
+    
+    
+    
+    
+    auto wef = module->getValueSymbolTable();
+    auto wef2 = module->getValueSymbolTable();
+    stack.push_back(wef);
+    stack.push_back(wef2);
+    
+    print_stack(stack);
     
 //    auto resolved = resolve_expression(program, intrinsic::type, main, stack);
     
