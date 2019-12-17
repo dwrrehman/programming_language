@@ -180,17 +180,12 @@ static inline std::unique_ptr<llvm::Module> generate(expression program, const f
         std::cout << "other: " << b << " :: " << (f) << "\n";
     }
     
-    
-    
-    
-    
     std::cout << "\n printing types:: \n";
     auto wef = module->getIdentifiedStructTypes();
     for (auto effe : wef) {
         effe->print(llvm::outs());
         std::cout << "\n";
     }
-    
     
     auto fwef  = module->getTypeByName("(_)");
     fwef->print(llvm::outs());
