@@ -60,23 +60,30 @@ struct program_data {
 symbol id(std::string name) { return {symbol_type::identifier, {}, {}, {}, {{token_type::identifier, name}}}; }
 symbol param(long type) { return {symbol_type::subexpression, {{}, type}}; }
 static expression failure = {{}, 0, {}, true};
+
 static expression infered_type = {{id("__")}, intrinsic::typeless};
 static expression type_type = {{id("_")}, intrinsic::typeless};
 static expression llvm_type = {{id("_llvm")}, intrinsic::typeless};
+
 static expression none_type = {{id("_0")}, intrinsic::type};
 static expression application_type = {{id("_a")}, intrinsic::type};
 static expression abstraction_type = {{id("_b")}, intrinsic::type};
+
 static expression confer_abstraction = {{id("_c"), param(intrinsic::llvm)}, intrinsic::llvm};
 static expression define_abstraction = {{id("_d"), param(intrinsic::abstraction), param(intrinsic::type), param(intrinsic::application), param(intrinsic::application) }, intrinsic::llvm}; // returns unit.
 static expression evaluate_abstraction = {{id("_e"), param(intrinsic::application)}, intrinsic::llvm};  // returns unit.
+
 static expression chain = {{param(intrinsic::type), param(intrinsic::type)}, intrinsic::type};
 static expression hello_test = {{id("hello")}, intrinsic::type};
+
 static const std::vector<expression> builtins = {
     type_type, infered_type, llvm_type, none_type,
     application_type, abstraction_type,
     define_abstraction, evaluate_abstraction,
+    
     hello_test, chain
 };
+
 static long max_expression_depth = 5;
 static bool debug = false;
 
@@ -112,13 +119,12 @@ static inline arguments get_arguments(const int argc, const char** argv) {
 static inline bool is_identifier(char c) { return isalnum(c) or c == '_'; }
 static inline bool is_close_paren(const token& t) { return t.type == token_type::operator_ and t.value == ")"; }
 static inline bool is_open_paren(const token& t) { return t.type == token_type::operator_ and t.value == "("; }
-//static inline bool subexpression(const symbol& s) { return s.type == symbol_type::subexpression; }
-//static inline bool identifier(const symbol& s) { return s.type == symbol_type::identifier; }
-//static inline bool llvm_string(const symbol& s) { return s.type == symbol_type::llvm_literal; }
-//static inline bool parameter(const symbol &symbol) { return subexpression(symbol); }
-//static inline bool are_equal_identifiers(const symbol &first, const symbol &second) { return identifier(first) and identifier(second) and first.identifier.name.value == second.identifier.name.value; }
 
-///TODO: test this function!
+static inline bool subexpression(const symbol& s) { return s.type == symbol_type::subexpression; }
+static inline bool identifier(const symbol& s) { return s.type == symbol_type::identifier; }
+static inline bool llvm_string(const symbol& s) { return s.type == symbol_type::llvm_literal; }
+static inline bool parameter(const symbol &symbol) { return subexpression(symbol); }
+static inline bool are_equal_identifiers(const symbol &first, const symbol &second) { return identifier(first) and identifier(second) and first.identifier.name.value == second.identifier.name.value; }
 
 static inline token next(const file& file, lexing_state& lex) {
     token token = {}; auto& at = lex.index; auto& state = lex.state;
@@ -305,6 +311,159 @@ expression parse(const file& file, lexing_state& state) {
 //    std::stable_sort(top().begin(), top().end(), [&](long a, long b) { return get(a).symbols.size() > get(b).symbols.size(); });
 //}
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+#define prep(x)   for (long i = 0; i < x; i++) std::cout << ".   "
+
+
+void debug_arguments(const arguments& args) {
+    std::cout << "file count = " <<  args.files.size() << "\n";
+    for (auto a : args.files) {
+        std::cout << "file: " << a.name << "\n";
+        std::cout << "data: \n:::" << a.text << ":::\n";
+    }
+    std::cout << "exec name = " << args.name << std::endl;
+}
+
+
+const char* convert_token_type_representation(enum token_type type) {
+    switch (type) {
+        case token_type::null: return "{null}";
+        case token_type::string: return "string";
+        case token_type::identifier: return "identifier";
+        case token_type::operator_: return "operator";
+        case token_type::llvm: return "llvm";
+    }
+}
+
+void print_lex(const std::vector<struct token>& tokens) {
+    std::cout << "::::::::::LEX:::::::::::" << std::endl;
+    for (auto token : tokens) {
+        std::cout << "TOKEN(type: " << convert_token_type_representation(token.type) << ", value: \"" << (token.value != "\n" ? token.value : "\\n") << "\", [" << token.at.line << ":" << token.at.column << "])" << std::endl;
+    }
+    std::cout << ":::::::END OF LEX:::::::" << std::endl;
+}
+
+
+void debug_token_stream(const file& file) {
+    std::vector<struct token> tokens = {};
+    struct token t = {};
+    lexing_state state = {0, lex::none, {1, 1}};
+    while ((t = next(file, state)).type != token_type::null) tokens.push_back(t);
+    print_lex(tokens);
+}
+
+void print_expression(expression s, int d);
+
+
+void print_symbol(symbol symbol, int d) {
+    prep(d); std::cout << "symbol: \n";
+    switch (symbol.type) {
+
+        case symbol_type::identifier:
+            prep(d); std::cout << convert_token_type_representation(symbol.identifier.name.type) << ": " << symbol.identifier.name.value << "\n";
+            break;
+
+        case symbol_type::llvm_literal:
+            prep(d); std::cout << "llvm literal: \'" << symbol.llvm.literal.value << "\'\n";
+            break;
+
+        case symbol_type::string_literal:
+            prep(d); std::cout << "string literal: \"" << symbol.string.literal.value << "\"\n";
+            break;
+            
+        case symbol_type::subexpression:
+            prep(d); std::cout << "list symbol\n";
+            print_expression(symbol.subexpression, d+1);
+            break;
+        
+        case symbol_type::none:
+            prep(d); std::cout << "{NO SYMBOL TYPE}\n";
+            break;
+        default: break;
+    }
+}
+
+void print_expression(expression expression, int d) {
+    prep(d); std::cout << "expression: \n";
+    prep(d); std::cout << std::boolalpha << "error: " << expression.error << "\n";
+    prep(d); std::cout << "symbol count: " << expression.symbols.size() << "\n";
+    prep(d); std::cout << "symbols: \n";
+    int i = 0;
+    for (auto symbol : expression.symbols) {
+        prep(d+1); std::cout << i << ": \n";
+        print_symbol(symbol, d+1);
+        std::cout << "\n";
+        i++;
+    }
+    
+    prep(d); std::cout << "type = " << expression.type << "\n";
+}
+
+void print_translation_unit(expression unit, const file& file) {
+    std::cout << "translation unit: (" << file.name << ")\n";
+    print_expression(unit, 1);
+}
+
+std::string convert_symbol_type(enum symbol_type type) {
+    switch (type) {
+        case symbol_type::none:
+            return "{none}";
+        case symbol_type::subexpression:
+            return "subexpression";
+        case symbol_type::string_literal:
+            return "string literal";
+        case symbol_type::llvm_literal:
+            return "llvm literal";
+        case symbol_type::identifier:
+            return "identifier";
+    }
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+using stack = std::vector<llvm::ValueSymbolTable*>;
+
+
+
 static inline void set_data_for(std::unique_ptr<llvm::Module>& module) {
     module->setTargetTriple(llvm::sys::getDefaultTargetTriple());
     std::string lookup_error = "";
@@ -313,32 +472,46 @@ static inline void set_data_for(std::unique_ptr<llvm::Module>& module) {
 }
 
 static inline std::unique_ptr<llvm::Module> generate(expression program, const file& file, llvm::LLVMContext& context) {
+    
     auto module = llvm::make_unique<llvm::Module>(file.name, context);
     set_data_for(module);
     llvm::IRBuilder<> builder(context);
     program_data data {file, module.get(), builder};
-//    symbol_table stack {data, builtins};   ///TODO: rework these data structures.
-//    resolve_state state {stack, data};
+    stack stack {};
+    
     auto main = llvm::Function::Create(llvm::FunctionType::get(llvm::Type::getInt32Ty(context), {llvm::Type::getInt32Ty(context), llvm::Type::getInt8PtrTy(context)->getPointerTo()}, false), llvm::Function::ExternalLinkage, "main", module.get());
     builder.SetInsertPoint(llvm::BasicBlock::Create(context, "entry", main));
-//    prune_extraneous_subexpressions(program); ///TODO: do we really need to do this?
-//    auto resolved = resolve_expression(program, intrinsic::type, main, state);
+    
+    stack.push_back(main->getValueSymbolTable());
+
+    
+//    auto resolved = resolve_expression(program, intrinsic::type, main, stack);
+    
     builder.SetInsertPoint(&main->getBasicBlockList().back());
     builder.CreateRet(llvm::ConstantInt::get(llvm::Type::getInt32Ty(context), 0));
-//    if (debug) {
-//        module->print(llvm::outs(), nullptr);
-//    }
+        
+    module->print(llvm::outs(), nullptr);
+    
     std::string errors = "";
     if (llvm::verifyModule(*module, &(llvm::raw_string_ostream(errors) << ""))) { printf("llvm: %s: error: %s\n", file.name, errors.c_str()); return nullptr; }
 //    else if (resolved.error) return nullptr;
     return module;
 }
 
+
 static inline std::vector<std::unique_ptr<llvm::Module>> frontend(const arguments& arguments, llvm::LLVMContext& context) {
-    llvm::InitializeAllTargetInfos(); llvm::InitializeAllTargets(); llvm::InitializeAllTargetMCs();
-    llvm::InitializeAllAsmParsers(); llvm::InitializeAllAsmPrinters();
+    llvm::InitializeAllTargetInfos(); llvm::InitializeAllTargets(); llvm::InitializeAllTargetMCs(); llvm::InitializeAllAsmParsers(); llvm::InitializeAllAsmPrinters();
     std::vector<std::unique_ptr<llvm::Module>> modules = {};
-    for (auto file : arguments.files) { lexing_state state {0, lex::none, {1, 1}}; modules.push_back(generate(parse(file, state), file, context)); }
+    for (auto file : arguments.files) {
+        lexing_state state {0, lex::none, {1, 1}};
+        
+        auto saved = state;
+        debug_token_stream(file);
+        print_translation_unit(parse(file, state), file);
+        state = saved;
+        
+        modules.push_back(generate(parse(file, state), file, context));
+    }
     if (std::find_if(modules.begin(), modules.end(), [](auto& module) { return not module; }) != modules.end()) exit(1);
     return modules;
 }
