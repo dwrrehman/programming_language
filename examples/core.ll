@@ -1,7 +1,4 @@
 %"(_)" = type opaque
-
-
-
 %"(__)" = type opaque
 %"(_llvm)" = type opaque
 %"(_none) (_)" = type opaque
