@@ -1,4 +1,4 @@
-///n: a n3zqx2l compiler written in C++.
+// n: a n3zqx2l compiler written in C++.
 #include "llvm/AsmParser/Parser.h"
 #include "llvm/ExecutionEngine/MCJIT.h"
 #include "llvm/IR/Function.h"
@@ -11,7 +11,6 @@
 #include "llvm/Support/TargetRegistry.h"
 #include "llvm/Support/TargetSelect.h"
 #include "llvm/Support/SourceMgr.h"
-
 #include <fstream>
 #include <iostream>
 #include <sstream>
@@ -23,12 +22,7 @@ enum class token_type {null, string, identifier, llvm, operator_};
 enum class symbol_type { none, subexpression, string_literal, llvm_literal, identifier };
 namespace intrinsic { enum intrinsic_index { typeless, type, infered, llvm, none, application, abstraction, define, evaluate }; }
 
-struct file {
-    const char* name = "";
-    std::string text = "";
-    bool contains_main = false;
-};
-
+struct file { const char* name = ""; std::string text = ""; };
 struct arguments {
     std::vector<file> files = {};
     enum output_type output = output_type::none;
@@ -49,7 +43,6 @@ struct expression {
     struct token start = {};
     bool error = false;
 };
-
 struct symbol {
     symbol_type type = symbol_type::none;
     expression subexpression = {};
@@ -58,7 +51,6 @@ struct symbol {
     identifier identifier = {};
     bool error = false;
 };
-
 struct program_data {
     file file;
     llvm::Module* module;
@@ -83,15 +75,10 @@ static const std::vector<expression> builtins = {
     type_type, infered_type, llvm_type, none_type,
     application_type, abstraction_type,
     define_abstraction, evaluate_abstraction,
-    
     hello_test, chain
 };
-
 static long max_expression_depth = 5;
 static bool debug = false;
-
-void print_expression(expression e, long d);
-expression parse(const file& file, lexing_state& state);
 
 static inline arguments get_arguments(const int argc, const char** argv) {
     arguments args = {};
@@ -123,7 +110,6 @@ static inline arguments get_arguments(const int argc, const char** argv) {
 }
 
 static inline bool is_identifier(char c) { return isalnum(c) or c == '_'; }
-static inline bool is_identifier(const token& t) { return t.type == token_type::identifier; }
 static inline bool is_close_paren(const token& t) { return t.type == token_type::operator_ and t.value == ")"; }
 static inline bool is_open_paren(const token& t) { return t.type == token_type::operator_ and t.value == "("; }
 //static inline bool subexpression(const symbol& s) { return s.type == symbol_type::subexpression; }
@@ -176,10 +162,11 @@ static inline llvm_literal parse_llvm_literal(const file& file, lexing_state& st
 
 static inline struct identifier parse_identifier(const file& file, lexing_state& state) {
     auto saved = state; auto t = next(file, state);
-    if (not is_identifier(t) and (is_open_paren(t) or is_close_paren(t) or t.type != token_type::operator_)) {state = saved; return {{}, true}; }
+    if (t.type != token_type::identifier and (is_open_paren(t) or is_close_paren(t) or t.type != token_type::operator_)) {state = saved; return {{}, true}; }
     return {t};
 }
 
+expression parse(const file& file, lexing_state& state);
 static inline symbol parse_symbol(const file& file, lexing_state& state) {
     auto saved = state;
     auto open = next(file, state);
