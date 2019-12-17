@@ -181,6 +181,9 @@ static inline token next(const file& file, lexing_state& lex) {
     else return { token_type::null, "", lex.at };
 }
 
+
+///TODO: make these three functions inlined into the symbol function. they are just too simple.
+
 static inline struct string_literal parse_string_literal(const file& file, lexing_state& state) {
     auto saved = state; auto t = next(file, state);
     if (t.type != token_type::string) { state = saved; return {{}, true}; }
@@ -199,6 +202,8 @@ static inline struct identifier parse_identifier(const file& file, lexing_state&
     return {t};
 }
 
+
+
 static inline symbol parse_symbol(const file& file, lexing_state& state) {
     auto saved = state;
     auto open = next(file, state);
@@ -207,10 +212,7 @@ static inline symbol parse_symbol(const file& file, lexing_state& state) {
         if (not e.error) {
             auto close = next(file, state);
             if (is_close_paren(close)) return {symbol_type::subexpression, e};
-            else {
-                printf("n3zqx2l: %s:%lld:%lld: expected \")\"\n", file.name, close.at.line, close.at.column);
-                state = saved; return {symbol_type::none, {}, {}, {}, {}, true};
-            }
+            else { printf("n3zqx2l: %s:%lld:%lld: expected \")\"\n", file.name, close.at.line, close.at.column); exit(1); }
         } else state = saved;
     } else state = saved;
     if (auto string = parse_string_literal(file, state); not string.error) return {symbol_type::string_literal, {}, string}; else state = saved;
