@@ -1,5 +1,1 @@
-"multiline comments
-here! they are just strings."
-
-`; also single line comments here, they are just sl com in llvm. `
 
