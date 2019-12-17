@@ -6,7 +6,8 @@ the current status of the nostril compiler:
 THE TODO LIST:
 =====================
 
-- redo how we are handling lexing, our impl sucks. it uses alot of globals.
+x: - redo how we are handling lexing, ;
+
 - revise our target triple.
 - use more of the stl algorithms.
 

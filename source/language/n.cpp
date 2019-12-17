@@ -152,6 +152,8 @@ static inline bool subexpression(const symbol& s) { return s.type == symbol_type
 //static inline bool parameter(const symbol &symbol) { return subexpression(symbol); }
 //static inline bool are_equal_identifiers(const symbol &first, const symbol &second) { return identifier(first) and identifier(second) and first.identifier.name.value == second.identifier.name.value; }
 
+///TODO: test this function!
+
 static inline token next(const file& file, lexing_state& lex) {
     token token = {}; auto& at = lex.index; auto& state = lex.state;
     while (lex.index < (nat) file.text.size() - 1) {
@@ -173,18 +175,14 @@ static inline token next(const file& file, lexing_state& lex) {
         else if (not is_identifier(c) and not isspace(c) and state == lex::none) {
             token = { token_type::operator_, std::string(1, c), lex.at };
             state = lex::none; lex.at.column++; at++; return token;
-        }
-        if (c == '\n') { lex.at.line++; lex.at.column = 1; } else lex.at.column++; at++;
+        } if (c == '\n') { lex.at.line++; lex.at.column = 1; } else lex.at.column++; at++;
     }
     if (state == lex::string) { printf("n3zqx2l: %s:%lld,%lld: error: unterminated string\n", file.name, lex.at.line, lex.at.column); exit(1); }
     else if (state == lex::llvm_string) { printf("n3zqx2l: %s:%lld,%lld: error: unterminated llvm string\n", file.name, lex.at.line, lex.at.column); exit(1); }
     else return { token_type::null, "", lex.at };
 }
 
-
-///TODO: make these three functions inlined into the symbol function. they are just too simple.
-
-static inline struct string_literal parse_string_literal(const file& file, lexing_state& state) {
+static inline struct string_literal parse_string_literal(const file& file, lexing_state& state) {///TODO: make these three functions inlined into the symbol function. they are just too simple.
     auto saved = state; auto t = next(file, state);
     if (t.type != token_type::string) { state = saved; return {{}, true}; }
     return {t};
@@ -201,8 +199,6 @@ static inline struct identifier parse_identifier(const file& file, lexing_state&
     if (not is_identifier(t) and (is_open_paren(t) or is_close_paren(t) or t.type != token_type::operator_)) {state = saved; return {{}, true}; }
     return {t};
 }
-
-
 
 static inline symbol parse_symbol(const file& file, lexing_state& state) {
     auto saved = state;
@@ -248,14 +244,6 @@ expression parse(const file& file, lexing_state& state) {
 //    if (given.type) result += " " + expression_to_string(stack.master[given.type].signature, stack);
 //    return result;
 //}
-
-static inline llvm::Function* create_main(llvm::IRBuilder<>& builder, llvm::LLVMContext& context, llvm_module& module) {
-    std::vector<llvm::Type*> state = {llvm::Type::getInt32Ty(context), llvm::Type::getInt8PtrTy(context)->getPointerTo()};
-    auto main_type = llvm::FunctionType::get(llvm::Type::getInt32Ty(context), state, false);
-    auto main_function = llvm::Function::Create(main_type, llvm::Function::ExternalLinkage, "main", module.get());
-    builder.SetInsertPoint(llvm::BasicBlock::Create(context, "entry", main_function));
-    return main_function;
-}
 
 static inline void prune_extraneous_subexpressions(expression& given) {
     while (given.symbols.size() == 1 and subexpression(given.symbols.front())) given.symbols = given.symbols.front().subexpression.symbols;
@@ -362,30 +350,28 @@ static inline llvm_module generate(expression program, const file& file, llvm::L
     set_data_for(module);
     llvm::IRBuilder<> builder(context);
     program_data data {file, module.get(), builder};
-//    symbol_table stack {data, builtins};
+//    symbol_table stack {data, builtins};   ///TODO: rework these data structures.
 //    resolve_state state {stack, data};
-    auto main = create_main(builder, context, module);
-    prune_extraneous_subexpressions(program);
+    auto main = llvm::Function::Create(llvm::FunctionType::get(llvm::Type::getInt32Ty(context), {llvm::Type::getInt32Ty(context), llvm::Type::getInt8PtrTy(context)->getPointerTo()}, false), llvm::Function::ExternalLinkage, "main", module.get());
+    builder.SetInsertPoint(llvm::BasicBlock::Create(context, "entry", main));
+//    prune_extraneous_subexpressions(program); ///TODO: do we really need to do this?
 //    auto resolved = resolve_expression(program, intrinsic::type, main, state);
     builder.SetInsertPoint(&main->getBasicBlockList().back());
     builder.CreateRet(llvm::ConstantInt::get(llvm::Type::getInt32Ty(context), 0));
-    if (debug) {
-//        debug_table(state.stack);
-//        print_resolved_expr(resolved, 0, state);
-        module->print(llvm::outs(), nullptr);
-    }
+//    if (debug) {
+//        module->print(llvm::outs(), nullptr);
+//    }
     std::string errors = "";
     if (llvm::verifyModule(*module, &(llvm::raw_string_ostream(errors) << ""))) { printf("llvm: %s: error: %s\n", file.name, errors.c_str()); return nullptr; }
 //    else if (resolved.error) return nullptr;
-//    else
-        return module;
+    return module;
 }
 
 static inline llvm_modules frontend(const arguments& arguments, llvm::LLVMContext& context) {
     llvm::InitializeAllTargetInfos(); llvm::InitializeAllTargets(); llvm::InitializeAllTargetMCs();
     llvm::InitializeAllAsmParsers(); llvm::InitializeAllAsmPrinters();
     llvm_modules modules = {};
-    for (auto file : arguments.files) { lexing_state state = {0, lex::none, {1, 1}}; modules.push_back(generate(parse(file, state), file, context)); }
+    for (auto file : arguments.files) { lexing_state state {0, lex::none, {1, 1}}; modules.push_back(generate(parse(file, state), file, context)); }
     if (std::find_if(modules.begin(), modules.end(), [](llvm_module& module) { return not module; }) != modules.end()) exit(1);
     return modules;
 }
