@@ -16,7 +16,7 @@
 #include <iostream>
 #include <sstream>
 #include <vector>
-static long max_expression_depth = 5;
+static long max_expression_depth = 10;
 enum class lex_type {none, id, string, llvm};
 enum class output_type {none, llvm, assembly, object, exec};
 enum class token_type {null, id, string, llvm, op};
@@ -33,11 +33,7 @@ struct resolved_expression { long index = 0; std::vector<resolved_expression> ar
 static inline bool is_identifier(char c) { return isalnum(c) or c == '_'; }
 static inline bool is_close_paren(const token& t) { return t.type == token_type::op and t.value == ")"; }
 static inline bool is_open_paren(const token& t) { return t.type == token_type::op and t.value == "("; }
-static inline bool subexpression(const symbol& s) { return s.type == symbol_type::subexpr; }
-static inline bool identifier(const symbol& s) { return s.type == symbol_type::id; }
-//static inline bool llvm_string(const symbol& s) { return s.type == symbol_type::llvm_literal; }
-//static inline bool parameter(const symbol &symbol) { return subexpression(symbol); }
-//static inline bool are_equal_identifiers(const symbol &first, const symbol &second) { return identifier(first) and identifier(second) and first.identifier.name.value == second.identifier.name.value; }
+static inline bool are_equal_identifiers(const symbol& first, const symbol& second) { return first.type == symbol_type::id and second.type == symbol_type::id and first.literal.value == second.literal.value; }
 static inline arguments get_arguments(const int argc, const char** argv) {
     arguments args = {};
     for (long i = 1; i < argc; i++) {
@@ -195,8 +191,6 @@ static inline std::unique_ptr<llvm::Module> generate(expression program, const f
         effe->print(llvm::outs());
         std::cout << "\n";
     }
-    
-    
     
 //    auto error = resolve_expression(program, intrinsic::type, main, stack);
     builder.SetInsertPoint(&main->getBasicBlockList().back());
