@@ -118,12 +118,6 @@ expression parse(const file& file, lexing_state& state) {
     return result;
 }
 
-static inline void set_data_for(std::unique_ptr<llvm::Module>& module) {
-    module->setTargetTriple(llvm::sys::getDefaultTargetTriple()); std::string lookup_error = "";
-    auto target_machine = llvm::TargetRegistry::lookupTarget(module->getTargetTriple(), lookup_error)->createTargetMachine(module->getTargetTriple(), "generic", "", {}, {}, {});
-    module->setDataLayout(target_machine->createDataLayout());
-}
-
 static void parse_ll_file(const program_data &data, const file &file) {
     llvm::SMDiagnostic function_errors; llvm::ModuleSummaryIndex my_index(true);
     llvm::MemoryBufferRef reference(file.text, file.name);
@@ -160,9 +154,10 @@ static void print_stack(const std::vector<llvm::ValueSymbolTable>& stack) {
 
 static inline std::unique_ptr<llvm::Module> generate(expression program, const file& file, llvm::LLVMContext& context) {
     auto module = llvm::make_unique<llvm::Module>(file.name, context);
-    set_data_for(module);
-    llvm::IRBuilder<> builder(context);
-    program_data data {file, module.get(), builder};
+    module->setTargetTriple(llvm::sys::getDefaultTargetTriple()); std::string lookup_error = "";
+    auto target_machine = llvm::TargetRegistry::lookupTarget(module->getTargetTriple(), lookup_error)->createTargetMachine(module->getTargetTriple(), "generic", "", {}, {}, {});
+    module->setDataLayout(target_machine->createDataLayout());
+    llvm::IRBuilder<> builder(context); program_data data {file, module.get(), builder};
     std::vector<llvm::ValueSymbolTable> stack {};
     auto main = llvm::Function::Create(llvm::FunctionType::get(llvm::Type::getInt32Ty(context), {llvm::Type::getInt32Ty(context), llvm::Type::getInt8PtrTy(context)->getPointerTo()}, false), llvm::Function::ExternalLinkage, "main", module.get());
     builder.SetInsertPoint(llvm::BasicBlock::Create(context, "entry", main));
@@ -185,6 +180,10 @@ static inline std::unique_ptr<llvm::Module> generate(expression program, const f
         std::cout << "other: " << b << " :: " << (f) << "\n";
     }
     
+    
+    
+    
+    
     std::cout << "\n printing types:: \n";
     auto wef = module->getIdentifiedStructTypes();
     for (auto effe : wef) {
@@ -192,10 +191,14 @@ static inline std::unique_ptr<llvm::Module> generate(expression program, const f
         std::cout << "\n";
     }
     
+    
+    auto fwef  = module->getTypeByName("(_)");
+    fwef->print(llvm::outs());
+    
+    
 //    auto error = resolve_expression(program, intrinsic::type, main, stack);
     builder.SetInsertPoint(&main->getBasicBlockList().back());
     builder.CreateRet(llvm::ConstantInt::get(llvm::Type::getInt32Ty(context), 0));
-    
     
     std::cout << "\n\n\n\ngenerating code....:\n";
     module->print(llvm::outs(), nullptr); // debug.
