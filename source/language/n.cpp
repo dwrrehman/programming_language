@@ -180,13 +180,33 @@ static inline std::unique_ptr<llvm::Module> generate(expression program, const f
     parse_ll_file(data, core_stdlib);
     
     stack.push_back(module->getValueSymbolTable());
-    
     print_stack(stack);
+    
+    for (auto& rgr : stack.back()) {
+        auto v = rgr.getValue();
+        auto f = v->getValueID();
+        std::string b = rgr.getKey();
+        std::cout << std::boolalpha;
+        std::cout << "function: " << b << " :: " << (f == llvm::Value::FunctionVal) << "\n";
+        std::cout << "global: " << b << " :: " << (f == llvm::Value::GlobalVariableVal) << "\n";
+        std::cout << "other: " << b << " :: " << (f) << "\n";
+    }
+    
+    std::cout << "\n printing types:: \n";
+    auto wef = module->getIdentifiedStructTypes();
+    for (auto effe : wef) {
+        effe->print(llvm::outs());
+        std::cout << "\n";
+    }
+    
+    
     
 //    auto error = resolve_expression(program, intrinsic::type, main, stack);
     builder.SetInsertPoint(&main->getBasicBlockList().back());
     builder.CreateRet(llvm::ConstantInt::get(llvm::Type::getInt32Ty(context), 0));
     
+    
+    std::cout << "\n\n\n\ngenerating code....:\n";
     module->print(llvm::outs(), nullptr); // debug.
     
     std::string errors = "";
@@ -217,8 +237,7 @@ static inline std::unique_ptr<llvm::Module> link(std::vector<std::unique_ptr<llv
 }
 
 static inline void interpret(std::unique_ptr<llvm::Module> module, const arguments& arguments) {
-    auto jit = llvm::EngineBuilder(std::move(module)).setEngineKind(llvm::EngineKind::JIT).create();
-    jit->finalizeObject();
+    auto jit = llvm::EngineBuilder(std::move(module)).setEngineKind(llvm::EngineKind::JIT).create(); jit->finalizeObject();
     exit(jit->runFunctionAsMain(jit->FindFunctionNamed("main"), {arguments.name}, nullptr));
 }
 
@@ -240,8 +259,7 @@ static inline std::string generate_object_file(std::unique_ptr<llvm::Module> mod
     if (error) exit(1);
     llvm::legacy::PassManager pass;
     if (target_machine->addPassesToEmitFile(pass, dest, nullptr, llvm::TargetMachine::CGFT_ObjectFile)) { std::remove(object_filename.c_str()); exit(1); }
-    pass.run(*module);
-    dest.flush();
+    pass.run(*module); dest.flush();
     return object_filename;
 }
 
