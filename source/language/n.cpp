@@ -58,6 +58,42 @@ struct program_data {
     llvm::IRBuilder<>& builder;
 };
 
+struct resolved_expression {
+    long index = 0;
+    std::vector<resolved_expression> args = {};
+    bool error = false;
+}; // useful for debuggin, right?
+
+/*
+
+struct resolved_expression {
+    nat index = 0;
+    std::vector<resolved_expression> args = {};
+    bool error = false;
+    llvm::Type* llvm_type = nullptr;
+    expression signature = {};
+    llvm::Value* constant = {};
+};
+
+struct signature_entry {
+    expression signature = {};
+    expression definition = {};
+    nat precedence = 0;
+    llvm::Value* value = nullptr;
+    llvm::Function* function = nullptr;
+    llvm::Type* llvm_type = nullptr;
+};
+
+*/
+
+
+std::vector<std::string> ordered_stack = {}; // where you find the key string matters! thats the index.
+
+
+
+
+
+
 static long max_expression_depth = 5;
 static bool debug = false;
 
@@ -423,7 +459,10 @@ std::string convert_symbol_type(enum symbol_type type) {
 
 
 
-using stack = std::vector<llvm::ValueSymbolTable>;
+
+
+
+
 
 static inline void set_data_for(std::unique_ptr<llvm::Module>& module) {
     module->setTargetTriple(llvm::sys::getDefaultTargetTriple());
@@ -434,12 +473,21 @@ static inline void set_data_for(std::unique_ptr<llvm::Module>& module) {
 
 
 
+using stack = std::vector<std::pair<llvm::ValueSymbolTable, std::vector<long>>>;
+
+
 
 static void print_stack(const stack &stack) {
     std::cout << "-----------------------printing stack....--------------------------------\n";
     for (auto frame : stack) {
         std::cout << "-------------- printing new frame: ------------\n";
-        for (auto& entry : frame) {
+        std::cout << "printing ordered index: \n";
+        for (auto number : frame.second) {
+            std::cout << number << " " ;
+        }
+        std::cout << "\n";
+        std::cout << "printing llvm symbols: \n";
+        for (auto& entry : frame.first) {
             std::string key = entry.getKey();
             llvm::Value* value = entry.getValue();
             
@@ -470,16 +518,31 @@ static void open_ll_file(const char *core_name, struct file &core_stdlib) {
     } else { printf("n: error: unable to open \"%s\": %s\n", core_name, strerror(errno)); exit(1); }
 }
 
-//static inline resolved_expression parse_llvm_string(llvm::Function*& function, const token& llvm_string, nat& pointer, resolve_state& state) {
-//    llvm::SMDiagnostic function_errors; llvm::ModuleSummaryIndex my_index(true);
-//    llvm::MemoryBufferRef reference(llvm_string.value, state.data.file.name);
-//    if (not llvm::parseAssemblyInto(reference, state.data.module, &my_index, function_errors)) {
-//        pointer++; return {intrinsic::llvm, {}, llvm::Type::getVoidTy(state.data.module->getContext())};
-//    } else {
-//        function_errors.print((std::string("llvm: (") + std::to_string(llvm_string.line) + "," + std::to_string(llvm_string.column) + ")").c_str(), llvm::errs());
-//        return {0, {}, nullptr, {}, {}, true};
-//    }
-//}
+
+expression string_to_expression(std::string text) {
+    
+    ///TODO: code this function. its super important.
+    
+    return {};
+}
+
+static inline std::vector<long> index(llvm::ValueSymbolTable llvm) {
+
+    std::vector<expression> keys = {};
+    for (auto& entry : llvm) {
+        auto e = string_to_expression(entry.getKey());
+        keys.push_back(e);
+    }
+    
+    ///TODO: unfinsihed. we need to write this function correctly.
+    
+    
+    
+    std::stable_sort(keys.begin(), keys.end(), [&](expression a, expression b) { return a.symbols.size() > b.symbols.size(); });
+    
+    return {};
+}
+
 
 static inline std::unique_ptr<llvm::Module> generate(expression program, const file& file, llvm::LLVMContext& context) {
     
@@ -500,14 +563,8 @@ static inline std::unique_ptr<llvm::Module> generate(expression program, const f
     
     
     
-    
-    
-    
     auto wef = module->getValueSymbolTable();
-    auto wef2 = module->getValueSymbolTable();
-    stack.push_back(wef);
-    stack.push_back(wef2);
-    
+    stack.push_back({wef, index(wef)});
     print_stack(stack);
     
 //    auto resolved = resolve_expression(program, intrinsic::type, main, stack);
