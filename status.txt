@@ -3,39 +3,48 @@ the current status of the nostril compiler:
 
 
 
+
+
 THE TODO LIST:
 =====================
 
-x: - redo how we are handling lexing, ;
+- reimplement the compiler using the llvm c-api, which is much more intuitive.
+- use more of the stl algorithms..?
 
 - revise our target triple.
-- use more of the stl algorithms.
 
 - get csr working with subexpressions.
 - get fdi functionality fully working, using _b
-
 - add _0 functionality to csr.
 - add lazy code generation using _a
-- add resolution based type inference
-- add compiletime evlauation to this.
+- add resolution based type inference  (or/plus henry milner TI)
+- add compiletime evlauation to csr.
 - add compiletime parameters
-- add ct geenration of rt data.
+- add compiletime generation of runtime data.
+- add numberic constants suppport.
 
-- figure out how to remove the symbol table data structure.
+- write the string to expression function.
 
+- figure out how to make _define provide _expose functionality
+
+- code for passing flags to the linker (-!), and the executable (--)
+- add codegen and support for text strings in csr and llvm.
+
+- make llvms void passable and initiable like the real unit type.
+
+- figure out how we are going to do multiple files, and our module system.
+
+============ DONE: ===========
+
+x: - make llvm strings nestable.;
+x: - possibly get rid ll stirngs. ; --> NO.
+x: - add assembly output functioality,;
+x: - figure out how to remove the symbol table data structure.;
+x: - redo how we are handling lexing, ;
 x: - devise a better llvm interop system.;
 
-- figure out how to make _c provide _expose functionality
 
-- add assembly output functioality,
-- code for passing flags to the linker
-- add codegen and support for strings in csr and llvm.
-
-x: - possibly get rid ll stirngs. ;
-
-- add numbers suppport.
-
-=======================
+==================================
 
 
 
@@ -49,8 +58,20 @@ x: - possibly get rid ll stirngs. ;
 
 
 
+so we are dramatically simplifying how we are doing our symbol table management, and probably type inference as well.
 
 
+we might be using something like hentry milner type inference, plus some delayed resolution stuff.
+
+additionally, we will be code gening intstantly into the llvm ir, upon parsing n3zqx2l code.
+
+wait, no, we shouldnt... because of calls to functions:
+	
+	there is one definition, which we can easily update when we realize its type,
+
+	but there are many instances in which its called, which we need to update as well.
+
+	
 
 
 
