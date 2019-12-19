@@ -69,7 +69,7 @@ static inline token next(const file& file, lexing_state& lex) {
             else if (n == '\"') token.value += "\"";
             else if (n == 'n') token.value += "\n";
             else if (n == 't') token.value += "\t";
-            else { printf("n3zqx2l: error: unknown escape sequence.\n"); exit(1); } ///TODO: make this use the standard error format.
+            else { printf("n3zqx2l: error(1,1): unknown escape sequence.\n"); } ///TODO: make this use the standard error format, and include linea nd column
             lex.column++; at++;
         } else if ((c == '\"' and state == lex_type::string) or (c == '`' and state == lex_type::llvm and n == k)) { if (state == lex_type::llvm) { lex.column++; at++; } state = lex_type::none; lex.column++; at++; return token; }
         else if (is_identifier(c) and not is_identifier(n) and state == lex_type::id) { token.value += c; state = lex_type::none; lex.column++; at++; return token; }
@@ -78,9 +78,9 @@ static inline token next(const file& file, lexing_state& lex) {
             token = { token_type::op, std::string(1, c), lex.line, lex.column };
             state = lex_type::none; lex.column++; at++; return token;
         } if (c == '\n') { lex.line++; lex.column = 1; } else lex.column++; at++;
-    } if (state == lex_type::string) { printf("n3zqx2l: %s:%ld,%ld: error: unterminated string\n", file.name, lex.line, lex.column); exit(1); }
-    else if (state == lex_type::llvm) { printf("n3zqx2l: %s:%ld,%ld: error: unterminated llvm string\n", file.name, lex.line, lex.column); exit(1); }
-    else return { token_type::null, "", lex.line, lex.column };
+    } if (state == lex_type::string) printf("n3zqx2l: %s:%ld:%ld: error: unterminated string\n", file.name, lex.line, lex.column);
+    else if (state == lex_type::llvm) printf("n3zqx2l: %s:%ld:%ld: error: unterminated llvm string\n", file.name, lex.line, lex.column);
+    return { token_type::null, "", lex.line, lex.column };
 }
 
 
@@ -102,7 +102,7 @@ static inline symbol parse_symbol(const file& file, lexing_state& state, long d)
         if (auto e = parse(file, state, d+2); not e.error) {
             auto close = next(file, state);
             if (is_close_paren(close)) return {symbol_type::subexpr, e};
-            else { state = saved; printf("n3zqx2l: %s:%ld:%ld: expected \")\"\n", file.name, close.line, close.column); }
+            else { state = saved; printf("n3zqx2l: %s:%ld:%ld: expected \")\"\n", file.name, close.line, close.column); return {symbol_type::subexpr, e, {}, true};}
         } else state = saved;
     } else state = saved;
     auto t = next(file, state);
@@ -122,12 +122,13 @@ static inline expression parse(const file& file, lexing_state& state, long d) {
     std::vector<symbol> symbols = {};
     auto saved = state; auto start = next(file, state); state = saved;
     auto symbol = parse_symbol(file, state,d+1);
-    while (not symbol.error) {
+    while (not symbol.error ) {
 //        prep(d+1); std::cout << "in while loop of parse()...\n";
         symbols.push_back(symbol);
         saved = state;
         symbol = parse_symbol(file, state, d+2);
     } state = saved;
+    if (symbol.type == symbol_type::subexpr) return {{}, 0, {}, true};
     expression result = {symbols};
     result.start = start;
     return result;
@@ -144,7 +145,7 @@ struct entry {
 };
 
 
-static inline std::string expression_to_string(const expression& given, std::vector<entry> master, long offset);
+static inline std::string expression_to_string(const expression& given, std::vector<entry> master, long begin = 0, long end = -1);
 //static inline expression string_to_expression(std::string given, std::vector<entry> master);
 
 //
@@ -220,17 +221,33 @@ struct symbol_table {
 };
 
 
-static inline std::string expression_to_string(const expression& given, std::vector<entry> master, long offset) {
+static inline std::string resolved_expression_to_string(const resolved_expression& given, std::vector<entry> master) {
+    std::string result = "(";
+    long i = 0;
+    for (auto symbol : master[given.index].signature.symbols) {
+        if (symbol.type == symbol_type::id) result += symbol.literal.value;
+        else if (symbol.type == symbol_type::subexpr) result += "(" + expression_to_string(symbol.subexpression, master) + "=" + resolved_expression_to_string(given.args[i], master) + ")";
+        if (i++ < (long) master[given.index].signature.symbols.size() - 1) result += " ";
+    }
+    result += ")";
+    if (master[given.index].signature.type) result += " " + expression_to_string(master[master[given.index].signature.type].signature, master);
+    return result;
+}
+
+static inline std::string expression_to_string(const expression& given, std::vector<entry> master, long begin, long end) {
     std::string result = "(";
     long i = 0;
     for (auto symbol : given.symbols) {
-        if (i < offset) {i++; continue; }
+        if (i < begin or (end != -1 and i >= end)) {i++; continue; }
         if (symbol.type == symbol_type::id) result += symbol.literal.value;
-        else if (symbol.type == symbol_type::subexpr) result += "(" + expression_to_string(symbol.subexpression, master, 0) + ")";
-        if (i++ < (long) given.symbols.size() - 1) result += " ";
+        else if (symbol.type == symbol_type::string) result += "\"" + symbol.literal.value + "\"";
+        else if (symbol.type == symbol_type::llvm) result += "`" + symbol.literal.value + "`";
+        else if (symbol.type == symbol_type::subexpr) result += "(" + expression_to_string(symbol.subexpression, master) + ")";
+        if (i < (long) given.symbols.size() - 1 and not (i + 1 < begin or (end != -1 and i + 1 >= end))) result += " ";
+        i++;
     }
     result += ")";
-    if (given.type) result += " " + expression_to_string(master[given.type].signature, master, 0);
+    if (given.type) result += " " + expression_to_string(master[given.type].signature, master);
     return result;
 }
 
@@ -378,7 +395,14 @@ static inline resolved_expression resolve_expression(const expression& given, lo
         if (not solution.error and pointer == (long) given.symbols.size()) break;
     }
     if (pointer < (long) given.symbols.size()) solution.error = true;
-    if (solution.error) printf("n3zqx2l: %s:%ld:%ld: error: unresolved %s @ %ld : %s\n", data.file.name, given.symbols[pointer].literal.line, given.symbols[pointer].literal.column, expression_to_string(given, stack.master, pointer).c_str(), pointer, expression_to_string(given, stack.master, 0).c_str());
+    if (solution.error) {
+        auto t = pointer < (long) given.symbols.size() ? given.symbols[pointer].literal : given.start;
+        printf("n3zqx2l: %s:%ld:%ld: error: unresolved %s @ %ld : %s ~ %s\n",
+               data.file.name, t.line, t.column,
+               expression_to_string(given, stack.master, pointer, pointer + 1).c_str(),
+               pointer, expression_to_string(given, stack.master).c_str(),
+               resolved_expression_to_string(solution, stack.master).c_str());
+    }
     return solution;
 }
 
@@ -579,19 +603,18 @@ static inline void debug_table(symbol_table table) {
 
 
 static inline std::unique_ptr<llvm::Module> generate(expression program, const file& file, llvm::LLVMContext& context) {
+    if (program.error) return nullptr;
     auto module = llvm::make_unique<llvm::Module>(file.name, context);
     module->setTargetTriple(llvm::sys::getDefaultTargetTriple()); std::string lookup_error = "";
     auto target_machine = llvm::TargetRegistry::lookupTarget(module->getTargetTriple(), lookup_error)->createTargetMachine(module->getTargetTriple(), "generic", "", {}, {}, {});
     module->setDataLayout(target_machine->createDataLayout());
-    llvm::IRBuilder<> builder(context);
+    llvm::IRBuilder<> builder(context);  // if (program.symbols.empty()) return module;
     auto main = llvm::Function::Create(llvm::FunctionType::get(llvm::Type::getInt32Ty(context), {llvm::Type::getInt32Ty(context), llvm::Type::getInt8PtrTy(context)->getPointerTo()}, false), llvm::Function::ExternalLinkage, "main", module.get());
     builder.SetInsertPoint(llvm::BasicBlock::Create(context, "entry", main));
-    
     
     program_data data {file, module.get(), builder};
     symbol_table stack {data, module->getValueSymbolTable()};
     
-
 //    for (auto& rgr : stack.back()) {
 //        auto v = rgr.getValue();
 //        auto f = v->getValueID();
@@ -612,8 +635,7 @@ static inline std::unique_ptr<llvm::Module> generate(expression program, const f
 //    auto fwef  = module->getTypeByName("(_)");
 //    fwef->print(llvm::outs());
 //
-    
-    
+        
 //    std::cout << expression_to_string(program, stack.master, 2);
 //
 //    exit(1);
@@ -632,7 +654,7 @@ static inline std::unique_ptr<llvm::Module> generate(expression program, const f
     
     std::string errors = "";
     if (llvm::verifyModule(*module, &(llvm::raw_string_ostream(errors) << ""))) { printf("llvm: %s: error: %s\n", file.name, errors.c_str()); return nullptr; }
-//    else if (error) return nullptr;
+    else if (resolved.error) return nullptr;
     return module;
 }
 
