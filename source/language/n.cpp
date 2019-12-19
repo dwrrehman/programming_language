@@ -94,11 +94,11 @@ static inline token next(const file& file, lexing_state& lex) {
 
 static inline expression parse(const file& file, lexing_state& state, long d);
 static inline symbol parse_symbol(const file& file, lexing_state& state, long d) {
-    prep(d); std::cout << "calling parse_symbol(): \n";
+//    prep(d); std::cout << "calling parse_symbol(): \n";
     auto saved = state;
     auto open = next(file, state);
     if (is_open_paren(open)) {
-        prep(d+1); std::cout << "is an open paren!\n";
+//        prep(d+1); std::cout << "is an open paren!\n";
         if (auto e = parse(file, state, d+2); not e.error) {
             auto close = next(file, state);
             if (is_close_paren(close)) return {symbol_type::subexpr, e};
@@ -108,22 +108,22 @@ static inline symbol parse_symbol(const file& file, lexing_state& state, long d)
     auto t = next(file, state);
     if (t.type == token_type::string) return {symbol_type::string, {}, t};
     if (t.type == token_type::llvm) return {symbol_type::llvm, {}, t};
-    if (t.type == token_type::id or (t.type == token_type::op and not is_open_paren(t) and not is_close_paren(t))) {
-        prep(d+1); std::cout << "is an identfier!\n";
+    if (t.type == token_type::id or (t.type == token_type::op and not is_open_paren(t) and not is_close_paren(t))) { ///TODO: simplify me!
+//        prep(d+1); std::cout << "is an identfier!\n";
         return {symbol_type::id, {}, t}; }
     else {
         state = saved;
-        prep(d+1); std::cout << "failed to parse symbol...\n";
+//        prep(d+1); std::cout << "failed to parse symbol...\n";
         return {symbol_type::none, {}, {}, true}; }
 }
 
 static inline expression parse(const file& file, lexing_state& state, long d) {
-    prep(d); std::cout << "calling parse(): \n";
+//    prep(d); std::cout << "calling parse(): \n";
     std::vector<symbol> symbols = {};
     auto saved = state; auto start = next(file, state); state = saved;
     auto symbol = parse_symbol(file, state,d+1);
     while (not symbol.error) {
-        prep(d+1); std::cout << "in while loop of parse()...\n";
+//        prep(d+1); std::cout << "in while loop of parse()...\n";
         symbols.push_back(symbol);
         saved = state;
         symbol = parse_symbol(file, state, d+2);
@@ -378,7 +378,7 @@ static inline resolved_expression resolve_expression(const expression& given, lo
         if (not solution.error and pointer == (long) given.symbols.size()) break;
     }
     if (pointer < (long) given.symbols.size()) solution.error = true;
-    if (solution.error) printf("n3zqx2l: %s:%ld:%ld: error: unresolved %s @ %ld : %s\n", data.file.name, given.start.line, given.start.column, expression_to_string(given, stack.master, pointer).c_str(), pointer, expression_to_string(given, stack.master, 0).c_str());
+    if (solution.error) printf("n3zqx2l: %s:%ld:%ld: error: unresolved %s @ %ld : %s\n", data.file.name, given.symbols[pointer].literal.line, given.symbols[pointer].literal.column, expression_to_string(given, stack.master, pointer).c_str(), pointer, expression_to_string(given, stack.master, 0).c_str());
     return solution;
 }
 
@@ -615,20 +615,20 @@ static inline std::unique_ptr<llvm::Module> generate(expression program, const f
     
     
 //    std::cout << expression_to_string(program, stack.master, 2);
-//    
+//
 //    exit(1);
     
     auto resolved = resolve_expression(program, intrinsic::type, main, data, stack, 0);
     
-    printf("\n\n\n");
-    print_resolved_expr(resolved, 0, stack);
-    debug_table(stack);
+//    printf("\n\n\n");
+//    print_resolved_expr(resolved, 0, stack);
+//    debug_table(stack);
         
     builder.SetInsertPoint(&main->getBasicBlockList().back());
     builder.CreateRet(llvm::ConstantInt::get(llvm::Type::getInt32Ty(context), 0));
     
-    std::cout << "\n\n\n\ngenerating code....:\n";
-    module->print(llvm::outs(), nullptr); // debug.
+//    std::cout << "\n\n\n\ngenerating code....:\n";
+//    module->print(llvm::outs(), nullptr); // debug.
     
     std::string errors = "";
     if (llvm::verifyModule(*module, &(llvm::raw_string_ostream(errors) << ""))) { printf("llvm: %s: error: %s\n", file.name, errors.c_str()); return nullptr; }
@@ -637,18 +637,17 @@ static inline std::unique_ptr<llvm::Module> generate(expression program, const f
 }
 
 
-
 static inline std::vector<std::unique_ptr<llvm::Module>> frontend(const arguments& arguments, llvm::LLVMContext& context) {
     llvm::InitializeAllTargetInfos(); llvm::InitializeAllTargets(); llvm::InitializeAllTargetMCs(); llvm::InitializeAllAsmParsers(); llvm::InitializeAllAsmPrinters();
     std::vector<std::unique_ptr<llvm::Module>> modules = {};
     for (auto file : arguments.files) {
         lexing_state state {0, lex_type::none, 1, 1};
         
-        auto saved = state;
-        debug_token_stream(file);
-        print_translation_unit(parse(file, state, 0), file);
-        state = saved;
-        
+//        auto saved = state;
+//        debug_token_stream(file);
+//        print_translation_unit(parse(file, state, 0), file);
+//        state = saved;
+//
         modules.push_back(generate(parse(file, state, 0), file, context));
     }
     if (std::find_if(modules.begin(), modules.end(), [](auto& module) { return not module; }) != modules.end()) exit(1);
