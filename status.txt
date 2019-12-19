@@ -13,7 +13,7 @@ THE TODO LIST:
 
 - revise our target triple.
 
-- get csr working with subexpressions.
+
 - get fdi functionality fully working, using _b
 - add _0 functionality to csr.
 - add lazy code generation using _a
@@ -36,6 +36,7 @@ THE TODO LIST:
 
 ============ DONE: ===========
 
+x: - get csr working with subexpressions properly.;
 x: - make llvm strings nestable.;
 x: - possibly get rid ll stirngs. ; --> NO.
 x: - add assembly output functioality,;
