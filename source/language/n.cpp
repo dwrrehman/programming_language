@@ -13,7 +13,7 @@
 #include <fstream>
 #include <iostream>
 #include <vector>
-static long max_expression_depth = 10;
+static long max_expression_depth = 3;
 enum class lex_type {none, id, string, llvm};
 enum class output_type {none, llvm, assembly, object, exec};
 enum class token_type {null, id, string, llvm, op};
@@ -161,18 +161,33 @@ struct symbol_table {
     long lookup(std::string key) { return std::distance(master.begin(), std::find_if(master.begin(), master.end(), [&](const entry& entry) { return key == expression_to_string(entry.signature, master);})); }
     bool contains(std::string key) { return lookup(key) < (long) master.size(); }
         
+    
+    
+
+    symbol id(std::string name) { return {symbol_type::id, {}, {token_type::id, name}}; }
+    symbol param(long type) { return {symbol_type::subexpr, {{}, type}}; }
+
+    
+    
     symbol_table(program_data& data, llvm::ValueSymbolTable& llvm): data(data) {
         master.push_back({/*null entry*/});
-        parse_ll_file(data, open_ll_file("/Users/deniylreimn/Documents/projects/n3zqx2l/examples/core.ll"));
+        
+        master.push_back({{{id("_")}, 0}});
+        master.push_back({{{id("g")}, intrinsic::type}});
+        master.push_back({{{ param(intrinsic::type), param(intrinsic::type) }, intrinsic::type}});
+    
+        frames.push_back({0, 1, 2, 3});
+        
+//        parse_ll_file(data, open_ll_file("/Users/deniylreimn/Documents/projects/n3zqx2l/examples/core.ll"));
         update(llvm);
         std::stable_sort(top().begin(), top().end(), [&](long a, long b) { return get(a).symbols.size() > get(b).symbols.size(); });
     }
     
     void update(llvm::ValueSymbolTable& llvm) {
-        for (auto& entry : llvm ) {
-            if (not contains(entry.getKey()))
-                define({string_to_expression(entry.getKey(), master), entry.getValue()}); // fill in for function and type as well.
-        }
+//        for (auto& entry : llvm ) {
+//            if (not contains(entry.getKey()))
+//                define({string_to_expression(entry.getKey(), master), entry.getValue()}); // fill in for function and type as well.
+//        }
     }
         
     void define(const entry& e) {
@@ -251,6 +266,11 @@ static inline resolved_expression parse_llvm_string(const token& llvm_string, lo
 
 
 
+#define prep(x)   for (long i = 0; i < x; i++) std::cout << ".   "
+
+
+
+
 static inline resolved_expression resolve(const expression& given, long given_type, llvm::Function*& function, long& index, long depth, long max_depth, program_data& data, symbol_table& stack);
 
 
@@ -258,16 +278,18 @@ static inline bool matches(const expression& given, const expression& signature,
                            std::vector<resolved_expression>& args, llvm::Function*& function,
                            long& index, long depth, long max_depth, program_data& data, symbol_table stack) {
     
-    if (given_type != signature.type) return false;
+    prep(depth); std::cout << "calling matches(" << expression_to_string(given, stack.master) <<","<<expression_to_string(signature, stack.master)<<") ";
+    if (given_type != signature.type) { prep(depth); std::cout << "   ----> false(0)!\n"; return false; }
     for (auto symbol : signature.symbols) {
-        if (index >= (long) given.symbols.size()) return false;
+        if (index >= (long) given.symbols.size()) {prep(depth); std::cout << "   ----> false(1)!\n"; return false; }
         if (symbol.type == symbol_type::subexpr) {
             auto argument = resolve(given, symbol.subexpression.type, function, index, depth + 1, max_depth, data, stack);
-            if (argument.error) return false;
+            if (argument.error) { prep(depth); std::cout << "   ----> false(2)!\n";return false; }
             args.push_back({argument});
-        } else if (not are_equal_identifiers(symbol, given.symbols[index])) return false;
+        } else if (not are_equal_identifiers(symbol, given.symbols[index])) { prep(depth); std::cout << "   ----> false(3)!\n"; return false; }
         else index++;
     }
+    prep(depth); std::cout << "   ----> true!\n";
     return true;
 }
 
@@ -277,12 +299,10 @@ static inline bool matches(const expression& given, const expression& signature,
 static inline resolved_expression resolve_expression(const expression& given, long given_type, llvm::Function*& function, program_data& data, symbol_table stack);
 
 
-
-
-
 static inline resolved_expression resolve(const expression& given, long given_type, llvm::Function*& function,
                            long& index, long depth, long max_depth, program_data& data, symbol_table& stack) {
 
+    prep(depth); std::cout << "calling resolve()\n";
     if (not given_type or depth > max_depth) return {0, {}, true};
 
     else if (index < (long) given.symbols.size() and given.symbols[index].type == symbol_type::subexpr) {
@@ -290,18 +310,18 @@ static inline resolved_expression resolve(const expression& given, long given_ty
         index++;
         return resolved;
     }
-
-    else if (index < (long) given.symbols.size()
-             and given.symbols[index].type == symbol_type::llvm
-             and given_type == intrinsic::llvm)
-        return parse_llvm_string(given.symbols[index].literal, index, data);
-    
-    
-    else if (index < (long) given.symbols.size()
-             and given.symbols[index].type == symbol_type::llvm
-             and given_type == intrinsic::type)
-        return parse_llvm_type_string(given.symbols[index].literal, index, data);
-    
+//
+//    else if (index < (long) given.symbols.size()
+//             and given.symbols[index].type == symbol_type::llvm
+//             and given_type == intrinsic::llvm)
+//        return parse_llvm_string(given.symbols[index].literal, index, data);
+//
+//
+//    else if (index < (long) given.symbols.size()
+//             and given.symbols[index].type == symbol_type::llvm
+//             and given_type == intrinsic::type)
+//        return parse_llvm_type_string(given.symbols[index].literal, index, data);
+//
 
     long saved = index;
     for (auto s : stack.top()) {
@@ -313,10 +333,16 @@ static inline resolved_expression resolve(const expression& given, long given_ty
 }
 
 static inline resolved_expression resolve_expression(const expression& given, long given_type, llvm::Function*& function, program_data& data, symbol_table stack) {
+    
+    std::cout << "calling resolve expression()\n";
+    
     resolved_expression solution {};
     long pointer = 0;
     for (long max_depth = 0; max_depth <= max_expression_depth; max_depth++) {
         pointer = 0;
+        
+        std::cout << "------ trying depth = " << max_depth << " --------------\n";
+        
         solution = resolve(given, given_type, function, pointer, 0, max_depth, data, stack);
         if (not solution.error and pointer == (long) given.symbols.size()) break;
     }
@@ -330,90 +356,21 @@ static inline resolved_expression resolve_expression(const expression& given, lo
 
 
 
-
-static inline void _old_print_stack(const std::vector<llvm::ValueSymbolTable>& stack) {
-    std::cout << "-----------------------printing stack....--------------------------------\n";
-    for (auto frame : stack) {
-        std::cout << "-------------- printing new frame: ------------\n";
-        for (auto& entry : frame) {
-            std::string key = entry.getKey();
-            llvm::Value* value = entry.getValue();
-            std::cout << "key: \"" << key << "\" == value : \n";
-            value->print(llvm::outs());
-            std::cout << "\n\n";
-        }
-    }
-}
-
-
-
-
-
-
-static inline std::unique_ptr<llvm::Module> generate(expression program, const file& file, llvm::LLVMContext& context) {
-    auto module = llvm::make_unique<llvm::Module>(file.name, context);
-    module->setTargetTriple(llvm::sys::getDefaultTargetTriple()); std::string lookup_error = "";
-    auto target_machine = llvm::TargetRegistry::lookupTarget(module->getTargetTriple(), lookup_error)->createTargetMachine(module->getTargetTriple(), "generic", "", {}, {}, {});
-    module->setDataLayout(target_machine->createDataLayout());
-    llvm::IRBuilder<> builder(context);
-    auto main = llvm::Function::Create(llvm::FunctionType::get(llvm::Type::getInt32Ty(context), {llvm::Type::getInt32Ty(context), llvm::Type::getInt8PtrTy(context)->getPointerTo()}, false), llvm::Function::ExternalLinkage, "main", module.get());
-    builder.SetInsertPoint(llvm::BasicBlock::Create(context, "entry", main));
-    
-    
-    program_data data {file, module.get(), builder};
-    symbol_table stack {data, module->getValueSymbolTable()};
-    
-
-//    for (auto& rgr : stack.back()) {
-//        auto v = rgr.getValue();
-//        auto f = v->getValueID();
-//        std::string b = rgr.getKey();
-//        std::cout << std::boolalpha;
-//        std::cout << "function: " << b << " :: " << (f == llvm::Value::FunctionVal) << "\n";
-//        std::cout << "global: " << b << " :: " << (f == llvm::Value::GlobalVariableVal) << "\n";
-//        std::cout << "other: " << b << " :: " << (f) << "\n";
+//
+//static inline void _old_print_stack(const std::vector<llvm::ValueSymbolTable>& stack) {
+//    std::cout << "-----------------------printing stack....--------------------------------\n";
+//    for (auto frame : stack) {
+//        std::cout << "-------------- printing new frame: ------------\n";
+//        for (auto& entry : frame) {
+//            std::string key = entry.getKey();
+//            llvm::Value* value = entry.getValue();
+//            std::cout << "key: \"" << key << "\" == value : \n";
+//            value->print(llvm::outs());
+//            std::cout << "\n\n";
+//        }
 //    }
-//
-//    std::cout << "\n printing types:: \n";
-//    auto wef = module->getIdentifiedStructTypes();
-//    for (auto effe : wef) {
-//        effe->print(llvm::outs());
-//        std::cout << "\n";
-//    }
-//
-//    auto fwef  = module->getTypeByName("(_)");
-//    fwef->print(llvm::outs());
-//
-    
-    
-    auto error = resolve_expression(program, intrinsic::type, main, data, stack);
-    
-    builder.SetInsertPoint(&main->getBasicBlockList().back());
-    builder.CreateRet(llvm::ConstantInt::get(llvm::Type::getInt32Ty(context), 0));
-    
-    std::cout << "\n\n\n\ngenerating code....:\n";
-    module->print(llvm::outs(), nullptr); // debug.
-    
-    std::string errors = "";
-    if (llvm::verifyModule(*module, &(llvm::raw_string_ostream(errors) << ""))) { printf("llvm: %s: error: %s\n", file.name, errors.c_str()); return nullptr; }
-//    else if (error) return nullptr;
-    return module;
-}
+//}
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-#define prep(x)   for (long i = 0; i < x; i++) std::cout << ".   "
 
 
 void debug_arguments(const arguments& args) {
@@ -520,10 +477,133 @@ std::string convert_symbol_type(enum symbol_type type) {
 
 
 
+static inline void print_resolved_expr(resolved_expression expr, long depth, symbol_table& stack) {
+    prep(depth); std::cout << "[error = " << std::boolalpha << expr.error << "]\n";
+    prep(depth); std::cout << "index = " << expr.index << " :: " << expression_to_string(stack.get(expr.index), stack.master);
+    
+//    if (expr.signature.symbols.size()) {
+//        std::cout << " ::: " << expression_to_string(expr.signature, stack.master);
+//    }
+    
+    std::cout << "\n";
+    
+//    if (expr.llvm_type) { prep(depth); std::cout << "llvm type = "; expr.llvm_type->print(llvm::errs()); }
+//    std::cout << "\n";
+    long i = 0;
+    for (auto arg : expr.args) {
+        prep(depth + 1); std::cout << "argument #" << i++ << ": \n";
+        print_resolved_expr(arg, depth + 2, stack);
+        prep(depth); std::cout << "\n";
+    }
+}
+
+
+static inline void debug_table(symbol_table table) {
+    std::cout << "\n\n---- debugging stack: ----\n";
+    
+    std::cout << "printing frames: \n";
+    for (auto i = 0; i < (long) table.frames.size(); i++) {
+        std::cout << "\t ----- FRAME # "<<i<<"---- \n\t\tidxs: { ";
+        for (auto index : table.frames[i]) {
+            std::cout << index << " ";
+        }
+        std::cout << "}\n";
+    }
+    
+    std::cout << "\nmaster: {\n";
+    auto j = 0;
+    for (auto entry : table.master) {
+        std::cout << "\t" << std::setw(6) << j << ": ";
+        std::cout << expression_to_string(entry.signature, table.master) << "\n";
+        
+        if (entry.value) {
+            std::cout << "\tLLVM value: \n";
+            entry.value->print(llvm::errs());
+        }
+        if (entry.function) {
+            std::cout << "\tLLVM function: \n";
+            entry.function->print(llvm::errs());
+        }
+        j++;
+    }
+    std::cout << "}\n";
+}
 
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+static inline std::unique_ptr<llvm::Module> generate(expression program, const file& file, llvm::LLVMContext& context) {
+    auto module = llvm::make_unique<llvm::Module>(file.name, context);
+    module->setTargetTriple(llvm::sys::getDefaultTargetTriple()); std::string lookup_error = "";
+    auto target_machine = llvm::TargetRegistry::lookupTarget(module->getTargetTriple(), lookup_error)->createTargetMachine(module->getTargetTriple(), "generic", "", {}, {}, {});
+    module->setDataLayout(target_machine->createDataLayout());
+    llvm::IRBuilder<> builder(context);
+    auto main = llvm::Function::Create(llvm::FunctionType::get(llvm::Type::getInt32Ty(context), {llvm::Type::getInt32Ty(context), llvm::Type::getInt8PtrTy(context)->getPointerTo()}, false), llvm::Function::ExternalLinkage, "main", module.get());
+    builder.SetInsertPoint(llvm::BasicBlock::Create(context, "entry", main));
+    
+    
+    program_data data {file, module.get(), builder};
+    symbol_table stack {data, module->getValueSymbolTable()};
+    
+
+//    for (auto& rgr : stack.back()) {
+//        auto v = rgr.getValue();
+//        auto f = v->getValueID();
+//        std::string b = rgr.getKey();
+//        std::cout << std::boolalpha;
+//        std::cout << "function: " << b << " :: " << (f == llvm::Value::FunctionVal) << "\n";
+//        std::cout << "global: " << b << " :: " << (f == llvm::Value::GlobalVariableVal) << "\n";
+//        std::cout << "other: " << b << " :: " << (f) << "\n";
+//    }
+//
+//    std::cout << "\n printing types:: \n";
+//    auto wef = module->getIdentifiedStructTypes();
+//    for (auto effe : wef) {
+//        effe->print(llvm::outs());
+//        std::cout << "\n";
+//    }
+//
+//    auto fwef  = module->getTypeByName("(_)");
+//    fwef->print(llvm::outs());
+//
+    
+    auto resolved = resolve_expression(program, intrinsic::type, main, data, stack);
+    
+    printf("\n\n\n");
+    print_resolved_expr(resolved, 0, stack);
+    
+    debug_table(stack);
+    
+    
+    builder.SetInsertPoint(&main->getBasicBlockList().back());
+    builder.CreateRet(llvm::ConstantInt::get(llvm::Type::getInt32Ty(context), 0));
+    
+    std::cout << "\n\n\n\ngenerating code....:\n";
+    module->print(llvm::outs(), nullptr); // debug.
+    
+    std::string errors = "";
+    if (llvm::verifyModule(*module, &(llvm::raw_string_ostream(errors) << ""))) { printf("llvm: %s: error: %s\n", file.name, errors.c_str()); return nullptr; }
+//    else if (error) return nullptr;
+    return module;
+}
 
 
 
