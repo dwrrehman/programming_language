@@ -125,8 +125,7 @@ struct entry {
 
 
 static inline std::string expression_to_string(const expression& given, std::vector<entry> master);
-static inline expression string_to_expression(std::string given);
-
+static inline expression string_to_expression(std::string given, std::vector<entry> master);
 
 
 static inline void parse_ll_file(const program_data &data, const file &file) { ///TODO: temp
@@ -172,7 +171,7 @@ struct symbol_table {
     void update(llvm::ValueSymbolTable& llvm) {
         for (auto& entry : llvm ) {
             if (not contains(entry.getKey()))
-                define({string_to_expression(entry.getKey()), entry.getValue()}); // fill in for function and type as well.
+                define({string_to_expression(entry.getKey(), master), entry.getValue()}); // fill in for function and type as well.
         }
     }
         
@@ -185,22 +184,22 @@ struct symbol_table {
 };
 
 
-static inline std::string expression_to_string(const expression& given, symbol_table& stack) {
+static inline std::string expression_to_string(const expression& given, std::vector<entry> master) {
     std::string result = "(";
     long i = 0;
     for (auto symbol : given.symbols) {
         if (symbol.type == symbol_type::id) result += symbol.literal.value;
-        else if (symbol.type == symbol_type::subexpr) result += "(" + expression_to_string(symbol.subexpression, stack) + ")";
+        else if (symbol.type == symbol_type::subexpr) result += "(" + expression_to_string(symbol.subexpression, master) + ")";
         if (i++ < (long) given.symbols.size() - 1) result += " ";
     }
     result += ")";
-    if (given.type) result += " " + expression_to_string(stack.master[given.type].signature, stack);
+    if (given.type) result += " " + expression_to_string(master[given.type].signature, master);
     return result;
 }
 
 
 
-static inline expression resolve_type(expression e, symbol_table& stack) {
+static inline expression resolve_type(expression e, std::vector<entry> master) {
     auto signature = e.symbols.front().subexpression;
     e.symbols.erase(e.symbols.begin());
     
@@ -211,15 +210,15 @@ static inline expression resolve_type(expression e, symbol_table& stack) {
     // do argument list:
     for (auto& s : signature.symbols) {
         if (s.type == symbol_type::subexpr) {
-            s.subexpression = resolve_type(s.subexpression, stack);
+            s.subexpression = resolve_type(s.subexpression, master);
         }
     }
     return signature;
 }
 
-static inline expression string_to_expression(std::string given, symbol_table& stack) {
+static inline expression string_to_expression(std::string given, std::vector<entry> master) {
     lexing_state state {0, lex_type::none, 1, 1};
-    return resolve_type(parse({"", given}, state), stack);
+    return resolve_type(parse({"", given}, state), master);
 }
 
 
@@ -252,7 +251,8 @@ static inline resolved_expression parse_llvm_string(const token& llvm_string, lo
 
 
 
-resolved_expression resolve(const expression& given, long given_type, llvm::Function*& function, long& index, long depth, long max_depth, program_data& data, symbol_table& stack);
+static inline resolved_expression resolve(const expression& given, long given_type, llvm::Function*& function, long& index, long depth, long max_depth, program_data& data, symbol_table& stack);
+
 
 static inline bool matches(const expression& given, const expression& signature, long given_type,
                            std::vector<resolved_expression>& args, llvm::Function*& function,
@@ -280,8 +280,8 @@ static inline resolved_expression resolve_expression(const expression& given, lo
 
 
 
-resolved_expression resolve(const expression& given, long given_type, llvm::Function*& function,
-                           long& index, long depth, long max_depth, long fdi_length, program_data& data, symbol_table& stack) {
+static inline resolved_expression resolve(const expression& given, long given_type, llvm::Function*& function,
+                           long& index, long depth, long max_depth, program_data& data, symbol_table& stack) {
 
     if (not given_type or depth > max_depth) return {0, {}, true};
 
