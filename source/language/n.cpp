@@ -136,7 +136,7 @@ struct entry {
 
 static inline void print_expression(expression s, int d);
 static inline std::string expression_to_string(const expression& given, std::vector<entry> master, long begin = 0, long end = -1);
-static inline expression string_to_expression(std::string given, struct symbol_table& stack);
+static inline expression string_to_expression(std::string given, struct program_data& data, struct symbol_table& stack);
 
 static inline void parse_ll_file(const program_data &data, const file &file) { ///TODO: temp
     llvm::SMDiagnostic function_errors; llvm::ModuleSummaryIndex my_index(true);
@@ -215,7 +215,7 @@ struct symbol_table {
         for (auto& llvm_entry : llvm ) {
             const std::string& name = llvm_entry.getKey();
             if (not contains(name)) define(entry {
-                string_to_expression(name, *this),
+                string_to_expression(name, data, *this),
                 llvm_entry.getValue(),
                 data.module->getFunction(name),
                 data.module->getNamedGlobal(name),
@@ -265,20 +265,47 @@ static inline std::string expression_to_string(const expression& given, std::vec
     if (given.type) result += " " + expression_to_string(master[given.type].signature, master); return result;
 }
 
-static inline expression resolve_type(expression e, symbol_table& stack) {
+static inline expression resolve_type(expression e, program_data& data, symbol_table& stack) {
     if (e.symbols.empty()) abort();
     if (e.symbols.size() == 1) {
-        if (e.symbols.front().type == symbol_type::id) {
+        if (e.symbols.front().type == symbol_type::id) { // ...could only come from llvm.
             printf("found a lone llvm identifier [unimplemented].\n");
+            const std::string& name = e.symbols.front().literal.value;
+            expression result = {{symbol{symbol_type::id, {}, {token_type::id, name}}}, 0, {}, false};
+            auto llvm = data.module->getValueSymbolTable().lookup(name);
             
+            if (llvm) {
+                if (llvm->getValueID() == llvm::Type::FunctionTyID) {
+                    
+                    auto function = data.module->getFunction(name);
+                    auto args = function->args();
+                    for (auto& a : args) {
+                        auto ta = a.getType();
+                        ///TODO: it seems as if we need to think more about how are goign to do llvm types, using llvm strings in the n signature.
+                    }
+                    
+                    
+                    
+                    return {};
+                    
+                } else {
+                    
+                    return {};
+                    
+                }
+            } else {
+                printf("n3zqx2l: FILE:LINE:COL: error: llvm symbol not found in symbol table: %s\n", name.c_str());
+                return {{}, 0, {}, true};
+            }
+                        
         }
     }
     for (auto i = e.symbols.size(); i--;) if (i + 1 < e.symbols.size()) e.symbols[i].subexpression.type = stack.lookup(expression_to_string(e.symbols[i + 1].subexpression, stack.master));
-    for (auto& s : e.symbols.front().subexpression.symbols) if (s.type == symbol_type::subexpr) s.subexpression = resolve_type(s.subexpression, stack);
+    for (auto& s : e.symbols.front().subexpression.symbols) if (s.type == symbol_type::subexpr) s.subexpression = resolve_type(s.subexpression, data, stack);
     return e.symbols.front().subexpression;
 }
 
-static inline expression string_to_expression(std::string given, symbol_table& stack) {
+static inline expression string_to_expression(std::string given, program_data& data, symbol_table& stack) {
     lexing_state state {0, lex_type::none, 1, 1};
     
 //    std::cout << "IN STRING TO EXPRESSION(): literal given = \"" << given << "\"\n";
@@ -288,8 +315,7 @@ static inline expression string_to_expression(std::string given, symbol_table& s
 //    std::cout << "STOE(): untyped, after parse(): " << expression_to_string(e, stack.master) << "\n";
 //    print_expression(e, 0);
     
-    
-    auto r = resolve_type(e, stack);
+    auto r = resolve_type(e, data, stack);
     std::cout << "STOE(): typed, after resolve_typee(): " << expression_to_string(r, stack.master) << "\n";
     print_expression(r, 0);
     return r;
