@@ -81,20 +81,6 @@ static inline token next(const file& file, lexing_state& lex) {
     else if (state == lex_type::llvm) printf("n3zqx2l: %s:%ld:%ld: error: unterminated llvm string\n", file.name, lex.line, lex.column);
     return { token_type::null, "", lex.line, lex.column };
 }
-
-#define prep(x)   for (long i = 0; i < x; i++) std::cout << ".   "
-
-static inline void print_llvm_table(const llvm::ValueSymbolTable& llvm_table) {
-    std::cout << "-------------- printing new frame: ------------\n";
-    for (auto& entry : llvm_table) {
-        std::string key = entry.getKey();
-        llvm::Value* value = entry.getValue();
-        std::cout << "key: \"" << key << "\" == value : \n";
-        value->print(llvm::outs());
-        std::cout << "\n\n";
-    }
-}
-
 static inline expression parse(const file& file, lexing_state& state, long d);
 static inline symbol parse_symbol(const file& file, lexing_state& state, long d) {
     auto saved = state;
@@ -134,118 +120,59 @@ struct entry {
     llvm::Type* llvm_type = nullptr;
 };
 
-static inline void print_expression(expression s, int d);
+static inline void debug(struct symbol_table stack);
+
 static inline std::string expression_to_string(const expression& given, struct symbol_table& stack, long begin = 0, long end = -1);
-static inline expression string_to_expression(std::string given, struct program_data& data, struct symbol_table& stack);
-
-static inline void parse_ll_file(const program_data &data, const file &file) { ///TODO: temp
-    llvm::SMDiagnostic function_errors; llvm::ModuleSummaryIndex my_index(true);
-    llvm::MemoryBufferRef reference(file.text, file.name);
-    if (not llvm::parseAssemblyInto(reference, data.module, &my_index, function_errors)) {
-        printf("llvm parse assembly into:  success!\n");
-    } else {
-        function_errors.print("llvm: ", llvm::errs());
-    }
-}
-static inline file open_ll_file(const char *core_name) { ///TODO: temp
-    std::ifstream stream {core_name};
-    if (stream.good()) {
-        std::string text {std::istreambuf_iterator<char>(stream), std::istreambuf_iterator<char>()};
-        stream.close();
-        return {core_name, text};
-    } else { printf("n: error: unable to open \"%s\": %s\n", core_name, strerror(errno)); exit(1); }
-    return {};
-}
-
+static inline expression parse_signature(std::string given, struct program_data& data, struct symbol_table& stack);
 
 struct symbol_table {
-    
     std::vector<entry> master = {{}};
     std::vector<std::vector<long>> frames = {{}};
     program_data& data;
-    
-    void debug() {
-        std::cout << "\n\n---- debugging stack: ----\n";
-        std::cout << "printing frames: \n";
-        for (auto i = 0; i < (long) frames.size(); i++) {
-            std::cout << "\t ----- FRAME # "<<i<<"---- \n\t\tidxs: { ";
-            for (auto index : frames[i]) {
-                std::cout << index << " ";
-            } std::cout << "}\n";
-        }
-        std::cout << "\nmaster: {\n";
-        auto j = 0;
-        for (auto entry : master) {
-            std::cout << "\t" << std::setw(6) << j << ": ";
-            std::cout << expression_to_string(entry.signature, *this, 0) << "\n\n";
-            if (entry.value) {
-                std::cout << "\tLLVM value: ";
-                entry.value->print(llvm::errs());
-            } if (entry.function) {
-                std::cout << "\tLLVM function: ";
-                entry.function->print(llvm::errs());
-            } if (entry.global_variable) {
-                std::cout << "\tLLVM globalvar: ";
-                entry.global_variable->print(llvm::errs());
-            } if (entry.llvm_type) {
-                std::cout << "\tLLVM type (struct): ";
-                entry.llvm_type->print(llvm::errs());
-            } std::cout << "\n\n\n"; j++;
-        } std::cout << "}\n";
-    }
-    
     void push() { frames.push_back({frames.back()}); }
     void pop() { for (auto i : top()) master.erase(master.begin() + i); frames.pop_back(); }
     std::vector<long>& top() { return frames.back(); }
     expression& get(long index) { return master[index].signature; }
     long lookup(std::string key) { return std::distance(master.begin(), std::find_if(master.begin(), master.end(), [&](const entry& entry) { return key == expression_to_string(entry.signature, *this, 0);})); }
     bool contains(std::string key) { return lookup(key) < (long) master.size(); }
-    symbol id(std::string name) { return {symbol_type::id, {}, {token_type::id, name}}; }
-    symbol param(long type) { return {symbol_type::subexpr, {{}, type}}; }
+    void define(const entry& e) { top().push_back(master.size()); master.push_back(e); std::stable_sort(top().begin(), top().end(), [&](long a, long b) { return get(a).symbols.size() > get(b).symbols.size(); });}
     
     symbol_table(program_data& data, llvm::ValueSymbolTable& llvm): data(data) {
-        parse_ll_file(data, open_ll_file("/Users/deniylreimn/Documents/projects/n3zqx2l/examples/core.ll"));
-        print_llvm_table(llvm); // debug
-        update(llvm);
-        debug();
-        std::stable_sort(top().begin(), top().end(), [&](long a, long b) { return get(a).symbols.size() > get(b).symbols.size(); });
-    }
-    
-    void update(llvm::ValueSymbolTable& llvm) {
-        for (auto& llvm_entry : llvm ) {
-            const std::string& name = llvm_entry.getKey();
-//            std::cout << "updating: " << name << "\n";
-            if (not contains(name)) define(entry {
-                string_to_expression(name, data, *this),
-                llvm_entry.getValue(),
-                data.module->getFunction(name),
-                data.module->getNamedGlobal(name),
-                data.module->getTypeByName(name)
-            });
+        const std::vector<std::string> intrinsics = {
+            "%\"(__llvm)\" = type opaque\n"
+            "%\"(_)\" = type opaque\n"
+            "%\"(_0) (_)\" = type opaque\n"
+            "%\"(_1) (_)\" = type opaque\n"
+            "%\"(_2) (_)\" = type opaque\n"
+            "declare void @\"__intrinsic_no_discard\"(%\"(_)\", %\"(__llvm)\", %\"(_0) (_)\", %\"(_1) (_)\", %\"(_2) (_)\")\n"
+            
+            "define void @\"(__llvm)\"() { entry: ret void }\n"
+            "define void @\"(_)\"() { entry: ret void }\n"
+            
+            "define %\"(_)\" @\"(_0) (_)\"() { entry: ret %\"(_)\" zeroinitializer }\n"
+            "define %\"(_)\" @\"(_1) (_)\"() { entry: ret %\"(_)\" zeroinitializer }\n"
+            "define %\"(_)\" @\"(_2) (_)\"() { entry: ret %\"(_)\" zeroinitializer }\n"
+            
+            "define void @\"(_3 (() (_1) (_))) (`.void`.) (_)\" ( %\"(_1) (_)\" ) { entry: ret void }\n"
+            "define void @\"(_4 (() (_2) (_)) (() (_1) (_)) (() (_1) (_))) (`.void`.) (_)\" ( %\"(_2) (_)\", %\"(_1) (_)\", %\"(_1) (_)\" ) { entry: ret void }\n"
+        };
+        for (auto string : intrinsics) {
+            llvm::SMDiagnostic function_errors; llvm::ModuleSummaryIndex my_index(true);
+            llvm::MemoryBufferRef reference(string, "core.ll");
+            if (llvm::parseAssemblyInto(reference, data.module, &my_index, function_errors)) {
+                function_errors.print("llvm: ", llvm::errs());
+                abort();
+            }
+            debug(*this);
+            update(llvm);
         }
     }
     
-    void define(const entry& e) {
-//        std::cout << "press any key to show symbol table...";
-//        std::cin.get();
-//        debug();
-//        std::cout << "press any key to continue...";
-//        std::cin.get();
-        
-//        print_expression(e.signature, 0);
-//        std::cout << "press any key to continue...";
-//        std::cin.get();
-        
-//        std::cout << "DEFINE: received: " << expression_to_string(e.signature, *this) << "\n";
-//        auto v = e.value;
-//        auto f = v->getValueID();
-//        std::cout << std::boolalpha;
-//        std::cout << "function: " << " :: " << (f == llvm::Value::FunctionVal) << "\n";
-//        std::cout << "global: " << " :: " << (f == llvm::Value::GlobalVariableVal) << "\n";
-//        std::cout << "other: " << " :: " << (f) << "\n";
-        
-        top().push_back(master.size());
-        master.push_back(e);
+    void update(llvm::ValueSymbolTable& llvm) {
+        for (auto& llvm_entry : llvm) {
+            const std::string& name = llvm_entry.getKey();
+            if (not contains(name)) define(entry { parse_signature(name, data, *this), llvm_entry.getValue(), data.module->getFunction(name), data.module->getNamedGlobal(name), data.module->getTypeByName(name) });
+        }
     }
 };
 
@@ -262,10 +189,9 @@ static inline std::string resolved_expression_to_string(const resolved_expressio
     return result;
 }
 
-static inline std::string expression_to_string(const expression& given, symbol_table& stack, long begin, long end) {
-    std::string result = "(";
-    
-    long i = 0;
+
+static inline std::string expression_to_string(const expression& given, symbol_table& stack, long begin, long end) {    
+    std::string result = "("; long i = 0;
     for (auto symbol : given.symbols) {
         if (i < begin or (end != -1 and i >= end)) {i++; continue; }
         if (symbol.type == symbol_type::id) result += symbol.literal.value;
@@ -274,27 +200,24 @@ static inline std::string expression_to_string(const expression& given, symbol_t
         else if (symbol.type == symbol_type::subexpr) result += "(" + expression_to_string(symbol.subexpression, stack) + ")";
         if (i < (long) given.symbols.size() - 1 and not (i + 1 < begin or (end != -1 and i + 1 >= end))) result += " "; i++;
     } result += ")";
-        
-    
-    if (given.llvm_type and given.type == stack.lookup("(__llvm)")) {
+    if (given.type and given.llvm_type) {
         std::string type = "";
-        given.llvm_type->print(llvm::raw_string_ostream(type) << "");
-        result += " (``" + type + "``) (_)";        
-    } else if (given.type) result += " " + expression_to_string(stack.master[given.type].signature, stack);
-    return result;
+        given.llvm_type->print(llvm::raw_string_ostream(type) << "", false, true);
+        result += " (``" + type + "``) (_)";
+    } else if (given.type) result += " " + expression_to_string(stack.master[given.type].signature, stack); return result;
 }
 
 static expression convert_llvm_identifier(program_data &data, expression &e, symbol_table &stack) {
+    const long llvm_index = stack.lookup("(__llvm)");
     const std::string& name = e.symbols.front().literal.value;
     expression result = {{symbol{symbol_type::id, {}, {token_type::id, name}}}, 0, {}, false};
     auto llvm = data.module->getValueSymbolTable().lookup(name);
     if (llvm) {
         if (llvm->getValueID() == llvm::Value::FunctionVal) {
             auto function = data.module->getFunction(name);
-            for (auto& argument : function->args()) result.symbols.push_back({symbol_type::subexpr, {{}, stack.lookup("(__llvm)"), {}, false, argument.getType()}});
-            result.type = stack.lookup("(__llvm)");
-            result.llvm_type = function->getReturnType();
-        } else if (llvm->getValueID() == llvm::Value::GlobalVariableVal) { result.type = stack.lookup("(__llvm)"); result.llvm_type = llvm->getType(); }
+            for (auto& argument : function->args()) result.symbols.push_back({symbol_type::subexpr, {{}, llvm_index, {}, false, argument.getType()}});
+            result.type = llvm_index; result.llvm_type = function->getReturnType();
+        } else if (llvm->getValueID() == llvm::Value::GlobalVariableVal) { result.type = llvm_index; result.llvm_type = llvm->getType(); }
         return result;
     } else {
         printf("n3zqx2l: FILE:LINE:COL: error: llvm symbol not found in symbol table: %s\n", name.c_str());
@@ -303,42 +226,41 @@ static expression convert_llvm_identifier(program_data &data, expression &e, sym
     }
 }
 
-static inline expression resolve_type(expression e, program_data& data, symbol_table& stack) {
+static inline expression resolve_signature(expression e, program_data& data, symbol_table& stack) {
     if (e.symbols.empty()) abort();
     if (e.symbols.size() == 1 and e.symbols.front().type == symbol_type::id) return convert_llvm_identifier(data, e, stack);
     for (auto i = e.symbols.size(); i--;) if (i + 1 < e.symbols.size()) e.symbols[i].subexpression.type = stack.lookup(expression_to_string(e.symbols[i + 1].subexpression, stack));
-    for (auto& s : e.symbols.front().subexpression.symbols) if (s.type == symbol_type::subexpr) s.subexpression = resolve_type(s.subexpression, data, stack);
+    for (auto& s : e.symbols.front().subexpression.symbols) if (s.type == symbol_type::subexpr) s.subexpression = resolve_signature(s.subexpression, data, stack);
     return e.symbols.front().subexpression;
 }
 
-static inline expression string_to_expression(std::string given, program_data& data, symbol_table& stack) {
+static inline expression parse_signature(std::string given, program_data& data, symbol_table& stack) {
     lexing_state state {0, lex_type::none, 1, 1};
-    return resolve_type(parse({"", given}, state, 0), data, stack);
+    return resolve_signature(parse({"", given}, state, 0), data, stack);
 }
 
-//
-//static inline resolved_expression parse_llvm_type_string(const token& llvm_string, long& pointer, program_data& data) {
-//    llvm::SMDiagnostic type_errors;
-//    if (auto llvm_type = llvm::parseType(llvm_string.value, type_errors, *data.module)) {
-//        pointer++;
-//        return {intrinsic::llvm, {}, false}; // llvm_type
-//    } else {
-//        type_errors.print((std::string("llvm: (") + std::to_string(llvm_string.line) + "," + std::to_string(llvm_string.column) + ")").c_str(), llvm::errs());
-//        return {0, {}, true};
-//    }
-//}
-//
-//static inline resolved_expression parse_llvm_string(const token& llvm_string, long& pointer, program_data& data) {
-//    llvm::SMDiagnostic function_errors; llvm::ModuleSummaryIndex my_index(true);
-//    llvm::MemoryBufferRef reference(llvm_string.value, data.file.name);
-//    if (not llvm::parseAssemblyInto(reference, data.module, &my_index, function_errors)) {
-//        pointer++;
-//        return {intrinsic::llvm, {}, false}; // llvm::Type::getVoidTy(data.module->getContext())
-//    } else {
-//        function_errors.print((std::string("llvm: (") + std::to_string(llvm_string.line) + "," + std::to_string(llvm_string.column) + ")").c_str(), llvm::errs());
-//        return {0, {}, true};
-//    }
-//}
+static inline resolved_expression parse_llvm_type_string(const token& llvm_string, long& pointer, program_data& data) {
+    llvm::SMDiagnostic type_errors;
+    if (auto llvm_type = llvm::parseType(llvm_string.value, type_errors, *data.module)) {
+        pointer++;
+        return {intrinsic::llvm, {}, false}; // has type: (_)
+    } else {
+        type_errors.print((std::string("llvm: (") + std::to_string(llvm_string.line) + "," + std::to_string(llvm_string.column) + ")").c_str(), llvm::errs());
+        return {0, {}, true};
+    }
+}
+
+static inline resolved_expression parse_llvm_string(const token& llvm_string, long& pointer, program_data& data) {
+    llvm::SMDiagnostic function_errors; llvm::ModuleSummaryIndex my_index(true);
+    llvm::MemoryBufferRef reference(llvm_string.value, data.file.name);
+    if (not llvm::parseAssemblyInto(reference, data.module, &my_index, function_errors)) {
+        pointer++;
+        return {intrinsic::llvm, {}, false}; // has type: llvm::Type::getVoidTy(data.module->getContext())
+    } else {
+        function_errors.print((std::string("llvm: (") + std::to_string(llvm_string.line) + "," + std::to_string(llvm_string.column) + ")").c_str(), llvm::errs());
+        return {0, {}, true};
+    }
+}
 
 static inline resolved_expression resolve(const expression& given, long given_type, llvm::Function*& function, long& index, long depth, long max_depth, program_data& data, symbol_table& stack, long gd);
 
@@ -423,28 +345,48 @@ static inline resolved_expression resolve_expression(const expression& given, lo
 
 
 
+static inline void debug(symbol_table stack) {
+      std::cout << "\n\n---- debugging stack: ----\n";
+      std::cout << "printing frames: \n";
+      for (auto i = 0; i < (long) stack.frames.size(); i++) {
+          std::cout << "\t ----- FRAME # "<< i <<"---- \n\t\tidxs: { ";
+          for (auto index : stack.frames[i]) {
+              std::cout << index << " ";
+          } std::cout << "}\n";
+      }
+      std::cout << "\nmaster: {\n";
+      auto j = 0;
+      for (auto entry : stack.master) {
+          std::cout << "\t" << std::setw(6) << j << ": ";
+          std::cout << expression_to_string(entry.signature, stack, 0) << "\n\n";
+          if (entry.value) {
+              std::cout << "\tLLVM value: ";
+              entry.value->print(llvm::errs());
+          } if (entry.function) {
+              std::cout << "\tLLVM function: ";
+              entry.function->print(llvm::errs());
+          } if (entry.global_variable) {
+              std::cout << "\tLLVM globalvar: ";
+              entry.global_variable->print(llvm::errs());
+          } if (entry.llvm_type) {
+              std::cout << "\tLLVM type (struct): ";
+              entry.llvm_type->print(llvm::errs());
+          } std::cout << "\n\n\n"; j++;
+      } std::cout << "}\n";
+  }
 
+#define prep(x)   for (long i = 0; i < x; i++) std::cout << ".   "
 
-
-
-
-
-
-
-
-
-
-
-
-
-static inline void debug_arguments(const arguments& args) {
-    std::cout << "file count = " <<  args.files.size() << "\n";
-    for (auto a : args.files) {
-        std::cout << "file: " << a.name << "\n";
-        std::cout << "data: \n:::" << a.text << ":::\n";
-    }
-    std::cout << "exec name = " << args.name << std::endl;
-}
+//static inline void print_llvm_table(const llvm::ValueSymbolTable& llvm_table) {
+//    std::cout << "-------------- printing new frame: ------------\n";
+//    for (auto& entry : llvm_table) {
+//        std::string key = entry.getKey();
+//        llvm::Value* value = entry.getValue();
+//        std::cout << "key: \"" << key << "\" == value : \n";
+//        value->print(llvm::outs());
+//        std::cout << "\n\n";
+//    }
+//}
 
 static inline const char* convert_token_type_representation(enum token_type type) {
     switch (type) {
@@ -472,7 +414,7 @@ static inline void debug_token_stream(const file& file) {
     print_lex(tokens);
 }
 
-
+static inline void print_expression(expression e, int d);
 
 static inline void print_symbol(symbol symbol, int d) {
     prep(d); std::cout << "symbol: \n";
@@ -527,15 +469,7 @@ static inline void print_translation_unit(expression unit, const file& file) {
 static inline void print_resolved_expr(resolved_expression expr, long depth, symbol_table& stack) {
     prep(depth); std::cout << "[error = " << std::boolalpha << expr.error << "]\n";
     prep(depth); std::cout << "index = " << expr.index << " :: " << expression_to_string(stack.get(expr.index), stack, 0);
-    
-//    if (expr.signature.symbols.size()) {
-//        std::cout << " ::: " << expression_to_string(expr.signature, stack.master);
-//    }
-    
     std::cout << "\n";
-    
-//    if (expr.llvm_type) { prep(depth); std::cout << "llvm type = "; expr.llvm_type->print(llvm::errs()); }
-//    std::cout << "\n";
     long i = 0;
     for (auto arg : expr.args) {
         prep(depth + 1); std::cout << "argument #" << i++ << ": \n";
@@ -543,12 +477,6 @@ static inline void print_resolved_expr(resolved_expression expr, long depth, sym
         prep(depth); std::cout << "\n";
     }
 }
-
-
-
-
-
-
 
 
 
@@ -580,16 +508,16 @@ static inline std::unique_ptr<llvm::Module> generate(expression program, const f
     auto resolved = resolve_expression(program, intrinsic::type, main, data, stack, 0);
     builder.SetInsertPoint(&main->getBasicBlockList().back());
     builder.CreateRet(llvm::ConstantInt::get(llvm::Type::getInt32Ty(context), 0));
-    
-    
+        
     printf("\n\n\n");
     print_resolved_expr(resolved, 0, stack);
     
     printf("\n\n\n");
-    stack.debug();
+    debug(stack);
     
     printf("\n\n\n");
-    std::cout << "generating code....:\n"; module->print(llvm::outs(), nullptr);
+    std::cout << "generating code....:\n";
+    module->print(llvm::outs(), nullptr);
     
     std::string errors = "";
     if (llvm::verifyModule(*module, &(llvm::raw_string_ostream(errors) << ""))) { printf("llvm: %s: error: %s\n", file.name, errors.c_str()); return nullptr; }
@@ -653,5 +581,3 @@ int main(const int argc, const char** argv) {
     const auto args = get_arguments(argc, argv);
     output(args, optimize(link(frontend(args, context))));
 }
-
-
