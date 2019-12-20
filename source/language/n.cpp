@@ -251,12 +251,17 @@ struct symbol_table {
     }
     
     void update(llvm::ValueSymbolTable& llvm) {
-        for (auto& entry : llvm ) {
-            if (not contains(entry.getKey()))
-                define({string_to_expression(entry.getKey(), master), entry.getValue()}); // fill in for function and type as well.
+        for (auto& llvm_entry : llvm ) {
+            const std::string& name = llvm_entry.getKey();
+            if (not contains(name)) define(entry {
+                string_to_expression(name, master),
+                llvm_entry.getValue(),
+                data.module->getFunction(name),
+                data.module->getTypeByName(name)
+            });
         }
     }
-        
+    
     void define(const entry& e) {
         std::cout << "DEFINE: (unimplemented): received: " << expression_to_string(e.signature, master) << "\n";
     }
@@ -365,7 +370,8 @@ static inline bool matches(const expression& given, const expression& signature,
     for (auto symbol : signature.symbols) {
         if (index >= (long) given.symbols.size()) { // this line of code might be why we cant do empty signatures?
 //            prep(depth + gd + 1); std::cout << "   ----> false(1)!\n";
-            return false; }
+            return false;
+        }
         if (symbol.type == symbol_type::subexpr) {
             auto argument = resolve(given, symbol.subexpression.type, function, index, depth + 1, max_depth, data, stack, gd);
             if (argument.error) {
@@ -374,7 +380,8 @@ static inline bool matches(const expression& given, const expression& signature,
             args.push_back({argument});
         } else if (not are_equal_identifiers(symbol, given.symbols[index])) {
 //            prep(depth + gd + 1); std::cout << "   ----> false(3)!\n";
-            return false; }
+            return false;
+        }
         else index++;
     }
 //    prep(depth + gd + 1); std::cout << "   ----> true!\n";
@@ -433,9 +440,7 @@ static inline resolved_expression resolve_expression(const expression& given, lo
 }
 
 
-
-
-void debug_arguments(const arguments& args) {
+static inline void debug_arguments(const arguments& args) {
     std::cout << "file count = " <<  args.files.size() << "\n";
     for (auto a : args.files) {
         std::cout << "file: " << a.name << "\n";
@@ -445,7 +450,7 @@ void debug_arguments(const arguments& args) {
 }
 
 
-const char* convert_token_type_representation(enum token_type type) {
+static inline const char* convert_token_type_representation(enum token_type type) {
     switch (type) {
         case token_type::null: return "{null}";
         case token_type::string: return "string";
@@ -455,7 +460,7 @@ const char* convert_token_type_representation(enum token_type type) {
     }
 }
 
-void print_lex(const std::vector<struct token>& tokens) {
+static inline void print_lex(const std::vector<struct token>& tokens) {
     std::cout << "::::::::::LEX:::::::::::" << std::endl;
     for (auto token : tokens) {
         std::cout << "TOKEN(type: " << convert_token_type_representation(token.type) << ", value: \"" << (token.value != "\n" ? token.value : "\\n") << "\", [" << token.line << ":" << token.column << "])" << std::endl;
@@ -463,7 +468,7 @@ void print_lex(const std::vector<struct token>& tokens) {
     std::cout << ":::::::END OF LEX:::::::" << std::endl;
 }
 
-void debug_token_stream(const file& file) {
+static inline void debug_token_stream(const file& file) {
     std::vector<struct token> tokens = {};
     struct token t = {};
     lexing_state state = {0, lex_type::none, 1, 1};
@@ -471,9 +476,9 @@ void debug_token_stream(const file& file) {
     print_lex(tokens);
 }
 
-void print_expression(expression s, int d);
+static inline void print_expression(expression s, int d);
 
-void print_symbol(symbol symbol, int d) {
+static inline void print_symbol(symbol symbol, int d) {
     prep(d); std::cout << "symbol: \n";
     switch (symbol.type) {
 
@@ -501,7 +506,7 @@ void print_symbol(symbol symbol, int d) {
     }
 }
 
-void print_expression(expression expression, int d) {
+static inline void print_expression(expression expression, int d) {
     prep(d); std::cout << "expression: \n";
     prep(d); std::cout << std::boolalpha << "error: " << expression.error << "\n";
     prep(d); std::cout << "symbol count: " << expression.symbols.size() << "\n";
@@ -517,12 +522,12 @@ void print_expression(expression expression, int d) {
     prep(d); std::cout << "type = " << expression.type << "\n";
 }
 
-void print_translation_unit(expression unit, const file& file) {
+static inline void print_translation_unit(expression unit, const file& file) {
     std::cout << "translation unit: (" << file.name << ")\n";
     print_expression(unit, 1);
 }
 
-std::string convert_symbol_type(enum symbol_type type) {
+static inline std::string convert_symbol_type(enum symbol_type type) {
     switch (type) {
         case symbol_type::none:
             return "{none}";

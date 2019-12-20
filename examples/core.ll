@@ -50,7 +50,7 @@ define void
 
 
 
-declare void @"__intrinsic-types-no-discard"(%"(_)", %"(__infered)", %"(__llvm)", %"(_0) (_)", %"(_1) (_)", %"(_2) (_)")
+declare void @"__intrinsic_no_discard"(%"(_)", %"(__infered)", %"(__llvm)", %"(_0) (_)", %"(_1) (_)", %"(_2) (_)")
 
 ; ------ throw away code -------
 ; %"(unit) (_)" = type {}
