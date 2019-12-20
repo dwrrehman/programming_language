@@ -5,6 +5,44 @@ the current status of the nostril compiler:
 
 
 
+CURRENT TASK DETAILS:
+=======================
+
+task: write the symbol table functions.
+
+
+    - write the define function.
+    
+    - figure out how to represent llvm elements such as: function and type and value      (or even globals?)
+    
+    - figure out how define should work
+    
+    - make string to expression function cope with llvm-single-identifiers.
+    
+    
+    - allow type-section deductions in n3zqx2l signature strings inside llvm strings.
+    
+    
+    
+    
+    
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 THE TODO LIST:
 =====================
 

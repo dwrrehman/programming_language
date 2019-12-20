@@ -58,8 +58,8 @@ static inline arguments get_arguments(const int argc, const char** argv) {
 }
 static inline token next(const file& file, lexing_state& lex) {
     static char k = 0; token token = {}; auto& at = lex.index; auto& state = lex.state;
-    while (lex.index < (long) file.text.size() - 1) {
-        const char c = file.text[at], n = file.text[at + 1];
+    while (lex.index < (long) file.text.size()) {
+        char c = file.text[at], n; n = at + 1 < (long) file.text.size() ? file.text[at + 1] : 0;
         if (is_identifier(c) and not is_identifier(n) and state == lex_type::none) { token = { token_type::id, std::string(1, c), lex.line, lex.column}; state = lex_type::none; lex.column++; at++; return token; }
         else if (c == '\"' and state == lex_type::none) { token = { token_type::string, "", lex.line, lex.column }; state = lex_type::string; }
         else if (c == '`' and state == lex_type::none) { token = { token_type::llvm, "", lex.line, lex.column }; state = lex_type::llvm; k = n; lex.column++; at++; }
@@ -184,9 +184,43 @@ static inline file open_ll_file(const char *core_name) { ///TODO: temp
 
 struct symbol_table {
     
-    std::vector<entry> master = {};
-    std::vector<std::vector<long>> frames = {};
+    
+    
+    std::vector<entry> master = {{}};
+    std::vector<std::vector<long>> frames = {{}};
     program_data& data;
+    
+    
+    void debug() {
+        std::cout << "\n\n---- debugging stack: ----\n";
+        
+        std::cout << "printing frames: \n";
+        for (auto i = 0; i < (long) frames.size(); i++) {
+            std::cout << "\t ----- FRAME # "<<i<<"---- \n\t\tidxs: { ";
+            for (auto index : frames[i]) {
+                std::cout << index << " ";
+            }
+            std::cout << "}\n";
+        }
+        
+        std::cout << "\nmaster: {\n";
+        auto j = 0;
+        for (auto entry : master) {
+            std::cout << "\t" << std::setw(6) << j << ": ";
+            std::cout << expression_to_string(entry.signature, master, 0) << "\n";
+            
+            if (entry.value) {
+                std::cout << "\tLLVM value: \n";
+                entry.value->print(llvm::errs());
+            }
+            if (entry.function) {
+                std::cout << "\tLLVM function: \n";
+                entry.function->print(llvm::errs());
+            }
+            j++;
+        }
+        std::cout << "}\n";
+    }
     
     void push() { frames.push_back({frames.back()}); }
     void pop() { frames.pop_back(); }
@@ -197,7 +231,7 @@ struct symbol_table {
         
     symbol id(std::string name) { return {symbol_type::id, {}, {token_type::id, name}}; }
     symbol param(long type) { return {symbol_type::subexpr, {{}, type}}; }
-
+    
     symbol_table(program_data& data, llvm::ValueSymbolTable& llvm): data(data) {
     
 //        master.push_back({/*null entry*/});
@@ -209,7 +243,10 @@ struct symbol_table {
 //
         parse_ll_file(data, open_ll_file("/Users/deniylreimn/Documents/projects/n3zqx2l/examples/core.ll"));
         print_llvm_table(llvm);
-        update(llvm);
+    
+        update(llvm);        
+        debug();
+        
         std::stable_sort(top().begin(), top().end(), [&](long a, long b) { return get(a).symbols.size() > get(b).symbols.size(); });
     }
     
@@ -221,7 +258,7 @@ struct symbol_table {
     }
         
     void define(const entry& e) {
-        
+        std::cout << "DEFINE: (unimplemented): received: " << expression_to_string(e.signature, master) << "\n";
     }
     
 };
@@ -258,13 +295,23 @@ static inline std::string expression_to_string(const expression& given, std::vec
 
 
 static inline expression resolve_type(expression e, std::vector<entry> master) {
+    
+    if (e.symbols.empty()) exit(1);
+    
+    
+    if (e.symbols.size() == 1) {
+        if (e.symbols.front().type == symbol_type::id) {
+            
+        }
+    }
+    
     auto signature = e.symbols.front().subexpression;
     e.symbols.erase(e.symbols.begin());
-
+    
     // do return type:
     auto type_list = e;
     ///TODO: unimplemented.
-
+    
     // do argument list:
     for (auto& s : signature.symbols) {
         if (s.type == symbol_type::subexpr) {
@@ -276,7 +323,11 @@ static inline expression resolve_type(expression e, std::vector<entry> master) {
 
 static inline expression string_to_expression(std::string given, std::vector<entry> master) {
     lexing_state state {0, lex_type::none, 1, 1};
-    return resolve_type(parse({"", given}, state, 0), master);
+    std::cout << "IN STRING TO EXPRESSION(): given = \"" << given << "\"\n";
+    auto e = parse({"", given}, state, 0);
+    std::cout << "STOE(): untyped: " << expression_to_string(e, master) << "\n";
+    
+    return resolve_type(e, master);
 }
 
 //

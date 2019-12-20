@@ -11,12 +11,17 @@ define %"(_)" @"(_0) (_)"() { entry: ret %"(_)" zeroinitializer }
 define %"(_)" @"(_1) (_)"() { entry: ret %"(_)" zeroinitializer }
 define %"(_)" @"(_2) (_)"() { entry: ret %"(_)" zeroinitializer }
 
+
+
+
+
+define void @"" () { entry: ret void }
+
+
+
+
 define void @"(__infered)"() { entry: ret void }
 define void @"(__llvm)"() { entry: ret void }
-
-
-
-
 
 
 
@@ -28,17 +33,18 @@ define void @"(__llvm)"() { entry: ret void }
 define void @"(_3 (() (_1))) (`.void`.) (_)"
 ( %"(_1) (_)" ) { entry: ret void }
 
-; define void @"(_4 (() (_2) (_)) (() (_1) (_)) (() (_1) (_))) (`.void`.) (_)"(%"(_2) (_)", %"(_1) (_)", %"(_1) (_)") { entry: ret void }
+define void
+@"(_4 (() (_2) (_)) (() (_1) (_)) (() (_1) (_))) (`.void`.) (_)"
+(
+%"(_2) (_)",
+%"(_1) (_)",
+%"(_1) (_)"
+) { entry: ret void }
 
 
 
 
 
-
-
-
-
-z
 
 
 
