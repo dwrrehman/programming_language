@@ -233,19 +233,9 @@ struct symbol_table {
         std::cout << "function: " << " :: " << (f == llvm::Value::FunctionVal) << "\n";
         std::cout << "global: " << " :: " << (f == llvm::Value::GlobalVariableVal) << "\n";
         std::cout << "other: " << " :: " << (f) << "\n";
-        std::cout << "\n printing types:: \n";
-        auto wef = data.module->getIdentifiedStructTypes();
-        for (auto effe : wef) {
-            effe->print(llvm::outs());
-            std::cout << "\n";
-        } std::cout << "\n";
-        auto fwef  = data.module->getTypeByName("(_)");
-        fwef->print(llvm::outs()); std::cout << "\n";
-        auto hello_exists = data.module->getNamedGlobal("hello");
-        if (not hello_exists) printf("hello was not found!\n");
-        else printf("hello was found!\n");
         
-        
+        top().push_back(master.size());
+        master.push_back(e);
     }
 };
 
@@ -279,7 +269,8 @@ static inline expression resolve_type(expression e, symbol_table& stack) {
     if (e.symbols.empty()) abort();
     if (e.symbols.size() == 1) {
         if (e.symbols.front().type == symbol_type::id) {
-            printf("found a lone llvm identfiier [unimplemented].\n");
+            printf("found a lone llvm identifier [unimplemented].\n");
+            
         }
     }
     for (auto i = e.symbols.size(); i--;) if (i + 1 < e.symbols.size()) e.symbols[i].subexpression.type = stack.lookup(expression_to_string(e.symbols[i + 1].subexpression, stack.master));
