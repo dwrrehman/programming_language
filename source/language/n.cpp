@@ -225,6 +225,7 @@ struct symbol_table {
     }
     
     void define(const entry& e) {
+        
         std::cout << "DEFINE: (unimplemented): received: " << expression_to_string(e.signature, master) << "\n";
         auto v = e.value;
         auto f = v->getValueID();
@@ -243,6 +244,8 @@ struct symbol_table {
         auto hello_exists = data.module->getNamedGlobal("hello");
         if (not hello_exists) printf("hello was not found!\n");
         else printf("hello was found!\n");
+        
+        
     }
 };
 
@@ -273,74 +276,31 @@ static inline std::string expression_to_string(const expression& given, std::vec
 }
 
 static inline expression resolve_type(expression e, symbol_table& stack) {
-    
-    std::cout << "called resolve type! [rt].\n";
-    if (e.symbols.empty()) {
-        std::cout << "[rt]: found an empty expression... returning..\n";
-        exit(1);
-    }
+    if (e.symbols.empty()) abort();
     if (e.symbols.size() == 1) {
         if (e.symbols.front().type == symbol_type::id) {
             printf("found a lone llvm identfiier [unimplemented].\n");
-            exit(1);
         }
     }
-   
-
-    
-//    auto signature = e.symbols.front().subexpression;
-//    std::cout << "[rt]: found signature: " << expression_to_string(signature, stack.master) << "\n";
-//    print_expression(signature, 0);
-        
-//    e.symbols.erase(e.symbols.begin());
-//    std::cout << "[rt]: removed the first subexpression. now e is: " << expression_to_string(e, stack.master) << "\n";
-//    print_expression(e, 0);
-    
-    
-
-    ///       e =  ((_c) (unit) (_))
-       
-        
-    //    auto type = 0;
-    
-            
-    //        se.
-        
-        
-    auto cur = e.symbols.back();
     for (auto i = e.symbols.size(); i--;) if (i + 1 < e.symbols.size()) e.symbols[i].subexpression.type = stack.lookup(expression_to_string(e.symbols[i + 1].subexpression, stack.master));
-        
-//    e.symbols[1].subexpression.type = stack.lookup(expression_to_string(e.symbols[2].subexpression, stack.master));
-    
-//    e.symbols[0].subexpression.type = stack.lookup(expression_to_string(e.symbols[1].subexpression, stack.master));
-    
-//    signature.type = stack.lookup(expression_to_string(e.symbols.front().subexpression, stack.master));
-        
-//     do argument list:
-    for (auto& s : e.symbols.front().subexpression.symbols) {
-        if (s.type == symbol_type::subexpr) {
-            std::cout << "recursing to parse arguments...\n";
-            s.subexpression = resolve_type(s.subexpression, stack);
-        }
-    }
+    for (auto& s : e.symbols.front().subexpression.symbols) if (s.type == symbol_type::subexpr) s.subexpression = resolve_type(s.subexpression, stack);
     return e.symbols.front().subexpression;
 }
 
 static inline expression string_to_expression(std::string given, symbol_table& stack) {
     lexing_state state {0, lex_type::none, 1, 1};
     
-    std::cout << "IN STRING TO EXPRESSION(): literal given = \"" << given << "\"\n";
+//    std::cout << "IN STRING TO EXPRESSION(): literal given = \"" << given << "\"\n";
     
     auto e = parse({"", given}, state, 0);
         
-    std::cout << "STOE(): untyped, after parse(): " << expression_to_string(e, stack.master) << "\n";
-    print_expression(e, 0);
+//    std::cout << "STOE(): untyped, after parse(): " << expression_to_string(e, stack.master) << "\n";
+//    print_expression(e, 0);
     
     
     auto r = resolve_type(e, stack);
-    
     std::cout << "STOE(): typed, after resolve_typee(): " << expression_to_string(r, stack.master) << "\n";
-    
+    print_expression(r, 0);
     return r;
 }
 
