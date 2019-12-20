@@ -11,11 +11,11 @@ CURRENT TASK DETAILS:
 task: write the symbol table functions.
 
 
-    - write the define function.
+    x: - write the define function.;
     
-    - figure out how to represent llvm elements such as: function and type and value      (or even globals?)
+    x: - figure out how to represent llvm elements such as: function and type and value      (or even globals?);
     
-    - figure out how define should work
+    x: - figure out how define should work;
     
     - make string to expression function cope with llvm-single-identifiers.
     

@@ -281,11 +281,8 @@ static inline expression resolve_type(expression e, program_data& data, symbol_t
                     auto args = function->args();
                     for (auto& a : args) {
                         auto ta = a.getType();
-                        ///TODO: it seems as if we need to think more about how are goign to do llvm types, using llvm strings in the n signature.
                     }
-                    
-                    
-                    
+                                                            
                     return {};
                     
                 } else {
