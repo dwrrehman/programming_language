@@ -203,7 +203,7 @@ static inline std::string expression_to_string(const expression& given, symbol_t
     if (given.type and given.llvm_type) {
         std::string type = "";
         given.llvm_type->print(llvm::raw_string_ostream(type) << "", false, true);
-        result += " (``" + type + "``) (_)";
+        result += " (``" + type + "``) (_)";        
     } else if (given.type) result += " " + expression_to_string(stack.master[given.type].signature, stack); return result;
 }
 
