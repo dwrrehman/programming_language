@@ -145,6 +145,16 @@ struct symbol_table {
     void define(const entry& e) { top().push_back(master.size()); master.push_back(e); std::stable_sort(top().begin(), top().end(), [&](long a, long b) { return get(a).symbols.size() > get(b).symbols.size(); });}
     
     symbol_table(program_data& data, llvm::ValueSymbolTable& llvm): data(data) {
+        
+        
+        ///TODO: redo the idea of how we are doing llvm strings.
+        
+        /// maybe they are all concatted, and put at the top of the file?
+        /// that could work....
+        
+        
+        
+        
         std::string base =
         "%\"(_)\" = type opaque\n"
         "%\"(_0) (_)\" = type opaque\n"
