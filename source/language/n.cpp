@@ -1,5 +1,6 @@
 // n: a n3zqx2l compiler written in C++.
 #include "llvm/AsmParser/Parser.h"
+#include "llvm/AsmParser/SlotMapping.h"
 #include "llvm/ExecutionEngine/MCJIT.h"
 #include "llvm/IR/IRBuilder.h"
 #include "llvm/IR/LegacyPassManager.h"
@@ -18,7 +19,6 @@ enum class lex_type {none, id, string, llvm};
 enum class output_type {nothing, run, llvm, assembly, object, exec};
 enum class token_type {null, id, string, llvm, op};
 enum class symbol_type { none, id, string, llvm, subexpr};
-namespace intrinsic { enum intrinsic_index { typeless, type, infered, llvm, empty, application, abstraction, evaluate, define }; }
 struct file { const char* name = ""; std::string text = ""; };
 struct arguments { std::vector<file> files = {}; enum output_type output = output_type::run; const char* name = ""; };
 struct program_data { file file; llvm::Module* module; llvm::IRBuilder<>& builder; };
@@ -152,12 +152,12 @@ struct symbol_table {
         "%\"(_1) (_)\" = type opaque\n"
         "%\"(_2) (_)\" = type opaque\n"
         "define void @\"(_)\"() { entry: ret void }\n"
-        "define %\"(_)\" @\"(_0) (_)\"() { entry: ret %\"(_)\" zeroinitializer }\n"
-        "define %\"(_)\" @\"(_1) (_)\"() { entry: ret %\"(_)\" zeroinitializer }\n"
-        "define %\"(_)\" @\"(_2) (_)\"() { entry: ret %\"(_)\" zeroinitializer }\n"
-        "define %\"(_)\" @\"(_3 (() (_1) (_))) (`.void`.) (_)\" ( %\"(_1) (_)\" ) { entry: ret %\"(_)\" zeroinitializer }\n"
-        "define %\"(_)\" @\"(_4 (() (_2) (_)) (() (_1) (_)) (() (_1) (_))) (`.void`.) (_)\" ( %\"(_2) (_)\", %\"(_1) (_)\", %\"(_1) (_)\" ) { entry: ret %\"(_)\" zeroinitializer }\n"
-        "define %\"(_)\" @\"(_5 (() (_)) (() (_))) (_)\"() { entry: ret %\"(_)\" zeroinitializer }\n";
+        "define %\"(_)\" @\"(_0) (_)\"() { entry: ret %\"(_)\" undef }\n"
+        "define %\"(_)\" @\"(_1) (_)\"() { entry: ret %\"(_)\" undef }\n"
+        "define %\"(_)\" @\"(_2) (_)\"() { entry: ret %\"(_)\" undef }\n"
+        "define %\"(_)\" @\"(_3 (() (_1) (_))) (_)\" ( %\"(_1) (_)\" ) { entry: ret %\"(_)\" undef }\n"
+        "define %\"(_)\" @\"(_4 (() (_2) (_)) (() (_1) (_)) (() (_1) (_))) (_)\" ( %\"(_2) (_)\", %\"(_1) (_)\", %\"(_1) (_)\" ) { entry: ret %\"(_)\" undef }\n"
+        "define %\"(_)\" @\"(_5 (() (_)) (() (_))) (_)\"() { entry: ret %\"(_)\" undef }\n";
         
         llvm::SMDiagnostic function_errors; llvm::ModuleSummaryIndex my_index(true);
         llvm::MemoryBufferRef reference(base, "core.ll");
@@ -261,7 +261,6 @@ static inline expression resolve_signature(expression e, program_data& data, sym
                 } else e.symbols[i].subexpression.type = result;
             }
         }
-        
     }
     
     for (auto& s : e.symbols.front().subexpression.symbols) if (s.type == symbol_type::subexpr) s.subexpression = resolve_signature(s.subexpression, data, stack);
@@ -273,13 +272,35 @@ static inline expression parse_signature(std::string given, program_data& data, 
     return resolve_signature(parse({"", given}, state, 0), data, stack);
 }
 
+static inline llvm::SlotMapping generate_mapping(llvm::Module* module) {
+    llvm::SlotMapping mapping {};
+    for (auto& t : module->getIdentifiedStructTypes()) mapping.NamedTypes.insert({t->getName(), t});
+    
+    for (auto& s : module->getValueSymbolTable()) {
+        std::cout << "mapping \"" << std::string(s.getKey()) << "\"...\n";
+        if (s.getValue()->getValueID() == llvm::Value::FunctionVal) {
+            mapping.GlobalValues.push_back(module->getFunction(s.getKey()));
+        } else if (s.getValue()->getValueID() == llvm::Value::GlobalVariableVal) {
+            mapping.GlobalValues.push_back(module->getGlobalVariable(s.getKey()));
+        } else {
+            printf("unsupported unmapped global value!\n");
+            abort();
+        }
+    }
+    
+    auto void_type = llvm::Type::getVoidTy(module->getContext());
+    
+    mapping.Types.insert(void_type);
+    
+    return mapping;
+}
+
 static inline resolved_expression parse_llvm_string(const token& llvm_string, program_data& data) {
     llvm::SMDiagnostic function_errors; llvm::ModuleSummaryIndex my_index(true);
     llvm::MemoryBufferRef reference(llvm_string.value, data.file.name);
-    if (not llvm::parseAssemblyInto(reference, data.module, &my_index, function_errors)) {
-    
-        return {intrinsic::llvm, {}, false}; // has type: llvm::Type::getVoidTy(data.module->getContext())
-    } else {
+    llvm::SlotMapping mapping = generate_mapping(data.module);
+    if (not llvm::parseAssemblyInto(reference, data.module, &my_index, function_errors, &mapping)) return {1};
+    else {
         function_errors.print((std::string("llvm: (") + std::to_string(llvm_string.line) + "," + std::to_string(llvm_string.column) + ")").c_str(), llvm::errs());
         return {0, {}, true};
     }
@@ -322,16 +343,11 @@ static inline resolved_expression resolve(const expression& given, long given_ty
 //    prep(depth + gd); std::cout << "calling resolve()\n";
     if (not given_type or depth > max_depth) return {0, {}, true};
     
-//    else if (index < (long) given.symbols.size()
-//             and given.symbols[index].type == symbol_type::llvm
-//             and given_type == intrinsic::llvm)
-//        return parse_llvm_string(given.symbols[index].literal, index, data);
-//
-//    else if (index < (long) given.symbols.size()
-//             and given.symbols[index].type == symbol_type::llvm
-//             and given_type == intrinsic::type)
-//        return parse_llvm_type_string(given.symbols[index].literal, index, data);
-//
+    else if (index < (long) given.symbols.size() and given.symbols[index].type == symbol_type::llvm and given_type == 1) {
+        auto resolved_llvm_string = parse_llvm_string(given.symbols[index].literal, data);
+        index++; return resolved_llvm_string;
+    }
+    
     long saved = index;
     for (auto s : stack.top()) {
         index = saved;
@@ -531,7 +547,7 @@ static inline std::unique_ptr<llvm::Module> generate(expression program, const f
     auto main = llvm::Function::Create(llvm::FunctionType::get(llvm::Type::getInt32Ty(context), {llvm::Type::getInt32Ty(context), llvm::Type::getInt8PtrTy(context)->getPointerTo()}, false), llvm::Function::ExternalLinkage, "main", module.get());
     builder.SetInsertPoint(llvm::BasicBlock::Create(context, "entry", main));
     stack.update(module->getValueSymbolTable());
-    auto resolved = resolve_expression(program, intrinsic::type, main, data, stack, 0);
+    auto resolved = resolve_expression(program, 1, main, data, stack, 0);
     builder.SetInsertPoint(&main->getBasicBlockList().back());
     builder.CreateRet(llvm::ConstantInt::get(llvm::Type::getInt32Ty(context), 0));
         
