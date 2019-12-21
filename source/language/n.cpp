@@ -15,12 +15,12 @@
 #include <vector>
 static long max_expression_depth = 5;
 enum class lex_type {none, id, string, llvm};
-enum class output_type {none, llvm, assembly, object, exec};
+enum class output_type {nothing, run, llvm, assembly, object, exec};
 enum class token_type {null, id, string, llvm, op};
 enum class symbol_type { none, id, string, llvm, subexpr};
 namespace intrinsic { enum intrinsic_index { typeless, type, infered, llvm, empty, application, abstraction, evaluate, define }; }
 struct file { const char* name = ""; std::string text = ""; };
-struct arguments { std::vector<file> files = {}; enum output_type output = output_type::none; const char* name = ""; };
+struct arguments { std::vector<file> files = {}; enum output_type output = output_type::run; const char* name = ""; };
 struct program_data { file file; llvm::Module* module; llvm::IRBuilder<>& builder; };
 struct lexing_state { long index = 0; lex_type state = lex_type::none; long line = 0; long column = 0; };
 struct token { token_type type = token_type::null; std::string value = ""; long line = 0; long column = 0; };
@@ -42,6 +42,7 @@ static inline arguments get_arguments(const int argc, const char** argv) {
         else if (word == "-s" and i + 1 < argc) { args.output = output_type::assembly; args.name = argv[++i]; }
         else if (word == "-c" and i + 1 < argc) { args.output = output_type::object; args.name = argv[++i]; }
         else if (word == "-o" and i + 1 < argc) { args.output = output_type::exec; args.name = argv[++i]; }
+        else if (word == "-nothing" and i + 1 < argc) { args.output = output_type::nothing; }
         else if (word == "-d" and i + 1 < argc) { auto n = atoi(argv[++i]); max_expression_depth = n ? n : 4; }
         else if (word == "-!") { break; /*the linker argumnets start here.*/ }
         else if (word == "--") { break; /*the interpreter argumnets start here.*/ }
@@ -143,17 +144,17 @@ struct symbol_table {
     long lookup(std::string key) { return std::distance(master.begin(), std::find_if(master.begin(), master.end(), [&](const entry& entry) { return key == expression_to_string(entry.signature, *this, 0);})); }
     bool contains(std::string key) { return lookup(key) < (long) master.size(); }
     void define(const entry& e) { top().push_back(master.size()); master.push_back(e); std::stable_sort(top().begin(), top().end(), [&](long a, long b) { return get(a).symbols.size() > get(b).symbols.size(); });}
-        
+    
     symbol_table(program_data& data, llvm::ValueSymbolTable& llvm): data(data) {
-        std::string base = "%\"(_)\" = type opaque\n" "%\"(_0) (_)\" = type opaque\n" "%\"(_1) (_)\" = type opaque\n" "%\"(_2) (_)\" = type opaque\n"
-        "declare void @\"__intrinsic_no_discard\"(%\"(_0) (_)\")\n" "define void @\"(_)\"() { entry: ret void }\n"
+        std::string base = "%\"(_)\" = type opaque\n" "%\"(_0) (_)\" = type opaque\n" "%\"(_1) (_)\" = type opaque\n" "%\"(_2) (_)\" = type opaque\n" "define void @\"(_)\"() { entry: ret void }\n"
         "define %\"(_)\" @\"(_0) (_)\"() { entry: ret %\"(_)\" zeroinitializer }\n" "define %\"(_)\" @\"(_1) (_)\"() { entry: ret %\"(_)\" zeroinitializer }\n"
         "define %\"(_)\" @\"(_2) (_)\"() { entry: ret %\"(_)\" zeroinitializer }\n" "define void @\"(_3 (() (_1) (_))) (`.void`.) (_)\" ( %\"(_1) (_)\" ) { entry: ret void }\n"
-        "define void @\"(_4 (() (_2) (_)) (() (_1) (_)) (() (_1) (_))) (`.void`.) (_)\" ( %\"(_2) (_)\", %\"(_1) (_)\", %\"(_1) (_)\" ) { entry: ret void }\n\n";
-                        
-        std::ifstream stream {"/Users/deniylreimn/Documents/projects/n3zqx2l/examples/test.ll"};
-        std::string text {std::istreambuf_iterator<char>(stream), std::istreambuf_iterator<char>()};
-        base += text;
+        "define void @\"(_4 (() (_2) (_)) (() (_1) (_)) (() (_1) (_))) (`.void`.) (_)\" ( %\"(_2) (_)\", %\"(_1) (_)\", %\"(_1) (_)\" ) { entry: ret void }\n"
+        "define %\"(_)\" @\"(__ (() (_)) ; (() (_))) (_)\"(%\"(_)\") { entry: ret %\"(_)\" zeroinitializer }\n";
+        
+//        std::ifstream stream {"/Users/deniylreimn/Documents/projects/n3zqx2l/examples/test.ll"};
+//        std::string text {std::istreambuf_iterator<char>(stream), std::istreambuf_iterator<char>()};
+//        base += text;
         
         llvm::SMDiagnostic function_errors; llvm::ModuleSummaryIndex my_index(true);
         llvm::MemoryBufferRef reference(base, "core.ll");
@@ -161,7 +162,6 @@ struct symbol_table {
             function_errors.print("llvm: ", llvm::errs());
             abort();
         }
-        update(llvm);
     }
     
     void update(llvm::ValueSymbolTable& llvm) {
@@ -179,7 +179,7 @@ static inline std::string resolved_expression_to_string(const resolved_expressio
         if (symbol.type == symbol_type::id) result += symbol.literal.value;
         else if (symbol.type == symbol_type::string) result += "\"" + symbol.literal.value + "\"";
         else if (symbol.type == symbol_type::llvm) result += "`" + symbol.literal.value + "`";
-        else if (symbol.type == symbol_type::subexpr) result += "(" + expression_to_string(symbol.subexpression, stack) + "=" + resolved_expression_to_string(given.args[i], stack) + ")";
+        else if (symbol.type == symbol_type::subexpr) result += "(" + expression_to_string(symbol.subexpression, stack) + (i < (long) given.args.size() ? "=" + resolved_expression_to_string(given.args[i], stack) : "") + ")";
         if (i++ < (long) stack.master[given.index].signature.symbols.size() - 1) result += " ";
     } result += ")";
     if (stack.master[given.index].signature.type) result += " " + expression_to_string(stack.master[stack.master[given.index].signature.type].signature, stack);
@@ -270,17 +270,17 @@ static inline expression parse_signature(std::string given, program_data& data, 
     return resolve_signature(parse({"", given}, state, 0), data, stack);
 }
 
-//static inline resolved_expression parse_llvm_string(const token& llvm_string, long& pointer, program_data& data) {
-//    llvm::SMDiagnostic function_errors; llvm::ModuleSummaryIndex my_index(true);
-//    llvm::MemoryBufferRef reference(llvm_string.value, data.file.name);
-//    if (not llvm::parseAssemblyInto(reference, data.module, &my_index, function_errors)) {
-//        pointer++;
-//        return {intrinsic::llvm, {}, false}; // has type: llvm::Type::getVoidTy(data.module->getContext())
-//    } else {
-//        function_errors.print((std::string("llvm: (") + std::to_string(llvm_string.line) + "," + std::to_string(llvm_string.column) + ")").c_str(), llvm::errs());
-//        return {0, {}, true};
-//    }
-//}
+static inline resolved_expression parse_llvm_string(const token& llvm_string, program_data& data) {
+    llvm::SMDiagnostic function_errors; llvm::ModuleSummaryIndex my_index(true);
+    llvm::MemoryBufferRef reference(llvm_string.value, data.file.name);
+    if (not llvm::parseAssemblyInto(reference, data.module, &my_index, function_errors)) {
+    
+        return {intrinsic::llvm, {}, false}; // has type: llvm::Type::getVoidTy(data.module->getContext())
+    } else {
+        function_errors.print((std::string("llvm: (") + std::to_string(llvm_string.line) + "," + std::to_string(llvm_string.column) + ")").c_str(), llvm::errs());
+        return {0, {}, true};
+    }
+}
 
 static inline resolved_expression resolve(const expression& given, long given_type, llvm::Function*& function, long& index, long depth, long max_depth, program_data& data, symbol_table& stack, long gd);
 
@@ -297,8 +297,10 @@ static inline bool matches(const expression& given, const expression& signature,
         }
         if (symbol.type == symbol_type::subexpr) {
             auto argument = resolve(given, symbol.subexpression.type, function, index, depth + 1, max_depth, data, stack, gd);
+            
             if (argument.error) {
 //                prep(depth + gd + 1); std::cout << "   ----> false(2)!\n";
+                
                 return false; }
             args.push_back({argument});
         } else if (not are_equal_identifiers(symbol, given.symbols[index])) {
@@ -591,7 +593,8 @@ static inline void emit_executable(const std::string& object_file, const std::st
     std::remove(object_file.c_str());
 }
 static inline void output(const arguments& args, std::unique_ptr<llvm::Module>&& module) {
-    if (args.output == output_type::none) interpret(std::move(module), args);
+    if (args.output == output_type::run) interpret(std::move(module), args);
+    else if (args.output == output_type::nothing) {/* do nothing. */}
     else if (args.output == output_type::llvm) generate_ll_file(std::move(module), args);
     else if (args.output == output_type::assembly) generate_file(std::move(module), args, llvm::TargetMachine::CGFT_AssemblyFile);
     else if (args.output == output_type::object) generate_file(std::move(module), args, llvm::TargetMachine::CGFT_ObjectFile);

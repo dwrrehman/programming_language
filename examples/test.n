@@ -1,1 +1,1 @@
-hello _0
+join join (join _1 ; _0) ; _0 ; _2
