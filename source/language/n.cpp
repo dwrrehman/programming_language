@@ -21,7 +21,7 @@ enum class token_type {null, id, string, llvm, op};
 enum class symbol_type { none, id, string, llvm, subexpr};
 struct file { const char* name = ""; std::string text = ""; };
 struct arguments { std::vector<file> files = {}; enum output_type output = output_type::run; const char* name = ""; };
-struct program_data { file file; llvm::Module* module; llvm::IRBuilder<>& builder; };
+struct program_data { file file; llvm::Module* module; llvm::IRBuilder<>& builder; llvm::SlotMapping& mapping; };
 struct lexing_state { long index = 0; lex_type state = lex_type::none; long line = 0; long column = 0; };
 struct token { token_type type = token_type::null; std::string value = ""; long line = 0; long column = 0; };
 struct symbol; struct expression { std::vector<symbol> symbols = {}; long type = 0; token start = {}; bool error = false; llvm::Type* llvm_type = nullptr; };
@@ -161,10 +161,34 @@ struct symbol_table {
         
         llvm::SMDiagnostic function_errors; llvm::ModuleSummaryIndex my_index(true);
         llvm::MemoryBufferRef reference(base, "core.ll");
-        if (llvm::parseAssemblyInto(reference, data.module, &my_index, function_errors)) {
+        
+    
+        if (llvm::parseAssemblyInto(reference, data.module, &my_index, function_errors, &data.mapping)) {
             function_errors.print("llvm: ", llvm::errs());
             abort();
+        } else {
+            printf("parse aassembly into was successful.\n");
+//            abort();
         }
+        
+//
+//        std::cout << "printing the keyss: \n";
+//        auto wef = data.mapping.NamedTypes.keys();
+//        for (auto ffrff : wef) {
+//            std::cout << std::string(ffrff) << "\n";
+//        }
+//        std::cout << "done printing the keyss: \n";
+//
+//
+//        printf("printing global values: \n");
+//        for (auto g : data.mapping.GlobalValues) {
+//            printf("globalvalue: \n");
+//            g->print(llvm::outs());
+//            printf("\n");
+//        }
+//        printf("done printing global values: \n");
+//
+//
     }
     
     void update(llvm::ValueSymbolTable& llvm) {
@@ -272,34 +296,35 @@ static inline expression parse_signature(std::string given, program_data& data, 
     return resolve_signature(parse({"", given}, state, 0), data, stack);
 }
 
-static inline llvm::SlotMapping generate_mapping(llvm::Module* module) {
-    llvm::SlotMapping mapping {};
-    for (auto& t : module->getIdentifiedStructTypes()) mapping.NamedTypes.insert({t->getName(), t});
-    
-    for (auto& s : module->getValueSymbolTable()) {
-        std::cout << "mapping \"" << std::string(s.getKey()) << "\"...\n";
-        if (s.getValue()->getValueID() == llvm::Value::FunctionVal) {
-            mapping.GlobalValues.push_back(module->getFunction(s.getKey()));
-        } else if (s.getValue()->getValueID() == llvm::Value::GlobalVariableVal) {
-            mapping.GlobalValues.push_back(module->getGlobalVariable(s.getKey()));
-        } else {
-            printf("unsupported unmapped global value!\n");
-            abort();
-        }
-    }
-    
-    auto void_type = llvm::Type::getVoidTy(module->getContext());
-    
-    mapping.Types.insert(void_type);
-    
-    return mapping;
-}
+//static inline llvm::SlotMapping generate_mapping(llvm::Module* module) {
+//    llvm::SlotMapping mapping {};
+//    for (auto& t : module->getIdentifiedStructTypes()) mapping.NamedTypes.insert({t->getName(), t});
+//    for (auto t : module->getIdentifiedStructTypes()) mapping.Types.insert({t->getTypeID(), t});
+//
+//    for (auto& s : module->getValueSymbolTable()) {
+//        std::cout << "mapping \"" << std::string(s.getKey()) << "\"...\n";
+//        if (s.getValue()->getValueID() == llvm::Value::FunctionVal) {
+//            mapping.GlobalValues.push_back(module->getFunction(s.getKey()));
+//        } else if (s.getValue()->getValueID() == llvm::Value::GlobalVariableVal) {
+//            mapping.GlobalValues.push_back(module->getGlobalVariable(s.getKey()));
+//        } else {
+//            printf("unsupported unmapped global value!\n");
+//            abort();
+//        }
+//    }
+//    llvm::ModuleSlotTracker ef(module);
+//    auto fefe = ef.getMachine();
+//
+//
+//
+//    return mapping;
+//}
 
 static inline resolved_expression parse_llvm_string(const token& llvm_string, program_data& data) {
     llvm::SMDiagnostic function_errors; llvm::ModuleSummaryIndex my_index(true);
     llvm::MemoryBufferRef reference(llvm_string.value, data.file.name);
-    llvm::SlotMapping mapping = generate_mapping(data.module);
-    if (not llvm::parseAssemblyInto(reference, data.module, &my_index, function_errors, &mapping)) return {1};
+//    llvm::SlotMapping mapping = generate_mapping(data.module);
+    if (not llvm::parseAssemblyInto(reference, data.module, &my_index, function_errors, &data.mapping)) return {1};
     else {
         function_errors.print((std::string("llvm: (") + std::to_string(llvm_string.line) + "," + std::to_string(llvm_string.column) + ")").c_str(), llvm::errs());
         return {0, {}, true};
@@ -541,8 +566,8 @@ static inline std::unique_ptr<llvm::Module> generate(expression program, const f
     module->setTargetTriple(llvm::sys::getDefaultTargetTriple()); std::string lookup_error = "";
     auto target_machine = llvm::TargetRegistry::lookupTarget(module->getTargetTriple(), lookup_error)->createTargetMachine(module->getTargetTriple(), "generic", "", {}, {}, {});
     module->setDataLayout(target_machine->createDataLayout());
-    llvm::IRBuilder<> builder(context);
-    program_data data {file, module.get(), builder};
+    llvm::IRBuilder<> builder(context); llvm::SlotMapping mapping;
+    program_data data {file, module.get(), builder, mapping};
     symbol_table stack {data, module->getValueSymbolTable()};
     auto main = llvm::Function::Create(llvm::FunctionType::get(llvm::Type::getInt32Ty(context), {llvm::Type::getInt32Ty(context), llvm::Type::getInt8PtrTy(context)->getPointerTo()}, false), llvm::Function::ExternalLinkage, "main", module.get());
     builder.SetInsertPoint(llvm::BasicBlock::Create(context, "entry", main));
