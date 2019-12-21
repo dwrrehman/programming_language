@@ -96,7 +96,7 @@ static inline symbol parse_symbol(const file& file, lexing_state& state, long d)
     auto t = next(file, state);
     if (t.type == token_type::string) return {symbol_type::string, {}, t};
     if (t.type == token_type::llvm) return {symbol_type::llvm, {}, t};
-    if (t.type == token_type::id or (t.type == token_type::op and not is_open_paren(t) and not is_close_paren(t))) return {symbol_type::id, {}, t};  ///TODO: simplify me!
+    if (t.type == token_type::id or (t.type == token_type::op and not is_open_paren(t) and not is_close_paren(t))) return {symbol_type::id, {}, t};
     else { state = saved; return {symbol_type::none, {}, {}, true}; }
 }
 static inline expression parse(const file& file, lexing_state& state, long d) {
@@ -114,21 +114,19 @@ static inline expression parse(const file& file, lexing_state& state, long d) {
     return result;
 }
 
-static inline void print_llvm_table(const llvm::ValueSymbolTable& llvm_table) {
-    std::cout << "-------------- printing new frame: ------------\n";
-    for (auto& entry : llvm_table) {
-        std::string key = entry.getKey();
-        llvm::Value* value = entry.getValue();
-        std::cout << "key: \"" << key << "\" == value : \n";
-        value->print(llvm::outs());
-        std::cout << "\n\n";
-    }
-}
-
+//static inline void print_llvm_table(const llvm::ValueSymbolTable& llvm_table) {
+//    std::cout << "-------------- printing new frame: ------------\n";
+//    for (auto& entry : llvm_table) {
+//        std::string key = entry.getKey();
+//        llvm::Value* value = entry.getValue();
+//        std::cout << "key: \"" << key << "\" == value : \n";
+//        value->print(llvm::outs());
+//        std::cout << "\n\n";
+//    }
+//}
 
 static inline void debug(struct symbol_table stack, bool show_llvm = false);
-static inline void print(symbol_table stack);
-
+//static inline void print(symbol_table stack);
 static inline void print_expression(expression e, int d);
 
 static inline std::string expression_to_string(const expression& given, struct symbol_table& stack, long begin = 0, long end = -1);
@@ -163,8 +161,9 @@ struct symbol_table {
     
     void update(llvm::ValueSymbolTable& llvm) {
         for (auto& llvm_entry : llvm) {
-            const std::string& name = llvm_entry.getKey();
-            if (not contains(name)) define(entry { parse_signature(name, data, *this), llvm_entry.getValue(), data.module->getFunction(name), data.module->getNamedGlobal(name), data.module->getTypeByName(name) });
+            const std::string& llvm_name = llvm_entry.getKey();
+            auto full_name = parse_signature(llvm_name, data, *this);
+            if (not contains(expression_to_string(full_name, *this))) define(entry {full_name, llvm_entry.getValue(), data.module->getFunction(llvm_name), data.module->getNamedGlobal(llvm_name), data.module->getTypeByName(llvm_name) });
         }
     }
 };
@@ -222,24 +221,11 @@ static inline expression resolve_signature(expression e, program_data& data, sym
                 
     if (e.symbols.size() == 1 and e.symbols.front().type == symbol_type::id)
         return convert_llvm_identifier(data, e, stack);
-    
-//    stack.print();
-    
-    
+        
     for (auto i = e.symbols.size(); i--;) {
         
-//        printf("---------- doing type iteration # %lu: --------- \n", i);
         if (i + 1 < e.symbols.size()) {
-            
-//            printf("---------- BEFORE: THIS: printing s.s[%lu].se: --------- \n", i);
-//            print_expression(e.symbols[i].subexpression, 0);
-//            printf("-------------------------------------- \n\n");
-//
-//            printf(" ------------- PREVIOUS: printing s.s[%lu + 1].se: -------- \n", i);
-//            print_expression(e.symbols[i + 1].subexpression, 0);
-//            printf("-------------------------------------- \n\n");
-//
-            
+
             const auto t = e.symbols[i + 1].subexpression;
             if (t.symbols.size() and t.symbols.front().type == symbol_type::llvm) {
                 
@@ -266,11 +252,6 @@ static inline expression resolve_signature(expression e, program_data& data, sym
                     abort();
                 } else e.symbols[i].subexpression.type = result;
             }
-            
-            
-//            printf("---------- AFTER: THIS: printing s.s[%lu].se: --------- \n", i);
-//            print_expression(e.symbols[i].subexpression, 0);
-//            printf("-------------------------------------- \n\n");
         }
         
     }
@@ -376,17 +357,16 @@ static inline resolved_expression resolve_expression(const expression& given, lo
     return solution;
 }
 
-
-static inline void print(symbol_table stack) {
-    std::cout << "printing expressions in master...\n";
-    long i = 0;
-    for (auto entry : stack.master) {
-        std::cout << "---------------- printing entry # " << i++ << " ---------------\n";
-        print_expression(entry.signature, 0);
-        std::cout << " ------------------------------------- \n";
-    }
-    
-}
+//
+//static inline void print(symbol_table stack) {
+//    std::cout << "printing expressions in master...\n";
+//    long i = 0;
+//    for (auto entry : stack.master) {
+//        std::cout << "---------------- printing entry # " << i++ << " ---------------\n";
+//        print_expression(entry.signature, 0);
+//        std::cout << " ------------------------------------- \n";
+//    }
+//}
 
 static inline void debug(symbol_table stack, bool show_llvm) {
       std::cout << "\n\n---- debugging stack: ----\n";
