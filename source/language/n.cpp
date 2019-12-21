@@ -146,15 +146,18 @@ struct symbol_table {
     void define(const entry& e) { top().push_back(master.size()); master.push_back(e); std::stable_sort(top().begin(), top().end(), [&](long a, long b) { return get(a).symbols.size() > get(b).symbols.size(); });}
     
     symbol_table(program_data& data, llvm::ValueSymbolTable& llvm): data(data) {
-        std::string base = "%\"(_)\" = type opaque\n" "%\"(_0) (_)\" = type opaque\n" "%\"(_1) (_)\" = type opaque\n" "%\"(_2) (_)\" = type opaque\n" "define void @\"(_)\"() { entry: ret void }\n"
-        "define %\"(_)\" @\"(_0) (_)\"() { entry: ret %\"(_)\" zeroinitializer }\n" "define %\"(_)\" @\"(_1) (_)\"() { entry: ret %\"(_)\" zeroinitializer }\n"
-        "define %\"(_)\" @\"(_2) (_)\"() { entry: ret %\"(_)\" zeroinitializer }\n" "define void @\"(_3 (() (_1) (_))) (`.void`.) (_)\" ( %\"(_1) (_)\" ) { entry: ret void }\n"
-        "define void @\"(_4 (() (_2) (_)) (() (_1) (_)) (() (_1) (_))) (`.void`.) (_)\" ( %\"(_2) (_)\", %\"(_1) (_)\", %\"(_1) (_)\" ) { entry: ret void }\n"
-        "define %\"(_)\" @\"(__ (() (_)) ; (() (_))) (_)\"(%\"(_)\") { entry: ret %\"(_)\" zeroinitializer }\n";
-        
-//        std::ifstream stream {"/Users/deniylreimn/Documents/projects/n3zqx2l/examples/test.ll"};
-//        std::string text {std::istreambuf_iterator<char>(stream), std::istreambuf_iterator<char>()};
-//        base += text;
+        std::string base =
+        "%\"(_)\" = type opaque\n"
+        "%\"(_0) (_)\" = type opaque\n"
+        "%\"(_1) (_)\" = type opaque\n"
+        "%\"(_2) (_)\" = type opaque\n"
+        "define void @\"(_)\"() { entry: ret void }\n"
+        "define %\"(_)\" @\"(_0) (_)\"() { entry: ret %\"(_)\" zeroinitializer }\n"
+        "define %\"(_)\" @\"(_1) (_)\"() { entry: ret %\"(_)\" zeroinitializer }\n"
+        "define %\"(_)\" @\"(_2) (_)\"() { entry: ret %\"(_)\" zeroinitializer }\n"
+        "define %\"(_)\" @\"(_3 (() (_1) (_))) (`.void`.) (_)\" ( %\"(_1) (_)\" ) { entry: ret %\"(_)\" zeroinitializer }\n"
+        "define %\"(_)\" @\"(_4 (() (_2) (_)) (() (_1) (_)) (() (_1) (_))) (`.void`.) (_)\" ( %\"(_2) (_)\", %\"(_1) (_)\", %\"(_1) (_)\" ) { entry: ret %\"(_)\" zeroinitializer }\n"
+        "define %\"(_)\" @\"(_5 (() (_)) (() (_))) (_)\"() { entry: ret %\"(_)\" zeroinitializer }\n";
         
         llvm::SMDiagnostic function_errors; llvm::ModuleSummaryIndex my_index(true);
         llvm::MemoryBufferRef reference(base, "core.ll");
