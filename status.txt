@@ -8,36 +8,19 @@ the current status of the nostril compiler:
 CURRENT TASK DETAILS:
 =======================
 
-task: write the symbol table functions.
+	debug expression to string, 
+	
+	and the intiialization of the core.ll constructs into the symbol table.
 
 
-    x: - write the define function.;
-    
-    x: - figure out how to represent llvm elements such as: function and type and value      (or even globals?);
-    
-    x: - figure out how define should work;
-    
-    - make string to expression function cope with llvm-single-identifiers.
-    
-    
-    - allow type-section deductions in n3zqx2l signature strings inside llvm strings.
+
+		tehres a bug, where we get a stack overflow in etos.
+
+	    
     
     
     
     
-    
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 
@@ -46,34 +29,32 @@ task: write the symbol table functions.
 THE TODO LIST:
 =====================
 
-- reimplement the compiler using the llvm c-api, which is much more intuitive.
-- use more of the stl algorithms..?
+[PRIMARY:]
 
-- revise our target triple.
-
-
-- get fdi functionality fully working, using _b
-- add _0 functionality to csr.
-- add lazy code generation using _a
-- add resolution based type inference  (or/plus henry milner TI)
-- add compiletime evlauation to csr.
-- add compiletime parameters
-- add compiletime generation of runtime data.
-- add numberic constants suppport.
-
-- write the string to expression function.
-
+- make llvms void passable and initiable like the real unit type.      [must be done in codegen phase]
+- get fdi functionality fully working, using _b                
+- add _0 functionality to csr.                             
+- add lazy code generation using _a                                  
 - figure out how to make _define provide _expose functionality
 
-- code for passing flags to the linker (-!), and the executable (--)
-- add codegen and support for text strings in csr and llvm.
 
-- make llvms void passable and initiable like the real unit type.
+[PSECONDARY:]
 
-- figure out how we are going to do multiple files, and our module system.
+- reimplement the compiler using the llvm c-api, which is much more intuitive.             [secondary]
+- use more of the stl algorithms..?                 [secondary]
+- revise our target triple.                        [secondary]
+- add resolution based type inference  (or/plus henry milner TI)        [secondary]
+- add compiletime evlauation to csr.             [secondary]
+- add compiletime parameters                    [secondary]
+- add compiletime generation of runtime data.    [secondary]
+- add numberic constants suppport.   [secondary]
+- code for passing flags to the linker (-!), and the executable (--)     [secondary]
+- add codegen and support for text strings in csr and llvm.            [secondary]
+- figure out how we are going to do multiple files, and our module system.    [secondary]
 
 ============ DONE: ===========
 
+x: - write the string to expression function.;
 x: - get csr working with subexpressions properly.;
 x: - make llvm strings nestable.;
 x: - possibly get rid ll stirngs. ; --> NO.
@@ -81,7 +62,11 @@ x: - add assembly output functioality,;
 x: - figure out how to remove the symbol table data structure.;
 x: - redo how we are handling lexing, ;
 x: - devise a better llvm interop system.;
-
+x: - write the define function.;
+x: - figure out how to represent llvm elements such as: function and type and value      (or even globals?);    
+x: - figure out how define should work;   
+x: - make string to expression function cope with llvm-single-identifiers.;    
+x: - allow type-section deductions in n3zqx2l signature strings inside llvm strings.;::this is a high bar thing, we are saving it until we do type inference, which is not soon.;
 
 ==================================
 

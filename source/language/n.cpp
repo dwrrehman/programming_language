@@ -120,7 +120,23 @@ struct entry {
     llvm::Type* llvm_type = nullptr;
 };
 
+
+static inline void print_llvm_table(const llvm::ValueSymbolTable& llvm_table) {
+    std::cout << "-------------- printing new frame: ------------\n";
+    for (auto& entry : llvm_table) {
+        std::string key = entry.getKey();
+        llvm::Value* value = entry.getValue();
+        std::cout << "key: \"" << key << "\" == value : \n";
+        value->print(llvm::outs());
+        std::cout << "\n\n";
+    }
+}
+
+
 static inline void debug(struct symbol_table stack);
+
+static inline void print_expression(expression e, int d);
+
 
 static inline std::string expression_to_string(const expression& given, struct symbol_table& stack, long begin = 0, long end = -1);
 static inline expression parse_signature(std::string given, struct program_data& data, struct symbol_table& stack);
@@ -163,7 +179,10 @@ struct symbol_table {
                 function_errors.print("llvm: ", llvm::errs());
                 abort();
             }
-            debug(*this);
+//            debug(*this);
+            
+            print_llvm_table(llvm);
+            
             update(llvm);
         }
     }
@@ -227,16 +246,52 @@ static expression convert_llvm_identifier(program_data &data, expression &e, sym
 }
 
 static inline expression resolve_signature(expression e, program_data& data, symbol_table& stack) {
-    if (e.symbols.empty()) abort();
-    if (e.symbols.size() == 1 and e.symbols.front().type == symbol_type::id) return convert_llvm_identifier(data, e, stack);
-    for (auto i = e.symbols.size(); i--;) if (i + 1 < e.symbols.size()) e.symbols[i].subexpression.type = stack.lookup(expression_to_string(e.symbols[i + 1].subexpression, stack));
-    for (auto& s : e.symbols.front().subexpression.symbols) if (s.type == symbol_type::subexpr) s.subexpression = resolve_signature(s.subexpression, data, stack);
+                
+    if (e.symbols.size() == 1 and e.symbols.front().type == symbol_type::id)
+        return convert_llvm_identifier(data, e, stack);
+                
+    for (auto i = e.symbols.size(); i--;) {
+        if (i + 1 < e.symbols.size()) {
+            
+            printf("printing s.s[i].se: \n");
+            print_expression(e.symbols[i].subexpression, 0);
+            
+            printf("printing s.s[i+1].se: \n");
+            print_expression(e.symbols[i + 1].subexpression, 0);
+            
+            e.symbols[i].subexpression.type = stack.lookup(expression_to_string(e.symbols[i + 1].subexpression, stack));
+        }
+    }
+            
+    for (auto& s : e.symbols.front().subexpression.symbols)
+        if (s.type == symbol_type::subexpr)
+            s.subexpression = resolve_signature(s.subexpression, data, stack);
+    
     return e.symbols.front().subexpression;
 }
 
 static inline expression parse_signature(std::string given, program_data& data, symbol_table& stack) {
     lexing_state state {0, lex_type::none, 1, 1};
-    return resolve_signature(parse({"", given}, state, 0), data, stack);
+    
+//    std::cin.get();
+    
+    /// "(_3 (() (_1) (_))) (``void``) (_)"
+    
+    auto e = parse({"", given}, state, 0);
+    
+    print_expression(e, 0);
+    
+    
+    auto r = resolve_signature(e, data, stack);
+    
+        
+    print_expression(r, 0);
+    
+    
+    
+//    std::cin.get();
+    
+    return r;
 }
 
 static inline resolved_expression parse_llvm_type_string(const token& llvm_string, long& pointer, program_data& data) {
@@ -377,16 +432,6 @@ static inline void debug(symbol_table stack) {
 
 #define prep(x)   for (long i = 0; i < x; i++) std::cout << ".   "
 
-//static inline void print_llvm_table(const llvm::ValueSymbolTable& llvm_table) {
-//    std::cout << "-------------- printing new frame: ------------\n";
-//    for (auto& entry : llvm_table) {
-//        std::string key = entry.getKey();
-//        llvm::Value* value = entry.getValue();
-//        std::cout << "key: \"" << key << "\" == value : \n";
-//        value->print(llvm::outs());
-//        std::cout << "\n\n";
-//    }
-//}
 
 static inline const char* convert_token_type_representation(enum token_type type) {
     switch (type) {
