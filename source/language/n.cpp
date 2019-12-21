@@ -157,17 +157,20 @@ struct symbol_table {
         "define %\"(_)\" @\"(_2) (_)\"() { entry: ret %\"(_)\" undef }\n"
         "define %\"(_)\" @\"(_3 (() (_1) (_))) (_)\" ( %\"(_1) (_)\" ) { entry: ret %\"(_)\" undef }\n"
         "define %\"(_)\" @\"(_4 (() (_2) (_)) (() (_1) (_)) (() (_1) (_))) (_)\" ( %\"(_2) (_)\", %\"(_1) (_)\", %\"(_1) (_)\" ) { entry: ret %\"(_)\" undef }\n"
-        "define %\"(_)\" @\"(_5 (() (_)) (() (_))) (_)\"() { entry: ret %\"(_)\" undef }\n";
+        "define %\"(_)\" @\"(_5 (() (_)) (() (_))) (_)\"() { entry: ret %\"(_)\" undef }\n"
+        "define void @f() { entry: ret void }\n"
+        ;
         
         llvm::SMDiagnostic function_errors; llvm::ModuleSummaryIndex my_index(true);
         llvm::MemoryBufferRef reference(base, "core.ll");
         
     
         if (llvm::parseAssemblyInto(reference, data.module, &my_index, function_errors, &data.mapping)) {
+//            printf("parse aassembly into was NOT successful.\n");
             function_errors.print("llvm: ", llvm::errs());
             abort();
         } else {
-            printf("parse aassembly into was successful.\n");
+//            printf("parse aassembly into was successful.\n");
 //            abort();
         }
         
@@ -296,38 +299,20 @@ static inline expression parse_signature(std::string given, program_data& data, 
     return resolve_signature(parse({"", given}, state, 0), data, stack);
 }
 
-//static inline llvm::SlotMapping generate_mapping(llvm::Module* module) {
-//    llvm::SlotMapping mapping {};
-//    for (auto& t : module->getIdentifiedStructTypes()) mapping.NamedTypes.insert({t->getName(), t});
-//    for (auto t : module->getIdentifiedStructTypes()) mapping.Types.insert({t->getTypeID(), t});
-//
-//    for (auto& s : module->getValueSymbolTable()) {
-//        std::cout << "mapping \"" << std::string(s.getKey()) << "\"...\n";
-//        if (s.getValue()->getValueID() == llvm::Value::FunctionVal) {
-//            mapping.GlobalValues.push_back(module->getFunction(s.getKey()));
-//        } else if (s.getValue()->getValueID() == llvm::Value::GlobalVariableVal) {
-//            mapping.GlobalValues.push_back(module->getGlobalVariable(s.getKey()));
-//        } else {
-//            printf("unsupported unmapped global value!\n");
-//            abort();
-//        }
-//    }
-//    llvm::ModuleSlotTracker ef(module);
-//    auto fefe = ef.getMachine();
-//
-//
-//
-//    return mapping;
-//}
-
-static inline resolved_expression parse_llvm_string(const token& llvm_string, program_data& data) {
+static inline resolved_expression parse_llvm_string(token llvm_string, program_data& data) {
     llvm::SMDiagnostic function_errors; llvm::ModuleSummaryIndex my_index(true);
+    for (auto& t : data.mapping.NamedTypes) { std::string type = ""; t.getValue()->print(llvm::raw_string_ostream(type) << ""); llvm_string.value.insert(0, type + "\n"); }
     llvm::MemoryBufferRef reference(llvm_string.value, data.file.name);
-//    llvm::SlotMapping mapping = generate_mapping(data.module);
-    if (not llvm::parseAssemblyInto(reference, data.module, &my_index, function_errors, &data.mapping)) return {1};
-    else {
+    if (llvm::parseAssemblyInto(reference, data.module, &my_index, function_errors, &data.mapping)) {
+//        printf("parse aassembly into was NOT successful.\n");
+//        abort();
         function_errors.print((std::string("llvm: (") + std::to_string(llvm_string.line) + "," + std::to_string(llvm_string.column) + ")").c_str(), llvm::errs());
+        abort();
         return {0, {}, true};
+    } else {
+//        printf("parse aassembly into was successful.\n");
+//        abort();
+        return {1};
     }
 }
 

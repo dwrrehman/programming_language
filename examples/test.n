@@ -2,9 +2,18 @@ _5 _5 ``%"(unit) (_)" = type {}
 
 define %"(_)" @"(foo) (_)"(%"(unit) (_)") {
 entry:
-    ret %"(_)" undef
+    
+    call void @f()
+    ret %"(_)" zeroinitializer    
 }
 ``
-``hello wrorld!``
-unit
+
+``
+define %"(unit) (_)" @make_unit() {
+entry:
+    ret %"(unit) (_)" zeroinitializer
+}
+
+``
+_0
 
