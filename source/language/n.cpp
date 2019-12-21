@@ -1,6 +1,5 @@
 // n: a n3zqx2l compiler written in C++.
 #include "llvm/AsmParser/Parser.h"
-#include "llvm/AsmParser/SlotMapping.h"
 #include "llvm/ExecutionEngine/MCJIT.h"
 #include "llvm/IR/IRBuilder.h"
 #include "llvm/IR/LegacyPassManager.h"
@@ -21,7 +20,7 @@ enum class token_type {null, id, string, llvm, op};
 enum class symbol_type { none, id, string, llvm, subexpr};
 struct file { const char* name = ""; std::string text = ""; };
 struct arguments { std::vector<file> files = {}; enum output_type output = output_type::run; const char* name = ""; };
-struct program_data { file file; llvm::Module* module; llvm::IRBuilder<>& builder; llvm::SlotMapping& mapping; };
+struct program_data { file file; llvm::Module* module; llvm::IRBuilder<>& builder; };
 struct lexing_state { long index = 0; lex_type state = lex_type::none; long line = 0; long column = 0; };
 struct token { token_type type = token_type::null; std::string value = ""; long line = 0; long column = 0; };
 struct symbol; struct expression { std::vector<symbol> symbols = {}; long type = 0; token start = {}; bool error = false; llvm::Type* llvm_type = nullptr; };
@@ -163,9 +162,8 @@ struct symbol_table {
         
         llvm::SMDiagnostic function_errors; llvm::ModuleSummaryIndex my_index(true);
         llvm::MemoryBufferRef reference(base, "core.ll");
-        
-    
-        if (llvm::parseAssemblyInto(reference, data.module, &my_index, function_errors, &data.mapping)) {
+            
+        if (llvm::parseAssemblyInto(reference, data.module, &my_index, function_errors)) {
 //            printf("parse aassembly into was NOT successful.\n");
             function_errors.print("llvm: ", llvm::errs());
             abort();
@@ -299,14 +297,14 @@ static inline expression parse_signature(std::string given, program_data& data, 
     return resolve_signature(parse({"", given}, state, 0), data, stack);
 }
 
-static inline resolved_expression parse_llvm_string(token llvm_string, program_data& data) {
-    llvm::SMDiagnostic function_errors; llvm::ModuleSummaryIndex my_index(true);
-    for (auto& t : data.mapping.NamedTypes) { std::string type = ""; t.getValue()->print(llvm::raw_string_ostream(type) << ""); llvm_string.value.insert(0, type + "\n"); }
-    llvm::MemoryBufferRef reference(llvm_string.value, data.file.name);
-    if (llvm::parseAssemblyInto(reference, data.module, &my_index, function_errors, &data.mapping)) {
+
+
+static inline resolved_expression parse_llvm_string(token llvm, program_data& data) {
+    llvm::SMDiagnostic errors; llvm::ModuleSummaryIndex my_index(true);
+    if (llvm::parseAssemblyInto({llvm.value, data.file.name}, data.module, &my_index, errors)) {
 //        printf("parse aassembly into was NOT successful.\n");
 //        abort();
-        function_errors.print((std::string("llvm: (") + std::to_string(llvm_string.line) + "," + std::to_string(llvm_string.column) + ")").c_str(), llvm::errs());
+        errors.print((std::string("llvm: (") + std::to_string(llvm.line) + "," + std::to_string(llvm.column) + ")").c_str(), llvm::errs());
         abort();
         return {0, {}, true};
     } else {
@@ -531,28 +529,14 @@ static inline void print_resolved_expr(resolved_expression expr, long depth, sym
 }
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 static inline std::unique_ptr<llvm::Module> generate(expression program, const file& file, llvm::LLVMContext& context) {
     if (program.error) return nullptr;
     auto module = llvm::make_unique<llvm::Module>(file.name, context);
     module->setTargetTriple(llvm::sys::getDefaultTargetTriple()); std::string lookup_error = "";
     auto target_machine = llvm::TargetRegistry::lookupTarget(module->getTargetTriple(), lookup_error)->createTargetMachine(module->getTargetTriple(), "generic", "", {}, {}, {});
     module->setDataLayout(target_machine->createDataLayout());
-    llvm::IRBuilder<> builder(context); llvm::SlotMapping mapping;
-    program_data data {file, module.get(), builder, mapping};
+    llvm::IRBuilder<> builder(context);
+    program_data data {file, module.get(), builder};
     symbol_table stack {data, module->getValueSymbolTable()};
     auto main = llvm::Function::Create(llvm::FunctionType::get(llvm::Type::getInt32Ty(context), {llvm::Type::getInt32Ty(context), llvm::Type::getInt8PtrTy(context)->getPointerTo()}, false), llvm::Function::ExternalLinkage, "main", module.get());
     builder.SetInsertPoint(llvm::BasicBlock::Create(context, "entry", main));
@@ -560,16 +544,27 @@ static inline std::unique_ptr<llvm::Module> generate(expression program, const f
     auto resolved = resolve_expression(program, 1, main, data, stack, 0);
     builder.SetInsertPoint(&main->getBasicBlockList().back());
     builder.CreateRet(llvm::ConstantInt::get(llvm::Type::getInt32Ty(context), 0));
-        
+    
     printf("\n\n\n");
     print_resolved_expr(resolved, 0, stack);
     
     printf("\n\n\n");
+    stack.update(module->getValueSymbolTable());
     debug(stack);
     
     printf("\n\n\n");
     std::cout << "generating code....:\n";
     module->print(llvm::outs(), nullptr);
+
+    
+        printf("printing the types we have so far...\n");
+        for (auto wef : module->getIdentifiedStructTypes()) {
+            printf("printitn type: ");
+            wef->print(llvm::outs());
+            printf("\n");
+        }
+        
+    
     
     std::string errors = "";
     if (llvm::verifyModule(*module, &(llvm::raw_string_ostream(errors) << ""))) { printf("llvm: %s: error: %s\n", file.name, errors.c_str()); return nullptr; }
@@ -581,14 +576,35 @@ static inline std::vector<std::unique_ptr<llvm::Module>> frontend(const argument
     llvm::InitializeAllTargetInfos(); llvm::InitializeAllTargets(); llvm::InitializeAllTargetMCs(); llvm::InitializeAllAsmParsers(); llvm::InitializeAllAsmPrinters();
     std::vector<std::unique_ptr<llvm::Module>> modules = {};
     for (auto file : arguments.files) {
-        lexing_state state {0, lex_type::none, 1, 1};
+                          
+        const char* ext = strrchr(file.name, '.');
+        std::string extension = ext ? ext + 1 : "";
         
-        auto saved = state;
-        debug_token_stream(file);
-        print_translation_unit(parse(file, state, 0), file);
-        state = saved;
+        if (extension == "n") {
+            lexing_state state {0, lex_type::none, 1, 1};
+            auto saved = state; // debug
+            debug_token_stream(file);  // debug
+            print_translation_unit(parse(file, state, 0), file);  // debug
+            state = saved;  // debug
+            modules.push_back(generate(parse(file, state, 0), file, context));
+            
+        } else if (extension == "ll") {
+            llvm::SMDiagnostic errors;
+            auto module = llvm::parseAssemblyString(file.text, errors, context);
+            
+            module->setTargetTriple(llvm::sys::getDefaultTargetTriple()); std::string lookup_error = "";
+            auto target_machine = llvm::TargetRegistry::lookupTarget(module->getTargetTriple(), lookup_error)->createTargetMachine(module->getTargetTriple(), "generic", "", {}, {}, {});
+            module->setDataLayout(target_machine->createDataLayout());
+            // llvm::parseAssemblyFile(StringRef Filename, SMDiagnostic &Err, LLVMContext &Context);
+            if (module == nullptr) {
+                errors.print((std::string("llvm: ") + std::string(file.name)).c_str(), llvm::errs());
+                abort();
+            } modules.push_back(std::move(module));
+        } else {
+            printf("n: error: file \"%s\" with extension \"%s\"", file.name, extension.c_str());
+            abort();
+        }
 
-        modules.push_back(generate(parse(file, state, 0), file, context));
     }
     if (std::find_if(modules.begin(), modules.end(), [](auto& module) { return not module; }) != modules.end()) exit(1);
     return modules;

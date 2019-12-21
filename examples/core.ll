@@ -1,16 +1,11 @@
-; outdated, now lives in the compiler source itself, in string form.
-
-%"(_)" = type opaque
-%"(_0) (_)" = type opaque
-%"(_1) (_)" = type opaque
-%"(_2) (_)" = type opaque
-
-declare void @"__intrinsic_no_discard"(%"(_)", %"(_0) (_)", %"(_1) (_)", %"(_2) (_)")
+%"(_)" = type {}
+%"(_0) (_)" = type {}
+%"(_1) (_)" = type {}
+%"(_2) (_)" = type {}
 
 define void @"(_)"() { entry: ret void }
-define %"(_)" @"(_0) (_)"() { entry: ret %"(_)" zeroinitializer }
-define %"(_)" @"(_1) (_)"() { entry: ret %"(_)" zeroinitializer }
-define %"(_)" @"(_2) (_)"() { entry: ret %"(_)" zeroinitializer }
-
-define void @"(_3 (() (_1))) (`.void`.) (_)" ( %"(_1) (_)" ) { entry: ret void }
-define void @"(_4 (() (_2)  (_)) (() (_1) (_)) (() (_1) (_))) (`.void`.) (_)" ( %"(_2) (_)", %"(_1) (_)", %"(_1) (_)" ) { entry: ret void }
+define %"(_)" @"(_0) (_)"() { entry: ret %"(_)" undef }
+define %"(_)" @"(_1) (_)"() { entry: ret %"(_)" undef }
+define %"(_)" @"(_2) (_)"() { entry: ret %"(_)" undef }
+define %"(_)" @"(_3 (() (_1))) (_)" ( %"(_1) (_)" ) { entry: ret %"(_)" undef  }
+define %"(_)" @"(_4 (() (_2)  (_)) (() (_1) (_)) (() (_1) (_))) (_)" ( %"(_2) (_)", %"(_1) (_)", %"(_1) (_)" ) { entry: ret %"(_)" undef  }
