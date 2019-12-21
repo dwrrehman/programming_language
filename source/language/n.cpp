@@ -145,11 +145,16 @@ struct symbol_table {
     void define(const entry& e) { top().push_back(master.size()); master.push_back(e); std::stable_sort(top().begin(), top().end(), [&](long a, long b) { return get(a).symbols.size() > get(b).symbols.size(); });}
         
     symbol_table(program_data& data, llvm::ValueSymbolTable& llvm): data(data) {
-        const std::string base = "%\"(_)\" = type opaque\n" "%\"(_0) (_)\" = type opaque\n" "%\"(_1) (_)\" = type opaque\n" "%\"(_2) (_)\" = type opaque\n"
-        "declare void @\"__intrinsic_no_discard\"(%\"(_)\", %\"(_0) (_)\", %\"(_1) (_)\", %\"(_2) (_)\")\n" "define void @\"(_)\"() { entry: ret void }\n"
+        std::string base = "%\"(_)\" = type opaque\n" "%\"(_0) (_)\" = type opaque\n" "%\"(_1) (_)\" = type opaque\n" "%\"(_2) (_)\" = type opaque\n"
+        "declare void @\"__intrinsic_no_discard\"(%\"(_0) (_)\")\n" "define void @\"(_)\"() { entry: ret void }\n"
         "define %\"(_)\" @\"(_0) (_)\"() { entry: ret %\"(_)\" zeroinitializer }\n" "define %\"(_)\" @\"(_1) (_)\"() { entry: ret %\"(_)\" zeroinitializer }\n"
         "define %\"(_)\" @\"(_2) (_)\"() { entry: ret %\"(_)\" zeroinitializer }\n" "define void @\"(_3 (() (_1) (_))) (`.void`.) (_)\" ( %\"(_1) (_)\" ) { entry: ret void }\n"
-        "define void @\"(_4 (() (_2) (_)) (() (_1) (_)) (() (_1) (_))) (`.void`.) (_)\" ( %\"(_2) (_)\", %\"(_1) (_)\", %\"(_1) (_)\" ) { entry: ret void }\n";
+        "define void @\"(_4 (() (_2) (_)) (() (_1) (_)) (() (_1) (_))) (`.void`.) (_)\" ( %\"(_2) (_)\", %\"(_1) (_)\", %\"(_1) (_)\" ) { entry: ret void }\n\n";
+                        
+        std::ifstream stream {"/Users/deniylreimn/Documents/projects/n3zqx2l/examples/test.ll"};
+        std::string text {std::istreambuf_iterator<char>(stream), std::istreambuf_iterator<char>()};
+        base += text;
+        
         llvm::SMDiagnostic function_errors; llvm::ModuleSummaryIndex my_index(true);
         llvm::MemoryBufferRef reference(base, "core.ll");
         if (llvm::parseAssemblyInto(reference, data.module, &my_index, function_errors)) {
@@ -255,7 +260,7 @@ static inline expression resolve_signature(expression e, program_data& data, sym
         }
         
     }
-            
+    
     for (auto& s : e.symbols.front().subexpression.symbols) if (s.type == symbol_type::subexpr) s.subexpression = resolve_signature(s.subexpression, data, stack);
     return e.symbols.front().subexpression;
 }
