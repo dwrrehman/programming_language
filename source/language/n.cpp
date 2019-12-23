@@ -180,11 +180,8 @@ static inline resolved_expression resolve(const expression& given, long given_ty
         return construct_signature(fdi_length, given, index);
     } else if (given_type == 3) {
         printf("found an APPLICATIO?N type: \n");
-        
-        
-        /// what do we do here?.... what is the semantics of "_1"?... we should know this.s
-        
-        
+                
+        /// what do we do here?.... what is the semantics of "_1"?... we should know this.
         
         abort();
     }
@@ -328,12 +325,6 @@ static inline void print_expression(expression expression, int d) {
     prep(d); std::cout << "type = " << expression.type << "\n";
 }
 
-static inline void print_translation_unit(expression unit, const file& file) {
-    std::cout << "translation unit: (" << file.name << ")\n";
-    print_expression(unit, 1);
-}
-
-
 static inline void print_resolved_expr(resolved_expression expr, long depth, symbol_table& stack) {
     prep(depth); std::cout << "[error = " << std::boolalpha << expr.error << "]\n";
     prep(depth); std::cout << "index = " << expr.index << " :: " << expression_to_string(stack.get(expr.index), stack, 0);
@@ -356,8 +347,7 @@ static inline std::unique_ptr<llvm::Module> generate(const expression& given, co
     auto target_machine = llvm::TargetRegistry::lookupTarget(module->getTargetTriple(), lookup_error)->createTargetMachine(module->getTargetTriple(), "generic", "", {}, {}, {});
     module->setDataLayout(target_machine->createDataLayout());
     llvm::IRBuilder<> builder(context);
-    program data {file, module.get(), builder};
-    symbol_table stack;
+    program data {file, module.get(), builder}; symbol_table stack;
     stack.define({{{symbol {type::id, {}, {type::id, "_"} } }, 0}}); // THE SEED: its neccessary: its the type of a program.
     stack.define({{{symbol {type::id, {}, {type::id, "_0"} } }, 1}}); // debug
     stack.define({{{symbol {type::id, {}, {type::id, "_1"} } }, 1}}); // debug
@@ -434,7 +424,7 @@ static inline std::vector<std::unique_ptr<llvm::Module>> frontend(const argument
             lexing_state state {0, type::none, 1, 1};
             auto saved = state; // debug
             debug_token_stream(file);  // debug
-            print_translation_unit(parse(file, state, 0), file);  // debug
+            print_expression(parse(file, state, 0), 1);  // debug
             state = saved;  // debug
             modules.push_back(generate(parse(file, state, 0), file, context));
             
