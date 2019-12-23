@@ -17,8 +17,7 @@ static long max_expression_depth = 5;
 enum class output_type {nothing, run, llvm, assembly, object, exec};
 enum class type { none, id, string, op, subexpr};
 struct file { const char* name = ""; std::string text = ""; };
-struct arguments { std::vector<file> files = {}; enum output_type output = output_type::run; const char* name = ""; };
-struct program { file file; llvm::Module* module; llvm::IRBuilder<>& builder; };
+struct arguments { std::vector<file> files = {}; enum output_type output = output_type::run; const char* name = ""; std::vector<std::string> argv_for_exec = {}; };
 struct lexing_state { long index = 0; type state = type::none; long line = 0; long column = 0; };
 struct token { type type = type::none; std::string value = ""; long line = 0; long column = 0; };
 struct symbol; struct expression { std::vector<symbol> symbols = {}; long type = 0; token start = {}; bool error = false; llvm::Type* llvm_type = nullptr; };
@@ -53,12 +52,12 @@ static inline token next(const file& file, lexing_state& lex) {
     } if (state == type::string) printf("n3zqx2l: %s:%ld:%ld: error: unterminated string\n", file.name, lex.line, lex.column);
     return { type::none, "", lex.line, lex.column };
 }
-static inline expression parse(const file& file, lexing_state& state, long d);
-static inline symbol parse_symbol(const file& file, lexing_state& state, long d) {
+static inline expression parse(lexing_state& state, const file& file);
+static inline symbol parse_symbol(lexing_state& state, const file& file) {
     auto saved = state;
     auto open = next(file, state);
     if (is_open_paren(open)) {
-        if (auto e = parse(file, state, d+2); not e.error) {
+        if (auto e = parse(state, file); not e.error) {
             auto close = next(file, state);
             if (is_close_paren(close)) return {type::subexpr, e};
             else { state = saved; printf("n3zqx2l: %s:%ld:%ld: expected \")\"\n", file.name, close.line, close.column); return {type::subexpr, e, {}, true};}
@@ -69,14 +68,14 @@ static inline symbol parse_symbol(const file& file, lexing_state& state, long d)
     if (t.type == type::id or (t.type == type::op and not is_open_paren(t) and not is_close_paren(t))) return {type::id, {}, t};
     else { state = saved; return {type::none, {}, {}, true}; }
 }
-static inline expression parse(const file& file, lexing_state& state, long d) {
+static inline expression parse(lexing_state& state, const file& file) {
     std::vector<symbol> symbols = {};
     auto saved = state; auto start = next(file, state); state = saved;
-    auto symbol = parse_symbol(file, state,d+1);
+    auto symbol = parse_symbol(state, file);
     while (not symbol.error ) {
         symbols.push_back(symbol);
         saved = state;
-        symbol = parse_symbol(file, state, d+2);
+        symbol = parse_symbol(state, file);
     } state = saved;
     if (symbol.type == type::subexpr) return {{}, 0, {}, true};
     expression result = {symbols};
@@ -131,9 +130,9 @@ static inline std::string expression_to_string(const expression& given, symbol_t
     } else if (given.type) result += " " + expression_to_string(stack.master[given.type].signature, stack); return result;
 }
 
-static inline resolved_expression resolve(const expression& given, long given_type, llvm::Function*& function, long& index, long depth, long max_depth, program& data, symbol_table& stack, long gd);
+static inline resolved_expression resolve_at(const expression& given, long given_type, long& index, long depth, long max_depth, symbol_table& stack, const file& file);
 
-static inline bool matches(const expression& given, const expression& signature, long given_type, std::vector<resolved_expression>& args, llvm::Function*& function, long& index, long depth, long max_depth, program& data, symbol_table stack, long gd) {
+static inline bool matches(const expression& given, const expression& signature, long given_type, std::vector<resolved_expression>& args, long& index, long depth, long max_depth, symbol_table& stack, const file& file) {
     
 //    prep(depth + gd); std::cout << "calling matches(" << expression_to_string(given, stack) << "," << expression_to_string(signature, stack) << ") ...\n";
     if (given_type != signature.type and given_type != 3) {
@@ -145,7 +144,7 @@ static inline bool matches(const expression& given, const expression& signature,
             return false;
         }
         if (symbol.type == type::subexpr) {
-            auto argument = resolve(given, symbol.subexpression.type, function, index, depth + 1, max_depth, data, stack, gd);
+            auto argument = resolve_at(given, symbol.subexpression.type, index, depth + 1, max_depth, stack, file);
             
             if (argument.error) {
 //                prep(depth + gd + 1); std::cout << "   ----> false(2)!\n";
@@ -161,9 +160,9 @@ static inline bool matches(const expression& given, const expression& signature,
     return true;
 }
 
-static inline resolved_expression resolve_expression(const expression& given, long given_type, llvm::Function*& function, program& data, symbol_table stack, long gd);
+static inline resolved_expression resolve_expression(const expression& given, long given_type, symbol_table& stack, const file& file);
 
-static inline resolved_expression resolve(const expression& given, long given_type, llvm::Function*& function, long& index, long depth, long max_depth, program& data, symbol_table& stack, long gd) {
+static inline resolved_expression resolve_at(const expression& given, long given_type, long& index, long depth, long max_depth, symbol_table& stack, const file& file) {
 //    prep(depth + gd); std::cout << "calling resolve()\n";
     if (not given_type or depth > max_depth) { if (not given_type) abort(); return {0, {}, true}; }
     
@@ -179,11 +178,11 @@ static inline resolved_expression resolve(const expression& given, long given_ty
         index = saved;
         std::vector<resolved_expression> args = {};
 //        prep(depth + gd + 1); std::cout << "[resolve]: trying to match: " << expression_to_string(stack.get(s), stack) << "\n\n";
-        if (matches(given, stack.get(s), given_type, args, function, index, depth, max_depth, data, stack, gd)) return {s, args};
+        if (matches(given, stack.get(s), given_type, args, index, depth, max_depth, stack, file)) return {s, args};
     }
     if (index < (long) given.symbols.size() and given.symbols[index].type == type::subexpr) {
 //        prep(depth + gd + 1); std::cout << "[resolve]: found subexpression...\n";
-        auto resolved = resolve_expression(given.symbols[index].subexpression, given_type, function, data, stack, gd + 2);
+        auto resolved = resolve_expression(given.symbols[index].subexpression, given_type, stack, file);
         index++;
         return resolved;
     }
@@ -191,23 +190,26 @@ static inline resolved_expression resolve(const expression& given, long given_ty
     return {0, {}, true};
 }
 
-static inline resolved_expression resolve_expression(const expression& given, long given_type, llvm::Function*& function, program& data, symbol_table stack, long gd) {
-//    prep(gd); std::cout << "calling resolve expression()\n";
+static inline resolved_expression resolve_expression(const expression& given, long given_type, symbol_table& stack, const file& file) {
     resolved_expression solution {};
     long pointer = 0;
     for (long max_depth = 0; max_depth <= max_expression_depth; max_depth++) {
         pointer = 0;
-//        prep(gd + 1); std::cout << "------ trying depth = " << max_depth << " --------------\n";
-        solution = resolve(given, given_type, function, pointer, 0, max_depth, data, stack, gd + 1);
+        solution = resolve_at(given, given_type, pointer, 0, max_depth, stack, file);
         if (not solution.error and pointer == (long) given.symbols.size()) break;
     }
     if (pointer < (long) given.symbols.size()) solution.error = true;
     if (solution.error) {
         const auto t = pointer < (long) given.symbols.size() ? given.symbols[pointer].literal : given.start;
-        printf("n3zqx2l: %s:%ld:%ld: error: unresolved %s @ %ld : %s ~ %s\n", data.file.name, t.line, t.column, expression_to_string(given, stack, pointer, pointer + 1).c_str(), pointer, expression_to_string(given, stack).c_str(), resolved_expression_to_string(solution, stack).c_str());
+        printf("n3zqx2l: %s:%ld:%ld: error: unresolved %s @ %ld : %s ~ %s\n", file.name, t.line, t.column, expression_to_string(given, stack, pointer, pointer + 1).c_str(), pointer, expression_to_string(given, stack).c_str(), resolved_expression_to_string(solution, stack).c_str());
     }
     return solution;
 }
+
+
+
+
+
 
 static inline void debug(symbol_table stack, bool show_llvm) {
       std::cout << "\n\n---- debugging stack: ----\n";
@@ -326,7 +328,7 @@ static inline void print_resolved_expr(resolved_expression expr, long depth, sym
 }
 
 
-static inline resolved_expression resolve_file(const expression& given, const file& file) {
+static inline resolved_expression resolve(const expression& given, const file& file) {
     if (given.error) return {0, {}, true};
     
     symbol_table stack;
@@ -339,7 +341,7 @@ static inline resolved_expression resolve_file(const expression& given, const fi
     stack.define({{{symbol {type::id, {}, {type::id, "_define"} }, symbol {type::subexpr, {{}, 4}, {}}, symbol {type::subexpr, {{}, 3}, {}}}, 1}}); // debug
     
     
-    auto resolved = resolve_expression(given, 1, main, data, stack, 0); // what does this function call really need?
+    auto resolved = resolve_expression(given, 1, stack, file); // what does this function call really need?
     
     printf("\n\n\n");
     print_resolved_expr(resolved, 0, stack);
@@ -351,47 +353,43 @@ static inline resolved_expression resolve_file(const expression& given, const fi
 }
 
 
-static inline std::unique_ptr<llvm::Module> generate(const expression& given, const file& file, llvm::LLVMContext& context) {
+static inline std::unique_ptr<llvm::Module> generate(const resolved_expression& given, const file& file, llvm::LLVMContext& context) {
     if (given.error) return nullptr;
     auto module = llvm::make_unique<llvm::Module>(file.name, context);
     module->setTargetTriple(llvm::sys::getDefaultTargetTriple()); std::string lookup_error = "";
     auto target_machine = llvm::TargetRegistry::lookupTarget(module->getTargetTriple(), lookup_error)->createTargetMachine(module->getTargetTriple(), "generic", "", {}, {}, {});
     module->setDataLayout(target_machine->createDataLayout());
     llvm::IRBuilder<> builder(context);
-    program data {file, module.get(), builder}; symbol_table stack;
-    stack.define({{{symbol {type::id, {}, {type::id, "_"} } }, 0}}); // THE SEED: its neccessary: its the type of a program.
-    stack.define({{{symbol {type::id, {}, {type::id, "_0"} } }, 1}}); // debug
-    stack.define({{{symbol {type::id, {}, {type::id, "_1"} } }, 1}}); // debug
-    stack.define({{{symbol {type::id, {}, {type::id, "_2"} } }, 1}}); // debug
-    stack.define({{{symbol {type::id, {}, {type::id, "_id"} }, symbol {type::subexpr, {{}, 4}, {}}}, 1}}); // debug
-    stack.define({{{symbol {type::id, {}, {type::id, "_eval"} }, symbol {type::subexpr, {{}, 3}, {}}}, 1}}); // debug
-    stack.define({{{symbol {type::id, {}, {type::id, "_define"} }, symbol {type::subexpr, {{}, 4}, {}}, symbol {type::subexpr, {{}, 3}, {}}}, 1}}); // debug
     
     auto main = llvm::Function::Create(llvm::FunctionType::get(llvm::Type::getInt32Ty(context), {llvm::Type::getInt32Ty(context), llvm::Type::getInt8PtrTy(context)->getPointerTo()}, false), llvm::Function::ExternalLinkage, "main", module.get());
     builder.SetInsertPoint(llvm::BasicBlock::Create(context, "entry", main));
-    auto resolved = resolve_expression(given, 1, main, data, stack, 0); // what does this function call really need?
+    
+    
+    /// generate code for resolved expressions here.
+    
+    
+    
+//    auto resolved = resolve_expression(given, 1, main, data, stack, 0); // what does this function call really need?
     builder.SetInsertPoint(&main->getBasicBlockList().back());
     builder.CreateRet(llvm::ConstantInt::get(llvm::Type::getInt32Ty(context), 0));
-    
-    printf("\n\n\n");
-    print_resolved_expr(resolved, 0, stack);
-    printf("\n\n\n");
-    debug(stack);
+        
     printf("\n\n\n");
     std::cout << "generating code....:\n";
     module->print(llvm::outs(), nullptr);
 
     std::string errors = "";
     if (llvm::verifyModule(*module, &(llvm::raw_string_ostream(errors) << ""))) { printf("llvm: %s: error: %s\n", file.name, errors.c_str()); return nullptr; }
-    else if (resolved.error) return nullptr;
+//    else if (resolved.error) return nullptr;
     return module;
 }
 
 static inline arguments get_arguments(const int argc, const char** argv) {
-    arguments args = {};
+    arguments args = {}; bool use_exec_args = false;
     for (long i = 1; i < argc; i++) {
         const auto word = std::string(argv[i]);
-        if (word == "-u") { printf("usage: n -[uvrscod/-] <.n/.ll/.o/.s>\n"); exit(0); }
+        if (use_exec_args) { args.argv_for_exec.push_back(word); continue; }
+        if (word == "--") use_exec_args = true;
+        else if (word == "-u") { printf("usage: n -[uvrscod!-] <.n/.ll/.o/.s>\n"); exit(0); }
         else if (word == "-v") { printf("n3zqx2l: 0.0.3 \tn: 0.0.3\n"); exit(0); }
         else if (word == "-r" and i + 1 < argc) { args.output = output_type::llvm; args.name = argv[++i]; }
         else if (word == "-s" and i + 1 < argc) { args.output = output_type::assembly; args.name = argv[++i]; }
@@ -399,24 +397,20 @@ static inline arguments get_arguments(const int argc, const char** argv) {
         else if (word == "-o" and i + 1 < argc) { args.output = output_type::exec; args.name = argv[++i]; }
         else if (word == "-nothing" and i + 1 < argc) { args.output = output_type::nothing; }
         else if (word == "-d" and i + 1 < argc) { auto n = atoi(argv[++i]); max_expression_depth = n ? n : 4; }
-        else if (word == "-!") { break; /*the linker argumnets start here.*/ }
-        else if (word == "--") { break; /*the interpreter argumnets start here.*/ }
+        else if (word == "-!") { abort(); /*the linker argumnets start here.*/ }
         else if (word[0] == '-') { printf("n: error: bad option: %s\n", argv[i]); exit(1); }
         else {
-            const char* ext = strrchr(argv[i], '.');
-            std::string extension = ext ? ext + 1 : "";
-            
+            const char* ext = strrchr(argv[i], '.'); std::string extension = ext ? ext + 1 : "";
             if (extension == "n") {
                 std::ifstream stream {argv[i]};
                 if (stream.good()) {
                     std::string text {std::istreambuf_iterator<char>(stream), std::istreambuf_iterator<char>()};
-                    stream.close();
-                    args.files.push_back({argv[i], text});
+                    stream.close(); args.files.push_back({argv[i], text});
                 } else { printf("n: error: unable to open \"%s\": %s\n", argv[i], strerror(errno)); exit(1); }
             } else if (extension == "ll") {
                 args.files.push_back({argv[i], ""});
             } else {
-                printf("n: error: received file with unknown file type. aborting...\n");
+                printf("n: error: cannot process file \"%s\" with extension \"%s\"", argv[i], extension.c_str());
                 abort();
             }
         }
@@ -427,38 +421,22 @@ static inline std::vector<std::unique_ptr<llvm::Module>> frontend(const argument
     llvm::InitializeAllTargetInfos(); llvm::InitializeAllTargets(); llvm::InitializeAllTargetMCs(); llvm::InitializeAllAsmParsers(); llvm::InitializeAllAsmPrinters();
     std::vector<std::unique_ptr<llvm::Module>> modules = {};
     for (auto file : arguments.files) {
-                          
-        const char* ext = strrchr(file.name, '.');
-        std::string extension = ext ? ext + 1 : "";
-        
+        const char* ext = strrchr(file.name, '.'); std::string extension = ext ? ext + 1 : "";
         if (extension == "n") {
             lexing_state state {0, type::none, 1, 1};
-            auto saved = state; // debug
-            debug_token_stream(file);  // debug
-            print_expression(parse(file, state, 0), 1);  // debug
-            state = saved;  // debug
-            modules.push_back(resolve_file(parse(file, state, 0), file, context));
-            
+            modules.push_back(generate(resolve(parse(state, file), file), file, context));
         } else if (extension == "ll") {
             llvm::SMDiagnostic errors;
             auto module = llvm::parseAssemblyFile(file.name, errors, context);
-            if (module == nullptr) {
-                errors.print((std::string("llvm: ") + std::string(file.name)).c_str(), llvm::errs());
-                abort();
-            }
-            
-            module->setTargetTriple(llvm::sys::getDefaultTargetTriple()); std::string lookup_error = "";
-            auto target_machine = llvm::TargetRegistry::lookupTarget(module->getTargetTriple(), lookup_error)->createTargetMachine(module->getTargetTriple(), "generic", "", {}, {}, {});
-            module->setDataLayout(target_machine->createDataLayout());                        
-            
-            std::cout << "received ll file. parsing as string into its own module. here it is: \n";
-            module->print(llvm::outs(), nullptr);
-        
+            if (module) {
+                module->setTargetTriple(llvm::sys::getDefaultTargetTriple()); std::string lookup_error = "";
+                auto target_machine = llvm::TargetRegistry::lookupTarget(module->getTargetTriple(), lookup_error)->createTargetMachine(module->getTargetTriple(), "generic", "", {}, {}, {});
+                module->setDataLayout(target_machine->createDataLayout());
+                printf("received ll file: \n");
+                module->print(llvm::outs(), nullptr); // debug
+            } else errors.print((std::string("llvm: ") + std::string(file.name)).c_str(), llvm::errs());
             modules.push_back(std::move(module));
-        } else {
-            printf("n: error: file \"%s\" with extension \"%s\"", file.name, extension.c_str());
-            abort();
-        }
+        } else abort();
     }
     if (std::find_if(modules.begin(), modules.end(), [](auto& module) { return not module; }) != modules.end()) exit(1);
     return modules;
@@ -468,9 +446,10 @@ static inline std::unique_ptr<llvm::Module> link(std::vector<std::unique_ptr<llv
     for (auto& module : modules) if (llvm::Linker::linkModules(*result, std::move(module))) exit(1);
     return result;
 }
-static inline void interpret(std::unique_ptr<llvm::Module> module, const arguments& arguments) {
-    auto jit = llvm::EngineBuilder(std::move(module)).setEngineKind(llvm::EngineKind::JIT).create(); jit->finalizeObject();
-    exit(jit->runFunctionAsMain(jit->FindFunctionNamed("main"), {arguments.name}, nullptr));
+static inline void interpret(std::unique_ptr<llvm::Module> module, arguments arguments) {
+    arguments.argv_for_exec.insert(arguments.argv_for_exec.begin(), arguments.name);
+    auto engine = llvm::EngineBuilder(std::move(module)).setEngineKind(llvm::EngineKind::JIT).create(); engine->finalizeObject();
+    exit(engine->runFunctionAsMain(engine->FindFunctionNamed("main"), arguments.argv_for_exec, nullptr));
 }
 static inline std::unique_ptr<llvm::Module> optimize(std::unique_ptr<llvm::Module>&& module) { return std::move(module); } ///TODO: write me.
 static inline void generate_ll_file(std::unique_ptr<llvm::Module> module, const arguments& arguments) {
