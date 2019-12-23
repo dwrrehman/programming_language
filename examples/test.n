@@ -1,1 +1,1 @@
-_3 hi there
+_define (hello) (_) _0
