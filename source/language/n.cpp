@@ -18,7 +18,7 @@ enum class output_type {nothing, run, llvm, assembly, object, exec};
 enum class type { none, id, string, op, subexpr};
 struct file { const char* name = ""; std::string text = ""; };
 struct arguments { std::vector<file> files = {}; enum output_type output = output_type::run; const char* name = ""; };
-struct program_data { file file; llvm::Module* module; llvm::IRBuilder<>& builder; };
+struct program { file file; llvm::Module* module; llvm::IRBuilder<>& builder; };
 struct lexing_state { long index = 0; type state = type::none; long line = 0; long column = 0; };
 struct token { type type = type::none; std::string value = ""; long line = 0; long column = 0; };
 struct symbol; struct expression { std::vector<symbol> symbols = {}; long type = 0; token start = {}; bool error = false; llvm::Type* llvm_type = nullptr; };
@@ -100,14 +100,11 @@ static inline void debug(struct symbol_table stack, bool show_llvm = false);
 static inline void print_expression(expression e, int d);
 
 static inline std::string expression_to_string(const expression& given, struct symbol_table& stack, long begin = 0, long end = -1);
-static inline expression parse_signature(std::string given, struct program_data& data, struct symbol_table& stack);
+static inline expression parse_signature(std::string given, struct program& data, struct symbol_table& stack);
 
-struct symbol_table {
+struct symbol_table { ///TODO: remove this data structure. we can just pass around the two members together, or put them in the program_data variable.
     std::vector<entry> master = {{}};
     std::vector<std::vector<long>> frames = {{0}};
-    program_data& data;
-    
-    symbol_table(program_data& data): data(data) {}
     void push() { frames.push_back({frames.back()}); }
     void pop() { for (auto i : top()) master.erase(master.begin() + i); frames.pop_back(); }
     std::vector<long>& top() { return frames.back(); }
@@ -115,14 +112,6 @@ struct symbol_table {
     long lookup(std::string key) { return std::distance(master.begin(), std::find_if(master.begin(), master.end(), [&](const entry& entry) { return key == expression_to_string(entry.signature, *this, 0);})); }
     bool contains(std::string key) { return lookup(key) < (long) master.size(); }
     void define(const entry& e) { top().push_back(master.size()); master.push_back(e); std::stable_sort(top().begin(), top().end(), [&](long a, long b) { return get(a).symbols.size() > get(b).symbols.size(); });}
-    
-    void update(llvm::ValueSymbolTable& llvm) {
-        for (auto& llvm_entry : llvm) {
-            const std::string& llvm_name = llvm_entry.getKey();
-            auto full_name = parse_signature(llvm_name, data, *this);
-            if (not contains(expression_to_string(full_name, *this))) define(entry {full_name, llvm_entry.getValue(), data.module->getFunction(llvm_name), data.module->getNamedGlobal(llvm_name), data.module->getTypeByName(llvm_name) });
-        }
-    }
 };
 
 static inline std::string resolved_expression_to_string(const resolved_expression& given, symbol_table& stack) {
@@ -153,7 +142,7 @@ static inline std::string expression_to_string(const expression& given, symbol_t
     } else if (given.type) result += " " + expression_to_string(stack.master[given.type].signature, stack); return result;
 }
 
-static expression convert_llvm_identifier(program_data &data, expression &e, symbol_table &stack) {
+static expression convert_llvm_identifier(program &data, expression &e, symbol_table &stack) {
     
     const std::string& name = e.symbols.front().literal.value;
     expression result = {{symbol{type::id, {}, {type::id, name}}}, 0, {}, false};
@@ -172,7 +161,7 @@ static expression convert_llvm_identifier(program_data &data, expression &e, sym
     }
 }
 
-static inline expression resolve_signature(expression e, program_data& data, symbol_table& stack) {
+static inline expression resolve_signature(expression e, program& data, symbol_table& stack) {
                 
     if (e.symbols.size() == 1 and e.symbols.front().type == type::id)
         return convert_llvm_identifier(data, e, stack);
@@ -214,15 +203,14 @@ static inline expression resolve_signature(expression e, program_data& data, sym
     return e.symbols.front().subexpression;
 }
 
-static inline expression parse_signature(std::string given, program_data& data, symbol_table& stack) {
+static inline expression parse_signature(std::string given, program& data, symbol_table& stack) {
     lexing_state state {0, type::none, 1, 1};
     return resolve_signature(parse({"", given}, state, 0), data, stack);
 }
 
+static inline resolved_expression resolve(const expression& given, long given_type, llvm::Function*& function, long& index, long depth, long max_depth, program& data, symbol_table& stack, long gd);
 
-static inline resolved_expression resolve(const expression& given, long given_type, llvm::Function*& function, long& index, long depth, long max_depth, program_data& data, symbol_table& stack, long gd);
-
-static inline bool matches(const expression& given, const expression& signature, long given_type, std::vector<resolved_expression>& args, llvm::Function*& function, long& index, long depth, long max_depth, program_data& data, symbol_table stack, long gd) {
+static inline bool matches(const expression& given, const expression& signature, long given_type, std::vector<resolved_expression>& args, llvm::Function*& function, long& index, long depth, long max_depth, program& data, symbol_table stack, long gd) {
     
 //    prep(depth + gd); std::cout << "calling matches(" << expression_to_string(given, stack.master) << "," << expression_to_string(signature, stack.master)<<") ...\n";
     if (given_type != signature.type) {
@@ -251,9 +239,9 @@ static inline bool matches(const expression& given, const expression& signature,
     return true;
 }
 
-static inline resolved_expression resolve_expression(const expression& given, long given_type, llvm::Function*& function, program_data& data, symbol_table stack, long gd);
+static inline resolved_expression resolve_expression(const expression& given, long given_type, llvm::Function*& function, program& data, symbol_table stack, long gd);
 
-static inline resolved_expression resolve(const expression& given, long given_type, llvm::Function*& function, long& index, long depth, long max_depth, program_data& data, symbol_table& stack, long gd) {
+static inline resolved_expression resolve(const expression& given, long given_type, llvm::Function*& function, long& index, long depth, long max_depth, program& data, symbol_table& stack, long gd) {
 //    prep(depth + gd); std::cout << "calling resolve()\n";
     if (not given_type or depth > max_depth) return {0, {}, true};
     
@@ -274,7 +262,7 @@ static inline resolved_expression resolve(const expression& given, long given_ty
     return {0, {}, true};
 }
 
-static inline resolved_expression resolve_expression(const expression& given, long given_type, llvm::Function*& function, program_data& data, symbol_table stack, long gd) {
+static inline resolved_expression resolve_expression(const expression& given, long given_type, llvm::Function*& function, program& data, symbol_table stack, long gd) {
 //    prep(gd); std::cout << "calling resolve expression()\n";
     resolved_expression solution {};
     long pointer = 0;
@@ -426,29 +414,27 @@ static inline void print_resolved_expr(resolved_expression expr, long depth, sym
 }
 
 
-static inline std::unique_ptr<llvm::Module> generate(expression program, const file& file, llvm::LLVMContext& context) {
-    if (program.error) return nullptr;
+static inline std::unique_ptr<llvm::Module> generate(const expression& given, const file& file, llvm::LLVMContext& context) {
+    if (given.error) return nullptr;
     auto module = llvm::make_unique<llvm::Module>(file.name, context);
     module->setTargetTriple(llvm::sys::getDefaultTargetTriple()); std::string lookup_error = "";
     auto target_machine = llvm::TargetRegistry::lookupTarget(module->getTargetTriple(), lookup_error)->createTargetMachine(module->getTargetTriple(), "generic", "", {}, {}, {});
     module->setDataLayout(target_machine->createDataLayout());
     llvm::IRBuilder<> builder(context);
-    program_data data {file, module.get(), builder};
-    symbol_table stack {data};
+    program data {file, module.get(), builder};
+    symbol_table stack;
+    stack.define({{{symbol {type::id, {}, {type::id, "_"} } }, 0}});
+    stack.define({{{symbol {type::id, {}, {type::id, "_0"} } }, 1}}); // debug
     auto main = llvm::Function::Create(llvm::FunctionType::get(llvm::Type::getInt32Ty(context), {llvm::Type::getInt32Ty(context), llvm::Type::getInt8PtrTy(context)->getPointerTo()}, false), llvm::Function::ExternalLinkage, "main", module.get());
     builder.SetInsertPoint(llvm::BasicBlock::Create(context, "entry", main));
-    stack.update(module->getValueSymbolTable());
-    auto resolved = resolve_expression(program, 1, main, data, stack, 0);
+    auto resolved = resolve_expression(given, 1, main, data, stack, 0);
     builder.SetInsertPoint(&main->getBasicBlockList().back());
     builder.CreateRet(llvm::ConstantInt::get(llvm::Type::getInt32Ty(context), 0));
     
     printf("\n\n\n");
     print_resolved_expr(resolved, 0, stack);
-    
     printf("\n\n\n");
-    stack.update(module->getValueSymbolTable());
     debug(stack);
-    
     printf("\n\n\n");
     std::cout << "generating code....:\n";
     module->print(llvm::outs(), nullptr);
@@ -528,18 +514,7 @@ static inline std::vector<std::unique_ptr<llvm::Module>> frontend(const argument
             
             std::cout << "received ll file. parsing as string into its own module. here it is: \n";
             module->print(llvm::outs(), nullptr);
-            
-            auto wef = module->getFunction("(void)");
-            if (wef) {
-                printf("found void!\n");
-                abort();
-            } else {
-                printf("didnt find void...\n");
-            }
-            
-            
-            
-            
+        
             modules.push_back(std::move(module));
         } else {
             printf("n: error: file \"%s\" with extension \"%s\"", file.name, extension.c_str());
