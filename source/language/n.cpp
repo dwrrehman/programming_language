@@ -84,6 +84,11 @@ static inline expression parse(const file& file, lexing_state& state, long d) {
     return result;
 }
 
+
+
+#define prep(x)   for (long i = 0; i < x; i++) std::cout << ".   "
+
+
 //static inline void print_llvm_table(const llvm::ValueSymbolTable& llvm_table) {
 //    std::cout << "-------------- printing new frame: ------------\n";
 //    for (auto& entry : llvm_table) {
@@ -212,63 +217,62 @@ static inline resolved_expression resolve(const expression& given, long given_ty
 
 static inline bool matches(const expression& given, const expression& signature, long given_type, std::vector<resolved_expression>& args, llvm::Function*& function, long& index, long depth, long max_depth, program& data, symbol_table stack, long gd) {
     
-//    prep(depth + gd); std::cout << "calling matches(" << expression_to_string(given, stack.master) << "," << expression_to_string(signature, stack.master)<<") ...\n";
+    prep(depth + gd); std::cout << "calling matches(" << expression_to_string(given, stack) << "," << expression_to_string(signature, stack) << ") ...\n";
     if (given_type != signature.type) {
-//        prep(depth + gd + 1); std::cout << "   ----> false(0)!\n";
+        prep(depth + gd + 1); std::cout << "   ----> false(0)!\n";
         return false; }
     for (auto symbol : signature.symbols) {
         if (index >= (long) given.symbols.size()) { // this line of code might be why we cant do empty signatures?
-//            prep(depth + gd + 1); std::cout << "   ----> false(1)!\n";
+            prep(depth + gd + 1); std::cout << "   ----> false(1)!\n";
             return false;
         }
         if (symbol.type == type::subexpr) {
             auto argument = resolve(given, symbol.subexpression.type, function, index, depth + 1, max_depth, data, stack, gd);
             
             if (argument.error) {
-//                prep(depth + gd + 1); std::cout << "   ----> false(2)!\n";
-                
+                prep(depth + gd + 1); std::cout << "   ----> false(2)!\n";
                 return false; }
             args.push_back({argument});
         } else if (not are_equal_identifiers(symbol, given.symbols[index])) {
-//            prep(depth + gd + 1); std::cout << "   ----> false(3)!\n";
+            prep(depth + gd + 1); std::cout << "   ----> false(3)!\n";
             return false;
         }
         else index++;
     }
-//    prep(depth + gd + 1); std::cout << "   ----> true!\n";
+    prep(depth + gd + 1); std::cout << "   ----> true!\n";
     return true;
 }
 
 static inline resolved_expression resolve_expression(const expression& given, long given_type, llvm::Function*& function, program& data, symbol_table stack, long gd);
 
 static inline resolved_expression resolve(const expression& given, long given_type, llvm::Function*& function, long& index, long depth, long max_depth, program& data, symbol_table& stack, long gd) {
-//    prep(depth + gd); std::cout << "calling resolve()\n";
+    prep(depth + gd); std::cout << "calling resolve()\n";
     if (not given_type or depth > max_depth) return {0, {}, true};
     
     long saved = index;
     for (auto s : stack.top()) {
         index = saved;
         std::vector<resolved_expression> args = {};
-//        prep(depth + gd + 1); std::cout << "[resolve]: trying to match: " << expression_to_string(stack.get(s), stack.master) << "\n\n";
+        prep(depth + gd + 1); std::cout << "[resolve]: trying to match: " << expression_to_string(stack.get(s), stack) << "\n\n";
         if (matches(given, stack.get(s), given_type, args, function, index, depth, max_depth, data, stack, gd)) return {s, args};
     }
     if (index < (long) given.symbols.size() and given.symbols[index].type == type::subexpr) {
-//        prep(depth + gd + 1); std::cout << "[resolve]: found subexpression...\n";
+        prep(depth + gd + 1); std::cout << "[resolve]: found subexpression...\n";
         auto resolved = resolve_expression(given.symbols[index].subexpression, given_type, function, data, stack, gd + 2);
         index++;
         return resolved;
     }
-//    prep(depth + gd + 1); std::cout << "[resolve]: failing, ran out of signatures...\n";
+    prep(depth + gd + 1); std::cout << "[resolve]: failing, ran out of signatures...\n";
     return {0, {}, true};
 }
 
 static inline resolved_expression resolve_expression(const expression& given, long given_type, llvm::Function*& function, program& data, symbol_table stack, long gd) {
-//    prep(gd); std::cout << "calling resolve expression()\n";
+    prep(gd); std::cout << "calling resolve expression()\n";
     resolved_expression solution {};
     long pointer = 0;
     for (long max_depth = 0; max_depth <= max_expression_depth; max_depth++) {
         pointer = 0;
-//        prep(gd + 1); std::cout << "------ trying depth = " << max_depth << " --------------\n";
+        prep(gd + 1); std::cout << "------ trying depth = " << max_depth << " --------------\n";
         solution = resolve(given, given_type, function, pointer, 0, max_depth, data, stack, gd + 1);
         if (not solution.error and pointer == (long) given.symbols.size()) break;
     }
@@ -322,8 +326,6 @@ static inline void debug(symbol_table stack, bool show_llvm) {
           j++;
       } std::cout << "}\n";
   }
-
-#define prep(x)   for (long i = 0; i < x; i++) std::cout << ".   "
 
 
 static inline const char* convert_token_type_representation(enum type type) {
@@ -413,7 +415,6 @@ static inline void print_resolved_expr(resolved_expression expr, long depth, sym
     }
 }
 
-
 static inline std::unique_ptr<llvm::Module> generate(const expression& given, const file& file, llvm::LLVMContext& context) {
     if (given.error) return nullptr;
     auto module = llvm::make_unique<llvm::Module>(file.name, context);
@@ -423,8 +424,13 @@ static inline std::unique_ptr<llvm::Module> generate(const expression& given, co
     llvm::IRBuilder<> builder(context);
     program data {file, module.get(), builder};
     symbol_table stack;
-    stack.define({{{symbol {type::id, {}, {type::id, "_"} } }, 0}});
+    stack.define({{{symbol {type::id, {}, {type::id, "_"} } }, 0}}); // THE SEED: its neccessary: its the type of a program.
+        
     stack.define({{{symbol {type::id, {}, {type::id, "_0"} } }, 1}}); // debug
+    stack.define({{{symbol {type::id, {}, {type::id, "_1"} } }, 1}}); // debug
+    stack.define({{{symbol {type::id, {}, {type::id, "_2"} } }, 1}}); // debug
+    stack.define({{{symbol {type::id, {}, {type::id, "_3"} }, symbol {type::subexpr, {{}, 4}, {}}}, 1}}); // debug
+    
     auto main = llvm::Function::Create(llvm::FunctionType::get(llvm::Type::getInt32Ty(context), {llvm::Type::getInt32Ty(context), llvm::Type::getInt8PtrTy(context)->getPointerTo()}, false), llvm::Function::ExternalLinkage, "main", module.get());
     builder.SetInsertPoint(llvm::BasicBlock::Create(context, "entry", main));
     auto resolved = resolve_expression(given, 1, main, data, stack, 0);
@@ -502,7 +508,6 @@ static inline std::vector<std::unique_ptr<llvm::Module>> frontend(const argument
         } else if (extension == "ll") {
             llvm::SMDiagnostic errors;
             auto module = llvm::parseAssemblyFile(file.name, errors, context);
-            
             if (module == nullptr) {
                 errors.print((std::string("llvm: ") + std::string(file.name)).c_str(), llvm::errs());
                 abort();
