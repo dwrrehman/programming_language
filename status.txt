@@ -3,24 +3,16 @@ the current status of the nostril compiler:
 
 
 
-
-
 CURRENT TASK DETAILS:
 =======================
 
-	debug expression to string, 
-	
-	and the intiialization of the core.ll constructs into the symbol table.
-
-
-
-		tehres a bug, where we get a stack overflow in etos.
-
-	    
+    make fdi work with multiple _2 paraemters.
+    
+    then start the work of trying to get _1 paraemters working. (then things get interesting!)
     
     
     
-    
+
 
 
 
@@ -33,7 +25,7 @@ THE TODO LIST:
 
 - make llvms void passable and initiable like the real unit type.      [must be done in codegen phase]
 - get fdi functionality fully working, using _b                
-- add _0 functionality to csr.                             
+- add _0 functionality to csr.
 - add lazy code generation using _a                                  
 - figure out how to make _define provide _expose functionality
 
@@ -52,12 +44,15 @@ THE TODO LIST:
 - add codegen and support for text strings in csr and llvm.            [secondary]
 - figure out how we are going to do multiple files, and our module system.    [secondary]
 
+
+
+
 ============ DONE: ===========
 
 x: - write the string to expression function.;
 x: - get csr working with subexpressions properly.;
 x: - make llvm strings nestable.;
-x: - possibly get rid ll stirngs. ; --> NO.
+x: - possibly get rid ll stirngs. ;
 x: - add assembly output functioality,;
 x: - figure out how to remove the symbol table data structure.;
 x: - redo how we are handling lexing, ;
