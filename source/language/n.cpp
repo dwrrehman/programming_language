@@ -145,16 +145,7 @@ struct symbol_table {
     void define(const entry& e) { top().push_back(master.size()); master.push_back(e); std::stable_sort(top().begin(), top().end(), [&](long a, long b) { return get(a).symbols.size() > get(b).symbols.size(); });}
     
     symbol_table(program_data& data, llvm::ValueSymbolTable& llvm): data(data) {
-        
-        
-        ///TODO: redo the idea of how we are doing llvm strings.
-        
-        /// maybe they are all concatted, and put at the top of the file?
-        /// that could work....
-        
-        
-        
-        
+            
         std::string base =
         "%\"(_)\" = type opaque\n"
         "%\"(_0) (_)\" = type opaque\n"
@@ -567,15 +558,14 @@ static inline std::unique_ptr<llvm::Module> generate(expression program, const f
     module->print(llvm::outs(), nullptr);
 
     
-        printf("printing the types we have so far...\n");
-        for (auto wef : module->getIdentifiedStructTypes()) {
-            printf("printitn type: ");
-            wef->print(llvm::outs());
-            printf("\n");
-        }
-        
-    
-    
+//        printf("printing the types we have so far...\n");
+//        for (auto wef : module->getIdentifiedStructTypes()) {
+//            printf("printitn type: ");
+//            wef->print(llvm::outs());
+//            printf("\n");
+//        }
+//
+
     std::string errors = "";
     if (llvm::verifyModule(*module, &(llvm::raw_string_ostream(errors) << ""))) { printf("llvm: %s: error: %s\n", file.name, errors.c_str()); return nullptr; }
     else if (resolved.error) return nullptr;
