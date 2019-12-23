@@ -325,6 +325,32 @@ static inline void print_resolved_expr(resolved_expression expr, long depth, sym
     }
 }
 
+
+static inline resolved_expression resolve_file(const expression& given, const file& file) {
+    if (given.error) return {0, {}, true};
+    
+    symbol_table stack;
+    stack.define({{{symbol {type::id, {}, {type::id, "_"} } }, 0}}); // THE SEED: its neccessary: its the type of a program.
+    stack.define({{{symbol {type::id, {}, {type::id, "_0"} } }, 1}}); // debug
+    stack.define({{{symbol {type::id, {}, {type::id, "_1"} } }, 1}}); // debug
+    stack.define({{{symbol {type::id, {}, {type::id, "_2"} } }, 1}}); // debug
+    stack.define({{{symbol {type::id, {}, {type::id, "_id"} }, symbol {type::subexpr, {{}, 4}, {}}}, 1}}); // debug
+    stack.define({{{symbol {type::id, {}, {type::id, "_eval"} }, symbol {type::subexpr, {{}, 3}, {}}}, 1}}); // debug
+    stack.define({{{symbol {type::id, {}, {type::id, "_define"} }, symbol {type::subexpr, {{}, 4}, {}}, symbol {type::subexpr, {{}, 3}, {}}}, 1}}); // debug
+    
+    
+    auto resolved = resolve_expression(given, 1, main, data, stack, 0); // what does this function call really need?
+    
+    printf("\n\n\n");
+    print_resolved_expr(resolved, 0, stack);
+    printf("\n\n\n");
+    debug(stack);
+    printf("\n\n\n");
+        
+    return resolved;
+}
+
+
 static inline std::unique_ptr<llvm::Module> generate(const expression& given, const file& file, llvm::LLVMContext& context) {
     if (given.error) return nullptr;
     auto module = llvm::make_unique<llvm::Module>(file.name, context);
@@ -343,7 +369,7 @@ static inline std::unique_ptr<llvm::Module> generate(const expression& given, co
     
     auto main = llvm::Function::Create(llvm::FunctionType::get(llvm::Type::getInt32Ty(context), {llvm::Type::getInt32Ty(context), llvm::Type::getInt8PtrTy(context)->getPointerTo()}, false), llvm::Function::ExternalLinkage, "main", module.get());
     builder.SetInsertPoint(llvm::BasicBlock::Create(context, "entry", main));
-    auto resolved = resolve_expression(given, 1, main, data, stack, 0);
+    auto resolved = resolve_expression(given, 1, main, data, stack, 0); // what does this function call really need?
     builder.SetInsertPoint(&main->getBasicBlockList().back());
     builder.CreateRet(llvm::ConstantInt::get(llvm::Type::getInt32Ty(context), 0));
     
@@ -411,7 +437,7 @@ static inline std::vector<std::unique_ptr<llvm::Module>> frontend(const argument
             debug_token_stream(file);  // debug
             print_expression(parse(file, state, 0), 1);  // debug
             state = saved;  // debug
-            modules.push_back(generate(parse(file, state, 0), file, context));
+            modules.push_back(resolve_file(parse(file, state, 0), file, context));
             
         } else if (extension == "ll") {
             llvm::SMDiagnostic errors;
