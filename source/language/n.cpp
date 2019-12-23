@@ -23,7 +23,7 @@ struct lexing_state { long index = 0; type state = type::none; long line = 0; lo
 struct token { type type = type::none; std::string value = ""; long line = 0; long column = 0; };
 struct symbol; struct expression { std::vector<symbol> symbols = {}; long type = 0; token start = {}; bool error = false; llvm::Type* llvm_type = nullptr; };
 struct symbol { type type = type::none; expression subexpression = {}; token literal = {}; bool error = false; };
-struct resolved_expression { long index = 0; std::vector<resolved_expression> args = {}; bool error = false; llvm::Type* llvm_type = nullptr; expression fdi_signature = {}; };
+struct resolved_expression { long index = 0; std::vector<resolved_expression> args = {}; bool error = false; llvm::Type* llvm_type = nullptr; expression expr = {}; };
 struct entry { expression signature = {}; llvm::Value* value = nullptr; llvm::Function* function = nullptr; llvm::GlobalVariable* global_variable = nullptr; llvm::Type* llvm_type = nullptr; };
 static inline bool is_identifier(char c) { return isalnum(c) or c == '_'; }
 static inline bool is_close_paren(const token& t) { return t.type == type::op and t.value == ")"; }
@@ -135,81 +135,69 @@ static inline resolved_expression resolve(const expression& given, long given_ty
 
 static inline bool matches(const expression& given, const expression& signature, long given_type, std::vector<resolved_expression>& args, llvm::Function*& function, long& index, long depth, long max_depth, program& data, symbol_table stack, long gd) {
     
-    prep(depth + gd); std::cout << "calling matches(" << expression_to_string(given, stack) << "," << expression_to_string(signature, stack) << ") ...\n";
-    if (given_type != signature.type) {
-        prep(depth + gd + 1); std::cout << "   ----> false(0)!\n";
+//    prep(depth + gd); std::cout << "calling matches(" << expression_to_string(given, stack) << "," << expression_to_string(signature, stack) << ") ...\n";
+    if (given_type != signature.type and given_type != 3) {
+//        prep(depth + gd + 1); std::cout << "   ----> false(0)!\n";
         return false; }
     for (auto symbol : signature.symbols) {
         if (index >= (long) given.symbols.size()) { // this line of code might be why we cant do empty signatures?
-            prep(depth + gd + 1); std::cout << "   ----> false(1)!\n";
+//            prep(depth + gd + 1); std::cout << "   ----> false(1)!\n";
             return false;
         }
         if (symbol.type == type::subexpr) {
             auto argument = resolve(given, symbol.subexpression.type, function, index, depth + 1, max_depth, data, stack, gd);
             
             if (argument.error) {
-                prep(depth + gd + 1); std::cout << "   ----> false(2)!\n";
+//                prep(depth + gd + 1); std::cout << "   ----> false(2)!\n";
                 return false; }
             args.push_back({argument});
         } else if (not are_equal_identifiers(symbol, given.symbols[index])) {
-            prep(depth + gd + 1); std::cout << "   ----> false(3)!\n";
+//            prep(depth + gd + 1); std::cout << "   ----> false(3)!\n";
             return false;
         }
         else index++;
     }
-    prep(depth + gd + 1); std::cout << "   ----> true!\n";
+//    prep(depth + gd + 1); std::cout << "   ----> true!\n";
     return true;
 }
 
 static inline resolved_expression resolve_expression(const expression& given, long given_type, llvm::Function*& function, program& data, symbol_table stack, long gd);
 
-static inline resolved_expression construct_signature(const expression& given, long& index) {
-    resolved_expression result = {0};
-//    result.fdi_signature = {std::vector<symbol>(given.symbols.begin() + index, given.symbols.begin() + index + fdi_length)};
-//    index += fdi_length;
-    return result;
-}
-
 static inline resolved_expression resolve(const expression& given, long given_type, llvm::Function*& function, long& index, long depth, long max_depth, program& data, symbol_table& stack, long gd) {
-    prep(depth + gd); std::cout << "calling resolve()\n";
-    if (not given_type or depth > max_depth) return {0, {}, true};
+//    prep(depth + gd); std::cout << "calling resolve()\n";
+    if (not given_type or depth > max_depth) { if (not given_type) abort(); return {0, {}, true}; }
     
     if (given_type == 4) { // given_type == "_2";        // temp
-        printf("found a abstraction type!!\n");
-//        abort();
-        return construct_signature(given, index);
-    } else if (given_type == 3) {
-        printf("found an APPLICATIO?N type: \n");
-                
-        /// what do we do here?.... what is the semantics of "_1"?... we should know this.
-        
-//        abort();
+        if (index < (long) given.symbols.size()) {
+            if (given.symbols[index].type == type::id or given.symbols[index].type == type::string) return {4, {}, false, nullptr, expression {{given.symbols[index++]}, 4}};
+            else if (given.symbols[index].type == type::subexpr) return {4, {}, false, nullptr, given.symbols[index++].subexpression};
+        } else abort();
     }
-        
+
     long saved = index;
     for (auto s : stack.top()) {
         index = saved;
         std::vector<resolved_expression> args = {};
-        prep(depth + gd + 1); std::cout << "[resolve]: trying to match: " << expression_to_string(stack.get(s), stack) << "\n\n";
+//        prep(depth + gd + 1); std::cout << "[resolve]: trying to match: " << expression_to_string(stack.get(s), stack) << "\n\n";
         if (matches(given, stack.get(s), given_type, args, function, index, depth, max_depth, data, stack, gd)) return {s, args};
     }
     if (index < (long) given.symbols.size() and given.symbols[index].type == type::subexpr) {
-        prep(depth + gd + 1); std::cout << "[resolve]: found subexpression...\n";
+//        prep(depth + gd + 1); std::cout << "[resolve]: found subexpression...\n";
         auto resolved = resolve_expression(given.symbols[index].subexpression, given_type, function, data, stack, gd + 2);
         index++;
         return resolved;
     }
-    prep(depth + gd + 1); std::cout << "[resolve]: failing, ran out of signatures...\n";
+//    prep(depth + gd + 1); std::cout << "[resolve]: failing, ran out of signatures...\n";
     return {0, {}, true};
 }
 
 static inline resolved_expression resolve_expression(const expression& given, long given_type, llvm::Function*& function, program& data, symbol_table stack, long gd) {
-    prep(gd); std::cout << "calling resolve expression()\n";
+//    prep(gd); std::cout << "calling resolve expression()\n";
     resolved_expression solution {};
     long pointer = 0;
     for (long max_depth = 0; max_depth <= max_expression_depth; max_depth++) {
         pointer = 0;
-        prep(gd + 1); std::cout << "------ trying depth = " << max_depth << " --------------\n";
+//        prep(gd + 1); std::cout << "------ trying depth = " << max_depth << " --------------\n";
         solution = resolve(given, given_type, function, pointer, 0, max_depth, data, stack, gd + 1);
         if (not solution.error and pointer == (long) given.symbols.size()) break;
     }
@@ -327,7 +315,7 @@ static inline void print_resolved_expr(resolved_expression expr, long depth, sym
     prep(depth); std::cout << "index = " << expr.index << " :: " << expression_to_string(stack.get(expr.index), stack, 0);
     std::cout << "\n";
     
-    if (expr.fdi_signature.symbols.size()) { prep(depth); std::cout << "new signature = \n"; print_expression(expr.fdi_signature, depth + 1); std::cout << "\n"; }
+    if (expr.expr.symbols.size()) { prep(depth); std::cout << "new signature = \n"; print_expression(expr.expr, depth + 1); std::cout << "\n"; }
     
     long i = 0;
     for (auto arg : expr.args) {

@@ -1,4 +1,4 @@
-%"(_)" = type opaque ; compiler defined.
+%"(_)" = type opaque      ; compiler defined.
 
 %"(_0) (_)" = type {}
 %"(_1) (_)" = type {}
