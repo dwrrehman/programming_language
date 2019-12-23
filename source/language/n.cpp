@@ -23,7 +23,7 @@ struct lexing_state { long index = 0; type state = type::none; long line = 0; lo
 struct token { type type = type::none; std::string value = ""; long line = 0; long column = 0; };
 struct symbol; struct expression { std::vector<symbol> symbols = {}; long type = 0; token start = {}; bool error = false; llvm::Type* llvm_type = nullptr; };
 struct symbol { type type = type::none; expression subexpression = {}; token literal = {}; bool error = false; };
-struct resolved_expression { long index = 0; std::vector<resolved_expression> args = {}; bool error = false; llvm::Type* llvm_type = nullptr; };
+struct resolved_expression { long index = 0; std::vector<resolved_expression> args = {}; bool error = false; llvm::Type* llvm_type = nullptr; expression fdi_signature = {}; };
 struct entry { expression signature = {}; llvm::Value* value = nullptr; llvm::Function* function = nullptr; llvm::GlobalVariable* global_variable = nullptr; llvm::Type* llvm_type = nullptr; };
 static inline bool is_identifier(char c) { return isalnum(c) or c == '_'; }
 static inline bool is_close_paren(const token& t) { return t.type == type::op and t.value == ")"; }
@@ -84,10 +84,7 @@ static inline expression parse(const file& file, lexing_state& state, long d) {
     return result;
 }
 
-
-
 #define prep(x)   for (long i = 0; i < x; i++) std::cout << ".   "
-
 
 //static inline void print_llvm_table(const llvm::ValueSymbolTable& llvm_table) {
 //    std::cout << "-------------- printing new frame: ------------\n";
@@ -101,11 +98,9 @@ static inline expression parse(const file& file, lexing_state& state, long d) {
 //}
 
 static inline void debug(struct symbol_table stack, bool show_llvm = false);
-//static inline void print(symbol_table stack);
 static inline void print_expression(expression e, int d);
 
 static inline std::string expression_to_string(const expression& given, struct symbol_table& stack, long begin = 0, long end = -1);
-static inline expression parse_signature(std::string given, struct program& data, struct symbol_table& stack);
 
 struct symbol_table { ///TODO: remove this data structure. we can just pass around the two members together, or put them in the program_data variable.
     std::vector<entry> master = {{}};
@@ -166,7 +161,7 @@ static expression convert_llvm_identifier(program &data, expression &e, symbol_t
     }
 }
 
-static inline expression resolve_signature(expression e, program& data, symbol_table& stack) {
+static inline expression resolve_signature(expression e, program& data, symbol_table& stack) { ///TODO: delete me! (most of me)
                 
     if (e.symbols.size() == 1 and e.symbols.front().type == type::id)
         return convert_llvm_identifier(data, e, stack);
@@ -208,10 +203,10 @@ static inline expression resolve_signature(expression e, program& data, symbol_t
     return e.symbols.front().subexpression;
 }
 
-static inline expression parse_signature(std::string given, program& data, symbol_table& stack) {
-    lexing_state state {0, type::none, 1, 1};
-    return resolve_signature(parse({"", given}, state, 0), data, stack);
-}
+//static inline expression parse_signature(std::string given, program& data, symbol_table& stack) {
+//    lexing_state state {0, type::none, 1, 1};
+//    return resolve_signature(parse({"", given}, state, 0), data, stack);
+//}
 
 static inline resolved_expression resolve(const expression& given, long given_type, llvm::Function*& function, long& index, long depth, long max_depth, program& data, symbol_table& stack, long gd);
 
@@ -245,10 +240,26 @@ static inline bool matches(const expression& given, const expression& signature,
 
 static inline resolved_expression resolve_expression(const expression& given, long given_type, llvm::Function*& function, program& data, symbol_table stack, long gd);
 
+
+
+static inline resolved_expression construct_signature(long fdi_length, const expression& given, long& index) {
+    resolved_expression result = {0};
+    result.fdi_signature = {std::vector<symbol>(given.symbols.begin() + index, given.symbols.begin() + index + fdi_length)};
+    index += fdi_length;
+    return result;
+}
+
+
 static inline resolved_expression resolve(const expression& given, long given_type, llvm::Function*& function, long& index, long depth, long max_depth, program& data, symbol_table& stack, long gd) {
     prep(depth + gd); std::cout << "calling resolve()\n";
     if (not given_type or depth > max_depth) return {0, {}, true};
     
+    if (given_type == 4) { // given_type == "_2";        // temp
+        
+//        return construct_signature(fdi_length, given, index);
+        return {};
+    }
+        
     long saved = index;
     for (auto s : stack.top()) {
         index = saved;
