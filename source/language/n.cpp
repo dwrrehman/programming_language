@@ -82,39 +82,16 @@ static inline expression parse(lexing_state& state, const file& file) {
     result.start = start;
     return result;
 }
-
-#define prep(x)   for (long i = 0; i < x; i++) std::cout << ".   "
-
-static inline void debug(struct symbol_table stack, bool show_llvm = false);
-static inline void print_expression(expression e, int d);
-
-static inline std::string expression_to_string(const expression& given, struct symbol_table& stack, long begin = 0, long end = -1);
-
-struct symbol_table { ///TODO: remove this data structure. we can just pass around the two members together, or put them in the program_data variable.
+struct symbol_table {                   ///TODO: remove this data structure. we can just pass around the two members together.
     std::vector<entry> master = {{}};
     std::vector<std::vector<long>> frames = {{0}};
     void push() { frames.push_back({frames.back()}); }
     void pop() { for (auto i : top()) master.erase(master.begin() + i); frames.pop_back(); }
     std::vector<long>& top() { return frames.back(); }
     expression& get(long index) { return master[index].signature; }
-    long lookup(std::string key) { return std::distance(master.begin(), std::find_if(master.begin(), master.end(), [&](const entry& entry) { return key == expression_to_string(entry.signature, *this, 0);})); }
-    bool contains(std::string key) { return lookup(key) < (long) master.size(); }
     void define(const entry& e) { top().push_back(master.size()); master.push_back(e); std::stable_sort(top().begin(), top().end(), [&](long a, long b) { return get(a).symbols.size() > get(b).symbols.size(); });}
 };
-
-static inline std::string resolved_expression_to_string(const resolved_expression& given, symbol_table& stack) {
-    std::string result = "("; long i = 0;
-    for (auto symbol : stack.master[given.index].signature.symbols) {
-        if (symbol.type == type::id) result += symbol.literal.value;
-        else if (symbol.type == type::string) result += "\"" + symbol.literal.value + "\"";
-        else if (symbol.type == type::subexpr) result += "(" + expression_to_string(symbol.subexpression, stack) + (i < (long) given.args.size() ? "=" + resolved_expression_to_string(given.args[i], stack) : "") + ")";
-        if (i++ < (long) stack.master[given.index].signature.symbols.size() - 1) result += " ";
-    } result += ")";
-    if (stack.master[given.index].signature.type) result += " " + expression_to_string(stack.master[stack.master[given.index].signature.type].signature, stack);
-    return result;
-} // is this really neccesary?? its only used in printstatemnts, for error messages.... something we dont really need....
-
-static inline std::string expression_to_string(const expression& given, symbol_table& stack, long begin, long end) {    
+static inline std::string expression_to_string(const expression& given, symbol_table& stack, long begin = 0, long end = -1) {
     std::string result = "("; long i = 0;
     for (auto symbol : given.symbols) {
         if (i < begin or (end != -1 and i >= end)) {i++; continue; }
@@ -126,7 +103,7 @@ static inline std::string expression_to_string(const expression& given, symbol_t
     if (given.llvm_type) {
         std::string type = "";
         given.llvm_type->print(llvm::raw_string_ostream(type) << "", false, true);
-        result += " (``" + type + "``) (_)";        
+        result += " (``" + type + "``) (_)";
     } else if (given.type) result += " " + expression_to_string(stack.master[given.type].signature, stack); return result;
 }
 static inline resolved_expression resolve_at(const expression& given, long given_type, long& index, long depth, long max_depth, symbol_table& stack, const file& file);
@@ -165,7 +142,6 @@ static inline resolved_expression resolve_at(const expression& given, long given
         return resolved;
     } else return {0, {}, true};
 }
-
 static inline resolved_expression resolve_expression(const expression& given, long given_type, symbol_table& stack, const file& file) {
     resolved_expression solution {}; long pointer = 0;
     for (long max_depth = 0; max_depth <= max_expression_depth; max_depth++) {
@@ -176,7 +152,7 @@ static inline resolved_expression resolve_expression(const expression& given, lo
     if (pointer < (long) given.symbols.size()) solution.error = true;
     if (solution.error) {
         const auto t = pointer < (long) given.symbols.size() ? given.symbols[pointer].literal : given.start;
-        printf("n3zqx2l: %s:%ld:%ld: error: unresolved %s @ %ld : %s ~ %s\n", file.name, t.line, t.column, expression_to_string(given, stack, pointer, pointer + 1).c_str(), pointer, expression_to_string(given, stack).c_str(), resolved_expression_to_string(solution, stack).c_str());
+        printf("n3zqx2l: %s:%ld:%ld: error: unresolved %s @ %ld : %s\n", file.name, t.line, t.column, expression_to_string(given, stack, pointer, pointer + 1).c_str(), pointer, expression_to_string(given, stack).c_str());
     }
     return solution;
 }
@@ -224,6 +200,7 @@ static inline const char* convert_token_type_representation(enum type type) {
 }
 
 static inline void print_expression(expression e, int d);
+#define prep(x)   for (long i = 0; i < x; i++) std::cout << ".   "
 
 static inline void print_symbol(symbol symbol, int d) {
     prep(d); std::cout << "symbol: \n";
@@ -293,7 +270,7 @@ static inline resolved_expression resolve(const expression& given, const file& f
     print_resolved_expr(resolved, 0, stack);
     printf("\n\n");
     
-    debug(stack);
+    debug(stack, false);
     printf("\n\n");
     
     if (resolved.error or given.error) exit(1); else return resolved;
