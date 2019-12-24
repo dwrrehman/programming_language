@@ -189,6 +189,11 @@ static inline void debug(symbol_table stack, bool show_llvm) {
       } std::cout << "}\n";
   }
 
+
+
+static inline void print_expression(expression e, int d);
+#define prep(x)   for (long i = 0; i < x; i++) std::cout << ".   "
+
 static inline const char* convert_token_type_representation(enum type type) {
     switch (type) {
         case type::none: return "{null}";
@@ -198,9 +203,6 @@ static inline const char* convert_token_type_representation(enum type type) {
         case type::subexpr: return "subexpr";
     }
 }
-
-static inline void print_expression(expression e, int d);
-#define prep(x)   for (long i = 0; i < x; i++) std::cout << ".   "
 
 static inline void print_symbol(symbol symbol, int d) {
     prep(d); std::cout << "symbol: \n";
@@ -259,13 +261,12 @@ static inline void print_resolved_expr(resolved_expression expr, long depth, sym
 }
 
 static inline resolved_expression resolve(const expression& given, const file& file) {
-    symbol_table stack;
+    symbol_table stack; ///TODO: make a better way to preinitialize all of these abstractions into the symbol table, than inserting them every time.
     stack.define({{{symbol {type::id, {}, {type::id, "_"} } }, 0}}); // THE SEED: its neccessary: its the type of a program.
     stack.define({{{symbol {type::id, {}, {type::id, "_1"} }, symbol {type::subexpr, {{}, 1}, {}}, symbol {type::subexpr, {{}, 1}, {}}}, 1}});
     stack.define({{{symbol {type::id, {}, {type::id, "_2"} } }, 1}});
     stack.define({{{symbol {type::id, {}, {type::id, "_3"} }, symbol {type::subexpr, {{}, 3}, {}}}, 1}});
-    
-    auto resolved = resolve_expression(given, 1, stack, file); // what does this function call really need?
+    auto resolved = resolve_expression(given, 1, stack, file);
         
     print_resolved_expr(resolved, 0, stack);
     printf("\n\n");
@@ -275,14 +276,11 @@ static inline resolved_expression resolve(const expression& given, const file& f
     
     if (resolved.error or given.error) exit(1); else return resolved;
 }
-
-
 static inline void set_data_for(std::unique_ptr<llvm::Module>& module) {
     module->setTargetTriple(llvm::sys::getDefaultTargetTriple()); std::string lookup_error = "";
     auto target_machine = llvm::TargetRegistry::lookupTarget(module->getTargetTriple(), lookup_error)->createTargetMachine(module->getTargetTriple(), "generic", "", {}, {}, {});
     module->setDataLayout(target_machine->createDataLayout());
 }
-
 static inline std::unique_ptr<llvm::Module> generate(const resolved_expression& given, const file& file, llvm::LLVMContext& context) {
     auto module = llvm::make_unique<llvm::Module>(file.name, context);
     llvm::IRBuilder<> builder(context);
@@ -303,7 +301,6 @@ static inline std::unique_ptr<llvm::Module> generate(const resolved_expression& 
     if (llvm::verifyModule(*module, &(llvm::raw_string_ostream(errors) << ""))) { printf("llvm: %s: error: %s\n", file.name, errors.c_str()); exit(1); }
     else return module;
 }
-
 static inline void interpret(std::unique_ptr<llvm::Module> module, arguments arguments) {
     auto engine = llvm::EngineBuilder(std::move(module)).setEngineKind(llvm::EngineKind::JIT).create(); engine->finalizeObject();
     exit(engine->runFunctionAsMain(engine->FindFunctionNamed("main"), arguments.argv_for_exec, nullptr));
