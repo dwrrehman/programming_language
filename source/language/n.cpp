@@ -17,7 +17,7 @@ static long max_expression_depth = 5;
 enum class output_type {nothing, run, llvm, assembly, object, exec};
 enum class type { none, id, string, op, subexpr};
 struct file { const char* name = ""; std::string text = ""; };
-struct arguments { std::vector<file> files = {}; enum output_type output = output_type::run; const char* name = ""; std::vector<std::string> argv_for_exec = {}; };
+struct arguments { enum output_type output = output_type::run; const char* name = ""; std::vector<std::string> argv_for_exec = {}; };
 struct lexing_state { long index = 0; type state = type::none; long line = 0; long column = 0; };
 struct token { type type = type::none; std::string value = ""; long line = 0; long column = 0; };
 struct symbol; struct expression { std::vector<symbol> symbols = {}; long type = 0; token start = {}; bool error = false; llvm::Type* llvm_type = nullptr; };
@@ -282,7 +282,6 @@ static inline void print_resolved_expr(resolved_expression expr, long depth, sym
 }
 
 static inline resolved_expression resolve(const expression& given, const file& file) {
-    if (given.error) return {0, {}, true};
     symbol_table stack;
     stack.define({{{symbol {type::id, {}, {type::id, "_"} } }, 0}}); // THE SEED: its neccessary: its the type of a program.
     stack.define({{{symbol {type::id, {}, {type::id, "_1"} }, symbol {type::subexpr, {{}, 1}, {}}, symbol {type::subexpr, {{}, 1}, {}}}, 1}});
@@ -296,23 +295,21 @@ static inline resolved_expression resolve(const expression& given, const file& f
     
     debug(stack);
     printf("\n\n");
-        
-    return resolved;
+    
+    if (resolved.error or given.error) exit(1); else return resolved;
 }
 
-static inline std::unique_ptr<llvm::Module> generate(const resolved_expression& given, const file& file, llvm::LLVMContext& context) {
-    if (given.error) return nullptr;
-    auto module = llvm::make_unique<llvm::Module>(file.name, context);
-    
-    
+
+static inline void set_data_for(std::unique_ptr<llvm::Module>& module) {
     module->setTargetTriple(llvm::sys::getDefaultTargetTriple()); std::string lookup_error = "";
     auto target_machine = llvm::TargetRegistry::lookupTarget(module->getTargetTriple(), lookup_error)->createTargetMachine(module->getTargetTriple(), "generic", "", {}, {}, {});
     module->setDataLayout(target_machine->createDataLayout());
-    /// make this happen after front end, but before linking.
-    
-    
+}
+
+static inline std::unique_ptr<llvm::Module> generate(const resolved_expression& given, const file& file, llvm::LLVMContext& context) {
+    auto module = llvm::make_unique<llvm::Module>(file.name, context);
     llvm::IRBuilder<> builder(context);
-    
+    set_data_for(module);
     auto main = llvm::Function::Create(llvm::FunctionType::get(llvm::Type::getInt32Ty(context), {llvm::Type::getInt32Ty(context), llvm::Type::getInt8PtrTy(context)->getPointerTo()}, false), llvm::Function::ExternalLinkage, "main", module.get());
     builder.SetInsertPoint(llvm::BasicBlock::Create(context, "entry", main));
     
@@ -326,45 +323,15 @@ static inline std::unique_ptr<llvm::Module> generate(const resolved_expression& 
     module->print(llvm::outs(), nullptr);
 
     std::string errors = "";
-    if (llvm::verifyModule(*module, &(llvm::raw_string_ostream(errors) << ""))) { printf("llvm: %s: error: %s\n", file.name, errors.c_str()); return nullptr; }
+    if (llvm::verifyModule(*module, &(llvm::raw_string_ostream(errors) << ""))) { printf("llvm: %s: error: %s\n", file.name, errors.c_str()); exit(1); }
     else return module;
 }
 
-static inline std::vector<std::unique_ptr<llvm::Module>> frontend(const arguments& arguments, llvm::LLVMContext& context) {
-    llvm::InitializeAllTargetInfos(); llvm::InitializeAllTargets(); llvm::InitializeAllTargetMCs(); llvm::InitializeAllAsmParsers(); llvm::InitializeAllAsmPrinters();
-    std::vector<std::unique_ptr<llvm::Module>> modules = {};
-    for (auto file : arguments.files) {
-        const char* ext = strrchr(file.name, '.'); std::string extension = ext ? ext + 1 : "";
-        if (extension == "n") {
-            lexing_state state {0, type::none, 1, 1};
-            modules.push_back(generate(resolve(parse(state, file), file), file, context));
-        } else if (extension == "ll") {
-            llvm::SMDiagnostic errors;
-            auto module = llvm::parseAssemblyFile(file.name, errors, context);
-            if (module) {
-                module->setTargetTriple(llvm::sys::getDefaultTargetTriple()); std::string lookup_error = "";
-                auto target_machine = llvm::TargetRegistry::lookupTarget(module->getTargetTriple(), lookup_error)->createTargetMachine(module->getTargetTriple(), "generic", "", {}, {}, {});
-                module->setDataLayout(target_machine->createDataLayout());
-                printf("received ll file: \n");
-                module->print(llvm::outs(), nullptr); // debug
-            } else errors.print((std::string("llvm: ") + std::string(file.name)).c_str(), llvm::errs());
-            modules.push_back(std::move(module));
-        } else abort();
-    }
-    if (std::find_if(modules.begin(), modules.end(), [](auto& module) { return not module; }) != modules.end()) exit(1);
-    return modules;
-}
-static inline std::unique_ptr<llvm::Module> link(std::vector<std::unique_ptr<llvm::Module>>&& modules) {
-    auto result = std::move(modules.back()); modules.pop_back();
-    for (auto& module : modules) if (llvm::Linker::linkModules(*result, std::move(module))) exit(1);
-    return result;
-}
 static inline void interpret(std::unique_ptr<llvm::Module> module, arguments arguments) {
-    arguments.argv_for_exec.insert(arguments.argv_for_exec.begin(), arguments.name);
     auto engine = llvm::EngineBuilder(std::move(module)).setEngineKind(llvm::EngineKind::JIT).create(); engine->finalizeObject();
     exit(engine->runFunctionAsMain(engine->FindFunctionNamed("main"), arguments.argv_for_exec, nullptr));
 }
-static inline std::unique_ptr<llvm::Module> optimize(std::unique_ptr<llvm::Module>&& module) { return std::move(module); } ///TODO: write me.
+static inline std::unique_ptr<llvm::Module> optimize(std::unique_ptr<llvm::Module>& module) { return std::move(module); } ///TODO: write me.
 static inline void generate_ll_file(std::unique_ptr<llvm::Module> module, const arguments& arguments) {
     std::error_code error; llvm::raw_fd_ostream dest(std::string(arguments.name) + ".ll", error, llvm::sys::fs::F_None);
     if (error) exit(1); module->print(dest, nullptr);
@@ -383,20 +350,21 @@ static inline void emit_executable(const std::string& object_file, const std::st
     std::remove(object_file.c_str());
 }
 static inline void output(const arguments& args, std::unique_ptr<llvm::Module>&& module) {
-    if (args.output == output_type::nothing) {/* do nothing. */}
-    else if (args.output == output_type::run) interpret(std::move(module), args);
+    if (args.output == output_type::run) interpret(std::move(module), args);
     else if (args.output == output_type::llvm) generate_ll_file(std::move(module), args);
     else if (args.output == output_type::assembly) generate_file(std::move(module), args, llvm::TargetMachine::CGFT_AssemblyFile);
     else if (args.output == output_type::object) generate_file(std::move(module), args, llvm::TargetMachine::CGFT_ObjectFile);
     else if (args.output == output_type::exec) emit_executable(generate_file(std::move(module), args, llvm::TargetMachine::CGFT_ObjectFile), args.name);
 }
 int main(const int argc, const char** argv) {
-    
+    llvm::InitializeAllTargetInfos(); llvm::InitializeAllTargets(); llvm::InitializeAllTargetMCs(); llvm::InitializeAllAsmParsers(); llvm::InitializeAllAsmPrinters();
+    llvm::LLVMContext context;
+    auto module = llvm::make_unique<llvm::Module>("_init.n", context);
     arguments args = {}; bool use_exec_args = false;
     for (long i = 1; i < argc; i++) {
         const auto word = std::string(argv[i]);
-        if (use_exec_args) { args.argv_for_exec.push_back(word); continue; }
-        if (word == "--") use_exec_args = true;
+        if (use_exec_args) args.argv_for_exec.push_back(word);
+        else if (word == "--") use_exec_args = true;
         else if (word == "-u") { printf("usage: n -[uvrscod!-] <.n/.ll/.o/.s>\n"); exit(0); }
         else if (word == "-v") { printf("n3zqx2l: 0.0.3 \tn: 0.0.3\n"); exit(0); }
         else if (word == "-r" and i + 1 < argc) { args.output = output_type::llvm; args.name = argv[++i]; }
@@ -408,22 +376,21 @@ int main(const int argc, const char** argv) {
         else if (word == "-!") { abort(); /*the linker argumnets start here.*/ }
         else if (word[0] == '-') { printf("n: error: bad option: %s\n", argv[i]); exit(1); }
         else {
-            const char* ext = strrchr(argv[i], '.'); std::string extension = ext ? ext + 1 : "";
-            if (extension == "n") {
+            auto extension = std::string(strrchr(argv[i], '.'));
+            if (extension == ".n") {
                 std::ifstream stream {argv[i]};
-                if (stream.good()) {
-                    std::string text {std::istreambuf_iterator<char>(stream), std::istreambuf_iterator<char>()};
-                    stream.close(); args.files.push_back({argv[i], text});
-                } else { printf("n: error: unable to open \"%s\": %s\n", argv[i], strerror(errno)); exit(1); }
-            } else if (extension == "ll") {
-                args.files.push_back({argv[i], ""});
-            } else {
-                printf("n: error: cannot process file \"%s\" with extension \"%s\"", argv[i], extension.c_str());
-                abort();
-            }
+                if (stream.bad()) { printf("n: error: unable to open \"%s\": %s\n", argv[i], strerror(errno)); exit(1); }
+                const file file = {argv[i], {std::istreambuf_iterator<char>(stream), std::istreambuf_iterator<char>()}};
+                lexing_state state {0, type::none, 1, 1};
+                if (llvm::Linker::linkModules(*module, generate(resolve(parse(state, file), file), file, context))) exit(1);
+                
+            } else if (extension == ".ll") {
+                llvm::SMDiagnostic errors;
+                auto m = llvm::parseAssemblyFile(argv[i], errors, context);
+                if (not m) { errors.print("llvm", llvm::errs()); exit(1); }
+                set_data_for(m);
+                if (llvm::Linker::linkModules(*module, std::move(m))) exit(1);
+            } else { printf("n: error: cannot process file \"%s\" with extension \"%s\"", argv[i], extension.c_str()); exit(1); }
         }
-    } if (args.files.empty()) { printf("n: error: no input files\n"); exit(1); } else return args;
-    llvm::LLVMContext context;                  // subsume this into the below function call, and rename the function to compile(), or simply put all of the code in get_arguments, into main. that sounds better.
-    const auto args = get_arguments(argc, argv);             //   merge these two functions. when we find a file on the commandline, just start the front end on it. this will make the code shorter, and faster.
-    output(args, optimize(link(frontend(args, context))));   //
+    } if (args.output != output_type::nothing) output(args, optimize(module));
 }
