@@ -13,7 +13,7 @@
 #include <fstream>
 #include <iostream>
 #include <vector>
-static long max_expression_depth = 4;
+static long max_expression_depth = 20;
 enum class output_type {nothing, run, llvm, assembly, object, exec};
 enum class type { none, id, string, op, subexpr};
 struct file { const char* name = ""; std::string text = ""; };
@@ -96,6 +96,20 @@ static inline std::string expression_to_string(const expression& given, std::vec
         result += " (\"" + type + "\") (_)";
     } else if (given.type) result += " " + expression_to_string(entries[given.type].signature, entries); return result;
 }
+
+static inline void pop(std::vector<entry>& entries, std::vector<std::vector<long>>& stack) {
+    for (auto i : stack.back()) entries.erase(entries.begin() + i);
+    stack.pop_back();
+}
+
+static inline void define(const entry& e, std::vector<entry>& entries, std::vector<std::vector<long>>& stack) {
+    stack.back().push_back(entries.size());
+    entries.push_back(e);
+    std::stable_sort(stack.back().begin(), stack.back().end(), [&](long a, long b) {
+        return entries[a].signature.symbols.size() > entries[b].signature.symbols.size();
+    });
+}
+
 static inline resolved_expression resolve_at(const expression& given, long given_type, long& index, long depth, long max_depth, std::vector<entry>& entries, std::vector<std::vector<long>>& stack, const file& file);
 static inline resolved_expression resolve_expression(const expression& given, long given_type, std::vector<entry>& entries, std::vector<std::vector<long>>& stack, const file& file);
 static inline bool matches(const expression& given, const expression& signature, long given_type, std::vector<resolved_expression>& args, long& index, long depth, long max_depth, std::vector<entry>& entries, std::vector<std::vector<long>>& stack, const file& file) {
@@ -106,10 +120,8 @@ static inline bool matches(const expression& given, const expression& signature,
             auto argument = resolve_at(given, symbol.subexpression.type, index, depth + 1, max_depth, entries, stack, file);
             if (argument.error) return false;
             args.push_back({argument});
-        } else if (not are_equal_identifiers(symbol, given.symbols[index])) return false;
-        else index++;
-    }
-    return true;
+        } else if (not are_equal_identifiers(symbol, given.symbols[index])) return false; else index++;
+    } return true;
 }
 static inline resolved_expression resolve_at(const expression& given, long given_type, long& index, long depth, long max_depth, std::vector<entry>& entries, std::vector<std::vector<long>>& stack, const file& file) {
     if (depth > max_depth /*or given_type == _0*/) return {0, {}, true};
@@ -139,7 +151,7 @@ static inline resolved_expression resolve_expression(const expression& given, lo
     if (pointer < (long) given.symbols.size()) solution.error = true;
     if (solution.error) {
         const auto t = pointer < (long) given.symbols.size() ? given.symbols[pointer].literal : given.start;
-        printf("n3zqx2l: %s:%ld:%ld: error: unresolved %s @ %ld : %s\n", file.name, t.line, t.column, expression_to_string(given, entries, pointer, pointer + 1).c_str(), pointer, expression_to_string(given, entries).c_str());
+        printf("n3zqx2l: %s:%ld:%ld: error: unresolved %s @ %ld : %s\n", file.name, t.line, t.column, expression_to_string(given, entries, pointer, pointer + 1).c_str(), pointer, expression_to_string(given, entries).c_str()); exit(1);
     }
     return solution;
 }
@@ -246,14 +258,12 @@ static inline void print_resolved_expr(resolved_expression expr, long depth, std
 
 static inline resolved_expression resolve(const expression& given, const file& file) {
     std::vector<entry> entries { {},
-        {{{symbol {type::id, {}, {type::id, "_"} } }, 0}},
-        {{{symbol {type::id, {}, {type::id, "_1"} }, symbol {type::subexpr, {{}, 1}, {}}, symbol {type::subexpr, {{}, 1}, {}}}, 1}},
-        {{{symbol {type::id, {}, {type::id, "_2"} } }, 1}},
-        {{{symbol {type::id, {}, {type::id, "_3"} }, symbol {type::subexpr, {{}, 3}, {}}}, 1}},
+        {{{symbol {type::id, {}, {type::id, "_"} } }, 0}}, {{{/*symbol {type::id, {}, {type::id, "_1"} },*/ symbol {type::subexpr, {{}, 1}, {}}, symbol {type::subexpr, {{}, 1}, {}}}, 1}},
+        {{{symbol {type::id, {}, {type::id, "_2"} } }, 1}}, {{{symbol {type::id, {}, {type::id, "_3"} }, symbol {type::subexpr, {{}, 3}, {}}}, 1}},
     }; std::vector<std::vector<long>> stack {{2, 4, 1, 3, 0}};
     auto resolved = resolve_expression(given, 1, entries, stack, file);
-    print_resolved_expr(resolved, 0, entries);
-    printf("\n\n");
+//    print_resolved_expr(resolved, 0, entries);
+//    printf("\n\n");
     debug(entries, stack, false);
     printf("\n\n");
     if (resolved.error or given.error) exit(1); else return resolved;
@@ -263,17 +273,26 @@ static inline void set_data_for(std::unique_ptr<llvm::Module>& module) {
     auto target_machine = llvm::TargetRegistry::lookupTarget(module->getTargetTriple(), lookup_error)->createTargetMachine(module->getTargetTriple(), "generic", "", {}, {}, {});
     module->setDataLayout(target_machine->createDataLayout());
 }
+
+static inline void generate_expression(const resolved_expression& given, llvm::Module* module, llvm::Function* function, llvm::IRBuilder<>& builder) {
+    /// problem. how do we get the function to generate a call to it?
+    ///
+}
+
+
 static inline std::unique_ptr<llvm::Module> generate(const resolved_expression& given, const file& file, llvm::LLVMContext& context) {
     auto module = llvm::make_unique<llvm::Module>(file.name, context);
     llvm::IRBuilder<> builder(context);
     set_data_for(module);
+    
     auto main = llvm::Function::Create(llvm::FunctionType::get(llvm::Type::getInt32Ty(context), {llvm::Type::getInt32Ty(context), llvm::Type::getInt8PtrTy(context)->getPointerTo()}, false), llvm::Function::ExternalLinkage, "main", module.get());
     builder.SetInsertPoint(llvm::BasicBlock::Create(context, "entry", main));
     
-    /// generate_expr() call for resolved expressions here.
+    generate_expression(given, module.get(), main, builder);
     
     builder.SetInsertPoint(&main->getBasicBlockList().back());
     builder.CreateRet(llvm::ConstantInt::get(llvm::Type::getInt32Ty(context), 0));
+    
     
     printf("\n\n\n");
     std::cout << "generating code....:\n";
@@ -351,6 +370,3 @@ int main(const int argc, const char** argv) {
     } if (no_input) { printf("n: error: no input files\n"); exit(1); }
     else if (args.output != output_type::nothing) output(args, optimize(module));
 }
-
-//void pop() { for (auto i : top()) master.erase(master.begin() + i); frames.pop_back(); }
-//    void define(const entry& e) { top().push_back(master.size()); master.push_back(e); std::stable_sort(top().begin(), top().end(), [&](long a, long b) { return get(a).symbols.size() > get(b).symbols.size(); });}
