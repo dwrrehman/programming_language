@@ -1,1 +1,1 @@
-_define (hello () x is here) _
+_decl _0

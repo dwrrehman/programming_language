@@ -135,7 +135,7 @@ static inline resolved_expression resolve_at(const expression& given, long given
 static inline bool matches(const expression& given, const expression& signature, long given_type, std::vector<resolved_expression>& args, long& index, long depth, long max_depth, symbol_table& stack, const file& file) {
     
 //    prep(depth + gd); std::cout << "calling matches(" << expression_to_string(given, stack) << "," << expression_to_string(signature, stack) << ") ...\n";
-    if (given_type != signature.type and given_type != 3) {
+    if (given_type != signature.type /*and given_type != _1*/) {
 //        prep(depth + gd + 1); std::cout << "   ----> false(0)!\n";
         return false; }
     for (auto symbol : signature.symbols) {
@@ -163,13 +163,13 @@ static inline bool matches(const expression& given, const expression& signature,
 static inline resolved_expression resolve_expression(const expression& given, long given_type, symbol_table& stack, const file& file);
 
 static inline resolved_expression resolve_at(const expression& given, long given_type, long& index, long depth, long max_depth, symbol_table& stack, const file& file) {
-//    prep(depth + gd); std::cout << "calling resolve()\n";
-    if (not given_type or depth > max_depth) { if (not given_type) abort(); return {0, {}, true}; }
+
+    if (not given_type or depth > max_depth /*or given_type == _0*/) { if (not given_type) abort(); return {0, {}, true}; }
     
-    if (given_type == 4) { // given_type == "_2";        // temp
+    if (given_type == 2/*_2*/) {
         if (index < (long) given.symbols.size()) {
-            if (given.symbols[index].type == type::id or given.symbols[index].type == type::string) return {4, {}, false, nullptr, expression {{given.symbols[index++]}, 4}};
-            else if (given.symbols[index].type == type::subexpr) return {4, {}, false, nullptr, given.symbols[index++].subexpression};
+            if (given.symbols[index].type == type::id or given.symbols[index].type == type::string) return {2, {}, false, nullptr, expression {{given.symbols[index++]}, 2}};
+            else if (given.symbols[index].type == type::subexpr) return {2, {}, false, nullptr, given.symbols[index++].subexpression};
         } else abort();
     }
 
@@ -177,22 +177,18 @@ static inline resolved_expression resolve_at(const expression& given, long given
     for (auto s : stack.top()) {
         index = saved;
         std::vector<resolved_expression> args = {};
-//        prep(depth + gd + 1); std::cout << "[resolve]: trying to match: " << expression_to_string(stack.get(s), stack) << "\n\n";
         if (matches(given, stack.get(s), given_type, args, index, depth, max_depth, stack, file)) return {s, args};
     }
     if (index < (long) given.symbols.size() and given.symbols[index].type == type::subexpr) {
-//        prep(depth + gd + 1); std::cout << "[resolve]: found subexpression...\n";
         auto resolved = resolve_expression(given.symbols[index].subexpression, given_type, stack, file);
         index++;
         return resolved;
     }
-//    prep(depth + gd + 1); std::cout << "[resolve]: failing, ran out of signatures...\n";
     return {0, {}, true};
 }
 
 static inline resolved_expression resolve_expression(const expression& given, long given_type, symbol_table& stack, const file& file) {
-    resolved_expression solution {};
-    long pointer = 0;
+    resolved_expression solution {}; long pointer = 0;
     for (long max_depth = 0; max_depth <= max_expression_depth; max_depth++) {
         pointer = 0;
         solution = resolve_at(given, given_type, pointer, 0, max_depth, stack, file);
@@ -205,10 +201,6 @@ static inline resolved_expression resolve_expression(const expression& given, lo
     }
     return solution;
 }
-
-
-
-
 
 
 static inline void debug(symbol_table stack, bool show_llvm) {
@@ -333,12 +325,47 @@ static inline resolved_expression resolve(const expression& given, const file& f
     
     symbol_table stack;
     stack.define({{{symbol {type::id, {}, {type::id, "_"} } }, 0}}); // THE SEED: its neccessary: its the type of a program.
-    stack.define({{{symbol {type::id, {}, {type::id, "_0"} } }, 1}}); // debug
-    stack.define({{{symbol {type::id, {}, {type::id, "_1"} } }, 1}}); // debug
-    stack.define({{{symbol {type::id, {}, {type::id, "_2"} } }, 1}}); // debug
-    stack.define({{{symbol {type::id, {}, {type::id, "_id"} }, symbol {type::subexpr, {{}, 4}, {}}}, 1}}); // debug
-    stack.define({{{symbol {type::id, {}, {type::id, "_eval"} }, symbol {type::subexpr, {{}, 3}, {}}}, 1}}); // debug
-    stack.define({{{symbol {type::id, {}, {type::id, "_define"} }, symbol {type::subexpr, {{}, 4}, {}}, symbol {type::subexpr, {{}, 3}, {}}}, 1}}); // debug
+    stack.define({{{symbol {type::id, {}, {type::id, "_name"} } }, 1}});
+    stack.define({{{symbol {type::id, {}, {type::id, "_decl"} }, symbol {type::subexpr, {{}, 2}, {}}}, 1}});
+    
+//    stack.define({{{symbol {type::id, {}, {type::id, "_0"} } }, 1}}); // debug
+//    stack.define({{{symbol {type::id, {}, {type::id, "_1"} } }, 1}}); // debug
+    
+    
+//    stack.define({{{symbol {type::id, {}, {type::id, "_id"} }, symbol {type::subexpr, {{}, 4}, {}}}, 1}}); // debug
+//    stack.define({{{symbol {type::id, {}, {type::id, "_eval"} }, symbol {type::subexpr, {{}, 3}, {}}}, 1}}); // debug
+//    stack.define({{{symbol {type::id, {}, {type::id, "_define"} }, symbol {type::subexpr, {{}, 4}, {}}, symbol {type::subexpr, {{}, 3}, {}}}, 1}}); // debug
+        
+    
+    /// wait a second. there is a way to boostrap the type system only from "_", i think. thats pretty crazy.
+    /// this is a crazy idea.
+    
+    /// i dont know if i want to do it..... it seems really weird.
+    
+    /// basically, its just the idea that.... well ok wait.     i feel like its impossible.
+    
+    /// i mean, ok. lets figure out how to implement _1, first, then work on this. because i can see the fact that this boostrap define will actually not take any parameter for the name, it will just define names in a numbered, sequential order, which is kinda crazy lol.
+    /// oh, it will also not allow for a body or definition of the type. its just a type or type type. that all.
+    
+    /// lets try it!
+    
+    
+    
+    ///         stack.define("(_boostrap_define) (_)") // defines a type in numerical order.
+    
+    
+    /// hmm, actually i am doubting that this is possible, actually.    because it seems in order to make 3 and 4, we really do need to allow the user to give a new signtaure, and a definition, sorta.  (the def isnt that importnat, though.)
+    
+    /// ok then, how about this!
+    
+    
+    ///         stack.define("(_)");     // defines the type type.
+    ///         stack.define("(_2) (_)");     // defines the signature type.
+    ///         stack.define("(_boostrap_declare (() (_2) ())) (_)") declares something with a given signature
+    
+    
+    
+    
     
     
     auto resolved = resolve_expression(given, 1, stack, file); // what does this function call really need?
@@ -364,11 +391,8 @@ static inline std::unique_ptr<llvm::Module> generate(const resolved_expression& 
     auto main = llvm::Function::Create(llvm::FunctionType::get(llvm::Type::getInt32Ty(context), {llvm::Type::getInt32Ty(context), llvm::Type::getInt8PtrTy(context)->getPointerTo()}, false), llvm::Function::ExternalLinkage, "main", module.get());
     builder.SetInsertPoint(llvm::BasicBlock::Create(context, "entry", main));
     
-    
-    /// generate code for resolved expressions here.
-    
-    
-    
+    /// generate_expr() call for resolved expressions here.
+
 //    auto resolved = resolve_expression(given, 1, main, data, stack, 0); // what does this function call really need?
     builder.SetInsertPoint(&main->getBasicBlockList().back());
     builder.CreateRet(llvm::ConstantInt::get(llvm::Type::getInt32Ty(context), 0));
