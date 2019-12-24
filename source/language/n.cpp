@@ -328,53 +328,13 @@ static inline resolved_expression resolve(const expression& given, const file& f
     stack.define({{{symbol {type::id, {}, {type::id, "_name"} } }, 1}});
     stack.define({{{symbol {type::id, {}, {type::id, "_decl"} }, symbol {type::subexpr, {{}, 2}, {}}}, 1}});
     
-//    stack.define({{{symbol {type::id, {}, {type::id, "_0"} } }, 1}}); // debug
-//    stack.define({{{symbol {type::id, {}, {type::id, "_1"} } }, 1}}); // debug
-    
-    
-//    stack.define({{{symbol {type::id, {}, {type::id, "_id"} }, symbol {type::subexpr, {{}, 4}, {}}}, 1}}); // debug
-//    stack.define({{{symbol {type::id, {}, {type::id, "_eval"} }, symbol {type::subexpr, {{}, 3}, {}}}, 1}}); // debug
-//    stack.define({{{symbol {type::id, {}, {type::id, "_define"} }, symbol {type::subexpr, {{}, 4}, {}}, symbol {type::subexpr, {{}, 3}, {}}}, 1}}); // debug
-        
-    
-    /// wait a second. there is a way to boostrap the type system only from "_", i think. thats pretty crazy.
-    /// this is a crazy idea.
-    
-    /// i dont know if i want to do it..... it seems really weird.
-    
-    /// basically, its just the idea that.... well ok wait.     i feel like its impossible.
-    
-    /// i mean, ok. lets figure out how to implement _1, first, then work on this. because i can see the fact that this boostrap define will actually not take any parameter for the name, it will just define names in a numbered, sequential order, which is kinda crazy lol.
-    /// oh, it will also not allow for a body or definition of the type. its just a type or type type. that all.
-    
-    /// lets try it!
-    
-    
-    
-    ///         stack.define("(_boostrap_define) (_)") // defines a type in numerical order.
-    
-    
-    /// hmm, actually i am doubting that this is possible, actually.    because it seems in order to make 3 and 4, we really do need to allow the user to give a new signtaure, and a definition, sorta.  (the def isnt that importnat, though.)
-    
-    /// ok then, how about this!
-    
-    
-    ///         stack.define("(_)");     // defines the type type.
-    ///         stack.define("(_2) (_)");     // defines the signature type.
-    ///         stack.define("(_boostrap_declare (() (_2) ())) (_)") declares something with a given signature
-    
-    
-    
-    
-    
-    
     auto resolved = resolve_expression(given, 1, stack, file); // what does this function call really need?
-    
-    printf("\n\n\n");
+        
     print_resolved_expr(resolved, 0, stack);
-    printf("\n\n\n");
+    printf("\n\n");
+    
     debug(stack);
-    printf("\n\n\n");
+    printf("\n\n");
         
     return resolved;
 }
