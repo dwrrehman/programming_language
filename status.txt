@@ -43,7 +43,7 @@ THE TODO LIST:
 - code for passing flags to the linker (-!), and the executable (--)     [secondary]
 - add codegen and support for text strings in csr and llvm.            [secondary]
 - figure out how we are going to do multiple files, and our module system.    [secondary]
-
+- use the updated pass mananger llvm system, for generating .s or .o files, and for optimization.
 
 
 

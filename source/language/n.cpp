@@ -112,7 +112,7 @@ static inline std::string resolved_expression_to_string(const resolved_expressio
     } result += ")";
     if (stack.master[given.index].signature.type) result += " " + expression_to_string(stack.master[stack.master[given.index].signature.type].signature, stack);
     return result;
-}
+} // is this really neccesary?? its only used in printstatemnts, for error messages.... something we dont really need....
 
 static inline std::string expression_to_string(const expression& given, symbol_table& stack, long begin, long end) {    
     std::string result = "("; long i = 0;
@@ -129,50 +129,30 @@ static inline std::string expression_to_string(const expression& given, symbol_t
         result += " (``" + type + "``) (_)";        
     } else if (given.type) result += " " + expression_to_string(stack.master[given.type].signature, stack); return result;
 }
-
 static inline resolved_expression resolve_at(const expression& given, long given_type, long& index, long depth, long max_depth, symbol_table& stack, const file& file);
-
 static inline bool matches(const expression& given, const expression& signature, long given_type, std::vector<resolved_expression>& args, long& index, long depth, long max_depth, symbol_table& stack, const file& file) {
-    
-//    prep(depth + gd); std::cout << "calling matches(" << expression_to_string(given, stack) << "," << expression_to_string(signature, stack) << ") ...\n";
-    if (given_type != signature.type /*and given_type != _1*/) {
-//        prep(depth + gd + 1); std::cout << "   ----> false(0)!\n";
-        return false; }
+    if (given_type != signature.type /*and given_type != _1*/) return false;
     for (auto symbol : signature.symbols) {
-        if (index >= (long) given.symbols.size()) { // this line of code might be why we cant do empty signatures?
-//            prep(depth + gd + 1); std::cout << "   ----> false(1)!\n";
-            return false;
-        }
+        if (index >= (long) given.symbols.size()) return false;
         if (symbol.type == type::subexpr) {
             auto argument = resolve_at(given, symbol.subexpression.type, index, depth + 1, max_depth, stack, file);
-            
-            if (argument.error) {
-//                prep(depth + gd + 1); std::cout << "   ----> false(2)!\n";
-                return false; }
+            if (argument.error) return false;
             args.push_back({argument});
-        } else if (not are_equal_identifiers(symbol, given.symbols[index])) {
-//            prep(depth + gd + 1); std::cout << "   ----> false(3)!\n";
-            return false;
-        }
+        } else if (not are_equal_identifiers(symbol, given.symbols[index])) return false;
         else index++;
     }
-//    prep(depth + gd + 1); std::cout << "   ----> true!\n";
     return true;
 }
-
 static inline resolved_expression resolve_expression(const expression& given, long given_type, symbol_table& stack, const file& file);
-
 static inline resolved_expression resolve_at(const expression& given, long given_type, long& index, long depth, long max_depth, symbol_table& stack, const file& file) {
 
     if (not given_type or depth > max_depth /*or given_type == _0*/) { if (not given_type) abort(); return {0, {}, true}; }
-    
-    if (given_type == 2/*_2*/) {
+    if (given_type == 3/*_2*/) {
         if (index < (long) given.symbols.size()) {
-            if (given.symbols[index].type == type::id or given.symbols[index].type == type::string) return {2, {}, false, nullptr, expression {{given.symbols[index++]}, 2}};
-            else if (given.symbols[index].type == type::subexpr) return {2, {}, false, nullptr, given.symbols[index++].subexpression};
+            if (given.symbols[index].type == type::id or given.symbols[index].type == type::string) return {3, {}, false, nullptr, expression {{given.symbols[index++]}, 3}};
+            else if (given.symbols[index].type == type::subexpr) return {3, {}, false, nullptr, given.symbols[index++].subexpression};
         } else abort();
     }
-
     long saved = index;
     for (auto s : stack.top()) {
         index = saved;
@@ -183,8 +163,7 @@ static inline resolved_expression resolve_at(const expression& given, long given
         auto resolved = resolve_expression(given.symbols[index].subexpression, given_type, stack, file);
         index++;
         return resolved;
-    }
-    return {0, {}, true};
+    } else return {0, {}, true};
 }
 
 static inline resolved_expression resolve_expression(const expression& given, long given_type, symbol_table& stack, const file& file) {
@@ -201,7 +180,6 @@ static inline resolved_expression resolve_expression(const expression& given, lo
     }
     return solution;
 }
-
 
 static inline void debug(symbol_table stack, bool show_llvm) {
       std::cout << "\n\n---- debugging stack: ----\n";
@@ -243,22 +221,6 @@ static inline const char* convert_token_type_representation(enum type type) {
         case type::op: return "operator";
         case type::subexpr: return "subexpr";
     }
-}
-
-static inline void print_lex(const std::vector<struct token>& tokens) {
-    std::cout << "::::::::::LEX:::::::::::" << std::endl;
-    for (auto token : tokens) {
-        std::cout << "TOKEN(type: " << convert_token_type_representation(token.type) << ", value: \"" << (token.value != "\n" ? token.value : "\\n") << "\", [" << token.line << ":" << token.column << "])" << std::endl;
-    }
-    std::cout << ":::::::END OF LEX:::::::" << std::endl;
-}
-
-static inline void debug_token_stream(const file& file) {
-    std::vector<struct token> tokens = {};
-    struct token t = {};
-    lexing_state state = {0, type::none, 1, 1};
-    while ((t = next(file, state)).type != type::none) tokens.push_back(t);
-    print_lex(tokens);
 }
 
 static inline void print_expression(expression e, int d);
@@ -319,14 +281,13 @@ static inline void print_resolved_expr(resolved_expression expr, long depth, sym
     }
 }
 
-
 static inline resolved_expression resolve(const expression& given, const file& file) {
     if (given.error) return {0, {}, true};
-    
     symbol_table stack;
     stack.define({{{symbol {type::id, {}, {type::id, "_"} } }, 0}}); // THE SEED: its neccessary: its the type of a program.
-    stack.define({{{symbol {type::id, {}, {type::id, "_name"} } }, 1}});
-    stack.define({{{symbol {type::id, {}, {type::id, "_decl"} }, symbol {type::subexpr, {{}, 2}, {}}}, 1}});
+    stack.define({{{symbol {type::id, {}, {type::id, "_1"} }, symbol {type::subexpr, {{}, 1}, {}}, symbol {type::subexpr, {{}, 1}, {}}}, 1}});
+    stack.define({{{symbol {type::id, {}, {type::id, "_2"} } }, 1}});
+    stack.define({{{symbol {type::id, {}, {type::id, "_3"} }, symbol {type::subexpr, {{}, 3}, {}}}, 1}});
     
     auto resolved = resolve_expression(given, 1, stack, file); // what does this function call really need?
         
@@ -339,13 +300,17 @@ static inline resolved_expression resolve(const expression& given, const file& f
     return resolved;
 }
 
-
 static inline std::unique_ptr<llvm::Module> generate(const resolved_expression& given, const file& file, llvm::LLVMContext& context) {
     if (given.error) return nullptr;
     auto module = llvm::make_unique<llvm::Module>(file.name, context);
+    
+    
     module->setTargetTriple(llvm::sys::getDefaultTargetTriple()); std::string lookup_error = "";
     auto target_machine = llvm::TargetRegistry::lookupTarget(module->getTargetTriple(), lookup_error)->createTargetMachine(module->getTargetTriple(), "generic", "", {}, {}, {});
     module->setDataLayout(target_machine->createDataLayout());
+    /// make this happen after front end, but before linking.
+    
+    
     llvm::IRBuilder<> builder(context);
     
     auto main = llvm::Function::Create(llvm::FunctionType::get(llvm::Type::getInt32Ty(context), {llvm::Type::getInt32Ty(context), llvm::Type::getInt8PtrTy(context)->getPointerTo()}, false), llvm::Function::ExternalLinkage, "main", module.get());
@@ -353,7 +318,6 @@ static inline std::unique_ptr<llvm::Module> generate(const resolved_expression& 
     
     /// generate_expr() call for resolved expressions here.
 
-//    auto resolved = resolve_expression(given, 1, main, data, stack, 0); // what does this function call really need?
     builder.SetInsertPoint(&main->getBasicBlockList().back());
     builder.CreateRet(llvm::ConstantInt::get(llvm::Type::getInt32Ty(context), 0));
         
@@ -363,42 +327,7 @@ static inline std::unique_ptr<llvm::Module> generate(const resolved_expression& 
 
     std::string errors = "";
     if (llvm::verifyModule(*module, &(llvm::raw_string_ostream(errors) << ""))) { printf("llvm: %s: error: %s\n", file.name, errors.c_str()); return nullptr; }
-//    else if (resolved.error) return nullptr;
-    return module;
-}
-
-static inline arguments get_arguments(const int argc, const char** argv) {
-    arguments args = {}; bool use_exec_args = false;
-    for (long i = 1; i < argc; i++) {
-        const auto word = std::string(argv[i]);
-        if (use_exec_args) { args.argv_for_exec.push_back(word); continue; }
-        if (word == "--") use_exec_args = true;
-        else if (word == "-u") { printf("usage: n -[uvrscod!-] <.n/.ll/.o/.s>\n"); exit(0); }
-        else if (word == "-v") { printf("n3zqx2l: 0.0.3 \tn: 0.0.3\n"); exit(0); }
-        else if (word == "-r" and i + 1 < argc) { args.output = output_type::llvm; args.name = argv[++i]; }
-        else if (word == "-s" and i + 1 < argc) { args.output = output_type::assembly; args.name = argv[++i]; }
-        else if (word == "-c" and i + 1 < argc) { args.output = output_type::object; args.name = argv[++i]; }
-        else if (word == "-o" and i + 1 < argc) { args.output = output_type::exec; args.name = argv[++i]; }
-        else if (word == "-nothing" and i + 1 < argc) { args.output = output_type::nothing; }
-        else if (word == "-d" and i + 1 < argc) { auto n = atoi(argv[++i]); max_expression_depth = n ? n : 4; }
-        else if (word == "-!") { abort(); /*the linker argumnets start here.*/ }
-        else if (word[0] == '-') { printf("n: error: bad option: %s\n", argv[i]); exit(1); }
-        else {
-            const char* ext = strrchr(argv[i], '.'); std::string extension = ext ? ext + 1 : "";
-            if (extension == "n") {
-                std::ifstream stream {argv[i]};
-                if (stream.good()) {
-                    std::string text {std::istreambuf_iterator<char>(stream), std::istreambuf_iterator<char>()};
-                    stream.close(); args.files.push_back({argv[i], text});
-                } else { printf("n: error: unable to open \"%s\": %s\n", argv[i], strerror(errno)); exit(1); }
-            } else if (extension == "ll") {
-                args.files.push_back({argv[i], ""});
-            } else {
-                printf("n: error: cannot process file \"%s\" with extension \"%s\"", argv[i], extension.c_str());
-                abort();
-            }
-        }
-    } if (args.files.empty()) { printf("n: error: no input files\n"); exit(1); } else return args;
+    else return module;
 }
 
 static inline std::vector<std::unique_ptr<llvm::Module>> frontend(const arguments& arguments, llvm::LLVMContext& context) {
@@ -440,7 +369,6 @@ static inline void generate_ll_file(std::unique_ptr<llvm::Module> module, const 
     std::error_code error; llvm::raw_fd_ostream dest(std::string(arguments.name) + ".ll", error, llvm::sys::fs::F_None);
     if (error) exit(1); module->print(dest, nullptr);
 }
-
 static inline std::string generate_file(std::unique_ptr<llvm::Module> module, const arguments& arguments, llvm::TargetMachine::CodeGenFileType type) {
     std::string lookup_error = ""; auto target_machine = llvm::TargetRegistry::lookupTarget(module->getTargetTriple(), lookup_error)->createTargetMachine(module->getTargetTriple(), "generic", "", {}, {}, {}); ///TODO: make this not generic!
     auto object_filename = std::string(arguments.name) + (type == llvm::TargetMachine::CGFT_AssemblyFile ? ".s" : ".o");
@@ -463,7 +391,39 @@ static inline void output(const arguments& args, std::unique_ptr<llvm::Module>&&
     else if (args.output == output_type::exec) emit_executable(generate_file(std::move(module), args, llvm::TargetMachine::CGFT_ObjectFile), args.name);
 }
 int main(const int argc, const char** argv) {
-    llvm::LLVMContext context;
-    const auto args = get_arguments(argc, argv);
-    output(args, optimize(link(frontend(args, context))));
+    
+    arguments args = {}; bool use_exec_args = false;
+    for (long i = 1; i < argc; i++) {
+        const auto word = std::string(argv[i]);
+        if (use_exec_args) { args.argv_for_exec.push_back(word); continue; }
+        if (word == "--") use_exec_args = true;
+        else if (word == "-u") { printf("usage: n -[uvrscod!-] <.n/.ll/.o/.s>\n"); exit(0); }
+        else if (word == "-v") { printf("n3zqx2l: 0.0.3 \tn: 0.0.3\n"); exit(0); }
+        else if (word == "-r" and i + 1 < argc) { args.output = output_type::llvm; args.name = argv[++i]; }
+        else if (word == "-s" and i + 1 < argc) { args.output = output_type::assembly; args.name = argv[++i]; }
+        else if (word == "-c" and i + 1 < argc) { args.output = output_type::object; args.name = argv[++i]; }
+        else if (word == "-o" and i + 1 < argc) { args.output = output_type::exec; args.name = argv[++i]; }
+        else if (word == "-nothing" and i + 1 < argc) { args.output = output_type::nothing; }
+        else if (word == "-d" and i + 1 < argc) { auto n = atoi(argv[++i]); if (n) max_expression_depth = n; }
+        else if (word == "-!") { abort(); /*the linker argumnets start here.*/ }
+        else if (word[0] == '-') { printf("n: error: bad option: %s\n", argv[i]); exit(1); }
+        else {
+            const char* ext = strrchr(argv[i], '.'); std::string extension = ext ? ext + 1 : "";
+            if (extension == "n") {
+                std::ifstream stream {argv[i]};
+                if (stream.good()) {
+                    std::string text {std::istreambuf_iterator<char>(stream), std::istreambuf_iterator<char>()};
+                    stream.close(); args.files.push_back({argv[i], text});
+                } else { printf("n: error: unable to open \"%s\": %s\n", argv[i], strerror(errno)); exit(1); }
+            } else if (extension == "ll") {
+                args.files.push_back({argv[i], ""});
+            } else {
+                printf("n: error: cannot process file \"%s\" with extension \"%s\"", argv[i], extension.c_str());
+                abort();
+            }
+        }
+    } if (args.files.empty()) { printf("n: error: no input files\n"); exit(1); } else return args;
+    llvm::LLVMContext context;                  // subsume this into the below function call, and rename the function to compile(), or simply put all of the code in get_arguments, into main. that sounds better.
+    const auto args = get_arguments(argc, argv);             //   merge these two functions. when we find a file on the commandline, just start the front end on it. this will make the code shorter, and faster.
+    output(args, optimize(link(frontend(args, context))));   //
 }
