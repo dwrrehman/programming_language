@@ -90,7 +90,7 @@ static inline std::string expression_to_string(const expression& given, std::vec
         else if (symbol.type == type::string) result += "\"" + symbol.literal.value + "\"";
         else if (symbol.type == type::subexpr) result += "(" + expression_to_string(symbol.subexpression, entries) + ")";
         if (i < (long) given.symbols.size() - 1 and not (i + 1 < begin or (end != -1 and i + 1 >= end))) result += " "; i++;
-    } result += std::string(")")  ;//    + " : "; // debug
+    } result += ")";
     if (given.llvm_type) {
         std::string type = ""; given.llvm_type->print(llvm::raw_string_ostream(type) << "", false, true);
         result += " (\"" + type + "\") (_)";
@@ -101,8 +101,7 @@ static inline void debug(std::vector<entry> entries, std::vector<std::vector<lon
 static inline void print_expression(expression expression, int d);
 
 static inline void pop(std::vector<entry>& entries, std::vector<std::vector<long>>& stack) {
-    for (auto i : stack.back()) entries.erase(entries.begin() + i);
-    stack.pop_back();
+    for (auto i : stack.back()) entries.erase(entries.begin() + i); stack.pop_back();
 }
 
 static inline void define(const entry& e, std::vector<entry>& entries, std::vector<std::vector<long>>& stack) {
@@ -129,10 +128,10 @@ static inline bool matches(const expression& given, long signature_index, const 
         } else if (not equal(symbol, given.symbols[index])) return false; else index++;
     }
     if (signature_index == 4) define({args[0].expr}, entries, stack);
-    else if (signature_index == 9999999) pop(entries, stack);
+    else if (signature_index == 9998) stack.push_back(stack.back());
+    else if (signature_index == 9999) pop(entries, stack);
     return true;
 }
-
 
 static inline long find(std::vector<symbol> type_list, std::vector<entry>& entries, std::vector<std::vector<long>>& stack) {
     
@@ -162,17 +161,11 @@ static inline resolved_expression construct_signature(expression given, std::vec
         
     } return {3, {}, false, nullptr, signature};
 }
-
 static inline resolved_expression resolve_at(const expression& given, long given_type, long& index, long depth, long max_depth, std::vector<entry>& entries, std::vector<std::vector<long>>& stack, const file& file) {
     if (depth > max_depth) return {0, {}, true};
     if (given_type == 3) {
-        
-        if (/*index < (long) given.symbols.size() and */given.symbols[index].type == type::subexpr)
-            
-            return construct_signature(given.symbols[index++].subexpression, entries, stack);
-        
+        if (/*index < (long) given.symbols.size() and */given.symbols[index].type == type::subexpr) return construct_signature(given.symbols[index++].subexpression, entries, stack);
         else return {3, {}, false, nullptr, {{given.symbols[index++]}, 1}};
-        
     } long saved = index;
     auto saved_stack = stack.back();
     for (auto s : saved_stack) {
@@ -302,9 +295,7 @@ static inline resolved_expression resolve(const expression& given, const file& f
         /*2:*/{{{symbol {type::id, {}, {type::id, "_join"} }, symbol {type::subexpr, {{}, 1}, {}}, symbol {type::subexpr, {{}, 1}, {}}}, 1}},
         /*3:*/{{{symbol {type::id, {}, {type::id, "_name"} } }, 1}},
         /*4:*/{{{symbol {type::id, {}, {type::id, "_def"} }, symbol {type::subexpr, {{}, 3}, {}}}, 1}},
-    };
-    
-    std::vector<std::vector<long>> stack {{2, 4, 1, 3, 0}};
+    }; std::vector<std::vector<long>> stack {{2, 4, 1, 3, 0}};
     
     auto resolved = resolve_expression(given, 1, entries, stack, file);
         
@@ -313,8 +304,7 @@ static inline resolved_expression resolve(const expression& given, const file& f
     printf("\n\n");
     debug(entries, stack, false);
     printf("\n\n");
-    
-    
+        
     if (resolved.error or given.error) exit(1); else return resolved;
 }
 static inline void set_data_for(std::unique_ptr<llvm::Module>& module) {
@@ -328,9 +318,9 @@ static inline void generate_expression(const resolved_expression& given, llvm::M
     ///
     ///         llvm::Function* module->getFunction("hello world name");
     ///
-    ///   as you can see, we can get the function this way. and if we dont find it here, we use the global list, and so on. confer my notes on the ordering of lookup, for details. (i think things have changed now, though now that llvm strings arent a thing.)
-    
-    
+    ///   as you can see, we can get the function this way. and if we dont find it here,
+    ///   we use the global list, and so on. confer my notes on the ordering of lookup, for details.
+    ///   (i think things have changed now, though now that llvm strings arent a thing.)
 }
 static inline std::unique_ptr<llvm::Module> generate(const resolved_expression& given, const file& file, llvm::LLVMContext& context) {
     auto module = llvm::make_unique<llvm::Module>(file.name, context);
@@ -344,8 +334,7 @@ static inline std::unique_ptr<llvm::Module> generate(const resolved_expression& 
     
     builder.SetInsertPoint(&main->getBasicBlockList().back());
     builder.CreateRet(llvm::ConstantInt::get(llvm::Type::getInt32Ty(context), 0));
-    
-    
+        
     printf("\n\n\n");
     std::cout << "generating code....:\n";
     module->print(llvm::outs(), nullptr);
@@ -394,7 +383,7 @@ int main(const int argc, const char** argv) {
         else if (word == "--") use_exec_args = true;
         else if (word == "-u") { printf("usage: n -[uvrscod!-] <.n/.ll/.o/.s>\n"); exit(0); }
         else if (word == "-v") { printf("n3zqx2l: 0.0.3 \tn: 0.0.3\n"); exit(0); }
-        else if (word == "-r" and i + 1 < argc) { args.output = output_type::llvm; args.name = argv[++i]; }
+        else if (word == "-r" and i + 1 < argc) { args.output = output_type::llvm; args.name = argv[++i]; } /// TODO: should this be a "-i" or "-ir", for intermediate code?
         else if (word == "-s" and i + 1 < argc) { args.output = output_type::assembly; args.name = argv[++i]; }
         else if (word == "-c" and i + 1 < argc) { args.output = output_type::object; args.name = argv[++i]; }
         else if (word == "-o" and i + 1 < argc) { args.output = output_type::exec; args.name = argv[++i]; }
