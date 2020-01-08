@@ -5,5 +5,5 @@ _join
             _def ((hi ((g) (_name) (_))) (_))
             _join
                 _def ((dog) (_name) (_))
-                hi dog
+                hi i
         hello hello hello _name

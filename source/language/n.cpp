@@ -255,14 +255,9 @@ static inline void print_resolved_expr(resolved_expression expr, long depth, std
 
 static inline resolved_expression resolve(const expression& given, const file& file) {
     std::vector<entry> entries { /*0:*/{},
-        /*1:*/{{{symbol {type::id, {}, {type::id, "_"} } }, 0}}, /*2:*/{{{symbol {type::id, {}, {type::id, "_join"} }, symbol {type::subexpr, {{}, 1}, {}}, symbol {type::subexpr, {{}, 1}, {}}}, 1}},
-        /*3:*/{{{symbol {type::id, {}, {type::id, "_name"} } }, 1}}, /*4:*/{{{symbol {type::id, {}, {type::id, "_def"} }, symbol {type::subexpr, {{}, 3}, {}}}, 1}},
+        /*1:*/{{{symbol {type::id, {}, {type::id, "_"} } }, 0}}, /*2:*/{{{symbol {type::id, {}, {type::id, "_join"} }, symbol {type::subexpr, {{}, 1}, {}}, symbol {type::subexpr, {{}, 1}, {}}}, 1}}, /*3:*/{{{symbol {type::id, {}, {type::id, "_name"} } }, 1}}, /*4:*/{{{symbol {type::id, {}, {type::id, "_def"} }, symbol {type::subexpr, {{}, 3}, {}}}, 1}},
     }; std::vector<std::vector<long>> stack {{2, 4, 1, 3, 0}};
-    auto resolved = resolve_expression(given, 1, entries, stack, file);
-    print_resolved_expr(resolved, 0, entries); // debug
-    printf("\n\n");
-    debug(entries, stack, false);
-    printf("\n\n");
+    auto resolved = resolve_expression(given, 1, entries, stack, file); /** debug: */print_resolved_expr(resolved, 0, entries); printf("\n\n"); debug(entries, stack, false); printf("\n\n");
     if (resolved.error or given.error) exit(1); else return resolved;
 }
 static inline void set_data_for(std::unique_ptr<llvm::Module>& module) {
@@ -281,12 +276,7 @@ static inline std::unique_ptr<llvm::Module> generate(const resolved_expression& 
     builder.SetInsertPoint(llvm::BasicBlock::Create(context, "entry", main));
     generate_expression(given, module.get(), main, builder);
     builder.SetInsertPoint(&main->getBasicBlockList().back());
-    builder.CreateRet(llvm::ConstantInt::get(llvm::Type::getInt32Ty(context), 0));
-        
-    printf("\n\n\n");
-    std::cout << "generating code....:\n";
-    module->print(llvm::outs(), nullptr);
-    
+    builder.CreateRet(llvm::ConstantInt::get(llvm::Type::getInt32Ty(context), 0)); /** debug: */ std::cout << "generating code....:\n"; module->print(llvm::outs(), nullptr);
     std::string errors = "";
     if (llvm::verifyModule(*module, &(llvm::raw_string_ostream(errors) << ""))) { printf("llvm: %s: error: %s\n", file.name, errors.c_str()); exit(1); }
     else return module;
