@@ -3,12 +3,53 @@ the current status of the nostril compiler:
 
 
 
+=========== found bugs: =====================
+
+    - the compiler doesnt give a warning for an extranous closing parentheiss.
+        --> then what happens?
+        
+=============================================
+
+
+
+
 CURRENT TASK DETAILS:
 =======================
 
-    make fdi work with multiple _2 paraemters.
+
+    we just got _b working basically perfectly, except....
+
+
+    we need ctfe in order to (properly) allow the user to pass in a type (which may take type parameters!)
+        when they give the return type, for a signature,
+            when passing a _name (_b).
+            
+            i know, its alittle bit compilcated, but its neccessary. for both return type, and paraemter types.
+            
+            we need to use this ctfe infrastruction eventually to write a "find()" function, whch takes in a type list, and turns that into an index.
     
-    then start the work of trying to get _1 paraemters working. (then things get interesting!)
+    
+    
+    
+    
+    
+    
+    
+NEXT TASK:
+==========================
+
+
+    
+    then after this, we work on codegening:
+    
+        - start by getting "declare void @"(hello world)"();" to be generated from a define call, with no body.
+            ---> figure out how to call define with no body! (no, not using a seperate new intrinsic.)
+            
+        - then get the generation of an actual n3zqx2l function (from a define) working.
+        
+        - then get the generation of a call to a (n or ll) function working, with the correct calling convention: fast! (unless we are calling something external? i dont know.)
+        
+        
     
     
     
@@ -23,22 +64,24 @@ THE TODO LIST:
 
 [PRIMARY:]
 
-- make llvms void passable and initiable like the real unit type.      [must be done in codegen phase]
-- get fdi functionality fully working, using _b                
-- add _0 functionality to csr.
-- add lazy code generation using _a                                  
-- figure out how to make _define provide _expose functionality
-
-
-[PSECONDARY:]
-
-- reimplement the compiler using the llvm c-api, which is much more intuitive.             [secondary]
-- use more of the stl algorithms..?                 [secondary]
-- revise our target triple.                        [secondary]
+- allow for ctfe! necc for _def to work.
 - add resolution based type inference  (or/plus henry milner TI)        [secondary]
 - add compiletime evlauation to csr.             [secondary]
 - add compiletime parameters                    [secondary]
 - add compiletime generation of runtime data.    [secondary]
+
+- add lazy code generation using _a                                  
+- figure out how to make _define provide _expose functionality
+- make llvms void passable and initiable like the real unit type.      [must be done in codegen phase]
+
+
+
+
+[SECONDARY:]
+
+- reimplement the compiler using the llvm c-api, which is much more intuitive.             [secondary]
+- use more of the stl algorithms..?                 [secondary]
+- revise our target triple.                        [secondary]
 - add numberic constants suppport.   [secondary]
 - code for passing flags to the linker (-!), and the executable (--)     [secondary]
 - add codegen and support for text strings in csr and llvm.            [secondary]
@@ -48,6 +91,9 @@ THE TODO LIST:
 
 
 ============ DONE: ===========
+x: make fdi work with multiple _2 (_b) paraemters.;
+x: - get fdi functionality fully working, using _b;
+x: - add _0 functionality to csr.;
 
 x: - write the string to expression function.;
 x: - get csr working with subexpressions properly.;
