@@ -23,7 +23,7 @@ struct token { type type = type::none; std::string value = ""; long line = 0; lo
 struct symbol; struct expression { std::vector<symbol> symbols = {}; long type = 0; token start = {}; bool error = false; llvm::Type* llvm_type = nullptr; };
 struct symbol { type type = type::none; expression subexpression = {}; token literal = {}; bool error = false; };
 struct resolved_expression { long index = 0; std::vector<resolved_expression> args = {}; bool error = false; std::string llvm_type = ""; expression expr = {}; };
-struct entry { expression signature = {}; llvm::Value* value = nullptr; llvm::Function* function = nullptr; llvm::GlobalVariable* global_variable = nullptr; llvm::Type* llvm_type = nullptr; };
+struct entry { expression signature = {}; expression definition = {}; llvm::Value* value = nullptr; llvm::Function* function = nullptr; llvm::GlobalVariable* global_variable = nullptr; llvm::Type* llvm_type = nullptr; };
 static inline bool is_identifier(char c) { return isalnum(c) or c == '_'; }
 static inline bool is_close_paren(const token& t) { return t.type == type::op and t.value == ")"; }
 static inline bool is_open_paren(const token& t) { return t.type == type::op and t.value == "("; }
@@ -96,12 +96,6 @@ static inline std::string expression_to_string(const expression& given, std::vec
         result += " (\"" + type + "\") (_)";
     } else if (given.type) result += " " + expression_to_string(entries[given.type].signature, entries); return result;
 }
-static inline void debug(std::vector<entry> entries, std::vector<std::vector<long>> stack, bool show_llvm); // debug
-static inline void print_expression(expression expression, int d); // debug
-
-static inline void pop(std::vector<entry>& entries, std::vector<std::vector<long>>& stack) {
-    for (auto i : stack.back()) entries.erase(entries.begin() + i); stack.pop_back();
-}
 static inline void define(const entry& e, std::vector<entry>& entries, std::vector<std::vector<long>>& stack) {
     stack.back().push_back(entries.size()); entries.push_back(e);
     std::stable_sort(stack.back().begin(), stack.back().end(), [&](long a, long b) { return entries[a].signature.symbols.size() > entries[b].signature.symbols.size(); });
@@ -120,16 +114,15 @@ static inline bool matches(const expression& given, long signature_index, const 
     }
     if (signature_index == 4) define({args[0].expr}, entries, stack);
     else if (signature_index == 9998) stack.push_back(stack.back());
-    else if (signature_index == 9999) pop(entries, stack);
+    else if (signature_index == 9999) stack.pop_back();
     return true;
 }
 static expression typify(expression given, long initial_type, std::vector<entry>& entries, std::vector<std::vector<long>>& stack, const file& file) {
     expression signature = given.symbols.front().subexpression;
     given.symbols.erase(given.symbols.begin());
-    signature.type = initial_type;
-    for (long i = given.symbols.size(); i--;) signature.type = resolve_expression(given.symbols[i].subexpression, signature.type, entries, stack, file).index;
-    for (auto& s : signature.symbols) if (s.type == type::subexpr) s.subexpression = typify(s.subexpression, 0, entries, stack, file);
-    return signature;
+    signature.type = initial_type; for (long i = given.symbols.size(); i--;) signature.type = resolve_expression(given.symbols[i].subexpression, signature.type, entries, stack, file).index;
+    stack.push_back(stack.back()); for (auto& s : signature.symbols) if (s.type == type::subexpr) define({s.subexpression = typify(s.subexpression, 0, entries, stack, file)}, entries, stack);
+    stack.pop_back(); return signature;
 }
 static inline resolved_expression construct_signature(expression given, std::vector<entry>& entries, std::vector<std::vector<long>>& stack, const file& file) {
     return {3, {}, given.symbols.empty(), "", given.symbols.front().type == type::subexpr ? typify(given, 0, entries, stack, file) : expression {given.symbols, 1}};
@@ -146,7 +139,7 @@ static inline resolved_expression resolve_at(const expression& given, long given
         if (matches(given, s, entries[s].signature, given_type, args, index, depth, max_depth, entries, stack, file)) return {s, args};
     } if (given.symbols[index].type == type::subexpr) return resolve_expression(given.symbols[index++].subexpression, given_type, entries, stack, file);
     else if (given.symbols[index].type == type::string and given_type == 1) return {0, {}, false, given.symbols[index].literal.value, {} }; else return {0, {}, true};
-}
+} /** debug: */ static inline void debug(std::vector<entry> entries, std::vector<std::vector<long>> stack, bool show_llvm);
 static inline resolved_expression resolve_expression(const expression& given, long given_type, std::vector<entry>& entries, std::vector<std::vector<long>>& stack, const file& file) {
     resolved_expression solution {}; long pointer = 0; auto saved_stack = stack; auto saved_entries = entries;
     for (long max_depth = 0; max_depth <= max_expression_depth; max_depth++) {
@@ -154,8 +147,7 @@ static inline resolved_expression resolve_expression(const expression& given, lo
         solution = resolve_at(given, given_type, pointer, 0, max_depth, entries, stack, file);
         if (not solution.error and pointer == (long) given.symbols.size()) break;
     } if (pointer < (long) given.symbols.size()) solution.error = true;
-    if (solution.error) {
-        debug(entries, stack, false); // debug
+    if (solution.error) { debug(entries, stack, false); /// debug
         const auto t = pointer < (long) given.symbols.size() ? given.symbols[pointer].literal : given.start;
         printf("n3zqx2l: %s:%ld:%ld: error: unresolved %s @ %ld : %s\n", file.name, t.line, t.column, expression_to_string(given, entries, pointer, pointer + 1).c_str(), pointer, expression_to_string(given, entries).c_str()); exit(1);
     } return solution;
@@ -279,17 +271,15 @@ static inline void set_data_for(std::unique_ptr<llvm::Module>& module) {
     module->setDataLayout(target_machine->createDataLayout());
 }
 static inline void generate_expression(const resolved_expression& given, llvm::Module* module, llvm::Function* function, llvm::IRBuilder<>& builder) {
+    
 }
 static inline std::unique_ptr<llvm::Module> generate(const resolved_expression& given, const file& file, llvm::LLVMContext& context) {
     auto module = llvm::make_unique<llvm::Module>(file.name, context);
     llvm::IRBuilder<> builder(context);
     set_data_for(module);
-    
     auto main = llvm::Function::Create(llvm::FunctionType::get(llvm::Type::getInt32Ty(context), {llvm::Type::getInt32Ty(context), llvm::Type::getInt8PtrTy(context)->getPointerTo()}, false), llvm::Function::ExternalLinkage, "main", module.get());
     builder.SetInsertPoint(llvm::BasicBlock::Create(context, "entry", main));
-    
     generate_expression(given, module.get(), main, builder);
-    
     builder.SetInsertPoint(&main->getBasicBlockList().back());
     builder.CreateRet(llvm::ConstantInt::get(llvm::Type::getInt32Ty(context), 0));
         

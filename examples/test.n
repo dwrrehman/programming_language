@@ -1,3 +1,9 @@
 _join
-_def ((hello ((x) (_name) (_)) there) (_name) (_))
-_join _name _name
+    _def ((hello ((x + y) (_))) (_))
+    _join
+        _join
+            _def ((hi ((g) (_name) (_))) (_))
+            _join
+                _def ((dog) (_name) (_))
+                hi dog
+        hello hello hello _name
