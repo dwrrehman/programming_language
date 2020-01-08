@@ -1,7 +1,6 @@
-(_join
-    ( _def hello )
-    ( _join
-        ( _def ((hi) (_)) )
-        (hello)
-    )
-)
+_join
+    _def hello
+    _join
+         _def ((hi) (_))
+        helloj
+    

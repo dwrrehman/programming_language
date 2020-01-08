@@ -90,7 +90,7 @@ static inline std::string expression_to_string(const expression& given, std::vec
         else if (symbol.type == type::string) result += "\"" + symbol.literal.value + "\"";
         else if (symbol.type == type::subexpr) result += "(" + expression_to_string(symbol.subexpression, entries) + ")";
         if (i < (long) given.symbols.size() - 1 and not (i + 1 < begin or (end != -1 and i + 1 >= end))) result += " "; i++;
-    } result += std::string(")")      + " : "; // debug
+    } result += std::string(")")  ;//    + " : "; // debug
     if (given.llvm_type) {
         std::string type = ""; given.llvm_type->print(llvm::raw_string_ostream(type) << "", false, true);
         result += " (\"" + type + "\") (_)";
