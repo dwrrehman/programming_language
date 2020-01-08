@@ -17,9 +17,6 @@ CURRENT TASK DETAILS:
 =======================
 
 
-    we just got _b working basically perfectly, except....
-
-
     we need ctfe in order to (properly) allow the user to pass in a type (which may take type parameters!)
         when they give the return type, for a signature,
             when passing a _name (_b).
@@ -35,10 +32,17 @@ CURRENT TASK DETAILS:
     
     
     
+    
+    
+    
+    
+    
+    
+    
+    
+    
 NEXT TASK:
 ==========================
-
-
     
     then after this, we work on codegening:
     
@@ -97,6 +101,8 @@ THE TODO LIST:
 
 
 ============ DONE: ===========
+
+x: we just got _b working basically perfectly, except....;
 x: make fdi work with multiple _2 (_b) paraemters.;
 x: - get fdi functionality fully working, using _b;
 x: - add _0 functionality to csr.;
