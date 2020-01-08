@@ -20,7 +20,7 @@ struct file { const char* name = ""; std::string text = ""; };
 struct arguments { enum output_type output = output_type::run; const char* name = ""; std::vector<std::string> argv_for_exec = {}; };
 struct lexing_state { long index = 0; type state = type::none; long line = 0; long column = 0; };
 struct token { type type = type::none; std::string value = ""; long line = 0; long column = 0; };
-struct symbol; struct expression { std::vector<symbol> symbols = {}; long type = 0; token start = {}; bool error = false; llvm::Type* llvm_type = nullptr; };
+struct symbol; struct expression { std::vector<symbol> symbols = {}; long type = 0; token start = {}; bool error = false; };
 struct symbol { type type = type::none; expression subexpression = {}; token literal = {}; bool error = false; };
 struct resolved_expression { long index = 0; std::vector<resolved_expression> args = {}; bool error = false; std::string llvm_type = ""; expression expr = {}; };
 struct entry { expression signature = {}; expression definition = {}; llvm::Value* value = nullptr; llvm::Function* function = nullptr; llvm::GlobalVariable* global_variable = nullptr; llvm::Type* llvm_type = nullptr; };
@@ -91,10 +91,7 @@ static inline std::string expression_to_string(const expression& given, std::vec
         else if (symbol.type == type::subexpr) result += "(" + expression_to_string(symbol.subexpression, entries) + ")";
         if (i < (long) given.symbols.size() - 1 and not (i + 1 < begin or (end != -1 and i + 1 >= end))) result += " "; i++;
     } result += ")";
-    if (given.llvm_type) {
-        std::string type = ""; given.llvm_type->print(llvm::raw_string_ostream(type) << "", false, true);
-        result += " (\"" + type + "\") (_)";
-    } else if (given.type) result += " " + expression_to_string(entries[given.type].signature, entries); return result;
+    if (given.type) result += " " + expression_to_string(entries[given.type].signature, entries); return result;
 }
 static inline void define(const entry& e, std::vector<entry>& entries, std::vector<std::vector<long>>& stack) {
     stack.back().push_back(entries.size()); entries.push_back(e);
@@ -103,7 +100,7 @@ static inline void define(const entry& e, std::vector<entry>& entries, std::vect
 static inline resolved_expression resolve_at(const expression& given, long given_type, long& index, long depth, long max_depth, std::vector<entry>& entries, std::vector<std::vector<long>>& stack, const file& file);
 static inline resolved_expression resolve_expression(const expression& given, long given_type, std::vector<entry>& entries, std::vector<std::vector<long>>& stack, const file& file);
 static inline bool matches(const expression& given, long signature_index, const expression& signature, long given_type, std::vector<resolved_expression>& args, long& index, long depth, long max_depth, std::vector<entry>& entries, std::vector<std::vector<long>>& stack, const file& file) {
-    if (given_type != signature.type /*and given_type != _1*/) return false;
+    if (given_type != signature.type) return false;
     for (auto symbol : signature.symbols) {
         if (index >= (long) given.symbols.size()) return false;
         if (symbol.type == type::subexpr) {
@@ -113,11 +110,13 @@ static inline bool matches(const expression& given, long signature_index, const 
         } else if (not equal(symbol, given.symbols[index])) return false; else index++;
     }
     if (signature_index == 4) define({args[0].expr}, entries, stack);
+    if (signature_index == 9991) define({args[0].expr, args[1].expr}, entries, stack);
     else if (signature_index == 9998) stack.push_back(stack.back());
     else if (signature_index == 9999) stack.pop_back();
     return true;
 }
 static expression typify(expression given, long initial_type, std::vector<entry>& entries, std::vector<std::vector<long>>& stack, const file& file) {
+    if (given.symbols.empty()) return {{}, 0, {}, true};
     expression signature = given.symbols.front().subexpression;
     given.symbols.erase(given.symbols.begin());
     signature.type = initial_type; for (long i = given.symbols.size(); i--;) signature.type = resolve_expression(given.symbols[i].subexpression, signature.type, entries, stack, file).index;
@@ -224,7 +223,6 @@ static inline void print_symbol(symbol symbol, int d) {
 static inline void print_expression(expression expression, int d) {
     prep(d); std::cout << "expression: \n";
     prep(d); std::cout << std::boolalpha << "error: " << expression.error << "\n";
-    if (expression.llvm_type) { prep(d); std::cout << "llvmtype: " << expression.llvm_type << "\n"; }
     prep(d); std::cout << "symbol count: " << expression.symbols.size() << "\n";
     prep(d); std::cout << "symbols: \n";
     int i = 0;
@@ -234,7 +232,6 @@ static inline void print_expression(expression expression, int d) {
         std::cout << "\n";
         i++;
     }
-    
     prep(d); std::cout << "type = " << expression.type << "\n";
 }
 

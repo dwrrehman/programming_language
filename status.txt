@@ -89,6 +89,12 @@ THE TODO LIST:
 - use the updated pass mananger llvm system, for generating .s or .o files, and for optimization.
 
 
+- replace all occurences (or hearly all) of std::vector    with    llvm::SmallVector<100, T>.     because efficiency.
+
+
+
+
+
 
 ============ DONE: ===========
 x: make fdi work with multiple _2 (_b) paraemters.;
