@@ -3,12 +3,10 @@ the current status of the nostril compiler:
 
 
 
-=========== found bugs: =====================
 
-    - the compiler doesnt give a warning for an extranous closing parentheiss.
-        --> then what happens?
-        
-=============================================
+
+
+
 
 
 
@@ -57,7 +55,7 @@ NEXT TASK:
     
     
     
-
+============================================================================================================================================
 
 
 
@@ -67,33 +65,59 @@ THE TODO LIST:
 =====================
 
 [PRIMARY:]
+==========
 
 - allow for ctfe! necc for _def to work.
-- add resolution based type inference  (or/plus henry milner TI)        [secondary]
-- add compiletime evlauation to csr.             [secondary]
-- add compiletime parameters                    [secondary]
-- add compiletime generation of runtime data.    [secondary]
 
-- add lazy code generation using _a                                  
-- figure out how to make _define provide _expose functionality
-- make llvms void passable and initiable like the real unit type.      [must be done in codegen phase]
+
+- add lazy code generation using _a          [neccessary]
+- add compiletime evlauation to csr.
+- add compiletime parameters
+- add compiletime generation of runtime data.
+
+- add resolution based type inference  (or/plus henry milner TI)       [nice]
+
+- figure out how to make _define provide _expose functionality         [nice]
+
+- make llvms void passable and initiable like the real unit type.    [nice]  [must be done in codegen phase]
 
 
 
 
 [SECONDARY:]
+============
 
-- reimplement the compiler using the llvm c-api, which is much more intuitive.             [secondary]
-- use more of the stl algorithms..?                 [secondary]
-- revise our target triple.                        [secondary]
-- add numberic constants suppport.   [secondary]
-- code for passing flags to the linker (-!), and the executable (--)     [secondary]
-- add codegen and support for text strings in csr and llvm.            [secondary]
-- figure out how we are going to do multiple files, and our module system.    [secondary]
-- use the updated pass mananger llvm system, for generating .s or .o files, and for optimization.
+- figure out how we are going to do multiple files, and our module system.         [neccessary]
+
+- use the updated pass mananger llvm system, for generating .s or .o files, and for optimization.      [self hosting]
+- reimplement the compiler using the llvm c-api, which is much more intuitive.             [efficiency]   [self-hosting]
+
+- revise our target triple.                                                                     [efficiency]
+- replace all occurences (or hearly all) of std::vector    with    llvm::SmallVector<1000ish, T>.    [efficiency]
+- use more of the stl algorithms..?                                                           [efficiency]
+
+- add numberic constants suppport.                                   [nice]
+- add codegen and support for text strings in csr and llvm.          [nice]
+- code for passing flags to the linker (-!)                          [nice]
 
 
-- replace all occurences (or hearly all) of std::vector    with    llvm::SmallVector<100, T>.     because efficiency.
+
+
+
+
+
+=========== found bugs: =====================
+
+    - the compiler doesnt give a warning for an extranous closing parentheiss.
+        --> then what happens?
+        
+=============================================
+
+
+
+
+
+
 
 
 
@@ -102,6 +126,8 @@ THE TODO LIST:
 
 ============ DONE: ===========
 
+
+x: - code for passing args to the executable (--);
 x: we just got _b working basically perfectly, except....;
 x: make fdi work with multiple _2 (_b) paraemters.;
 x: - get fdi functionality fully working, using _b;
@@ -122,6 +148,37 @@ x: - make string to expression function cope with llvm-single-identifiers.;
 x: - allow type-section deductions in n3zqx2l signature strings inside llvm strings.;::this is a high bar thing, we are saving it until we do type inference, which is not soon.;
 
 ==================================
+
+
+
+
+
+
+
+
+=========================================================================================================================================
+
+
+
+
+
+
+
+
+2001072.224206:
+
+ok, so we are finally at the place in the compiler where we need to decide exactly how our type system is "computational".
+
+
+
+
+
+
+
+
+
+
+
 
 
 

@@ -13,7 +13,7 @@
 #include <fstream>
 #include <iostream>
 #include <vector>
-static long max_expression_depth = 10;
+static long max_expression_depth = 20;
 enum class output_type {nothing, run, llvm, assembly, object, exec};
 enum class type { none, id, string, op, subexpr};
 struct file { const char* name = ""; std::string text = ""; };
@@ -21,9 +21,9 @@ struct arguments { enum output_type output = output_type::run; const char* name 
 struct lexing_state { long index = 0; type state = type::none; long line = 0; long column = 0; };
 struct token { type type = type::none; std::string value = ""; long line = 0; long column = 0; };
 struct symbol; struct expression { std::vector<symbol> symbols = {}; long type = 0; token start = {}; bool error = false; };
+struct entry { expression signature = {}; expression definition = {}; };
 struct symbol { type type = type::none; expression subexpression = {}; token literal = {}; bool error = false; };
 struct resolved { long index = 0; std::vector<resolved> args = {}; bool error = false; std::string llvm_type = ""; expression expr = {}; };
-struct entry { expression signature = {}; expression definition = {}; /*llvm::Value* value = nullptr; llvm::Function* function = nullptr; llvm::GlobalVariable* global_variable = nullptr; llvm::Type* llvm_type = nullptr; */};
 static inline bool is_identifier(char c) { return isalnum(c) or c == '_'; }
 static inline bool is_close_paren(const token& t) { return t.type == type::op and t.value == ")"; }
 static inline bool is_open_paren(const token& t) { return t.type == type::op and t.value == "("; }
@@ -36,12 +36,8 @@ static inline token next(const file& file, lexing_state& lex) {
         else if (c == '\"' and state == type::none) { token = { type::string, "", lex.line, lex.column }; state = type::string; }
         else if (is_identifier(c) and state == type::none) { token = { type::id, std::string(1, c), lex.line, lex.column }; state = type::id; }
         else if (c == '\\' and state == type::string) {
-            if (n == '\\') token.value += "\\";
-            else if (n == '\"') token.value += "\"";
-            else if (n == 'n') token.value += "\n";
-            else if (n == 't') token.value += "\t";
-            else { printf("n3zqx2l: error(1,1): unknown escape sequence.\n"); } ///TODO: make this use the standard error format, and include linea nd column
-            lex.column++; at++;
+            if (n == '\\') token.value += "\\"; else if (n == '\"') token.value += "\""; else if (n == 'n') token.value += "\n"; else if (n == 't') token.value += "\t";
+            else printf("n3zqx2l: %s:%ld:%ld: error: unknown escape sequence '\\%c'\n", file.name, lex.line, lex.column, n); lex.column++; at++;
         } else if ((c == '\"' and state == type::string)) { state = type::none; lex.column++; at++; return token; }
         else if (is_identifier(c) and not is_identifier(n) and state == type::id) { token.value += c; state = type::none; lex.column++; at++; return token; }
         else if (state == type::string or (is_identifier(c) and state == type::id)) token.value += c;
@@ -59,8 +55,7 @@ static inline symbol parse_symbol(lexing_state& state, const file& file) {
     if (is_open_paren(open)) {
         if (auto e = parse(state, file); not e.error) {
             auto close = next(file, state);
-            if (is_close_paren(close)) return {type::subexpr, e};
-            else { state = saved; printf("n3zqx2l: %s:%ld:%ld: expected \")\"\n", file.name, close.line, close.column); return {type::subexpr, e, {}, true};}
+            if (is_close_paren(close)) return {type::subexpr, e}; else { state = saved; printf("n3zqx2l: %s:%ld:%ld: expected \")\"\n", file.name, close.line, close.column); return {type::subexpr, e, {}, true};}
         } else state = saved;
     } else state = saved;
     auto t = next(file, state);
@@ -124,15 +119,12 @@ static expression typify(expression given, long initial_type, std::vector<entry>
     stack.pop_back(); return signature;
 }
 static inline resolved construct_signature(expression given, std::vector<entry>& entries, std::vector<std::vector<long>>& stack, const file& file) {
-    return {3, {}, given.symbols.empty(), "", given.symbols.front().type == type::subexpr ? typify(given, 0, entries, stack, file) : expression {given.symbols, 1}};
+    return {3, {}, given.symbols.empty(), "", given.symbols.size() and given.symbols.front().type == type::subexpr ? typify(given, 0, entries, stack, file) : expression {given.symbols, 1}};
 }
 static inline resolved resolve_at(const expression& given, long given_type, long& index, long depth, long max_depth, std::vector<entry>& entries, std::vector<std::vector<long>>& stack, const file& file) {
     if (depth > max_depth or index >= (long) given.symbols.size()) return {0, {}, true};
-    if (given_type == 3) {
-        if (given.symbols[index].type == type::subexpr) return construct_signature(given.symbols[index++].subexpression, entries, stack, file);
-        else return {3, {}, false, "", {{given.symbols[index++]}, 1}};
-    } long saved = index;
-    auto saved_stack = stack.back();
+    if (given_type == 3) if (given.symbols[index].type == type::subexpr) return construct_signature(given.symbols[index++].subexpression, entries, stack, file); else return {3, {}, false, "", {{given.symbols[index++]}, 1}};
+    long saved = index; auto saved_stack = stack.back();
     for (auto s : saved_stack) {
         std::vector<resolved> args = {}; index = saved;
         if (matches(given, s, entries[s].signature, given_type, args, index, depth, max_depth, entries, stack, file)) return {s, args};
@@ -183,7 +175,6 @@ static inline void debug(std::vector<entry> entries, std::vector<std::vector<lon
         j++;
     } std::cout << "}\n";
 }
-
 static inline void print_expression(expression e, int d);
 #define prep(x)   for (long i = 0; i < x; i++) std::cout << ".   "
 static inline const char* convert_token_type_representation(enum type type) {
@@ -195,7 +186,6 @@ static inline const char* convert_token_type_representation(enum type type) {
         case type::subexpr: return "subexpr";
     }
 }
-
 static inline void print_symbol(symbol symbol, int d) {
     prep(d); std::cout << "symbol: \n";
     switch (symbol.type) {
@@ -219,7 +209,6 @@ static inline void print_symbol(symbol symbol, int d) {
         default: break;
     }
 }
-
 static inline void print_expression(expression expression, int d) {
     prep(d); std::cout << "expression: \n";
     prep(d); std::cout << std::boolalpha << "error: " << expression.error << "\n";
@@ -234,7 +223,6 @@ static inline void print_expression(expression expression, int d) {
     }
     prep(d); std::cout << "type = " << expression.type << "\n";
 }
-
 static inline void print_resolved_expr(resolved expr, long depth, std::vector<entry> entries) {
     prep(depth); std::cout << "[error = " << std::boolalpha << expr.error << "]\n";
     prep(depth); std::cout << "index = " << expr.index << " :: " << expression_to_string(entries[expr.index].signature, entries, 0);
@@ -316,15 +304,15 @@ int main(const int argc, const char** argv) {
         const auto word = std::string(argv[i]);
         if (use_exec_args) args.argv_for_exec.push_back(word);
         else if (word == "--") use_exec_args = true;
+        else if (word == "-!") { abort(); /*the linker argumnets start here.*/ }
         else if (word == "-u") { printf("usage: n -[uvrscod!-] <.n/.ll/.o/.s>\n"); exit(0); }
         else if (word == "-v") { printf("n3zqx2l: 0.0.3 \tn: 0.0.3\n"); exit(0); }
-        else if (word == "-r" and i + 1 < argc) { args.output = output_type::llvm; args.name = argv[++i]; } /// TODO: should this be a "-i" or "-ir", for intermediate code?
+        else if (word == "-nothing") { args.output = output_type::nothing; }
+        else if (word == "-r" and i + 1 < argc) { args.output = output_type::llvm; args.name = argv[++i]; }
         else if (word == "-s" and i + 1 < argc) { args.output = output_type::assembly; args.name = argv[++i]; }
         else if (word == "-c" and i + 1 < argc) { args.output = output_type::object; args.name = argv[++i]; }
         else if (word == "-o" and i + 1 < argc) { args.output = output_type::exec; args.name = argv[++i]; }
-        else if (word == "-nothing" and i + 1 < argc) { args.output = output_type::nothing; }
         else if (word == "-d" and i + 1 < argc) { auto n = atoi(argv[++i]); if (n) max_expression_depth = n; }
-        else if (word == "-!") { abort(); /*the linker argumnets start here.*/ }
         else if (word[0] == '-') { printf("n: error: bad option: %s\n", argv[i]); exit(1); }
         else {
             auto extension = std::string(strrchr(argv[i], '.'));
