@@ -22,7 +22,7 @@ struct lexing_state { long index = 0; type state = type::none; long line = 0; lo
 struct token { type type = type::none; std::string value = ""; long line = 0; long column = 0; };
 struct symbol; struct expression { std::vector<symbol> symbols = {}; long type = 0; token start = {}; bool error = false; llvm::Type* llvm_type = nullptr; };
 struct symbol { type type = type::none; expression subexpression = {}; token literal = {}; bool error = false; };
-struct resolved_expression { long index = 0; std::vector<resolved_expression> args = {}; bool error = false; llvm::Type* llvm_type = nullptr; expression expr = {}; };
+struct resolved_expression { long index = 0; std::vector<resolved_expression> args = {}; bool error = false; std::string llvm_type = ""; expression expr = {}; };
 struct entry { expression signature = {}; llvm::Value* value = nullptr; llvm::Function* function = nullptr; llvm::GlobalVariable* global_variable = nullptr; llvm::Type* llvm_type = nullptr; };
 static inline bool is_identifier(char c) { return isalnum(c) or c == '_'; }
 static inline bool is_close_paren(const token& t) { return t.type == type::op and t.value == ")"; }
@@ -96,25 +96,16 @@ static inline std::string expression_to_string(const expression& given, std::vec
         result += " (\"" + type + "\") (_)";
     } else if (given.type) result += " " + expression_to_string(entries[given.type].signature, entries); return result;
 }
-
-static inline void debug(std::vector<entry> entries, std::vector<std::vector<long>> stack, bool show_llvm);
-static inline void print_expression(expression expression, int d);
+static inline void debug(std::vector<entry> entries, std::vector<std::vector<long>> stack, bool show_llvm); // debug
+static inline void print_expression(expression expression, int d); // debug
 
 static inline void pop(std::vector<entry>& entries, std::vector<std::vector<long>>& stack) {
     for (auto i : stack.back()) entries.erase(entries.begin() + i); stack.pop_back();
 }
-
 static inline void define(const entry& e, std::vector<entry>& entries, std::vector<std::vector<long>>& stack) {
-    
-    printf("DEFINE(): printing expression signature given: ");
-    print_expression(e.signature, 0);
-    printf("\n\n");
-    
     stack.back().push_back(entries.size()); entries.push_back(e);
     std::stable_sort(stack.back().begin(), stack.back().end(), [&](long a, long b) { return entries[a].signature.symbols.size() > entries[b].signature.symbols.size(); });
 }
-
-
 static inline resolved_expression resolve_at(const expression& given, long given_type, long& index, long depth, long max_depth, std::vector<entry>& entries, std::vector<std::vector<long>>& stack, const file& file);
 static inline resolved_expression resolve_expression(const expression& given, long given_type, std::vector<entry>& entries, std::vector<std::vector<long>>& stack, const file& file);
 static inline bool matches(const expression& given, long signature_index, const expression& signature, long given_type, std::vector<resolved_expression>& args, long& index, long depth, long max_depth, std::vector<entry>& entries, std::vector<std::vector<long>>& stack, const file& file) {
@@ -132,46 +123,29 @@ static inline bool matches(const expression& given, long signature_index, const 
     else if (signature_index == 9999) pop(entries, stack);
     return true;
 }
-
-static inline long find(std::vector<symbol> type_list, std::vector<entry>& entries, std::vector<std::vector<long>>& stack) {
-    
-    for (auto s : stack.back()) {
-        entries[s].signature; // compare with the first elem in type list? no... because what if entries[s].sig has parameters!
-        /// that would mean we have to first **evlauate** the first expression in the type list. and then whatever "index" (reduced type) it comes to, we find THAT in the n-symbol table.
-    }
-    
-    // we literally need to do compiletime evaluation right now.
-    
-    return 1;
+static expression typify(expression given, long initial_type, std::vector<entry>& entries, std::vector<std::vector<long>>& stack, const file& file) {
+    expression signature = given.symbols.front().subexpression;
+    given.symbols.erase(given.symbols.begin());
+    signature.type = initial_type;
+    for (long i = given.symbols.size(); i--;) signature.type = resolve_expression(given.symbols[i].subexpression, signature.type, entries, stack, file).index;
+    for (auto& s : signature.symbols) if (s.type == type::subexpr) s.subexpression = typify(s.subexpression, 0, entries, stack, file);
+    return signature;
 }
-
-static inline resolved_expression construct_signature(expression given, std::vector<entry>& entries, std::vector<std::vector<long>>& stack) {
-    expression signature = {};
-    if (given.symbols.front().type != type::subexpr) {
-        signature = expression {given.symbols, 1};               // infered return type.
-    } else {
-        
-        signature = given.symbols.front().subexpression;
-        given.symbols.erase(given.symbols.begin());
-        signature.type = find(given.symbols, entries, stack);
-        
-        printf("construct signature:    printing signature that was constructed from the type list.\n");
-        print_expression(signature, 0);
-        printf("\n\n");
-        
-    } return {3, {}, false, nullptr, signature};
+static inline resolved_expression construct_signature(expression given, std::vector<entry>& entries, std::vector<std::vector<long>>& stack, const file& file) {
+    return {3, {}, given.symbols.empty(), "", given.symbols.front().type == type::subexpr ? typify(given, 0, entries, stack, file) : expression {given.symbols, 1}};
 }
 static inline resolved_expression resolve_at(const expression& given, long given_type, long& index, long depth, long max_depth, std::vector<entry>& entries, std::vector<std::vector<long>>& stack, const file& file) {
-    if (depth > max_depth) return {0, {}, true};
+    if (depth > max_depth or index >= (long) given.symbols.size()) return {0, {}, true};
     if (given_type == 3) {
-        if (/*index < (long) given.symbols.size() and */given.symbols[index].type == type::subexpr) return construct_signature(given.symbols[index++].subexpression, entries, stack);
-        else return {3, {}, false, nullptr, {{given.symbols[index++]}, 1}};
+        if (given.symbols[index].type == type::subexpr) return construct_signature(given.symbols[index++].subexpression, entries, stack, file);
+        else return {3, {}, false, "", {{given.symbols[index++]}, 1}};
     } long saved = index;
     auto saved_stack = stack.back();
     for (auto s : saved_stack) {
         std::vector<resolved_expression> args = {}; index = saved;
         if (matches(given, s, entries[s].signature, given_type, args, index, depth, max_depth, entries, stack, file)) return {s, args};
-    } if (/*index < (long) given.symbols.size() and */given.symbols[index].type == type::subexpr) return resolve_expression(given.symbols[index++].subexpression, given_type, entries, stack, file); else return {0, {}, true};
+    } if (given.symbols[index].type == type::subexpr) return resolve_expression(given.symbols[index++].subexpression, given_type, entries, stack, file);
+    else if (given.symbols[index].type == type::string and given_type == 1) return {0, {}, false, given.symbols[index].literal.value, {} }; else return {0, {}, true};
 }
 static inline resolved_expression resolve_expression(const expression& given, long given_type, std::vector<entry>& entries, std::vector<std::vector<long>>& stack, const file& file) {
     resolved_expression solution {}; long pointer = 0; auto saved_stack = stack; auto saved_entries = entries;
@@ -288,23 +262,15 @@ static inline void print_resolved_expr(resolved_expression expr, long depth, std
 }
 
 static inline resolved_expression resolve(const expression& given, const file& file) {
-    
-    std::vector<entry> entries {
-        /*0:*/{},
-        /*1:*/{{{symbol {type::id, {}, {type::id, "_"} } }, 0}},
-        /*2:*/{{{symbol {type::id, {}, {type::id, "_join"} }, symbol {type::subexpr, {{}, 1}, {}}, symbol {type::subexpr, {{}, 1}, {}}}, 1}},
-        /*3:*/{{{symbol {type::id, {}, {type::id, "_name"} } }, 1}},
-        /*4:*/{{{symbol {type::id, {}, {type::id, "_def"} }, symbol {type::subexpr, {{}, 3}, {}}}, 1}},
+    std::vector<entry> entries { /*0:*/{},
+        /*1:*/{{{symbol {type::id, {}, {type::id, "_"} } }, 0}}, /*2:*/{{{symbol {type::id, {}, {type::id, "_join"} }, symbol {type::subexpr, {{}, 1}, {}}, symbol {type::subexpr, {{}, 1}, {}}}, 1}},
+        /*3:*/{{{symbol {type::id, {}, {type::id, "_name"} } }, 1}}, /*4:*/{{{symbol {type::id, {}, {type::id, "_def"} }, symbol {type::subexpr, {{}, 3}, {}}}, 1}},
     }; std::vector<std::vector<long>> stack {{2, 4, 1, 3, 0}};
-    
     auto resolved = resolve_expression(given, 1, entries, stack, file);
-        
-    // debug
-    print_resolved_expr(resolved, 0, entries);
+    print_resolved_expr(resolved, 0, entries); // debug
     printf("\n\n");
     debug(entries, stack, false);
     printf("\n\n");
-        
     if (resolved.error or given.error) exit(1); else return resolved;
 }
 static inline void set_data_for(std::unique_ptr<llvm::Module>& module) {
@@ -313,14 +279,6 @@ static inline void set_data_for(std::unique_ptr<llvm::Module>& module) {
     module->setDataLayout(target_machine->createDataLayout());
 }
 static inline void generate_expression(const resolved_expression& given, llvm::Module* module, llvm::Function* function, llvm::IRBuilder<>& builder) {
-    /// problem. how do we get the function to generate a call to it?
-    /// it will presumably already be in the symbol table. simply look up the function using:
-    ///
-    ///         llvm::Function* module->getFunction("hello world name");
-    ///
-    ///   as you can see, we can get the function this way. and if we dont find it here,
-    ///   we use the global list, and so on. confer my notes on the ordering of lookup, for details.
-    ///   (i think things have changed now, though now that llvm strings arent a thing.)
 }
 static inline std::unique_ptr<llvm::Module> generate(const resolved_expression& given, const file& file, llvm::LLVMContext& context) {
     auto module = llvm::make_unique<llvm::Module>(file.name, context);

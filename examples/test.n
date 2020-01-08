@@ -1,6 +1,3 @@
 _join
-    _def hello
-    _join
-         _def ((hi) (_))
-        helloj
-    
+_def ((hello ((x) (_name) (_)) there) (_name) (_))
+_join _name _name
