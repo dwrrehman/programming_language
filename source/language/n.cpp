@@ -78,13 +78,13 @@ static inline void define(const entry& e, std::vector<entry>& entries, std::vect
     stack.back().push_back(entries.size()); entries.push_back(e);
     std::stable_sort(stack.back().begin(), stack.back().end(), [&](long a, long b) { return entries[a].signature.symbols.size() > entries[b].signature.symbols.size(); });
 }
-static inline resolved resolve_at(const expression& given, resolved given_type, long& index, long depth, long max_depth, std::vector<entry>& entries, std::vector<std::vector<long>>& stack, const file& file);
-static inline resolved resolve_expression(const expression& given, resolved given_type, std::vector<entry>& entries, std::vector<std::vector<long>>& stack, const file& file);
+static inline resolved resolve_at(const expression& given, const resolved& given_type, long& index, long depth, long max_depth, std::vector<entry>& entries, std::vector<std::vector<long>>& stack, const file& file);
+static inline resolved resolve_expression(const expression& given, const resolved& given_type, std::vector<entry>& entries, std::vector<std::vector<long>>& stack, const file& file);
 static inline bool equal(resolved a, resolved b) {
     if (a.index != b.index or a.args.size() != b.args.size()) return false;
     for (unsigned long i = 0; i < a.args.size(); i++) if (not equal(a.args[i], b.args[i])) return false; return true;
 }
-static inline bool matches(const expression& given, long signature_index, const expression& signature, resolved given_type, std::vector<resolved>& args, long& index, long depth, long max_depth, std::vector<entry>& entries, std::vector<std::vector<long>>& stack, const file& file) {
+static inline bool matches(const expression& given, long signature_index, const expression& signature, const resolved& given_type, std::vector<resolved>& args, long& index, long depth, long max_depth, std::vector<entry>& entries, std::vector<std::vector<long>>& stack, const file& file) {
     if (not equal(given_type, signature.type)) return false;
     for (auto symbol : signature.symbols) {
         if (index >= (long) given.symbols.size()) return false;
@@ -99,7 +99,7 @@ static inline bool matches(const expression& given, long signature_index, const 
     else if (signature_index == 9999) stack.pop_back();
     return true;
 }
-static expression typify(const expression& given, resolved initial_type, std::vector<entry>& entries, std::vector<std::vector<long>>& stack, const file& file) {
+static expression typify(const expression& given, const resolved& initial_type, std::vector<entry>& entries, std::vector<std::vector<long>>& stack, const file& file) {
     if (given.symbols.empty()) return {{}, {}, {}, true}; expression signature = given.symbols.front().subexpression;
     signature.type = initial_type; for (long i = given.symbols.size(); i-- > 1;) signature.type = resolve_expression(given.symbols[i].subexpression, signature.type, entries, stack, file);
     stack.push_back(stack.back()); for (auto& s : signature.symbols) if (s.type == expr) define({s.subexpression = typify(s.subexpression, {0}, entries, stack, file)}, entries, stack); stack.pop_back(); return signature;
@@ -107,7 +107,7 @@ static expression typify(const expression& given, resolved initial_type, std::ve
 static inline resolved construct_signature(expression given, std::vector<entry>& entries, std::vector<std::vector<long>>& stack, const file& file) {
     return {3, {}, given.symbols.empty(), {given.symbols.size() and given.symbols.front().type == expr ? typify(given, {0}, entries, stack, file) : expression {given.symbols, {1}}}};
 }
-static inline resolved resolve_at(const expression& given, resolved given_type, long& index, long depth, long max_depth, std::vector<entry>& entries, std::vector<std::vector<long>>& stack, const file& file) {
+static inline resolved resolve_at(const expression& given, const resolved& given_type, long& index, long depth, long max_depth, std::vector<entry>& entries, std::vector<std::vector<long>>& stack, const file& file) {
     if (depth > max_depth or index >= (long) given.symbols.size()) return {0, {}, true};
     else if (given_type.index == 3) { if (given.symbols[index].type == expr) return construct_signature(given.symbols[index++].subexpression, entries, stack, file); else return resolved {3, {}, false, {{{given.symbols[index++]}, {1}}}}; }
     long saved = index; auto saved_stack = stack.back();
@@ -120,7 +120,7 @@ static inline resolved resolve_at(const expression& given, resolved given_type, 
     else if (given.symbols[index].type == string) return {0, {}, false, {{{given.symbols[index++]}}}, "i8*"};
     else return {0, {}, true};
 } /** debug: */ static inline void debug(std::vector<entry> entries, std::vector<std::vector<long>> stack, bool show_llvm);
-static inline resolved resolve_expression(const expression& given, resolved given_type, std::vector<entry>& entries, std::vector<std::vector<long>>& stack, const file& file) {
+static inline resolved resolve_expression(const expression& given, const resolved& given_type, std::vector<entry>& entries, std::vector<std::vector<long>>& stack, const file& file) {
     resolved solution {}; long pointer = 0; auto saved_stack = stack; auto saved_entries = entries;
     for (long max_depth = 0; max_depth <= max_expression_depth; max_depth++) {
         pointer = 0; entries = saved_entries; stack = saved_stack;
@@ -291,7 +291,7 @@ int main(const int argc, const char** argv) {
             if (use_exec_args) args.argv_for_exec.push_back(argv[i]);
             else if (c == '-') use_exec_args = true;
             else if (c == '!') { abort(); /*the linker argumnets start here.*/ }
-            else if (c == 'u') { printf("usage: n -[uv012345d!-] <.n/.ll/.o/.s>\n"); exit(0); }
+            else if (c == 'u') { printf("usage: n -[uvxocisd!-] <.n/.ll/.o/.s>\n"); exit(0); }
             else if (c == 'v') { printf("n3zqx2l: 0.0.4 \tn: 0.0.4\n"); exit(0); }
             else if (c == 'd' and i + 1 < argc) { auto n = atoi(argv[++i]); if (n) max_expression_depth = n; }
             else if (strchr("xocis", c) and i + 1 < argc) { args.output = c; args.name = argv[++i]; }
