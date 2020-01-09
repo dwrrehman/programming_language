@@ -15,6 +15,10 @@ CURRENT TASK DETAILS:
 =======================
 
 
+
+
+
+x:
     we need ctfe in order to (properly) allow the user to pass in a type (which may take type parameters!)
         when they give the return type, for a signature,
             when passing a _name (_b).
@@ -23,7 +27,7 @@ CURRENT TASK DETAILS:
             
             we need to use this ctfe infrastruction eventually to write a "find()" function, whch takes in a type list, and turns that into an index.
     
-    
+  ;
     
     
     
@@ -68,7 +72,6 @@ THE TODO LIST:
 ==========
 
 - allow for ctfe! necc for _def to work.
-
 
 - add lazy code generation using _a          [neccessary]
 - add compiletime evlauation to csr.
