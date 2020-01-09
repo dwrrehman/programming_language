@@ -114,8 +114,7 @@ static inline resolved resolve_at(const expression& given, const resolved& given
     for (auto s : saved_stack.back()) {
         std::vector<resolved> args = {}; index = saved; stack = saved_stack; entries = saved_entries;
         if (matches(given, s, entries[s].signature, given_type, args, index, depth, max_depth, entries, stack, file)) return {s, args};
-    }
-    if (given.symbols[index].type == expr) return resolve_expression(given.symbols[index++].subexpression, given_type, entries, stack, file);
+    } if (given.symbols[index].type == expr) return resolve_expression(given.symbols[index++].subexpression, given_type, entries, stack, file);
     else if (given.symbols[index].type == string and given_type.index == 1) return {0, {}, false, {}, given.symbols[index++].literal.value};
     else if (given.symbols[index].type == string) return {0, {}, false, {{{given.symbols[index++]}}}, "i8*"};
     else return {0, {}, true};
@@ -235,14 +234,7 @@ static inline void print_resolved_expr(resolved expr, long depth, std::vector<en
 }
 
 static inline resolved resolve(const expression& given, const file& file) {
-    std::vector<entry> entries {
-        {},
-        {{{{id,{},{id,"_"}}},{0},{1}}},
-        {{{{id,{},{id,"join"}},{expr,{{},{1}}},{expr,{{},{1}}}},{1},{2}}},
-        {{{{id,{},{id,"name"}}},{1},{3}}},
-        {{{{id,{},{id,"define"}},{expr,{{},{3}}}},{1},{4}}}
-        
-    }; std::vector<std::vector<long>> stack {{2, 4, 1, 3}};
+    std::vector<entry> entries { {}, {{{{id,{},{id,"_"}}},{0},{1}}}, {{{{id,{},{id,"join"}},{expr,{{},{1}}},{expr,{{},{1}}}},{1},{2}}}, {{{{id,{},{id,"name"}}},{1},{3}}}, {{{{id,{},{id,"define"}},{expr,{{},{3}}}},{1},{4}}} }; std::vector<std::vector<long>> stack {{2, 4, 1, 3}};
     auto resolved = resolve_expression(given, {1}, entries, stack, file);   /** debug: */print_resolved_expr(resolved, 0, entries); printf("\n\n"); debug(entries, stack, false); printf("\n\n");
     if (resolved.error or given.error) exit(1); else return resolved;
 }
