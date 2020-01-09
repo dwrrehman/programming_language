@@ -75,7 +75,7 @@ static inline std::string expression_to_string(const expression& given, const st
         if (i < (long) given.symbols.size() - 1 and not (i + 1 < begin or (end != -1 and i + 1 >= end))) result += " "; i++;
     } result += ")"; if (given.type.index) result += " " + expression_to_string(entries[given.type.index].signature, entries, 0, -1, given.type.args); return result;
 }
-static inline void define(expression& signature, const resolved& definition, std::vector<entry>& entries, std::vector<std::vector<long>>& stack) {
+static inline void define(expression& signature, const resolved& type, const resolved& definition, std::vector<entry>& entries, std::vector<std::vector<long>>& stack) {
     stack.back().push_back(signature.me.index = entries.size()); entries.push_back({signature, definition});
     std::stable_sort(stack.back().begin(), stack.back().end(), [&](long a, long b) { return entries[a].signature.symbols.size() > entries[b].signature.symbols.size(); });
 }
@@ -95,22 +95,22 @@ static inline bool matches(const expression& given, long signature_index, const 
             auto argument = resolve_at(given, symbol.subexpression.type, index, depth + 1, max_depth, entries, stack, file);
             if (argument.error) return false; args.push_back({argument}); entries[symbol.subexpression.me.index].subsitution = argument;
         } else if (symbol.type != given.symbols[index].type or symbol.literal.value != given.symbols[index].literal.value) return false; else index++;
-    } if (signature_index == _def) define(args[0].expr.front(), {}, entries, stack);
+    } if (signature_index == _def) define(args[0].expr.front(), {}, {}, entries, stack);
     else if (signature_index == _push) stack.push_back(stack.back());
     else if (signature_index == _pop) stack.pop_back();
-    else if (signature_index == _define) define(args[0].expr.front(), args[1], entries, stack); return true;
+    else if (signature_index == _define) define(args[0].expr.front(), args[1], args[2], entries, stack); return true;
 }
 static expression typify(const expression& given, const resolved& initial_type, std::vector<entry>& entries, std::vector<std::vector<long>>& stack, const file& file) {
     if (given.symbols.empty()) return {{}, {}, {}, {}, true}; expression signature = given.symbols.front().subexpression; signature.type = initial_type;
     for (long i = given.symbols.size(); i-- > 1;) signature.type = resolve_expression(given.symbols[i].subexpression, signature.type, entries, stack, file);
-    for (auto& s : signature.symbols) if (s.type == expr) define(s.subexpression = typify(s.subexpression, {0}, entries, stack, file), {}, entries, stack); return signature;
+    for (auto& s : signature.symbols) if (s.type == expr) define(s.subexpression = typify(s.subexpression, {0}, entries, stack, file), {}, {}, entries, stack); return signature;
 }
 static inline resolved construct_signature(expression given, std::vector<entry>& entries, std::vector<std::vector<long>>& stack, const file& file) {
     return {3, {}, given.symbols.empty(), {given.symbols.size() and given.symbols.front().type == expr ? typify(given, {0}, entries, stack, file) : expression {given.symbols, {1}}}};
 }
 static inline resolved resolve_at(const expression& given, const resolved& given_type, long& index, long depth, long max_depth, std::vector<entry>& entries, std::vector<std::vector<long>>& stack, const file& file) {
     if (depth > max_depth or index >= (long) given.symbols.size()) return {0, {}, true};
-    else if (given_type.index == _name) { if (given.symbols[index].type == expr) return construct_signature(given.symbols[index++].subexpression, entries, stack, file); else return resolved {3, {}, false, {{{given.symbols[index++]}, {1}}}}; }
+    else if (given_type.index == _name and given.symbols[index].type == expr) return construct_signature(given.symbols[index++].subexpression, entries, stack, file);
     else if (given_type.index == _lazy) return resolve_at(given, given_type.args[0], index, depth, max_depth, entries, stack, file);
     long saved = index; auto saved_stack = stack; auto saved_entries = entries;
     for (auto s : saved_stack.back()) {
