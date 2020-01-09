@@ -1,9 +1,1 @@
-_2 (_3 ((lazy (() (_))) (_)) )
-_2 (_3 ((define ((signature) (_1) (_)) ((t) (_)) (() (lazy t) (_))) (_)) )
-_2 (_3 (((() (_)) (() (_))) (_)))
-
-(_3 (my type))
-
-(_3 ((g) (lazy _1) (_)) )
-
-define hello my type g
+name
