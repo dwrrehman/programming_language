@@ -318,7 +318,7 @@ static inline void print_resolved_expr(resolved expr, long depth, std::vector<en
     prep(depth); std::cout << "[error = " << std::boolalpha << expr.error << "]\n";
     prep(depth); std::cout << "index = " << expr.index << " :: " << expression_to_string(entries[expr.index].signature, entries, 0);
     std::cout << "\n";
-    if (expr.expr.front().symbols.size()) { prep(depth); std::cout << "new signature = \n"; print_expression(expr.expr.front(), depth + 1); std::cout << "\n"; }
+    if (expr.expr.size()) { prep(depth); std::cout << "new signature = \n"; print_expression(expr.expr.front(), depth + 1); std::cout << "\n"; }
     long i = 0;
     for (auto arg : expr.args) {
         prep(depth + 1); std::cout << "argument #" << i++ << ": \n";
