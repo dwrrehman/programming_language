@@ -1,4 +1,3 @@
-// n: a n3zqx2l compiler written in C++.
 #include "llvm/AsmParser/Parser.h"
 #include "llvm/ExecutionEngine/MCJIT.h"
 #include "llvm/IR/IRBuilder.h"
@@ -11,7 +10,7 @@
 #include "llvm/Support/TargetSelect.h"
 #include "llvm/Support/SourceMgr.h"
 #include <fstream>
-#include <iostream>
+#include <iostream>                              // n: a n3zqx2l compiler written in C++.
 #include <vector>
 static long max_expression_depth = 20;
 enum type {none, id, string, op, subexpr, action = 'x', exec = 'o', object = 'c', ir = 'i', assembly = 's'};
@@ -73,7 +72,7 @@ static inline expression parse(lexing_state& state, const file& file) {
     result.start = start;
     return result;
 }
-static inline std::string expression_to_string(const expression& given, std::vector<entry> entries, long begin = 0, long end = -1) {
+static inline std::string expression_to_string(const expression& given, const std::vector<entry>& entries, long begin = 0, long end = -1) {
     std::string result = "("; long i = 0;
     for (auto symbol : given.symbols) {
         if (i < begin or (end != -1 and i >= end)) {i++; continue; }
@@ -106,20 +105,17 @@ static inline bool matches(const expression& given, long signature_index, const 
     else if (signature_index == 9999) stack.pop_back();
     return true;
 }
-static expression typify(expression given, long initial_type, std::vector<entry>& entries, std::vector<std::vector<long>>& stack, const file& file) {
-    if (given.symbols.empty()) return {{}, 0, {}, true};
-    expression signature = given.symbols.front().subexpression;
-    given.symbols.erase(given.symbols.begin());
-    signature.type = initial_type; for (long i = given.symbols.size(); i--;) signature.type = resolve_expression(given.symbols[i].subexpression, signature.type, entries, stack, file).index;
-    stack.push_back(stack.back()); for (auto& s : signature.symbols) if (s.type == subexpr) define({s.subexpression = typify(s.subexpression, 0, entries, stack, file)}, entries, stack);
-    stack.pop_back(); return signature;
+static expression typify(const expression& given, long initial_type, std::vector<entry>& entries, std::vector<std::vector<long>>& stack, const file& file) {
+    if (given.symbols.empty()) return {{}, 0, {}, true}; expression signature = given.symbols.front().subexpression;
+    signature.type = initial_type; for (long i = given.symbols.size(); i-- > 1;) signature.type = resolve_expression(given.symbols[i].subexpression, signature.type, entries, stack, file).index;
+    stack.push_back(stack.back()); for (auto& s : signature.symbols) if (s.type == subexpr) define({s.subexpression = typify(s.subexpression, 0, entries, stack, file)}, entries, stack); stack.pop_back(); return signature;
 }
 static inline resolved construct_signature(expression given, std::vector<entry>& entries, std::vector<std::vector<long>>& stack, const file& file) {
     return {3, {}, given.symbols.empty(), "", given.symbols.size() and given.symbols.front().type == subexpr ? typify(given, 0, entries, stack, file) : expression {given.symbols, 1}};
 }
 static inline resolved resolve_at(const expression& given, long given_type, long& index, long depth, long max_depth, std::vector<entry>& entries, std::vector<std::vector<long>>& stack, const file& file) {
     if (depth > max_depth or index >= (long) given.symbols.size()) return {0, {}, true};
-    if (given_type == 3) { if (given.symbols[index].type == subexpr) return construct_signature(given.symbols[index++].subexpression, entries, stack, file); else return {3, {}, false, "", {{given.symbols[index++]}, 1}}; }
+    else if (given_type == 3) { if (given.symbols[index].type == subexpr) return construct_signature(given.symbols[index++].subexpression, entries, stack, file); else return {3, {}, false, "", {{given.symbols[index++]}, 1}}; }
     long saved = index; auto saved_stack = stack.back();
     for (auto s : saved_stack) {
         std::vector<resolved> args = {}; index = saved;
@@ -149,9 +145,12 @@ static inline void debug(std::vector<entry> entries, std::vector<std::vector<lon
             std::cout << index << " ";
         } std::cout << "}\n";
     }
+    
     std::cout << "\nmaster: {\n";
     auto j = 0;
+    
     for (auto entry : entries) {
+        
         std::cout << "\t" << std::setw(6) << j << ": ";
         std::cout << expression_to_string(entry.signature, entries, 0) << "\n\n";
 //        if (entry.value and show_llvm) {
@@ -167,6 +166,8 @@ static inline void debug(std::vector<entry> entries, std::vector<std::vector<lon
 //            std::cout << "\tLLVM type (struct): ";
 //            entry.llvm_type->print(llvm::errs());
 //        }
+        
+        
         if (show_llvm) std::cout << "\n\n\n";
         j++;
     } std::cout << "}\n";
@@ -180,6 +181,7 @@ static inline const char* convert_token_type_representation(enum type type) {
         case id: return "identifier";
         case op: return "operator";
         case subexpr: return "subexpr";
+            
         default: return "INTERNAL ERROR";
     }
 }
@@ -207,13 +209,16 @@ static inline void print_expression(expression expression, int d) {
     prep(d); std::cout << std::boolalpha << "error: " << expression.error << "\n";
     prep(d); std::cout << "symbol count: " << expression.symbols.size() << "\n";
     prep(d); std::cout << "symbols: \n";
+    
     int i = 0;
+    
     for (auto symbol : expression.symbols) {
         prep(d+1); std::cout << i << ": \n";
         print_symbol(symbol, d+1);
         std::cout << "\n";
         i++;
     }
+    
     prep(d); std::cout << "type = " << expression.type << "\n";
 }
 static inline void print_resolved_expr(resolved expr, long depth, std::vector<entry> entries) {
@@ -227,6 +232,7 @@ static inline void print_resolved_expr(resolved expr, long depth, std::vector<en
         print_resolved_expr(arg, depth + 2, entries);
         prep(depth); std::cout << "\n";
     }
+    
 }
 
 static inline resolved resolve(const expression& given, const file& file) {
@@ -251,9 +257,7 @@ static inline std::unique_ptr<llvm::Module> generate(const resolved& given, cons
     generate_expression(given, module.get(), main, builder);
     builder.SetInsertPoint(&main->getBasicBlockList().back());
     builder.CreateRet(llvm::ConstantInt::get(llvm::Type::getInt32Ty(context), 0)); /** debug: */ std::cout << "generating code....:\n"; module->print(llvm::outs(), nullptr);
-    std::string errors = "";
-    if (llvm::verifyModule(*module, &(llvm::raw_string_ostream(errors) << ""))) { printf("llvm: %s: error: %s\n", file.name, errors.c_str()); exit(1); }
-    else return module;
+    std::string errors = ""; if (llvm::verifyModule(*module, &(llvm::raw_string_ostream(errors) << ""))) { printf("llvm: %s: error: %s\n", file.name, errors.c_str()); exit(1); } else return module;
 }
 static inline std::unique_ptr<llvm::Module> optimize(std::unique_ptr<llvm::Module>& module) { return std::move(module); } ///TODO: write me.
 static inline void interpret(std::unique_ptr<llvm::Module> module, arguments arguments) {
@@ -291,7 +295,7 @@ int main(const int argc, const char** argv) {
             else if (c == '-') use_exec_args = true;
             else if (c == '!') { abort(); /*the linker argumnets start here.*/ }
             else if (c == 'u') { printf("usage: n -[uv012345d!-] <.n/.ll/.o/.s>\n"); exit(0); }
-            else if (c == 'v') { printf("n3zqx2l: 0.0.3 \tn: 0.0.3\n"); exit(0); }
+            else if (c == 'v') { printf("n3zqx2l: 0.0.4 \tn: 0.0.4\n"); exit(0); }
             else if (c == 'd' and i + 1 < argc) { auto n = atoi(argv[++i]); if (n) max_expression_depth = n; }
             else if (strchr("xocis", c) and i + 1 < argc) { args.output = c; args.name = argv[++i]; }
             else { printf("n: error: bad option: %s\n", argv[i]); exit(1); }

@@ -111,6 +111,27 @@ THE TODO LIST:
     - the compiler doesnt give a warning for an extranous closing parentheiss.
         --> then what happens?
         
+        
+        
+    - in the following test code:
+    
+        _2 (_3 (((() (_)) (() (_))) (_)))
+        (_3 ((code (() (_))) (_)) )
+        (_3 ((define ((s) (_1) (_)) ((d) (code _1) (_))) (_)) )
+        (_3 ((g) (code _1) (_)) )
+        define hello g
+                
+        SERIOUS: 1. the compiler defines g twice.
+        
+        SERIOUS: 2. the compiler doesnt distinguish:            code (_1)     and        code (code (_1))
+        
+        
+        
+
+        
+        
+        
+        
 =============================================
 
 
