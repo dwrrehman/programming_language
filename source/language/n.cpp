@@ -85,26 +85,24 @@ static inline bool equal(resolved a, resolved b, std::vector<entry>& entries) {
     if (entries[a.index].subsitution.index and equal(b, entries[a.index].subsitution, entries)) return true; else if (a.index != b.index or a.args.size() != b.args.size()) return false;
     for (unsigned long i = 0; i < a.args.size(); i++) if (not equal(a.args[i], b.args[i], entries)) return false; return true;
 }
-
-bool call() { abort(); }
 static inline bool matches(const expression& given, long signature_index, const expression& signature, const resolved& given_type, std::vector<resolved>& args, long& index, long depth, long max_depth, std::vector<entry>& entries, std::vector<std::vector<long>>& stack, const file& file) {
     if (not equal(given_type, signature.type, entries)) return false;
     for (auto& symbol : signature.symbols) {
         if (index >= (long) given.symbols.size()) return false;
         if (symbol.type == expr) {
             auto argument = resolve_at(given, symbol.subexpression.type, index, depth + 1, max_depth, entries, stack, file);
-            if (argument.error) return false; args.push_back({argument}); if (symbol.subexpression.me.index) entries[symbol.subexpression.me.index].subsitution = argument;
+            if (argument.error) return false; args.push_back({argument}); entries[symbol.subexpression.me.index].subsitution = argument;
         } else if (symbol.type != given.symbols[index].type or symbol.literal.value != given.symbols[index].literal.value) return false; else index++;
     }
     if (signature_index == 4) define(args[0].expr.front(), {}, entries, stack);
     if (signature_index == 9991) define(args[0].expr.front(), args[1].expr.front(), entries, stack);
-    else if (signature_index == 9998) stack.push_back(stack.back());
-    else if (signature_index == 9999) stack.pop_back(); return true;
+    else if (signature_index == 5) stack.push_back(stack.back());
+    else if (signature_index == 6) stack.pop_back(); return true;
 }
 static expression typify(const expression& given, const resolved& initial_type, std::vector<entry>& entries, std::vector<std::vector<long>>& stack, const file& file) {
-    if (given.symbols.empty()) return {{}, {}, {}, {}, true}; expression signature = given.symbols.front().subexpression;
-    signature.type = initial_type; for (long i = given.symbols.size(); i-- > 1;) signature.type = resolve_expression(given.symbols[i].subexpression, signature.type, entries, stack, file);
-    stack.push_back(stack.back()); for (auto& s : signature.symbols) if (s.type == expr) define(s.subexpression = typify(s.subexpression, {0}, entries, stack, file), {}, entries, stack); stack.pop_back(); return signature;
+    if (given.symbols.empty()) return {{}, {}, {}, {}, true}; expression signature = given.symbols.front().subexpression; signature.type = initial_type;
+    for (long i = given.symbols.size(); i-- > 1;) signature.type = resolve_expression(given.symbols[i].subexpression, signature.type, entries, stack, file);
+    for (auto& s : signature.symbols) if (s.type == expr) define(s.subexpression = typify(s.subexpression, {0}, entries, stack, file), {}, entries, stack); return signature;
 }
 static inline resolved construct_signature(expression given, std::vector<entry>& entries, std::vector<std::vector<long>>& stack, const file& file) {
     return {3, {}, given.symbols.empty(), {given.symbols.size() and given.symbols.front().type == expr ? typify(given, {0}, entries, stack, file) : expression {given.symbols, {1}}}};
@@ -112,9 +110,9 @@ static inline resolved construct_signature(expression given, std::vector<entry>&
 static inline resolved resolve_at(const expression& given, const resolved& given_type, long& index, long depth, long max_depth, std::vector<entry>& entries, std::vector<std::vector<long>>& stack, const file& file) {
     if (depth > max_depth or index >= (long) given.symbols.size()) return {0, {}, true};
     else if (given_type.index == 3) { if (given.symbols[index].type == expr) return construct_signature(given.symbols[index++].subexpression, entries, stack, file); else return resolved {3, {}, false, {{{given.symbols[index++]}, {1}}}}; }
-    long saved = index; auto saved_stack = stack.back();
-    for (auto s : saved_stack) {
-        std::vector<resolved> args = {}; index = saved; stack.back() = saved_stack;
+    long saved = index; auto saved_stack = stack; auto saved_entries = entries;
+    for (auto s : saved_stack.back()) {
+        std::vector<resolved> args = {}; index = saved; stack = saved_stack; entries = saved_entries;
         if (matches(given, s, entries[s].signature, given_type, args, index, depth, max_depth, entries, stack, file)) return {s, args};
     }
     if (given.symbols[index].type == expr) return resolve_expression(given.symbols[index++].subexpression, given_type, entries, stack, file);
