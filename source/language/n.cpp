@@ -75,9 +75,9 @@ static inline std::string expression_to_string(const expression& given, const st
         if (i < (long) given.symbols.size() - 1 and not (i + 1 < begin or (end != -1 and i + 1 >= end))) result += " "; i++;
     } result += ")"; if (given.type.index) result += " " + expression_to_string(entries[given.type.index].signature, entries, 0, -1, given.type.args); return result;
 }
-static inline long define(const entry& e, std::vector<entry>& entries, std::vector<std::vector<long>>& stack) {
-    auto i = entries.size(); stack.back().push_back(i); entries.push_back(e);
-    std::stable_sort(stack.back().begin(), stack.back().end(), [&](long a, long b) { return entries[a].signature.symbols.size() > entries[b].signature.symbols.size(); }); return i;
+static inline void define(entry e, std::vector<entry>& entries, std::vector<std::vector<long>>& stack) {
+    stack.back().push_back(e.signature.me.index = entries.size()); entries.push_back(e);
+    std::stable_sort(stack.back().begin(), stack.back().end(), [&](long a, long b) { return entries[a].signature.symbols.size() > entries[b].signature.symbols.size(); });
 }
 static inline resolved resolve_at(const expression& given, const resolved& given_type, long& index, long depth, long max_depth, std::vector<entry>& entries, std::vector<std::vector<long>>& stack, const file& file);
 static inline resolved resolve_expression(const expression& given, const resolved& given_type, std::vector<entry>& entries, std::vector<std::vector<long>>& stack, const file& file);
@@ -95,14 +95,14 @@ static inline bool matches(const expression& given, long signature_index, const 
         } else if (symbol.type != given.symbols[index].type or symbol.literal.value != given.symbols[index].literal.value) return false; else index++;
     }
     if (signature_index == 4) define({args[0].expr.front()}, entries, stack);
-    if (signature_index == 9991) define({args[0].expr.front(), args[1].expr.front()}, entries, stack);
+//    if (signature_index == 9991) define({args[0].expr.front(), args[1].expr.front()}, entries, stack);
     else if (signature_index == 9998) stack.push_back(stack.back());
     else if (signature_index == 9999) stack.pop_back(); return true;
 }
 static expression typify(const expression& given, const resolved& initial_type, std::vector<entry>& entries, std::vector<std::vector<long>>& stack, const file& file) {
     if (given.symbols.empty()) return {{}, {}, {}, true}; expression signature = given.symbols.front().subexpression;
     signature.type = initial_type; for (long i = given.symbols.size(); i-- > 1;) signature.type = resolve_expression(given.symbols[i].subexpression, signature.type, entries, stack, file);
-    stack.push_back(stack.back()); for (auto& s : signature.symbols) if (s.type == expr) s.subexpression.me.index = define({s.subexpression = typify(s.subexpression, {0}, entries, stack, file)}, entries, stack); stack.pop_back(); return signature;
+    stack.push_back(stack.back()); for (auto& s : signature.symbols) if (s.type == expr) define({s.subexpression = typify(s.subexpression, {0}, entries, stack, file)}, entries, stack); stack.pop_back(); return signature;
 }
 static inline resolved construct_signature(expression given, std::vector<entry>& entries, std::vector<std::vector<long>>& stack, const file& file) {
     return {3, {}, given.symbols.empty(), {given.symbols.size() and given.symbols.front().type == expr ? typify(given, {0}, entries, stack, file) : expression {given.symbols, {1}}}};

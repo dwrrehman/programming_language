@@ -15,21 +15,14 @@ CURRENT TASK DETAILS:
 =======================
 
 
+resolve bug #2.
 
 
 
-x:
-    we need ctfe in order to (properly) allow the user to pass in a type (which may take type parameters!)
-        when they give the return type, for a signature,
-            when passing a _name (_b).
-            
-            i know, its alittle bit compilcated, but its neccessary. for both return type, and paraemter types.
-            
-            we need to use this ctfe infrastruction eventually to write a "find()" function, whch takes in a type list, and turns that into an index.
-    
-  ;
-    
-    
+
+
+
+
     
     
     
@@ -106,14 +99,54 @@ THE TODO LIST:
 
 
 
-
-
-
 =========== found bugs: =====================
 
     - the compiler doesnt give a warning for an extranous closing parentheiss.
         --> then what happens?
         
+        
+        
+    in the following test code:
+        
+        join define ((code ((x) (_))) (_))
+        join define ((((first) (_)) ((second) (_))) (_))
+        (define ((my define ((signature) (name) (_)) ((T) (_)) ((definition) (code (T)) (_))) (_)))
+
+        define ((hello there) (_))
+        define ((g) (code hello there) (_)))
+        define ((f) (code name) (_)))
+        my define hello hello there g
+        my define bye name g
+
+        
+            this succeeds, when it shouldnt.
+        
+        
+        
+        - another bug: in the following test code:
+        
+        
+        join define ((code ((x) (_))) (_))
+        join define ((((first) (_)) ((second) (_))) (_))
+        (define ((my define ((signature) (name) (_)) ((T) (_)) ((definition) (code (T)) (_))) (_)))
+
+
+        (define ((hello there) (_)))
+        (define ((g) (code hello there) (_))))
+        (define ((f) (code name) (_))))
+        (my define hello hello there g)
+        (my define bye name f)
+
+
+
+            this defines g twice.
+        
+        
+        
+    
+        
+        
+======= CLOSED: ======================
         
         
     - in the following test code:
@@ -124,9 +157,9 @@ THE TODO LIST:
         (_3 ((g) (code _1) (_)) )
         define hello g
                 
-        SERIOUS: 1. the compiler defines g twice.
+        x: SERIOUS: 1. the compiler defines g twice.;
         
-        SERIOUS: 2. the compiler doesnt distinguish:            code (_1)     and        code (code (_1))
+        x: SERIOUS: 2. the compiler doesnt distinguish:            code (_1)     and        code (code (_1));
         
         
         
@@ -163,13 +196,27 @@ x: - make llvm strings nestable.;
 x: - possibly get rid ll stirngs. ;
 x: - add assembly output functioality,;
 x: - figure out how to remove the symbol table data structure.;
-x: - redo how we are handling lexing, ;
+x: - redo how we are handsling lexing, ;
 x: - devise a better llvm interop system.;
 x: - write the define function.;
 x: - figure out how to represent llvm elements such as: function and type and value      (or even globals?);    
 x: - figure out how define should work;   
 x: - make string to expression function cope with llvm-single-identifiers.;    
 x: - allow type-section deductions in n3zqx2l signature strings inside llvm strings.;::this is a high bar thing, we are saving it until we do type inference, which is not soon.;
+
+x:
+    we need ctfe in order to (properly) allow the user to pass in a type (which may take type parameters!)
+        when they give the return type, for a signature,
+            when passing a _name (_b).
+            
+            i know, its alittle bit compilcated, but its neccessary. for both return type, and paraemter types.
+            
+            we need to use this ctfe infrastruction eventually to write a "find()" function, whch takes in a type list, and turns that into an index.
+    
+  ;
+    
+    
+
 
 ==================================
 
