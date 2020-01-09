@@ -1,6 +1,8 @@
 join define ((code ((x) (_))) (_))
-join define ((my define ((signature) (name) (_)) ((T) (_)) ((definition) (code T) (_))) (_))
 join define ((((first) (_)) ((second) (_))) (_))
 (define ((hello there) (_)))
-(define ((g) (code name) (_)))
-(my define hello name g)
+(define ((my define ((signature) (name) (_)) ((T) (_)) ((definition) (code (T)) (_))) (_)))
+
+(define ((g) (code (hello there)) (_)))
+(my define hello (hello there) (g))
+(my define bye (name) (g))
