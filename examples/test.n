@@ -1,13 +1,14 @@
+join (define ((lazy ((x) (_))) (_)))
 join (define push)
 join (define pop)
-join (define ((lazy ((x) (_))) (_)))
-join (define ((my define ((signature) (name) (_)) ((T) (_)) ((definition) (lazy (T)) (_))) (_)))
-join (define ((((first) (_)) ((second) (_))) (_)))
-(push)
+join (define (( define ((signature) (name) (_))   ((type) (_))   ((definition) (lazy type) (_)) ) (_)))
 
-(define ((hello there) (_)))
-(define ((g) (lazy hello there) (_)))
-(define ((f) (lazy name) (_)))
-(my define hi hello there g)
-(my define hh name f)
-(my define hn hello there g)
+join (define ((hello there) (_)))
+
+join (define ((g) (hello there) (_)))
+
+join (define ((f) (lazy name) (_)))
+
+join (define htfs (hello there) (g))
+join (define ((((first) (_)) ((second) (_))) (_)) (_) second)
+hello there

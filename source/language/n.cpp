@@ -13,7 +13,7 @@
 #include <iostream>                              // n: a n3zqx2l compiler written in C++.
 #include <vector>
 static long max_expression_depth = 20;
-enum constants {none, id, op, string, expr, action = 'x', exec = 'o', object = 'c', ir = 'i', assembly = 's'};
+enum constants { none, id, op, string, expr, action = 'x', exec = 'o', object = 'c', ir = 'i', assembly = 's', _name = 3, _def = 4, _lazy = 6, _push = 7, _pop = 8, _define = 12, };
 struct file { const char* name = ""; std::string text = ""; };
 struct arguments { long output = action; const char* name = "a.out"; std::vector<std::string> argv_for_exec = {}; };
 struct lexing_state { long index = 0; long state = none; long line = 0; long column = 0; };
@@ -21,7 +21,7 @@ struct token { long type = none; std::string value = ""; long line = 0; long col
 struct expression; struct resolved { long index = 0; std::vector<resolved> args = {}; bool error = false; std::vector<expression> expr = {}; std::string llvm_type = ""; };
 struct symbol; struct expression { std::vector<symbol> symbols = {}; resolved type = {}; resolved me = {}; token start = {}; bool error = false; };
 struct symbol { long type = none; expression subexpression = {}; token literal = {}; bool error = false; };
-struct entry { expression signature = {}; expression definition = {}; resolved subsitution = {}; };
+struct entry { expression signature = {}; resolved definition = {}; resolved subsitution = {}; };
 static inline token next(const file& file, lexing_state& lex) {
     token token = {}; auto& at = lex.index; auto& state = lex.state;
     while (lex.index < (long) file.text.size()) {
@@ -75,7 +75,7 @@ static inline std::string expression_to_string(const expression& given, const st
         if (i < (long) given.symbols.size() - 1 and not (i + 1 < begin or (end != -1 and i + 1 >= end))) result += " "; i++;
     } result += ")"; if (given.type.index) result += " " + expression_to_string(entries[given.type.index].signature, entries, 0, -1, given.type.args); return result;
 }
-static inline void define(expression& signature, const expression& definition, std::vector<entry>& entries, std::vector<std::vector<long>>& stack) {
+static inline void define(expression& signature, const resolved& definition, std::vector<entry>& entries, std::vector<std::vector<long>>& stack) {
     stack.back().push_back(signature.me.index = entries.size()); entries.push_back({signature, definition});
     std::stable_sort(stack.back().begin(), stack.back().end(), [&](long a, long b) { return entries[a].signature.symbols.size() > entries[b].signature.symbols.size(); });
 }
@@ -85,6 +85,8 @@ static inline bool equal(resolved a, resolved b, std::vector<entry>& entries) {
     if (entries[a.index].subsitution.index and equal(b, entries[a.index].subsitution, entries)) return true; else if (a.index != b.index or a.args.size() != b.args.size()) return false;
     for (unsigned long i = 0; i < a.args.size(); i++) if (not equal(a.args[i], b.args[i], entries)) return false; return true;
 }
+/** debug: */ static inline void debug(std::vector<entry> entries, std::vector<std::vector<long>> stack, bool show_llvm);
+
 static inline bool matches(const expression& given, long signature_index, const expression& signature, const resolved& given_type, std::vector<resolved>& args, long& index, long depth, long max_depth, std::vector<entry>& entries, std::vector<std::vector<long>>& stack, const file& file) {
     if (not equal(given_type, signature.type, entries)) return false;
     for (auto& symbol : signature.symbols) {
@@ -93,10 +95,10 @@ static inline bool matches(const expression& given, long signature_index, const 
             auto argument = resolve_at(given, symbol.subexpression.type, index, depth + 1, max_depth, entries, stack, file);
             if (argument.error) return false; args.push_back({argument}); entries[symbol.subexpression.me.index].subsitution = argument;
         } else if (symbol.type != given.symbols[index].type or symbol.literal.value != given.symbols[index].literal.value) return false; else index++;
-    } if (signature_index == 4) define(args[0].expr.front(), {}, entries, stack);
-    else if (signature_index == 5) stack.push_back(stack.back());
-    else if (signature_index == 6) stack.pop_back();
-    else if (signature_index == 9991) define(args[0].expr.front(), args[1].expr.front(), entries, stack); return true;
+    } if (signature_index == _def) define(args[0].expr.front(), {}, entries, stack);
+    else if (signature_index == _push) stack.push_back(stack.back());
+    else if (signature_index == _pop) stack.pop_back();
+    else if (signature_index == _define) define(args[0].expr.front(), args[1], entries, stack); return true;
 }
 static expression typify(const expression& given, const resolved& initial_type, std::vector<entry>& entries, std::vector<std::vector<long>>& stack, const file& file) {
     if (given.symbols.empty()) return {{}, {}, {}, {}, true}; expression signature = given.symbols.front().subexpression; signature.type = initial_type;
@@ -108,7 +110,8 @@ static inline resolved construct_signature(expression given, std::vector<entry>&
 }
 static inline resolved resolve_at(const expression& given, const resolved& given_type, long& index, long depth, long max_depth, std::vector<entry>& entries, std::vector<std::vector<long>>& stack, const file& file) {
     if (depth > max_depth or index >= (long) given.symbols.size()) return {0, {}, true};
-    else if (given_type.index == 3) { if (given.symbols[index].type == expr) return construct_signature(given.symbols[index++].subexpression, entries, stack, file); else return resolved {3, {}, false, {{{given.symbols[index++]}, {1}}}}; }
+    else if (given_type.index == _name) { if (given.symbols[index].type == expr) return construct_signature(given.symbols[index++].subexpression, entries, stack, file); else return resolved {3, {}, false, {{{given.symbols[index++]}, {1}}}}; }
+    else if (given_type.index == _lazy) return resolve_at(given, given_type.args[0], index, depth, max_depth, entries, stack, file);
     long saved = index; auto saved_stack = stack; auto saved_entries = entries;
     for (auto s : saved_stack.back()) {
         std::vector<resolved> args = {}; index = saved; stack = saved_stack; entries = saved_entries;
@@ -117,7 +120,7 @@ static inline resolved resolve_at(const expression& given, const resolved& given
     else if (given.symbols[index].type == string and given_type.index == 1) return {0, {}, false, {}, given.symbols[index++].literal.value};
     else if (given.symbols[index].type == string) return {0, {}, false, {{{given.symbols[index++]}}}, "i8*"};
     else return {0, {}, true};
-} /** debug: */ static inline void debug(std::vector<entry> entries, std::vector<std::vector<long>> stack, bool show_llvm);
+}
 static inline resolved resolve_expression(const expression& given, const resolved& given_type, std::vector<entry>& entries, std::vector<std::vector<long>>& stack, const file& file) {
     resolved solution {}; long pointer = 0; auto saved_stack = stack; auto saved_entries = entries;
     for (long max_depth = 0; max_depth <= max_expression_depth; max_depth++) {
@@ -125,12 +128,14 @@ static inline resolved resolve_expression(const expression& given, const resolve
         solution = resolve_at(given, given_type, pointer, 0, max_depth, entries, stack, file);
         if (not solution.error and pointer == (long) given.symbols.size()) break;
     } if (pointer < (long) given.symbols.size()) solution.error = true;
-    if (solution.error) {      debug(entries, stack, false); /// debug
+    if (solution.error) {     debug(entries, stack, false); /// debug
         const auto t = pointer < (long) given.symbols.size() ? given.symbols[pointer].literal : given.start;
         printf("n3zqx2l: %s:%ld:%ld: error: unresolved %s @ %ld : %s ≠ %s\n", file.name, t.line, t.column, expression_to_string(given, entries, pointer, pointer + 1).c_str(), pointer, expression_to_string(given, entries).c_str(), expression_to_string(entries[given_type.index].signature, entries, 0, -1, given_type.args).c_str()); exit(1);
-    } return solution;
+    }
+    return solution;
 }
 
+static inline void print_resolved_expr(resolved expr, long depth, std::vector<entry> entries);
 static inline void debug(std::vector<entry> entries, std::vector<std::vector<long>> stack, bool show_llvm) {
     std::cout << "\n\n---- debugging stack: ----\n";
     std::cout << "printing frames: \n";
@@ -150,6 +155,10 @@ static inline void debug(std::vector<entry> entries, std::vector<std::vector<lon
         std::cout << "\t" << std::setw(6) << j << ": ";
         std::cout << expression_to_string(entry.signature, entries, 0);
             if (entry.subsitution.index) std::cout << " ---> " << std::to_string(entry.subsitution.index);
+        if (entry.definition.index) {
+            std::cout << " := \n";
+            print_resolved_expr(entry.definition, 1, entries);
+        }
         std::cout << "\n\n";
 //        if (entry.value and show_llvm) {
 //            std::cout << "\tLLVM value: ";
@@ -164,8 +173,7 @@ static inline void debug(std::vector<entry> entries, std::vector<std::vector<lon
 //            std::cout << "\tLLVM type (struct): ";
 //            entry.llvm_type->print(llvm::errs());
 //        }
-        
-        
+                
         if (show_llvm) std::cout << "\n\n\n";
         j++;
     } std::cout << "}\n";
@@ -234,7 +242,7 @@ static inline void print_resolved_expr(resolved expr, long depth, std::vector<en
 
 static inline resolved resolve(const expression& given, const file& file) {
     std::vector<entry> entries { {}, {{{{id,{},{id,"_"}}},{0},{1}}}, {{{{id,{},{id,"join"}},{expr,{{},{1}}},{expr,{{},{1}}}},{1},{2}}}, {{{{id,{},{id,"name"}}},{1},{3}}}, {{{{id,{},{id,"define"}},{expr,{{},{3}}}},{1},{4}}} }; std::vector<std::vector<long>> stack {{2, 4, 1, 3}};
-    auto resolved = resolve_expression(given, {1}, entries, stack, file);   /** debug: */print_resolved_expr(resolved, 0, entries); printf("\n\n"); debug(entries, stack, false); printf("\n\n");
+    auto resolved = resolve_expression(given, {1}, entries, stack, file);  /** debug: */print_resolved_expr(resolved, 0, entries); printf("\n\n"); debug(entries, stack, false); printf("\n\n");
     if (resolved.error or given.error) exit(1); else return resolved;
 }
 static inline void set_data_for(std::unique_ptr<llvm::Module>& module) {
