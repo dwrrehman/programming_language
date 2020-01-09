@@ -64,16 +64,19 @@ static inline expression parse(lexing_state& state, const file& file) {
     } state = saved; if (symbol.type == expr) return {{}, {}, {}, true};
     expression result = {symbols}; result.start = start; return result;
 }
-static inline std::string expression_to_string(const expression& given, const std::vector<entry>& entries, long begin = 0, long end = -1) { ///TODO: revise this for the "resolved type" change.
-    std::string result = "("; long i = 0;
+
+static inline std::string expression_to_string(const expression& given, const std::vector<entry>& entries, long begin = 0, long end = -1, std::vector<resolved> args = {}) {
+    std::string result = "("; long i = 0, j = 0;
     for (auto symbol : given.symbols) {
         if (i < begin or (end != -1 and i >= end)) {i++; continue; }
         if (symbol.type == id) result += symbol.literal.value;
         else if (symbol.type == string) result += "\"" + symbol.literal.value + "\"";
-        else if (symbol.type == expr) result += "(" + expression_to_string(symbol.subexpression, entries) + ")";
+        else if (symbol.type == expr and args.empty()) result += "(" + expression_to_string(symbol.subexpression, entries) + ")";
+        else if (symbol.type == expr) { result += "(" + expression_to_string(entries[args[j].index].signature, entries, 0, -1, args); j++; }
         if (i < (long) given.symbols.size() - 1 and not (i + 1 < begin or (end != -1 and i + 1 >= end))) result += " "; i++;
-    } result += ")"; if (given.type.index) result += " " + expression_to_string(entries[given.type.index].signature, entries); return result;
+    } result += ")"; if (given.type.index) result += " " + expression_to_string(entries[given.type.index].signature, entries, 0, -1, given.type.args); return result;
 }
+
 static inline void define(const entry& e, std::vector<entry>& entries, std::vector<std::vector<long>>& stack) {
     stack.back().push_back(entries.size()); entries.push_back(e);
     std::stable_sort(stack.back().begin(), stack.back().end(), [&](long a, long b) { return entries[a].signature.symbols.size() > entries[b].signature.symbols.size(); });
@@ -234,7 +237,7 @@ static inline void print_resolved_expr(resolved expr, long depth, std::vector<en
 }
 
 static inline resolved resolve(const expression& given, const file& file) {
-    std::vector<entry> entries { {}, {{{{id,{},{id,"_"}}},{0}}}, {{{{id,{},{id,"join"}},{expr,{{},{1}}},{expr,{{},{1}}}},{1}}}, {{{{id,{},{id,"name"}}},{1}}}, {{{{id,{},{id,"define"}},{expr,{{},{3}}}},{1}}} }; std::vector<std::vector<long>> stack {{2, 4, 1, 3, 0}};
+    std::vector<entry> entries { {}, {{{{id,{},{id,"_"}}},{0}}}, {{{{id,{},{id,"join"}},{expr,{{},{1}}},{expr,{{},{1}}}},{1}}}, {{{{id,{},{id,"name"}}},{1}}}, {{{{id,{},{id,"define"}},{expr,{{},{3}}}},{1}}} }; std::vector<std::vector<long>> stack {{2, 4, 1, 3}};
     auto resolved = resolve_expression(given, {1}, entries, stack, file);   /** debug: */print_resolved_expr(resolved, 0, entries); printf("\n\n"); debug(entries, stack, false); printf("\n\n");
     if (resolved.error or given.error) exit(1); else return resolved;
 }
