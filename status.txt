@@ -4,31 +4,9 @@ the current status of the nostril compiler:
 
 
 
-
-
-
-
-
-
-
 CURRENT TASK DETAILS:
 =======================
 
-
-resolve bug #2.
-
-
-
-
-
-
-
-    
-    
-    
-    
-    
-    
     
     
     
@@ -99,6 +77,11 @@ THE TODO LIST:
 
 
 
+
+
+
+
+
 =========== found bugs: =====================
 
     - the compiler doesnt give a warning for an extranous closing parentheiss.
@@ -106,47 +89,22 @@ THE TODO LIST:
         
         
         
-    in the following test code:
-        
-        join define ((code ((x) (_))) (_))
-        join define ((((first) (_)) ((second) (_))) (_))
-        (define ((my define ((signature) (name) (_)) ((T) (_)) ((definition) (code (T)) (_))) (_)))
-
-        define ((hello there) (_))
-        define ((g) (code hello there) (_)))
-        define ((f) (code name) (_)))
-        my define hello hello there g
-        my define bye name g
-
-        
-            this succeeds, when it shouldnt.
-        
-        
-        
-        - another bug: in the following test code:
-        
-        
-        join define ((code ((x) (_))) (_))
-        join define ((((first) (_)) ((second) (_))) (_))
-        (define ((my define ((signature) (name) (_)) ((T) (_)) ((definition) (code (T)) (_))) (_)))
-
-
-        (define ((hello there) (_)))
-        (define ((g) (code hello there) (_))))
-        (define ((f) (code name) (_))))
-        (my define hello hello there g)
-        (my define bye name f)
-
-
-
-            this defines g twice.
-        
         
         
     
+    
+    
+    
+    
+    
+    
+    
         
         
-======= CLOSED: ======================
+=============================== CLOSED: ======================
+        
+        
+        
         
         
     - in the following test code:
@@ -164,20 +122,44 @@ THE TODO LIST:
         
         
 
-        
-        
-        
+    
+in the following test code:
+    
+    join define ((code ((x) (_))) (_))
+    join define ((((first) (_)) ((second) (_))) (_))
+    (define ((my define ((signature) (name) (_)) ((T) (_)) ((definition) (code (T)) (_))) (_)))
+
+    define ((hello there) (_))
+    define ((g) (code hello there) (_)))
+    define ((f) (code name) (_)))
+    my define hello hello there g
+    my define bye name g
+
+    
+        this succeeds, when it shouldnt.
+    
+    
+    
+    - another bug: in the following test code:
+    
+    
+    join define ((code ((x) (_))) (_))
+    join define ((((first) (_)) ((second) (_))) (_))
+    (define ((my define ((signature) (name) (_)) ((T) (_)) ((definition) (code (T)) (_))) (_)))
+
+
+    (define ((hello there) (_)))
+    (define ((g) (code hello there) (_))))
+    (define ((f) (code name) (_))))
+    (my define hello hello there g)
+    (my define bye name f)
+
+
+
+        this defines g twice.
+    
         
 =============================================
-
-
-
-
-
-
-
-
-
 
 
 

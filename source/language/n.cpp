@@ -93,11 +93,10 @@ static inline bool matches(const expression& given, long signature_index, const 
             auto argument = resolve_at(given, symbol.subexpression.type, index, depth + 1, max_depth, entries, stack, file);
             if (argument.error) return false; args.push_back({argument}); entries[symbol.subexpression.me.index].subsitution = argument;
         } else if (symbol.type != given.symbols[index].type or symbol.literal.value != given.symbols[index].literal.value) return false; else index++;
-    }
-    if (signature_index == 4) define(args[0].expr.front(), {}, entries, stack);
-    if (signature_index == 9991) define(args[0].expr.front(), args[1].expr.front(), entries, stack);
+    } if (signature_index == 4) define(args[0].expr.front(), {}, entries, stack);
     else if (signature_index == 5) stack.push_back(stack.back());
-    else if (signature_index == 6) stack.pop_back(); return true;
+    else if (signature_index == 6) stack.pop_back();
+    else if (signature_index == 9991) define(args[0].expr.front(), args[1].expr.front(), entries, stack); return true;
 }
 static expression typify(const expression& given, const resolved& initial_type, std::vector<entry>& entries, std::vector<std::vector<long>>& stack, const file& file) {
     if (given.symbols.empty()) return {{}, {}, {}, {}, true}; expression signature = given.symbols.front().subexpression; signature.type = initial_type;
