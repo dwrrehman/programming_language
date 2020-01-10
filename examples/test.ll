@@ -7,6 +7,12 @@ entry:
 
 
 
+join (declare ((lazy ((x) (_))) (_)))
+join (declare ((push) (_)))
+join (declare ((pop) (_)))
+join (declare (( ((signature) (name) (_)) ((type) (_))    ((definition) (lazy type) (_)) ) (_)))
+join (declare ((namef) (_)))
+name
 
 
 join (declare ((unit) (_)))
@@ -28,14 +34,6 @@ name name
 
 
 
-
-
-
-
-(join (declare ((run) (_)))
-(join (declare ((((x) (_))there) (_)))
-
-(run there there there there there)))))
 
 
 
