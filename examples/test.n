@@ -1,4 +1,3 @@
-(join (declare ((run) (_)))
-(join (declare ((((x) (_))there) (_)))
-(run there there there there there)))
+join declare ((((x) (_))there) (_))
+(name there there there there there)
 

@@ -12,9 +12,7 @@
 #include <fstream>
 #include <iostream>                              // n: a n3zqx2l compiler written in C++.
 #include <vector>
-enum constants { none, id, op, string, expr,
-    action = 'x', exec = 'o', object = 'c', ir = 'i', assembly = 's',
-    _name = 3, _declare = 4, _lazy = 6000, _push = 7000, _pop = 8000, _define = 12000, };
+enum constants { none, id, op, string, expr, action = 'x', exec = 'o', object = 'c', ir = 'i', assembly = 's', _name = 3, _declare = 4, _lazy = 6000, _push = 7000, _pop = 8000, _define = 12000, };
 struct file { const char* name = ""; std::string text = ""; };
 struct arguments { long output = action; const char* name = "a.out"; std::vector<std::string> argv_for_exec = {}; };
 struct lexing_state { long index = 0; long state = none; long line = 0; long column = 0; };
@@ -23,7 +21,7 @@ struct expression; struct resolved { long index = 0; std::vector<resolved> args 
 struct symbol; struct expression { std::vector<symbol> symbols = {}; resolved type = {}; resolved me = {}; token start = {}; bool error = false; };
 struct symbol { long type = none; expression subexpression = {}; token literal = {}; bool error = false; };
 struct entry { expression signature = {}; resolved definition = {}; resolved subsitution = {}; };
-static inline token next(const file& file, lexing_state& lex) {
+static inline token next(lexing_state& lex, const file& file) {
     token token = {}; auto& at = lex.index; auto& state = lex.state;
     while (lex.index < (long) file.text.size()) {
         char c = file.text[at], n = at + 1 < (long) file.text.size() ? file.text[at + 1] : 0;
@@ -45,13 +43,13 @@ static inline token next(const file& file, lexing_state& lex) {
 }
 static inline expression parse(lexing_state& state, const file& file);
 static inline symbol parse_symbol(lexing_state& state, const file& file) {
-    auto saved = state; auto open = next(file, state);
+    auto saved = state; auto open = next(state, file);
     if (open.type == op and open.value == "(") {
         if (auto e = parse(state, file); not e.error) {
-            auto close = next(file, state); if (close.type == op and close.value == ")") return {expr, e};
+            auto close = next(state, file); if (close.type == op and close.value == ")") return {expr, e};
             else { state = saved; printf("n3zqx2l: %s:%ld:%ld: expected \")\"\n", file.name, close.line, close.column); return {expr, e, {}, true}; }
         }
-    } state = saved; auto t = next(file, state);
+    } state = saved; auto t = next(state, file);
     if (t.type == string) return {string, {}, t};
     if (t.type == id or (t.type == op and t.value != "(" and t.value != ")")) return {id, {}, t};
     else { state = saved;
@@ -59,7 +57,7 @@ static inline symbol parse_symbol(lexing_state& state, const file& file) {
         return {none, {}, {}, true}; }
 }
 static inline expression parse(lexing_state& state, const file& file) {
-    std::vector<symbol> symbols = {}; auto saved = state; auto start = next(file, state); state = saved;
+    std::vector<symbol> symbols = {}; auto saved = state; auto start = next(state, file); state = saved;
     auto symbol = parse_symbol(state, file);
     while (not symbol.error) {
         symbols.push_back(symbol); saved = state;
@@ -211,18 +209,25 @@ static inline bool equal(resolved a, resolved b, std::vector<entry>& entries) {
 
 
 
-
-
-
-static inline bool matches(const expression& given, long signature_index, const expression& signature, const resolved& given_type, std::vector<resolved>& args, long& index, long depth, long max_depth, std::vector<entry>& entries, std::vector<std::vector<long>>& stack, const file& file) {
+static inline bool matches(const expression& given, long signature_index, const expression& signature, const resolved& given_type, std::vector<resolved>& args,
+                           long& index, long depth, long max_depth, std::vector<entry>& entries, std::vector<std::vector<long>>& stack, const file& file, bool& pass_through) {
+    
+    prep(depth); printf("match(): trying to match:  s:  %s     and    g:  %s  ....\n",
+           expression_to_string(signature, entries).c_str(),
+           expression_to_string(given, entries, index, -1).c_str());
+                    
     if (not equal(given_type, signature.type, entries)) return false;
     
     for (auto& symbol : signature.symbols) {
+        
         if (index >= (long) given.symbols.size()) {
-            printf("match: returning false, because index >= symbol count...\n"); /////////////3/////////////
-            return false;
+            prep(depth); printf("match:   BREAKING: because index >= symbol count... cutting it here.\n"); /////////////3/////////////
+            pass_through = true;
+            return true;
         }
+        
         if (symbol.type == expr) {
+            prep(depth); printf("calling resolve recursively for parameter...\n");
             auto argument = resolve_at(given, symbol.subexpression.type, index, depth + 1, max_depth, entries, stack, file);
             if (argument.error) return false;
             args.push_back({argument});
@@ -233,14 +238,15 @@ static inline bool matches(const expression& given, long signature_index, const 
         
         else index++;
     }
-    
+        
     if (index >= (long) given.symbols.size()) {
-        printf("match(): we completed the expression, with this matched signature!\n");
-//        abort();
+        prep(depth); printf("match(): INFO:    we completed the expression, with this matched signature!   (s.size == %ld)\n", given.symbols.size());
     }
-    
-    
-    if (signature_index == _declare) define(args[0].expr.front(), {}, {}, entries, stack);
+        
+    if (signature_index == _declare) {
+        prep(depth); printf("match(): INFO:    we just defined:   %s\n", expression_to_string(args[0].expr.front(), entries).c_str());
+        define(args[0].expr.front(), {}, {}, entries, stack);
+    }
     
     return true;
 }
@@ -267,60 +273,69 @@ static inline resolved construct_signature(const expression& given, std::vector<
         : expression {given.symbols, {1}}}};
 }
 
-static inline resolved resolve_at(const expression& given, const resolved& given_type, long& index, long depth, long max_depth, std::vector<entry>& entries, std::vector<std::vector<long>>& stack, const file& file) {
+static inline resolved resolve_at(const expression& given, const resolved& given_type, long& index, long depth, long max_depth,
+                                  std::vector<entry>& entries, std::vector<std::vector<long>>& stack, const file& file) {
     
         
     if (index >= (long) given.symbols.size()) {
-        printf("resolve_at(): index was found to be >= symbol count!\n");
+        prep(depth); printf("resolve_at(): FAILING: index was found to be >= symbol count!\n");
         return {0, {}, true};
     }
     
     if (depth > max_depth) {
-        printf("resolve_at(): depth > max depth!\n"); //////////////1 2////////////
+        prep(depth); printf("resolve_at(): FAILING: depth > max depth!\n"); //////////////1 2////////////
         return {0, {}, true};
     }
     
-    if (given_type.index == _name and given.symbols[index].type == expr)
+    if (given_type.index == _name and given.symbols[index].type == expr) {
+        prep(depth); printf("resolve_at(): (SUCCESS) expected NAME,   constructing signature from subexpr...\n\n");
         return construct_signature(given.symbols[index++].subexpression, entries, stack, file, max_depth);
+    }
     
     long saved = index;
     auto saved_stack = stack;
     
     for (auto s : saved_stack.back()) {
         std::vector<resolved> args = {}; index = saved;
-        if (matches(given, s, entries[s].signature, given_type, args, index, depth, max_depth, entries, stack, file)) {
-            printf("[] "); ///////////////0///////////
+        
+        prep(depth); puts("\n");
+        prep(depth); printf("trying: %s\n", expression_to_string(entries[s].signature, entries).c_str());
+                        
+        bool pass_through = false;
+                
+        if (matches(given, s, entries[s].signature, given_type, args, index, depth, max_depth, entries, stack, file, pass_through)) {
+            
+            prep(depth); printf("it matched!  --> now index is at:    %s \n\n", expression_to_string(given, entries, index, -1).c_str());
+            
+            if (pass_through) {
+                prep(depth); printf("resolve_at(): INFO:  FOUND SET PASS THROUGH!   returning pt...\n");
+                return {0, args};
+            }
+
             return {s, args};
         }
     }
     
     if (index >= (long) given.symbols.size()) {
-        printf("resolve_at(): alternative path for index >= symbol count!\n");
+        prep(depth); printf("resolve_at(): FAILING: alternative path for index >= symbol count!\n");
         return {0, {}, true};
     }
     
     if (given.symbols[index].type == expr)
         return resolve_expression(given.symbols[index++].subexpression, given_type, entries, stack, file, max_depth);
     
-    
-    
-    printf("resolve_at(): returning error, because we couldnt do anythign else...\n"); ///////////////////
+        
+    prep(depth); printf("resolve_at(): FAILING: because we couldnt do anythign else...\n"); ///////////////////
     return {0, {}, true};
 }
 
 static inline resolved resolve_expression(const expression& given, const resolved& given_type, std::vector<entry>& entries, std::vector<std::vector<long>>& stack, const file& file, long max_depth) {
     
-    resolved solution {};
+    printf("   ---------> calling resolve expression: ...\n");
+    
     long pointer = 0;
-    
-//    auto saved_stack = stack; auto saved_entries = entries;
-    
-//    for (long max_depth = 0; max_depth <= max_expression_depth; max_depth++) {
-//        pointer = 0; //entries = saved_entries; stack = saved_stack;
-    solution = resolve_at(given, given_type, pointer, 0, max_depth, entries, stack, file);
+    resolved solution = resolve_at(given, given_type, pointer, 0, max_depth, entries, stack, file);
         
-//        if (not solution.error and pointer == (long) given.symbols.size()) break;
-//    }
     if (pointer < (long) given.symbols.size()) {
         printf("resolve_expression(): we found the pointer not enough! ERRORING....\n"); ///////////////4///////////
         solution.error = true;
@@ -335,6 +350,8 @@ static inline resolved resolve_expression(const expression& given, const resolve
                expression_to_string(given, entries).c_str(),
                expression_to_string(entries[given_type.index].signature, entries, 0, -1, given_type.args).c_str() );
     }
+    
+    printf("-------> exiting resolve expression: ...\n");
 
     return solution;
 }
@@ -374,7 +391,7 @@ static inline void set_data_for(std::unique_ptr<llvm::Module>& module) {
 static inline void generate_expression(const resolved& given, llvm::Module* module, llvm::Function* function, llvm::IRBuilder<>& builder) {
     
 }
-static inline std::unique_ptr<llvm::Module> generate(const resolved& given, const file& file, llvm::LLVMContext& context) {
+static inline std::unique_ptr<llvm::Module> generate(const resolved& given, const file& file, llvm::LLVMContext& context, bool is_main) {
     auto module = llvm::make_unique<llvm::Module>(file.name, context);
     llvm::IRBuilder<> builder(context); set_data_for(module);
     auto main = llvm::Function::Create(llvm::FunctionType::get(llvm::Type::getInt32Ty(context), {llvm::Type::getInt32Ty(context), llvm::Type::getInt8PtrTy(context)->getPointerTo()}, false), llvm::Function::ExternalLinkage, "main", module.get());
@@ -412,7 +429,7 @@ static inline void output(const arguments& args, std::unique_ptr<llvm::Module>&&
 int main(const int argc, const char** argv) {
     llvm::InitializeAllTargetInfos(); llvm::InitializeAllTargets(); llvm::InitializeAllTargetMCs(); llvm::InitializeAllAsmParsers(); llvm::InitializeAllAsmPrinters();
     llvm::LLVMContext context; auto module = llvm::make_unique<llvm::Module>("_.n", context);
-    arguments args = {}; bool use_exec_args = false, no_input = true; long max_depth = 13;
+    arguments args = {}; bool use_exec_args = false, first = true; long max_depth = 13;
     for (long i = 1; i < argc; i++) {
         if (argv[i][0] == '-') {
             auto c = argv[i][1];
@@ -422,7 +439,7 @@ int main(const int argc, const char** argv) {
             else if (c == 'u') { printf("usage: n -[uvxocisd!-] <.n/.ll/.o/.s>\n"); exit(0); }
             else if (c == 'v') { printf("n3zqx2l: 0.0.4 \tn: 0.0.4\n"); exit(0); }
             else if (c == 'd' and i + 1 < argc) { auto n = atol(argv[++i]); if (n) max_depth = n; }
-            else if (strchr("xocis", c) and i + 1 < argc) { args.output = c; args.name = argv[++i]; }
+            else if (strchr("ocis", c) and i + 1 < argc) { args.output = c; args.name = argv[++i]; }
             else { printf("n: error: bad option: %s\n", argv[i]); exit(1); }
         } else {
             const char* ext = strrchr(argv[i], '.');
@@ -431,7 +448,7 @@ int main(const int argc, const char** argv) {
                 if (stream.bad()) { printf("n: error: unable to open \"%s\": %s\n", argv[i], strerror(errno)); exit(1); }
                 const file file = {argv[i], {std::istreambuf_iterator<char>(stream), std::istreambuf_iterator<char>()}};
                 lexing_state state {0, none, 1, 1};
-                if (llvm::Linker::linkModules(*module, generate(resolve(parse(state, file), file, max_depth), file, context))) exit(1);
+                if (llvm::Linker::linkModules(*module, generate(resolve(parse(state, file), file, max_depth), file, context, first))) exit(1);
             } else if (ext && !strcmp(ext, ".ll")) {
                 llvm::SMDiagnostic errors;
                 auto m = llvm::parseAssemblyFile(argv[i], errors, context);
@@ -439,8 +456,8 @@ int main(const int argc, const char** argv) {
                 set_data_for(m);
                 if (llvm::Linker::linkModules(*module, std::move(m))) exit(1);
             } else { printf("n: error: cannot process file \"%s\" with extension \"%s\"\n", argv[i], ext); exit(1); }
-            no_input = false;
+            first = false;
         }
-    } if (no_input) { printf("n: error: no input files\n"); exit(1); }
+    } if (first) { printf("n: error: no input files\n"); exit(1); }
     else output(args, optimize(module));
 }
