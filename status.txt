@@ -2,6 +2,22 @@ the current status of the nostril compiler:
 =============================================
 
 
+ok i think i figured it out.
+
+
+        
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 CURRENT TASK DETAILS:

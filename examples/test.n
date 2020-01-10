@@ -1,3 +1,6 @@
-join
-define ((hello) (_))
-hello
+
+join declare ((run) (_))
+join declare ((hello) (run) (_))
+join declare ((((x) (_))there) (_))
+
+run there there there there there
