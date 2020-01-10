@@ -35,11 +35,9 @@ static inline token next(lexing_state& lex, const file& file) {
         else if (isalnum(c) and not isalnum(n) and state == id) { token.value += c; state = none; lex.column++; at++; return token; }
         else if (state == string or (isalnum(c) and state == id)) token.value += c;
         else if (not isalnum(c) and not isspace(c) and state == none) {
-            token = {op, std::string(1, c), lex.line, lex.column};
-            state = none; lex.column++; at++; return token;
+            token = {op, std::string(1, c), lex.line, lex.column}; state = none; lex.column++; at++; return token;
         } if (c == '\n') { lex.line++; lex.column = 1; } else lex.column++; at++;
-    } if (state == string) printf("n3zqx2l: %s:%ld:%ld: error: unterminated string\n", file.name, lex.line, lex.column);
-    return {none, "", lex.line, lex.column };
+    } if (state == string) printf("n3zqx2l: %s:%ld:%ld: error: unterminated string\n", file.name, lex.line, lex.column); return {none, "", lex.line, lex.column };
 }
 static inline expression parse(lexing_state& state, const file& file);
 static inline symbol parse_symbol(lexing_state& state, const file& file) {
@@ -51,10 +49,8 @@ static inline symbol parse_symbol(lexing_state& state, const file& file) {
         }
     } state = saved; auto t = next(state, file);
     if (t.type == string) return {string, {}, t};
-    if (t.type == id or (t.type == op and t.value != "(" and t.value != ")")) return {id, {}, t};
-    else { state = saved;
-        //printf("n3zqx2l: %s:%ld:%ld: unexpected \")\"\n", file.name, t.line, t.column);
-        return {none, {}, {}, true}; }
+    else if (t.type == id or (t.type == op and t.value != "(" and t.value != ")")) return {id, {}, t};
+    else { state = saved; return {none, {}, {}, true}; }        //printf("n3zqx2l: %s:%ld:%ld: unexpected \")\"\n", file.name, t.line, t.column); TODO: make this work properly.
 }
 static inline expression parse(lexing_state& state, const file& file) {
     std::vector<symbol> symbols = {}; auto saved = state; auto start = next(state, file); state = saved;
@@ -280,8 +276,7 @@ int main(const int argc, const char** argv) {
     arguments args = {}; bool use_exec_args = false, first = true; long max_depth = 13;
     for (long i = 1; i < argc; i++) {
         if (argv[i][0] == '-') {
-            auto c = argv[i][1];
-            if (use_exec_args) args.argv_for_exec.push_back(argv[i]);
+            const auto c = argv[i][1]; if (use_exec_args) args.argv_for_exec.push_back(argv[i]);
             else if (c == '-') use_exec_args = true;
             else if (c == '!') { abort(); /*the linker argumnets start here.*/ }
             else if (c == 'u') { printf("usage: n -[uvxocisd!-] <.n/.ll/.o/.s>\n"); exit(0); }
@@ -300,8 +295,7 @@ int main(const int argc, const char** argv) {
             } else if (ext && !strcmp(ext, ".ll")) {
                 llvm::SMDiagnostic errors;
                 auto m = llvm::parseAssemblyFile(argv[i], errors, context);
-                if (not m) { errors.print("llvm", llvm::errs()); exit(1); }
-                set_data_for(m);
+                if (not m) { errors.print("llvm", llvm::errs()); exit(1); } else set_data_for(m);
                 if (llvm::Linker::linkModules(*module, std::move(m))) exit(1);
             } else { printf("n: error: cannot process file \"%s\" with extension \"%s\"\n", argv[i], ext); exit(1); }
             first = false;
