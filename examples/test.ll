@@ -6,6 +6,32 @@ entry:
 
 
 
+
+
+
+join (declare ((unit) (_)))
+join ( declare ((( (x) (unit) (_) )) (_)) )
+join ( declare ((( (x) (_) )) (unit) (_)) )
+join ( def ((((first) (unit) (_)) ((second) (unit) (_))) (unit) (_)) unit second)
+name name
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 (join (declare ((run) (_)))
 (join (declare ((((x) (_))there) (_)))
 
@@ -13,24 +39,6 @@ entry:
 
 
 
-
-
-
-
-
-
-
-
-(join (define ((lazy ((x) (_))) (_)))
-(join (define ((push) (_)))
-(join (define ((pop) (_)))
-(join (define (( ((signature) (name) (_))  ((type) (_))    ((definition) (lazy type) (_)) ) (_)))
-(join (define ((unit) (_)))
-(join ( define ((( (x) (unit) (_) )) (_)) )
-(join ( define ((( (x) (_) )) (unit) (_)) )
-(join ( ((((first) (unit) (_)) ((second) (unit) (_))) (unit) (_)) unit second)
-name name
-))))))))
 
 
 

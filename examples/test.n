@@ -1,3 +1,7 @@
-(join declare ((((x) (_))there) (_))
-(name there there there there there))
 
+join (declare ((lazy ((x) (_))) (_)))
+join (declare ((push) (_)))
+join (declare ((pop) (_)))
+join (declare (( wef((signature) (name) (_))  ((type) (_))    ((definition) (lazy type) (_)) ) (_)))
+join (declare ((namef) (_)))
+name

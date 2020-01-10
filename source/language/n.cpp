@@ -12,7 +12,7 @@
 #include <fstream>
 #include <iostream>                              // n: a n3zqx2l compiler written in C++.
 #include <vector>
-enum constants { none, id, op, string, expr, action = 'x', exec = 'o', object = 'c', ir = 'i', assembly = 's', _name = 3, _declare = 4, _lazy = 6000, _push = 7000, _pop = 8000, _define = 12000, };
+enum constants { none, id, op, string, expr, action = 'x', exec = 'o', object = 'c', ir = 'i', assembly = 's', _name = 3, _declare = 4, _lazy = 6, _push = 7, _pop = 8, _define = 12, };
 struct file { const char* name = ""; std::string text = ""; };
 struct arguments { long output = action; const char* name = "a.out"; std::vector<std::string> argv_for_exec = {}; };
 struct lexing_state { long index = 0; long state = none; long line = 0; long column = 0; };
@@ -190,14 +190,12 @@ static expression typify(const expression& given, const resolved& initial_type, 
     for (auto& s : signature.symbols) if (s.type == expr) define(s.subexpression = typify(s.subexpression, {0}, entries, stack, file, max_depth), {}, {}, entries, stack); return signature;
 }
 static inline resolved construct_signature(const expression& given, std::vector<entry>& entries, std::vector<std::vector<long>>& stack, const file& file, long max_depth) {
-    return {3, {}, given.symbols.empty(), {given.symbols.size() and
-        given.symbols.front().type == expr
-            ? typify(given, {0}, entries, stack, file, max_depth)
-            : expression {given.symbols, {1}}}};
+    return {3, {}, given.symbols.empty(), {given.symbols.size() and given.symbols.front().type == expr ? typify(given, {0}, entries, stack, file, max_depth) : expression {given.symbols, {1}}}};
 }
 static inline resolved resolve_at(const expression& given, const resolved& given_type, long& index, long depth, long max_depth, std::vector<entry>& entries, std::vector<std::vector<long>>& stack, const file& file) {
     if (depth > max_depth or index >= (long) given.symbols.size()) return {0, {}, true};
     if (given_type.index == _name and given.symbols[index].type == expr) return construct_signature(given.symbols[index++].subexpression, entries, stack, file, max_depth);
+    else if (given_type.index == _lazy) return resolve_at(given, given_type.args[0], index, depth, max_depth, entries, stack, file);
     long saved = index; auto saved_stack = stack;
     for (auto s : saved_stack.back()) {
         const auto& signature = entries[s].signature;
@@ -210,9 +208,14 @@ static inline resolved resolve_at(const expression& given, const resolved& given
                 if (argument.error) goto done; args.push_back({argument});
                 entries[symbol.subexpression.me.index].subsitution = argument;
             } else if (symbol.type != given.symbols[index].type or symbol.literal.value != given.symbols[index].literal.value) goto done; else index++;
-        } if (s == _declare) define(args[0].expr.front(), {}, {}, entries, stack); return {s, args}; done: continue;
+        } if (s == _declare) define(args[0].expr.front(), {}, {}, entries, stack);
+        else if (s == _define) define(args[0].expr.front(), args[1], args[2], entries, stack);
+        else if (s == _push) stack.push_back(stack.back());
+        else if (s == _pop) stack.pop_back();
+        return {s, args}; done: continue;
     } if (given.symbols[index].type == expr) return resolve_expression(given.symbols[index++].subexpression, given_type, entries, stack, file, max_depth);
-    return {0, {}, true};
+    else if (given.symbols[index].type == string and given_type.index == 1) return {0, {}, false, {}, given.symbols[index++].literal.value};
+    else if (given.symbols[index].type == string) return {0, {}, false, {{{given.symbols[index++]}}}, "i8*"}; else return {0, {}, true};
 }
 static inline resolved resolve_expression(const expression& given, const resolved& given_type, std::vector<entry>& entries, std::vector<std::vector<long>>& stack, const file& file, long max_depth) {
     long pointer = 0; auto solution = resolve_at(given, given_type, pointer, 0, max_depth, entries, stack, file);
