@@ -194,28 +194,39 @@ static inline resolved construct_signature(const expression& given, std::vector<
 }
 static inline resolved resolve_at(const expression& given, const resolved& given_type, long& index, long depth, long max_depth, std::vector<entry>& entries, std::vector<std::vector<long>>& stack, const file& file) {
     if (depth > max_depth or index >= (long) given.symbols.size()) return {0, {}, true};
-    if (given_type.index == _name and given.symbols[index].type == expr) return construct_signature(given.symbols[index++].subexpression, entries, stack, file, max_depth);
-    else if (given_type.index == _lazy) return resolve_at(given, given_type.args[0], index, depth, max_depth, entries, stack, file);
+    
     long saved = index; auto saved_stack = stack;
+    
     for (auto s : saved_stack.back()) {
         const auto& signature = entries[s].signature;
         if (not equal(given_type, signature.type, entries)) continue;
         std::vector<resolved> args = {}; index = saved;
         for (auto symbol : signature.symbols) {
-            if (index >= (long) given.symbols.size()) return {0, args};
+            
+            if (index >= (long) given.symbols.size()) goto done; //return {0, args};
+            
             if (symbol.type == expr) {
                 auto argument = resolve_at(given, symbol.subexpression.type, index, depth + 1, max_depth, entries, stack, file);
                 if (argument.error) goto done; args.push_back({argument});
                 entries[symbol.subexpression.me.index].subsitution = argument;
             } else if (symbol.type != given.symbols[index].type or symbol.literal.value != given.symbols[index].literal.value) goto done; else index++;
-        } if (s == _declare) define(args[0].expr.front(), {}, {}, entries, stack);
+        }
+        
+        if (s == _declare) define(args[0].expr.front(), {}, {}, entries, stack);
         else if (s == _define) define(args[0].expr.front(), args[1], args[2], entries, stack);
         else if (s == _push) stack.push_back(stack.back());
         else if (s == _pop) stack.pop_back();
+        
         return {s, args}; done: continue;
-    } if (given.symbols[index].type == expr) return resolve_expression(given.symbols[index++].subexpression, given_type, entries, stack, file, max_depth);
+    }
+    
+    if (given_type.index == _name and given.symbols[index].type == expr) return construct_signature(given.symbols[index++].subexpression, entries, stack, file, max_depth);
+    else if (given_type.index == _lazy) return resolve_at(given, given_type.args[0], index, depth, max_depth, entries, stack, file);
+    if (given.symbols[index].type == expr) return resolve_expression(given.symbols[index++].subexpression, given_type, entries, stack, file, max_depth);
     else if (given.symbols[index].type == string and given_type.index == 1) return {0, {}, false, {}, given.symbols[index++].literal.value};
-    else if (given.symbols[index].type == string) return {0, {}, false, {{{given.symbols[index++]}}}, "i8*"}; else return {0, {}, true};
+    else if (given.symbols[index].type == string) return {0, {}, false, {{{given.symbols[index++]}}}, "i8*"};
+    
+    return {0, {}, true};
 }
 static inline resolved resolve_expression(const expression& given, const resolved& given_type, std::vector<entry>& entries, std::vector<std::vector<long>>& stack, const file& file, long max_depth) {
     long pointer = 0; auto solution = resolve_at(given, given_type, pointer, 0, max_depth, entries, stack, file);
