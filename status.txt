@@ -2,30 +2,41 @@ the current status of the nostril compiler:
 =============================================
 
 
-ok i think i figured it out.
-
-
-        
-
-
-
-
-
-
-
-
-
-
-
 
 
 
 CURRENT TASK DETAILS:
 =======================
 
-    
-    
-    
+
+
+
+
+
+
+
+
+
+------ NEW bug: -------
+
+test code:
+
+    join
+    declare ((f ((T) (_)) ((x) (T) (_))) (T) (_))
+    name
+
+;
+
+we are defining the function, but not printing the retunr type properly, in the debug symbol table.
+
+
+
+
+
+
+
+
+
     
     
     

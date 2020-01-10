@@ -6,6 +6,21 @@ entry:
 
 
 
+(join (declare ((run) (_)))
+(join (declare ((((x) (_))there) (_)))
+
+(run there there there there there)))))
+
+
+
+
+
+
+
+
+
+
+
 (join (define ((lazy ((x) (_))) (_)))
 (join (define ((push) (_)))
 (join (define ((pop) (_)))
