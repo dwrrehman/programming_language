@@ -1,12 +1,12 @@
 join (define ((lazy ((x) (_))) (_)))
 join (define ((push) (_)))
 join (define ((pop) (_)))
-join (define (( my define ((signature) (name) (_))  ((type) (_))  ((definition) (lazy type) (_)) ) (_)))
+join (define (( ((signature) (name) (_))  ((type) (_))     ((definition) (lazy type) (_)) ) (_)))
+
 join (define ((unit) (_)))
-
-join (define ((g) (unit) (_)))
-join (my define ((htfs) (_)) (unit) (g))
-
-join (my define ((((first) (unit) (_)) ((second) (unit) (_))) (unit) (_)) unit second)
-
+join ( define ((hello there) (unit) (_)) )
+join ( ((htfs) (unit) (_)) (unit) (hello there) )
 name
+
+
+
