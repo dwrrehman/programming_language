@@ -50,7 +50,7 @@ static inline symbol parse_symbol(lexing_state& state, const file& file) {
     } state = saved; auto t = next(state, file);
     if (t.type == string) return {string, {}, t};
     else if (t.type == id or (t.type == op and t.value != "(" and t.value != ")")) return {id, {}, t};
-    else { state = saved; return {none, {}, {}, true}; }        //printf("n3zqx2l: %s:%ld:%ld: unexpected \")\"\n", file.name, t.line, t.column); TODO: make this work properly.
+    else { state = saved; return {none, {}, {}, true}; }        ///TODO:   print somethign like: printf("n3zqx2l: %s:%ld:%ld: unexpected \")\"\n", file.name, t.line, t.column); TODO: make this work properly.
 }
 static inline expression parse(lexing_state& state, const file& file) {
     std::vector<symbol> symbols = {}; auto saved = state; auto start = next(state, file); state = saved;
@@ -72,7 +72,6 @@ static inline std::string expression_to_string(const expression& given, const st
         if (i < (long) given.symbols.size() - 1 and not (i + 1 < begin or (end != -1 and i + 1 >= end))) result += " "; i++;
     } result += ")"; if (given.type.index) result += " " + expression_to_string(entries[given.type.index].signature, entries, 0, -1, given.type.args); return result;
 }
-
 
 static inline void print_resolved_expr(resolved expr, long depth, std::vector<entry> entries, long d = 0);
 static inline void debug(std::vector<entry> entries, std::vector<std::vector<long>> stack, bool show_llvm) {
@@ -298,7 +297,7 @@ int main(const int argc, const char** argv) {
             const char* ext = strrchr(argv[i], '.');
             if (ext && !strcmp(ext, ".n")) {
                 std::ifstream stream {argv[i]};
-                if (stream.bad()) { printf("n: error: unable to open \"%s\": %s\n", argv[i], strerror(errno)); exit(1); }
+                if (not stream.good()) { printf("n: error: unable to open \"%s\": %s\n", argv[i], strerror(errno)); exit(1); }
                 const file file = {argv[i], {std::istreambuf_iterator<char>(stream), std::istreambuf_iterator<char>()}};
                 lexing_state state {0, none, 1, 1};
                 if (llvm::Linker::linkModules(*module, generate(resolve(parse(state, file), file, max_depth), file, context, first))) exit(1);

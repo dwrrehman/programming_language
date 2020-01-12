@@ -22,25 +22,3 @@ join ( def ((((first) (unit) (_)) ((second) (unit) (_))) (unit) (_)) unit second
 name name
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-( define ((hello there) (unit) (_)) )
-( f ((htfs) (unit) (_)) (unit) (hello there) )
