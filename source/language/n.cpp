@@ -302,25 +302,65 @@ static inline resolved resolve_expression(const expression& given, const resolve
         printf("n3zqx2l: %s:%ld:%ld: error: unresolved %s @ %ld : %s ≠ %s\n\n\n", file.name, t.line, t.column, expression_to_string(given, entries, pointer, pointer + 1).c_str(), pointer, expression_to_string(given, entries).c_str(), expression_to_string(entries[given_type.index].signature, entries, 0, -1, given_type.args).c_str() );
     } return solution;
 }
-static inline resolved resolve(const expression& given, const file& file, long max_depth) {
-    std::vector<entry> entries { {}, {{{{id,{},{id,"_"}}},{0},{1}}}, {{{{id,{},{id,"join"}},{expr,{{},{1}}},{expr,{{},{1}}}},{1},{2}}}, {{{{id,{},{id,"name"}}},{1},{3}}}, {{{{id,{},{id,"declare"}},{expr,{{},{3}}}},{1},{4}}} }; std::vector<std::vector<long>> stack {{2, 4, 1, 3}};
-    auto resolved = resolve_expression(given, {1}, entries, stack, file, max_depth);        /** debug: */ print_resolved_expr(resolved, 0, entries); printf("\n\n"); debug(entries, stack, false); printf("\n\n");
-    if (resolved.error or given.error) exit(1); else return resolved;
+static inline resolved resolve(const expression& given, std::vector<entry>& entries, std::vector<std::vector<long>>& stack, const file& file, long max_depth) {
+    if (given.error) exit(1); auto resolved = resolve_expression(given, {1}, entries, stack, file, max_depth);
+    /** debug: */ print_resolved_expr(resolved, 0, entries); printf("\n\n"); debug(entries, stack, false); printf("\n\n");
+    return resolved;
 }
 static inline void set_data_for(std::unique_ptr<llvm::Module>& module) {
     module->setTargetTriple(llvm::sys::getDefaultTargetTriple()); std::string lookup_error = "";
     auto target_machine = llvm::TargetRegistry::lookupTarget(module->getTargetTriple(), lookup_error)->createTargetMachine(module->getTargetTriple(), "generic", "", {}, {}, {});
     module->setDataLayout(target_machine->createDataLayout());
 }
-static inline void generate_expression(const resolved& given, llvm::Module* module, llvm::Function* function, llvm::IRBuilder<>& builder) {
-    
+static inline llvm::Value* generate_expression(const resolved& given, std::vector<entry>& entries, std::vector<std::vector<long>>& stack, llvm::Module* module, llvm::Function* function, llvm::IRBuilder<>& builder) {
+        
+    if (given.index == _pop or              // all take no arguments.
+        given.index == _push or
+        given.index == _name or
+        given.index == 1) {
+        
+        // do nothing
+        
+        /// then return the unit type.
+                
+        
+                
+        // where do llvm types come in?
+        
+        
+    } else if (given.index == _declare) {
+        
+        std::string function_name = "test_name";
+        
+        auto ret_type = llvm::Type::getInt32Ty(module->getContext());
+        std::vector<llvm::Type*> arg_type = {};
+        auto function_type = llvm::FunctionType::get(ret_type, arg_type, false);
+        llvm::Function* declared_function = llvm::Function::Create(function_type, llvm::Function::ExternalLinkage, function_name, module);
+        
+        // how do we specify attributes?
+        
+        /// what do we return from a declare?
+        
+    } else {
+        std::vector<llvm::Value*> arguments = {};
+        
+        for (auto arg : given.args) arguments.push_back(generate_expression(arg, entries, stack, module, function, builder));
+        
+        std::string callee_name = "helloworld";
+        llvm::Value* callee = module->getFunction(callee_name);
+        return builder.CreateCall(callee, arguments);
+    }
+    abort();
+    return nullptr;
 }
-static inline std::unique_ptr<llvm::Module> generate(const resolved& given, const file& file, llvm::LLVMContext& context, bool is_main) {
-    auto module = llvm::make_unique<llvm::Module>(file.name, context);
+static inline std::unique_ptr<llvm::Module> generate(const resolved& given, std::vector<entry>& entries, std::vector<std::vector<long>>& stack, const file& file, llvm::LLVMContext& context, bool is_main) {
+    if (given.error) exit(1); auto module = llvm::make_unique<llvm::Module>(file.name, context);
     llvm::IRBuilder<> builder(context); set_data_for(module);
     auto main = llvm::Function::Create(llvm::FunctionType::get(llvm::Type::getInt32Ty(context), {llvm::Type::getInt32Ty(context), llvm::Type::getInt8PtrTy(context)->getPointerTo()}, false), llvm::Function::ExternalLinkage, "main", module.get());
     builder.SetInsertPoint(llvm::BasicBlock::Create(context, "entry", main));
-    generate_expression(given, module.get(), main, builder);
+    
+    if (false) generate_expression(given, entries, stack, module.get(), main, builder);
+    
     builder.SetInsertPoint(&main->getBasicBlockList().back());
     builder.CreateRet(llvm::ConstantInt::get(llvm::Type::getInt32Ty(context), 0)); /** debug: */ std::cout << "generating code....:\n"; module->print(llvm::outs(), nullptr);
     std::string errors = ""; if (llvm::verifyModule(*module, &(llvm::raw_string_ostream(errors) << ""))) { printf("llvm: %s: error: %s\n", file.name, errors.c_str()); exit(1); } else return module;
@@ -367,9 +407,22 @@ int main(const int argc, const char** argv) {
             if (ext && !strcmp(ext, ".n")) {
                 std::ifstream stream {argv[i]};
                 if (not stream.good()) { printf("n: error: unable to open \"%s\": %s\n", argv[i], strerror(errno)); exit(1); }
+                
                 const file file = {argv[i], {std::istreambuf_iterator<char>(stream), std::istreambuf_iterator<char>()}};
+                
                 lexing_state state {0, none, 1, 1};
-                if (llvm::Linker::linkModules(*module, generate(resolve(parse(state, file), file, max_depth), file, context, first))) exit(1);
+                
+                std::vector<entry> entries {
+                    {},
+                    {{{{id,{},{id,"_"}}},{0},{1}}},
+                    {{{{id,{},{id,"join"}},{expr,{{},{1}}},{expr,{{},{1}}}},{1},{2}}},
+                    {{{{id,{},{id,"name"}}},{1},{3}}},
+                    {{{{id,{},{id,"declare"}},{expr,{{},{3}}}},{1},{4}}}
+                };
+                
+                std::vector<std::vector<long>> stack {{2, 4, 1, 3}};
+                
+                if (llvm::Linker::linkModules(*module, generate(resolve(parse(state, file), entries, stack, file, max_depth), entries, stack, file, context, first))) exit(1);
             } else if (ext && !strcmp(ext, ".ll")) {
                 llvm::SMDiagnostic errors;
                 auto m = llvm::parseAssemblyFile(argv[i], errors, context);
