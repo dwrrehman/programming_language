@@ -26,8 +26,8 @@
 		FD02050021E7F3C3009C332B /* language */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = language; sourceTree = BUILT_PRODUCTS_DIR; };
 		FD02050321E7F3C3009C332B /* n.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = n.cpp; sourceTree = "<group>"; };
 		FDADA86823AED1AD003748DB /* test.ll */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.asm.llvm; name = test.ll; path = ../../examples/test.ll; sourceTree = "<group>"; };
+		FDBC383E23CAF63300215051 /* status.txt */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; name = status.txt; path = ../../documentation/status.txt; sourceTree = "<group>"; };
 		FDBE70C4232D97C7006CC0F9 /* test.n */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; name = test.n; path = ../../examples/test.n; sourceTree = "<group>"; };
-		FDC9A1D6234FE76100FC2553 /* status.txt */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; name = status.txt; path = ../../status.txt; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -63,7 +63,7 @@
 				FD02050321E7F3C3009C332B /* n.cpp */,
 				FDBE70C4232D97C7006CC0F9 /* test.n */,
 				FDADA86823AED1AD003748DB /* test.ll */,
-				FDC9A1D6234FE76100FC2553 /* status.txt */,
+				FDBC383E23CAF63300215051 /* status.txt */,
 			);
 			path = language;
 			sourceTree = "<group>";
@@ -279,7 +279,6 @@
 				OTHER_CPLUSPLUSFLAGS = "$(OTHER_CFLAGS) ";
 				OTHER_LDFLAGS = (
 					"-I/usr/local/Cellar/llvm/9.0.0_1/include",
-					"-std=c++11",
 					"-stdlib=libc++",
 					"-D__STDC_CONSTANT_MACROS",
 					"-D__STDC_FORMAT_MACROS",
@@ -457,7 +456,6 @@
 				OTHER_CPLUSPLUSFLAGS = "$(OTHER_CFLAGS) ";
 				OTHER_LDFLAGS = (
 					"-I/usr/local/Cellar/llvm/9.0.0_1/include",
-					"-std=c++11",
 					"-stdlib=libc++",
 					"-D__STDC_CONSTANT_MACROS",
 					"-D__STDC_FORMAT_MACROS",
