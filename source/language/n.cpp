@@ -195,8 +195,7 @@ static inline resolved resolve_at(const expression& given, const resolved& given
     prep(depth); printf("-------- CSR: called resolve_at: ----------\n");
     prep(depth); printf("  depth = %zd\n", depth);
     prep(depth); printf("looking at given index: %s in %s\n", expression_to_string(given, entries, index, index + 1).c_str(), expression_to_string(given, entries).c_str());
-//    prep(depth); printf("  debt = %zd\n\n", debt);
-//    prep(depth); printf("  note:  ---> debt=%zd >= cost(g)=%zd\n", debt, given_cost);
+
 //
     if (depth > max_depth or index >= (long) given.symbols.size()) {
 //        prep(depth);  printf("CSR: failing because of exit cond...\n");
@@ -208,7 +207,6 @@ static inline resolved resolve_at(const expression& given, const resolved& given
     for (auto s : saved_stack.back()) {
         
         const auto& signature = entries[s].signature;
-//        const long signature_cost = cost(signature);
         prep(depth); printf(":: trying: %s      \n", expression_to_string(signature, entries).c_str());
             
         if (not equal(given_type, signature.type, entries)) {
@@ -227,10 +225,7 @@ static inline resolved resolve_at(const expression& given, const resolved& given
             }
             
             if (symbol.type == expr) {
-//                if (debt >= given_cost - 1) {
-//                    prep(depth); printf("    ---> PARAM: debt=%zd >= cost(g)=%zd\n", debt, given_cost);
-//                    goto done;
-//                }
+
                 prep(depth); printf("     matching parameter: %s\n", expression_to_string(entries[symbol.subexpression.type.index].signature, entries).c_str());
                 
                 auto argument = resolve_at(given, symbol.subexpression.type, index, depth + 1, max_depth, entries, stack, file);
@@ -255,7 +250,9 @@ static inline resolved resolve_at(const expression& given, const resolved& given
 //        if (s == _push) stack.push_back(stack.back());
 //        if (s == _pop) stack.pop_back();
         prep(depth); printf("     returning success: {res: %zd,   args:  %zd}\n\n", s, args.size());
-        if (depth or index == (long) given.symbols.size()) return {s, args};
+        
+        return {s, args}; // if (depth or index == (long) given.symbols.size())
+        
     
         done: continue;
     }
