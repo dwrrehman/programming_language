@@ -336,8 +336,7 @@ int main(const int argc, const char** argv) {
         if (argv[i][0] == '-') {
             const auto c = argv[i][1]; if (use_exec_args) args.argv_for_exec.push_back(argv[i]);
             else if (c == '-') use_exec_args = true;
-            else if (c == '!') { abort(); /*the linker arguments start here.*/ }
-            else if (c == 'u' or c == 'v') { printf("%s", c == 'u' ? "usage: n -[uvocisd!-] <.n/.ll/.o/.s>\n" : "n3zqx2l: 0.0.4 \tn: 0.0.4\n"); exit(0); }
+            else if (c == 'u' or c == 'v') { puts(c == 'u' ? "usage: n -[uvocisd-] <.n/.ll/.o/.s>" : "n3zqx2l: 0.0.4 \tn: 0.0.4"); exit(0); }
             else if (c == 'd' and i + 1 < argc) { auto n = atol(argv[++i]); if (n) max_depth = n; }
             else if (strchr("ocis", c) and i + 1 < argc) { args.output = c; args.name = argv[++i]; }
             else { printf("n: error: bad option: %s\n", argv[i]); exit(1); }
