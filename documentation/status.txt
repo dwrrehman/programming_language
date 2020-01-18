@@ -2,38 +2,36 @@ the current status of the nostril compiler:
 =============================================
 
 
+code:
 
-THE TODO LIST:
-=====================
 
-- redo how we are handling lexing, our impl sucks. it uses alot of globals.
-- revise our target triple.
-- use more of the stl algorithms.
 
-- get csr working with subexpressions.
-- get fdi functionality fully working, using _b
+join (declare ((lazy ((x) (_))) (_)))
+join (declare ((push) (_)))
+join (declare ((pop) (_)))
+join (declare (( ((signature) (name) (_)) ((type) (_))    ((definition) (lazy type) (_)) ) (_)))
+join (declare ((namef) (_)))
+name
 
-- add _0 functionality to csr.
-- add lazy code generation using _a
-- add resolution based type inference
-- add compiletime evlauation to this.
-- add compiletime parameters
-- add ct geenration of rt data.
+join (declare ((unit) (_)))
+join ( declare ((( (x) (unit) (_) )) (_)) )
+join ( declare ((( (x) (_) )) (unit) (_)) )
+join ( def ((((first) (unit) (_)) ((second) (unit) (_))) (unit) (_)) unit second)
+name name
 
-- figure out how to remove the symbol table data structure.
 
-x: - devise a better llvm interop system.;
 
-- figure out how to make _c provide _expose functionality
 
-- add assembly output functioality,
-- code for passing flags to the linker
-- add codegen and support for strings in csr and llvm.
 
-x: - possibly get rid ll stirngs. ;
 
-- add numbers suppport.
 
+
+
+
+
+
+
+CURRENT TASK DETAILS:
 =======================
 
 
@@ -45,11 +43,275 @@ x: - possibly get rid ll stirngs. ;
 
 
 
+------ NEW bug: -------
+
+test code:
+
+    join
+    declare ((f ((T) (_)) ((x) (T) (_))) (T) (_))
+    name
+
+;
+
+we are defining the function, but not printing the retunr type properly, in the debug symbol table.
 
 
 
 
 
+
+
+
+
+    
+    
+    
+    
+NEXT TASK:
+==========================
+    
+    then after this, we work on codegening:
+    
+        - start by getting "declare void @"(hello world)"();" to be generated from a define call, with no body.
+            ---> figure out how to call define with no body! (no, not using a seperate new intrinsic.)
+            
+        - then get the generation of an actual n3zqx2l function (from a define) working.
+        
+        - then get the generation of a call to a (n or ll) function working, with the correct calling convention: fast! (unless we are calling something external? i dont know.)
+        
+        
+    
+    
+    
+============================================================================================================================================
+
+
+
+
+
+THE TODO LIST:
+=====================
+
+[PRIMARY:]
+==========
+
+- allow for ctfe! necc for _def to work.
+
+- add lazy code generation using _a          [neccessary]
+- add compiletime evlauation to csr.
+- add compiletime parameters
+- add compiletime generation of runtime data.
+
+- add resolution based type inference  (or/plus henry milner TI)       [nice]
+
+- figure out how to make _define provide _expose functionality         [nice]
+
+- make llvms void passable and initiable like the real unit type.    [nice]  [must be done in codegen phase]
+
+
+
+
+[SECONDARY:]
+============
+
+- figure out how we are going to do multiple files, and our module system.         [neccessary]
+
+- use the updated pass mananger llvm system, for generating .s or .o files, and for optimization.      [self hosting]
+- reimplement the compiler using the llvm c-api, which is much more intuitive.             [efficiency]   [self-hosting]
+
+- revise our target triple.                                                                     [efficiency]
+- replace all occurences (or hearly all) of std::vector    with    llvm::SmallVector<1000ish, T>.    [efficiency]
+- use more of the stl algorithms..?                                                           [efficiency]
+
+- add numberic constants suppport.                                   [nice]
+- add codegen and support for text strings in csr and llvm.          [nice]
+- code for passing flags to the linker (-!)                          [nice]
+
+
+
+
+
+
+
+
+
+=========== found bugs: =====================
+
+    - the compiler doesnt give a warning for an extranous closing parentheiss.
+        --> then what happens?
+        
+        
+        
+        
+        
+    
+    
+    
+    
+    
+    
+    
+    
+        
+        
+=============================== CLOSED: ======================
+        
+        
+        
+        
+        
+    - in the following test code:
+    
+        _2 (_3 (((() (_)) (() (_))) (_)))
+        (_3 ((code (() (_))) (_)) )
+        (_3 ((define ((s) (_1) (_)) ((d) (code _1) (_))) (_)) )
+        (_3 ((g) (code _1) (_)) )
+        define hello g
+                
+        x: SERIOUS: 1. the compiler defines g twice.;
+        
+        x: SERIOUS: 2. the compiler doesnt distinguish:            code (_1)     and        code (code (_1));
+        
+        
+        
+
+    
+in the following test code:
+    
+    join define ((code ((x) (_))) (_))
+    join define ((((first) (_)) ((second) (_))) (_))
+    (define ((my define ((signature) (name) (_)) ((T) (_)) ((definition) (code (T)) (_))) (_)))
+
+    define ((hello there) (_))
+    define ((g) (code hello there) (_)))
+    define ((f) (code name) (_)))
+    my define hello hello there g
+    my define bye name g
+
+    
+        this succeeds, when it shouldnt.
+    
+    
+    
+    - another bug: in the following test code:
+    
+    
+    join define ((code ((x) (_))) (_))
+    join define ((((first) (_)) ((second) (_))) (_))
+    (define ((my define ((signature) (name) (_)) ((T) (_)) ((definition) (code (T)) (_))) (_)))
+
+
+    (define ((hello there) (_)))
+    (define ((g) (code hello there) (_))))
+    (define ((f) (code name) (_))))
+    (my define hello hello there g)
+    (my define bye name f)
+
+
+
+        this defines g twice.
+    
+        
+=============================================
+
+
+
+============ DONE: ===========
+
+
+x: - code for passing args to the executable (--);
+x: we just got _b working basically perfectly, except....;
+x: make fdi work with multiple _2 (_b) paraemters.;
+x: - get fdi functionality fully working, using _b;
+x: - add _0 functionality to csr.;
+
+x: - write the string to expression function.;
+x: - get csr working with subexpressions properly.;
+x: - make llvm strings nestable.;
+x: - possibly get rid ll stirngs. ;
+x: - add assembly output functioality,;
+x: - figure out how to remove the symbol table data structure.;
+x: - redo how we are handsling lexing, ;
+x: - devise a better llvm interop system.;
+x: - write the define function.;
+x: - figure out how to represent llvm elements such as: function and type and value      (or even globals?);    
+x: - figure out how define should work;   
+x: - make string to expression function cope with llvm-single-identifiers.;    
+x: - allow type-section deductions in n3zqx2l signature strings inside llvm strings.;::this is a high bar thing, we are saving it until we do type inference, which is not soon.;
+
+x:
+    we need ctfe in order to (properly) allow the user to pass in a type (which may take type parameters!)
+        when they give the return type, for a signature,
+            when passing a _name (_b).
+            
+            i know, its alittle bit compilcated, but its neccessary. for both return type, and paraemter types.
+            
+            we need to use this ctfe infrastruction eventually to write a "find()" function, whch takes in a type list, and turns that into an index.
+    
+  ;
+    
+    
+
+
+==================================
+
+
+
+
+
+
+
+
+=========================================================================================================================================
+
+
+
+
+
+
+
+
+2001072.224206:
+
+ok, so we are finally at the place in the compiler where we need to decide exactly how our type system is "computational".
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+so we are dramatically simplifying how we are doing our symbol table management, and probably type inference as well.
+
+
+we might be using something like hentry milner type inference, plus some delayed resolution stuff.
+
+additionally, we will be code gening intstantly into the llvm ir, upon parsing n3zqx2l code.
+
+wait, no, we shouldnt... because of calls to functions:
+	
+	there is one definition, which we can easily update when we realize its type,
+
+	but there are many instances in which its called, which we need to update as well.
+
+	
 
 
 
