@@ -195,8 +195,8 @@ static inline resolved resolve_at(const expression& given, const resolved& given
     prep(depth); printf("-------- CSR: called resolve_at: ----------\n");
 //    prep(depth); printf("  depth = %zd\n", depth);
 //    prep(depth); printf("  debt = %zd\n", debt);
-    prep(depth); printf("looking at given index: %s in %s\n",
-                        expression_to_string(given, entries, index, index + 1).c_str(),
+    prep(depth); printf("looking at given index: %s @ %zd in %s\n",
+                        expression_to_string(given, entries, index, index + 1).c_str(), index,
                         expression_to_string(given, entries).c_str());
 
 //
@@ -273,20 +273,20 @@ static inline resolved resolve_at(const expression& given, const resolved& given
 //        if (s == _push) stack.push_back(stack.back());
 //        if (s == _pop) stack.pop_back();
         
-        prep(depth); printf("--checking--  ...    debt =? given.symbols.size():    \n");
+        prep(depth); printf("--checking--  ...    index - saved + saved_debt =? given.symbols.size():    \n");
         prep(depth); printf("given.symbols.size() = %zd\n", given.symbols.size());
         prep(depth); printf("debt = %zd\n", debt);
         prep(depth); printf("saved debt = %zd\n", saved_debt);
         prep(depth); printf("index = %zd\n", index);
         prep(depth); printf("saved index = %zd\n", saved);
         
-        prep(depth); printf("checking  whether %zd =? %lu\n", debt, given.symbols.size());
+        prep(depth); printf("checking  whether %zd =? %lu\n", index - saved + saved_debt, given.symbols.size());
         
-        if (debt == (long) given.symbols.size() ) {
+        if (index - saved + saved_debt == (long) given.symbols.size() ) {
             prep(depth); printf("     returning success: {res: %zd,   args:  %zd}\n\n", s, args.size());
             return {s, args};
         } else {
-            prep(depth); printf("     failing(moving on):    debt ≠ given.symbols.size():    %zd ≠ %lu\n", debt, given.symbols.size());
+            prep(depth); printf("     failing(moving on):    index - saved + saved_debt ≠ given.symbols.size():    %zd ≠ %lu\n", index - saved + saved_debt, given.symbols.size());
         }
         
         done: continue;

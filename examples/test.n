@@ -1,2 +1,2 @@
- join (declare ((daniel rehman ((x) (_))) (_)))
- (daniel rehman daniel rehman daniel rehman name)
+ join (declare (( f ((x) (_)) hello ((y) (_)) there) (_)))
+ (f name hello f name hello name there there)
