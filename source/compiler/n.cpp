@@ -260,20 +260,20 @@ static inline resolved resolve_at(const expression& given, const resolved& given
 //        if (s == _push) stack.push_back(stack.back());
 //        if (s == _pop) stack.pop_back();
         
-        prep(depth); printf("--checking--  ...    index - saved + saved_debt =? given.symbols.size():    \n");
+        prep(depth); printf("--checking--  ...    debt =? given.symbols.size():    \n");
         prep(depth); printf("given.symbols.size() = %zd\n", given.symbols.size());
         prep(depth); printf("debt = %zd\n", debt);
         prep(depth); printf("saved debt = %zd\n", saved_debt);
         prep(depth); printf("index = %zd\n", index);
         prep(depth); printf("saved index = %zd\n", saved);
         
-        prep(depth); printf("checking  whether %zd =? %lu\n", index - saved + saved_debt, given.symbols.size());
+        prep(depth); printf("checking  whether %zd =? %lu\n", debt, given.symbols.size());
         
-        if (index - saved + saved_debt == (long) given.symbols.size() ) {
+        if (debt == (long) given.symbols.size() ) {
             prep(depth); printf("     returning success: {res: %zd,   args:  %zd}\n\n", s, args.size());
             return {s, args};
         } else {
-            prep(depth); printf("     failing(moving on):    index - saved + saved_debt ≠ given.symbols.size():    %zd ≠ %lu\n", index - saved + saved_debt, given.symbols.size());
+            prep(depth); printf("     failing(moving on):    debt ≠ given.symbols.size():    %zd ≠ %lu\n", debt, given.symbols.size());
         }
         
         done: continue;
@@ -341,7 +341,7 @@ static inline std::unique_ptr<llvm::Module> generate(const resolved& given, std:
     auto main = llvm::Function::Create(llvm::FunctionType::get(llvm::Type::getInt32Ty(context), {llvm::Type::getInt32Ty(context), llvm::Type::getInt8PtrTy(context)->getPointerTo()}, false), llvm::Function::ExternalLinkage, "main", module.get());
     builder.SetInsertPoint(llvm::BasicBlock::Create(context, "entry", main));
     
-    if (false) generate_expression(given, entries, stack, module.get(), main, builder);
+    // generate_expression(given, entries, stack, module.get(), main, builder);
     
     builder.SetInsertPoint(&main->getBasicBlockList().back());
     builder.CreateRet(llvm::ConstantInt::get(llvm::Type::getInt32Ty(context), 0)); /** debug: */ std::cout << "generating code....:\n"; module->print(llvm::outs(), nullptr);
@@ -358,8 +358,7 @@ static inline std::string generate_file(std::unique_ptr<llvm::Module> module, co
     auto object_filename = std::string(arguments.name) + (type == llvm::TargetMachine::CGFT_AssemblyFile ? ".s" : ".o");
     llvm::raw_fd_ostream dest(object_filename, error, llvm::sys::fs::F_None); llvm::legacy::PassManager pass;
     if (target_machine->addPassesToEmitFile(pass, dest, nullptr, type)) { std::remove(object_filename.c_str()); exit(1); }
-    pass.run(*module); dest.flush();
-    return object_filename;
+    pass.run(*module); dest.flush(); return object_filename;
 }
 static inline void emit_executable(const std::string& object_file, const std::string& exec_name) {
     std::system(std::string("ld -macosx_version_min 10.15 -lSystem -lc -o " + exec_name + " " + object_file).c_str());
