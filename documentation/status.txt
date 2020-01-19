@@ -2,7 +2,17 @@ the current status of the nostril compiler:
 =============================================
 
 
-code:
+
+
+
+-------------------------------
+backup of code:
+=================
+
+
+
+join (declare ((((x) (_)) hello ((x) (_))) (_)))
+(name hello name hello name)
 
 
 
@@ -22,7 +32,7 @@ name name
 
 
 
-
+-----------------------------
 
 
 
@@ -39,21 +49,6 @@ CURRENT TASK DETAILS:
 
 
 
-
-
-
-
------- NEW bug: -------
-
-test code:
-
-    join
-    declare ((f ((T) (_)) ((x) (T) (_))) (T) (_))
-    name
-
-;
-
-we are defining the function, but not printing the retunr type properly, in the debug symbol table.
 
 
 
@@ -106,6 +101,8 @@ THE TODO LIST:
 
 - figure out how to make _define provide _expose functionality         [nice]
 
+- figure out how we are going to do multiple files, and our module system.         [neccessary]
+
 - make llvms void passable and initiable like the real unit type.    [nice]  [must be done in codegen phase]
 
 
@@ -114,7 +111,7 @@ THE TODO LIST:
 [SECONDARY:]
 ============
 
-- figure out how we are going to do multiple files, and our module system.         [neccessary]
+
 
 - use the updated pass mananger llvm system, for generating .s or .o files, and for optimization.      [self hosting]
 - reimplement the compiler using the llvm c-api, which is much more intuitive.             [efficiency]   [self-hosting]
@@ -157,7 +154,22 @@ THE TODO LIST:
 =============================== CLOSED: ======================
         
         
-        
+
+        ------ NEW bug: -------
+
+        test code:
+
+            join
+            declare ((f ((T) (_)) ((x) (T) (_))) (T) (_))
+            name
+
+        ;
+
+        we are defining the function, but not printing the retunr type properly, in the debug symbol table.
+
+
+
+
         
         
     - in the following test code:

@@ -2,6 +2,6 @@
 <Workspace
    version = "1.0">
    <FileRef
-      location = "self:language.xcodeproj">
+      location = "self:/Users/deniylreimn/Documents/projects/n3zqx2l/source/compiler.xcodeproj">
    </FileRef>
 </Workspace>

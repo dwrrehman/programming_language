@@ -15,9 +15,9 @@
             <BuildableReference
                BuildableIdentifier = "primary"
                BlueprintIdentifier = "FD0204FF21E7F3C3009C332B"
-               BuildableName = "language"
-               BlueprintName = "language"
-               ReferencedContainer = "container:language.xcodeproj">
+               BuildableName = "compiler"
+               BlueprintName = "compiler"
+               ReferencedContainer = "container:compiler.xcodeproj">
             </BuildableReference>
          </BuildActionEntry>
       </BuildActionEntries>
@@ -31,9 +31,9 @@
          <BuildableReference
             BuildableIdentifier = "primary"
             BlueprintIdentifier = "FD0204FF21E7F3C3009C332B"
-            BuildableName = "language"
-            BlueprintName = "language"
-            ReferencedContainer = "container:language.xcodeproj">
+            BuildableName = "compiler"
+            BlueprintName = "compiler"
+            ReferencedContainer = "container:compiler.xcodeproj">
          </BuildableReference>
       </MacroExpansion>
       <Testables>
@@ -57,9 +57,9 @@
          <BuildableReference
             BuildableIdentifier = "primary"
             BlueprintIdentifier = "FD0204FF21E7F3C3009C332B"
-            BuildableName = "language"
-            BlueprintName = "language"
-            ReferencedContainer = "container:language.xcodeproj">
+            BuildableName = "compiler"
+            BlueprintName = "compiler"
+            ReferencedContainer = "container:compiler.xcodeproj">
          </BuildableReference>
       </BuildableProductRunnable>
       <CommandLineArguments>
@@ -103,9 +103,9 @@
          <BuildableReference
             BuildableIdentifier = "primary"
             BlueprintIdentifier = "FD0204FF21E7F3C3009C332B"
-            BuildableName = "language"
-            BlueprintName = "language"
-            ReferencedContainer = "container:language.xcodeproj">
+            BuildableName = "compiler"
+            BlueprintName = "compiler"
+            ReferencedContainer = "container:compiler.xcodeproj">
          </BuildableReference>
       </BuildableProductRunnable>
    </ProfileAction>

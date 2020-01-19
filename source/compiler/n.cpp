@@ -82,12 +82,13 @@ static inline void debug(std::vector<entry> entries, std::vector<std::vector<lon
             std::cout << index << " ";
         } std::cout << "}\n";
     }
-    
     std::cout << "\nmaster: {\n";
     auto j = 0;
     
     for (auto entry : entries) {
+        
         std::cout << "\t" << std::setw(6) << j << ": ";
+        
         std::cout << expression_to_string(entry.signature, entries, 0);
             if (entry.subsitution.index) std::cout << " ---> " << std::to_string(entry.subsitution.index);
         if (entry.definition.index) {
@@ -174,15 +175,14 @@ static inline void define(expression& signature, const resolved& type, const res
     stack.back().push_back(signature.me.index = entries.size()); entries.push_back({signature, definition});
     std::stable_sort(stack.back().begin(), stack.back().end(), [&](long a, long b) { return entries[a].signature.symbols.size() > entries[b].signature.symbols.size() and entries[a].signature.symbols.front().type == id; });
 }
-static inline resolved resolve_at(const expression& given, const resolved& given_type, long& index, long depth, long max_depth, std::vector<entry>& entries, std::vector<std::vector<long>>& stack, const file& file, long debt);
-static inline resolved resolve_expression(const expression& given, const resolved& given_type, std::vector<entry>& entries, std::vector<std::vector<long>>& stack, const file& file, long max_depth);
 static inline bool equal(resolved a, resolved b, std::vector<entry>& entries) {
     if (entries[a.index].subsitution.index and equal(b, entries[a.index].subsitution, entries)) return true; else if (a.index != b.index or a.args.size() != b.args.size()) return false;
     for (unsigned long i = 0; i < a.args.size(); i++) if (not equal(a.args[i], b.args[i], entries)) return false; return true;
 }
+static inline resolved resolve(const expression& given, const resolved& given_type, std::vector<entry>& entries, std::vector<std::vector<long>>& stack, const file& file, long max_depth);
 static expression typify(const expression& given, const resolved& initial_type, std::vector<entry>& entries, std::vector<std::vector<long>>& stack, const file& file, long max_depth) {
     if (given.symbols.empty()) return {{}, {}, {}, {}, true}; expression signature = given.symbols.front().subexpression; signature.type = initial_type;
-    for (long i = given.symbols.size(); i-- > 1;) signature.type = resolve_expression(given.symbols[i].subexpression, signature.type, entries, stack, file, max_depth);
+    for (long i = given.symbols.size(); i-- > 1;) signature.type = resolve(given.symbols[i].subexpression, signature.type, entries, stack, file, max_depth);
     for (auto& s : signature.symbols) if (s.type == expr) define(s.subexpression = typify(s.subexpression, {0}, entries, stack, file, max_depth), {}, {}, entries, stack); return signature;
 }
 static inline resolved construct_signature(const expression& given, std::vector<entry>& entries, std::vector<std::vector<long>>& stack, const file& file, long max_depth) {
@@ -216,7 +216,7 @@ static inline resolved resolve_at(const expression& given, const resolved& given
     ///    this code needs to be moved before the signatures. i think.... if we cannot recognize any signature which takes it as an argument, then it is probably a parameter, or a index... i think we can safely move it to the top, personally...
     if (index < (long) given.symbols.size() and given.symbols[index].type == expr) {
          prep(depth); printf("found a subexpression... calling resolve expression...\n\n\n");
-         return resolve_expression(given.symbols[index++].subexpression, given_type, entries, stack, file, max_depth);
+         return resolve(given.symbols[index++].subexpression, given_type, entries, stack, file, max_depth);
     }
     
         
@@ -294,18 +294,13 @@ static inline resolved resolve_at(const expression& given, const resolved& given
     prep(depth); printf("CSR: ran outo of sigs.   ...exiting through failbackdoor.\n");
     return {0, {}, true};
 }
-static inline resolved resolve_expression(const expression& given, const resolved& given_type, std::vector<entry>& entries, std::vector<std::vector<long>>& stack, const file& file, long max_depth) {
+static inline resolved resolve(const expression& given, const resolved& given_type, std::vector<entry>& entries, std::vector<std::vector<long>>& stack, const file& file, long max_depth) {
     long pointer = 0; auto solution = resolve_at(given, given_type, pointer, 0, max_depth, entries, stack, file, 0);
     if (pointer < (long) given.symbols.size()) solution.error = true;
     if (solution.error) {
         const auto t = pointer < (long) given.symbols.size() ? given.symbols[pointer].literal : given.start;
         printf("n3zqx2l: %s:%ld:%ld: error: unresolved %s @ %ld : %s ≠ %s\n\n\n", file.name, t.line, t.column, expression_to_string(given, entries, pointer, pointer + 1).c_str(), pointer, expression_to_string(given, entries).c_str(), expression_to_string(entries[given_type.index].signature, entries, 0, -1, given_type.args).c_str() );
-    } return solution;
-}
-static inline resolved resolve(const expression& given, std::vector<entry>& entries, std::vector<std::vector<long>>& stack, const file& file, long max_depth) {
-    if (given.error) exit(1); auto resolved = resolve_expression(given, {1}, entries, stack, file, max_depth);
-    /** debug: */ print_resolved_expr(resolved, 0, entries); printf("\n\n"); debug(entries, stack, false); printf("\n\n");
-    return resolved;
+    } return solution; ///TODO: see if you can inline this into resolve_at()?
 }
 static inline void set_data_for(std::unique_ptr<llvm::Module>& module) {
     module->setTargetTriple(llvm::sys::getDefaultTargetTriple()); std::string lookup_error = "";
@@ -354,6 +349,7 @@ static inline llvm::Value* generate_expression(const resolved& given, std::vecto
     return nullptr;
 }
 static inline std::unique_ptr<llvm::Module> generate(const resolved& given, std::vector<entry>& entries, std::vector<std::vector<long>>& stack, const file& file, llvm::LLVMContext& context, bool is_main) {
+    /** debug: */ print_resolved_expr(given, 0, entries); printf("\n\n"); debug(entries, stack, false); printf("\n\n");
     if (given.error) exit(1); auto module = llvm::make_unique<llvm::Module>(file.name, context);
     llvm::IRBuilder<> builder(context); set_data_for(module);
     auto main = llvm::Function::Create(llvm::FunctionType::get(llvm::Type::getInt32Ty(context), {llvm::Type::getInt32Ty(context), llvm::Type::getInt8PtrTy(context)->getPointerTo()}, false), llvm::Function::ExternalLinkage, "main", module.get());
@@ -419,10 +415,9 @@ int main(const int argc, const char** argv) {
                     {{{{id,{},{id,"name"}}},{1},{3}}},
                     {{{{id,{},{id,"declare"}},{expr,{{},{3}}}},{1},{4}}}
                 };
-                
                 std::vector<std::vector<long>> stack {{2, 4, 1, 3}};
                 
-                if (llvm::Linker::linkModules(*module, generate(resolve(parse(state, file), entries, stack, file, max_depth), entries, stack, file, context, first))) exit(1);
+                if (llvm::Linker::linkModules(*module, generate(resolve(parse(state, file), {1}, entries, stack, file, max_depth), entries, stack, file, context, first))) exit(1);
             } else if (ext && !strcmp(ext, ".ll")) {
                 llvm::SMDiagnostic errors;
                 auto m = llvm::parseAssemblyFile(argv[i], errors, context);
