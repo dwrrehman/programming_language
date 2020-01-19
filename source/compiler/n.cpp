@@ -190,42 +190,29 @@ static inline resolved construct_signature(const expression& given, std::vector<
 }
 static inline resolved resolve_at(const expression& given, const resolved& given_type, long& index, long depth, long max_depth, std::vector<entry>& entries, std::vector<std::vector<long>>& stack, const file& file, long debt) {
     
-//    const long given_cost = cost(given);
-//
     prep(depth); printf("-------- CSR: called resolve_at: ----------\n");
 //    prep(depth); printf("  depth = %zd\n", depth);
 //    prep(depth); printf("  debt = %zd\n", debt);
-    prep(depth); printf("looking at given index: %s @ %zd in %s\n",
-                        expression_to_string(given, entries, index, index + 1).c_str(), index,
-                        expression_to_string(given, entries).c_str());
+    prep(depth); printf("looking at given index: %s @ %zd in %s\n", expression_to_string(given, entries, index, index + 1).c_str(), index, expression_to_string(given, entries).c_str());
 
-//
     if (debt > (long) given.symbols.size() or depth > max_depth or index >= (long) given.symbols.size()) {
         prep(depth);  printf("CSR: failing because of exit cond...\n");
         return {0, {}, true};
+        
+    } else if (index < (long) given.symbols.size() and given.symbols[index].type == expr and given_type.index == _name) {
+        prep(depth); printf("constructed signature from name subexpr.\n");
+        return construct_signature(given.symbols[index++].subexpression, entries, stack, file, max_depth);
+        
+    } else if (index < (long) given.symbols.size() and given.symbols[index].type == expr) {
+        prep(depth); printf("found a subexpression... calling resolve expression...\n\n\n");
+        return resolve(given.symbols[index++].subexpression, given_type, entries, stack, file, max_depth);
     }
     
+    //     else if (given_type.index == _lazy) return resolve_at(given, given_type.args[0], index, depth, max_depth, entries, stack, file);
+    //     else if (given.symbols[index].type == string and given_type.index == 1) return {0, {}, false, {}, given.symbols[index++].literal.value};
+    //     else if (given.symbols[index].type == string) return {0, {}, false, {{{given.symbols[index++]}}}, "i8*"};
+        
     auto saved = index; auto saved_stack = stack; auto saved_debt = debt;
-    
-    
-    if (index < (long) given.symbols.size() and given.symbols[index].type == expr and given_type.index == _name) {
-            prep(depth); printf("constructed signature from name subexpr.\n");
-            return construct_signature(given.symbols[index++].subexpression, entries, stack, file, max_depth);
-       }
-    
-    ///    this code needs to be moved before the signatures. i think.... if we cannot recognize any signature which takes it as an argument, then it is probably a parameter, or a index... i think we can safely move it to the top, personally...
-    if (index < (long) given.symbols.size() and given.symbols[index].type == expr) {
-         prep(depth); printf("found a subexpression... calling resolve expression...\n\n\n");
-         return resolve(given.symbols[index++].subexpression, given_type, entries, stack, file, max_depth);
-    }
-    
-        
-    //     if (given_type.index == _lazy) return resolve_at(given, given_type.args[0], index, depth, max_depth, entries, stack, file);
-    
-    //     if (given.symbols[index].type == string and given_type.index == 1) return {0, {}, false, {}, given.symbols[index++].literal.value};
-    //     if (given.symbols[index].type == string) return {0, {}, false, {{{given.symbols[index++]}}}, "i8*"};
-        
-    
     
     for (auto s : saved_stack.back()) {
         
@@ -318,8 +305,7 @@ static inline llvm::Value* generate_expression(const resolved& given, std::vecto
         
         /// then return the unit type.
                 
-        
-                
+    
         // where do llvm types come in?
         
         
@@ -388,7 +374,7 @@ static inline void output(const arguments& args, std::unique_ptr<llvm::Module>&&
 }
 int main(const int argc, const char** argv) {
     llvm::InitializeAllTargetInfos(); llvm::InitializeAllTargets(); llvm::InitializeAllTargetMCs(); llvm::InitializeAllAsmParsers(); llvm::InitializeAllAsmPrinters();
-    llvm::LLVMContext context; auto module = llvm::make_unique<llvm::Module>("_.n", context);
+    llvm::LLVMContext context; auto module = llvm::make_unique<llvm::Module>("init.n", context);
     arguments args = {}; bool use_exec_args = false, first = true; long max_depth = 10;
     for (long i = 1; i < argc; i++) {
         if (argv[i][0] == '-') {
@@ -403,26 +389,14 @@ int main(const int argc, const char** argv) {
             if (ext && !strcmp(ext, ".n")) {
                 std::ifstream stream {argv[i]};
                 if (not stream.good()) { printf("n: error: unable to open \"%s\": %s\n", argv[i], strerror(errno)); exit(1); }
-                
                 const file file = {argv[i], {std::istreambuf_iterator<char>(stream), std::istreambuf_iterator<char>()}};
-                
-                lexing_state state {0, none, 1, 1};
-                
-                std::vector<entry> entries {
-                    {},
-                    {{{{id,{},{id,"_"}}},{0},{1}}},
-                    {{{{id,{},{id,"join"}},{expr,{{},{1}}},{expr,{{},{1}}}},{1},{2}}},
-                    {{{{id,{},{id,"name"}}},{1},{3}}},
-                    {{{{id,{},{id,"declare"}},{expr,{{},{3}}}},{1},{4}}}
-                };
-                std::vector<std::vector<long>> stack {{2, 4, 1, 3}};
-                
+                lexing_state state {0, none, 1, 1}; std::vector<entry> entries { {}, {{{{id,{},{id,"_"}}},{0},{1}}}, {{{{id,{},{id,"join"}},{expr,{{},{1}}},{expr,{{},{1}}}},{1},{2}}}, {{{{id,{},{id,"name"}}},{1},{3}}}, {{{{id,{},{id,"declare"}},{expr,{{},{3}}}},{1},{4}}} }; std::vector<std::vector<long>> stack {{2, 4, 1, 3}};
                 if (llvm::Linker::linkModules(*module, generate(resolve(parse(state, file), {1}, entries, stack, file, max_depth), entries, stack, file, context, first))) exit(1);
             } else if (ext && !strcmp(ext, ".ll")) {
-                llvm::SMDiagnostic errors;
+                llvm::SMDiagnostic errors; std::string verify_errors = "";
                 auto m = llvm::parseAssemblyFile(argv[i], errors, context);
                 if (not m) { errors.print("llvm", llvm::errs()); exit(1); } else set_data_for(m);
-                std::string ll_errors = ""; if (llvm::verifyModule(*module, &(llvm::raw_string_ostream(ll_errors) << ""))) { printf("llvm: %s: error: %s\n", argv[i], ll_errors.c_str()); exit(1); }
+                if (llvm::verifyModule(*m, &(llvm::raw_string_ostream(verify_errors) << ""))) { printf("llvm: %s: error: %s\n", argv[i], verify_errors.c_str()); exit(1); }
                 if (llvm::Linker::linkModules(*module, std::move(m))) exit(1);
             } else { printf("n: error: cannot process file \"%s\" with extension \"%s\"\n", argv[i], ext); exit(1); }
             first = false;
