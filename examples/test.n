@@ -1,2 +1,2 @@
-join (declare ((((x) (_)) ((y) (_)) ) (_)))
-( name here  name here name here)
+join declare (( ((x) (_)) ((y) (_))  ) (_) )
+name name name
