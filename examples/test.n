@@ -1,2 +1,4 @@
- join (declare (( being stupid ((x) (_)) hello there ((y) (_)) bubbles pasta) (_)))
- (being stupid name hello there being stupid name hello there name bubbles pasta bubbles pasta)
+
+join (declare (( being ((x) (_)) hello there ((y) (_)) bubbles pasta) (_)))
+(being name here hello there being name here hello there name here bubbles pasta bubbles pasta)
+

@@ -5,6 +5,17 @@ the current status of the nostril compiler:
 
 
 
+
+
+
+
+
+
+
+
+
+
+
 -------------------------------
 backup of code:
 =================

@@ -211,8 +211,13 @@ static inline resolved resolve_at(const expression& given, const resolved& given
     //     else if (given_type.index == _lazy) return resolve_at(given, given_type.args[0], index, depth, max_depth, entries, stack, file);
     //     else if (given.symbols[index].type == string and given_type.index == 1) return {0, {}, false, {}, given.symbols[index++].literal.value};
     //     else if (given.symbols[index].type == string) return {0, {}, false, {{{given.symbols[index++]}}}, "i8*"};
-        
-    auto saved = index; auto saved_stack = stack; auto saved_debt = debt;
+    
+    auto saved = index; auto saved_stack = stack;
+    
+    long best_s = 0;
+    long biggest = 0;
+    long best_index = index;
+    std::vector<resolved> best_args = {};
     
     for (auto s : saved_stack.back()) {
         
@@ -225,21 +230,23 @@ static inline resolved resolve_at(const expression& given, const resolved& given
         }
         
         std::vector<resolved> args = {};
-        index = saved; debt = saved_debt + signature.symbols.size();
         
+        index = saved;
+        long cost = debt + signature.symbols.size();
+                
         for (const auto& symbol : signature.symbols) {
             
             if (index >= (long) given.symbols.size())  {
                 prep(depth); printf("     found the end of given... aborting sig...\n\n");
-                goto done;
+                goto next;
             }
             
             if (symbol.type == expr) {
                 
                 prep(depth); printf("     matching parameter: %s\n", expression_to_string(entries[symbol.subexpression.type.index].signature, entries).c_str());
                 
-                auto argument = resolve_at(given, symbol.subexpression.type, index, depth + 1, max_depth, entries, stack, file, debt - 1);
-                if (argument.error) goto done;
+                auto argument = resolve_at(given, symbol.subexpression.type, index, depth + 1, max_depth, entries, stack, file, cost - 1);
+                if (argument.error) goto next;
                 
                 prep(depth); printf("       ---> matched p!\n");
                 
@@ -247,7 +254,7 @@ static inline resolved resolve_at(const expression& given, const resolved& given
                 entries[symbol.subexpression.me.index].subsitution = argument;
                 
             } else if (symbol.type != given.symbols[index].type or symbol.literal.value != given.symbols[index].literal.value)
-                goto done;
+                goto next;
             
             else {
                 prep(depth); printf("      ---> matched id: \"%s\"\n", symbol.literal.value.c_str());
@@ -255,31 +262,52 @@ static inline resolved resolve_at(const expression& given, const resolved& given
             }
         }
         
-        if (s == _declare) define(args[0].expr.front(), {}, {}, entries, stack);
+        if (s == _declare) {
+            prep(depth); printf("found DECLARE:  ---> declaring a name...\n  ");
+            define(args[0].expr.front(), {}, {}, entries, stack);
+        }
+        
 //        if (s == _define) define(args[0].expr.front(), args[1], args[2], entries, stack);
 //        if (s == _push) stack.push_back(stack.back());
 //        if (s == _pop) stack.pop_back();
         
-        prep(depth); printf("--checking--  ...    debt =? given.symbols.size():    \n");
-        prep(depth); printf("given.symbols.size() = %zd\n", given.symbols.size());
-        prep(depth); printf("debt = %zd\n", debt);
-        prep(depth); printf("saved debt = %zd\n", saved_debt);
-        prep(depth); printf("index = %zd\n", index);
-        prep(depth); printf("saved index = %zd\n", saved);
         
-        prep(depth); printf("checking  whether %zd =? %lu\n", debt, given.symbols.size());
         
-        if (debt == (long) given.symbols.size() ) {
-            prep(depth); printf("     returning success: {res: %zd,   args:  %zd}\n\n", s, args.size());
-            return {s, args};
-        } else {
-            prep(depth); printf("     failing(moving on):    debt ≠ given.symbols.size():    %zd ≠ %lu\n", debt, given.symbols.size());
+        
+        
+//        prep(depth); printf("--checking--  ...    cost <=? given.symbols.size():    \n");
+//        prep(depth); printf("given.symbols.size() = %zd\n", given.symbols.size());
+//        prep(depth); printf("debt = %zd\n", debt);
+//        prep(depth); printf("cost = %zd\n", cost);
+//        prep(depth); printf("index = %zd\n", index);
+//        prep(depth); printf("saved index = %zd\n", saved);
+//
+//        prep(depth); printf("checking  whether %zd <=? %lu\n", cost, given.symbols.size());
+//
+//        if ((index - saved + debt) <= (long) given.symbols.size() ) {
+//            prep(depth); printf("     returning success: {res: %zd,   args:  %zd}\n\n", s, args.size());
+//            return {s, args};
+//        } else {
+//            prep(depth); printf("     failing(moving on):    cost > given.symbols.size():    %zd > %lu\n", cost, given.symbols.size());
+//        }
+                
+//        return {s, args};
+        if (index - saved > biggest) {
+            best_s = s;
+            best_args = args;
+            biggest = index - saved;
+            best_index = index;
         }
         
-        done: continue;
+        next: continue;
     }
-    prep(depth); printf("CSR: ran outo of sigs.   ...exiting through failbackdoor.\n");
-    return {0, {}, true};
+//    prep(depth); printf("CSR: ran outo of sigs.   ...exiting through failbackdoor.\n");
+    
+    index = best_index;
+    
+    prep(depth); printf("     returning best: (i=%zd) {res: %zd,   args:  %zd,  error=%zd}\n\n", index, best_s, best_args.size(), not best_s);
+    
+    return {best_s, best_args, not best_s};
 }
 static inline resolved resolve(const expression& given, const resolved& given_type, std::vector<entry>& entries, std::vector<std::vector<long>>& stack, const file& file, long max_depth) {
     long pointer = 0; auto solution = resolve_at(given, given_type, pointer, 0, max_depth, entries, stack, file, 0);
@@ -389,7 +417,7 @@ int main(const int argc, const char** argv) {
                 std::ifstream stream {argv[i]};
                 if (not stream.good()) { printf("n: error: unable to open \"%s\": %s\n", argv[i], strerror(errno)); exit(1); }
                 const file file = {argv[i], {std::istreambuf_iterator<char>(stream), std::istreambuf_iterator<char>()}};
-                lexing_state state {0, none, 1, 1}; std::vector<entry> entries { {}, {{{{id,{},{id,"_"}}},{0},{1}}}, {{{{id,{},{id,"join"}},{expr,{{},{1}}},{expr,{{},{1}}}},{1},{2}}}, {{{{id,{},{id,"name"}}},{1},{3}}}, {{{{id,{},{id,"declare"}},{expr,{{},{3}}}},{1},{4}}} }; std::vector<std::vector<long>> stack {{2, 4, 1, 3}};
+                lexing_state state {0, none, 1, 1}; std::vector<entry> entries { {}, {{{{id,{},{id,"_"}}},{0},{1}}}, {{{{id,{},{id,"join"}},{expr,{{},{1}}},{expr,{{},{1}}}},{1},{2}}}, {{{{id,{},{id,"name"}}, {id,{},{id,"here"}}},{1},{3}}}, {{{{id,{},{id,"declare"}},{expr,{{},{3}}}},{1},{4}}} }; std::vector<std::vector<long>> stack {{2, 4, 1, 3}};
                 if (llvm::Linker::linkModules(*module, generate(resolve(parse(state, file), {1}, entries, stack, file, max_depth), entries, stack, file, context, first))) exit(1);
             } else if (ext && !strcmp(ext, ".ll")) {
                 llvm::SMDiagnostic errors; std::string verify_errors = "";
