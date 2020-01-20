@@ -190,13 +190,24 @@ static inline resolved construct_signature(const expression& given, std::vector<
 }
 static inline resolved resolve_at(const expression& given, const resolved& given_type, long& index, long depth, long max_depth, std::vector<entry>& entries, std::vector<std::vector<long>>& stack, const file& file, long debt) {
     
-    prep(depth); printf("-------- CSR: called resolve_at: ----------\n");
-//    prep(depth); printf("  depth = %zd\n", depth);
-//    prep(depth); printf("  debt = %zd\n", debt);
+    prep(depth); printf("-------- CSR: called resolve_at: ----------\n\n");
+    
+    prep(depth); printf("   given.symbols.size() = %zd\n", given.symbols.size());
+    prep(depth); printf("   debt = %zd\n", debt);
+    prep(depth); printf("   index = %zd\n", index);
+    prep(depth); printf("   depth = %zd\n", depth);
+    prep(depth); printf("   max_depth = %zd\n\n", max_depth);
+    
     prep(depth); printf("looking at given index: %s @ %zd in %s\n", expression_to_string(given, entries, index, index + 1).c_str(), index, expression_to_string(given, entries).c_str());
 
+    
+    
     if (debt > (long) given.symbols.size() or depth > max_depth or index >= (long) given.symbols.size()) {
-        prep(depth);  printf("CSR: failing because of exit cond...\n");
+        prep(depth);  printf("CSR: failing because of exit cond:   ");
+        if (debt > (long) given.symbols.size()) printf("DEBT > |g|\n");
+        if (depth > max_depth) printf("depth > |MD|\n");
+        if (index >= (long) given.symbols.size()) printf("index >= |g|\n");
+        
         return {0, {}, true};
         
     } else if (index < (long) given.symbols.size() and given.symbols[index].type == expr and given_type.index == _name) {
@@ -233,7 +244,9 @@ static inline resolved resolve_at(const expression& given, const resolved& given
         
         index = saved;
         long cost = debt + signature.symbols.size();
-                
+        
+        if (cost > (long) given.symbols.size()) continue;
+        
         for (const auto& symbol : signature.symbols) {
             
             if (index >= (long) given.symbols.size())  {
@@ -276,11 +289,7 @@ static inline resolved resolve_at(const expression& given, const resolved& given
         
         
 //        prep(depth); printf("--checking--  ...    cost <=? given.symbols.size():    \n");
-//        prep(depth); printf("given.symbols.size() = %zd\n", given.symbols.size());
-//        prep(depth); printf("debt = %zd\n", debt);
-//        prep(depth); printf("cost = %zd\n", cost);
-//        prep(depth); printf("index = %zd\n", index);
-//        prep(depth); printf("saved index = %zd\n", saved);
+//
 //
 //        prep(depth); printf("checking  whether %zd <=? %lu\n", cost, given.symbols.size());
 //
@@ -288,10 +297,13 @@ static inline resolved resolve_at(const expression& given, const resolved& given
 //            prep(depth); printf("     returning success: {res: %zd,   args:  %zd}\n\n", s, args.size());
 //            return {s, args};
 //        } else {
-//            prep(depth); printf("     failing(moving on):    cost > given.symbols.size():    %zd > %lu\n", cost, given.symbols.size());
+
 //        }
                 
 //        return {s, args};
+        
+        prep(depth); printf("  SIGNATURE:  %zd got score of:    %zd\n", s, index - saved);
+        
         if (index - saved > biggest) {
             best_s = s;
             best_args = args;
