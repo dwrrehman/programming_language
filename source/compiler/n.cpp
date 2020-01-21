@@ -280,7 +280,7 @@ static inline resolved resolve_at(const expression& given, const resolved& given
         next: continue;
     }
     index = saved;
-    prep(depth); printf("CSR: ran outo of sigs.   ...exiting through failbackdoor.\n");
+//    prep(depth); printf("CSR: ran outo of sigs.   ...exiting through failbackdoor.\n");
     return {0, {}, true};
 }
 static inline resolved resolve(const expression& given, const resolved& given_type, std::vector<entry>& entries, std::vector<std::vector<long>>& stack, const file& file, long max_depth) {
