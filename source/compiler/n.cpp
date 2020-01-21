@@ -188,89 +188,46 @@ static expression typify(const expression& given, const resolved& initial_type, 
 static inline resolved construct_signature(const expression& given, std::vector<entry>& entries, std::vector<std::vector<long>>& stack, const file& file, long max_depth) {
     return {3, {}, given.symbols.empty(), {given.symbols.size() and given.symbols.front().type == expr ? typify(given, {0}, entries, stack, file, max_depth) : expression {given.symbols, {1}}}};
 }
-static inline resolved resolve_at(const expression& given, const resolved& given_type, long& index, long depth, long max_depth, std::vector<entry>& entries, std::vector<std::vector<long>>& stack, const file& file, long debt) {
-    
-    prep(depth); printf("-------- CSR: called resolve_at: ----------\n\n");
-    
-    prep(depth); printf("   given.symbols.size() = %zd\n", given.symbols.size());
-    prep(depth); printf("   debt = %zd\n", debt);
-    prep(depth); printf("   index = %zd\n", index);
-    prep(depth); printf("   depth = %zd\n", depth);
-    prep(depth); printf("   max_depth = %zd\n\n", max_depth);
-    
-    prep(depth); printf("looking at given index: %s @ %zd in %s\n", expression_to_string(given, entries, index, index + 1).c_str(), index, expression_to_string(given, entries).c_str());
-        
-    if (debt > (long) given.symbols.size() or depth > max_depth or index >= (long) given.symbols.size()) {
-        prep(depth);  printf("CSR: failing because of exit cond:   ");
-        if (debt > (long) given.symbols.size()) printf("DEBT > |g|\n");
-        if (depth > max_depth) printf("depth > |MD|\n");
-        if (index >= (long) given.symbols.size()) printf("index >= |g|\n");
-        
-        return {0, {}, true};
-        
-    } else if (index < (long) given.symbols.size() and given.symbols[index].type == expr and given_type.index == _name) {
-        prep(depth); printf("constructed signature from name subexpr.\n");
-        return construct_signature(given.symbols[index++].subexpression, entries, stack, file, max_depth);
-        
-    } else if (index < (long) given.symbols.size() and given.symbols[index].type == expr) {
-        prep(depth); printf("found a subexpression... calling resolve expression...\n\n\n");
-        return resolve(given.symbols[index++].subexpression, given_type, entries, stack, file, max_depth);
-    }
-    //     else if (given_type.index == _lazy) return resolve_at(given, given_type.args[0], index, depth, max_depth, entries, stack, file);
-    //     else if (given.symbols[index].type == string and given_type.index == 1) return {0, {}, false, {}, given.symbols[index++].literal.value};
-    //     else if (given.symbols[index].type == string) return {0, {}, false, {{{given.symbols[index++]}}}, "i8*"};
-    
+static inline resolved resolve_at(const expression& given, const resolved& given_type, long& index, long depth, long& max_depth, std::vector<entry>& entries, std::vector<std::vector<long>>& stack, const file& file, long debt) {
+    if (debt > (long) given.symbols.size() or depth > max_depth or index >= (long) given.symbols.size()) return {0, {}, true};
     auto saved = index; auto saved_stack = stack;
     for (auto s : saved_stack.back()) {
-        
         const auto& signature = entries[s].signature;
-        prep(depth); printf(":: trying: %s      \n", expression_to_string(signature, entries).c_str());
-            
-        if (not equal(given_type, signature.type, entries)) {
-            prep(depth); printf("     ---> types dont match... skipping\n\n");
-            continue;
-        }
-        
-        std::vector<resolved> args = {};
-        index = saved;
-        long cost = debt + signature.symbols.size();
-        
-        if (cost > (long) given.symbols.size()) {
-            prep(depth); printf("  --> ERROR: this signature COSTS TOO MUCH! skipping...\n");
-            continue;
-        }
-        
+        if (not equal(given_type, signature.type, entries)) continue;
+        std::vector<resolved> args = {}; index = saved; long cost = debt + signature.symbols.size();
+        if (cost > (long) given.symbols.size()) continue;
         for (const auto& symbol : signature.symbols) {
-            
-            if (index >= (long) given.symbols.size())  {
-                prep(depth); printf("     found the end of given... aborting sig...\n\n");
-                goto next;
-            }
-            
+            if (index >= (long) given.symbols.size())  goto next;
             if (symbol.type == expr) {
-
-                
-                
                 auto argument = resolve_at(given, symbol.subexpression.type, index, depth + 1, max_depth, entries, stack, file, cost - 1);
                 if (argument.error) goto next;
                 args.push_back({argument}); entries[symbol.subexpression.me.index].subsitution = argument;
-            } else if (symbol.type != given.symbols[index].type or symbol.literal.value != given.symbols[index].literal.value) goto next;
-            else index++;
+            } else if (symbol.type != given.symbols[index].type or symbol.literal.value != given.symbols[index].literal.value) goto next; else index++;
         }
         if (s == _declare) define(args[0].expr.front(), {}, {}, entries, stack);
-        return {s, args};
-        next: continue;
-    }
-    index = saved;
-    return {0, {}, true};
+//        if (s == _pop) stack.pop_back();
+//        if (s == _push) stack.push_back(stack.back());
+//        if (s == _declare) define(args[0].expr.front(), {}, {}, entries, stack);
+        return {s, args}; next: continue;
+    } index = saved;
+    if (index < (long) given.symbols.size() and given.symbols[index].type == expr and given_type.index == _name) return construct_signature(given.symbols[index++].subexpression, entries, stack, file, max_depth);
+    else if (index < (long) given.symbols.size() and given.symbols[index].type == expr)
+        return resolve(given.symbols[index++].subexpression, given_type, entries, stack, file, max_depth);
+    else if (given_type.index == _lazy) return resolve_at(given, given_type.args[0], index, depth, max_depth, entries, stack, file, debt);
+    else if (given.symbols[index].type == string and given_type.index == 1) return {0, {}, false, {}, given.symbols[index++].literal.value};
+    else if (given.symbols[index].type == string) return {0, {}, false, {{{given.symbols[index++]}}}, "i8*"};
+    else return {0, {}, true};
 }
 static inline resolved resolve(const expression& given, const resolved& given_type, std::vector<entry>& entries, std::vector<std::vector<long>>& stack, const file& file, long max_depth) {
-    long pointer = 0; auto solution = resolve_at(given, given_type, pointer, 0, max_depth, entries, stack, file, 0);
-    if (pointer < (long) given.symbols.size()) solution.error = true;
+    long pointer = 0; resolved solution {}; auto saved_stack = stack;
+    for (long depth = 0; depth < max_depth; depth++) {
+        pointer = 0; stack = saved_stack; solution = resolve_at(given, given_type, pointer, 0, depth, entries, stack, file, 0);
+        if (pointer < (long) given.symbols.size()) solution.error = true; if (not solution.error) break;
+    }
     if (solution.error) {
         const auto t = pointer < (long) given.symbols.size() ? given.symbols[pointer].literal : given.start;
         printf("n3zqx2l: %s:%ld:%ld: error: unresolved %s @ %ld : %s ≠ %s\n\n\n", file.name, t.line, t.column, expression_to_string(given, entries, pointer, pointer + 1).c_str(), pointer, expression_to_string(given, entries).c_str(), expression_to_string(entries[given_type.index].signature, entries, 0, -1, given_type.args).c_str() );
-    } return solution; ///TODO: see if you can inline this into resolve_at()?
+    } return solution;
 }
 static inline void set_data_for(std::unique_ptr<llvm::Module>& module) {
     module->setTargetTriple(llvm::sys::getDefaultTargetTriple()); std::string lookup_error = "";
