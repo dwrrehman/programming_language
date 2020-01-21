@@ -200,7 +200,7 @@ static inline resolved resolve_at(const expression& given, const resolved& given
     
     prep(depth); printf("looking at given index: %s @ %zd in %s\n", expression_to_string(given, entries, index, index + 1).c_str(), index, expression_to_string(given, entries).c_str());
 
-    
+        
     if (debt > (long) given.symbols.size() or depth > max_depth or index >= (long) given.symbols.size()) {
         prep(depth);  printf("CSR: failing because of exit cond:   ");
         if (debt > (long) given.symbols.size()) printf("DEBT > |g|\n");
@@ -224,11 +224,11 @@ static inline resolved resolve_at(const expression& given, const resolved& given
     
     auto saved = index; auto saved_stack = stack;
     
-//    long best_s = 0;
-//    long biggest = 0;
-//    long best_index = index;
-//    std::vector<resolved> best_args = {};
-//
+    long best_s = 0;
+    long biggest = 0;
+    long best_index = index;
+    std::vector<resolved> best_args = {};
+    
     for (auto s : saved_stack.back()) {
         
         const auto& signature = entries[s].signature;
@@ -299,34 +299,29 @@ static inline resolved resolve_at(const expression& given, const resolved& given
                 
 //        return {s, args};
         
-//        prep(depth); printf("  SIGNATURE:  %zd got score of:    %zd\n", s, index - saved);
+        prep(depth); printf("  SIGNATURE:  %zd got score of:    %zd\n", s, index - saved);
         
-//        if (index - saved > biggest) {
-//            best_s = s;
-//            best_args = args;
-//            biggest = index - saved;
-//            best_index = index;
-//        }
-//
-        if (s == _declare) {
-            prep(depth); printf("found DECLARE:  ---> declaring a name...\n  ");
-            define(args[0].expr.front(), {}, {}, entries, stack);
+        if (index - saved > biggest) {
+            best_s = s;
+            best_args = args;
+            biggest = index - saved;
+            best_index = index;
         }
-        
-        return {s, args};
         
         next: continue;
     }
-    
 //    prep(depth); printf("CSR: ran outo of sigs.   ...exiting through failbackdoor.\n");
     
-//    index = best_index;
-        
+    index = best_index;
     
     
-//    prep(depth); printf("     returning error: (i=%zd) {res: %zd,   args:  %zd,  error=%d}\n\n", index, best_s, best_args.size(), not best_s);
+    if (best_s == _declare) {
+        prep(depth); printf("found DECLARE:  ---> declaring a name...\n  ");
+        define(best_args[0].expr.front(), {}, {}, entries, stack);
+    }
     
-    return {0, {}, true};
+    prep(depth); printf("     returning best: (i=%zd) {res: %zd,   args:  %zd,  error=%d}\n\n", index, best_s, best_args.size(), not best_s);
+    return {best_s, best_args, not best_s};
 }
 static inline resolved resolve(const expression& given, const resolved& given_type, std::vector<entry>& entries, std::vector<std::vector<long>>& stack, const file& file, long max_depth) {
     long pointer = 0; auto solution = resolve_at(given, given_type, pointer, 0, max_depth, entries, stack, file, 0);
