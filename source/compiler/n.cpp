@@ -173,7 +173,7 @@ static inline void print_resolved_expr(resolved expr, long depth, std::vector<en
 
 static inline void define(expression& signature, const resolved& type, const resolved& definition, std::vector<entry>& entries, std::vector<std::vector<long>>& stack) {
     stack.back().push_back(signature.me.index = entries.size()); entries.push_back({signature, definition});
-    std::stable_sort(stack.back().begin(), stack.back().end(), [&](long a, long b) { return entries[a].signature.symbols.size() > entries[b].signature.symbols.size() and entries[a].signature.symbols.front().type == id; });
+    std::stable_sort(stack.back().begin(), stack.back().end(), [&](long a, long b) { return entries[a].signature.symbols.size() > entries[b].signature.symbols.size() and entries[a].signature.symbols.front().type == expr; });
 }
 static inline bool equal(resolved a, resolved b, std::vector<entry>& entries) {
     if (entries[a.index].subsitution.index and equal(b, entries[a.index].subsitution, entries)) return true; else if (a.index != b.index or a.args.size() != b.args.size()) return false;
@@ -199,7 +199,6 @@ static inline resolved resolve_at(const expression& given, const resolved& given
     prep(depth); printf("   max_depth = %zd\n\n", max_depth);
     
     prep(depth); printf("looking at given index: %s @ %zd in %s\n", expression_to_string(given, entries, index, index + 1).c_str(), index, expression_to_string(given, entries).c_str());
-
         
     if (debt > (long) given.symbols.size() or depth > max_depth or index >= (long) given.symbols.size()) {
         prep(depth);  printf("CSR: failing because of exit cond:   ");
@@ -217,18 +216,11 @@ static inline resolved resolve_at(const expression& given, const resolved& given
         prep(depth); printf("found a subexpression... calling resolve expression...\n\n\n");
         return resolve(given.symbols[index++].subexpression, given_type, entries, stack, file, max_depth);
     }
-    
     //     else if (given_type.index == _lazy) return resolve_at(given, given_type.args[0], index, depth, max_depth, entries, stack, file);
     //     else if (given.symbols[index].type == string and given_type.index == 1) return {0, {}, false, {}, given.symbols[index++].literal.value};
     //     else if (given.symbols[index].type == string) return {0, {}, false, {{{given.symbols[index++]}}}, "i8*"};
     
     auto saved = index; auto saved_stack = stack;
-    
-    long best_s = 0;
-    long biggest = 0;
-    long best_index = index;
-    std::vector<resolved> best_args = {};
-    
     for (auto s : saved_stack.back()) {
         
         const auto& signature = entries[s].signature;
@@ -240,7 +232,6 @@ static inline resolved resolve_at(const expression& given, const resolved& given
         }
         
         std::vector<resolved> args = {};
-        
         index = saved;
         long cost = debt + signature.symbols.size();
         
@@ -257,7 +248,7 @@ static inline resolved resolve_at(const expression& given, const resolved& given
             }
             
             if (symbol.type == expr) {
-                
+
                 prep(depth); printf("     matching parameter: %s\n", expression_to_string(entries[symbol.subexpression.type.index].signature, entries).c_str());
                 
                 auto argument = resolve_at(given, symbol.subexpression.type, index, depth + 1, max_depth, entries, stack, file, cost - 1);
@@ -276,52 +267,21 @@ static inline resolved resolve_at(const expression& given, const resolved& given
                 index++;
             }
         }
-    
-//        if (s == _define) define(args[0].expr.front(), args[1], args[2], entries, stack);
-//        if (s == _push) stack.push_back(stack.back());
-//        if (s == _pop) stack.pop_back();
         
         
-        
-        
-        
-//        prep(depth); printf("--checking--  ...    cost <=? given.symbols.size():    \n");
-//
-//
-//        prep(depth); printf("checking  whether %zd <=? %lu\n", cost, given.symbols.size());
-//
-//        if ((index - saved + debt) <= (long) given.symbols.size() ) {
-//            prep(depth); printf("     returning success: {res: %zd,   args:  %zd}\n\n", s, args.size());
-//            return {s, args};
-//        } else {
+           if (s == _declare) {
+               prep(depth); printf("found DECLARE:  ---> declaring a name...\n  ");
+               define(args[0].expr.front(), {}, {}, entries, stack);
+           }
 
-//        }
-                
-//        return {s, args};
         
-        prep(depth); printf("  SIGNATURE:  %zd got score of:    %zd\n", s, index - saved);
-        
-        if (index - saved > biggest) {
-            best_s = s;
-            best_args = args;
-            biggest = index - saved;
-            best_index = index;
-        }
-        
+        prep(depth); printf("     returning (i=%zd) {res: %zd,   args:  %zd}\n\n", index, s, args.size());
+        return {s, args};
         next: continue;
     }
-//    prep(depth); printf("CSR: ran outo of sigs.   ...exiting through failbackdoor.\n");
-    
-    index = best_index;
-    
-    
-    if (best_s == _declare) {
-        prep(depth); printf("found DECLARE:  ---> declaring a name...\n  ");
-        define(best_args[0].expr.front(), {}, {}, entries, stack);
-    }
-    
-    prep(depth); printf("     returning best: (i=%zd) {res: %zd,   args:  %zd,  error=%d}\n\n", index, best_s, best_args.size(), not best_s);
-    return {best_s, best_args, not best_s};
+    index = saved;
+    prep(depth); printf("CSR: ran outo of sigs.   ...exiting through failbackdoor.\n");
+    return {0, {}, true};
 }
 static inline resolved resolve(const expression& given, const resolved& given_type, std::vector<entry>& entries, std::vector<std::vector<long>>& stack, const file& file, long max_depth) {
     long pointer = 0; auto solution = resolve_at(given, given_type, pointer, 0, max_depth, entries, stack, file, 0);
@@ -369,7 +329,7 @@ static inline llvm::Value* generate_expression(const resolved& given, std::vecto
         
         for (auto arg : given.args) arguments.push_back(generate_expression(arg, entries, stack, module, function, builder));
         
-        std::string callee_name = "helloworld";
+        std::string callee_name = expression_to_string(entries[given.index].signature, entries);
         llvm::Value* callee = module->getFunction(callee_name);
         return builder.CreateCall(callee, arguments);
     }
