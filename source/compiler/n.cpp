@@ -249,38 +249,19 @@ static inline resolved resolve_at(const expression& given, const resolved& given
             
             if (symbol.type == expr) {
 
-                prep(depth); printf("     matching parameter: %s\n", expression_to_string(entries[symbol.subexpression.type.index].signature, entries).c_str());
+                
                 
                 auto argument = resolve_at(given, symbol.subexpression.type, index, depth + 1, max_depth, entries, stack, file, cost - 1);
                 if (argument.error) goto next;
-                
-                prep(depth); printf("       ---> matched p!\n");
-                
-                args.push_back({argument});
-                entries[symbol.subexpression.me.index].subsitution = argument;
-                
-            } else if (symbol.type != given.symbols[index].type or symbol.literal.value != given.symbols[index].literal.value)
-                goto next;
-            
-            else {
-                prep(depth); printf("      ---> matched id: \"%s\"\n", symbol.literal.value.c_str());
-                index++;
-            }
+                args.push_back({argument}); entries[symbol.subexpression.me.index].subsitution = argument;
+            } else if (symbol.type != given.symbols[index].type or symbol.literal.value != given.symbols[index].literal.value) goto next;
+            else index++;
         }
-        
-        
-           if (s == _declare) {
-               prep(depth); printf("found DECLARE:  ---> declaring a name...\n  ");
-               define(args[0].expr.front(), {}, {}, entries, stack);
-           }
-
-        
-        prep(depth); printf("     returning (i=%zd) {res: %zd,   args:  %zd}\n\n", index, s, args.size());
+        if (s == _declare) define(args[0].expr.front(), {}, {}, entries, stack);
         return {s, args};
         next: continue;
     }
     index = saved;
-    prep(depth); printf("CSR: ran outo of sigs.   ...exiting through failbackdoor.\n");
     return {0, {}, true};
 }
 static inline resolved resolve(const expression& given, const resolved& given_type, std::vector<entry>& entries, std::vector<std::vector<long>>& stack, const file& file, long max_depth) {
