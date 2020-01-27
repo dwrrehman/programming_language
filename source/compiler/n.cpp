@@ -219,9 +219,9 @@ static inline resolved resolve_at(const expression& given, const resolved& given
     else return {0, {}, true};
 }
 static inline resolved resolve(const expression& given, const resolved& given_type, std::vector<entry>& entries, std::vector<std::vector<long>>& stack, const file& file, long max_depth) {
-    long pointer = 0; resolved solution {}; auto saved_stack = stack;
+    long pointer = 0; resolved solution {}; auto saved_entries = entries; auto saved_stack = stack;
     for (long depth = 0; depth < max_depth; depth++) {
-        pointer = 0; stack = saved_stack; solution = resolve_at(given, given_type, pointer, 0, depth, entries, stack, file, 0);
+        pointer = 0; stack = saved_stack; entries = saved_entries; solution = resolve_at(given, given_type, pointer, 0, depth, entries, stack, file, 0);
         if (pointer < (long) given.symbols.size()) solution.error = true; if (not solution.error) break;
     }
     if (solution.error) {
@@ -311,6 +311,7 @@ static inline void output(const arguments& args, std::unique_ptr<llvm::Module>&&
     else if (args.output == assembly) generate_file(std::move(module), args, llvm::TargetMachine::CGFT_AssemblyFile);
     else if (args.output == exec) emit_executable(generate_file(std::move(module), args, llvm::TargetMachine::CGFT_ObjectFile), args.name);
 }
+
 int main(const int argc, const char** argv) {
     llvm::InitializeAllTargetInfos(); llvm::InitializeAllTargets(); llvm::InitializeAllTargetMCs(); llvm::InitializeAllAsmParsers(); llvm::InitializeAllAsmPrinters();
     llvm::LLVMContext context; auto module = llvm::make_unique<llvm::Module>("init.n", context);

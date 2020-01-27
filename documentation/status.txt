@@ -8,6 +8,11 @@ the current status of the nostril compiler:
 
 
 
+join (declare ((unit) (_)))
+join (declare ((namef) (unit) (_)))
+join ( declare ((( (x) (unit) (_) )) (_)) )
+join ( def ((((first) (unit) (_)) ((second) (unit) (_))) (_) ) unit second)
+namef namef
 
 
 
@@ -19,6 +24,10 @@ the current status of the nostril compiler:
 -------------------------------
 backup of code:
 =================
+
+
+join (declare (( ((x) (_)) ((y) (_))) (_) ))
+name name name name name name name
 
 
 

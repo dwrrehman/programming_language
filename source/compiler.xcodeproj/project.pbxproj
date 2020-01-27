@@ -275,16 +275,18 @@
 				GCC_OPTIMIZATION_LEVEL = 0;
 				GCC_WARN_PEDANTIC = YES;
 				HEADER_SEARCH_PATHS = "";
-				LIBRARY_SEARCH_PATHS = /usr/local/Cellar/llvm/9.0.0_1/lib;
+				LIBRARY_SEARCH_PATHS = /usr/local/Cellar/llvm/9.0.1/lib;
 				OTHER_CPLUSPLUSFLAGS = "$(OTHER_CFLAGS) ";
 				OTHER_LDFLAGS = (
-					"-I/usr/local/Cellar/llvm/9.0.0_1/include",
+					"-I/usr/local/Cellar/llvm/9.0.1/include",
 					"-stdlib=libc++",
 					"-D__STDC_CONSTANT_MACROS",
 					"-D__STDC_FORMAT_MACROS",
-					"-D__STDC_LIMIT_MACROS\n-L/usr/local/Cellar/llvm/9.0.0_1/lib",
+					"-D__STDC_LIMIT_MACROS",
+					"-L/usr/local/Cellar/llvm/9.0.1/lib",
 					"-Wl,-search_paths_first",
-					"-Wl,-headerpad_max_install_names\n-lLLVMXRay",
+					"-Wl,-headerpad_max_install_names",
+					"-lLLVMXRay",
 					"-lLLVMWindowsManifest",
 					"-lLLVMTextAPI",
 					"-lLLVMTableGen",
@@ -430,7 +432,7 @@
 					"-lcurses",
 				);
 				PRODUCT_NAME = "$(TARGET_NAME)";
-				USER_HEADER_SEARCH_PATHS = /usr/local/Cellar/llvm/9.0.0_1/include;
+				USER_HEADER_SEARCH_PATHS = /usr/local/Cellar/llvm/9.0.1/include;
 				WARNING_CFLAGS = (
 					"-Wall",
 					"-Wextra",
@@ -452,16 +454,18 @@
 				GCC_OPTIMIZATION_LEVEL = 0;
 				GCC_WARN_PEDANTIC = YES;
 				HEADER_SEARCH_PATHS = "";
-				LIBRARY_SEARCH_PATHS = /usr/local/Cellar/llvm/9.0.0_1/lib;
+				LIBRARY_SEARCH_PATHS = /usr/local/Cellar/llvm/9.0.1/lib;
 				OTHER_CPLUSPLUSFLAGS = "$(OTHER_CFLAGS) ";
 				OTHER_LDFLAGS = (
-					"-I/usr/local/Cellar/llvm/9.0.0_1/include",
+					"-I/usr/local/Cellar/llvm/9.0.1/include",
 					"-stdlib=libc++",
 					"-D__STDC_CONSTANT_MACROS",
 					"-D__STDC_FORMAT_MACROS",
-					"-D__STDC_LIMIT_MACROS\n-L/usr/local/Cellar/llvm/9.0.0_1/lib",
+					"-D__STDC_LIMIT_MACROS",
+					"-L/usr/local/Cellar/llvm/9.0.1/lib",
 					"-Wl,-search_paths_first",
-					"-Wl,-headerpad_max_install_names\n-lLLVMXRay",
+					"-Wl,-headerpad_max_install_names",
+					"-lLLVMXRay",
 					"-lLLVMWindowsManifest",
 					"-lLLVMTextAPI",
 					"-lLLVMTableGen",
@@ -607,7 +611,7 @@
 					"-lcurses",
 				);
 				PRODUCT_NAME = "$(TARGET_NAME)";
-				USER_HEADER_SEARCH_PATHS = /usr/local/Cellar/llvm/9.0.0_1/include;
+				USER_HEADER_SEARCH_PATHS = /usr/local/Cellar/llvm/9.0.1/include;
 				WARNING_CFLAGS = (
 					"-Wall",
 					"-Wextra",
