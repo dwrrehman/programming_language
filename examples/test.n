@@ -1,1 +1,9 @@
+(join (
+    declare ((lazy ((x) (_))) (_))
+)
 
+(join (
+    declare ()
+)
+
+name))

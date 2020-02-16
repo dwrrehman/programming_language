@@ -6,6 +6,77 @@ the current status of the nostril compiler:
 
 
 
+TEST CODE:
+
+
+
+
+join declare ((lazy ((x) (_))) (_))
+join declare ((push) (_))
+join declare ((pop) (_))
+join declare
+    ((
+        ((signature) (name) (_))
+        ((type) (_))
+        ((definition) (lazy type) (_))
+    ) (_))
+
+join declare ((unit) (_)))
+join declare ((g) (unit) (_))
+
+name
+
+
+
+
+
+(join (declare ((lazy ((x) (_))) (_)))
+(join (declare ((push) (_)))
+(join (declare ((pop) (_)))
+(join (declare (( ((signature) (name) (_)) ((type) (_)) ((definition) (lazy type) (_)) ) (_)))
+(join (declare ((unit) (_)))
+(join (declare ((g) (unit) (_)))
+(((x) unit g))))))))
+
+
+
+
+        ----> CSR is literally so buggy. this succeeds, with an epmty parse.
+        
+            we and we cant say the last line without an error...
+            
+                
+                
+                    
+                    we need to fix csr.   we need to redesign csr to make this language feasible.
+                        
+                            both in error messages, and in compiler-runtime lag.
+                            
+                            
+                            
+                            
+                            
+                            this language is unuseable, as is.
+                            
+                                
+                                
+                                
+                                
+                                
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 join (declare ((unit) (_)))
