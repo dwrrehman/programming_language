@@ -5,6 +5,44 @@ the current status of the nostril compiler:
 
 
 
+so the algorithmis always LEFT-ASSOCIATIVE
+
+thats cool.
+
+
+
+
+simplified it slightly... trying to debug why it doesnt work sometimes, though.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 TEST CODE:
 

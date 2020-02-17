@@ -1,9 +1,4 @@
-(join (
-    declare ((lazy ((x) (_))) (_))
-)
+join
+declare ((((x) (_)) ((y) (_))) (_))
+name name
 
-(join (
-    declare ()
-)
-
-name))

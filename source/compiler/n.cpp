@@ -14,7 +14,7 @@
 enum constants {
     none, id, op, string, expr,
     action = 'x', exec = 'o', object = 'c', ir = 'i', assembly = 's',
-    _name = 3, _declare = 4, _lazy = 6, _push = 7, _pop = 8, _define = 12,
+    _name = 3, _declare = 4, //_lazy = 6, _push = 7, _pop = 8, _define = 12,
 };
 
 struct file {
@@ -237,19 +237,7 @@ static inline void debug(std::vector<entry> entries, std::vector<std::vector<lon
             print_resolved_expr(entry.definition, 1, entries);
         }
         std::cout << "\n\n";
-//        if (entry.value and show_llvm) {
-//            std::cout << "\tLLVM value: ";
-//            entry.value->print(llvm::errs());
-//        } if (entry.function and show_llvm) {
-//            std::cout << "\tLLVM function: ";
-//            entry.function->print(llvm::errs());
-//        } if (entry.global_variable and show_llvm) {
-//            std::cout << "\tLLVM globalvar: ";
-//            entry.global_variable->print(llvm::errs());
-//        } if (entry.llvm_type and show_llvm) {
-//            std::cout << "\tLLVM type (struct): ";
-//            entry.llvm_type->print(llvm::errs());
-//        }
+
         if (show_llvm) std::cout << "\n\n\n";
         j++;
     } std::cout << "}\n";
@@ -319,8 +307,13 @@ static inline void print_resolved_expr(resolved expr, long depth, std::vector<en
 }
 
 static inline void define(expression& signature, const resolved& type, const resolved& definition, std::vector<entry>& entries, std::vector<std::vector<long>>& stack) {
-    stack.back().push_back(signature.me.index = entries.size()); entries.push_back({signature, definition});
-    std::stable_sort(stack.back().begin(), stack.back().end(), [&](long a, long b) { return entries[a].signature.symbols.size() > entries[b].signature.symbols.size() and entries[a].signature.symbols.front().type == expr; });
+    stack.back().push_back(signature.me.index = entries.size());
+    entries.push_back({signature, definition});
+    
+    std::stable_sort(stack.back().begin(), stack.back().end(), [&](long a, long b) {
+        return entries[a].signature.symbols.size() > entries[b].signature.symbols.size() and
+        entries[a].signature.symbols.front().type == expr;
+    });
 }
 
 static inline bool equal(resolved a, resolved b, std::vector<entry>& entries) {
@@ -358,95 +351,157 @@ static inline resolved construct_signature(const expression& given, std::vector<
     return {3, {}, given.symbols.empty(), {given.symbols.size() and given.symbols.front().type == expr ? typify(given, {0}, entries, stack, file, max_depth) : expression {given.symbols, {1}}}};
 }
 
-static inline resolved resolve_at(const expression& given, const resolved& given_type, long& index, long depth, long& max_depth, std::vector<entry>& entries, std::vector<std::vector<long>>& stack, const file& file, long debt) {
-    if (debt > (long) given.symbols.size() or
-        depth > max_depth or
-        index >= (long) given.symbols.size())
+
+static inline resolved resolve_at
+(
+ const expression& given,
+ const resolved& given_type,
+ long& index, long depth, long& max_depth,
+ std::vector<entry>& entries,
+ std::vector<std::vector<long>>& stack,
+ const file& file, long debt
+ )
+{
+    prep(depth); std::cout << "--------- entered resolve_at(): ------- \n";
+    
+    prep(depth); std::cout << "depth = " << depth << "\n";
+    prep(depth); std::cout << "debt = " << debt << "\n";
+    prep(depth); std::cout << "index = " << index << "\n";
+    prep(depth); std::cout << "given type = " << given_type.index << "\n";
+    prep(depth); std::cout << "given: " << expression_to_string(given, entries) << "\n";
+    prep(depth); std::cout << "given[index..]: " << expression_to_string(given, entries, index) << "\n";
+    prep(depth); std::cout << "-----------------------------\n\n";
+    
+    if (depth > max_depth) {
+        prep(depth); std::cout << "ERROR (depth > max_depth) \n";
         return {0, {}, true};
+    }
+    
+    if (index >= (long) given.symbols.size()){
+        prep(depth); std::cout << "ERROR (index >= (long) given.symbols.size()) \n";
+        return {0, {}, true};
+    }
+    
+    if (debt > (long) given.symbols.size()) {
+        prep(depth); std::cout << "ERROR (debt > (long) given.symbols.size()) \n";
+        return {0, {}, true};
+    }
     
     auto saved = index;
     auto saved_stack = stack;
     
+    prep(depth); std::cout << "trying signatures...\n";
     for (auto s : saved_stack.back()) {
-        const auto& signature = entries[s].signature;
         
-        if (not equal(given_type, signature.type, entries))
+        const auto& signature = entries.at(s).signature;
+                
+        prep(depth); std::cout << "----> trying     " << expression_to_string(signature, entries) << "   ";
+        std::cout << "      g:    " << expression_to_string(given, entries, index) << "\n";
+        
+        if (not equal(given_type, signature.type, entries)) {
+            prep(depth); std::cout << "types dont match:  " << given_type.index << " ≠ " << signature.type.index << "\n";
+            prep(depth); std::cout << "\n\n";
             continue;
-        
+        }
+                
         std::vector<resolved> args = {};
         index = saved;
+        
         long cost = debt + signature.symbols.size();
         
-        if (cost > (long) given.symbols.size())
+        prep(depth); std::cout << "TOTAL COST of s = " << cost << "    ";
+        std::cout << "[dept = " << debt << "   +    cost = "<<signature.symbols.size()<<"]\n";
+        
+        if (cost > (long) given.symbols.size()) {
+            prep(depth); std::cout << "cost > budget!     "<<cost<<" > "<<given.symbols.size()<<"         ie, (cost > (long) given.symbols.size())\n";
+            prep(depth); std::cout << "\n\n";
             continue;
+        }
         
         for (const auto& symbol : signature.symbols) {
             
-            if (index >= (long) given.symbols.size())
+            if (index >= (long) given.symbols.size()) {
+                prep(depth); std::cout << "index >= given.symbols.size()!  "<<index<<" >= "<<given.symbols.size()<<" ...\n";
                 goto next;
-            
+            }
             
             if (symbol.type == expr) {
+                
+                prep(depth); std::cout << "trying to match parameter of type: " << symbol.subexpression.type.index << "... calling csr...\n\n";
+                
                 auto argument = resolve_at(given, symbol.subexpression.type, index, depth + 1, max_depth, entries, stack, file, cost - 1);
-                if (argument.error) goto next;
+                if (argument.error) {
+                    prep(depth); std::cout << "could not match parameter...\n\n";
+                    goto next;
+                }
+                
+                prep(depth); std::cout << "MATCHED parameter!\n\n";
                 
                 args.push_back({argument});
                 entries[symbol.subexpression.me.index].subsitution = argument;
                 
-            } else if (symbol.type != given.symbols[index].type or symbol.literal.value != given.symbols[index].literal.value)
+            } else if (symbol.type != given.symbols[index].type or
+                       symbol.literal.value != given.symbols.at(index).literal.value) {
+                prep(depth); std::cout << "could not match: \""<<symbol.literal.value<<"\" ≠ \""<<given.symbols.at(index).literal.value<<"\"...\n\n";
                 goto next;
-            else index++;
+                
+            } else {
+                prep(depth); std::cout << "MATCHED symbol: "<<symbol.literal.value<<"\n\n";
+                index++;
+            }
         }
-        if (s == _declare) define(args[0].expr.front(), {}, {}, entries, stack);
-//        if (s == _pop) stack.pop_back();
-//        if (s == _push) stack.push_back(stack.back());
-//        if (s == _define) define(args[0].expr.front(), resolved {}, resolved {}, entries, stack);
+        
+        if (s == _declare) {
+            prep(depth); std::cout << "encountered a DECLARE! declaring: "<<expression_to_string(args[0].expr.front(), entries)<<"\n";
+            define(args[0].expr.front(), {}, {}, entries, stack);
+        }
+        
+        prep(depth); std::cout << "SUCCESSFULLY recognized a call to S = "<<s<<" !\n";
+        
         return {s, args};
-        next: continue;
+        
+        next:
+        prep(depth); std::cout << "...next\n\n";
+        continue;
     }
     index = saved;
     
-    if (index < (long) given.symbols.size() and given.symbols[index].type == expr and given_type.index == _name)
+    
+    if (index < (long) given.symbols.size() and given.symbols.at(index).type == expr and given_type.index == _name) {
+        prep(depth); std::cout << "found a name paraemter, constructing signature...\n";
         return construct_signature(given.symbols[index++].subexpression, entries, stack, file, max_depth);
-    
-    else if (index < (long) given.symbols.size() and given.symbols[index].type == expr)
-        return resolve(given.symbols[index++].subexpression, given_type, entries, stack, file, max_depth);
-    
-//    else if (given_type.index == _lazy)
-//        return resolve_at(given, given_type.args[0], index, depth, max_depth, entries, stack, file, debt);
-//
-//    else if (given.symbols[index].type == string and given_type.index == 1)
-//        return {0, {}, false, {}, given.symbols[index++].literal.value};
-//
-//    else if (given.symbols[index].type == string)
-//        return {0, {}, false, {{{given.symbols[index++]}}}, "i8*"};
-//
-    else
-        return {0, {}, true};
-}
-static inline resolved resolve(const expression& given, const resolved& given_type, std::vector<entry>& entries, std::vector<std::vector<long>>& stack, const file& file, long max_depth) {
-    long pointer = 0;
-    resolved solution {};
-    auto saved_entries = entries;
-    auto saved_stack = stack;
-    
-    for (long depth = 0; depth < max_depth; depth++) {
-        pointer = 0;
-        stack = saved_stack;
-        entries = saved_entries;
-        solution = resolve_at(given, given_type, pointer, 0, depth, entries, stack, file, 0);
-        
-        if (pointer < (long) given.symbols.size())
-            solution.error = true;
-        
-        if (not solution.error) break;
     }
     
+    
+    else if (index < (long) given.symbols.size() and given.symbols.at(index).type == expr) {
+        prep(depth); std::cout << "found a subexpression... recursing...\n";
+        return resolve(given.symbols[index++].subexpression, given_type, entries, stack, file, max_depth);
+    }
+    
+    
+    prep(depth); std::cout << "could not match anything... just failing now...\n";
+    return {0, {}, true};
+}
+
+
+
+
+
+
+
+
+
+
+
+
+static inline resolved resolve(const expression& given, const resolved& given_type, std::vector<entry>& entries, std::vector<std::vector<long>>& stack, const file& file, long max_depth) {
+    long pointer = 0;
+    resolved solution = resolve_at(given, given_type, pointer, 0, max_depth, entries, stack, file, 0);
+    if (pointer != (long) given.symbols.size()) solution.error = true;
     if (solution.error) {
         const auto t = pointer < (long) given.symbols.size() ? given.symbols[pointer].literal : given.start;
         printf("n3zqx2l: %s:%ld:%ld: error: unresolved %s @ %ld : %s ≠ %s\n\n\n", file.name, t.line, t.column, expression_to_string(given, entries, pointer, pointer + 1).c_str(), pointer, expression_to_string(given, entries).c_str(), expression_to_string(entries[given_type.index].signature, entries, 0, -1, given_type.args).c_str() );
     }
-    
     return solution;
 }
 
@@ -459,32 +514,19 @@ static inline void set_data_for(std::unique_ptr<llvm::Module>& module) {
 
 static inline llvm::Value* generate_expression(const resolved& given, std::vector<entry>& entries, std::vector<std::vector<long>>& stack, llvm::Module* module, llvm::Function* function, llvm::IRBuilder<>& builder) {
         
-    if (given.index == _pop or              // all take no arguments.
-        given.index == _push or
+    if (//given.index == _pop or              // all take no arguments.
+        //given.index == _push or
         given.index == _name or
         given.index == 1) {
         
-        // do nothing
-        
-        /// then return the unit type.
-                
-    
-        // where do llvm types come in?
-        
-        
     } else if (given.index == _declare) {
-        
         std::string function_name = "test_name";
         
         auto ret_type = llvm::Type::getInt32Ty(module->getContext());
         std::vector<llvm::Type*> arg_type = {};
         auto function_type = llvm::FunctionType::get(ret_type, arg_type, false);
         llvm::Function* declared_function = llvm::Function::Create(function_type, llvm::Function::ExternalLinkage, function_name, module);
-        
-        // how do we specify attributes?
-        
-        /// what do we return from a declare?
-        
+                        
     } else {
         std::vector<llvm::Value*> arguments = {};
         
@@ -500,6 +542,7 @@ static inline llvm::Value* generate_expression(const resolved& given, std::vecto
 }
 static inline std::unique_ptr<llvm::Module> generate(const resolved& given, std::vector<entry>& entries, std::vector<std::vector<long>>& stack, const file& file, llvm::LLVMContext& context, bool is_main) {
     /** debug: */
+    printf("\n\n");
     print_resolved_expr(given, 0, entries);
     printf("\n\n");
     debug(entries, stack, false);
@@ -516,11 +559,8 @@ static inline std::unique_ptr<llvm::Module> generate(const resolved& given, std:
         llvm::Type::getInt32Ty(context),
         llvm::Type::getInt8PtrTy(context)->getPointerTo()
     }, false), llvm::Function::ExternalLinkage, "main", module.get());
-    
     builder.SetInsertPoint(llvm::BasicBlock::Create(context, "entry", main));
-    
-//     generate_expression(given, entries, stack, module.get(), main, builder);
-    
+    //
     builder.SetInsertPoint(&main->getBasicBlockList().back());
     builder.CreateRet(llvm::ConstantInt::get(llvm::Type::getInt32Ty(context), 0));
     
@@ -653,7 +693,8 @@ int main(const int argc, const char** argv) {
                 
                 std::vector<std::vector<long>> stack {{2, 4, 1, 3}};
                 
-                if (llvm::Linker::linkModules(*module, generate(resolve(parse(state, file), {1}, entries, stack, file, max_depth), entries, stack, file, context, first)))
+                if (llvm::Linker::linkModules(*module, generate(resolve(parse(state, file), {1}, entries, stack, file, max_depth),
+                                                                entries, stack, file, context, first)))
                     exit(1);
                 
             } else if (ext && !strcmp(ext, ".ll")) {
