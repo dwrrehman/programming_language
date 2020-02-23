@@ -351,7 +351,6 @@ static inline resolved construct_signature(const expression& given, std::vector<
 }
 
 static inline resolved resolve_at
-
 (
  const expression& given,
  const resolved& given_type,
@@ -359,30 +358,16 @@ static inline resolved resolve_at
  std::vector<entry>& entries,
  std::vector<std::vector<long>>& stack,
  const file& file, long debt
- )
-
-{
-//    prep(depth); std::cout << "--------- entered resolve_at(): ------- \n";
-//    prep(depth); std::cout << "depth = " << depth << "\n";
-//    prep(depth); std::cout << "debt = " << debt << "\n";
-//    prep(depth); std::cout << "index = " << index << "\n";
-//    prep(depth); std::cout << "given type = " << given_type.index << "\n";
-//    prep(depth); std::cout << "given: " << expression_to_string(given, entries) << "\n";
-//    prep(depth); std::cout << "given[index..]: " << expression_to_string(given, entries, index) << "\n";
-//    prep(depth); std::cout << "-----------------------------\n\n";
-//
+ ) {
     if (depth > max_depth) {
-        //prep(depth); std::cout << "ERROR::: (depth > max_depth) \n";
         return {0, {}, true};
     }
     
     if (index >= (long) given.symbols.size()) {
-        //prep(depth); std::cout << "ERROR::: (index >= (long) given.symbols.size()) \n";
         return {0, {}, true};
     }
     
     if (debt > (long) given.symbols.size() - index) {
-//        prep(depth); std::cout << "ERROR:::   debt > budget!     "<<debt<<" > "<<given.symbols.size()<<" - "<<index<<"        ie, (debt > (long) given.symbols.size() - index)\n";
         return {0, {}, true};
     }
     
@@ -397,83 +382,48 @@ static inline resolved resolve_at
         auto& signature = entries.at(s).signature;
         
         if (not equal(given_type, signature.type, entries)) {
-            //prep(depth); std::cout << "types dont match:  " << given_type.index << " ≠ " << signature.type.index << "\n";
-            //prep(depth); std::cout << "\n\n";
             continue;
         }
         
-//        prep(depth); std::cout << "----> trying     " << expression_to_string(signature, entries) << "   ";
-//        std::cout << "      g:    " << expression_to_string(given, entries, index) << "\n\n";
-               
-        
         long cost = debt + signature.symbols.size();
         
-       //prep(depth); std::cout << "TOTAL COST of s = " << cost << "    ";
-       // std::cout << "[dept = " << debt << "   +    cost = "<<signature.symbols.size()<<"]\n";
-        
         if (cost > (long) given.symbols.size() - index) {
-//            prep(depth); std::cout << "FAIL: cost > budget!     "<<cost<<" > "<<given.symbols.size()<<" - "<<index<<"        ie, (cost > (long) given.symbols.size() - index)\n";
-//            prep(depth); std::cout << "\n\n";
             continue;
         }
         
         for (auto& symbol : signature.symbols) {
-            
             if (index >= (long) given.symbols.size()) {
-                //prep(depth); std::cout << "FAIL: NO MORE SYMBOLS:    index >= given.symbols.size()!  "<<index<<" >= "<<given.symbols.size()<<" ...\n";
                 goto next;
-            }
-            
-            if (symbol.type == expr) {
-                
-                //prep(depth); std::cout << "trying to match parameter of type: " << symbol.subexpression.type.index << "... calling csr : with debt = "<<cost-1<<"\n\n";
-                
+            } else if (symbol.type == expr) {
                 auto argument = resolve_at(given, symbol.subexpression.type, index, depth + 1, max_depth, entries, stack, file, cost - 1);
                 if (argument.error) {
-                    //prep(depth); std::cout << "FAIL: could not match parameter...\n\n";
                     goto next;
                 }
-                
-                //prep(depth); std::cout << "MATCHED parameter!\n\n";
                 cost--;
                 args.push_back({argument});
                 entries.at(symbol.subexpression.me.index).subsitution = argument;
             
             } else if (symbol.type != given.symbols.at(index).type or
                        symbol.literal.value != given.symbols.at(index).literal.value) {
-                //prep(depth); std::cout << "FAIL: could not match: \""<<symbol.literal.value<<"\" ≠ \""<<given.symbols.at(index).literal.value<<"\"...\n\n";
                 goto next;
                 
             } else {
-                //prep(depth); std::cout << "MATCHED symbol: "<<symbol.literal.value<<"\n\n";
                 index++; cost--;
             }
         }
-        
         if (s == _declare) {
-//            prep(depth); std::cout << "encountered a DECLARE! declaring: "<<expression_to_string(args[0].expr.front(), entries)<<"\n";
             define(args[0].expr.front(), {}, {}, entries, stack);
         }
-        
-//        prep(depth); std::cout << "SUCCESSFULLY recognized a call to  "<<expression_to_string(entries.at(s).signature, entries)<<".\n";
-        
         return {s, args};
-        
-        next:
-        //prep(depth); std::cout << "...next\n\n";
-        continue;
+        next: continue;
     }
     index = saved;
 
     if (index < (long) given.symbols.size() and given.symbols.at(index).type == expr and given_type.index == _name) {
-//        prep(depth); std::cout << "found a name paraemter, constructing signature...\n";
         return construct_signature(given.symbols[index++].subexpression, entries, stack, file, max_depth);
     } else if (index < (long) given.symbols.size() and given.symbols.at(index).type == expr) {
-//        prep(depth); std::cout << "found a subexpression... recursing...\n";
         return resolve(given.symbols.at(index++).subexpression, given_type, entries, stack, file, max_depth);
     }
-    
-    //prep(depth); std::cout << "could not match anything... just failing now...\n";
     return {0, {}, true};
 }
 
@@ -675,30 +625,27 @@ int main(const int argc, const char** argv) {
                 std::vector<entry> entries {
                     /*0*/{},
                     /*1*/{{{{id,{},{id,"_"}}},{0},{1}}},
-                    //  /*0*/{{{{id,{},{id,"join"}},{expr,{{},{1}}},{expr,{{},{1}}}},{1},{2}}},
-                    /*2*/{{{ /// modified "name" sig.
-                        
-                        {id,{},{id,"the"}},
-                        {id,{},{id,"dog"}},
-                        
+                    /*2*/{{{{id,{},{id,"join"}},{expr,{{},{1}}},{expr,{{},{1}}}},{1},{2}}},
+                    /*3*/{{{ /// modified "name" sig.
+//                        {id,{},{id,"the"}},
+                        {id,{},{id,"name"}},
                     },{1},{3}}},
-                    //   /*0*/{{{{id,{},{id,"declare"}},{expr,{{},{3}}}},{1},{4}}},
+                    /*4*/{{{{id,{},{id,"declare"}},{expr,{{},{3}}}},{1},{4}}},
                     
-                                        
-                    /*3*/{{{ /*temp sig for testing */
-                        
-                        {expr,{{},{1}}}, // param 1
-                        
-//                        {id,{},{id,"is"}}, // name
-                        
-                        //{id,{},{id,"be"}}, // name
-                        
-//                        {expr,{{},{1}}}, // param 2
-                        
-                    }, {1}, {0}}},
+//                    /*3*/{{{ /*temp sig for testing */
+//
+//                        {expr,{{},{1}}}, // param 1
+//
+////                        {id,{},{id,"is"}}, // name
+//
+//                        //{id,{},{id,"be"}}, // name
+//
+////                        {expr,{{},{1}}}, // param 2
+//
+//                    }, {1}, {0}}},
                 };
                 
-                std::vector<std::vector<long>> stack {{3, 2, 1}};
+                std::vector<std::vector<long>> stack {{2, 4, 3, 1}};
                 
                 if (llvm::Linker::linkModules(*module, generate(resolve(parse(state, file), {1},
                                                                         entries, stack, file, max_depth),
