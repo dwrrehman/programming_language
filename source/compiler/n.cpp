@@ -629,7 +629,7 @@ int main(const int argc, const char** argv) {
     
     arguments args = {};
     bool use_exec_args = false, first = true;
-    long max_depth = 100;
+    long max_depth = 32;
     
     for (long i = 1; i < argc; i++) {
         
@@ -693,7 +693,7 @@ int main(const int argc, const char** argv) {
                         
                         //{id,{},{id,"be"}}, // name
                         
-                        {expr,{{},{1}}}, // param 2
+//                        {expr,{{},{1}}}, // param 2
                         
                     }, {1}, {0}}},
                 };
