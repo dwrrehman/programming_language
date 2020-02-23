@@ -1,1 +1,3 @@
-join declare ((n) (_)) n
+join
+  declare ((((x) (_)) ((y) (_))) (_))
+  name name

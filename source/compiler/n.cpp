@@ -14,7 +14,7 @@
 enum constants {
     none, id, op, string, expr,
     action = 'x', exec = 'o', object = 'c', ir = 'i', assembly = 's',
-    _name = 3, _declare = 4, //_lazy = 6, _push = 7, _pop = 8, _define = 12,
+    _type = 1, _name = 3, _declare = 4, _lazy = 6, _define = 12,
 };
 
 struct file {
@@ -199,9 +199,7 @@ static inline std::string expression_to_string(const expression& given, const st
             result += "(" + expression_to_string(entries[args[j].index].signature, entries, 0, -1, args) + ")";
             j++;
         }
-        if (i < (long) given.symbols.size() - 1 and not (i + 1 < begin or (end != -1 and i + 1 >= end))) result += " ";
-        
-        i++;
+        if (i++ < (long) given.symbols.size() - 1 and not (i + 1 < begin or (end != -1 and i + 1 >= end))) result += " ";
     }
     result += ")";
     if (given.type.index)
@@ -406,7 +404,6 @@ static inline resolved resolve_at
             } else if (symbol.type != given.symbols.at(index).type or
                        symbol.literal.value != given.symbols.at(index).literal.value) {
                 goto next;
-                
             } else {
                 index++; cost--;
             }
@@ -418,13 +415,11 @@ static inline resolved resolve_at
         next: continue;
     }
     index = saved;
-
     if (index < (long) given.symbols.size() and given.symbols.at(index).type == expr and given_type.index == _name) {
         return construct_signature(given.symbols[index++].subexpression, entries, stack, file, max_depth);
     } else if (index < (long) given.symbols.size() and given.symbols.at(index).type == expr) {
         return resolve(given.symbols.at(index++).subexpression, given_type, entries, stack, file, max_depth);
-    }
-    return {0, {}, true};
+    } else return {0, {}, true};
 }
 
 static inline resolved resolve(const expression& given, const resolved& given_type, std::vector<entry>& entries, std::vector<std::vector<long>>& stack, const file& file, long max_depth) {
@@ -436,8 +431,7 @@ static inline resolved resolve(const expression& given, const resolved& given_ty
         printf("n3zqx2l: %s:%ld:%ld: error: unresolved %s @ %ld : %s ≠ %s\n\n\n",
                file.name, t.line, t.column,
                expression_to_string(given, entries, pointer, pointer + 1).c_str(),
-               pointer,
-               expression_to_string(given, entries).c_str(),
+               pointer, expression_to_string(given, entries).c_str(),
                expression_to_string(entries[given_type.index].signature, entries, 0, -1, given_type.args).c_str()
                );
     }
@@ -453,10 +447,10 @@ static inline void set_data_for(std::unique_ptr<llvm::Module>& module) {
 
 static inline llvm::Value* generate_expression(const resolved& given, std::vector<entry>& entries, std::vector<std::vector<long>>& stack, llvm::Module* module, llvm::Function* function, llvm::IRBuilder<>& builder) {
     
-    if (//given.index == _pop or              // all take no arguments.
-        //given.index == _push or
-        given.index == _name or
-        given.index == 1) {
+    if (given.index == _name or
+        given.index == _type) {
+        
+        printf("error: called _type or _name: they are unimplemented.\n");
         
     } else if (given.index == _declare) {
         std::string function_name = "test_name";
@@ -474,9 +468,14 @@ static inline llvm::Value* generate_expression(const resolved& given, std::vecto
         
         std::string callee_name = expression_to_string(entries[given.index].signature, entries);
         llvm::Value* callee = module->getFunction(callee_name);
-        return builder.CreateCall(callee, arguments);
+        if (not callee) {
+            printf("error: callee function not found!\n");
+        }
+        else return builder.CreateCall(callee, arguments);
     }
-    abort();
+    ///TODO: why is this here?
+//    abort();
+    
     return nullptr;
 }
 static inline std::unique_ptr<llvm::Module> generate(const resolved& given, std::vector<entry>& entries, std::vector<std::vector<long>>& stack, const file& file, llvm::LLVMContext& context, bool is_main) {
@@ -499,7 +498,9 @@ static inline std::unique_ptr<llvm::Module> generate(const resolved& given, std:
         llvm::Type::getInt8PtrTy(context)->getPointerTo()
     }, false), llvm::Function::ExternalLinkage, "main", module.get());
     builder.SetInsertPoint(llvm::BasicBlock::Create(context, "entry", main));
-    // generate_expression();
+    
+    auto value = generate_expression(given, entries, stack, module.get(), main, builder);
+    
     builder.SetInsertPoint(&main->getBasicBlockList().back());
     builder.CreateRet(llvm::ConstantInt::get(llvm::Type::getInt32Ty(context), 0));
     

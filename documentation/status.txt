@@ -64,11 +64,40 @@ FIGURE OUT STUFF:
 
 
 
+test cases that DO work:
+=============================
+
+
+
+
+        join declare ((n) (_)) n
+        
+   
+   
+   
+ -
+ 
+ 
+        
+        join
+        declare ((((x) (_)) ((y) (_))) (_))
+        name name
 
 
 
 
 
+===============================
+
+
+
+
+
+join (declare ((unit) (_)))
+join ( declare ((( (x) (unit) (_) )) (_)) )
+join ( declare ((( (x) (_) )) (unit) (_)) )
+join ( def ((((first) (unit) (_)) ((second) (unit) (_))) (unit) (_)) unit second)
+name name
 
 
 
