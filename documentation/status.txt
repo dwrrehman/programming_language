@@ -5,6 +5,127 @@ the current status of the nostril compiler:
 
 
 
+
+TODO:
+
+    fix csr.     TOP PRIORITY.
+    
+    
+    
+    
+
+
+
+
+BUSY WORK:
+--------------------
+
+    - rewrite the parsing stage to be a single function.
+    
+    - rewrite the lexing stage slightly, to be simpler?
+        
+    - add options list for linker, eventually.
+    
+    - fix csr, and get that done and dusted.
+    
+
+    
+FIGURE OUT STUFF:
+--------------------
+
+    - figure out how to pass functions into functions
+    
+    - figure out how to do closures / lambdas
+    
+    - figure out how to specify llvm attributes to a function.
+        
+    - figure out how to do computational type checking properly, as opposed to using subsitutions and everything.
+        (ie, do type-related stuff better, and more correctly)
+        
+    - figure out HM TI
+    
+    - figure out how to make _define provide _expose functionality         [nice]
+
+    - figure out how we are going to do multiple files, and our module system.         [neccessary]
+        
+    - figure out how to do compiletime evlauation correctly.
+    
+    -
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+------------------------ old ----------------------
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+THIS IS A TEST CASE THAT DOESNT WORK:
+
+
+    join
+    declare ((((x) (_)) ((y) (_))) (_))
+    name name
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 so the algorithmis always LEFT-ASSOCIATIVE
 
 thats cool.

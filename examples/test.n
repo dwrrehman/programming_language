@@ -1,4 +1,16 @@
-join
-declare ((((x) (_)) ((y) (_))) (_))
-name name
-
+the dog
+the dog
+the dog
+the dog
+the dog
+the dog
+the dog
+the dog
+the dog
+the dog
+the dog
+the dog
+the dog
+the dog
+the dog
+the dog
