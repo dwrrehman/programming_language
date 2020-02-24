@@ -4,16 +4,16 @@ the current status of the nostril compiler:
 
 
 
+==================================
+
+		TODO:
+
+==================================
 
 
-TODO:
-
-    fix csr.     TOP PRIORITY.
+PRIORITY:    
     
-    
-    
-    
-
+    - fix csr, and get that done and dusted.
 
 
 
@@ -25,32 +25,54 @@ BUSY WORK:
     - rewrite the lexing stage slightly, to be simpler?
         
     - add options list for linker, eventually.
-    
-    - fix csr, and get that done and dusted.
-    
+   
 
-    
+ 
+
+
+
 FIGURE OUT STUFF:
---------------------
+------------------------------------
 
-    - figure out how to pass functions into functions
+
+
+
+
+FUNCTIONS:
+
+x:    - figure out how to pass functions into functions;
+
+    - figure out what function types look like. make them builtin, i think.
     
-    - figure out how to do closures / lambdas
+x:    - figure out how to do closures / lambdas;
     
     - figure out how to specify llvm attributes to a function.
-        
-    - figure out how to do computational type checking properly, as opposed to using subsitutions and everything.
+
+
+TYPES:        
+
+    - figure out how to do computational type checking properly, 
+	as opposed to using subsitutions and everything.
+
         (ie, do type-related stuff better, and more correctly)
         
-    - figure out HM TI
-    
+    - figure out Henry-Milner Type-Inference.
+
+
+GENERAL:
+
+    - figure out how to do compiletime evlauation correctly.    
+       ...like zig does it..?
+
     - figure out how to make _define provide _expose functionality         [nice]
 
-    - figure out how we are going to do multiple files, and our module system.         [neccessary]
+    - figure out how we are going to do multiple files, and our module system.
+
+
+
+
+
         
-    - figure out how to do compiletime evlauation correctly.
-    
-    -
 
 
 
@@ -67,31 +89,15 @@ FIGURE OUT STUFF:
 test cases that DO work:
 =============================
 
-
-
-
         join declare ((n) (_)) n
-        
-   
-   
-   
- -
- 
- 
-        
+      
+===============================
+
         join
         declare ((((x) (_)) ((y) (_))) (_))
         name name
 
-
-
-
-
 ===============================
-
-
-
-
 
 join (declare ((unit) (_)))
 join ( declare ((( (x) (unit) (_) )) (_)) )
@@ -100,104 +106,14 @@ join ( def ((((first) (unit) (_)) ((second) (unit) (_))) (unit) (_)) unit second
 name name
 
 
-
-
-
-
-
-
-
-
-
-
-
------------------------- old ----------------------
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-THIS IS A TEST CASE THAT DOESNT WORK:
-
+===============================
 
     join
     declare ((((x) (_)) ((y) (_))) (_))
     name name
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-so the algorithmis always LEFT-ASSOCIATIVE
-
-thats cool.
-
-
-
-
-simplified it slightly... trying to debug why it doesnt work sometimes, though.
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-TEST CODE:
-
-
-
+===============================
 
 join declare ((lazy ((x) (_))) (_))
 join declare ((push) (_))
@@ -214,8 +130,7 @@ join declare ((g) (unit) (_))
 
 name
 
-
-
+===============================
 
 
 (join (declare ((lazy ((x) (_))) (_)))
@@ -226,7 +141,65 @@ name
 (join (declare ((g) (unit) (_)))
 (((x) unit g))))))))
 
+===============================
 
+
+
+
+join (declare ((unit) (_)))
+join (declare ((namef) (unit) (_)))
+join ( declare ((( (x) (unit) (_) )) (_)) )
+join ( def ((((first) (unit) (_)) ((second) (unit) (_))) (_) ) unit second)
+namef namef
+
+
+===============================
+
+
+join (declare (( ((x) (_)) ((y) (_))) (_) ))
+name name name name name name name
+
+===============================
+
+
+join (declare ((((x) (_)) hello ((x) (_))) (_)))
+(name hello name hello name)
+
+
+===============================
+
+
+join (declare ((lazy ((x) (_))) (_)))
+join (declare ((push) (_)))
+join (declare ((pop) (_)))
+join (declare (( ((signature) (name) (_)) ((type) (_))    ((definition) (lazy type) (_)) ) (_)))
+join (declare ((namef) (_)))
+name
+
+join (declare ((unit) (_)))
+join ( declare ((( (x) (unit) (_) )) (_)) )
+join ( declare ((( (x) (_) )) (unit) (_)) )
+join ( def ((((first) (unit) (_)) ((second) (unit) (_))) (unit) (_)) unit second)
+name name
+
+
+===============================
+
+
+
+
+
+
+
+
+
+
+
+so the algorithmis always LEFT-ASSOCIATIVE
+
+thats cool.
+
+simplified it slightly... trying to debug why it doesnt work sometimes, though.
 
 
         ----> CSR is literally so buggy. this succeeds, with an epmty parse.
@@ -249,97 +222,16 @@ name
                                 
                                 
                                 
-                                
-                                
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-join (declare ((unit) (_)))
-join (declare ((namef) (unit) (_)))
-join ( declare ((( (x) (unit) (_) )) (_)) )
-join ( def ((((first) (unit) (_)) ((second) (unit) (_))) (_) ) unit second)
-namef namef
-
-
-
-
-
-
-
-
--------------------------------
-backup of code:
-=================
-
-
-join (declare (( ((x) (_)) ((y) (_))) (_) ))
-name name name name name name name
-
-
-
-join (declare ((((x) (_)) hello ((x) (_))) (_)))
-(name hello name hello name)
-
-
-
-join (declare ((lazy ((x) (_))) (_)))
-join (declare ((push) (_)))
-join (declare ((pop) (_)))
-join (declare (( ((signature) (name) (_)) ((type) (_))    ((definition) (lazy type) (_)) ) (_)))
-join (declare ((namef) (_)))
-name
-
-join (declare ((unit) (_)))
-join ( declare ((( (x) (unit) (_) )) (_)) )
-join ( declare ((( (x) (_) )) (unit) (_)) )
-join ( def ((((first) (unit) (_)) ((second) (unit) (_))) (unit) (_)) unit second)
-name name
-
-
-
-
------------------------------
-
-
-
-
-
-
+                                                            
 
 
 CURRENT TASK DETAILS:
 =======================
 
 
+	fix csr: make it right assoc, and faster.         then you are done!
 
 
-
-
-
-
-
-
-
-
-
-
-
-    
-    
-    
     
 NEXT TASK:
 ==========================
@@ -357,7 +249,7 @@ NEXT TASK:
     
     
     
-============================================================================================================================================
+===============================================================================================
 
 
 
@@ -383,7 +275,6 @@ THE TODO LIST:
 - figure out how we are going to do multiple files, and our module system.         [neccessary]
 
 - make llvms void passable and initiable like the real unit type.    [nice]  [must be done in codegen phase]
-
 
 
 
@@ -423,11 +314,7 @@ THE TODO LIST:
     
     
     
-    
-    
-    
-    
-    
+ 
         
         
 =============================== CLOSED: ======================
@@ -446,10 +333,7 @@ THE TODO LIST:
 
         we are defining the function, but not printing the retunr type properly, in the debug symbol table.
 
-
-
-
-        
+   
         
     - in the following test code:
     
@@ -464,7 +348,7 @@ THE TODO LIST:
         x: SERIOUS: 2. the compiler doesnt distinguish:            code (_1)     and        code (code (_1));
         
         
-        
+
 
     
 in the following test code:
