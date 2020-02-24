@@ -4,5 +4,4 @@ entry:
     ret i32 %t
 }
 
-
-declare int putc(int c)
+declare i32 @putchar(i32 %char)

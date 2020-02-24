@@ -14,7 +14,7 @@
 enum constants {
     none, id, op, string, expr,
     action = 'x', exec = 'o', object = 'c', ir = 'i', assembly = 's',
-    _type = 1, _name = 3, _declare = 4, _lazy = 6, _define = 12,
+    _type = 1, _join = 2, _name = 3, _declare = 4,     /// _lazy = 6, _define = 12,
 };
 
 struct file {
@@ -47,7 +47,6 @@ struct resolved {
     std::vector<resolved> args = {};
     bool error = false;
     std::vector<struct expression> expr = {};
-//    std::string llvm_type = ""; ///TODO: what??
 };
 
 struct expression {
@@ -305,10 +304,11 @@ static inline void print_resolved_expr(resolved expr, long depth, std::vector<en
 static inline void define(expression& signature, const resolved& type, const resolved& definition, std::vector<entry>& entries, std::vector<std::vector<long>>& stack) {
     stack.back().push_back(signature.me.index = entries.size());
     entries.push_back({signature, definition});
-
     std::stable_sort(stack.back().begin(), stack.back().end(), [&](long a, long b) {
-        return entries[a].signature.symbols.size() > entries[b].signature.symbols.size() and
-        entries[a].signature.symbols.front().type == expr;
+        return entries[a].signature.symbols.size() > entries[b].signature.symbols.size();
+    });
+    std::stable_sort(stack.back().begin(), stack.back().end(), [&](long a, long b) {
+        return entries[a].signature.symbols.front().type == expr;
     });
 }
 
@@ -356,6 +356,7 @@ static inline resolved resolve_at
  std::vector<entry>& entries,
  std::vector<std::vector<long>>& stack,
  const file& file, long debt
+ 
  ) {
     if (depth > max_depth) {
         return {0, {}, true};
@@ -450,7 +451,7 @@ static inline llvm::Value* generate_expression(const resolved& given, std::vecto
     if (given.index == _name or
         given.index == _type) {
         
-        printf("error: called _type or _name: they are unimplemented.\n");
+//        printf("error: called _type or _name: they are unimplemented.\n");
         
     } else if (given.index == _declare) {
         std::string function_name = "test_name";
@@ -469,13 +470,10 @@ static inline llvm::Value* generate_expression(const resolved& given, std::vecto
         std::string callee_name = expression_to_string(entries[given.index].signature, entries);
         llvm::Value* callee = module->getFunction(callee_name);
         if (not callee) {
-            printf("error: callee function not found!\n");
+            //printf("error: callee function not found!\n");
         }
         else return builder.CreateCall(callee, arguments);
     }
-    ///TODO: why is this here?
-//    abort();
-    
     return nullptr;
 }
 static inline std::unique_ptr<llvm::Module> generate(const resolved& given, std::vector<entry>& entries, std::vector<std::vector<long>>& stack, const file& file, llvm::LLVMContext& context, bool is_main) {
@@ -580,7 +578,7 @@ int main(const int argc, const char** argv) {
     
     arguments args = {};
     bool use_exec_args = false, first = true;
-    long max_depth = 32;
+    long max_depth = 14; // max line count:   2 ^ (maxdepth + 1).
     
     for (long i = 1; i < argc; i++) {
         
@@ -624,26 +622,11 @@ int main(const int argc, const char** argv) {
                 lexing_state state {0, none, 1, 1};
                 
                 std::vector<entry> entries {
-                    /*0*/{},
-                    /*1*/{{{{id,{},{id,"_"}}},{0},{1}}},
-                    /*2*/{{{{id,{},{id,"join"}},{expr,{{},{1}}},{expr,{{},{1}}}},{1},{2}}},
-                    /*3*/{{{ /// modified "name" sig.
-//                        {id,{},{id,"the"}},
-                        {id,{},{id,"name"}},
-                    },{1},{3}}},
-                    /*4*/{{{{id,{},{id,"declare"}},{expr,{{},{3}}}},{1},{4}}},
-                    
-//                    /*3*/{{{ /*temp sig for testing */
-//
-//                        {expr,{{},{1}}}, // param 1
-//
-////                        {id,{},{id,"is"}}, // name
-//
-//                        //{id,{},{id,"be"}}, // name
-//
-////                        {expr,{{},{1}}}, // param 2
-//
-//                    }, {1}, {0}}},
+                    {},
+                    {{{{id,{},{id,"_"}}},{0},{1}}},
+                    {{{{id,{},{id,"join"}},{expr,{{},{1}}},{expr,{{},{1}}}},{1},{2}}},
+                    {{{   {id,{},{id,"name"}},   },{1},{3}}},
+                    {{{{id,{},{id,"declare"}},{expr,{{},{3}}}},{1},{4}}},
                 };
                 
                 std::vector<std::vector<long>> stack {{2, 4, 3, 1}};

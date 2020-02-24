@@ -1,3 +1,7 @@
 join
-  declare ((((x) (_)) ((y) (_))) (_))
-  name name
+    (declare ((((x) (_)) ((y) (_))) (_)))
+    join
+        (declare ((the dog) (_)))
+        (
+            the dog the dog the dog the dog the dog the dog the dog the dog
+        )
