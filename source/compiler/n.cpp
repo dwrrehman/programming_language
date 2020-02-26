@@ -74,71 +74,33 @@ static inline token next(lexing_state& lex, const file& file) {
     token token = {};
     auto& at = lex.index;
     auto& state = lex.state;
-    
-    while (lex.index < (long) file.text.size()) {
-        char
-            c = file.text[at],
-            n = at + 1 < (long) file.text.size() ? file.text[at + 1] : 0;
-        
-        if (isalnum(c) and not isalnum(n) and state == none) {
-            token = { id, std::string(1, c), lex.line, lex.column};
-            state = none;
-            lex.column++;
-            at++;
-            return token;
-            
-        } else if (c == '\"' and state == none) {
-            token = { string, "", lex.line, lex.column };
-            state = string;
-            
-        } else if (isalnum(c) and state == none) {
-            token = { id, std::string(1, c), lex.line, lex.column };
-            state = id;
-            
-        } else if (c == '\\' and state == string) {
+    while (at < (long) file.text.size()) {
+        char c = file.text[at], n = at + 1 < (long) file.text.size() ? file.text[at + 1] : '\0';
+        if (isalnum(c) and not isalnum(n) and state == none) { at++; return { id, std::string(1, c), lex.line, lex.column++};
+        } else if (c == '\"' and state == none) token = { state = string, "", lex.line, lex.column };
+        else if (isalnum(c) and state == none) token = { state = id, std::string(1, c), lex.line, lex.column };
+        else if (c == '\\' and state == string) {
             if (n == '\\') token.value += "\\";
             else if (n == '\"') token.value += "\"";
             else if (n == 'n') token.value += "\n";
             else if (n == 't') token.value += "\t";
             else printf("n3zqx2l: %s:%ld:%ld: error: unknown escape sequence '\\%c'\n", file.name, lex.line, lex.column, n);
-            lex.column++;
-            at++;
-            
-        } else if ((c == '\"' and state == string)) {
-            state = none;
-            lex.column++;
-            at++;
-            return token;
-            
-        } else if (isalnum(c) and not isalnum(n) and state == id) {
-            token.value += c;
-            state = none;
-            lex.column++;
-            at++;
-            return token;
-        } else if (state == string or (isalnum(c) and state == id))
-            token.value += c;
-        else if (not isalnum(c) and not isspace(c) and state == none) {
-            token = {op, std::string(1, c), lex.line, lex.column};
-            state = none;
-            lex.column++;
-            at++;
-            return token;
-        }
-        if (c == '\n') {
-            lex.line++;
-            lex.column = 1;
-        } else {
-            lex.column++;
-        }
-        at++;
+            lex.column++; at++;
+        } else if ((c == '\"' and state == string)) { state = none; lex.column++; at++; return token;
+        } else if (isalnum(c) and not isalnum(n) and state == id) { token.value += c; state = none; lex.column++; at++; return token;
+        } else if (state == string or (isalnum(c) and state == id)) token.value += c;
+        else if (not isalnum(c) and not isspace(c) and state == none) { at++; return {op, std::string(1, c), lex.line, lex.column++}; }
+        if (c == '\n') { lex.line++; lex.column = 1; }
+        else lex.column++; at++;
     }
     if (state == string) printf("n3zqx2l: %s:%ld:%ld: error: unterminated string\n", file.name, lex.line, lex.column);
     return {none, "", lex.line, lex.column};
 }
 
-static inline expression parse(lexing_state& state, const file& file);
 
+
+///DELETE ME:
+static inline expression parse(lexing_state& state, const file& file);
 static inline symbol parse_symbol(lexing_state& state, const file& file) {
     auto saved = state;
     auto open = next(state, file);
@@ -160,9 +122,11 @@ static inline symbol parse_symbol(lexing_state& state, const file& file) {
     else {
         state = saved;
         return {none, {}, {}, true};
-    }        ///TODO:   print somethign like: printf("n3zqx2l: %s:%ld:%ld: unexpected \")\"\n", file.name, t.line, t.column); TODO: make this work properly.
+    }
 }
 
+
+///DELETE ME:
 static inline expression parse(lexing_state& state, const file& file) {
     std::vector<symbol> symbols = {};
     auto saved = state;
@@ -182,6 +146,48 @@ static inline expression parse(lexing_state& state, const file& file) {
     result.start = start;
     return result;
 }
+
+/**
+ 
+ struct expression {
+     std::vector<struct symbol> symbols = {};   ---->   std::vector<new_expression> children = {}
+     resolved type = {};   KEPT
+     resolved me = {};    KEPT
+     token start = {};    DELETED
+     bool error = false;    DELETED
+ };
+
+ struct symbol {
+     long type = none;         KEPT
+     expression subexpression = {};     DELETED
+     token literal = {};     KEPT
+     bool error = false;      KEPT
+ };
+ 
+ */
+struct new_expression {
+    
+    std::vector<new_expression> children = {};
+    resolved type = {};
+    resolved me = {};
+    long literal_type = none;
+    token literal = {};
+    bool error = false;
+};
+
+
+static inline new_expression new_parse(lexing_state& state, const file& file) {
+    auto t = next(state, file);
+    if (t.type == string) return symbol {string, {}, t};
+    else if (t.type == id or (t.type == op and t.value != "(" and t.value != ")")) return {id, {}, t};
+    else {
+        state = saved;
+        return symbol {none, {}, {}, true};
+    }
+}
+
+
+
 
 static inline std::string expression_to_string(const expression& given, const std::vector<entry>& entries, long begin = 0, long end = -1, std::vector<resolved> args = {}) {
     std::string result = "(";
@@ -356,17 +362,8 @@ static inline resolved resolve_at
  std::vector<entry>& entries,
  std::vector<std::vector<long>>& stack,
  const file& file, long debt
- 
  ) {
-    if (depth > max_depth) {
-        return {0, {}, true};
-    }
-    
-    if (index >= (long) given.symbols.size()) {
-        return {0, {}, true};
-    }
-    
-    if (debt > (long) given.symbols.size() - index) {
+    if (depth > max_depth or index >= (long) given.symbols.size() or debt > (long) given.symbols.size() - index) {
         return {0, {}, true};
     }
     
@@ -375,39 +372,27 @@ static inline resolved resolve_at
     
     for (auto s : saved_stack.back()) {
         
-        std::vector<resolved> args = {};
         index = saved;
+        std::vector<resolved> args = {};
         
         auto& signature = entries.at(s).signature;
-        
-        if (not equal(given_type, signature.type, entries)) {
-            continue;
-        }
-        
         long cost = debt + signature.symbols.size();
         
-        if (cost > (long) given.symbols.size() - index) {
-            continue;
-        }
-        
+        if (cost > (long) given.symbols.size() - index or not equal(given_type, signature.type, entries)) continue;
+    
         for (auto& symbol : signature.symbols) {
             if (index >= (long) given.symbols.size()) {
                 goto next;
             } else if (symbol.type == expr) {
                 auto argument = resolve_at(given, symbol.subexpression.type, index, depth + 1, max_depth, entries, stack, file, cost - 1);
-                if (argument.error) {
-                    goto next;
-                }
+                if (argument.error) goto next;
                 cost--;
                 args.push_back({argument});
                 entries.at(symbol.subexpression.me.index).subsitution = argument;
             
-            } else if (symbol.type != given.symbols.at(index).type or
-                       symbol.literal.value != given.symbols.at(index).literal.value) {
+            } else if (symbol.type != given.symbols.at(index).type or symbol.literal.value != given.symbols.at(index).literal.value) {
                 goto next;
-            } else {
-                index++; cost--;
-            }
+            } else { index++; cost--; }
         }
         if (s == _declare) {
             define(args[0].expr.front(), {}, {}, entries, stack);
@@ -416,10 +401,13 @@ static inline resolved resolve_at
         next: continue;
     }
     index = saved;
+    
     if (index < (long) given.symbols.size() and given.symbols.at(index).type == expr and given_type.index == _name) {
         return construct_signature(given.symbols[index++].subexpression, entries, stack, file, max_depth);
+        
     } else if (index < (long) given.symbols.size() and given.symbols.at(index).type == expr) {
         return resolve(given.symbols.at(index++).subexpression, given_type, entries, stack, file, max_depth);
+        
     } else return {0, {}, true};
 }
 
@@ -516,7 +504,7 @@ static inline std::unique_ptr<llvm::Module> generate(const resolved& given, std:
 
 static inline std::unique_ptr<llvm::Module> optimize(std::unique_ptr<llvm::Module>& module) {
      ///TODO: write me.
-    module->print(llvm::errs(), nullptr);
+//    module->print(llvm::errs(), nullptr);
     return std::move(module);
 }
 
@@ -525,7 +513,12 @@ static inline void interpret(std::unique_ptr<llvm::Module> module, const argumen
         .setEngineKind(llvm::EngineKind::JIT)
         .create();
     engine->finalizeObject();
-    exit(engine->runFunctionAsMain(engine->FindFunctionNamed("main"), arguments.argv_for_exec, nullptr));
+    if (auto main = engine->FindFunctionNamed("main"); main)
+        exit(engine->runFunctionAsMain(main, arguments.argv_for_exec, nullptr));
+    else {
+        printf("n: error: cannot run program, main() function not found\n");
+        exit(1);
+    }
 }
 
 static inline std::string generate_file(std::unique_ptr<llvm::Module> module, const arguments& arguments, llvm::TargetMachine::CodeGenFileType type) {
@@ -578,7 +571,7 @@ int main(const int argc, const char** argv) {
     
     arguments args = {};
     bool use_exec_args = false, first = true;
-    long max_depth = 14; // max line count:   2 ^ (maxdepth + 1).
+    long max_depth = 100; // max line count:   2 ^ (maxdepth + 1).
     
     for (long i = 1; i < argc; i++) {
         
@@ -612,9 +605,8 @@ int main(const int argc, const char** argv) {
             if (ext && !strcmp(ext, ".n")) {
                 
                 std::ifstream stream {argv[i]};
-                
                 if (not stream.good()) {
-                    printf("n: error: unable to open \"%s\": %s\n", argv[i], strerror(errno));
+                    printf("n: %s: error: could not open input file: %s\n", argv[i], strerror(errno));
                     exit(1);
                 }
                 

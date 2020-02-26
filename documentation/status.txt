@@ -13,7 +13,14 @@ the current status of the nostril compiler:
 
 PRIORITY:    
     
-    - fix csr, and get that done and dusted.
+    - make csr left associative
+    
+    - make csr fast in all situations
+
+
+
+
+
 
 
 
