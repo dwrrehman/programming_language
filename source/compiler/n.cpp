@@ -98,7 +98,6 @@ static inline token next(lexing_state& lex, const file& file) {
 }
 
 
-
 ///DELETE ME:
 static inline expression parse(lexing_state& state, const file& file);
 static inline symbol parse_symbol(lexing_state& state, const file& file) {
@@ -166,7 +165,6 @@ static inline expression parse(lexing_state& state, const file& file) {
  
  */
 struct new_expression {
-    
     std::vector<new_expression> children = {};
     resolved type = {};
     resolved me = {};
@@ -175,16 +173,38 @@ struct new_expression {
     bool error = false;
 };
 
+//
+//static inline list parse(std::vector<std::string> tokens, size_t& index) {
+//    auto t = tokens.at(index++);
+//    if (t != "(" and t != ")") return {t};
+//    else if (t == "(") {
+//        list l = {};
+//        while (index < tokens.size() and tokens.at(index) != ")") {
+//            auto p = parse(tokens, index);
+//            l.symbols.push_back(p);
+//        }
+//        index++;
+//        return l;
+//    } else return {"", {}, true};
+//}
 
-static inline new_expression new_parse(lexing_state& state, const file& file) {
-    auto t = next(state, file);
-    if (t.type == string) return symbol {string, {}, t};
-    else if (t.type == id or (t.type == op and t.value != "(" and t.value != ")")) return {id, {}, t};
-    else {
-        state = saved;
-        return symbol {none, {}, {}, true};
-    }
-}
+
+//static inline new_expression new_parse(lexing_state& state, const file& file) {
+//    auto t = next(state, file);
+//    if (t.type == string or t.type == id) return new_expression {{}, {}, {}, t.type, t};
+//    else if (t.type == op and t.value != "(" and t.value != ")") return new_expression {{}, {}, {}, id, t};
+//    else if (t.type == op and t.value == "("){
+//        auto saved = state;
+//
+//        auto current = {};
+//
+//        while (current isnt ")") {
+//
+//
+//            current =
+//        }
+//    }
+//}
 
 
 
