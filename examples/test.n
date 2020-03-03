@@ -1,4 +1,10 @@
 join declare ((((x) (_)) ((y) (_))) (_))
 join declare ((the dog ran ) (_))
 
+(
+
 the dog ran
+the dog ran
+the dog ran
+
+)

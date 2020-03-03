@@ -481,7 +481,14 @@ static inline resolved resolve_at
                     }
                     
                     argument = resolve_at(given, symbol.subexpression.type, index, depth + 1, max_depth, entries, stack, file, cost + k - 1);
-                    if (not argument.error) break;
+                    if (not argument.error) {
+                        
+                        if (is_debug) {
+                            prep(depth); std::cout << "KKKKK: SUCCESS ON k = "<<k<<"..."<< "\n";
+                        }
+                                                
+                        break;
+                    }
                     
                     if (is_debug) {
                         prep(depth); std::cout << "FAIL: could not match parameter...\n\n";
@@ -498,7 +505,7 @@ static inline resolved resolve_at
                 if (is_debug) {
                     prep(depth); std::cout << "MATCHED parameter!\n\n";
                 }
-            
+                
                 cost--;
                 args.push_back({argument});
                 entries.at(symbol.subexpression.me.index).subsitution = argument;
@@ -625,7 +632,7 @@ static inline llvm::Value* generate_expression(const resolved& given, std::vecto
 }
 static inline std::unique_ptr<llvm::Module> generate(const resolved& given, std::vector<entry>& entries, std::vector<std::vector<long>>& stack, const file& file, llvm::LLVMContext& context, bool is_main) {
     
-    if (is_debug) {
+    if (is_debug or true ) {
         printf("\n\n");
         print_resolved_expr(given, 0, entries);
         printf("\n\n");

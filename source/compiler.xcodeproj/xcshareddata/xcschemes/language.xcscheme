@@ -65,7 +65,7 @@
       <CommandLineArguments>
          <CommandLineArgument
             argument = "/Users/deniylreimn/Documents/projects/n3zqx2l/examples/test.ll"
-            isEnabled = "YES">
+            isEnabled = "NO">
          </CommandLineArgument>
          <CommandLineArgument
             argument = "/Users/deniylreimn/Documents/projects/n3zqx2l/examples/test.n"
