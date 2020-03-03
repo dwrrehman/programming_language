@@ -78,7 +78,7 @@ static inline token next(lexing_state& lex, const file& file) {
         char c = file.text[at], n = at + 1 < (long) file.text.size() ? file.text[at + 1] : '\0';
         if (isalnum(c) and not isalnum(n) and state == none) { at++; return { id, std::string(1, c), lex.line, lex.column++};
         } else if (c == '\"' and state == none) token = { state = string, "", lex.line, lex.column };
-        else if (isalnum(c) and state == none) token = { state = id, std::string(1, c), lex.line, lex.column };
+        else if (isalnum(c) and state == none) token = { state = id, std::string(1, c), lex.line, lex.column++ };
         else if (c == '\\' and state == string) {
             if (n == '\\') token.value += "\\";
             else if (n == '\"') token.value += "\"";
@@ -173,7 +173,7 @@ struct new_expression {
     bool error = false;
 };
 
-//
+
 //static inline list parse(std::vector<std::string> tokens, size_t& index) {
 //    auto t = tokens.at(index++);
 //    if (t != "(" and t != ")") return {t};
@@ -187,7 +187,6 @@ struct new_expression {
 //        return l;
 //    } else return {"", {}, true};
 //}
-
 
 //static inline new_expression new_parse(lexing_state& state, const file& file) {
 //    auto t = next(state, file);
@@ -374,7 +373,11 @@ static inline resolved construct_signature(const expression& given, std::vector<
     return {3, {}, given.symbols.empty(), {given.symbols.size() and given.symbols.front().type == expr ? typify(given, {0}, entries, stack, file, max_depth) : expression {given.symbols, {1}}}};
 }
 
+
+bool is_debug = false;
+
 static inline resolved resolve_at
+
 (
  const expression& given,
  const resolved& given_type,
@@ -382,8 +385,38 @@ static inline resolved resolve_at
  std::vector<entry>& entries,
  std::vector<std::vector<long>>& stack,
  const file& file, long debt
- ) {
-    if (depth > max_depth or index >= (long) given.symbols.size() or debt > (long) given.symbols.size() - index) {
+ )
+
+{
+    if (is_debug) {
+    prep(depth); std::cout << "--------- entered resolve_at(): ------- \n";
+    prep(depth); std::cout << "depth = " << depth << "\n";
+    prep(depth); std::cout << "debt = " << debt << "\n";
+    prep(depth); std::cout << "index = " << index << "\n";
+    prep(depth); std::cout << "given type = " << given_type.index << "\n";
+    prep(depth); std::cout << "given: " << expression_to_string(given, entries) << "\n";
+    prep(depth); std::cout << "given[index..]: " << expression_to_string(given, entries, index) << "\n";
+    prep(depth); std::cout << "-----------------------------\n\n";
+    }
+
+    if (depth > max_depth) {
+        if (is_debug) {
+            prep(depth); std::cout << "ERROR::: (depth > max_depth) \n";
+        }
+        return {0, {}, true};
+    }
+    
+    if (index >= (long) given.symbols.size()) {
+        if (is_debug) {
+            prep(depth); std::cout << "ERROR::: (index >= (long) given.symbols.size()) \n";
+        }
+        return {0, {}, true};
+    }
+    
+    if (debt > (long) given.symbols.size() - index) {
+        if (is_debug) {
+            prep(depth); std::cout << "ERROR:::   debt > budget!     "<<debt<<" > "<<given.symbols.size()<<" - "<<index<<"        ie, (debt > (long) given.symbols.size() - index)\n";
+        }
         return {0, {}, true};
     }
     
@@ -392,44 +425,171 @@ static inline resolved resolve_at
     
     for (auto s : saved_stack.back()) {
         
-        index = saved;
         std::vector<resolved> args = {};
+        index = saved;
         
         auto& signature = entries.at(s).signature;
+        
+        if (not equal(given_type, signature.type, entries)) {
+            if (is_debug) {
+                prep(depth); std::cout << "types dont match:  " << given_type.index << " ≠ " << signature.type.index << "\n";
+                prep(depth); std::cout << "\n\n";
+            }
+            continue;
+        }
+        
+        if (is_debug) {
+            prep(depth); std::cout << "----> trying     " << expression_to_string(signature, entries) << "   ";
+            std::cout << "      g:    " << expression_to_string(given, entries, index) << "\n\n";
+        }
+               
+        
         long cost = debt + signature.symbols.size();
         
-        if (cost > (long) given.symbols.size() - index or not equal(given_type, signature.type, entries)) continue;
-    
+        if (is_debug) {
+            prep(depth); std::cout << "TOTAL COST of s = " << cost << "    ";
+            std::cout << "[dept = " << debt << "   +    cost = "<<signature.symbols.size()<<"]\n";
+        }
+        
+        if (cost > (long) given.symbols.size() - index) {
+            if (is_debug) {
+                prep(depth); std::cout << "FAIL: cost > budget!     "<<cost<<" > "<<given.symbols.size()<<" - "<<index<<"        ie, (cost > (long) given.symbols.size() - index)\n";
+                prep(depth); std::cout << "\n\n";
+            }
+            continue;
+        }
+        
         for (auto& symbol : signature.symbols) {
+            
             if (index >= (long) given.symbols.size()) {
+                if (is_debug) {
+                    prep(depth); std::cout << "FAIL: NO MORE SYMBOLS:    index >= given.symbols.size()!  "<<index<<" >= "<<given.symbols.size()<<" ...\n";
+                }
                 goto next;
-            } else if (symbol.type == expr) {
-                auto argument = resolve_at(given, symbol.subexpression.type, index, depth + 1, max_depth, entries, stack, file, cost - 1);
-                if (argument.error) goto next;
+            }
+            
+            if (symbol.type == expr) {
+                if (is_debug) {
+                    prep(depth); std::cout << "trying to match parameter of type: " << symbol.subexpression.type.index << "... calling csr : with debt = "<<cost-1<<"\n\n";
+                }
+                
+//                auto argument = resolve_at(given, symbol.subexpression.type, index, depth + 1, max_depth, entries, stack, file, cost - 1);
+//                if (argument.error) {
+//                    if (is_debug) {
+//                        prep(depth); std::cout << "FAIL: could not match parameter...\n\n";
+//                    }
+//                    goto next;
+//                }
+//
+//                if (is_debug) {
+//                    prep(depth); std::cout << "MATCHED parameter!\n\n";
+//                }
+                
+                resolved argument = {};
+
+                for (int k = cost; k--;) {
+                
+                    if (is_debug) {
+                        prep(depth); std::cout << "KKKKK: trying k = "<<k<<"...      debt = "<<cost - 1 + k<<"\n\n";
+                    }
+//                    index = saved_index;
+                    argument = resolve_at(given, symbol.subexpression.type, index, depth + 1, max_depth, entries, stack, file, cost + k - 1);
+                    
+                    if (argument.error) {
+                        if (is_debug) {
+                            prep(depth); std::cout << "FAIL: could not match parameter...\n\n";
+                        }
+                        
+                    } else break;
+                    
+                    
+                }
+                
+                if (argument.error) {
+                    if (is_debug) {
+                        prep(depth); std::cout << "FAIL: could not FINALLY match parameter...\n\n";
+                    }
+                    goto next;
+                }
+                
+                if (is_debug) {
+                    prep(depth); std::cout << "MATCHED parameter!\n\n";
+                }
+                
+                
+                
+                
+                
                 cost--;
                 args.push_back({argument});
                 entries.at(symbol.subexpression.me.index).subsitution = argument;
             
-            } else if (symbol.type != given.symbols.at(index).type or symbol.literal.value != given.symbols.at(index).literal.value) {
+            } else if (symbol.type != given.symbols.at(index).type or
+                       symbol.literal.value != given.symbols.at(index).literal.value) {
+                
+                if (is_debug) {
+                    prep(depth); std::cout << "FAIL: could not match: \""<<symbol.literal.value<<"\" ≠ \""<<given.symbols.at(index).literal.value<<"\"...\n\n";
+                }
                 goto next;
-            } else { index++; cost--; }
+                
+            } else {
+                if (is_debug) {
+                    prep(depth); std::cout << "MATCHED symbol: "<<symbol.literal.value<<"\n\n";
+                }
+                index++; cost--;
+            }
         }
+        
         if (s == _declare) {
+            
+            if (is_debug) {
+                prep(depth); std::cout << "encountered a DECLARE! declaring: "<<expression_to_string(args[0].expr.front(), entries)<<"\n";
+            }
+            
             define(args[0].expr.front(), {}, {}, entries, stack);
         }
+        
+        if (is_debug) {
+            prep(depth); std::cout << "SUCCESSFULLY recognized a call to  "<<expression_to_string(entries.at(s).signature, entries)<<".\n";
+        }
+        
         return {s, args};
-        next: continue;
+        
+        next:
+        
+        if (is_debug) {
+            prep(depth); std::cout << "...next\n\n";
+        }
+        continue;
     }
     index = saved;
-    
+
     if (index < (long) given.symbols.size() and given.symbols.at(index).type == expr and given_type.index == _name) {
+        
+        if (is_debug) {
+            prep(depth); std::cout << "found a name paraemter, constructing signature...\n";
+        }
+        
         return construct_signature(given.symbols[index++].subexpression, entries, stack, file, max_depth);
         
     } else if (index < (long) given.symbols.size() and given.symbols.at(index).type == expr) {
-        return resolve(given.symbols.at(index++).subexpression, given_type, entries, stack, file, max_depth);
         
-    } else return {0, {}, true};
+        if (is_debug) {
+            prep(depth); std::cout << "found a subexpression... recursing...\n";
+        }
+        
+        return resolve(given.symbols.at(index++).subexpression, given_type, entries, stack, file, max_depth);
+    }
+    
+    if (is_debug) {
+        prep(depth); std::cout << "could not match anything... just failing now...\n";
+    }
+    
+    return {0, {}, true};
 }
+
+
+
 
 static inline resolved resolve(const expression& given, const resolved& given_type, std::vector<entry>& entries, std::vector<std::vector<long>>& stack, const file& file, long max_depth) {
     long pointer = 0;
@@ -485,12 +645,14 @@ static inline llvm::Value* generate_expression(const resolved& given, std::vecto
     return nullptr;
 }
 static inline std::unique_ptr<llvm::Module> generate(const resolved& given, std::vector<entry>& entries, std::vector<std::vector<long>>& stack, const file& file, llvm::LLVMContext& context, bool is_main) {
-    /** debug: */
-    printf("\n\n");
-    print_resolved_expr(given, 0, entries);
-    printf("\n\n");
-    debug(entries, stack, false);
-    printf("\n\n");
+    
+    if (is_debug or true) {
+        printf("\n\n");
+        print_resolved_expr(given, 0, entries);
+        printf("\n\n");
+        debug(entries, stack, false);
+        printf("\n\n");
+    }
     
     if (given.error)
         exit(1);
