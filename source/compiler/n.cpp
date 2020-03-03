@@ -473,36 +473,19 @@ static inline resolved resolve_at
                     prep(depth); std::cout << "trying to match parameter of type: " << symbol.subexpression.type.index << "... calling csr : with debt = "<<cost-1<<"\n\n";
                 }
                 
-//                auto argument = resolve_at(given, symbol.subexpression.type, index, depth + 1, max_depth, entries, stack, file, cost - 1);
-//                if (argument.error) {
-//                    if (is_debug) {
-//                        prep(depth); std::cout << "FAIL: could not match parameter...\n\n";
-//                    }
-//                    goto next;
-//                }
-//
-//                if (is_debug) {
-//                    prep(depth); std::cout << "MATCHED parameter!\n\n";
-//                }
-                
                 resolved argument = {};
 
                 for (int k = cost; k--;) {
-                
                     if (is_debug) {
-                        prep(depth); std::cout << "KKKKK: trying k = "<<k<<"...      debt = "<<cost - 1 + k<<"\n\n";
+                        prep(depth); std::cout << "KKKKK: trying k = "<<k<<"...      debt = "<<cost + k - 1<<"\n\n";
                     }
-//                    index = saved_index;
+                    
                     argument = resolve_at(given, symbol.subexpression.type, index, depth + 1, max_depth, entries, stack, file, cost + k - 1);
+                    if (not argument.error) break;
                     
-                    if (argument.error) {
-                        if (is_debug) {
-                            prep(depth); std::cout << "FAIL: could not match parameter...\n\n";
-                        }
-                        
-                    } else break;
-                    
-                    
+                    if (is_debug) {
+                        prep(depth); std::cout << "FAIL: could not match parameter...\n\n";
+                    }
                 }
                 
                 if (argument.error) {
@@ -515,11 +498,7 @@ static inline resolved resolve_at
                 if (is_debug) {
                     prep(depth); std::cout << "MATCHED parameter!\n\n";
                 }
-                
-                
-                
-                
-                
+            
                 cost--;
                 args.push_back({argument});
                 entries.at(symbol.subexpression.me.index).subsitution = argument;
