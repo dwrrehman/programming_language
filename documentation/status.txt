@@ -4,6 +4,99 @@ the current status of the nostril compiler:
 
 
 
+
+
+
+
+ high priority bug:
+ ------------------------------------------
+ 
+ 
+ 
+ 
+======================
+
+
+
+ join declare ((((x) (_)) ((y) (_))) (_))
+
+ declare ((unit) (_))
+ declare ((g) (unit) (_))
+
+ declare (( cast ((x) (unit) (_)) ) (_))
+
+ declare (( void ((x) (_)) ) (unit) (_))
+
+ declare ((((first) (unit) (_)) ((second) (unit) (_))) (unit) (_)))
+
+ cast g
+
+======================
+
+
+
+
+    the cast g here, doesnt show up unless we delete the void and first-second decl lines. which is bad.
+    
+    
+            oh, and it doesnt give an error, worst of all.
+            
+            
+            
+            
+            
+            
+            
+            
+            csr is not done. it is close, but not done.
+            
+            
+                
+                
+                
+                
+                
+                
+                    there must be a way to fix it, while not increasing the for-loop complexity of the algorithm.
+                    
+                    
+                        ...even tho the increase we did just now, is kinda small and awesome...
+                        
+                        
+                        
+                            we can do better.
+                            
+                            
+                            
+                            
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 ==================================
 
 		TODO:
@@ -13,9 +106,14 @@ the current status of the nostril compiler:
 
 PRIORITY:    
     
-    - make csr left associative
+   x: - make csr left associative
     
-    - make csr fast in all situations
+   sorta: - make csr fast in all situations
+   
+   
+   
+   
+   
 
 
 
@@ -95,6 +193,26 @@ GENERAL:
 
 test cases that DO work:
 =============================
+
+
+
+
+
+
+join declare ((((x) (_)) ((y) (_))) (_))
+join declare ((the dog ran ) (_))
+
+(
+
+the dog ran
+the dog ran
+the dog ran
+
+)
+
+
+=============================
+
 
         join declare ((n) (_)) n
       
@@ -191,6 +309,16 @@ name name
 
 
 ===============================
+
+
+
+
+
+
+
+
+
+
 
 
 

@@ -574,9 +574,6 @@ static inline resolved resolve_at
     return {0, {}, true};
 }
 
-
-
-
 static inline resolved resolve(const expression& given, const resolved& given_type, std::vector<entry>& entries, std::vector<std::vector<long>>& stack, const file& file, long max_depth) {
     long pointer = 0;
     resolved solution = resolve_at(given, given_type, pointer, 0, max_depth, entries, stack, file, 0);
