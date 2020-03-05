@@ -365,14 +365,13 @@ static expression typify(const expression& given, const resolved& initial_type, 
     for (auto& s : signature.symbols)
         if (s.type == expr)
             define(s.subexpression = typify(s.subexpression, {0}, entries, stack, file, max_depth), {}, {}, entries, stack);
-
+    
     return signature;
 }
 
 static inline resolved construct_signature(const expression& given, std::vector<entry>& entries, std::vector<std::vector<long>>& stack, const file& file, long max_depth) {
     return {3, {}, given.symbols.empty(), {given.symbols.size() and given.symbols.front().type == expr ? typify(given, {0}, entries, stack, file, max_depth) : expression {given.symbols, {1}}}};
 }
-
 
 bool is_debug = false;
 
@@ -442,7 +441,6 @@ static inline resolved resolve_at
             prep(depth); std::cout << "----> trying     " << expression_to_string(signature, entries) << "   ";
             std::cout << "      g:    " << expression_to_string(given, entries, index) << "\n\n";
         }
-               
         
         long cost = debt + signature.symbols.size();
         
@@ -549,7 +547,7 @@ static inline resolved resolve_at
         continue;
     }
     index = saved;
-
+    
     if (index < (long) given.symbols.size() and given.symbols.at(index).type == expr and given_type.index == _name) {
         
         if (is_debug) {
@@ -589,6 +587,37 @@ static inline resolved resolve(const expression& given, const resolved& given_ty
     }
     return solution;
 }
+
+/*
+static inline resolved resolve_at_compacted(const expression& given, const resolved& given_type, long& index, long depth, long max_depth, std::vector<entry>& entries, std::vector<std::vector<long>>& stack, const file& file, long debt) {
+    if (depth > max_depth or index >= (long) given.symbols.size() or debt > (long) given.symbols.size() - index) return {0, {}, true};
+    auto saved = index; auto saved_stack = stack;
+    for (auto s : saved_stack.back()) {
+        std::vector<resolved> args = {}; index = saved;
+        auto& signature = entries.at(s).signature;
+        long cost = debt + signature.symbols.size();
+        if (not equal(given_type, signature.type, entries) or cost > (long) given.symbols.size() - index) continue;
+        for (auto& symbol : signature.symbols) {
+            if (index >= (long) given.symbols.size()) goto next;
+            if (symbol.type == expr) {
+                resolved argument = {};
+                for (long k = cost; k--;) {
+                    argument = resolve_at_compacted(given, symbol.subexpression.type, index, depth + 1, max_depth, entries, stack, file, cost + k - 1);
+                    if (not argument.error) break;
+                } if (argument.error) goto next;
+                cost--; args.push_back({argument});
+                entries.at(symbol.subexpression.me.index).subsitution = argument;
+            } else if (symbol.type != given.symbols.at(index).type or symbol.literal.value != given.symbols.at(index).literal.value) goto next;
+            else { index++; cost--; }
+        } if (s == _declare) define(args[0].expr.front(), {}, {}, entries, stack);
+        return {s, args};
+        next: continue;
+    } index = saved;
+    if (index < (long) given.symbols.size() and given.symbols.at(index).type == expr and given_type.index == _name) return construct_signature(given.symbols[index++].subexpression, entries, stack, file, max_depth);
+    else if (index < (long) given.symbols.size() and given.symbols.at(index).type == expr) return resolve(given.symbols.at(index++).subexpression, given_type, entries, stack, file, max_depth);
+    return {0, {}, true};
+}
+*/
 
 static inline void set_data_for(std::unique_ptr<llvm::Module>& module) {
     module->setTargetTriple(llvm::sys::getDefaultTargetTriple());
@@ -736,7 +765,7 @@ int main(const int argc, const char** argv) {
     
     arguments args = {};
     bool use_exec_args = false, first = true;
-    long max_depth = 100; // max line count:   2 ^ (maxdepth + 1).
+    long max_depth = 100; // max line count ~~~   2 ^ (maxdepth + 1).
     
     for (long i = 1; i < argc; i++) {
         
