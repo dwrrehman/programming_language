@@ -1,5 +1,5 @@
-join declare ((((x) (_)) rehman) (_))
-join declare ((daniel rehman) (_))
-join declare ((daniel) (_))
 
-((daniel) rehman)
+join declare ((good ((x) (_))) (_))
+join declare ((daniel) (_))
+join declare ((((x) (_)) rehman) (_))
+good daniel rehman
