@@ -330,15 +330,13 @@ static inline resolved resolve_at(const expression& given, const resolved& given
         
         if (s == _declare) define(args[0].expr[0], {}, {}, entries, stack);
         if (s == _define) define(args[0].expr[0], args[1], args[2], entries, stack);
+        
         return {s, args}; next: continue;
     } index = saved; stack = saved_stack;
     
     if (given.symbols[index].type == expr and given_type.index == _name) return construct_signature(given.symbols[index++].subexpression, entries, stack, file, max_depth);
     else if (given.symbols[index].type == expr) return resolve(given.symbols[index++].subexpression, given_type, entries, stack, file, max_depth);
-         else if (given_type.index == _lazy) {
-             printf("we found a lazy type!\n");
-             return resolve_at(given, given_type.args[0], index, depth, max_depth, entries, stack, file);
-        }
+    else if (given_type.index == _lazy) return resolve_at(given, given_type.args[0], index, depth, max_depth, entries, stack, file);
     else return {0, {}, true};
 }
 static inline resolved resolve(const expression& given, const resolved& given_type, std::vector<entry>& entries, std::vector<std::vector<long>>& stack, const file& file, size_t max_depth) {
@@ -363,13 +361,12 @@ static inline llvm::Value* generate_expression(const resolved& given, std::vecto
     if (given.index == _name or
         given.index == _type) {
         
-//        printf("error: called _type or _name: they are unimplemented.\n");
+        printf("error: called _type or _name: they are unimplemented.\n");
         
     } else if (given.index == _declare) {
 //        std::string function_name = expression_to_string(given.args[0].expr[0], entries);
         std::string function_name = "test_name";
-        
-        
+                
         auto ret_type = llvm::Type::getInt32Ty(module->getContext());
         std::vector<llvm::Type*> arg_type = {};
         auto function_type = llvm::FunctionType::get(ret_type, arg_type, false);
