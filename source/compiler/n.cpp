@@ -306,29 +306,30 @@ static expression typify(const expression& given, const resolved& initial_type, 
     return signature;
 }
 static inline resolved construct_signature(const expression& given, std::vector<entry>& entries, std::vector<std::vector<long>>& stack, const file& file, long max_depth) {
-    return {3, {}, given.symbols.empty(), {given.symbols.size() and given.symbols.front().type == expr ? typify(given, {0}, entries, stack, file, max_depth) : expression {given.symbols, {1}}}};
+    return {3, {}, given.symbols.empty(), {given.symbols.size() and given.symbols[0].type == expr ? typify(given, {0}, entries, stack, file, max_depth) : expression {given.symbols, {1}}}};
 }
 static inline resolved resolve_at(const expression& given, const resolved& given_type, size_t& index, size_t depth, size_t max_depth, std::vector<entry>& entries, std::vector<std::vector<long>>& stack, const file& file) {
     if (depth > max_depth or index >= given.symbols.size()) return {0, {}, true};
     auto saved = index; auto saved_stack = stack;
     for (auto s : saved_stack.back()) {
-        if (not equal(given_type, entries.at(s).signature.type, entries)) continue;
+        if (not equal(given_type, entries[s].signature.type, entries)) continue;
         index = saved; stack = saved_stack;
         std::vector<resolved> args = {};
-        for (size_t j = 0; j < entries.at(s).signature.symbols.size(); j++) {
-            const auto& symbol = entries.at(s).signature.symbols.at(j);
-            if (index >= given.symbols.size()) { if (args.size() and j == 1) return args.front(); else goto next; }
+        for (size_t j = 0; j < entries[s].signature.symbols.size(); j++) {
+            const auto& symbol = entries[s].signature.symbols[j];
+            if (index >= given.symbols.size()) { if (args.size() and j == 1) return args[0]; else goto next; }
             if (symbol.type == expr) {
                 resolved argument = resolve_at(given, symbol.subexpression.type, index, depth + 1, max_depth, entries, stack, file);
                 if (argument.error) goto next;
-                args.push_back({argument}); entries.at(symbol.subexpression.me.index).subsitution = argument;
-            } else if (symbol.type != given.symbols.at(index).type or symbol.literal.value != given.symbols.at(index).literal.value) goto next; else index++;
+                args.push_back({argument}); entries[symbol.subexpression.me.index].subsitution = argument;
+            } else if (symbol.type != given.symbols[index].type or symbol.literal.value != given.symbols[index].literal.value) goto next; else index++;
         }
-        if (s == _declare) define(args[0].expr.front(), {}, {}, entries, stack);
+        if (s == _declare) define(args[0].expr[0], {}, {}, entries, stack);
         return {s, args}; next: continue;
     } index = saved; stack = saved_stack;
-    if (given.symbols.at(index).type == expr and given_type.index == _name) return construct_signature(given.symbols[index++].subexpression, entries, stack, file, max_depth);
-    else if (given.symbols.at(index).type == expr) return resolve(given.symbols.at(index++).subexpression, given_type, entries, stack, file, max_depth); else return {0, {}, true};
+    if (given.symbols[index].type == expr and given_type.index == _name) return construct_signature(given.symbols[index++].subexpression, entries, stack, file, max_depth);
+    else if (given.symbols[index].type == expr) return resolve(given.symbols[index++].subexpression, given_type, entries, stack, file, max_depth);
+    else return {0, {}, true};
 }
 static inline resolved resolve(const expression& given, const resolved& given_type, std::vector<entry>& entries, std::vector<std::vector<long>>& stack, const file& file, size_t max_depth) {
     size_t pointer = 0;
