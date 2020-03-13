@@ -437,7 +437,11 @@ static inline resolved resolve_at
                     prep(depth); std::cout << "FAIL: NO MORE SYMBOLS:    index >= given.symbols.size()!  "<<index<<" >= "<<given.symbols.size()<<" ...\n";
                 }
 //                goto next;
-                return args.front();
+                if (args.size())
+                    return args.front();
+                else {
+                    goto next;
+                }
             }
             
             if (symbol.type == expr) {
@@ -475,24 +479,13 @@ static inline resolved resolve_at
         
         if (s == _declare) {
             
-            if (is_debug) {
-                prep(depth); std::cout << "encountered a DECLARE! declaring: "<<expression_to_string(args[0].expr.front(), entries)<<"\n";
-            }
-            
             define(args[0].expr.front(), {}, {}, entries, stack);
-        }
-        
-        if (is_debug) {
-            prep(depth); std::cout << "SUCCESSFULLY recognized a call to  "<<expression_to_string(entries.at(s).signature, entries)<<".\n";
         }
         
         return {s, args};
         
         next:
-        
-        if (is_debug) {
-            prep(depth); std::cout << "...next\n\n";
-        }
+                
         continue;
     }
     index = saved;
@@ -500,25 +493,14 @@ static inline resolved resolve_at
     
     if (given.symbols.at(index).type == expr and given_type.index == _name) {
         
-        if (is_debug) {
-            prep(depth); std::cout << "found a name paraemter, constructing signature...\n";
-        }
-        
         return construct_signature(given.symbols[index++].subexpression, entries, stack, file, max_depth);
         
     } else if (given.symbols.at(index).type == expr) {
         
-        if (is_debug) {
-            prep(depth); std::cout << "found a subexpression... recursing...\n";
-        }
-        
         return resolve(given.symbols.at(index++).subexpression, given_type, entries, stack, file, max_depth);
     }
     
-    if (is_debug) {
-        prep(depth); std::cout << "could not match anything... just failing now...\n";
-    }
-    
+  
     return {0, {}, true};
 }
 
