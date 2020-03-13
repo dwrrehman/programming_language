@@ -616,7 +616,7 @@ static inline llvm::Value* generate_expression(const resolved& given, std::vecto
 }
 static inline std::unique_ptr<llvm::Module> generate(const resolved& given, std::vector<entry>& entries, std::vector<std::vector<long>>& stack, const file& file, llvm::LLVMContext& context, bool is_main) {
     
-    if (is_debug) {
+    if (is_debug or true) {
         printf("\n\n");
         print_resolved_expr(given, 0, entries);
         printf("\n\n");
@@ -768,24 +768,21 @@ int main(const int argc, const char** argv) {
                 std::vector<entry> entries {
                     {},
                     {{{{id,{},{id,"_"}}},{0},{1}}},
-                    
-                    
+                                        
                     {{{
-                        {expr,{{},{1}}},
                         {id,{},{id,"join"}},
+                        {expr,{{},{1}}},
                         {expr,{{},{1}}},
                     },{1},{2}}},
                     
-                    
                     {{{
-                        {id,{},{id,"my"}},
                         {id,{},{id,"name"}},
                     },{1},{3}}},
                                                             
-//                    {{{{id,{},{id,"declare"}},{expr,{{},{3}}}},{1},{4}}},
+                    {{{{id,{},{id,"declare"}},{expr,{{},{3}}}},{1},{4}}},
                 };
                 
-                std::vector<std::vector<long>> stack {{2,3, 1}};
+                std::vector<std::vector<long>> stack {{2, 4, 3, 1}};
                 
                 if (llvm::Linker::linkModules(*module, generate(resolve(parse(state, file), {1},
                                                                         entries, stack, file, max_depth),
