@@ -4,5 +4,8 @@ join declare (unit)
 join declare ((g) (unit) (_))
 join declare ((   ((z) (unit) (_)) ) (_))
 join declare ((   ((x) (unit) (_))   ((y) (unit) (_))) (unit) (_))
-join define ((f ((x) (unit) (_))) (unit) (_)) unit (x)
+
+join define ((f ((x) (unit) (_))) (unit) (_)) unit x
+
 f g f g f g
+
