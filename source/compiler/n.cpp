@@ -373,7 +373,7 @@ static inline resolved resolve_at
 (
  const expression& given,
  const resolved& given_type,
- long& index, long depth, long max_depth,
+ long& index, long depth, long& max_depth,
  std::vector<entry>& entries,
  std::vector<std::vector<long>>& stack,
  const file& file, long debt
@@ -411,7 +411,7 @@ static inline resolved resolve_at
         }
         return {0, {}, true};
     }
-    
+    auto saved_md = max_depth;
     auto saved = index;
     auto saved_stack = stack;
     
@@ -419,6 +419,7 @@ static inline resolved resolve_at
         
         std::vector<resolved> args = {};
         index = saved;
+        max_depth = saved_md;
         
         auto& signature = entries.at(s).signature;
         
@@ -464,31 +465,11 @@ static inline resolved resolve_at
                     prep(depth); std::cout << "trying to match parameter of type: " << symbol.subexpression.type.index << "... calling csr : with debt = "<<cost-1<<"\n\n";
                 }
                 
-//                resolved argument = {};
-
-//                for (long k = cost; k--;) {
-//                    if (is_debug) {
-//                        prep(depth); std::cout << "KKKKK: trying k = "<<k<<"...      debt = "<<cost + k - 1<<"\n\n";
-//                    }
-                    
-                    resolved argument = resolve_at(given, symbol.subexpression.type, index, depth + 1, max_depth, entries, stack, file, cost + 0 - 1); // where 0 is something?
-//                    if (not argument.error) {
-//
-//                        if (is_debug) {
-//                            prep(depth); std::cout << "KKKKK: SUCCESS ON k = "<<k<<"..."<< "\n";
-//                        }
-                         
-//                        break;
-//                    }
-                    
-//                    if (is_debug) {
-//                        prep(depth); std::cout << "FAIL: could not match parameter...\n\n";
-//                    }
-//                }
+                resolved argument = resolve_at(given, symbol.subexpression.type, index, depth + 1, max_depth, entries, stack, file, cost + 0 - 1);
                 
                 if (argument.error) {
                     if (is_debug) {
-                        prep(depth); std::cout << "FAIL: could not FINALLY match parameter...\n\n";
+                        prep(depth); std::cout << "FAIL: could not match parameter...\n\n";
                     }
                     goto next;
                 }
@@ -530,8 +511,11 @@ static inline resolved resolve_at
             prep(depth); std::cout << "SUCCESSFULLY recognized a call to  "<<expression_to_string(entries.at(s).signature, entries)<<".\n";
         }
         
-        return {s, args};
         
+        if (depth == max_depth) {
+            max_depth--;
+            return {s, args};
+        }
         next:
         
         if (is_debug) {
@@ -540,6 +524,7 @@ static inline resolved resolve_at
         continue;
     }
     index = saved;
+    max_depth = saved_md;
     
     if (index < (long) given.symbols.size() and given.symbols.at(index).type == expr and given_type.index == _name) {
         
@@ -567,8 +552,14 @@ static inline resolved resolve_at
 
 static inline resolved resolve(const expression& given, const resolved& given_type, std::vector<entry>& entries, std::vector<std::vector<long>>& stack, const file& file, long max_depth) {
     long pointer = 0;
-    resolved solution = resolve_at(given, given_type, pointer, 0, max_depth, entries, stack, file, 0);
-    if (pointer != (long) given.symbols.size()) solution.error = true;
+    resolved solution = {};
+    for (long d = 0; d < max_depth; d++) {
+        auto md = d;
+        solution = resolve_at(given, given_type, pointer, 0, md, entries, stack, file, 0);
+        if (pointer != (long) given.symbols.size()) solution.error = true;
+        if (not solution.error) break;
+    }
+    
     if (solution.error) {
         const auto t = pointer < (long) given.symbols.size() ? given.symbols[pointer].literal : given.start;
         printf("n3zqx2l: %s:%ld:%ld: error: unresolved %s @ %ld : %s ≠ %s\n\n\n",
@@ -578,6 +569,7 @@ static inline resolved resolve(const expression& given, const resolved& given_ty
                expression_to_string(entries[given_type.index].signature, entries, 0, -1, given_type.args).c_str()
                );
     }
+    
     return solution;
 }
 
