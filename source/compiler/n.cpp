@@ -367,7 +367,7 @@ static inline resolved construct_signature(const expression& given, std::vector<
 }
 
 
-bool is_debug = true;
+bool is_debug = false;
 
 
 static inline resolved resolve_at
@@ -616,7 +616,7 @@ static inline llvm::Value* generate_expression(const resolved& given, std::vecto
 }
 static inline std::unique_ptr<llvm::Module> generate(const resolved& given, std::vector<entry>& entries, std::vector<std::vector<long>>& stack, const file& file, llvm::LLVMContext& context, bool is_main) {
     
-    if (is_debug or true ) {
+    if (is_debug) {
         printf("\n\n");
         print_resolved_expr(given, 0, entries);
         printf("\n\n");
@@ -723,7 +723,7 @@ int main(const int argc, const char** argv) {
     
     arguments args = {};
     bool use_exec_args = false, first = true;
-    long max_depth = 30; // max line count ~~~   2 ^ (maxdepth + 1).
+    long max_depth = 100; // max line count ~~~   2 ^ (maxdepth + 1).
     
     for (long i = 1; i < argc; i++) {
         
