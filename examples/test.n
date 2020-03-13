@@ -1,3 +1,8 @@
-join declare (5)
-join declare ((((x) (_)) ((y) (_))) (_))
-name
+join declare ((lazy ((t) (_))) (_))
+join declare ((define ((s) (name) (_)) ((T) (_)) ((d) (lazy T) (_)) ) (_))
+join declare (unit)
+join declare ((g) (unit) (_))
+join declare ((   ((z) (unit) (_)) ) (_))
+join declare ((   ((x) (unit) (_))   ((y) (unit) (_))) (unit) (_))
+join define ((f ((x) (unit) (_))) (unit) (_)) unit x
+f g

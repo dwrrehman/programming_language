@@ -10,7 +10,7 @@
 #include <fstream>
 #include <iostream>                              // n: a n3zqx2l compiler written in C++.
 #include <vector>
-enum constants { none, id, op, string, expr, action = 'x', exec = 'o', object = 'c', ir = 'i', assembly = 's', _type = 1, _join = 2, _name = 3, _declare = 4, /* _lazy = 6, _define = 12*/ };
+enum constants { none, id, op, string, expr, action = 'x', exec = 'o', object = 'c', ir = 'i', assembly = 's', _type = 1, _join = 2, _name = 3, _declare = 4, _lazy = 6, _define = 10 };
 struct file { const char* name = ""; std::string text = ""; };
 struct arguments { long output = action; const char* name = "a.out"; std::vector<std::string> argv_for_exec = {}; };
 struct lexing_state { long index = 0; long state = none; long line = 0; long col = 0; };
@@ -324,11 +324,25 @@ static inline resolved resolve_at(const expression& given, const resolved& given
                 args.push_back({argument}); entries[symbol.subexpression.me.index].subsitution = argument;
             } else if (symbol.type != given.symbols[index].type or symbol.literal.value != given.symbols[index].literal.value) goto next; else index++;
         }
+        //        if (s == _push) stack.push_back(stack.back());
+        //        if (s == _pop) stack.pop_back();
         if (s == _declare) define(args[0].expr[0], {}, {}, entries, stack);
+        if (s == _define)
+            define(args[0].expr[0], args[1], args[2], entries, stack);
+        
+                
+
+        
+        
         return {s, args}; next: continue;
     } index = saved; stack = saved_stack;
+    
     if (given.symbols[index].type == expr and given_type.index == _name) return construct_signature(given.symbols[index++].subexpression, entries, stack, file, max_depth);
     else if (given.symbols[index].type == expr) return resolve(given.symbols[index++].subexpression, given_type, entries, stack, file, max_depth);
+         else if (given_type.index == _lazy) {
+             printf("we found a lazy type!\n");
+             return resolve_at(given, given_type.args[0], index, depth, max_depth, entries, stack, file);
+        }
     else return {0, {}, true};
 }
 static inline resolved resolve(const expression& given, const resolved& given_type, std::vector<entry>& entries, std::vector<std::vector<long>>& stack, const file& file, size_t max_depth) {
@@ -420,16 +434,10 @@ static inline std::unique_ptr<llvm::Module> optimize(std::unique_ptr<llvm::Modul
 }
 
 static inline void interpret(std::unique_ptr<llvm::Module> module, const arguments& arguments) {
-    auto engine = llvm::EngineBuilder(std::move(module))
-        .setEngineKind(llvm::EngineKind::JIT)
-        .create();
+    auto engine = llvm::EngineBuilder(std::move(module)).setEngineKind(llvm::EngineKind::JIT).create();
     engine->finalizeObject();
-    if (auto main = engine->FindFunctionNamed("main"); main)
-        exit(engine->runFunctionAsMain(main, arguments.argv_for_exec, nullptr));
-    else {
-        printf("n: error: cannot run program, main() function not found\n");
-        exit(1);
-    }
+    if (auto main = engine->FindFunctionNamed("main"); main) exit(engine->runFunctionAsMain(main, arguments.argv_for_exec, nullptr));
+    else { printf("n: error: undefined _main symbol\n"); exit(1); }
 }
 
 static inline std::string generate_file(std::unique_ptr<llvm::Module> module, const arguments& arguments, llvm::TargetMachine::CodeGenFileType type) {
@@ -484,9 +492,7 @@ int main(const int argc, const char** argv) {
             const auto c = argv[i][1];
             if (use_exec_args)
                 args.argv_for_exec.push_back(argv[i]);
-            
             else if (c == '-') use_exec_args = true;
-            
             else if (c == 'u' or c == 'v') {
                 puts(c == 'u' ? "usage: n -[uvocisd-] <.n/.ll/.o/.s>" : "n3zqx2l: 0.0.4 \tn: 0.0.4");
                 exit(0);
@@ -506,7 +512,6 @@ int main(const int argc, const char** argv) {
         } else {
             const char* ext = strrchr(argv[i], '.');
             if (ext && !strcmp(ext, ".n")) {
-                
                 std::ifstream stream {argv[i]};
                 if (not stream.good()) {
                     printf("n: %s: error: could not open input file: %s\n", argv[i], strerror(errno));
@@ -549,3 +554,6 @@ int main(const int argc, const char** argv) {
     if (first) printf("n: error: no input files\n");
     else output(args, optimize(module));
 }
+
+//           else if (given.symbols[index].type == string and given_type.index == 1) return {0, {}, false, {}, given.symbols[index++].literal.value};
+//           else if (given.symbols[index].type == string) return {0, {}, false, {{{given.symbols[index++]}}}, "i8*"};

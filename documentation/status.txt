@@ -9,6 +9,87 @@ the current status of the nostril compiler:
 
 
 
+
+
+join declare ((lazy ((t) (_))) (_))
+join declare ((define ((s) (name) (_)) ((T) (_)) ((d) (lazy T) (_)) ) (_))
+join declare (unit)
+join declare ((g) (unit) (_))
+join declare ((   ((z) (unit) (_)) ) (_))
+join declare ((   ((x) (unit) (_))   ((y) (unit) (_))) (unit) (_))
+join define ((f ((x) (unit) (_))) (unit) (_)) unit x
+f g
+
+
+
+DUDEEEEE
+
+
+
+WE CAN DEFINE SHIT NOW
+
+
+
+OMGGGGGGGGGGG
+
+
+
+YAYAYAYAYAYAYAYAY
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+join declare ((lazy ((t) (_))) (_))
+join declare ((define
+                    ((s) (name) (_))
+                    ((T) (_))
+                    ((d) (lazy T) (_))
+                    ) (_))
+
+join declare (unit)
+join declare ((g) (unit) (_))
+join declare ((   ((z) (unit) (_)) ) (_))
+join declare ((   ((x) (unit) (_))   ((y) (unit) (_))) (unit) (_))
+
+
+
+
+THIS CODE LITERALLY WORKS.
+
+
+
+OMG.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+define ((f ((x) (unit) (_))) (unit) (_)) unit x
+
+
+
 the algorithm has whats called
 
 
