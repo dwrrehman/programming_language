@@ -366,14 +366,16 @@ static inline resolved construct_signature(const expression& given, std::vector<
     return {3, {}, given.symbols.empty(), {given.symbols.size() and given.symbols.front().type == expr ? typify(given, {0}, entries, stack, file, max_depth) : expression {given.symbols, {1}}}};
 }
 
+
 bool is_debug = true;
+
 
 static inline resolved resolve_at
 
 (
  const expression& given,
  const resolved& given_type,
- long& index, long depth, long max_depth,
+ long& index, long depth, long& max_depth,
  std::vector<entry>& entries,
  std::vector<std::vector<long>>& stack,
  const file& file
@@ -383,7 +385,6 @@ static inline resolved resolve_at
     if (is_debug) {
     prep(depth); std::cout << "--------- entered resolve_at(): ------- \n";
     prep(depth); std::cout << "depth = " << depth << "\n";
-//    prep(depth); std::cout << "debt = " << debt << "\n";
     prep(depth); std::cout << "index = " << index << "\n";
     prep(depth); std::cout << "given type = " << given_type.index << "\n";
     prep(depth); std::cout << "given: " << expression_to_string(given, entries) << "\n";
@@ -405,13 +406,6 @@ static inline resolved resolve_at
         return {0, {}, true};
     }
     
-//    if (debt > (long) given.symbols.size() - index) {
-//        if (is_debug) {
-//            prep(depth); std::cout << "ERROR:::   debt > budget!     "<<debt<<" > "<<given.symbols.size()<<" - "<<index<<"        ie, (debt > (long) given.symbols.size() - index)\n";
-//        }
-//        return {0, {}, true};
-//    }
-//
     auto saved = index;
     auto saved_stack = stack;
     
@@ -435,34 +429,17 @@ static inline resolved resolve_at
             std::cout << "      g:    " << expression_to_string(given, entries, index) << "\n\n";
         }
         
-//        long cost = debt + signature.symbols.size();
-//
-//        if (is_debug) {
-//            prep(depth); std::cout << "TOTAL COST of s = " << cost << "    ";
-//            std::cout << "[dept = " << debt << "   +    cost = "<<signature.symbols.size()<<"]\n";
-//        }
-        
-//        if (cost > (long) given.symbols.size() - index) {
-//            if (is_debug) {
-//                prep(depth); std::cout << "FAIL: cost > budget!     "<<cost<<" > "<<given.symbols.size()<<" - "<<index<<"        ie, (cost > (long) given.symbols.size() - index)\n";
-//                prep(depth); std::cout << "\n\n";
-//            }
-//            continue;
-//        }
-        
         for (auto& symbol : signature.symbols) {
             
             if (index >= (long) given.symbols.size()) {
                 if (is_debug) {
                     prep(depth); std::cout << "FAIL: NO MORE SYMBOLS:    index >= given.symbols.size()!  "<<index<<" >= "<<given.symbols.size()<<" ...\n";
                 }
-                goto next;
+//                goto next;
+                return args.front();
             }
             
             if (symbol.type == expr) {
-//                if (is_debug) {
-//                    prep(depth); std::cout << "trying to match parameter of type: " << symbol.subexpression.type.index << "... calling csr : with debt = "<<cost-1<<"\n\n";
-//                }
                 
                 resolved argument = resolve_at(given, symbol.subexpression.type, index, depth + 1, max_depth, entries, stack, file);
                 
@@ -477,7 +454,6 @@ static inline resolved resolve_at
                     prep(depth); std::cout << "MATCHED parameter!\n\n";
                 }
                 
-//                cost--;
                 args.push_back({argument});
                 entries.at(symbol.subexpression.me.index).subsitution = argument;
                 
@@ -492,7 +468,7 @@ static inline resolved resolve_at
                 if (is_debug) {
                     prep(depth); std::cout << "MATCHED symbol: "<<symbol.literal.value<<"\n\n";
                 }
-                index++; //cost--;
+                index++;
             }
         }
         
@@ -546,8 +522,18 @@ static inline resolved resolve_at
 
 static inline resolved resolve(const expression& given, const resolved& given_type, std::vector<entry>& entries, std::vector<std::vector<long>>& stack, const file& file, long max_depth) {
     long pointer = 0;
-    resolved solution = resolve_at(given, given_type, pointer, 0, max_depth, entries, stack, file);
-    if (pointer != (long) given.symbols.size()) solution.error = true;
+    resolved solution = {};
+//    for (long d = 0; d < max_depth; d++) {
+        
+//        if (is_debug)
+//            printf("\n\n\n\n\n\n\n----------------- trying depth = %ld -------------------\n\n\n\n\n\n\n", d);
+        
+        pointer = 0;
+        solution = resolve_at(given, given_type, pointer, 0, max_depth, entries, stack, file);
+        if (pointer != (long) given.symbols.size()) solution.error = true;
+//        if (not solution.error) break;
+//    }
+    
     if (solution.error) {
         const auto t = pointer < (long) given.symbols.size() ? given.symbols[pointer].literal : given.start;
         printf("n3zqx2l: %s:%ld:%ld: error: unresolved %s @ %ld : %s ≠ %s\n\n\n",
@@ -737,7 +723,7 @@ int main(const int argc, const char** argv) {
     
     arguments args = {};
     bool use_exec_args = false, first = true;
-    long max_depth = 100; // max line count ~~~   2 ^ (maxdepth + 1).
+    long max_depth = 30; // max line count ~~~   2 ^ (maxdepth + 1).
     
     for (long i = 1; i < argc; i++) {
         
@@ -795,13 +781,11 @@ int main(const int argc, const char** argv) {
                         {id,{},{id,"my"}},
                         {id,{},{id,"name"}},
                     },{1},{3}}},
-                    
-                    
-                    
+                                                            
 //                    {{{{id,{},{id,"declare"}},{expr,{{},{3}}}},{1},{4}}},
                 };
                 
-                std::vector<std::vector<long>> stack {{3, 2, 1}};
+                std::vector<std::vector<long>> stack {{2,3, 1}};
                 
                 if (llvm::Linker::linkModules(*module, generate(resolve(parse(state, file), {1},
                                                                         entries, stack, file, max_depth),
