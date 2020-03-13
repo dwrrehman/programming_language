@@ -71,27 +71,21 @@ struct entry {
 };
 
 static inline token next(lexing_state& lex, const file& file) {
-    token token = {};
-    auto& at = lex.index;
-    auto& state = lex.state;
+    token token = {}; auto& at = lex.index; auto& state = lex.state;
     while (at < (long) file.text.size()) {
         char c = file.text[at], n = at + 1 < (long) file.text.size() ? file.text[at + 1] : '\0';
         if (isalnum(c) and not isalnum(n) and state == none) { at++; return { id, std::string(1, c), lex.line, lex.column++};
         } else if (c == '\"' and state == none) token = { state = string, "", lex.line, lex.column };
         else if (isalnum(c) and state == none) token = { state = id, std::string(1, c), lex.line, lex.column++ };
         else if (c == '\\' and state == string) {
-            if (n == '\\') token.value += "\\";
-            else if (n == '\"') token.value += "\"";
-            else if (n == 'n') token.value += "\n";
-            else if (n == 't') token.value += "\t";
+            if (n == '\\') token.value += "\\"; else if (n == '\"') token.value += "\""; else if (n == 'n') token.value += "\n"; else if (n == 't') token.value += "\t";
             else printf("n3zqx2l: %s:%ld:%ld: error: unknown escape sequence '\\%c'\n", file.name, lex.line, lex.column, n);
             lex.column++; at++;
-        } else if ((c == '\"' and state == string)) { state = none; lex.column++; at++; return token;
-        } else if (isalnum(c) and not isalnum(n) and state == id) { token.value += c; state = none; lex.column++; at++; return token;
-        } else if (state == string or (isalnum(c) and state == id)) token.value += c;
+        } else if ((c == '\"' and state == string)) { state = none; lex.column++; at++; return token; }
+        else if (isalnum(c) and not isalnum(n) and state == id) { token.value += c; state = none; lex.column++; at++; return token; }
+        else if (state == string or (isalnum(c) and state == id)) token.value += c;
         else if (not isalnum(c) and not isspace(c) and state == none) { at++; return {op, std::string(1, c), lex.line, lex.column++}; }
-        if (c == '\n') { lex.line++; lex.column = 1; }
-        else lex.column++; at++;
+        if (c == '\n') { lex.line++; lex.column = 1; } else lex.column++; at++;
     }
     if (state == string) printf("n3zqx2l: %s:%ld:%ld: error: unterminated string\n", file.name, lex.line, lex.column);
     return {none, "", lex.line, lex.column};
@@ -172,7 +166,6 @@ struct new_expression {
     token literal = {};
     bool error = false;
 };
-
 
 //static inline list parse(std::vector<std::string> tokens, size_t& index) {
 //    auto t = tokens.at(index++);
@@ -373,7 +366,7 @@ static inline resolved construct_signature(const expression& given, std::vector<
     return {3, {}, given.symbols.empty(), {given.symbols.size() and given.symbols.front().type == expr ? typify(given, {0}, entries, stack, file, max_depth) : expression {given.symbols, {1}}}};
 }
 
-bool is_debug = false;
+bool is_debug = true;
 
 static inline resolved resolve_at
 
@@ -471,27 +464,27 @@ static inline resolved resolve_at
                     prep(depth); std::cout << "trying to match parameter of type: " << symbol.subexpression.type.index << "... calling csr : with debt = "<<cost-1<<"\n\n";
                 }
                 
-                resolved argument = {};
+//                resolved argument = {};
 
-                for (long k = cost; k--;) {
-                    if (is_debug) {
-                        prep(depth); std::cout << "KKKKK: trying k = "<<k<<"...      debt = "<<cost + k - 1<<"\n\n";
-                    }
+//                for (long k = cost; k--;) {
+//                    if (is_debug) {
+//                        prep(depth); std::cout << "KKKKK: trying k = "<<k<<"...      debt = "<<cost + k - 1<<"\n\n";
+//                    }
                     
-                    argument = resolve_at(given, symbol.subexpression.type, index, depth + 1, max_depth, entries, stack, file, cost + k - 1);
-                    if (not argument.error) {
-                        
-                        if (is_debug) {
-                            prep(depth); std::cout << "KKKKK: SUCCESS ON k = "<<k<<"..."<< "\n";
-                        }
-                                                
-                        break;
-                    }
+                    resolved argument = resolve_at(given, symbol.subexpression.type, index, depth + 1, max_depth, entries, stack, file, cost + 0 - 1); // where 0 is something?
+//                    if (not argument.error) {
+//
+//                        if (is_debug) {
+//                            prep(depth); std::cout << "KKKKK: SUCCESS ON k = "<<k<<"..."<< "\n";
+//                        }
+                         
+//                        break;
+//                    }
                     
-                    if (is_debug) {
-                        prep(depth); std::cout << "FAIL: could not match parameter...\n\n";
-                    }
-                }
+//                    if (is_debug) {
+//                        prep(depth); std::cout << "FAIL: could not match parameter...\n\n";
+//                    }
+//                }
                 
                 if (argument.error) {
                     if (is_debug) {
@@ -810,12 +803,27 @@ int main(const int argc, const char** argv) {
                 std::vector<entry> entries {
                     {},
                     {{{{id,{},{id,"_"}}},{0},{1}}},
-                    {{{{id,{},{id,"join"}},{expr,{{},{1}}},{expr,{{},{1}}}},{1},{2}}},
-                    {{{   {id,{},{id,"name"}},   },{1},{3}}},
-                    {{{{id,{},{id,"declare"}},{expr,{{},{3}}}},{1},{4}}},
+                    
+                    
+                    {{{
+                        {expr,{{},{1}}},
+                        {id,{},{id,"join"}},
+                        {expr,{{},{1}}},
+                    },{1},{2}}},
+                    
+                    
+                    
+                    {{{
+                        {id,{},{id,"my"}},
+                        {id,{},{id,"name"}},
+                    },{1},{3}}},
+                    
+                    
+                    
+//                    {{{{id,{},{id,"declare"}},{expr,{{},{3}}}},{1},{4}}},
                 };
                 
-                std::vector<std::vector<long>> stack {{2, 4, 3, 1}};
+                std::vector<std::vector<long>> stack {{3, 2, 1}};
                 
                 if (llvm::Linker::linkModules(*module, generate(resolve(parse(state, file), {1},
                                                                         entries, stack, file, max_depth),
