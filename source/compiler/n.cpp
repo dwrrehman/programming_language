@@ -413,6 +413,7 @@ static inline resolved resolve_at
         
         std::vector<resolved> args = {};
         index = saved;
+        stack = saved_stack;
         
         auto& signature = entries.at(s).signature;
         
@@ -495,8 +496,9 @@ static inline resolved resolve_at
         continue;
     }
     index = saved;
+    stack = saved_stack;
     
-    if (index < (long) given.symbols.size() and given.symbols.at(index).type == expr and given_type.index == _name) {
+    if (given.symbols.at(index).type == expr and given_type.index == _name) {
         
         if (is_debug) {
             prep(depth); std::cout << "found a name paraemter, constructing signature...\n";
@@ -504,7 +506,7 @@ static inline resolved resolve_at
         
         return construct_signature(given.symbols[index++].subexpression, entries, stack, file, max_depth);
         
-    } else if (index < (long) given.symbols.size() and given.symbols.at(index).type == expr) {
+    } else if (given.symbols.at(index).type == expr) {
         
         if (is_debug) {
             prep(depth); std::cout << "found a subexpression... recursing...\n";

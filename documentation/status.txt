@@ -108,7 +108,7 @@ PRIORITY:
     
    x: - make csr left associative
     
-   sorta: - make csr fast in all situations
+x:   sorta: - make csr fast in all situations;
    
    
    

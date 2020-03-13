@@ -1,2 +1,5 @@
-join (declare (f))
-name
+join declare ((((x) (_)) rehman) (_))
+join declare ((daniel rehman) (_))
+join declare ((daniel) (_))
+
+daniel rehman
