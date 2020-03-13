@@ -324,16 +324,12 @@ static inline resolved resolve_at(const expression& given, const resolved& given
                 args.push_back({argument}); entries[symbol.subexpression.me.index].subsitution = argument;
             } else if (symbol.type != given.symbols[index].type or symbol.literal.value != given.symbols[index].literal.value) goto next; else index++;
         }
+        
         //        if (s == _push) stack.push_back(stack.back());
         //        if (s == _pop) stack.pop_back();
+        
         if (s == _declare) define(args[0].expr[0], {}, {}, entries, stack);
-        if (s == _define)
-            define(args[0].expr[0], args[1], args[2], entries, stack);
-        
-                
-
-        
-        
+        if (s == _define) define(args[0].expr[0], args[1], args[2], entries, stack);
         return {s, args}; next: continue;
     } index = saved; stack = saved_stack;
     
@@ -370,7 +366,9 @@ static inline llvm::Value* generate_expression(const resolved& given, std::vecto
 //        printf("error: called _type or _name: they are unimplemented.\n");
         
     } else if (given.index == _declare) {
+//        std::string function_name = expression_to_string(given.args[0].expr[0], entries);
         std::string function_name = "test_name";
+        
         
         auto ret_type = llvm::Type::getInt32Ty(module->getContext());
         std::vector<llvm::Type*> arg_type = {};
@@ -386,9 +384,9 @@ static inline llvm::Value* generate_expression(const resolved& given, std::vecto
         std::string callee_name = expression_to_string(entries[given.index].signature, entries);
         llvm::Value* callee = module->getFunction(callee_name);
         if (not callee) {
-            //printf("error: callee function not found!\n");
-        }
-        else return builder.CreateCall(callee, arguments);
+            printf("error: callee function not found!\n");
+        } else
+            return builder.CreateCall(callee, arguments);
     }
     return nullptr;
 }
@@ -401,7 +399,6 @@ static inline std::unique_ptr<llvm::Module> generate(const resolved& given, std:
     printf("\n\n");
     
     if (given.error) exit(1);
-    
     auto module = llvm::make_unique<llvm::Module>(file.name, context);
     llvm::IRBuilder<> builder(context);
     set_data_for(module);
@@ -420,11 +417,7 @@ static inline std::unique_ptr<llvm::Module> generate(const resolved& given, std:
     module->print(llvm::outs(), nullptr);
     
     std::string errors = "";
-    if (llvm::verifyModule(*module, &(llvm::raw_string_ostream(errors) << ""))) {
-        printf("llvm: %s: error: %s\n", file.name, errors.c_str());
-        exit(1);
-    } else
-        return module;
+    if (llvm::verifyModule(*module, &(llvm::raw_string_ostream(errors) << ""))) { printf("llvm: %s: error: %s\n", file.name, errors.c_str()); exit(1); } else return module;
 }
 
 static inline std::unique_ptr<llvm::Module> optimize(std::unique_ptr<llvm::Module>& module) {
