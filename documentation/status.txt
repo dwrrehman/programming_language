@@ -8,6 +8,83 @@ the current status of the nostril compiler:
 
 
 
+
+the algorithm has whats called
+
+
+    MINIMAL LEFT-ASSOCIATIVITY
+    
+    
+    meaning that it will find the left-associative parse with the minimal possible depth.
+
+
+
+
+
+
+
+
+
+
+join declare ((((x) (_)) ((y) (_)) ) (_))
+join declare (unit)
+join declare ((g) (unit) (_))
+join declare ((convert ((h) (unit) (_))) (_))
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+so we fixed csr, i think...
+
+
+
+however, it seems that we are accidentily succeeding on this parse, which should fail:
+
+
+join declare ((((x) (_)) ((y) (_)) ) (_))
+join declare (unit)
+join declare ((g) (unit) (_))
+(join declare ((convert ((h) (unit) (_))) (_)))
+
+
+
+
+and this one:
+
+
+        join name
+
+
+
+
+
+and now i know why!
+
+
+
+
+
+
+ok i fixed it, i think.
+
+
+
+
+
+
  high priority bug:
  ------------------------------------------
  

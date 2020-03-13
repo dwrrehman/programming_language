@@ -293,7 +293,8 @@ static inline bool equal(resolved a, resolved b, std::vector<entry>& entries) {
     for (unsigned long i = 0; i < a.args.size(); i++) if (not equal(a.args[i], b.args[i], entries)) return false;
     return true;
 }
-static inline resolved resolve(const expression& given, const resolved& given_type, std::vector<entry>& entries, std::vector<std::vector<long>>& stack, const file& file, long max_depth);
+static inline resolved resolve(const expression& given, const resolved& given_type, std::vector<entry>& entries, std::vector<std::vector<long>>& stack, const file& file, size_t max_depth);
+
 static expression typify(const expression& given, const resolved& initial_type, std::vector<entry>& entries, std::vector<std::vector<long>>& stack, const file& file, long max_depth) {
     if (given.symbols.empty())
         return {{}, {}, {}, {}, true};
@@ -307,17 +308,16 @@ static expression typify(const expression& given, const resolved& initial_type, 
 static inline resolved construct_signature(const expression& given, std::vector<entry>& entries, std::vector<std::vector<long>>& stack, const file& file, long max_depth) {
     return {3, {}, given.symbols.empty(), {given.symbols.size() and given.symbols.front().type == expr ? typify(given, {0}, entries, stack, file, max_depth) : expression {given.symbols, {1}}}};
 }
-
 static inline resolved resolve_at(const expression& given, const resolved& given_type, size_t& index, size_t depth, size_t max_depth, std::vector<entry>& entries, std::vector<std::vector<long>>& stack, const file& file) {
     if (depth > max_depth or index >= given.symbols.size()) return {0, {}, true};
     auto saved = index; auto saved_stack = stack;
     for (auto s : saved_stack.back()) {
-        auto& signature = entries.at(s).signature;
-        if (not equal(given_type, signature.type, entries)) continue;
+        if (not equal(given_type, entries.at(s).signature.type, entries)) continue;
         index = saved; stack = saved_stack;
         std::vector<resolved> args = {};
-        for (auto& symbol : signature.symbols) {
-            if (index >= given.symbols.size()) { if (args.size()) return args.front(); else goto next; }
+        for (size_t j = 0; j < entries.at(s).signature.symbols.size(); j++) {
+            const auto& symbol = entries.at(s).signature.symbols.at(j);
+            if (index >= given.symbols.size()) { if (args.size() and j == 1) return args.front(); else goto next; }
             if (symbol.type == expr) {
                 resolved argument = resolve_at(given, symbol.subexpression.type, index, depth + 1, max_depth, entries, stack, file);
                 if (argument.error) goto next;
@@ -329,13 +329,14 @@ static inline resolved resolve_at(const expression& given, const resolved& given
     } index = saved; stack = saved_stack;
     if (given.symbols.at(index).type == expr and given_type.index == _name) return construct_signature(given.symbols[index++].subexpression, entries, stack, file, max_depth);
     else if (given.symbols.at(index).type == expr) return resolve(given.symbols.at(index++).subexpression, given_type, entries, stack, file, max_depth); else return {0, {}, true};
-} static inline resolved resolve(const expression& given, const resolved& given_type, std::vector<entry>& entries, std::vector<std::vector<long>>& stack, const file& file, size_t max_depth) {
+}
+static inline resolved resolve(const expression& given, const resolved& given_type, std::vector<entry>& entries, std::vector<std::vector<long>>& stack, const file& file, size_t max_depth) {
     size_t pointer = 0;
     resolved solution = resolve_at(given, given_type, pointer, 0, max_depth, entries, stack, file);
     if (pointer != given.symbols.size()) solution.error = true;
     if (solution.error) {
         const auto t = pointer < given.symbols.size() ? given.symbols[pointer].literal : given.start;
-        printf("n3zqx2l: %s:%ld:%ld: error: unresolved %s @ %ld : %s ≠ %s\n\n\n", file.name, t.line, t.column, expression_to_string(given, entries, pointer, pointer + 1).c_str(), pointer, expression_to_string(given, entries).c_str(), expression_to_string(entries[given_type.index].signature, entries, 0, -1, given_type.args).c_str());
+        printf("n3zqx2l: %s:%ld:%ld: error: unresolved %s @ %ld : %s .. %s\n\n\n", file.name, t.line, t.column, expression_to_string(given, entries, pointer, pointer + 1).c_str(), pointer, expression_to_string(given, entries).c_str(), expression_to_string(entries[given_type.index].signature, entries, 0, -1, given_type.args).c_str());
     } return solution;
 }
 
@@ -476,7 +477,7 @@ int main(const int argc, const char** argv) {
     auto module = llvm::make_unique<llvm::Module>("init.n", context);
     arguments args = {};
     bool use_exec_args = false, first = true;
-    size_t max_depth = 50;
+    size_t max_depth = 10;
     for (long i = 1; i < argc; i++) {
         if (argv[i][0] == '-') {
             const auto c = argv[i][1];
