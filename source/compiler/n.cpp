@@ -422,7 +422,11 @@ static inline llvm::Value* generate_expression(const resolved& given, std::vecto
         given.index == _type) {
         
         printf("error: called _type or _name: they are unimplemented.\n");
-                
+    } else if (given.index == _define or given.index == _define_type) {
+        
+        printf("error: called _define or _define_type: they are unimplemented.\n");
+    
+    
     } else if (given.index == _declare) {
                         
         auto the_sig = given.args[0];
