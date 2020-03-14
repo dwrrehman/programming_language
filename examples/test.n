@@ -1,54 +1,35 @@
+join declare ((llvm) (type) (root))
 join declare ((lazy ((t) (type) (root))) (type) (root))
 join declare ((define ((s) (name) (type) (root)) ((T) (type) (root)) ((d) (lazy T) (type) (root)) ) (type) (root))
 join declare ((define type ((s) (name) (type) (root)) ((d) (type) (root))) (type) (root))
 join declare ((i8p) (type) (root))
 join declare ((string) (i8p) (type) (root))
 join declare ((external call ((Ty) (type) (root)) ((e) (Ty) (type) (root)) ) (Ty) (type) (root))
+join declare (ret void)
+join declare ( ( ret ((Type) (type) (root)) ((Value) (Type) (type) (root)) ) (type) (root) )
+join declare ((label ((label name) (name) (type) (root)) ) (type) (root))
+join declare ((jump ((unconditional label) (name) (type) (root))) (type) (root))
+join declare ( (br ((condition) ("i1") (type) (root)) ((first) (name) (type) (root)) ((second) (name) (type) (root)) ) (type) (root) )
 
 
-join define type ((discard integer ((x) ("i32") (type) (root))) (type) (root)) name
-join declare ((putchar ((y) ("i32") (type) (root))) ("i32") (type) (root))
-join declare ((A) ("i32") (type) (root))
-join declare ((B) ("i32") (type) (root))
-join declare ((C) ("i32") (type) (root))
-join declare ((D) ("i32") (type) (root))
-join declare ((E) ("i32") (type) (root))
-join declare ((F) ("i32") (type) (root))
-join declare ((G) ("i32") (type) (root))
-join declare ((H) ("i32") (type) (root))
-join declare ((I) ("i32") (type) (root))
-join declare ((J) ("i32") (type) (root))
-join declare ((K) ("i32") (type) (root))
-join declare ((L) ("i32") (type) (root))
-join declare ((M) ("i32") (type) (root))
-join declare ((N) ("i32") (type) (root))
-join declare ((O) ("i32") (type) (root))
-join declare ((P) ("i32") (type) (root))
-join declare ((Q) ("i32") (type) (root))
-join declare ((R) ("i32") (type) (root))
-join declare ((S) ("i32") (type) (root))
-join declare ((T) ("i32") (type) (root))
-join declare ((U) ("i32") (type) (root))
-join declare ((V) ("i32") (type) (root))
-join declare ((W) ("i32") (type) (root))
-join declare ((X) ("i32") (type) (root))
-join declare ((Y) ("i32") (type) (root))
-join declare ((Z) ("i32") (type) (root))
-join declare ((_) ("i32") (type) (root))
-join declare ((\n) ("i32") (type) (root))
+join define type (( ((first statement) (type) (root)) ((second statement) (type) (root)) ) (type) (root)) second statement
 
-join (discard integer external call "i32" putchar H)
-join (discard integer external call "i32" putchar E)
-join (discard integer external call "i32" putchar L)
-join (discard integer external call "i32" putchar L)
-join (discard integer external call "i32" putchar O)
-join (discard integer external call "i32" putchar _)
-join (discard integer external call "i32" putchar W)
-join (discard integer external call "i32" putchar O)
-join (discard integer external call "i32" putchar R)
-join (discard integer external call "i32" putchar L)
-join (discard integer external call "i32" putchar D)
-join (discard integer external call "i32" putchar \n)
+define type ((((comment) (name) (type) (root))) (type) (root)) name
 
-name
+(this is the entry basic block)
+jump (my name)
 
+
+
+(
+
+this is a comment too.
+
+it can actually be multiline, easily.
+
+
+this language does have comments, its just that they arent built in.
+    
+i dont know of any other programming language where the language is literally also comments, because of how beautiful the language is.
+
+)
