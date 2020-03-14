@@ -12,7 +12,9 @@ join declare ( (br ((condition) ("i1") (type) (root)) ((first) (name) (type) (ro
 
 join define type (( ((first statement) (type) (root)) ((second statement) (type) (root)) ) (type) (root)) second statement
 
-join define type (( // ((commented text) ("i8*") (type) (root)) ) (type) (root) ) name
+join define type ( (// ((commented text) ("i8*") (type) (root)) ) (type) (root) ) second statement
 
-join //"wef" name
+join //"wef"
+
+name
 
