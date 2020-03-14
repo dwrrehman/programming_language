@@ -9,6 +9,538 @@ the current status of the nostril compiler:
 
 
 
+
+
+
+
+
+
+
+
+PERFORMAMNCE BUG:
+
+
+
+
+join declare ((llvm) (type) (root))
+join declare ((lazy ((t) (type) (root))) (type) (root))
+join declare ((define ((s) (name) (type) (root)) ((T) (type) (root)) ((d) (lazy T) (type) (root)) ) (type) (root))
+join declare ((define type ((s) (name) (type) (root)) ((d) (type) (root))) (type) (root))
+join declare ((string) ("i8*") (type) (root))
+join declare ((external call ((Ty) (type) (root)) ((e) (Ty) (type) (root)) ) (Ty) (type) (root))
+join declare (ret void)
+join declare ( ( ret ((Type) (type) (root)) ((Value) (Type) (type) (root)) ) (type) (root) )
+join declare ((label ((label name) (name) (type) (root)) ) (type) (root))
+join declare ((jump ((unconditional label) (name) (type) (root))) (type) (root))
+join declare ( (br ((condition) ("i1") (type) (root)) ((first) (name) (type) (root)) ((second) (name) (type) (root)) ) (type) (root) )
+
+join define type (( ((first statement) (type) (root)) ((second statement) (type) (root)) ) (type) (root)) second statement
+
+join define type (( // ((commented text) ("i8*") (type) (root)) ) (type) (root) ) name
+
+join //"wef" name
+
+
+
+
+
+
+
+
+
+
+
+
+join declare ((llvm) (type) (root))
+join declare ((lazy ((t) (type) (root))) (type) (root))
+join declare ((define ((s) (name) (type) (root)) ((T) (type) (root)) ((d) (lazy T) (type) (root)) ) (type) (root))
+join declare ((define type ((s) (name) (type) (root)) ((d) (type) (root))) (type) (root))
+
+join declare ((string) (i8p) (type) (root))
+join declare ((external call ((Ty) (type) (root)) ((e) (Ty) (type) (root)) ) (Ty) (type) (root))
+join declare (ret void)
+join declare ( ( ret ((Type) (type) (root)) ((Value) (Type) (type) (root)) ) (type) (root) )
+join declare ((label ((label name) (name) (type) (root)) ) (type) (root))
+join declare ((jump ((unconditional label) (name) (type) (root))) (type) (root))
+join declare ( (br ((condition) ("i1") (type) (root)) ((first) (name) (type) (root)) ((second) (name) (type) (root)) ) (type) (root) )
+
+
+join define type (( ((first statement) (type) (root)) ((second statement) (type) (root)) ) (type) (root)) second statement
+
+define type ((((comment) (name) (type) (root))) (type) (root)) name
+
+(this is the entry basic block)
+jump (my name)
+
+
+
+(
+
+this is a comment too.
+
+it can actually be multiline, easily.
+
+
+this language does have comments, its just that they arent built in.
+    
+i dont know of any other programming language where the language is literally also comments, because of how beautiful the language is.
+
+)
+
+
+
+
+
+
+
+
+
+
+
+
+---- debugging stack: ----
+printing frames:
+     ----- FRAME # 0----
+        idxs: { 12 15 20 32 3 24 5 8 21 25 26 27 28 4 2 1 6 7 9 10 11 13 14 16 17 18 19 22 23 29 30 31 }
+
+master: {
+         0: () ---> 3
+
+         1: (root)
+
+         2: (type) (root)
+
+         3: (join (() (type) (root)) (() (type) (root))) (type) (root)
+
+         4: (name) (type) (root)
+
+         5: (declare (() (name) (type) (root))) (type) (root)
+
+         6: (llvm) (type) (root)
+
+         7: (t) (type) (root) ---> 10
+
+         8: (lazy ((t) (type) (root))) (type) (root)
+
+         9: (s) (name) (type) (root)
+
+        10: (T) (type) (root)
+
+        11: (d) (lazy ((T) (type) (root))) (type) (root)
+
+        12: (define ((s) (name) (type) (root)) ((T) (type) (root)) ((d) (lazy ((T) (type) (root))) (type) (root))) (type) (root)
+
+        13: (s) (name) (type) (root)
+
+        14: (d) (type) (root)
+
+        15: (define type ((s) (name) (type) (root)) ((d) (type) (root))) (type) (root)
+
+        16: (i8p) (type) (root)
+
+        17: (string) (i8p) (type) (root)
+
+
+        18: (Ty) (type) (root)
+
+        19: (e) (Ty) (type) (root)
+
+        20: (external call ((Ty) (type) (root)) ((e) (Ty) (type) (root))) (Ty) (type) (root)
+
+
+
+        21: (ret void) (type) (root)
+
+
+
+
+
+        22: (Type) (type) (root)
+
+        23: (Value) (Type) (type) (root)
+
+        24: (ret ((Type) (type) (root)) ((Value) (Type) (type) (root))) (type) (root)
+
+
+
+
+        25: (label name) (name) (type) (root)
+
+        26: (label ((label name) (name) (type) (root)))
+
+
+
+        27: (unconditional label) label
+
+        28: (br ((unconditional label) label))
+
+
+
+
+        29: (condition) i1
+
+        30: (first) label
+
+        31: (second) label
+
+        32: (br ((condition) i1) ((first) label) ((second) label)) (type) (root)
+
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+declare i32 @putchar(i32 %char)
+
+define i32 @"(A) i32"() { ret i32 65 }
+define i32 @"(B) i32"() { ret i32 66 }
+define i32 @"(C) i32"() { ret i32 67 }
+define i32 @"(D) i32"() { ret i32 68 }
+define i32 @"(E) i32"() { ret i32 69 }
+define i32 @"(F) i32"() { ret i32 70 }
+define i32 @"(G) i32"() { ret i32 71 }
+define i32 @"(H) i32"() { ret i32 72 }
+define i32 @"(I) i32"() { ret i32 73 }
+define i32 @"(J) i32"() { ret i32 74 }
+define i32 @"(K) i32"() { ret i32 75 }
+define i32 @"(L) i32"() { ret i32 76 }
+define i32 @"(M) i32"() { ret i32 77 }
+define i32 @"(N) i32"() { ret i32 78 }
+define i32 @"(O) i32"() { ret i32 79 }
+define i32 @"(P) i32"() { ret i32 80 }
+define i32 @"(Q) i32"() { ret i32 81 }
+define i32 @"(R) i32"() { ret i32 82 }
+define i32 @"(S) i32"() { ret i32 83 }
+define i32 @"(T) i32"() { ret i32 84 }
+define i32 @"(U) i32"() { ret i32 85 }
+define i32 @"(V) i32"() { ret i32 86 }
+define i32 @"(W) i32"() { ret i32 87 }
+define i32 @"(X) i32"() { ret i32 88 }
+define i32 @"(Y) i32"() { ret i32 89 }
+define i32 @"(Z) i32"() { ret i32 90 }
+
+define i32 @"(_) i32"() { ret i32 32 }
+define i32 @"(\5C n) i32"() { ret i32 10 }
+
+define void @ffff() {
+entry:
+    br label %"entry wf wje wfjw fj "
+"entry wf wje wfjw fj ":
+br label %"entry wf wje wfjw fj "
+    ret void
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+join define type ((discard integer ((x) ("i32") (type) (root))) (type) (root)) name
+join declare ((putchar ((y) ("i32") (type) (root))) ("i32") (type) (root))
+join declare ((A) ("i32") (type) (root))
+join declare ((B) ("i32") (type) (root))
+join declare ((C) ("i32") (type) (root))
+join declare ((D) ("i32") (type) (root))
+join declare ((E) ("i32") (type) (root))
+join declare ((F) ("i32") (type) (root))
+join declare ((G) ("i32") (type) (root))
+join declare ((H) ("i32") (type) (root))
+join declare ((I) ("i32") (type) (root))
+join declare ((J) ("i32") (type) (root))
+join declare ((K) ("i32") (type) (root))
+join declare ((L) ("i32") (type) (root))
+join declare ((M) ("i32") (type) (root))
+join declare ((N) ("i32") (type) (root))
+join declare ((O) ("i32") (type) (root))
+join declare ((P) ("i32") (type) (root))
+join declare ((Q) ("i32") (type) (root))
+join declare ((R) ("i32") (type) (root))
+join declare ((S) ("i32") (type) (root))
+join declare ((T) ("i32") (type) (root))
+join declare ((U) ("i32") (type) (root))
+join declare ((V) ("i32") (type) (root))
+join declare ((W) ("i32") (type) (root))
+join declare ((X) ("i32") (type) (root))
+join declare ((Y) ("i32") (type) (root))
+join declare ((Z) ("i32") (type) (root))
+join declare ((_) ("i32") (type) (root))
+join declare ((\n) ("i32") (type) (root))
+
+join (discard integer external call "i32" putchar H)
+join (discard integer external call "i32" putchar E)
+join (discard integer external call "i32" putchar L)
+join (discard integer external call "i32" putchar L)
+join (discard integer external call "i32" putchar O)
+join (discard integer external call "i32" putchar _)
+join (discard integer external call "i32" putchar W)
+join (discard integer external call "i32" putchar O)
+join (discard integer external call "i32" putchar R)
+join (discard integer external call "i32" putchar L)
+join (discard integer external call "i32" putchar D)
+join (discard integer external call "i32" putchar \n)
+
+name
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+join declare ((br ((L) (llvm) (type) (root)))))
+join declare ((label ))
+join declare ((br)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+test.n:
+
+
+join declare ((llvm) (type) (root))
+join declare ((lazy ((t) (type) (root))) (type) (root))
+join declare ((define ((s) (name) (type) (root)) ((T) (type) (root)) ((d) (lazy T) (type) (root)) ) (type) (root))
+join declare ((define type ((s) (name) (type) (root)) ((d) (type) (root))) (type) (root))
+join declare ((i8p) (type) (root))
+join declare ((string) (i8p) (type) (root))
+join declare ((external call ((Ty) (type) (root)) ((e) (Ty) (type) (root)) ) (Ty) (type) (root))
+
+join declare ((br)
+join declare ((br ((L) (llvm) (type) (root)))))
+
+
+join define type ((discard integer ((x) ("i32") (type) (root))) (type) (root)) name
+join declare ((putchar ((y) ("i32") (type) (root))) ("i32") (type) (root))
+join declare ((A) ("i32") (type) (root))
+join declare ((B) ("i32") (type) (root))
+join declare ((C) ("i32") (type) (root))
+join declare ((D) ("i32") (type) (root))
+join declare ((E) ("i32") (type) (root))
+join declare ((F) ("i32") (type) (root))
+join declare ((G) ("i32") (type) (root))
+join declare ((H) ("i32") (type) (root))
+join declare ((I) ("i32") (type) (root))
+join declare ((J) ("i32") (type) (root))
+join declare ((K) ("i32") (type) (root))
+join declare ((L) ("i32") (type) (root))
+join declare ((M) ("i32") (type) (root))
+join declare ((N) ("i32") (type) (root))
+join declare ((O) ("i32") (type) (root))
+join declare ((P) ("i32") (type) (root))
+join declare ((Q) ("i32") (type) (root))
+join declare ((R) ("i32") (type) (root))
+join declare ((S) ("i32") (type) (root))
+join declare ((T) ("i32") (type) (root))
+join declare ((U) ("i32") (type) (root))
+join declare ((V) ("i32") (type) (root))
+join declare ((W) ("i32") (type) (root))
+join declare ((X) ("i32") (type) (root))
+join declare ((Y) ("i32") (type) (root))
+join declare ((Z) ("i32") (type) (root))
+join declare ((_) ("i32") (type) (root))
+join declare ((\n) ("i32") (type) (root))
+
+join (discard integer external call "i32" putchar H)
+join (discard integer external call "i32" putchar E)
+join (discard integer external call "i32" putchar L)
+join (discard integer external call "i32" putchar L)
+join (discard integer external call "i32" putchar O)
+join (discard integer external call "i32" putchar _)
+join (discard integer external call "i32" putchar W)
+join (discard integer external call "i32" putchar O)
+join (discard integer external call "i32" putchar R)
+join (discard integer external call "i32" putchar L)
+join (discard integer external call "i32" putchar D)
+join (discard integer external call "i32" putchar \n)
+
+name
+
+
+
+test.ll:
+
+
+declare i32 @putchar(i32 %char)
+
+define i32 @"(A) i32"() { ret i32 65 }
+define i32 @"(B) i32"() { ret i32 66 }
+define i32 @"(C) i32"() { ret i32 67 }
+define i32 @"(D) i32"() { ret i32 68 }
+define i32 @"(E) i32"() { ret i32 69 }
+define i32 @"(F) i32"() { ret i32 70 }
+define i32 @"(G) i32"() { ret i32 71 }
+define i32 @"(H) i32"() { ret i32 72 }
+define i32 @"(I) i32"() { ret i32 73 }
+define i32 @"(J) i32"() { ret i32 74 }
+define i32 @"(K) i32"() { ret i32 75 }
+define i32 @"(L) i32"() { ret i32 76 }
+define i32 @"(M) i32"() { ret i32 77 }
+define i32 @"(N) i32"() { ret i32 78 }
+define i32 @"(O) i32"() { ret i32 79 }
+define i32 @"(P) i32"() { ret i32 80 }
+define i32 @"(Q) i32"() { ret i32 81 }
+define i32 @"(R) i32"() { ret i32 82 }
+define i32 @"(S) i32"() { ret i32 83 }
+define i32 @"(T) i32"() { ret i32 84 }
+define i32 @"(U) i32"() { ret i32 85 }
+define i32 @"(V) i32"() { ret i32 86 }
+define i32 @"(W) i32"() { ret i32 87 }
+define i32 @"(X) i32"() { ret i32 88 }
+define i32 @"(Y) i32"() { ret i32 89 }
+define i32 @"(Z) i32"() { ret i32 90 }
+
+define i32 @"(_) i32"() { ret i32 32 }
+define i32 @"(\5C n) i32"() { ret i32 10 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+just got the first hello world program working in the language.
+
+
+wow.
+
+
+buttttttt
+
+
+
+
+
+
+
+
+
+
+
+
+
+things to add:
+
+        intrinsics:?
+        
+        
+                DONT DO THIS:    external define
+                
+                external declare          <------- yessss
+                
+                
+                declare struct
+                
+                define struct
+                
+                
+                
+                
+                
+                        we are using the word struct for type, becuase it doesnt mattter- everything will be 3458t3hn9t48hr2 eventuallyl/.
+                        
+                        
+                        
+                
+                
+                
+                declare function
+                
+                
+
+
+
+
+
+
+
+
+
+
 note:
 
 

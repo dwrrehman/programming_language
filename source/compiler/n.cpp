@@ -11,8 +11,18 @@
 #include <iostream>                              // n: a n3zqx2l compiler written in C++.
 #include <vector>
 enum constants { none, id, op, string, expr, action = 'x', exec = 'o', object = 'c', ir = 'i', assembly = 's',
-    _root = 1, _type = 2, _join = 3, _name = 4, _declare = 5, _llvm = 6,
-    _lazy = 8, _define = 12, _define_type = 15, _i8p = 16, _string = 17, _external_call = 20,
+    _undefined = 0, _root, _type,
+    _join, _name, _declare, _llvm,
+    _u0, _lazy,
+    _u1, _u2, _u3, _define,
+    _u4, _u5, _define_type,
+    _string,
+    _u6, _u7, _external_call,
+    _ret_void,
+    _u8, _u9, _ret_value,
+    _u10, _label,
+    _u11, _uncond_branch,
+    _u12, _u13, _u14, _cond_branch,
 };
 
 struct file { const char* name = ""; std::string text = ""; };
@@ -296,28 +306,11 @@ static inline void define(expression& signature, const resolved& type, const res
 }
 
 static inline bool equal(resolved a, resolved b, std::vector<entry>& entries) {
-
-
-    
-    if (entries[a.index].subsitution.index and equal(b, entries[a.index].subsitution, entries))
-           return true;
-       
-       if (entries[b.index].subsitution.index and equal(a, entries[b.index].subsitution, entries))
-           return true;
-       
-       if (entries[b.index].subsitution.index and
-           entries[a.index].subsitution.index and
-           equal(entries[a.index].subsitution, entries[b.index].subsitution, entries))
-               return true;
-       
-    
-    else if (a.index != b.index or a.args.size() != b.args.size())
-        return false;
-    
-    for (unsigned long i = 0; i < a.args.size(); i++)
-        if (not equal(a.args[i], b.args[i], entries))
-            return false;
-    
+    if (entries[a.index].subsitution.index and equal(b, entries[a.index].subsitution, entries)) return true;
+    else if (entries[b.index].subsitution.index and equal(a, entries[b.index].subsitution, entries)) return true;
+    else if (entries[b.index].subsitution.index and entries[a.index].subsitution.index and equal(entries[a.index].subsitution, entries[b.index].subsitution, entries)) return true;
+    else if (a.index != b.index or a.args.size() != b.args.size()) return false;
+    for (unsigned long i = 0; i < a.args.size(); i++) if (not equal(a.args[i], b.args[i], entries)) return false;
     return true;
 }
 static inline resolved resolve(const expression& given, const resolved& given_type, std::vector<entry>& entries, std::vector<std::vector<long>>& stack, const file& file, size_t max_depth);
@@ -338,6 +331,8 @@ static expression typify(const expression& given, const resolved& initial_type, 
 static inline resolved construct_signature(const expression& given, std::vector<entry>& entries, std::vector<std::vector<long>>& stack, const file& file, long max_depth) {
     return {_name, {}, given.symbols.empty(), {given.symbols.size() and given.symbols[0].type == expr ? typify(given, {0}, entries, stack, file, max_depth) : expression {given.symbols, {_type}}}};
 }
+
+bool dbg = true;
 
 static inline resolved resolve_at(const expression& given, const resolved& given_type, size_t& index, size_t depth, size_t max_depth, std::vector<entry>& entries, std::vector<std::vector<long>>& stack, const file& file) {
     if (depth > max_depth or index >= given.symbols.size()) return {0, {}, true};
@@ -369,8 +364,8 @@ static inline resolved resolve_at(const expression& given, const resolved& given
     else if (given_type.index == _lazy) return resolve_at(given, given_type.args[0], index, depth, max_depth, entries, stack, file);
     else if (given.symbols[index].type == string and given_type.index == _type) return {_llvm, {}, false, {}, given.symbols[index++].literal.value};
     
-    else if (given.symbols[index].type == string and given.type.index == _i8p) {
-        printf("found a string literal!\n");
+    else if (given.symbols[index].type == string and given.type.index == _llvm) {
+        if (dbg) printf("found a string literal!\n");
         return {_string, {}, false, {{{given.symbols[index++]}}}, "i8*"};
     }    
     else return {0, {}, true};
@@ -397,49 +392,71 @@ static inline llvm::Type* find_llvm_type(const resolved &t, llvm::Module* module
         llvm::SMDiagnostic type_errors;
         auto llvm_type = llvm::parseType(t.llvm, type_errors, *module);
         if (llvm_type) {
-            printf("successful type parse: \n\n\t");
-            llvm_type->print(llvm::outs());
-            printf("\n\n");
+            if (dbg) {
+                printf("successful type parse: \n\n\t");
+                llvm_type->print(llvm::outs());
+                printf("\n\n");
+            }
             return llvm_type;
         } else {
-            printf("error, type in llvm string did not parse.\n");
+            if (dbg)printf("error, type in llvm string did not parse.\n");
         }
     } else {
-        printf("hmm, the type was found to be not llvm! it was: t:%ld\n", t.index);
+        if (dbg)printf("hmm, the type was found to be not llvm! it was: t:%ld\n", t.index);
     }
     return nullptr;
 }
 
 static inline llvm::Value* generate_expression(const resolved& given, std::vector<entry>& entries, std::vector<std::vector<long>>& stack, llvm::Module* module, llvm::Function* function, llvm::IRBuilder<>& builder) {
     
-
-    if (given.index == _llvm) {
+    const auto f = given.index;
+    
+    if (f == _llvm) {
+        if (dbg)
             printf("NOTE: error, type does not parse. llvm type was found where it shouldnt be.\n");
         return nullptr;
-    }
     
-    if (given.index == _name or
-        given.index == _type) {
+    } else if (f == _ret_void) {
+        return builder.CreateRetVoid();
         
-        printf("error: called _type or _name: they are unimplemented.\n");
-    } else if (given.index == _define or given.index == _define_type) {
         
-        printf("error: called _define or _define_type: they are unimplemented.\n");
+    } else if (f == _label) {
+        
+        auto label_name = expression_to_string(given.args[0].expr[0], entries);
+        
+        auto block = llvm::BasicBlock::Create(module->getContext(), label_name, function);
+        
+        builder.SetInsertPoint(block);
+        return block;
+        
+    } else if (f == _uncond_branch) {
+                
+        auto label_name = expression_to_string(given.args[0].expr[0], entries);
+        auto block = llvm::BasicBlock::Create(module->getContext(), label_name, function);
+        return builder.CreateBr(block);
+        
+    } else if (f == _name or f == _type) {
+        if (dbg)
+            printf("error: called _type or _name: they are unimplemented.\n");
+            
+    } else if (f == _define or f == _define_type) {
+        
+        if (dbg)
+            printf("error: called _define or _define_type: they are unimplemented.\n");
     
     
-    } else if (given.index == _declare) {
-                        
-        auto the_sig = given.args[0];
+    } else if (f == _declare) {
+                    
         auto the_signature = given.args[0].expr[0];
         std::string the_signature_stringified = expression_to_string(the_signature, entries);
         
-        std::cout << "--------- declaring a function: " << the_signature_stringified << " ----------\n";
+        if (dbg)std::cout << "--------- declaring a function: " << the_signature_stringified << " ----------\n";
         
         /// find return type from signature:
         
         auto ret_type = find_llvm_type(the_signature.type, module);
         if (not ret_type) {
-            printf("note: defaulting RET type to void...\n");
+            if (dbg)printf("note: defaulting RET type to void...\n");
             ret_type = llvm::Type::getVoidTy(module->getContext());
         }
                 
@@ -450,7 +467,7 @@ static inline llvm::Value* generate_expression(const resolved& given, std::vecto
             auto t = find_llvm_type(s.subexpression.type, module);
             if (t) arg_type.push_back(t);
             else {
-                printf("error: null type found in argument list\n");
+                if (dbg)printf("error: null type found in argument list\n");
             }
         }
         
@@ -463,46 +480,48 @@ static inline llvm::Value* generate_expression(const resolved& given, std::vecto
         
         auto declared_function = llvm::Function::Create(function_type, llvm::Function::ExternalLinkage, the_signature_stringified, module);
         
-        printf(" ----> just declared the following function: \n");
-        declared_function->print(llvm::outs());        printf("\n\n");
-        
-        
+        if (dbg){
+            printf(" ----> just declared the following function: \n");
+            declared_function->print(llvm::outs());        printf("\n\n");
+        }
+                
         if (the_signature.symbols.front().type != expr) {
             auto external_declared_function = llvm::Function::Create(function_type, llvm::Function::ExternalLinkage, the_signature.symbols.front().literal.value, module);
             
-            
+            if (dbg) {
             printf(" ----> just EXTERNALLY declared the following function: \n");
             external_declared_function->print(llvm::outs());        printf("\n\n");
+            }
         }
                         
         return declared_function;
         
     } else {
         std::vector<llvm::Value*> arguments = {};
-        
-       
-         if (given.index == _external_call) {
-            printf("found an EXTERNAL CALL intrinsic call: \n");
+               
+         if (f == _external_call) {
+             
+            if (dbg)printf("found an EXTERNAL CALL intrinsic call: \n");
             
-            printf("the given resolved is: \n");
-            print_resolved_expr(given, 0, entries);
-            printf("\n");
+            if (dbg)printf("the given resolved is: \n");
+            if (dbg)print_resolved_expr(given, 0, entries);
+            if (dbg)printf("\n");
             
-            printf("the signature that was picked was: \n");
+            if (dbg)printf("the signature that was picked was: \n");
             const auto& sig = entries[given.args[1].index].signature;
-            print_expression(sig, 0);
-            printf("\n");
-        
+            if (dbg)print_expression(sig, 0);
+            if (dbg)printf("\n");
+             
             if (sig.symbols.size()) {
                 auto s = sig.symbols.front();
                 if (s.type == id) {
                     auto callee_name = s.literal.value;
-                    std::cout << "\tfinding external function named: " << callee_name << "\n";
+                    if (dbg)std::cout << "\tfinding external function named: " << callee_name << "\n";
                     llvm::Value* callee = module->getFunction(callee_name);
                     if (not callee) {
-                        printf("\tERROR: could not resolve the function at all!\n");
+                        if (dbg)printf("\tERROR: could not resolve the function at all!\n");
                     } else {
-                        printf("success on external function call!\n");
+                        if (dbg)printf("success on external function call!\n");
                         
                         for (auto arg : given.args[1].args)
                             arguments.push_back(generate_expression(arg, entries, stack, module, function, builder));
@@ -512,48 +531,51 @@ static inline llvm::Value* generate_expression(const resolved& given, std::vecto
                 }
             }
         }
-        
-        
+                
         for (auto arg : given.args)
             arguments.push_back(generate_expression(arg, entries, stack, module, function, builder));
         
         for (auto arg : arguments) {
             if (not arg) {
-                printf("WE ARE GOING TO FAIL!\n");
+                if (dbg)printf("WE ARE GOING TO FAIL!\n");
             }
         }
         
-        if (given.index == _join) {
-            printf("returning the second argument for a call to join...\n");
+        if (f == _join) {
+            if (dbg)printf("returning the second argument for a call to join...\n");
             return arguments[1];
         }
                         
         const auto& sig = entries[given.index].signature;
         std::string callee_name = expression_to_string(sig, entries);
-        std::cout << "finding getting n3zqx2l-named function: " << callee_name << "\n";
+        if (dbg)std::cout << "finding getting n3zqx2l-named function: " << callee_name << "\n";
         llvm::Value* callee = module->getFunction(callee_name);
         if (not callee) {
-            printf("ERROR: callee n3zqx2l-named function not found... typo?\n");
+            if (dbg)printf("ERROR: callee n3zqx2l-named function not found... typo?\n");
             
         } else {
-            printf("success on n3zqx2l function call.\n");
+            if (dbg)printf("success on n3zqx2l function call.\n");
             return builder.CreateCall(callee, arguments);
         }
     }
     
     
-    printf("ERROR: could not code gen for: \n\n");
+    if (dbg)printf("ERROR: could not code gen for: \n\n");
     
-    print_resolved_expr(given, 0, entries);
+    if (dbg)print_resolved_expr(given, 0, entries);
     return nullptr;
 }
+
+
+
+
 static inline std::unique_ptr<llvm::Module> generate(const resolved& given, std::vector<entry>& entries, std::vector<std::vector<long>>& stack, const file& file, llvm::LLVMContext& context, bool is_main) {
         
-    printf("\n\n");
+    if (dbg){printf("\n\n");
     print_resolved_expr(given, 0, entries);
     printf("\n\n");
     debug(entries, stack, false);
-    printf("\n\n");
+    printf("\n\n");}
     
     if (given.error) exit(1);
     auto module = llvm::make_unique<llvm::Module>(file.name, context);
@@ -572,8 +594,10 @@ static inline std::unique_ptr<llvm::Module> generate(const resolved& given, std:
     builder.CreateRet(llvm::ConstantInt::get(llvm::Type::getInt32Ty(context), 0));
     
     /** debug: */
+    if (dbg) {
     std::cout << " ------------generating code for module ----------:\n\n";
     module->print(llvm::outs(), nullptr);
+    }
     
     std::string errors = "";
     if (llvm::verifyModule(*module, &(llvm::raw_string_ostream(errors) << ""))) { printf("llvm: %s: error: %s\n", file.name, errors.c_str()); exit(1); } else return module;
@@ -582,9 +606,11 @@ static inline std::unique_ptr<llvm::Module> generate(const resolved& given, std:
 static inline std::unique_ptr<llvm::Module> optimize(std::unique_ptr<llvm::Module>& module) {
      ///TODO: write me.
    
+    if (dbg) {
     printf("\n\n\n\n-------- printing the final state of the module before output:------ \n\n");
     module->print(llvm::errs(), nullptr);    
-     
+     }
+    
     std::string verify_errors = "";
     if (llvm::verifyModule(*module, &(llvm::raw_string_ostream(verify_errors) << ""))) {
         printf("llvm: %s: error: %s\n", "init.n", verify_errors.c_str());
@@ -647,7 +673,7 @@ int main(const int argc, const char** argv) {
     auto module = llvm::make_unique<llvm::Module>("init.n", context);
     arguments args = {};
     bool use_exec_args = false, first = true;
-    size_t max_depth = 20;
+    size_t max_depth = 30;
     for (long i = 1; i < argc; i++) {
         if (argv[i][0] == '-') {
             const auto c = argv[i][1];
@@ -687,7 +713,6 @@ int main(const int argc, const char** argv) {
                     {{{    {id,{},{id,"join"}},   {expr,{{},{_type}}},   {expr,{{},{_type}}},    },{_type},{_join}}},
                     {{{     {id,{},{id,"name"}},    },{_type},{_name}}},
                     {{{   {id,{},{id,"declare"}},    {expr,{{},{_name}}}     },{_type},{_declare}}},
-                    {{{   {id,{},{id,"llvm"}},  },{_type},{_llvm}}},
                 }; std::vector<std::vector<long>> stack {{_join, _declare, _name, _type, _root}};
                 if (llvm::Linker::linkModules(*module, generate(resolve(parse(state, file), {_type}, entries, stack, file, max_depth),
                                                                 entries, stack, file, context, first))) exit(1);

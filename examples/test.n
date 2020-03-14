@@ -2,8 +2,7 @@ join declare ((llvm) (type) (root))
 join declare ((lazy ((t) (type) (root))) (type) (root))
 join declare ((define ((s) (name) (type) (root)) ((T) (type) (root)) ((d) (lazy T) (type) (root)) ) (type) (root))
 join declare ((define type ((s) (name) (type) (root)) ((d) (type) (root))) (type) (root))
-join declare ((i8p) (type) (root))
-join declare ((string) (i8p) (type) (root))
+join declare ((string) ("i8*") (type) (root))
 join declare ((external call ((Ty) (type) (root)) ((e) (Ty) (type) (root)) ) (Ty) (type) (root))
 join declare (ret void)
 join declare ( ( ret ((Type) (type) (root)) ((Value) (Type) (type) (root)) ) (type) (root) )
@@ -11,25 +10,9 @@ join declare ((label ((label name) (name) (type) (root)) ) (type) (root))
 join declare ((jump ((unconditional label) (name) (type) (root))) (type) (root))
 join declare ( (br ((condition) ("i1") (type) (root)) ((first) (name) (type) (root)) ((second) (name) (type) (root)) ) (type) (root) )
 
-
 join define type (( ((first statement) (type) (root)) ((second statement) (type) (root)) ) (type) (root)) second statement
 
-define type ((((comment) (name) (type) (root))) (type) (root)) name
+join define type (( // ((commented text) ("i8*") (type) (root)) ) (type) (root) ) name
 
-(this is the entry basic block)
-jump (my name)
+join //"wef" name
 
-
-
-(
-
-this is a comment too.
-
-it can actually be multiline, easily.
-
-
-this language does have comments, its just that they arent built in.
-    
-i dont know of any other programming language where the language is literally also comments, because of how beautiful the language is.
-
-)
