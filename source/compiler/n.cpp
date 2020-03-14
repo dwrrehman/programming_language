@@ -647,7 +647,7 @@ int main(const int argc, const char** argv) {
     auto module = llvm::make_unique<llvm::Module>("init.n", context);
     arguments args = {};
     bool use_exec_args = false, first = true;
-    size_t max_depth = 10;
+    size_t max_depth = 20;
     for (long i = 1; i < argc; i++) {
         if (argv[i][0] == '-') {
             const auto c = argv[i][1];
