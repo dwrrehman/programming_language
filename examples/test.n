@@ -1,1 +1,20 @@
-declare (f)
+join declare ((lazy ((t) (type) (root))) (type) (root))
+join declare ((define ((s) (name) (type) (root)) ((T) (type) (root)) ((d) (lazy T) (type) (root)) ) (type) (root))
+join declare ((define type ((s) (name) (type) (root)) ((d) (type) (root))) (type) (root))
+join declare ((i8p) (type) (root))
+join declare ((string) (i8p) (type) (root))
+join declare ((external call ((Ty) (type) (root)) ((e) (Ty) (type) (root)) ) (Ty) (type) (root))
+
+
+join define type ((discard integer ((x) ("i32") (type) (root))) (type) (root)) name
+join declare ((putchar ((y) ("i32") (type) (root))) ("i32") (type) (root))
+join declare ((A) ("i32") (type) (root))
+
+(
+    discard integer (
+        external call
+            ("i32")
+            (putchar A)
+    )
+)
+

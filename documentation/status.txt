@@ -18,6 +18,40 @@ you cannot have leading whitespace in llvm strings.
 
 
 
+join declare ((i8p) (_))
+join declare ((string) (i8p) (_))
+join declare ( (external call  ((Ty) (_)) ((e) (Ty) (_))  ) (Ty) (_) )
+
+join (define ((discard integer ((x) ("i32") (_))) (_)) (universe) (name))
+
+join declare ((putchar ((y) ("i32") (_))) ("i32") (_))
+join declare ((A) ("i32") (_))
+
+(
+    discard integer (
+        external call
+            ("i32")
+            (putchar A)
+    )
+)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
