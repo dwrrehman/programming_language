@@ -10,9 +10,9 @@
 #include <fstream>
 #include <iostream>                              // n: a n3zqx2l compiler written in C++.
 #include <vector>
-enum constants { none, id, op, string, expr, action = 'x', exec = 'o', object = 'c', ir = 'i', assembly = 's',
-    _undefined = 0, _root, _type,
-    _join, _name, _declare, _llvm,
+enum constants { none, id, op, string, expr,
+    action = 'x', exec = 'o', object = 'c', ir = 'i', assembly = 's',
+    _undefined = 0, _root, _type, _join, _name, _declare,
     _u0, _lazy,
     _u1, _u2, _u3, _define,
     _u4, _u5, _define_type,
@@ -27,7 +27,7 @@ enum constants { none, id, op, string, expr, action = 'x', exec = 'o', object = 
 
 struct file { const char* name = ""; std::string text = ""; };
 struct arguments { long output = action; const char* name = "a.out"; std::vector<std::string> argv_for_exec = {}; };
-struct lexing_state { long index = 0; long state = none; long line = 0; long col = 0; };
+struct lexing_state { long index = 0; long state = none; long line = 0; long column = 0; };
 struct token { long type = none; std::string value = ""; long line = 0; long column = 0; };
 struct resolved { long index = 0; std::vector<resolved> args = {}; bool error = false; std::vector<struct expression> expr = {}; };
 
@@ -56,49 +56,78 @@ static inline token next(lexing_state& l, const file& file) {
     token t = {}; auto& at = l.index; auto& s = l.state;
     while (at < (long) file.text.size()) {
         char c = file.text[at], n = at + 1 < (long) file.text.size() ? file.text[at + 1]:0;
-        if (isalnum(c) and not isalnum(n) and s == none) { at++; return { id, std::string(1, c), l.line, l.col++};
-        } else if (c == '\"' and s == none) t = { s = string, "", l.line, l.col };
-        else if (isalnum(c) and s == none) t = { s = id, std::string(1, c), l.line, l.col++ };
+        if (isalnum(c) and not isalnum(n) and s == none) { at++; return { id, std::string(1, c), l.line, l.column++};
+        } else if (c == '\"' and s == none) t = { s = string, "", l.line, l.column };
+        else if (isalnum(c) and s == none) t = { s = id, std::string(1, c), l.line, l.column++ };
         else if (c == '\\' and s == string) {
             if (n == '\\') t.value += "\\"; else if (n == '\"') t.value += "\""; else if (n == 'n') t.value += "\n"; else if (n == 't') t.value += "\t";
-            else printf("n3zqx2l: %s:%ld:%ld: error: unknown escape sequence '\\%c'\n", file.name, l.line, l.col, n);
-            l.col++; at++;
-        } else if ((c == '\"' and s == string)) { s = none; l.col++; at++; return t; }
-        else if (isalnum(c) and not isalnum(n) and s == id) { t.value += c; s = none; l.col++; at++; return t; }
+            else printf("n3zqx2l: %s:%ld:%ld: error: unknown escape sequence '\\%c'\n\n", file.name, l.line, l.column, n);
+            l.column++; at++;
+        } else if ((c == '\"' and s == string)) { s = none; l.column++; at++; return t; }
+        else if (isalnum(c) and not isalnum(n) and s == id) { t.value += c; s = none; l.column++; at++; return t; }
         else if (s == string or (isalnum(c) and s == id)) t.value += c;
-        else if (not isalnum(c) and not isspace(c) and s == none) { at++; return {op, std::string(1, c), l.line, l.col++}; }
-        if (c == '\n') { l.line++; l.col = 1; } else l.col++; at++;
+        else if (not isalnum(c) and not isspace(c) and s == none) { at++; return {op, std::string(1, c), l.line, l.column++}; }
+        if (c == '\n') { l.line++; l.column = 1; } else l.column++; at++;
     }
-    if (s == string) printf("n3zqx2l: %s:%ld:%ld: error: unterminated string\n", file.name, l.line, l.col);
-    return {none, "", l.line, l.col};
+    if (s == string) printf("n3zqx2l: %s:%ld:%ld: error: unterminated string\n\n", file.name, l.line, l.column);
+    return {none, "", l.line, l.column};
 }
+
+
+const char* convert_token_type_representation(long type);
 
 static inline expression parse(lexing_state& state, const file& file);
 static inline symbol parse_symbol(lexing_state& state, const file& file) {
     auto saved = state;
-    auto open = next(state, file);
-    if (open.type == op and open.value == "(") {
-        if (auto e = parse(state, file); not e.error) {
-            auto close = next(state, file);
-            if (close.type == op and close.value == ")") return {expr, e};
-            else {
-                state = saved;
-                printf("n3zqx2l: %s:%ld:%ld: expected \")\"\n", file.name, close.line, close.column);
-                return {expr, e, {}, true};
-            }
+    auto t = next(state, file);
+        
+    printf("looking at a %s, \"%s\": [%ld, %ld]\n",convert_token_type_representation(t.type), t.value.c_str(), t.line, t.column);
+
+    expression e = {};
+    if (t.type == op and t.value == "(") {
+        
+        printf("found expression open paren!\n");
+               
+        
+        
+        if ((e = parse(state, file)).error) {
+            printf("parse call was actually unsueccessul.\n");
+            return {expr, e, {}, true};
+        }
+        
+       
+        auto close = next(state, file);
+        
+        printf("looking at closing: %s, \"%s\": [%ld, %ld]\n", convert_token_type_representation(close.type), close.value.c_str(), close.line, close.column);
+        
+        if (close.type == op and close.value == ")") {
+            printf("found closing!\n");
+            return {expr, e};
+        }
+        else {
+            state = saved;
+            printf("n3zqx2l: %s:%ld:%ld: expected \")\"\n\n", file.name, t.line, t.column);
+            return {expr, e, {}, true};
         }
     }
-    state = saved;
-    auto t = next(state, file);
-    if (t.type == string) return {string, {}, t};
-    else if (t.type == id or (t.type == op and t.value != "(" and t.value != ")")) return {id, {}, t};
+  
+    else if (t.type == string) return {string, {}, t};
+    else if (t.type == id or (t.type == op and t.value != "(" and t.value != ")")) {
+        printf("found an identifier successfully.\n");
+        return {id, {}, t};
+    }
     else {
+        if (t.type) {
+            printf("n3zqx2l: %s:%ld:%ld: error: unexpected \"%s\"\n\n",
+                   file.name, t.line, t.column, t.value.c_str());
+        }
         state = saved;
         return {none, {}, {}, true};
     }
 }
 
 static inline expression parse(lexing_state& state, const file& file) {
+    printf("in parse() function.\n");
     std::vector<symbol> symbols = {};
     auto saved = state;
     auto start = next(state, file);
@@ -112,9 +141,14 @@ static inline expression parse(lexing_state& state, const file& file) {
     }
     
     state = saved;
-    if (symbol.type == expr) return {{}, {}, {}, {}, true};
+//    if (symbol.type == expr) {
+//        printf("symbol.type == expr!!! returning failure.\n");
+//        return {{}, {}, {}, {}, true};
+//    }
     expression result = {symbols};
     result.start = start;
+    
+    printf("exiting parse() function.\n");
     return result;
 }
 
@@ -145,6 +179,22 @@ struct new_expression {
     bool error = false;
 };
 
+void my_prep(int d) {
+    for (int i = 0; i < d; i++) printf(".   ");
+}
+
+static inline void print_new_expression(new_expression e, int d) {
+    my_prep(d); printf("token = %s of type %s\n", e.literal.value.c_str(), convert_token_type_representation(e.literal.type));
+    my_prep(d); printf("error = %d\n", e.error);
+    my_prep(d); printf("literal type = %s\n", convert_token_type_representation(e.literal_type));
+    my_prep(d); printf("children: {\n");
+    for (auto f : e.children) {
+        my_prep(d+1); printf("child: \n");
+        print_new_expression(f, d + 1);
+    }
+    my_prep(d); printf("}\n");
+}
+
 //static inline list parse(std::vector<std::string> tokens, size_t& index) {
 //    auto t = tokens.at(index++);
 //    if (t != "(" and t != ")") return {t};
@@ -159,22 +209,70 @@ struct new_expression {
 //    } else return {"", {}, true};
 //}
 
-//static inline new_expression new_parse(lexing_state& state, const file& file) {
-//    auto t = next(state, file);
-//    if (t.type == string or t.type == id) return new_expression {{}, {}, {}, t.type, t};
-//    else if (t.type == op and t.value != "(" and t.value != ")") return new_expression {{}, {}, {}, id, t};
-//    else if (t.type == op and t.value == "("){
+static inline new_expression new_parse(lexing_state& state, const file& file) {
+    auto saved = state;
+    auto t = next(state, file);
+    
+    if (t.type == string or t.type == id or (t.type == op and t.value != "(" and t.value != ")"))
+        return {{}, {}, {}, t.type == op ? id : t.type, t};
+    
+    else if (t.type == op and t.value == "(") {
+        
 //        auto saved = state;
-//
-//        auto current = {};
-//
-//        while (current isnt ")") {
-//
-//
-//            current =
-//        }
-//    }
-//}
+        
+        new_expression l = {};
+        l.literal_type = expr;
+        l.error = false;
+        
+        token current = {};
+        
+        while (current.type and not (current.type == op and current.value == ")")) {
+            auto e = new_parse(state, file);
+            
+//            if (e.literal_type) {
+            l.children.push_back(e);
+            
+//            } else {
+//                printf("did not push none.\n");
+//            }
+            
+//            saved = state;
+            
+            current = next(state, file);
+            
+//            if (current.type == none) {
+//                printf("n3zqx2l: %s:%ld:%ld: expected \")\"\n\n", file.name, t.line, t.column);
+//                l.error = true;
+////                state = saved;
+//                return l;
+//            }
+        }
+        
+//        state = saved;
+        return l;
+    } else {
+        abort();
+//        state = saved;
+        return {{}, {}, {}, none, {}, true};
+    }
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+//else if (t.type == op and t.value == ")") {
+//printf("n3zqx2l: %s:%ld:%ld: error: unexpected \"%s\"\n\n", file.name, t.line, t.column, t.value.c_str());
+//return {{}, {}, {}, none, {}, true};
+
 
 //static inline std::string expression_to_pretty_string(const expression& given, const std::vector<entry>& entries, long begin = 0, long end = -1, std::vector<resolved> args = {}) {
 //    std::string result = "";
@@ -254,7 +352,7 @@ static inline void print_expression(expression e, int d);
 
 #define prep(x)   for (long i = 0; i < x; i++) std::cout << ".   "
 
-static inline const char* convert_token_type_representation( long type) {
+const char* convert_token_type_representation( long type) {
     switch (type) {
         case none: return "{none}";
         case string: return "string";
@@ -353,18 +451,10 @@ bool debug = false;
 
 static inline resolved resolve_at(const expression& given, const resolved& given_type, size_t& index, size_t& best, size_t depth, size_t max_depth, std::vector<entry>& entries, std::vector<std::vector<long>>& stack, const file& file) {
     if (depth > max_depth) return {0, {}, true};
-        
-    else if (index < given.symbols.size() and given.symbols[index].type == expr and given_type.index == _name)
-        return construct_signature(given.symbols[index++].subexpression, entries, stack, file, max_depth);
-    
-    else if (index < given.symbols.size() and given.symbols[index].type == expr)
-        return resolve(given.symbols[index++].subexpression, given_type, entries, stack, file, max_depth);
-    
+    else if (index < given.symbols.size() and given.symbols[index].type == expr and given_type.index == _name) return construct_signature(given.symbols[index++].subexpression, entries, stack, file, max_depth);
+    else if (index < given.symbols.size() and given.symbols[index].type == expr) return resolve(given.symbols[index++].subexpression, given_type, entries, stack, file, max_depth);
     else if (given_type.index == _lazy) return resolve_at(given, given_type.args[0], index, best, depth, max_depth, entries, stack, file);
-    
-    if (index < given.symbols.size() and given.symbols[index].type == string and given_type.index == _llvm/*TODO: should be "(pointer (i8))"     ie, check given_type.args[]... */)
-        return {_string, {}, false, {{{given.symbols[index++]}}}};
-    
+    if (index < given.symbols.size() and given.symbols[index].type == string) return {_string, {}, false, {{{given.symbols[index++]}}}}; /*TODO: should expect type: "(pointer (i8))"     ie, check given_type.args[]... */
     auto saved = index; auto saved_stack = stack;
     for (const auto s : saved_stack.back()) {
         best = std::max(index, best);
@@ -388,12 +478,15 @@ static inline resolved resolve_at(const expression& given, const resolved& given
     } return {0, {}, true};
 }
 static inline resolved resolve(const expression& given, const resolved& given_type, std::vector<entry>& entries, std::vector<std::vector<long>>& stack, const file& file, size_t max_depth) {
+    printf("-------------- parse tree: -------------------\n");
+    print_expression(given, 0);
+    
     size_t index = 0, best = 0;
     resolved solution = resolve_at(given, given_type, index, best, 0, max_depth, entries, stack, file);
     if (index < given.symbols.size()) solution.error = true;
     if (solution.error) {
         const auto b = best < given.symbols.size() ? (given.symbols[best].type == expr ? given.symbols[best].subexpression.start : given.symbols[best].literal) : given.start;
-        printf("n3zqx2l: %s:%ld:%ld: error: unresolved %s, expected type %s\n\n", file.name, b.line, b.column, expression_to_string(given, entries, best, best + 1).c_str(), expression_to_string(entries[given_type.index].signature, entries, 0, -1, given_type.args).c_str());
+        if (b.line and b.column) printf("n3zqx2l: %s:%ld:%ld: error: unresolved %s, expected type %s\n\n", file.name, b.line, b.column, expression_to_string(given, entries, best, best + 1).c_str(), expression_to_string(entries[given_type.index].signature, entries, 0, -1, given_type.args).c_str());
     } return solution;
 }
 
@@ -428,12 +521,12 @@ static inline llvm::Value* generate_expression(const resolved& given, std::vecto
     
     const auto f = given.index;
     
-    if (f == _llvm) {
-        if (debug)
-            printf("NOTE: error, type does not parse. llvm type was found where it shouldnt be.\n");
-        return nullptr;
-    
-    } else if (f == _ret_void) {
+//    if (f == _llvm) {
+//        if (debug)
+//            printf("NOTE: error, type does not parse. llvm type was found where it shouldnt be.\n");
+//        return nullptr;
+//
+     if (f == _ret_void) {
         return builder.CreateRetVoid();
         
         
@@ -755,6 +848,13 @@ int main(const int argc, const char** argv) {
                     {{{     {id,{},{id,"name"}},    },{_type},{_name}}},
                     {{{   {id,{},{id,"declare"}},    {expr,{{},{_name}}}     },{_type},{_declare}}},
                 }; std::vector<std::vector<long>> stack {{_join, _declare, _name, _type, _root}};
+                
+                
+                auto rg = new_parse(state, file);
+                
+                print_new_expression(rg, 0);
+                exit(1);
+                
                 if (llvm::Linker::linkModules(*module, generate(resolve(parse(state, file), {_type}, entries, stack, file, max_depth),
                                                                 entries, stack, file, context, no_files))) exit(1);
                 
