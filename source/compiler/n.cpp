@@ -176,29 +176,27 @@ struct new_expression {
 //    }
 //}
 
+//static inline std::string expression_to_pretty_string(const expression& given, const std::vector<entry>& entries, long begin = 0, long end = -1, std::vector<resolved> args = {}) {
+//    std::string result = "";
+//    long i = 0, j = 0;
+//    if (given.symbols.empty()) result += "()";
+//    else for (auto symbol : given.symbols) {
+//        if (i < begin or (end != -1 and i >= end)) { i++; continue; }
+//        if (symbol.type == id) result += symbol.literal.value;
+//        else if (symbol.type == string) result += "\"" + symbol.literal.value + "\"";
+//        else if (symbol.type == expr and args.empty()) result += "(" + expression_to_pretty_string(symbol.subexpression, entries) + ")";
+//        else if (symbol.type == expr) {
+//            result += "(" + expression_to_pretty_string(symbol.subexpression, entries, 0, -1, args) + ")=" + expression_to_pretty_string(entries[args[j].index].signature, entries, 0, -1, args[j].args);
+//            j++;
+//        }
+//        if (i++ < (long) given.symbols.size() - 1 and not (i + 1 < begin or (end != -1 and i + 1 >= end))) result += " ";
+//    }
+//    //    result += " : ";
+//    if (given.type.index) result += " " + expression_to_pretty_string(entries[given.type.index].signature, entries, 0, -1, given.type.args);
+//    return result;
+//}
+
 static inline std::string expression_to_string(const expression& given, const std::vector<entry>& entries, long begin = 0, long end = -1, std::vector<resolved> args = {}) {
-    std::string result = "";
-    long i = 0, j = 0;
-    if (given.symbols.empty()) result += "()";
-    else for (auto symbol : given.symbols) {
-        if (i < begin or (end != -1 and i >= end)) { i++; continue; }
-        if (symbol.type == id) result += symbol.literal.value;
-        else if (symbol.type == string) result += "\"" + symbol.literal.value + "\"";
-        else if (symbol.type == expr and args.empty()) result += "(" + expression_to_string(symbol.subexpression, entries) + ")";
-        else if (symbol.type == expr) {
-            auto s = entries[args[j].index].signature;
-            result += "(" + expression_to_string(entries[args[j].index].signature, entries, 0, -1, args) + ")=" + expression_to_string(s, entries, 0, -1, args[j].args);
-            j++;
-        }
-        if (i++ < (long) given.symbols.size() - 1 and not (i + 1 < begin or (end != -1 and i + 1 >= end))) result += " ";
-    }
-    //    result += " : ";
-    if (given.type.index) result += " " + expression_to_string(entries[given.type.index].signature, entries, 0, -1, given.type.args);
-    return result;
-}
-
-
-static inline std::string formal_expression_to_string(const expression& given, const std::vector<entry>& entries, long begin = 0, long end = -1, std::vector<resolved> args = {}) {
     std::string result = "(";
     long i = 0, j = 0;
     for (auto symbol : given.symbols) {
@@ -351,32 +349,31 @@ static inline resolved construct_signature(const expression& given, std::vector<
     return {_name, {}, false, {given.symbols.size() and given.symbols.front().type == expr ? typify(given, {0}, entries, stack, file, max_depth) : expression {given.symbols, {_type}}}};
 }
 
-bool debug = true;
+bool debug = false;
 
-static inline resolved resolve_at(const expression& given, const resolved& given_type, size_t& index, size_t depth, size_t max_depth, std::vector<entry>& entries, std::vector<std::vector<long>>& stack, const file& file) {
+static inline resolved resolve_at(const expression& given, const resolved& given_type, size_t& index, size_t& best, size_t depth, size_t max_depth, std::vector<entry>& entries, std::vector<std::vector<long>>& stack, const file& file) {
     if (depth > max_depth) return {0, {}, true};
-    auto saved = index; auto saved_stack = stack;
-    
-    if (index < given.symbols.size() and given.symbols[index].type == expr and given_type.index == _name)
+        
+    else if (index < given.symbols.size() and given.symbols[index].type == expr and given_type.index == _name)
         return construct_signature(given.symbols[index++].subexpression, entries, stack, file, max_depth);
     
     else if (index < given.symbols.size() and given.symbols[index].type == expr)
         return resolve(given.symbols[index++].subexpression, given_type, entries, stack, file, max_depth);
     
-    else if (given_type.index == _lazy) return resolve_at(given, given_type.args[0], index, depth, max_depth, entries, stack, file);
+    else if (given_type.index == _lazy) return resolve_at(given, given_type.args[0], index, best, depth, max_depth, entries, stack, file);
     
-    if (index < given.symbols.size() and given.symbols[index].type == string and given_type.index == _llvm/*TODO: should be "(pointer (i8))"     ie, check given_type.args[]... */) {
-        if (debug) printf("found a string literal!\n");
+    if (index < given.symbols.size() and given.symbols[index].type == string and given_type.index == _llvm/*TODO: should be "(pointer (i8))"     ie, check given_type.args[]... */)
         return {_string, {}, false, {{{given.symbols[index++]}}}};
-    }
     
+    auto saved = index; auto saved_stack = stack;
     for (const auto s : saved_stack.back()) {
+        best = std::max(index, best);
         index = saved; stack = saved_stack; std::vector<resolved> args = {};
         for (size_t j = 0; j < entries[s].signature.symbols.size(); j++) {
             const auto& symbol = entries[s].signature.symbols[j];
             if (index >= given.symbols.size()) { if (args.size() and j == 1) return args[0]; else goto next; }
             if (symbol.type == expr) {
-                resolved argument = resolve_at(given, symbol.subexpression.type, index, depth + 1, max_depth, entries, stack, file);
+                resolved argument = resolve_at(given, symbol.subexpression.type, index, best, depth + 1, max_depth, entries, stack, file);
                 if (argument.error) goto next;
                 args.push_back({argument}); entries[symbol.subexpression.me.index].subsitution = argument;
             } else if (symbol.type != given.symbols[index].type or symbol.literal.value != given.symbols[index].literal.value) goto next; else index++;
@@ -391,15 +388,12 @@ static inline resolved resolve_at(const expression& given, const resolved& given
     } return {0, {}, true};
 }
 static inline resolved resolve(const expression& given, const resolved& given_type, std::vector<entry>& entries, std::vector<std::vector<long>>& stack, const file& file, size_t max_depth) {
-    size_t index = 0;
-    resolved solution = resolve_at(given, given_type, index, 0, max_depth, entries, stack, file);
+    size_t index = 0, best = 0;
+    resolved solution = resolve_at(given, given_type, index, best, 0, max_depth, entries, stack, file);
     if (index < given.symbols.size()) solution.error = true;
     if (solution.error) {
-        const auto t = index < given.symbols.size() ? (given.symbols[index].type == expr ? given.symbols[index].subexpression.start : given.symbols[index].literal) : given.start;
-        printf("n3zqx2l: %s:%ld:%ld:[%ld]: error: unresolved %s in %s ≠ %s\n\n", file.name, t.line, t.column, index,
-               expression_to_string(given, entries, index, index + 1).c_str(),
-               expression_to_string(given, entries).c_str(),
-               expression_to_string(entries[given_type.index].signature, entries, 0, -1, given_type.args).c_str());
+        const auto b = best < given.symbols.size() ? (given.symbols[best].type == expr ? given.symbols[best].subexpression.start : given.symbols[best].literal) : given.start;
+        printf("n3zqx2l: %s:%ld:%ld: error: unresolved %s, expected type %s\n\n", file.name, b.line, b.column, expression_to_string(given, entries, best, best + 1).c_str(), expression_to_string(entries[given_type.index].signature, entries, 0, -1, given_type.args).c_str());
     } return solution;
 }
 
@@ -445,7 +439,7 @@ static inline llvm::Value* generate_expression(const resolved& given, std::vecto
         
     } else if (f == _label) {
         
-        auto label_name = formal_expression_to_string(given.args[0].expr[0], entries);
+        auto label_name = expression_to_string(given.args[0].expr[0], entries);
         
         auto block = llvm::BasicBlock::Create(module->getContext(), label_name, function);
         
@@ -454,7 +448,7 @@ static inline llvm::Value* generate_expression(const resolved& given, std::vecto
         
     } else if (f == _uncond_branch) {
                 
-        auto label_name = formal_expression_to_string(given.args[0].expr[0], entries);
+        auto label_name = expression_to_string(given.args[0].expr[0], entries);
         auto block = llvm::BasicBlock::Create(module->getContext(), label_name, function);
         return builder.CreateBr(block);
         
@@ -471,7 +465,7 @@ static inline llvm::Value* generate_expression(const resolved& given, std::vecto
     } else if (f == _declare) {
                     
         auto the_signature = given.args[0].expr[0];
-        std::string the_signature_stringified = formal_expression_to_string(the_signature, entries);
+        std::string the_signature_stringified = expression_to_string(the_signature, entries);
         
         if (debug)std::cout << "--------- declaring a function: " << the_signature_stringified << " ----------\n";
         
@@ -623,10 +617,13 @@ static inline std::unique_ptr<llvm::Module> generate(const resolved& given, std:
     
     auto value = generate_expression(given, entries, stack, module.get(), main, builder);
     
-    printf("the top level value was found to be: \n");
-    if (value) value->print(llvm::outs());
-    else printf("(null)");
-    printf("\n");
+    if (debug) {
+        printf("the top level value was found to be: \n");
+        if (value) value->print(llvm::outs());
+        else printf("(null)");
+        printf("\n");
+    }
+
     
     builder.SetInsertPoint(&main->getBasicBlockList().back());
     builder.CreateRet(llvm::ConstantInt::get(llvm::Type::getInt32Ty(context), 0));
