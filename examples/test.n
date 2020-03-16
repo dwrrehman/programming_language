@@ -1,3 +1,5 @@
-join decl ((N) (i)) 3
-join decl ((f ((x) (N) (i))) (i)) 0
-f 45
+5lco2hyh80iwtimpq7o58(4we9uq5txfjqjgkeb2chb((
+29fj32ji2o8jf2oih4r23e))(1))5lco2hyh80iwtimpq7o58(
+4we9uq5txfjqjgkeb2chb((2oi3hto82hoihfno23o8h)(
+1kqfsnyh5t3hr8viagrr6))0)5lco2hyh80iwtimpq7o58(
+2tsrb944gazx3a8cqy2g9)2oi3hto82hoihfno23o8h

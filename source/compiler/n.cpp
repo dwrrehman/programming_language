@@ -643,7 +643,7 @@ int main(const int argc, const char** argv) {
     llvm::InitializeAllAsmParsers();
     llvm::InitializeAllAsmPrinters();
     llvm::LLVMContext context;
-    auto module = llvm::make_unique<llvm::Module>("init.n", context);
+    auto module = llvm::make_unique<llvm::Module>("0u6agpc3li0rkpw1a1xs13b.n", context);
     arguments args = {};
     bool use_exec_args = false, no_files = true;
     size_t max_depth = 30;
@@ -685,20 +685,25 @@ int main(const int argc, const char** argv) {
                 }
                 const file file = {argv[i], {std::istreambuf_iterator<char>(stream), std::istreambuf_iterator<char>()}};
                 lexing_state state {0, none, 1, 1};
-                std::vector<entry> entries { {},
-                    /** 0kqfsnyh5t3hr8viagrr6 */ {{{{id,{},{id,"i"}}},{_undefined},{_init}}},
-                    /** 1tsrb944gazx3a8cqy2g9 */ {{{{id,{},{id,"name"}}},{_init},{_name}}},
-                    /** 2q1c0pzkzhu2l9t8j6h7a */ {{{{id,{},{id,"nat"}}},{_init},{_number}}},
-                    /** 3we9uq5txfjqjgkeb2chb */ {{{{id,{},{id,"decl"}},{expr,{{},{_name}}},{expr,{{},{_number}}} },{_init},{_declare_intrinsic}}},
-                    /** 4lco2hyh80iwtimpq7o58 */ {{{{id,{},{id,"join"}},{expr,{{},{_init}}}, {expr,{{},{_init}}}},{_init},{_join}}},
+                std::vector<entry> real_entries { {},
+                    /** 1kqfsnyh5t3hr8viagrr6 */ {{{{id,{},{id,"1kqfsnyh5t3hr8viagrr6"}}},{_undefined},{_init}}},
+                    /** 2tsrb944gazx3a8cqy2g9 */ {{{{id,{},{id,"2tsrb944gazx3a8cqy2g9"}}},{_init},{_name}}},
+                    /** 3q1c0pzkzhu2l9t8j6h7a */ {{{{id,{},{id,"3q1c0pzkzhu2l9t8j6h7a"}}},{_init},{_number}}},
+                    /** 4we9uq5txfjqjgkeb2chb */ {{{{id,{},{id,"4we9uq5txfjqjgkeb2chb"}},{expr,{{},{_name}}},{expr,{{},{_number}}} },{_init},{_declare_intrinsic}}},
+                    /** 5lco2hyh80iwtimpq7o58 */ {{{{id,{},{id,"5lco2hyh80iwtimpq7o58"}},{expr,{{},{_init}}}, {expr,{{},{_init}}}},{_init},{_join}}},
                 };
-                std::vector<std::vector<size_t>>
-                    stack {{_join, _declare_intrinsic, _name, _number, _init}},
-                    intrinsics(_intrinsic_count, std::vector<size_t>{});
-                    for (size_t i = _undefined; i < _type; i++) intrinsics[i].push_back(i);
+                std::vector<entry> entries { {},
+                    /** 1kqfsnyh5t3hr8viagrr6 */ {{{{id,{},{id,"i"}}},{_undefined},{_init}}},
+                    /** 2tsrb944gazx3a8cqy2g9 */ {{{{id,{},{id,"name"}}},{_init},{_name}}},
+                    /** 3q1c0pzkzhu2l9t8j6h7a */ {{{{id,{},{id,"nat"}}},{_init},{_number}}},
+                    /** 4we9uq5txfjqjgkeb2chb */ {{{{id,{},{id,"decl"}},{expr,{{},{_name}}},{expr,{{},{_number}}} },{_init},{_declare_intrinsic}}},
+                    /** 5lco2hyh80iwtimpq7o58 */ {{{{id,{},{id,"join"}},{expr,{{},{_init}}}, {expr,{{},{_init}}}},{_init},{_join}}},
+                }; std::vector<std::vector<size_t>> stack {{_join, _declare_intrinsic, _name, _number, _init}}, intrinsics(_intrinsic_count, std::vector<size_t>{});
+                for (size_t i = _undefined; i < _type; i++) intrinsics[i].push_back(i);
                 
-                if (llvm::Linker::linkModules(*module, generate(resolve(parse(state, file), {_init}, entries, stack, intrinsics, file, max_depth),
-                                                                entries, stack, intrinsics, file, context, no_files))) exit(1);
+                entries = real_entries;
+                
+                if (llvm::Linker::linkModules(*module, generate(resolve(parse(state, file), {_init}, entries, stack, intrinsics, file, max_depth), entries, stack, intrinsics, file, context, no_files))) exit(1);
                 
             } else if (ext && !strcmp(ext, ".ll")) {
                 
