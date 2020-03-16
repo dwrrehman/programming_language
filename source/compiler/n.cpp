@@ -12,13 +12,13 @@
 #include <vector>
 enum constants { none, id, op, string, expr,
     action = 'x', exec = 'o', object = 'c', ir = 'i', assembly = 's',
-    _undefined = 0,
-    _root,
-    _type,
-    _join,
-    _name,
     
-    _declare,
+    _undefined = 0,
+    _init, _name, _number,
+    _declare_intrinsic, _join,
+        
+    _type,
+    
     _0, _external_declare,
     
     _1, _lazy,
@@ -26,32 +26,39 @@ enum constants { none, id, op, string, expr,
     _2, _3, _4, _define,
     _5, _6, _7, _external_define,
     
-    _8, _9, _define_type,
+    _8, _9, _define_type, /// DELETE ME
+    
     _string,
-    _10, _11, _external_call,
+    
+    _10, _11, _external_call, ///
+    
+    
+    //llvm ins:
     _ret_void,
     _12, _13, _ret_value,
     _14, _label,
     _15, _uncond_branch,
     _16, _17, _18, _cond_branch,
+    
+    _intrinsic_count
 };
 
 struct file { const char* name = ""; std::string text = ""; };
-struct arguments { long output = action; const char* name = "a.out"; std::vector<std::string> argv_for_exec = {}; };
-struct lexing_state { long index = 0; long state = none; long line = 0; long column = 0; };
-struct token { long type = none; std::string value = ""; long line = 0; long column = 0; };
-struct resolved { long index = 0; std::vector<resolved> args = {}; bool error = false; std::vector<struct expression> expr = {}; };
+struct arguments { size_t output = action; const char* name = "a.out"; std::vector<std::string> argv_for_exec = {}; };
+struct lexing_state { size_t index = 0; size_t state = none; size_t line = 0; size_t column = 0; };
+struct token { size_t type = none; std::string value = ""; size_t line = 0; size_t column = 0; };
+struct resolved { size_t index = 0; std::vector<resolved> args = {}; bool error = false; std::vector<struct expression> name = {}; size_t number = 0; };
 
 struct expression {
     std::vector<struct symbol> symbols = {};
-    resolved type = {};
-    resolved me = {};
-    token start = {};
+    resolved type = {}; // neccessary.
+    resolved me = {}; // very questionable.
+    token start = {}; // very questionable.
     bool error = false;
 };
 
 struct symbol {
-    long type = none;
+    size_t type = none;
     expression subexpression = {};
     token literal = {};
     bool error = false;
@@ -60,13 +67,13 @@ struct symbol {
 struct entry {
     expression signature = {};
     resolved definition = {};
-    resolved subsitution = {};
+    resolved subsitution = {}; // very questionable.
 };
 
 static inline token next(lexing_state& l, const file& file) {
     token t = {}; auto& at = l.index; auto& s = l.state;
-    while (at < (long) file.text.size()) {
-        char c = file.text[at], n = at + 1 < (long) file.text.size() ? file.text[at + 1]:0;
+    while (at < file.text.size()) {
+        char c = file.text[at], n = at + 1 < file.text.size() ? file.text[at + 1]:0;
         if (isalnum(c) and not isalnum(n) and s == none) { at++; return { id, std::string(1, c), l.line, l.column++};
         } else if (c == '\"' and s == none) t = { s = string, "", l.line, l.column };
         else if (isalnum(c) and s == none) t = { s = id, std::string(1, c), l.line, l.column++ };
@@ -84,50 +91,31 @@ static inline token next(lexing_state& l, const file& file) {
     return {none, "", l.line, l.column};
 }
 
-const char* convert_token_type_representation(long type);
+//const char* convert_token_type_representation(long type);
 
 static inline expression parse(lexing_state& state, const file& file);
 static inline symbol parse_symbol(lexing_state& state, const file& file) {
     auto saved = state;
     auto t = next(state, file);
-    
-    printf("looking at a %s, \"%s\": [%ld, %ld]\n",convert_token_type_representation(t.type), t.value.c_str(), t.line, t.column);
-    
+//    printf("looking at a %s, \"%s\": [%ld, %ld]\n",convert_token_type_representation(t.type), t.value.c_str(), t.line, t.column);
     expression e = {};
     if (t.type == op and t.value == "(") {
-        
-        printf("found expression open paren!\n");
-                    
         if ((e = parse(state, file)).error) {
-            printf("parse call was actually unsueccessul.\n");
             return {expr, e, {}, true};
         }
-        
-        
         auto close = next(state, file);
-        
-        printf("looking at closing: %s, \"%s\": [%ld, %ld]\n", convert_token_type_representation(close.type), close.value.c_str(), close.line, close.column);
-        
         if (close.type == op and close.value == ")") {
-            printf("found closing!\n");
             return {expr, e};
-        }
-        else {
+        } else {
             state = saved;
             printf("n3zqx2l: %s:%ld:%ld: expected \")\"\n\n", file.name, t.line, t.column);
             return {expr, e, {}, true};
         }
-    }
-    
-    else if (t.type == string) return {string, {}, t};
-    else if (t.type == id or (t.type == op and t.value != "(" and t.value != ")")) {
-        printf("found an identifier successfully.\n");
-        return {id, {}, t};
-    }
+    } else if (t.type == string) return {string, {}, t};
+    else if (t.type == id or (t.type == op and t.value != "(" and t.value != ")")) return {id, {}, t};
     else {
 //        if (t.type) {
-//            printf("n3zqx2l: %s:%ld:%ld: error: unexpected \"%s\"\n\n",
-//                   file.name, t.line, t.column, t.value.c_str());
+//            printf("n3zqx2l: %s:%ld:%ld: error: unexpected \"%s\"\n\n", file.name, t.line, t.column, t.value.c_str());
 //        }
         state = saved;
         return {none, {}, {}, true};
@@ -135,160 +123,18 @@ static inline symbol parse_symbol(lexing_state& state, const file& file) {
 }
 
 static inline expression parse(lexing_state& state, const file& file) {
-    printf("in parse() function.\n");
     std::vector<symbol> symbols = {};
     auto saved = state;
     auto start = next(state, file);
     state = saved;
     auto symbol = parse_symbol(state, file);
-    
     while (not symbol.error) {
         symbols.push_back(symbol);
         saved = state;
         symbol = parse_symbol(state, file);
-    }
-    
-    state = saved;
-    //    if (symbol.type == expr) {
-    //        printf("symbol.type == expr!!! returning failure.\n");
-    //        return {{}, {}, {}, {}, true};
-    //    }
-    expression result = {symbols};
-    result.start = start;
-    
-    printf("exiting parse() function.\n");
-    return result;
+    } state = saved;
+    return {symbols};
 }
-
-/**
- 
- struct expression {
- std::vector<struct symbol> symbols = {};   ---->   std::vector<new_expression> children = {}
- resolved type = {};   KEPT
- resolved me = {};    KEPT
- token start = {};    DELETED
- bool error = false;    DELETED
- };
- 
- struct symbol {
- long type = none;         KEPT
- expression subexpression = {};     DELETED
- token literal = {};     KEPT
- bool error = false;      KEPT
- };
- 
- */
-//struct new_expression {
-//    std::vector<new_expression> children = {};
-//    resolved type = {};
-//    resolved me = {};
-//    long literal_type = none;
-//    token literal = {};
-//    bool error = false;
-//};
-
-//void my_prep(int d) {
-//    for (int i = 0; i < d; i++) printf(".   ");
-//}
-
-//static inline void print_new_expression(new_expression e, int d) {
-//    my_prep(d); printf("token = %s of type %s\n", e.literal.value.c_str(), convert_token_type_representation(e.literal.type));
-//    my_prep(d); printf("error = %d\n", e.error);
-//    my_prep(d); printf("literal type = %s\n", convert_token_type_representation(e.literal_type));
-//    my_prep(d); printf("children: {\n");
-//    for (auto f : e.children) {
-//        my_prep(d+1); printf("child: \n");
-//        print_new_expression(f, d + 1);
-//    }
-//    my_prep(d); printf("}\n");
-//}
-
-//static inline list parse(std::vector<std::string> tokens, size_t& index) {
-//    auto t = tokens.at(index++);
-//    if (t != "(" and t != ")") return {t};
-//    else if (t == "(") {
-//        list l = {};
-//        while (index < tokens.size() and tokens.at(index) != ")") {
-//            auto p = parse(tokens, index);
-//            l.symbols.push_back(p);
-//        }
-//        index++;
-//        return l;
-//    } else return {"", {}, true};
-//}
-
-//static inline new_expression new_parse(lexing_state& state, const file& file) {
-//    auto saved = state;
-//    auto t = next(state, file);
-//
-//    if (t.type == string or t.type == id or (t.type == op and t.value != "(" and t.value != ")"))
-//        return {{}, {}, {}, t.type == op ? id : t.type, t};
-//
-//    else if (t.type == op and t.value == "(") {
-//
-//        //        auto saved = state;
-//
-//        new_expression l = {};
-//        l.literal_type = expr;
-//        l.error = false;
-//
-//        token current = {};
-//
-//        while (current.type and not (current.type == op and current.value == ")")) {
-//            auto e = new_parse(state, file);
-//
-//            //            if (e.literal_type) {
-//            l.children.push_back(e);
-//
-//            //            } else {
-//            //                printf("did not push none.\n");
-//            //            }
-//
-//            //            saved = state;
-//
-//            current = next(state, file);
-//
-//            //            if (current.type == none) {
-//            //                printf("n3zqx2l: %s:%ld:%ld: expected \")\"\n\n", file.name, t.line, t.column);
-//            //                l.error = true;
-//            ////                state = saved;
-//            //                return l;
-//            //            }
-//        }
-//
-//        //        state = saved;
-//        return l;
-//    } else {
-//        abort();
-//        //        state = saved;
-//        return {{}, {}, {}, none, {}, true};
-//    }
-//}
-
-//else if (t.type == op and t.value == ")") {
-//printf("n3zqx2l: %s:%ld:%ld: error: unexpected \"%s\"\n\n", file.name, t.line, t.column, t.value.c_str());
-//return {{}, {}, {}, none, {}, true};
-
-
-//static inline std::string expression_to_pretty_string(const expression& given, const std::vector<entry>& entries, long begin = 0, long end = -1, std::vector<resolved> args = {}) {
-//    std::string result = "";
-//    long i = 0, j = 0;
-//    if (given.symbols.empty()) result += "()";
-//    else for (auto symbol : given.symbols) {
-//        if (i < begin or (end != -1 and i >= end)) { i++; continue; }
-//        if (symbol.type == id) result += symbol.literal.value;
-//        else if (symbol.type == string) result += "\"" + symbol.literal.value + "\"";
-//        else if (symbol.type == expr and args.empty()) result += "(" + expression_to_pretty_string(symbol.subexpression, entries) + ")";
-//        else if (symbol.type == expr) {
-//            result += "(" + expression_to_pretty_string(symbol.subexpression, entries, 0, -1, args) + ")=" + expression_to_pretty_string(entries[args[j].index].signature, entries, 0, -1, args[j].args);
-//            j++;
-//        }
-//        if (i++ < (long) given.symbols.size() - 1 and not (i + 1 < begin or (end != -1 and i + 1 >= end))) result += " ";
-//    }
-//    //    result += " : ";
-//    if (given.type.index) result += " " + expression_to_pretty_string(entries[given.type.index].signature, entries, 0, -1, given.type.args);
-//    return result;
-//}
 
 static inline std::string expression_to_string(const expression& given, const std::vector<entry>& entries, long begin = 0, long end = -1, std::vector<resolved> args = {}) {
     std::string result = "(";
@@ -312,13 +158,26 @@ static inline std::string expression_to_string(const expression& given, const st
     return result;
 }
 
-static inline void print_resolved_expr(resolved expr, long depth, std::vector<entry> entries, long d = 0);
+static inline void print_resolved_expr(resolved expr, size_t depth, std::vector<entry> entries, size_t d = 0);
 
-static inline void debug_stack(std::vector<entry> entries, std::vector<std::vector<long>> stack, bool show_llvm) {
+static inline void print_intrinsics(std::vector<std::vector<size_t>> intrinsics) {
+    std::cout << "\n\n---- debugging intrinsics: ----\n";
+        
+    for (size_t i = 0; i < intrinsics.size(); i++) {
+        if (intrinsics[i].empty()) continue;
+        std::cout << "\t ----- INTRINSIC ID # "<< i <<"---- \n\t\tsignatures: { ";
+        for (auto index : intrinsics[i]) {
+            std::cout << index << " ";
+        } std::cout << "}\n";
+    }
+    std::cout << "\n--------------------------------\n";
+}
+
+static inline void debug_stack(std::vector<entry> entries, std::vector<std::vector<size_t>> stack) {
     std::cout << "\n\n---- debugging stack: ----\n";
     std::cout << "printing frames: \n";
     
-    for (auto i = 0; i < (long) stack.size(); i++) {
+    for (size_t i = 0; i < stack.size(); i++) {
         std::cout << "\t ----- FRAME # "<< i <<"---- \n\t\tidxs: { ";
         for (auto index : stack[i]) {
             std::cout << index << " ";
@@ -328,9 +187,7 @@ static inline void debug_stack(std::vector<entry> entries, std::vector<std::vect
     auto j = 0;
     
     for (auto entry : entries) {
-        
         std::cout << "\t" << std::setw(6) << j << ": ";
-        
         std::cout << expression_to_string(entry.signature, entries, 0);
         if (entry.subsitution.index) std::cout << " ---> " << std::to_string(entry.subsitution.index);
         if (entry.definition.index) {
@@ -338,17 +195,15 @@ static inline void debug_stack(std::vector<entry> entries, std::vector<std::vect
             print_resolved_expr(entry.definition, 1, entries);
         }
         std::cout << "\n\n";
-        
-        if (show_llvm) std::cout << "\n\n\n";
         j++;
     } std::cout << "}\n";
 }
 
-static inline void print_expression(expression e, int d);
+static inline void print_expression(expression e, size_t d);
 
-#define prep(x)   for (long i = 0; i < x; i++) std::cout << ".   "
+#define prep(x)   for (size_t i = 0; i < x; i++) std::cout << ".   "
 
-const char* convert_token_type_representation( long type) {
+const char* convert_token_type_representation( size_t type) {
     switch (type) {
         case none: return "{none}";
         case string: return "string";
@@ -359,7 +214,7 @@ const char* convert_token_type_representation( long type) {
     }
 }
 
-static inline void print_symbol(symbol symbol, int d) {
+static inline void print_symbol(symbol symbol, size_t d) {
     prep(d); std::cout << "symbol: \n";
     switch (symbol.type) {
         case id:
@@ -379,7 +234,7 @@ static inline void print_symbol(symbol symbol, int d) {
     }
 }
 
-static inline void print_expression(expression expression, int d) {
+static inline void print_expression(expression expression, size_t d) {
     prep(d); std::cout << "expression: \n";
     prep(d); std::cout << std::boolalpha << "error: " << expression.error << "\n";
     prep(d); std::cout << "symbol count: " << expression.symbols.size() << "\n";
@@ -394,12 +249,15 @@ static inline void print_expression(expression expression, int d) {
     prep(d); std::cout << "type = " << expression.type.index << "\n";
 }
 
-static inline void print_resolved_expr(resolved expr, long depth, std::vector<entry> entries, long d) {
+static inline void print_resolved_expr(resolved expr, size_t depth, std::vector<entry> entries, size_t d) {
     prep(depth); std::cout << d << ": [error = " << std::boolalpha << expr.error << "]\n";
     prep(depth); std::cout << "index = " << expr.index << " :: " << expression_to_string(entries[expr.index].signature, entries, 0) << "\n";
-    if (expr.expr.size()) {
-        prep(depth); std::cout << "expr = " << expression_to_string(expr.expr.front(), entries) << "\n";
+    
+    if (expr.name.size()) {
+        prep(depth); std::cout << "expr = " << expression_to_string(expr.name.front(), entries) << "\n";
     }
+    prep(depth); std::cout << "number = " << expr.number << "\n";
+    
     std::cout << "\n";
     long i = 0;
     for (auto arg : expr.args) {
@@ -409,12 +267,16 @@ static inline void print_resolved_expr(resolved expr, long depth, std::vector<en
     }
 }
 
-static inline size_t define(expression signature, const resolved& type, const resolved& definition, std::vector<entry>& entries, std::vector<std::vector<long>>& stack) {
+static inline size_t define(expression signature, const resolved& type, const resolved& definition, std::vector<entry>& entries, std::vector<std::vector<size_t>>& stack) {
     auto index = entries.size(); stack.back().push_back(index);
     signature.me.index = index; entries.push_back({signature, definition});
     std::stable_sort(stack.back().begin(), stack.back().end(), [&](size_t a, size_t b) { return entries[a].signature.symbols.size() > entries[b].signature.symbols.size(); });
     std::stable_sort(stack.back().begin(), stack.back().end(), [&](size_t a, size_t b) { return entries[a].signature.symbols.size() and entries[a].signature.symbols.front().type == expr; });
     return index;
+}
+
+static inline bool is_intrin(size_t _class, size_t to_test, const std::vector<std::vector<size_t>>& intrinsics) {
+    return std::find(intrinsics[_class].begin(), intrinsics[_class].end(), to_test) != intrinsics[_class].end();
 }
 
 static inline bool equal(resolved a, resolved b, std::vector<entry>& entries) {
@@ -426,28 +288,41 @@ static inline bool equal(resolved a, resolved b, std::vector<entry>& entries) {
     return true;
 }
 
-static inline resolved resolve(const expression& given, const resolved& given_type, std::vector<entry>& entries, std::vector<std::vector<long>>& stack, const file& file, size_t max_depth);
+static inline resolved resolve(const expression& given, const resolved& given_type, std::vector<entry>& entries, std::vector<std::vector<size_t>>& stack, std::vector<std::vector<size_t>>& intrinsics, const file& file, size_t max_depth);
 
-static expression typify(const expression& given, const resolved& initial_type, std::vector<entry>& entries, std::vector<std::vector<long>>& stack, const file& file, long max_depth) {
+static expression typify(const expression& given, const resolved& initial_type, std::vector<entry>& entries, std::vector<std::vector<size_t>>& stack, std::vector<std::vector<size_t>>& intrinsics, const file& file, size_t max_depth) {
     if (given.symbols.empty()) return {{}, {}, {}, {}, true};
     expression signature = given.symbols.front().subexpression;
-    for (auto& s : signature.symbols) if (s.type == expr) define(s.subexpression = typify(s.subexpression, {0}, entries, stack, file, max_depth), {}, {}, entries, stack);
+    for (auto& s : signature.symbols) if (s.type == expr) define(s.subexpression = typify(s.subexpression, {0}, entries, stack, intrinsics, file, max_depth), {}, {}, entries, stack);
     signature.type = initial_type;
-    for (long i = given.symbols.size(); i-- > 1;) signature.type = resolve(given.symbols[i].subexpression, signature.type, entries, stack, file, max_depth);
+    for (size_t i = given.symbols.size(); i-- > 1;) signature.type = resolve(given.symbols[i].subexpression, signature.type, entries, stack, intrinsics, file, max_depth);
     return signature;
 }
-static inline resolved construct_signature(const expression& given, std::vector<entry>& entries, std::vector<std::vector<long>>& stack, const file& file, long max_depth) {
-    return {_name, {}, false, {given.symbols.size() and given.symbols.front().type == expr ? typify(given, {0}, entries, stack, file, max_depth) : expression {given.symbols, {_type}}}};
+static inline resolved construct_signature(const expression& given, std::vector<entry>& entries, std::vector<std::vector<size_t>>& stack, std::vector<std::vector<size_t>>& intrinsics, const file& file, size_t max_depth, size_t its_index) {
+    return {its_index, {}, false, {given.symbols.size() and given.symbols.front().type == expr ? typify(given, {0}, entries, stack, intrinsics, file, max_depth) : expression {given.symbols, {_undefined}}}}; ///TODO: _undefined needs to actually be "_infered". eventually.
+}
+
+static inline resolved construct_number(const expression& given, const file& file, size_t& i, size_t its_index) {
+    const char* string = given.symbols[i].literal.value.c_str();
+    char* pointer = NULL;
+    unsigned long long n = strtoull(string, &pointer, 10);
+    resolved r {its_index, {}, strlen(string) + string != pointer, {}, n};
+    if (r.error) {
+        printf("n3zqx2l: %s:%ld:%ld: error: expected natural number, received \"%s\"\n\n", file.name, given.symbols[i].literal.line, given.symbols[i].literal.column, string);
+        return r;
+    } else { i++; return r; }
 }
 
 bool debug = true;
 
-static inline resolved resolve_at(const expression& given, const resolved& expected, size_t& i, size_t& best, size_t depth, size_t max_depth, std::vector<entry>& entries, std::vector<std::vector<long>>& stack, const file& file) {
+static inline resolved resolve_at(const expression& given, const resolved& expected, size_t& i, size_t& best, size_t depth, size_t max_depth, std::vector<entry>& entries, std::vector<std::vector<size_t>>& stack, std::vector<std::vector<size_t>>& intrinsics, const file& file) {
     if (depth > max_depth) return {0, {}, true};
-    else if (expected.index == _lazy) return resolve_at(given, expected.args[0], i, best, depth, max_depth, entries, stack, file);
+
+    else if (i < given.symbols.size() and given.symbols[i].type == expr and is_intrin(_name, expected.index, intrinsics)) return construct_signature(given.symbols[i++].subexpression, entries, stack, intrinsics, file, max_depth, expected.index);
+    else if (i < given.symbols.size() and given.symbols[i].type == expr) return resolve(given.symbols[i++].subexpression, expected, entries, stack, intrinsics, file, max_depth);
+    else if (i < given.symbols.size() and given.symbols[i].type == id and is_intrin(_number, expected.index, intrinsics)) return construct_number(given, file, i, expected.index);
     else if (i < given.symbols.size() and given.symbols[i].type == string) return {_string, {}, false, {{{given.symbols[i++]}}}}; /*TODO: should expect type: "(pointer (i8))"     ie, check given_type.args[]... */
-    else if (i < given.symbols.size() and given.symbols[i].type == expr and expected.index == _name) return construct_signature(given.symbols[i++].subexpression, entries, stack, file, max_depth);
-    else if (i < given.symbols.size() and given.symbols[i].type == expr) return resolve(given.symbols[i++].subexpression, expected, entries, stack, file, max_depth);
+    //    else if (expected.index == _lazy) return resolve_at(given, expected.args[0], i, best, depth, max_depth, entries, stack, file);
     auto saved = i; auto saved_stack = stack;
     for (const auto s : saved_stack.back()) {
         best = std::max(i, best); i = saved; stack = saved_stack; std::vector<resolved> args = {};
@@ -455,27 +330,27 @@ static inline resolved resolve_at(const expression& given, const resolved& expec
             const auto& symbol = entries[s].signature.symbols[j];
             if (i >= given.symbols.size()) { if (args.size() and j == 1) return args[0]; else goto next; }
             if (symbol.type == expr) {
-                resolved argument = resolve_at(given, symbol.subexpression.type, i, best, depth + 1, max_depth, entries, stack, file);
+                resolved argument = resolve_at(given, symbol.subexpression.type, i, best, depth + 1, max_depth, entries, stack, intrinsics, file);
                 if (argument.error) goto next; args.push_back({argument}); entries[symbol.subexpression.me.index].subsitution = argument;
             } else if (symbol.type != given.symbols[i].type or symbol.literal.value != given.symbols[i].literal.value) goto next; else i++;
         } if (not equal(expected, entries[s].signature.type, entries)) continue;
         //        if (s == _push) stack.push_back(stack.back());
         //        if (s == _pop) stack.pop_back();
-        if (s == _declare) args[0].expr[0].me.index = define(args[0].expr[0], {}, {}, entries, stack);
-        if (s == _define) args[0].expr[0].me.index = define(args[0].expr[0], args[1], args[2], entries, stack);
-        if (s == _define_type) args[0].expr[0].me.index = define(args[0].expr[0], {_type}, args[1], entries, stack); ///TODO: delete me, replace me with a call to "define_intrinsic <name> <number>"
+        if (is_intrin(_declare_intrinsic, s, intrinsics) and args[1].number < _intrinsic_count) intrinsics[args[1].number].push_back(args[0].name[0].me.index = define(args[0].name[0], {}, {}, entries, stack));
+        if (is_intrin(_define, s, intrinsics)) args[0].name[0].me.index = define(args[0].name[0], args[1], args[2], entries, stack);
+//        if (s == _define_type) args[0].name[0].me.index = define(args[0].name[0], {_type}, args[1], entries, stack);
         return {s, args}; next: continue;
     } return {0, {}, true};
 }
-static inline resolved resolve(const expression& given, const resolved& given_type, std::vector<entry>& entries, std::vector<std::vector<long>>& stack, const file& file, size_t max_depth) {
-    printf("-------------- parse tree: -------------------\n");
-    print_expression(given, 0);
+static inline resolved resolve(const expression& given, const resolved& given_type, std::vector<entry>& entries, std::vector<std::vector<size_t>>& stack, std::vector<std::vector<size_t>>& intrinsics, const file& file, size_t max_depth) {
+    //printf("-------------- parse tree: -------------------\n");
+    //print_expression(given, 0);
     size_t index = 0, best = 0;
-    resolved solution = resolve_at(given, given_type, index, best, 0, max_depth, entries, stack, file);
+    resolved solution = resolve_at(given, given_type, index, best, 0, max_depth, entries, stack, intrinsics, file);
     if (index < given.symbols.size()) solution.error = true;
     if (solution.error) {
         const auto b = best < given.symbols.size() ? (given.symbols[best].type == expr ? given.symbols[best].subexpression.start : given.symbols[best].literal) : given.start;
-        if (b.line and b.column) printf("n3zqx2l: %s:%ld:%ld: error: unresolved %s, expected type %s\n\n", file.name, b.line, b.column, expression_to_string(given, entries, best, best + 1).c_str(), expression_to_string(entries[given_type.index].signature, entries, 0, -1, given_type.args).c_str());
+        printf("n3zqx2l: %s:%ld:%ld: error: unresolved %s, expected type %s\n\n", file.name, b.line, b.column, expression_to_string(given, entries, best, best + 1).c_str(), expression_to_string(entries[given_type.index].signature, entries, 0, -1, given_type.args).c_str());
     } return solution;
 }
 
@@ -486,27 +361,9 @@ static inline void set_data_for(std::unique_ptr<llvm::Module>& module) {
     module->setDataLayout(target_machine->createDataLayout());
 }
 
-//static inline llvm::Type* find_llvm_type(const resolved &t, llvm::Module* module) {
-//    if ( t.index == _llvm and t.llvm.size()) {
-//        llvm::SMDiagnostic type_errors;
-//        auto llvm_type = llvm::parseType(t.llvm, type_errors, *module);
-//        if (llvm_type) {
-//            if (dbg) {
-//                printf("successful type parse: \n\n\t");
-//                llvm_type->print(llvm::outs());
-//                printf("\n\n");
-//            }
-//            return llvm_type;
-//        } else {
-//            if (dbg)printf("error, type in llvm string did not parse.\n");
-//        }
-//    } else {
-//        if (dbg)printf("hmm, the type was found to be not llvm! it was: t:%ld\n", t.index);
-//    }
-//    return nullptr;
-//}
-
-static inline llvm::Value* generate_expression(const resolved& given, std::vector<entry>& entries, std::vector<std::vector<long>>& stack, llvm::Module* module, llvm::Function* function, llvm::IRBuilder<>& builder) {
+static inline llvm::Value* generate_expression(const resolved& given, std::vector<entry>& entries,
+                                               std::vector<std::vector<size_t>>& stack, llvm::Module* module,
+                                               llvm::Function* function, llvm::IRBuilder<>& builder) {
     
     const auto f = given.index;
     
@@ -518,10 +375,9 @@ static inline llvm::Value* generate_expression(const resolved& given, std::vecto
     if (f == _ret_void) {
         return builder.CreateRetVoid();
         
-        
     } else if (f == _label) {
         
-        auto label_name = expression_to_string(given.args[0].expr[0], entries);
+        auto label_name = expression_to_string(given.args[0].name[0], entries);
         
         auto block = llvm::BasicBlock::Create(module->getContext(), label_name, function);
         
@@ -530,7 +386,7 @@ static inline llvm::Value* generate_expression(const resolved& given, std::vecto
         
     } else if (f == _uncond_branch) {
         
-        auto label_name = expression_to_string(given.args[0].expr[0], entries);
+        auto label_name = expression_to_string(given.args[0].name[0], entries);
         auto block = llvm::BasicBlock::Create(module->getContext(), label_name, function);
         return builder.CreateBr(block);
         
@@ -544,9 +400,9 @@ static inline llvm::Value* generate_expression(const resolved& given, std::vecto
             printf("error: called _define or _define_type: they are unimplemented.\n");
         
         
-    } else if (f == _declare) {
+    } else if (f == _declare_intrinsic) {
         
-        auto the_signature = given.args[0].expr[0];
+        auto the_signature = given.args[0].name[0];
         std::string the_signature_stringified = expression_to_string(the_signature, entries);
         
         if (debug)std::cout << "--------- declaring a function: " << the_signature_stringified << " ----------\n";
@@ -672,15 +528,15 @@ static inline llvm::Value* generate_expression(const resolved& given, std::vecto
 }
 
 
-
-
-static inline std::unique_ptr<llvm::Module> generate(const resolved& given, std::vector<entry>& entries, std::vector<std::vector<long>>& stack, const file& file, llvm::LLVMContext& context, bool is_main) {
+static inline std::unique_ptr<llvm::Module> generate(const resolved& given, std::vector<entry>& entries, std::vector<std::vector<size_t>>& stack, std::vector<std::vector<size_t>>& intrinsics, const file& file, llvm::LLVMContext& context, bool is_main) {
     
     if (debug){
         printf("\n\n");
         print_resolved_expr(given, 0, entries);
         printf("\n\n");
-        debug_stack(entries, stack, false);
+        debug_stack(entries, stack);
+        printf("\n\n");
+        print_intrinsics(intrinsics);
         printf("\n\n");
     }
     
@@ -829,18 +685,20 @@ int main(const int argc, const char** argv) {
                 }
                 const file file = {argv[i], {std::istreambuf_iterator<char>(stream), std::istreambuf_iterator<char>()}};
                 lexing_state state {0, none, 1, 1};
-                std::vector<entry> entries {{},{{{{id,{},{id,"root"}}},{0},{_root}}}};
-                std::vector<std::vector<long>> stack {{_root}};
-                define({{{id,{},{id,"type"}}}}, {_root}, {}, entries, stack);
-                define({{{id,{},{id,"join"}},{expr,{{},{_type}}},{expr,{{},{_type}}} }}, {_type}, {}, entries, stack);
-                define({{{id,{},{id,"name"}}}}, {_type}, {}, entries, stack);
-                define({{{id,{},{id,"declare"}},{expr,{{},{_name}}}}}, {_type}, {}, entries, stack);
-//                auto rg = new_parse(state, file);
-//                print_new_expression(rg, 0);
-//                exit(1);
+                std::vector<entry> entries { {},
+                    /** 0kqfsnyh5t3hr8viagrr6 */ {{{{id,{},{id,"i"}}},{_undefined},{_init}}},
+                    /** 1tsrb944gazx3a8cqy2g9 */ {{{{id,{},{id,"name"}}},{_init},{_name}}},
+                    /** 2q1c0pzkzhu2l9t8j6h7a */ {{{{id,{},{id,"nat"}}},{_init},{_number}}},
+                    /** 3we9uq5txfjqjgkeb2chb */ {{{{id,{},{id,"decl"}},{expr,{{},{_name}}},{expr,{{},{_number}}} },{_init},{_declare_intrinsic}}},
+                    /** 4lco2hyh80iwtimpq7o58 */ {{{{id,{},{id,"join"}},{expr,{{},{_init}}}, {expr,{{},{_init}}}},{_init},{_join}}},
+                };
+                std::vector<std::vector<size_t>>
+                    stack {{_join, _declare_intrinsic, _name, _number, _init}},
+                    intrinsics(_intrinsic_count, std::vector<size_t>{});
+                    for (size_t i = _undefined; i < _type; i++) intrinsics[i].push_back(i);
                 
-                if (llvm::Linker::linkModules(*module, generate(resolve(parse(state, file), {_type}, entries, stack, file, max_depth),
-                                                                entries, stack, file, context, no_files))) exit(1);
+                if (llvm::Linker::linkModules(*module, generate(resolve(parse(state, file), {_init}, entries, stack, intrinsics, file, max_depth),
+                                                                entries, stack, intrinsics, file, context, no_files))) exit(1);
                 
             } else if (ext && !strcmp(ext, ".ll")) {
                 
@@ -869,6 +727,3 @@ int main(const int argc, const char** argv) {
     if (no_files) printf("n: error: no input files\n");
     else output(args, optimize(module));
 }
-
-//           else if (given.symbols[index].type == string and given_type.index == 1) return {0, {}, false, {}, given.symbols[index++].literal.value};
-//           else if (given.symbols[index].type == string) return {0, {}, false, {{{given.symbols[index++]}}}, "i8*"};
