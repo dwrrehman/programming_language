@@ -14,31 +14,39 @@ enum constants { none, id, op, string, expr,
     action = 'x', exec = 'o', object = 'c', ir = 'i', assembly = 's',
     
     _undefined = 0,
-    _init, _name, _number,
-    _declare_intrinsic, _join,
+    _init, _name, _number, _join,
+    _declare,
         
     _type,
+    _0, _lazy,
     
-    _0, _external_declare,
+    _1, _2, _3, _4, _define, /// define (s: name) (t: init) (d: L t) (extern: number) -> init
     
-    _1, _lazy,
+    _i1, _i8, _i16, _i32, _i64, _i128, _x86_mmx, _f16, _f32, _f64, _f128,
     
-    _2, _3, _4, _define,
-    _5, _6, _7, _external_define,
+    _5, _6, _pointer,           /// pointer (addrspace: number) (t: type)   -> type
     
-    _8, _9, _define_type, /// DELETE ME
+    _7, _8, _vector,            /// vector (width: number) (t: type)  -> type
+    _9, _10, _scalable,         /// scalable (width: number) (t: type)   -> type
     
-    _string,
+    _11, _12, _array,           /// array (size: number) (t: type)   -> type
     
-    _10, _11, _external_call, ///
+    _13, _opaque,               /// opaque (s: name) -> type
+    _14, _15, _16, _structure,  /// struct (s: name) (d: name) (extern: number) -> type
+    _17, _18, _19, _packed,     /// packed (s: name) (d: name) (extern: number) -> type
     
+    _27, _function_type,         /// function (type: name)
     
-    //llvm ins:
-    _ret_void,
-    _12, _13, _ret_value,
-    _14, _label,
-    _15, _uncond_branch,
-    _16, _17, _18, _cond_branch,
+    _label, _metadata, _token, _unit,
+    _string, ///  string -> pointer 0 i8
+
+    _unreachable,                   /// unreachable   -> unit
+    _ret_void,                      /// ret void   -> unit
+    _20, _21, _ret_value,           /// ret (t: type) (v: t)   -> unit
+    
+    _22, _create_label,             /// label (l: name)  -> unit
+    _23, _uncond_branch,            /// jump (l: name)   -> unit
+    _24, _25, _26, _cond_branch,    /// br (cond: i1) (1: name) (2: name)   -> unit
     
     _intrinsic_count
 };
@@ -336,7 +344,7 @@ static inline resolved resolve_at(const expression& given, const resolved& expec
         } if (not equal(expected, entries[s].signature.type, entries)) continue;
         //        if (s == _push) stack.push_back(stack.back());
         //        if (s == _pop) stack.pop_back();
-        if (is_intrin(_declare_intrinsic, s, intrinsics) and args[1].number < _intrinsic_count) intrinsics[args[1].number].push_back(args[0].name[0].me.index = define(args[0].name[0], {}, {}, entries, stack));
+        if (is_intrin(_declare, s, intrinsics) and args[1].number < _intrinsic_count) intrinsics[args[1].number].push_back(args[0].name[0].me.index = define(args[0].name[0], {}, {}, entries, stack));
         if (is_intrin(_define, s, intrinsics)) args[0].name[0].me.index = define(args[0].name[0], args[1], args[2], entries, stack);
 //        if (s == _define_type) args[0].name[0].me.index = define(args[0].name[0], {_type}, args[1], entries, stack);
         return {s, args}; next: continue;
@@ -394,13 +402,13 @@ static inline llvm::Value* generate_expression(const resolved& given, std::vecto
         if (debug)
             printf("error: called _type or _name: they are unimplemented.\n");
         
-    } else if (f == _define or f == _define_type) {
+    } else if (f == _define) {
         
         if (debug)
-            printf("error: called _define or _define_type: they are unimplemented.\n");
+            printf("error: called _define: they are unimplemented.\n");
         
         
-    } else if (f == _declare_intrinsic) {
+    } else if (f == _declare) {
         
         auto the_signature = given.args[0].name[0];
         std::string the_signature_stringified = expression_to_string(the_signature, entries);
@@ -460,7 +468,7 @@ static inline llvm::Value* generate_expression(const resolved& given, std::vecto
     } else {
         std::vector<llvm::Value*> arguments = {};
         
-        if (f == _external_call) {
+        if (f == _0) {
             
             if (debug)printf("found an EXTERNAL CALL intrinsic call: \n");
             
@@ -561,8 +569,7 @@ static inline std::unique_ptr<llvm::Module> generate(const resolved& given, std:
         else printf("(null)");
         printf("\n");
     }
-    
-    
+        
     builder.SetInsertPoint(&main->getBasicBlockList().back());
     builder.CreateRet(llvm::ConstantInt::get(llvm::Type::getInt32Ty(context), 0));
     
@@ -689,19 +696,17 @@ int main(const int argc, const char** argv) {
                     /** 1kqfsnyh5t3hr8viagrr6 */ {{{{id,{},{id,"1kqfsnyh5t3hr8viagrr6"}}},{_undefined},{_init}}},
                     /** 2tsrb944gazx3a8cqy2g9 */ {{{{id,{},{id,"2tsrb944gazx3a8cqy2g9"}}},{_init},{_name}}},
                     /** 3q1c0pzkzhu2l9t8j6h7a */ {{{{id,{},{id,"3q1c0pzkzhu2l9t8j6h7a"}}},{_init},{_number}}},
-                    /** 4we9uq5txfjqjgkeb2chb */ {{{{id,{},{id,"4we9uq5txfjqjgkeb2chb"}},{expr,{{},{_name}}},{expr,{{},{_number}}} },{_init},{_declare_intrinsic}}},
-                    /** 5lco2hyh80iwtimpq7o58 */ {{{{id,{},{id,"5lco2hyh80iwtimpq7o58"}},{expr,{{},{_init}}}, {expr,{{},{_init}}}},{_init},{_join}}},
+                    /** 4lco2hyh80iwtimpq7o58 */ {{{{id,{},{id,"4lco2hyh80iwtimpq7o58"}},{expr,{{},{_init}}}, {expr,{{},{_init}}}},{_init},{_join}}},
+                    /** 5we9uq5txfjqjgkeb2chb */ {{{{id,{},{id,"5we9uq5txfjqjgkeb2chb"}},{expr,{{},{_name}}},{expr,{{},{_number}}} },{_init},{_declare}}},
                 };
                 std::vector<entry> entries { {},
                     /** 1kqfsnyh5t3hr8viagrr6 */ {{{{id,{},{id,"i"}}},{_undefined},{_init}}},
                     /** 2tsrb944gazx3a8cqy2g9 */ {{{{id,{},{id,"name"}}},{_init},{_name}}},
                     /** 3q1c0pzkzhu2l9t8j6h7a */ {{{{id,{},{id,"nat"}}},{_init},{_number}}},
-                    /** 4we9uq5txfjqjgkeb2chb */ {{{{id,{},{id,"decl"}},{expr,{{},{_name}}},{expr,{{},{_number}}} },{_init},{_declare_intrinsic}}},
-                    /** 5lco2hyh80iwtimpq7o58 */ {{{{id,{},{id,"join"}},{expr,{{},{_init}}}, {expr,{{},{_init}}}},{_init},{_join}}},
-                }; std::vector<std::vector<size_t>> stack {{_join, _declare_intrinsic, _name, _number, _init}}, intrinsics(_intrinsic_count, std::vector<size_t>{});
+                    /** 4lco2hyh80iwtimpq7o58 */ {{{{id,{},{id,"join"}},{expr,{{},{_init}}}, {expr,{{},{_init}}}},{_init},{_join}}},
+                    /** 5we9uq5txfjqjgkeb2chb */ {{{{id,{},{id,"decl"}},{expr,{{},{_name}}},{expr,{{},{_number}}} },{_init},{_declare}}},
+                }; std::vector<std::vector<size_t>> stack {{_declare, _join, _name, _number, _init}}, intrinsics(_intrinsic_count, std::vector<size_t>{});
                 for (size_t i = _undefined; i < _type; i++) intrinsics[i].push_back(i);
-                
-                entries = real_entries;
                 
                 if (llvm::Linker::linkModules(*module, generate(resolve(parse(state, file), {_init}, entries, stack, intrinsics, file, max_depth), entries, stack, intrinsics, file, context, no_files))) exit(1);
                 
