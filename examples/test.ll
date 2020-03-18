@@ -85,9 +85,7 @@ join decl (
 ) (load-type) (type) (i)) 16 0
 
 
-
-
-
+join decl ((unit) (type) (i)) 55 0
 join decl ((i1) (type) (i)) 17 0
 join decl ((i8) (type) (i)) 18 0
 join decl ((i16) (type) (i)) 19 0
@@ -99,6 +97,10 @@ join decl ((f16) (type) (i)) 24 0
 join decl ((f32) (type) (i)) 25 0
 join decl ((f64) (type) (i)) 26 0
 join decl ((f128) (type) (i)) 27 0
+join decl ((label) (type) (i)) 52 0
+join decl ((metadata) (type) (i)) 53 0
+join decl ((token) (type) (i)) 54 0
+join decl ((string) (pointer 0 i8) (type) (i)) 56 0
 
 join decl ((pointer
         ((pointer-addrspace) (nat) (i))
@@ -140,13 +142,6 @@ join decl ((packed
 join decl ((function
     ((function-type) (name) (i))
 ) (type) (i)) 51 0
-
-
-join decl ((label) (type) (i)) 52 0
-join decl ((metadata) (type) (i)) 53 0
-join decl ((token) (type) (i)) 54 0
-join decl ((unit) (type) (i)) 55 0
-join decl ((string) (pointer 0 i8) (type) (i)) 56 0
 
 join decl ((unreachable) (unit) (type) (i)) 57 0
 join decl ((ret void) (unit) (type) (i)) 58 0

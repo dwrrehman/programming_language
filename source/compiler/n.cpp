@@ -27,7 +27,15 @@ enum constants { none, id, op, string, expr,
     
     _28, _29, _load, /// load (file: name) (t: type) -> t             eg,       (load (hello world) unit)          <-------- this expr is of type unit.            it searches for a file called "helloworld.n"
     
+    _unit,
+    
     _i1, _i8, _i16, _i32, _i64, _i128, _x86_mmx, _f16, _f32, _f64, _f128,
+    
+    _label, _metadata, _token,
+    _string, ///  string -> pointer 0 i8
+    
+    
+    
     
     _5, _6, _pointer,           /// pointer (addrspace: number) (t: type)   -> type
     
@@ -42,9 +50,6 @@ enum constants { none, id, op, string, expr,
     
     _20, _function_type,         /// function (type: name)
     
-    _label, _metadata, _token, _unit,
-    _string, ///  string -> pointer 0 i8
-
     _unreachable,                   /// unreachable   -> unit
     _ret_void,                      /// ret void   -> unit
     _21, _22, _ret_value,           /// ret (t: type) (v: t)   -> unit
