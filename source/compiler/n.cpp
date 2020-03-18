@@ -123,20 +123,15 @@ static inline std::string expression_to_string(const expression& given, const st
     std::string result = "(";
     long i = 0, j = 0;
     for (auto symbol : given.symbols) {
-        if (i < begin or (end != -1 and i >= end)) {
-            i++;
-            continue;
-        }
+        if (i < begin or (end != -1 and i >= end)) { i++; continue; }
         if (symbol.type == id) result += symbol.literal.value;
         else if (symbol.type == string) result += "\"" + symbol.literal.value + "\"";
         else if (symbol.type == expr and args.empty()) result += "(" + expression_to_string(symbol.subexpression, entries) + ")";
         else if (symbol.type == expr) {
-            result += "(" + expression_to_string(entries[args[j].index].signature, entries, 0, -1, args) + ")";
-            j++;
+            result += "(" + expression_to_string(entries[args[j].index].signature, entries, 0, -1, args) + ")"; j++;
         }
         if (i++ < (long) given.symbols.size() - 1 and not (i + 1 < begin or (end != -1 and i + 1 >= end))) result += " ";
-    }
-    result += ")";
+    } result += ")";
     if (given.type.index) result += " " + expression_to_string(entries[given.type.index].signature, entries, 0, -1, given.type.args);
     return result;
 }
@@ -383,34 +378,6 @@ static inline llvm::Value* generate_expression(const resolved& given, std::vecto
         if (debug)
             printf("error: called _define: they are unimplemented.\n");
         
-        
-<<<<<<< HEAD
-        prep(depth); printf("     returning (i=%zd) {res: %zd,   args:  %zd}\n\n", index, s, args.size());
-        return {s, args};
-        next: continue;
-    }
-    index = saved;
-//    prep(depth); printf("CSR: ran outo of sigs.   ...exiting through failbackdoor.\n");
-    return {0, {}, true};
-}
-static inline resolved resolve(const expression& given, const resolved& given_type, std::vector<entry>& entries, std::vector<std::vector<long>>& stack, const file& file, long max_depth) {
-    long pointer = 0; auto solution = resolve_at(given, given_type, pointer, 0, max_depth, entries, stack, file, 0);
-    if (pointer < (long) given.symbols.size()) solution.error = true;
-    if (solution.error) {
-        const auto t = pointer < (long) given.symbols.size() ? given.symbols[pointer].literal : given.start;
-        printf("n3zqx2l: %s:%ld:%ld: error: unresolved %s @ %ld : %s ≠ %s\n\n\n", file.name, t.line, t.column, expression_to_string(given, entries, pointer, pointer + 1).c_str(), pointer, expression_to_string(given, entries).c_str(), expression_to_string(entries[given_type.index].signature, entries, 0, -1, given_type.args).c_str() );
-    } return solution; ///TODO: see if you can inline this into resolve_at()?
-}
-static inline void set_data_for(std::unique_ptr<llvm::Module>& module) {
-    module->setTargetTriple(llvm::sys::getDefaultTargetTriple()); std::string lookup_error = "";
-    auto target_machine = llvm::TargetRegistry::lookupTarget(module->getTargetTriple(), lookup_error)->createTargetMachine(module->getTargetTriple(), "generic", "", {}, {}, {});
-    module->setDataLayout(target_machine->createDataLayout());
-}
-static inline llvm::Value* generate_expression(const resolved& given, std::vector<entry>& entries, std::vector<std::vector<long>>& stack, llvm::Module* module, llvm::Function* function, llvm::IRBuilder<>& builder) {
-=======
-    } else if (f == _declare) {
->>>>>>> develop
-        
         auto the_signature = given.args[0].name[0];
         std::string the_signature_stringified = expression_to_string(the_signature, entries);
         
@@ -549,8 +516,7 @@ static inline std::unique_ptr<llvm::Module> generate(const resolved& given, std:
         printf("\n\n");
     }
     
-  
-    
+
     if (given.error) exit(1);
     
     auto module = llvm::make_unique<llvm::Module>(file.name, context);
