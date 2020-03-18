@@ -355,7 +355,6 @@ static inline resolved resolve_at(const expression& given, const resolved& expec
                 entries[symbol.subexpression.me.index].subsitution = argument;
             } else if (symbol.type != given.symbols[i].type or symbol.literal.value != given.symbols[i].literal.value) goto next; else i++;
         }
-        
         if (not equal(expected, entries[s].signature.type, entries)) continue;
         //        if (s == _push) stack.push_back(stack.back());
         //        if (s == _pop) stack.pop_back();

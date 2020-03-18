@@ -18,8 +18,26 @@ join decl (
     ((load-type) (type) (i))
 ) (load-type) (type) (i)) 21 0
 
+
 join decl ((g) (type) (i)) 0 0
+
+join (decl ((SIGNATURE) (type) (i)) 2 0)
+
+join decl ((declare
+    ((s0) (SIGNATURE) (type) (i))
+    ((n1) (nat) (i))
+    ((n2) (nat) (i))
+) (g) (type) (i)) 10 0
+
+join decl ((joy
+    ((joy_x) (g) (type) (i))
+    ((joy_y) (g) (type) (i))
+) (g) (type) (i)) 6 0 
+
 join decl ((hello there from space) (g) (type) (i)) 0 0
 join decl ((convert ((x) (g) (type) (i))) (i)) 0 0
 
-(convert (load (/Users/deniylreimn/Documents/projects/n3zqx2l/examples/file) g))
+join (convert (load (/Users/deniylreimn/Documents/projects/n3zqx2l/examples/file) g))
+
+join convert h
+type 
