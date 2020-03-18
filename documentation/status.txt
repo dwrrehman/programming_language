@@ -3,6 +3,47 @@ the current status of the nostril compiler:
 
 
 
+MAJOR LANG TODO:
+
+
+    figure out how to make the "signature syntax"
+     user define-able.
+     
+     because this is the only syntax in thelanguage, right now.
+     
+        very hard problem.
+        
+        
+        
+        
+        i dont know how to solve it... but i know theres a solution.
+        
+        i think.
+        
+        
+        
+        we need this to be user customizable.
+        
+        we need to look ontologically, at what is a signature, what is its structure, and
+        
+        
+        
+        and how to make it as readable as possible.
+        
+        i dont like the idea of giving
+        
+        
+        NO
+        
+        
+        NO
+        
+        NO
+        
+        
+        we sholdnt make the sig syn user defiable, because they will just muck up the amespace, by making "x: A" or something dumb like that.
+        
+        
 
 
 
@@ -16,15 +57,1143 @@ the current status of the nostril compiler:
 
 
 
--------------------------------
-backup of code:
-=================
 
+
+
+
+
+
+
+
+
+
+join declare ((llvm) (type) (root))
+join declare ((lazy ((t) (type) (root))) (type) (root))
+join declare ((define ((s) (name) (type) (root)) ((T) (type) (root)) ((d) (lazy T) (type) (root)) ) (type) (root))
+join declare ((define type ((s) (name) (type) (root)) ((d) (type) (root))) (type) (root))
+join declare ((string) ("i8*") (type) (root))
+join declare ((external call ((Ty) (type) (root)) ((e) (Ty) (type) (root)) ) (Ty) (type) (root))
+join declare (ret void)
+join declare ( ( ret ((Type) (type) (root)) ((Value) (Type) (type) (root)) ) (type) (root) )
+join declare ((label ((label name) (name) (type) (root)) ) (type) (root))
+join declare ((jump ((unconditional label) (name) (type) (root))) (type) (root))
+join declare ( (br ((condition) ("i1") (type) (root)) ((first) (name) (type) (root)) ((second) (name) (type) (root)) ) (type) (root) )
+
+join define type (( ((first statement) (type) (root)) ((second statement) (type) (root)) ) (type) (root)) second statement
+
+join define type ( (// ((commented text) ("i8*") (type) (root)) ) (type) (root) ) second statement
+
+join //"wef"
+
+name
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+PERFORMAMNCE BUG:
+
+
+
+
+join declare ((llvm) (type) (root))
+join declare ((lazy ((t) (type) (root))) (type) (root))
+join declare ((define ((s) (name) (type) (root)) ((T) (type) (root)) ((d) (lazy T) (type) (root)) ) (type) (root))
+join declare ((define type ((s) (name) (type) (root)) ((d) (type) (root))) (type) (root))
+join declare ((string) ("i8*") (type) (root))
+join declare ((external call ((Ty) (type) (root)) ((e) (Ty) (type) (root)) ) (Ty) (type) (root))
+join declare (ret void)
+join declare ( ( ret ((Type) (type) (root)) ((Value) (Type) (type) (root)) ) (type) (root) )
+join declare ((label ((label name) (name) (type) (root)) ) (type) (root))
+join declare ((jump ((unconditional label) (name) (type) (root))) (type) (root))
+join declare ( (br ((condition) ("i1") (type) (root)) ((first) (name) (type) (root)) ((second) (name) (type) (root)) ) (type) (root) )
+
+join define type (( ((first statement) (type) (root)) ((second statement) (type) (root)) ) (type) (root)) second statement
+
+join define type (( // ((commented text) ("i8*") (type) (root)) ) (type) (root) ) name
+
+join //"wef" name
+
+
+
+
+
+
+
+
+
+
+
+
+join declare ((llvm) (type) (root))
+join declare ((lazy ((t) (type) (root))) (type) (root))
+join declare ((define ((s) (name) (type) (root)) ((T) (type) (root)) ((d) (lazy T) (type) (root)) ) (type) (root))
+join declare ((define type ((s) (name) (type) (root)) ((d) (type) (root))) (type) (root))
+
+join declare ((string) (i8p) (type) (root))
+join declare ((external call ((Ty) (type) (root)) ((e) (Ty) (type) (root)) ) (Ty) (type) (root))
+join declare (ret void)
+join declare ( ( ret ((Type) (type) (root)) ((Value) (Type) (type) (root)) ) (type) (root) )
+join declare ((label ((label name) (name) (type) (root)) ) (type) (root))
+join declare ((jump ((unconditional label) (name) (type) (root))) (type) (root))
+join declare ( (br ((condition) ("i1") (type) (root)) ((first) (name) (type) (root)) ((second) (name) (type) (root)) ) (type) (root) )
+
+
+join define type (( ((first statement) (type) (root)) ((second statement) (type) (root)) ) (type) (root)) second statement
+
+define type ((((comment) (name) (type) (root))) (type) (root)) name
+
+(this is the entry basic block)
+jump (my name)
+
+
+
+(
+
+this is a comment too.
+
+it can actually be multiline, easily.
+
+
+this language does have comments, its just that they arent built in.
+    
+i dont know of any other programming language where the language is literally also comments, because of how beautiful the language is.
+
+)
+
+
+
+
+
+
+
+
+
+
+
+
+---- debugging stack: ----
+printing frames:
+     ----- FRAME # 0----
+        idxs: { 12 15 20 32 3 24 5 8 21 25 26 27 28 4 2 1 6 7 9 10 11 13 14 16 17 18 19 22 23 29 30 31 }
+
+master: {
+         0: () ---> 3
+
+         1: (root)
+
+         2: (type) (root)
+
+         3: (join (() (type) (root)) (() (type) (root))) (type) (root)
+
+         4: (name) (type) (root)
+
+         5: (declare (() (name) (type) (root))) (type) (root)
+
+         6: (llvm) (type) (root)
+
+         7: (t) (type) (root) ---> 10
+
+         8: (lazy ((t) (type) (root))) (type) (root)
+
+         9: (s) (name) (type) (root)
+
+        10: (T) (type) (root)
+
+        11: (d) (lazy ((T) (type) (root))) (type) (root)
+
+        12: (define ((s) (name) (type) (root)) ((T) (type) (root)) ((d) (lazy ((T) (type) (root))) (type) (root))) (type) (root)
+
+        13: (s) (name) (type) (root)
+
+        14: (d) (type) (root)
+
+        15: (define type ((s) (name) (type) (root)) ((d) (type) (root))) (type) (root)
+
+        16: (i8p) (type) (root)
+
+        17: (string) (i8p) (type) (root)
+
+
+        18: (Ty) (type) (root)
+
+        19: (e) (Ty) (type) (root)
+
+        20: (external call ((Ty) (type) (root)) ((e) (Ty) (type) (root))) (Ty) (type) (root)
+
+
+
+        21: (ret void) (type) (root)
+
+
+
+
+
+        22: (Type) (type) (root)
+
+        23: (Value) (Type) (type) (root)
+
+        24: (ret ((Type) (type) (root)) ((Value) (Type) (type) (root))) (type) (root)
+
+
+
+
+        25: (label name) (name) (type) (root)
+
+        26: (label ((label name) (name) (type) (root)))
+
+
+
+        27: (unconditional label) label
+
+        28: (br ((unconditional label) label))
+
+
+
+
+        29: (condition) i1
+
+        30: (first) label
+
+        31: (second) label
+
+        32: (br ((condition) i1) ((first) label) ((second) label)) (type) (root)
+
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+declare i32 @putchar(i32 %char)
+
+define i32 @"(A) i32"() { ret i32 65 }
+define i32 @"(B) i32"() { ret i32 66 }
+define i32 @"(C) i32"() { ret i32 67 }
+define i32 @"(D) i32"() { ret i32 68 }
+define i32 @"(E) i32"() { ret i32 69 }
+define i32 @"(F) i32"() { ret i32 70 }
+define i32 @"(G) i32"() { ret i32 71 }
+define i32 @"(H) i32"() { ret i32 72 }
+define i32 @"(I) i32"() { ret i32 73 }
+define i32 @"(J) i32"() { ret i32 74 }
+define i32 @"(K) i32"() { ret i32 75 }
+define i32 @"(L) i32"() { ret i32 76 }
+define i32 @"(M) i32"() { ret i32 77 }
+define i32 @"(N) i32"() { ret i32 78 }
+define i32 @"(O) i32"() { ret i32 79 }
+define i32 @"(P) i32"() { ret i32 80 }
+define i32 @"(Q) i32"() { ret i32 81 }
+define i32 @"(R) i32"() { ret i32 82 }
+define i32 @"(S) i32"() { ret i32 83 }
+define i32 @"(T) i32"() { ret i32 84 }
+define i32 @"(U) i32"() { ret i32 85 }
+define i32 @"(V) i32"() { ret i32 86 }
+define i32 @"(W) i32"() { ret i32 87 }
+define i32 @"(X) i32"() { ret i32 88 }
+define i32 @"(Y) i32"() { ret i32 89 }
+define i32 @"(Z) i32"() { ret i32 90 }
+
+define i32 @"(_) i32"() { ret i32 32 }
+define i32 @"(\5C n) i32"() { ret i32 10 }
+
+define void @ffff() {
+entry:
+    br label %"entry wf wje wfjw fj "
+"entry wf wje wfjw fj ":
+br label %"entry wf wje wfjw fj "
+    ret void
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+join define type ((discard integer ((x) ("i32") (type) (root))) (type) (root)) name
+join declare ((putchar ((y) ("i32") (type) (root))) ("i32") (type) (root))
+join declare ((A) ("i32") (type) (root))
+join declare ((B) ("i32") (type) (root))
+join declare ((C) ("i32") (type) (root))
+join declare ((D) ("i32") (type) (root))
+join declare ((E) ("i32") (type) (root))
+join declare ((F) ("i32") (type) (root))
+join declare ((G) ("i32") (type) (root))
+join declare ((H) ("i32") (type) (root))
+join declare ((I) ("i32") (type) (root))
+join declare ((J) ("i32") (type) (root))
+join declare ((K) ("i32") (type) (root))
+join declare ((L) ("i32") (type) (root))
+join declare ((M) ("i32") (type) (root))
+join declare ((N) ("i32") (type) (root))
+join declare ((O) ("i32") (type) (root))
+join declare ((P) ("i32") (type) (root))
+join declare ((Q) ("i32") (type) (root))
+join declare ((R) ("i32") (type) (root))
+join declare ((S) ("i32") (type) (root))
+join declare ((T) ("i32") (type) (root))
+join declare ((U) ("i32") (type) (root))
+join declare ((V) ("i32") (type) (root))
+join declare ((W) ("i32") (type) (root))
+join declare ((X) ("i32") (type) (root))
+join declare ((Y) ("i32") (type) (root))
+join declare ((Z) ("i32") (type) (root))
+join declare ((_) ("i32") (type) (root))
+join declare ((\n) ("i32") (type) (root))
+
+join (discard integer external call "i32" putchar H)
+join (discard integer external call "i32" putchar E)
+join (discard integer external call "i32" putchar L)
+join (discard integer external call "i32" putchar L)
+join (discard integer external call "i32" putchar O)
+join (discard integer external call "i32" putchar _)
+join (discard integer external call "i32" putchar W)
+join (discard integer external call "i32" putchar O)
+join (discard integer external call "i32" putchar R)
+join (discard integer external call "i32" putchar L)
+join (discard integer external call "i32" putchar D)
+join (discard integer external call "i32" putchar \n)
+
+name
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+join declare ((br ((L) (llvm) (type) (root)))))
+join declare ((label ))
+join declare ((br)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+test.n:
+
+
+join declare ((llvm) (type) (root))
+join declare ((lazy ((t) (type) (root))) (type) (root))
+join declare ((define ((s) (name) (type) (root)) ((T) (type) (root)) ((d) (lazy T) (type) (root)) ) (type) (root))
+join declare ((define type ((s) (name) (type) (root)) ((d) (type) (root))) (type) (root))
+join declare ((i8p) (type) (root))
+join declare ((string) (i8p) (type) (root))
+join declare ((external call ((Ty) (type) (root)) ((e) (Ty) (type) (root)) ) (Ty) (type) (root))
+
+join declare ((br)
+join declare ((br ((L) (llvm) (type) (root)))))
+
+
+join define type ((discard integer ((x) ("i32") (type) (root))) (type) (root)) name
+join declare ((putchar ((y) ("i32") (type) (root))) ("i32") (type) (root))
+join declare ((A) ("i32") (type) (root))
+join declare ((B) ("i32") (type) (root))
+join declare ((C) ("i32") (type) (root))
+join declare ((D) ("i32") (type) (root))
+join declare ((E) ("i32") (type) (root))
+join declare ((F) ("i32") (type) (root))
+join declare ((G) ("i32") (type) (root))
+join declare ((H) ("i32") (type) (root))
+join declare ((I) ("i32") (type) (root))
+join declare ((J) ("i32") (type) (root))
+join declare ((K) ("i32") (type) (root))
+join declare ((L) ("i32") (type) (root))
+join declare ((M) ("i32") (type) (root))
+join declare ((N) ("i32") (type) (root))
+join declare ((O) ("i32") (type) (root))
+join declare ((P) ("i32") (type) (root))
+join declare ((Q) ("i32") (type) (root))
+join declare ((R) ("i32") (type) (root))
+join declare ((S) ("i32") (type) (root))
+join declare ((T) ("i32") (type) (root))
+join declare ((U) ("i32") (type) (root))
+join declare ((V) ("i32") (type) (root))
+join declare ((W) ("i32") (type) (root))
+join declare ((X) ("i32") (type) (root))
+join declare ((Y) ("i32") (type) (root))
+join declare ((Z) ("i32") (type) (root))
+join declare ((_) ("i32") (type) (root))
+join declare ((\n) ("i32") (type) (root))
+
+join (discard integer external call "i32" putchar H)
+join (discard integer external call "i32" putchar E)
+join (discard integer external call "i32" putchar L)
+join (discard integer external call "i32" putchar L)
+join (discard integer external call "i32" putchar O)
+join (discard integer external call "i32" putchar _)
+join (discard integer external call "i32" putchar W)
+join (discard integer external call "i32" putchar O)
+join (discard integer external call "i32" putchar R)
+join (discard integer external call "i32" putchar L)
+join (discard integer external call "i32" putchar D)
+join (discard integer external call "i32" putchar \n)
+
+name
+
+
+
+test.ll:
+
+
+declare i32 @putchar(i32 %char)
+
+define i32 @"(A) i32"() { ret i32 65 }
+define i32 @"(B) i32"() { ret i32 66 }
+define i32 @"(C) i32"() { ret i32 67 }
+define i32 @"(D) i32"() { ret i32 68 }
+define i32 @"(E) i32"() { ret i32 69 }
+define i32 @"(F) i32"() { ret i32 70 }
+define i32 @"(G) i32"() { ret i32 71 }
+define i32 @"(H) i32"() { ret i32 72 }
+define i32 @"(I) i32"() { ret i32 73 }
+define i32 @"(J) i32"() { ret i32 74 }
+define i32 @"(K) i32"() { ret i32 75 }
+define i32 @"(L) i32"() { ret i32 76 }
+define i32 @"(M) i32"() { ret i32 77 }
+define i32 @"(N) i32"() { ret i32 78 }
+define i32 @"(O) i32"() { ret i32 79 }
+define i32 @"(P) i32"() { ret i32 80 }
+define i32 @"(Q) i32"() { ret i32 81 }
+define i32 @"(R) i32"() { ret i32 82 }
+define i32 @"(S) i32"() { ret i32 83 }
+define i32 @"(T) i32"() { ret i32 84 }
+define i32 @"(U) i32"() { ret i32 85 }
+define i32 @"(V) i32"() { ret i32 86 }
+define i32 @"(W) i32"() { ret i32 87 }
+define i32 @"(X) i32"() { ret i32 88 }
+define i32 @"(Y) i32"() { ret i32 89 }
+define i32 @"(Z) i32"() { ret i32 90 }
+
+define i32 @"(_) i32"() { ret i32 32 }
+define i32 @"(\5C n) i32"() { ret i32 10 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+just got the first hello world program working in the language.
+
+
+wow.
+
+
+buttttttt
+
+
+
+
+
+
+
+
+
+
+
+
+
+things to add:
+
+        intrinsics:?
+        
+        
+                DONT DO THIS:    external define
+                
+                external declare          <------- yessss
+                
+                
+                declare struct
+                
+                define struct
+                
+                
+                
+                
+                
+                        we are using the word struct for type, becuase it doesnt mattter- everything will be 3458t3hn9t48hr2 eventuallyl/.
+                        
+                        
+                        
+                
+                
+                
+                declare function
+                
+                
+
+
+
+
+
+
+
+
+
+
+note:
+
+
+you cannot have leading whitespace in llvm strings.
+
+
+
+
+
+join declare ((i8p) (_))
+join declare ((string) (i8p) (_))
+join declare ( (external call  ((Ty) (_)) ((e) (Ty) (_))  ) (Ty) (_) )
+
+join (define ((discard integer ((x) ("i32") (_))) (_)) (universe) (name))
+
+join declare ((putchar ((y) ("i32") (_))) ("i32") (_))
+join declare ((A) ("i32") (_))
+
+(
+    discard integer (
+        external call
+            ("i32")
+            (putchar A)
+    )
+)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+SAVE:
+
+
+join declare ((lazy ((t) (_))) (_))
+join declare ((define ((s) (name) (_)) ((T) (_)) ((d) (lazy T) (_)) ) (_))
+join declare (unit)
+join declare ((g) (unit) (_))
+join declare ((   ((z) (unit) (_)) ) (_))
+join declare ((   ((x) (unit) (_))   ((y) (unit) (_))) (unit) (_))
+
+join define ((f ((x) (unit) (_))) (unit) (_)) unit x
+
+f g f g f g
+f g f g f g
+f g f g f g
+f g f g f g
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+        MORE READABLE THAN PYTHON
+        MORE EFFICIENT THAN C
+        MORE MINIMALIST THAN SCHEME
+        
+        
+        
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+join declare ((lazy ((t) (_))) (_))
+join declare ((define ((s) (name) (_)) ((T) (_)) ((d) (lazy T) (_)) ) (_))
+join declare (unit)
+join declare ((g) (unit) (_))
+join declare ((   ((z) (unit) (_)) ) (_))
+join declare ((   ((x) (unit) (_))   ((y) (unit) (_))) (unit) (_))
+join define ((f ((x) (unit) (_))) (unit) (_)) unit x
+f g
+
+
+
+DUDEEEEE
+
+
+
+WE CAN DEFINE SHIT NOW
+
+
+
+OMGGGGGGGGGGG
+
+
+
+YAYAYAYAYAYAYAYAY
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+join declare ((lazy ((t) (_))) (_))
+join declare ((define
+                    ((s) (name) (_))
+                    ((T) (_))
+                    ((d) (lazy T) (_))
+                    ) (_))
+
+join declare (unit)
+join declare ((g) (unit) (_))
+join declare ((   ((z) (unit) (_)) ) (_))
+join declare ((   ((x) (unit) (_))   ((y) (unit) (_))) (unit) (_))
+
+
+
+
+THIS CODE LITERALLY WORKS.
+
+
+
+OMG.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+define ((f ((x) (unit) (_))) (unit) (_)) unit x
+
+
+
+the algorithm has whats called
+
+
+    MINIMAL LEFT-ASSOCIATIVITY
+    
+    
+    meaning that it will find the left-associative parse with the minimal possible depth.
+
+
+
+
+
+
+
+
+
+
+join declare ((((x) (_)) ((y) (_)) ) (_))
+join declare (unit)
+join declare ((g) (unit) (_))
+join declare ((convert ((h) (unit) (_))) (_))
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+so we fixed csr, i think...
+
+
+
+however, it seems that we are accidentily succeeding on this parse, which should fail:
+
+
+join declare ((((x) (_)) ((y) (_)) ) (_))
+join declare (unit)
+join declare ((g) (unit) (_))
+(join declare ((convert ((h) (unit) (_))) (_)))
+
+
+
+
+and this one:
+
+
+        join name
+
+
+
+
+
+and now i know why!
+
+
+
+
+
+
+ok i fixed it, i think.
+
+
+
+
+
+
+ high priority bug:
+ ------------------------------------------
+ 
+ 
+ 
+ 
+======================
+
+
+
+ join declare ((((x) (_)) ((y) (_))) (_))
+
+ declare ((unit) (_))
+ declare ((g) (unit) (_))
+
+ declare (( cast ((x) (unit) (_)) ) (_))
+
+ declare (( void ((x) (_)) ) (unit) (_))
+
+ declare ((((first) (unit) (_)) ((second) (unit) (_))) (unit) (_)))
+
+ cast g
+
+======================
+
+
+
+
+    the cast g here, doesnt show up unless we delete the void and first-second decl lines. which is bad.
+    
+    
+            oh, and it doesnt give an error, worst of all.
+            
+            
+            
+            
+            
+            
+            
+            
+            csr is not done. it is close, but not done.
+            
+            
+                
+                
+                
+                
+                
+                
+                    there must be a way to fix it, while not increasing the for-loop complexity of the algorithm.
+                    
+                    
+                        ...even tho the increase we did just now, is kinda small and awesome...
+                        
+                        
+                        
+                            we can do better.
+                            
+                            
+                            
+                            
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+==================================
+
+		TODO:
+
+==================================
+
+
+PRIORITY:    
+    
+   x: - make csr left associative
+    
+x:   sorta: - make csr fast in all situations;
+   
+   
+   
+   
+   
+
+
+
+
+
+
+
+
+BUSY WORK:
+--------------------
+
+    - rewrite the parsing stage to be a single function.
+    
+    - rewrite the lexing stage slightly, to be simpler?
+        
+    - add options list for linker, eventually.
+   
+
+ 
+
+
+
+FIGURE OUT STUFF:
+------------------------------------
+
+
+
+
+
+FUNCTIONS:
+
+x:    - figure out how to pass functions into functions;
+
+    - figure out what function types look like. make them builtin, i think.
+    
+x:    - figure out how to do closures / lambdas;
+    
+    - figure out how to specify llvm attributes to a function.
+
+
+TYPES:        
+
+    - figure out how to do computational type checking properly, 
+	as opposed to using subsitutions and everything.
+
+        (ie, do type-related stuff better, and more correctly)
+        
+    - figure out Henry-Milner Type-Inference.
+
+
+GENERAL:
+
+    - figure out how to do compiletime evlauation correctly.    
+       ...like zig does it..?
+
+    - figure out how to make _define provide _expose functionality         [nice]
+
+    - figure out how we are going to do multiple files, and our module system.
+
+
+
+
+
+        
+
+
+
+
+
+
+
+
+
+
+
+
+
+test cases that DO work:
+=============================
+
+
+
+
+
+
+join declare ((((x) (_)) ((y) (_))) (_))
+join declare ((the dog ran ) (_))
+
+(
+
+the dog ran
+the dog ran
+the dog ran
+
+)
+
+
+=============================
+
+
+        join declare ((n) (_)) n
+      
+===============================
+
+        join
+        declare ((((x) (_)) ((y) (_))) (_))
+        name name
+
+===============================
+
+join (declare ((unit) (_)))
+join ( declare ((( (x) (unit) (_) )) (_)) )
+join ( declare ((( (x) (_) )) (unit) (_)) )
+join ( def ((((first) (unit) (_)) ((second) (unit) (_))) (unit) (_)) unit second)
+name name
+
+
+===============================
+
+    join
+    declare ((((x) (_)) ((y) (_))) (_))
+    name name
+
+
+===============================
+
+join declare ((lazy ((x) (_))) (_))
+join declare ((push) (_))
+join declare ((pop) (_))
+join declare
+    ((
+        ((signature) (name) (_))
+        ((type) (_))
+        ((definition) (lazy type) (_))
+    ) (_))
+
+join declare ((unit) (_)))
+join declare ((g) (unit) (_))
+
+name
+
+===============================
+
+
+(join (declare ((lazy ((x) (_))) (_)))
+(join (declare ((push) (_)))
+(join (declare ((pop) (_)))
+(join (declare (( ((signature) (name) (_)) ((type) (_)) ((definition) (lazy type) (_)) ) (_)))
+(join (declare ((unit) (_)))
+(join (declare ((g) (unit) (_)))
+(((x) unit g))))))))
+
+===============================
+
+
+
+
+join (declare ((unit) (_)))
+join (declare ((namef) (unit) (_)))
+join ( declare ((( (x) (unit) (_) )) (_)) )
+join ( def ((((first) (unit) (_)) ((second) (unit) (_))) (_) ) unit second)
+namef namef
+
+
+===============================
+
+
+join (declare (( ((x) (_)) ((y) (_))) (_) ))
+name name name name name name name
+
+===============================
 
 
 join (declare ((((x) (_)) hello ((x) (_))) (_)))
 (name hello name hello name)
 
+
+===============================
 
 
 join (declare ((lazy ((x) (_))) (_)))
@@ -41,37 +1210,65 @@ join ( def ((((first) (unit) (_)) ((second) (unit) (_))) (unit) (_)) unit second
 name name
 
 
-
-
------------------------------
-
+===============================
 
 
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+so the algorithmis always LEFT-ASSOCIATIVE
+
+thats cool.
+
+simplified it slightly... trying to debug why it doesnt work sometimes, though.
+
+
+        ----> CSR is literally so buggy. this succeeds, with an epmty parse.
+        
+            we and we cant say the last line without an error...
+            
+                
+                
+                    
+                    we need to fix csr.   we need to redesign csr to make this language feasible.
+                        
+                            both in error messages, and in compiler-runtime lag.
+                            
+                            
+                            
+                            
+                            
+                            this language is unuseable, as is.
+                            
+                                
+                                
+                                
+                                                            
 
 
 CURRENT TASK DETAILS:
 =======================
 
 
+	fix csr: make it right assoc, and faster.         then you are done!
 
 
-
-
-
-
-
-
-
-
-
-
-
-    
-    
-    
     
 NEXT TASK:
 ==========================
@@ -89,7 +1286,7 @@ NEXT TASK:
     
     
     
-============================================================================================================================================
+===============================================================================================
 
 
 
@@ -115,7 +1312,6 @@ THE TODO LIST:
 - figure out how we are going to do multiple files, and our module system.         [neccessary]
 
 - make llvms void passable and initiable like the real unit type.    [nice]  [must be done in codegen phase]
-
 
 
 
@@ -155,11 +1351,7 @@ THE TODO LIST:
     
     
     
-    
-    
-    
-    
-    
+ 
         
         
 =============================== CLOSED: ======================
@@ -178,10 +1370,7 @@ THE TODO LIST:
 
         we are defining the function, but not printing the retunr type properly, in the debug symbol table.
 
-
-
-
-        
+   
         
     - in the following test code:
     
@@ -196,7 +1385,7 @@ THE TODO LIST:
         x: SERIOUS: 2. the compiler doesnt distinguish:            code (_1)     and        code (code (_1));
         
         
-        
+
 
     
 in the following test code:

@@ -1,0 +1,110 @@
+
+/**
+ 
+ struct expression {
+ std::vector<struct symbol> symbols = {};   ---->   std::vector<new_expression> children = {}
+ resolved type = {};   KEPT
+ resolved me = {};    KEPT
+ token start = {};    DELETED
+ bool error = false;    DELETED
+ };
+ 
+ struct symbol {
+ long type = none;         KEPT
+ expression subexpression = {};     DELETED
+ token literal = {};     KEPT
+ bool error = false;      KEPT
+ };
+ 
+ */
+//struct new_expression {
+//    std::vector<new_expression> children = {};
+//    resolved type = {};
+//    resolved me = {};
+//    long literal_type = none;
+//    token literal = {};
+//    bool error = false;
+//};
+
+//void my_prep(int d) {
+//    for (int i = 0; i < d; i++) printf(".   ");
+//}
+
+//static inline void print_new_expression(new_expression e, int d) {
+//    my_prep(d); printf("token = %s of type %s\n", e.literal.value.c_str(), convert_token_type_representation(e.literal.type));
+//    my_prep(d); printf("error = %d\n", e.error);
+//    my_prep(d); printf("literal type = %s\n", convert_token_type_representation(e.literal_type));
+//    my_prep(d); printf("children: {\n");
+//    for (auto f : e.children) {
+//        my_prep(d+1); printf("child: \n");
+//        print_new_expression(f, d + 1);
+//    }
+//    my_prep(d); printf("}\n");
+//}
+
+//static inline list parse(std::vector<std::string> tokens, size_t& index) {
+//    auto t = tokens.at(index++);
+//    if (t != "(" and t != ")") return {t};
+//    else if (t == "(") {
+//        list l = {};
+//        while (index < tokens.size() and tokens.at(index) != ")") {
+//            auto p = parse(tokens, index);
+//            l.symbols.push_back(p);
+//        }
+//        index++;
+//        return l;
+//    } else return {"", {}, true};
+//}
+
+//static inline new_expression new_parse(lexing_state& state, const file& file) {
+//    auto saved = state;
+//    auto t = next(state, file);
+//
+//    if (t.type == string or t.type == id or (t.type == op and t.value != "(" and t.value != ")"))
+//        return {{}, {}, {}, t.type == op ? id : t.type, t};
+//
+//    else if (t.type == op and t.value == "(") {
+//
+//        //        auto saved = state;
+//
+//        new_expression l = {};
+//        l.literal_type = expr;
+//        l.error = false;
+//
+//        token current = {};
+//
+//        while (current.type and not (current.type == op and current.value == ")")) {
+//            auto e = new_parse(state, file);
+//
+//            //            if (e.literal_type) {
+//            l.children.push_back(e);
+//
+//            //            } else {
+//            //                printf("did not push none.\n");
+//            //            }
+//
+//            //            saved = state;
+//
+//            current = next(state, file);
+//
+//            //            if (current.type == none) {
+//            //                printf("n3zqx2l: %s:%ld:%ld: expected \")\"\n\n", file.name, t.line, t.column);
+//            //                l.error = true;
+//            ////                state = saved;
+//            //                return l;
+//            //            }
+//        }
+//
+//        //        state = saved;
+//        return l;
+//    } else {
+//        abort();
+//        //        state = saved;
+//        return {{}, {}, {}, none, {}, true};
+//    }
+//}
+
+//else if (t.type == op and t.value == ")") {
+//printf("n3zqx2l: %s:%ld:%ld: error: unexpected \"%s\"\n\n", file.name, t.line, t.column, t.value.c_str());
+//return {{}, {}, {}, none, {}, true};
+
