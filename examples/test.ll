@@ -4,43 +4,173 @@
 
 
 
-{ none, id, op, string, expr,
-    action = 'x', exec = 'o', object = 'c', ir = 'i', assembly = 's',
-    
-    _undefined = 0,
-    _init, _name, _number, _join,
-    _declare,
-    
-    _type,
-    _0, _lazy,
-    
-    _1, _2, _3, _4, _define, /// define (s: name) (t: init) (d: L t) (extern: number) -> init
-    
-    _i1, _i8, _i16, _i32, _i64, _i128, _x86_mmx, _f16, _f32, _f64, _f128,
-    
-    _5, _6, _pointer,           /// pointer (addrspace: number) (t: type)   -> type
-    
-    _7, _8, _vector,            /// vector (width: number) (t: type)  -> type
-    _9, _10, _scalable,         /// scalable (width: number) (t: type)   -> type
-    
-    _11, _12, _array,           /// array (size: number) (t: type)   -> type
-    
-    _13, _opaque,               /// opaque (s: name) -> type
-    _14, _15, _16, _structure,  /// struct (s: name) (d: name) (extern: number) -> type
-    _17, _18, _19, _packed,     /// packed (s: name) (d: name) (extern: number) -> type
-    
-    _27, _function_type,         /// function (type: name)
-    
-    _label, _metadata, _token, _unit,
-    _string, ///  string -> pointer 0 i8
 
-    _unreachable,                   /// unreachable   -> unit
-    _ret_void,                      /// ret void   -> unit
-    _20, _21, _ret_value,           /// ret (t: type) (v: t)   -> unit
+
+
+
+
+
+
+join decl ((type) (i)) 11 0
+
+join decl ((lazy
+    ((lazy-t) (type) (i))
+) (type) (i)) 13 0
+
+join decl (
+(define
+    ((define-s) (name) (i))
+    ((define-t) (type) (i))
+    ((define-d) (lazy define-t) (type) (i))
+    ((define-extern) (nat) (i))
+) (i)) 18 0
+
+join decl (
+(load
+    ((load-filename) (name) (i))
+    ((load-type))
+) (load-type)) 21 0
+
+(load (file) i)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+join decl ((type) (i)) 6 0
+
+join decl ((lazy
+    ((lazy-t) (type) (i))
+) (type) (i)) 8 0
+
+join decl (
+(define
+    ((define-s) (name) (i))
+    ((define-t) (type) (i))
+    ((define-d) (lazy define-t) (type) (i))
+    ((define-extern) (nat) (i))
+) (i)) 13 0
+
+join decl (
+(load
+    ((load-filename) (name) (i))
+    ((load-type) (type) (i))
+) (load-type) (type) (i)) 16 0
+
+
+
+
+
+join decl ((i1) (type) (i)) 17 0
+join decl ((i8) (type) (i)) 18 0
+join decl ((i16) (type) (i)) 19 0
+join decl ((i32) (type) (i)) 20 0
+join decl ((i64) (type) (i)) 21 0
+join decl ((i128) (type) (i)) 22 0
+join decl ((x86mmx) (type) (i)) 23 0
+join decl ((f16) (type) (i)) 24 0
+join decl ((f32) (type) (i)) 25 0
+join decl ((f64) (type) (i)) 26 0
+join decl ((f128) (type) (i)) 27 0
+
+join decl ((pointer
+        ((pointer-addrspace) (nat) (i))
+        ((pointer-type) (type) (i))
+    ) (type) (i)) 30 0
     
-    _22, _create_label,             /// label (l: name)  -> unit
-    _23, _uncond_branch,            /// jump (l: name)   -> unit
-    _24, _25, _26, _cond_branch,    /// br (cond: i1) (1: name) (2: name)   -> unit
+join decl ((vector
+          ((vector-width) (nat) (i))
+          ((vector-type) (type) (i))
+      ) (type) (i)) 33 0
     
-    _intrinsic_count
-}
+join decl ((scalable
+        ((scalable-width) (nat) (i))
+        ((scalable-type) (type) (i))
+    ) (type) (i)) 36 0
+    
+join decl ((array
+          ((array-size) (nat) (i))
+          ((array-type) (type) (i))
+      ) (type) (i)) 39 0
+
+join decl ((opaque
+      ((opaque-s) (name) (i))
+  ) (type) (i)) 41 0
+
+
+join decl ((struct
+    ((struct-s) (name) (i))
+    ((struct-d) (name) (i))
+    ((struct-extern) (nat) (i))
+) (type) (i)) 45 0
+
+join decl ((packed
+    ((packed-s) (name) (i))
+    ((packed-d) (name) (i))
+    ((packed-extern) (nat) (i))
+) (type) (i)) 49 0
+
+join decl ((function
+    ((function-type) (name) (i))
+) (type) (i)) 51 0
+
+
+join decl ((label) (type) (i)) 52 0
+join decl ((metadata) (type) (i)) 53 0
+join decl ((token) (type) (i)) 54 0
+join decl ((unit) (type) (i)) 55 0
+join decl ((string) (pointer 0 i8) (type) (i)) 56 0
+
+join decl ((unreachable) (unit) (type) (i)) 57 0
+join decl ((ret void) (unit) (type) (i)) 58 0
+
+join decl ((ret
+    ((ret-t) (type) (i))
+    ((ret-v) (ret-t) (type) (i))
+) (unit) (type) (i)) 61 0
+
+join decl ((create label
+    ((label-name) (name) (i))
+) (unit) (type) (i)) 63 0
+
+join decl ((jump
+    ((jump-label) (name) (i))
+) (unit) (type) (i)) 65 0
+
+join decl ((br
+    ((br-cond) (i1) (type) (i))
+    ((br-1) (name) (i))
+    ((br-2) (name) (i))
+) (unit) (type) (i)) 69 0
+
+type
+
+
+
+
+
+
+
+
+
+
+
+
+join decl ((g) (type) (i)) 0 0
+join decl ((hello there from space) (g) (type) (i)) 0 0
+join decl ((convert ((x) (g) (type) (i))) (i)) 0 0
+
+(convert (load (/Users/deniylreimn/Documents/file) g))

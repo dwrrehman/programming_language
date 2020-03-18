@@ -14,9 +14,12 @@ enum constants { none, id, op, string, expr,
     action = 'x', exec = 'o', object = 'c', ir = 'i', assembly = 's',
     
     _undefined = 0,
-    _init, _name, _number, _join,
-    _declare,
-        
+    _init,
+    _name,
+    _number,
+    _30, _31, _join,
+    _32, _33, _34, _declare,
+    
     _type,
     _0, _lazy,
     
@@ -252,7 +255,7 @@ static inline void print_resolved_expr(resolved expr, size_t depth, std::vector<
     }
 }
 
-static inline size_t define(expression signature, const resolved& type, const resolved& definition, std::vector<entry>& entries, std::vector<std::vector<size_t>>& stack) {
+static inline size_t define(expression signature, const resolved& definition, std::vector<entry>& entries, std::vector<std::vector<size_t>>& stack) {
     auto index = entries.size(); stack.back().push_back(index);
     signature.me.index = index; entries.push_back({signature, definition});
     std::stable_sort(stack.back().begin(), stack.back().end(), [&](size_t a, size_t b) { return entries[a].signature.symbols.size() > entries[b].signature.symbols.size(); });
@@ -278,7 +281,17 @@ static inline resolved resolve(const expression& given, const resolved& given_ty
 static expression typify(const expression& given, const resolved& initial_type, std::vector<entry>& entries, std::vector<std::vector<size_t>>& stack, std::vector<std::vector<size_t>>& intrinsics, const file& file, size_t max_depth) {
     if (given.symbols.empty()) return {{}, {}, {}, {}, true};
     expression signature = given.symbols.front().subexpression;
-    for (auto& s : signature.symbols) if (s.type == expr) define(s.subexpression = typify(s.subexpression, {0}, entries, stack, intrinsics, file, max_depth), {}, {}, entries, stack);
+    for (auto& s : signature.symbols) {
+        if (s.type == expr) {
+            s.subexpression = typify(s.subexpression, {0}, entries, stack, intrinsics, file, max_depth);
+            auto k = define(s.subexpression, {}, entries, stack);
+            s.subexpression.me.index = k;
+            
+            ///TODO: we havent realized the right way to do this yet.
+            /// it is much more beautiful, and recursive, and parsimonious.
+            ///TODO: Figure it out.
+        }
+    }
     signature.type = initial_type;
     for (size_t i = given.symbols.size(); i-- > 1;) signature.type = resolve(given.symbols[i].subexpression, signature.type, entries, stack, intrinsics, file, max_depth);
     return signature;
@@ -337,13 +350,17 @@ static inline resolved resolve_at(const expression& given, const resolved& expec
             if (i >= given.symbols.size()) { if (args.size() and j == 1) return args[0]; else goto next; }
             if (symbol.type == expr) {
                 resolved argument = resolve_at(given, symbol.subexpression.type, i, best, depth + 1, max_depth, entries, stack, intrinsics, file);
-                if (argument.error) goto next; args.push_back({argument}); entries[symbol.subexpression.me.index].subsitution = argument;
+                if (argument.error) goto next; args.push_back({argument});
+                if (not symbol.subexpression.me.index) abort(); ///DEBUG: leave until we know this doesnt execute.
+                entries[symbol.subexpression.me.index].subsitution = argument;
             } else if (symbol.type != given.symbols[i].type or symbol.literal.value != given.symbols[i].literal.value) goto next; else i++;
-        } if (not equal(expected, entries[s].signature.type, entries)) continue;
+        }
+        
+        if (not equal(expected, entries[s].signature.type, entries)) continue;
         //        if (s == _push) stack.push_back(stack.back());
         //        if (s == _pop) stack.pop_back();
-        if (is_intrin(_declare, s, intrinsics) and args[1].number < _intrinsic_count) intrinsics[args[1].number].push_back(args[0].name[0].me.index = define(args[0].name[0], {}, {}, entries, stack));
-        if (is_intrin(_define, s, intrinsics)) args[0].name[0].me.index = define(args[0].name[0], args[1], args[2], entries, stack);
+        if (is_intrin(_declare, s, intrinsics) and args[1].number < _intrinsic_count) intrinsics[args[1].number].push_back(args[0].name[0].me.index = define(args[0].name[0], {}, entries, stack));
+        if (is_intrin(_define, s, intrinsics)) args[0].name[0].me.index = define(args[0].name[0],  args[2], entries, stack);
         if (is_intrin(_load, s, intrinsics)) return load_file(args, entries, stack, intrinsics, max_depth);
         return {s, args}; next: continue;
     } return {0, {}, true};
@@ -643,6 +660,12 @@ static inline void output(const arguments& args, std::unique_ptr<llvm::Module>&&
     else if (args.output == exec) emit_executable(generate_file(std::move(module), args, llvm::TargetMachine::CGFT_ObjectFile), args.name);
 }
 
+static void define_intrinsic(std::string expression, std::vector<entry> &entries, const file &file, std::vector<std::vector<size_t> > &intrinsics, size_t max_depth, std::vector<std::vector<size_t> > &stack) {
+    lexing_state s0 {0, none, 1, 1};
+    auto s = construct_signature(parse(s0, {"_intrinsic.n", expression}), entries, stack, intrinsics, file, max_depth, _name);
+    define(s.name[0], {}, entries, stack);
+}
+
 int main(const int argc, const char** argv) {
     llvm::InitializeAllTargetInfos();
     llvm::InitializeAllTargets();
@@ -691,22 +714,15 @@ int main(const int argc, const char** argv) {
                 }
                 const file file = {argv[i], {std::istreambuf_iterator<char>(stream), std::istreambuf_iterator<char>()}};
                 lexing_state state {0, none, 1, 1};
-                std::vector<entry> real_entries { {},
-                    /** 1kqfsnyh5t3hr8viagrr6 */ {{{{id,{},{id,"1kqfsnyh5t3hr8viagrr6"}}},{_undefined},{_init}}},
-                    /** 2tsrb944gazx3a8cqy2g9 */ {{{{id,{},{id,"2tsrb944gazx3a8cqy2g9"}}},{_init},{_name}}},
-                    /** 3q1c0pzkzhu2l9t8j6h7a */ {{{{id,{},{id,"3q1c0pzkzhu2l9t8j6h7a"}}},{_init},{_number}}},
-                    /** 4lco2hyh80iwtimpq7o58 */ {{{{id,{},{id,"4lco2hyh80iwtimpq7o58"}},{expr,{{},{_init}}}, {expr,{{},{_init}}}},{_init},{_join}}},
-                    /** 5we9uq5txfjqjgkeb2chb */ {{{{id,{},{id,"5we9uq5txfjqjgkeb2chb"}},{expr,{{},{_name}}},{expr,{{},{_number}}} },{_init},{_declare}}},
-                };
-                std::vector<entry> entries { {},
-                    /** 1kqfsnyh5t3hr8viagrr6 */ {{{{id,{},{id,"i"}}},{_undefined},{_init}}},
-                    /** 2tsrb944gazx3a8cqy2g9 */ {{{{id,{},{id,"name"}}},{_init},{_name}}},
-                    /** 3q1c0pzkzhu2l9t8j6h7a */ {{{{id,{},{id,"nat"}}},{_init},{_number}}},
-                    /** 4lco2hyh80iwtimpq7o58 */ {{{{id,{},{id,"join"}},{expr,{{},{_init}}}, {expr,{{},{_init}}}},{_init},{_join}}},
-                    /** 5we9uq5txfjqjgkeb2chb */ {{{{id,{},{id,"decl"}},{expr,{{},{_name}}},{expr,{{},{_number}}}, {expr,{{},{_number}}} },{_init},{_declare}}},
-                }; std::vector<std::vector<size_t>> stack {{_declare, _join, _name, _number, _init}}, intrinsics(_intrinsic_count, std::vector<size_t>{});
+                // 1kqfsnyh5t3hr8viagrr6      2tsrb944gazx3a8cqy2g9     3q1c0pzkzhu2l9t8j6h7a    4lco2hyh80iwtimpq7o58    5we9uq5txfjqjgkeb2chb
+                std::vector<std::string> defined_intrinsics { "(i)", "(name) (i)", "(nat) (i)", "(join ((join-first) (i)) ((join-second) (i))) (i)", "(decl ((decl-name) (name) (i)) ((decl-ii) (nat) (i)) ((decl-extern) (nat) (i))) (i)"};
+                std::vector<entry> entries {{}};
+                std::vector<std::vector<size_t>> stack {{}}, intrinsics(_intrinsic_count, std::vector<size_t>{});
                 for (size_t i = _undefined; i < _type; i++) intrinsics[i].push_back(i);
+                for (auto s : defined_intrinsics) define_intrinsic(s, entries, file, intrinsics, max_depth, stack);
                 
+//                debug_stack(entries, stack);
+//                abort();
                 if (llvm::Linker::linkModules(*module, generate(resolve(parse(state, file), {_init}, entries, stack, intrinsics, file, max_depth), entries, stack, intrinsics, file, context, no_files))) exit(1);
                 
             } else if (ext && !strcmp(ext, ".ll")) {
