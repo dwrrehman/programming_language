@@ -35,18 +35,20 @@ enum constants { none, id, op, string, expr,
     _14, _15, _16, _structure,  /// struct (s: name) (d: name) (extern: number) -> type
     _17, _18, _19, _packed,     /// packed (s: name) (d: name) (extern: number) -> type
     
-    _27, _function_type,         /// function (type: name)
+    _20, _function_type,         /// function (type: name)
     
     _label, _metadata, _token, _unit,
     _string, ///  string -> pointer 0 i8
 
     _unreachable,                   /// unreachable   -> unit
     _ret_void,                      /// ret void   -> unit
-    _20, _21, _ret_value,           /// ret (t: type) (v: t)   -> unit
+    _21, _22, _ret_value,           /// ret (t: type) (v: t)   -> unit
     
-    _22, _create_label,             /// label (l: name)  -> unit
-    _23, _uncond_branch,            /// jump (l: name)   -> unit
-    _24, _25, _26, _cond_branch,    /// br (cond: i1) (1: name) (2: name)   -> unit
+    _23, _create_label,             /// label (l: name)  -> unit
+    _24, _uncond_branch,            /// jump (l: name)   -> unit
+    _25, _26, _27, _cond_branch,    /// br (cond: i1) (1: name) (2: name)   -> unit
+    
+    _28, _29, _load, /// load (file: name) (t: type) -> t             eg,       (load (hello world) unit)          <-------- this expr is of type unit.            it searches for a file called "hello world.n"
     
     _intrinsic_count
 };
@@ -298,6 +300,42 @@ static inline resolved construct_number(const expression& given, const file& fil
     } else { i++; return r; }
 }
 
+static inline std::string convert_to_filename(const expression& e) {
+    std::string result = "";
+    for (auto s : e.symbols) {
+        result += s.literal.value;
+    }
+    result += ".n";
+    return result;
+}
+
+resolved load_file
+(std::vector<resolved>& args,
+ std::vector<entry>& entries,
+ std::vector<std::vector<size_t>>& stack,
+ std::vector<std::vector<size_t>>& intrinsics,
+ size_t max_depth
+ ) {
+    
+    /// STEP 1: convert the expr filename into a string, concatting the
+    /// values of all tokens in the expression, no spaces between them.
+    auto filename = convert_to_filename(args[0].name[0]);
+    
+    /// STEP 2: open the file.
+    std::ifstream stream {filename};
+    if (not stream.good()) {
+        printf("n: %s: error: could not open input file: %s\n", filename.c_str(), strerror(errno));
+        return {0, {}, true}; ///TODO: what is the right thing to do when we couldnt find the file? continue with the parent's CSR? yes.
+    }
+    
+    /// STEP 3: construct a new file from the loaded data:
+    const file file = {filename.c_str(), {std::istreambuf_iterator<char>(stream), std::istreambuf_iterator<char>()}};
+    
+    /// STEP 4: call parse and resolve with the new file.
+    lexing_state state {0, none, 1, 1};
+    return resolve(parse(state, file), args[1], entries, stack, intrinsics, file, max_depth);
+}
+
 bool debug = false;
 
 static inline resolved resolve_at(const expression& given, const resolved& expected, size_t& i, size_t& best, size_t depth, size_t max_depth, std::vector<entry>& entries, std::vector<std::vector<size_t>>& stack, std::vector<std::vector<size_t>>& intrinsics, const file& file) {
@@ -322,7 +360,7 @@ static inline resolved resolve_at(const expression& given, const resolved& expec
         //        if (s == _pop) stack.pop_back();
         if (is_intrin(_declare, s, intrinsics) and args[1].number < _intrinsic_count) intrinsics[args[1].number].push_back(args[0].name[0].me.index = define(args[0].name[0], {}, {}, entries, stack));
         if (is_intrin(_define, s, intrinsics)) args[0].name[0].me.index = define(args[0].name[0], args[1], args[2], entries, stack);
-//        if (s == _define_type) args[0].name[0].me.index = define(args[0].name[0], {_type}, args[1], entries, stack);
+        if (is_intrin(_load, s, intrinsics)) return load_file(args, entries, stack, intrinsics, max_depth);
         return {s, args}; next: continue;
     } return {0, {}, true};
 }
