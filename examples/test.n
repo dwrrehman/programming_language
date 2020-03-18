@@ -1,5 +1,3 @@
-
-
 join decl ((type) (i)) 11 0
 
 join decl ((lazy
@@ -17,11 +15,11 @@ join decl (
 join decl (
 (load
     ((load-filename) (name) (i))
-    ((load-type))
-) (load-type)) 21 0
+    ((load-type) (type) (i))
+) (load-type) (type) (i)) 21 0
 
-join decl ((k) (i)) 0 0
+join decl ((g) (type) (i)) 0 0
+join decl ((hello there from space) (g) (type) (i)) 0 0
+join decl ((convert ((x) (g) (type) (i))) (i)) 0 0
 
-join load (/Users/deniylreimn/Documents/projects/n3zqx2l/examples/file) i
-join load (/Users/deniylreimn/Documents/projects/n3zqx2l/examples/file) i
-type
+(convert (load (/Users/deniylreimn/Documents/projects/n3zqx2l/examples/file) g))

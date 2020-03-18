@@ -50,6 +50,9 @@ join decl (
 
 
 
+
+
+
 join decl ((type) (i)) 6 0
 
 join decl ((lazy
@@ -167,10 +170,3 @@ type
 
 
 
-
-
-join decl ((g) (type) (i)) 0 0
-join decl ((hello there from space) (g) (type) (i)) 0 0
-join decl ((convert ((x) (g) (type) (i))) (i)) 0 0
-
-(convert (load (/Users/deniylreimn/Documents/file) g))
