@@ -3,6 +3,68 @@ the current status of the nostril compiler:
 
 
 
+MAJOR LANG TODO:
+
+
+    figure out how to make the "signature syntax"
+     user define-able.
+     
+     because this is the only syntax in thelanguage, right now.
+     
+        very hard problem.
+        
+        
+        
+        
+        i dont know how to solve it... but i know theres a solution.
+        
+        i think.
+        
+        
+        
+        we need this to be user customizable.
+        
+        we need to look ontologically, at what is a signature, what is its structure, and
+        
+        
+        
+        and how to make it as readable as possible.
+        
+        i dont like the idea of giving
+        
+        
+        NO
+        
+        
+        NO
+        
+        NO
+        
+        
+        we sholdnt make the sig syn user defiable, because they will just muck up the amespace, by making "x: A" or something dumb like that.
+        
+        
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 join declare ((llvm) (type) (root))

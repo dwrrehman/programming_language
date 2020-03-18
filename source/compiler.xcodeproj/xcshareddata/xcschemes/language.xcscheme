@@ -65,19 +65,23 @@
       <CommandLineArguments>
          <CommandLineArgument
             argument = "/Users/deniylreimn/Documents/projects/n3zqx2l/examples/test.ll"
-            isEnabled = "YES">
+            isEnabled = "NO">
          </CommandLineArgument>
          <CommandLineArgument
             argument = "-d"
-            isEnabled = "YES">
+            isEnabled = "NO">
          </CommandLineArgument>
          <CommandLineArgument
-            argument = "8"
-            isEnabled = "YES">
+            argument = "100"
+            isEnabled = "NO">
          </CommandLineArgument>
          <CommandLineArgument
             argument = "/Users/deniylreimn/Documents/projects/n3zqx2l/examples/test.n"
             isEnabled = "YES">
+         </CommandLineArgument>
+         <CommandLineArgument
+            argument = "-v"
+            isEnabled = "NO">
          </CommandLineArgument>
       </CommandLineArguments>
       <AdditionalOptions>

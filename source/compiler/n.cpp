@@ -94,54 +94,29 @@ static inline token next(lexing_state& l, const file& file) {
         else if (s == string or (isalnum(c) and s == id)) t.value += c;
         else if (not isalnum(c) and not isspace(c) and s == none) { at++; return {op, std::string(1, c), l.line, l.column++}; }
         if (c == '\n') { l.line++; l.column = 1; } else l.column++; at++;
-    }
-    if (s == string) printf("n3zqx2l: %s:%ld:%ld: error: unterminated string\n\n", file.name, l.line, l.column);
+    } if (s == string) printf("n3zqx2l: %s:%ld:%ld: error: unterminated string\n\n", file.name, l.line, l.column);
     return {none, "", l.line, l.column};
-}
-
-//const char* convert_token_type_representation(long type);
-
-static inline expression parse(lexing_state& state, const file& file);
+} static inline expression parse(lexing_state& state, const file& file);
 static inline symbol parse_symbol(lexing_state& state, const file& file) {
-    auto saved = state;
-    auto t = next(state, file);
-//    printf("looking at a %s, \"%s\": [%ld, %ld]\n",convert_token_type_representation(t.type), t.value.c_str(), t.line, t.column);
-    expression e = {};
+    auto saved = state; auto t = next(state, file); expression e = {};
     if (t.type == op and t.value == "(") {
-        if ((e = parse(state, file)).error) {
-            return {expr, e, {}, true};
-        }
+        if ((e = parse(state, file)).error) return {expr, e, {}, true};
         auto close = next(state, file);
-        if (close.type == op and close.value == ")") {
-            return {expr, e};
-        } else {
-            state = saved;
-            printf("n3zqx2l: %s:%ld:%ld: expected \")\"\n\n", file.name, t.line, t.column);
-            return {expr, e, {}, true};
-        }
+        if (close.type == op and close.value == ")") return {expr, e};
+        else { state = saved; printf("n3zqx2l: %s:%ld:%ld: expected \")\"\n\n", file.name, t.line, t.column); return {expr, e, {}, true}; }
     } else if (t.type == string) return {string, {}, t};
     else if (t.type == id or (t.type == op and t.value != "(" and t.value != ")")) return {id, {}, t};
-    else {
-//        if (t.type) {
-//            printf("n3zqx2l: %s:%ld:%ld: error: unexpected \"%s\"\n\n", file.name, t.line, t.column, t.value.c_str());
-//        }
-        state = saved;
-        return {none, {}, {}, true};
-    }
+    else { state = saved; return {none, {}, {}, true}; }
 }
 
 static inline expression parse(lexing_state& state, const file& file) {
     std::vector<symbol> symbols = {};
-    auto saved = state;
-    auto start = next(state, file);
-    state = saved;
+    auto saved = state; auto start = next(state, file); state = saved;
     auto symbol = parse_symbol(state, file);
     while (not symbol.error) {
-        symbols.push_back(symbol);
-        saved = state;
+        symbols.push_back(symbol); saved = state;
         symbol = parse_symbol(state, file);
-    } state = saved;
-    return {symbols};
+    } state = saved; return {symbols};
 }
 
 static inline std::string expression_to_string(const expression& given, const std::vector<entry>& entries, long begin = 0, long end = -1, std::vector<resolved> args = {}) {
@@ -307,6 +282,8 @@ static expression typify(const expression& given, const resolved& initial_type, 
     return signature;
 }
 static inline resolved construct_signature(const expression& given, std::vector<entry>& entries, std::vector<std::vector<size_t>>& stack, std::vector<std::vector<size_t>>& intrinsics, const file& file, size_t max_depth, size_t its_index) {
+    ///TODO: this does unconditional succeeding. write out the logic, long hand, and make typify possibly return an error. very important.
+    
     return {its_index, {}, false, {given.symbols.size() and given.symbols.front().type == expr ? typify(given, {0}, entries, stack, intrinsics, file, max_depth) : expression {given.symbols, {_undefined}}}}; ///TODO: _undefined needs to actually be "_infered". eventually.
 }
 
@@ -321,11 +298,10 @@ static inline resolved construct_number(const expression& given, const file& fil
     } else { i++; return r; }
 }
 
-bool debug = true;
+bool debug = false;
 
 static inline resolved resolve_at(const expression& given, const resolved& expected, size_t& i, size_t& best, size_t depth, size_t max_depth, std::vector<entry>& entries, std::vector<std::vector<size_t>>& stack, std::vector<std::vector<size_t>>& intrinsics, const file& file) {
     if (depth > max_depth) return {0, {}, true};
-
     else if (i < given.symbols.size() and given.symbols[i].type == expr and is_intrin(_name, expected.index, intrinsics)) return construct_signature(given.symbols[i++].subexpression, entries, stack, intrinsics, file, max_depth, expected.index);
     else if (i < given.symbols.size() and given.symbols[i].type == expr) return resolve(given.symbols[i++].subexpression, expected, entries, stack, intrinsics, file, max_depth);
     else if (i < given.symbols.size() and given.symbols[i].type == id and is_intrin(_number, expected.index, intrinsics)) return construct_number(given, file, i, expected.index);
@@ -477,28 +453,28 @@ static inline llvm::Value* generate_expression(const resolved& given, std::vecto
             if (debug)printf("\n");
             
             if (debug)printf("the signature that was picked was: \n");
-            const auto& sig = entries[given.args[1].index].signature;
-            if (debug)print_expression(sig, 0);
+//            const auto& sig = entries[given.args[1].index].signature;
+//            if (debug)print_expression(sig, 0);
             if (debug)printf("\n");
             
-            if (sig.symbols.size()) {
-                auto s = sig.symbols.front();
-                if (s.type == id) {
-                    auto callee_name = s.literal.value;
-                    if (debug)std::cout << "\tfinding external function named: " << callee_name << "\n";
-                    llvm::Value* callee = module->getFunction(callee_name);
-                    if (not callee) {
-                        if (debug)printf("\tERROR: could not resolve the function at all!\n");
-                    } else {
-                        if (debug)printf("success on external function call!\n");
-                        
-                        for (auto arg : given.args[1].args)
-                            arguments.push_back(generate_expression(arg, entries, stack, module, function, builder));
-                        
-                        return builder.CreateCall(callee, arguments);
-                    }
-                }
-            }
+//            if (sig.symbols.size()) {
+//                auto s = sig.symbols.front();
+//                if (s.type == id) {
+//                    auto callee_name = s.literal.value;
+//                    if (debug)std::cout << "\tfinding external function named: " << callee_name << "\n";
+//                    llvm::Value* callee = module->getFunction(callee_name);
+//                    if (not callee) {
+//                        if (debug)printf("\tERROR: could not resolve the function at all!\n");
+//                    } else {
+//                        if (debug)printf("success on external function call!\n");
+//
+//                        for (auto arg : given.args[1].args)
+//                            arguments.push_back(generate_expression(arg, entries, stack, module, function, builder));
+//
+//                        return builder.CreateCall(callee, arguments);
+//                    }
+//                }
+//            }
         }
         
         for (auto arg : given.args)
@@ -543,10 +519,12 @@ static inline std::unique_ptr<llvm::Module> generate(const resolved& given, std:
         print_resolved_expr(given, 0, entries);
         printf("\n\n");
         debug_stack(entries, stack);
-        printf("\n\n");
+          printf("\n\n");
         print_intrinsics(intrinsics);
         printf("\n\n");
     }
+    
+  
     
     if (given.error) exit(1);
     
@@ -604,7 +582,7 @@ static inline void interpret(std::unique_ptr<llvm::Module> module, const argumen
     auto engine = llvm::EngineBuilder(std::move(module)).setEngineKind(llvm::EngineKind::JIT).create();
     engine->finalizeObject();
     if (auto main = engine->FindFunctionNamed("main"); main) exit(engine->runFunctionAsMain(main, arguments.argv_for_exec, nullptr));
-    else { printf("n: error: undefined main() symbol\n"); exit(1); }
+    else { printf("n: error: could not find entry point\n"); exit(1); }
 }
 
 static inline std::string generate_file(std::unique_ptr<llvm::Module> module, const arguments& arguments, llvm::TargetMachine::CodeGenFileType type) {
@@ -653,19 +631,18 @@ int main(const int argc, const char** argv) {
     auto module = llvm::make_unique<llvm::Module>("0u6agpc3li0rkpw1a1xs13b.n", context);
     arguments args = {};
     bool use_exec_args = false, no_files = true;
-    size_t max_depth = 30;
+    size_t max_depth = 100;
     for (long i = 1; i < argc; i++) {
         
         if (argv[i][0] == '-') {
             const auto c = argv[i][1];
             
-            if (use_exec_args)
-                args.argv_for_exec.push_back(argv[i]);
+            if (use_exec_args) args.argv_for_exec.push_back(argv[i]);
             
             else if (c == '-') use_exec_args = true;
             
             else if (c == 'u') {
-                puts("usage: n -[uvocisd-] <.n/.ll/.o/.s>");
+                puts("usage: n [-u/-v] [-o <exe>/-c <object>/-i <ir>/-s <assembly>] [-d <depth>] <.n/.ll/.o/.s> [-- <argv>]");
                 exit(0);
             } else if (c == 'v') {
                 puts("n3zqx2l: 0.0.4 \tn: 0.0.4");
@@ -704,7 +681,7 @@ int main(const int argc, const char** argv) {
                     /** 2tsrb944gazx3a8cqy2g9 */ {{{{id,{},{id,"name"}}},{_init},{_name}}},
                     /** 3q1c0pzkzhu2l9t8j6h7a */ {{{{id,{},{id,"nat"}}},{_init},{_number}}},
                     /** 4lco2hyh80iwtimpq7o58 */ {{{{id,{},{id,"join"}},{expr,{{},{_init}}}, {expr,{{},{_init}}}},{_init},{_join}}},
-                    /** 5we9uq5txfjqjgkeb2chb */ {{{{id,{},{id,"decl"}},{expr,{{},{_name}}},{expr,{{},{_number}}} },{_init},{_declare}}},
+                    /** 5we9uq5txfjqjgkeb2chb */ {{{{id,{},{id,"decl"}},{expr,{{},{_name}}},{expr,{{},{_number}}}, {expr,{{},{_number}}} },{_init},{_declare}}},
                 }; std::vector<std::vector<size_t>> stack {{_declare, _join, _name, _number, _init}}, intrinsics(_intrinsic_count, std::vector<size_t>{});
                 for (size_t i = _undefined; i < _type; i++) intrinsics[i].push_back(i);
                 
@@ -737,3 +714,7 @@ int main(const int argc, const char** argv) {
     if (no_files) printf("n: error: no input files\n");
     else output(args, optimize(module));
 }
+
+//        if (t.type) {
+//            printf("n3zqx2l: %s:%ld:%ld: error: unexpected \"%s\"\n\n", file.name, t.line, t.column, t.value.c_str());
+//        }
