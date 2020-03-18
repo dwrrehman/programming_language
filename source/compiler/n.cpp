@@ -22,6 +22,8 @@ enum constants { none, id, op, string, expr,
     
     _1, _2, _3, _4, _define, /// define (s: name) (t: init) (d: L t) (extern: number) -> init
     
+    _28, _29, _load, /// load (file: name) (t: type) -> t             eg,       (load (hello world) unit)          <-------- this expr is of type unit.            it searches for a file called "helloworld.n"
+    
     _i1, _i8, _i16, _i32, _i64, _i128, _x86_mmx, _f16, _f32, _f64, _f128,
     
     _5, _6, _pointer,           /// pointer (addrspace: number) (t: type)   -> type
@@ -47,14 +49,6 @@ enum constants { none, id, op, string, expr,
     _23, _create_label,             /// label (l: name)  -> unit
     _24, _uncond_branch,            /// jump (l: name)   -> unit
     _25, _26, _27, _cond_branch,    /// br (cond: i1) (1: name) (2: name)   -> unit
-    
-    
-    ///FACT: this really should be right after the "define" intrin, actually.
-    ///
-    ///         ...its super fundemental.
-    ///
-    
-    _28, _29, _load, /// load (file: name) (t: type) -> t             eg,       (load (hello world) unit)          <-------- this expr is of type unit.            it searches for a file called "hello world.n"
     
     _intrinsic_count
 };
@@ -310,8 +304,7 @@ static inline std::string convert_to_filename(const expression& e) {
     std::string result = "";
     for (auto s : e.symbols) {
         result += s.literal.value;
-    }
-    result += ".n";
+    } result += ".n";
     return result;
 }
 
@@ -327,7 +320,7 @@ resolved load_file(std::vector<resolved>& args, std::vector<entry>& entries, std
     return resolve(parse(state, file), args[1], entries, stack, intrinsics, file, max_depth);
 }
 
-bool debug = false;
+bool debug = true;
 
 static inline resolved resolve_at(const expression& given, const resolved& expected, size_t& i, size_t& best, size_t depth, size_t max_depth, std::vector<entry>& entries, std::vector<std::vector<size_t>>& stack, std::vector<std::vector<size_t>>& intrinsics, const file& file) {
     if (depth > max_depth) return {0, {}, true};
