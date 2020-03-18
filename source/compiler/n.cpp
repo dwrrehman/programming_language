@@ -48,6 +48,12 @@ enum constants { none, id, op, string, expr,
     _24, _uncond_branch,            /// jump (l: name)   -> unit
     _25, _26, _27, _cond_branch,    /// br (cond: i1) (1: name) (2: name)   -> unit
     
+    
+    ///FACT: this really should be right after the "define" intrin, actually.
+    ///
+    ///         ...its super fundemental.
+    ///
+    
     _28, _29, _load, /// load (file: name) (t: type) -> t             eg,       (load (hello world) unit)          <-------- this expr is of type unit.            it searches for a file called "hello world.n"
     
     _intrinsic_count
@@ -309,29 +315,14 @@ static inline std::string convert_to_filename(const expression& e) {
     return result;
 }
 
-resolved load_file
-(std::vector<resolved>& args,
- std::vector<entry>& entries,
- std::vector<std::vector<size_t>>& stack,
- std::vector<std::vector<size_t>>& intrinsics,
- size_t max_depth
- ) {
-    
-    /// STEP 1: convert the expr filename into a string, concatting the
-    /// values of all tokens in the expression, no spaces between them.
+resolved load_file(std::vector<resolved>& args, std::vector<entry>& entries, std::vector<std::vector<size_t>>& stack, std::vector<std::vector<size_t>>& intrinsics, size_t max_depth) {
     auto filename = convert_to_filename(args[0].name[0]);
-    
-    /// STEP 2: open the file.
     std::ifstream stream {filename};
     if (not stream.good()) {
         printf("n: %s: error: could not open input file: %s\n", filename.c_str(), strerror(errno));
-        return {0, {}, true}; ///TODO: what is the right thing to do when we couldnt find the file? continue with the parent's CSR? yes.
+        return {0, {}, true};
     }
-    
-    /// STEP 3: construct a new file from the loaded data:
     const file file = {filename.c_str(), {std::istreambuf_iterator<char>(stream), std::istreambuf_iterator<char>()}};
-    
-    /// STEP 4: call parse and resolve with the new file.
     lexing_state state {0, none, 1, 1};
     return resolve(parse(state, file), args[1], entries, stack, intrinsics, file, max_depth);
 }
