@@ -20,4 +20,8 @@ join decl (
     ((load-type))
 ) (load-type)) 21 0
 
-(load (/Users/deniylreimn/Documents/file) i)
+join decl ((k) (i)) 0 0
+
+join load (/Users/deniylreimn/Documents/projects/n3zqx2l/examples/file) i
+join load (/Users/deniylreimn/Documents/projects/n3zqx2l/examples/file) i
+type
