@@ -26,13 +26,13 @@ join decl ((decl
     ((n2) (nat) (i))
 ) (unit) (type) (i)) 10 0
 
-join decl ((joy
+join decl ((convert ((x) (unit) (type) (i)) to i) (i)) 0 0
+
+join decl ((
     ((invis-x) (unit) (type) (i))
     ((invis-y) (unit) (type) (i))
 ) (unit) (type) (i)) 0 0
 
-join decl ((convert ((x) (unit) (type) (i)) to i) (i)) 0 0
-
-join convert load (/Users/deniylreimn/Documents/projects/n3zqx2l/examples/llvm) unit to i
+join (convert (load (/Users/deniylreimn/Documents/projects/n3zqx2l/examples/llvm) unit) to i)
 
 type 

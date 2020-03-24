@@ -346,11 +346,14 @@ static inline resolved resolve_at(const expression& given, const resolved& expec
     else if (i < given.symbols.size() and given.symbols[i].type == expr) return resolve(given.symbols[i++].subexpression, expected, entries, stack, intrinsics, file, max_depth);
     else if (i < given.symbols.size() and given.symbols[i].type == id and is_intrin(_number, expected.index, intrinsics)) return construct_number(given, file, i, expected.index);
     else if (i < given.symbols.size() and given.symbols[i].type == string) return {_string, {}, false, {{{given.symbols[i++]}}}}; /*TODO: should expect type: "(pointer (i8))"     ie, check given_type.args[]... */
-    //    else if (expected.index == _lazy) return resolve_at(given, expected.args[0], i, best, depth, max_depth, entries, stack, file);
+    else if (is_intrin(_lazy, expected.index, intrinsics)) return resolve_at(given, expected.args[0], i, best, depth, max_depth, entries, stack, intrinsics, file);
     auto saved = i; auto saved_stack = stack;
     for (const auto s : saved_stack.back()) {
+        
         best = std::max(i, best); i = saved; stack = saved_stack; std::vector<resolved> args = {};
+                
         for (size_t j = 0; j < entries[s].signature.symbols.size(); j++) {
+            
             const auto& symbol = entries[s].signature.symbols[j];
             if (i >= given.symbols.size()) { if (args.size() and j == 1) return args[0]; else goto next; }
             if (symbol.type == expr) {
@@ -360,12 +363,15 @@ static inline resolved resolve_at(const expression& given, const resolved& expec
                 entries[symbol.subexpression.me.index].subsitution = argument;
             } else if (symbol.type != given.symbols[i].type or symbol.literal.value != given.symbols[i].literal.value) goto next; else i++;
         }
+        
         if (not equal(expected, entries[s].signature.type, entries)) continue;
+
         //        if (s == _push) stack.push_back(stack.back());
         //        if (s == _pop) stack.pop_back();
         if (is_intrin(_declare, s, intrinsics) and args[1].number < _intrinsic_count) intrinsics[args[1].number].push_back(args[0].name[0].me.index = define(args[0].name[0], {}, entries, stack));
         if (is_intrin(_define, s, intrinsics)) args[0].name[0].me.index = define(args[0].name[0],  args[2], entries, stack);
         if (is_intrin(_load, s, intrinsics)) return load_file(args, entries, stack, intrinsics, max_depth);
+        
         return {s, args}; next: continue;
     } return {0, {}, true};
 }
