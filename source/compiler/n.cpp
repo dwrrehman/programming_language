@@ -14,7 +14,7 @@ enum constants {
     
     
     
-    none,
+    none = 0,
     id,
     string,
     expr,
@@ -101,36 +101,21 @@ struct entry {
 };
 
 static inline token next(lexing_state& l, const file& file) {
-    token t = {};  auto& s = l.state;
+    token t = {};
     for (auto& at = l.index; at < file.text.size(); at++) {
         char c = file.text[at];
-        if (c == '\"' and s == none) t = { s = string, "", l.line, l.column }; /// Start of strings:
-        else if (not isspace(c) and s == none) { at++; return {id, std::string(1, c), l.line, l.column++}; } /// Identifiers, which are just nonwhitespace characters:
-        
-        else if (c == '\\' and s == string) { /// Escaped characters in strings:
-            
-            char n = at + 1 < file.text.size() ? file.text[at + 1] : 0;
-            const char* SS = "\\\"nt";
-            const char* TT = "\\\"\n\t";
-            
-            if (auto ef = strchr(SS, n)) {
-                ef;
-            }
-            
-    
-            if (n == '\\') t.value += "\\";
-            else if (n == '\"') t.value += "\"";
-            else if (n == 'n') t.value += "\n";
-            else if (n == 't') t.value += "\t";
-                
+        if (c == '\"' && !l.state) t = { l.state = string, "", l.line, l.column };
+        else if (!isspace(c) && !l.state) { at++; return {id, std::string(1, c), l.line, l.column++}; }
+        else if (c == '\\' && l.state == string) {
+            const char n = at + 1 < file.text.size() ? file.text[at + 1] : 0, *valid = "\\\"ntr", *subsitute = "\\\"\n\t\r";
+            if (auto i = strchr(valid, n)) t.value += subsitute[i - valid];
             else printf("n3zqx2l: %s:%ld:%ld: error: unknown escape sequence '\\%c'\n\n", file.name, l.line, l.column, n);
             l.column++; at++;
-        }
-        
-        else if ((c == '\"' and s == string)) { s = none; l.column++; at++; return t; }
-        else if (s == string) t.value += c;
+        } else if ((c == '\"' && l.state == string)) { l.state = none; l.column++; at++; return t; }
+        else if (l.state == string) t.value += c;
         if (c == '\n') { l.line++; l.column = 1; } else l.column++;
-    } if (s == string) printf("n3zqx2l: %s:%ld:%ld: error: unterminated string\n\n", file.name, l.line, l.column);
+    }
+    if (l.state == string) printf("n3zqx2l: %s:%ld:%ld: error: unterminated string\n\n", file.name, l.line, l.column);
     return {none, "", l.line, l.column};
 }
 
