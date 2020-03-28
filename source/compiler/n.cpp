@@ -65,10 +65,7 @@ static inline void print_expression(expression e, size_t d) {
     prep(d); printf("token = %c\n", e.literal.value >= 32 ? e.literal.value: e.literal.value + '0');
     prep(d); printf("token as string = %s\n", e.literal.string.c_str());
     prep(d); printf("children: {\n");
-    for (auto f : e.sub) {
-        prep(d+1); printf("child: \n");
-        print_expression(f, d + 1);
-    }
+    for (auto f : e.sub) { prep(d+1); printf("child: \n"); print_expression(f, d + 1); }
     prep(d); printf("}\n");
 }
 
@@ -130,41 +127,7 @@ static inline void debug_stack(std::vector<entry> entries, std::vector<std::vect
     } std::cout << "}\n";
 }
 
-//static inline void print_symbol(symbol symbol, size_t d) {
-//    prep(d); std::cout << "symbol: \n";
-//    switch (symbol.type) {
-//        case id:
-//            prep(d); std::cout << convert_token_type_representation(symbol.literal.type) << ": " << symbol.literal.value << "\n";
-//            break;
-//        case string:
-//            prep(d); std::cout << "string literal: \"" << symbol.literal.value << "\"\n";
-//            break;
-//        case expr:
-//            prep(d); std::cout << "list symbol\n";
-//            print_expression(symbol.subexpression, d+1);
-//            break;
-//        case none:
-//            prep(d); std::cout << "{NO SYMBOL TYPE}\n";
-//            break;
-//        default: break;
-//    }
-//}
 
-//static inline void print_expression(expression expression, size_t d) {
-//    prep(d); std::cout << "expression: \n";
-//    prep(d); std::cout << std::boolalpha << "error: " << expression.error << "\n";
-//    prep(d); std::cout << "symbol count: " << expression.symbols.size() << "\n";
-//    prep(d); std::cout << "symbols: \n";
-//    int i = 0;
-//    for (auto symbol : expression.symbols) {
-//        prep(d+1); std::cout << i << ": \n";
-//        print_symbol(symbol, d+1);
-//        std::cout << "\n";
-//        i++;
-//    }
-//    prep(d); std::cout << "type = " << expression.type.index << "\n";
-//}
-//
 
 static inline size_t define(expression signature, const resolved& definition, std::vector<entry>& entries, std::vector<std::vector<size_t>>& stack) {
     auto index = entries.size(); stack.back().push_back(index);
@@ -259,9 +222,9 @@ static inline resolved resolve_at(const expression& given, const resolved& expec
     auto saved = index; auto saved_stack = stack;
     for (const auto s : saved_stack.back()) {
         best = std::max(index, best); index = saved; stack = saved_stack; std::vector<resolved> args = {};
-
+        
         for (size_t j = 0; j < entries[s].signature.sub.size(); j++) {
-
+            
             const auto& symbol = entries[s].signature.sub[j];
             if (index >= given.sub.size()) { if (args.size() and j == 1) return args[0]; else goto next; }
             if (not symbol.literal.value) {
@@ -290,7 +253,7 @@ static inline resolved resolve_at(const expression& given, const resolved& expec
 static inline resolved resolve(const expression& given, const resolved& given_type, std::vector<entry>& entries, std::vector<std::vector<size_t>>& stack, std::vector<std::vector<size_t>>& intrinsics, const file& file, size_t max_depth) {
 
     printf("-------------- parse tree: -------------------\n");
-//    print_expression(given, 0);    
+//    print_expression(given, 0);
     printf("heres the compacted form: \n\n\t%s\n\n", expression_to_string(given, entries).c_str());
     
     exit(1);
