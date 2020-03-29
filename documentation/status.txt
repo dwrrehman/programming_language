@@ -3,6 +3,51 @@ the current status of the nostril compiler:
 
 
 
+
+
+
+names of the intrinsics, probably:
+
+// 1kqfsnyh5t3hr8viagrr6      2tsrb944gazx3a8cqy2g9     3q1c0pzkzhu2l9t8j6h7a    4lco2hyh80iwtimpq7o58    5we9uq5txfjqjgkeb2chb
+
+
+
+
+
+
+
+
+
+
+ok.
+
+
+    so a couple of changes:
+        
+        we simplified our notion of expressions, they follow the lisp ds now.
+        
+        we are now ignoring all whitespace, in the source.
+        
+        we are ignoring the notion of alphanumeric sequences versus operators. now every single character is an operator, technically.
+        
+        expressions are printed with no spaces inside of them.
+        
+        
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 MAJOR LANG TODO:
 
 
