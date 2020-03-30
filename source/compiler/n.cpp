@@ -365,7 +365,7 @@ int main(const int argc, const char** argv) {
             const char* ext = strrchr(argv[i], '.');
             if (ext && !strcmp(ext, ".n")) {
                 FILE* f = fopen(argv[i], "r");
-                if (not f) { printf("n: %s: error: could not open input file: %s\n", argv[i], strerror(errno)); continue; }
+                if (not f) { printf("n: %s: error: %s\n", argv[i], strerror(errno)); continue; }
                 fseek(f, 0, SEEK_END); const size_t length = ftell(f);
                 char* text = (char*) calloc(length + 1, sizeof(char));
                 fseek(f, 0, SEEK_SET); fread(text, sizeof(char), length, f);
