@@ -36,6 +36,8 @@ static inline token next(lexing_state& l, file& file) {
     } state = saved; return l;
 }
 
+
+/// i dont like this.
 static inline std::string expression_to_string(const expression& given, const std::vector<entry>& entries) {
     if (given.literal.value == string) return "\"" + std::string(given.literal.string) + "\"";
     else if (given.literal.value) return std::string(1, given.literal.value);
@@ -46,7 +48,8 @@ static inline std::string expression_to_string(const expression& given, const st
             else if (symbol.literal.value) result += symbol.literal.value;
             else result += "(" + expression_to_string(symbol, entries) + ")";
         }
-        return result;
+        return result;        
+    }
 }
 
 static inline std::string v0_expression_to_string(const expression& given, const std::vector<entry>& entries) {
@@ -58,7 +61,6 @@ static inline std::string v0_expression_to_string(const expression& given, const
     }
     return result;
 }
-
 
 static inline std::string v1_expression_to_string(const expression& given, const std::vector<entry>& entries) {
     if (given.literal.value == string) return "\"" + std::string(given.literal.string) + "\"";
