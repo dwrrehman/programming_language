@@ -10,6 +10,7 @@
 #include <fstream>
 #include <iostream>                              // n: a n3zqx2l compiler written in C++.
 #include <vector>
+bool debug = false;
 enum {none, id, string, expr, action = 'x', exec = 'o', object = 'c', ir = 'i', assembly = 's', _undefined = 0, _init, _name, _number, _30, _31, _join, _32, _33, _34, _declare, _type, _intrinsic_count };
 struct file { const char* name = ""; char* text = nullptr; size_t length = 0; };
 struct arguments { size_t emit = action; const char* emitname = ""; std::vector<std::string> argv = {}; };
@@ -19,12 +20,12 @@ struct resolved { size_t index = 0; std::vector<resolved> args = {}; token liter
 struct expression {token literal = {}; std::vector<expression> sub = {}; bool error = false; };
 struct entry { resolved signature = {}; resolved type = {}; resolved definition = {}; };
 static inline token next(lexing_state& l, file& file) {
-    token t = {}; for (auto& at = l.at; at < file.length; at++) {
+    token t = {none, "", l.line, l.column}; for (auto& at = l.at; at < file.length; at++) {
         const size_t c = file.text[at]; if (c == '\"' && !l.state) t = {l.state = string, file.text + at + 1, l.line, l.column};
         else if (!isspace(c) && !l.state) { at++; return {c, "", l.line, l.column++}; }
         else if (c == '\"' && l.state == string) { l.state = none; l.column++; file.text[at++] = '\0'; return t; }
         if (c == '\n') { l.line++; l.column = 1; } else l.column++;
-    } if (l.state == string) printf("n3zqx2l: %s:%ld:%ld: error: expected \"\n\n", file.name, l.line, l.column); return {none, "", l.line, l.column};
+    } if (l.state == string) printf("n3zqx2l: %s:%ld:%ld: error: expected \"\n\n", file.name, l.line, l.column); return t;
 } static inline expression parse(lexing_state& state, file& file) {
     expression l = {}; auto saved = state; token t = next(state, file); /// if you want to get rid of all @(0,0)'s, then use this code instead:          token t = l.literal = next(state, file); l.literal.value = 0;
     while (t.value && t.value != ')') {
@@ -34,53 +35,18 @@ static inline token next(lexing_state& l, file& file) {
             l.sub.push_back(p); t.value = 0; l.sub.back().literal = t; 
         } saved = state; t = next(state, file);
     } state = saved; return l;
-}
-
-
-/// i dont like this.
-static inline std::string expression_to_string(const expression& given, const std::vector<entry>& entries) {
-    if (given.literal.value == string) return "\"" + std::string(given.literal.string) + "\"";
-    else if (given.literal.value) return std::string(1, given.literal.value);
-    else {
-        std::string result = "";
-        for (const auto& symbol : given.sub) {
-            if (symbol.literal.value == string) result += "\"" + std::string(symbol.literal.string) + "\"";
-            else if (symbol.literal.value) result += symbol.literal.value;
-            else result += "(" + expression_to_string(symbol, entries) + ")";
-        }
-        return result;        
-    }
-}
-
-static inline std::string v0_expression_to_string(const expression& given, const std::vector<entry>& entries) {
-    std::string result = "";
-    for (const auto& symbol : given.sub) {
-        if (symbol.literal.value == string) result += "\"" + std::string(symbol.literal.string) + "\"";
-        else if (symbol.literal.value) result += symbol.literal.value;
-        else result += "(" + expression_to_string(symbol, entries) + ")";
-    }
-    return result;
-}
-
-static inline std::string v1_expression_to_string(const expression& given, const std::vector<entry>& entries) {
-    if (given.literal.value == string) return "\"" + std::string(given.literal.string) + "\"";
-    else if (given.literal.value) return std::string(1, given.literal.value);
-    else  {
-        std::string result = "(";
-        for (const auto& symbol : given.sub) result += expression_to_string(symbol, entries);
-        result += ")";
-        return result;
-    }
-    ///TODO: fix me:
-    /// if (given.type.index) result += expression_to_string(entries[given.type.index].signature, entries);
-}
-
+} static inline void print_expression(const expression& given) {
+    if (given.literal.value == string) printf("\"%s\"", given.literal.string);
+    else if (given.literal.value) putchar(given.literal.value);
+    else { putchar('('); for (const auto& symbol : given.sub) print_expression(symbol); putchar(')'); }
+} static inline std::string represent(const resolved& given, const std::vector<entry>& entries) { return "(unimplemented"; }
 
 ////////////////////////////////// DEBUG CODE ////////////////////////////////////
 
 void prep(size_t d) { for (size_t i = 0; i < d; i++) printf(".   "); }
 
-static inline void print_expression(expression e, size_t d) {
+static inline void debug_expression(expression e, size_t d) {
+    if (not debug) return;
     prep(d); printf("error = %d\n", e.error);
     prep(d); printf("token: %lu : '%c'  @(%lu, %lu)\n", e.literal.value, (char)e.literal.value, e.literal.line, e.literal.column);
     if (e.literal.value == string) { prep(d); printf("    string = %s\n", e.literal.string); }
@@ -88,12 +54,13 @@ static inline void print_expression(expression e, size_t d) {
     
     for (auto f : e.sub) {
         prep(d+1); printf("child: \n");
-        print_expression(f, d + 1);
+        debug_expression(f, d + 1);
     }
     prep(d); printf("}\n");
 }
 
-static inline void print_intrinsics(std::vector<std::vector<size_t>> intrinsics) {
+static inline void debug_intrinsics(std::vector<std::vector<size_t>> intrinsics) {
+    if (not debug) return;
     std::cout << "\n---- debugging intrinsics: ----\n";
     
     for (size_t i = 0; i < intrinsics.size(); i++) {
@@ -109,7 +76,8 @@ static inline void print_intrinsics(std::vector<std::vector<size_t>> intrinsics)
     std::cout << "\n--------------------------------\n";
 }
 
-static inline void print_resolved_expr(resolved expr, size_t depth, std::vector<entry> entries, size_t d = 0) {
+static inline void debug_resolved(resolved expr, size_t depth, std::vector<entry> entries, size_t d = 0) {
+    if (not debug) return;
     prep(depth); std::cout << d << ": [error = " << std::boolalpha << expr.error << "]\n";
     prep(depth); std::cout << "index = " << expr.index << "\n";
     //    prep(depth); std::cout << expression_to_string(entries[expr.index].signature, entries) << "\n";
@@ -122,13 +90,14 @@ static inline void print_resolved_expr(resolved expr, size_t depth, std::vector<
     for (auto arg : expr.args) {
         prep(depth + 1); std::cout << "argument #" << i++ << ": \n";
         
-        print_resolved_expr(arg, depth + 1, entries, d + 1);
+        debug_resolved(arg, depth + 1, entries, d + 1);
         
         prep(depth + 1); std::cout << "\n";
     }
 }
 
 static void debug_lex(const file &file) {
+    if (not debug) return;
     printf("-------------- lexing --------------\n");
     lexing_state temp_state {0, none, 1, 1};
     struct file temp_file = {file.name, (char*) calloc(file.length, sizeof(char)), file.length};
@@ -150,6 +119,7 @@ static void debug_lex(const file &file) {
 
 
 static inline void debug_stack(std::vector<entry> entries, std::vector<std::vector<size_t>> stack) {
+    if (not debug) return;
     std::cout << "\n---- debugging stack: ----\n";
     std::cout << "printing frames: \n";
 
@@ -170,7 +140,7 @@ static inline void debug_stack(std::vector<entry> entries, std::vector<std::vect
         
         if (entry.definition.index) {
             std::cout << " := \n";
-            print_resolved_expr(entry.definition, 1, entries);
+            debug_resolved(entry.definition, 1, entries);
         }
         std::cout << "\n\n";
         j++;
@@ -200,7 +170,7 @@ static inline bool equal(resolved a, resolved b, std::vector<entry>& entries) {
 
 static inline resolved resolve(const expression& given, const resolved& given_type, std::vector<entry>& entries, std::vector<std::vector<size_t>>& stack, std::vector<std::vector<size_t>>& intrinsics, const file& file, const size_t max_depth);
 
-bool debug = true;
+
 
 static inline resolved resolve_at(const expression& given, const resolved& expected, size_t& index, size_t& best, const size_t depth, const size_t max_depth, std::vector<entry>& entries, std::vector<std::vector<size_t>>& stack, std::vector<std::vector<size_t>>& intrinsics, const file& file) {
     if (depth > max_depth) return {0, {}, {}, true};
@@ -239,20 +209,23 @@ static inline resolved resolve_at(const expression& given, const resolved& expec
 
 static inline resolved resolve(const expression& given, const resolved& given_type, std::vector<entry>& entries, std::vector<std::vector<size_t>>& stack, std::vector<std::vector<size_t>>& intrinsics, const file& file, const size_t max_depth) {
     
-    printf("-------------- parse tree: -------------------\n");
-    print_expression(given, 0);
-    printf("heres the compacted form: \n\n\t%s\n\n", expression_to_string(given, entries).c_str());
+    if (debug) printf("-------------- parse tree: -------------------\n");
+    debug_expression(given, 0);
+    
+    if (debug) printf("heres the compacted form: \n\n\t");
+    if (debug) print_expression(given);
+    if (debug) printf("\n\n");
     
     size_t index = 0, best = 0;
     resolved solution = resolve_at(given, given_type, index, best, 0, max_depth, entries, stack, intrinsics, file);
     if (index < given.sub.size()) solution.error = true;
     if (solution.error) {
         const auto b = best < given.sub.size() ? given.sub.at(best) : given;
-        print_expression(b, 0);
-        printf("n3zqx2l: %s:%ld:%ld: error: unresolved %s, expected type %s\n\n",
-               file.name, b.literal.line, b.literal.column,
-               expression_to_string(b, entries).c_str(),
-               ""); /*expression_to_string(entries[given_type.index].signature, entries).c_str()*/
+        debug_expression(b, 0);
+        printf("n3zqx2l: %s:%ld:%ld: error: unresolved ", file.name, b.literal.line, b.literal.column);
+        print_expression(b);
+        printf("\n");
+        
     } return solution;
 }
 
@@ -274,11 +247,11 @@ static inline std::unique_ptr<llvm::Module> generate(const resolved& given, std:
     
     if (debug){
         printf("\n\n");
-        print_resolved_expr(given, 0, entries);
+        debug_resolved(given, 0, entries);
         printf("\n\n");
         debug_stack(entries, stack);
         printf("\n\n");
-        print_intrinsics(intrinsics);
+        debug_intrinsics(intrinsics);
         printf("\n\n");
     }
                   
@@ -287,7 +260,7 @@ static inline std::unique_ptr<llvm::Module> generate(const resolved& given, std:
     set_data_for(module);
     
     if (given.error) {
-        printf("error: not generating llvm: resolution error\n");
+        if (debug) printf("error: not generating llvm: resolution error\n");
         return module;
     }
     
@@ -398,13 +371,11 @@ int main(const int argc, const char** argv) {
                 fseek(f, 0, SEEK_SET); fread(text, sizeof(char), length, f);
                 file file = {argv[i], text, length};
                 lexing_state state {0, none, 1, 1};
-                std::vector<entry> entries {{
-                    
-                }};
+                std::vector<entry> entries {{}}; std::vector<std::vector<size_t>> stack {{}}, intrinsics(_intrinsic_count, std::vector<size_t>{});
                 
                 
-                std::vector<std::vector<size_t>> stack {{}}, intrinsics(_intrinsic_count, std::vector<size_t>{});
                 debug_lex(file);
+                
                 
                 if (llvm::Linker::linkModules(*module, generate(resolve(parse(state, file), {_undefined}, entries, stack, intrinsics, file, max_depth), entries, stack, intrinsics, file, context, no_files))) {
                     printf("error: linking failed\n");
