@@ -20,7 +20,7 @@ struct resolved { size_t index = 0; std::vector<resolved> args = {}; token liter
 struct expression {token literal = {}; std::vector<expression> sub = {}; bool error = false; };
 struct entry { resolved signature = {}; resolved type = {}; resolved definition = {}; };
 static inline token next(lexing_state& l, file& file) {
-    token t = {none, "", l.line, l.column}; for (auto& at = l.at; at < file.length; at++) {
+    token t{}; for (auto& at = l.at; at < file.length; at++) {
         const size_t c = file.text[at]; if (c == '\"' && !l.state) t = {l.state = string, file.text + at + 1, l.line, l.column};
         else if (!isspace(c) && !l.state) { at++; return {c, "", l.line, l.column++}; }
         else if (c == '\"' && l.state == string) { l.state = none; l.column++; file.text[at++] = '\0'; return t; }
