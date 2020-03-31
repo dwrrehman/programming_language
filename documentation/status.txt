@@ -6,40 +6,51 @@ the current status of the nostril compiler:
 
 
 current TODO:
+===============
+
 
 
 
     - throw "unexpected )" error, when appropriote.
-        
                 
     - figure out how to do compiletime evalutation for "ct-dynamic" symbol tables.
-    
-    
+        
     - figure out how to declare a signature again, with the new way of doing things.
-    
-    
-    - figure out how we are supposed to do argumetn subsitution. probably lc-esque.
-    
-    
-    - push to master at some point, soon.
-    
-    
-    - 
+        
+    - figure out how we are supposed to do param subsitution. (probably lambdacalc-esque.)
+       
+    - make the not_equals() (different())  function cope with subsitutes!!!
     
     
     - simplify and reduce the file .s/.ll/o generation code.
+    - ...make it more C-like! preparing for the C++ --> C switch.
+    
     
     - try to use llvm::smallvector more? to reduce a dependancy on the standard libary? i dont know... maybe not...
+        - nah....
+        
+    - figure out how to sort the symbol table now, so its just like it was previously  (csr relies on it.)
+    - SECONDARY: figure out how to give the right comparison function, so we only need to call std::stable_sort() once.
+
+
+
+
+
+
+
+
+
+DONE:
+=============
+
+
+
+   - push to master at some point, soon.
+   
+   
+- invert the equals() function, so we dont have to invert it ourselves. should be simple.
+    lets do it now!
     
-    
-
-
-
-
-
-
-
-
 
 
 

@@ -32,7 +32,6 @@ static inline token next(lexstate& l, file& file) {
         } saved = state; t = next(state, file);
     } state = saved; return l;
 }
-
 static inline std::string represent(const res& given, const std::vector<entry>& entries) { if (not given.index) return "(null)"; std::string result = ""; result += std::to_string(given.index); result += ":" + std::string(1, given.literal.value) + ":"; result += "["; for (auto a : given.args) result += represent(a, entries); result += "]"; return result; }
 
 ////////////////////////////////// DEBUG CODE ////////////////////////////////////
@@ -56,7 +55,6 @@ static inline void debug_expression(expr e, size_t d) {
     }
     prep(d); printf("}\n");
 }
-
 static inline void debug_intrinsics(std::vector<std::vector<size_t>> intrinsics) {
     if (not debug) return;
     printf("\n---- debugging intrinsics: ----\n");
@@ -151,10 +149,11 @@ static inline void define(const res& signature, const res& type, const res& defi
 static inline bool is_intrin(size_t _class, size_t to_test, const std::vector<std::vector<size_t>>& intrinsics) {
     return std::find(intrinsics[_class].begin(), intrinsics[_class].end(), to_test) != intrinsics[_class].end();
 }
-static inline bool equal(res a, res b, std::vector<entry>& entries) {
-    if (a.index != b.index or a.args.size() != b.args.size()) return false;
-    for (unsigned long i = 0; i < a.args.size(); i++) if (not equal(a.args[i], b.args[i], entries)) return false;
-    return true;
+static inline bool different(const res& a, const res& b, const std::vector<size_t>& frame) {
+    if (std::find(frame.begin(), frame.end(), a.index) == frame.end()) return false; // then we dont know whether they are different. be conservative.
+    if (a.index != b.index or a.args.size() != b.args.size()) return true;
+    for (unsigned long i = 0; i < a.args.size(); i++) if (different(a.args[i], b.args[i], frame)) return true;
+    return false;
 }
 static inline res resolve(const expr& given, const res& given_type, std::vector<entry>& entries, std::vector<std::vector<size_t>>& stack, std::vector<std::vector<size_t>>& intrinsics, const file& file, const size_t max_depth);
 static inline res resolve_at(const expr& given, const res& expected, size_t& index, size_t& best, const size_t depth, const size_t max_depth, std::vector<entry>& entries, std::vector<std::vector<size_t>>& stack, std::vector<std::vector<size_t>>& intrinsics, const file& file) {
@@ -164,7 +163,7 @@ static inline res resolve_at(const expr& given, const res& expected, size_t& ind
         
         for (size_t j = 0; j < 10; j++) { /// entries.at(s).signature.sub.size()
             
-            if (not equal(expected, entries.at(s).type, entries)) goto next;
+            if (different(entries.at(s).type, expected, stack.back())) goto next;
             ///FIXED:   this is the right place for this.
             ///         we make this test after we do each parameter subsitution.
             
@@ -282,7 +281,7 @@ static inline void output(const size_t emit, const char* name, const std::vector
     else if (emit == 'o') emit_executable(generate_file(std::move(module), name, llvm::TargetMachine::CGFT_ObjectFile), name);
 }
 
-static void define_intrinsic(std::string expression, std::vector<entry> &entries, const file &file, std::vector<std::vector<size_t> > &intrinsics, size_t max_depth, std::vector<std::vector<size_t> > &stack) {
+static inline void define_intrinsic(std::string expression, std::vector<entry> &entries, const file &file, std::vector<std::vector<size_t> > &intrinsics, size_t max_depth, std::vector<std::vector<size_t> > &stack) {
 //    lexing_state s0 {0, none, 1, 1};
 //    auto s = construct_signature(parse(s0, {"_intrinsic.n", expression}), entries, stack, intrinsics, file, max_depth, _name);
 //    define(s.name[0], {}, entries, stack);
@@ -313,8 +312,8 @@ int main(const int argc, const char** argv) {
                 res signature = {}, type = {}, definition = {};
                 signature.literal = token {'i'};
                 signature.index = 1;
-                
                 define(signature, type, definition, entries, stack);
+                
                 debug_stack(entries, stack);
                 debug_lex(file);
                 
