@@ -5,6 +5,211 @@ the current status of the nostril compiler:
 
 
 
+current TODO:
+
+
+
+    - throw "unexpected )" error, when appropriote.
+        
+                
+    - figure out how to do compiletime evalutation for "ct-dynamic" symbol tables.
+    
+    
+    - figure out how to declare a signature again, with the new way of doing things.
+    
+    
+    - figure out how we are supposed to do argumetn subsitution. probably lc-esque.
+    
+    
+    - push to master at some point, soon.
+    
+    
+    - 
+    
+    
+    - simplify and reduce the file .s/.ll/o generation code.
+    
+    - try to use llvm::smallvector more? to reduce a dependancy on the standard libary? i dont know... maybe not...
+    
+    
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+we need to throw an error when we encounter a unexpected ")". very important, actually.
+at any cost, we need to do it.
+it is a silent but deadly nonerror right now.
+because it can lead to code not beinginterretered at all.
+
+
+
+
+
+
+
+
+
+
+
+
+the language is coming along really well!
+
+
+    no whitespace!
+    
+    
+    no predefined function syntax, except for two intrinsics. names have been csr-ized.
+    
+    parsing stage is 9 lines long
+    
+    lexing is 7 lines long
+    
+    
+    
+    csr will probably get shorter as a result of these changes.
+    
+    everything is getting faster, and more concise!
+    
+    
+    
+    stay tuned!
+    
+    
+    
+    our current problem is right now, to figure out how to specify a signature (for use in iteration over, in csr, of course)
+    just using our current charcter/parameter intrinsics set up.
+    
+    i think we found the bottom of the performance bug. it was because we were resolving and thus succeeding on the falling edge of a resolution tree.
+    ...that should never happen. succeding on the falling edge is always a recipe for disaster. always be cautious of descending further, and stop as early as you can, before descending further.
+    
+    
+    anyways, it had ot do with the fact that we did typechecking wrongly, on the falling edge side,  (we did it because of polymoprhicness-    (return types which are determined by the value of a parameter))
+    
+        so basically, we need to make sure that we do return type checking inside the parameter resolution, everytime.
+        
+            after every subsitution, we check.
+            
+            then we also check at the end, i guesss?
+            
+            
+            but then we defintieyl also have to check at the beginning.
+            
+            
+            okay, so basically, it seems that we actually need to a search over the serch
+            
+            
+            because-   we know thta a paremter will not be defined in the current stack frame, as per the definitioon of a paraemter,
+            
+                and thus we can actually leverage that, to know if a return type is actualy dependent on the argument of a paraeter:
+                
+                
+                        just do a std::find() on the index of the return type index, in the current stack frame.
+                        
+                        if it comes up true, then we know this is REAL type (after all its defined in our scope), and we can
+                        
+                            safely do eager type checking, thus saving our algoirthm tremendously-
+                            
+                            
+                        however, if std::find returns false, that actually means that its a parameter return type!
+                        
+                            then we need to be cautious, and actually look out for a parameter subsitution
+                                    on every single call to resolve_at inside that "if cur symb is paraemter" thingy.
+                                    
+                                    
+                                    
+                                    
+                                    
+                                    
+                                    
+        so, ie the code might look something like this.
+        
+        
+        
+        
+                    for s in sf {
+                    
+                        if doesnt_type_check(s.type, expected, subsitutions)    and    std::find(s.type in stack.back()),      goto fail;
+                    
+                        for sy in s {
+                        
+                            if (sy is param)
+                            
+                                sol = resolve_at()
+                                args.push(sol)
+                                subsitite(param: sy, value: sol);
+                                
+                                if doesnt_type_check(s.type, expected, subsitutions)    and    std::find(s.type in stack.back()),          goto fail;
+    
+                            } else { ... }
+                        }
+                    }
+                    
+                    
+                    
+                    
+                    
+                    
+                    note:
+                    
+                    
+                    
+                                i actually realized that the std::find(...)   should actually be done in the     "equals()" function.  ie, the doesnt_typecheck(...)   function.   thats where we do this.     in fact, we say that they equal, if it turns out that the given s.type wasnt even in the sf.   that says that its a parameter return type, and we should wait to do any type checking, (ie, assume innocent, till proven guilty) .
+                                
+                                    
+                                        
+                                                    thats the logic.
+                                                    
+                                                    
+                                                    
+                                                    
+                                                                nice.
+                                                                
+                                                                
+                                                                
+                                                                
+                                                                        we solved it.
+                                                                        
+                                                                        
+                                                                        
+    
+    
+    
+    
+    
+                                            
+    
+
+
+
+
+
+
+
+
+
+fact:
+
+
+
+
+
+
 
 names of the intrinsics, probably:
 
@@ -16,6 +221,280 @@ names of the intrinsics, probably:
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+joy ()
+joy h
+
+
+
+
+
+
+
+
+
+
+
+
+join decl ((type) (i)) 11 0
+
+join decl ((lazy
+    ((lazy-t) (type) (i))
+) (type) (i)) 13 0
+
+join decl (
+(define
+    ((define-s) (name) (i))
+    ((define-t) (type) (i))
+    ((define-d) (lazy define-t) (type) (i))
+    ((define-extern) (nat) (i))
+) (i)) 18 0
+
+join decl (
+(load
+    ((load-filename) (name) (i))
+    ((load-type))
+) (load-type)) 21 0
+
+(load (file) i)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+join decl ((type) (i)) 6 0
+
+join decl ((lazy
+    ((lazy-t) (type) (i))
+) (type) (i)) 8 0
+
+join decl (
+(define
+    ((define-s) (name) (i))
+    ((define-t) (type) (i))
+    ((define-d) (lazy define-t) (type) (i))
+    ((define-extern) (nat) (i))
+) (i)) 13 0
+
+join decl (
+(load
+    ((load-filename) (name) (i))
+    ((load-type) (type) (i))
+) (load-type) (type) (i)) 16 0
+
+
+join decl ((unit) (type) (i)) 55 0
+join decl ((i1) (type) (i)) 17 0
+join decl ((i8) (type) (i)) 18 0
+join decl ((i16) (type) (i)) 19 0
+join decl ((i32) (type) (i)) 20 0
+join decl ((i64) (type) (i)) 21 0
+join decl ((i128) (type) (i)) 22 0
+join decl ((x86mmx) (type) (i)) 23 0
+join decl ((f16) (type) (i)) 24 0
+join decl ((f32) (type) (i)) 25 0
+join decl ((f64) (type) (i)) 26 0
+join decl ((f128) (type) (i)) 27 0
+join decl ((label) (type) (i)) 52 0
+join decl ((metadata) (type) (i)) 53 0
+join decl ((token) (type) (i)) 54 0
+join decl ((string) (pointer 0 i8) (type) (i)) 56 0
+
+join decl ((pointer
+        ((pointer-addrspace) (nat) (i))
+        ((pointer-type) (type) (i))
+    ) (type) (i)) 30 0
+    
+join decl ((vector
+          ((vector-width) (nat) (i))
+          ((vector-type) (type) (i))
+      ) (type) (i)) 33 0
+    
+join decl ((scalable
+        ((scalable-width) (nat) (i))
+        ((scalable-type) (type) (i))
+    ) (type) (i)) 36 0
+    
+join decl ((array
+          ((array-size) (nat) (i))
+          ((array-type) (type) (i))
+      ) (type) (i)) 39 0
+
+join decl ((opaque
+      ((opaque-s) (name) (i))
+  ) (type) (i)) 41 0
+
+
+join decl ((struct
+    ((struct-s) (name) (i))
+    ((struct-d) (name) (i))
+    ((struct-extern) (nat) (i))
+) (type) (i)) 45 0
+
+join decl ((packed
+    ((packed-s) (name) (i))
+    ((packed-d) (name) (i))
+    ((packed-extern) (nat) (i))
+) (type) (i)) 49 0
+
+join decl ((function
+    ((function-type) (name) (i))
+) (type) (i)) 51 0
+
+join decl ((unreachable) (unit) (type) (i)) 57 0
+join decl ((ret void) (unit) (type) (i)) 58 0
+
+join decl ((ret
+    ((ret-t) (type) (i))
+    ((ret-v) (ret-t) (type) (i))
+) (unit) (type) (i)) 61 0
+
+join decl ((create label
+    ((label-name) (name) (i))
+) (unit) (type) (i)) 63 0
+
+join decl ((jump
+    ((jump-label) (name) (i))
+) (unit) (type) (i)) 65 0
+
+join decl ((br
+    ((br-cond) (i1) (type) (i))
+    ((br-1) (name) (i))
+    ((br-2) (name) (i))
+) (unit) (type) (i)) 69 0
+
+type
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+join decl ((type) (i)) 11 0
+
+join decl ((lazy
+    ((lazy-t) (type) (i))
+) (type) (i)) 13 0
+
+join decl (
+(define
+    ((define-s) (name) (i))
+    ((define-t) (type) (i))
+    ((define-d) (lazy define-t) (type) (i))
+    ((define-extern) (nat) (i))
+) (i)) 18 0
+
+join decl (
+(load
+    ((load-filename) (name) (i))
+    ((load-type) (type) (i))
+) (load-type) (type) (i)) 21 0
+
+join decl ((unit) (type) (i)) 22 0
+
+join decl ((decl
+    ((s0) (name) (i))
+    ((n1) (nat) (i))
+    ((n2) (nat) (i))
+) (unit) (type) (i)) 10 0
+
+join decl ((convert ((x) (unit) (type) (i)) to i) (i)) 0 0
+
+join decl ((
+    ((invis-x) (unit) (type) (i))
+    ((invis-y) (unit) (type) (i))
+) (unit) (type) (i)) 0 0
+
+join (convert (load (/Users/deniylreimn/Documents/projects/n3zqx2l/examples/llvm) unit) to i)
+
+type
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+(decl ((f) (i)) 0 0)
 
 
 
