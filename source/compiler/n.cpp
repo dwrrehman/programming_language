@@ -29,7 +29,7 @@ static inline token next(lexstate& l, file& file) {
         if (t.value == string || !strchr("()", t.value)) l.sub.push_back({t});
         else if (t.value == '(') {
             auto p = parse(state, file); if (next(state, file).value != ')') printf("n3zqx2l: %s:%ld:%ld: error: expected )\n\n", file.name, t.line, t.column);
-            l.sub.push_back(p); t.value = 0; l.sub.back().literal = t; 
+            l.sub.push_back(p); t.value = 0; l.sub.back().literal = t;
         } saved = state; t = next(state, file);
     } state = saved; return l;
 } static inline void print_expression(const expr& given) {
@@ -50,23 +50,6 @@ static inline token next(lexstate& l, file& file) {
 
 void prep(size_t d) { for (size_t i = 0; i < d; i++) printf(".   "); }
 
-<<<<<<< HEAD
-static inline std::string expression_to_string(const expression& given, const std::vector<entry>& entries, long begin = 0, long end = -1, std::vector<resolved> args = {}) {
-    std::string result = "(";
-    long i = 0, j = 0;
-    for (auto symbol : given.symbols) {
-        if (i < begin or (end != -1 and i >= end)) { i++; continue; }
-        if (symbol.type == id) result += symbol.literal.value;
-        else if (symbol.type == string) result += "\"" + symbol.literal.value + "\"";
-        else if (symbol.type == expr and args.empty()) result += "(" + expression_to_string(symbol.subexpression, entries) + ")";
-        else if (symbol.type == expr) {
-            result += "(" + expression_to_string(entries[args[j].index].signature, entries, 0, -1, args) + ")"; j++;
-        }
-        if (i++ < (long) given.symbols.size() - 1 and not (i + 1 < begin or (end != -1 and i + 1 >= end))) result += " ";
-    } result += ")";
-    if (given.type.index) result += " " + expression_to_string(entries[given.type.index].signature, entries, 0, -1, given.type.args);
-    return result;
-=======
 static inline void debug_expression(expr e, size_t d) {
     if (not debug) return;
     prep(d); printf("error = %lu\n", e.error);
@@ -79,7 +62,6 @@ static inline void debug_expression(expr e, size_t d) {
         debug_expression(f, d + 1);
     }
     prep(d); printf("}\n");
->>>>>>> develop
 }
 
 static inline void debug_intrinsics(std::vector<std::vector<size_t>> intrinsics) {
@@ -229,171 +211,7 @@ static inline void set_data_for(std::unique_ptr<llvm::Module>& module) {
     auto target_machine = llvm::TargetRegistry::lookupTarget(module->getTargetTriple(), lookup_error)->createTargetMachine(module->getTargetTriple(), "generic", "", {}, {}, {});
     module->setDataLayout(target_machine->createDataLayout());
 }
-<<<<<<< HEAD
-
-static inline llvm::Value* generate_expression(const resolved& given, std::vector<entry>& entries,
-                                               std::vector<std::vector<size_t>>& stack, llvm::Module* module,
-                                               llvm::Function* function, llvm::IRBuilder<>& builder) {
-    
-    const auto f = given.index;
-    
-    //    if (f == _llvm) {
-    //        if (debug)
-    //            printf("NOTE: error, type does not parse. llvm type was found where it shouldnt be.\n");
-    //        return nullptr;
-    //
-    if (f == _ret_void) {
-        return builder.CreateRetVoid();
-        
-    } else if (f == _label) {
-        
-        auto label_name = expression_to_string(given.args[0].name[0], entries);
-        
-        auto block = llvm::BasicBlock::Create(module->getContext(), label_name, function);
-        
-        builder.SetInsertPoint(block);
-        return block;
-        
-    } else if (f == _uncond_branch) {
-        
-        auto label_name = expression_to_string(given.args[0].name[0], entries);
-        auto block = llvm::BasicBlock::Create(module->getContext(), label_name, function);
-        return builder.CreateBr(block);
-        
-    } else if (f == _name or f == _type) {
-        if (debug)
-            printf("error: called _type or _name: they are unimplemented.\n");
-        
-    } else if (f == _define) {
-        
-        if (debug)
-            printf("error: called _define: they are unimplemented.\n");
-        
-        auto the_signature = given.args[0].name[0];
-        std::string the_signature_stringified = expression_to_string(the_signature, entries);
-        
-        if (debug)std::cout << "--------- declaring a function: " << the_signature_stringified << " ----------\n";
-        
-        
-        
-        return nullptr;
-        
-        
-        
-        /// find return type from signature:
-        
-        //        auto ret_type = find_llvm_type(the_signature.type, module);
-        //        if (not ret_type) {
-        //            if (dbg)printf("note: defaulting RET type to void...\n");
-        //            ret_type = llvm::Type::getVoidTy(module->getContext());
-        //        }
-        
-        /// find argument types from signature:
-        
-        //        std::vector<llvm::Type*> arg_type = {};
-        //        for (auto s : the_signature.symbols) {
-        //            auto t = find_llvm_type(s.subexpression.type, module);
-        //            if (t) arg_type.push_back(t);
-        //            else {
-        //                if (dbg)printf("error: null type found in argument list\n");
-        //            }
-        //        }
-        
-        /// construct function type:
-        
-        //        auto function_type = llvm::FunctionType::get(ret_type, arg_type, false);
-        //
-        
-        /// declare function:
-        
-        //auto declared_function = llvm::Function::Create(function_type, llvm::Function::ExternalLinkage, the_signature_stringified, module);
-        
-        //        if (dbg){
-        //            printf(" ----> just declared the following function: \n");
-        //            declared_function->print(llvm::outs());        printf("\n\n");
-        //        }
-        
-        //        if (the_signature.symbols.front().type != expr) {
-        //            auto external_declared_function = llvm::Function::Create(function_type, llvm::Function::ExternalLinkage, the_signature.symbols.front().literal.value, module);
-        //
-        //            if (dbg) {
-        //            printf(" ----> just EXTERNALLY declared the following function: \n");
-        //            external_declared_function->print(llvm::outs());        printf("\n\n");
-        //            }
-        //        }
-        
-        //        return declared_function;
-        
-    } else {
-        std::vector<llvm::Value*> arguments = {};
-        
-        if (f == _0) {
-            
-            if (debug)printf("found an EXTERNAL CALL intrinsic call: \n");
-            
-            if (debug)printf("the given resolved is: \n");
-            if (debug)print_resolved_expr(given, 0, entries);
-            if (debug)printf("\n");
-            
-            if (debug)printf("the signature that was picked was: \n");
-//            const auto& sig = entries[given.args[1].index].signature;
-//            if (debug)print_expression(sig, 0);
-            if (debug)printf("\n");
-            
-//            if (sig.symbols.size()) {
-//                auto s = sig.symbols.front();
-//                if (s.type == id) {
-//                    auto callee_name = s.literal.value;
-//                    if (debug)std::cout << "\tfinding external function named: " << callee_name << "\n";
-//                    llvm::Value* callee = module->getFunction(callee_name);
-//                    if (not callee) {
-//                        if (debug)printf("\tERROR: could not resolve the function at all!\n");
-//                    } else {
-//                        if (debug)printf("success on external function call!\n");
-//
-//                        for (auto arg : given.args[1].args)
-//                            arguments.push_back(generate_expression(arg, entries, stack, module, function, builder));
-//
-//                        return builder.CreateCall(callee, arguments);
-//                    }
-//                }
-//            }
-        }
-        
-        for (auto arg : given.args)
-            arguments.push_back(generate_expression(arg, entries, stack, module, function, builder));
-        
-        for (auto arg : arguments) {
-            if (not arg) {
-                if (debug)printf("WE ARE GOING TO FAIL!\n");
-            }
-        }
-        
-        if (f == _join) {
-            if (debug)printf("returning the second argument for a call to join...\n");
-            return arguments[1];
-        }
-        
-        const auto& sig = entries[given.index].signature;
-        std::string callee_name = expression_to_string(sig, entries);
-        if (debug)std::cout << "finding getting n3zqx2l-named function: " << callee_name << "\n";
-        llvm::Value* callee = module->getFunction(callee_name);
-        if (not callee) {
-            if (debug)printf("ERROR: callee n3zqx2l-named function not found... typo?\n");
-            
-        } else {
-            if (debug)printf("success on n3zqx2l function call.\n");
-            return builder.CreateCall(callee, arguments);
-        }
-    }
-    
-    
-    if (debug)printf("ERROR: could not code gen for: \n\n");
-    
-    if (debug)print_resolved_expr(given, 0, entries);
-=======
 static inline llvm::Value* generate_expression(const res& given, std::vector<entry>& entries, std::vector<std::vector<size_t>>& stack, llvm::Module* module, llvm::Function* function, llvm::IRBuilder<>& builder) {
->>>>>>> develop
     return nullptr;
 }
 static inline std::unique_ptr<llvm::Module> generate(const res& given, std::vector<entry>& entries, std::vector<std::vector<size_t>>& stack, std::vector<std::vector<size_t>>& intrinsics, const file& file, llvm::LLVMContext& context, bool is_main) {
@@ -406,13 +224,6 @@ static inline std::unique_ptr<llvm::Module> generate(const res& given, std::vect
         debug_intrinsics(intrinsics);
         printf("\n\n");
     }
-<<<<<<< HEAD
-    
-
-    if (given.error) exit(1);
-    
-=======
->>>>>>> develop
     auto module = llvm::make_unique<llvm::Module>(file.name, context);
     llvm::IRBuilder<> builder(context);
     set_data_for(module);
