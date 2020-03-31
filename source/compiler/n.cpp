@@ -10,7 +10,7 @@
 #include <fstream>
 #include <iostream>                              // n: a n3zqx2l compiler written in C++.
 #include <vector>
-bool debug = false;
+bool debug = true;
 enum {none, id, string, expr, action = 'x', exec = 'o', object = 'c', ir = 'i', assembly = 's', _undefined = 0, _init, _name, _number, _30, _31, _join, _32, _33, _34, _declare, _type, _intrinsic_count };
 struct file { const char* name = ""; char* text = nullptr; size_t length = 0; };
 struct arguments { size_t emit = action; const char* emitname = ""; std::vector<std::string> argv = {}; };
@@ -39,8 +39,14 @@ static inline token next(lexing_state& l, file& file) {
     if (given.literal.value == string) printf("\"%s\"", given.literal.string);
     else if (given.literal.value) putchar(given.literal.value);
     else { putchar('('); for (const auto& symbol : given.sub) print_expression(symbol); putchar(')'); }
-} static inline std::string represent(const resolved& given, const std::vector<entry>& entries) { return "(unimplemented"; }
-
+} static inline std::string represent(const resolved& given, const std::vector<entry>& entries) {
+    if (not given.index) return "";
+    auto at = entries.at(given.index);
+    auto sig = represent(at.signature, entries);
+    auto tt = represent(at.type, entries);
+    auto c = std::string(1, given.literal.value);
+    return c; // not fully implemented.
+}
 ////////////////////////////////// DEBUG CODE ////////////////////////////////////
 
 void prep(size_t d) { for (size_t i = 0; i < d; i++) printf(".   "); }
@@ -86,7 +92,6 @@ static inline void debug_resolved(resolved expr, size_t depth, std::vector<entry
     std::cout << "\n";
     
     long i = 0;
-    
     for (auto arg : expr.args) {
         prep(depth + 1); std::cout << "argument #" << i++ << ": \n";
         
@@ -117,15 +122,12 @@ static void debug_lex(const file &file) {
     }
 }
 
-
 static inline void debug_stack(std::vector<entry> entries, std::vector<std::vector<size_t>> stack) {
     if (not debug) return;
     std::cout << "\n---- debugging stack: ----\n";
     std::cout << "printing frames: \n";
-
     for (size_t i = 0; i < stack.size(); i++) {
         std::cout << "\t ----- FRAME # "<< i <<"---- \n\t\tidxs: { ";
-        
         for (auto index : stack[i]) {
             std::cout << index << " ";
         }
@@ -134,10 +136,8 @@ static inline void debug_stack(std::vector<entry> entries, std::vector<std::vect
     std::cout << "\nmaster: {\n";
     auto j = 0;
     for (auto entry : entries) {
-        
         std::cout << "\t" << std::setw(6) << j << ": ";
 //        std::cout << expression_to_string(entry.signature, entries);
-        
         if (entry.definition.index) {
             std::cout << " := \n";
             debug_resolved(entry.definition, 1, entries);
@@ -148,45 +148,37 @@ static inline void debug_stack(std::vector<entry> entries, std::vector<std::vect
     std::cout << "}\n";
 }
 ////////////////////////////////// DEBUG CODE ////////////////////////////////////
-
-//static inline size_t define(const resolved& signature, const resolved& definition, std::vector<entry>& entries, std::vector<std::vector<size_t>>& stack) {
-//    auto index = entries.size(); stack.back().push_back(index);
-//    entries.push_back({signature, type, definition});
-///TODO: fix me:
-///    std::stable_sort(stack.back().begin(), stack.back().end(), [&](size_t a, size_t b) { return entries[a].signature.sub.size() > entries[b].signature.sub.size(); });
-///    std::stable_sort(stack.back().begin(), stack.back().end(), [&](size_t a, size_t b) { return entries[a].signature.sub.size() and not entries[a].signature.sub.front().literal.value; });
-//    return index;
-//}
-
-//static inline bool is_intrin(size_t _class, size_t to_test, const std::vector<std::vector<size_t>>& intrinsics) {
-//    return std::find(intrinsics[_class].begin(), intrinsics[_class].end(), to_test) != intrinsics[_class].end();
-//}
-
+static inline void define(const resolved& signature, const resolved& type, const resolved& definition, std::vector<entry>& entries, std::vector<std::vector<size_t>>& stack) {
+    stack.back().push_back(entries.size());
+    entries.push_back({signature, type, definition});
+    ///TODO: fix me:
+    std::stable_sort(stack.back().begin(), stack.back().end(), [&](size_t a, size_t b) {
+        return false;// entries[a].signature.sub.size() > entries[b].signature.sub.size();
+    });
+    std::stable_sort(stack.back().begin(), stack.back().end(), [&](size_t a, size_t b) {
+        return false; // entries[a].signature.sub.size() and not entries[a].signature.sub.front().literal.value;
+    });
+}
+static inline bool is_intrin(size_t _class, size_t to_test, const std::vector<std::vector<size_t>>& intrinsics) {
+    return std::find(intrinsics[_class].begin(), intrinsics[_class].end(), to_test) != intrinsics[_class].end();
+}
 static inline bool equal(resolved a, resolved b, std::vector<entry>& entries) {
     if (a.index != b.index or a.args.size() != b.args.size()) return false;
     for (unsigned long i = 0; i < a.args.size(); i++) if (not equal(a.args[i], b.args[i], entries)) return false;
     return true;
 }
-
 static inline resolved resolve(const expression& given, const resolved& given_type, std::vector<entry>& entries, std::vector<std::vector<size_t>>& stack, std::vector<std::vector<size_t>>& intrinsics, const file& file, const size_t max_depth);
-
-
-
 static inline resolved resolve_at(const expression& given, const resolved& expected, size_t& index, size_t& best, const size_t depth, const size_t max_depth, std::vector<entry>& entries, std::vector<std::vector<size_t>>& stack, std::vector<std::vector<size_t>>& intrinsics, const file& file) {
     if (depth > max_depth) return {0, {}, {}, true};
-    
 //    else if (index < given.symbols.size() and given.symbols[index].type == expr and is_intrin(_name, expected.index, intrinsics)) return construct_signature(given.symbols[index++].subexpression, entries, stack, intrinsics, file, max_depth, expected.index);
     else if (index < given.sub.size() and not given.sub.at(index).literal.value) return resolve(given.sub.at(index++), expected, entries, stack, intrinsics, file, max_depth);
 //    else if (index < given.symbols.size() and given.symbols[index].type == id and is_intrin(_number, expected.index, intrinsics)) return construct_number(given, file, index, expected.index);
 //    else if (index < given.symbols.size() and given.symbols[index].type == string) return {_string, {}, false, {{{given.symbols[index++]}}}}; /*TODO: should expect type: "(pointer (i8))"     ie, check given_type.args[]... */
 //    else if (is_intrin(_lazy, expected.index, intrinsics)) return resolve_at(given, expected.args[0], index, best, depth, max_depth, entries, stack, intrinsics, file);
-    
     auto saved = index; auto saved_stack = stack;
     for (const auto s : saved_stack.back()) {
         best = std::max(index, best); index = saved; stack = saved_stack; std::vector<resolved> args = {};
-        
 //        for (size_t j = 0; j < entries.at(s).signature.sub.size(); j++) {
-//
 //            const auto& symbol = entries.at(s).signature.sub.at(j);
 //            if (index >= given.sub.size()) { if (args.size() and j == 1) return args[0]; else goto next; }
 //            if (not symbol.literal.value) {
@@ -197,54 +189,36 @@ static inline resolved resolve_at(const expression& given, const resolved& expec
 //            } else if (symbol.literal.value != given.sub.at(index).literal.value) goto next; else index++;
 //        }
 //        if (not equal(expected, entries.at(s).signature.type, entries)) continue;
-//
 //        if (is_intrin(_declare, s, intrinsics) and args[1].number < _intrinsic_count) intrinsics[args[1].number].push_back(args[0].name[0].me.index = define(args[0].name[0], {}, entries, stack));
 //        if (is_intrin(_define, s, intrinsics)) args[0].name[0].me.index = define(args[0].name[0], args[2], entries, stack);
-        return {s, args};
-        next: continue;
-        
-    }
-    return {0, {}, {}, true};
+        return {s, args}; next: continue;
+    } return {0, {}, {}, true};
 }
-
 static inline resolved resolve(const expression& given, const resolved& given_type, std::vector<entry>& entries, std::vector<std::vector<size_t>>& stack, std::vector<std::vector<size_t>>& intrinsics, const file& file, const size_t max_depth) {
-    
-    if (debug) printf("-------------- parse tree: -------------------\n");
+    if (debug) { printf("-------------- parse tree: -------------------\n");
     debug_expression(given, 0);
-    
-    if (debug) printf("heres the compacted form: \n\n\t");
-    if (debug) print_expression(given);
-    if (debug) printf("\n\n");
-    
+    printf("heres the compacted form: \n\n\t");
+    print_expression(given);
+    printf("\n\n"); }
     size_t index = 0, best = 0;
     resolved solution = resolve_at(given, given_type, index, best, 0, max_depth, entries, stack, intrinsics, file);
     if (index < given.sub.size()) solution.error = true;
     if (solution.error) {
         const auto b = best < given.sub.size() ? given.sub.at(best) : given;
         debug_expression(b, 0);
-        printf("n3zqx2l: %s:%ld:%ld: error: unresolved ", file.name, b.literal.line, b.literal.column);
-        print_expression(b);
-        printf("\n");
-        
+        printf("n3zqx2l: %s:%ld:%ld: error: unresolved ", file.name, b.literal.line, b.literal.column); print_expression(b); printf("\n");
     } return solution;
 }
-
 static inline void set_data_for(std::unique_ptr<llvm::Module>& module) {
     module->setTargetTriple(llvm::sys::getDefaultTargetTriple());
     std::string lookup_error = "";
     auto target_machine = llvm::TargetRegistry::lookupTarget(module->getTargetTriple(), lookup_error)->createTargetMachine(module->getTargetTriple(), "generic", "", {}, {}, {});
     module->setDataLayout(target_machine->createDataLayout());
 }
-
-static inline llvm::Value* generate_expression(const resolved& given, std::vector<entry>& entries,
-                                               std::vector<std::vector<size_t>>& stack, llvm::Module* module,
-                                               llvm::Function* function, llvm::IRBuilder<>& builder) {
-    ///TODO: code me
+static inline llvm::Value* generate_expression(const resolved& given, std::vector<entry>& entries, std::vector<std::vector<size_t>>& stack, llvm::Module* module, llvm::Function* function, llvm::IRBuilder<>& builder) {
     return nullptr;
 }
-
 static inline std::unique_ptr<llvm::Module> generate(const resolved& given, std::vector<entry>& entries, std::vector<std::vector<size_t>>& stack, std::vector<std::vector<size_t>>& intrinsics, const file& file, llvm::LLVMContext& context, bool is_main) {
-    
     if (debug){
         printf("\n\n");
         debug_resolved(given, 0, entries);
@@ -254,48 +228,37 @@ static inline std::unique_ptr<llvm::Module> generate(const resolved& given, std:
         debug_intrinsics(intrinsics);
         printf("\n\n");
     }
-                  
     auto module = llvm::make_unique<llvm::Module>(file.name, context);
     llvm::IRBuilder<> builder(context);
     set_data_for(module);
-    
     if (given.error) {
         if (debug) printf("error: not generating llvm: resolution error\n");
         return module;
     }
-    
     auto main = llvm::Function::Create(llvm::FunctionType::get(llvm::Type::getInt32Ty(context), {
         llvm::Type::getInt32Ty(context),
         llvm::Type::getInt8PtrTy(context)->getPointerTo()
     }, false), llvm::Function::ExternalLinkage, "main", module.get());
-    
     builder.SetInsertPoint(llvm::BasicBlock::Create(context, "entry", main));
-    
     auto value = generate_expression(given, entries, stack, module.get(), main, builder);
-    
     if (debug) {
         printf("the top level value was found to be: \n");
         if (value) value->print(llvm::outs());
         else printf("(null)");
         printf("\n");
     }
-        
     builder.SetInsertPoint(&main->getBasicBlockList().back());
     builder.CreateRet(llvm::ConstantInt::get(llvm::Type::getInt32Ty(context), 0));
-    
-    /** debug: */
     if (debug) {
         std::cout << " ------------generating code for module ----------:\n\n";
         module->print(llvm::outs(), nullptr);
     }
-    
     std::string errors = "";
     if (llvm::verifyModule(*module, &(llvm::raw_string_ostream(errors) << ""))) printf("llvm: %s: error: %s\n", file.name, errors.c_str());
     return module;
 }
 
 static inline std::unique_ptr<llvm::Module> optimize(std::unique_ptr<llvm::Module>& module) {
-      
     if (debug) {
         printf("\n\n\n\n-------- printing the final state of the module before output:------ \n\n");
         module->print(llvm::errs(), nullptr);
@@ -304,7 +267,6 @@ static inline std::unique_ptr<llvm::Module> optimize(std::unique_ptr<llvm::Modul
     if (llvm::verifyModule(*module, &(llvm::raw_string_ostream(verify_errors) << ""))) printf("llvm: %s: error: %s\n", "init.n", verify_errors.c_str());
     return std::move(module);
 }
-
 static inline void interpret(std::unique_ptr<llvm::Module> module, const arguments& arguments) {
     auto engine = llvm::EngineBuilder(std::move(module)).setEngineKind(llvm::EngineKind::JIT).create();
     engine->finalizeObject();
@@ -312,15 +274,11 @@ static inline void interpret(std::unique_ptr<llvm::Module> module, const argumen
     if (auto main = engine->FindFunctionNamed("main"); main) exit(engine->runFunctionAsMain(main, arguments.argv, nullptr));
     else printf("n: error: could not find entry point\n");
 }
-
 static inline std::string generate_file(std::unique_ptr<llvm::Module> module, const arguments& arguments, llvm::TargetMachine::CodeGenFileType type) {
-    std::error_code error;
-    if (type == llvm::TargetMachine::CGFT_Null) {
+    std::error_code error; if (type == llvm::TargetMachine::CGFT_Null) {
         llvm::raw_fd_ostream dest(std::string(arguments.emitname) + ".ll", error, llvm::sys::fs::F_None);
-        module->print(dest, nullptr);
-        return "";
-    }
-    std::string lookup_error = "";
+        module->print(dest, nullptr); return "";
+    } std::string lookup_error = "";
     auto target_machine = llvm::TargetRegistry::lookupTarget(module->getTargetTriple(), lookup_error)->createTargetMachine(module->getTargetTriple(), "generic", "", {}, {}, {}); ///TODO: make this not generic!
     auto object_filename = std::string(arguments.emitname) + (type == llvm::TargetMachine::CGFT_AssemblyFile ? ".s" : ".o");
     llvm::raw_fd_ostream dest(object_filename, error, llvm::sys::fs::F_None);
@@ -339,7 +297,6 @@ static inline void output(const arguments& args, std::unique_ptr<llvm::Module>&&
     else if (args.emit == assembly) generate_file(std::move(module), args, llvm::TargetMachine::CGFT_AssemblyFile);
     else if (args.emit == exec) emit_executable(generate_file(std::move(module), args, llvm::TargetMachine::CGFT_ObjectFile), args.emitname);
 }
-
 int main(const int argc, const char** argv) {
     llvm::InitializeAllTargetInfos();
     llvm::InitializeAllTargets();
@@ -369,14 +326,9 @@ int main(const int argc, const char** argv) {
                 fseek(f, 0, SEEK_END); const size_t length = ftell(f);
                 char* text = (char*) calloc(length + 1, sizeof(char));
                 fseek(f, 0, SEEK_SET); fread(text, sizeof(char), length, f);
-                file file = {argv[i], text, length};
-                lexing_state state {0, none, 1, 1};
+                file file = {argv[i], text, length}; lexing_state state {0, none, 1, 1};
                 std::vector<entry> entries {{}}; std::vector<std::vector<size_t>> stack {{}}, intrinsics(_intrinsic_count, std::vector<size_t>{});
-                
-                
                 debug_lex(file);
-                
-                
                 if (llvm::Linker::linkModules(*module, generate(resolve(parse(state, file), {_undefined}, entries, stack, intrinsics, file, max_depth), entries, stack, intrinsics, file, context, no_files))) {
                     printf("error: linking failed\n");
                     continue;
@@ -391,9 +343,7 @@ int main(const int argc, const char** argv) {
             } else { printf("n: error: cannot process file \"%s\" with extension \"%s\"\n", argv[i], ext); continue; }
             no_files = false;
         }
-    }
-    if (no_files) printf("n: error: no input files\n");
-    else output(args, optimize(module));
+    } if (no_files) printf("n: error: no input files\n"); else output(args, optimize(module));
 }
 
 
