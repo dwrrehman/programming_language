@@ -4,20 +4,33 @@
 #include "llvm/IR/LegacyPassManager.h"
 #include "llvm/IR/Verifier.h"
 #include "llvm/Linker/Linker.h"
-#include "llvm/Support/TargetRegistry.h"
+#include "llvm/Support/TargetRegistry.h"      // n: a n3zqx2l compiler written in C++.
 #include "llvm/Support/TargetSelect.h"
 #include "llvm/Support/SourceMgr.h"
-#include <fstream>
-#include <iostream>                              // n: a n3zqx2l compiler written in C++.
-#include <vector>
+#include <iostream>
+#include <fstream> // required
+#include <vector> // required
+
 bool debug = true;
-enum {none, id, string, expr, action = 'x', exec = 'o', object = 'c', ir = 'i', assembly = 's', _undefined = 0, _init, _name, _number, _30, _31, _join, _32, _33, _34, _declare, _type, _intrinsic_count };
+enum {none, id, string, expr,
+    action = 'x', exec = 'o', object = 'c', ir = 'i', assembly = 's',
+    _undefined = 0,
+    _init,
+//    _name,
+//    _number,
+//    _30, _31, _join,
+//    _32, _33, _34, _declare,
+//
+//    _type,
+    _intrinsic_count
+};
+
 struct file { const char* name = ""; char* text = nullptr; size_t length = 0; };
 struct arguments { size_t emit = action; const char* emitname = ""; std::vector<std::string> argv = {}; };
-struct token { size_t value = 0; const char* string = ""; size_t line = 0; size_t column = 0; };
 struct lexing_state { size_t at = 0; size_t state = none; size_t line = 0; size_t column = 0; };
-struct resolved { size_t index = 0; std::vector<resolved> args = {}; token literal = {}; bool error = false; };
+struct token { size_t value = 0; const char* string = ""; size_t line = 0; size_t column = 0; };
 struct expression {token literal = {}; std::vector<expression> sub = {}; bool error = false; };
+struct resolved { size_t index = 0; std::vector<resolved> args = {}; token literal = {}; bool error = false; };
 struct entry { resolved signature = {}; resolved type = {}; resolved definition = {}; };
 static inline token next(lexing_state& l, file& file) {
     token t{}; for (auto& at = l.at; at < file.length; at++) {
@@ -40,13 +53,27 @@ static inline token next(lexing_state& l, file& file) {
     else if (given.literal.value) putchar(given.literal.value);
     else { putchar('('); for (const auto& symbol : given.sub) print_expression(symbol); putchar(')'); }
 } static inline std::string represent(const resolved& given, const std::vector<entry>& entries) {
-    if (not given.index) return "";
-    auto at = entries.at(given.index);
-    auto sig = represent(at.signature, entries);
-    auto tt = represent(at.type, entries);
-    auto c = std::string(1, given.literal.value);
-    return c; // not fully implemented.
+    if (not given.index) return "(null)";
+    std::string result = "";
+    result += std::to_string(given.index);
+    result += ":" + std::string(1, given.literal.value) + ":";
+    result += "[";
+    for (auto a : given.args) result += represent(a, entries);
+    result += "]";
+    return result;
 }
+
+
+//    auto at = entries.at(given.index);
+//    auto sig = represent(at.signature, entries);
+//    auto tt = represent(at.type, entries);
+//    auto c = std::string(1, given.literal.value);
+//    return c; // not fully implemented.
+
+
+///TODO: we need to throw an error when we encounter a unexpected ")". very important, actually.    at any cost, we need to do it.    it is a silent but deadly nonerror right now.   because it can lead to code not beinginterretered at all.
+
+
 ////////////////////////////////// DEBUG CODE ////////////////////////////////////
 
 void prep(size_t d) { for (size_t i = 0; i < d; i++) printf(".   "); }
@@ -137,12 +164,9 @@ static inline void debug_stack(std::vector<entry> entries, std::vector<std::vect
     auto j = 0;
     for (auto entry : entries) {
         std::cout << "\t" << std::setw(6) << j << ": ";
-//        std::cout << expression_to_string(entry.signature, entries);
-        if (entry.definition.index) {
-            std::cout << " := \n";
-            debug_resolved(entry.definition, 1, entries);
-        }
-        std::cout << "\n\n";
+        std::cout << represent(entry.signature, entries);
+        std::cout << "      :      " << represent(entry.type, entries);
+        std::cout << "      =      " << represent(entry.definition, entries) << "\n\n";
         j++;
     }
     std::cout << "}\n";
@@ -151,14 +175,13 @@ static inline void debug_stack(std::vector<entry> entries, std::vector<std::vect
 static inline void define(const resolved& signature, const resolved& type, const resolved& definition, std::vector<entry>& entries, std::vector<std::vector<size_t>>& stack) {
     stack.back().push_back(entries.size());
     entries.push_back({signature, type, definition});
+    
     ///TODO: fix me:
-    std::stable_sort(stack.back().begin(), stack.back().end(), [&](size_t a, size_t b) {
-        return false;// entries[a].signature.sub.size() > entries[b].signature.sub.size();
-    });
-    std::stable_sort(stack.back().begin(), stack.back().end(), [&](size_t a, size_t b) {
-        return false; // entries[a].signature.sub.size() and not entries[a].signature.sub.front().literal.value;
-    });
+    //std::stable_sort(stack.back().begin(), stack.back().end(), [&](size_t a, size_t b) { return false;// entries[a].signature.sub.size() > entries[b].signature.sub.size();
+    //}); std::stable_sort(stack.back().begin(), stack.back().end(), [&](size_t a, size_t b) { return false; // entries[a].signature.sub.size() and not entries[a].signature.sub.front().literal.value;
+    //});
 }
+
 static inline bool is_intrin(size_t _class, size_t to_test, const std::vector<std::vector<size_t>>& intrinsics) {
     return std::find(intrinsics[_class].begin(), intrinsics[_class].end(), to_test) != intrinsics[_class].end();
 }
@@ -170,27 +193,35 @@ static inline bool equal(resolved a, resolved b, std::vector<entry>& entries) {
 static inline resolved resolve(const expression& given, const resolved& given_type, std::vector<entry>& entries, std::vector<std::vector<size_t>>& stack, std::vector<std::vector<size_t>>& intrinsics, const file& file, const size_t max_depth);
 static inline resolved resolve_at(const expression& given, const resolved& expected, size_t& index, size_t& best, const size_t depth, const size_t max_depth, std::vector<entry>& entries, std::vector<std::vector<size_t>>& stack, std::vector<std::vector<size_t>>& intrinsics, const file& file) {
     if (depth > max_depth) return {0, {}, {}, true};
-//    else if (index < given.symbols.size() and given.symbols[index].type == expr and is_intrin(_name, expected.index, intrinsics)) return construct_signature(given.symbols[index++].subexpression, entries, stack, intrinsics, file, max_depth, expected.index);
     else if (index < given.sub.size() and not given.sub.at(index).literal.value) return resolve(given.sub.at(index++), expected, entries, stack, intrinsics, file, max_depth);
+
 //    else if (index < given.symbols.size() and given.symbols[index].type == id and is_intrin(_number, expected.index, intrinsics)) return construct_number(given, file, index, expected.index);
+    
 //    else if (index < given.symbols.size() and given.symbols[index].type == string) return {_string, {}, false, {{{given.symbols[index++]}}}}; /*TODO: should expect type: "(pointer (i8))"     ie, check given_type.args[]... */
+    
 //    else if (is_intrin(_lazy, expected.index, intrinsics)) return resolve_at(given, expected.args[0], index, best, depth, max_depth, entries, stack, intrinsics, file);
+    
     auto saved = index; auto saved_stack = stack;
     for (const auto s : saved_stack.back()) {
         best = std::max(index, best); index = saved; stack = saved_stack; std::vector<resolved> args = {};
-//        for (size_t j = 0; j < entries.at(s).signature.sub.size(); j++) {
+        
+        
+        for (size_t j = 0; j < 100000; j++) { /// entries.at(s).signature.sub.size()
+                        
+            if (not equal(expected, entries.at(s).type, entries)) goto next;
+            ///FIXED:   this is the right place for this.
+            ///         we make this test after we do each parameter subsitution.
+            
+            
+            
 //            const auto& symbol = entries.at(s).signature.sub.at(j);
 //            if (index >= given.sub.size()) { if (args.size() and j == 1) return args[0]; else goto next; }
 //            if (not symbol.literal.value) {
 //                const resolved& argument = resolve_at(given, symbol.type, index, best, depth + 1, max_depth, entries, stack, intrinsics, file);
 //                if (argument.error) goto next; args.push_back({argument});
-////                if (not symbol.index) abort();
-////                entries[symbol.index].subsitution = argument;
+                /// record parameter subsituttion here!
 //            } else if (symbol.literal.value != given.sub.at(index).literal.value) goto next; else index++;
-//        }
-//        if (not equal(expected, entries.at(s).signature.type, entries)) continue;
-//        if (is_intrin(_declare, s, intrinsics) and args[1].number < _intrinsic_count) intrinsics[args[1].number].push_back(args[0].name[0].me.index = define(args[0].name[0], {}, entries, stack));
-//        if (is_intrin(_define, s, intrinsics)) args[0].name[0].me.index = define(args[0].name[0], args[2], entries, stack);
+        }
         return {s, args}; next: continue;
     } return {0, {}, {}, true};
 }
@@ -257,7 +288,6 @@ static inline std::unique_ptr<llvm::Module> generate(const resolved& given, std:
     if (llvm::verifyModule(*module, &(llvm::raw_string_ostream(errors) << ""))) printf("llvm: %s: error: %s\n", file.name, errors.c_str());
     return module;
 }
-
 static inline std::unique_ptr<llvm::Module> optimize(std::unique_ptr<llvm::Module>& module) {
     if (debug) {
         printf("\n\n\n\n-------- printing the final state of the module before output:------ \n\n");
@@ -297,45 +327,46 @@ static inline void output(const arguments& args, std::unique_ptr<llvm::Module>&&
     else if (args.emit == assembly) generate_file(std::move(module), args, llvm::TargetMachine::CGFT_AssemblyFile);
     else if (args.emit == exec) emit_executable(generate_file(std::move(module), args, llvm::TargetMachine::CGFT_ObjectFile), args.emitname);
 }
+
+static void define_intrinsic(std::string expression, std::vector<entry> &entries, const file &file, std::vector<std::vector<size_t> > &intrinsics, size_t max_depth, std::vector<std::vector<size_t> > &stack) {
+//    lexing_state s0 {0, none, 1, 1};
+//    auto s = construct_signature(parse(s0, {"_intrinsic.n", expression}), entries, stack, intrinsics, file, max_depth, _name);
+//    define(s.name[0], {}, entries, stack);
+}
+
 int main(const int argc, const char** argv) {
-    llvm::InitializeAllTargetInfos();
-    llvm::InitializeAllTargets();
-    llvm::InitializeAllTargetMCs();
-    llvm::InitializeAllAsmParsers();
-    llvm::InitializeAllAsmPrinters();
-    llvm::LLVMContext context;
-    auto module = llvm::make_unique<llvm::Module>("0u6agpc3li0rkpw1a1xs13b.n", context);
-    arguments args = {};
-    bool use_exec_args = false, no_files = true;
-    size_t max_depth = 100;
+    llvm::InitializeAllTargetInfos(); llvm::InitializeAllTargets(); llvm::InitializeAllTargetMCs(); llvm::InitializeAllAsmParsers(); llvm::InitializeAllAsmPrinters();
+    llvm::LLVMContext context; auto module = llvm::make_unique<llvm::Module>("0u6agpc3li0rkpw1a1xs13b.n", context);
+    arguments args = {}; bool use_exec_args = false, no_files = true; size_t max_depth = 100;
     for (long i = 1; i < argc; i++) {
         if (argv[i][0] == '-') {
-            const auto c = argv[i][1];
-            if (use_exec_args) args.argv.push_back(argv[i]);
-            else if (c == '-') use_exec_args = true;
-            else if (c == 'u') { puts("usage: n [-u/-v] [-o <exe>/-c <object>/-i <ir>/-s <assembly>] [-d <depth>] <.n/.ll/.o/.s> [-- <argv>]"); exit(0); }
+            const auto c = argv[i][1]; if (use_exec_args) args.argv.push_back(argv[i]); else if (c == '-') use_exec_args = true;
+            else if (c == 'u') { puts("usage: n [-u/-v] [-o <exe>/-c <object>/-i <ir>/-s <assembly>] {[-d <depth>] <.n/.ll/.o/.s>}* [-- {<argv>}*]"); exit(0); }
             else if (c == 'v') { puts("n3zqx2l: 0.0.4 \tn: 0.0.4"); exit(0); }
             else if (c == 'd' and i + 1 < argc) max_depth = atol(argv[++i]);
             else if (strchr("ocis", c) and i + 1 < argc) { args.emit = c; args.emitname = argv[++i]; }
             else { printf("n: error: bad option: %s\n", argv[i]); continue; }
         } else {
-            const char* ext = strrchr(argv[i], '.');
-            if (ext && !strcmp(ext, ".n")) {
-                FILE* f = fopen(argv[i], "r");
-                if (not f) { printf("n: %s: error: %s\n", argv[i], strerror(errno)); continue; }
-                fseek(f, 0, SEEK_END); const size_t length = ftell(f);
-                char* text = (char*) calloc(length + 1, sizeof(char));
-                fseek(f, 0, SEEK_SET); fread(text, sizeof(char), length, f);
-                file file = {argv[i], text, length}; lexing_state state {0, none, 1, 1};
-                std::vector<entry> entries {{}}; std::vector<std::vector<size_t>> stack {{}}, intrinsics(_intrinsic_count, std::vector<size_t>{});
+            const char* ext = strrchr(argv[i], '.'); if (ext && !strcmp(ext, ".n")) {
+                FILE* f = fopen(argv[i], "r"); if (not f) { printf("n: %s: error: %s\n", argv[i], strerror(errno)); continue; }
+                fseek(f, 0, SEEK_END); const size_t length = ftell(f); char* text = (char*) calloc(length + 1, sizeof(char));
+                fseek(f, 0, SEEK_SET); fread(text, sizeof(char), length, f); file file = {argv[i], text, length}; lexing_state state {0, none, 1, 1};
+                
+                std::vector<entry> entries {{}};
+                std::vector<std::vector<size_t>> stack {{}},
+                intrinsics(_intrinsic_count, std::vector<size_t>{});
+                
+                resolved signature = {}, type = {}, definition = {};
+                signature.literal = token {'i'};
+                signature.index = 1;
+                
+                define(signature, type, definition, entries, stack);
+                debug_stack(entries, stack);
                 debug_lex(file);
-                if (llvm::Linker::linkModules(*module, generate(resolve(parse(state, file), {_undefined}, entries, stack, intrinsics, file, max_depth), entries, stack, intrinsics, file, context, no_files))) {
-                    printf("error: linking failed\n");
-                    continue;
-                }
+                
+                if (llvm::Linker::linkModules(*module, generate(resolve(parse(state, file), {_undefined}, entries, stack, intrinsics, file, max_depth), entries, stack, intrinsics, file, context, no_files))) continue;
             } else if (ext && !strcmp(ext, ".ll")) {
-                llvm::SMDiagnostic errors;
-                std::string verify_errors = "";
+                llvm::SMDiagnostic errors; std::string verify_errors = "";
                 auto m = llvm::parseAssemblyFile(argv[i], errors, context);
                 if (not m) { errors.print("llvm", llvm::errs()); continue; } else set_data_for(m);
                 if (llvm::verifyModule(*m, &(llvm::raw_string_ostream(verify_errors) << ""))) { printf("llvm: %s: error: %s\n", argv[i], verify_errors.c_str()); continue; }
@@ -346,19 +377,21 @@ int main(const int argc, const char** argv) {
     } if (no_files) printf("n: error: no input files\n"); else output(args, optimize(module));
 }
 
+//                std::vector<std::string> defined_intrinsics {
+//                    "(i)",
+//                    "(name) (i)",
+//                    "(nat) (i)",
+//                    "(join ((join-first) (i)) ((join-second) (i))) (i)",
+//                    "(decl ((decl-name) (name) (i)) ((decl-ii) (nat) (i)) ((decl-extern) (nat) (i))) (i)"
+//                };
+                            
+///         for (size_t i = _undefined; i < _intrinsic_count; i++) intrinsics[i].push_back(i);
 
 
 
 
-/// code for consturcting the instrinsic list:
 
-//                std::vector<std::string> defined_intrinsics { "(i)", "(name) (i)", "(nat) (i)", "(join ((join-first) (i)) ((join-second) (i))) (i)", "(decl ((decl-name) (name) (i)) ((decl-ii) (nat) (i)) ((decl-extern) (nat) (i))) (i)"};
-//                for (size_t i = _undefined; i < _type; i++) intrinsics[i].push_back(i);
-//                for (auto s : defined_intrinsics) define_intrinsic(s, entries, file, intrinsics, max_depth, stack);
-//                debug_stack(entries, stack);
 
-//static void define_intrinsic(std::string expression, std::vector<entry> &entries, const file &file, std::vector<std::vector<size_t> > &intrinsics, size_t max_depth, std::vector<std::vector<size_t> > &stack) {
-//    lexing_state s0 {0, none, 1, 1};
-//    auto s = construct_signature(parse(s0, {"_intrinsic.n", expression}), entries, stack, intrinsics, file, max_depth, _name);
-//    define(s.name[0], {}, entries, stack);
-//}
+
+//        if (is_intrin(_declare, s, intrinsics) and args[1].number < _intrinsic_count) intrinsics[args[1].number].push_back(args[0].name[0].me.index = define(args[0].name[0], {}, entries, stack));
+//        if (is_intrin(_define, s, intrinsics)) args[0].name[0].me.index = define(args[0].name[0], args[2], entries, stack);
