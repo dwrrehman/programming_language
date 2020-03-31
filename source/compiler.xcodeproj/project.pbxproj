@@ -25,6 +25,7 @@
 /* Begin PBXFileReference section */
 		FD02050021E7F3C3009C332B /* compiler */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = compiler; sourceTree = BUILT_PRODUCTS_DIR; };
 		FDADA86823AED1AD003748DB /* test.ll */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.asm.llvm; name = test.ll; path = ../../examples/test.ll; sourceTree = "<group>"; };
+		FDAEFD9F242219AD00576DD1 /* llvm.n */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; name = llvm.n; path = ../../examples/llvm.n; sourceTree = "<group>"; };
 		FDBC383E23CAF63300215051 /* status.txt */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; name = status.txt; path = ../../documentation/status.txt; sourceTree = "<group>"; };
 		FDBE70C4232D97C7006CC0F9 /* test.n */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; name = test.n; path = ../../examples/test.n; sourceTree = "<group>"; };
 		FDE990ED23D3E721001C5D64 /* n.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = n.cpp; path = compiler/n.cpp; sourceTree = SOURCE_ROOT; };
@@ -63,6 +64,7 @@
 				FDE990ED23D3E721001C5D64 /* n.cpp */,
 				FDBE70C4232D97C7006CC0F9 /* test.n */,
 				FDADA86823AED1AD003748DB /* test.ll */,
+				FDAEFD9F242219AD00576DD1 /* llvm.n */,
 				FDBC383E23CAF63300215051 /* status.txt */,
 			);
 			path = compiler;

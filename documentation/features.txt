@@ -3,3 +3,10 @@ features of n3zqx2l:
 
 n3zqx2l is a minimalist programming language, with an emphasis on the paradigms of procedural, imperative, structured programming.
 
+- all whitespace is ignored, except in strings.
+
+- character string literals.
+
+- call signature resolution.
+
+- 
