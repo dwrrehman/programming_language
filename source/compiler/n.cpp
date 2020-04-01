@@ -192,7 +192,7 @@ static inline res resolve_at(const expr& given, const res& expected, size_t& ind
     else if (index < given.symbols.size() and not given.symbols.at(index).literal.value)
         return resolve(given.symbols.at(index++), expected, entries, stack, intrinsics, file, max_depth);
     
-    else if (is_intrin(_symbol, expected.index, intrinsics)) {
+    else if (index < given.symbols.size() and is_intrin(_symbol, expected.index, intrinsics)) {
         return res {expected.index, {}, token {given.symbols.at(index++).literal.value}};
     }
     
@@ -348,10 +348,11 @@ static inline std::unique_ptr<llvm::Module> generate(const res& given, std::vect
                 define({{0, {}, {'i'}}}, {}, {}, entries, stack);
                 define({{0, {}, {'x'}}}, {_init}, {}, entries, stack);
                 define({{0, {}, {'y'}}}, {_init}, {}, entries, stack);
-                define({   /*{0, {}, {'J'}},*/ {_0}, {_1}}, {_init}, {}, entries, stack);
-                define({{0, {}, {'s'}}}, {_init}, {}, entries, stack);
-                define({{0, {}, {'p'}}}, {_symbol}, {}, entries, stack);
-                define({   {0, {}, {'d'}}, {_2}}, {_init}, {}, entries, stack);
+                define({  {0, {}, {'j'}}, {_0}, {_1}}, {_init}, {}, entries, stack);
+                define({  {0, {}, {'s'}}}, {_init}, {}, entries, stack);
+                define({  {0, {}, {'p'}}}, {_symbol}, {}, entries, stack);
+                define({  {0, {}, {'d'}}, {_2}}, {_init}, {}, entries, stack);
+                define({}, {_init}, {}, entries, stack);
                 
                 debug_stack(entries, stack);
                 debug_lex(file);
