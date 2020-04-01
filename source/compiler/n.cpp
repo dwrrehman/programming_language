@@ -9,13 +9,25 @@
 #include "llvm/Support/SourceMgr.h"
 #include <fstream>
 #include <vector>
-bool debug = true; enum {none, string, init = 0, first = 1, intrinsic_count }; /// temp.
+const bool debug = true; enum {none, string,
+    
+    _undefined = 0,
+    
+    _init = 1,
+    
+    _0 = 2, _1 = 3, _join = 4,
+    
+    _symbol = 5,
+    
+    _2 = 6, _decl = 7,
+    
+_intrinsic_count};
 struct file { const char* name = 0; char* text = 0; size_t length = 0; };
 struct lexstate { size_t at = 0; size_t instring = 0; size_t line = 0; size_t column = 0; };
 struct token { size_t value = 0; const char* string = 0; size_t line = 0; size_t column = 0; };
-struct expr {token literal = {}; std::vector<expr> sub = {}; bool error = false; };
+struct expr {token literal = {}; std::vector<expr> symbols = {}; bool error = false; };
 struct res { size_t index = 0; std::vector<res> args = {}; token literal = {}; bool error = false; };
-struct entry { res signature = {}; res type = {}; res definition = {}; };
+struct entry { std::vector<res> signature = {}; res type = {}; res definition = {}; };
 static inline token next(lexstate& l, file& file) {
     token t{}; for (auto& at = l.at; at < file.length; at++) {
         const size_t c = file.text[at]; if (c == '\"' && !l.instring) t = {l.instring = string, file.text + at + 1, l.line, l.column};
@@ -25,31 +37,53 @@ static inline token next(lexstate& l, file& file) {
     } if (l.instring) printf("n3zqx2l: %s:%ld:%ld: error: expected \"\n\n", file.name, l.line, l.column); return t;
 } static inline expr parse(lexstate& state, file& file) {
     expr l = {}; auto saved = state; token t = next(state, file); while (t.value && t.value != ')') {
-        if (t.value == string || !strchr("()", t.value)) l.sub.push_back({t});
+        if (t.value == string || !strchr("()", t.value)) l.symbols.push_back({t});
         else if (t.value == '(') {
             auto p = parse(state, file); if (next(state, file).value != ')') printf("n3zqx2l: %s:%ld:%ld: error: expected )\n\n", file.name, t.line, t.column);
-            l.sub.push_back(p); t.value = 0; l.sub.back().literal = t; 
+            l.symbols.push_back(p); t.value = 0; l.symbols.back().literal = t; 
         } saved = state; t = next(state, file);
     } state = saved; return l;
 }
-static inline std::string represent(const res& given, const std::vector<entry>& entries) { if (not given.index) return "(null)"; std::string result = ""; result += std::to_string(given.index); result += ":" + std::string(1, given.literal.value) + ":"; result += "["; for (auto a : given.args) result += represent(a, entries); result += "]"; return result; }
+
+static inline std::string represent(const res& given, const std::vector<entry>& entries) {
+    
+    std::string result = "";
+    size_t i = 0;
+    for (auto s : entries[given.index].signature) {
+        
+        if (s.literal.value == string)
+            result += "\"" + std::string(s.literal.string) + "\"";
+        
+        else if (s.literal.value)
+            result += s.literal.value;
+        
+        else
+            result += "(" + represent(given.args.size() ? given.args[i++] : s, entries) + ")";
+    }
+    
+    if (entries[given.index].type.index)
+        result += " " + represent(entries[given.index].type, entries);
+    
+    return result;
+}
 
 ////////////////////////////////// DEBUG CODE ////////////////////////////////////
 
 void prep(size_t d) { for (size_t i = 0; i < d; i++) printf(".   "); }
 
-static inline void print_expression(const expr& given) {
+static inline void debug_line_expression(const expr& given) {
     if (given.literal.value == string) printf("\"%s\"", given.literal.string);
     else if (given.literal.value) putchar(given.literal.value);
-    else { putchar('('); for (const auto& symbol : given.sub) print_expression(symbol); putchar(')'); }
+    else { putchar('('); for (const auto& symbol : given.symbols) debug_line_expression(symbol); putchar(')'); }
 }
+
 static inline void debug_expression(expr e, size_t d) {
     if (not debug) return;
     prep(d); printf("error = %d\n", e.error);
     prep(d); printf("token: %lu : '%c'  @(%lu, %lu)\n", e.literal.value, (char)e.literal.value, e.literal.line, e.literal.column);
     if (e.literal.value == string) { prep(d); printf("    string = %s\n", e.literal.string); }
     prep(d); printf("children: {\n");
-    for (auto f : e.sub) {
+    for (auto f : e.symbols) {
         prep(d+1); printf("child: \n");
         debug_expression(f, d + 1);
     }
@@ -67,18 +101,16 @@ static inline void debug_intrinsics(std::vector<std::vector<size_t>> intrinsics)
     printf("\n--------------------------------\n");
 }
 
-static inline void debug_resolved(res e, size_t depth, std::vector<entry> entries, size_t d = 0) {
+static inline void debug_resolved(res e, std::vector<entry> entries, size_t depth = 0) {
     if (not debug) return;
-    prep(depth); printf("%lu: [error = %d]\n", d, e.error);
-    prep(depth); printf("index = %lu\n", e.index);
-    prep(depth); printf("literal:   %lu : '%c'  @(%lu, %lu)\n", e.literal.value, (char)e.literal.value, e.literal.line, e.literal.column);
-    puts("");
-    
+    if (e.error) { prep(depth); printf("[ERROR]\n"); }
+    prep(depth); printf("%lu :   index = %lu  ::   %s\n", depth, e.index, represent({e.index}, entries).c_str());
+    if (e.literal.value) { prep(depth); printf("literal:   %lu : '%c'  @(%lu, %lu)\n", e.literal.value, (char)e.literal.value, e.literal.line, e.literal.column); }
+    prep(depth); puts("");
     size_t i = 0;
     for (auto arg : e.args) {
-        prep(depth + 1); printf("argument #%lu: \n", i++);
-        debug_resolved(arg, depth + 1, entries, d + 1);
-        prep(depth + 1); puts("");
+        prep(depth + 1); printf("#%lu: \n", i++);
+        debug_resolved(arg, entries, depth + 1);
     }
 }
 
@@ -123,11 +155,10 @@ static inline void debug_stack(std::vector<entry> entries, std::vector<std::vect
     for (auto entry : entries) {
         printf("\t%6lu: ", j);
         
-        printf("%s", represent(entry.signature, entries).c_str());
-        
-        printf("      :      %s", represent(entry.type, entries).c_str());
-        
-        printf("      =      %s", represent(entry.definition, entries).c_str());
+        printf("%s", represent({j}, entries).c_str());
+                
+        auto def = represent(entry.definition, entries);
+        if (def.size()) printf("      =    %s", def.c_str());
         
         puts("\n");
         j++;
@@ -136,14 +167,11 @@ static inline void debug_stack(std::vector<entry> entries, std::vector<std::vect
 }
 ////////////////////////////////// DEBUG CODE ////////////////////////////////////
 
-static inline void define(const res& signature, const res& type, const res& definition, std::vector<entry>& entries, std::vector<std::vector<size_t>>& stack) {
+static inline void define(const std::vector<res>& signature, const res& type, const res& definition, std::vector<entry>& entries, std::vector<std::vector<size_t>>& stack) {
     stack.back().push_back(entries.size());
     entries.push_back({signature, type, definition});
-    
-    ///TODO: fix me:
-    //std::stable_sort(stack.back().begin(), stack.back().end(), [&](size_t a, size_t b) { return false;// entries[a].signature.sub.size() > entries[b].signature.sub.size();
-    //}); std::stable_sort(stack.back().begin(), stack.back().end(), [&](size_t a, size_t b) { return false; // entries[a].signature.sub.size() and not entries[a].signature.sub.front().literal.value;
-    //});
+    std::stable_sort(stack.back().begin(), stack.back().end(), [&](size_t a, size_t b) {return entries[a].signature.size() > entries[b].signature.size();});
+    std::stable_sort(stack.back().begin(), stack.back().end(), [&](size_t a, size_t b) {return entries[a].signature.size() and not entries[a].signature.front().literal.value;});
 }
 
 static inline bool is_intrin(size_t _class, size_t to_test, const std::vector<std::vector<size_t>>& intrinsics) {
@@ -156,42 +184,62 @@ static inline bool different(const res& a, const res& b, const std::vector<size_
     return false;
 }
 static inline res resolve(const expr& given, const res& given_type, std::vector<entry>& entries, std::vector<std::vector<size_t>>& stack, std::vector<std::vector<size_t>>& intrinsics, const file& file, const size_t max_depth);
+
 static inline res resolve_at(const expr& given, const res& expected, size_t& index, size_t& best, const size_t depth, const size_t max_depth, std::vector<entry>& entries, std::vector<std::vector<size_t>>& stack, std::vector<std::vector<size_t>>& intrinsics, const file& file) {
-    if (depth > max_depth) return {0, {}, {}, true}; else if (index < given.sub.size() and not given.sub.at(index).literal.value) return resolve(given.sub.at(index++), expected, entries, stack, intrinsics, file, max_depth);
-    auto saved = index; auto saved_stack = stack; for (const auto s : saved_stack.back()) {
-        best = std::max(index, best); index = saved; stack = saved_stack; std::vector<res> args = {};
+    
+    if (depth > max_depth) return {0, {}, {}, true};
+    
+    else if (index < given.symbols.size() and not given.symbols.at(index).literal.value)
+        return resolve(given.symbols.at(index++), expected, entries, stack, intrinsics, file, max_depth);
+    
+    else if (is_intrin(_symbol, expected.index, intrinsics)) {
+        return res {expected.index, {}, token {given.symbols.at(index++).literal.value}};
+    }
+    
+    /// other special cases here.
+    
+    auto saved = index;
+    auto saved_stack = stack;
+    
+    for (const auto s : saved_stack.back()) {
         
-        for (size_t j = 0; j < 10; j++) { /// entries.at(s).signature.sub.size()
+        best = std::max(index, best);
+        index = saved;
+        stack = saved_stack;
+        std::vector<res> args = {};
+        
+        if (different(entries.at(s).type, expected, stack.back())) goto next;
+        
+        for (size_t j = 0; j < entries.at(s).signature.size(); j++) {
             
-            if (different(entries.at(s).type, expected, stack.back())) goto next;
-            ///FIXED:   this is the right place for this.
-            ///         we make this test after we do each parameter subsitution.
+            const auto& symbol = entries.at(s).signature.at(j);
             
-//            const auto& symbol = entries.at(s).signature.sub.at(j);
-//            if (index >= given.sub.size()) { if (args.size() and j == 1) return args[0]; else goto next; }
-//            if (not symbol.literal.value) {
-//                const resolved& argument = resolve_at(given, symbol.type, index, best, depth + 1, max_depth, entries, stack, intrinsics, file);
-//                if (argument.error) goto next; args.push_back({argument});
-                /// record parameter subsituttion here!
-//            } else if (symbol.literal.value != given.sub.at(index).literal.value) goto next; else index++;
+            if (index >= given.symbols.size()) { if (args.size() and j == 1) return args[0]; else goto next; }
+            
+            if (not symbol.literal.value) {
+                const res& argument = resolve_at(given, entries[symbol.index].type, index, best, depth + 1, max_depth, entries, stack, intrinsics, file);
+                if (argument.error or different(entries.at(s).type, expected, stack.back())) goto next; else args.push_back({argument});
+                /// record subsitution here.
+            } else if (symbol.literal.value != given.symbols.at(index).literal.value) goto next; else index++;
         }
+        /// some specific action here.
         return {s, args}; next: continue;
     } return {0, {}, {}, true};
 }
-static inline res resolve(const expr& given, const res& given_type, std::vector<entry>& entries, std::vector<std::vector<size_t>>& stack, std::vector<std::vector<size_t>>& intrinsics, const file& file, const size_t max_depth) {
+static inline res resolve(const expr& given, const res& expected, std::vector<entry>& entries, std::vector<std::vector<size_t>>& stack, std::vector<std::vector<size_t>>& intrinsics, const file& file, const size_t max_depth) {
     if (debug) {
         printf("-------------- parse tree: -------------------\n");
         debug_expression(given, 0);
         printf("heres the compacted form: \n\n\t");
-        print_expression(given);
+        debug_line_expression(given);
         printf("\n\n");
     }
     size_t index = 0, best = 0;
-    res solution = resolve_at(given, given_type, index, best, 0, max_depth, entries, stack, intrinsics, file);
-    if (index < given.sub.size()) solution.error = true;
+    res solution = resolve_at(given, expected, index, best, 0, max_depth, entries, stack, intrinsics, file);
+    if (index < given.symbols.size()) solution.error = true;
     if (solution.error) {
-        const auto b = best < given.sub.size() ? given.sub.at(best) : given;
-        printf("n3zqx2l: %s:%ld:%ld: error: resolution failure\n", file.name, b.literal.line, b.literal.column);
+        const auto b = best < given.symbols.size() ? given.symbols.at(best).literal : given.literal;
+        printf("n3zqx2l: %s:%ld:%ld: error: %s: unresolved %c\n", file.name, b.line, b.column, represent(expected, entries).c_str(), (char) b.value);
     } return solution;
 }
 static inline void set_data_for(std::unique_ptr<llvm::Module>& module) {
@@ -205,11 +253,13 @@ static inline llvm::Value* generate_expression(const res& given, std::vector<ent
 }
 static inline std::unique_ptr<llvm::Module> generate(const res& given, std::vector<entry>& entries, std::vector<std::vector<size_t>>& stack, std::vector<std::vector<size_t>>& intrinsics, const file& file, llvm::LLVMContext& context, bool is_main) {
     if (debug){
-        printf("\n\n");
-        debug_resolved(given, 0, entries);
-        printf("\n\n");
+        printf("\n\ndebugging resolved:\n\n");
+        debug_resolved(given, entries);
+        printf("\n\nrepresenting resolved:\n\n\t");
+        puts(represent(given, entries).c_str());
+        printf("\n\nprinting entries/stack:\n\n");
         debug_stack(entries, stack);
-        printf("\n\n");
+        printf("\n\nprinting intrinsics\n\n");
         debug_intrinsics(intrinsics);
         printf("\n\n");
     }
@@ -241,8 +291,7 @@ static inline std::unique_ptr<llvm::Module> generate(const res& given, std::vect
     std::string errors = "";
     if (llvm::verifyModule(*module, &(llvm::raw_string_ostream(errors) << ""))) printf("llvm: %s: error: %s\n", file.name, errors.c_str());
     return module;
-}
-static inline std::unique_ptr<llvm::Module> optimize(std::unique_ptr<llvm::Module>& module) {
+} static inline std::unique_ptr<llvm::Module> optimize(std::unique_ptr<llvm::Module>& module) {
     if (debug) {
         printf("\n\n\n\n-------- printing the final state of the module before output:------ \n\n");
         module->print(llvm::errs(), nullptr);
@@ -250,15 +299,13 @@ static inline std::unique_ptr<llvm::Module> optimize(std::unique_ptr<llvm::Modul
     std::string verify_errors = "";
     if (llvm::verifyModule(*module, &(llvm::raw_string_ostream(verify_errors) << ""))) printf("llvm: %s: error: %s\n", "init.n", verify_errors.c_str());
     return std::move(module);
-}
-static inline void interpret(std::unique_ptr<llvm::Module> module, const std::vector<std::string> argv) {
+} static inline void interpret(std::unique_ptr<llvm::Module> module, const std::vector<std::string> argv) {
     auto engine = llvm::EngineBuilder(std::move(module)).setEngineKind(llvm::EngineKind::JIT).create();
     engine->finalizeObject();
     if (debug) printf("info: running...\n");
     if (auto main = engine->FindFunctionNamed("main"); main) exit(engine->runFunctionAsMain(main, argv, nullptr));
     else printf("n: error: could not find entry point\n");
-}
-static inline std::string generate_file(std::unique_ptr<llvm::Module> module, const char* name, llvm::TargetMachine::CodeGenFileType type) {
+} static inline std::string generate_file(std::unique_ptr<llvm::Module> module, const char* name, llvm::TargetMachine::CodeGenFileType type) {
     std::error_code error; if (type == llvm::TargetMachine::CGFT_Null) {
         llvm::raw_fd_ostream dest(std::string(name) + ".ll", error, llvm::sys::fs::F_None); module->print(dest, nullptr); return "";
     } std::string lookup_error = "";
@@ -268,26 +315,14 @@ static inline std::string generate_file(std::unique_ptr<llvm::Module> module, co
     llvm::legacy::PassManager pass;
     target_machine->addPassesToEmitFile(pass, dest, nullptr, type);
     pass.run(*module); dest.flush(); return object_filename;
-}
-static inline void emit_executable(const std::string& object_file, const std::string& exec_name) {
-    std::system(std::string("ld -macosx_version_min 10.15 -lSystem -lc -o " + exec_name + " " + object_file).c_str());
-    std::remove(object_file.c_str());
-}
-static inline void output(const size_t emit, const char* name, const std::vector<std::string>& args, std::unique_ptr<llvm::Module>&& module) {
-    if (emit == 0) interpret(std::move(module), args);
-    else if (emit == 'i') generate_file(std::move(module), name, llvm::TargetMachine::CGFT_Null);
+} static inline void emit_executable(const std::string& object_file, const std::string& exec_name) {
+    std::system(std::string("ld -macosx_version_min 10.15 -lSystem -lc -o " + exec_name + " " + object_file).c_str()); std::remove(object_file.c_str());
+} static inline void output(const size_t emit, const char* name, const std::vector<std::string>& args, std::unique_ptr<llvm::Module>&& module) {
+    if (emit == 0) interpret(std::move(module), args); else if (emit == 'i') generate_file(std::move(module), name, llvm::TargetMachine::CGFT_Null);
     else if (emit == 'c') generate_file(std::move(module), name, llvm::TargetMachine::CGFT_ObjectFile);
     else if (emit == 's') generate_file(std::move(module), name, llvm::TargetMachine::CGFT_AssemblyFile);
     else if (emit == 'o') emit_executable(generate_file(std::move(module), name, llvm::TargetMachine::CGFT_ObjectFile), name);
-}
-
-static inline void define_intrinsic(std::string expression, std::vector<entry> &entries, const file &file, std::vector<std::vector<size_t> > &intrinsics, size_t max_depth, std::vector<std::vector<size_t> > &stack) {
-//    lexing_state s0 {0, none, 1, 1};
-//    auto s = construct_signature(parse(s0, {"_intrinsic.n", expression}), entries, stack, intrinsics, file, max_depth, _name);
-//    define(s.name[0], {}, entries, stack);
-}
-
-int main(const int argc, const char** argv) {
+} int main(const int argc, const char** argv) {
     llvm::InitializeAllTargetInfos(); llvm::InitializeAllTargets(); llvm::InitializeAllTargetMCs(); llvm::InitializeAllAsmParsers(); llvm::InitializeAllAsmPrinters();
     llvm::LLVMContext context; auto module = llvm::make_unique<llvm::Module>("", context);
     size_t emit = 0, max_depth = 100, use_exec_args = false, no_files = true; const char* emitname = ""; std::vector<std::string> args = {};
@@ -304,20 +339,23 @@ int main(const int argc, const char** argv) {
                 FILE* f = fopen(argv[i], "r"); if (not f) { printf("n: %s: error: %s\n", argv[i], strerror(errno)); continue; }
                 fseek(f, 0, SEEK_END); const size_t length = ftell(f); char* text = (char*) calloc(length + 1, sizeof(char));
                 fseek(f, 0, SEEK_SET); fread(text, sizeof(char), length, f); file file = {argv[i], text, length}; lexstate state {0, 0, 1, 1};
-                
-                std::vector<entry> entries {{}};
+                std::vector<entry> entries {};
                 std::vector<std::vector<size_t>> stack {{}},
-                intrinsics(intrinsic_count, std::vector<size_t>{});
+                intrinsics(_intrinsic_count, std::vector<size_t>{});
+                for (size_t i = _undefined; i < _intrinsic_count; i++) intrinsics[i].push_back(i);
                 
-                res signature = {}, type = {}, definition = {};
-                signature.literal = token {'i'};
-                signature.index = 1;
-                define(signature, type, definition, entries, stack);
+                define({}, {}, {}, entries, stack);
+                define({{0, {}, {'i'}}}, {}, {}, entries, stack);
+                define({{0, {}, {'x'}}}, {_init}, {}, entries, stack);
+                define({{0, {}, {'y'}}}, {_init}, {}, entries, stack);
+                define({   /*{0, {}, {'J'}},*/ {_0}, {_1}}, {_init}, {}, entries, stack);
+                define({{0, {}, {'s'}}}, {_init}, {}, entries, stack);
+                define({{0, {}, {'p'}}}, {_symbol}, {}, entries, stack);
+                define({   {0, {}, {'d'}}, {_2}}, {_init}, {}, entries, stack);
                 
                 debug_stack(entries, stack);
                 debug_lex(file);
-                
-                if (llvm::Linker::linkModules(*module, generate(resolve(parse(state, file), {init}, entries, stack, intrinsics, file, max_depth), entries, stack, intrinsics, file, context, no_files))) continue;
+                if (llvm::Linker::linkModules(*module, generate(resolve(parse(state, file), {_init}, entries, stack, intrinsics, file, max_depth), entries, stack, intrinsics, file, context, no_files))) continue;
             } else if (ext && !strcmp(ext, ".ll")) {
                 llvm::SMDiagnostic errors; std::string verify_errors = "";
                 auto m = llvm::parseAssemblyFile(argv[i], errors, context);
@@ -338,7 +376,7 @@ int main(const int argc, const char** argv) {
 //                    "(decl ((decl-name) (name) (i)) ((decl-ii) (nat) (i)) ((decl-extern) (nat) (i))) (i)"
 //                };
                             
-///         for (size_t i = _undefined; i < _intrinsic_count; i++) intrinsics[i].push_back(i);
+
 
 //        if (is_intrin(_declare, s, intrinsics) and args[1].number < _intrinsic_count) intrinsics[args[1].number].push_back(args[0].name[0].me.index = define(args[0].name[0], {}, entries, stack));
 //        if (is_intrin(_define, s, intrinsics)) args[0].name[0].me.index = define(args[0].name[0], args[2], entries, stack);
