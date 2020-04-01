@@ -21,11 +21,13 @@ static t n(L&l,F&f){t t{};for(N&i=l.i;i<f.l;i++){
     std::string o="";N i=0;for(r s:E[g.i].s)if(s.t.v==1)o+="\""+std::string(s.t.s)+"\""; else if(s.t.v)o+=s.t.v;else o+="("+sr(g.a.size()?g.a[i++]:s,E)+")"; if (E[g.i].t.i) o += " " + sr(E[g.i].t, E); return o;
 } static void d(const std::vector<r>& s, const r& t, const r& d, W& E, V& S) {
     S.back().push_back(E.size());E.push_back({s,t,d});
-    std::stable_sort(S.back().begin(),S.back().end(),[&](N a,N b){return E[a].s.size()>E[b].s.size();});
-    std::stable_sort(S.back().begin(),S.back().end(),[&](N a,N b){return E[a].s.size()&&!E[a].s.front().t.v;});
+    std::stable_sort(S.back().begin(),S.back().end(),[&](N a,N b){return(E[a].s.size()&&!E[a].s.front().t.v)||E[a].s.size()>E[b].s.size();});
+//    std::stable_sort(S.back().begin(),S.back().end(),[&](N a,N b){return ;});
 } static N in(N c,N t,const V&I){return std::find(I[c].begin(),I[c].end(),t)!=I[c].end();}
-static N ne(const r&a,const r&b,const std::vector<N>&f) {
-    if(std::find(f.begin(),f.end(),a.i)==f.end())return 0;if(a.i!=b.i||a.a.size()!=b.a.size())return 1;for(N i=0;i<a.a.size();i++)if(ne(a.a[i],b.a[i],f))return 1;return 0;
+static N ne(const r&a,const r&b,const V&S) {
+    if(std::find(S.back().begin(),S.back().end(),a.i)==S.back().end()) return 0;
+    if(a.i!=b.i||a.a.size()!=b.a.size())return 1;
+    for(N i=0;i<a.a.size();i++)if(ne(a.a[i],b.a[i],S))return 1;return 0;
 } static r R(const e&,const r&,W&,V&,V&,const F&,N);
 static r O(const char*n,const r&t,W&E,V&S,V&I,N m) {
     FILE*w=fopen(n,"r");if(!w){printf("n: %s: error: %s\n",n,strerror(errno));return{0,{},{},1};}
@@ -34,9 +36,9 @@ static r O(const char*n,const r&t,W&E,V&S,V&I,N m) {
 } static r u(const e&g,const r&t,N&i,N&b,N D,N m,W&E,V&S,V&I,const F&f) {
     if(D>m)return{0,{},{},1};if(i<g.s.size()&&!g.s[i].t.v)return R(g.s[i++],t,E,S,I,f,m);if(i<g.s.size()&&in(_s,t.i,I))return{t.i,{},g.s[i++].t};
     N si=i;V Z=S;for(N s:Z.back()){b=fmax(i,b);i=si;S=Z;std::vector<r> A={};
-        if(ne(E[s].t,t,S.back()))goto c;for(N j=0;j<E[s].s.size();j++){if(i>=g.s.size()){if(A.size()&&j==1)return A[0];else goto c;}
-            if(!E[s].s[j].t.v){r a=u(g,E[E[s].s[j].i].t,i,b,D+1,m,E,S,I,f);if(a.e||ne(E[s].t,t,S.back()))goto c;else A.push_back({a});
-            }else if(E[s].s[j].t.v!=g.s[i].t.v)goto c;else i++;
+        if(ne(E[s].t,t,S))goto c;for(N j=0;j<E[s].s.size();j++){if(i>=g.s.size()){if(A.size()&&j==1)return A[0];else goto c;}
+            if(!E[s].s[j].t.v){r a=u(g,E[E[s].s[j].i].t,i,b,D+1,m,E,S,I,f);if(a.e)goto c;A.push_back({a});
+            }else if(E[s].s[j].t.v!=g.s[i].t.v)goto c;else i++;// ||ne(E[s].t,t,S)
         }if(in(_d,s,I)&&A[0].t.v-42<_C&&A[0].t.v>=42){ I[A[0].t.v-42].push_back(E.size()); d({},{},{},E,S); } return{s,A};c:continue;}return{0,{},{},1};
 }static r R(const e&g,const r&T,W&E,V&S,V&I,const F&f,N m){
     N i=0,b=0;r s=u(g,T,i,b,0,m,E,S,I,f);if(i<g.s.size())s.e=1;if(s.e){t B=b<g.s.size()?g.s[b].t:g.t;printf("n3zqx2l: %s:%ld:%ld: error: %s: unresolved %c\n",f.n,B.l,B.c,sr(T, E).c_str(),(char)B.v);}return s;
@@ -154,14 +156,13 @@ static std::unique_ptr<llvm::Module>g(const r&g,W&E,V&S,V&I,const char*n,llvm::L
             else if(c=='d'&&i+1<ac)M=atol(av[++i]);else if(strchr("ocis",c)&&i+1<ac){o=c;en=av[++i];}
             else{printf("n: error: bad option: %s\n",av[i]);continue;}
         }else{const char*ex=strrchr(av[i],'.');if(ex&&!strcmp(ex,".n")) {
-                std::vector<E>E{{}};V S{{}},I(_C,std::vector<N>{});for(N i=__;i<_C;i++)I[i].push_back(i);
-                d({{0,{},{'i'}}},{},{},E,S);d({{0,{},{'x'}}},{_i},{},E,S);d({{0,{},{'y'}}},{_i},{},E,S);d({{0,{},{'j'}},{_0},{_1}},{_i},{},E,S);d({{0,{},{'s'}}},{_i},{},E,S);d({{0,{},{'p'}}},{_s},{},E,S);d({{0,{},{'d'}},{_2}},{_i},{},E,S);
+                std::vector<E>E{};V S{{}},I(_C,std::vector<N>{});for(N i=__;i<_C;i++)I[i].push_back(i);
+                d({},{},{},E,S);d({{0,{},{'i'}}},{},{},E,S);d({{0,{},{'x'}},{0,{},{'q'}}},{_i},{},E,S);d({{0,{},{'y'}}},{_i},{},E,S);d({/*{0,{},{'j'}},*/{_0},{_1}},{_i},{},E,S);d({{0,{},{'s'}}},{_i},{},E,S);d({{0,{},{'p'}}},{_s},{},E,S);d({{0,{},{'d'}},{_2}},{_i},{},E,S);
                 if (llvm::Linker::linkModules(*m,g(O(av[i],{_i},E,S,I,M),E,S,I,av[i],C,nf)))continue;
             }else if (ex&&!strcmp(ex,".ll")) {llvm::SMDiagnostic er;std::string es="";auto _m=llvm::parseAssemblyFile(av[i],er,C);if(!_m){er.print("llvm",llvm::errs());continue;}else sd(_m);
                 if(llvm::verifyModule(*_m,&(llvm::raw_string_ostream(es)<<""))||llvm::Linker::linkModules(*m,std::move(_m))){printf("llvm: %s: error: %s\n",av[i],es.c_str());continue;}
             }else{printf("n: error: cannot process file \"%s\" with extension \"%s\"\n",av[i],ex);continue;}nf=0;
         }}if(nf)printf("n: error: no input files\n");else output(o,en,A,optimize(m));
 }
-
 //        if (in(_d,s,I)) d({},A[1],A[2],E,S);
 //        if (in(_l,s,I)) return lf(A[0].t.s,A[1],E,S,I,m);

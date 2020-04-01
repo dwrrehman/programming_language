@@ -69,11 +69,11 @@
          </CommandLineArgument>
          <CommandLineArgument
             argument = "-d"
-            isEnabled = "NO">
+            isEnabled = "YES">
          </CommandLineArgument>
          <CommandLineArgument
-            argument = "40"
-            isEnabled = "NO">
+            argument = "20"
+            isEnabled = "YES">
          </CommandLineArgument>
          <CommandLineArgument
             argument = "/Users/deniylreimn/Documents/projects/n3zqx2l/examples/test.n"
