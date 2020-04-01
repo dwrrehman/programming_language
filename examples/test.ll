@@ -126,3 +126,57 @@ if (debug) {
 
 
 debug_stack(E, S); debug_lex(f);
+
+
+
+
+
+
+
+
+
+
+
+
+//                std::vector<std::string> defined_intrinsics {
+//                    "(i)",
+//                    "(name) (i)",
+//                    "(nat) (i)",
+//                    "(join ((join-first) (i)) ((join-second) (i))) (i)",
+//                    "(decl ((decl-name) (name) (i)) ((decl-ii) (nat) (i)) ((decl-extern) (nat) (i))) (i)"
+//                };
+                            
+//        if (is_intrin(_declare, s, intrinsics) and args[1].number < _intrinsic_count) intrinsics[args[1].number].push_back(args[0].name[0].me.index = define(args[0].name[0], {}, entries, stack));
+//        if (is_intrin(_define, s, intrinsics)) args[0].name[0].me.index = define(args[0].name[0], args[2], entries, stack);
+
+///TODO: we need to throw an error when we encounter a unexpected ")". very important, actually.    at any cost, we need to do it.    it is a silent but deadly nonerror right now.   because it can lead to code not beinginterretered at all.
+
+
+
+
+llvm::IRBuilder<> b(C);
+sd(m);
+if (g.e) {
+    if (debug) printf("error: not generating llvm: resolution error\n");
+    return m;
+}
+auto main = llvm::Function::Create(llvm::FunctionType::get(llvm::Type::getInt32Ty(C), {
+    llvm::Type::getInt32Ty(C),
+    llvm::Type::getInt8PtrTy(C)->getPointerTo()
+}, false), llvm::Function::ExternalLinkage, "main", m.get());
+b.SetInsertPoint(llvm::BasicBlock::Create(C, "entry", main));
+auto v = generate_expression(g, E, S, m.get(), main, b);
+if (debug) {
+    printf("the top level value was found to be: \n");
+    if (v) v->print(llvm::outs());
+    else printf("(null)");
+    printf("\n");
+}
+b.SetInsertPoint(&main->getBasicBlockList().back());
+b.CreateRet(llvm::ConstantInt::get(llvm::Type::getInt32Ty(C), 0));
+if (debug) {
+    printf(" ------------generating code for module ----------:\n\n");
+    m->print(llvm::outs(), nullptr);
+}
+std::string er = "";
+if (llvm::verifyModule(*m, &(llvm::raw_string_ostream(er) << ""))) printf("llvm: %s: error: %s\n", f.n, er.c_str());
