@@ -7,8 +7,6 @@
 #include "llvm/Support/TargetRegistry.h"
 #include "llvm/Support/TargetSelect.h"
 #include "llvm/Support/SourceMgr.h"
-#include <fstream>
-#include <vector>
 const bool debug=true;enum {__,_i,_0,_1,_j,_s,_2,_d,_C}; typedef size_t N;typedef std::vector<std::vector<N>> V; struct F{const char*n=0;char* t=0;N l=0;};
 struct L{N i=0;N s=0;N l=0;N c=0;};struct t{N v=0;const char*s=0;N l = 0; N c=0;}; struct e{t t={};std::vector<e> s={};N e=0;};struct r{N i=0;std::vector<r> a={};t t={};N e=0;}; struct E{std::vector<r> s={};r t={};r d={};};typedef std::vector<E> W;
 static t n(L&l,F&f){t t{};for(N&i=l.i;i<f.l;i++){
