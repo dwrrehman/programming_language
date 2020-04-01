@@ -180,3 +180,15 @@ if (debug) {
 }
 std::string er = "";
 if (llvm::verifyModule(*m, &(llvm::raw_string_ostream(er) << ""))) printf("llvm: %s: error: %s\n", f.n, er.c_str());
+
+
+
+
+
+
+
+
+
+static llvm::Value* generate_expression(const r& g, W& E, V& S, llvm::Module* m, llvm::Function* f, llvm::IRBuilder<>& b) {
+    return 0;
+}

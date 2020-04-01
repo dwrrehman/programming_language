@@ -1,1 +1,92 @@
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+static void debug_lex(const F &file) {
+    if (not debug) return;
+    
+    printf("-------------- lexing --------------\n");
+    L temp_state {0, 0, 1, 1};
+    
+    struct F temp_file = {file.n, (char*) calloc(file.l, sizeof(char)), file.l};
+    for (N i = 0; i < file.l; i++) temp_file.t[i] = file.t[i];
+    
+    t t = n(temp_state, temp_file);
+    while (t.v) {
+        
+        printf("token: %lu : '%c'  @(%lu, %lu)", t.v, (char)t.v, t.l, t.c);
+        
+        if (t.v == 1) printf(" : string: %s\n", t.s);
+        else printf("\n");
+        
+        t = n(temp_state, temp_file);
+    }
+}
+
+
+
+
+static inline void debug_line_expression(const e& given) {
+    if (given.t.v == 1) printf("\"%s\"", given.t.s);
+    else if (given.t.v) putchar(given.t.v);
+    else { putchar('('); for (const auto& symbol : given.s) debug_line_expression(symbol); putchar(')'); }
+}
+
+static inline void debug_expression(e e, N d) {
+    if (not debug) return;
+    prep(d); printf("error = %lu\n", e.e);
+    prep(d); printf("token: %lu : '%c'  @(%lu, %lu)\n", e.t.v, (char)e.t.v, e.t.l, e.t.c);
+    if (e.t.v == 1) { prep(d); printf("    string = %s\n", e.t.s); }
+    prep(d); printf("children: {\n");
+    for (auto f : e.s) {
+        prep(d+1); printf("child: \n");
+        debug_expression(f, d + 1);
+    }
+    prep(d); printf("}\n");
+}
+
+
+
+
+
+void debug_lex(const F &file) {
+    if (not debug) return;
+    
+    printf("-------------- lexing --------------\n");
+    L temp_state {0, 0, 1, 1};
+    
+    struct F temp_file = {file.n, (char*) calloc(file.l, sizeof(char)), file.l};
+    for (N i = 0; i < file.l; i++) temp_file.t[i] = file.t[i];
+    
+    t t = n(temp_state, temp_file);
+    while (t.v) {
+        
+        printf("token: %lu : '%c'  @(%lu, %lu)", t.v, (char)t.v, t.l, t.c);
+        
+        if (t.v == 1) printf(" : string: %s\n", t.s);
+        else printf("\n");
+        
+        t = n(temp_state, temp_file);
+    }
+}
