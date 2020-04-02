@@ -21,8 +21,27 @@ static t n(L&l,F&f){t t{};for(N&i=l.i;i<f.l;i++){
     std::string o="";N i=0;for(r s:E[g.i].s)if(s.t.v==1)o+="\""+std::string(s.t.s)+"\""; else if(s.t.v)o+=s.t.v;else o+="("+sr(g.a.size()?g.a[i++]:s,E)+")"; if (E[g.i].t.i) o += " " + sr(E[g.i].t, E); return o;
 } static void d(const std::vector<r>& s, const r& t, const r& d, W& E, V& S) {
     S.back().push_back(E.size());E.push_back({s,t,d});
-    std::stable_sort(S.back().begin(),S.back().end(),[&](N a,N b){return(E[a].s.size()&&!E[a].s.front().t.v)||E[a].s.size()>E[b].s.size();});
-//    std::stable_sort(S.back().begin(),S.back().end(),[&](N a,N b){return ;});
+    std::stable_sort
+    (
+     S.back().begin(),
+     S.back().end(),
+     
+     [&](const N& ai, const N& bi) {
+        auto a = E[ai].s;
+        auto b = E[bi].s;
+        bool aa = a.size() && !a[0].t.v;
+        bool bb = b.size() && !b[0].t.v;
+        bool cc = a.size() > b.size();
+        bool not_aa = a.empty() or a[0].t.v;
+        bool not_bb = b.empty() or b[0].t.v;
+        
+        /// ~bc + a~b + ac
+        return not bb and cc or aa and not bb or aa and cc;
+        
+        if (aa xor bb) return aa;
+        else return cc;
+
+    });
 } static N in(N c,N t,const V&I){return std::find(I[c].begin(),I[c].end(),t)!=I[c].end();}
 static N ne(const r&a,const r&b,const V&S) {
     if(std::find(S.back().begin(),S.back().end(),a.i)==S.back().end()) return 0;
@@ -166,3 +185,19 @@ static std::unique_ptr<llvm::Module>g(const r&g,W&E,V&S,V&I,const char*n,llvm::L
 }
 //        if (in(_d,s,I)) d({},A[1],A[2],E,S);
 //        if (in(_l,s,I)) return lf(A[0].t.s,A[1],E,S,I,m);
+
+/// a xor b       ==        a and not b    or   not a and b
+        /// a --> b       ==             not a     or      b
+                
+        //////////////////
+        
+        ///     ( P xor Q ) => P    ====
+        ///     else  => R
+//        !(P !Q + !P Q) + P
+                
+//     ! (Q !P) ==>    !Q + P
+        
+        
+        // xor       00->0    10->1    01->1
+        //
+        /////////////////

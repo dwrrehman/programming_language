@@ -103,8 +103,26 @@ static inline void debug_stack(W entries, V stack) {
 
 
 
+S:   { 1, 2, 0 }
 
+E: {
 
+    0:    hello int
+
+    1:    (int)there void
+
+    2:    hellothere void
+    
+}
+
+g:
+
+    (hello) there
+    
+    
+        
+    
+    
 
 
 
