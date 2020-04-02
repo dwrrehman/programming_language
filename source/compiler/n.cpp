@@ -7,7 +7,26 @@
 #include "llvm/Support/TargetRegistry.h"
 #include "llvm/Support/TargetSelect.h"
 #include "llvm/Support/SourceMgr.h"
-const bool debug=true;enum {__,_i,_0,_1,_j,_s,_2,_d,_3,_4,_l,_C}; typedef size_t N;typedef std::vector<std::vector<N>> V; struct F{const char*n=0;char* t=0;N l=0;};
+const bool debug=true;
+enum{
+    _o,
+    
+    _i,
+    
+    _s,
+    
+    _j0,
+    _j1,
+    _j,
+    
+    _d0,
+    _d1,
+    _d,
+    
+    _C,
+    
+    };
+typedef size_t N;typedef std::vector<std::vector<N>> V; struct F{const char*n=0;char* t=0;N l=0;};
 struct L{N i=0;N s=0;N l=0;N c=0;};struct t{N v=0;const char*s=0;N l = 0; N c=0;}; struct e{t t={};std::vector<e> s={};N e=0;};struct r{N i=0;std::vector<r> a={};t t={};N e=0;}; struct E{std::vector<r> s={};r t={};r d={};};typedef std::vector<E> W;
 static t n(L&l,F&f){t t{};for(N&i=l.i;i<f.l;i++){
         N c=f.t[i];if(c=='\"'&&!l.s)t={l.s=1,f.t+i+1,l.l,l.c};
@@ -19,34 +38,12 @@ static t n(L&l,F&f){t t{};for(N&i=l.i;i<f.l;i++){
         }S=s;t=n(s,f);}s=S;return l;
 } static std::string sr(const r& g, const W& E) {
     std::string o="";N i=0;for(r s:E[g.i].s)if(s.t.v==1)o+="\""+std::string(s.t.s)+"\""; else if(s.t.v)o+=s.t.v;else o+="("+sr(g.a.size()?g.a[i++]:s,E)+")"; if (E[g.i].t.i) o += " " + sr(E[g.i].t, E); return o;
-} static void d(const std::vector<r>& s, const r& t, const r& d, W& E, V& S) {
-    S.back().push_back(E.size());E.push_back({s,t,d});
-    std::stable_sort
-    (
-     S.back().begin(),
-     S.back().end(),
-     
-     [&](const N& ai, const N& bi) {
-        auto a = E[ai].s;
-        auto b = E[bi].s;
-        bool aa = a.size() && !a[0].t.v;
-        bool bb = b.size() && !b[0].t.v;
-        bool cc = a.size() > b.size();
-        bool not_aa = a.empty() or a[0].t.v;
-        bool not_bb = b.empty() or b[0].t.v;
-        
-        /// ~bc + a~b + ac
-        return not bb and cc or aa and not bb or aa and cc;
-        
-        if (aa xor bb) return aa;
-        else return cc;
-
-    });
+} static void d(const std::vector<r>& s,const r& t,const r& d,W&E,V&S) {
+    S.back().push_back(E.size());E.push_back({s,t,d}); std::stable_sort(S.back().begin(),S.back().end(),[E](N ai,N bi){auto a=E[ai].s,b=E[bi].s;auto e=a.size()&&!a[0].t.v;if(e!=(b.size()&&!b[0].t.v))return e;return a.size()>b.size();});
 } static N in(N c,N t,const V&I){return std::find(I[c].begin(),I[c].end(),t)!=I[c].end();}
 static N ne(const r&a,const r&b,const V&S) {
     if(std::find(S.back().begin(),S.back().end(),a.i)==S.back().end()) return 0;
-    if(a.i!=b.i||a.a.size()!=b.a.size())return 1;
-    for(N i=0;i<a.a.size();i++)if(ne(a.a[i],b.a[i],S))return 1;return 0;
+    if(a.i!=b.i||a.a.size()!=b.a.size())return 1;for(N i=0;i<a.a.size();i++)if(ne(a.a[i],b.a[i],S))return 1;return 0;
 } static r R(const e&,const r&,W&,V&,V&,const F&,N);
 static r O(const char*n,const r&t,W&E,V&S,V&I,N m) {
     FILE*w=fopen(n,"r");if(!w){printf("n: %s: error: %s\n",n,strerror(errno));return{0,{},{},1};}
@@ -57,8 +54,8 @@ static r O(const char*n,const r&t,W&E,V&S,V&I,N m) {
     N si=i;V Z=S;for(N s:Z.back()){b=fmax(i,b);i=si;S=Z;std::vector<r> A={};
         if(ne(E[s].t,t,S))goto c;for(N j=0;j<E[s].s.size();j++){if(i>=g.s.size()){if(A.size()&&j==1)return A[0];else goto c;}
             if(!E[s].s[j].t.v){r a=u(g,E[E[s].s[j].i].t,i,b,D+1,m,E,S,I,f);if(a.e)goto c;A.push_back({a});
-            }else if(E[s].s[j].t.v!=g.s[i].t.v)goto c;else i++;// ||ne(E[s].t,t,S)
-        }if(in(_d,s,I)&&A[0].t.v-42<_C&&A[0].t.v>=42){ I[A[0].t.v-42].push_back(E.size()); d({},{},{},E,S); } return{s,A};c:continue;}return{0,{},{},1};
+            }else if(E[s].s[j].t.v!=g.s[i].t.v)goto c;else i++;// ||ne(E[s].t,t,S) ///TODO: CURRENT ERROR RIGHT HERE!
+        }if(in(_d,s,I)){if (A[0].t.v-42<_C&&A[0].t.v>=42)I[A[0].t.v-42].push_back(E.size()); d({{0,{},{'K'}}},{_i},{},E,S);} return{s,A};c:continue;}return{0,{},{},1};
 }static r R(const e&g,const r&T,W&E,V&S,V&I,const F&f,N m){
     N i=0,b=0;r s=u(g,T,i,b,0,m,E,S,I,f);if(i<g.s.size())s.e=1;if(s.e){t B=b<g.s.size()?g.s[b].t:g.t;printf("n3zqx2l: %s:%ld:%ld: error: %s: unresolved %c\n",f.n,B.l,B.c,sr(T, E).c_str(),(char)B.v);}return s;
 }static void sd(std::unique_ptr<llvm::Module>&m) {
@@ -118,7 +115,7 @@ static inline void debug_stack(W entries, V stack) {
         printf("%s", sr({j}, entries).c_str());
                 
         auto def = sr(entry.d, entries);
-        if (def.size()) printf("      =    %s", def.c_str());
+        if (def.size() and entry.d.i) printf("      =    %s", def.c_str());
         
         puts("\n");
         j++;
@@ -175,8 +172,19 @@ static std::unique_ptr<llvm::Module>g(const r&g,W&E,V&S,V&I,const char*n,llvm::L
             else if(c=='d'&&i+1<ac)M=atol(av[++i]);else if(strchr("ocis",c)&&i+1<ac){o=c;en=av[++i];}
             else{printf("n: error: bad option: %s\n",av[i]);continue;}
         }else{const char*ex=strrchr(av[i],'.');if(ex&&!strcmp(ex,".n")) {
-                std::vector<E>E{};V S{{}},I(_C,std::vector<N>{});for(N i=__;i<_C;i++)I[i].push_back(i);
-                d({},{},{},E,S);d({{0,{},{'i'}}},{},{},E,S);d({{0,{},{'x'}},{0,{},{'q'}}},{_i},{},E,S);d({{0,{},{'y'}}},{_i},{},E,S);d({/*{0,{},{'j'}},*/{_0},{_1}},{_i},{},E,S);d({{0,{},{'s'}}},{_i},{},E,S);d({{0,{},{'p'}}},{_s},{},E,S);d({{0,{},{'d'}},{_2}},{_i},{},E,S);
+                std::vector<E>E{};V S{{}},I(_C,std::vector<N>{});for(N i=0;i<_C;i++)I[i].push_back(i);
+            d({{0,{},{'o'}}},{}, {},E,S);
+            d({{0,{},{'i'}}},{}, {},E,S);
+            d({{0,{},{'s'}}},{_i}, {},E,S);
+            
+            d({{0,{},{'x'}}},{_i},{},E,S);
+            d({{0,{},{'y'}}},{_i},{},E,S);
+            d({/*{0,{},{'j'}},*/{_j0},{_j1}},{_i}, {},E,S);
+
+            d({{0,{},{'x'}}},{_s},{},E,S);
+            d({{0,{},{'y'}}},{_i},{},E,S);
+            d({{0,{},{'d'}},{_d0},{_d1}},{_i},{},E,S);
+                        
                 if (llvm::Linker::linkModules(*m,g(O(av[i],{_i},E,S,I,M),E,S,I,av[i],C,nf)))continue;
             }else if (ex&&!strcmp(ex,".ll")) {llvm::SMDiagnostic er;std::string es="";auto _m=llvm::parseAssemblyFile(av[i],er,C);if(!_m){er.print("llvm",llvm::errs());continue;}else sd(_m);
                 if(llvm::verifyModule(*_m,&(llvm::raw_string_ostream(es)<<""))||llvm::Linker::linkModules(*m,std::move(_m))){printf("llvm: %s: error: %s\n",av[i],es.c_str());continue;}
