@@ -15,17 +15,20 @@ enum{
     
     _s,
     
+    _n,
+    
     _j0,
     _j1,
     _j,
+    
+    _a0,
+    _a,
     
     _d0,
     _d1,
     _d,
     
-    _C,
-    
-    };
+    _C};
 typedef size_t N;typedef std::vector<std::vector<N>> V; struct F{const char*n=0;char* t=0;N l=0;};
 struct L{N i=0;N s=0;N l=0;N c=0;};struct t{N v=0;const char*s=0;N l = 0; N c=0;}; struct e{t t={};std::vector<e> s={};N e=0;};struct r{N i=0;std::vector<r> a={};t t={};N e=0;}; struct E{std::vector<r> s={};r t={};r d={};};typedef std::vector<E> W;
 static t n(L&l,F&f){t t{};for(N&i=l.i;i<f.l;i++){
@@ -48,7 +51,7 @@ static N ne(const r&a,const r&b,const V&S) {
 static r O(const char*n,const r&t,W&E,V&S,V&I,N m) {
     FILE*w=fopen(n,"r");if(!w){printf("n: %s: error: %s\n",n,strerror(errno));return{0,{},{},1};}
     fseek(w,0,SEEK_END);N l=ftell(w);char* T=(char*)calloc(l+1,sizeof(char));
-    fseek(w,0,SEEK_SET);fread(T,sizeof(char),l,w);F f={n,T,l};L L{0,0,1,1};return R(p(L,f),t,E,S,I,f,m);
+    fseek(w,0,SEEK_SET);fread(T,sizeof(char),l,w);fclose(w);F f={n,T,l};L L{0,0,1,1};return R(p(L,f),t,E,S,I,f,m);
 } static r u(const e&g,const r&t,N&i,N&b,N D,N m,W&E,V&S,V&I,const F&f) {
     if(D>m)return{0,{},{},1};if(i<g.s.size()&&!g.s[i].t.v)return R(g.s[i++],t,E,S,I,f,m);if(i<g.s.size()&&in(_s,t.i,I))return{t.i,{},g.s[i++].t};
     N si=i;V Z=S;for(N s:Z.back()){b=fmax(i,b);i=si;S=Z;std::vector<r> A={};
@@ -176,11 +179,15 @@ static std::unique_ptr<llvm::Module>g(const r&g,W&E,V&S,V&I,const char*n,llvm::L
             d({{0,{},{'o'}}},{}, {},E,S);
             d({{0,{},{'i'}}},{}, {},E,S);
             d({{0,{},{'s'}}},{_i}, {},E,S);
+            d({{0,{},{'n'}}},{_i}, {},E,S);
             
             d({{0,{},{'x'}}},{_i},{},E,S);
             d({{0,{},{'y'}}},{_i},{},E,S);
             d({/*{0,{},{'j'}},*/{_j0},{_j1}},{_i}, {},E,S);
 
+            d({{0,{},{'x'}}},{_s},{},E,S);
+            d({{_a0}},{_i},{},E,S);
+                        
             d({{0,{},{'x'}}},{_s},{},E,S);
             d({{0,{},{'y'}}},{_i},{},E,S);
             d({{0,{},{'d'}},{_d0},{_d1}},{_i},{},E,S);
