@@ -3,6 +3,59 @@ the current status of the nostril compiler:
 
 
 
+current problems we are trying to solve:
+
+
+
+
+========= SIGNATURES: =============
+
+    - we are trying to figure out the intrinsic list:
+    
+        appchar? join? joinchar? decl?
+        
+    
+    
+    - we are trying to figure out how to specify a signature properly,
+    
+        ie, have joinchar and appchar and declparam   work in csr, to be a signature: vec<r>.
+    
+    
+    
+    
+=========== RTPP: =================
+    
+    - figure out why:
+    
+            our fix to solving return-type-param-polymoprhism is segfaulting, basically always...
+    
+    - test out return type parampolymophrism (ret-ty-pp).
+    
+            when we do finally fix it.
+    
+    
+    
+
+================================================
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 current TODO:
@@ -21,7 +74,6 @@ current TODO:
        
     - make the not_equals() (different())  function cope with subsitutes!!!
     
-    
     - simplify and reduce the file .s/.ll/o generation code.
     - ...make it more C-like! preparing for the C++ --> C switch.
     
@@ -29,8 +81,10 @@ current TODO:
     - try to use llvm::smallvector more? to reduce a dependancy on the standard libary? i dont know... maybe not...
         - nah....
         
-    - figure out how to sort the symbol table now, so its just like it was previously  (csr relies on it.)
-    - SECONDARY: figure out how to give the right comparison function, so we only need to call std::stable_sort() once.
+
+
+
+
 
 
 
@@ -42,6 +96,9 @@ current TODO:
 
 DONE:
 =============
+
+x:    - figure out how to sort the symbol table now, so its just like it was previously  (csr relies on it.)
+x:    - SECONDARY: figure out how to give the right comparison function, so we only need to call std::stable_sort() once.
 
 
 
