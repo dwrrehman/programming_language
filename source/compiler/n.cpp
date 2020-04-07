@@ -8,7 +8,7 @@
 #include "llvm/Support/TargetRegistry.h"
 #include "llvm/Support/TargetSelect.h"
 
-const bool debug = true;
+const bool debug = 1;
 
 enum { _o, _i, _s, _n, _j0, _j1, _j, _a0, _a, _d0, _d1, _d, _C };
 
@@ -17,91 +17,85 @@ typedef size_t N;
 typedef std::vector<std::vector<N>> V;
 
 struct F {
-    const char *n = 0;
-    char *t = 0;
-    N l = 0;
+    const char *n;
+    char *t;
+    N l;
 };
 
 struct L {
-    N i = 0;
-    N s = 0;
-    N l = 0;
-    N c = 0;
+    N i, l, c;
 };
 
 struct t {
-    N v = 0;
-    const char *s = 0;
-    N l = 0;
-    N c = 0;
+    N v, l, c;
+    const char *s;
 };
 
 struct e {
-    t t = {};
-    std::vector<e> s = {};
-    N e = 0;
+    std::vector<e> s;
+    t t;
 };
-
-struct r {
-    N i = 0;
-    std::vector<r> a = {};
-    t t = {};
-    N e = 0;
+/// TODO: merge these two structs.
+struct r {    
+    std::vector<r> a;
+    t t;
+    N i, error;
 };
 
 struct E {
-    std::vector<r> s = {};
-    r t = {};
-    r d = {};
+    std::vector<r> s;
+    r t, d;
 };
 
 typedef std::vector<E> W;
 
 static t n(L &l, F &f) {
-    t t {};
-    for (N &i = l.i; i < f.l; i++) {
-        
-        N c = f.t[i];
-        if (c == '\"' && !l.s)
-            t = {l.s = 1, f.t + i + 1, l.l, l.c};
-        else if (!isspace(c) && !l.s) {
-            i++;
-            return {c, "", l.l, l.c++};
-        } else if (c == '\"' && l.s) {
-            l.s = 0;
+    while (isspace(f.t[l.i])) {
+        if (f.t[l.i++] != '\n')
             l.c++;
-            f.t[i++] = 0;
-            return t;
-        }
-        
-        if (c == 10) {
+        else {
             l.l++;
             l.c = 1;
-        } else
-            l.c++;
+        }
     }
-    
-    if (l.s)
-        printf("n3zqx2l: %s:%ld:%ld: error: expected \"\n\n", f.n, l.l, l.c);
-    return t;
+
+    if (f.t[l.i] != '\"')
+        return {(N)f.t[l.i++], l.l, l.c++, 0};
+
+    else {
+        t t{1, l.l, l.c++, ++l.i + f.t};
+
+        while (f.t[l.i] && f.t[l.i] != '\"') {
+            if (f.t[l.i++] != '\n')
+                l.c++;
+            else {
+                l.l++;
+                l.c = 1;
+            }
+        }
+        if (f.t[l.i]) f.t[l.i++] = 0;
+        else printf("n3zqx2l: %s:%ld:%ld: error: expected \"\n\n", f.n, l.l, l.c);
+        l.c++;
+        return t;
+    }
 }
 
 static e p(L &s, F &f) {
-    e l {};
+    e l{};
     L S = s;
     t t = n(s, f);
     while (t.v && t.v != ')') {
-        
-        if (t.v == 1 || !strchr("()", t.v))
-            l.s.push_back({t});
+        if (t.v == 1 || (t.v != '(' && t.v != ')'))
+            l.s.push_back({0, {}, t});
+
         else if (t.v == '(') {
             e e = p(s, f);
             if (n(s, f).v != ')')
                 printf("n3zqx2l: %s:%ld:%ld: error: expected )\n\n", f.n, t.l,
                        t.c);
+
+            e.t.l = t.l, e.t.c = t.c, e.t.v = 0;
             l.s.push_back(e);
-            t.v = 0;
-            l.s.back().t = t;
         }
         S = s;
         t = n(s, f);
@@ -120,10 +114,9 @@ static std::string sr(const r &g, const W &E) {
             o += s.t.v;
         else
             o += "(" + sr(g.a.size() ? g.a[i++] : s, E) + ")";
-    
-    if (E[g.i].t.i)
-        o += " " + sr(E[g.i].t, E);
-    
+
+    if (E[g.i].t.i) o += " " + sr(E[g.i].t, E);
+
     return o;
 }
 
@@ -148,11 +141,11 @@ static N in(N c, N t, const V &I) {
 static N ne(const r &a, const r &b, const V &S) {
     if (std::find(S.back().begin(), S.back().end(), a.i) == S.back().end())
         return 0;
-    if (a.i != b.i || a.a.size() != b.a.size())
-        return 1;
+
+    if (a.i != b.i || a.a.size() != b.a.size()) return 1;
+
     for (N i = 0; i < a.a.size(); i++)
-        if (ne(a.a[i], b.a[i], S))
-            return 1;
+        if (ne(a.a[i], b.a[i], S)) return 1;
     return 0;
 }
 static r R(const e &, const r &, W &, V &, V &, const F &, N);
@@ -168,45 +161,40 @@ static r O(const char *n, const r &t, W &E, V &S, V &I, N m) {
     fseek(w, 0, 0);
     fread(T, sizeof(char), l, w);
     fclose(w);
-    F f {n, T, l};
-    L L {0, 0, 1, 1};
+    F f{n, T, l};
+    L L{0, 1, 1};
     return R(p(L, f), t, E, S, I, f, m);
 }
 static r u(const e &g, const r &t, N &i, N &b, N D, N m, W &E, V &S, V &I,
            const F &f) {
-    if (D > m)
-        return {0, {}, {}, 1};
+    if (D > m) return {0, {}, {}, 1};
 
-    if (i < g.s.size() && !g.s[i].t.v)
-        return R(g.s[i++], t, E, S, I, f, m);
+    if (i < g.s.size() && !g.s[i].t.v) return R(g.s[i++], t, E, S, I, f, m);
 
-    if (i < g.s.size() && in(_s, t.i, I))
-        return {t.i, {}, g.s[i++].t};
+    if (i < g.s.size() && in(_s, t.i, I)) return {t.i, {}, g.s[i++].t};
 
     N si = i;
     V Z = S;
-    
+
     for (N s : Z.back()) {
         b = fmax(i, b);
         i = si;
         S = Z;
         std::vector<r> A = {};
-        if (ne(E[s].t, t, S))
-            goto c;
-        
+        if (ne(E[s].t, t, S)) goto c;
+
         for (N j = 0; j < E[s].s.size(); j++) {
-            
             if (i >= g.s.size()) {
                 if (A.size() && j == 1)
                     return A[0];
                 else
                     goto c;
             }
-            
+
             if (!E[s].s[j].t.v) {
                 r a = u(g, E[E[s].s[j].i].t, i, b, D + 1, m, E, S, I, f);
-                if (a.e) // ||ne(E[s].t,t,S) ///TODO: CURRENT ERROR RIGHT HERE!
-                    goto c;
+                if (a.error)  // ||ne(E[s].t,t,S)
+                    goto c; ///TODO: CURRENT ERROR RIGHT HERE!
                 A.push_back({a});
             } else if (E[s].s[j].t.v != g.s[i].t.v)
                 goto c;
@@ -214,9 +202,11 @@ static r u(const e &g, const r &t, N &i, N &b, N D, N m, W &E, V &S, V &I,
                 i++;
         }
         if (in(_d, s, I)) {
-            if (A[0].t.v - 42 < _C && A[0].t.v >= 42)
-                I[A[0].t.v - 42].push_back(E.size());
-            d({{0, {}, {'K'}}}, {_i}, {}, E, S);
+            auto ccc = A[0].t.v;
+            if (ccc - 42 < _C && ccc >= 42)
+                I[ccc - 42].push_back(E.size());
+            
+            d({{0, {}, {'K', 0, 0, 0}}}, {_i}, {}, E, S);
         }
         return {s, A};
     c:
@@ -228,10 +218,9 @@ static r R(const e &g, const r &T, W &E, V &S, V &I, const F &f, N m) {
     N i = 0, b = 0;
     r s = u(g, T, i, b, 0, m, E, S, I, f);
 
-    if (i < g.s.size())
-        s.e = 1;
+    if (i < g.s.size()) s.error = 1;
 
-    if (s.e) {
+    if (s.error) {
         t B = b < g.s.size() ? g.s[b].t : g.t;
         printf("n3zqx2l: %s:%ld:%ld: error: %s: unresolved %c\n", f.n, B.l, B.c,
                sr(T, E).c_str(), (char)B.v);
@@ -250,29 +239,24 @@ static void sd(std::unique_ptr<llvm::Module> &m) {
 //////////// DEBUG CODE ////////////////
 
 void prep(N d) {
-    for (N i = 0; i < d; i++)
-        printf(".   ");
+    for (N i = 0; i < d; i++) printf(".   ");
 }
 
 static inline void debug_intrinsics(V intrinsics) {
-    if (not debug)
-        return;
+    if (not debug) return;
     printf("\n---- debugging intrinsics: ----\n");
     for (N i = 0; i < intrinsics.size(); i++) {
-        if (intrinsics[i].empty())
-            continue;
+        if (intrinsics[i].empty()) continue;
         printf("\t ----- INTRINSIC ID # %lu ---- \n\t\tsignatures: { ", i);
-        for (auto index : intrinsics[i])
-            printf("%lu ", index);
+        for (auto index : intrinsics[i]) printf("%lu ", index);
         printf("}\n\n");
     }
     printf("\n--------------------------------\n");
 }
 
 static inline void debug_resolved(r e, W entries, N depth = 0) {
-    if (not debug)
-        return;
-    if (e.e) {
+    if (not debug) return;
+    if (e.error) {
         prep(depth);
         printf("[ERROR]\n");
     }
@@ -295,18 +279,15 @@ static inline void debug_resolved(r e, W entries, N depth = 0) {
 }
 
 static inline void debug_stack(W entries, V stack) {
-    if (not debug)
-        return;
+    if (not debug) return;
 
     printf("\n---- debugging stack: ----\n");
     printf("printing frames: \n");
 
     for (N i = 0; i < stack.size(); i++) {
-
         printf("\t ----- FRAME # %lu ---- \n\t\tidxs: { ", i);
 
-        for (auto index : stack[i])
-            printf("%lu ", index);
+        for (auto index : stack[i]) printf("%lu ", index);
 
         puts("}");
     }
@@ -319,8 +300,7 @@ static inline void debug_stack(W entries, V stack) {
         printf("%s", sr({j}, entries).c_str());
 
         auto def = sr(entry.d, entries);
-        if (def.size() and entry.d.i)
-            printf("      =    %s", def.c_str());
+        if (def.size() and entry.d.i) printf("      =    %s", def.c_str());
 
         puts("\n");
         j++;
@@ -330,8 +310,9 @@ static inline void debug_stack(W entries, V stack) {
 
 ///////////////////////////////////////
 
-static std::unique_ptr<llvm::Module>
-g(const r &g, W &E, V &S, V &I, const char *n, llvm::LLVMContext &C, N nf) {
+static std::unique_ptr<llvm::Module> g(const r &g, W &E, V &S, V &I,
+                                       const char *n, llvm::LLVMContext &C,
+                                       N nf) {
     if (debug) {
         printf("\n\ndebugging resolved:\n");
         debug_resolved(g, E);
@@ -343,20 +324,19 @@ g(const r &g, W &E, V &S, V &I, const char *n, llvm::LLVMContext &C, N nf) {
         debug_intrinsics(I);
         printf("\n\n");
     }
-    if (debug)
-        printf("\n\n\t%s\n\n", sr(g, E).c_str());
-    if (g.e)
-        exit(1);
+    if (debug) printf("\n\n\t%s\n\n", sr(g, E).c_str());
+    if (g.error) exit(1);
 
     auto m = llvm::make_unique<llvm::Module>(n, C);
     return m;
 }
 
-static std::unique_ptr<llvm::Module>
-optimize(std::unique_ptr<llvm::Module> &m) {
+static std::unique_ptr<llvm::Module> optimize(
+    std::unique_ptr<llvm::Module> &m) {
     if (debug) {
-        printf("\n\n\n\n-------- printing the final state of the module before "
-               "output:------ \n\n");
+        printf(
+            "\n\n\n\n-------- printing the final state of the module before "
+            "output:------ \n\n");
         m->print(llvm::errs(), nullptr);
     }
     std::string er = "";
@@ -391,7 +371,7 @@ static std::string G(std::unique_ptr<llvm::Module> m, const char *n,
     auto tm =
         llvm::TargetRegistry::lookupTarget(m->getTargetTriple(), le)
             ->createTargetMachine(m->getTargetTriple(), "generic", "", {}, {},
-                                  {}); /// TODO: make this not generic!
+                                  {});  /// TODO: make this not generic!
     auto of = std::string(n) +
               (t == llvm::TargetMachine::CGFT_AssemblyFile ? ".s" : ".o");
     llvm::raw_fd_ostream d(of, er, llvm::sys::fs::F_None);
@@ -411,14 +391,10 @@ static void ee(const std::string &o, const std::string &e) {
 
 static void output(N o, const char *n, const std::vector<std::string> &a,
                    std::unique_ptr<llvm::Module> &&m) {
-    if (!o)
-        x(std::move(m), a);
-    if (o == 'i')
-        G(std::move(m), n, llvm::TargetMachine::CGFT_Null);
-    if (o == 'c')
-        G(std::move(m), n, llvm::TargetMachine::CGFT_ObjectFile);
-    if (o == 's')
-        G(std::move(m), n, llvm::TargetMachine::CGFT_AssemblyFile);
+    if (!o) x(std::move(m), a);
+    if (o == 'i') G(std::move(m), n, llvm::TargetMachine::CGFT_Null);
+    if (o == 'c') G(std::move(m), n, llvm::TargetMachine::CGFT_ObjectFile);
+    if (o == 's') G(std::move(m), n, llvm::TargetMachine::CGFT_AssemblyFile);
     if (o == 'o')
         ee(G(std::move(m), n, llvm::TargetMachine::CGFT_ObjectFile), n);
 }
@@ -435,16 +411,20 @@ int main(int ac, const char **av) {
     const char *en = "";
     std::vector<std::string> A = {};
     for (long i = 1; i < ac; i++) {
-        if (av[i][0] == '-') {
+        if (ea) {
+            while (i < ac)
+                A.push_back(av[i++]);
+        
+        } else if (av[i][0] == '-') {
             N c = av[i][1];
-            if (ea)
-                A.push_back(av[i]);
-            else if (c == '-')
+           
+            if (c == '-')
                 ea = 1;
             else if (c == 'u') {
-                puts("usage: n [-u/-v] [-o <exe>/-c <object>/-i <ir>/-s "
-                     "<assembly>] "
-                     "{[-d <depth>] <.n/.ll/.o/.s>}* [-- {<argv>}*]");
+                puts(
+                    "usage: n [-u/-v] [-o <exe>/-c <object>/-i <ir>/-s "
+                    "<assembly>] "
+                    "{[-d <depth>] <.n/.ll/.o/.s>}* [-- {<argv>}*]");
                 exit(0);
             } else if (c == 'v') {
                 puts("n3zqx2l: 0.0.4 \tn: 0.0.4");
@@ -461,25 +441,26 @@ int main(int ac, const char **av) {
         } else {
             const char *ex = strrchr(av[i], '.');
             if (ex && !strcmp(ex, ".n")) {
-                std::vector<E> E{};
+                std::vector<E> E {};
                 V S{{}}, I(_C, std::vector<N>{});
-                for (N i = 0; i < _C; i++)
-                    I[i].push_back(i);
-                d({{0, {}, {'o'}}}, {}, {}, E, S);
-                d({{0, {}, {'i'}}}, {}, {}, E, S);
-                d({{0, {}, {'s'}}}, {_i}, {}, E, S);
-                d({{0, {}, {'n'}}}, {_i}, {}, E, S); // ?
 
-                d({{0, {}, {'x'}}}, {_i}, {}, E, S);
-                d({{0, {}, {'y'}}}, {_i}, {}, E, S);
+                for (N i = 0; i < _C; i++) I[i].push_back(i);
+
+                d({{0, {}, {'o', 0, 0, 0}}}, {}, {}, E, S);
+                d({{0, {}, {'i', 0, 0, 0}}}, {}, {}, E, S);
+                d({{0, {}, {'s', 0, 0, 0}}}, {_i}, {}, E, S);
+                d({{0, {}, {'n', 0, 0, 0}}}, {_i}, {}, E, S);  // ?
+
+                d({{0, {}, {'x', 0, 0, 0}}}, {_i}, {}, E, S);
+                d({{0, {}, {'y', 0, 0, 0}}}, {_i}, {}, E, S);
                 d({/*{0,{},{'j'}},*/ {_j0}, {_j1}}, {_i}, {}, E, S);
 
-                d({{0, {}, {'x'}}}, {_s}, {}, E, S);
+                d({{0, {}, {'w', 0, 0, 0}}}, {_s}, {}, E, S);
                 d({{_a0}}, {_i}, {}, E, S);
 
-                d({{0, {}, {'x'}}}, {_s}, {}, E, S);
-                d({{0, {}, {'y'}}}, {_i}, {}, E, S);
-                d({{0, {}, {'d'}}, {_d0}, {_d1}}, {_i}, {}, E, S);
+                d({{0, {}, {'u', 0, 0, 0}}}, {_s}, {}, E, S);
+                d({{0, {}, {'v', 0, 0, 0}}}, {_i}, {}, E, S);
+                d({{0, {}, {'b', 0, 0, 0}}, {_d0}, {_d1}}, {_i}, {}, E, S);
 
                 if (llvm::Linker::linkModules(*m, g(O(av[i], {_i}, E, S, I, M),
                                                     E, S, I, av[i], C, nf)))
@@ -488,14 +469,14 @@ int main(int ac, const char **av) {
             } else if (ex && !strcmp(ex, ".ll")) {
                 llvm::SMDiagnostic er;
                 std::string es = "";
-                
+
                 auto _m = llvm::parseAssemblyFile(av[i], er, C);
                 if (!_m) {
                     er.print("llvm", llvm::errs());
                     continue;
                 } else
                     sd(_m);
-                
+
                 if (llvm::verifyModule(*_m,
                                        &(llvm::raw_string_ostream(es) << "")) ||
                     llvm::Linker::linkModules(*m, std::move(_m))) {
@@ -503,9 +484,10 @@ int main(int ac, const char **av) {
                     continue;
                 }
             } else {
-                printf("n: error: cannot process file \"%s\" with extension "
-                       "\"%s\"\n",
-                       av[i], ex);
+                printf(
+                    "n: error: cannot process file \"%s\" with extension "
+                    "\"%s\"\n",
+                    av[i], ex);
                 continue;
             }
             nf = 0;

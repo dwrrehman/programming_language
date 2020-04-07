@@ -1,0 +1,1 @@
+clang-format hello0.cpp -style="{BasedOnStyle: Google, IndentWidth: 4}" > hello0-formated.cpp
