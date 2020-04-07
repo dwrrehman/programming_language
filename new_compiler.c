@@ -13,80 +13,24 @@ struct expression {
     struct expression* symbols;
 };
 
-
-///TODO: get rid of me!
-static size_t text_index = 0;
-///TODO: must be set to 0 before each call to parse.
-
-
-
-
-/**
- static e p(t &s, F &f) {
-     e l{};
-     t S = s;
-     t t = n(s, f);
-     while (t.v && t.v != ')') {
-         if (t.v == '(') {
-             e e = p(s, f);
-             if (n(s, f).v != ')')
-                 printf("n3zqx2l: %s:%ld:%ld: error: expected )\n\n",
-                        f.n, t.l, t.c);
-             e.t.l = t.l, e.t.c = t.c, e.t.v = 0;
-             l.s.push_back(e);
-         } else l.s.push_back({{}, t});
-         if (t.v) t = n(S = s, f);
-     }
-     s = S;
-     return l;
- }
- 
- */
-
-
-
-
+static size_t i = 0; ///TODO: get rid of me!
 
 struct expression parse(const char* name, const char* text) {
     struct expression list = {0};
-    
-    while (isspace(text[text_index++]));
-    size_t token = text[text_index++];
-    
-    while (token && token != ')') {
-        if (token == '(') {
-            struct expression expr = parse(text, name);
-            while (isspace(text[text_index++]));
-            
-            if (text[text_index++] != ')')
-                printf("n3zqx2l: %s: error: expected )\n\n", name);
-            
-            expr.value = 0;
-            list.symbols = realloc(list.symbols, sizeof(struct expression) * (list.count));
-            list.symbols[list.count++] = expr;
-            
-        } else {
-            //        l.s.push_back({{}, t});
-            list.symbols = realloc(list.symbols, sizeof(struct expression) * (list.count));
-            list.symbols[list.count++] = (struct expression){token, 0, NULL};
-        }
-        
-//            t = n(S = s, f);
-        while (isspace(text[text_index++]));
-        token = text[text_index++];
-                
-    }
-    return (struct expression){0, 0, NULL};
+    while (text[i]) {
+        while (isspace(text[i])) i++;
+        const size_t t = text[i++];
+        if (!t || t == ')') break;
+        struct expression e = {0};
+        if (t == '(') {
+            e = parse(name, text);
+            while (isspace(text[i])) i++;
+            if (!text[i] || text[i++] != ')') printf("n3zqx2l: %s: error: expected )\n\n", name);
+        } else e.value = t;
+        list.symbols = realloc(list.symbols, sizeof(struct expression) * (list.count + 1));
+        list.symbols[list.count++] = e;
+    } i--; return list;
 }
-
-///TODO: look up the oroginal code for parsing LISP s-expressions.
-
-
-
-
-
-
-
 
 char* open_file(const char* filename) {
     
@@ -119,7 +63,6 @@ int main(int argc, const char** argv) {
     
     const char* filename = "/Users/deniylreimn/Documents/art/c/projects/n/n/test.n";
     const char* text = open_file(filename);
-    puts(text);
     struct expression ast = parse(filename, text);
     print_expression(ast);
     puts("");
