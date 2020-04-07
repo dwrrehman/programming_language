@@ -7,33 +7,31 @@
 #include <errno.h>
 #include <ctype.h>
 
-struct expression {
+struct e {
     size_t value; // a token value, ie a character.
-    size_t count;
-    struct expression* symbols;
+    size_t c;
+    struct e* s;
 };
+
+
+// 14 lines so far, we can do better!
+/// now its 9 lines long. definiely better.       i think its near the optimal, i think.
 
 static size_t i = 0; ///TODO: get rid of me!
 
-struct expression parse(const char* name, const char* text) {
-    struct expression list = {0};
-    while (text[i]) {
-        while (isspace(text[i])) i++;
-        const size_t t = text[i++];
-        if (!t || t == ')') break;
-        struct expression e = {0};
-        if (t == '(') {
-            e = parse(name, text);
-            while (isspace(text[i])) i++;
-            if (!text[i] || text[i++] != ')') printf("n3zqx2l: %s: error: expected )\n\n", name);
-        } else e.value = t;
-        list.symbols = realloc(list.symbols, sizeof(struct expression) * (list.count + 1));
-        list.symbols[list.count++] = e;
-    } i--; return list;
+struct e parse(const char* f, const char* t) {
+    struct e e = {0};
+    while (t[i] && t[i] != ')') {
+        if (isspace(t[i++])) continue;
+        e.s = realloc(e.s, sizeof(struct e) * (e.c + 1));
+        if (t[i - 1] == '(') {
+            e.s[e.c++] = parse(f, t);
+            if (!t[i] || t[i++] != ')') printf("n3zqx2l: %s: error: expected )\n\n", f);
+        } else e.s[e.c++].value = t[i - 1];
+    } return e;
 }
 
 char* open_file(const char* filename) {
-    
     FILE* file = fopen(filename, "r");
     if (!file) {
         printf("n: %s: error: %s\n", filename, strerror(errno));
@@ -48,23 +46,31 @@ char* open_file(const char* filename) {
     return buffer;
 }
 
-static void print_expression(struct expression e) {
+static void print_expression(struct e e) {
     if (e.value) printf("%c", (char) e.value);
     else {
         printf("(");
-        for (size_t i = 0; i < e.count; i++) {
-            print_expression(e.symbols[i]);
+        for (size_t i = 0; i < e.c; i++) {
+            print_expression(e.s[i]);
         }
         printf(")");
     }
 }
 
 int main(int argc, const char** argv) {
-    
     const char* filename = "/Users/deniylreimn/Documents/art/c/projects/n/n/test.n";
     const char* text = open_file(filename);
-    struct expression ast = parse(filename, text);
-    print_expression(ast);
-    puts("");
+    struct e ast = parse(filename, text);
+    
+    print_expression(ast); puts("");
+        
+    if (text[i]) {
+        printf("error: unexpected closing paren\n");
+        exit(1);    
+    }
+    
 }
 
+////eventually, ill need:
+//#include <llvm-c/ExecutionEngine.h>
+//#include <llvm-c/Target.h>
