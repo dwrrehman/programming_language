@@ -16,30 +16,15 @@ typedef size_t N;
 
 typedef std::vector<std::vector<N>> V;
 
-struct F {
-    const char *n;
-    char *t;
-    N l;
-};
-
-struct L {
-    N i, l, c;
-};
-
-struct t {
-    N v, l, c;
-    const char *s;
-};
-
-struct e {
-    std::vector<e> s;
-    t t;
-};
+struct F{const char *n,*t;};
+struct t{N v,l,c;};
+struct e{std::vector<e>s;t t;};
 /// TODO: merge these two structs.
-struct r {    
+struct r {
+    N i;
     std::vector<r> a;
     t t;
-    N i, error;
+    N error;
 };
 
 struct E {
@@ -49,56 +34,22 @@ struct E {
 
 typedef std::vector<E> W;
 
-static t n(L &l, F &f) {
-    while (isspace(f.t[l.i])) {
-        if (f.t[l.i++] != '\n')
-            l.c++;
-        else {
-            l.l++;
-            l.c = 1;
-        }
-    }
+static t n(t&l,F&f){while(isspace(f.t[l.v])){if(f.t[l.v++]!=10)l.c++;else{l.l++;l.c=1;}}return{(N)f.t[l.v++],l.l,l.c++};}
 
-    if (f.t[l.i] != '\"')
-        return {(N)f.t[l.i++], l.l, l.c++, 0};
-
-    else {
-        t t{1, l.l, l.c++, ++l.i + f.t};
-
-        while (f.t[l.i] && f.t[l.i] != '\"') {
-            if (f.t[l.i++] != '\n')
-                l.c++;
-            else {
-                l.l++;
-                l.c = 1;
-            }
-        }
-        if (f.t[l.i]) f.t[l.i++] = 0;
-        else printf("n3zqx2l: %s:%ld:%ld: error: expected \"\n\n", f.n, l.l, l.c);
-        l.c++;
-        return t;
-    }
-}
-
-static e p(L &s, F &f) {
+static e p(t &s, F &f) {
     e l{};
-    L S = s;
+    t S = s;
     t t = n(s, f);
     while (t.v && t.v != ')') {
-        if (t.v == 1 || (t.v != '(' && t.v != ')'))
-            l.s.push_back({0, {}, t});
-
-        else if (t.v == '(') {
+        if (t.v == '(') {
             e e = p(s, f);
             if (n(s, f).v != ')')
-                printf("n3zqx2l: %s:%ld:%ld: error: expected )\n\n", f.n, t.l,
-                       t.c);
-
+                printf("n3zqx2l: %s:%ld:%ld: error: expected )\n\n",
+                       f.n, t.l, t.c);
             e.t.l = t.l, e.t.c = t.c, e.t.v = 0;
             l.s.push_back(e);
-        }
-        S = s;
-        t = n(s, f);
+        } else l.s.push_back({{}, t});
+        if (t.v) t = n(S = s, f);
     }
     s = S;
     return l;
@@ -108,9 +59,7 @@ static std::string sr(const r &g, const W &E) {
     std::string o = "";
     N i = 0;
     for (r s : E[g.i].s)
-        if (s.t.v == 1)
-            o += "\"" + std::string(s.t.s) + "\"";
-        else if (s.t.v)
+        if (s.t.v)
             o += s.t.v;
         else
             o += "(" + sr(g.a.size() ? g.a[i++] : s, E) + ")";
@@ -142,28 +91,34 @@ static N ne(const r &a, const r &b, const V &S) {
     if (std::find(S.back().begin(), S.back().end(), a.i) == S.back().end())
         return 0;
 
-    if (a.i != b.i || a.a.size() != b.a.size()) return 1;
+    if (a.i != b.i || a.a.size() != b.a.size())
+        return 1;
 
     for (N i = 0; i < a.a.size(); i++)
-        if (ne(a.a[i], b.a[i], S)) return 1;
+        if (ne(a.a[i], b.a[i], S))
+            return 1;
     return 0;
 }
 static r R(const e &, const r &, W &, V &, V &, const F &, N);
-static r O(const char *n, const r &t, W &E, V &S, V &I, N m) {
+static r O(const char *n, const r &T, W &E, V &S, V &I, N m) {
+    
     FILE *w = fopen(n, "r");
+    
     if (!w) {
         printf("n: %s: error: %s\n", n, strerror(errno));
         return {0, {}, {}, 1};
     }
+    
     fseek(w, 0, 2);
     N l = ftell(w);
-    char *T = (char *)calloc(l + 1, sizeof(char));
+    char *B = (char *)calloc(l + 1, sizeof(char));
     fseek(w, 0, 0);
-    fread(T, sizeof(char), l, w);
+    fread(B, sizeof(char), l, w);
     fclose(w);
-    F f{n, T, l};
-    L L{0, 1, 1};
-    return R(p(L, f), t, E, S, I, f, m);
+    
+    F f {n, B};
+    t L {0, 1, 1};
+    return R(p(L, f), T, E, S, I, f, m);
 }
 static r u(const e &g, const r &t, N &i, N &b, N D, N m, W &E, V &S, V &I,
            const F &f) {
@@ -171,7 +126,7 @@ static r u(const e &g, const r &t, N &i, N &b, N D, N m, W &E, V &S, V &I,
 
     if (i < g.s.size() && !g.s[i].t.v) return R(g.s[i++], t, E, S, I, f, m);
 
-    if (i < g.s.size() && in(_s, t.i, I)) return {t.i, {}, g.s[i++].t};
+    if (i < g.s.size() && in(_s, t.i, I)) return {t.i, {}, g.s[i++].t, 0};
 
     N si = i;
     V Z = S;
@@ -206,9 +161,9 @@ static r u(const e &g, const r &t, N &i, N &b, N D, N m, W &E, V &S, V &I,
             if (ccc - 42 < _C && ccc >= 42)
                 I[ccc - 42].push_back(E.size());
             
-            d({{0, {}, {'K', 0, 0, 0}}}, {_i}, {}, E, S);
+//            d({{0, {}, {'K', 0, 0, 0}}}, {_i}, {}, E, S);
         }
-        return {s, A};
+        return {s, A, {}, 0};
     c:
         continue;
     }
@@ -262,7 +217,7 @@ static inline void debug_resolved(r e, W entries, N depth = 0) {
     }
     prep(depth);
     printf("%lu :   index = %lu  ::   %s\n", depth, e.i,
-           sr({e.i}, entries).c_str());
+           sr({e.i, {}, {}, 0}, entries).c_str());
     if (e.t.v) {
         prep(depth);
         printf("literal:   %lu : '%c'  @(%lu, %lu)\n", e.t.v, (char)e.t.v,
@@ -297,7 +252,7 @@ static inline void debug_stack(W entries, V stack) {
     for (auto entry : entries) {
         printf("\t%6lu: ", j);
 
-        printf("%s", sr({j}, entries).c_str());
+        printf("%s", sr({j, {}, {}, 0}, entries).c_str());
 
         auto def = sr(entry.d, entries);
         if (def.size() and entry.d.i) printf("      =    %s", def.c_str());
@@ -446,23 +401,29 @@ int main(int ac, const char **av) {
 
                 for (N i = 0; i < _C; i++) I[i].push_back(i);
 
-                d({{0, {}, {'o', 0, 0, 0}}}, {}, {}, E, S);
-                d({{0, {}, {'i', 0, 0, 0}}}, {}, {}, E, S);
-                d({{0, {}, {'s', 0, 0, 0}}}, {_i}, {}, E, S);
-                d({{0, {}, {'n', 0, 0, 0}}}, {_i}, {}, E, S);  // ?
+//                d({{0, {}, {'o', 0, 0, 0}}}, {}, {}, E, S);
+                
+                d({{0, {}, {'o', 0, 0}, 0}}, {}, {}, E, S);
+                d({{0, {}, {'i', 0, 0}, 0}}, {}, {}, E, S);
+                d({{0, {}, {'s', 0, 0}, 0}}, {_i, {}, {}, 0}, {}, E, S);
+//                d({{0, {}, {'i', 0, 0, 0}}}, {}, {}, E, S);
+                
+                
+                
+//                d({{0, {}, {'n', 0, 0, 0}}}, {_i}, {}, E, S);  // ?
+//
+//                d({{0, {}, {'x', 0, 0, 0}}}, {_i}, {}, E, S);
+//                d({{0, {}, {'y', 0, 0, 0}}}, {_i}, {}, E, S);
+//                d({/*{0,{},{'j'}},*/ {_j0}, {_j1}}, {_i}, {}, E, S);
+//
+//                d({{0, {}, {'w', 0, 0, 0}}}, {_s}, {}, E, S);
+//                d({{_a0}}, {_i}, {}, E, S);
+//
+//                d({{0, {}, {'u', 0, 0, 0}}}, {_s}, {}, E, S);
+//                d({{0, {}, {'v', 0, 0, 0}}}, {_i}, {}, E, S);
+//                d({{0, {}, {'b', 0, 0, 0}}, {_d0}, {_d1}}, {_i}, {}, E, S);
 
-                d({{0, {}, {'x', 0, 0, 0}}}, {_i}, {}, E, S);
-                d({{0, {}, {'y', 0, 0, 0}}}, {_i}, {}, E, S);
-                d({/*{0,{},{'j'}},*/ {_j0}, {_j1}}, {_i}, {}, E, S);
-
-                d({{0, {}, {'w', 0, 0, 0}}}, {_s}, {}, E, S);
-                d({{_a0}}, {_i}, {}, E, S);
-
-                d({{0, {}, {'u', 0, 0, 0}}}, {_s}, {}, E, S);
-                d({{0, {}, {'v', 0, 0, 0}}}, {_i}, {}, E, S);
-                d({{0, {}, {'b', 0, 0, 0}}, {_d0}, {_d1}}, {_i}, {}, E, S);
-
-                if (llvm::Linker::linkModules(*m, g(O(av[i], {_i}, E, S, I, M),
+                if (llvm::Linker::linkModules(*m, g(O(av[i], {_i, {}, {}, 0}, E, S, I, M),
                                                     E, S, I, av[i], C, nf)))
                     continue;
 
