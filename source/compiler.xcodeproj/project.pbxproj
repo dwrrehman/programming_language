@@ -432,6 +432,15 @@
 					"-lLLVMSupport",
 					"-lz",
 					"-lcurses",
+					"-lLLVMIRReader",
+					"-lLLVMBitReader",
+					"-lLLVMBitstreamReader",
+					"-lLLVMAsmParser",
+					"-lLLVMCore",
+					"-lLLVMRemarks",
+					"-lLLVMBinaryFormat",
+					"-lLLVMSupport",
+					"-lLLVMDemangle",
 				);
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				USER_HEADER_SEARCH_PATHS = /usr/local/Cellar/llvm/9.0.1/include;
@@ -611,6 +620,15 @@
 					"-lLLVMSupport",
 					"-lz",
 					"-lcurses",
+					"-lLLVMIRReader",
+					"-lLLVMBitReader",
+					"-lLLVMBitstreamReader",
+					"-lLLVMAsmParser",
+					"-lLLVMCore",
+					"-lLLVMRemarks",
+					"-lLLVMBinaryFormat",
+					"-lLLVMSupport",
+					"-lLLVMDemangle",
 				);
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				USER_HEADER_SEARCH_PATHS = /usr/local/Cellar/llvm/9.0.1/include;
