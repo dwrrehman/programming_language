@@ -8,14 +8,10 @@
 #include <ctype.h>
 
 struct e {
-    size_t value; // a token value, ie a character.
+    size_t v; // a token value, ie a character.
     size_t c;
     struct e* s;
 };
-
-
-// 14 lines so far, we can do better!
-/// now its 9 lines long. definiely better.       i think its near the optimal, i think.
 
 static size_t i = 0; ///TODO: get rid of me!
 
@@ -27,7 +23,7 @@ struct e parse(const char* f, const char* t) {
         if (t[i - 1] == '(') {
             e.s[e.c++] = parse(f, t);
             if (!t[i] || t[i++] != ')') printf("n3zqx2l: %s: error: expected )\n\n", f);
-        } else e.s[e.c++].value = t[i - 1];
+        } else e.s[e.c++].v = t[i - 1];
     } return e;
 }
 
@@ -47,7 +43,7 @@ char* open_file(const char* filename) {
 }
 
 static void print_expression(struct e e) {
-    if (e.value) printf("%c", (char) e.value);
+    if (e.v) printf("%c", (char) e.v);
     else {
         printf("(");
         for (size_t i = 0; i < e.c; i++) {
@@ -66,7 +62,7 @@ int main(int argc, const char** argv) {
         
     if (text[i]) {
         printf("error: unexpected closing paren\n");
-        exit(1);    
+        exit(1);
     }
     
 }
