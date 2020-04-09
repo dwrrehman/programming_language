@@ -7,7 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		FDAB9E3C243C3B4E000B1E4B /* main.c in Sources */ = {isa = PBXBuildFile; fileRef = FDAB9E3B243C3B4E000B1E4B /* main.c */; };
+		FDAB9E3C243C3B4E000B1E4B /* n.c in Sources */ = {isa = PBXBuildFile; fileRef = FDAB9E3B243C3B4E000B1E4B /* n.c */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXCopyFilesBuildPhase section */
@@ -23,10 +23,9 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		FD47CFAF243E4CCE00F8992D /* test.n */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; name = test.n; path = ../../examples/test.n; sourceTree = "<group>"; };
 		FDAB9E38243C3B4E000B1E4B /* n */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = n; sourceTree = BUILT_PRODUCTS_DIR; };
-		FDAB9E3B243C3B4E000B1E4B /* main.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = main.c; sourceTree = "<group>"; };
-		FDCD51CA243C67C400542BEF /* test.ll */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.asm.llvm; path = test.ll; sourceTree = "<group>"; };
-		FDCD51CC243C6F6300542BEF /* test.n */ = {isa = PBXFileReference; lastKnownFileType = text; path = test.n; sourceTree = "<group>"; };
+		FDAB9E3B243C3B4E000B1E4B /* n.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = n.c; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -59,9 +58,8 @@
 		FDAB9E3A243C3B4E000B1E4B /* n */ = {
 			isa = PBXGroup;
 			children = (
-				FDAB9E3B243C3B4E000B1E4B /* main.c */,
-				FDCD51CA243C67C400542BEF /* test.ll */,
-				FDCD51CC243C6F6300542BEF /* test.n */,
+				FDAB9E3B243C3B4E000B1E4B /* n.c */,
+				FD47CFAF243E4CCE00F8992D /* test.n */,
 			);
 			path = n;
 			sourceTree = "<group>";
@@ -123,7 +121,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				FDAB9E3C243C3B4E000B1E4B /* main.c in Sources */,
+				FDAB9E3C243C3B4E000B1E4B /* n.c in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

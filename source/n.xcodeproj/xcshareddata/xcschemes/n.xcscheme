@@ -55,7 +55,7 @@
       </BuildableProductRunnable>
       <CommandLineArguments>
          <CommandLineArgument
-            argument = "/Users/deniylreimn/Documents/projects/n3zqx2l/source/n/test.n"
+            argument = "/Users/deniylreimn/Documents/projects/n3zqx2l/examples/test.n"
             isEnabled = "YES">
          </CommandLineArgument>
          <CommandLineArgument
