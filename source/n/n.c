@@ -22,9 +22,9 @@ struct resolved {
 };
 
 struct name {
+    size_t type;
     size_t length;
     struct resolved* signature;
-    size_t type;
     struct resolved definition;
 };
 
@@ -82,7 +82,6 @@ static void represent(size_t given, char* buffer, size_t limit, size_t* at, stru
             buffer[(*at)++] = ')';
         }
     }
-    
     if (name.type) {
         buffer[(*at)++] = ' ';
         represent(name.type, buffer, limit, at, context);
@@ -90,7 +89,12 @@ static void represent(size_t given, char* buffer, size_t limit, size_t* at, stru
 }
 
 static size_t not_equal(size_t a, size_t b, struct context* context) {
-    return a != b;
+    for (size_t i = 0; i < context->frames[context->frame_count - 1].count; i++) {
+        if (context->frames[context->frame_count - 1].indicies[i] == a) {
+            return a != b;
+        }
+    }
+    return 0;
 }
 
 static struct resolved resolve(struct expression given, size_t type, struct context* context, size_t max_depth);
