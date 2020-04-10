@@ -25,7 +25,6 @@ struct name {
     size_t type;
     size_t length;
     struct resolved* signature;
-    struct resolved definition;
 };
 
 struct frame {
@@ -37,11 +36,11 @@ struct context {
     size_t at;
     size_t best;
     size_t frame_count;
-    struct frame* frames;
     size_t name_count;
+    size_t UNUSED;
+    struct frame* frames;
     struct name* names;
     const char* filename;
-    size_t UNUSED;
 };
 
 static char* open_file(const char* filename) {
@@ -97,13 +96,11 @@ static size_t not_equal(size_t a, size_t b, struct context* context) {
     return 0;
 }
 
-static struct resolved resolve(struct expression given, size_t type, struct context* context, size_t max_depth);
+static struct resolved resolve(struct expression, size_t, struct context*);
 
-static struct resolved resolve_at(struct expression given, size_t type, struct context* context, size_t depth, size_t max_depth) {
-    if (depth > max_depth) return (struct resolved) {0};
-    
-    else if (context->at < given.count && !given.symbols[context->at].value)
-        return resolve(given.symbols[context->at++], type, context, max_depth);
+static struct resolved resolve_at(struct expression given, size_t type, struct context* context, size_t depth) {
+    if (depth > 128) return (struct resolved) {0};    
+    else if (context->at < given.count && !given.symbols[context->at].value) return resolve(given.symbols[context->at++], type, context);
 
     size_t saved = context->at;
     struct frame top = context->frames[context->frame_count - 1];
@@ -113,14 +110,14 @@ static struct resolved resolve_at(struct expression given, size_t type, struct c
         struct resolved solution = {top.indicies[i], 0, 0, 0};
         struct name name = context->names[solution.id];
         
-        if (not_equal(name.type, type, context)) continue;
+        if (name.type != type) continue;
         
         for (size_t s = 0; s < name.length; s++) {
             if (context->at >= given.count) {
                 if (solution.count == 1 && s == 1) return solution.arguments[0]; else goto next;
             }
             if (!name.signature[s].value) {
-                struct resolved argument = resolve_at(given, context->names[name.signature[s].id].type, context, depth + 1, max_depth);
+                struct resolved argument = resolve_at(given, context->names[name.signature[s].id].type, context, depth + 1);
                 if (!argument.id || not_equal(name.type, type, context)) goto next;
                 solution.arguments = realloc(solution.arguments, sizeof(struct resolved) * (solution.count + 1));
                 solution.arguments[solution.count++] = argument;
@@ -133,9 +130,9 @@ static struct resolved resolve_at(struct expression given, size_t type, struct c
     return (struct resolved) {0};
 }
 
-static struct resolved resolve(struct expression given, size_t type, struct context* context, size_t max_depth) {
+static struct resolved resolve(struct expression given, size_t type, struct context* context) {
     struct context sub = *context; sub.at = sub.best = 0;
-    struct resolved solution = resolve_at(given, type, &sub, 0, max_depth);
+    struct resolved solution = resolve_at(given, type, &sub, 0);
     if (sub.at < given.count) solution.id = 0;
     
     if (!solution.id) {
@@ -193,11 +190,9 @@ static void debug_resolved(struct resolved given) {
 }
 
 int main(const int argc, const char** argv) {
-    size_t max_depth = 20;
     for (int i = 1; i < argc; i++) {
         if (!strcmp("version", argv[i])) exit(!puts("n: 0.0.3"));
         if (!strcmp("usage", argv[i])) exit(!puts("n version/usage [files]"));
-        if (!strcmp("depth", argv[i]) && i + 1 < argc) { max_depth = atoi(argv[++i]); continue; }
         
 //        char* text = open_file(argv[i]);
 //        if (!text) continue;
@@ -210,6 +205,7 @@ int main(const int argc, const char** argv) {
         context.frames = calloc(context.frame_count = 1, sizeof(struct frame));
         context.filename = argv[i];
         
+        printf("the CSR terminal. used for debugging purposes. type 'h' for help.\n");
         while (1) {
             
             printf(": ");
@@ -308,7 +304,7 @@ int main(const int argc, const char** argv) {
                 
                 
                 context.at = context.best = 0;
-                struct resolved resolved = resolve(expression, expected_type, &context, max_depth);
+                struct resolved resolved = resolve(expression, expected_type, &context);
                 debug_resolved(resolved);
                 
                 puts("\n");
