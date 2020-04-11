@@ -12,10 +12,14 @@ struct token {
 
 struct resolved {
     size_t index;
-    size_t type;
     size_t value;
     size_t count;
     struct resolved* arguments;
+};
+
+struct name {
+    struct resolved sig;
+    size_t type;
 };
 
 struct frame {
@@ -27,25 +31,25 @@ struct context {
     size_t at;
     size_t best;
     size_t frame_count;
-    size_t name_count;
+    size_t count;
     struct frame* frames;
-    struct resolved* names;
+    struct name* names;
 };
 
 static void represent(size_t given, char* buffer, size_t limit, size_t* at, struct context* context) {
-    if (given >= context->name_count || *at >= limit) return;
-    struct resolved name = context->names[given];
+    if (given >= context->count || *at >= limit) return;
+    struct name name = context->names[given];
     
-    if (name.index == 3) buffer[(*at)++] = name.value;
+    if (name.sig.index == 3) buffer[(*at)++] = name.sig.value;
     
-    else if(name.index == 4) { // decl
+    else if(name.sig.index == 4) { // decl
         buffer[(*at)++] = '(';
-        represent(name.index, buffer, limit, at, context);
+        represent(name.sig.index, buffer, limit, at, context);
         buffer[(*at)++] = ')';
         
     } else {
-        for (size_t i = 0; i < name.count; i++) {
-            represent(name.arguments[i].index, buffer, limit, at, context);
+        for (size_t i = 0; i < name.sig.count; i++) {
+            represent(name.sig.arguments[i].index, buffer, limit, at, context);
         }
     }
     
@@ -67,20 +71,27 @@ static struct resolved resolve_at(struct token* given, size_t given_count, size_
     size_t saved = context->at;
     struct frame top = context->frames[context->frame_count - 1];
     for (size_t i = 0; i < top.count; i++) {
-        context->best = fmax(context->at, context->best); context->at = saved;
-        struct resolved solution = {top.indicies[i], 0, 0, 0, 0}, name = context->names[solution.index];
+        
+        context->best = fmax(context->at, context->best);
+        context->at = saved;
+        
+        struct resolved solution = {top.indicies[i], 0, 0, 0};
+        struct name name = context->names[solution.index];
+        
         if (name.type != type) continue;
-        if (name.index == 3) { // (c) sig
-            if (name.value != given[context->at].value) continue;
+        
+        if (name.sig.index == 3) { // (c) sig
+            if (name.sig.value != given[context->at].value) continue;
             context->at++;
         }
-        if (name.index == 4) { // Decl-param(sig)(type) sig
+        
+        if (name.sig.index == 4) { // Decl-param(sig)(type) sig
             ///IS THIS RIGHTTT?????!!?
             if (context->at >= given_count) {
 //                if (solution.count == 1 && s == 1) return solution.arguments[0]; else goto next;
             } /// where do we put thiss!??!
             /// call match_signature() on name.signature.arguments[0];
-            struct resolved argument = resolve_at(given, given_count, name.arguments[1].index, context, depth + 1, filename);
+            struct resolved argument = resolve_at(given, given_count, name.sig.arguments[1].index, context, depth + 1, filename);
             
             if (!argument.index) goto next;
             
@@ -95,6 +106,11 @@ static struct resolved resolve_at(struct token* given, size_t given_count, size_
         return solution;
         next: continue; /// we might not need a goto statement at all with this change!
     }
+    if (type == 3) { /// the type:  c i
+        struct resolved rwef = {0};
+        rwef.index = 3;
+        rwef.value = given[context->at++].value;
+    }
     if (context->best < given_count) print_error(given, type, context, filename);
     return (struct resolved) {0};
 }
@@ -108,7 +124,7 @@ static void debug_context(struct context* context) {
         puts("}");
     }
     printf("\nmaster: {\n");
-    for (size_t i = 0; i < context->name_count; i++) {
+    for (size_t i = 0; i < context->count; i++) {
         printf("\t%6lu: ", i);
         char buffer[2048] = {0};
         size_t index = 0;
@@ -120,7 +136,7 @@ static void debug_context(struct context* context) {
 }
 
 static void debug_resolved(struct resolved given) {
-    printf(" [%lu]:%c:{ ", given.index, (char) given.type);
+    printf(" [%lu]:%c:{ ", given.index, (char) given.value);
     for (size_t i = 0; i < given.count; i++) {
         printf("ARG(%lu)[", i);
         debug_resolved(given.arguments[i]);
@@ -156,7 +172,8 @@ int main(int argc, const char** argv) {
         
         struct context context = {0};
         context.frames = calloc(context.frame_count = 1, sizeof(struct frame));
-        struct resolved resolved = resolve_at(tokens, token_count, 0, &context, 0, argv[i]);
+        size_t type = 0;
+        struct resolved resolved = resolve_at(tokens, token_count, type, &context, 0, argv[i]);
         
         debug_context(&context);
         debug_resolved(resolved);
