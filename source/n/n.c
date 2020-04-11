@@ -58,10 +58,8 @@ static void represent(size_t given, char* buffer, size_t limit, size_t* at, stru
 
 static struct resolved resolve_at(struct token* given, size_t given_count, size_t type, struct context* context, size_t depth) {
     if (depth > 128) return (struct resolved) {0};
-    
     size_t saved = context->at;
     struct frame top = context->frames[context->frame_count - 1];
-    
     for (size_t i = 0; i < top.count; i++) {
         context->best = fmax(context->at, context->best); context->at = saved;
         struct resolved solution = {top.indicies[i]}, name = context->names[solution.index];
@@ -173,7 +171,7 @@ int main(int argc, const char** argv) {
         fread(text, sizeof(char), length, file);
         fclose(file);
         
-        size_t count = 0; uint32_t line = 1, column = 1;
+        size_t count = 0, line = 1, column = 1;
         for (size_t i = 0; i < length; i++) {
             if (!isspace(text[i])) tokens[count++] = (struct token){text[i], line, column};
             if (text[i] == '\n') { line++; column = 1;} else column++;
@@ -181,7 +179,6 @@ int main(int argc, const char** argv) {
         
         struct context context = {0};
         context.frames = calloc(context.frame_count = 1, sizeof(struct frame));
-        
         struct resolved resolved = resolve(tokens, count, 0, &context, argv[i]);
         
         debug_context(&context);
