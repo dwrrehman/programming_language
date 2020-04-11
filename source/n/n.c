@@ -39,31 +39,24 @@ struct context {
 static void represent(size_t given, char* buffer, size_t limit, size_t* at, struct context* context) {
     if (given >= context->count || *at >= limit) return;
     struct name name = context->names[given];
-    
-    if (name.sig.index == 3) buffer[(*at)++] = name.sig.value;
-    
-    else if(name.sig.index == 4) { // decl
-        buffer[(*at)++] = '(';
-        represent(name.sig.index, buffer, limit, at, context);
-        buffer[(*at)++] = ')';
-        
-    } else {
-        for (size_t i = 0; i < name.sig.count; i++) {
-            represent(name.sig.arguments[i].index, buffer, limit, at, context);
-        }
+    if (name.sig.value) buffer[(*at)++] = name.sig.value;
+    else for (size_t i = 0; i < name.sig.count; i++) {
+        represent(name.sig.arguments[i].index, buffer, limit, at, context);
     }
-    
-    if (name.type) { /// i dont think we need this anymore...?
+    if (name.type) {
         buffer[(*at)++] = ' ';
         represent(name.type, buffer, limit, at, context);
     }
 }
 
-static void print_error(struct token* given, size_t type, struct context* context, const char* filename) {
-    struct token b = given[context->best];
+static void print_error(struct token* given, size_t given_count, size_t type, struct context* context, const char* filename) {
+     ///TODO: we probably want to have a limiter on the number of errors that we are going to give. thats seems important.
     char buffer[2048] = {0}; size_t index = 0;
     represent(type, buffer, sizeof buffer,  &index, context);
-    printf("n3zqx2l: %s:%lu:%lu: error: %s: unresolved %c\n\n", filename, b.line, b.column, buffer, (char) b.value);
+    if (context->best < given_count) {
+        struct token b = given[context->best];
+        printf("n3zqx2l: %s:%lu:%lu: error: %s: unresolved %c\n\n", filename, b.line, b.column, buffer, (char) b.value);
+    } else printf("n3zqx2l: %s:%d:%d: error: %s: unresolved expression\n\n", filename, 1, 1, buffer);
 }
 
 static struct resolved resolve_at(struct token* given, size_t given_count, size_t type, struct context* context, size_t depth, const char* filename) {
@@ -80,15 +73,16 @@ static struct resolved resolve_at(struct token* given, size_t given_count, size_
         
         if (name.type != type) continue;
         
-        if (name.sig.index == 3) { // (c) sig
+        if (name.sig.value) { // (c) sig
             if (name.sig.value != given[context->at].value) continue;
             context->at++;
-        }
-        
-        if (name.sig.index == 4) { // Decl-param(sig)(type) sig
+            
+        } else if (name.sig.index == 4) { // Decl-param(sig)(type) sig
             ///IS THIS RIGHTTT?????!!?
             if (context->at >= given_count) {
-//                if (solution.count == 1 && s == 1) return solution.arguments[0]; else goto next;
+                if (solution.count == 1 /*&& s == 1  ie, this is the first signature element. */)
+                    return solution.arguments[0];
+                else goto next;
             } /// where do we put thiss!??!
             /// call match_signature() on name.signature.arguments[0];
             struct resolved argument = resolve_at(given, given_count, name.sig.arguments[1].index, context, depth + 1, filename);
@@ -106,12 +100,10 @@ static struct resolved resolve_at(struct token* given, size_t given_count, size_
         return solution;
         next: continue; /// we might not need a goto statement at all with this change!
     }
-    if (type == 3) { /// the type:  c i
-        struct resolved rwef = {0};
-        rwef.index = 3;
-        rwef.value = given[context->at++].value;
-    }
-    if (context->best < given_count) print_error(given, type, context, filename);
+    
+    if (type == 3) return (struct resolved) {3, given[context->at++].value, 0, 0};
+    
+    print_error(given, given_count, type, context, filename);
     return (struct resolved) {0};
 }
 
@@ -147,7 +139,7 @@ static void debug_resolved(struct resolved given) {
 
 int main(int argc, const char** argv) {
     for (int i = 1; i < argc; i++) {
-        if (argv[i][0] == '-') exit(!puts("n3zqx2l: 0.0.3"));
+        if (argv[i][0] == '-') exit(!puts("n3zqx2l version 0.0.0\nn3zqx2l [-] [files]"));
         
         FILE* file = fopen(argv[i], "r");
         if (!file) {
@@ -177,7 +169,9 @@ int main(int argc, const char** argv) {
         
         debug_context(&context);
         debug_resolved(resolved);
-        if (!resolved.index) printf("\nRESOLUTION ERROR\n");        
+        if (!resolved.index) {
+            printf("\n\n\tRESOLUTION ERROR\n\n");
+        }
         
         free(context.frames);
         free(context.names);
