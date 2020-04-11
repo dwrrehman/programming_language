@@ -3,25 +3,20 @@
 #include <llvm-c/Linker.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
 #include <ctype.h>
 
 struct token {
     size_t value;
-    uint32_t line;
-    uint32_t column;
+    size_t line;
+    size_t column;
 };
 
 struct resolved {
     size_t index;
+    size_t type;
     size_t value;
     size_t count;
     struct resolved* arguments;
-};
-
-struct name {
-    struct resolved signature;
-    size_t type;
 };
 
 struct frame {
@@ -35,29 +30,27 @@ struct context {
     size_t frame_count;
     size_t name_count;
     struct frame* frames;
-    struct name* names;
+    struct resolved* names;
 };
 
 static void represent(size_t given, char* buffer, size_t limit, size_t* at, struct context* context) {
+    if (given >= context->name_count || *at >= limit) return;
+    struct resolved name = context->names[given];
     
-    ///Unfinsihed.
+    if (name.index == 3) buffer[(*at)++] = name.value;
     
-    if (given >= context->name_count) return;
-    if (*at >= limit) return;
-    struct name name = context->names[given];
-    
-    if (name.signature.value) buffer[(*at)++] = name.signature.value; // appchar.
-    else if(name.signature.index == 4) { // decl
+    else if(name.index == 4) { // decl
         buffer[(*at)++] = '(';
-        represent(name.signature.index, buffer, limit, at, context);
+        represent(name.index, buffer, limit, at, context);
         buffer[(*at)++] = ')';
+        
     } else {
-        for (size_t i = 0; i < name.signature.count; i++) {
-            represent(name.signature.arguments[i].index, buffer, limit, at, context);
+        for (size_t i = 0; i < name.count; i++) {
+            represent(name.arguments[i].index, buffer, limit, at, context);
         }
     }
     
-    if (name.type) {
+    if (name.type) { /// i dont think we need this anymore...?
         buffer[(*at)++] = ' ';
         represent(name.type, buffer, limit, at, context);
     }
@@ -71,27 +64,25 @@ static struct resolved resolve_at(struct token* given, size_t given_count, size_
     
     for (size_t i = 0; i < top.count; i++) {
         context->best = fmax(context->at, context->best); context->at = saved;
-        struct resolved solution = {top.indicies[i], 0, 0, 0};
-        struct name name = context->names[solution.index];
+        struct resolved solution = {top.indicies[i]}, name = context->names[solution.index];
         
         if (name.type != type) continue;
         
-        if (name.signature.index == 3) { // (c) sig
-            if (name.signature.value != given[context->at].value) continue;
+        if (name.index == 3) { // (c) sig
+            if (name.value != given[context->at].value) continue;
             context->at++;
         }
-
-        if (name.signature.index == 4) { // Decl-param(sig)(type) sig
+        
+        if (name.index == 4) { // Decl-param(sig)(type) sig
             
             ///IS THIS RIGHTTT?????!!?
             if (context->at >= given_count) {
 //                if (solution.count == 1 && s == 1) return solution.arguments[0]; else goto next;
             } /// where do we put thiss!??!
-            
-            
+                        
             /// call match_signature() on name.signature.arguments[0];
             
-            struct resolved argument = resolve_at(given, given_count, name.signature.arguments[1].index, context, depth + 1);
+            struct resolved argument = resolve_at(given, given_count, name.arguments[1].index, context, depth + 1);
             
             if (!argument.index) goto next;
             
@@ -125,12 +116,11 @@ static struct resolved resolve(struct token* given, size_t given_count, size_t t
     struct resolved solution = resolve_at(given, given_count, type, &sub, 0);
     if (sub.at < given_count) solution.index = 0;
     
-    if (!solution.index) {
-        if (sub.best >= given_count) abort();
+    if (!solution.index && sub.best < given_count) {
         struct token b = given[sub.best];
         char buffer[2048] = {0}; size_t index = 0;
         represent(type, buffer, sizeof buffer,  &index, context);
-        printf("n3zqx2l: %s:%u:%u: error: %s: unresolved %s%c\n\n", filename, b.line, b.column, buffer, b.value ? "symbol " : "expression", (char) b.value);
+        printf("n3zqx2l: %s:%lu:%lu: error: %s: unresolved %s%c\n\n", filename, b.line, b.column, buffer, b.value ? "symbol " : "expression", (char) b.value);
     }
     return solution;
 }
@@ -156,7 +146,7 @@ static void debug_context(struct context* context) {
 }
 
 static void debug_resolved(struct resolved given) {
-    printf(" [%lu]:%c:{ ", given.index, (char) given.value);
+    printf(" [%lu]:%c:{ ", given.index, (char) given.type);
     for (size_t i = 0; i < given.count; i++) {
         printf("ARG(%lu)[", i);
         debug_resolved(given.arguments[i]);
@@ -167,8 +157,7 @@ static void debug_resolved(struct resolved given) {
 
 int main(int argc, const char** argv) {
     for (int i = 1; i < argc; i++) {
-        if (!strcmp("version", argv[i])) exit(!puts("n3zqx2l: 0.0.3"));
-        if (!strcmp("usage", argv[i])) exit(!puts("n3zqx2l version/usage [files]"));
+        if (argv[i][0] == '-') exit(!puts("n3zqx2l: 0.0.3"));
         
         FILE* file = fopen(argv[i], "r");
         if (!file) {
@@ -178,14 +167,13 @@ int main(int argc, const char** argv) {
         }
         fseek(file, 0, SEEK_END);
         size_t length = ftell(file);
-        char* text = malloc((length) * sizeof(char));
+        char* text = malloc(length * sizeof(char));
+        struct token* tokens = malloc(length * sizeof(struct token));
         fseek(file, 0, SEEK_SET);
         fread(text, sizeof(char), length, file);
         fclose(file);
         
-        size_t count = 0;
-        uint32_t line = 1, column = 1;
-        struct token* tokens = malloc(length * sizeof(struct token));
+        size_t count = 0; uint32_t line = 1, column = 1;
         for (size_t i = 0; i < length; i++) {
             if (!isspace(text[i])) tokens[count++] = (struct token){text[i], line, column};
             if (text[i] == '\n') { line++; column = 1;} else column++;
@@ -195,10 +183,11 @@ int main(int argc, const char** argv) {
         context.frames = calloc(context.frame_count = 1, sizeof(struct frame));
         
         struct resolved resolved = resolve(tokens, count, 0, &context, argv[i]);
+        
         debug_context(&context);
         debug_resolved(resolved);
         if (!resolved.index) printf("\nRESOLUTION ERROR\n");
-                
+        
         free(context.frames);
         free(context.names);
         free(tokens);

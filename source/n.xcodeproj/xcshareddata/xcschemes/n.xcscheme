@@ -59,7 +59,7 @@
             isEnabled = "YES">
          </CommandLineArgument>
          <CommandLineArgument
-            argument = "version"
+            argument = "-"
             isEnabled = "YES">
          </CommandLineArgument>
       </CommandLineArguments>
