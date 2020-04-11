@@ -3,7 +3,6 @@
 #include <llvm-c/Linker.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <ctype.h>
 
 struct token {
     size_t value;
@@ -56,71 +55,48 @@ static void represent(size_t given, char* buffer, size_t limit, size_t* at, stru
     }
 }
 
-static struct resolved resolve_at(struct token* given, size_t given_count, size_t type, struct context* context, size_t depth) {
+static void print_error(struct token* given, size_t type, struct context* context, const char* filename) {
+    struct token b = given[context->best];
+    char buffer[2048] = {0}; size_t index = 0;
+    represent(type, buffer, sizeof buffer,  &index, context);
+    printf("n3zqx2l: %s:%lu:%lu: error: %s: unresolved %c\n\n", filename, b.line, b.column, buffer, (char) b.value);
+}
+
+static struct resolved resolve_at(struct token* given, size_t given_count, size_t type, struct context* context, size_t depth, const char* filename) {
     if (depth > 128) return (struct resolved) {0};
     size_t saved = context->at;
     struct frame top = context->frames[context->frame_count - 1];
     for (size_t i = 0; i < top.count; i++) {
         context->best = fmax(context->at, context->best); context->at = saved;
-        struct resolved solution = {top.indicies[i]}, name = context->names[solution.index];
-        
+        struct resolved solution = {top.indicies[i], 0, 0, 0, 0}, name = context->names[solution.index];
         if (name.type != type) continue;
-        
         if (name.index == 3) { // (c) sig
             if (name.value != given[context->at].value) continue;
             context->at++;
         }
-        
         if (name.index == 4) { // Decl-param(sig)(type) sig
-            
             ///IS THIS RIGHTTT?????!!?
             if (context->at >= given_count) {
 //                if (solution.count == 1 && s == 1) return solution.arguments[0]; else goto next;
             } /// where do we put thiss!??!
-                        
             /// call match_signature() on name.signature.arguments[0];
-            
-            struct resolved argument = resolve_at(given, given_count, name.arguments[1].index, context, depth + 1);
+            struct resolved argument = resolve_at(given, given_count, name.arguments[1].index, context, depth + 1, filename);
             
             if (!argument.index) goto next;
             
             solution.arguments = realloc(solution.arguments, sizeof(struct resolved) * (solution.count + 1));
             solution.arguments[solution.count++] = argument;
-            
             return argument; ///????
         }
-                
 //        for (each argument to s) {
 //            sol = resolve(given, type, context, depth);
 //            if (!sol.index) return 0; /// continue to thenext signature.
 //        }
-                
         return solution;
-        
         next: continue; /// we might not need a goto statement at all with this change!
     }
-    /// I THINK HERE
-    
-    /// is where we should give errors. always.
-    /// we dont need a seperate resolve() function for printing errors anymore.
-    
+    if (context->best < given_count) print_error(given, type, context, filename);
     return (struct resolved) {0};
-}
-
-
-/// Scheduled for Deletion, and absorbtion into the resolve_at() function.
-static struct resolved resolve(struct token* given, size_t given_count, size_t type, struct context* context, const char* filename) {
-    struct context sub = *context; sub.at = sub.best = 0;
-    struct resolved solution = resolve_at(given, given_count, type, &sub, 0);
-    if (sub.at < given_count) solution.index = 0;
-    
-    if (!solution.index && sub.best < given_count) {
-        struct token b = given[sub.best];
-        char buffer[2048] = {0}; size_t index = 0;
-        represent(type, buffer, sizeof buffer,  &index, context);
-        printf("n3zqx2l: %s:%lu:%lu: error: %s: unresolved %s%c\n\n", filename, b.line, b.column, buffer, b.value ? "symbol " : "expression", (char) b.value);
-    }
-    return solution;
 }
 
 static void debug_context(struct context* context) {
@@ -163,6 +139,7 @@ int main(int argc, const char** argv) {
             perror("error");
             continue;
         }
+        
         fseek(file, 0, SEEK_END);
         size_t length = ftell(file);
         char* text = malloc(length * sizeof(char));
@@ -171,19 +148,19 @@ int main(int argc, const char** argv) {
         fread(text, sizeof(char), length, file);
         fclose(file);
         
-        size_t count = 0, line = 1, column = 1;
+        size_t token_count = 0, line = 1, column = 1;
         for (size_t i = 0; i < length; i++) {
-            if (!isspace(text[i])) tokens[count++] = (struct token){text[i], line, column};
-            if (text[i] == '\n') { line++; column = 1;} else column++;
+            if (text[i] > ' ') tokens[token_count++] = (struct token){text[i], line, column};
+            if (text[i] == '\n') { line++; column = 1; } else column++;
         }
         
         struct context context = {0};
         context.frames = calloc(context.frame_count = 1, sizeof(struct frame));
-        struct resolved resolved = resolve(tokens, count, 0, &context, argv[i]);
+        struct resolved resolved = resolve_at(tokens, token_count, 0, &context, 0, argv[i]);
         
         debug_context(&context);
         debug_resolved(resolved);
-        if (!resolved.index) printf("\nRESOLUTION ERROR\n");
+        if (!resolved.index) printf("\nRESOLUTION ERROR\n");        
         
         free(context.frames);
         free(context.names);

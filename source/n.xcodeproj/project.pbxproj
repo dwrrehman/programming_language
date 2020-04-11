@@ -245,6 +245,7 @@
 				DEVELOPMENT_TEAM = JTMD2SW5KN;
 				ENABLE_HARDENED_RUNTIME = YES;
 				GCC_C_LANGUAGE_STANDARD = c11;
+				GCC_TREAT_WARNINGS_AS_ERRORS = NO;
 				GCC_WARN_PEDANTIC = YES;
 				LIBRARY_SEARCH_PATHS = /usr/local/Cellar/llvm/9.0.1/lib;
 				OTHER_CFLAGS = (
@@ -286,6 +287,12 @@
 				);
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				USER_HEADER_SEARCH_PATHS = /usr/local/Cellar/llvm/9.0.1/include;
+				WARNING_CFLAGS = (
+					"-Wall",
+					"-Wpedantic",
+					"-Wextra",
+					"-Weverything",
+				);
 			};
 			name = Debug;
 		};
@@ -297,6 +304,7 @@
 				DEVELOPMENT_TEAM = JTMD2SW5KN;
 				ENABLE_HARDENED_RUNTIME = YES;
 				GCC_C_LANGUAGE_STANDARD = c11;
+				GCC_TREAT_WARNINGS_AS_ERRORS = NO;
 				GCC_WARN_PEDANTIC = YES;
 				LIBRARY_SEARCH_PATHS = /usr/local/Cellar/llvm/9.0.1/lib;
 				OTHER_CFLAGS = (
@@ -338,6 +346,12 @@
 				);
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				USER_HEADER_SEARCH_PATHS = /usr/local/Cellar/llvm/9.0.1/include;
+				WARNING_CFLAGS = (
+					"-Wall",
+					"-Wpedantic",
+					"-Wextra",
+					"-Weverything",
+				);
 			};
 			name = Release;
 		};
