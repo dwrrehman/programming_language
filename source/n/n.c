@@ -1,3 +1,7 @@
+///Lets restart, again.
+///shouldnt be too hard....
+/// lets copy the xcode project, and then start anew.
+
 #include <llvm-c/Core.h>
 #include <llvm-c/IRReader.h>
 #include <llvm-c/Linker.h>
@@ -59,10 +63,60 @@ static void print_error(struct token* given, size_t given_count, size_t type, st
     } else printf("n3zqx2l: %s:%d:%d: error: %s: unresolved expression\n\n", filename, 1, 1, buffer);
 }
 
+
+enum {
+    _char,
+    _declare
+};
+
+
+static struct resolved resolve_at(struct token* given, size_t given_count, size_t type, struct context* context, size_t depth, const char* filename);
+
+static size_t matches(struct resolved s, struct resolved* solution, struct token* given, size_t given_count,
+                      size_t type, struct context* context, size_t depth, const char* filename) {
+        
+    if (s.value) {
+        if (s.value != given[context->at].value)
+            return 0;
+        else {
+            context->at++;
+            return 1;
+        }
+    }
+    
+    if (s.index == _declare) { // decl(i)(o)
+        struct resolved argument = resolve_at(given, given_count, s.arguments[1].index, context, depth + 1, filename);
+        if (!argument.index) return 0;
+        solution->arguments = realloc(solution->arguments, sizeof(struct resolved) * (solution->count + 1));
+        solution->arguments[solution->count++] = argument;
+        return 1;
+    }
+    
+    for (size_t j = 0; j < s.count; j++) {
+        
+        if (context->at >= given_count) {
+            if (solution->count == 1 && j == 1)
+                return solution->arguments[0].index;
+            else
+                return 0;
+        }
+
+
+        
+        
+        if (!matches(s.arguments[j], solution, given, given_count, type, context, depth, filename))
+            return 0;
+    }
+    
+    return 1;
+}
+
 static struct resolved resolve_at(struct token* given, size_t given_count, size_t type, struct context* context, size_t depth, const char* filename) {
     if (depth > 128) return (struct resolved) {0};
+    
     size_t saved = context->at;
     struct frame top = context->frames[context->frame_count - 1];
+    
     for (size_t i = 0; i < top.count; i++) {
         
         context->best = fmax(context->at, context->best);
@@ -70,42 +124,38 @@ static struct resolved resolve_at(struct token* given, size_t given_count, size_
         
         struct resolved solution = {top.indicies[i], 0, 0, 0};
         struct name name = context->names[solution.index];
+        struct resolved sig = name.sig;
         
         if (name.type != type) continue;
         
-        if (name.sig.value) { // (c) sig
-            if (name.sig.value != given[context->at].value) continue;
+        if (sig.value) {
+            if (sig.value != given[context->at].value) continue;
             context->at++;
             
-        } else if (name.sig.index == 4) { // Decl-param(sig)(type) sig
-            ///IS THIS RIGHTTT?????!!?
-            if (context->at >= given_count) {
-                if (solution.count == 1 /*&& s == 1  ie, this is the first signature element. */)
-                    return solution.arguments[0];
-                else goto next;
-            } /// where do we put thiss!??!
-            /// call match_signature() on name.signature.arguments[0];
-            struct resolved argument = resolve_at(given, given_count, name.sig.arguments[1].index, context, depth + 1, filename);
-            
-            if (!argument.index) goto next;
-            
-            solution.arguments = realloc(solution.arguments, sizeof(struct resolved) * (solution.count + 1));
-            solution.arguments[solution.count++] = argument;
-            return argument; ///????
+        } else if (sig.index == _declare) {
+            return solution.arguments[0]; ///????
         }
-//        for (each argument to s) {
-//            sol = resolve(given, type, context, depth);
-//            if (!sol.index) return 0; /// continue to thenext signature.
-//        }
+        
+        for (size_t j = 0; j < name.sig.count; j++) {
+            struct resolved sol = resolve_at(given, given_count, type, context, depth, filename);
+            if (!sol.index) goto next;
+        }
+        
         return solution;
-        next: continue; /// we might not need a goto statement at all with this change!
+        next: continue;
     }
     
-    if (type == 3) return (struct resolved) {3, given[context->at++].value, 0, 0};
+    if (type == _char) return (struct resolved) {_char, given[context->at++].value, 0, 0};
     
     print_error(given, given_count, type, context, filename);
+    
     return (struct resolved) {0};
 }
+
+
+
+
+
 
 static void debug_context(struct context* context) {
     printf("index = %lu, best = %lu\n", context->at, context->best);
