@@ -7,10 +7,6 @@
 #include <termios.h>
 
 
-
-
-
-
 struct token {
     size_t value;
     size_t line;
@@ -27,7 +23,7 @@ struct resolved {
 struct name {
     size_t type;
     size_t count;
-    struct resolved* signature; ///This doesnt need to be a resolved... it can just be a index or a value?       use the top bit to see whether this is a index or a value.   or simply offset all indicies by 256, so that any index less than 256 is known to be a value. i think thats the better way to do things. cool. maybe later.
+    size_t* signature;
 };
 
 struct frame {
@@ -40,8 +36,8 @@ struct context {
     size_t best;
     size_t frame_count;
     size_t count;
-    size_t current_entries_index_pointer;
-    size_t current_stack_index_pointer;
+    size_t cnp;
+    size_t cfp;
     struct frame* frames;
     struct name* names;
 };
@@ -50,10 +46,10 @@ static void represent(size_t given, char* buffer, size_t limit, size_t* at, stru
     struct name name = context->names[given];
     for (size_t i = 0; i < name.count; i++) {
         if (*at + 2 >= limit) return;
-        else if (name.signature[i].value) buffer[(*at)++] = name.signature[i].value;
+        else if (name.signature[i] < 256) buffer[(*at)++] = name.signature[i];
         else {
             buffer[(*at)++] = '(';
-            represent(name.signature[i].index, buffer, limit, at, context);
+            represent(name.signature[i] - 256, buffer, limit, at, context);
             buffer[(*at)++] = ')';
         }
     }
@@ -74,29 +70,57 @@ static void print_error(struct token* given, size_t given_count, size_t type, st
 }
 
 enum {
-    _o, _i, _c, _appchar, _apppar, _join,
-    _incr, _decr,
-    _make_intrin,
-    _push_back_entry_stack_index,
-    _push_stack_index,
+    _o, _i, _c, _appchar, _apppar, _join, _push, _new,
+    _declare_function,
+    
 };
 
 static void do_intrinsic(struct resolved solution, struct context* context) {
     if (solution.index == _appchar) {
-        size_t c = solution.arguments[0].value;
-        if (c) {
-            
-        }
-    } else if (solution.index == _apppar) {
+        const size_t n = context->cnp;
+        context->names[n].signature = realloc(context->names[n].signature, sizeof(size_t) * (context->names[n].count + 1));
+        context->names[n].signature[context->names[n].count++] = solution.arguments[0].value;
         
-    } else if (solution.index == _make_intrin) {
-        size_t c = solution.arguments[0].value;
-        if (c > 32) {
-            //                size_t index = c - 32;
-        }
-    } else if (solution.index == _push_stack_index) {
-        context->frames[context->frame_count - 1].indicies = realloc(context->frames[context->frame_count - 1].indicies, sizeof(size_t) * (context->frames[context->frame_count - 1].count + 1));
-        context->frames[context->frame_count - 1].indicies[context->frames[context->frame_count - 1].count++] = context->count - 1;
+//    } else if (solution.index == _apppar) {
+//
+//        const size_t n = context->cnp;
+//        context->names[n].signature = realloc(context->names[n].signature, sizeof(size_t) * (context->names[n].count + 1));
+//        context->names[n].signature[context->names[n].count++] = solution.arguments[0].index + 256;
+        
+    } else if (solution.index == _push) {
+                        
+        /// "Quick and Dirty" solution:    (incorrect solution)
+        /// ... we really should be doing a sorted-insertion, according to a wacky comparison function, to make it so
+        /// forehead-heavy signatures are last, and signatures are sorted smallest first. very important.
+        
+        const size_t f = context->cfp;
+        context->frames[f].indicies = realloc(context->frames[f].indicies, sizeof(size_t) * (context->frames[f].count + 1));
+        context->frames[f].indicies[context->frames[f].count++] = context->cnp;
+    }
+}
+
+
+static void evaluate(struct resolved solution, struct context* context) {
+    do_intrinsic(solution, context);
+    for (size_t i = 0; i < solution.count; i++) evaluate(solution.arguments[i], context);
+}
+
+static void define(struct resolved solution, struct context* context) {
+    if (solution.index == _declare_function) {
+        
+        
+        
+        evaluate(solution, context);
+        
+        
+        //evalulate the name.
+        //evaluate the type.
+        // define the name, of that type.
+        // thats it.
+        
+        
+        
+        
     }
 }
 
@@ -112,17 +136,14 @@ static struct resolved resolve_at(struct token* given, size_t given_count, size_
             struct name name = context->names[solution.index];
             if (name.type != type) continue;
             for (size_t s = 0; s < name.count; s++) {
-                if (context->at >= given_count) {
-                    if (solution.count == 1 && s == 1)
-                        return solution.arguments[0];
-                    else goto next;
-                }
-                if (!name.signature[s].value) {
-                    struct resolved argument = resolve_at(given, given_count, context->names[name.signature[s].index].type, context, depth + 1, filename);
+                if (context->at >= given_count && solution.count == 1 && s == 1) return solution.arguments[0];
+                else if (context->at >= given_count) goto next;
+                else if (name.signature[s] > 255) {
+                    struct resolved argument = resolve_at(given, given_count, context->names[name.signature[s] - 256].type, context, depth + 1, filename);
                     if (!argument.index) goto next;
                     solution.arguments = realloc(solution.arguments, sizeof(struct resolved) * (solution.count + 1));
                     solution.arguments[solution.count++] = argument;
-                } else if (name.signature[s].value != given[context->at].value) goto next;
+                } else if (name.signature[s] != given[context->at].value) goto next;
                 else context->at++; //TODO: make depth = 0; here.
             } //do_intrinsic(solution, context);
             return solution;
@@ -193,8 +214,8 @@ static void do_csr_with_context(const char** argv, struct context* context, int 
     
     size_t token_count = 0, line = 1, column = 1;
     for (size_t i = 0; i < length; i++) {
-        if (text[i] > ' ') tokens[token_count++] = (struct token){text[i], line, column};
-        if (text[i] == '\n') { line++; column = 1; } else column++;
+        if (text[i] > 32) tokens[token_count++] = (struct token){text[i], line, column};
+        if (text[i] == 10) { line++; column = 1; } else column++;
     }
     
     context->at = context->best = 0;
@@ -301,16 +322,16 @@ int main(int argc, const char** argv) {
                         
                         n.signature
                         = realloc(n.signature,
-                                  sizeof(struct resolved)
+                                  sizeof(size_t)
                                   * (n.count + 1));
-                        n.signature[n.count++] = param;
+                        n.signature[n.count++] = 0;
                         
                     } else if (c != '\n' && c != ';') {
                         n.signature
                         = realloc(n.signature,
-                                  sizeof(struct resolved)
+                                  sizeof(size_t)
                                   * (n.count + 1));
-                        n.signature[n.count++].value = c;
+                        n.signature[n.count++] = 0;
                     }
                 }
                 printf("signature terminated. adding now.");
@@ -367,7 +388,11 @@ int main(int argc, const char** argv) {
                 
                 
             } else if (c == 'f') {
+                
                 do_csr_with_context(argv, &context, i);
+                
+                
+                
             } else if (c == '\n') {
                 // do nothing.
             } else {
