@@ -36,8 +36,10 @@ struct context {
     size_t best;
     size_t frame_count;
     size_t count;
+    
     size_t cnp;
     size_t cfp;
+    
     struct frame* frames;
     struct name* names;
 };
@@ -107,45 +109,54 @@ static void evaluate(struct resolved solution, struct context* context) {
 
 static void define(struct resolved solution, struct context* context) {
     if (solution.index == _declare_function) {
-        
-        
-        
+                        
         evaluate(solution, context);
-        
-        
+                
         //evalulate the name.
         //evaluate the type.
         // define the name, of that type.
         // thats it.
-        
-        
-        
         
     }
 }
 
 static struct resolved resolve_at(struct token* given, size_t given_count, size_t type, struct context* context, size_t depth, const char* filename) {
     if (depth > 128) return (struct resolved) {0};
+    
     size_t saved = context->at;
+    
     for (size_t f = context->frame_count; f--; ) {
+        
         struct frame frame = context->frames[f];
+        
         for (size_t i = frame.count; i--; ) {
+ 
             context->best = fmax(context->at, context->best);
             context->at = saved;
+ 
             struct resolved solution = {frame.indicies[i], 0, 0, 0};
             struct name name = context->names[solution.index];
+            
             if (name.type != type) continue;
+            
             for (size_t s = 0; s < name.count; s++) {
+                
                 if (context->at >= given_count && solution.count == 1 && s == 1) return solution.arguments[0];
+                
                 else if (context->at >= given_count) goto next;
+                
                 else if (name.signature[s] > 255) {
                     struct resolved argument = resolve_at(given, given_count, context->names[name.signature[s] - 256].type, context, depth + 1, filename);
                     if (!argument.index) goto next;
                     solution.arguments = realloc(solution.arguments, sizeof(struct resolved) * (solution.count + 1));
                     solution.arguments[solution.count++] = argument;
-                } else if (name.signature[s] != given[context->at].value) goto next;
-                else context->at++; //TODO: make depth = 0; here.
-            } //do_intrinsic(solution, context);
+                    
+                } else if (name.signature[s] == given[context->at].value) context->at++; //TODO: make depth = 0; here.
+                else goto next;
+                
+            }
+            // right here, we want to expand the definition of a macro, if it is a macro.
+            //do_intrinsic(solution, context);
             return solution;
             next: continue;
         }
@@ -212,6 +223,7 @@ static void do_csr_with_context(const char** argv, struct context* context, int 
     fread(text, sizeof(char), length, file);
     fclose(file);
     
+    ///TODO: embed my into CSR: dont make me a seperate stage. all we need is csr.
     size_t token_count = 0, line = 1, column = 1;
     for (size_t i = 0; i < length; i++) {
         if (text[i] > 32) tokens[token_count++] = (struct token){text[i], line, column};
