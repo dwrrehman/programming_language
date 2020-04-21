@@ -16,6 +16,18 @@ the current status of the nostril compiler:
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
 okie dokie we decided to rewrite the entire compiler in C! yay!
 
 
@@ -26,111 +38,110 @@ okie dokie we decided to rewrite the entire compiler in C! yay!
     
     
     
+    its done! basically.
 
 
 
 
 
-
-
+. = req
+x = done
 
 
 
 things i dont like about my compiler right now:
 
 
-    the fact we are using an AST  with our struct e, when its really so flat.
+x    the fact we are using an AST  with our struct e, when its really so flat.
 
 
-    the fact that our user-defineable intrinsic system is kinda clunky. we need to say
-            std::find(...) instead of a simply number equality check. big penalty.
+x    the fact that our user-defineable intrinsic system is kinda clunky. we need to say
+x            std::find(...) instead of a simply number equality check. big penalty.
 
 
-    the fact that CSR needs a speical case for return-type param-polymorphism. why?
+.    the fact that CSR needs a speical case for return-type param-polymorphism. why?
 
 
     
-    the fact we need to keep track of line and column infomration, for error messages.
+.    the fact we need to keep track of line and column information, for error messages.
 
 
-    the fact we even need to give error messages. very annoying.
+.    the fact we even need to give error messages. very annoying.
 
 
 
+x    the fact we EVEN HAVE a lexing function.   it shouldnt exist.
 
-    the fact we EVEN HAVE a lexing function.   it shouldnt exist.
-
-        (we should just strip all whitespace from the file,
+x        (we should just strip all whitespace from the file,
         then use it as a string of chars, as our tokens. of course,
             ....this looses all line and col information.)
 
 
 
 
-
-    the fact that "struct r" has a .error field. that is just clunky and ugly. we shouldnt have that- we need figure out another invariant about the struct that conveys that an error happened.
-
-
-
-    the fact our "struct E" has a vector of r, and then two r's after that. it should all just be wrapped up into one vector of r's, and then we dont need the struct.
-
-
-    
-    the fact we are using the standard library alot...    we will be rewriting this in C pretty soon, and thus we shouldnt rely on that stuff.
+x    the fact that "struct r" has a .error field. that is just clunky and ugly. we shouldnt have that- we need figure out another invariant about the struct that conveys that an error happened.
 
 
 
-
-    the fact that we are std::string at all. and doing sr() string concatingging with that.
-        we shouldnt rely on that!
-
+.    the fact our "struct E" has a vector of r, and then two r's after that. it should all just be wrapped up into one vector of r's, and then we dont need the struct.
 
 
     
+x    the fact we are using the standard library alot...    we will be rewriting this in C pretty soon, and thus we shouldnt rely on that stuff.
 
 
 
-    the fact that we are using a struct for    the state that the lexer is in.
 
-
-    we should just use three ints, i think. thats more efficient.
-
-    
-    
-    the fact that  the next() function       and the parse() function are even seperate.
-    
-        they should be the same function!     smush them together!!1
-
-
-        rewrite them into the same thing!
-
-
-        they are both now simple enough to do that!
-
-
+x    the fact that we are std::string at all. and doing sr() string concatingging with that.
+x        we shouldnt rely on that!
 
 
 
     
 
-    the fact that the CSR algorithm is kinda busy...
-            we should make it cleaner and simpler.
 
+
+x    the fact that we are using a struct for    the state that the lexer is in.
+
+
+x    we should just use three ints, i think. thats more efficient.
 
     
+    
+x    the fact that  the next() function       and the parse() function are even seperate.
+    
+x        they should be the same function!     smush them together!!1
 
 
-    the fact that CSR LITERALLY HAS GOTO STATEMENTS.
-            there has to be a way to get rid of those.
+x        rewrite them into the same thing!
+
+
+x        they are both now simple enough to do that!
 
 
 
 
 
     
-    the fact that Resolve()      and   resolve_at()     are two different functions.
 
-        thats just so stupid.
+x    the fact that the CSR algorithm is kinda busy...
+x            we should make it cleaner and simpler.
+
+
+    
+
+
+.    the fact that CSR LITERALLY HAS GOTO STATEMENTS.
+.            there has to be a way to get rid of those.
+
+
+
+
+
+    
+x    the fact that Resolve()      and   resolve_at()     are two different functions.
+
+x        thats just so stupid.
 
 
 
@@ -141,12 +152,12 @@ things i dont like about my compiler right now:
 
     
     
-    THE FACT THAT WE ARENT WRITING IT IN C
+x    THE FACT THAT WE ARENT WRITING IT IN C
 
-        and using the llvm c api!
+x        and using the llvm c api!
 
 
-        we NEED TO DO THAT
+x        we NEED TO DO THAT
 
 
 

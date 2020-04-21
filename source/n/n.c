@@ -1,6 +1,7 @@
 #include <llvm-c/Core.h>
 #include <llvm-c/IRReader.h>
 #include <llvm-c/Linker.h>
+#include <llvm-c/ExecutionEngine.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -47,7 +48,7 @@ struct context {
 static void represent(size_t given, char* buffer, size_t limit, size_t* at, struct context* context) {
     struct name name = context->names[given];
     for (size_t i = 0; i < name.count; i++) {
-        if (*at + 2 >= limit) return;
+        if (*at + 3 >= limit) return;
         else if (name.signature[i] < 256) buffer[(*at)++] = name.signature[i];
         else {
             buffer[(*at)++] = '(';
@@ -124,13 +125,10 @@ static struct resolved resolve_at(struct token* given, size_t given_count, size_
     if (depth > 128) return (struct resolved) {0};
     
     size_t saved = context->at;
-    
-    for (size_t f = context->frame_count; f--; ) {
-        
+    for (size_t f = context->frame_count; f--;) {
         struct frame frame = context->frames[f];
         
         for (size_t i = frame.count; i--; ) {
- 
             context->best = fmax(context->at, context->best);
             context->at = saved;
  
@@ -168,6 +166,7 @@ static struct resolved resolve_at(struct token* given, size_t given_count, size_
 
 static void debug_context(struct context* context) {
     printf("index = %lu, best = %lu\n", context->at, context->best);
+    printf("cnp = %lu, cfp = %lu\n", context->cnp, context->cfp);
     printf("---- debugging frames: ----\n");
     for (size_t i = 0; i < context->frame_count; i++) {
         printf("\t ----- FRAME # %lu ---- \n\t\tidxs: { ", i);
@@ -198,7 +197,7 @@ static void debug_resolved(struct resolved given, size_t depth) {
     prep(depth); printf(" } ");
 }
 
-static void do_csr_with_context(const char** argv, struct context* context, int i) {
+static void resolve_in_context(const char* filename, struct context* context) {
     printf("performing CSR:\n");
     size_t expected_type = 0;
     printf("expected type: ");
@@ -209,9 +208,9 @@ static void do_csr_with_context(const char** argv, struct context* context, int 
     }
     
     printf("reading in file again...\n");
-    FILE* file = fopen(argv[i], "r");
+    FILE* file = fopen(filename, "r");
     if (!file) {
-        fprintf(stderr, "n: %s: ", argv[i]);
+        fprintf(stderr, "n: %s: ", filename);
         perror("error");
         return;
     }
@@ -222,8 +221,7 @@ static void do_csr_with_context(const char** argv, struct context* context, int 
     fseek(file, 0, SEEK_SET);
     fread(text, sizeof(char), length, file);
     fclose(file);
-    
-    ///TODO: embed my into CSR: dont make me a seperate stage. all we need is csr.
+        
     size_t token_count = 0, line = 1, column = 1;
     for (size_t i = 0; i < length; i++) {
         if (text[i] > 32) tokens[token_count++] = (struct token){text[i], line, column};
@@ -231,7 +229,7 @@ static void do_csr_with_context(const char** argv, struct context* context, int 
     }
     
     context->at = context->best = 0;
-    struct resolved resolved = resolve_at(tokens, token_count, expected_type, context, 0, argv[i]);
+    struct resolved resolved = resolve_at(tokens, token_count, expected_type, context, 0, filename);
     debug_resolved(resolved, 0);
     
     if (!resolved.index) {
@@ -272,151 +270,256 @@ static inline void configure_terminal() {
 }
 
 int main(int argc, const char** argv) {
-        
-    configure_terminal();
     
+//    LLVMLinkInInterpreter();
+//
+//    const char* path = "/Users/deniylreimn/Documents/projects/n3zqx2l/examples/test.ll";
+//
+//    LLVMModuleRef module = LLVMModuleCreateWithName("init.n");
+//
+//    LLVMAddFunction(module, "hi", LLVMFunctionType(LLVMInt32Type(), 0, 0, 0));
+//    LLVMAddFunction(module, "fwef", LLVMFunctionType(LLVMInt32Type(), 0, 0, 0));
+//
+//    LLVMModuleRef m = LLVMModuleCreateWithName("temp.n");
+//    LLVMMemoryBufferRef buffer; char* out = NULL;
+//    if (LLVMCreateMemoryBufferWithContentsOfFile(path, &buffer, &out) ||
+//        LLVMParseIRInContext(LLVMGetGlobalContext(), buffer, &m, &out) ||
+//        LLVMLinkModules2(module, m))
+//        printf("llvm: error: %s\n", out);
+//
+//    puts(LLVMPrintModuleToString(module));
+//
+//    LLVMExecutionEngineRef engine = NULL;
+//    if (LLVMCreateExecutionEngineForModule(&engine, module, &out)) {
+//        printf("llvm: error: %s\n", out);
+//    }
+//
+//    const char* name = "hello";
+//
+//    LLVMValueRef f = NULL;
+//    if (LLVMFindFunction(engine, name, &f)) {
+//        printf("llvm: error: could not find function %s to run\n", name);
+//    }
+//
+//    LLVMRunFunction(engine, f, 0, NULL);
+//
+//    exit(0);
+    
+    configure_terminal();
     for (int i = 1; i < argc; i++) {
         if (argv[i][0] == '-') exit(!puts("n3zqx2l version 0.0.0\nn3zqx2l [-] [files]"));
-        
         struct context context = {0};
         
-        printf("the CSR terminal. used for debugging purposes. type 'h' for help.\n");
-        
+        printf("the CSR terminal. type 'h' for help.\n");
         while (1) {
             
-            printf(": ");
+            printf(":: ");
             int c = get_character();
             
             if (c == 'q') break;
             
             else if (c == 'h') {
-                printf(
-                       "a : add new name\n"
-                       "c : add new name\n"
-                       "p : add new name\n"
-                       "s : print state\n"
-                       "u : push new frame index\n"
-                       "o : pop last frame index\n"
-                       "o : pop last frame index\n"
-                       "o : pop last frame index\n"
-                       "o : pop last frame index\n"
-                       "d : pop last name\n"
-                       "h : this help menu\n"
-                       "q : quit terminal\n"
-                       );
-                
-            } else if (c == 'a') {
-                
-                struct name n = {0};
-                printf("adding signature\n");
-                
-                printf("type: ");
-//                scanf("%lu", &n.type);
-            
-                printf("give symbols.\n for a parameter, give (, "
-                       "then type a number, then type ).\n to "
-                       "terminate the signature, type ;\n");
-                while (c != ';') {
-                    
-                    printf("symbol: ");
-                    c = get_character();
-                    printf("received: %d\n", c);
-                    
-                    if (c == '(') {
-                        
-                        struct resolved param = {0};
-                        
-                        printf("index: ");
-                        scanf("%lu", &param.index);
-                        
-                        printf("close paren: ");
-                        get_character();
-                        
-                        n.signature
-                        = realloc(n.signature,
-                                  sizeof(size_t)
-                                  * (n.count + 1));
-                        n.signature[n.count++] = 0;
-                        
-                    } else if (c != '\n' && c != ';') {
-                        n.signature
-                        = realloc(n.signature,
-                                  sizeof(size_t)
-                                  * (n.count + 1));
-                        n.signature[n.count++] = 0;
-                    }
-                }
-                printf("signature terminated. adding now.");
-                context.names
-                = realloc(context.names,
-                          sizeof(struct name) *
-                          (context.count + 1));
-                context.names[context.count++] = n;
-                printf("added.\n");
+                printf("\n"
+                       "q : quit                  h : help menu\n"
+                       "s : push signature        e : add empty entry\n"
+                       "f : add empty frame       d : display context\n"
+                       "c : appchar               a : apppar\n"
+                       "j : incr cnp              i : decr cnp\n"
+                       "k : incr cfp              l : decr cfp\n"
+                       "t : set type              u : pop sig symbol\n"
+                       "y : pop tops index        n : decr nc\n"
+                       "m : decr fc               \n"
+                       "\n");
                 
             } else if (c == 's') {
+                size_t f = context.cfp;
+                context.frames[f].indicies = realloc(context.frames[f].indicies, sizeof(size_t) * (context.frames[f].count + 1));
+                context.frames[f].indicies[context.frames[f].count++] = context.cnp;
                 
-                printf("printing context: \n\n");
-                debug_context(&context);
-                
-            } else if (c == 'd') {
-                printf("decrementing name count..\n");
-                context.count--;
-            } else if (c == 'g') {
-                
-                printf("decrementing stack frame count.\n");
-                context.frame_count--;
-            } else if (c == 'y') {
-                
-                printf("push empty new frame.\n");
-
-                context.frames = realloc(context.frames,
-                                         sizeof(struct frame) *
-                                         (context.frame_count + 1));
-                context.frames[context.frame_count++]
-                = (struct frame) {0};
-                
-            } else if (c == 'o') {
-                
-                printf("decrementing top stack frame indicies count..\n");
-                context.frames[context.frame_count - 1].count--;
-                                            
-            } else if (c == 'u') {
-                
-                size_t integer = 0;
-//                printf("index to push: ");
-//                scanf("%lu", &integer);
-                
-                context.frames[context.frame_count - 1].indicies =
-                realloc(context.frames[context.frame_count - 1].indicies,
-                        sizeof(size_t) *
-                        (context.frames[context.frame_count - 1].count + 1)
-                        );
-                context.frames[context.frame_count - 1].
-                indicies[context.frames[context.frame_count - 1].count++]
-                = integer;
-                
-                
-                
+            } else if (c == 'e') {
+                context.names = realloc(context.names, sizeof(struct name) * (context.count + 1));
+                context.names[context.count++] = (struct name) {0};
                 
             } else if (c == 'f') {
+                context.frames = realloc(context.frames, sizeof(struct name) * (context.frame_count + 1));
+                context.frames[context.frame_count++] = (struct frame) {0};
+            
+            } else if (c == 'c') {
+                printf("ascii: ");
+                size_t c = get_character();
+                size_t n = context.cnp;
+                context.names[n].signature = realloc(context.names[n].signature, sizeof(size_t) * (context.names[n].count + 1));
+                context.names[n].signature[context.names[n].count++] = c;
+            
+            } else if (c == 'a') {
+                size_t t = 0;
+                printf("param: ");
+                scanf("%lu", &t); t += 256;
+                size_t n = context.cnp;
+                context.names[n].signature = realloc(context.names[n].signature, sizeof(size_t) * (context.names[n].count + 1));
+                context.names[n].signature[context.names[n].count++] = t;
                 
-                do_csr_with_context(argv, &context, i);
-                
-                
-                
-            } else if (c == '\n') {
-                // do nothing.
-            } else {
-                printf("ERROR: unrecognized command: %c\n", c);
+            } else if (c == 't') {
+                size_t t = 0;
+                printf("type: ");
+                scanf("%lu", &t);
+                context.names[context.cnp].type = t;
             }
+            else if (c == 'j') context.cnp++;
+            else if (c == 'i') context.cnp--;
+            else if (c == 'k') context.cfp++;
+            else if (c == 'l') context.cfp--;
+            else if (c == 'u') context.names[context.cnp].count--;
+            else if (c == 'y') context.frames[context.cfp].count--;
+            else if (c == 'n') context.count--;
+            else if (c == 'm') context.frame_count--;
+            else if (c == ' ') printf("\033[2J");
+            else if (c == 'd') debug_context(&context);
+            else if (c == 'r') resolve_in_context(argv[i], &context);
+            else if (c == '\n') {}
+            else printf("ERROR: unrecognized command: %c\n", c);
+        
         }
-        printf("terminated terminal.\n");
-        
-        free(context.frames);
-        free(context.names);
-        
     }
-    
     restore_terminal();
 }
+
+
+
+
+
+
+
+
+
+//        printf("the CSR terminal. used for debugging purposes. type 'h' for help.\n");
+//
+//        while (1) {
+//
+//            printf(": ");
+//            int c = get_character();
+//
+//            if (c == 'q') break;
+//
+//            else if (c == 'h') {
+//                printf(
+//                       "a : add new name\n"
+//                       "c : add new name\n"
+//                       "p : add new name\n"
+//                       "s : print state\n"
+//                       "u : push new frame index\n"
+//                       "o : pop last frame index\n"
+//                       "o : pop last frame index\n"
+//                       "o : pop last frame index\n"
+//                       "o : pop last frame index\n"
+//                       "d : pop last name\n"
+//                       "h : this help menu\n"
+//                       "q : quit terminal\n"
+//                       );
+//
+//            } else if (c == 'a') {
+//
+//                struct name n = {0};
+//                printf("adding signature\n");
+//
+//                printf("type: ");
+////                scanf("%lu", &n.type);
+//
+//                printf("give symbols.\n for a parameter, give (, "
+//                       "then type a number, then type ).\n to "
+//                       "terminate the signature, type ;\n");
+//                while (c != ';') {
+//
+//                    printf("symbol: ");
+//                    c = get_character();
+//                    printf("received: %d\n", c);
+//
+//                    if (c == '(') {
+//
+//                        struct resolved param = {0};
+//
+//                        printf("index: ");
+//                        scanf("%lu", &param.index);
+//
+//                        printf("close paren: ");
+//                        get_character();
+//
+//                        n.signature
+//                        = realloc(n.signature,
+//                                  sizeof(size_t)
+//                                  * (n.count + 1));
+//                        n.signature[n.count++] = 0;
+//
+//                    } else if (c != '\n' && c != ';') {
+//                        n.signature
+//                        = realloc(n.signature,
+//                                  sizeof(size_t)
+//                                  * (n.count + 1));
+//                        n.signature[n.count++] = 0;
+//                    }
+//                }
+//                printf("signature terminated. adding now.");
+//                context.names
+//                = realloc(context.names,
+//                          sizeof(struct name) *
+//                          (context.count + 1));
+//                context.names[context.count++] = n;
+//                printf("added.\n");
+//
+//            } else if (c == 's') {
+//
+//                printf("printing context: \n\n");
+//                debug_context(&context);
+//
+//            } else if (c == 'd') {
+//                printf("decrementing name count..\n");
+//                context.count--;
+//            } else if (c == 'g') {
+//
+//                printf("decrementing stack frame count.\n");
+//                context.frame_count--;
+//            } else if (c == 'y') {
+//
+//                printf("push empty new frame.\n");
+//
+//                context.frames = realloc(context.frames,
+//                                         sizeof(struct frame) *
+//                                         (context.frame_count + 1));
+//                context.frames[context.frame_count++]
+//                = (struct frame) {0};
+//
+//            } else if (c == 'o') {
+//
+//                printf("decrementing top stack frame indicies count..\n");
+//                context.frames[context.frame_count - 1].count--;
+//
+//            } else if (c == 'u') {
+//
+//                size_t integer = 0;
+////                printf("index to push: ");
+////                scanf("%lu", &integer);
+//
+//                context.frames[context.frame_count - 1].indicies =
+//                realloc(context.frames[context.frame_count - 1].indicies,
+//                        sizeof(size_t) *
+//                        (context.frames[context.frame_count - 1].count + 1)
+//                        );
+//                context.frames[context.frame_count - 1].
+//                indicies[context.frames[context.frame_count - 1].count++]
+//                = integer;
+//
+//
+//
+//
+//            } else if (c == 'f') {
+//
+//                resolve_in_context(argv, &context, i);
+//
+//
+//
+//            } else if (c == '\n') {
+//                // do nothing.
+//            } else {
+//                printf("ERROR: unrecognized command: %c\n", c);
+//            }
+//        }

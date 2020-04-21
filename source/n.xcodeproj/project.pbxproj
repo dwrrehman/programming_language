@@ -24,6 +24,8 @@
 
 /* Begin PBXFileReference section */
 		FD47CFAF243E4CCE00F8992D /* test.n */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; name = test.n; path = ../../examples/test.n; sourceTree = "<group>"; };
+		FD57A3CE244EACF200FAC20A /* status.txt */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; name = status.txt; path = ../../documentation/status.txt; sourceTree = "<group>"; };
+		FD57A3CF244EB23800FAC20A /* test.ll */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.asm.llvm; name = test.ll; path = ../../examples/test.ll; sourceTree = "<group>"; };
 		FDAB9E38243C3B4E000B1E4B /* n */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = n; sourceTree = BUILT_PRODUCTS_DIR; };
 		FDAB9E3B243C3B4E000B1E4B /* n.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = n.c; sourceTree = "<group>"; };
 /* End PBXFileReference section */
@@ -60,6 +62,8 @@
 			children = (
 				FDAB9E3B243C3B4E000B1E4B /* n.c */,
 				FD47CFAF243E4CCE00F8992D /* test.n */,
+				FD57A3CF244EB23800FAC20A /* test.ll */,
+				FD57A3CE244EACF200FAC20A /* status.txt */,
 			);
 			path = n;
 			sourceTree = "<group>";
@@ -262,7 +266,16 @@
 					"-D__STDC_FORMAT_MACROS",
 					"-D__STDC_LIMIT_MACROS\n-L/usr/local/Cellar/llvm/9.0.1/lib",
 					"-Wl,-search_paths_first",
-					"-Wl,-headerpad_max_install_names\n-lLLVMLinker",
+					"-Wl,-headerpad_max_install_names\n-lLLVMInterpreter",
+					"-lLLVMCodeGen",
+					"-lLLVMScalarOpts",
+					"-lLLVMInstCombine",
+					"-lLLVMAggressiveInstCombine",
+					"-lLLVMBitWriter",
+					"-lLLVMExecutionEngine",
+					"-lLLVMTarget",
+					"-lLLVMRuntimeDyld",
+					"-lLLVMLinker",
 					"-lLLVMTransformUtils",
 					"-lLLVMAnalysis",
 					"-lLLVMProfileData",
@@ -284,6 +297,7 @@
 					"-lm",
 					"-lxml2",
 					"-lc++",
+					"-lffi",
 				);
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				USER_HEADER_SEARCH_PATHS = /usr/local/Cellar/llvm/9.0.1/include;
@@ -321,7 +335,16 @@
 					"-D__STDC_FORMAT_MACROS",
 					"-D__STDC_LIMIT_MACROS\n-L/usr/local/Cellar/llvm/9.0.1/lib",
 					"-Wl,-search_paths_first",
-					"-Wl,-headerpad_max_install_names\n-lLLVMLinker",
+					"-Wl,-headerpad_max_install_names\n-lLLVMInterpreter",
+					"-lLLVMCodeGen",
+					"-lLLVMScalarOpts",
+					"-lLLVMInstCombine",
+					"-lLLVMAggressiveInstCombine",
+					"-lLLVMBitWriter",
+					"-lLLVMExecutionEngine",
+					"-lLLVMTarget",
+					"-lLLVMRuntimeDyld",
+					"-lLLVMLinker",
 					"-lLLVMTransformUtils",
 					"-lLLVMAnalysis",
 					"-lLLVMProfileData",
@@ -343,6 +366,7 @@
 					"-lm",
 					"-lxml2",
 					"-lc++",
+					"-lffi",
 				);
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				USER_HEADER_SEARCH_PATHS = /usr/local/Cellar/llvm/9.0.1/include;
