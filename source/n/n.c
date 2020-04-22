@@ -22,10 +22,19 @@ struct resolved {
     struct resolved* arguments;
 };
 
+enum codegen_type {
+    _cg_usual, _cg_none,
+    _cg_macro,
+    _cg_fD, _cg_fd,
+    _cg_sD, _cg_sd,
+    _cg_variable, _cg_namespace,
+};
+
 struct name {
     size_t type;
     size_t count;
     size_t* signature;
+    enum codegen_type cg_type;
     struct resolved def;
     LLVMValueRef llvmdef;
 };
@@ -40,10 +49,6 @@ struct context {
     size_t best;
     size_t frame_count;
     size_t count;
-    
-    size_t cnp;
-    size_t cfp;
-    
     struct frame* frames;
     struct name* names;
 };
@@ -76,53 +81,90 @@ static void print_error(struct token* given, size_t given_count, size_t type, st
     } else printf("n3zqx2l: %s:%d:%d: error: %s: unresolved expression\n\n", filename, 1, 1, buffer);
 }
 
+
 enum {
-    _o, _define,
+    _o, _i, _char, _symbol, _element, _param, _join, _define,
 };
 
-static void do_intrinsic(struct resolved solution, struct context* context) {
-//    if (solution.index == _appchar) {
-//        const size_t n = context->cnp;
-//        context->names[n].signature = realloc(context->names[n].signature, sizeof(size_t) * (context->names[n].count + 1));
-//        context->names[n].signature[context->names[n].count++] = solution.arguments[0].value;
-//
-////    } else if (solution.index == _apppar) {
-////
-////        const size_t n = context->cnp;
-////        context->names[n].signature = realloc(context->names[n].signature, sizeof(size_t) * (context->names[n].count + 1));
-////        context->names[n].signature[context->names[n].count++] = solution.arguments[0].index + 256;
-//
-//    } else if (solution.index == _push) {
-//
-//        /// "Quick and Dirty" solution:    (incorrect solution)
-//        /// ... we really should be doing a sorted-insertion, according to a wacky comparison function, to make it so
-//        /// forehead-heavy signatures are last, and signatures are sorted smallest first. very important.
-//
-//        const size_t f = context->cfp;
-//        context->frames[f].indicies = realloc(context->frames[f].indicies, sizeof(size_t) * (context->frames[f].count + 1));
-//        context->frames[f].indicies[context->frames[f].count++] = context->cnp;
-//    }
-}
+static size_t define(struct resolved given, struct resolved type, struct context* context);
 
-
-static void evaluate(struct resolved solution, struct context* context) {
-    do_intrinsic(solution, context);
-    for (size_t i = 0; i < solution.count; i++) evaluate(solution.arguments[i], context);
-}
-
-static void define(struct resolved solution, struct context* context) {
-    if (solution.index == _define) {
-
-        evaluate(solution, context);
-
-        // evalulate the name.      ///DONE --> not neccesary.
+static void evaluate(struct resolved given, struct name* result, struct context* context) {
+    
+    if (given.index == _symbol) {
+        result->signature = realloc(result->signature, sizeof(size_t) * (result->count + 1));
+        result->signature[result->count++] = given.arguments[0].value;
         
-        // evaluate the type.       /// NECCESSARY
+    } else if (given.index == _param) {   /// this cannot be _define, because we need to manage our stack frames: make parameters in a different stack frame!
+                
+        ///FACT:  we need to be using the stack better here!
+        ///probably open up a new stack here? and then close it after we define the thing?
+        ///ehh... i dont know... this is weird...
+                
+        /// given.arguments[0]     is a giant tree! calls define(sol, cxt) on given.arguments[0].
+        /// given.arguments[1]     is a type! simply get its index,  with ".index".
         
-        // define a random name, of that type.
-        
-        // thats it.
+        result->signature = realloc(result->signature, sizeof(size_t) * (result->count + 1));
+        result->signature[result->count++] = 256 + define(given.arguments[0], given.arguments[1], context);
     }
+    
+    for (size_t i = 0; i < given.count; i++) evaluate(given.arguments[i], result, context);
+}
+
+
+/// how are we supposed to use the type parameter passed in?!?!
+///
+///
+///   wait
+///
+///         isnt it superfuous, if we give definitions?
+///          because the definition CONTAINS the type, kinda?... not really, actually. nvm.
+///            we need parametric polymorphism, in order to specify a defintion! and this type param,
+///            is the type of the definition, possibly lazily so...
+
+/// simply defines the name in the symbol table.
+///
+/// ....setting its enum is a task for other people down the line.
+
+
+static size_t get(struct resolved type) {
+    
+    return 0;
+}
+
+
+static size_t define(struct resolved given, struct resolved type, struct context* context) {
+    struct name new = {0};
+    new.type = get(type);
+    evaluate(given, &new, context);
+    
+    ///FACT:  we need to be using the stack better here!
+    ///probably open up a new stack here? and then close it after we define the thing?
+    ///ehh... i dont know... this is weird...
+    
+    const size_t f = context->frame_count - 1, i = context->count;
+    context->names = realloc(context->names, sizeof(struct name) * (i + 1));
+    context->names[context->count++] = new;
+    
+    
+    /// im pretty sure, right before we push the index of this thing, we need to make sure that:
+    
+    
+    /// the parameters are in sf  (i+1),
+    
+    /// the function itself is in sf (i)
+    
+    /// the function body utilizes (s)
+    
+    /// okay i get it now.
+    
+    /// we need to be essentially, making a new define() function, which is for the top level, and then another one for the parameters.
+    
+    context->frames[f].indicies = realloc(context->frames[f].indicies, sizeof(struct frame) * (context->frames[f].count + 1));
+    context->frames[f].indicies[context->frames[f].count++] = i;
+    
+    
+    
+    return i;
 }
 
 static struct resolved resolve_at(struct token* given, size_t given_count, size_t type, struct context* context, size_t depth, const char* filename) {
@@ -158,19 +200,19 @@ static struct resolved resolve_at(struct token* given, size_t given_count, size_
                 
             }
             // right here, we want to expand the definition of a macro, if it is a macro.
-            //do_intrinsic(solution, context);
+            if (solution.index == _define) define(solution, context);
             return solution;
             next: continue;
         }
     }
-//    if (type == _c) return (struct resolved) {_c, given[context->at++].value, 0, 0};
+    if (type == _symbol) return (struct resolved) {_char, given[context->at++].value, 0, 0};
     print_error(given, given_count, type, context, filename);
     return (struct resolved) {0};
 }
 
-static void debug_context(struct context* context) {
+static void debug_context(struct context* context, size_t context_cnp, size_t context_cfp) {
     printf("index = %lu, best = %lu\n", context->at, context->best);
-    printf("cnp = %lu, cfp = %lu\n", context->cnp, context->cfp);
+    printf("cnp = %lu, cfp = %lu\n", context_cnp, context_cfp);
     printf("---- debugging frames: ----\n");
     for (size_t i = 0; i < context->frame_count; i++) {
         printf("\t ----- FRAME # %lu ---- \n\t\tidxs: { ", i);
@@ -359,7 +401,8 @@ int main(int argc, const char** argv) {
     for (int i = 1; i < argc; i++) {
         if (argv[i][0] == '-') exit(!puts("n3zqx2l version 0.0.0\nn3zqx2l [-] [files]"));
         struct context context = {0};
-        
+        size_t context_cnp = 0;
+        size_t context_cfp = 0;
         printf("the CSR terminal. type 'h' for help.\n");
         while (1) {
             
@@ -382,9 +425,9 @@ int main(int argc, const char** argv) {
                        "\n");
                 
             } else if (c == 's') {
-                size_t f = context.cfp;
+                size_t f = context_cfp;
                 context.frames[f].indicies = realloc(context.frames[f].indicies, sizeof(size_t) * (context.frames[f].count + 1));
-                context.frames[f].indicies[context.frames[f].count++] = context.cnp;
+                context.frames[f].indicies[context.frames[f].count++] = context_cnp;
                 
             } else if (c == 'e') {
                 context.names = realloc(context.names, sizeof(struct name) * (context.count + 1));
@@ -396,26 +439,26 @@ int main(int argc, const char** argv) {
             
             } else if (c == 'c') {
                 char c = get_character(); printf("%c", c);
-                size_t n = context.cnp;
+                size_t n = context_cnp;
                 context.names[n].signature = realloc(context.names[n].signature, sizeof(size_t) * (context.names[n].count + 1));
                 context.names[n].signature[context.names[n].count++] = c;
             
             } else if (c == 'a') {
-                const size_t n = context.cnp;
+                const size_t n = context_cnp;
                 context.names[n].signature = realloc(context.names[n].signature, sizeof(size_t) * (context.names[n].count + 1));
                 context.names[n].signature[context.names[n].count++] = read_number() + 256;
                 
-            } else if (c == 't') context.names[context.cnp].type = read_number();
-            else if (c == 'j') context.cnp++;
-            else if (c == 'i') context.cnp--;
-            else if (c == 'k') context.cfp++;
-            else if (c == 'l') context.cfp--;
-            else if (c == 'u') context.names[context.cnp].count--;
-            else if (c == 'v') context.frames[context.cfp].count--;
+            } else if (c == 't') context.names[context_cnp].type = read_number();
+            else if (c == 'j') context_cnp++;
+            else if (c == 'i') context_cnp--;
+            else if (c == 'k') context_cfp++;
+            else if (c == 'l') context_cfp--;
+            else if (c == 'u') context.names[context_cnp].count--;
+            else if (c == 'v') context.frames[context_cfp].count--;
             else if (c == 'n') context.count--;
             else if (c == 'm') context.frame_count--;
             else if (c == ';') clear_screen();
-            else if (c == 'd') debug_context(&context);
+            else if (c == 'd') debug_context(&context, context_cnp, context_cfp);
             else if (c == 'r') resolve_file_in_context(argv[i], &context);
             else if (c == 'w') resolve_string_in_context(&context);
             else if (c == '\n') continue;
