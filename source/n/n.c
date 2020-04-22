@@ -22,6 +22,10 @@ struct resolved {
     struct resolved* arguments;
 };
 
+enum {
+    _o, _i, _char, _symbol, _element, _param, _join, _define,
+};
+
 enum codegen_type {
     _cg_usual, _cg_none,
     _cg_macro,
@@ -72,7 +76,7 @@ static void represent(size_t given, char* buffer, size_t limit, size_t* at, stru
 }
 
 static void print_error(struct token* given, size_t given_count, size_t type, struct context* context, const char* filename) {
-     ///TODO: we probably want to have a limiter on the number of errors that we are going to give. thats seems important.
+     
     char buffer[2048] = {0}; size_t index = 0;
     represent(type, buffer, sizeof buffer,  &index, context);
     if (context->best < given_count) {
@@ -80,11 +84,6 @@ static void print_error(struct token* given, size_t given_count, size_t type, st
         printf("n3zqx2l: %s:%lu:%lu: error: %s: unresolved %c\n\n", filename, b.line, b.column, buffer, (char) b.value);
     } else printf("n3zqx2l: %s:%d:%d: error: %s: unresolved expression\n\n", filename, 1, 1, buffer);
 }
-
-
-enum {
-    _o, _i, _char, _symbol, _element, _param, _join, _define,
-};
 
 static size_t define(struct resolved given, struct context* context);
 
@@ -94,73 +93,30 @@ static void evaluate(struct resolved given, struct name* result, struct context*
         result->signature = realloc(result->signature, sizeof(size_t) * (result->count + 1));
         result->signature[result->count++] = given.arguments[0].value;
         
-    } else if (given.index == _param) {   /// this cannot be _define, because we need to manage our stack frames: make parameters in a different stack frame!
-                
-        ///FACT:  we need to be using the stack better here!
-        ///probably open up a new stack here? and then close it after we define the thing?
-        ///ehh... i dont know... this is weird...
-                
-        /// given.arguments[0]     is a giant tree! calls define(sol, cxt) on given.arguments[0].
-        /// given.arguments[1]     is a type! simply get its index,  with ".index".
+    } else if (given.index == _param) {
         
         result->signature = realloc(result->signature, sizeof(size_t) * (result->count + 1));
         result->signature[result->count++] = 256 + define(given, context);
         
-    }
-    
-    else for (size_t i = 0; i < given.count; i++) evaluate(given.arguments[i], result, context);
+    } else for (size_t i = 0; i < given.count; i++) evaluate(given.arguments[i], result, context);
 }
 
-
-/// how are we supposed to use the type parameter passed in?!?!
-///
-///
-///   wait
-///
-///         isnt it superfuous, if we give definitions?
-///          because the definition CONTAINS the type, kinda?... not really, actually. nvm.
-///            we need parametric polymorphism, in order to specify a defintion! and this type param,
-///            is the type of the definition, possibly lazily so...
-
-/// simply defines the name in the symbol table.
-///
-/// ....setting its enum is a task for other people down the line.
-
-
-static size_t get(struct resolved type) {    
+static size_t get(struct resolved type) {
     return type.index; /// TEMP
 }
-
 
 static size_t define(struct resolved given, struct context* context) {
     struct name new = {0};
     new.type = get(given.arguments[1]);
     evaluate(given.arguments[0], &new, context);
-    
-    ///FACT:  we need to be using the stack better here!
-    ///probably open up a new stack here? and then close it after we define the thing?
-    ///ehh... i dont know... this is weird...
-    
+            
     const size_t f = context->frame_count - 1, i = context->count;
     context->names = realloc(context->names, sizeof(struct name) * (i + 1));
     context->names[context->count++] = new;
-    
-    
-    /// im pretty sure, right before we push the index of this thing, we need to make sure that:
-    
-    
-    /// the parameters are in sf  (i+1),
-    /// the function itself is in sf (i)
-    /// the function body utilizes sf(i+1)      ... this is the trick part.
-    
-    /// okay i get it now.
-    
-    /// we need to be essentially, making a new define() function, which is for the top level, and then another one for the parameters.
-    
+            
     context->frames[f].indicies = realloc(context->frames[f].indicies, sizeof(struct frame) * (context->frames[f].count + 1));
     context->frames[f].indicies[context->frames[f].count++] = i;
-    
-    
+        
     return i;
 }
 
@@ -350,40 +306,6 @@ void clear_screen() {
 }
 
 int main(int argc, const char** argv) {
-    
-//    LLVMLinkInInterpreter();
-//
-//    const char* path = "/Users/deniylreimn/Documents/projects/n3zqx2l/examples/test.ll";
-//
-//    LLVMModuleRef module = LLVMModuleCreateWithName("init.n");
-//
-//    LLVMAddFunction(module, "hi", LLVMFunctionType(LLVMInt32Type(), 0, 0, 0));
-//    LLVMAddFunction(module, "fwef", LLVMFunctionType(LLVMInt32Type(), 0, 0, 0));
-//
-//    LLVMModuleRef m = LLVMModuleCreateWithName("temp.n");
-//    LLVMMemoryBufferRef buffer; char* out = NULL;
-//    if (LLVMCreateMemoryBufferWithContentsOfFile(path, &buffer, &out) ||
-//        LLVMParseIRInContext(LLVMGetGlobalContext(), buffer, &m, &out) ||
-//        LLVMLinkModules2(module, m))
-//        printf("llvm: error: %s\n", out);
-//
-//    puts(LLVMPrintModuleToString(module));
-//
-//    LLVMExecutionEngineRef engine = NULL;
-//    if (LLVMCreateExecutionEngineForModule(&engine, module, &out)) {
-//        printf("llvm: error: %s\n", out);
-//    }
-//
-//    const char* name = "hello";
-//
-//    LLVMValueRef f = NULL;
-//    if (LLVMFindFunction(engine, name, &f)) {
-//        printf("llvm: error: could not find function %s to run\n", name);
-//    }
-//
-//    LLVMRunFunction(engine, f, 0, NULL);
-//
-//    exit(0);
     
     configure_terminal();
     for (int i = 1; i < argc; i++) {
