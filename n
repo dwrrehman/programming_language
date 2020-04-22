@@ -1,1 +1,1 @@
-/Users/deniylreimn/Library/Developer/Xcode/DerivedData/n-filhggktjyntesdoinbotaeuujga/Build/Products/Debug/n @$
+/Users/deniylreimn/Library/Developer/Xcode/DerivedData/n-filhggktjyntesdoinbotaeuujga/Build/Products/Debug/n $@
