@@ -86,7 +86,7 @@ enum {
     _o, _i, _char, _symbol, _element, _param, _join, _define,
 };
 
-static size_t define(struct resolved given, struct resolved type, struct context* context);
+static size_t define(struct resolved given, struct context* context);
 
 static void evaluate(struct resolved given, struct name* result, struct context* context) {
     
@@ -104,10 +104,11 @@ static void evaluate(struct resolved given, struct name* result, struct context*
         /// given.arguments[1]     is a type! simply get its index,  with ".index".
         
         result->signature = realloc(result->signature, sizeof(size_t) * (result->count + 1));
-        result->signature[result->count++] = 256 + define(given.arguments[0], given.arguments[1], context);
+        result->signature[result->count++] = 256 + define(given, context);
+        
     }
     
-    for (size_t i = 0; i < given.count; i++) evaluate(given.arguments[i], result, context);
+    else for (size_t i = 0; i < given.count; i++) evaluate(given.arguments[i], result, context);
 }
 
 
@@ -126,16 +127,15 @@ static void evaluate(struct resolved given, struct name* result, struct context*
 /// ....setting its enum is a task for other people down the line.
 
 
-static size_t get(struct resolved type) {
-    
-    return 0;
+static size_t get(struct resolved type) {    
+    return type.index; /// TEMP
 }
 
 
-static size_t define(struct resolved given, struct resolved type, struct context* context) {
+static size_t define(struct resolved given, struct context* context) {
     struct name new = {0};
-    new.type = get(type);
-    evaluate(given, &new, context);
+    new.type = get(given.arguments[1]);
+    evaluate(given.arguments[0], &new, context);
     
     ///FACT:  we need to be using the stack better here!
     ///probably open up a new stack here? and then close it after we define the thing?
@@ -150,10 +150,8 @@ static size_t define(struct resolved given, struct resolved type, struct context
     
     
     /// the parameters are in sf  (i+1),
-    
     /// the function itself is in sf (i)
-    
-    /// the function body utilizes (s)
+    /// the function body utilizes sf(i+1)      ... this is the trick part.
     
     /// okay i get it now.
     
@@ -161,7 +159,6 @@ static size_t define(struct resolved given, struct resolved type, struct context
     
     context->frames[f].indicies = realloc(context->frames[f].indicies, sizeof(struct frame) * (context->frames[f].count + 1));
     context->frames[f].indicies[context->frames[f].count++] = i;
-    
     
     
     return i;
@@ -173,39 +170,29 @@ static struct resolved resolve_at(struct token* given, size_t given_count, size_
     size_t saved = context->at;
     for (size_t f = context->frame_count; f--;) {
         struct frame frame = context->frames[f];
-        
         for (size_t i = frame.count; i--; ) {
             context->best = fmax(context->at, context->best);
             context->at = saved;
- 
             struct resolved solution = {frame.indicies[i], 0, 0, 0};
             struct name name = context->names[solution.index];
-            
             if (name.type != type) continue;
             
             for (size_t s = 0; s < name.count; s++) {
+                if (context->at >= given_count) { if (solution.count == 1 && s == 1) return solution.arguments[0]; else goto next; }
                 
-                if (context->at >= given_count && solution.count == 1 && s == 1) return solution.arguments[0];
-                
-                else if (context->at >= given_count) goto next;
-                
-                else if (name.signature[s] > 255) {
+                else if (name.signature[s] >= 256) {
                     struct resolved argument = resolve_at(given, given_count, context->names[name.signature[s] - 256].type, context, depth + 1, filename);
                     if (!argument.index) goto next;
                     solution.arguments = realloc(solution.arguments, sizeof(struct resolved) * (solution.count + 1));
                     solution.arguments[solution.count++] = argument;
-                    
-                } else if (name.signature[s] == given[context->at].value) context->at++;
-                else goto next;
-                
+                } else if (name.signature[s] == given[context->at].value) context->at++; else goto next;
             }
-            // right here, we want to expand the definition of a macro, if it is a macro.
-            if (solution.index == _define) define(solution, context);
-            return solution;
-            next: continue;
+//            if (name.cg_type == _cg_macro) expand_macro(name, solution);
+//            if (solution.index == _define) define(solution, context);
+            return solution; next: continue;
         }
     }
-    if (type == _symbol) return (struct resolved) {_char, given[context->at++].value, 0, 0};
+//    if (type == _symbol) return (struct resolved) {_char, given[context->at++].value, 0, 0};
     print_error(given, given_count, type, context, filename);
     return (struct resolved) {0};
 }
@@ -296,6 +283,7 @@ static void resolve_file_in_context(const char* filename, struct context* contex
         perror("error");
         return;
     }
+    
     fseek(file, 0, SEEK_END);
     size_t length = ftell(file);
     char* text = malloc(length * sizeof(char));
