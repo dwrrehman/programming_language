@@ -37,10 +37,10 @@ enum codegen_type {
 struct name {
     size_t type;
     size_t count;
+    size_t codegen_as;
     size_t* signature;
-    enum codegen_type cg_type;
-    struct resolved def;
     LLVMValueRef llvmdef;
+    struct resolved def;
 };
 
 struct frame {
@@ -52,13 +52,13 @@ struct context {
     size_t at;
     size_t best;
     size_t frame_count;
-    size_t count;
+    size_t name_count;
     struct frame* frames;
     struct name* names;
 };
 
 static void represent(size_t given, char* buffer, size_t limit, size_t* at, struct context* context) {
-    if (given > context->count) return;
+    if (given > context->name_count) return;
     struct name name = context->names[given];
     for (size_t i = 0; i < name.count; i++) {
         if (*at + 3 >= limit) return;
@@ -76,8 +76,8 @@ static void represent(size_t given, char* buffer, size_t limit, size_t* at, stru
 }
 
 static void print_error(struct token* given, size_t given_count, size_t type, struct context* context, const char* filename) {
-     
-    char buffer[2048] = {0}; size_t index = 0;
+    char buffer[2048] = {0};
+    size_t index = 0;
     represent(type, buffer, sizeof buffer,  &index, context);
     if (context->best < given_count) {
         struct token b = given[context->best];
@@ -106,18 +106,28 @@ static size_t get(struct resolved type) {
 }
 
 static size_t define(struct resolved given, struct context* context) {
+    
+    const size_t
+        f = context->frame_count - 1,
+        new_index = context->name_count;
+    
+    context->frames[f].indicies = realloc(context->frames[f].indicies, sizeof(struct frame) * (context->frames[f].count + 1));
+    context->frames[f].indicies[context->frames[f].count++] = new_index;
+    
+    context->frames = realloc(context->frames, sizeof(struct frame) * (context->frame_count + 1));
+    context->frames[context->frame_count++] = (struct frame){0};
+    
     struct name new = {0};
     new.type = get(given.arguments[1]);
     evaluate(given.arguments[0], &new, context);
-            
-    const size_t f = context->frame_count - 1, i = context->count;
-    context->names = realloc(context->names, sizeof(struct name) * (i + 1));
-    context->names[context->count++] = new;
-            
-    context->frames[f].indicies = realloc(context->frames[f].indicies, sizeof(struct frame) * (context->frames[f].count + 1));
-    context->frames[f].indicies[context->frames[f].count++] = i;
-        
-    return i;
+                
+    context->names = realloc(context->names, sizeof(struct name) * (new_index + 1));
+    context->names[context->name_count++] = new;
+                
+    ///pop the last index?
+    //context->frame_count--;
+    
+    return new_index;
 }
 
 static struct resolved resolve_at(struct token* given, size_t given_count, size_t type, struct context* context, size_t depth, const char* filename) {
@@ -125,11 +135,10 @@ static struct resolved resolve_at(struct token* given, size_t given_count, size_
     
     size_t saved = context->at;
     for (size_t f = context->frame_count; f--;) {
-        struct frame frame = context->frames[f];
-        for (size_t i = frame.count; i--; ) {
+        for (size_t i = context->frames[f].count; i--; ) {
             context->best = fmax(context->at, context->best);
             context->at = saved;
-            struct resolved solution = {frame.indicies[i], 0, 0, 0};
+            struct resolved solution = {context->frames[f].indicies[i], 0, 0, 0};
             struct name name = context->names[solution.index];
             if (name.type != type) continue;
             
@@ -163,7 +172,7 @@ static void debug_context(struct context* context, size_t context_cnp, size_t co
         puts("}");
     }
     printf("\nmaster: {\n");
-    for (size_t i = 0; i < context->count; i++) {
+    for (size_t i = 0; i < context->name_count; i++) {
         printf("\t%6lu: ", i);
         char buffer[2048] = {0};
         size_t index = 0;
@@ -228,7 +237,7 @@ static size_t read_number() {
 static void resolve_file_in_context(const char* filename, struct context* context) {
     printf("t: ");
     size_t expected_type = read_number();
-    if (expected_type >= context->count) {
+    if (expected_type >= context->name_count) {
         printf("error: expected type not in range! aborting.\n");
         return;
     }
@@ -270,7 +279,7 @@ static void resolve_file_in_context(const char* filename, struct context* contex
 static void resolve_string_in_context(struct context* context) {
     printf("t: ");
     size_t expected_type = read_number();
-    if (expected_type >= context->count) {
+    if (expected_type >= context->name_count) {
         printf("error: expected type not in range! aborting.\n");
         return;
     }
@@ -280,6 +289,7 @@ static void resolve_string_in_context(struct context* context) {
     restore_terminal();
     fgets(text, max_string_length, stdin);
     configure_terminal();
+    
     const size_t length = strlen(text);
     struct token* tokens = malloc(length * sizeof(struct token));
     size_t token_count = 0, line = 1, column = 1;
@@ -310,16 +320,17 @@ int main(int argc, const char** argv) {
     configure_terminal();
     for (int i = 1; i < argc; i++) {
         if (argv[i][0] == '-') exit(!puts("n3zqx2l version 0.0.0\nn3zqx2l [-] [files]"));
+        
         struct context context = {0};
         size_t context_cnp = 0;
         size_t context_cfp = 0;
+        
+        
         printf("the CSR terminal. type 'h' for help.\n");
         while (1) {
-            
             printf(":");
             int c = get_character(); printf("%c", c);
             if (c == 'q') break;
-            
             else if (c == 'h') {
                 printf("\n"
                        "q : quit                  h : this help menu\n"
@@ -340,8 +351,8 @@ int main(int argc, const char** argv) {
                 context.frames[f].indicies[context.frames[f].count++] = context_cnp;
                 
             } else if (c == 'e') {
-                context.names = realloc(context.names, sizeof(struct name) * (context.count + 1));
-                context.names[context.count++] = (struct name) {0};
+                context.names = realloc(context.names, sizeof(struct name) * (context.name_count + 1));
+                context.names[context.name_count++] = (struct name) {0};
                 
             } else if (c == 'f') {
                 context.frames = realloc(context.frames, sizeof(struct name) * (context.frame_count + 1));
@@ -365,7 +376,7 @@ int main(int argc, const char** argv) {
             else if (c == 'l') context_cfp--;
             else if (c == 'u') context.names[context_cnp].count--;
             else if (c == 'v') context.frames[context_cfp].count--;
-            else if (c == 'n') context.count--;
+            else if (c == 'n') context.name_count--;
             else if (c == 'm') context.frame_count--;
             else if (c == ';') clear_screen();
             else if (c == 'd') debug_context(&context, context_cnp, context_cfp);
