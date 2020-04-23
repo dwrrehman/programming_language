@@ -2,9 +2,9 @@
 
 ### Created By Daniel Rehman.
 
-   EASIER THAN PYTHON
-   SIMPLER THAN SCHEME
-   FASTER THAN C
+- EASIER THAN PYTHON
+- SIMPLER THAN SCHEME
+- FASTER THAN C
 
 n3zqx2l is a general-purpose, imperative and procedural, efficient and low-level, strongly, statically, nominally, and dependently typed, statically scoped, type-infered, compile-time interpreted and compiled systems programming language, designed with simplicity, minimalism, readability, and runtime performance in mind, and is built using the LLVM compiler infrastructure.
 

@@ -111,6 +111,9 @@ static size_t define(struct resolved given, struct context* context) {
         f = context->frame_count - 1,
         new_index = context->name_count;
     
+    ///TODO: this actually needs to be a call to an insertion-back method,
+    ///which will put it in the right relative order based on the existing signatures.
+    
     context->frames[f].indicies = realloc(context->frames[f].indicies, sizeof(struct frame) * (context->frames[f].count + 1));
     context->frames[f].indicies[context->frames[f].count++] = new_index;
     
@@ -129,6 +132,13 @@ static size_t define(struct resolved given, struct context* context) {
     
     return new_index;
 }
+
+
+static void expand_macro(struct name name, struct resolved solution) {
+    
+    return;
+}
+
 
 static struct resolved resolve_at(struct token* given, size_t given_count, size_t type, struct context* context, size_t depth, const char* filename) {
     if (depth > 128) return (struct resolved) {0};
@@ -152,15 +162,30 @@ static struct resolved resolve_at(struct token* given, size_t given_count, size_
                     solution.arguments[solution.count++] = argument;
                 } else if (name.signature[s] == given[context->at].value) context->at++; else goto next;
             }
-//            if (name.cg_type == _cg_macro) expand_macro(name, solution);
-//            if (solution.index == _define) define(solution, context);
+            if (name.codegen_as == _cg_macro) expand_macro(name, solution);
+            if (solution.index == _define) define(solution, context);
             return solution; next: continue;
         }
     }
-//    if (type == _symbol) return (struct resolved) {_char, given[context->at++].value, 0, 0};
+    if (type == _symbol) return (struct resolved) {_char, given[context->at++].value, 0, 0};
     print_error(given, given_count, type, context, filename);
     return (struct resolved) {0};
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+/// ------------------- debug and testing framework ----------------------------
 
 static void debug_context(struct context* context, size_t context_cnp, size_t context_cfp) {
     printf("index = %lu, best = %lu\n", context->at, context->best);
