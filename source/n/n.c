@@ -51,7 +51,7 @@ struct name {
     size_t codegen_as;
     size_t* signature;
     LLVMValueRef llvmdef;
-    struct resolved def;
+    struct resolved definition;
 };
 
 struct frame {
@@ -89,7 +89,7 @@ static void represent(size_t given, char* buffer, size_t limit, size_t* at, stru
     }
 }
 
-static struct resolved resolution_error(struct token* given, size_t given_count, size_t type, struct context* context) {
+static struct resolved parse_error(struct token* given, size_t given_count, size_t type, struct context* context) {
     char buffer[2048] = {0};
     size_t index = 0;
     represent(type, buffer, sizeof buffer,  &index, context);
@@ -124,11 +124,10 @@ static void construct_signature(struct resolved given, struct name* result, stru
 
 static size_t construct_type(struct resolved type) {
     if (!type.count) return type.index;      /// Base case, i think...      for when we have no arguments. its just a straight type, like "int".
-    
-    
+        
     /// This is more complicated than simply getting an index.
     /// think,  "vector<int>".  we need to possibly instantiate a new type, right? by running this function, right?
-    return type.index; /// TEMP
+    abort(); /// TEMP
 }
 
 static size_t define(struct resolved given, struct context* context, size_t should_pop) {
@@ -167,15 +166,15 @@ static size_t is_defined(struct context* context, size_t tofind) {
 }
 
 static struct resolved expand_macro(struct name name, struct resolved solution, struct token* given, size_t given_count, struct context* context) {
-    if (!name.def.index) return macro_expansion_error(solution, given, given_count, context);
-    struct resolved def = duplicate(name.def);
+    if (!name.definition.index) return macro_expansion_error(solution, given, given_count, context);
+    struct resolved def = duplicate(name.definition);
     for (size_t i = 0, s = 0; s < solution.count; s++) {
         while (i < name.count && name.signature[i] < 256) i++;
         replace_in_tree(name.signature[i++], solution.arguments[s].index, &def);
     } return def;
 }
 
-static struct resolved resolve_at(struct token* given, size_t given_count, size_t type, size_t depth, struct context* context) {
+static struct resolved parse(struct token* given, size_t given_count, size_t type, size_t depth, struct context* context) {
     if (depth > 128 || context->errors > context->max_error_count) return (struct resolved) {0};
     if (type == _symbol) return (struct resolved) {_char, given[context->at++].value, 0, 0};
     size_t saved = context->at;
@@ -192,7 +191,7 @@ static struct resolved resolve_at(struct token* given, size_t given_count, size_
                 if (context->errors > context->max_error_count) return (struct resolved) {0};
                 if (context->at >= given_count) { if (solution.count == 1 && s == 1) return solution.arguments[0]; else goto next; }
                 else if (name.signature[s] >= 256) {
-                    struct resolved argument = resolve_at(given, given_count, context->names[name.signature[s] - 256].type, depth + 1, context);
+                    struct resolved argument = parse(given, given_count, context->names[name.signature[s] - 256].type, depth + 1, context);
                     if (context->errors > context->max_error_count) return (struct resolved) {0};
                     if (!argument.index) goto next;
                     solution.arguments = realloc(solution.arguments, sizeof(struct resolved) * (solution.count + 1));
@@ -201,10 +200,10 @@ static struct resolved resolve_at(struct token* given, size_t given_count, size_
                 if ((solution.index == _define || solution.index == _declare) && solution.count == 2) define(solution, context, solution.index == _declare);
             }
             if (name.codegen_as == _cg_macro) solution = expand_macro(name, solution, given, given_count, context);
-            if (solution.index == _define) { context->frame_count--; context->names[context->name_count - 1].def = solution.arguments[2]; }
+            if (solution.index == _define) { context->frame_count--; context->names[context->name_count - 1].definition = solution.arguments[2]; }
             return solution; next: if (solution.index == _define) context->frame_count--;
         }
-    } return resolution_error(given, given_count, type, context);
+    } return parse_error(given, given_count, type, context);
 }
 
 
@@ -324,7 +323,7 @@ static void resolve_file_in_context(const char* filename, struct context* contex
     }
     context->filename = filename;
     context->at = context->best = context->errors = 0;
-    struct resolved resolved = resolve_at(tokens, token_count, expected_type, 0, context);
+    struct resolved resolved = parse(tokens, token_count, expected_type, 0, context);
     puts("");
     debug_resolved(resolved, 0, context);
     puts("\n");
@@ -360,7 +359,7 @@ static void resolve_string_in_context(struct context* context) {
     
     context->filename = "<string>";
     context->at = context->best = context->errors = 0;
-    struct resolved resolved = resolve_at(tokens, token_count, expected_type, 0, context);
+    struct resolved resolved = parse(tokens, token_count, expected_type, 0, context);
     puts("");
     debug_resolved(resolved, 0, context);
     puts("");
@@ -376,6 +375,15 @@ void clear_screen() {
     printf("\033[1;1H\033[2J");
 }
 
+static void define_intrinsics(struct context* context) {
+    
+    
+    
+    struct resolved j = (struct resolved) {0};
+    
+    define(j, context, 1);
+}
+
 int main(int argc, const char** argv) {
     
     configure_terminal();
@@ -383,12 +391,13 @@ int main(int argc, const char** argv) {
         if (argv[i][0] == '-') {
             exit(!puts("n3zqx2l version 0.0.0\nn3zqx2l [-] [files]"));
         }
-        
         struct context context = {0};
         size_t context_cnp = 0;
         size_t context_cfp = 0;
         context.max_error_count = 7;
         
+        define_intrinsics(&context);
+    
         printf("the CSR terminal. type 'h' for help.\n");
         while (1) {
             printf(":");
