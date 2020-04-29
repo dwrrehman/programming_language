@@ -23,11 +23,21 @@ struct resolved {
 };
 
 enum {
-    _o, _i, _name,
-    _char, _symbol,
-    _appchar, _param, _namejoin,
-    _declare, _define, _join,
+    _o, _i, _name, _symbol, _char,
     
+    _0appchar, _appchar,
+    
+    _0param, _param,
+    
+    _0namejoin, _1namejoin, _namejoin,
+    
+    _0join, _1join, _join,
+    
+    _0declare, _1declare, _declare,
+    
+    
+    _define = 100,
+
     /// alternatively,
     
 //    _o, _name,
@@ -50,7 +60,7 @@ struct name {
     size_t count;
     size_t codegen_as;
     size_t* signature;
-    LLVMValueRef llvmdef;
+//    LLVMValueRef llvmdef;
     struct resolved definition;
 };
 
@@ -375,17 +385,44 @@ void clear_screen() {
     printf("\033[1;1H\033[2J");
 }
 
-static void define_intrinsics(struct context* context) {
+
+static void push(size_t s, struct context* context) {
+    size_t f = 0;
+    context->frames[f].indicies = realloc(context->frames[f].indicies, sizeof(size_t) * (context->frames[f].count + 1));
+    context->frames[f].indicies[context->frames[f].count++] = s;
+}
+
+static void push_name(size_t* signature, size_t count, size_t type, struct context* context) {
+    context->names = realloc(context->names, sizeof(struct name) * (context->name_count + 1));
+    context->names[context->name_count++] = (struct name){type, count, _cg_default, signature, (struct resolved){0}};
+}
+
+/**
+ _o, _i, _name, _symbol, _char,
+ 
+ _0appchar, _appchar,
+ 
+ _0param, _param,
+ 
+ _0namejoin, _1namejoin, _namejoin,
+ 
+ _0join, _1join, _join,
+ 
+ _0declare, _1declare, _declare,
+ 
+ _0define, _1define, _2define _define,
+ 
+ 
+ 
+ */
+
+static void define_intrinsics(struct context* C) {
     
-    struct resolved signature = {_appchar, 0, 1, calloc(1, sizeof(struct resolved))};
-    struct resolved symbol = {_char, 'd', 0, 0};
-    signature.arguments[0] = symbol;
-    struct resolved type = {0};
-    struct resolved total = {_declare, 0, 2, calloc(2, sizeof(struct resolved))};
-    total.arguments[0] = signature;
-    total.arguments[1] = type;
+//    push_name((size_t[]){'f','0'}, 2, _name, C);
+//    push_name((size_t[]){'f','1'}, 2, _i, C);
+//    push_name((size_t[]){'f','2'}, 2, _, C);
+//    push_name((size_t[]){'f',_0join+o, _1join+o, _2define+o}, 3, _i, C); push(_join, C);
     
-    define(total, context, 1);
 }
 
 int main(int argc, const char** argv) {
@@ -403,7 +440,38 @@ int main(int argc, const char** argv) {
         size_t context_cfp = 0;
         
         
-        define_intrinsics(&context);
+        struct context* C = &context;
+                
+        const size_t o = 256;
+        push_name((size_t[]){'o'}, 1, 0, C); push(_o, C);
+        push_name((size_t[]){'i'}, 1, _o, C); push(_i, C);
+        push_name((size_t[]){'n'}, 1, _i, C); push(_name, C);
+        push_name((size_t[]){'s'}, 1, _i, C); push(_symbol, C);
+        push_name((size_t[]){'c'}, 1, _symbol, C); push(_char, C);
+        
+        push_name((size_t[]){'a','0'}, 2, _symbol, C);
+        push_name((size_t[]){'a',_0appchar+o}, 2, _name, C); push(_appchar, C);
+        
+        push_name((size_t[]){'p','0'}, 2, _i, C);
+        push_name((size_t[]){'p',_0param+o}, 2, _name, C); push(_param, C);
+        
+        push_name((size_t[]){'k','0'}, 2, _name, C);
+        push_name((size_t[]){'k','1'}, 2, _name, C);
+        push_name((size_t[]){'k',_0namejoin+o, _1namejoin+o}, 3, _name, C); push(_namejoin, C);
+        
+        push_name((size_t[]){'j','0'}, 2, _i, C);
+        push_name((size_t[]){'j','1'}, 2, _i, C);
+        push_name((size_t[]){'j',_0join+o, _1join+o}, 3, _i, C); push(_join, C);
+            
+        push_name((size_t[]){'d','0'}, 2, _name, C);
+        push_name((size_t[]){'d','1'}, 2, _i, C);
+        push_name((size_t[]){'d',_0declare+o, _1declare+o}, 3, _i, C); push(_declare, C);
+        
+        
+        
+        
+        
+        
     
         printf("the CSR terminal. type 'h' for help.\n");
         while (1) {
