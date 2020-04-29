@@ -24,25 +24,12 @@ struct resolved {
 
 enum {
     _o, _i, _name, _symbol, _char,
-    
     _0appchar, _appchar,
-    
     _0param, _param,
-    
     _0namejoin, _1namejoin, _namejoin,
-    
     _0join, _1join, _join,
-    
     _0declare, _1declare, _declare,
-    
-    
     _define = 100,
-
-    /// alternatively,
-    
-//    _o, _name,
-//    _char, _symbol, _appchar,
-//    _declare, _define, _join,
 };
 
 enum codegen_type {
@@ -225,13 +212,6 @@ static struct resolved resolve(struct token* given, size_t given_count, size_t t
 
 
 
-
-
-
-
-
-
-
 /// ------------------- debug and testing framework ----------------------------
 
 static void debug_context(struct context* context, size_t context_cnp, size_t context_cfp) {
@@ -400,34 +380,6 @@ static void push_name(size_t* signature, size_t count, size_t type, struct conte
     context->names[context->name_count++] = (struct name){type, count, _cg_default, signature, (struct resolved){0}};
 }
 
-/**
- _o, _i, _name, _symbol, _char,
- 
- _0appchar, _appchar,
- 
- _0param, _param,
- 
- _0namejoin, _1namejoin, _namejoin,
- 
- _0join, _1join, _join,
- 
- _0declare, _1declare, _declare,
- 
- _0define, _1define, _2define _define,
- 
- 
- 
- */
-
-static void define_intrinsics(struct context* C) {
-    
-//    push_name((size_t[]){'f','0'}, 2, _name, C);
-//    push_name((size_t[]){'f','1'}, 2, _i, C);
-//    push_name((size_t[]){'f','2'}, 2, _, C);
-//    push_name((size_t[]){'f',_0join+o, _1join+o, _2define+o}, 3, _i, C); push(_join, C);
-    
-}
-
 int main(int argc, const char** argv) {
     
     configure_terminal();
@@ -442,9 +394,7 @@ int main(int argc, const char** argv) {
         size_t context_cnp = 0;
         size_t context_cfp = 0;
         
-        
         struct context* C = &context;
-                
         const size_t o = 256;
         push_name((size_t[]){'o'}, 1, 0, C); push(_o, C);
         push_name((size_t[]){'i'}, 1, _o, C); push(_i, C);
@@ -469,13 +419,14 @@ int main(int argc, const char** argv) {
         push_name((size_t[]){'d','0'}, 2, _name, C);
         push_name((size_t[]){'d','1'}, 2, _i, C);
         push_name((size_t[]){'d',_0declare+o, _1declare+o}, 3, _i, C); push(_declare, C);
+        //    push_name((size_t[]){'f','0'}, 2, _name, C);
+        //    push_name((size_t[]){'f','1'}, 2, _i, C);
+        //    push_name((size_t[]){'f','2'}, 2, _, C);
+        //    push_name((size_t[]){'f',_0join+o, _1join+o, _2define+o}, 3, _i, C); push(_join, C);
+            
         
         
         
-        
-        
-        
-    
         printf("the CSR terminal. type 'h' for help.\n");
         while (1) {
             printf(":");
