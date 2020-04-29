@@ -174,7 +174,7 @@ static struct resolved expand_macro(struct name name, struct resolved solution, 
     } return def;
 }
 
-static struct resolved parse(struct token* given, size_t given_count, size_t type, size_t depth, struct context* context) {
+static struct resolved resolve(struct token* given, size_t given_count, size_t type, size_t depth, struct context* context) {
     if (depth > 128 || context->errors > context->max_error_count) return (struct resolved) {0};
     if (type == _symbol) return (struct resolved) {_char, given[context->at++].value, 0, 0};
     size_t saved = context->at;
@@ -191,7 +191,7 @@ static struct resolved parse(struct token* given, size_t given_count, size_t typ
                 if (context->errors > context->max_error_count) return (struct resolved) {0};
                 if (context->at >= given_count) { if (solution.count == 1 && s == 1) return solution.arguments[0]; else goto next; }
                 else if (name.signature[s] >= 256) {
-                    struct resolved argument = parse(given, given_count, context->names[name.signature[s] - 256].type, depth + 1, context);
+                    struct resolved argument = resolve(given, given_count, context->names[name.signature[s] - 256].type, depth + 1, context);
                     if (context->errors > context->max_error_count) return (struct resolved) {0};
                     if (!argument.index) goto next;
                     solution.arguments = realloc(solution.arguments, sizeof(struct resolved) * (solution.count + 1));
@@ -323,7 +323,7 @@ static void resolve_file_in_context(const char* filename, struct context* contex
     }
     context->filename = filename;
     context->at = context->best = context->errors = 0;
-    struct resolved resolved = parse(tokens, token_count, expected_type, 0, context);
+    struct resolved resolved = resolve(tokens, token_count, expected_type, 0, context);
     puts("");
     debug_resolved(resolved, 0, context);
     puts("\n");
@@ -359,7 +359,7 @@ static void resolve_string_in_context(struct context* context) {
     
     context->filename = "<string>";
     context->at = context->best = context->errors = 0;
-    struct resolved resolved = parse(tokens, token_count, expected_type, 0, context);
+    struct resolved resolved = resolve(tokens, token_count, expected_type, 0, context);
     puts("");
     debug_resolved(resolved, 0, context);
     puts("");
@@ -377,11 +377,15 @@ void clear_screen() {
 
 static void define_intrinsics(struct context* context) {
     
+    struct resolved signature = {_appchar, 0, 1, calloc(1, sizeof(struct resolved))};
+    struct resolved symbol = {_char, 'd', 0, 0};
+    signature.arguments[0] = symbol;
+    struct resolved type = {0};
+    struct resolved total = {_declare, 0, 2, calloc(2, sizeof(struct resolved))};
+    total.arguments[0] = signature;
+    total.arguments[1] = type;
     
-    
-    struct resolved j = (struct resolved) {0};
-    
-    define(j, context, 1);
+    define(total, context, 1);
 }
 
 int main(int argc, const char** argv) {
@@ -392,9 +396,12 @@ int main(int argc, const char** argv) {
             exit(!puts("n3zqx2l version 0.0.0\nn3zqx2l [-] [files]"));
         }
         struct context context = {0};
+        context.max_error_count = 5;
+        context.frames = realloc(context.frames, sizeof(struct name) * (context.frame_count + 1));
+        context.frames[context.frame_count++] = (struct frame) {0};
         size_t context_cnp = 0;
         size_t context_cfp = 0;
-        context.max_error_count = 7;
+        
         
         define_intrinsics(&context);
     
