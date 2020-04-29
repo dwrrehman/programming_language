@@ -106,7 +106,10 @@ static struct resolved parse_error(struct token* given, size_t given_count, size
     if (context->best < given_count) {
         struct token b = given[context->best];
         printf("n3zqx2l: %s:%lu:%lu: error: %s: unresolved %c\n\n", context->filename, b.line, b.column, buffer, (char) b.value);
-    } else printf("n3zqx2l: %s:%d:%d: error: %s: unresolved expression\n\n", context->filename, 1, 1, buffer);
+    } else if (context->best == given_count && context->best) {
+        struct token b = given[context->best - 1];
+        printf("n3zqx2l: %s:%lu:%lu: error: %s: unresolved expression near %c\n\n", context->filename, b.line, b.column, buffer, (char) b.value);
+    } else printf("n3zqx2l: %s:%d:%d: error: %s: unresolved expression\n\n", context->filename, 0, 0, buffer);
     context->errors++; return (struct resolved) {0};
 }
 
