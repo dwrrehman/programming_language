@@ -159,6 +159,7 @@ static struct resolved resolve(struct token* given, size_t given_count, size_t t
             if (type && name.type != type && is_defined(context, name.type)) continue;
             
             if (solution.index == _declare) {
+                ///I HATE THIS CODE
                 context->frames = realloc(context->frames, sizeof(struct frame) * (context->frame_count + 1));
                 context->frames[context->frame_count++] = (struct frame){0};
                 
@@ -167,7 +168,10 @@ static struct resolved resolve(struct token* given, size_t given_count, size_t t
             }
             
             for (size_t s = 0; s < name.count; s++) {
-                if (context->errors > context->max_error_count) return (struct resolved) {0};
+                if (context->errors > context->max_error_count) {
+                    if (solution.index == _declare) { context->frame_count--; context->stack_count--; }
+                    return (struct resolved) {0};
+                }
                 if (context->at >= given_count) { if (solution.count == 1 && s == 1) return solution.arguments[0]; else goto next; }
                 
                 else if (name.signature[s] >= 256) {
@@ -282,7 +286,6 @@ static size_t read_number() {
 }
 
 static void resolve_file_in_context(size_t expected_given, const char* filename, struct context* context) {
-    printf("t: ");
     size_t expected_type =  expected_given; //read_number();
     if (expected_type == 99) {
         expected_type = (size_t) -1;
@@ -327,7 +330,6 @@ static void resolve_file_in_context(size_t expected_given, const char* filename,
 }
 
 static void resolve_string_in_context(struct context* context) {
-    printf("t: ");
     size_t expected_type = read_number();
     if (expected_type == 99) {
         expected_type = (size_t) -1;
