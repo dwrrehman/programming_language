@@ -10,34 +10,34 @@ enum { _U, _i };
 enum { _cg_default, _cg_none, _cg_macro, _cg_function, _cg_namespace, _cg_variable, _cg_structure };
 
 struct location {
-    uint16_t line; /// max 65536 line
-    uint16_t column; /// max 65536 column
+    uint16_t line;
+    uint16_t column;
 };
 
 struct resolved {
-    size_t index; /// unlimited names
-    size_t count; /// unlimited number of arguments
+    size_t index;
+    size_t count;
     struct resolved* arguments;
-    uint8_t value; /// ascii
+    uint8_t value;
 };
 
 struct name {
     uint16_t signature[256];
-    size_t type; /// unlimited names
-    uint8_t count; /// max 256 signature elements
-    uint8_t codegen_as; /// max 8 codegen possibilities
+    size_t type;
+    uint8_t count;
+    uint8_t codegen_as;
 };
 
 struct frame {
     uint16_t indicies[512];
-    uint16_t count; /// max 512 indicies
+    uint16_t count;
 };
 
 struct context {
-    size_t at; /// unlimited tokens
-    size_t best; /// unlimited tokens
-    size_t name_count; /// unlimited names
-    size_t frame_count; /// unlimited frames
+    size_t at;
+    size_t best;
+    size_t name_count;
+    size_t frame_count;
     struct name* names;
     struct frame* frames;
 };
@@ -76,14 +76,11 @@ static void parse_error(uint8_t* given, size_t given_count, struct location* loc
 }
 
 static struct resolved resolve(uint8_t* given, size_t given_count, size_t type, struct context* context) {
-    
     struct context saved = *context; /// MAKE THIS A DEEP COPY!!!
-    
     for (size_t f = context->frame_count; f--;) {
         for (uint16_t i = context->frames[f].count; i--; ) {
             context->best = fmax(context->at, context->best);
             context->at = saved.at;
-            context->frame_count = saved.frame_count;
             
             struct resolved solution = {context->frames[f].indicies[i], 0, 0, 0};
             struct name name = context->names[solution.index];
@@ -98,7 +95,7 @@ static struct resolved resolve(uint8_t* given, size_t given_count, size_t type, 
                 } else if (name.signature[s] == given[context->at]) context->at++;
                 else goto next;
             }
-//            if (context->at != given_count) goto next;
+            if (context->at != given_count) goto next; ///TODO: WIP
             return solution; next: continue;
         }
     } return (struct resolved) {0};
@@ -113,20 +110,20 @@ static void resolve_file_in_context(const char* filename, struct context* contex
     fseek(file, 0, SEEK_END);
     size_t length = ftell(file), count = 0;
     uint8_t *text = malloc(length), *tokens = malloc(length);
-    struct location* locations = malloc(length * sizeof(struct location));
+    struct location* loc = malloc(length * sizeof(struct location));
     fseek(file, 0, SEEK_SET);
     fread(text, 1, length, file);
     fclose(file);
-    uint16_t line = 1, column = 1;
+    uint16_t l = 1, c = 1;
     for (size_t i = 0; i < length; i++) {
-        if (text[i] > 32) { tokens[count] = text[i]; locations[count++] = (struct location){line, column}; }
-        if (text[i] == 10) { line++; column = 1; } else column++;
+        if (text[i] > 32) {tokens[count] = text[i]; loc[count++] = (struct location){l, c};}
+        if (text[i] == 10) {l++; c = 1;} else c++;
     }
-    const size_t expected = _i; // TEMP
-    struct resolved resolved = resolve(tokens, count, expected, context);
+    const size_t type = _i; // TEMP
+    struct resolved resolved = resolve(tokens, count, type, context);
     puts(""); debug_resolved(resolved, 0, context); puts("\n");
     if (!resolved.index) {
-        parse_error(tokens, count, locations, expected, context, filename);
+        parse_error(tokens, count, loc, type, context, filename);
         printf("\n\n\tRESOLUTION ERROR\n\n");
     }
     free(tokens);
@@ -144,7 +141,6 @@ int main(int argc, const char** argv) {
         context.names[3] = (struct name) {{'a', 0}, _i, 1, 0};
         context.names[4] = (struct name) {{'b', 0}, _i, 1, 0};
         context.names[5] = (struct name) {{'j', 256+3, 256+4}, _i, 3, 0};
-                
         resolve_file_in_context(argv[i], &context);
         debug_context(&context);
     }
