@@ -47,8 +47,7 @@ struct name {
     size_t count;
     size_t codegen_as;
     size_t* signature;
-//    LLVMValueRef llvmdef;
-    struct resolved definition;
+    struct resolved definition; //    LLVMValueRef llvmdef;
 };
 
 struct frame {
@@ -103,66 +102,14 @@ static struct resolved parse_error(struct token* given, size_t given_count, size
     context->errors++; return (struct resolved) {0};
 }
 
-static struct resolved macro_expansion_error(struct resolved solution, struct token* given, size_t given_count, struct context* context) {
-    char buffer[2048] = {0};
-    size_t index = 0;
-    represent(solution.index, buffer, sizeof buffer,  &index, context);
-    if (context->best < given_count) {
-        struct token b = given[context->best];
-        printf("n3zqx2l: %s:%lu:%lu: error: could not expand macro %s without definition\n\n", context->filename, b.line, b.column, buffer);
-    } context->errors++; return (struct resolved) {0};
-}
-
-//static size_t define(struct resolved given, struct context* context, size_t should_pop);
-
-//static void construct_signature(struct resolved given, struct name* result, struct context* context) {
-//    if (given.index == _appchar) {
-//        result->signature = realloc(result->signature, sizeof(size_t) * (result->count + 1));
-//        result->signature[result->count++] = given.arguments[0].value;
-//    } else if (given.index == _param) {
-//        result->signature = realloc(result->signature, sizeof(size_t) * (result->count + 1));
-//        result->signature[result->count++] = 256 + define(given.arguments[0], context, 1);
-//    } else for (size_t i = 0; i < given.count; i++) construct_signature(given.arguments[i], result, context);
-//}
-
-//static size_t construct_type(struct resolved type) {
-//    if (!type.count) return type.index;      /// Base case, i think...      for when we have no arguments. its just a straight type, like "int".
-//
-//    /// This is more complicated than simply getting an index.
-//    /// think,  "vector<int>".  we need to possibly instantiate a new type, right? by running this function, right?
-//    abort(); /// TEMP
-//}
-
-//static void undefine(size_t defined_index, struct context* context, size_t is_define) {
-//    if (!defined_index) abort(); /// TEMP
-//    const size_t f = context->frame_count - 1, count = context->frames[f].count;
-//    size_t* top = context->frames[f].indicies;
-//    for (size_t i = 0; i < count; i++) {
-//        if (top[i] == defined_index) {
-//            memmove(top, top + 1, sizeof(size_t) * (count - i - 1));
-//            context->frames[f].count--;
-//        }
-//    }
-//    context->name_count--;
-//    if (is_define) context->frame_count--;
-//}
-
-//static size_t define(struct resolved given, struct context* context, size_t should_pop) {
-//    size_t f = context->frame_count - 1;
-//    push_frame(context);
-//
-//    struct name new = {0};
-//    new.type = construct_type(given.arguments[1]);
-//    construct_signature(given.arguments[0], &new, context);
-//    context->names = realloc(context->names, sizeof(struct name) * (context->name_count + 1));
-//    context->names[context->name_count++] = new;
-//
-//    context->frames[f].indicies = realloc(context->frames[f].indicies, sizeof(struct frame) * (context->frames[f].count + 1));
-//    context->frames[f].indicies[context->frames[f].count++] = context->name_count - 1;
-//    ///TODO: call insertion-back instead
-//
-//    if (should_pop)
-//    return context->name_count - 1;
+//static struct resolved macro_expansion_error(struct resolved solution, struct token* given, size_t given_count, struct context* context) {
+//    char buffer[2048] = {0};
+//    size_t index = 0;
+//    represent(solution.index, buffer, sizeof buffer,  &index, context);
+//    if (context->best < given_count) {
+//        struct token b = given[context->best];
+//        printf("n3zqx2l: %s:%lu:%lu: error: could not expand macro %s without definition\n\n", context->filename, b.line, b.column, buffer);
+//    } context->errors++; return (struct resolved) {0};
 //}
 
 //static void replace_in_tree(size_t find, size_t replace, struct resolved* tree) {
@@ -177,13 +124,6 @@ static struct resolved macro_expansion_error(struct resolved solution, struct to
 //    return new;
 //}
 
-static size_t is_defined(struct context* context, size_t tofind) {
-    for (size_t f = 0; f < context->frame_count; f++)
-        for (size_t i = 0; i < context->frames[f].count; i++)
-            if (context->frames[f].indicies[i] == tofind) return 1;
-    return 0;
-}
-
 //static struct resolved expand_macro(struct name name, struct resolved solution, struct token* given, size_t given_count, struct context* context) {
 //    if (!name.definition.index) return macro_expansion_error(solution, given, given_count, context);
 //    struct resolved def = duplicate(name.definition);
@@ -192,6 +132,13 @@ static size_t is_defined(struct context* context, size_t tofind) {
 //        replace_in_tree(name.signature[i++], solution.arguments[s].index, &def);
 //    } return def;
 //}
+
+static size_t is_defined(struct context* context, size_t tofind) {
+    for (size_t f = 0; f < context->frame_count; f++)
+        for (size_t i = 0; i < context->frames[f].count; i++)
+            if (context->frames[f].indicies[i] == tofind) return 1;
+    return 0;
+}
 
 static struct resolved resolve(struct token* given, size_t given_count, size_t type, size_t depth, struct context* context) {
     if (depth > 128 || context->errors > context->max_error_count) return (struct resolved) {0};
@@ -228,160 +175,36 @@ static struct resolved resolve(struct token* given, size_t given_count, size_t t
                     if (!argument.index) goto next;
                     solution.arguments = realloc(solution.arguments, sizeof(struct resolved) * (solution.count + 1));
                     solution.arguments[solution.count++] = argument;
-                    
                 } else if (name.signature[s] == given[context->at].value) context->at++;
                 else goto next;
             }
             
             if (solution.index == _declare) {
-                
                 context->stack_count--;
-                // pop the name stack! this also gets us the top of the name stack.
-                
                 const size_t back = context->stack_count;
-                // get the top of the name stack.
-                                
-                context->stack[back].type = solution.arguments[1].index;
-                // simply get the type, for now. this should actually be
-                // more complex. such as defining a new type.
-                                
+                context->stack[back].type = solution.arguments[1].index; // TEMP
                 context->names = realloc(context->names, sizeof(struct name) * (context->name_count + 1));
                 context->names[context->name_count++] = context->stack[back];
-                // define the top name in the stack,  into the symbol table entries.
-                                                                                                
                 context->frame_count--;
-                // pop the frame stack! we are closing that stack frame, becuase
-                // we defined the signature, and this is a declare, NOT a define.
-                // if it were a define, we would keep it open, for the definition.
-                
                 const size_t f = context->frame_count - 1;
-                // get the top of the frame stack.
-                
                 context->frames[f].indicies = realloc(context->frames[f].indicies, sizeof(struct frame) * (context->frames[f].count + 1));
+                context->frames[f].indicies[context->frames[f].count++] = context->name_count - 1; ///TODO: call insertion-back instead
                 
-//                /// ---------- the insertion back algoirthm! -----------
-//
-//
-//
-//                ///  what has been defined:        context->stack[back];
-//                struct name def = context->stack[back];
-//
-//
-//                size_t at = context->frames[f].count;
-//                while (at && at--) {
-//
-//                    struct name* entries = context->names;
-//                    size_t* frames = context->frames[f].indicies;
-//
-//                    size_t n = frames[at];
-//                    struct name sig = entries[n];
-//
-//
-//                    if (sig.count && sig.signature[0] >= 256 &&
-//                        !(def.count && def.signature[0] >= 256)) {
-//                        break;
-//                    }
-//
-//                }
-                
-            
-                context->frames[f].indicies[context->frames[f].count++] = context->name_count - 1;
-                
-                
-                ///TODO: call insertion-back instead
-                // finally, in the parent stack frame, push the final signature index that will
-                // simply be the last defined name, as per our above actions.
-            }
-            
-            if (solution.index == _appchar) {
+            } else if (solution.index == _appchar) {
                 const size_t back = context->stack_count - 1;
-                // get the top of the name stack.
-                
                 context->stack[back].signature = realloc(context->stack[back].signature, sizeof(size_t) * (context->stack[back].count + 1));
                 context->stack[back].signature[context->stack[back].count++] = solution.arguments[0].value;
-                // appends a character to  the current name signature, which is at
-                // the top of the name stack.
                 
-                // considers the value argument of the call to be the character
-                // appended to the current signature.
-            }
-             
-            if (solution.index == _param) {
+            } else if (solution.index == _param) {
                 const size_t back = context->stack_count - 1;
-                // get the top of the name stack.
-                
                 context->stack[back].signature = realloc(context->stack[back].signature, sizeof(size_t) * (context->stack[back].count + 1));
                 context->stack[back].signature[context->stack[back].count++] = 256 + context->name_count - 1;
-                // appends a parameter to the current name signature, which is at
-                // the top of the name stack.
-                
-                // considers the Last/Recently Defined Signature
-                // to be the "Declared Parameter" argument that was passed into us.
             }
-            return solution;
-            next: if (solution.index == _declare) {
-                context->frame_count--;
-                context->stack_count--;
-            }
+            return solution; next:
+            if (solution.index == _declare) { context->frame_count--; context->stack_count--; }
         }
     } return parse_error(given, given_count, type, context);
 }
-
-
-
-
-
-
-
-
-
-
-/*
-static struct resolved resolve(struct token* given, size_t given_count, size_t type, size_t depth, struct context* context) {
-    if (depth > 128 || context->errors > context->max_error_count) return (struct resolved) {0};
-    
-    if (type == _symbol) return (struct resolved) {_char, given[context->at++].value, 0, 0};
-    
-    size_t saved = context->at;
-    
-    for (size_t f = context->frame_count; f--;) {
-        for (size_t i = context->frames[f].count; i--; ) {
-            
-//            if (context->errors > context->max_error_count) return (struct resolved) {0};
-            
-            context->best = fmax(context->at, context->best);
-            context->at = saved;
-            
-            struct resolved solution = {context->frames[f].indicies[i], 0, 0, 0};
-            struct name name = context->names[solution.index];
-            
-            if (type && name.type != type && is_defined(context, name.type)) continue;
-            
-            for (size_t s = 0; s < name.count; s++) {
-                
-//                if (context->errors > context->max_error_count) return (struct resolved) {0};
-                if (context->at >= given_count) { if (solution.count == 1 && s == 1) return solution.arguments[0]; else goto next; }
-                
-                else if (name.signature[s] >= 256) {
-                    struct resolved argument = resolve(given, given_count, context->names[name.signature[s] - 256].type, depth + 1, context);
-//                    if (context->errors > context->max_error_count) return (struct resolved) {0};
-                    if (!argument.index) goto next;
-                    solution.arguments = realloc(solution.arguments, sizeof(struct resolved) * (solution.count + 1));
-                    solution.arguments[solution.count++] = argument;
-                    
-                } else if (name.signature[s] == given[context->at].value) context->at++;
-                else goto next;
-            }
-//            if ((solution.index == _define || solution.index == _declare) && solution.count == 2) defined = define(solution, context, solution.index == _declare);
-            if (name.codegen_as == _cg_macro) solution = expand_macro(name, solution, given, given_count, context);
-//            if (solution.index == _define) { context->frame_count--; context->names[context->name_count - 1].definition = solution.arguments[2]; }
-            return solution; next: continue;
-//            if ((solution.index == _define || solution.index == _declare) && solution.count == 2) undefine(defined, context, solution.index == _define);
-        }
-    } return parse_error(given, given_count, type, context);
-}
-*/
-
 
 
 /// ------------------- debug and testing framework ----------------------------
@@ -682,3 +505,29 @@ int main(int argc, const char** argv) {
     }
     restore_terminal();
 }
+                
+//                /// ---------- the insertion back algoirthm! -----------
+//
+//
+//
+//                ///  what has been defined:        context->stack[back];
+//                struct name def = context->stack[back];
+//
+//
+//                size_t at = context->frames[f].count;
+//                while (at && at--) {
+//
+//                    struct name* entries = context->names;
+//                    size_t* frames = context->frames[f].indicies;
+//
+//                    size_t n = frames[at];
+//                    struct name sig = entries[n];
+//
+//
+//                    if (sig.count && sig.signature[0] >= 256 &&
+//                        !(def.count && def.signature[0] >= 256)) {
+//                        break;
+//                    }
+//
+//                }
+                
