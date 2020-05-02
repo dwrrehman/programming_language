@@ -10,13 +10,11 @@ enum { _U, _i };
 enum { _cg_default, _cg_none, _cg_macro, _cg_function, _cg_namespace, _cg_variable, _cg_structure };
 
 struct location {
-    uint16_t line;
-    uint16_t column;
+    uint16_t line, column;
 };
 
 struct resolved {
-    size_t index;
-    size_t count;
+    size_t index, count;
     struct resolved* arguments;
     uint8_t value;
 };
@@ -24,20 +22,15 @@ struct resolved {
 struct name {
     uint16_t signature[256];
     size_t type;
-    uint8_t count;
-    uint8_t codegen_as;
+    uint8_t count, codegen_as;
 };
 
 struct frame {
-    uint16_t indicies[512];
-    uint16_t count;
+    uint16_t indicies[512], count;
 };
 
 struct context {
-    size_t at;
-    size_t best;
-    size_t name_count;
-    size_t frame_count;
+    size_t at, best, name_count, frame_count;
     struct name* names;
     struct frame* frames;
 };
@@ -60,19 +53,12 @@ static void represent(size_t given, char* buffer, size_t limit, size_t* at, stru
     }
 }
 
-static void parse_error(uint8_t* given, size_t given_count, struct location* locations, size_t type, struct context* context, const char* filename) {
+static void parse_error(uint8_t* given, size_t given_count, struct location* loc, size_t type, struct context* C, const char* filename) {
     char buffer[4096] = {0};
     size_t index = 0;
-    represent(type, buffer, sizeof buffer,  &index, context);
-    if (context->best < given_count) {
-        uint8_t b = given[context->best];
-        struct location l = locations[context->best];
-        printf("n3zqx2l: %s:%u:%u: error: %s: unresolved %c\n\n", filename, l.line, l.column, buffer, b);
-    } else if (context->best == given_count && context->best) {
-        uint8_t b = given[context->best - 1];
-        struct location l = locations[context->best - 1];
-        printf("n3zqx2l: %s:%u:%u: error: %s: unresolved expression near %c\n\n", filename, l.line, l.column, buffer, b);
-    } else printf("n3zqx2l: %s:%u:%u: error: %s: unresolved empty expression\n\n", filename, 0, 0, buffer);
+    represent(type, buffer, sizeof buffer,  &index, C);
+    if (C->best < given_count) printf("n3zqx2l: %s:%u:%u: error: %s: unresolved %c\n\n", filename, loc[C->best].line, loc[C->best].column, buffer, given[C->best]);
+    else if (C->best == given_count && C->best) printf("n3zqx2l: %s:%u:%u: error: %s: unresolved expression near %c\n\n", filename, loc[C->best - 1].line, loc[C->best - 1].column, buffer, given[C->best - 1]);
 }
 
 static struct resolved resolve(uint8_t* given, size_t given_count, size_t type, struct context* context) {
@@ -81,7 +67,6 @@ static struct resolved resolve(uint8_t* given, size_t given_count, size_t type, 
         for (uint16_t i = context->frames[f].count; i--; ) {
             context->best = fmax(context->at, context->best);
             context->at = saved.at;
-            
             struct resolved solution = {context->frames[f].indicies[i], 0, 0, 0};
             struct name name = context->names[solution.index];
             if (name.type != type) continue;
@@ -100,39 +85,13 @@ static struct resolved resolve(uint8_t* given, size_t given_count, size_t type, 
         }
     } return (struct resolved) {0};
 }
-static void debug_context(struct context* context);
-static void prep(size_t depth);
+static void debug_context(struct context* context); static void prep(size_t depth);
 static void debug_resolved(struct resolved given, size_t depth, struct context* context);
-
-static void resolve_file_in_context(const char* filename, struct context* context) {
-    FILE* file = fopen(filename, "r");
-    if (!file) { fprintf(stderr, "n: %s: ", filename); perror("error"); return; }
-    fseek(file, 0, SEEK_END);
-    size_t length = ftell(file), count = 0;
-    uint8_t *text = malloc(length), *tokens = malloc(length);
-    struct location* loc = malloc(length * sizeof(struct location));
-    fseek(file, 0, SEEK_SET);
-    fread(text, 1, length, file);
-    fclose(file);
-    uint16_t l = 1, c = 1;
-    for (size_t i = 0; i < length; i++) {
-        if (text[i] > 32) {tokens[count] = text[i]; loc[count++] = (struct location){l, c};}
-        if (text[i] == 10) {l++; c = 1;} else c++;
-    }
-    const size_t type = _i; // TEMP
-    struct resolved resolved = resolve(tokens, count, type, context);
-    puts(""); debug_resolved(resolved, 0, context); puts("\n");
-    if (!resolved.index) {
-        parse_error(tokens, count, loc, type, context, filename);
-        printf("\n\n\tRESOLUTION ERROR\n\n");
-    }
-    free(tokens);
-    free(text);
-}
 
 int main(int argc, const char** argv) {
     for (int i = 1; i < argc; i++) {
         if (argv[i][0] == '-') exit(!puts("n3zqx2l version 0.0.0\nn3zqx2l [-] [files]"));
+        
         struct context context = {0, 0, 6, 1, calloc(6, sizeof(struct name)), calloc(1, sizeof(struct frame))};
         context.frames[0] = (struct frame) {{0, 1, 2, 5}, 4};
         context.names[0] = (struct name) {{'U', 0}, _U, 1, 0};
@@ -141,8 +100,32 @@ int main(int argc, const char** argv) {
         context.names[3] = (struct name) {{'a', 0}, _i, 1, 0};
         context.names[4] = (struct name) {{'b', 0}, _i, 1, 0};
         context.names[5] = (struct name) {{'j', 256+3, 256+4}, _i, 3, 0};
-        resolve_file_in_context(argv[i], &context);
+                
+        FILE* file = fopen(argv[i], "r");
+        if (!file) { fprintf(stderr, "n: %s: ", argv[i]); perror("error"); continue; }
+        fseek(file, 0, SEEK_END);
+        size_t length = ftell(file), count = 0;
+        uint8_t *text = malloc(length), *tokens = malloc(length);
+        struct location* loc = malloc(length * sizeof(struct location));
+        fseek(file, 0, SEEK_SET);
+        fread(text, 1, length, file);
+        fclose(file);
+        
+        uint16_t l = 1, c = 1;
+        for (size_t i = 0; i < length; i++) {
+            if (text[i] > 32) {tokens[count] = text[i]; loc[count++] = (struct location){l, c};}
+            if (text[i] == 10) {l++; c = 1;} else c++;
+        }
+        const size_t type = _i; // TEMP
+        struct resolved resolved = resolve(tokens, count, type, &context);
+        puts("");
+        debug_resolved(resolved, 0, &context);
+        puts("");
         debug_context(&context);
+        puts("");
+        if (!resolved.index) parse_error(tokens, count, loc, type, &context, argv[i]);
+        free(tokens);
+        free(text);
     }
 }
 
