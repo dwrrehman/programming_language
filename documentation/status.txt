@@ -6,6 +6,208 @@ the current status of the nostril compiler:
 
 
 
+the last thing we did was to rewrite the code so that we did less allocations, and relied on the stack more, which is good.
+
+or at least, the stack like allocation, more.
+
+most of stuff is on the heap, as per usual, but we only have to malloc:
+
+    - frames
+    - names
+    
+    - arguments
+    
+    
+    
+furthermore,
+
+
+    we were working on the fix to csr, which is basically revolving around the idea of
+    
+    
+    
+        if (context.at != given_count)  goto fail;
+        
+        
+        
+        
+        because then , we will simply pass in a DIFFERENT, special, to each call to csr, depending on who wants it.
+        
+        
+        note, that the algoirthm actually requires that all signatures which are front heavy, be put last,
+        
+        and so basically, that is a whole thing.
+        
+        
+        
+        rather, i am of the opinion that the csr algoirthm should actually manage those ordering details for the user-
+        
+        
+            because that gets really complicated with stuff and yeah...
+            
+            
+            
+            what if csr had a seperate set of signatures just for "nonterminals" ie, postfix ones?
+            
+            
+            
+            that could work...
+            
+            
+            
+            
+            although does the csr really NEED to be breadth first, like,
+            
+            
+                if we just set a depth cap on it, then would it work again?
+                
+                ehh, maybe, actually..
+                
+                
+                        but it would take alot longer in order to finish.
+                        
+                        
+                        
+                        thats why its important to try all signatures which DONT have a postfix, first,
+                        
+                        even the ones in lower stacks-
+                        
+                        
+                        
+                        
+                        this is actually the hard part.
+                        
+                        
+                        
+                        i think we do actually have to make a seperate stack thingy for all of those.. i think..
+                        
+                        
+                        and then, when we make a signature, we simply check- is it postfix? if so, its index goes in this one. if not,then its index goes in this one.
+                        
+                        
+                        this obviates the need for making this whole "insertion back algoirthm" which probably wasnt even going to work.
+                        
+                        
+                        because we need ALL the signatures which are postfix, to be at the bottom.
+                        
+                        
+                        not just some of them.
+                        
+                        
+                        so thats why things are difficult, l,ike this.
+                        
+                        
+                        buts itsokay, we seemed to figure it out.
+                        
+                        
+                        however,
+                        
+                            however,
+                            
+                            
+                            the thing is
+                            
+                                we stillllll need to do the postfix algoirthm, because essenially,
+                                
+                                
+                                
+                                    we need to put the longest signatures last,
+                                    
+                                    
+                                    so basically, the signatures (both post and prefix)
+                                    
+                                    need to be sorted from bigges tto smallest.
+                                    
+                                    
+                                    now, technically, we could acually simply call qsort for that,
+                                    but i think for performance reaasons,
+                                    
+                                    
+                                            we are going to write the insertion back algoirthm, i think.
+                                            
+                                            
+                                            
+                                            note, that it has to do with the length of the signature, only.
+                                            
+                                            
+                                            oh, and then we also have to eventually add in speical cases for if it contains a parameter of type symbol, or whatnot...
+                                            
+                                            
+                                            those are kind speical
+                                            
+                                            
+                                            maybe even tooo special,
+                                            
+                                                to where we arent going to manage them, properly...
+                                                
+                                                
+                                                    in a sense, we are only going to manage the intrinsic defined versions of them...
+                                                    
+                                                    
+                                                    hmm,,,,, kind dirty... but  okayyyyyyyy
+                                                    
+                                                    
+                                                    
+                                                    
+                                                    
+                                                    i think this could work..  things are starting to get more feasible. finallyyyyyy....
+                                                    
+                                                    
+                                                    
+                                                    
+                                                    
+                            thats basically it, i think.
+                            
+                            
+                            
+        so thats were we are.
+        
+        
+        finishing csr again.
+        
+        
+        
+        we are almost done, though!
+        
+        
+        
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
