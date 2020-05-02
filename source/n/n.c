@@ -67,7 +67,6 @@ struct context {
     struct name* stack;
     
     const char* filename;
-    size_t max_error_count;
 };
 
 static void represent(size_t given, char* buffer, size_t limit, size_t* at, struct context* context) {
@@ -88,7 +87,7 @@ static void represent(size_t given, char* buffer, size_t limit, size_t* at, stru
     }
 }
 
-static struct resolved parse_error(struct token* given, size_t given_count, size_t type, struct context* context) {
+static void parse_error(struct token* given, size_t given_count, size_t type, struct context* context) {
     char buffer[2048] = {0};
     size_t index = 0;
     represent(type, buffer, sizeof buffer,  &index, context);
@@ -99,7 +98,6 @@ static struct resolved parse_error(struct token* given, size_t given_count, size
         struct token b = given[context->best - 1];
         printf("n3zqx2l: %s:%lu:%lu: error: %s: unresolved expression near %c\n\n", context->filename, b.line, b.column, buffer, (char) b.value);
     } else printf("n3zqx2l: %s:%d:%d: error: %s: unresolved expression\n\n", context->filename, 0, 0, buffer);
-    context->errors++; return (struct resolved) {0};
 }
 
 //static struct resolved macro_expansion_error(struct resolved solution, struct token* given, size_t given_count, struct context* context) {
@@ -140,40 +138,66 @@ static size_t is_defined(struct context* context, size_t tofind) {
     return 0;
 }
 
+static void do_intrinsic(struct context* context, struct resolved solution) {
+    if (solution.index == _declare) {
+        context->stack_count--;
+        const size_t back = context->stack_count;
+        context->stack[back].type = solution.arguments[1].index; // TEMP
+        context->names = realloc(context->names, sizeof(struct name) * (context->name_count + 1));
+        context->names[context->name_count++] = context->stack[back];
+        context->frame_count--;
+        const size_t f = context->frame_count - 1;
+        context->frames[f].indicies = realloc(context->frames[f].indicies, sizeof(struct frame) * (context->frames[f].count + 1));
+        context->frames[f].indicies[context->frames[f].count++] = context->name_count - 1; ///TODO: call insertion-back instead
+        
+    } else if (solution.index == _appchar) {
+        const size_t back = context->stack_count - 1;
+        context->stack[back].signature = realloc(context->stack[back].signature, sizeof(size_t) * (context->stack[back].count + 1));
+        context->stack[back].signature[context->stack[back].count++] = solution.arguments[0].value;
+        
+    } else if (solution.index == _param) {
+        const size_t back = context->stack_count - 1;
+        context->stack[back].signature = realloc(context->stack[back].signature, sizeof(size_t) * (context->stack[back].count + 1));
+        context->stack[back].signature[context->stack[back].count++] = 256 + context->name_count - 1;
+    }
+}
+
+static void prepare_declare(struct context* context, struct resolved solution) {
+    if (solution.index == _declare) {
+        context->frames = realloc(context->frames, sizeof(struct frame) * (context->frame_count + 1));
+        context->frames[context->frame_count++] = (struct frame){0};
+        context->stack = realloc(context->stack, sizeof(struct name) * (context->stack_count + 1));
+        context->stack[context->stack_count++] = (struct name){0};
+    }
+}
+
+static void clean_up_declare(struct context* context, struct resolved solution) {
+    if (solution.index == _declare) {
+        if (solution.index == _declare) { context->frame_count--; context->stack_count--; }
+    }
+}
+
+static size_t count = 0;
+static const size_t max_count = 10;
+
 static struct resolved resolve(struct token* given, size_t given_count, size_t type, size_t depth, struct context* context) {
-    if (depth > 128 || context->errors > context->max_error_count) return (struct resolved) {0};
-    
+    if (depth > 128) return (struct resolved) {0};
     if (context->at < given_count && type == _symbol) return (struct resolved) {_char, given[context->at++].value, 0, 0};
     
     size_t saved = context->at;
-    
     for (size_t f = context->frame_count; f--;) {
         for (size_t i = context->frames[f].count; i--; ) {
-            
             context->best = fmax(context->at, context->best);
             context->at = saved;
             
             struct resolved solution = {context->frames[f].indicies[i], 0, 0, 0};
             struct name name = context->names[solution.index];
             
-            if (type && name.type != type && is_defined(context, name.type)) continue;
+            if (/*type && */name.type != type && is_defined(context, name.type)) continue;
             
-            if (solution.index == _declare) {
-                ///I HATE THIS CODE
-                context->frames = realloc(context->frames, sizeof(struct frame) * (context->frame_count + 1));
-                context->frames[context->frame_count++] = (struct frame){0};
-                
-                context->stack = realloc(context->stack, sizeof(struct name) * (context->stack_count + 1));
-                context->stack[context->stack_count++] = (struct name){0};
-            }
-            
+//            prepare_declare(context, solution);
             for (size_t s = 0; s < name.count; s++) {
-                if (context->errors > context->max_error_count) {
-                    if (solution.index == _declare) { context->frame_count--; context->stack_count--; }
-                    return (struct resolved) {0};
-                }
                 if (context->at >= given_count) { if (solution.count == 1 && s == 1) return solution.arguments[0]; else goto next; }
-                
                 else if (name.signature[s] >= 256) {
                     struct resolved argument = resolve(given, given_count, context->names[name.signature[s] - 256].type, depth + 1, context);
                     if (!argument.index) goto next;
@@ -182,33 +206,28 @@ static struct resolved resolve(struct token* given, size_t given_count, size_t t
                 } else if (name.signature[s] == given[context->at].value) context->at++;
                 else goto next;
             }
-            
-            if (solution.index == _declare) {
-                context->stack_count--;
-                const size_t back = context->stack_count;
-                context->stack[back].type = solution.arguments[1].index; // TEMP
-                context->names = realloc(context->names, sizeof(struct name) * (context->name_count + 1));
-                context->names[context->name_count++] = context->stack[back];
-                context->frame_count--;
-                const size_t f = context->frame_count - 1;
-                context->frames[f].indicies = realloc(context->frames[f].indicies, sizeof(struct frame) * (context->frames[f].count + 1));
-                context->frames[f].indicies[context->frames[f].count++] = context->name_count - 1; ///TODO: call insertion-back instead
-                
-            } else if (solution.index == _appchar) {
-                const size_t back = context->stack_count - 1;
-                context->stack[back].signature = realloc(context->stack[back].signature, sizeof(size_t) * (context->stack[back].count + 1));
-                context->stack[back].signature[context->stack[back].count++] = solution.arguments[0].value;
-                
-            } else if (solution.index == _param) {
-                const size_t back = context->stack_count - 1;
-                context->stack[back].signature = realloc(context->stack[back].signature, sizeof(size_t) * (context->stack[back].count + 1));
-                context->stack[back].signature[context->stack[back].count++] = 256 + context->name_count - 1;
-            }
-            return solution; next:
-            if (solution.index == _declare) { context->frame_count--; context->stack_count--; }
+//            do_intrinsic(context, solution);
+            return solution; next: continue;
+//            clean_up_declare(context, solution);
         }
-    } return parse_error(given, given_count, type, context);
+    }
+    if (count < max_count) {
+        parse_error(given, given_count, type, context);
+        count++;
+    }
+    
+    return (struct resolved) {0};
 }
+
+
+/*
+ j d     k
+ k a 0
+     p d a g n
+     p d a G n
+  n
+ 
+ */
 
 
 /// ------------------- debug and testing framework ----------------------------
@@ -224,6 +243,17 @@ static void debug_context(struct context* context, size_t context_cnp, size_t co
     }
     printf("\nmaster: {\n");
     for (size_t i = 0; i < context->name_count; i++) {
+        printf("\t%6lu: ", i);
+        char buffer[2048] = {0};
+        size_t index = 0;
+        represent(i, buffer, sizeof buffer, &index, context);
+        printf("%s", buffer);
+        puts("\n");
+    }
+    puts("}");
+    
+    printf("\nstack: {\n");
+    for (size_t i = 0; i < context->stack_count; i++) {
         printf("\t%6lu: ", i);
         char buffer[2048] = {0};
         size_t index = 0;
@@ -318,10 +348,13 @@ static void resolve_file_in_context(size_t expected_given, const char* filename,
     context->filename = filename;
     context->at = context->best = context->errors = 0;
     struct resolved resolved = resolve(tokens, token_count, expected_type, 0, context);
+    
     puts("");
     debug_resolved(resolved, 0, context);
     puts("\n");
+    
     if (!resolved.index || context->at != token_count) {
+        parse_error(tokens, token_count, expected_type, context);
         printf("\n\n\tRESOLUTION ERROR\n\n");
     }
     
@@ -391,7 +424,6 @@ int main(int argc, const char** argv) {
             exit(!puts("n3zqx2l version 0.0.0\nn3zqx2l [-] [files]"));
         }
         struct context context = {0};
-        context.max_error_count = 5;
         context.frames = realloc(context.frames, sizeof(struct name) * (context.frame_count + 1));
         context.frames[context.frame_count++] = (struct frame) {0};
         size_t context_cnp = 0;
@@ -401,39 +433,40 @@ int main(int argc, const char** argv) {
         const size_t o = 256;
     
         push_name((size_t[]){'U'}, 1, 0, C);
-        push_name((size_t[]){'i'}, 1, _U, C);
-        push_name((size_t[]){'n'}, 1, _i, C);
-        push_name((size_t[]){'s'}, 1, _i, C);
-        push_name((size_t[]){'c'}, 1, _symbol, C);
+        push_name((size_t[]){'i'}, 1, 0, C);
+        push_name((size_t[]){'n'}, 1, 1, C);
+        push_name((size_t[]){'s'}, 1, 1, C);
+//        push_name((size_t[]){'c'}, 1, _symbol, C);
         
-        push_name((size_t[]){'a','0'}, 2, _symbol, C);
-        push_name((size_t[]){'a',_0appchar+o}, 2, _name, C);
-        
-        push_name((size_t[]){'p','0'}, 2, _i, C);
-        push_name((size_t[]){'p',_0param+o}, 2, _name, C);
-        
-        push_name((size_t[]){'k','0'}, 2, _name, C);
-        push_name((size_t[]){'k','1'}, 2, _name, C);
-        push_name((size_t[]){'k',_0namejoin+o, _1namejoin+o}, 3, _name, C);
-        
-        push_name((size_t[]){'j','0'}, 2, _i, C);
-        push_name((size_t[]){'j','1'}, 2, _i, C);
-        push_name((size_t[]){'j',_0join+o, _1join+o}, 3, _i, C);
+//        push_name((size_t[]){'a','0'}, 2, _symbol, C);
+//        push_name((size_t[]){'a',_0appchar+o}, 2, _name, C);
+//
+//        push_name((size_t[]){'p','0'}, 2, _i, C);
+//        push_name((size_t[]){'p',_0param+o}, 2, _name, C);
+//
+//        push_name((size_t[]){'k','0'}, 2, _name, C);
+//        push_name((size_t[]){'k','1'}, 2, _name, C);
+//        push_name((size_t[]){'k', _0namejoin+o, _1namejoin+o}, 3, _name, C);
+//
+        push_name((size_t[]){'j','0'}, 2, 1, C);
+        push_name((size_t[]){'j','1'}, 2, 1, C);
+        push_name((size_t[]){'j',4+o, 5+o}, 3, 1, C);
             
-        push_name((size_t[]){'d','0'}, 2, _name, C);
-        push_name((size_t[]){'d','1'}, 2, _U, C);
-        push_name((size_t[]){'d',_0declare+o, _1declare+o}, 3, _i, C);
+//        push_name((size_t[]){'d','0'}, 2, _name, C);
+//        push_name((size_t[]){'d','1'}, 2, _i, C);
+//        push_name((size_t[]){'d',_0declare+o, _1declare+o}, 3, _i, C);
+                
         
-        push(_char, C);
-        push(_appchar, C);
-        push(_U, C);
-        push(_i, C);
-        push(_name, C);
-        push(_symbol, C);
-        push(_param, C);
-        push(_namejoin, C);
-        push(_join, C);
-        push(_declare, C);
+//        push(_char, C);
+//        push(_appchar, C);
+        push(1, C);
+        push(2, C);
+        push(3, C);
+//        push(_0param, C); // TEMP
+//        push(_param, C);
+//        push(_namejoin, C);
+        push(6, C);
+//        push(_declare, C);
         
 //        push_name((size_t[]){'f','0'}, 2, _name, C);
 //        push_name((size_t[]){'f','1'}, 2, _U, C);
@@ -441,7 +474,7 @@ int main(int argc, const char** argv) {
 //        push_name((size_t[]){'f',_0define+o, _1define+o, _2define+o}, 4, _i, C); push(_define, C);
                 
         debug_context(&context, context_cnp, context_cfp);
-        resolve_file_in_context(0, argv[i], &context);
+        resolve_file_in_context(_i, argv[i], &context);
         debug_context(&context, context_cnp, context_cfp);
         exit(0);
             
