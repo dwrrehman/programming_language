@@ -7,7 +7,7 @@
 #include <string.h>
 
 enum {
-    _U, _i, _n,
+    _U, _i,
 };
 
 enum codegen_type {
@@ -16,16 +16,15 @@ enum codegen_type {
     _cg_variable, _cg_structure,
 };
 
-struct token {
+struct location {
     uint16_t line; /// max 65536 line
     uint16_t column; /// max 65536 column
-    uint8_t value; /// max 256  acii chars
 };
 
 struct resolved {
-    struct resolved* arguments;
     size_t index; /// unlimited names
-    uint8_t count; /// max 256 arguments
+    size_t count; /// unlimited number of arguments
+    struct resolved* arguments;
     uint8_t value; /// max 256  ascii chars.
 };
 
@@ -68,26 +67,32 @@ static void represent(size_t given, char* buffer, size_t limit, size_t* at, stru
     }
 }
 
-static void parse_error(struct token* given, size_t given_count, size_t type, struct context* context, const char* filename) {
+static void parse_error(uint8_t* given, size_t given_count, struct location* locations, size_t type, struct context* context, const char* filename) {
     char buffer[4096] = {0};
     size_t index = 0;
     represent(type, buffer, sizeof buffer,  &index, context);
     if (context->best < given_count) {
-        struct token b = given[context->best];
-        printf("n3zqx2l: %s:%u:%u: error: %s: unresolved %c\n\n", filename, b.line, b.column, buffer, (char) b.value);
+        uint8_t b = given[context->best];
+        struct location l = locations[context->best];
+        printf("n3zqx2l: %s:%u:%u: error: %s: unresolved %c\n\n", filename, l.line, l.column, buffer, b);
     } else if (context->best == given_count && context->best) {
-        struct token b = given[context->best - 1];
-        printf("n3zqx2l: %s:%u:%u: error: %s: unresolved expression near %c\n\n", filename, b.line, b.column, buffer, (char) b.value);
+        uint8_t b = given[context->best - 1];
+        struct location l = locations[context->best - 1];
+        printf("n3zqx2l: %s:%u:%u: error: %s: unresolved expression near %c\n\n", filename, l.line, l.column, buffer, b);
     } else printf("n3zqx2l: %s:%u:%u: error: %s: unresolved expression\n\n", filename, 0, 0, buffer);
 }
 
-static struct resolved resolve(struct token* given, size_t given_count, size_t type, struct context* context) {
-    struct context saved = *context;
+static struct resolved resolve(uint8_t* given, size_t given_count, size_t type, struct context* context) {
+    
+    struct context saved = *context; /// MAKE THIS A DEEP COPY!!!
+    
     for (size_t f = context->frame_count; f--;) {
         for (size_t i = context->frames[f].count; i--; ) {
             context->best = fmax(context->at, context->best);
-            *context = saved;
-            struct resolved solution = {0, context->frames[f].indicies[i], 0, 0};
+            context->at = saved.at;
+            context->frame_count = saved.frame_count;
+            
+            struct resolved solution = {context->frames[f].indicies[i], 0, 0, 0};
             struct name name = context->names[solution.index];
             if (name.type != type) continue;
             for (size_t s = 0; s < name.count; s++) {
@@ -95,10 +100,13 @@ static struct resolved resolve(struct token* given, size_t given_count, size_t t
                 else if (name.signature[s] >= 256) {
                     struct resolved argument = resolve(given, given_count, context->names[name.signature[s] - 256].type, context);
                     if (!argument.index) goto next;
+                    solution.arguments = realloc(solution.arguments, sizeof(struct resolved) * (solution.count + 1));
                     solution.arguments[solution.count++] = argument;
-                } else if (name.signature[s] == given[context->at].value) context->at++;
+                } else if (name.signature[s] == given[context->at]) context->at++;
                 else goto next;
-            } if (context->at != given_count) goto next; else return solution; next: continue;
+            }
+//            if (context->at != given_count) goto next;
+            return solution; next: continue;
         }
     } return (struct resolved) {0};
 }
@@ -111,27 +119,25 @@ static void resolve_file_in_context(const char* filename, struct context* contex
     if (!file) { fprintf(stderr, "n: %s: ", filename); perror("error"); return; }
     fseek(file, 0, SEEK_END);
     size_t length = ftell(file);
-    uint8_t* text = malloc(length);
-    struct token* tokens = malloc(length * sizeof(struct token));
+    uint8_t *text = malloc(length), *tokens = malloc(length);
+    struct location* locations = malloc(length * sizeof(struct location));
     fseek(file, 0, SEEK_SET);
     fread(text, 1, length, file);
     fclose(file);
     
-    size_t token_count = 0;
-    uint16_t line = 1, column = 1;
+    size_t count = 0; uint16_t line = 1, column = 1;
     for (size_t i = 0; i < length; i++) {
-        if (text[i] > 32) tokens[token_count++] = (struct token){line, column, text[i]};
+        if (text[i] > 32) { tokens[count] = text[i]; locations[count++] = (struct location){line, column}; }
         if (text[i] == 10) { line++; column = 1; } else column++;
     }
-    
-    struct resolved resolved = resolve(tokens, token_count, 1, context);
+    struct resolved resolved = resolve(tokens, count, _i, context);
     
     puts("");
     debug_resolved(resolved, 0, context);
     puts("\n");
     
     if (!resolved.index) {
-        parse_error(tokens, token_count, 1, context, filename);
+        parse_error(tokens, count, locations, _i, context, filename);
         printf("\n\n\tRESOLUTION ERROR\n\n");
     }
     
@@ -139,13 +145,18 @@ static void resolve_file_in_context(const char* filename, struct context* contex
     free(text);
 }
 
-int main(int argc, const char** argv) {        
+int main(int argc, const char** argv) {
     for (int i = 1; i < argc; i++) {
         if (argv[i][0] == '-') exit(!puts("n3zqx2l version 0.0.0\nn3zqx2l [-] [files]"));
-        struct context context = {0, 0, 4, 1, calloc(4, sizeof(struct name)), calloc(1, sizeof(struct frame))};
-        context.names[0] = (struct name) {{'U', 0}, 100, 1, 0};
-        context.names[1] = (struct name) {{'i', 0}, 100, 1, 0};
-        context.names[2] = (struct name) {{'n', 0}, 100, 1, 0};
+        struct context context = {0, 0, 6, 1, calloc(6, sizeof(struct name)), calloc(1, sizeof(struct frame))};
+        context.frames[0] = (struct frame) {{0, 1, 2, 5}, 4};
+        context.names[0] = (struct name) {{'U', 0}, _U, 1, 0};
+        context.names[1] = (struct name) {{'i', 0}, _U, 1, 0};
+        context.names[2] = (struct name) {{'n', 0}, _i, 1, 0};
+        context.names[3] = (struct name) {{'a', 0}, _i, 1, 0};
+        context.names[4] = (struct name) {{'b', 0}, _i, 1, 0};
+        context.names[5] = (struct name) {{'j', 256+3, 256+4}, _i, 3, 0};
+                
         resolve_file_in_context(argv[i], &context);
         debug_context(&context);
     }
