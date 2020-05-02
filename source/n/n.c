@@ -9,9 +9,7 @@
 enum { _U, _i };
 enum { _cg_default, _cg_none, _cg_macro, _cg_function, _cg_namespace, _cg_variable, _cg_structure };
 
-struct location {
-    uint16_t line, column;
-};
+struct location {uint16_t line, column;};
 
 struct resolved {
     size_t index, count;
@@ -20,14 +18,11 @@ struct resolved {
 };
 
 struct name {
-    uint16_t signature[256];
-    size_t type;
+    size_t signature[256], type;
     uint8_t count, codegen_as;
 };
 
-struct frame {
-    uint16_t indicies[512], count;
-};
+struct frame {size_t indicies[256], count;};
 
 struct context {
     size_t at, best, name_count, frame_count;
@@ -128,33 +123,6 @@ int main(int argc, const char** argv) {
         free(text);
     }
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 
