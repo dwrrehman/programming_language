@@ -143,9 +143,9 @@ int main(int argc, const char** argv) {
     for (int i = 1; i < argc; i++) {
         if (argv[i][0] == '-') exit(!puts("n3zqx2l version 0.0.0\nn3zqx2l [-] [files]"));
         struct context context = {0, 0, 4, 1, calloc(4, sizeof(struct name)), calloc(1, sizeof(struct frame))};
-        context.names[0] = (struct name) {{'U', 0}, 100, 1, 0};
-        context.names[1] = (struct name) {{'i', 0}, 100, 1, 0};
-        context.names[2] = (struct name) {{'n', 0}, 100, 1, 0};
+        context.names[0] = (struct name) {{'U', 0}, 0, 1, 0};
+        context.names[1] = (struct name) {{'i', 0}, 0, 1, 0};
+        context.names[2] = (struct name) {{'n', 0}, 1, 1, 0};
         resolve_file_in_context(argv[i], &context);
         debug_context(&context);
     }
