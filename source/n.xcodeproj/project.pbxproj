@@ -60,8 +60,8 @@
 		FDAB9E3A243C3B4E000B1E4B /* n */ = {
 			isa = PBXGroup;
 			children = (
-				FD47CFAF243E4CCE00F8992D /* test.n */,
 				FDD75BB9245D5AC70002DA7E /* n.c */,
+				FD47CFAF243E4CCE00F8992D /* test.n */,
 				FD57A3CF244EB23800FAC20A /* test.ll */,
 				FD57A3CE244EACF200FAC20A /* status.txt */,
 			);

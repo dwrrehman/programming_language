@@ -6,15 +6,8 @@
 #include <stdlib.h>
 #include <string.h>
 
-enum {
-    _U, _i,
-};
-
-enum codegen_type {
-    _cg_default, _cg_none, _cg_macro,
-    _cg_function, _cg_namespace,
-    _cg_variable, _cg_structure,
-};
+enum { _U, _i };
+enum { _cg_default, _cg_none, _cg_macro, _cg_function, _cg_namespace, _cg_variable, _cg_structure };
 
 struct location {
     uint16_t line; /// max 65536 line
@@ -25,14 +18,14 @@ struct resolved {
     size_t index; /// unlimited names
     size_t count; /// unlimited number of arguments
     struct resolved* arguments;
-    uint8_t value; /// max 256  ascii chars.
+    uint8_t value; /// ascii
 };
 
 struct name {
     uint16_t signature[256];
     size_t type; /// unlimited names
     uint8_t count; /// max 256 signature elements
-    uint8_t codegen_as; /// max 256 codegen possibilities
+    uint8_t codegen_as; /// max 8 codegen possibilities
 };
 
 struct frame {
@@ -41,8 +34,8 @@ struct frame {
 };
 
 struct context {
-    size_t at; /// unlimited text chars
-    size_t best; /// unlimited text chars
+    size_t at; /// unlimited tokens
+    size_t best; /// unlimited tokens
     size_t name_count; /// unlimited names
     size_t frame_count; /// unlimited frames
     struct name* names;
@@ -79,7 +72,7 @@ static void parse_error(uint8_t* given, size_t given_count, struct location* loc
         uint8_t b = given[context->best - 1];
         struct location l = locations[context->best - 1];
         printf("n3zqx2l: %s:%u:%u: error: %s: unresolved expression near %c\n\n", filename, l.line, l.column, buffer, b);
-    } else printf("n3zqx2l: %s:%u:%u: error: %s: unresolved expression\n\n", filename, 0, 0, buffer);
+    } else printf("n3zqx2l: %s:%u:%u: error: %s: unresolved empty expression\n\n", filename, 0, 0, buffer);
 }
 
 static struct resolved resolve(uint8_t* given, size_t given_count, size_t type, struct context* context) {
@@ -87,7 +80,7 @@ static struct resolved resolve(uint8_t* given, size_t given_count, size_t type, 
     struct context saved = *context; /// MAKE THIS A DEEP COPY!!!
     
     for (size_t f = context->frame_count; f--;) {
-        for (size_t i = context->frames[f].count; i--; ) {
+        for (uint16_t i = context->frames[f].count; i--; ) {
             context->best = fmax(context->at, context->best);
             context->at = saved.at;
             context->frame_count = saved.frame_count;
@@ -95,7 +88,7 @@ static struct resolved resolve(uint8_t* given, size_t given_count, size_t type, 
             struct resolved solution = {context->frames[f].indicies[i], 0, 0, 0};
             struct name name = context->names[solution.index];
             if (name.type != type) continue;
-            for (size_t s = 0; s < name.count; s++) {
+            for (uint8_t s = 0; s < name.count; s++) {
                 if (context->at >= given_count) goto next;
                 else if (name.signature[s] >= 256) {
                     struct resolved argument = resolve(given, given_count, context->names[name.signature[s] - 256].type, context);
@@ -118,29 +111,24 @@ static void resolve_file_in_context(const char* filename, struct context* contex
     FILE* file = fopen(filename, "r");
     if (!file) { fprintf(stderr, "n: %s: ", filename); perror("error"); return; }
     fseek(file, 0, SEEK_END);
-    size_t length = ftell(file);
+    size_t length = ftell(file), count = 0;
     uint8_t *text = malloc(length), *tokens = malloc(length);
     struct location* locations = malloc(length * sizeof(struct location));
     fseek(file, 0, SEEK_SET);
     fread(text, 1, length, file);
     fclose(file);
-    
-    size_t count = 0; uint16_t line = 1, column = 1;
+    uint16_t line = 1, column = 1;
     for (size_t i = 0; i < length; i++) {
         if (text[i] > 32) { tokens[count] = text[i]; locations[count++] = (struct location){line, column}; }
         if (text[i] == 10) { line++; column = 1; } else column++;
     }
-    struct resolved resolved = resolve(tokens, count, _i, context);
-    
-    puts("");
-    debug_resolved(resolved, 0, context);
-    puts("\n");
-    
+    const size_t expected = _i; // TEMP
+    struct resolved resolved = resolve(tokens, count, expected, context);
+    puts(""); debug_resolved(resolved, 0, context); puts("\n");
     if (!resolved.index) {
-        parse_error(tokens, count, locations, _i, context, filename);
+        parse_error(tokens, count, locations, expected, context, filename);
         printf("\n\n\tRESOLUTION ERROR\n\n");
     }
-    
     free(tokens);
     free(text);
 }
@@ -243,289 +231,3 @@ static void debug_resolved(struct resolved given, size_t depth, struct context* 
     prep(depth); printf("\n");
 }
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-/*
- j d     k
- k a 0
-     p d a g n
-     p d a G n
-  n
- 
- */
-
-
-/// ------------------- debug and testing framework ----------------------------
-
-
-
-
-
-    
-//        push_name((size_t[]){'U'}, 1, 0, C);
-//        push_name((size_t[]){'i'}, 1, 0, C);
-//        push_name((size_t[]){'n'}, 1, 1, C);
-//        push_name((size_t[]){'s'}, 1, 1, C);
-//        push_name((size_t[]){'c'}, 1, _symbol, C);
-        
-//        push_name((size_t[]){'a','0'}, 2, _symbol, C);
-//        push_name((size_t[]){'a',_0appchar+o}, 2, _name, C);
-//
-//        push_name((size_t[]){'p','0'}, 2, _i, C);
-//        push_name((size_t[]){'p',_0param+o}, 2, _name, C);
-//
-//        push_name((size_t[]){'k','0'}, 2, _name, C);
-//        push_name((size_t[]){'k','1'}, 2, _name, C);
-//        push_name((size_t[]){'k', _0namejoin+o, _1namejoin+o}, 3, _name, C);
-//
-//        push_name((size_t[]){'j','0'}, 2, 1, C);
-//        push_name((size_t[]){'j','1'}, 2, 1, C);
-//        push_name((size_t[]){'j',4+o, 5+o}, 3, 1, C);
-//
-//        push_name((size_t[]){'d','0'}, 2, _name, C);
-//        push_name((size_t[]){'d','1'}, 2, _i, C);
-//        push_name((size_t[]){'d',_0declare+o, _1declare+o}, 3, _i, C);
-                
-        
-//        push(_char, C);
-//        push(_appchar, C);
-//        push(1, C);
-//        push(2, C);
-//        push(3, C);
-//        push(_0param, C); // TEMP
-//        push(_param, C);
-//        push(_namejoin, C);
-//        push(6, C);
-//        push(_declare, C);
-        
-//        push_name((size_t[]){'f','0'}, 2, _name, C);
-//        push_name((size_t[]){'f','1'}, 2, _U, C);
-//        push_name((size_t[]){'f','2'}, 2, _1define, C);
-//        push_name((size_t[]){'f',_0define+o, _1define+o, _2define+o}, 4, _i, C); push(_define, C);
-                
-
-
-
-//        printf("the CSR terminal. type 'h' for help.\n");
-//        while (1) {
-//            printf(":");
-//            int c = get_character(); printf("%c", c);
-//            if (c == 'q') break;
-//            else if (c == 'h') {
-//                printf("\n"
-//                       "q : quit                  h : this help menu\n"
-//                       "s : push signature        e : add empty entry\n"
-//                       "f : add empty frame       d : display context\n"
-//                       "c : app-char              a : app-par\n"
-//                       "j : incr cnp              i : decr cnp\n"
-//                       "k : incr cfp              l : decr cfp\n"
-//                       "t : set type              u : pop sig symbol\n"
-//                       "v : pop tops index        n : decr nc\n"
-//                       "m : decr fc               ; : clear screen\n"
-//                       "w : resolve string        r : resolve file\n"
-//                       "\n");
-//
-//            } else if (c == 's') {
-//                size_t f = context_cfp;
-//                context.frames[f].indicies = realloc(context.frames[f].indicies, sizeof(size_t) * (context.frames[f].count + 1));
-//                context.frames[f].indicies[context.frames[f].count++] = context_cnp;
-//
-//            } else if (c == 'e') {
-//                context.names = realloc(context.names, sizeof(struct name) * (context.name_count + 1));
-//                context.names[context.name_count++] = (struct name) {0};
-//
-//            } else if (c == 'f') {
-//                context.frames = realloc(context.frames, sizeof(struct name) * (context.frame_count + 1));
-//                context.frames[context.frame_count++] = (struct frame) {0};
-//
-//            } else if (c == 'c') {
-//                char c = get_character(); printf("%c", c);
-//                size_t n = context_cnp;
-//                context.names[n].signature = realloc(context.names[n].signature, sizeof(size_t) * (context.names[n].count + 1));
-//                context.names[n].signature[context.names[n].count++] = c;
-//
-//            } else if (c == 'a') {
-//                const size_t n = context_cnp;
-//                context.names[n].signature = realloc(context.names[n].signature, sizeof(size_t) * (context.names[n].count + 1));
-//                context.names[n].signature[context.names[n].count++] = read_number() + 256;
-//
-//            } else if (c == 't') context.names[context_cnp].type = read_number();
-//            else if (c == 'j') context_cnp++;
-//            else if (c == 'i') context_cnp--;
-//            else if (c == 'k') context_cfp++;
-//            else if (c == 'l') context_cfp--;
-//            else if (c == 'u') context.names[context_cnp].count--;
-//            else if (c == 'v') context.frames[context_cfp].count--;
-//            else if (c == 'n') context.name_count--;
-//            else if (c == 'm') context.frame_count--;
-//            else if (c == ';') clear_screen();
-//            else if (c == 'd') debug_context(&context, context_cnp, context_cfp);
-//            else if (c == 'r') resolve_file_in_context(read_number(), argv[i], &context);
-//            else if (c == 'w') resolve_string_in_context(&context);
-//            else if (c == '\n') continue;
-//            else printf("\nn: error: unrecognized command: %c\n", c);
-//        }
-//    }
-//    restore_terminal();
-        
-        
-        
-        
-        
-        
-        
-        
-                
-//                /// ---------- the insertion back algoirthm! -----------
-//
-//
-//
-//                ///  what has been defined:        context->stack[back];
-//                struct name def = context->stack[back];
-//
-//
-//                size_t at = context->frames[f].count;
-//                while (at && at--) {
-//
-//                    struct name* entries = context->names;
-//                    size_t* frames = context->frames[f].indicies;
-//
-//                    size_t n = frames[at];
-//                    struct name sig = entries[n];
-//
-//
-//                    if (sig.count && sig.signature[0] >= 256 &&
-//                        !(def.count && def.signature[0] >= 256)) {
-//                        break;
-//                    }
-//
-//                }
-                
-
-
-
-
-
-
-//
-//static struct termios terminal = {0};
-//
-//static inline void restore_terminal() {
-//    if (tcsetattr(STDIN_FILENO, TCSAFLUSH, &terminal) < 0) perror("tcsetattr(STDIN_FILENO, TCSAFLUSH, &terminal))");
-//}
-//
-//static inline void configure_terminal() {
-//    if (tcgetattr(STDIN_FILENO, &terminal) < 0) perror("tcgetattr(STDIN_FILENO, &terminal)");
-//    atexit(restore_terminal);
-//    struct termios raw = terminal;
-//    raw.c_lflag &= ~(ECHO | ICANON);
-//    if (tcsetattr(STDIN_FILENO, TCSAFLUSH, &raw) < 0) perror("tcsetattr(STDIN_FILENO, TCSAFLUSH, &raw)");
-//}
-//
-//static inline char get_character() {
-//    char c = 0;
-//    fflush(stdout);
-//    const ssize_t n = read(STDIN_FILENO, &c, 1);
-//    if (n < 0) {
-//        printf("n < 0 : ");
-//        perror("read(STDIN_FILENO, &c, 1) syscall");
-//        abort();
-//    } else if (n == 0) {
-//        printf("n == 0 : ");
-//        perror("read(STDIN_FILENO, &c, 1) syscall");
-//        abort();
-//    } else return c;
-//}
-
-//static size_t read_number() {
-//    printf(".");
-//    size_t n = get_character() - '0'; printf("%c", (char)(n + '0'));
-//    size_t m = get_character() - '0'; printf("%c", (char)(m + '0'));
-//    return 10 * n + m;
-//}
-
-
-
-
-//static void resolve_string_in_context(struct context* context) {
-//    size_t expected_type = read_number();
-//    if (expected_type == 99) {
-//        expected_type = (size_t) -1;
-//    } else if (expected_type >= context->name_count) {
-//        printf("error: expected type not in range! aborting.\n");
-//        return;
-//    }
-//    const size_t max_string_length = 4096;
-//    char* text = malloc(max_string_length * sizeof(char));
-//    printf("text: ");
-//    restore_terminal();
-//    fgets(text, max_string_length, stdin);
-//    configure_terminal();
-//
-//    const size_t length = strlen(text);
-//    struct token* tokens = malloc(length * sizeof(struct token));
-//
-//    size_t token_count = 0, line = 1, column = 1;
-//    for (size_t i = 0; i < length; i++) {
-//        if (text[i] > 32) tokens[token_count++] = (struct token){text[i], line, column};
-//        if (text[i] == 10) { line++; column = 1; } else column++;
-//    }
-//
-//    context->at = context->best = 0;
-//    struct resolved resolved = resolve(tokens, token_count, expected_type, context);
-//    puts("");
-//    debug_resolved(resolved, 0, context);
-//    puts("");
-//    if (!resolved.index || context->at != token_count) {
-//        parse_error(tokens, token_count, expected_type, context, "<string>");
-//        printf("\n\tRESOLUTION ERROR\n\n");
-//    }
-//
-//    free(tokens);
-//    free(text);
-//}
-
-//void clear_screen() {
-//    printf("\033[1;1H\033[2J");
-//}
-//
-//
-//static void push(size_t s, struct context* context) {
-//    size_t f = 0;
-//    context->frames[f].indicies = realloc(context->frames[f].indicies, sizeof(size_t) * (context->frames[f].count + 1));
-//    context->frames[f].indicies[context->frames[f].count++] = s;
-//}
-
-//static void push_name(size_t* signature, size_t count, size_t type, struct context* context) {
-//    context->names = realloc(context->names, sizeof(struct name) * (context->name_count + 1));
-//    context->names[context->name_count++] = (struct name){type, count, _cg_default, signature, (struct resolved){0}};
-//}
