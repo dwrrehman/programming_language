@@ -488,6 +488,7 @@ static void resolve_file_in_context(size_t expected_given, const char* filename,
         if (text[i] > 32) tokens[token_count++] = (struct token){text[i], line, column};
         if (text[i] == 10) { line++; column = 1; } else column++;
     }
+    
     context->filename = filename;
     context->at = context->best = context->errors = 0;
     struct resolved resolved = resolve(tokens, token_count, expected_type, 0, context);
@@ -520,6 +521,7 @@ static void resolve_string_in_context(struct context* context) {
     
     const size_t length = strlen(text);
     struct token* tokens = malloc(length * sizeof(struct token));
+    
     size_t token_count = 0, line = 1, column = 1;
     for (size_t i = 0; i < length; i++) {
         if (text[i] > 32) tokens[token_count++] = (struct token){text[i], line, column};
@@ -596,7 +598,7 @@ int main(int argc, const char** argv) {
         push_name((size_t[]){'d','0'}, 2, _name, C);
         push_name((size_t[]){'d','1'}, 2, _U, C);
         push_name((size_t[]){'d',_0declare+o, _1declare+o}, 3, _i, C);
-                
+        
         push(_char, C);
         push(_appchar, C);
         push(_U, C);
@@ -617,8 +619,7 @@ int main(int argc, const char** argv) {
         resolve_file_in_context(0, argv[i], &context);
         debug_context(&context, context_cnp, context_cfp);
         exit(0);
-        
-    
+            
         printf("the CSR terminal. type 'h' for help.\n");
         while (1) {
             printf(":");
