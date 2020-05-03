@@ -305,6 +305,7 @@
 					"-Wall",
 					"-Wpedantic",
 					"-Wextra",
+					"-Weverything",
 				);
 			};
 			name = Debug;
@@ -373,6 +374,7 @@
 					"-Wall",
 					"-Wpedantic",
 					"-Wextra",
+					"-Weverything",
 				);
 			};
 			name = Release;
