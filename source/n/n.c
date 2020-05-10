@@ -95,35 +95,6 @@ static void represent
     }
 }
 
-
-
-void save_of_print_source_code(uint8_t* source, size_t length, struct loc t) {
-    
-    ssize_t line_count = 0;
-    char* text = strndup((char*)source, length), **lines = 0;
-    while (text) {
-        lines = realloc(lines, sizeof(char*) * (line_count + 1));
-        lines[line_count++] = strsep(&text, "\n");
-    }
-    
-    ssize_t offsets[] = {-2, -1, 0, 1, 2};
-    for (size_t o = 0; o < 5; o++) {
-        const ssize_t l = (ssize_t) t.line - 1 + offsets[o];
-        if (l >= 0 && l < line_count) {
-            printf("\t\x1B[90m%5lu\x1B[0m\x1B[32m  │  \x1B[0m%s\n", l + 1, lines[l]);
-            if (!offsets[o]) {
-                printf("\t");
-                for (int i = 0; i < t.column + 9; i++) putchar(' ');
-                printf("\x1B[091m^\x1B[0m\n");
-            }
-        }
-    }
-    puts("\n");
-    free(lines);
-}
-
-
-
 void print_source_code(uint8_t* source, size_t length, struct loc t) {
     ssize_t at = 0, target = (ssize_t) t.line - 1;
     char* text = strndup((char*)source, length);
