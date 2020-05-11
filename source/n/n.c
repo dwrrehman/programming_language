@@ -92,7 +92,6 @@ void print_source_code(uint8_t* source, size_t length, struct loc t) {
 
 static void parse_error(uint8_t* given, size_t given_count, struct loc* loc, size_t type,
                         struct context* C, const char* filename, uint8_t* text, size_t length) {
-    
     char type_string[4096] = {0}; size_t index = 0;
     represent(type, type_string, sizeof type_string,  &index, C);
     if (C->best == given_count && C->best) {
@@ -154,7 +153,6 @@ static void duplicate_context(struct context* d, struct context* s) {
 //}
 
 static struct expr parse(uint8_t* given, size_t length, size_t type, size_t depth, struct context* C) {
-
     if (depth > 32) return (struct expr) {0};
     else if (type == _s) return (struct expr) {_c, 0, 0, given[C->at++], 99999999999};
     struct context saved = {0};
