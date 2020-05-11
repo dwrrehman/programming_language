@@ -40,21 +40,21 @@ struct expr {
     size_t index;
     size_t count;
     struct expr* args;
-    uint8_t value;
+    size_t value;
     size_t successful_count;
 };
 
 struct name {
     size_t sig[256]; // i think we should make signatures unlimited length.
     size_t type;
-    uint8_t count;
-    uint8_t codegen_as;
-    // uint32_t precedence;       // i dont know the exact length of this int.
+    size_t count;
+    size_t codegen_as;
+//    size_t precedence;       // i dont know the exact length of this int.
 };
 
 struct frame {
     size_t indicies[256];   // i think we should make this:   size_t* indicies;
-    size_t count; // should probably be:                      size_t count;
+    size_t count;
     struct name owner;
 };
 
@@ -125,39 +125,39 @@ static void duplicate_context(struct context* d, struct context* s) {
     memcpy(d->frames, s->frames, sizeof(struct frame) * s->frame_count);
 }
 
-static void do_intrinsic(struct context *context, const struct expr *sol) {
-    if (sol->index == _d) {
-        
-        size_t f = --context->frame_count;
-        
-        context->frames[f].owner.type = sol->args[1].index;
-        
-        context->names
-        = realloc(context->names,
-                  sizeof(struct name)
-                  * (context->name_count + 1));
-        context->names[context->name_count++]
-        = context->frames[f].owner;
-        
-        size_t
-            m = context->frames[f].owner.count &&
-                context->frames[f].owner.sig[0] >= 256,
-            b = context->frame_count - 1;
-        
-        context->frames[b].indicies
-            [context->frames[b].count++]
-            = context->name_count - 1;
-        
-    } else if (sol->index == _a || sol->index == _p) {
-        
-        struct name* owner =
-        &context->frames[context->frame_count - 1].owner;
-            owner->sig[owner->count++]
-                = sol->index == _a
-                    ? sol->args[0].value
-                    : 256 + context->name_count - 1;
-    }
-}
+//static void do_intrinsic(struct context *context, const struct expr *sol) {
+//    if (sol->index == _d) {
+//
+//        size_t f = --context->frame_count;
+//
+//        context->frames[f].owner.type = sol->args[1].index;
+//
+//        context->names
+//        = realloc(context->names,
+//                  sizeof(struct name)
+//                  * (context->name_count + 1));
+//        context->names[context->name_count++]
+//        = context->frames[f].owner;
+//
+//        size_t
+//            m = context->frames[f].owner.count &&
+//                context->frames[f].owner.sig[0] >= 256,
+//            b = context->frame_count - 1;
+//
+//        context->frames[b].indicies
+//            [context->frames[b].count++]
+//            = context->name_count - 1;
+//
+//    } else if (sol->index == _a || sol->index == _p) {
+//
+//        struct name* owner =
+//        &context->frames[context->frame_count - 1].owner;
+//            owner->sig[owner->count++]
+//                = sol->index == _a
+//                    ? sol->args[0].value
+//                    : 256 + context->name_count - 1;
+//    }
+//}
 
 static struct expr parse(uint8_t* given, size_t length, size_t type, size_t depth, struct context* C) {
 
@@ -270,9 +270,11 @@ int main(int argc, const char** argv) {
             calloc(1, sizeof(struct frame))
         };
         
+        struct name top_owner = {{0}, 0, 0, 0};
+        
         C.frames[0] = (struct frame) {
             {_U, _s, _c, _i, _n, _a, _p, _d, _k, _j}, 10,
-            {0} // owner?
+            top_owner
         };
         
         ///TODO: for the owner of this, do we use the filename to construct a signature?!? i dont know.
