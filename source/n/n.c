@@ -7,19 +7,13 @@
 #include <string.h>
 
 enum {
-    _U,
-    _i,
-    _n,
-    _s,
-    _c,
-    _a0, _a,
-    _p0, _p,
+    _U, _i, _n, _s, _c,
+    _a0, _a, _p0, _p,
     _d0, _d1, _d,
     _k0, _k1, _k,
     _j0, _j1, _j,
     _intrin_count,
 };
-
 
 enum {
     _cg_default,
@@ -198,25 +192,15 @@ static struct expr parse(uint8_t* given, size_t length, size_t type, size_t dept
 }
 
 static void debug_context(struct context* context) {
-    printf("index = %lu, best = %lu\n",
-           context->at, context->best);
-    
+    printf("index = %lu, best = %lu\n", context->at, context->best);
     printf("---- debugging frames: ----\n");
-    
-//    for (size_t m = 0; m < 2; m++) {
-    
-        
-        for (size_t i = 0; i < context->frame_count; i++) {
-            
-            printf("\t ----- [m=] FRAME # %lu ---- \n"
-                   "\t\tidxs: { ", i);
-            
-            for (size_t j = 0; j < context->frames[i].count; j++)
-                printf("%lu ", context->frames[i].indicies[j]);
-            
-            puts("}");
-        }
-//    }
+    for (size_t i = 0; i < context->frame_count; i++) {
+        printf("\t ----- FRAME # %lu ---- \n"
+               "\t\tidxs: { ", i);
+        for (size_t j = 0; j < context->frames[i].count; j++)
+            printf("%lu ", context->frames[i].indicies[j]);
+        puts("}");
+    }
     printf("\nmaster: {\n");
     for (size_t i = 0; i < context->name_count; i++) {
         printf("\t%6lu: ", i);
@@ -231,27 +215,16 @@ static void debug_context(struct context* context) {
         
 }
 
-static void debug_resolved
-(struct expr given, size_t depth, struct context* context) {
-    
-    char buffer[4096] = {0};
-    size_t index = 0;
-    
+static void debug_resolved(struct expr given, size_t depth, struct context* context) {
+    char buffer[4096] = {0}; size_t index = 0;
     represent(given.index, buffer, sizeof buffer, &index, context);
-    
     for (size_t i = depth; i--;) printf(".   ");
-    
     printf("%s : [%lu]", buffer, given.index);
-    
-    if (given.value)
-        printf(" : c=%c", (char) given.value);
+    if (given.value) printf(" : c=%c", (char) given.value);
     printf("\n");
-    
     for (size_t i = 0; i < given.count; i++)
         debug_resolved(given.args[i], depth + 1, context);
-    
     for (size_t i = depth; i--;) printf(".   ");
-    
     printf("\n");
 }
 
@@ -261,9 +234,7 @@ int main(int argc, const char** argv) {
         
         if (argv[i][0] == '-')
             exit(!puts("n3zqx2l version 0.0.1\nn3zqx2l [-] [files]"));
-        
-        const size_t o = 256;
-        
+    
         struct context C = {
             0, 0, _intrin_count, 1,
             calloc(_intrin_count, sizeof(struct name)),
@@ -271,51 +242,50 @@ int main(int argc, const char** argv) {
         };
         
         struct name top_owner = {{0}, 0, 0, 0};
+        ///TODO: for the owner of this, do we use the filename to construct a signature?!? i dont know.
+        
         
         C.frames[0] = (struct frame) {
             {_U, _s, _c, _i, _n, _a, _p, _d, _k, _j}, 10,
             top_owner
         };
-        
-        ///TODO: for the owner of this, do we use the filename to construct a signature?!? i dont know.
-        
+    
         C.names[_U] = (struct name) {{'U'}, _U, 1, 0};
         C.names[_i] = (struct name) {{'i'}, _U, 1, 0};
         C.names[_n] = (struct name) {{'n'}, _i, 1, 0};
         C.names[_s] = (struct name) {{'s'}, _i, 1, 0};
         C.names[_c] = (struct name) {{'c'}, _s, 1, 0};
-        
+                
         C.names[_a0] = (struct name) {{'0'}, _s, 1, 0};
         C.names[_a] = (struct name)
-        {{'a', o+_a0}, _n, 2, 0};
+        {{'a', 256+_a0}, _n, 2, 0};
         
         C.names[_p0] = (struct name) {{'0'}, _i, 1, 0};
         C.names[_p] = (struct name)
-        {{'p', o+_p0}, _n, 2, 0};
+        {{'p', 256+_p0}, _n, 2, 0};
         
         C.names[_d0] = (struct name)
         {{'0'}, _n, 1, 0};
         C.names[_d1] = (struct name)
         {{'0'}, _U, 1, 0};
         C.names[_d] = (struct name)
-        {{'d', o+_d0, o+_d1}, _i, 3, 0};
+        {{'d', 256+_d0, 256+_d1}, _i, 3, 0};
 
         C.names[_k0] = (struct name)
         {{'0', 0}, _n, 1, 0};
         C.names[_k1] = (struct name)
         {{'0', 0}, _n, 1, 0};
         C.names[_k] = (struct name)
-        {{'k', o+_k0, o+_k1}, _n, 3, 0};
+        {{'k', 256+_k0, 256+_k1}, _n, 3, 0};
         
         C.names[_j0] = (struct name)
         {{'0', 0}, _i, 1, 0};
         C.names[_j1] = (struct name)
         {{'0', 0}, _i, 1, 0};
         C.names[_j] = (struct name)
-        {{'j', o+_j0, o+_j1}, _i, 3, 0};
+        {{'j', 256+_j0, 256+_j1}, _i, 3, 0};
         
         FILE* file = fopen(argv[i], "r");
-        
         if (!file) {
             fprintf(stderr, "n: %s: ", argv[i]);
             perror("error");
@@ -323,11 +293,9 @@ int main(int argc, const char** argv) {
         }
         
         fseek(file, 0, SEEK_END);
-        
         size_t length = ftell(file), count = 0;
         uint8_t *text = malloc(length), *tokens = malloc(length);
         struct loc* loc = malloc(length * sizeof(struct loc));
-        
         fseek(file, 0, SEEK_SET);
         fread(text, 1, length, file);
         fclose(file);
@@ -338,20 +306,13 @@ int main(int argc, const char** argv) {
                 tokens[count] = text[i];
                 loc[count++] = (struct loc){l, c};
             }
-            if (text[i] == 10) {
-                l++;
-                c = 1;
-            } else {
-                c++;
-            }
+            if (text[i] == 10) { l++; c = 1; } else c++;
         }
         
         puts("");
         debug_context(&C);
         puts("");
-        
         struct expr e = parse(tokens, count, _U, 0, &C);
-        
         puts("");
         debug_resolved(e, 0, &C);
         puts("");
@@ -363,9 +324,7 @@ int main(int argc, const char** argv) {
             printf("C.at != count = %d, -> [%lu != %lu]\n\n\n", C.at != count, C.at, count);
             parse_error(tokens, count, loc, _U, &C, argv[i], text, length);
         }
-
         free(tokens);
         free(text);
     }
 }
-
