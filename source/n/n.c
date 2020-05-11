@@ -98,90 +98,38 @@ static void parse_error(uint8_t* given, size_t given_count, struct loc* loc, siz
     } else printf("n3zqx2l: %s: \x1B[091merror:\x1B[0m %s: unresolved empty expression\n\n", filename, type_string);
 }
 
-static void duplicate_context(struct context* d, struct context* s) {
-//    d->at = s->at;
-    d->name_count = s->name_count;
-    d->names = realloc(d->names, sizeof(struct frame) * s->name_count);
-    memcpy(d->names, s->names, sizeof(struct name) * s->name_count);
-    d->frame_count = s->frame_count;
-    d->frames = realloc(d->frames, sizeof(struct frame) * s->frame_count);
-    memcpy(d->frames, s->frames, sizeof(struct frame) * s->frame_count);
-}
-
 static void debug_resolved(struct expr given, size_t depth, struct context* context);
 
-static struct expr parse(uint8_t* given, size_t begin, size_t end,
-                         size_t type, size_t depth, struct context* C) {
-    if (depth > 8) return (struct expr) {0};
-//    else if (type == _s) {
-//        return (struct expr) {_c, 0, 0, given[begin], 1};
-//    }
-    
-//    for (size_t i = depth; i--;) printf(".   ");
-//    printf("inside resolve(given, begin=%lu, end=%lu, type=%lu, depth=%lu, C)\n",
-//           begin, end, type, depth);
-    
-//    struct context saved = {0};
-    //duplicate_context(&saved, C);
-    for (size_t f = C->frame_count; f--;) {
-        for (size_t i = C->frames[f].count; i--;) {
-//            duplicate_context(C, &saved);
-        
-            struct expr sol = {C->frames[f].indicies[i], 0, 0, 0, 0};
-            struct name name = C->names[sol.index];
-            if (type && name.type != type) goto next;
-            
-//            for (size_t i = depth; i--;) printf(".   ");
-//            printf("trying solution idx = %lu\n", sol.index);
-            
-            for (uint8_t s = 0; s < name.count; s++) {
-                
-                if (begin + sol.total >= end) {
-//                    for (size_t i = depth; i--;) printf(".   ");
-//                    printf("FAILED: begin + total >= end.\n");
-//                    if (s == 1 && name.precedence >= 65536) return *sol.args;
-                    goto next;
-                }
-                
-//                for (size_t i = depth; i--;) printf(".   ");
-//                printf("total = %lu\n", sol.total);
-                
-                if (name.sig[s] >= 256) {
-                    struct expr arg;
-                    for (size_t e = end + 1; e--;) {
-//                        for (size_t i = depth; i--;) printf(".   ");
-//                        printf("trying child(given, begin=%lu, end=%lu, type=%lu, depth=%lu):\n", sol.total, e, C->names[name.sig[s] - 256].type, depth + 1);
-                        
-                        arg = parse(given, begin + sol.total, e, C->names[name.sig[s] - 256].type, depth + 1, C);
-                        if (arg.index) {
-//                            for (size_t i = depth; i--;) printf(".   ");
-//                            printf("child SUCCESS.\n");
-                            break;
+static struct expr parse(uint8_t* given, size_t begin, size_t end, size_t type, size_t depth, struct context* C) {
+    for (size_t d = depth; d < 32; d++) {
+        for (size_t f = C->frame_count; f--;) {
+            for (size_t i = C->frames[f].count; i--;) {
+                struct expr sol = {C->frames[f].indicies[i], 0, 0, 0, 0};
+                struct name name = C->names[sol.index];
+                if (type && name.type != type) goto next;
+                for (uint8_t s = 0; s < name.count; s++) {
+                    if (begin + sol.total >= end) goto next;
+                    if (name.sig[s] >= 256) {
+                        struct expr arg;
+                        for (size_t e = end + 1; e--;) {
+                            arg = parse(given, begin + sol.total, e, C->names[name.sig[s] - 256].type, d, C);
+                            if (arg.index) break;
                         }
-                    }
-                    if (!arg.index) goto next;
-                    sol.total += arg.total;
-                    sol.args = realloc(sol.args, sizeof(struct expr) * (sol.count + 1));
-                    sol.args[sol.count++] = arg;
-                } else if (name.sig[s] == given[begin + sol.total]) sol.total++; else goto next;
+                        if (!arg.index) goto next;
+                        sol.total += arg.total;
+                        sol.args = realloc(sol.args, sizeof(struct expr) * (sol.count + 1));
+                        sol.args[sol.count++] = arg;
+                    } else if (name.sig[s] == given[begin + sol.total]) sol.total++; else goto next;
+                }
+                if (begin + sol.total == end) return sol;
+                next: C->best = fmax(begin + sol.total, C->best);
             }
-            
-            if (begin + sol.total == end) {
-//                for (size_t i = depth; i--;) printf(".   ");
-//                printf("SUCCESS: \n");
-//                debug_resolved(sol, depth, C);
-                return sol;
-            } else {
-//                for (size_t i = depth; i--;) printf(".   ");
-//                printf("FAILED, total != end: \n");
-            }
-            next: C->best = fmax(begin + sol.total, C->best);
         }
     } return (struct expr) {0};
 }
 
 static void debug_context(struct context* context) {
-//    printf("index = %lu, best = %lu\n", context->at, context->best);
+    printf("[best = %lu]\n", context->best);
     printf("---- debugging frames: ----\n");
     for (size_t i = 0; i < context->frame_count; i++) {
         printf("\t ----- FRAME # %lu ---- \n\t\tidxs: { ", i);
@@ -191,12 +139,9 @@ static void debug_context(struct context* context) {
     }
     printf("\nmaster: {\n");
     for (size_t i = 0; i < context->name_count; i++) {
-        printf("\t%6lu: ", i);
-        char buffer[2048] = {0};
-        size_t index = 0;
+        char buffer[4096] = {0}; size_t index = 0;
         represent(i, buffer, sizeof buffer, &index, context);
-        printf("%s", buffer);
-        puts("\n");
+        printf("\t%6lu: %s\n\n", i, buffer);
     }
     puts("}");
 }
@@ -228,8 +173,7 @@ int main(int argc, const char** argv) {
         
         struct name top_owner = {{0}, 0, 0, 0, 0};
         ///TODO: for the owner of this, do we use the filename to construct a signature?!? i dont know.
-        
-        
+                
         C.frames[0] = (struct frame) {
             {_j, _U, _s, _c, _i, _n, _a, _p, _d, _k}, 10,
             top_owner
@@ -278,22 +222,13 @@ int main(int argc, const char** argv) {
             if (text[i] > 32) {
                 tokens[count] = text[i];
                 loc[count++] = (struct loc){l, c};
-            }
-            if (text[i] == 10) { l++; c = 1; } else c++;
+            } if (text[i] == 10){l++; c = 1;} else c++;
         }
-        
-        puts("");
-        debug_context(&C);
-        puts("");
-        
+        printf("parsing...\n");
         struct expr e = parse(tokens, 0, count, _U, 0, &C);
-        puts("");
-        debug_resolved(e, 0, &C);
-        puts("");
-        debug_context(&C);
-//        puts("");
+        puts(""); debug_resolved(e, 0, &C);
+        puts(""); debug_context(&C); puts("");
         if (!e.index) parse_error(tokens, count, loc, _U, &C, argv[i], text, length);
-        
         free(tokens);
         free(text);
     }
@@ -303,6 +238,18 @@ int main(int argc, const char** argv) {
 
 
 
+
+
+
+//static void duplicate_context(struct context* d, struct context* s) {
+////    d->at = s->at;
+//    d->name_count = s->name_count;
+//    d->names = realloc(d->names, sizeof(struct frame) * s->name_count);
+//    memcpy(d->names, s->names, sizeof(struct name) * s->name_count);
+//    d->frame_count = s->frame_count;
+//    d->frames = realloc(d->frames, sizeof(struct frame) * s->frame_count);
+//    memcpy(d->frames, s->frames, sizeof(struct frame) * s->frame_count);
+//}
 
 
 
