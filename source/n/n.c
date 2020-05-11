@@ -72,8 +72,7 @@ static void represent(size_t given, char* buffer, size_t limit, size_t* at, stru
             represent(name.sig[i] - 256, buffer, limit, at, context);
             buffer[(*at)++] = ')';
         }
-    }
-    if (name.type) {
+    } if (name.type) {
         buffer[(*at)++] = ' ';
         represent(name.type, buffer, limit, at, context);
     }
@@ -118,53 +117,17 @@ static void duplicate_context(struct context* d, struct context* s) {
     memcpy(d->frames, s->frames, sizeof(struct frame) * s->frame_count);
 }
 
-//static void do_intrinsic(struct context *context, const struct expr *sol) {
-//    if (sol->index == _d) {
-//
-//        size_t f = --context->frame_count;
-//
-//        context->frames[f].owner.type = sol->args[1].index;
-//
-//        context->names
-//        = realloc(context->names,
-//                  sizeof(struct name)
-//                  * (context->name_count + 1));
-//        context->names[context->name_count++]
-//        = context->frames[f].owner;
-//
-//        size_t
-//            m = context->frames[f].owner.count &&
-//                context->frames[f].owner.sig[0] >= 256,
-//            b = context->frame_count - 1;
-//
-//        context->frames[b].indicies
-//            [context->frames[b].count++]
-//            = context->name_count - 1;
-//
-//    } else if (sol->index == _a || sol->index == _p) {
-//
-//        struct name* owner =
-//        &context->frames[context->frame_count - 1].owner;
-//            owner->sig[owner->count++]
-//                = sol->index == _a
-//                    ? sol->args[0].value
-//                    : 256 + context->name_count - 1;
-//    }
-//}
 
 static struct expr parse(uint8_t* given, size_t length, size_t type, size_t depth, struct context* C) {
     if (depth > 32) return (struct expr) {0};
     else if (type == _s) return (struct expr) {_c, 0, 0, given[C->at++], 99999999999};
-    struct context saved = {0};
-    duplicate_context(&saved, C);
+    struct context saved = {0}; duplicate_context(&saved, C);
     for (size_t f = C->frame_count; f--;) {
         for (size_t i = C->frames[f].count; i--;) {
-            C->best = fmax(C->at, C->best);
-            duplicate_context(C, &saved);
+            C->best = fmax(C->at, C->best); duplicate_context(C, &saved);
             struct expr sol = {C->frames[f].indicies[i], 0, 0, 0, 0};
             struct name name = C->names[sol.index];
             if (type && name.type != type) goto next;
-//                if (sol.index == _d) C->frames = realloc(C->frames, sizeof(struct frame) * ++C->frame_count);
             for (uint8_t s = 0; s < name.count; s++) {
                 if (C->at >= length) goto next;
                 else if (name.sig[s] >= 256) {
@@ -173,20 +136,14 @@ static struct expr parse(uint8_t* given, size_t length, size_t type, size_t dept
                     sol.successful_count += arg.successful_count;
                     sol.args = realloc(sol.args, sizeof(struct expr) * (sol.count + 1));
                     sol.args[sol.count++] = arg;
-                } else if (name.sig[s] == given[C->at]) {
-                    sol.successful_count++; C->at++;
-                } else goto next;
+                } else if (name.sig[s] == given[C->at]) { sol.successful_count++; C->at++; } else goto next;
             }
+            
             const size_t required_count = 0; ///TODO: temp!!
-            if (sol.successful_count == required_count) {
-                //                do_intrinsic(C, &sol);
-                return sol;
-            }
-            next: continue;
-            //                if (sol.index == _d) C->frame_count--;
+            
+            if (sol.successful_count == required_count) return sol; next: continue;            
         }
-    }
-    return (struct expr) {0};
+    } return (struct expr) {0};
 }
 
 static void debug_context(struct context* context) {
@@ -210,7 +167,6 @@ static void debug_context(struct context* context) {
         puts("\n");
     }
     puts("}");
-        
 }
 
 static void debug_resolved(struct expr given, size_t depth, struct context* context) {
@@ -230,8 +186,7 @@ int main(int argc, const char** argv) {
     
     for (int i = 1; i < argc; i++) {
         
-        if (argv[i][0] == '-')
-            exit(!puts("n3zqx2l version 0.0.1\nn3zqx2l [-] [files]"));
+        if (argv[i][0] == '-') exit(!puts("n3zqx2l version 0.0.1\nn3zqx2l [-] [files]"));
     
         struct context C = {
             0, 0, _intrin_count, 1,
@@ -289,7 +244,6 @@ int main(int argc, const char** argv) {
             perror("error");
             continue;
         }
-        
         fseek(file, 0, SEEK_END);
         size_t length = ftell(file), count = 0;
         uint8_t *text = malloc(length), *tokens = malloc(length);
@@ -326,3 +280,57 @@ int main(int argc, const char** argv) {
         free(text);
     }
 }
+
+
+
+
+
+
+
+
+
+
+
+//static void do_intrinsic(struct context *context, const struct expr *sol) {
+//    if (sol->index == _d) {
+//
+//        size_t f = --context->frame_count;
+//
+//        context->frames[f].owner.type = sol->args[1].index;
+//
+//        context->names
+//        = realloc(context->names,
+//                  sizeof(struct name)
+//                  * (context->name_count + 1));
+//        context->names[context->name_count++]
+//        = context->frames[f].owner;
+//
+//        size_t
+//            m = context->frames[f].owner.count &&
+//                context->frames[f].owner.sig[0] >= 256,
+//            b = context->frame_count - 1;
+//
+//        context->frames[b].indicies
+//            [context->frames[b].count++]
+//            = context->name_count - 1;
+//
+//    } else if (sol->index == _a || sol->index == _p) {
+//
+//        struct name* owner =
+//        &context->frames[context->frame_count - 1].owner;
+//            owner->sig[owner->count++]
+//                = sol->index == _a
+//                    ? sol->args[0].value
+//                    : 256 + context->name_count - 1;
+//    }
+//}
+
+
+
+
+//                if (sol.index == _d) C->frame_count--;
+
+//                do_intrinsic(C, &sol);
+
+
+//                if (sol.index == _d) C->frames = realloc(C->frames, sizeof(struct frame) * ++C->frame_count);
