@@ -46,18 +46,15 @@ struct name {
     size_t precedence;
 };
 
-struct frame {
-    size_t indicies[256];   // i think we should make this:   size_t* indicies;
-    size_t count;
-    struct name owner;
-};
-
 struct context {
     size_t best;
-    size_t name_count;
     size_t frame_count;
+    size_t index_count;
+    size_t name_count;
+    size_t* frames;
+    size_t* indicies;
     struct name* names;
-    struct frame* frames;
+    struct name* owners;
 };
 
 static void represent(size_t given, char* buffer, size_t limit, size_t* at, struct context* context) {
@@ -91,39 +88,34 @@ void print_source_code(uint8_t* source, size_t length, struct loc t) {
 static void parse_error(uint8_t* given, size_t given_count, struct loc* loc, size_t type, struct context* C, const char* filename, uint8_t* text, size_t length) {
     char type_string[4096] = {0}; size_t index = 0;
     represent(type, type_string, sizeof type_string,  &index, C);
-    if (C->best == given_count && C->best) C->best--;
-    if (C->best < given_count) {
-        printf("n3zqx2l: %s:%u:%u: \x1B[091merror:\x1B[0m %s: unresolved %c\n\n", filename, loc[C->best].line, loc[C->best].column, type_string, given[C->best]);
-        print_source_code(text, length, loc[C->best]);
-    } else printf("n3zqx2l: %s: \x1B[091merror:\x1B[0m %s: unresolved empty expression\n\n", filename, type_string);
+    if (!given_count) { printf("n3zqx2l: %s: \x1B[091merror:\x1B[0m %s: unresolved empty expression\n\n", filename, type_string); return; }
+    else if (C->best == given_count) C->best--;
+    printf("n3zqx2l: %s:%u:%u: \x1B[091merror:\x1B[0m %s: unresolved %c\n\n", filename, loc[C->best].line, loc[C->best].column, type_string, given[C->best]);
+    print_source_code(text, length, loc[C->best]);
 }
-
-static void debug_resolved(struct expr given, size_t depth, struct context* context);
 
 static struct expr parse(uint8_t* given, size_t begin, size_t end, size_t type, size_t depth, struct context* C) {
     for (size_t d = depth; d < 32; d++) {
-        for (size_t f = C->frame_count; f--;) {
-            for (size_t i = C->frames[f].count; i--;) {
-                struct expr sol = {C->frames[f].indicies[i], 0, 0, 0, 0};
-                struct name name = C->names[sol.index];
-                if (type && name.type != type) goto next;
-                for (uint8_t s = 0; s < name.count; s++) {
-                    if (begin + sol.total >= end) goto next;
-                    if (name.sig[s] >= 256) {
-                        struct expr arg;
-                        for (size_t e = end + 1; e--;) {
-                            arg = parse(given, begin + sol.total, e, C->names[name.sig[s] - 256].type, d, C);
-                            if (arg.index) break;
-                        }
-                        if (!arg.index) goto next;
-                        sol.total += arg.total;
-                        sol.args = realloc(sol.args, sizeof(struct expr) * (sol.count + 1));
-                        sol.args[sol.count++] = arg;
-                    } else if (name.sig[s] == given[begin + sol.total]) sol.total++; else goto next;
-                }
-                if (begin + sol.total == end) return sol;
-                next: C->best = fmax(begin + sol.total, C->best);
+        for (size_t i = C->index_count; i--;) {
+            struct expr sol = {C->indicies[i], 0, 0, 0, 0};
+            struct name name = C->names[sol.index];
+            if (type && name.type != type) goto next;
+            for (uint8_t s = 0; s < name.count; s++) {
+                if (begin + sol.total >= end) goto next;
+                if (name.sig[s] >= 256) {
+                    struct expr arg;
+//                    for (size_t e = end + 1; e--;) {
+                        arg = parse(given, begin + sol.total, end, C->names[name.sig[s] - 256].type, d, C);
+//                        if (arg.index) break;
+//                    }
+                    if (!arg.index) goto next;
+                    sol.total += arg.total;
+                    sol.args = realloc(sol.args, sizeof(struct expr) * (sol.count + 1));
+                    sol.args[sol.count++] = arg;
+                } else if (name.sig[s] == given[begin + sol.total]) sol.total++; else goto next;
             }
+            if (begin + sol.total == end) return sol;
+            next: C->best = fmax(begin + sol.total, C->best);
         }
     } return (struct expr) {0};
 }
@@ -131,19 +123,18 @@ static struct expr parse(uint8_t* given, size_t begin, size_t end, size_t type, 
 static void debug_context(struct context* context) {
     printf("[best = %lu]\n", context->best);
     printf("---- debugging frames: ----\n");
-    for (size_t i = 0; i < context->frame_count; i++) {
-        printf("\t ----- FRAME # %lu ---- \n\t\tidxs: { ", i);
-        for (size_t j = 0; j < context->frames[i].count; j++)
-            printf("%lu ", context->frames[i].indicies[j]);
-        puts("}");
-    }
-    printf("\nmaster: {\n");
+    for (size_t i = 0; i < context->frame_count; i++)
+        printf("\tframe # %lu  bp = %lu\n", i, context->frames[i]);
+    printf("\n---- debugging indicies: ----\n");
+    printf("\t\tidxs: { ");
+    for (size_t i = 0; i < context->index_count; i++)
+        printf("%lu ", context->indicies[i]);
+    printf("}\n\n----- master: ------ \n{\n");
     for (size_t i = 0; i < context->name_count; i++) {
         char buffer[4096] = {0}; size_t index = 0;
         represent(i, buffer, sizeof buffer, &index, context);
         printf("\t%6lu: %s\n\n", i, buffer);
-    }
-    puts("}");
+    } puts("}");
 }
 
 static void debug_resolved(struct expr given, size_t depth, struct context* context) {
@@ -153,8 +144,7 @@ static void debug_resolved(struct expr given, size_t depth, struct context* cont
     printf("%s : [%lu]{%lu}", buffer, given.index, given.total);
     if (given.value) printf(" : c=%c", (char) given.value);
     printf("\n");
-    for (size_t i = 0; i < given.count; i++)
-        debug_resolved(given.args[i], depth + 1, context);
+    for (size_t i = 0; i < given.count; i++) debug_resolved(given.args[i], depth + 1, context);
     for (size_t i = depth; i--;) printf(".   ");
     printf("\n");
 }
@@ -162,47 +152,31 @@ static void debug_resolved(struct expr given, size_t depth, struct context* cont
 int main(int argc, const char** argv) {
     if (argc == 1) exit(!!printf("n: \x1B[091merror:\x1B[0m no input files\n"));
     for (int i = 1; i < argc; i++) {
-        
         if (argv[i][0] == '-') exit(!puts("n3zqx2l version 0.0.1\nn3zqx2l [-] [files]"));
-    
         struct context C = {
-            0, _intrin_count, 1,
-            calloc(_intrin_count, sizeof(struct name)),
-            calloc(1, sizeof(struct frame))
+            0, 1, 10, _intrin_count,
+            calloc(1, sizeof(size_t)), calloc(10, sizeof(size_t)),
+            calloc(_intrin_count, sizeof(struct name)), calloc(1, sizeof(struct name)),
         };
-        
-        struct name top_owner = {{0}, 0, 0, 0, 0};
-        ///TODO: for the owner of this, do we use the filename to construct a signature?!? i dont know.
-                
-        C.frames[0] = (struct frame) {
-            {_j, _U, _s, _c, _i, _n, _a, _p, _d, _k}, 10,
-            top_owner
-        };
-    
+        memcpy(C.indicies, (size_t[]) {_j,_U,_s,_c,_i,_n,_a,_p,_d,_k}, 10 * sizeof(size_t));
         C.names[_U] = (struct name) {{'U'}, _U, 1, 0, 0};
         C.names[_i] = (struct name) {{'i'}, _U, 1, 0, 0};
         C.names[_n] = (struct name) {{'n'}, _i, 1, 0, 0};
         C.names[_s] = (struct name) {{'s'}, _i, 1, 0, 0};
         C.names[_c] = (struct name) {{'c'}, _s, 1, 0, 0};
-                
         C.names[_a0] = (struct name) {{'0'}, _s, 1, 0, 0};
         C.names[_a] = (struct name) {{'a', 256+_a0}, _n, 2, 0, 0};
-        
         C.names[_p0] = (struct name) {{'0'}, _i, 1, 0, 0};
         C.names[_p] = (struct name) {{'p', 256+_p0}, _n, 2, 0, 0};
-        
         C.names[_d0] = (struct name) {{'0'}, _n, 1, 0, 0};
         C.names[_d1] = (struct name) {{'0'}, _U, 1, 0, 0};
         C.names[_d] = (struct name) {{'d', 256+_d0, 256+_d1}, _i, 3, 0, 0};
-
         C.names[_k0] = (struct name) {{'0', 0}, _n, 1, 0, 0};
         C.names[_k1] = (struct name) {{'0', 0}, _n, 1, 0, 0};
         C.names[_k] = (struct name) {{'k', 256+_k0, 256+_k1}, _n, 3, 0, 0};
-        
         C.names[_j0] = (struct name) {{'0', 0}, _i, 1, 0, 0};
         C.names[_j1] = (struct name) {{'0', 0}, _i, 1, 0, 0};
-        C.names[_j] = (struct name) {{/*'j',*/ 256+_j0, 256+_j1}, _i, 2, 0, 65536};
-        
+        C.names[_j] = (struct name) {{'j', 256+_j0, 256+_j1}, _i, 3, 0, 65536};
         FILE* file = fopen(argv[i], "r");
         if (!file) {
             fprintf(stderr, "n: %s: ", argv[i]);
@@ -225,6 +199,7 @@ int main(int argc, const char** argv) {
             } if (text[i] == 10){l++; c = 1;} else c++;
         }
         printf("parsing...\n");
+        puts(""); debug_context(&C); puts("");
         struct expr e = parse(tokens, 0, count, _U, 0, &C);
         puts(""); debug_resolved(e, 0, &C);
         puts(""); debug_context(&C); puts("");
@@ -299,3 +274,11 @@ int main(int argc, const char** argv) {
 
 
 //                if (sol.index == _d) C->frames = realloc(C->frames, sizeof(struct frame) * ++C->frame_count);
+
+
+
+//struct frame {
+//    size_t indicies[256];   // i think we should make this:   size_t* indicies;
+//    size_t count;
+//    struct name owner;
+//};
