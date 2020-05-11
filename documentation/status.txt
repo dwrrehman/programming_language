@@ -2,6 +2,32 @@ the current status of the nostril compiler:
 =============================================
 
 
+j d k pdaAn pdaBn n
+j d aU aO n s
+
+
+we are getting closer, to the actual final structure of the csr algorithm.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 we are still trying to figure out why csr is giving the wrong answer, sometimes.. its really weird..
