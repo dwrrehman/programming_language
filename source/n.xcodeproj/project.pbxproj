@@ -25,7 +25,6 @@
 /* Begin PBXFileReference section */
 		FD47CFAF243E4CCE00F8992D /* test.n */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; name = test.n; path = ../../examples/test.n; sourceTree = "<group>"; };
 		FD57A3CE244EACF200FAC20A /* status.txt */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; name = status.txt; path = ../../documentation/status.txt; sourceTree = "<group>"; };
-		FD57A3CF244EB23800FAC20A /* test.ll */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.asm.llvm; name = test.ll; path = ../../examples/test.ll; sourceTree = "<group>"; };
 		FDAB9E38243C3B4E000B1E4B /* n */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = n; sourceTree = BUILT_PRODUCTS_DIR; };
 		FDD75BB9245D5AC70002DA7E /* n.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = n.c; sourceTree = "<group>"; };
 /* End PBXFileReference section */
@@ -62,7 +61,6 @@
 			children = (
 				FDD75BB9245D5AC70002DA7E /* n.c */,
 				FD47CFAF243E4CCE00F8992D /* test.n */,
-				FD57A3CF244EB23800FAC20A /* test.ll */,
 				FD57A3CE244EACF200FAC20A /* status.txt */,
 			);
 			path = n;

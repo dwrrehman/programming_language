@@ -41,18 +41,20 @@ struct expr {
     size_t count;
     struct expr* args;
     uint8_t value;
+    size_t successful_count;
 };
 
 struct name {
-    size_t sig[256];
+    size_t sig[256]; // i think we should make signatures unlimited length.
     size_t type;
     uint8_t count;
     uint8_t codegen_as;
+    // uint32_t precedence;       // i dont know the exact length of this int.
 };
 
 struct frame {
-    size_t indicies[2][256];
-    size_t count[2];
+    size_t indicies[256];   // i think we should make this:   size_t* indicies;
+    size_t count; // should probably be:                      size_t count;
     struct name owner;
 };
 
@@ -65,99 +67,62 @@ struct context {
     struct frame* frames;
 };
 
-static void represent
-(size_t given, char* buffer, size_t limit,
- size_t* at, struct context* context)
-{
+static void represent(size_t given, char* buffer, size_t limit, size_t* at, struct context* context) {
     if (given > context->name_count) return;
-    
     struct name name = context->names[given];
-    
     for (size_t i = 0; i < name.count; i++) {
-        
-        if (*at + 4 >= limit)
-            return;
-        
-        else if (name.sig[i] < 256)
-            buffer[(*at)++] = name.sig[i];
-        
+        if (*at + 4 >= limit) return;
+        else if (name.sig[i] < 256) buffer[(*at)++] = name.sig[i];
         else {
             buffer[(*at)++] = '(';
-            represent(name.sig[i] - 256, buffer,
-                      limit, at, context);
+            represent(name.sig[i] - 256, buffer, limit, at, context);
             buffer[(*at)++] = ')';
         }
     }
     if (name.type) {
         buffer[(*at)++] = ' ';
-        represent(name.type, buffer,
-                  limit, at, context);
+        represent(name.type, buffer, limit, at, context);
     }
 }
 
 void print_source_code(uint8_t* source, size_t length, struct loc t) {
-    ssize_t at = 0, target = (ssize_t) t.line - 1;
-    char* text = strndup((char*)source, length);
-    while (text) {
+    const ssize_t target = (ssize_t) t.line - 1;
+    char* copy = strndup((char*)source, length), *text = copy;
+    for (ssize_t at = 0; text; at++) {
         char* line = strsep(&text, "\n");
-        if (at > target + 2 || at < target - 2) { at++; continue; }
-        printf("\t\x1B[90m%5lu\x1B[0m\x1B[32m  │  \x1B[0m%s\n", at+1, line);
-        if (at++ == target) {
-            putchar('\t');
-            for (int i = 0; i < t.column + 9; i++) putchar(' ');
-            printf("\x1B[091m^\x1B[0m\n");
-        }
-    } puts("\n"); free(text);
+        if (at > target + 2) break; else if (at < target - 2) continue;
+        printf("   \x1B[90m%5lu\x1B[0m\x1B[32m  │  \x1B[0m%s\n", at + 1, line);
+        if (at == target) printf("%*c\x1B[091m^\x1B[0m\n", t.column + 12, ' ');
+    } puts("\n"); free(copy);
 }
 
-static void parse_error
-(uint8_t* given, size_t given_count,
- struct loc* loc, size_t type,
- struct context* C, const char* filename, uint8_t* text, size_t length) {
+static void parse_error(uint8_t* given, size_t given_count, struct loc* loc, size_t type,
+                        struct context* C, const char* filename, uint8_t* text, size_t length) {
     
-    char type_string[4096] = {0};
-    size_t index = 0;
-    represent(type, type_string,
-              sizeof type_string,  &index, C);
-    
+    char type_string[4096] = {0}; size_t index = 0;
+    represent(type, type_string, sizeof type_string,  &index, C);
     if (C->best == given_count && C->best) {
         C->best--;
         printf("n3zqx2l: %s:%u:%u: \x1B[091merror:\x1B[0m expected %s near %c\n\n",
-               filename, loc[C->best].line, loc[C->best].column,
-               type_string, given[C->best]);
+               filename, loc[C->best].line, loc[C->best].column, type_string, given[C->best]);
         print_source_code(text, length, loc[C->best]);
     } else if (C->best < given_count) {
         printf("n3zqx2l: %s:%u:%u: \x1B[091merror:\x1B[0m %s: unresolved %c\n\n",
-               filename, loc[C->best].line, loc[C->best].column,
-               type_string, given[C->best]);
+               filename, loc[C->best].line, loc[C->best].column, type_string, given[C->best]);
         print_source_code(text, length, loc[C->best]);
-        
-    } else
-        printf("n3zqx2l: %s: \x1B[091merror:\x1B[0m %s: empty file\n\n",
-                filename, type_string);
-    
-    
+    } else {
+        printf("n3zqx2l: %s: \x1B[091merror:\x1B[0m %s: unresolved empty expression\n\n", filename, type_string);
+    }
 }
 
-static void duplicate_context
- (struct context* d, struct context* s) {
+static void duplicate_context(struct context* d, struct context* s) {
     d->at = s->at;
-    
     d->name_count = s->name_count;
-    d->names = realloc(d->names,
-                       sizeof(struct frame)
-                       * s->name_count);
-    
-    memcpy(d->names, s->names,
-           sizeof(struct name) * s->name_count);
-    
+    d->names = realloc(d->names, sizeof(struct frame) * s->name_count);
+    memcpy(d->names, s->names, sizeof(struct name) * s->name_count);
     d->frame_count = s->frame_count;
-    d->frames = realloc(d->frames,
-                        sizeof(struct frame)
-                        * s->frame_count);
-    
-    memcpy(d->frames, s->frames,
-           sizeof(struct frame) * s->frame_count);
+    d->frames = realloc(d->frames, sizeof(struct frame) * s->frame_count);
+    memcpy(d->frames, s->frames, sizeof(struct frame) * s->frame_count);
 }
 
 static void do_intrinsic(struct context *context, const struct expr *sol) {
@@ -179,8 +144,8 @@ static void do_intrinsic(struct context *context, const struct expr *sol) {
                 context->frames[f].owner.sig[0] >= 256,
             b = context->frame_count - 1;
         
-        context->frames[b].indicies[m]
-            [context->frames[b].count[m]++]
+        context->frames[b].indicies
+            [context->frames[b].count++]
             = context->name_count - 1;
         
     } else if (sol->index == _a || sol->index == _p) {
@@ -194,59 +159,43 @@ static void do_intrinsic(struct context *context, const struct expr *sol) {
     }
 }
 
-static struct expr parse
- (uint8_t* given, size_t length, size_t type, size_t depth, struct context* C) {
+static struct expr parse(uint8_t* given, size_t length, size_t type, size_t depth, struct context* C) {
 
-    if (depth > 32) {
-        return (struct expr) {0};
-        
-    } else if (type == _s) {
-        return (struct expr) {_c, 0, 0, given[C->at++]};
-    }
-    
+    if (depth > 32) return (struct expr) {0};
+    else if (type == _s) return (struct expr) {_c, 0, 0, given[C->at++], 99999999999};
     struct context saved = {0};
     duplicate_context(&saved, C);
-    
-    for (size_t p = 2; p--;) {
-        for (size_t f = C->frame_count; f--;) {
-            for (size_t i = C->frames[f].count[p]; i--;) {
-            
-                C->best = fmax(C->at, C->best);
-                duplicate_context(C, &saved);
-                
-                struct expr sol = {C->frames[f].indicies[p][i], 0, 0, 0};
-                struct name name = C->names[sol.index];
-                
-                if (type && name.type != type) goto next;
-                
-                if (sol.index == _d) C->frames = realloc(C->frames, sizeof(struct frame) * ++C->frame_count);
-                
-                for (uint8_t s = 0; s < name.count; s++) {
-                    if (C->at >= length) {
-                        if (s == 1 && p == 1) return *sol.args;
-                        else goto next;
-                        
-                    } else if (name.sig[s] >= 256) {
-                        struct expr arg = parse(given, length, C->names[name.sig[s] - 256].type, depth + 1, C);
-                        if (!arg.index) goto next;
-                        sol.args = realloc(sol.args, sizeof(struct expr) * (sol.count + 1));
-                        sol.args[sol.count++] = arg;
-                    } else if (name.sig[s] == given[C->at]) C->at++; else goto next;
-                }
-                do_intrinsic(C, &sol);
-                return sol;
-                next: if (sol.index == _d) C->frame_count--;
+    for (size_t f = C->frame_count; f--;) {
+        for (size_t i = C->frames[f].count; i--;) {
+            C->best = fmax(C->at, C->best);
+            duplicate_context(C, &saved);
+            struct expr sol = {C->frames[f].indicies[i], 0, 0, 0, 0};
+            struct name name = C->names[sol.index];
+            if (type && name.type != type) goto next;
+//                if (sol.index == _d) C->frames = realloc(C->frames, sizeof(struct frame) * ++C->frame_count);
+            for (uint8_t s = 0; s < name.count; s++) {
+                if (C->at >= length) goto next;
+                else if (name.sig[s] >= 256) {
+                    struct expr arg = parse(given, length, C->names[name.sig[s] - 256].type, depth + 1, C);
+                    if (!arg.index) goto next;
+                    sol.successful_count += arg.successful_count;
+                    sol.args = realloc(sol.args, sizeof(struct expr) * (sol.count + 1));
+                    sol.args[sol.count++] = arg;
+                } else if (name.sig[s] == given[C->at]) {
+                    sol.successful_count++; C->at++;
+                } else goto next;
             }
+            const size_t required_count = 0; ///TODO: temp!!
+            if (sol.successful_count == required_count) {
+                //                do_intrinsic(C, &sol);
+                return sol;
+            }
+            next: continue;
+            //                if (sol.index == _d) C->frame_count--;
         }
     }
     return (struct expr) {0};
 }
-
-
-
-
-
-
 
 static void debug_context(struct context* context) {
     printf("index = %lu, best = %lu\n",
@@ -254,21 +203,20 @@ static void debug_context(struct context* context) {
     
     printf("---- debugging frames: ----\n");
     
-    for (size_t m = 0; m < 2; m++) {
-        
-        printf("mode = %lu\n", m);
+//    for (size_t m = 0; m < 2; m++) {
+    
         
         for (size_t i = 0; i < context->frame_count; i++) {
             
-            printf("\t ----- [m=%lu] FRAME # %lu ---- \n"
-                   "\t\tidxs: { ", m, i);
+            printf("\t ----- [m=] FRAME # %lu ---- \n"
+                   "\t\tidxs: { ", i);
             
-            for (size_t j = 0; j < context->frames[i].count[m]; j++)
-                printf("%lu ", context->frames[i].indicies[m][j]);
+            for (size_t j = 0; j < context->frames[i].count; j++)
+                printf("%lu ", context->frames[i].indicies[j]);
             
             puts("}");
         }
-    }
+//    }
     printf("\nmaster: {\n");
     for (size_t i = 0; i < context->name_count; i++) {
         printf("\t%6lu: ", i);
@@ -312,7 +260,7 @@ int main(int argc, const char** argv) {
     for (int i = 1; i < argc; i++) {
         
         if (argv[i][0] == '-')
-            exit(!puts("n3zqx2l version 0.0.0\nn3zqx2l [-] [files]"));
+            exit(!puts("n3zqx2l version 0.0.1\nn3zqx2l [-] [files]"));
         
         const size_t o = 256;
         
@@ -322,9 +270,12 @@ int main(int argc, const char** argv) {
             calloc(1, sizeof(struct frame))
         };
         
-        C.frames[0] = (struct frame) {{{
-            _U, _s, _c, _i, _n, _a, _p, _d, _k, _j
-        },{0}}, {10, 0}, {0}};
+        C.frames[0] = (struct frame) {
+            {_U, _s, _c, _i, _n, _a, _p, _d, _k, _j}, 10,
+            {0} // owner?
+        };
+        
+        ///TODO: for the owner of this, do we use the filename to construct a signature?!? i dont know.
         
         C.names[_U] = (struct name) {{'U'}, _U, 1, 0};
         C.names[_i] = (struct name) {{'i'}, _U, 1, 0};
