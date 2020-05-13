@@ -5,35 +5,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-
-enum {
-    _U = 256, _i, _n, _s, _c,
-    _a0, _a, _p0, _p,
-    _d0, _d1, _d,
-    _k0, _k1, _k,
-    _j0, _j1, _j,
-    _intrin_count,
-};
-
-enum {
-    _cg_default,
-    _cg_none,
-    _cg_macro,
-    _cg_function,
-    _cg_namespace,
-    _cg_variable,
-    _cg_structure
-};
-
-
-/// Facts:
-/// we could multiplex .value and .index inside res, ie, make an index >= 256, and a value less than 256. nice.
-///
-///         note: index = 0 is still an error--- index 256 is actually the Any type, at SyTb-location 0.
-///
-    /// we could delete the loc data structure...? its so small...
-///
-///
+enum { _U = 256, _i, _n, _s, _c, _a0, _a, _p0, _p, _d0, _d1, _d, _k0, _k1, _k, _j0, _j1, _j, _intrin_count };
+enum { _cg_default, _cg_none, _cg_macro, _cg_function, _cg_namespace, _cg_variable, _cg_structure };
 
 struct res {
     size_t index;
@@ -62,19 +35,13 @@ struct context {
 };
 
 static void represent(size_t given, char* buffer, size_t limit, size_t* at, struct context* context) {
-    if (given > context->name_count) return;
-    struct ent name = context->names[given - 256];
-    for (size_t i = 0; i < name.count; i++) {
-        if (*at + 4 >= limit) return;
-        if (name.sig[i] < 256) buffer[(*at)++] = name.sig[i];
-        else {
-            buffer[(*at)++] = '(';
-            represent(name.sig[i], buffer, limit, at, context);
-            buffer[(*at)++] = ')';
-        }
-    } if (!name.type) return;
-    buffer[(*at)++] = ' ';
-    represent(name.type, buffer, limit, at, context);
+    if (given < 256) { buffer[(*at)++] = given; return; }
+    else if (given - 256 >= context->name_count) return;
+    struct ent s = context->names[given - 256];
+    for (size_t i = 0; i < s.count; i++) represent(s.sig[i], buffer, limit, at, context);
+    if (!s.type) return;
+    buffer[(*at)++] = '\n';
+    represent(s.type, buffer, limit, at, context);
 }
 
 void print_source_code(uint8_t* source, size_t length, uint16_t line, uint16_t column) {
@@ -119,7 +86,7 @@ static struct res parse(uint8_t* given, size_t begin, size_t end, size_t type, s
 }
 
 static void debug_context(struct context* context) {
-    printf("[best = %lu]\n", context->best);
+    printf("\n[best = %lu]\n", context->best);
     printf("---- debugging frames: ----\n");
     for (size_t i = 0; i < context->frame_count; i++)
         printf("\tframe # %lu  bp = %lu\n", i, context->frames[i]);
@@ -132,52 +99,29 @@ static void debug_context(struct context* context) {
         char buffer[4096] = {0}; size_t index = 0;
         represent(i, buffer, sizeof buffer, &index, context);
         printf("\t%6lu: %s\n\n", i, buffer);
-    } puts("}");
+    } puts("}\n");
 }
 
 static void debug_resolved(struct res given, size_t depth, struct context* context) {
     char buffer[4096] = {0}; size_t index = 0;
     represent(given.index, buffer, sizeof buffer, &index, context);
     for (size_t i = depth; i--;) printf(".   ");
-    printf("%s : [%lu]{%lu}", buffer, given.index, given.total);
-    if (given.index < 256) printf(" : c=%c", (char) given.index);
-    printf("\n");
+    printf("%s:%lu:%lu:%c\n", buffer, given.index, given.total, (char) given.index);
     for (size_t i = 0; i < given.count; i++) debug_resolved(given.args[i], depth + 1, context);
-    for (size_t i = depth; i--;) printf(".   ");
-    printf("\n");
+    puts("");
 }
 
-int main(int argc, const char** argv) {
+int main(int argc, char** argv) {
     if (argc == 1) exit(!!printf("n: \x1B[091merror:\x1B[0m no input files\n"));
     for (int i = 1; i < argc; i++) {
         if (argv[i][0] == '-') exit(!puts("n3zqx2l version 0.0.1\nn3zqx2l [-] [files]"));
         struct context C = {
-            0, 1, 10, _intrin_count,
-            calloc(1, sizeof(size_t)), calloc(10, sizeof(size_t)),
-            calloc(_intrin_count, sizeof(struct ent)), calloc(1, sizeof(struct ent)),
+            0, 1, 0, 0,
+            calloc(1, sizeof(size_t)), calloc(0, sizeof(size_t)),
+            calloc(0, sizeof(struct ent)), calloc(1, sizeof(struct ent)),
         };
-        memcpy(C.indicies, (size_t[]) {_j,_U,_s,_c,_i,_n,_a,_p,_d,_k}, 10 * sizeof(size_t));
-        C.names[_U] = (struct ent) {{'U'}, _U, 1, 0, 0};
-        C.names[_i] = (struct ent) {{'i'}, _U, 1, 0, 0};
-        C.names[_n] = (struct ent) {{'n'}, _i, 1, 0, 0};
-        C.names[_s] = (struct ent) {{'s'}, _i, 1, 0, 0};
-        C.names[_c] = (struct ent) {{'c'}, _s, 1, 0, 0}; ///DELETE ME
-        C.names[_a0] = (struct ent) {{'0'}, _s, 1, 0, 0};
-        C.names[_a] = (struct ent) {{'a', 256+_a0}, _n, 2, 0, 0};
-        C.names[_p0] = (struct ent) {{'0'}, _i, 1, 0, 0};
-        C.names[_p] = (struct ent) {{'p', 256+_p0}, _n, 2, 0, 0};
-        C.names[_d0] = (struct ent) {{'0'}, _n, 1, 0, 0};
-        C.names[_d1] = (struct ent) {{'0'}, _U, 1, 0, 0};
-        C.names[_d] = (struct ent) {{'d', 256+_d0, 256+_d1}, _i, 3, 0, 0};
-        C.names[_k0] = (struct ent) {{'0', 0}, _n, 1, 0, 0};
-        C.names[_k1] = (struct ent) {{'0', 0}, _n, 1, 0, 0};
-        C.names[_k] = (struct ent) {{'k', 256+_k0, 256+_k1}, _n, 3, 0, 0};
-        C.names[_j0] = (struct ent) {{'0', 0}, _i, 1, 0, 0};
-        C.names[_j1] = (struct ent) {{'0', 0}, _i, 1, 0, 0};
-        C.names[_j] = (struct ent) {{/*'j',*/ 256+_j0, 256+_j1}, _i, 2, 0, 65536};
-                        
-        printf("parsing...\n"); puts(""); debug_context(&C); puts("");
-                
+        printf("parsing...\n");
+        debug_context(&C);
         FILE* file = fopen(argv[i], "r");
         if (!file) {
             fprintf(stderr, "n: %s: ", argv[i]);
@@ -185,24 +129,20 @@ int main(int argc, const char** argv) {
             continue;
         }
         fseek(file, 0, SEEK_END);
-        size_t length = ftell(file), count = 0;
-        uint8_t *text = malloc(length), *tokens = malloc(length);
-        uint16_t *lines = malloc(length), *columns = malloc(length);
+        size_t L = ftell(file), count = 0;
+        uint8_t *text = malloc(L), *tokens = malloc(L);
+        uint16_t *lines = malloc(L*2), *columns = malloc(L*2);
         fseek(file, 0, SEEK_SET);
-        fread(text, 1, length, file);
+        fread(text, 1, L, file);
         fclose(file);
         uint16_t l = 1, c = 1;
-        for (size_t i = 0; i < length; i++) {
+        for (size_t i = 0; i < L; i++) {
             if (text[i] > 32) { lines[count] = l; columns[count] = c; tokens[count++] = text[i]; }
             if (text[i] == 10) { l++; c = 1; } else c++;
-        }
-        
-        struct res e = parse(tokens, 0, count, _U, 5, &C);
-        if (!e.index) parse_error(tokens, count, lines, columns, _U, &C, argv[i], text, length);
-                        
-        puts(""); debug_resolved(e, 0, &C);
-        puts(""); debug_context(&C); puts("");
-        
+        } struct res e = parse(tokens, 0, count, _U, 5, &C);
+        if (!e.index) parse_error(tokens, count, lines, columns, _U, &C, argv[i], text, L);
+        debug_resolved(e, 0, &C);
+        debug_context(&C);
         free(tokens);
         free(text);
     }
@@ -245,6 +185,25 @@ int main(int argc, const char** argv) {
 
 
 
+//        memcpy(C.indicies, (size_t[]) {_j,_U,_s,_c,_i,_n,_a,_p,_d,_k}, 10 * sizeof(size_t));
+//        C.names[_U] = (struct ent) {{'U'}, _U, 1, 0, 0};
+//        C.names[_i] = (struct ent) {{'i'}, _U, 1, 0, 0};
+//        C.names[_n] = (struct ent) {{'n'}, _i, 1, 0, 0};
+//        C.names[_s] = (struct ent) {{'s'}, _i, 1, 0, 0};
+//        C.names[_a0] = (struct ent) {{'0'}, _s, 1, 0, 0};
+//        C.names[_a] = (struct ent) {{'a', 256+_a0}, _n, 2, 0, 0};
+//        C.names[_p0] = (struct ent) {{'0'}, _i, 1, 0, 0};
+//        C.names[_p] = (struct ent) {{'p', 256+_p0}, _n, 2, 0, 0};
+//        C.names[_d0] = (struct ent) {{'0'}, _n, 1, 0, 0};
+//        C.names[_d1] = (struct ent) {{'0'}, _U, 1, 0, 0};
+//        C.names[_d] = (struct ent) {{'d', 256+_d0, 256+_d1}, _i, 3, 0, 0};
+//        C.names[_k0] = (struct ent) {{'0', 0}, _n, 1, 0, 0};
+//        C.names[_k1] = (struct ent) {{'0', 0}, _n, 1, 0, 0};
+//        C.names[_k] = (struct ent) {{'k', 256+_k0, 256+_k1}, _n, 3, 0, 0};
+//        C.names[_j0] = (struct ent) {{'0', 0}, _i, 1, 0, 0};
+//        C.names[_j1] = (struct ent) {{'0', 0}, _i, 1, 0, 0};
+//        C.names[_j] = (struct ent) {{/*'j',*/ 256+_j0, 256+_j1}, _i, 2, 0, 65536};
+         
 
 //static void duplicate_context(struct context* d, struct context* s) {
 ////    d->at = s->at;
