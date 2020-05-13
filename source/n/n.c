@@ -3,7 +3,7 @@
 #include <llvm-c/Linker.h>
 #include <llvm-c/ExecutionEngine.h>
 #include <stdio.h>
-#include <stdlib.h>
+#include <stdlib.h>   // n3zqx2l
 #include <string.h>
 
 struct res {
@@ -79,7 +79,7 @@ static struct res parse(uint8_t* given, size_t begin, size_t end, size_t type, s
                     sol.args = realloc(sol.args, sizeof(struct res) * (sol.count + 1));
                     sol.args[sol.count++] = arg;
                 } else if (name.sig[s] == given[begin + sol.total]) sol.total++; else goto next;
-            }            
+            }
             return sol; next: C->best = fmax(begin + sol.total, C->best);
         }
     } return (struct res) {0};
@@ -112,17 +112,16 @@ static void debug_resolved(struct res given, size_t depth, struct context* conte
 }
 
 int main(int argc, char** argv) {
-    if (argc == 1) exit(!!printf("n: \x1B[091merror:\x1B[0m no input files\n"));
-    
+    if (argc == 1) return !printf("n: \x1B[091merror:\x1B[0m no input files\n");
     for (int i = 1; i < argc; i++) {
         
-        if (argv[i][0] == '-') exit(!puts("n3zqx2l version 0.0.1\nn3zqx2l [-] [files]"));
+        if (argv[i][0] == '-') return !puts("n: 0.0.1\nn [-v] [files]");
         
-        struct context C = {
-            0, 1, 0, 0,
-            calloc(1, sizeof(size_t)), calloc(0, sizeof(size_t)),
-            calloc(0, sizeof(struct ent)), calloc(1, sizeof(struct ent)),
-        };
+        struct context C = {0};
+//            0, 1, 0, 0,
+//            calloc(1, sizeof(size_t)), calloc(0, sizeof(size_t)),
+//            calloc(0, sizeof(struct ent)), calloc(1, sizeof(struct ent)),
+//        };
         
         printf("parsing...\n");
         debug_context(&C);
