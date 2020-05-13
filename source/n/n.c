@@ -94,8 +94,8 @@ static void parse_error(uint8_t* given, size_t given_count, struct loc* loc, siz
     print_source_code(text, length, loc[C->best]);
 }
 
-static struct expr parse(uint8_t* given, size_t begin, size_t end, size_t type, size_t depth, struct context* C) {
-    for (size_t d = depth; d < 32; d++) {
+static struct expr parse(uint8_t* given, size_t begin, size_t end, size_t type, size_t max_depth, struct context* C) {
+    for (size_t depth = 0; depth <= max_depth; depth++) {
         for (size_t i = C->index_count; i--;) {
             struct expr sol = {C->indicies[i], 0, 0, 0, 0};
             struct name name = C->names[sol.index];
@@ -103,22 +103,23 @@ static struct expr parse(uint8_t* given, size_t begin, size_t end, size_t type, 
             for (uint8_t s = 0; s < name.count; s++) {
                 if (begin + sol.total >= end) goto next;
                 if (name.sig[s] >= 256) {
-                    struct expr arg;
-//                    for (size_t e = end + 1; e--;) {
-                        arg = parse(given, begin + sol.total, end, C->names[name.sig[s] - 256].type, d, C);
-//                        if (arg.index) break;
-//                    }
+                    struct expr arg = parse(given, begin + sol.total, end, C->names[name.sig[s] - 256].type, depth + 1, C);
                     if (!arg.index) goto next;
                     sol.total += arg.total;
                     sol.args = realloc(sol.args, sizeof(struct expr) * (sol.count + 1));
                     sol.args[sol.count++] = arg;
                 } else if (name.sig[s] == given[begin + sol.total]) sol.total++; else goto next;
             }
-            if (begin + sol.total == end) return sol;
-            next: C->best = fmax(begin + sol.total, C->best);
+            return sol; next: C->best = fmax(begin + sol.total, C->best);
         }
     } return (struct expr) {0};
 }
+
+//                    for (size_t e = end + 1; e--;) {
+//                        if (arg.index) break;
+//                    }
+
+//            if (begin + sol.total == end)
 
 static void debug_context(struct context* context) {
     printf("[best = %lu]\n", context->best);
@@ -176,7 +177,7 @@ int main(int argc, const char** argv) {
         C.names[_k] = (struct name) {{'k', 256+_k0, 256+_k1}, _n, 3, 0, 0};
         C.names[_j0] = (struct name) {{'0', 0}, _i, 1, 0, 0};
         C.names[_j1] = (struct name) {{'0', 0}, _i, 1, 0, 0};
-        C.names[_j] = (struct name) {{'j', 256+_j0, 256+_j1}, _i, 3, 0, 65536};
+        C.names[_j] = (struct name) {{/*'j',*/ 256+_j0, 256+_j1}, _i, 2, 0, 65536};
         FILE* file = fopen(argv[i], "r");
         if (!file) {
             fprintf(stderr, "n: %s: ", argv[i]);
@@ -198,9 +199,12 @@ int main(int argc, const char** argv) {
                 loc[count++] = (struct loc){l, c};
             } if (text[i] == 10){l++; c = 1;} else c++;
         }
+        
         printf("parsing...\n");
         puts(""); debug_context(&C); puts("");
-        struct expr e = parse(tokens, 0, count, _U, 0, &C);
+        
+        struct expr e = parse(tokens, 0, count, _U, 5, &C);
+        
         puts(""); debug_resolved(e, 0, &C);
         puts(""); debug_context(&C); puts("");
         if (!e.index) parse_error(tokens, count, loc, _U, &C, argv[i], text, length);
@@ -208,6 +212,37 @@ int main(int argc, const char** argv) {
         free(text);
     }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
