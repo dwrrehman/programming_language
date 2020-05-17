@@ -2,16 +2,13 @@
 #include <llvm-c/IRReader.h>
 #include <llvm-c/Linker.h>
 #include <llvm-c/ExecutionEngine.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
 #include <fcntl.h>
 #include <unistd.h>
 #include <sys/stat.h>
 #include <sys/mman.h>
-
-
-extern int errno;
+#include <string.h>
+#include <stdio.h>
+#include <stdlib.h>
 
 struct resolved {
     size_t index;
@@ -59,12 +56,15 @@ static inline void parse_error
 (uint8_t* given, size_t given_count,
  uint16_t* loc, size_t type, struct context* C,
  const char* filename) {
-    if (!given_count) return;
+    if (!given_count) {
+        fprintf(stderr,"n3zqx2l: %s: error: empty file\n\n", filename);
+        return;
+    }
     else if (C->best == given_count) C->best--;
     char type_string[4096] = {0};
     size_t index = 0;
     represent(type, type_string, sizeof type_string, &index, C);
-    fprintf(stderr,"n3zqx2l: %s:%u:%u: \x1B[091merror:\x1B[0m %s: unresolved %c\n\n",
+    fprintf(stderr,"n3zqx2l: %s:%u:%u: error: %s: unresolved %c\n\n",
            filename, loc[2*C->best], loc[2*C->best+1], type_string, given[C->best]);
 }
 
@@ -106,7 +106,9 @@ void destroy(struct resolved r) {
 
 int main(int argc, const char** argv) {
     for (int a = 1; a < argc; a++) {
-        struct stat st; uint8_t *text, *tokens;
+        extern int errno;
+        struct stat st;
+        uint8_t *text, *tokens;
         int f = open(argv[a], O_RDONLY);
         if (f < 0 || stat(argv[a], &st) < 0 ||
             (text = mmap(0, st.st_size, 1, 1, f, 0))
@@ -114,8 +116,10 @@ int main(int argc, const char** argv) {
             fprintf(stderr, "n3zqx2l: %s: error: %s\n",
                     argv[a], strerror(errno)); continue;
         } else close(f);
+        
         size_t count = 0; tokens = malloc(st.st_size);
-        uint16_t* loc = malloc(4*st.st_size), l = 1, c = 1;
+        uint16_t* loc = malloc(4 * st.st_size), l = 1, c = 1;
+        
         for (size_t i = 0; i < (size_t) st.st_size; i++) {
             if (text[i] > 32) {
                 loc[2*count] = l;
@@ -127,12 +131,13 @@ int main(int argc, const char** argv) {
                 c = 1;
             } else c++;
         }
+        
         struct context context = {0};
         struct resolved result = resolve(tokens, 0, count, 256, 5, &context);
         if (!result.index) parse_error(tokens, count, loc, 256, &context, argv[a]);
         
-//        debug_resolved(result, 0, &context);
-//        debug_context(&context);
+        debug_resolved(result, 0, &context);
+        debug_context(&context);
         
         destroy(result);
         free(loc);
