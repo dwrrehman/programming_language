@@ -58,6 +58,10 @@
             argument = "/Users/deniylreimn/Documents/projects/n3zqx2l/examples/test.n"
             isEnabled = "YES">
          </CommandLineArgument>
+         <CommandLineArgument
+            argument = "ef"
+            isEnabled = "YES">
+         </CommandLineArgument>
       </CommandLineArguments>
       <AdditionalOptions>
          <AdditionalOption
