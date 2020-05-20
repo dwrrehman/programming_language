@@ -1,0 +1,368 @@
+-----------------------------------------------------------------------------------------------
+
+
+	Functional Specifications Document for a n3zqx2l Compiler
+
+		Written by: Daniel Rehman
+		Written on: 2005133.224154
+
+
+
+-----------------------------------------------------------------------------------------------
+
+
+
+------------------Start up 
+-----------------
+
+
+	1. 	The program should receive a variable number of arguments, which are either:
+
+		1.1 	a n3zqx2l code filename (“.n" file) or a llvm IR assembly file (“.ll” file), or
+
+		1.2 	An option flag, which always starts with a “-“, which might have 
+			an associated argument being passed directly after it, as the next argument.
+
+			1.2.1	see the option flag section for all possible option flags.
+
+
+	2. 	The program should enter the interpreter mode, if no files where given. 
+		See the interpreter mode section.
+
+
+	3. 	The program should process every single file in a single thread. 
+		No multithreading, for now.
+
+		3.1. 	the files should be processed sequentially by looping over all arguments 
+			given in order.
+
+
+	4. 	All files should have their own separate context.
+
+
+		4.1. 	The context should contain all internal state of the file, 
+			such as which signatures were defined, their types, and anything 
+			else about the file.
+
+
+		4.2. 	The context should be deallocated properly, after it is done being used.
+
+		4.3.	The context needs to be initialized with several intrinsics, 
+			which bootstrap the language.  			
+
+			4.3.1. 	these must be allocated in such a way which is seemless integratable with 
+				the rest of the intrinsics defined; they must populate the context like 
+				any other signature would.
+
+			4.3.2. 	all intrinsics have a informal, developmental, internal name, which is 
+				refered to in this document, however this differ from their actual visible 
+				name to the n3zqx2l's user code perspective. 
+
+				the actual name, known as the "visible" name for the intrinsic, 
+				shall be computed by generating a random string of lowercase-alpha-numeric 
+				(lowercase numbers, and symbols allowed) symbols, of length 32 characters,
+				this is done for all intrinsics, at start up time.
+
+[TODO]				the generation of these sequences should be done using a PRNG, 
+				seeded with the value of somethign which looks like "0x05a971cb349f8e7";
+				however, this exact hex value of the seed has not been determined yet. 
+				despite this, it is known it shall be an unsigned 32 bit integer.
+
+				
+
+		4.4	These intrinsics are as follows:
+
+
+
+			4.4.1. 	informal name: 	Universe
+				type:		{undefined}, (as in, "literal index = 0" 
+							cf. semantic/literal index section.)
+				purpose: 		the universe root type.
+
+				This is the first type to be defined in the symbol table,
+				and must have semantic index 0, ie literal index 256.
+				(refer to the section detailing semantic/literal indexing.)
+
+				This type also functions as the top/any type, as any 
+				expression satisfies this type. 
+
+
+
+			4.4.2.	informal name:	Type
+				type:		U
+				purpose 		a primitive version of the "type" type, used by 
+						intrinsics, sometimes as such, and sometimes as a form
+						of unit type.
+
+
+				
+			4.4.3.	informal name:	Symbol
+				type:		i
+				purpose 		the type which a literal unrefered character is, found in the file.
+
+
+
+			4.4.4.	informal name:	Join
+				type:		i
+				purpose 		the intrinsic which allows for multiple statements.
+
+
+
+[TODO]			4.4.5.    there are more, i havent inputted yet.
+
+
+		4.5. 	some intrinsics have a particular functionality associated with them, as well,
+			documented in the CSR section.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+----------------------------
+the pipeline for a file
+----------------------------
+
+
+	1. 	a file must go through the following pipeline.
+			each one of these stages will have its own section, except for the first and last stages 
+									(ie, 1.1, and 1.5).
+
+
+
+		1.1	read: 	read in the file from disk, and record its length. 
+				give an error if this doesnt succeed.
+
+				inputs: the filename, specified from the arguments,
+				outputs: the files text, as a string, allocated on the heap.
+					as well as its lenght, excluding the EOF/null terminating char.
+					the text is NOT a null terminated string, rather it is an array
+					with a specified length.
+
+
+		1.2	lex:	striping of whitespace, and recording line and columns of all remaining characters.
+				no errors at this stage.
+
+				inputs: 	the file as a string of text characters, verbatim.
+				outputs:	a string of the important characters,
+					as well as the line and columns for all of these outputed characters.
+
+
+		1.3	resolve:		run the CSR algorithm, and find the expression tree for the file, 
+					while also defining signatures, and attributing them.
+					only 1 error maximum at this stage, after the csr algorithm completes.
+
+				inputs: 	the initial statring context, and a string of characters.
+				output:	the resolved expression index-tree. (ie, structure resolved-expression)
+
+
+		1.4	code-generate:	generate code for expressions, possibly involving evaluating expressions,
+					as well as complete equality type checking.
+					many errors possible in this stage.
+
+				input: 	the resolved expression index tree, which represents the user's program.
+				output:	an llvm ir module. (ie, LLVMModule*)
+
+
+		1.5	link:		link the resulting llvm ir module into the current accumulation ir module.
+
+
+
+
+	2. 	after all files have been processed using this pipline, the final accumulation module is then gone through:
+
+
+		2.1	optimization:       optimize the llvm ir for the acculation module (acc module)
+
+				inputs:	the acc module.
+				outputs:   an llvmmodule with the same behavior, but is much more performant.
+	
+
+		2.2 	generate-output:	generate the right output file for the acc.
+
+				inputs: 	the acc module, and the mode of output generation.
+					note: ouput generation modes:
+
+						.o : a single object file
+
+						.s : a single assembly file
+
+						.ll : a single llvm ir assembly file
+
+						{exe} : an executable, ready to run.
+
+						{action} : the action of acc, as if the 
+							exectuable was generated, and was 
+							run with a set of parameters given.
+
+				output: 		the desired output file or action specfied, according to the mode.
+
+	
+	3. 	note, only one file can contain the main file, which is the entry point of the resultant acc ir, as a program.
+
+
+	4. 	for each file, you shall print any error which the llvm linker or optimizer, or verifier gives, 
+		when completing its task, and halt, and continue onto the next file.
+
+	
+
+
+
+
+
+
+
+
+
+-----------------
+Lexing
+-----------------
+
+
+	1.	the lexing stage for n3zqx2l only has two requirements:
+		
+
+		1.1. 	remove all UTF8 encoded bytes (8 bits) (ie unsigned 8-bit ints, ie "characters") 
+			in the input text string, which have an ascii value less than 33,
+
+
+		1.2.	record the line and column found, of all characters which have an ascii value greater than 32.
+			line and column numbers both start counting from 1, so if the first character in the file 
+			is a "A", then that character would have an associated index of {line=1, column=1}.
+			
+			1.2.1. 	the ascii character which has the value 10, ie, the newline character 
+				is the only character which has the ability of changing the line of characters.
+
+
+			1.2.2 	the line and column should take into account the whitespace, 
+				it should not ignore its presence.
+
+
+	2. 	the output string should also be a UTF8 string of bytes/characters- ie, the line and columns 
+		should only be associated with their respective characters in the output, by their absolute position.
+
+
+		2.1 	given the i-th charcter in the output string, its associated line and column should be found at 
+			the i-th position in a seperate array holding the line and column numbers.
+
+	3. 	since there can only be UINT16_MAX (= 65535), lines in a file, at maximum, 
+		and a maximum line length of 65535 (ie, column),
+		the line and column shall be unsigned 16 bit integers,
+
+
+	4. 	
+
+
+
+
+
+
+
+
+
+
+-----------------------
+Resolution 
+-----------------------
+
+
+	1. 	this is the most algorithmically complex stage. it plays the role of parsing 
+		found in other programming languages. the program shall complete this algoirthm known as the 	
+		"Call Signature Resolution" algorithm, also called the "Universe Syntax" algorithm,
+		or simply known as CSR.
+
+
+	2. 	CSR technically a breadth first algorithm, in the possible solution expression depth,
+		however a depth first algoirthm in the fufillment of a signatures parameters.
+
+	3. 	CSR operates using the input lexed text, without the line and column information,
+		 as well as a given context, which contains the currently defined signatures, and indicies 
+		in the current frames available for use.
+
+	4. 	the structure  "resolved-expression index tree" is a data structure which is simply 
+		a variadic tree of pairs of numbers (unsigned 64bit integers, specfically.) : 
+
+		4.1	the first number is the index at that node, 
+
+		4.2	the second number is a total count characters in the input lexed text which 
+			were consumed in order to resolve this node.
+
+	5. 	CSR is a mutually recursive algorithm, and consists of only two functions.
+
+
+		
+
+
+
+--------------------
+Code Generation 
+--------------------
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+-----------------------------------------------------------------------
+Referencing signatures in the context  (semantic and literal indexing)
+-----------------------------------------------------------------------
+
+---------------------
+Option flags
+---------------------
+
+-----------------------
+Interpreter mode 
+-----------------------
+
+
+
+----------------
+Missilanecous
+---------------
+
+
+	1. 	the program shall use the LLVM C API, as well as the libc, ONLY. no external libraries other 
+		than these two are permitted.
+
+	2. 	
+
+
+
+
