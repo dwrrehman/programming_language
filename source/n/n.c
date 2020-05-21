@@ -1,4 +1,4 @@
-#include <llvm-c/Core.h>           // a n3zqx2l compiler
+#include <llvm-c/Core.h>
 #include <llvm-c/IRReader.h>
 #include <llvm-c/Linker.h>
 #include <llvm-c/ExecutionEngine.h>
@@ -36,23 +36,51 @@ struct context {
     struct name* owners;
 };
 
+
+static inline size_t lex
+ (uint8_t* text, uint8_t* tokens,
+  uint16_t* loc, long length) {
+     
+    size_t count = 0;
+    uint16_t l = 1, c = 1;
+    
+    for (long i = 0; i < length; i++) {
+        if (text[i] > 32) {
+            loc[2 * count] = l;
+            loc[2 * count + 1] = c;
+            tokens[count++] = text[i];
+        }
+        if (text[i] == 10) {
+            l++;
+            c = 1;
+        } else c++;
+    }
+    
+    return count;
+}
+
 static inline void represent
 (size_t given, char* buffer, size_t limit,
  size_t* at, struct context* context) {
+    
     if (given < 256) {
         buffer[(*at)++] = given;
         return;
     } else given -= 256;
     if (given >= context->name_count) return;
+    
+    buffer[(*at)++] = ' ';
     struct name s = context->names[given];
     for (size_t i = 0; i < s.count; i++)
         represent(s.sig[i], buffer, limit, at, context);
+    
     if (!s.type) return;
-    buffer[(*at)++] = '\n';
+    
+    buffer[(*at)++] = ' ';
     represent(s.type, buffer, limit, at, context);
 }
 
-static inline struct resolved resolve (uint8_t* given, size_t begin, size_t end, size_t type, size_t max_depth, struct context* C) {
+static inline struct resolved parse (uint8_t* given, size_t begin, size_t end, size_t type, size_t max_depth, struct context* C) {
     return (struct resolved) {0};
 }
 
@@ -91,50 +119,35 @@ void destroy(struct resolved r) {
 int main(int argc, const char** argv) {
     for (int a = 1; a < argc; a++) {
         
+        uint8_t* text;
         struct stat st;
-        uint8_t *text, *tokens;
-        int f = open(argv[a], O_RDONLY);
-        
-        if (f < 0 || stat(argv[a], &st) < 0 ||
-            (text = mmap(0, st.st_size, 1, 1, f, 0))
+        int file = open(argv[a], O_RDONLY);
+        if (file < 0 || stat(argv[a], &st) < 0 ||
+            (text = mmap(0, st.st_size,1,1,file,0))
             == MAP_FAILED) {
-            fprintf(stderr, "n3zqx2l: %s: ", argv[a]);
+            fprintf(stderr, "n: %s: ", argv[a]);
             perror("error"); continue;
-        } else close(f);
+        } else close(file);
         
-        tokens = malloc(st.st_size);
-        uint16_t* loc = malloc(4 * st.st_size), l = 1, c = 1;
-        size_t count = 0;
+        struct context context = {0};
+        uint8_t* tokens = malloc(st.st_size);
+        uint16_t* loc = malloc(4 * st.st_size);
+        size_t count = lex(text, tokens, loc, st.st_size);
+        struct resolved ast = parse(tokens, 0, count, 256, 5, &context);
         
-        for (size_t i = 0; i < (size_t) st.st_size; i++) {
-            if (text[i] > 32) {
-                loc[2 * count] = l;
-                loc[2 * count + 1] = c;
-                tokens[count++] = text[i];
-            }
-            if (text[i] == 10) {
-                l++;
-                c = 1;
-            } else c++;
-        }
-        
-        struct context context = {0};        
-        struct resolved result = resolve(tokens, 0, count, 256, 5, &context);
-        
-        if (!result.index && count) {
+        if (!ast.index && count) {
             if (context.best == count) context.best--;
-            fprintf(stderr,"n3zqx2l: %s:%u:%u: error: unresolved %c\n\n",
+            fprintf(stderr,"n: %s:%u:%u: error: unresolved %c\n\n",
                     argv[a], loc[2 * context.best],
                     loc[2 * context.best + 1], tokens[context.best]);
         }
         
-        debug_resolved(result, 0, &context);
+        debug_resolved(ast, 0, &context);
         debug_context(&context);
         
-        destroy(result);
+        destroy(ast);
         free(loc);
         free(tokens);
         munmap(text, st.st_size);
     }
 }
-
