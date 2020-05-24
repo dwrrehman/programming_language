@@ -1,12 +1,48 @@
+
+n3zqx2l is a minimalist procedural and imperative systems programming language.
+
+
 features of n3zqx2l:
 ========================
 
-n3zqx2l is a minimalist programming language, with an emphasis on the paradigms of procedural, imperative, structured programming.
+	- has no syntax.
 
-- all whitespace is ignored, except in strings.
+	- has powerful dependent and computational type system.
 
-- character string literals.
+	- has compile time function evaluation
 
-- call signature resolution.
+	- has almost complete control over the LLVM IR language.
 
-- 
+	- has typed hygenic macros.
+
+	- has utf8 unicode character support.
+
+	- 
+
+
+
+
+
+
+
+
+
+
+
+things this language does NOT have:
+====================================
+
+
+	- no namespaces.
+
+	- no comments.
+
+	- no strings.
+
+	- no character literals.
+
+	- no builtin numeric constants.
+
+	- no mathematical operators.
+
+	- 
