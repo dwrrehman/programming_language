@@ -1,3 +1,4 @@
+//..........................................................
 #include <llvm-c/Core.h>
 #include <llvm-c/IRReader.h>
 #include <llvm-c/Linker.h>
@@ -36,7 +37,6 @@ struct context {
     struct name* owners;
 };
 
-
 static inline size_t lex
  (uint8_t* text, uint8_t* tokens,
   uint16_t* loc, long length) {
@@ -55,8 +55,16 @@ static inline size_t lex
             c = 1;
         } else c++;
     }
-    
     return count;
+}
+
+static inline struct resolved parse
+ (uint8_t* given, size_t begin,
+  size_t end, size_t type, size_t max_depth,
+  struct context* C) {
+    
+
+    return (struct resolved) {0};
 }
 
 static inline void represent
@@ -72,23 +80,22 @@ static inline void represent
     buffer[(*at)++] = ' ';
     struct name s = context->names[given];
     for (size_t i = 0; i < s.count; i++)
-        represent(s.sig[i], buffer, limit, at, context);
+        represent(s.sig[i], buffer,
+                  limit, at, context);
     
     if (!s.type) return;
     
     buffer[(*at)++] = ' ';
-    represent(s.type, buffer, limit, at, context);
-}
-
-static inline struct resolved parse (uint8_t* given, size_t begin, size_t end, size_t type, size_t max_depth, struct context* C) {
-    return (struct resolved) {0};
+    represent(s.type, buffer,
+              limit, at, context);
 }
 
 void debug_context(struct context* context) {
     printf("\n[best = %lu]\n", context->best);
     printf("---- debugging frames: ----\n");
     for (size_t i = 0; i < context->frame_count; i++)
-        printf("\tframe # %lu  bp = %lu\n", i, context->frames[i]);
+        printf("\tframe # %lu  bp = %lu\n",
+               i, context->frames[i]);
     printf("\n---- debugging indicies: ----\n");
     printf("\t\tidxs: { ");
     for (size_t i = 0; i < context->index_count; i++)
@@ -96,18 +103,27 @@ void debug_context(struct context* context) {
     printf("}\n\n----- master: ------ \n{\n");
     for (size_t i = 0; i < context->name_count; i++) {
         char buffer[4096] = {0}; size_t index = 0;
-        represent(i, buffer, sizeof buffer, &index, context);
+        represent(i, buffer, sizeof buffer,
+                  &index, context);
         printf("\t%6lu: %s\n\n", i, buffer);
-    } puts("}\n");
+    } printf("}\n\n");
 }
 
-void debug_resolved(struct resolved given, size_t depth, struct context* context) {
+void debug_resolved
+(struct resolved given,
+ size_t depth,
+ struct context* context) {
     char buffer[4096] = {0}; size_t index = 0;
-    represent(given.index, buffer, sizeof buffer, &index, context);
+    represent(given.index, buffer,
+              sizeof buffer, &index, context);
     for (size_t i = depth; i--;) printf(".   ");
-    printf("%s:%lu:%lu:%c\n", buffer, given.index, given.total, (char) given.index);
-    for (size_t i = 0; i < given.count; i++) debug_resolved(given.args[i], depth + 1, context);
-    puts("");
+    printf("%s:%lu:%lu:%c\n", buffer,
+           given.index, given.total,
+           (char) given.index);
+    for (size_t i = 0; i < given.count; i++)
+        debug_resolved(given.args[i],
+                       depth + 1, context);
+    printf("\n");
 }
 
 void destroy(struct resolved r) {
@@ -122,8 +138,11 @@ int main(int argc, const char** argv) {
         uint8_t* text;
         struct stat st;
         int file = open(argv[a], O_RDONLY);
-        if (file < 0 || stat(argv[a], &st) < 0 ||
-            (text = mmap(0, st.st_size,1,1,file,0))
+        if (file < 0 ||
+            stat(argv[a], &st) < 0 ||
+            (text = mmap(0, st.st_size,
+                         PROT_READ, MAP_SHARED,
+                         file,0))
             == MAP_FAILED) {
             fprintf(stderr, "n: %s: ", argv[a]);
             perror("error"); continue;
@@ -132,14 +151,22 @@ int main(int argc, const char** argv) {
         struct context context = {0};
         uint8_t* tokens = malloc(st.st_size);
         uint16_t* loc = malloc(4 * st.st_size);
-        size_t count = lex(text, tokens, loc, st.st_size);
-        struct resolved ast = parse(tokens, 0, count, 256, 5, &context);
+        
+        size_t count = lex(text, tokens,
+                           loc, st.st_size);
+        
+        struct resolved ast = parse(tokens, 0, count,
+                                    256, 5, &context);
         
         if (!ast.index && count) {
-            if (context.best == count) context.best--;
-            fprintf(stderr,"n: %s:%u:%u: error: unresolved %c\n\n",
-                    argv[a], loc[2 * context.best],
-                    loc[2 * context.best + 1], tokens[context.best]);
+            if (context.best == count)
+                context.best--;
+            fprintf(stderr,
+                    "n: %s:%u:%u: error: unresolved %c\n\n",
+                    argv[a],
+                    loc[2 * context.best],
+                    loc[2 * context.best + 1],
+                    tokens[context.best]);
         }
         
         debug_resolved(ast, 0, &context);
