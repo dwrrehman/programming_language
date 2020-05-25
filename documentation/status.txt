@@ -1,5 +1,207 @@
-the current status of the nostril compiler:
+the current status of the n3zqx2l compiler, n:
 =============================================
+
+
+
+
+
+
+			Easier than Python
+
+
+				Faster than C
+
+
+					Simpler than Scheme
+
+
+		n3zqx2l
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+        
+        
+	EASIER THAN PYTHON
+	FASTER THAN C
+	SIMPLER THAN SCHEME
+
+
+
+
+or
+
+        
+        MORE READABLE THAN PYTHON
+        MORE EFFICIENT THAN C
+        MORE MINIMALIST THAN SCHEME
+        
+
+
+
+or
+
+
+
+
+
+
+
+
+
+
+
+update: 2005251.004142
+
+so ive figured out how csr is supposed to work, as in the intuitive picture of whats happenign.
+however, i am still turning that into code. its pretty fun.
+
+
+
+
+
+
+
+
+
+the next task to work on after we get csr working and perfect (finally!)
+
+
+
+	is macros.
+
+
+	and then maybe figuring out multuple files again. that was pretty easy though.
+
+	
+
+
+		oh, and then figuring out the whole intrinsic list.
+
+
+
+
+
+
+
+
+
+
+
+
+
+stages of working on codegeneration step:
+
+
+	0. generate for a function declaration, and dont do it for macros.
+	1. generate for a function definition.
+	2. generate for a function call.
+
+	3. generate for the intrinsics: br, ret,  [etc]... 
+
+	4. generate for a variable
+	5. generate for a struct
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+	however, ive been thinking about how i am going to do the next stage that is after parsing:
+
+	which is codegeneration.
+
+
+
+	
+
+
+there are currently three codegen modes in the language:
+
+
+
+	g_0 : the lazy type. delay codegening until something tells this expression to codegen.
+
+
+	g_1 : generate llvm ir in place right now, for this expression.
+
+
+	g_2 : generate the llvm ir (or get it, if its already been done) 
+			and evaluate the resultant expression.
+
+
+
+
+
+
+
+so it looks like we need:
+
+
+
+
+	interpret (x: g0) : generates llvm ir for it, then evaluates (interprets) 
+			    that at compile time, 
+			    and generates code, for result of the compuation.
+
+	compile (x: g0) : takes a lazy expression and generates the llvm ir for it, in that place.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 j d k pdaAn pdaBn n

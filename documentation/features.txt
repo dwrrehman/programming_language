@@ -7,16 +7,16 @@ features of n3zqx2l:
 
 	- has no syntax.
 
+	- has utf8 unicode character support.
+
 	- has powerful dependent and computational type system.
 
 	- has compile time function evaluation
 
-	- has almost complete control over the LLVM IR language.
+	- has complete control over the LLVM IR language.
 
 	- has typed hygenic macros.
-
-	- has utf8 unicode character support.
-
+	
 	- 
 
 
@@ -33,7 +33,7 @@ things this language does NOT have:
 ====================================
 
 
-	- no namespaces.
+
 
 	- no comments.
 
@@ -45,4 +45,6 @@ things this language does NOT have:
 
 	- no mathematical operators.
 
-	- 
+	- no namespaces.
+
+	- no 
