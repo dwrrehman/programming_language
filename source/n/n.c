@@ -72,27 +72,28 @@ struct resolved duplicate(const struct resolved r) {
     return s;
 }
 
-struct resolved resolve(const uint8_t* given, const size_t end, struct resolved* stack,
-                        size_t count, const size_t depth, struct resolved sol,
-                        struct context* context) {
-    if (depth >= 15) return (struct resolved){0};
+struct resolved resolve
+(const uint8_t* given, const size_t end, struct resolved* stack,
+ size_t count, const size_t depth, struct resolved sol, struct context* context)
+{
+    if (depth >= 15)
+        return (struct resolved){0};
     
     const struct name name = context->names[sol.index - 256];
     
     while (sol.done < name.length) {
         const size_t c = name.signature[sol.done];
         if (c < 256) {
-            if (c == given[sol.begin]) {
-                sol.begin++; sol.done++;
-                context->best = sol.begin > context->best
-                    ? sol.begin : context->best;
-            } else return (struct resolved){0};
+            if (c != given[sol.begin]) return (struct resolved){0};
+            sol.begin++; sol.done++;
+            context->best = sol.begin > context->best ? sol.begin : context->best;
         } else {
             struct resolved* extended = calloc(count + 1, sizeof(struct resolved));
             for (size_t i = 0; i < count; i++) extended[i] = stack[i];
             extended[count++] = sol;            
             for (size_t i = 0; i < context->name_count; i++) {
-                const struct resolved parent = resolve(given, end, extended, count, depth + 1,
+                const struct resolved parent =
+                    resolve(given, end, extended, count, depth + 1,
                         (struct resolved){256 + i, 0, sol.begin, 0, 0}, context);
                 if (parent.index) return parent;
             }
@@ -100,7 +101,8 @@ struct resolved resolve(const uint8_t* given, const size_t end, struct resolved*
         }
     }
     if (count == 0) {
-        if (sol.begin == end) return sol; else return (struct resolved){0};
+        if (sol.begin == end) return sol;
+        else return (struct resolved){0};
     } else {
         struct resolved top = duplicate(stack[--count]);
         top.begin = sol.begin;
@@ -110,11 +112,6 @@ struct resolved resolve(const uint8_t* given, const size_t end, struct resolved*
         return resolve(given, end, stack, count, depth, top, context);
     }
 }
-
-struct resolved csr(const uint8_t* given, const size_t end, struct context* context) {
-    return resolve(given, end, 0, 0, 0, (struct resolved){256 + 5, 0, 0, 0, 0}, context);
-}
-
 
 static inline void represent
 (size_t given, char* buffer, size_t limit,
@@ -138,29 +135,6 @@ static inline void represent
         }
     }
 }
-
-//static inline void represent
-//(size_t given, char* buffer, size_t limit,
-// size_t* at, struct context* context) {
-//
-//    if (given < 256) {
-//        buffer[(*at)++] = given;
-//        return;
-//    } else given -= 256;
-//    if (given >= context->name_count) return;
-//
-//    buffer[(*at)++] = ' ';
-//    struct name s = context->names[given];
-//    for (size_t i = 0; i < s.count; i++)
-//        represent(s.signature[i], buffer,
-//                  limit, at, context);
-//
-//    if (!s.type) return;
-//
-//    buffer[(*at)++] = ' ';
-//    represent(s.type, buffer,
-//              limit, at, context);
-//}
 
 void debug_context(struct context* context) {
     printf("\n[best = %lu]\n", context->best);
@@ -276,11 +250,18 @@ int main(int argc, const char** argv) {
 
         uint8_t* tokens = malloc(st.st_size);
         uint16_t* loc = malloc(4 * st.st_size);
-        size_t count = lex(text, tokens, loc, st.st_size);
-        struct resolved ast = csr(tokens, count, &context);
-              
-        debug_context(&context);
         
+        size_t count = lex(text, tokens,
+                           loc, st.st_size);
+        
+        struct resolved ast =
+        
+            resolve(tokens, count, 0, 0, 0,
+                (struct resolved){256 + 5, 0, 0, 0, 0},
+                &context);
+        
+
+        debug_context(&context);
         debug_resolved(ast, 0, &context);
         
         
