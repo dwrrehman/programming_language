@@ -112,7 +112,7 @@ struct resolved resolve(const uint8_t* given, const size_t end, struct resolved*
 }
 
 struct resolved csr(const uint8_t* given, const size_t end, struct context* context) {
-    return resolve(given, end, 0, 0, 0, (struct resolved){256 + 4, 0, 0, 0, 0}, context);
+    return resolve(given, end, 0, 0, 0, (struct resolved){256 + 5, 0, 0, 0, 0}, context);
 }
 
 
@@ -219,54 +219,66 @@ int main(int argc, const char** argv) {
         struct context context = {0};
         
         context.best = 0;
-        context.name_count = 5;
+        context.name_count = 6;
         context.names = calloc(context.name_count, sizeof(struct name));
+        context.name_count = 0;
         
         // _      param type.
-        context.names[0].length = 1;
-        context.names[0].signature = calloc(1, sizeof(size_t));
-        context.names[0].signature[0] = '_';
+        context.names[context.name_count].length = 1;
+        context.names[context.name_count].signature = calloc(1, sizeof(size_t));
+        context.names[context.name_count].signature[0] = '_';
+        context.name_count++;
         
         // hello
-        context.names[1].length = 5;
-        context.names[1].signature = calloc(5, sizeof(size_t));
-        context.names[1].signature[0] = 'h';
-        context.names[1].signature[1] = 'e';
-        context.names[1].signature[2] = 'l';
-        context.names[1].signature[3] = 'l';
-        context.names[1].signature[4] = 'o';
-            
+        context.names[context.name_count].length = 5;
+        context.names[context.name_count].signature = calloc(5, sizeof(size_t));
+        context.names[context.name_count].signature[0] = 'h';
+        context.names[context.name_count].signature[1] = 'e';
+        context.names[context.name_count].signature[2] = 'l';
+        context.names[context.name_count].signature[3] = 'l';
+        context.names[context.name_count].signature[4] = 'o';
+        context.name_count++;
+        
         // my (x) is (y)
-        context.names[2].length = 6;
-        context.names[2].signature = calloc(6, sizeof(size_t));
-        context.names[2].signature[0] = 'm';
-        context.names[2].signature[1] = 'y';
-        context.names[2].signature[2] = 256;
-        context.names[2].signature[3] = 'i';
-        context.names[2].signature[4] = 's';
-        context.names[2].signature[5] = 256;
+        context.names[context.name_count].length = 6;
+        context.names[context.name_count].signature = calloc(6, sizeof(size_t));
+        context.names[context.name_count].signature[0] = 'm';
+        context.names[context.name_count].signature[1] = 'y';
+        context.names[context.name_count].signature[2] = 256;
+        context.names[context.name_count].signature[3] = 'i';
+        context.names[context.name_count].signature[4] = 's';
+        context.names[context.name_count].signature[5] = 256;
+        context.name_count++;
         
         // (x) empty
-        context.names[3].length = 6;
-        context.names[3].signature = calloc(6, sizeof(size_t));
-        context.names[3].signature[0] = 256;
-        context.names[3].signature[1] = 'e';
-        context.names[3].signature[2] = 'm';
-        context.names[3].signature[3] = 'p';
-        context.names[3].signature[4] = 't';
-        context.names[3].signature[5] = 'y';
-            
+        context.names[context.name_count].length = 6;
+        context.names[context.name_count].signature = calloc(6, sizeof(size_t));
+        context.names[context.name_count].signature[0] = 256;
+        context.names[context.name_count].signature[1] = 'e';
+        context.names[context.name_count].signature[2] = 'm';
+        context.names[context.name_count].signature[3] = 'p';
+        context.names[context.name_count].signature[4] = 't';
+        context.names[context.name_count].signature[5] = 'y';
+        context.name_count++;
+        
+        // (x) (y)
+        context.names[context.name_count].length = 2;
+        context.names[context.name_count].signature = calloc(2, sizeof(size_t));
+        context.names[context.name_count].signature[0] = 256;
+        context.names[context.name_count].signature[1] = 256;
+        context.name_count++;
+        
         // (x)
-        context.names[4].length = 1;
-        context.names[4].signature = calloc(1, sizeof(size_t));
-        context.names[4].signature[0] = 256;
+        context.names[context.name_count].length = 1;
+        context.names[context.name_count].signature = calloc(1, sizeof(size_t));
+        context.names[context.name_count].signature[0] = 256;
+        context.name_count++;
 
         uint8_t* tokens = malloc(st.st_size);
         uint16_t* loc = malloc(4 * st.st_size);
         size_t count = lex(text, tokens, loc, st.st_size);
         struct resolved ast = csr(tokens, count, &context);
-      
-        
+              
         debug_context(&context);
         
         debug_resolved(ast, 0, &context);
