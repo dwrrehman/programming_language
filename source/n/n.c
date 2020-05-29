@@ -14,14 +14,15 @@
 struct resolved {
     size_t index;
     size_t count;
-    size_t total;
+    size_t begin;
+    size_t done;
     struct resolved* args;
 };
 
 struct name {
     size_t type;
-    size_t count;
-    size_t* sig;
+    size_t length;
+    size_t* signature;
     uint32_t codegen_as;
     uint32_t precedence;
 };
@@ -58,37 +59,111 @@ static inline size_t lex
     return count;
 }
 
-static inline struct resolved parse
- (uint8_t* given, size_t begin,
-  size_t end, size_t type, size_t max_depth,
-  struct context* C) {
-    
 
-    return (struct resolved) {0};
+struct resolved duplicate(const struct resolved r) {
+    struct resolved s = {
+        r.index, r.count, r.begin, r.done,
+        calloc(r.count, sizeof(struct resolved))
+    };
+    
+    for (size_t i = 0; i < r.count; i++)
+        s.args[i] = duplicate(r.args[i]);
+    
+    return s;
 }
+
+struct resolved resolve(const uint8_t* given, const size_t end, struct resolved** stack,
+                        size_t count, const size_t depth, struct resolved sol,
+                        struct context* context) {
+    if (depth >= 15) return (struct resolved){0};
+    
+    const struct name name = context->names[sol.index - 256];
+    
+    while (sol.done < name.length) {
+        const size_t c = name.signature[sol.done];
+        if (c < 256) {
+            if (c == given[sol.begin]) {
+                sol.begin++; sol.done++;
+                
+                context->best = sol.begin > context->best
+                    ? sol.begin
+                    : context->best;
+                
+            } else return (struct resolved){0};
+        } else {
+            *stack = realloc(*stack, sizeof(struct resolved) * (count + 1));
+            (*stack)[count++] = sol;
+            for (size_t i = 0; i < context->name_count; i++) {
+                const struct resolved parent = resolve(given, end, stack, count, depth + 1,
+                        (struct resolved){256 + i, 0, sol.begin, 0, 0}, context);
+                if (parent.index) return parent;
+            }
+            return (struct resolved){0};
+        }
+    }
+    if (count == 0) {
+        if (sol.begin == end) return sol; else return (struct resolved){0};
+    } else {
+        struct resolved top = duplicate((*stack)[--count]);
+        top.begin = sol.begin;
+        top.args = realloc(top.args, sizeof(struct resolved) * (top.count + 1));
+        top.args[top.count++] = sol;
+        top.done++;
+        return resolve(given, end, stack, count, depth, top, context);
+    }
+}
+
+struct resolved csr(const uint8_t* given, const size_t end, struct context* context) {
+    struct resolved* stack = NULL;
+    return resolve(given, end, &stack, 0, 0, (struct resolved){256 + 4, 0, 0, 0, 0}, context);
+}
+
 
 static inline void represent
 (size_t given, char* buffer, size_t limit,
  size_t* at, struct context* context) {
-    
     if (given < 256) {
         buffer[(*at)++] = given;
         return;
     } else given -= 256;
     if (given >= context->name_count) return;
-    
-    buffer[(*at)++] = ' ';
     struct name s = context->names[given];
-    for (size_t i = 0; i < s.count; i++)
-        represent(s.sig[i], buffer,
-                  limit, at, context);
-    
-    if (!s.type) return;
-    
-    buffer[(*at)++] = ' ';
-    represent(s.type, buffer,
-              limit, at, context);
+    for (size_t i = 0; i < s.length; i++) {
+        const size_t c = s.signature[i];
+        if (c < 256) {
+            buffer[(*at)++] = c;
+        } else {
+            buffer[(*at)++] = ' ';
+            buffer[(*at)++] = '(';
+            represent(c, buffer, limit, at, context);
+            buffer[(*at)++] = ')';
+            buffer[(*at)++] = ' ';
+        }
+    }
 }
+
+//static inline void represent
+//(size_t given, char* buffer, size_t limit,
+// size_t* at, struct context* context) {
+//
+//    if (given < 256) {
+//        buffer[(*at)++] = given;
+//        return;
+//    } else given -= 256;
+//    if (given >= context->name_count) return;
+//
+//    buffer[(*at)++] = ' ';
+//    struct name s = context->names[given];
+//    for (size_t i = 0; i < s.count; i++)
+//        represent(s.signature[i], buffer,
+//                  limit, at, context);
+//
+//    if (!s.type) return;
+//
+//    buffer[(*at)++] = ' ';
+//    represent(s.type, buffer,
+//              limit, at, context);
+//}
 
 void debug_context(struct context* context) {
     printf("\n[best = %lu]\n", context->best);
@@ -100,30 +175,26 @@ void debug_context(struct context* context) {
     printf("\t\tidxs: { ");
     for (size_t i = 0; i < context->index_count; i++)
         printf("%lu ", context->indicies[i]);
-    printf("}\n\n----- master: ------ \n{\n");
+    printf("}\n\n----- names: ------ \n{\n");
     for (size_t i = 0; i < context->name_count; i++) {
         char buffer[4096] = {0}; size_t index = 0;
-        represent(i, buffer, sizeof buffer,
+        represent(i + 256, buffer, sizeof buffer,
                   &index, context);
         printf("\t%6lu: %s\n\n", i, buffer);
     } printf("}\n\n");
 }
 
-void debug_resolved
-(struct resolved given,
- size_t depth,
- struct context* context) {
+void debug_resolved(struct resolved given, size_t depth, struct context* context) {
     char buffer[4096] = {0}; size_t index = 0;
-    represent(given.index, buffer,
-              sizeof buffer, &index, context);
+    represent(given.index, buffer, sizeof buffer, &index, context);
     for (size_t i = depth; i--;) printf(".   ");
-    printf("%s:%lu:%lu:%c\n", buffer,
-           given.index, given.total,
-           (char) given.index);
-    for (size_t i = 0; i < given.count; i++)
-        debug_resolved(given.args[i],
-                       depth + 1, context);
-    printf("\n");
+    if (given.index < 256) printf("(%s) :: %c:i=%lu:b=%lu:sd=%lu:c=%lu\n", buffer, (char) given.index, given.index, given.begin, given.done, given.count);
+    else printf("(%s) :: i=%lu:b=%lu:sd=%lu:c=%lu\n", buffer, given.index, given.begin, given.done, given.count);
+    for (size_t i = 0; i < given.count; i++) {
+        for (size_t i = depth + 1; i--;) printf(".   ");
+        printf("#%lu: \n", i);
+        debug_resolved(given.args[i], depth + 1, context);
+    }
 }
 
 void destroy(struct resolved r) {
@@ -149,14 +220,60 @@ int main(int argc, const char** argv) {
         } else close(file);
         
         struct context context = {0};
+        
+        context.best = 0;
+        context.name_count = 5;
+        context.names = calloc(context.name_count, sizeof(struct name));
+        
+        // _      param type.
+        context.names[0].length = 1;
+        context.names[0].signature = calloc(1, sizeof(size_t));
+        context.names[0].signature[0] = '_';
+        
+        // hello
+        context.names[1].length = 5;
+        context.names[1].signature = calloc(5, sizeof(size_t));
+        context.names[1].signature[0] = 'h';
+        context.names[1].signature[1] = 'e';
+        context.names[1].signature[2] = 'l';
+        context.names[1].signature[3] = 'l';
+        context.names[1].signature[4] = 'o';
+            
+        // my (x) is (y)
+        context.names[2].length = 6;
+        context.names[2].signature = calloc(6, sizeof(size_t));
+        context.names[2].signature[0] = 'm';
+        context.names[2].signature[1] = 'y';
+        context.names[2].signature[2] = 256;
+        context.names[2].signature[3] = 'i';
+        context.names[2].signature[4] = 's';
+        context.names[2].signature[5] = 256;
+        
+        // (x) empty
+        context.names[3].length = 6;
+        context.names[3].signature = calloc(6, sizeof(size_t));
+        context.names[3].signature[0] = 256;
+        context.names[3].signature[1] = 'e';
+        context.names[3].signature[2] = 'm';
+        context.names[3].signature[3] = 'p';
+        context.names[3].signature[4] = 't';
+        context.names[3].signature[5] = 'y';
+            
+        // (x)
+        context.names[4].length = 1;
+        context.names[4].signature = calloc(1, sizeof(size_t));
+        context.names[4].signature[0] = 256;
+
         uint8_t* tokens = malloc(st.st_size);
         uint16_t* loc = malloc(4 * st.st_size);
+        size_t count = lex(text, tokens, loc, st.st_size);
+        struct resolved ast = csr(tokens, count, &context);
+      
         
-        size_t count = lex(text, tokens,
-                           loc, st.st_size);
+        debug_context(&context);
         
-        struct resolved ast = parse(tokens, 0, count,
-                                    256, 5, &context);
+        debug_resolved(ast, 0, &context);
+        
         
         if (!ast.index && count) {
             if (context.best == count)
@@ -167,10 +284,9 @@ int main(int argc, const char** argv) {
                     loc[2 * context.best],
                     loc[2 * context.best + 1],
                     tokens[context.best]);
+        } else if (!ast.index && !count) {
+            fprintf(stderr, "n: %s: error: unresolved empty file\n\n", argv[a]);
         }
-        
-        debug_resolved(ast, 0, &context);
-        debug_context(&context);
         
         destroy(ast);
         free(loc);
