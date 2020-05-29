@@ -72,7 +72,7 @@ struct resolved duplicate(const struct resolved r) {
     return s;
 }
 
-struct resolved resolve(const uint8_t* given, const size_t end, struct resolved** stack,
+struct resolved resolve(const uint8_t* given, const size_t end, struct resolved* stack,
                         size_t count, const size_t depth, struct resolved sol,
                         struct context* context) {
     if (depth >= 15) return (struct resolved){0};
@@ -84,17 +84,15 @@ struct resolved resolve(const uint8_t* given, const size_t end, struct resolved*
         if (c < 256) {
             if (c == given[sol.begin]) {
                 sol.begin++; sol.done++;
-                
                 context->best = sol.begin > context->best
-                    ? sol.begin
-                    : context->best;
-                
+                    ? sol.begin : context->best;
             } else return (struct resolved){0};
         } else {
-            *stack = realloc(*stack, sizeof(struct resolved) * (count + 1));
-            (*stack)[count++] = sol;
+            struct resolved* extended = calloc(count + 1, sizeof(struct resolved));
+            for (size_t i = 0; i < count; i++) extended[i] = stack[i];
+            extended[count++] = sol;            
             for (size_t i = 0; i < context->name_count; i++) {
-                const struct resolved parent = resolve(given, end, stack, count, depth + 1,
+                const struct resolved parent = resolve(given, end, extended, count, depth + 1,
                         (struct resolved){256 + i, 0, sol.begin, 0, 0}, context);
                 if (parent.index) return parent;
             }
@@ -104,7 +102,7 @@ struct resolved resolve(const uint8_t* given, const size_t end, struct resolved*
     if (count == 0) {
         if (sol.begin == end) return sol; else return (struct resolved){0};
     } else {
-        struct resolved top = duplicate((*stack)[--count]);
+        struct resolved top = duplicate(stack[--count]);
         top.begin = sol.begin;
         top.args = realloc(top.args, sizeof(struct resolved) * (top.count + 1));
         top.args[top.count++] = sol;
@@ -114,8 +112,7 @@ struct resolved resolve(const uint8_t* given, const size_t end, struct resolved*
 }
 
 struct resolved csr(const uint8_t* given, const size_t end, struct context* context) {
-    struct resolved* stack = NULL;
-    return resolve(given, end, &stack, 0, 0, (struct resolved){256 + 4, 0, 0, 0, 0}, context);
+    return resolve(given, end, 0, 0, 0, (struct resolved){256 + 4, 0, 0, 0, 0}, context);
 }
 
 
