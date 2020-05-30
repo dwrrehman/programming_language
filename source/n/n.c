@@ -1,4 +1,3 @@
-//..........................................................
 #include <llvm-c/Core.h>
 #include <llvm-c/IRReader.h>
 #include <llvm-c/Linker.h>
@@ -260,10 +259,8 @@ int main(int argc, const char** argv) {
                 (struct resolved){256 + 5, 0, 0, 0, 0},
                 &context);
         
-
         debug_context(&context);
         debug_resolved(ast, 0, &context);
-        
         
         if (!ast.index && count) {
             if (context.best == count)
