@@ -82,32 +82,39 @@ struct resolved resolve
     
     while (sol.done < name.length) {
         const size_t c = name.signature[sol.done];
+        
         if (c < 256) {
             if (c != given[sol.begin]) return (struct resolved){0};
             sol.begin++; sol.done++;
             context->best = sol.begin > context->best ? sol.begin : context->best;
+            
         } else {
+            
             struct resolved* extended = calloc(count + 1, sizeof(struct resolved));
             for (size_t i = 0; i < count; i++) extended[i] = stack[i];
-            extended[count++] = sol;            
+            extended[count++] = sol;
+            
             for (size_t i = 0; i < context->name_count; i++) {
                 const struct resolved parent =
                     resolve(given, end, extended, count, depth + 1,
                         (struct resolved){256 + i, 0, sol.begin, 0, 0}, context);
                 if (parent.index) return parent;
             }
+            
             return (struct resolved){0};
         }
     }
     if (count == 0) {
         if (sol.begin == end) return sol;
         else return (struct resolved){0};
+        
     } else {
         struct resolved top = duplicate(stack[--count]);
         top.begin = sol.begin;
         top.args = realloc(top.args, sizeof(struct resolved) * (top.count + 1));
         top.args[top.count++] = sol;
         top.done++;
+        
         return resolve(given, end, stack, count, depth, top, context);
     }
 }
@@ -181,9 +188,8 @@ int main(int argc, const char** argv) {
         int file = open(argv[a], O_RDONLY);
         if (file < 0 ||
             stat(argv[a], &st) < 0 ||
-            (text = mmap(0, st.st_size,
-                         PROT_READ, MAP_SHARED,
-                         file,0))
+            (text = mmap(0, st.st_size, PROT_READ,
+                         MAP_SHARED, file, 0))
             == MAP_FAILED) {
             fprintf(stderr, "n: %s: ", argv[a]);
             perror("error"); continue;
@@ -254,7 +260,6 @@ int main(int argc, const char** argv) {
                            loc, st.st_size);
         
         struct resolved ast =
-        
             resolve(tokens, count, 0, 0, 0,
                 (struct resolved){256 + 5, 0, 0, 0, 0},
                 &context);
@@ -281,3 +286,4 @@ int main(int argc, const char** argv) {
         munmap(text, st.st_size);
     }
 }
+
