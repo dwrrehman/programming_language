@@ -1,3 +1,39 @@
+/**
+ we are almost done!
+ 
+ 
+ we just need to duplicate all parent trees, before pushing
+ things,
+ 
+ 
+    so like, we duplicate the tree so that each node we append to the queue, has its own little version of the tree, that it can operate on..?
+ 
+ 
+ i think so........
+ 
+ that seemt o be the root of the priblem'
+ 
+ 
+ now,
+ 
+ 
+ @   after that, we have to figure out how to properly imple,ent paraemters!!!
+ 
+ 
+ 
+    we need to push and pop them, in a stacky way, so that we can backtrack from an argument list, properly..?
+ 
+ 
+ 
+ thats important.
+ 
+ 
+ 
+ 
+ 
+ */
+
+
 //
 //  batch_trees.c
 //  sandbox
@@ -11,20 +47,23 @@
 #include <stdbool.h>
 #include <string.h>
 #include <stdint.h>
+#include <assert.h>
 
 typedef size_t nat;
+typedef nat character;
+typedef nat pointer;
 
-static const nat memory_size = 15; //65536;
+static const nat memory_size = 65536;
 
 struct resolved {
     nat index;// changes in max name count
-    nat begin;//ranges in max file size
+    nat at;//ranges in max file size
     nat done; // ranges in max sig length
     nat parent; // changes in memory size
     nat queue_next;// changes in memory size
     
-    nat count; // can be 62 max.
-    nat args[63];
+    nat count; // can be 63 max.
+    nat args[64];
 };
 
 /**
@@ -53,13 +92,9 @@ struct context {
 
 static struct context context = {0};
 
-#define best() context.best = m[n].begin > context.best ? m[n].begin : context.best
+#define best(x) context.best = x > context.best ? x : context.best
 
-//
-//static void prep(size_t d) {
-//    for (size_t i = d; i--;) printf(".   ");
-//}
-//
+static void prep(size_t d) { for (size_t i = d; i--;) printf(".   "); }
 
 static inline void represent
 (size_t given, char* buffer, size_t limit,
@@ -84,50 +119,28 @@ static inline void represent
     }
 }
 
-
-
-
-//static void debug_resolved_parent(struct resolved* memory, nat r, nat depth) {
-//    const struct resolved given = memory[r];
-//    prep(depth); printf("@%lu: { index: %lu, begin: %lu, done: %lu, parent: %lu, next: %lu, previous: %lu, count: %lu} \n", r, given.index, given.begin, given.done, given.parent, given.next, given.previous, given.count);
-//    for (size_t i = 0; i < given.count; i++) {
-//        prep(depth + 1); printf("#%lu: %lu\n", i, given.args[i]);
-//        debug_resolved_parent(memory, given.args[i], depth + 1);
-//    }
-//
-//    if (given.parent) {
-//        prep(depth); printf("parent: \n");
-//        debug_resolved_parent(memory, given.parent, depth);
-//    }
-//}
-//
-//static void debug_resolved_next(struct resolved* memory, nat r, nat depth) {
-//    const struct resolved given = memory[r];
-//    prep(depth); printf("@%lu: { index: %lu, begin: %lu, done: %lu, parent: %lu, next: %lu, previous: %lu, count: %lu} \n", r, given.index, given.begin, given.done, given.parent, given.next, given.previous, given.count);
-//    for (size_t i = 0; i < given.count; i++) {
-//        prep(depth + 1); printf("#%lu: %lu\n", i, given.args[i]);
-//        debug_resolved_next(memory, given.args[i], depth + 1);
-//    }
-//
-//    if (given.next) {
-//        prep(depth); printf("next: \n");
-//        debug_resolved_next(memory, given.next, depth);
-//    }
-//}
-//
-//static void debug_resolved_previous(struct resolved* memory, nat r, nat depth) {
-//    const struct resolved given = memory[r];
-//    prep(depth); printf("@%lu: { index: %lu, begin: %lu, done: %lu, parent: %lu, next: %lu, previous: %lu, count: %lu} \n", r, given.index, given.begin, given.done, given.parent, given.next, given.previous, given.count);
-//    for (size_t i = 0; i < given.count; i++) {
-//        prep(depth + 1); printf("#%lu: %lu\n", i, given.args[i]);
-//        debug_resolved_previous(memory, given.args[i], depth + 1);
-//    }
-//
-//    if (given.previous) {
-//        prep(depth); printf("previous: \n");
-//        debug_resolved_previous(memory, given.previous, depth);
-//    }
-//}
+static void debug_resolved(struct resolved* memory, nat r, nat depth) {
+    const struct resolved given = memory[r];
+    prep(depth);
+    nat printed = 0;
+    if (given.index) {
+        for (nat s = 0; s < context.names[given.index - 256].length; s++) {
+            nat c = context.names[given.index - 256].signature[s];
+            if (c >= 256) printf("_"); else printf("%c", (char) c);
+            printed++;
+        }
+    }
+    for (nat j = 0; j < 20 - printed; j++) printf(" ");
+    printf(" : { i:%-5lu b:%-5lu d:%-5lu p:%-5lu cnt:%-5lu qn:%-5lu} : [ ", given.index, given.at, given.done, given.parent, given.count, given.queue_next);
+    for (nat i = 0; i < given.count; i++) {
+        printf("%lu ", given.args[i]);
+    } printf("]\n");
+    
+    for (size_t i = 0; i < given.count; i++) {
+        prep(depth + 1); printf("#%lu: \n", i);
+        debug_resolved(memory, given.args[i], depth + 2);
+    }
+}
 
 static void debug_context() {
     printf("\n----- names: ------ \n{\n");
@@ -138,249 +151,166 @@ static void debug_context() {
     } puts("}\n");
 }
 
-static void construct_context() {
-    context.best = 0;
-    context.name_count = 4;
-    context.names = calloc(context.name_count, sizeof(struct name));
-    
-    // a      param type.
-    context.names[0].length = 1;
-    context.names[0].signature = calloc(1, sizeof(size_t));
-    context.names[0].signature[0] = 'a';
-    
-    // b
-    context.names[1].length = 1;
-    context.names[1].signature = calloc(1, sizeof(size_t));
-    context.names[1].signature[0] = 'b';
-    
-    // (x) (y)
-    context.names[2].length = 3;
-    context.names[2].signature = calloc(3, sizeof(size_t));
-    context.names[2].signature[0] = 'i';
-    context.names[2].signature[1] = 256;
-    context.names[2].signature[2] = 256;
-    
-//    // (x) empty
-//    context.names[3].length = 6;
-//    context.names[3].signature = calloc(6, sizeof(size_t));
-//    context.names[3].signature[0] = 256;
-//    context.names[3].signature[1] = 'e';
-//    context.names[3].signature[2] = 'm';
-//    context.names[3].signature[3] = 'p';
-//    context.names[3].signature[4] = 't';
-//    context.names[3].signature[5] = 'y';
-    
-    // (x)
-    context.names[3].length = 1;
-    context.names[3].signature = calloc(1, sizeof(size_t));
-    context.names[3].signature[0] = 256;
+static void push_signature(const char* string) {
+    const nat n = context.name_count, length = strlen(string);
+    context.names = realloc(context.names, sizeof(struct name) * (context.name_count + 1));
+    context.names[n].signature = calloc(length, sizeof(nat));
+    for (nat i = 0; i < length; i++)
+        context.names[n].signature[i] = string[i] != '_' ? string[i] : 256;
+    context.names[n].length = length;
+    context.name_count++;
 }
 
-void debug_memory(struct resolved* m) {
-    printf("----------------- memory ------------------\n");
+void debug_memory(struct resolved* m, nat head, nat tail) {
+    printf("-------- memory -----------------------------------------------------------------------\n");
     for (nat i = 0; i < memory_size; i++) {
         if (m[i].index) {
-            struct resolved given = m[i];
-            printf("%5lu  :  { i:%-5lu b:%-5lu d:%-5lu p:%-5lu cnt:%-5lu qn:%-5lu} : [ ", i, given.index, given.begin, given.done, given.parent, given.count, given.queue_next);
+            const struct resolved given = m[i];
+            printf("%5lu      %c%c   :   ", i, i == head ? 'H' : ' ', i == tail ? 'T' : ' ');
+            nat printed = 0;
+            if (given.index) {
+                for (nat s = 0; s < context.names[given.index - 256].length; s++) {
+                    nat c = context.names[given.index - 256].signature[s];
+                    if (c >= 256) printf("_"); else printf("%c", (char) c);
+                    printed++;
+                }
+            }
+            for (nat j = 0; j < 20 - printed; j++) {
+                printf(" ");
+            }
+            printf("   :   { i:%-5lu b:%-5lu d:%-5lu p:%-5lu cnt:%-5lu qn:%-5lu} : [ ", given.index, given.at, given.done, given.parent, given.count, given.queue_next);
             for (nat i = 0; i < given.count; i++) {
                 printf("%lu ", given.args[i]);
             } printf("]\n");
         }
     }
-    printf("--------------------------------------\n");
+    printf("-------------------------------------------------------------------------------------------\n");
 }
 
-static nat csr(const uint8_t* given, nat end, struct resolved* m) {
-    
-    nat p = 2, head = 1, tail = 1;
-    m[1] = (struct resolved){256 + 3, 0, 0, 0, 0, 0, {0}};
-    struct name name;
+
+void display_signature(nat* signature, nat at, nat length) {
+    printf("\n         signature: ");
+    for (nat i = 0; i < length; i++)
+        printf(i == at ? " [%c] " : " %c ",
+               (signature[i] < 256) ? (char) signature[i] : '_');
+    puts("\n\n\n");
+}
+
+static void display_string_at_char(const char* input, nat at) {
+    printf("\n            string:  ");
+    for (nat i = 0; i < strlen(input); i++)
+        printf(i == at ? "[%c] " : "%c ", input[i]);
+    puts("");
+}
+
+nat csr(const char* given, struct resolved* memory) {
+    nat length = strlen(given);
+    pointer new = 2, head = 1, tail = 1;
     
     while (head) {
-        printf("head = %lu, tail = %lu\n", head, tail);
-        debug_memory(m);
-    
-        nat N = head, n = N;
+        debug_memory(memory, head, tail);
         
-        recognize:
-        name = context.names[m[n].index - 256];
-        while (m[n].done < name.length) {
-            nat c = name.signature[m[n].done];
-            if (c < 256) {
-                if (c == given[m[n].begin]) {
-                    m[n].begin++; m[n].done++; best();
-                } else goto next;
-            } else {
-                for (nat i = 0; i < context.name_count; i++) {
-                    if (p < memory_size) {
-                        m[p] = (struct resolved){i + 256, m[n].begin, 0, n, 0, 0, {0}};
-                        m[tail].queue_next = p; tail = p++;
+        pointer try = head, at = try;
+        struct resolved saved = memory[try], me;
+        
+        while (at) {
+            
+            me = memory[at];
+            struct name name = context.names[me.index - 256];
+          
+            while (me.done < name.length) {
+                
+                display_string_at_char(given, me.at);
+                display_signature(name.signature, me.done, name.length);
+                                            
+                nat c = name.signature[me.done];
+                if (c < 256) {
+                    if (c != (nat) given[me.at]) {
+                        printf("character mismatch!    "
+                               " given[.begin]('%c') != sig[.done]('%c')   "
+                               "  moving on.\n", given[me.at], (char) c);
+                        goto next;
                     }
+                    me.at++; me.done++; best(me.at);
+                } else {
+                    printf("found parameter: pushing signatures...\n");
+                    for (nat i = 0; i < context.name_count; i++) {
+                        struct resolved arg = {i + 256, me.at, 0, new, 0, 0, {0}};
+                        if (new < memory_size) memory[new++] = me;
+                        if (new < memory_size) { memory[tail].queue_next = new; tail = new; memory[new++] = arg; }
+                    }
+                    printf("pushing complete. moving on.\n");
+                    goto next;
                 }
-                goto next;
             }
+            
+            pointer parent = me.parent;
+            if (parent) {
+                memory[parent].args[memory[parent].count++] = at;
+                memory[parent].at = me.at;
+                memory[parent].done++;
+            } else if (me.at == length) {
+                printf("recognitition success: returning %lu\n", at);
+                return at;
+            }
+            at = parent;
+            printf("recognitition success: now recognizing parent: %lu\n", parent);
         }
-        if (m[n].parent) {
-            nat parent = m[n].parent;
-            m[parent].args[m[parent].count++] = n;
-            n = parent;
-            goto recognize;
-        }
         
-        if (m[n].begin == end) return n;
-        
-        next: head = m[N].queue_next;
-        
+    next:
+        head = memory[try].queue_next;
+        memory[try] = saved;
+        printf("at next:   [head = %lu]\n", head);
     }
     return 0;
 }
 
 static void print_error(const char *input, struct resolved *memory, nat s) {
     struct resolved solution = memory[s];
-    printf("solution = %lu\n", s);
-    if (!solution.index)
+    printf("\n\n\n\nsolution = %lu\n", s);
+    debug_resolved(memory, s, 0);
+    printf("\n\n\n\n");
+    if (!solution.index) {
         printf("error: @ %lu: unexpected %c%s\n",
                context.best,
                input[context.best],
                input[context.best] ? "" : "end of expression");
-    else
-        printf("\n\t [parse successful]\n\n");
+        display_string_at_char(input, context.best);
+    } else printf("\n\t [parse successful]\n\n");
 }
 
-static void test_csr_with_string() {
-    struct resolved* m = malloc(memory_size * sizeof(struct resolved));
-    memset(m, 0, memory_size * sizeof(struct resolved)); //temp
-    const char* input = "a";
-    nat s = csr((const uint8_t*) input, strlen(input), m);
+void test_csr_with_string(const char* input, nat i) {
+    
+    struct resolved* m = calloc(memory_size, sizeof(struct resolved));
+    m[1].index = 256 + i;
+    nat s = csr(input, m);
     print_error(input, m, s);
-    debug_memory(m);
+    debug_memory(m, 0, 0);
     free(m);
 }
 
-void start() {
-    construct_context();
-    debug_context();
-    test_csr_with_string();
+static void construct_context(const char** signatures, nat length) {
+    for (nat i = 0; i < length; i++) push_signature(signatures[i]);
+    
 }
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-// ------------------------------------------------------------------------
-
-
-
-
-/*
-
-nat csr(const char* given, nat end, nat max_depth, struct resolved* memory, nat ptr) {
-    
-    
-    memory[ptr] = (struct resolved){256 + 1, 0, 0, 0, 0, 0, 0};
-    nat queue = ptr++;
-                
-    while (queue) {
-        
-        struct resolved node = queue_pop(&queue, &queue_count);
-        struct name name = context.names[node.index - 256];
-        
-        while (node.done < name.length) {
-            nat c = name.signature[node.done];
-            if (c < 256) {
-                if (c == given[node.begin]) {
-                    node.begin++; node.done++;
-                } else goto next;
-            } else {
-                for (nat i = 0; i < context.name_count; i++) {
-
-                    // push i to node's parameter list.
-
-                    // push that tree to the queue.
-
-                    // pop i from node's parameter list.         (undo)
-
-                }
-                goto next;
-            }
-        }
-        
-        if (node.parent) {
-            node.parent->begin = node.begin;
-            node.parent->done++;
-             ????
-            
-        } else if (node.begin == end) return node;
-        next: continue;
+static void destroy_context() {
+    for (nat i = 0; i < context.name_count; i++) {
+        free(context.names[i].signature);
     }
-    
-    return 0;
+    free(context.names);
+    context = (struct context){0};
 }
-*/
 
-
-
-
-
-//
-//struct resolved queue_pop(struct resolved** v, size_t* count) {
-//    if (!*count) abort();
-//    struct resolved f = **v;
-//    --*count;
-//    memmove(*v, *v + 1, sizeof(struct resolved) * *count);
-//    *v = realloc(*v, sizeof(struct resolved) * *count);
-//    return f;
-//}
-//
-//void queue_push(struct resolved f, struct resolved** v, size_t* count) {
-//    *v = realloc(*v, sizeof(struct resolved) * (*count + 1));
-//    (*v)[(*count)++] = f;
-//}
-
-
-
-//void debug_queue(struct resolved* queue, nat queue_count) {
-//    printf("----------------------------- debugging queue (queue count = %lu) ------------------------\n\n", queue_count);
-//    for (nat i = 0; i < queue_count; i++) {
-//        printf("\t----------------- queue node #%lu --------------- \n", i);
-//        struct resolved n = queue[i];
-//        debug_resolved(n, 2);
-//        printf("\t-------------------------------------------------\n\n");
-//    }
-//    printf("----------------------------------------------------------------------------------------\n");
-//}
+void start() {
+    const char* signatures[] = {
+        "hello",
+        "hellothere",
+        "join_",
+    };
+    
+    construct_context(signatures, sizeof(signatures) / sizeof(const char*));
+    debug_context();
+    test_csr_with_string("joinhellothere", 2);
+    destroy_context();
+}
