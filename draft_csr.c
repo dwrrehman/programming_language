@@ -53,7 +53,7 @@ typedef size_t nat;
 typedef nat character;
 typedef nat pointer;
 
-static const nat memory_size = 65536;
+static const nat memory_size = 100000000;
 
 struct resolved {
     nat index;// changes in max name count
@@ -190,15 +190,16 @@ void debug_memory(struct resolved* m, nat head, nat tail) {
 
 void display_signature(nat* signature, nat at, nat length) {
     printf("\n         signature: ");
-    for (nat i = 0; i < length; i++)
-        printf(i == at ? " [%c] " : " %c ",
+    for (nat i = 0; i < length + 1; i++)
+        if (i < length) printf(i == at ? " [%c] " : " %c ",
                (signature[i] < 256) ? (char) signature[i] : '_');
+        else printf(i == at ? " [%c] " : " %c ", '\0');
     puts("\n\n\n");
 }
 
 static void display_string_at_char(const char* input, nat at) {
     printf("\n            string:  ");
-    for (nat i = 0; i < strlen(input); i++)
+    for (nat i = 0; i < strlen(input) + 1; i++)
         printf(i == at ? "[%c] " : "%c ", input[i]);
     puts("");
 }
@@ -208,62 +209,108 @@ nat csr(const char* given, struct resolved* memory) {
     pointer new = 2, head = 1, tail = 1;
     
     while (head) {
-        debug_memory(memory, head, tail);
+//        debug_memory(memory, head, tail);
         
         pointer try = head, at = try;
-        struct resolved saved = memory[try], me;
         
         while (at) {
             
-            me = memory[at];
-            struct name name = context.names[me.index - 256];
-          
-            while (me.done < name.length) {
+//            printf("while(at): now recognizing: %lu\n", at);
+            
+//            struct resolved me = memory[at];
+            struct name name = context.names[memory[at].index - 256];
+            
+            while (memory[at].done < name.length) {
                 
-                display_string_at_char(given, me.at);
-                display_signature(name.signature, me.done, name.length);
-                                            
-                nat c = name.signature[me.done];
+//                display_string_at_char(given, memory[at].at);
+//                display_signature(name.signature, memory[at].done, name.length);
+                
+                nat c = name.signature[memory[at].done++];
+                
                 if (c < 256) {
-                    if (c != (nat) given[me.at]) {
-                        printf("character mismatch!    "
-                               " given[.begin]('%c') != sig[.done]('%c')   "
-                               "  moving on.\n", given[me.at], (char) c);
+                    if (c != (nat) given[memory[at].at]) {
+//                        printf("character mismatch!    "
+//                               " given[.begin]('%c') != sig[.done]('%c')   "
+//                               "  moving on.\n", given[memory[at].at], (char) c);
+                        
                         goto next;
+                    } else {
+                        memory[at].at++;
+                        best(memory[at].at);
                     }
-                    me.at++; me.done++; best(me.at);
                 } else {
-                    printf("found parameter: pushing signatures...\n");
+//                    printf("found parameter: pushing signatures...\n");
+                    
                     for (nat i = 0; i < context.name_count; i++) {
-                        struct resolved arg = {i + 256, me.at, 0, new, 0, 0, {0}};
-                        if (new < memory_size) memory[new++] = me;
-                        if (new < memory_size) { memory[tail].queue_next = new; tail = new; memory[new++] = arg; }
+                        
+                        if (new < memory_size) {
+                            memory[tail].queue_next = new;
+                            tail = new;
+                            memory[new] = (struct resolved){i + 256, memory[at].at, 0, new + 1, 0, 0, {0}};
+                            new++;
+                        }
+                        
+                        nat n = at;
+                        if (new < memory_size) {
+                            memory[new] = memory[n];
+                            memory[new].args[memory[new].count++] = new - 1;
+                            memory[new].parent = new + 1;
+                            new++;
+                            n = memory[n].parent;
+                        }
+                        
+                        /// theproblem is that we need to redo the arguments, for  each parent, now. not just the .parent's, but also every single last argument, i think. thats crucial. lets do it.
+                        
+                    
+                        while (n && new < memory_size) {
+                            memory[new] = memory[n];
+                            memory[new].args[memory[new].count - 1] = new - 1;
+                            memory[new].parent = new + 1;
+                            new++;
+                            n = memory[n].parent;
+                        }
+                        
+                        memory[new - 1].parent = 0;
                     }
-                    printf("pushing complete. moving on.\n");
+//                    printf("pushing complete. moving on.\n");
                     goto next;
                 }
             }
             
-            pointer parent = me.parent;
+//            printf("while(at): sig finished: \n");
+//            display_string_at_char(given, memory[at].at);
+//            display_signature(name.signature, memory[at].done, name.length);
+            
+            pointer parent = memory[at].parent;
+            
             if (parent) {
-                memory[parent].args[memory[parent].count++] = at;
-                memory[parent].at = me.at;
-                memory[parent].done++;
-            } else if (me.at == length) {
-                printf("recognitition success: returning %lu\n", at);
-                return at;
+//                printf("while(at): parent is nonnull! pushing argument...\n");
+//                memory[parent].args[memory[parent].count++] = at;
+                memory[parent].at = memory[at].at;
+                
+            } else {
+                if (memory[at].at == length) {
+//                    printf("recognitition success: returning %lu\n", at);
+                    return at;
+                } else {
+//                    printf("recognitition failure: %lu != %lu  ...\n", memory[at].at, length);
+                    goto next;
+                }
             }
             at = parent;
-            printf("recognitition success: now recognizing parent: %lu\n", parent);
+//            printf("while(at): recognitition success. moving to parent: %lu\n", parent);
         }
-        
+//        printf("next: reached end of parent chain, and didnt return, moving on...\n");
     next:
         head = memory[try].queue_next;
-        memory[try] = saved;
-        printf("at next:   [head = %lu]\n", head);
+
+//        printf("next:   trying now: [head = %lu]\n", head);
     }
     return 0;
 }
+
+//        struct resolved saved = memory[try]; //, saved_me = me;
+//        memory[try] = saved;
 
 static void print_error(const char *input, struct resolved *memory, nat s) {
     struct resolved solution = memory[s];
@@ -285,13 +332,12 @@ void test_csr_with_string(const char* input, nat i) {
     m[1].index = 256 + i;
     nat s = csr(input, m);
     print_error(input, m, s);
-    debug_memory(m, 0, 0);
+//    debug_memory(m, 0, 0);
     free(m);
 }
 
 static void construct_context(const char** signatures, nat length) {
     for (nat i = 0; i < length; i++) push_signature(signatures[i]);
-    
 }
 
 static void destroy_context() {
@@ -304,13 +350,13 @@ static void destroy_context() {
 
 void start() {
     const char* signatures[] = {
-        "hello",
-        "hellothere",
-        "join_",
+        "h",
+        "ht",
+        "__",
     };
     
     construct_context(signatures, sizeof(signatures) / sizeof(const char*));
     debug_context();
-    test_csr_with_string("joinhellothere", 2);
+    test_csr_with_string("hhhhht", 2);
     destroy_context();
 }
