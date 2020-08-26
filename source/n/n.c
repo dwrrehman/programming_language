@@ -83,9 +83,152 @@ static inline size_t parse(uint8_t* given, size_t length, size_t size,
                  if (next + 1 < size) memory[next++] = me;
              } skip: continue;
          }
-     }
-     return 0;
+     } return 0;
  }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+static void print_resolved_data(struct resolved given) {
+    printf("   :   { i:%-5lu b:%-5lu d:%-5lu p:%-5lu qn:%-5lu cnt:%-5lu } : [ ",
+           given.index, given.begin, given.done, given.parent, given.queue_next, given.count);
+    for (size_t i = 0; i < given.count; i++) printf("%lu ", given.args[i]);
+    printf("]\n");
+}
+
+static void debug_resolved(struct resolved* memory, struct context* context, size_t r, size_t depth) {
+    const struct resolved given = memory[r];
+    for (size_t i = depth; i--;) printf(".   ");
+    int printed = 0;
+    if (r) {
+        if (given.index >= context->name_count) printf("ERROR IN SIG INDEX");
+        else for (size_t s = 0; s < context->names[given.index].length; s++) {
+            size_t c = context->names[given.index].signature[s];
+            if (c >= 256) printf("_"); else printf("%c", (char) c);
+            printed++;
+        }
+    } else {
+            printf("?");
+            printed++;
+        }
+    for (int j = 0; j < abs(30 - printed); j++) printf(" ");
+    print_resolved_data(given);
+    for (size_t i = 0; i < given.count; i++) {
+        for (size_t i = depth + 1; i--;) printf(".   ");
+        printf("#%lu: \n", i);
+        debug_resolved(memory, context, given.args[i], depth + 2);
+    }
+}
+
+static void debug_context(struct context* context) {
+    printf("\n----- context names: ------ \n{\n");
+    for (size_t i = 0; i < context->name_count; i++) {
+        printf("\t%6lu  :    ", i);
+        struct name name = context->names[i];
+        for (size_t s = 0; s < name.length; s++)
+            printf("%c",
+                   name.signature[s] < 256
+                    ? (char) name.signature[s]
+                    : '_');
+        puts("\n");
+    }
+    puts("}\n");
+}
+
+static void debug_memory(struct resolved* m, struct context* context,
+                         size_t head, size_t tail, size_t next, size_t count) {
+    const int max_name_length = 32;
+    printf("-------- memory -----------------------------------------------------------------------\n");
+    for (size_t i = 0; i < count; i++) {
+        const struct resolved given = m[i];
+        printf("%5lu     %c%c%c   :   ", i, i == head ? 'H' : ' ', i == tail ? 'T' : ' ', i == next ? 'N' : ' ');
+        int printed = 0;
+        if (given.index < context->name_count) {
+            for (size_t s = 0; s < context->names[given.index].length; s++) {
+                size_t c = context->names[given.index].signature[s];
+                if (c >= 256) printf("_"); else printf("%c", (char) c);
+                printed++;
+            }
+        } else {
+            printf("////");
+            printed += 4;
+        }
+        for (int j = 0; j < abs(max_name_length - printed); j++) printf(" ");
+        print_resolved_data(given);
+    }
+    printf("-------------------------------------------------------------------------------------------\n");
+}
+
+static void display_signature(size_t* signature, size_t at, size_t length) {
+    printf("\n         signature: ");
+    for (size_t i = 0; i < length + 1; i++)
+        if (i < length) printf(i == at ? "[%c] " : "%c ",
+                               (signature[i] < 256) ? (char) signature[i] : '_');
+        else printf(i == at ? "[%c] " : "%c ", '\0');
+    puts("\n");
+}
+
+static void display_string_at_char(uint8_t* input, size_t length, size_t at) {
+    printf("\n            string:  ");
+    for (size_t i = 0; i < length; i++)
+        printf(i == at ? "[%c] " : "%c ", input[i]);
+    puts("\n");
+}
+
+static void print_result(uint8_t* tokens, size_t length, struct resolved* memory, size_t solution, struct context* context,
+                         const char* filename, uint16_t* loc) {
+        
+    printf("\n\n\n\nsolution = %lu\n", solution);
+    debug_resolved(memory, context, solution, 0);
+    printf("\n\n\n\n");
+    
+    if (!length) fprintf(stderr, "n: %s: error: unresolved empty file\n\n", filename);
+    else if (!solution) {
+        size_t b = context->best;        
+        if (b == length) {
+            b--;
+            fprintf(stderr, "n: %s:%u:%u: error: unresolved end of expression\n\n", filename, loc[2 * b], loc[2 * b + 1]);
+            display_string_at_char(tokens, length, b);
+        } else {
+             fprintf(stderr, "n: %s:%u:%u: error: unresolved %c\n\n", filename, loc[2 * b], loc[2 * b + 1], tokens[b]);
+             display_string_at_char(tokens, length, b);
+        }
+    } else printf("\n\t [parse successful]\n\n");
+}
+
+static void push_signature(const char* string, struct context* context) {
+    const size_t n = context->name_count, length = strlen(string);
+    context->names = realloc(context->names, sizeof(struct name) * (context->name_count + 1));
+    context->names[n].signature = calloc(length, sizeof(size_t));
+    for (size_t i = 0; i < length; i++)
+        context->names[n].signature[i] = string[i] != '_' ? string[i] : 256;
+    context->names[n].length = length;
+    context->name_count++;
+}
+
 
 int main(int argc, const char** argv) {
     for (int a = 1; a < argc; a++) {
@@ -101,27 +244,38 @@ int main(int argc, const char** argv) {
             fprintf(stderr, "n: %s: ", argv[a]);
             perror("error"); continue;
         } else close(file);
-        
-        struct context context = {0};      // load_context(&context);
-        
+                                
+        const size_t memory_size = 1000000;
+                
         uint8_t* tokens = malloc(sizeof(uint8_t) * st.st_size);
         uint16_t* loc = malloc(sizeof(uint16_t) * st.st_size * 2);
-        struct resolved* memory = malloc(sizeof(struct resolved) * 65536);
-        memset(memory, 0, sizeof(struct resolved) * 2);
+        struct resolved* memory = malloc(sizeof(struct resolved) * memory_size);
+        memset(memory, 0, sizeof(struct resolved) * memory_size);
         
+        struct context context = {0};
+        const char* names[] = {
+            "-",
+            "join__",            
+            "john",
+            "+__",
+            "_iscool",
+            "print_",
+            "3",
+            "5",
+            "(_)",
+        0};
+        for (size_t i = 0; names[i]; i++) push_signature(names[i], &context);
+        debug_context(&context);
+                                
         size_t count = lex(text, tokens, loc, st.st_size);
-        size_t solution = parse(tokens, count, 256, memory, &context);
-        
-        printf("r = %lu\n", solution);
-            
-        if (!count) fprintf(stderr, "n: %s: error: unresolved empty file\n\n", argv[a]);
-        else if (!solution) {
-            if (context.best == count) context.best--;
-            fprintf(stderr,
-                    "n: %s:%u:%u: error: unresolved %c\n\n", argv[a],
-                    loc[2 * context.best], loc[2 * context.best + 1], tokens[context.best]);
-        }
-        
+        size_t solution = parse(tokens, count, memory_size, memory, &context);
+        print_result(tokens, count, memory, solution, &context, argv[a], loc);
+//        debug_memory(memory, &context, 0, 0, 0, memory_size);
+                
+        for (size_t i = 0; i < context.name_count; i++)
+            free(context.names[i].signature);
+        free(context.names);
+                
         free(memory);
         free(loc);
         free(tokens);
