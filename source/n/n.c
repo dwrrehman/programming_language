@@ -13,11 +13,11 @@
 struct resolved {
     size_t index;
     size_t begin;
-    size_t done;
+    size_t done;      // done and index can be merged.
     size_t parent;
     size_t queue_next;
     size_t count;
-    size_t args[64];    // FIX ME
+    size_t args[64];
 };
 
 struct name {
@@ -38,78 +38,6 @@ struct context {
     struct name* names;
     struct name* owners;
 };
-
-static inline size_t lex(uint8_t* text, uint8_t* tokens, uint16_t* loc, size_t length) {
-    
-    size_t count = 0;
-    uint16_t l = 1, c = 1;
-    for (size_t i = 0; i < length; i++) {
-        if (text[i] > 32) {
-            loc[2 * count] = l;
-            loc[2 * count + 1] = c;
-            tokens[count++] = text[i];
-        }
-        if (text[i] == 10) {
-            l++; c = 1;
-        } else c++;
-    }
-    return count;
-}
-
-static inline size_t parse(uint8_t* given, size_t length, size_t size,
-                           struct resolved* memory, struct context* context) {
-     for (size_t next = 2, head = 1, tail = 1; head; head = memory[head].queue_next) {
-         for (; memory[head].index < context->name_count; memory[head].index++) {
-             for (size_t at = head; at; at = memory[at].parent) {
-                 struct resolved me = memory[at];
-                 struct name name = context->names[me.index];
-                 for (; me.done < name.length; ) {
-                     size_t c = name.signature[me.done++];
-                     if (c >= 256 && next + 2 < size) {
-                         struct resolved child = {.begin = me.begin, .parent = next + 1};
-                         me.args[me.count++] = next;
-                         memory[tail].queue_next = next; tail = next;
-                         memory[next++] = child; memory[next++] = me;
-                     }
-                     if (c >= 256 || c != (size_t) given[me.begin]) goto skip;
-                     me.begin++; context->best = me.begin > context->best ? me.begin : context->best;
-                 }
-                 size_t p = me.parent;
-                 if (!p) {
-                     if (me.begin == length) return at; else break;
-                 }
-                 memory[p].begin = me.begin;
-                 memory[p].args[memory[p].count - 1] = next;
-                 if (next + 1 < size) memory[next++] = me;
-             } skip: continue;
-         }
-     } return 0;
- }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 static void print_resolved_data(struct resolved given) {
@@ -177,7 +105,8 @@ static void debug_memory(struct resolved* m, struct context* context,
             printed += 4;
         }
         for (int j = 0; j < abs(max_name_length - printed); j++) printf(" ");
-        print_resolved_data(given);
+        if (given.index < context->name_count) print_resolved_data(given);
+        else printf("\n");
     }
     printf("-------------------------------------------------------------------------------------------\n");
 }
@@ -199,7 +128,7 @@ static void display_string_at_char(uint8_t* input, size_t length, size_t at) {
 }
 
 static void print_result(uint8_t* tokens, size_t length, struct resolved* memory, size_t solution, struct context* context,
-                         const char* filename, uint16_t* loc) {
+                         const char* filename, uint16_t* locations) {
         
     printf("\n\n\n\nsolution = %lu\n", solution);
     debug_resolved(memory, context, solution, 0);
@@ -210,10 +139,10 @@ static void print_result(uint8_t* tokens, size_t length, struct resolved* memory
         size_t b = context->best;        
         if (b == length) {
             b--;
-            fprintf(stderr, "n: %s:%u:%u: error: unresolved end of expression\n\n", filename, loc[2 * b], loc[2 * b + 1]);
+            fprintf(stderr, "n: %s:%u:%u: error: unresolved end of expression\n\n", filename, locations[2 * b], locations[2 * b + 1]);
             display_string_at_char(tokens, length, b);
         } else {
-             fprintf(stderr, "n: %s:%u:%u: error: unresolved %c\n\n", filename, loc[2 * b], loc[2 * b + 1], tokens[b]);
+             fprintf(stderr, "n: %s:%u:%u: error: unresolved %c\n\n", filename, locations[2 * b], locations[2 * b + 1], tokens[b]);
              display_string_at_char(tokens, length, b);
         }
     } else printf("\n\t [parse successful]\n\n");
@@ -229,6 +158,71 @@ static void push_signature(const char* string, struct context* context) {
     context->name_count++;
 }
 
+static inline size_t lex(uint8_t* text, uint8_t* tokens, uint16_t* locations, size_t length) {
+    size_t count = 0;
+    uint16_t l = 1, c = 1;
+    for (size_t i = 0; i < length; i++) {
+        if (text[i] > 32) {
+            locations[2 * count] = l;
+            locations[2 * count + 1] = c;
+            tokens[count++] = text[i];
+        }
+        if (text[i] == 10) {
+            l++; c = 1;
+        } else c++;
+    }
+    return count;
+}
+
+static inline size_t parse(uint8_t* given, size_t length, size_t size,
+                           struct resolved* memory, struct context* context) {
+    for (size_t next = 2, head = 1, tail = 1; head; head = memory[head].queue_next) {
+        for (; memory[head].index < context->name_count; memory[head].index++) {
+            for (size_t at = head; at; at = memory[at].parent) {
+                struct resolved me = memory[at];
+                struct name name = context->names[me.index];
+                while (me.done < name.length) {
+                    size_t c = name.signature[me.done++];
+                    if (c >= 256 && next + 2 < size) {
+                        struct resolved child = {.begin = me.begin, .parent = next + 1};
+                        me.args[me.count++] = next;  // this is definitely wrong.
+                        memory[tail].queue_next = next; tail = next;
+                        memory[next++] = child;
+                        memory[next++] = me;     // this seems wrong.
+                    }
+                    if (c >= 256 || c != (size_t) given[me.begin]) goto skip;
+                    me.begin++;
+                    if (me.begin > context->best) context->best = me.begin;
+                }
+                size_t p = me.parent;
+                if (!p) { if (me.begin == length) return at; else break; }
+                memory[p].begin = me.begin;
+                memory[p].args[memory[p].count - 1] = next;
+                if (next + 1 < size) memory[next++] = me;
+            } skip: continue;
+        }
+        memory[head].index = 0;
+    }
+    return 0;
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 int main(int argc, const char** argv) {
     for (int a = 1; a < argc; a++) {
@@ -236,26 +230,25 @@ int main(int argc, const char** argv) {
         uint8_t* text = NULL;
         struct stat st = {0};
         int file = open(argv[a], O_RDONLY);
-        if (file < 0 ||
-            stat(argv[a], &st) < 0 ||
+        if (file < 0 || stat(argv[a], &st) < 0 ||
             (text = mmap(0, st.st_size, PROT_READ,
                          MAP_SHARED, file, 0))
             == MAP_FAILED) {
             fprintf(stderr, "n: %s: ", argv[a]);
             perror("error"); continue;
         } else close(file);
-                                
-        const size_t memory_size = 1000000;
-                
+        
+        const size_t memory_size = 1024;
+        
         uint8_t* tokens = malloc(sizeof(uint8_t) * st.st_size);
-        uint16_t* loc = malloc(sizeof(uint16_t) * st.st_size * 2);
+        uint16_t* locations = malloc(sizeof(uint16_t) * st.st_size * 2);
         struct resolved* memory = malloc(sizeof(struct resolved) * memory_size);
-        memset(memory, 0, sizeof(struct resolved) * memory_size);
+        memset(memory, 0, sizeof(struct resolved) * 2);
         
         struct context context = {0};
         const char* names[] = {
             "-",
-            "join__",            
+            "join__",
             "john",
             "+__",
             "_iscool",
@@ -263,21 +256,23 @@ int main(int argc, const char** argv) {
             "3",
             "5",
             "(_)",
+            "hello__",
         0};
+        
         for (size_t i = 0; names[i]; i++) push_signature(names[i], &context);
         debug_context(&context);
-                                
-        size_t count = lex(text, tokens, loc, st.st_size);
+        
+        size_t count = lex(text, tokens, locations, st.st_size);
         size_t solution = parse(tokens, count, memory_size, memory, &context);
-        print_result(tokens, count, memory, solution, &context, argv[a], loc);
-//        debug_memory(memory, &context, 0, 0, 0, memory_size);
-                
+        print_result(tokens, count, memory, solution, &context, argv[a], locations);
+        debug_memory(memory, &context, 0, 0, 0, memory_size);
+        
         for (size_t i = 0; i < context.name_count; i++)
             free(context.names[i].signature);
         free(context.names);
                 
         free(memory);
-        free(loc);
+        free(locations);
         free(tokens);
         munmap(text, st.st_size);
     }

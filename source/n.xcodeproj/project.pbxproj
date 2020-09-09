@@ -92,7 +92,7 @@
 		FDAB9E30243C3B4E000B1E4B /* Project object */ = {
 			isa = PBXProject;
 			attributes = {
-				LastUpgradeCheck = 1140;
+				LastUpgradeCheck = 1160;
 				ORGANIZATIONNAME = "Daniel Rehman";
 				TargetAttributes = {
 					FDAB9E37243C3B4E000B1E4B = {
@@ -243,6 +243,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CLANG_CXX_LANGUAGE_STANDARD = "c++17";
+				CODE_SIGN_IDENTITY = "-";
 				CODE_SIGN_STYLE = Automatic;
 				DEVELOPMENT_TEAM = JTMD2SW5KN;
 				ENABLE_HARDENED_RUNTIME = YES;
@@ -312,6 +313,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CLANG_CXX_LANGUAGE_STANDARD = "c++17";
+				CODE_SIGN_IDENTITY = "-";
 				CODE_SIGN_STYLE = Automatic;
 				DEVELOPMENT_TEAM = JTMD2SW5KN;
 				ENABLE_HARDENED_RUNTIME = YES;

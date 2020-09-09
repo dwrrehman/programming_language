@@ -9,10 +9,17 @@ the current status of the n3zqx2l compiler, n:
 			Easier than Python
 
 
-				Faster than C
+				Simpler than Scheme
 
 
-					Simpler than Scheme
+					Faster than C
+
+
+
+
+
+
+
 
 
 		n3zqx2l
@@ -36,10 +43,39 @@ the current status of the n3zqx2l compiler, n:
 
 
         
-        
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
 	EASIER THAN PYTHON
+    SIMPLER THAN SCHEME
 	FASTER THAN C
-	SIMPLER THAN SCHEME
+	
 
 
 
@@ -48,8 +84,8 @@ or
 
         
         MORE READABLE THAN PYTHON
-        MORE EFFICIENT THAN C
         MORE MINIMALIST THAN SCHEME
+        MORE EFFICIENT THAN C
         
 
 
