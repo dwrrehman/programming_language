@@ -1,16 +1,17 @@
 /// Daniel Rehman, CE202008285.121444
 /// this is my second try at making a more memory efficient bfs csr algorithm.
 /// i reworked the data structures a ton, and am making things simpler, hopefully.
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
 typedef size_t nat;
-typedef const char* string;
 
-static string context = NULL, input = NULL;
-static nat* memory = NULL, best = 0, size = 10;
+static const nat size = 10;
+static const char
+    * context = "-.hello.bubbles_there.",
+    * input = "bubbleshellothere";
+static nat* memory = NULL, best = 0;
 
 static void debug_memory(nat head, nat tail) {
     printf("-------- memory ----------\n");
@@ -81,12 +82,9 @@ static nat solve() {
 }
 
 void start() {
-    context = "-.hello.bubbles_there.";
-    input = "bubbleshellothere";
-    memory = malloc(30 * sizeof(nat));
+    memory = malloc(3 * size * sizeof(nat));
     debug_context();
     print_solution(solve());
     debug_memory(0, 0);
     free(memory);
 }
-

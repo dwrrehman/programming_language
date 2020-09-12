@@ -10,7 +10,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-struct resolved {
+struct unit {
     size_t index;
     size_t begin;
     size_t done;      // done and index can be merged.
@@ -39,16 +39,15 @@ struct context {
     struct name* owners;
 };
 
-
-static void print_resolved_data(struct resolved given) {
+static void print_resolved_data(struct unit given) {
     printf("   :   { i:%-5lu b:%-5lu d:%-5lu p:%-5lu qn:%-5lu cnt:%-5lu } : [ ",
            given.index, given.begin, given.done, given.parent, given.queue_next, given.count);
     for (size_t i = 0; i < given.count; i++) printf("%lu ", given.args[i]);
     printf("]\n");
 }
 
-static void debug_resolved(struct resolved* memory, struct context* context, size_t r, size_t depth) {
-    const struct resolved given = memory[r];
+static void debug_resolved(struct unit* memory, struct context* context, size_t r, size_t depth) {
+    const struct unit given = memory[r];
     for (size_t i = depth; i--;) printf(".   ");
     int printed = 0;
     if (r) {
@@ -86,12 +85,12 @@ static void debug_context(struct context* context) {
     puts("}\n");
 }
 
-static void debug_memory(struct resolved* m, struct context* context,
+static void debug_memory(struct unit* m, struct context* context,
                          size_t head, size_t tail, size_t next, size_t count) {
     const int max_name_length = 32;
     printf("-------- memory -----------------------------------------------------------------------\n");
     for (size_t i = 0; i < count; i++) {
-        const struct resolved given = m[i];
+        const struct unit given = m[i];
         printf("%5lu     %c%c%c   :   ", i, i == head ? 'H' : ' ', i == tail ? 'T' : ' ', i == next ? 'N' : ' ');
         int printed = 0;
         if (given.index < context->name_count) {
@@ -111,15 +110,6 @@ static void debug_memory(struct resolved* m, struct context* context,
     printf("-------------------------------------------------------------------------------------------\n");
 }
 
-static void display_signature(size_t* signature, size_t at, size_t length) {
-    printf("\n         signature: ");
-    for (size_t i = 0; i < length + 1; i++)
-        if (i < length) printf(i == at ? "[%c] " : "%c ",
-                               (signature[i] < 256) ? (char) signature[i] : '_');
-        else printf(i == at ? "[%c] " : "%c ", '\0');
-    puts("\n");
-}
-
 static void display_string_at_char(uint8_t* input, size_t length, size_t at) {
     printf("\n            string:  ");
     for (size_t i = 0; i < length; i++)
@@ -127,7 +117,7 @@ static void display_string_at_char(uint8_t* input, size_t length, size_t at) {
     puts("\n");
 }
 
-static void print_result(uint8_t* tokens, size_t length, struct resolved* memory, size_t solution, struct context* context,
+static void print_result(uint8_t* tokens, size_t length, struct unit* memory, size_t solution, struct context* context,
                          const char* filename, uint16_t* locations) {
         
     printf("\n\n\n\nsolution = %lu\n", solution);
@@ -175,16 +165,16 @@ static inline size_t lex(uint8_t* text, uint8_t* tokens, uint16_t* locations, si
 }
 
 static inline size_t parse(uint8_t* given, size_t length, size_t size,
-                           struct resolved* memory, struct context* context) {
+                           struct unit* memory, struct context* context) {
     for (size_t next = 2, head = 1, tail = 1; head; head = memory[head].queue_next) {
         for (; memory[head].index < context->name_count; memory[head].index++) {
             for (size_t at = head; at; at = memory[at].parent) {
-                struct resolved me = memory[at];
+                struct unit me = memory[at];
                 struct name name = context->names[me.index];
                 while (me.done < name.length) {
                     size_t c = name.signature[me.done++];
                     if (c >= 256 && next + 2 < size) {
-                        struct resolved child = {.begin = me.begin, .parent = next + 1};
+                        struct unit child = {.begin = me.begin, .parent = next + 1};
                         me.args[me.count++] = next;  // this is definitely wrong.
                         memory[tail].queue_next = next; tail = next;
                         memory[next++] = child;
@@ -231,9 +221,8 @@ int main(int argc, const char** argv) {
         struct stat st = {0};
         int file = open(argv[a], O_RDONLY);
         if (file < 0 || stat(argv[a], &st) < 0 ||
-            (text = mmap(0, st.st_size, PROT_READ,
-                         MAP_SHARED, file, 0))
-            == MAP_FAILED) {
+            (text = mmap(0, st.st_size, PROT_READ, MAP_SHARED, file, 0)) == MAP_FAILED
+            ) {
             fprintf(stderr, "n: %s: ", argv[a]);
             perror("error"); continue;
         } else close(file);
@@ -242,8 +231,8 @@ int main(int argc, const char** argv) {
         
         uint8_t* tokens = malloc(sizeof(uint8_t) * st.st_size);
         uint16_t* locations = malloc(sizeof(uint16_t) * st.st_size * 2);
-        struct resolved* memory = malloc(sizeof(struct resolved) * memory_size);
-        memset(memory, 0, sizeof(struct resolved) * 2);
+        struct unit* memory = malloc(sizeof(struct unit) * memory_size);
+        memset(memory, 0, sizeof(struct unit) * 2);
         
         struct context context = {0};
         const char* names[] = {
