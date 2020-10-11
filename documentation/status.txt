@@ -1,6 +1,28 @@
 the current status of the n3zqx2l compiler, n:
 =============================================
 
+join
+    print john is cool
+    print john
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 

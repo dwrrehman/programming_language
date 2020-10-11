@@ -250,22 +250,24 @@
 				GCC_C_LANGUAGE_STANDARD = c11;
 				GCC_TREAT_WARNINGS_AS_ERRORS = NO;
 				GCC_WARN_PEDANTIC = YES;
-				LIBRARY_SEARCH_PATHS = /usr/local/Cellar/llvm/9.0.1/lib;
+				LIBRARY_SEARCH_PATHS = /usr/local/Cellar/llvm/10.0.1_1/lib;
 				OTHER_CFLAGS = (
-					"-I/usr/local/Cellar/llvm/9.0.1/include",
+					"-I/usr/local/Cellar/llvm/10.0.1_1/include",
 					"-D__STDC_CONSTANT_MACROS",
 					"-D__STDC_FORMAT_MACROS",
 					"-D__STDC_LIMIT_MACROS",
 				);
 				OTHER_LDFLAGS = (
-					"-I/usr/local/Cellar/llvm/9.0.1/include",
+					"-I/usr/local/Cellar/llvm/10.0.1_1/include",
 					"-std=c++11",
 					"-stdlib=libc++",
 					"-D__STDC_CONSTANT_MACROS",
 					"-D__STDC_FORMAT_MACROS",
-					"-D__STDC_LIMIT_MACROS\n-L/usr/local/Cellar/llvm/9.0.1/lib",
+					"-D__STDC_LIMIT_MACROS",
+					"-L/usr/local/Cellar/llvm/9.0.1/lib",
 					"-Wl,-search_paths_first",
-					"-Wl,-headerpad_max_install_names\n-lLLVMInterpreter",
+					"-Wl,-headerpad_max_install_names",
+					"-lLLVMInterpreter",
 					"-lLLVMCodeGen",
 					"-lLLVMScalarOpts",
 					"-lLLVMInstCombine",
@@ -291,7 +293,8 @@
 					"-lLLVMRemarks",
 					"-lLLVMBinaryFormat",
 					"-lLLVMSupport",
-					"-lLLVMDemangle\n-lz",
+					"-lLLVMDemangle",
+					"-lz",
 					"-lcurses",
 					"-lm",
 					"-lxml2",
@@ -299,7 +302,7 @@
 					"-lffi",
 				);
 				PRODUCT_NAME = "$(TARGET_NAME)";
-				USER_HEADER_SEARCH_PATHS = /usr/local/Cellar/llvm/9.0.1/include;
+				USER_HEADER_SEARCH_PATHS = /usr/local/Cellar/llvm/10.0.1_1/include;
 				WARNING_CFLAGS = (
 					"-Wall",
 					"-Wpedantic",
@@ -320,22 +323,24 @@
 				GCC_C_LANGUAGE_STANDARD = c11;
 				GCC_TREAT_WARNINGS_AS_ERRORS = NO;
 				GCC_WARN_PEDANTIC = YES;
-				LIBRARY_SEARCH_PATHS = /usr/local/Cellar/llvm/9.0.1/lib;
+				LIBRARY_SEARCH_PATHS = /usr/local/Cellar/llvm/10.0.1_1/lib;
 				OTHER_CFLAGS = (
-					"-I/usr/local/Cellar/llvm/9.0.1/include",
+					"-I/usr/local/Cellar/llvm/10.0.1_1/include",
 					"-D__STDC_CONSTANT_MACROS",
 					"-D__STDC_FORMAT_MACROS",
 					"-D__STDC_LIMIT_MACROS",
 				);
 				OTHER_LDFLAGS = (
-					"-I/usr/local/Cellar/llvm/9.0.1/include",
+					"-I/usr/local/Cellar/llvm/10.0.1_1/include",
 					"-std=c++11",
 					"-stdlib=libc++",
 					"-D__STDC_CONSTANT_MACROS",
 					"-D__STDC_FORMAT_MACROS",
-					"-D__STDC_LIMIT_MACROS\n-L/usr/local/Cellar/llvm/9.0.1/lib",
+					"-D__STDC_LIMIT_MACROS",
+					"-L/usr/local/Cellar/llvm/9.0.1/lib",
 					"-Wl,-search_paths_first",
-					"-Wl,-headerpad_max_install_names\n-lLLVMInterpreter",
+					"-Wl,-headerpad_max_install_names",
+					"-lLLVMInterpreter",
 					"-lLLVMCodeGen",
 					"-lLLVMScalarOpts",
 					"-lLLVMInstCombine",
@@ -361,7 +366,8 @@
 					"-lLLVMRemarks",
 					"-lLLVMBinaryFormat",
 					"-lLLVMSupport",
-					"-lLLVMDemangle\n-lz",
+					"-lLLVMDemangle",
+					"-lz",
 					"-lcurses",
 					"-lm",
 					"-lxml2",
@@ -369,7 +375,7 @@
 					"-lffi",
 				);
 				PRODUCT_NAME = "$(TARGET_NAME)";
-				USER_HEADER_SEARCH_PATHS = /usr/local/Cellar/llvm/9.0.1/include;
+				USER_HEADER_SEARCH_PATHS = /usr/local/Cellar/llvm/10.0.1_1/include;
 				WARNING_CFLAGS = (
 					"-Wall",
 					"-Wpedantic",

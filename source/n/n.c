@@ -164,8 +164,7 @@ static inline size_t lex(uint8_t* text, uint8_t* tokens, uint16_t* locations, si
     return count;
 }
 
-static inline size_t parse(uint8_t* given, size_t length, size_t size,
-                           struct unit* memory, struct context* context) {
+static inline size_t parse(uint8_t* given, size_t length, size_t size, struct unit* memory, struct context* context) {
     for (size_t next = 2, head = 1, tail = 1; head; head = memory[head].queue_next) {
         for (; memory[head].index < context->name_count; memory[head].index++) {
             for (size_t at = head; at; at = memory[at].parent) {
@@ -175,10 +174,10 @@ static inline size_t parse(uint8_t* given, size_t length, size_t size,
                     size_t c = name.signature[me.done++];
                     if (c >= 256 && next + 2 < size) {
                         struct unit child = {.begin = me.begin, .parent = next + 1};
-                        me.args[me.count++] = next;  // this is definitely wrong.
+                        me.args[me.count++] = next;
                         memory[tail].queue_next = next; tail = next;
                         memory[next++] = child;
-                        memory[next++] = me;     // this seems wrong.
+                        memory[next++] = me;
                     }
                     if (c >= 256 || c != (size_t) given[me.begin]) goto skip;
                     me.begin++;
@@ -199,6 +198,129 @@ static inline size_t parse(uint8_t* given, size_t length, size_t size,
 
 
 
+// store .done and .begin in child
+
+
+
+
+//int csr(struct unit* m, nat size) {
+//    for (nat head = 1, tail = 1, next = 2; head; head = m[head].next) {
+//        for (; m[head].index < strlen(context); m[head].index++) {
+//            for (nat at = head; at; at = m[at].parent) {
+//                struct unit this = m[at];
+//                for (; context[this.index] != '.'; this.index++) {
+//                    if (context[this.index] == '_' && next + 1 < size) {
+//                        m[next++] = (struct unit) {this.index + 1, this.parent, this.begin, 0};
+//                        m[tail].next = next; tail = next;
+//                        m[next] = (struct unit) {0, next - 1, this.begin, 0}; next++;
+//                        goto skip;
+//                    } else if (context[this.index] == input[this.begin]) this.begin++; else goto skip;
+//                } if (this.parent) {
+//                    if (next < size) m[next++] = (struct unit) {this.index, this.parent, this.begin, 0};
+//                    m[this.parent].begin = this.begin;
+//                } else if (this.begin == strlen(input)) return 0; else break;
+//            } skip: while (context[m[head].index] != '.') m[head].index++;
+//        } m[head].index = undef;
+//    } return 1;
+//}
+
+
+
+
+
+
+
+
+
+
+/**
+ 
+ 
+ things we are going to change about the above csr code:
+ 
+    - returning on memory error?       no... thats stupid..
+ 
+                                          just let it go to the end of the queue. we might end up finding the solution, you never know.
+ 
+    - we will write out the dynamic memory management code for the tree.
+        i think this really is the right thing to do here.
+ 
+    - at least, i say, before writing the parse-tree-constructing code. that code may be easy, and reliable, and not compuntationally intensive.
+       if thats the case, then im going to go with my idea of NOT having .args in a unit, and constructing the parse tree later.
+        - - i feel like the system will be more memory efficient if we do it like that, because then we can copy all of the irrilveant data and leave behind all the rest. good idea/ plan to do.
+ 
+    - i dont know where im going to merge index and done.  i have to think about the larger picture, with scopes, and stuff. it might be beneficial to seperate them out. that way i can more easily work with the system.
+        such as storing types for each of the signatures.
+        okay, yeah we are definitely NOT mergeing them. we are leaaving them as is.
+        
+ 
+    - however, we will rewrwite that csr's whileloop sig loop, to be a for loop, as it should.
+ 
+        just a minor issue.
+ 
+    - we are going to maybe rework the conditional logic to be more similar to our new verion?
+ 
+        also a minor issue.
+ 
+ 
+ 
+    - thinking about doing the sstruct index math myself?
+    
+        wait, we literally cannot do that if we are doing .args[].......
+ 
+        we really do have to code up the parse-tree-constructing code, and see if its any good.
+        if it is, then we DO actually save ourselves alot of memory, technically.
+        because
+                1.  no unneccessary dynamic allocation of .args for nodes!   during csr.
+                2.  we can actually delete all other nodes, besides the ones relelvant for the tree!
+                3.  we can only record the data that is relevant to us! for each tree node.
+                4.  and the csr unit can be smaller, because no pointer and no count members required.
+                5.  and the algoirthm gets alittle bit simpler, because no need to have the .args = ... statements.
+        
+ 
+ 
+ 
+    - AND! furthermore! becausse of our logicalilyl neccessatiated action of    adding back in
+    
+                        .done           as seperate from       .index,
+            
+            i am also now going to split up, the queue, and the memory cells.
+            to further optimize my memory usage.
+            we are going to use a circular queue.   a     nat*       or struct qnode*
+            however, we must not desync our pushing.
+ 
+            furthermore, we can dispose of the queue, when we are done.  its not relevant for the parsetree.
+         
+            i think regardlesss of whether this actually saves usmemory.. we need to do it. it is just more efficient.   we need 4 ints in our unit. necccessarily.
+        
+                really hoping that the parse-tree-constructing-code function turns out to be efficient and good.     really riding on it.
+ 
+ 
+                because if it doesnt, then i just wasted the last two months working on an already complete csr, lol.
+                    heck, i already kinda did- but at least i am possibly maybe getting something out of it.
+ 
+ 
+            
+    
+            actually im not going to split up the queue, thats literally worthless
+ 
+            i think im just going to call it done, and use .args, with some dynamic allocation
+ 
+            that seems like the best plan
+ 
+            so basicallyyyyyy we were done  like MONTHSS ago
+ 
+    
+ 
+            thats frustrating
+ 
+ 
+ 
+    
+    
+    
+            
+ */
 
 
 
@@ -227,7 +349,7 @@ int main(int argc, const char** argv) {
             perror("error"); continue;
         } else close(file);
         
-        const size_t memory_size = 1024;
+        const size_t memory_size = 65536;
         
         uint8_t* tokens = malloc(sizeof(uint8_t) * st.st_size);
         uint16_t* locations = malloc(sizeof(uint16_t) * st.st_size * 2);
@@ -237,15 +359,15 @@ int main(int argc, const char** argv) {
         struct context context = {0};
         const char* names[] = {
             "-",
-            "join__",
-            "john",
-            "+__",
-            "_iscool",
-            "print_",
-            "3",
+            "__",
+//            "john",
+//            "+__",
+//            "_iscool",
+//            "print_",
+//            "3",
             "5",
-            "(_)",
-            "hello__",
+//            "(_)",
+//            "hello__",
         0};
         
         for (size_t i = 0; names[i]; i++) push_signature(names[i], &context);
