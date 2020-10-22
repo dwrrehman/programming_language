@@ -92,7 +92,7 @@
 		FDAB9E30243C3B4E000B1E4B /* Project object */ = {
 			isa = PBXProject;
 			attributes = {
-				LastUpgradeCheck = 1160;
+				LastUpgradeCheck = 1200;
 				ORGANIZATIONNAME = "Daniel Rehman";
 				TargetAttributes = {
 					FDAB9E37243C3B4E000B1E4B = {
@@ -156,6 +156,7 @@
 				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
 				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
 				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
 				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
 				CLANG_WARN_STRICT_PROTOTYPES = YES;
 				CLANG_WARN_SUSPICIOUS_MOVE = YES;
@@ -214,6 +215,7 @@
 				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
 				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
 				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
 				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
 				CLANG_WARN_STRICT_PROTOTYPES = YES;
 				CLANG_WARN_SUSPICIOUS_MOVE = YES;
@@ -264,7 +266,7 @@
 					"-D__STDC_CONSTANT_MACROS",
 					"-D__STDC_FORMAT_MACROS",
 					"-D__STDC_LIMIT_MACROS",
-					"-L/usr/local/Cellar/llvm/9.0.1/lib",
+					"-L/usr/local/Cellar/llvm/10.0.1_1/lib",
 					"-Wl,-search_paths_first",
 					"-Wl,-headerpad_max_install_names",
 					"-lLLVMInterpreter",
@@ -337,7 +339,7 @@
 					"-D__STDC_CONSTANT_MACROS",
 					"-D__STDC_FORMAT_MACROS",
 					"-D__STDC_LIMIT_MACROS",
-					"-L/usr/local/Cellar/llvm/9.0.1/lib",
+					"-L/usr/local/Cellar/llvm/10.0.1_1/lib",
 					"-Wl,-search_paths_first",
 					"-Wl,-headerpad_max_install_names",
 					"-lLLVMInterpreter",

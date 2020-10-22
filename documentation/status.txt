@@ -1,11 +1,45 @@
 the current status of the n3zqx2l compiler, n:
 =============================================
 
-join
-    print john is cool
-    print john
 
 
+
+
+so recently, i succeeded in figuring out
+
+    a memory efficient verison of csr, which literally does NO parent duplication.
+    im pretty sure its the correct algoirthm for csr, and im literally so happy that i found it.
+    
+    
+    now i just have to write an additional algorithm, which creates the parse tree using the output of csr.
+    
+    
+        the solution ended up being that i have to store the .begin  and .done of theparent, inside the children. that seemed to solve everything.
+        
+        
+        
+
+
+
+
+
+
+
+
+    so heres what we need to do :
+    
+    
+        - write parse tree constructor
+        
+        - rotate csr to be argument based
+        
+        - add in defines, and make the context mutable
+            
+        - figure out how to do signatures.
+        
+        - make context serializer, and format.
+        
+        - 
 
 
 
