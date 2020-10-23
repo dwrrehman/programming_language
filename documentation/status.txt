@@ -5,6 +5,150 @@ the current status of the n3zqx2l compiler, n:
 
 
 
+
+
+okie dokie csr is officially done
+
+
+i couldnt be more happier right now aabout my programming languagaes direction and how it is right now
+
+
+csr works amazingly,
+
+
+i am using      non-recursive depth first search version of csr,
+
+    its written very imperatively (also has many goto's),
+    
+    uses the minimal/optimal amoutn of memory,
+    and im pretty sure its basically optimally fast/efficient in time.
+    
+    
+    
+    so im pretty happy with it. i have yet to find a bug in it. i think its the real deal.
+    
+    
+    
+    
+            it even creates the tree for you.
+            
+            
+            super important, actually, that it does lol.
+            
+            
+            
+
+
+
+
+
+    so now
+    
+    
+    
+    i think all i have left to implement is literally just:
+    
+    
+    
+    
+    
+    
+        
+                1. type-checking.
+                
+                2. character literals for signatures
+                
+                3. parameter spot (with type) for signatures
+                
+                4. defines
+                
+                5. macros.
+                
+                6. code generation
+                
+                
+                
+                
+                
+                
+                
+                
+                
+                
+                
+                                    what about type-inference??!
+                                    
+                                    
+                                    
+                                    
+                                    hmmmm..... maaybe we save that until later...???
+                                    
+                                    
+                                    
+                                            yikes..
+                                            
+                                            
+                                            
+                                            
+                                            
+                                            
+                                            
+                                also csr isnt exactly easy to tweak right now...
+                                
+                                
+                                    its pretty hard to read...
+                                    
+                                    
+                                    
+                                    
+                                    but not THATtttt hard... just slightly.  ill get it.
+                                    
+                                    
+                                    
+                                    
+                
+                
+                
+                
+    and then we can actually run our language!!
+    
+    
+    how exciting!!
+    
+    
+    im so excited, like literally lol
+    
+    
+    
+    
+    i cant
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 so recently, i succeeded in figuring out
 
     a memory efficient verison of csr, which literally does NO parent duplication.

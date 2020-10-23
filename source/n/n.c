@@ -12,15 +12,10 @@
 
 struct unit {
     size_t index;
-    size_t parent;
     size_t begin;
     size_t done;
-};
-
-struct node {
-    size_t index;
     size_t count;
-    struct node* args;
+    struct unit* args;
 };
 
 struct name {
@@ -43,24 +38,30 @@ struct context {
 };
 
 
-void debug_list(struct unit* m, size_t size, size_t head, size_t tail) {
+static inline void debug_list(struct unit* m, size_t size, size_t head, size_t tail) {
     puts("MEMORY: {\n");
     for (size_t i = 0; i < size; i++) {
-        printf("   %5lu    %c%c   i:%-5lu    p:%-5lu    d:%-5lu    b:%-5lu   \n",
+        printf("   %5lu    %c%c   i:%-5lu    b:%-5lu     d:%-5lu    c:%-5lu    a:%p   \n",
                i, i == head ? 'H' : ' ', i == tail ? 'T' : ' ',
-                m[i].index, m[i].parent, m[i].done, m[i].begin);
+                m[i].index, m[i].done, m[i].begin, m[i].count, (void*) m[i].args);
     }
     puts("}\n");
 }
 
-void debug_string(const char* message, uint8_t* input, size_t count, size_t at) {
+static inline void debug_string(const char* message, uint8_t* input, size_t count, size_t at) {
     printf("\n       %15s:  ", message);
     for (size_t i = 0; i < count; i++)
         printf(i == at ? "[%c] " : "%c ", input[i]);
     printf(" (%lu) \n", at);
 }
 
-
+static inline void debug_tree(struct unit tree, size_t d) {
+    for (size_t i = 0; i < d; i++)
+        printf(".   ");
+    printf("[index = %lu]\n", tree.index);
+    for (size_t i = 0; i < tree.count; i++)
+        debug_tree(tree.args[i], d + 1);
+}
 
 static void push_signature(const char* string, struct context* context) {
     const size_t n = context->name_count, length = strlen(string);
@@ -89,58 +90,38 @@ static inline size_t lex(uint8_t* text, uint8_t* tokens, uint16_t* locations, si
     return count;
 }
 
-static inline size_t parse(uint8_t* input, size_t length,
-                           struct unit* list, size_t size,
-                           struct context* context) {
-    
-    size_t head = 0, tail = 0;
-    list[tail++] = (struct unit) {
-        .parent = size,
-        .begin = 0,
-        .index = 0,
-        .done = 0,
-    };
-    
-    while (head != tail) {
-        size_t at = head, done = 0, begin = list[head].begin;
-        while (at != size) {
-            struct name name = context->names[list[at].index];
-            while (done < name.length) {
-                const size_t c = name.signature[done++];
-                if (c >= 256) {
-                    for (size_t arg = 1; arg < context->name_count; arg++) {
-                        if (tail == size) break;
-                        list[tail++] = (struct unit) {
-                            .index = arg,
-                            .parent = at,
-                            .done = done,
-                            .begin = begin
-                        };
-                    }
-                    goto next;
-                } else if (c != input[begin]) {
-                    list[head].index = -1;
-                    goto next;
-                }
-                begin++;
-                if (begin > context->best) context->best = begin;
-            }
-            done = list[at].done;
-            at = list[at].parent;
-        }
-        if (begin == length) return head + 1;
-        else next: head++;
+static inline size_t parse
+(uint8_t* input, size_t length, struct unit* list, size_t max, struct context* context) {
+    struct name name;
+    size_t at = 0;
+    *list = (struct unit) {0};
+_0:
+    if (list[at].index >= context->name_count) {
+        if (at--) goto _2; return 1;
     }
-    return 0;
-}
-
-
-
-struct node construct(size_t head, struct unit* list, size_t start) {
-    
-    struct node root = {0};
-    
-    return root;
+    size_t done = 0, begin = list[at].begin;
+_1:
+    name = context->names[list[at].index];
+    while (done < name.length) {
+        size_t c = name.signature[done++];
+        if (c >= 256 && at + 1 < max) {
+            list[at].args = realloc(list[at].args, sizeof(struct unit) * (++(list[at].count)));
+            list[++at] = (struct unit) {0, begin, done, 0, 0};
+            goto _0;
+        } else if (c != input[begin]) goto _2;
+        else if (++begin > context->best) context->best = begin;
+    }
+    if (at) {
+        list[at - 1].args[list[at - 1].count - 1] = list[at];
+        done = list[at--].done;
+        goto _1;
+    } else if (begin == length) return 0;
+_2:
+    list[at].index++;
+    free(list[at].args);
+    list[at].args = NULL;
+    list[at].count = 0;
+    goto _0;
 }
 
 int main(int argc, const char** argv) {
@@ -164,7 +145,6 @@ int main(int argc, const char** argv) {
         struct context context = {0};
         
         const char* names[] = {
-            "_",
             "join__",
             "hello",
             0
@@ -174,14 +154,17 @@ int main(int argc, const char** argv) {
             push_signature(names[i], &context);
         
         size_t count = lex(text, tokens, locations, st.st_size);
-        size_t head = parse(tokens, count, memory, memory_size, &context);
-        struct node root = construct(head, memory, 0);
-        
-        if (!head) debug_string("error at", tokens, count, context.best);
-        else {
-            debug_list(memory, head, 0,0);
-            printf("head = %lu\n", head);
+        size_t error = parse(tokens, count, memory, memory_size, &context);
+                        
+        if (error) {
+            if (context.best == count) context.best--;
+            printf("%s: %u:%u: error: unresolved \"%c\"\n",
+                   argv[a],
+                   locations[2 * context.best],
+                   locations[2 * context.best + 1],
+                   tokens[context.best]);
         }
+        else debug_tree(*memory, 0);
         
         free(memory);
         free(locations);
