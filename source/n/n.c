@@ -67,9 +67,9 @@ _0:
     }
     size_t done = 0, begin = stack[top].begin;
 _1:
-    
     name = context->names[context->indicies[stack[top].index]];
-    if (stack[top].type != name.type)
+    if (stack[top].type &&
+        stack[top].type != name.type)
         goto _2;
     
     while (done < name.length) {
@@ -108,7 +108,11 @@ _2:
    
       [1]  init                  : root           the initial unit type.
  
-      [2]  decl (init)        : init              extends the context. also acts as the param indicator.
+      [2]  push_char (c)
+     
+      [2]  param (init)             : init     signifies a param. important, i think...
+ 
+      [2]  decl (init) (root)       : init              extends the context. also acts as the param indicator.
                                                all signatures are not given a definition.
  
       [3]  join (init) (init)       : init              allows for multiple statements,
@@ -239,7 +243,6 @@ static inline void debug_tree(struct unit tree, size_t d) {
         debug_tree(tree.args[i], d + 1);
 }
 
-
 static inline void debug_context(struct context* context) {
     printf("---------------- context --------------\n");
     printf("best = %lu\n", context->best);
@@ -282,8 +285,6 @@ static inline void debug_context(struct context* context) {
     printf("}\n\n");
 }
 
-
-
 int main(int argc, const char** argv) {
     for (int a = 1; a < argc; a++) {
         
@@ -297,19 +298,19 @@ int main(int argc, const char** argv) {
         } else close(file);
         
         const size_t memory_size = 128;
-        
-        uint8_t* tokens = malloc(sizeof(uint8_t) * st.st_size);
-        uint16_t* locations = malloc(sizeof(uint16_t) * st.st_size * 2);
-        struct unit* memory = malloc(sizeof(struct unit) * memory_size);
+        const size_t root_type = 0;
         
         struct context context = {0};
         construct_a_context(&context);
         debug_context(&context);
 
-        const size_t type = 1;
         
-        size_t count = lex(text, tokens, locations, st.st_size);
-        size_t error = parse(tokens, count, type, memory, memory_size, &context);
+        uint8_t* tokens = malloc(sizeof(uint8_t) * st.st_size);
+        uint16_t* locations = malloc(sizeof(uint16_t) * st.st_size * 2);
+        struct unit* memory = malloc(sizeof(struct unit) * memory_size);
+                
+        const size_t count = lex(text, tokens, locations, st.st_size);
+        const size_t error = parse(tokens, count, root_type, memory, memory_size, &context);
         
         if (error) {
             if (context.best == count) context.best--;

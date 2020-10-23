@@ -1,7 +1,1 @@
-decl
-    join
-        temp
-        join
-            decl
-                temp
-            temp
+decl temp
