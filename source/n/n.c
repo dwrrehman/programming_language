@@ -11,6 +11,7 @@
 #include <stdlib.h>
 
 struct unit {
+    size_t type;
     size_t index;
     size_t begin;
     size_t done;
@@ -91,10 +92,10 @@ static inline size_t lex(uint8_t* text, uint8_t* tokens, uint16_t* locations, si
 }
 
 static inline size_t parse
-(uint8_t* input, size_t length, struct unit* list, size_t max, struct context* context) {
+(uint8_t* input, size_t length, size_t type, struct unit* list, size_t max, struct context* context) {
     struct name name;
     size_t at = 0;
-    *list = (struct unit) {0};
+    *list = (struct unit) {type, 0, 0, 0, 0, NULL};
 _0:
     if (list[at].index >= context->name_count) {
         if (at--) goto _2; return 1;
@@ -106,7 +107,7 @@ _1:
         size_t c = name.signature[done++];
         if (c >= 256 && at + 1 < max) {
             list[at].args = realloc(list[at].args, sizeof(struct unit) * (++(list[at].count)));
-            list[++at] = (struct unit) {0, begin, done, 0, 0};
+            list[++at] = (struct unit) {c, 0, begin, done, 0, 0};
             goto _0;
         } else if (c != input[begin]) goto _2;
         else if (++begin > context->best) context->best = begin;
@@ -145,17 +146,19 @@ int main(int argc, const char** argv) {
         struct context context = {0};
         
         const char* names[] = {
-            "join__",
+            "init",
             "hello",
-            0
-        };
+            "join__",
+        0};
+        
+        const size_t type = 0;
         
         for (size_t i = 0; names[i]; i++)
             push_signature(names[i], &context);
-        
+                
         size_t count = lex(text, tokens, locations, st.st_size);
-        size_t error = parse(tokens, count, memory, memory_size, &context);
-                        
+        size_t error = parse(tokens, count, type, memory, memory_size, &context);
+        
         if (error) {
             if (context.best == count) context.best--;
             printf("%s: %u:%u: error: unresolved \"%c\"\n",
@@ -164,7 +167,8 @@ int main(int argc, const char** argv) {
                    locations[2 * context.best + 1],
                    tokens[context.best]);
         }
-        else debug_tree(*memory, 0);
+        
+        debug_tree(*memory, 0);
         
         free(memory);
         free(locations);
