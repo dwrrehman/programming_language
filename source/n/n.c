@@ -20,11 +20,11 @@ struct unit {
 };
 
 struct name {
-    size_t* signature;
     size_t length;
     size_t type;
-    uint32_t codegen_as;
-    uint32_t precedence;
+    size_t* signature;
+    size_t codegen_as;
+    size_t precedence;
 };
 
 struct context {
@@ -38,6 +38,181 @@ struct context {
     struct name* owners;
 };
 
+static inline size_t lex(uint8_t* text, uint8_t* tokens, uint16_t* locations, size_t length) {
+    size_t count = 0;
+    uint16_t l = 1, c = 1;
+    for (size_t i = 0; i < length; i++) {
+        if (text[i] > 32) {
+            locations[2 * count] = l;
+            locations[2 * count + 1] = c;
+            tokens[count++] = text[i];
+        }
+        if (text[i] == 10) {
+            l++;
+            c = 1;
+        } else c++;
+    }
+    return count;
+}
+
+static inline size_t parse
+(uint8_t* input, size_t length, size_t type, struct unit* stack, size_t max, struct context* context) {
+    struct name name;
+    size_t top = 0;
+    *stack = (struct unit) {type, 0, 0, 0, 0, NULL};
+_0:
+    if (stack[top].index >= context->index_count) {
+        if (top--) goto _2;
+        return 1;
+    }
+    size_t done = 0, begin = stack[top].begin;
+_1:
+    
+    name = context->names[context->indicies[stack[top].index]];
+    if (stack[top].type != name.type)
+        goto _2;
+    
+    while (done < name.length) {
+        size_t c = name.signature[done++];
+        if (c >= 256 && top + 1 < max) {
+            stack[top].args = realloc(stack[top].args, sizeof(struct unit) * (++(stack[top].count)));
+            stack[++top] = (struct unit) {c - 256, 0, begin, done, 0, 0};
+            goto _0;
+        }
+        if (c != input[begin])
+            goto _2;
+        if (++begin > context->best)
+            context->best = begin;
+    }
+    if (top) {
+        stack[top - 1].args[stack[top - 1].count - 1] = stack[top];
+        done = stack[top--].done;
+        goto _1;
+    }
+    if (begin == length)
+        return 0;
+_2:
+    stack[top].index++;
+    free(stack[top].args);
+    stack[top].args = NULL;
+    stack[top].count = 0;
+    goto _0;
+}
+
+/**
+    constructs the following context:
+ ----------------------------------------------------------
+ 
+ 
+      [0]  root              : (typeless)      the root type. this is the universe type, as as such doesnt have a type.
+   
+      [1]  init                  : root           the initial unit type.
+ 
+      [2]  decl (init)        : init              extends the context. also acts as the param indicator.
+                                               all signatures are not given a definition.
+ 
+      [3]  join (init) (init)       : init              allows for multiple statements,
+                                               and multi-character signatures.
+                                               the analogy in lisp, is "(progn ...)".
+              
+[builtin]  <char>             : init              turns an unresolved char into resolved signature.
+ 
+ 
+ 
+ ------------------------------------------------------------
+ 
+ */
+static inline void construct_a_context(struct context* context) {
+    
+    const char* root = "root"; size_t index_of_root = 0;
+    const char* init = "init"; size_t index_of_init = 1;
+    const char* temp = "temp"; size_t index_of_temp = 2;
+    const char* decl = "decl_"; size_t index_of_decl = 3;
+    const char* join = "join__";  size_t index_of_join = 4;
+    
+    context->best = 0;
+    context->name_count = 0;
+            
+    context->names = realloc(context->names, sizeof(struct name) * (context->name_count + 1));
+    context->names[context->name_count].type = -1;
+    context->names[context->name_count].precedence = 0;
+    context->names[context->name_count].codegen_as = 0;
+    context->names[context->name_count].length = strlen(root);
+    context->names[context->name_count].signature = calloc
+    (context->names[context->name_count].length, sizeof(size_t));
+    for (size_t i = 0; i < context->names[context->name_count].length; i++) {
+        context->names[context->name_count].signature[i] = root[i];
+    }
+    context->name_count++;
+        
+    context->names = realloc(context->names, sizeof(struct name) * (context->name_count + 1));
+    context->names[context->name_count].type = index_of_root;
+    context->names[context->name_count].precedence = 0;
+    context->names[context->name_count].codegen_as = 0;
+    context->names[context->name_count].length = strlen(init);
+    context->names[context->name_count].signature = calloc
+    (context->names[context->name_count].length, sizeof(size_t));
+    for (size_t i = 0; i < context->names[context->name_count].length; i++) {
+        context->names[context->name_count].signature[i] = init[i];
+    }
+    context->name_count++;
+    
+    context->names = realloc(context->names, sizeof(struct name) * (context->name_count + 1));
+    context->names[context->name_count].type = index_of_init;
+    context->names[context->name_count].precedence = 0;
+    context->names[context->name_count].codegen_as = 0;
+    context->names[context->name_count].length = strlen(temp);
+    context->names[context->name_count].signature = calloc
+    (context->names[context->name_count].length, sizeof(size_t));
+    for (size_t i = 0; i < context->names[context->name_count].length; i++) {
+        context->names[context->name_count].signature[i] = temp[i];
+    }
+    context->name_count++;
+    
+    context->names = realloc(context->names, sizeof(struct name) * (context->name_count + 1));
+    context->names[context->name_count].type = index_of_init;
+    context->names[context->name_count].precedence = 0;
+    context->names[context->name_count].codegen_as = 0;
+    context->names[context->name_count].length = strlen(decl);
+    context->names[context->name_count].signature = calloc
+    (context->names[context->name_count].length, sizeof(size_t));
+    for (size_t i = 0; i < context->names[context->name_count].length; i++) {
+        context->names[context->name_count].signature[i] =
+        decl[i] == '_' ? 256 + index_of_init : decl[i];
+    }
+    context->name_count++;
+    
+    context->names = realloc(context->names, sizeof(struct name) * (context->name_count + 1));
+    context->names[context->name_count].type = index_of_init;
+    context->names[context->name_count].precedence = 0;
+    context->names[context->name_count].codegen_as = 0;
+    context->names[context->name_count].length = strlen(join);
+    context->names[context->name_count].signature = calloc
+    (context->names[context->name_count].length, sizeof(size_t));
+    for (size_t i = 0; i < context->names[context->name_count].length; i++) {
+        context->names[context->name_count].signature[i] =
+        join[i] == '_' ? 256 + index_of_init : join[i];
+    }
+    context->name_count++;
+    
+    context->index_count = 0;
+    
+    context->indicies = realloc(context->indicies, sizeof(size_t) * (context->index_count + 1));
+    context->indicies[context->index_count++] = index_of_root;
+    
+    context->indicies = realloc(context->indicies, sizeof(size_t) * (context->index_count + 1));
+    context->indicies[context->index_count++] = index_of_init;
+    
+    context->indicies = realloc(context->indicies, sizeof(size_t) * (context->index_count + 1));
+    context->indicies[context->index_count++] = index_of_temp;
+      
+    context->indicies = realloc(context->indicies, sizeof(size_t) * (context->index_count + 1));
+    context->indicies[context->index_count++] = index_of_decl;
+    
+    context->indicies = realloc(context->indicies, sizeof(size_t) * (context->index_count + 1));
+    context->indicies[context->index_count++] = index_of_join;
+    
+}
 
 static inline void debug_list(struct unit* m, size_t size, size_t head, size_t tail) {
     puts("MEMORY: {\n");
@@ -64,66 +239,50 @@ static inline void debug_tree(struct unit tree, size_t d) {
         debug_tree(tree.args[i], d + 1);
 }
 
-static void push_signature(const char* string, struct context* context) {
-    const size_t n = context->name_count, length = strlen(string);
-    context->names = realloc(context->names, sizeof(struct name) * (context->name_count + 1));
-    context->names[n].signature = calloc(length, sizeof(size_t));
-    for (size_t i = 0; i < length; i++)
-        context->names[n].signature[i] = string[i] != '_' ? string[i] : 256;
-    context->names[n].length = length;
-    context->name_count++;
-}
 
-static inline size_t lex(uint8_t* text, uint8_t* tokens, uint16_t* locations, size_t length) {
-    size_t count = 0;
-    uint16_t l = 1, c = 1;
-    for (size_t i = 0; i < length; i++) {
-        if (text[i] > 32) {
-            locations[2 * count] = l;
-            locations[2 * count + 1] = c;
-            tokens[count++] = text[i];
+static inline void debug_context(struct context* context) {
+    printf("---------------- context --------------\n");
+    printf("best = %lu\n", context->best);
+    
+    printf("-------- names --------\n");
+    printf("name_count = %lu\n", context->name_count);
+    for (size_t i = 0; i < context->name_count; i++) {
+        printf("----- [%lu] ----- \n", i);
+        printf("\t type = %lu\n", context->names[i].type);
+        printf("\t precedence = %lu\n", context->names[i].precedence);
+        printf("\t codegen_as = %lu\n", context->names[i].codegen_as);
+        printf("\t length = %lu\n", context->names[i].length);
+        printf("\t signature:     ");
+        for (size_t s = 0; s < context->names[i].length; s++) {
+            const size_t c = context->names[i].signature[s];
+            if (c >= 256) {
+                printf("(%lu) ", c);
+            } else {
+                printf("%c ", (char) c);
+            }
         }
-        if (text[i] == 10) {
-            l++;
-            c = 1;
-        } else c++;
+        printf("\n\n");
     }
-    return count;
+    printf("-------------------\n\n");
+        
+    printf("---------- indicies --------\n");
+    printf("index_count = %lu\n", context->index_count);
+    printf("indicies:     { ");
+    for (size_t i = 0; i < context->index_count; i++) {
+        printf("%lu ", context->indicies[i]);
+    }
+    printf("}\n\n");
+    
+    printf("---------- frames --------\n");
+    printf("frame_count = %lu\n", context->frame_count);
+    printf("frames:     { ");
+    for (size_t i = 0; i < context->frame_count; i++) {
+        printf("%lu ", context->frames[i]);
+    }
+    printf("}\n\n");
 }
 
-static inline size_t parse
-(uint8_t* input, size_t length, size_t type, struct unit* list, size_t max, struct context* context) {
-    struct name name;
-    size_t at = 0;
-    *list = (struct unit) {type, 0, 0, 0, 0, NULL};
-_0:
-    if (list[at].index >= context->name_count) {
-        if (at--) goto _2; return 1;
-    }
-    size_t done = 0, begin = list[at].begin;
-_1:
-    name = context->names[list[at].index];
-    while (done < name.length) {
-        size_t c = name.signature[done++];
-        if (c >= 256 && at + 1 < max) {
-            list[at].args = realloc(list[at].args, sizeof(struct unit) * (++(list[at].count)));
-            list[++at] = (struct unit) {c, 0, begin, done, 0, 0};
-            goto _0;
-        } else if (c != input[begin]) goto _2;
-        else if (++begin > context->best) context->best = begin;
-    }
-    if (at) {
-        list[at - 1].args[list[at - 1].count - 1] = list[at];
-        done = list[at--].done;
-        goto _1;
-    } else if (begin == length) return 0;
-_2:
-    list[at].index++;
-    free(list[at].args);
-    list[at].args = NULL;
-    list[at].count = 0;
-    goto _0;
-}
+
 
 int main(int argc, const char** argv) {
     for (int a = 1; a < argc; a++) {
@@ -144,18 +303,11 @@ int main(int argc, const char** argv) {
         struct unit* memory = malloc(sizeof(struct unit) * memory_size);
         
         struct context context = {0};
+        construct_a_context(&context);
+        debug_context(&context);
+
+        const size_t type = 1;
         
-        const char* names[] = {
-            "init",
-            "hello",
-            "join__",
-        0};
-        
-        const size_t type = 0;
-        
-        for (size_t i = 0; names[i]; i++)
-            push_signature(names[i], &context);
-                
         size_t count = lex(text, tokens, locations, st.st_size);
         size_t error = parse(tokens, count, type, memory, memory_size, &context);
         

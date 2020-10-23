@@ -1,26 +1,7 @@
-join
-
+decl
     join
-        
+        temp
         join
-        
-            hello
-                
-            hello
-            
-        join
-        
-            hello
-            
-            hello
-    
-    
-    join
-    
-        join
-        
-            hello
-        
-            hello
-            
-        hello
+            decl
+                temp
+            temp
