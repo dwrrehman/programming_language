@@ -1,1 +1,6 @@
-decl temp
+join push
+join j
+join param
+join decl init
+join k
+join pop j
