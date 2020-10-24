@@ -233,7 +233,7 @@ static inline void do_intrinsic(struct context* context, struct unit* stack,
     }
     
     else if (index == intrin_param) {
-        if (context->frame_count <= 1) {
+        if (!context->frame_count) {
             printf("error: cannot add param from top level stack frame.\n");
             abort();
         }
@@ -241,7 +241,7 @@ static inline void do_intrinsic(struct context* context, struct unit* stack,
         = realloc(context->owners[context->frame_count - 1].signature, sizeof(size_t)
                   * (context->owners[context->frame_count - 1].length + 1));
         context->owners[context->frame_count - 1]
-        .signature[context->owners[context->frame_count - 1].length++] = context->owners[context->frame_count].type;
+        .signature[context->owners[context->frame_count - 1].length++] = 256 + context->owners[context->frame_count].type;
     }
 }
 
@@ -273,7 +273,9 @@ _0:
     }
     done = 0; begin = stack[top].begin;
 _1:
+    stack[top].index = context->indicies[stack[top].ind];
     name = context->names[stack[top].index];
+    
     if (stack[top].type && stack[top].type != name.type)
         goto _3;
     

@@ -2,6 +2,31 @@ the current status of my compiler:
 ==================================
 
 
+join push
+
+join k
+join l
+
+join push
+join x
+join pop
+join decl init
+join param
+
+join pop
+join decl init
+join kl
+char
+char
+
+
+
+
+
+
+
+
+
 
 
 
