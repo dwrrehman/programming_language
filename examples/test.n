@@ -1,23 +1,64 @@
 join push
-    join k
-    join l
+    join 9
     join push
-        join x
+        join 0
     join pop
     join decl init
     join param
     
     join push
-        join y
+        join 1
     join pop
     join decl init
     join param
-join pop
+    
+    join push
+        join 2
+    join pop
+    join decl init
+    join param
+    
+    join push
+        join 3
+    join pop
+    join decl init
+    join param
+    
+    join push
+        join 4
+    join pop
+    join decl init
+    join param
+    
+    join push
+        join 5
+    join pop
+    join decl init
+    join param
+        
+    join push
+        join 6
+    join pop
+    join decl init
+    join param
+    
+    join push
+        join 7
+    join pop
+    join decl init
+    join param
+    
+    join push
+        join 8
+    join pop
+    join decl init
+    join param
 
+join pop
 join decl init
 
-kl push
-kl g
-kl pop
-kl decl init
-char
+9
+    push hello pop
+    decl init
+    
+    hello

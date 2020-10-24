@@ -156,10 +156,9 @@ static inline size_t lex(uint8_t* text, uint8_t* tokens, uint16_t* locations, si
     return count;
 }
 
-static inline void do_intrinsic(struct context* context, struct unit* stack,
-                                size_t top) {
+static inline void do_intrinsic(struct context* context, struct unit* stack, size_t top) {
     
-    size_t index = stack[top].index;
+    const size_t index = stack[top].index;
     
     if (index == intrin_pop) {
         if (!context->frame_count) {
@@ -184,7 +183,7 @@ static inline void do_intrinsic(struct context* context, struct unit* stack,
     
     else if (index == intrin_decl) {
         
-        debug_context(context);
+//        debug_context(context);
         
 //        abort();
         
@@ -204,29 +203,29 @@ static inline void do_intrinsic(struct context* context, struct unit* stack,
                 context->names[context->indicies[i]].length) break;
         i++;
         
-        printf("insertion point (i) = %lu\n", i);
-        
+//        printf("insertion point (i) = %lu\n", i);
+//
         context->indicies = realloc(context->indicies,
                                     sizeof(size_t) * (context->index_count + 1));
 
-        printf("before insertion: ");
-        print_vector(context->indicies, context->index_count);
-        
+//        printf("before insertion: ");
+//        print_vector(context->indicies, context->index_count);
+//
         memmove(context->indicies + i + 1, context->indicies + i,
                sizeof(size_t) * (context->index_count - i));
         
-        printf("after move: ");
-        print_vector(context->indicies, context->index_count);
-        printf("inserting: %lu\n", context->name_count);
+//        printf("after move: ");
+//        print_vector(context->indicies, context->index_count);
+//        printf("inserting: %lu\n", context->name_count);
 
         context->indicies[i] = context->name_count++;
         context->index_count++;
-        
-        printf("after insertion: ");
-        print_vector(context->indicies, context->index_count);
-                
-        printf("updating stack IND indicies:\n");
-        
+//
+//        printf("after insertion: ");
+//        print_vector(context->indicies, context->index_count);
+//
+//        printf("updating stack IND indicies:\n");
+//
         for (size_t stack_level = 0; stack_level <= top; stack_level++)
             if (i <= stack[stack_level].ind)
                 stack[stack_level].ind++;
@@ -478,7 +477,7 @@ int main(int argc, const char** argv) {
         
         struct context context = {0};
         construct_a_context(&context);
-        debug_context(&context);
+//        debug_context(&context);
         
         uint8_t* tokens = malloc(sizeof(uint8_t) * st.st_size);
         uint16_t* locations = malloc(sizeof(uint16_t) * st.st_size * 2);
@@ -500,10 +499,8 @@ int main(int argc, const char** argv) {
                        locations[2 * context.best + 1],
                        tokens[context.best]);
         } else {
-        
-            debug_context(&context);
-
-            debug_tree(ast, 0, &context);
+//            debug_context(&context);
+//            debug_tree(ast, 0, &context);
         }
         
         free(locations);
