@@ -72,7 +72,7 @@ static inline void debug_tree(struct unit tree, size_t d, struct context* contex
         else printf(" (%lu) ", name.signature[i]);
             
     }
-    printf(" :: [%lu : %lu]\n\n", tree.index, tree.type);
+    printf(" :: [ind=%ld, index=%lu : type=%lu]\n\n", tree.ind, tree.index, tree.type);
     for (size_t i = 0; i < tree.count; i++)
         debug_tree(tree.args[i], d + 1, context);
 }
@@ -188,6 +188,8 @@ static inline void do_intrinsic(struct context* context, struct unit* stack,
         
         debug_context(context);
         
+//        abort();
+        
         if (!context->frame_count) {
             printf("error: no stack frames to declare signature into.\n");
             abort();
@@ -208,29 +210,28 @@ static inline void do_intrinsic(struct context* context, struct unit* stack,
         
         context->indicies = realloc(context->indicies,
                                     sizeof(size_t) * (context->index_count + 1));
-        
+
         printf("before insertion: ");
         print_vector(context->indicies, context->index_count);
         
-        memmove(context->indicies + (i) + 1, context->indicies + i,
+        memmove(context->indicies + i + 1, context->indicies + i,
                sizeof(size_t) * (context->index_count - i));
-        
         
         printf("after move: ");
         print_vector(context->indicies, context->index_count);
         printf("inserting: %lu\n", context->name_count);
-                
+
         context->indicies[i] = context->name_count++;
         context->index_count++;
-                
+        
         printf("after insertion: ");
         print_vector(context->indicies, context->index_count);
                 
         printf("updating stack IND indicies:\n");
         
-        for (size_t stack_level = 0; stack_level <= top; stack_level++) {
-            if (i < stack[stack_level].ind) stack[stack_level].ind++;
-        }
+        for (size_t stack_level = 0; stack_level <= top; stack_level++)
+            if (i < stack[stack_level].ind)
+                stack[stack_level].ind++;
     }
     
     else if (index == intrin_param) {
@@ -260,6 +261,7 @@ _0:
     if (!stack[top].ind--) {
         if (!top) return 1;
         if (stack[top].type == intrin_init && begin < length && context->frame_count) {
+            begin = stack[top].begin;
             stack[top].index = intrin_char;
             push_literal(input[begin++], context);
             if (begin > context->best) context->best = begin;
@@ -270,6 +272,8 @@ _0:
     }
     done = 0; begin = stack[top].begin;
 _1:
+    debug_context(context);
+    
     stack[top].index = context->indicies[stack[top].ind];
     name = context->names[stack[top].index];
     if (stack[top].type && stack[top].type != name.type)
@@ -426,11 +430,11 @@ static inline void construct_a_context(struct context* context) {
     context->names[context->name_count].signature[4] = intrin_root + 256;
     context->name_count++;
     
+    
+    
     context->indicies = realloc(context->indicies, sizeof(size_t) * (context->index_count + 1));
     context->indicies[context->index_count++] = intrin_pop;
-    
-    
-    
+
     context->indicies = realloc(context->indicies, sizeof(size_t) * (context->index_count + 1));
     context->indicies[context->index_count++] = intrin_root;
     

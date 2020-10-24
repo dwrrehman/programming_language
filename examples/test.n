@@ -1,7 +1,9 @@
 join push
-join k
-join o
-join f
+join i
+join n
+join i
+join t
 join pop
 join decl init
-join kof kof
+join init
+char
