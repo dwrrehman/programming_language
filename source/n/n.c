@@ -473,7 +473,7 @@ int main(int argc, const char** argv) {
             perror("error"); continue;
         } else close(file);
         
-        const size_t memory_size = 128;
+        const size_t memory_size = 65536;
         const size_t root_type = intrin_root;
         
         struct context context = {0};
@@ -487,7 +487,8 @@ int main(int argc, const char** argv) {
         const size_t count = lex(text, tokens, locations, st.st_size);
         const size_t error = parse(tokens, count, root_type, memory, memory_size, &context);
         
-        debug_context(&context);
+        struct unit ast = *memory;
+        free(memory);
         
         if (error) {
             if (!count) printf("%s: error: unresolved empty file\n", argv[a]);
@@ -497,12 +498,14 @@ int main(int argc, const char** argv) {
                        argv[a],
                        locations[2 * context.best],
                        locations[2 * context.best + 1],
-                       tokens[context.best]);            
+                       tokens[context.best]);
+        } else {
+        
+            debug_context(&context);
+
+            debug_tree(ast, 0, &context);
         }
         
-        debug_tree(*memory, 0, &context);
-        
-        free(memory);
         free(locations);
         free(tokens);
         munmap(text, st.st_size);

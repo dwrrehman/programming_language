@@ -1,16 +1,23 @@
 join push
-
-join k
-join l
-
-join push
-join x
+    join k
+    join l
+    join push
+        join x
+    join pop
+    join decl init
+    join param
+    
+    join push
+        join y
+    join pop
+    join decl init
+    join param
 join pop
-join decl init
-join param
 
-join pop
 join decl init
-join kl char
+
+kl push
+kl g
+kl pop
+kl decl init
 char
-
