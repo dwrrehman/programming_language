@@ -1,9 +1,15 @@
 join push
-join i
-join n
-join i
-join t
+
+join k
+join l
+
+join push
+join x
 join pop
 join decl init
-join init
+join param
+
+join pop
+join decl init
+join 3h
 char

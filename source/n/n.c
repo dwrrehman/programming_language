@@ -40,15 +40,15 @@ struct context {
 };
 
 enum intrinsics {
-    intrin_root,
-    intrin_init,
+    intrin_root = 0,
+    intrin_init = 1,
     
-    intrin_pop,
-    intrin_push,
-    intrin_char,          // goes last in the symbol table always.
-    intrin_param,
-    intrin_join, // (init) (init)
-    intrin_decl, // (root)
+    intrin_pop = 2,
+    intrin_push = 3,
+    intrin_char = 4,          // goes last in the symbol table always.
+    intrin_param = 5,
+    intrin_join = 6, // (init) (init)
+    intrin_decl = 7, // (root)
 };
 
 
@@ -69,8 +69,7 @@ static inline void debug_tree(struct unit tree, size_t d, struct context* contex
     for (size_t i = 0; i < name.length; i++) {
         if (name.signature[i] < 256)
             printf("%c", (char) name.signature[i]);
-        else printf(" (%lu) ", name.signature[i]);
-            
+        else printf(" (%lu) ", name.signature[i]);            
     }
     printf(" :: [ind=%ld, index=%lu : type=%lu]\n\n", tree.ind, tree.index, tree.type);
     for (size_t i = 0; i < tree.count; i++)
@@ -169,7 +168,6 @@ static inline void do_intrinsic(struct context* context, struct unit* stack,
         }
         context->index_count = context->frames[--context->frame_count];
         
-        
     } else if (index == intrin_push) {
         context->frames = realloc(context->frames, sizeof(size_t) * (context->frame_count + 1));
         context->frames[context->frame_count] = context->index_count;
@@ -230,7 +228,7 @@ static inline void do_intrinsic(struct context* context, struct unit* stack,
         printf("updating stack IND indicies:\n");
         
         for (size_t stack_level = 0; stack_level <= top; stack_level++)
-            if (i < stack[stack_level].ind)
+            if (i <= stack[stack_level].ind)
                 stack[stack_level].ind++;
     }
     
@@ -239,8 +237,11 @@ static inline void do_intrinsic(struct context* context, struct unit* stack,
             printf("error: cannot add param from top level stack frame.\n");
             abort();
         }
-        printf("unimpl.\n");
-        abort();
+        context->owners[context->frame_count - 1].signature
+        = realloc(context->owners[context->frame_count - 1].signature, sizeof(size_t)
+                  * (context->owners[context->frame_count - 1].length + 1));
+        context->owners[context->frame_count - 1]
+        .signature[context->owners[context->frame_count - 1].length++] = context->owners[context->frame_count].type;
     }
 }
 
@@ -263,8 +264,8 @@ _0:
         if (stack[top].type == intrin_init && begin < length && context->frame_count) {
             begin = stack[top].begin;
             stack[top].index = intrin_char;
-            push_literal(input[begin++], context);
-            if (begin > context->best) context->best = begin;
+            push_literal(input[begin], context);
+            if (begin++ > context->best) context->best = begin;
             goto _2;
         }
         top--;
@@ -272,9 +273,6 @@ _0:
     }
     done = 0; begin = stack[top].begin;
 _1:
-    debug_context(context);
-    
-    stack[top].index = context->indicies[stack[top].ind];
     name = context->names[stack[top].index];
     if (stack[top].type && stack[top].type != name.type)
         goto _3;
