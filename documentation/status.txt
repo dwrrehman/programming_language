@@ -37,6 +37,9 @@ char
 
 
 
+join param
+join decl init
+join pop char
 
 
 
@@ -45,6 +48,28 @@ char
 
 
 
+
+join push
+join k
+join o
+join pop
+join decl init
+kp
+
+
+
+
+
+
+
+
+        if (context->frame_count) {
+            context->index_count = context->frames[context->frame_count - 1];
+            context->frame_count--;
+        } else {
+            printf("error: cannot declare top level signature.\n");
+            abort();
+        }
 
 
 

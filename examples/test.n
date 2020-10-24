@@ -1,6 +1,7 @@
 join push
-join j
-join param
-join decl init
 join k
-join pop j
+join o
+join f
+join pop
+join decl init
+join kof kof

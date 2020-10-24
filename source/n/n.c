@@ -51,6 +51,15 @@ enum intrinsics {
     intrin_decl, // (root)
 };
 
+
+static inline void print_vector(size_t* v, size_t length) {
+    printf("{ ");
+    for (size_t i = 0; i < length; i++) {
+        printf("%lu ", v[i]);
+    }
+    printf("}\n");
+}
+
 static inline void debug_tree(struct unit tree, size_t d, struct context* context) {
     for (size_t i = 0; i < d; i++)
         printf(".   ");
@@ -148,54 +157,89 @@ static inline size_t lex(uint8_t* text, uint8_t* tokens, uint16_t* locations, si
     return count;
 }
 
-static inline void do_intrinsic(struct context* context, struct unit this) {
+static inline void do_intrinsic(struct context* context, struct unit* stack,
+                                size_t top) {
     
-    if (this.index == intrin_pop) {
-        ///TODO: deallocate top of name stack.
-        if (context->frame_count) {
-            context->index_count = context->frames[context->frame_count - 1];
-            context->frame_count--;
+    size_t index = stack[top].index;
+    
+    if (index == intrin_pop) {
+        if (!context->frame_count) {
+            printf("error: no more stack frames to pop.\n");
+            abort();
         }
-    }
-    
-    else if (this.index == intrin_push) {
+        context->index_count = context->frames[--context->frame_count];
+        
+        
+    } else if (index == intrin_push) {
         context->frames = realloc(context->frames, sizeof(size_t) * (context->frame_count + 1));
         context->frames[context->frame_count] = context->index_count;
         
         context->owners = realloc(context->owners, sizeof(struct name) * (context->frame_count + 1));
-        context->owners[context->frame_count++] = (struct name) {0};
+        context->owners[context->frame_count++] = (struct name) {
+            .length = 0,
+            .type = 0,
+            .signature = NULL,
+            .codegen_as = 0,
+            .precedence = 0
+        };
     }
     
-    else if (this.index == intrin_decl) {
+    else if (index == intrin_decl) {
         
-        if (context->frame_count < 2) {
-            printf("error: cannot declare top level signature.\n");
+        debug_context(context);
+        
+        if (!context->frame_count) {
+            printf("error: no stack frames to declare signature into.\n");
             abort();
         }
         
-        if (this.count) context->owners[context->frame_count - 1].type = this.args[0].index;
+        if (stack[top].count) context->owners[context->frame_count].type = stack[top].args[0].index;
         context->names = realloc(context->names, sizeof(struct name) * (context->name_count + 1));
-        context->names[context->name_count] = context->owners[context->frame_count - 1];
-                
-        size_t i = context->frames[context->frame_count - 1];
-        while (i-- > context->frames[context->frame_count - 2])
+        context->names[context->name_count] = context->owners[context->frame_count];
+        
+        size_t i = context->index_count;
+        while (i-- > context->frames[context->frame_count - 1])
             if (context->names[context->name_count].length
-                <
+                >=
                 context->names[context->indicies[i]].length) break;
+        i++;
+        
+        printf("insertion point (i) = %lu\n", i);
         
         context->indicies = realloc(context->indicies,
                                     sizeof(size_t) * (context->index_count + 1));
-        memcpy(context->indicies + i + 1, context->indicies + i,
+        
+        printf("before insertion: ");
+        print_vector(context->indicies, context->index_count);
+        
+        memmove(context->indicies + (i) + 1, context->indicies + i,
                sizeof(size_t) * (context->index_count - i));
-        context->indicies[i] = context->name_count;
-        context->name_count++;
+        
+        
+        printf("after move: ");
+        print_vector(context->indicies, context->index_count);
+        printf("inserting: %lu\n", context->name_count);
+                
+        context->indicies[i] = context->name_count++;
+        context->index_count++;
+                
+        printf("after insertion: ");
+        print_vector(context->indicies, context->index_count);
+                
+        printf("updating stack IND indicies:\n");
+        
+        for (size_t stack_level = 0; stack_level <= top; stack_level++) {
+            if (i < stack[stack_level].ind) stack[stack_level].ind++;
+        }
     }
     
-    else if (this.index == intrin_param) {
-        if (context->frame_count < 2) {
+    else if (index == intrin_param) {
+        if (context->frame_count <= 1) {
             printf("error: cannot add param from top level stack frame.\n");
             abort();
         }
+        printf("unimpl.\n");
+        abort();
     }
 }
 
@@ -211,24 +255,21 @@ static inline size_t parse
 (uint8_t* input, size_t length, size_t type, struct unit* stack, size_t max, struct context* context) {
     struct name name;
     size_t top = 0, done = 0, begin = 0;
-    *stack = (struct unit) {0, type, 0, 0, 0, 0, NULL};
+    *stack = (struct unit) {context->index_count, type, 0, 0, 0, 0, NULL};
 _0:
-    if (stack[top].ind >= context->index_count) {
+    if (!stack[top].ind--) {
+        if (!top) return 1;
         if (stack[top].type == intrin_init && begin < length && context->frame_count) {
             stack[top].index = intrin_char;
-            debug_context(context);
             push_literal(input[begin++], context);
-            debug_context(context);
             if (begin > context->best) context->best = begin;
             goto _2;
         }
-        if (top--) goto _3;
-        return 1;
+        top--;
+        goto _3;
     }
     done = 0; begin = stack[top].begin;
 _1:
-    
-    debug_context(context);
     stack[top].index = context->indicies[stack[top].ind];
     name = context->names[stack[top].index];
     if (stack[top].type && stack[top].type != name.type)
@@ -238,7 +279,7 @@ _1:
         size_t c = name.signature[done++];
         if (c >= 256 && top + 1 < max) {
             stack[top].args = realloc(stack[top].args, sizeof(struct unit) * (++(stack[top].count)));
-            stack[++top] = (struct unit) {0, c - 256, 0, begin, done, 0, 0};
+            stack[++top] = (struct unit) {context->index_count, c - 256, 0, begin, done, 0, 0};
             goto _0;
         }
         if (c != input[begin])
@@ -248,14 +289,13 @@ _1:
     }
 _2:
     if (top) {
-        do_intrinsic(context, stack[top]);
+        do_intrinsic(context, stack,top);
         stack[top - 1].args[stack[top - 1].count - 1] = stack[top];
         done = stack[top--].done;
         goto _1;
     }
     if (begin == length) return 0;
 _3:
-    stack[top].ind++;
     free(stack[top].args);
     stack[top].args = NULL;
     stack[top].count = 0;
@@ -358,7 +398,7 @@ static inline void construct_a_context(struct context* context) {
     context->names[context->name_count].signature[3] = 'a';
     context->names[context->name_count].signature[4] = 'm';
     context->name_count++;
-                        
+    
     context->names = realloc(context->names, sizeof(struct name) * (context->name_count + 1));
     context->names[context->name_count].type = intrin_init;
     context->names[context->name_count].precedence = 0;
@@ -385,16 +425,19 @@ static inline void construct_a_context(struct context* context) {
     context->names[context->name_count].signature[3] = 'l';
     context->names[context->name_count].signature[4] = intrin_root + 256;
     context->name_count++;
-            
+    
+    context->indicies = realloc(context->indicies, sizeof(size_t) * (context->index_count + 1));
+    context->indicies[context->index_count++] = intrin_pop;
+    
+    
+    
     context->indicies = realloc(context->indicies, sizeof(size_t) * (context->index_count + 1));
     context->indicies[context->index_count++] = intrin_root;
     
     context->indicies = realloc(context->indicies, sizeof(size_t) * (context->index_count + 1));
     context->indicies[context->index_count++] = intrin_init;
     
-    context->indicies = realloc(context->indicies, sizeof(size_t) * (context->index_count + 1));
-    context->indicies[context->index_count++] = intrin_pop;
-      
+    
     context->indicies = realloc(context->indicies, sizeof(size_t) * (context->index_count + 1));
     context->indicies[context->index_count++] = intrin_push;
     
@@ -404,11 +447,13 @@ static inline void construct_a_context(struct context* context) {
     context->indicies = realloc(context->indicies, sizeof(size_t) * (context->index_count + 1));
     context->indicies[context->index_count++] = intrin_param;
     
-    context->indicies = realloc(context->indicies, sizeof(size_t) * (context->index_count + 1));
-    context->indicies[context->index_count++] = intrin_join;
     
     context->indicies = realloc(context->indicies, sizeof(size_t) * (context->index_count + 1));
     context->indicies[context->index_count++] = intrin_decl;
+    
+    
+    context->indicies = realloc(context->indicies, sizeof(size_t) * (context->index_count + 1));
+    context->indicies[context->index_count++] = intrin_join;
     
 }
 
@@ -425,7 +470,6 @@ int main(int argc, const char** argv) {
         } else close(file);
         
         const size_t memory_size = 128;
-        
         const size_t root_type = intrin_root;
         
         struct context context = {0};
@@ -435,12 +479,12 @@ int main(int argc, const char** argv) {
         uint8_t* tokens = malloc(sizeof(uint8_t) * st.st_size);
         uint16_t* locations = malloc(sizeof(uint16_t) * st.st_size * 2);
         struct unit* memory = malloc(sizeof(struct unit) * memory_size);
-                
+        
         const size_t count = lex(text, tokens, locations, st.st_size);
         const size_t error = parse(tokens, count, root_type, memory, memory_size, &context);
-                
+        
         debug_context(&context);
-                
+        
         if (error) {
             if (!count) printf("%s: error: unresolved empty file\n", argv[a]);
             else if (context.best == count) printf("%s: error: unresolved EOF\n", argv[a]);
@@ -454,7 +498,6 @@ int main(int argc, const char** argv) {
         
         debug_tree(*memory, 0, &context);
         
-
         free(memory);
         free(locations);
         free(tokens);
