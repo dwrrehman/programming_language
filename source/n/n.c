@@ -185,8 +185,6 @@ static inline void do_intrinsic(struct context* context, struct unit* stack, siz
         
 //        debug_context(context);
         
-//        abort();
-        
         if (!context->frame_count) {
             printf("error: no stack frames to declare signature into.\n");
             abort();
@@ -304,14 +302,6 @@ _3:
     stack[top].count = 0;
     goto _0;
 }
-
-
-
-
-
-
-
-
 
 
 static inline void construct_a_context(struct context* context) {
@@ -467,17 +457,36 @@ int main(int argc, const char** argv) {
         struct stat st = {0};
         int file = open(argv[a], O_RDONLY);
         if (file < 0 || stat(argv[a], &st) < 0 ||
-            (text = mmap(0, st.st_size, PROT_READ, MAP_SHARED, file, 0)) == MAP_FAILED) {
+            (text = mmap(0, st.st_size, PROT_READ,
+                         MAP_SHARED, file, 0)) == MAP_FAILED) {
             fprintf(stderr, "n: %s: ", argv[a]);
             perror("error"); continue;
         } else close(file);
+                
+        const char* extension = strrchr(argv[a], '.');
+        
+        if (!extension) {
+            printf("no extension! \n");
+            abort();
+            
+        } else if (!strcmp(extension, ".n")) {
+            printf("found a .n file.\n");
+            
+        } else if (!strcmp(extension, ".ll")) {
+            printf("found a .ll file.\n");
+            printf("unimplemented.\n");
+            abort();
+        } else {
+            printf("unknown extension.\n");
+            abort();
+        }
+        
         
         const size_t memory_size = 65536;
         const size_t root_type = intrin_root;
         
         struct context context = {0};
         construct_a_context(&context);
-//        debug_context(&context);
         
         uint8_t* tokens = malloc(sizeof(uint8_t) * st.st_size);
         uint16_t* locations = malloc(sizeof(uint16_t) * st.st_size * 2);
@@ -499,8 +508,8 @@ int main(int argc, const char** argv) {
                        locations[2 * context.best + 1],
                        tokens[context.best]);
         } else {
-//            debug_context(&context);
-//            debug_tree(ast, 0, &context);
+            debug_context(&context);
+            debug_tree(ast, 0, &context);
         }
         
         free(locations);
