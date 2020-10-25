@@ -300,7 +300,7 @@ static inline size_t do_intrinsic(struct context* c, struct unit* stack, size_t 
 //
 //        printf("REPLACING WITH RESULT: \n");
 //        debug_tree(new, 0, c);
-//
+        
         stack[top].index = new.index;
         stack[top].args = new.args;
         stack[top].count = new.count;
