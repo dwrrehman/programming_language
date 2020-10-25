@@ -8,6 +8,75 @@ the current status of my compiler:
 
 
 
+okay, so alot of developments are happening int helanguage
+
+
+
+
+    i choose to merge the lexing and parsing functions, and im quite happy i did.
+        its untested rightnow
+        
+            though
+            
+            
+            
+            
+            
+    im also thinking about mergingthe csr and codegen fucntions,becuase i need to do type compuputaiton, to have ctt, and a tc type system.
+    
+    
+        i am chainng how to the intrinsic list works drasmtically, simplifying it, and making it more robust, and user friendly, and useable.
+        
+        
+            i also am re thinking how macros  are mentally thought of , now, more along the lines of evlauataion strgatgi4es.
+            
+            im adding an eval (for insintrinscs, in csr, ocmpieltime, no llmv, yet) to the language
+            
+            
+            
+            
+            
+            
+            but maybe i need to merge csr and cg, because i need eval to actually run some particular functions..?
+            
+            maybe thats the case.
+            
+            
+            im not sure .
+            
+            
+            could be.
+            
+            
+            
+            
+            anywyss
+            
+            
+            
+            the language is going well, im super happy i have csr done noww
+            
+            
+            
+            
+            
+            i can work on really intersting stuff now
+            
+            
+            
+                thats hoenstly quite complicaed lol
+                
+                
+                
+                
+                
+                
+
+
+
+
+
+
 2010235.23:
 so i just implemented macros successfully, just simple, opaque versiom.
 i need to make it transparent wrt to the context manipulation now.
