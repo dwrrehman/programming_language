@@ -56,7 +56,7 @@ enum intrinsics {
 };
 
 enum codegen_type {
-    cg_default, // generate llvm ir.
+    cg_default,
     cg_macro,
     cg_lazy,
     cg_interpreted,
@@ -171,7 +171,6 @@ static inline void push_literal(size_t push, struct context* c) {
     [c->owners[c->frame_count - 1].length++] = push;
 }
 
-
 static inline struct unit duplicate(struct unit this) {
     struct unit dup = this;
     dup.args = malloc(sizeof(struct unit) * this.count);
@@ -273,34 +272,14 @@ static inline size_t do_intrinsic(struct context* c, struct unit* stack, size_t 
     }
     
     struct name function = c->names[stack[top].index];
-    
     if (function.codegen_as == cg_macro) {
-        
-//        debug_context(c);
-        
         struct unit new = duplicate(function.definition);
         const size_t arity = stack[top].count;
-        
-//        printf("found arity of function = %lu\n", arity);
-        
         for (size_t a = 0; a < arity; a++) {
-            
             struct unit argument = stack[top].args[a];
             size_t parameter = stack[top].index - arity + a;
-//
-//            printf("replacing parameter at index %lu...\n", parameter);
-//            printf("with:\n"); debug_tree(argument, 0, c);
-//            puts("\n");
-            
             replace_all_occurences(parameter, argument, &new);
         }
-        
-//        printf("FINALLY: replacing the following tree: \n");
-//        debug_tree(stack[top], 0, c);
-//
-//        printf("REPLACING WITH RESULT: \n");
-//        debug_tree(new, 0, c);
-        
         stack[top].index = new.index;
         stack[top].args = new.args;
         stack[top].count = new.count;
@@ -308,17 +287,6 @@ static inline size_t do_intrinsic(struct context* c, struct unit* stack, size_t 
     
     return 0;
 }
-
-
-
-//        0;
-//        for (size_t s = 0; s < function.length; s++) {
-//            arity += (function.signature[s] >= 256);
-//        }
-
-
-
-
 
 static inline size_t parse
 (uint8_t* input, size_t length, size_t type, struct unit* stack, size_t max, struct context* context) {

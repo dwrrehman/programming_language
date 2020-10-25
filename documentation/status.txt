@@ -8,6 +8,10 @@ the current status of my compiler:
 
 
 
+2010235.23:
+so i just implemented macros successfully, just simple, opaque versiom.
+i need to make it transparent wrt to the context manipulation now.
+    hopefully that goes smoothly!
 
 
 
