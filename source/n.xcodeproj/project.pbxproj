@@ -92,7 +92,7 @@
 		FDAB9E30243C3B4E000B1E4B /* Project object */ = {
 			isa = PBXProject;
 			attributes = {
-				LastUpgradeCheck = 1140;
+				LastUpgradeCheck = 1200;
 				ORGANIZATIONNAME = "Daniel Rehman";
 				TargetAttributes = {
 					FDAB9E37243C3B4E000B1E4B = {
@@ -156,6 +156,7 @@
 				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
 				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
 				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
 				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
 				CLANG_WARN_STRICT_PROTOTYPES = YES;
 				CLANG_WARN_SUSPICIOUS_MOVE = YES;
@@ -214,6 +215,7 @@
 				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
 				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
 				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
 				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
 				CLANG_WARN_STRICT_PROTOTYPES = YES;
 				CLANG_WARN_SUSPICIOUS_MOVE = YES;
@@ -243,28 +245,31 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CLANG_CXX_LANGUAGE_STANDARD = "c++17";
+				CODE_SIGN_IDENTITY = "-";
 				CODE_SIGN_STYLE = Automatic;
 				DEVELOPMENT_TEAM = JTMD2SW5KN;
 				ENABLE_HARDENED_RUNTIME = YES;
 				GCC_C_LANGUAGE_STANDARD = c11;
 				GCC_TREAT_WARNINGS_AS_ERRORS = NO;
 				GCC_WARN_PEDANTIC = YES;
-				LIBRARY_SEARCH_PATHS = /usr/local/Cellar/llvm/9.0.1/lib;
+				LIBRARY_SEARCH_PATHS = /usr/local/Cellar/llvm/10.0.1_1/lib;
 				OTHER_CFLAGS = (
-					"-I/usr/local/Cellar/llvm/9.0.1/include",
+					"-I/usr/local/Cellar/llvm/10.0.1_1/include",
 					"-D__STDC_CONSTANT_MACROS",
 					"-D__STDC_FORMAT_MACROS",
 					"-D__STDC_LIMIT_MACROS",
 				);
 				OTHER_LDFLAGS = (
-					"-I/usr/local/Cellar/llvm/9.0.1/include",
+					"-I/usr/local/Cellar/llvm/10.0.1_1/include",
 					"-std=c++11",
 					"-stdlib=libc++",
 					"-D__STDC_CONSTANT_MACROS",
 					"-D__STDC_FORMAT_MACROS",
-					"-D__STDC_LIMIT_MACROS\n-L/usr/local/Cellar/llvm/9.0.1/lib",
+					"-D__STDC_LIMIT_MACROS",
+					"-L/usr/local/Cellar/llvm/10.0.1_1/lib",
 					"-Wl,-search_paths_first",
-					"-Wl,-headerpad_max_install_names\n-lLLVMInterpreter",
+					"-Wl,-headerpad_max_install_names",
+					"-lLLVMInterpreter",
 					"-lLLVMCodeGen",
 					"-lLLVMScalarOpts",
 					"-lLLVMInstCombine",
@@ -290,7 +295,8 @@
 					"-lLLVMRemarks",
 					"-lLLVMBinaryFormat",
 					"-lLLVMSupport",
-					"-lLLVMDemangle\n-lz",
+					"-lLLVMDemangle",
+					"-lz",
 					"-lcurses",
 					"-lm",
 					"-lxml2",
@@ -298,7 +304,7 @@
 					"-lffi",
 				);
 				PRODUCT_NAME = "$(TARGET_NAME)";
-				USER_HEADER_SEARCH_PATHS = /usr/local/Cellar/llvm/9.0.1/include;
+				USER_HEADER_SEARCH_PATHS = /usr/local/Cellar/llvm/10.0.1_1/include;
 				WARNING_CFLAGS = (
 					"-Wall",
 					"-Wpedantic",
@@ -312,28 +318,31 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CLANG_CXX_LANGUAGE_STANDARD = "c++17";
+				CODE_SIGN_IDENTITY = "-";
 				CODE_SIGN_STYLE = Automatic;
 				DEVELOPMENT_TEAM = JTMD2SW5KN;
 				ENABLE_HARDENED_RUNTIME = YES;
 				GCC_C_LANGUAGE_STANDARD = c11;
 				GCC_TREAT_WARNINGS_AS_ERRORS = NO;
 				GCC_WARN_PEDANTIC = YES;
-				LIBRARY_SEARCH_PATHS = /usr/local/Cellar/llvm/9.0.1/lib;
+				LIBRARY_SEARCH_PATHS = /usr/local/Cellar/llvm/10.0.1_1/lib;
 				OTHER_CFLAGS = (
-					"-I/usr/local/Cellar/llvm/9.0.1/include",
+					"-I/usr/local/Cellar/llvm/10.0.1_1/include",
 					"-D__STDC_CONSTANT_MACROS",
 					"-D__STDC_FORMAT_MACROS",
 					"-D__STDC_LIMIT_MACROS",
 				);
 				OTHER_LDFLAGS = (
-					"-I/usr/local/Cellar/llvm/9.0.1/include",
+					"-I/usr/local/Cellar/llvm/10.0.1_1/include",
 					"-std=c++11",
 					"-stdlib=libc++",
 					"-D__STDC_CONSTANT_MACROS",
 					"-D__STDC_FORMAT_MACROS",
-					"-D__STDC_LIMIT_MACROS\n-L/usr/local/Cellar/llvm/9.0.1/lib",
+					"-D__STDC_LIMIT_MACROS",
+					"-L/usr/local/Cellar/llvm/10.0.1_1/lib",
 					"-Wl,-search_paths_first",
-					"-Wl,-headerpad_max_install_names\n-lLLVMInterpreter",
+					"-Wl,-headerpad_max_install_names",
+					"-lLLVMInterpreter",
 					"-lLLVMCodeGen",
 					"-lLLVMScalarOpts",
 					"-lLLVMInstCombine",
@@ -359,7 +368,8 @@
 					"-lLLVMRemarks",
 					"-lLLVMBinaryFormat",
 					"-lLLVMSupport",
-					"-lLLVMDemangle\n-lz",
+					"-lLLVMDemangle",
+					"-lz",
 					"-lcurses",
 					"-lm",
 					"-lxml2",
@@ -367,7 +377,7 @@
 					"-lffi",
 				);
 				PRODUCT_NAME = "$(TARGET_NAME)";
-				USER_HEADER_SEARCH_PATHS = /usr/local/Cellar/llvm/9.0.1/include;
+				USER_HEADER_SEARCH_PATHS = /usr/local/Cellar/llvm/10.0.1_1/include;
 				WARNING_CFLAGS = (
 					"-Wall",
 					"-Wpedantic",

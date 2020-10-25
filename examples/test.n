@@ -1,1 +1,54 @@
 
+join push
+join d
+join e
+join f
+    join push
+    join D
+    join decl root
+    join pop
+    join param
+join decl init
+join pop
+
+join push
+join m
+join a
+join c
+join r
+join o
+join decl init
+join pop
+
+join push
+join h
+join e
+join l
+join l
+join o
+join decl init
+join pop
+
+join push
+    join f
+    join push
+        join x
+    join decl init
+    join pop
+    join param
+join decl init
+join macro
+join def
+    join x x
+join pop
+
+
+join push
+join P
+join 0
+join decl init
+join macro
+join def
+    join char hello
+join pop
+P0
