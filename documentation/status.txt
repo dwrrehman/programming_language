@@ -3,6 +3,70 @@ the current status of my compiler:
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+NOTE: this code DEFINES the idenity function for the init type,
+    including its body, which is just the argument x. super cool.
+
+join push
+join d
+join e
+join f
+    join push
+    join D
+    join decl root
+    join pop
+    join param
+join decl init
+join pop
+
+join push
+join i
+join d
+join push
+join x
+join decl init
+join pop
+join param
+
+join decl init
+join def x
+join pop
+id id id char
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 join push
 join d
 join e

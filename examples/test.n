@@ -12,15 +12,39 @@ join decl init
 join pop
 
 join push
-join i
-join d
+join m
+join a
+join c
+join r
+join o
+join decl init
+join pop
+
+join push
+join h
+join e
+join l
+join l
+join o
+join decl init
+join pop
+
+join push
+join (
+join f
 join push
 join x
 join decl init
 join pop
 join param
-
+join )
 join decl init
-join def x
+join def
+    join
+        x x
 join pop
-id id id char
+join macro
+
+join (f join hello char)
+(f hello)
+
