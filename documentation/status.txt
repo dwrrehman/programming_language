@@ -2,22 +2,25 @@ the current status of my compiler:
 ==================================
 
 
-join push
-
-join k
-join l
 
 join push
-join x
+join d
+join e
+join f
+    join push
+    join D
+    join pop
+    join decl root
+    join param
 join pop
 join decl init
-join param
 
+join push
+join r
 join pop
 join decl init
-join kl
+join def r
 char
-char
 
 
 
@@ -30,56 +33,123 @@ char
 
 
 
-join
 
-    join
+
+
+
+
+
+
+
+
+join push
+    join u
+    join n
+    join i
+    join t
+join pop
+join decl init
+
+join push
+    join 9
     
-        h e
-        
-    join
-        
-        join l l
-        
-        join
-            
-                o
-                
-                param
+    join push
+        join 0
+    join pop
+    join decl unit
+    join param
+    
+    join push
+        join 1
+    join pop
+    join decl unit
+    join param
+    
+    join push
+        join 2
+    join pop
+    join decl unit
+    join param
+    
+    join push
+        join 3
+    join pop
+    join decl unit
+    join param
+    
+    join push
+        join 4
+    join pop
+    join decl unit
+    join param
+    
+    join push
+        join 5
+    join pop
+    join decl unit
+    join param
+    
+    join push
+        join 6
+    join pop
+    join decl unit
+    join param
+    
+    join push
+        join 7
+    join pop
+    join decl unit
+    join param
+    
+    join push
+        join 8
+    join pop
+    join decl unit
+    join param
 
-
-
-
-
-
-
-
+join pop
+join decl unit
 
 join push
-join k
-join k
-join decl init
-char
-
-
-
-join param
-join decl init
-join pop char
-
-
-
-
-
-
-
-
-
-join push
-join k
-join o
+    join i
+    join u
+    
+    join push
+        join _
+        join x
+    join pop
+    join decl unit
+    join param
+    
 join pop
 join decl init
-kp
+
+join push
+    join u
+    join i
+    
+    join push
+        join _
+        join x
+    join pop
+    join decl init
+    join param
+    
+join pop
+join decl unit
+
+iu 9
+    ui char
+    ui char
+    ui char
+    ui char
+    ui char
+    ui char
+    ui char
+    ui char
+    ui char
+
+        
 
 
 
@@ -88,13 +158,64 @@ kp
 
 
 
-        if (context->frame_count) {
-            context->index_count = context->frames[context->frame_count - 1];
-            context->frame_count--;
-        } else {
-            printf("error: cannot declare top level signature.\n");
-            abort();
-        }
+
+
+
+
+
+
+
+
+
+
+
+
+okay, so heres our critical todo:
+---------------------------------
+
+
+    - the lazy type...?
+    
+    - _define intrinsic
+    
+    - macros
+        
+then next:
+
+    - llvm system integration! codegeneration.
+    
+    - context-serializer, and de-serializer
+    
+    
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+so now that we have declare done and dusted..
+
+    im thinking should probably work on "define", before we tackle macros?
+    
+    because, i mean.. macros need definitions, lol.
+    
+    
+    
+    
+
+
 
 
 
@@ -3998,5 +4119,113 @@ yeah, im pretty sure that the thing which i have to do now, is figure out how to
             thats really important. 
 
       
+
+
+
+
+
+
+
+
+
+
+
+join push
+
+join k
+join l
+
+join push
+join x
+join pop
+join decl init
+join param
+
+join pop
+join decl init
+join kl
+char
+char
+
+
+
+
+
+
+
+
+
+
+
+
+join
+
+    join
+    
+        h e
+        
+    join
+        
+        join l l
+        
+        join
+            
+                o
+                
+                param
+
+
+
+
+
+
+
+
+
+join push
+join k
+join k
+join decl init
+char
+
+
+
+join param
+join decl init
+join pop char
+
+
+
+
+
+
+
+
+
+join push
+join k
+join o
+join pop
+join decl init
+kp
+
+
+
+
+
+
+
+
+        if (context->frame_count) {
+            context->index_count = context->frames[context->frame_count - 1];
+            context->frame_count--;
+        } else {
+            printf("error: cannot declare top level signature.\n");
+            abort();
+        }
+
+
+
+
 
 

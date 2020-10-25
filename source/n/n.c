@@ -26,6 +26,7 @@ struct name {
     size_t* signature;
     size_t codegen_as;
     size_t precedence;
+    struct unit definition;
 };
 
 struct context {
@@ -40,17 +41,20 @@ struct context {
 };
 
 enum intrinsics {
-    intrin_root = 0,
-    intrin_init = 1,
-    
-    intrin_pop = 2,
-    intrin_push = 3,
-    intrin_char = 4,          // goes last in the symbol table always.
-    intrin_param = 5,
-    intrin_join = 6, // (init) (init)
-    intrin_decl = 7, // (root)
+    // ----- compiler defined -----
+    intrin_root,
+    intrin_init,
+    intrin_pop,
+    intrin_push,
+    intrin_char,
+    intrin_param,
+    intrin_join,
+    intrin_decl,
+    // ------ user defined ------
+    intrin_define__arg0,
+    intrin_define,
+    intrin_macro,
 };
-
 
 static inline void print_vector(size_t* v, size_t length) {
     printf("{ ");
@@ -98,24 +102,21 @@ static inline void debug_context(struct context* context) {
             }
         }
         printf("\n\n");
+        debug_tree(context->names[i].definition, 0, context);
     }
     printf("-------------------\n\n");
         
     printf("---------- indicies --------\n");
     printf("index_count = %lu\n", context->index_count);
-    printf("indicies:     { ");
-    for (size_t i = 0; i < context->index_count; i++) {
-        printf("%lu ", context->indicies[i]);
-    }
-    printf("}\n\n");
+    printf("indicies:     ");
+    print_vector(context->indicies, context->index_count);
+    printf("\n");
     
     printf("---------- frames --------\n");
     printf("frame_count = %lu\n", context->frame_count);
-    printf("frames:     { ");
-    for (size_t i = 0; i < context->frame_count; i++) {
-        printf("%lu ", context->frames[i]);
-    }
-    printf("}\n\n");
+    printf("frames:     ");
+    print_vector(context->frames, context->frame_count);
+    printf("\n");
     
     printf("---------- owners --------\n");
     printf("(owner)frame_count = %lu\n", context->frame_count);
@@ -156,98 +157,96 @@ static inline size_t lex(uint8_t* text, uint8_t* tokens, uint16_t* locations, si
     return count;
 }
 
-static inline void do_intrinsic(struct context* context, struct unit* stack, size_t top) {
+static inline void push_literal(size_t push, struct context* c) {
+    c->owners[c->frame_count - 1].signature = realloc
+    (c->owners[c->frame_count - 1].signature,
+     sizeof(size_t) * (c->owners[c->frame_count - 1].length + 1));
+    c->owners[c->frame_count - 1].signature
+    [c->owners[c->frame_count - 1].length++] = push;
+}
+
+static inline size_t do_intrinsic(struct context* c, struct unit* stack, size_t top) {
     
     const size_t index = stack[top].index;
     
     if (index == intrin_pop) {
-        if (!context->frame_count) {
-            printf("error: no more stack frames to pop.\n");
-            abort();
+        
+        if (!c->frame_count) {
+            printf("error: fc=0: no more stack frames to pop.\n");
+            return 1;
         }
-        context->index_count = context->frames[--context->frame_count];
+        
+        c->index_count = c->frames[--c->frame_count];
         
     } else if (index == intrin_push) {
-        context->frames = realloc(context->frames, sizeof(size_t) * (context->frame_count + 1));
-        context->frames[context->frame_count] = context->index_count;
         
-        context->owners = realloc(context->owners, sizeof(struct name) * (context->frame_count + 1));
-        context->owners[context->frame_count++] = (struct name) {
-            .length = 0,
-            .type = 0,
-            .signature = NULL,
-            .codegen_as = 0,
-            .precedence = 0
-        };
-    }
+        c->frames = realloc(c->frames, sizeof(size_t) * (c->frame_count + 1));
+        c->frames[c->frame_count] = c->index_count;
+        c->owners = realloc(c->owners, sizeof(struct name) * (c->frame_count + 1));
+        c->owners[c->frame_count++] = (struct name) {0};
     
-    else if (index == intrin_decl) {
+    } else if (index == intrin_decl) {
         
-//        debug_context(context);
-        
-        if (!context->frame_count) {
-            printf("error: no stack frames to declare signature into.\n");
-            abort();
+        if (c->frame_count <= 1) {
+            printf("error: fc=0: no stack frames to declare signature into.\n");
+            return 1;
         }
         
-        if (stack[top].count) context->owners[context->frame_count].type = stack[top].args[0].index;
-        context->names = realloc(context->names, sizeof(struct name) * (context->name_count + 1));
-        context->names[context->name_count] = context->owners[context->frame_count];
+        if (stack[top].count) c->owners[c->frame_count - 1].type = stack[top].args[0].index;
+        c->names = realloc(c->names, sizeof(struct name) * (c->name_count + 1));
+        c->names[c->name_count] = c->owners[c->frame_count - 1];
         
-        size_t i = context->index_count;
-        while (i-- > context->frames[context->frame_count - 1])
-            if (context->names[context->name_count].length
-                >=
-                context->names[context->indicies[i]].length) break;
+        size_t i = c->frames[c->frame_count - 1];
+        while (i-- > c->frames[c->frame_count - 2])
+            if (c->names[c->name_count].length >= c->names[c->indicies[i]].length) break;
         i++;
         
-//        printf("insertion point (i) = %lu\n", i);
-//
-        context->indicies = realloc(context->indicies,
-                                    sizeof(size_t) * (context->index_count + 1));
+        c->indicies = realloc(c->indicies, sizeof(size_t) * (c->index_count + 1));
+        memmove(c->indicies + i + 1, c->indicies + i, sizeof(size_t) * (c->index_count - i));
+        c->indicies[i] = c->name_count++;
+        c->index_count++;
 
-//        printf("before insertion: ");
-//        print_vector(context->indicies, context->index_count);
-//
-        memmove(context->indicies + i + 1, context->indicies + i,
-               sizeof(size_t) * (context->index_count - i));
+        for (size_t s = 0; s <= top; s++)
+            if (i <= stack[s].ind) stack[s].ind++;
         
-//        printf("after move: ");
-//        print_vector(context->indicies, context->index_count);
-//        printf("inserting: %lu\n", context->name_count);
-
-        context->indicies[i] = context->name_count++;
-        context->index_count++;
-//
-//        printf("after insertion: ");
-//        print_vector(context->indicies, context->index_count);
-//
-//        printf("updating stack IND indicies:\n");
-//
-        for (size_t stack_level = 0; stack_level <= top; stack_level++)
-            if (i <= stack[stack_level].ind)
-                stack[stack_level].ind++;
+        c->frames[c->frame_count - 1]++;
     }
     
     else if (index == intrin_param) {
-        if (!context->frame_count) {
-            printf("error: cannot add param from top level stack frame.\n");
-            abort();
+        if (!c->frame_count) {
+            printf("error: fc=0: cannot add param from top level stack frame.\n");
+            return 1;
         }
-        context->owners[context->frame_count - 1].signature
-        = realloc(context->owners[context->frame_count - 1].signature, sizeof(size_t)
-                  * (context->owners[context->frame_count - 1].length + 1));
-        context->owners[context->frame_count - 1]
-        .signature[context->owners[context->frame_count - 1].length++] = 256 + context->owners[context->frame_count].type;
+        
+        push_literal(256 + c->owners[c->frame_count].type, c);
+        
+    } else if (index == intrin_define) {
+        
+        if (!c->frame_count) {
+            printf("error: fc=0: no declared signature to attach definition to.\n");
+            return 1;
+        }
+        
+        size_t
+            expected = c->names[c->name_count - 1].type,
+            actual = c->names[stack[top].args[0].index].type;
+            
+        if (expected != actual) {
+            printf("error: attached definition does not match return type: %lu != %lu\n", expected, actual);
+            return 2;
+        }
+        
+        c->names[c->name_count - 1].definition = stack[top].args[0];
+        
+    } else if (index == intrin_macro) {
+        
+        if (1) {
+            printf("error: unimplemented.\n");
+//            abort();
+        }
     }
-}
-
-static inline void push_literal(size_t c, struct context* context) {
-    context->owners[context->frame_count - 1].signature
-    = realloc(context->owners[context->frame_count - 1].signature, sizeof(size_t)
-              * (context->owners[context->frame_count - 1].length + 1));
-    context->owners[context->frame_count - 1]
-    .signature[context->owners[context->frame_count - 1].length++] = c;
+    
+    return 0;
 }
 
 static inline size_t parse
@@ -290,7 +289,7 @@ _1:
     }
 _2:
     if (top) {
-        do_intrinsic(context, stack,top);
+        if (do_intrinsic(context, stack, top)) goto _3;
         stack[top - 1].args[stack[top - 1].count - 1] = stack[top];
         done = stack[top--].done;
         goto _1;
@@ -303,9 +302,8 @@ _3:
     goto _0;
 }
 
-
 static inline void construct_a_context(struct context* context) {
- 
+    
     context->best = 0;
     context->name_count = 0;
     context->index_count = 0;
@@ -328,6 +326,7 @@ static inline void construct_a_context(struct context* context) {
     context->names[context->name_count].signature[1] = 'o';
     context->names[context->name_count].signature[2] = 'o';
     context->names[context->name_count].signature[3] = 't';
+    context->names[context->name_count].definition = (struct unit) {0};
     context->name_count++;
         
     context->names = realloc(context->names, sizeof(struct name) * (context->name_count + 1));
@@ -340,6 +339,7 @@ static inline void construct_a_context(struct context* context) {
     context->names[context->name_count].signature[1] = 'n';
     context->names[context->name_count].signature[2] = 'i';
     context->names[context->name_count].signature[3] = 't';
+    context->names[context->name_count].definition = (struct unit) {0};
     context->name_count++;
     
     context->names = realloc(context->names, sizeof(struct name) * (context->name_count + 1));
@@ -351,6 +351,7 @@ static inline void construct_a_context(struct context* context) {
     context->names[context->name_count].signature[0] = 'p';
     context->names[context->name_count].signature[1] = 'o';
     context->names[context->name_count].signature[2] = 'p';
+    context->names[context->name_count].definition = (struct unit) {0};
     context->name_count++;
     
     context->names = realloc(context->names, sizeof(struct name) * (context->name_count + 1));
@@ -363,6 +364,7 @@ static inline void construct_a_context(struct context* context) {
     context->names[context->name_count].signature[1] = 'u';
     context->names[context->name_count].signature[2] = 's';
     context->names[context->name_count].signature[3] = 'h';
+    context->names[context->name_count].definition = (struct unit) {0};
     context->name_count++;
     
     
@@ -376,6 +378,7 @@ static inline void construct_a_context(struct context* context) {
     context->names[context->name_count].signature[1] = 'h';
     context->names[context->name_count].signature[2] = 'a';
     context->names[context->name_count].signature[3] = 'r';
+    context->names[context->name_count].definition = (struct unit) {0};
     context->name_count++;
     
     
@@ -390,6 +393,7 @@ static inline void construct_a_context(struct context* context) {
     context->names[context->name_count].signature[2] = 'r';
     context->names[context->name_count].signature[3] = 'a';
     context->names[context->name_count].signature[4] = 'm';
+    context->names[context->name_count].definition = (struct unit) {0};
     context->name_count++;
     
     context->names = realloc(context->names, sizeof(struct name) * (context->name_count + 1));
@@ -404,6 +408,7 @@ static inline void construct_a_context(struct context* context) {
     context->names[context->name_count].signature[3] = 'n';
     context->names[context->name_count].signature[4] = intrin_init + 256;
     context->names[context->name_count].signature[5] = intrin_init + 256;
+    context->names[context->name_count].definition = (struct unit) {0};
     context->name_count++;
     
     context->names = realloc(context->names, sizeof(struct name) * (context->name_count + 1));
@@ -417,9 +422,8 @@ static inline void construct_a_context(struct context* context) {
     context->names[context->name_count].signature[2] = 'c';
     context->names[context->name_count].signature[3] = 'l';
     context->names[context->name_count].signature[4] = intrin_root + 256;
+    context->names[context->name_count].definition = (struct unit) {0};
     context->name_count++;
-    
-    
     
     context->indicies = realloc(context->indicies, sizeof(size_t) * (context->index_count + 1));
     context->indicies[context->index_count++] = intrin_pop;
@@ -429,8 +433,7 @@ static inline void construct_a_context(struct context* context) {
     
     context->indicies = realloc(context->indicies, sizeof(size_t) * (context->index_count + 1));
     context->indicies[context->index_count++] = intrin_init;
-    
-    
+        
     context->indicies = realloc(context->indicies, sizeof(size_t) * (context->index_count + 1));
     context->indicies[context->index_count++] = intrin_push;
     
@@ -440,14 +443,12 @@ static inline void construct_a_context(struct context* context) {
     context->indicies = realloc(context->indicies, sizeof(size_t) * (context->index_count + 1));
     context->indicies[context->index_count++] = intrin_param;
     
-    
     context->indicies = realloc(context->indicies, sizeof(size_t) * (context->index_count + 1));
     context->indicies[context->index_count++] = intrin_decl;
     
-    
     context->indicies = realloc(context->indicies, sizeof(size_t) * (context->index_count + 1));
     context->indicies[context->index_count++] = intrin_join;
-    
+
 }
 
 int main(int argc, const char** argv) {
@@ -480,7 +481,6 @@ int main(int argc, const char** argv) {
             printf("unknown extension.\n");
             abort();
         }
-        
         
         const size_t memory_size = 65536;
         const size_t root_type = intrin_root;
