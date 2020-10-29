@@ -76,14 +76,21 @@ static inline void debug_tree(struct unit tree, size_t d, struct context* contex
     for (size_t i = 0; i < d; i++)
         printf(".   ");
 
-    struct name name = context->names[tree.index];
+    
+    if (tree.index >= 256) {
+        struct name name = context->names[tree.index - 256];
 
-    for (size_t i = 0; i < name.length; i++) {
-        if (name.signature[i] < 256)
-            printf("%c", (char) name.signature[i]);
-        else printf(" (%lu) ", name.signature[i]);
+        for (size_t i = 0; i < name.length; i++) {
+            if (name.signature[i] < 256)
+                printf("%c", (char) name.signature[i]);
+            else printf(" (%lu) ", name.signature[i]);
+        }
+    } else {
+        printf("CHARACTER{%c}", (char) tree.index);
     }
-    printf(" :: [ind=%ld, index=%lu : type=%lu]\n\n", tree.ind, tree.index, tree.type);
+    
+    
+    printf(" :: [ind=%ld, index=%lu : type=%lu, begin=%lu, done=%lu, count=%lu]\n\n", tree.ind, tree.index, tree.type, tree.begin, tree.done, tree.count);
     for (size_t i = 0; i < tree.count; i++)
         debug_tree(tree.args[i], d + 1, context);
 }
@@ -102,7 +109,7 @@ static inline void debug_context(struct context* context) {
         for (size_t s = 0; s < context->names[i].length; s++) {
             const size_t c = context->names[i].signature[s];
             if (c >= 256) {
-                printf("(%lu) ", c - 256);
+                printf("(%lu) ", c);
             } else {
                 printf("%c ", (char) c);
             }
@@ -136,7 +143,7 @@ static inline void debug_context(struct context* context) {
         for (size_t s = 0; s < context->owners[i].length; s++) {
             const size_t c = context->owners[i].signature[s];
             if (c >= 256) {
-                printf("(%lu) ", c - 256);
+                printf("(%lu) ", c);
             } else {
                 printf("%c ", (char) c);
             }
@@ -174,7 +181,7 @@ static inline void replace_all_occurences(size_t parameter, struct unit argument
 }
 
 static inline void expand_macro(struct context* c, struct unit* stack, size_t top) {
-    struct name function = c->names[stack[top].index];
+    struct name function = c->names[stack[top].index - 256];
     if (function.codegen_as == cg_macro) {
         struct unit new = duplicate(function.definition);
         const size_t arity = stack[top].count;
@@ -254,8 +261,7 @@ static inline struct unit compile(const char* filename, uint8_t* input, size_t l
     
     struct unit program = {0};
     struct name name = {0};
-    size_t top = 0, done = 0, begin = 0, best = 0;
-    size_t line = 1, column = 1;
+    size_t top = 0, done = 0, begin = 0, best = 0, line = 1, column = 1;
     
     while (begin < length && input[begin] <= ' ') {
         if (input[begin] == '\n') { line++; column = 1; } else column++;
@@ -268,14 +274,14 @@ static inline struct unit compile(const char* filename, uint8_t* input, size_t l
 _0:
     if (!stack[top].ind--) {
         if (!top) goto _4;
-        
         if (stack[top].type == intrin_char && begin < length && context->frame_count) {
             begin = stack[top].begin;
             stack[top].index = input[begin];
-            if (begin++ > best) best = begin;
+            column++;
+            if (++begin > best) best = begin;
             while (begin < length && input[begin] <= ' ') {
                 if (input[begin] == '\n') { line++; column = 1; } else column++;
-                begin++;
+                if (++begin > best) best = begin;
             }
             goto _2;
         }
@@ -298,11 +304,11 @@ _1:
             goto _0;
         }
         if (c != input[begin]) goto _3;
-                
-        if (begin++ > best) best = begin;
+        column++;
+        if (++begin > best) best = begin;
         while (begin < length && input[begin] <= ' ') {
             if (input[begin] == '\n') { line++; column = 1; } else column++;
-            begin++;
+            if (++begin > best) best = begin;
         }
     }
 _2:
@@ -322,13 +328,13 @@ _3:
     stack[top].args = NULL;
     stack[top].count = 0;
     goto _0;
-    
 _4:
     free(stack);
     if (!program.index) {
-            printf("%s: %lu:%lu: error: unresolved %s%c\n", filename, line, column,
-                   best == length ? "EOF" : "",
-                   best == length ? ' '   : input[best]);
+        printf("%s: %lu:%lu: error: unresolved %s%c\n",
+               filename, line, column,
+               best == length ? "EOF" : "",
+               best == length ? ' '   : input[best]);
     }
     return program;
 }
@@ -474,44 +480,38 @@ static inline void construct_a_context(struct context* c) {
 }
 
 int main(int argc, const char** argv) {
-    for (int a = 1; a < argc; a++) {
+    for (int i = 1; i < argc; i++) {    
+        const char* ext = strrchr(argv[i], '.');
+        if (!ext) abort();
         
-        uint8_t* text = NULL;
-        struct stat st = {0};
-        int file = open(argv[a], O_RDONLY);
-        if (file < 0 || stat(argv[a], &st) < 0 ||
-            (text = mmap(0, st.st_size, PROT_READ,
-                         MAP_SHARED, file, 0)) == MAP_FAILED) {
-            fprintf(stderr, "n: %s: ", argv[a]);
-            perror("error"); continue;
-        } else close(file);
-        
-        const char* extension = strrchr(argv[a], '.');
-        
-        if (!extension) {
-            printf("no extension! \n");
-            abort();
+        else if (!strcmp(ext, ".n")) {
             
-        } else if (!strcmp(extension, ".n")) {
-            printf("found a .n file.\n");
+            uint8_t* text = NULL;
+            struct stat st = {0};
+            int file = open(argv[i], O_RDONLY);
+            if (file < 0 || stat(argv[i], &st) < 0 ||
+                (text = mmap(0, st.st_size, PROT_READ,
+                             MAP_SHARED, file, 0)) == MAP_FAILED) {
+                fprintf(stderr, "n: %s: ", argv[i]);
+                perror("error");
+                continue;
+            } else close(file);
             
-        } else if (!strcmp(extension, ".ll")) {
+            struct context context = {0};
+            construct_a_context(&context);
+                    
+            struct unit program = compile(argv[i], text, st.st_size, &context);
+            debug_context(&context);
+            debug_tree(program, 0, &context);
+            munmap(text, st.st_size);
+            
+        } else if (!strcmp(ext, ".ll")) {
             printf("found a .ll file.\n");
-            printf("unimplemented.\n");
             abort();
+            
         } else {
             printf("unknown extension.\n");
             abort();
         }
-        
-        struct context context = {0};
-        construct_a_context(&context);
-                
-        struct unit program = compile(argv[a], text, st.st_size, &context);
-        
-        debug_context(&context);
-        debug_tree(program, 0, &context);
-                
-        munmap(text, st.st_size);
     }
 }
