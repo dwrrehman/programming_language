@@ -2,6 +2,24 @@ the current status of my compiler:
 ==================================
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 join push
 join d
 join e

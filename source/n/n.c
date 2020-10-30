@@ -11,7 +11,7 @@
 #include <stdlib.h>
 
 static const size_t stack_size = 1024;
-static const size_t type = 0;
+static const size_t top_level_type = 0;
 
 struct unit {
     size_t ind;
@@ -43,25 +43,40 @@ struct context {
 };
 
 enum intrinsics {
+    
     intrin_root = 256,
     intrin_init,
-    intrin_pop,
-    intrin_push,
     intrin_char,
-    intrin_param,
-    intrin_join,
-    intrin_decl,
+//    intrin_compiletime, ///   ct (i)
+//    intrin_eval, ///         eval (T: init) (e: T) -> compiletime<T>
+   
+    intrin_join, ///       join (i) (i) -> i
+    intrin_decl, ///       decl (name: char) (type: (0)) -> i
     
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    // ------------------------
+    /// UD SIGS:
+    intrin_param,
+    intrin_macro,
     intrin_define__arg0,
     intrin_define,
-    intrin_macro,
 };
 
 enum codegen_type {
-    cg_default,
+    cg_function,
+    cg_struct,
+    cg_variable,
     cg_macro,
-    cg_lazy,
-    cg_interpreted,
 };
 
 static inline void print_vector(size_t* v, size_t length) {
@@ -170,7 +185,6 @@ static inline struct unit duplicate(struct unit this) {
 }
 
 static inline void replace_all_occurences(size_t parameter, struct unit argument, struct unit* tree) {
-            
     for (size_t i = 0; i < tree->count; i++)
         replace_all_occurences(parameter, argument, tree->args + i);
     if (tree->index == parameter) {
@@ -269,7 +283,7 @@ static inline struct unit compile(const char* filename, uint8_t* input, size_t l
     }
 
     struct unit* stack = malloc(sizeof(struct unit) * stack_size);
-    stack[0] = (struct unit) {context->index_count, type, 0, 0, 0, 0, NULL};
+    stack[0] = (struct unit) {context->index_count, top_level_type, 0, 0, 0, 0, NULL};
 
 _0:
     if (!stack[top].ind--) {
@@ -314,7 +328,9 @@ _1:
 _2:
     if (top) {
         expand_macro(context, stack, top);
-//        if (do_intrinsic(context, stack, top)) goto _3; /// TODO: make this function check if stack[top].index == eval index. because then we choose to eval the whole tree!!!
+//        if (stack[top].index == intrin_eval) {
+//            evaluate_intrinsic(context, stack, top)) goto _3;
+//        }
         stack[top - 1].args[stack[top - 1].count - 1] = stack[top];
         done = stack[top--].done;
         goto _1;
@@ -330,12 +346,10 @@ _3:
     goto _0;
 _4:
     free(stack);
-    if (!program.index) {
-        printf("%s: %lu:%lu: error: unresolved %s%c\n",
+    if (!program.index)
+        printf("%s: %lu:%lu: error: unresolved %c\n",
                filename, line, column,
-               best == length ? "EOF" : "",
-               best == length ? ' '   : input[best]);
-    }
+               best == length ? ' ' : input[best]);
     return program;
 }
 
@@ -352,7 +366,7 @@ static inline void construct_a_context(struct context* c) {
     c->frames[c->frame_count++] = c->index_count;
     
     c->names = realloc(c->names, sizeof(struct name) * (c->name_count + 1));
-    c->names[c->name_count].type = intrin_root;
+    c->names[c->name_count].type = 0;
     c->names[c->name_count].precedence = 0;
     c->names[c->name_count].codegen_as = 0;
     c->names[c->name_count].length = 4;
@@ -378,32 +392,31 @@ static inline void construct_a_context(struct context* c) {
     c->names[c->name_count].definition = (struct unit) {0};
     c->name_count++;
     
-    c->names = realloc(c->names, sizeof(struct name) * (c->name_count + 1));
-    c->names[c->name_count].type = intrin_init;
-    c->names[c->name_count].precedence = 0;
-    c->names[c->name_count].codegen_as = 0;
-    c->names[c->name_count].length = 3;
-    c->names[c->name_count].signature = calloc(c->names[c->name_count].length, sizeof(size_t));
-    c->names[c->name_count].signature[0] = 'p';
-    c->names[c->name_count].signature[1] = 'o';
-    c->names[c->name_count].signature[2] = 'p';
-    c->names[c->name_count].definition = (struct unit) {0};
-    c->name_count++;
-    
-    c->names = realloc(c->names, sizeof(struct name) * (c->name_count + 1));
-    c->names[c->name_count].type = intrin_init;
-    c->names[c->name_count].precedence = 0;
-    c->names[c->name_count].codegen_as = 0;
-    c->names[c->name_count].length = 4;
-    c->names[c->name_count].signature = calloc(c->names[c->name_count].length, sizeof(size_t));
-    c->names[c->name_count].signature[0] = 'p';
-    c->names[c->name_count].signature[1] = 'u';
-    c->names[c->name_count].signature[2] = 's';
-    c->names[c->name_count].signature[3] = 'h';
-    c->names[c->name_count].definition = (struct unit) {0};
-    c->name_count++;
-    
-    
+//    c->names = realloc(c->names, sizeof(struct name) * (c->name_count + 1));
+//    c->names[c->name_count].type = intrin_init;
+//    c->names[c->name_count].precedence = 0;
+//    c->names[c->name_count].codegen_as = 0;
+//    c->names[c->name_count].length = 3;
+//    c->names[c->name_count].signature = calloc(c->names[c->name_count].length, sizeof(size_t));
+//    c->names[c->name_count].signature[0] = 'p';
+//    c->names[c->name_count].signature[1] = 'o';
+//    c->names[c->name_count].signature[2] = 'p';
+//    c->names[c->name_count].definition = (struct unit) {0};
+//    c->name_count++;
+//
+//    c->names = realloc(c->names, sizeof(struct name) * (c->name_count + 1));
+//    c->names[c->name_count].type = intrin_init;
+//    c->names[c->name_count].precedence = 0;
+//    c->names[c->name_count].codegen_as = 0;
+//    c->names[c->name_count].length = 4;
+//    c->names[c->name_count].signature = calloc(c->names[c->name_count].length, sizeof(size_t));
+//    c->names[c->name_count].signature[0] = 'p';
+//    c->names[c->name_count].signature[1] = 'u';
+//    c->names[c->name_count].signature[2] = 's';
+//    c->names[c->name_count].signature[3] = 'h';
+//    c->names[c->name_count].definition = (struct unit) {0};
+//    c->name_count++;
+        
     c->names = realloc(c->names, sizeof(struct name) * (c->name_count + 1));
     c->names[c->name_count].type = intrin_init;
     c->names[c->name_count].precedence = 0;
@@ -417,19 +430,19 @@ static inline void construct_a_context(struct context* c) {
     c->names[c->name_count].definition = (struct unit) {0};
     c->name_count++;
     
-    c->names = realloc(c->names, sizeof(struct name) * (c->name_count + 1));
-    c->names[c->name_count].type = intrin_init;
-    c->names[c->name_count].precedence = 0;
-    c->names[c->name_count].codegen_as = 0;
-    c->names[c->name_count].length = 5;
-    c->names[c->name_count].signature = calloc(c->names[c->name_count].length, sizeof(size_t));
-    c->names[c->name_count].signature[0] = 'p';
-    c->names[c->name_count].signature[1] = 'a';
-    c->names[c->name_count].signature[2] = 'r';
-    c->names[c->name_count].signature[3] = 'a';
-    c->names[c->name_count].signature[4] = 'm';
-    c->names[c->name_count].definition = (struct unit) {0};
-    c->name_count++;
+//    c->names = realloc(c->names, sizeof(struct name) * (c->name_count + 1));
+//    c->names[c->name_count].type = intrin_init;
+//    c->names[c->name_count].precedence = 0;
+//    c->names[c->name_count].codegen_as = 0;
+//    c->names[c->name_count].length = 5;
+//    c->names[c->name_count].signature = calloc(c->names[c->name_count].length, sizeof(size_t));
+//    c->names[c->name_count].signature[0] = 'p';
+//    c->names[c->name_count].signature[1] = 'a';
+//    c->names[c->name_count].signature[2] = 'r';
+//    c->names[c->name_count].signature[3] = 'a';
+//    c->names[c->name_count].signature[4] = 'm';
+//    c->names[c->name_count].definition = (struct unit) {0};
+//    c->name_count++;
     
     c->names = realloc(c->names, sizeof(struct name) * (c->name_count + 1));
     c->names[c->name_count].type = intrin_init;
@@ -469,9 +482,9 @@ static inline void construct_a_context(struct context* c) {
     c->indicies = realloc(c->indicies, sizeof(size_t) * (c->index_count + 1));
     c->indicies[c->index_count++] = intrin_char;
     
-    c->indicies = realloc(c->indicies, sizeof(size_t) * (c->index_count + 1));
-    c->indicies[c->index_count++] = intrin_param;
-    
+//    c->indicies = realloc(c->indicies, sizeof(size_t) * (c->index_count + 1));
+//    c->indicies[c->index_count++] = intrin_param;
+//
     c->indicies = realloc(c->indicies, sizeof(size_t) * (c->index_count + 1));
     c->indicies[c->index_count++] = intrin_decl;
     
@@ -499,7 +512,7 @@ int main(int argc, const char** argv) {
             
             struct context context = {0};
             construct_a_context(&context);
-                    
+            debug_context(&context);
             struct unit program = compile(argv[i], text, st.st_size, &context);
             debug_context(&context);
             debug_tree(program, 0, &context);
