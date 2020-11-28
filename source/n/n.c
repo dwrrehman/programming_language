@@ -2,6 +2,10 @@
 #include <llvm-c/IRReader.h>
 #include <llvm-c/Linker.h>
 #include <llvm-c/ExecutionEngine.h>
+#include <llvm-c/Target.h>
+#include <llvm-c/Analysis.h>
+#include <llvm-c/BitWriter.h>
+
 #include <fcntl.h>
 #include <unistd.h>
 #include <sys/stat.h>
@@ -10,8 +14,10 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+#include <inttypes.h>
+#include <iso646.h>
+
 static const size_t stack_size = 1024;
-static const size_t top_level_type = 0;
 
 struct unit {
     size_t ind;
@@ -53,7 +59,8 @@ enum intrinsics {
     intrin_join, ///       join (i) (i) -> i
     intrin_decl, ///       decl (name: char) (type: (0)) -> i
     
-    
+    intrin_eval,
+    intrin_comp,
     
     
     
@@ -72,6 +79,8 @@ enum intrinsics {
     intrin_define,
 };
 
+static const size_t top_level_type = 0;
+
 enum codegen_type {
     cg_function,
     cg_struct,
@@ -79,7 +88,7 @@ enum codegen_type {
     cg_macro,
 };
 
-static inline void print_vector(size_t* v, size_t length) {
+static inline void print_vector(size_t* v, size_t length) { // temp
     printf("{ ");
     for (size_t i = 0; i < length; i++) {
         printf("%lu ", v[i]);
@@ -87,10 +96,9 @@ static inline void print_vector(size_t* v, size_t length) {
     printf("}\n");
 }
 
-static inline void debug_tree(struct unit tree, size_t d, struct context* context) {
+static inline void debug_tree(struct unit tree, size_t d, struct context* context) { // temp
     for (size_t i = 0; i < d; i++)
         printf(".   ");
-
     
     if (tree.index >= 256) {
         struct name name = context->names[tree.index - 256];
@@ -100,17 +108,17 @@ static inline void debug_tree(struct unit tree, size_t d, struct context* contex
                 printf("%c", (char) name.signature[i]);
             else printf(" (%lu) ", name.signature[i]);
         }
+        
     } else {
-        printf("CHARACTER{%c}", (char) tree.index);
+        printf("CHARACTER{%c::%lu}", (char) tree.index, tree.index);
     }
-    
     
     printf(" :: [ind=%ld, index=%lu : type=%lu, begin=%lu, done=%lu, count=%lu]\n\n", tree.ind, tree.index, tree.type, tree.begin, tree.done, tree.count);
     for (size_t i = 0; i < tree.count; i++)
         debug_tree(tree.args[i], d + 1, context);
 }
 
-static inline void debug_context(struct context* context) {
+static inline void debug_context(struct context* context) { // temp
     printf("---------------- context --------------\n");
     printf("-------- names --------\n");
     printf("name_count = %lu\n", context->name_count);
@@ -133,7 +141,7 @@ static inline void debug_context(struct context* context) {
         debug_tree(context->names[i].definition, 0, context);
     }
     printf("-------------------\n\n");
-
+    
     printf("---------- indicies --------\n");
     printf("index_count = %lu\n", context->index_count);
     printf("indicies:     ");
@@ -225,7 +233,7 @@ static inline size_t do_intrinsic(struct context* c, struct unit* stack, size_t 
 //        c->owners[c->frame_count++] = (struct name) {0};
 //
 //    } else
-//        
+//
     if (index == intrin_decl) {
         
         if (stack[top].count) c->owners[c->frame_count - 1].type = stack[top].args[0].index;
@@ -284,11 +292,13 @@ static inline struct unit compile(const char* filename, uint8_t* input, size_t l
 
     struct unit* stack = malloc(sizeof(struct unit) * stack_size);
     stack[0] = (struct unit) {context->index_count, top_level_type, 0, 0, 0, 0, NULL};
-
+    
 _0:
-    if (!stack[top].ind--) {
-        if (!top) goto _4;
-        if (stack[top].type == intrin_char && begin < length && context->frame_count) {
+    if (not stack[top].ind--) {
+        
+        if (not top) goto _4;
+        
+        if (stack[top].type == intrin_char) {
             begin = stack[top].begin;
             stack[top].index = input[begin];
             column++;
@@ -307,8 +317,7 @@ _1:
     stack[top].index = context->indicies[stack[top].ind];
     name = context->names[stack[top].index - 256];
     
-    if (stack[top].type && stack[top].type != name.type) ///TODO: make equality of trees.
-        goto _3;
+    if (stack[top].type && stack[top].type != name.type) goto _3;
     
     while (done < name.length) {
         size_t c = name.signature[done++];
@@ -328,9 +337,9 @@ _1:
 _2:
     if (top) {
         expand_macro(context, stack, top);
-//        if (stack[top].index == intrin_eval) {
+        if (stack[top].index == intrin_eval) {
 //            evaluate_intrinsic(context, stack, top)) goto _3;
-//        }
+        }
         stack[top - 1].args[stack[top - 1].count - 1] = stack[top];
         done = stack[top--].done;
         goto _1;
@@ -346,14 +355,14 @@ _3:
     goto _0;
 _4:
     free(stack);
-    if (!program.index)
+    if (not program.index)
         printf("%s: %lu:%lu: error: unresolved %c\n",
                filename, line, column,
                best == length ? ' ' : input[best]);
     return program;
 }
 
-static inline void construct_a_context(struct context* c) {
+static inline void construct_a_context(struct context* c) { // temp
     
     c->name_count = 0;
     c->index_count = 0;
@@ -492,17 +501,34 @@ static inline void construct_a_context(struct context* c) {
     c->indicies[c->index_count++] = intrin_join;
 }
 
+
+
+
+
+
+
+
+
+
+
+/*
+
+
 int main(int argc, const char** argv) {
-    for (int i = 1; i < argc; i++) {    
-        const char* ext = strrchr(argv[i], '.');
-        if (!ext) abort();
+    
+    LLVMModuleRef module = LLVMModuleCreateWithName("init.n");
+    
+    for (int i = 1; i < argc; i++) {
         
-        else if (!strcmp(ext, ".n")) {
+        const char* ext = strrchr(argv[i], '.');
+        if (not ext) abort();
+        
+        else if (not strcmp(ext, ".n")) {
             
             uint8_t* text = NULL;
             struct stat st = {0};
             int file = open(argv[i], O_RDONLY);
-            if (file < 0 || stat(argv[i], &st) < 0 ||
+            if (file < 0 or stat(argv[i], &st) < 0 or
                 (text = mmap(0, st.st_size, PROT_READ,
                              MAP_SHARED, file, 0)) == MAP_FAILED) {
                 fprintf(stderr, "n: %s: ", argv[i]);
@@ -512,19 +538,163 @@ int main(int argc, const char** argv) {
             
             struct context context = {0};
             construct_a_context(&context);
-            debug_context(&context);
             struct unit program = compile(argv[i], text, st.st_size, &context);
             debug_context(&context);
             debug_tree(program, 0, &context);
             munmap(text, st.st_size);
             
-        } else if (!strcmp(ext, ".ll")) {
-            printf("found a .ll file.\n");
-            abort();
+        } else if (not strcmp(ext, ".ll")) {
+            
+            // LLVMAddFunction(module, "fwef", LLVMFunctionType(LLVMInt32Type(), 0, 0, 0));
+            LLVMMemoryBufferRef buffer;
+            char* out = NULL;
+            LLVMModuleRef m = LLVMModuleCreateWithName(argv[i]);
+            if (LLVMCreateMemoryBufferWithContentsOfFile(argv[i], &buffer, &out) or
+                LLVMParseIRInContext(LLVMGetGlobalContext(), buffer, &m, &out) or
+                LLVMLinkModules2(module, m)) {
+                printf("llvm: error: %s\n", out);
+            }
             
         } else {
             printf("unknown extension.\n");
             abort();
         }
     }
+    puts(LLVMPrintModuleToString(module));
+}
+
+*/
+
+
+
+
+
+
+
+
+
+
+//int main(int argc, char const *argv[]) {
+//    LLVMModuleRef mod = LLVMModuleCreateWithName("my_module");
+//
+//    LLVMTypeRef param_types[] = { LLVMInt32Type(), LLVMInt32Type() };
+//    LLVMTypeRef ret_type = LLVMFunctionType(LLVMInt32Type(), param_types, 2, 0);
+//    LLVMValueRef sum = LLVMAddFunction(mod, "sum", ret_type);
+//
+//    LLVMBasicBlockRef entry = LLVMAppendBasicBlock(sum, "entry");
+//s
+//    LLVMBuilderRef builder = LLVMCreateBuilder();
+//    LLVMPositionBuilderAtEnd(builder, entry);
+//    LLVMValueRef tmp = LLVMBuildAdd(builder, LLVMGetParam(sum, 0), LLVMGetParam(sum, 1), "tmp");
+//    LLVMBuildRet(builder, tmp);
+//
+//    char *error = NULL;
+//    LLVMVerifyModule(mod, LLVMAbortProcessAction, &error);
+//    LLVMDisposeMessage(error);
+//
+//    LLVMExecutionEngineRef engine;
+//    error = NULL;
+//
+//    LLVMLinkInJIT();
+//
+//    LLVMInitializeNativeTarget();
+//
+//    if (LLVMCreateExecutionEngineForModule(&engine, mod, &error) != 0) {
+//        fprintf(stderr, "failed to create execution engine\n");
+//        abort();
+//    }
+//    if (error) {
+//        fprintf(stderr, "error: %s\n", error);
+//        LLVMDisposeMessage(error);
+//        exit(EXIT_FAILURE);
+//    }
+//
+//    if (argc < 3) {
+//        fprintf(stderr, "usage: %s x y\n", argv[0]);
+//        exit(EXIT_FAILURE);
+//    }
+//    long long x = strtoll(argv[1], NULL, 10);
+//    long long y = strtoll(argv[2], NULL, 10);
+//
+//    LLVMGenericValueRef args[] = {
+//        LLVMCreateGenericValueOfInt(LLVMInt32Type(), x, 0),
+//        LLVMCreateGenericValueOfInt(LLVMInt32Type(), y, 0)
+//    };
+//    LLVMGenericValueRef res = LLVMRunFunction(engine, sum, 2, args);
+//    printf("%d\n", (int)LLVMGenericValueToInt(res, 0));
+//
+//    // Write out bitcode to file
+//    if (LLVMWriteBitcodeToFile(mod, "sum.bc") != 0) {
+//        fprintf(stderr, "error writing bitcode to file, skipping\n");
+//    }
+//
+//    LLVMDisposeBuilder(builder);
+//    LLVMDisposeExecutionEngine(engine);
+//}
+//
+//
+//
+
+
+
+/**
+ 
+ -I/usr/local/Cellar/llvm/10.0.1_1/include -std=c++14 -stdlib=libc++   -D__STDC_CONSTANT_MACROS -D__STDC_FORMAT_MACROS -D__STDC_LIMIT_MACROS
+ 
+ -L/usr/local/Cellar/llvm/10.0.1_1/lib -Wl,-search_paths_first -Wl,-headerpad_max_install_names
+ -lLLVMInterpreter -lLLVMCodeGen -lLLVMScalarOpts -lLLVMInstCombine -lLLVMAggressiveInstCombine -lLLVMBitWriter -lLLVMExecutionEngine -lLLVMTarget -lLLVMRuntimeDyld -lLLVMLinker -lLLVMTransformUtils -lLLVMAnalysis -lLLVMProfileData -lLLVMObject -lLLVMTextAPI -lLLVMMCParser -lLLVMMC -lLLVMDebugInfoCodeView -lLLVMDebugInfoMSF -lLLVMIRReader -lLLVMBitReader -lLLVMAsmParser -lLLVMCore -lLLVMRemarks -lLLVMBitstreamReader -lLLVMBinaryFormat -lLLVMSupport -lLLVMDemangle
+ -lm -lz -lcurses -llibxml2.tbd
+ 
+ */
+
+
+int main() {
+    
+    LLVMLinkInInterpreter();
+
+    const char* path = "/Users/deniylreimn/Documents/projects/language/examples/test.ll";
+
+    
+    LLVMModuleRef module = LLVMModuleCreateWithName("init.n");
+    LLVMAddFunction(module, "hi", LLVMFunctionType(LLVMInt32Type(), 0, 0, 0));
+    LLVMAddFunction(module, "fwef", LLVMFunctionType(LLVMInt32Type(), 0, 0, 0));
+
+    
+    
+    
+    LLVMModuleRef m = LLVMModuleCreateWithName("temp.n");
+    LLVMMemoryBufferRef buffer; char* out = NULL;
+    if (LLVMCreateMemoryBufferWithContentsOfFile(path, &buffer, &out) ||
+        LLVMParseIRInContext(LLVMGetGlobalContext(), buffer, &m, &out) ||
+        LLVMLinkModules2(module, m)) {
+        printf("llvm: error: %s\n", out);
+        abort();
+    }
+
+    puts(LLVMPrintModuleToString(module));
+
+    LLVMExecutionEngineRef engine = NULL;
+    if (LLVMCreateExecutionEngineForModule(&engine, module, &out)) {
+        printf("llvm: error: %s\n", out);
+        abort();
+    }
+
+    const char* name = "main";
+
+    LLVMValueRef f = NULL;
+    if (LLVMFindFunction(engine, name, &f)) {
+        printf("llvm: error: could not find function %s to run\n", name);
+        abort();
+    }
+        
+    long long x = strtoll("999", NULL, 10);
+    long long y = strtoll("1", NULL, 10);
+    
+    LLVMGenericValueRef args[] = {
+        LLVMCreateGenericValueOfInt(LLVMInt32Type(), x, 0),
+        LLVMCreateGenericValueOfInt(LLVMInt32Type(), y, 0)
+    };
+    
+    LLVMGenericValueRef res = LLVMRunFunction(engine, f, 2, args);
+    printf("%d\n", (int)LLVMGenericValueToInt(res, 0));
 }

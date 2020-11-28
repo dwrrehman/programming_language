@@ -1,0 +1,8 @@
+dwrr:examples$ llvm-config --cxxflags --ldflags --libs core irreader linker executionengine interpreter --system-libs
+
+	PRODUCES:
+
+-I/usr/local/Cellar/llvm/10.0.1_1/include -std=c++14 -stdlib=libc++   -D__STDC_CONSTANT_MACROS -D__STDC_FORMAT_MACROS -D__STDC_LIMIT_MACROS
+-L/usr/local/Cellar/llvm/10.0.1_1/lib -Wl,-search_paths_first -Wl,-headerpad_max_install_names
+-lLLVMInterpreter -lLLVMCodeGen -lLLVMScalarOpts -lLLVMInstCombine -lLLVMAggressiveInstCombine -lLLVMBitWriter -lLLVMExecutionEngine -lLLVMTarget -lLLVMRuntimeDyld -lLLVMLinker -lLLVMTransformUtils -lLLVMAnalysis -lLLVMProfileData -lLLVMObject -lLLVMTextAPI -lLLVMMCParser -lLLVMMC -lLLVMDebugInfoCodeView -lLLVMDebugInfoMSF -lLLVMIRReader -lLLVMBitReader -lLLVMAsmParser -lLLVMCore -lLLVMRemarks -lLLVMBitstreamReader -lLLVMBinaryFormat -lLLVMSupport -lLLVMDemangle
+-lm -lz -lcurses -llibxml2.tbd
