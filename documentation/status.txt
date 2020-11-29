@@ -8,6 +8,19 @@ the current status of my compiler:
 
 
 
+HEY! so im ditching macros.
+
+
+i realized they literally arent neccessary, now that im doing this whole "eval", and CTT thing.
+
+
+i also got llvm execution of arbitary code working.
+
+
+so thats cool.
+
+
+
 
 
 

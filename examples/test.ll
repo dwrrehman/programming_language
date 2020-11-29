@@ -12,7 +12,7 @@ define i32 @sum(i32 %a, i32 %b) {
 
 declare i32 @puts(i8* nocapture) nounwind
 
-define i32 @main(i32 %a, i32 %b) { 
+define i32 @print_hello(i32 %a, i32 %b) { 
     %c = getelementptr [13 x i8],[13 x i8]* @.str, i64 0, i64 0
     call i32 @puts(i8* %c)
     ret i32 0

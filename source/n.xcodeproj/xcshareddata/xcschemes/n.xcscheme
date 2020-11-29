@@ -55,11 +55,11 @@
       </BuildableProductRunnable>
       <CommandLineArguments>
          <CommandLineArgument
-            argument = "/Users/deniylreimn/Documents/projects/language/examples/test.n"
+            argument = "/Users/deniylreimn/Documents/projects/language/examples/test.ll"
             isEnabled = "YES">
          </CommandLineArgument>
          <CommandLineArgument
-            argument = "/Users/deniylreimn/Documents/projects/language/examples/test.ll"
+            argument = "/Users/deniylreimn/Documents/projects/language/examples/test.n"
             isEnabled = "YES">
          </CommandLineArgument>
       </CommandLineArguments>
