@@ -7,7 +7,6 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		FDA3C87C25744CE800C46F1F /* test.ll in Sources */ = {isa = PBXBuildFile; fileRef = FDA3C87B25744CE800C46F1F /* test.ll */; };
 		FDD75BBA245D5AC70002DA7E /* n.c in Sources */ = {isa = PBXBuildFile; fileRef = FDD75BB9245D5AC70002DA7E /* n.c */; };
 /* End PBXBuildFile section */
 
@@ -127,7 +126,6 @@
 			buildActionMask = 2147483647;
 			files = (
 				FDD75BBA245D5AC70002DA7E /* n.c in Sources */,
-				FDA3C87C25744CE800C46F1F /* test.ll in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -308,7 +306,6 @@
 					"-Wall",
 					"-Wpedantic",
 					"-Wextra",
-					"-Weverything",
 				);
 			};
 			name = Debug;
@@ -376,7 +373,6 @@
 					"-Wall",
 					"-Wpedantic",
 					"-Wextra",
-					"-Weverything",
 				);
 			};
 			name = Release;

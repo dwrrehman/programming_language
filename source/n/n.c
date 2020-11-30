@@ -31,6 +31,7 @@ struct unit {
 struct name {
     struct unit definition;
     nat* signature;
+    char* llvm_name;
     nat type;
     nat length;
     nat codegen_as;
@@ -152,6 +153,57 @@ static inline void debug_context(struct context* context) { // temp
 }
 
 
+static inline char* translate(struct name name) { // temp
+    
+    nat* signature, length, type;
+    signature = name.signature;
+    length = name.length;
+    type = name.type;
+    
+//    print_vector(signature, length);
+        
+    char* result = NULL;
+    nat result_length = 0;
+    nat result_capacity = 0;
+    
+    for (nat i = 0; i < length; i++) {
+        const nat c = signature[i];
+        
+        if (c < 256) {
+            if (result_length + 1 >= result_capacity) result = realloc(result, sizeof(char) * (result_capacity = 2 * (result_capacity + 1)));
+            
+            result[result_length++] = c;
+        } else {
+            
+            if (result_length + 1 >= result_capacity) result = realloc(result, sizeof(char) * (result_capacity = 2 * (result_capacity + 1)));
+            result[result_length++] = '\x1D';
+            
+            nat extra = snprintf(NULL, 0, "%u", c);
+            if (result_length + extra >= result_capacity) result = realloc(result, sizeof(char) * (result_capacity = 2 * (result_capacity + extra)));
+            result_length += sprintf(result + result_length, "%u", c);
+            
+            if (result_length + 1 >= result_capacity) result = realloc(result, sizeof(char) * (result_capacity = 2 * (result_capacity + 1)));
+            result[result_length++] = '\x1E';
+        }
+    }
+    
+    if (result_length + 1 >= result_capacity) result = realloc(result, sizeof(char) * (result_capacity = 2 * (result_capacity + 1)));
+    result[result_length++] = '\x1F';
+    
+    nat extra = snprintf(NULL, 0, "%u", type);
+    if (result_length + extra >= result_capacity) result = realloc(result, sizeof(char) * (result_capacity = 2 * (result_capacity + extra)));
+    result_length += sprintf(result + result_length, "%u", type);
+        
+    if (result_length + 1 >= result_capacity) result = realloc(result, sizeof(char) * (result_capacity = 2 * (result_capacity + 1)));
+    result[result_length++] = '\0';
+    
+//    printf("result length = %u,  result capacity = %u\n", result_length, result_capacity);
+//    printf("\"%s\"\n", result);
+    
+    return result;
+}
+
+
 static inline void construct_a_context(struct context* c) { // temp
     
     c->name_count = 0;
@@ -176,6 +228,7 @@ static inline void construct_a_context(struct context* c) { // temp
     c->names[c->name_count].signature[2] = 'o';
     c->names[c->name_count].signature[3] = 't';
     c->names[c->name_count].definition = (struct unit) {0};
+    c->names[c->name_count].llvm_name = translate(c->names[c->name_count]);
     c->name_count++;
     
     c->names = realloc(c->names, sizeof(struct name) * (c->name_count + 1));
@@ -189,7 +242,9 @@ static inline void construct_a_context(struct context* c) { // temp
     c->names[c->name_count].signature[2] = 'i';
     c->names[c->name_count].signature[3] = 't';
     c->names[c->name_count].definition = (struct unit) {0};
+    c->names[c->name_count].llvm_name = translate(c->names[c->name_count]);
     c->name_count++;
+    
     
 //    c->names = realloc(c->names, sizeof(struct name) * (c->name_count + 1));
 //    c->names[c->name_count].type = intrin_init;
@@ -201,6 +256,7 @@ static inline void construct_a_context(struct context* c) { // temp
 //    c->names[c->name_count].signature[1] = 'o';
 //    c->names[c->name_count].signature[2] = 'p';
 //    c->names[c->name_count].definition = (struct unit) {0};
+//    c->names[c->name_count].llvm_name = translate(c->names[c->name_count]);
 //    c->name_count++;
 //
 //    c->names = realloc(c->names, sizeof(struct name) * (c->name_count + 1));
@@ -214,6 +270,7 @@ static inline void construct_a_context(struct context* c) { // temp
 //    c->names[c->name_count].signature[2] = 's';
 //    c->names[c->name_count].signature[3] = 'h';
 //    c->names[c->name_count].definition = (struct unit) {0};
+//    c->names[c->name_count].llvm_name = translate(c->names[c->name_count]);
 //    c->name_count++;
         
     c->names = realloc(c->names, sizeof(struct name) * (c->name_count + 1));
@@ -227,6 +284,7 @@ static inline void construct_a_context(struct context* c) { // temp
     c->names[c->name_count].signature[2] = 'a';
     c->names[c->name_count].signature[3] = 'r';
     c->names[c->name_count].definition = (struct unit) {0};
+    c->names[c->name_count].llvm_name = translate(c->names[c->name_count]);
     c->name_count++;
     
 //    c->names = realloc(c->names, sizeof(struct name) * (c->name_count + 1));
@@ -241,6 +299,7 @@ static inline void construct_a_context(struct context* c) { // temp
 //    c->names[c->name_count].signature[3] = 'a';
 //    c->names[c->name_count].signature[4] = 'm';
 //    c->names[c->name_count].definition = (struct unit) {0};
+//    c->names[c->name_count].llvm_name = translate(c->names[c->name_count]);
 //    c->name_count++;
     
     c->names = realloc(c->names, sizeof(struct name) * (c->name_count + 1));
@@ -256,6 +315,7 @@ static inline void construct_a_context(struct context* c) { // temp
     c->names[c->name_count].signature[4] = intrin_init;
     c->names[c->name_count].signature[5] = intrin_init;
     c->names[c->name_count].definition = (struct unit) {0};
+    c->names[c->name_count].llvm_name = translate(c->names[c->name_count]);
     c->name_count++;
     
     c->names = realloc(c->names, sizeof(struct name) * (c->name_count + 1));
@@ -271,6 +331,7 @@ static inline void construct_a_context(struct context* c) { // temp
     c->names[c->name_count].signature[4] = intrin_init;
     c->names[c->name_count].signature[5] = 0;
     c->names[c->name_count].definition = (struct unit) {0};
+    c->names[c->name_count].llvm_name = translate(c->names[c->name_count]);
     c->name_count++;
         
     c->names = realloc(c->names, sizeof(struct name) * (c->name_count + 1));
@@ -285,6 +346,7 @@ static inline void construct_a_context(struct context* c) { // temp
     c->names[c->name_count].signature[3] = 'l';
     c->names[c->name_count].signature[4] = intrin_init;
     c->names[c->name_count].definition = (struct unit) {0};
+    c->names[c->name_count].llvm_name = translate(c->names[c->name_count]);
     c->name_count++;
         
     c->names = realloc(c->names, sizeof(struct name) * (c->name_count + 1));
@@ -299,6 +361,7 @@ static inline void construct_a_context(struct context* c) { // temp
     c->names[c->name_count].signature[3] = 'p';
     c->names[c->name_count].signature[4] = intrin_init;
     c->names[c->name_count].definition = (struct unit) {0};
+    c->names[c->name_count].llvm_name = translate(c->names[c->name_count]);
     c->name_count++;
     
     c->indicies = realloc(c->indicies, sizeof(nat) * (c->index_count + 1));
@@ -334,13 +397,12 @@ static inline void construct_a_context(struct context* c) { // temp
 
 
 
-
 int main(int argc, const char** argv) {
     
     LLVMLinkInInterpreter(); //LLVMLinkInJIT();
     //    LLVMInitializeNativeTarget();
     
-    LLVMModuleRef module = LLVMModuleCreateWithName("init.n");
+    LLVMModuleRef module = LLVMModuleCreateWithName("main.n");
     
     for (nat i = 1; i < argc; i++) {
         
@@ -368,6 +430,8 @@ int main(int argc, const char** argv) {
             } else close(file);
                                                 
             struct context context = {0};
+            construct_a_context(&context);
+            
             struct unit program = {0};
             struct name name = {0};
             nat begin = 0, best = 0, top = 0, done = 0, line = 1, column = 1;
@@ -377,7 +441,7 @@ int main(int argc, const char** argv) {
             LLVMBuilderRef builder = LLVMCreateBuilder();
             {
                 LLVMTypeRef join_param_list[] = { LLVMInt32Type(), LLVMInt32Type() };
-                LLVMValueRef join_function = LLVMAddFunction(new, "join", LLVMFunctionType(LLVMInt32Type(), join_param_list, 2, 0));
+                LLVMValueRef join_function = LLVMAddFunction(new, context.names[intrin_join - 256].llvm_name, LLVMFunctionType(LLVMInt32Type(), join_param_list, 2, 0));
                 LLVMBasicBlockRef join_entry = LLVMAppendBasicBlock(join_function, "entry");
                 LLVMPositionBuilderAtEnd(builder, join_entry);
                 LLVMValueRef join_result = LLVMBuildAdd(builder, LLVMGetParam(join_function, 0), LLVMGetParam(join_function, 1), "");
@@ -385,24 +449,31 @@ int main(int argc, const char** argv) {
             }
             {
                 LLVMTypeRef* char_param_list = NULL;
-                LLVMValueRef char_function = LLVMAddFunction(new, "char", LLVMFunctionType(LLVMInt32Type(), char_param_list, 0, 0));
+                LLVMValueRef char_function = LLVMAddFunction(new, context.names[intrin_char - 256].llvm_name, LLVMFunctionType(LLVMInt32Type(), char_param_list, 0, 0));
                 LLVMBasicBlockRef char_entry = LLVMAppendBasicBlock(char_function, "entry");
                 LLVMPositionBuilderAtEnd(builder, char_entry);
-                LLVMValueRef char_result = LLVMConstInt(LLVMInt32Type(), 5, 0);
+                LLVMValueRef char_result = LLVMConstInt(LLVMInt32Type(), 234, 0);
                 LLVMBuildRet(builder, char_result);
             }
             
+            {
+                LLVMValueRef print_hello_function = LLVMAddFunction(new, "print_hello", LLVMFunctionType(LLVMInt32Type(), NULL, 0, 0));
+            }
+            
+    
             {
                 LLVMTypeRef main_param_list[] = { LLVMInt32Type(), LLVMPointerType(LLVMPointerType(LLVMInt8Type(), 0), 0)};
                 LLVMValueRef main_function = LLVMAddFunction(new, "main", LLVMFunctionType(LLVMInt32Type(), main_param_list, 2, 0));
                 LLVMBasicBlockRef main_entry = LLVMAppendBasicBlock(main_function, "entry");
                 LLVMPositionBuilderAtEnd(builder, main_entry);
             }
+            
+            
+            
 //            LLVMValueRef tmp = LLVMBuildAdd(builder, LLVMGetParam(sum, 0), LLVMGetParam(sum, 1), "tmp");
 //            LLVMBuildRet(builder, tmp);
             
-            construct_a_context(&context);
-            
+    
             while (begin < length && text[begin] <= ' ') {
                 if (text[begin] == '\n') { line++; column = 1; } else column++;
                 begin++; if (begin > best) best = begin;
@@ -491,13 +562,10 @@ int main(int argc, const char** argv) {
             } else if (stack[top].index == intrin_join) {
                 
                 unsigned count = stack[top].count;
-                
                 LLVMValueRef* arguments = malloc(sizeof(LLVMValueRef) * count);
-                
-                for (unsigned i = 0; i < count; i++)
-                    arguments[i] = stack[top].args[i].value;
-                                
-                LLVMValueRef function = LLVMGetNamedFunction(new, "join");
+                for (unsigned a = 0; a < count; a++)
+                    arguments[a] = stack[top].args[a].value;
+                LLVMValueRef function = LLVMGetNamedFunction(new, context.names[intrin_join - 256].llvm_name);
                 LLVMValueRef result = LLVMBuildCall(builder, function, arguments, count, "");
                 stack[top].value = result;
                                 
@@ -505,10 +573,9 @@ int main(int argc, const char** argv) {
                 
                 unsigned count = stack[top].count;
                 LLVMValueRef* arguments = malloc(sizeof(LLVMValueRef) * count);
-                for (unsigned i = 0; i < count; i++)
-                    arguments[i] = stack[top].args[i].value;
-                
-                LLVMValueRef function = LLVMGetNamedFunction(new, "char");
+                for (unsigned a = 0; a < count; a++)
+                    arguments[a] = stack[top].args[a].value;
+                LLVMValueRef function = LLVMGetNamedFunction(new, context.names[intrin_char - 256].llvm_name);
                 LLVMValueRef result = LLVMBuildCall(builder, function, arguments, count, "");
                 stack[top].value = result;
             }
@@ -531,12 +598,19 @@ int main(int argc, const char** argv) {
         _4:
             free(stack);
         
+            // temp
+            unsigned count = 0;
+            LLVMValueRef* arguments = NULL;
+            LLVMValueRef function = LLVMGetNamedFunction(new, "print_hello");
+            LLVMBuildCall(builder, function, arguments, count, "");
             
+            
+            // temp
 //            LLVMValueRef main_result = LLVMConstInt(LLVMInt32Type(), 0, 0);
             LLVMBuildRet(builder, program.value);
         
-            debug_context(&context);
-            debug_tree(program, 0, &context);
+//            debug_context(&context);
+//            debug_tree(program, 0, &context);
                             
             if (not program.index) {
                 printf("%s: %u:%u: error: unresolved %c\n",
@@ -544,7 +618,7 @@ int main(int argc, const char** argv) {
                        best == length ? ' ' : text[best]);
                 exit(1);
             } else {
-                printf("---> compilation successful.\n");
+//                printf("---> compilation successful.\n");
             }
                         
             if (LLVMVerifyModule(new, LLVMPrintMessageAction, &out) or
@@ -574,7 +648,7 @@ int main(int argc, const char** argv) {
             abort();
         }
     }
-    puts(LLVMPrintModuleToString(module));
+//    puts(LLVMPrintModuleToString(module));
     
     char* out = NULL;
 
@@ -589,9 +663,15 @@ int main(int argc, const char** argv) {
         abort();
     }
     
-    int exit_code = LLVMRunFunctionAsMain(engine, main_function, 0, NULL, NULL);
-    printf("Program ended with exit code: %d\n", exit_code);
+    
+    unsigned int main_argc = 0;
+    const char* const* main_argv = NULL;
+    const char* const* main_envp = NULL;
+            
+    int exit_code = LLVMRunFunctionAsMain(engine, main_function, main_argc, main_argv, main_envp);
+    //    printf("Program ended with exit code: %d\n", exit_code);
     LLVMDisposeExecutionEngine(engine);
+    return exit_code;
 }
 
 

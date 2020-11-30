@@ -8,6 +8,31 @@ the current status of my compiler:
 
 
 
+
+
+2011297.150559:
+i just got rudimentary codegneeration working in the compiler!
+ i can codegen for expressions involving join and char, now. in a dummy way lol
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 HEY! so im ditching macros.
 
 

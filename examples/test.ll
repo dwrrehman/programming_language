@@ -8,11 +8,11 @@ define i32 @sum(i32 %a, i32 %b) {
 	ret i32 %x
 }
 
-@.str = private unnamed_addr constant [13 x i8] c"hello world\0A\00"
+@.str = private unnamed_addr constant [13 x i8] c"hello world!\00"
 
 declare i32 @puts(i8* nocapture) nounwind
 
-define i32 @print_hello(i32 %a, i32 %b) { 
+define i32 @print_hello() { 
     %c = getelementptr [13 x i8],[13 x i8]* @.str, i64 0, i64 0
     call i32 @puts(i8* %c)
     ret i32 0
