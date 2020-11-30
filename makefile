@@ -8,12 +8,12 @@ debug_flags = -fsanitize=address,undefined
 
 libraries = `llvm-config --cflags --ldflags --libs core irreader linker executionengine interpreter --system-libs` -lc++ -lffi
 
-n: source/n/n.c 
-	clang -g -O1 $(warning_flags) $(debug_flags) source/n/n.c -o n $(libraries)
+compile: source/main.c 
+	clang -g -O1 $(warning_flags) $(debug_flags) source/main.c -o compile $(libraries)
 
-release: source/n/n.c 
-	clang -Ofast $(warning_flags) source/n/n.c -o n $(libraries)
+release: source/main.c 
+	clang -Ofast $(warning_flags) source/main.c -o compile $(libraries)
 
 clean:
-	rm -rf n
-	rm -rf n.dSYM
+	rm -rf compile
+	rm -rf compile.dSYM
