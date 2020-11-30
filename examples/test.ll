@@ -17,4 +17,3 @@ define i32 @print_hello() {
     call i32 @puts(i8* %c)
     ret i32 0
 }
-
