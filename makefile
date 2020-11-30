@@ -1,14 +1,5 @@
 # makefile for my compiler.
 
-# disabled_warnings = -Wno-poison-system-directories 
-# -Wno-nullability-completeness -Wno-nullability-extension 
-# -Wno-padded -Wno-sign-conversion -Wno-implicit-int-conversion 
-# -Wno-reserved-id-macro -Wno-undef
-
-# -Wall 
-# -Wextra -Wpedantic -Wno-nullability-completeness -Wno-nullability-extension -Wno-error 
-# -Weverything $(disabled_warnings) 
-
 disabled_warnings = -Wno-documentation-unknown-command
 
 warning_flags = -Wall -Wextra -Wpedantic -Weverything $(disabled_warnings) 
@@ -25,3 +16,4 @@ release: source/n/n.c
 
 clean:
 	rm -rf n
+	rm -rf n.dSYM
