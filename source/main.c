@@ -186,19 +186,19 @@ static inline char* translate(struct name name) { // temp
             result[result_length++] = (char) c;
         } else {            
             if (result_length + 1 >= result_capacity) result = realloc(result, sizeof(char) * (size_t) (result_capacity = 2 * (result_capacity + 1)));
-            result[result_length++] = '\x1D';
+            result[result_length++] = '\t';
             
             nat extra = snprintf(NULL, 0, "%u", c);
             if (result_length + extra >= result_capacity) result = realloc(result, sizeof(char) * (size_t) (result_capacity = 2 * (result_capacity + extra)));
             result_length += sprintf(result + result_length, "%u", c);
             
             if (result_length + 1 >= result_capacity) result = realloc(result, sizeof(char) * (size_t) (result_capacity = 2 * (result_capacity + 1)));
-            result[result_length++] = '\x1E';
+            result[result_length++] = '\n';
         }
     }
 
     if (result_length + 1 >= result_capacity) result = realloc(result, sizeof(char) * (size_t) (result_capacity = 2 * (result_capacity + 1)));
-    result[result_length++] = '\x1F';
+    result[result_length++] = ' ';
     
     nat extra = snprintf(NULL, 0, "%u", type);
     if (result_length + extra >= result_capacity) result = realloc(result, sizeof(char) * (size_t) (result_capacity = 2 * (result_capacity + extra)));
@@ -363,11 +363,12 @@ int main(int argc, const char** argv, const char** envp) {
     
     LLVMModuleRef module = LLVMModuleCreateWithName("main.n");
     
-    nat error = 0;
+    nat error_count = 0;
+    char* llvm_error_message = NULL;
     const char* output_name = "out";
-    enum action action_type = action_execute;
     nat executable_argv_starts_at = argc;
-    
+    enum action action_type = action_execute;
+
     for (nat i = 1; i < argc; i++) {        
 
         if (argv[i][0] == '-') {
@@ -385,21 +386,22 @@ int main(int argc, const char** argv, const char** envp) {
                 if (i + 1 < argc) output_name = argv[++i];                
                 else {
                     printf("error: argument not supplied for option --name\n");
-                    error = 1;
+                    error_count++;
                 }
                 continue;
             }
 
-            printf("error: unknown option: %s\n", argv[i]);            
-            error = 1;
+            printf("error: unknown argument: %s\n", argv[i]);            
+            error_count++;
             arg_success: continue;
         }
 
         const char* ext = strrchr(argv[i], '.');
         if (not ext) {
             printf("error: file has no extension, ignoring...\n");
-            error = 1;
+            error_count++;
             continue;
+
         } else if (not strcmp(ext, ".n")) {
             
             struct stat file_data = {0};
@@ -407,7 +409,7 @@ int main(int argc, const char** argv, const char** envp) {
             if (file < 0 or stat(argv[i], &file_data) < 0) {
                 fprintf(stderr, "n: %s: ", argv[i]);
                 perror("error");
-                error = 1;
+                error_count++;
                 continue;
             }        
             nat length = (nat) file_data.st_size;
@@ -415,16 +417,18 @@ int main(int argc, const char** argv, const char** envp) {
             if (text == MAP_FAILED) {
                 fprintf(stderr, "n: %s: ", argv[i]);
                 perror("error");
-                error = 1;
+                error_count++;
                 continue;
             } else close(file);
+
             
             struct context context = {0};
             construct_a_context(&context);            
             struct unit program = {0};
             struct name name = {0};
             nat begin = 0, best = 0, top = 0, done = 0, line = 1, column = 1;
-            char* out = NULL;            
+                    
+
             LLVMModuleRef new = LLVMModuleCreateWithName(argv[i]);
             LLVMBuilderRef builder = LLVMCreateBuilder();
             {
@@ -505,22 +509,20 @@ int main(int argc, const char** argv, const char** envp) {
             }
 
 
-
-
             if (stack[top].index == intrin_eval) {
             
                LLVMModuleRef copy = LLVMCloneModule(new);
                puts(LLVMPrintModuleToString(copy));
                LLVMExecutionEngineRef engine = NULL;
-               if (LLVMCreateExecutionEngineForModule(&engine, copy, &out)) {
-                   printf("llvm: error: %s\n", out);
-                   error = 1;
+               if (LLVMCreateExecutionEngineForModule(&engine, copy, &llvm_error_message)) {
+                   printf("llvm: error: %s\n", llvm_error_message);
+                   error_count++;
                    continue;
                }
                LLVMValueRef f = NULL;
                if (LLVMFindFunction(engine,"", &f)) {
                    printf("llvm: error: could not find function\n");
-                   error = 1;
+                   error_count++;
                    continue;
                }
 
@@ -586,7 +588,6 @@ int main(int argc, const char** argv, const char** envp) {
             LLVMBuildCall(builder, function, arguments, count, "");            
             LLVMConstInt(LLVMInt32Type(), 0, 0); // LLVMValueRef main_result = 
 
-
             LLVMBuildRet(builder, program.value);
         
             debug_context(&context);
@@ -596,53 +597,62 @@ int main(int argc, const char** argv, const char** envp) {
                 printf("%s: %u:%u: error: unresolved %c\n",
                        argv[i], line, column,
                        best == length ? ' ' : text[best]);
-                error = 1;
+                error_count++;
                 continue;
             }
             
-            if (LLVMVerifyModule(new, LLVMPrintMessageAction, &out) or
+            if (LLVMVerifyModule(new, LLVMPrintMessageAction, &llvm_error_message) or
                 LLVMLinkModules2(module, new)) {
-                printf("llvm: error: %s\n", out);
-                error = 1;
+                printf("llvm: error: %s\n", llvm_error_message);
+                LLVMDisposeMessage(llvm_error_message);
+                error_count++;
                 continue;
             }            
-            LLVMDisposeMessage(out);
+            
             munmap(text, (size_t) length);
             
         } else if (not strcmp(ext, ".ll")) {            
             LLVMModuleRef new = NULL;
-            LLVMMemoryBufferRef buffer;
-            char* out = NULL;
-            if (LLVMCreateMemoryBufferWithContentsOfFile(argv[i], &buffer, &out) or
-                LLVMParseIRInContext(LLVMGetGlobalContext(), buffer, &new, &out) or
-                LLVMVerifyModule(new, LLVMPrintMessageAction, &out) or
+            LLVMMemoryBufferRef buffer;            
+            if (LLVMCreateMemoryBufferWithContentsOfFile(argv[i], &buffer, &llvm_error_message) or
+                LLVMParseIRInContext(LLVMGetGlobalContext(), buffer, &new, &llvm_error_message) or
+                LLVMVerifyModule(new, LLVMPrintMessageAction, &llvm_error_message) or
                 LLVMLinkModules2(module, new)) {
-                printf("llvm: error: %s\n", out);
-                error = 1;
+                printf("llvm: error: %s\n", llvm_error_message);
+                LLVMDisposeMessage(llvm_error_message);
+                error_count++;
                 continue;
             }            
         } else {
             printf("%s: unknown file type with extension: \"%s\"\n", argv[i], ext);
-            error = 1;
+            error_count++;
             continue;
         }
     }
     
-    if (error) {
-        printf("error: module has errors, aborting...\n");
+    if (error_count) {
+        printf("%d error%s generated.\n", error_count, error_count > 1 ? "s" : "");
         exit(1);
     }
-
-    char* out = NULL;
-    if (LLVMVerifyModule(module, LLVMPrintMessageAction, &out)) {
-        printf("llvm: error: %s\n", out);
+    
+    if (LLVMVerifyModule(module, LLVMPrintMessageAction, &llvm_error_message)) {
+        printf("llvm: error: %s\n", llvm_error_message);
+        LLVMDisposeMessage(llvm_error_message);
         abort();
     }
+
 
     // do optimizations:
     // LLVMPassManagerRef pass_manageer = LLVMCreateFunctionPassManagerForModule(module);
 
-    if (action_type == action_generate_ir) {
+
+    if (action_type == action_none) { }
+
+    else if (action_type == action_generate_context) {
+        
+        // unimplemented.
+
+    } else if (action_type == action_generate_ir) {
 
         FILE* file = fopen(output_name, "w");
         if (not file) {
@@ -650,10 +660,7 @@ int main(int argc, const char** argv, const char** envp) {
             abort();
         }
         fputs(LLVMPrintModuleToString(module), file);
-        fclose(file);
-        return 0;
-
-
+        fclose(file); 
 
     } else if (action_type == action_execute) {
         
@@ -662,39 +669,28 @@ int main(int argc, const char** argv, const char** envp) {
         struct LLVMMCJITCompilerOptions options;
         LLVMInitializeMCJITCompilerOptions(&options, sizeof(options)); 
 
-        if (LLVMCreateMCJITCompilerForModule(&engine, module, &options, sizeof options, &out)) {
-            printf("llvm: error: %s\n", out);
+        if (LLVMCreateMCJITCompilerForModule(&engine, module, &options, sizeof options, &llvm_error_message)) {
+            printf("llvm: error: %s\n", llvm_error_message);
+            LLVMDisposeMessage(llvm_error_message);
             abort();
         }
         
         LLVMValueRef main_function = NULL;
-        if (LLVMFindFunction(engine,"main", &main_function)) {
+        if (LLVMFindFunction(engine, "main", &main_function)) { //TODO: it wont technically be called main... it will be called something weird...
             printf("error: no entry point for executable\n");
-            exit(1);
+            return 1;
         }
-        
-        int main_argc = argc - executable_argv_starts_at;
-        const char* const* main_argv = argv + executable_argv_starts_at;
-        const char* const* main_envp = envp;
 
-        printf("count = %d\n", main_argc);
-        for (int i = 0; i < main_argc; i++) {
-            printf("\t - \"%s\"\n", main_argv[i]);
-        }
-        
-        int exit_code = LLVMRunFunctionAsMain(engine, main_function, (unsigned int) main_argc, main_argv, main_envp);
-        // printf("exit_code: %d\n", exit_code);
+        int exit_code = LLVMRunFunctionAsMain(engine, main_function, 
+                                (unsigned int) (argc - executable_argv_starts_at), 
+                                argv + executable_argv_starts_at, envp);        
+
         LLVMDisposeExecutionEngine(engine);
         return exit_code;
-
-
-
-
 
     } else if (action_type == action_generate_executable) {
     
         LLVMTargetRef target = NULL;
-        char* error_message = NULL;
 
         size_t object_filename_size = strlen(output_name) + 2 + 1;
         char* object_filename = calloc(object_filename_size, sizeof(char));
@@ -709,101 +705,101 @@ int main(int argc, const char** argv, const char** envp) {
         const char* name = LLVMGetHostCPUName();
         const char* features = LLVMGetHostCPUFeatures();
 
-        if (LLVMGetTargetFromTriple(triple, &target, &error_message)) {
-            printf("error: get target from triple failed: %s\n", error_message);
+        if (LLVMGetTargetFromTriple(triple, &target, &llvm_error_message)) {
+            printf("error: get target from triple failed: %s\n", llvm_error_message);
+            LLVMDisposeMessage(llvm_error_message);
             abort();
         }
-
-        // const char* target_name = LLVMGetTargetName(target);
-        
-        // debug:
-        // printf("\n\ntarget = %s\ntriple: %s :: name: %s :: features: %s\n\n", target_name, triple, name, features);
         
         LLVMTargetMachineRef target_machine = LLVMCreateTargetMachine
             (target, triple, name, features, optimization_level, LLVMRelocDefault, LLVMCodeModelDefault);
         
-        if (LLVMTargetMachineEmitToFile(target_machine, module, object_filename, output_filetype, &error_message)) {
-            printf("error: target machine mit to file failed: %s\n", error_message);
+        if (LLVMTargetMachineEmitToFile(target_machine, module, object_filename, output_filetype, &llvm_error_message)) {
+            printf("error: target machine mit to file failed: %s\n", llvm_error_message);
+            LLVMDisposeMessage(llvm_error_message);
             abort();
         }
         
         char string[4096] = {0};
-        snprintf(string, sizeof string, "ld64.lld -L/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/lib -macosx_version_min 11.0 -sdk_version 11.0 -lSystem -lc -o %s %s", output_name, object_filename);
+        snprintf(string, sizeof string, 
+                    "ld64.lld "
+                    "-L/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/lib "
+                    "-macosx_version_min 11.0 "
+                    "-sdk_version 11.0 "
+                    "-lSystem -lc "
+                    "-o %s %s", output_name, object_filename);
         system(string);
         remove(object_filename);
-        free(object_filename);
-        return 0;
+        free(object_filename);        
 
     } else if (action_type == action_generate_objectfile) {
     
-        LLVMTargetRef target = NULL;
-        char* error_message = NULL;
-    
-        char* output_filename = "output.o";   
+        LLVMTargetRef target = NULL;   
         LLVMCodeGenOptLevel optimization_level = LLVMCodeGenLevelDefault;    
-        LLVMCodeGenFileType output_filetype = LLVMObjectFile;
-        
+        LLVMCodeGenFileType output_filetype = LLVMObjectFile;        
         const char* triple = LLVMGetDefaultTargetTriple();
         const char* name = LLVMGetHostCPUName();
         const char* features = LLVMGetHostCPUFeatures();
 
-        if (LLVMGetTargetFromTriple(triple, &target, &error_message)) {
-            printf("error: get target from triple failed: %s\n", error_message);
+        if (LLVMGetTargetFromTriple(triple, &target, &llvm_error_message)) {
+            printf("error: get target from triple failed: %s\n", llvm_error_message);
+            LLVMDisposeMessage(llvm_error_message);
             abort();
         }
-
-        // const char* target_name = LLVMGetTargetName(target);
-        
-        // debug:
-        // printf("\n\ntarget = %s\ntriple: %s :: name: %s :: features: %s\n\n", target_name, triple, name, features);
-
-
         LLVMTargetMachineRef target_machine = LLVMCreateTargetMachine
             (target, triple, name, features, optimization_level, LLVMRelocDefault, LLVMCodeModelDefault);
-
-        if (LLVMTargetMachineEmitToFile(target_machine, module, output_filename, output_filetype, &error_message)) {
-            printf("error: target machine mit to file failed: %s\n", error_message);
+        
+        if (LLVMTargetMachineEmitToFile(target_machine, module, (char*) (intptr_t) output_name, output_filetype, &llvm_error_message)) {
+            printf("error: target machine mit to file failed: %s\n", llvm_error_message);
+            LLVMDisposeMessage(llvm_error_message);
             abort();
-        }    
-        return 0;
+        }         
 
     } else if (action_type == action_generate_assembly) {
     
-        LLVMTargetRef target = NULL;
-        char* error_message = NULL;
-    
-        char* output_filename = "output.s";
-
+        LLVMTargetRef target = NULL;  
         LLVMCodeGenOptLevel optimization_level = LLVMCodeGenLevelDefault;    
-        LLVMCodeGenFileType output_filetype = LLVMAssemblyFile;
-        
+        LLVMCodeGenFileType output_filetype = LLVMAssemblyFile;        
         const char* triple = LLVMGetDefaultTargetTriple();
         const char* name = LLVMGetHostCPUName();
         const char* features = LLVMGetHostCPUFeatures();
 
-        if (LLVMGetTargetFromTriple(triple, &target, &error_message)) {
-            printf("error: get target from triple failed: %s\n", error_message);
+        if (LLVMGetTargetFromTriple(triple, &target, &llvm_error_message)) {
+            printf("error: get target from triple failed: %s\n", llvm_error_message);
+            LLVMDisposeMessage(llvm_error_message);
             abort();
-        }
-
-        // const char* target_name = LLVMGetTargetName(target);
-    
+        }    
         LLVMTargetMachineRef target_machine = LLVMCreateTargetMachine
             (target, triple, name, features, optimization_level, LLVMRelocDefault, LLVMCodeModelDefault);
 
-        if (LLVMTargetMachineEmitToFile(target_machine, module, output_filename, output_filetype, &error_message)) {
-            printf("error: target machine mit to file failed: %s\n", error_message);
+        if (LLVMTargetMachineEmitToFile(target_machine, module, (char*) (intptr_t) output_name, output_filetype, &llvm_error_message)) {
+            printf("error: target machine mit to file failed: %s\n", llvm_error_message);
+            LLVMDisposeMessage(llvm_error_message);
             abort();
-        }    
-        return 0;
-
-
+        } 
 
     } else {
-        printf("unknown action type: %d\n", action_type);  
+        printf("unknown action type: %s\n", action_spellings[action_type]);
         return 1;
     }
+    return 0;
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -876,3 +872,16 @@ if (stack[top].type == intrin_char) {
                 }
 
 */
+
+// const char* target_name = LLVMGetTargetName(target);
+        
+        // debug:
+        // printf("\n\ntarget = %s\ntriple: %s :: name: %s :: features: %s\n\n", target_name, triple, name, features);
+        
+// const char* target_name = LLVMGetTargetName(target);
+
+
+        // printf("count = %d\n", main_argc);
+        // for (int i = 0; i < main_argc; i++) {
+        //     printf("\t - \"%s\"\n", main_argv[i]);
+        // }
