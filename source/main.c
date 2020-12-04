@@ -4,7 +4,6 @@
 #include <llvm-c/ExecutionEngine.h>
 #include <llvm-c/Target.h>
 #include <llvm-c/Analysis.h>
-#include <llvm-c/BitWriter.h>
 #include <fcntl.h>
 #include <unistd.h>
 #include <sys/stat.h>
@@ -15,6 +14,7 @@
 #include <iso646.h>
 
 typedef int nat;
+
 struct unit {
     LLVMValueRef value;
     struct unit* args;
@@ -25,6 +25,7 @@ struct unit {
     nat done;
     nat count;
 };
+
 struct name {
     struct unit definition;
     nat* signature;
@@ -34,6 +35,7 @@ struct name {
     nat codegen_as;
     nat precedence;
 };
+
 struct context {
     nat* frames;
     nat* indicies;
@@ -45,7 +47,12 @@ struct context {
     nat _padding;
 };
 
-enum codegen_type { llvm_local_variable, llvm_global_variable, llvm_function, llvm_struct };
+enum codegen_type { 
+	llvm_local_variable, 
+	llvm_global_variable, 
+	llvm_function, 
+	llvm_struct 
+};
 
 enum action { 
     action_none, 
@@ -57,13 +64,14 @@ enum action {
     action_execute,  
     action_count,
 };
+
 static const char* action_spellings[] = {
     "--do-nothing", 
-    "--context",
-    "--llvm-ir",  
-    "--assembly", 
-    "--object",   
-    "--executable",
+    "--emit-context",
+    "--emit-llvm-ir",  
+    "--emit-assembly", 
+    "--emit-object",   
+    "--emit-executable",
     "--execute",
 };
 
@@ -83,12 +91,14 @@ enum intrinsics {
     // ------------------------
     intrin_param, intrin_define__arg0, intrin_define,
 };
+
 static inline void print_vector(nat* v, nat length) { // temp
     printf("{ ");
     for (nat i = 0; i < length; i++)
         printf("%d ", v[i]);
     printf("}\n");
 }
+
 static inline void debug_tree(struct unit tree, size_t d, struct context* context) { // temp
     for (size_t i = 0; i < d; i++)
         printf(".   ");
@@ -166,49 +176,6 @@ static inline void debug_context(struct context* context) { // temp
     }
     printf("-------------------\n\n");
 }
-
-
-// static inline char* translate(struct name name) { // temp
-    
-//     nat* signature, length, type;
-//     signature = name.signature;
-//     length = name.length;
-//     type = name.type;
-//     char* result = NULL;
-//     nat result_length = 0;
-//     nat result_capacity = 0;    
-//     for (nat i = 0; i < length; i++) {
-//         const nat c = signature[i];
-        
-//         if (c < 256) {
-//             if (result_length + 1 >= result_capacity) result = realloc(result, sizeof(char) * (size_t) (result_capacity = 2 * (result_capacity + 1)));
-            
-//             result[result_length++] = (char) c;
-//         } else {            
-//             if (result_length + 1 >= result_capacity) result = realloc(result, sizeof(char) * (size_t) (result_capacity = 2 * (result_capacity + 1)));
-//             result[result_length++] = '\t';
-            
-//             nat extra = snprintf(NULL, 0, "%u", c);
-//             if (result_length + extra >= result_capacity) result = realloc(result, sizeof(char) * (size_t) (result_capacity = 2 * (result_capacity + extra)));
-//             result_length += sprintf(result + result_length, "%u", c);
-            
-//             if (result_length + 1 >= result_capacity) result = realloc(result, sizeof(char) * (size_t) (result_capacity = 2 * (result_capacity + 1)));
-//             result[result_length++] = '\n';
-//         }
-//     }
-
-//     if (result_length + 1 >= result_capacity) result = realloc(result, sizeof(char) * (size_t) (result_capacity = 2 * (result_capacity + 1)));
-//     result[result_length++] = ' ';
-    
-//     nat extra = snprintf(NULL, 0, "%u", type);
-//     if (result_length + extra >= result_capacity) result = realloc(result, sizeof(char) * (size_t) (result_capacity = 2 * (result_capacity + extra)));
-//     result_length += sprintf(result + result_length, "%u", type);
-        
-//     if (result_length + 1 >= result_capacity) result = realloc(result, sizeof(char) * (size_t) (result_capacity = 2 * (result_capacity + 1)));
-//     result[result_length++] = '\0';
-    
-//     return result;
-// }
 
 static inline void construct_a_context(struct context* c) { // temp    
     c->name_count = 0;
@@ -539,7 +506,7 @@ int main(int argc, const char** argv, const char** envp) {
         fprintf(stderr, "%d error%s generated.\n", error_count, error_count > 1 ? "s" : "");
         exit(1);
     }
-	
+    
     // ----- {optimize} -------
     // ----- {/optimize} -------
 
@@ -661,6 +628,11 @@ int main(int argc, const char** argv, const char** envp) {
 
 
 // ----------------------------------------------------
+
+
+
+
+
 
 
 /*
@@ -970,4 +942,49 @@ if (stack[top].index == intrin_eval) {
 
 
 
+
+
+
+
+// static inline char* translate(struct name name) { // temp
+    
+//     nat* signature, length, type;
+//     signature = name.signature;
+//     length = name.length;
+//     type = name.type;
+//     char* result = NULL;
+//     nat result_length = 0;
+//     nat result_capacity = 0;    
+//     for (nat i = 0; i < length; i++) {
+//         const nat c = signature[i];
+        
+//         if (c < 256) {
+//             if (result_length + 1 >= result_capacity) result = realloc(result, sizeof(char) * (size_t) (result_capacity = 2 * (result_capacity + 1)));
+            
+//             result[result_length++] = (char) c;
+//         } else {            
+//             if (result_length + 1 >= result_capacity) result = realloc(result, sizeof(char) * (size_t) (result_capacity = 2 * (result_capacity + 1)));
+//             result[result_length++] = '\t';
+            
+//             nat extra = snprintf(NULL, 0, "%u", c);
+//             if (result_length + extra >= result_capacity) result = realloc(result, sizeof(char) * (size_t) (result_capacity = 2 * (result_capacity + extra)));
+//             result_length += sprintf(result + result_length, "%u", c);
+            
+//             if (result_length + 1 >= result_capacity) result = realloc(result, sizeof(char) * (size_t) (result_capacity = 2 * (result_capacity + 1)));
+//             result[result_length++] = '\n';
+//         }
+//     }
+
+//     if (result_length + 1 >= result_capacity) result = realloc(result, sizeof(char) * (size_t) (result_capacity = 2 * (result_capacity + 1)));
+//     result[result_length++] = ' ';
+    
+//     nat extra = snprintf(NULL, 0, "%u", type);
+//     if (result_length + extra >= result_capacity) result = realloc(result, sizeof(char) * (size_t) (result_capacity = 2 * (result_capacity + extra)));
+//     result_length += sprintf(result + result_length, "%u", type);
+        
+//     if (result_length + 1 >= result_capacity) result = realloc(result, sizeof(char) * (size_t) (result_capacity = 2 * (result_capacity + 1)));
+//     result[result_length++] = '\0';
+    
+//     return result;
+// }
 
