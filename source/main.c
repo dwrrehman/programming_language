@@ -44,15 +44,27 @@ struct context {
     nat name_count;
     nat _padding;
 };
+
 enum codegen_type { cg_local_variable, cg_global_variable, cg_function, cg_struct };
+
 enum action { 
     action_none, 
     action_generate_context,  // operates per .n file.
     action_generate_ir, 
     action_generate_assembly,
     action_generate_objectfile,
-    action_generate_executable,   
-    action_execute,
+    action_generate_executable,
+    action_execute,  
+    action_count,  
+};
+static const char* action_spellings[] = {
+    "--do-nothing", 
+    "--context",
+    "--llvm-ir",  
+    "--assembly", 
+    "--object",   
+    "--executable",
+    "--execute",
 };
 
 enum intrinsics {
@@ -337,7 +349,7 @@ static inline void construct_a_context(struct context* c) { // temp
 }
 // ----------------------------------------------------------------------------------------------
 
-int main(int argc, const char** argv) {
+int main(int argc, const char** argv, const char** envp) {
 
     LLVMInitializeAllTargetInfos();
     LLVMInitializeAllTargets();
@@ -345,34 +357,48 @@ int main(int argc, const char** argv) {
     LLVMInitializeAllAsmParsers();
     LLVMInitializeAllAsmPrinters();
     
-    LLVMLinkInInterpreter(); 
-
-    // LLVMLinkInJIT();
-    // LLVMInitializeNativeTarget();
+    LLVMLinkInInterpreter();
+    LLVMLinkInMCJIT();
+    LLVMInitializeNativeTarget();
     
     LLVMModuleRef module = LLVMModuleCreateWithName("main.n");
     
     nat error = 0;
-    enum action action = action_generate_executable;
-
+    const char* output_name = "out";
+    enum action action_type = action_execute;
+    nat executable_argv_starts_at = argc;
+    
     for (nat i = 1; i < argc; i++) {        
 
         if (argv[i][0] == '-') {
-            if (0) {}
-            else if (not strcmp(argv[i], "--llvm-ir")) action = action_generate_ir;
-            else if (not strcmp(argv[i], "--assembly")) action = action_generate_ir;
-            else if (not strcmp(argv[i], "--object")) action = action_generate_objectfile;
-            else if (not strcmp(argv[i], "--executable")) action = action_generate_executable;
-            else if (not strcmp(argv[i], "--execute")) action = action_execute;            
-            else {
-                printf("error: unknown option: %s\n", argv[i]);
+
+            for (unsigned int a = action_none; a < action_count; a++) {
+                if (not strcmp(argv[i], action_spellings[a])) {
+                    action_type = a; 
+                    goto arg_success;                    
+                }
             }
-            continue;
-        } 
+            
+            if (not strcmp(argv[i], "--")) { executable_argv_starts_at = i + 1; break; }
+
+            if (not strcmp(argv[i], "--name")) {
+                if (i + 1 < argc) output_name = argv[++i];                
+                else {
+                    printf("error: argument not supplied for option --name\n");
+                    error = 1;
+                }
+                continue;
+            }
+
+            printf("error: unknown option: %s\n", argv[i]);            
+            error = 1;
+            arg_success: continue;
+        }
 
         const char* ext = strrchr(argv[i], '.');
         if (not ext) {
             printf("error: file has no extension, ignoring...\n");
+            error = 1;
             continue;
         } else if (not strcmp(ext, ".n")) {
             
@@ -536,7 +562,6 @@ int main(int argc, const char** argv) {
                 // LLVMBuildBr(builder, block);
             }
 
-
             if (top) {
                 stack[top - 1].args[stack[top - 1].count - 1] = stack[top];
                 done = stack[top].done;
@@ -555,19 +580,17 @@ int main(int argc, const char** argv) {
         _4:
             free(stack);                   
 
-
-
             unsigned count = 0;
             LLVMValueRef* arguments = NULL;
             LLVMValueRef function = LLVMGetNamedFunction(new, "print_hello");
             LLVMBuildCall(builder, function, arguments, count, "");            
-           LLVMValueRef main_result = LLVMConstInt(LLVMInt32Type(), 0, 0);
+            LLVMConstInt(LLVMInt32Type(), 0, 0); // LLVMValueRef main_result = 
 
 
             LLVMBuildRet(builder, program.value);
         
-            // debug_context(&context);
-            // debug_tree(program, 0, &context);
+            debug_context(&context);
+            debug_tree(program, 0, &context);
                             
             if (not program.index) {
                 printf("%s: %u:%u: error: unresolved %c\n",
@@ -610,59 +633,75 @@ int main(int argc, const char** argv) {
         exit(1);
     }
 
+    char* out = NULL;
+    if (LLVMVerifyModule(module, LLVMPrintMessageAction, &out)) {
+        printf("llvm: error: %s\n", out);
+        abort();
+    }
 
     // do optimizations:
+    // LLVMPassManagerRef pass_manageer = LLVMCreateFunctionPassManagerForModule(module);
 
-        // LLVMPassManagerRef pass_manageer = LLVMCreateFunctionPassManagerForModule(module);
+    if (action_type == action_generate_ir) {
 
-
-    if (action == action_generate_ir) {
-
-        FILE* out = fopen("output.ll", "w");
-
-        if (not out) {
-            printf("error: could not open output.ll file for llvm ir output!\n");
+        FILE* file = fopen(output_name, "w");
+        if (not file) {
+            printf("error: could not open file llvm ir output\n");
             abort();
         }
-
-        fputs(LLVMPrintModuleToString(module), out);
-
-        fclose(out);
+        fputs(LLVMPrintModuleToString(module), file);
+        fclose(file);
         return 0;
 
-    } else if (action == action_execute) {
 
-        char* out = NULL;
+
+    } else if (action_type == action_execute) {
+        
         LLVMExecutionEngineRef engine = NULL;
-        if (LLVMCreateExecutionEngineForModule(&engine, module, &out)) {
+
+        struct LLVMMCJITCompilerOptions options;
+        LLVMInitializeMCJITCompilerOptions(&options, sizeof(options)); 
+
+        if (LLVMCreateMCJITCompilerForModule(&engine, module, &options, sizeof options, &out)) {
             printf("llvm: error: %s\n", out);
             abort();
         }
-
+        
         LLVMValueRef main_function = NULL;
         if (LLVMFindFunction(engine,"main", &main_function)) {
-            printf("llvm: error: could not find main function\n");
-            abort();       
+            printf("error: no entry point for executable\n");
+            exit(1);
         }
         
-        unsigned int main_argc = 0;
-        const char* const* main_argv = NULL;
-        const char* const* main_envp = NULL;            
+        int main_argc = argc - executable_argv_starts_at;
+        const char* const* main_argv = argv + executable_argv_starts_at;
+        const char* const* main_envp = envp;
 
-        int exit_code = LLVMRunFunctionAsMain(engine, main_function, main_argc, main_argv, main_envp);
-
+        printf("count = %d\n", main_argc);
+        for (int i = 0; i < main_argc; i++) {
+            printf("\t - \"%s\"\n", main_argv[i]);
+        }
+        
+        int exit_code = LLVMRunFunctionAsMain(engine, main_function, (unsigned int) main_argc, main_argv, main_envp);
         // printf("exit_code: %d\n", exit_code);
-
         LLVMDisposeExecutionEngine(engine);
         return exit_code;
 
-    } else if (action == action_generate_executable) {
+
+
+
+
+    } else if (action_type == action_generate_executable) {
     
         LLVMTargetRef target = NULL;
         char* error_message = NULL;
 
-        const char* executable_name = "a.out";
-        char* output_filename = "output.o";
+        size_t object_filename_size = strlen(output_name) + 2 + 1;
+        char* object_filename = calloc(object_filename_size, sizeof(char));
+
+        strncpy(object_filename, output_name, object_filename_size);
+        strncat(object_filename, ".o", object_filename_size);
+    
         LLVMCodeGenOptLevel optimization_level = LLVMCodeGenLevelDefault;    
         LLVMCodeGenFileType output_filetype = LLVMObjectFile;
         
@@ -679,23 +718,23 @@ int main(int argc, const char** argv) {
         
         // debug:
         // printf("\n\ntarget = %s\ntriple: %s :: name: %s :: features: %s\n\n", target_name, triple, name, features);
-
+        
         LLVMTargetMachineRef target_machine = LLVMCreateTargetMachine
             (target, triple, name, features, optimization_level, LLVMRelocDefault, LLVMCodeModelDefault);
         
-        if (LLVMTargetMachineEmitToFile(target_machine, module, output_filename, output_filetype, &error_message)) {
+        if (LLVMTargetMachineEmitToFile(target_machine, module, object_filename, output_filetype, &error_message)) {
             printf("error: target machine mit to file failed: %s\n", error_message);
             abort();
         }
         
         char string[4096] = {0};
-        snprintf(string, sizeof string, "ld64.lld -L/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/lib -macosx_version_min 11.0 -sdk_version 11.0 -lSystem -lc -o %s %s", executable_name, output_filename);
+        snprintf(string, sizeof string, "ld64.lld -L/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/lib -macosx_version_min 11.0 -sdk_version 11.0 -lSystem -lc -o %s %s", output_name, object_filename);
         system(string);
-        remove(output_filename);
-
+        remove(object_filename);
+        free(object_filename);
         return 0;
 
-    } else if (action == action_generate_objectfile) {
+    } else if (action_type == action_generate_objectfile) {
     
         LLVMTargetRef target = NULL;
         char* error_message = NULL;
@@ -728,7 +767,7 @@ int main(int argc, const char** argv) {
         }    
         return 0;
 
-    } else if (action == action_generate_assembly) {
+    } else if (action_type == action_generate_assembly) {
     
         LLVMTargetRef target = NULL;
         char* error_message = NULL;
@@ -761,7 +800,7 @@ int main(int argc, const char** argv) {
 
 
     } else {
-        printf("unknown action type: %d\n", action);  
+        printf("unknown action type: %d\n", action_type);  
         return 1;
     }
 }
