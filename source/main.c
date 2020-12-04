@@ -328,10 +328,14 @@ int main(int argc, const char** argv) {
     //    LLVMInitializeNativeTarget();    
     LLVMModuleRef module = LLVMModuleCreateWithName("main.n");
     
+    bool error = false;
+
     for (nat i = 1; i < argc; i++) {        
         const char* ext = strrchr(argv[i], '.');
-        if (not ext) abort();        
-        else if (not strcmp(ext, ".n")) {
+        if (not ext) {
+            printf("error: file has no extension, ignoring...\n");
+            continue;
+        } else if (not strcmp(ext, ".n")) {
             
             struct stat file_data = {0};
             int file = open(argv[i], O_RDONLY);            
@@ -347,7 +351,7 @@ int main(int argc, const char** argv) {
                 perror("error");
                 continue;
             } else close(file);
-                                                
+            
             struct context context = {0};
             construct_a_context(&context);            
             struct unit program = {0};
@@ -392,24 +396,12 @@ int main(int argc, const char** argv) {
             struct unit* stack = malloc(sizeof(struct unit) * stack_size);
             memset(stack, 0, sizeof(struct unit));
             stack[0].ind = context.index_count;
-            stack[0].type = intrin_init;
+            stack[0].type = intrin_init; // top level type.
+
         _0:
             if (not stack[top].ind) {
-                if (not top) goto _4;
-                if (stack[top].type == intrin_char) {
-                    begin = stack[top].begin;
-                    stack[top].index = text[begin];
-                    column++;
-                    begin++;
-                    if (begin > best) best = begin;
-                    while (begin < length && text[begin] <= ' ') {
-                        if (text[begin] == '\n') { line++; column = 1; } else column++;
-                        begin++; if (begin > best) best = begin;
-                    }
-                    goto _2;
-                }
-                top--;
-                goto _3;
+                if (not top) goto _4;                
+                top--; goto _3;
             }
             stack[top].ind--;
             done = 0;
@@ -418,8 +410,7 @@ int main(int argc, const char** argv) {
             stack[top].index = context.indicies[stack[top].ind];
             name = context.names[stack[top].index - 256];
             
-            if (stack[top].type != intrin_root and
-                stack[top].type != name.type) goto _3;
+            if (stack[top].type != name.type) goto _3;
             
             while (done < name.length) {
                 nat c = name.signature[done];
@@ -443,10 +434,9 @@ int main(int argc, const char** argv) {
                     if (text[begin] == '\n') { line++; column = 1; } else column++;
                     begin++; if (begin > best) best = begin;
                 }
-            }
-        _2:
+            }        
             if (stack[top].index == intrin_eval) {
-                
+            
                LLVMModuleRef copy = LLVMCloneModule(new);
                puts(LLVMPrintModuleToString(copy));
                LLVMExecutionEngineRef engine = NULL;
@@ -459,6 +449,7 @@ int main(int argc, const char** argv) {
                    printf("llvm: error: could not find function\n");
                    abort();
                }
+
                LLVMGenericValueRef args[] = {
                    LLVMCreateGenericValueOfInt(LLVMInt32Type(), 999, 0),
                    LLVMCreateGenericValueOfInt(LLVMInt32Type(), 34, 0)
@@ -486,6 +477,8 @@ int main(int argc, const char** argv) {
                 LLVMValueRef result = LLVMBuildCall(builder, function, arguments, count, "");
                 stack[top].value = result;
             }
+
+            
             
             if (top) {
                 stack[top - 1].args[stack[top - 1].count - 1] = stack[top];
@@ -512,18 +505,17 @@ int main(int argc, const char** argv) {
 
             LLVMBuildRet(builder, program.value);
         
-           debug_context(&context);
-           debug_tree(program, 0, &context);
+            debug_context(&context);
+            debug_tree(program, 0, &context);
                             
             if (not program.index) {
                 printf("%s: %u:%u: error: unresolved %c\n",
                        argv[i], line, column,
                        best == length ? ' ' : text[best]);
-                exit(1);
-            } else {
-//                printf("---> compilation successful.\n");
+                error = true;
+                continue;
             }
-                        
+            
             if (LLVMVerifyModule(new, LLVMPrintMessageAction, &out) or
                 LLVMLinkModules2(module, new)) {
                 printf("llvm: error: %s\n", out);
@@ -548,7 +540,7 @@ int main(int argc, const char** argv) {
             abort();
         }
     }
-    puts(LLVMPrintModuleToString(module));    
+    puts(LLVMPrintModuleToString(module));
     char* out = NULL;
     LLVMExecutionEngineRef engine = NULL;
     if (LLVMCreateExecutionEngineForModule(&engine, module, &out)) {
@@ -620,3 +612,21 @@ int main(int argc, const char** argv) {
 //    } else if (stack[top].index == intrin_define) c->names[c->name_count - 1].definition = stack[top].args[0];
 //    return 0;
 //}
+
+
+/*
+
+if (stack[top].type == intrin_char) {
+                    begin = stack[top].begin;
+                    stack[top].index = text[begin];
+                    column++;
+                    begin++;
+                    if (begin > best) best = begin;
+                    while (begin < length && text[begin] <= ' ') {
+                        if (text[begin] == '\n') { line++; column = 1; } else column++;
+                        begin++; if (begin > best) best = begin;
+                    }
+                    goto _2;
+                }
+
+*/
