@@ -45,17 +45,17 @@ struct context {
     nat _padding;
 };
 
-enum codegen_type { cg_local_variable, cg_global_variable, cg_function, cg_struct };
+enum codegen_type { llvm_local_variable, llvm_global_variable, llvm_function, llvm_struct };
 
 enum action { 
     action_none, 
-    action_generate_context,  // operates per .n file.
-    action_generate_ir, 
-    action_generate_assembly,
-    action_generate_objectfile,
-    action_generate_executable,
+    action_context,  // operates per .n file.
+    action_ir, 
+    action_assembly,
+    action_objectfile,
+    action_executable,
     action_execute,  
-    action_count,  
+    action_count,
 };
 static const char* action_spellings[] = {
     "--do-nothing", 
@@ -168,47 +168,48 @@ static inline void debug_context(struct context* context) { // temp
 }
 
 
-static inline char* translate(struct name name) { // temp
+// static inline char* translate(struct name name) { // temp
     
-    nat* signature, length, type;
-    signature = name.signature;
-    length = name.length;
-    type = name.type;
-    char* result = NULL;
-    nat result_length = 0;
-    nat result_capacity = 0;    
-    for (nat i = 0; i < length; i++) {
-        const nat c = signature[i];
+//     nat* signature, length, type;
+//     signature = name.signature;
+//     length = name.length;
+//     type = name.type;
+//     char* result = NULL;
+//     nat result_length = 0;
+//     nat result_capacity = 0;    
+//     for (nat i = 0; i < length; i++) {
+//         const nat c = signature[i];
         
-        if (c < 256) {
-            if (result_length + 1 >= result_capacity) result = realloc(result, sizeof(char) * (size_t) (result_capacity = 2 * (result_capacity + 1)));
+//         if (c < 256) {
+//             if (result_length + 1 >= result_capacity) result = realloc(result, sizeof(char) * (size_t) (result_capacity = 2 * (result_capacity + 1)));
             
-            result[result_length++] = (char) c;
-        } else {            
-            if (result_length + 1 >= result_capacity) result = realloc(result, sizeof(char) * (size_t) (result_capacity = 2 * (result_capacity + 1)));
-            result[result_length++] = '\t';
+//             result[result_length++] = (char) c;
+//         } else {            
+//             if (result_length + 1 >= result_capacity) result = realloc(result, sizeof(char) * (size_t) (result_capacity = 2 * (result_capacity + 1)));
+//             result[result_length++] = '\t';
             
-            nat extra = snprintf(NULL, 0, "%u", c);
-            if (result_length + extra >= result_capacity) result = realloc(result, sizeof(char) * (size_t) (result_capacity = 2 * (result_capacity + extra)));
-            result_length += sprintf(result + result_length, "%u", c);
+//             nat extra = snprintf(NULL, 0, "%u", c);
+//             if (result_length + extra >= result_capacity) result = realloc(result, sizeof(char) * (size_t) (result_capacity = 2 * (result_capacity + extra)));
+//             result_length += sprintf(result + result_length, "%u", c);
             
-            if (result_length + 1 >= result_capacity) result = realloc(result, sizeof(char) * (size_t) (result_capacity = 2 * (result_capacity + 1)));
-            result[result_length++] = '\n';
-        }
-    }
+//             if (result_length + 1 >= result_capacity) result = realloc(result, sizeof(char) * (size_t) (result_capacity = 2 * (result_capacity + 1)));
+//             result[result_length++] = '\n';
+//         }
+//     }
 
-    if (result_length + 1 >= result_capacity) result = realloc(result, sizeof(char) * (size_t) (result_capacity = 2 * (result_capacity + 1)));
-    result[result_length++] = ' ';
+//     if (result_length + 1 >= result_capacity) result = realloc(result, sizeof(char) * (size_t) (result_capacity = 2 * (result_capacity + 1)));
+//     result[result_length++] = ' ';
     
-    nat extra = snprintf(NULL, 0, "%u", type);
-    if (result_length + extra >= result_capacity) result = realloc(result, sizeof(char) * (size_t) (result_capacity = 2 * (result_capacity + extra)));
-    result_length += sprintf(result + result_length, "%u", type);
+//     nat extra = snprintf(NULL, 0, "%u", type);
+//     if (result_length + extra >= result_capacity) result = realloc(result, sizeof(char) * (size_t) (result_capacity = 2 * (result_capacity + extra)));
+//     result_length += sprintf(result + result_length, "%u", type);
         
-    if (result_length + 1 >= result_capacity) result = realloc(result, sizeof(char) * (size_t) (result_capacity = 2 * (result_capacity + 1)));
-    result[result_length++] = '\0';
+//     if (result_length + 1 >= result_capacity) result = realloc(result, sizeof(char) * (size_t) (result_capacity = 2 * (result_capacity + 1)));
+//     result[result_length++] = '\0';
     
-    return result;
-}
+//     return result;
+// }
+
 static inline void construct_a_context(struct context* c) { // temp    
     c->name_count = 0;
     c->index_count = 0;
@@ -229,7 +230,7 @@ static inline void construct_a_context(struct context* c) { // temp
     c->names[c->name_count].signature[2] = 'o';
     c->names[c->name_count].signature[3] = 't';
     c->names[c->name_count].definition = (struct unit) {0};
-    c->names[c->name_count].llvm_name = translate(c->names[c->name_count]);
+    // c->names[c->name_count].llvm_name = translate(c->names[c->name_count]);
     c->name_count++;
     
     c->names = realloc(c->names, sizeof(struct name) * (size_t) (c->name_count + 1));
@@ -243,7 +244,7 @@ static inline void construct_a_context(struct context* c) { // temp
     c->names[c->name_count].signature[2] = 'i';
     c->names[c->name_count].signature[3] = 't';
     c->names[c->name_count].definition = (struct unit) {0};
-    c->names[c->name_count].llvm_name = translate(c->names[c->name_count]);
+    // c->names[c->name_count].llvm_name = translate(c->names[c->name_count]);
     c->name_count++;
 
     c->names = realloc(c->names, sizeof(struct name) * (size_t) (c->name_count + 1));
@@ -257,7 +258,7 @@ static inline void construct_a_context(struct context* c) { // temp
     c->names[c->name_count].signature[2] = 'a';
     c->names[c->name_count].signature[3] = 'r';
     c->names[c->name_count].definition = (struct unit) {0};
-    c->names[c->name_count].llvm_name = translate(c->names[c->name_count]);
+    // c->names[c->name_count].llvm_name = translate(c->names[c->name_count]);
     c->name_count++;
     
     c->names = realloc(c->names, sizeof(struct name) * (size_t) (c->name_count + 1));
@@ -273,7 +274,7 @@ static inline void construct_a_context(struct context* c) { // temp
     c->names[c->name_count].signature[4] = intrin_init;
     c->names[c->name_count].signature[5] = intrin_init;
     c->names[c->name_count].definition = (struct unit) {0};
-    c->names[c->name_count].llvm_name = translate(c->names[c->name_count]);
+    // c->names[c->name_count].llvm_name = translate(c->names[c->name_count]);
     c->name_count++;
     
     c->names = realloc(c->names, sizeof(struct name) * (size_t) (c->name_count + 1));
@@ -289,7 +290,7 @@ static inline void construct_a_context(struct context* c) { // temp
     c->names[c->name_count].signature[4] = intrin_init;
     c->names[c->name_count].signature[5] = 0;
     c->names[c->name_count].definition = (struct unit) {0};
-    c->names[c->name_count].llvm_name = translate(c->names[c->name_count]);
+    // c->names[c->name_count].llvm_name = translate(c->names[c->name_count]);
     c->name_count++;
         
     c->names = realloc(c->names, sizeof(struct name) * (size_t) (c->name_count + 1));
@@ -304,7 +305,7 @@ static inline void construct_a_context(struct context* c) { // temp
     c->names[c->name_count].signature[3] = 'l';
     c->names[c->name_count].signature[4] = intrin_init;
     c->names[c->name_count].definition = (struct unit) {0};
-    c->names[c->name_count].llvm_name = translate(c->names[c->name_count]);
+    // c->names[c->name_count].llvm_name = translate(c->names[c->name_count]);
     c->name_count++;
         
     c->names = realloc(c->names, sizeof(struct name) * (size_t) (c->name_count + 1));
@@ -319,7 +320,7 @@ static inline void construct_a_context(struct context* c) { // temp
     c->names[c->name_count].signature[3] = 'p';
     c->names[c->name_count].signature[4] = intrin_init;
     c->names[c->name_count].definition = (struct unit) {0};
-    c->names[c->name_count].llvm_name = translate(c->names[c->name_count]);
+    // c->names[c->name_count].llvm_name = translate(c->names[c->name_count]);
     c->name_count++;
     
     c->indicies = realloc(c->indicies, sizeof(nat) * (size_t) (c->index_count + 1));
@@ -333,7 +334,6 @@ static inline void construct_a_context(struct context* c) { // temp
     
 //    c->indicies = realloc(c->indicies, sizeof(size_t) * (c->index_count + 1));
 //    c->indicies[c->index_count++] = intrin_param;
-
     
     c->indicies = realloc(c->indicies, sizeof(nat) * (size_t) (c->index_count + 1));
     c->indicies[c->index_count++] = intrin_join;
@@ -356,7 +356,6 @@ int main(int argc, const char** argv, const char** envp) {
     LLVMInitializeAllTargetMCs();
     LLVMInitializeAllAsmParsers();
     LLVMInitializeAllAsmPrinters();
-    
     LLVMLinkInInterpreter();
     LLVMLinkInMCJIT();
     LLVMInitializeNativeTarget();
@@ -364,132 +363,108 @@ int main(int argc, const char** argv, const char** envp) {
     LLVMModuleRef module = LLVMModuleCreateWithName("main.n");
     
     nat error_count = 0;
-    char* llvm_error_message = NULL;
+    char* llvm_error = NULL;
     const char* output_name = "out";
-    nat executable_argv_starts_at = argc;
+    nat argv_starts_at = argc;
     enum action action_type = action_execute;
-
+    
     for (nat i = 1; i < argc; i++) {        
-
+	
         if (argv[i][0] == '-') {
-
+		
             for (unsigned int a = action_none; a < action_count; a++) {
                 if (not strcmp(argv[i], action_spellings[a])) {
                     action_type = a; 
-                    goto arg_success;                    
+                    goto arg_success;
                 }
             }
             
-            if (not strcmp(argv[i], "--")) { executable_argv_starts_at = i + 1; break; }
-
+            if (not strcmp(argv[i], "--")) { argv_starts_at = i + 1; break; }
+	    if (not strcmp(argv[i], "--version")) { puts("version: 0.0.1"); exit(0); }
+	    if (not strcmp(argv[i], "--usage")) { puts("usage: <see manual.txt>"); exit(0); }
             if (not strcmp(argv[i], "--name")) {
                 if (i + 1 < argc) output_name = argv[++i];                
                 else {
-                    printf("error: argument not supplied for option --name\n");
+                    fprintf(stderr, "error: argument not supplied for option --name\n");
                     error_count++;
                 }
                 continue;
             }
 
-            printf("error: unknown argument: %s\n", argv[i]);            
+            fprintf(stderr, "error: unknown argument: %s\n", argv[i]);            
             error_count++;
             arg_success: continue;
         }
 
         const char* ext = strrchr(argv[i], '.');
         if (not ext) {
-            printf("error: file has no extension, ignoring...\n");
+            fprintf(stderr, "error: file has no extension\n");
             error_count++;
-            continue;
 
         } else if (not strcmp(ext, ".n")) {
             
             struct stat file_data = {0};
             int file = open(argv[i], O_RDONLY);            
             if (file < 0 or stat(argv[i], &file_data) < 0) {
-                fprintf(stderr, "n: %s: ", argv[i]);
+                fprintf(stderr, "error: %s: ", argv[i]);
                 perror("error");
                 error_count++;
                 continue;
-            }        
+            } 
+       
             nat length = (nat) file_data.st_size;
             int8_t* text = mmap(0, (size_t) length, PROT_READ, MAP_SHARED, file, 0);            
             if (text == MAP_FAILED) {
-                fprintf(stderr, "n: %s: ", argv[i]);
+                fprintf(stderr, "error: %s: ", argv[i]);
                 perror("error");
                 error_count++;
                 continue;
             } else close(file);
-
             
-            struct context context = {0};
-            construct_a_context(&context);            
-            struct unit program = {0};
-            struct name name = {0};
-            nat begin = 0, best = 0, top = 0, done = 0, line = 1, column = 1;
-                    
-
-            LLVMModuleRef new = LLVMModuleCreateWithName(argv[i]);
+	    LLVMModuleRef new = LLVMModuleCreateWithName(argv[i]);
             LLVMBuilderRef builder = LLVMCreateBuilder();
-            {
-                LLVMTypeRef join_param_list[] = { LLVMInt32Type(), LLVMInt32Type() };
-                LLVMValueRef join_function = LLVMAddFunction(new, context.names[intrin_join - 256].llvm_name, LLVMFunctionType(LLVMInt32Type(), join_param_list, 2, 0));
-                LLVMBasicBlockRef join_entry = LLVMAppendBasicBlock(join_function, "entry");
-                LLVMPositionBuilderAtEnd(builder, join_entry);
-                LLVMValueRef join_result = LLVMBuildAdd(builder, LLVMGetParam(join_function, 0), LLVMGetParam(join_function, 1), "");
-                LLVMBuildRet(builder, join_result);
-            }
-            {
-                LLVMTypeRef* char_param_list = NULL;
-                LLVMValueRef char_function = LLVMAddFunction(new, context.names[intrin_char - 256].llvm_name, LLVMFunctionType(LLVMInt32Type(), char_param_list, 0, 0));
-                LLVMBasicBlockRef char_entry = LLVMAppendBasicBlock(char_function, "entry");
-                LLVMPositionBuilderAtEnd(builder, char_entry);
-                LLVMValueRef char_result = LLVMConstInt(LLVMInt32Type(), 1, 0);
-                LLVMBuildRet(builder, char_result);
-            }            
-            {
-                LLVMAddFunction(new, "print_hello", LLVMFunctionType(LLVMInt32Type(), NULL, 0, 0));
-                //  LLVMValueRef print_hello_function = 
-            }                
-            {
-                LLVMTypeRef main_param_list[] = { LLVMInt32Type(), LLVMPointerType(LLVMPointerType(LLVMInt8Type(), 0), 0)};
-                LLVMValueRef main_function = LLVMAddFunction(new, "main", LLVMFunctionType(LLVMInt32Type(), main_param_list, 2, 0));
-                LLVMBasicBlockRef main_entry = LLVMAppendBasicBlock(main_function, "entry");
-                LLVMPositionBuilderAtEnd(builder, main_entry);
-            }
-//            LLVMValueRef tmp = LLVMBuildAdd(builder, LLVMGetParam(sum, 0), LLVMGetParam(sum, 1), "tmp");
-//            LLVMBuildRet(builder, tmp);
-                
+            struct context context = {0};
+            construct_a_context(&context);
+            nat begin = 0, best = 0, top = 0, done = 0, line = 1, column = 1;
+
             while (begin < length && text[begin] <= ' ') {
                 if (text[begin] == '\n') { line++; column = 1; } else column++;
                 begin++; if (begin > best) best = begin;
             }
+
             const nat stack_size = 65536;
             struct unit* stack = malloc(sizeof(struct unit) * stack_size);
+
             memset(stack, 0, sizeof(struct unit));
             stack[0].ind = context.index_count;
             stack[0].type = intrin_init; // top level type.
 
         _0:
             if (not stack[top].ind) {
-                if (not top) goto _4;                
-                top--; goto _3;
+                if (not top) {
+                    fprintf(stderr, "%s: %u:%u: error: unresolved %c\n",
+                        argv[i], line, column, best == length ? ' ' : text[best]);
+               	    error_count++;
+		    goto _3;
+		}
+                top--; 
+                goto _2;
             }
             stack[top].ind--;
             done = 0;
             begin = stack[top].begin;
         _1:
             stack[top].index = context.indicies[stack[top].ind];
-            name = context.names[stack[top].index - 256];
-            
-            if (stack[top].type != name.type) goto _3;
+            struct name name = context.names[stack[top].index - 256];            
+            if (stack[top].type != name.type) goto _2;
             
             while (done < name.length) {
                 nat c = name.signature[done];
                 done++;
                 if (c >= 256 and top + 1 < stack_size) {
                     stack[top].count++;
-                    stack[top].args = realloc(stack[top].args, sizeof(struct unit) * (size_t) stack[top].count);
+                    stack[top].args = realloc(stack[top].args, 
+			sizeof(struct unit) * (size_t) stack[top].count);
                     top++;
                     stack[top] = (struct unit){0};
                     stack[top].ind = context.index_count;
@@ -498,7 +473,7 @@ int main(int argc, const char** argv, const char** envp) {
                     stack[top].begin = begin;
                     goto _0;
                 }
-                if (c != text[begin]) goto _3;
+                if (c != text[begin]) goto _2;
                 column++;
                 begin++;
                 if (begin > best) best = begin;
@@ -507,63 +482,7 @@ int main(int argc, const char** argv, const char** envp) {
                     begin++; if (begin > best) best = begin;
                 }
             }
-
-
-            if (stack[top].index == intrin_eval) {
-            
-               LLVMModuleRef copy = LLVMCloneModule(new);
-               puts(LLVMPrintModuleToString(copy));
-               LLVMExecutionEngineRef engine = NULL;
-               if (LLVMCreateExecutionEngineForModule(&engine, copy, &llvm_error_message)) {
-                   printf("llvm: error: %s\n", llvm_error_message);
-                   error_count++;
-                   continue;
-               }
-               LLVMValueRef f = NULL;
-               if (LLVMFindFunction(engine,"", &f)) {
-                   printf("llvm: error: could not find function\n");
-                   error_count++;
-                   continue;
-               }
-
-               LLVMGenericValueRef args[] = {
-                   LLVMCreateGenericValueOfInt(LLVMInt32Type(), 999, 0),
-                   LLVMCreateGenericValueOfInt(LLVMInt32Type(), 34, 0)
-               };
-               LLVMGenericValueRef res = LLVMRunFunction(engine, f, 2, args);
-               printf("%d\n", (int)LLVMGenericValueToInt(res, 0));
-               LLVMDisposeGenericValue(res);
-               LLVMDisposeExecutionEngine(engine);
-               
- 
-            } else if (stack[top].index == intrin_join) {                
-                unsigned count = (unsigned) stack[top].count;
-                LLVMValueRef* arguments = malloc(sizeof(LLVMValueRef) * count);
-                for (unsigned a = 0; a < count; a++)
-                    arguments[a] = stack[top].args[a].value;
-                LLVMValueRef function = LLVMGetNamedFunction(new, context.names[intrin_join - 256].llvm_name);
-                LLVMValueRef result = LLVMBuildCall(builder, function, arguments, count, "");
-                stack[top].value = result;
-                
-                
-            } else if (stack[top].index == intrin_char) {                
-                unsigned count = (unsigned) stack[top].count;
-                LLVMValueRef* arguments = malloc(sizeof(LLVMValueRef) * count);
-                for (unsigned a = 0; a < count; a++)
-                    arguments[a] = stack[top].args[a].value;
-                LLVMValueRef function = LLVMGetNamedFunction(new, context.names[intrin_char - 256].llvm_name);
-                LLVMValueRef result = LLVMBuildCall(builder, function, arguments, count, "");
-                stack[top].value = result;
-
-
-            } else if (stack[top].index == intrin_unreachable) {
-                LLVMBuildUnreachable(builder);
-
-            } else if (stack[top].index == intrin_branch) {
-                // LLVMBasicBlockRef block = 
-                // LLVMBuildBr(builder, block);
-            }
-
+            // codegen();
             if (top) {
                 stack[top - 1].args[stack[top - 1].count - 1] = stack[top];
                 done = stack[top].done;
@@ -571,218 +490,144 @@ int main(int argc, const char** argv, const char** envp) {
                 goto _1;
             }
             if (begin == length) {
-                program = stack[top];
-                goto _4;
-            }
-        _3:
+	        debug_context(&context); debug_tree(*stack, 0, &context);
+                if (LLVMVerifyModule(new, LLVMPrintMessageAction, &llvm_error) or
+                    LLVMLinkModules2(module, new)) {
+                    fprintf(stderr, "llvm: error: %s\n", llvm_error);
+                    LLVMDisposeMessage(llvm_error);
+                    error_count++;
+                }
+                goto _3;
+	    }
+        _2:
             free(stack[top].args);
             stack[top].args = NULL;
             stack[top].count = 0;
             goto _0;
-        _4:
-            free(stack);                   
+	_3:
+	    // destroy_stack_tree()
+            //TODO: destroy_context();
+	    free(stack);
+	    munmap(text, (size_t) length);
+	    LLVMDisposeBuilder(builder);
 
-            unsigned count = 0;
-            LLVMValueRef* arguments = NULL;
-            LLVMValueRef function = LLVMGetNamedFunction(new, "print_hello");
-            LLVMBuildCall(builder, function, arguments, count, "");            
-            LLVMConstInt(LLVMInt32Type(), 0, 0); // LLVMValueRef main_result = 
-
-            LLVMBuildRet(builder, program.value);
-        
-            debug_context(&context);
-            debug_tree(program, 0, &context);
-                            
-            if (not program.index) {
-                printf("%s: %u:%u: error: unresolved %c\n",
-                       argv[i], line, column,
-                       best == length ? ' ' : text[best]);
-                error_count++;
-                continue;
-            }
-            
-            if (LLVMVerifyModule(new, LLVMPrintMessageAction, &llvm_error_message) or
-                LLVMLinkModules2(module, new)) {
-                printf("llvm: error: %s\n", llvm_error_message);
-                LLVMDisposeMessage(llvm_error_message);
-                error_count++;
-                continue;
-            }            
-            
-            munmap(text, (size_t) length);
-            
         } else if (not strcmp(ext, ".ll")) {            
             LLVMModuleRef new = NULL;
             LLVMMemoryBufferRef buffer;            
-            if (LLVMCreateMemoryBufferWithContentsOfFile(argv[i], &buffer, &llvm_error_message) or
-                LLVMParseIRInContext(LLVMGetGlobalContext(), buffer, &new, &llvm_error_message) or
-                LLVMVerifyModule(new, LLVMPrintMessageAction, &llvm_error_message) or
+            if (LLVMCreateMemoryBufferWithContentsOfFile(argv[i], &buffer, &llvm_error) or
+                LLVMParseIRInContext(LLVMGetGlobalContext(), buffer, &new, &llvm_error) or
+                LLVMVerifyModule(new, LLVMPrintMessageAction, &llvm_error) or
                 LLVMLinkModules2(module, new)) {
-                printf("llvm: error: %s\n", llvm_error_message);
-                LLVMDisposeMessage(llvm_error_message);
+                fprintf(stderr, "llvm: error: %s\n", llvm_error);
+                LLVMDisposeMessage(llvm_error);
                 error_count++;
-                continue;
-            }            
+            }	    
+
         } else {
-            printf("%s: unknown file type with extension: \"%s\"\n", argv[i], ext);
+            fprintf(stderr, "%s: error: unknown file type: \"%s\"\n", argv[i], ext);
             error_count++;
-            continue;
         }
+    }
+    
+    if (LLVMVerifyModule(module, LLVMPrintMessageAction, &llvm_error)) {
+        fprintf(stderr, "llvm: error: %s\n", llvm_error);
+        LLVMDisposeMessage(llvm_error);
+        error_count++;
     }
     
     if (error_count) {
-        printf("%d error%s generated.\n", error_count, error_count > 1 ? "s" : "");
+        fprintf(stderr, "%d error%s generated.\n", error_count, error_count > 1 ? "s" : "");
         exit(1);
     }
-    
-    if (LLVMVerifyModule(module, LLVMPrintMessageAction, &llvm_error_message)) {
-        printf("llvm: error: %s\n", llvm_error_message);
-        LLVMDisposeMessage(llvm_error_message);
-        abort();
-    }
+	
+    // ----- {optimize} -------
+    // ----- {/optimize} -------
 
-
-    // do optimizations:
-    // LLVMPassManagerRef pass_manageer = LLVMCreateFunctionPassManagerForModule(module);
-
-
-    if (action_type == action_none) { }
-
-    else if (action_type == action_generate_context) {
-        
-        // unimplemented.
-
-    } else if (action_type == action_generate_ir) {
-
-        FILE* file = fopen(output_name, "w");
-        if (not file) {
-            printf("error: could not open file llvm ir output\n");
-            abort();
-        }
-        fputs(LLVMPrintModuleToString(module), file);
-        fclose(file); 
+    if (action_type == action_ir) {	
+	if (LLVMPrintModuleToFile(module, output_name, &llvm_error)) {
+	    fprintf(stderr, "llvm: error: %s\n", llvm_error);
+            LLVMDisposeMessage(llvm_error);
+	    exit(1);
+	}
 
     } else if (action_type == action_execute) {
         
         LLVMExecutionEngineRef engine = NULL;
-
         struct LLVMMCJITCompilerOptions options;
         LLVMInitializeMCJITCompilerOptions(&options, sizeof(options)); 
-
-        if (LLVMCreateMCJITCompilerForModule(&engine, module, &options, sizeof options, &llvm_error_message)) {
-            printf("llvm: error: %s\n", llvm_error_message);
-            LLVMDisposeMessage(llvm_error_message);
-            abort();
+        if (LLVMCreateMCJITCompilerForModule(&engine, module, &options, 
+					     sizeof options, &llvm_error)) {
+            fprintf(stderr, "llvm: error: %s\n", llvm_error);
+            LLVMDisposeMessage(llvm_error);
+            exit(1);
         }
         
-        LLVMValueRef main_function = NULL;
-        if (LLVMFindFunction(engine, "main", &main_function)) { //TODO: it wont technically be called main... it will be called something weird...
-            printf("error: no entry point for executable\n");
-            return 1;
+        LLVMValueRef main_function = NULL;	
+        if (LLVMFindFunction(engine, "main", &main_function)) {
+            fprintf(stderr, "error: no entry point for executable\n");
+            exit(1);
         }
 
-        int exit_code = LLVMRunFunctionAsMain(engine, main_function, 
-                                (unsigned int) (argc - executable_argv_starts_at), 
-                                argv + executable_argv_starts_at, envp);        
-
+        int code = LLVMRunFunctionAsMain(engine, main_function, 
+                           (unsigned int) (argc - argv_starts_at), argv + argv_starts_at, envp);
         LLVMDisposeExecutionEngine(engine);
-        return exit_code;
+        exit(code);
 
-    } else if (action_type == action_generate_executable) {
-    
-        LLVMTargetRef target = NULL;
 
-        size_t object_filename_size = strlen(output_name) + 2 + 1;
-        char* object_filename = calloc(object_filename_size, sizeof(char));
+    } else if (action_type == action_assembly or 
+	       action_type == action_objectfile or 
+	       action_type == action_executable) {
+   	
+	char* emit_filename = (char*) (intptr_t) output_name;
 
-        strncpy(object_filename, output_name, object_filename_size);
-        strncat(object_filename, ".o", object_filename_size);
-    
-        LLVMCodeGenOptLevel optimization_level = LLVMCodeGenLevelDefault;    
-        LLVMCodeGenFileType output_filetype = LLVMObjectFile;
-        
+        if (action_type == action_executable) {
+		size_t emit_filename_size = strlen(output_name) + 2 + 1;
+        	emit_filename = calloc(emit_filename_size, sizeof(char));
+        	strncpy(emit_filename, output_name, emit_filename_size);
+        	strncat(emit_filename, ".o", emit_filename_size);		 
+	}
+	
+        LLVMCodeGenFileType output_filetype = action_type == action_assembly  
+						? LLVMAssemblyFile : LLVMObjectFile;        
+	
+	LLVMCodeGenOptLevel optimization_level = LLVMCodeGenLevelDefault;    
+        LLVMTargetRef target = NULL;        
         const char* triple = LLVMGetDefaultTargetTriple();
         const char* name = LLVMGetHostCPUName();
         const char* features = LLVMGetHostCPUFeatures();
 
-        if (LLVMGetTargetFromTriple(triple, &target, &llvm_error_message)) {
-            printf("error: get target from triple failed: %s\n", llvm_error_message);
-            LLVMDisposeMessage(llvm_error_message);
-            abort();
+        if (LLVMGetTargetFromTriple(triple, &target, &llvm_error)) {
+            fprintf(stderr, "llvm: error: get target from triple: %s\n", llvm_error);
+            LLVMDisposeMessage(llvm_error);
+            exit(1);
         }
-        
+
         LLVMTargetMachineRef target_machine = LLVMCreateTargetMachine
-            (target, triple, name, features, optimization_level, LLVMRelocDefault, LLVMCodeModelDefault);
+            		(target, triple, name, features, optimization_level, 
+			LLVMRelocDefault, LLVMCodeModelDefault);
         
-        if (LLVMTargetMachineEmitToFile(target_machine, module, object_filename, output_filetype, &llvm_error_message)) {
-            printf("error: target machine mit to file failed: %s\n", llvm_error_message);
-            LLVMDisposeMessage(llvm_error_message);
-            abort();
+        if (LLVMTargetMachineEmitToFile(target_machine, module, 
+					emit_filename, output_filetype, &llvm_error)) {
+            fprintf(stderr, "llvm: error: target machine emit: %s\n", llvm_error);
+            LLVMDisposeMessage(llvm_error);
+            exit(1);
         }
-        
-        char string[4096] = {0};
-        snprintf(string, sizeof string, 
+	
+	if (action_type == action_executable) {
+     		char linker_string[4096] = {0};
+        	snprintf(linker_string, sizeof linker_string, 
                     "ld64.lld "
-                    "-L/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/lib "
-                    "-macosx_version_min 11.0 "
-                    "-sdk_version 11.0 "
+		    "-demangle -lto_library /usr/local/Cellar/llvm/11.0.0/lib/libLTO.dylib "
+                    "-syslibroot /Library/Developer/CommandLineTools/SDKs/MacOSX11.0.sdk "
+                    "-macosx_version_min 11.0 -sdk_version 11.0 "
                     "-lSystem -lc "
-                    "-o %s %s", output_name, object_filename);
-        system(string);
-        remove(object_filename);
-        free(object_filename);        
-
-    } else if (action_type == action_generate_objectfile) {
-    
-        LLVMTargetRef target = NULL;   
-        LLVMCodeGenOptLevel optimization_level = LLVMCodeGenLevelDefault;    
-        LLVMCodeGenFileType output_filetype = LLVMObjectFile;        
-        const char* triple = LLVMGetDefaultTargetTriple();
-        const char* name = LLVMGetHostCPUName();
-        const char* features = LLVMGetHostCPUFeatures();
-
-        if (LLVMGetTargetFromTriple(triple, &target, &llvm_error_message)) {
-            printf("error: get target from triple failed: %s\n", llvm_error_message);
-            LLVMDisposeMessage(llvm_error_message);
-            abort();
-        }
-        LLVMTargetMachineRef target_machine = LLVMCreateTargetMachine
-            (target, triple, name, features, optimization_level, LLVMRelocDefault, LLVMCodeModelDefault);
-        
-        if (LLVMTargetMachineEmitToFile(target_machine, module, (char*) (intptr_t) output_name, output_filetype, &llvm_error_message)) {
-            printf("error: target machine mit to file failed: %s\n", llvm_error_message);
-            LLVMDisposeMessage(llvm_error_message);
-            abort();
-        }         
-
-    } else if (action_type == action_generate_assembly) {
-    
-        LLVMTargetRef target = NULL;  
-        LLVMCodeGenOptLevel optimization_level = LLVMCodeGenLevelDefault;    
-        LLVMCodeGenFileType output_filetype = LLVMAssemblyFile;        
-        const char* triple = LLVMGetDefaultTargetTriple();
-        const char* name = LLVMGetHostCPUName();
-        const char* features = LLVMGetHostCPUFeatures();
-
-        if (LLVMGetTargetFromTriple(triple, &target, &llvm_error_message)) {
-            printf("error: get target from triple failed: %s\n", llvm_error_message);
-            LLVMDisposeMessage(llvm_error_message);
-            abort();
-        }    
-        LLVMTargetMachineRef target_machine = LLVMCreateTargetMachine
-            (target, triple, name, features, optimization_level, LLVMRelocDefault, LLVMCodeModelDefault);
-
-        if (LLVMTargetMachineEmitToFile(target_machine, module, (char*) (intptr_t) output_name, output_filetype, &llvm_error_message)) {
-            printf("error: target machine mit to file failed: %s\n", llvm_error_message);
-            LLVMDisposeMessage(llvm_error_message);
-            abort();
-        } 
-
-    } else {
-        printf("unknown action type: %s\n", action_spellings[action_type]);
-        return 1;
-    }
-    return 0;
+                    "-o %s %s", output_name, emit_filename);
+        	system(linker_string);
+        	remove(emit_filename);
+        	free(emit_filename);
+	}    
+    }    
+    exit(0);
 }
 
 
@@ -803,7 +648,47 @@ int main(int argc, const char** argv, const char** envp) {
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
 // ----------------------------------------------------
+
+
+/*
+
+-syslibroot /Library/Developer/CommandLineTools/SDKs/MacOSX11.0.sdk 
+
+"ld64.lld "
+                    "-L/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/lib "
+                    "-macosx_version_min 11.0 -sdk_version 11.0 "
+                    "-lSystem -lc "
+                    "-o %s %s", output_name, emit_filename);
+
+
+
+ "/usr/bin/ld" -demangle -lto_library /usr/local/Cellar/llvm/11.0.0/lib/libLTO.dylib 
+
+-dynamic -arch x86_64 -platform_version macos 11.0.0 0.0.0 
+
+-syslibroot /Library/Developer/CommandLineTools/SDKs/MacOSX11.0.sdk 
+
+-o a.out 
+object.o 
+
+-lSystem /usr/local/Cellar/llvm/11.0.0/lib/clang/11.0.0/lib/darwin/libclang_rt.osx.a
+
+*/
+
+
 //     LLVMTypeRef param_types[] = { LLVMInt32Type(), LLVMInt32Type() };
 //     LLVMValueRef sum = LLVMAddFunction(new, "sum", LLVMFunctionType(LLVMInt32Type(), param_types, 2, 0));
 //
@@ -885,3 +770,204 @@ if (stack[top].type == intrin_char) {
         // for (int i = 0; i < main_argc; i++) {
         //     printf("\t - \"%s\"\n", main_argv[i]);
         // }
+
+// {
+            //     LLVMTypeRef join_param_list[] = { LLVMInt32Type(), LLVMInt32Type() };
+            //     LLVMValueRef join_function = LLVMAddFunction(new, context.names[intrin_join - 256].llvm_name, LLVMFunctionType(LLVMInt32Type(), join_param_list, 2, 0));
+            //     LLVMBasicBlockRef join_entry = LLVMAppendBasicBlock(join_function, "entry");
+            //     LLVMPositionBuilderAtEnd(builder, join_entry);
+            //     LLVMValueRef join_result = LLVMBuildAdd(builder, LLVMGetParam(join_function, 0), LLVMGetParam(join_function, 1), "");
+            //     LLVMBuildRet(builder, join_result);
+            // }
+            // {
+            //     LLVMTypeRef* char_param_list = NULL;
+            //     LLVMValueRef char_function = LLVMAddFunction(new, context.names[intrin_char - 256].llvm_name, LLVMFunctionType(LLVMInt32Type(), char_param_list, 0, 0));
+            //     LLVMBasicBlockRef char_entry = LLVMAppendBasicBlock(char_function, "entry");
+            //     LLVMPositionBuilderAtEnd(builder, char_entry);
+            //     LLVMValueRef char_result = LLVMConstInt(LLVMInt32Type(), 1, 0);
+            //     LLVMBuildRet(builder, char_result);
+            // }            
+            // {
+            //     LLVMAddFunction(new, "print_hello", LLVMFunctionType(LLVMInt32Type(), NULL, 0, 0));
+            //     //  LLVMValueRef print_hello_function = 
+            // }  
+
+
+
+
+
+
+
+
+
+/*
+
+if (stack[top].index == intrin_eval) {
+            
+               LLVMModuleRef copy = LLVMCloneModule(new);
+               puts(LLVMPrintModuleToString(copy));
+               LLVMExecutionEngineRef engine = NULL;
+               if (LLVMCreateExecutionEngineForModule(&engine, copy, &llvm_error_message)) {
+                   printf("llvm: error: %s\n", llvm_error_message);
+                   error_count++;
+                   continue;
+               }
+               LLVMValueRef f = NULL;
+               if (LLVMFindFunction(engine,"", &f)) {
+                   printf("llvm: error: could not find function\n");
+                   error_count++;
+                   continue;
+               }
+
+               LLVMGenericValueRef args[] = {
+                   LLVMCreateGenericValueOfInt(LLVMInt32Type(), 999, 0),
+                   LLVMCreateGenericValueOfInt(LLVMInt32Type(), 34, 0)
+               };
+               LLVMGenericValueRef res = LLVMRunFunction(engine, f, 2, args);
+               printf("%d\n", (int)LLVMGenericValueToInt(res, 0));
+               LLVMDisposeGenericValue(res);
+               LLVMDisposeExecutionEngine(engine);               
+ 
+            } else if (stack[top].index == intrin_join) {                
+                // unsigned count = (unsigned) stack[top].count;
+                // LLVMValueRef* arguments = malloc(sizeof(LLVMValueRef) * count);
+                // for (unsigned a = 0; a < count; a++)
+                //     arguments[a] = stack[top].args[a].value;
+                // LLVMValueRef function = LLVMGetNamedFunction(new, context.names[intrin_join - 256].llvm_name);
+                // LLVMValueRef result = LLVMBuildCall(builder, function, arguments, count, "");
+                // stack[top].value = result;
+            
+            } else if (stack[top].index == intrin_char) {                
+                // unsigned count = (unsigned) stack[top].count;
+                // LLVMValueRef* arguments = malloc(sizeof(LLVMValueRef) * count);
+                // for (unsigned a = 0; a < count; a++)
+                //     arguments[a] = stack[top].args[a].value;
+                // LLVMValueRef function = LLVMGetNamedFunction(new, context.names[intrin_char - 256].llvm_name);
+                // LLVMValueRef result = LLVMBuildCall(builder, function, arguments, count, "");
+                // stack[top].value = result;
+
+	    } else if (stack[top].index == intrin_decl) {
+
+		// declare the signature into the current frame...? 
+		// or only when eval'd?
+
+
+            } else if (stack[top].index == intrin_unreachable) {
+                LLVMBuildUnreachable(builder);
+
+            } else if (stack[top].index == intrin_branch) {
+                // LLVMBasicBlockRef block = 
+                // LLVMBuildBr(builder, block);
+            }
+
+
+
+*/
+
+
+		// unsigned count = 0;
+            // LLVMValueRef* arguments = NULL;
+            // LLVMValueRef function = LLVMGetNamedFunction(new, "print_hello");
+            // LLVMBuildCall(builder, function, arguments, count, "");            
+
+
+
+
+    // do optimizations:
+    // LLVMPassManagerRef pass_manageer = LLVMCreateFunctionPassManagerForModule(module);
+
+
+
+
+// } else if () {
+    
+    //     LLVMTargetRef target = NULL;  
+    //     LLVMCodeGenOptLevel optimization_level = LLVMCodeGenLevelDefault;    
+    //     LLVMCodeGenFileType output_filetype = LLVMAssemblyFile;        
+    //     const char* triple = LLVMGetDefaultTargetTriple();
+    //     const char* name = LLVMGetHostCPUName();
+    //     const char* features = LLVMGetHostCPUFeatures();
+
+    //     if (LLVMGetTargetFromTriple(triple, &target, &llvm_error_message)) {
+    //         printf("error: get target from triple failed: %s\n", llvm_error_message);
+    //         LLVMDisposeMessage(llvm_error_message);
+    //         abort();
+    //     }    
+    //     LLVMTargetMachineRef target_machine = LLVMCreateTargetMachine
+    //         (target, triple, name, features, optimization_level, LLVMRelocDefault, LLVMCodeModelDefault);
+
+    //     if (LLVMTargetMachineEmitToFile(target_machine, module, (char*) (intptr_t) output_name, output_filetype, &llvm_error_message)) {
+    //         printf("error: target machine mit to file failed: %s\n", llvm_error_message);
+    //         LLVMDisposeMessage(llvm_error_message);
+    //         abort();
+    //     } 
+
+
+
+
+    // } else if (action_type == action_generate_executable) {
+    
+    //     LLVMTargetRef target = NULL;
+
+    //     size_t object_filename_size = strlen(output_name) + 2 + 1;
+    //     char* object_filename = calloc(object_filename_size, sizeof(char));
+
+    //     strncpy(object_filename, output_name, object_filename_size);
+    //     strncat(object_filename, ".o", object_filename_size);
+    
+    //     LLVMCodeGenOptLevel optimization_level = LLVMCodeGenLevelDefault;    
+    //     LLVMCodeGenFileType output_filetype = LLVMObjectFile;
+        
+    //     const char* triple = LLVMGetDefaultTargetTriple();
+    //     const char* name = LLVMGetHostCPUName();
+    //     const char* features = LLVMGetHostCPUFeatures();
+
+    //     if (LLVMGetTargetFromTriple(triple, &target, &llvm_error_message)) {
+    //         fprintf(stderr, "llvm: error: get target from triple failed: %s\n", llvm_error_message);
+    //         LLVMDisposeMessage(llvm_error_message);
+    //         abort();
+    //     }
+        
+    //     LLVMTargetMachineRef target_machine = LLVMCreateTargetMachine
+    //         (target, triple, name, features, optimization_level, LLVMRelocDefault, LLVMCodeModelDefault);
+        
+    //     if (LLVMTargetMachineEmitToFile(target_machine, module, object_filename, output_filetype, &llvm_error_message)) {
+    //         fprintf(stderr, "llvm: error: target machine mit to file failed: %s\n", llvm_error_message);
+    //         LLVMDisposeMessage(llvm_error_message);
+    //         abort();
+    //     }
+        
+    //     char string[4096] = {0};
+    //     snprintf(string, sizeof string, 
+    //                 "ld64.lld "
+    //                 "-L/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/lib "
+    //                 "-macosx_version_min 11.0 "
+    //                 "-sdk_version 11.0 "
+    //                 "-lSystem -lc "
+    //                 "-o %s %s", output_name, object_filename);
+    //     system(string);
+    //     remove(object_filename);
+    //     free(object_filename);        
+
+
+
+            
+            // {
+            //     LLVMTypeRef main_param_list[] = { LLVMInt32Type(), LLVMPointerType(LLVMPointerType(LLVMInt8Type(), 0), 0)};
+            //     LLVMValueRef main_function = LLVMAddFunction(new, "main", LLVMFunctionType(LLVMInt32Type(), main_param_list, 2, 0));
+            //     LLVMBasicBlockRef main_entry = LLVMAppendBasicBlock(main_function, "entry");
+            //     LLVMPositionBuilderAtEnd(builder, main_entry);
+            // }
+//            LLVMValueRef tmp = LLVMBuildAdd(builder, LLVMGetParam(sum, 0), LLVMGetParam(sum, 1), "tmp");
+//            LLVMBuildRet(builder, tmp);
+
+
+
+
+// LLVMValueRef main_result = LLVMConstInt(LLVMInt32Type(), 0, 0);
+                // LLVMBuildRet(builder, main_result);
+            
+
+
+
+
