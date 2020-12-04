@@ -13,7 +13,7 @@
 #include <stdlib.h>
 #include <iso646.h>
 
-typedef int nat;
+typedef int32_t nat;
 
 struct unit {
     LLVMValueRef value;
@@ -177,146 +177,77 @@ static inline void debug_context(struct context* context) { // temp
     printf("-------------------\n\n");
 }
 
-static inline void construct_a_context(struct context* c) { // temp    
-    c->name_count = 0;
-    c->index_count = 0;
-    c->frame_count = 0;    
-    c->owners = realloc(c->owners, sizeof(struct name) * (size_t) (c->frame_count + 1));
-    c->owners[c->frame_count] = (struct name) {0};    
-    c->frames = realloc(c->frames, sizeof(nat) * (size_t) (c->frame_count + 1));
-    c->frames[c->frame_count++] = c->index_count;
+static inline void load_context(struct context* context, const char* path) {
+            
+    struct stat file_data = {0};
+    int file = open(path, O_RDONLY);            
+    if (file < 0 or stat(path, &file_data) < 0) {
+        fprintf(stderr, "error: %s: ", path);
+        perror("error");
+        return;
+    } 
     
-    c->names = realloc(c->names, sizeof(struct name) * (size_t) (c->name_count + 1));
-    c->names[c->name_count].type = 0;
-    c->names[c->name_count].precedence = 0;
-    c->names[c->name_count].codegen_as = 0;
-    c->names[c->name_count].length = 4;
-    c->names[c->name_count].signature = calloc((size_t) c->names[c->name_count].length, sizeof(nat));
-    c->names[c->name_count].signature[0] = 'r';
-    c->names[c->name_count].signature[1] = 'o';
-    c->names[c->name_count].signature[2] = 'o';
-    c->names[c->name_count].signature[3] = 't';
-    c->names[c->name_count].definition = (struct unit) {0};
-    // c->names[c->name_count].llvm_name = translate(c->names[c->name_count]);
-    c->name_count++;
-    
-    c->names = realloc(c->names, sizeof(struct name) * (size_t) (c->name_count + 1));
-    c->names[c->name_count].type = intrin_root;
-    c->names[c->name_count].precedence = 0;
-    c->names[c->name_count].codegen_as = 0;
-    c->names[c->name_count].length = 4;
-    c->names[c->name_count].signature = calloc((size_t) c->names[c->name_count].length, sizeof(nat));
-    c->names[c->name_count].signature[0] = 'i';
-    c->names[c->name_count].signature[1] = 'n';
-    c->names[c->name_count].signature[2] = 'i';
-    c->names[c->name_count].signature[3] = 't';
-    c->names[c->name_count].definition = (struct unit) {0};
-    // c->names[c->name_count].llvm_name = translate(c->names[c->name_count]);
-    c->name_count++;
+    nat* text = mmap(0, (size_t) file_data.st_size, PROT_READ, MAP_SHARED, file, 0);
+    if (text == MAP_FAILED) {
+        fprintf(stderr, "error: %s: ", path);
+        perror("error");
+        return;
+    }
+    close(file);
 
-    c->names = realloc(c->names, sizeof(struct name) * (size_t) (c->name_count + 1));
-    c->names[c->name_count].type = intrin_init;
-    c->names[c->name_count].precedence = 0;
-    c->names[c->name_count].codegen_as = 0;
-    c->names[c->name_count].length = 4;
-    c->names[c->name_count].signature = calloc((size_t) c->names[c->name_count].length, sizeof(nat));
-    c->names[c->name_count].signature[0] = 'c';
-    c->names[c->name_count].signature[1] = 'h';
-    c->names[c->name_count].signature[2] = 'a';
-    c->names[c->name_count].signature[3] = 'r';
-    c->names[c->name_count].definition = (struct unit) {0};
-    // c->names[c->name_count].llvm_name = translate(c->names[c->name_count]);
-    c->name_count++;
+    nat count = *text++;
+    context->name_count = count; 
+    context->index_count = count;
+    context->frame_count = 1;
+    context->names = calloc((size_t) count, sizeof(struct name));
+    context->indicies = calloc((size_t) count, sizeof(nat));
+    context->owners = calloc(1, sizeof(struct name));
+    context->frames = calloc(1, sizeof(nat));
     
-    c->names = realloc(c->names, sizeof(struct name) * (size_t) (c->name_count + 1));
-    c->names[c->name_count].type = intrin_init;
-    c->names[c->name_count].precedence = 0;
-    c->names[c->name_count].codegen_as = 0;
-    c->names[c->name_count].length = 6;
-    c->names[c->name_count].signature = calloc((size_t) c->names[c->name_count].length, sizeof(nat));
-    c->names[c->name_count].signature[0] = 'j';
-    c->names[c->name_count].signature[1] = 'o';
-    c->names[c->name_count].signature[2] = 'i';
-    c->names[c->name_count].signature[3] = 'n';
-    c->names[c->name_count].signature[4] = intrin_init;
-    c->names[c->name_count].signature[5] = intrin_init;
-    c->names[c->name_count].definition = (struct unit) {0};
-    // c->names[c->name_count].llvm_name = translate(c->names[c->name_count]);
-    c->name_count++;
-    
-    c->names = realloc(c->names, sizeof(struct name) * (size_t) (c->name_count + 1));
-    c->names[c->name_count].type = intrin_init;
-    c->names[c->name_count].precedence = 0;
-    c->names[c->name_count].codegen_as = 0;
-    c->names[c->name_count].length = 6;
-    c->names[c->name_count].signature = calloc((size_t) c->names[c->name_count].length, sizeof(nat));
-    c->names[c->name_count].signature[0] = 'd';
-    c->names[c->name_count].signature[1] = 'e';
-    c->names[c->name_count].signature[2] = 'c';
-    c->names[c->name_count].signature[3] = 'l';
-    c->names[c->name_count].signature[4] = intrin_init;
-    c->names[c->name_count].signature[5] = 0;
-    c->names[c->name_count].definition = (struct unit) {0};
-    // c->names[c->name_count].llvm_name = translate(c->names[c->name_count]);
-    c->name_count++;
-        
-    c->names = realloc(c->names, sizeof(struct name) * (size_t) (c->name_count + 1));
-    c->names[c->name_count].type = intrin_init;
-    c->names[c->name_count].precedence = 0;
-    c->names[c->name_count].codegen_as = 0;
-    c->names[c->name_count].length = 5;
-    c->names[c->name_count].signature = calloc((size_t) c->names[c->name_count].length, sizeof(nat));
-    c->names[c->name_count].signature[0] = 'e';
-    c->names[c->name_count].signature[1] = 'v';
-    c->names[c->name_count].signature[2] = 'a';
-    c->names[c->name_count].signature[3] = 'l';
-    c->names[c->name_count].signature[4] = intrin_init;
-    c->names[c->name_count].definition = (struct unit) {0};
-    // c->names[c->name_count].llvm_name = translate(c->names[c->name_count]);
-    c->name_count++;
-        
-    c->names = realloc(c->names, sizeof(struct name) * (size_t) (c->name_count + 1));
-    c->names[c->name_count].type = intrin_init;
-    c->names[c->name_count].precedence = 0;
-    c->names[c->name_count].codegen_as = 0;
-    c->names[c->name_count].length = 5;
-    c->names[c->name_count].signature = calloc((size_t) c->names[c->name_count].length, sizeof(nat));
-    c->names[c->name_count].signature[0] = 'c';
-    c->names[c->name_count].signature[1] = 'o';
-    c->names[c->name_count].signature[2] = 'm';
-    c->names[c->name_count].signature[3] = 'p';
-    c->names[c->name_count].signature[4] = intrin_init;
-    c->names[c->name_count].definition = (struct unit) {0};
-    // c->names[c->name_count].llvm_name = translate(c->names[c->name_count]);
-    c->name_count++;
-    
-    c->indicies = realloc(c->indicies, sizeof(nat) * (size_t) (c->index_count + 1));
-    c->indicies[c->index_count++] = intrin_root;
-    
-    c->indicies = realloc(c->indicies, sizeof(nat) * (size_t) (c->index_count + 1));
-    c->indicies[c->index_count++] = intrin_init;
-    
-    c->indicies = realloc(c->indicies, sizeof(nat) * (size_t) (c->index_count + 1));
-    c->indicies[c->index_count++] = intrin_char;
-    
-//    c->indicies = realloc(c->indicies, sizeof(size_t) * (c->index_count + 1));
-//    c->indicies[c->index_count++] = intrin_param;
-    
-    c->indicies = realloc(c->indicies, sizeof(nat) * (size_t) (c->index_count + 1));
-    c->indicies[c->index_count++] = intrin_join;
-    
-    c->indicies = realloc(c->indicies, sizeof(nat) * (size_t) (c->index_count + 1));
-    c->indicies[c->index_count++] = intrin_decl;
-    
-    c->indicies = realloc(c->indicies, sizeof(nat) * (size_t) (c->index_count + 1));
-    c->indicies[c->index_count++] = intrin_eval;
-    
-    c->indicies = realloc(c->indicies, sizeof(nat) * (size_t) (c->index_count + 1));
-    c->indicies[c->index_count++] = intrin_comp;
+    for (nat i = 0; i < count; i++) {               
+        context->names[i].type = *text++;
+        context->names[i].codegen_as = *text++;
+        context->names[i].precedence = *text++;
+        context->names[i].length = *text++;        
+        context->names[i].signature = calloc((size_t) context->names[i].length, sizeof(nat));
+        for (nat s = 0; s < context->names[i].length; s++) 
+	    context->names[i].signature[s] = *text++;
+        context->indicies[i] = i + 256;
+    }   
 }
+
+
+static inline void serialize_context(struct context* context, const char* path) {
+ 
+    FILE* out = fopen(path, "w");
+    if (not out) { 
+	perror("fopen"); 
+	exit(1); 
+    }
+    fwrite(&context->name_count, sizeof(nat), 1, out);
+    for (nat i = 0; i < context->name_count; i++) {
+        fwrite(&context->names[i].type, sizeof(nat), 1, out);
+        fwrite(&context->names[i].codegen_as, sizeof(nat), 1, out);
+        fwrite(&context->names[i].precedence, sizeof(nat), 1, out);        
+        fwrite(&context->names[i].length, sizeof(nat), 1, out);        
+        for (nat s = 0; s < context->names[i].length; s++) 
+	    fwrite(context->names[i].signature + s, sizeof(nat), 1, out);
+    }
+    fclose(out);
+}
+
+
 // ----------------------------------------------------------------------------------------------
 
 int main(int argc, const char** argv, const char** envp) {
+
+    if (argc == 1) {
+       struct context context = {0};
+       load_context(&context, "context.ctx");
+       debug_context(&context);
+       serialize_context(&context, "context.ctx");
+       exit(0);
+    }
 
     LLVMInitializeAllTargetInfos();
     LLVMInitializeAllTargets();
@@ -390,8 +321,10 @@ int main(int argc, const char** argv, const char** envp) {
             
 	    LLVMModuleRef new = LLVMModuleCreateWithName(argv[i]);
             LLVMBuilderRef builder = LLVMCreateBuilder();
+
             struct context context = {0};
-            construct_a_context(&context);
+            load_context(&context, "context.ctx");
+
             nat begin = 0, best = 0, top = 0, done = 0, line = 1, column = 1;
 
             while (begin < length && text[begin] <= ' ') {
@@ -449,7 +382,29 @@ int main(int argc, const char** argv, const char** envp) {
                     begin++; if (begin > best) best = begin;
                 }
             }
-            // codegen();
+            
+
+
+	   if (stack[top].index == intrin_decl) {
+	       // if (stack[top].count) c->owners[c->frame_count - 1].type = stack[top].args[0].index;
+	       // c->names = realloc(c->names, sizeof(struct name) * (c->name_count + 1));
+	       // c->names[c->name_count] = c->owners[c->frame_count - 1];
+	       // i32 i = c->frames[c->frame_count - 1];
+	       // while (i-- > c->frames[c->frame_count - 2])
+	       //     if (c->names[c->name_count].length >= c->names[c->indicies[i]].length) break;
+	       // i++;
+	       // c->indicies = realloc(c->indicies, sizeof(size_t) * (c->index_count + 1));
+	       // memmove(c->indicies + i + 1, c->indicies + i, sizeof(size_t) * (c->index_count - i));
+	       // c->indicies[i] = c->name_count++;
+	       // c->index_count++;
+	       // for (i32 s = 0; s <= top; s++)
+	       //     if (i <= stack[s].ind) stack[s].ind++;
+
+	       // c->frames[c->frame_count - 1]++;
+	   } else {
+		
+		}
+
             if (top) {
                 stack[top - 1].args[stack[top - 1].count - 1] = stack[top];
                 done = stack[top].done;
@@ -488,8 +443,7 @@ int main(int argc, const char** argv, const char** envp) {
                 fprintf(stderr, "llvm: error: %s\n", llvm_error);
                 LLVMDisposeMessage(llvm_error);
                 error_count++;
-            }	    
-
+            }
         } else {
             fprintf(stderr, "%s: error: unknown file type: \"%s\"\n", argv[i], ext);
             error_count++;
@@ -509,7 +463,7 @@ int main(int argc, const char** argv, const char** envp) {
     
     // ----- {optimize} -------
     // ----- {/optimize} -------
-
+	
     if (action_type == action_ir) {	
 	if (LLVMPrintModuleToFile(module, output_name, &llvm_error)) {
 	    fprintf(stderr, "llvm: error: %s\n", llvm_error);
@@ -987,4 +941,177 @@ if (stack[top].index == intrin_eval) {
     
 //     return result;
 // }
+
+
+
+
+
+// {
+//     struct context context = {0};
+//     construct_a_context(&context);
+//     debug_context(&context);
+//     serialize_context(&context, "context.ctx");
+//     printf("serialized the context! exiting...\n");    
+// }
+
+// {
+//     struct context context = {0};    
+//     load_context(&context, "context.ctx");
+//     printf("loaded the context! printing...\n");
+//     debug_context(&context);   
+// }
+
+
+
+
+
+
+
+
+
+// static inline void construct_a_context(struct context* c) { // temp    
+//     c->name_count = 0;
+//     c->index_count = 0;
+//     c->frame_count = 0;    
+//     c->owners = realloc(c->owners, sizeof(struct name) * (size_t) (c->frame_count + 1));
+//     c->owners[c->frame_count] = (struct name) {0};    
+//     c->frames = realloc(c->frames, sizeof(nat) * (size_t) (c->frame_count + 1));
+//     c->frames[c->frame_count++] = c->index_count;
+    
+//     c->names = realloc(c->names, sizeof(struct name) * (size_t) (c->name_count + 1));
+//     c->names[c->name_count].type = 0;
+//     c->names[c->name_count].precedence = 0;
+//     c->names[c->name_count].codegen_as = 0;
+//     c->names[c->name_count].length = 4;
+//     c->names[c->name_count].signature = calloc((size_t) c->names[c->name_count].length, sizeof(nat));
+//     c->names[c->name_count].signature[0] = 'r';
+//     c->names[c->name_count].signature[1] = 'o';
+//     c->names[c->name_count].signature[2] = 'o';
+//     c->names[c->name_count].signature[3] = 't';
+//     c->names[c->name_count].definition = (struct unit) {0};
+//     // c->names[c->name_count].llvm_name = translate(c->names[c->name_count]);
+//     c->name_count++;
+    
+//     c->names = realloc(c->names, sizeof(struct name) * (size_t) (c->name_count + 1));
+//     c->names[c->name_count].type = intrin_root;
+//     c->names[c->name_count].precedence = 0;
+//     c->names[c->name_count].codegen_as = 0;
+//     c->names[c->name_count].length = 4;
+//     c->names[c->name_count].signature = calloc((size_t) c->names[c->name_count].length, sizeof(nat));
+//     c->names[c->name_count].signature[0] = 'i';
+//     c->names[c->name_count].signature[1] = 'n';
+//     c->names[c->name_count].signature[2] = 'i';
+//     c->names[c->name_count].signature[3] = 't';
+//     c->names[c->name_count].definition = (struct unit) {0};
+//     // c->names[c->name_count].llvm_name = translate(c->names[c->name_count]);
+//     c->name_count++;
+
+//     c->names = realloc(c->names, sizeof(struct name) * (size_t) (c->name_count + 1));
+//     c->names[c->name_count].type = intrin_init;
+//     c->names[c->name_count].precedence = 0;
+//     c->names[c->name_count].codegen_as = 0;
+//     c->names[c->name_count].length = 4;
+//     c->names[c->name_count].signature = calloc((size_t) c->names[c->name_count].length, sizeof(nat));
+//     c->names[c->name_count].signature[0] = 'c';
+//     c->names[c->name_count].signature[1] = 'h';
+//     c->names[c->name_count].signature[2] = 'a';
+//     c->names[c->name_count].signature[3] = 'r';
+//     c->names[c->name_count].definition = (struct unit) {0};
+//     // c->names[c->name_count].llvm_name = translate(c->names[c->name_count]);
+//     c->name_count++;
+    
+//     c->names = realloc(c->names, sizeof(struct name) * (size_t) (c->name_count + 1));
+//     c->names[c->name_count].type = intrin_init;
+//     c->names[c->name_count].precedence = 0;
+//     c->names[c->name_count].codegen_as = 0;
+//     c->names[c->name_count].length = 6;
+//     c->names[c->name_count].signature = calloc((size_t) c->names[c->name_count].length, sizeof(nat));
+//     c->names[c->name_count].signature[0] = 'j';
+//     c->names[c->name_count].signature[1] = 'o';
+//     c->names[c->name_count].signature[2] = 'i';
+//     c->names[c->name_count].signature[3] = 'n';
+//     c->names[c->name_count].signature[4] = intrin_init;
+//     c->names[c->name_count].signature[5] = intrin_init;
+//     c->names[c->name_count].definition = (struct unit) {0};
+//     // c->names[c->name_count].llvm_name = translate(c->names[c->name_count]);
+//     c->name_count++;
+    
+//     c->names = realloc(c->names, sizeof(struct name) * (size_t) (c->name_count + 1));
+//     c->names[c->name_count].type = intrin_init;
+//     c->names[c->name_count].precedence = 0;
+//     c->names[c->name_count].codegen_as = 0;
+//     c->names[c->name_count].length = 6;
+//     c->names[c->name_count].signature = calloc((size_t) c->names[c->name_count].length, sizeof(nat));
+//     c->names[c->name_count].signature[0] = 'd';
+//     c->names[c->name_count].signature[1] = 'e';
+//     c->names[c->name_count].signature[2] = 'c';
+//     c->names[c->name_count].signature[3] = 'l';
+//     c->names[c->name_count].signature[4] = intrin_init;
+//     c->names[c->name_count].signature[5] = 0;
+//     c->names[c->name_count].definition = (struct unit) {0};
+//     // c->names[c->name_count].llvm_name = translate(c->names[c->name_count]);
+//     c->name_count++;
+        
+//     c->names = realloc(c->names, sizeof(struct name) * (size_t) (c->name_count + 1));
+//     c->names[c->name_count].type = intrin_init;
+//     c->names[c->name_count].precedence = 0;
+//     c->names[c->name_count].codegen_as = 0;
+//     c->names[c->name_count].length = 5;
+//     c->names[c->name_count].signature = calloc((size_t) c->names[c->name_count].length, sizeof(nat));
+//     c->names[c->name_count].signature[0] = 'e';
+//     c->names[c->name_count].signature[1] = 'v';
+//     c->names[c->name_count].signature[2] = 'a';
+//     c->names[c->name_count].signature[3] = 'l';
+//     c->names[c->name_count].signature[4] = intrin_init;
+//     c->names[c->name_count].definition = (struct unit) {0};
+//     // c->names[c->name_count].llvm_name = translate(c->names[c->name_count]);
+//     c->name_count++;
+        
+//     c->names = realloc(c->names, sizeof(struct name) * (size_t) (c->name_count + 1));
+//     c->names[c->name_count].type = intrin_init;
+//     c->names[c->name_count].precedence = 0;
+//     c->names[c->name_count].codegen_as = 0;
+//     c->names[c->name_count].length = 5;
+//     c->names[c->name_count].signature = calloc((size_t) c->names[c->name_count].length, sizeof(nat));
+//     c->names[c->name_count].signature[0] = 'c';
+//     c->names[c->name_count].signature[1] = 'o';
+//     c->names[c->name_count].signature[2] = 'm';
+//     c->names[c->name_count].signature[3] = 'p';
+//     c->names[c->name_count].signature[4] = intrin_init;
+//     c->names[c->name_count].definition = (struct unit) {0};
+//     // c->names[c->name_count].llvm_name = translate(c->names[c->name_count]);
+//     c->name_count++;
+    
+//     c->indicies = realloc(c->indicies, sizeof(nat) * (size_t) (c->index_count + 1));
+//     c->indicies[c->index_count++] = intrin_root;
+    
+//     c->indicies = realloc(c->indicies, sizeof(nat) * (size_t) (c->index_count + 1));
+//     c->indicies[c->index_count++] = intrin_init;
+    
+//     c->indicies = realloc(c->indicies, sizeof(nat) * (size_t) (c->index_count + 1));
+//     c->indicies[c->index_count++] = intrin_char;
+    
+// //    c->indicies = realloc(c->indicies, sizeof(size_t) * (c->index_count + 1));
+// //    c->indicies[c->index_count++] = intrin_param;
+    
+//     c->indicies = realloc(c->indicies, sizeof(nat) * (size_t) (c->index_count + 1));
+//     c->indicies[c->index_count++] = intrin_join;
+    
+//     c->indicies = realloc(c->indicies, sizeof(nat) * (size_t) (c->index_count + 1));
+//     c->indicies[c->index_count++] = intrin_decl;
+    
+//     c->indicies = realloc(c->indicies, sizeof(nat) * (size_t) (c->index_count + 1));
+//     c->indicies[c->index_count++] = intrin_eval;
+    
+//     c->indicies = realloc(c->indicies, sizeof(nat) * (size_t) (c->index_count + 1));
+//     c->indicies[c->index_count++] = intrin_comp;
+
+// }
+// /
+
+
+
+
+
+
 
