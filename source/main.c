@@ -537,7 +537,6 @@ int main(int argc, const char** argv) {
             }
 
 
-
             if (top) {
                 stack[top - 1].args[stack[top - 1].count - 1] = stack[top];
                 done = stack[top].done;
@@ -690,7 +689,7 @@ int main(int argc, const char** argv) {
         }
         
         char string[4096] = {0};
-        snprintf(string, sizeof string, "ld -L/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/lib -macosx_version_min 11.0 -lSystem -lc -o %s %s", executable_name, output_filename);
+        snprintf(string, sizeof string, "ld64.lld -L/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/lib -macosx_version_min 11.0 -sdk_version 11.0 -lSystem -lc -o %s %s", executable_name, output_filename);
         system(string);
         remove(output_filename);
 
