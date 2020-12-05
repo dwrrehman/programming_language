@@ -51,18 +51,19 @@ enum codegen_type {
 	llvm_local_variable, 
 	llvm_global_variable, 
 	llvm_function, 
-	llvm_struct 
+	llvm_struct,
+	llvm_parameter
 };
 
 enum action { 
     action_none, 
-    action_context,  // operates per .n file.
+    action_context,
     action_ir, 
     action_assembly,
     action_objectfile,
     action_executable,
     action_execute,  
-    action_count,
+    action_count
 };
 
 static const char* action_spellings[] = {
@@ -193,6 +194,7 @@ static inline void load_context(struct context* context, const char* path) {
         perror("error");
         return;
     }
+    printf("debug: loaded %lld bytes.\n", file_data.st_size);
     close(file);
 
     nat count = *text++;
@@ -383,8 +385,6 @@ int main(int argc, const char** argv, const char** envp) {
                 }
             }
             
-
-
 	   if (stack[top].index == intrin_decl) {
 	       // if (stack[top].count) c->owners[c->frame_count - 1].type = stack[top].args[0].index;
 	       // c->names = realloc(c->names, sizeof(struct name) * (c->name_count + 1));
