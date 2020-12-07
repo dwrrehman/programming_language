@@ -1,4 +1,3 @@
-join 
-	define ALL BAD param define X unit AND YOURE STUPID unit 
-
-	define NONE name	
+join define DANIEL unit 
+	
+	define HI unit

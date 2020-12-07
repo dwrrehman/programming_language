@@ -28,8 +28,7 @@ struct unit {
 
 struct name {
     struct unit definition;
-    nat* signature;
-    char* llvm_name;
+    nat* signature;    
     nat type;
     nat length;
     nat codegen_as;
@@ -262,25 +261,6 @@ static inline void debug_context(struct context* context) { // temp
     printf("frames:     ");
     print_vector(context->frames, context->frame_count);
     printf("\n");
-    // printf("---------- owners --------\n");
-    // printf("(owner)frame_count = %d\n", context->frame_count);
-    // for (nat i = 0; i < context->frame_count; i++) {
-    //     printf("----- owner [frame=%d] ----- \n", i);
-    //     printf("\t type = %d\n", context->owners[i].type);
-    //     printf("\t precedence = %d\n", context->owners[i].precedence);
-    //     printf("\t codegen_as = %d\n", context->owners[i].codegen_as);
-    //     printf("\t length = %d\n", context->owners[i].length);
-    //     printf("\t signature:     ");
-    //     for (nat s = 0; s < context->owners[i].length; s++) {
-    //         nat c = context->owners[i].signature[s];
-    //         if (c >= 256) {
-    //             printf("(%d) ", c);
-    //         } else {
-    //             printf("%c ", (char) c);
-    //         }
-    //     }
-    //     printf("\n\n");
-    // }
 
     printf("-------------------\n\n");
 }
@@ -802,39 +782,6 @@ c->names = realloc(c->names, sizeof(struct name) * (size_t) (c->name_count + 1))
     c->name_count++;
 
 
-
-    // c->names = realloc(c->names, sizeof(struct name) * (size_t) (c->name_count + 1));
-    // c->names[c->name_count].type = intrin_init;
-    // c->names[c->name_count].precedence = 0;
-    // c->names[c->name_count].codegen_as = 0;
-    // c->names[c->name_count].length = 4;
-    // c->names[c->name_count].signature = calloc((size_t) c->names[c->name_count].length, sizeof(nat));
-    // c->names[c->name_count].signature[0] = 'c';
-    // c->names[c->name_count].signature[1] = 'h';
-    // c->names[c->name_count].signature[2] = 'a';
-    // c->names[c->name_count].signature[3] = 'r';
-    // c->names[c->name_count].definition = (struct unit) {0};
-    // // c->names[c->name_count].llvm_name = translate(c->names[c->name_count]);
-    // c->name_count++;
-    
-
-    
-    // c->names = realloc(c->names, sizeof(struct name) * (size_t) (c->name_count + 1));
-    // c->names[c->name_count].type = intrin_init;
-    // c->names[c->name_count].precedence = 0;
-    // c->names[c->name_count].codegen_as = 0;
-    // c->names[c->name_count].length = 6;
-    // c->names[c->name_count].signature = calloc((size_t) c->names[c->name_count].length, sizeof(nat));
-    // c->names[c->name_count].signature[0] = 'd';
-    // c->names[c->name_count].signature[1] = 'e';
-    // c->names[c->name_count].signature[2] = 'c';
-    // c->names[c->name_count].signature[3] = 'l';
-    // c->names[c->name_count].signature[4] = intrin_init;
-    // c->names[c->name_count].signature[5] = 0;
-    // c->names[c->name_count].definition = (struct unit) {0};
-    // // c->names[c->name_count].llvm_name = translate(c->names[c->name_count]);
-    // c->name_count++;
-        
     // c->names = realloc(c->names, sizeof(struct name) * (size_t) (c->name_count + 1));
     // c->names[c->name_count].type = intrin_init;
     // c->names[c->name_count].precedence = 0;
@@ -869,7 +816,6 @@ c->names = realloc(c->names, sizeof(struct name) * (size_t) (c->name_count + 1))
     c->indicies = realloc(c->indicies, sizeof(nat) * (size_t) (c->index_count + 1));
     c->indicies[c->index_count++] = intrin_stop;
     
-
 
 
     c->indicies = realloc(c->indicies, sizeof(nat) * (size_t) (c->index_count + 1));
@@ -911,43 +857,43 @@ c->names = realloc(c->names, sizeof(struct name) * (size_t) (c->name_count + 1))
     c->indicies = realloc(c->indicies, sizeof(nat) * (size_t) (c->index_count + 1));
     c->indicies[c->index_count++] = intrin_M;
 
-c->indicies = realloc(c->indicies, sizeof(nat) * (size_t) (c->index_count + 1));
+    c->indicies = realloc(c->indicies, sizeof(nat) * (size_t) (c->index_count + 1));
     c->indicies[c->index_count++] = intrin_N;
 
-c->indicies = realloc(c->indicies, sizeof(nat) * (size_t) (c->index_count + 1));
+    c->indicies = realloc(c->indicies, sizeof(nat) * (size_t) (c->index_count + 1));
     c->indicies[c->index_count++] = intrin_O;
 
-c->indicies = realloc(c->indicies, sizeof(nat) * (size_t) (c->index_count + 1));
+    c->indicies = realloc(c->indicies, sizeof(nat) * (size_t) (c->index_count + 1));
     c->indicies[c->index_count++] = intrin_P;
 
-c->indicies = realloc(c->indicies, sizeof(nat) * (size_t) (c->index_count + 1));
+    c->indicies = realloc(c->indicies, sizeof(nat) * (size_t) (c->index_count + 1));
     c->indicies[c->index_count++] = intrin_Q;
 
-c->indicies = realloc(c->indicies, sizeof(nat) * (size_t) (c->index_count + 1));
+    c->indicies = realloc(c->indicies, sizeof(nat) * (size_t) (c->index_count + 1));
     c->indicies[c->index_count++] = intrin_R;
 
-c->indicies = realloc(c->indicies, sizeof(nat) * (size_t) (c->index_count + 1));
+    c->indicies = realloc(c->indicies, sizeof(nat) * (size_t) (c->index_count + 1));
     c->indicies[c->index_count++] = intrin_S;
 
-c->indicies = realloc(c->indicies, sizeof(nat) * (size_t) (c->index_count + 1));
+    c->indicies = realloc(c->indicies, sizeof(nat) * (size_t) (c->index_count + 1));
     c->indicies[c->index_count++] = intrin_T;
 
-c->indicies = realloc(c->indicies, sizeof(nat) * (size_t) (c->index_count + 1));
+    c->indicies = realloc(c->indicies, sizeof(nat) * (size_t) (c->index_count + 1));
     c->indicies[c->index_count++] = intrin_U;
 
-c->indicies = realloc(c->indicies, sizeof(nat) * (size_t) (c->index_count + 1));
+    c->indicies = realloc(c->indicies, sizeof(nat) * (size_t) (c->index_count + 1));
     c->indicies[c->index_count++] = intrin_V;
 
-c->indicies = realloc(c->indicies, sizeof(nat) * (size_t) (c->index_count + 1));
+    c->indicies = realloc(c->indicies, sizeof(nat) * (size_t) (c->index_count + 1));
     c->indicies[c->index_count++] = intrin_W;
 
-c->indicies = realloc(c->indicies, sizeof(nat) * (size_t) (c->index_count + 1));
+    c->indicies = realloc(c->indicies, sizeof(nat) * (size_t) (c->index_count + 1));
     c->indicies[c->index_count++] = intrin_X;
 
-c->indicies = realloc(c->indicies, sizeof(nat) * (size_t) (c->index_count + 1));
+    c->indicies = realloc(c->indicies, sizeof(nat) * (size_t) (c->index_count + 1));
     c->indicies[c->index_count++] = intrin_Y;
 
-c->indicies = realloc(c->indicies, sizeof(nat) * (size_t) (c->index_count + 1));
+    c->indicies = realloc(c->indicies, sizeof(nat) * (size_t) (c->index_count + 1));
     c->indicies[c->index_count++] = intrin_Z;
 
 
@@ -979,6 +925,9 @@ c->indicies = realloc(c->indicies, sizeof(nat) * (size_t) (c->index_count + 1));
     c->indicies = realloc(c->indicies, sizeof(nat) * (size_t) (c->index_count + 1));
     c->indicies[c->index_count++] = intrin_param;
 
+
+
+
     // c->indicies = realloc(c->indicies, sizeof(nat) * (size_t) (c->index_count + 1));
     // c->indicies[c->index_count++] = intrin_init;
     
@@ -1002,17 +951,14 @@ c->indicies = realloc(c->indicies, sizeof(nat) * (size_t) (c->index_count + 1));
 
 
 
-
-
-
 // ----------------------------------------------------------------------------------------------
 
 int main(int argc, const char** argv, const char** envp) {
 
 	if (argc == 1) {
 		struct context context = {0};
-        	// load_context(&context, "context.ctx");
-        	construct_context(&context);
+		// load_context(&context, "context.ctx");
+		construct_context(&context);
 		debug_context(&context);
 		exit(0);
 	}
@@ -1033,9 +979,9 @@ int main(int argc, const char** argv, const char** envp) {
     const char* output_name = "out";
     nat argv_starts_at = argc;
     enum action action_type = action_execute;
-
     nat top_level_type = intrin_unit;
-    
+    nat stack_size = 65536;
+
     for (nat i = 1; i < argc and not error_count; i++) {        
 	
         if (argv[i][0] == '-') {
@@ -1062,6 +1008,15 @@ int main(int argc, const char** argv, const char** envp) {
                 if (i + 1 < argc) top_level_type = atoi(argv[++i]);
                 else {
                     fprintf(stderr, "compiler: error0: argument not supplied for option --top <nat>\n");
+                    error_count++;
+                }
+                continue;
+            } 
+
+            if (not strcmp(argv[i], "--max-depth")) {
+                if (i + 1 < argc) stack_size = atoi(argv[++i]);
+                else {
+                    fprintf(stderr, "compiler: error0: argument not supplied for option --max-depth <nat>\n");
                     error_count++;
                 }
                 continue;
@@ -1118,18 +1073,11 @@ int main(int argc, const char** argv, const char** envp) {
                 begin++; if (begin > best) best = begin;
             }
  
-            const nat stack_size = 65536; //TODO: make this number user-specifable via the cli interface. 
-				         // add an --max-depth=12300, eg.
             struct unit* stack = malloc(sizeof(struct unit) * stack_size);
 
             memset(stack, 0, sizeof(struct unit));
             stack[0].ind = context.index_count;
             stack[0].type = top_level_type; 
-
-		// printf("%d\n\n\n", context.index_count);
-
-		//TODO: top level type. ///// make this specifyable as well! (for all files, 
-		// or per file?)   i dont know what they would say though.......hmm......
 
         _0:
             if (not stack[top].ind) {
@@ -1252,7 +1200,7 @@ int main(int argc, const char** argv, const char** envp) {
     }
     
     if (error_count) {
-        // fprintf(stderr, "%d error%s generated.\n", error_count, error_count > 1 ? "s" : "");
+        fprintf(stderr, "%d error%s generated.\n", error_count, error_count > 1 ? "s" : "");
         exit(1);
     }
     
@@ -1294,7 +1242,7 @@ int main(int argc, const char** argv, const char** envp) {
 	       action_type == action_objectfile or 
 	       action_type == action_executable) {
    	
-	char* emit_filename = (char*) (intptr_t) output_name;
+	char* emit_filename = (char*) (intptr_t) output_name; 
 
         if (action_type == action_executable) {
 		size_t emit_filename_size = strlen(output_name) + 2 + 1;
