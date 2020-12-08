@@ -8,11 +8,11 @@ debug_flags = -fsanitize=address,undefined
 
 libraries = `llvm-config --cflags --ldflags --libs --system-libs` -lc++ -lffi
 
-compile: source/main.c 
-	clang -g -O1 $(warning_flags) $(debug_flags) source/main.c -o compile $(libraries)
+compile: main.c 
+	clang -g -O1 $(warning_flags) $(debug_flags) main.c -o compile $(libraries)
 
-release: source/main.c 
-	clang -Ofast $(warning_flags) source/main.c -o compile $(libraries)
+release: main.c 
+	clang -Ofast $(warning_flags) main.c -o compile $(libraries)
 
 clean:
 	rm -rf compile

@@ -1123,32 +1123,32 @@ int main(int argc, const char** argv, const char** envp) {
             
 	   if (stack[top].index == intrin_define) {
 
-		const nat type = stack[top].args[0].index;
-		struct name new = {0};
+		// const nat type = stack[top].args[0].index;
+		// struct name new = {0};
 
 
-		new.type = type; 
+		// new.type = type; 
 
-		// how do we set the signature?
+		// // how do we set the signature?
 
-	       const nat f = context.frame_count - 1;
+	 //       const nat f = context.frame_count - 1;
 
-	       context.names = realloc(context.names, sizeof(struct name) * (size_t)(context.name_count + 1));
-	       context.names[context.name_count] = new_name;
+	 //       context.names = realloc(context.names, sizeof(struct name) * (size_t)(context.name_count + 1));
+	 //       context.names[context.name_count] = new_name;
 
-	       nat place = context.frames[f];
-	       while (place-- > context.frames[f])
-	           if (new_name.length >= context.names[context.indicies[place]].length) break;
-	       place++;
-	       context.indicies = realloc(context.indicies, sizeof(size_t) * (size_t)(context.index_count + 1));
-	       memmove(context.indicies + place + 1, context.indicies + place, 
-				sizeof(size_t) * (size_t)(context.index_count - place));
+	 //       nat place = context.frames[f];
+	 //       while (place-- > context.frames[f])
+	 //           if (new_name.length >= context.names[context.indicies[place]].length) break;
+	 //       place++;
+	 //       context.indicies = realloc(context.indicies, sizeof(size_t) * (size_t)(context.index_count + 1));
+	 //       memmove(context.indicies + place + 1, context.indicies + place, 
+		// 		sizeof(size_t) * (size_t)(context.index_count - place));
 
-	       context.indicies[place] = context.name_count++;
-	       context.index_count++;
-	       for (nat s = 0; s <= top; s++) if (place <= stack[s].ind) stack[s].ind++;
+	 //       context.indicies[place] = context.name_count++;
+	 //       context.index_count++;
+	 //       for (nat s = 0; s <= top; s++) if (place <= stack[s].ind) stack[s].ind++;
 
-	       context.frames[f]++;
+	 //       context.frames[f]++;
 	    }
 
 
