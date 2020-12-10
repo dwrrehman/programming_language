@@ -85,7 +85,11 @@ enum intrinsics {
 	intrin_define,
 
 	intrin_do_p0,
-	intrin_do
+	intrin_do,
+
+	intrin_param_p0,
+	intrin_param_p1,
+	intrin_param,
 };
 
 enum intrinsic_types {
@@ -121,7 +125,14 @@ static inline void debug_program(struct expression* tree, size_t d, struct conte
 	}
 
 	for (size_t i = 0; i < d; i++) printf(".   ");
-	printf(" %d \n", tree->index);
+	printf("[%d] ", tree->index);
+
+	for (nat s = 0; s < context->names[tree->index].length; s++) {
+		nat c = context->names[tree->index].syntax[s];
+		if (c >= 256) printf("(%d) ", c - 256);
+		else printf("%c ", (char) c);	
+	}
+	printf("\n\n");
 
 	for (nat i = 0; i < tree->count; i++) 
 	debug_program(tree->args + i, d + 1, context);
@@ -341,9 +352,63 @@ static inline void construct_context(struct context* c) {
 	c->name_count++;
 
 
+	c->names = realloc(c->names, sizeof(struct abstraction) * (size_t) (c->name_count + 1));
+	c->names[c->name_count].type = intrin_unit_type;
+	c->names[c->name_count].definition = NULL;
+	c->names[c->name_count].use = llvm_no_codegen;
+	c->names[c->name_count].length = 1;
+	c->names[c->name_count].syntax = calloc((size_t) c->names[c->name_count].length, sizeof(nat));
+	c->names[c->name_count].syntax[0] = '6';	
+	c->name_count++;
+
+	c->names = realloc(c->names, sizeof(struct abstraction) * (size_t) (c->name_count + 1));
+	c->names[c->name_count].type = intrin_unit_type;
+	c->names[c->name_count].definition = NULL;
+	c->names[c->name_count].use = llvm_no_codegen;
+	c->names[c->name_count].length = 3;
+	c->names[c->name_count].syntax = calloc((size_t) c->names[c->name_count].length, sizeof(nat));
+	c->names[c->name_count].syntax[0] = 'd';
+	c->names[c->name_count].syntax[1] = 'o';
+	c->names[c->name_count].syntax[2] = 256 + intrin_do_p0;
+	c->name_count++;
+
+
+	c->names = realloc(c->names, sizeof(struct abstraction) * (size_t) (c->name_count + 1));
+	c->names[c->name_count].type = intrin_unit_type;
+	c->names[c->name_count].definition = NULL;
+	c->names[c->name_count].use = llvm_no_codegen;
+	c->names[c->name_count].length = 1;
+	c->names[c->name_count].syntax = calloc((size_t) c->names[c->name_count].length, sizeof(nat));
+	c->names[c->name_count].syntax[0] = '7';	
+	c->name_count++;
+
+	c->names = realloc(c->names, sizeof(struct abstraction) * (size_t) (c->name_count + 1));
+	c->names[c->name_count].type = intrin_char_type;
+	c->names[c->name_count].definition = NULL;
+	c->names[c->name_count].use = llvm_no_codegen;
+	c->names[c->name_count].length = 1;
+	c->names[c->name_count].syntax = calloc((size_t) c->names[c->name_count].length, sizeof(nat));
+	c->names[c->name_count].syntax[0] = '8';	
+	c->name_count++;
+
+	c->names = realloc(c->names, sizeof(struct abstraction) * (size_t) (c->name_count + 1));
+	c->names[c->name_count].type = intrin_char_type;
+	c->names[c->name_count].definition = NULL;
+	c->names[c->name_count].use = llvm_no_codegen;
+	c->names[c->name_count].length = 7;
+	c->names[c->name_count].syntax = calloc((size_t) c->names[c->name_count].length, sizeof(nat));
+	c->names[c->name_count].syntax[0] = 'p';
+	c->names[c->name_count].syntax[1] = 'a';
+	c->names[c->name_count].syntax[2] = 'r';
+	c->names[c->name_count].syntax[3] = 'a';
+	c->names[c->name_count].syntax[4] = 'm';
+	c->names[c->name_count].syntax[5] = 256 + intrin_param_p0;
+	c->names[c->name_count].syntax[6] = 256 + intrin_param_p1;
+	c->name_count++;
+
+
 	c->indicies = realloc(c->indicies, sizeof(nat) * (size_t) (c->index_count + 1));
 	c->indicies[c->index_count++] = intrin_end;
-
 
 	c->indicies = realloc(c->indicies, sizeof(nat) * (size_t) (c->index_count + 1));
 	c->indicies[c->index_count++] = intrin_undef;
@@ -385,6 +450,25 @@ static inline void construct_context(struct context* c) {
 
 	c->indicies = realloc(c->indicies, sizeof(nat) * (size_t) (c->index_count + 1));
 	c->indicies[c->index_count++] = intrin_define;
+
+	c->indicies = realloc(c->indicies, sizeof(nat) * (size_t) (c->index_count + 1));
+	c->indicies[c->index_count++] = intrin_do_p0;
+
+	c->indicies = realloc(c->indicies, sizeof(nat) * (size_t) (c->index_count + 1));
+	c->indicies[c->index_count++] = intrin_do;
+
+	c->indicies = realloc(c->indicies, sizeof(nat) * (size_t) (c->index_count + 1));
+	c->indicies[c->index_count++] = intrin_param_p0;
+
+	c->indicies = realloc(c->indicies, sizeof(nat) * (size_t) (c->index_count + 1));
+	c->indicies[c->index_count++] = intrin_param_p1;
+
+	c->indicies = realloc(c->indicies, sizeof(nat) * (size_t) (c->index_count + 1));
+	c->indicies[c->index_count++] = intrin_param;
+
+
+
+
 
 
 
