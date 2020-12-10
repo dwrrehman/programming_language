@@ -1,3 +1,4 @@
+//////////////////////////////////////////////////////////////////////////////////////////
 #include <llvm-c/Core.h>
 #include <llvm-c/IRReader.h>
 #include <llvm-c/Linker.h>
@@ -84,12 +85,15 @@ enum intrinsics {
 	intrin_define_p1,
 	intrin_define,
 
-	intrin_do_p0,
-	intrin_do,
-
 	intrin_param_p0,
 	intrin_param_p1,
 	intrin_param,
+
+	intrin_do_p0,
+	intrin_do,
+
+	intrin_macro,
+	intrin_intrin_macro,
 };
 
 enum intrinsic_types {
@@ -150,7 +154,6 @@ static inline void debug_context(struct context* context) { // temp
 		if ((unsigned) context->names[i].type < (unsigned) context->type_count) {
 			printf("\t type tree: \n");
 			debug_program(context->types + context->names[i].type, 0, context);
-			printf("\n");
 		}
 
 		printf("\t length = %d\n", context->names[i].length);
@@ -352,25 +355,6 @@ static inline void construct_context(struct context* c) {
 	c->name_count++;
 
 
-	c->names = realloc(c->names, sizeof(struct abstraction) * (size_t) (c->name_count + 1));
-	c->names[c->name_count].type = intrin_unit_type;
-	c->names[c->name_count].definition = NULL;
-	c->names[c->name_count].use = llvm_no_codegen;
-	c->names[c->name_count].length = 1;
-	c->names[c->name_count].syntax = calloc((size_t) c->names[c->name_count].length, sizeof(nat));
-	c->names[c->name_count].syntax[0] = '6';	
-	c->name_count++;
-
-	c->names = realloc(c->names, sizeof(struct abstraction) * (size_t) (c->name_count + 1));
-	c->names[c->name_count].type = intrin_unit_type;
-	c->names[c->name_count].definition = NULL;
-	c->names[c->name_count].use = llvm_no_codegen;
-	c->names[c->name_count].length = 3;
-	c->names[c->name_count].syntax = calloc((size_t) c->names[c->name_count].length, sizeof(nat));
-	c->names[c->name_count].syntax[0] = 'd';
-	c->names[c->name_count].syntax[1] = 'o';
-	c->names[c->name_count].syntax[2] = 256 + intrin_do_p0;
-	c->name_count++;
 
 
 	c->names = realloc(c->names, sizeof(struct abstraction) * (size_t) (c->name_count + 1));
@@ -405,6 +389,64 @@ static inline void construct_context(struct context* c) {
 	c->names[c->name_count].syntax[5] = 256 + intrin_param_p0;
 	c->names[c->name_count].syntax[6] = 256 + intrin_param_p1;
 	c->name_count++;
+
+
+
+	c->names = realloc(c->names, sizeof(struct abstraction) * (size_t) (c->name_count + 1));
+	c->names[c->name_count].type = intrin_unit_type;
+	c->names[c->name_count].definition = NULL;
+	c->names[c->name_count].use = llvm_no_codegen;
+	c->names[c->name_count].length = 1;
+	c->names[c->name_count].syntax = calloc((size_t) c->names[c->name_count].length, sizeof(nat));
+	c->names[c->name_count].syntax[0] = '6';	
+	c->name_count++;
+
+	c->names = realloc(c->names, sizeof(struct abstraction) * (size_t) (c->name_count + 1));
+	c->names[c->name_count].type = intrin_unit_type;
+	c->names[c->name_count].definition = NULL;
+	c->names[c->name_count].use = llvm_no_codegen;
+	c->names[c->name_count].length = 3;
+	c->names[c->name_count].syntax = calloc((size_t) c->names[c->name_count].length, sizeof(nat));
+	c->names[c->name_count].syntax[0] = 'd';
+	c->names[c->name_count].syntax[1] = 'o';
+	c->names[c->name_count].syntax[2] = 256 + intrin_do_p0;
+	c->name_count++;
+
+
+
+	c->names = realloc(c->names, sizeof(struct abstraction) * (size_t) (c->name_count + 1));
+	c->names[c->name_count].type = intrin_unit_type;
+	c->names[c->name_count].definition = NULL;
+	c->names[c->name_count].use = llvm_no_codegen;
+	c->names[c->name_count].length = 5;
+	c->names[c->name_count].syntax = calloc((size_t) c->names[c->name_count].length, sizeof(nat));
+	c->names[c->name_count].syntax[0] = 'm';
+	c->names[c->name_count].syntax[1] = 'a';
+	c->names[c->name_count].syntax[2] = 'c';
+	c->names[c->name_count].syntax[3] = 'r';
+	c->names[c->name_count].syntax[4] = 'o';	
+	c->name_count++;
+
+
+	c->names = realloc(c->names, sizeof(struct abstraction) * (size_t) (c->name_count + 1));
+	c->names[c->name_count].type = intrin_unit_type;
+	c->names[c->name_count].definition = NULL;
+	c->names[c->name_count].use = llvm_no_codegen;
+	c->names[c->name_count].length = 11;
+	c->names[c->name_count].syntax = calloc((size_t) c->names[c->name_count].length, sizeof(nat));
+	c->names[c->name_count].syntax[0] = 'i';
+	c->names[c->name_count].syntax[1] = 'n';
+	c->names[c->name_count].syntax[2] = 't';
+	c->names[c->name_count].syntax[3] = 'r';
+	c->names[c->name_count].syntax[4] = 'i';
+	c->names[c->name_count].syntax[5] = 'n';
+	c->names[c->name_count].syntax[6] = 'm';
+	c->names[c->name_count].syntax[7] = 'a';
+	c->names[c->name_count].syntax[8] = 'c';
+	c->names[c->name_count].syntax[9] = 'r';
+	c->names[c->name_count].syntax[10] = 'o';
+	c->name_count++;
+
 
 
 	c->indicies = realloc(c->indicies, sizeof(nat) * (size_t) (c->index_count + 1));
@@ -442,6 +484,7 @@ static inline void construct_context(struct context* c) {
 	c->indicies = realloc(c->indicies, sizeof(nat) * (size_t) (c->index_count + 1));
 	c->indicies[c->index_count++] = intrin_A;
 
+
 	c->indicies = realloc(c->indicies, sizeof(nat) * (size_t) (c->index_count + 1));
 	c->indicies[c->index_count++] = intrin_define_p0;
 
@@ -450,12 +493,6 @@ static inline void construct_context(struct context* c) {
 
 	c->indicies = realloc(c->indicies, sizeof(nat) * (size_t) (c->index_count + 1));
 	c->indicies[c->index_count++] = intrin_define;
-
-	c->indicies = realloc(c->indicies, sizeof(nat) * (size_t) (c->index_count + 1));
-	c->indicies[c->index_count++] = intrin_do_p0;
-
-	c->indicies = realloc(c->indicies, sizeof(nat) * (size_t) (c->index_count + 1));
-	c->indicies[c->index_count++] = intrin_do;
 
 	c->indicies = realloc(c->indicies, sizeof(nat) * (size_t) (c->index_count + 1));
 	c->indicies[c->index_count++] = intrin_param_p0;
@@ -468,31 +505,44 @@ static inline void construct_context(struct context* c) {
 
 
 
+	c->indicies = realloc(c->indicies, sizeof(nat) * (size_t) (c->index_count + 1));
+	c->indicies[c->index_count++] = intrin_do_p0;
 
+	c->indicies = realloc(c->indicies, sizeof(nat) * (size_t) (c->index_count + 1));
+	c->indicies[c->index_count++] = intrin_do;
+
+
+
+
+	c->indicies = realloc(c->indicies, sizeof(nat) * (size_t) (c->index_count + 1));
+	c->indicies[c->index_count++] = intrin_macro;
+
+	c->indicies = realloc(c->indicies, sizeof(nat) * (size_t) (c->index_count + 1));
+	c->indicies[c->index_count++] = intrin_intrin_macro;
 
 
 
 	c->types = realloc(c->types, sizeof(struct expression) * (size_t) (c->type_count + 1));
 	c->types[c->type_count] = (struct expression) {0};
-	c->types[c->type_count++].index = intrin_undef_type;
+	c->types[c->type_count++].index = intrin_undef;
 
 	c->types = realloc(c->types, sizeof(struct expression) * (size_t) (c->type_count + 1));
 	c->types[c->type_count] = (struct expression) {0};
-	c->types[c->type_count++].index = intrin_root_type;
-
-
-	c->types = realloc(c->types, sizeof(struct expression) * (size_t) (c->type_count + 1));
-	c->types[c->type_count] = (struct expression) {0};
-	c->types[c->type_count++].index = intrin_type_type;
+	c->types[c->type_count++].index = intrin_root;
 
 
 	c->types = realloc(c->types, sizeof(struct expression) * (size_t) (c->type_count + 1));
 	c->types[c->type_count] = (struct expression) {0};
-	c->types[c->type_count++].index = intrin_unit_type;
+	c->types[c->type_count++].index = intrin_type;
+
 
 	c->types = realloc(c->types, sizeof(struct expression) * (size_t) (c->type_count + 1));
 	c->types[c->type_count] = (struct expression) {0};
-	c->types[c->type_count++].index = intrin_char_type;
+	c->types[c->type_count++].index = intrin_unit;
+
+	c->types = realloc(c->types, sizeof(struct expression) * (size_t) (c->type_count + 1));
+	c->types[c->type_count] = (struct expression) {0};
+	c->types[c->type_count++].index = intrin_char;
 }
 
 static inline void destroy_program(struct expression* program) {
@@ -514,7 +564,8 @@ static inline void destroy_context(struct context* context) {
 	free(context->frames);
 }
 
-static inline void compile(const char* filename, int8_t* text, nat length, LLVMModuleRef module, char* llvm_error) {
+static inline void compile(const char* filename, int8_t* text, nat length, 
+				LLVMModuleRef module, char* llvm_error) {
 
 	LLVMModuleRef new = LLVMModuleCreateWithName(filename);
 	LLVMBuilderRef builder = LLVMCreateBuilder();
@@ -548,7 +599,7 @@ _0:
 		if (not top) {
 			fprintf(stderr, "compiler: %s: %u:%u: error: unresolved %c\n",
 				filename, line, column, best == length ? ' ' : text[best]);       	    
-			stack[top].data.index = -1;
+			stack[top].data.index = 0;
 			goto _3;
 		}
 		top--; 
@@ -613,7 +664,9 @@ _2:
 	goto _0;
 	_3:
 
-	if (LLVMVerifyModule(new, LLVMPrintMessageAction, &llvm_error) or LLVMLinkModules2(module, new)) {
+	if (	LLVMVerifyModule(new, LLVMPrintMessageAction, &llvm_error) or 
+		LLVMLinkModules2(module, new)) {
+
 		fprintf(stderr, "llvm: error5: %s\n", llvm_error);
 		LLVMDisposeMessage(llvm_error);
 		exit(5);
@@ -691,7 +744,9 @@ int main(int argc, const char** argv, const char** envp) {
 			} 
 
 			nat length = (nat) file_data.st_size;
-			int8_t* text = not length ? NULL : mmap(0, (size_t) length, PROT_READ, MAP_SHARED, file, 0);    
+			int8_t* text = not length 
+					? NULL 
+					: mmap(0, (size_t) length, PROT_READ, MAP_SHARED, file, 0);    
 
 			if (text == MAP_FAILED) {
 				fprintf(stderr, "compiler: error4: %s: ", argv[i]);
@@ -715,7 +770,7 @@ int main(int argc, const char** argv, const char** envp) {
 			}
 		} else {
 		// fprintf(stderr, "compiler: %s: error7: unknown file type: \"%s\"\n", argv[i], ext);
-			compile("<inline_string>", (int8_t*) (argv[i]), (nat) strlen(argv[i]), module, llvm_error);
+			compile("<string>", (int8_t*) (argv[i]), (nat) strlen(argv[i]), module, llvm_error);
 		}
 	}
 
@@ -735,7 +790,7 @@ int main(int argc, const char** argv, const char** envp) {
 			exit(9);
 		}
 
-	} else if (action_type == action_execute) {
+	} else if (action_type == action_execute) { // technically not neccessaary, if we have llvm-eval intrin later on.
 
 		LLVMExecutionEngineRef engine = NULL;
 		struct LLVMMCJITCompilerOptions options;
@@ -771,9 +826,10 @@ int main(int argc, const char** argv, const char** envp) {
 			strncat(emit_filename, ".o", emit_filename_size);		 
 		}
 
-		LLVMCodeGenFileType output_filetype = action_type == action_assembly ? LLVMAssemblyFile : LLVMObjectFile;
+		LLVMCodeGenFileType output_filetype = action_type == action_assembly 
+							? LLVMAssemblyFile : LLVMObjectFile;
 
-		LLVMCodeGenOptLevel optimization_level = LLVMCodeGenLevelDefault; /// make this configurable?...
+		LLVMCodeGenOptLevel optimization_level = LLVMCodeGenLevelDefault;
 		LLVMTargetRef target = NULL;        
 		const char* triple = LLVMGetDefaultTargetTriple();
 		const char* name = LLVMGetHostCPUName();
@@ -789,7 +845,9 @@ int main(int argc, const char** argv, const char** envp) {
 		(target, triple, name, features, optimization_level, 
 		LLVMRelocDefault, LLVMCodeModelDefault);
 
-		if (LLVMTargetMachineEmitToFile(target_machine, module, emit_filename, output_filetype, &llvm_error)) {
+		if (LLVMTargetMachineEmitToFile(target_machine, module, emit_filename, 
+						output_filetype, &llvm_error)) {
+
 			fprintf(stderr, "llvm: error13: target machine emit: %s\n", llvm_error);
 			LLVMDisposeMessage(llvm_error);
 			exit(13);
