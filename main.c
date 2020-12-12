@@ -487,9 +487,16 @@ static inline void construct_context(struct context* c) {
 	c->name_count++;
 
 
+	c->indicies = realloc(c->indicies, sizeof(nat) * (size_t) (c->index_count + 1));
+	c->indicies[c->index_count++] = intrin_A;
+
 
 	c->indicies = realloc(c->indicies, sizeof(nat) * (size_t) (c->index_count + 1));
-	c->indicies[c->index_count++] = intrin_undef;
+	c->indicies[c->index_count++] = intrin_end;
+
+	c->indicies = realloc(c->indicies, sizeof(nat) * (size_t) (c->index_count + 1));
+	c->indicies[c->index_count++] = intrin_do;
+
 
 	c->indicies = realloc(c->indicies, sizeof(nat) * (size_t) (c->index_count + 1));
 	c->indicies[c->index_count++] = intrin_root;
@@ -500,67 +507,28 @@ static inline void construct_context(struct context* c) {
 	c->indicies = realloc(c->indicies, sizeof(nat) * (size_t) (c->index_count + 1));
 	c->indicies[c->index_count++] = intrin_unit;
 
+	c->indicies = realloc(c->indicies, sizeof(nat) * (size_t) (c->index_count + 1));
+	c->indicies[c->index_count++] = intrin_char;
 
-	// c->indicies = realloc(c->indicies, sizeof(nat) * (size_t) (c->index_count + 1));
-	// c->indicies[c->index_count++] = intrin_join_p0;
 
-	// c->indicies = realloc(c->indicies, sizeof(nat) * (size_t) (c->index_count + 1));
-	// c->indicies[c->index_count++] = intrin_join_p1;
+	c->indicies = realloc(c->indicies, sizeof(nat) * (size_t) (c->index_count + 1));
+	c->indicies[c->index_count++] = intrin_undef;
 
 	c->indicies = realloc(c->indicies, sizeof(nat) * (size_t) (c->index_count + 1));
 	c->indicies[c->index_count++] = intrin_join;
 
 
 	c->indicies = realloc(c->indicies, sizeof(nat) * (size_t) (c->index_count + 1));
-	c->indicies[c->index_count++] = intrin_char;
-
-	// c->indicies = realloc(c->indicies, sizeof(nat) * (size_t) (c->index_count + 1));
-	// c->indicies[c->index_count++] = intrin_A_p0;
+	c->indicies[c->index_count++] = intrin_scope;
 
 	c->indicies = realloc(c->indicies, sizeof(nat) * (size_t) (c->index_count + 1));
-	c->indicies[c->index_count++] = intrin_A;
-
-
-	c->indicies = realloc(c->indicies, sizeof(nat) * (size_t) (c->index_count + 1));
-	c->indicies[c->index_count++] = intrin_end;
-
-
-	c->indicies = realloc(c->indicies, sizeof(nat) * (size_t) (c->index_count + 1));
-	c->indicies[c->index_count++] = intrin_declare_p0;
-
-	c->indicies = realloc(c->indicies, sizeof(nat) * (size_t) (c->index_count + 1));
-	c->indicies[c->index_count++] = intrin_declare_p1;
-
-	c->indicies = realloc(c->indicies, sizeof(nat) * (size_t) (c->index_count + 1));
-	c->indicies[c->index_count++] = intrin_declare;
-
-	// c->indicies = realloc(c->indicies, sizeof(nat) * (size_t) (c->index_count + 1));
-	// c->indicies[c->index_count++] = intrin_param_p0;
-
-	// c->indicies = realloc(c->indicies, sizeof(nat) * (size_t) (c->index_count + 1));
-	// c->indicies[c->index_count++] = intrin_param_p1;
+	c->indicies[c->index_count++] = intrin_macro;
 
 	c->indicies = realloc(c->indicies, sizeof(nat) * (size_t) (c->index_count + 1));
 	c->indicies[c->index_count++] = intrin_param;
 
-
-
-	// c->indicies = realloc(c->indicies, sizeof(nat) * (size_t) (c->index_count + 1));
-	// c->indicies[c->index_count++] = intrin_do_p0;
-
 	c->indicies = realloc(c->indicies, sizeof(nat) * (size_t) (c->index_count + 1));
-	c->indicies[c->index_count++] = intrin_do;
-
-
-	// c->indicies = realloc(c->indicies, sizeof(nat) * (size_t) (c->index_count + 1));
-	// c->indicies[c->index_count++] = intrin_scope_p0;
-
-	c->indicies = realloc(c->indicies, sizeof(nat) * (size_t) (c->index_count + 1));
-	c->indicies[c->index_count++] = intrin_scope;
-
-
-	c->indicies = realloc(c->indicies, sizeof(nat) * (size_t) (c->index_count + 1));
-	c->indicies[c->index_count++] = intrin_macro;
+	c->indicies[c->index_count++] = intrin_declare;
 
 	c->indicies = realloc(c->indicies, sizeof(nat) * (size_t) (c->index_count + 1));
 	c->indicies[c->index_count++] = intrin_intrin_macro;
@@ -609,51 +577,66 @@ static inline void destroy_context(struct context* context) {
 	free(context->frames);
 }
 
+struct result {
+	nat* syntax;
+	nat length;
+	nat _padding;
+};
 
-
-static inline void eval_intrinsic(struct expression* this, struct context* context, 
-				struct stack_element* stack, nat stack_count, struct abstraction* this_name) {
+static inline struct result eval_intrinsic(struct expression* this, struct context* context, 
+				struct stack_element* stack, nat stack_count) {
 	
-	if (this->index == intrin_A) {
-
-		this_name->syntax = realloc(this_name->syntax, sizeof(nat) * (size_t) (this_name->length + 1));
-		this_name->syntax[this_name->length++] = 'A';
-		eval_intrinsic(this->args, context, stack, stack_count, this_name);
-
-	} else if (this->index == intrin_scope) {
-
+	if (this->index == intrin_scope) { 
+		printf("generataing scope...\n");
 		context->frames = realloc(context->frames, sizeof(nat) * (size_t) (context->frame_count + 1));
 		context->frames[context->frame_count++] = context->index_count;
-		eval_intrinsic(this->args, context, stack, stack_count, this_name);
+		eval_intrinsic(this->args, context, stack, stack_count);
 		context->index_count = context->frames[--context->frame_count];
 
-	} else if (this->index == intrin_param) {
-	
-		eval_intrinsic(this->args, context, stack, stack_count, this_name);
-		this_name->syntax = realloc(this_name->syntax, sizeof(nat) * (size_t) (this_name->length + 1));
-		this_name->syntax[this_name->length++] = context->name_count - 1;
-		eval_intrinsic(this->args + 1, context, stack, stack_count, this_name);
+	} else if (this->index == intrin_A) { 
+		printf("intrin_A adding...\n");	
+		struct result rest = eval_intrinsic(this->args, context, stack, stack_count);
+		rest.syntax = realloc(rest.syntax, sizeof(nat) * (size_t) (rest.length + 1));
+		memmove(rest.syntax + 1, rest.syntax, sizeof(nat) * (size_t) rest.length);
+		rest.syntax[0] = 'A';
+		rest.length++;
+		return rest;
 
-	} else if (this->index == intrin_declare) {
+	} else if (this->index == intrin_param) { 
+		printf("intrin_param adding...\n");	
+		eval_intrinsic(this->args, context, stack, stack_count);
+		struct result rest = eval_intrinsic(this->args + 1, context, stack, stack_count);
+		rest.syntax = realloc(rest.syntax, sizeof(nat) * (size_t) (rest.length + 1));
+		memmove(rest.syntax + 1, rest.syntax, sizeof(nat) * (size_t) rest.length);
+		rest.syntax[0] = 255 + context->name_count;
+		rest.length++;
+		return rest;
 
-		for (nat i = 0; i < this->count; i++) 
-			eval_intrinsic(this->args + i, context, stack, stack_count, this_name);
+	} else if (this->index == intrin_declare) { 
+		
+		printf("declaring...\n");
+		
+		struct result e0 = eval_intrinsic(this->args + 0, context, stack, stack_count);
+		// struct result e1 = eval_intrinsic(this->args + 1, context, stack, stack_count);
+		// struct result e2 = eval_intrinsic(this->args + 2, context, stack, stack_count);
 
 		context->names = realloc(context->names, sizeof(struct abstraction) * (size_t) (context->name_count + 1));
-		context->names[context->name_count++] = (struct abstraction) {0};
-		
+		context->names[context->name_count++] = (struct abstraction) {
+			.syntax = e0.syntax,
+			.length = e0.length,
+			.type = intrin_unit_type,
+		};
+
+		debug_context(context);
+
 		nat frame = context->frame_count - 1;
 		nat place = context->frames[frame];
 
-		struct abstraction* name = context->names + (context->name_count - 1);
-
-		name->type = intrin_unit_type;	// get from this->args->index;
-	
-		while (place > context->frames[frame - 1]) {
+		while (place > context->frames[frame - 1] and
+			e0.length < context->names[context->indicies[place - 1]].length) {
 			place--;
-			if (name->length >= context->names[context->indicies[place]].length) 
-				break;
 		}
+		// place++;
 
 		context->indicies = realloc(context->indicies, sizeof(nat) * (size_t) (context->index_count + 1));
 		memmove(context->indicies + place + 1, context->indicies + place, 
@@ -670,8 +653,9 @@ static inline void eval_intrinsic(struct expression* this, struct context* conte
 	else if (this->index == intrin_macro) context->names[context->name_count - 1].use = codegen_macro;	
 	else if (this->index == intrin_intrin_macro) context->names[context->name_count - 1].use = codegen_intrin_macro;
 	else for (nat i = 0; i < this->count; i++) 
-		eval_intrinsic(this->args + i, context, stack, stack_count, this_name);
+		eval_intrinsic(this->args + i, context, stack, stack_count);
 	
+	return (struct result) {0};
 }
 
 
@@ -768,9 +752,8 @@ _1:
 
 	if (usecase == codegen_macro or usecase == intrin_intrin_macro) 
 		expand_macro(&context);
-
 	if (this_index == intrin_do or usecase == intrin_intrin_macro) 
-		eval_intrinsic(&stack[top].data, &context, stack, top + 1, NULL);
+		eval_intrinsic(&stack[top].data, &context, stack, top + 1);
 
 	if (top) {
 		done = stack[top].done;
