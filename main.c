@@ -102,8 +102,8 @@ enum intrinsics {
 	intrin_do_p0,
 	intrin_do,
 
-	intrin_scope_p0,
-	intrin_scope,
+	intrin_push,
+	intrin_pop,
 
 	intrin_macro,
 	intrin_intrin_macro,
@@ -371,7 +371,6 @@ static inline void construct_context(struct context* c) {
 	c->names[c->name_count].syntax[8] = 256 + intrin_declare_p1;
 	c->name_count++;
 
-
 	c->names = realloc(c->names, sizeof(struct abstraction) * (size_t) (c->name_count + 1));
 	c->names[c->name_count].type = intrin_unit_type;
 	c->names[c->name_count].definition = NULL;
@@ -432,25 +431,25 @@ static inline void construct_context(struct context* c) {
 	c->names[c->name_count].type = intrin_unit_type;
 	c->names[c->name_count].definition = NULL;
 	c->names[c->name_count].use = codegen_none;
-	c->names[c->name_count].length = 1;
+	c->names[c->name_count].length = 4;
 	c->names[c->name_count].syntax = calloc((size_t) c->names[c->name_count].length, sizeof(nat));
-	c->names[c->name_count].syntax[0] = '7';	
+	c->names[c->name_count].syntax[0] = 'p';	
+	c->names[c->name_count].syntax[1] = 'u';
+	c->names[c->name_count].syntax[2] = 's';
+	c->names[c->name_count].syntax[3] = 'h';
 	c->name_count++;
+
 
 	c->names = realloc(c->names, sizeof(struct abstraction) * (size_t) (c->name_count + 1));
 	c->names[c->name_count].type = intrin_unit_type;
 	c->names[c->name_count].definition = NULL;
 	c->names[c->name_count].use = codegen_none;
-	c->names[c->name_count].length = 6;
+	c->names[c->name_count].length = 3;
 	c->names[c->name_count].syntax = calloc((size_t) c->names[c->name_count].length, sizeof(nat));
-	c->names[c->name_count].syntax[0] = 's';
-	c->names[c->name_count].syntax[1] = 'c';
-	c->names[c->name_count].syntax[2] = 'o';
-	c->names[c->name_count].syntax[3] = 'p';
-	c->names[c->name_count].syntax[4] = 'e';
-	c->names[c->name_count].syntax[5] = 256 + intrin_scope_p0;
+	c->names[c->name_count].syntax[0] = 'p';
+	c->names[c->name_count].syntax[1] = 'o';
+	c->names[c->name_count].syntax[2] = 'p';
 	c->name_count++;
-
 
 
 	c->names = realloc(c->names, sizeof(struct abstraction) * (size_t) (c->name_count + 1));
@@ -519,7 +518,10 @@ static inline void construct_context(struct context* c) {
 
 
 	c->indicies = realloc(c->indicies, sizeof(nat) * (size_t) (c->index_count + 1));
-	c->indicies[c->index_count++] = intrin_scope;
+	c->indicies[c->index_count++] = intrin_push;
+
+	c->indicies = realloc(c->indicies, sizeof(nat) * (size_t) (c->index_count + 1));
+	c->indicies[c->index_count++] = intrin_pop;
 
 	c->indicies = realloc(c->indicies, sizeof(nat) * (size_t) (c->index_count + 1));
 	c->indicies[c->index_count++] = intrin_macro;
@@ -580,21 +582,12 @@ static inline void destroy_context(struct context* context) {
 struct result {
 	nat* syntax;
 	nat length;
-	nat _padding;
 };
 
 static inline struct result eval_intrinsic(struct expression* this, struct context* context, 
 				struct stack_element* stack, nat stack_count) {
-	
-	if (this->index == intrin_scope) { 
-		printf("generataing scope...\n");
-		context->frames = realloc(context->frames, sizeof(nat) * (size_t) (context->frame_count + 1));
-		context->frames[context->frame_count++] = context->index_count;
-		eval_intrinsic(this->args, context, stack, stack_count);
-		context->index_count = context->frames[--context->frame_count];
 
-	} else if (this->index == intrin_A) { 
-		printf("intrin_A adding...\n");	
+	if (this->index == intrin_A) { 
 		struct result rest = eval_intrinsic(this->args, context, stack, stack_count);
 		rest.syntax = realloc(rest.syntax, sizeof(nat) * (size_t) (rest.length + 1));
 		memmove(rest.syntax + 1, rest.syntax, sizeof(nat) * (size_t) rest.length);
@@ -602,8 +595,7 @@ static inline struct result eval_intrinsic(struct expression* this, struct conte
 		rest.length++;
 		return rest;
 
-	} else if (this->index == intrin_param) { 
-		printf("intrin_param adding...\n");	
+	} else if (this->index == intrin_param) { 	
 		eval_intrinsic(this->args, context, stack, stack_count);
 		struct result rest = eval_intrinsic(this->args + 1, context, stack, stack_count);
 		rest.syntax = realloc(rest.syntax, sizeof(nat) * (size_t) (rest.length + 1));
@@ -613,12 +605,9 @@ static inline struct result eval_intrinsic(struct expression* this, struct conte
 		return rest;
 
 	} else if (this->index == intrin_declare) { 
-		
-		printf("declaring...\n");
-		
+
 		struct result e0 = eval_intrinsic(this->args + 0, context, stack, stack_count);
-		// struct result e1 = eval_intrinsic(this->args + 1, context, stack, stack_count);
-		// struct result e2 = eval_intrinsic(this->args + 2, context, stack, stack_count);
+		eval_intrinsic(this->args + 1, context, stack, stack_count);
 
 		context->names = realloc(context->names, sizeof(struct abstraction) * (size_t) (context->name_count + 1));
 		context->names[context->name_count++] = (struct abstraction) {
@@ -627,47 +616,42 @@ static inline struct result eval_intrinsic(struct expression* this, struct conte
 			.type = intrin_unit_type,
 		};
 
-		debug_context(context);
-
 		nat frame = context->frame_count - 1;
 		nat place = context->frames[frame];
-
-		while (place > context->frames[frame - 1] and
-			e0.length < context->names[context->indicies[place - 1]].length) {
-			place--;
-		}
-		// place++;
+		while (place > context->frames[frame - 1] and 
+			e0.length < context->names[context->indicies[place - 1]].length) place--;
 
 		context->indicies = realloc(context->indicies, sizeof(nat) * (size_t) (context->index_count + 1));
 		memmove(context->indicies + place + 1, context->indicies + place, 
 				sizeof(nat) * (size_t) (context->index_count - place));
 		context->indicies[place] = context->name_count - 1;
 		context->index_count++;
-
 		for (nat s = 0; s < stack_count; s++) 
 			if (place <= stack[s].ind) stack[s].ind++;
-
 		context->frames[frame]++;
+
+	} else if (this->index == intrin_push) { 		
+		context->frames = realloc(context->frames, sizeof(nat) * (size_t) (context->frame_count + 1));
+		context->frames[context->frame_count++] = context->index_count;
 	}
 
 	else if (this->index == intrin_macro) context->names[context->name_count - 1].use = codegen_macro;	
 	else if (this->index == intrin_intrin_macro) context->names[context->name_count - 1].use = codegen_intrin_macro;
-	else for (nat i = 0; i < this->count; i++) 
-		eval_intrinsic(this->args + i, context, stack, stack_count);
-	
+ 	else if (this->index == intrin_pop) context->index_count = context->frames[--context->frame_count];
+	else if (this->index == intrin_do) return (struct result) {0};
+	else if (this->index == intrin_end) return (struct result) {.syntax = NULL, .length = 0};
+	else for (nat i = 0; i < this->count; i++) eval_intrinsic(this->args + i, context, stack, stack_count);	
 	return (struct result) {0};
 }
-
 
 static inline void expand_macro(struct context* context) {
 	abort();
 	return;
 }
 
-
 static inline void compile(const char* filename, int8_t* text, nat length, 
 				LLVMModuleRef module, char* llvm_error) {
-
+	
 	LLVMModuleRef new = LLVMModuleCreateWithName(filename);
 	LLVMBuilderRef builder = LLVMCreateBuilder();
 	
@@ -714,15 +698,15 @@ _0:
 _1: 
 	stack[top].data.index = context.indicies[stack[top].ind];
 	struct abstraction name = context.names[stack[top].data.index];            
-
-	if (stack[top].type != name.type) goto _2;	
-
+		
+	if (stack[top].type != name.type) goto _2;
+	
 	while (done < name.length) {
 
 		nat c = name.syntax[done];
 		done++;
 
-		if (c >= 256 and top + 1 < stack_size) {		   
+		if (c >= 256 and top + 1 < stack_size) {
 			top++;
 			stack[top] = (struct stack_element){0};
 			stack[top].ind = context.index_count;
@@ -731,7 +715,7 @@ _1:
 			stack[top].begin = begin;
 			goto _0;
 		}
-
+		
 		if (begin >= length or c != text[begin]) goto _2;
 
 		column++;
@@ -746,15 +730,20 @@ _1:
 			if (begin > best) best = begin;
 		}
 	}
-
+	
 	nat this_index = stack[top].data.index;
 	nat usecase = context.names[this_index].use;
 
-	if (usecase == codegen_macro or usecase == intrin_intrin_macro) 
-		expand_macro(&context);
-	if (this_index == intrin_do or usecase == intrin_intrin_macro) 
-		eval_intrinsic(&stack[top].data, &context, stack, top + 1);
+	// if (this_index == intrin_scope) context.index_count = context.frames[--context.frame_count];
+	// if (stack[top].data.index == intrin_scope) context.index_count = context.frames[--context.frame_count];
 
+	if (usecase == codegen_macro) expand_macro(&context);
+	else if (this_index == intrin_do) eval_intrinsic(stack[top].data.args, &context, stack, top + 1);
+	else if (usecase == intrin_intrin_macro) {
+		expand_macro(&context);
+		eval_intrinsic(&stack[top].data, &context, stack, top + 1);
+	}
+	
 	if (top) {
 		done = stack[top].done;
 		top--;
@@ -766,12 +755,12 @@ _1:
 
 	if (begin == length) goto _3;
 
-_2:
+_2:		
 	free(stack[top].data.args);
 	stack[top].data.args = NULL;
 	stack[top].data.count = 0;
 	goto _0;
-	_3:
+_3:
 
 	if (	LLVMVerifyModule(new, LLVMPrintMessageAction, &llvm_error) or 
 		LLVMLinkModules2(module, new)) {

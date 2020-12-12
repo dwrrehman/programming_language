@@ -1,4 +1,5 @@
-join 
-	define ALL BAD param define X unit AND YOURE STUPID unit 
-
-	define NONE name
+join do push 
+join do declare AA param join join push declare AAAA end unit pop end unit
+join join AA macro AAAA
+join do pop
+macro
