@@ -48,7 +48,13 @@ struct stack_element { // 2 + expression pointers;
 	nat type;
 	nat begin;
 	nat ind;  
-	nat done;
+	nat done;	
+};
+
+struct eval_result {
+	nat* syntax;
+	nat length;
+	nat _padding;
 };
 
 enum codegen_type {
@@ -579,16 +585,11 @@ static inline void destroy_context(struct context* context) {
 	free(context->frames);
 }
 
-struct result {
-	nat* syntax;
-	nat length;
-};
-
-static inline struct result eval_intrinsic(struct expression* this, struct context* context, 
+static inline struct eval_result eval_intrinsic(struct expression* this, struct context* context, 
 				struct stack_element* stack, nat stack_count) {
 
 	if (this->index == intrin_A) { 
-		struct result rest = eval_intrinsic(this->args, context, stack, stack_count);
+		struct eval_result rest = eval_intrinsic(this->args, context, stack, stack_count);
 		rest.syntax = realloc(rest.syntax, sizeof(nat) * (size_t) (rest.length + 1));
 		memmove(rest.syntax + 1, rest.syntax, sizeof(nat) * (size_t) rest.length);
 		rest.syntax[0] = 'A';
@@ -597,7 +598,7 @@ static inline struct result eval_intrinsic(struct expression* this, struct conte
 
 	} else if (this->index == intrin_param) { 	
 		eval_intrinsic(this->args, context, stack, stack_count);
-		struct result rest = eval_intrinsic(this->args + 1, context, stack, stack_count);
+		struct eval_result rest = eval_intrinsic(this->args + 1, context, stack, stack_count);
 		rest.syntax = realloc(rest.syntax, sizeof(nat) * (size_t) (rest.length + 1));
 		memmove(rest.syntax + 1, rest.syntax, sizeof(nat) * (size_t) rest.length);
 		rest.syntax[0] = 255 + context->name_count;
@@ -606,7 +607,7 @@ static inline struct result eval_intrinsic(struct expression* this, struct conte
 
 	} else if (this->index == intrin_declare) { 
 
-		struct result e0 = eval_intrinsic(this->args + 0, context, stack, stack_count);
+		struct eval_result e0 = eval_intrinsic(this->args + 0, context, stack, stack_count);
 		eval_intrinsic(this->args + 1, context, stack, stack_count);
 
 		context->names = realloc(context->names, sizeof(struct abstraction) * (size_t) (context->name_count + 1));
@@ -615,6 +616,11 @@ static inline struct result eval_intrinsic(struct expression* this, struct conte
 			.length = e0.length,
 			.type = intrin_unit_type,
 		};
+		
+		if (context->frame_count <= 1) {
+			printf("error: declare intrinsic: must have more than one stack frame\n");
+			return (struct eval_result) {0};
+		}
 
 		nat frame = context->frame_count - 1;
 		nat place = context->frames[frame];
@@ -638,16 +644,45 @@ static inline struct result eval_intrinsic(struct expression* this, struct conte
 	else if (this->index == intrin_macro) context->names[context->name_count - 1].use = codegen_macro;	
 	else if (this->index == intrin_intrin_macro) context->names[context->name_count - 1].use = codegen_intrin_macro;
  	else if (this->index == intrin_pop) context->index_count = context->frames[--context->frame_count];
-	else if (this->index == intrin_do) return (struct result) {0};
-	else if (this->index == intrin_end) return (struct result) {.syntax = NULL, .length = 0};
+	else if (this->index == intrin_do) return (struct eval_result) {0};
+	else if (this->index == intrin_end) return (struct eval_result) {.syntax = NULL, .length = 0};
 	else for (nat i = 0; i < this->count; i++) eval_intrinsic(this->args + i, context, stack, stack_count);	
-	return (struct result) {0};
+	return (struct eval_result) {0};
 }
 
-static inline void expand_macro(struct context* context) {
-	abort();
+static inline void expand_macro(struct context* __attribute__((unused)) context) {
+	
 	return;
 }
+
+
+
+static inline void print_error(nat best, nat candidate, nat length, int8_t* text, 
+				const char* filename, struct context* context) {
+	nat at = 0, line = 1, column = 1;
+	while (at < best) {
+		if (text[at] == '\n') { line++; column = 1; } else column++;
+		at++;
+	}
+
+	fprintf(stderr, "compiler: %s: %u:%u: error: unresolved %c\n",
+	filename, line, column, best == length ? ' ' : text[best]);
+			
+	struct abstraction candidate_name = context->names[candidate];
+			
+	printf("...did you mean:  ");
+	for (nat s = 0; s < candidate_name.length; s++) {
+		nat c = candidate_name.syntax[s];
+		if (c >= 256) printf("(%d) ", c - 256);
+		else printf("%c ", (char) c);
+	}
+	printf(" which has type: ");
+	if ((unsigned) candidate_name.type < (unsigned) context->type_count)
+		debug_program(context->types + candidate_name.type, 0, context);
+	else printf("(-1)\n");
+}
+
+
 
 static inline void compile(const char* filename, int8_t* text, nat length, 
 				LLVMModuleRef module, char* llvm_error) {
@@ -658,43 +693,27 @@ static inline void compile(const char* filename, int8_t* text, nat length,
 	struct context context = {0};
 	construct_context(&context);
 
-	const nat stack_size = 65536;
-	const nat top_level_type = intrin_unit;
-
-	nat begin = 0, best = 0, top = 0, done = 0, line = 1, column = 1;
-
-	while (begin < length && text[begin] <= ' ') {
-		if (text[begin] == '\n') { 
-			line++; 
-			column = 1; 
-		} else column++;
-		begin++; 
-		if (begin > best) best = begin;
-	}
+	nat  stack_size = 65536, top_level_type = intrin_unit, begin = 0, best = 0, candidate = 0, top = 0, done = 0;	
 	
+	while (begin < length and text[begin] <= ' ') {
+		begin++;
+		if (begin > best) best = begin;	
+	}
+
 	struct stack_element* stack = malloc(sizeof(struct stack_element) * (size_t) stack_size);
 	memset(stack, 0, sizeof(struct stack_element));
-
 	stack[0].ind = context.index_count;
 	stack[0].type = top_level_type;
-	stack[0].begin = begin;    
-
+	stack[0].begin = begin;
 _0:
 	if (not stack[top].ind) {
-		if (not top) {
-			fprintf(stderr, "compiler: %s: %u:%u: error: unresolved %c\n",
-				filename, line, column, best == length ? ' ' : text[best]);       	    
-			stack[top].data.index = 0;
-			goto _3;
-		}
+		if (not top) goto _3;		
 		top--; 
 		goto _2;
 	}
-
 	stack[top].ind--;
 	done = 0;
-	begin = stack[top].begin;
-
+	begin = stack[top].begin;	
 _1: 
 	stack[top].data.index = context.indicies[stack[top].ind];
 	struct abstraction name = context.names[stack[top].data.index];            
@@ -717,29 +736,22 @@ _1:
 		}
 		
 		if (begin >= length or c != text[begin]) goto _2;
-
-		column++;
 		begin++;
-		if (begin > best) best = begin;
-		while (begin < length && text[begin] <= ' ') {
-			if (text[begin] == '\n') { 
-				line++; 
-				column = 1; 
-			} else column++;
-			begin++; 
-			if (begin > best) best = begin;
+		if (begin > best) {
+			best = begin;
+			candidate = stack[top].data.index;
+		}
+		while (begin < length and text[begin] <= ' ') {
+			begin++;
+			if (begin > best) best = begin;	
 		}
 	}
 	
-	nat this_index = stack[top].data.index;
-	nat usecase = context.names[this_index].use;
-
-	// if (this_index == intrin_scope) context.index_count = context.frames[--context.frame_count];
-	// if (stack[top].data.index == intrin_scope) context.index_count = context.frames[--context.frame_count];
+	nat this_index = stack[top].data.index, usecase = context.names[this_index].use;
 
 	if (usecase == codegen_macro) expand_macro(&context);
-	else if (this_index == intrin_do) eval_intrinsic(stack[top].data.args, &context, stack, top + 1);
-	else if (usecase == intrin_intrin_macro) {
+	if (this_index == intrin_do) eval_intrinsic(stack[top].data.args, &context, stack, top + 1);
+	if (usecase == intrin_intrin_macro) {
 		expand_macro(&context);
 		eval_intrinsic(&stack[top].data, &context, stack, top + 1);
 	}
@@ -751,31 +763,30 @@ _1:
 						* (size_t) (stack[top].data.count + 1));
 		stack[top].data.args[stack[top].data.count++] = stack[top + 1].data;
 		goto _1;
-	}
+
+	} 
 
 	if (begin == length) goto _3;
-
-_2:		
+_2:
 	free(stack[top].data.args);
 	stack[top].data.args = NULL;
 	stack[top].data.count = 0;
 	goto _0;
 _3:
+	debug_context(&context);
+	debug_program(&stack->data, 0, &context);
 
-	if (	LLVMVerifyModule(new, LLVMPrintMessageAction, &llvm_error) or 
+	if (not stack->ind) print_error(best, candidate, length, text, filename, &context);
+
+	else if (LLVMVerifyModule(new, LLVMPrintMessageAction, &llvm_error) or 
 		LLVMLinkModules2(module, new)) {
-
 		fprintf(stderr, "llvm: error5: %s\n", llvm_error);
 		LLVMDisposeMessage(llvm_error);
 		exit(5);
 	}
 
-	// debug_context(&context);
-	// debug_program(&stack->data, 0, &context);
-
 	destroy_program(&stack->data);            
 	destroy_context(&context);
-
 	free(stack);
 	munmap(text, (size_t) length);
 	LLVMDisposeBuilder(builder);
@@ -867,8 +878,8 @@ int main(int argc, const char** argv, const char** envp) {
 				exit(6);
 			}
 		} else {
-		// fprintf(stderr, "compiler: %s: error7: unknown file type: \"%s\"\n", argv[i], ext);
-			compile("<string>", (int8_t*) (argv[i]), (nat) strlen(argv[i]), module, llvm_error);
+			// fprintf(stderr, "compiler: %s: error7: unknown file type: \"%s\"\n", argv[i], ext);
+			compile("<inline_string>", (int8_t*) (argv[i]), (nat) strlen(argv[i]), module, llvm_error);
 		}
 	}
 
