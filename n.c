@@ -592,7 +592,7 @@ static inline struct eval_result eval_intrinsic(struct expression* this, struct 
 		struct eval_result rest = eval_intrinsic(this->args, context, stack, stack_count);
 		rest.syntax = realloc(rest.syntax, sizeof(nat) * (size_t) (rest.length + 1));
 		memmove(rest.syntax + 1, rest.syntax, sizeof(nat) * (size_t) rest.length);
-		rest.syntax[0] = 'A';
+		rest.syntax[0] = context->names[this->index].syntax[0];
 		rest.length++;
 		return rest;
 
@@ -656,8 +656,7 @@ static inline void expand_macro(struct context* __attribute__((unused)) context)
 }
 
 
-
-static inline void print_error(nat best, nat candidate, nat length, int8_t* text, 
+static inline void print_error(nat best, nat best_index, nat length, int8_t* text, 
 				const char* filename, struct context* context) {
 	nat at = 0, line = 1, column = 1;
 	while (at < best) {
@@ -668,17 +667,17 @@ static inline void print_error(nat best, nat candidate, nat length, int8_t* text
 	fprintf(stderr, "compiler: %s: %u:%u: error: unresolved %c\n",
 	filename, line, column, best == length ? ' ' : text[best]);
 			
-	struct abstraction candidate_name = context->names[candidate];
+	struct abstraction candidate = context->names[best_index];
 			
 	printf("...did you mean:  ");
-	for (nat s = 0; s < candidate_name.length; s++) {
-		nat c = candidate_name.syntax[s];
+	for (nat s = 0; s < candidate.length; s++) {
+		nat c = candidate.syntax[s];
 		if (c >= 256) printf("(%d) ", c - 256);
 		else printf("%c ", (char) c);
 	}
 	printf(" which has type: ");
-	if ((unsigned) candidate_name.type < (unsigned) context->type_count)
-		debug_program(context->types + candidate_name.type, 0, context);
+	if ((unsigned) candidate.type < (unsigned) context->type_count)
+		debug_program(context->types + candidate.type, 0, context);
 	else printf("(-1)\n");
 }
 
@@ -693,7 +692,8 @@ static inline void compile(const char* filename, int8_t* text, nat length,
 	struct context context = {0};
 	construct_context(&context);
 
-	nat  stack_size = 65536, top_level_type = intrin_unit, begin = 0, best = 0, candidate = 0, top = 0, done = 0;	
+	nat stack_size = 65536, top_level_type = intrin_unit;
+	nat begin = 0, best = 0, best_index = 0, top = 0, done = 0;	
 	
 	while (begin < length and text[begin] <= ' ') {
 		begin++;
@@ -739,8 +739,9 @@ _1:
 		begin++;
 		if (begin > best) {
 			best = begin;
-			candidate = stack[top].data.index;
+			best_index = stack[top].data.index;
 		}
+
 		while (begin < length and text[begin] <= ' ') {
 			begin++;
 			if (begin > best) best = begin;	
@@ -776,7 +777,7 @@ _3:
 	debug_context(&context);
 	debug_program(&stack->data, 0, &context);
 
-	if (not stack->ind) print_error(best, candidate, length, text, filename, &context);
+	if (not stack->ind) print_error(best, best_index, length, text, filename, &context);
 
 	else if (LLVMVerifyModule(new, LLVMPrintMessageAction, &llvm_error) or 
 		LLVMLinkModules2(module, new)) {
@@ -879,7 +880,7 @@ int main(int argc, const char** argv, const char** envp) {
 			}
 		} else {
 			// fprintf(stderr, "compiler: %s: error7: unknown file type: \"%s\"\n", argv[i], ext);
-			compile("<inline_string>", (int8_t*) (argv[i]), (nat) strlen(argv[i]), module, llvm_error);
+			compile("<inline_string>", (int8_t*) (intptr_t) (argv[i]), (nat) strlen(argv[i]), module, llvm_error);
 		}
 	}
 
