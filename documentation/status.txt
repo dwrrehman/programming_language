@@ -6,6 +6,329 @@ the current status of my compiler:
 
 
 
+// testing decltype, and uniqing a new type, which is an expression. works great. 
+
+
+
+join do 	push 
+join do 	decltype AAA 
+			param join join do push do decltype AA end type do pop
+			end type
+join do 	pop
+
+join do 	push 
+join do 	declare A end AAA char
+join do 	pop
+
+join do 	push 
+join do 	declare AA end AAA unit
+join do 	pop
+
+macro
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+join do push 
+join do declare AA param join join push declare AAAA end unit pop end unit
+join join AA macro AAAA
+join do pop
+macro
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+also update:      ive been thinking about the name for this programming language. 
+
+		i reallyyyyy reallyyyy dont want to name it. 
+			because i think thats kinda stupid.. 
+
+				unless there was some fundmental name to computation, 
+
+					but its kinda no.. 
+
+
+		
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+2012126.2235:
+
+
+so over the last couple of weeks, i have pretty much compeltely rethought how i am going to get a turing complete type system, 
+
+		and determined thta actually, all that is really necessary to get a functional, working tc type system in the language, is 
+
+
+
+				just 
+
+
+									macros, and dependent types. 
+
+
+
+		
+
+
+
+	llvm-evaluation is still in my future, but we will tackel that wayyyy after we have the language operational and stuff. 
+	should really just be an extra add on thing, not a MAIN MECHANISM in the LANGUAGE TYPE SYSTEM loll... 
+
+		thats stupid lol   ->  keep the language pure!!!    without llvm in it,    it should work just fine!!!!
+
+										very big idea. 
+
+
+
+
+
+
+
+
+
+also,
+
+
+
+		ive been wrokign on the things that you need to make "intrin_define" work properly:
+
+
+				do   (evaluates intrinsics)
+				macro	 (marks sig as macro)
+				intrin_macro  (marks as macro, and says that the contents will be do'd after subsitition.
+
+				push 
+				pop		(these are used for doing "lexical" scoping. 
+							couldnt figure out how to make them one thing.
+				declare 		(the actual thing, the star of the show. defines into the PARENT SCOPE.)
+
+				define 			(the same thing as declare, but provides a definition. uniimplemented so far)
+
+				A(rest)			(add a character to the signtqure.)
+				end			terminate the signature
+				param(d)(rest)		add a parameter to the signature, using another declare or define call. )
+
+				
+
+
+		with those simply set up intrinsics, i have been able to get defines working,  (i also got intrinsic eval working, and scopes working!!!)
+
+
+
+
+				and one i implement the last two things i need to implement,
+
+
+						which are             macros,         and dependent types, 
+
+
+
+
+									(the good stuff, lol)
+
+
+
+
+
+						then i will have technically, speaking,          a working programming language. 
+
+
+
+
+
+							thats so wicked. 
+
+
+
+
+
+
+
+
+
+	obviously 
+
+						i took out all llvm codegen
+
+
+
+				becuase in order to codegen for llvm, there  are literally so many intrinsics that we need to add in order to control the llvm language effectively, and have amzzing performance at runtime.
+
+
+
+
+
+					but.... 
+
+
+
+							if you are just interested in compiletime computation,, 
+										(for now)
+
+
+
+
+
+								then you can happily just use  macros and DT's, 
+
+
+							as they are turing compelte in their own rights. 
+
+
+
+										(i think they are, seperately, as well!)
+
+
+
+
+					but yeah, 
+
+
+
+
+								super excited to finally technically be able to code in the language 
+
+
+
+									im trying to design everything so that the entire syntax of the language can be entirely changed-
+
+				not a single thing is mandatory in syntax, so far, which is so great, 
+						(once im done with macros and stuff, i mean)
+
+					
+
+
+
+
+
+				hoping to get DT's done tomorrow, after graduate school stuff. 
+
+
+						hopefully it all goes well. 
+
+
+
+
+						im pretty tired now.. 
+
+						gotta go to bed.. 
+
+
+
+
+
+
+
+
+
+also macros will be able to be recurisve. 
+			super cool 
+
+
+			im excited for that lol
+
+
+
+			
+
+
+
+
+
+
+
+
+
+				okay goodnight lol
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+				
+
+
+					
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 

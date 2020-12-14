@@ -1,5 +1,9 @@
-join do push 
-join do declare AA param join join push declare AAAA end unit pop end unit
-join join AA macro AAAA
-join do pop
+join 	do push 
+join	do declare end char 
+join 	do pop
+
+join 	do push
+join 	do declare BBC unit
+join 	do pop
+join 	BBC
 macro

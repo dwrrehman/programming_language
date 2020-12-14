@@ -16,6 +16,46 @@
 
 
 
+		// // printf("checking given type expression, for instance in type table....\n");
+		// // struct expression e = this->args[1];
+		// // debug_program(&e, 0, context);			
+		
+		// // printf("starting type table member equiv checks...\n");
+		
+		// nat its_type = 0;
+
+		// while (its_type < context->type_count) {
+
+		// 	// printf("checking equivalence with: \n");
+		// 	// debug_program(context->types + its_type, 0, context);			
+
+		// 	if (trees_equal(this->args + 1, context->types + its_type)) {
+		// 		// printf("TYPES EQUAL = TRUE\n");
+		// 		break;
+		// 	} else {
+		// 		// printf("TYPES EQUAL = FALSE\n");			
+		// 		its_type++;
+		// 	}
+		// }
+
+		// // if (its_type == context->type_count) {
+		// // 	printf("type not found: ----> NEW TYPE will be generated.\n");
+			
+		// // } else {
+		// // 	printf("type found: ----> EXISTING TYPE will be used: at index %d\n", its_type);
+		// // }
+
+
+
+
+
+
+
+
+
+
+
+
 
 	    // if (not strcmp(argv[i], "--top")) {
      //            if (i + 1 < argc) top_level_type = atoi(argv[++i]);
