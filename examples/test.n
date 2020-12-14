@@ -3,7 +3,13 @@ join	do declare end char
 join 	do pop
 
 join 	do push
-join 	do declare BBC unit
+join 	do declare
+
+		BBC  
+		param join join do push do decltype CAB type do pop
+		param join join do push do declare AAA end unit do pop
+		unit
+
 join 	do pop
-join 	BBC
+join 	BBC unit macro
 macro

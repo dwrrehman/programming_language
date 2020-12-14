@@ -706,12 +706,16 @@ static inline struct eval_result eval_intrinsic(struct expression* this, struct 
 		rest.length++;
 		return rest;
 
-	} else if (this->index == intrin_param) { 	
+	} else if (this->index == intrin_param) { 
+	
 		eval_intrinsic(this->args, context, stack, stack_count);
+		nat n = 255 + context->name_count;
+
 		struct eval_result rest = eval_intrinsic(this->args + 1, context, stack, stack_count);
+
 		rest.syntax = realloc(rest.syntax, sizeof(nat) * (size_t) (rest.length + 1));
 		memmove(rest.syntax + 1, rest.syntax, sizeof(nat) * (size_t) rest.length);
-		rest.syntax[0] = 255 + context->name_count;
+		rest.syntax[0] = n;
 		rest.length++;
 		return rest;
 
@@ -723,7 +727,8 @@ static inline struct eval_result eval_intrinsic(struct expression* this, struct 
 
 		if (context->frame_count <= 1) {
 			printf("error: declare intrinsic: must have more than one stack frame\n");
-			return (struct eval_result) {0};
+			abort();
+			// return (struct eval_result) {0};
 		}
 
 		nat its_type = 0;
