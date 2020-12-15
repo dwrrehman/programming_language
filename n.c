@@ -770,7 +770,6 @@ static inline struct eval_result eval_intrinsic(struct expression* this, struct 
 	else if (this->index == intrin_macro) context->names[context->name_count - 1].use = codegen_macro;	
 	else if (this->index == intrin_intrin_macro) context->names[context->name_count - 1].use = codegen_intrin_macro;
  	else if (this->index == intrin_pop) context->index_count = context->frames[--context->frame_count];
-	else if (this->index == intrin_do) return (struct eval_result) {0};
 	else if (this->index == intrin_end) return (struct eval_result) {.syntax = NULL, .length = 0};
 	else for (nat i = 0; i < this->count; i++) eval_intrinsic(this->args + i, context, stack, stack_count);	
 	return (struct eval_result) {0};
