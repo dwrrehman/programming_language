@@ -29,7 +29,7 @@ struct abstraction {
 	nat length;
 	nat type;
 	nat use;
-	nat ___padding___;
+	nat _padding;
 };
 
 struct context {
@@ -54,11 +54,11 @@ struct stack_element {
 struct compiletime_value {
 	nat* syntax;
 	nat length;
-	nat defined_index;
+	nat defined;
 };
 
 enum codegen_type {	
-	codegen_macro,
+	codegen_macro, // the default now.
 	codegen_llvm_function,
 	codegen_llvm_function_parameter,
 	codegen_llvm_structure,
@@ -115,7 +115,7 @@ enum intrinsics {
 	intrin_declare,
 
 	intrin_define_p0,
-	intrin_definee_p1,
+	intrin_define_p1,
 	intrin_define,
 };
 
