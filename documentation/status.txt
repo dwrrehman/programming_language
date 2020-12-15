@@ -30,6 +30,57 @@ macro
 
 
 
+MORE testing code:
+
+
+join 	do push 
+join	do declare end char 
+join 	do pop
+
+join 	do push
+join 	do declare
+
+		BBC
+		param join join do push do decltype CAB type do pop
+		param join join do push do declare AAA end unit do pop
+		unit
+
+join 	do pop
+join 	BBC unit macro
+macro
+
+
+
+this code ^ caused me to redo the entire intrinsic evaluation system, and replace it with:
+
+	- no do, or intrin macro. 
+	- replace push and pop with scope
+	- make all intrinsics eval on call instantly. 
+	- do user defined syntax for intrinsics, using MARK_AS_XXX_INTRINs, like with llvm codegen. 	
+	- have compiletime values be stored in the tree, by replacing the member "LLVMValueRef value;" with 
+			"void* value;", and switch on the cast based on the .use of the name, using the index at that expr node. 
+
+	- dont duplicate the expression tree ever, except for maybe macross, where we will have a specialized "replace while duplicating" routine, which will be NON recursive.  solve the type table sharing lifetimes with the program, by setting typetable freed pointers to NULL, and count to 0, after freeing them. that prevents double frees.
+
+
+	- intrin evaluation / function is now simply done using the .use of the name of the index.
+		this allows for the user to write their own intrinsics. yay.
+
+
+	- we might add a "print" intrinsic, which prints a name... basically. 
+
+	- 
+	
+
+
+
+
+
+
+
+
+
+
 
 
 

@@ -19,4 +19,3 @@ release: $(the_file)
 clean:
 	rm -rf $(output_name)
 	rm -rf "$(output_name).dSYM"
-
