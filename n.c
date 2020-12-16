@@ -85,12 +85,14 @@ enum intrinsics {
 	intrin_root,
 	intrin_type,
 	intrin_unit,
+	intrin_name,
+	intrin_pass,
 
 	intrin_join_p0,
 	intrin_join_p1,
 	intrin_join,
 
-	intrin_name,
+
 
 	intrin_A_p0,
 	intrin_A,
@@ -214,11 +216,10 @@ static inline void debug_context(struct context* context) { // temp
 	printf("-------------------\n\n");
 }
 
-static inline void construct_context(struct context* c) { 
-	c->name_count = 0;
-	c->index_count = 0;
-	c->frame_count = 0;
+static inline struct context* construct_context() { 
 
+	struct context* c = calloc(1, sizeof(struct context));
+	
 	c->frames = realloc(c->frames, sizeof(nat) * (size_t) (c->frame_count + 1));
 	c->frames[c->frame_count++] = c->index_count;
 
@@ -271,6 +272,38 @@ static inline void construct_context(struct context* c) {
 	c->names[c->name_count].syntax[3] = 't';
 	c->name_count++;
 
+
+
+	c->names = realloc(c->names, sizeof(struct abstraction) * (size_t) (c->name_count + 1));
+	c->names[c->name_count].type = intrin_type_type;
+	c->names[c->name_count].definition = NULL;
+	c->names[c->name_count].use = codegen_macro;
+	c->names[c->name_count].length = 4;
+	c->names[c->name_count].syntax = calloc((size_t) c->names[c->name_count].length, sizeof(nat));
+	c->names[c->name_count].syntax[0] = 'n';
+	c->names[c->name_count].syntax[1] = 'a';
+	c->names[c->name_count].syntax[2] = 'm';
+	c->names[c->name_count].syntax[3] = 'e';
+	c->name_count++;
+
+
+
+	c->names = realloc(c->names, sizeof(struct abstraction) * (size_t) (c->name_count + 1));
+	c->names[c->name_count].type = intrin_unit_type;
+	c->names[c->name_count].definition = NULL;
+	c->names[c->name_count].use = codegen_macro;
+	c->names[c->name_count].length = 4;
+	c->names[c->name_count].syntax = calloc((size_t) c->names[c->name_count].length, sizeof(nat));
+	c->names[c->name_count].syntax[0] = 'p';
+	c->names[c->name_count].syntax[1] = 'a';
+	c->names[c->name_count].syntax[2] = 's';
+	c->names[c->name_count].syntax[3] = 's';
+	c->name_count++;
+
+
+
+
+
 	c->names = realloc(c->names, sizeof(struct abstraction) * (size_t) (c->name_count + 1));
 	c->names[c->name_count].type = intrin_unit_type;
 	c->names[c->name_count].definition = NULL;
@@ -303,153 +336,142 @@ static inline void construct_context(struct context* c) {
 	c->names[c->name_count].syntax[5] = 256 + intrin_join_p1;
 	c->name_count++;
 
-	c->names = realloc(c->names, sizeof(struct abstraction) * (size_t) (c->name_count + 1));
-	c->names[c->name_count].type = intrin_type_type;
-	c->names[c->name_count].definition = NULL;
-	c->names[c->name_count].use = codegen_macro;
-	c->names[c->name_count].length = 4;
-	c->names[c->name_count].syntax = calloc((size_t) c->names[c->name_count].length, sizeof(nat));
-	c->names[c->name_count].syntax[0] = 'n';
-	c->names[c->name_count].syntax[1] = 'a';
-	c->names[c->name_count].syntax[2] = 'm';
-	c->names[c->name_count].syntax[3] = 'e';
-	c->name_count++;
 
-	c->names = realloc(c->names, sizeof(struct abstraction) * (size_t) (c->name_count + 1));
-	c->names[c->name_count].type = intrin_name_type;
-	c->names[c->name_count].definition = NULL;
-	c->names[c->name_count].use = codegen_macro;
-	c->names[c->name_count].length = 1;
-	c->names[c->name_count].syntax = calloc((size_t) c->names[c->name_count].length, sizeof(nat));
-	c->names[c->name_count].syntax[0] = '5';
-	c->name_count++;
+	// c->names = realloc(c->names, sizeof(struct abstraction) * (size_t) (c->name_count + 1));
+	// c->names[c->name_count].type = intrin_name_type;
+	// c->names[c->name_count].definition = NULL;
+	// c->names[c->name_count].use = codegen_macro;
+	// c->names[c->name_count].length = 1;
+	// c->names[c->name_count].syntax = calloc((size_t) c->names[c->name_count].length, sizeof(nat));
+	// c->names[c->name_count].syntax[0] = '5';
+	// c->name_count++;
 
-	c->names = realloc(c->names, sizeof(struct abstraction) * (size_t) (c->name_count + 1));
-	c->names[c->name_count].type = intrin_name_type;
-	c->names[c->name_count].definition = NULL;
-	c->names[c->name_count].use = codegen_macro;
-	c->names[c->name_count].length = 2;
-	c->names[c->name_count].syntax = calloc((size_t) c->names[c->name_count].length, sizeof(nat));
-	c->names[c->name_count].syntax[0] = 'A';    
-	c->names[c->name_count].syntax[1] = 256 + intrin_A_p0;
-	c->name_count++;
+	// c->names = realloc(c->names, sizeof(struct abstraction) * (size_t) (c->name_count + 1));
+	// c->names[c->name_count].type = intrin_name_type;
+	// c->names[c->name_count].definition = NULL;
+	// c->names[c->name_count].use = codegen_macro;
+	// c->names[c->name_count].length = 2;
+	// c->names[c->name_count].syntax = calloc((size_t) c->names[c->name_count].length, sizeof(nat));
+	// c->names[c->name_count].syntax[0] = 'A';    
+	// c->names[c->name_count].syntax[1] = 256 + intrin_A_p0;
+	// c->name_count++;
 
-	c->names = realloc(c->names, sizeof(struct abstraction) * (size_t) (c->name_count + 1));
-	c->names[c->name_count].type = intrin_name_type;
-	c->names[c->name_count].definition = NULL;
-	c->names[c->name_count].use = codegen_macro;
-	c->names[c->name_count].length = 1;
-	c->names[c->name_count].syntax = calloc((size_t) c->names[c->name_count].length, sizeof(nat));
-	c->names[c->name_count].syntax[0] = '5';
-	c->name_count++;
+	// c->names = realloc(c->names, sizeof(struct abstraction) * (size_t) (c->name_count + 1));
+	// c->names[c->name_count].type = intrin_name_type;
+	// c->names[c->name_count].definition = NULL;
+	// c->names[c->name_count].use = codegen_macro;
+	// c->names[c->name_count].length = 1;
+	// c->names[c->name_count].syntax = calloc((size_t) c->names[c->name_count].length, sizeof(nat));
+	// c->names[c->name_count].syntax[0] = '5';
+	// c->name_count++;
 
-	c->names = realloc(c->names, sizeof(struct abstraction) * (size_t) (c->name_count + 1));
-	c->names[c->name_count].type = intrin_name_type;
-	c->names[c->name_count].definition = NULL;
-	c->names[c->name_count].use = codegen_macro;
-	c->names[c->name_count].length = 2;
-	c->names[c->name_count].syntax = calloc((size_t) c->names[c->name_count].length, sizeof(nat));
-	c->names[c->name_count].syntax[0] = 'B';    
-	c->names[c->name_count].syntax[1] = 256 + intrin_B_p0;
-	c->name_count++;
+	// c->names = realloc(c->names, sizeof(struct abstraction) * (size_t) (c->name_count + 1));
+	// c->names[c->name_count].type = intrin_name_type;
+	// c->names[c->name_count].definition = NULL;
+	// c->names[c->name_count].use = codegen_macro;
+	// c->names[c->name_count].length = 2;
+	// c->names[c->name_count].syntax = calloc((size_t) c->names[c->name_count].length, sizeof(nat));
+	// c->names[c->name_count].syntax[0] = 'B';    
+	// c->names[c->name_count].syntax[1] = 256 + intrin_B_p0;
+	// c->name_count++;
 
-	c->names = realloc(c->names, sizeof(struct abstraction) * (size_t) (c->name_count + 1));
-	c->names[c->name_count].type = intrin_name_type;
-	c->names[c->name_count].definition = NULL;
-	c->names[c->name_count].use = codegen_macro;
-	c->names[c->name_count].length = 1;
-	c->names[c->name_count].syntax = calloc((size_t) c->names[c->name_count].length, sizeof(nat));
-	c->names[c->name_count].syntax[0] = '5';
-	c->name_count++;
+	// c->names = realloc(c->names, sizeof(struct abstraction) * (size_t) (c->name_count + 1));
+	// c->names[c->name_count].type = intrin_name_type;
+	// c->names[c->name_count].definition = NULL;
+	// c->names[c->name_count].use = codegen_macro;
+	// c->names[c->name_count].length = 1;
+	// c->names[c->name_count].syntax = calloc((size_t) c->names[c->name_count].length, sizeof(nat));
+	// c->names[c->name_count].syntax[0] = '5';
+	// c->name_count++;
 
-	c->names = realloc(c->names, sizeof(struct abstraction) * (size_t) (c->name_count + 1));
-	c->names[c->name_count].type = intrin_name_type;
-	c->names[c->name_count].definition = NULL;
-	c->names[c->name_count].use = codegen_macro;
-	c->names[c->name_count].length = 2;
-	c->names[c->name_count].syntax = calloc((size_t) c->names[c->name_count].length, sizeof(nat));
-	c->names[c->name_count].syntax[0] = 'C';    
-	c->names[c->name_count].syntax[1] = 256 + intrin_C_p0;
-	c->name_count++;
+	// c->names = realloc(c->names, sizeof(struct abstraction) * (size_t) (c->name_count + 1));
+	// c->names[c->name_count].type = intrin_name_type;
+	// c->names[c->name_count].definition = NULL;
+	// c->names[c->name_count].use = codegen_macro;
+	// c->names[c->name_count].length = 2;
+	// c->names[c->name_count].syntax = calloc((size_t) c->names[c->name_count].length, sizeof(nat));
+	// c->names[c->name_count].syntax[0] = 'C';    
+	// c->names[c->name_count].syntax[1] = 256 + intrin_C_p0;
+	// c->name_count++;
 
-	c->names = realloc(c->names, sizeof(struct abstraction) * (size_t) (c->name_count + 1));
-	c->names[c->name_count].type = intrin_name_type;
-	c->names[c->name_count].definition = NULL;
-	c->names[c->name_count].use = codegen_macro;
-	c->names[c->name_count].length = 3;
-	c->names[c->name_count].syntax = calloc((size_t) c->names[c->name_count].length, sizeof(nat));    
-	c->names[c->name_count].syntax[0] = 'e';    
-	c->names[c->name_count].syntax[1] = 'n';
-	c->names[c->name_count].syntax[2] = 'd';
-	c->name_count++;
+	// c->names = realloc(c->names, sizeof(struct abstraction) * (size_t) (c->name_count + 1));
+	// c->names[c->name_count].type = intrin_name_type;
+	// c->names[c->name_count].definition = NULL;
+	// c->names[c->name_count].use = codegen_macro;
+	// c->names[c->name_count].length = 3;
+	// c->names[c->name_count].syntax = calloc((size_t) c->names[c->name_count].length, sizeof(nat));    
+	// c->names[c->name_count].syntax[0] = 'e';    
+	// c->names[c->name_count].syntax[1] = 'n';
+	// c->names[c->name_count].syntax[2] = 'd';
+	// c->name_count++;
 
-	c->names = realloc(c->names, sizeof(struct abstraction) * (size_t) (c->name_count + 1));
-	c->names[c->name_count].type = intrin_name_type;
-	c->names[c->name_count].definition = NULL;
-	c->names[c->name_count].use = codegen_macro;
-	c->names[c->name_count].length = 1;
-	c->names[c->name_count].syntax = calloc((size_t) c->names[c->name_count].length, sizeof(nat));
-	c->names[c->name_count].syntax[0] = '3';
-	c->name_count++;
+	// c->names = realloc(c->names, sizeof(struct abstraction) * (size_t) (c->name_count + 1));
+	// c->names[c->name_count].type = intrin_name_type;
+	// c->names[c->name_count].definition = NULL;
+	// c->names[c->name_count].use = codegen_macro;
+	// c->names[c->name_count].length = 1;
+	// c->names[c->name_count].syntax = calloc((size_t) c->names[c->name_count].length, sizeof(nat));
+	// c->names[c->name_count].syntax[0] = '3';
+	// c->name_count++;
 
-	c->names = realloc(c->names, sizeof(struct abstraction) * (size_t) (c->name_count + 1));
-	c->names[c->name_count].type = intrin_type_type;
-	c->names[c->name_count].definition = NULL;
-	c->names[c->name_count].use = codegen_macro;
-	c->names[c->name_count].length = 1;
-	c->names[c->name_count].syntax = calloc((size_t) c->names[c->name_count].length, sizeof(nat));
-	c->names[c->name_count].syntax[0] = '4';
-	c->name_count++;
+	// c->names = realloc(c->names, sizeof(struct abstraction) * (size_t) (c->name_count + 1));
+	// c->names[c->name_count].type = intrin_type_type;
+	// c->names[c->name_count].definition = NULL;
+	// c->names[c->name_count].use = codegen_macro;
+	// c->names[c->name_count].length = 1;
+	// c->names[c->name_count].syntax = calloc((size_t) c->names[c->name_count].length, sizeof(nat));
+	// c->names[c->name_count].syntax[0] = '4';
+	// c->name_count++;
 
-	c->names = realloc(c->names, sizeof(struct abstraction) * (size_t) (c->name_count + 1));
-	c->names[c->name_count].type = intrin_unit_type;
-	c->names[c->name_count].definition = NULL;
-	c->names[c->name_count].use = codegen_macro;
-	c->names[c->name_count].length = 9;
-	c->names[c->name_count].syntax = calloc((size_t) c->names[c->name_count].length, sizeof(nat));
-	c->names[c->name_count].syntax[0] = 'd';
-	c->names[c->name_count].syntax[1] = 'e';
-	c->names[c->name_count].syntax[2] = 'c';
-	c->names[c->name_count].syntax[3] = 'l';
-	c->names[c->name_count].syntax[4] = 'a';
-	c->names[c->name_count].syntax[5] = 'r';
-	c->names[c->name_count].syntax[6] = 'e';
-	c->names[c->name_count].syntax[7] = 256 + intrin_declare_p0;
-	c->names[c->name_count].syntax[8] = 256 + intrin_declare_p1;
-	c->name_count++;
+	// c->names = realloc(c->names, sizeof(struct abstraction) * (size_t) (c->name_count + 1));
+	// c->names[c->name_count].type = intrin_unit_type;
+	// c->names[c->name_count].definition = NULL;
+	// c->names[c->name_count].use = codegen_macro;
+	// c->names[c->name_count].length = 9;
+	// c->names[c->name_count].syntax = calloc((size_t) c->names[c->name_count].length, sizeof(nat));
+	// c->names[c->name_count].syntax[0] = 'd';
+	// c->names[c->name_count].syntax[1] = 'e';
+	// c->names[c->name_count].syntax[2] = 'c';
+	// c->names[c->name_count].syntax[3] = 'l';
+	// c->names[c->name_count].syntax[4] = 'a';
+	// c->names[c->name_count].syntax[5] = 'r';
+	// c->names[c->name_count].syntax[6] = 'e';
+	// c->names[c->name_count].syntax[7] = 256 + intrin_declare_p0;
+	// c->names[c->name_count].syntax[8] = 256 + intrin_declare_p1;
+	// c->name_count++;
 
-	c->names = realloc(c->names, sizeof(struct abstraction) * (size_t) (c->name_count + 1));
-	c->names[c->name_count].type = intrin_unit_type;
-	c->names[c->name_count].definition = NULL;
-	c->names[c->name_count].use = codegen_macro;
-	c->names[c->name_count].length = 1;
-	c->names[c->name_count].syntax = calloc((size_t) c->names[c->name_count].length, sizeof(nat));
-	c->names[c->name_count].syntax[0] = '7';
-	c->name_count++;
+	// c->names = realloc(c->names, sizeof(struct abstraction) * (size_t) (c->name_count + 1));
+	// c->names[c->name_count].type = intrin_unit_type;
+	// c->names[c->name_count].definition = NULL;
+	// c->names[c->name_count].use = codegen_macro;
+	// c->names[c->name_count].length = 1;
+	// c->names[c->name_count].syntax = calloc((size_t) c->names[c->name_count].length, sizeof(nat));
+	// c->names[c->name_count].syntax[0] = '7';
+	// c->name_count++;
 
-	c->names = realloc(c->names, sizeof(struct abstraction) * (size_t) (c->name_count + 1));
-	c->names[c->name_count].type = intrin_name_type;
-	c->names[c->name_count].definition = NULL;
-	c->names[c->name_count].use = codegen_macro;
-	c->names[c->name_count].length = 1;
-	c->names[c->name_count].syntax = calloc((size_t) c->names[c->name_count].length, sizeof(nat));
-	c->names[c->name_count].syntax[0] = '8';
-	c->name_count++;
+	// c->names = realloc(c->names, sizeof(struct abstraction) * (size_t) (c->name_count + 1));
+	// c->names[c->name_count].type = intrin_name_type;
+	// c->names[c->name_count].definition = NULL;
+	// c->names[c->name_count].use = codegen_macro;
+	// c->names[c->name_count].length = 1;
+	// c->names[c->name_count].syntax = calloc((size_t) c->names[c->name_count].length, sizeof(nat));
+	// c->names[c->name_count].syntax[0] = '8';
+	// c->name_count++;
 
-	c->names = realloc(c->names, sizeof(struct abstraction) * (size_t) (c->name_count + 1));
-	c->names[c->name_count].type = intrin_name_type;
-	c->names[c->name_count].definition = NULL;
-	c->names[c->name_count].use = codegen_macro;
-	c->names[c->name_count].length = 7;
-	c->names[c->name_count].syntax = calloc((size_t) c->names[c->name_count].length, sizeof(nat));
-	c->names[c->name_count].syntax[0] = 'p';
-	c->names[c->name_count].syntax[1] = 'a';
-	c->names[c->name_count].syntax[2] = 'r';
-	c->names[c->name_count].syntax[3] = 'a';
-	c->names[c->name_count].syntax[4] = 'm';
-	c->names[c->name_count].syntax[5] = 256 + intrin_param_p0;
-	c->names[c->name_count].syntax[6] = 256 + intrin_param_p1;
-	c->name_count++;
+	// c->names = realloc(c->names, sizeof(struct abstraction) * (size_t) (c->name_count + 1));
+	// c->names[c->name_count].type = intrin_name_type;
+	// c->names[c->name_count].definition = NULL;
+	// c->names[c->name_count].use = codegen_macro;
+	// c->names[c->name_count].length = 7;
+	// c->names[c->name_count].syntax = calloc((size_t) c->names[c->name_count].length, sizeof(nat));
+	// c->names[c->name_count].syntax[0] = 'p';
+	// c->names[c->name_count].syntax[1] = 'a';
+	// c->names[c->name_count].syntax[2] = 'r';
+	// c->names[c->name_count].syntax[3] = 'a';
+	// c->names[c->name_count].syntax[4] = 'm';
+	// c->names[c->name_count].syntax[5] = 256 + intrin_param_p0;
+	// c->names[c->name_count].syntax[6] = 256 + intrin_param_p1;
+	// c->name_count++;
 
 
 	// c->names = realloc(c->names, sizeof(struct abstraction) * (size_t) (c->name_count + 1));
@@ -501,17 +523,17 @@ static inline void construct_context(struct context* c) {
 	// c->names[c->name_count].syntax[9] = 256 + intrin_decltype_p1;
 	// c->name_count++;
 
-	c->indicies = realloc(c->indicies, sizeof(nat) * (size_t) (c->index_count + 1));
-	c->indicies[c->index_count++] = intrin_A;
+	// c->indicies = realloc(c->indicies, sizeof(nat) * (size_t) (c->index_count + 1));
+	// c->indicies[c->index_count++] = intrin_A;
 
-	c->indicies = realloc(c->indicies, sizeof(nat) * (size_t) (c->index_count + 1));
-	c->indicies[c->index_count++] = intrin_B;
+	// c->indicies = realloc(c->indicies, sizeof(nat) * (size_t) (c->index_count + 1));
+	// c->indicies[c->index_count++] = intrin_B;
 
-	c->indicies = realloc(c->indicies, sizeof(nat) * (size_t) (c->index_count + 1));
-	c->indicies[c->index_count++] = intrin_C;
+	// c->indicies = realloc(c->indicies, sizeof(nat) * (size_t) (c->index_count + 1));
+	// c->indicies[c->index_count++] = intrin_C;
 
-	c->indicies = realloc(c->indicies, sizeof(nat) * (size_t) (c->index_count + 1));
-	c->indicies[c->index_count++] = intrin_end;
+	// c->indicies = realloc(c->indicies, sizeof(nat) * (size_t) (c->index_count + 1));
+	// c->indicies[c->index_count++] = intrin_end;
 
 
 
@@ -530,23 +552,24 @@ static inline void construct_context(struct context* c) {
 	c->indicies = realloc(c->indicies, sizeof(nat) * (size_t) (c->index_count + 1));
 	c->indicies[c->index_count++] = intrin_undef;
 
-
+	c->indicies = realloc(c->indicies, sizeof(nat) * (size_t) (c->index_count + 1));
+	c->indicies[c->index_count++] = intrin_pass;
 
 	c->indicies = realloc(c->indicies, sizeof(nat) * (size_t) (c->index_count + 1));
 	c->indicies[c->index_count++] = intrin_join;
 
-	c->indicies = realloc(c->indicies, sizeof(nat) * (size_t) (c->index_count + 1));
-	c->indicies[c->index_count++] = intrin_scope;
-
-	c->indicies = realloc(c->indicies, sizeof(nat) * (size_t) (c->index_count + 1));
-	c->indicies[c->index_count++] = intrin_param;
 
 
-	c->indicies = realloc(c->indicies, sizeof(nat) * (size_t) (c->index_count + 1));
-	c->indicies[c->index_count++] = intrin_declare;
+	
 
-	c->indicies = realloc(c->indicies, sizeof(nat) * (size_t) (c->index_count + 1));
-	c->indicies[c->index_count++] = intrin_define;	
+	// c->indicies = realloc(c->indicies, sizeof(nat) * (size_t) (c->index_count + 1));
+	// c->indicies[c->index_count++] = intrin_param;
+
+	// c->indicies = realloc(c->indicies, sizeof(nat) * (size_t) (c->index_count + 1));
+	// c->indicies[c->index_count++] = intrin_declare;
+
+	// c->indicies = realloc(c->indicies, sizeof(nat) * (size_t) (c->index_count + 1));
+	// c->indicies[c->index_count++] = intrin_define;	
 
 
 	c->types = realloc(c->types, sizeof(struct expression) * (size_t) (c->type_count + 1));
@@ -568,33 +591,11 @@ static inline void construct_context(struct context* c) {
 	c->types = realloc(c->types, sizeof(struct expression) * (size_t) (c->type_count + 1));
 	c->types[c->type_count] = (struct expression) {0};
 	c->types[c->type_count++].index = intrin_name;
+
+	return c;
 }
 
 
-static inline void print_error(nat best, nat best_index, nat length, int8_t* text, 
-				const char* filename, struct context* context) {
-	nat at = 0, line = 1, column = 1;
-	while (at < best) {
-		if (text[at] == '\n') { line++; column = 1; } else column++;
-		at++;
-	}
-
-	fprintf(stderr, "compiler: %s: %u:%u: error: unresolved %c\n",
-	filename, line, column, best == length ? ' ' : text[best]);
-			
-	struct abstraction candidate = context->names[best_index];
-			
-	printf("...did you mean:  ");
-	for (nat s = 0; s < candidate.length; s++) {
-		nat c = candidate.syntax[s];
-		if (c >= 256) printf("(%d) ", c - 256);
-		else printf("%c ", (char) c);
-	}
-	printf(" which has type: ");
-	if ((unsigned) candidate.type < (unsigned) context->type_count)
-		debug_program(context->types + candidate.type, 0, context);
-	else printf("(-1)\n");
-}
 
 
 
@@ -607,54 +608,33 @@ static inline void destroy_program(struct expression* program) { // write non re
 	program->count = 0;
 }
 
-static inline void destroy_context(struct context* context) {
-	for (nat i = 0; i < context->name_count; i++) {
-		free(context->names[i].syntax);
-		destroy_program(context->names[i].definition);
-	}
-	for (nat i = 0; i < context->type_count; i++) 
-		destroy_program(context->types + i);	
-	free(context->indicies);
-	free(context->frames);
-}
 
-static inline nat expressions_equal(struct expression* a, struct expression* b) { 
-	// write non recursively, and inline into declare-eval cal.
-	if (a->index != b->index) return 0;
-	if (a->count != b->count) return 0;
-	for (nat i = 0; i < a->count; i++) {
-		if (not expressions_equal(a->args + i, b->args + i)) return 0;
-	}
-	return 1;
-}
-
-// static inline struct expression duplicate_expression(struct expression e) { // delet
-// 	struct expression r = {0};
-// 	r.index = e.index;
-// 	r.count = e.count;
-// 	r.args = malloc(sizeof(struct expression) * (size_t) e.count);
-// 	for (nat i = 0; i < e.count; i++) 
-// 		r.args[i] = duplicate_expression(e.args[i]);
-// 	return r;
+// static inline nat expressions_equal(struct expression* a, struct expression* b) { 
+// 	// write non recursively, and inline into declare-eval cal.
+// 	if (a->index != b->index) return 0;
+// 	if (a->count != b->count) return 0;
+// 	for (nat i = 0; i < a->count; i++) {
+// 		if (not expressions_equal(a->args + i, b->args + i)) return 0;
+// 	}
+// 	return 1;
 // }
 
-static inline void eval_intrinsic(struct expression* this, struct context* context, 
-				struct stack_element* stack, nat stack_count) {
+
+// static inline void eval_intrinsic(struct expression* this, struct context* context, 
+// 				struct stack_element* stack, nat stack_count) {
 
 
 
 	// if (this->index == intrin_end) return (struct compiletime_value) {.syntax = NULL, .length = 0};
-	if (this->index == intrin_end) return;
+	// if (this->index == intrin_end) return;
 
 
-	else if (	this->index == intrin_A or
-		 	this->index == intrin_B or
-		 	this->index == intrin_C
-		) { 
+	// else if (	this->index == intrin_A or
+	// 	 	this->index == intrin_B or
+	// 	 	this->index == intrin_C
+	// 	) { 
 
 		// struct compiletime_value rest = eval_intrinsic(this->args, context, stack, stack_count);
-
-
 
 
 		// rest.syntax = realloc(rest.syntax, sizeof(nat) * (size_t) (rest.length + 1));
@@ -663,7 +643,7 @@ static inline void eval_intrinsic(struct expression* this, struct context* conte
 		// rest.length++;
 		// return rest;
 
-	} else if (this->index == intrin_param) { 
+	// } else if (this->index == intrin_param) { 
 	
 		// eval_intrinsic(this->args, context, stack, stack_count);
 		// nat n = 255 + context->name_count;
@@ -679,10 +659,10 @@ static inline void eval_intrinsic(struct expression* this, struct context* conte
 		// rest.length++;
 		// return rest;
 
-	} else if (	this->index == intrin_declare
-			 // or 
-			// this->index == intrin_decltype
-		   ) { 
+	// } else if (	this->index == intrin_declare
+	// 		 // or 
+	// 		// this->index == intrin_decltype
+	// 	   ) { 
 
 		// struct compiletime_value e0 = eval_intrinsic(this->args + 0, context, stack, stack_count);
 		// eval_intrinsic(this->args + 1, context, stack, stack_count);
@@ -724,7 +704,7 @@ static inline void eval_intrinsic(struct expression* this, struct context* conte
 		// 	if (place <= stack[s].ind) stack[s].ind++;
 		// context->frames[frame]++;
 
-	} 
+	// } 
 
 	// else if (this->index == intrin_push) { 		
 	// 	context->frames = realloc(context->frames, sizeof(nat) * (size_t) (context->frame_count + 1));
@@ -738,50 +718,107 @@ static inline void eval_intrinsic(struct expression* this, struct context* conte
 	// else for (nat i = 0; i < this->count; i++) eval_intrinsic(this->args + i, context, stack, stack_count);	
 
 	// return (struct compiletime_value) {0};
+// }
+
+
+
+static inline void destroy_context(struct context* context) {
+	for (nat i = 0; i < context->name_count; i++) {
+		free(context->names[i].syntax);
+		destroy_program(context->names[i].definition);
+	}
+	for (nat i = 0; i < context->type_count; i++) 
+		destroy_program(context->types + i);	
+	free(context->indicies);
+	free(context->frames);
+	free(context);
 }
 
-static inline void expand_macro(struct context* __attribute__((unused)) context) {
+static inline int8_t* open_file(const char* filename, nat* out_length) {
+
+	struct stat file_data = {0};
+	int file = open(filename, O_RDONLY);
+	if (file < 0 or stat(filename, &file_data) < 0) {
+		fprintf(stderr, "compiler: error3: %s: ", filename);
+		perror("open");
+		exit(3);
+	} 
+
+	size_t length = (size_t) file_data.st_size;
+	if (not length) return NULL;
+	int8_t* text = mmap(0, length, PROT_READ, MAP_SHARED, file, 0);
+	close(file);
 	
-	return;
+	if (text == MAP_FAILED) {
+		fprintf(stderr, "compiler: error4: %s: ", filename);
+		perror("mmap");
+		exit(4);
+	} 
+	*out_length = (nat) length;
+	return text;
 }
 
 
-static inline void compile(const char* filename, int8_t* text, nat length, 
-				LLVMModuleRef module, char* llvm_error) {
+static inline void print_error(nat best, nat best_index, nat length, int8_t* text, 
+				const char* filename, struct context* context) {
 
-	LLVMModuleRef new = LLVMModuleCreateWithName(filename);
-	LLVMBuilderRef builder = LLVMCreateBuilder();
-	
-	struct context context = {0};
-	construct_context(&context);
-
-	nat stack_size = 65536, top_level_type = intrin_unit;
-	nat begin = 0, best = 0, best_index = 0, top = 0, done = 0;
-	
-	while (begin < length and text[begin] <= ' ') {
-		begin++;
-		if (begin > best) best = begin;
+	nat at = 0, line = 1, column = 1;
+	while (at < best) {
+		if (text[at] == '\n') { line++; column = 1; } else column++;
+		at++;
 	}
 
+	fprintf(stderr, "compiler: %s: %u:%u: error: unresolved %c\n",
+	filename, line, column, best == length ? ' ' : text[best]);
+			
+	struct abstraction candidate = context->names[best_index];
+			
+	printf("...did you mean:  ");
+	for (nat s = 0; s < candidate.length; s++) {
+		nat c = candidate.syntax[s];
+		if (c >= 256) printf("(%d) ", c - 256);
+		else printf("%c ", (char) c);
+	}
+	printf(" which has type: ");
+	if ((unsigned) candidate.type < (unsigned) context->type_count)
+		debug_program(context->types + candidate.type, 0, context);
+	else printf("(undefined)\n");
+}
+
+static inline void compile(const char* filename, int8_t* text, nat length, LLVMModuleRef main_module) {
+
+	struct context* context = construct_context();
+
+	const nat stack_size = 65536, top_level_type = intrin_unit;
+	nat index = 0, begin = 0, best = 0, best_index = 0, top = 0, done = 0;	
+
+	while (begin < length and text[begin] <= ' ') begin++;
+	if (begin > best) best = begin;
+
 	struct stack_element* stack = malloc(sizeof(struct stack_element) * (size_t) stack_size);
-	memset(stack, 0, sizeof(struct stack_element));
-	stack[0].ind = context.index_count;
-	stack[0].type = top_level_type;
-	stack[0].begin = begin;
+	stack->data = (struct expression) {0};
+	stack->ind = context->index_count;
+	stack->type = top_level_type;
+	stack->begin = begin;
 _0:
 	if (not stack[top].ind) {
-		if (not top) goto _3;
-		top--; 
+		if (not top) {
+			print_error(best, best_index, length, text, filename, context);
+			free(stack);
+			return;
+		}
+		top--;
 		goto _2;
 	}
 
 	stack[top].ind--;
 	done = 0;
 	begin = stack[top].begin;
-_1: 
-	stack[top].data.index = context.indicies[stack[top].ind];
-	struct abstraction name = context.names[stack[top].data.index];
-		
+_1:	
+	index = context->indicies[stack[top].ind];
+	stack[top].data.index = index;
+	struct abstraction name = context->names[stack[top].data.index];
+
 	if (stack[top].type != name.type) goto _2;
 	
 	while (done < name.length) {
@@ -792,38 +829,31 @@ _1:
 		if (c >= 256 and top + 1 < stack_size) {
 			top++;
 			stack[top] = (struct stack_element){0};
-			stack[top].ind = context.index_count;
-			stack[top].type = context.names[c - 256].type;
+			stack[top].ind = context->index_count;
+			stack[top].type = context->names[c - 256].type;
 			stack[top].done = done;
 			stack[top].begin = begin;
 			goto _0;
 		}
-		
-		if (begin >= length or c != text[begin]) goto _2;
-		begin++;
-		if (begin > best) {
-			best = begin;
-			best_index = stack[top].data.index;
-		}
 
-		while (begin < length and text[begin] <= ' ') {
-			begin++;
-			if (begin > best) best = begin;	
-		}
+		if (begin >= length or c != text[begin]) goto _2;		
+		do begin++; 
+		while (begin < length and text[begin] <= ' ');
+		if (begin > best) { best = begin; best_index = index; }
 	}
 	
-	nat this_index = stack[top].data.index;
-	if (not context.names[this_index].use) expand_macro(&context);
+	if (context->names[index].use == codegen_macro) {
+		// expand_macro(&context);
+	}
 	
 	if (top) {
 		done = stack[top].done;
 		top--;
-		stack[top].data.args = realloc(stack[top].data.args, sizeof(struct expression) 
-						* (size_t) (stack[top].data.count + 1));
+		stack[top].data.args = realloc(stack[top].data.args, sizeof(struct expression) * (size_t) (stack[top].data.count + 1));
 		stack[top].data.args[stack[top].data.count++] = stack[top + 1].data;
+		// CODE FOR DEP TYPES HERE: REPLACE DEFINTION WITH THE ARGUMENT WE ARAE USING TO FUFILL THE OPARAMAETER WWE ARE FILLING FOR THISS CALL.
 		goto _1;
-
-	} 
+	}
 
 	if (begin == length) goto _3;
 _2:
@@ -831,27 +861,33 @@ _2:
 	stack[top].data.args = NULL;
 	stack[top].data.count = 0;
 	goto _0;
-_3:
-	debug_context(&context);
-	debug_program(&stack->data, 0, &context);
 
-	if (not stack->ind) print_error(best, best_index, length, text, filename, &context);
+_3:;
+	struct expression program = stack->data;
+	LLVMModuleRef new = LLVMModuleCreateWithName(filename);
+	LLVMBuilderRef builder = LLVMCreateBuilder();
+	char* llvm_error = NULL;
 
-	else if (LLVMVerifyModule(new, LLVMPrintMessageAction, &llvm_error) or 
-		LLVMLinkModules2(module, new)) {
+	// do nonrecursive walk of program and codegenerate using builder.
+
+	debug_context(context);
+	debug_program(&program, 0, context);
+	LLVMDisposeBuilder(builder);
+	destroy_program(&program);
+	destroy_context(context);
+	free(stack);
+	
+	if (	LLVMVerifyModule(new, LLVMPrintMessageAction, &llvm_error) or 
+		LLVMLinkModules2(main_module, new)
+		) {
+		
 		fprintf(stderr, "llvm: error5: %s\n", llvm_error);
 		LLVMDisposeMessage(llvm_error);
 		exit(5);
-	}
-
-	destroy_context(&context);
-	destroy_program(&stack->data);
-	LLVMDisposeBuilder(builder);	
-	munmap(text, (size_t) length);
-	free(stack);
+	}	
 }
 
-int main(int argc, const char** argv, const char** envp) {
+int main(int argc, const char** argv) {
 
 	LLVMInitializeAllTargetInfos();
 	LLVMInitializeAllTargets();
@@ -863,10 +899,8 @@ int main(int argc, const char** argv, const char** envp) {
 	LLVMInitializeNativeTarget();
 
 	LLVMModuleRef module = LLVMModuleCreateWithName("main_module.n");
-
 	char* llvm_error = NULL;
 	const char* output_name = "out";
-	nat at = argc;
 	enum action action_type = action_none;
 
 	for (nat i = 1; i < argc; i++) {
@@ -878,11 +912,6 @@ int main(int argc, const char** argv, const char** envp) {
 					action_type = a; 
 					goto arg_success;
 				}
-			}
-
-			if (not strcmp(argv[i], "--")) { 
-				at = i + 1; 
-				break;
 			}
 
 			if (not strcmp(argv[i], "--name")) {
@@ -902,25 +931,12 @@ int main(int argc, const char** argv, const char** envp) {
 		const char* ext = strrchr(argv[i], '.');
 
 		if (ext and not strcmp(ext, ".n")) {
-
-			struct stat file_data = {0};
-			int file = open(argv[i], O_RDONLY);
-			if (file < 0 or stat(argv[i], &file_data) < 0) {
-				fprintf(stderr, "compiler: error3: %s: ", argv[i]);
-				perror("open");
-				exit(3);
-			} 
-
-			nat length = (nat) file_data.st_size;
-			int8_t* text = not length ? NULL : mmap(0, (size_t) length, PROT_READ, MAP_SHARED, file, 0);    
-			if (text == MAP_FAILED) {
-				fprintf(stderr, "compiler: error4: %s: ", argv[i]);
-				perror("mmap");
-				exit(4);
-			} else close(file);
-
-			compile(argv[i], text, length, module, llvm_error);
-
+			
+			const char* filename = argv[i]; nat length = 0;
+			int8_t* text = open_file(filename, &length);
+			compile(filename, text, length, module);
+			munmap(text, (size_t) length);
+			
 		} else if (ext and not strcmp(ext, ".ll")) {
 			LLVMModuleRef new = NULL;
 			LLVMMemoryBufferRef buffer;
@@ -934,8 +950,10 @@ int main(int argc, const char** argv, const char** envp) {
 				exit(6);
 			}
 		} else {
-			// fprintf(stderr, "compiler: %s: error7: unknown file type: \"%s\"\n", argv[i], ext);
-			compile("<inline_string>", (int8_t*) (intptr_t) (argv[i]), (nat) strlen(argv[i]), module, llvm_error);
+			const char* filename = "<inline_string>";
+			nat length = (nat) strlen(argv[i]);
+			int8_t* text = (int8_t*) (intptr_t) (argv[i]);			
+			compile(filename, text, length, module);			
 		}
 	}
 
@@ -945,8 +963,7 @@ int main(int argc, const char** argv, const char** envp) {
 		exit(8);
 	}
 
-	// ----- {optimize} -------
-	// ----- {/optimize} -------
+// backend:
 
 	if (action_type == action_ir) {	
 		if (LLVMPrintModuleToFile(module, output_name, &llvm_error)) {
@@ -954,28 +971,6 @@ int main(int argc, const char** argv, const char** envp) {
 			LLVMDisposeMessage(llvm_error);
 			exit(9);
 		}
-
-	} else if (action_type == action_execute) { // technically not neccessaary, if we have llvm-eval intrin later on.
-
-		LLVMExecutionEngineRef engine = NULL;
-		struct LLVMMCJITCompilerOptions options;
-		LLVMInitializeMCJITCompilerOptions(&options, sizeof options); 
-
-		if (LLVMCreateMCJITCompilerForModule(&engine, module, &options, sizeof options, &llvm_error)) {
-			fprintf(stderr, "llvm: error10: %s\n", llvm_error);
-			LLVMDisposeMessage(llvm_error);
-			exit(10);
-		}
-
-		LLVMValueRef main_function = NULL;
-		if (LLVMFindFunction(engine, "main", &main_function)) {
-			fprintf(stderr, "compiler: error11: no entry point for executable\n");
-			exit(11);
-		}
-		
-		int code = LLVMRunFunctionAsMain(engine, main_function, (unsigned) (argc - at), argv + at, envp);
-		LLVMDisposeExecutionEngine(engine);
-		exit(code);
 
 	} else if (	action_type == action_assembly or 
 			action_type == action_objectfile or 
@@ -1022,8 +1017,8 @@ int main(int argc, const char** argv, const char** envp) {
 			snprintf(linker_string, sizeof linker_string,
 				"ld64.lld "
 				"-demangle -lto_library /usr/local/Cellar/llvm/11.0.0/lib/libLTO.dylib "
-				"-syslibroot /Library/Developer/CommandLineTools/SDKs/MacOSX11.0.sdk "
-				"-macosx_version_min 11.0 -sdk_version 11.0 "
+				"-syslibroot /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk "
+				"-macosx_version_min 11.1 -sdk_version 11.1 "
 				"-lSystem -lc "
 				"-o %s %s", output_name, emit_filename);
 			system(linker_string);
@@ -1033,3 +1028,61 @@ int main(int argc, const char** argv, const char** envp) {
 	}
 	exit(0);
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+	// } else if (action_type == action_execute) { // technically not neccessaary, if we have llvm-eval intrin later on.
+
+	// 	LLVMExecutionEngineRef engine = NULL;
+	// 	struct LLVMMCJITCompilerOptions options;
+	// 	LLVMInitializeMCJITCompilerOptions(&options, sizeof options); 
+
+	// 	if (LLVMCreateMCJITCompilerForModule(&engine, module, &options, sizeof options, &llvm_error)) {
+	// 		fprintf(stderr, "llvm: error10: %s\n", llvm_error);
+	// 		LLVMDisposeMessage(llvm_error);
+	// 		exit(10);
+	// 	}
+
+	// 	LLVMValueRef main_function = NULL;
+	// 	if (LLVMFindFunction(engine, "main", &main_function)) {
+	// 		fprintf(stderr, "compiler: error11: no entry point for executable\n");
+	// 		exit(11);
+	// 	}
+		
+	// 	int code = LLVMRunFunctionAsMain(engine, main_function, (unsigned) (argc - at), argv + at, envp);
+	// 	LLVMDisposeExecutionEngine(engine);
+	// 	exit(code);
+
+
+
+
+
+// static inline struct expression duplicate_expression(struct expression e) { // delet
+// 	struct expression r = {0};
+// 	r.index = e.index;
+// 	r.count = e.count;
+// 	r.args = malloc(sizeof(struct expression) * (size_t) e.count);
+// 	for (nat i = 0; i < e.count; i++) 
+// 		r.args[i] = duplicate_expression(e.args[i]);
+// 	return r;
+// }
+
+
