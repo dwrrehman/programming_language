@@ -4,11 +4,11 @@ This is a compiler for a general-purpose systems programming language.
 
 ### The language's priorities:
 
- - *Brutal simplicity and minimalism*: compiler's total source code is limited to 1000 lines.
+ - __Brutal simplicity and minimalism__: compiler's _total_ source code is _limited to 1000 lines_.
 
- - *Maximal runtime performance*: aims to be faster than by-hand assembly
+ - __Maximal runtime performance__: aims to be faster than _by-hand assembly_.
 
- - *Code readability*: There is literally no syntax in the language.
+ - __Code readability__: There is _literally no syntax_ in the language.
 
 ### The language's traits:
 
