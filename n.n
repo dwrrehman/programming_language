@@ -1,1 +1,5 @@
-join pass pass
+join 
+	scope declare AB 
+			param scope declare A end unit
+		end unit
+	AB pass 

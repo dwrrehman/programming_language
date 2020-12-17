@@ -294,8 +294,9 @@ static inline struct context* construct_context() {
 		intrin_name,
 		intrin_undef,
 		intrin_pass,
-		intrin_join,
+		intrin_join,		
 		intrin_scope,
+		intrin_param,
 		intrin_declare,
 		_intrin_count,
 	}, c);
@@ -339,36 +340,28 @@ static inline void eval_intrinsic(struct context* context, struct stack_element*
 		
 	if (this->index == intrin_end) this->value = calloc(1, sizeof(struct compiletime_value));
 
-	else if (	this->index == intrin_A or
-		 	this->index == intrin_B or
-		 	this->index == intrin_C
-		) { 
-	
-		struct compiletime_value* rest = this->args->value;
-
+	else if (this->index >= intrin_A and this->index <= intrin_C) {
+		struct compiletime_value* rest = this->args[0].value;
 		rest->syntax = realloc(rest->syntax, sizeof(nat) * (size_t) (rest->length + 1));
 		memmove(rest->syntax + 1, rest->syntax, sizeof(nat) * (size_t) rest->length);
 		rest->syntax[0] = context->names[this->index].syntax[0];
 		rest->length++;
 		this->value = rest;
-	} 
 
-	else if (this->index == intrin_param) { 
+	} else if (this->index == intrin_param) { 
 	
 		struct compiletime_value* param = this->args[0].value;
-		struct compiletime_value* rest = this->args[1].value;
-		
+		struct compiletime_value* rest = this->args[1].value;		
 		rest->syntax = realloc(rest->syntax, sizeof(nat) * (size_t) (rest->length + 1));
 		memmove(rest->syntax + 1, rest->syntax, sizeof(nat) * (size_t) rest->length);
-		rest->syntax[0] = param->defined;
+		rest->syntax[0] = 256 + param->defined;
 		rest->length++;
 		this->value = rest;
-	} 
 
-	else if (	this->index == intrin_declare       ) {
+	} else if (	this->index == intrin_declare       ) {
 
-		struct compiletime_value* signature = this->args->value;
-	
+		struct compiletime_value* signature = this->args[0].value;
+		
 		if (context->frame_count <= 1) {
 			printf("error: declare intrinsic: must have more than one stack frame\n");
 			abort();
@@ -388,6 +381,9 @@ static inline void eval_intrinsic(struct context* context, struct stack_element*
 		new_name.length = signature->length;
 		new_name.type = its_type;
 		
+		this->value = calloc(1, sizeof(struct compiletime_value));
+		((struct compiletime_value*)this->value)->defined = context->name_count;
+		
 		context->names = realloc(context->names, sizeof(struct abstraction) * (size_t) (context->name_count + 1));
 		context->names[context->name_count++] = new_name;
 
@@ -406,7 +402,8 @@ static inline void eval_intrinsic(struct context* context, struct stack_element*
 		context->frames[frame]++;
 
 	} else if (this->index == intrin_scope) {		
-		context->index_count = context->frames[--context->frame_count];		
+		context->index_count = context->frames[--context->frame_count];
+		this->value = this->args->value;
 	}
 
 	if (context->names[this->index].use == codegen_macro) {
@@ -483,7 +480,7 @@ static inline void compile(const char* filename, int8_t* text, nat length, LLVMM
 	struct context* context = construct_context();
 
 	const nat stack_size = 65536, top_level_type = intrin_unit_type;
-	nat index = 0, begin = 0, best = 0, best_index = 0, top = 0, done = 0;	
+	nat index = 0, begin = 0, best = 0, best_index = 0, top = 0, done = 0, error = 0;	
 
 	while (begin < length and text[begin] <= ' ') begin++;
 	if (begin > best) best = begin;
@@ -497,6 +494,7 @@ _0:
 	if (not stack[top].ind) {
 		if (not top) {
 			print_error(best, best_index, length, text, filename, context);
+			error = 1;
 			goto _3;
 		}
 		top--;
@@ -573,7 +571,12 @@ _3:;
 		fprintf(stderr, "llvm: error5: %s\n", llvm_error);
 		LLVMDisposeMessage(llvm_error);
 		exit(5);
-	}	
+	}
+
+	if (error) {
+		printf("compiler: there was an error. exiting...\n");
+		exit(1);
+	} else puts("success");	
 }
 
 int main(int argc, const char** argv) {
