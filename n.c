@@ -295,6 +295,8 @@ static inline struct context* construct_context() {
 		intrin_undef,
 		intrin_pass,
 		intrin_join,
+		intrin_scope,
+		intrin_declare,
 		_intrin_count,
 	}, c);
 
@@ -402,15 +404,14 @@ static inline void eval_intrinsic(struct context* context, struct stack_element*
 		for (nat s = 0; s <= top; s++) 
 			if (place <= stack[s].ind) stack[s].ind++;
 		context->frames[frame]++;
-	} 
 
-	// else if (this->index == intrin_push) { 		
-	// 	context->frames = realloc(context->frames, sizeof(nat) * (size_t) (context->frame_count + 1));
-	// 	context->frames[context->frame_count++] = context->index_count;
-	// }
+	} else if (this->index == intrin_scope) {		
+		context->index_count = context->frames[--context->frame_count];		
+	}
 
- 	// else if (this->index == intrin_pop) context->index_count = context->frames[--context->frame_count];
-
+	if (context->names[this->index].use == codegen_macro) {
+		// expand_macro(context, stack, top);
+	}
 }
 
 static inline void destroy_context(struct context* context) {
@@ -445,6 +446,7 @@ static inline int8_t* open_file(const char* filename, nat* out_length) {
 		perror("mmap");
 		exit(4);
 	} 
+
 	*out_length = (nat) length;
 	return text;
 }
@@ -495,8 +497,7 @@ _0:
 	if (not stack[top].ind) {
 		if (not top) {
 			print_error(best, best_index, length, text, filename, context);
-			free(stack);
-			return;
+			goto _3;
 		}
 		top--;
 		goto _2;
@@ -524,28 +525,27 @@ _1:
 			stack[top].type = context->names[c - 256].type;
 			stack[top].done = done;
 			stack[top].begin = begin;
+			if (index == intrin_scope) { 		
+				context->frames = realloc(context->frames, sizeof(nat) * (size_t) (context->frame_count + 1));
+				context->frames[context->frame_count++] = context->index_count;
+			}
 			goto _0;
 		}
 
 		if (begin >= length or c != text[begin]) goto _2;		
-		do begin++; 
-		while (begin < length and text[begin] <= ' ');
+		do begin++; while (begin < length and text[begin] <= ' ');
 		if (begin > best) { best = begin; best_index = index; }
-	}
-	
-	if (context->names[index].use == codegen_macro) {
-		// expand_macro(&context);
-	}
-	
+	}	
+	eval_intrinsic(context, stack, top);	
 	if (top) {
 		done = stack[top].done;
 		top--;
 		stack[top].data.args = realloc(stack[top].data.args, sizeof(struct expression) * (size_t) (stack[top].data.count + 1));
 		stack[top].data.args[stack[top].data.count++] = stack[top + 1].data;
-		// CODE FOR DEP TYPES HERE: REPLACE DEFINTION WITH THE ARGUMENT WE ARAE USING TO FUFILL THE OPARAMAETER WWE ARE FILLING FOR THISS CALL.
+		// CODE FOR DEP TYPES HERE: REPLACE DEFINTION WITH THE ARGUMENT WE ARAE USING TO 
+		// FUFILL THE OPARAMAETER WWE ARE FILLING FOR THISS CALL.
 		goto _1;
 	}
-
 	if (begin == length) goto _3;
 _2:
 	free(stack[top].data.args);
