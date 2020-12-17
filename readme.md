@@ -1,7 +1,26 @@
-# My Programming Language
- _The language with no syntax._
- Created By Daniel Rehman.
+# Untitled Programming Language
 
-This programming language is a general-purpose, low-level, imperative and procedural, strongly, statically, nominally, and dependently typed, statically scoped, type-infered, compile-time interpreted and compiled systems programming language, designed with simplicity, minimalism, readability, and runtime performance in mind, and is built using the LLVM compiler infrastructure.
+  _The language with no name or syntax._
 
-This project is an implementation written in C, and uses the LLVM C API. I intend to bootstrap the compiler once this temporary compiler is finished.
+
+This is a compiler for a general-purpose systems programming language.
+
+	- It is imperative and procedural and compiled.
+
+	- It is strongly, statically, nominally, and dependently typed.
+
+	- It uses the LLVM compiler infrastructure, exclusively.
+
+
+The language's priorities:
+
+	- Brutal simplicity and minimalism: compiler's total source code is limited to 1000 lines.
+
+	- Maximal runtime performance: faster than by-hand assembly
+
+	- Code readability: There is no mandatory syntax in the language.
+
+
+This project is an implementation written in C, and uses the LLVM C API. This compiler will be ised to bootstrap the real compiler once this one is finished.
+
+Created By Daniel Rehman.
