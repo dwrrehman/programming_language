@@ -1,3 +1,9 @@
-join scope decltype ABC param scope decltype A end type end type
-join scope declare C end ABC ABC unit
+join 	scope declare CAB 
+			param scope decltype A end type
+			param scope declare B end Vector<A>
+		CC
+		end unit
+
+join 	CAB unit pass CC
+
 pass
