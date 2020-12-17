@@ -1,26 +1,23 @@
 # Untitled Programming Language
 
-  _The language with no name or syntax._
-
-
 This is a compiler for a general-purpose systems programming language.
 
- - It is imperative and procedural and compiled.
+### The language's priorities:
 
- - It is strongly, statically, nominally, and dependently typed.
+ - *Brutal simplicity and minimalism*: compiler's total source code is limited to 1000 lines.
 
- - It uses the LLVM compiler infrastructure, exclusively.
+ - *Maximal runtime performance*: aims to be faster than by-hand assembly
 
+ - *Code readability*: There is literally no syntax in the language.
 
-The language's priorities:
+### The language's traits:
 
- - Brutal simplicity and minimalism: compiler's total source code is limited to 1000 lines.
+ - It is strictly _imperative and procedural_, and _compiled_.
 
- - Maximal runtime performance: faster than by-hand assembly
+ - It is strongly, statically, nominally, and _dependently_ typed.
 
- - Code readability: There is no mandatory syntax in the language.
+ - It heavily and exclusively relies on the _LLVM compiler infrastructure_.
 
+The implementation for this compiler is written in C, and uses the LLVM C API. This compiler will be used to bootstrap the real compiler once this one is finished.
 
-This project is an implementation written in C, and uses the LLVM C API. This compiler will be ised to bootstrap the real compiler once this one is finished.
-
-Created By Daniel Rehman.
+Created By Daniel Warren Riaz Rehman.
