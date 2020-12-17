@@ -1,5 +1,3 @@
-join 
-	scope declare AB 
-			param scope declare A end unit
-		end unit
-	AB pass 
+join scope decltype ABC param scope decltype A end type end type
+join scope declare C end ABC ABC unit
+pass

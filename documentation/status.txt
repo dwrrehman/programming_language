@@ -6,6 +6,27 @@ the current status of my compiler:
 
 
 
+
+2012172.122352:
+i redid how the intrinsic system is evaluated, and how it works, and its all wroking very well right now!! im trying to do dependent types now too. so far so good.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 // testing decltype, and uniqing a new type, which is an expression. works great. 
 
 

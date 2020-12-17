@@ -45,10 +45,10 @@ struct context {
 
 struct stack_element {
 	struct expression data;
-	nat type;
+	nat param;
 	nat begin;
 	nat ind;  
-	nat done;
+	nat done;	
 };
 
 struct compiletime_value {
@@ -114,7 +114,11 @@ enum intrinsics {
 	intrin_declare_p1,
 	intrin_declare,
 
-	_intrin_count, 
+	intrin_decltype_p0,
+	intrin_decltype_p1,
+	intrin_decltype,
+
+	_intrin_count
 };
 
 enum intrinsic_types {
@@ -123,6 +127,8 @@ enum intrinsic_types {
 	intrin_type_type,
 	intrin_unit_type,
 	intrin_name_type,
+
+	_intrin_type_count
 };
 
 static const char* action_spellings[] = {
@@ -265,10 +271,10 @@ static inline struct context* construct_context() {
 	add((nat[]){'A', 256 + intrin_A_p0, 0}, intrin_name_type, c);
 
 	add((nat[]){'0', 0}, intrin_name_type, c);
-	add((nat[]){'B', 256 + intrin_A_p0, 0}, intrin_name_type, c);
+	add((nat[]){'B', 256 + intrin_B_p0, 0}, intrin_name_type, c);
 
 	add((nat[]){'0', 0}, intrin_name_type, c);
-	add((nat[]){'C', 256 + intrin_A_p0, 0}, intrin_name_type, c);
+	add((nat[]){'C', 256 + intrin_C_p0, 0}, intrin_name_type, c);
 
 	add((nat[]){'e','n','d', 0}, intrin_name_type, c);
 
@@ -282,6 +288,10 @@ static inline struct context* construct_context() {
 	add((nat[]){'0', 0}, intrin_name_type, c);
 	add((nat[]){'1', 0}, intrin_type_type, c);
 	add((nat[]){'d','e','c','l','a','r','e',256 + intrin_declare_p0, 256 + intrin_declare_p1, 0}, intrin_unit_type, c);
+
+	add((nat[]){'0', 0}, intrin_name_type, c);
+	add((nat[]){'1', 0}, intrin_root_type, c);
+	add((nat[]){'d','e','c','l','t','y','p','e',256 + intrin_decltype_p0, 256 + intrin_decltype_p1, 0}, intrin_unit_type, c);
 
 	add_indicies((nat[]){	
 		intrin_A,
@@ -298,6 +308,7 @@ static inline struct context* construct_context() {
 		intrin_scope,
 		intrin_param,
 		intrin_declare,
+		intrin_decltype,
 		_intrin_count,
 	}, c);
 
@@ -321,7 +332,6 @@ static inline void destroy_program(struct expression* program) { // write non re
 	program->args = NULL;
 	program->count = 0;
 }
-
 
 static inline nat expressions_equal(struct expression* a, struct expression* b) { 
 	// write non recursively, and inline into declare-eval cal.
@@ -358,7 +368,8 @@ static inline void eval_intrinsic(struct context* context, struct stack_element*
 		rest->length++;
 		this->value = rest;
 
-	} else if (	this->index == intrin_declare       ) {
+	} else if (	this->index == intrin_declare or
+			this->index == intrin_decltype       ) {
 
 		struct compiletime_value* signature = this->args[0].value;
 		
@@ -404,9 +415,8 @@ static inline void eval_intrinsic(struct context* context, struct stack_element*
 	} else if (this->index == intrin_scope) {		
 		context->index_count = context->frames[--context->frame_count];
 		this->value = this->args->value;
-	}
 
-	if (context->names[this->index].use == codegen_macro) {
+	} else if (context->names[this->index].use == codegen_macro) {
 		// expand_macro(context, stack, top);
 	}
 }
@@ -416,10 +426,11 @@ static inline void destroy_context(struct context* context) {
 		free(context->names[i].syntax);
 		destroy_program(context->names[i].definition);
 	}
-	for (nat i = 0; i < context->type_count; i++) 
-		destroy_program(context->types + i);	
+	for (nat i = 0; i < _intrin_type_count; i++) 
+		destroy_program(context->types + i);
 	free(context->indicies);
 	free(context->frames);
+	free(context->types);
 	free(context);
 }
 
@@ -457,10 +468,10 @@ static inline void print_error(nat best, nat best_index, nat length, int8_t* tex
 		if (text[at] == '\n') { line++; column = 1; } else column++;
 		at++;
 	}
-
+	
 	fprintf(stderr, "compiler: %s: %u:%u: error: unresolved %c\n",
 	filename, line, column, best == length ? ' ' : text[best]);
-			
+	
 	struct abstraction candidate = context->names[best_index];
 			
 	printf("...did you mean:  ");
@@ -479,16 +490,17 @@ static inline void compile(const char* filename, int8_t* text, nat length, LLVMM
 
 	struct context* context = construct_context();
 
-	const nat stack_size = 65536, top_level_type = intrin_unit_type;
-	nat index = 0, begin = 0, best = 0, best_index = 0, top = 0, done = 0, error = 0;	
+	const nat stack_size = 65536;
 
+	nat index = 0, begin = 0, best = 0, best_index = 0, top = 0, done = 0, error = 0;	
+	
 	while (begin < length and text[begin] <= ' ') begin++;
 	if (begin > best) best = begin;
 
 	struct stack_element* stack = malloc(sizeof(struct stack_element) * (size_t) stack_size);
 	stack->data = (struct expression) {0};
 	stack->ind = context->index_count;
-	stack->type = top_level_type;
+	stack->param = intrin_pass;
 	stack->begin = begin;
 _0:
 	if (not stack[top].ind) {
@@ -509,7 +521,7 @@ _1:
 	stack[top].data.index = index;
 	struct abstraction name = context->names[stack[top].data.index];
 
-	if (stack[top].type != name.type) goto _2;
+	if (context->names[stack[top].param].type != name.type) goto _2;
 	
 	while (done < name.length) {
 
@@ -520,7 +532,7 @@ _1:
 			top++;
 			stack[top] = (struct stack_element){0};
 			stack[top].ind = context->index_count;
-			stack[top].type = context->names[c - 256].type;
+			stack[top].param = c - 256;
 			stack[top].done = done;
 			stack[top].begin = begin;
 			if (index == intrin_scope) { 		
@@ -534,14 +546,15 @@ _1:
 		do begin++; while (begin < length and text[begin] <= ' ');
 		if (begin > best) { best = begin; best_index = index; }
 	}	
+
 	eval_intrinsic(context, stack, top);	
+
 	if (top) {
 		done = stack[top].done;
 		top--;
 		stack[top].data.args = realloc(stack[top].data.args, sizeof(struct expression) * (size_t) (stack[top].data.count + 1));
 		stack[top].data.args[stack[top].data.count++] = stack[top + 1].data;
-		// CODE FOR DEP TYPES HERE: REPLACE DEFINTION WITH THE ARGUMENT WE ARAE USING TO 
-		// FUFILL THE OPARAMAETER WWE ARE FILLING FOR THISS CALL.
+
 		goto _1;
 	}
 	if (begin == length) goto _3;
@@ -637,7 +650,7 @@ int main(int argc, const char** argv) {
 				LLVMParseIRInContext(LLVMGetGlobalContext(), buffer, &new, &llvm_error) or
 				LLVMVerifyModule(new, LLVMPrintMessageAction, &llvm_error) or
 				LLVMLinkModules2(module, new)) {
-
+				
 				fprintf(stderr, "llvm: error6: %s\n", llvm_error);
 				LLVMDisposeMessage(llvm_error);
 				exit(6);
@@ -774,5 +787,67 @@ int main(int argc, const char** argv) {
 // 		r.args[i] = duplicate_expression(e.args[i]);
 // 	return r;
 // }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+		// CODE FOR DEP TYPES HERE: REPLACE DEFINTION WITH THE ARGUMENT WE ARAE USING TO 
+		// FUFILL THE OPARAMAETER WWE ARE FILLING FOR THISS CALL.
+
+
+		// nat param = stack[top].param;
+
+		// nat its_type = 0;
+		// for (; its_type < context->type_count; its_type++)
+		// 	if (expressions_equal(EXPRESSION, context->types + its_type)) break;
+
+		// if (its_type == context->type_count) {
+		// 	context->types = realloc(context->types, sizeof(struct expression) * (size_t) (context->type_count + 1));
+		// 	context->types[context->type_count++] = EXPRESSION;
+		// }
+		
+		// context->names[param].definition = stack[top].data;
+
+
+
+
+
+
+
+
+
+
+/*
+join 
+	scope declare AB 
+			param scope decltype A end type
+			param scope declare B end A
+		end unit
+
+	AB unit pass
+
+
+
+*/
+
+
+// printf("program->args = %p, program->count = %d program->index = %d\n",
+	// 	(void*) program->args, program->count, program->index);
+
 
 
