@@ -24,8 +24,8 @@ struct expression {
 };
 
 struct abstraction {	
-	struct expression* type;
-	struct expression* def;
+	struct expression type;
+	struct expression def;
 	nat* syntax;
 	nat length;
 	nat use;
@@ -139,25 +139,19 @@ static const char* action_spellings[] = {
 	"--execute"
 };
 
-static inline void debug_program(struct expression* tree, nat d, struct context* context) {
-	if (not tree) {
-		for (nat i = 0; i < d; i++) printf(".   ");
-		printf("{NULL}\n");
-		return;
-	}
-
+static inline void debug_program(struct expression tree, nat d, struct context* context) {
+	
 	for (nat i = 0; i < d; i++) printf(".   ");
-	printf("[%d] ", tree->index);
+	printf("[%d] ", tree.index);
 
-	for (nat s = 0; s < context->names[tree->index].length; s++) {
-		nat c = context->names[tree->index].syntax[s];
+	for (nat s = 0; s < context->names[tree.index].length; s++) {
+		nat c = context->names[tree.index].syntax[s];
 		if (c >= 256) printf("(%d) ", c - 256);
 		else printf("%c ", (char) c);	
 	}
 	printf("\n\n");
 
-	for (nat i = 0; i < tree->count; i++) 
-		debug_program(tree->args + i, d + 1, context);
+	for (nat i = 0; i < tree.count; i++) debug_program(tree.args[i], d + 1, context);
 }
 
 static inline void debug_context(struct context* context) {
@@ -194,14 +188,9 @@ static inline void debug_context(struct context* context) {
 
 static inline void add(nat* signature, nat type, struct context* c) {
 	c->names = realloc(c->names, sizeof(struct abstraction) * (size_t) (c->name_count + 1));
-
-	c->names[c->name_count].type = NULL;
-	if (type != 0x7fffffff) {
-		c->names[c->name_count].type = calloc(1, sizeof(struct expression));
-		c->names[c->name_count].type->index = type;
-	}
-
-	c->names[c->name_count].def = NULL;
+	c->names[c->name_count].def = (struct expression){0};
+	c->names[c->name_count].type = (struct expression){0};
+	c->names[c->name_count].type.index = type;
 	c->names[c->name_count].use = codegen_macro;
 	c->names[c->name_count].length = 0;
 	c->names[c->name_count].syntax = calloc((size_t) 100, sizeof(nat));
@@ -220,21 +209,13 @@ static inline void add_indicies(nat* ind, struct context* c) {
 	}
 }
 
-// static inline void add_types(nat* types, struct context* c) {
-// 	for (nat i = 0; types[i] != _intrin_count; i++) {
-// 		c->types = realloc(c->types, sizeof(struct expression) * (size_t) (c->type_count + 1));
-// 		c->types[c->type_count] = (struct expression) {0};
-// 		c->types[c->type_count++].index = types[i];
-// 	}
-// }
-
 static inline struct context* construct_context() { 
 
 	struct context* c = calloc(1, sizeof(struct context));
 	c->frames = realloc(c->frames, sizeof(nat) * (size_t) (c->frame_count + 1));
 	c->frames[c->frame_count++] = c->index_count;
 
-	add((nat[]){'u','n','d','e','f', 0}, 0x7fffffff, c);
+	add((nat[]){'u','n','d','e','f', 0}, intrin_undef_type, c);
 	add((nat[]){'r','o','o','t', 0}, intrin_undef_type, c);
 	add((nat[]){'t','y','p','e', 0}, intrin_root_type, c);
 	add((nat[]){'u','n','i','t', 0}, intrin_type_type, c);
@@ -289,16 +270,6 @@ static inline struct context* construct_context() {
 		intrin_decltype,
 		_intrin_count,
 	}, c);
-
-	// add_types((nat[]){
-	// 	intrin_undef, 
-	// 	intrin_root,
-	// 	intrin_type,
-	// 	intrin_unit,
-	// 	intrin_name,
-	// 	_intrin_count,
-	// }, c);
-
 	return c;
 }
 
@@ -311,14 +282,13 @@ static inline void destroy_program(struct expression* program) { // write non re
 	program->count = 0;
 }
 
-static inline nat expressions_equal(struct expression* a, struct expression* b) { 
-	// write non recursively, and inline into declare-eval cal.
-	if (not a or not b) return 0;
-	if (a->index != b->index) return 0;
-	if (a->count != b->count) return 0;
-	for (nat i = 0; i < a->count; i++) {
-		if (not expressions_equal(a->args + i, b->args + i)) return 0;
-	}
+static inline nat expressions_equal(struct expression a, struct expression b, struct context* c) {	
+	if (not a.index or not b.index) return 0;
+	if (c->names[a.index].def.index) return expressions_equal(c->names[a.index].def, b, c);
+	if (a.index != b.index) return 0;
+	if (a.count != b.count) return 0;
+	for (nat i = 0; i < a.count; i++) 
+		if (not expressions_equal(a.args[i], b.args[i], c)) return 0;	
 	return 1;
 }
 
@@ -350,7 +320,7 @@ static inline void eval_intrinsic(struct context* context, struct stack_element*
 		struct abstraction new_name = {0};
 		new_name.syntax = signature->syntax;
 		new_name.length = signature->length;
-		new_name.type = this->args + 1;
+		new_name.type = this->args[1];
 		
 		this->value = calloc(1, sizeof(struct compiletime_value));
 		((struct compiletime_value*)this->value)->defined = context->name_count;
@@ -460,16 +430,10 @@ _1:
 	index = context->indicies[stack[top].ind];
 	stack[top].data.index = index;
 	struct abstraction name = context->names[stack[top].data.index];
+
+	struct expression expected = context->names[stack[top].param].type;
+	if (not expressions_equal(expected, name.type, context)) goto _2;
 	
-	// nat T = name.type;	
-	// nat P_T_INDEX = context->types[P_T].index;
-	// nat P_T_D = context->names[P_T_INDEX].def;
-	// if (P_T != T and P_T_D != T) goto _2;
-
-	struct expression* expected = context->names[stack[top].param].type;
-
-	if (not expressions_equal(expected, name.type)) goto _2;
-
 	while (done < name.length) {
 		nat c = name.syntax[done];
 		done++;
@@ -495,10 +459,12 @@ _1:
 	eval_intrinsic(context, stack, top);
 	
 	if (top) {
+		context->names[stack[top].param].def = stack[top].data;
 		done = stack[top].done;
 		top--;
 		stack[top].data.args = realloc(stack[top].data.args, sizeof(struct expression) * (size_t) (stack[top].data.count + 1));
-		stack[top].data.args[stack[top].data.count++] = stack[top + 1].data;
+		stack[top].data.args[stack[top].data.count] = stack[top + 1].data;
+		stack[top].data.count++;
 		goto _1;
 	}
 
@@ -509,15 +475,15 @@ _2:
 	stack[top].data.count = 0;
 	goto _0;
 _3:;
-	struct expression program = stack->data;
+
 	LLVMModuleRef new = LLVMModuleCreateWithName(filename);
 	LLVMBuilderRef builder = LLVMCreateBuilder();
 	char* llvm_error = NULL;
 	// do nonrecursive walk of program and codegenerate using builder.
 	debug_context(context);
-	debug_program(&program, 0, context);
+	debug_program(stack->data, 0, context);
 	LLVMDisposeBuilder(builder);
-	destroy_program(&program);
+	destroy_program(&stack->data);
 
 	for (nat i = 0; i < context->name_count; i++) free(context->names[i].syntax);
 	free(context->indicies);
@@ -687,7 +653,7 @@ int main(int argc, const char** argv) {
 		// 	context->types[context->type_count++] = stack[top].data;
 		// }
 		
-		// context->names[stack[top].param].def = its_type;
+		
 	
 
 
@@ -706,6 +672,15 @@ int main(int argc, const char** argv) {
 
 // this needs to include the ssubsutiion too, so it really neds to be like a pair of expressiona nd nat... i think... 
 
+
+
+
+	
+	// nat T = name.type;	
+	// nat P_T_INDEX = context->types[P_T].index;
+	// nat P_T_D = context->names[P_T_INDEX].def;
+	// if (P_T != T and P_T_D != T) goto _2;
+	// struct expression* definition = context->names[stack[top].param].def;
 
 
 

@@ -1,9 +1,11 @@
 join 	scope declare CAB 
 			param scope decltype A end type
-			param scope declare B end Vector<A>
-		CC
+			param scope declare B end A
 		end unit
 
-join 	CAB unit pass CC
+join	CAB name end
+
+join	scope decltype AAA param scope decltype C end type end type
+join	scope declare BB end AAA name
 
 pass
