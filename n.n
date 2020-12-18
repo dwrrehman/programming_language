@@ -7,6 +7,18 @@ join scope define AA
 
 
 
-join AA join pass join pass pass join pass pass
+join AA 
+	join 
+		pass 
+
+		join 
+			pass 
+
+			pass 
+
+	join 
+		pass 
+
+		pass
 
 pass

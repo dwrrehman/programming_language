@@ -334,17 +334,16 @@ static inline void print_error(nat best, nat best_index, nat length, int8_t* tex
 	printf(" which has type: "); debug_program(candidate.type, 0, context);	
 }
 
-static inline void destroy_program(struct expression* program) { //TODO: MAKE NON RECURSIVE	
-	for (nat i = 0; i < program->count; i++) 
-		destroy_program(program->args + i);
+static inline void destroy_program(struct expression* program) { 
+	//TODO: MAKE NON RECURSIVE	
+	for (nat i = 0; i < program->count; i++) destroy_program(program->args + i);
 	free(program->args);
 	program->args = NULL;
 	program->count = 0;
 }
 
-static inline nat expressions_equal(struct expression a, struct expression b, 
-				    struct context* c) { //TODO: MAKE NON RECURSIVE
-
+static inline nat expressions_equal(struct expression a, struct expression b, struct context* c) { 
+	//TODO: MAKE NON RECURSIVE
 	if (c->names[a.index].def.index) return expressions_equal(c->names[a.index].def, b, c);
 	if (a.index != b.index or a.count != b.count) return 0;
 	for (nat i = 0; i < a.count; i++)
@@ -421,7 +420,8 @@ static inline void eval_intrinsic(struct context* context, struct stack_element*
 	}
 }
 
-static inline struct expression clone(struct expression e) {
+static inline struct expression clone(struct expression e) { 
+	//TODO: MAKE NON RECURSIVE
 	struct expression new = e;
 	new.args = calloc((size_t) e.count, sizeof(struct expression));
 	for (nat i = 0; i < e.count; i++) new.args[i] = clone(e.args[i]);
@@ -429,14 +429,15 @@ static inline struct expression clone(struct expression e) {
 }
 
 static inline void copy_replace(struct expression def, struct expression call, struct expression* out) {
-	if (def.index >= call.index - call.count and def.index < call.index) {
+	//TODO: MAKE NON RECURSIVE
+
+	if (def.index >= call.index - call.count and def.index < call.index) { 
 		*out = clone(call.args[call.count - (call.index - def.index)]);
 		return;
-	} 
+	}
 	*out = def;
 	out->args = calloc((size_t) def.count, sizeof(struct expression));
-	for (nat i = 0; i < def.count; i++) 
-		copy_replace(def.args[i], call, out->args + i);
+	for (nat i = 0; i < def.count; i++) copy_replace(def.args[i], call, out->args + i);
 }
 
 static inline void expand_macro(struct context* context, struct stack_element* stack, nat top) {
@@ -499,8 +500,7 @@ _1:
 		if (begin >= length or c != text[begin]) goto _2;		
 		do begin++; while (begin < length and text[begin] <= ' ');
 		if (begin > best) { best = begin; candidate = index; }
-	}
-	
+	}	
 	eval_intrinsic(context, stack, top);
 	expand_macro(context, stack, top);
 	
@@ -687,51 +687,3 @@ int main(int argc, const char** argv) {
 	}
 	exit(0);
 }
-
-
-		
-		// nat its_type = 0;
-		// for (; its_type < context->type_count; its_type++)
-		// 	if (expressions_equal(&stack[top].data, context->types + its_type)) break;
-		
-		// if (its_type == context->type_count) {
-		// 	context->types = realloc(context->types, sizeof(struct expression) * (size_t) (context->type_count + 1));
-		// 	context->types[context->type_count++] = stack[top].data;
-		// }
-		
-		
-	
-
-
-		
-		// nat its_type = 0;
-		// for (; its_type < context->type_count; its_type++)
-		// 	if (expressions_equal(this->args + 1, context->types + its_type)) break;
-		
-		// if (its_type == context->type_count) {
-		// 	context->types = realloc(context->types, sizeof(struct expression) * (size_t) (context->type_count + 1));
-		// 	context->types[context->type_count++] = this->args[1];
-		// }
-
-
-
-
-// this needs to include the ssubsutiion too, so it really neds to be like a pair of expressiona nd nat... i think... 
-
-
-
-
-	
-	// nat T = name.type;	
-	// nat P_T_INDEX = context->types[P_T].index;
-	// nat P_T_D = context->names[P_T_INDEX].def;
-	// if (P_T != T and P_T_D != T) goto _2;
-	// struct expression* definition = context->names[stack[top].param].def;
-
-
-
-
-
-
-	// printf("DEBUG: COPY_REPLACE: di=%d, ci=%d, cc=%d, ca=%p da=%p\n", 
-	// 		def.index, call.index, call.count, (void*) call.args, (void*) def.args);
