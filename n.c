@@ -47,6 +47,8 @@ struct stack_element {
 	nat begin;
 	nat ind;  
 	nat done;
+	nat eval;
+	nat _padding;
 };
 
 struct compiletime_value {
@@ -387,9 +389,11 @@ static inline void eval_intrinsic(struct expression* this, struct context* conte
 		if (not signature) return;
 		
 		if (context->frame_count < 2) {
+			debug_context(context);
+			debug_program(*this, 0, context);
 			printf("incorrect usage of declare/decltype/define : "
-				"insufficient frames to execute intrinsic.\n");
-
+				"insufficient frames to execute intrinsic. (fc=%d)\n", context->frame_count);
+			
 			abort();
 		}
 	
@@ -431,11 +435,21 @@ static inline void eval_intrinsic(struct expression* this, struct context* conte
 	}
 }
 
-static inline struct expression clone(struct expression e) { 
+static inline struct expression clone(struct expression e, struct context* context, struct stack_element* stack, nat top) { 
 	//TODO: MAKE NON RECURSIVE
+
 	struct expression new = e;
 	new.args = calloc((size_t) e.count, sizeof(struct expression));
-	for (nat i = 0; i < e.count; i++) new.args[i] = clone(e.args[i]);
+
+	if (new.index == intrin_scope) {
+		context->frames = realloc(context->frames, sizeof(nat) * (size_t) (context->frame_count + 1));
+		context->frames[context->frame_count++] = context->index_count;
+	}
+
+	for (nat i = 0; i < e.count; i++)
+		new.args[i] = clone(e.args[i], context, stack, top);
+	eval_intrinsic(&new, context, stack, top);
+	
 	return new;
 }
 
@@ -444,8 +458,7 @@ static inline void copy_replace(struct expression def, struct expression call, s
 	//TODO: MAKE NON RECURSIVE
 
 	if (def.index >= call.index - call.count and def.index < call.index) { 
-		*out = clone(call.args[call.count - (call.index - def.index)]);
-		// eval_intrinsic(out, context, stack, top);
+		*out = clone(call.args[call.count - (call.index - def.index)], context, stack, top);
 		return;
 	}
 	*out = def;
@@ -456,14 +469,14 @@ static inline void copy_replace(struct expression def, struct expression call, s
 		context->frames[context->frame_count++] = context->index_count;
 	}
 
-	for (nat i = 0; i < def.count; i++) copy_replace(def.args[i], call, out->args + i, context, stack, top);
+	for (nat i = 0; i < def.count; i++) 
+		copy_replace(def.args[i], call, out->args + i, context, stack, top);
 	eval_intrinsic(out, context, stack, top);
 }
 
 static inline void expand_macro(struct context* context, struct stack_element* stack, nat top) {
 	struct expression call = stack[top].data;
-	struct abstraction name = context->names[call.index];
-	if (context->names[call.index].use != codegen_macro or not name.def.index) return;
+	struct abstraction name = context->names[call.index];	
 	copy_replace(name.def, call, &stack[top].data, context, stack, top);
 }
 
@@ -480,6 +493,8 @@ static inline void compile(const char* filename, int8_t* text, nat length, LLVMM
 	stack->ind = context->index_count;
 	stack->param = intrin_pass;
 	stack->begin = begin;
+	stack->eval = 1;
+
 _0:
 	if (not stack[top].ind) {
 		if (not top) {
@@ -496,7 +511,7 @@ _0:
 _1:
 	index = context->indicies[stack[top].ind];
 	stack[top].data.index = index;
-	struct abstraction name = context->names[stack[top].data.index];
+	struct abstraction name = context->names[index];
 
 	if (not expressions_equal(context->names[stack[top].param].type, name.type, context)) goto _2;
 	
@@ -509,6 +524,7 @@ _1:
 			stack[top].ind = context->index_count;
 			stack[top].param = c - 256;
 			stack[top].done = done;
+			stack[top].eval = stack[top - 1].eval and not name.def.index;
 			stack[top].begin = begin;
 			if (index == intrin_scope) { 		
 				context->frames = realloc(context->frames, sizeof(nat) * (size_t) (context->frame_count + 1));
@@ -521,9 +537,10 @@ _1:
 		do begin++; while (begin < length and text[begin] <= ' ');
 		if (begin > best) { best = begin; candidate = index; }
 	}	
-	eval_intrinsic(&stack[top].data, context, stack, top);
-	expand_macro(context, stack, top);
-	
+
+	if (stack[top].eval) eval_intrinsic(&stack[top].data, context, stack, top);
+	if (not name.use and name.def.index) expand_macro(context, stack, top);
+
 	if (top) {
 		context->names[stack[top].param].def = stack[top].data;
 		done = stack[top].done;
