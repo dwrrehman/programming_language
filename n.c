@@ -421,11 +421,18 @@ static inline void eval_intrinsic(struct context* context, struct stack_element*
 	}
 }
 
+static inline struct expression clone(struct expression e) {
+	struct expression new = e;
+	new.args = calloc((size_t) e.count, sizeof(struct expression));
+	for (nat i = 0; i < e.count; i++) new.args[i] = clone(e.args[i]);
+	return new;
+}
+
 static inline void copy_replace(struct expression def, struct expression call, struct expression* out) {
 	if (def.index >= call.index - call.count and def.index < call.index) {
-		*out = call.args[call.index - def.index - 1];
+		*out = clone(call.args[call.count - (call.index - def.index)]);
 		return;
-	}
+	} 
 	*out = def;
 	out->args = calloc((size_t) def.count, sizeof(struct expression));
 	for (nat i = 0; i < def.count; i++) 

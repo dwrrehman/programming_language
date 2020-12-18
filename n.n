@@ -1,5 +1,12 @@
-join scope define AA param declare B end unit end unit B
+join scope define AA 
+		param declare B end unit
+		param declare C end unit
+		 end unit 
 
-join  AA pass
+	join join C C B
+
+
+
+join AA join pass join pass pass join pass pass
 
 pass
