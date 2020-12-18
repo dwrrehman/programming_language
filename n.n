@@ -1,24 +1,10 @@
-join scope define AA 
-		param declare B end unit
-		param declare C end unit
-		 end unit 
+join	scope define CAB 
+		param scope declare A end name
+		param scope decltype B end type
+		end unit
 
-	join join C C B
+		scope declare A B
 
-
-
-join AA 
-	join 
-		pass 
-
-		join 
-			pass 
-
-			pass 
-
-	join 
-		pass 
-
-		pass
-
-pass
+join 
+	CAB CC end unit
+	CC

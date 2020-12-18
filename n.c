@@ -351,18 +351,18 @@ static inline nat expressions_equal(struct expression a, struct expression b, st
 	return 1;
 }
 
-static inline void eval_intrinsic(struct context* context, struct stack_element* stack, nat top) {
-	
-	struct expression* this = &stack[top].data;
+static inline void eval_intrinsic(struct expression* this, struct context* context, 
+				struct stack_element* stack, nat top) {
 	const nat index = this->index;
 
 	if (index == intrin_end) 
-
 		this->value = calloc(1, sizeof(struct compiletime_value));
 
 	else if (index >= intrin_A and this->index <= intrin_C) {
 
 		struct compiletime_value* rest = this->args[0].value;
+		if (not rest) return;
+		
 		rest->syntax = realloc(rest->syntax, sizeof(nat) * (size_t) (rest->length + 1));
 		memmove(rest->syntax + 1, rest->syntax, sizeof(nat) * (size_t) rest->length);
 		rest->syntax[0] = context->names[this->index].syntax[0];
@@ -372,7 +372,9 @@ static inline void eval_intrinsic(struct context* context, struct stack_element*
 	} else if (index == intrin_param) { 	
 
 		struct compiletime_value* decl = this->args[0].value;
-		struct compiletime_value* rest = this->args[1].value;	
+		struct compiletime_value* rest = this->args[1].value;
+		if (not rest or not decl) return;
+		
 		rest->syntax = realloc(rest->syntax, sizeof(nat) * (size_t) (rest->length + 1));
 		memmove(rest->syntax + 1, rest->syntax, sizeof(nat) * (size_t) rest->length);
 		rest->syntax[0] = 256 + decl->defined;
@@ -382,6 +384,15 @@ static inline void eval_intrinsic(struct context* context, struct stack_element*
 	} else if (index == intrin_declare or index == intrin_decltype or index == intrin_define) {
 
 		struct compiletime_value* signature = this->args[0].value;
+		if (not signature) return;
+		
+		if (context->frame_count < 2) {
+			printf("incorrect usage of declare/decltype/define : "
+				"insufficient frames to execute intrinsic.\n");
+
+			abort();
+		}
+	
 		struct abstraction new_name = {0};
 		new_name.syntax = signature->syntax;
 		new_name.length = signature->length;
@@ -428,23 +439,32 @@ static inline struct expression clone(struct expression e) {
 	return new;
 }
 
-static inline void copy_replace(struct expression def, struct expression call, struct expression* out) {
+static inline void copy_replace(struct expression def, struct expression call, struct expression* out,
+				struct context* context, struct stack_element* stack, nat top) {
 	//TODO: MAKE NON RECURSIVE
 
 	if (def.index >= call.index - call.count and def.index < call.index) { 
 		*out = clone(call.args[call.count - (call.index - def.index)]);
+		// eval_intrinsic(out, context, stack, top);
 		return;
 	}
 	*out = def;
 	out->args = calloc((size_t) def.count, sizeof(struct expression));
-	for (nat i = 0; i < def.count; i++) copy_replace(def.args[i], call, out->args + i);
+
+	if (out->index == intrin_scope) {
+		context->frames = realloc(context->frames, sizeof(nat) * (size_t) (context->frame_count + 1));
+		context->frames[context->frame_count++] = context->index_count;
+	}
+
+	for (nat i = 0; i < def.count; i++) copy_replace(def.args[i], call, out->args + i, context, stack, top);
+	eval_intrinsic(out, context, stack, top);
 }
 
 static inline void expand_macro(struct context* context, struct stack_element* stack, nat top) {
 	struct expression call = stack[top].data;
 	struct abstraction name = context->names[call.index];
 	if (context->names[call.index].use != codegen_macro or not name.def.index) return;
-	copy_replace(name.def, call, &stack[top].data);
+	copy_replace(name.def, call, &stack[top].data, context, stack, top);
 }
 
 static inline void compile(const char* filename, int8_t* text, nat length, LLVMModuleRef main_module) {
@@ -501,7 +521,7 @@ _1:
 		do begin++; while (begin < length and text[begin] <= ' ');
 		if (begin > best) { best = begin; candidate = index; }
 	}	
-	eval_intrinsic(context, stack, top);
+	eval_intrinsic(&stack[top].data, context, stack, top);
 	expand_macro(context, stack, top);
 	
 	if (top) {
