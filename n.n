@@ -1,12 +1,5 @@
+join scope define AA param declare B end unit end unit B
 
-join	scope decltype BCC param scope decltype C end type end type
-join	scope declare BB end BCC unit
-
-join 	scope declare CAB 
-			param scope decltype A end type
-			param scope declare B end BCC A
-		end unit
-
-join	CAB unit BB
+join  AA pass
 
 pass

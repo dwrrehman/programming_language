@@ -4,11 +4,61 @@ the current status of my compiler:
 
 
 
+2012172.181110:
+
+im working on getting macros working now,   and in order to get to do that, i need to have defines working properly.
+
+	i think i got it, actually. super simple. now, having done dependent types, (and understanding how recrusion will work!!) i realize that actually define is super super simple: just declare, with some dependently typed extra expression added on. i have to write the intrinsic fucntion for it, but other than that, it should be really easy and straightforward.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
 2012172.122352:
 i redid how the intrinsic system is evaluated, and how it works, and its all wroking very well right now!! im trying to do dependent types now too. so far so good.
+
+
+
+
+.180944:
+
+update!!! the following working code is actually proof that i have    HIGHER ORDER DEPENDENTLY TYPED TYPES WORKING!!
+	this is a big deal, because i dont think this language has ever actually gotten that working properly.
+
+		my end implementation ended up being so simple and obvious, its crazy. i love it. i think it really is right.
+
+
+join	scope decltype BCC param scope decltype C end type end type
+join	scope declare BB end BCC unit
+
+join 	scope declare CAB 
+			param scope decltype A end type
+			param scope declare B end BCC A
+		end unit
+
+join	CAB unit BB
+
+pass
+
 
 
 

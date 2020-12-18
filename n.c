@@ -85,7 +85,7 @@ enum intrinsics {
 	intrin_unit,
 	intrin_name,
 	intrin_pass,
-
+	
 	intrin_join_p0,
 	intrin_join_p1,
 	intrin_join,
@@ -116,17 +116,12 @@ enum intrinsics {
 	intrin_decltype_p1,
 	intrin_decltype,
 
+	intrin_define_p0,
+	intrin_define_p1,
+	intrin_define_p2,
+	intrin_define,
+	
 	_intrin_count
-};
-
-enum intrinsic_types {
-	intrin_undef_type,
-	intrin_root_type,
-	intrin_type_type,
-	intrin_unit_type,
-	intrin_name_type,
-
-	_intrin_type_count
 };
 
 static const char* action_spellings[] = {
@@ -215,42 +210,59 @@ static inline struct context* construct_context() {
 	c->frames = realloc(c->frames, sizeof(nat) * (size_t) (c->frame_count + 1));
 	c->frames[c->frame_count++] = c->index_count;
 
-	add((nat[]){'u','n','d','e','f', 0}, intrin_undef_type, c);
-	add((nat[]){'r','o','o','t', 0}, intrin_undef_type, c);
-	add((nat[]){'t','y','p','e', 0}, intrin_root_type, c);
-	add((nat[]){'u','n','i','t', 0}, intrin_type_type, c);
-	add((nat[]){'n','a','m','e', 0}, intrin_type_type, c);
-	add((nat[]){'p','a','s','s', 0}, intrin_unit_type, c);
+	add((nat[]){'u','n','d','e','f', 0}, intrin_undef, c);
+	add((nat[]){'r','o','o','t', 0}, intrin_undef, c);
+	add((nat[]){'t','y','p','e', 0}, intrin_root, c);
+	add((nat[]){'u','n','i','t', 0}, intrin_type, c);
+	add((nat[]){'n','a','m','e', 0}, intrin_type, c);
+	add((nat[]){'p','a','s','s', 0}, intrin_unit, c);
 
-	add((nat[]){'0', 0}, intrin_unit_type, c);
-	add((nat[]){'1', 0}, intrin_unit_type, c);
-	add((nat[]){'j','o','i','n', 256 + intrin_join_p0, 256 + intrin_join_p1, 0}, intrin_unit_type, c);
+	add((nat[]){'0', 0}, intrin_unit, c);
+	add((nat[]){'1', 0}, intrin_unit, c);
+	add((nat[]){'j','o','i','n', 
+		256 + intrin_join_p0, 
+		256 + intrin_join_p1, 0}, intrin_unit, c);
 
-	add((nat[]){'0', 0}, intrin_name_type, c);
-	add((nat[]){'A', 256 + intrin_A_p0, 0}, intrin_name_type, c);
+	add((nat[]){'0', 0}, intrin_name, c);
+	add((nat[]){'A', 256 + intrin_A_p0, 0}, intrin_name, c);
 
-	add((nat[]){'0', 0}, intrin_name_type, c);
-	add((nat[]){'B', 256 + intrin_B_p0, 0}, intrin_name_type, c);
+	add((nat[]){'0', 0}, intrin_name, c);
+	add((nat[]){'B', 256 + intrin_B_p0, 0}, intrin_name, c);
 
-	add((nat[]){'0', 0}, intrin_name_type, c);
-	add((nat[]){'C', 256 + intrin_C_p0, 0}, intrin_name_type, c);
+	add((nat[]){'0', 0}, intrin_name, c);
+	add((nat[]){'C', 256 + intrin_C_p0, 0}, intrin_name, c);
 
-	add((nat[]){'e','n','d', 0}, intrin_name_type, c);
+	add((nat[]){'e','n','d', 0}, intrin_name, c);
 
-	add((nat[]){'0', 0}, intrin_unit_type, c);
-	add((nat[]){'1', 0}, intrin_name_type, c);
-	add((nat[]){'p','a','r','a','m', 256 + intrin_param_p0, 256 + intrin_param_p1, 0}, intrin_name_type, c);
+	add((nat[]){'0', 0}, intrin_unit, c);
+	add((nat[]){'1', 0}, intrin_name, c);
+	add((nat[]){'p','a','r','a','m', 
+		256 + intrin_param_p0, 
+		256 + intrin_param_p1, 0}, intrin_name, c);
 
-	add((nat[]){'0', 0}, intrin_unit_type, c);
-	add((nat[]){'s','c','o','p','e',256 + intrin_scope_p0, 0}, intrin_unit_type, c);
+	add((nat[]){'0', 0}, intrin_unit, c);
+	add((nat[]){'s','c','o','p','e',
+		256 + intrin_scope_p0, 0}, intrin_unit, c);
 
-	add((nat[]){'0', 0}, intrin_name_type, c);
-	add((nat[]){'1', 0}, intrin_type_type, c);
-	add((nat[]){'d','e','c','l','a','r','e',256 + intrin_declare_p0, 256 + intrin_declare_p1, 0}, intrin_unit_type, c);
+	add((nat[]){'0', 0}, intrin_name, c);
+	add((nat[]){'1', 0}, intrin_type, c);
+	add((nat[]){'d','e','c','l','a','r','e',
+		256 + intrin_declare_p0, 
+		256 + intrin_declare_p1, 0}, intrin_unit, c);
 
-	add((nat[]){'0', 0}, intrin_name_type, c);
-	add((nat[]){'1', 0}, intrin_root_type, c);
-	add((nat[]){'d','e','c','l','t','y','p','e',256 + intrin_decltype_p0, 256 + intrin_decltype_p1, 0}, intrin_unit_type, c);
+	add((nat[]){'0', 0}, intrin_name, c);
+	add((nat[]){'1', 0}, intrin_root, c);
+	add((nat[]){'d','e','c','l','t','y','p','e',
+		256 + intrin_decltype_p0, 
+		256 + intrin_decltype_p1, 0}, intrin_unit, c);
+
+	add((nat[]){'0', 0}, intrin_name, c);
+	add((nat[]){'1', 0}, intrin_type, c);
+	add((nat[]){'2', 0}, intrin_define_p1, c);
+	add((nat[]){'d','e','f','i','n','e', 
+		256 + intrin_define_p0, 
+		256 + intrin_define_p1, 
+		256 + intrin_define_p2, 0}, intrin_unit, c);
 
 	add_indicies((nat[]){
 		intrin_A,
@@ -268,87 +280,10 @@ static inline struct context* construct_context() {
 		intrin_param,
 		intrin_declare,
 		intrin_decltype,
+		intrin_define,
 		_intrin_count,
 	}, c);
 	return c;
-}
-
-static inline void destroy_program(struct expression* program) { // write non recursively.
-	if (not program) return;
-	for (nat i = 0; i < program->count; i++) 
-		destroy_program(program->args + i);
-	free(program->args);
-	program->args = NULL;
-	program->count = 0;
-}
-
-static inline nat expressions_equal(struct expression a, struct expression b, struct context* c) {	
-	if (not a.index or not b.index) return 0;
-	if (c->names[a.index].def.index) return expressions_equal(c->names[a.index].def, b, c);
-	if (a.index != b.index) return 0;
-	if (a.count != b.count) return 0;
-	for (nat i = 0; i < a.count; i++) 
-		if (not expressions_equal(a.args[i], b.args[i], c)) return 0;	
-	return 1;
-}
-
-static inline void eval_intrinsic(struct context* context, struct stack_element* stack, nat top) {
-	
-	struct expression* this = &stack[top].data;
-		
-	if (this->index == intrin_end) this->value = calloc(1, sizeof(struct compiletime_value));
-	else if (this->index >= intrin_A and this->index <= intrin_C) {
-		struct compiletime_value* rest = this->args[0].value;
-		rest->syntax = realloc(rest->syntax, sizeof(nat) * (size_t) (rest->length + 1));
-		memmove(rest->syntax + 1, rest->syntax, sizeof(nat) * (size_t) rest->length);
-		rest->syntax[0] = context->names[this->index].syntax[0];
-		rest->length++;
-		this->value = rest;
-
-	} else if (this->index == intrin_param) { 	
-		struct compiletime_value* param = this->args[0].value;
-		struct compiletime_value* rest = this->args[1].value;	
-		rest->syntax = realloc(rest->syntax, sizeof(nat) * (size_t) (rest->length + 1));
-		memmove(rest->syntax + 1, rest->syntax, sizeof(nat) * (size_t) rest->length);
-		rest->syntax[0] = 256 + param->defined;
-		rest->length++;
-		this->value = rest;
-
-	} else if (this->index == intrin_declare or this->index == intrin_decltype) {
-
-		struct compiletime_value* signature = this->args[0].value;
-		struct abstraction new_name = {0};
-		new_name.syntax = signature->syntax;
-		new_name.length = signature->length;
-		new_name.type = this->args[1];
-		
-		this->value = calloc(1, sizeof(struct compiletime_value));
-		((struct compiletime_value*)this->value)->defined = context->name_count;
-		
-		context->names = realloc(context->names, sizeof(struct abstraction) * (size_t) (context->name_count + 1));
-		context->names[context->name_count++] = new_name;
-
-		nat frame = context->frame_count - 1;
-		nat place = context->frames[frame];
-		while (place > context->frames[frame - 1] and 
-			signature->length < context->names[context->indicies[place - 1]].length) place--;
-
-		context->indicies = realloc(context->indicies, sizeof(nat) * (size_t) (context->index_count + 1));
-		memmove(context->indicies + place + 1, context->indicies + place, 
-				sizeof(nat) * (size_t) (context->index_count - place));
-		context->indicies[place] = context->name_count - 1;
-		context->index_count++;
-		for (nat s = 0; s <= top; s++) 
-			if (place <= stack[s].ind) stack[s].ind++;
-		context->frames[frame]++;
-
-	} else if (this->index == intrin_scope) {
-		context->index_count = context->frames[--context->frame_count];
-		this->value = this->args->value;
-
-	} else if (context->names[this->index].use == codegen_macro) {
-		// expand_macro(context, stack, top);
-	}
 }
 
 static inline int8_t* open_file(const char* filename, nat* out_length) {
@@ -370,7 +305,7 @@ static inline int8_t* open_file(const char* filename, nat* out_length) {
 		fprintf(stderr, "compiler: error4: %s: ", filename);
 		perror("mmap");
 		exit(4);
-	} 
+	}
 
 	*out_length = (nat) length;
 	return text;
@@ -399,15 +334,119 @@ static inline void print_error(nat best, nat best_index, nat length, int8_t* tex
 	printf(" which has type: "); debug_program(candidate.type, 0, context);	
 }
 
+static inline void destroy_program(struct expression* program) { //TODO: MAKE NON RECURSIVE	
+	for (nat i = 0; i < program->count; i++) 
+		destroy_program(program->args + i);
+	free(program->args);
+	program->args = NULL;
+	program->count = 0;
+}
+
+static inline nat expressions_equal(struct expression a, struct expression b, 
+				    struct context* c) { //TODO: MAKE NON RECURSIVE
+
+	if (c->names[a.index].def.index) return expressions_equal(c->names[a.index].def, b, c);
+	if (a.index != b.index or a.count != b.count) return 0;
+	for (nat i = 0; i < a.count; i++)
+		if (not expressions_equal(a.args[i], b.args[i], c)) return 0;	
+	return 1;
+}
+
+static inline void eval_intrinsic(struct context* context, struct stack_element* stack, nat top) {
+	
+	struct expression* this = &stack[top].data;
+	const nat index = this->index;
+
+	if (index == intrin_end) 
+
+		this->value = calloc(1, sizeof(struct compiletime_value));
+
+	else if (index >= intrin_A and this->index <= intrin_C) {
+
+		struct compiletime_value* rest = this->args[0].value;
+		rest->syntax = realloc(rest->syntax, sizeof(nat) * (size_t) (rest->length + 1));
+		memmove(rest->syntax + 1, rest->syntax, sizeof(nat) * (size_t) rest->length);
+		rest->syntax[0] = context->names[this->index].syntax[0];
+		rest->length++;
+		this->value = rest;
+
+	} else if (index == intrin_param) { 	
+
+		struct compiletime_value* decl = this->args[0].value;
+		struct compiletime_value* rest = this->args[1].value;	
+		rest->syntax = realloc(rest->syntax, sizeof(nat) * (size_t) (rest->length + 1));
+		memmove(rest->syntax + 1, rest->syntax, sizeof(nat) * (size_t) rest->length);
+		rest->syntax[0] = 256 + decl->defined;
+		rest->length++;
+		this->value = rest;
+	
+	} else if (index == intrin_declare or index == intrin_decltype or index == intrin_define) {
+
+		struct compiletime_value* signature = this->args[0].value;
+		struct abstraction new_name = {0};
+		new_name.syntax = signature->syntax;
+		new_name.length = signature->length;
+		new_name.type = this->args[1];
+		if (index == intrin_define) new_name.def = this->args[2];
+		
+		this->value = calloc(1, sizeof(struct compiletime_value));
+		((struct compiletime_value*)this->value)->defined = context->name_count;
+		
+		context->names = realloc(context->names, sizeof(struct abstraction) 
+					* (size_t) (context->name_count + 1));
+
+		context->names[context->name_count++] = new_name;
+		
+		nat frame = context->frame_count - 1;
+		nat place = context->frames[frame];
+		while (place > context->frames[frame - 1] and 
+			signature->length < context->names[context->indicies[place - 1]].length) 
+				place--;
+
+		context->indicies = realloc(context->indicies, sizeof(nat) 
+					* (size_t) (context->index_count + 1));
+
+		memmove(context->indicies + place + 1, context->indicies + place, 
+			sizeof(nat) * (size_t) (context->index_count - place));
+
+		context->indicies[place] = context->name_count - 1;
+		context->index_count++;
+		context->frames[frame]++;
+
+		for (nat s = 0; s <= top; s++) if (place <= stack[s].ind) stack[s].ind++;
+
+	} else if (index == intrin_scope) {
+		context->index_count = context->frames[--context->frame_count];
+		this->value = this->args[0].value;
+	}
+}
+
+static inline void copy_replace(struct expression def, struct expression call, struct expression* out) {
+	if (def.index >= call.index - call.count and def.index < call.index) {
+		*out = call.args[call.index - def.index - 1];
+		return;
+	}
+	*out = def;
+	out->args = calloc((size_t) def.count, sizeof(struct expression));
+	for (nat i = 0; i < def.count; i++) 
+		copy_replace(def.args[i], call, out->args + i);
+}
+
+static inline void expand_macro(struct context* context, struct stack_element* stack, nat top) {
+	struct expression call = stack[top].data;
+	struct abstraction name = context->names[call.index];
+	if (context->names[call.index].use != codegen_macro or not name.def.index) return;
+	copy_replace(name.def, call, &stack[top].data);
+}
+
 static inline void compile(const char* filename, int8_t* text, nat length, LLVMModuleRef main_module) {
 	struct context* context = construct_context();
-	debug_context(context);
-
+	
 	const nat stack_size = 65536;
 	nat index = 0, begin = 0, best = 0, candidate = 0, top = 0, done = 0, error = 0;	
 	while (begin < length and text[begin] <= ' ') begin++;
 	if (begin > best) best = begin;
-
+	
 	struct stack_element* stack = malloc(sizeof(struct stack_element) * (size_t) stack_size);
 	stack->data = (struct expression) {0};
 	stack->ind = context->index_count;
@@ -426,13 +465,12 @@ _0:
 	stack[top].ind--;
 	done = 0;
 	begin = stack[top].begin;
-_1:	
+_1:
 	index = context->indicies[stack[top].ind];
 	stack[top].data.index = index;
 	struct abstraction name = context->names[stack[top].data.index];
 
-	struct expression expected = context->names[stack[top].param].type;
-	if (not expressions_equal(expected, name.type, context)) goto _2;
+	if (not expressions_equal(context->names[stack[top].param].type, name.type, context)) goto _2;
 	
 	while (done < name.length) {
 		nat c = name.syntax[done];
@@ -455,8 +493,9 @@ _1:
 		do begin++; while (begin < length and text[begin] <= ' ');
 		if (begin > best) { best = begin; candidate = index; }
 	}
-
+	
 	eval_intrinsic(context, stack, top);
+	expand_macro(context, stack, top);
 	
 	if (top) {
 		context->names[stack[top].param].def = stack[top].data;
@@ -684,3 +723,8 @@ int main(int argc, const char** argv) {
 
 
 
+
+
+
+	// printf("DEBUG: COPY_REPLACE: di=%d, ci=%d, cc=%d, ca=%p da=%p\n", 
+	// 		def.index, call.index, call.count, (void*) call.args, (void*) def.args);
