@@ -38,14 +38,14 @@ struct context {
 	nat name_count;	
 	nat index_count;
 	nat frame_count;
-	nat _padding;
+	nat top_level;
 };
 
 struct stack_element {
 	struct expression data;
 	nat param;
 	nat begin;
-	nat ind;  
+	nat ind;
 	nat done;
 	nat eval;
 	nat _padding;
@@ -122,6 +122,11 @@ enum intrinsics {
 	intrin_define_p1,
 	intrin_define_p2,
 	intrin_define,
+
+	intrin_deftype_p0,
+	intrin_deftype_p1,
+	intrin_deftype_p2,
+	intrin_deftype,
 	
 	_intrin_count
 };
@@ -209,9 +214,10 @@ static inline void add_indicies(nat* ind, struct context* c) {
 static inline struct context* construct_context() { 
 
 	struct context* c = calloc(1, sizeof(struct context));
+	c->top_level = intrin_pass;
 	c->frames = realloc(c->frames, sizeof(nat) * (size_t) (c->frame_count + 1));
 	c->frames[c->frame_count++] = c->index_count;
-
+	
 	add((nat[]){'u','n','d','e','f', 0}, intrin_undef, c);
 	add((nat[]){'r','o','o','t', 0}, intrin_undef, c);
 	add((nat[]){'t','y','p','e', 0}, intrin_root, c);
@@ -265,6 +271,14 @@ static inline struct context* construct_context() {
 		256 + intrin_define_p0, 
 		256 + intrin_define_p1, 
 		256 + intrin_define_p2, 0}, intrin_unit, c);
+
+	add((nat[]){'0', 0}, intrin_name, c);
+	add((nat[]){'1', 0}, intrin_root, c);
+	add((nat[]){'2', 0}, intrin_define_p1, c);
+	add((nat[]){'d','e','f','t','y','p','e',
+		256 + intrin_deftype_p0, 
+		256 + intrin_deftype_p1, 
+		256 + intrin_deftype_p2, 0}, intrin_unit, c);
 
 	add_indicies((nat[]){
 		intrin_A,
@@ -338,7 +352,8 @@ static inline void print_error(nat best, nat best_index, nat length, int8_t* tex
 
 static inline void destroy_program(struct expression* program) { 
 	//TODO: MAKE NON RECURSIVE	
-	for (nat i = 0; i < program->count; i++) destroy_program(program->args + i);
+	for (nat i = 0; i < program->count; i++) 
+		destroy_program(program->args + i);
 	free(program->args);
 	program->args = NULL;
 	program->count = 0;
@@ -357,8 +372,7 @@ static inline void eval_intrinsic(struct expression* this, struct context* conte
 				struct stack_element* stack, nat top) {
 	const nat index = this->index;
 
-	if (index == intrin_end) 
-		this->value = calloc(1, sizeof(struct compiletime_value));
+	if (index == intrin_end) this->value = calloc(1, sizeof(struct compiletime_value));
 
 	else if (index >= intrin_A and this->index <= intrin_C) {
 
@@ -383,25 +397,23 @@ static inline void eval_intrinsic(struct expression* this, struct context* conte
 		rest->length++;
 		this->value = rest;
 	
-	} else if (index == intrin_declare or index == intrin_decltype or index == intrin_define) {
+	} else if (index == intrin_declare or index == intrin_decltype or 
+		   index == intrin_define  or index == intrin_deftype) {
 
 		struct compiletime_value* signature = this->args[0].value;
 		if (not signature) return;
 		
-		if (context->frame_count < 2) {
-			debug_context(context);
-			debug_program(*this, 0, context);
-			printf("incorrect usage of declare/decltype/define : "
-				"insufficient frames to execute intrinsic. (fc=%d)\n", context->frame_count);
-			
-			abort();
+		if (context->frame_count < 2) {			
+			printf("error: incorrect usage of decl variant: fc < 2, (%d < 2)\n", context->frame_count);
+			return;
 		}
 	
 		struct abstraction new_name = {0};
 		new_name.syntax = signature->syntax;
 		new_name.length = signature->length;
 		new_name.type = this->args[1];
-		if (index == intrin_define) new_name.def = this->args[2];
+
+		if (this->count > 2) new_name.def = this->args[2];
 		
 		this->value = calloc(1, sizeof(struct compiletime_value));
 		((struct compiletime_value*)this->value)->defined = context->name_count;
@@ -475,26 +487,25 @@ static inline void copy_replace(struct expression def, struct expression call, s
 }
 
 static inline void expand_macro(struct context* context, struct stack_element* stack, nat top) {
-	struct expression call = stack[top].data;
-	struct abstraction name = context->names[call.index];	
-	copy_replace(name.def, call, &stack[top].data, context, stack, top);
+	struct expression call = stack[top].data;	
+	copy_replace(context->names[call.index].def, call, &stack[top].data, context, stack, top);
 }
 
 static inline void compile(const char* filename, int8_t* text, nat length, LLVMModuleRef main_module) {
 	struct context* context = construct_context();
 	
 	const nat stack_size = 65536;
-	nat index = 0, begin = 0, best = 0, candidate = 0, top = 0, done = 0, error = 0;	
+	nat index = 0, begin = 0, best = 0, candidate = 0, top = 0, done = 0, error = 0;
 	while (begin < length and text[begin] <= ' ') begin++;
 	if (begin > best) best = begin;
 	
 	struct stack_element* stack = malloc(sizeof(struct stack_element) * (size_t) stack_size);
 	stack->data = (struct expression) {0};
-	stack->ind = context->index_count;
-	stack->param = intrin_pass;
-	stack->begin = begin;
 	stack->eval = 1;
-
+	stack->ind = context->index_count;
+	stack->param = context->top_level;
+	stack->begin = begin;
+	
 _0:
 	if (not stack[top].ind) {
 		if (not top) {
@@ -524,8 +535,8 @@ _1:
 			stack[top].ind = context->index_count;
 			stack[top].param = c - 256;
 			stack[top].done = done;
-			stack[top].eval = stack[top - 1].eval and not name.def.index;
 			stack[top].begin = begin;
+			stack[top].eval = stack[top - 1].eval and (name.use or not name.def.index);
 			if (index == intrin_scope) { 		
 				context->frames = realloc(context->frames, sizeof(nat) * (size_t) (context->frame_count + 1));
 				context->frames[context->frame_count++] = context->index_count;
@@ -537,7 +548,7 @@ _1:
 		do begin++; while (begin < length and text[begin] <= ' ');
 		if (begin > best) { best = begin; candidate = index; }
 	}	
-
+	
 	if (stack[top].eval) eval_intrinsic(&stack[top].data, context, stack, top);
 	if (not name.use and name.def.index) expand_macro(context, stack, top);
 
@@ -545,7 +556,8 @@ _1:
 		context->names[stack[top].param].def = stack[top].data;
 		done = stack[top].done;
 		top--;
-		stack[top].data.args = realloc(stack[top].data.args, sizeof(struct expression) * (size_t) (stack[top].data.count + 1));
+		stack[top].data.args = realloc(stack[top].data.args, sizeof(struct expression) 
+						* (size_t) (stack[top].data.count + 1));
 		stack[top].data.args[stack[top].data.count] = stack[top + 1].data;
 		stack[top].data.count++;
 		goto _1;

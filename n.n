@@ -5,6 +5,7 @@ join	scope define CAB
 
 		scope declare A B
 
-join 
-	CAB CC param scope declare BB end unit end unit
-	CC pass
+join CAB CC param scope declare BB end unit end unit
+join CC pass
+join scope declare AA end unit
+pass
