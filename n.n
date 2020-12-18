@@ -1,20 +1,3 @@
-join
-
-	scope declare your mom is ∑ fat! lol. #### unit
-
-join 
-		your mom is ∑ fat! lol.
-
-join 
-	scope define    x     =    
-
-			 0   ; #### unit
-
-		scope declare x is my favorite milkshake :) #### unit
-
-x   =
-
-		0
-
-	;
-
+join scope define #### name ####
+join scope declare hello unit 
+pass

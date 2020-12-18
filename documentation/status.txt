@@ -4,6 +4,63 @@ the current status of my compiler:
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+2012172.220539:
+just got the full alphabet working in the intrinsic list. 
+actually, rather, the entire unicode set. not just the alphabet. lol.
+....super easy, lol. i love this language. 
+
+
+join
+
+	scope declare your mom is ∑ fat! lol. #### unit
+
+join 
+		your mom is ∑ fat! lol.
+
+join 
+	scope define    x     =    
+
+			 0   ; #### unit
+
+		scope declare x is my favorite milkshake :) #### unit
+
+x   =
+
+		0
+
+	;
+
+
+
+
+
+
+
+
+
+
+
+
 2012172.181110:
 
 im working on getting macros working now,   and in order to get to do that, i need to have defines working properly.
