@@ -7,5 +7,11 @@ join	scope define CAB
 
 join CAB CC param scope declare BB end unit end unit
 join CC pass
-join scope declare AA end unit
+
+
+join scope deftype CBBA end type unit
+
+join scope declare AA end CBBA
+
+
 pass

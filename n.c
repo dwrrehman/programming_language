@@ -274,7 +274,7 @@ static inline struct context* construct_context() {
 
 	add((nat[]){'0', 0}, intrin_name, c);
 	add((nat[]){'1', 0}, intrin_root, c);
-	add((nat[]){'2', 0}, intrin_define_p1, c);
+	add((nat[]){'2', 0}, intrin_deftype_p1, c);
 	add((nat[]){'d','e','f','t','y','p','e',
 		256 + intrin_deftype_p0, 
 		256 + intrin_deftype_p1, 
@@ -297,6 +297,7 @@ static inline struct context* construct_context() {
 		intrin_declare,
 		intrin_decltype,
 		intrin_define,
+		intrin_deftype,
 		_intrin_count,
 	}, c);
 	return c;
@@ -505,7 +506,7 @@ static inline void compile(const char* filename, int8_t* text, nat length, LLVMM
 	stack->ind = context->index_count;
 	stack->param = context->top_level;
 	stack->begin = begin;
-	
+
 _0:
 	if (not stack[top].ind) {
 		if (not top) {
@@ -523,24 +524,26 @@ _1:
 	index = context->indicies[stack[top].ind];
 	stack[top].data.index = index;
 	struct abstraction name = context->names[index];
-
+	
 	if (not expressions_equal(context->names[stack[top].param].type, name.type, context)) goto _2;
 	
 	while (done < name.length) {
 		nat c = name.syntax[done];
 		done++;
 		if (c >= 256 and top + 1 < stack_size) {
+
+			if (stack[top].eval and index == intrin_scope) {  ///TODO: make a function to do this eval.
+				context->frames = realloc(context->frames, sizeof(nat) * (size_t) (context->frame_count + 1));
+				context->frames[context->frame_count++] = context->index_count;
+			}
+
 			top++;
 			stack[top] = (struct stack_element){0};
 			stack[top].ind = context->index_count;
 			stack[top].param = c - 256;
 			stack[top].done = done;
 			stack[top].begin = begin;
-			stack[top].eval = stack[top - 1].eval and (name.use or not name.def.index);
-			if (index == intrin_scope) { 		
-				context->frames = realloc(context->frames, sizeof(nat) * (size_t) (context->frame_count + 1));
-				context->frames[context->frame_count++] = context->index_count;
-			}
+			stack[top].eval = stack[top - 1].eval and (name.use or not name.def.index);			
 			goto _0;
 		}
 
