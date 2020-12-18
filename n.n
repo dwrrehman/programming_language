@@ -1,3 +1,0 @@
-join scope define #### name ####
-join scope declare hello unit 
-pass
