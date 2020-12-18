@@ -87,25 +87,18 @@ enum intrinsics {
 	intrin_unit,
 	intrin_name,
 	intrin_pass,
-	
-	intrin_join_p0,
-	intrin_join_p1,
-	intrin_join,
-
-	intrin_A_p0,
-	intrin_A,
-
-	intrin_B_p0,
-	intrin_B,
-
-	intrin_C_p0,
-	intrin_C,
-
 	intrin_end,
+	intrin_literal_p0,
+	intrin_literal_first,
+	intrin_literal_last = 230,
 
 	intrin_param_p0,
 	intrin_param_p1,
 	intrin_param,
+
+	intrin_join_p0,
+	intrin_join_p1,
+	intrin_join,
 
 	intrin_scope_p0,
 	intrin_scope,
@@ -148,8 +141,8 @@ static inline void debug_program(struct expression tree, nat d, struct context* 
 
 	for (nat s = 0; s < context->names[tree.index].length; s++) {
 		nat c = context->names[tree.index].syntax[s];
-		if (c >= 256) printf("(%d) ", c - 256);
-		else printf("%c ", (char) c);	
+		if (c >= 256) printf(" (%d) ", c - 256);
+		else printf("%c", (char) c);
 	}
 	printf("\n\n");
 
@@ -167,8 +160,9 @@ static inline void debug_context(struct context* context) {
 		printf("\t syntax (%d):     ", context->names[i].length);
 		for (nat s = 0; s < context->names[i].length; s++) {
 			nat c = context->names[i].syntax[s];
-			if (c >= 256) printf("(%d) ", c - 256);
-			else printf("%c ", (char) c);			
+			if (c >= 256) printf(" (%d) ", c - 256);
+			else if (c >= 127) printf(" [c=%d] ", c);
+			else printf("%c", (char) c);			
 		}
 		puts("");
 		printf("\t type:\n");
@@ -224,29 +218,23 @@ static inline struct context* construct_context() {
 	add((nat[]){'u','n','i','t', 0}, intrin_type, c);
 	add((nat[]){'n','a','m','e', 0}, intrin_type, c);
 	add((nat[]){'p','a','s','s', 0}, intrin_unit, c);
-
-	add((nat[]){'0', 0}, intrin_unit, c);
-	add((nat[]){'1', 0}, intrin_unit, c);
-	add((nat[]){'j','o','i','n', 
-		256 + intrin_join_p0, 
-		256 + intrin_join_p1, 0}, intrin_unit, c);
-
+	add((nat[]){'#','#','#','#', 0}, intrin_name, c);	
 	add((nat[]){'0', 0}, intrin_name, c);
-	add((nat[]){'A', 256 + intrin_A_p0, 0}, intrin_name, c);
 
-	add((nat[]){'0', 0}, intrin_name, c);
-	add((nat[]){'B', 256 + intrin_B_p0, 0}, intrin_name, c);
-
-	add((nat[]){'0', 0}, intrin_name, c);
-	add((nat[]){'C', 256 + intrin_C_p0, 0}, intrin_name, c);
-
-	add((nat[]){'e','n','d', 0}, intrin_name, c);
+	for (nat literal = 33; literal < 256; literal++) 
+		add((nat[]){literal, 256 + intrin_literal_p0, 0}, intrin_name, c);	
 
 	add((nat[]){'0', 0}, intrin_unit, c);
 	add((nat[]){'1', 0}, intrin_name, c);
 	add((nat[]){'p','a','r','a','m', 
 		256 + intrin_param_p0, 
 		256 + intrin_param_p1, 0}, intrin_name, c);
+
+	add((nat[]){'0', 0}, intrin_unit, c);
+	add((nat[]){'1', 0}, intrin_unit, c);
+	add((nat[]){'j','o','i','n', 
+		256 + intrin_join_p0, 
+		256 + intrin_join_p1, 0}, intrin_unit, c);
 
 	add((nat[]){'0', 0}, intrin_unit, c);
 	add((nat[]){'s','c','o','p','e',
@@ -280,10 +268,12 @@ static inline struct context* construct_context() {
 		256 + intrin_deftype_p1, 
 		256 + intrin_deftype_p2, 0}, intrin_unit, c);
 
+
+	for (nat literal = intrin_literal_first; literal <= intrin_literal_last; literal++) {
+		c->indicies = realloc(c->indicies, sizeof(nat) * (size_t) (c->index_count + 1));
+		c->indicies[c->index_count++] = literal;
+	}
 	add_indicies((nat[]){
-		intrin_A,
-		intrin_B,
-		intrin_C,
 		intrin_end,
 		intrin_root, 
 		intrin_type,
@@ -303,7 +293,7 @@ static inline struct context* construct_context() {
 	return c;
 }
 
-static inline int8_t* open_file(const char* filename, nat* out_length) {
+static inline uint8_t* open_file(const char* filename, nat* out_length) {
 
 	struct stat file_data = {0};
 	int file = open(filename, O_RDONLY);
@@ -315,7 +305,7 @@ static inline int8_t* open_file(const char* filename, nat* out_length) {
 
 	size_t length = (size_t) file_data.st_size;
 	if (not length) return NULL;
-	int8_t* text = mmap(0, length, PROT_READ, MAP_SHARED, file, 0);
+	uint8_t* text = mmap(0, length, PROT_READ, MAP_SHARED, file, 0);
 	close(file);
 	
 	if (text == MAP_FAILED) {
@@ -328,7 +318,7 @@ static inline int8_t* open_file(const char* filename, nat* out_length) {
 	return text;
 }
 
-static inline void print_error(nat best, nat best_index, nat length, int8_t* text, 
+static inline void print_error(nat best, nat best_index, nat length, uint8_t* text, 
 				const char* filename, struct context* context) {
 
 	nat at = 0, line = 1, column = 1;
@@ -345,8 +335,8 @@ static inline void print_error(nat best, nat best_index, nat length, int8_t* tex
 	printf("...did you mean:  ");
 	for (nat s = 0; s < candidate.length; s++) {
 		nat c = candidate.syntax[s];
-		if (c >= 256) printf("(%d) ", c - 256);
-		else printf("%c ", (char) c);
+		if (c >= 256) printf(" (%d) ", c - 256);
+		else printf("%c", (char) c);
 	}
 	printf(" which has type: "); debug_program(candidate.type, 0, context);	
 }
@@ -375,7 +365,7 @@ static inline void eval_intrinsic(struct expression* this, struct context* conte
 
 	if (index == intrin_end) this->value = calloc(1, sizeof(struct compiletime_value));
 
-	else if (index >= intrin_A and this->index <= intrin_C) {
+	else if (index >= intrin_literal_first and this->index <= intrin_literal_last) {
 
 		struct compiletime_value* rest = this->args[0].value;
 		if (not rest) return;
@@ -492,7 +482,7 @@ static inline void expand_macro(struct context* context, struct stack_element* s
 	copy_replace(context->names[call.index].def, call, &stack[top].data, context, stack, top);
 }
 
-static inline void compile(const char* filename, int8_t* text, nat length, LLVMModuleRef main_module) {
+static inline void compile(const char* filename, uint8_t* text, nat length, LLVMModuleRef main_module) {
 	struct context* context = construct_context();
 	
 	const nat stack_size = 65536;
@@ -649,7 +639,7 @@ int main(int argc, const char** argv) {
 			
 			const char* filename = argv[i]; 
 			nat length = 0;
-			int8_t* text = open_file(filename, &length);
+			uint8_t* text = open_file(filename, &length);
 			compile(filename, text, length, module);
 			munmap(text, (size_t) length);
 			
@@ -666,7 +656,7 @@ int main(int argc, const char** argv) {
 				exit(6);
 			}
 		} else {
-			compile("<inline_string>", (int8_t*) (intptr_t) (argv[i]), (nat) strlen(argv[i]), module);
+			compile("<inline_string>", (uint8_t*) (intptr_t) (argv[i]), (nat) strlen(argv[i]), module);
 		}
 	}
 
@@ -739,3 +729,34 @@ int main(int argc, const char** argv) {
 	}
 	exit(0);
 }
+
+
+
+/*
+
+
+join	scope define CAB 
+		param scope declare A end name
+		param scope decltype B end type
+		end unit
+
+		scope declare A B
+
+join CAB CC param scope declare BB end unit end unit
+join CC pass
+
+join scope deftype ALIAS FOR UNIT end type unit
+
+join scope declare HELLO THERE FROM SPACE end ALIAS FOR UNIT
+
+join scope declare ABCDEFGHIJKLMNOPQRSTUVWXYZ end ALIAS FOR UNIT
+
+pass
+
+
+
+
+*/
+
+
+

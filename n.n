@@ -1,17 +1,20 @@
-join	scope define CAB 
-		param scope declare A end name
-		param scope decltype B end type
-		end unit
+join
 
-		scope declare A B
+	scope declare your mom is ∑ fat! lol. #### unit
 
-join CAB CC param scope declare BB end unit end unit
-join CC pass
+join 
+		your mom is ∑ fat! lol.
 
+join 
+	scope define    x     =    
 
-join scope deftype CBBA end type unit
+			 0   ; #### unit
 
-join scope declare AA end CBBA
+		scope declare x is my favorite milkshake :) #### unit
 
+x   =
 
-pass
+		0
+
+	;
+
