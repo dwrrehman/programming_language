@@ -37,39 +37,30 @@ struct el {     // whats in a stack?
 	i16 __padding;
 };
 
+int main(int argc, const char** argv) {
 
-static inline int8_t* open_file(const char* filename, i32* out_length) {
+	if (argc < 2) return 1;
+	const char* filename = argv[1];
 
 	struct stat file_data = {0};
 	int file = open(filename, O_RDONLY);
+
 	if (file < 0 or stat(filename, &file_data) < 0) {
 		fprintf(stderr, "compiler: error: %s: ", filename);
 		perror("open");
 		exit(3);
 	}
 
-	size_t length = (size_t) file_data.st_size;
-	if (not length) return NULL;
-	int8_t* text = mmap(0, length, PROT_READ, MAP_SHARED, file, 0);
-	close(file);
-	
+	i32 length = (i32) file_data.st_size;
+	char* input = mmap(0, length, PROT_READ, MAP_SHARED, file, 0);
 	if (text == MAP_FAILED) {
 		fprintf(stderr, "compiler: error: %s: ", filename);
 		perror("mmap");
 		exit(4);
 	}
-
-	*out_length = (i32) length;
-	return text;
-}
-
-int main(int argc, const char** argv) {
-
+	close(file);
+	
 	i8 top_level_type = 1;
-
-	if (argc < 2) return 1;
-	const char* input = argv[1];
-	i32 length = (i32) strlen(input);
 	
 	struct el* stack = malloc(65536 * sizeof(struct el));
 	i16 top = 0;
@@ -81,45 +72,27 @@ int main(int argc, const char** argv) {
 	i16 context_count = 0; 
 
 	context[context_count++] = (struct name) {
-		.syntax = "undef",
-		.def = 0, 
-		.length = 5,
-		.type = 1,
+		.syntax = "undef", .def = 0, .length = 5, .type = 1,
 	};
 
 	context[context_count++] = (struct name) {
-		.syntax = "unit",
-		.def = 0, 
-		.length = 4,
-		.type = 1,
+		.syntax = "unit", .def = 0, .length = 4, .type = 1,
 	};
 
 	context[context_count++] = (struct name) {
-		.syntax = "join\x01\x01",
-		.def = 0, 
-		.length = 6,
-		.type = 1,
+		.syntax = "join\x01\x01", .def = 0, .length = 6, .type = 1,
 	};
 
 	context[context_count++] = (struct name) {
-		.syntax = "hello",
-		.def = 0, 
-		.length = 5,
-		.type = 1,
+		.syntax = "hello", .def = 0, .length = 5, .type = 1,
 	};
 
 	context[context_count++] = (struct name) {
-		.syntax = "define\x01",
-		.def = 0, 
-		.length = 7,
-		.type = 1,
+		.syntax = "define\x01", .def = 0, .length = 7, .type = 1,
 	};
 
 	context[context_count++] = (struct name) {
-		.syntax = "wef",
-		.def = 0, 
-		.length = 3,
-		.type = 1,
+		.syntax = "wef", .def = 0, .length = 3, .type = 1,
 	};
 
 	i32 begin = 0;	
