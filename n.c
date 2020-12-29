@@ -87,6 +87,10 @@ int main(int argc, const char** argv) {
 		.syntax = "wef", .def = 0, .length = 3, .type = 1,
 	};
 
+	// context[context_count++] = (struct name) {
+	// 	.syntax = "", .def = 0, .length = 0, .type = 1,
+	// };
+
 	i32 begin = 0;	
 	i32 best = 0;
 	i16 index = 0;
@@ -143,9 +147,7 @@ parent:
 next:
 	stack[top].data.count = 0;
 	goto try;
-
 end:
-	munmap(input, (size_t) length);
 	program[program_count++] = stack[top].data;
 	
 	printf("\n--------- program: -------- \n");
@@ -187,36 +189,34 @@ end:
 			if (c < 33) printf("(%d) ", c);
 			else printf("%c ", c);
 		}
-
-		printf(" which has type (%d)\n", candidate_name.type);
-		exit(1);
+		printf(" of type (%d)\n", candidate_name.type);
 
 	} else {
 		printf("\n\tcompile successful.\n\n");
-	}
 	
-	const char* assembly_file = 
-	"	.section	__TEXT,__text,regular,pure_instructions\n"
-	"	.build_version macos, 11, 0	sdk_version 11, 1\n"
-	"	.globl	_main\n"
-	"	.p2align	4, 0x90\n"
-	"_main:\n"
-	"	movl	$42, %eax\n"
-	"	retq\n"
-	"\n";
+		const char* assembly_file = 
+		"	.section	__TEXT,__text,regular,pure_instructions\n"
+		"	.build_version macos, 11, 0	sdk_version 11, 1\n"
+		"	.globl	_main\n"
+		"	.p2align	4, 0x90\n"
+		"_main:\n"
+		"	movl	$42, %eax\n"
+		"	retq\n"
+		"\n";
 
-	int fd = open("out.s", O_WRONLY | O_CREAT | O_TRUNC);
-	if (fd < 0) {
-		printf("compile: error: %s: ", "filename");
-		perror("open");
-		exit(1);
+		int fd = open("out.s", O_WRONLY | O_CREAT | O_TRUNC);
+		if (fd < 0) {
+			printf("compile: error: %s: ", "filename");
+			perror("open");
+			exit(1);
+		}
+
+		write(fd, assembly_file, strlen(assembly_file));
+		close(fd);
 	}
-
-	write(fd, assembly_file, strlen(assembly_file));
-
-	close(fd);
+	munmap(input, (size_t) length);
 	free(stack);
 	free(program);
 	free(context);
-	exit(0);
+	exit(error);
 }
