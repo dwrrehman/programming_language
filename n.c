@@ -48,7 +48,7 @@ int main(int argc, const char** argv) {
 	}
 
 	i32 length = (i32) file_data.st_size;
-	char* input = mmap(0, (size_t) length, PROT_READ, MAP_SHARED, file, 0);
+	char* input = not length ? 0 : mmap(0, (size_t) length, PROT_READ, MAP_SHARED, file, 0);
 	if (input == MAP_FAILED) {
 		fprintf(stderr, "compiler: error: %s: ", filename);
 		perror("mmap");
@@ -145,8 +145,9 @@ next:
 	goto try;
 
 end:
+	munmap(input, (size_t) length);
 	program[program_count++] = stack[top].data;
-
+	
 	printf("\n--------- program: -------- \n");
 	for (int i = 0; i < program_count; i++) {
 		struct expr e = program[i];
@@ -188,11 +189,12 @@ end:
 		}
 
 		printf(" which has type (%d)\n", candidate_name.type);
+		exit(1);
 
 	} else {
 		printf("\n\tcompile successful.\n\n");
 	}
-
+	
 	const char* assembly_file = 
 	"	.section	__TEXT,__text,regular,pure_instructions\n"
 	"	.build_version macos, 11, 0	sdk_version 11, 1\n"
