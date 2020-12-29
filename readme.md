@@ -1,12 +1,12 @@
 # Untitled Programming Language
 
-This is a compiler for a general-purpose systems programming language.
+This is a compiler for a general-purpose systems programming language. it is expression based, and as low-level as raw asssembly.
 
 ### The language's priorities:
 
- - __Brutal simplicity and minimalism__: The compiler's _total_ source code is limited to 1000 lines.
+ - __Brutal simplicity and minimalism__: The compiler's _total_ source code is limited to 500 lines.
 
- - __Maximal runtime performance__: The language aims to be faster than _by-hand assembly_.
+ - __Maximal runtime performance__: The language aims to be faster than C.
 
  - __Code readability__: There is literally no syntax in the language.
 
@@ -14,10 +14,14 @@ This is a compiler for a general-purpose systems programming language.
 
  - It is strictly imperative and procedural, and compiled.
 
- - It is strongly, statically, nominally, and dependently typed.
+ - It is strongly and statically typed, according to the hardware's types.
 
- - It heavily and exclusively relies on the LLVM compiler infrastructure.
+ - It provides immense control over the target assembly language.
 
-The implementation for this compiler is written in C, and uses the LLVM C API. This compiler will be used to bootstrap the real compiler once this one is finished.
+ - Has typed, hygenic macros, for zero-overhead abstractions.
+
+ - Has its own standard library, to allow for freestanding targets with no dependencies.
+
+The implementation for this compiler is written in C, with no dependencies. This compiler will be used to bootstrap the real compiler once this one is finished.
 
 Created By Daniel Warren Riaz Rehman.

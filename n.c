@@ -3,7 +3,6 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdint.h>
-
 #include <fcntl.h>
 #include <unistd.h>
 #include <sys/stat.h>
@@ -12,9 +11,6 @@
 typedef int8_t i8;
 typedef int16_t i16;
 typedef int32_t i32;
-
-// typedef i8 name[64]; // bug: this is missing:  ".def"
-// typedef i16 expr[32];
 
 struct expr {
 	i16 args[30];
@@ -25,15 +21,15 @@ struct expr {
 struct name {
 	i8 syntax[60];
 	i16 def;
-	i8 length; // 0 through 60. 
-	i8 type; //  0 through 32
+	i8 length;
+	i8 type; 
 };
 
-struct el {     // whats in a stack?
-	struct expr data; // nicety for now.
-	i32 begin; // in file.	
-	i8 type; // 0 through 32
-	i8 done; // 0 through 60
+struct el {     
+	struct expr data;
+	i32 begin; 
+	i8 type; 
+	i8 done; 
 	i16 __padding;
 };
 
@@ -52,23 +48,19 @@ int main(int argc, const char** argv) {
 	}
 
 	i32 length = (i32) file_data.st_size;
-	char* input = mmap(0, length, PROT_READ, MAP_SHARED, file, 0);
-	if (text == MAP_FAILED) {
+	char* input = mmap(0, (size_t) length, PROT_READ, MAP_SHARED, file, 0);
+	if (input == MAP_FAILED) {
 		fprintf(stderr, "compiler: error: %s: ", filename);
 		perror("mmap");
 		exit(4);
 	}
 	close(file);
-	
-	i8 top_level_type = 1;
-	
-	struct el* stack = malloc(65536 * sizeof(struct el));
+
+	struct el* stack = malloc(32768 * sizeof(struct el));
+	struct expr* program = malloc(32768 * sizeof(struct expr)); 
+	struct name* context = malloc(32768 * sizeof(struct expr)); 
 	i16 top = 0;
-
-	struct expr* program = malloc(65536 * sizeof(struct expr)); 
 	i16 program_count = 0; 
-
-	struct name* context = malloc(65536 * sizeof(struct expr)); 
 	i16 context_count = 0; 
 
 	context[context_count++] = (struct name) {
@@ -97,20 +89,19 @@ int main(int argc, const char** argv) {
 
 	i32 begin = 0;	
 	i32 best = 0;
-
 	i16 index = 0;
 	i16 candidate = 0;
-
 	i8 done = 0;
 	i8 error = 0;
 
 	while (begin < length and input[begin] <= 32) begin++;
 	if (begin > best) best = begin;
 	
-	stack->data = (struct expr) {.index = context_count};
-	stack->type = top_level_type;
-	stack->begin = begin;
-
+	stack[0] = (struct el) {
+		.data = (struct expr) {.index = context_count, .count = 0},
+		.type = 1,
+		.begin = begin,
+	};
 try:
 	if (not stack[top].data.index) {
 		if (not top) {
@@ -202,7 +193,28 @@ end:
 		printf("\n\tcompile successful.\n\n");
 	}
 
+	const char* assembly_file = 
+	"	.section	__TEXT,__text,regular,pure_instructions\n"
+	"	.build_version macos, 11, 0	sdk_version 11, 1\n"
+	"	.globl	_main\n"
+	"	.p2align	4, 0x90\n"
+	"_main:\n"
+	"	movl	$42, %eax\n"
+	"	retq\n"
+	"\n";
+
+	int fd = open("out.s", O_WRONLY | O_CREAT | O_TRUNC);
+	if (fd < 0) {
+		printf("compile: error: %s: ", "filename");
+		perror("open");
+		exit(1);
+	}
+
+	write(fd, assembly_file, strlen(assembly_file));
+
+	close(fd);
 	free(stack);
 	free(program);
 	free(context);
+	exit(0);
 }
