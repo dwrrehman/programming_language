@@ -20,23 +20,23 @@ struct expr {
 
 struct name {
 	i8 syntax[60];
-	i16 def;
+	i16 def; // problem spot
 	i8 length;
 	i8 type; 
 };
 
-struct el {     
-	struct expr data;
+struct el {
+	struct expr data; // problem spot
 	i32 begin; 
 	i8 type; 
 	i8 done; 
-	i16 __padding;
+	i16 __padding; // problem spot
 };
 
 struct cg_el {
-	i16 index;
-	i8 _register;
-	i8 __padding;
+	i16 index; 
+	i8 _register; 
+ 	i8 __padding; // problem spot
 };
 
 int main(int argc, const char** argv) {
@@ -69,12 +69,24 @@ int main(int argc, const char** argv) {
 	i16 program_count = 0; 
 	i16 context_count = 0; 
 
+	enum intrinsics {
+		_type,
+		_i0,
+		_i64, 
+		_join,
+		_nop,
+		_mov,
+		_rax,
+		_5,
+		_xor,
+	}
+
 	context[context_count++] = (struct name) {
 		.syntax = "type", .def = 0, .length = 4, .type = 0,
 	};
 
 	context[context_count++] = (struct name) {
-		.syntax = "unit", .def = 0, .length = 4, .type = 0,
+		.syntax = "i0", .def = 0, .length = 2, .type = 0,
 	};
 
 	context[context_count++] = (struct name) {
@@ -102,7 +114,7 @@ int main(int argc, const char** argv) {
 	};
 
 	context[context_count++] = (struct name) {
-		.syntax = "zero", .def = 0, .length = 4, .type = 1,
+		.syntax = "xor", .def = 0, .length = 3, .type = 1,
 	};
 
 	i32 begin = 0;	
@@ -152,6 +164,9 @@ parent:
 		do begin++; while (begin < length and input[begin] <= 32);
 		if (begin > best) { best = begin; candidate = index; } 
 	}
+	if (index == 5) {
+		// recognize that define was called.
+	}
 	if (top) {
 		done = stack[top--].done;
 		stack[top].data.args[stack[top].data.count++] = program_count;
@@ -189,8 +204,7 @@ end:
 
 		i32 at = 0, line = 1, column = 1;
 		while (at < best) {
-			if (input[at] == '\n') { line++; column = 1; } else column++;
-			at++;
+			if (input[at++] == '\n') { line++; column = 1; } else column++;
 		}
 	
 		fprintf(stderr, "compiler: %s: %u:%u: error: unresolved %c\n",
@@ -198,11 +212,11 @@ end:
 		
 		struct name candidate_name = context[candidate];
 		
-		printf("...did you mean:  ");
+		printf("...did you mean: ");
 		for (i8 s = 0; s < candidate_name.length; s++) {
 			i8 c = candidate_name.syntax[s];
 			if (c < 33) printf("(%s) ", context[c].syntax);
-			else printf("%c ", c);
+			else printf("%c", c);
 		}
 		printf(" of type (%s)\n", context[candidate_name.type].syntax);
 
@@ -249,7 +263,7 @@ end:
 				write(fd, string, strlen(string));
 				
 			} else if (program_index == 6) { // rax reg
-				printf("found a rax register...\n");					
+				printf("found a rax register...\n");
 
 			} else if (program_index == 4) {
 				printf("found a nop instruction...\n");
@@ -261,14 +275,11 @@ end:
 			
 			} else { 
 				printf("found an unknown instruction...\n");
+				printf("stack_count=%d | (expr=%d) : looking at %d (%s) (count=%d)\n", stack_count, expr_index, program_index, context[program_index].syntax, program[expr_index].count);
 			}
 
 			for (int i = program[expr_index].count; i--; ) 
 				cg_stack[stack_count++].index = program[expr_index].args[i];
-
-			printf("stack_count=%d | (expr=%d) : looking at %d (%s) (count=%d)\n", 
-				stack_count, expr_index, program_index, context[program_index].syntax,
-				program[expr_index].count);
 		}
 
 		write(fd, file_tail, strlen(file_tail));
