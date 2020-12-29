@@ -33,6 +33,12 @@ struct el {
 	i16 __padding;
 };
 
+struct cg_el {
+	i16 index;
+	i8 _register;
+	i8 __padding;
+};
+
 int main(int argc, const char** argv) {
 
 	if (argc < 2) return 1;
@@ -64,11 +70,15 @@ int main(int argc, const char** argv) {
 	i16 context_count = 0; 
 
 	context[context_count++] = (struct name) {
-		.syntax = "undef", .def = 0, .length = 5, .type = 1,
+		.syntax = "type", .def = 0, .length = 4, .type = 0,
 	};
 
 	context[context_count++] = (struct name) {
-		.syntax = "unit", .def = 0, .length = 4, .type = 1,
+		.syntax = "unit", .def = 0, .length = 4, .type = 0,
+	};
+
+	context[context_count++] = (struct name) {
+		.syntax = "i64", .def = 0, .length = 3, .type = 0,
 	};
 
 	context[context_count++] = (struct name) {
@@ -76,20 +86,24 @@ int main(int argc, const char** argv) {
 	};
 
 	context[context_count++] = (struct name) {
-		.syntax = "hello", .def = 0, .length = 5, .type = 1,
+		.syntax = "nop", .def = 0, .length = 3, .type = 1,
 	};
 
 	context[context_count++] = (struct name) {
-		.syntax = "define\x01", .def = 0, .length = 7, .type = 1,
+		.syntax = "mov\x02\x02", .def = 0, .length = 5, .type = 1,
 	};
 
 	context[context_count++] = (struct name) {
-		.syntax = "wef", .def = 0, .length = 3, .type = 1,
+		.syntax = "rax", .def = 0, .length = 3, .type = 2,
 	};
 
-	// context[context_count++] = (struct name) {
-	// 	.syntax = "", .def = 0, .length = 0, .type = 1,
-	// };
+	context[context_count++] = (struct name) {
+		.syntax = "5", .def = 0, .length = 1, .type = 2,
+	};
+
+	context[context_count++] = (struct name) {
+		.syntax = "zero", .def = 0, .length = 4, .type = 1,
+	};
 
 	i32 begin = 0;	
 	i32 best = 0;
@@ -104,6 +118,7 @@ int main(int argc, const char** argv) {
 	stack[0] = (struct el) {
 		.data = (struct expr) {.index = context_count, .count = 0},
 		.type = 1,
+		.done = 0,
 		.begin = begin,
 	};
 try:
@@ -153,7 +168,7 @@ end:
 	printf("\n--------- program: -------- \n");
 	for (int i = 0; i < program_count; i++) {
 		struct expr e = program[i];
-		printf("%d | index=%d, count=%d, [ ", i, e.index, e.count);
+		printf("%d | index=%d : \"%s\", count=%d, [ ", i, e.index, context[e.index].syntax, e.count);
 		for (int j = 0; j < e.count; j++) 
 			printf("%d ", e.args[j]);
 		printf("]\n");
@@ -165,7 +180,7 @@ end:
 		printf("%d | type=%d, length=%d, def=%d, [ ", i, n.type, n.length, n.def);
 		for (int j = 0; j < n.length; j++) 
 			if (n.syntax[j] >= 33) printf("%c ", n.syntax[j]);
-			else printf("(%d) ", n.syntax[j]);
+			else printf("(%s) ", context[n.syntax[j]].syntax);
 		printf("]\n");
 	}
 	printf("-----------------------------\n\n");
@@ -186,21 +201,23 @@ end:
 		printf("...did you mean:  ");
 		for (i8 s = 0; s < candidate_name.length; s++) {
 			i8 c = candidate_name.syntax[s];
-			if (c < 33) printf("(%d) ", c);
+			if (c < 33) printf("(%s) ", context[c].syntax);
 			else printf("%c ", c);
 		}
-		printf(" of type (%d)\n", candidate_name.type);
+		printf(" of type (%s)\n", context[candidate_name.type].syntax);
 
 	} else {
 		printf("\n\tcompile successful.\n\n");
 	
-		const char* assembly_file = 
+		const char* file_head = 
 		"	.section	__TEXT,__text,regular,pure_instructions\n"
 		"	.build_version macos, 11, 0	sdk_version 11, 1\n"
 		"	.globl	_main\n"
 		"	.p2align	4, 0x90\n"
-		"_main:\n"
-		"	movl	$42, %eax\n"
+		"_main:\n";
+
+		const char* file_tail = 
+		"	mov $5, %rax\n"
 		"	retq\n"
 		"\n";
 
@@ -210,8 +227,51 @@ end:
 			perror("open");
 			exit(1);
 		}
+	
+		write(fd, file_head, strlen(file_head));
+		
+		struct cg_el* cg_stack = malloc(65536 * sizeof(struct cg_el));
+		i16 stack_count = 0;
+		cg_stack[stack_count++].index = program_count - 1;
+		
+		while (stack_count) {
+			i16 expr_index = cg_stack[--stack_count].index;
+			i16 program_index = program[expr_index].index;
+			
+			if (program_index == 5) { // mov
+				printf("found a mov instruction!\n");
+				const char* string = "	movq $5, %rax\n";
+				write(fd, string, strlen(string));
 
-		write(fd, assembly_file, strlen(assembly_file));
+			} else if (program_index == 8) {
+				printf("found a zero instruction!\n");
+				const char* string = "	xorq %rax, %rax\n";
+				write(fd, string, strlen(string));
+				
+			} else if (program_index == 6) { // rax reg
+				printf("found a rax register...\n");					
+
+			} else if (program_index == 4) {
+				printf("found a nop instruction...\n");
+				const char* string = "	nop\n";
+				write(fd, string, strlen(string));
+
+			} else if (program_index == 7) {
+				printf("found a 5 literal...\n");
+			
+			} else { 
+				printf("found an unknown instruction...\n");
+			}
+
+			for (int i = program[expr_index].count; i--; ) 
+				cg_stack[stack_count++].index = program[expr_index].args[i];
+
+			printf("stack_count=%d | (expr=%d) : looking at %d (%s) (count=%d)\n", 
+				stack_count, expr_index, program_index, context[program_index].syntax,
+				program[expr_index].count);
+		}
+
+		write(fd, file_tail, strlen(file_tail));
 		close(fd);
 	}
 	munmap(input, (size_t) length);
