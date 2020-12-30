@@ -47,38 +47,40 @@ The Following limits allow for a faster compiler implementation. They also encou
 
 ### Language Intrinsic System:
 
-The Language utilizes the following intrinsic system.
+The Language currently utilizes the following signatures in its intrinsic system. 
+
+Each signature is given as a string of bytes, where a character which has an ASCII value less than 33 is interpreted as a type. The last byte in the signature is always a type, and denotes the type of the signature. All other types are parameters of that type.
 
 **Program Types:**
 
- 1. name\x00 : the signature/name type. (name parameter designator)
+ 1. ```name\x00``` : the signature/name type. (name parameter type)
 
- 2. \_\x01\x01 : the unit type. (i0 parameter designator)
+ 2. ```\_\x01\x01``` : the unit type. (i0 parameter type)
 
 **Signature Elements:**
 
- 3. a\x01\x01 : character literal 'a'. 
+ 3. ```a\x01\x01``` : character literal 'a'. 
 
- 4. b\x01\x01 : character literal 'b'. 
+ 4. ```b\x01\x01``` : character literal 'b'. 
 
- 5. c\x01\x01 :  character literal 'c'. 
+ 5. ```c\x01\x01``` :  character literal 'c'. 
 
- 6. .\x01 : variable signature delimiter. 
+ 6. ```.\x01``` : variable signature delimiter. 
 
- 9. del\x01\x02 : change delimiter to another character.
+ 9. ```del\x01\x02``` : change delimiter to another character.
 
 **Target Assembly Instructions:**
 
- 8. nop\x02 : generates "no operation" assembly instruction. 
+ 8. ```nop\x02``` : generates "no operation" assembly instruction. 
 
 **Context Intrinsics:**
 
- 10. def\x01\x02 : intrinsic for define a macro signature. 
+ 10. ```def\x01\x02``` : intrinsic for define a macro signature. 
 
- 11. attach\x00\x02 : intrinsc for attaching definition. gives a definition for a macro symbol only.
+ 11. ```attach\x00\x02``` : intrinsc for attaching definition. gives a definition for a macro symbol only.
 
 **Other:**
 
- 0. error\x00 : used to denote when the program had a parsing error.
+ 0. ```error\x00``` : used to denote when the program had a parsing error.
 
- 7. join\x02\x02\x02 : used to allow for muliple statements.
+ 7. ```join\x02\x02\x02``` : used to allow for muliple statements.
