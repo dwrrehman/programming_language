@@ -53,34 +53,34 @@ Each signature is given as a string of bytes, where a character which has an ASC
 
 **Program Types:**
 
- 1. ```name\x00``` : the signature/name type. (name parameter type)
+ ```name\x00``` : the signature/name type. (name parameter type)
 
- 2. ```\_\x01\x01``` : the unit type. (i0 parameter type)
+ ```_\x01\x01``` : the unit type. (i0 parameter type)
 
 **Signature Elements:**
 
- 3. ```a\x01\x01``` : character literal 'a'. 
+ ```a\x01\x01``` : character literal 'a'. 
 
- 4. ```b\x01\x01``` : character literal 'b'. 
+ ```b\x01\x01``` : character literal 'b'. 
 
- 5. ```c\x01\x01``` :  character literal 'c'. 
+ ```c\x01\x01``` :  character literal 'c'. 
 
- 6. ```.\x01``` : variable signature delimiter. 
+ ```.\x01``` : variable signature delimiter. 
 
- 9. ```del\x01\x02``` : change delimiter to another character.
+ ```del\x01\x02``` : change delimiter to another character.
 
 **Target Assembly Instructions:**
 
- 8. ```nop\x02``` : generates "no operation" assembly instruction. 
+ ```nop\x02``` : generates "no operation" assembly instruction. 
 
 **Context Intrinsics:**
 
- 10. ```def\x01\x02``` : intrinsic for define a macro signature. 
+ ```def\x01\x02``` : intrinsic for define a macro signature. 
 
- 11. ```attach\x00\x02``` : intrinsc for attaching definition. gives a definition for a macro symbol only.
+ ```attach\x00\x02``` : intrinsc for attaching definition. gives a definition for a macro symbol only.
 
 **Other:**
 
- 0. ```error\x00``` : used to denote when the program had a parsing error.
+ ```error\x00``` : used to denote when the program had a parsing error.
 
- 7. ```join\x02\x02\x02``` : used to allow for muliple statements.
+ ```join\x02\x02\x02``` : used to allow for muliple statements.
