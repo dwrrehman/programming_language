@@ -1,57 +1,61 @@
 # Untitled Programming Language
 Created By Daniel Warren Riaz Rehman.
 
-This is a compiler for a general-purpose systems programming language. it is expression based, and as low-level as raw asssembly.
+This is a compiler for a general-purpose, expression-based, low-level systems programming language.
 
 ### The language's priorities:
 
  - __Brutal simplicity and minimalism__: The compiler's _total_ source code is limited to 500 lines.
 
- - __Maximal runtime performance__: The language aims to be faster than C.
+ - __Maximal runtime performance__: The language aims to be _faster_ than C.
 
- - __Code readability__: There is literally no syntax in the language.
+ - __Code readability__: The language has _no_ syntax.
 
 ### The language's traits:
 
- - It doesnt have any syntax, because it uses the Universal Call Syntax Resolution (UCSR) algorithm, which allows for user-defined syntax.
+ - Uses the Universal Call Syntax Resolution (UCSR) algorithm.
 
- - It is strictly imperative and procedural, and compiled.
+ - Is strictly imperative, and compiled.
 
- - It is strongly and statically typed, according to the _hardware's_ types.
+ - Is strongly and statically typed, and only uses _hardware-level_ types.
 
- - It provides _full_ control over the target assembly language.
+ - Has ability to generate any instruction in the target assembly language.
 
- - Has strongly typed, hygenic macros, for creating novel truly zero-overhead abstractions.
+ - Has strongly-typed hygenic macros, for creating used-defined zero-overhead abstractions.
 
- - Has its own standard library with no dependencies, to allow for freestanding targets.
+ - Has no dependencies in the standard library.
 
-The implementation for this compiler is written in C, with no dependencies. This compiler will be used to bootstrap the real compiler once this one is finished.
+ - Allows for freestanding targets.
+
+ - This compiler is written in C, and has no dependencies.
 
 ### Compiler Implementation Limits:
 
- - The language can only provide a single parsing error message per file, because of how the UCSR algorithm works.
+The Following limits allow for a faster compiler implementation. They also encourage the writing of smaller and simpler programs.
 
- - only up to 32,767 (2^15 - 1) signatures in a context.
+ - maximum 1 parsing error message per file.
 
- - only up to 32,767 expression calls per file.
+ - maximum 32,767 (2^15 - 1) signatures in a context.
 
- - a maximum expression depth of 32,767 for a file.
+ - maximum 32,767 expression calls per file.
 
- - only up to 62 (64 - 2) bytes allowewd per signature. 
+ - maximum expression depth of 32,767 per file.
 
- - only up to 30 (32 - 2) arguments allowed per expression call.
+ - maximum 62 (64 - 2) bytes allowed per signature. 
 
-In addition to encouraging the writing of smaller and simpler programs, these limits allow for a faster compiler implementation.
+ - maximum 30 (32 - 2) arguments allowed per expression call.
 
 ### Language Intrinsic System:
 
-There are currently 12 intrinsics for the initial context.
+The Language utilizes the following intrinsic system.
 
- 0. error\x00 :  signfies resolution error.
+**Program Types:**
 
- 1. name\x00 : the signature/name type parameter designator.
+ 1. name\x00 : the signature/name type. (name parameter designator)
 
- 2. \_\x01\x01 : i0 parameter designator (the unit type).
+ 2. \_\x01\x01 : the unit type. (i0 parameter designator)
+
+**Signature Elements:**
 
  3. a\x01\x01 : character literal 'a'. 
 
@@ -61,14 +65,20 @@ There are currently 12 intrinsics for the initial context.
 
  6. .\x01 : variable signature delimiter. 
 
- 7. join\x02\x02\x02 : used to allow for muliple statements.
-
- 8. nop\x02 : generates "no operation" instruction. 
-
  9. del\x01\x02 : change delimiter to another character.
+
+**Target Assembly Instructions:**
+
+ 8. nop\x02 : generates "no operation" assembly instruction. 
+
+**Context Intrinsics:**
 
  10. def\x01\x02 : intrinsic for define a macro signature. 
 
  11. attach\x00\x02 : intrinsc for attaching definition. gives a definition for a macro symbol only.
 
+**Other:**
 
+ 0. error\x00 : used to denote when the program had a parsing error.
+
+ 7. join\x02\x02\x02 : used to allow for muliple statements.
