@@ -11,29 +11,22 @@
 typedef int8_t i8;
 typedef int16_t i16;
 typedef int32_t i32;
-
-enum {
-	_type,
-	_i0,
-	_i64, 
-	_join,
-	_nop,
-	_def,
-	_A,
-	
-};
+// typedef int64_t i64;
 
 struct expr {
 	i16 args[30];
-	i16 index;
+	i16 index; // todo make this use args[count] instead of this member.
 	i16 count;
 };
 
 struct name {
-	i8 syntax[60];
+	i8 syntax[63];
 	i8 length;
-	i8 type; 
-	// i16 def; // problem spot
+};
+
+struct macro_def {
+	i16 index;
+	i16 def;
 };
 
 struct el {
@@ -80,74 +73,19 @@ int main(int argc, const char** argv) {
 	i16 program_count = 0; 
 	i16 context_count = 0;
 
+	context[context_count++] = (struct name) {".\x01", 1}; 		// variable delimiter.
+	context[context_count++] = (struct name) {"_\x01\x01", 2}; 	// i0 parameter designator. 
+	context[context_count++] = (struct name) {"a\x01\x01", 2}; 	// character literal 'a'.
+	
+	context[context_count++] = (struct name) {"join\x01\x01\x01", 6}; // join statements
+	context[context_count++] = (struct name) {"nop\x01", 3};
+	context[context_count++] = (struct name) {"del\x01\x01", 4}; // change delimiter.
+	context[context_count++] = (struct name) {"def\x01\x01", 4}; // define symbol.
+	context[context_count++] = (struct name) {"attach\x00\x01", 7}; // attach definition.
 
-	context[context_count++] = (struct name) {
-		.syntax = "_1\x01", .length = 2, .type = 1,  //   defines a i0 param.     // spelling defined by the context!
-	};
-
-	context[context_count++] = (struct name) {
-		.syntax = "_2\x01", .length = 2, .type = 1,    //   defines a i64 param.  (yes, we need a seperate one for each type.)
-	};
-
-	context[context_count++] = (struct name) {
-		.syntax = "a\x01", .length = 2, .type = 1,
-	};
-
-	context[context_count++] = (struct name) {
-		.syntax = "b\x01", .length = 2, .type = 1,
-	};
-
-	context[context_count++] = (struct name) {
-		.syntax = "c\x01", .length = 2, .type = 1,
-	};
-
-	context[context_count++] = (struct name) {
-		.syntax = "d\x01", .length = 2, .type = 1,
-	};
-
-	context[context_count++] = (struct name) {
-		.syntax = "end", .length = 3, .type = 1,
-	};
-
-	context[context_count++] = (struct name) {
-		.syntax = "type", .length = 4, .type = 0,
-	};
-
-	context[context_count++] = (struct name) {
-		.syntax = "i0", .length = 2, .type = 0,
-	};
-
-	context[context_count++] = (struct name) {
-		.syntax = "i64", .length = 3, .type = 0,
-	};
-
-	context[context_count++] = (struct name) {
-		.syntax = "join\x01\x01", .length = 6, .type = 1,
-	};
-
-	context[context_count++] = (struct name) {
-		.syntax = "nop", .length = 3, .type = 1,
-	};
-
-	context[context_count++] = (struct name) {
-		.syntax = "del\x01", .length = 4, .type = 1, 		// accepts a single character, technically.
-	};
-
-	context[context_count++] = (struct name) {
-		.syntax = "def\x01\x00\x00", .length = 5, .type = 1,   //  define (signature) (type) (definition) 
-	};
-
-	context[context_count++] = (struct name) {
-		.syntax = "udf\x00", .def = 0, .length = 3, .type = 2, // undefine (signature)  // doessnt try to type check....
-	};
-
-
-	i32 begin = 0;	
-	i32 best = 0;
-	i16 index = 0;
-	i16 candidate = 0;
-	i8 done = 0;
-	i8 error = 0;
+	i32 begin = 0, best = 0;
+	i16 index = 0, candidate = 0;
+	i8 done = 0, error = 0;
 
 	while (begin < length and input[begin] <= 32) begin++;
 	if (begin > best) best = begin;
@@ -173,7 +111,7 @@ try:
 parent:
 	index = stack[top].data.index;
 	struct name name = context[index];
-	if (stack[top].type and stack[top].type != name.type) goto next;
+	if (stack[top].type and stack[top].type != name.syntax[name.length]) goto next;
 	while (done < name.length) {
 		i8 c = name.syntax[done++];
 		if (c < 33) {
@@ -189,9 +127,9 @@ parent:
 		do begin++; while (begin < length and input[begin] <= 32);
 		if (begin > best) { best = begin; candidate = index; } 
 	}
-	if (index == _def) {
-		context[context_count++] = (struct name) { .syntax = "dummy", .def = 0, .length = 5, .type = 1 };
-	}
+	// if (index == _def) {
+	// 	context[context_count++] = (struct name) {"dummy\x01", 5};
+	// }
 	if (top) {
 		done = stack[top--].done;
 		stack[top].data.args[stack[top].data.count++] = program_count;
@@ -217,10 +155,11 @@ end:
 	printf("\n--------- context: -------- \n");
 	for (int i = 0; i < context_count; i++) {
 		struct name n = context[i];
-		printf("%d | type=%d, length=%d, def=%d, [ ", i, n.type, n.length, n.def);
-		for (int j = 0; j < n.length; j++) 
-			if (n.syntax[j] >= 33) printf("%c ", n.syntax[j]);
-			else printf("(%s) ", context[n.syntax[j]].syntax);
+		printf("%d | (length=%d) [ ", i, n.length);
+		for (int j = 0; j < n.length + 1; j++) 
+			if (n.syntax[j] < 33) printf(" (%d) ", n.syntax[j]);
+			else printf("%c", n.syntax[j]);
+
 		printf("]\n");
 	}
 	printf("-----------------------------\n\n");
@@ -235,15 +174,15 @@ end:
 		fprintf(stderr, "compiler: %s: %u:%u: error: unresolved %c\n",
 		"filename", line, column, best == length ? ' ' : input[best]);
 		
-		struct name candidate_name = context[candidate];
+		struct name suggestion = context[candidate];
 		
 		printf("...did you mean: ");
-		for (i8 s = 0; s < candidate_name.length; s++) {
-			i8 c = candidate_name.syntax[s];
-			if (c < 33) printf("(%s) ", context[c].syntax);
+		for (i8 s = 0; s < suggestion.length + 1; s++) {
+			i8 c = suggestion.syntax[s];
+			if (c < 33) printf(" (%d) ", c);
 			else printf("%c", c);
 		}
-		printf(" of type (%s)\n", context[candidate_name.type].syntax);
+		printf("\n");
 
 	} else {
 		printf("\n\tcompile successful.\n\n");
