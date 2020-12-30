@@ -1,5 +1,3 @@
-join join join join 
-
-	mov 5 rax
-mov 5 rax
-mov 5 raxmov 5 raxmov 5 rax
+join 
+	def A end 
+	def A end

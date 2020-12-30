@@ -12,6 +12,17 @@ typedef int8_t i8;
 typedef int16_t i16;
 typedef int32_t i32;
 
+enum {
+	_type,
+	_i0,
+	_i64, 
+	_join,
+	_nop,
+	_def,
+	_A,
+	
+};
+
 struct expr {
 	i16 args[30];
 	i16 index;
@@ -20,9 +31,9 @@ struct expr {
 
 struct name {
 	i8 syntax[60];
-	i16 def; // problem spot
 	i8 length;
 	i8 type; 
+	// i16 def; // problem spot
 };
 
 struct el {
@@ -67,55 +78,69 @@ int main(int argc, const char** argv) {
 	struct name* context = malloc(32768 * sizeof(struct expr)); 
 	i16 top = 0;
 	i16 program_count = 0; 
-	i16 context_count = 0; 
+	i16 context_count = 0;
 
-	enum intrinsics {
-		_type,
-		_i0,
-		_i64, 
-		_join,
-		_nop,
-		_mov,
-		_rax,
-		_5,
-		_xor,
-	}
 
 	context[context_count++] = (struct name) {
-		.syntax = "type", .def = 0, .length = 4, .type = 0,
+		.syntax = "_1\x01", .length = 2, .type = 1,  //   defines a i0 param.     // spelling defined by the context!
 	};
 
 	context[context_count++] = (struct name) {
-		.syntax = "i0", .def = 0, .length = 2, .type = 0,
+		.syntax = "_2\x01", .length = 2, .type = 1,    //   defines a i64 param.  (yes, we need a seperate one for each type.)
 	};
 
 	context[context_count++] = (struct name) {
-		.syntax = "i64", .def = 0, .length = 3, .type = 0,
+		.syntax = "a\x01", .length = 2, .type = 1,
 	};
 
 	context[context_count++] = (struct name) {
-		.syntax = "join\x01\x01", .def = 0, .length = 6, .type = 1,
+		.syntax = "b\x01", .length = 2, .type = 1,
 	};
 
 	context[context_count++] = (struct name) {
-		.syntax = "nop", .def = 0, .length = 3, .type = 1,
+		.syntax = "c\x01", .length = 2, .type = 1,
 	};
 
 	context[context_count++] = (struct name) {
-		.syntax = "mov\x02\x02", .def = 0, .length = 5, .type = 1,
+		.syntax = "d\x01", .length = 2, .type = 1,
 	};
 
 	context[context_count++] = (struct name) {
-		.syntax = "rax", .def = 0, .length = 3, .type = 2,
+		.syntax = "end", .length = 3, .type = 1,
 	};
 
 	context[context_count++] = (struct name) {
-		.syntax = "5", .def = 0, .length = 1, .type = 2,
+		.syntax = "type", .length = 4, .type = 0,
 	};
 
 	context[context_count++] = (struct name) {
-		.syntax = "xor", .def = 0, .length = 3, .type = 1,
+		.syntax = "i0", .length = 2, .type = 0,
 	};
+
+	context[context_count++] = (struct name) {
+		.syntax = "i64", .length = 3, .type = 0,
+	};
+
+	context[context_count++] = (struct name) {
+		.syntax = "join\x01\x01", .length = 6, .type = 1,
+	};
+
+	context[context_count++] = (struct name) {
+		.syntax = "nop", .length = 3, .type = 1,
+	};
+
+	context[context_count++] = (struct name) {
+		.syntax = "del\x01", .length = 4, .type = 1, 		// accepts a single character, technically.
+	};
+
+	context[context_count++] = (struct name) {
+		.syntax = "def\x01\x00\x00", .length = 5, .type = 1,   //  define (signature) (type) (definition) 
+	};
+
+	context[context_count++] = (struct name) {
+		.syntax = "udf\x00", .def = 0, .length = 3, .type = 2, // undefine (signature)  // doessnt try to type check....
+	};
+
 
 	i32 begin = 0;	
 	i32 best = 0;
@@ -148,7 +173,7 @@ try:
 parent:
 	index = stack[top].data.index;
 	struct name name = context[index];
-	if (stack[top].type != name.type) goto next;
+	if (stack[top].type and stack[top].type != name.type) goto next;
 	while (done < name.length) {
 		i8 c = name.syntax[done++];
 		if (c < 33) {
@@ -164,8 +189,8 @@ parent:
 		do begin++; while (begin < length and input[begin] <= 32);
 		if (begin > best) { best = begin; candidate = index; } 
 	}
-	if (index == 5) {
-		// recognize that define was called.
+	if (index == _def) {
+		context[context_count++] = (struct name) { .syntax = "dummy", .def = 0, .length = 5, .type = 1 };
 	}
 	if (top) {
 		done = stack[top--].done;
@@ -252,26 +277,26 @@ end:
 			i16 expr_index = cg_stack[--stack_count].index;
 			i16 program_index = program[expr_index].index;
 			
-			if (program_index == 5) { // mov
-				printf("found a mov instruction!\n");
-				const char* string = "	movq $5, %rax\n";
-				write(fd, string, strlen(string));
+			// if (program_index == 5) { // mov
+			// 	printf("found a mov instruction!\n");
+			// 	const char* string = "	movq $5, %rax\n";
+			// 	write(fd, string, strlen(string));
 
-			} else if (program_index == 8) {
-				printf("found a zero instruction!\n");
-				const char* string = "	xorq %rax, %rax\n";
-				write(fd, string, strlen(string));
+			// } else if (program_index == 8) {
+			// 	printf("found a zero instruction!\n");
+			// 	const char* string = "	xorq %rax, %rax\n";
+			// 	write(fd, string, strlen(string));
 				
-			} else if (program_index == 6) { // rax reg
-				printf("found a rax register...\n");
+			// } else if (program_index == 6) { // rax reg
+			// 	printf("found a rax register...\n");
 
-			} else if (program_index == 4) {
+			if (program_index == 4) {
 				printf("found a nop instruction...\n");
 				const char* string = "	nop\n";
 				write(fd, string, strlen(string));
 
-			} else if (program_index == 7) {
-				printf("found a 5 literal...\n");
+			// } else if (program_index == 7) {
+			// 	printf("found a 5 literal...\n");
 			
 			} else { 
 				printf("found an unknown instruction...\n");
