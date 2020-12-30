@@ -1,8 +1,1 @@
-join 
-	join 
-		del a. 
-		def bb_a 
-	join 
-		def b b _ _ a nop
-
-
+join nowfp nop

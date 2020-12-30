@@ -4,6 +4,7 @@
 	.p2align	4, 0x90
 _main:
 	nop
+	nop
 	mov $5, %rax
 	retq
 
