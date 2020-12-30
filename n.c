@@ -96,7 +96,7 @@ int main(int argc, const char** argv) {
 	
 	stack[0] = (struct el) {
 		.data = (struct expr) {.index = context_count, .count = 0},
-		.type = 1,
+		.type = 2,
 		.done = 0,
 		.begin = begin,
 	};
