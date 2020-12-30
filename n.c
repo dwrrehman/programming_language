@@ -13,6 +13,18 @@ typedef int16_t i16;
 typedef int32_t i32;
 // typedef int64_t i64;
 
+enum {
+	_end,
+	_i0,
+	_a, 
+	_b, 
+	_c,
+	_join,
+	_nop, 
+	_del,
+	_def,
+};
+
 struct expr {
 	i16 args[30];
 	i16 index; // todo make this use args[count] instead of this member.
@@ -72,10 +84,12 @@ int main(int argc, const char** argv) {
 	i16 top = 0;
 	i16 program_count = 0; 
 	i16 context_count = 0;
-
+	
 	context[context_count++] = (struct name) {".\x01", 1}; 		// variable delimiter. 0
 	context[context_count++] = (struct name) {"_\x01\x01", 2}; 	// i0 parameter designator.  1
 	context[context_count++] = (struct name) {"a\x01\x01", 2}; 	// character literal 'a'. 2
+	context[context_count++] = (struct name) {"b\x01\x01", 2}; 	// character literal 'a'. 2
+	context[context_count++] = (struct name) {"c\x01\x01", 2}; 	// character literal 'a'. 2
 	
 	context[context_count++] = (struct name) {"join\x01\x01\x01", 6}; // join statements 3
 	context[context_count++] = (struct name) {"nop\x01", 3}; // 4
@@ -88,7 +102,7 @@ int main(int argc, const char** argv) {
 	i16 index = 0, candidate = 0;
 	i8 done = 0, error = 0;
 
-	while (begin < length and input[begin] <= 32) begin++;
+	while (begin < length and input[begin] < 33) begin++;
 	if (begin > best) best = begin;
 	
 	stack[0] = (struct el) {
@@ -125,17 +139,17 @@ parent:
 			goto try;
 		}
 		if (begin >= length or c != input[begin]) goto next;
-		do begin++; while (begin < length and input[begin] <= 32);
+		do begin++; while (begin < length and input[begin] < 33);
 		if (begin > best) { best = begin; candidate = index; } 
 	}
 
-	if (index == 5) context[0].syntax[0] = context[program[stack[top].data.args[0]].index].syntax[0];
-	else if (index == 6) {
+	if (index == _del) context[_end].syntax[0] = context[program[stack[top].data.args[0]].index].syntax[0];
+	else if (index == _def) {
 		struct name new = {0};
 		for (i16 p = stack[top].data.args[0]; program[p].count; p = program[p].args[0]) {
 			i16 c = program[p].index;
 
-			if (c == 1) new.syntax[new.length++] = (i8) c;
+			if (c == _i0) new.syntax[new.length++] = (i8) c;
 			else new.syntax[new.length++] = context[c].syntax[0];
 
 			printf("------ DEBUG: p = %d, index = %d,  spellt: %s--------\n\n", 
@@ -230,7 +244,7 @@ end:
 		// 	i16 expr_index = cg_stack[--stack_count].index;
 		// 	i16 program_index = program[expr_index].index;
 
-		// 	if (program_index == 4) {
+		// 	if (program_index == _nop) {
 		// 		printf("found a nop instruction...\n");
 		// 		const char* string = "	nop\n";
 		// 		write(fd, string, strlen(string));
