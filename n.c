@@ -42,6 +42,13 @@ struct cg_el {
  	i8 __padding; // problem spot
 };
 
+
+static inline void print_name(i8* syntax) {
+	for (i8 i = 0; syntax[i] >= 33; i++) {
+		putchar(syntax[i]); //// revise this!!  note:    .label:   is local scope,    label:   is global scope.
+	}
+}
+
 int main(int argc, const char** argv) {
 
 	if (argc < 2) return 1;
@@ -73,7 +80,6 @@ int main(int argc, const char** argv) {
 	i16 context_count = 0;
 	
 	enum { _error, _name, _i0, _a,  _b,  _c, _end, _join,  _nop,  _del,  _def, _attach, };
-
 	context[context_count++] = (struct name) {"error\x00", 5}; 	// error signature. (denotes error)
 	context[context_count++] = (struct name) {"name\x00", 4}; 	// the name type parameter designator. for sigs.
 	context[context_count++] = (struct name) {"_\x01\x01", 2}; 	// i0 parameter designator.  
@@ -97,11 +103,9 @@ int main(int argc, const char** argv) {
 	stack[0] = (struct el) {
 		.data = (struct expr) {.index = context_count, .count = 0},
 		.type = 2,
-		.done = 0,
 		.begin = begin,
 	};
 try:
-	// printf("CHECK: entered try loop iteration: top = %d, index = %d\n", top, stack[top].data.index);
 	if (not stack[top].data.index) {
 		if (not top) {
 			error = 1;
@@ -117,18 +121,14 @@ parent:
 	
 	index = stack[top].data.index;
 	struct name name = context[index];
-	// printf("CHECK: parent loop: %d, :: %s  -> type checking...\n", index, name.syntax);
 	if (stack[top].type and stack[top].type != name.syntax[name.length]) goto next;
 
 	while (done < name.length) {
-		// printf("CHECK: inside the done loop: %d < namelength:%d...\n", done, name.length);
 		i8 c = name.syntax[done++];
-
 		if (top >= 32767) { 
 			printf("compiler: error: out of stack memory, aborting\n"); 
 			abort();
 		}
-
 		if (c < 33) {
 			top++;
 			stack[top].data.index = context_count;
@@ -142,12 +142,10 @@ parent:
 		do begin++; while (begin < length and input[begin] < 33);
 		if (begin > best) { best = begin; candidate = index; } 
 	}
-	// printf("CHECK: executing intrinsic...\n");
 	if (index == _del) 
 		context[_end].syntax[0] = 
 		context[program[stack[top].data.args[0]].index].syntax[0];
 	else if (index == _def) {
-		// printf("CHECK: trying to def...\n");
 		struct name new = {0};
 		for (i16 p = stack[top].data.args[0]; program[p].count; p = program[p].args[0]) {
 			i16 c = program[p].index;
@@ -163,7 +161,7 @@ parent:
 				if (input[at++] == '\n') { line++; column = 1; } else column++;
 			}
 		
-			fprintf(stderr, "compiler: %s: %u:%u: error: intrinsic used incorrectly at %c\n",
+			fprintf(stderr, "compiler: %s: %u:%u: error: def intrinsic used incorrectly at %c\n",
 			"filename", line, column, best == length ? ' ' : input[best]);
 			
 			struct name suggestion = context[candidate];
@@ -189,11 +187,9 @@ parent:
 	}
 	if (begin == length) goto end;
 next:
-	// printf("CHECK: in next label... moving to next signature\n");
 	stack[top].data.count = 0;
 	goto try;
 end:
-	// printf("CHECK: finished!!!\n");
 	program[program_count++] = stack[top].data;
 	
 	printf("\n--------- program: -------- \n");
@@ -213,7 +209,9 @@ end:
 			if (n.syntax[j] < 33) printf(" (%d) ", n.syntax[j]);
 			else printf("%c", n.syntax[j]);
 
-		printf("]\n");
+		printf("]: \"");
+		print_name(n.syntax);
+		printf("\"\n");
 	}
 	printf("-----------------------------\n\n");
 
@@ -240,51 +238,51 @@ end:
 	} else {
 		printf("\n\tcompile successful.\n\n");
 		
-		// const char* file_head = 
-		// "	.section	__TEXT,__text,regular,pure_instructions\n"
-		// "	.build_version macos, 11, 0	sdk_version 11, 1\n"
-		// "	.globl	_main\n"
-		// "	.p2align	4, 0x90\n"
-		// "_main:\n";
+		const char* file_head = 
+		"	.section	__TEXT,__text,regular,pure_instructions\n"
+		"	.build_version macos, 11, 0	sdk_version 11, 1\n"
+		"	.globl	_main\n"
+		"	.p2align	4, 0x90\n"
+		"_main:\n";
 
-		// const char* file_tail = 
-		// "	mov $5, %rax\n"
-		// "	retq\n"
-		// "\n";
+		const char* file_tail = 
+		"	mov $5, %rax\n"
+		"	retq\n"
+		"\n";
 
-		// int fd = open("out.s", O_WRONLY | O_CREAT | O_TRUNC);
-		// if (fd < 0) {
-		// 	printf("compile: error: %s: ", "filename");
-		// 	perror("open");
-		// 	exit(1);
-		// }
+		int fd = open("out.s", O_WRONLY | O_CREAT | O_TRUNC);
+		if (fd < 0) {
+			printf("compile: error: %s: ", "filename");
+			perror("open");
+			exit(1);
+		}
 	
-		// write(fd, file_head, strlen(file_head));
+		write(fd, file_head, strlen(file_head));
 		
-		// struct cg_el* cg_stack = malloc(65536 * sizeof(struct cg_el));
-		// i16 stack_count = 0;
-		// cg_stack[stack_count++].index = program_count - 1;
+		struct cg_el* cg_stack = malloc(65536 * sizeof(struct cg_el));
+		i16 stack_count = 0;
+		cg_stack[stack_count++].index = program_count - 1;
 		
-		// while (stack_count) {
-		// 	i16 expr_index = cg_stack[--stack_count].index;
-		// 	i16 program_index = program[expr_index].index;
+		while (stack_count) {
+			i16 expr_index = cg_stack[--stack_count].index;
+			i16 program_index = program[expr_index].index;
 
-		// 	if (program_index == _nop) {
-		// 		printf("found a nop instruction...\n");
-		// 		const char* string = "	nop\n";
-		// 		write(fd, string, strlen(string));
+			if (program_index == _nop) {
+				printf("found a nop instruction...\n");
+				const char* string = "	nop\n";
+				write(fd, string, strlen(string));
 
-		// 	} else { 
-		// 		printf("found an unknown instruction...\n");
-		// 		printf("stack_count=%d | (expr=%d) : looking at %d (%s) (count=%d)\n", stack_count, expr_index, program_index, context[program_index].syntax, program[expr_index].count);
-		// 	}
+			} else { 
+				printf("found an unknown instruction...\n");
+				printf("stack_count=%d | (expr=%d) : looking at %d (%s) (count=%d)\n", stack_count, expr_index, program_index, context[program_index].syntax, program[expr_index].count);
+			}
 
-		// 	for (int i = program[expr_index].count; i--; ) 
-		// 		cg_stack[stack_count++].index = program[expr_index].args[i];
-		// }
+			for (int i = program[expr_index].count; i--; ) 
+				cg_stack[stack_count++].index = program[expr_index].args[i];
+		}
 
-		// write(fd, file_tail, strlen(file_tail));
-		// close(fd);
+		write(fd, file_tail, strlen(file_tail));
+		close(fd);
 	}
 	munmap(input, (size_t) length);
 	free(stack);
@@ -292,20 +290,3 @@ end:
 	free(context);
 	exit(error);
 }
-
-
-
-
-		// 	// if (c < 33) {
-		// 	// 	// add argument.
-		// 	// } else {
-		// 	// 	// 
-		// 	// }
-		// 	// // struct expr d = program[index];
-		// 	// // for (i16 i = 0; i < d.count; i++) {
-		// new.syntax[new.length++] = d.args[i];
-		// // 	// }
-		// // }
-
-
-
