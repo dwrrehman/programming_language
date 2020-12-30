@@ -11,19 +11,6 @@
 typedef int8_t i8;
 typedef int16_t i16;
 typedef int32_t i32;
-// typedef int64_t i64;
-
-enum {
-	_end,
-	_i0,
-	_a, 
-	_b, 
-	_c,
-	_join,
-	_nop, 
-	_del,
-	_def,
-};
 
 struct expr {
 	i16 args[30];
@@ -85,18 +72,20 @@ int main(int argc, const char** argv) {
 	i16 program_count = 0; 
 	i16 context_count = 0;
 	
-	context[context_count++] = (struct name) {".\x01", 1}; 		// variable delimiter. 0
-	context[context_count++] = (struct name) {"_\x01\x01", 2}; 	// i0 parameter designator.  1
-	context[context_count++] = (struct name) {"a\x01\x01", 2}; 	// character literal 'a'. 2
-	context[context_count++] = (struct name) {"b\x01\x01", 2}; 	// character literal 'a'. 2
-	context[context_count++] = (struct name) {"c\x01\x01", 2}; 	// character literal 'a'. 2
-	
-	context[context_count++] = (struct name) {"join\x01\x01\x01", 6}; // join statements 3
-	context[context_count++] = (struct name) {"nop\x01", 3}; // 4
-	context[context_count++] = (struct name) {"del\x01\x01", 4}; // change delimiter. 5
-	context[context_count++] = (struct name) {"def\x01\x01", 4}; // define symbol. 6
+	enum { _error, _name, _i0, _a,  _b,  _c, _end, _join,  _nop,  _del,  _def, _attach, };
 
-	// context[context_count++] = (struct name) {"attach\x00\x01", 7}; // attach definition.
+	context[context_count++] = (struct name) {"error\x00", 5}; 	// error signature. (denotes error)
+	context[context_count++] = (struct name) {"name\x00", 4}; 	// the name type parameter designator. for sigs.
+	context[context_count++] = (struct name) {"_\x01\x01", 2}; 	// i0 parameter designator.  
+	context[context_count++] = (struct name) {"a\x01\x01", 2}; 	// character literal 'a'. 
+	context[context_count++] = (struct name) {"b\x01\x01", 2}; 	// character literal 'a'. 
+	context[context_count++] = (struct name) {"c\x01\x01", 2}; 	// character literal 'a'. 
+	context[context_count++] = (struct name) {".\x01", 1}; 		// variable delimiter. 
+	context[context_count++] = (struct name) {"join\x02\x02\x02", 6};// join statements 
+	context[context_count++] = (struct name) {"nop\x02", 3}; 	//  no operation/
+	context[context_count++] = (struct name) {"del\x01\x02", 4}; 	// change delimiter.
+	context[context_count++] = (struct name) {"def\x01\x02", 4}; 	// define symbol. 
+	context[context_count++] = (struct name) {"attach\x00\x02", 7}; // attach definition.
 
 	i32 begin = 0, best = 0;
 	i16 index = 0, candidate = 0;
@@ -112,6 +101,7 @@ int main(int argc, const char** argv) {
 		.begin = begin,
 	};
 try:
+	// printf("CHECK: entered try loop iteration: top = %d, index = %d\n", top, stack[top].data.index);
 	if (not stack[top].data.index) {
 		if (not top) {
 			error = 1;
@@ -124,11 +114,21 @@ try:
 	done = 0;
 	begin = stack[top].begin;
 parent:
+	
 	index = stack[top].data.index;
 	struct name name = context[index];
+	// printf("CHECK: parent loop: %d, :: %s  -> type checking...\n", index, name.syntax);
 	if (stack[top].type and stack[top].type != name.syntax[name.length]) goto next;
+
 	while (done < name.length) {
+		// printf("CHECK: inside the done loop: %d < namelength:%d...\n", done, name.length);
 		i8 c = name.syntax[done++];
+
+		if (top >= 32767) { 
+			printf("compiler: error: out of stack memory, aborting\n"); 
+			abort();
+		}
+
 		if (c < 33) {
 			top++;
 			stack[top].data.index = context_count;
@@ -142,21 +142,44 @@ parent:
 		do begin++; while (begin < length and input[begin] < 33);
 		if (begin > best) { best = begin; candidate = index; } 
 	}
-
-	if (index == _del) context[_end].syntax[0] = context[program[stack[top].data.args[0]].index].syntax[0];
+	// printf("CHECK: executing intrinsic...\n");
+	if (index == _del) 
+		context[_end].syntax[0] = 
+		context[program[stack[top].data.args[0]].index].syntax[0];
 	else if (index == _def) {
+		// printf("CHECK: trying to def...\n");
 		struct name new = {0};
 		for (i16 p = stack[top].data.args[0]; program[p].count; p = program[p].args[0]) {
 			i16 c = program[p].index;
-
-			if (c == _i0) new.syntax[new.length++] = (i8) c;
+			if (c <= _i0) new.syntax[new.length++] = (i8) c;
 			else new.syntax[new.length++] = context[c].syntax[0];
-
-			printf("------ DEBUG: p = %d, index = %d,  spellt: %s--------\n\n", 
-				p, c, context[c].syntax);
 		}
-		new.length--;
-		context[context_count++] = new;
+		if (new.length) {
+			new.length--;
+			context[context_count++] = new;
+		} else {
+			i32 at = 0, line = 1, column = 1;
+			while (at < best) {
+				if (input[at++] == '\n') { line++; column = 1; } else column++;
+			}
+		
+			fprintf(stderr, "compiler: %s: %u:%u: error: intrinsic used incorrectly at %c\n",
+			"filename", line, column, best == length ? ' ' : input[best]);
+			
+			struct name suggestion = context[candidate];
+			
+			printf("...did you mean: ");
+			for (i8 s = 0; s < suggestion.length + 1; s++) {
+				i8 c = suggestion.syntax[s];
+				if (c < 33) printf(" (%d) ", c);
+				else printf("%c", c);
+			}
+			printf("\n");
+
+			abort();
+		}
+	} else if (index == _attach) {
+		abort();
 	}
 	if (top) {
 		done = stack[top--].done;
@@ -166,9 +189,11 @@ parent:
 	}
 	if (begin == length) goto end;
 next:
+	// printf("CHECK: in next label... moving to next signature\n");
 	stack[top].data.count = 0;
 	goto try;
 end:
+	// printf("CHECK: finished!!!\n");
 	program[program_count++] = stack[top].data;
 	
 	printf("\n--------- program: -------- \n");
