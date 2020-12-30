@@ -73,15 +73,16 @@ int main(int argc, const char** argv) {
 	i16 program_count = 0; 
 	i16 context_count = 0;
 
-	context[context_count++] = (struct name) {".\x01", 1}; 		// variable delimiter.
-	context[context_count++] = (struct name) {"_\x01\x01", 2}; 	// i0 parameter designator. 
-	context[context_count++] = (struct name) {"a\x01\x01", 2}; 	// character literal 'a'.
+	context[context_count++] = (struct name) {".\x01", 1}; 		// variable delimiter. 0
+	context[context_count++] = (struct name) {"_\x01\x01", 2}; 	// i0 parameter designator.  1
+	context[context_count++] = (struct name) {"a\x01\x01", 2}; 	// character literal 'a'. 2
 	
-	context[context_count++] = (struct name) {"join\x01\x01\x01", 6}; // join statements
-	context[context_count++] = (struct name) {"nop\x01", 3};
-	context[context_count++] = (struct name) {"del\x01\x01", 4}; // change delimiter.
-	context[context_count++] = (struct name) {"def\x01\x01", 4}; // define symbol.
-	context[context_count++] = (struct name) {"attach\x00\x01", 7}; // attach definition.
+	context[context_count++] = (struct name) {"join\x01\x01\x01", 6}; // join statements 3
+	context[context_count++] = (struct name) {"nop\x01", 3}; // 4
+	context[context_count++] = (struct name) {"del\x01\x01", 4}; // change delimiter. 5
+	context[context_count++] = (struct name) {"def\x01\x01", 4}; // define symbol. 6
+
+	// context[context_count++] = (struct name) {"attach\x00\x01", 7}; // attach definition.
 
 	i32 begin = 0, best = 0;
 	i16 index = 0, candidate = 0;
@@ -127,9 +128,22 @@ parent:
 		do begin++; while (begin < length and input[begin] <= 32);
 		if (begin > best) { best = begin; candidate = index; } 
 	}
-	// if (index == _def) {
-	// 	context[context_count++] = (struct name) {"dummy\x01", 5};
-	// }
+
+	if (index == 5) context[0].syntax[0] = context[program[stack[top].data.args[0]].index].syntax[0];
+	else if (index == 6) {
+		struct name new = {0};
+		for (i16 p = stack[top].data.args[0]; program[p].count; p = program[p].args[0]) {
+			i16 c = program[p].index;
+
+			if (c == 1) new.syntax[new.length++] = (i8) c;
+			else new.syntax[new.length++] = context[c].syntax[0];
+
+			printf("------ DEBUG: p = %d, index = %d,  spellt: %s--------\n\n", 
+				p, c, context[c].syntax);
+		}
+		new.length--;
+		context[context_count++] = new;
+	}
 	if (top) {
 		done = stack[top--].done;
 		stack[top].data.args[stack[top].data.count++] = program_count;
@@ -186,68 +200,52 @@ end:
 
 	} else {
 		printf("\n\tcompile successful.\n\n");
-	
-		const char* file_head = 
-		"	.section	__TEXT,__text,regular,pure_instructions\n"
-		"	.build_version macos, 11, 0	sdk_version 11, 1\n"
-		"	.globl	_main\n"
-		"	.p2align	4, 0x90\n"
-		"_main:\n";
-
-		const char* file_tail = 
-		"	mov $5, %rax\n"
-		"	retq\n"
-		"\n";
-
-		int fd = open("out.s", O_WRONLY | O_CREAT | O_TRUNC);
-		if (fd < 0) {
-			printf("compile: error: %s: ", "filename");
-			perror("open");
-			exit(1);
-		}
-	
-		write(fd, file_head, strlen(file_head));
 		
-		struct cg_el* cg_stack = malloc(65536 * sizeof(struct cg_el));
-		i16 stack_count = 0;
-		cg_stack[stack_count++].index = program_count - 1;
+		// const char* file_head = 
+		// "	.section	__TEXT,__text,regular,pure_instructions\n"
+		// "	.build_version macos, 11, 0	sdk_version 11, 1\n"
+		// "	.globl	_main\n"
+		// "	.p2align	4, 0x90\n"
+		// "_main:\n";
+
+		// const char* file_tail = 
+		// "	mov $5, %rax\n"
+		// "	retq\n"
+		// "\n";
+
+		// int fd = open("out.s", O_WRONLY | O_CREAT | O_TRUNC);
+		// if (fd < 0) {
+		// 	printf("compile: error: %s: ", "filename");
+		// 	perror("open");
+		// 	exit(1);
+		// }
+	
+		// write(fd, file_head, strlen(file_head));
 		
-		while (stack_count) {
-			i16 expr_index = cg_stack[--stack_count].index;
-			i16 program_index = program[expr_index].index;
-			
-			// if (program_index == 5) { // mov
-			// 	printf("found a mov instruction!\n");
-			// 	const char* string = "	movq $5, %rax\n";
-			// 	write(fd, string, strlen(string));
+		// struct cg_el* cg_stack = malloc(65536 * sizeof(struct cg_el));
+		// i16 stack_count = 0;
+		// cg_stack[stack_count++].index = program_count - 1;
+		
+		// while (stack_count) {
+		// 	i16 expr_index = cg_stack[--stack_count].index;
+		// 	i16 program_index = program[expr_index].index;
 
-			// } else if (program_index == 8) {
-			// 	printf("found a zero instruction!\n");
-			// 	const char* string = "	xorq %rax, %rax\n";
-			// 	write(fd, string, strlen(string));
-				
-			// } else if (program_index == 6) { // rax reg
-			// 	printf("found a rax register...\n");
+		// 	if (program_index == 4) {
+		// 		printf("found a nop instruction...\n");
+		// 		const char* string = "	nop\n";
+		// 		write(fd, string, strlen(string));
 
-			if (program_index == 4) {
-				printf("found a nop instruction...\n");
-				const char* string = "	nop\n";
-				write(fd, string, strlen(string));
+		// 	} else { 
+		// 		printf("found an unknown instruction...\n");
+		// 		printf("stack_count=%d | (expr=%d) : looking at %d (%s) (count=%d)\n", stack_count, expr_index, program_index, context[program_index].syntax, program[expr_index].count);
+		// 	}
 
-			// } else if (program_index == 7) {
-			// 	printf("found a 5 literal...\n");
-			
-			} else { 
-				printf("found an unknown instruction...\n");
-				printf("stack_count=%d | (expr=%d) : looking at %d (%s) (count=%d)\n", stack_count, expr_index, program_index, context[program_index].syntax, program[expr_index].count);
-			}
+		// 	for (int i = program[expr_index].count; i--; ) 
+		// 		cg_stack[stack_count++].index = program[expr_index].args[i];
+		// }
 
-			for (int i = program[expr_index].count; i--; ) 
-				cg_stack[stack_count++].index = program[expr_index].args[i];
-		}
-
-		write(fd, file_tail, strlen(file_tail));
-		close(fd);
+		// write(fd, file_tail, strlen(file_tail));
+		// close(fd);
 	}
 	munmap(input, (size_t) length);
 	free(stack);
@@ -255,3 +253,20 @@ end:
 	free(context);
 	exit(error);
 }
+
+
+
+
+		// 	// if (c < 33) {
+		// 	// 	// add argument.
+		// 	// } else {
+		// 	// 	// 
+		// 	// }
+		// 	// // struct expr d = program[index];
+		// 	// // for (i16 i = 0; i < d.count; i++) {
+		// new.syntax[new.length++] = d.args[i];
+		// // 	// }
+		// // }
+
+
+
