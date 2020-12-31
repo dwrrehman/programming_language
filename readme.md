@@ -1,9 +1,11 @@
 # Untitled Programming Language
 Created By Daniel Warren Riaz Rehman.
 
-This is a compiler for a general-purpose, expression-based, low-level systems programming language.
+This is a compiler for a general-purpose, low-level systems programming language. 
 
-### The language's priorities:
+This compiler is written in C, and has no dependencies.
+
+### Language priorities:
 
  - __Brutal simplicity and minimalism__: The compiler's _total_ source code is limited to 500 lines.
 
@@ -11,27 +13,29 @@ This is a compiler for a general-purpose, expression-based, low-level systems pr
 
  - __Code readability__: The language has _no_ syntax.
 
-### The language's traits:
+### Language traits:
 
- - Uses the Universal Call Syntax Resolution (UCSR) algorithm.
+ - Completely expression-based
 
- - Is strictly imperative, and compiled.
+ - Uses the Universal Call Syntax Resolution ([UCSR](dwrrehman.github.io/ucsr)) algorithm
 
- - Is strongly and statically typed, and only uses _hardware-level_ types.
+ - Strictly imperative and compiled
 
- - Has ability to generate any instruction in the target assembly language.
+ - Strongly and statically typed
 
- - Has strongly-typed hygenic macros, for creating used-defined zero-overhead abstractions.
+ - Uses only the _hardware-level_ types
 
- - Has no dependencies in the standard library.
+ - Strongly-typed hygenic macros for creating used-defined zero-overhead abstractions
 
- - Allows for freestanding targets.
+ - Generates any instruction in the target assembly language
 
- - This compiler is written in C, and has no dependencies.
+ - no dependencies in the standard library
+
+ - freestanding targets allowed
 
 ### Compiler Implementation Limits:
 
-The Following limits allow for a faster compiler implementation. They also encourage the writing of smaller and simpler programs.
+The following limits allow for a faster compiler implementation. These limits also encourage the writing of smaller and simpler programs.
 
  - maximum 1 parsing error message per file.
 
@@ -47,40 +51,41 @@ The Following limits allow for a faster compiler implementation. They also encou
 
 ### Language Intrinsic System:
 
-The Language currently utilizes the following signatures in its intrinsic system. 
+The language currently utilizes the following signatures in its intrinsic system. 
 
-Each signature is given as a string of bytes, where a character which has an ASCII value less than 33 is interpreted as a type. The last byte in the signature is always a type, and denotes the type of the signature. All other types are parameters of that type.
+Each signature is given as a string of bytes, where a character with has an ASCII value less than 33 is interpreted as a type. The last byte in the signature is always a type, and denotes the type of the signature. All other types are parameters to the signature.
 
 **Program Types:**
 
- ```name\x00``` : the signature/name type. (name parameter type)
+ - ```name\x00``` : the signature/name type. (name parameter type)
 
- ```_\x01\x01``` : the unit type. (i0 parameter type)
+ - ```_\x01\x01``` : the unit type. (i0 parameter type)
 
 **Signature Elements:**
 
- ```a\x01\x01``` : character literal 'a'. 
+ - ```a\x01\x01``` : character literal 'a'. 
 
- ```b\x01\x01``` : character literal 'b'. 
+ - ```b\x01\x01``` : character literal 'b'. 
 
- ```c\x01\x01``` :  character literal 'c'. 
+ - ```c\x01\x01``` :  character literal 'c'. 
 
- ```.\x01``` : variable signature delimiter. 
+ - ```.\x01``` : variable signature delimiter. 
 
- ```del\x01\x02``` : change delimiter to another character.
+ - ```del\x01\x02``` : change delimiter to another character.
 
 **Target Assembly Instructions:**
 
- ```nop\x02``` : generates "no operation" assembly instruction. 
+ - ```nop\x02``` : generates "no operation" assembly instruction. 
 
 **Context Intrinsics:**
 
- ```def\x01\x02``` : intrinsic for define a macro signature. 
+ - ```def\x01\x02``` : intrinsic for define a macro signature. 
 
- ```attach\x00\x02``` : intrinsc for attaching definition. gives a definition for a macro symbol only.
+ - ```attach\x00\x02``` : intrinsc for attaching definition. gives a definition for a macro symbol only.
 
 **Other:**
 
- ```error\x00``` : used to denote when the program had a parsing error.
+ - ```error\x00``` : used to denote when the program had a parsing error.
 
- ```join\x02\x02\x02``` : used to allow for muliple statements.
+ - ```join\x02\x02\x02``` : used to allow for muliple statements.
+
