@@ -53,14 +53,22 @@ int main(int argc, const char** argv) {
 	close(file);
 
 	// the compiler requires 13MB of heap memory to run.
+	
 	i8* context = malloc(32768 * 128);               
 	i16* program = malloc(32768 * 128);
 	i16* stack_data = malloc(32768 * 128);
+
 	struct el* stack = malloc(32768 * 8);
 	i16* macros = malloc(32768 * 4);
 	i16* indicies = malloc(32768 * 2);
 
-	i16 top = 0, macro_count = 0, program_count = 0, index_count = 0;
+	memset(context, 0xAA, 32768 * 128);
+	memset(program, 0xAA, 32768 * 128);
+	memset(stack_data, 0xAA, 32768 * 128);
+	memset(stack, 0xAA, 32768 * 8);
+
+	i32 top = 0;
+	i32 macro_count = 0, program_count = 0, index_count = 0;
 
 	enum { 
 		i_error, 
@@ -113,7 +121,7 @@ int main(int argc, const char** argv) {
 	for (int i = 0; spellings[i]; i++) { 
 		memcpy(context + 128 * index_count, spellings[i], (size_t) (spellings[i][0] + 2));
 		index_count++; 
-	} 
+	}
 
 	memcpy(indicies, intrinsics, sizeof(i16) * (size_t) index_count);
 
@@ -124,12 +132,13 @@ int main(int argc, const char** argv) {
 	
 	while (begin < length and input[begin] < 33) begin++;
 	if (begin > best) best = begin;
-	*stack = (struct el) {.begin = begin, .ind = index_count, .type = 2};
+	*stack = (struct el) {.begin = begin, .ind = (i16) index_count, .type = 2};
 try:
 	if (not stack[top].ind) {
-		if (not top) { reason = "unresolved"; goto error; } 
+		if (not top) { reason = "unresolved expression"; goto error; } 
 		else { top--; goto try; }
 	}
+	printf("%d\n", 128 * top + 1);
 	stack[top].ind--;
 	stack_data[128 * top + 1] = 0;
 	done = 0;
@@ -142,10 +151,10 @@ parent:
 	while (done < *name) {
 		i8 c = name[++done];
 		if (c < 33) {
-			if (top == 32767) { reason = "depth limit exceeded (32767)"; goto error; }
+			if (top == 255) { reason = "depth limit exceeded (255)"; goto error; }
 			top++;
 			stack[top].begin = begin;
-			stack[top].ind = index_count;
+			stack[top].ind = (i16) index_count;
 			stack[top].type = c;
 			stack[top].done = done;
 			goto try;
@@ -166,10 +175,10 @@ parent:
 		}
 		if (not *new) { reason = "defining zero-length signature"; goto error; }
 		--*new;
-		i16 place = index_count;
+		i32 place = index_count;
 		while (place and *new < context[128 * indicies[place - 1]]) place--;
 		memmove(indicies + place + 1, indicies + place, sizeof(i16) * (size_t) (index_count - place));
-		indicies[place] = index_count;
+		indicies[place] = (i16) index_count;
 		index_count++;
 		for (i16 s = 0; s <= top; s++) if (place <= stack[s].ind) stack[s].ind++;
 
@@ -183,7 +192,7 @@ parent:
 	if (top) {
 		done = stack[top].done; top--;
 		if (stack_data[128 * top + 1] >= 62) { reason = "argument limit exceeded (62)"; goto error; }
-		stack_data[128 * top + stack_data[128 * top + 1] + 2] = program_count - 1;
+		stack_data[128 * top + stack_data[128 * top + 1] + 2] = (i16) program_count - 1;
 		stack_data[128 * top + 1]++;
 		goto parent;
 	} else if (begin != length) goto try;
@@ -211,7 +220,7 @@ parent:
 	write(fd, file_head, strlen(file_head));
 	
 	i16 stack_count = 0;
-	stack[stack_count++].ind = program_count - 1;
+	stack[stack_count++].ind = (i16) program_count - 1;
 	
 	while (stack_count) {
 		i16 e = stack[--stack_count].ind;
@@ -243,7 +252,7 @@ error:;
 	while (at < best) {
 		if (input[at++] == '\n') { line++; column = 1; } else column++;
 	}
-	fprintf(stderr, "compiler: %s:%u:%u: error: %s\n", argv[1], line, column, reason);
+	fprintf(stderr, "\033[1m%s:%u:%u: \033[1;31merror:\033[m \033[1m%s\033[m\n", argv[1], line, column, reason);
 	if (candidate) {
 		i8* n = context + 128 * candidate;
 		printf("candidate: ");
@@ -254,52 +263,46 @@ error:;
 		}
 		puts("");
 	}
-	i32 width = 2;
-	i32 best_b = line > width ? line - width : 0;
-	i32 best_e = line + width;
-	i32 fat = 0;
-	i32 fline = 1;
-	i32 fcolumn = 1;
-	while (fat < length + 1) {
-		if (fcolumn == 1 and fline >= best_b and fline <= best_e) 
-			printf("\n\033[90m%5d\033[0m\033[32m │ \033[0m", fline);
-		if (input[fat] != '\n' and fline >= best_b and fline <= best_e) {
-			if (fline == line and fcolumn == column) printf("\033[1;31m");
-			if (fat < length) printf("%c", input[fat]);
-			else if (fline == line and fcolumn == column) printf("<EOF>");
-			if (fline == line and fcolumn == column) printf("\033[m");
+
+	for (i32 b = line > 2 ? line - 2 : 0, e = line + 2, i = 0, l = 1, c = 1; i < length + 1; i++) {
+		if (c == 1 and l >= b and l <= e) 
+			printf("\n\033[90m%5d\033[0m\033[32m │ \033[0m", l);
+		if ((i == length or input[i] != '\n') and l >= b and l <= e) {
+			if (l == line and c == column) printf("\033[1;31m");
+			if (i < length) printf("%c", input[i]);
+			else if (l == line and c == column) printf("<EOF>");
+			if (l == line and c == column) printf("\033[m");
 		}
-		if (input[fat++] == '\n') { fline++; fcolumn = 1; } else fcolumn++;
+		if (i < length and input[i] == '\n') { l++; c = 1; } else c++;
 	}
 	printf("\n\n");
-	// printf("DONE printing file:\n");
 
 final:
-	printf("\n--------- program: -------- \n");
-	for (int i = 0; i < program_count; i++) {
-		i16* e = program + 128 * i;
-		printf("%d | index=%d : \"%.*s\", count=%d, [ ", i, *e, context[128 * *e + 0], context + 128 * *e + 1, e[1]);
-		for (int j = 0; j < e[1]; j++) 
-			printf("%d ", e[j + 2]);
-		printf("]\n");
-	}
-	printf("\n--------- context: -------- \n");
-	printf("indicies = (%d){ ", index_count);
-	for (int i = 0; i < index_count; i++) 
-		printf("%d ", indicies[i]);
-	printf("}\n");
-	for (int i = 0; i < index_count; i++) {
-		i8* n = context + 128 * i;	
-		printf("%d | (length=%d) [ ", i, *n);
-		for (int j = 0; j < *n + 2; j++) {
-			i8 c = n[j];
-			if (c < 33) printf(" (%d) ", c);
-			else putchar(c);
-		}
-		printf(" ] \n");
-	}
-	printf("-----------------------------\n\n");
-	print_program(program, program_count - 1, 0, context);
+	// printf("\n--------- program: -------- \n");
+	// for (int i = 0; i < program_count; i++) {
+	// 	i16* e = program + 128 * i;
+	// 	printf("%d | index=%d : \"%.*s\", count=%d, [ ", i, *e, context[128 * *e + 0], context + 128 * *e + 1, e[1]);
+	// 	for (int j = 0; j < e[1]; j++) 
+	// 		printf("%d ", e[j + 2]);
+	// 	printf("]\n");
+	// }
+	// printf("\n--------- context: -------- \n");
+	// printf("indicies = (%d){ ", index_count);
+	// for (int i = 0; i < index_count; i++) 
+	// 	printf("%d ", indicies[i]);
+	// printf("}\n");
+	// for (int i = 0; i < index_count; i++) {
+	// 	i8* n = context + 128 * i;	
+	// 	printf("%d | (length=%d) [ ", i, *n);
+	// 	for (int j = 0; j < *n + 2; j++) {
+	// 		i8 c = n[j];
+	// 		if (c < 33) printf(" (%d) ", c);
+	// 		else putchar(c);
+	// 	}
+	// 	printf(" ] \n");
+	// }
+	// printf("-----------------------------\n\n");
+	// print_program(program, program_count - 1, 0, context);
 	munmap(input, (size_t) length);
 	free(context);
 	free(program);
