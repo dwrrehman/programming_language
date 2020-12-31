@@ -29,6 +29,30 @@ static inline void print_program(i16* program, i16 p, int depth, i8* context) { 
 		print_program(program, program[64 * p + i + 2], depth + 1, context);
 }
 
+// static inline void copy_replace(struct expression def, struct expression call, struct expression* out,
+// 				struct context* context, struct stack_element* stack, nat top) {
+
+// 	if (def.index >= call.index - call.count and 
+// 	    def.index <  call.index) { 
+
+// 		*out = call.args[call.count - (call.index - def.index)];
+
+// 	} else {
+// 		*out = def;
+// 		out->args = calloc((size_t) def.count, sizeof(struct expression));
+
+// 		for (nat i = 0; i < def.count; i++) 
+// 			copy_replace(def.args[i], call, out->args + i, context, stack, top);
+// 	}
+
+// }
+
+// static inline void expand_macro(struct context* context, struct stack_element* stack, nat top) {
+// 	struct expression call = stack[top].data;	
+// 	copy_replace(context->names[call.index].def, call, &stack[top].data, context, stack, top);
+// }
+
+
 int main(int argc, const char** argv) {
 
 	if (argc < 2) return 1;
@@ -56,10 +80,10 @@ int main(int argc, const char** argv) {
 	i16* program = malloc(32768 * 128);
 	i16* stack_data = malloc(32768 * 128);
 	struct el* stack = malloc(32768 * 8);
-	i16* macros = malloc(32768 * 4);
+	i16* macros = malloc(32768 * 2);
 	i16* indicies = malloc(32768 * 2);
 
-	i32 top = 0, macro_count = 0, program_count = 0, index_count = 0;
+	i32 top = 0, program_count = 0, index_count = 0;
 
 	enum { 
 		i_end,
@@ -105,6 +129,7 @@ int main(int argc, const char** argv) {
 
 	for (int i = 0; spellings[i]; i++) { 
 		memcpy(context + 128 * index_count, spellings[i], (size_t) (spellings[i][0] + 2));
+		macros[index_count] = 0;
 		index_count++; 
 	}
 
@@ -147,6 +172,7 @@ parent:
 		do begin++; while (begin < length and input[begin] < 33);
 		if (begin > best) { best = begin; candidate = index; } 
 	}
+
 	if (index == i_del) context[128 * i_end + 1] = context[128 * program[64 * stack_data[64 * top + 2]] + 1];
 	else if (index == i_def) {
 		if (index_count == 32767) { reason = "context limit exceeded (32767)"; goto error; }
@@ -164,11 +190,8 @@ parent:
 		memmove(indicies + place + 1, indicies + place, sizeof(i16) * (size_t) (index_count - place));
 		indicies[place] = (i16) index_count;
 		for (i16 s = 0; s <= top; s++) if (place <= stack[s].ind) stack[s].ind++;
-		if (program[64 * stack_data[64 * top + 3]]) {
-			macros[2 * macro_count] = (i16) index_count;
-			macros[2 * macro_count + 1] = stack_data[64 * top + 3];
-			macro_count++;
-		}
+		if (program[64 * stack_data[64 * top + 3]]) macros[index_count] = stack_data[64 * top + 3];
+		else macros[index_count] = 0;
 		index_count++;
 	}
 
@@ -295,13 +318,13 @@ final:
 			else putchar(c);
 		}
 		printf(" ] \n");
-		for (int j = 0; j < macro_count; j++) {
-			if (macros[2 * j] == i) {
+		// for (int j = 0; j < macro_count; j++) {
+			if (macros[i]) {
 				printf("MACRO DEF: \n");
-				print_program(program, macros[2 * j + 1], 0, context);
+				print_program(program, macros[i], 0, context);
 				printf("END MACRO\n");
 			}
-		}
+		// }
 	}
 	printf("-----------------------------\n\n");
 	if (program_count) print_program(program, (i16) program_count - 1, 0, context);

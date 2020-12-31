@@ -45,6 +45,8 @@ The following limits allow for a faster compiler implementation. These limits al
 
  - maximum expression depth of 32,767 per file.
 
+ - maximum 32,767 macros allowed per context.
+
  - maximum 127 (2^7 - 1) bytes allowed per signature. 
 
  - maximum 62 (2^6 - 2) arguments allowed per expression call.
