@@ -12,13 +12,6 @@ typedef int8_t i8;
 typedef int16_t i16;
 typedef int32_t i32;
 
-enum {
-	_index = 0,
-	_length = 0,
-	_count = 1,
-	_syntax0 = 1,
-};
-
 struct el {
 	i32 begin;
 	i16 ind;
@@ -26,25 +19,15 @@ struct el {
 	i8 done;
 };
 
-// struct cg_el {
-// 	i16 index; 
-// 	i8 _register; 
-//  	i8 __padding; // problem spot
-// };
-
-/// note IN ASSEMBLY:    .label:   is local scope,    label:   is global scope.
-
-
-static inline void print_program(i16* program, i16 p, int depth, i8* context) {
+static inline void print_program(i16* program, i16 p, int depth, i8* context) { // debug
 
 	for (int i = 0; i < depth; i++)  printf(".   ");
 
-	i16 ind = program[128 * p + _index];
-	i16 count = program[128 * p + _count];
+	i16 ind = program[128 * p];
+	i16 count = program[128 * p + 1];
 
 	printf("[%d] : (%d) : %.*s\n\n", ind, count, 
-		context[128 * ind + _length], 
-		context + 128 * ind + _syntax0);
+		context[128 * ind], context + 128 * ind + 1);
 
 	for (i16 i = 0; i < count; i++) 
 		print_program(program, program[128 * p + i + 2], depth + 1, context);
@@ -73,21 +56,13 @@ int main(int argc, const char** argv) {
 	}
 	close(file);
 
-	i8* context = malloc(4194304);
-	i16* program = malloc(4194304);
-	i16* stack_data = malloc(4194304);
-	struct el* stack = malloc(262144);
-	i16* macros = malloc(131072);
-	i16* indicies = malloc(65536);
+	i8* context = malloc(32768 * 128);               // the compiler requires 13,041,664 bytes of memory to run.
+	i16* program = malloc(32768 * 128);
+	i16* stack_data = malloc(32768 * 128);
+	struct el* stack = malloc(32768 * 8);
+	i16* macros = malloc(32768 * 4);
+	i16* indicies = malloc(32768 * 2);
 
-	/*void* memory = malloc(13041664);
-	i8* context = memory;
-	i16* program = memory + 4194304;
-	i16* stack_data = memory + 8388608;
-	struct el* stack = memory + 12582912;
-	i16* macros = memory + 12845056; 
-	i16* indicies = memory + 12976128;*/
-	
 	i16 top = 0, macro_count = 0, program_count = 0, index_count = 0;
 
 	enum { i_error, i_name, i_i0, i_a,  i_b,  i_c, i_end, i_join, i_nop, i_del, i_def,i_attach, i_count};
@@ -140,15 +115,15 @@ parent:
 		if (index_count == 32767) { reason = "context limit exceeded (32767)"; goto error; }
 		i8* new = context + 128 * index_count;
 		*new = 0;
-		for (i16 p = stack_data[128 * top + 2]; program[128 * p + _count]; p = program[128 * p + 2]) {
+		for (i16 p = stack_data[128 * top + 2]; program[128 * p + 1]; p = program[128 * p + 2]) {
 			if (*new >= 127) { reason = "signature limit exceeded (127)"; goto error; }
-			i16 i = program[128 * p + _index];
+			i16 i = program[128 * p];
 			new[++*new] = (i == i_i0) ? (i8) i : context[128 * i + 1];
 		}
 		if (not *new) { reason = "defining zero-length signature"; goto error; }
 		--*new;
 		i16 place = index_count;
-		while (place and *new < context[128 * indicies[place - 1] + _length]) place--;
+		while (place and *new < context[128 * indicies[place - 1]]) place--;
 		memmove(indicies + place + 1, indicies + place, sizeof(i16) * (size_t) (index_count - place));
 		indicies[place] = index_count;
 		index_count++;
@@ -184,7 +159,7 @@ error:;
 	if (candidate) {
 		i8* n = context + 128 * candidate;
 		printf("suggestion: ");
-		for (i8 s = 0; s < n[_length] + 1; s++) {
+		for (i8 s = 0; s < *n + 1; s++) {
 			i8 c = n[s];
 			if (c < 33) printf(" (%d) ", c);
 			else putchar(c);
@@ -195,59 +170,60 @@ error:;
 success:
 	printf("\n\tcompile successful.\n\n");
 	
-	// const char* file_head = 
-	// "	.section	__TEXT,__text,regular,pure_instructions\n"
-	// "	.build_version macos, 11, 0	sdk_version 11, 1\n"
-	// "	.globl	_main\n"
-	// "	.p2align	4, 0x90\n"
-	// "_main:\n";
+	const char* file_head = 
+	"	.section	__TEXT,__text,regular,pure_instructions\n"
+	"	.build_version macos, 11, 0	sdk_version 11, 1\n"
+	"	.globl	_main\n"
+	"	.p2align	4, 0x90\n"
+	"_main:\n";
 
-	// const char* file_tail = 
-	// "	mov $5, %rax\n"
-	// "	retq\n"
-	// "\n";
+	const char* file_tail = 
+	"	mov $5, %rax\n"
+	"	retq\n"
+	"\n";
 
-	// int fd = open("out.s", O_WRONLY | O_CREAT | O_TRUNC);
-	// if (fd < 0) {
-	// 	printf("compile: error: %s: ", "filename");
-	// 	perror("open");
-	// 	exit(1);
-	// }
+	int fd = open("out.s", O_WRONLY | O_CREAT | O_TRUNC);
+	if (fd < 0) {
+		printf("compile: error: %s: ", "filename");
+		perror("open");
+		exit(1);
+	}
 
-	// write(fd, file_head, strlen(file_head));
+	write(fd, file_head, strlen(file_head));
 	
-	// struct cg_el* cg_stack = malloc(65536 * sizeof(struct cg_el));
-	// i16 stack_count = 0;
-	// cg_stack[stack_count++].index = program_count - 1;
+	i16 stack_count = 0;
+	stack[stack_count++].ind = program_count - 1;
 	
-	// while (stack_count) {
-	// 	i16 expr_index = cg_stack[--stack_count].index;
-	// 	i16 program_index = program[expr_index].index;
+	while (stack_count) {
+		i16 e = stack[--stack_count].ind;
+		index = program[128 * e];
 
-	// 	if (program_index == _nop) {
-	// 		printf("found a nop instruction...\n");
-	// 		const char* string = "	nop\n";
-	// 		write(fd, string, strlen(string));
+		if (index == i_nop) {
+			printf("found a nop instruction...\n");
+			const char* string = "	nop\n";
+			write(fd, string, strlen(string));
 
-	// 	} else { 
-	// 		printf("found an unknown instruction...\n");
-	// 		printf("stack_count=%d | (expr=%d) : looking at %d (%s) (count=%d)\n", 
-	// 		stack_count, expr_index, program_index, 
-	// 		context[program_index].syntax, program[expr_index].count);
-	// 	}
+		} else { 
+			printf("found an unknown instruction...\n");
+			printf("stack_count=%d | (expr=%d) : looking at %d (%.*s) (count=%d)\n", 
+			stack_count, e, index, 
+			context[128 * index],
+			context + 128 * index + 1, 
+			program[128 * e + 1]);
+		}
 
-	// 	for (i16 i = program[expr_index][_count] - 1; i >= 0; i--) 
-	// 		cg_stack[stack_count++].index = program[expr_index].args[i];
-	// }
+		for (i16 i = program[128 * e + 1]; i--;) 
+			stack[stack_count++].ind = program[128 * e + 2 + i];
+	}
 
-	// write(fd, file_tail, strlen(file_tail));
-	// close(fd);
+	write(fd, file_tail, strlen(file_tail));
+	close(fd);
 final:
 	printf("\n--------- program: -------- \n");
 	for (int i = 0; i < program_count; i++) {
 		i16* e = program + 128 * i;
-		printf("%d | index=%d : \"%.*s\", count=%d, [ ", i, e[_index], context[128 * e[_index] + _length], context + 128 * e[_index] + _syntax0, e[_count]);
-		for (int j = 0; j < e[_count]; j++) 
+		printf("%d | index=%d : \"%.*s\", count=%d, [ ", i, *e, context[128 * *e + 0], context + 128 * *e + 1, e[1]);
+		for (int j = 0; j < e[1]; j++) 
 			printf("%d ", e[j + 2]);
 		printf("]\n");
 	}
@@ -258,8 +234,8 @@ final:
 	printf("}\n");
 	for (int i = 0; i < index_count; i++) {
 		i8* n = context + 128 * i;	
-		printf("%d | (length=%d) [ ", i, n[_length]);
-		for (int j = 0; j < n[_length] + 2; j++) {
+		printf("%d | (length=%d) [ ", i, *n);
+		for (int j = 0; j < *n + 2; j++) {
 			i8 c = n[j];
 			if (c < 33) printf(" (%d) ", c);
 			else putchar(c);
