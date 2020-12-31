@@ -20,15 +20,11 @@ struct el {
 };
 
 static inline void print_program(i16* program, i16 p, int depth, i8* context) { // debug
-
 	for (int i = 0; i < depth; i++)  printf(".   ");
-
 	i16 ind = program[128 * p];
 	i16 count = program[128 * p + 1];
-
 	printf("[%d] : (%d) : %.*s\n\n", ind, count, 
 		context[128 * ind], context + 128 * ind + 1);
-
 	for (i16 i = 0; i < count; i++) 
 		print_program(program, program[128 * p + i + 2], depth + 1, context);
 }
@@ -56,7 +52,8 @@ int main(int argc, const char** argv) {
 	}
 	close(file);
 
-	i8* context = malloc(32768 * 128);               // the compiler requires 13,041,664 bytes of memory to run.
+	// the compiler requires 13MB of heap memory to run.
+	i8* context = malloc(32768 * 128);               
 	i16* program = malloc(32768 * 128);
 	i16* stack_data = malloc(32768 * 128);
 	struct el* stack = malloc(32768 * 8);
@@ -65,13 +62,60 @@ int main(int argc, const char** argv) {
 
 	i16 top = 0, macro_count = 0, program_count = 0, index_count = 0;
 
-	enum { i_error, i_name, i_i0, i_a,  i_b,  i_c, i_end, i_join, i_nop, i_del, i_def,i_attach, i_count};
-	const char* spellings[] = {"\5error\0", "\4name\1\1", "\2_\1\1", "\2a\1\1", "\2b\1\1", "\2c\1\1", "\1.\1", "\6join\2\2\2", "\3nop\2", "\4del\1\2", "\4def\1\2", "\7attach\0\2", NULL};
-	i16 intrinsics[] = {i_error, i_end, i_a, i_b, i_c, i_i0, i_del, i_def, i_nop, i_join, i_name, i_attach};
+	enum { 
+		i_error, 
+		i_name, 
+		i_i0, 
+		i_a,  
+		i_b,  
+		i_c, 
+		i_d,
+		i_end, 
+		i_join, 
+		i_nop, 
+		i_del, 
+		i_def,
+		i_attach, 
+	};
+
+	const char* spellings[] = {
+		"\5error\0", 
+		"\4name\1\1", 
+		"\2_\1\1",
+		"\2a\1\1", 
+		"\2b\1\1", 
+		"\2c\1\1", 
+		"\2d\1\1",
+		"\1.\1", 
+		"\6join\2\2\2", 
+		"\3nop\2", 
+		"\4del\1\2", 
+		"\4def\1\2", 
+		"\7attach\0\2", 
+	NULL};
+
+	i16 intrinsics[] = {
+		i_error, 
+		i_end, 
+		i_a, 
+		i_b, 
+		i_c, 
+		i_d,
+		i_i0, 
+		i_del, 
+		i_def, 
+		i_nop,
+		i_join, 
+		i_name, 
+		i_attach,
+	};
+
 	for (int i = 0; spellings[i]; i++) { 
 		memcpy(context + 128 * index_count, spellings[i], (size_t) (spellings[i][0] + 2));
 		index_count++; 
-	} memcpy(indicies, intrinsics, sizeof(i16) * (size_t) index_count);
+	} 
+
+	memcpy(indicies, intrinsics, sizeof(i16) * (size_t) index_count);
 
 	const char* reason = NULL;
 	i32 begin = 0, best = 0;
@@ -80,10 +124,10 @@ int main(int argc, const char** argv) {
 	
 	while (begin < length and input[begin] < 33) begin++;
 	if (begin > best) best = begin;
-	*stack = (struct el) {.begin = begin, .ind = index_count, .type = 2 };
+	*stack = (struct el) {.begin = begin, .ind = index_count, .type = 2};
 try:
 	if (not stack[top].ind) {
-		if (not top) { reason = "unresolved"; goto error; }
+		if (not top) { reason = "unresolved"; goto error; } 
 		else { top--; goto try; }
 	}
 	stack[top].ind--;
@@ -94,8 +138,8 @@ parent:
 	index = indicies[stack[top].ind];
 	stack_data[128 * top] = index;
 	i8* name = context + 128 * index;
-	if (stack[top].type and stack[top].type != name[name[0] + 1]) goto try;
-	while (done < name[0]) {
+	if (stack[top].type and stack[top].type != name[*name + 1]) goto try;
+	while (done < *name) {
 		i8 c = name[++done];
 		if (c < 33) {
 			if (top == 32767) { reason = "depth limit exceeded (32767)"; goto error; }
@@ -116,9 +160,9 @@ parent:
 		i8* new = context + 128 * index_count;
 		*new = 0;
 		for (i16 p = stack_data[128 * top + 2]; program[128 * p + 1]; p = program[128 * p + 2]) {
-			if (*new >= 127) { reason = "signature limit exceeded (127)"; goto error; }
+			if (*new == 127) { reason = "signature limit exceeded (127)"; goto error; }
 			i16 i = program[128 * p];
-			new[++*new] = (i == i_i0) ? (i8) i : context[128 * i + 1];
+			new[++*new] = (i < i_a) ? (i8) i : context[128 * i + 1];
 		}
 		if (not *new) { reason = "defining zero-length signature"; goto error; }
 		--*new;
@@ -132,44 +176,19 @@ parent:
 	} else if (index == i_attach) {
 		reason = "unimplemented"; goto error;
 	}
-
 	if (program_count == 32767) { reason = "expression limit exceeded (32767)"; goto error; }
 	memcpy(program + 128 * program_count, stack_data + 128 * top,
 		(size_t) (2 * (stack_data[128 * top + 1] + 2)));
 	program_count++;
-	
 	if (top) {
 		done = stack[top].done; top--;
 		if (stack_data[128 * top + 1] >= 62) { reason = "argument limit exceeded (62)"; goto error; }
 		stack_data[128 * top + stack_data[128 * top + 1] + 2] = program_count - 1;
 		stack_data[128 * top + 1]++;
 		goto parent;
-	}
-	if (begin == length) goto success; goto try;
-error:;
-	i32 at = 0, line = 1, column = 1;
-	while (at < best) {
-		if (input[at++] == '\n') { line++; column = 1; } else column++;
-	}
-
-	fprintf(stderr, "compiler: %s:%u:%u:%c error: %s\n",
-		argv[1], line, column, 
-		best < length ? input[best] : ' ', reason);
-	
-	if (candidate) {
-		i8* n = context + 128 * candidate;
-		printf("suggestion: ");
-		for (i8 s = 0; s < *n + 1; s++) {
-			i8 c = n[s];
-			if (c < 33) printf(" (%d) ", c);
-			else putchar(c);
-		}
-		puts("");
-	}
-	goto final;
-success:
+	} else if (begin != length) goto try;
 	printf("\n\tcompile successful.\n\n");
-	
+
 	const char* file_head = 
 	"	.section	__TEXT,__text,regular,pure_instructions\n"
 	"	.build_version macos, 11, 0	sdk_version 11, 1\n"
@@ -218,6 +237,43 @@ success:
 
 	write(fd, file_tail, strlen(file_tail));
 	close(fd);
+	goto final;
+error:;
+	i32 at = 0, line = 1, column = 1;
+	while (at < best) {
+		if (input[at++] == '\n') { line++; column = 1; } else column++;
+	}
+	fprintf(stderr, "compiler: %s:%u:%u: error: %s\n", argv[1], line, column, reason);
+	if (candidate) {
+		i8* n = context + 128 * candidate;
+		printf("candidate: ");
+		for (i8 s = 0; s < *n + 1; s++) {
+			i8 c = n[s];
+			if (c < 33) printf(" (%d) ", c);
+			else putchar(c);
+		}
+		puts("");
+	}
+	i32 width = 2;
+	i32 best_b = line > width ? line - width : 0;
+	i32 best_e = line + width;
+	i32 fat = 0;
+	i32 fline = 1;
+	i32 fcolumn = 1;
+	while (fat < length + 1) {
+		if (fcolumn == 1 and fline >= best_b and fline <= best_e) 
+			printf("\n\033[90m%5d\033[0m\033[32m │ \033[0m", fline);
+		if (input[fat] != '\n' and fline >= best_b and fline <= best_e) {
+			if (fline == line and fcolumn == column) printf("\033[1;31m");
+			if (fat < length) printf("%c", input[fat]);
+			else if (fline == line and fcolumn == column) printf("<EOF>");
+			if (fline == line and fcolumn == column) printf("\033[m");
+		}
+		if (input[fat++] == '\n') { fline++; fcolumn = 1; } else fcolumn++;
+	}
+	printf("\n\n");
+	// printf("DONE printing file:\n");
+
 final:
 	printf("\n--------- program: -------- \n");
 	for (int i = 0; i < program_count; i++) {
@@ -244,11 +300,11 @@ final:
 	}
 	printf("-----------------------------\n\n");
 	print_program(program, program_count - 1, 0, context);
-
 	munmap(input, (size_t) length);
-	free(stack);
-	free(program);
 	free(context);
-	free(indicies);
+	free(program);
+	free(stack_data);
+	free(stack);	
 	free(macros);
+	free(indicies);
 }
