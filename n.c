@@ -51,21 +51,13 @@ int main(int argc, const char** argv) {
 		exit(4);
 	}
 	close(file);
-
-	// the compiler requires 13MB of heap memory to run.
 	
 	i8* context = malloc(32768 * 128);               
 	i16* program = malloc(32768 * 128);
 	i16* stack_data = malloc(32768 * 128);
-
 	struct el* stack = malloc(32768 * 8);
 	i16* macros = malloc(32768 * 4);
 	i16* indicies = malloc(32768 * 2);
-
-	memset(context, 0xAA, 32768 * 128);
-	memset(program, 0xAA, 32768 * 128);
-	memset(stack_data, 0xAA, 32768 * 128);
-	memset(stack, 0xAA, 32768 * 8);
 
 	i32 top = 0;
 	i32 macro_count = 0, program_count = 0, index_count = 0;
@@ -277,31 +269,31 @@ error:;
 	printf("\n\n");
 
 final:
-	// printf("\n--------- program: -------- \n");
-	// for (int i = 0; i < program_count; i++) {
-	// 	i16* e = program + 128 * i;
-	// 	printf("%d | index=%d : \"%.*s\", count=%d, [ ", i, *e, context[128 * *e + 0], context + 128 * *e + 1, e[1]);
-	// 	for (int j = 0; j < e[1]; j++) 
-	// 		printf("%d ", e[j + 2]);
-	// 	printf("]\n");
-	// }
-	// printf("\n--------- context: -------- \n");
-	// printf("indicies = (%d){ ", index_count);
-	// for (int i = 0; i < index_count; i++) 
-	// 	printf("%d ", indicies[i]);
-	// printf("}\n");
-	// for (int i = 0; i < index_count; i++) {
-	// 	i8* n = context + 128 * i;	
-	// 	printf("%d | (length=%d) [ ", i, *n);
-	// 	for (int j = 0; j < *n + 2; j++) {
-	// 		i8 c = n[j];
-	// 		if (c < 33) printf(" (%d) ", c);
-	// 		else putchar(c);
-	// 	}
-	// 	printf(" ] \n");
-	// }
-	// printf("-----------------------------\n\n");
-	// print_program(program, program_count - 1, 0, context);
+	printf("\n--------- program: -------- \n");
+	for (int i = 0; i < program_count; i++) {
+		i16* e = program + 128 * i;
+		printf("%d | index=%d : \"%.*s\", count=%d, [ ", i, *e, context[128 * *e + 0], context + 128 * *e + 1, e[1]);
+		for (int j = 0; j < e[1]; j++) 
+			printf("%d ", e[j + 2]);
+		printf("]\n");
+	}
+	printf("\n--------- context: -------- \n");
+	printf("indicies = (%d){ ", index_count);
+	for (int i = 0; i < index_count; i++) 
+		printf("%d ", indicies[i]);
+	printf("}\n");
+	for (int i = 0; i < index_count; i++) {
+		i8* n = context + 128 * i;	
+		printf("%d | (length=%d) [ ", i, *n);
+		for (int j = 0; j < *n + 2; j++) {
+			i8 c = n[j];
+			if (c < 33) printf(" (%d) ", c);
+			else putchar(c);
+		}
+		printf(" ] \n");
+	}
+	printf("-----------------------------\n\n");
+	if (program_count) print_program(program, (i16) program_count - 1, 0, context);
 	munmap(input, (size_t) length);
 	free(context);
 	free(program);
