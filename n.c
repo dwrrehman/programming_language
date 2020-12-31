@@ -21,12 +21,12 @@ struct el {
 
 static inline void print_program(i16* program, i16 p, int depth, i8* context) { // debug
 	for (int i = 0; i < depth; i++)  printf(".   ");
-	i16 ind = program[128 * p];
-	i16 count = program[128 * p + 1];
+	i16 ind = program[64 * p];
+	i16 count = program[64 * p + 1];
 	printf("[%d] : (%d) : %.*s\n\n", ind, count, 
 		context[128 * ind], context + 128 * ind + 1);
 	for (i16 i = 0; i < count; i++) 
-		print_program(program, program[128 * p + i + 2], depth + 1, context);
+		print_program(program, program[64 * p + i + 2], depth + 1, context);
 }
 
 int main(int argc, const char** argv) {
@@ -59,55 +59,48 @@ int main(int argc, const char** argv) {
 	i16* macros = malloc(32768 * 4);
 	i16* indicies = malloc(32768 * 2);
 
-	i32 top = 0;
-	i32 macro_count = 0, program_count = 0, index_count = 0;
+	i32 top = 0, macro_count = 0, program_count = 0, index_count = 0;
 
 	enum { 
-		i_error, 
+		i_end,
 		i_name, 
 		i_i0, 
 		i_a,  
 		i_b,  
 		i_c, 
 		i_d,
-		i_end, 
-		i_join, 
 		i_nop, 
 		i_del, 
 		i_def,
-		i_attach, 
+		i_join, 
 	};
 
 	const char* spellings[] = {
-		"\5error\0", 
+		"\1.\1", 
 		"\4name\1\1", 
 		"\2_\1\1",
 		"\2a\1\1", 
 		"\2b\1\1", 
 		"\2c\1\1", 
 		"\2d\1\1",
-		"\1.\1", 
-		"\6join\2\2\2", 
 		"\3nop\2", 
-		"\4del\1\2", 
-		"\4def\1\2", 
-		"\7attach\0\2", 
+		"\4del\1\2",
+		"\5def\1\0\2",
+		"\6join\2\2\2", 
 	NULL};
 
 	i16 intrinsics[] = {
-		i_error, 
-		i_end, 
+		i_end,
 		i_a, 
 		i_b, 
 		i_c, 
 		i_d,
-		i_i0, 
+		i_i0,
+		i_nop,
+		i_name,
 		i_del, 
 		i_def, 
-		i_nop,
-		i_join, 
-		i_name, 
-		i_attach,
+		i_join,
 	};
 
 	for (int i = 0; spellings[i]; i++) { 
@@ -131,18 +124,18 @@ try:
 		else { top--; goto try; }
 	}
 	stack[top].ind--;
-	stack_data[128 * top + 1] = 0;
+	stack_data[64 * top + 1] = 0;
 	done = 0;
 	begin = stack[top].begin;
 parent:
 	index = indicies[stack[top].ind];
-	stack_data[128 * top] = index;
+	stack_data[64 * top] = index;
 	i8* name = context + 128 * index;
 	if (stack[top].type and stack[top].type != name[*name + 1]) goto try;
 	while (done < *name) {
 		i8 c = name[++done];
 		if (c < 33) {
-			if (top == 255) { reason = "depth limit exceeded (255)"; goto error; }
+			if (top == 32767) { reason = "depth limit exceeded (32767)"; goto error; }
 			top++;
 			stack[top].begin = begin;
 			stack[top].ind = (i16) index_count;
@@ -154,14 +147,14 @@ parent:
 		do begin++; while (begin < length and input[begin] < 33);
 		if (begin > best) { best = begin; candidate = index; } 
 	}
-	if (index == i_del) context[128 * i_end + 1] = context[128 * program[128 * stack_data[128 * top + 2]] + 1];
+	if (index == i_del) context[128 * i_end + 1] = context[128 * program[64 * stack_data[64 * top + 2]] + 1];
 	else if (index == i_def) {
 		if (index_count == 32767) { reason = "context limit exceeded (32767)"; goto error; }
 		i8* new = context + 128 * index_count;
 		*new = 0;
-		for (i16 p = stack_data[128 * top + 2]; program[128 * p + 1]; p = program[128 * p + 2]) {
+		for (i16 p = stack_data[64 * top + 2]; program[64 * p + 1]; p = program[64 * p + 2]) {
 			if (*new == 127) { reason = "signature limit exceeded (127)"; goto error; }
-			i16 i = program[128 * p];
+			i16 i = program[64 * p];
 			new[++*new] = (i < i_a) ? (i8) i : context[128 * i + 1];
 		}
 		if (not *new) { reason = "defining zero-length signature"; goto error; }
@@ -170,23 +163,30 @@ parent:
 		while (place and *new < context[128 * indicies[place - 1]]) place--;
 		memmove(indicies + place + 1, indicies + place, sizeof(i16) * (size_t) (index_count - place));
 		indicies[place] = (i16) index_count;
-		index_count++;
 		for (i16 s = 0; s <= top; s++) if (place <= stack[s].ind) stack[s].ind++;
-
-	} else if (index == i_attach) {
-		reason = "unimplemented"; goto error;
+		if (program[64 * stack_data[64 * top + 3]]) {
+			macros[2 * macro_count] = (i16) index_count;
+			macros[2 * macro_count + 1] = stack_data[64 * top + 3];
+			macro_count++;
+		}
+		index_count++;
 	}
+
 	if (program_count == 32767) { reason = "expression limit exceeded (32767)"; goto error; }
-	memcpy(program + 128 * program_count, stack_data + 128 * top,
-		(size_t) (2 * (stack_data[128 * top + 1] + 2)));
+	memcpy(program + 64 * program_count, stack_data + 64 * top,
+		(size_t) (2 * (stack_data[64 * top + 1] + 2)));
 	program_count++;
+
 	if (top) {
 		done = stack[top].done; top--;
-		if (stack_data[128 * top + 1] >= 62) { reason = "argument limit exceeded (62)"; goto error; }
-		stack_data[128 * top + stack_data[128 * top + 1] + 2] = (i16) program_count - 1;
-		stack_data[128 * top + 1]++;
+		if (stack_data[64 * top + 1] >= 62) { reason = "argument limit exceeded (62)"; goto error; }
+		stack_data[64 * top + stack_data[64 * top + 1] + 2] = (i16) program_count - 1;
+		stack_data[64 * top + 1]++;
 		goto parent;
-	} else if (begin != length) goto try;
+	} 
+
+	if (begin != length) goto try;
+
 	printf("\n\tcompile successful.\n\n");
 
 	const char* file_head = 
@@ -215,7 +215,7 @@ parent:
 	
 	while (stack_count) {
 		i16 e = stack[--stack_count].ind;
-		index = program[128 * e];
+		index = program[64 * e];
 
 		if (index == i_nop) {
 			printf("found a nop instruction...\n");
@@ -228,22 +228,26 @@ parent:
 			stack_count, e, index, 
 			context[128 * index],
 			context + 128 * index + 1, 
-			program[128 * e + 1]);
+			program[64 * e + 1]);
 		}
 
-		for (i16 i = program[128 * e + 1]; i--;) 
-			stack[stack_count++].ind = program[128 * e + 2 + i];
+		for (i16 i = program[64 * e + 1]; i--;) 
+			stack[stack_count++].ind = program[64 * e + 2 + i];
 	}
 
 	write(fd, file_tail, strlen(file_tail));
 	close(fd);
+
 	goto final;
 error:;
+
 	i32 at = 0, line = 1, column = 1;
 	while (at < best) {
 		if (input[at++] == '\n') { line++; column = 1; } else column++;
 	}
+
 	fprintf(stderr, "\033[1m%s:%u:%u: \033[1;31merror:\033[m \033[1m%s\033[m\n", argv[1], line, column, reason);
+
 	if (candidate) {
 		i8* n = context + 128 * candidate;
 		printf("candidate: ");
@@ -271,7 +275,7 @@ error:;
 final:
 	printf("\n--------- program: -------- \n");
 	for (int i = 0; i < program_count; i++) {
-		i16* e = program + 128 * i;
+		i16* e = program + 64 * i;
 		printf("%d | index=%d : \"%.*s\", count=%d, [ ", i, *e, context[128 * *e + 0], context + 128 * *e + 1, e[1]);
 		for (int j = 0; j < e[1]; j++) 
 			printf("%d ", e[j + 2]);
@@ -291,6 +295,13 @@ final:
 			else putchar(c);
 		}
 		printf(" ] \n");
+		for (int j = 0; j < macro_count; j++) {
+			if (macros[2 * j] == i) {
+				printf("MACRO DEF: \n");
+				print_program(program, macros[2 * j + 1], 0, context);
+				printf("END MACRO\n");
+			}
+		}
 	}
 	printf("-----------------------------\n\n");
 	if (program_count) print_program(program, (i16) program_count - 1, 0, context);

@@ -1,3 +1,2 @@
-join 
-	nop
-	nop
+join def b__. join nop nop
+b nop

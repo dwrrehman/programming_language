@@ -43,7 +43,7 @@ The following limits allow for a faster compiler implementation. These limits al
 
  - maximum 32,767 expression calls per file.
 
- - maximum expression depth of 255 (2^8 - 1) per file.
+ - maximum expression depth of 32,767 per file.
 
  - maximum 127 (2^7 - 1) bytes allowed per signature. 
 
