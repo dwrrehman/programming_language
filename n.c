@@ -149,25 +149,25 @@ parent:
 		if (begin > best) { best = begin; candidate = index; } 
 	}
 
-	// if (index == i_del) context[64 * i_end + _syntax0] = context[64 * program[64 * stack[top].data[_args0] + _index] + _syntax0];
-	// else if (index == i_def) {
-	// 	if (index_count == limit) { reason = "context limit exceeded (32767)"; goto error; }
-	// 	i8* new = context + 64 * index_count;
-	// 	new[_length] = 0;
-	// 	for (i16 p = stack[top].data[_args0]; program[64 * p + _count]; p = program[64 * p + _args0]) {
-	// 		if (new[_length] >= 63) { reason = "signature limit exceeded (63)"; goto error; }
-	// 		i16 i = program[64 * p + _index];
-	// 		new[++(new[_length])] = (i == i_i0) ? (i8) i : context[64 * i + _syntax0];
-	// 	}
-	// 	if (not new[_length]) { reason = "defining zero-length signature"; goto error; }
-	// 	new[_length]--;
-	// 	i16 place = index_count;
-	// 	while (place and new[_length] < context[64 * indicies[place - 1] + _length]) place--;
-	// 	memmove(indicies + place + 1, indicies + place, sizeof(i16) * (size_t) (index_count - place));
-	// 	indicies[place] = index_count++;
-	// 	for (i16 s = 0; s <= top; s++) if (place <= stack[s].ind) stack[s].ind++;
+	if (index == i_del) context[64 * i_end + _syntax0] = context[64 * program[64 * stack[top].data[_args0] + _index] + _syntax0];
+	else if (index == i_def) {
+		if (index_count == limit) { reason = "context limit exceeded (32767)"; goto error; }
+		i8* new = context + 64 * index_count;
+		new[_length] = 0;
+		for (i16 p = stack[top].data[_args0]; program[64 * p + _count]; p = program[64 * p + _args0]) {
+			if (new[_length] >= 63) { reason = "signature limit exceeded (63)"; goto error; }
+			i16 i = program[64 * p + _index];
+			new[++(new[_length])] = (i == i_i0) ? (i8) i : context[64 * i + _syntax0];
+		}
+		if (not new[_length]) { reason = "defining zero-length signature"; goto error; }
+		new[_length]--;
+		i16 place = index_count;
+		while (place and new[_length] < context[64 * indicies[place - 1] + _length]) place--;
+		memmove(indicies + place + 1, indicies + place, sizeof(i16) * (size_t) (index_count - place));
+		indicies[place] = index_count++;
+		for (i16 s = 0; s <= top; s++) if (place <= stack[s].ind) stack[s].ind++;
 
-	// } else if (index == i_attach) {}
+	} else if (index == i_attach) {}
 	
 	if (top) {
 		done = stack[top--].done;
@@ -262,7 +262,7 @@ final:
 		printf("%d | index=%d : \"%.*s\", count=%d, [ ", i, e[_index], context[64 * e[_index] + _length], context + 64 * e[_index] + _syntax0, e[_count]);
 		for (int j = 0; j < e[_count]; j++) 
 			printf("%d ", e[j + _args0]);
-		printf(" ]\n");
+		printf("]\n");
 	}
 	printf("\n--------- context: -------- \n");
 	printf("indicies = (%d){ ", index_count);

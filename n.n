@@ -1,1 +1,4 @@
-join nop nop 
+join del c.
+join def bb__c
+join bb nop
+nop
