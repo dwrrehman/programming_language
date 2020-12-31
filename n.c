@@ -12,15 +12,12 @@ typedef int8_t i8;
 typedef int16_t i16;
 typedef int32_t i32;
 
-struct expr {
-	i16 args[30];
-	i16 index;
-	i16 count;
-};
-
-struct name {
-	i8 syntax[63];
-	i8 length;
+enum {
+	_index = 0,
+	_count = 1,
+	_args0 = 2,
+	_length = 0,
+	_syntax0 = 1,
 };
 
 struct macro_def {
@@ -29,7 +26,7 @@ struct macro_def {
 };
 
 struct el {
-	struct expr data;
+	i16 data[32]; // todo: figure out how to get rid of me!! use program's memory directly.
 	i32 begin;
 	i16 ind;
 	i8 type;
@@ -42,18 +39,27 @@ struct cg_el {
  	i8 __padding; // problem spot
 };
 
-static inline void print_name(i8* syntax) {
-	for (i8 i = 0; syntax[i] >= 33; i++) {
-		putchar(syntax[i]); //// revise this!!  note:    .label:   is local scope,    label:   is global scope.
-	}
-}
+/// note IN ASSEMBLY:    .label:   is local scope,    label:   is global scope.
 
-static inline void print_program(struct expr* program, i16 root, int depth, struct name* context) {
-	for (int i = 0; i < depth; i++) printf(".   ");
-	printf("[%d] : (%d) : %s\n\n", program[root].index, program[root].count, context[program[root].index].syntax);
-	for (i16 i = 0; i < program[root].count; i++) {
-		print_program(program, program[root].args[i], depth + 1, context);
-	}
+// static inline void print_name(i8* s) {
+// 	for (i8 i = 0; s[i] >= 33; i++) {
+// 		putchar(s[i]);  //// revise this!! only allow for alphemueric chars.
+// 	}
+// }
+
+static inline void print_program(i16* program, i16 p, int depth, i8* context) {
+
+	for (int i = 0; i < depth; i++)  printf(".   ");
+
+	i16 ind = program[64 * p + _index];
+	i16 count = program[64 * p + _count];
+
+	printf("[%d] : (%d) : %.*s\n\n", ind, count, 
+		context[64 * ind + _length], 
+		context + 64 * ind + _syntax0);
+
+	for (i16 i = 0; i < count; i++) 
+		print_program(program, program[64 * p + i + _args0], depth + 1, context);
 }
 
 int main(int argc, const char** argv) {
@@ -79,49 +85,34 @@ int main(int argc, const char** argv) {
 	}
 	close(file);
 
+	const i16 limit = 32767;
 	struct el* stack = malloc(32768 * sizeof(struct el));
-	struct expr* program = malloc(32768 * sizeof(struct expr)); 
-	struct name* context = malloc(32768 * sizeof(struct name));
-	struct macro_def* macros = malloc(32768 * sizeof(struct macro_def));
-	i16* indicies = malloc(32768 * sizeof(i16)); 
+	i16* macros = malloc(131072);
+	i8* context = malloc(2097152);
+	i16* program = malloc(2097152);
+	i16* indicies = malloc(65536);
+
+	memset(program, 0xAA, 2097152);
+	memset(context, 0xAA, 2097152);
 	
+	i16 top = 0, macro_count = 0, program_count = 0, index_count = 0;
+
+	enum { i_error, i_name, i_i0, i_a,  i_b,  i_c, i_end, i_join, i_nop, i_del, i_def,i_attach, i_count};
+	const char* spellings[] = {"\5error\0", "\4name\0", "\2_\1\1", "\2a\1\1", "\2b\1\1", "\2c\1\1", "\1.\1", "\6join\2\2\2", "\3nop\2", "\4del\1\2", "\4def\1\2", "\7attach\0\2", NULL};
+	i16 intrinsics[] = {i_error, i_a, i_b, i_c, i_i0, i_end, i_del, i_def, i_nop, i_join, i_name, i_attach};
+	for (int i = 0; spellings[i]; i++) { memcpy(context + 64 * index_count, spellings[i], (size_t) (spellings[i][0] + 2)); index_count++; }
+	memcpy(indicies, intrinsics, sizeof(i16) * (size_t) index_count);
+
 	const char* reason = NULL;
 	i32 begin = 0, best = 0;
-	i16 top = 0, program_count = 0, context_count = 0, index_count = 0, index = 0, candidate = 0;
+	i16 index = 0, candidate = 0;
 	i8 done = 0;
-	
-	enum { _error, _name, _i0, _a,  _b,  _c, _end, _join,  _nop,  _del,  _def, _attach, };
-
-	context[context_count++] = (struct name) {"error\x00", 5}; 	// error signature. (denotes error)
-	context[context_count++] = (struct name) {"name\x00", 4}; 	// the name type parameter designator. for sigs.
-	context[context_count++] = (struct name) {"_\x01\x01", 2}; 	// i0 parameter designator.  
-	context[context_count++] = (struct name) {"a\x01\x01", 2}; 	// character literal 'a'. 
-	context[context_count++] = (struct name) {"b\x01\x01", 2}; 	// character literal 'a'. 
-	context[context_count++] = (struct name) {"c\x01\x01", 2}; 	// character literal 'a'. 
-	context[context_count++] = (struct name) {".\x01", 1}; 		// variable delimiter. 
-	context[context_count++] = (struct name) {"join\x02\x02\x02", 6};// join statements 
-	context[context_count++] = (struct name) {"nop\x02", 3}; 	//  no operation/
-	context[context_count++] = (struct name) {"del\x01\x02", 4}; 	// change delimiter.
-	context[context_count++] = (struct name) {"def\x01\x02", 4}; 	// define symbol. 
-	context[context_count++] = (struct name) {"attach\x00\x02", 7}; // attach definition.
-
-	indicies[index_count++] = _error;
-	indicies[index_count++] = _name;
-	indicies[index_count++] = _i0;
-	indicies[index_count++] = _a;
-	indicies[index_count++] = _b;
-	indicies[index_count++] = _c;
-	indicies[index_count++] = _end;
-	indicies[index_count++] = _join;
-	indicies[index_count++] = _nop;
-	indicies[index_count++] = _del;
-	indicies[index_count++] = _def;
-	indicies[index_count++] = _attach;
 
 	while (begin < length and input[begin] < 33) begin++;
 	if (begin > best) best = begin;
-	
-	stack[0] = (struct el) {
+
+	*stack = (struct el) {
+		.data = {0},
 		.begin = begin,
 		.ind = index_count,
 		.type = 2,
@@ -129,68 +120,66 @@ int main(int argc, const char** argv) {
 try:
 	if (not stack[top].ind) {
 		if (not top) { reason = "unresolved"; goto error; }
-		else { top--; goto next; }
+		else { top--; goto try; }
 	}
 	stack[top].ind--;
+	stack[top].data[_count] = 0;
 	done = 0;
 	begin = stack[top].begin;
 parent:
 	index = indicies[stack[top].ind];
-	stack[top].data.index = index;
-	struct name name = context[index];
-	if (stack[top].type and stack[top].type != name.syntax[name.length]) goto next;
+	stack[top].data[_index] = index;
+	i8* name = context + 64 * index;
 
-	while (done < name.length) {
-		i8 c = name.syntax[done++];
-		if (top >= 32767) { reason = "out of stack memory"; goto error; }
+	if (stack[top].type and stack[top].type != name[name[_length] + _syntax0]) goto try;
+
+	while (done < name[_length]) {
+		i8 c = name[++done];
 		if (c < 33) {
+			if (top == limit) { reason = "depth limit exceeded (32767)"; goto error; }
 			top++;
-			stack[top].data = (struct expr) {0};
 			stack[top].begin = begin;
 			stack[top].ind = index_count;
 			stack[top].type = c;
 			stack[top].done = done;
 			goto try;
 		}
-		if (begin >= length or c != input[begin]) goto next;
+		if (begin >= length or c != input[begin]) goto try;
 		do begin++; while (begin < length and input[begin] < 33);
 		if (begin > best) { best = begin; candidate = index; } 
 	}
 
-	if (index == _del) 
-		context[_end].syntax[0] = context[program[stack[top].data.args[0]].index].syntax[0];
+	// if (index == i_del) context[64 * i_end + _syntax0] = context[64 * program[64 * stack[top].data[_args0] + _index] + _syntax0];
+	// else if (index == i_def) {
+	// 	if (index_count == limit) { reason = "context limit exceeded (32767)"; goto error; }
+	// 	i8* new = context + 64 * index_count;
+	// 	new[_length] = 0;
+	// 	for (i16 p = stack[top].data[_args0]; program[64 * p + _count]; p = program[64 * p + _args0]) {
+	// 		if (new[_length] >= 63) { reason = "signature limit exceeded (63)"; goto error; }
+	// 		i16 i = program[64 * p + _index];
+	// 		new[++(new[_length])] = (i == i_i0) ? (i8) i : context[64 * i + _syntax0];
+	// 	}
+	// 	if (not new[_length]) { reason = "defining zero-length signature"; goto error; }
+	// 	new[_length]--;
+	// 	i16 place = index_count;
+	// 	while (place and new[_length] < context[64 * indicies[place - 1] + _length]) place--;
+	// 	memmove(indicies + place + 1, indicies + place, sizeof(i16) * (size_t) (index_count - place));
+	// 	indicies[place] = index_count++;
+	// 	for (i16 s = 0; s <= top; s++) if (place <= stack[s].ind) stack[s].ind++;
 
-	else if (index == _def) {
-		struct name new = {0};
-		for (i16 p = stack[top].data.args[0]; program[p].count; p = program[p].args[0]) {
-			i16 c = program[p].index;
-			if (c <= _i0) new.syntax[new.length++] = (i8) c;
-			else new.syntax[new.length++] = context[c].syntax[0];
-		}
-		if (not new.length) { reason = "intrinsic usage incorrect"; goto error; }
-		new.length--;
-		context[context_count++] = new;
-		i16 place = index_count;
-		while (place > 0 and new.length < context[indicies[place - 1]].length) place--;
-		memmove(indicies + place + 1, indicies + place, sizeof(i16) * (size_t) (index_count - place));
-		indicies[place] = context_count - 1;
-		index_count++;
-		for (i16 s = 0; s <= top; s++) 
-			if (place <= stack[s].ind) stack[s].ind++;
-
-	} else if (index == _attach) { reason = "intrinsic unimplemented"; goto error; }
-
+	// } else if (index == i_attach) {}
+	
 	if (top) {
 		done = stack[top--].done;
-		stack[top].data.args[stack[top].data.count++] = program_count;
-		program[program_count++] = stack[top + 1].data;
+		if (stack[top].data[_count] >= 30) { reason = "argument limit exceeded (30)"; goto error; }
+		stack[top].data[stack[top].data[_count] + _args0] = program_count;
+		stack[top].data[_count]++;
+		if (program_count == limit) { reason = "expression limit exceeded (32767)"; goto error; }
+		memcpy(program + 64 * program_count, stack[top + 1].data, 64);
+		program_count++;
 		goto parent;
 	}
-	if (begin == length) goto success;
-next:
-	stack[top].data.count = 0;
-	goto try;
-
+	if (begin == length) goto success; goto try;
 error:;
 	i32 at = 0, line = 1, column = 1;
 	while (at < best) {
@@ -198,103 +187,107 @@ error:;
 	}
 
 	fprintf(stderr, "compiler: %s:%u:%u:%c error: %s\n",
-	argv[1], line, column, best == length ? ' ' : input[best], reason);
+		argv[1], line, column, 
+		best == length ? ' ' : input[best], 
+		reason);
 	
 	if (candidate) {
-		struct name suggestion = context[candidate];
-		printf("...did you mean: ");
-		for (i8 s = 0; s < suggestion.length + 1; s++) {
-			i8 c = suggestion.syntax[s];
+		i8* n = context + 64 * candidate;
+		printf("suggestion: ");
+		for (i8 s = 0; s < n[_length] + 1; s++) {
+			i8 c = n[s];
 			if (c < 33) printf(" (%d) ", c);
-			else printf("%c", c);
+			else putchar(c);
 		}
-		printf("  ?\n");
+		puts("");
 	}
 	goto final;
-
 success:
-	program[program_count++] = stack[top].data;
+	printf("\n\tcompile successful.\n\n");
+	
+	// const char* file_head = 
+	// "	.section	__TEXT,__text,regular,pure_instructions\n"
+	// "	.build_version macos, 11, 0	sdk_version 11, 1\n"
+	// "	.globl	_main\n"
+	// "	.p2align	4, 0x90\n"
+	// "_main:\n";
+
+	// const char* file_tail = 
+	// "	mov $5, %rax\n"
+	// "	retq\n"
+	// "\n";
+
+	// int fd = open("out.s", O_WRONLY | O_CREAT | O_TRUNC);
+	// if (fd < 0) {
+	// 	printf("compile: error: %s: ", "filename");
+	// 	perror("open");
+	// 	exit(1);
+	// }
+
+	// write(fd, file_head, strlen(file_head));
+	
+	// struct cg_el* cg_stack = malloc(65536 * sizeof(struct cg_el));
+	// i16 stack_count = 0;
+	// cg_stack[stack_count++].index = program_count - 1;
+	
+	// while (stack_count) {
+	// 	i16 expr_index = cg_stack[--stack_count].index;
+	// 	i16 program_index = program[expr_index].index;
+
+	// 	if (program_index == _nop) {
+	// 		printf("found a nop instruction...\n");
+	// 		const char* string = "	nop\n";
+	// 		write(fd, string, strlen(string));
+
+	// 	} else { 
+	// 		printf("found an unknown instruction...\n");
+	// 		printf("stack_count=%d | (expr=%d) : looking at %d (%s) (count=%d)\n", 
+	// 		stack_count, expr_index, program_index, 
+	// 		context[program_index].syntax, program[expr_index].count);
+	// 	}
+
+	// 	for (i16 i = program[expr_index][_count] - 1; i >= 0; i--) 
+	// 		cg_stack[stack_count++].index = program[expr_index].args[i];
+	// }
+
+	// write(fd, file_tail, strlen(file_tail));
+	// close(fd);
+final:
+	memcpy(program + 64 * program_count, stack[top].data, 64);
+	program_count++;
 	
 	printf("\n--------- program: -------- \n");
 	for (int i = 0; i < program_count; i++) {
-		struct expr e = program[i];
-		printf("%d | index=%d : \"%s\", count=%d, [ ", i, e.index, context[e.index].syntax, e.count);
-		for (int j = 0; j < e.count; j++) 
-			printf("%d ", e.args[j]);
-		printf("]\n");
+		i16* e = program + 64 * i;
+		printf("%d | index=%d : \"%.*s\", count=%d, [ ", i, e[_index], context[64 * e[_index] + _length], context + 64 * e[_index] + _syntax0, e[_count]);
+		for (int j = 0; j < e[_count]; j++) 
+			printf("%d ", e[j + _args0]);
+		printf(" ]\n");
 	}
 	printf("\n--------- context: -------- \n");
 	printf("indicies = (%d){ ", index_count);
 	for (int i = 0; i < index_count; i++) 
 		printf("%d ", indicies[i]);
 	printf("}\n");
-	for (int i = 0; i < context_count; i++) {
-		struct name n = context[i];
-		printf("%d | (length=%d) [ ", i, n.length);
-		for (int j = 0; j < n.length + 1; j++) 
-			if (n.syntax[j] < 33) printf(" (%d) ", n.syntax[j]);
-			else printf("%c", n.syntax[j]);
-
-		printf("]: \"");
-		print_name(n.syntax);
-		printf("\"\n");
+	for (int i = 0; i < index_count; i++) {
+		i8* n = context + 64 * i;	
+		printf("%d | (length=%d) [ ", i, n[_length]);
+		for (int j = 0; j < n[_length] + 2; j++) {
+			i8 c = n[j];
+			if (c < 33) printf(" (%d) ", c);
+			else putchar(c);
+		}
+		printf(" ] \n");
 	}
 	printf("-----------------------------\n\n");
 	print_program(program, program_count - 1, 0, context);
-	printf("\n\tcompile successful.\n\n");
-	
-	const char* file_head = 
-	"	.section	__TEXT,__text,regular,pure_instructions\n"
-	"	.build_version macos, 11, 0	sdk_version 11, 1\n"
-	"	.globl	_main\n"
-	"	.p2align	4, 0x90\n"
-	"_main:\n";
 
-	const char* file_tail = 
-	"	mov $5, %rax\n"
-	"	retq\n"
-	"\n";
-
-	int fd = open("out.s", O_WRONLY | O_CREAT | O_TRUNC);
-	if (fd < 0) {
-		printf("compile: error: %s: ", "filename");
-		perror("open");
-		exit(1);
-	}
-
-	write(fd, file_head, strlen(file_head));
-	
-	struct cg_el* cg_stack = malloc(65536 * sizeof(struct cg_el));
-	i16 stack_count = 0;
-	cg_stack[stack_count++].index = program_count - 1;
-	
-	while (stack_count) {
-		i16 expr_index = cg_stack[--stack_count].index;
-		i16 program_index = program[expr_index].index;
-
-		if (program_index == _nop) {
-			printf("found a nop instruction...\n");
-			const char* string = "	nop\n";
-			write(fd, string, strlen(string));
-
-		} else { 
-			printf("found an unknown instruction...\n");
-			printf("stack_count=%d | (expr=%d) : looking at %d (%s) (count=%d)\n", 
-			stack_count, expr_index, program_index, 
-			context[program_index].syntax, program[expr_index].count);
-		}
-
-		for (int i = program[expr_index].count; i--; ) 
-			cg_stack[stack_count++].index = program[expr_index].args[i];
-	}
-
-	write(fd, file_tail, strlen(file_tail));
-	close(fd);
-final:
 	munmap(input, (size_t) length);
 	free(stack);
 	free(program);
 	free(context);
+	free(indicies);
+	free(macros);
 }
 
 

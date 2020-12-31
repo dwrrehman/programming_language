@@ -1,7 +1,7 @@
 # Untitled Programming Language
-Created By Daniel Warren Riaz Rehman.
+###### Created By Daniel Warren Riaz Rehman.
 
-This is a compiler for a general-purpose, low-level systems programming language. 
+This is a compiler for a general-purpose low-level systems programming language. 
 
 This compiler is written in C, and has no dependencies.
 
@@ -25,7 +25,7 @@ This compiler is written in C, and has no dependencies.
 
  - Uses only the _hardware-level_ types
 
- - Strongly-typed hygenic macros for creating used-defined zero-overhead abstractions
+ - Has strongly-typed hygenic macros for creating zero-overhead abstractions
 
  - Generates any instruction in the target assembly language
 
@@ -45,7 +45,7 @@ The following limits allow for a faster compiler implementation. These limits al
 
  - maximum expression depth of 32,767 per file.
 
- - maximum 62 (64 - 2) bytes allowed per signature. 
+ - maximum 63 (64 - 1) bytes allowed per signature. 
 
  - maximum 30 (32 - 2) arguments allowed per expression call.
 
