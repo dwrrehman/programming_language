@@ -138,7 +138,6 @@ try:
 		if (not top) { reason = "unresolved expression"; goto error; } 
 		else { top--; goto try; }
 	}
-	printf("%d\n", 128 * top + 1);
 	stack[top].ind--;
 	stack_data[128 * top + 1] = 0;
 	done = 0;

@@ -3,6 +3,7 @@
 	.globl	_main
 	.p2align	4, 0x90
 _main:
+	nop
 	mov $5, %rax
 	retq
 
