@@ -87,28 +87,44 @@ int main(int argc, const char** argv) {
 
 	enum { 
 		i_end,
+		i_unit, 
+		i_integer,
+		i_float,
+		i_label,
 		i_name, 
-		i_i0, 
+		i_do, 
+		i_del, 
+		i_def,
+
+		i_exclamation_mark,
 		i_a,  
 		i_b,  
 		i_c, 
 		i_d,
-		i_del, 
-		i_def,
-		i_join, 
 	};
 
 	const char* spellings[] = {
-		"\1.\1", 
-		"\4name\1\1", 
-		"\2_\1\1",
+		"\1.\1",  			// 0
+		"\4unit\1\1", 			// 1
+		"\4integer\1\1", 		// 2
+		"\4float\1\1", 			// 3
+		"\4label\1\1", 			// 4
+		"\4name\1\1",			// 5
+		"\4do\2\2\2", 			// 6
+		"\4del\1\2",			// 7
+		"\5def\1\0\2",			// 8
+
+		// ...
+
+		"\2!\1\1", 			// 33
+
+		// ...
+
 		"\2a\1\1", 
 		"\2b\1\1", 
 		"\2c\1\1", 
 		"\2d\1\1",
-		"\4del\1\2",
-		"\5def\1\0\2",
-		"\4do\2\2\2", 
+			
 	NULL};
 
 	i16 intrinsics[] = {
@@ -119,9 +135,9 @@ int main(int argc, const char** argv) {
 		i_d,
 		i_i0,
 		i_name,
+		i_do,
 		i_del, 
-		i_def, 
-		i_join,
+		i_def,
 	};
 
 	for (int i = 0; spellings[i]; i++) { 
@@ -178,7 +194,7 @@ parent:
 		for (i16 p = stack_data[64 * top + 2]; program[64 * p + 1]; p = program[64 * p + 2]) {
 			if (*new == 127) { reason = "signature limit exceeded (127)"; goto error; }
 			i16 i = program[64 * p];
-			new[++*new] = (i < i_a) ? (i8) i : context[128 * i + 1];
+			new[++*new] = (i < i_a /* should be i_! */) ? (i8) i : context[128 * i + 1];
 		}
 		if (not *new) { reason = "defining zero-length signature"; goto error; }
 		--*new;
@@ -331,3 +347,37 @@ final:
 	free(macros);
 	free(indicies);
 }
+
+
+
+
+// im thinking about not having types anymore... hmm...... i mean... floating point and integer types are basically the only two types, lol... and i guess labels!! ..? hmm yeah. and unit, and thats it. and names too.
+
+
+// types:            u, n, f, s, k,          unit, int, float, label, name
+
+
+
+// okay maybe we wont ditch the type system. its actually extremely useful!! 
+// espeically in the case that you except a source location, as opposed to an integer. those ints mean differnet thigns. 
+
+// and obviously, having types makes NAME oarsing much more reliable. 
+
+// and indeed, everything becomes just a little bit faster with types. i think. 
+
+// unit is pretty common,if an instruction doesnt return a value. 
+
+// however, there need to be functions to cast a value to void, i guess? well, maybe not... i dont know.. 
+
+// thinking in terms of expressions is quite different from assembly.... hmm....
+
+
+
+
+
+
+
+
+
+
+
