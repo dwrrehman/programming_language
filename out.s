@@ -5,6 +5,7 @@
 _main:
 	nop
 	nop
+	nop
 	mov $5, %rax
 	retq
 

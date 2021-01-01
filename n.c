@@ -19,6 +19,8 @@ struct el {
 	i8 done;
 };
 
+#define whitespace(c) (uint8_t)c < 0x21
+
 static inline void print_program(i16* program, i16 p, int depth, i8* context) { // debug
 	for (int i = 0; i < depth; i++)  printf(".   ");
 	i16 ind = program[64 * p];
@@ -87,11 +89,13 @@ int main(int argc, const char** argv) {
 
 	enum { 
 		i_end,
+
 		i_unit, 
-		i_integer,
+		i_name, 
+		i_int,
 		i_float,
 		i_label,
-		i_name, 
+
 		i_do, 
 		i_del, 
 		i_def,
@@ -104,40 +108,46 @@ int main(int argc, const char** argv) {
 	};
 
 	const char* spellings[] = {
-		"\1.\1",  			// 0
-		"\4unit\1\1", 			// 1
-		"\4integer\1\1", 		// 2
-		"\4float\1\1", 			// 3
-		"\4label\1\1", 			// 4
-		"\4name\1\1",			// 5
-		"\4do\2\2\2", 			// 6
-		"\4del\1\2",			// 7
-		"\5def\1\0\2",			// 8
+		"\1.\2",  			// 0
+
+		"\5unit\2\2", 			// 1
+		"\5name\2\2",			// 5
+		"\4int\2\2",  			// 2
+		"\6float\2\2", 			// 3
+		"\6label\2\2", 			// 4
+		
+		"\4do\1\1\1", 			// 6
+		"\4del\2\1",			// 7
+		"\5def\2\0\1",			// 8
 
 		// ...
 
-		"\2!\1\1", 			// 33
+		"\2!\2\2", 			// 33
 
 		// ...
 
-		"\2a\1\1", 
-		"\2b\1\1", 
-		"\2c\1\1", 
-		"\2d\1\1",
+		"\2a\2\2", 
+		"\2b\2\2", 
+		"\2c\2\2", 
+		"\2d\2\2",
 			
 	NULL};
 
 	i16 intrinsics[] = {
 		i_end,
+		i_exclamation_mark,
 		i_a, 
 		i_b, 
 		i_c, 
 		i_d,
-		i_i0,
-		i_name,
 		i_do,
 		i_del, 
+		i_int,
 		i_def,
+		i_unit,
+		i_name,
+		i_label,
+		i_float,
 	};
 
 	for (int i = 0; spellings[i]; i++) { 
@@ -153,9 +163,9 @@ int main(int argc, const char** argv) {
 	i16 index = 0, candidate = 0;
 	i8 done = 0;
 	
-	while (begin < length and input[begin] < 33) begin++;
+	while (begin < length and whitespace(input[begin])) begin++;
 	if (begin > best) best = begin;
-	*stack = (struct el) {.begin = begin, .ind = (i16) index_count, .type = 2};
+	*stack = (struct el) {.begin = begin, .ind = (i16) index_count, .type = 1};
 try:
 	if (not stack[top].ind) {
 		if (not top) { reason = "unresolved expression"; goto error; } 
@@ -172,7 +182,7 @@ parent:
 	if (stack[top].type and stack[top].type != name[*name + 1]) goto try;
 	while (done < *name) {
 		i8 c = name[++done];
-		if (c < 33) {
+		if (whitespace(c)) {
 			if (top == 32767) { reason = "depth limit exceeded (32767)"; goto error; }
 			top++;
 			stack[top].begin = begin;
@@ -182,7 +192,7 @@ parent:
 			goto try;
 		}
 		if (begin >= length or c != input[begin]) goto try;
-		do begin++; while (begin < length and input[begin] < 33);
+		do begin++; while (begin < length and whitespace(input[begin]));
 		if (begin > best) { best = begin; candidate = index; } 
 	}
 
@@ -194,7 +204,7 @@ parent:
 		for (i16 p = stack_data[64 * top + 2]; program[64 * p + 1]; p = program[64 * p + 2]) {
 			if (*new == 127) { reason = "signature limit exceeded (127)"; goto error; }
 			i16 i = program[64 * p];
-			new[++*new] = (i < i_a /* should be i_! */) ? (i8) i : context[128 * i + 1];
+			new[++*new] = (i < i_exclamation_mark) ? (i8) i : context[128 * i + 1];
 		}
 		if (not *new) { reason = "defining zero-length signature"; goto error; }
 		--*new;
@@ -253,7 +263,7 @@ parent:
 		i16 e = stack[--stack_count].ind;
 		index = program[64 * e];
 
-		if (index == i_join) {
+		if (index == i_do) {
 			printf("found a nop instruction...\n");
 			const char* string = "	nop\n";
 			write(fd, string, strlen(string));
@@ -289,7 +299,7 @@ error:;
 		printf("candidate: ");
 		for (i8 s = 0; s < *n + 1; s++) {
 			i8 c = n[s];
-			if (c < 33) printf(" (%d) ", c);
+			if (whitespace(c)) printf(" (%d) ", c);
 			else putchar(c);
 		}
 		puts("");
@@ -327,7 +337,7 @@ final:
 		printf("%d | (length=%d) [ ", i, *n);
 		for (int j = 0; j < *n + 2; j++) {
 			i8 c = n[j];
-			if (c < 33) printf(" (%d) ", c);
+			if (whitespace(c)) printf(" (%d) ", c);
 			else putchar(c);
 		}
 		printf(" ] \n");
