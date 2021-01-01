@@ -93,7 +93,6 @@ int main(int argc, const char** argv) {
 		i_b,  
 		i_c, 
 		i_d,
-		i_nop, 
 		i_del, 
 		i_def,
 		i_join, 
@@ -107,10 +106,9 @@ int main(int argc, const char** argv) {
 		"\2b\1\1", 
 		"\2c\1\1", 
 		"\2d\1\1",
-		"\3nop\2", 
 		"\4del\1\2",
 		"\5def\1\0\2",
-		"\6join\2\2\2", 
+		"\4do\2\2\2", 
 	NULL};
 
 	i16 intrinsics[] = {
@@ -120,7 +118,6 @@ int main(int argc, const char** argv) {
 		i_c, 
 		i_d,
 		i_i0,
-		i_nop,
 		i_name,
 		i_del, 
 		i_def, 
@@ -240,7 +237,7 @@ parent:
 		i16 e = stack[--stack_count].ind;
 		index = program[64 * e];
 
-		if (index == i_nop) {
+		if (index == i_join) {
 			printf("found a nop instruction...\n");
 			const char* string = "	nop\n";
 			write(fd, string, strlen(string));
@@ -318,13 +315,11 @@ final:
 			else putchar(c);
 		}
 		printf(" ] \n");
-		// for (int j = 0; j < macro_count; j++) {
-			if (macros[i]) {
-				printf("MACRO DEF: \n");
-				print_program(program, macros[i], 0, context);
-				printf("END MACRO\n");
-			}
-		// }
+		if (macros[i]) {
+			printf("MACRO DEF: \n");
+			print_program(program, macros[i], 0, context);
+			printf("END MACRO\n");
+		}
 	}
 	printf("-----------------------------\n\n");
 	if (program_count) print_program(program, (i16) program_count - 1, 0, context);
