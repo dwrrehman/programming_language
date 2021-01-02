@@ -1,2 +1,9 @@
-join int a (B.) . nop
-a
+join 
+	int b (A.) (B.) . 
+		join 
+			nop 
+			join 
+				int cab(B.). nop 
+				nop 
+
+	b .

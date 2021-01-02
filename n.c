@@ -51,6 +51,8 @@ int main(int argc, const char** argv) {
 		exit(4);
 	}
 	close(file);
+	// i32 length = (i32) strlen(filename);
+	// const char* input = filename;
 	
 	i8* context = malloc(32768 * 128);               
 	i16* program = malloc(32768 * 128);
@@ -58,27 +60,25 @@ int main(int argc, const char** argv) {
 	struct el* stack = malloc(32768 * 8);
 	i16* macros = malloc(32768 * 2);
 	i16* indicies = malloc(32768 * 2);
-
 	i32 top = 0, program_count = 0, index_count = 0;
-
 	i8 top_level = 2;
 
 	const char* spellings[] = {
-		"\5int\1\0\2", // 0
+		"\5int\1\0\2", 
 		"\1.\1",
 		"\4(\1)\1\1",
 		"\6join\2\2\2",
 		"\3nop\2",
-		"\2!\1\1", // 5
+		"\2!\1\1", 
 		"\2a\1\1",
 		"\2b\1\1",
 		"\2c\1\1",
 		"\2d\1\1",
-		"\2@\1\1", // 10
+		"\2@\1\1", 
 		"\2A\1\1",
 		"\2B\1\1",
 		"\2C\1\1",
-		"\2D\1\1", // 14
+		"\2D\1\1", 
 	NULL};
 
 	i16 intrinsics[] = {1, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 4, 0, 3, 2};
@@ -95,7 +95,6 @@ int main(int argc, const char** argv) {
 	i32 begin = 0, best = 0;
 	i16 index = 0, candidate = 0;
 	i8 done = 0;
-	
 	while (begin < length and (u8)input[begin] < 33) begin++;
 	if (begin > best) best = begin;
 	*stack = (struct el) {.begin = begin, .ind = (i16) index_count, .type = top_level};
@@ -129,7 +128,7 @@ parent:
 		if (begin > best) { best = begin; candidate = index; } 
 	}
 	
-	if (not index) { // make this more general?
+	if (not index) {
 		if (index_count == 32767) { reason = "context limit exceeded (32767)"; goto error; }
 		i8* new = context + 128 * index_count;
 		*new = 0;
@@ -145,7 +144,7 @@ parent:
 		}
 		if (not *new) {
 			i16 i = 128 * program[64 * second];
-			context[i + context[i]] = 0;
+			context[i + context[i] + 1] = 0;
 		} else {
 			--*new;
 			i32 place = index_count;
@@ -171,8 +170,6 @@ parent:
 		goto parent;
 	} 
 	if (begin != length) goto try;
-
-	printf("\n\tcompile successful.\n\n");
 
 	const char* file_head = 
 	"	.section	__TEXT,__text,regular,pure_instructions\n"
@@ -202,8 +199,8 @@ parent:
 		i16 e = stack[--stack_count].ind;
 		index = program[64 * e];
 
-		printf("stack_count=%d | (expr=%d) : looking at %d (%.*s) (count=%d)\n", 
-			stack_count, e, index, context[128 * index], context + 128 * index + 1, program[64 * e + 1]);
+		// printf("stack_count=%d | (expr=%d) : looking at %d (%.*s) (count=%d)\n", 
+		// 	stack_count, e, index, context[128 * index], context + 128 * index + 1, program[64 * e + 1]);
 
 		for (i16 i = program[64 * e + 1]; i--;) 
 			stack[stack_count++].ind = program[64 * e + 2 + i];
@@ -245,7 +242,7 @@ error:;
 		if (i < length and input[i] == '\n') { l++; c = 1; } else c++;
 	}
 	printf("\n\n");
-
+	goto finish;
 final:
 	printf("\n--------- program: -------- \n");
 	for (int i = 0; i < program_count; i++) {
@@ -276,7 +273,9 @@ final:
 		}
 	}
 	printf("-----------------------------\n\n");
+	printf("\n\tcompile successful.\n\n");
 	if (program_count) print_program(program, (i16) program_count - 1, 0, context);
+finish:
 	munmap(input, (size_t) length);
 	free(context);
 	free(program);
