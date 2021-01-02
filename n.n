@@ -1,2 +1,2 @@
-join int a param B.. nop
+join int a (B.) . nop
 a

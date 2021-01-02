@@ -9,6 +9,7 @@
 #include <sys/mman.h>
 
 typedef int8_t i8;
+typedef uint8_t u8;
 typedef int16_t i16;
 typedef int32_t i32;
 
@@ -18,8 +19,6 @@ struct el {
 	i8 type;
 	i8 done;
 };
-
-#define whitespace(c) (uint8_t)c < 33
 
 static inline void print_program(i16* program, i16 p, int depth, i8* context) { // debug
 	for (int i = 0; i < depth; i++)  printf(".   ");
@@ -31,40 +30,15 @@ static inline void print_program(i16* program, i16 p, int depth, i8* context) { 
 		print_program(program, program[64 * p + i + 2], depth + 1, context);
 }
 
-// static inline void copy_replace(struct expression def, struct expression call, struct expression* out,
-// 				struct context* context, struct stack_element* stack, nat top) {
-
-// 	if (def.index >= call.index - call.count and 
-// 	    def.index <  call.index) { 
-
-// 		*out = call.args[call.count - (call.index - def.index)];
-
-// 	} else {
-// 		*out = def;
-// 		out->args = calloc((size_t) def.count, sizeof(struct expression));
-
-// 		for (nat i = 0; i < def.count; i++) 
-// 			copy_replace(def.args[i], call, out->args + i, context, stack, top);
-// 	}
-
-// }
-
-// static inline void expand_macro(struct context* context, struct stack_element* stack, nat top) {
-// 	struct expression call = stack[top].data;	
-// 	copy_replace(context->names[call.index].def, call, &stack[top].data, context, stack, top);
-// }
-
-
 int main(int argc, const char** argv) {
 
 	if (argc < 2) return 1;
 	const char* filename = argv[1];
-
 	struct stat file_data = {0};
 	int file = open(filename, O_RDONLY);
 
 	if (file < 0 or stat(filename, &file_data) < 0) {
-		fprintf(stderr, "compiler: error: %s: ", filename);
+		fprintf(stderr, "error: %s: ", filename);
 		perror("open");
 		exit(3);
 	}
@@ -72,7 +46,7 @@ int main(int argc, const char** argv) {
 	i32 length = (i32) file_data.st_size;
 	char* input = not length ? 0 : mmap(0, (size_t) length, PROT_READ, MAP_SHARED, file, 0);
 	if (input == MAP_FAILED) {
-		fprintf(stderr, "compiler: error: %s: ", filename);
+		fprintf(stderr, "error: %s: ", filename);
 		perror("mmap");
 		exit(4);
 	}
@@ -92,7 +66,7 @@ int main(int argc, const char** argv) {
 	const char* spellings[] = {
 		"\5int\1\0\2", // 0
 		"\1.\1",
-		"\7param\1\1\1",
+		"\4(\1)\1\1",
 		"\6join\2\2\2",
 		"\3nop\2",
 		"\2!\1\1", // 5
@@ -122,7 +96,7 @@ int main(int argc, const char** argv) {
 	i16 index = 0, candidate = 0;
 	i8 done = 0;
 	
-	while (begin < length and whitespace(input[begin])) begin++;
+	while (begin < length and (u8)input[begin] < 33) begin++;
 	if (begin > best) best = begin;
 	*stack = (struct el) {.begin = begin, .ind = (i16) index_count, .type = top_level};
 try:
@@ -141,7 +115,7 @@ parent:
 	if (stack[top].type and stack[top].type != name[*name + 1]) goto try;
 	while (done < *name) {
 		i8 c = name[++done];
-		if (whitespace(c)) {
+		if ((u8)c < 33) {
 			if (top == 32767) { reason = "depth limit exceeded (32767)"; goto error; }
 			top++;
 			stack[top].begin = begin;
@@ -151,34 +125,28 @@ parent:
 			goto try;
 		}
 		if (begin >= length or c != input[begin]) goto try;
-		do begin++; while (begin < length and whitespace(input[begin]));
+		do begin++; while (begin < length and (u8)input[begin] < 33);
 		if (begin > best) { best = begin; candidate = index; } 
 	}
 	
-	if (not index) {
-		printf("CALLED INTRINISC:\n");
+	if (not index) { // make this more general?
 		if (index_count == 32767) { reason = "context limit exceeded (32767)"; goto error; }
 		i8* new = context + 128 * index_count;
 		*new = 0;
 		i16 second = stack_data[64 * top + 3];
 		i16 p = stack_data[64 * top + 2];
 		while (program[64 * p + 1]) {
-			
 			if (*new == 127) { reason = "signature limit exceeded (127)"; goto error; }
 			i16 count = program[64 * p + 1];
 			i16 i = count == 2 ? program[64 * p + 2] : p;
 			i8 c = context[128 * program[64 * i] + 1];
-			if (count == 2) c -= 64; 
-			new[++*new] = c;
-			printf("just appended: %d : %c\n", (int) c, (char) c);
+			new[++*new] = count == 2 ? c - 64 : c;
 			p = program[64 * p + count + 1];
 		}
 		if (not *new) {
-			printf("undefining signature...\n");
 			i16 i = 128 * program[64 * second];
 			context[i + context[i]] = 0;
 		} else {
-			printf("DEFINING signature...\n");
 			--*new;
 			i32 place = index_count;
 			while (place and *new < context[128 * indicies[place - 1]]) place--;
@@ -186,9 +154,6 @@ parent:
 				sizeof(i16) * (size_t) (index_count - place));
 			indicies[place] = (i16) index_count;
 			for (i16 s = 0; s <= top; s++) if (place <= stack[s].ind) stack[s].ind++;
-
-			if (program[64 * second]) printf("giving macro definition!! = %d\n", second);
-
 			macros[index_count++] = program[64 * second] ? second : 0;
 		}
 	}
@@ -223,7 +188,7 @@ parent:
 
 	int fd = open("out.s", O_WRONLY | O_CREAT | O_TRUNC);
 	if (fd < 0) {
-		printf("compile: error: %s: ", "filename");
+		printf("error: %s: ", "filename");
 		perror("open");
 		exit(1);
 	}
@@ -236,12 +201,9 @@ parent:
 	while (stack_count) {
 		i16 e = stack[--stack_count].ind;
 		index = program[64 * e];
-			printf("stack_count=%d | (expr=%d) : looking at %d (%.*s) (count=%d)\n", 
-			stack_count, e, index, 
-			context[128 * index],
-			context + 128 * index + 1, 
-			program[64 * e + 1]);
-		// }
+
+		printf("stack_count=%d | (expr=%d) : looking at %d (%.*s) (count=%d)\n", 
+			stack_count, e, index, context[128 * index], context + 128 * index + 1, program[64 * e + 1]);
 
 		for (i16 i = program[64 * e + 1]; i--;) 
 			stack[stack_count++].ind = program[64 * e + 2 + i];
@@ -264,8 +226,8 @@ error:;
 		i8* n = context + 128 * candidate;
 		printf("candidate: ");
 		for (i8 s = 0; s < *n + 1; s++) {
-			i8 c = n[s];
-			if (whitespace(c)) printf(" (%d) ", c);
+			i8 c = n[s + 1];
+			if ((u8)c < 33) printf(" (%d) ", c);
 			else putchar(c);
 		}
 		puts("");
@@ -303,7 +265,7 @@ final:
 		printf("%d | (length=%d) [ ", i, *n);
 		for (int j = 0; j < *n + 2; j++) {
 			i8 c = n[j];
-			if (whitespace(c)) printf(" (%d) ", c);
+			if ((u8)c < 33) printf(" (%d) ", c);
 			else putchar(c);
 		}
 		printf(" ] \n");
@@ -325,46 +287,26 @@ final:
 }
 
 
+// static inline void copy_replace(struct expression def, struct expression call, struct expression* out,
+// 				struct context* context, struct stack_element* stack, nat top) {
 
+// 	if (def.index >= call.index - call.count and 
+// 	    def.index <  call.index) { 
 
-// im thinking about not having types anymore... hmm...... i mean... floating point and integer types are basically the only two types, lol... and i guess labels!! ..? hmm yeah. and unit, and thats it. and names too.
+// 		*out = call.args[call.count - (call.index - def.index)];
 
+// 	} else {
+// 		*out = def;
+// 		out->args = calloc((size_t) def.count, sizeof(struct expression));
 
-// types:            u, n, f, s, k,          unit, int, float, label, name
+// 		for (nat i = 0; i < def.count; i++) 
+// 			copy_replace(def.args[i], call, out->args + i, context, stack, top);
+// 	}
 
+// }
 
+// static inline void expand_macro(struct context* context, struct stack_element* stack, nat top) {
+// 	struct expression call = stack[top].data;	
+// 	copy_replace(context->names[call.index].def, call, &stack[top].data, context, stack, top);
+// }
 
-// okay maybe we wont ditch the type system. its actually extremely useful!! 
-// espeically in the case that you except a source location, as opposed to an integer. those ints mean differnet thigns. 
-
-// and obviously, having types makes NAME oarsing much more reliable. 
-
-// and indeed, everything becomes just a little bit faster with types. i think. 
-
-// unit is pretty common,if an instruction doesnt return a value. 
-
-// however, there need to be functions to cast a value to void, i guess? well, maybe not... i dont know.. 
-
-// thinking in terms of expressions is quite different from assembly.... hmm....
-
-
-
-
-
-
-
-
-
-
-
-
-// if (index == i_del) context[128 * i_end + 1] = 
-		// context[128 * program[64 * stack_data[64 * top + 2]] + 1];
-
-	// if (index == i_do) {
-		// 	printf("found a nop instruction...\n");
-		// 	const char* string = "	nop\n";
-		// 	write(fd, string, strlen(string));
-
-		// } else { 
-			// printf("found an unknown instruction...\n");
