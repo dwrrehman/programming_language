@@ -127,17 +127,13 @@ parent:
 		do begin++; while (begin < length and (u8)input[begin] < 33);
 		if (begin > best) { best = begin; candidate = index; } 
 	}
-	
 	if (not index) {
 		if (index_count == 32767) { reason = "context limit exceeded (32767)"; goto error; }
-		i8* new = context + 128 * index_count;
-		*new = 0;
-		i16 second = stack_data[64 * top + 3];
-		i16 p = stack_data[64 * top + 2];
+		i8* new = context + 128 * index_count; *new = 0;
+		i16 second = stack_data[64 * top + 3], p = stack_data[64 * top + 2];
 		while (program[64 * p + 1]) {
 			if (*new == 127) { reason = "signature limit exceeded (127)"; goto error; }
-			i16 count = program[64 * p + 1];
-			i16 i = count == 2 ? program[64 * p + 2] : p;
+			i16 count = program[64 * p + 1], i = count == 2 ? program[64 * p + 2] : p;
 			i8 c = context[128 * program[64 * i] + 1];
 			new[++*new] = count == 2 ? c - 64 : c;
 			p = program[64 * p + count + 1];
@@ -146,17 +142,14 @@ parent:
 			i16 i = 128 * program[64 * second];
 			context[i + context[i] + 1] = 0;
 		} else {
-			--*new;
-			i32 place = index_count;
+			--*new; i32 place = index_count;
 			while (place and *new < context[128 * indicies[place - 1]]) place--;
-			memmove(indicies + place + 1, indicies + place, 
-				sizeof(i16) * (size_t) (index_count - place));
+			memmove(indicies + place + 1, indicies + place, sizeof(i16) * (size_t) (index_count - place));
 			indicies[place] = (i16) index_count;
 			for (i16 s = 0; s <= top; s++) if (place <= stack[s].ind) stack[s].ind++;
 			macros[index_count++] = program[64 * second] ? second : 0;
 		}
 	}
-
 	if (program_count == 32767) { reason = "expression limit exceeded (32767)"; goto error; }
 	memcpy(program + 64 * program_count, stack_data + 64 * top,
 		(size_t) (2 * (stack_data[64 * top + 1] + 2)));
