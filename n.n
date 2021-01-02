@@ -1,9 +1,8 @@
-join 
-	int b (A.) (B.) . 
-		join 
-			nop 
-			join 
-				int cab(B.). nop 
-				nop 
-
-	b .
+join	int b (A.)(B.). undef
+join 	int.undef
+join 	int cab(B.). undef
+join 	cab
+join 	int . cab
+join 	cab
+join 	b.
+nop

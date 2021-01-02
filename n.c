@@ -24,7 +24,7 @@ static inline void print_program(i16* program, i16 p, int depth, i8* context) { 
 	for (int i = 0; i < depth; i++)  printf(".   ");
 	i16 ind = program[64 * p];
 	i16 count = program[64 * p + 1];
-	printf("[%d] : (%d) : %.*s\n\n", ind, count, 
+	printf("[i=%d] : (c=%d) : %.*s\n\n", ind, count, 
 		context[128 * ind], context + 128 * ind + 1);
 	for (i16 i = 0; i < count; i++) 
 		print_program(program, program[64 * p + i + 2], depth + 1, context);
@@ -51,8 +51,6 @@ int main(int argc, const char** argv) {
 		exit(4);
 	}
 	close(file);
-	// i32 length = (i32) strlen(filename);
-	// const char* input = filename;
 	
 	i8* context = malloc(32768 * 128);               
 	i16* program = malloc(32768 * 128);
@@ -61,14 +59,11 @@ int main(int argc, const char** argv) {
 	i16* macros = malloc(32768 * 2);
 	i16* indicies = malloc(32768 * 2);
 	i32 top = 0, program_count = 0, index_count = 0;
-	i8 top_level = 2;
 
 	const char* spellings[] = {
+		"\5undef\0",
 		"\5int\1\0\2", 
 		"\1.\1",
-		"\4(\1)\1\1",
-		"\6join\2\2\2",
-		"\3nop\2",
 		"\2!\1\1", 
 		"\2a\1\1",
 		"\2b\1\1",
@@ -79,9 +74,12 @@ int main(int argc, const char** argv) {
 		"\2B\1\1",
 		"\2C\1\1",
 		"\2D\1\1", 
+		"\3nop\2",
+		"\4(\1)\1\1",
+		"\6join\2\2\2",
 	NULL};
 
-	i16 intrinsics[] = {1, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 4, 0, 3, 2};
+	i16 intrinsics[] = {2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 0, 1};
 
 	for (int i = 0; spellings[i]; i++) { 
 		memcpy(context + 128 * index_count, spellings[i], (size_t) (spellings[i][0] + 2));
@@ -95,9 +93,10 @@ int main(int argc, const char** argv) {
 	i32 begin = 0, best = 0;
 	i16 index = 0, candidate = 0;
 	i8 done = 0;
+
 	while (begin < length and (u8)input[begin] < 33) begin++;
 	if (begin > best) best = begin;
-	*stack = (struct el) {.begin = begin, .ind = (i16) index_count, .type = top_level};
+	*stack = (struct el) {.begin = begin, .ind = (i16) index_count, .type = 2};
 try:
 	if (not stack[top].ind) {
 		if (not top) { reason = "unresolved expression"; goto error; } 
@@ -127,7 +126,7 @@ parent:
 		do begin++; while (begin < length and (u8)input[begin] < 33);
 		if (begin > best) { best = begin; candidate = index; } 
 	}
-	if (not index) {
+	if (index == 1) {
 		if (index_count == 32767) { reason = "context limit exceeded (32767)"; goto error; }
 		i8* new = context + 128 * index_count; *new = 0;
 		i16 second = stack_data[64 * top + 3], p = stack_data[64 * top + 2];
@@ -150,6 +149,7 @@ parent:
 			macros[index_count++] = program[64 * second] ? second : 0;
 		}
 	}
+
 	if (program_count == 32767) { reason = "expression limit exceeded (32767)"; goto error; }
 	memcpy(program + 64 * program_count, stack_data + 64 * top,
 		(size_t) (2 * (stack_data[64 * top + 1] + 2)));
@@ -164,45 +164,38 @@ parent:
 	} 
 	if (begin != length) goto try;
 
-	const char* file_head = 
-	"	.section	__TEXT,__text,regular,pure_instructions\n"
-	"	.build_version macos, 11, 0	sdk_version 11, 1\n"
-	"	.globl	_main\n"
-	"	.p2align	4, 0x90\n"
-	"_main:\n";
+	// const char* file_head = 
+	// "	.section	__TEXT,__text,regular,pure_instructions\n"
+	// "	.build_version macos, 11, 0	sdk_version 11, 1\n"
+	// "	.globl	_main\n"
+	// "	.p2align	4, 0x90\n"
+	// "_main:\n";
+	// const char* file_tail = 
+	// "	mov $5, %rax\n"
+	// "	retq\n"
+	// "\n";
 
-	const char* file_tail = 
-	"	mov $5, %rax\n"
-	"	retq\n"
-	"\n";
+	// int fd = open("out.s", O_WRONLY | O_CREAT | O_TRUNC);
+	// if (fd < 0) {
+	// 	printf("error: %s: ", "filename");
+	// 	perror("open");
+	// 	exit(1);
+	// }
+	// write(fd, file_head, strlen(file_head));
+	// i16 stack_count = 0;
+	// stack[stack_count++].ind = (i16) program_count - 1;
+	// while (stack_count) {
+	// 	i16 e = stack[--stack_count].ind;
+	// 	index = program[64 * e];
+	// 	// printf("stack_count=%d | (expr=%d) : looking at %d (%.*s) (count=%d)\n", 
+	// 	// 	stack_count, e, index, context[128 * index], context + 128 * index + 1, program[64 * e + 1]);
+	// 	for (i16 i = program[64 * e + 1]; i--;) stack[stack_count++].ind = program[64 * e + 2 + i];
+	// }
 
-	int fd = open("out.s", O_WRONLY | O_CREAT | O_TRUNC);
-	if (fd < 0) {
-		printf("error: %s: ", "filename");
-		perror("open");
-		exit(1);
-	}
-
-	write(fd, file_head, strlen(file_head));
-	
-	i16 stack_count = 0;
-	stack[stack_count++].ind = (i16) program_count - 1;
-	
-	while (stack_count) {
-		i16 e = stack[--stack_count].ind;
-		index = program[64 * e];
-
-		// printf("stack_count=%d | (expr=%d) : looking at %d (%.*s) (count=%d)\n", 
-		// 	stack_count, e, index, context[128 * index], context + 128 * index + 1, program[64 * e + 1]);
-
-		for (i16 i = program[64 * e + 1]; i--;) 
-			stack[stack_count++].ind = program[64 * e + 2 + i];
-	}
-
-	write(fd, file_tail, strlen(file_tail));
-	close(fd);
-
+	// write(fd, file_tail, strlen(file_tail));
+	// close(fd);
 	goto final;
+
 error:;
 
 	i32 at = 0, line = 1, column = 1;
@@ -235,7 +228,7 @@ error:;
 		if (i < length and input[i] == '\n') { l++; c = 1; } else c++;
 	}
 	printf("\n\n");
-	goto finish;
+	// goto finish;
 final:
 	printf("\n--------- program: -------- \n");
 	for (int i = 0; i < program_count; i++) {
