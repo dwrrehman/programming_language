@@ -1,8 +1,5 @@
-join	int b (A.)(B.). undef
-join 	int.undef
-join 	int cab(B.). undef
-join 	cab
-join 	int . cab
-join 	cab
-join 	b.
+join 	decl (daniel is cool data0)
+join 	daniel is cool
+join 	decl ( n3zqx2l(x ≠ 0n3zqx2l) data0)
+join 	(x≠0f)
 nop
