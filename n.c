@@ -51,13 +51,23 @@ int main(int argc, const char** argv) {
 		exit(4);
 	}
 	close(file);
+
+	const size_t P = 32768;
+	const size_t K = 32768;
+	const size_t T = 32768;
+	// NOTE: must all be positive integers less than or equal to 32768.    (> 0)
+
+	const i16 S = 128; 
+	// NOTE: must be a positive power of 2 less than or equal to 128.       (> 0)
+	// 	ie, can be either:    128,    64,     32   (or technically 16, or 8)
+
+	i8* context = malloc(K * S * sizeof(i8));
+	i16* macros = malloc(K * sizeof(i16));
+	i16* indicies = malloc(K * sizeof(i16));
+	i16* program = malloc(P * S * sizeof(i16));
+	i16* stack_data = malloc(T * S * sizeof(i16));
+	struct el* stack = malloc(T * sizeof(struct el));
 	
-	i8* context = malloc(32768 * 128);               
-	i16* program = malloc(32768 * 128);
-	i16* stack_data = malloc(32768 * 128);
-	struct el* stack = malloc(32768 * 8);
-	i16* macros = malloc(32768 * 2);
-	i16* indicies = malloc(32768 * 2);
 	i32 top = 0, program_count = 0, index_count = 0;
 	const char* reason = NULL;
 	i32 begin = 0, best = 0;
@@ -66,16 +76,16 @@ int main(int argc, const char** argv) {
 
 	{
 		const char* spellings[] = {
-			"\0\1",
-			"\4name\1",
-			"\5data0\1",
-			"\5decl\3\2",
-			"\5def\3\2\2",
-			"\6join\2\2\2",
-			"\5data8\1",
-			"\6data16\1",
-			"\3nop\2",
-			"\41(\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1)\3",
+			"\0\1",   // should be at index 127
+  			"\4name\1", // stay
+			"\5data0\1", // stay
+			"\5decl\3\2", // after y256
+			"\5def\3\2\2", // after 256
+			"\6join\2\2\2", // after 256
+			"\5data8\1", // stay
+			"\6data16\1", // stay
+			"\3nop\2",   // after 256.
+			"\41(\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1)\3", // should at index. 255
 			"\0\0", "\0\0", "\0\0", "\0\0",
 			"\0\0", "\0\0", "\0\0", "\0\0",
 			"\0\0", "\0\0", "\0\0", "\0\0", 
@@ -88,7 +98,7 @@ int main(int argc, const char** argv) {
 		// abort();
 
 		for (int i = 0; spellings[i]; i++) { 
-			memcpy(context + 128 * index_count, spellings[i], (size_t) (spellings[i][0] + 2));
+			memcpy(context + S * index_count, spellings[i], (size_t) (spellings[i][0] + 2));
 			macros[index_count++] = 0;
 		}
 
@@ -99,12 +109,12 @@ int main(int argc, const char** argv) {
 			if (i == '(' or i == ')') {
 				char string[11] = "\10n3zqx2l \1";
 				string[8] = (char) i;
-				memcpy(context + 128 * index_count, string, 11);
+				memcpy(context + S * index_count, string, 11);
 				macros[index_count++] = 0;
 			} else {
 				char string[4] = "\1 \1";
 				string[1] = (char) i;
-				memcpy(context + 128 * index_count, string, 4);
+				memcpy(context + S * index_count, string, 4);
 				macros[index_count++] = 0;
 			}
 		}
@@ -132,13 +142,13 @@ try:
 		else { top--; goto try; }
 	}
 	stack[top].ind--;
-	stack_data[64 * top + 1] = 0;
+	stack_data[S * top + 1] = 0;
 	done = 0;
 	begin = stack[top].begin;	
 parent:
 	index = indicies[stack[top].ind];
-	stack_data[64 * top] = index;
-	i8* name = context + 128 * index;	
+	stack_data[S * top] = index;
+	i8* name = context + S * index;	
 	if (stack[top].type != name[*name + 1]) goto try;
 	while (done < *name) {
 		i8 c = name[++done];
@@ -160,14 +170,15 @@ parent:
 
 		if (index_count == 32767) { reason = "context limit exceeded (32767)"; goto error; }
 
-		i8* new = context + 128 * index_count; 
+		i8* new = context + S * index_count; 
 		*new = 0;
 
-		i16 e = stack_data[64 * top + 2];
+		i16 e = stack_data[S * top + 2];
 		i8 i = 0;
-		while (i < program[64 * e + 1]) {
-			i8 c = (i8) program[64 * program[64 * e + 2 + i++]];
-			if (c) new[++*new] = c; else break;
+		while (i < program[S * e + 1]) {
+			i8 c = (i8) program[S * program[S * e + 2 + i++]];
+			if (*new == S - 1) { reason = "signature limit exceeded (127)"; goto error; }
+			if (c != 127) new[++*new] = c; else break;
 		}
 
 
@@ -183,30 +194,29 @@ parent:
 		}
 
 		// if (not *new) {
-		// 	i16 i = 128 * program[64 * second];
+		// 	i16 i = 128 * program[S * second];
 		// 	context[i + context[i] + 1] = 0;
 
 		--*new; i32 place = index_count;
-		while (place and *new < context[128 * indicies[place - 1]]) place--;
+		while (place and *new < context[S * indicies[place - 1]]) place--;
 		memmove(indicies + place + 1, indicies + place, sizeof(i16) * (size_t) (index_count - place));
 		indicies[place] = (i16) index_count;
 		for (i16 s = 0; s <= top; s++) if (place <= stack[s].ind) stack[s].ind++;
-		macros[index_count++] = 0; // program[64 * second] ? second : 
+		macros[index_count++] = 0; // program[S * second] ? second : 
 
 	}
 	//TODO: DONT PUSH expr with    index == 0
 	if (program_count == 32767) { reason = "expression limit exceeded (32767)"; goto error; }
-	memcpy(program + 64 * program_count, stack_data + 64 * top,
-		(size_t) (2 * (stack_data[64 * top + 1] + 2)));
+	memcpy(program + S * program_count, stack_data + S * top,
+		(size_t) (2 * (stack_data[S * top + 1] + 2)));
 	program_count++;
 
 	if (top) {
 		done = stack[top].done; top--;
-
 		//TODO: DONT PUSH expr with    index == 0
-		if (stack_data[64 * top + 1] >= 62) { reason = "argument limit exceeded (62)"; goto error; }
-		stack_data[64 * top + stack_data[64 * top + 1] + 2] = (i16) program_count - 1;
-		stack_data[64 * top + 1]++;
+		if (stack_data[S * top + 1] >= S - 2) { reason = "argument limit exceeded (126)"; goto error; }
+		stack_data[S * top + stack_data[S * top + 1] + 2] = (i16) program_count - 1;
+		stack_data[S * top + 1]++;
 		goto parent;
 	} 
 	if (begin != length) goto try;
@@ -233,10 +243,10 @@ parent:
 	// stack[stack_count++].ind = (i16) program_count - 1;
 	// while (stack_count) {
 	// 	i16 e = stack[--stack_count].ind;
-	// 	index = program[64 * e];
+	// 	index = program[S * e];
 	// 	// printf("stack_count=%d | (expr=%d) : looking at %d (%.*s) (count=%d)\n", 
-	// 	// 	stack_count, e, index, context[128 * index], context + 128 * index + 1, program[64 * e + 1]);
-	// 	for (i16 i = program[64 * e + 1]; i--;) stack[stack_count++].ind = program[64 * e + 2 + i];
+	// 	// 	stack_count, e, index, context[S * index], context + S * index + 1, program[S * e + 1]);
+	// 	for (i16 i = program[S * e + 1]; i--;) stack[stack_count++].ind = program[S * e + 2 + i];
 	// }
 
 	// write(fd, file_tail, strlen(file_tail));
@@ -256,7 +266,7 @@ error:;
 	fprintf(stderr, "\033[1m%s:%u:%u: \033[1;31merror:\033[m \033[1m%s\033[m\n", argv[1], line, column, reason);
 
 	if (candidate) {
-		i8* n = context + 128 * candidate;
+		i8* n = context + S * candidate;
 		printf("candidate: ");
 		for (i8 s = 0; s < *n + 1; s++) {
 			i8 c = n[s + 1];
@@ -280,36 +290,37 @@ error:;
 	printf("\n\n");
 	// goto finish;
 final:
-	// printf("\n--------- program: -------- \n");
-	// for (int i = 0; i < program_count; i++) {
-	// 	i16* e = program + 64 * i;
-	// 	printf("%d | index=%d : \"%.*s\", count=%d, [ ", i, *e, context[128 * *e + 0], context + 128 * *e + 1, e[1]);
-	// 	for (int j = 0; j < e[1]; j++) 
-	// 		printf("%d ", e[j + 2]);
-	// 	printf("]\n");
-	// }
-	// printf("\n--------- context: -------- \n");
-	// printf("indicies = (%d){ ", index_count);
-	// for (int i = 0; i < index_count; i++) 
-	// 	printf("%d ", indicies[i]);
-	// printf("}\n");
-	// for (int i = 0; i < index_count; i++) {
-	// 	i8* n = context + 128 * i;	
-	// 	printf("%d | (length=%d) [ ", i, *n);
-	// 	for (int j = 0; j < *n + 2; j++) {
-	// 		i8 c = n[j];
-	// 		if ((u8)c < 33) printf(" (%d) ", c);
-	// 		else putchar(c);
-	// 	}
-	// 	printf(" ] \n");
-	// 	if (macros[i]) {
-	// 		printf("MACRO DEF: \n");
-	// 		print_program(program, macros[i], 0, context);
-	// 		printf("END MACRO\n");
-	// 	}
-	// }
-	// printf("-----------------------------\n\n");
-	if (program_count) print_program(program, (i16) program_count - 1, 0, context);
+	printf("\n--------- program: -------- \n");
+	for (int i = 0; i < program_count; i++) {
+		i16* e = program + S * i;
+		printf("%d | index=%d : \"%.*s\", count=%d, [ ", i, *e, context[S * *e + 0], context + S * *e + 1, e[1]);
+		for (int j = 0; j < e[1]; j++) 
+			printf("%d ", e[j + 2]);
+		printf("]\n");
+	}
+	printf("\n--------- context: -------- \n");
+	printf("indicies = (%d){ ", index_count);
+	for (int i = 0; i < index_count; i++) 
+		printf("%d ", indicies[i]);
+	printf("}\n");
+	for (int i = 0; i < index_count; i++) {
+		i8* n = context + S * i;	
+		printf("%d | (length=%d) [ ", i, *n);
+		for (int j = 0; j < *n + 2; j++) {
+			i8 c = n[j];
+			if ((u8)c < 33) printf(" (%d) ", c);
+			else putchar(c);
+		}
+		printf(" ] \n");
+		if (macros[i]) {
+			printf("MACRO DEF: \n");
+			print_program(program, macros[i], 0, context);
+			printf("END MACRO\n");
+		}
+	}
+	printf("-----------------------------\n\n");
+	if (program_count) 
+		print_program(program, (i16) program_count - 1, 0, context);
 // finish:
 	munmap(input, (size_t) length);
 	free(context);
@@ -335,20 +346,20 @@ nop
 
 	// if (macros[index]) {
 	
-	// 	memcpy(stack_data + 64 * top, program[macros[index]], count);
+	// 	memcpy(stack_data + S * top, program[macros[index]], count);
 
 
 	// 	i16 definition = macros[index]; // macro definition.
-	// 	// stack_data[64 * top + 2] // call.args0 is here!!
+	// 	// stack_data[S * top + 2] // call.args0 is here!!
 
-	// 	i16 call_count = stack_data + 64 * top  + 1;
+	// 	i16 call_count = stack_data + S * top  + 1;
 
 
 	// 	i16 call_index = index;
 	// 	i16* call = malloc(call_count * 2);
 		
 	
-	// 	// memcpy(stack_data + 64 * top; // arg count for the call expression.
+	// 	// memcpy(stack_data + S * top; // arg count for the call expression.
 
 	// 	i16 stack_count = top + 1;
 
@@ -356,14 +367,14 @@ nop
 
 	// 	while (stack_count > top + 1) {
 	// 		i16 e = stack[--stack_count].ind;
-	// 		i16 def_index = program[64 * e];
+	// 		i16 def_index = program[S * e];
 
 	// 		if (def_index >= call_index - call_count and def_index < call_index) { 
 				
 	// 			*out = call.args[call.count - (call.index - def.index)];
 
-	// 		for (i16 i = program[64 * e + 1]; i--;) 
-	// 			stack[stack_count++].ind = program[64 * e + 2 + i];
+	// 		for (i16 i = program[S * e + 1]; i--;) 
+	// 			stack[stack_count++].ind = program[S * e + 2 + i];
 	// 	}
 
 	// }
@@ -372,7 +383,7 @@ nop
 /*
 
 // printf("stack_count=%d | (expr=%d) : looking at %d (%.*s) (count=%d)\n", 
-		// 	stack_count, e, index, context[128 * index], context + 128 * index + 1, program[64 * e + 1]);
+		// 	stack_count, e, index, context[S * index], context + S * index + 1, program[64 * e + 1]);
 
 
 		if (def.index >= call.index - call.count and 
@@ -398,9 +409,25 @@ static inline void expand_macro(struct context* context, struct stack_element* s
 
 		// while (program[64 * p + 1]) {
 		// 	if (*new == 127) { reason = "signature limit exceeded (127)"; goto error; }
-		// 	i16 count = program[64 * p + 1], i = count == 2 ? program[64 * p + 2] : p;
-		// 	i8 c = context[128 * program[64 * i] + 1];
-		// 	new[++*new] = count == 2 ? c - 64 : c;
-		// 	p = program[64 * p + count + 1];
+		// 	i16 count = program[S * p + 1], i = count == 2 ? program[S * p + 2] : p;
+		// 	i8 c = context[S * program[S * i] + 1];
+		// 	new[++*new] = count == 2 ? c - S : c;
+		// 	p = program[S * p + count + 1];
 		// }
+
+
+
+
+
+
+/* 
+		compiler needs 21MB to run: 
+	
+			32768 * S * 2 * 2 + 
+			32768 * S + 
+			32768 * 8 + 
+			32768 * 2 * 2
+	*/
+
+
 
