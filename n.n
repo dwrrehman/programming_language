@@ -1,6 +1,6 @@
 cat 
 	cat 
 		cat c bubbles
-		cat bubbles c
+		cat bufbbles c
 	cat c c
 

@@ -102,7 +102,6 @@ int main(int argc, const char** argv) {
 	context[context_count++] = 's';
 	context[context_count++] = 256;
 
-
 	while (begin < length and input[begin] < 33) begin++;
 	if (begin > best) best = begin;
 
@@ -113,18 +112,21 @@ int main(int argc, const char** argv) {
 	stack[top + 4] = index;
 	stack[top + 5] = count;
 	stack[top + 6] = arg;
-	stack[top + 7] = -100; // padding.
+	stack[top + 7] = -100; 
 try:
 	if (not stack[top]) { 
 		if (not top) {
 			reason = "unresolved expression";
 			goto error; 
 		}
-		top--;
+		top -= 8;
 		// printf("----> error: ran out of signatures.\n");
 		goto try; 
 	}
-	index = indicies[--stack[top]];
+	// printf("top = %d, stack[top] = %d\n\n", top, stack[top]);
+
+	stack[top]--;
+	index = indicies[stack[top]];
 	done = 0;
 	count = 0;
 	begin = stack[top + 3];
