@@ -1,0 +1,9 @@
+join 	decl (daniel is cool data0)
+join 	daniel is cool
+join 	decl ( if n3zqx2l(x ≠ 0n3zqx2l) { // some code. } data0)
+join 	
+
+	if (x ≠ 0) {
+		// some code.
+	}
+nop
