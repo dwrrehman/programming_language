@@ -56,15 +56,15 @@ int main(int argc, const char** argv) {
 	}
 	close(file);
 
-	int* program = malloc(4096);      //  I C [A]
-	int* context = malloc(4096);      //  M C [S]
-	int* indicies = malloc(4096);     // [X]
-	int* arguments = malloc(4096);    // [A]
-	int* stack = malloc(4096);        //  X D T B I C A _    (7 members, plus 1 padding.)
+	int* program = malloc(4096);
+	int* context = malloc(4096);
+	int* indicies = malloc(4096);
+	int* arguments = malloc(4096);
+	int* stack = malloc(4096);
 	
-	int  program_count = 0, context_count = 0, index_count = 0,
-	     arg = 0, top = 0, begin = 0, index = 0, count = 0, type = 256, 
-	     done = 0, best = 0, candidate = 0;
+	int program_count = 0, context_count = 0, index_count = 0,
+	    arg = 0, top = 0, begin = 0, index = 0, count = 0, type = 256, 
+	    done = 0, best = 0, candidate = 0;
 
 	indicies[index_count++] = context_count;
 	context[context_count++] = -100;
@@ -115,46 +115,18 @@ int main(int argc, const char** argv) {
 	stack[top + 7] = -100; 
 try:
 	if (not stack[top]) { 
-		if (not top) {
-			reason = "unresolved expression";
-			goto error; 
-		}
-		top -= 8;
-		// printf("----> error: ran out of signatures.\n");
-		goto try; 
+		if (not top) { reason = "unresolved expression"; goto error; }
+		top -= 8; goto try; 
 	}
-	// printf("top = %d, stack[top] = %d\n\n", top, stack[top]);
-
 	stack[top]--;
 	index = indicies[stack[top]];
 	done = 0;
 	count = 0;
 	begin = stack[top + 3];
-
 parent:;
 	int* name = context + index;
 	int name_length = name[1];
-
-	// for (int i = 0; i < top / 8; i++) printf(".   ");
-	// printf("DEBUG: stack: ");
-	// print(stack, top + 8);
-
-	// puts("");
-	// for (int i = 0; i < top / 8; i++) printf(".   ");
-	// printf("DEBUG: arguments: ");
-	// print(arguments, arg + count);
-	// puts(""); 
-
-	// for (int i = 0; i < top / 8; i++) printf(".   ");
-	// printf("DEBUG: name: ");
-	// print(name + 1, name_length + 2);
-
-	if (type != name[name_length + 2]) { 
-		// for (int i = 0; i < top / 8; i++) printf(".   ");
-		// printf("---> error: type checking failed.\n"); 
-		goto try; 
-	}
-
+	if (type != name[name_length + 2]) goto try; 
 	while (done < name_length) {
 		int element = name[done++ + 2];
 		if (element >= 256) {
@@ -166,50 +138,31 @@ parent:;
 			stack[top + 4] = index;
 			stack[top + 5] = count;
 			stack[top + 6] = arg;
-			stack[top + 7] = -100; // padding.
+			stack[top + 7] = -100; 
 			arg += count;
-			// for (int i = 0; i < top / 8; i++) printf(".   ");
-			// printf("----> note: found argument! \n");
 			goto try;
 		}
-
-		if (begin >= length or element != input[begin]) { 
-			// for (int i = 0; i < top / 8; i++) printf(".   ");
-			// printf("----> error: char matching failed.\n"); 
-			goto try; 
-		}
-
+		if (begin >= length or element != input[begin]) goto try;
 		do begin++; while (begin < length and input[begin] < 33);
 		if (begin > best) { best = begin; candidate = index;}
 	}
-
-	int p = program_count;
-	program[program_count] = index;
+	program[program_count + 0] = index;
 	program[program_count + 1] = count;
 	memcpy(program + program_count + 2, arguments + arg, sizeof(int) * (size_t) count);
-	program_count += 2 + count;
-
-	// for (int i = 0; i < top / 8; i++) printf(".   ");
-	// printf("----> successs: recognized at %d\n", p);
-	
 	if (top) {
+		int save = count;
 		done = stack[top + 1]; 
 		type = stack[top + 2];
 		index = stack[top + 4];
 		count = stack[top + 5];
 		arg = stack[top + 6];
-		arguments[arg + count++] = p;
+		arguments[arg + count++] = program_count;
 		top -= 8;
+		program_count += 2 + save;
 		goto parent;
 	} 
-
-	if (begin != length) {
-		// printf("----> error: begin ≠ length\n"); 
-		goto try;
-	}
-
+	if (begin != length) goto try;
 	printf("\n\tcompile successful.\n\n");
-
 	goto final;
 
 error:;
@@ -220,6 +173,9 @@ error:;
 
 	fprintf(stderr, "\033[1m%s:%u:%u: \033[1;31merror:\033[m \033[1m%s\033[m\n", 
 			filename, line, column, reason);
+
+	printf("did you mean: ");
+	print(context + candidate + 2, context[candidate + 1] + 1);
 
 	int b = line > 2 ? line - 2 : 0, e = line + 2;
 	for (int i = 0, l = 1, c = 1; i < length + 1; i++) {
@@ -246,7 +202,7 @@ final:
 	print(context, context_count);
 
 	printf("tree:\n\n");
-	print_program(program, context, program_count - (2 + count), 0);
+	print_program(program, context, program_count, 0);
 
 	munmap(input, (size_t) length);
 	free(context);
