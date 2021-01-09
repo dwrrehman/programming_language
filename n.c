@@ -69,12 +69,12 @@ int main(int argc, const char** argv) {
 	    arg = 0, top = 0, begin = 0, index = 0, count = 0, type = 256, 
 	    done = 0, best = 0, candidate = 0, * name = NULL, element = 0;
 
-	int indtemplate[] = {0, 6, 10, 18};
+	int indtemplate[] = {0, 6, 13, 21};
 	memcpy(indicies, indtemplate, sizeof indtemplate);
 	index_count = sizeof indtemplate / sizeof(int);
 	int template[] = {
 		0xFFFF, 3, 'b', 'o', 'b', 256,
-		0xFFFF, 1, 'c', 256,
+		0xFFFF, 4, 'c', 'a', 't', 256, 256,
 		0xFFFF, 5, 'c', 'a', 't', 256, 256, 256,
 		0xFFFF, 7, 'b', 'u', 'b', 'b', 'l', 'e', 's', 256,
 	};
@@ -174,13 +174,6 @@ final:
 	printf("program: "); print(program, program_count + 2 + count);	
 	printf("indicies: "); print(indicies, index_count);
 	printf("context: "); print(context, context_count);
-
-	printf("RAW:\n");
-	printf("stack: "); print(stack, stack_limit);
-	printf("arguments: "); print(arguments, argument_limit);	
-	printf("program: "); print(program, program_limit);	
-	printf("indicies: "); print(indicies, index_limit);
-	printf("context: "); print(context, context_limit);
 	munmap(input, (size_t) length);
 	free(context);
 	free(program);

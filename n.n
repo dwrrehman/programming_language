@@ -1,4 +1,1 @@
-
-cat
-	cat bubbles bubbles 
-	c
+cat bubbles
