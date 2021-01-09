@@ -35,7 +35,7 @@ int main(int argc, const char** argv) {
 	if (argc < 2) return 1;
 	const char* filename = argv[1], * reason = NULL;
 	struct stat file_data = {0};
-	int file = open(filename, O_RDONLY);
+	const int file = open(filename, O_RDONLY);
 
 	if (file < 0 or stat(filename, &file_data) < 0) {
 		fprintf(stderr, "error: %s: ", filename);
@@ -43,7 +43,7 @@ int main(int argc, const char** argv) {
 		exit(3);
 	}
 
-	int length = (int) file_data.st_size;
+	const int length = (int) file_data.st_size;
 	unsigned char* input = not length ? 0 : mmap(0, (size_t) length, PROT_READ, MAP_SHARED, file, 0);
 	if (input == MAP_FAILED) {
 		fprintf(stderr, "error: %s: ", filename);
@@ -53,12 +53,12 @@ int main(int argc, const char** argv) {
 	close(file);
 
 	const int 
-		program_limit = 14,
-		context_limit = 50,
-		index_limit = 4,
-		argument_limit = 4,
-		stack_limit = 3 * 8;
-
+		program_limit = 4096,
+		context_limit = 4096,
+		index_limit = 4096,
+		argument_limit = 4096,
+		stack_limit = 4096;
+	
 	int* program = malloc(program_limit * sizeof(int));
 	int* context = malloc(context_limit * sizeof(int));
 	int* indicies = malloc(index_limit * sizeof(int));
@@ -66,16 +66,16 @@ int main(int argc, const char** argv) {
 	int* stack = malloc(stack_limit * sizeof(int));
 
 	int program_count = 0, context_count = 0, index_count = 0,
-	    arg = 0, top = 0, begin = 0, index = 0, count = 0, type = 256, 
-	    done = 0, best = 0, candidate = 0, * name = NULL, element = 0;
+	    arg = 0, top = 0, begin = 0, index = 0, count = 0,
+	    done = 0, best = 0, candidate = 0, element = 0;
 
 	int indtemplate[] = {0, 6, 13, 21};
 	memcpy(indicies, indtemplate, sizeof indtemplate);
 	index_count = sizeof indtemplate / sizeof(int);
 	int template[] = {
-		0xFFFF, 3, 'b', 'o', 'b', 256,
-		0xFFFF, 4, 'c', 'a', 't', 256, 256,
-		0xFFFF, 5, 'c', 'a', 't', 256, 256, 256,
+		0xFFFF, 3, 'b', 'o', 'b', 257,
+		0xFFFF, 4, 'c', 'a', 't', 256, 257,
+		0xFFFF, 5, 'c', 'a', 't', 256, 257, 256,
 		0xFFFF, 7, 'b', 'u', 'b', 'b', 'l', 'e', 's', 256,
 	};
 	memcpy(context, template, sizeof template);
@@ -83,7 +83,8 @@ int main(int argc, const char** argv) {
 
 	while (begin < length and input[begin] < 33) begin++;
 	if (begin > best) best = begin;
-	stack[top] = index_count;
+	stack[top + 0] = index_count;
+	stack[top + 2] = 256;
 	stack[top + 3] = begin;
 	stack[top + 7] = program_count;
 try:
@@ -93,15 +94,14 @@ try:
 	}
 	stack[top]--;
 	index = indicies[stack[top]];
+	if (stack[top + 2] != context[index + context[index + 1] + 2]) goto try; 
 	done = 0;
 	count = 0;
 	begin = stack[top + 3];
 	program_count = stack[top + 7];
 parent:
-	name = context + index;
-	if (type != name[name[1] + 2]) goto try; 
-	while (done < name[1]) {
-		element = name[done + 2];
+	while (done < context[index + 1]) {
+		element = context[index + done + 2];
 		done++;
 		if (element >= 256) {
 			top += 8;
@@ -129,8 +129,7 @@ parent:
 
 	if (top) {
 		element = count;
-		done = stack[top + 1]; 
-		type = stack[top + 2];
+		done = stack[top + 1];
 		index = stack[top + 4];
 		count = stack[top + 5];
 		arg = stack[top + 6];
