@@ -10,11 +10,8 @@
 
 static inline void print(int* vector, int length) {
 	printf("(%d){ ", length);
-	for (int i = 0; i < length; i++)  {
-		if (vector[i] >= 64 + 32 and vector[i] < 256) 
-			printf("%c ", vector[i]);
-		else printf("%d ", vector[i]);
-	}
+	for (int i = 0; i < length; i++) 
+		printf("%d ", vector[i]);
 	printf("}\n");
 }
 
@@ -68,23 +65,23 @@ int main(int argc, const char** argv) {
 	int program_count = 0, context_count = 0, index_count = 0,
 	    arg = 0, top = 0, begin = 0, index = 0, count = 0,
 	    done = 0, best = 0, candidate = 0, element = 0;
-
-	int indtemplate[] = {0, 6, 13, 21};
-	memcpy(indicies, indtemplate, sizeof indtemplate);
-	index_count = sizeof indtemplate / sizeof(int);
-	int template[] = {
-		0xFFFF, 3, 'b', 'o', 'b', 257,
-		0xFFFF, 4, 'c', 'a', 't', 256, 257,
-		0xFFFF, 5, 'c', 'a', 't', 256, 257, 256,
-		0xFFFF, 7, 'b', 'u', 'b', 'b', 'l', 'e', 's', 256,
-	};
-	memcpy(context, template, sizeof template);
-	context_count = sizeof template / sizeof(int);
-
+	{
+		int indtemplate[] = {0, 6, 13, 21};
+		memcpy(indicies, indtemplate, sizeof indtemplate);
+		index_count = sizeof indtemplate / sizeof(int);
+		int template[] = {
+			0, 3, 'b', 'o', 'b', 249,
+			0, 4, 'c', 'a', 't', 248, 249,
+			0, 5, 'c', 'a', 't', 248, 249, 248,
+			0, 7, 'b', 'u', 'b', 'b', 'l', 'e', 's', 248,
+		};
+		memcpy(context, template, sizeof template);
+		context_count = sizeof template / sizeof(int);
+	}
 	while (begin < length and input[begin] < 33) begin++;
 	if (begin > best) best = begin;
 	stack[top + 0] = index_count;
-	stack[top + 2] = 256;
+	stack[top + 2] = 248;
 	stack[top + 3] = begin;
 	stack[top + 7] = program_count;
 try:
@@ -94,7 +91,7 @@ try:
 	}
 	stack[top]--;
 	index = indicies[stack[top]];
-	if (stack[top + 2] != context[index + context[index + 1] + 2]) goto try; 
+	if (stack[top + 2] and stack[top + 2] != context[index + context[index + 1] + 2]) goto try; 
 	done = 0;
 	count = 0;
 	begin = stack[top + 3];
@@ -103,7 +100,7 @@ parent:
 	while (done < context[index + 1]) {
 		element = context[index + done + 2];
 		done++;
-		if (element >= 256) {
+		if (element >= 248) {
 			top += 8;
 			if (top + 7 >= stack_limit) { reason = "stack limit exceeded"; goto error; } 
 			stack[top + 0] = index_count;
@@ -121,7 +118,18 @@ parent:
 		do begin++; while (begin < length and input[begin] < 33);
 		if (begin > best) { best = begin; candidate = index;}
 	}
-
+	if (index == 1025) {
+		if (index_count >= index_limit) { reason = "index limit exceeded"; goto error; }
+		int name_length = program[arguments[arg + 2] + 1] - 1, place = index_count;
+		if (context_count + name_length + 3 >= context_limit) { reason = "context limit exceeded"; goto error; }
+		while (place and name_length < context[indicies[place - 1] + 1]) place--;
+		memmove(indicies + place + 1, indicies + place, sizeof(int) * (size_t) (index_count - place));
+		indicies[place] = context_count;
+		for (int s = 0; s <= top; s += 8) if (place <= stack[s]) stack[s]++;
+		context[context_count++] = 0;
+		context[context_count++] = name_length;
+		for (int i = 0; i <= name_length; i++) context[context_count++] = program[program[element + i + 2]]; 
+	}
 	if (program_count + 2 + count > program_limit) { reason = "program limit exceeded"; goto error; } 
 	program[program_count + 0] = index;
 	program[program_count + 1] = count;
@@ -181,19 +189,21 @@ final:
 	free(indicies);
 }
 
-
-
-
 /*
 	todo list:
 	
-		x 1. get ucsr working with densely packed arrays. 
+		x 0. get ucsr working with densely packed arrays. 
+
+
+		1. make the context!! its just an array of ints.   
+
+  			   only put in [248 + intrinsic] signatures.
 
 		2. make context printer?
 		3. make context loader!!
 			3.1. extract out a open file function. we just need it. use void pointers. 
 
-		4. make the declare intrinsic!     (rename to def). even though its takes one arg.
+		x 4. make the declare intrinsic!     (rename to def). even though its takes one arg.
 		5.  test it
 
 		6. get the other two intrinsic wworking:    attach,  and undef.
@@ -205,4 +215,7 @@ final:
 
 		10. i think thats it, then we have a compiler!... lol
 
+
+
 */
+
