@@ -132,15 +132,34 @@ parent:
 
 	if (index == 994) {
 		if (index_count >= index_limit) { reason = "index limit exceeded"; goto error; }
-		int name_length = program[arguments[arg + 2] + 1] - 1, place = index_count;
+		int name_length = program[arguments[arg] + 1] - 1, place = index_count;
 		if (context_count + name_length + 3 >= context_limit) { reason = "context limit exceeded"; goto error; }
 		while (place and name_length < context[indicies[place - 1] + 1]) place--;
 		memmove(indicies + place + 1, indicies + place, sizeof(int) * (size_t) (index_count - place));
 		indicies[place] = context_count;
 		for (int i = 0; i <= top; i += 8) if (place <= stack[i]) stack[i]++;
-		context[context_count++] = 0;
+		context[context_count++] = arguments[arg + 1];
 		context[context_count++] = name_length;
 		for (int i = 0; i <= name_length; i++) context[context_count++] = program[program[element + i + 2]]; 
+
+	} else if (program[context[index]] >= 992) {
+		top += 8;
+		int call_index = index;
+		int call_argument_count = count;
+		int* call_arguments = arguments + arg;
+		int stack_count = 0;
+		stack[top + stack_count++] = context[index];
+		while (stack_count) {
+			int TOS = stack[--stack_count + top];
+			int definition_index = program[TOS];
+			int definition_count = program[TOS + 1];
+
+			printf("MACRO: DEBUG: LOOKING AT: "); print(program + TOS + 2, definition_count);
+
+			for (int i = 0; i < definition_count; i++) 
+				stack[top + stack_count++] = program[TOS + 2 + i];
+		}
+		top -= 8;
 	}
 	
 
@@ -234,10 +253,4 @@ final:
 
 
 */
-
-
-
-
-//todo: write the attach and macro-expansion, and undefine intrins code.
-
 
