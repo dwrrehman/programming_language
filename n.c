@@ -2,7 +2,6 @@
 #include <iso646.h>
 #include <stdlib.h>
 #include <string.h>
-#include <stdint.h>
 #include <fcntl.h>
 #include <unistd.h>
 #include <sys/stat.h>
@@ -27,10 +26,8 @@ static inline void print_program(int* program, int* context, int p, int depth) {
 	}
 }
 
-int main(int argc, const char** argv) {
+static inline void* open_file(const char* filename, int* length) {
 
-	if (argc < 2) return 1;
-	const char* filename = argv[1], * reason = NULL;
 	struct stat file_data = {0};
 	const int file = open(filename, O_RDONLY);
 
@@ -40,15 +37,22 @@ int main(int argc, const char** argv) {
 		exit(3);
 	}
 
-	const int length = (int) file_data.st_size;
-	unsigned char* input = not length ? 0 : mmap(0, (size_t) length, PROT_READ, MAP_SHARED, file, 0);
+	*length = (int) file_data.st_size;
+	if (not *length) return NULL;
+	void* input = mmap(0, (size_t) *length, PROT_READ, MAP_SHARED, file, 0);
 	if (input == MAP_FAILED) {
 		fprintf(stderr, "error: %s: ", filename);
 		perror("mmap");
 		exit(4);
 	}
 	close(file);
+	return input;
+}
 
+int main(int argc, const char** argv) {
+
+	if (argc < 2) return 1;
+	const char* filename = argv[1], * reason = NULL;
 	const int 
 		program_limit = 4096,
 		context_limit = 4096,
@@ -65,23 +69,28 @@ int main(int argc, const char** argv) {
 	int program_count = 0, context_count = 0, index_count = 0,
 	    arg = 0, top = 0, begin = 0, index = 0, count = 0,
 	    done = 0, best = 0, candidate = 0, element = 0;
+
+	int length = 0;
+	unsigned char* input = open_file(filename, &length);
+
 	{
 		int indtemplate[] = {0, 6, 13, 21};
 		memcpy(indicies, indtemplate, sizeof indtemplate);
 		index_count = sizeof indtemplate / sizeof(int);
 		int template[] = {
-			0, 3, 'b', 'o', 'b', 249,
-			0, 4, 'c', 'a', 't', 248, 249,
-			0, 5, 'c', 'a', 't', 248, 249, 248,
-			0, 7, 'b', 'u', 'b', 'b', 'l', 'e', 's', 248,
+			0, 3, 'b', 'o', 'b', 993,
+			0, 4, 'c', 'a', 't', 992, 993,
+			0, 5, 'c', 'a', 't', 992, 993, 992,
+			0, 7, 'b', 'u', 'b', 'b', 'l', 'e', 's', 992,
 		};
 		memcpy(context, template, sizeof template);
 		context_count = sizeof template / sizeof(int);
 	}
+
 	while (begin < length and input[begin] < 33) begin++;
 	if (begin > best) best = begin;
-	stack[top + 0] = index_count;
-	stack[top + 2] = 248;
+	stack[top] = index_count;
+	stack[top + 2] = 992;
 	stack[top + 3] = begin;
 	stack[top + 7] = program_count;
 try:
@@ -91,7 +100,8 @@ try:
 	}
 	stack[top]--;
 	index = indicies[stack[top]];
-	if (stack[top + 2] and stack[top + 2] != context[index + context[index + 1] + 2]) goto try; 
+	if (stack[top + 2] != 992 and 
+	    stack[top + 2] != context[index + context[index + 1] + 2]) goto try; 
 	done = 0;
 	count = 0;
 	begin = stack[top + 3];
@@ -100,10 +110,11 @@ parent:
 	while (done < context[index + 1]) {
 		element = context[index + done + 2];
 		done++;
-		if (element >= 248) {
+
+		if (element >= 992) {
 			top += 8;
 			if (top + 7 >= stack_limit) { reason = "stack limit exceeded"; goto error; } 
-			stack[top + 0] = index_count;
+			stack[top] = index_count;
 			stack[top + 1] = done;
 			stack[top + 2] = element;
 			stack[top + 3] = begin;
@@ -116,22 +127,25 @@ parent:
 		}
 		if (begin >= length or element != input[begin]) goto try;
 		do begin++; while (begin < length and input[begin] < 33);
-		if (begin > best) { best = begin; candidate = index;}
+		if (begin > best) { best = begin; candidate = index; } 
 	}
-	if (index == 1025) {
+
+	if (index == 994) {
 		if (index_count >= index_limit) { reason = "index limit exceeded"; goto error; }
 		int name_length = program[arguments[arg + 2] + 1] - 1, place = index_count;
 		if (context_count + name_length + 3 >= context_limit) { reason = "context limit exceeded"; goto error; }
 		while (place and name_length < context[indicies[place - 1] + 1]) place--;
 		memmove(indicies + place + 1, indicies + place, sizeof(int) * (size_t) (index_count - place));
 		indicies[place] = context_count;
-		for (int s = 0; s <= top; s += 8) if (place <= stack[s]) stack[s]++;
+		for (int i = 0; i <= top; i += 8) if (place <= stack[i]) stack[i]++;
 		context[context_count++] = 0;
 		context[context_count++] = name_length;
 		for (int i = 0; i <= name_length; i++) context[context_count++] = program[program[element + i + 2]]; 
 	}
+	
+
 	if (program_count + 2 + count > program_limit) { reason = "program limit exceeded"; goto error; } 
-	program[program_count + 0] = index;
+	program[program_count] = index;
 	program[program_count + 1] = count;
 	memcpy(program + program_count + 2, arguments + arg, sizeof(int) * (size_t) count);
 
@@ -147,7 +161,7 @@ parent:
 		top -= 8;
 		program_count += 2 + element;
 		goto parent;
-	} 
+	}
 	if (begin != length) goto try;
 	printf("\n\tcompile successful.\n\n");
 	print_program(program, context, program_count, 0);
@@ -157,12 +171,8 @@ error:;
 	while (at < best) {
 		if (input[at++] == '\n') { line++; column = 1; } else column++;
 	}
-
 	fprintf(stderr, "\033[1m%s:%u:%u: \033[1;31merror:\033[m \033[1m%s\033[m\n", 
 			filename, line, column, reason);
-
-	printf("did you mean: ");
-	print(context + candidate + 2, context[candidate + 1] + 1);
 
 	int b = line > 2 ? line - 2 : 0, e = line + 2;
 	for (int i = 0, l = 1, c = 1; i < length + 1; i++) {
@@ -177,6 +187,7 @@ error:;
 		if (i < length and input[i] == '\n') { l++; c = 1; } else c++;
 	}
 	printf("\n\n");
+	//todo: write the "candidate suggestion" pretty-printing thing.
 final:
 	printf("program: "); print(program, program_count + 2 + count);	
 	printf("indicies: "); print(indicies, index_count);
@@ -189,6 +200,7 @@ final:
 	free(indicies);
 }
 
+
 /*
 	todo list:
 	
@@ -196,26 +208,36 @@ final:
 
 
 		1. make the context!! its just an array of ints.   
-
   			   only put in [248 + intrinsic] signatures.
 
 		2. make context printer?
+
 		3. make context loader!!
-			3.1. extract out a open file function. we just need it. use void pointers. 
+			3.1. extract out a open file function? we just need it. use void pointers. 
 
 		x 4. make the declare intrinsic!     (rename to def). even though its takes one arg.
 		5.  test it
+		
+		8. get macros with arguments working!!	
+		9. test it
 
 		6. get the other two intrinsic wworking:    attach,  and undef.
 		7. test those 
 
-		8. get macros with arguments working!!	
+		10. get code generation working for simple intructions!!
 
-		9. get code generation working for simple intructions!!
+		11. improve the code generator over time. 
 
-		10. i think thats it, then we have a compiler!... lol
+
+		      -->      i think thats it, then we have a compiler!... lol
 
 
 
 */
+
+
+
+
+//todo: write the attach and macro-expansion, and undefine intrins code.
+
 
