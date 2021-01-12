@@ -66,7 +66,7 @@ int main(int argc, const char** argv) {
 	int* arguments = malloc(argument_limit * sizeof(int));
 	int* stack = malloc(stack_limit * sizeof(int));
 
-	int program_count = 0, context_count = 0, index_count = 0,
+	int program_count = 0, context_count = 0, index_count = 0, alphabet = 864,
 	    arg = 0, top = 0, begin = 0, index = 0, count = 0,
 	    done = 0, best = 0, candidate = 0, element = 0;
 
@@ -90,7 +90,7 @@ int main(int argc, const char** argv) {
 	while (begin < length and input[begin] < 33) begin++;
 	if (begin > best) best = begin;
 	stack[top] = index_count;
-	stack[top + 2] = 992;
+	stack[top + 2] = alphabet;
 	stack[top + 3] = begin;
 	stack[top + 7] = program_count;
 try:
@@ -100,7 +100,7 @@ try:
 	}
 	stack[top]--;
 	index = indicies[stack[top]];
-	if (stack[top + 2] != 992 and 
+	if (stack[top + 2] != alphabet and 
 	    stack[top + 2] != context[index + context[index + 1] + 2]) goto try; 
 	done = 0;
 	count = 0;
@@ -111,7 +111,7 @@ parent:
 		element = context[index + done + 2];
 		done++;
 
-		if (element >= 992) {
+		if (element >= alphabet) {
 			top += 8;
 			if (top + 7 >= stack_limit) { reason = "stack limit exceeded"; goto error; } 
 			stack[top] = index_count;
@@ -130,7 +130,7 @@ parent:
 		if (begin > best) { best = begin; candidate = index; } 
 	}
 
-	if (index == 994) {
+	if (index == alphabet + 4) {
 		if (index_count >= index_limit) { reason = "index limit exceeded"; goto error; }
 		int name_length = program[arguments[arg] + 1] - 1, place = index_count;
 		if (context_count + name_length + 3 >= context_limit) { reason = "context limit exceeded"; goto error; }
@@ -140,9 +140,11 @@ parent:
 		for (int i = 0; i <= top; i += 8) if (place <= stack[i]) stack[i]++;
 		context[context_count++] = arguments[arg + 1];
 		context[context_count++] = name_length;
-		for (int i = 0; i <= name_length; i++) context[context_count++] = program[program[element + i + 2]]; 
-
-	} else if (program[context[index]] >= 992) {
+		for (int i = 0; i <= name_length; i++) {
+			int ind = program[program[element + i + 2]];
+			context[context_count++] = ind < alphabet ? context[ind + 2] : ind;
+		}
+	} else if (program[context[index]] >= alphabet) {
 		top += 8;
 		int call_index = index;
 		int call_argument_count = count;
@@ -162,7 +164,6 @@ parent:
 		top -= 8;
 	}
 	
-
 	if (program_count + 2 + count > program_limit) { reason = "program limit exceeded"; goto error; } 
 	program[program_count] = index;
 	program[program_count + 1] = count;

@@ -87,11 +87,13 @@ int main() {
 
 	int index_count = 214; // 248 - 33 - 1    
 
+	int alphabet_start = 864; // 860 + 4
+
 	// remove inprntable chars: space, ctrl chars, del char, 
 	// and also remove the unicode chars that arent used in utf8: 0xF8 through 0xFF.
 
 	context[context_count++] = index_count;
-	context[context_count++] = 864;
+	context[context_count++] = alphabet_start;
 
 	for (int i = 0; i < index_count + 1; i++) {
 		if (i + 33 <= '(') context[context_count++] = i * 4;
@@ -109,17 +111,17 @@ int main() {
 		if (i + 33 == '(' or i + 33 == ')') { 
 			context[context_count++] = 0;
 			context[context_count++] = 5;
+			context[context_count++] = i + 33;
 			context[context_count++] = 'z';
 			context[context_count++] = '5';
 			context[context_count++] = '#';
 			context[context_count++] = 'Q';
-			context[context_count++] = i + 33;
-			context[context_count++] = 993;
+			context[context_count++] = alphabet_start + 6;
 		} else if (i + 33 != 127) {
 			context[context_count++] = 0;
 			context[context_count++] = 1;
 			context[context_count++] = i + 33;
-			context[context_count++] = 993;
+			context[context_count++] = alphabet_start + 6;
 		}
 	}
 
@@ -268,4 +270,7 @@ nat index_count = * (nat*) (intptr_t) base;
 // printf("serializing...\n");
 	// serialize(context, sizeof context);
 	// printf("done.\n");
+
+
+
 
