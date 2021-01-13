@@ -1,4 +1,5 @@
-join 	def (nop (z3nq )z3nq unit) n 
-join 	nop()
-join 	undef nop()
-nop()
+join 	def (nop unit) b
+join 	def (daniel unit) join nop nop
+join 	daniel
+join	undef nop
+daniel

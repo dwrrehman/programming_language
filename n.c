@@ -7,13 +7,6 @@
 #include <sys/stat.h>
 #include <sys/mman.h>
 
-static inline void print(int* vector, int length) {
-	printf("(%d){ ", length);
-	for (int i = 0; i < length; i++) 
-		printf("%d%c ", vector[i], vector[i] > 32 and vector[i] < 128 ? vector[i] : 0);
-	printf("}\n");
-}
-
 static inline void print_program(int* program, int* context, int p, int depth) {
 	for (int i = 0; i < depth; i++) printf(".   ");
 	int index = program[p], count = program[p + 1];
@@ -48,7 +41,6 @@ static inline void print_context(int alphabet, int index_count, int context_coun
 			else printf(" (%d) ", c);
 		}
 		printf(" ] \n");
-		
 	}
 	printf("-----------------------------\n\n");
 }
@@ -124,8 +116,9 @@ try:
 	}
 	stack[top]--;
 	index = indicies[stack[top]];
-	if (stack[top + 2] != alphabet and 
-	    stack[top + 2] != context[index + context[index + 1] + 2]) goto try; 
+	
+	if (not context[index + context[index + 1] + 2] or (stack[top + 2] != alphabet and 
+	    stack[top + 2] != context[index + context[index + 1] + 2])) goto try; 
 	done = 0;
 	count = 0;
 	begin = stack[top + 3];
@@ -154,6 +147,7 @@ parent:
 		if (begin > best) { best = begin; candidate = index; } 
 	}
 
+	if (index == 899) context[program[arguments[arg]] + 2 + context[program[arguments[arg]] + 1]] = 0;
 	if (index == 891) {
 		if (index_count >= index_limit) { reason = "index limit exceeded"; goto error; }
 		int name_length = program[arguments[arg] + 1] - 1, place = index_count;
@@ -161,36 +155,22 @@ parent:
 		while (place and name_length < context[indicies[place - 1] + 1]) place--;
 		memmove(indicies + place + 1, indicies + place, sizeof(int) * (size_t) (index_count - place));
 		indicies[place] = context_count; index_count++;
-		for (int i = 0; i <= top; i += 8) if (place <= stack[i]) stack[i]++;
+		for (int i = 0; i <= top; i += 8) 
+			if (place <= stack[i]) stack[i]++;
 		context[context_count++] = arguments[arg + 1];
 		context[context_count++] = name_length;
 		for (int i = 0; i <= name_length; i++) {
 			int ind = program[program[arguments[arg] + i + 2]];
 			context[context_count++] = ind < alphabet ? context[ind + 2] : ind;
 		}
-	} 
+	}
 
 	if (program[context[index]] >= alphabet) {
-		top += 8;
-		int call_index = index;
-		int call_argument_count = count;
-		int* call_arguments = arguments + arg;
-		int stack_count = 0;
-		stack[top + stack_count++] = context[index];
-		while (stack_count) {
-			int TOS = stack[--stack_count + top];
-			int definition_index = program[TOS];
-			int definition_count = program[TOS + 1];
-
-			printf("MACRO: DEBUG: LOOKING AT: "); print(program + TOS + 2, definition_count);
-
-			for (int i = 0; i < definition_count; i++) 
-				stack[top + stack_count++] = program[TOS + 2 + i];
-		}
-		top -= 8;
-		abort();
+		index = program[context[index]];
+		count = program[context[index] + 1];
+		memcpy(arguments + arg, program + context[index] + 2, sizeof(int) * (size_t) count);
 	}
-	
+
 	if (program_count + 2 + count > program_limit) { reason = "program limit exceeded"; goto error; } 
 	program[program_count] = index;
 	program[program_count + 1] = count;
@@ -258,25 +238,26 @@ final:
 /*
 	todo list:
 	
-		x 0. get ucsr working with densely packed arrays. 
+	x	0. get ucsr working with densely packed arrays. 
 
 
-		1. make the context!! its just an array of ints.   
+	x	1. make the context!! its just an array of ints.   
   			   only put in [248 + intrinsic] signatures.
 
-		2. make context printer?
+	x	2. make context printer?
 
-		3. make context loader!!
-			3.1. extract out a open file function? we just need it. use void pointers. 
+	x	3. make context loader!!
+	x		3.1. extract out a open file function? we just need it. use void pointers. 
 
-		x 4. make the declare intrinsic!     (rename to def). even though its takes one arg.
-		5.  test it
-		
-		8. get macros with arguments working!!	
-		9. test it
+	x	x 4. make the declare intrinsic!     (rename to def). even though its takes one arg.
+	x	5.  test it
+	
 
-		6. get the other two intrinsic wworking:    attach,  and undef.
-		7. test those 
+	x	8. get macros with arguments working!!	
+	x	9. test it
+
+	x	6. get the other two intrinsic wworking:    attach,  and undef.
+	x	7. test those 
 
 		10. get code generation working for simple intructions!!
 
@@ -287,5 +268,135 @@ final:
 
 
 
+
+
+
+
+
+
+
+
+
+// const char* file_head = 
+	// "	.section	__TEXT,__text,regular,pure_instructions\n"
+	// "	.build_version macos, 11, 0	sdk_version 11, 1\n"
+	// "	.globl	_main\n"
+	// "	.p2align	4, 0x90\n"
+	// "_main:\n";
+	// const char* file_tail = 
+	// "	mov $5, %rax\n"
+	// "	retq\n"
+	// "\n";
+
+	// int fd = open("out.s", O_WRONLY | O_CREAT | O_TRUNC);
+	// if (fd < 0) {
+	// 	printf("error: %s: ", "filename");
+	// 	perror("open");
+	// 	exit(1);
+	// }
+
+	// write(fd, file_head, strlen(file_head));
+	// i16 stack_count = 0;
+	// stack[stack_count++].ind = (i16) program_count - 1;
+	// while (stack_count) {
+	// 	i16 e = stack[--stack_count].ind;
+	// 	index = program[S * e];
+	// 	// printf("stack_count=%d | (expr=%d) : looking at %d (%.*s) (count=%d)\n", 
+	// 	// 	stack_count, e, index, context[S * index], context + S * index + 1, program[S * e + 1]);
+	// 	for (i16 i = program[S * e + 1]; i--;) stack[stack_count++].ind = program[S * e + 2 + i];
+	// }
+
+	// write(fd, file_tail, strlen(file_tail));
+	// close(fd);
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+		if (not stack_count) abort();
+		
+		int TOS = stack[--stack_count + top];
+		int definition_index = program[TOS];
+		int definition_count = program[TOS + 1];
+
+		for (int i = 0; i < definition_count; i++) 
+			stack[top + stack_count++] = program[TOS + 2 + i];
+			stack[top + stack_count++] = program[TOS + 2 + i];
+			goto try;
+		}
+
+		printf("MACRO: DEBUG: TOS = %d, def index = %d, def count = %d\n", TOS, definition_index, definition_count);
+		printf("MACRO: DEBUG: LOOKING AT: ");
+		print(program + TOS + 2, definition_count);
+
+		if (stack_count) {
+			stack_count--;
+			goto parent;
+		}
+
+		abort();
+		
+		top -= 8;
+
+
+
+
+// 	top += 8;
+	// 	int call_index = index;
+	// 	int call_argument_count = count;
+	// 	int* call_arguments = arguments + arg;
+	// 	int stack_count = 0;
+	// 	stack[top + stack_count++] = context[index];
+
+	// 	macro_loop:;
+	// 	int TOS = stack[--stack_count + top];
+	// 	int definition_index = program[TOS];
+	// 	int definition_count = program[TOS + 1];
+	// 	printf("MACRO: DEBUG: TOS = %d, def index = %d, def count = %d\n", TOS, definition_index, definition_count);
+	// 	printf("MACRO: DEBUG: LOOKING AT: ");
+	// 	print(program + TOS + 2, definition_count);
+
+	// 	if (program[context[definition_index]] == 'P') {
+	// 		printf(" ----> THIS IS TRUE!!!\n");
+	// 	}
+
+	// 	for (int i = 0; i < definition_count; i++) stack[top + stack_count++] = program[TOS + 2 + i];
+	// 	if (stack_count) goto macro_loop;	
+	// 	top -= 8;
+	// }
+
+
+
+
+
+
 */
+
+
+// static inline void print(int* vector, int length) {
+// 	printf("(%d){ ", length);
+// 	for (int i = 0; i < length; i++) 
+// 		printf("%d%c ", vector[i], vector[i] > 32 and vector[i] < 128 ? vector[i] : 0);
+// 	printf("}\n");
+// }
+
 
