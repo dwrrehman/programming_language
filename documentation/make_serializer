@@ -1,0 +1,1 @@
+clang -g -Weverything context_serializer.c -o serialize -fsanitize=address,undefined

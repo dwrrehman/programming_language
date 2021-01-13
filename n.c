@@ -94,7 +94,7 @@ int main(int argc, const char** argv) {
 
 	{
 		int base_length = 0;
-		int* base = open_file("init.i", &base_length);
+		int* base = open_file("i.i", &base_length);
 		index_count = base[0];
 		context_count = base[1];
 		alphabet = base[2];
