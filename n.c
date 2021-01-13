@@ -10,7 +10,7 @@
 static inline void print(int* vector, int length) {
 	printf("(%d){ ", length);
 	for (int i = 0; i < length; i++) 
-		printf("%d ", vector[i]);
+		printf("%d%c ", vector[i], vector[i] > 32 and vector[i] < 128 ? vector[i] : 0);
 	printf("}\n");
 }
 
@@ -19,11 +19,38 @@ static inline void print_program(int* program, int* context, int p, int depth) {
 	int index = program[p], count = program[p + 1];
 	printf("p=%d:  [i=%d] : (c=%d) : ", p, index, count);
 	fflush(stdout);
-	print(context + index + 2, context[index + 1]);
-	puts("");
-	for (int i = 0; i < count; i++) {
-		print_program(program, context, program[p + i + 2], depth + 1);
+	int* n = context + index;
+	for (int j = 0; j <= n[1]; j++) {
+		int c = n[j + 2];
+		if (c < 33) printf(" char{%d} ", c);
+		else if (c < 128) printf("%c ", c);
+		else if (c < 256) printf(" unicode{%d} ", c);
+		else printf(" (%d) ", c);
 	}
+	puts("\n");
+	for (int i = 0; i < count; i++) print_program(program, context, program[p + i + 2], depth + 1);
+}
+
+static inline void print_context(int alphabet, int index_count, int context_count, int* context, int* indicies) {
+
+	printf("context indexes: (index_count = %d, context_count = %d, alphabet = %d)\n", 
+		index_count, context_count, alphabet);
+
+	for (int i = 0; i < index_count; i++) {
+		int index = indicies[i];
+		int* n = context + index;
+		printf("i=%d index=%d  |  (def=%d)(length=%d) [ ", i, index, n[0], n[1]);
+		for (int j = 0; j <= n[1]; j++) {
+			int c = n[j + 2];
+			if (c < 33) printf(" char{%d} ", c);
+			else if (c < 128) printf("%c ", c);
+			else if (c < 256) printf(" unicode{%d} ", c);
+			else printf(" (%d) ", c);
+		}
+		printf(" ] \n");
+		
+	}
+	printf("-----------------------------\n\n");
 }
 
 static inline void* open_file(const char* filename, int* length) {
@@ -66,7 +93,7 @@ int main(int argc, const char** argv) {
 	int* arguments = malloc(argument_limit * sizeof(int));
 	int* stack = malloc(stack_limit * sizeof(int));
 
-	int program_count = 0, context_count = 0, index_count = 0, alphabet = 864,
+	int program_count = 0, context_count = 0, index_count = 0, alphabet = 0,
 	    arg = 0, top = 0, begin = 0, index = 0, count = 0,
 	    done = 0, best = 0, candidate = 0, element = 0;
 
@@ -74,17 +101,14 @@ int main(int argc, const char** argv) {
 	unsigned char* input = open_file(filename, &length);
 
 	{
-		int indtemplate[] = {0, 6, 13, 21};
-		memcpy(indicies, indtemplate, sizeof indtemplate);
-		index_count = sizeof indtemplate / sizeof(int);
-		int template[] = {
-			0, 3, 'b', 'o', 'b', 993,
-			0, 4, 'c', 'a', 't', 992, 993,
-			0, 5, 'c', 'a', 't', 992, 993, 992,
-			0, 7, 'b', 'u', 'b', 'b', 'l', 'e', 's', 992,
-		};
-		memcpy(context, template, sizeof template);
-		context_count = sizeof template / sizeof(int);
+		int base_length = 0;
+		int* base = open_file("init.i", &base_length);
+		index_count = base[0];
+		context_count = base[1];
+		alphabet = base[2];
+		memcpy(indicies, base + 3, sizeof(int) * (size_t) index_count);
+		memcpy(context, base + index_count + 3, sizeof(int) * (size_t) context_count);
+		munmap(base, (size_t) base_length);
 	}
 
 	while (begin < length and input[begin] < 33) begin++;
@@ -130,21 +154,23 @@ parent:
 		if (begin > best) { best = begin; candidate = index; } 
 	}
 
-	if (index == alphabet + 4) {
+	if (index == 891) {
 		if (index_count >= index_limit) { reason = "index limit exceeded"; goto error; }
 		int name_length = program[arguments[arg] + 1] - 1, place = index_count;
 		if (context_count + name_length + 3 >= context_limit) { reason = "context limit exceeded"; goto error; }
 		while (place and name_length < context[indicies[place - 1] + 1]) place--;
 		memmove(indicies + place + 1, indicies + place, sizeof(int) * (size_t) (index_count - place));
-		indicies[place] = context_count;
+		indicies[place] = context_count; index_count++;
 		for (int i = 0; i <= top; i += 8) if (place <= stack[i]) stack[i]++;
 		context[context_count++] = arguments[arg + 1];
 		context[context_count++] = name_length;
 		for (int i = 0; i <= name_length; i++) {
-			int ind = program[program[element + i + 2]];
+			int ind = program[program[arguments[arg] + i + 2]];
 			context[context_count++] = ind < alphabet ? context[ind + 2] : ind;
 		}
-	} else if (program[context[index]] >= alphabet) {
+	} 
+
+	if (program[context[index]] >= alphabet) {
 		top += 8;
 		int call_index = index;
 		int call_argument_count = count;
@@ -162,6 +188,7 @@ parent:
 				stack[top + stack_count++] = program[TOS + 2 + i];
 		}
 		top -= 8;
+		abort();
 	}
 	
 	if (program_count + 2 + count > program_limit) { reason = "program limit exceeded"; goto error; } 
@@ -184,7 +211,6 @@ parent:
 	}
 	if (begin != length) goto try;
 	printf("\n\tcompile successful.\n\n");
-	print_program(program, context, program_count, 0);
 	goto final;
 error:;
 	int at = 0, line = 1, column = 1;
@@ -206,12 +232,20 @@ error:;
 		}
 		if (i < length and input[i] == '\n') { l++; c = 1; } else c++;
 	}
-	printf("\n\n");
-	//todo: write the "candidate suggestion" pretty-printing thing.
+	printf("\n\n  did you mean:   ");
+	int* n = context + candidate;
+	for (int j = 0; j <= n[1]; j++) {
+		int c = n[j + 2];
+		if (c < 33) printf(" char{%d} ", c);
+		else if (c < 128) printf("%c ", c);
+		else if (c < 256) printf(" unicode{%d} ", c);
+		else printf(" (%d) ", c);
+	}
+	puts("\n");
+	
 final:
-	printf("program: "); print(program, program_count + 2 + count);	
-	printf("indicies: "); print(indicies, index_count);
-	printf("context: "); print(context, context_count);
+	print_context(alphabet, index_count, context_count, context, indicies);
+	print_program(program, context, program_count, 0);
 	munmap(input, (size_t) length);
 	free(context);
 	free(program);
