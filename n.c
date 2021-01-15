@@ -7,6 +7,8 @@
 #include <sys/stat.h>
 #include <sys/mman.h>
 
+#include <mach-o/loader.h> // technically not even neccessary.
+
 static inline void print_program(int* program, int* context, int p, int depth) {
 	for (int i = 0; i < depth; i++) printf(".   ");
 	int index = program[p], count = program[p + 1];
@@ -86,8 +88,8 @@ int main(int argc, const char** argv) {
 	int* stack = malloc(stack_limit * sizeof(int));
 
 	int program_count = 0, context_count = 0, index_count = 0, alphabet = 0,
-	    arg = 0, top = 0, begin = 0, index = 0, count = 0,
-	    done = 0, best = 0, candidate = 0, element = 0;
+	    arg = 0, top = 0, begin = 0, index = 0, count = 0, done = 0, 
+	    best = 0, candidate = 0;
 
 	int length = 0;
 	unsigned char* input = open_file(filename, &length);
@@ -112,20 +114,23 @@ int main(int argc, const char** argv) {
 try:
 	if (not stack[top]) { 
 		if (not top) { reason = "unresolved expression"; goto error; }
-		top -= 8; goto try; 
+		top -= 8; 
+		goto try; 
 	}
 	stack[top]--;
 	index = indicies[stack[top]];
 	
-	if (not context[index + context[index + 1] + 2] or (stack[top + 2] != alphabet and 
-	    stack[top + 2] != context[index + context[index + 1] + 2])) goto try; 
+	int actual_type = context[index + context[index + 1] + 2],  expected_type = stack[top + 2];
+	if (not actual_type) goto try;
+	if (expected_type != alphabet and expected_type != actual_type) goto try; 
+
 	done = 0;
 	count = 0;
 	begin = stack[top + 3];
 	program_count = stack[top + 7];
 parent:
 	while (done < context[index + 1]) {
-		element = context[index + done + 2];
+		int element = context[index + done + 2];
 		done++;
 
 		if (element >= alphabet) {
@@ -177,7 +182,7 @@ parent:
 	memcpy(program + program_count + 2, arguments + arg, sizeof(int) * (size_t) count);
 
 	if (top) {
-		element = count;
+		int save = count;
 		done = stack[top + 1];
 		index = stack[top + 4];
 		count = stack[top + 5];
@@ -186,11 +191,15 @@ parent:
 		arguments[arg + count] = program_count;
 		count++;
 		top -= 8;
-		program_count += 2 + element;
+		program_count += 2 + save;
 		goto parent;
 	}
 	if (begin != length) goto try;
 	printf("\n\tcompile successful.\n\n");
+
+	printf("generating code...\n");
+
+	
 	goto final;
 error:;
 	int at = 0, line = 1, column = 1;
@@ -397,6 +406,86 @@ final:
 // 	for (int i = 0; i < length; i++) 
 // 		printf("%d%c ", vector[i], vector[i] > 32 and vector[i] < 128 ? vector[i] : 0);
 // 	printf("}\n");
+// }
+
+
+
+  // ___pagezerostart:
+  //       dd 0x19         ; LC_SEGMENT_64
+  //       dd ___pagezeroend - ___pagezerostart    ; command size
+  //       db '__PAGEZERO',0,0,0,0,0,0 ; segment name (pad to 16 bytes)
+  //       dq 0            ; VM address
+  //       dq 0x100000000  ; VM size
+  //       dq 0            ; file offset
+  //       dq 0            ; file size
+  //       dd 0x0          ; VM_PROT_NONE (maximum protection)
+  //       dd 0x0          ; VM_PROT_NONE (inital protection)
+  //       dd 0            ; number of sections
+  //       dd 0x0          ; flags
+  //       align 8, db 0   ; pad with zero to 8-byte boundary
+  //   ___pagezeroend:
+
+
+// __mh_execute_header:
+//         dd 0xfeedfacf   ; MH_MAGIC_64
+//         dd 16777223     ; CPU_TYPE_X86 | CPU_ARCH_ABI64
+//         dd 0x80000003   ; CPU_SUBTYPE_I386_ALL | CPU_SUBTYPE_LIB64
+//         dd 2            ; MH_EXECUTE
+//         dd 16           ; number of load commands
+//         dd ___loadcmdsend - ___loadcmdsstart    ; size of load commands
+//         dd 0x00200085   ; MH_NOUNDEFS | MH_DYLDLINK | MH_TWOLEVEL | MH_PIE
+//         dd 0            ; reserved
+//     ___loadcmdsstart:%      
+
+
+
+
+
+
+
+
+
+// void dumphex(uint8_t* bytes, size_t byte_count) {
+// 	for (int i = 0; i < byte_count; i++) {
+// 		if (!(i % 8)) printf("\n");
+// 		printf("%02x ", bytes[i]);
+// 	}
+// 	printf("\n");
+// }
+
+// int main() {
+
+// 	const int number_of_commands = 1; // temp.
+// 	const int size_of_commands = 0xffff; // temp.
+// 	const int number_of_sections = 0; // 1 ? 
+
+// 	struct mach_header_64 h = {0};	
+// 	h.magic = MH_MAGIC_64;
+// 	h.cputype = CPU_TYPE_X86 | CPU_ARCH_ABI64;
+// 	h.cpusubtype = CPU_SUBTYPE_I386_ALL | CPU_SUBTYPE_LIB64;
+// 	h.filetype = MH_OBJECT;
+// 	h.ncmds = number_of_commands;
+// 	h.sizeofcmds = size_of_commands;
+// 	h.flags = MH_NOUNDEFS | MH_SUBSECTIONS_VIA_SYMBOLS;
+	
+// 	struct segment_command_64 c = {0};
+// 	c.cmd = LC_SEGMENT_64;
+
+// 	c.cmdsize = sizeof(struct segment_command_64) + sizeof(struct section_64) * number_of_sections;
+// 	strncpy(c.segname, "__TEXT", 16);
+// 	c.vmsize = 0x100000000;
+// 	c.vmaddr = 0;
+// 	c.fileoff = 0;
+// 	c.nsects = number_of_sections;
+
+// 	struct section_64 s = {0};
+
+// 	strncpy(s.sectname, "__text", 16);
+// 	strncpy(s.segname, "__TEXT", 16);
+	
+// 	dumphex((void*) &h, sizeof(h));
+// 	dumphex((void*) &c, sizeof(c));
+	
 // }
 
 

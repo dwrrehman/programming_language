@@ -1,93 +1,54 @@
 # Untitled Programming Language
 ###### Created By Daniel Warren Riaz Rehman.
 
-This is a compiler for a general-purpose low-level systems programming language. 
+This is a compiler for a general-purpose, expression-based, imperative, compiled, and low-level systems programming language. 
 
-This compiler is written in C, and has no dependencies.
+The programming language uses the Universal Call Syntax Resolution ([UCSR](dwrrehman.github.io/ucsr)) algorithm.
+
+The compiler currently aims to target x86-32, x86-64, Arm32, Arm64, Wasm32, and Wasm64. 
+
+The current compiler implementation is written in C, but will be self-hosted soon.
+
 
 ### Language priorities:
 
- - __Brutal simplicity and minimalism__: The compiler's _total_ source code is limited to 500 lines.
+The language has only _two_ priorities:
 
- - __Maximal runtime performance__: The language aims to be _faster_ than C.
+ - __Maximal runtime performance__: The language aims to allow a skilled programmer to write programs that execute _as fast as physically possible_ on the given target.
 
- - __Code readability__: The language has _no_ syntax.
+ - __Brutal simplicity and minimalism__: The compiler's _total_ source code is limited to 1000 lines.
 
-### Language traits:
+ 
+### What this language does NOT care about:
 
- - Completely expression-based
+ - Portability.
 
- - Uses the Universal Call Syntax Resolution ([UCSR](dwrrehman.github.io/ucsr)) algorithm
+ - Interoperability.
 
- - Strictly imperative and compiled
+ - Backwards-compatability.
 
- - Strongly and statically typed
+ - Conforming to any ABI. 
 
- - Uses only the _hardware-level_ types
+ - Compiletime performance. 
 
- - Has strongly-typed hygenic macros for creating zero-overhead abstractions
+ - Giving many error messages to the user.
 
- - Generates any instruction in the target assembly language
+ - Maintaing a "mathematical purity" which gets in the way of runtime performance.
 
- - no dependencies in the standard library
+ - All the "cool trendy features" in high-level programming languages these days. 
 
- - freestanding targets allowed
+ - Providing any debug or type information at runtime, or any information extraneous to execution. 
 
-### Compiler Implementation Limits:
+ - How abstract or "extensible" / "future-proof" the code is. 
 
-The following limits allow for a faster compiler implementation. These limits also encourage the writing of smaller and simpler programs.
+ - Any language-level abstraction which incurs even the slightest performance cost. 
 
- - maximum 1 parsing error message per file.
+ - Things in the language having to be "familiar" or easy to pick up for programmers.
 
- - maximum 32,767 (2^15 - 1) signatures in a context.
+ - Anything that is easy to understand, but is inefficient in runtime performance.
 
- - maximum 32,767 expression calls per file.
+ - Anything even remotely related to OOP.
 
- - maximum expression depth of 32,767 per file.
+if you think a programming language should have any one of these things at the expense of maximally acheiving the two language priorities laid out earlier, you should probably go away and look up some other programming language project, because this language is NOT for you.
 
- - maximum 32,767 macros allowed per context.
-
- - maximum 127 (2^7 - 1) bytes allowed per signature. 
-
- - maximum 62 (2^6 - 2) arguments allowed per expression call.
-
-### Language Intrinsic System:
-
-The language currently utilizes the following signatures in its intrinsic system. 
-
-Each signature is given as a string of bytes, where a character with has an ASCII value less than 33 is interpreted as a type. The last byte in the signature is always a type, and denotes the type of the signature. All other types are parameters to the signature.
-
-**Program Types:**
-
- - ```name\x00``` : the signature/name type. (name parameter type)
-
- - ```_\x01\x01``` : the unit type. (i0 parameter type)
-
-**Signature Elements:**
-
- - ```a\x01\x01``` : character literal 'a'. 
-
- - ```b\x01\x01``` : character literal 'b'. 
-
- - ```c\x01\x01``` :  character literal 'c'. 
-
- - ```.\x01``` : variable signature delimiter. 
-
- - ```del\x01\x02``` : change delimiter to another character.
-
-**Target Assembly Instructions:**
-
- - ```nop\x02``` : generates "no operation" assembly instruction. 
-
-**Context Intrinsics:**
-
- - ```def\x01\x02``` : intrinsic for define a macro signature. 
-
- - ```attach\x00\x02``` : intrinsc for attaching definition. gives a definition for a macro symbol only.
-
-**Other:**
-
- - ```error\x00``` : used to denote when the program had a parsing error.
-
- - ```join\x02\x02\x02``` : used to allow for muliple statements.
 
