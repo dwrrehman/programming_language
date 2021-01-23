@@ -1,5 +1,1 @@
-join 	def (nop unit) b
-join 	def (daniel unit) join nop nop
-join 	daniel
-join	undef nop
-daniel
+def (hi unit) k

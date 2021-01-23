@@ -24,9 +24,9 @@ static inline void use_context(int alphabet, int index_count, int context_count,
 	for (int i = 0; i < index_count; i++) {
 		int index = indicies[i];
 		int* n = context + index;
-		printf("i=%d index=%d  |  (def=%d)(length=%d) [ ", i, index, n[0], n[1]);
-		for (int j = 0; j <= n[1]; j++) {
-			int c = n[j + 2];
+		printf("i=%d index=%d  |  (length=%d) [ ", i, index, n[0]);
+		for (int j = 0; j <= n[0]; j++) {
+			int c = n[j + 1];
 			if (c < 33) printf(" char{%d} ", c);
 			else if (c < 128) printf("%c ", c);
 			else if (c < 256) printf(" unicode{%d} ", c);
@@ -38,13 +38,12 @@ static inline void use_context(int alphabet, int index_count, int context_count,
 	printf("-----------------------------\n\n");
 }
 
-static inline void define(int def, int name_length, int* name, int* context_count, int* index_count, int* context, int* indicies) {
+static inline void define(int name_length, int* name, int* context_count, int* index_count, int* context, int* indicies) {
 	int place = (*index_count);
-	while (place and name_length < context[indicies[place - 1] + 1]) place--;
+	while (place and name_length < context[indicies[place - 1]]) place--;
 	if (*index_count) memmove(indicies + place + 1, indicies + place, sizeof(int) * (size_t) (*index_count - place));
 	indicies[place] = (*context_count);
 	(*index_count)++;
-	context[(*context_count)++] = def;
 	context[(*context_count)++] = name_length;
 	for (int i = 0; i <= name_length; i++) {
 		int ind = name[i];
@@ -109,12 +108,13 @@ if ((1))
 		int index_count = 0, context_count = 0;
 		int name[2048] = {0};
 
-		const int alphabet = 864;
+		const int alphabet = 650;
 
-		const int any_type = 864;	
-		const int char_type = 870;
-		const int unit_type = 877;
-		const int name_type = 884;
+		const int type_type = 650;
+		const int none_type = 656;
+		const int unit_type = 662;
+		const int name_type = 668;
+		const int any_type = 674;
 		
 		for (int i = 33; i < 248; i++) {
 			if (i == 127) continue;
@@ -124,31 +124,32 @@ if ((1))
 				name[2] = '3';
 				name[3] = 'n';
 				name[4] = 'q';
-				name[5] = char_type;
-				define(0, 5, name, &context_count, &index_count, context, indicies);
+				name[5] = name_type;
+				define(5, name, &context_count, &index_count, context, indicies);
 			} else {
 				name[0] = i;
-				name[1] = char_type;
-				define(0, 1, name, &context_count, &index_count, context, indicies);
+				name[1] = name_type;
+				define(1, name, &context_count, &index_count, context, indicies);
 			}
 		}
+		define(4, (int[]){'t','y','p','e', type_type}, &context_count, &index_count, context, indicies);
+		define(4, (int[]){'n','o','n','e', type_type}, &context_count, &index_count, context, indicies);
+		define(4, (int[]){'u','n','i','t', type_type}, &context_count, &index_count, context, indicies);
+		define(4, (int[]){'n','a','m','e', type_type}, &context_count, &index_count, context, indicies);
+		define(3, (int[]){'a','n','y', type_type}, &context_count, &index_count, context, indicies);
+		
+		define(5, (int[]){'d','e','f', name_type, any_type, unit_type}, &context_count, &index_count, context, indicies);
+		define(6, (int[]){'u','n','d','e','f', any_type, unit_type}, &context_count, &index_count, context, indicies);
+		define(6, (int[]){'j','o','i','n', unit_type, unit_type, unit_type}, &context_count, &index_count, context, indicies);
 
-		define(0, 3, (int[]){'a','n','y', char_type}, &context_count, &index_count, context, indicies);
-		define(0, 4, (int[]){'c','h','a','r', char_type}, &context_count, &index_count, context, indicies);
-		define(0, 4, (int[]){'u','n','i','t', char_type}, &context_count, &index_count, context, indicies);
-		define(0, 4, (int[]){'n','a','m','e', char_type}, &context_count, &index_count, context, indicies);
-
-		define(0, 5, (int[]){'d','e','f', name_type, any_type, unit_type}, &context_count, &index_count, context, indicies);
-		define(0, 6, (int[]){'u','n','d','e','f', any_type, unit_type}, &context_count, &index_count, context, indicies);
-		define(0, 6, (int[]){'j','o','i','n', unit_type, unit_type, unit_type}, &context_count, &index_count, context, indicies);
-
-		for (int i = 1; i < 32; i++) {
+		for (int i = 0; i < 32; i++) {
 			int name_length = 0;
 			name[name_length++] = '(';
-			for (int n = 0; n < i; n++) name[name_length++] = char_type;		
+			for (int n = 0; n < i ; n++) name[name_length++] = name_type;
+			name[name_length++] = type_type;
 			name[name_length++] = ')';
 			name[name_length] = name_type;
-			define(0, name_length, name, &context_count, &index_count, context, indicies);
+			define(name_length, name, &context_count, &index_count, context, indicies);
 		}
 
 		printf("context: ");

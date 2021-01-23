@@ -1,7 +1,7 @@
 # Untitled Programming Language
 ###### Created By Daniel Warren Riaz Rehman.
 
-This is a compiler for a general-purpose, expression-based, imperative low-level systems programming language. 
+This is a compiler for a general-purpose, expression-based, imperative, low-level minimalist systems programming language. 
 
 
 ### Language priorities:

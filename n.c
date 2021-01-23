@@ -6,8 +6,30 @@
 #include <unistd.h>
 #include <sys/stat.h>
 #include <sys/mman.h>
+#include <mach-o/loader.h>
 
-#include <mach-o/loader.h> // technically not even neccessary.
+/*
+i=212 index=674  |  (length=3) [ a n y  (650)  ] 
+i=213 index=702  |  (length=3) [ (  (650) )  (668)  ] 
+i=214 index=650  |  (length=4) [ t y p e  (650)  ] 
+i=215 index=656  |  (length=4) [ n o n e  (650)  ] 
+i=216 index=662  |  (length=4) [ u n i t  (650)  ] 
+i=217 index=668  |  (length=4) [ n a m e  (650)  ] 
+i=218 index=707  |  (length=4) [ (  (668)  (650) )  (668)  ] 
+i=219 index=21  |  (length=5) [ ( z 3 n q  (668)  ] 
+i=220 index=28  |  (length=5) [ ) z 3 n q  (668)  ] 
+i=221 index=679  |  (length=5) [ d e f  (668)  (674)  (662)  ] 
+i=222 index=713  |  (length=5) [ (  (668)  (668)  (650) )  (668)  ] 
+i=223 index=686  |  (length=6) [ u n d e f  (674)  (662)  ] 
+i=224 index=694  |  (length=6) [ j o i n  (662)  (662)  (662)  ] 
+*/
+
+const int any_type = 674;
+const int none_type = 656;
+const int unit_type = 662;
+const int name_type = 668;
+const int define = 679;
+const int undefine = 686;
 
 static inline void print_program(int* program, int* context, int p, int depth) {
 	for (int i = 0; i < depth; i++) printf(".   ");
@@ -15,8 +37,8 @@ static inline void print_program(int* program, int* context, int p, int depth) {
 	printf("p=%d:  [i=%d] : (c=%d) : ", p, index, count);
 	fflush(stdout);
 	int* n = context + index;
-	for (int j = 0; j <= n[1]; j++) {
-		int c = n[j + 2];
+	for (int j = 0; j <= n[0]; j++) {
+		int c = n[j + 1];
 		if (c < 33) printf(" char{%d} ", c);
 		else if (c < 128) printf("%c ", c);
 		else if (c < 256) printf(" unicode{%d} ", c);
@@ -34,9 +56,9 @@ static inline void print_context(int alphabet, int index_count, int context_coun
 	for (int i = 0; i < index_count; i++) {
 		int index = indicies[i];
 		int* n = context + index;
-		printf("i=%d index=%d  |  (def=%d)(length=%d) [ ", i, index, n[0], n[1]);
-		for (int j = 0; j <= n[1]; j++) {
-			int c = n[j + 2];
+		printf("i=%d index=%d  |  (length=%d) [ ", i, index, n[0]);
+		for (int j = 0; j <= n[0]; j++) {
+			int c = n[j + 1];
 			if (c < 33) printf(" char{%d} ", c);
 			else if (c < 128) printf("%c ", c);
 			else if (c < 256) printf(" unicode{%d} ", c);
@@ -88,8 +110,7 @@ int main(int argc, const char** argv) {
 	int* stack = malloc(stack_limit * sizeof(int));
 
 	int program_count = 0, context_count = 0, index_count = 0, alphabet = 0,
-	    arg = 0, top = 0, begin = 0, index = 0, count = 0, done = 0, 
-	    best = 0, candidate = 0;
+	    arg = 0, top = 0, begin = 0, index = 0, count = 0, done = 0, best = 0, candidate = 0;
 
 	int length = 0;
 	unsigned char* input = open_file(filename, &length);
@@ -120,7 +141,7 @@ try:
 	stack[top]--;
 	index = indicies[stack[top]];
 	
-	int actual_type = context[index + context[index + 1] + 2],  expected_type = stack[top + 2];
+	int actual_type = context[index + context[index] + 1],  expected_type = stack[top + 2];
 	if (not actual_type) goto try;
 	if (expected_type != alphabet and expected_type != actual_type) goto try; 
 
@@ -129,8 +150,8 @@ try:
 	begin = stack[top + 3];
 	program_count = stack[top + 7];
 parent:
-	while (done < context[index + 1]) {
-		int element = context[index + done + 2];
+	while (done < context[index]) {
+		int element = context[index + done + 1];
 		done++;
 
 		if (element >= alphabet) {
@@ -152,29 +173,22 @@ parent:
 		if (begin > best) { best = begin; candidate = index; } 
 	}
 
-	if (index == 899) context[program[arguments[arg]] + 2 + context[program[arguments[arg]] + 1]] = 0;
-	if (index == 891) {
-		if (index_count >= index_limit) { reason = "index limit exceeded"; goto error; }
-		int name_length = program[arguments[arg] + 1] - 1, place = index_count;
-		if (context_count + name_length + 3 >= context_limit) { reason = "context limit exceeded"; goto error; }
-		while (place and name_length < context[indicies[place - 1] + 1]) place--;
-		memmove(indicies + place + 1, indicies + place, sizeof(int) * (size_t) (index_count - place));
-		indicies[place] = context_count; index_count++;
-		for (int i = 0; i <= top; i += 8) 
-			if (place <= stack[i]) stack[i]++;
-		context[context_count++] = arguments[arg + 1];
-		context[context_count++] = name_length;
-		for (int i = 0; i <= name_length; i++) {
-			int ind = program[program[arguments[arg] + i + 2]];
-			context[context_count++] = ind < alphabet ? context[ind + 2] : ind;
-		}
-	}
-
-	if (program[context[index]] >= alphabet) {
-		index = program[context[index]];
-		count = program[context[index] + 1];
-		memcpy(arguments + arg, program + context[index] + 2, sizeof(int) * (size_t) count);
-	}
+	if (index == undefine) { int a = program[arguments[arg]; context[a + context[a] + 1]] = alphabet; }
+	// if (index == 891) {
+	// 	if (index_count >= index_limit) { reason = "index limit exceeded"; goto error; }
+	// 	int name_length = program[arguments[arg] + 1] - 1, place = index_count;
+	// 	if (context_count + name_length + 3 >= context_limit) { reason = "context limit exceeded"; goto error; }
+	// 	while (place and name_length < context[indicies[place - 1]]) place--;
+	// 	memmove(indicies + place + 1, indicies + place, sizeof(int) * (size_t) (index_count - place));
+	// 	indicies[place] = context_count; index_count++;
+	// 	for (int i = 0; i <= top; i += 8) 
+	// 		if (place <= stack[i]) stack[i]++;
+	// 	context[context_count++] = name_length;
+	// 	for (int i = 0; i <= name_length; i++) {
+	// 		int ind = program[program[arguments[arg] + i + 2]];
+	// 		context[context_count++] = ind < alphabet ? context[ind + 2] : ind;
+	// 	}
+	// }
 
 	if (program_count + 2 + count > program_limit) { reason = "program limit exceeded"; goto error; } 
 	program[program_count] = index;
@@ -199,7 +213,6 @@ parent:
 
 	printf("generating code...\n");
 
-	
 	goto final;
 error:;
 	int at = 0, line = 1, column = 1;
@@ -223,8 +236,8 @@ error:;
 	}
 	printf("\n\n  did you mean:   ");
 	int* n = context + candidate;
-	for (int j = 0; j <= n[1]; j++) {
-		int c = n[j + 2];
+	for (int j = 0; j <= n[0]; j++) {
+		int c = n[j + 1];
 		if (c < 33) printf(" char{%d} ", c);
 		else if (c < 128) printf("%c ", c);
 		else if (c < 256) printf(" unicode{%d} ", c);
@@ -242,250 +255,4 @@ final:
 	free(stack);
 	free(indicies);
 }
-
-
-/*
-	todo list:
-	
-	x	0. get ucsr working with densely packed arrays. 
-
-
-	x	1. make the context!! its just an array of ints.   
-  			   only put in [248 + intrinsic] signatures.
-
-	x	2. make context printer?
-
-	x	3. make context loader!!
-	x		3.1. extract out a open file function? we just need it. use void pointers. 
-
-	x	x 4. make the declare intrinsic!     (rename to def). even though its takes one arg.
-	x	5.  test it
-	
-
-	x	8. get macros with arguments working!!	
-	x	9. test it
-
-	x	6. get the other two intrinsic wworking:    attach,  and undef.
-	x	7. test those 
-
-		10. get code generation working for simple intructions!!
-
-		11. improve the code generator over time. 
-
-
-		      -->      i think thats it, then we have a compiler!... lol
-
-
-
-
-
-
-
-
-
-
-
-
-// const char* file_head = 
-	// "	.section	__TEXT,__text,regular,pure_instructions\n"
-	// "	.build_version macos, 11, 0	sdk_version 11, 1\n"
-	// "	.globl	_main\n"
-	// "	.p2align	4, 0x90\n"
-	// "_main:\n";
-	// const char* file_tail = 
-	// "	mov $5, %rax\n"
-	// "	retq\n"
-	// "\n";
-
-	// int fd = open("out.s", O_WRONLY | O_CREAT | O_TRUNC);
-	// if (fd < 0) {
-	// 	printf("error: %s: ", "filename");
-	// 	perror("open");
-	// 	exit(1);
-	// }
-
-	// write(fd, file_head, strlen(file_head));
-	// i16 stack_count = 0;
-	// stack[stack_count++].ind = (i16) program_count - 1;
-	// while (stack_count) {
-	// 	i16 e = stack[--stack_count].ind;
-	// 	index = program[S * e];
-	// 	// printf("stack_count=%d | (expr=%d) : looking at %d (%.*s) (count=%d)\n", 
-	// 	// 	stack_count, e, index, context[S * index], context + S * index + 1, program[S * e + 1]);
-	// 	for (i16 i = program[S * e + 1]; i--;) stack[stack_count++].ind = program[S * e + 2 + i];
-	// }
-
-	// write(fd, file_tail, strlen(file_tail));
-	// close(fd);
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-		if (not stack_count) abort();
-		
-		int TOS = stack[--stack_count + top];
-		int definition_index = program[TOS];
-		int definition_count = program[TOS + 1];
-
-		for (int i = 0; i < definition_count; i++) 
-			stack[top + stack_count++] = program[TOS + 2 + i];
-			stack[top + stack_count++] = program[TOS + 2 + i];
-			goto try;
-		}
-
-		printf("MACRO: DEBUG: TOS = %d, def index = %d, def count = %d\n", TOS, definition_index, definition_count);
-		printf("MACRO: DEBUG: LOOKING AT: ");
-		print(program + TOS + 2, definition_count);
-
-		if (stack_count) {
-			stack_count--;
-			goto parent;
-		}
-
-		abort();
-		
-		top -= 8;
-
-
-
-
-// 	top += 8;
-	// 	int call_index = index;
-	// 	int call_argument_count = count;
-	// 	int* call_arguments = arguments + arg;
-	// 	int stack_count = 0;
-	// 	stack[top + stack_count++] = context[index];
-
-	// 	macro_loop:;
-	// 	int TOS = stack[--stack_count + top];
-	// 	int definition_index = program[TOS];
-	// 	int definition_count = program[TOS + 1];
-	// 	printf("MACRO: DEBUG: TOS = %d, def index = %d, def count = %d\n", TOS, definition_index, definition_count);
-	// 	printf("MACRO: DEBUG: LOOKING AT: ");
-	// 	print(program + TOS + 2, definition_count);
-
-	// 	if (program[context[definition_index]] == 'P') {
-	// 		printf(" ----> THIS IS TRUE!!!\n");
-	// 	}
-
-	// 	for (int i = 0; i < definition_count; i++) stack[top + stack_count++] = program[TOS + 2 + i];
-	// 	if (stack_count) goto macro_loop;	
-	// 	top -= 8;
-	// }
-
-
-
-
-
-
-*/
-
-
-// static inline void print(int* vector, int length) {
-// 	printf("(%d){ ", length);
-// 	for (int i = 0; i < length; i++) 
-// 		printf("%d%c ", vector[i], vector[i] > 32 and vector[i] < 128 ? vector[i] : 0);
-// 	printf("}\n");
-// }
-
-
-
-  // ___pagezerostart:
-  //       dd 0x19         ; LC_SEGMENT_64
-  //       dd ___pagezeroend - ___pagezerostart    ; command size
-  //       db '__PAGEZERO',0,0,0,0,0,0 ; segment name (pad to 16 bytes)
-  //       dq 0            ; VM address
-  //       dq 0x100000000  ; VM size
-  //       dq 0            ; file offset
-  //       dq 0            ; file size
-  //       dd 0x0          ; VM_PROT_NONE (maximum protection)
-  //       dd 0x0          ; VM_PROT_NONE (inital protection)
-  //       dd 0            ; number of sections
-  //       dd 0x0          ; flags
-  //       align 8, db 0   ; pad with zero to 8-byte boundary
-  //   ___pagezeroend:
-
-
-// __mh_execute_header:
-//         dd 0xfeedfacf   ; MH_MAGIC_64
-//         dd 16777223     ; CPU_TYPE_X86 | CPU_ARCH_ABI64
-//         dd 0x80000003   ; CPU_SUBTYPE_I386_ALL | CPU_SUBTYPE_LIB64
-//         dd 2            ; MH_EXECUTE
-//         dd 16           ; number of load commands
-//         dd ___loadcmdsend - ___loadcmdsstart    ; size of load commands
-//         dd 0x00200085   ; MH_NOUNDEFS | MH_DYLDLINK | MH_TWOLEVEL | MH_PIE
-//         dd 0            ; reserved
-//     ___loadcmdsstart:%      
-
-
-
-
-
-
-
-
-
-// void dumphex(uint8_t* bytes, size_t byte_count) {
-// 	for (int i = 0; i < byte_count; i++) {
-// 		if (!(i % 8)) printf("\n");
-// 		printf("%02x ", bytes[i]);
-// 	}
-// 	printf("\n");
-// }
-
-// int main() {
-
-// 	const int number_of_commands = 1; // temp.
-// 	const int size_of_commands = 0xffff; // temp.
-// 	const int number_of_sections = 0; // 1 ? 
-
-// 	struct mach_header_64 h = {0};	
-// 	h.magic = MH_MAGIC_64;
-// 	h.cputype = CPU_TYPE_X86 | CPU_ARCH_ABI64;
-// 	h.cpusubtype = CPU_SUBTYPE_I386_ALL | CPU_SUBTYPE_LIB64;
-// 	h.filetype = MH_OBJECT;
-// 	h.ncmds = number_of_commands;
-// 	h.sizeofcmds = size_of_commands;
-// 	h.flags = MH_NOUNDEFS | MH_SUBSECTIONS_VIA_SYMBOLS;
-	
-// 	struct segment_command_64 c = {0};
-// 	c.cmd = LC_SEGMENT_64;
-
-// 	c.cmdsize = sizeof(struct segment_command_64) + sizeof(struct section_64) * number_of_sections;
-// 	strncpy(c.segname, "__TEXT", 16);
-// 	c.vmsize = 0x100000000;
-// 	c.vmaddr = 0;
-// 	c.fileoff = 0;
-// 	c.nsects = number_of_sections;
-
-// 	struct section_64 s = {0};
-
-// 	strncpy(s.sectname, "__text", 16);
-// 	strncpy(s.segname, "__TEXT", 16);
-	
-// 	dumphex((void*) &h, sizeof(h));
-// 	dumphex((void*) &c, sizeof(c));
-	
-// }
-
 
