@@ -24,12 +24,13 @@ i=223 index=686  |  (length=6) [ u n d e f  (674)  (662)  ]
 i=224 index=694  |  (length=6) [ j o i n  (662)  (662)  (662)  ] 
 */
 
-const int any_type = 674;
-const int none_type = 656;
-const int unit_type = 662;
-const int name_type = 668;
-const int define = 679;
-const int undefine = 686;
+static const int type_type = 650;
+static const int none_type = 656;
+static const int unit_type = 662;
+static const int name_type = 668;
+static const int any_type = 674;
+static const int define = 679;
+static const int undefine = 686;
 
 static inline void print_program(int* program, int* context, int p, int depth) {
 	for (int i = 0; i < depth; i++) printf(".   ");
@@ -129,7 +130,7 @@ int main(int argc, const char** argv) {
 	while (begin < length and input[begin] < 33) begin++;
 	if (begin > best) best = begin;
 	stack[top] = index_count;
-	stack[top + 2] = alphabet;
+	stack[top + 2] = any_type;
 	stack[top + 3] = begin;
 	stack[top + 7] = program_count;
 try:
@@ -142,8 +143,8 @@ try:
 	index = indicies[stack[top]];
 	
 	int actual_type = context[index + context[index] + 1],  expected_type = stack[top + 2];
-	if (not actual_type) goto try;
-	if (expected_type != alphabet and expected_type != actual_type) goto try; 
+	if (actual_type == none_type) goto try;
+	if (expected_type != any_type and expected_type != actual_type) goto try; 
 
 	done = 0;
 	count = 0;
@@ -173,22 +174,33 @@ parent:
 		if (begin > best) { best = begin; candidate = index; } 
 	}
 
-	if (index == undefine) { int a = program[arguments[arg]; context[a + context[a] + 1]] = alphabet; }
-	// if (index == 891) {
-	// 	if (index_count >= index_limit) { reason = "index limit exceeded"; goto error; }
-	// 	int name_length = program[arguments[arg] + 1] - 1, place = index_count;
-	// 	if (context_count + name_length + 3 >= context_limit) { reason = "context limit exceeded"; goto error; }
-	// 	while (place and name_length < context[indicies[place - 1]]) place--;
-	// 	memmove(indicies + place + 1, indicies + place, sizeof(int) * (size_t) (index_count - place));
-	// 	indicies[place] = context_count; index_count++;
-	// 	for (int i = 0; i <= top; i += 8) 
-	// 		if (place <= stack[i]) stack[i]++;
-	// 	context[context_count++] = name_length;
-	// 	for (int i = 0; i <= name_length; i++) {
-	// 		int ind = program[program[arguments[arg] + i + 2]];
-	// 		context[context_count++] = ind < alphabet ? context[ind + 2] : ind;
-	// 	}
-	// }
+	if (index == undefine) { 
+		int a = program[arguments[arg]]; 
+		context[a + context[a] + 1] = none_type; 
+	}
+
+	if (index == define) {
+		int name_length = program[arguments[arg] + 1] - 1;
+		int place = index_count;
+		while (place and name_length < context[indicies[place - 1]]) place--;
+		memmove(indicies + place + 1, indicies + place, sizeof(int) * (size_t) (index_count - place));
+		indicies[place] = context_count; index_count++;
+		for (int i = 0; i <= top; i += 8) 
+			if (place <= stack[i]) stack[i]++;
+		context[context_count++] = name_length;
+		for (int i = 0; i <= name_length; i++) {
+			int this = program[arguments[arg] + i + 2];
+			int ind = program[this];
+			if (program[this + 1] == 0)
+				context[context_count++] = ind < alphabet ? context[ind + 1] : ind;
+			else if (program) {
+				define_intrin();
+			}
+		}
+	}
+
+	// if (index_count >= index_limit) { reason = "index limit exceeded"; goto error; }
+	// if (context_count + name_length + 3 >= context_limit) { reason = "context limit exceeded"; goto error; }
 
 	if (program_count + 2 + count > program_limit) { reason = "program limit exceeded"; goto error; } 
 	program[program_count] = index;
@@ -244,7 +256,7 @@ error:;
 		else printf(" (%d) ", c);
 	}
 	puts("\n");
-	
+	return 1;
 final:
 	print_context(alphabet, index_count, context_count, context, indicies);
 	print_program(program, context, program_count, 0);
