@@ -41,3 +41,41 @@ _3:	a++;
 
 	puts("compile successful.");
 }
+
+void btucsr() {
+try:
+	if (b == C_length) {
+		if (c == 0) return error;
+		c -= 3;
+		b = C[c + 1];
+		goto try;
+	}
+	while (B[b] != 10) b++; b++;
+	a = C[c];
+parent:
+	if (B[b] == 32) {
+		C[c + 1] = b;
+		C[c + 3] = a;
+		C[c + 5] = c;
+		b = 0;
+		c += 3;
+		goto try;
+	}
+	if (B[b] != A[a]) goto try;
+	do a++; while (A[a] < 33);
+	b++;
+	if (B[b] != 10) goto parent;
+
+	int d = C[c + 2];
+	if (d != -1) {
+		C[c + 1] = b;
+		C[c + 3] = a;
+		C[c + 5] = C[d + 2];
+		c += 3;
+		b = C[d + 1] + 1;
+		goto parent;
+	}
+	if (a != A_length) goto try;
+	return parse_success, {C, c};
+}
+
