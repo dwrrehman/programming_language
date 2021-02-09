@@ -3,113 +3,168 @@
 #include <stdlib.h>
 #include <string.h>
 
+static inline void print_vector(int* v, int l) {
+	printf("[ ");
+	for (int i = 0; i < l; i++) {
+		if (!(i%3)) puts("");
+		printf("%10d ", v[i]);
+	}
+	printf("\n]\n");
+}
+
+static inline void debug(int* output, int begin, int index, int top, const char* context, int count) {
+	printf("DEBUG: begin = %d, index = %d, top = %d\n", begin, index, top);
+	print_vector(output, top + 6);
+	printf("printing parse tree in POST-DFS...\n");
+	for (int i = 0; i < top; i += 3) {
+		int r = output[i + 1], length = 0;
+		if (r >= count or context[r] != 10) continue;
+		do { r--; length++; } while (r and context[r] != 10);		
+		r++; length--; 
+		for (int _ = 0; _ < (output[i + 2] + 3)/3; _++) printf(".   ");
+		printf("<<<%.*s>>> : ", length, context + r);
+		printf("begin=%d, index=%d, parent=%d\n\n", output[i], output[i + 1], output[i + 2]);
+	}
+	printf("parse tree complete.\n");
+}
+
 int main() {
+	const char* input = "", * context = "";
+	const int length = (int) strlen(input), count = (int) strlen(context);	
 
-	const char* A = "daniel";
-	const char* B = "\nbob\ncat \ndaniel\n";
-	const int al = (int) strlen(in), bl = (int) strlen(env);
+	printf("input (%d): <<<%s>>>\n", length, input);
+	printf("context (%d): <<<%s>>>\n", count, context);
 
-	int a = 0, b = 0, c = 0, d = 4096;
-	int C[4096] = {0};
+	int output[4096]; 
+	memset(output, 0x0F, sizeof output);
+	int begin = 0, index = 0, top = 0;
 
-	while (a < al and A[a] < 33) a++;
-	C[c] = a;
+	while (begin < length and input[begin] < 33) begin++;
 
-_0:	if (b == bl) {
-		if (!c) goto error;
-		c -= 2; 
-		b = C[c + 1];
-		goto _0;
+	output[top + 0] = begin; 
+	output[top + 1] = 0; // index starts at 0.
+	output[top + 2] = -3; // root has no parent; this is how we say that.
+try:	
+	if (index == count) {
+		if (not top) goto error;
+		top -= 3;
+		index = output[top + 1];
+		goto try;
 	}
-	while (b < bl and B[b] != 10) b++; b++; 
-	a = C[c];
-_2:	if (B[b] == 32) {
-		C[c + 1] = b;
-		C[c + 2] = a;
-		c += 2;
-		b = 0;
-		goto _0;
+	while (index < count and context[index] != 10) index++;
+	index++;
+	begin = output[top];
+parent:	
+	if (context[index] == '\n') goto done;
+	char c = context[index];
+	if (c == ' ') {
+		output[top + 1] = index;
+		output[top + 3] = begin;
+		output[top + 5] = top;
+		top += 3; 
+		index = 0;
+		goto try;
 	}
-	if (a >= al) goto _0;
-	if (A[a] != B[b]) goto _0;
-	do a++; while (a < al and A[a] < 33);
-	b++; 
-	if (B[b] != 10) goto _2;
+	if (index >= count) goto try;
+	if (begin >= length) goto try; 
+	if (context[index] != input[begin]) goto try;
+	do begin++; while (begin < length and input[begin] < 33);
+	index++;
+	goto parent;
 
-	if (d != -1) { 
-		C[c + 1] = b;
-		C[c + 2] = a;
-		c += 2;
-		b = C[d + 1] + 1;
-		goto _2; 
+done:;	int parent = output[top + 2];
+	if (parent != -3) {
+		output[top + 1] = index;
+		output[top + 3] = begin;
+		output[top + 5] = output[parent + 2];
+		top += 3;
+		index = output[parent + 1] + 1;
+		goto parent;
 	}
-	if (a != al) goto _0;
-
-	puts("compile successful.");
+	if (begin != length) goto try;
+	output[top + 1] = index;
+	output[top + 3] = begin;
+	top += 3;
+	puts("\n\t---> compile successful.\n");
+	debug(output, begin, index, top, context, count);
 	return 0;
 error:
-	puts("compile error.");
+	puts("n: error: 1:1: compile error!");
+	debug(output, begin, index, top, context, count);
 	return 1;
 }
 
 
+// this is basically the entire front end, EXECPT:
+
+// 	1. we need to add type-strings, in artuments, and for prepended return types, in the context (seperated by space)
+
+// 	2. we need to add   the define mode / intrinsic, of the algoirthm. where are NOT using the context to create the signatures. jus the file itself, basically. 
+
+// 	3. as such, with #2, we need to catually have the escape characters we are going to use in order to make names:
+
+// 		:      ;      (       )       bslsh        thats it          and possibly even less!  
+
+//              :      ;      _       bslsh   
+
+//      i think thats what we are going to have in order to make names builtin... i wish we could like configure this, or something... but its okay.... anyways. i think this will be good.
+
+// 	4. finally, we also need to add the first couple of instructions we want to have:    also we need to add define, which takes a name, and also a value! then i think we are basically ready for code gen.
 
 
 
 
 
 
+/*
+int main() {
+	const char* input = "", * context = "";
+	const int length = (int) strlen(input), count = (int) strlen(context);
+	int output[4096]; 
+	int begin = 0, index = 0, top = 0;
+	while (begin < length and input[begin] < 33) begin++;
+	output[top + 0] = begin; 
+	output[top + 1] = 0; 
+	output[top + 2] = -3;
+try:	
+	if (index == count) {
+		if (not top) goto error;
+		top -= 3; index = output[top + 1];
+		goto try;
+	}
+	while (index < count and context[index] != 10) index++; index++; 
+	begin = output[top];
+parent:	if (context[index] == '\n') goto done;
+	char c = context[index];
+	if (c == ' ') {
+		output[top + 1] = index;
+		output[top + 3] = begin;
+		output[top + 5] = top;
+		top += 3; index = 0;
+		goto try;
+	}
+	if (index >= count or begin >= length or context[index] != input[begin]) goto try;
+	do begin++; while (begin < length and input[begin] < 33);
+	index++; goto parent;
+done:;	int parent = output[top + 2];
+	if (parent != -3) {
+		output[top + 1] = index;
+		output[top + 3] = begin;
+		output[top + 5] = output[parent + 2];
+		top += 3;
+		index = output[parent + 1] + 1;
+		goto parent;
+	}
+	if (begin != length) goto try;
+	output[top + 1] = index;
+	output[top + 3] = begin;
+	top += 3;
+	// use output, top.
+	return 0;
+error:
+	puts("n: error: 1:1: compile error!");
+	return 1;
+}
 
+*/
 
-
-
-
-
-
-
-
-// ---------------- garbage ----------------------------
-
-
- 	// ranges in input length
-	//stack[c + 1] = b; // ranges in context length
-	// stack[c + 2] = c; // ranges in MAX context length   // is this really necccessary?...
-	// stack[c + 3] = d; // ranges in stack
-
-
-// void btucsr() {
-// try:
-// 	if (b == C_length) {
-// 		if (c == 0) return error;
-// 		c -= 3;
-// 		b = C[c + 1];
-// 		goto try;
-// 	}
-// 	while (B[b] != 10) b++; b++;
-// 	a = C[c];
-// parent:
-// 	if (B[b] == 32) {
-// 		C[c + 1] = b;
-// 		C[c + 3] = a;
-// 		C[c + 5] = c;
-// 		b = 0;
-// 		c += 3;
-// 		goto try;
-// 	}
-// 	if (B[b] != A[a]) goto try;
-// 	do a++; while (A[a] < 33);
-// 	b++;
-// 	if (B[b] != 10) goto parent;
-
-// 	int d = C[c + 2];
-// 	if (d != -1) {
-// 		C[c + 1] = b;
-// 		C[c + 3] = a;
-// 		C[c + 5] = C[d + 2];
-// 		c += 3;
-// 		b = C[d + 1] + 1;
-// 		goto parent;
-// 	}
-// 	if (a != A_length) goto try;
-// 	return parse_success, {C, c};
-// }
