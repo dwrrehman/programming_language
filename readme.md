@@ -8,9 +8,8 @@ This is a compiler for a general-purpose, expression-based, imperative, low-leve
 The language has only _two_ priorities:
 
  - __Maximal runtime performance__: The language should allow a skilled programmer to write programs that:
-
-	- execute _as fast as physically possible_ on the given target, and/or
-	- have a memory size of as small as possible.
+	- execute _as fast as possible_ on the given target, and/or
+	- have a memory size _as small as possible_.
 
  - __Brutal simplicity and minimalism__: The compiler's _total_ source code is limited to 700 lines.
 
