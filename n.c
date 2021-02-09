@@ -1,6 +1,6 @@
-#include <stdio.h>
+#include <stdio.h>    // the n programming language compiler, written in c.
 #include <iso646.h>
-#include <stdlib.h>
+#include <stdlib.h>   
 #include <string.h>
 
 static inline void print_vector(int* v, int l) {
@@ -29,13 +29,13 @@ static inline void debug(int* output, int begin, int index, int top, const char*
 }
 
 int main() {
-	const char* input = "", * context = "";
+	const char* input = "cat daniel cat daniel cat daniel hi ", * context = "\nint hi\nstrifng daniel\nint cat string  int \n_  int \n";
 	const int length = (int) strlen(input), count = (int) strlen(context);
-	int output[4096]; 
+	int output[8192];
 	memset(output, 0x0F, sizeof output);
-	int begin = 0, index = 0, top = 0;
+	int begin = 0, index = 0, top = 0, best = 0, candidate = 0;
 	while (begin < length and input[begin] < 33) begin++;
-	output[top + 0] = begin; 
+	output[top + 0] = begin;
 	output[top + 1] = 0;
 	output[top + 2] = -3;
 try:	if (index == count) {
@@ -44,11 +44,15 @@ try:	if (index == count) {
 		goto try;
 	}
 	while (index < count and context[index] != 10) index++; index++;
-	// type checking here! 
-	begin = output[top];
-parent:	if (context[index] == '\n') goto done;
+	const char* expected = output[top + 2] == -3 ? "_" : context + output[output[top + 2] + 1] + 1;
+	while (context[index] != ' ') {
+		if (context[index] != *expected) goto try;
+		expected++; index++;
+	}
+	index++; begin = output[top];
+parent:	if (context[index] == 10) goto done;
 	char c = context[index];
-	if (c == ' ') {
+	if (c == 32) {
 		output[top + 1] = index;
 		output[top + 3] = begin;
 		output[top + 5] = top;
@@ -57,25 +61,27 @@ parent:	if (context[index] == '\n') goto done;
 	}
 	if (index >= count or begin >= length or context[index] != input[begin]) goto try;
 	do begin++; while (begin < length and input[begin] < 33); index++;
+	if (begin > best) { best = begin; candidate = index; }
 	goto parent;
 done:;	int parent = output[top + 2];
 	if (parent != -3) {
 		output[top + 1] = index;
 		output[top + 3] = begin;
 		output[top + 5] = output[parent + 2];
-		top += 3;
-		index = output[parent + 1] + 1;
+		top += 3; index = output[parent + 1] + 1;
+		while (index < count and context[index] != 32) index++; index++;
 		goto parent;
 	}
 	if (begin != length) goto try;
 	output[top + 1] = index;
 	output[top + 3] = begin;
 	top += 3;
+
 	puts("\n\t---> compile successful.\n");
 	debug(output, begin, index, top, context, count);
 	return 0;
 error:
-	puts("n: error: 1:1: compile error!");
+	printf("n: error: %d: compile error parsing %d\n\n", best, candidate);
 	debug(output, begin, index, top, context, count);
 	return 1;
 }
@@ -93,7 +99,7 @@ error:
 
 // this is basically the entire front end, EXECPT:
 
-// 	1. we need to add type-strings, in artuments, and for prepended return types, in the context (seperated by space)
+//   x  	1. we need to add type-strings, in artuments, and for prepended return types, in the context (seperated by space)
 
 // 	2. we need to add   the define mode / intrinsic, of the algoirthm. where are NOT using the context to create the signatures. jus the file itself, basically. 
 
