@@ -1,4 +1,4 @@
-# Untitled Programming Language
+# the untitled programming language
 ###### Created By Daniel Warren Riaz Rehman.
 
 This is a compiler for a general-purpose, expression-based, imperative, low-level minimalist systems programming language. 
@@ -7,9 +7,12 @@ This is a compiler for a general-purpose, expression-based, imperative, low-leve
 
 The language has only _two_ priorities:
 
- - __Maximal runtime performance__: The language aims to allow a skilled programmer to write programs that execute _as fast as physically possible_ on the given target.
+ - __Maximal runtime performance__: The language should allow a skilled programmer to write programs that:
 
- - __Brutal simplicity and minimalism__: The compiler's _total_ source code is limited to 1000 lines.
+	- execute _as fast as physically possible_ on the given target, and/or
+	- have a memory size of as small as possible.
+
+ - __Brutal simplicity and minimalism__: The compiler's _total_ source code is limited to 700 lines.
 
 ### What this language does NOT care about:
 
@@ -21,27 +24,29 @@ The language has only _two_ priorities:
 
  - Conforming to any ABI. 
 
+ - Anything legacy.
+
  - Compiletime performance. 
 
  - Giving many error messages to the user.
 
- - Maintaing a "mathematical purity" which gets in the way of runtime performance.
+ - Maintaining a "mathematical purity" which gets in the way of runtime performance.
 
  - All the "cool trendy features" in high-level programming languages these days. 
 
  - Providing any debug or type information at runtime, or any information extraneous to execution. 
 
- - How abstract or "extensible" / "future-proof" the code is. 
+ - How abstract or extensible / "future-proof" the code is. 
 
  - Any language-level abstraction which incurs even the slightest performance cost. 
 
- - Things in the language having to be "familiar" or easy to pick up for programmers.
+ - Things in the language having to be familiar or easy to pick up for programmers.
 
  - Anything that is easy to understand, but is inefficient in runtime performance.
 
  - Anything even remotely related to OOP.
 
-if you think a programming language should have any one of these things at the expense of maximally acheiving the two language priorities laid out earlier, you should probably go away and look up some other programming language project, because this language is NOT for you.
+if you think a programming language should have any one of these things at the expense of maximally acheiving the two language priorities laid out earlier, you should probably stop reading this, go away, and look up some other more inferior programming language project, because this language is NOT for you.
 
 
 ### Other information:
