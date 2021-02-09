@@ -30,48 +30,34 @@ static inline void debug(int* output, int begin, int index, int top, const char*
 
 int main() {
 	const char* input = "", * context = "";
-	const int length = (int) strlen(input), count = (int) strlen(context);	
-
-	printf("input (%d): <<<%s>>>\n", length, input);
-	printf("context (%d): <<<%s>>>\n", count, context);
-
+	const int length = (int) strlen(input), count = (int) strlen(context);
 	int output[4096]; 
 	memset(output, 0x0F, sizeof output);
 	int begin = 0, index = 0, top = 0;
-
 	while (begin < length and input[begin] < 33) begin++;
-
 	output[top + 0] = begin; 
-	output[top + 1] = 0; // index starts at 0.
-	output[top + 2] = -3; // root has no parent; this is how we say that.
-try:	
-	if (index == count) {
+	output[top + 1] = 0;
+	output[top + 2] = -3;
+try:	if (index == count) {
 		if (not top) goto error;
-		top -= 3;
-		index = output[top + 1];
+		top -= 3; index = output[top + 1];
 		goto try;
 	}
-	while (index < count and context[index] != 10) index++;
-	index++;
+	while (index < count and context[index] != 10) index++; index++;
+	// type checking here! 
 	begin = output[top];
-parent:	
-	if (context[index] == '\n') goto done;
+parent:	if (context[index] == '\n') goto done;
 	char c = context[index];
 	if (c == ' ') {
 		output[top + 1] = index;
 		output[top + 3] = begin;
 		output[top + 5] = top;
-		top += 3; 
-		index = 0;
+		top += 3; index = 0;
 		goto try;
 	}
-	if (index >= count) goto try;
-	if (begin >= length) goto try; 
-	if (context[index] != input[begin]) goto try;
-	do begin++; while (begin < length and input[begin] < 33);
-	index++;
+	if (index >= count or begin >= length or context[index] != input[begin]) goto try;
+	do begin++; while (begin < length and input[begin] < 33); index++;
 	goto parent;
-
 done:;	int parent = output[top + 2];
 	if (parent != -3) {
 		output[top + 1] = index;
@@ -93,6 +79,16 @@ error:
 	debug(output, begin, index, top, context, count);
 	return 1;
 }
+
+
+
+
+
+
+
+
+
+
 
 
 // this is basically the entire front end, EXECPT:
