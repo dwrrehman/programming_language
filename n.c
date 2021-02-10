@@ -1,7 +1,11 @@
 #include <stdio.h>    // the n programming language compiler, written in c.
 #include <iso646.h>
-#include <stdlib.h>   
+#include <stdlib.h>
 #include <string.h>
+#include <fcntl.h>
+#include <unistd.h>
+#include <sys/stat.h>
+#include <sys/mman.h>
 
 static inline void print_vector(int* v, int l) {
 	printf("[ ");
@@ -14,7 +18,7 @@ static inline void print_vector(int* v, int l) {
 
 static inline void debug(int* output, int begin, int index, int top, const char* context, int count) {
 	printf("DEBUG: begin = %d, index = %d, top = %d\n", begin, index, top);
-	print_vector(output, top + 6);
+	print_vector(output, top + 3);
 	printf("printing parse tree in POST-DFS...\n");
 	for (int i = 0; i < top; i += 3) {
 		int r = output[i + 1], length = 0;
@@ -28,20 +32,60 @@ static inline void debug(int* output, int begin, int index, int top, const char*
 	printf("parse tree complete.\n");
 }
 
-int main() {
+static inline void* open_file(const char* filename, int* length) {
+
+	struct stat file_data = {0};
+	const int file = open(filename, O_RDONLY);
+
+	if (file < 0 or stat(filename, &file_data) < 0) {
+		fprintf(stderr, "error: %s: ", filename);
+		perror("open");
+		exit(3);
+	}
+
+	*length = (int) file_data.st_size;
+	if (not *length) return NULL;
+	void* input = mmap(0, (size_t) *length, PROT_READ, MAP_SHARED, file, 0);
+	if (input == MAP_FAILED) {
+		fprintf(stderr, "error: %s: ", filename);
+		perror("mmap");
+		exit(4);
+	}
+	close(file);
+	return input;
+}
+
+int main(const int argc, const char** argv) {
+
+	if (argc < 2) return 1;
+	const int output_limit = 4096, context_limit = 4096;
+
 	const char
-		* input = "cat daniel cat daniel cat daniel hi ", 
-		* context = "\nint hi\nstring daniel\nint cat string  int \ninit  int \n";
-	const int length = (int) strlen(input), count = (int) strlen(context);
-	int output[8192];
-	memset(output, 0x0F, sizeof output);
-	int begin = 0, index = 0, top = 0, best = 0, candidate = 0;
+		* filename = argv[1], 
+		* initial_context = "init.txt", 
+		* reason = NULL;
+	
+	int count = 0, length = 0;
+	int begin = 0, index = 0, top = 0;
+	int best = 0, candidate = 0;
+
+	char* input = open_file(filename, &length);
+	char* _base = open_file(initial_context, &count);
+	char* context = malloc(context_limit);
+	memcpy(context, _base, (size_t) count);
+	munmap(_base, (size_t) count);
+
+	int* output = malloc(output_limit * sizeof(int));
+	memset(output, 0x0F, output_limit);
+
 	while (begin < length and input[begin] < 33) begin++;
+	if (begin > best) best = begin;
 	output[top + 0] = begin;
 	output[top + 1] = 0;
 	output[top + 2] = -3;
-try:	if (index == count) {
-		if (not top) goto error;
+
+try:	if (index >= count) {
+		if (not top) { reason = "unresolved expression"; goto error; }
 		top -= 3; index = output[top + 1];
 		goto try;
 	}
@@ -52,9 +96,9 @@ try:	if (index == count) {
 		expected++; index++;
 	}
 	index++; begin = output[top];
-parent:	if (context[index] == 10) goto done;
-	char c = context[index];
-	if (c == 32) {
+parent:	if (top + 3 >= output_limit) { reason = "program limit exceeded"; goto error; }
+	if (context[index] == 10) goto done;
+	if (context[index] == 32) {
 		output[top + 1] = index;
 		output[top + 3] = begin;
 		output[top + 5] = top;
@@ -78,12 +122,44 @@ done:;	int parent = output[top + 2];
 	output[top + 1] = index;
 	output[top + 3] = begin;
 	top += 3;
-
 	puts("\n\t---> compile successful.\n");
+	printf("generating code...\n");
+	goto final;
+error:;
+	int at = 0, line = 1, column = 1;
+	while (at < best) {
+		if (input[at++] == '\n') { line++; column = 1; } else column++;
+	}
+	fprintf(stderr, "\033[1m%s:%u:%u: \033[1;31merror:\033[m \033[1m%s\033[m\n", 
+			filename, line, column, reason);
+
+	int b = line > 2 ? line - 2 : 0, e = line + 2;
+	for (int i = 0, l = 1, c = 1; i < length + 1; i++) {
+		if (c == 1 and l >= b and l <= e) 
+			printf("\n\033[90m%5d\033[0m\033[32m │ \033[0m", l);
+		if ((i == length or input[i] != '\n') and l >= b and l <= e) {
+			if (l == line and c == column) printf("\033[1;31m");
+			if (i < length) printf("%c", input[i]);
+			else if (l == line and c == column) printf("<EOF>");
+			if (l == line and c == column) printf("\033[m");
+		}
+		if (i < length and input[i] == '\n') { l++; c = 1; } else c++;
+	}
+
+	printf("\n\n  did you mean:   ");
+	// int* n = context + candidate;
+	// for (int j = 0; j <= n[1]; j++) {
+	// 	int c = n[j + 2];
+	// 	if (c < 33) printf(" char{%d} ", c);
+	// 	else if (c < 128) printf("%c ", c);
+	// 	else if (c < 256) printf(" unicode{%d} ", c);
+	// 	else printf(" (%d) ", c);
+	// }
+	puts("\n");
+final:
 	debug(output, begin, index, top, context, count);
-	return 0;
-error:
-	printf("n: error: %d: compile error parsing %d\n\n", best, candidate);
-	debug(output, begin, index, top, context, count);
-	return 1;
+	printf("DEBUG ::::%.*s====%.*s::::\n", length, input, count, context);
+	munmap(input, (size_t) length);
+	free(context);
+	free(output);
 }
