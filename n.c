@@ -136,17 +136,66 @@ error:;
 	int b = line > 2 ? line - 2 : 0, e = line + 2;
 	for (int i = 0, l = 1, c = 1; i < length + 1; i++) {
 		if (c == 1 and l >= b and l <= e) 
-			printf("\n\033[90m%5d\033[0m\033[32m │ \033[0m", l);
+			fprintf(stderr, "\n\033[90m%5d\033[0m\033[32m │ \033[0m", l);
 		if ((i == length or input[i] != '\n') and l >= b and l <= e) {
-			if (l == line and c == column) printf("\033[1;31m");
-			if (i < length) printf("%c", input[i]);
-			else if (l == line and c == column) printf("<EOF>");
-			if (l == line and c == column) printf("\033[m");
+			if (l == line and c == column) fprintf(stderr, "\033[1;31m");
+			if (i < length) fprintf(stderr, "%c", input[i]);
+			else if (l == line and c == column) fprintf(stderr, "<EOF>");
+			if (l == line and c == column) fprintf(stderr, "\033[m");
 		}
-		if (i < length and input[i] == '\n') { l++; c = 1; } else c++;
+		if (i < length and input[i] == 10) { l++; c = 1; } else c++;
+	}
+	int start = not candidate ? 1 : candidate;
+	do start--; while (start and context[start] != 10); 
+	++start;
+
+	fprintf(stderr, "\n\n\033[1m candidate:\033[m  ");
+	fprintf(stderr, "\033[1;96m");
+	while (context[start] != 32) {
+		fprintf(stderr, "%c", context[start]);
+		start++;		
+	}
+	fprintf(stderr, "%c", context[start]);
+	start++;		
+	fprintf(stderr, "\033[m");
+	for (int k = start; context[k] != 10; k++) {
+		if (context[k] == 32) {
+			int p = k++;
+			fprintf(stderr, p == candidate ? "\033[1;31m " : "\033[1;96m "); 
+			while (context[k] != 32) {
+				fprintf(stderr, "%c", context[k]);
+				k++;
+			}
+			fprintf(stderr, p == candidate ? " \033[m" : " \033[m"); 
+		} else {
+			if (k == candidate) fprintf(stderr, "\033[1;31m");
+			fprintf(stderr, "%c", context[k]);
+			if (k == candidate) fprintf(stderr, "\033[m");
+		}
+
+	
 	}
 
-	printf("\n\n  did you mean:   ");
+	// fprintf(stderr, "\n\033[90m%5d\033[0m\033[32m │ \033[0m", l);
+	// fprintf(stderr, "%.*s", candidate_length, context + start);
+
+	// for (int i = 0; i < 
+
+	// for (int i = 0, l = 1, c = 1; i < length + 1; i++) {
+	// 	if (c == 1 and l >= b and l <= e) 
+	// 		printf("\n\033[90m%5d\033[0m\033[32m │ \033[0m", l);
+	// 	if ((i == length or input[i] != '\n') and l >= b and l <= e) {
+	// 		if (l == line and c == column) printf("\033[1;31m");
+	// 		if (i < length) printf("%c", input[i]);
+	// 		else if (l == line and c == column) printf("<EOF>");
+	// 		if (l == line and c == column) printf("\033[m");
+	// 	}
+	
+	// }
+
+
+
+
 	// int* n = context + candidate;
 	// for (int j = 0; j <= n[1]; j++) {
 	// 	int c = n[j + 2];
