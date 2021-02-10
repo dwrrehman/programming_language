@@ -104,4 +104,3 @@ ch \. ch
 
 init define ch 
 init join init  init 
-ch hihellohowareyou?

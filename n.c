@@ -10,7 +10,7 @@
 static inline void print_vector(int* v, int l) {
 	printf("[ ");
 	for (int i = 0; i < l; i++) {
-		if (!(i%3)) puts("");
+		if (!(i%4)) puts("");
 		printf("%10d ", v[i]);
 	}
 	printf("\n]\n");
@@ -18,16 +18,17 @@ static inline void print_vector(int* v, int l) {
 
 static inline void debug(int* output, int begin, int index, int top, const char* context, int count) {
 	printf("DEBUG: begin = %d, index = %d, top = %d\n", begin, index, top);
-	print_vector(output, top + 3);
+	print_vector(output, top + 4);
 	printf("printing parse tree in POST-DFS...\n");
-	for (int i = 0; i < top; i += 3) {
+	for (int i = 0; i < top; i += 4) {
 		int r = output[i + 1], length = 0;
 		if (r >= count or context[r] != 10) continue;
 		do { r--; length++; } while (r and context[r] != 10);		
-		r++; length--; 
-		for (int _ = 0; _ < (output[i + 2] + 3)/3; _++) printf(".   ");
+		r++; length--;
+		for (int _ = 0; _ < (output[i + 2] + 4)/4; _++) printf(".   ");
 		printf("<<<%.*s>>> : ", length, context + r);
-		printf("begin=%d, index=%d, parent=%d\n\n", output[i], output[i + 1], output[i + 2]);
+		printf("begin=%d, index=%d, parent=%d, count=%d\n\n", 
+			output[i + 0], output[i + 1], output[i + 2], output[i + 3]);
 	}
 	printf("parse tree complete.\n");
 }
@@ -62,7 +63,7 @@ int main(const int argc, const char** argv) {
 	}
 	const int output_limit = 4096, context_limit = 4096;
 	const char * filename = argv[1], * reason = NULL;
-	
+
 	int count = 0, length = 0;
 	int begin = 0, index = 0, top = 0;
 	int best = 0, candidate = 0;
@@ -80,27 +81,42 @@ int main(const int argc, const char** argv) {
 	if (begin > best) best = begin;
 	output[top + 0] = begin;
 	output[top + 1] = 0;
-	output[top + 2] = -3;
+	output[top + 2] = -4;
+	output[top + 3] = count;
 
 try:	if (index >= count) {
 		if (not top) { reason = "unresolved expression"; goto error; }
-		top -= 3; index = output[top + 1];
+		top -= 4; index = output[top + 1];
 		goto try;
 	}
 	while (index < count and context[index] != 10) index++; index++;
-	const char* expected = output[top + 2] == -3 ? "init" : context + output[output[top + 2] + 1] + 1;
+	const char* expected = output[top + 2] == -4 ? "init " : context + output[output[top + 2] + 1] + 1;
+
+	// const char* undefined = "undefined ";
+	// while (undefined != ' ') {
+	// 	if (*undefined != *expected) goto non;
+	// 	expected++; undefined++;
+	// }
+
+	
+
+	// goto done;
+	
+// non: 	
 	while (context[index] != ' ') {
 		if (context[index] != *expected) goto try;
 		expected++; index++;
 	}
 	index++; begin = output[top];
-parent:	if (top + 5 >= output_limit) { reason = "program limit exceeded"; goto error; }
+
+parent:	if (top + 7 >= output_limit) { reason = "program limit exceeded"; goto error; }
 	if (context[index] == 10) goto done;
 	if (context[index] == 32) {
 		output[top + 1] = index;
-		output[top + 3] = begin;
-		output[top + 5] = top;
-		top += 3; index = 0;
+		output[top + 4] = begin;
+		output[top + 6] = top;
+		output[top + 7] = count;
+		top += 4; index = 0;
 		goto try;
 	}
 	if (index >= count or begin >= length or context[index] != input[begin]) goto try;
@@ -110,16 +126,16 @@ parent:	if (top + 5 >= output_limit) { reason = "program limit exceeded"; goto e
 done:;	int parent = output[top + 2];
 	if (parent != -3) {
 		output[top + 1] = index;
-		output[top + 3] = begin;
-		output[top + 5] = output[parent + 2];
-		top += 3; index = output[parent + 1] + 1;
+		output[top + 4] = begin;
+		output[top + 6] = output[parent + 2];
+		output[top + 7] = count;
+		top += 4; index = output[parent + 1] + 1;
 		while (index < count and context[index] != 32) index++; index++;
 		goto parent;
 	}
 	if (begin != length) goto try;
 	output[top + 1] = index;
-	output[top + 3] = begin;
-	top += 3;
+	top += 4;
 	puts("\n\t---> compile successful.\n");
 	printf("generating code...\n");
 	goto final;
@@ -146,15 +162,13 @@ error:;
 	int start = not candidate ? 1 : candidate;
 	do start--; while (start and context[start] != 10); 
 	++start;
-	fprintf(stderr, "\n\n\033[1m candidate:\033[m  ");
-	fprintf(stderr, "\033[1;96m");
+	fprintf(stderr, "\n\n\033[1m candidate:\033[m  \033[1;96m");
 	while (context[start] != 32) {
 		fprintf(stderr, "%c", context[start]);
 		start++;		
 	}
-	fprintf(stderr, "%c", context[start]);
+	fprintf(stderr, "%c\033[m", context[start]);
 	start++;
-	fprintf(stderr, "\033[m");
 	for (int k = start; context[k] != 10; k++) {
 		if (context[k] == 32) {
 			int p = k++;
@@ -178,46 +192,3 @@ final:
 	free(context);
 	free(output);
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-// fprintf(stderr, "\n\033[90m%5d\033[0m\033[32m │ \033[0m", l);
-	// fprintf(stderr, "%.*s", candidate_length, context + start);
-
-	// for (int i = 0; i < 
-
-	// for (int i = 0, l = 1, c = 1; i < length + 1; i++) {
-	// 	if (c == 1 and l >= b and l <= e) 
-	// 		printf("\n\033[90m%5d\033[0m\033[32m │ \033[0m", l);
-	// 	if ((i == length or input[i] != '\n') and l >= b and l <= e) {
-	// 		if (l == line and c == column) printf("\033[1;31m");
-	// 		if (i < length) printf("%c", input[i]);
-	// 		else if (l == line and c == column) printf("<EOF>");
-	// 		if (l == line and c == column) printf("\033[m");
-	// 	}
-	
-	// }
-
-
-
-
-	// int* n = context + candidate;
-	// for (int j = 0; j <= n[1]; j++) {
-	// 	int c = n[j + 2];
-	// 	if (c < 33) printf(" char{%d} ", c);
-	// 	else if (c < 128) printf("%c ", c);
-	// 	else if (c < 256) printf(" unicode{%d} ", c);
-	// 	else printf(" (%d) ", c);
-	// }
-
