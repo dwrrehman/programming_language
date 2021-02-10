@@ -1,0 +1,107 @@
+
+ch .
+
+ch a ch 
+ch b ch 
+ch c ch 
+ch d ch 
+ch e ch 
+ch f ch 
+ch g ch 
+ch h ch 
+ch i ch 
+ch j ch 
+ch k ch 
+ch l ch 
+ch m ch 
+ch n ch 
+ch o ch 
+ch p ch 
+ch q ch 
+ch r ch 
+ch s ch 
+ch t ch 
+ch u ch 
+ch v ch 
+ch w ch 
+ch x ch 
+ch y ch 
+ch z ch 
+
+ch A ch 
+ch B ch 
+ch C ch 
+ch D ch 
+ch E ch 
+ch F ch 
+ch G ch 
+ch H ch 
+ch I ch 
+ch J ch 
+ch K ch 
+ch L ch 
+ch M ch 
+ch N ch 
+ch O ch 
+ch P ch 
+ch Q ch 
+ch R ch 
+ch S ch 
+ch T ch 
+ch U ch 
+ch V ch 
+ch W ch 
+ch X ch 
+ch Y ch 
+ch Z ch 
+
+ch 0 ch 
+ch 1 ch 
+ch 2 ch 
+ch 3 ch 
+ch 4 ch 
+ch 5 ch 
+ch 6 ch 
+ch 7 ch 
+ch 8 ch 
+ch 9 ch 
+
+ch _ ch 
+ch : ch 
+ch ; ch 
+ch ~ ch 
+ch / ch 
+ch ! ch 
+ch @ ch 
+ch # ch 
+ch $ ch 
+ch % ch 
+ch ^ ch 
+ch & ch 
+ch * ch 
+
+ch ( ch 
+ch ) ch 
+ch [ ch 
+ch ] ch 
+ch { ch 
+ch } ch 
+ch < ch 
+ch > ch 
+
+ch ? ch 
+ch | ch 
+ch = ch 
+ch + ch 
+ch - ch 
+ch ' ch 
+ch " ch 
+ch , ch 
+ch ` ch 
+
+ch \\ ch 
+ch \. ch 
+
+init define ch 
+init join init  init 
+ch hihellohowareyou?

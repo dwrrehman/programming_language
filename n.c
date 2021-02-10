@@ -56,21 +56,19 @@ static inline void* open_file(const char* filename, int* length) {
 }
 
 int main(const int argc, const char** argv) {
-
-	if (argc < 2) return 1;
+	if (argc != 3) {
+		printf("usage: ./n <input> <context>\n");
+		return 1;
+	}
 	const int output_limit = 4096, context_limit = 4096;
-
-	const char
-		* filename = argv[1], 
-		* initial_context = "init.txt", 
-		* reason = NULL;
+	const char * filename = argv[1], * reason = NULL;
 	
 	int count = 0, length = 0;
 	int begin = 0, index = 0, top = 0;
 	int best = 0, candidate = 0;
 
 	char* input = open_file(filename, &length);
-	char* _base = open_file(initial_context, &count);
+	char* _base = open_file(argv[2], &count);
 	char* context = malloc(context_limit);
 	memcpy(context, _base, (size_t) count);
 	munmap(_base, (size_t) count);
@@ -96,7 +94,7 @@ try:	if (index >= count) {
 		expected++; index++;
 	}
 	index++; begin = output[top];
-parent:	if (top + 3 >= output_limit) { reason = "program limit exceeded"; goto error; }
+parent:	if (top + 5 >= output_limit) { reason = "program limit exceeded"; goto error; }
 	if (context[index] == 10) goto done;
 	if (context[index] == 32) {
 		output[top + 1] = index;
@@ -148,7 +146,6 @@ error:;
 	int start = not candidate ? 1 : candidate;
 	do start--; while (start and context[start] != 10); 
 	++start;
-
 	fprintf(stderr, "\n\n\033[1m candidate:\033[m  ");
 	fprintf(stderr, "\033[1;96m");
 	while (context[start] != 32) {
@@ -156,7 +153,7 @@ error:;
 		start++;		
 	}
 	fprintf(stderr, "%c", context[start]);
-	start++;		
+	start++;
 	fprintf(stderr, "\033[m");
 	for (int k = start; context[k] != 10; k++) {
 		if (context[k] == 32) {
@@ -172,11 +169,30 @@ error:;
 			fprintf(stderr, "%c", context[k]);
 			if (k == candidate) fprintf(stderr, "\033[m");
 		}
-
-	
 	}
+	puts("\n");	
+final:
+	debug(output, begin, index, top, context, count);
+	printf("DEBUG ::::%.*s====%.*s::::\n", length, input, count, context);
+	munmap(input, (size_t) length);
+	free(context);
+	free(output);
+}
 
-	// fprintf(stderr, "\n\033[90m%5d\033[0m\033[32m │ \033[0m", l);
+
+
+
+
+
+
+
+
+
+
+
+
+
+// fprintf(stderr, "\n\033[90m%5d\033[0m\033[32m │ \033[0m", l);
 	// fprintf(stderr, "%.*s", candidate_length, context + start);
 
 	// for (int i = 0; i < 
@@ -204,11 +220,4 @@ error:;
 	// 	else if (c < 256) printf(" unicode{%d} ", c);
 	// 	else printf(" (%d) ", c);
 	// }
-	puts("\n");
-final:
-	debug(output, begin, index, top, context, count);
-	printf("DEBUG ::::%.*s====%.*s::::\n", length, input, count, context);
-	munmap(input, (size_t) length);
-	free(context);
-	free(output);
-}
+

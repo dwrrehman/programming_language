@@ -1,1 +1,7 @@
-daniel
+join 
+	define \\ \\ \\ . 
+	define hi hello how are you?
+
+
+
+	
