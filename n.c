@@ -22,7 +22,7 @@ static inline void debug(int* output, int begin, int index, int top, const char*
 	printf("printing parse tree in POST-DFS...\n");
 	for (int i = 0; i < top; i += 4) {
 		int r = output[i + 1], length = 0;
-		if (not r) {
+		if (r > count) {
 			for (int _ = 0; _ < (output[i + 2] + 4)/4; _++) printf(".   ");
 			printf("<<<%s>>> : ","USER-DEFINED SIGNATURE");
 			printf("begin=%d, index=%d, parent=%d, count=%d\n\n", 
@@ -42,18 +42,18 @@ static inline void debug(int* output, int begin, int index, int top, const char*
 	printf("parse tree complete.\n");
 }
 
-static inline void print_index(const char* context, int index) {
-	int start = index;
-		while (start and context[start] != '\n') start--;
-		start++;
-		printf("\nINDEX: ");
-		for (int i = start; context[i] != '\n'; i++) {
-			if (i == index) printf("[%c]", context[i]);
-			if (i != index) printf(" %c ", context[i]);
-		}
-		printf("\n\n");
-		// usleep(100000);
-}
+// static inline void print_index(const char* context, int index) {
+// 	int start = index;
+// 		while (start and context[start] != '\n') start--;
+// 		start++;
+// 		printf("\nINDEX: ");
+// 		for (int i = start; context[i] != '\n'; i++) {
+// 			if (i == index) printf("[%c]", context[i]);
+// 			if (i != index) printf(" %c ", context[i]);
+// 		}
+// 		printf("\n\n");
+// 		//usleep(100000);
+// }
 
 static inline void* open_file(const char* filename, int* length) {
 
@@ -90,7 +90,10 @@ int main(const int argc, const char** argv) {
 	int begin = 0, index = 0, top = 0;
 	int best = 0, candidate = 0;
 
-	char* input = open_file(filename, &length);
+	// char* input = open_file(filename, &length);
+	const char* input = argv[1];
+	length = (int) strlen(input);
+
 	char* _base = open_file(argv[2], &count);
 	char* context = malloc(context_limit);
 	memcpy(context, _base, (size_t) count);
@@ -112,32 +115,18 @@ try:
 	// printf("CURRENT CONTEXT: ::::%.*s::::\n", count, context);
 	// printf("STATUS: begin = %d, index = %d, top = %d\n", begin, index, top);
 	// print_vector(output, top + 4);
-	
 	// if (index < count) print_index(context, index);
-	
 	// 	else 
 	// 		printf("\nERROR: could not print signature, because index == count!!!\n");
-
-
-	// printf("continue? "); getchar();
+	//printf("continue? "); getchar();
 
 	if (index >= count) {
-		do {
 		if (not top) { reason = "unresolved expression"; goto error; }
-		top -= 4;
-		}	while (
-				context[
-				output[
-				top + 1]
-				] 
-			!= '\n');
-		
-		top = output[top + 2] + 4;
-		index = output[top + 1];
+		top -= 4; index = output[top + 1];
 		goto try;
 	}
-	
-	begin = output[top]; 
+	while (index < count and context[index] != 10) index++; index++;
+	begin = output[top];
 	count = output[top + 3];
 
 	const char* expected = output[top + 2] == -4 ? "init " : context + output[output[top + 2] + 1] + 1;
@@ -157,17 +146,16 @@ try:
 	}
 	context[count++] = '\n';
 	do begin++; while (begin < length and input[begin] < 33);
-
+	if (begin > best) { best = begin; candidate = index; }
 	// printf("%c\n", input[begin]);
-	// printf("i found it!!! an undef param.\n");
-	// printf("NOW NEW: CONTEXT: ::::%.*s::::\n", count, context);
-	// printf("NEW SIG: begin = %d, index = %d, top = %d\n", begin, index, top);
-	// print_vector(output, top + 4);
+	printf("i found it!!! an undef param.\n");
+	printf("NOW NEW: CONTEXT: ::::%.*s::::\n", count, context);
+	printf("NEW SIG: begin = %d, index = %d, top = %d\n", begin, index, top);
+	print_vector(output, top + 4);
 	// usleep(1000000);
-	// printf("top = %d, parent = %d\n", top, parent);
-//printf("type mismatch ci=%hhu,%c, ex=%hhu,%c\n", context[index],context[index], *expected,*expected);
-	// puts("\n\n\n");
-	
+
+	index = context_limit;
+
 	goto done;
 	// if (input[begin] != '(')  {
 	// 	printf("error: expected ( before name.\n");
@@ -183,15 +171,13 @@ try:
 		// do begin++; while (begin < length and input[begin] < 33);
 	// }
 non: 	
-	while (index < count and context[index] != 10) index++; index++;
 	while (context[index] != ' ') {
 		if (context[index] != *expected) goto try;
 		expected++; index++;
 
-		// if (index < count) print_index(context, index);
+		
 	}
 	index++;
-
 parent:	
 	// if (index < count) print_index(context, index);
 
@@ -207,9 +193,6 @@ parent:
 	}
 	if (index >= count or begin >= length or context[index] != input[begin]) goto try;
 	do begin++; while (begin < length and input[begin] < 33); index++;
-
-	// if (index < count) print_index(context, index);
-
 	if (begin > best) { best = begin; candidate = index; }
 	goto parent;
 done:;	
@@ -231,8 +214,9 @@ done:;
 	top += 4;
 
 	puts("\n\t---> compile successful.\n");
-	// printf("generating code...\n");
-
+	printf("generating code...\n");
+	printf("DEBUG ::::%.*s====%.*s::::\n", length, input, count, context);
+	debug(output, begin, index, top, context, count);
 	goto final;
 
 error:;
@@ -255,6 +239,8 @@ error:;
 		}
 		if (i < length and input[i] == 10) { l++; c = 1; } else c++;
 	}
+	if (not count) goto skip_candidate;
+	// if (not candidate) { printf("\n\ncandidate: {USER DEFINED SIGNATURE}\n\n"); goto skip_candidate;}	
 	int start = not candidate ? 1 : candidate;
 	do start--; while (start and context[start] != 10); 
 	++start;
@@ -280,11 +266,10 @@ error:;
 			if (k == candidate) fprintf(stderr, "\033[m");
 		}
 	}
+skip_candidate: 
 	puts("\n");	
 final:
-	printf("DEBUG ::::%.*s====%.*s::::\n", length, input, count, context);
-	debug(output, begin, index, top, context, count);
-	munmap(input, (size_t) length);
+	//munmap(input, (size_t) length);
 	free(context);
 	free(output);
 }
@@ -310,3 +295,22 @@ final:
 	// easy fix. 
 
 
+
+
+// printf("DEBUG ::::%.*s====%.*s::::\n", length, input, count, context);
+	// debug(output, begin, index, top, context, count);
+
+
+// int save = top;
+		// do {
+		// 	top -= 4;
+		// } while (top and context[output[top + 1]] != '\n');
+		// top = output[top + 2] + 4;
+		// if (not top) top = save - 4;
+
+	// printf("top = %d, parent = %d\n", top, parent);
+//printf("type mismatch ci=%hhu,%c, ex=%hhu,%c\n", context[index],context[index], *expected,*expected);
+	// puts("\n\n\n");
+	
+
+// if (index < count) print_index(context, index);

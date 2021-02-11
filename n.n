@@ -1,5 +1,1 @@
-j 
-	define hello there from space) done
-	define (hello). done
-
-nop
+join define hello there from space. done
