@@ -1,7 +1,7 @@
 
-init def undefined done
-init define undefined done
-init join init  init 
-init join init 
-init nop
-init j init  init 
+init	def undefined done
+init	define undefined done
+init	join init  init 
+init	join init 
+init	nop
+init	j init  init 
