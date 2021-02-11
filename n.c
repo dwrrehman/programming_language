@@ -22,9 +22,12 @@ static inline void debug(int* output, int begin, int index, int top, const char*
 	printf("printing parse tree in POST-DFS...\n");
 	for (int i = 0; i < top; i += 4) {
 		int r = output[i + 1], length = 0;
-
-		if (!r) {
-			printf("done.\n"); continue;
+		if (not r) {
+			for (int _ = 0; _ < (output[i + 2] + 4)/4; _++) printf(".   ");
+			printf("<<<%s>>> : ","USER-DEFINED SIGNATURE");
+			printf("begin=%d, index=%d, parent=%d, count=%d\n\n", 
+				output[i + 0], output[i + 1], output[i + 2], output[i + 3]);
+			continue;
 		}
 
 		if (r >= count or context[r] != 10) continue;
@@ -37,6 +40,19 @@ static inline void debug(int* output, int begin, int index, int top, const char*
 			output[i + 0], output[i + 1], output[i + 2], output[i + 3]);
 	}
 	printf("parse tree complete.\n");
+}
+
+static inline void print_index(const char* context, int index) {
+	int start = index;
+		while (start and context[start] != '\n') start--;
+		start++;
+		printf("\nINDEX: ");
+		for (int i = start; context[i] != '\n'; i++) {
+			if (i == index) printf("[%c]", context[i]);
+			if (i != index) printf(" %c ", context[i]);
+		}
+		printf("\n\n");
+		// usleep(100000);
 }
 
 static inline void* open_file(const char* filename, int* length) {
@@ -90,15 +106,40 @@ int main(const int argc, const char** argv) {
 	output[top + 2] = -4;
 	output[top + 3] = count;
 
-try:	if (index >= count) {
+try:	
+
+	// printf("\n\n------------------- TRY ------------------------\n\n");
+	// printf("CURRENT CONTEXT: ::::%.*s::::\n", count, context);
+	// printf("STATUS: begin = %d, index = %d, top = %d\n", begin, index, top);
+	// print_vector(output, top + 4);
+	
+	// if (index < count) print_index(context, index);
+	
+	// 	else 
+	// 		printf("\nERROR: could not print signature, because index == count!!!\n");
+
+
+	// printf("continue? "); getchar();
+
+	if (index >= count) {
+		do {
 		if (not top) { reason = "unresolved expression"; goto error; }
-		top -= 4; index = output[top + 1];
+		top -= 4;
+		}	while (
+				context[
+				output[
+				top + 1]
+				] 
+			!= '\n');
+		
+		top = output[top + 2] + 4;
+		index = output[top + 1];
 		goto try;
 	}
-
-	begin = output[top];
-	count = output[top + 3];
 	
+	begin = output[top]; 
+	count = output[top + 3];
+
 	const char* expected = output[top + 2] == -4 ? "init " : context + output[output[top + 2] + 1] + 1;
 	const char* undefined = "undefined ", * copy_expected = expected;
 
@@ -107,55 +148,54 @@ try:	if (index >= count) {
 		copy_expected++; undefined++;
 	}
 
-	if (input[begin] != '(')  {
-		printf("error: expected ( before name.\n");
-		top -= 4; index = output[top + 1];
-		goto try;
-	}
-	do begin++; while (begin < length and input[begin] < 33);
-
 	context[count++] = 'g';
 	context[count++] = ' ';
 
-	while (begin < length and input[begin] != ')') {
-		printf("%c\n", input[begin]);
-		if (input[begin] != '\\') {
-			context[count++] = input[begin];
-			do begin++; while (begin < length and input[begin] < 33);
-		} else {
-			do begin++; while (begin < length and input[begin] < 33);
-			context[count++] = input[begin];
-			do begin++; while (begin < length and input[begin] < 33);
-		}
+	while (begin < length and input[begin] != '.') {
+		context[count++] = input[begin];
+		do begin++; while (begin < length and input[begin] < 33);
 	}
 	context[count++] = '\n';
 	do begin++; while (begin < length and input[begin] < 33);
 
-	printf("i found it!!! an undef param.\n");
-
-	debug(output, begin, index, top, context, count);
-	printf("DEBUG ::::%.*s====%.*s::::\n", length, input, count, context);
-
-	puts("\n\n\n");
-	// usleep(100000);
-
+	// printf("%c\n", input[begin]);
+	// printf("i found it!!! an undef param.\n");
+	// printf("NOW NEW: CONTEXT: ::::%.*s::::\n", count, context);
+	// printf("NEW SIG: begin = %d, index = %d, top = %d\n", begin, index, top);
+	// print_vector(output, top + 4);
+	// usleep(1000000);
+	// printf("top = %d, parent = %d\n", top, parent);
+//printf("type mismatch ci=%hhu,%c, ex=%hhu,%c\n", context[index],context[index], *expected,*expected);
+	// puts("\n\n\n");
+	
 	goto done;
+	// if (input[begin] != '(')  {
+	// 	printf("error: expected ( before name.\n");
+	// 	top -= 4; index = output[top + 1];
+	// 	goto try;
+	// }
+	// do begin++; while (begin < length and input[begin] < 33);
 
+	// if (input[begin] != '\\') {
+	// } else {
+		// do begin++; while (begin < length and input[begin] < 33);
+		// context[count++] = input[begin];
+		// do begin++; while (begin < length and input[begin] < 33);
+	// }
 non: 	
 	while (index < count and context[index] != 10) index++; index++;
 	while (context[index] != ' ') {
-		if (context[index] != *expected) {
-			//printf("type mismatch ci=%hhu,%c, ex=%hhu,%c\n", context[index],context[index], *expected,*expected);
-			goto try; 
-		}
+		if (context[index] != *expected) goto try;
 		expected++; index++;
-	}
-	index++; 
 
-	// begin = output[top]; 
-	// count = output[top + 3];
-	
-parent:	if (top + 7 >= output_limit) { reason = "program limit exceeded"; goto error; }
+		// if (index < count) print_index(context, index);
+	}
+	index++;
+
+parent:	
+	// if (index < count) print_index(context, index);
+
+	if (top + 7 >= output_limit) { reason = "program limit exceeded"; goto error; }
 	if (context[index] == 10) goto done;
 	if (context[index] == 32) {
 		output[top + 1] = index;
@@ -163,16 +203,17 @@ parent:	if (top + 7 >= output_limit) { reason = "program limit exceeded"; goto e
 		output[top + 6] = top;
 		output[top + 7] = count;
 		top += 4; index = 0;
-		printf("found param!\n");
 		goto try;
 	}
 	if (index >= count or begin >= length or context[index] != input[begin]) goto try;
 	do begin++; while (begin < length and input[begin] < 33); index++;
+
+	// if (index < count) print_index(context, index);
+
 	if (begin > best) { best = begin; candidate = index; }
 	goto parent;
 done:;	
 	int parent = output[top + 2];
-	printf("top = %d, parent = %d\n", top, parent);
 	if (parent != -4) {
 		output[top + 1] = index;
 		output[top + 4] = begin;
@@ -183,17 +224,14 @@ done:;
 		goto parent;
 	}
 
-	if (begin != length) {
-		printf("begin != length\n");
-		goto try;
-	}
+	if (begin != length) goto try;
 	output[top + 0] = begin;
 	output[top + 1] = index;
 	output[top + 3] = count;
 	top += 4;
 
 	puts("\n\t---> compile successful.\n");
-	printf("generating code...\n");
+	// printf("generating code...\n");
 
 	goto final;
 

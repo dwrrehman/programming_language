@@ -1,3 +1,5 @@
 j 
-	define (hello there from space) done
-	define hello) done
+	define hello there from space) done
+	define (hello). done
+
+nop
