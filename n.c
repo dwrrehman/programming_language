@@ -95,21 +95,29 @@ try:	if (index >= count) {
 		top -= 4; index = output[top + 1];
 		goto try;
 	}
-	
-	begin = output[top]; 
+
+	begin = output[top];
 	count = output[top + 3];
 	
 	const char* expected = output[top + 2] == -4 ? "init " : context + output[output[top + 2] + 1] + 1;
 	const char* undefined = "undefined ", * copy_expected = expected;
+
 	while (*undefined != ' ') {
 		if (*undefined != *copy_expected) goto non;
 		copy_expected++; undefined++;
 	}
 
+	if (input[begin] != '(')  {
+		printf("error: expected ( before name.\n");
+		top -= 4; index = output[top + 1];
+		goto try;
+	}
+	do begin++; while (begin < length and input[begin] < 33);
+
 	context[count++] = 'g';
 	context[count++] = ' ';
 
-	while (input[begin] != '.') {
+	while (begin < length and input[begin] != ')') {
 		printf("%c\n", input[begin]);
 		if (input[begin] != '\\') {
 			context[count++] = input[begin];
@@ -137,12 +145,15 @@ non:
 	while (index < count and context[index] != 10) index++; index++;
 	while (context[index] != ' ') {
 		if (context[index] != *expected) {
-			printf("type mismatch ci=%hhu,%c, ex=%hhu,%c\n", context[index],context[index], *expected,*expected);
+			//printf("type mismatch ci=%hhu,%c, ex=%hhu,%c\n", context[index],context[index], *expected,*expected);
 			goto try; 
 		}
 		expected++; index++;
 	}
 	index++; 
+
+	// begin = output[top]; 
+	// count = output[top + 3];
 	
 parent:	if (top + 7 >= output_limit) { reason = "program limit exceeded"; goto error; }
 	if (context[index] == 10) goto done;
@@ -239,3 +250,25 @@ final:
 	free(context);
 	free(output);
 }
+
+
+
+// (int . name)
+//      ^_	   ^\n
+
+
+
+
+// ( int : name ) 
+
+// int : name ;
+
+
+
+
+
+// dont forget to make the undefined type actually just the empt ystring, ie, an empty string triggrs the define, not the string undefined.
+
+	// easy fix. 
+
+
