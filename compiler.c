@@ -7,6 +7,38 @@
 #include <sys/stat.h>
 #include <sys/mman.h>
 
+
+
+/*
+
+
+
+	okay, so we have a problem.
+
+	we actually need to keep track of the argument better. because although yes, we are doing backtracking very well, and good, 
+			we arent actually telling the code generator what is the argument of what...
+				i guess technically it can just figure that out...? i mean... im not sure about that. 
+
+
+						im very tempted to bring back the program, way of doing things... im not sure.. 
+
+						i really like how simple everything is when we DONT have the program, and arguents, and stuff.... :/
+
+		hmm
+
+
+
+
+
+
+
+*/
+
+
+
+
+
+
 static inline void print_vector(int* v, int l) {
 	printf("[ ");
 	for (int i = 0; i < l; i++) {
@@ -88,7 +120,7 @@ int main(const int argc, const char** argv) {
 
 	int count = 0, length = 0;
 	int begin = 0, index = 0, top = 0;
-	int best = 0, candidate = 0;
+	int best = 0, candidate = 0, best_count = 0;
 
 	char* input = open_file(filename, &length);
 	// const char* input = argv[1];
@@ -96,14 +128,17 @@ int main(const int argc, const char** argv) {
 
 	char* _base = open_file(argv[2], &count);
 	char* context = malloc(context_limit);
+
+	memset(context, 0x0F, context_limit);
 	memcpy(context, _base, (size_t) count);
+
 	munmap(_base, (size_t) count);
 
 	int* output = malloc(output_limit * sizeof(int));
 	memset(output, 0x0F, output_limit);
 
 	while (begin < length and input[begin] < 33) begin++;
-	if (begin >= best) { best = begin; candidate = index; }
+	// if (begin >= best) { best = begin; candidate = index; }
 	output[top + 0] = begin;
 	output[top + 1] = 0;
 	output[top + 2] = -4;
@@ -172,15 +207,18 @@ try:
 		}
 	}
 	context[count++] = '\n';
+	if (count > best_count) best_count = count;
+
 	do begin++; while (begin < length and input[begin] < 33);
-	if (begin >= best) { best = begin; candidate = index; }
+
+	index = context_limit;
+
+	// if (begin > best) { best = begin; candidate = index; }
 	
 	// printf("i found it!!! an undef param.\n");
 	// printf("NOW NEW: CONTEXT: ::::%.*s::::\n", count, context);
 	// printf("NEW SIG: begin = %d, index = %d, top = %d\n", begin, index, top);
 	// print_vector(output, top + 4);
-
-	index = context_limit;
 
 	goto done;
 
@@ -206,7 +244,8 @@ non:
 	index++;
 parent:	
 
-	if (begin >= best) { best = begin; candidate = index; }
+	// if (begin >= best) { best = begin; candidate = index; }
+
 	// printf("\n\n------------------- PARENT ------------------------\n\n");
 	// printf("CURRENT CONTEXT: ::::%.*s::::\n", count, context);
 	// printf("STATUS: begin = %d, index = %d, top = %d\n", begin, index, top);
@@ -217,6 +256,7 @@ parent:
 
 	if (top + 7 >= output_limit) { reason = "program limit exceeded"; goto error; }
 	if (context[index] == 10) goto done;
+
 	if (context[index] == 32) {
 		output[top + 1] = index;
 		output[top + 4] = begin;
@@ -246,7 +286,9 @@ parent:
 		}		
 	}
 	do begin++; while (begin < length and input[begin] < 33); index++;
+
 	if (begin >= best) { best = begin; candidate = index; }
+
 	goto parent;
 done:;	
 	// printf("NOTE: FINSIHED SIGNATURE...\n");
@@ -259,6 +301,9 @@ done:;
 		output[top + 7] = count;
 		top += 4; index = output[parent + 1] + 1;
 		while (index < count and context[index] != 32) index++; index++;
+
+		// if (begin >= best) { best = begin; candidate = index; }
+
 		goto parent;
 	}
 
@@ -287,13 +332,12 @@ done:;
 
 	puts("\n\t---> compile successful.\n");
 	printf("generating code...\n");
-	printf("DEBUG ::::%.*s====%.*s::::\n", length, input, count, context);
-	debug(output, begin, index, top, context, count);
 	goto final;
 
 error:;
+	count = best_count;
 	int at = 0, line = 1, column = 1;
-	while (at < best) {
+	while (at < best and at < length) {
 		if (input[at++] == '\n') { line++; column = 1; } else column++;
 	}
 	fprintf(stderr, "\033[1m%s:%u:%u: \033[1;31merror:\033[m \033[1m%s\033[m\n", 
@@ -316,14 +360,14 @@ error:;
 	int start = not candidate ? 1 : candidate;
 	do start--; while (start and context[start] != 10); 
 	++start;
-	fprintf(stderr, "\n\n\033[1m candidate:\033[m  \033[1;94m");
-	while (context[start] != '\t') {
+	fprintf(stderr, "\n\n\033[1m candidate:%d\033[m  \033[1;94m", candidate);
+	while (context[start] != '\t' and start < count) {
 		fprintf(stderr, "%c", context[start]);
 		start++;		
 	}
 	fprintf(stderr, "%c\033[m", context[start]);
 	start++;
-	for (int k = start; context[k] != 10; k++) {
+	for (int k = start; context[k] != 10 and k < count; k++) {
 		if (context[k] == 32) {
 			int p = k++;
 			fprintf(stderr, p == candidate ? "\033[1;31m " : "\033[1;96m "); 
@@ -341,6 +385,8 @@ error:;
 skip_candidate: 
 	puts("\n");	
 final:
+	printf("DEBUG ::::%.*s====%.*s::::\n", length, input, count, context);
+	debug(output, begin, index, top, context, count);
 	munmap(input, (size_t) length);
 	free(context);
 	free(output);

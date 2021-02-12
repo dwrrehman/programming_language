@@ -1,7 +1,3 @@
 
-init	
-init	def undefined done
+init	 undefined 
 init	join init  init 
-init	join init 
-init	nop
-init	j init  init 
