@@ -1,1 +1,2 @@
-join define hello there from space. done
+join def init:daniel _init_ cool beans. done daniel nop done
+     

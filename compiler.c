@@ -90,9 +90,9 @@ int main(const int argc, const char** argv) {
 	int begin = 0, index = 0, top = 0;
 	int best = 0, candidate = 0;
 
-	// char* input = open_file(filename, &length);
-	const char* input = argv[1];
-	length = (int) strlen(input);
+	char* input = open_file(filename, &length);
+	// const char* input = argv[1];
+	// length = (int) strlen(input);
 
 	char* _base = open_file(argv[2], &count);
 	char* context = malloc(context_limit);
@@ -103,7 +103,7 @@ int main(const int argc, const char** argv) {
 	memset(output, 0x0F, output_limit);
 
 	while (begin < length and input[begin] < 33) begin++;
-	if (begin > best) best = begin;
+	if (begin >= best) { best = begin; candidate = index; }
 	output[top + 0] = begin;
 	output[top + 1] = 0;
 	output[top + 2] = -4;
@@ -159,16 +159,21 @@ try:
 		copy_expected++; undefined++;
 	}
 
-	context[count++] = 'g';
-	context[count++] = '\t';
-
 	while (begin < length and input[begin] != '.') {
-		context[count++] = input[begin];
-		do begin++; while (begin < length and input[begin] < 33);
+		if (input[begin] != '\\') {
+			if (input[begin] == ':') context[count++] = '\t';
+			else if (input[begin] == '_') context[count++] = ' ';
+			else context[count++] = input[begin];
+			do begin++; while (begin < length and input[begin] < 33);
+		} else {
+			do begin++; while (begin < length and input[begin] < 33);
+			context[count++] = input[begin];
+			do begin++; while (begin < length and input[begin] < 33);
+		}
 	}
 	context[count++] = '\n';
 	do begin++; while (begin < length and input[begin] < 33);
-	if (begin > best) { best = begin; candidate = index; }
+	if (begin >= best) { best = begin; candidate = index; }
 	
 	// printf("i found it!!! an undef param.\n");
 	// printf("NOW NEW: CONTEXT: ::::%.*s::::\n", count, context);
@@ -200,6 +205,8 @@ non:
 	}
 	index++;
 parent:	
+
+	if (begin >= best) { best = begin; candidate = index; }
 	// printf("\n\n------------------- PARENT ------------------------\n\n");
 	// printf("CURRENT CONTEXT: ::::%.*s::::\n", count, context);
 	// printf("STATUS: begin = %d, index = %d, top = %d\n", begin, index, top);
@@ -239,7 +246,7 @@ parent:
 		}		
 	}
 	do begin++; while (begin < length and input[begin] < 33); index++;
-	if (begin > best) { best = begin; candidate = index; }
+	if (begin >= best) { best = begin; candidate = index; }
 	goto parent;
 done:;	
 	// printf("NOTE: FINSIHED SIGNATURE...\n");
@@ -334,7 +341,7 @@ error:;
 skip_candidate: 
 	puts("\n");	
 final:
-	//munmap(input, (size_t) length);
+	munmap(input, (size_t) length);
 	free(context);
 	free(output);
 }
@@ -430,4 +437,185 @@ final:
 
 */
 
+
+
+
+
+
+
+/*
+		(tenatively working / quick and dirty / ugly) 
+		backtracking ucsr, but with out all the comments lol:
+	=======================================================================
+
+
+int main(const int argc, const char** argv) {
+	if (argc != 3) {
+		printf("usage: ./n <input> <context>\n");
+		return 1;
+	}
+	const int output_limit = 4096, context_limit = 4096;
+	const char * filename = argv[1], * reason = NULL;
+
+	int count = 0, length = 0;
+	int begin = 0, index = 0, top = 0;
+	int best = 0, candidate = 0;
+
+	const char* input = argv[1];
+	length = (int) strlen(input);
+
+	char* _base = open_file(argv[2], &count);
+	char* context = malloc(context_limit);
+	memcpy(context, _base, (size_t) count);
+	munmap(_base, (size_t) count);
+
+	int* output = malloc(output_limit * sizeof(int));
+	memset(output, 0x0F, output_limit);
+
+	while (begin < length and input[begin] < 33) begin++;
+	if (begin > best) best = begin;
+	output[top + 0] = begin;
+	output[top + 1] = 0;
+	output[top + 2] = -4;
+	output[top + 3] = count;
+try:	
+	if (index >= count) {
+	goto_here: 
+		if (not top) { reason = "unresolved expression"; goto error; }
+		do {
+			top -= 4;
+			int i = output[top + 1];
+			do i--; while (context[i] != '\t' and context[i] != ' ' and context[i] != '\n');
+			if (context[i] == ' ') continue;
+			else if (context[i] == '\t') break;
+		} while (top);
+		index = output[top + 1];
+		goto try;
+	}
+	while (index < count and context[index] != 10) index++; index++;
+	begin = output[top];
+	count = output[top + 3];
+	const char* expected = output[top + 2] == -4 ? "init\t" : context + output[output[top + 2] + 1] + 1;
+	const char* undefined = "undefined\t", * copy_expected = expected;
+	while (*undefined != '\t') {
+		if (*undefined != *copy_expected) goto non;
+		copy_expected++; undefined++;
+	}
+	context[count++] = 'g';
+	context[count++] = '\t';
+	while (begin < length and input[begin] != '.') {
+		context[count++] = input[begin];
+		do begin++; while (begin < length and input[begin] < 33);
+	}
+	context[count++] = '\n';
+	do begin++; while (begin < length and input[begin] < 33);
+	if (begin > best) { best = begin; candidate = index; }
+	index = context_limit;
+	goto done;
+non: 	
+	while (context[index] != '\t') {
+		if (context[index] != *expected) goto try;
+		expected++; index++;
+	}
+	index++;
+parent:	
+	if (top + 7 >= output_limit) { reason = "program limit exceeded"; goto error; }
+	if (context[index] == 10) goto done;
+	if (context[index] == 32) {
+		output[top + 1] = index;
+		output[top + 4] = begin;
+		output[top + 6] = top;
+		output[top + 7] = count;
+		top += 4; index = 0;
+		goto try;
+	}
+	if (index >= count or begin >= length or context[index] != input[begin]) {
+		int i = index;
+		do i--; while (context[i] != '\t' and context[i] != ' ' and context[i] != '\n');
+		if (context[i] == ' ') goto goto_here; goto try;		
+	}
+	do begin++; while (begin < length and input[begin] < 33); index++;
+	if (begin > best) { best = begin; candidate = index; }
+	goto parent;
+done:;	
+	int parent = output[top + 2];
+	if (parent != -4) {
+		output[top + 1] = index;
+		output[top + 4] = begin;
+		output[top + 6] = output[parent + 2];
+		output[top + 7] = count;
+		top += 4; index = output[parent + 1] + 1;
+		while (index < count and context[index] != 32) index++; index++;
+		goto parent;
+	}
+	if (begin != length) {
+		int i = index;
+		do i--; while (context[i] != '\t' and context[i] != ' ' and context[i] != '\n');
+		if (context[i] == ' ') goto goto_here; goto try;
+	}
+	output[top + 0] = begin;
+	output[top + 1] = index;
+	output[top + 3] = count;
+	top += 4;
+
+	puts("\n\t---> compile successful.\n");
+	printf("generating code...\n");
+	printf("DEBUG ::::%.*s====%.*s::::\n", length, input, count, context);
+	debug(output, begin, index, top, context, count);
+	goto final;
+
+error:;
+	int at = 0, line = 1, column = 1;
+	while (at < best) {
+		if (input[at++] == '\n') { line++; column = 1; } else column++;
+	}
+	fprintf(stderr, "\033[1m%s:%u:%u: \033[1;31merror:\033[m \033[1m%s\033[m\n", 
+			filename, line, column, reason);
+
+	int b = line > 2 ? line - 2 : 0, e = line + 2;
+	for (int i = 0, l = 1, c = 1; i < length + 1; i++) {
+		if (c == 1 and l >= b and l <= e) 
+			fprintf(stderr, "\n\033[90m%5d\033[0m\033[32m │ \033[0m", l);
+		if ((i == length or input[i] != '\n') and l >= b and l <= e) {
+			if (l == line and c == column) fprintf(stderr, "\033[1;31m");
+			if (i < length) fprintf(stderr, "%c", input[i]);
+			else if (l == line and c == column) fprintf(stderr, "<EOF>");
+			if (l == line and c == column) fprintf(stderr, "\033[m");
+		}
+		if (i < length and input[i] == 10) { l++; c = 1; } else c++;
+	}
+	if (not count) goto skip_candidate;
+	int start = not candidate ? 1 : candidate;
+	do start--; while (start and context[start] != 10); 
+	++start;
+	fprintf(stderr, "\n\n\033[1m candidate:\033[m  \033[1;94m");
+	while (context[start] != '\t') {
+		fprintf(stderr, "%c", context[start]);
+		start++;		
+	}
+	fprintf(stderr, "%c\033[m", context[start]);
+	start++;
+	for (int k = start; context[k] != 10; k++) {
+		if (context[k] == 32) {
+			int p = k++;
+			fprintf(stderr, p == candidate ? "\033[1;31m " : "\033[1;96m "); 
+			while (context[k] != 32) {
+				fprintf(stderr, "%c", context[k]);
+				k++;
+			}
+			fprintf(stderr, p == candidate ? " \033[m" : " \033[m"); 
+		} else {
+			if (k == candidate) fprintf(stderr, "\033[1;31m");
+			fprintf(stderr, "%c", context[k]);
+			if (k == candidate) fprintf(stderr, "\033[m");
+		}
+	}
+skip_candidate: puts("\n");	
+final:
+	free(context);
+	free(output);
+}
+
+
+*/
 
