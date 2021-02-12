@@ -7,49 +7,6 @@
 #include <sys/stat.h>
 #include <sys/mman.h>
 
-/*
-
-	----------------------- TEST CASE: ------------------------------------------
-
-
-		that definitely shows that our current backtracking method of   
-
-					  top -= 4;
-
-
-		is wrong.
-
-
-	--------------------------------------------------------------------------------
-
-
-		input:		"join define hello there from space. done nop nop"
-
-
-	--------------------------------------------------------------------------------
-
-
-		context:
-
-				init def undefined done
-				init define undefined done
-				init join init  init 
-				init join init 
-				init nop
-				init j init  init 
-
-	--------------------------------------------------------------------------------
-
-
-		this test case succeeds when it shouldnt. 
-		its because we arent backtracking at the FIRST occurence of that node. 
-
-		----> (nodes are duplicated every single argument, 
-			and so we always want to be working on the FIRST occurence of this node.
-				 whereever that is.)
-
-*/
-
 static inline void print_vector(int* v, int l) {
 	printf("[ ");
 	for (int i = 0; i < l; i++) {
@@ -85,18 +42,18 @@ static inline void debug(int* output, int begin, int index, int top, const char*
 	printf("parse tree complete.\n");
 }
 
-static inline void print_index(const char* context, int index) {
-	int start = index;
-		while (start and context[start] != '\n') start--;
-		start++;
-		printf("\nINDEX: ");
-		for (int i = start; context[i] != '\n'; i++) {
-			if (i == index) printf("[%c]", context[i]);
-			if (i != index) printf(" %c ", context[i]);
-		}
-		printf("\n\n");
-		usleep(10000);
-}
+// static inline void print_index(const char* context, int index) {
+// 	int start = index;
+// 		while (start and context[start] != '\n') start--;
+// 		start++;
+// 		printf("\nINDEX: ");
+// 		for (int i = start; context[i] != '\n'; i++) {
+// 			if (i == index) printf("[%c]", context[i]);
+// 			if (i != index) printf(" %c ", context[i]);
+// 		}
+// 		printf("\n\n");
+// 		// usleep(10000);
+// }
 
 static inline void* open_file(const char* filename, int* length) {
 
@@ -153,41 +110,41 @@ int main(const int argc, const char** argv) {
 	output[top + 3] = count;
 
 try:	
-	printf("\n\n------------------- TRY ------------------------\n\n");
-	printf("CURRENT CONTEXT: ::::%.*s::::\n", count, context);
-	printf("STATUS: begin = %d, index = %d, top = %d\n", begin, index, top);
-	print_vector(output, top + 4);
-	if (index < count) print_index(context, index);
-		else 
-			printf("\nERROR: could not print signature, because index == count!!!\n");
-	printf("continue? "); getchar();
+	// printf("\n\n------------------- TRY ------------------------\n\n");
+	// printf("CURRENT CONTEXT: ::::%.*s::::\n", count, context);
+	// printf("STATUS: begin = %d, index = %d, top = %d\n", begin, index, top);
+	// print_vector(output, top + 4);
+	// if (index < count) print_index(context, index);
+	// else printf("\nERROR: could not print signature, because index == count!!!\n");
+	// printf("continue? "); getchar();
 
 	if (index >= count) {
+		
+	goto_here: 
 		if (not top) { reason = "unresolved expression"; goto error; }
 		do {
-			sleep(1);
-			printf("backtracking by one...\n");
+			// sleep(1);
+			// printf("backtracking by one...\n");
 			top -= 4;
 			int i = output[top + 1];
 			do i--; while (context[i] != '\t' and context[i] != ' ' and context[i] != '\n');
 			if (context[i] == ' ') {
-				printf("backtracking FURTHER:\n");
-				if (output[top + 1] < count) print_index(context, output[top + 1]);
+				// printf("backtracking FURTHER:\n");
+				// if (output[top + 1] < count) print_index(context, output[top + 1]);
 				continue; 
 			} else if (context[i] == '\t') {
-				printf("done backtracking:\n");
-				if (output[top + 1] < count) print_index(context, output[top + 1]);
+				// printf("done backtracking:\n");
+				// if (output[top + 1] < count) print_index(context, output[top + 1]);
 				break;
 			} else {
-				printf("continuing backtracking.. (\\n) if non zero... :\n");
-				if (output[top + 1] < count) print_index(context, output[top + 1]);
+				// printf("continuing backtracking.. (\\n) if non zero... :\n");
+				// if (output[top + 1] < count) print_index(context, output[top + 1]);
 			}
 		} while (top);
 
-		printf("DONE BT!\n");
+		// printf("DONE BT!\n");
 
 		index = output[top + 1];
-
 		goto try;
 	}
 	while (index < count and context[index] != 10) index++; index++;
@@ -212,16 +169,17 @@ try:
 	context[count++] = '\n';
 	do begin++; while (begin < length and input[begin] < 33);
 	if (begin > best) { best = begin; candidate = index; }
-	// printf("%c\n", input[begin]);
-	printf("i found it!!! an undef param.\n");
-	printf("NOW NEW: CONTEXT: ::::%.*s::::\n", count, context);
-	printf("NEW SIG: begin = %d, index = %d, top = %d\n", begin, index, top);
-	print_vector(output, top + 4);
-	// usleep(1000000);
+	
+	// printf("i found it!!! an undef param.\n");
+	// printf("NOW NEW: CONTEXT: ::::%.*s::::\n", count, context);
+	// printf("NEW SIG: begin = %d, index = %d, top = %d\n", begin, index, top);
+	// print_vector(output, top + 4);
 
 	index = context_limit;
 
 	goto done;
+
+	// printf("%c\n", input[begin]);
 	// if (input[begin] != '(')  {
 	// 	printf("error: expected ( before name.\n");
 	// 	top -= 4; index = output[top + 1];
@@ -242,14 +200,13 @@ non:
 	}
 	index++;
 parent:	
-	printf("\n\n------------------- PARENT ------------------------\n\n");
-	printf("CURRENT CONTEXT: ::::%.*s::::\n", count, context);
-	printf("STATUS: begin = %d, index = %d, top = %d\n", begin, index, top);
-	print_vector(output, top + 4);
-	if (index < count) print_index(context, index);
-		else 
-			printf("\nERROR: could not print signature, because index == count!!!\n");
-	printf("continue? "); getchar();
+	// printf("\n\n------------------- PARENT ------------------------\n\n");
+	// printf("CURRENT CONTEXT: ::::%.*s::::\n", count, context);
+	// printf("STATUS: begin = %d, index = %d, top = %d\n", begin, index, top);
+	// print_vector(output, top + 4);
+	// if (index < count) print_index(context, index);
+	// else printf("\nERROR: could not print signature, because index == count!!!\n");
+	// printf("continue? "); getchar();
 
 	if (top + 7 >= output_limit) { reason = "program limit exceeded"; goto error; }
 	if (context[index] == 10) goto done;
@@ -259,21 +216,36 @@ parent:
 		output[top + 6] = top;
 		output[top + 7] = count;
 		top += 4; index = 0;
-		printf("NOTE: found arg!\n");
+		// printf("NOTE: found arg!\n");
 		goto try;
 	}
 	if (index >= count or begin >= length or context[index] != input[begin]) {
-		printf("NOTE: char mismatch...\n");
-		goto try;
+		// printf("NOTE: char mismatch...\n");
+
+		int i = index;
+		do i--; while (context[i] != '\t' and context[i] != ' ' and context[i] != '\n');
+		if (context[i] == ' ') {
+			// printf("mismatch parent:\n");
+			// if (index < count) print_index(context, index);
+			goto goto_here;
+		} else if (index == '\t') {
+			// printf("mismatch variable:\n");
+			// if (index < count) print_index(context, index);
+			goto try;
+		} else {
+			// printf("---> ERROR: found newline instead, unknown action occuring!!!\n");
+			// if (index < count) print_index(context, index);
+			goto try;
+		}		
 	}
 	do begin++; while (begin < length and input[begin] < 33); index++;
 	if (begin > best) { best = begin; candidate = index; }
 	goto parent;
 done:;	
-	printf("NOTE: FINSIHED SIGNATURE...\n");
+	// printf("NOTE: FINSIHED SIGNATURE...\n");
 	int parent = output[top + 2];
 	if (parent != -4) {
-		printf("NOTE: traversing back to parent...\n");
+		// printf("NOTE: traversing back to parent...\n");
 		output[top + 1] = index;
 		output[top + 4] = begin;
 		output[top + 6] = output[parent + 2];
@@ -284,8 +256,22 @@ done:;
 	}
 
 	if (begin != length) {
-		printf("BEGIN != LENGTH :: goto TRY!!!\n");
-		goto try;
+		// printf("BEGIN != LENGTH :: goto TRY!!!\n");
+		int i = index;
+		do i--; while (context[i] != '\t' and context[i] != ' ' and context[i] != '\n');
+		if (context[i] == ' ') {
+			// printf("mismatch parent:\n");
+			// if (index < count) print_index(context, index);
+			goto goto_here;
+		} else if (index == '\t') {
+			// printf("mismatch variable:\n");
+			// if (index < count) print_index(context, index);
+			goto try;
+		} else {
+			// printf("---> ERROR: found newline instead, unknown action occuring!!!\n");
+			// if (index < count) print_index(context, index);
+			goto try;
+		}	
 	}
 	output[top + 0] = begin;
 	output[top + 1] = index;
@@ -396,5 +382,52 @@ final:
 
 
 
+
+
+
+
+
+/*
+
+	----------------------- TEST CASE: ------------------------------------------
+
+
+		that definitely shows that our current backtracking method of   
+
+					  top -= 4;
+
+
+		is wrong.
+
+
+	--------------------------------------------------------------------------------
+
+
+		input:		"join define hello there from space. done nop nop"
+
+
+	--------------------------------------------------------------------------------
+
+
+		context:
+
+				init def undefined done
+				init define undefined done
+				init join init  init 
+				init join init 
+				init nop
+				init j init  init 
+
+	--------------------------------------------------------------------------------
+
+
+		this test case succeeds when it shouldnt. 
+		its because we arent backtracking at the FIRST occurence of that node. 
+
+		----> (nodes are duplicated every single argument, 
+			and so we always want to be working on the FIRST occurence of this node.
+				 whereever that is.)
+
+*/
 
 
