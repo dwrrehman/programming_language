@@ -8,22 +8,12 @@
 #include <sys/mman.h>
 
 static inline void print_index(const char* context, int index, int count) {
-
-	if (index > count) {
-
-		printf("{error index}\n");
-		return;
-	}
-
+	if (index > count) { printf("{error index}\n"); return; }
 	for (int i = 0; i < count; i++) {
 		char c = context[i];
 		if (i == index) { if (c == 10) printf("[.]"); else printf("[%c]", c); }
 		if (i != index) { if (c == 10) printf("."); else printf("%c", c); }
-	}
-
-	if (index == count) printf("[T]"); else printf("T");
-
-	puts("");
+	} if (index == count) printf("[T]"); else printf("T"); puts("");
 }
 
 static inline void print_vector(int* output, int top, const char* context, int count) {
@@ -34,68 +24,71 @@ static inline void print_vector(int* output, int top, const char* context, int c
 }
 
 int main() { 
+
 	const char* input = "hello daniel and hello hi and daniel done done";
 	int length = (int) strlen(input);
+
 	const char* context = "\nint daniel\nint hello int \nint hello int and int done\nint hi\n";
 	int count = (int) strlen(context);
+s
 	int output[4096];
 	memset(output, 0x0F, sizeof output);
+
 	int begin = 0, index = 0, top = 0, current = 0;
+
 	while (begin < length and input[begin] < 33) begin++;
-	output[top + 2] = begin; output[top + 3] = count;
-begin:	
-
-
-	begin = output[top + 2]; count = output[top + 3];
-
-	while (context[index] != 10) index++; index++;
-
+	output[top + 2] = begin; 
+	output[top + 3] = count;
+begin:	begin = output[top + 2]; 
+	count = output[top + 3];
+	while (context[index] != 10) index++; 
+	index++;
 	if (index >= count) {
 		if (not top) goto error;
-		top -= 4; index = output[top]; current = top;
+		top -= 4; 
+		index = output[top]; 
+		current = top;
 		goto begin;
 	}
-
-	while (context[index] != 32) index++; index++;
-parent:
-	if (context[index] == 10) goto done;
+	while (context[index] != 32) index++;
+	index++;
+parent: if (context[index] == 10) goto done;
 	if (context[index] == 32) {
-		output[current] = index;  // publish
-		top += 4;  // move to child
-		output[top + 1] = current; // set up child's parent.
-		output[top + 2] = begin; // set childs saves.
-		output[top + 3] = count; // set childs saves.
-		current = top;  // set current as child, instead of parent now.
-		index = 0; // initialize childs index.
+		output[current] = index; 
+		top += 4;  
+		output[top + 1] = current; 
+		output[top + 2] = begin;
+		output[top + 3] = count;
+		current = top; 
+		index = 0;
 		goto begin;
 	}
 	if (begin >= length) goto begin;
 	if (context[index] != input[begin]) goto begin;
-	do begin++; 
-	while (begin < length and input[begin] < 33); 
+	do begin++; while (begin < length and input[begin] < 33); 
 	index++;
 	goto parent;
 done:
 	if (current) {
-		output[current] = index; // publish
-		current = output[current + 1]; // move down
-		index = output[current] + 1; // load parents index.
-
-		while (context[index] != 32) index++; index++;
+		output[current] = index;
+		current = output[current + 1];
+		index = output[current] + 1;
+		while (context[index] != 32) index++; 
+		index++;
 		goto parent;
 	}
 	if (begin != length) goto begin;
 	output[current] = index;
-	printf("variables: index=%d current=%d top=%d begin=%d count=%d\n", index, current, top, begin, count);
 	puts("\n\t---> compile successful.\n");
-	printf("generating code...\n");
 	goto final;
 error:
 	printf("error: 1:1: unresolved expression\n");
 final:
+	printf("debug: index=%d current=%d top=%d begin=%d count=%d\n", index, current, top, begin, count);
 	print_vector(output, top + 16, context, count);
-
 }
+
+
 
 
 
