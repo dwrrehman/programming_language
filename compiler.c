@@ -7,43 +7,36 @@
 #include <sys/stat.h>
 #include <sys/mman.h>
 
-
-
 static inline void print_index(const char* context, int index, int count) {
-	if (index >= count) {
-		printf("{index == count}\n");
-		return;
-	} 
 
-	if (not index) {
-		printf("{index is zero!!!}\n");
+	if (index > count) {
+
+		printf("{error index}\n");
 		return;
 	}
 
-	int start = index;
-	while (start and context[start] != '\n') start--;
-	start++;
-
-	for (int i = start; context[i] != '\n'; i++) {
-		if (i == index) printf("[%c]", context[i]);
-		else if (i != index) printf(" %c ", context[i]);
+	for (int i = 0; i < count; i++) {
+		char c = context[i];
+		if (i == index) { if (c == 10) printf("[.]"); else printf("[%c]", c); }
+		if (i != index) { if (c == 10) printf("."); else printf("%c", c); }
 	}
+
+	if (index == count) printf("[T]"); else printf("T");
 
 	puts("");
 }
 
-
 static inline void print_vector(int* output, int top, const char* context, int count) {
 	for (int i = 0; i < top; i += 4) {
-		printf("%10di %10dp %10db %10dc  : ", output[i], output[i + 1], output[i + 2], output[i + 3]);
+		printf("%10d :   %10di %10dp %10db %10dc  : ", i, output[i], output[i + 1], output[i + 2], output[i + 3]);
 		print_index(context, output[i], count);
 	}
 }
 
 int main() { 
-	const char* input = "hello daniel done";
+	const char* input = "hello daniel and hello hi and daniel done done";
 	int length = (int) strlen(input);
-	const char* context = "\nint daniel\nint hello int done\nint hi\n";
+	const char* context = "\nint daniel\nint hello int \nint hello int and int done\nint hi\n";
 	int count = (int) strlen(context);
 	int output[4096];
 	memset(output, 0x0F, sizeof output);
@@ -54,21 +47,26 @@ begin:
 
 
 	begin = output[top + 2]; count = output[top + 3];
+
 	while (context[index] != 10) index++; index++;
+
 	if (index >= count) {
 		if (not top) goto error;
 		top -= 4; index = output[top]; current = top;
 		goto begin;
 	}
+
 	while (context[index] != 32) index++; index++;
 parent:
 	if (context[index] == 10) goto done;
 	if (context[index] == 32) {
-		output[top] = index; top += 4; 
-		output[top + 1] = current;
-		output[top + 2] = begin;
-		output[top + 3] = count;
-		current = top; index = 0;
+		output[current] = index;  // publish
+		top += 4;  // move to child
+		output[top + 1] = current; // set up child's parent.
+		output[top + 2] = begin; // set childs saves.
+		output[top + 3] = count; // set childs saves.
+		current = top;  // set current as child, instead of parent now.
+		index = 0; // initialize childs index.
 		goto begin;
 	}
 	if (begin >= length) goto begin;
@@ -79,13 +77,16 @@ parent:
 	goto parent;
 done:
 	if (current) {
-		current = output[current + 1];
-		index = output[current] + 1;
+		output[current] = index; // publish
+		current = output[current + 1]; // move down
+		index = output[current] + 1; // load parents index.
+
 		while (context[index] != 32) index++; index++;
 		goto parent;
 	}
 	if (begin != length) goto begin;
-	output[top] = index;
+	output[current] = index;
+	printf("variables: index=%d current=%d top=%d begin=%d count=%d\n", index, current, top, begin, count);
 	puts("\n\t---> compile successful.\n");
 	printf("generating code...\n");
 	goto final;
