@@ -7,81 +7,127 @@
 #include <sys/stat.h>
 #include <sys/mman.h>
 
+static inline void print_index(const char* context, int index, int count) {
+	if (index > count or index < 0) { printf("{error index}\n"); return; }
+	for (int i = 0; i < count; i++) {
+		char c = context[i];
+		if (i == index) { if (c == 10) printf("[.]"); else printf("[%c]", c); }
+		if (i != index) { if (c == 10) printf("."); else printf("%c", c); }
+	} if (index == count) printf("[T]"); else printf("T"); puts("");
+}
+
+static inline void print_vector(int* output, int top, const char* context, int count) {
+	for (int i = 0; i < top; i += 4) {
+		printf("%10d :   %10di %10dp %10db %10dc  : ", i, output[i], output[i + 1], output[i + 2], output[i + 3]);
+		print_index(context, output[i], count);
+	}
+}
+
 int main() { 
-	const char * input = "hello daniel and hello hi and daniel done done",
-		* context = "\nint daniel\nint hello int \nint hello int and int done\nint hi\n";
+	const char * input = "", * context = "\n\n";
 	int length = (int) strlen(input), count = (int) strlen(context);
-	int output[4096]; memset(output, 0x0F, sizeof output);
+	int output[4096]; memset(output, 0xFF, sizeof output);
 	int begin = 0, index = 0, top = 0, current = 0;
-	while (begin < length and input[begin] < 33) begin++;
-	output[top + 2] = begin; 
+first:	if (begin >= length) goto step;
+	if (input[begin] >= 33) goto step;
+	begin++;
+	goto first;
+step: 	output[top + 1] = -1; 
+	output[top + 2] = begin;
 	output[top + 3] = count;
+
+
+
+
 begin:	begin = output[top + 2]; 
 	count = output[top + 3];
-	while (context[index] != 10) index++; 
+_0:	if (index == count) goto fail;
+	if (context[index] == 10) goto _2;
 	index++;
-	if (index >= count) {
-		if (not top) goto error;
-		top -= 4; 
-		index = output[top]; 
-		current = top;
-		goto begin;
-	}
-	while (context[index] != 32) index++; index++;
-parent: if (context[index] == 10) goto done;
-	if (context[index] == 32) {
-		output[current] = index; top += 4;  
-		output[top + 1] = current; 
-		output[top + 2] = begin;
-		output[top + 3] = count;
-		current = top; index = 0;
-		goto begin;
-	}
-	if (begin >= length or context[index] != input[begin]) goto begin;
-	do begin++; while (begin < length and input[begin] < 33); index++;
-	goto parent;
-done:
-	if (current) {
-		output[current] = index;
-		current = output[current + 1];
-		index = output[current] + 1;
-		while (context[index] != 32) index++; index++;
-		goto parent;
-	}
-	if (begin != length) goto begin;
+	goto _0;
+_2:	index++;
+	if (index < count) goto parent;
+fail:	if (not top) goto error;
+	top -= 4;
+	index = output[top]; 
+	current = top;
+	goto begin;
+parent:	if (context[index] == 10) goto done;
+	if (context[index] != 32) goto match;
+	top += 4;
 	output[current] = index;
+	output[top + 1] = current;
+	output[top + 2] = begin;
+	output[top + 3] = count;
+	current = top;
+	index = 0;
+	goto begin;
+match:	if (begin >= length) goto begin;
+	if (context[index] != input[begin]) goto begin;
+incr:	begin++; 
+	if (begin >= length) goto incr2;
+	if (input[begin] >= 33) goto incr2;
+	goto incr;
+incr2:	index++;
+	goto parent;
+done:	if (not current) goto check;
+	output[current] = index;
+	current = output[current + 1];
+	index = output[current] + 1;
+	goto parent;
+check: 	if (begin != length) goto begin;
 	puts("\n\t---> compile successful.\n");
 	goto final;
 error:
 	printf("error: 1:1: unresolved expression\n");
-	final:;
+final:
+	printf("debug: index=%d current=%d top=%d begin=%d count=%d\n", index, current, top, begin, count);
+	print_vector(output, top + 16, context, count);
 }
 
-// printf("debug: index=%d current=%d top=%d begin=%d count=%d\n", index, current, top, begin, count);
-	// print_vector(output, top + 16, context, count);
-
-
-// static inline void print_index(const char* context, int index, int count) {
-// 	if (index > count) { printf("{error index}\n"); return; }
-// 	for (int i = 0; i < count; i++) {
-// 		char c = context[i];
-// 		if (i == index) { if (c == 10) printf("[.]"); else printf("[%c]", c); }
-// 		if (i != index) { if (c == 10) printf("."); else printf("%c", c); }
-// 	} if (index == count) printf("[T]"); else printf("T"); puts("");
-// }
-
-// static inline void print_vector(int* output, int top, const char* context, int count) {
-// 	for (int i = 0; i < top; i += 4) {
-// 		printf("%10d :   %10di %10dp %10db %10dc  : ", i, output[i], output[i + 1], output[i + 2], output[i + 3]);
-// 		print_index(context, output[i], count);
-// 	}
-// }
 
 
 
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+// print_index(context, index, count);
+		// printf("debug: index=%d current=%d top=%d begin=%d count=%d\n", index, current, top, begin, count);
+		// print_vector(output, top + 16, context, count);
+
+
+
+
+
+
+
+
+
+// _5:	if (context[index] == 32) goto _6;
+// 	index++;
+// 	goto _5; 
+// _6:	index++;
+
+
+
+
+// _3: 	if (context[index] == 32) goto _4;
+//  	index++;
+// 	goto _3;
+// _4:	index++;
 
 
 
