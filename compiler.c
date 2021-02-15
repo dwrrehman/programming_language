@@ -42,7 +42,7 @@ static inline void pretty_print_output(int* output, int top, const char* context
 			continue;
 		}
 
-		if (r >= count or context[r] != 10) continue;
+		if (r < 0 or r >= count or context[r] != 10) continue;
 		do { r--; length++; } while (r and context[r] != 10);
 		r++; length--;
 
@@ -82,69 +82,53 @@ int main(const int argc, const char** argv) {
 		printf("usage: ./compiler <input> <context>\n");
 		return 1;
 	}
-	const int output_limit = 4096, context_limit = 4096;
+	const int output_limit = 40, context_limit = 4096; //NOTE: output limit must be a multiple of 4.
 	const char * filename = argv[1], * reason = NULL;
-
 	int count = 0, length = 0;
 	char* input = open_file(filename, &length);
 	char* _base = open_file(argv[2], &count);
 	char* context = malloc(context_limit);
-
 	memset(context, 0x0F, context_limit);
 	memcpy(context, _base, (size_t) count);
-
 	munmap(_base, (size_t) count);
-
 	int* output = malloc(output_limit * sizeof(int));
 	memset(output, 0x0F, output_limit);
 
 	int begin = 0, index = 0, top = 0, current = 0;
 	int best = 0, candidate = 0, biggest = 0;
-
 	printf("DEBUG initial inputs: \n<<<<%.*s>>>>\n\n<<<<%.*s>>>>\n", length, input, count, context);
-
 	while (begin < length and input[begin] < 33) begin++;
-
 	best = begin;
 	biggest = count;
-
 	output[top + 1] = -4; 
 	output[top + 2] = begin;
 	output[top + 3] = count;
-
-begin:	
-	if (current != top or index >= count) {
-	fail: 	if (not top) { reason = "unresolved expression"; goto error; }
+begin:	if (current != top or index >= count) {
+fail: 		if (not top) { reason = "unresolved expression"; goto error; }
 		top -= 4;
 		index = output[top]; 
 		current = top;
 		goto begin;
 	}
-
 	begin = output[top + 2];
 	count = output[top + 3];
-
 	while (context[index] != 10) {
-		if (index >= count) goto fail;
 		index++;
+		if (index >= count) goto fail;
 	}
 	index++;
-
 	if (index >= count) goto fail;
-	
+
 	const char* expected = not top ? "init " : context + output[output[top + 1]] + 1;
 	const char* undefined = "undefined ", * copy_expected = expected;
-
 	while (*undefined != ' ') {
 		if (*undefined != *copy_expected) goto non;
 		copy_expected++; undefined++;
 	}
-
 	index = context_limit;
-
 	while (begin < length and input[begin] != ';') {
 		if (input[begin] != '\\') {
-			if (input[begin] == ':') context[count++] = ' ';
+			if (input[begin] == ':') context[count++] = 32;
 			else context[count++] = input[begin];
 			do begin++; while (begin < length and input[begin] < 33);
 		} else {
@@ -153,27 +137,17 @@ begin:
 			do begin++; while (begin < length and input[begin] < 33);
 		}
 	}
-
-	context[count++] = '\n';
+	context[count++] = 10;
 	if (count > biggest) biggest = count;
 	do begin++; while (begin < length and input[begin] < 33);
 	if (begin > best) { best = begin; candidate = index; }
 	goto done;
-non: 	
-	while (context[index] != ' ') {
+non: 	while (context[index] != ' ') {
 		if (context[index] != *expected) goto begin;
 		expected++; index++;
 	}
 	index++;
-
-parent:	
-	// printf("\n\n------------------- PARENT ------------------------\n\n");
-	// printf("debug: index=%d current=%d top=%d begin=%d count=%d\n", index, current, top, begin, count);
-	// print_output(output, top + 4, context, count);
-	// print_index(context, index, count);
-	// printf("continue? "); getchar();
-
-	if (context[index] == 10) goto done;
+parent:	if (context[index] == 10) goto done;
 	if (context[index] == 32) {
 		if (top + 7 >= output_limit) { reason = "program limit exceeded"; goto error; }
 		top += 4;
@@ -186,21 +160,14 @@ parent:
 		goto begin;
 	}
 	if (begin >= length or context[index] != input[begin]) goto begin;
-	do begin++; while (begin < length and input[begin] < 33); 
-	index++;
-	// print_index(context, index, count);
+	do begin++; while (begin < length and input[begin] < 33);  index++;
 	if (begin > best) { best = begin; candidate = index; }
-	
 	goto parent;
 done:	if (current) {
 		output[current] = index;
 		current = output[current + 1];
 		index = output[current] + 1;
-		while (context[index] != 32) {
-			if (index == count) goto fail;
-			index++; 
-		}
-		index++;
+		while (context[index] != 32) index++; index++;
 		goto parent;
 	}
 	if (begin != length) goto begin;
@@ -265,3 +232,30 @@ final:
 	print_output(output, top + 4, context, count);
 	pretty_print_output(output, top + 4, context, count);
 }
+
+
+
+
+
+
+
+
+
+//TODO: add context limit exceeded error message.
+
+
+
+
+
+
+
+
+
+
+
+
+	// printf("\n\n------------------- PARENT ------------------------\n\n");
+	// printf("debug: index=%d current=%d top=%d begin=%d count=%d\n", index, current, top, begin, count);
+	// print_output(output, top + 4, context, count);
+	// print_index(context, index, count);
+	// printf("continue? "); getchar();
