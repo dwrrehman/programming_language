@@ -1,0 +1,6 @@
+
+init daniel
+init hello init 
+init hello init and init done
+init hithere
+init def undefined done
