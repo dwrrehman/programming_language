@@ -8,20 +8,25 @@
 #include <sys/mman.h>
 
 static inline void print_index(const char* context, int index, int count) {
-	if (index == 4096) { printf("{UD SIG}\n"); return; }
-	if (index > count or index < 0) { printf("{error index}\n"); return; }
+	if (index == 4096) { printf("{UD SIG}\n\n"); return; }
+	if (index > count or index < 0) { printf("{error index}\n\n"); return; }
+	printf("    ");
 	for (int i = 0; i < count; i++) {
 		char c = context[i];
 		if (i == index) { if (c == 10) printf("[.]"); else printf("[%c]", c); }
 		if (i != index) { if (c == 10) printf("."); else printf("%c", c); }
-	} if (index == count) printf("[T]"); else printf("T"); puts("");
+	} 
+	if (index == count) printf("[T]"); else printf("T"); 
+	puts("\n");
 }
 
 static inline void print_vector(int* output, int top, const char* context, int count) {
+	puts("");
 	for (int i = 0; i < top; i += 4) {
 		printf("%10d :   %10di %10dp %10db %10dc  : ", i, output[i], output[i + 1], output[i + 2], output[i + 3]);
 		print_index(context, output[i], count);
 	}
+	puts("\n");
 }
 
 static inline void* open_file(const char* filename, int* length) {
@@ -82,7 +87,17 @@ int main(const int argc, const char** argv) {
 	output[top + 2] = begin;
 	output[top + 3] = count;
 
-begin:	begin = output[top + 2];
+begin:	
+
+	if (current != top) goto fail;
+
+	printf("\n\n------------------- BEGIN ------------------------\n\n");
+	printf("debug: index=%d current=%d top=%d begin=%d count=%d\n", index, current, top, begin, count);
+	print_vector(output, top + 4, context, count);
+	print_index(context, index, count);
+	printf("continue? "); getchar();
+
+	begin = output[top + 2];
 	count = output[top + 3];
 
 	if (index >= count) goto fail;
@@ -91,7 +106,7 @@ begin:	begin = output[top + 2];
 		index++;
 	}
 	index++;
-	
+
 	if (index >= count) {
 	fail: 	if (not top) { reason = "unresolved expression"; goto error; }
 		top -= 4;
@@ -100,14 +115,15 @@ begin:	begin = output[top + 2];
 		goto begin;
 	}
 
-	const char* expected = output[top + 1] == 999 ? "init " 
-				: context + output[output[top + 1]] + 1;
+	const char* expected = not top ? "init " : context + output[output[top + 1]] + 1;
 	const char* undefined = "undefined ", * copy_expected = expected;
 
 	while (*undefined != ' ') {
 		if (*undefined != *copy_expected) goto non;
 		copy_expected++; undefined++;
 	}
+
+	index = context_limit;
 
 	while (begin < length and input[begin] != ';') {
 		if (input[begin] != '\\') {
@@ -122,19 +138,24 @@ begin:	begin = output[top + 2];
 	}
 	context[count++] = '\n';
 	if (count > biggest) biggest = count;
-	index = context_limit;
 	do begin++; while (begin < length and input[begin] < 33);
 	if (begin > best) { best = begin; candidate = index; }
 	goto done;
 non: 	
 	while (context[index] != ' ') {
-		if (index == count) goto fail;
 		if (context[index] != *expected) goto begin;
 		expected++; index++;
 	}
 	index++;
 
-parent:	if (context[index] == 10) goto done;
+parent:	
+	printf("\n\n------------------- PARENT ------------------------\n\n");
+	printf("debug: index=%d current=%d top=%d begin=%d count=%d\n", index, current, top, begin, count);
+	print_vector(output, top + 4, context, count);
+	print_index(context, index, count);
+	printf("continue? "); getchar();
+
+	if (context[index] == 10) goto done;
 	if (context[index] == 32) {
 		if (top + 7 >= output_limit) { reason = "program limit exceeded"; goto error; }
 		top += 4;
@@ -149,6 +170,7 @@ parent:	if (context[index] == 10) goto done;
 	if (begin >= length or context[index] != input[begin]) goto begin;
 	do begin++; while (begin < length and input[begin] < 33); 
 	index++;
+	print_index(context, index, count);
 	if (begin > best) { best = begin; candidate = index; }
 	
 	goto parent;

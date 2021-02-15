@@ -1,5 +1,7 @@
 hello
-	def init : g ; done 
+	hi there
 and 
-	hello daniel and daniel done
+	hello hi there and hello hi there and daniel done
+	done
+	
 done
