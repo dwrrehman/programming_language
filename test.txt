@@ -1,2 +1,7 @@
-join add 57 done
+join define unit: nop;
+join define unit: add :i32:, :i32:;
+join define i32: 5;
+join define i32: 57;
+
+join add 57, 5
 nop

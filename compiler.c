@@ -105,11 +105,11 @@ int main(const int argc, const char** argv) {
 	program[top + 3] = count;
 begin:	
 	
-	printf("\n\n------------------- BEGIN ------------------------\n\n");
-	printf("debug: index=%d current=%d top=%d begin=%d count=%d\n", index, current, top, begin, count);
-	print_output(program, top + 4, context, count);
-	print_index(context, index, count);
-	printf("continue? "); getchar();
+	// printf("\n\n------------------- BEGIN ------------------------\n\n");
+	// printf("debug: index=%d current=%d top=%d begin=%d count=%d\n", index, current, top, begin, count);
+	// print_output(program, top + 4, context, count);
+	// print_index(context, index, count);
+	// printf("continue? "); getchar();
 
 	if (current != top) {
 		index = program[top]; 
@@ -153,11 +153,11 @@ non: 	while (context[index] != 32 or *expected != 32) {
 	}
 	index++;
 parent:	
-	printf("\n\n------------------- PARENT ------------------------\n\n");
-	printf("debug: index=%d current=%d top=%d begin=%d count=%d\n", index, current, top, begin, count);
-	print_output(program, top + 4, context, count);
-	print_index(context, index, count);
-	printf("continue? "); getchar();
+	// printf("\n\n------------------- PARENT ------------------------\n\n");
+	// printf("debug: index=%d current=%d top=%d begin=%d count=%d\n", index, current, top, begin, count);
+	// print_output(program, top + 4, context, count);
+	// print_index(context, index, count);
+	// printf("continue? "); getchar();
 
 	
 	if (context[index] == 10) goto done;
