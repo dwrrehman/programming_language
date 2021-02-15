@@ -82,7 +82,7 @@ int main(const int argc, const char** argv) {
 		printf("usage: ./compiler <input> <context>\n");
 		return 1;
 	}
-	const int output_limit = 40, context_limit = 4096; //NOTE: output limit must be a multiple of 4.
+	const int output_limit = 4096, context_limit = 4096; //NOTE: output limit must be a multiple of 4.
 	const char * filename = argv[1], * reason = NULL;
 	int count = 0, length = 0;
 	char* input = open_file(filename, &length);
@@ -172,8 +172,30 @@ done:	if (current) {
 		goto parent;
 	}
 	if (begin != length) goto begin;
-	puts("\n\t---> compile successful.\n");
+	
 	output[current] = index;
+
+
+
+
+
+	puts("\n\t---> compile successful.\n");
+
+
+
+
+
+
+
+	printf("generating machine code...\n");
+
+
+
+
+
+
+
+
 	goto final;
 error:
 	count = biggest;

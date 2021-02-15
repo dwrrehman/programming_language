@@ -1,4 +1,5 @@
 join 	define initf : this is daniel rehman. he's really cool. i like him.;
-join 	define init : nop ; 
-join 	this is daniel rehman. he's really cool. i like him.
+join 	define init : nop; 
+join 	define init: convert :initf:;
+join 	convert this is daniel rehman. he's really cool. i like him.
 nop
