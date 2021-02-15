@@ -1,5 +1,5 @@
-#include <stdio.h>    // the n programming language compiler, written in c.
-#include <iso646.h>
+#include <stdio.h>    // compiler wrriten in c,  for a programming language 
+#include <iso646.h>        // made by daniel warren riaz rehman.
 #include <stdlib.h>
 #include <string.h>
 #include <fcntl.h>
@@ -20,13 +20,38 @@ static inline void print_index(const char* context, int index, int count) {
 	puts("\n");
 }
 
-static inline void print_vector(int* output, int top, const char* context, int count) {
+static inline void print_output(int* output, int top, const char* context, int count) {
 	puts("");
 	for (int i = 0; i < top; i += 4) {
 		printf("%10d :   %10di %10dp %10db %10dc  : ", i, output[i], output[i + 1], output[i + 2], output[i + 3]);
 		print_index(context, output[i], count);
 	}
 	puts("\n");
+}
+
+static inline void pretty_print_output(int* output, int top, const char* context, int count) {
+
+	printf("printing parse tree in PRE-DFS...\n");
+	for (int i = 0; i < top; i += 4) {
+		int r = output[i + 0], length = 0;
+		if (r > count) {
+			for (int _ = 0; _ < (output[i + 1] + 4)/4; _++) printf(".   ");
+			printf("<<<%s>>> : ","USER-DEFINED SIGNATURE");
+			printf("index=%d, parent=%d, begin=%d, count=%d\n\n", 
+				output[i + 0], output[i + 1], output[i + 2], output[i + 3]);
+			continue;
+		}
+
+		if (r >= count or context[r] != 10) continue;
+		do { r--; length++; } while (r and context[r] != 10);
+		r++; length--;
+
+		for (int _ = 0; _ < (output[i + 1] + 4)/4; _++) printf(".   ");
+		printf("<<<%.*s>>> : ", length, context + r);
+		printf("index=%d, parent=%d, begin=%d, count=%d\n\n", 
+			output[i + 0], output[i + 1], output[i + 2], output[i + 3]);
+	}
+	printf("parse tree complete.\n");
 }
 
 static inline void* open_file(const char* filename, int* length) {
@@ -83,30 +108,12 @@ int main(const int argc, const char** argv) {
 	best = begin;
 	biggest = count;
 
-	output[top + 1] = 999; 
+	output[top + 1] = -4; 
 	output[top + 2] = begin;
 	output[top + 3] = count;
 
 begin:	
-	if (current != top) goto fail;
-
-	// printf("\n\n------------------- BEGIN ------------------------\n\n");
-	// printf("debug: index=%d current=%d top=%d begin=%d count=%d\n", index, current, top, begin, count);
-	// print_vector(output, top + 4, context, count);
-	// print_index(context, index, count);
-	// printf("continue? "); getchar();
-
-	begin = output[top + 2];
-	count = output[top + 3];
-
-	if (index >= count) goto fail;
-	while (context[index] != 10) {
-		if (index >= count) goto fail;
-		index++;
-	}
-	index++;
-
-	if (index >= count) {
+	if (current != top or index >= count) {
 	fail: 	if (not top) { reason = "unresolved expression"; goto error; }
 		top -= 4;
 		index = output[top]; 
@@ -114,6 +121,17 @@ begin:
 		goto begin;
 	}
 
+	begin = output[top + 2];
+	count = output[top + 3];
+
+	while (context[index] != 10) {
+		if (index >= count) goto fail;
+		index++;
+	}
+	index++;
+
+	if (index >= count) goto fail;
+	
 	const char* expected = not top ? "init " : context + output[output[top + 1]] + 1;
 	const char* undefined = "undefined ", * copy_expected = expected;
 
@@ -135,6 +153,7 @@ begin:
 			do begin++; while (begin < length and input[begin] < 33);
 		}
 	}
+
 	context[count++] = '\n';
 	if (count > biggest) biggest = count;
 	do begin++; while (begin < length and input[begin] < 33);
@@ -150,7 +169,7 @@ non:
 parent:	
 	// printf("\n\n------------------- PARENT ------------------------\n\n");
 	// printf("debug: index=%d current=%d top=%d begin=%d count=%d\n", index, current, top, begin, count);
-	// print_vector(output, top + 4, context, count);
+	// print_output(output, top + 4, context, count);
 	// print_index(context, index, count);
 	// printf("continue? "); getchar();
 
@@ -243,5 +262,6 @@ skip_candidate:
 final:
 	printf("DEBUG final context: \n<<<%.*s>>>\n", count, context);
 	printf("debug: index=%d current=%d top=%d begin=%d count=%d\n", index, current, top, begin, count);
-	print_vector(output, top + 16, context, count);
+	print_output(output, top + 4, context, count);
+	pretty_print_output(output, top + 4, context, count);
 }
