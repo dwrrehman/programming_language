@@ -76,7 +76,7 @@ int main(const int argc, const char** argv) {
 	int begin = 0, index = 0, top = 0, current = 0;
 	int best = 0, candidate = 0, biggest = 0;
 
-	printf("DEBUG ::::%.*s====%.*s::::\n", length, input, count, context);
+	printf("DEBUG initial inputs: \n<<<<%.*s>>>>\n\n<<<<%.*s>>>>\n", length, input, count, context);
 
 	while (begin < length and input[begin] < 33) begin++;
 
@@ -88,14 +88,13 @@ int main(const int argc, const char** argv) {
 	output[top + 3] = count;
 
 begin:	
-
 	if (current != top) goto fail;
 
-	printf("\n\n------------------- BEGIN ------------------------\n\n");
-	printf("debug: index=%d current=%d top=%d begin=%d count=%d\n", index, current, top, begin, count);
-	print_vector(output, top + 4, context, count);
-	print_index(context, index, count);
-	printf("continue? "); getchar();
+	// printf("\n\n------------------- BEGIN ------------------------\n\n");
+	// printf("debug: index=%d current=%d top=%d begin=%d count=%d\n", index, current, top, begin, count);
+	// print_vector(output, top + 4, context, count);
+	// print_index(context, index, count);
+	// printf("continue? "); getchar();
 
 	begin = output[top + 2];
 	count = output[top + 3];
@@ -149,11 +148,11 @@ non:
 	index++;
 
 parent:	
-	printf("\n\n------------------- PARENT ------------------------\n\n");
-	printf("debug: index=%d current=%d top=%d begin=%d count=%d\n", index, current, top, begin, count);
-	print_vector(output, top + 4, context, count);
-	print_index(context, index, count);
-	printf("continue? "); getchar();
+	// printf("\n\n------------------- PARENT ------------------------\n\n");
+	// printf("debug: index=%d current=%d top=%d begin=%d count=%d\n", index, current, top, begin, count);
+	// print_vector(output, top + 4, context, count);
+	// print_index(context, index, count);
+	// printf("continue? "); getchar();
 
 	if (context[index] == 10) goto done;
 	if (context[index] == 32) {
@@ -170,7 +169,7 @@ parent:
 	if (begin >= length or context[index] != input[begin]) goto begin;
 	do begin++; while (begin < length and input[begin] < 33); 
 	index++;
-	print_index(context, index, count);
+	// print_index(context, index, count);
 	if (begin > best) { best = begin; candidate = index; }
 	
 	goto parent;
@@ -242,7 +241,7 @@ error:
 skip_candidate: 
 	puts("\n");
 final:
-	printf("DEBUG ::::%.*s====%.*s::::\n", length, input, count, context);
+	printf("DEBUG final context: \n<<<%.*s>>>\n", count, context);
 	printf("debug: index=%d current=%d top=%d begin=%d count=%d\n", index, current, top, begin, count);
 	print_vector(output, top + 16, context, count);
 }
