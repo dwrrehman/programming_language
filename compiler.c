@@ -81,8 +81,8 @@ int main(const int argc, const char** argv) {
 	if (argc != 3) {
 		printf("usage: ./compiler <input> <context>\n");
 		return 1;
-	}
-	const int output_limit = 4096, context_limit = 4096; //NOTE: output limit must be a multiple of 4.
+	} // note: program limit must be a multiple of 4.
+	const int program_limit = 4096, context_limit = 4096; 
 	const char * filename = argv[1], * reason = NULL;
 	int count = 0, length = 0;
 	char* input = open_file(filename, &length);
@@ -91,55 +91,60 @@ int main(const int argc, const char** argv) {
 	memset(context, 0x0F, context_limit);
 	memcpy(context, _base, (size_t) count);
 	munmap(_base, (size_t) count);
-	int* output = malloc(output_limit * sizeof(int));
-	memset(output, 0x0F, output_limit);
+	int* program = malloc(program_limit * sizeof(int));
+	memset(program, 0x0F, program_limit);
 
 	int begin = 0, index = 0, top = 0, current = 0;
 	int best = 0, candidate = 0, biggest = 0;
 	printf("DEBUG initial inputs: \n<<<<%.*s>>>>\n\n<<<<%.*s>>>>\n", length, input, count, context);
-	while (begin < length and input[begin] < 33) begin++;
+	while (begin < length and (unsigned char)input[begin] < 33) begin++;
 	best = begin;
 	biggest = count;
-	output[top + 1] = -4; 
-	output[top + 2] = begin;
-	output[top + 3] = count;
-begin:	if (current != top or index >= count) {
-fail: 		if (not top) { reason = "unresolved expression"; goto error; }
-		top -= 4;
-		index = output[top]; 
+	program[top + 1] = -4; 
+	program[top + 2] = begin;
+	program[top + 3] = count;
+begin:	
+	
+	printf("\n\n------------------- BEGIN ------------------------\n\n");
+	printf("debug: index=%d current=%d top=%d begin=%d count=%d\n", index, current, top, begin, count);
+	print_output(program, top + 4, context, count);
+	print_index(context, index, count);
+	printf("continue? "); getchar();
+
+	if (current != top) {
+		index = program[top]; 
 		current = top;
 		goto begin;
 	}
-	begin = output[top + 2];
-	count = output[top + 3];
-	while (context[index] != 10) {
-		index++;
-		if (index >= count) goto fail;
+
+	if (index >= count) {
+fail: 		if (not top) { reason = "unresolved expression"; goto error; }
+		top -= 4;
+		index = program[top]; 
+		current = top;
+		goto begin;
 	}
-	index++;
+	begin = program[top + 2];
+	count = program[top + 3];
+	while (context[index] != 10) index++; index++;
 	if (index >= count) goto fail;
 
-	const char* expected = not top ? "init " : context + output[output[top + 1]] + 1;
-	const char* undefined = "undefined ", * copy_expected = expected;
-	while (*undefined != 32 or *copy_expected != 32) {
-		if (*undefined != *copy_expected) goto non;
-		copy_expected++; undefined++;
-	}
+	const char* expected = not top ? "n3zqx2l " : context + program[program[top + 1]] + 1;
+	if (*expected != 32) goto non;
 	index = context_limit;
 	while (begin < length and input[begin] != ';') {
+		if (count + 1 >= context_limit) { reason = "context limit exceeded"; goto error; }
 		if (input[begin] != '\\') {
-			if (input[begin] == ':') context[count++] = 32;
-			else context[count++] = input[begin];
-			do begin++; while (begin < length and input[begin] < 33);
+			context[count++] = input[begin] == ':' ? 32 : input[begin];
 		} else {
-			do begin++; while (begin < length and input[begin] < 33);
+			do begin++; while (begin < length and (unsigned char)input[begin] < 33);
 			context[count++] = input[begin];
-			do begin++; while (begin < length and input[begin] < 33);
 		}
+		do begin++; while (begin < length and (unsigned char)input[begin] < 33);
 	}
 	context[count++] = 10;
 	if (count > biggest) biggest = count;
-	do begin++; while (begin < length and input[begin] < 33);
+	do begin++; while (begin < length and (unsigned char)input[begin] < 33);
 	if (begin > best) { best = begin; candidate = index; }
 	goto done;
 non: 	while (context[index] != 32 or *expected != 32) {
@@ -147,51 +152,56 @@ non: 	while (context[index] != 32 or *expected != 32) {
 		expected++; index++;
 	}
 	index++;
-parent:	if (context[index] == 10) goto done;
+parent:	
+	printf("\n\n------------------- PARENT ------------------------\n\n");
+	printf("debug: index=%d current=%d top=%d begin=%d count=%d\n", index, current, top, begin, count);
+	print_output(program, top + 4, context, count);
+	print_index(context, index, count);
+	printf("continue? "); getchar();
+
+	
+	if (context[index] == 10) goto done;
 	if (context[index] == 32) {
-		if (top + 7 >= output_limit) { reason = "program limit exceeded"; goto error; }
+		if (top + 7 >= program_limit) { reason = "program limit exceeded"; goto error; }
 		top += 4;
-		output[current] = index;
-		output[top + 1] = current;
-		output[top + 2] = begin;
-		output[top + 3] = count;
+		program[current] = index;
+		program[top + 1] = current;
+		program[top + 2] = begin;
+		program[top + 3] = count;
 		current = top;
 		index = 0;
 		goto begin;
 	}
 	if (begin >= length or context[index] != input[begin]) goto begin;
-	do begin++; while (begin < length and input[begin] < 33); 
+	do begin++; while (begin < length and (unsigned char)input[begin] < 33); 
 	index++;
 	if (begin > best) { best = begin; candidate = index; }
 	goto parent;
 done:	if (current) {
-		output[current] = index;
-		current = output[current + 1];
-		index = output[current] + 1;
+		program[current] = index;
+		current = program[current + 1];
+		index = program[current] + 1;
 		while (context[index] != 32) index++; index++;
 		goto parent;
 	}
 	if (begin != length) goto begin;
-	
-	output[current] = index;
+	top += 4;
+	program[current] = index;
+	puts("\n\t---> compile successful. \n\t\tgenerating machine code...\n");
 
 
 
 
 
-	puts("\n\t---> compile successful.\n");
+	// char output_bytes[4096] = {0};
+	// int stack[4096] = {0};
 
-
-
-
-
-
-
-	printf("generating machine code...\n");
-
-
-
-
+	for (int i = 0; i < top; i += 4) {
+		// printf("%d : %10d %10d %10d %10d \n", 
+		// 	i, program[i], program[i + 1], program[i + 2], program[i + 3]);
+		printf("%10d: %10d\n", i, program[i + 1]);
+		// int index = program[i];
+	}
 
 
 
@@ -252,33 +262,14 @@ skip_candidate:
 final:
 	printf("DEBUG final context: \n<<<%.*s>>>\n", count, context);
 	printf("debug: index=%d current=%d top=%d begin=%d count=%d\n", index, current, top, begin, count);
-	print_output(output, top + 4, context, count);
-	pretty_print_output(output, top + 4, context, count);
+	print_output(program, top, context, count);
+	pretty_print_output(program, top, context, count);
+
+	munmap(input, (size_t) length);
+	free(context);
+	free(program);
 }
 
 
 
 
-
-
-
-
-
-//TODO: add context limit exceeded error message.
-
-
-
-
-
-
-
-
-
-
-
-
-	// printf("\n\n------------------- PARENT ------------------------\n\n");
-	// printf("debug: index=%d current=%d top=%d begin=%d count=%d\n", index, current, top, begin, count);
-	// print_output(output, top + 4, context, count);
-	// print_index(context, index, count);
-	// printf("continue? "); getchar();
