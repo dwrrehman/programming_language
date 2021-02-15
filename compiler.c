@@ -121,7 +121,7 @@ fail: 		if (not top) { reason = "unresolved expression"; goto error; }
 
 	const char* expected = not top ? "init " : context + output[output[top + 1]] + 1;
 	const char* undefined = "undefined ", * copy_expected = expected;
-	while (*undefined != ' ') {
+	while (*undefined != 32 or *copy_expected != 32) {
 		if (*undefined != *copy_expected) goto non;
 		copy_expected++; undefined++;
 	}
@@ -142,7 +142,7 @@ fail: 		if (not top) { reason = "unresolved expression"; goto error; }
 	do begin++; while (begin < length and input[begin] < 33);
 	if (begin > best) { best = begin; candidate = index; }
 	goto done;
-non: 	while (context[index] != ' ') {
+non: 	while (context[index] != 32 or *expected != 32) {
 		if (context[index] != *expected) goto begin;
 		expected++; index++;
 	}
@@ -160,7 +160,8 @@ parent:	if (context[index] == 10) goto done;
 		goto begin;
 	}
 	if (begin >= length or context[index] != input[begin]) goto begin;
-	do begin++; while (begin < length and input[begin] < 33);  index++;
+	do begin++; while (begin < length and input[begin] < 33); 
+	index++;
 	if (begin > best) { best = begin; candidate = index; }
 	goto parent;
 done:	if (current) {

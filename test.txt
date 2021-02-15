@@ -1,7 +1,4 @@
-hello
-	def init : g ; done
-and 
-	hello g and hello hello g and daniel done
-	done
-	
-done
+join 	define initf : this is daniel rehman. he's really cool. i like him.;
+join 	define init : nop ; 
+join 	this is daniel rehman. he's really cool. i like him.
+nop
