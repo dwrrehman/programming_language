@@ -1,1 +1,7 @@
-add 57, add 57, 57
+join define top: ;
+join define top: do :top: :top: :top: :top: :top: :top: 
+			:top: :top: :top: :top: :top: :top: :top: ;
+do 
+
+define top: daniel;
+daniel
