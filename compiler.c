@@ -10,58 +10,31 @@ static void print_index(const char* context, int index, int count);
 static void pretty_print_output(int* output, int top, const char* context, const char* input);
 static void print_output(int* output, int top, const char* context, int count);
 int main() {
-	const char* A = "add57,add57,57", * B = "\ntop add top , top \ntop 5\ntop 57\n";
+	const char* A = "add add 57, 57, add 57, 5" , * B = "\ntop add top ,\ntop add top , top \ntop 5\ntop 57\n";
 	int C[4096]; memset(C, 0x0F, sizeof C);
 	int Al = (int)strlen(A), Bl = (int)strlen(B);
-	int a = 0, b = 0, c = 0;
-	C[c + 1] = -3; C[c + 2] = 0;
-_0:	printf("\n\n------------------- BEGIN ------------------------\n\n");
-	printf("debug: a=%d b=%d c=%d \n", a, b, c);
-	print_output(C, c + 3, B, Bl);
-	print_index(B, b, Bl);
-	printf("continue? "); getchar();
-
-	int i = b;
-	if (i == 0) goto _8;
-	do i--; while (B[i] != 32); // move backwards to the most recent space.
-
-	do { 
-		i--; 
-		if (B[i] == 32) goto _6;  // if you hit another space, 
-					  // then dont try more sigs, just backtrack.
-	} while (B[i] != 10);  // keep going until you find a newline.
-	
-	// if you find the newline, 
-	// then check to see if you still have other signatures to try in the context,
-	if (b < Bl) goto _8; // if so, then skip over the back tracking code.
+	int a = 0, b = 0, c = 0, d = 0;
+	while (a < Al and A[a] < 33) a++;
+	C[c + 1] = -3; C[c + 2] = a;
+_0:	d = b; if (d == 0) goto _8;
+	do d--; while (B[d] != 32); 
+_9: 	d--; if (B[d] == 32) goto _6;
+	if (B[d] != 10) goto _9;
+	if (b < Bl) goto _8;
 _6: 	if (not c) goto error;
-	c -= 3;
-	b = C[c];
-	if (b == 4096) {/*revert context*/}
-	goto _0;
-_8:	a = C[c + 2];
-	while (B[b] != 10) b++; b++;
+	c -= 3; b = C[c]; goto _0;
+_8:	a = C[c + 2]; while (B[b] != 10) b++; b++;
 	if (b >= Bl) goto _0;
 	const char* e = C[c + 1] == -3 ? "top " : B + C[C[c + 1]] + 1;
-	while (B[b] != 32 or *e != 32) {
-		if (B[b] != *e) goto _0;
-		e++; b++;
-	} b++;
-_1:	printf("\n\n------------ PARENT ------------\n\n");
-	printf("debug: a=%d b=%d c=%d \n", a, b, c);
-	print_output(C, c + 3, B, Bl);
-	print_index(B, b, Bl);
-	printf("continue? "); getchar();
-
-	if (B[b] == 10) goto _2;
+	while (B[b] != 32 or *e != 32) { 
+	if (B[b] != *e) goto _0; e++; b++; } b++;
+_1:	if (B[b] == 10) goto _2;
 	if (B[b] != 32) goto _7;
-	C[c] = b; c += 3;
-	C[c + 1] = c - 3;
-	C[c + 2] = a; b = 0;
-	goto _0;
+	C[c] = b; c += 3; C[c + 1] = c - 3;
+	C[c + 2] = a; b = 0; goto _0;
 _7:	if (a >= Al or B[b] != A[a]) goto _0;
-	a++; b++; goto _1;
-_2:;	C[c] = b; int d = C[c + 1];
+	do a++; while (a < Al and A[a] < 33); b++; goto _1;
+_2:	C[c] = b; d = C[c + 1];
 	if (d == -3) goto _3;
 	c += 3; C[c + 1] = C[d + 1];
 	C[c + 2] = a; b = C[d] + 1;
@@ -69,11 +42,9 @@ _2:;	C[c] = b; int d = C[c + 1];
 _3:	if (a != Al) goto _0;
 	c += 3;
 	puts("success: compile successful.");
-	goto final;
+	goto done;
 error:	puts("error: resolution failure");
-	goto final;
-final:
-	printf("DEBUG final context: \n<<<%.*s>>>\n", Bl, B);
+done:	printf("DEBUG final context: \n<<<%.*s>>>\n", Bl, B);
 	printf("debug: a=%d b=%d c=%d \n", a, b, c);
 	print_output(C, c, B, Bl);
 	pretty_print_output(C, c, B, A);
@@ -322,7 +293,7 @@ const int argc, const char** argv
 // while (a < Al and A[a] < 33) a++;
 
 
-
+while (a < Al and A[a] < 33) a++;
 do a++ while (a < Al and A[a] < 33); 
 
 
@@ -403,5 +374,37 @@ static inline void* open_file(const char* filename, int* length) {
 	// 	if (B[i] == 32) goto _6; 
 	// } while (B[i] != 10); 
 
+
+
+
+
+// if you find the newline, 
+	// then check to see if you still have other signatures to try in the context,
+
+// move backwards to the most recent space.
+
+// if you hit another space, 
+
+ // then dont try more sigs, just backtrack.// keep going until you find a newline.
+
+// if so, then skip over the back tracking code.
+
+
+// printf("\n\n------------------- BEGIN ------------------------\n\n");
+// 	printf("debug: a=%d b=%d c=%d \n", a, b, c);
+// 	print_output(C, c + 3, B, Bl);
+// 	print_index(B, b, Bl);
+// 	printf("continue? "); getchar();
+
+
+
+
+
+
+// printf("\n\n------------ PARENT ------------\n\n");
+// 	printf("debug: a=%d b=%d c=%d \n", a, b, c);
+// 	print_output(C, c + 3, B, Bl);
+// 	print_index(B, b, Bl);
+// 	printf("continue? "); getchar();
 
 
