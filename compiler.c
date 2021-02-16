@@ -6,9 +6,94 @@
 #include <unistd.h>
 #include <sys/stat.h>
 #include <sys/mman.h>
+static void print_index(const char* context, int index, int count);
+static void pretty_print_output(int* output, int top, const char* context, const char* input);
+static void print_output(int* output, int top, const char* context, int count);
+int main() {
+	const char* A = "add57,add57,57", * B = "\ntop add top , top \ntop 5\ntop 57\n";
+	int C[4096]; memset(C, 0x0F, sizeof C);
+	int Al = (int)strlen(A), Bl = (int)strlen(B);
+	int a = 0, b = 0, c = 0;
+	C[c + 1] = -3; C[c + 2] = 0;
+_0:	printf("\n\n------------------- BEGIN ------------------------\n\n");
+	printf("debug: a=%d b=%d c=%d \n", a, b, c);
+	print_output(C, c + 3, B, Bl);
+	print_index(B, b, Bl);
+	printf("continue? "); getchar();
 
-static inline void print_index(const char* context, int index, int count) {
-	if (index == 4096) { printf("{UD SIG}\n\n"); return; }
+	int i = b;
+	if (i == 0) goto _8;
+	do i--; while (B[i] != 32); // move backwards to the most recent space.
+
+	do { 
+		i--; 
+		if (B[i] == 32) goto _6;  // if you hit another space, 
+					  // then dont try more sigs, just backtrack.
+	} while (B[i] != 10);  // keep going until you find a newline.
+	
+	// if you find the newline, 
+	// then check to see if you still have other signatures to try in the context,
+	if (b < Bl) goto _8; // if so, then skip over the back tracking code.
+_6: 	if (not c) goto error;
+	c -= 3;
+	b = C[c];
+	if (b == 4096) {/*revert context*/}
+	goto _0;
+_8:	a = C[c + 2];
+	while (B[b] != 10) b++; b++;
+	if (b >= Bl) goto _0;
+	const char* e = C[c + 1] == -3 ? "top " : B + C[C[c + 1]] + 1;
+	while (B[b] != 32 or *e != 32) {
+		if (B[b] != *e) goto _0;
+		e++; b++;
+	} b++;
+_1:	printf("\n\n------------ PARENT ------------\n\n");
+	printf("debug: a=%d b=%d c=%d \n", a, b, c);
+	print_output(C, c + 3, B, Bl);
+	print_index(B, b, Bl);
+	printf("continue? "); getchar();
+
+	if (B[b] == 10) goto _2;
+	if (B[b] != 32) goto _7;
+	C[c] = b; c += 3;
+	C[c + 1] = c - 3;
+	C[c + 2] = a; b = 0;
+	goto _0;
+_7:	if (a >= Al or B[b] != A[a]) goto _0;
+	a++; b++; goto _1;
+_2:;	C[c] = b; int d = C[c + 1];
+	if (d == -3) goto _3;
+	c += 3; C[c + 1] = C[d + 1];
+	C[c + 2] = a; b = C[d] + 1;
+	while (B[b] != 32) b++; b++; goto _1;
+_3:	if (a != Al) goto _0;
+	c += 3;
+	puts("success: compile successful.");
+	goto final;
+error:	puts("error: resolution failure");
+	goto final;
+final:
+	printf("DEBUG final context: \n<<<%.*s>>>\n", Bl, B);
+	printf("debug: a=%d b=%d c=%d \n", a, b, c);
+	print_output(C, c, B, Bl);
+	pretty_print_output(C, c, B, A);
+}
+
+
+
+
+
+
+
+
+
+
+
+
+//  --------------- debug functions ------------------
+
+static void print_index(const char* context, int index, int count) {
+	if (index == 0) { printf("{UD SIG}\n\n"); return; }
 	if (index > count or index < 0) { printf("{error index}\n\n"); return; }
 	printf("    ");
 	for (int i = 0; i < count; i++) {
@@ -20,23 +105,23 @@ static inline void print_index(const char* context, int index, int count) {
 	puts("\n");
 }
 
-static inline void print_output(int* output, int top, const char* context, int count) {
+static void print_output(int* output, int top, const char* context, int count) {
 	puts("");
-	for (int i = 0; i < top; i += 4) {
-		printf("%10d :   %10di %10dp %10db %10dc  : ", i, output[i], output[i + 1], output[i + 2], output[i + 3]);
+	for (int i = 0; i < top; i += 3) {
+		printf("%10d :   %10di %10dp %10db : ", i, output[i], output[i + 1], output[i + 2]);
 		print_index(context, output[i], count);
 	}
 	puts("\n");
 }
 
-static inline void pretty_print_output(int* output, int top, const char* context, int count, 
-					const char*input) {
+static void pretty_print_output(int* output, int top, 
+				const char* context, const char*input) {
 
 	printf("printing parse tree in PRE-DFS...\n");
-	for (int i = 0; i < top; i += 4) {
+	for (int i = 0; i < top; i += 3) {
 		int r = output[i + 0], length = 0;
-		if (r > count) {
-			for (int _ = 0; _ < (output[i + 1] + 4)/4; _++) printf(".   ");
+		if (r == 4096) {
+			for (int _ = 0; _ < (output[i + 1] + 3)/3; _++) printf(".   ");
 			printf("UDS:  \"");
 			
 			int k = output[i + 2];
@@ -44,216 +129,23 @@ static inline void pretty_print_output(int* output, int top, const char* context
 				if (input[k] != 10) putchar(input[k]);
 				k++;
 			}
-			printf(";\" \t\t\t\t: %di %dp %db %dc \n\n", 
-				output[i + 0], output[i + 1], output[i + 2], output[i + 3]);
+			printf(";\" \t\t\t\t: %di %dp %db \n\n", 
+				output[i + 0], output[i + 1], output[i + 2]);
 			continue;
 		}
 
-		if (r < 0 or r >= count or context[r] != 10) continue;
+		if (context[r] != 10) continue;
 		do { r--; length++; } while (r and context[r] != 10);
 		r++; length--;
 
-		for (int _ = 0; _ < (output[i + 1] + 4)/4; _++) printf(".   ");
+		for (int _ = 0; _ < (output[i + 1] + 3)/3; _++) printf(".   ");
 		printf("(%.*s) \t\t\t\t", length, context + r);
-		printf(" : %di %dp %db %dc \n\n", 
-			output[i + 0], output[i + 1], output[i + 2], output[i + 3]);
+		printf(" : %di %dp %db #%d\n\n", 
+			output[i + 0], output[i + 1], output[i + 2], i);
 	}
 	printf("parse tree complete.\n");
 }
 
-static inline void* open_file(const char* filename, int* length) {
-
-	struct stat file_data = {0};
-	const int file = open(filename, O_RDONLY);
-
-	if (file < 0 or stat(filename, &file_data) < 0) {
-		fprintf(stderr, "error: %s: ", filename);
-		perror("open");
-		exit(3);
-	}
-
-	*length = (int) file_data.st_size;
-	if (not *length) return NULL;
-	void* input = mmap(0, (size_t) *length, PROT_READ, MAP_SHARED, file, 0);
-	if (input == MAP_FAILED) {
-		fprintf(stderr, "error: %s: ", filename);
-		perror("mmap");
-		exit(4);
-	}
-	close(file);
-	return input;
-}
-
-int main(const int argc, const char** argv) {
-	if (argc != 3) {
-		printf("usage: ./compiler <input> <context>\n");
-		return 1;
-	}
-	const int program_limit = 4096, context_limit = 4096; 
-	const char * filename = argv[1], * reason = NULL;
-	int count = 0, length = 0;
-	char* input = open_file(filename, &length);
-	char* _base = open_file(argv[2], &count);
-	char* context = malloc(context_limit);
-	memset(context, 0x0F, context_limit);
-	memcpy(context, _base, (size_t) count);
-	munmap(_base, (size_t) count);
-	int* program = malloc(program_limit * sizeof(int));
-	memset(program, 0x0F, program_limit);
-
-	int begin = 0, index = 0, top = 0, current = 0, at = 0;
-	int best = 0, candidate = 0;
-	printf("DEBUG initial inputs: \n<<<<%.*s>>>>\n\n<<<<%.*s>>>>\n", length, input, count, context);
-	while (begin < length and (unsigned char)input[begin] < 33) begin++;
-	best = begin;
-
-//	program[top + 0] = undefined;
-	program[top + 1] = -4; 
-	program[top + 2] = begin;
-//	program[top + 3] = ;
-
-begin:	
-	
-	printf("\n\n------------------- BEGIN ------------------------\n\n");
-	printf("debug: index=%d current=%d top=%d begin=%d count=%d at=%d\n", index, current, top, begin, count, at);
-	print_output(program, top + 4, context, count);
-	print_index(context, index, count);
-	printf("continue? "); getchar();
-
-	if (current != top) {
-		index = program[top];
-		current = top;
-		goto begin;
-	}
-
-	if (index >= count) {
-		if (not top) { reason = "unresolved expression"; goto error; }
-		top -= 4;
-		index = program[top];
-		current = top;
-		goto begin;
-	}
-	begin = program[top + 2];
-	count = program[top + 3];
-
-	while (context[index] != 10) index++; index++;
-	if (index >= count) goto begin;
-	const char* expected = not top ? "top " : context + program[program[top + 1]] + 1;
-	
-while (context[index] != 32 or *expected != 32) {
-		if (context[index] != *expected) goto begin;
-		expected++; index++;
-	}
-	index++;
-parent:	
-	printf("\n\n------------ PARENT ------------\n\n");
-	printf("parent: index=%d current=%d top=%d begin=%d count=%d\n", 
-			index, current, top, begin, count);
-
-	print_output(program, top + 4, context, count);
-	print_index(context, index, count);
-	printf("...? "); getchar();
-
-	if (context[index] == 10) goto done;
-	if (context[index] == 32) {
-		top += 4;
-		program[current] = index;
-		program[top + 1] = current;
-		program[top + 2] = begin;
-		program[top + 3] = 0;
-		current = top;
-		index = 1;
-		goto begin;
-	}
-	if (begin >= length or context[index] != input[begin]) goto begin;
-	do begin++; while (begin < length and (unsigned char)input[begin] < 33); 
-	index++;
-	if (begin > best) { best = begin; candidate = index; }
-	goto parent;
-done:
-	if (current) {
-		top += 4;
-		program[current] = index;
-		program[top + 1] = current;
-		program[top + 2] = begin;
-		program[top + 3] = count;
-		current = top;
-		current = program[current + 1];
-		index = program[current] + 1;
-		while (context[index] != 32) index++; index++;
-		goto parent;
-	}
-	if (begin != length) goto begin;
-	top += 4;
-
-
-
-
-
-	puts("\n\t---> compile successful. \n\t\tgenerating machine code...\n");
-	goto final;
-error:
-	count = biggest;
-	int at = 0, line = 1, column = 1;
-	while (at < best and at < length) {
-		if (input[at++] == '\n') { line++; column = 1; } else column++;
-	}
-	fprintf(stderr, "\033[1m%s:%u:%u: \033[1;31merror:\033[m \033[1m%s\033[m\n", 
-			filename, line, column, reason);
-
-	int b = line > 2 ? line - 2 : 0, e = line + 2;
-	for (int i = 0, l = 1, c = 1; i < length + 1; i++) {
-		if (c == 1 and l >= b and l <= e) 
-			fprintf(stderr, "\n\033[90m%5d\033[0m\033[32m │ \033[0m", l);
-		if ((i == length or input[i] != '\n') and l >= b and l <= e) {
-			if (l == line and c == column) fprintf(stderr, "\033[1;31m");
-			if (i < length) fprintf(stderr, "%c", input[i]);
-			else if (l == line and c == column) fprintf(stderr, "<EOF>");
-			if (l == line and c == column) fprintf(stderr, "\033[m");
-		}
-		if (i < length and input[i] == 10) { l++; c = 1; } else c++;
-	}
-	if (not count) {
-		printf("\n\nskipping error candidate...\n");
-		goto skip_candidate;
-	}
-	int start = not candidate ? 1 : candidate;
-	do start--; while (start and context[start] != 10); 
-	++start;
-	fprintf(stderr, "\n\n\033[1m candidate:\033[m  \033[1;94m");
-	while (context[start] != ' ' and start < count) {
-		fprintf(stderr, "%c", context[start]);
-		start++;	
-	}
-	fprintf(stderr, "%c\033[m", context[start]);
-	start++;
-	for (int k = start; context[k] != 10 and k < count; k++) {
-		if (context[k] == 32) {
-			int p = k++;
-			fprintf(stderr, p == candidate ? "\033[1;31m " : "\033[1;96m "); 
-			while (context[k] != 32) {
-				fprintf(stderr, "%c", context[k]);
-				k++;
-			}
-			fprintf(stderr, p == candidate ? " \033[m" : " \033[m"); 
-		} else {
-			if (k == candidate) fprintf(stderr, "\033[1;31m");
-			fprintf(stderr, "%c", context[k]);
-			if (k == candidate) fprintf(stderr, "\033[m");
-		}
-	}
-skip_candidate: 
-	puts("\n");
-final:
-	printf("DEBUG final context: \n<<<%.*s>>>\n", count, context);
-	printf("debug: index=%d current=%d top=%d begin=%d count=%d\n", index, current, top, begin, count);
-	print_output(program, top, context, count);
-	pretty_print_output(program, top, context, count, input);
-
-	munmap(input, (size_t) length);
-	free(context);
-	free(program);
-}
 
 
 
@@ -262,6 +154,23 @@ final:
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+// munmap(A, (size_t) Al);
+	// free(B); free(C);
 
 
 
@@ -313,3 +222,186 @@ final:
 // if (*expected != 32) goto non;
 	
 // 	non: 	
+
+
+
+// printf("DEBUG initial inputs: \n<<<<%.*s>>>>\n\n<<<<%.*s>>>>\n", length, input, count, context);
+
+
+
+
+
+// 	int at = 0, line = 1, column = 1;
+// 	while (at < best and at < Al) {
+// 		if (A[at++] == '\n') { line++; column = 1; } else column++;
+// 	}
+// 	fprintf(stderr, "\033[1m%s:%u:%u: \033[1;31merror:\033[m \033[1m%s\033[m\n", 
+// 			filename, line, column, reason);
+
+// 	int b = line > 2 ? line - 2 : 0, e = line + 2;
+// 	for (int i = 0, l = 1, c = 1; i < Al + 1; i++) {
+// 		if (c == 1 and l >= b and l <= e) 
+// 			fprintf(stderr, "\n\033[90m%5d\033[0m\033[32m │ \033[0m", l);
+// 		if ((i == Al or A[i] != '\n') and l >= b and l <= e) {
+// 			if (l == line and c == column) fprintf(stderr, "\033[1;31m");
+// 			if (i < Al) fprintf(stderr, "%c", A[i]);
+// 			else if (l == line and c == column) fprintf(stderr, "<EOF>");
+// 			if (l == line and c == column) fprintf(stderr, "\033[m");
+// 		}
+// 		if (i < Al and A[i] == 10) { l++; c = 1; } else c++;
+// 	}
+// 	if (not count) {
+// 		printf("\n\nskipping error candidate...\n");
+// 		goto skip_candidate;
+// 	}
+// 	int start = not candidate ? 1 : candidate;
+// 	do start--; while (start and context[start] != 10); 
+// 	++start;
+// 	fprintf(stderr, "\n\n\033[1m candidate:\033[m  \033[1;94m");
+// 	while (context[start] != ' ' and start < count) {
+// 		fprintf(stderr, "%c", context[start]);
+// 		start++;	
+// 	}
+// 	fprintf(stderr, "%c\033[m", context[start]);
+// 	start++;
+// 	for (int k = start; context[k] != 10 and k < count; k++) {
+// 		if (context[k] == 32) {
+// 			int p = k++;
+// 			fprintf(stderr, p == candidate ? "\033[1;31m " : "\033[1;96m "); 
+// 			while (context[k] != 32) {
+// 				fprintf(stderr, "%c", context[k]);
+// 				k++;
+// 			}
+// 			fprintf(stderr, p == candidate ? " \033[m" : " \033[m"); 
+// 		} else {
+// 			if (k == candidate) fprintf(stderr, "\033[1;31m");
+// 			fprintf(stderr, "%c", context[k]);
+// 			if (k == candidate) fprintf(stderr, "\033[m");
+// 		}
+// 	}
+// skip_candidate: 
+// 	puts("\n");
+
+
+
+
+
+
+
+
+
+/*
+ ------------------- prolgue ----------
+
+
+
+	const int C_limit = 4096, B_limit = 4096; 
+	const char * filename = argv[1];
+	int Al = 0, Bl = 0, a = 0, b = 0, c = 0;
+	char* A = open_file(filename, &Al);
+	char* _base = open_file(argv[2], &Bl);
+	char* B = malloc(B_limit);
+	memset(B, 0x0F, B_limit);
+	memcpy(B, _base, (size_t) Bl);
+	munmap(_base, (size_t) Bl);
+	int* C = malloc(C_limit * sizeof(int));
+	memset(C, 0x0F, C_limit);
+	while (a < Al and A[a] < 33) a++;
+	C[c + 1] = -3;
+	C[c + 2] = a;
+
+
+if (argc != 3) {
+		printf("usage: ./compiler <input> <context>\n");
+		return 1;
+	}
+	const int C_limit = 4096, B_limit = 4096; 
+	const char * filename = argv[1];
+
+const int argc, const char** argv
+// while (a < Al and A[a] < 33) a++;
+
+
+
+do a++ while (a < Al and A[a] < 33); 
+
+
+
+static inline void* open_file(const char* filename, int* length) {
+
+	struct stat file_data = {0};
+	const int file = open(filename, O_RDONLY);
+
+	if (file < 0 or stat(filename, &file_data) < 0) {
+		fprintf(stderr, "error: %s: ", filename);
+		perror("open");
+		exit(3);
+	}
+
+	*length = (int) file_data.st_size;
+	if (not *length) return NULL;
+	void* input = mmap(0, (size_t) *length, PROT_READ, MAP_SHARED, file, 0);
+	if (input == MAP_FAILED) {
+		fprintf(stderr, "error: %s: ", filename);
+		perror("mmap");
+		exit(4);
+	}
+	close(file);
+	return input;
+}
+
+
+
+
+*/
+
+
+
+
+
+/*keep_backtracking: 
+		if (not c) goto error;
+		c -= 3;
+		b = C[c];
+		int i = b;
+		do i--;
+		while (i and B[i] != 10);
+		while (B[b] != 32) {
+		if (B[b] != *e) goto _0;
+		e++; b++;
+		goto keep_backtracking;		
+
+
+*/
+
+
+// if you back-tracked on a node which is zero, then undo the define. 
+			// delete the last signature.
+			// a define is always a FIRST node, so stop backtracking now.
+		// go back on the index, until you find a space. 
+			// (you are gaurenteed to find it!!)
+		// then, go back on the index, further. 
+		// if you hit a space, then you must 
+		// continue backtracking, (goto keep_backtracking;)
+		// however, if you hit a newline, that means that this is a "FIRST" node, 
+		//    (ie, you bt'd over a first node)
+
+		// that means that you need to stop backtracking, 
+		// and set up the index variable accordingly, 	
+		//   and then finish by going to begin.  now done.
+
+
+
+
+
+
+
+	// int i = b;
+	// do i--; while (B[i] != 32);
+	// do { 
+	// 	i--; 
+	// 	if (B[i] == 32) goto _6; 
+	// } while (B[i] != 10); 
+
+
+

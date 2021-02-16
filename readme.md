@@ -47,11 +47,10 @@ The language has only _two_ priorities:
 
 if you think a programming language should have any one of these things at the expense of maximally acheiving the two language priorities laid out earlier, you should probably stop reading this, go away, and look up some other more inferior programming language project, because this language is NOT for you.
 
-
 ### Other information:
 
- - The programming language uses the Universal Call Syntax Resolution ([UCSR](dwrrehman.github.io/ucsr)) algorithm.
+ - The programming language uses the Universal Call Syntax Resolution algorithm.
 
  - The compiler currently aims to target x86-32, x86-64, Arm32, Arm64, Wasm32, and Wasm64. 
 
- - The current compiler implementation is written in C, but will be self-hosted soon.
+ - The current compiler implementation is written in a subset of C, and will be self-hosted soon.
