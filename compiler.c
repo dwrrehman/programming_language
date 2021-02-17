@@ -97,51 +97,91 @@ int main(const int argc, const char** argv) {
 	int* C = malloc(CL * sizeof(int));
 	memset(C, 0x0F, CL * sizeof(int));
 	while (a < Al and (uc)A[a] < 33) a++;
-	ab = a; Blb = Bl; C[c + 1] = -3; C[c + 2] = a;
-_0:	d = b; if (d == 0) goto _8;
+	ab = a; 
+	Blb = Bl;
+	C[c + 1] = -3; 
+	C[c + 2] = a;
+
+_0:	d = b;
+	if (d == 0) goto _8;
+	if (B[d] != 10 and B[d] != 32) goto _8;
 	do d--; while (B[d] != 32);
-_9: 	d--; if (B[d] == 32) goto _6;
-	if (B[d] != 10) goto _9;
+_9: 	d--; 
+	if (B[d] == 32) goto _6;
+	if (B[d] != 10) goto _9; // problem: choosing to backtrack a node, which doesnt point to a space or newline?
 	if (b < Bl) goto _8;
 _6: 	if (not c) goto error;
-	c -= 3; b = C[c];
+	c -= 3; 
+	b = C[c];
 	if (b != BL) goto _0;
-	Bl--; do Bl--; while (B[Bl] != 10); Bl++; goto _0;
-_8:	a = C[c + 2]; while (B[b] != 10) b++; b++;
+	Bl--; 
+	do Bl--; while (B[Bl] != 10); 
+	Bl++; 
+	goto _0;
+_8:	a = C[c + 2]; 
+	while (B[b] != 10) b++; 
+	b++;
 	if (b >= Bl) goto _0;
 	e = C[c + 1] == -3 ? "top " : B + C[C[c + 1]] + 1;
-	if (*e != 32) goto _10; b = BL;
+	if (*e != 32) goto _10; 
+	b = BL;
 	while (a < Al and A[a] != 59) {
 		if (Bl + 1 >= BL) goto BLx;
 		if (A[a] != 92) B[Bl++] = A[a] == 58 ? 32 : A[a];
-		else { do a++; while (a < Al and (uc)A[a] < 33); B[Bl++] = A[a]; }
+		else { 
+			do a++; while (a < Al and (uc)A[a] < 33); 
+			B[Bl++] = A[a]; 
+		}
 		do a++; while (a < Al and (uc)A[a] < 33);
-	} if (a >= Al) goto _0; B[Bl++] = 10;
+	} 
+	if (a >= Al) goto _0; 
+	B[Bl++] = 10;
 	if (Bl > Blb) Blb = Bl;
 	do a++; while (a < Al and (uc)A[a] < 33);
-	if (a > ab) { ab = a; bb = b; } goto _2;
+	if (a > ab) { 
+		ab = a; 
+		bb = b; 
+	} 
+	goto _2;
 _10: 	while (B[b] != 32 or *e != 32) { 
-	if (B[b] != *e) goto _0; e++; b++; } b++;
+		if (B[b] != *e) goto _0; 
+		e++; 
+		b++; 
+	} 
+	b++;
 _1:	if (B[b] == 10) goto _2;
 	if (B[b] != 32) goto _7;
 	if (c + 5 >= CL) goto CLx;
-	C[c] = b; c += 3; C[c + 1] = c - 3;
-	C[c + 2] = a; b = 0; goto _0;
+	C[c] = b; 
+	c += 3; 
+	C[c + 1] = c - 3;
+	C[c + 2] = a; 
+	b = 0; 
+	goto _0;
 _7:	if (a >= Al or B[b] != A[a]) goto _0;
 	do a++; while (a < Al and (uc)A[a] < 33); 
-	if (a > ab) { ab = a; bb = b; } b++; goto _1;
-_2:	C[c] = b; d = C[c + 1];
+	if (a > ab) { 
+		ab = a; 
+		bb = b; 
+	} b++; 
+	goto _1;
+_2:	C[c] = b; 
+	d = C[c + 1];
 	if (d == -3) goto _3;
 	if (c + 5 >= CL) goto CLx;
-	c += 3; C[c + 1] = C[d + 1];
-	C[c + 2] = a; b = C[d] + 1;
-	while (B[b] != 32) b++; b++; goto _1;
-_3:	if (a != Al) goto _0; c += 3;
+	c += 3; 
+	C[c + 1] = C[d + 1];
+	C[c + 2] = a; 
+	b = C[d] + 1;
+	while (B[b] != 32) b++; 
+	b++; 
+	goto _1;
+_3:	if (a != Al) goto _0; 
+	c += 3;
 
 	puts("success: compile successful."); 
 
 	goto done;
-
 BLx: 	reason = "context limit exceeded"; goto display;
 CLx: 	reason = "program limit exceeded"; goto display;
 error: 	reason = "unresolved expression";
