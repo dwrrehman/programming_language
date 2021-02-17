@@ -103,13 +103,14 @@ int main(const int argc, const char** argv) {
 	C[c + 2] = a;
 
 _0:	d = b;
-	if (d == 0) goto _8;
-	if (B[d] != 10 and B[d] != 32) goto _8;
+	if (d == 0) goto _11;
+	if (d == BL) goto _11;
+	if (B[d] != 10 and B[d] != 32) goto _11;
 	do d--; while (B[d] != 32);
 _9: 	d--; 
 	if (B[d] == 32) goto _6;
-	if (B[d] != 10) goto _9; // problem: choosing to backtrack a node, which doesnt point to a space or newline?
-	if (b < Bl) goto _8;
+	if (B[d] != 10) goto _9;
+_11:	if (b < Bl) goto _8;
 _6: 	if (not c) goto error;
 	c -= 3; 
 	b = C[c];
@@ -118,7 +119,7 @@ _6: 	if (not c) goto error;
 	do Bl--; while (B[Bl] != 10); 
 	Bl++; 
 	goto _0;
-_8:	a = C[c + 2]; 
+_8:	a = C[c + 2];
 	while (B[b] != 10) b++; 
 	b++;
 	if (b >= Bl) goto _0;
