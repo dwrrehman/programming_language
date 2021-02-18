@@ -1,8 +1,7 @@
-join define top: ;
-join define top: do :top: :top: :top: :top: :top: :top: :top: :top: :top: :top: :top: ;
-do 
 
-define top:convert:unit:;
-define unit:nop;
-convert nop
-convert nop
+   
+join define top:[x86] add;
+
+join 
+	[x86] add
+	[x86] add

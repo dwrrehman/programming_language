@@ -3,6 +3,7 @@
 
 This is a compiler for a general-purpose, expression-based, imperative, low-level minimalist systems programming language. 
 
+
 ### Language priorities:
 
 The language has only _two_ priorities:
@@ -12,6 +13,7 @@ The language has only _two_ priorities:
 	- have a memory size _as small as possible_.
 
  - __Brutal simplicity and minimalism__: The compiler's _total_ source code is limited to 700 lines.
+
 
 ### What this language does NOT care about:
 

@@ -1,0 +1,12 @@
+join define top: ;
+join define top: do :top: :top: :top: :top: :top: :top: :top: :top: :top: :top: :top: ;
+do 
+
+define top:convert:unit:;
+define unit:nop;
+convert nop
+convert nop
+define :;
+define :hi;
+define hi:;
+define hi:hi;

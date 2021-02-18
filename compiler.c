@@ -6,9 +6,11 @@
 #include <unistd.h>
 #include <sys/stat.h>
 #include <sys/mman.h>
+
 static void print_index(const char* context, int index, int count);
 static void pretty_print_output(int* output, int top, const char* context, const char* input);
 static void print_output(int* output, int top, const char* context, int count);
+
 static void* open_file(const char* filename, int* length) {
 	struct stat file_data = {0};
 	const int file = open(filename, O_RDONLY);
@@ -97,9 +99,9 @@ int main(const int argc, const char** argv) {
 	int* C = malloc(CL * sizeof(int));
 	memset(C, 0x0F, CL * sizeof(int));
 	while (a < Al and (uc)A[a] < 33) a++;
-	ab = a; 
+	ab = a;
 	Blb = Bl;
-	C[c + 1] = -3; 
+	C[c + 1] = -3;
 	C[c + 2] = a;
 
 _0:	d = b;
@@ -107,7 +109,7 @@ _0:	d = b;
 	if (d == BL) goto _11;
 	if (B[d] != 10 and B[d] != 32) goto _11;
 	do d--; while (B[d] != 32);
-_9: 	d--; 
+_9: 	d--;
 	if (B[d] == 32) goto _6;
 	if (B[d] != 10) goto _9;
 _11:	if (b < Bl) goto _8;
@@ -154,25 +156,26 @@ _1:	if (B[b] == 10) goto _2;
 	if (B[b] != 32) goto _7;
 	if (c + 5 >= CL) goto CLx;
 	C[c] = b; 
-	c += 3; 
+	c += 3;
 	C[c + 1] = c - 3;
 	C[c + 2] = a; 
 	b = 0; 
 	goto _0;
 _7:	if (a >= Al or B[b] != A[a]) goto _0;
 	do a++; while (a < Al and (uc)A[a] < 33); 
+	b++;
 	if (a > ab) { 
 		ab = a; 
-		bb = b; 
-	} b++; 
+		bb = b;
+	}
 	goto _1;
-_2:	C[c] = b; 
+_2:	C[c] = b;
 	d = C[c + 1];
 	if (d == -3) goto _3;
 	if (c + 5 >= CL) goto CLx;
 	c += 3; 
 	C[c + 1] = C[d + 1];
-	C[c + 2] = a; 
+	C[c + 2] = a;
 	b = C[d] + 1;
 	while (B[b] != 32) b++; 
 	b++; 
@@ -180,7 +183,64 @@ _2:	C[c] = b;
 _3:	if (a != Al) goto _0; 
 	c += 3;
 
-	puts("success: compile successful."); 
+	puts("success: compile successful.");
+	char output_bytes[4096] = {0};
+	int stack[4096] = {0};
+
+	for (int i = 0; i < c; i += 3) {
+		// printf("%d : %10d %10d %10d \n", 
+		// 	i, C[i], C[i + 1], C[i + 2]);
+		
+		// if (C[i] == BL or B[C[i]] == 10) 
+		// 	printf("\t\t\t\t\t\t\tfound ---> %10d: %10d\n", i, C[i + 1]);
+
+		if (C[i] == BL or B[C[i]] != 10)  continue;
+	
+		int s = C[i];
+		do s--; while (s and B[s] != 10); 
+		++s;
+
+		const char* add = "top [x86]add\n";
+
+		int k = s;
+		while (B[s] != 10 or *add != 10) {
+			if (B[s] != *add) goto next;
+			add++; 
+			s++; 
+		}
+
+		s = k;
+		
+		fprintf(stderr, "\n\n\033[1m found:\033[m  \033[1;94m");
+		while (B[s] != ' ' and s < Bl) {
+			fprintf(stderr, "%c", B[s]);
+			s++;	
+		}
+
+		fprintf(stderr, "%c\033[m", B[s]);
+		s++;
+
+		for (int k = s; B[k] != 10 and k < Bl; k++) {
+			if (B[k] == 32) {
+				int p = k++;
+				fprintf(stderr, p == bb ? "\033[1;31m " : "\033[1;96m "); 
+				while (B[k] != 32) {
+					fprintf(stderr, "%c", B[k]);
+					k++;
+				}
+				fprintf(stderr, p == bb ? " \033[m" : " \033[m"); 
+			} else {
+				if (k == bb) fprintf(stderr, "\033[1;31m");
+				fprintf(stderr, "%c", B[k]);
+				if (k == bb) fprintf(stderr, "\033[m");
+			}
+		}
+		puts("\n");
+
+		next: continue;
+		
+	}
+
 
 	goto done;
 BLx: 	reason = "context limit exceeded"; goto display;
@@ -204,22 +264,6 @@ done:	printf("DEBUG final context: \n<<<%.*s>>>\n", Bl, B);
 	pretty_print_output(C, c, B, A);
 	munmap(A, (size_t) Al); free(B); free(C);
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 
