@@ -1,7 +1,1 @@
-
-   
-join define top:[x86] add;
-
-join 
-	[x86] add
-	[x86] add
+add 57, add 57, 57

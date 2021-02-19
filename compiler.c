@@ -6,7 +6,7 @@
 #include <unistd.h>
 #include <sys/stat.h>
 #include <sys/mman.h>
-
+	
 static void print_index(const char* context, int index, int count);
 static void pretty_print_output(int* output, int top, const char* context, const char* input);
 static void print_output(int* output, int top, const char* context, int count);
@@ -117,7 +117,7 @@ _6: 	if (not c) goto error;
 	c -= 3; 
 	b = C[c];
 	if (b != BL) goto _0;
-	Bl--; 
+	Bl--;
 	do Bl--; while (B[Bl] != 10); 
 	Bl++; 
 	goto _0;
@@ -137,7 +137,7 @@ _8:	a = C[c + 2];
 		}
 		do a++; while (a < Al and (uc)A[a] < 33);
 	} 
-	if (a >= Al) goto _0; 
+	if (a >= Al) goto _0;
 	B[Bl++] = 10;
 	if (Bl > Blb) Blb = Bl;
 	do a++; while (a < Al and (uc)A[a] < 33);
@@ -180,7 +180,7 @@ _2:	C[c] = b;
 	while (B[b] != 32) b++; 
 	b++; 
 	goto _1;
-_3:	if (a != Al) goto _0; 
+_3:	if (a != Al) goto _0;
 	c += 3;
 
 	puts("success: compile successful.");
