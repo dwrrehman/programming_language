@@ -46,7 +46,7 @@ int main() { // const int argc, const char** argv
 	const int output_limit = 128; 
 	int begin = 0, top = 0, index = -1, done = -300;
 
-	const char* input = "j.:;jhello.::;hellonop;nopnop";
+	const char* input = "j.and:finished;jhello.also:also:done;andhellonop;alsonopalsonopdonefinished";
 	int length = (int) strlen(input);
 
 	int* output = malloc(output_limit * sizeof(int));
@@ -56,14 +56,14 @@ int main() { // const int argc, const char** argv
 	begin++;
 	
 	output[top + 0] = output_limit;   // B : index 
-	output[top + 1] = 500;  // B : parent         can be zero, initially.
+	output[top + 1] = 0;    // B : parent         can be 0, initially.
 	output[top + 2] = 0;    // A : begin
-	output[top + 3] = 200;    // A : done 
+	output[top + 3] = 0;    // A : done         can be zero initially.
 	top += 4;
 	output[top + 0] = 0;     // B : index 
-	output[top + 1] = 0;    // B : parent         should be output limit, actually.
+	output[top + 1] = 0;     // B : parent         should be 0, actually.
 	output[top + 2] = begin; // A : begin
-	output[top + 3] = 600;   // A : done            can be zero, initially.
+	output[top + 3] = 0;     // A : done            can be 0, initially.
 
 _0:
 	printf("current: length=%d begin=%d top=%d index=%d done=%d\n",
@@ -166,7 +166,16 @@ _3:	printf("checking begin == length...\n");;
 	if (begin != length) goto _0;
 	top += 4;
 
+
+
 	puts("success: compile successful."); 
+
+	printf("success: length=%d begin=%d top=%d index=%d done=%d\n",
+			length, begin, top, index, done);
+	print_output(output, top);
+
+
+
 
 	for (int i = 4; i < top; i += 4) {
 
@@ -176,7 +185,7 @@ _3:	printf("checking begin == length...\n");;
 		if (output[i] == output_limit) {
 				for (int _ = 0; _ < (output[i + 1])/4; _++) printf(".   ");
 				printf("found %d : [--> %d] UDS!!    ", i, output[i + 1]);
-				printf("UDS: ");
+				printf("defining: ");
 				for (int ii = output[i + 2]; input[ii] != ';'; ii++) {
 					putchar(input[ii]);
 				} 
@@ -187,7 +196,7 @@ _3:	printf("checking begin == length...\n");;
 				if (input[t] == ';') {
 					for (int _ = 0; _ < (output[i + 1])/4; _++) printf(".   ");
 					printf("found(i=%d) : [--> parent=%d]   index=%d  ", i, output[i + 1], output[i]); 
-					printf("signature: ");
+					printf("calling: ");
 					for (int ii = output[output[i] + 2]; input[ii] != ';'; ii++) {
 						putchar(input[ii]);
 					} 
