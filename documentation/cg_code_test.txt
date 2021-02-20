@@ -1,0 +1,15 @@
+join	init: nop.
+join 	init: convert _unit_ .
+join 	unit: join-unit _unit_ _unit_ .
+join	unit: [unit nop].
+join 	unit: x86 add i32 _i32_, i32 _i32_.
+
+		join  i32: 5. join i32: 6. join i32: 7. join i32: 8.
+
+join 
+convert
+	join-unit x86 add i32 5, i32 6
+	join-unit [unit nop]
+	[unit nop]
+nop
+

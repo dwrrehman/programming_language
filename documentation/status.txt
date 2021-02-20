@@ -1,0 +1,4463 @@
+the current status of my compiler:
+==================================
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+join push
+join d
+join e
+join f
+    join push
+    join D
+    join decl root
+    join pop
+    join param
+join decl init
+join pop
+
+join push
+join m
+join a
+join c
+join r
+join o
+join decl init
+join pop
+
+
+
+
+join push
+join h
+join e
+join l
+join l
+join o
+join decl init
+join pop
+
+join push
+    join f
+    join push
+        join x
+    join decl init
+    join pop
+    join param
+join decl init
+join macro
+join def
+    join x x
+join pop
+
+join push
+join P
+join 0
+join decl init
+join macro
+join def
+    join char hello
+join pop
+P0
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+okay, so alot of developments are happening int helanguage
+
+
+
+
+    i choose to merge the lexing and parsing functions, and im quite happy i did.
+        its untested rightnow
+        
+            though
+            
+            
+            
+            
+            
+    im also thinking about mergingthe csr and codegen fucntions,becuase i need to do type compuputaiton, to have ctt, and a tc type system.
+    
+    
+        i am chainng how to the intrinsic list works drasmtically, simplifying it, and making it more robust, and user friendly, and useable.
+        
+        
+            i also am re thinking how macros  are mentally thought of , now, more along the lines of evlauataion strgatgi4es.
+            
+            im adding an eval (for insintrinscs, in csr, ocmpieltime, no llmv, yet) to the language
+            
+            
+            
+            
+            
+            
+            but maybe i need to merge csr and cg, because i need eval to actually run some particular functions..?
+            
+            maybe thats the case.
+            
+            
+            im not sure .
+            
+            
+            could be.
+            
+            
+            
+            
+            anywyss
+            
+            
+            
+            the language is going well, im super happy i have csr done noww
+            
+            
+            
+            
+            
+            i can work on really intersting stuff now
+            
+            
+            
+                thats hoenstly quite complicaed lol
+                
+                
+                
+                
+                
+                
+
+
+
+
+
+
+2010235.23:
+so i just implemented macros successfully, just simple, opaque versiom.
+i need to make it transparent wrt to the context manipulation now.
+    hopefully that goes smoothly!
+
+
+
+
+
+
+
+
+
+NOTE: this code DEFINES the idenity function for the init type,
+    including its body, which is just the argument x. super cool.
+
+join push
+join d
+join e
+join f
+    join push
+    join D
+    join decl root
+    join pop
+    join param
+join decl init
+join pop
+
+join push
+join i
+join d
+join push
+join x
+join decl init
+join pop
+join param
+
+join decl init
+join def x
+join pop
+id id id char
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+join push
+join d
+join e
+join f
+    join push
+    join D
+    join pop
+    join decl root
+    join param
+join pop
+join decl init
+
+join push
+join r
+join pop
+join decl init
+join def r
+char
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+join push
+    join u
+    join n
+    join i
+    join t
+join pop
+join decl init
+
+join push
+    join 9
+    
+    join push
+        join 0
+    join pop
+    join decl unit
+    join param
+    
+    join push
+        join 1
+    join pop
+    join decl unit
+    join param
+    
+    join push
+        join 2
+    join pop
+    join decl unit
+    join param
+    
+    join push
+        join 3
+    join pop
+    join decl unit
+    join param
+    
+    join push
+        join 4
+    join pop
+    join decl unit
+    join param
+    
+    join push
+        join 5
+    join pop
+    join decl unit
+    join param
+    
+    join push
+        join 6
+    join pop
+    join decl unit
+    join param
+    
+    join push
+        join 7
+    join pop
+    join decl unit
+    join param
+    
+    join push
+        join 8
+    join pop
+    join decl unit
+    join param
+
+join pop
+join decl unit
+
+join push
+    join i
+    join u
+    
+    join push
+        join _
+        join x
+    join pop
+    join decl unit
+    join param
+    
+join pop
+join decl init
+
+join push
+    join u
+    join i
+    
+    join push
+        join _
+        join x
+    join pop
+    join decl init
+    join param
+    
+join pop
+join decl unit
+
+iu 9
+    ui char
+    ui char
+    ui char
+    ui char
+    ui char
+    ui char
+    ui char
+    ui char
+    ui char
+
+        
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+okay, so heres our critical todo:
+---------------------------------
+
+
+    - the lazy type...?
+    
+    - _define intrinsic
+    
+    - macros
+        
+then next:
+
+    - llvm system integration! codegeneration.
+    
+    - context-serializer, and de-serializer
+    
+    
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+so now that we have declare done and dusted..
+
+    im thinking should probably work on "define", before we tackle macros?
+    
+    because, i mean.. macros need definitions, lol.
+    
+    
+    
+    
+
+
+
+
+
+
+
+
+
+
+
+okie dokie csr is officially done
+
+
+i couldnt be more happier right now aabout my programming languagaes direction and how it is right now
+
+
+csr works amazingly,
+
+
+i am using      non-recursive depth first search version of csr,
+
+    its written very imperatively (also has many goto's),
+    
+    uses the minimal/optimal amoutn of memory,
+    and im pretty sure its basically optimally fast/efficient in time.
+    
+    
+    
+    so im pretty happy with it. i have yet to find a bug in it. i think its the real deal.
+    
+    
+    
+    
+            it even creates the tree for you.
+            
+            
+            super important, actually, that it does lol.
+            
+            
+            
+
+
+
+
+
+    so now
+    
+    
+    
+    i think all i have left to implement is literally just:
+    
+    
+    
+    
+    
+    
+        
+                1. type-checking.
+                
+                2. character literals for signatures
+                
+                3. parameter spot (with type) for signatures
+                
+                4. defines
+                
+                5. macros.
+                
+                6. code generation
+                
+                
+                
+                
+                
+                
+                
+                
+                
+                
+                
+                                    what about type-inference??!
+                                    
+                                    
+                                    
+                                    
+                                    hmmmm..... maaybe we save that until later...???
+                                    
+                                    
+                                    
+                                            yikes..
+                                            
+                                            
+                                            
+                                            
+                                            
+                                            
+                                            
+                                also csr isnt exactly easy to tweak right now...
+                                
+                                
+                                    its pretty hard to read...
+                                    
+                                    
+                                    
+                                    
+                                    but not THATtttt hard... just slightly.  ill get it.
+                                    
+                                    
+                                    
+                                    
+                
+                
+                
+                
+    and then we can actually run our language!!
+    
+    
+    how exciting!!
+    
+    
+    im so excited, like literally lol
+    
+    
+    
+    
+    i cant
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+so recently, i succeeded in figuring out
+
+    a memory efficient verison of csr, which literally does NO parent duplication.
+    im pretty sure its the correct algoirthm for csr, and im literally so happy that i found it.
+    
+    
+    now i just have to write an additional algorithm, which creates the parse tree using the output of csr.
+    
+    
+        the solution ended up being that i have to store the .begin  and .done of theparent, inside the children. that seemed to solve everything.
+        
+        
+        
+
+
+
+
+
+
+
+
+    so heres what we need to do :
+    
+    
+        - write parse tree constructor
+        
+        - rotate csr to be argument based
+        
+        - add in defines, and make the context mutable
+            
+        - figure out how to do signatures.
+        
+        - make context serializer, and format.
+        
+        - 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+			Easier than Python
+
+
+				Simpler than Scheme
+
+
+					Faster than C
+
+
+
+
+
+
+
+
+
+		n3zqx2l
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+        
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+	EASIER THAN PYTHON
+    SIMPLER THAN SCHEME
+	FASTER THAN C
+	
+
+
+
+
+or
+
+        
+        MORE READABLE THAN PYTHON
+        MORE MINIMALIST THAN SCHEME
+        MORE EFFICIENT THAN C
+        
+
+
+
+or
+
+
+
+
+
+
+
+
+
+
+
+update: 2005251.004142
+
+so ive figured out how csr is supposed to work, as in the intuitive picture of whats happenign.
+however, i am still turning that into code. its pretty fun.
+
+
+
+
+
+
+
+
+
+the next task to work on after we get csr working and perfect (finally!)
+
+
+
+	is macros.
+
+
+	and then maybe figuring out multuple files again. that was pretty easy though.
+
+	
+
+
+		oh, and then figuring out the whole intrinsic list.
+
+
+
+
+
+
+
+
+
+
+
+
+
+stages of working on codegeneration step:
+
+
+	0. generate for a function declaration, and dont do it for macros.
+	1. generate for a function definition.
+	2. generate for a function call.
+
+	3. generate for the intrinsics: br, ret,  [etc]... 
+
+	4. generate for a variable
+	5. generate for a struct
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+	however, ive been thinking about how i am going to do the next stage that is after parsing:
+
+	which is codegeneration.
+
+
+
+	
+
+
+there are currently three codegen modes in the language:
+
+
+
+	g_0 : the lazy type. delay codegening until something tells this expression to codegen.
+
+
+	g_1 : generate llvm ir in place right now, for this expression.
+
+
+	g_2 : generate the llvm ir (or get it, if its already been done) 
+			and evaluate the resultant expression.
+
+
+
+
+
+
+
+so it looks like we need:
+
+
+
+
+	interpret (x: g0) : generates llvm ir for it, then evaluates (interprets) 
+			    that at compile time, 
+			    and generates code, for result of the compuation.
+
+	compile (x: g0) : takes a lazy expression and generates the llvm ir for it, in that place.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+j d k pdaAn pdaBn n
+j d aU aO n s
+
+
+we are getting closer, to the actual final structure of the csr algorithm.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+we are still trying to figure out why csr is giving the wrong answer, sometimes.. its really weird..
+
+
+i know we will figure it out, though.
+
+
+
+its only a matter of time.
+
+        
+        
+        
+        
+        
+
+        j d k pdaAn pdaBn n
+        j d aU aO n s
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+the last thing we did was to rewrite the code so that we did less allocations, and relied on the stack more, which is good.
+
+or at least, the stack like allocation, more.
+
+most of stuff is on the heap, as per usual, but we only have to malloc:
+
+    - frames
+    - names
+    
+    - arguments
+    
+    
+    
+furthermore,
+
+
+    we were working on the fix to csr, which is basically revolving around the idea of
+    
+    
+    
+        if (context.at != given_count)  goto fail;
+        
+        
+        
+        
+        because then , we will simply pass in a DIFFERENT, special, to each call to csr, depending on who wants it.
+        
+        
+        note, that the algoirthm actually requires that all signatures which are front heavy, be put last,
+        
+        and so basically, that is a whole thing.
+        
+        
+        
+        rather, i am of the opinion that the csr algoirthm should actually manage those ordering details for the user-
+        
+        
+            because that gets really complicated with stuff and yeah...
+            
+            
+            
+            what if csr had a seperate set of signatures just for "nonterminals" ie, postfix ones?
+            
+            
+            
+            that could work...
+            
+            
+            
+            
+            although does the csr really NEED to be breadth first, like,
+            
+            
+                if we just set a depth cap on it, then would it work again?
+                
+                ehh, maybe, actually..
+                
+                
+                        but it would take alot longer in order to finish.
+                        
+                        
+                        
+                        thats why its important to try all signatures which DONT have a postfix, first,
+                        
+                        even the ones in lower stacks-
+                        
+                        
+                        
+                        
+                        this is actually the hard part.
+                        
+                        
+                        
+                        i think we do actually have to make a seperate stack thingy for all of those.. i think..
+                        
+                        
+                        and then, when we make a signature, we simply check- is it postfix? if so, its index goes in this one. if not,then its index goes in this one.
+                        
+                        
+                        this obviates the need for making this whole "insertion back algoirthm" which probably wasnt even going to work.
+                        
+                        
+                        because we need ALL the signatures which are postfix, to be at the bottom.
+                        
+                        
+                        not just some of them.
+                        
+                        
+                        so thats why things are difficult, l,ike this.
+                        
+                        
+                        buts itsokay, we seemed to figure it out.
+                        
+                        
+                        however,
+                        
+                            however,
+                            
+                            
+                            the thing is
+                            
+                                we stillllll need to do the postfix algoirthm, because essenially,
+                                
+                                
+                                
+                                    we need to put the longest signatures last,
+                                    
+                                    
+                                    so basically, the signatures (both post and prefix)
+                                    
+                                    need to be sorted from bigges tto smallest.
+                                    
+                                    
+                                    now, technically, we could acually simply call qsort for that,
+                                    but i think for performance reaasons,
+                                    
+                                    
+                                            we are going to write the insertion back algoirthm, i think.
+                                            
+                                            
+                                            
+                                            note, that it has to do with the length of the signature, only.
+                                            
+                                            
+                                            oh, and then we also have to eventually add in speical cases for if it contains a parameter of type symbol, or whatnot...
+                                            
+                                            
+                                            those are kind speical
+                                            
+                                            
+                                            maybe even tooo special,
+                                            
+                                                to where we arent going to manage them, properly...
+                                                
+                                                
+                                                    in a sense, we are only going to manage the intrinsic defined versions of them...
+                                                    
+                                                    
+                                                    hmm,,,,, kind dirty... but  okayyyyyyyy
+                                                    
+                                                    
+                                                    
+                                                    
+                                                    
+                                                    i think this could work..  things are starting to get more feasible. finallyyyyyy....
+                                                    
+                                                    
+                                                    
+                                                    
+                                                    
+                            thats basically it, i think.
+                            
+                            
+                            
+        so thats were we are.
+        
+        
+        finishing csr again.
+        
+        
+        
+        we are almost done, though!
+        
+        
+        
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+okie dokie we decided to rewrite the entire compiler in C! yay!
+
+
+    fun stuff.
+    lets get to it.
+    tomorrow.
+    
+    
+    
+    
+    its done! basically.
+
+
+
+
+
+. = req
+x = done
+
+
+
+things i dont like about my compiler right now:
+
+
+x    the fact we are using an AST  with our struct e, when its really so flat.
+
+
+x    the fact that our user-defineable intrinsic system is kinda clunky. we need to say
+x            std::find(...) instead of a simply number equality check. big penalty.
+
+
+.    the fact that CSR needs a speical case for return-type param-polymorphism. why?
+
+
+    
+.    the fact we need to keep track of line and column information, for error messages.
+
+
+.    the fact we even need to give error messages. very annoying.
+
+
+
+x    the fact we EVEN HAVE a lexing function.   it shouldnt exist.
+
+x        (we should just strip all whitespace from the file,
+        then use it as a string of chars, as our tokens. of course,
+            ....this looses all line and col information.)
+
+
+
+
+x    the fact that "struct r" has a .error field. that is just clunky and ugly. we shouldnt have that- we need figure out another invariant about the struct that conveys that an error happened.
+
+
+
+.    the fact our "struct E" has a vector of r, and then two r's after that. it should all just be wrapped up into one vector of r's, and then we dont need the struct.
+
+
+    
+x    the fact we are using the standard library alot...    we will be rewriting this in C pretty soon, and thus we shouldnt rely on that stuff.
+
+
+
+
+x    the fact that we are std::string at all. and doing sr() string concatingging with that.
+x        we shouldnt rely on that!
+
+
+
+    
+
+
+
+x    the fact that we are using a struct for    the state that the lexer is in.
+
+
+x    we should just use three ints, i think. thats more efficient.
+
+    
+    
+x    the fact that  the next() function       and the parse() function are even seperate.
+    
+x        they should be the same function!     smush them together!!1
+
+
+x        rewrite them into the same thing!
+
+
+x        they are both now simple enough to do that!
+
+
+
+
+
+    
+
+x    the fact that the CSR algorithm is kinda busy...
+x            we should make it cleaner and simpler.
+
+
+    
+
+
+.    the fact that CSR LITERALLY HAS GOTO STATEMENTS.
+.            there has to be a way to get rid of those.
+
+
+
+
+
+    
+x    the fact that Resolve()      and   resolve_at()     are two different functions.
+
+x        thats just so stupid.
+
+
+
+
+    
+    
+
+
+    
+    
+x    THE FACT THAT WE ARENT WRITING IT IN C
+
+x        and using the llvm c api!
+
+
+x        we NEED TO DO THAT
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+            okay thats it
+
+    
+
+
+
+
+            theres enough of these
+
+
+
+            that im actually going to rewrite this program in C
+
+
+
+                entirely
+
+
+
+
+
+
+
+                    from the ground up.
+
+
+
+
+                LITERALLY starting from an empty Xcode project.
+
+
+
+
+
+
+
+
+
+        ...so basically, we are starting from scratch.
+
+
+
+
+
+
+
+
+
+
+
+
+
+                    (but with all of the code and algoirthm of this previous attempt)
+
+
+
+
+                
+
+
+    
+                ill be trying to correct all my mistakes, and
+
+
+
+
+
+                        make it as great as it possibly can be!!!
+
+
+
+
+
+    
+                            so efficient
+
+
+
+
+                            so concise
+
+
+                            so parismonious
+
+
+                            so minimal
+
+
+
+
+
+
+
+
+        
+BECAUSE guess what?
+
+
+
+
+
+                this is just our boostrapper.
+
+
+
+
+
+
+
+                    we dont care about the end user in this iteration-
+
+
+
+
+
+
+
+
+                    we arent making a production ready compiler with this one,
+    
+    
+    
+
+    
+                    we are just making something that we can use in order to write the compiler in itself!!!
+
+
+
+
+
+
+
+            thats the cool part!
+
+
+
+
+
+            we are literally using this C ncompiler to write our real compiler, eventually, where we will include all of the fancy features.
+
+
+    ...interesting.
+
+
+
+    
+
+            hopefully its efficient there too!
+
+
+
+
+                i hope so.
+
+
+
+
+
+    
+
+    
+    
+
+                i guess we will see!
+
+
+
+
+
+            
+
+
+
+    
+
+
+        
+
+
+
+
+
+
+    
+
+
+    the fact our parse() function literally DOESNT WORK:
+
+
+    e l{};
+    t S = s;
+    t t = n(s, f);
+    while (t.v && t.v != ')') {
+        if (t.v == '(') {
+            e e = p(s, f);
+            if (n(s, f).v != ')')
+                printf("n3zqx2l: %s:%ld:%ld: error: expected )\n\n",
+                       f.n, t.l, t.c);
+            e.t.l = t.l, e.t.c = t.c, e.t.v = 0;
+            l.s.push_back(e);
+        } else l.s.push_back({{}, t});
+        if (t.v) t = n(S = s, f);
+    }
+    s = S;
+    return l;
+
+
+    
+
+        --> this calls n() even after it returns {'\0',...}. that shouldnt happen EVER.
+
+
+
+
+
+
+    
+    
+
+
+        
+
+
+
+        
+
+
+    
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+current problems we are trying to solve:
+
+
+
+
+========= SIGNATURES: =============
+
+    - we are trying to figure out the intrinsic list:
+    
+        appchar? join? joinchar? decl?
+        
+    
+    
+    - we are trying to figure out how to specify a signature properly,
+    
+        ie, have joinchar and appchar and declparam   work in csr, to be a signature: vec<r>.
+    
+    
+    
+    
+=========== RTPP: =================
+    
+    - figure out why:
+    
+            our fix to solving return-type-param-polymoprhism is segfaulting, basically always...
+    
+    - test out return type parampolymophrism (ret-ty-pp).
+    
+            when we do finally fix it.
+    
+    
+    
+
+================================================
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+current TODO:
+===============
+
+
+
+
+    - throw "unexpected )" error, when appropriote.
+                
+    - figure out how to do compiletime evalutation for "ct-dynamic" symbol tables.
+        
+    - figure out how to declare a signature again, with the new way of doing things.
+        
+    - figure out how we are supposed to do param subsitution. (probably lambdacalc-esque.)
+       
+    - make the not_equals() (different())  function cope with subsitutes!!!
+    
+    - simplify and reduce the file .s/.ll/o generation code.
+    - ...make it more C-like! preparing for the C++ --> C switch.
+    
+    
+    - try to use llvm::smallvector more? to reduce a dependancy on the standard libary? i dont know... maybe not...
+        - nah....
+        
+
+
+
+
+
+
+
+
+
+
+
+
+
+DONE:
+=============
+
+x:    - figure out how to sort the symbol table now, so its just like it was previously  (csr relies on it.)
+x:    - SECONDARY: figure out how to give the right comparison function, so we only need to call std::stable_sort() once.
+
+
+
+   - push to master at some point, soon.
+   
+   
+- invert the equals() function, so we dont have to invert it ourselves. should be simple.
+    lets do it now!
+    
+
+
+
+
+
+
+
+
+
+
+
+
+we need to throw an error when we encounter a unexpected ")". very important, actually.
+at any cost, we need to do it.
+it is a silent but deadly nonerror right now.
+because it can lead to code not beinginterretered at all.
+
+
+
+
+
+
+
+
+
+
+
+
+the language is coming along really well!
+
+
+    no whitespace!
+    
+    
+    no predefined function syntax, except for two intrinsics. names have been csr-ized.
+    
+    parsing stage is 9 lines long
+    
+    lexing is 7 lines long
+    
+    
+    
+    csr will probably get shorter as a result of these changes.
+    
+    everything is getting faster, and more concise!
+    
+    
+    
+    stay tuned!
+    
+    
+    
+    our current problem is right now, to figure out how to specify a signature (for use in iteration over, in csr, of course)
+    just using our current charcter/parameter intrinsics set up.
+    
+    i think we found the bottom of the performance bug. it was because we were resolving and thus succeeding on the falling edge of a resolution tree.
+    ...that should never happen. succeding on the falling edge is always a recipe for disaster. always be cautious of descending further, and stop as early as you can, before descending further.
+    
+    
+    anyways, it had ot do with the fact that we did typechecking wrongly, on the falling edge side,  (we did it because of polymoprhicness-    (return types which are determined by the value of a parameter))
+    
+        so basically, we need to make sure that we do return type checking inside the parameter resolution, everytime.
+        
+            after every subsitution, we check.
+            
+            then we also check at the end, i guesss?
+            
+            
+            but then we defintieyl also have to check at the beginning.
+            
+            
+            okay, so basically, it seems that we actually need to a search over the serch
+            
+            
+            because-   we know thta a paremter will not be defined in the current stack frame, as per the definitioon of a paraemter,
+            
+                and thus we can actually leverage that, to know if a return type is actualy dependent on the argument of a paraeter:
+                
+                
+                        just do a std::find() on the index of the return type index, in the current stack frame.
+                        
+                        if it comes up true, then we know this is REAL type (after all its defined in our scope), and we can
+                        
+                            safely do eager type checking, thus saving our algoirthm tremendously-
+                            
+                            
+                        however, if std::find returns false, that actually means that its a parameter return type!
+                        
+                            then we need to be cautious, and actually look out for a parameter subsitution
+                                    on every single call to resolve_at inside that "if cur symb is paraemter" thingy.
+                                    
+                                    
+                                    
+                                    
+                                    
+                                    
+                                    
+        so, ie the code might look something like this.
+        
+        
+        
+        
+                    for s in sf {
+                    
+                        if doesnt_type_check(s.type, expected, subsitutions)    and    std::find(s.type in stack.back()),      goto fail;
+                    
+                        for sy in s {
+                        
+                            if (sy is param)
+                            
+                                sol = resolve_at()
+                                args.push(sol)
+                                subsitite(param: sy, value: sol);
+                                
+                                if doesnt_type_check(s.type, expected, subsitutions)    and    std::find(s.type in stack.back()),          goto fail;
+    
+                            } else { ... }
+                        }
+                    }
+                    
+                    
+                    
+                    
+                    
+                    
+                    note:
+                    
+                    
+                    
+                                i actually realized that the std::find(...)   should actually be done in the     "equals()" function.  ie, the doesnt_typecheck(...)   function.   thats where we do this.     in fact, we say that they equal, if it turns out that the given s.type wasnt even in the sf.   that says that its a parameter return type, and we should wait to do any type checking, (ie, assume innocent, till proven guilty) .
+                                
+                                    
+                                        
+                                                    thats the logic.
+                                                    
+                                                    
+                                                    
+                                                    
+                                                                nice.
+                                                                
+                                                                
+                                                                
+                                                                
+                                                                        we solved it.
+                                                                        
+                                                                        
+                                                                        
+    
+    
+    
+    
+    
+                                            
+    
+
+
+
+
+
+
+
+
+
+fact:
+
+
+
+
+
+
+
+names of the intrinsics, probably:
+
+// 1kqfsnyh5t3hr8viagrr6      2tsrb944gazx3a8cqy2g9     3q1c0pzkzhu2l9t8j6h7a    4lco2hyh80iwtimpq7o58    5we9uq5txfjqjgkeb2chb
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+joy ()
+joy h
+
+
+
+
+
+
+
+
+
+
+
+
+join decl ((type) (i)) 11 0
+
+join decl ((lazy
+    ((lazy-t) (type) (i))
+) (type) (i)) 13 0
+
+join decl (
+(define
+    ((define-s) (name) (i))
+    ((define-t) (type) (i))
+    ((define-d) (lazy define-t) (type) (i))
+    ((define-extern) (nat) (i))
+) (i)) 18 0
+
+join decl (
+(load
+    ((load-filename) (name) (i))
+    ((load-type))
+) (load-type)) 21 0
+
+(load (file) i)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+join decl ((type) (i)) 6 0
+
+join decl ((lazy
+    ((lazy-t) (type) (i))
+) (type) (i)) 8 0
+
+join decl (
+(define
+    ((define-s) (name) (i))
+    ((define-t) (type) (i))
+    ((define-d) (lazy define-t) (type) (i))
+    ((define-extern) (nat) (i))
+) (i)) 13 0
+
+join decl (
+(load
+    ((load-filename) (name) (i))
+    ((load-type) (type) (i))
+) (load-type) (type) (i)) 16 0
+
+
+join decl ((unit) (type) (i)) 55 0
+join decl ((i1) (type) (i)) 17 0
+join decl ((i8) (type) (i)) 18 0
+join decl ((i16) (type) (i)) 19 0
+join decl ((i32) (type) (i)) 20 0
+join decl ((i64) (type) (i)) 21 0
+join decl ((i128) (type) (i)) 22 0
+join decl ((x86mmx) (type) (i)) 23 0
+join decl ((f16) (type) (i)) 24 0
+join decl ((f32) (type) (i)) 25 0
+join decl ((f64) (type) (i)) 26 0
+join decl ((f128) (type) (i)) 27 0
+join decl ((label) (type) (i)) 52 0
+join decl ((metadata) (type) (i)) 53 0
+join decl ((token) (type) (i)) 54 0
+join decl ((string) (pointer 0 i8) (type) (i)) 56 0
+
+join decl ((pointer
+        ((pointer-addrspace) (nat) (i))
+        ((pointer-type) (type) (i))
+    ) (type) (i)) 30 0
+    
+join decl ((vector
+          ((vector-width) (nat) (i))
+          ((vector-type) (type) (i))
+      ) (type) (i)) 33 0
+    
+join decl ((scalable
+        ((scalable-width) (nat) (i))
+        ((scalable-type) (type) (i))
+    ) (type) (i)) 36 0
+    
+join decl ((array
+          ((array-size) (nat) (i))
+          ((array-type) (type) (i))
+      ) (type) (i)) 39 0
+
+join decl ((opaque
+      ((opaque-s) (name) (i))
+  ) (type) (i)) 41 0
+
+
+join decl ((struct
+    ((struct-s) (name) (i))
+    ((struct-d) (name) (i))
+    ((struct-extern) (nat) (i))
+) (type) (i)) 45 0
+
+join decl ((packed
+    ((packed-s) (name) (i))
+    ((packed-d) (name) (i))
+    ((packed-extern) (nat) (i))
+) (type) (i)) 49 0
+
+join decl ((function
+    ((function-type) (name) (i))
+) (type) (i)) 51 0
+
+join decl ((unreachable) (unit) (type) (i)) 57 0
+join decl ((ret void) (unit) (type) (i)) 58 0
+
+join decl ((ret
+    ((ret-t) (type) (i))
+    ((ret-v) (ret-t) (type) (i))
+) (unit) (type) (i)) 61 0
+
+join decl ((create label
+    ((label-name) (name) (i))
+) (unit) (type) (i)) 63 0
+
+join decl ((jump
+    ((jump-label) (name) (i))
+) (unit) (type) (i)) 65 0
+
+join decl ((br
+    ((br-cond) (i1) (type) (i))
+    ((br-1) (name) (i))
+    ((br-2) (name) (i))
+) (unit) (type) (i)) 69 0
+
+type
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+join decl ((type) (i)) 11 0
+
+join decl ((lazy
+    ((lazy-t) (type) (i))
+) (type) (i)) 13 0
+
+join decl (
+(define
+    ((define-s) (name) (i))
+    ((define-t) (type) (i))
+    ((define-d) (lazy define-t) (type) (i))
+    ((define-extern) (nat) (i))
+) (i)) 18 0
+
+join decl (
+(load
+    ((load-filename) (name) (i))
+    ((load-type) (type) (i))
+) (load-type) (type) (i)) 21 0
+
+join decl ((unit) (type) (i)) 22 0
+
+join decl ((decl
+    ((s0) (name) (i))
+    ((n1) (nat) (i))
+    ((n2) (nat) (i))
+) (unit) (type) (i)) 10 0
+
+join decl ((convert ((x) (unit) (type) (i)) to i) (i)) 0 0
+
+join decl ((
+    ((invis-x) (unit) (type) (i))
+    ((invis-y) (unit) (type) (i))
+) (unit) (type) (i)) 0 0
+
+join (convert (load (/Users/deniylreimn/Documents/projects/n3zqx2l/examples/llvm) unit) to i)
+
+type
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+(decl ((f) (i)) 0 0)
+
+
+
+ok.
+
+
+    so a couple of changes:
+        
+        we simplified our notion of expressions, they follow the lisp ds now.
+        
+        we are now ignoring all whitespace, in the source.
+        
+        we are ignoring the notion of alphanumeric sequences versus operators. now every single character is an operator, technically.
+        
+        expressions are printed with no spaces inside of them.
+        
+        
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+MAJOR LANG TODO:
+
+
+    figure out how to make the "signature syntax"
+     user define-able.
+     
+     because this is the only syntax in thelanguage, right now.
+     
+        very hard problem.
+        
+        
+        
+        
+        i dont know how to solve it... but i know theres a solution.
+        
+        i think.
+        
+        
+        
+        we need this to be user customizable.
+        
+        we need to look ontologically, at what is a signature, what is its structure, and
+        
+        
+        
+        and how to make it as readable as possible.
+        
+        i dont like the idea of giving
+        
+        
+        NO
+        
+        
+        NO
+        
+        NO
+        
+        
+        we sholdnt make the sig syn user defiable, because they will just muck up the amespace, by making "x: A" or something dumb like that.
+        
+        
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+join declare ((llvm) (type) (root))
+join declare ((lazy ((t) (type) (root))) (type) (root))
+join declare ((define ((s) (name) (type) (root)) ((T) (type) (root)) ((d) (lazy T) (type) (root)) ) (type) (root))
+join declare ((define type ((s) (name) (type) (root)) ((d) (type) (root))) (type) (root))
+join declare ((string) ("i8*") (type) (root))
+join declare ((external call ((Ty) (type) (root)) ((e) (Ty) (type) (root)) ) (Ty) (type) (root))
+join declare (ret void)
+join declare ( ( ret ((Type) (type) (root)) ((Value) (Type) (type) (root)) ) (type) (root) )
+join declare ((label ((label name) (name) (type) (root)) ) (type) (root))
+join declare ((jump ((unconditional label) (name) (type) (root))) (type) (root))
+join declare ( (br ((condition) ("i1") (type) (root)) ((first) (name) (type) (root)) ((second) (name) (type) (root)) ) (type) (root) )
+
+join define type (( ((first statement) (type) (root)) ((second statement) (type) (root)) ) (type) (root)) second statement
+
+join define type ( (// ((commented text) ("i8*") (type) (root)) ) (type) (root) ) second statement
+
+join //"wef"
+
+name
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+PERFORMAMNCE BUG:
+
+
+
+
+join declare ((llvm) (type) (root))
+join declare ((lazy ((t) (type) (root))) (type) (root))
+join declare ((define ((s) (name) (type) (root)) ((T) (type) (root)) ((d) (lazy T) (type) (root)) ) (type) (root))
+join declare ((define type ((s) (name) (type) (root)) ((d) (type) (root))) (type) (root))
+join declare ((string) ("i8*") (type) (root))
+join declare ((external call ((Ty) (type) (root)) ((e) (Ty) (type) (root)) ) (Ty) (type) (root))
+join declare (ret void)
+join declare ( ( ret ((Type) (type) (root)) ((Value) (Type) (type) (root)) ) (type) (root) )
+join declare ((label ((label name) (name) (type) (root)) ) (type) (root))
+join declare ((jump ((unconditional label) (name) (type) (root))) (type) (root))
+join declare ( (br ((condition) ("i1") (type) (root)) ((first) (name) (type) (root)) ((second) (name) (type) (root)) ) (type) (root) )
+
+join define type (( ((first statement) (type) (root)) ((second statement) (type) (root)) ) (type) (root)) second statement
+
+join define type (( // ((commented text) ("i8*") (type) (root)) ) (type) (root) ) name
+
+join //"wef" name
+
+
+
+
+
+
+
+
+
+
+
+
+join declare ((llvm) (type) (root))
+join declare ((lazy ((t) (type) (root))) (type) (root))
+join declare ((define ((s) (name) (type) (root)) ((T) (type) (root)) ((d) (lazy T) (type) (root)) ) (type) (root))
+join declare ((define type ((s) (name) (type) (root)) ((d) (type) (root))) (type) (root))
+
+join declare ((string) (i8p) (type) (root))
+join declare ((external call ((Ty) (type) (root)) ((e) (Ty) (type) (root)) ) (Ty) (type) (root))
+join declare (ret void)
+join declare ( ( ret ((Type) (type) (root)) ((Value) (Type) (type) (root)) ) (type) (root) )
+join declare ((label ((label name) (name) (type) (root)) ) (type) (root))
+join declare ((jump ((unconditional label) (name) (type) (root))) (type) (root))
+join declare ( (br ((condition) ("i1") (type) (root)) ((first) (name) (type) (root)) ((second) (name) (type) (root)) ) (type) (root) )
+
+
+join define type (( ((first statement) (type) (root)) ((second statement) (type) (root)) ) (type) (root)) second statement
+
+define type ((((comment) (name) (type) (root))) (type) (root)) name
+
+(this is the entry basic block)
+jump (my name)
+
+
+
+(
+
+this is a comment too.
+
+it can actually be multiline, easily.
+
+
+this language does have comments, its just that they arent built in.
+    
+i dont know of any other programming language where the language is literally also comments, because of how beautiful the language is.
+
+)
+
+
+
+
+
+
+
+
+
+
+
+
+---- debugging stack: ----
+printing frames:
+     ----- FRAME # 0----
+        idxs: { 12 15 20 32 3 24 5 8 21 25 26 27 28 4 2 1 6 7 9 10 11 13 14 16 17 18 19 22 23 29 30 31 }
+
+master: {
+         0: () ---> 3
+
+         1: (root)
+
+         2: (type) (root)
+
+         3: (join (() (type) (root)) (() (type) (root))) (type) (root)
+
+         4: (name) (type) (root)
+
+         5: (declare (() (name) (type) (root))) (type) (root)
+
+         6: (llvm) (type) (root)
+
+         7: (t) (type) (root) ---> 10
+
+         8: (lazy ((t) (type) (root))) (type) (root)
+
+         9: (s) (name) (type) (root)
+
+        10: (T) (type) (root)
+
+        11: (d) (lazy ((T) (type) (root))) (type) (root)
+
+        12: (define ((s) (name) (type) (root)) ((T) (type) (root)) ((d) (lazy ((T) (type) (root))) (type) (root))) (type) (root)
+
+        13: (s) (name) (type) (root)
+
+        14: (d) (type) (root)
+
+        15: (define type ((s) (name) (type) (root)) ((d) (type) (root))) (type) (root)
+
+        16: (i8p) (type) (root)
+
+        17: (string) (i8p) (type) (root)
+
+
+        18: (Ty) (type) (root)
+
+        19: (e) (Ty) (type) (root)
+
+        20: (external call ((Ty) (type) (root)) ((e) (Ty) (type) (root))) (Ty) (type) (root)
+
+
+
+        21: (ret void) (type) (root)
+
+
+
+
+
+        22: (Type) (type) (root)
+
+        23: (Value) (Type) (type) (root)
+
+        24: (ret ((Type) (type) (root)) ((Value) (Type) (type) (root))) (type) (root)
+
+
+
+
+        25: (label name) (name) (type) (root)
+
+        26: (label ((label name) (name) (type) (root)))
+
+
+
+        27: (unconditional label) label
+
+        28: (br ((unconditional label) label))
+
+
+
+
+        29: (condition) i1
+
+        30: (first) label
+
+        31: (second) label
+
+        32: (br ((condition) i1) ((first) label) ((second) label)) (type) (root)
+
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+declare i32 @putchar(i32 %char)
+
+define i32 @"(A) i32"() { ret i32 65 }
+define i32 @"(B) i32"() { ret i32 66 }
+define i32 @"(C) i32"() { ret i32 67 }
+define i32 @"(D) i32"() { ret i32 68 }
+define i32 @"(E) i32"() { ret i32 69 }
+define i32 @"(F) i32"() { ret i32 70 }
+define i32 @"(G) i32"() { ret i32 71 }
+define i32 @"(H) i32"() { ret i32 72 }
+define i32 @"(I) i32"() { ret i32 73 }
+define i32 @"(J) i32"() { ret i32 74 }
+define i32 @"(K) i32"() { ret i32 75 }
+define i32 @"(L) i32"() { ret i32 76 }
+define i32 @"(M) i32"() { ret i32 77 }
+define i32 @"(N) i32"() { ret i32 78 }
+define i32 @"(O) i32"() { ret i32 79 }
+define i32 @"(P) i32"() { ret i32 80 }
+define i32 @"(Q) i32"() { ret i32 81 }
+define i32 @"(R) i32"() { ret i32 82 }
+define i32 @"(S) i32"() { ret i32 83 }
+define i32 @"(T) i32"() { ret i32 84 }
+define i32 @"(U) i32"() { ret i32 85 }
+define i32 @"(V) i32"() { ret i32 86 }
+define i32 @"(W) i32"() { ret i32 87 }
+define i32 @"(X) i32"() { ret i32 88 }
+define i32 @"(Y) i32"() { ret i32 89 }
+define i32 @"(Z) i32"() { ret i32 90 }
+
+define i32 @"(_) i32"() { ret i32 32 }
+define i32 @"(\5C n) i32"() { ret i32 10 }
+
+define void @ffff() {
+entry:
+    br label %"entry wf wje wfjw fj "
+"entry wf wje wfjw fj ":
+br label %"entry wf wje wfjw fj "
+    ret void
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+join define type ((discard integer ((x) ("i32") (type) (root))) (type) (root)) name
+join declare ((putchar ((y) ("i32") (type) (root))) ("i32") (type) (root))
+join declare ((A) ("i32") (type) (root))
+join declare ((B) ("i32") (type) (root))
+join declare ((C) ("i32") (type) (root))
+join declare ((D) ("i32") (type) (root))
+join declare ((E) ("i32") (type) (root))
+join declare ((F) ("i32") (type) (root))
+join declare ((G) ("i32") (type) (root))
+join declare ((H) ("i32") (type) (root))
+join declare ((I) ("i32") (type) (root))
+join declare ((J) ("i32") (type) (root))
+join declare ((K) ("i32") (type) (root))
+join declare ((L) ("i32") (type) (root))
+join declare ((M) ("i32") (type) (root))
+join declare ((N) ("i32") (type) (root))
+join declare ((O) ("i32") (type) (root))
+join declare ((P) ("i32") (type) (root))
+join declare ((Q) ("i32") (type) (root))
+join declare ((R) ("i32") (type) (root))
+join declare ((S) ("i32") (type) (root))
+join declare ((T) ("i32") (type) (root))
+join declare ((U) ("i32") (type) (root))
+join declare ((V) ("i32") (type) (root))
+join declare ((W) ("i32") (type) (root))
+join declare ((X) ("i32") (type) (root))
+join declare ((Y) ("i32") (type) (root))
+join declare ((Z) ("i32") (type) (root))
+join declare ((_) ("i32") (type) (root))
+join declare ((\n) ("i32") (type) (root))
+
+join (discard integer external call "i32" putchar H)
+join (discard integer external call "i32" putchar E)
+join (discard integer external call "i32" putchar L)
+join (discard integer external call "i32" putchar L)
+join (discard integer external call "i32" putchar O)
+join (discard integer external call "i32" putchar _)
+join (discard integer external call "i32" putchar W)
+join (discard integer external call "i32" putchar O)
+join (discard integer external call "i32" putchar R)
+join (discard integer external call "i32" putchar L)
+join (discard integer external call "i32" putchar D)
+join (discard integer external call "i32" putchar \n)
+
+name
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+join declare ((br ((L) (llvm) (type) (root)))))
+join declare ((label ))
+join declare ((br)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+test.n:
+
+
+join declare ((llvm) (type) (root))
+join declare ((lazy ((t) (type) (root))) (type) (root))
+join declare ((define ((s) (name) (type) (root)) ((T) (type) (root)) ((d) (lazy T) (type) (root)) ) (type) (root))
+join declare ((define type ((s) (name) (type) (root)) ((d) (type) (root))) (type) (root))
+join declare ((i8p) (type) (root))
+join declare ((string) (i8p) (type) (root))
+join declare ((external call ((Ty) (type) (root)) ((e) (Ty) (type) (root)) ) (Ty) (type) (root))
+
+join declare ((br)
+join declare ((br ((L) (llvm) (type) (root)))))
+
+
+join define type ((discard integer ((x) ("i32") (type) (root))) (type) (root)) name
+join declare ((putchar ((y) ("i32") (type) (root))) ("i32") (type) (root))
+join declare ((A) ("i32") (type) (root))
+join declare ((B) ("i32") (type) (root))
+join declare ((C) ("i32") (type) (root))
+join declare ((D) ("i32") (type) (root))
+join declare ((E) ("i32") (type) (root))
+join declare ((F) ("i32") (type) (root))
+join declare ((G) ("i32") (type) (root))
+join declare ((H) ("i32") (type) (root))
+join declare ((I) ("i32") (type) (root))
+join declare ((J) ("i32") (type) (root))
+join declare ((K) ("i32") (type) (root))
+join declare ((L) ("i32") (type) (root))
+join declare ((M) ("i32") (type) (root))
+join declare ((N) ("i32") (type) (root))
+join declare ((O) ("i32") (type) (root))
+join declare ((P) ("i32") (type) (root))
+join declare ((Q) ("i32") (type) (root))
+join declare ((R) ("i32") (type) (root))
+join declare ((S) ("i32") (type) (root))
+join declare ((T) ("i32") (type) (root))
+join declare ((U) ("i32") (type) (root))
+join declare ((V) ("i32") (type) (root))
+join declare ((W) ("i32") (type) (root))
+join declare ((X) ("i32") (type) (root))
+join declare ((Y) ("i32") (type) (root))
+join declare ((Z) ("i32") (type) (root))
+join declare ((_) ("i32") (type) (root))
+join declare ((\n) ("i32") (type) (root))
+
+join (discard integer external call "i32" putchar H)
+join (discard integer external call "i32" putchar E)
+join (discard integer external call "i32" putchar L)
+join (discard integer external call "i32" putchar L)
+join (discard integer external call "i32" putchar O)
+join (discard integer external call "i32" putchar _)
+join (discard integer external call "i32" putchar W)
+join (discard integer external call "i32" putchar O)
+join (discard integer external call "i32" putchar R)
+join (discard integer external call "i32" putchar L)
+join (discard integer external call "i32" putchar D)
+join (discard integer external call "i32" putchar \n)
+
+name
+
+
+
+test.ll:
+
+
+declare i32 @putchar(i32 %char)
+
+define i32 @"(A) i32"() { ret i32 65 }
+define i32 @"(B) i32"() { ret i32 66 }
+define i32 @"(C) i32"() { ret i32 67 }
+define i32 @"(D) i32"() { ret i32 68 }
+define i32 @"(E) i32"() { ret i32 69 }
+define i32 @"(F) i32"() { ret i32 70 }
+define i32 @"(G) i32"() { ret i32 71 }
+define i32 @"(H) i32"() { ret i32 72 }
+define i32 @"(I) i32"() { ret i32 73 }
+define i32 @"(J) i32"() { ret i32 74 }
+define i32 @"(K) i32"() { ret i32 75 }
+define i32 @"(L) i32"() { ret i32 76 }
+define i32 @"(M) i32"() { ret i32 77 }
+define i32 @"(N) i32"() { ret i32 78 }
+define i32 @"(O) i32"() { ret i32 79 }
+define i32 @"(P) i32"() { ret i32 80 }
+define i32 @"(Q) i32"() { ret i32 81 }
+define i32 @"(R) i32"() { ret i32 82 }
+define i32 @"(S) i32"() { ret i32 83 }
+define i32 @"(T) i32"() { ret i32 84 }
+define i32 @"(U) i32"() { ret i32 85 }
+define i32 @"(V) i32"() { ret i32 86 }
+define i32 @"(W) i32"() { ret i32 87 }
+define i32 @"(X) i32"() { ret i32 88 }
+define i32 @"(Y) i32"() { ret i32 89 }
+define i32 @"(Z) i32"() { ret i32 90 }
+
+define i32 @"(_) i32"() { ret i32 32 }
+define i32 @"(\5C n) i32"() { ret i32 10 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+just got the first hello world program working in the language.
+
+
+wow.
+
+
+buttttttt
+
+
+
+
+
+
+
+
+
+
+
+
+
+things to add:
+
+        intrinsics:?
+        
+        
+                DONT DO THIS:    external define
+                
+                external declare          <------- yessss
+                
+                
+                declare struct
+                
+                define struct
+                
+                
+                
+                
+                
+                        we are using the word struct for type, becuase it doesnt mattter- everything will be 3458t3hn9t48hr2 eventuallyl/.
+                        
+                        
+                        
+                
+                
+                
+                declare function
+                
+                
+
+
+
+
+
+
+
+
+
+
+note:
+
+
+you cannot have leading whitespace in llvm strings.
+
+
+
+
+
+join declare ((i8p) (_))
+join declare ((string) (i8p) (_))
+join declare ( (external call  ((Ty) (_)) ((e) (Ty) (_))  ) (Ty) (_) )
+
+join (define ((discard integer ((x) ("i32") (_))) (_)) (universe) (name))
+
+join declare ((putchar ((y) ("i32") (_))) ("i32") (_))
+join declare ((A) ("i32") (_))
+
+(
+    discard integer (
+        external call
+            ("i32")
+            (putchar A)
+    )
+)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+SAVE:
+
+
+join declare ((lazy ((t) (_))) (_))
+join declare ((define ((s) (name) (_)) ((T) (_)) ((d) (lazy T) (_)) ) (_))
+join declare (unit)
+join declare ((g) (unit) (_))
+join declare ((   ((z) (unit) (_)) ) (_))
+join declare ((   ((x) (unit) (_))   ((y) (unit) (_))) (unit) (_))
+
+join define ((f ((x) (unit) (_))) (unit) (_)) unit x
+
+f g f g f g
+f g f g f g
+f g f g f g
+f g f g f g
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+        MORE READABLE THAN PYTHON
+        MORE EFFICIENT THAN C
+        MORE MINIMALIST THAN SCHEME
+        
+        
+        
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+join declare ((lazy ((t) (_))) (_))
+join declare ((define ((s) (name) (_)) ((T) (_)) ((d) (lazy T) (_)) ) (_))
+join declare (unit)
+join declare ((g) (unit) (_))
+join declare ((   ((z) (unit) (_)) ) (_))
+join declare ((   ((x) (unit) (_))   ((y) (unit) (_))) (unit) (_))
+join define ((f ((x) (unit) (_))) (unit) (_)) unit x
+f g
+
+
+
+DUDEEEEE
+
+
+
+WE CAN DEFINE SHIT NOW
+
+
+
+OMGGGGGGGGGGG
+
+
+
+YAYAYAYAYAYAYAYAY
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+join declare ((lazy ((t) (_))) (_))
+join declare ((define
+                    ((s) (name) (_))
+                    ((T) (_))
+                    ((d) (lazy T) (_))
+                    ) (_))
+
+join declare (unit)
+join declare ((g) (unit) (_))
+join declare ((   ((z) (unit) (_)) ) (_))
+join declare ((   ((x) (unit) (_))   ((y) (unit) (_))) (unit) (_))
+
+
+
+
+THIS CODE LITERALLY WORKS.
+
+
+
+OMG.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+define ((f ((x) (unit) (_))) (unit) (_)) unit x
+
+
+
+the algorithm has whats called
+
+
+    MINIMAL LEFT-ASSOCIATIVITY
+    
+    
+    meaning that it will find the left-associative parse with the minimal possible depth.
+
+
+
+
+
+
+
+
+
+
+join declare ((((x) (_)) ((y) (_)) ) (_))
+join declare (unit)
+join declare ((g) (unit) (_))
+join declare ((convert ((h) (unit) (_))) (_))
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+so we fixed csr, i think...
+
+
+
+however, it seems that we are accidentily succeeding on this parse, which should fail:
+
+
+join declare ((((x) (_)) ((y) (_)) ) (_))
+join declare (unit)
+join declare ((g) (unit) (_))
+(join declare ((convert ((h) (unit) (_))) (_)))
+
+
+
+
+and this one:
+
+
+        join name
+
+
+
+
+
+and now i know why!
+
+
+
+
+
+
+ok i fixed it, i think.
+
+
+
+
+
+
+ high priority bug:
+ ------------------------------------------
+ 
+ 
+ 
+ 
+======================
+
+
+
+ join declare ((((x) (_)) ((y) (_))) (_))
+
+ declare ((unit) (_))
+ declare ((g) (unit) (_))
+
+ declare (( cast ((x) (unit) (_)) ) (_))
+
+ declare (( void ((x) (_)) ) (unit) (_))
+
+ declare ((((first) (unit) (_)) ((second) (unit) (_))) (unit) (_)))
+
+ cast g
+
+======================
+
+
+
+
+    the cast g here, doesnt show up unless we delete the void and first-second decl lines. which is bad.
+    
+    
+            oh, and it doesnt give an error, worst of all.
+            
+            
+            
+            
+            
+            
+            
+            
+            csr is not done. it is close, but not done.
+            
+            
+                
+                
+                
+                
+                
+                
+                    there must be a way to fix it, while not increasing the for-loop complexity of the algorithm.
+                    
+                    
+                        ...even tho the increase we did just now, is kinda small and awesome...
+                        
+                        
+                        
+                            we can do better.
+                            
+                            
+                            
+                            
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+==================================
+
+		TODO:
+
+==================================
+
+
+PRIORITY:    
+    
+   x: - make csr left associative
+    
+x:   sorta: - make csr fast in all situations;
+   
+   
+   
+   
+   
+
+
+
+
+
+
+
+
+BUSY WORK:
+--------------------
+
+    - rewrite the parsing stage to be a single function.
+    
+    - rewrite the lexing stage slightly, to be simpler?
+        
+    - add options list for linker, eventually.
+   
+
+ 
+
+
+
+FIGURE OUT STUFF:
+------------------------------------
+
+
+
+
+
+FUNCTIONS:
+
+x:    - figure out how to pass functions into functions;
+
+    - figure out what function types look like. make them builtin, i think.
+    
+x:    - figure out how to do closures / lambdas;
+    
+    - figure out how to specify llvm attributes to a function.
+
+
+TYPES:        
+
+    - figure out how to do computational type checking properly, 
+	as opposed to using subsitutions and everything.
+
+        (ie, do type-related stuff better, and more correctly)
+        
+    - figure out Henry-Milner Type-Inference.
+
+
+GENERAL:
+
+    - figure out how to do compiletime evlauation correctly.    
+       ...like zig does it..?
+
+    - figure out how to make _define provide _expose functionality         [nice]
+
+    - figure out how we are going to do multiple files, and our module system.
+
+
+
+
+
+        
+
+
+
+
+
+
+
+
+
+
+
+
+
+test cases that DO work:
+=============================
+
+
+
+
+
+
+join declare ((((x) (_)) ((y) (_))) (_))
+join declare ((the dog ran ) (_))
+
+(
+
+the dog ran
+the dog ran
+the dog ran
+
+)
+
+
+=============================
+
+
+        join declare ((n) (_)) n
+      
+===============================
+
+        join
+        declare ((((x) (_)) ((y) (_))) (_))
+        name name
+
+===============================
+
+join (declare ((unit) (_)))
+join ( declare ((( (x) (unit) (_) )) (_)) )
+join ( declare ((( (x) (_) )) (unit) (_)) )
+join ( def ((((first) (unit) (_)) ((second) (unit) (_))) (unit) (_)) unit second)
+name name
+
+
+===============================
+
+    join
+    declare ((((x) (_)) ((y) (_))) (_))
+    name name
+
+
+===============================
+
+join declare ((lazy ((x) (_))) (_))
+join declare ((push) (_))
+join declare ((pop) (_))
+join declare
+    ((
+        ((signature) (name) (_))
+        ((type) (_))
+        ((definition) (lazy type) (_))
+    ) (_))
+
+join declare ((unit) (_)))
+join declare ((g) (unit) (_))
+
+name
+
+===============================
+
+
+(join (declare ((lazy ((x) (_))) (_)))
+(join (declare ((push) (_)))
+(join (declare ((pop) (_)))
+(join (declare (( ((signature) (name) (_)) ((type) (_)) ((definition) (lazy type) (_)) ) (_)))
+(join (declare ((unit) (_)))
+(join (declare ((g) (unit) (_)))
+(((x) unit g))))))))
+
+===============================
+
+
+
+
+join (declare ((unit) (_)))
+join (declare ((namef) (unit) (_)))
+join ( declare ((( (x) (unit) (_) )) (_)) )
+join ( def ((((first) (unit) (_)) ((second) (unit) (_))) (_) ) unit second)
+namef namef
+
+
+===============================
+
+
+join (declare (( ((x) (_)) ((y) (_))) (_) ))
+name name name name name name name
+
+===============================
+
+
+join (declare ((((x) (_)) hello ((x) (_))) (_)))
+(name hello name hello name)
+
+
+===============================
+
+
+join (declare ((lazy ((x) (_))) (_)))
+join (declare ((push) (_)))
+join (declare ((pop) (_)))
+join (declare (( ((signature) (name) (_)) ((type) (_))    ((definition) (lazy type) (_)) ) (_)))
+join (declare ((namef) (_)))
+name
+
+join (declare ((unit) (_)))
+join ( declare ((( (x) (unit) (_) )) (_)) )
+join ( declare ((( (x) (_) )) (unit) (_)) )
+join ( def ((((first) (unit) (_)) ((second) (unit) (_))) (unit) (_)) unit second)
+name name
+
+
+===============================
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+so the algorithmis always LEFT-ASSOCIATIVE
+
+thats cool.
+
+simplified it slightly... trying to debug why it doesnt work sometimes, though.
+
+
+        ----> CSR is literally so buggy. this succeeds, with an epmty parse.
+        
+            we and we cant say the last line without an error...
+            
+                
+                
+                    
+                    we need to fix csr.   we need to redesign csr to make this language feasible.
+                        
+                            both in error messages, and in compiler-runtime lag.
+                            
+                            
+                            
+                            
+                            
+                            this language is unuseable, as is.
+                            
+                                
+                                
+                                
+                                                            
+
+
+CURRENT TASK DETAILS:
+=======================
+
+
+	fix csr: make it right assoc, and faster.         then you are done!
+
+
+    
+NEXT TASK:
+==========================
+    
+    then after this, we work on codegening:
+    
+        - start by getting "declare void @"(hello world)"();" to be generated from a define call, with no body.
+            ---> figure out how to call define with no body! (no, not using a seperate new intrinsic.)
+            
+        - then get the generation of an actual n3zqx2l function (from a define) working.
+        
+        - then get the generation of a call to a (n or ll) function working, with the correct calling convention: fast! (unless we are calling something external? i dont know.)
+        
+        
+    
+    
+    
+===============================================================================================
+
+
+
+
+
+THE TODO LIST:
+=====================
+
+[PRIMARY:]
+==========
+
+- allow for ctfe! necc for _def to work.
+
+- add lazy code generation using _a          [neccessary]
+- add compiletime evlauation to csr.
+- add compiletime parameters
+- add compiletime generation of runtime data.
+
+- add resolution based type inference  (or/plus henry milner TI)       [nice]
+
+- figure out how to make _define provide _expose functionality         [nice]
+
+- figure out how we are going to do multiple files, and our module system.         [neccessary]
+
+- make llvms void passable and initiable like the real unit type.    [nice]  [must be done in codegen phase]
+
+
+
+[SECONDARY:]
+============
+
+
+
+- use the updated pass mananger llvm system, for generating .s or .o files, and for optimization.      [self hosting]
+- reimplement the compiler using the llvm c-api, which is much more intuitive.             [efficiency]   [self-hosting]
+
+- revise our target triple.                                                                     [efficiency]
+- replace all occurences (or hearly all) of std::vector    with    llvm::SmallVector<1000ish, T>.    [efficiency]
+- use more of the stl algorithms..?                                                           [efficiency]
+
+- add numberic constants suppport.                                   [nice]
+- add codegen and support for text strings in csr and llvm.          [nice]
+- code for passing flags to the linker (-!)                          [nice]
+
+
+
+
+
+
+
+
+
+=========== found bugs: =====================
+
+    - the compiler doesnt give a warning for an extranous closing parentheiss.
+        --> then what happens?
+        
+        
+        
+        
+        
+    
+    
+    
+ 
+        
+        
+=============================== CLOSED: ======================
+        
+        
+
+        ------ NEW bug: -------
+
+        test code:
+
+            join
+            declare ((f ((T) (_)) ((x) (T) (_))) (T) (_))
+            name
+
+        ;
+
+        we are defining the function, but not printing the retunr type properly, in the debug symbol table.
+
+   
+        
+    - in the following test code:
+    
+        _2 (_3 (((() (_)) (() (_))) (_)))
+        (_3 ((code (() (_))) (_)) )
+        (_3 ((define ((s) (_1) (_)) ((d) (code _1) (_))) (_)) )
+        (_3 ((g) (code _1) (_)) )
+        define hello g
+                
+        x: SERIOUS: 1. the compiler defines g twice.;
+        
+        x: SERIOUS: 2. the compiler doesnt distinguish:            code (_1)     and        code (code (_1));
+        
+        
+
+
+    
+in the following test code:
+    
+    join define ((code ((x) (_))) (_))
+    join define ((((first) (_)) ((second) (_))) (_))
+    (define ((my define ((signature) (name) (_)) ((T) (_)) ((definition) (code (T)) (_))) (_)))
+
+    define ((hello there) (_))
+    define ((g) (code hello there) (_)))
+    define ((f) (code name) (_)))
+    my define hello hello there g
+    my define bye name g
+
+    
+        this succeeds, when it shouldnt.
+    
+    
+    
+    - another bug: in the following test code:
+    
+    
+    join define ((code ((x) (_))) (_))
+    join define ((((first) (_)) ((second) (_))) (_))
+    (define ((my define ((signature) (name) (_)) ((T) (_)) ((definition) (code (T)) (_))) (_)))
+
+
+    (define ((hello there) (_)))
+    (define ((g) (code hello there) (_))))
+    (define ((f) (code name) (_))))
+    (my define hello hello there g)
+    (my define bye name f)
+
+
+
+        this defines g twice.
+    
+        
+=============================================
+
+
+
+============ DONE: ===========
+
+
+x: - code for passing args to the executable (--);
+x: we just got _b working basically perfectly, except....;
+x: make fdi work with multiple _2 (_b) paraemters.;
+x: - get fdi functionality fully working, using _b;
+x: - add _0 functionality to csr.;
+
+x: - write the string to expression function.;
+x: - get csr working with subexpressions properly.;
+x: - make llvm strings nestable.;
+x: - possibly get rid ll stirngs. ;
+x: - add assembly output functioality,;
+x: - figure out how to remove the symbol table data structure.;
+x: - redo how we are handsling lexing, ;
+x: - devise a better llvm interop system.;
+x: - write the define function.;
+x: - figure out how to represent llvm elements such as: function and type and value      (or even globals?);    
+x: - figure out how define should work;   
+x: - make string to expression function cope with llvm-single-identifiers.;    
+x: - allow type-section deductions in n3zqx2l signature strings inside llvm strings.;::this is a high bar thing, we are saving it until we do type inference, which is not soon.;
+
+x:
+    we need ctfe in order to (properly) allow the user to pass in a type (which may take type parameters!)
+        when they give the return type, for a signature,
+            when passing a _name (_b).
+            
+            i know, its alittle bit compilcated, but its neccessary. for both return type, and paraemter types.
+            
+            we need to use this ctfe infrastruction eventually to write a "find()" function, whch takes in a type list, and turns that into an index.
+    
+  ;
+    
+    
+
+
+==================================
+
+
+
+
+
+
+
+
+=========================================================================================================================================
+
+
+
+
+
+
+
+
+2001072.224206:
+
+ok, so we are finally at the place in the compiler where we need to decide exactly how our type system is "computational".
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+so we are dramatically simplifying how we are doing our symbol table management, and probably type inference as well.
+
+
+we might be using something like hentry milner type inference, plus some delayed resolution stuff.
+
+additionally, we will be code gening intstantly into the llvm ir, upon parsing n3zqx2l code.
+
+wait, no, we shouldnt... because of calls to functions:
+	
+	there is one definition, which we can easily update when we realize its type,
+
+	but there are many instances in which its called, which we need to update as well.
+
+	
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+our data layout is fine i guess..
+
+
+
+redo how we are doing strings.
+
+
+
+we shouldnt have sgtring literals.
+
+
+i feel like we should also make spaces insignificant, but maybe not, actually.
+
+
+yeah lets not.
+
+
+
+
+
+
+
+so it looks like we have two major tasks as todos for our compiler:
+
+
+    - make the csr algortihm work with subexpressions,
+    
+    - redo our idea of how our language integrates with llvm.
+    
+                this is actually exptremely important.
+            
+                we need to get this right, in just the right way, and make sure that our implementation is clean and concise.
+                
+                
+                
+                
+                
+    
+
+
+
+
+
+
+
+we really need to get the:
+
+
+    - csr algortithm working with subexpr
+    
+    - get the llvm symbol table synched up with our symbol table.
+    
+    - get the
+
+
+
+
+ok, so we deleted a bunch of code, and the whole compiler is now only 950ish lines long.
+
+
+the current bug we are trying to solve is trying to get the chain rule to work with our current CSR setup. it was working, and then i changed how subexpressions worked, because i saw a simplication, and not it doesnt work. i might change csr to work as before, just to get it working. its not that great of a simplication.
+
+
+
+
+
+
+
+
+
+
+
+1. i need to go through and delete all the error.cpp code, and redo all the code as inline print statements, in the logic code.
+
+
+2. i need to start removing features from CSR, specfically:       strings,         ...
+
+CSR should only have in it:
+
+
+    - the csr parsing capability
+        
+    - fdi functionality
+    
+    - llvm string parsing capability
+    
+    - 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+1910104.152555:
+
+
+
+        current todo:
+        
+        
+            - get string literals working
+            
+            - get fdi working all the way, for multiple abstraction parameters.
+            
+            - get resolution based type inference working.
+            
+            - get the llvm instruction parser working properly, (there is a bug in the aftermath of removing basic blocks, or something.)
+            
+            - add an intrinsic for giving a warning or error at compiletime to the user.
+            
+            - 
+            
+            
+        later todo:
+        
+            - find out if we need _e (expose)
+            
+            - find out what _c (??) is.
+            
+            - implement _a (application)
+            
+            - make sure _b (abstraction) is working.
+            
+            - get _e (expose) and _d (define) working.
+                        
+            - add _0 capabilities to the type system: CSR algorithm wise.
+            
+                - - dont NOT parse an expression which instantiates _0, 
+                
+                    just give an error afterwards, when we recognize that we cannot do that.
+              
+            - think about how namespaces are implemented, at the library level.
+            
+            - think about the capabiltiies of _d (define).
+            
+
+        questions: 
+
+        
+            - is _1 special other than how we are using it?    (as the type of statements, technically?)
+            
+            - does the body of soemthing neccessarily have to have a return expression?
+            
+            - how does compiletime evaluation of parameters, and contraction of code, using llvm optimization, work?
+            
+            - what do copmiletime parameters look like?
+            
+            - - is that _c?            no......?
+            
+            - 
+
+            
+            
+            - get code gen working with _d 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+1909275.021133:
+
+
+ok, so what have we just done?
+
+
+	we almost got string literals working, we just need to make it type check, by
+
+	
+		making sure we set the llvm_type member of a particular entry in the master symbol tbale, known as "llvm", 
+	
+
+
+				when it has the type which is i8*, 
+	
+		then we are able to pass a string into a function.
+
+	
+		its a abit weird, but its the only soltion i could come up wiht.
+	
+	
+			
+tb:
+
+	
+anywaysm i fifured out how to do compiletime execution/population of values to be used at runtime!
+	
+
+		just run a function, then get a Generic value back from it, 
+	
+		then turn that into a actual value (of some type)
+
+	
+			and then create a new global variable cosntant, of that new value.	
+
+	
+	
+		this seems liek it will work in general...
+	
+	
+
+		we just need to make sure that we do reduction of code at compiletime, as well.	
+	
+	
+		this is possibly the much more COOL aspect of CTAE, 
+		
+
+			which is that we can actually simplify parts of logic, which we know can be done at compiletime.	
+
+;
+
+
+
+	
+
+
+
+
+
+1909264.223628:
+
+
+
+	so i almost implememnted FDI the other day, which is good...
+
+	however, there are two known bugs:
+
+
+			- FDI: not being able to pass two differently lengthed signatures into an application.
+
+	
+			- parsing llvm instructions:  there is a weird bug with the aftermath of removing the "donothing-unreachables" after parsing the llvm stirngs.
+
+
+	
+		
+	
+
+----------- whats next to implememnt? --------------------------------
+
+
+
+
+	
+			1.5: csr additions:   
+	
+
+
+		70%		_b     :   "FDI":  passing undefined signatures into expressions: 
+				
+		0%		_a     :   "CTAE":  compiletime/lazy computation 
+							(passing in unealutated expressions.)
+	
+		0%		__     :   "TI": aggressive candidate-set-resolution-based type inference
+
+
+
+
+			2. string to expression converter
+
+
+			3. symbol table management, and covnersion between llvm and n.
+
+s	
+			4. write the (c++) implementation for:
+			
+				4.1.    _c    : ???
+
+				4.2.    _d    : IMPORTANT.
+
+				4.3.    _e    : easy: print warning/error/info/note
+
+
+
+			5. code generation (cg):	
+					
+				5.1. cg for _d'efined abstractions: 
+					turning into:
+						llvm functions
+						llvm types
+						llvm variables
+	
+				5.2. cg for evaluated _a's
+
+
+			6. more compiler options
+
+			
+			7. REPL functionality
+
+
+			8. core standard library    
+
+
+			9. public exposure!
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+1909161.233343:
+
+	ok, so csr, (the "resolver" from here on out)
+
+			is basically totally finished- it can regonize/resolve very complex expressions, and works basically perfectly. (i have yet to find a bug in it)
+
+	
+		and i also fixed a bug in the llvm parse instruction function, which had to do with adding terminator instructions, and lone basic blocks being left over, after the annex was removed.
+	
+				thats all fixed too now!
+
+	
+
+		
+			now it seems the right thing to move onto next is symbol conversion:
+	
+	
+		[done]:	1. 	from n3zqx2l to llvm:          (ie, expression to string)         
+	
+		[todo]:	2. 	from llvm to n3zqx2l:		(ie, string to expression)
+
+
+
+
+	looking at our schedule:
+
+
+
+			x:0. llvm string parser;
+
+
+			x:1. CSR suite;
+
+
+			1.5: csr additions:   
+	
+				FDI:  passing signatures into expressions 
+	
+				TI: aggressive candidate-set-resolution-based type inference
+
+
+			2. string to expression converter
+
+
+			3. symbol table management, and covnersion between llvm and n.
+
+s	
+			4. write the (c++) implementation for:
+			
+				4.1.    _a    : no implementation. 
+				4.2.    _b    : no implementation. [FDI?]
+				4.3.    _c    : easy.
+				4.4.    _d    : IMPORTANT.
+				4.5.    _e    : easy.
+				4.6.    _0    : no implementation. 
+				4.7.    _1    : no implementation. 
+
+
+
+
+
+
+
+
+
+;
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    ok, so i have cleaned up alot of stuff in the code, and basically set everything up for me to just code the new version of csr using 
+            
+                    resolved expression list
+                        
+                    resolved expression 
+
+                        
+                        data structures.
+                            
+
+
+
+
+              once this csr is done, that marks the next stage which is basically symbol table conversions.
+                
+            
+
+                    this step shouldnt be that hard, assuming i get all my ducks in a row, and realize what i have at my disposal, 
+
+                    becasue:
+
+                        
+                            
+                                expression_list/expression -> string     is a simple signature serializer
+
+                                string -> expression       will most certaintly be using CSR and the rest of the parsing machinery int he compiler, (including the lexer!) to implement this function. however there is alittle fancy ness in the signature that has to be done. thats the trick part.
+
+
+                         anyways, this is all so i can just get values back and forth between the llvm symbol tables, and the n3zqx2l symbol tables.
+
+
+                    
+                  ...and then after that, is code gen!
+
+                  which is the fun part!
+
+
+
+
+
+
+
+
+
+yeah, im pretty sure that the thing which i have to do now, is figure out how to make CSR actually run properly in my compiler with all my changes. im sure it wont be that hard... i mean its only csr lol.
+
+
+
+
+
+
+
+
+	1909113.190244:
+
+		so i finished the instruction parser, its prettyy much as simple as possible now.
+	
+		
+	
+		the next thing i need to do is figure out how to do csr on a expression_list tree, rather than a expression tree.
+
+	
+	so:
+
+
+
+
+			x:0. llvm string parser;
+
+			1. CSR suite
+
+			2. string to expression converter
+
+			3. symbol table management, and covnersion between llvm and n.
+	
+			4. write the (c++) implementation for:
+			
+				4.1.    _a    : no implementation. 
+				4.2.    _b    : no implementation. [FDI?]
+				4.3.    _c    : easy.
+				4.4.    _d    : IMPORTANT.
+				4.5.    _e    : easy.
+				4.6.    _0    : no implementation. 
+				4.7.    _1    : no implementation. 
+
+
+
+
+
+
+
+
+
+
+    1909102.033504:
+        
+            
+                reworked the llvm ir instruction parser code, made it way simplier.
+                    
+
+                    we need to figure out how to remap a function, allow the pointer to point to a complextely different set of instructions, with a different signature/name of the func as well.
+
+
+                        
+                        i know its possible.
+
+
+                        next after that, we should probably figure out how to do llvm symbol table conversions:
+
+
+                            1. we need to make the transition back and forth from llvm and n3zqx2l very smooth.
+
+
+                            2, we need to make the llvm symbol table essentially one of the most important central parts of the symbol table.
+
+                            
+
+                            3. we need to make CSR work well with llvm ir strings, llvm types, the llvm symbol table, 
+                                    and most importantly, 
+
+                                                llvm CODE GEN:   
+
+                                                    - llvm ir for function calls:      simply a call instruction, with fast calling convention- no respect for C calling convetion.... who cares.
+                                                    - llvm ir for _define:         usally a         %t = type {}      as well as a function dfeinition.
+                                                    - llvm ir for _dislclose:  usually a GEP ins.
+                                                    - llvm ir for string literals.....?
+
+
+
+
+
+
+
+
+
+
+
+
+
+    1909091.164524:
+        
+            the solution which i found is:
+                
+
+                        simply interpret the expression list as a block whos type is the type of the last expression. 
+                            
+                                for type inference and checking, we need to use the last expression int he list.
+                                    
+
+                                        
+                     the part we are implementing now, is to make the csr function have two parts:
+                        
+                            1. csr_single(): parsesa  single expression.
+
+                            2. csr(): parses a series of expressions, using the last one as the type of the whole set. 
+                                
+
+
+                      we realized that the traverse, and the resolve frontends both take expression lists, and operate on them eclusively, basically.
+                            
+
+
+                      finally, we figured out that we need to:      (eventually)
+                        
+
+                            1. make a huge change to the typr inference system within csr, 
+                                whichis that we need the idea of:     "gradual type-set resolution."
+
+                                        which is simply the idea that we gradually resolve which types a symbol can be, (based on literals, etc....)
+
+                                            as we find it in use of another function, as we continue to parse. 
+
+                                                
+
+                                                we only errror if we find that a given variable was found to have a non singleton type-set (the set of types which are consisntent withthe code.)
+
+                                                    
+                                                        
+                                                        (however, if the code uses numeric literals, then we will simply pick the word size (assumign its wide enough) to choose a type for numeric literals. )
+
+
+
+
+
+
+
+
+
+
+
+
+    1909091.15:
+    - we are still working through how to put subexpressions back into csr.
+
+    - we have esssentially decided to make the grammar binary recursive, instead of ternary recursive.
+    - - we are going to have blocks of code be delimited by newlines--- tabs are significant only to determine newlines, essentially... i think.
+
+        - definitely want the language be able to use the indentation as the syntactic form. 
+
+            thats really important. 
+
+      
+
+
+
+
+
+
+
+
+
+
+
+join push
+
+join k
+join l
+
+join push
+join x
+join pop
+join decl init
+join param
+
+join pop
+join decl init
+join kl
+char
+char
+
+
+
+
+
+
+
+
+
+
+
+
+join
+
+    join
+    
+        h e
+        
+    join
+        
+        join l l
+        
+        join
+            
+                o
+                
+                param
+
+
+
+
+
+
+
+
+
+join push
+join k
+join k
+join decl init
+char
+
+
+
+join param
+join decl init
+join pop char
+
+
+
+
+
+
+
+
+
+join push
+join k
+join o
+join pop
+join decl init
+kp
+
+
+
+
+
+
+
+
+        if (context->frame_count) {
+            context->index_count = context->frames[context->frame_count - 1];
+            context->frame_count--;
+        } else {
+            printf("error: cannot declare top level signature.\n");
+            abort();
+        }
+
+
+
+
+
+

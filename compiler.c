@@ -6,263 +6,216 @@
 #include <unistd.h>
 #include <sys/stat.h>
 #include <sys/mman.h>
-	
-static void print_index(const char* context, int index, int count);
-static void pretty_print_output(int* output, int top, const char* context, const char* input);
-static void print_output(int* output, int top, const char* context, int count);
 
-static void* open_file(const char* filename, int* length) {
-	struct stat file_data = {0};
-	const int file = open(filename, O_RDONLY);
-	if (file < 0 or stat(filename, &file_data) < 0) {
-		fprintf(stderr, "error: %s: ", filename);
-		perror("open");
-		exit(3);
-	}
-	*length = (int) file_data.st_size;
-	if (not *length) return NULL;
-	void* input = mmap(0, (size_t) *length, PROT_READ, MAP_SHARED, file, 0);
-	if (input == MAP_FAILED) {
-		fprintf(stderr, "error: %s: ", filename);
-		perror("mmap");
-		exit(4);
-	}
-	close(file);
-	return input;
-}
 
-static void print_source(const char* A, int Al, int line, int column) {
-	int b = line > 2 ? line - 2 : 0, e = line + 2;
-	for (int i = 0, l = 1, c = 1; i < Al + 1; i++) {
-		if (c == 1 and l >= b and l <= e) 
-			fprintf(stderr, "\n\033[90m%5d\033[0m\033[32m │ \033[0m", l);
-		if ((i == Al or A[i] != '\n') and l >= b and l <= e) {
-			if (l == line and c == column) fprintf(stderr, "\033[1;31m");
-			if (i < Al) fprintf(stderr, "%c", A[i]);
-			else if (l == line and c == column) fprintf(stderr, "<EOF>");
-			if (l == line and c == column) fprintf(stderr, "\033[m");
-		}
-		if (i < Al and A[i] == 10) { l++; c = 1; } else c++;
-	}
-}
-
-static void print_candidate(const char* B, int Bl, int bb) {
-	if (not Bl) { 
-		fprintf(stderr, "\n\n{no candidate}\n\n"); 
-		return; 
-	}
-
-	int s = not bb ? 1 : bb;
-	do s--; while (s and B[s] != 10); 
-	++s;
-
-	fprintf(stderr, "\n\n\033[1m candidate:\033[m  \033[1;94m");
-	while (B[s] != ' ' and s < Bl) {
-		fprintf(stderr, "%c", B[s]);
-		s++;	
-	}
-
-	fprintf(stderr, "%c\033[m", B[s]);
-	s++;
-
-	for (int k = s; B[k] != 10 and k < Bl; k++) {
-		if (B[k] == 32) {
-			int p = k++;
-			fprintf(stderr, p == bb ? "\033[1;31m " : "\033[1;96m "); 
-			while (B[k] != 32) {
-				fprintf(stderr, "%c", B[k]);
-				k++;
-			}
-			fprintf(stderr, p == bb ? " \033[m" : " \033[m"); 
-		} else {
-			if (k == bb) fprintf(stderr, "\033[1;31m");
-			fprintf(stderr, "%c", B[k]);
-			if (k == bb) fprintf(stderr, "\033[m");
-		}
+static void print_output(int* output, int top) {
+	puts("");
+	for (int i = 0; i < top; i += 4) {
+		printf("%c %10d :   %10di %10dp %10db %10dd \n", 
+			i < top - 4 ? ' ' : '>', i, 
+			output[i], output[i + 1], output[i + 2], output[i + 3]);
 	}
 	puts("\n");
 }
 
-int main(const int argc, const char** argv) {
-	typedef unsigned char uc;
-	if (argc != 3) return printf("usage: ./compiler <input> <context>\n");
-	const char* filename = argv[1], * reason = NULL, * e = NULL;
-	const int CL = 4096, BL = 4096; 
-	int Al = 0, Bl = 0, Blb = 0, bb = 0, ab = 0;
-	int a = 0, b = 0, c = 0, d = 0;
-	char* A = open_file(filename, &Al);
-	char* _ = open_file(argv[2], &Bl);
-	char* B = malloc(BL);
-	memset(B, 0x0F, (size_t) BL);
-	memcpy(B, _, (size_t) Bl);
-	munmap(_, (size_t) Bl);
-	int* C = malloc(CL * sizeof(int));
-	memset(C, 0x0F, CL * sizeof(int));
-	while (a < Al and (uc)A[a] < 33) a++;
-	ab = a;
-	Blb = Bl;
-	C[c + 1] = -3;
-	C[c + 2] = a;
+// static void* open_file(const char* filename, int* length) {
+// 	struct stat file_data = {0};
+// 	const int file = open(filename, O_RDONLY);
+// 	if (file < 0 or stat(filename, &file_data) < 0) {
+// 		fprintf(stderr, "error: %s: ", filename);
+// 		perror("open");
+// 		exit(3);
+// 	}
+// 	*length = (int) file_data.st_size;
+// 	if (not *length) return NULL;
+// 	void* input = mmap(0, (size_t) *length, PROT_READ, MAP_SHARED, file, 0);
+// 	if (input == MAP_FAILED) {
+// 		fprintf(stderr, "error: %s: ", filename);
+// 		perror("mmap");
+// 		exit(4);
+// 	}
+// 	close(file);
+// 	return input;
+// }
 
-_0:	d = b;
-	if (d == 0) goto _11;
-	if (d == BL) goto _11;
-	if (B[d] != 10 and B[d] != 32) goto _11;
-	do d--; while (B[d] != 32);
-_9: 	d--;
-	if (B[d] == 32) goto _6;
-	if (B[d] != 10) goto _9;
-_11:	if (b < Bl) goto _8;
-_6: 	if (not c) goto error;
-	c -= 3; 
-	b = C[c];
-	if (b != BL) goto _0;
-	Bl--;
-	do Bl--; while (B[Bl] != 10); 
-	Bl++; 
-	goto _0;
-_8:	a = C[c + 2];
-	while (B[b] != 10) b++; 
-	b++;
-	if (b >= Bl) goto _0;
-	e = C[c + 1] == -3 ? "top " : B + C[C[c + 1]] + 1;
-	if (*e != 32) goto _10; 
-	b = BL;
-	while (a < Al and A[a] != 59) {
-		if (Bl + 1 >= BL) goto BLx;
-		if (A[a] != 92) B[Bl++] = A[a] == 58 ? 32 : A[a];
-		else { 
-			do a++; while (a < Al and (uc)A[a] < 33); 
-			B[Bl++] = A[a]; 
-		}
-		do a++; while (a < Al and (uc)A[a] < 33);
-	} 
-	if (a >= Al) goto _0;
-	B[Bl++] = 10;
-	if (Bl > Blb) Blb = Bl;
-	do a++; while (a < Al and (uc)A[a] < 33);
-	if (a > ab) { 
-		ab = a; 
-		bb = b; 
-	} 
-	goto _2;
-_10: 	while (B[b] != 32 or *e != 32) { 
-		if (B[b] != *e) goto _0; 
-		e++; 
-		b++; 
-	} 
-	b++;
-_1:	if (B[b] == 10) goto _2;
-	if (B[b] != 32) goto _7;
-	if (c + 5 >= CL) goto CLx;
-	C[c] = b; 
-	c += 3;
-	C[c + 1] = c - 3;
-	C[c + 2] = a; 
-	b = 0; 
-	goto _0;
-_7:	if (a >= Al or B[b] != A[a]) goto _0;
-	do a++; while (a < Al and (uc)A[a] < 33); 
-	b++;
-	if (a > ab) { 
-		ab = a; 
-		bb = b;
-	}
-	goto _1;
-_2:	C[c] = b;
-	d = C[c + 1];
-	if (d == -3) goto _3;
-	if (c + 5 >= CL) goto CLx;
-	c += 3; 
-	C[c + 1] = C[d + 1];
-	C[c + 2] = a;
-	b = C[d] + 1;
-	while (B[b] != 32) b++; 
-	b++; 
-	goto _1;
-_3:	if (a != Al) goto _0;
-	c += 3;
+int main() { // const int argc, const char** argv
 
-	puts("success: compile successful.");
-	char output_bytes[4096] = {0};
-	int stack[4096] = {0};
+	// if (argc != 2) return printf("usage: ./compiler <input>\n");
 
-	for (int i = 0; i < c; i += 3) {
-		// printf("%d : %10d %10d %10d \n", 
-		// 	i, C[i], C[i + 1], C[i + 2]);
-		
-		// if (C[i] == BL or B[C[i]] == 10) 
-		// 	printf("\t\t\t\t\t\t\tfound ---> %10d: %10d\n", i, C[i + 1]);
+	// const char* filename = argv[1], * reason = NULL;
+	const int output_limit = 128; 
+	int begin = 0, top = 0, index = -1, done = -300;
 
-		if (C[i] == BL or B[C[i]] != 10)  continue;
+	const char* input = "j.:;jhello.::;hellonop;nopnop";
+	int length = (int) strlen(input);
+
+	int* output = malloc(output_limit * sizeof(int));
+	memset(output, 0x0F, output_limit * sizeof(int));
+
+	while (input[begin] != ';') begin++; 
+	begin++;
 	
-		int s = C[i];
-		do s--; while (s and B[s] != 10); 
-		++s;
+	output[top + 0] = output_limit;   // B : index 
+	output[top + 1] = 500;  // B : parent         can be zero, initially.
+	output[top + 2] = 0;    // A : begin
+	output[top + 3] = 200;    // A : done 
+	top += 4;
+	output[top + 0] = 0;     // B : index 
+	output[top + 1] = 0;    // B : parent         should be output limit, actually.
+	output[top + 2] = begin; // A : begin
+	output[top + 3] = 600;   // A : done            can be zero, initially.
 
-		const char* add = "top [x86]add\n";
+_0:
+	printf("current: length=%d begin=%d top=%d index=%d done=%d\n",
+			length, begin, top, index, done);
+	print_output(output, top + 4);
 
-		int k = s;
-		while (B[s] != 10 or *add != 10) {
-			if (B[s] != *add) goto next;
-			add++; 
-			s++; 
-		}
+	if (index == output_limit) {
+		printf("found a zero node.\n");
+		goto _6;
+	}
+	// int temp = done;
+	// if (input[temp] != ':' and input[temp] != ';') goto _11;
 
-		s = k;
-		
-		fprintf(stderr, "\n\n\033[1m found:\033[m  \033[1;94m");
-		while (B[s] != ' ' and s < Bl) {
-			fprintf(stderr, "%c", B[s]);
-			s++;	
-		}
+	// do temp--; while (input[temp] != ':');
+	// do {	
+	// 	temp--;
+	// 	if (input[temp] == ':') goto _6;
+	// } while (input[temp] != ';');
 
-		fprintf(stderr, "%c\033[m", B[s]);
-		s++;
+	if (index < top) {
+		printf("trying more indexes...\n");
+		goto _8;
+	}
 
-		for (int k = s; B[k] != 10 and k < Bl; k++) {
-			if (B[k] == 32) {
-				int p = k++;
-				fprintf(stderr, p == bb ? "\033[1;31m " : "\033[1;96m "); 
-				while (B[k] != 32) {
-					fprintf(stderr, "%c", B[k]);
-					k++;
+_6: 	if (not top) goto resolution_failure;
+	printf("backtracking...\n");
+	top -= 4; 
+	index = output[top];
+	goto _0;
+	
+_8:;	int p = output[top + 1];
+	if (p == 0) {
+		printf("error: found a parent, which is negative! %d treating as reg\n", p);
+		goto _10;
+	}
+	char c = input[output[p + 3]];
+	if (c != '.') {
+		printf("found regular parmaeter from the parent: %c\n", c);
+		goto _10; 
+	}
+	printf("found a name parameter!\n");
+	index = output_limit; done = 0;
+	while (input[begin] != ';') begin++; begin++;
+	goto _2;
+
+_10:	
+	do index++; while(index < top + 4 and output[index] != output_limit);
+	if (index >= top + 4) {
+		printf("no more signature left!!\n");
+		goto _0;
+	}
+	begin = output[top + 2];
+	done = output[index + 2];
+	printf("trying new signature using: index=%d, begin=%d, done=%d\n", index, begin, done);
+
+_1:	
+	printf("parent: length=%d begin=%d top=%d index=%d done=%d\n",
+			length, begin, top, index, done);
+	print_output(output, top + 4);
+	
+	if (input[done] == ';') goto _2;
+	if (input[done] != '.' and input[done] != ':') goto _7;
+	if (top + 7 >= output_limit) goto output_limit_exceeded;
+	printf("found a paramter position! :  %c\n", input[done]);
+	output[top] = index;
+	output[top + 3] = done;
+	top += 4;
+	output[top + 1] = top - 4;
+	output[top + 2] = begin;
+	index = -1;
+	goto _0;
+
+_7:	if (begin >= length) {
+		printf("unexepceted end of input!\n");
+		goto _0;
+	}
+	if (input[done] != input[begin]) {
+		printf("character mismatch\n");
+		goto _0;
+	}
+	begin++;
+	done++;
+	printf("character match!!\n");
+	goto _1;
+
+_2:	printf("signature success parse. on %d \n", index );
+	output[top] = index;
+	output[top + 3] = done;
+	int parent = output[top + 1];
+	if (parent == 0) goto _3;
+	if (top + 7 >= output_limit) goto output_limit_exceeded;
+	top += 4;
+	output[top + 1] = output[parent + 1];
+	output[top + 2] = begin;
+	output[top + 3] = done;
+	index = output[parent];
+	done = output[parent + 3] + 1;
+	goto _1;
+_3:	printf("checking begin == length...\n");;
+	if (begin != length) goto _0;
+	top += 4;
+
+	puts("success: compile successful."); 
+
+	for (int i = 4; i < top; i += 4) {
+
+		// printf("\t\t\t\t\t\t\t\t\t[ note: %10d : %10di %10dp %10db %10dd ]\n", i,  output[i], output[i + 1], output[i + 2], output[i + 3]);
+
+		int t = output[i + 3];
+		if (output[i] == output_limit) {
+				for (int _ = 0; _ < (output[i + 1])/4; _++) printf(".   ");
+				printf("found %d : [--> %d] UDS!!    ", i, output[i + 1]);
+				printf("UDS: ");
+				for (int ii = output[i + 2]; input[ii] != ';'; ii++) {
+					putchar(input[ii]);
+				} 
+				puts("\n");
+		} else {
+
+			if (t < length) {
+				if (input[t] == ';') {
+					for (int _ = 0; _ < (output[i + 1])/4; _++) printf(".   ");
+					printf("found(i=%d) : [--> parent=%d]   index=%d  ", i, output[i + 1], output[i]); 
+					printf("signature: ");
+					for (int ii = output[output[i] + 2]; input[ii] != ';'; ii++) {
+						putchar(input[ii]);
+					} 
+					puts("\n");
+				} else {
+					// printf(" (intermediary): %10d : %10di %10dp \n", i,  output[i], output[i + 1]);
 				}
-				fprintf(stderr, p == bb ? " \033[m" : " \033[m"); 
 			} else {
-				if (k == bb) fprintf(stderr, "\033[1;31m");
-				fprintf(stderr, "%c", B[k]);
-				if (k == bb) fprintf(stderr, "\033[m");
+				// printf(" err: %10d : %10di %10dp %10db %10dd \n", i,  output[i], output[i + 1], output[i + 2], output[i + 3]);
 			}
 		}
-		puts("\n");
-
-		next: continue;
 		
 	}
-
-
 	goto done;
-BLx: 	reason = "context limit exceeded"; goto display;
-CLx: 	reason = "program limit exceeded"; goto display;
-error: 	reason = "unresolved expression";
+
+output_limit_exceeded: 	
+	// reason = "output limit exceeded"; 
+	goto display;
+
+resolution_failure: 
+	// reason = "unresolved expression";
+	goto display;
+
 display:
-	Bl = Blb;
-	int at = 0, line = 1, column = 1;
-	while (at < ab and at < Al) {
-		if (A[at++] == '\n') { 
-			line++; column = 1; 
-		} else column++;
-	}
-	fprintf(stderr, "\033[1m%s:%u:%u: \033[1;31merror:\033[m \033[1m%s\033[m\n", 
-		filename, line, column, reason);
-	print_source(A, Al, line, column);
-	print_candidate(B, Bl, bb);
-done:	printf("DEBUG final context: \n<<<%.*s>>>\n", Bl, B);
-	printf("debug: a=%d b=%d c=%d \n", a, b, c);
-	print_output(C, c, B, Bl);
-	pretty_print_output(C, c, B, A);
-	munmap(A, (size_t) Al); free(B); free(C);
+	printf("error\n");
+done:	
+	// munmap(input, (size_t) length); 
+	free(output);
 }
 
 
@@ -270,66 +223,68 @@ done:	printf("DEBUG final context: \n<<<%.*s>>>\n", Bl, B);
 
 
 
-
+// printf("debug: a=%d b=%d c=%d \n", a, b, c);
+// 	print_output(C, c, B, Bl);
+// 	pretty_print_output(C, c, B, A);
 
 
 
 
 //  --------------- debug functions ------------------
 
-static void print_index(const char* context, int index, int count) {
-	if (index == 4096) { printf("    {UD SIG}\n\n"); return; }
-	if (index > count or index < 0) { printf("    {error index}\n\n"); return; }
-	printf("    ");
-	for (int i = 0; i < count; i++) {
-		char c = context[i];
-		if (i == index) { if (c == 10) printf("\033[1;31m[.]\033[m"); else printf("\033[1;31m[%c]\033[m", c); }
-		if (i != index) { if (c == 10) printf("."); else printf("%c", c); }
-	} 
-	if (index == count) printf("\033[1;31m[T]\033[m"); else printf("T"); 
-	puts("\n");
-}
+// static void print_index(const char* context, int index, int count) {
+// 	if (index == 4096) { printf("    {UD SIG}\n\n"); return; }
+// 	if (index > count or index < 0) { printf("    {error index}\n\n"); return; }
+// 	printf("    ");
+// 	for (int i = 0; i < count; i++) {
+// 		char c = context[i];
+// 		if (i == index) { if (c == 10) printf("\033[1;31m[.]\033[m"); else printf("\033[1;31m[%c]\033[m", c); }
+// 		if (i != index) { if (c == 10) printf("."); else printf("%c", c); }
+// 	} 
+// 	if (index == count) printf("\033[1;31m[T]\033[m"); else printf("T"); 
+// 	puts("\n");
+// }
 
-static void print_output(int* output, int top, const char* context, int count) {
-	puts("");
-	for (int i = 0; i < top; i += 3) {
-		printf("%10d :   %10di %10dp %10db : ", i, output[i], output[i + 1], output[i + 2]);
-		print_index(context, output[i], count);
-	}
-	puts("\n");
-}
+// static void print_output(int* output, int top, const char* context, int count) {
+// 	puts("");
+// 	for (int i = 0; i < top; i += 3) {
+// 		printf("%10d :   %10di %10dp %10db : ", i, output[i], output[i + 1], output[i + 2]);
+// 		print_index(context, output[i], count);
+// 	}
+// 	puts("\n");
+// }
 
-static void pretty_print_output(int* output, int top, 
-				const char* context, const char*input) {
+// static void pretty_print_output(int* output, int top, 
+// 				const char* context, const char*input) {
 
-	printf("printing parse tree in POST-DFS...\n");
-	for (int i = 0; i < top; i += 3) {
-		int r = output[i + 0], length = 0;
-		if (r == 4096) {
-			for (int _ = 0; _ < (output[i + 1] + 3)/3; _++) printf(".   ");
-			printf("UDS:  \"");
+// 	printf("printing parse tree in POST-DFS...\n");
+// 	for (int i = 0; i < top; i += 3) {
+// 		int r = output[i + 0], length = 0;
+// 		if (r == 4096) {
+// 			for (int _ = 0; _ < (output[i + 1] + 3)/3; _++) printf(".   ");
+// 			printf("UDS:  \"");
 			
-			int k = output[i + 2];
-			while (input[k] != ';') {
-				if ((unsigned char)input[k] >= 33) putchar(input[k]);
-				k++;
-			}
-			printf(";\" \t\t\t\t: %di %dp %db \n\n", 
-				output[i + 0], output[i + 1], output[i + 2]);
-			continue;
-		}
+// 			int k = output[i + 2];
+// 			while (input[k] != ';') {
+// 				if ((unsigned char)input[k] >= 33) putchar(input[k]);
+// 				k++;
+// 			}
+// 			printf(";\" \t\t\t\t: %di %dp %db \n\n", 
+// 				output[i + 0], output[i + 1], output[i + 2]);
+// 			continue;
+// 		}
 
-		if (context[r] != 10) continue;
-		do { r--; length++; } while (r and context[r] != 10);
-		r++; length--;
+// 		if (context[r] != 10) continue;
+// 		do { r--; length++; } while (r and context[r] != 10);
+// 		r++; length--;
 
-		for (int _ = 0; _ < (output[i + 1] + 3)/3; _++) printf(".   ");
-		printf("(%.*s) \t\t\t\t", length, context + r);
-		printf(" : %di %dp %db #%d\n\n", 
-			output[i + 0], output[i + 1], output[i + 2], i);
-	}
-	printf("parse tree complete.\n");
-}
+// 		for (int _ = 0; _ < (output[i + 1] + 3)/3; _++) printf(".   ");
+// 		printf("(%.*s) \t\t\t\t", length, context + r);
+// 		printf(" : %di %dp %db #%d\n\n", 
+// 			output[i + 0], output[i + 1], output[i + 2], i);
+// 	}
+// 	printf("parse tree complete.\n");
+// }
 
 
 
@@ -636,4 +591,112 @@ static inline void* open_file(const char* filename, int* length) {
 
 // 	while (a < Al and A[a] < 33) a++;
 // 	C[c + 1] = -3; C[c + 2] = a;
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+// 	expected = C[c + 1] == -3 ? "top " : B + C[C[c + 1]] + 1;
+// 	if (*e != 32) goto _10; 
+// 	b = BL;
+// 	while (a < Al and A[a] != 59) {
+// 		if (Bl + 1 >= BL) goto BLx;
+// 		if (A[a] != 92) B[Bl++] = A[a] == 58 ? 32 : A[a];
+// 		else { 
+// 			do a++; while (a < Al and (uc)A[a] < 33); 
+// 			B[Bl++] = A[a]; 
+// 		}
+// 		do a++; while (a < Al and (uc)A[a] < 33);
+// 	} 
+// 	if (a >= Al) goto _0;
+// 	B[Bl++] = 10;
+// 	if (Bl > Blb) Blb = Bl;
+// 	do a++; while (a < Al and (uc)A[a] < 33);
+// 	if (a > ab) { 
+// 		ab = a; 
+// 		bb = b; 
+// 	} 
+// 	goto _2;
+// _10: 	while (B[b] != 32 or *e != 32) { 
+// 		if (B[b] != *e) goto _0; 
+// 		e++; 
+// 		b++; 
+// 	} 
+// 	b++;
+
+
+
+
+
+// char output_bytes[4096] = {0};
+// 	int stack[4096] = {0};
+
+// 	for (int i = 0; i < c; i += 3) {
+// 		printf("%d : %10d %10d %10d \n", 
+// 			i, C[i], C[i + 1], C[i + 2]);
+		
+// 		if (C[i] == BL or B[C[i]] == 10) 
+// 			printf("\t\tfound ---> %10d: %10d\n", i, C[i + 1]);
+
+// 		if (C[i] == BL or B[C[i]] != 10)  continue;
+	
+// 		int s = C[i];
+// 		do s--; while (s and B[s] != 10); 
+// 		++s;
+		
+// 		const char* add = "top [x86]add\n";
+
+// 		int k = s;
+// 		while (B[s] != 10 or *add != 10) {
+// 			if (B[s] != *add) goto next;
+// 			add++; 
+// 			s++; 
+// 		}
+
+// 		s = k;
+// 		fprintf(stderr, "\n\n\033[1m found:\033[m  ");
+// 		for (int l = s; B[l] != 10 and l < Bl; l++) 
+// 			fprintf(stderr, "%c", B[l]);
+// 		puts("\n");
+
+// 		next: continue;
+		
+// 	}
+
+
+
+
+// Bl = Blb;
+// 	int at = 0, line = 1, column = 1;
+// 	while (at < ab and at < Al) {
+// 		if (A[at++] == '\n') { 
+// 			line++; column = 1; 
+// 		} else column++;
+// 	}
+// 	fprintf(stderr, "\033[1m%s:%u:%u: \033[1;31merror:\033[m \033[1m%s\033[m\n", 
+// 		filename, line, column, reason);
+// 	print_source(A, Al, line, column);
+// 	print_candidate(B, Bl, bb);
+
+
 
