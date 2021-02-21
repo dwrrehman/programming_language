@@ -40,36 +40,22 @@ static void* open_file(const char* filename, int* length) {
 
 int main(const int argc, const char** argv) {
 	if (argc != 2) return printf("usage: ./compiler <input>\n");
-	const char* filename = argv[1];//, * reason = NULL;
+	const char* filename = argv[1], * reason = NULL;
 	const int output_limit = 4096; 
 	int begin = 0, top = 0, index = -1, done = 0, length = 0;
-
 	char* input = open_file(filename, &length);
 	int* output = malloc(output_limit * sizeof(int));
-	memset(output, 0x0F, output_limit * sizeof(int));
-
+	memset(output, 0x0F, output_limit * sizeof(int)); // debug
 	while (input[begin] != ';') begin++;
 	do begin++; while (begin < length and input[begin] < 33);
-	
-	output[top + 0] = output_limit;   // B : index 
-	output[top + 1] = 0;    // B : parent         can be 0, initially.
-	output[top + 2] = 0;    // A : begin
-	output[top + 3] = 0;    // A : done         can be zero initially.
+	output[top] = output_limit;
+	output[top + 2] = 0;
+	output[top + 5] = 0;
+	output[top + 6] = begin;
 	top += 4;
-	output[top + 0] = 0;     // B : index 
-	output[top + 1] = 0;     // B : parent         should be 0, actually.
-	output[top + 2] = begin; // A : begin
-	output[top + 3] = 0;     // A : done            can be 0, initially.
 
-_0:
-	printf("current: length=%d begin=%d top=%d index=%d done=%d\n",
-			length, begin, top, index, done);
-	print_output(output, top + 4);
+_0:	if (index == output_limit) goto _6;
 
-	if (index == output_limit) {
-		printf("found a zero node.\n");
-		goto _6;
-	}
 	// int temp = done;
 	// if (input[temp] != ':' and input[temp] != ';') goto _11;
 
@@ -79,53 +65,30 @@ _0:
 	// 	if (input[temp] == ':') goto _6;
 	// } while (input[temp] != ';');
 
-	if (index < top) {
-		printf("trying more indexes...\n");
-		goto _8;
-	}
-
+	if (index < top) goto _8;
 _6: 	if (not top) goto resolution_failure;
-	printf("backtracking...\n");
 	top -= 4; 
 	index = output[top];
 	goto _0;
-	
-_8:	;
-	int p = output[top + 1];
-	if (not p) {
-		printf("error: found a parent, which is negative! %d treating as reg\n", p);
-		goto _10;
-	}
-	char c = input[output[p + 3]];
-	if (c != '.') {
-		printf("found regular parameter from the parent: %c\n", c);
-		goto _10; 
-	}
-	printf("found a name parameter!\n");
-	index = output_limit; done = 0;
-	while (input[begin] != ';') begin++;
+
+_8:; 	int p = output[top + 1];
+	if (not p) goto _10;
+	char c = input[output[p + 3]]; // replace with type checking- ie, checking for empty type string.
+	if (c != '.') goto _10;
+	index = output_limit; 
+	done = 0;
+	while (begin < length and input[begin] != ';') begin++;
 	do begin++; while (begin < length and input[begin] < 33);
 	goto _2;
 
-_10:	
-	do index++; while(index < top + 4 and output[index] != output_limit);
-	if (index >= top + 4) {
-		printf("no more signature left!!\n");
-		goto _0;
-	}
+_10:	do index++; while(index < top + 4 and output[index] != output_limit);
+	if (index >= top + 4) goto _0;
 	begin = output[top + 2];
 	done = output[index + 2];
-	printf("trying new signature using: index=%d, begin=%d, done=%d\n", index, begin, done);
 
-_1:	
-	printf("parent: length=%d begin=%d top=%d index=%d done=%d\n",
-			length, begin, top, index, done);
-	print_output(output, top + 4);
-	
-	if (input[done] == ';') goto _2;
+_1:	if (input[done] == ';') goto _2;
 	if (input[done] != '.' and input[done] != ':') goto _7;
 	if (top + 7 >= output_limit) goto output_limit_exceeded;
-	printf("found a paramter position! :  %c\n", input[done]);
 	output[top] = index;
 	output[top + 3] = done;
 	top += 4;
@@ -133,22 +96,13 @@ _1:
 	output[top + 2] = begin;
 	index = -1;
 	goto _0;
-
-_7:	if (begin >= length) {
-		printf("unexepceted end of input!\n");
-		goto _0;
-	}
-	if (input[done] != input[begin]) {
-		printf("character mismatch\n");
-		goto _0;
-	}
+_7:	if (begin >= length) goto _0;
+	if (input[done] != input[begin]) goto _0;
 	do begin++; while (begin < length and input[begin] < 33);
 	do done++; while (done < length and input[done] < 33);
-	printf("character match!!\n");
 	goto _1;
 
-_2:	printf("signature success parse. on %d \n", index );
-	output[top] = index;
+_2:	output[top] = index;
 	output[top + 3] = done;
 	int parent = output[top + 1];
 	if (not parent) goto _3;
@@ -156,20 +110,20 @@ _2:	printf("signature success parse. on %d \n", index );
 	top += 4;
 	output[top + 1] = output[parent + 1];
 	output[top + 2] = begin;
-	output[top + 3] = done;
 	index = output[parent];
 	done = output[parent + 3];
 	do done++; while (done < length and input[done] < 33);
 	goto _1;
-_3:	printf("checking begin == length...\n");
-	if (begin != length) goto _0;
+
+_3:	if (begin != length) goto _0;
 	top += 4;
+
+
 
 	puts("success: compile successful."); 
 	printf("success: length=%d begin=%d top=%d index=%d done=%d\n",
 			length, begin, top, index, done);
 	print_output(output, top);
-
 
 	for (int i = 4; i < top; i += 4) {
 
@@ -206,20 +160,47 @@ _3:	printf("checking begin == length...\n");
 	}
 	goto done;
 
-output_limit_exceeded: 	
-	// reason = "output limit exceeded"; 
-	goto display;
+output_limit_exceeded: 
+	printf("error: output limit exceeded\n"); 
+	goto done;
 
 resolution_failure: 
-	// reason = "unresolved expression";
-	goto display;
+	printf("error: resolution failure\n"); 
 
-display:
-	printf("error\n");
-done:	
-	munmap(input, (size_t) length); 
+done: 	munmap(input, (size_t) length);
 	free(output);
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+	// int temp = done;
+	// if (input[temp] != ':' and input[temp] != ';') goto _11;
+
+	// do temp--; while (input[temp] != ':');
+	// do {	
+	// 	temp--;
+	// 	if (input[temp] == ':') goto _6;
+	// } while (input[temp] != ';');
+
+
 
 
 
@@ -701,5 +682,28 @@ static inline void* open_file(const char* filename, int* length) {
 // 	print_source(A, Al, line, column);
 // 	print_candidate(B, Bl, bb);
 
+
+
+
+
+
+/*
+j.and:finished;
+	j
+		hello . also : also : done ; 
+
+	and 
+		hello  
+
+			     nop ;    
+
+			also nop 
+			also nop
+		
+		done
+		
+	finished
+
+*/
 
 

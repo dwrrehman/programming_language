@@ -1,15 +1,12 @@
-j.and:finished;
-	j
-		hello . also : also : done ; 
+'.:;
+'hi....:;
 
-	and 
-		hello  
+	hi    	
+		add : ;
+		add : , : ;
 
-			     nop ;    
+		5 ;
 
-			also nop 
-			also nop
-		
-		done
-		
-	finished
+		57 ;
+
+		add 57, add 57,57
