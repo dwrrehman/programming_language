@@ -12,7 +12,7 @@ The language has only _two_ priorities:
 	- execute _as fast as possible_ on the given target, and/or
 	- have a memory size _as small as possible_.
 
- - __Brutal simplicity and minimalism__: The compiler's _total_ source code is limited to 700 lines.
+ - __Brutal simplicity and minimalism__: The compiler's _total_ source code is limited to 500 lines.
 
 
 ### What this language does NOT care about:

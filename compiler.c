@@ -7,7 +7,6 @@
 #include <sys/stat.h>
 #include <sys/mman.h>
 
-
 static void print_output(int* output, int top) {
 	puts("");
 	for (int i = 0; i < top; i += 4) {
@@ -54,6 +53,56 @@ int main(const int argc, const char** argv) {
 	output[top + 6] = begin;
 	top += 4;
 
+	// begin: if the parent has empty type, then goto undefined
+
+	// tc:  see if the sig tc's. if it doesnt goto incr.
+
+	// if you are here, then it type checks. 
+	//   load the saved values of begin and done.
+
+	// parent: see if you are done, if so goto done. 
+	// try to parse signature.
+	// if you fail mid parse, then goto fail. 
+	// if you hit a parmaeter spot, then goto begin.
+	// goto done
+
+	// undefined: try undefined (output_limit) signature.
+	//    incr begin until hit ";". then go past ";".
+
+	// done: if you are here, then the parse succeeded.
+	// publish.
+	// check if you have a parent,
+	//   if not, then goto check.
+	//   if so, duplicate the parent, and then goto parent.
+	
+	// check: if begin == length, then goto success.
+	
+	// fail: if you are here, then that means that things failed somewhere.
+	// check if you need to backtrack.
+	//    if not, then goto incr.
+	//    if so, goto backtrack;
+
+	// backtrack:   if not top, then goto error;
+	// decrement top,  (and set index accordingly....?)
+	// then goto fail;
+
+	// incr:   if index >= top, then goto fail..?.....
+	//  increment index, and then do it again until you hit a undefined node.
+
+	//  goto begin;
+
+	// success:  print success!
+	
+	
+
+
+
+
+
+
+
+
+
 _0:	if (index == output_limit) goto _6;
 
 	// int temp = done;
@@ -66,6 +115,7 @@ _0:	if (index == output_limit) goto _6;
 	// } while (input[temp] != ';');
 
 	if (index < top) goto _8;
+
 _6: 	if (not top) goto resolution_failure;
 	top -= 4; 
 	index = output[top];
@@ -96,6 +146,7 @@ _1:	if (input[done] == ';') goto _2;
 	output[top + 2] = begin;
 	index = -1;
 	goto _0;
+
 _7:	if (begin >= length) goto _0;
 	if (input[done] != input[begin]) goto _0;
 	do begin++; while (begin < length and input[begin] < 33);
@@ -117,8 +168,6 @@ _2:	output[top] = index;
 
 _3:	if (begin != length) goto _0;
 	top += 4;
-
-
 
 	puts("success: compile successful."); 
 	printf("success: length=%d begin=%d top=%d index=%d done=%d\n",
