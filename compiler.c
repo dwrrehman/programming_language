@@ -37,46 +37,37 @@ static void* open_file(const char* filename, int* length) {
 	return input;
 }
 
-// .:::.:;
-
 int main(const int argc, const char** argv) {
 	if (argc != 2) return printf("usage: ./compiler <input>\n");
-	const int output_limit = 4096; 
+	const int limit = 4096; 
 	const char* expected = NULL;
-	int begin = 0, top = 0, index = 0, done = 0, length = 0, parent = 0;
+	int top = 0, done = 0, begin = 0, index = 0, parent = 0, length = 0;
 	char* input = open_file(argv[1], &length);
-	int* output = malloc(output_limit * sizeof(int));
-	memset(output, 0x0F, output_limit * sizeof(int)); 
-
+	int* output = malloc(limit * sizeof(int));
+	memset(output, 0x0F, limit * sizeof(int)); 
 	while (input[begin] != ';') begin++; 
 	begin++;
-
-	output[top] = output_limit;
+	output[top] = limit;
 	output[top + 2] = 0;
 	output[top + 5] = 0;
 	output[top + 6] = begin;
 	top += 4;
-begin:  
-	parent = output[top + 1];
+begin:  parent = output[top + 1];
 	if (parent) goto child;
 	expected = "top:";
 	goto type;
-child:
-	expected = input + output[parent + 3] + 1;
+child:	expected = input + output[parent + 3] + 1;
 	if (*expected == ':') goto new;
-type:
-	if (input[done] == ':' and *expected == ':') goto valid;
+type:	if (input[done] == ':' and *expected == ':') goto valid;
 	if (input[done] != *expected) goto next;
 	expected++;
 	done++;
 	goto type;
-valid: 
-	done++;
+valid: 	done++;
 	begin = output[top + 2];
-parent:
-	if (input[done] == ';') goto done;
+parent:	if (input[done] == ';') goto done;
 	if (input[done] != ':') goto match;
-	if (top + 7 >= output_limit) goto output_limit_exceeded;
+	if (top + 7 >= limit) goto out_of_memory;
 	output[top] = index;
 	output[top + 3] = done;
 	output[top + 5] = top;
@@ -84,35 +75,31 @@ parent:
 	top += 4;
 	index = 0;
 	goto begin;
-match:	
-	if (begin >= length) goto fail;
+match:	if (begin >= length) goto fail;
 	if (input[done] != input[begin]) goto fail;
 	begin++; 
 	done++;
 	goto parent;
-new:
-	index = output_limit; 
-	done = 0;
+new:	index = limit;
 	while (input[begin] != ';') begin++;
 	begin++;
-done:
-	output[top] = index;
+done:	output[top] = index;
 	output[top + 3] = done;
 	parent = output[top + 1];
-	if (parent) goto duplicate;
-	if (begin == length) goto success; 
-	goto fail;
-duplicate:
-	if (top + 7 >= output_limit) goto output_limit_exceeded;
+	if (not parent) goto end;
+	if (top + 7 >= limit) goto out_of_memory;
 	top += 4;
 	output[top + 1] = output[parent + 1];
 	output[top + 2] = begin;
 	index = output[parent];
-	done = output[parent + 3] + 1;
+	done = output[parent + 3];
+	done++;
 	while (input[done] != ':') done++; 
 	done++;
 	goto parent;
-fail:
+end:	if (begin == length) goto success;
+fail:	
+	
 	prepare backtracking condition;
 	if ( we dont need to backtrack ) goto next;
 
@@ -121,16 +108,13 @@ fail:
 	index = output[top];
 	done = output[top + 2];
 	goto fail;
-
-next:
-	index++;
+next:	index++;
 	if (index >= top) goto fail;
-	if (output[index] != output_limit) goto next;
+	if (output[index] != limit) goto next;
 	done = output[index + 2];
 	goto begin;
 success: 
 	puts("success: compile successful."); 
-
 
 
 	printf("success: length=%d begin=%d top=%d index=%d done=%d\n",
@@ -139,7 +123,7 @@ success:
 
 	for (int i = 4; i < top; i += 4) {
 		int t = output[i + 3];
-		if (output[i] == output_limit) {
+		if (output[i] == limit) {
 				for (int _ = 0; _ < (output[i + 1])/4; _++) printf(".   ");
 				printf("found %d : [--> %d] UDS!!    ", i, output[i + 1]);
 				printf("defining: ");
@@ -169,8 +153,8 @@ success:
 	}
 	goto clean_up;
 
-output_limit_exceeded: 
-	printf("error: output limit exceeded\n"); 
+out_of_memory: 
+	printf("error: out of memory\n"); 
 	goto clean_up;
 
 resolution_failure: 
