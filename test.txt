@@ -1,0 +1,15 @@
+j.and:finished;
+	j
+		hello . also : also : done ; 
+
+	and 
+		hello  
+
+			     nop ;    
+
+			also nop 
+			also nop
+		
+		done
+		
+	finished

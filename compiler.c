@@ -18,42 +18,38 @@ static void print_output(int* output, int top) {
 	puts("\n");
 }
 
-// static void* open_file(const char* filename, int* length) {
-// 	struct stat file_data = {0};
-// 	const int file = open(filename, O_RDONLY);
-// 	if (file < 0 or stat(filename, &file_data) < 0) {
-// 		fprintf(stderr, "error: %s: ", filename);
-// 		perror("open");
-// 		exit(3);
-// 	}
-// 	*length = (int) file_data.st_size;
-// 	if (not *length) return NULL;
-// 	void* input = mmap(0, (size_t) *length, PROT_READ, MAP_SHARED, file, 0);
-// 	if (input == MAP_FAILED) {
-// 		fprintf(stderr, "error: %s: ", filename);
-// 		perror("mmap");
-// 		exit(4);
-// 	}
-// 	close(file);
-// 	return input;
-// }
+static void* open_file(const char* filename, int* length) {
+	struct stat file_data = {0};
+	const int file = open(filename, O_RDONLY);
+	if (file < 0 or stat(filename, &file_data) < 0) {
+		fprintf(stderr, "error: %s: ", filename);
+		perror("open");
+		exit(3);
+	}
+	*length = (int) file_data.st_size;
+	if (not *length) return NULL;
+	void* input = mmap(0, (size_t) *length, PROT_READ, MAP_SHARED, file, 0);
+	if (input == MAP_FAILED) {
+		fprintf(stderr, "error: %s: ", filename);
+		perror("mmap");
+		exit(4);
+	}
+	close(file);
+	return input;
+}
 
-int main() { // const int argc, const char** argv
+int main(const int argc, const char** argv) {
+	if (argc != 2) return printf("usage: ./compiler <input>\n");
+	const char* filename = argv[1];//, * reason = NULL;
+	const int output_limit = 4096; 
+	int begin = 0, top = 0, index = -1, done = 0, length = 0;
 
-	// if (argc != 2) return printf("usage: ./compiler <input>\n");
-
-	// const char* filename = argv[1], * reason = NULL;
-	const int output_limit = 128; 
-	int begin = 0, top = 0, index = -1, done = -300;
-
-	const char* input = "j.and:finished;jhello.also:also:done;andhellonop;alsonopalsonopdonefinished";
-	int length = (int) strlen(input);
-
+	char* input = open_file(filename, &length);
 	int* output = malloc(output_limit * sizeof(int));
 	memset(output, 0x0F, output_limit * sizeof(int));
 
-	while (input[begin] != ';') begin++; 
-	begin++;
+	while (input[begin] != ';') begin++;
+	do begin++; while (begin < length and input[begin] < 33);
 	
 	output[top + 0] = output_limit;   // B : index 
 	output[top + 1] = 0;    // B : parent         can be 0, initially.
@@ -94,19 +90,21 @@ _6: 	if (not top) goto resolution_failure;
 	index = output[top];
 	goto _0;
 	
-_8:;	int p = output[top + 1];
-	if (p == 0) {
+_8:	;
+	int p = output[top + 1];
+	if (not p) {
 		printf("error: found a parent, which is negative! %d treating as reg\n", p);
 		goto _10;
 	}
 	char c = input[output[p + 3]];
 	if (c != '.') {
-		printf("found regular parmaeter from the parent: %c\n", c);
+		printf("found regular parameter from the parent: %c\n", c);
 		goto _10; 
 	}
 	printf("found a name parameter!\n");
 	index = output_limit; done = 0;
-	while (input[begin] != ';') begin++; begin++;
+	while (input[begin] != ';') begin++;
+	do begin++; while (begin < length and input[begin] < 33);
 	goto _2;
 
 _10:	
@@ -144,8 +142,8 @@ _7:	if (begin >= length) {
 		printf("character mismatch\n");
 		goto _0;
 	}
-	begin++;
-	done++;
+	do begin++; while (begin < length and input[begin] < 33);
+	do done++; while (done < length and input[done] < 33);
 	printf("character match!!\n");
 	goto _1;
 
@@ -153,28 +151,24 @@ _2:	printf("signature success parse. on %d \n", index );
 	output[top] = index;
 	output[top + 3] = done;
 	int parent = output[top + 1];
-	if (parent == 0) goto _3;
+	if (not parent) goto _3;
 	if (top + 7 >= output_limit) goto output_limit_exceeded;
 	top += 4;
 	output[top + 1] = output[parent + 1];
 	output[top + 2] = begin;
 	output[top + 3] = done;
 	index = output[parent];
-	done = output[parent + 3] + 1;
+	done = output[parent + 3];
+	do done++; while (done < length and input[done] < 33);
 	goto _1;
-_3:	printf("checking begin == length...\n");;
+_3:	printf("checking begin == length...\n");
 	if (begin != length) goto _0;
 	top += 4;
 
-
-
 	puts("success: compile successful."); 
-
 	printf("success: length=%d begin=%d top=%d index=%d done=%d\n",
 			length, begin, top, index, done);
 	print_output(output, top);
-
-
 
 
 	for (int i = 4; i < top; i += 4) {
@@ -223,7 +217,7 @@ resolution_failure:
 display:
 	printf("error\n");
 done:	
-	// munmap(input, (size_t) length); 
+	munmap(input, (size_t) length); 
 	free(output);
 }
 
