@@ -56,38 +56,24 @@ int main(const int argc, const char** argv) {
 	output[top + 5] = 0;
 	output[top + 6] = begin;
 	top += 4;
-
 begin:  
-	// begin: if the parent has empty type, then goto undefined
-	//   see if the sig tc's. if it doesnt, goto next index.
 	parent = output[top + 1];
-	if (parent) goto nonzero_parent;
+	if (parent) goto child;
 	expected = "top:";
-	goto type_check;
-
-nonzero_parent:
+	goto type;
+child:
 	expected = input + output[parent + 3] + 1;
-	if (*expected == ':') goto undefined;
-
-type_check:
+	if (*expected == ':') goto new;
+type:
 	if (input[done] == ':' and *expected == ':') goto valid;
-	if (input[done] != *expected) goto next_index;
+	if (input[done] != *expected) goto next;
 	expected++;
 	done++;
-	goto type_check;
-
+	goto type;
 valid: 
-	// if you are here, then it type checks. 
-	//   load the saved values of begin.
 	done++;
 	begin = output[top + 2];
-
 parent:
-	// parent: see if you are done, if so goto done. 
-	// try to parse signature.
-	// if you fail mid parse, then goto fail. 
-	// if you hit a parmaeter spot, then goto begin.
-	// goto parent
 	if (input[done] == ';') goto done;
 	if (input[done] != ':') goto match;
 	if (top + 7 >= output_limit) goto output_limit_exceeded;
@@ -98,35 +84,24 @@ parent:
 	top += 4;
 	index = 0;
 	goto begin;
-
 match:	
 	if (begin >= length) goto fail;
 	if (input[done] != input[begin]) goto fail;
 	begin++; 
-	done++; 
+	done++;
 	goto parent;
-
-undefined:
-	// undefined: try undefined (output_limit) signature.
-	//    incr begin until hit ";". then go past ";".
+new:
 	index = output_limit; 
 	done = 0;
-	while (begin < length and input[begin] != ';') begin++;
+	while (input[begin] != ';') begin++;
 	begin++;
-
-done:	
-	// done: if you are here, then the parse succeeded.
-	// publish.
-	// check if you have a parent,
-	//   if not, then goto check.
-	//   if so, duplicate the parent, and then goto parent.
+done:
 	output[top] = index;
 	output[top + 3] = done;
 	parent = output[top + 1];
 	if (parent) goto duplicate;
 	if (begin == length) goto success; 
 	goto fail;
-
 duplicate:
 	if (top + 7 >= output_limit) goto output_limit_exceeded;
 	top += 4;
@@ -134,37 +109,23 @@ duplicate:
 	output[top + 2] = begin;
 	index = output[parent];
 	done = output[parent + 3] + 1;
-	while (input[done] != ':') done++;
+	while (input[done] != ':') done++; 
 	done++;
 	goto parent;
-
-fail:	
-	// fail: if you are here, then that means that things failed somewhere.
-	// check if you need to backtrack.
-	//    if not, then goto next_index.
-	//    if so, goto backtrack;
-
+fail:
 	prepare backtracking condition;
+	if ( we dont need to backtrack ) goto next;
 
-	if ( we dont need to backtrack ) goto next_index;
-
-	// backtrack:   if not top, then goto error;
-	// decrement top,  (and set index accordingly....?)
-	// then goto fail;
 	if (not top) goto resolution_failure;
 	top -= 4;
 	index = output[top];
 	done = output[top + 2];
 	goto fail;
 
-next_index:
-	// next_index:   if index >= top, then goto fail..?.....
-	//  increment index, and then do it again until you hit a undefined node.
-	//  goto begin;
-keep:
+next:
 	index++;
 	if (index >= top) goto fail;
-	if (output[index] != output_limit) goto keep;
+	if (output[index] != output_limit) goto next;
 	done = output[index + 2];
 	goto begin;
 success: 
