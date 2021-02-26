@@ -9,7 +9,7 @@
 
 static void print_output(int* output, int top, int index) {
 	puts("\n------- output: -------");
-	for (int i = 0; i < 40; i += 4) {
+	for (int i = 0; i < top + 4; i += 4) {
 		printf("%c%c %10d :   %10di %10dp %10db %10dd \n", 
 			i != top ? ' ' : '>',
 			i != index ? ' ' : '@', i, 
@@ -73,15 +73,14 @@ static void* open_file(const char* filename, int* length) {
 
 int main(const int argc, const char** argv) {
 	if (argc != 2) return printf("usage: ./compiler <input>\n");
-	const int limit = 4096; 
-	const char* expected = NULL;
-	int top = 0, done = 0, begin = 0, index = 0, parent = 0, length = 0;
+	const int limit = 4096;
+	int top = 0, done = 0, begin = 0, index = 0, parent = 0, length = 0, expected = 0;
 	char* input = open_file(argv[1], &length);
 	printf("input = <<<%.*s>>>\n", length, input);
 	int* output = malloc(limit * sizeof(int));
 	memset(output, 0x0F, limit * sizeof(int)); 
 	while (input[begin] != ';') begin++; 
-	begin++;
+	do begin++; while (begin < length and input[begin] < 33);
 	output[top] = limit;
 	output[top + 2] = 0;
 	output[top + 5] = 0;
@@ -92,25 +91,26 @@ begin:  debug("begin", input, output, length, begin, top, index, done);
 
 	parent = output[top + 1];
 	if (parent) goto child;
-	expected = "top:";
+	expected = 0;
 	goto type;
 
 child:	debug("child", input, output, length, begin, top, index, done);
 
-	expected = input + output[parent + 3] + 1;
-	if (*expected == ':') goto new;
+	expected = output[parent + 3];
+	do expected++; while (expected < length and input[expected] < 33);
+	if (input[expected] == ':') goto new;
 
 type:	debug("type", input, output, length, begin, top, index, done);
 
-	if (input[done] == ':' and *expected == ':') goto valid;
-	if (input[done] != *expected) goto next;
-	expected++;
-	done++;
+	if (input[done] == ':' and input[expected] == ':') goto valid;
+	if (input[done] != input[expected]) goto next;
+	do expected++; while (expected < length and input[expected] < 33);
+	do done++; while (done < length and input[done] < 33);
 	goto type;
 
 valid: 	debug("valid", input, output, length, begin, top, index, done);
 
-	done++;
+	do done++; while (done < length and input[done] < 33);
 	begin = output[top + 2];
 
 parent:	debug("parent", input, output, length, begin, top, index, done);
@@ -130,15 +130,17 @@ match:	debug("match", input, output, length, begin, top, index, done);
 
 	if (begin >= length) goto fail;
 	if (input[done] != input[begin]) goto fail;
-	begin++; 
-	done++;
+	do begin++; while (begin < length and input[begin] < 33);
+	do done++; while (done < length and input[done] < 33);
 	goto parent;
 
 new:	debug("new", input, output, length, begin, top, index, done);
 
 	index = limit;
-	while (input[begin] != ';') begin++;
-	begin++;
+	while (input[begin] != ';') {
+		do begin++; while (begin < length and input[begin] < 33);
+	}
+	do begin++; while (begin < length and input[begin] < 33);
 
 done:	debug("done", input, output, length, begin, top, index, done);
 	
@@ -153,9 +155,11 @@ done:	debug("done", input, output, length, begin, top, index, done);
 	output[top + 2] = begin;
 	index = output[parent];
 	done = output[parent + 3];
-	done++;
-	while (input[done] != ':') done++; 
-	done++;
+	do done++; while (done < length and input[done] < 33);
+	while (input[done] != ':') {
+		do done++; while (done < length and input[done] < 33);
+	}
+	do done++; while (done < length and input[done] < 33);
 	goto parent;
 end:	if (begin == length) goto success;
 
@@ -163,9 +167,10 @@ fail:	debug("fail", input, output, length, begin, top, index, done);
 
 	if (index == limit) goto bt;
 	int d = output[index + 2];
-	while (input[d] != ':') d++;
-
-more:	d++;
+	while (input[d] != ':') {
+		do d++; while (d < length and input[d] < 33);
+	}
+more:	do d++; while (d < length and input[d] < 33);
 	print_index("d", input, length, d);
 	
 	if (input[d] == ';') goto btch;
@@ -187,7 +192,7 @@ bt:	debug("bt", input, output, length, begin, top, index, done);
 next:	debug("next", input, output, length, begin, top, index, done);
 
 	index += 4;
-	if (index >= top) goto fail;
+	if (index >= top) goto bt;
 	if (output[index] != limit) goto next;
 	done = output[index + 2];
 	goto begin;
@@ -195,7 +200,6 @@ next:	debug("next", input, output, length, begin, top, index, done);
 success: top += 4; 
 	puts("success: compile successful."); 
 	debug("success", input, output, length, begin, top, index, done);
-
 
 	for (int i = 4; i < top; i += 4) {
 		int t = output[i + 3];
@@ -229,11 +233,12 @@ success: top += 4;
 	goto clean_up;
 
 out_of_memory: 
-	printf("error: out of memory\n"); 
+	puts("error: out of memory"); 
 	goto clean_up;
 
-resolution_failure: 
-	printf("error: resolution failure\n"); 
+resolution_failure:
+	puts("error: resolution failure"); 
+	debug("error", input, output, length, begin, top, index, done);
 
 clean_up: 	
 	munmap(input, (size_t) length);
