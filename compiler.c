@@ -8,14 +8,47 @@
 #include <sys/mman.h>
 
 static void print_output(int* output, int top) {
-	puts("");
+	puts("\n------- output: -------");
 	for (int i = 0; i < top; i += 4) {
 		printf("%c %10d :   %10di %10dp %10db %10dd \n", 
 			i < top - 4 ? ' ' : '>', i, 
 			output[i], output[i + 1], output[i + 2], output[i + 3]);
 	}
-	puts("\n");
+	puts("---------------------\n");
 }
+
+
+static void print_index(const char* m, const char* string, int length, int index) {
+	printf("\n%s\t\t", m);
+	for (int i = 0; i < length; i++) {
+		char c = string[i];
+		if (i == index) printf("\033[1;31m[%c]\033[m", c);
+		else printf("%c", c);
+	} 
+	if (index == length) printf("\033[1;31m[T]\033[m"); 
+	else printf("T"); 
+	printf("\n");
+}
+
+
+static void debug(const char* m, const char* input, int* output, 
+		  int length, int begin, int top, int index, int done) {
+	printf("\n\n\n\n\n-------------%s---------------:\n",m);
+
+	printf("variables:\n\t "
+		"length = %d\n\t "
+		"begin = %d\n\t "
+		"top = %d\n\t "
+		"index = %d\n\t "
+		"done = %d\n\n",  
+		length, begin, top, index, done);
+
+	print_output(output, top);
+	print_index("begin:", input, length, begin);
+	print_index("done:", input, length, done);
+	printf("continue? "); getchar();
+}
+
 
 static void* open_file(const char* filename, int* length) {
 	struct stat file_data = {0};
@@ -43,6 +76,7 @@ int main(const int argc, const char** argv) {
 	const char* expected = NULL;
 	int top = 0, done = 0, begin = 0, index = 0, parent = 0, length = 0;
 	char* input = open_file(argv[1], &length);
+	printf("input = <<<%.*s>>>\n", length, input);
 	int* output = malloc(limit * sizeof(int));
 	memset(output, 0x0F, limit * sizeof(int)); 
 	while (input[begin] != ';') begin++; 
@@ -52,20 +86,35 @@ int main(const int argc, const char** argv) {
 	output[top + 5] = 0;
 	output[top + 6] = begin;
 	top += 4;
-begin:  parent = output[top + 1];
+
+begin:  debug("begin", input, output, length, begin, top, index, done);
+
+	parent = output[top + 1];
 	if (parent) goto child;
 	expected = "top:";
 	goto type;
-child:	expected = input + output[parent + 3] + 1;
+
+child:	debug("child", input, output, length, begin, top, index, done);
+
+	expected = input + output[parent + 3] + 1;
 	if (*expected == ':') goto new;
-type:	if (input[done] == ':' and *expected == ':') goto valid;
+
+type:	debug("type", input, output, length, begin, top, index, done);
+
+	if (input[done] == ':' and *expected == ':') goto valid;
 	if (input[done] != *expected) goto next;
 	expected++;
 	done++;
 	goto type;
-valid: 	done++;
+
+valid: 	debug("valid", input, output, length, begin, top, index, done);
+
+	done++;
 	begin = output[top + 2];
-parent:	if (input[done] == ';') goto done;
+
+parent:	debug("parent", input, output, length, begin, top, index, done);
+
+	if (input[done] == ';') goto done;
 	if (input[done] != ':') goto match;
 	if (top + 7 >= limit) goto out_of_memory;
 	output[top] = index;
@@ -75,15 +124,25 @@ parent:	if (input[done] == ';') goto done;
 	top += 4;
 	index = 0;
 	goto begin;
-match:	if (begin >= length) goto fail;
+
+match:	debug("match", input, output, length, begin, top, index, done);
+
+	if (begin >= length) goto fail;
 	if (input[done] != input[begin]) goto fail;
 	begin++; 
 	done++;
 	goto parent;
-new:	index = limit;
+
+new:	debug("new", input, output, length, begin, top, index, done);
+
+	index = limit;
 	while (input[begin] != ';') begin++;
 	begin++;
-done:	output[top] = index;
+
+done:	debug("done", input, output, length, begin, top, index, done);
+	
+
+	output[top] = index;
 	output[top + 3] = done;
 	parent = output[top + 1];
 	if (not parent) goto end;
@@ -98,28 +157,38 @@ done:	output[top] = index;
 	done++;
 	goto parent;
 end:	if (begin == length) goto success;
-fail:	
-	
-	prepare backtracking condition;
-	if ( we dont need to backtrack ) goto next;
+
+fail:	debug("fail", input, output, length, begin, top, index, done);
+
+	if (index == limit) goto bt;
+	int d = output[index + 2];
+	while (input[d] != ':') d++;
+more: 	d++;
+	if (input[d] == ';') goto btch;
+	if (input[d] == ':') goto btch;
+	goto more;
+btch: 	if (d == done) goto next;
+
+bt:	debug("bt", input, output, length, begin, top, index, done);
 
 	if (not top) goto resolution_failure;
 	top -= 4;
 	index = output[top];
 	done = output[top + 2];
 	goto fail;
-next:	index++;
+
+next:	debug("next", input, output, length, begin, top, index, done);
+
+	index += 4;
 	if (index >= top) goto fail;
 	if (output[index] != limit) goto next;
 	done = output[index + 2];
 	goto begin;
-success: 
+
+success: top += 4; 
 	puts("success: compile successful."); 
+	debug("success", input, output, length, begin, top, index, done);
 
-
-	printf("success: length=%d begin=%d top=%d index=%d done=%d\n",
-			length, begin, top, index, done);
-	print_output(output, top);
 
 	for (int i = 4; i < top; i += 4) {
 		int t = output[i + 3];
@@ -132,7 +201,6 @@ success:
 				} 
 				puts("\n");
 		} else {
-
 			if (t < length) {
 				if (input[t] == ';') {
 					for (int _ = 0; _ < (output[i + 1])/4; _++) printf(".   ");
@@ -146,7 +214,7 @@ success:
 					// printf(" (intermediary): %10d : %10di %10dp \n", i,  output[i], output[i + 1]);
 				}
 			} else {
-				// printf(" err: %10d : %10di %10dp %10db %10dd \n", i,  output[i], output[i + 1], output[i + 2], output[i + 3]);
+				printf(" err: %10d : %10di %10dp %10db %10dd \n", i,  output[i], output[i + 1], output[i + 2], output[i + 3]);
 			}
 		}
 		
@@ -261,4 +329,17 @@ clean_up:
 
 
 
+/*
+'.:;
+'hi....:;
 
+	hi    	
+		add : ;
+		add : , : ;
+
+		5 ;
+
+		57 ;
+
+		add 57, add 57,57
+*/

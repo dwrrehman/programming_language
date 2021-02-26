@@ -1,12 +1,1 @@
-'.:;
-'hi....:;
-
-	hi    	
-		add : ;
-		add : , : ;
-
-		5 ;
-
-		57 ;
-
-		add 57, add 57,57
+top:hi::::there:top:done;hitop:bob;top:bobalice;therebobalicedone
