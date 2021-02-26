@@ -1,12 +1,4 @@
-t o p :  h i  : :  a n d  : :  t h e r e  : t o p :  d o n e  ; 
-h i 
-	t o p : b o b ; 
-a n d 
-	t o p : b o b  : t o p :  a l i c e ; 
-t h e r e
-	 b o b
-		 b o b 
-			b o b 
-		a l i c e
-	 a l i c e 
-d o n e 
+top: \:\:\;f\;\:\; ;
+
+::;f;:;
+

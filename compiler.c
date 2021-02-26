@@ -7,16 +7,16 @@
 #include <sys/stat.h>
 #include <sys/mman.h>
 
-static void print_output(int* output, int top, int index) {
-	puts("\n------- output: -------");
-	for (int i = 0; i < top + 4; i += 4) {
-		printf("%c%c %10d :   %10di %10dp %10db %10dd \n", 
-			i != top ? ' ' : '>',
-			i != index ? ' ' : '@', i, 
-			output[i], output[i + 1], output[i + 2], output[i + 3]);
-	}
-	puts("---------------------\n");
-}
+// static void print_output(int* output, int top, int index) {
+// 	puts("\n------- output: -------");
+// 	for (int i = 0; i < top + 4; i += 4) {
+// 		printf("%c%c %10d :   %10di %10dp %10db %10dd \n", 
+// 			i != top ? ' ' : '>',
+// 			i != index ? ' ' : '@', i, 
+// 			output[i], output[i + 1], output[i + 2], output[i + 3]);
+// 	}
+// 	puts("---------------------\n");
+// }
 
 
 static void print_index(const char* m, const char* string, int length, int index) {
@@ -32,23 +32,23 @@ static void print_index(const char* m, const char* string, int length, int index
 }
 
 
-static void debug(const char* m, const char* input, int* output, 
-		  int length, int begin, int top, int index, int done) {
-	printf("\n\n\n\n\n-------------%s---------------:\n",m);
+// static void debug(const char* m, const char* input, int* output, 
+// 		  int length, int begin, int top, int index, int done) {
+// 	printf("\n\n\n\n\n-------------%s---------------:\n",m);
 
-	printf("variables:\n\t "
-		"length = %d\n\t "
-		"begin = %d\n\t "
-		"top = %d\n\t "
-		"index = %d\n\t "
-		"done = %d\n\n", 
-		length, begin, top, index, done);
+// 	printf("variables:\n\t "
+// 		"length = %d\n\t "
+// 		"begin = %d\n\t "
+// 		"top = %d\n\t "
+// 		"index = %d\n\t "
+// 		"done = %d\n\n", 
+// 		length, begin, top, index, done);
 
-	print_output(output, top, index);
-	print_index("begin:", input, length, begin);
-	print_index("done:", input, length, done);
-	printf("continue? "); getchar();
-}
+// 	print_output(output, top, index);
+// 	print_index("begin:", input, length, begin);
+// 	print_index("done:", input, length, done);
+// 	printf("continue? "); getchar();
+// }
 
 
 static void* open_file(const char* filename, int* length) {
@@ -74,46 +74,53 @@ static void* open_file(const char* filename, int* length) {
 int main(const int argc, const char** argv) {
 	if (argc != 2) return printf("usage: ./compiler <input>\n");
 	const int limit = 4096;
-	int top = 0, done = 0, begin = 0, index = 0, parent = 0, length = 0, expected = 0;
+	int top = 0, done = 0, begin = 0, index = 0, parent = 0, 
+	    length = 0, expected = 0, where = 0, best = 0;
 	char* input = open_file(argv[1], &length);
-	printf("input = <<<%.*s>>>\n", length, input);
 	int* output = malloc(limit * sizeof(int));
 	memset(output, 0x0F, limit * sizeof(int)); 
-	while (input[begin] != ';') begin++; 
-	do begin++; while (begin < length and input[begin] < 33);
+	while (begin < length and input[begin] != ';') {
+		if (input[begin] == '\\') {
+			do begin++; while (begin < length and (unsigned char)input[begin] < 33);
+		}
+		do begin++; while (begin < length and (unsigned char)input[begin] < 33);
+	}
+	do begin++; while (begin < length and (unsigned char)input[begin] < 33);
+	if (begin > best) { best = begin; where = done; }
 	output[top] = limit;
 	output[top + 2] = 0;
 	output[top + 5] = 0;
 	output[top + 6] = begin;
 	top += 4;
 
-begin:  debug("begin", input, output, length, begin, top, index, done);
+	// printf("input = <<<%.*s>>>\n", length, input);
 
+begin:  //debug("begin", input, output, length, begin, top, index, done);
 	parent = output[top + 1];
 	if (parent) goto child;
 	expected = 0;
 	goto type;
 
-child:	debug("child", input, output, length, begin, top, index, done);
+child:	//debug("child", input, output, length, begin, top, index, done);
 
 	expected = output[parent + 3];
-	do expected++; while (expected < length and input[expected] < 33);
+	do expected++; while (expected < length and (unsigned char)input[expected] < 33);
 	if (input[expected] == ':') goto new;
 
-type:	debug("type", input, output, length, begin, top, index, done);
-
+type:	//debug("type", input, output, length, begin, top, index, done);
+	
 	if (input[done] == ':' and input[expected] == ':') goto valid;
 	if (input[done] != input[expected]) goto next;
-	do expected++; while (expected < length and input[expected] < 33);
-	do done++; while (done < length and input[done] < 33);
+	do expected++; while (expected < length and (unsigned char)input[expected] < 33);
+	do done++; while (done < length and (unsigned char)input[done] < 33);
 	goto type;
 
-valid: 	debug("valid", input, output, length, begin, top, index, done);
+valid: 	//debug("valid", input, output, length, begin, top, index, done);
 
-	do done++; while (done < length and input[done] < 33);
+	do done++; while (done < length and (unsigned char)input[done] < 33);
 	begin = output[top + 2];
 
-parent:	debug("parent", input, output, length, begin, top, index, done);
+parent:	//debug("parent", input, output, length, begin, top, index, done);
 
 	if (input[done] == ';') goto done;
 	if (input[done] != ':') goto match;
@@ -126,25 +133,34 @@ parent:	debug("parent", input, output, length, begin, top, index, done);
 	index = 0; done = 0;
 	goto begin;
 
-match:	debug("match", input, output, length, begin, top, index, done);
+match:	//debug("match", input, output, length, begin, top, index, done);
 
+	if (input[done] == '\\') {
+		do done++; while (done < length and (unsigned char)input[done] < 33);
+	}
 	if (begin >= length) goto fail;
 	if (input[done] != input[begin]) goto fail;
-	do begin++; while (begin < length and input[begin] < 33);
-	do done++; while (done < length and input[done] < 33);
+
+	do begin++; while (begin < length and (unsigned char)input[begin] < 33);
+	do done++; while (done < length and (unsigned char)input[done] < 33);
+	if (begin > best) { best = begin; where = done; }
+	
 	goto parent;
 
-new:	debug("new", input, output, length, begin, top, index, done);
+new:	//debug("new", input, output, length, begin, top, index, done);
 
 	index = limit;
 	while (input[begin] != ';') {
-		do begin++; while (begin < length and input[begin] < 33);
+		if (input[begin] == '\\') {
+			do begin++; while (begin < length and (unsigned char)input[begin] < 33);
+		}
+		do begin++; while (begin < length and (unsigned char)input[begin] < 33);
 	}
-	do begin++; while (begin < length and input[begin] < 33);
+	do begin++; while (begin < length and (unsigned char)input[begin] < 33);
+	if (begin > best) { best = begin; where = done; }
 
-done:	debug("done", input, output, length, begin, top, index, done);
+done:	//debug("done", input, output, length, begin, top, index, done);
 	
-
 	output[top] = index;
 	output[top + 3] = done;
 	parent = output[top + 1];
@@ -157,31 +173,31 @@ done:	debug("done", input, output, length, begin, top, index, done);
 	done = output[parent + 3];
 	do done++; while (done < length and input[done] < 33);
 	while (input[done] != ':') {
-		do done++; while (done < length and input[done] < 33);
+		do done++; while (done < length and (unsigned char)input[done] < 33);
 	}
-	do done++; while (done < length and input[done] < 33);
+	do done++; while (done < length and (unsigned char)input[done] < 33);
 	goto parent;
 end:	if (begin == length) goto success;
 
-fail:	debug("fail", input, output, length, begin, top, index, done);
+fail:	//debug("fail", input, output, length, begin, top, index, done);
 
 	if (index == limit) goto bt;
 	int d = output[index + 2];
 	while (input[d] != ':') {
-		do d++; while (d < length and input[d] < 33);
+		do d++; while (d < length and (unsigned char)input[d] < 33);
 	}
-more:	do d++; while (d < length and input[d] < 33);
-	print_index("d", input, length, d);
+more:	do d++; while (d < length and (unsigned char)input[d] < 33);
+	//print_index("d", input, length, d);
 	
 	if (input[d] == ';') goto btch;
 	if (input[d] == ':') goto btch;
 	if (d == done) goto next;
 	goto more;
-btch: 	print_index("btch: d", input, length, d);
-	print_index("btch: done", input, length, done);
+btch: 	//print_index("btch: d", input, length, d);
+	//print_index("btch: done", input, length, done);
 	if (d == done) goto next;
 
-bt:	debug("bt", input, output, length, begin, top, index, done);
+bt:	//debug("bt", input, output, length, begin, top, index, done);
 
 	if (not top) goto resolution_failure;
 	top -= 4;
@@ -189,7 +205,7 @@ bt:	debug("bt", input, output, length, begin, top, index, done);
 	done = output[top + 3];
 	goto fail;
 
-next:	debug("next", input, output, length, begin, top, index, done);
+next:	//debug("next", input, output, length, begin, top, index, done);
 
 	index += 4;
 	if (index >= top) goto bt;
@@ -197,9 +213,9 @@ next:	debug("next", input, output, length, begin, top, index, done);
 	done = output[index + 2];
 	goto begin;
 
-success: top += 4; 
+success: top += 4;
 	puts("success: compile successful."); 
-	debug("success", input, output, length, begin, top, index, done);
+	// debug("success", input, output, length, begin, top, index, done);
 
 	for (int i = 4; i < top; i += 4) {
 		int t = output[i + 3];
@@ -218,6 +234,7 @@ success: top += 4;
 					printf("found(i=%d) : [--> parent=%d]   index=%d  ", i, output[i + 1], output[i]); 
 					printf("calling: ");
 					for (int ii = output[output[i] + 2]; input[ii] != ';'; ii++) {
+						if (input[ii] == '\\') { putchar(input[ii]); ii++; }
 						putchar(input[ii]);
 					} 
 					puts("\n");
@@ -238,7 +255,9 @@ out_of_memory:
 
 resolution_failure:
 	puts("error: resolution failure"); 
-	debug("error", input, output, length, begin, top, index, done);
+	// debug("error", input, output, length, begin, top, index, done);
+	print_index("left off at:", input, length, best);
+	print_index("candidate:", input, length, where);
 
 clean_up: 	
 	munmap(input, (size_t) length);
@@ -354,4 +373,48 @@ clean_up:
 		57 ;
 
 		add 57, add 57,57
+
+
+
+
+
+
+lskdjflksdjflskj: ∑∑∑ ¥stop it!¥ :: and , also this is çool!
+	:: also 
+	:: there 
+	:top: done 
+; 
+
+∑∑∑ ¥stop it!¥
+
+	{guys, this is my ∑ type}: bob ; 
+
+and, also this is çool!
+
+	top: bob :{guys, this is my ∑ type}: alice ; 
+also 
+	top: bob :top: :top: alice ; 
+
+there
+	 bob
+		bob   bob   alice 
+ 	 	 bob   bob   alice 
+ 	alice
+done 
+
+
+
+
+
+
+
+if (input[done] == '\\') {
+		do done++; while (done < length and (unsigned char)input[done] < 33);
+	}
+
+
 */
+
+
+
+
