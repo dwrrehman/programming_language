@@ -7,11 +7,12 @@
 #include <sys/stat.h>
 #include <sys/mman.h>
 
-static void print_output(int* output, int top) {
+static void print_output(int* output, int top, int index) {
 	puts("\n------- output: -------");
-	for (int i = 0; i < top; i += 4) {
-		printf("%c %10d :   %10di %10dp %10db %10dd \n", 
-			i < top - 4 ? ' ' : '>', i, 
+	for (int i = 0; i < 40; i += 4) {
+		printf("%c%c %10d :   %10di %10dp %10db %10dd \n", 
+			i != top ? ' ' : '>',
+			i != index ? ' ' : '@', i, 
 			output[i], output[i + 1], output[i + 2], output[i + 3]);
 	}
 	puts("---------------------\n");
@@ -40,10 +41,10 @@ static void debug(const char* m, const char* input, int* output,
 		"begin = %d\n\t "
 		"top = %d\n\t "
 		"index = %d\n\t "
-		"done = %d\n\n",  
+		"done = %d\n\n", 
 		length, begin, top, index, done);
 
-	print_output(output, top);
+	print_output(output, top, index);
 	print_index("begin:", input, length, begin);
 	print_index("done:", input, length, done);
 	printf("continue? "); getchar();
@@ -122,7 +123,7 @@ parent:	debug("parent", input, output, length, begin, top, index, done);
 	output[top + 5] = top;
 	output[top + 6] = begin;
 	top += 4;
-	index = 0;
+	index = 0; done = 0;
 	goto begin;
 
 match:	debug("match", input, output, length, begin, top, index, done);
@@ -163,18 +164,24 @@ fail:	debug("fail", input, output, length, begin, top, index, done);
 	if (index == limit) goto bt;
 	int d = output[index + 2];
 	while (input[d] != ':') d++;
-more: 	d++;
+
+more:	d++;
+	print_index("d", input, length, d);
+	
 	if (input[d] == ';') goto btch;
 	if (input[d] == ':') goto btch;
+	if (d == done) goto next;
 	goto more;
-btch: 	if (d == done) goto next;
+btch: 	print_index("btch: d", input, length, d);
+	print_index("btch: done", input, length, done);
+	if (d == done) goto next;
 
 bt:	debug("bt", input, output, length, begin, top, index, done);
 
 	if (not top) goto resolution_failure;
 	top -= 4;
 	index = output[top];
-	done = output[top + 2];
+	done = output[top + 3];
 	goto fail;
 
 next:	debug("next", input, output, length, begin, top, index, done);
