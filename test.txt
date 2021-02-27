@@ -4,5 +4,5 @@ start
 	unit:nop;
 	unit: join :unit: :unit: ;
 	unit:[x86]add;
-	join nop [x86]add
+	join join nop [x86]add join join nop nop nop
 end

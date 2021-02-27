@@ -18,6 +18,16 @@ static void print_output(int* output, int top, int index) {
 	puts("---------------------\n");
 }
 
+static void print_stack(int* stack, int stack_top) {
+
+	printf("\n------------------------------\n"
+		"printing stack (%d):\n{\n", stack_top);
+	for (int j = 0; j < stack_top; j++) {
+		printf("%10d: %10d\n", j, stack[j]);
+	}
+	printf("}\n");
+}
+
 static void print_index(const char* m, const char* string, int length, int index) {
 	printf("\n%s\t\t", m);
 	for (int i = 0; i < length; i++) {
@@ -84,34 +94,21 @@ static void print_as_ast(const char* input, int length, int* output, int top, in
 	}
 }
 
-static void* open_file(const char* filename, int* length) {
-	struct stat file_data = {0};
-	const int file = open(filename, O_RDONLY);
-	if (file < 0 or stat(filename, &file_data) < 0) {
-		fprintf(stderr, "error: %s: ", filename);
-		perror("open");
-		exit(3);
-	}
-	*length = (int) file_data.st_size;
-	if (not *length) return NULL;
-	void* input = mmap(0, (size_t) *length, PROT_READ, MAP_SHARED, file, 0);
-	if (input == MAP_FAILED) {
-		fprintf(stderr, "error: %s: ", filename);
-		perror("mmap");
-		exit(4);
-	}
-	close(file);
-	return input;
-}
-
 int main(const int argc, const char** argv) {
 	typedef unsigned char uc;
 	if (argc != 2) return printf("usage: ./compiler <input>\n");
 	const int limit = 4096;
-	int index = 0, top = 0, begin = 0, done = 0, var = 0, length = 0, where = 0, best = 0;
-	char* input = open_file(argv[1], &length);
 	int* output = malloc(limit * sizeof(int));
 	memset(output, 0x0F, limit * sizeof(int));
+	int index = 0, top = 0, begin = 0, done = 0;
+	int var = 0, length = 0, where = 0, best = 0;
+	struct stat file_data = {0};
+	int file = open(argv[1], O_RDONLY);
+	if (file < 0 or stat(argv[1], &file_data) < 0) { perror("open"); exit(3); }
+	length = (int) file_data.st_size;
+	char* input = not length ? 0 : mmap(0, (size_t) length, PROT_READ, MAP_SHARED, file, 0);
+	if (input == MAP_FAILED) { perror("mmap"); exit(4); }
+	close(file);
 
 i0: 	if (input[begin] == 59) goto i3;
 	if (input[begin] != 92) goto i2;
@@ -259,46 +256,91 @@ success: top += 4;
 	debug("success", input, output, length, begin, top, index, done);
 	print_as_ast(input, length, output, top, limit);
 
-	uc output_bytes[4096] = {0};
+	int registers[16] = {0};
 
-	int stack[4096] = {0};
+
+	unsigned char output_bytes[4096] = {0};
+
+	int stack[128] = {0};
+	int stack_top = 0;
 
 	for (int i = 0; i < top; i += 4) {
 		
+		print_stack(stack, stack_top);
 
-		
-
-
-		// printf("%10d : %10d %10d %10d %10d \n", i, 
-		// 	output[i], output[i + 1], output[i + 2], output[i + 3]);
+		printf("\nDEBUG: %10d : %10di %10dp %10db %10dd \n", i, 
+			output[i], output[i + 1], output[i + 2], output[i + 3]);
 		
 		index = output[i];
 		done = output[i + 3];
 
-		if (input[done] == ';') {
-			printf("found instruction!     ");
-
-			int start = output[index + 2];
-			while (start < done) {
-				putchar(input[start]);
-				start++;
-			}
-
-			printf("\n");
-
-			const char* nop_instruction = "unit:nop;";
-
-			int ii = output[index + 2];
-			while (input[ii] != ';' and *nop_instruction != ';') {
-				if (input[ii] != *nop_instruction) goto next;
-				ii++;
-				nop_instruction++;
-			}
-			printf("we found an nop instruction!!!\n");
-			
+		if (index == limit) {
+			printf("found a NAME expression.\n");
+			goto finished;
 		}
-		next: continue;
+		printf("\n--> found intermediary!       ");
+		int start = output[index + 2];
+		while (start <= done) {
+			putchar(input[start]);
+			start++;
+		}
+		printf("\n");
+
+		var = output[index + 2];
+
+	fail:	if (input[var] == ':') goto more;
+		if (input[var] != '\\') goto jj;
+	kk: 	var++; if ((uc)input[var] < 33) goto kk;
+	jj: 	var++; if ((uc)input[var] < 33) goto jj;
+		goto fail;
+
+	more:	var++; if ((uc)input[var] < 33) goto more; 
+
+		if (input[var] == ';') goto check;
+		if (input[var] == ':') goto check;
+		if (var == done) goto good;
+		goto more;
+
+	check:	if (var == done) goto good;
+		printf("NON FIRST NODE\n");
+
+		if (input[done] != ';') goto finished;
+		printf("\n--> found instruction!     ");
+
+		start = output[index + 2];
+		while (start < done) {
+			putchar(input[start]);
+			start++;
+		}
+
+		printf("\n");
+
+		printf("popping...\n");
+		if (not stack_top) abort();
+		stack_top--;
+
+		const char* nop_instruction = "unit:nop;";
+
+		int ii = output[index + 2];
+		while (input[ii] != ';' and *nop_instruction != ';') {
+			if (input[ii] != *nop_instruction) goto finished;
+			ii++;
+			nop_instruction++;
+		}
+		printf("we found an nop instruction!!!\n");
+
+		goto finished;
+	good:	
+		printf("FIRST NODE!!\n");
+
+		if (input[done] == ';') goto finished;
+		printf("pushing...\n");
+		stack[stack_top++] = index;
+
+	finished: printf("finsihed.\n");
 	}
+
+	print_stack(stack, stack_top);
 
 	goto clean_up;
 
