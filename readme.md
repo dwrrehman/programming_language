@@ -1,4 +1,4 @@
-# a programming language
+# my programming language
 ###### Created By Daniel Warren Riaz Rehman.
 
 This is a compiler for a general-purpose, expression-based, imperative, low-level minimalist systems programming language. 
@@ -17,13 +17,13 @@ The language has only _two_ priorities:
 
 ### What this language does NOT care about:
 
- - Portability.
+ - Portability, at the expense of control.
 
- - Interoperability.
-
- - Backwards-compatability.
+ - Easy interoperability with existing piece of code.
 
  - Conforming to any ABI. 
+
+ - Backwards-compatability.
 
  - Anything legacy.
 
@@ -44,15 +44,23 @@ The language has only _two_ priorities:
  - Things in the language having to be familiar or easy to pick up for programmers.
 
  - Anything that is easy to understand, but is inefficient in runtime performance.
-
+ 
  - Anything even remotely related to OOP.
 
 if you think a programming language should have any one of these things at the expense of maximally acheiving the two language priorities laid out earlier, you should probably stop reading this, go away, and look up some other more inferior programming language project, because this language is NOT for you.
 
 ### Other information:
 
- - The programming language uses the Universal Call Syntax Resolution algorithm.
+ - The programming language uses the Universal Call Syntax Resolution algorithm, for the front end.
 
  - The compiler currently aims to target x86-32, x86-64, Arm32, Arm64, Wasm32, and Wasm64. 
 
  - The current compiler implementation is written in a subset of C, and will be self-hosted soon.
+
+ - The output limit must be a non zero multiple of 4.
+
+ - Only a single input file is allowed per object file, currently.
+
+ - 
+
+
