@@ -1,5 +1,5 @@
-#include <stdio.h>    // compiler wrriten in c,  for a programming language 
-#include <iso646.h>        // made by daniel warren riaz rehman.
+#include <stdio.h>    // a compiler written in c, for my programming language 
+#include <iso646.h>          // made by daniel warren riaz rehman.
 #include <stdlib.h>
 #include <string.h>
 #include <fcntl.h>
@@ -49,6 +49,41 @@ static void debug(const char* m, const char* input, int* output,
 	// printf("continue? "); getchar();
 }
 
+
+static void print_as_ast(const char* input, int length, int* output, int top, int limit) {
+	for (int i = 4; i < top; i += 4) {
+		int t = output[i + 3];
+		if (output[i] == limit) {
+				for (int _ = 0; _ < (output[i + 1])/4; _++) printf(".   ");
+				printf("found %d : [--> %d] UDS!!    ", i, output[i + 1]);
+				printf("defining: ");
+				for (int ii = output[i + 2]; input[ii] != ';'; ii++) {
+					if (input[ii] == '\\') { putchar(input[ii]); ii++; }
+					putchar(input[ii]);
+				} 
+				puts("\n");
+		} else {
+			if (t < length) {
+				if (input[t] == ';') {
+					for (int _ = 0; _ < (output[i + 1])/4; _++) printf(".   ");
+					printf("found(i=%d) : [--> parent=%d]   index=%d  ", i, output[i + 1], output[i]); 
+					printf("calling: ");
+					for (int ii = output[output[i] + 2]; input[ii] != ';'; ii++) {
+						if (input[ii] == '\\') { putchar(input[ii]); ii++; }
+						putchar(input[ii]);
+					} 
+					puts("\n");
+				} else {
+					// printf(" (intermediary): %10d : %10di %10dp \n", i,  output[i], output[i + 1]);
+				}
+			} else {
+				printf(" err: %10d : %10di %10dp %10db %10dd \n", i,  output[i], output[i + 1], output[i + 2], output[i + 3]);
+			}
+		}
+		
+	}
+}
+
 static void* open_file(const char* filename, int* length) {
 	struct stat file_data = {0};
 	const int file = open(filename, O_RDONLY);
@@ -70,27 +105,22 @@ static void* open_file(const char* filename, int* length) {
 }
 
 int main(const int argc, const char** argv) {
-
-	printf("\\=%d ;=%d :=%d\n", 92, 59, 58);
 	typedef unsigned char uc;
-
 	if (argc != 2) return printf("usage: ./compiler <input>\n");
-
 	const int limit = 4096;
-	int top = 0, done = 0, begin = 0, index = 0, var = 0, length = 0, where = 0, best = 0;
-
+	int index = 0, top = 0, begin = 0, done = 0, var = 0, length = 0, where = 0, best = 0;
 	char* input = open_file(argv[1], &length);
 	int* output = malloc(limit * sizeof(int));
-	memset(output, 0x0F, limit * sizeof(int)); 
+	memset(output, 0x0F, limit * sizeof(int));
 
 i0: 	if (input[begin] == 59) goto i3;
 	if (input[begin] != 92) goto i2;
 i1: 	begin++; 
 	if ((uc)input[begin] < 33) goto i1;
-i2: 	begin++; 
+i2: 	begin++;
 	if ((uc)input[begin] < 33) goto i2;
 	goto i0;
-i3: 	begin++; 
+i3: 	begin++;
 	if (begin >= length) goto i4;
 	if ((uc)input[begin] < 33) goto i3;
 i4:	output[top] = limit;
@@ -101,7 +131,7 @@ i4:	output[top] = limit;
 	top += 4;
 	best = begin; 
 	where = done;
-_0:  //debug("begin", input, output, length, begin, top, index, done);
+_0:  	//debug("begin", input, output, length, begin, top, index, done);
 	var = output[top + 1];
 	if (var) goto _1;
 	goto _3;
@@ -116,7 +146,7 @@ _3:	//debug("type", input, output, length, begin, top, index, done);
 	if (input[done] != 92) goto _6;
 _4: 	done++; 
 	if ((uc)input[done] < 33) goto _4;
-_5: 	var++; 
+_5: 	var++;
 	if ((uc)input[var] < 33) goto _5;
 _6:	var++; 
 	if ((uc)input[var] < 33) goto _6;
@@ -145,10 +175,10 @@ _11: 	done++;
 	if ((uc)input[done] < 33) goto _11;
 _12:	if (begin >= length) goto _28;
 	if (input[done] != input[begin]) goto _28;
-_13: 	begin++; 
+_13: 	begin++;
 	if (begin >= length) goto _14;
 	if ((uc)input[begin] < 33) goto _13;
-_14: 	done++; 
+_14: 	done++;
 	if ((uc)input[done] < 33) goto _14;
 	if (begin <= best) goto _15; 
 	best = begin; 
@@ -158,7 +188,7 @@ _16:	//debug("new", input, output, length, begin, top, index, done);
 	index = limit;
 _17:	if (input[begin] == 59) goto _20;
 	if (input[begin] != 92) goto _19;
-_18: 	begin++; 
+_18: 	begin++;
 	if ((uc)input[begin] < 33) goto _18;
 _19: 	begin++;
 	if ((uc)input[begin] < 33) goto _19;
@@ -167,7 +197,7 @@ _20:	begin++;
 	if (begin >= length) goto _20_;
 	if ((uc)input[begin] < 33) goto _20;
 _20_:	if (begin <= best) goto _21; 
-	best = begin; 
+	best = begin;
 	where = done;
 _21:	//debug("done", input, output, length, begin, top, index, done);
 	output[top] = index;
@@ -180,7 +210,7 @@ _21:	//debug("done", input, output, length, begin, top, index, done);
 	output[top + 2] = begin;
 	index = output[var];
 	done = output[var + 3];
-_22: 	done++; 
+_22: 	done++;
 	if ((uc)input[done] < 33) goto _22;
 _23:	if (input[done] == 58) goto _26;
 	if (input[done] != 92) goto _25;
@@ -211,7 +241,7 @@ _32:	var++;
 	goto _32;
 _33:	if (var == done) goto _35;
 _34:	//debug("bt", input, output, length, begin, top, index, done);
-	if (not top) goto resolution_failure;
+	if (not top) goto error;
 	top -= 4;
 	index = output[top];
 	done = output[top + 3];
@@ -224,51 +254,70 @@ _35:	//debug("next", input, output, length, begin, top, index, done);
 	goto _0;
 
 success: top += 4;
+
 	puts("success: compile successful."); 
 	debug("success", input, output, length, begin, top, index, done);
+	print_as_ast(input, length, output, top, limit);
 
-	for (int i = 4; i < top; i += 4) {
-		int t = output[i + 3];
-		if (output[i] == limit) {
-				for (int _ = 0; _ < (output[i + 1])/4; _++) printf(".   ");
-				printf("found %d : [--> %d] UDS!!    ", i, output[i + 1]);
-				printf("defining: ");
-				for (int ii = output[i + 2]; input[ii] != ';'; ii++) {
-					putchar(input[ii]);
-				} 
-				puts("\n");
-		} else {
-			if (t < length) {
-				if (input[t] == ';') {
-					for (int _ = 0; _ < (output[i + 1])/4; _++) printf(".   ");
-					printf("found(i=%d) : [--> parent=%d]   index=%d  ", i, output[i + 1], output[i]); 
-					printf("calling: ");
-					for (int ii = output[output[i] + 2]; input[ii] != ';'; ii++) {
-						if (input[ii] == '\\') { putchar(input[ii]); ii++; }
-						putchar(input[ii]);
-					} 
-					puts("\n");
-				} else {
-					// printf(" (intermediary): %10d : %10di %10dp \n", i,  output[i], output[i + 1]);
-				}
-			} else {
-				printf(" err: %10d : %10di %10dp %10db %10dd \n", i,  output[i], output[i + 1], output[i + 2], output[i + 3]);
-			}
-		}
+	uc output_bytes[4096] = {0};
+
+	int stack[4096] = {0};
+
+	for (int i = 0; i < top; i += 4) {
 		
+
+		
+
+
+		// printf("%10d : %10d %10d %10d %10d \n", i, 
+		// 	output[i], output[i + 1], output[i + 2], output[i + 3]);
+		
+		index = output[i];
+		done = output[i + 3];
+
+		if (input[done] == ';') {
+			printf("found instruction!     ");
+
+			int start = output[index + 2];
+			while (start < done) {
+				putchar(input[start]);
+				start++;
+			}
+
+			printf("\n");
+
+			const char* nop_instruction = "unit:nop;";
+
+			int ii = output[index + 2];
+			while (input[ii] != ';' and *nop_instruction != ';') {
+				if (input[ii] != *nop_instruction) goto next;
+				ii++;
+				nop_instruction++;
+			}
+			printf("we found an nop instruction!!!\n");
+			
+		}
+		next: continue;
 	}
+
 	goto clean_up;
 
 out_of_memory: 
-	puts("error: out of memory"); 
-	goto clean_up;
-
-resolution_failure:
-	puts("error: resolution failure"); 
-	debug("error", input, output, length, begin, top, index, done);
-	print_index("left off at:", input, length, best);
-	print_index("candidate:", input, length, where);
-
+	puts("output limit exceeded");
+error:; 
+	int at = 0, line = 1, column = 1;
+loop: 	if (at >= best) goto done;
+	if (at >= length) goto done;
+	if (input[at++] == '\n') goto start;
+	column++;
+	goto fin;
+start:	line++;
+	column = 1;
+fin:	goto loop;
+done: 	fprintf(stderr, "%u %u %u parse error\n", at, line, column);
+	// debug("error", input, output, length, begin, top, index, done);
+	// print_index("left off at:", input, length, best);
+	// print_index("candidate:", input, length, where);
 clean_up: 	
 	munmap(input, (size_t) length);
 	free(output);
@@ -276,12 +325,9 @@ clean_up:
 
 
 
-/*
 
-lskdjflksdjflskj: ∑∑∑ ¥do it!¥ :: and , also this is çool!
-	:: also 
-	:: there 
-	:top: done 
+/*
+lskdjflksdjflskj: ∑∑∑ ¥do it!¥ :: and , also this is çool! :: also  :: there  :top: done 
 ; 
 
 ∑∑∑ ¥do it!¥
@@ -292,50 +338,15 @@ and, also this is çool!
 
 	top: bob :{guys, this is my ∑ type}: alice ; 
 also 
-	top: bob :top: :top: alice ; 
+	top: bob :top: :top: alice\:\; ; 
 
 there
 	 bob
 		bob   bob   alice 
  	 	 bob   bob   alice 
- 	alice
+ 	alice:;
 done 
 
 
-
-
- 	
-
-
-
-
-
-
-top: hello world! :: :he\:llo: ;
-
-hello world !
-
-he\:llo: daniel;
-
-daniel
-
-
-
-
-
-
-
-
-
-: begin :: :unit: end;
-begin
-	unit: my signature here;
-	my signature here
-end
-
-
-
-
-
-
 */
+

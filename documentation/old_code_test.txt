@@ -1,0 +1,54 @@
+lskdjflksdjflskj: ∑∑∑ ¥do it!¥ :: and , also this is çool!
+	:: also 
+	:: there 
+	:top: done 
+; 
+
+∑∑∑ ¥do it!¥
+
+	{guys, this is my ∑ type}: bob ; 
+
+and, also this is çool!
+
+	top: bob :{guys, this is my ∑ type}: alice ; 
+also 
+	top: bob :top: :top: alice ; 
+
+there
+	 bob
+		bob   bob   alice 
+ 	 	 bob   bob   alice 
+ 	alice
+done 
+
+
+
+
+ 	
+
+
+
+
+
+
+top: hello world! :: :he\:llo: ;
+
+hello world !
+
+he\:llo: daniel;
+
+daniel
+
+
+
+
+
+
+
+
+
+: begin :: :unit: end;
+begin
+	unit: my signature here;
+	my signature here
+end

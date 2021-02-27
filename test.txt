@@ -1,27 +1,8 @@
+: start :: :: :: :unit: end;
 
-
-
-
-lskdjflksdjflskj: ∑∑∑ ¥do it!¥ :: and , also this is çool!
-	:: also 
-	:: there 
-	:top: done 
-; 
-
-∑∑∑ ¥do it!¥
-
-	{guys, this is my ∑ type}: bob ; 
-
-and, also this is çool!
-
-	top: bob :{guys, this is my ∑ type}: alice ; 
-also 
-	top: bob :top: :top: alice\:\; ; 
-
-there
-	 bob
-		bob   bob   alice 
- 	 	 bob   bob   alice 
- 	alice:;
-done 
-
+start
+	unit:nop;
+	unit: join :unit: :unit: ;
+	unit:[x86]add;
+	join nop [x86]add
+end
