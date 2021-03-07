@@ -275,8 +275,7 @@ success: top += 4;
 	// unsigned char output_bytes[4096] = {0};
 	// int registers[128] = {0};
 
-	// int stack[4096] = {0};
-	// int stack_top = 0;
+	int stack_top = 0;
 
 	int arguments[4096] = {0};
 	int arguments_top = 0;
@@ -285,49 +284,25 @@ success: top += 4;
 
 	for (int i = 0; i < top; i += 4) {
 		
-		// print_stack(stack, stack_top);
-		printf("\n\n\n arguments = ");
-		print_vector(arguments, arguments_top);
+		// printf("\n\n\n arguments = ");
+		// print_vector(arguments, arguments_top + 1);
 
-		printf("\nDEBUG: %10d : %10di %10dp %10db %10dd \n", i, 
-			output[i], output[i + 1], output[i + 2], output[i + 3]);
+		// printf("\nDEBUG: %10d : %10di %10dp %10db %10dd \n", i, 
+			// output[i], output[i + 1], output[i + 2], output[i + 3]);
 
 		index = output[i];
 		var = output[i + 1];
 		begin = output[i + 2];
 		done = output[i + 3];
 		
-		if (index == limit) { 
-
-			printf("FOUND A NAME!!!\n"); 
-
-			arguments[++arguments_top] = 1000000;
-
-			printf("\n---> DONE:  %d : ", index);
-			int count = 0;
-			while (arguments[arguments_top] != 1000000) {
-				count++;
-				arguments_top--;
-			}
-
-			printf("count=%d  : ", count);
-			print_vector(arguments + arguments_top + 1, count);
-			printf("\n");
-			if (not arguments_top) abort();
-			arguments_top--;
-			arguments[++arguments_top] = i;	
-
-
-			continue; 
-
-		}
+		if (index == limit) goto good;
 
 		int index2 = output[index + 2];
 		var = index2;
 
 	fail:	if (input[var] == ':') goto more;
 		if (input[var] != '\\') goto jj;
-	kk: 	var++; 
+	kk: 	var++;
 		if ((uc)input[var] < 33) goto kk;
 	jj: 	var++; 
 		if ((uc)input[var] < 33) goto jj;
@@ -340,29 +315,36 @@ success: top += 4;
 		goto more;
 		
 	check:	if (var == done) goto good;
-
-		printf("2nd  continuing: %d\n", index);
+		// printf("2nd  continuing: %d\n", index);
 		goto finished;
-
 	good:
-		printf("1st calling: %d\n", index);
+		// printf("1st calling: %d\n", index);
 		arguments[++arguments_top] = 1000000;
+		stack_top++;
 
 	finished:
+		
+		if (index == limit or input[done] == ';') {
 
-		if (input[done] == ';') {
-			printf("\n---> DONE:  %d : ", index);
+			for (int _ = 0; _ < stack_top; _++) printf(".   ");
+
+			printf("---> DONE:  %d : ", index);
 			int count = 0;
 			while (arguments[arguments_top] != 1000000) {
 				count++;
 				arguments_top--;
 			}
-
+			
 			printf("count=%d  : ", count);
 			print_vector(arguments + arguments_top + 1, count);
 			printf("\n");
 			arguments_top--;
 			arguments[++arguments_top] = i;	
+
+
+
+			if (not stack_top) abort();
+			stack_top--;
 		}
 	}
 
@@ -567,7 +549,61 @@ done
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+		// 	arguments[++arguments_top] = 1000000;
+
+		// 	printf("\n---> DONE:  %d : ", index);
+		// 	int count = 0;
+		// 	while (arguments[arguments_top] != 1000000) {
+		// 		count++;
+		// 		arguments_top--;
+		// 	}
+
+		// 	printf("count=%d  : ", count);
+		// 	print_vector(arguments + arguments_top + 1, count);
+		// 	printf("\n");
+		// 	if (not arguments_top) abort();
+		// 	arguments_top--;
+		// 	arguments[++arguments_top] = i;	
+		// 	continue; 
+
+
+
+
+
+
+
 */
+
+
+
 
 
 
