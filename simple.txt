@@ -1,0 +1,7 @@
+you: start :: :: :unit: end;
+
+start
+	unit:nop;
+	unit:join:unit::unit:;
+	join nop nop
+end

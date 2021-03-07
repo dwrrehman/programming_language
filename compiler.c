@@ -7,6 +7,23 @@
 #include <sys/stat.h>
 #include <sys/mman.h>
 
+
+static void print_signature(const char* m, const char* input, int start, int end) {
+	printf("%s", m);
+	for (;start < end; start++) {
+		putchar(input[start]);
+	}
+	puts("\n");
+}
+
+static void print_vector(int* v, int l) {
+	printf("{ ");
+	for (int i = 0; i < l; i++) {
+		printf("%d ", v[i]);
+	}
+	printf("}\n");
+}
+
 static void print_output(int* output, int top, int index) {
 	puts("\n------- output: -------");
 	for (int i = 0; i < top + 4; i += 4) {
@@ -253,26 +270,32 @@ success: top += 4;
 
 	puts("success: compile successful."); 
 	debug("success", input, output, length, begin, top, index, done);
-	// print_as_ast(input, length, output, top, limit);
+	print_as_ast(input, length, output, top, limit);
 
-	int registers[16] = {0};
 	unsigned char output_bytes[4096] = {0};
-	int stack[128] = {0};
-	int stack_top = 0;
+	int registers[128] = {0};
 
+	int stack[4096] = {0};
+	int stack_top = 0;
+	int arguments[4096] = {0};
+	int arguments_top = 0;
+
+	memset(arguments, 0x0F, sizeof arguments);
+	
 	printf("\n---------------parsing output as tree:----------------\n\n");
 
 	for (int i = 0; i < top; i += 4) {
 		
-		print_stack(stack, stack_top);
+		// print_stack(stack, stack_top);
+		// print_stack(arguments, arguments_top);
 
-		// printf("\nDEBUG: %10d : %10di %10dp %10db %10dd \n", i, 
-			// output[i], output[i + 1], output[i + 2], output[i + 3]);
+		// printf("\nDEBUG: %10d : %10di %10dp %10db %10dd \n", i, output[i], output[i + 1], output[i + 2], output[i + 3]);
 		
 		index = output[i];
+		var = output[i + 1];
 		begin = output[i + 2];
 		done = output[i + 3];
-
+		
 		if (index == limit) {
 			for (int _ = 0; _ < stack_top + 1; _++) printf(".   ");
 			printf("INSTRUCTION DEFINE:   ");
@@ -281,17 +304,13 @@ success: top += 4;
 				putchar(input[ii]);
 			} 
 			printf("\n\n");
-			goto finished;
+			goto good;
 		}
-		// printf("\n--> found intermediary!       ");
-		int start = output[index + 2];
-		while (start <= done) {
-			// putchar(input[start]);
-			start++;
-		}
-		// printf("\n");
 
-		var = output[index + 2];
+
+		int index2 = output[index + 2];
+
+		var = index2;
 
 	fail:	if (input[var] == ':') goto more;
 		if (input[var] != '\\') goto jj;
@@ -305,31 +324,30 @@ success: top += 4;
 		if (input[var] == ':') goto check;
 		if (var == done) goto good;
 		goto more;
-
+		
 	check:	if (var == done) goto good;
-		printf("2nd\n");
+		// printf("2nd\n");
 
-		if (input[done] != ';') goto finished;
+		if (input[done] != ';') {
+			// printf("TERRIBLEEEE\n");
+			goto finished;
+		}
 
 		for (int _ = 0; _ < stack_top + 1; _++) printf(".   ");
-		printf("INSTRUCTION CALL:   ");
-
-		start = output[index + 2];
-		while (start < done) {
-			putchar(input[start]);
-			start++;
-		}
-		printf("\n\n");
+		print_signature("INSTRUCTION CALL:   ", input, index2, done);
 
 		// printf("popping...\n");
 		if (not stack_top) abort();
 		stack_top--;
-
+	
 		const char* nop_instruction = "unit:nop;";
 
-		int ii = output[index + 2];
+		int ii = index2;
 		while (input[ii] != ';' and *nop_instruction != ';') {
-			if (input[ii] != *nop_instruction) goto finished;
+			if (input[ii] != *nop_instruction) {
+				// printf("didnt find a nop ins!!!!\n");
+				goto finished;
+			}
 			ii++;
 			nop_instruction++;
 		}
@@ -337,18 +355,59 @@ success: top += 4;
 
 		goto finished;
 	good:	
-		printf("1st\n");
+		// printf("1st\n");
+		arguments[arguments_top++] = 1000000;
 
-		if (input[done] == ';') goto finished;
 		// printf("pushing...\n");
 		stack[stack_top++] = index;
+		
+		if (input[done] == ';') {
+			// printf("\nDEBUG: %10d : %10di %10dp %10db %10dd \n", i, output[i], output[i + 1], output[i + 2], output[i + 3]);
+
+
+			for (int _ = 0; _ < stack_top + 1; _++) printf(".   ");
+			print_signature("VARIABLE REFERENCE:   ", input, index2, done);
+
+			// printf("popping...\n");
+			if (not stack_top) abort();
+			stack_top--;
+	
+			const char* nop_instruction = "unit:nop;";
+
+			int ii = index2;
+			while (input[ii] != ';' and *nop_instruction != ';') {
+				if (input[ii] != *nop_instruction) {
+					// printf("didnt find a nop variable!!!!\n");
+					goto finished;
+				}
+				ii++;
+				nop_instruction++;
+			}
+			// printf("we found an nop variable!!!\n");
+
+			// abort();
+			
+		}
+
+		
+
 
 	finished: 
 		// printf("finsihed.\n");
+
+		if (input[done] == ';') {
+			// printf("popping arguments off... \n");
+			// print_vector(arguments, arguments_top);
+
+			while (arguments[arguments_top] != 1000000) arguments_top--;
+			arguments_top--;
+			arguments[arguments_top++] = i;
+			
+			// printf("after popped args: \n");
+			// print_vector(arguments, arguments_top);
+		}
 		continue;
 	}
-
-	print_stack(stack, stack_top);
 
 	goto clean_up;
 
@@ -360,10 +419,10 @@ loop: 	if (at >= best) goto done;
 	if (at >= length) goto done;
 	if (input[at++] == '\n') goto start;
 	column++;
-	goto fin;
+	goto don;
 start:	line++;
 	column = 1;
-fin:	goto loop;
+don:	goto loop;
 done: 	fprintf(stderr, "%u %u %u parse error\n", at, line, column);
 	debug("error", input, output, length, begin, top, index, done);
 	print_index("left off at:", input, length, best);
