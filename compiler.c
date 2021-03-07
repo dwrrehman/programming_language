@@ -321,14 +321,22 @@ success: top += 4;
 		// printf("1st calling: %d\n", index);
 		arguments[++arguments_top] = 1000000;
 		stack_top++;
-
 	finished:
 		
 		if (index == limit or input[done] == ';') {
 
 			for (int _ = 0; _ < stack_top; _++) printf(".   ");
 
-			printf("---> DONE:  %d : ", index);
+			if (index != limit) {
+				printf("%d: calling \"", i);
+				for (int ii = output[index + 2]; input[ii] != ';'; ii++) {
+					if (input[ii] == '\\') { putchar(input[ii]); ii++; }
+					putchar(input[ii]);
+				} 
+				printf("\"  :  ");
+			} else {
+				printf("%d: UDS @ %db,  ", i, begin);
+			}
 			int count = 0;
 			while (arguments[arguments_top] != 1000000) {
 				count++;
