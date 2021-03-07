@@ -349,13 +349,10 @@ success: top += 4;
 			arguments_top--;
 			arguments[++arguments_top] = i;	
 
-
-
 			if (not stack_top) abort();
 			stack_top--;
 		}
 	}
-
 	goto clean_up;
 
 out_of_memory: 
