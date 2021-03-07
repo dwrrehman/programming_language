@@ -8,13 +8,13 @@
 #include <sys/mman.h>
 
 
-static void print_signature(const char* m, const char* input, int start, int end) {
-	printf("%s", m);
-	for (;start < end; start++) {
-		putchar(input[start]);
-	}
-	puts("\n");
-}
+// static void print_signature(const char* m, const char* input, int start, int end) {
+// 	printf("%s", m);
+// 	for (;start < end; start++) {
+// 		putchar(input[start]);
+// 	}
+// 	puts("\n");
+// }
 
 static void print_vector(int* v, int l) {
 	printf("{ ");
@@ -35,15 +35,15 @@ static void print_output(int* output, int top, int index) {
 	puts("---------------------\n");
 }
 
-static void print_stack(int* stack, int stack_top) {
+// static void print_stack(int* stack, int stack_top) {
 
-	printf("\n------------------------------\n"
-		"printing stack (%d):\n{\n", stack_top);
-	for (int j = 0; j < stack_top; j++) {
-		printf("%10d: %10d\n", j, stack[j]);
-	}
-	printf("}\n");
-}
+// 	printf("\n------------------------------\n"
+// 		"printing stack (%d):\n{\n", stack_top);
+// 	for (int j = 0; j < stack_top; j++) {
+// 		printf("%10d: %10d\n", j, stack[j]);
+// 	}
+// 	printf("}\n");
+// }
 
 static void print_index(const char* m, const char* string, int length, int index) {
 	printf("\n%s\t\t", m);
@@ -272,141 +272,98 @@ success: top += 4;
 	debug("success", input, output, length, begin, top, index, done);
 	print_as_ast(input, length, output, top, limit);
 
-	unsigned char output_bytes[4096] = {0};
-	int registers[128] = {0};
+	// unsigned char output_bytes[4096] = {0};
+	// int registers[128] = {0};
 
-	int stack[4096] = {0};
-	int stack_top = 0;
+	// int stack[4096] = {0};
+	// int stack_top = 0;
+
 	int arguments[4096] = {0};
 	int arguments_top = 0;
-
-	memset(arguments, 0x0F, sizeof arguments);
 	
 	printf("\n---------------parsing output as tree:----------------\n\n");
 
 	for (int i = 0; i < top; i += 4) {
 		
 		// print_stack(stack, stack_top);
-		// print_stack(arguments, arguments_top);
+		printf("\n\n\n arguments = ");
+		print_vector(arguments, arguments_top);
 
-		// printf("\nDEBUG: %10d : %10di %10dp %10db %10dd \n", i, output[i], output[i + 1], output[i + 2], output[i + 3]);
-		
+		printf("\nDEBUG: %10d : %10di %10dp %10db %10dd \n", i, 
+			output[i], output[i + 1], output[i + 2], output[i + 3]);
+
 		index = output[i];
 		var = output[i + 1];
 		begin = output[i + 2];
 		done = output[i + 3];
 		
-		if (index == limit) {
-			for (int _ = 0; _ < stack_top + 1; _++) printf(".   ");
-			printf("INSTRUCTION DEFINE:   ");
-			for (int ii = begin; input[ii] != ';'; ii++) {
-				if (input[ii] == '\\') { putchar(input[ii]); ii++; }
-				putchar(input[ii]);
-			} 
-			printf("\n\n");
-			goto good;
+		if (index == limit) { 
+
+			printf("FOUND A NAME!!!\n"); 
+
+			arguments[++arguments_top] = 1000000;
+
+			printf("\n---> DONE:  %d : ", index);
+			int count = 0;
+			while (arguments[arguments_top] != 1000000) {
+				count++;
+				arguments_top--;
+			}
+
+			printf("count=%d  : ", count);
+			print_vector(arguments + arguments_top + 1, count);
+			printf("\n");
+			if (not arguments_top) abort();
+			arguments_top--;
+			arguments[++arguments_top] = i;	
+
+
+			continue; 
+
 		}
 
-
 		int index2 = output[index + 2];
-
 		var = index2;
 
 	fail:	if (input[var] == ':') goto more;
 		if (input[var] != '\\') goto jj;
-	kk: 	var++; if ((uc)input[var] < 33) goto kk;
-	jj: 	var++; if ((uc)input[var] < 33) goto jj;
+	kk: 	var++; 
+		if ((uc)input[var] < 33) goto kk;
+	jj: 	var++; 
+		if ((uc)input[var] < 33) goto jj;
 		goto fail;
-
-	more:	var++; if ((uc)input[var] < 33) goto more; 
-
+	more:	var++; 
+		if ((uc)input[var] < 33) goto more; 
 		if (input[var] == ';') goto check;
 		if (input[var] == ':') goto check;
 		if (var == done) goto good;
 		goto more;
 		
 	check:	if (var == done) goto good;
-		// printf("2nd\n");
 
-		if (input[done] != ';') {
-			// printf("TERRIBLEEEE\n");
-			goto finished;
-		}
-
-		for (int _ = 0; _ < stack_top + 1; _++) printf(".   ");
-		print_signature("INSTRUCTION CALL:   ", input, index2, done);
-
-		// printf("popping...\n");
-		if (not stack_top) abort();
-		stack_top--;
-	
-		const char* nop_instruction = "unit:nop;";
-
-		int ii = index2;
-		while (input[ii] != ';' and *nop_instruction != ';') {
-			if (input[ii] != *nop_instruction) {
-				// printf("didnt find a nop ins!!!!\n");
-				goto finished;
-			}
-			ii++;
-			nop_instruction++;
-		}
-		// printf("we found an nop instruction!!!\n");
-
+		printf("2nd  continuing: %d\n", index);
 		goto finished;
-	good:	
-		// printf("1st\n");
-		arguments[arguments_top++] = 1000000;
 
-		// printf("pushing...\n");
-		stack[stack_top++] = index;
-		
+	good:
+		printf("1st calling: %d\n", index);
+		arguments[++arguments_top] = 1000000;
+
+	finished:
+
 		if (input[done] == ';') {
-			// printf("\nDEBUG: %10d : %10di %10dp %10db %10dd \n", i, output[i], output[i + 1], output[i + 2], output[i + 3]);
-
-
-			for (int _ = 0; _ < stack_top + 1; _++) printf(".   ");
-			print_signature("VARIABLE REFERENCE:   ", input, index2, done);
-
-			// printf("popping...\n");
-			if (not stack_top) abort();
-			stack_top--;
-	
-			const char* nop_instruction = "unit:nop;";
-
-			int ii = index2;
-			while (input[ii] != ';' and *nop_instruction != ';') {
-				if (input[ii] != *nop_instruction) {
-					// printf("didnt find a nop variable!!!!\n");
-					goto finished;
-				}
-				ii++;
-				nop_instruction++;
+			printf("\n---> DONE:  %d : ", index);
+			int count = 0;
+			while (arguments[arguments_top] != 1000000) {
+				count++;
+				arguments_top--;
 			}
-			// printf("we found an nop variable!!!\n");
 
-			// abort();
-			
-		}
-
-		
-
-
-	finished: 
-		// printf("finsihed.\n");
-
-		if (input[done] == ';') {
-			// printf("popping arguments off... \n");
-			// print_vector(arguments, arguments_top);
-
-			while (arguments[arguments_top] != 1000000) arguments_top--;
+			printf("count=%d  : ", count);
+			print_vector(arguments + arguments_top + 1, count);
+			printf("\n");
 			arguments_top--;
-			arguments[arguments_top++] = i;
-			
-			// printf("after popped args: \n");
-			// print_vector(arguments, arguments_top);
+			arguments[++arguments_top] = i;	
 		}
-		continue;
 	}
 
 	goto clean_up;
@@ -457,5 +414,163 @@ there
 done 
 
 
+
+
+
+
+
 */
+
+
+
+
+
+
+
+
+
+
+
+
+/*
+
+
+
+
+
+
+
+
+
+
+		
+	// 	index = output[i];
+	// 	var = output[i + 1];
+	// 	begin = output[i + 2];
+	// 	done = output[i + 3];
+		
+	// 	if (index == limit) {
+	// 		for (int _ = 0; _ < stack_top + 1; _++) printf(".   ");
+	// 		printf("INSTRUCTION DEFINE:   ");
+	// 		for (int ii = begin; input[ii] != ';'; ii++) {
+	// 			if (input[ii] == '\\') { putchar(input[ii]); ii++; }
+	// 			putchar(input[ii]);
+	// 		} 
+	// 		printf("\n\n");
+	// 		goto good;
+	// 	}
+
+
+	// 	int index2 = output[index + 2];
+
+	// 	var = index2;
+
+	// fail:	if (input[var] == ':') goto more;
+	// 	if (input[var] != '\\') goto jj;
+	// kk: 	var++; if ((uc)input[var] < 33) goto kk;
+	// jj: 	var++; if ((uc)input[var] < 33) goto jj;
+	// 	goto fail;
+
+	// more:	var++; if ((uc)input[var] < 33) goto more; 
+
+	// 	if (input[var] == ';') goto check;
+	// 	if (input[var] == ':') goto check;
+	// 	if (var == done) goto good;
+	// 	goto more;
+		
+	// check:	if (var == done) goto good;
+	// 	// printf("2nd\n");
+
+	// 	if (input[done] != ';') {
+	// 		// printf("TERRIBLEEEE\n");
+	// 		goto finished;
+	// 	}
+
+	// 	for (int _ = 0; _ < stack_top + 1; _++) printf(".   ");
+	// 	print_signature("INSTRUCTION CALL:   ", input, index2, done);
+
+	// 	// printf("popping...\n");
+	// 	if (not stack_top) abort();
+	// 	stack_top--;
+	
+	// 	const char* nop_instruction = "unit:nop;";
+
+	// 	int ii = index2;
+	// 	while (input[ii] != ';' and *nop_instruction != ';') {
+	// 		if (input[ii] != *nop_instruction) {
+	// 			// printf("didnt find a nop ins!!!!\n");
+	// 			goto finished;
+	// 		}
+	// 		ii++;
+	// 		nop_instruction++;
+	// 	}
+	// 	// printf("we found an nop instruction!!!\n");
+
+	// 	goto finished;
+	// good:	
+	// 	// printf("1st\n");
+	// 	arguments[arguments_top++] = 1000000;
+
+	// 	// printf("pushing...\n");
+	// 	stack[stack_top++] = index;
+		
+	// 	if (input[done] == ';') {
+	// 		// printf("\nDEBUG: %10d : %10di %10dp %10db %10dd \n", i, output[i], output[i + 1], output[i + 2], output[i + 3]);
+
+
+	// 		for (int _ = 0; _ < stack_top + 1; _++) printf(".   ");
+	// 		print_signature("VARIABLE REFERENCE:   ", input, index2, done);
+
+	// 		// printf("popping...\n");
+	// 		if (not stack_top) abort();
+	// 		stack_top--;
+	
+	// 		const char* nop_instruction = "unit:nop;";
+
+	// 		int ii = index2;
+	// 		while (input[ii] != ';' and *nop_instruction != ';') {
+	// 			if (input[ii] != *nop_instruction) {
+	// 				// printf("didnt find a nop variable!!!!\n");
+	// 				goto finished;
+	// 			}
+	// 			ii++;
+	// 			nop_instruction++;
+	// 		}
+	// 		// printf("we found an nop variable!!!\n");
+
+	// 		// abort();
+			
+	// 	}
+
+		
+
+
+	// finished: 
+	// 	// printf("finsihed.\n");
+
+	// 	if (input[done] == ';') {
+	// 		// printf("popping arguments off... \n");
+	// 		// print_vector(arguments, arguments_top);
+
+	// 		while (arguments[arguments_top] != 1000000) arguments_top--;
+	// 		arguments_top--;
+	// 		arguments[arguments_top++] = i;
+			
+	// 		// printf("after popped args: \n");
+	// 		// print_vector(arguments, arguments_top);
+	// 	}
+	// 	continue;
+
+
+
+
+
+
+
+*/
+
+
+
+
+
 
