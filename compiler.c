@@ -111,6 +111,16 @@ static void print_as_ast(const char* input, int length, int* output, int top, in
 	}
 }
 
+static inline int is(const char* string, const char* input, int start) {
+	int ii = start;
+	while (input[ii] != ';' or *string != ';') {
+		if (input[ii] != *string) return 0;
+		ii++;
+		string++;
+	}
+	return 1;
+}
+
 int main(const int argc, const char** argv) {
 	typedef unsigned char uc;
 	if (argc != 2) return printf("usage: ./compiler <input>\n");
@@ -129,7 +139,7 @@ int main(const int argc, const char** argv) {
 
 i0: 	if (input[begin] == 59) goto i3;
 	if (input[begin] != 92) goto i2;
-i1: 	begin++; 
+i1: 	begin++;
 	if ((uc)input[begin] < 33) goto i1;
 i2: 	begin++;
 	if ((uc)input[begin] < 33) goto i2;
@@ -144,16 +154,16 @@ i4:	output[top] = limit;
 	output[top + 6] = begin;
 	top += 4;
 	best = begin;
-_0:  	debug("begin", input, output, length, begin, top, index, done);
+_0:  	//debug("begin", input, output, length, begin, top, index, done);
 	var = output[top + 1];
 	if (var) goto _1;
 	goto _3;
-_1:	debug("child", input, output, length, begin, top, index, done);
+_1:	//debug("child", input, output, length, begin, top, index, done);
 	var = output[var + 3];
 _2: 	var++;
 	if ((uc)input[var] < 33) goto _2;
 	if (input[var] == 58) goto _16;
-_3:	debug("type", input, output, length, begin, top, index, done);
+_3:	//debug("type", input, output, length, begin, top, index, done);
 	if (input[done] == 58 and input[var] == 58) goto _8;
 	if (input[done] != input[var]) goto _35;
 	if (input[done] != 92) goto _6;
@@ -166,11 +176,11 @@ _6:	var++;
 _7: 	done++; 
 	if ((uc)input[done] < 33) goto _7;
 	goto _3;
-_8: 	debug("valid", input, output, length, begin, top, index, done);
+_8: 	//debug("valid", input, output, length, begin, top, index, done);
 	done++;
 	if ((uc)input[done] < 33) goto _8;
 	begin = output[top + 2];
-_9:	debug("parent", input, output, length, begin, top, index, done);
+_9:	//debug("parent", input, output, length, begin, top, index, done);
 	if (input[done] == 59) goto _21;
 	if (input[done] != 58) goto _10;
 	if (top + 7 >= limit) goto out_of_memory;
@@ -182,9 +192,9 @@ _9:	debug("parent", input, output, length, begin, top, index, done);
 	index = 0;
 	done = 0;
 	goto _0;
-_10:	debug("match", input, output, length, begin, top, index, done);
+_10:	//debug("match", input, output, length, begin, top, index, done);
 	if (input[done] != 92) goto _12;
-_11: 	done++; 
+_11: 	done++;
 	if ((uc)input[done] < 33) goto _11;
 _12:	if (begin >= length) goto _28;
 	if (input[done] != input[begin]) goto _28;
@@ -197,7 +207,7 @@ _14: 	done++;
 	best = begin; 
 	where = done;
 _15:	goto _9;
-_16:	debug("new", input, output, length, begin, top, index, done);
+_16:	//debug("new", input, output, length, begin, top, index, done);
 	index = limit;
 _17:	if (input[begin] == 59) goto _20;
 	if (input[begin] != 92) goto _19;
@@ -212,7 +222,7 @@ _20:	begin++;
 _20_:	if (begin <= best) goto _21; 
 	best = begin;
 	where = done;
-_21:	debug("done", input, output, length, begin, top, index, done);
+_21:	//debug("done", input, output, length, begin, top, index, done);
 	output[top] = index;
 	output[top + 3] = done;
 	var = output[top + 1];
@@ -236,7 +246,7 @@ _26:	done++;
 	if ((uc)input[done] < 33) goto _26;
 	goto _9;
 _27:	if (begin == length) goto success;
-_28:	debug("fail", input, output, length, begin, top, index, done);
+_28:	//debug("fail", input, output, length, begin, top, index, done);
 	if (index == limit) goto _34;
 	var = output[index + 2];
 _29:	if (input[var] == 58) goto _32;
@@ -253,13 +263,13 @@ _32:	var++;
 	if (var == done) goto _35;
 	goto _32;
 _33:	if (var == done) goto _35;
-_34:	debug("bt", input, output, length, begin, top, index, done);
+_34:	//debug("bt", input, output, length, begin, top, index, done);
 	if (not top) goto error;
 	top -= 4;
 	index = output[top];
 	done = output[top + 3];
 	goto _28;
-_35:	debug("next", input, output, length, begin, top, index, done);
+_35:	//debug("next", input, output, length, begin, top, index, done);
 	index += 4;
 	if (index >= top) goto _34;
 	if (output[index] != limit) goto _35;
@@ -279,7 +289,12 @@ success: top += 4;
 
 	int arguments[4096] = {0};
 	int arguments_top = 0;
-	
+
+	int registers[4] = {
+		0x0F0F0F0F,0x0F0F0F0F,
+		0x0F0F0F0F,0x0F0F0F0F
+	};
+
 	printf("\n---------------parsing output as tree:----------------\n\n");
 
 	for (int i = 0; i < top; i += 4) {
@@ -295,7 +310,10 @@ success: top += 4;
 		begin = output[i + 2];
 		done = output[i + 3];
 		
-		if (index == limit) goto good;
+		if (index == limit) {
+			output[i + 3] = 0;
+			goto good;
+		}
 
 		int index2 = output[index + 2];
 		var = index2;
@@ -309,7 +327,7 @@ success: top += 4;
 		goto fail;
 	more:	var++; 
 		if ((uc)input[var] < 33) goto more; 
-		if (input[var] == ';') goto check;
+		if (input[var] == 59) goto check;
 		if (input[var] == ':') goto check;
 		if (var == done) goto good;
 		goto more;
@@ -342,6 +360,76 @@ success: top += 4;
 				count++;
 				arguments_top--;
 			}
+
+			if (index != limit) {
+				int start = output[index + 2];
+				if (is("unit:attr:label::unit:;", input, start)) {
+
+					
+					int ind = output[arguments[arguments_top + 1]];
+
+					int s = arguments[arguments_top + 2];
+
+
+					printf("\nBEFORe: %10d : %10di %10dp %10db %10dd \n", ind, 
+						output[ind], output[ind + 1], output[ind + 2], output[ind + 3]);
+
+					output[ind + 3] = s;
+
+					printf("\nAFTER: %10d : %10di %10dp %10db %10dd \n", ind, 
+						output[ind], output[ind + 1], output[ind + 2], output[ind + 3]);
+
+
+				} else if (is("unit:br0<5:label:;", input, start)) {
+					printf("\nwe found an BR0<5 instruction!!!\n");
+					if (registers[0] < 5) {
+						i = output[output[arguments[arguments_top + 1]] + 3];
+						abort();
+					}
+					
+				} else if (is("unit:move:register:,:register:;", input, start)) {
+					printf("\nwe found an MOVE instruction!!!\n");
+					int dest = 0x0F0F0F0F, source = 0x0F0F0F0F;
+
+					int arg1_start = output[output[arguments[arguments_top + 1]] + 2];
+					if (is("register:r0;", input, arg1_start)) dest = 0;
+					else if (is("register:r1;", input, arg1_start)) dest = 1;
+					else if (is("register:r2;", input, arg1_start)) dest = 2;
+					else if (is("register:r3;", input, arg1_start)) dest = 3;
+					
+					int arg2_start = output[output[arguments[arguments_top + 2]] + 2];
+					if (is("register:r0;", input, arg2_start)) source = 0;
+					else if (is("register:r1;", input, arg2_start)) source = 1;
+					else if (is("register:r2;", input, arg2_start)) source = 2;
+					else if (is("register:r3;", input, arg2_start)) source = 3;
+
+					registers[dest] = registers[source];
+
+				} else if (is("unit:increment:register:;", input, start)) {
+					printf("\nwe found an increment instruction!!!\n");
+					int r = 0x0F0F0F0F;
+					int arg1_start = output[output[arguments[arguments_top + 1]] + 2];
+					if (is("register:r0;", input, arg1_start)) r = 0;
+					else if (is("register:r1;", input, arg1_start)) r = 1;
+					else if (is("register:r2;", input, arg1_start)) r = 2;
+					else if (is("register:r3;", input, arg1_start)) r = 3;
+	
+					registers[r]++;
+
+				} else if (is("unit:zero:register:;", input, start)) {
+					printf("\nwe found an zero instruction!!!\n");
+					int r = 0x0F0F0F0F;
+					int arg1_start = output[output[arguments[arguments_top + 1]] + 2];
+					if (is("register:r0;", input, arg1_start)) r = 0;
+					else if (is("register:r1;", input, arg1_start)) r = 1;
+					else if (is("register:r2;", input, arg1_start)) r = 2;
+					else if (is("register:r3;", input, arg1_start)) r = 3;
+					registers[r] = 0;
+				}
+			}
+
+
+
 			
 			printf("count=%d  : ", count);
 			print_vector(arguments + arguments_top + 1, count);
@@ -353,6 +441,13 @@ success: top += 4;
 			stack_top--;
 		}
 	}
+
+	printf("comptime result:\n{\n");
+	for (int i = 0; i < 4; i++) {
+		printf("	registers[%d] = %u\n", i, registers[i]);
+	}
+	printf("}\n");
+
 	goto clean_up;
 
 out_of_memory: 
@@ -371,7 +466,7 @@ done: 	fprintf(stderr, "%u %u %u parse error\n", at, line, column);
 	debug("error", input, output, length, begin, top, index, done);
 	print_index("left off at:", input, length, best);
 	print_index("candidate:", input, length, where);
-clean_up: 	
+clean_up: 
 	munmap(input, (size_t) length);
 	free(output);
 }

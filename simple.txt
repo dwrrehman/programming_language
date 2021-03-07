@@ -1,7 +1,26 @@
-you: start :: :: :unit: end;
+: start :: :: :: :: :: :: :: :: :: :: :: :unit: end;
 
-start
-	unit:nop;
-	unit:join:unit::unit:;
-	join nop nop
+start 
+
+	unit:br0<5:label:;
+	unit:attr:label::unit:;
+
+	label: my loop;
+
+	unit: join :unit: :unit: ;
+
+	register:r0;
+	register:r1;
+	register:r2;
+	register:r3;
+
+	unit:move:register:,:register:;
+	unit:zero:register:;
+	unit:increment:register:;
+
+	join 	zero r0 
+	join	attr my loop   increment r0
+	join 	b r0 < 5 my loop
+	join	move r1, r0
+		zero r3
 end
