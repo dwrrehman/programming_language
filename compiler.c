@@ -8,21 +8,22 @@
 #include <sys/mman.h>
 
 
-// static void print_signature(const char* m, const char* input, int start, int end) {
-// 	printf("%s", m);
-// 	for (;start < end; start++) {
-// 		putchar(input[start]);
+// static void print_vector(int* v, int l) {
+// 	printf("{ ");
+// 	for (int i = 0; i < l; i++) {
+// 		printf("%d ", v[i]);
 // 	}
-// 	puts("\n");
+// 	printf("}\n");
 // }
 
-static void print_vector(int* v, int l) {
-	printf("{ ");
-	for (int i = 0; i < l; i++) {
-		printf("%d ", v[i]);
-	}
-	printf("}\n");
-}
+// static void print_indexed_vector(int* stack, int count) {
+// 	printf("\n------------(%d):-----------\n{\n", count);
+// 	for (int j = 0; j < count; j++) {
+// 		printf(" %10d: %10d\n", j, stack[j]);
+// 	}
+// 	printf("}\n");
+// }
+
 
 static void print_output(int* output, int top, int index) {
 	puts("\n------- output: -------");
@@ -35,15 +36,6 @@ static void print_output(int* output, int top, int index) {
 	puts("---------------------\n");
 }
 
-// static void print_stack(int* stack, int stack_top) {
-
-// 	printf("\n------------------------------\n"
-// 		"printing stack (%d):\n{\n", stack_top);
-// 	for (int j = 0; j < stack_top; j++) {
-// 		printf("%10d: %10d\n", j, stack[j]);
-// 	}
-// 	printf("}\n");
-// }
 
 static void print_index(const char* m, const char* string, int length, int index) {
 	printf("\n%s\t\t", m);
@@ -76,40 +68,29 @@ static void debug(const char* m, const char* input, int* output,
 	// printf("continue? "); getchar();
 }
 
+static inline void print_tree(int* program, int index, int depth, const char* input, int* output) {
+	for (int _ = 0; _ < depth; _++) printf(".   ");
 
-static void print_as_ast(const char* input, int length, int* output, int top, int limit) {
-	for (int i = 4; i < top; i += 4) {
-		int t = output[i + 3];
-		if (output[i] == limit) {
-				for (int _ = 0; _ < (output[i + 1])/4; _++) printf(".   ");
-				printf("found %d : [--> %d] UDS!!    ", i, output[i + 1]);
-				printf("defining: ");
-				for (int ii = output[i + 2]; input[ii] != ';'; ii++) {
-					if (input[ii] == '\\') { putchar(input[ii]); ii++; }
-					putchar(input[ii]);
-				} 
-				puts("\n");
-		} else {
-			if (t < length) {
-				if (input[t] == ';') {
-					for (int _ = 0; _ < (output[i + 1])/4; _++) printf(".   ");
-					printf("found(i=%d) : [--> parent=%d]   index=%d  ", i, output[i + 1], output[i]); 
-					printf("calling: ");
-					for (int ii = output[output[i] + 2]; input[ii] != ';'; ii++) {
-						if (input[ii] == '\\') { putchar(input[ii]); ii++; }
-						putchar(input[ii]);
-					} 
-					puts("\n");
-				} else {
-					// printf(" (intermediary): %10d : %10di %10dp \n", i,  output[i], output[i + 1]);
-				}
-			} else {
-				printf(" err: %10d : %10di %10dp %10db %10dd \n", i,  output[i], output[i + 1], output[i + 2], output[i + 3]);
-			}
+	int b = output[program[index]];
+	if (b == 4096) {
+		printf("\"");
+		for (int ii = output[program[index] + 2]; input[ii] != ';'; ii++) {
+			if (input[ii] == '\\') { putchar(input[ii]); ii++; }
+			putchar(input[ii]);
 		}
-		
+		printf("\"");
+	} else {
+		for (int ii = output[b + 2]; input[ii] != ';'; ii++) {
+			if (input[ii] == '\\') { putchar(input[ii]); ii++; }
+			putchar(input[ii]);
+		} 
+	}
+	printf("  :  (%di,%dc)\n\n", program[index], program[index + 1]);
+	for (int i = 0; i < program[index + 1]; i++) {
+		print_tree(program, program[index + i + 2], depth + 1, input, output);
 	}
 }
+
 
 static inline int is(const char* string, const char* input, int start) {
 	int ii = start;
@@ -120,6 +101,7 @@ static inline int is(const char* string, const char* input, int start) {
 	}
 	return 1;
 }
+
 
 int main(const int argc, const char** argv) {
 	typedef unsigned char uc;
@@ -280,27 +262,28 @@ success: top += 4;
 
 	puts("success: compile successful."); 
 	debug("success", input, output, length, begin, top, index, done);
-	print_as_ast(input, length, output, top, limit);
 
 	// unsigned char output_bytes[4096] = {0};
-	// int registers[128] = {0};
 
-	int stack_top = 0;
+	int save = 0;
+	int arguments_top = 0;
+	int program_count = 0;
+
+	// int memory[1000] = {0};
+	int registers[8] = {0};
+	memset(registers, 0x0A, sizeof registers);
 
 	int arguments[4096] = {0};
-	int arguments_top = 0;
-
-	int registers[4] = {
-		0x0F0F0F0F,0x0F0F0F0F,
-		0x0F0F0F0F,0x0F0F0F0F
-	};
-
+	int program[4096] = {0};
+	
 	printf("\n---------------parsing output as tree:----------------\n\n");
 
 	for (int i = 0; i < top; i += 4) {
 		
 		// printf("\n\n\n arguments = ");
 		// print_vector(arguments, arguments_top + 1);
+		// printf("\n program = ");
+		// print_vector(program, program_count + 1);
 
 		// printf("\nDEBUG: %10d : %10di %10dp %10db %10dd \n", i, 
 			// output[i], output[i + 1], output[i + 2], output[i + 3]);
@@ -310,10 +293,7 @@ success: top += 4;
 		begin = output[i + 2];
 		done = output[i + 3];
 		
-		if (index == limit) {
-			output[i + 3] = 0;
-			goto good;
-		}
+		if (index == limit) goto good;
 
 		int index2 = output[index + 2];
 		var = index2;
@@ -333,27 +313,25 @@ success: top += 4;
 		goto more;
 		
 	check:	if (var == done) goto good;
-		// printf("2nd  continuing: %d\n", index);
 		goto finished;
 	good:
-		// printf("1st calling: %d\n", index);
 		arguments[++arguments_top] = 1000000;
-		stack_top++;
+		// stack_top++;
 	finished:
 		
 		if (index == limit or input[done] == ';') {
 
-			for (int _ = 0; _ < stack_top; _++) printf(".   ");
+			// for (int _ = 0; _ < stack_top; _++) printf(".   ");
 
 			if (index != limit) {
-				printf("%d: calling \"", i);
-				for (int ii = output[index + 2]; input[ii] != ';'; ii++) {
-					if (input[ii] == '\\') { putchar(input[ii]); ii++; }
-					putchar(input[ii]);
-				} 
-				printf("\"  :  ");
+				// printf("%d: calling \"", i);
+				// for (int ii = output[index + 2]; input[ii] != ';'; ii++) {
+				// 	if (input[ii] == '\\') { putchar(input[ii]); ii++; }
+				// 	putchar(input[ii]);
+				// } 
+				// printf("\"  :  ");
 			} else {
-				printf("%d: UDS @ %db,  ", i, begin);
+				// printf("%d: UDS @ %db,  ", i, begin);
 			}
 			int count = 0;
 			while (arguments[arguments_top] != 1000000) {
@@ -361,90 +339,135 @@ success: top += 4;
 				arguments_top--;
 			}
 
-			if (index != limit) {
-				int start = output[index + 2];
-				if (is("unit:attr:label::unit:;", input, start)) {
+			save = program_count;
 
-					
-					int ind = output[arguments[arguments_top + 1]];
+			program[program_count++] = i;
+			program[program_count++] = count;
 
-					int s = arguments[arguments_top + 2];
+			// printf("count=%d  : ", count);
+			// print_vector(arguments + arguments_top + 1, count);
+			// printf("\n");
 
-
-					printf("\nBEFORe: %10d : %10di %10dp %10db %10dd \n", ind, 
-						output[ind], output[ind + 1], output[ind + 2], output[ind + 3]);
-
-					output[ind + 3] = s;
-
-					printf("\nAFTER: %10d : %10di %10dp %10db %10dd \n", ind, 
-						output[ind], output[ind + 1], output[ind + 2], output[ind + 3]);
-
-
-				} else if (is("unit:br0<5:label:;", input, start)) {
-					printf("\nwe found an BR0<5 instruction!!!\n");
-					if (registers[0] < 5) {
-						i = output[output[arguments[arguments_top + 1]] + 3];
-						abort();
-					}
-					
-				} else if (is("unit:move:register:,:register:;", input, start)) {
-					printf("\nwe found an MOVE instruction!!!\n");
-					int dest = 0x0F0F0F0F, source = 0x0F0F0F0F;
-
-					int arg1_start = output[output[arguments[arguments_top + 1]] + 2];
-					if (is("register:r0;", input, arg1_start)) dest = 0;
-					else if (is("register:r1;", input, arg1_start)) dest = 1;
-					else if (is("register:r2;", input, arg1_start)) dest = 2;
-					else if (is("register:r3;", input, arg1_start)) dest = 3;
-					
-					int arg2_start = output[output[arguments[arguments_top + 2]] + 2];
-					if (is("register:r0;", input, arg2_start)) source = 0;
-					else if (is("register:r1;", input, arg2_start)) source = 1;
-					else if (is("register:r2;", input, arg2_start)) source = 2;
-					else if (is("register:r3;", input, arg2_start)) source = 3;
-
-					registers[dest] = registers[source];
-
-				} else if (is("unit:increment:register:;", input, start)) {
-					printf("\nwe found an increment instruction!!!\n");
-					int r = 0x0F0F0F0F;
-					int arg1_start = output[output[arguments[arguments_top + 1]] + 2];
-					if (is("register:r0;", input, arg1_start)) r = 0;
-					else if (is("register:r1;", input, arg1_start)) r = 1;
-					else if (is("register:r2;", input, arg1_start)) r = 2;
-					else if (is("register:r3;", input, arg1_start)) r = 3;
-	
-					registers[r]++;
-
-				} else if (is("unit:zero:register:;", input, start)) {
-					printf("\nwe found an zero instruction!!!\n");
-					int r = 0x0F0F0F0F;
-					int arg1_start = output[output[arguments[arguments_top + 1]] + 2];
-					if (is("register:r0;", input, arg1_start)) r = 0;
-					else if (is("register:r1;", input, arg1_start)) r = 1;
-					else if (is("register:r2;", input, arg1_start)) r = 2;
-					else if (is("register:r3;", input, arg1_start)) r = 3;
-					registers[r] = 0;
-				}
+			for (int k = 0; k < count; k++) {
+				int p = arguments[arguments_top + k + 1];
+				program[program_count++] = p;
+				// printf("\npushed argument: %d\n", p);
 			}
 
+			if (index == limit) goto skip;
 
+			int start = output[index + 2];
 
-			
-			printf("count=%d  : ", count);
-			print_vector(arguments + arguments_top + 1, count);
-			printf("\n");
-			arguments_top--;
-			arguments[++arguments_top] = i;	
+			if (is("unit:attr:label::unit:;", input, start)) {
 
-			if (not stack_top) abort();
-			stack_top--;
+				// int ind = output[arguments[arguments_top + 1]];
+				// int s = arguments[arguments_top + 2];
+				// printf("\nBEFORe: %10d : %10di %10dp %10db %10dd \n", ind, 
+				// 	output[ind], output[ind + 1], output[ind + 2], output[ind + 3]);
+
+				// output[ind + 3] = s;
+
+				// printf("\nAFTER: %10d : %10di %10dp %10db %10dd \n", ind, 
+				// 	output[ind], output[ind + 1], output[ind + 2], output[ind + 3]);
+				abort();
+
+			} else if (is("unit:br0<5:label:;", input, start)) {
+				// printf("\nwe found an BR0<5 instruction!!!\n");
+				// if (registers[0] < 5) {
+				// 	i = output[output[arguments[arguments_top + 1]] + 3];
+				// 	abort();
+				// }
+				abort();
+				
+			} else if (is("unit:move:register:,:register:;", input, start)) {
+				printf("\nMOVE INSTRUCTION\n");
+
+				int dest = 0x0F0F0F0F, source = 0x0F0F0F0F;
+
+				int h = program[save + 2];
+				int k = program[h];
+				int o = output[k];
+				int p = output[o + 2];
+				int arg1_start = p;
+				if (is("register:r0;", input, arg1_start)) dest = 0;
+				else if (is("register:r1;", input, arg1_start)) dest = 1;
+				else if (is("register:r2;", input, arg1_start)) dest = 2;
+				else if (is("register:r3;", input, arg1_start)) dest = 3;
+				else abort();
+
+				h = program[save + 3];
+				k = program[h];
+				o = output[k];
+				p = output[o + 2];
+				int arg2_start = p;
+
+				if (is("register:r0;", input, arg2_start)) source = 0;
+				else if (is("register:r1;", input, arg2_start)) source = 1;
+				else if (is("register:r2;", input, arg2_start)) source = 2;
+				else if (is("register:r3;", input, arg2_start)) source = 3;
+				else abort();
+
+				registers[dest] = registers[source];
+
+			} else if (is("unit:increment:register:;", input, start)) {
+
+				// printf("\nINCREMENT INSTRUCTION\n");
+				// printf("\n arguments = ");
+				// print_indexed_vector(arguments, arguments_top + 1);
+				// printf("\n program = ");
+				// print_indexed_vector(program, program_count);
+
+				// int h = arguments[arguments_top + 1];
+
+				int h = program[save + 2];
+				int k = program[h];
+				int o = output[k];
+				int p = output[o + 2];
+				int arg1_start = p;
+				// printf("h=%d k=%d o=%d p=%d\n", h, k, o, p);
+
+				int r = 0x0F0F0F0F;
+				if (is("register:r0;", input, arg1_start)) r = 0;
+				else if (is("register:r1;", input, arg1_start)) r = 1;
+				else if (is("register:r2;", input, arg1_start)) r = 2;
+				else if (is("register:r3;", input, arg1_start)) r = 3;
+				else abort();
+
+				registers[r]++;
+
+			} else if (is("unit:zero:register:;", input, start)) {
+				// printf("\nZERO INSTRUCTION\n");
+
+				int r = 0x0F0F0F0F;
+				int h = program[save + 2];
+				int k = program[h];
+				int o = output[k];
+				int p = output[o + 2];
+				int arg1_start = p;
+
+				if (is("register:r0;", input, arg1_start)) r = 0;
+				else if (is("register:r1;", input, arg1_start)) r = 1;
+				else if (is("register:r2;", input, arg1_start)) r = 2;
+				else if (is("register:r3;", input, arg1_start)) r = 3;
+				else abort();
+
+				registers[r] = 0;
+			}
+		skip: 	arguments_top--;
+			arguments[++arguments_top] = save;
 		}
 	}
 
-	printf("comptime result:\n{\n");
+	// printf("\n arguments = ");
+	// print_indexed_vector(arguments, arguments_top + 1);
+	// printf("\n program = ");
+	// print_indexed_vector(program, program_count);
+
+	print_tree(program, save, 0, input, output);
+
+	printf("CT registers:\n{\n");
 	for (int i = 0; i < 4; i++) {
-		printf("	registers[%d] = %u\n", i, registers[i]);
+		printf("\tregisters[%d] = %u\n", i, registers[i]);
 	}
 	printf("}\n");
 
@@ -708,5 +731,99 @@ done
 
 
 
+/*
+
+join 	zero r0 
+	join	attr my loop   increment r0
+	join 	b r0 < 5 my loop
+	join	move r1, r0
+		zero r3
 
 
+
+
+
+
+
+
+: start :: :: :: :: :: :: :: :: :: :: :: :: :unit: end;
+
+start 
+
+	unit:br0<5:label:;
+	unit:attr:label::unit:;
+
+	label: my loop;
+
+	unit: nop;
+
+	unit: join :unit: :unit: ;
+
+	register:r0;
+	register:r1;
+	register:r2;
+	register:r3;
+
+	unit:move:register:,:register:;
+	unit:zero:register:;
+	unit:increment:register:;
+
+	increment r1
+end
+
+
+
+
+
+*/
+
+
+
+
+
+
+
+
+// static void print_as_ast(const char* input, int length, int* output, int top, int limit) {
+// 	for (int i = 4; i < top; i += 4) {
+// 		int t = output[i + 3];
+// 		if (output[i] == limit) {
+// 				for (int _ = 0; _ < (output[i + 1])/4; _++) printf(".   ");
+// 				printf("found %d : [--> %d] UDS!!    ", i, output[i + 1]);
+// 				printf("defining: ");
+// 				for (int ii = output[i + 2]; input[ii] != ';'; ii++) {
+// 					if (input[ii] == '\\') { putchar(input[ii]); ii++; }
+// 					putchar(input[ii]);
+// 				} 
+// 				puts("\n");
+// 		} else {
+// 			if (t < length) {
+// 				if (input[t] == ';') {
+// 					for (int _ = 0; _ < (output[i + 1])/4; _++) printf(".   ");
+// 					printf("found(i=%d) : [--> parent=%d]   index=%d  ", i, output[i + 1], output[i]); 
+// 					printf("calling: ");
+// 					for (int ii = output[output[i] + 2]; input[ii] != ';'; ii++) {
+// 						if (input[ii] == '\\') { putchar(input[ii]); ii++; }
+// 						putchar(input[ii]);
+// 					} 
+// 					puts("\n");
+// 				} else {
+// 					// printf(" (intermediary): %10d : %10di %10dp \n", i,  output[i], output[i + 1]);
+// 				}
+// 			} else {
+// 				printf(" err: %10d : %10di %10dp %10db %10dd \n", i,  output[i], output[i + 1], output[i + 2], output[i + 3]);
+// 			}
+// 		}
+		
+// 	}
+// }
+
+
+
+// static void print_signature(const char* m, const char* input, int start, int end) {
+// 	printf("%s", m);
+// 	for (;start < end; start++) {
+// 		putchar(input[start]);
+// 	}
+// 	puts("\n");
+// }
