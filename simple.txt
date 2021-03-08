@@ -1,25 +1,17 @@
-: start :: :: :unit: end;
+:_:::::unit:;_
 
-start 
 	unit: join :unit: :unit: ;
 	unit: define :: ;
 
 	join 	define register:r0;
 	join 	define register:r1;
-	join 	define register:r2;
-	join 	define register:r3;
-
+	join	define label:loop;
+	join 	define unit:branch:label:;
+	join 	define unit:attr:label::unit:;
 	join 	define unit:increment:register:;
-	join 	define unit:decrement:register:;
-	join 	define unit:move:register:,:register:;
 	join 	define unit:zero:register:;
 
 	join 	zero r0
-	join	increment r0
-	join	increment r0
-	join	increment r0
-	join 	move r1, r0
-	join 	move r2, r1
-	join 	decrement r2
-		zero r3
-end
+	join	attr loop increment r0
+	join 	branch loop
+		zero r1
