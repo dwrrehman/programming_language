@@ -380,27 +380,17 @@ success: top += 4;
 				abort();
 				
 			} else if (is("unit:move:register:,:register:;", input, start)) {
-				printf("\nMOVE INSTRUCTION\n");
 
 				int dest = 0x0F0F0F0F, source = 0x0F0F0F0F;
 
-				int h = program[save + 2];
-				int k = program[h];
-				int o = output[k];
-				int p = output[o + 2];
-				int arg1_start = p;
+				int arg1_start = output[output[program[program[save + 2]]] + 2];
 				if (is("register:r0;", input, arg1_start)) dest = 0;
 				else if (is("register:r1;", input, arg1_start)) dest = 1;
 				else if (is("register:r2;", input, arg1_start)) dest = 2;
 				else if (is("register:r3;", input, arg1_start)) dest = 3;
 				else abort();
 
-				h = program[save + 3];
-				k = program[h];
-				o = output[k];
-				p = output[o + 2];
-				int arg2_start = p;
-
+				int arg2_start = output[output[program[program[save + 3]]] + 2];
 				if (is("register:r0;", input, arg2_start)) source = 0;
 				else if (is("register:r1;", input, arg2_start)) source = 1;
 				else if (is("register:r2;", input, arg2_start)) source = 2;
@@ -410,23 +400,8 @@ success: top += 4;
 				registers[dest] = registers[source];
 
 			} else if (is("unit:increment:register:;", input, start)) {
-
-				// printf("\nINCREMENT INSTRUCTION\n");
-				// printf("\n arguments = ");
-				// print_indexed_vector(arguments, arguments_top + 1);
-				// printf("\n program = ");
-				// print_indexed_vector(program, program_count);
-
-				// int h = arguments[arguments_top + 1];
-
-				int h = program[save + 2];
-				int k = program[h];
-				int o = output[k];
-				int p = output[o + 2];
-				int arg1_start = p;
-				// printf("h=%d k=%d o=%d p=%d\n", h, k, o, p);
-
 				int r = 0x0F0F0F0F;
+				int arg1_start = output[output[program[program[save + 2]]] + 2];
 				if (is("register:r0;", input, arg1_start)) r = 0;
 				else if (is("register:r1;", input, arg1_start)) r = 1;
 				else if (is("register:r2;", input, arg1_start)) r = 2;
@@ -435,16 +410,20 @@ success: top += 4;
 
 				registers[r]++;
 
-			} else if (is("unit:zero:register:;", input, start)) {
-				// printf("\nZERO INSTRUCTION\n");
 
+			} else if (is("unit:decrement:register:;", input, start)) {
 				int r = 0x0F0F0F0F;
-				int h = program[save + 2];
-				int k = program[h];
-				int o = output[k];
-				int p = output[o + 2];
-				int arg1_start = p;
+				int arg1_start = output[output[program[program[save + 2]]] + 2];
+				if (is("register:r0;", input, arg1_start)) r = 0;
+				else if (is("register:r1;", input, arg1_start)) r = 1;
+				else if (is("register:r2;", input, arg1_start)) r = 2;
+				else if (is("register:r3;", input, arg1_start)) r = 3;
+				else abort();
 
+				registers[r]--;
+			} else if (is("unit:zero:register:;", input, start)) {
+				int r = 0x0F0F0F0F;
+				int arg1_start = output[output[program[program[save + 2]]] + 2];
 				if (is("register:r0;", input, arg1_start)) r = 0;
 				else if (is("register:r1;", input, arg1_start)) r = 1;
 				else if (is("register:r2;", input, arg1_start)) r = 2;
@@ -457,11 +436,6 @@ success: top += 4;
 			arguments[++arguments_top] = save;
 		}
 	}
-
-	// printf("\n arguments = ");
-	// print_indexed_vector(arguments, arguments_top + 1);
-	// printf("\n program = ");
-	// print_indexed_vector(program, program_count);
 
 	print_tree(program, save, 0, input, output);
 
@@ -494,336 +468,3 @@ clean_up:
 	free(output);
 }
 
-
-
-
-/*
-lskdjflksdjflskj: ∑∑∑ ¥do it!¥ :: and , also this is çool! :: also  :: there  :top: done 
-; 
-
-∑∑∑ ¥do it!¥
-
-	{guys, this is my ∑ type}: bob ; 
-
-and, also this is çool!
-
-	top: bob :{guys, this is my ∑ type}: alice ; 
-also 
-	top: bob :top: :top: alice\:\; ; 
-
-there
-	 bob
-		bob   bob   alice 
- 	 	 bob   bob   alice 
- 	alice:;
-done 
-
-
-
-
-
-
-
-*/
-
-
-
-
-
-
-
-
-
-
-
-
-/*
-
-
-
-
-
-
-
-
-
-
-		
-	// 	index = output[i];
-	// 	var = output[i + 1];
-	// 	begin = output[i + 2];
-	// 	done = output[i + 3];
-		
-	// 	if (index == limit) {
-	// 		for (int _ = 0; _ < stack_top + 1; _++) printf(".   ");
-	// 		printf("INSTRUCTION DEFINE:   ");
-	// 		for (int ii = begin; input[ii] != ';'; ii++) {
-	// 			if (input[ii] == '\\') { putchar(input[ii]); ii++; }
-	// 			putchar(input[ii]);
-	// 		} 
-	// 		printf("\n\n");
-	// 		goto good;
-	// 	}
-
-
-	// 	int index2 = output[index + 2];
-
-	// 	var = index2;
-
-	// fail:	if (input[var] == ':') goto more;
-	// 	if (input[var] != '\\') goto jj;
-	// kk: 	var++; if ((uc)input[var] < 33) goto kk;
-	// jj: 	var++; if ((uc)input[var] < 33) goto jj;
-	// 	goto fail;
-
-	// more:	var++; if ((uc)input[var] < 33) goto more; 
-
-	// 	if (input[var] == ';') goto check;
-	// 	if (input[var] == ':') goto check;
-	// 	if (var == done) goto good;
-	// 	goto more;
-		
-	// check:	if (var == done) goto good;
-	// 	// printf("2nd\n");
-
-	// 	if (input[done] != ';') {
-	// 		// printf("TERRIBLEEEE\n");
-	// 		goto finished;
-	// 	}
-
-	// 	for (int _ = 0; _ < stack_top + 1; _++) printf(".   ");
-	// 	print_signature("INSTRUCTION CALL:   ", input, index2, done);
-
-	// 	// printf("popping...\n");
-	// 	if (not stack_top) abort();
-	// 	stack_top--;
-	
-	// 	const char* nop_instruction = "unit:nop;";
-
-	// 	int ii = index2;
-	// 	while (input[ii] != ';' and *nop_instruction != ';') {
-	// 		if (input[ii] != *nop_instruction) {
-	// 			// printf("didnt find a nop ins!!!!\n");
-	// 			goto finished;
-	// 		}
-	// 		ii++;
-	// 		nop_instruction++;
-	// 	}
-	// 	// printf("we found an nop instruction!!!\n");
-
-	// 	goto finished;
-	// good:	
-	// 	// printf("1st\n");
-	// 	arguments[arguments_top++] = 1000000;
-
-	// 	// printf("pushing...\n");
-	// 	stack[stack_top++] = index;
-		
-	// 	if (input[done] == ';') {
-	// 		// printf("\nDEBUG: %10d : %10di %10dp %10db %10dd \n", i, output[i], output[i + 1], output[i + 2], output[i + 3]);
-
-
-	// 		for (int _ = 0; _ < stack_top + 1; _++) printf(".   ");
-	// 		print_signature("VARIABLE REFERENCE:   ", input, index2, done);
-
-	// 		// printf("popping...\n");
-	// 		if (not stack_top) abort();
-	// 		stack_top--;
-	
-	// 		const char* nop_instruction = "unit:nop;";
-
-	// 		int ii = index2;
-	// 		while (input[ii] != ';' and *nop_instruction != ';') {
-	// 			if (input[ii] != *nop_instruction) {
-	// 				// printf("didnt find a nop variable!!!!\n");
-	// 				goto finished;
-	// 			}
-	// 			ii++;
-	// 			nop_instruction++;
-	// 		}
-	// 		// printf("we found an nop variable!!!\n");
-
-	// 		// abort();
-			
-	// 	}
-
-		
-
-
-	// finished: 
-	// 	// printf("finsihed.\n");
-
-	// 	if (input[done] == ';') {
-	// 		// printf("popping arguments off... \n");
-	// 		// print_vector(arguments, arguments_top);
-
-	// 		while (arguments[arguments_top] != 1000000) arguments_top--;
-	// 		arguments_top--;
-	// 		arguments[arguments_top++] = i;
-			
-	// 		// printf("after popped args: \n");
-	// 		// print_vector(arguments, arguments_top);
-	// 	}
-	// 	continue;
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-		// 	arguments[++arguments_top] = 1000000;
-
-		// 	printf("\n---> DONE:  %d : ", index);
-		// 	int count = 0;
-		// 	while (arguments[arguments_top] != 1000000) {
-		// 		count++;
-		// 		arguments_top--;
-		// 	}
-
-		// 	printf("count=%d  : ", count);
-		// 	print_vector(arguments + arguments_top + 1, count);
-		// 	printf("\n");
-		// 	if (not arguments_top) abort();
-		// 	arguments_top--;
-		// 	arguments[++arguments_top] = i;	
-		// 	continue; 
-
-
-
-
-
-
-
-*/
-
-
-
-
-
-
-
-/*
-
-join 	zero r0 
-	join	attr my loop   increment r0
-	join 	b r0 < 5 my loop
-	join	move r1, r0
-		zero r3
-
-
-
-
-
-
-
-
-: start :: :: :: :: :: :: :: :: :: :: :: :: :unit: end;
-
-start 
-
-	unit:br0<5:label:;
-	unit:attr:label::unit:;
-
-	label: my loop;
-
-	unit: nop;
-
-	unit: join :unit: :unit: ;
-
-	register:r0;
-	register:r1;
-	register:r2;
-	register:r3;
-
-	unit:move:register:,:register:;
-	unit:zero:register:;
-	unit:increment:register:;
-
-	increment r1
-end
-
-
-
-
-
-*/
-
-
-
-
-
-
-
-
-// static void print_as_ast(const char* input, int length, int* output, int top, int limit) {
-// 	for (int i = 4; i < top; i += 4) {
-// 		int t = output[i + 3];
-// 		if (output[i] == limit) {
-// 				for (int _ = 0; _ < (output[i + 1])/4; _++) printf(".   ");
-// 				printf("found %d : [--> %d] UDS!!    ", i, output[i + 1]);
-// 				printf("defining: ");
-// 				for (int ii = output[i + 2]; input[ii] != ';'; ii++) {
-// 					if (input[ii] == '\\') { putchar(input[ii]); ii++; }
-// 					putchar(input[ii]);
-// 				} 
-// 				puts("\n");
-// 		} else {
-// 			if (t < length) {
-// 				if (input[t] == ';') {
-// 					for (int _ = 0; _ < (output[i + 1])/4; _++) printf(".   ");
-// 					printf("found(i=%d) : [--> parent=%d]   index=%d  ", i, output[i + 1], output[i]); 
-// 					printf("calling: ");
-// 					for (int ii = output[output[i] + 2]; input[ii] != ';'; ii++) {
-// 						if (input[ii] == '\\') { putchar(input[ii]); ii++; }
-// 						putchar(input[ii]);
-// 					} 
-// 					puts("\n");
-// 				} else {
-// 					// printf(" (intermediary): %10d : %10di %10dp \n", i,  output[i], output[i + 1]);
-// 				}
-// 			} else {
-// 				printf(" err: %10d : %10di %10dp %10db %10dd \n", i,  output[i], output[i + 1], output[i + 2], output[i + 3]);
-// 			}
-// 		}
-		
-// 	}
-// }
-
-
-
-// static void print_signature(const char* m, const char* input, int start, int end) {
-// 	printf("%s", m);
-// 	for (;start < end; start++) {
-// 		putchar(input[start]);
-// 	}
-// 	puts("\n");
-// }
