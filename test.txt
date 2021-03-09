@@ -1,8 +1,11 @@
-: start :: :: :: :unit: end;
+:begin :: :: :unit: end;
 
-start
-	unit:nop;
-	unit: join :unit: :unit: ;
-	unit:[x86]add;
-	join join nop [x86]add join join nop nop nop
+
+begin
+
+	unit: join :unit: and :unit: ;
+	unit: nop;
+	
+	join nop and nop
+
 end
