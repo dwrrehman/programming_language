@@ -70,6 +70,28 @@ static inline int is(const char* string, const char* input, int start) {
 	return 1;
 }
 
+static inline int get_register(int arg, const char* input, int* output) {
+	int r = 0x0F0F0F0F;
+	int start = output[output[arg] + 2];
+	if (is("register:r0;", input, start)) r = 0;
+	else if (is("register:r1;", input, start)) r = 1;
+	else if (is("register:r2;", input, start)) r = 2;
+	else if (is("register:r3;", input, start)) r = 3;
+	else if (is("register:r4;", input, start)) r = 4;
+	else if (is("register:r5;", input, start)) r = 5;
+	else if (is("register:r6;", input, start)) r = 6;
+	else if (is("register:r7;", input, start)) r = 7;
+	else if (is("register:r8;", input, start)) r = 8;
+	else if (is("register:r9;", input, start)) r = 9;
+	else if (is("register:r10;", input, start)) r = 10;
+	else if (is("register:r11;", input, start)) r = 11;
+	else if (is("register:r12;", input, start)) r = 12;
+	else if (is("register:r13;", input, start)) r = 13;
+	else if (is("register:r14;", input, start)) r = 14;
+	else if (is("register:r15;", input, start)) r = 15;
+	else abort();
+	return r;
+}
 
 int main(const int argc, const char** argv) {
 	typedef unsigned char uc;
@@ -223,21 +245,27 @@ success: top += 4;
 	puts("success: compile successful."); 
 	debug("success", input, output, length, begin, top, index, done);
 
-	int registers[8] = {
-		9999, 9999, 9999, 9999, 
-		9999, 9999, 9999, 9999
-	};
-
-	int this = 0, next = 0, count = 0;
-	int args[16] = {0};
+	int this = 0, next = 0, count = 0, skip = 0;
+	int args[32] = {0};
+	int registers[16] = {0};
+	int memory[4096] = {0};
+	memset(memory, 0x0F, sizeof memory);
 	
 	printf("\n---------------parsing output as tree:----------------\n\n");
 	
 code:	if (this >= top) goto out;
 	if (output[this] == limit) goto move;
 	if (input[output[this + 3]] != 59) goto move;
-	printf(" %10d : %10di %10dp %10db %10dd\n", 
+	printf(" %10d : %10di %10dp %10db %10dd   :   ", 
 		this, output[this + 0], output[this + 1], output[this + 2], output[this + 3]);
+
+	int s = output[output[this] + 2];
+	while (input[s] != ';') {
+		putchar(input[s]);
+		s++;
+	}
+	printf("\n");
+
 	next = this;
 	count = 0;
 next_child:
@@ -252,8 +280,8 @@ kk: 	var++;
 jj: 	var++; 
 	if ((uc)input[var] < 33) goto jj;
 	goto fail;
-more:	var++; 
-	if ((uc)input[var] < 33) goto more; 
+more:	var++;
+	if ((uc)input[var] < 33) goto more;
 	if (input[var] == 59) goto check;
 	if (input[var] == 58) goto check;
 	goto more;
@@ -262,7 +290,6 @@ check:	if (var == done) goto first;
 	next = output[next - 3];
 	goto next_child;
 first:	
-
 	printf("\n    parsed %d arguments : ", count);
 	print_vector(args, count);
 	printf("\n");
@@ -270,106 +297,110 @@ first:
 	index = output[this];
 	int start = output[index + 2];
 
-	if (is("unit:attr:label::unit:;", input, start)) {
-		printf("\nwe found an LABEL-ATTR instruction!!!\n");
-		output[output[args[count - 1]] + 3] = args[count - 2];
-
-		// print_output(output, top, 0);
-		printf("changed location %d...\n", output[args[count - 1]] + 3);
-		getchar();
-		
-	} else if (is("unit:branch:label:;", input, start)) {
-		printf("\nwe found an BRANCH instruction!!!\n");
-		if (registers[0] < 5) {
-			this = output[output[args[count - 1]] + 3];
-			if (not this) {
-				printf("INTERNAL ERROR: branch not initialized.\n");
-				getchar();
-			}
+	if (skip) {
+		printf("\n\n[currently skipping...]\n\n");
+		if (is("unit:attr:label::unit:;", input, start) 
+			and output[args[count - 1]] == skip) {
+			printf("\nwe found an SKIP LABEL-ATTR instruction!!!\n");
+			output[output[args[count - 1]] + 3] = args[count - 2];
+			skip = 0;
+			this = args[count - 2];
 			goto code;
+		}
+		goto move;
+
+	} else {
+		if (is("unit:attr:label::unit:;", input, start)) {
+			printf("\nwe found an NON-SKIP LABEL-ATTR instruction!!!\n");
+			output[output[args[count - 1]] + 3] = args[count - 2];
+		}
+	}
+
+	if (is("unit:if:register:<:register:goto:label:;", input, start)) {
+		printf("\nwe found an BRANCH (<) instruction!!!\n");
+		int left = get_register(args[count - 1], input, output);
+		int right = get_register(args[count - 2], input, output);
+
+		if (registers[left] < registers[right]) {
+			if (not output[output[args[count - 3]] + 3]) {
+				printf("NOTE: performing forward branch\n");
+				skip = output[args[count - 3]];
+				if (skip == 0) abort();
+			} else {
+				this = output[output[args[count - 3]] + 3];
+				goto code;
+			}
+		}
+
+	} else if (is("unit:if:register:=:register:goto:label:;", input, start)) {
+		printf("\nwe found an BRANCH (=) instruction!!!\n");
+		int left = get_register(args[count - 1], input, output);
+		int right = get_register(args[count - 2], input, output);
+
+		if (registers[left] == registers[right]) {
+			if (not output[output[args[count - 3]] + 3]) {
+				printf("NOTE: performing forward branch\n");
+				skip = output[args[count - 3]];
+				if (skip == 0) abort();
+			} else {
+				this = output[output[args[count - 3]] + 3];
+				goto code;
+			}
 		}
 		
 	} else if (is("unit:move:register:,:register:;", input, start)) {
-
-		// int dest = 0x0F0F0F0F, source = 0x0F0F0F0F;
-
-		// int arg1_start = output[output[program[program[save + 2]]] + 2];
-		// if (is("register:r0;", input, arg1_start)) dest = 0;
-		// else if (is("register:r1;", input, arg1_start)) dest = 1;
-		// else if (is("register:r2;", input, arg1_start)) dest = 2;
-		// else if (is("register:r3;", input, arg1_start)) dest = 3;
-		// else {
-		// 	printf("MOVE INS ERROR: invalid dest argument\n");
-		// 	getchar();
-		// }
-
-		// int arg2_start = output[output[program[program[save + 3]]] + 2];
-		// if (is("register:r0;", input, arg2_start)) source = 0;
-		// else if (is("register:r1;", input, arg2_start)) source = 1;
-		// else if (is("register:r2;", input, arg2_start)) source = 2;
-		// else if (is("register:r3;", input, arg2_start)) source = 3;
-		// else {
-		// 	printf("MOVE INS ERROR: invalid source argument\n");
-		// 	getchar();
-		// }
-
-		// registers[dest] = registers[source];
+		int dest = get_register(args[count - 1], input, output);
+		int source = get_register(args[count - 2], input, output);
+		registers[dest] = registers[source];
 
 	} else if (is("unit:increment:register:;", input, start)) {
-		int r = 0x0F0F0F0F;
-		int arg1_start = output[output[args[count - 1]] + 2];
-		if (is("register:r0;", input, arg1_start)) r = 0;
-		else if (is("register:r1;", input, arg1_start)) r = 1;
-		else if (is("register:r2;", input, arg1_start)) r = 2;
-		else if (is("register:r3;", input, arg1_start)) r = 3;
-		else {
-			printf("INCR INS ERROR: invalid argument\n");
-			getchar();
-		}
-
-		registers[r]++;
-
+		registers[get_register(args[count - 1], input, output)]++;
 
 	} else if (is("unit:decrement:register:;", input, start)) {
-		int r = 0x0F0F0F0F;
-		int arg1_start = output[output[args[count - 1]] + 2];
-		if (is("register:r0;", input, arg1_start)) r = 0;
-		else if (is("register:r1;", input, arg1_start)) r = 1;
-		else if (is("register:r2;", input, arg1_start)) r = 2;
-		else if (is("register:r3;", input, arg1_start)) r = 3;
-		else {
-			printf("DECR INS ERROR: invalid argument\n");
-			getchar();
-		}
-
-		registers[r]--;
+		registers[get_register(args[count - 1], input, output)]--;
 
 	} else if (is("unit:zero:register:;", input, start)) {
-		int r = 0x0F0F0F0F;
-		int arg1_start = output[output[args[count - 1]] + 2];
-		if (is("register:r0;", input, arg1_start)) r = 0;
-		else if (is("register:r1;", input, arg1_start)) r = 1;
-		else if (is("register:r2;", input, arg1_start)) r = 2;
-		else if (is("register:r3;", input, arg1_start)) r = 3;
-		else {
-			printf("ZERO INS ERROR: invalid argument\n");
-			getchar();
-		}
+		registers[get_register(args[count - 1], input, output)] = 0;
 
-		registers[r] = 0;
+	} else if (is("unit:add:register:,:register:;", input, start)) {
+		registers[get_register(args[count - 1], input, output)] += 
+		registers[get_register(args[count - 2], input, output)];
+
+	} else if (is("unit:subtract:register:,:register:;", input, start)) {
+		registers[get_register(args[count - 1], input, output)] -= 
+		registers[get_register(args[count - 2], input, output)];
+	
+	} else if (is("unit:multiply:register:,:register:;", input, start)) {
+		registers[get_register(args[count - 1], input, output)] *= 
+		registers[get_register(args[count - 2], input, output)];
+	
+	} else if (is("unit:divide:register:,:register:;", input, start)) {
+		registers[get_register(args[count - 1], input, output)] /= 
+		registers[get_register(args[count - 2], input, output)];
+	
+	} else if (is("unit:store:register:,:register:;", input, start)) {
+		memory[registers[get_register(args[count - 1], input, output)]] = 
+		       registers[get_register(args[count - 2], input, output)];
+	
+	} else if (is("unit:load:register:,:register:;", input, start)) {
+		       registers[get_register(args[count - 1], input, output)] = 
+		memory[registers[get_register(args[count - 2], input, output)]];
 	}
-
-
-
 
 move: 	this += 4;
 	goto code;
-out:	printf("DEBUG: CT registers:\n{\n");
-	for (int i = 0; i < 4; i++) {
-		printf("\tregisters[%d] = %u\n", i, registers[i]);
+out:	printf("DEBUG: compiletime registers:\n{\n");
+	for (int i = 0; i < (int)(sizeof registers / sizeof(int)); i++) {
+		printf("\tr%d = %u\n", i, registers[i]);
 	}
 	printf("}\n");
 
+	printf("DEBUG: compiletime memory:\n{\n");
+	for (int i = 0; i < (int)(sizeof memory / sizeof(int)); i++) {
+		if (memory[i] != 0x0F0F0F0F) 
+			printf("\t[%d] = %u\n", i, memory[i]);
+	}
+	printf("}\n");
 	goto clean_up;
 
 out_of_memory: 

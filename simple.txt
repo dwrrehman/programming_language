@@ -5,13 +5,40 @@
 
 	join 	define register:r0;
 	join 	define register:r1;
-	join	define label:loop;
-	join 	define unit:branch:label:;
-	join 	define unit:attr:label::unit:;
-	join 	define unit:increment:register:;
-	join 	define unit:zero:register:;
+	join 	define register:r2;
+	join 	define register:r3;
 
-	join 	zero r0
-	join	attr loop increment r0
-	join 	branch loop
-		zero r1
+	join	define label:loop;
+	join	define label:stop looping.;
+
+	join 	define unit:if:register:<:register:goto:label:;
+	join 	define unit:if:register:=:register:goto:label:;
+	join 	define unit:attr:label::unit:;
+	join 	define unit:move:register:,:register:;
+	join 	define unit:increment:register:;
+	join 	define unit:decrement:register:;
+	join 	define unit:zero:register:;
+	join 	define unit:add:register:,:register:;
+	join	define unit:subtract:register:,:register:;
+	join 	define unit:multiply:register:,:register:;
+	join 	define unit:divide:register:,:register:;
+	join 	define unit:store:register:,:register:;
+	join 	define unit:load:register:,:register:;
+		
+	
+	join 	increment r1
+	join 	increment r2
+	join 	increment r2
+	join 	multiply r1, r2
+	join 	multiply r1, r2
+	join 	multiply r1, r2
+	join 	multiply r1, r2
+
+		store r1, r2
+
+
+
+
+
+
+
