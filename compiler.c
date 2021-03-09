@@ -234,6 +234,7 @@ success: top += 4;
 	printf("\n---------------parsing output as tree:----------------\n\n");
 	
 code:	if (this >= top) goto out;
+	if (output[this] == limit) goto move;
 	if (input[output[this + 3]] != 59) goto move;
 	printf(" %10d : %10di %10dp %10db %10dd\n", 
 		this, output[this + 0], output[this + 1], output[this + 2], output[this + 3]);
@@ -260,9 +261,107 @@ check:	if (var == done) goto first;
 	args[count++] = next - 4;
 	next = output[next - 3];
 	goto next_child;
-first:	printf("\n    parsed %d arguments : ", count);
+first:	
+
+	printf("\n    parsed %d arguments : ", count);
 	print_vector(args, count);
-	printf("\n");	
+	printf("\n");
+
+	index = output[this];
+	int start = output[index + 2];
+
+	if (is("unit:attr:label::unit:;", input, start)) {
+		printf("\nwe found an LABEL-ATTR instruction!!!\n");
+		output[output[args[count - 1]] + 3] = args[count - 2];
+
+		// print_output(output, top, 0);
+		printf("changed location %d...\n", output[args[count - 1]] + 3);
+		getchar();
+		
+	} else if (is("unit:branch:label:;", input, start)) {
+		printf("\nwe found an BRANCH instruction!!!\n");
+		if (registers[0] < 5) {
+			this = output[output[args[count - 1]] + 3];
+			if (not this) {
+				printf("INTERNAL ERROR: branch not initialized.\n");
+				getchar();
+			}
+			goto code;
+		}
+		
+	} else if (is("unit:move:register:,:register:;", input, start)) {
+
+		// int dest = 0x0F0F0F0F, source = 0x0F0F0F0F;
+
+		// int arg1_start = output[output[program[program[save + 2]]] + 2];
+		// if (is("register:r0;", input, arg1_start)) dest = 0;
+		// else if (is("register:r1;", input, arg1_start)) dest = 1;
+		// else if (is("register:r2;", input, arg1_start)) dest = 2;
+		// else if (is("register:r3;", input, arg1_start)) dest = 3;
+		// else {
+		// 	printf("MOVE INS ERROR: invalid dest argument\n");
+		// 	getchar();
+		// }
+
+		// int arg2_start = output[output[program[program[save + 3]]] + 2];
+		// if (is("register:r0;", input, arg2_start)) source = 0;
+		// else if (is("register:r1;", input, arg2_start)) source = 1;
+		// else if (is("register:r2;", input, arg2_start)) source = 2;
+		// else if (is("register:r3;", input, arg2_start)) source = 3;
+		// else {
+		// 	printf("MOVE INS ERROR: invalid source argument\n");
+		// 	getchar();
+		// }
+
+		// registers[dest] = registers[source];
+
+	} else if (is("unit:increment:register:;", input, start)) {
+		int r = 0x0F0F0F0F;
+		int arg1_start = output[output[args[count - 1]] + 2];
+		if (is("register:r0;", input, arg1_start)) r = 0;
+		else if (is("register:r1;", input, arg1_start)) r = 1;
+		else if (is("register:r2;", input, arg1_start)) r = 2;
+		else if (is("register:r3;", input, arg1_start)) r = 3;
+		else {
+			printf("INCR INS ERROR: invalid argument\n");
+			getchar();
+		}
+
+		registers[r]++;
+
+
+	} else if (is("unit:decrement:register:;", input, start)) {
+		int r = 0x0F0F0F0F;
+		int arg1_start = output[output[args[count - 1]] + 2];
+		if (is("register:r0;", input, arg1_start)) r = 0;
+		else if (is("register:r1;", input, arg1_start)) r = 1;
+		else if (is("register:r2;", input, arg1_start)) r = 2;
+		else if (is("register:r3;", input, arg1_start)) r = 3;
+		else {
+			printf("DECR INS ERROR: invalid argument\n");
+			getchar();
+		}
+
+		registers[r]--;
+
+	} else if (is("unit:zero:register:;", input, start)) {
+		int r = 0x0F0F0F0F;
+		int arg1_start = output[output[args[count - 1]] + 2];
+		if (is("register:r0;", input, arg1_start)) r = 0;
+		else if (is("register:r1;", input, arg1_start)) r = 1;
+		else if (is("register:r2;", input, arg1_start)) r = 2;
+		else if (is("register:r3;", input, arg1_start)) r = 3;
+		else {
+			printf("ZERO INS ERROR: invalid argument\n");
+			getchar();
+		}
+
+		registers[r] = 0;
+	}
+
+
+
+
 move: 	this += 4;
 	goto code;
 out:	printf("DEBUG: CT registers:\n{\n");
