@@ -7,14 +7,13 @@
 	join 	define register:r1;
 	join 	define register:r2;
 	join 	define register:r3;
+	join	define register:r4;
+	join	define register:r5;
 
-	join	define label:loop;
-	join	define label:stop looping.;
-
-	join 	define unit:if:register:<:register:goto:label:;
-	join 	define unit:if:register:=:register:goto:label:;
+	join 	define unit:if:register:<:register:,:label:;
+	join 	define unit:if:register:=:register:,:label:;
 	join 	define unit:attr:label::unit:;
-	join 	define unit:move:register:,:register:;
+	join 	define unit:copy:register:,:register:;
 	join 	define unit:increment:register:;
 	join 	define unit:decrement:register:;
 	join 	define unit:zero:register:;
@@ -25,18 +24,40 @@
 	join 	define unit:store:register:,:register:;
 	join 	define unit:load:register:,:register:;
 		
+	join 	zero r1
+	join 	zero r2
 	
 	join 	increment r1
+
 	join 	increment r2
 	join 	increment r2
+
 	join 	multiply r1, r2
 	join 	multiply r1, r2
 	join 	multiply r1, r2
 	join 	multiply r1, r2
 
-		store r1, r2
+	join 	store r1, r2
 
+	join 	zero r3
+	join 	increment r3
+	join 	increment r3
+	join 	increment r3
 
+	join	define label:repeat;
+
+	join 	zero r0
+	join 	zero r4
+	
+	join 	store r3, r0
+
+	join 	attr repeat load r4, r3
+	join 	increment r4
+	join 	store r3, r4
+	join 	increment r0
+	join 	if r0 < r1, repeat
+
+		zero r5
 
 
 

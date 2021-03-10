@@ -7,7 +7,6 @@
 #include <sys/stat.h>
 #include <sys/mman.h>
 
-
 static void print_vector(int* v, int l) {
 	printf("{ ");
 	for (int i = 0; i < l; i++) {
@@ -28,7 +27,6 @@ static void print_output(int* output, int top, int index) {
 	puts("---------------------\n");
 }
 
-
 static void print_index(const char* m, const char* string, int length, int index) {
 	printf("\n%s\t\t", m);
 	for (int i = 0; i < length; i++) {
@@ -40,7 +38,6 @@ static void print_index(const char* m, const char* string, int length, int index
 	else printf("T"); 
 	printf("\n");
 }
-
 
 static void debug(const char* m, const char* input, int* output, 
 		  int length, int begin, int top, int index, int done) {
@@ -57,7 +54,6 @@ static void debug(const char* m, const char* input, int* output,
 	print_output(output, top, index);
 	print_index("\n\n<<<begin:>>>\n\n", input, length, begin);
 	print_index("\n\n<<<done:>>>\n\n", input, length, done);
-	// printf("continue? "); getchar();
 }
 
 static inline int is(const char* string, const char* input, int start) {
@@ -241,7 +237,6 @@ _35:	index += 4;
 	goto _0;
 
 success: top += 4;
-
 	puts("success: compile successful."); 
 	debug("success", input, output, length, begin, top, index, done);
 
@@ -250,22 +245,19 @@ success: top += 4;
 	int registers[16] = {0};
 	int memory[4096] = {0};
 	memset(memory, 0x0F, sizeof memory);
-	
 	printf("\n---------------parsing output as tree:----------------\n\n");
 	
 code:	if (this >= top) goto out;
 	if (output[this] == limit) goto move;
 	if (input[output[this + 3]] != 59) goto move;
-	printf(" %10d : %10di %10dp %10db %10dd   :   ", 
-		this, output[this + 0], output[this + 1], output[this + 2], output[this + 3]);
-
-	int s = output[output[this] + 2];
-	while (input[s] != ';') {
-		putchar(input[s]);
-		s++;
-	}
-	printf("\n");
-
+	// printf(" %10d : %10di %10dp %10db %10dd   :   ", 
+	// 	this, output[this + 0], output[this + 1], output[this + 2], output[this + 3]);
+	// int s = output[output[this] + 2];
+	// while (input[s] != ';') {
+	// 	putchar(input[s]);
+	// 	s++;
+	// }
+	// printf("\n");
 	next = this;
 	count = 0;
 next_child:
@@ -289,70 +281,44 @@ check:	if (var == done) goto first;
 	args[count++] = next - 4;
 	next = output[next - 3];
 	goto next_child;
-first:	
-	printf("\n    parsed %d arguments : ", count);
-	print_vector(args, count);
-	printf("\n");
+first:;
+	// printf("\n    parsed %d arguments : ", count);
+	// print_vector(args, count);
+	// printf("\n");
 
-	index = output[this];
-	int start = output[index + 2];
+	int start = output[output[this] + 2];
 
 	if (skip) {
-		printf("\n\n[currently skipping...]\n\n");
-		if (is("unit:attr:label::unit:;", input, start) 
-			and output[args[count - 1]] == skip) {
-			printf("\nwe found an SKIP LABEL-ATTR instruction!!!\n");
-			output[output[args[count - 1]] + 3] = args[count - 2];
+		int u = output[args[count - 1]];
+		if (is("unit:attr:label::unit:;", input, start) and u == skip) {
+			output[u + 3] = args[count - 2];
 			skip = 0;
 			this = args[count - 2];
 			goto code;
 		}
 		goto move;
-
-	} else {
-		if (is("unit:attr:label::unit:;", input, start)) {
-			printf("\nwe found an NON-SKIP LABEL-ATTR instruction!!!\n");
-			output[output[args[count - 1]] + 3] = args[count - 2];
-		}
 	}
 
-	if (is("unit:if:register:<:register:goto:label:;", input, start)) {
-		printf("\nwe found an BRANCH (<) instruction!!!\n");
+	if (is("unit:attr:label::unit:;", input, start)) {
+		output[output[args[count - 1]] + 3] = args[count - 2];
+
+	} else if (is("unit:if:register:<:register:,:label:;", input, start)) {
 		int left = get_register(args[count - 1], input, output);
 		int right = get_register(args[count - 2], input, output);
+		if (registers[left] < registers[right]) goto branch;
 
-		if (registers[left] < registers[right]) {
-			if (not output[output[args[count - 3]] + 3]) {
-				printf("NOTE: performing forward branch\n");
-				skip = output[args[count - 3]];
-				if (skip == 0) abort();
-			} else {
-				this = output[output[args[count - 3]] + 3];
-				goto code;
-			}
-		}
-
-	} else if (is("unit:if:register:=:register:goto:label:;", input, start)) {
-		printf("\nwe found an BRANCH (=) instruction!!!\n");
+	} else if (is("unit:if:register:=:register:,:label:;", input, start)) {
 		int left = get_register(args[count - 1], input, output);
 		int right = get_register(args[count - 2], input, output);
 
 		if (registers[left] == registers[right]) {
-			if (not output[output[args[count - 3]] + 3]) {
-				printf("NOTE: performing forward branch\n");
-				skip = output[args[count - 3]];
-				if (skip == 0) abort();
-			} else {
+		branch:	if (output[output[args[count - 3]] + 3]) {
 				this = output[output[args[count - 3]] + 3];
 				goto code;
 			}
+			skip = output[args[count - 3]];
 		}
-		
-	} else if (is("unit:move:register:,:register:;", input, start)) {
-		int dest = get_register(args[count - 1], input, output);
-		int source = get_register(args[count - 2], input, output);
-		registers[dest] = registers[source];
-
+	
 	} else if (is("unit:increment:register:;", input, start)) {
 		registers[get_register(args[count - 1], input, output)]++;
 
@@ -361,6 +327,10 @@ first:
 
 	} else if (is("unit:zero:register:;", input, start)) {
 		registers[get_register(args[count - 1], input, output)] = 0;
+
+	} else if (is("unit:copy:register:,:register:;", input, start)) {
+		registers[get_register(args[count - 1], input, output)] = 
+		registers[get_register(args[count - 2], input, output)];
 
 	} else if (is("unit:add:register:,:register:;", input, start)) {
 		registers[get_register(args[count - 1], input, output)] += 
@@ -407,18 +377,23 @@ out_of_memory:
 	puts("output limit exceeded");
 error:; 
 	int at = 0, line = 1, column = 1;
-loop: 	if (at >= best) goto done;
-	if (at >= length) goto done;
-	if (input[at++] == '\n') goto start;
-	column++;
-	goto don;
-start:	line++;
-	column = 1;
-don:	goto loop;
-done: 	fprintf(stderr, "%u %u %u parse error\n", at, line, column);
-	debug("error", input, output, length, begin, top, index, done);
-	print_index("left off at:", input, length, best);
-	print_index("candidate:", input, length, where);
+	while (at < best and at < length) {
+		if (input[at++] != 10) { column++; } 
+		else { line++; column = 1; }
+	}
+
+	int where_at = 0, where_line = 1, where_column = 1;
+	while (where_at < where and where_at < length) {
+		if (input[where_at++] != 10) { where_column++; } 
+		else { where_line++; where_column = 1; }
+	}
+
+	fprintf(stderr, "%u %u %u %u %u %u parse error\n", 
+			at, line, column, 
+			where_at, where_line, where_column);
+	// debug("error", input, output, length, begin, top, index, done);
+	// print_index("left off at:", input, length, best);
+	// print_index("candidate:", input, length, where);
 clean_up: 
 	munmap(input, (size_t) length);
 	free(output);
