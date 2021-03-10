@@ -29,11 +29,14 @@ unit: define :: ;
 .	define unit:store:register:,:register:;
 .	define unit:load:register:,:register:;
 
-. 	define unit: nop ;
+. 	define unit: nop;
 .	define unit: comment :: ;
  
-. 	define label: continue;
+. 	define label: continue outter loop;
 . 	define label: move to next iteration;
+.	define label: try next number;
+.	define label: it's not composite;
+.	define label: break out of the loop;
 
 .	increment r2
 .	increment r2
@@ -48,23 +51,56 @@ unit: define :: ;
 .	multiply r9, r9
 
 
-.at continue	 nop
+.at continue outter loop
 	
-.comment     
+comment
 
-	determine if a number is prime. :;
+	determine if a number is prime.	
+	
+	notes: 
+		- r7 is the copy of the outter loop iterator, r8,  (it's one less!)
 
+		- r15 is a copy of r7, for when we do the destructive modulo ins.
+
+		- r5 is the iterator of the internal loop. 
+			starts out at 2, and goes until its N - 1.
+
+		- r6 is a boolean of whether or not the value r8 is prime.
+			it starts out as TRUE, (1), but then is zero'd 
+			when we find out its composite.
+
+		- r10 always has the value zero.
+;
 
 .	copy r7, r8
-.	modulo r7, r2
+.	decrement r7
 
+.	zero r5
+.	increment r5 
+.	zero r6
+.	increment r6
 
+.at try next number
 
-.comment 
+	increment r5
+.	copy r15, r8
+.	modulo r15, r5
 
-	if the number is prime, then write it to memory. :;
+.	if r10 < r15, it's not composite
+.	zero r6
+.	if r10 = r10,   break out of the loop
 
-.	if r10 < r7, move to next iteration
+.at it's not composite
+
+	if r5 < r7, try next number
+
+.at break out of the loop
+
+comment 
+
+	if the number is prime, then write it to memory. ;
+
+.	if r10 = r6, move to next iteration
 .		store r4, r8
 .		increment r4
 
@@ -72,7 +108,10 @@ unit: define :: ;
 .at move to next iteration
 
 	increment r8
-.	if r8 < r9, continue
+.	if r8 < r9, 	continue outter loop
 
 
 nop
+
+
+
