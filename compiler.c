@@ -241,10 +241,11 @@ success: top += 4;
 	debug("success", input, output, length, begin, top, index, done);
 
 	int this = 0, next = 0, count = 0, skip = 0;
-	int args[32] = {0};
-	int registers[16] = {0};
-	int memory[4096] = {0};
+	int args[64] = {0};
+	size_t registers[16] = {0};
+	size_t memory[65536] = {0};
 	memset(memory, 0x0F, sizeof memory);
+
 	printf("\n---------------parsing output as tree:----------------\n\n");
 	
 code:	if (this >= top) goto out;
@@ -289,9 +290,8 @@ first:;
 	int start = output[output[this] + 2];
 
 	if (skip) {
-		int u = output[args[count - 1]];
-		if (is("unit:attr:label::unit:;", input, start) and u == skip) {
-			output[u + 3] = args[count - 2];
+		if (is("unit:at:label::unit:;", input, start) and output[args[count - 1]] == skip) {
+			output[output[args[count - 1]] + 3] = args[count - 2];
 			skip = 0;
 			this = args[count - 2];
 			goto code;
@@ -299,7 +299,7 @@ first:;
 		goto move;
 	}
 
-	if (is("unit:attr:label::unit:;", input, start)) {
+	if (is("unit:at:label::unit:;", input, start)) {
 		output[output[args[count - 1]] + 3] = args[count - 2];
 
 	} else if (is("unit:if:register:<:register:,:label:;", input, start)) {
@@ -310,7 +310,6 @@ first:;
 	} else if (is("unit:if:register:=:register:,:label:;", input, start)) {
 		int left = get_register(args[count - 1], input, output);
 		int right = get_register(args[count - 2], input, output);
-
 		if (registers[left] == registers[right]) {
 		branch:	if (output[output[args[count - 3]] + 3]) {
 				this = output[output[args[count - 3]] + 3];
@@ -347,6 +346,22 @@ first:;
 	} else if (is("unit:divide:register:,:register:;", input, start)) {
 		registers[get_register(args[count - 1], input, output)] /= 
 		registers[get_register(args[count - 2], input, output)];
+
+	} else if (is("unit:modulo:register:,:register:;", input, start)) {
+		registers[get_register(args[count - 1], input, output)] %= 
+		registers[get_register(args[count - 2], input, output)];
+
+	} else if (is("unit:xor:register:,:register:;", input, start)) {
+		registers[get_register(args[count - 1], input, output)] ^= 
+		registers[get_register(args[count - 2], input, output)];
+
+	} else if (is("unit:and:register:,:register:;", input, start)) {
+		registers[get_register(args[count - 1], input, output)] &= 
+		registers[get_register(args[count - 2], input, output)];
+
+	} else if (is("unit:or:register:,:register:;", input, start)) {
+		registers[get_register(args[count - 1], input, output)] |= 
+		registers[get_register(args[count - 2], input, output)];
 	
 	} else if (is("unit:store:register:,:register:;", input, start)) {
 		memory[registers[get_register(args[count - 1], input, output)]] = 
@@ -359,16 +374,16 @@ first:;
 
 move: 	this += 4;
 	goto code;
-out:	printf("DEBUG: compiletime registers:\n{\n");
-	for (int i = 0; i < (int)(sizeof registers / sizeof(int)); i++) {
-		printf("\tr%d = %u\n", i, registers[i]);
+out:	printf("DEBUG: registers:\n{\n");
+	for (int i = 0; i < (int)(sizeof registers / sizeof(size_t)); i++) {
+		printf("\tr%d = %zu\n", i, registers[i]);
 	}
 	printf("}\n");
 
-	printf("DEBUG: compiletime memory:\n{\n");
-	for (int i = 0; i < (int)(sizeof memory / sizeof(int)); i++) {
-		if (memory[i] != 0x0F0F0F0F) 
-			printf("\t[%d] = %u\n", i, memory[i]);
+	printf("DEBUG: memory:\n{\n");
+	for (int i = 0; i < (int)(sizeof memory / sizeof(size_t)); i++) {
+		if (memory[i] != 0x0F0F0F0F0F0F0F0F) 
+			printf("\t[%d] = %zu\n", i, memory[i]);
 	}
 	printf("}\n");
 	goto clean_up;
@@ -381,19 +396,14 @@ error:;
 		if (input[at++] != 10) { column++; } 
 		else { line++; column = 1; }
 	}
-
 	int where_at = 0, where_line = 1, where_column = 1;
 	while (where_at < where and where_at < length) {
 		if (input[where_at++] != 10) { where_column++; } 
 		else { where_line++; where_column = 1; }
 	}
-
 	fprintf(stderr, "%u %u %u %u %u %u parse error\n", 
 			at, line, column, 
 			where_at, where_line, where_column);
-	// debug("error", input, output, length, begin, top, index, done);
-	// print_index("left off at:", input, length, best);
-	// print_index("candidate:", input, length, where);
 clean_up: 
 	munmap(input, (size_t) length);
 	free(output);
@@ -404,6 +414,10 @@ clean_up:
 
 /*
 
+
+// debug("error", input, output, length, begin, top, index, done);
+	// print_index("left off at:", input, length, best);
+	// print_index("candidate:", input, length, where);
 
 
 

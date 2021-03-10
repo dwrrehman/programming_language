@@ -1,0 +1,78 @@
+:_:::::unit:;_
+unit: . :unit: :unit: ;
+unit: define :: ;
+	
+.	define register:r0; . define register:r1;
+. 	define register:r2; . define register:r3;
+.	define register:r4; . define register:r5;
+. 	define register:r6; . define register:r7;
+. 	define register:r8; . define register:r9;
+. 	define register:r10; . define register:r11;
+. 	define register:r12; . define register:r13;
+. 	define register:r14; . define register:r15;
+
+. 	define unit:if:register:<:register:,:label:;
+. 	define unit:if:register:=:register:,:label:;
+. 	define unit:at:label::unit:;
+.	define unit:copy:register:,:register:;
+.	define unit:increment:register:;
+.	define unit:decrement:register:;
+.	define unit:zero:register:;
+.	define unit:add:register:,:register:;
+.	define unit:subtract:register:,:register:;
+.	define unit:multiply:register:,:register:;
+.	define unit:divide:register:,:register:;
+.	define unit:modulo:register:,:register:;
+.	define unit:xor:register:,:register:;
+.	define unit:and:register:,:register:;
+.	define unit:or:register:,:register:;
+.	define unit:store:register:,:register:;
+.	define unit:load:register:,:register:;
+
+. 	define unit: nop ;
+.	define unit: comment :: ;
+ 
+. 	define label: continue;
+. 	define label: move to next iteration;
+
+.	increment r2
+.	increment r2
+.	multiply r2, r2
+. 	increment r2
+.	add r2, r2
+
+.	increment r9
+.	increment r9
+.	multiply r9, r9
+.	multiply r9, r9
+.	multiply r9, r9
+
+
+.at continue	 nop
+	
+.comment     
+
+	determine if a number is prime. :;
+
+
+.	copy r7, r8
+.	modulo r7, r2
+
+
+
+.comment 
+
+	if the number is prime, then write it to memory. :;
+
+.	if r10 < r7, move to next iteration
+.		store r4, r8
+.		increment r4
+
+
+.at move to next iteration
+
+	increment r8
+.	if r8 < r9, continue
+
+
+nop
