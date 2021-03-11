@@ -7,13 +7,13 @@
 #include <sys/stat.h>
 #include <sys/mman.h>
 
-static void print_vector(int* v, int l) {
-	printf("{ ");
-	for (int i = 0; i < l; i++) {
-		printf("%d ", v[i]);
-	}
-	printf("}\n");
-}
+// static void print_vector(int* v, int l) {
+// 	printf("{ ");
+// 	for (int i = 0; i < l; i++) {
+// 		printf("%d ", v[i]);
+// 	}
+// 	printf("}\n");
+// }
 
 static void print_output(int* output, int top, int index) {
 	puts("\n------- output: -------");
@@ -65,7 +65,7 @@ static inline int is(const char* string, const char* input, int start) {
 	return 1;
 }
 
-static inline int get_register(int arg, const char* input, int* output) {
+static inline int get(int arg, const char* input, int* output) {
 	int r = 0x0F0F0F0F;
 	int start = output[output[arg] + 2];
 	if (is("register:r0;", input, start)) r = 0;
@@ -91,7 +91,7 @@ static inline int get_register(int arg, const char* input, int* output) {
 int main(const int argc, const char** argv) {
 	typedef unsigned char uc;
 	if (argc != 2) return printf("usage: ./compiler <input>\n");
-	const int limit = 4096;
+	const int limit = 256;
 	int* output = malloc(limit * sizeof(int));
 	memset(output, 0x0F, limit * sizeof(int));
 	int index = 0, top = 0, begin = 0, done = 0;
@@ -103,18 +103,22 @@ int main(const int argc, const char** argv) {
 	char* input = not length ? 0 : mmap(0, (size_t) length, PROT_READ, MAP_SHARED, file, 0);
 	if (input == MAP_FAILED) { perror("mmap"); exit(4); }
 	close(file);
-
-i0: 	if (input[begin] == 59) goto i3;
+	if (not length) goto error;
+i0: 	if (begin >= length) goto i3;
+	if (input[begin] == 59) goto i3;
 	if (input[begin] != 92) goto i2;
 i1: 	begin++;
+	if (begin >= length) goto i2;
 	if ((uc)input[begin] < 33) goto i1;
 i2: 	begin++;
+	if (begin >= length) goto i0;
 	if ((uc)input[begin] < 33) goto i2;
 	goto i0;
 i3: 	begin++;
 	if (begin >= length) goto i4;
-	if ((uc)input[begin] < 33) goto i3;
-i4:	output[top] = limit;
+	if ((uc)input[begin] < 33) goto i3;	
+i4:	if (top + 7 >= limit) goto error;
+	output[top] = limit;
 	output[top + 2] = 0;
 	output[top + 3] = 0;
 	output[top + 5] = 0;
@@ -128,16 +132,20 @@ _1:	var = output[var + 3];
 _2: 	var++;
 	if ((uc)input[var] < 33) goto _2;
 	if (input[var] == 58) goto _16;
-_3:	if (input[done] == 58 and input[var] == 58) goto _8; //TODO: make me NOT an "and".
+_3:	if (done >= length) goto _35;
+	if (var >= length) goto _35;
+	if (input[done] == 58 and input[var] == 58) goto _8; //TODO: make me NOT an "and".
 	if (input[done] != input[var]) goto _35;
 	if (input[done] != 92) goto _6;
 _4: 	done++; 
 	if ((uc)input[done] < 33) goto _4;
 _5: 	var++;
 	if ((uc)input[var] < 33) goto _5;
-_6:	var++; 
+_6:	var++;
+	if (var >= length) goto _7;
 	if ((uc)input[var] < 33) goto _6;
 _7: 	done++; 
+	if (done >= length) goto _3;
 	if ((uc)input[done] < 33) goto _7;
 	goto _3;
 _8:	done++;
@@ -145,7 +153,7 @@ _8:	done++;
 	begin = output[top + 2];
 _9:	if (input[done] == 59) goto _21;
 	if (input[done] != 58) goto _10;
-	if (top + 7 >= limit) goto out_of_memory;
+	if (top + 7 >= limit) goto error;
 	output[top] = index;
 	output[top + 3] = done;
 	output[top + 5] = top;
@@ -189,7 +197,7 @@ _21:	output[top] = index;
 	output[top + 3] = done;
 	var = output[top + 1];
 	if (not var) goto _27;
-	if (top + 7 >= limit) goto out_of_memory;
+	if (top + 7 >= limit) goto error;
 	top += 4;
 	output[top + 1] = output[var + 1];
 	output[top + 2] = begin;
@@ -316,60 +324,34 @@ first:;
 			}
 			skip = output[args[count - 3]];
 		}
-	
-	} else if (is("unit:increment:register:;", input, start)) {
+	} else if (is("unit:increment:register:;", input, start)) 
 		registers[get(args[count - 1], input, output)]++;
-
-	} else if (is("unit:decrement:register:;", input, start)) {
+	else if (is("unit:decrement:register:;", input, start)) 
 		registers[get(args[count - 1], input, output)]--;
-
-	} else if (is("unit:zero:register:;", input, start)) {
+	else if (is("unit:zero:register:;", input, start)) 
 		registers[get(args[count - 1], input, output)] = 0;
-
-	} else if (is("unit:copy:register:,:register:;", input, start)) {
-		registers[get(args[count - 1], input, output)] = 
-		registers[get(args[count - 2], input, output)];
-
-	} else if (is("unit:add:register:,:register:;", input, start)) {
-		registers[get(args[count - 1], input, output)] += 
-		registers[get(args[count - 2], input, output)];
-
-	} else if (is("unit:subtract:register:,:register:;", input, start)) {
-		registers[get(args[count - 1], input, output)] -= 
-		registers[get(args[count - 2], input, output)];
-	
-	} else if (is("unit:multiply:register:,:register:;", input, start)) {
-		registers[get(args[count - 1], input, output)] *= 
-		registers[get(args[count - 2], input, output)];
-	
-	} else if (is("unit:divide:register:,:register:;", input, start)) {
-		registers[get(args[count - 1], input, output)] /= 
-		registers[get(args[count - 2], input, output)];
-
-	} else if (is("unit:modulo:register:,:register:;", input, start)) {
-		registers[get(args[count - 1], input, output)] %= 
-		registers[get(args[count - 2], input, output)];
-
-	} else if (is("unit:xor:register:,:register:;", input, start)) {
-		registers[get(args[count - 1], input, output)] ^= 
-		registers[get(args[count - 2], input, output)];
-
-	} else if (is("unit:and:register:,:register:;", input, start)) {
-		registers[get(args[count - 1], input, output)] &= 
-		registers[get(args[count - 2], input, output)];
-
-	} else if (is("unit:or:register:,:register:;", input, start)) {
-		registers[get(args[count - 1], input, output)] |= 
-		registers[get(args[count - 2], input, output)];
-	
-	} else if (is("unit:store:register:,:register:;", input, start)) {
-		memory[registers[get(args[count - 1], input, output)]] = 
-		       registers[get(args[count - 2], input, output)];
-	
-	} else if (is("unit:load:register:,:register:;", input, start)) {
-		       registers[get(args[count - 1], input, output)] = 
-		memory[registers[get(args[count - 2], input, output)]];
-	}
+	else if (is("unit:copy:register:,:register:;", input, start)) 
+		registers[get(args[count - 1], input, output)] = registers[get(args[count - 2], input, output)];
+	else if (is("unit:add:register:,:register:;", input, start)) 
+		registers[get(args[count - 1], input, output)] += registers[get(args[count - 2], input, output)];
+	else if (is("unit:subtract:register:,:register:;", input, start)) 
+		registers[get(args[count - 1], input, output)] -= registers[get(args[count - 2], input, output)];
+	else if (is("unit:multiply:register:,:register:;", input, start)) 
+		registers[get(args[count - 1], input, output)] *= registers[get(args[count - 2], input, output)];
+	else if (is("unit:divide:register:,:register:;", input, start)) 
+		registers[get(args[count - 1], input, output)] /= registers[get(args[count - 2], input, output)];
+	else if (is("unit:modulo:register:,:register:;", input, start)) 
+		registers[get(args[count - 1], input, output)] %= registers[get(args[count - 2], input, output)];
+	else if (is("unit:xor:register:,:register:;", input, start)) 
+		registers[get(args[count - 1], input, output)] ^= registers[get(args[count - 2], input, output)];
+	else if (is("unit:and:register:,:register:;", input, start)) 
+		registers[get(args[count - 1], input, output)] &= registers[get(args[count - 2], input, output)];
+	else if (is("unit:or:register:,:register:;", input, start)) 
+		registers[get(args[count - 1], input, output)] |= registers[get(args[count - 2], input, output)];
+	else if (is("unit:store:register:,:register:;", input, start)) 
+		memory[registers[get(args[count - 1], input, output)]] = registers[get(args[count - 2], input, output)];
+	else if (is("unit:load:register:,:register:;", input, start)) 
+		registers[get(args[count - 1], input, output)] = memory[registers[get(args[count - 2], input, output)]];
 
 move: 	this += 4;
 	goto code;
@@ -387,22 +369,20 @@ out:	printf("DEBUG: registers:\n{\n");
 	printf("}\n");
 	goto clean_up;
 
-out_of_memory:
-	puts("output limit exceeded");
 error:; 
-	int at = 0, line = 1, column = 1;
+	int at = 0, line = 1, column = 1, wat = 0, wline = 1, wcolumn = 1;
 	while (at < best and at < length) {
 		if (input[at++] != 10) { column++; } 
 		else { line++; column = 1; }
 	}
-	int where_at = 0, where_line = 1, where_column = 1;
-	while (where_at < where and where_at < length) {
-		if (input[where_at++] != 10) { where_column++; } 
-		else { where_line++; where_column = 1; }
+	while (wat < where and wat < length) {
+		if (input[wat++] != 10) { wcolumn++; } 
+		else { wline++; wcolumn = 1; }
 	}
-	fprintf(stderr, "%u %u %u %u %u %u parse error\n", 
-			at, line, column, 
-			where_at, where_line, where_column);
+	fprintf(stderr, "%u %u %u %u %u %u %u %u\n", 
+			line, column, at, 
+			wline, wcolumn, wat, 
+			top, limit);
 clean_up: 
 	munmap(input, (size_t) length);
 	free(output);
