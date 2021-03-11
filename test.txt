@@ -5,26 +5,17 @@
 	only runtime is expression based for now.
 	i will revise the compiletime system, later.
 
+	otool -tvVhlL object.o        <------- useful for debugging the code generated.
+
 
 :_:::::unit:;_unit:.:unit::unit:;unit:def::;
 
 .	def unit:[x86]nop;
 .	def unit:[x86]9bytenop;
-
-.	[x86] nop
-.	[x86] nop
-.	[x86] nop
-.	[x86] nop
-
-.	[x86] nop
-.	[x86] nop
-.	[x86] nop
-.	[x86] nop
+.	def unit:add;
 
 .	[x86] 9 byte nop
 
-.	[x86] nop
-.	[x86] nop
-.	[x86] nop
-.	[x86] nop
+.	add
+
 	[x86] nop

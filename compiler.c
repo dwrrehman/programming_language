@@ -55,7 +55,7 @@ static inline void emit4(int value) {
 }
 
 static inline void triple(uc mod, uc rx, uc rm) {
-	emit((uc)rm | (uc)(rx << 3) | (uc)(mod << 6));
+	emit((uc)(rm & 7) | (uc)((rx & 7) << 3) | (uc)(mod << 6));
 }
 
 
@@ -97,8 +97,6 @@ static inline void emit_indirect_pure_displacement(uc rx, int displacement) {
 }
 
 
-
-
 //////////////// SIB BYTE functions ////////////////////
 
 
@@ -133,9 +131,9 @@ static inline void emit_add_register() {
 	emit(0x03);
 }
 
-static void emit_add_memory() {
-	emit(0x01);
-}
+// static void emit_add_memory() {
+// 	emit(0x01);
+// }
 
 
 
@@ -502,16 +500,56 @@ first:;
 		bytes[size++] = 0;
 		bytes[size++] = 0;
 		bytes[size++] = 0;
-	} else if (is("unit:add:64:,:64:;", input, start)) {
-		
 
-		abort();
-		
+	} else if (is("unit:add;", input, start)) {
+	
 	}
 
 move: 	this += 4;
 	goto code;
 out:;
+
+
+	emit_rex(r11, r12, 0);
+	emit_add_register();
+	emit_direct(r11, r12);
+
+
+	emit_rex(r8, r9, 0);
+	emit_add_register();
+	emit_indirect(r8, r9);
+
+	emit_rex(r8, r9, 0);
+	emit_add_register();
+	emit_indirect_disp8(r8, r9, 0x12);
+
+	emit_rex(r8, r9, 0);
+	emit_add_register();
+	emit_indirect_disp32(r8, r9, 0x12345678);
+
+
+	emit_rex(rax, 0, 0);
+	emit_add_register();
+	emit_indirect_rip_relative(rax, 0x12345678);
+
+	emit_rex(rax, 0, 0);
+	emit_add_register();
+	emit_indirect_pure_displacement(rax, 0x12345678);	
+
+
+	emit_rex(rbx, rcx, rax);
+	emit_add_register();
+	emit_indexed_indirect(rbx, rcx, rax, scale_4);
+
+	emit_rex(rbx, rcx, rax);
+	emit_add_register();
+	emit_indexed_indirect_disp8(rbx, rcx, rax, scale_4, 0x12);
+
+	emit_rex(rbx, rcx, rax);
+	emit_add_register();
+	emit_indexed_indirect_disp32(rbx, rcx, rax, scale_4, 0x12345678);
+	
+	
 
 	const int number_of_sections = 1;
 
