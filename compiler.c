@@ -133,10 +133,7 @@ static inline void emit_add_register() {
 
 // static void emit_add_memory() {
 // 	emit(0x01);
-// }
-
-
-
+//}
 
 
 static inline void dumphex(uc* ibytes, size_t byte_count) {
