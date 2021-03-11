@@ -15,7 +15,6 @@ static void print_vector(int* v, int l) {
 	printf("}\n");
 }
 
-
 static void print_output(int* output, int top, int index) {
 	puts("\n------- output: -------");
 	for (int i = 0; i < top + 4; i += 4) {
@@ -303,13 +302,13 @@ first:;
 		output[output[args[count - 1]] + 3] = args[count - 2];
 
 	} else if (is("unit:if:register:<:register:,:label:;", input, start)) {
-		int left = get_register(args[count - 1], input, output);
-		int right = get_register(args[count - 2], input, output);
+		int left = get(args[count - 1], input, output);
+		int right = get(args[count - 2], input, output);
 		if (registers[left] < registers[right]) goto branch;
 
 	} else if (is("unit:if:register:=:register:,:label:;", input, start)) {
-		int left = get_register(args[count - 1], input, output);
-		int right = get_register(args[count - 2], input, output);
+		int left = get(args[count - 1], input, output);
+		int right = get(args[count - 2], input, output);
 		if (registers[left] == registers[right]) {
 		branch:	if (output[output[args[count - 3]] + 3]) {
 				this = output[output[args[count - 3]] + 3];
@@ -319,57 +318,57 @@ first:;
 		}
 	
 	} else if (is("unit:increment:register:;", input, start)) {
-		registers[get_register(args[count - 1], input, output)]++;
+		registers[get(args[count - 1], input, output)]++;
 
 	} else if (is("unit:decrement:register:;", input, start)) {
-		registers[get_register(args[count - 1], input, output)]--;
+		registers[get(args[count - 1], input, output)]--;
 
 	} else if (is("unit:zero:register:;", input, start)) {
-		registers[get_register(args[count - 1], input, output)] = 0;
+		registers[get(args[count - 1], input, output)] = 0;
 
 	} else if (is("unit:copy:register:,:register:;", input, start)) {
-		registers[get_register(args[count - 1], input, output)] = 
-		registers[get_register(args[count - 2], input, output)];
+		registers[get(args[count - 1], input, output)] = 
+		registers[get(args[count - 2], input, output)];
 
 	} else if (is("unit:add:register:,:register:;", input, start)) {
-		registers[get_register(args[count - 1], input, output)] += 
-		registers[get_register(args[count - 2], input, output)];
+		registers[get(args[count - 1], input, output)] += 
+		registers[get(args[count - 2], input, output)];
 
 	} else if (is("unit:subtract:register:,:register:;", input, start)) {
-		registers[get_register(args[count - 1], input, output)] -= 
-		registers[get_register(args[count - 2], input, output)];
+		registers[get(args[count - 1], input, output)] -= 
+		registers[get(args[count - 2], input, output)];
 	
 	} else if (is("unit:multiply:register:,:register:;", input, start)) {
-		registers[get_register(args[count - 1], input, output)] *= 
-		registers[get_register(args[count - 2], input, output)];
+		registers[get(args[count - 1], input, output)] *= 
+		registers[get(args[count - 2], input, output)];
 	
 	} else if (is("unit:divide:register:,:register:;", input, start)) {
-		registers[get_register(args[count - 1], input, output)] /= 
-		registers[get_register(args[count - 2], input, output)];
+		registers[get(args[count - 1], input, output)] /= 
+		registers[get(args[count - 2], input, output)];
 
 	} else if (is("unit:modulo:register:,:register:;", input, start)) {
-		registers[get_register(args[count - 1], input, output)] %= 
-		registers[get_register(args[count - 2], input, output)];
+		registers[get(args[count - 1], input, output)] %= 
+		registers[get(args[count - 2], input, output)];
 
 	} else if (is("unit:xor:register:,:register:;", input, start)) {
-		registers[get_register(args[count - 1], input, output)] ^= 
-		registers[get_register(args[count - 2], input, output)];
+		registers[get(args[count - 1], input, output)] ^= 
+		registers[get(args[count - 2], input, output)];
 
 	} else if (is("unit:and:register:,:register:;", input, start)) {
-		registers[get_register(args[count - 1], input, output)] &= 
-		registers[get_register(args[count - 2], input, output)];
+		registers[get(args[count - 1], input, output)] &= 
+		registers[get(args[count - 2], input, output)];
 
 	} else if (is("unit:or:register:,:register:;", input, start)) {
-		registers[get_register(args[count - 1], input, output)] |= 
-		registers[get_register(args[count - 2], input, output)];
+		registers[get(args[count - 1], input, output)] |= 
+		registers[get(args[count - 2], input, output)];
 	
 	} else if (is("unit:store:register:,:register:;", input, start)) {
-		memory[registers[get_register(args[count - 1], input, output)]] = 
-		       registers[get_register(args[count - 2], input, output)];
+		memory[registers[get(args[count - 1], input, output)]] = 
+		       registers[get(args[count - 2], input, output)];
 	
 	} else if (is("unit:load:register:,:register:;", input, start)) {
-		       registers[get_register(args[count - 1], input, output)] = 
-		memory[registers[get_register(args[count - 2], input, output)]];
+		       registers[get(args[count - 1], input, output)] = 
+		memory[registers[get(args[count - 2], input, output)]];
 	}
 
 move: 	this += 4;
@@ -388,7 +387,7 @@ out:	printf("DEBUG: registers:\n{\n");
 	printf("}\n");
 	goto clean_up;
 
-out_of_memory: 
+out_of_memory:
 	puts("output limit exceeded");
 error:; 
 	int at = 0, line = 1, column = 1;
@@ -408,196 +407,6 @@ clean_up:
 	munmap(input, (size_t) length);
 	free(output);
 }
-
-
-
-
-/*
-
-
-// debug("error", input, output, length, begin, top, index, done);
-	// print_index("left off at:", input, length, best);
-	// print_index("candidate:", input, length, where);
-
-
-
-int start = output[index + 2];
-
-			if (is("unit:attr:label::unit:;", input, start)) {
-
-				output[output[program[program[save + 2]]] + 3] = program[program[save + 3]];
-
-				print_output(output, top, 0);
-				printf("changed location %d...\n", output[program[program[save + 2]]] + 3);
-				// getchar();
-				
-			} else if (is("unit:branch:label:;", input, start)) {
-				printf("\nwe found an BRANCH instruction!!!\n");
-				if (registers[0] < 5) {
-					i = output[output[program[program[save + 2]]] + 3];
-					if (not i) {
-						printf("INTERNAL ERROR: branch not initialized.\n");
-						getchar();
-					}
-					i -= 4;
-				}
-				
-			} else if (is("unit:move:register:,:register:;", input, start)) {
-
-				int dest = 0x0F0F0F0F, source = 0x0F0F0F0F;
-
-				int arg1_start = output[output[program[program[save + 2]]] + 2];
-				if (is("register:r0;", input, arg1_start)) dest = 0;
-				else if (is("register:r1;", input, arg1_start)) dest = 1;
-				else if (is("register:r2;", input, arg1_start)) dest = 2;
-				else if (is("register:r3;", input, arg1_start)) dest = 3;
-				else {
-					printf("MOVE INS ERROR: invalid dest argument\n");
-					getchar();
-				}
-
-				int arg2_start = output[output[program[program[save + 3]]] + 2];
-				if (is("register:r0;", input, arg2_start)) source = 0;
-				else if (is("register:r1;", input, arg2_start)) source = 1;
-				else if (is("register:r2;", input, arg2_start)) source = 2;
-				else if (is("register:r3;", input, arg2_start)) source = 3;
-				else {
-					printf("MOVE INS ERROR: invalid source argument\n");
-					getchar();
-				}
-
-				registers[dest] = registers[source];
-
-			} else if (is("unit:increment:register:;", input, start)) {
-				int r = 0x0F0F0F0F;
-				int arg1_start = output[output[program[program[save + 2]]] + 2];
-				printf("found argument: %d");
-				if (is("register:r0;", input, arg1_start)) r = 0;
-				else if (is("register:r1;", input, arg1_start)) r = 1;
-				else if (is("register:r2;", input, arg1_start)) r = 2;
-				else if (is("register:r3;", input, arg1_start)) r = 3;
-				else {
-					printf("INCR INS ERROR: invalid argument\n");
-					getchar();
-				}
-
-				registers[r]++;
-
-
-			} else if (is("unit:decrement:register:;", input, start)) {
-				int r = 0x0F0F0F0F;
-				int arg1_start = output[output[program[program[save + 2]]] + 2];
-				if (is("register:r0;", input, arg1_start)) r = 0;
-				else if (is("register:r1;", input, arg1_start)) r = 1;
-				else if (is("register:r2;", input, arg1_start)) r = 2;
-				else if (is("register:r3;", input, arg1_start)) r = 3;
-				else {
-					printf("DECR INS ERROR: invalid argument\n");
-					getchar();
-				}
-
-				registers[r]--;
-			} else if (is("unit:zero:register:;", input, start)) {
-				int r = 0x0F0F0F0F;
-				int arg1_start = output[output[program[program[save + 2]]] + 2];
-				if (is("register:r0;", input, arg1_start)) r = 0;
-				else if (is("register:r1;", input, arg1_start)) r = 1;
-				else if (is("register:r2;", input, arg1_start)) r = 2;
-				else if (is("register:r3;", input, arg1_start)) r = 3;
-				else {
-					printf("ZERO INS ERROR: invalid argument\n");
-					getchar();
-				}
-
-				registers[r] = 0;
-			}
-
-
-
-
-
-: start :: :: :: :unit: end;
-
-start
-	unit:nop;
-	unit: join :unit: :unit: ;
-	unit:[x86]add;
-	join join nop [x86]add join join nop nop nop
-end
-
-
-
-
-*/
-
-
-
-
-
-
-
-	
-		// if (index == limit or input[done] == ';') {
-
-		// 	for (int j = i - 4; j >= 0; j -= 4) {
-		// 		int j_index = output[j];
-		// 		int j_var = output[j + 1];
-		// 		int j_begin = output[j + 2];
-		// 		int j_done = output[j + 3];
-		// 		printf("COUNTER-DEBUG: %10d : %10di %10dp %10db %10dd\n", 
-		// 			j, j_index, j_var, j_begin, j_done);
-				
-		// 		if (j_var == i) {
-		// 			printf("found parent!!!\n");
-		// 		}
-		// 	}
-
-		// 	printf("--> IS LAST NODE\n");
-		// }
-		// printf("done.\n");
-
-
-
-
-
-
-// static inline void print_tree(int* program, int index, int depth, const char* input, int* output) {
-// 	for (int _ = 0; _ < depth; _++) printf(".   ");
-
-// 	int b = output[program[index]];
-// 	if (b == 4096) {
-// 		printf("\"");
-// 		for (int ii = output[program[index] + 2]; input[ii] != ';'; ii++) {
-// 			if (input[ii] == '\\') { putchar(input[ii]); ii++; }
-// 			putchar(input[ii]);
-// 		}
-// 		printf("\"");
-// 	} else {
-// 		for (int ii = output[b + 2]; input[ii] != ';'; ii++) {
-// 			if (input[ii] == '\\') { putchar(input[ii]); ii++; }
-// 			putchar(input[ii]);
-// 		} 
-// 	}
-// 	printf("  :  (%di,%dc)\n\n", program[index], program[index + 1]);
-// 	for (int i = 0; i < program[index + 1]; i++) {
-// 		print_tree(program, program[index + i + 2], depth + 1, input, output);
-// 	}
-// }
-
-
-
-
-
-
-
-
-// static void print_indexed_vector(int* stack, int count) {
-// 	printf("\n------------(%d):-----------\n{\n", count);
-// 	for (int j = 0; j < count; j++) {
-// 		printf(" %10d: %10d\n", j, stack[j]);
-// 	}
-// 	printf("}\n");
-// }
 
 
 
