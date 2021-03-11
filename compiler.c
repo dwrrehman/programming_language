@@ -24,25 +24,9 @@ enum { bytes_limit = 4096 };
 static size_t size = 0;
 static unsigned char bytes[bytes_limit] = {0};
 
-
-
 enum {
-	rax,
-	rcx,
-	rdx,
-	rbx,
-	rsp,
-	rbp,
-	rsi,
-	rdi,
-	r8,
-	r9, 
-	r10,
-	r11,
-	r12,
-	r13,
-	r14,
-	r15
+	rax, rcx, rdx, rbx, rsp, rbp, rsi, rdi, 
+	r8,  r9,  r10, r11, r12, r13, r14, r15
 };
 
 enum {
@@ -51,7 +35,6 @@ enum {
 	indirect_disp32,
 	direct
 };
-
 
 enum {
 	scale_1,
@@ -83,25 +66,35 @@ static inline void emit_direct(uc rx, uc rm) {
 	triple(direct, rx, rm);
 }
 
-static inline void emit_indirect(uc rx, uc rm) {
-	triple(indirect, rx, rm);
+static inline void emit_indirect(uc rx, uc base) {
+	triple(indirect, rx, base);
 }
 
-static inline void emit_indirect_disp8(uc rx, uc rm, uc displacement) {
-	triple(indirect_disp8, rx, rm);
+static inline void emit_indirect_disp8(uc rx, uc base, uc displacement) {
+	triple(indirect_disp8, rx, base);
 	emit(displacement);
 }
 
-static inline void emit_indirect_disp32(uc rx, uc rm, int displacement) {
-	triple(indirect_disp32, rx, rm);
+static inline void emit_indirect_disp32(uc rx, uc base, int displacement) {
+	triple(indirect_disp32, rx, base);
 	emit4(displacement);
 }
 
-static inline void emit_indirect_pure_displacement(uc rx, int displacement) {
+
+
+/////////////// RIP relative ////////////////
+
+
+static inline void emit_indirect_rip_relative(uc rx, int displacement) {
 	triple(indirect, rx, rbp);
 	emit4(displacement);
 }
 
+static inline void emit_indirect_pure_displacement(uc rx, int displacement) {
+	triple(indirect, rx, rsp);
+	triple(scale_1, rsp, rbp);
+	emit4(displacement);
+}
 
 
 
@@ -109,20 +102,20 @@ static inline void emit_indirect_pure_displacement(uc rx, int displacement) {
 //////////////// SIB BYTE functions ////////////////////
 
 
-static inline void emit_indexed_indirect(uc rx, uc rm, uc index, uc scale) {
+static inline void emit_indexed_indirect(uc rx, uc base, uc index, uc scale) {
 	triple(indirect, rx, rsp);
-	triple(scale, rm, index);
+	triple(scale, index, base);
 }
 
-static inline void emit_indexed_indirect_disp8(uc rx, uc rm, uc index, uc scale, uc displacement) {
+static inline void emit_indexed_indirect_disp8(uc rx, uc base, uc index, uc scale, uc displacement) {
 	triple(indirect_disp8, rx, rsp);
-	triple(scale, rm, index);
+	triple(scale, index, base);
 	emit(displacement);
 }
 
-static inline void emit_indexed_indirect_disp32(uc rx, uc rm, uc index, uc scale, int displacement) {
-	triple(indirect_disp32s, rx, rsp);
-	triple(scale, rm, index);
+static inline void emit_indexed_indirect_disp32(uc rx, uc base, uc index, uc scale, int displacement) {
+	triple(indirect_disp32, rx, rsp);
+	triple(scale, index, base);
 	emit4(displacement);
 }
 
@@ -132,11 +125,17 @@ static inline void emit_indexed_indirect_disp32(uc rx, uc rm, uc index, uc scale
 /////////////// OP CODES ////////////////////
 
 
-static inline void emit_add() {
-	emit(0x48);
+static inline void emit_rex(uc rx, uc base, uc index) {
+	emit(0x48 | (uc)(base >> 3) | (uc)((index >> 3) << 1) | (uc)((rx >> 3) << 2));
+}
+
+static inline void emit_add_register() {
 	emit(0x03);
 }
 
+static void emit_add_memory() {
+	emit(0x01);
+}
 
 
 
