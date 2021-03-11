@@ -1,6 +1,21 @@
-hi there: start :: :: :: :: ;
+	
+	this is a file testing how runtime code generation works, 
+	using the new expression based way of doing things.
 
-start unit:nop;  
-	unit : nop;
-unit:nop;  
-	unit : nop;
+	only runtime is expression based for now.
+	i will revise the compiletime system, later.
+
+
+:_:::::unit:;_unit:.:unit::unit:;unit:def::;
+
+.	def unit:[x86]nop;
+
+.	[x86] nop
+.	[x86] nop
+.	[x86] nop
+.	[x86] nop
+
+.	[x86] nop
+.	[x86] nop
+.	[x86] nop
+	[x86] nop

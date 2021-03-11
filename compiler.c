@@ -6,6 +6,10 @@
 #include <unistd.h>
 #include <sys/stat.h>
 #include <sys/mman.h>
+#include <stdint.h>
+#include <mach/vm_prot.h>
+#include <mach-o/loader.h>
+
 
 // static void print_vector(int* v, int l) {
 // 	printf("{ ");
@@ -14,6 +18,15 @@
 // 	}
 // 	printf("}\n");
 // }
+
+
+static inline void dumphex(uint8_t* bytes, size_t byte_count) {
+	for (size_t i = 0; i < byte_count; i++) {
+		if (!(i % 8)) printf("\n");
+		printf("%02x ", bytes[i]);
+	}
+	printf("\n");
+}
 
 static void print_output(int* output, int top, int index) {
 	puts("\n------- output: -------");
@@ -91,7 +104,8 @@ static inline int get(int arg, const char* input, int* output) {
 int main(const int argc, const char** argv) {
 	typedef unsigned char uc;
 	if (argc != 2) return printf("usage: ./compiler <input>\n");
-	const int limit = 256;
+	const int limit = 256, ctm_limit = 256, bytes_limit = 256, 
+		args_limit = 64, ctr_limit = 16;
 	int* output = malloc(limit * sizeof(int));
 	memset(output, 0x0F, limit * sizeof(int));
 	int index = 0, top = 0, begin = 0, done = 0;
@@ -248,10 +262,13 @@ success: top += 4;
 	debug("success", input, output, length, begin, top, index, done);
 
 	int this = 0, next = 0, count = 0, skip = 0;
-	int args[64] = {0};
-	size_t registers[16] = {0};
-	size_t memory[65536] = {0};
-	memset(memory, 0x0F, sizeof memory);
+	size_t size = 0;
+	int* args = malloc(args_limit * sizeof(int));
+	size_t* ctr = malloc(ctr_limit * sizeof(size_t));
+	size_t* memory = malloc(ctm_limit * sizeof(size_t));
+	unsigned char* bytes = malloc(bytes_limit);
+	memset(memory, 0x0F, ctm_limit * sizeof(size_t));
+	memset(ctr, 0x0F, ctr_limit * sizeof(size_t));
 
 	printf("\n---------------parsing output as tree:----------------\n\n");
 	
@@ -309,60 +326,143 @@ first:;
 	if (is("unit:at:label::unit:;", input, start)) {
 		output[output[args[count - 1]] + 3] = args[count - 2];
 
-	} else if (is("unit:if:register:<:register:,:label:;", input, start)) {
+	} else if (is("unit:if:ctr:<:ctr:,:label:;", input, start)) {
 		int left = get(args[count - 1], input, output);
 		int right = get(args[count - 2], input, output);
-		if (registers[left] < registers[right]) goto branch;
+		if (ctr[left] < ctr[right]) goto branch;
 
-	} else if (is("unit:if:register:=:register:,:label:;", input, start)) {
+	} else if (is("unit:if:ctr:=:ctr:,:label:;", input, start)) {
 		int left = get(args[count - 1], input, output);
 		int right = get(args[count - 2], input, output);
-		if (registers[left] == registers[right]) {
+		if (ctr[left] == ctr[right]) {
 		branch:	if (output[output[args[count - 3]] + 3]) {
 				this = output[output[args[count - 3]] + 3];
 				goto code;
 			}
 			skip = output[args[count - 3]];
 		}
-	} else if (is("unit:increment:register:;", input, start)) 
-		registers[get(args[count - 1], input, output)]++;
-	else if (is("unit:decrement:register:;", input, start)) 
-		registers[get(args[count - 1], input, output)]--;
-	else if (is("unit:zero:register:;", input, start)) 
-		registers[get(args[count - 1], input, output)] = 0;
-	else if (is("unit:copy:register:,:register:;", input, start)) 
-		registers[get(args[count - 1], input, output)] = registers[get(args[count - 2], input, output)];
-	else if (is("unit:add:register:,:register:;", input, start)) 
-		registers[get(args[count - 1], input, output)] += registers[get(args[count - 2], input, output)];
-	else if (is("unit:subtract:register:,:register:;", input, start)) 
-		registers[get(args[count - 1], input, output)] -= registers[get(args[count - 2], input, output)];
-	else if (is("unit:multiply:register:,:register:;", input, start)) 
-		registers[get(args[count - 1], input, output)] *= registers[get(args[count - 2], input, output)];
-	else if (is("unit:divide:register:,:register:;", input, start)) 
-		registers[get(args[count - 1], input, output)] /= registers[get(args[count - 2], input, output)];
-	else if (is("unit:modulo:register:,:register:;", input, start)) 
-		registers[get(args[count - 1], input, output)] %= registers[get(args[count - 2], input, output)];
-	else if (is("unit:xor:register:,:register:;", input, start)) 
-		registers[get(args[count - 1], input, output)] ^= registers[get(args[count - 2], input, output)];
-	else if (is("unit:and:register:,:register:;", input, start)) 
-		registers[get(args[count - 1], input, output)] &= registers[get(args[count - 2], input, output)];
-	else if (is("unit:or:register:,:register:;", input, start)) 
-		registers[get(args[count - 1], input, output)] |= registers[get(args[count - 2], input, output)];
-	else if (is("unit:store:register:,:register:;", input, start)) 
-		memory[registers[get(args[count - 1], input, output)]] = registers[get(args[count - 2], input, output)];
-	else if (is("unit:load:register:,:register:;", input, start)) 
-		registers[get(args[count - 1], input, output)] = memory[registers[get(args[count - 2], input, output)]];
+	} else if (is("unit:increment:ctr:;", input, start)) 
+		ctr[get(args[count - 1], input, output)]++;
+	else if (is("unit:decrement:ctr:;", input, start)) 
+		ctr[get(args[count - 1], input, output)]--;
+	else if (is("unit:zero:ctr:;", input, start)) 
+		ctr[get(args[count - 1], input, output)] = 0;
+	else if (is("unit:copy:ctr:,:ctr:;", input, start)) 
+		ctr[get(args[count - 1], input, output)] = ctr[get(args[count - 2], input, output)];
+	else if (is("unit:add:ctr:,:ctr:;", input, start)) 
+		ctr[get(args[count - 1], input, output)] += ctr[get(args[count - 2], input, output)];
+	else if (is("unit:subtract:ctr:,:ctr:;", input, start)) 
+		ctr[get(args[count - 1], input, output)] -= ctr[get(args[count - 2], input, output)];
+	else if (is("unit:multiply:ctr:,:ctr:;", input, start)) 
+		ctr[get(args[count - 1], input, output)] *= ctr[get(args[count - 2], input, output)];
+	else if (is("unit:divide:ctr:,:ctr:;", input, start)) 
+		ctr[get(args[count - 1], input, output)] /= ctr[get(args[count - 2], input, output)];
+	else if (is("unit:modulo:ctr:,:ctr:;", input, start)) 
+		ctr[get(args[count - 1], input, output)] %= ctr[get(args[count - 2], input, output)];
+	else if (is("unit:xor:ctr:,:ctr:;", input, start)) 
+		ctr[get(args[count - 1], input, output)] ^= ctr[get(args[count - 2], input, output)];
+	else if (is("unit:and:ctr:,:ctr:;", input, start)) 
+		ctr[get(args[count - 1], input, output)] &= ctr[get(args[count - 2], input, output)];
+	else if (is("unit:or:ctr:,:ctr:;", input, start)) 
+		ctr[get(args[count - 1], input, output)] |= ctr[get(args[count - 2], input, output)];
+	else if (is("unit:store:ctr:,:ctr:;", input, start)) 
+		memory[ctr[get(args[count - 1], input, output)]] = ctr[get(args[count - 2], input, output)];
+	else if (is("unit:load:ctr:,:ctr:;", input, start)) 
+		ctr[get(args[count - 1], input, output)] = memory[ctr[get(args[count - 2], input, output)]];
+	
+	else if (is("unit:[x86]nop;", input, start)) {
+		bytes[size++] = 0x90;
+
+	} else if (is("unit:[x86]10bytenop;", input, start)) {
+		bytes[size++] = 0x66;
+		bytes[size++] = 0x0F;
+		bytes[size++] = 0x1F;
+		bytes[size++] = 0x84;
+		bytes[size++] = 0;
+		bytes[size++] = 0;
+		bytes[size++] = 0;
+		bytes[size++] = 0;
+		bytes[size++] = 0;
+	}
 
 move: 	this += 4;
 	goto code;
-out:	printf("DEBUG: registers:\n{\n");
-	for (int i = 0; i < (int)(sizeof registers / sizeof(size_t)); i++) {
-		printf("\tr%d = %zu\n", i, registers[i]);
+out:;
+
+	const int number_of_sections = 1;
+
+	struct mach_header_64 header = {0};	
+	struct segment_command_64 command = {0};
+	struct section_64 section = {0};
+
+
+	header.magic = MH_MAGIC_64;
+	header.cputype = (int)CPU_TYPE_X86 | (int)CPU_ARCH_ABI64;
+	header.cpusubtype = (int)CPU_SUBTYPE_I386_ALL | (int)CPU_SUBTYPE_LIB64;
+	header.filetype = MH_OBJECT;
+	header.ncmds = 0;
+	header.sizeofcmds = 0;
+	header.flags = MH_NOUNDEFS | MH_SUBSECTIONS_VIA_SYMBOLS;
+	
+
+	command.cmd = LC_SEGMENT_64;
+	command.cmdsize = sizeof(struct segment_command_64) + sizeof(struct section_64) * number_of_sections;
+
+	header.ncmds++;
+	header.sizeofcmds += command.cmdsize;
+
+	strncpy(command.segname, "__TEXT", 16);
+	command.vmsize = sizeof header + sizeof command + sizeof section + size + 0xFFFF;
+	command.vmaddr = 0;
+	command.fileoff = 0;
+	command.filesize = sizeof header + sizeof command + sizeof section + size;
+	command.maxprot = VM_PROT_ALL;
+	command.initprot = VM_PROT_ALL;
+	command.nsects = number_of_sections;
+	
+	strncpy(section.sectname, "__text", 16);
+	strncpy(section.segname, "__TEXT", 16);
+	section.addr = 0x100000000;
+	section.size = size;
+	section.offset = sizeof header + sizeof command + sizeof section;
+	section.align = 3;
+	section.reloff = 0;
+	section.nreloc = 0;
+
+
+	printf("\ndebugging header bytes:\n------------------------\n");
+	dumphex((void*) &header, sizeof(header));
+
+	printf("\ndebugging command bytes:\n------------------------\n");
+	dumphex((void*) &command, sizeof(command));
+
+	printf("\ndebugging section bytes:\n------------------------\n");
+	dumphex((void*) &section, sizeof(section));
+
+	printf("\ndebugging bytes bytes:\n------------------------\n");
+	dumphex((void*) bytes, size);
+	
+	printf("\n\n--> outputting %zd bytes to output file...\n\n", size);
+
+	int out_file = open("a.out", O_WRONLY | O_CREAT);
+	if (out_file < 0) { perror("open"); exit(4); }
+
+	write(out_file, &header, sizeof header);
+	write(out_file, &command, sizeof command);
+	write(out_file, &section, sizeof section);
+	write(out_file, bytes, size);
+
+	close(out_file);
+
+	printf("DEBUG: ctr:\n{\n");
+	for (int i = 0; i < ctr_limit; i++) {
+		if (ctr[i] != 0x0F0F0F0F0F0F0F0F) 
+			printf("\tr%d = %zu\n", i, ctr[i]);
 	}
 	printf("}\n");
 
 	printf("DEBUG: memory:\n{\n");
-	for (int i = 0; i < (int)(sizeof memory / sizeof(size_t)); i++) {
+	for (int i = 0; i < ctm_limit; i++) {
 		if (memory[i] != 0x0F0F0F0F0F0F0F0F) 
 			printf("\t[%d] = %zu\n", i, memory[i]);
 	}
@@ -387,6 +487,4 @@ clean_up:
 	munmap(input, (size_t) length);
 	free(output);
 }
-
-
 
