@@ -9,12 +9,21 @@
 :_:::::unit:;_unit:.:unit::unit:;unit:def::;
 
 .	def unit:[x86]nop;
+.	def unit:[x86]9bytenop;
 
 .	[x86] nop
 .	[x86] nop
 .	[x86] nop
 .	[x86] nop
 
+.	[x86] nop
+.	[x86] nop
+.	[x86] nop
+.	[x86] nop
+
+.	[x86] 9 byte nop
+
+.	[x86] nop
 .	[x86] nop
 .	[x86] nop
 .	[x86] nop

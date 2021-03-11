@@ -10,6 +10,7 @@
 #include <mach/vm_prot.h>
 #include <mach-o/loader.h>
 
+typedef uint8_t uc;
 
 // static void print_vector(int* v, int l) {
 // 	printf("{ ");
@@ -19,11 +20,132 @@
 // 	printf("}\n");
 // }
 
+enum { bytes_limit = 4096 };
+static size_t size = 0;
+static unsigned char bytes[bytes_limit] = {0};
 
-static inline void dumphex(uint8_t* bytes, size_t byte_count) {
+
+
+enum {
+	rax,
+	rcx,
+	rdx,
+	rbx,
+	rsp,
+	rbp,
+	rsi,
+	rdi,
+	r8,
+	r9, 
+	r10,
+	r11,
+	r12,
+	r13,
+	r14,
+	r15
+};
+
+enum {
+	indirect,
+	indirect_disp8,
+	indirect_disp32,
+	direct
+};
+
+
+enum {
+	scale_1,
+	scale_2,
+	scale_4,
+	scale_8,
+};
+
+static inline void emit(uc byte) {
+	bytes[size++] = byte;
+}
+
+static inline void emit4(int value) {
+	bytes[size++] = value & 0xff;
+	bytes[size++] = (value >> 8) & 0x0ff;
+	bytes[size++] = (value >> 16) & 0x0ff;
+	bytes[size++] = (value >> 24) & 0x0ff;
+}
+
+static inline void triple(uc mod, uc rx, uc rm) {
+	emit((uc)rm | (uc)(rx << 3) | (uc)(mod << 6));
+}
+
+
+/////////////// MOD RM BYTE functions /////////////////
+
+
+static inline void emit_direct(uc rx, uc rm) {
+	triple(direct, rx, rm);
+}
+
+static inline void emit_indirect(uc rx, uc rm) {
+	triple(indirect, rx, rm);
+}
+
+static inline void emit_indirect_disp8(uc rx, uc rm, uc displacement) {
+	triple(indirect_disp8, rx, rm);
+	emit(displacement);
+}
+
+static inline void emit_indirect_disp32(uc rx, uc rm, int displacement) {
+	triple(indirect_disp32, rx, rm);
+	emit4(displacement);
+}
+
+static inline void emit_indirect_pure_displacement(uc rx, int displacement) {
+	triple(indirect, rx, rbp);
+	emit4(displacement);
+}
+
+
+
+
+
+//////////////// SIB BYTE functions ////////////////////
+
+
+static inline void emit_indexed_indirect(uc rx, uc rm, uc index, uc scale) {
+	triple(indirect, rx, rsp);
+	triple(scale, rm, index);
+}
+
+static inline void emit_indexed_indirect_disp8(uc rx, uc rm, uc index, uc scale, uc displacement) {
+	triple(indirect_disp8, rx, rsp);
+	triple(scale, rm, index);
+	emit(displacement);
+}
+
+static inline void emit_indexed_indirect_disp32(uc rx, uc rm, uc index, uc scale, int displacement) {
+	triple(indirect_disp32s, rx, rsp);
+	triple(scale, rm, index);
+	emit4(displacement);
+}
+
+
+
+
+/////////////// OP CODES ////////////////////
+
+
+static inline void emit_add() {
+	emit(0x48);
+	emit(0x03);
+}
+
+
+
+
+
+
+static inline void dumphex(uc* ibytes, size_t byte_count) {
 	for (size_t i = 0; i < byte_count; i++) {
 		if (!(i % 8)) printf("\n");
-		printf("%02x ", bytes[i]);
+		printf("%02x ", ibytes[i]);
 	}
 	printf("\n");
 }
@@ -102,9 +224,9 @@ static inline int get(int arg, const char* input, int* output) {
 }
 
 int main(const int argc, const char** argv) {
-	typedef unsigned char uc;
+	
 	if (argc != 2) return printf("usage: ./compiler <input>\n");
-	const int limit = 256, ctm_limit = 256, bytes_limit = 256, 
+	const int limit = 512, ctm_limit = 256,
 		args_limit = 64, ctr_limit = 16;
 	int* output = malloc(limit * sizeof(int));
 	memset(output, 0x0F, limit * sizeof(int));
@@ -262,11 +384,9 @@ success: top += 4;
 	debug("success", input, output, length, begin, top, index, done);
 
 	int this = 0, next = 0, count = 0, skip = 0;
-	size_t size = 0;
 	int* args = malloc(args_limit * sizeof(int));
 	size_t* ctr = malloc(ctr_limit * sizeof(size_t));
 	size_t* memory = malloc(ctm_limit * sizeof(size_t));
-	unsigned char* bytes = malloc(bytes_limit);
 	memset(memory, 0x0F, ctm_limit * sizeof(size_t));
 	memset(ctr, 0x0F, ctr_limit * sizeof(size_t));
 
@@ -373,7 +493,7 @@ first:;
 	else if (is("unit:[x86]nop;", input, start)) {
 		bytes[size++] = 0x90;
 
-	} else if (is("unit:[x86]10bytenop;", input, start)) {
+	} else if (is("unit:[x86]9bytenop;", input, start)) {
 		bytes[size++] = 0x66;
 		bytes[size++] = 0x0F;
 		bytes[size++] = 0x1F;
@@ -383,6 +503,11 @@ first:;
 		bytes[size++] = 0;
 		bytes[size++] = 0;
 		bytes[size++] = 0;
+	} else if (is("unit:add:64:,:64:;", input, start)) {
+		
+
+		abort();
+		
 	}
 
 move: 	this += 4;
@@ -400,22 +525,20 @@ out:;
 	header.cputype = (int)CPU_TYPE_X86 | (int)CPU_ARCH_ABI64;
 	header.cpusubtype = (int)CPU_SUBTYPE_I386_ALL | (int)CPU_SUBTYPE_LIB64;
 	header.filetype = MH_OBJECT;
-	header.ncmds = 0;
+	header.ncmds = 1;
 	header.sizeofcmds = 0;
 	header.flags = MH_NOUNDEFS | MH_SUBSECTIONS_VIA_SYMBOLS;
 	
-
 	command.cmd = LC_SEGMENT_64;
 	command.cmdsize = sizeof(struct segment_command_64) + sizeof(struct section_64) * number_of_sections;
 
-	header.ncmds++;
 	header.sizeofcmds += command.cmdsize;
 
 	strncpy(command.segname, "__TEXT", 16);
-	command.vmsize = sizeof header + sizeof command + sizeof section + size + 0xFFFF;
+	command.vmsize = sizeof header + sizeof command + sizeof section * number_of_sections + size;
 	command.vmaddr = 0;
 	command.fileoff = 0;
-	command.filesize = sizeof header + sizeof command + sizeof section + size;
+	command.filesize = sizeof header + sizeof command + sizeof section * number_of_sections + size;
 	command.maxprot = VM_PROT_ALL;
 	command.initprot = VM_PROT_ALL;
 	command.nsects = number_of_sections;
@@ -424,11 +547,10 @@ out:;
 	strncpy(section.segname, "__TEXT", 16);
 	section.addr = 0x100000000;
 	section.size = size;
-	section.offset = sizeof header + sizeof command + sizeof section;
+	section.offset = sizeof header + sizeof command + sizeof section * number_of_sections;
 	section.align = 3;
 	section.reloff = 0;
 	section.nreloc = 0;
-
 
 	printf("\ndebugging header bytes:\n------------------------\n");
 	dumphex((void*) &header, sizeof(header));
@@ -444,7 +566,7 @@ out:;
 	
 	printf("\n\n--> outputting %zd bytes to output file...\n\n", size);
 
-	int out_file = open("a.out", O_WRONLY | O_CREAT);
+	int out_file = open("object.o", O_WRONLY | O_CREAT);
 	if (out_file < 0) { perror("open"); exit(4); }
 
 	write(out_file, &header, sizeof header);
