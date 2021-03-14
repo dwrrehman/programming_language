@@ -7,10 +7,17 @@
 #include <sys/stat.h>
 #include <sys/mman.h>
 #include <stdint.h>
-#include <mach/vm_prot.h>
+#include <mach/vm_prot.h> //     otool -tvVhlL object.o  
 #include <mach-o/loader.h>
 
+
+//NOTE : left shift "<<" is a multiply by 2, and a right shift, ">>" is a divide by two.
+
+
+
 typedef uint8_t uc;
+// typedef uint32_t u32;
+// typedef uint64_t u64;
 
 // static void print_vector(int* v, int l) {
 // 	printf("{ ");
@@ -26,8 +33,31 @@ static unsigned char bytes[bytes_limit] = {0};
 
 enum {
 	rax, rcx, rdx, rbx, rsp, rbp, rsi, rdi, 
-	r8,  r9,  r10, r11, r12, r13, r14, r15
+	r8,  r9,  r10, r11, r12, r13, r14, r15,
+	register_count,
 };
+
+// enum {
+// 	rax_r = 1 << 0, 
+// 	rcx_r = 1 << 1,
+// 	rdx_r = 1 << 2,
+// 	rbx_r = 1 << 3,
+
+// 	rsp_r = 1 << 4,
+// 	rbp_r = 1 << 5,
+// 	rsi_r = 1 << 6,
+// 	rdi_r = 1 << 7,
+
+// 	r8_r = 1 << 8,
+// 	r9_r = 1 << 9,
+// 	r10_r = 1 << 10,
+// 	r11_r = 1 << 11,
+
+// 	r12_r = 1 << 12,
+// 	r13_r = 1 << 13,
+// 	r14_r = 1 << 14,
+// 	r15_r = 1 << 15,
+// };
 
 enum {
 	indirect,
@@ -217,8 +247,199 @@ static inline int get(int arg, const char* input, int* output) {
 	return r;
 }
 
+/*
+
+	the way that we are going to handle 
+	the keeping track of which registers are 
+	in use, by simply having a single
+
+		64-bit number, (which consists of 8 bytes, a single register)
+		
+	and if a bit is set in the array, then that register is in use.
+
+
+	i think thats most efficient, hopefully. 
+
+
+		u64 state = 0; // no registers are in use.
+
+		note: each register has its own bit,
+		and to know whether a register is in use, 
+		you and the registers bit mask, with that register...
+
+		now, note: when we say that a register 
+
+		
+
+	
+	
+				wait.
+
+
+				we can actually support up to 64 outputs, 
+				literally using the expression based fill into the node, via 
+
+					simply putting all of the registers together!
+			
+
+
+
+
+	the thing to realize is that we will NEVER want to have  4 billion registers on a computer lol 
+
+
+				we want like, at MOST 64, i think. 
+
+
+			and so, we can actually thus make an optimization!
+
+
+				welll... 
+
+						actually, i guesss we cant lol 
+						yeah, actually maybe not...
+						
+
+
+
+				okay, yeah, never mind 
+
+
+				the real way that we are going to do this, 
+
+					is that we are going to fill in a register number into the 4096 nodes, which are the defined signatures representing theoutput registers in adddition to the expressions output register. 
+
+
+
+						so yeah, thats how we are going to do it-
+
+
+					its all about using thosee 4096 nodes for storing the node data.
+
+
+					and thus, we always store an output bit number, actually. 
+
+
+						so we need to get the Rth BITTTTT in the state number, "S". 
+								where R is the register being querryied whether or not its being used.
+
+							thats simply acheived by:
+
+
+								(1 << r) & S
+
+	
+							thats the logic to access a particular register. 
+									super fast. 
+
+
+						okay, cool.              (for r \in   [0, 63].
+
+
+
+note:
+						
+
+		mul		7 << 1 = 14
+
+		div		7 >> 1 = 3
+
+	
+					
+	
+
+
+
+
+
+
+
+						so given that logic, we can just reference a bit, by its actual numeric index....
+
+							althoughhhhhh
+
+
+
+					actually, we can totally just collapse that shift, into a constant, 
+					because essentially, we can just have the indexes for the registers be powers of two!!
+
+
+					1 = 2^0    is the zero-th register available, (probably rax)
+
+					2 = 2^1   is the first register available,  probably (rcx)..?
+		
+					etc
+							
+								
+
+
+
+						and simiarly, for the arm registers, as well.
+
+
+						for x86, i want to be able to support the other registers too!
+					its just, i will need to use particular instructions to access and work with those though. 
+					so yeah.
+
+							not relevant right now lol.
+
+
+
+
+					but i think thats going to be the way that we do things. 
+
+					lets do it.
+						lets make the register index constants, first. 
+
+						
+								
+	
+
+
+*/
+
+
+
+static inline int scratch_alloc(int* S) {
+	// bitset(bitarray *s, index bit r);
+
+	for (int i = 0; i < register_count; i++) {
+		if (not S[i]) {
+			S[i] = 1;
+			return i;
+		}
+	}
+
+	printf("out of registers\n");
+	abort();
+}
+
+static inline void scratch_free(const int r, int* S) {
+	// bitclear(bitarray *s, index bit r);
+	
+	if (not S[r]) {
+		printf("attempt to free unused register");
+		abort(); 
+	}
+	
+	S[r] = 0;
+}
+
+static inline int scratch_name(const int r) {
+	//      if (r == rax_r) return rax;
+	// else if (r == rcx_r) return rcx;
+	// else if (r == rdx_r) return rdx;
+	// else if (r == rbx_r) return rbx;
+	// else if (r == rsp_r) return rsp;
+	// else if (r == rbp_r) return rbp;
+	// else abort();
+	return r;
+}
+
 int main(const int argc, const char** argv) {
 	
+
+ 
 	if (argc != 2) return printf("usage: ./compiler <input>\n");
 	const int limit = 512, ctm_limit = 256,
 		args_limit = 64, ctr_limit = 16;
