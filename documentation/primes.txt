@@ -38,6 +38,26 @@ unit: define :: ;
 .	define label: it's not composite;
 .	define label: break out of the loop;
 
+.	zero r0
+.	zero r1
+.	zero r2
+.	zero r3
+
+.	zero r4
+.	zero r5
+.	zero r6
+.	zero r7
+
+.	zero r8
+.	zero r9
+.	zero r10
+.	zero r11
+
+.	zero r12
+.	zero r13
+.	zero r14
+.	zero r15
+
 .	increment r2
 .	increment r2
 .	multiply r2, r2

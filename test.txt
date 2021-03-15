@@ -10,12 +10,17 @@
 
 :_:::::unit:;_unit:.:unit::unit:;unit:def::;
 
-.	def unit:[x86]nop;
-.	def unit:[x86]9bytenop;
-.	def unit:add;
+.	def unit: do nothing;
+. 	def unit:new::;
+. 	def unit:discard:reg:;
+. 	def reg:[x86]add:reg:,:reg:;
 
-.	[x86] 9 byte nop
+.	new reg:hello ;
+.	new reg:hello 2 ;
+.	new reg:hello 3 ;
+.	new reg:hello 4 ;
 
-.	add
+. 	discard [x86] add hello, [x86] add hello 4, hello 3
+.	discard hello 2
 
-	[x86] nop
+do nothing

@@ -2,30 +2,15 @@
 #include <iso646.h>          // made by daniel warren riaz rehman.
 #include <stdlib.h>
 #include <string.h>
-#include <fcntl.h>
+#include <fcntl.h>//     useful for inspecing the object file:        otool -tvVhlL object.o  
 #include <unistd.h>
 #include <sys/stat.h>
 #include <sys/mman.h>
 #include <stdint.h>
-#include <mach/vm_prot.h> //     otool -tvVhlL object.o  
+#include <mach/vm_prot.h> 
 #include <mach-o/loader.h>
 
-
-//NOTE : left shift "<<" is a multiply by 2, and a right shift, ">>" is a divide by two.
-
-
-
 typedef uint8_t uc;
-// typedef uint32_t u32;
-// typedef uint64_t u64;
-
-// static void print_vector(int* v, int l) {
-// 	printf("{ ");
-// 	for (int i = 0; i < l; i++) {
-// 		printf("%d ", v[i]);
-// 	}
-// 	printf("}\n");
-// }
 
 enum { bytes_limit = 4096 };
 static size_t size = 0;
@@ -36,28 +21,6 @@ enum {
 	r8,  r9,  r10, r11, r12, r13, r14, r15,
 	register_count,
 };
-
-// enum {
-// 	rax_r = 1 << 0, 
-// 	rcx_r = 1 << 1,
-// 	rdx_r = 1 << 2,
-// 	rbx_r = 1 << 3,
-
-// 	rsp_r = 1 << 4,
-// 	rbp_r = 1 << 5,
-// 	rsi_r = 1 << 6,
-// 	rdi_r = 1 << 7,
-
-// 	r8_r = 1 << 8,
-// 	r9_r = 1 << 9,
-// 	r10_r = 1 << 10,
-// 	r11_r = 1 << 11,
-
-// 	r12_r = 1 << 12,
-// 	r13_r = 1 << 13,
-// 	r14_r = 1 << 14,
-// 	r15_r = 1 << 15,
-// };
 
 enum {
 	indirect,
@@ -157,13 +120,31 @@ static inline void emit_rex(uc rx, uc base, uc index) {
 	emit(0x48 | (uc)(base >> 3) | (uc)((index >> 3) << 1) | (uc)((rx >> 3) << 2));
 }
 
-static inline void emit_add_register() {
-	emit(0x03);
-}
 
-// static void emit_add_memory() {
-// 	emit(0x01);
-//}
+static inline void emit_mov_register() { emit(0x8B); } // also "LOAD", verbosely.
+static inline void emit_mov_memory()   { emit(0x89); } // also "STORE", verbosely.
+
+static inline void emit_add_register() { emit(0x03); }
+static inline void emit_add_memory()   { emit(0x01); }
+
+static inline void emit_xor_register() { emit(0x33); }
+static inline void emit_xor_memory()   { emit(0x31); }
+
+static inline void emit_inc_register() { emit(0xff); }
+
+
+/////////////////////////// DEBUG  //////////////////////////////////
+
+
+
+
+static inline void print_vector(int* v, int l) {
+	printf("{ ");
+	for (int i = 0; i < l; i++) {
+		printf("%d ", v[i]);
+	}
+	printf("}\n");
+}
 
 
 static inline void dumphex(uc* ibytes, size_t byte_count) {
@@ -214,6 +195,13 @@ static void debug(const char* m, const char* input, int* output,
 	print_index("\n\n<<<done:>>>\n\n", input, length, done);
 }
 
+
+
+
+
+
+////////////////////////////// CODE GENERATION //////////////////////////
+
 static inline int is(const char* string, const char* input, int start) {
 	int ii = start;
 	while (input[ii] != ';' or *string != ';') {
@@ -223,6 +211,17 @@ static inline int is(const char* string, const char* input, int start) {
 	}
 	return 1;
 }
+
+static inline int is_type(const char* string, const char* input, int start) {
+	int ii = start;
+	while (input[ii] != ':' or *string != ':') {
+		if (input[ii] != *string) return 0;
+		ii++;
+		string++;
+	}
+	return 1;
+}
+
 
 static inline int get(int arg, const char* input, int* output) {
 	int r = 0x0F0F0F0F;
@@ -246,157 +245,6 @@ static inline int get(int arg, const char* input, int* output) {
 	else abort();
 	return r;
 }
-
-/*
-
-	the way that we are going to handle 
-	the keeping track of which registers are 
-	in use, by simply having a single
-
-		64-bit number, (which consists of 8 bytes, a single register)
-		
-	and if a bit is set in the array, then that register is in use.
-
-
-	i think thats most efficient, hopefully. 
-
-
-		u64 state = 0; // no registers are in use.
-
-		note: each register has its own bit,
-		and to know whether a register is in use, 
-		you and the registers bit mask, with that register...
-
-		now, note: when we say that a register 
-
-		
-
-	
-	
-				wait.
-
-
-				we can actually support up to 64 outputs, 
-				literally using the expression based fill into the node, via 
-
-					simply putting all of the registers together!
-			
-
-
-
-
-	the thing to realize is that we will NEVER want to have  4 billion registers on a computer lol 
-
-
-				we want like, at MOST 64, i think. 
-
-
-			and so, we can actually thus make an optimization!
-
-
-				welll... 
-
-						actually, i guesss we cant lol 
-						yeah, actually maybe not...
-						
-
-
-
-				okay, yeah, never mind 
-
-
-				the real way that we are going to do this, 
-
-					is that we are going to fill in a register number into the 4096 nodes, which are the defined signatures representing theoutput registers in adddition to the expressions output register. 
-
-
-
-						so yeah, thats how we are going to do it-
-
-
-					its all about using thosee 4096 nodes for storing the node data.
-
-
-					and thus, we always store an output bit number, actually. 
-
-
-						so we need to get the Rth BITTTTT in the state number, "S". 
-								where R is the register being querryied whether or not its being used.
-
-							thats simply acheived by:
-
-
-								(1 << r) & S
-
-	
-							thats the logic to access a particular register. 
-									super fast. 
-
-
-						okay, cool.              (for r \in   [0, 63].
-
-
-
-note:
-						
-
-		mul		7 << 1 = 14
-
-		div		7 >> 1 = 3
-
-	
-					
-	
-
-
-
-
-
-
-
-						so given that logic, we can just reference a bit, by its actual numeric index....
-
-							althoughhhhhh
-
-
-
-					actually, we can totally just collapse that shift, into a constant, 
-					because essentially, we can just have the indexes for the registers be powers of two!!
-
-
-					1 = 2^0    is the zero-th register available, (probably rax)
-
-					2 = 2^1   is the first register available,  probably (rcx)..?
-		
-					etc
-							
-								
-
-
-
-						and simiarly, for the arm registers, as well.
-
-
-						for x86, i want to be able to support the other registers too!
-					its just, i will need to use particular instructions to access and work with those though. 
-					so yeah.
-
-							not relevant right now lol.
-
-
-
-
-					but i think thats going to be the way that we do things. 
-
-					lets do it.
-						lets make the register index constants, first. 
-
-						
-								
-	
-
-
-*/
 
 
 
@@ -439,9 +287,8 @@ static inline int scratch_name(const int r) {
 int main(const int argc, const char** argv) {
 	
 
- 
 	if (argc != 2) return printf("usage: ./compiler <input>\n");
-	const int limit = 512, ctm_limit = 256,
+	const int limit = 8192, ctm_limit = 4096,
 		args_limit = 64, ctr_limit = 16;
 	int* output = malloc(limit * sizeof(int));
 	memset(output, 0x0F, limit * sizeof(int));
@@ -601,23 +448,27 @@ success: top += 4;
 	int this = 0, next = 0, count = 0, skip = 0;
 	int* args = malloc(args_limit * sizeof(int));
 	size_t* ctr = malloc(ctr_limit * sizeof(size_t));
+	
 	size_t* memory = malloc(ctm_limit * sizeof(size_t));
 	memset(memory, 0x0F, ctm_limit * sizeof(size_t));
 	memset(ctr, 0x0F, ctr_limit * sizeof(size_t));
 
+	int* state = malloc(register_count * sizeof(int));
+	memset(state, 0, register_count * sizeof(int));
+	
 	printf("\n---------------parsing output as tree:----------------\n\n");
 	
 code:	if (this >= top) goto out;
 	if (output[this] == limit) goto move;
 	if (input[output[this + 3]] != 59) goto move;
-	// printf(" %10d : %10di %10dp %10db %10dd   :   ", 
-	// 	this, output[this + 0], output[this + 1], output[this + 2], output[this + 3]);
-	// int s = output[output[this] + 2];
-	// while (input[s] != ';') {
-	// 	putchar(input[s]);
-	// 	s++;
-	// }
-	// printf("\n");
+	printf(" %10d : %10di %10dp %10db %10dd   :   ", 
+		this, output[this + 0], output[this + 1], output[this + 2], output[this + 3]);
+	int s = output[output[this] + 2];
+	while (input[s] != ';') {
+		putchar(input[s]);
+		s++;
+	}
+	printf("\n");
 	next = this;
 	count = 0;
 next_child:
@@ -629,7 +480,7 @@ fail:	if (input[var] == 58) goto more;
 	if (input[var] != 92) goto jj;
 kk: 	var++;
 	if ((uc)input[var] < 33) goto kk;
-jj: 	var++; 
+jj: 	var++;
 	if ((uc)input[var] < 33) goto jj;
 	goto fail;
 more:	var++;
@@ -642,9 +493,9 @@ check:	if (var == done) goto first;
 	next = output[next - 3];
 	goto next_child;
 first:;
-	// printf("\n    parsed %d arguments : ", count);
-	// print_vector(args, count);
-	// printf("\n");
+	printf("\n    parsed %d arguments : ", count);
+	print_vector(args, count);
+	printf("\n");
 
 	int start = output[output[this] + 2];
 
@@ -661,12 +512,12 @@ first:;
 	if (is("unit:at:label::unit:;", input, start)) {
 		output[output[args[count - 1]] + 3] = args[count - 2];
 
-	} else if (is("unit:if:ctr:<:ctr:,:label:;", input, start)) {
+	} else if (is("unit:if:register:<:register:,:label:;", input, start)) {
 		int left = get(args[count - 1], input, output);
 		int right = get(args[count - 2], input, output);
 		if (ctr[left] < ctr[right]) goto branch;
 
-	} else if (is("unit:if:ctr:=:ctr:,:label:;", input, start)) {
+	} else if (is("unit:if:register:=:register:,:label:;", input, start)) {
 		int left = get(args[count - 1], input, output);
 		int right = get(args[count - 2], input, output);
 		if (ctr[left] == ctr[right]) {
@@ -676,33 +527,35 @@ first:;
 			}
 			skip = output[args[count - 3]];
 		}
-	} else if (is("unit:increment:ctr:;", input, start)) 
+	} else if (is("unit:increment:register:;", input, start)) 
 		ctr[get(args[count - 1], input, output)]++;
-	else if (is("unit:decrement:ctr:;", input, start)) 
+	else if (is("unit:decrement:register:;", input, start)) 
 		ctr[get(args[count - 1], input, output)]--;
-	else if (is("unit:zero:ctr:;", input, start)) 
+	else if (is("unit:zero:register:;", input, start)) 
 		ctr[get(args[count - 1], input, output)] = 0;
-	else if (is("unit:copy:ctr:,:ctr:;", input, start)) 
+	else if (is("unit:copy:register:,:register:;", input, start)) 
 		ctr[get(args[count - 1], input, output)] = ctr[get(args[count - 2], input, output)];
-	else if (is("unit:add:ctr:,:ctr:;", input, start)) 
+	else if (is("unit:add:register:,:register:;", input, start)) 
 		ctr[get(args[count - 1], input, output)] += ctr[get(args[count - 2], input, output)];
-	else if (is("unit:subtract:ctr:,:ctr:;", input, start)) 
+	else if (is("unit:subtract:register:,:register:;", input, start)) 
 		ctr[get(args[count - 1], input, output)] -= ctr[get(args[count - 2], input, output)];
-	else if (is("unit:multiply:ctr:,:ctr:;", input, start)) 
+	else if (is("unit:multiply:register:,:register:;", input, start)) 
 		ctr[get(args[count - 1], input, output)] *= ctr[get(args[count - 2], input, output)];
-	else if (is("unit:divide:ctr:,:ctr:;", input, start)) 
+	else if (is("unit:divide:register:,:register:;", input, start)) 
 		ctr[get(args[count - 1], input, output)] /= ctr[get(args[count - 2], input, output)];
-	else if (is("unit:modulo:ctr:,:ctr:;", input, start)) 
+	else if (is("unit:modulo:register:,:register:;", input, start)) 
 		ctr[get(args[count - 1], input, output)] %= ctr[get(args[count - 2], input, output)];
-	else if (is("unit:xor:ctr:,:ctr:;", input, start)) 
+	else if (is("unit:xor:register:,:register:;", input, start)) 
 		ctr[get(args[count - 1], input, output)] ^= ctr[get(args[count - 2], input, output)];
-	else if (is("unit:and:ctr:,:ctr:;", input, start)) 
+	else if (is("unit:and:register:,:register:;", input, start)) 
 		ctr[get(args[count - 1], input, output)] &= ctr[get(args[count - 2], input, output)];
-	else if (is("unit:or:ctr:,:ctr:;", input, start)) 
+	else if (is("unit:or:register:,:register:;", input, start)) 
 		ctr[get(args[count - 1], input, output)] |= ctr[get(args[count - 2], input, output)];
-	else if (is("unit:store:ctr:,:ctr:;", input, start)) 
+
+	else if (is("unit:store:register:,:register:;", input, start)) 
 		memory[ctr[get(args[count - 1], input, output)]] = ctr[get(args[count - 2], input, output)];
-	else if (is("unit:load:ctr:,:ctr:;", input, start)) 
+
+	else if (is("unit:load:register:,:register:;", input, start)) 
 		ctr[get(args[count - 1], input, output)] = memory[ctr[get(args[count - 2], input, output)]];
 	
 	else if (is("unit:[x86]nop;", input, start)) {
@@ -719,54 +572,131 @@ first:;
 		bytes[size++] = 0;
 		bytes[size++] = 0;
 
-	} else if (is("unit:add;", input, start)) {
+	} else if (is("reg:[x86]add:reg:,:reg:;", input, start)) {
+
+		int arg1 = args[count - 1];
+		int arg2 = args[count - 2];
+		printf("arg1 = %d, arg2 = %d\n", arg1, arg2);
+
+		int index1 = output[args[count - 1] + 0];
+		int index2 = output[args[count - 2] + 0];
+		printf("index1 = %d, index2 = %d\n", index1, index2);
+
+		uc register1 = (uc)output[args[count - 1] + 2];
+		uc register2 = (uc)output[args[count - 2] + 2];
+		printf("register1 = %d, register2 = %d\n", (int)register1, (int)register2);
+		
+		printf("BEFORE: state = ");
+		print_vector(state, register_count);
+
+		scratch_free((int)register1, state);
+		scratch_free((int)register2, state);
+
+		uc out_register = (uc) scratch_alloc(state);
+		
+		if (register1 != out_register) {
+			printf("error: result reg and first reg dont match! generating mov instruction to resolve it...\n");
+			// getchar();
+
+			emit_rex(out_register, register1, 0);
+			emit_mov_register();
+			emit_direct(out_register, register1);
+		}
+
+		// then publish where you allocated the result:
+		output[this + 2] = (int)out_register;
+
+		printf("AFTER: state = ");
+		print_vector(state, register_count);
+
+		// printf("continue? ");
+		// getchar();
+
+		emit_rex(out_register, register2, 0);
+		emit_add_register();
+		emit_direct(out_register, register2);
+
+	} else if (is("unit:new::;", input, start)) {
+
+		int arg1 = args[count - 1];
+
+		printf("BEFORE: state = ");
+		print_vector(state, register_count);
 	
+		uc r = (uc) scratch_alloc(state);
+	
+		// then set the register definition node to tell its chosen place.
+		output[arg1 + 3] = (int)r;   // fill into the done node, for this 4096 node.
+
+		printf("AFTER: state = ");
+		print_vector(state, register_count);
+
+		// abort();
+		// printf("continue? ");
+		// getchar();
+
+	} else if (is("unit:discard:reg:;", input, start)) {
+		int r = output[output[args[count - 1]] + 3]; // begin node is used, for a non 4096 node.
+		scratch_free(r, state);
+
+	} else if (is_type("reg:", input, start)) {
+	
+		// retreive the chosen location for this named register,
+		// from the definition node associated with this named register.
+		int r = output[index + 3];
+
+		// make sure that any parent expressions use the right register for this expresssion,
+		// ie, the one found at the definition site.
+		output[this + 2] = r;
+
+		printf("REG USE: state = ");
+		print_vector(state, register_count);
+
+		// abort();
+		// printf("continue? ");
+		// getchar();
 	}
 
 move: 	this += 4;
 	goto code;
 out:;
 
+	// emit_rex(r11, r12, 0);
+	// emit_add_register();
+	// emit_direct(r11, r12);
 
-	emit_rex(r11, r12, 0);
-	emit_add_register();
-	emit_direct(r11, r12);
+	// emit_rex(r8, r9, 0);
+	// emit_add_register();
+	// emit_indirect(r8, r9);
 
+	// emit_rex(r8, r9, 0);
+	// emit_add_register();
+	// emit_indirect_disp8(r8, r9, 0x12);
 
-	emit_rex(r8, r9, 0);
-	emit_add_register();
-	emit_indirect(r8, r9);
-
-	emit_rex(r8, r9, 0);
-	emit_add_register();
-	emit_indirect_disp8(r8, r9, 0x12);
-
-	emit_rex(r8, r9, 0);
-	emit_add_register();
-	emit_indirect_disp32(r8, r9, 0x12345678);
+	// emit_rex(r8, r9, 0);
+	// emit_add_register();
+	// emit_indirect_disp32(r8, r9, 0x12345678);
 
 
-	emit_rex(rax, 0, 0);
-	emit_add_register();
-	emit_indirect_rip_relative(rax, 0x12345678);
+	// emit_rex(rax, 0, 0);
+	// emit_add_register();
+	// emit_indirect_rip_relative(rax, 0x12345678);
 
-	emit_rex(rax, 0, 0);
-	emit_add_register();
-	emit_indirect_pure_displacement(rax, 0x12345678);	
+	// emit_rex(rax, 0, 0);
+	// emit_add_register();
+	// emit_indirect_pure_displacement(rax, 0x12345678);	
 
+	// emit_rex(rbx, rcx, rax);
+	// emit_add_register();
+	// emit_indexed_indirect(rbx, rcx, rax, scale_4);
 
-	emit_rex(rbx, rcx, rax);
-	emit_add_register();
-	emit_indexed_indirect(rbx, rcx, rax, scale_4);
+	// emit_rex(rbx, rcx, rax);
+	// emit_add_register();
+	// emit_indexed_indirect_disp8(rbx, rcx, rax, scale_4, 0x12);
 
-	emit_rex(rbx, rcx, rax);
-	emit_add_register();
-	emit_indexed_indirect_disp8(rbx, rcx, rax, scale_4, 0x12);
-
-	emit_rex(rbx, rcx, rax);
-	emit_add_register();
-	emit_indexed_indirect_disp32(rbx, rcx, rax, scale_4, 0x12345678);
-	
+	// emit_rex(rbx, rcx, rax);
+	// emit_add_register();
+	// emit_indexed_indirect_disp32(rbx, rcx, rax, scale_4, 0x12345678);
 	
 
 	const int number_of_sections = 1;
@@ -863,5 +793,41 @@ error:;
 clean_up: 
 	munmap(input, (size_t) length);
 	free(output);
+
+	usleep(10000);
+	system("otool -vt object.o");
 }
+
+
+
+
+// enum {
+// 	rax_r = 1 << 0, 
+// 	rcx_r = 1 << 1,
+// 	rdx_r = 1 << 2,
+// 	rbx_r = 1 << 3,
+
+// 	rsp_r = 1 << 4,
+// 	rbp_r = 1 << 5,
+// 	rsi_r = 1 << 6,
+// 	rdi_r = 1 << 7,
+
+// 	r8_r = 1 << 8,
+// 	r9_r = 1 << 9,
+// 	r10_r = 1 << 10,
+// 	r11_r = 1 << 11,
+
+// 	r12_r = 1 << 12,
+// 	r13_r = 1 << 13,
+// 	r14_r = 1 << 14,
+// 	r15_r = 1 << 15,
+// };
+
+
+// typedef uint32_t u32;
+// typedef uint64_t u64;
+
+
+
+//NOTE : left shift "<<" is a multiply by 2, and a right shift, ">>" is a divide by two.
 
