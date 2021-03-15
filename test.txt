@@ -15,12 +15,12 @@
 . 	def unit:discard:reg:;
 . 	def reg:[x86]add:reg:,:reg:;
 
-.	new reg:hello ;
-.	new reg:hello 2 ;
-.	new reg:hello 3 ;
-.	new reg:hello 4 ;
+.	new reg:rax;
+.	new reg:rcx;
+.	new reg:rdx;
+.	new reg:rbx;
 
-. 	discard [x86] add hello, [x86] add hello 4, hello 3
-.	discard hello 2
+. 	discard [x86] add rax, [x86] add rbx, rdx
+.	discard rcx
 
 do nothing

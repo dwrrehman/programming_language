@@ -459,7 +459,17 @@ success: top += 4;
 	printf("\n---------------parsing output as tree:----------------\n\n");
 	
 code:	if (this >= top) goto out;
-	if (output[this] == limit) goto move;
+	if (output[this] == limit) {
+		printf(" %10d : %10di %10dp %10db %10dd   : UDS :   ", 
+			this, output[this + 0], output[this + 1], output[this + 2], output[this + 3]);
+		int s = output[this + 2];
+		while (input[s] != ';') {
+			putchar(input[s]);
+			s++;
+		}
+		printf("\n");
+		goto move;
+	}
 	if (input[output[this + 3]] != 59) goto move;
 	printf(" %10d : %10di %10dp %10db %10dd   :   ", 
 		this, output[this + 0], output[this + 1], output[this + 2], output[this + 3]);
@@ -572,7 +582,7 @@ first:;
 		bytes[size++] = 0;
 		bytes[size++] = 0;
 
-	} else if (is("reg:[x86]add:reg:,:reg:;", input, start)) {
+	} else if (is("reg:add:reg:,:reg:;", input, start)) {
 
 		int arg1 = args[count - 1];
 		int arg2 = args[count - 2];
@@ -590,9 +600,8 @@ first:;
 		print_vector(state, register_count);
 
 		scratch_free((int)register1, state);
-		scratch_free((int)register2, state);
-
-		uc out_register = (uc) scratch_alloc(state);
+		uc out_register = (uc) scratch_alloc(state);      //  we do want this allocation to possibly reside where the first argument is.
+		scratch_free((int)register2, state); // we DON'T want the allocation to try to use THIS argument, though. this one is thus free'd after.
 		
 		if (register1 != out_register) {
 			printf("error: result reg and first reg dont match! generating mov instruction to resolve it...\n");
@@ -603,18 +612,44 @@ first:;
 			emit_direct(out_register, register1);
 		}
 
-		// then publish where you allocated the result:
+		
 		output[this + 2] = (int)out_register;
+
+		printf("AFTER: state = ");
+		print_vector(state, register_count);
+
+		emit_rex(out_register, register2, 0);
+		emit_add_register();
+		emit_direct(out_register, register2);
+
+	} else if (is("unit:xor:reg:,:reg:;", input, start)) {
+		
+		int arg1 = args[count - 1];
+		int arg2 = args[count - 2];
+		int index1 = output[args[count - 1] + 0];
+		int index2 = output[args[count - 2] + 0];
+		uc register1 = (uc)output[args[count - 1] + 2];
+		uc register2 = (uc)output[args[count - 2] + 2];
+		
+		printf("BEFORE: state = ");
+		print_vector(state, register_count);
+
+		scratch_free((int)register2, state);
+		
+		// then publish where you allocated the result:
+
+		output[this + 2] = (int)register1;
 
 		printf("AFTER: state = ");
 		print_vector(state, register_count);
 
 		// printf("continue? ");
 		// getchar();
-
-		emit_rex(out_register, register2, 0);
+		
+		emit_rex(register1, register2, 0);
 		emit_add_register();
-		emit_direct(out_register, register2);
+		emit_direct(register1, register2);
+
 
 	} else if (is("unit:new::;", input, start)) {
 
@@ -730,7 +765,7 @@ out:;
 	
 	strncpy(section.sectname, "__text", 16);
 	strncpy(section.segname, "__TEXT", 16);
-	section.addr = 0x100000000;
+	section.addr = 0;
 	section.size = size;
 	section.offset = sizeof header + sizeof command + sizeof section * number_of_sections;
 	section.align = 3;
@@ -795,7 +830,7 @@ clean_up:
 	free(output);
 
 	usleep(10000);
-	system("otool -vt object.o");
+	system("otool -tvVhlL object.o");
 }
 
 
