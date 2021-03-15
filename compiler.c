@@ -585,119 +585,68 @@ first:;
 
 	} else if (is("reg:(:reg:+:reg:);", input, start)) {
 
-		
-		uc register1 = (uc)output[args[count - 1] + 2];
-		uc register2 = (uc)output[args[count - 2] + 2];
-		
-		printf("BEFORE: state = ");
-		print_vector(state, register_count);
-
-		if (register1 != register2) {
-			
-			// scratch_free((int)register1, state);
-			uc out_register = register1;// (uc) scratch_alloc(state);
-
-			printf("\n---> allocated result at: out=%d     "
-				"  (inputs were r1(d)=%d, r2(s)=%d)\n\n",
-					out_register, register1, register2);
-
-			scratch_free((int)register2, state); 
-			
-		
-
-			output[this + 2] = (int)out_register;
-
-			printf("AFTER: state = ");
-			print_vector(state, register_count);
-
-			emit_rex(out_register, register2, 0);
-			emit_add_register();
-			emit_direct(out_register, register2);
-
-		} else {
-
-			output[this + 2] = (int)register1;
-
-			emit_rex(register1, register2, 0);
-			emit_add_register();
-			emit_direct(register1, register2);
-
-		}
-
-		
-
-	} else if (is("unit:xor:reg:,:reg:;", input, start)) {
-
-		uc register1 = (uc)output[args[count - 1] + 2];
-		uc register2 = (uc)output[args[count - 2] + 2];
+		uc dest = (uc)output[args[count - 1] + 2];
+		uc source = (uc)output[args[count - 2] + 2];
 		
 		printf("BEFORE: state = ");
 		print_vector(state, register_count);
 
-		if (register2 != register1) 
-			scratch_free((int)register2, state);
+		if (source != dest) scratch_free((int)source, state);
+		output[this + 2] = (int)dest;
 
-		output[this + 2] = (int)register1;
+		emit_rex(dest, source, 0);
+		emit_add_register();
+		emit_direct(dest, source);
 
 		printf("AFTER: state = ");
 		print_vector(state, register_count);
 
-		// printf("continue? ");
-		// getchar();
-		
-		emit_rex(register1, register2, 0);
-		emit_xor_register();
-		emit_direct(register1, register2);
+	} else if (is("unit:xor:reg:,:reg:;", input, start)) {
 
+		uc dest = (uc)output[args[count - 1] + 2];
+		uc source = (uc)output[args[count - 2] + 2];
+		
+		printf("BEFORE: state = ");
+		print_vector(state, register_count);
+
+		if (source != dest) scratch_free((int)source, state);
+		output[this + 2] = (int)dest;
+
+		emit_rex(dest, source, 0);
+		emit_xor_register();
+		emit_direct(dest, source);
+
+		printf("AFTER: state = ");
+		print_vector(state, register_count);
 
 	} else if (is("unit:new::;", input, start)) {
-
-		int arg1 = args[count - 1];
 
 		printf("BEFORE: state = ");
 		print_vector(state, register_count);
 	
 		uc r = (uc) scratch_alloc(state);
-	
-		// then set the register definition node to tell its chosen place.
-		output[arg1 + 3] = (int)r;   // fill into the done node, for this 4096 node.
+		output[args[count - 1] + 3] = (int)r;
 
 		printf("AFTER: state = ");
 		print_vector(state, register_count);
 
-		// abort();
-		// printf("continue? ");
-		// getchar();
-
 	} else if (is("unit:discard:reg:;", input, start)) {
 
 		printf("BEFORE: state = ");
-			print_vector(state, register_count);
+		print_vector(state, register_count);
 
 		int r = output[args[count - 1] + 2]; 
 		printf("calling: scratch_free(%d)\n", r);
 		scratch_free(r, state);
 	
 		printf("AFTER: state = ");
-			print_vector(state, register_count);
-
+		print_vector(state, register_count);
 
 	} else if (is_type("reg:", input, start)) {
-	
-		// retreive the chosen location for this named register,
-		// from the definition node associated with this named register.
-		int r = output[index + 3];
-
-		// make sure that any parent expressions use the right register for this expresssion,
-		// ie, the one found at the definition site.
-		output[this + 2] = r;
+		output[this + 2] = output[index + 3];
 
 		printf("REG USE: state = ");
 		print_vector(state, register_count);
-
-		// abort();
-		// printf("continue? ");
-		// getchar();
 	}
 
 move: 	this += 4;
@@ -895,3 +844,27 @@ clean_up:
 		// int arg2 = args[count - 2];
 		// int index1 = output[args[count - 1] + 0];
 		// int index2 = output[args[count - 2] + 0];
+
+
+		// } else {
+
+		// 	output[this + 2] = (int)register1;
+
+		// 	emit_rex(register1, register2, 0);
+		// 	emit_add_register();
+		// 	emit_direct(register1, register2);
+
+		// }
+
+
+
+			// // scratch_free((int)register1, state);
+			// uc out_register = register1;// (uc) scratch_alloc(state);
+
+			// printf("\n---> allocated result at: out=%d     "
+			// 	"  (inputs were r1(d)=%d, r2(s)=%d)\n\n",
+			// 		out_register, register1, register2);
+
+
+
+
