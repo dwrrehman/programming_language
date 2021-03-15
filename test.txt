@@ -13,14 +13,14 @@
 .	def unit: do nothing;
 . 	def unit:new::;
 . 	def unit:discard:reg:;
-. 	def reg:[x86]add:reg:,:reg:;
+. 	def reg:(:reg:+:reg:);
+. 	def unit:xor:reg:,:reg:;
 
 .	new reg:rax;
 .	new reg:rcx;
 .	new reg:rdx;
 .	new reg:rbx;
 
-. 	discard [x86] add rax, [x86] add rbx, rdx
-.	discard rcx
+. 	discard ((rcx + rax) + (rbx + rdx))
 
 do nothing

@@ -471,6 +471,7 @@ code:	if (this >= top) goto out;
 		goto move;
 	}
 	if (input[output[this + 3]] != 59) goto move;
+	printf("\n\n\n------------------------- %d ---------------------------\n", this);
 	printf(" %10d : %10di %10dp %10db %10dd   :   ", 
 		this, output[this + 0], output[this + 1], output[this + 2], output[this + 3]);
 	int s = output[output[this] + 2];
@@ -582,61 +583,59 @@ first:;
 		bytes[size++] = 0;
 		bytes[size++] = 0;
 
-	} else if (is("reg:add:reg:,:reg:;", input, start)) {
+	} else if (is("reg:(:reg:+:reg:);", input, start)) {
 
-		int arg1 = args[count - 1];
-		int arg2 = args[count - 2];
-		printf("arg1 = %d, arg2 = %d\n", arg1, arg2);
-
-		int index1 = output[args[count - 1] + 0];
-		int index2 = output[args[count - 2] + 0];
-		printf("index1 = %d, index2 = %d\n", index1, index2);
-
+		
 		uc register1 = (uc)output[args[count - 1] + 2];
 		uc register2 = (uc)output[args[count - 2] + 2];
-		printf("register1 = %d, register2 = %d\n", (int)register1, (int)register2);
 		
 		printf("BEFORE: state = ");
 		print_vector(state, register_count);
 
-		scratch_free((int)register1, state);
-		uc out_register = (uc) scratch_alloc(state);      //  we do want this allocation to possibly reside where the first argument is.
-		scratch_free((int)register2, state); // we DON'T want the allocation to try to use THIS argument, though. this one is thus free'd after.
-		
-		if (register1 != out_register) {
-			printf("error: result reg and first reg dont match! generating mov instruction to resolve it...\n");
-			// getchar();
+		if (register1 != register2) {
+			
+			// scratch_free((int)register1, state);
+			uc out_register = register1;// (uc) scratch_alloc(state);
 
-			emit_rex(out_register, register1, 0);
-			emit_mov_register();
-			emit_direct(out_register, register1);
+			printf("\n---> allocated result at: out=%d     "
+				"  (inputs were r1(d)=%d, r2(s)=%d)\n\n",
+					out_register, register1, register2);
+
+			scratch_free((int)register2, state); 
+			
+		
+
+			output[this + 2] = (int)out_register;
+
+			printf("AFTER: state = ");
+			print_vector(state, register_count);
+
+			emit_rex(out_register, register2, 0);
+			emit_add_register();
+			emit_direct(out_register, register2);
+
+		} else {
+
+			output[this + 2] = (int)register1;
+
+			emit_rex(register1, register2, 0);
+			emit_add_register();
+			emit_direct(register1, register2);
+
 		}
 
 		
-		output[this + 2] = (int)out_register;
-
-		printf("AFTER: state = ");
-		print_vector(state, register_count);
-
-		emit_rex(out_register, register2, 0);
-		emit_add_register();
-		emit_direct(out_register, register2);
 
 	} else if (is("unit:xor:reg:,:reg:;", input, start)) {
-		
-		int arg1 = args[count - 1];
-		int arg2 = args[count - 2];
-		int index1 = output[args[count - 1] + 0];
-		int index2 = output[args[count - 2] + 0];
+
 		uc register1 = (uc)output[args[count - 1] + 2];
 		uc register2 = (uc)output[args[count - 2] + 2];
 		
 		printf("BEFORE: state = ");
 		print_vector(state, register_count);
 
-		scratch_free((int)register2, state);
-		
-		// then publish where you allocated the result:
+		if (register2 != register1) 
+			scratch_free((int)register2, state);
 
 		output[this + 2] = (int)register1;
 
@@ -647,7 +646,7 @@ first:;
 		// getchar();
 		
 		emit_rex(register1, register2, 0);
-		emit_add_register();
+		emit_xor_register();
 		emit_direct(register1, register2);
 
 
@@ -671,8 +670,17 @@ first:;
 		// getchar();
 
 	} else if (is("unit:discard:reg:;", input, start)) {
-		int r = output[output[args[count - 1]] + 3]; // begin node is used, for a non 4096 node.
+
+		printf("BEFORE: state = ");
+			print_vector(state, register_count);
+
+		int r = output[args[count - 1] + 2]; 
+		printf("calling: scratch_free(%d)\n", r);
 		scratch_free(r, state);
+	
+		printf("AFTER: state = ");
+			print_vector(state, register_count);
+
 
 	} else if (is_type("reg:", input, start)) {
 	
@@ -828,9 +836,6 @@ error:;
 clean_up: 
 	munmap(input, (size_t) length);
 	free(output);
-
-	usleep(10000);
-	system("otool -tvVhlL object.o");
 }
 
 
@@ -866,3 +871,27 @@ clean_up:
 
 //NOTE : left shift "<<" is a multiply by 2, and a right shift, ">>" is a divide by two.
 
+
+
+
+	// if (register1 != out_register) {
+			// 	emit_rex(out_register, register1, 0);
+			// 	emit_mov_register();
+			// 	emit_direct(out_register, register1);
+				
+			// 	printf("NOTE: generated intermetiary MOV instruction.\n");
+			// 	usleep(1000000);
+			// }
+
+
+// int arg1 = args[count - 1];
+		// int arg2 = args[count - 2];
+		// int index1 = output[args[count - 1] + 0];
+		// int index2 = output[args[count - 2] + 0];
+
+
+		
+		// int arg1 = args[count - 1];
+		// int arg2 = args[count - 2];
+		// int index1 = output[args[count - 1] + 0];
+		// int index2 = output[args[count - 2] + 0];
