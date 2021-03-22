@@ -132,10 +132,37 @@ static inline void emit_xor_memory()   { emit(0x31); }
 
 static inline void emit_inc_register() { emit(0xff); }
 
+static inline void emit_nop1() { emit(0x90); }
+static inline void emit_nop2() { emit(0x66); emit(0x90); }
+static inline void emit_nop3() { emit(0x0f); emit(0x1f); emit(0x00); }
+static inline void emit_nop4() { emit(0x0f); emit(0x1f); emit(0x40); emit(0x00); }
+static inline void emit_nop5() { emit(0x0f); emit(0x1f); emit(0x44); emit(0x00); emit(0x00); }
+static inline void emit_nop6() { emit(0x66); emit(0x0f); emit(0x1f); emit(0x44); emit(0x00); emit(0x00); }
+static inline void emit_nop7() { emit(0x0f); emit(0x1f); emit(0x80); emit(0x00); emit(0x00); emit(0x00); emit(0x00); }
+static inline void emit_nop8() { emit(0x0f); emit(0x1f); emit(0x84); emit(0x00); emit(0x00); emit(0x00); emit(0x00); emit(0x00); }
+static inline void emit_nop9() { emit(0x66); emit(0x0f); emit(0x1f); emit(0x84); emit(0x00); emit(0x00); emit(0x00); emit(0x00); emit(0x00); }
+static inline void emit_nop10() { emit(0x66); emit(0x2e); emit(0x0f); emit(0x1f); emit(0x84); emit(0x00); emit(0x00); emit(0x00); emit(0x00); emit(0x00); }
+
+static inline void emit_nop_size(int n) {
+	if (n == 1) emit_nop1();
+	if (n == 2) emit_nop2();
+	if (n == 3) emit_nop3();
+	if (n == 4) emit_nop4();
+	if (n == 5) emit_nop5();
+	if (n == 6) emit_nop6();
+	if (n == 7) emit_nop7();
+	if (n == 8) emit_nop8();
+	if (n == 9) emit_nop9();
+	if (n == 10) emit_nop10();
+}
+
+static inline void align8() {
+	int byte_count = 0;
+	while ((size + byte_count) % 8) byte_count++;
+	emit_nop_size(byte_count);
+}
 
 /////////////////////////// DEBUG  //////////////////////////////////
-
-
 
 
 static inline void print_vector(int* v, int l) {
@@ -222,7 +249,6 @@ static inline int is_type(const char* string, const char* input, int start) {
 	return 1;
 }
 
-
 static inline int get(int arg, const char* input, int* output) {
 	int r = 0x0F0F0F0F;
 	int start = output[output[arg] + 2];
@@ -246,12 +272,13 @@ static inline int get(int arg, const char* input, int* output) {
 	return r;
 }
 
-
-
 static inline int scratch_alloc(int* S) {
 	// bitset(bitarray *s, index bit r);
 
 	for (int i = 0; i < register_count; i++) {
+		if (i == rsp) continue;
+		if (i == rbp) continue;
+
 		if (not S[i]) {
 			S[i] = 1;
 			return i;
@@ -273,16 +300,16 @@ static inline void scratch_free(const int r, int* S) {
 	S[r] = 0;
 }
 
-static inline int scratch_name(const int r) {
-	//      if (r == rax_r) return rax;
-	// else if (r == rcx_r) return rcx;
-	// else if (r == rdx_r) return rdx;
-	// else if (r == rbx_r) return rbx;
-	// else if (r == rsp_r) return rsp;
-	// else if (r == rbp_r) return rbp;
-	// else abort();
-	return r;
-}
+// static inline int scratch_name(const int r) {
+// 	//      if (r == rax_r) return rax;
+// 	// else if (r == rcx_r) return rcx;
+// 	// else if (r == rdx_r) return rdx;
+// 	// else if (r == rbx_r) return rbx;
+// 	// else if (r == rsp_r) return rsp;
+// 	// else if (r == rbp_r) return rbp;
+// 	// else abort();
+// 	return r;
+// }
 
 int main(const int argc, const char** argv) {
 	
@@ -332,8 +359,9 @@ _2: 	var++;
 	if (input[var] == 58) goto _16;
 _3:	if (done >= length) goto _35;
 	if (var >= length) goto _35;
-	if (input[done] == 58 and input[var] == 58) goto _8; //TODO: make me NOT an "and".
-	if (input[done] != input[var]) goto _35;
+	if (input[done] != 58) goto _3_;
+	if (input[var] == 58) goto _8;
+_3_: 	if (input[done] != input[var]) goto _35;
 	if (input[done] != 92) goto _6;
 _4: 	done++; 
 	if ((uc)input[done] < 33) goto _4;
@@ -427,7 +455,7 @@ _32:	var++;
 	if ((uc)input[var] < 33) goto _32; 
 	if (input[var] == 59) goto _33;
 	if (input[var] == 58) goto _33;
-	if (var == done) goto _35; // TODO: delete me, probably not neccessary.
+	if (var == done) goto _35; 
 	goto _32;
 _33:	if (var == done) goto _35;
 _34:	if (not top) goto error;
@@ -504,7 +532,7 @@ check:	if (var == done) goto first;
 	next = output[next - 3];
 	goto next_child;
 first:;
-	printf("\n    parsed %d arguments : ", count);
+	printf("\n    (index=%d) : parsed %d arguments : ", index, count);
 	print_vector(args, count);
 	printf("\n");
 
@@ -562,28 +590,15 @@ first:;
 		ctr[get(args[count - 1], input, output)] &= ctr[get(args[count - 2], input, output)];
 	else if (is("unit:or:register:,:register:;", input, start)) 
 		ctr[get(args[count - 1], input, output)] |= ctr[get(args[count - 2], input, output)];
-
 	else if (is("unit:store:register:,:register:;", input, start)) 
 		memory[ctr[get(args[count - 1], input, output)]] = ctr[get(args[count - 2], input, output)];
-
 	else if (is("unit:load:register:,:register:;", input, start)) 
 		ctr[get(args[count - 1], input, output)] = memory[ctr[get(args[count - 2], input, output)]];
 	
-	else if (is("unit:[x86]nop;", input, start)) {
+	else if (is("unit:nop;", input, start)) {
 		bytes[size++] = 0x90;
 
-	} else if (is("unit:[x86]9bytenop;", input, start)) {
-		bytes[size++] = 0x66;
-		bytes[size++] = 0x0F;
-		bytes[size++] = 0x1F;
-		bytes[size++] = 0x84;
-		bytes[size++] = 0;
-		bytes[size++] = 0;
-		bytes[size++] = 0;
-		bytes[size++] = 0;
-		bytes[size++] = 0;
-
-	} else if (is("reg:(:reg:+:reg:);", input, start)) {
+	} else if (is("reg64:(:reg64:+:reg64:);", input, start)) {
 
 		uc dest = (uc)output[args[count - 1] + 2];
 		uc source = (uc)output[args[count - 2] + 2];
@@ -601,7 +616,7 @@ first:;
 		printf("AFTER: state = ");
 		print_vector(state, register_count);
 
-	} else if (is("unit:xor:reg:,:reg:;", input, start)) {
+	} else if (is("unit:xor:reg64:,:reg64:;", input, start)) {
 
 		uc dest = (uc)output[args[count - 1] + 2];
 		uc source = (uc)output[args[count - 2] + 2];
@@ -630,7 +645,7 @@ first:;
 		printf("AFTER: state = ");
 		print_vector(state, register_count);
 
-	} else if (is("unit:discard:reg:;", input, start)) {
+	} else if (is("unit:discard:reg64:;", input, start)) {
 
 		printf("BEFORE: state = ");
 		print_vector(state, register_count);
@@ -642,7 +657,7 @@ first:;
 		printf("AFTER: state = ");
 		print_vector(state, register_count);
 
-	} else if (is_type("reg:", input, start)) {
+	} else if (is_type("reg64:", input, start)) { // else if, index != limit:
 		output[this + 2] = output[index + 3];
 
 		printf("REG USE: state = ");
@@ -689,7 +704,23 @@ out:;
 	// emit_rex(rbx, rcx, rax);
 	// emit_add_register();
 	// emit_indexed_indirect_disp32(rbx, rcx, rax, scale_4, 0x12345678);
-	
+
+	emit_nop1();
+	emit_nop2();
+	emit_nop3();
+	emit_nop4();
+	emit_nop5();
+	emit_nop6();
+	emit_nop7();
+	emit_nop8();
+	emit_nop9();
+	emit_nop10();
+
+	emit_rex(rbx, rcx, rax);
+	emit_add_register();
+	emit_indexed_indirect_disp32(rbx, rcx, rax, scale_4, 0x12345678);
+
+	align8();
 
 	const int number_of_sections = 1;
 
@@ -790,6 +821,18 @@ clean_up:
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
 // enum {
 // 	rax_r = 1 << 0, 
 // 	rcx_r = 1 << 1,
@@ -864,6 +907,58 @@ clean_up:
 			// printf("\n---> allocated result at: out=%d     "
 			// 	"  (inputs were r1(d)=%d, r2(s)=%d)\n\n",
 			// 		out_register, register1, register2);
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  /* nop */
+//   static const char nop_1[] = { 0x90 };
+
+  /* xchg %ax,%ax */
+  // static const char nop_2[] = { 0x66, 0x90 };
+
+  /* nopl (%[re]ax) */
+  // static const char nop_3[] = { 0x0f, 0x1f, 0x00 };
+
+  /* nopl 0(%[re]ax) */
+  // static const char nop_4[] = { 0x0f, 0x1f, 0x40, 0x00 };
+
+  /* nopl 0(%[re]ax,%[re]ax,1) */
+  // static const char nop_5[] = { 0x0f, 0x1f, 0x44, 0x00, 0x00 };
+
+  /* nopw 0(%[re]ax,%[re]ax,1) */
+  // static const char nop_6[] = { 0x66, 0x0f, 0x1f, 0x44, 0x00, 0x00 };
+
+  /* nopl 0L(%[re]ax) */
+  // static const char nop_7[] = { 0x0f, 0x1f, 0x80, 0x00, 0x00, 0x00, 0x00 };
+
+  /* nopl 0L(%[re]ax,%[re]ax,1) */
+  // static const char nop_8[] = { 0x0f, 0x1f, 0x84, 0x00, 0x00, 0x00, 0x00, 0x00};
+
+  /* nopw 0L(%[re]ax,%[re]ax,1) */
+  // static const char nop_9[] = { 0x66, 0x0f, 0x1f, 0x84, 0x00, 0x00, 0x00, 0x00, 0x00 };
+
+  /* nopw %cs:0L(%[re]ax,%[re]ax,1) */
+  // static const char nop_10[] = { 0x66, 0x2e, 0x0f, 0x1f, 0x84, 0x00, 0x00, 0x00, 0x00, 0x00 };
+
 
 
 

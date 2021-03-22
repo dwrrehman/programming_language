@@ -12,15 +12,26 @@
 
 .	def unit: do nothing;
 . 	def unit:new::;
-. 	def unit:discard:reg:;
-. 	def reg:(:reg:+:reg:);
-. 	def unit:xor:reg:,:reg:;
+. 	def unit:discard:reg64:;
+. 	def reg64:(:reg64:+:reg64:);
+. 	def unit:xor:reg64:,:reg64:;
 
-.	new reg:rax;
-.	new reg:rcx;
-.	new reg:rdx;
-.	new reg:rbx;
+.	new reg64:rax;
+.	new reg64:rcx;
+.	new reg64:rdx;
+.	new reg64:rbx;
+.	new reg64:rdi; 
+.	new reg64:rsi;
+
+. 	xor rax, rax
+. 	xor rcx, rcx
+. 	xor rdx, rdx
+. 	xor rbx, rbx
+
+. 	xor rsi, rsi
+. 	xor rdi, rdi
 
 . 	discard ((rcx + rax) + (rbx + rdx))
+
 
 do nothing
