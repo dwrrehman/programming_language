@@ -120,7 +120,6 @@ static inline void emit_rex(uc rx, uc base, uc index) {
 	emit(0x48 | (uc)(base >> 3) | (uc)((index >> 3) << 1) | (uc)((rx >> 3) << 2));
 }
 
-
 static inline void emit_mov_register() { emit(0x8B); } // also "LOAD", verbosely.
 static inline void emit_mov_memory()   { emit(0x89); } // also "STORE", verbosely.
 
@@ -278,6 +277,8 @@ static inline int scratch_alloc(int* S) {
 	for (int i = 0; i < register_count; i++) {
 		if (i == rsp) continue;
 		if (i == rbp) continue;
+		if (i == r12) continue;
+		if (i == r13) continue;
 
 		if (not S[i]) {
 			S[i] = 1;
@@ -634,6 +635,24 @@ first:;
 		printf("AFTER: state = ");
 		print_vector(state, register_count);
 
+
+
+	} else if (is("unit:inc:reg64:;", input, start)) {
+
+		uc dest = (uc)output[args[count - 1] + 2];
+		
+		printf("BEFORE: state = ");
+		print_vector(state, register_count);
+
+		output[this + 2] = (int)dest;
+
+		emit_rex(dest, 0, 0);
+		emit_inc_register();
+		emit_direct(dest, 0);
+
+		printf("AFTER: state = ");
+		print_vector(state, register_count);
+
 	} else if (is("unit:new::;", input, start)) {
 
 		printf("BEFORE: state = ");
@@ -667,58 +686,6 @@ first:;
 move: 	this += 4;
 	goto code;
 out:;
-
-	// emit_rex(r11, r12, 0);
-	// emit_add_register();
-	// emit_direct(r11, r12);
-
-	// emit_rex(r8, r9, 0);
-	// emit_add_register();
-	// emit_indirect(r8, r9);
-
-	// emit_rex(r8, r9, 0);
-	// emit_add_register();
-	// emit_indirect_disp8(r8, r9, 0x12);
-
-	// emit_rex(r8, r9, 0);
-	// emit_add_register();
-	// emit_indirect_disp32(r8, r9, 0x12345678);
-
-
-	// emit_rex(rax, 0, 0);
-	// emit_add_register();
-	// emit_indirect_rip_relative(rax, 0x12345678);
-
-	// emit_rex(rax, 0, 0);
-	// emit_add_register();
-	// emit_indirect_pure_displacement(rax, 0x12345678);	
-
-	// emit_rex(rbx, rcx, rax);
-	// emit_add_register();
-	// emit_indexed_indirect(rbx, rcx, rax, scale_4);
-
-	// emit_rex(rbx, rcx, rax);
-	// emit_add_register();
-	// emit_indexed_indirect_disp8(rbx, rcx, rax, scale_4, 0x12);
-
-	// emit_rex(rbx, rcx, rax);
-	// emit_add_register();
-	// emit_indexed_indirect_disp32(rbx, rcx, rax, scale_4, 0x12345678);
-
-	emit_nop1();
-	emit_nop2();
-	emit_nop3();
-	emit_nop4();
-	emit_nop5();
-	emit_nop6();
-	emit_nop7();
-	emit_nop8();
-	emit_nop9();
-	emit_nop10();
-
-	emit_rex(rbx, rcx, rax);
-	emit_add_register();
-	emit_indexed_indirect_disp32(rbx, rcx, rax, scale_4, 0x12345678);
 
 	align8();
 
@@ -810,9 +777,7 @@ error:;
 		else { wline++; wcolumn = 1; }
 	}
 	fprintf(stderr, "%u %u %u %u %u %u %u %u\n", 
-			line, column, at, 
-			wline, wcolumn, wat, 
-			top, limit);
+			line, column, at, wline, wcolumn, wat, top, limit);
 clean_up: 
 	munmap(input, (size_t) length);
 	free(output);
@@ -960,6 +925,63 @@ clean_up:
   // static const char nop_10[] = { 0x66, 0x2e, 0x0f, 0x1f, 0x84, 0x00, 0x00, 0x00, 0x00, 0x00 };
 
 
+
+
+
+
+
+
+// emit_rex(r11, r12, 0);
+	// emit_add_register();
+	// emit_direct(r11, r12);
+
+	// emit_rex(r8, r9, 0);
+	// emit_add_register();
+	// emit_indirect(r8, r9);
+
+	// emit_rex(r8, r9, 0);
+	// emit_add_register();
+	// emit_indirect_disp8(r8, r9, 0x12);
+
+	// emit_rex(r8, r9, 0);
+	// emit_add_register();
+	// emit_indirect_disp32(r8, r9, 0x12345678);
+
+
+	// emit_rex(rax, 0, 0);
+	// emit_add_register();
+	// emit_indirect_rip_relative(rax, 0x12345678);
+
+	// emit_rex(rax, 0, 0);
+	// emit_add_register();
+	// emit_indirect_pure_displacement(rax, 0x12345678);	
+
+	// emit_rex(rbx, rcx, rax);
+	// emit_add_register();
+	// emit_indexed_indirect(rbx, rcx, rax, scale_4);
+
+	// emit_rex(rbx, rcx, rax);
+	// emit_add_register();
+	// emit_indexed_indirect_disp8(rbx, rcx, rax, scale_4, 0x12);
+
+	// emit_rex(rbx, rcx, rax);
+	// emit_add_register();
+	// emit_indexed_indirect_disp32(rbx, rcx, rax, scale_4, 0x12345678);
+
+	// emit_nop1();
+	// emit_nop2();
+	// emit_nop3();
+	// emit_nop4();
+	// emit_nop5();
+	// emit_nop6();
+	// emit_nop7();
+	// emit_nop8();
+	// emit_nop9();
+	// emit_nop10();
+
+	// emit_rex(rbx, rcx, rax);
+	// emit_add_register();
+	// emit_indexed_indirect_disp32(rbx, rcx, rax, scale_4, 0x12345678);
 
 
 

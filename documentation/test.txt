@@ -31,6 +31,9 @@
 . 	xor rsi, rsi
 . 	xor rdi, rdi
 
+.	inc rax
+.	inc rcx
+
 . 	discard ((rcx + rax) + (rbx + rdx))
 
 
