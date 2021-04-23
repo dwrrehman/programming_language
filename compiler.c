@@ -430,82 +430,6 @@ move: 	this += 4;
 	goto code;
 out:;
 
-	// align8();
-
-	// const int number_of_sections = 1;
-
-	// struct mach_header_64 header = {0};	
-	// struct segment_command_64 command = {0};
-	// struct section_64 section = {0};
-
-	// header.magic = MH_MAGIC_64;
-	// header.cputype = (int)CPU_TYPE_X86 | (int)CPU_ARCH_ABI64;
-	// header.cpusubtype = (int)CPU_SUBTYPE_I386_ALL | (int)CPU_SUBTYPE_LIB64;
-	// header.filetype = MH_OBJECT;
-	// header.ncmds = 1;
-	// header.sizeofcmds = 0;
-	// header.flags = MH_NOUNDEFS | MH_SUBSECTIONS_VIA_SYMBOLS;
-	
-	// command.cmd = LC_SEGMENT_64;
-	// command.cmdsize = sizeof(struct segment_command_64) + sizeof(struct section_64) * number_of_sections;
-
-	// header.sizeofcmds += command.cmdsize;
-
-	// strncpy(command.segname, "__TEXT", 16);
-	// command.vmsize = sizeof header + sizeof command + sizeof section * number_of_sections + size;
-	// command.vmaddr = 0;
-	// command.fileoff = 0;
-	// command.filesize = sizeof header + sizeof command + sizeof section * number_of_sections + size;
-	// command.maxprot = VM_PROT_ALL;
-	// command.initprot = VM_PROT_ALL;
-	// command.nsects = number_of_sections;
-	
-	// strncpy(section.sectname, "__text", 16);
-	// strncpy(section.segname, "__TEXT", 16);
-	// section.addr = 0;
-	// section.size = size;
-	// section.offset = sizeof header + sizeof command + sizeof section * number_of_sections;
-	// section.align = 3;
-	// section.reloff = 0;
-	// section.nreloc = 0;
-
-	// printf("\ndebugging header bytes:\n------------------------\n");
-	// dumphex((void*) &header, sizeof(header));
-
-	// printf("\ndebugging command bytes:\n------------------------\n");
-	// dumphex((void*) &command, sizeof(command));
-
-	// printf("\ndebugging section bytes:\n------------------------\n");
-	// dumphex((void*) &section, sizeof(section));
-
-	// printf("\ndebugging bytes bytes:\n------------------------\n");
-	// dumphex((void*) bytes, size);
-	
-	// printf("\n\n--> outputting %zd bytes to output file...\n\n", size);
-
-	// int out_file = open("object.o", O_WRONLY | O_CREAT);
-	// if (out_file < 0) { perror("open"); exit(4); }
-
-	// write(out_file, &header, sizeof header);
-	// write(out_file, &command, sizeof command);
-	// write(out_file, &section, sizeof section);
-	// write(out_file, bytes, size);
-
-	// close(out_file);
-
-	// printf("DEBUG: ctr:\n{\n");
-	// for (int i = 0; i < ctr_limit; i++) {
-	// 	if (ctr[i] != 0x0F0F0F0F0F0F0F0F) 
-	// 		printf("\tr%d = %zu\n", i, ctr[i]);
-	// }
-	// printf("}\n");
-
-	// printf("DEBUG: memory:\n{\n");
-	// for (int i = 0; i < ctm_limit; i++) {
-	// 	if (memory[i] != 0x0F0F0F0F0F0F0F0F) 
-	// 		printf("\t[%d] = %zu\n", i, memory[i]);
-	// }
-	// printf("}\n");
 	goto clean_up;
 
 error:; 
@@ -725,5 +649,87 @@ clean_up:
 	// emit_add_register();
 	// emit_indexed_indirect_disp32(rbx, rcx, rax, scale_4, 0x12345678);
 
+
+
+
+
+
+
+	// align8();
+
+	// const int number_of_sections = 1;
+
+	// struct mach_header_64 header = {0};	
+	// struct segment_command_64 command = {0};
+	// struct section_64 section = {0};
+
+	// header.magic = MH_MAGIC_64;
+	// header.cputype = (int)CPU_TYPE_X86 | (int)CPU_ARCH_ABI64;
+	// header.cpusubtype = (int)CPU_SUBTYPE_I386_ALL | (int)CPU_SUBTYPE_LIB64;
+	// header.filetype = MH_OBJECT;
+	// header.ncmds = 1;
+	// header.sizeofcmds = 0;
+	// header.flags = MH_NOUNDEFS | MH_SUBSECTIONS_VIA_SYMBOLS;
+	
+	// command.cmd = LC_SEGMENT_64;
+	// command.cmdsize = sizeof(struct segment_command_64) + sizeof(struct section_64) * number_of_sections;
+
+	// header.sizeofcmds += command.cmdsize;
+
+	// strncpy(command.segname, "__TEXT", 16);
+	// command.vmsize = sizeof header + sizeof command + sizeof section * number_of_sections + size;
+	// command.vmaddr = 0;
+	// command.fileoff = 0;
+	// command.filesize = sizeof header + sizeof command + sizeof section * number_of_sections + size;
+	// command.maxprot = VM_PROT_ALL;
+	// command.initprot = VM_PROT_ALL;
+	// command.nsects = number_of_sections;
+	
+	// strncpy(section.sectname, "__text", 16);
+	// strncpy(section.segname, "__TEXT", 16);
+	// section.addr = 0;
+	// section.size = size;
+	// section.offset = sizeof header + sizeof command + sizeof section * number_of_sections;
+	// section.align = 3;
+	// section.reloff = 0;
+	// section.nreloc = 0;
+
+	// printf("\ndebugging header bytes:\n------------------------\n");
+	// dumphex((void*) &header, sizeof(header));
+
+	// printf("\ndebugging command bytes:\n------------------------\n");
+	// dumphex((void*) &command, sizeof(command));
+
+	// printf("\ndebugging section bytes:\n------------------------\n");
+	// dumphex((void*) &section, sizeof(section));
+
+	// printf("\ndebugging bytes bytes:\n------------------------\n");
+	// dumphex((void*) bytes, size);
+	
+	// printf("\n\n--> outputting %zd bytes to output file...\n\n", size);
+
+	// int out_file = open("object.o", O_WRONLY | O_CREAT);
+	// if (out_file < 0) { perror("open"); exit(4); }
+
+	// write(out_file, &header, sizeof header);
+	// write(out_file, &command, sizeof command);
+	// write(out_file, &section, sizeof section);
+	// write(out_file, bytes, size);
+
+	// close(out_file);
+
+	// printf("DEBUG: ctr:\n{\n");
+	// for (int i = 0; i < ctr_limit; i++) {
+	// 	if (ctr[i] != 0x0F0F0F0F0F0F0F0F) 
+	// 		printf("\tr%d = %zu\n", i, ctr[i]);
+	// }
+	// printf("}\n");
+
+	// printf("DEBUG: memory:\n{\n");
+	// for (int i = 0; i < ctm_limit; i++) {
+	// 	if (memory[i] != 0x0F0F0F0F0F0F0F0F) 
+	// 		printf("\t[%d] = %zu\n", i, memory[i]);
+	// }
+	// printf("}\n");
 
 
