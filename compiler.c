@@ -35,7 +35,7 @@ static void print_index(const char* m, const char* string, int length, int index
 		char c = string[i];
 		if (i == index) printf("\033[1;31m[%c]\033[m", c);
 		else printf("%c", c);
-	} 
+	}
 	if (index == length) printf("\033[1;31m[T]\033[m"); 
 	else printf("T"); 
 	printf("\n");
@@ -59,7 +59,7 @@ static void debug(const char* m, const char* input, int* output,
 }
 
 int main(const int argc, const char** argv) {
-	
+
 	if (argc != 2) return printf("usage: ./compiler <input>\n");
 
 	const int limit = 8192, args_limit = 64;
@@ -79,20 +79,24 @@ int main(const int argc, const char** argv) {
 	close(file);
 
 	if (not length) goto error;
-i0: 	if (begin >= length) goto i3;
-	if (input[begin] == 59) goto i3;
-	if (input[begin] != 92) goto i2;
-i1: 	begin++;
-	if (begin >= length) goto i2;
-	if ((uc)input[begin] < 33) goto i1;
+next_seed_char: 	
+	if (begin >= length) abort(); // goto finish_seed;
+	if (input[begin] == ';') goto finish_seed;
+	if (input[begin] != '\\') goto i2;
+process_escaped_char_in_seed: 	
+	begin++;
+	if (begin >= length) abort(); // goto i2;
+	if ((uc)input[begin] < 33) goto process_escaped_char_in_seed;
 i2: 	begin++;
-	if (begin >= length) goto i0;
+	if (begin >= length) abort(); // goto next_seed_char;
 	if ((uc)input[begin] < 33) goto i2;
-	goto i0;
-i3: 	begin++;
-	if (begin >= length) goto i4;
-	if ((uc)input[begin] < 33) goto i3;	
-i4:	if (top + 7 >= limit) goto error;
+	goto next_seed_char;
+finish_seed: 	
+	begin++;
+	if (begin >= length) abort(); // goto push_initial_frames;
+	if ((uc)input[begin] < 33) goto finish_seed;
+// push_initial_frames:	
+	if (top + 7 >= limit) goto error;
 	output[top] = limit;
 	output[top + 2] = 0;
 	output[top + 3] = 0;
@@ -100,18 +104,19 @@ i4:	if (top + 7 >= limit) goto error;
 	output[top + 6] = begin;
 	top += 4;
 	best = begin;
-_0:  	var = output[top + 1];
+begin:  var = output[top + 1];
 	if (not var) goto _3;
 	var = output[var + 3];
-_2: 	var++;
-	if ((uc)input[var] < 33) goto _2;
-	if (input[var] == 58) goto _16;
-_3:	if (done >= length) goto _35;
-	if (var >= length) goto _35;
-	if (input[done] != 58) goto _3_;
-	if (input[var] == 58) goto _8;
-_3_: 	if (input[done] != input[var]) goto _35;
-	if (input[done] != 92) goto _6;
+skip_whitespace_in_type: 
+	var++;
+	if ((uc)input[var] < 33) goto skip_whitespace_in_type;
+	if (input[var] == ':') goto read_name;
+_3:	if (done >= length) goto next;
+	if (var >= length) goto next;
+	if (input[done] != ':') goto type_check;
+	if (input[var] == ':') goto revert_begin;
+type_check: 	if (input[done] != input[var]) goto next;
+	if (input[done] != '\\') goto _6;
 _4: 	done++; 
 	if ((uc)input[done] < 33) goto _4;
 _5: 	var++;
@@ -123,11 +128,13 @@ _7: 	done++;
 	if (done >= length) goto _3;
 	if ((uc)input[done] < 33) goto _7;
 	goto _3;
-_8:	done++;
-	if ((uc)input[done] < 33) goto _8;
+revert_begin:	
+	done++;
+	if ((uc)input[done] < 33) goto revert_begin;
 	begin = output[top + 2];
-_9:	if (input[done] == 59) goto _21;
-	if (input[done] != 58) goto _10;
+check_character: 
+	if (input[done] == ';') goto publish;
+	if (input[done] != ':') goto match;
 	if (top + 7 >= limit) goto error;
 	output[top] = index;
 	output[top + 3] = done;
@@ -136,52 +143,58 @@ _9:	if (input[done] == 59) goto _21;
 	top += 4;
 	index = 0;
 	done = 0;
-	goto _0;
-_10:	if (input[done] != 92) goto _12;
+	goto begin;
+match:	if (input[done] != '\\') goto _12;
 _11: 	done++;
 	if ((uc)input[done] < 33) goto _11;
-_12:	if (begin >= length) goto _28;
-	if (input[done] != input[begin]) goto _28;
+_12:	if (begin >= length) goto backtrack;
+	if (input[done] != input[begin]) goto backtrack;
 _13: 	begin++;
-	if (begin >= length) goto _14;
+	if (begin >= length) abort();//goto _14;
 	if ((uc)input[begin] < 33) goto _13;
 _14: 	done++;
 	if ((uc)input[done] < 33) goto _14;
-	if (begin <= best) goto _15; 
+	if (begin <= best) goto skip_update_best; 
 	best = begin; 
 	where = done;
-_15:	goto _9;
-_16:	index = limit;
-_17:	if (begin >= length) goto _20;
-	if (input[begin] == 59) goto _20;
-	if (input[begin] != 92) goto _19;
+skip_update_best:
+	goto check_character;
+read_name: 
+	index = limit; 
+read_char_in_name:
+	if (begin >= length) abort(); // goto error;
+	if (input[begin] == ';') goto read_name_terminator;
+	if (input[begin] != '\\') goto _19;
 _18: 	begin++;
-	if (begin >= length) goto _19;
+	if (begin >= length) abort();
 	if ((uc)input[begin] < 33) goto _18;
 _19: 	begin++;
-	if (begin >= length) goto _19_;
+	if (begin >= length) abort();
 	if ((uc)input[begin] < 33) goto _19;
-_19_:	goto _17;
-_20:	begin++;
-	if (begin >= length) goto _20_;
-	if ((uc)input[begin] < 33) goto _20;
-_20_:	if (begin <= best) goto _21; 
+	goto read_char_in_name;
+read_name_terminator:
+	begin++;
+	if (begin >= length) goto check_if_best;
+	if ((uc)input[begin] < 33) goto read_name_terminator;
+check_if_best:
+	if (begin <= best) goto publish; 
 	best = begin;
 	where = done;
-_21:	output[top] = index;
+publish:
+	output[top] = index;
 	output[top + 3] = done;
 	var = output[top + 1];
-	if (not var) goto _27;
+	if (not var) goto check_success;
 	if (top + 7 >= limit) goto error;
 	top += 4;
 	output[top + 1] = output[var + 1];
 	output[top + 2] = begin;
 	index = output[var];
 	done = output[var + 3];
-_22: 	done++;
-	if ((uc)input[done] < 33) goto _22;
-_23:	if (input[done] == 58) goto _26;
-	if (input[done] != 92) goto _25;
+_20: 	done++; 
+	if ((uc)input[done] < 33) goto _20;
+_23:	if (input[done] == ':') goto _26;
+	if (input[done] != '\\') goto _25;
 _24: 	done++; 
 	if ((uc)input[done] < 33) goto _24;
 _25: 	done++;
@@ -189,12 +202,14 @@ _25: 	done++;
 	goto _23;
 _26:	done++;
 	if ((uc)input[done] < 33) goto _26;
-	goto _9;
-_27:	if (begin == length) goto success;
-_28:	if (index == limit) goto _34;
+	goto check_character;
+check_success:
+	if (begin == length) goto success;
+backtrack:
+	if (index == limit) goto pop;
 	var = output[index + 2];
-_29:	if (input[var] == 58) goto _32;
-	if (input[var] != 92) goto _31;
+_29:	if (input[var] == ':') goto _32;
+	if (input[var] != '\\') goto _31;
 _30: 	var++;
 	if ((uc)input[var] < 33) goto _30;
 _31: 	var++;
@@ -202,22 +217,23 @@ _31: 	var++;
 	goto _29;
 _32:	var++;
 	if ((uc)input[var] < 33) goto _32; 
-	if (input[var] == 59) goto _33;
-	if (input[var] == 58) goto _33;
-	if (var == done) goto _35; 
+	if (input[var] == ';') goto _33;
+	if (input[var] == ':') goto _33;
+	if (var == done) goto next; 
 	goto _32;
-_33:	if (var == done) goto _35;
-_34:	if (not top) goto error;
+_33:	if (var == done) goto next;
+pop:	if (not top) goto error;
 	top -= 4;
 	index = output[top];
 	done = output[top + 3];
-	goto _28;
-_35:	index += 4;
-	if (index >= top) goto _34;
-	if (output[index] != limit) goto _35;
+	goto backtrack;
+next:	index += 4;
+	if (index >= top) goto pop;
+	if (output[index] != limit) goto next;
 	done = output[index + 2];
-	goto _0; 
-success: top += 4;
+	goto begin; 
+success: 
+	top += 4;
 
 	puts("success: compile successful."); 
 	debug("success", input, output, length, begin, top, index, done);

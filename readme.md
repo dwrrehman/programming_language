@@ -19,21 +19,17 @@ The language has only _two_ priorities:
 
  - Portability, at the expense of control.
 
- - Easy interoperability with existing piece of code.
+ - Easy interoperability with existing pieces of code.
 
  - Conforming to any ABI. 
 
  - Backwards-compatability.
 
- - Anything legacy.
-
- - Compiletime performance. 
-
  - Giving many error messages to the user.
 
  - Maintaining a "mathematical purity" which gets in the way of runtime performance.
 
- - All the "cool trendy features" in high-level programming languages these days. 
+ - All the "cool features" in high-level programming languages these days. 
 
  - Providing any debug or type information at runtime, or any information extraneous to execution. 
 
@@ -53,7 +49,7 @@ if you think a programming language should have any one of these things at the e
 
  - The programming language uses the Universal Call Syntax Resolution algorithm, for the front end.
 
- - The compiler currently aims to target x86-32, x86-64, Arm32, Arm64, Wasm32, and Wasm64. 
+ - The compiler currently aims to target Arm64, Arm32, Wasm64 and Wasm32 only.
 
  - The current compiler implementation is written in a subset of C, and will be self-hosted soon.
 

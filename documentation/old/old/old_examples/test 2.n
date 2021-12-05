@@ -1,2 +1,0 @@
-join declare ()
-join declare ((((x) (type) (root)) ((y) (type) (root))) (type) (root))
