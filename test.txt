@@ -1,0 +1,9 @@
+hhi (begin () () (unit) end)
+
+begin
+	unit ()
+	unit (() is cool (unit) and (unit) )
+	int (hello) is cool 	unit (conv (int)) is cool and
+		
+		and conv hello
+end

@@ -1,7 +1,7 @@
 #include <stdio.h>    // a compiler written in c, for my programming language 
 #include <iso646.h>          // made by daniel warren riaz rehman.
 #include <stdlib.h>		// phase 2 began on 2104106.112610
-#include <string.h>
+#include <string.h>             // syntax changed to "()" on 2112186.1604
 #include <fcntl.h>
 #include <unistd.h>
 #include <sys/stat.h>
@@ -56,20 +56,16 @@ static void debug(const char* m, const char* input, int* output,
 	print_output(output, top, index);
 	print_index("\n\n<<<begin:>>>\n\n", input, length, begin);
 	print_index("\n\n<<<done:>>>\n\n", input, length, done);
+	// getchar();
 }
 
 int main(const int argc, const char** argv) {
-
 	if (argc != 2) return printf("usage: ./compiler <input>\n");
-
 	const int limit = 8192, args_limit = 64;
-
 	int* output = malloc(limit * sizeof(int));
 	memset(output, 0x0F, limit * sizeof(int));
-
-	int index = 0, top = 0, begin = 0, done = 0;
-	int var = 0, length = 0, where = 0, best = 0;
-
+	const char* err = NULL;
+	int index = 0, top = 0, begin = 0, done = 0, var = 0, length = 0, where = 0, best = 0;
 	struct stat file_data = {0};
 	int file = open(argv[1], O_RDONLY);
 	if (file < 0 or stat(argv[1], &file_data) < 0) { perror("open"); exit(3); }
@@ -77,25 +73,51 @@ int main(const int argc, const char** argv) {
 	char* input = not length ? 0 : mmap(0, (size_t) length, PROT_READ, MAP_SHARED, file, 0);
 	if (input == MAP_FAILED) { perror("mmap"); exit(4); }
 	close(file);
-
 	if (not length) goto error;
-next_seed_char: 	
-	if (begin >= length) abort(); // goto finish_seed;
-	if (input[begin] == ';') goto finish_seed;
-	if (input[begin] != '\\') goto i2;
-process_escaped_char_in_seed: 	
+
+iread_type_in_name: 
+	debug("iread_type_in_name", input, output, length, begin, top, index, done);
+	if (input[begin] == '(') goto _i15;
 	begin++;
-	if (begin >= length) abort(); // goto i2;
-	if ((uc)input[begin] < 33) goto process_escaped_char_in_seed;
-i2: 	begin++;
-	if (begin >= length) abort(); // goto next_seed_char;
-	if ((uc)input[begin] < 33) goto i2;
-	goto next_seed_char;
-finish_seed: 	
+	if (begin >= length) {err = "expected ("; goto error;}
+	goto iread_type_in_name;
+_i15:	debug("_i15", input, output, length, begin, top, index, done);
 	begin++;
-	if (begin >= length) abort(); // goto push_initial_frames;
-	if ((uc)input[begin] < 33) goto finish_seed;
-// push_initial_frames:	
+	if (begin >= length) {err = "eof after ( in sig"; goto error;}
+	if ((uc)input[begin] < 33) goto _i15;
+iloop_name: 
+	debug("iloop_name", input, output, length, begin, top, index, done);
+	if (input[begin] == ')') goto iend_name; 
+	if (input[begin] != '(') goto iread_reg; 
+_i16:	debug("_i16", input, output, length, begin, top, index, done);
+	begin++;
+	if (begin >= length) {err = "expected argument in sig"; goto error;}
+	if (input[begin] != ')') goto _i16;
+_i17:	debug("_i17", input, output, length, begin, top, index, done);
+	begin++;
+	if (begin >= length) {err = "expected ) in arg"; goto error;}
+	if ((uc)input[begin] < 33) goto _i17;
+	goto iloop_name;
+iread_reg: 
+	debug("iread_reg", input, output, length, begin, top, index, done);
+	if (input[begin] != '\\') goto _i19;
+_i18: 	debug("_i18", input, output, length, begin, top, index, done);
+	begin++;
+	if (begin >= length) {err = "expected )"; goto error;}
+	if ((uc)input[begin] < 33) goto _i18;
+_i19: 	debug("_i19", input, output, length, begin, top, index, done);
+	begin++;
+	if (begin >= length) {err = "expected char in sig"; goto error;}
+	if ((uc)input[begin] < 33) goto _i19;
+	goto iloop_name;
+iend_name:
+	debug("iend_name", input, output, length, begin, top, index, done);
+	begin++;
+	if (begin >= length) goto push_initial;
+	if ((uc)input[begin] < 33) goto iend_name;
+
+
+push_initial: 
 	if (top + 7 >= limit) goto error;
 	output[top] = limit;
 	output[top + 2] = 0;
@@ -104,37 +126,36 @@ finish_seed:
 	output[top + 6] = begin;
 	top += 4;
 	best = begin;
-begin:  var = output[top + 1];
-	if (not var) goto _3;
+
+begin:	debug("begin", input, output, length, begin, top, index, done);
+	var = output[top + 1];
+	if (not var) goto type_check; 
 	var = output[var + 3];
-skip_whitespace_in_type: 
-	var++;
-	if ((uc)input[var] < 33) goto skip_whitespace_in_type;
-	if (input[var] == ':') goto read_name;
-_3:	if (done >= length) goto next;
-	if (var >= length) goto next;
-	if (input[done] != ':') goto type_check;
-	if (input[var] == ':') goto revert_begin;
-type_check: 	if (input[done] != input[var]) goto next;
-	if (input[done] != '\\') goto _6;
-_4: 	done++; 
-	if ((uc)input[done] < 33) goto _4;
 _5: 	var++;
 	if ((uc)input[var] < 33) goto _5;
+	if (input[var] == ')') goto read_name;
+type_check: 
+	debug("type_check", input, output, length, begin, top, index, done);
+	if (input[done] != '(') goto compare_types;
+	if (input[var] == ')') goto types_match;
+	if (input[var] == '(') goto types_match;
+compare_types: 
+	debug("compare_types", input, output, length, begin, top, index, done);
+	if (input[done] != input[var]) goto next;
 _6:	var++;
-	if (var >= length) goto _7;
+	if (var >= length) goto next;
 	if ((uc)input[var] < 33) goto _6;
 _7: 	done++; 
-	if (done >= length) goto _3;
+	if (done >= length) goto next;
 	if ((uc)input[done] < 33) goto _7;
-	goto _3;
-revert_begin:	
-	done++;
-	if ((uc)input[done] < 33) goto revert_begin;
+	goto type_check;
+types_match: 
+	debug("types_match", input, output, length, begin, top, index, done);
+	done++; 
+	if ((uc)input[done] < 33) goto types_match;
 	begin = output[top + 2];
-check_character: 
-	if (input[done] == ';') goto publish;
-	if (input[done] != ':') goto match;
+check_character: if (input[done] == ')') goto publish; 
+	if (input[done] != '(') goto match; 
 	if (top + 7 >= limit) goto error;
 	output[top] = index;
 	output[top + 3] = done;
@@ -144,43 +165,67 @@ check_character:
 	index = 0;
 	done = 0;
 	goto begin;
-match:	if (input[done] != '\\') goto _12;
+match:	debug("match", input, output, length, begin, top, index, done);
+	if (input[done] != '\\') goto _12;
 _11: 	done++;
 	if ((uc)input[done] < 33) goto _11;
 _12:	if (begin >= length) goto backtrack;
 	if (input[done] != input[begin]) goto backtrack;
 _13: 	begin++;
-	if (begin >= length) abort();//goto _14;
+	if (begin >= length) goto _14;
 	if ((uc)input[begin] < 33) goto _13;
 _14: 	done++;
 	if ((uc)input[done] < 33) goto _14;
 	if (begin <= best) goto skip_update_best; 
-	best = begin; 
-	where = done;
-skip_update_best:
-	goto check_character;
-read_name: 
-	index = limit; 
-read_char_in_name:
-	if (begin >= length) abort(); // goto error;
-	if (input[begin] == ';') goto read_name_terminator;
-	if (input[begin] != '\\') goto _19;
-_18: 	begin++;
-	if (begin >= length) abort();
-	if ((uc)input[begin] < 33) goto _18;
-_19: 	begin++;
-	if (begin >= length) abort();
-	if ((uc)input[begin] < 33) goto _19;
-	goto read_char_in_name;
-read_name_terminator:
-	begin++;
-	if (begin >= length) goto check_if_best;
-	if ((uc)input[begin] < 33) goto read_name_terminator;
-check_if_best:
-	if (begin <= best) goto publish; 
 	best = begin;
 	where = done;
-publish:
+skip_update_best: goto check_character;
+read_name: 
+	debug("read_name", input, output, length, begin, top, index, done);
+	index = limit; 
+read_type_in_name: 
+	debug("read_type_in_name", input, output, length, begin, top, index, done);
+	if (input[begin] == '(') goto _15;
+	begin++;
+	if (begin >= length) goto next;
+	goto read_type_in_name;
+_15:	debug("_15", input, output, length, begin, top, index, done);
+	begin++;
+	if (begin >= length) goto next;
+	if ((uc)input[begin] < 33) goto _15;
+loop_name: 
+	debug("loop_name", input, output, length, begin, top, index, done);
+	if (input[begin] == ')') goto end_name; 
+	if (input[begin] != '(') goto read_reg; 
+_16:	debug("_16", input, output, length, begin, top, index, done);
+	begin++;
+	if (begin >= length) goto next;
+	if (input[begin] != ')') goto _16;
+_17:	debug("_17", input, output, length, begin, top, index, done);
+	begin++;
+	if (begin >= length) goto next;
+	if ((uc)input[begin] < 33) goto _17;
+	goto loop_name;
+read_reg: debug("read_reg", input, output, length, begin, top, index, done);
+	if (input[begin] != '\\') goto _19;
+_18: 	debug("_18", input, output, length, begin, top, index, done);
+	begin++;
+	if (begin >= length) goto next;
+	if ((uc)input[begin] < 33) goto _18;
+_19: 	debug("_19", input, output, length, begin, top, index, done);
+	begin++;
+	if (begin >= length) goto next;
+	if ((uc)input[begin] < 33) goto _19;
+	goto loop_name;
+end_name: debug("end_name", input, output, length, begin, top, index, done);
+	begin++;
+	if (begin >= length) goto check_if_best;
+	if ((uc)input[begin] < 33) goto end_name;
+check_if_best: if (begin <= best) goto publish; 
+	best = begin;
+	where = done;
+publish: 
+	debug("publish", input, output, length, begin, top, index, done);
 	output[top] = index;
 	output[top + 3] = done;
 	var = output[top + 1];
@@ -191,82 +236,87 @@ publish:
 	output[top + 2] = begin;
 	index = output[var];
 	done = output[var + 3];
-_20: 	done++; 
+_20: 	done++;
 	if ((uc)input[done] < 33) goto _20;
-_23:	if (input[done] == ':') goto _26;
-	if (input[done] != '\\') goto _25;
-_24: 	done++; 
-	if ((uc)input[done] < 33) goto _24;
+_23:	if (input[done] == ')') goto _26;
 _25: 	done++;
 	if ((uc)input[done] < 33) goto _25;
 	goto _23;
 _26:	done++;
 	if ((uc)input[done] < 33) goto _26;
 	goto check_character;
-check_success:
-	if (begin == length) goto success;
-backtrack:
+check_success: if (begin == length) goto success;
+backtrack: 
+	debug("backtrack", input, output, length, begin, top, index, done);
 	if (index == limit) goto pop;
 	var = output[index + 2];
-_29:	if (input[var] == ':') goto _32;
-	if (input[var] != '\\') goto _31;
-_30: 	var++;
-	if ((uc)input[var] < 33) goto _30;
-_31: 	var++;
-	if ((uc)input[var] < 33) goto _31;
-	goto _29;
-_32:	var++;
-	if ((uc)input[var] < 33) goto _32; 
-	if (input[var] == ';') goto _33;
-	if (input[var] == ':') goto _33;
-	if (var == done) goto next; 
-	goto _32;
-_33:	if (var == done) goto next;
-pop:	if (not top) goto error;
+skip_type: 
+	debug("skip_type", input, output, length, begin, top, index, done);
+	if (input[var] == '(') goto find_first_arg;
+	var++;
+	goto skip_type;
+find_first_arg: 
+	debug("find_first_arg", input, output, length, begin, top, index, done);
+	var++;
+	if (input[var] == ')') goto check_if_first;
+	if (input[var] == '(') goto check_if_first;
+	if (var == done) goto next;
+	goto find_first_arg;
+check_if_first:
+	debug("check_if_first", input, output, length, begin, top, index, done);
+	if (var == done) goto next;
+pop:	debug("pop", input, output, length, begin, top, index, done);
+	if (not top) {err = "unresolved expression"; goto error;}
 	top -= 4;
 	index = output[top];
 	done = output[top + 3];
 	goto backtrack;
-next:	index += 4;
+next:	debug("next", input, output, length, begin, top, index, done);
+	index += 4;
 	if (index >= top) goto pop;
 	if (output[index] != limit) goto next;
 	done = output[index + 2];
-	goto begin; 
-success: 
-	top += 4;
-
+	goto begin; 	
+success: top += 4;
 	puts("success: compile successful."); 
 	debug("success", input, output, length, begin, top, index, done);
 
 	int this = 0, next = 0, count = 0;
-	// skip = 0;
-
 	int* args = malloc(args_limit * sizeof(int));
-	
-	// printf("\n---------------parsing output as tree:----------------\n\n");
 	
 code:	if (this >= top) goto out;
 	if (output[this] == limit) {
-		// printf(" %10d : %10di %10dp %10db %10dd   : UDS :   ", 
-		// 	this, output[this + 0], output[this + 1], output[this + 2], output[this + 3]);
-		// int s = output[this + 2];
-		// while (input[s] != ';') {
-		// 	putchar(input[s]);
-		// 	s++;
-		// }
-		// printf("\n");
+		printf("\n\n\n------------------------- %d ---------------------------\n", this);
+		printf(" %10d : %10di %10dp %10db %10dd   : UDS :   ", 
+			this, output[this + 0], output[this + 1], output[this + 2], output[this + 3]);
+		int s = output[this + 2];
+		int c = 0;
+		do {
+			putchar(input[s]);
+			if (input[s] == '(') c++;
+			if (input[s] == ')') c--;
+			if (input[s] == ')' and !c) break;
+			s++;
+		} while (1);
+		printf("\n");
 		goto move;
 	}
-	if (input[output[this + 3]] != 59) goto move;
-	// printf("\n\n\n------------------------- %d ---------------------------\n", this);
-	// printf(" %10d : %10di %10dp %10db %10dd   :   ", 
-	// 	this, output[this + 0], output[this + 1], output[this + 2], output[this + 3]);
-	// int s = output[output[this] + 2];
-	// while (input[s] != ';') {
-	// 	putchar(input[s]);
-	// 	s++;
-	// }
-	// printf("\n");
+	if (input[output[this + 3]] != ')') goto move;
+
+	printf("\n\n\n------------------------- %d ---------------------------\n", this);
+	printf(" %10d : %10di %10dp %10db %10dd   :   ", 
+		this, output[this + 0], output[this + 1], output[this + 2], output[this + 3]);
+	int s = output[output[this] + 2];
+	int c = 0;
+	do {
+		putchar(input[s]);
+		if (input[s] == '(') c++;
+		if (input[s] == ')') c--;
+		if (input[s] == ')' and !c) break;
+		s++;
+	} while (1);
+	printf("\n");
+
 	next = this;
 	count = 0;
 next_child:
@@ -274,192 +324,35 @@ next_child:
 	if (index == limit) goto first;
 	done = output[next + 3];
 	var = output[index + 2];
-fail:	if (input[var] == 58) goto more;
-	if (input[var] != 92) goto jj;
-kk: 	var++;
-	if ((uc)input[var] < 33) goto kk;
-jj: 	var++;
-	if ((uc)input[var] < 33) goto jj;
-	goto fail;
-more:	var++;
-	if ((uc)input[var] < 33) goto more;
-	if (input[var] == 59) goto check;
-	if (input[var] == 58) goto check;
-	goto more;
-check:	if (var == done) goto first;
+rskip_type: if (input[var] == '(') goto rfind_first_arg;
+	var++;
+	goto rskip_type;
+rfind_first_arg: var++;
+	if (input[var] == ')') goto rcheck_if_first;
+	if (input[var] == '(') goto rcheck_if_first;
+	 if (var == done) goto first;
+	goto rfind_first_arg;
+rcheck_if_first: if (var == done) goto first;
 	args[count++] = next - 4;
 	next = output[next - 3];
 	goto next_child;
 first:;
-	// printf("\n    (index=%d) : parsed %d arguments : ", index, count);
-	// print_vector(args, count);
-	// printf("\n");
-
-	// int start = output[output[this] + 2];
-
-	// if (skip) {
-	// 	if (is("unit:at:label::unit:;", input, start) and output[args[count - 1]] == skip) {
-	// 		output[output[args[count - 1]] + 3] = args[count - 2];
-	// 		skip = 0;
-	// 		this = args[count - 2];
-	// 		goto code;
-	// 	}
-	// 	goto move;
-	// }
-
-	// if (is("unit:at:label::unit:;", input, start)) {
-	// 	output[output[args[count - 1]] + 3] = args[count - 2];
-
-	// } else if (is("unit:if:register:<:register:,:label:;", input, start)) {
-	// 	int left = get(args[count - 1], input, output);
-	// 	int right = get(args[count - 2], input, output);
-	// 	if (ctr[left] < ctr[right]) goto branch;
-
-	// } else if (is("unit:if:register:=:register:,:label:;", input, start)) {
-	// 	int left = get(args[count - 1], input, output);
-	// 	int right = get(args[count - 2], input, output);
-	// 	if (ctr[left] == ctr[right]) {
-	// 	branch:	if (output[output[args[count - 3]] + 3]) {
-	// 			this = output[output[args[count - 3]] + 3];
-	// 			goto code;
-	// 		}
-	// 		skip = output[args[count - 3]];
-	// 	}
-
-	// } else if (is("unit:increment:register:;", input, start)) 
-	// 	ctr[get(args[count - 1], input, output)]++;
-	// else if (is("unit:decrement:register:;", input, start)) 
-	// 	ctr[get(args[count - 1], input, output)]--;
-	// else if (is("unit:zero:register:;", input, start)) 
-	// 	ctr[get(args[count - 1], input, output)] = 0;
-	// else if (is("unit:copy:register:,:register:;", input, start)) 
-	// 	ctr[get(args[count - 1], input, output)] = ctr[get(args[count - 2], input, output)];
-	// else if (is("unit:add:register:,:register:;", input, start)) 
-	// 	ctr[get(args[count - 1], input, output)] += ctr[get(args[count - 2], input, output)];
-	// else if (is("unit:subtract:register:,:register:;", input, start)) 
-	// 	ctr[get(args[count - 1], input, output)] -= ctr[get(args[count - 2], input, output)];
-	// else if (is("unit:multiply:register:,:register:;", input, start)) 
-	// 	ctr[get(args[count - 1], input, output)] *= ctr[get(args[count - 2], input, output)];
-	// else if (is("unit:divide:register:,:register:;", input, start)) 
-	// 	ctr[get(args[count - 1], input, output)] /= ctr[get(args[count - 2], input, output)];
-	// else if (is("unit:modulo:register:,:register:;", input, start)) 
-	// 	ctr[get(args[count - 1], input, output)] %= ctr[get(args[count - 2], input, output)];
-	// else if (is("unit:xor:register:,:register:;", input, start)) 
-	// 	ctr[get(args[count - 1], input, output)] ^= ctr[get(args[count - 2], input, output)];
-	// else if (is("unit:and:register:,:register:;", input, start)) 
-	// 	ctr[get(args[count - 1], input, output)] &= ctr[get(args[count - 2], input, output)];
-	// else if (is("unit:or:register:,:register:;", input, start)) 
-	// 	ctr[get(args[count - 1], input, output)] |= ctr[get(args[count - 2], input, output)];
-	// else if (is("unit:store:register:,:register:;", input, start)) 
-	// 	memory[ctr[get(args[count - 1], input, output)]] = ctr[get(args[count - 2], input, output)];
-	// else if (is("unit:load:register:,:register:;", input, start)) 
-	// 	ctr[get(args[count - 1], input, output)] = memory[ctr[get(args[count - 2], input, output)]];
 	
-	// else if (is("unit:nop;", input, start)) {
-	// 	bytes[size++] = 0x90;
-
-	// } else if (is("reg64:(:reg64:+:reg64:);", input, start)) {
-
-	// 	uc dest = (uc)output[args[count - 1] + 2];
-	// 	uc source = (uc)output[args[count - 2] + 2];
-		
-	// 	printf("BEFORE: state = ");
-	// 	print_vector(state, register_count);
-
-	// 	if (source != dest) scratch_free((int)source, state);
-	// 	output[this + 2] = (int)dest;
-
-	// 	emit_rex(dest, source, 0);
-	// 	emit_add_register();
-	// 	emit_direct(dest, source);
-
-	// 	printf("AFTER: state = ");
-	// 	print_vector(state, register_count);
-
-	// } else if (is("unit:xor:reg64:,:reg64:;", input, start)) {
-
-	// 	uc dest = (uc)output[args[count - 1] + 2];
-	// 	uc source = (uc)output[args[count - 2] + 2];
-		
-	// 	printf("BEFORE: state = ");
-	// 	print_vector(state, register_count);
-
-	// 	if (source != dest) scratch_free((int)source, state);
-	// 	output[this + 2] = (int)dest;
-
-	// 	emit_rex(dest, source, 0);
-	// 	emit_xor_register();
-	// 	emit_direct(dest, source);
-
-	// 	printf("AFTER: state = ");
-	// 	print_vector(state, register_count);
-
-
-
-	// } else if (is("unit:inc:reg64:;", input, start)) {
-
-	// 	uc dest = (uc)output[args[count - 1] + 2];
-		
-	// 	printf("BEFORE: state = ");
-	// 	print_vector(state, register_count);
-
-	// 	output[this + 2] = (int)dest;
-
-	// 	emit_rex(dest, 0, 0);
-	// 	emit_inc_register();
-	// 	emit_direct(dest, 0);
-
-	// 	printf("AFTER: state = ");
-	// 	print_vector(state, register_count);
-
-	// } else if (is("unit:new::;", input, start)) {
-
-	// 	printf("BEFORE: state = ");
-	// 	print_vector(state, register_count);
-	
-	// 	uc r = (uc) scratch_alloc(state);
-	// 	output[args[count - 1] + 3] = (int)r;
-
-	// 	printf("AFTER: state = ");
-	// 	print_vector(state, register_count);
-
-	// } else if (is("unit:discard:reg64:;", input, start)) {
-
-	// 	printf("BEFORE: state = ");
-	// 	print_vector(state, register_count);
-
-	// 	int r = output[args[count - 1] + 2]; 
-	// 	printf("calling: scratch_free(%d)\n", r);
-	// 	scratch_free(r, state);
-	
-	// 	printf("AFTER: state = ");
-	// 	print_vector(state, register_count);
-
-	// } else if (is_type("reg64:", input, start)) { // else if, index != limit:
-	// 	output[this + 2] = output[index + 3];
-
-	// 	printf("REG USE: state = ");
-	// 	print_vector(state, register_count);
-	// }
-
 move: 	this += 4;
 	goto code;
-out:;
-
-	goto clean_up;
-
+out:	goto clean_up;
 error:; 
-	int at = 0, line = 1, column = 1, wat = 0, wline = 1, wcolumn = 1;
+	int at = 0, line = 0, column = 0, wat = 0, wline = 0, wcolumn = 0;
 	while (at < best and at < length) {
 		if (input[at++] != 10) { column++; } 
-		else { line++; column = 1; }
+		else { line++; column = 0; }
 	}
 	while (wat < where and wat < length) {
 		if (input[wat++] != 10) { wcolumn++; } 
-		else { wline++; wcolumn = 1; }
+		else { wline++; wcolumn = 0; }
 	}
-	fprintf(stderr, "%u %u %u %u %u %u %u %u\n", 
-			line, column, at, wline, wcolumn, wat, top, limit);
+	fprintf(stderr, "%u %u %u  %u %u %u  %u %u  %s\n", 
+			line, column, at, wline, wcolumn, wat, top, limit, err);
 clean_up:
 	munmap(input, (size_t) length);
 	free(output);
@@ -747,5 +640,260 @@ clean_up:
 	// 		printf("\t[%d] = %zu\n", i, memory[i]);
 	// }
 	// printf("}\n");
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+	// printf("\n    (index=%d) : parsed %d arguments : ", index, count);
+	// print_vector(args, count);
+	// printf("\n");
+
+	// int start = output[output[this] + 2];
+
+	// if (skip) {
+	// 	if (is("unit:at:label::unit:;", input, start) and output[args[count - 1]] == skip) {
+	// 		output[output[args[count - 1]] + 3] = args[count - 2];
+	// 		skip = 0;
+	// 		this = args[count - 2];
+	// 		goto code;
+	// 	}
+	// 	goto move;
+	// }
+
+	// if (is("unit:at:label::unit:;", input, start)) {
+	// 	output[output[args[count - 1]] + 3] = args[count - 2];
+
+	// } else if (is("unit:if:register:<:register:,:label:;", input, start)) {
+	// 	int left = get(args[count - 1], input, output);
+	// 	int right = get(args[count - 2], input, output);
+	// 	if (ctr[left] < ctr[right]) goto branch;
+
+	// } else if (is("unit:if:register:=:register:,:label:;", input, start)) {
+	// 	int left = get(args[count - 1], input, output);
+	// 	int right = get(args[count - 2], input, output);
+	// 	if (ctr[left] == ctr[right]) {
+	// 	branch:	if (output[output[args[count - 3]] + 3]) {
+	// 			this = output[output[args[count - 3]] + 3];
+	// 			goto code;
+	// 		}
+	// 		skip = output[args[count - 3]];
+	// 	}
+
+	// } else if (is("unit:increment:register:;", input, start)) 
+	// 	ctr[get(args[count - 1], input, output)]++;
+	// else if (is("unit:decrement:register:;", input, start)) 
+	// 	ctr[get(args[count - 1], input, output)]--;
+	// else if (is("unit:zero:register:;", input, start)) 
+	// 	ctr[get(args[count - 1], input, output)] = 0;
+	// else if (is("unit:copy:register:,:register:;", input, start)) 
+	// 	ctr[get(args[count - 1], input, output)] = ctr[get(args[count - 2], input, output)];
+	// else if (is("unit:add:register:,:register:;", input, start)) 
+	// 	ctr[get(args[count - 1], input, output)] += ctr[get(args[count - 2], input, output)];
+	// else if (is("unit:subtract:register:,:register:;", input, start)) 
+	// 	ctr[get(args[count - 1], input, output)] -= ctr[get(args[count - 2], input, output)];
+	// else if (is("unit:multiply:register:,:register:;", input, start)) 
+	// 	ctr[get(args[count - 1], input, output)] *= ctr[get(args[count - 2], input, output)];
+	// else if (is("unit:divide:register:,:register:;", input, start)) 
+	// 	ctr[get(args[count - 1], input, output)] /= ctr[get(args[count - 2], input, output)];
+	// else if (is("unit:modulo:register:,:register:;", input, start)) 
+	// 	ctr[get(args[count - 1], input, output)] %= ctr[get(args[count - 2], input, output)];
+	// else if (is("unit:xor:register:,:register:;", input, start)) 
+	// 	ctr[get(args[count - 1], input, output)] ^= ctr[get(args[count - 2], input, output)];
+	// else if (is("unit:and:register:,:register:;", input, start)) 
+	// 	ctr[get(args[count - 1], input, output)] &= ctr[get(args[count - 2], input, output)];
+	// else if (is("unit:or:register:,:register:;", input, start)) 
+	// 	ctr[get(args[count - 1], input, output)] |= ctr[get(args[count - 2], input, output)];
+	// else if (is("unit:store:register:,:register:;", input, start)) 
+	// 	memory[ctr[get(args[count - 1], input, output)]] = ctr[get(args[count - 2], input, output)];
+	// else if (is("unit:load:register:,:register:;", input, start)) 
+	// 	ctr[get(args[count - 1], input, output)] = memory[ctr[get(args[count - 2], input, output)]];
+	
+	// else if (is("unit:nop;", input, start)) {
+	// 	bytes[size++] = 0x90;
+
+	// } else if (is("reg64:(:reg64:+:reg64:);", input, start)) {
+
+	// 	uc dest = (uc)output[args[count - 1] + 2];
+	// 	uc source = (uc)output[args[count - 2] + 2];
+		
+	// 	printf("BEFORE: state = ");
+	// 	print_vector(state, register_count);
+
+	// 	if (source != dest) scratch_free((int)source, state);
+	// 	output[this + 2] = (int)dest;
+
+	// 	emit_rex(dest, source, 0);
+	// 	emit_add_register();
+	// 	emit_direct(dest, source);
+
+	// 	printf("AFTER: state = ");
+	// 	print_vector(state, register_count);
+
+	// } else if (is("unit:xor:reg64:,:reg64:;", input, start)) {
+
+	// 	uc dest = (uc)output[args[count - 1] + 2];
+	// 	uc source = (uc)output[args[count - 2] + 2];
+		
+	// 	printf("BEFORE: state = ");
+	// 	print_vector(state, register_count);
+
+	// 	if (source != dest) scratch_free((int)source, state);
+	// 	output[this + 2] = (int)dest;
+
+	// 	emit_rex(dest, source, 0);
+	// 	emit_xor_register();
+	// 	emit_direct(dest, source);
+
+	// 	printf("AFTER: state = ");
+	// 	print_vector(state, register_count);
+
+
+
+	// } else if (is("unit:inc:reg64:;", input, start)) {
+
+	// 	uc dest = (uc)output[args[count - 1] + 2];
+		
+	// 	printf("BEFORE: state = ");
+	// 	print_vector(state, register_count);
+
+	// 	output[this + 2] = (int)dest;
+
+	// 	emit_rex(dest, 0, 0);
+	// 	emit_inc_register();
+	// 	emit_direct(dest, 0);
+
+	// 	printf("AFTER: state = ");
+	// 	print_vector(state, register_count);
+
+	// } else if (is("unit:new::;", input, start)) {
+
+	// 	printf("BEFORE: state = ");
+	// 	print_vector(state, register_count);
+	
+	// 	uc r = (uc) scratch_alloc(state);
+	// 	output[args[count - 1] + 3] = (int)r;
+
+	// 	printf("AFTER: state = ");
+	// 	print_vector(state, register_count);
+
+	// } else if (is("unit:discard:reg64:;", input, start)) {
+
+	// 	printf("BEFORE: state = ");
+	// 	print_vector(state, register_count);
+
+	// 	int r = output[args[count - 1] + 2]; 
+	// 	printf("calling: scratch_free(%d)\n", r);
+	// 	scratch_free(r, state);
+	
+	// 	printf("AFTER: state = ");
+	// 	print_vector(state, register_count);
+
+	// } else if (is_type("reg64:", input, start)) { // else if, index != limit:
+	// 	output[this + 2] = output[index + 3];
+
+	// 	printf("REG USE: state = ");
+	// 	print_vector(state, register_count);
+	// }
+
+
+
+
+
+	// printf("\n\n\n------------------------- %d ---------------------------\n", this);
+	// printf(" %10d : %10di %10dp %10db %10dd   :   ", 
+	// 	this, output[this + 0], output[this + 1], output[this + 2], output[this + 3]);
+	// int s = output[output[this] + 2];
+	// while (input[s] != ';') {
+	// 	putchar(input[s]);
+	// 	s++;
+	// }
+	// printf("\n");
+
+
+
+
+
+
+
+	// printf(" %10d : %10di %10dp %10db %10dd   : UDS :   ", 
+		// 	this, output[this + 0], output[this + 1], output[this + 2], output[this + 3]);
+		// int s = output[this + 2];
+		// while (input[s] != ';') {
+		// 	putchar(input[s]);
+		// 	s++;
+		// }
+		// printf("\n");
+
+
+
+
+
+
+
+/*
+
+
+
+
+
+hi (begin () () (unit) end)
+
+begin
+	unit (x)
+	unit (() is cool)
+	int (hello) is cool
+end
+
+
+
+
+
+
+hhi (begin () () (unit) end)
+
+begin
+	unit ()
+	unit (() is cool (unit) and (unit) )
+	int (hello) is cool 	unit (conv (int)) is cool and
+		
+		and conv hello
+end
+
+
+
+
+
+*/
 
 
