@@ -8,15 +8,19 @@
 #include <sys/mman.h>
 #include <stdint.h>
 
+#include "/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/mach-o/loader.h"
+
+// to disassemble:      objdump --disassemble out
+
 typedef uint8_t uc;
 
-// static inline void print_vector(int* v, int l) {
-// 	printf("{ ");
-// 	for (int i = 0; i < l; i++) {
-// 		printf("%d ", v[i]);
-// 	}
-// 	printf("}\n");
-// }
+static inline void print_vector(int* v, int l) {
+	printf("{ ");
+	for (int i = 0; i < l; i++) {
+		printf("%d ", v[i]);
+	}
+	printf("}\n");
+}
 
 static void print_output(int* output, int top, int index) {
 	puts("\n------- output: -------");
@@ -43,6 +47,7 @@ static void print_index(const char* m, const char* string, int length, int index
 
 static void debug(const char* m, const char* input, int* output, 
 		  int length, int begin, int top, int index, int done) {
+	return;	
 	printf("\n\n\n\n\n-------------%s---------------:\n",m);
 
 	printf("\n<<<variables:>>>\n\t "
@@ -74,7 +79,7 @@ int main(const int argc, const char** argv) {
 	if (input == MAP_FAILED) { perror("mmap"); exit(4); }
 	close(file);
 	if (not length) goto error;
-
+	
 iread_type_in_name: 
 	debug("iread_type_in_name", input, output, length, begin, top, index, done);
 	if (input[begin] == '(') goto _i15;
@@ -115,7 +120,6 @@ iend_name:
 	begin++;
 	if (begin >= length) goto push_initial;
 	if ((uc)input[begin] < 33) goto iend_name;
-
 
 push_initial: 
 	if (top + 7 >= limit) goto error;
@@ -286,6 +290,7 @@ success: top += 4;
 	
 code:	if (this >= top) goto out;
 	if (output[this] == limit) {
+		if ((0)) {
 		printf("\n\n\n------------------------- %d ---------------------------\n", this);
 		printf(" %10d : %10di %10dp %10db %10dd   : UDS :   ", 
 			this, output[this + 0], output[this + 1], output[this + 2], output[this + 3]);
@@ -299,10 +304,12 @@ code:	if (this >= top) goto out;
 			s++;
 		} while (1);
 		printf("\n");
+		}
 		goto move;
 	}
 	if (input[output[this + 3]] != ')') goto move;
 
+	if ((0)) {
 	printf("\n\n\n------------------------- %d ---------------------------\n", this);
 	printf(" %10d : %10di %10dp %10db %10dd   :   ", 
 		this, output[this + 0], output[this + 1], output[this + 2], output[this + 3]);
@@ -316,6 +323,8 @@ code:	if (this >= top) goto out;
 		s++;
 	} while (1);
 	printf("\n");
+	}
+
 
 	next = this;
 	count = 0;
@@ -337,10 +346,92 @@ rcheck_if_first: if (var == done) goto first;
 	next = output[next - 3];
 	goto next_child;
 first:;
-	
+	// print_vector(args, count);
+
 move: 	this += 4;
 	goto code;
-out:	goto clean_up;
+
+
+out:	
+	printf("outputting executable...\n");
+
+	typedef uint32_t u32;
+
+	struct instruction {
+		int sf;
+		int op;
+		int rm, rn, rd;		
+	};
+
+	//struct instruction ins = {0};
+
+	u32* bytes = malloc(4);
+	size_t size = 4;
+	bytes[0] = 0xffeeffee;
+
+	const int number_of_sections = 1;
+
+	struct mach_header_64 header = {0};	
+	struct segment_command_64 command = {0};
+	struct section_64 section = {0};
+
+	header.magic = MH_MAGIC_64;
+	header.cputype = (int)CPU_TYPE_ARM | (int)CPU_ARCH_ABI64;
+	header.cpusubtype = (int)CPU_SUBTYPE_ARM_ALL | (int)CPU_SUBTYPE_LIB64;
+	header.filetype = MH_OBJECT;
+	header.ncmds = 1;
+	header.sizeofcmds = 0;
+	header.flags = MH_NOUNDEFS | MH_SUBSECTIONS_VIA_SYMBOLS;
+	
+	command.cmd = LC_SEGMENT_64;
+	command.cmdsize = sizeof(struct segment_command_64) + sizeof(struct section_64) * number_of_sections;
+
+	header.sizeofcmds += command.cmdsize;
+
+	strncpy(command.segname, "__TEXT", 16);
+	command.vmsize = sizeof header + sizeof command + sizeof section * number_of_sections + size;
+	command.vmaddr = 0;
+	command.fileoff = 0;
+	command.filesize = sizeof header + sizeof command + sizeof section * number_of_sections + size;
+	command.maxprot = VM_PROT_ALL;
+	command.initprot = VM_PROT_ALL;
+	command.nsects = number_of_sections;
+	
+	strncpy(section.sectname, "__text", 16);
+	strncpy(section.segname, "__TEXT", 16);
+	section.addr = 0;
+	section.size = size;
+	section.offset = sizeof header + sizeof command + sizeof section * number_of_sections;
+	section.align = 3;
+	section.reloff = 0;
+	section.nreloc = 0;
+
+	// printf("\ndebugging header bytes:\n------------------------\n");
+	// dumphex((void*) &header, sizeof(header));
+
+	// printf("\ndebugging command bytes:\n------------------------\n");
+	// dumphex((void*) &command, sizeof(command));
+
+	// printf("\ndebugging section bytes:\n------------------------\n");
+	// dumphex((void*) &section, sizeof(section));
+
+	// printf("\ndebugging bytes bytes:\n------------------------\n");
+	// dumphex((void*) bytes, size);
+	
+	printf("\n\n--> outputting %zd bytes to output file...\n\n", size);
+
+	int out_file = open("object.o", O_WRONLY | O_CREAT);
+	if (out_file < 0) { perror("open"); exit(4); }
+
+	write(out_file, &header, sizeof header);
+	write(out_file, &command, sizeof command);
+	write(out_file, &section, sizeof section);
+	write(out_file, bytes, size);
+
+	close(out_file);
+
+
+	goto clean_up;
 error:; 
 	int at = 0, line = 0, column = 0, wat = 0, wline = 0, wcolumn = 0;
 	while (at < best and at < length) {
@@ -897,3 +988,28 @@ end
 */
 
 
+
+
+
+// printf("DEBUG: ctr:\n{\n");
+	// for (int i = 0; i < ctr_limit; i++) {
+	// 	if (ctr[i] != 0x0F0F0F0F0F0F0F0F) 
+	// 		printf("\tr%d = %zu\n", i, ctr[i]);
+	// }
+	// printf("}\n");
+
+	// printf("DEBUG: memory:\n{\n");
+	// for (int i = 0; i < ctm_limit; i++) {
+	// 	if (memory[i] != 0x0F0F0F0F0F0F0F0F) 
+	// 		printf("\t[%d] = %zu\n", i, memory[i]);
+	// }
+	// printf("}\n");
+
+
+
+
+
+// int out_file = open("object.o", O_WRONLY | O_CREAT);
+	// if (not out_file) { perror("open"); exit(1); }
+	// write(out_file, code, 4);
+	// close(out_file);

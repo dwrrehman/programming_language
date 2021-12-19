@@ -1,9 +1,5 @@
-hhi (begin () () (unit) end)
+(()()(u))
+u(x)
+u((u)(u))
 
-begin
-	unit ()
-	unit (() is cool (unit) and (unit) )
-	int (hello) is cool 	unit (conv (int)) is cool and
-		
-		and conv hello
-end
+x x x 
