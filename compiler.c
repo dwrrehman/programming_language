@@ -8,9 +8,36 @@
 #include <sys/mman.h>
 #include <stdint.h>
 
+
+/*
+
+	todo:
+
+		- figure out how to include the macho header  the right way...
+
+		- figure out how to generate the symbol table... 
+
+		- generate the object file properly.
+
+		- 
+
+*/
+
+
+
+
+
 #include "/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/mach-o/loader.h"
 
-// to disassemble:      objdump --disassemble out
+// to disassemble:      objdump --disassemble-all --full-contents  object.o
+
+//                      objdump -m --disassemble-all --syms --section-headers --full-contents test_asm/main.o
+
+
+// for learning:    objdump --disassemble-all out                with release mode.
+
+
+
 
 typedef uint8_t uc;
 
@@ -63,6 +90,9 @@ static void debug(const char* m, const char* input, int* output,
 	print_index("\n\n<<<done:>>>\n\n", input, length, done);
 	// getchar();
 }
+
+
+
 
 int main(const int argc, const char** argv) {
 	if (argc != 2) return printf("usage: ./compiler <input>\n");
@@ -290,7 +320,7 @@ success: top += 4;
 	
 code:	if (this >= top) goto out;
 	if (output[this] == limit) {
-		if ((0)) {
+		if ((1)) {
 		printf("\n\n\n------------------------- %d ---------------------------\n", this);
 		printf(" %10d : %10di %10dp %10db %10dd   : UDS :   ", 
 			this, output[this + 0], output[this + 1], output[this + 2], output[this + 3]);
@@ -309,7 +339,7 @@ code:	if (this >= top) goto out;
 	}
 	if (input[output[this + 3]] != ')') goto move;
 
-	if ((0)) {
+	if ((1)) {
 	printf("\n\n\n------------------------- %d ---------------------------\n", this);
 	printf(" %10d : %10di %10dp %10db %10dd   :   ", 
 		this, output[this + 0], output[this + 1], output[this + 2], output[this + 3]);
@@ -346,11 +376,10 @@ rcheck_if_first: if (var == done) goto first;
 	next = output[next - 3];
 	goto next_child;
 first:;
-	// print_vector(args, count);
+	print_vector(args, count);
 
 move: 	this += 4;
 	goto code;
-
 
 out:	
 	printf("outputting executable...\n");
@@ -360,14 +389,14 @@ out:
 	struct instruction {
 		int sf;
 		int op;
-		int rm, rn, rd;		
+		int rm, rn, rd;	
 	};
 
 	//struct instruction ins = {0};
 
 	u32* bytes = malloc(4);
 	size_t size = 4;
-	bytes[0] = 0xffeeffee;
+	bytes[0] = 0x91006108;
 
 	const int number_of_sections = 1;
 
@@ -422,13 +451,19 @@ out:
 
 	int out_file = open("object.o", O_WRONLY | O_CREAT);
 	if (out_file < 0) { perror("open"); exit(4); }
-
 	write(out_file, &header, sizeof header);
 	write(out_file, &command, sizeof command);
 	write(out_file, &section, sizeof section);
 	write(out_file, bytes, size);
-
 	close(out_file);
+
+	
+	system("/usr/bin/ld -demangle -lto_library /opt/homebrew/Cellar/llvm/13.0.0_1/lib/libLTO.dylib "
+		"-dynamic -arch arm64 -platform_version macos 12.0.0 12.0.0 "
+		"-syslibroot /Library/Developer/CommandLineTools/SDKs/MacOSX12.sdk "
+		"-o a.out object.o "
+		"-lSystem /opt/homebrew/Cellar/llvm/13.0.0_1/lib/clang/13.0.0/lib/darwin/libclang_rt.osx.a");
+
 
 
 	goto clean_up;
