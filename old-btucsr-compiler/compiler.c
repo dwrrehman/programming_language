@@ -82,6 +82,20 @@ int main(const int argc, const char** argv) {
 
 
 
+
+iloop_name: debug("iloop_name", input, output, length, begin, top, index, done);
+	if (input[begin] == '.') goto iend_name; 
+_i19: 	debug("_i19", input, output, length, begin, top, index, done);
+	begin++;
+	if (begin >= length) {err = "expected char in sig"; goto error;}
+	if ((uc)input[begin] < 33) goto _i19;
+	goto iloop_name;
+iend_name:
+	debug("iend_name", input, output, length, begin, top, index, done);
+	begin++;
+	if (begin >= length) goto push_initial;
+	if ((uc)input[begin] < 33) goto iend_name;
+push_initial:
 	if (top + 7 >= limit) goto error;
 	output[top] = limit;
 	output[top + 2] = 0;
@@ -200,9 +214,7 @@ code:	if (this >= top) goto out;
 		int c = 0;
 		do {
 			putchar(input[s]);
-			if (input[s] == '(') c++;
-			if (input[s] == ')') c--;
-			if (input[s] == ')' and !c) break;
+			if (input[s] == '.') break;
 			s++;
 		} while (1);
 		printf("\n");
@@ -219,9 +231,7 @@ code:	if (this >= top) goto out;
 	int c = 0;
 	do {
 		putchar(input[s]);
-		if (input[s] == '(') c++;
-		if (input[s] == ')') c--;
-		if (input[s] == ')' and !c) break;
+		if (input[s] == '.') break;
 		s++;
 	} while (1);
 	printf("\n");

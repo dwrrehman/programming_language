@@ -1,1 +1,9 @@
-hello. hello
+this is an operation. 
+
+my label. goto.
+
+debug.
+
+my label. at.
+
+halt.

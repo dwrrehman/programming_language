@@ -1,0 +1,37 @@
+init, flag. incr,flag. incr, flag. incr, flag. incr, flag. incr, flag. incr, flag. incr, flag.
+
+
+init, this variable.
+
+	incr, this variable.
+	incr, this variable. 
+	incr, this variable. 
+	incr, this variable. 
+
+init, limit. 
+
+	incr, limit.
+	incr, limit.
+	incr, limit.	
+	incr, limit.
+
+print, this variable.
+
+print, limit.
+
+
+init, dummy.
+zero, dummy.
+print, dummy.
+
+
+blt, limit, this variable, terminate program.
+
+	incr, dummy.
+	incr, dummy. 
+	print, flag.
+	print, dummy.
+
+
+halt, 		terminate program.
+

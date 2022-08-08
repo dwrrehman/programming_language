@@ -1,62 +1,88 @@
 # my programming language
-###### Created By Daniel Warren Riaz Rehman.
+###### created by Daniel Warren Riaz Rehman.
 
-This is a compiler for a general-purpose, expression-based, imperative, low-level minimalist systems programming language. 
+this is an interpreter for a general purpose, statement based, imperative, low level minimalist systems programming language. it is being used to make the programming language self hosted, 
+
+
+
+# todos:
+
+- add the full language isa. [very important]
+- add constant's support. (ie, numbers, in various bases!) [pretty important]
+
+
+- add mulitple file support, correctly. [meh]
+
+
+x - add macros. [very important]
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+# old:
+
+this is a compiler for a general-purpose, statement-based, imperative, low-level minimalist systems programming language. 
 
 
 ### Language priorities:
 
-The language has only _two_ priorities:
+the language has only _two_ priorities:
 
- - __Maximal runtime performance__: The language should allow a skilled programmer to write programs that:
+ - __maximal control over runtime performance__: the language should allow a skilled programmer to write programs that:
 	- execute _as fast as possible_ on the given target, and/or
 	- have a memory size _as small as possible_.
 
- - __Brutal simplicity and minimalism__: The compiler's _total_ source code is limited to 500 lines.
+ - __brutal simplicity and minimalism__: the compiler's _total_ source code is limited to 500 lines.
 
 
 ### What this language does NOT care about:
 
- - Portability, at the expense of control.
+ - expression based syntax, or any positional syntax.
 
- - Easy interoperability with existing pieces of code.
+ - portability, at the expense of control.
 
- - Conforming to any ABI. 
+ - easy interoperability with existing pieces of code.
 
- - Backwards-compatability.
+ - conforming to any ABI. 
 
- - Giving many error messages to the user.
+ - backwards-compatability.
 
- - Maintaining a "mathematical purity" which gets in the way of runtime performance.
+ - giving many helpful error messages to the user.
 
- - All the "cool features" in high-level programming languages these days. 
+ - maintaining a "mathematical purity" which gets in the way of runtime performance.
 
- - Providing any debug or type information at runtime, or any information extraneous to execution. 
+ - anything to do with functional programming, or lambda calculus.
 
- - How abstract or extensible / "future-proof" the code is. 
+ - all the "cool features" in high-level programming languages these days. 
 
- - Any language-level abstraction which incurs even the slightest performance cost. 
+ - providing any debug or type information at runtime, or any information extraneous to execution. 
 
- - Things in the language having to be familiar or easy to pick up for programmers.
+ - how abstract or extensible / "future-proof" the code is. 
 
- - Anything that is easy to understand, but is inefficient in runtime performance.
+ - any language-level abstraction which incurs even the slightest performance cost. 
+
+ - things in the language having to be familiar or easy to pick up for programmers.
+
+ - anything that is easy to understand, but is inefficient in runtime performance.
  
- - Anything even remotely related to OOP.
+ - anything even remotely related to OOP.
 
 if you think a programming language should have any one of these things at the expense of maximally acheiving the two language priorities laid out earlier, you should probably stop reading this, go away, and look up some other more inferior programming language project, because this language is NOT for you.
 
 ### Other information:
 
- - The programming language uses the Universal Call Syntax Resolution algorithm, for the front end.
+ - The compiler currently aims to target RiscV64, RiscV32, Arm64, and Arm32 only.
 
- - The compiler currently aims to target Arm64, Arm32, Wasm64 and Wasm32 only.
-
- - The current compiler implementation is written in a subset of C, and will be self-hosted soon.
-
- - The output limit must be a non zero multiple of 4.
-
- - Only a single input file is allowed per object file, currently.
-
- - 
+ - The current compiler implementation is written in C, and will be self-hosted eventually.
 
 
