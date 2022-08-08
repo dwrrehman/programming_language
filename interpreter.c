@@ -108,7 +108,7 @@ int main(const int argc, const char** argv) {
 
 		} else if (not strcmp(ins[i], "goto")) {
 			printf("found a goto statement! checking label register.\n");
-			
+		
 
 		} else if (not strcmp(ins[i], "")) {
 		} else if (not strcmp(ins[i], "")) {
