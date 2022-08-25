@@ -2,9 +2,8 @@
 // also its interpreted, just to be able to bootstrap itself, at first.
 // made by daniel warren riaz rehman.
 // started redesign on 2206105.120844
-// CC0 no rights reserved.
 
-// #include <stdint.h>
+#include <stdint.h>
 #include <stdbool.h>
 #include <iso646.h>
 #include <string.h>
@@ -15,27 +14,40 @@
 #include <sys/stat.h>
 #include <sys/mman.h>
 
+
+
+enum operation_type {
+	nop,
+	increment_op,
+	setzero_op,
+	blt_op,
+};
+
+
+struct instruction {
+	int operation;     // values in operation type.
+	int arguments[3];    // count and order  is  determined by the operation.
+};
+
+
+
 static char* read_file(const char* filename, int* out_length) {
-	
 	int file = open(filename, O_RDONLY);
 	if (file < 0) {
 		perror("open"); 
 		exit(1); 
 	}
-
 	struct stat file_data = {0};
 	if (stat(filename, &file_data) < 0) { 
 		perror("stat"); 
 		exit(1); 
 	}
-
 	int length = (int) file_data.st_size;
 	char* buffer = not length ? NULL : mmap(0, (size_t) length, PROT_READ, MAP_SHARED, file, 0);
 	if (buffer == MAP_FAILED) { 
 		perror("mmap"); 
 		exit(1); 
 	}
-
 	close(file);
 	*out_length = length;
 	return buffer;
@@ -51,13 +63,11 @@ int main(const int argc, const char** argv) {
 	printf("\n\n\n------------- printing input file -------------------\n");
 	printf("input(%d) = <<<%.*s>>>\n\n\n",length, length, input);
 	
-	char** ins = NULL;
-	int ins_count = 0;
+	char** statements = NULL;
+	int statement_count = 0;
 
 	char buffer[1024] = {0};
 	int buffer_count = 0;
-
-	// this code is perfect now, assuming we can get this concept of no arguments to work!
 
 	for (int i = 0; i < length; i++) {
 		if (input[i] == 46) {
@@ -70,34 +80,43 @@ int main(const int argc, const char** argv) {
 
 	munmap(input, (size_t) length);
 
-	printf("\n\n\n------------- printing instructions... -------------------\n");
-	for (int i = 0; i < ins_count; i++) {
+	printf("\n\n\n------------- printing steatements... -------------------\n");
+	for (int i = 0; i < statement_count; i++) {
 		printf("\t%d: %s\n ", i, ins[i]);
 	}
 	puts("");
 
-	printf("\n\n\n------------- interpreting instructions... -------------------\n");
+	printf("\n\n\n------------- interpreting ct statements / generating rt instructions... -------------------\n");
 
 	char* labels[1024] = {0};
 	int label_count = 0;
 	char* label = NULL;
+
+
+	char* reg = NULL; 
 	
 	// bool forward_branching = false;
 	// char* forward_label = NULL;
 
-	for (int i = 0; i < ins_count; i++) {
+
+	struct instruction* instructions = NULL;
+	int instruction_count = 0;
+
+
+	for (int i = 0; i < steatenment_count; i++) {
 
 		/*if (foward_branching) {
 			if (not strcmp(ins[i], "at") and not strcmp(label, forward_label) {
 				// do nothing. 			
 			} else continue;
-		}*/
+		}
 
 		printf("---> executing instruction: #%d :: \"%s\"\n", i, ins[i]);
 
 		if (not strcmp(ins[i], "halt")) {
 			printf("halting program.\n");
 			break;
+
 		} else if (not strcmp(ins[i], "debug")) {
 			printf("this is a debug message\n");
 
@@ -110,26 +129,153 @@ int main(const int argc, const char** argv) {
 			printf("found a goto statement! checking label register.\n");
 		
 
-		} else if (not strcmp(ins[i], "")) {
-		} else if (not strcmp(ins[i], "")) {
-		} else if (not strcmp(ins[i], "")) {
-		} else if (not strcmp(ins[i], "")) {
+		} else if (not strcmp(ins[i], "=0")) {
+			printf("found a setzero statement! checking reg register.\n");
+			printf("resetting: %s\n", reg);
 
+		} else if (not strcmp(ins[i], "++")) {
+			printf("found a incr statement! checking reg register.\n");
+			printf("incrementing: %s\n", reg);
+
+		} else if (not strcmp(ins[i], "=0!")) {
+			printf("found a ct setzero statement! checking reg register.\n");
+			printf("ct resetting: %s\n", reg);
+			
+
+		} else if (not strcmp(ins[i], "++!")) {
+			printf("found a ct incr statement! checking reg register.\n");
+			printf("ct incrementing: %s\n", reg);		
 		
+		} else if (not strcmp(ins[i], "init")) {
+			printf("found a reg def statement! checking reg register.\n");
+			printf("defining: %s\n", reg);		
+
+		} else if (not strcmp(ins[i], "init!")) {
+			printf("found a ct reg def statement! checking reg register.\n");
+			printf("ct defining: %s\n", reg);
+
 		} else {
 			printf("error: statement not recognized: %s\n", ins[i]);
 			label = ins[i];
-		}
+			reg = ins[i];
+		}*/
+
+		
+	// add an .operation++ statement?... not sure... 
+
+
+
+		struct instruction new = {.operation = nop, .arguments = {0,0,0,0}};
+	
+
+	// add hook into doing an "emit":
+
+		instructions = realloc(instructions, sizeof(struct instruction) * (instruction_count + 1) );
+		instructions[instruction_count++] = new;
+
+
+
+			// note: arguments must be the register index, though. it technically represents a location in an array which has no facility of dereferenceing in it,   so its just a bunch of fixed locations,   thats where all the registers values live, in memory. note that there is not size difference for them.... hm..... not sure about that... i guess word only for now.
+
+
+				note.    all brancing,  in the interpreting phase (rt)       is done using relatice branching.  ie, finding distance between instructions. its super easy, to do at ct hopefully
+
+
+
+			
+
 
 	}
 
 
-	printf("[no halt found]\n");
+
+	
+
+
+
+
+
+
+
+
+
+	printf("[exiting.]\n");
 }
 
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+hmmmm   actually the way that we need to be doing this is actually via a compiler boolean, which lives in ctmemory, which is whether we are emmiting staetments, to be executed at runtime,  or interpretting statemnts, which are executed at compiletime..   we really cannot mix those two stages, because then whats the point lol. 
+
+
+				so yeah, we neeedd AT LEAST two stages,      one ct exec and rt generation,    and another    rt execution
+
+								which, wouldnt happen in the regular compiler, actually. so yeah. 
+
+
+								so we need an instruction ds, where we generate a list of instructions. yeah.
+
+										okay, this is kinda making sense.   the trick part, is that we need the user to be able to do this from within the language. thats the hardpart. 
+
+
+
+
+
+								so yeah.. not sure....
+
+						i think the trick is we just give them tc machinery, and hooks into literally everything that there is in terms of generation of instructions. i think thats the trick.
+
+
+
+								obviously, we can only generate instructions that are actually executable. 
+
+
+									thats imporatnt too lol
+
+
+					hmmm
+
+
+
+
+
+
+
+
+
+
+
+
+
+the big idea with this is this:     we have the interpreter code itself, basically written in "comptime executed statements"  and manipulate "comptime manipulatable memory" in order to do its thing
+
+		and then we just add hooks for doing particular things, i think..? yeah, like identifier equality 
+
+			
+
+
+
+	this lang is kinda like forth, but way more flexible, and free.    and also doesnt actually use a stack, i think? hmmmmm
+
+
+		i havent worked that part out though. 
+
+			operations with mulitple arguments is still trick right now...
+
+
+
+				
 
 
 

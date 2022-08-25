@@ -1,9 +1,9 @@
-this is an operation. 
+*n.
 
-my label. goto.
+=0.
 
-debug.
+hello.
 
-my label. at.
+=0.
 
 halt.

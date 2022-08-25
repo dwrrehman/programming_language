@@ -8,7 +8,7 @@ elif [ "clean" = "$1" ]; then
 	rm -rf out.dSYM
 
 elif [ "" = "$1" ]; then 
-	clang -g -O0 -Weverything  -fsanitize=address,undefined interpreter.c -o out
+	clang -g -O0 -Weverything -std=c11 -fsanitize=address,undefined interpreter.c -o out
 
 else 
 	echo "build: unknown target: $1"
