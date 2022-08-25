@@ -1,0 +1,10 @@
+zero. all.
+ct_xor. xor.
+
+first. dliteral. 42.
+
+first. zero. first. addi.
+
+
+
+
