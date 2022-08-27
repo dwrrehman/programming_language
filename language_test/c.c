@@ -27,9 +27,10 @@ enum op_code {
 	op_load64,
 	op_blt, op_ct_blt,
 	op_ct_debug, op_debug,
+	op_ct_here,
 };
 
-static const char* op_code_spelling[] = {
+/*static const char* op_code_spelling[] = {
 	"op_nop",
 	"op_ct_xor", "op_xor",
 	"op_add", "op_ct_add", "op_addi",
@@ -39,13 +40,14 @@ static const char* op_code_spelling[] = {
 	"op_load64",
 	"op_blt", "op_ct_blt",
 	"op_ct_debug", "op_debug",
-};
+	"op_ct_here",
+};*/
 
 struct instruction {
 	nat op;
 	nat _0;
 	nat _1;
-	nat _2; 
+	nat _2;
 };
 
 static nat instruction_count = 0, pc = 0, base = 0, name_count = 0, rt_ins_count = 0;
@@ -68,12 +70,12 @@ static void ins(nat op) {
 		.op = op, ._0 = _[0], ._1 = _[1], ._2 = _[2]
 	};
 }
-
+/*
 static void print_ins(struct instruction O, nat p) {
 	printf("---> [%llu] instruction: { operation=%s, dest=%llu, first=%llu, second=%llu }\n", 
 		p, op_code_spelling[O.op], O._0, O._1, O._2);
 }
-
+*/
 static void print_strings(char** code, nat count) {
 	printf("statement list(count=%llu): \n", count);
 	for (nat i = 0; i < count; i++) {
@@ -120,8 +122,8 @@ static char* read_file(const char* filename, size_t* out_length) {
 	}
 	const size_t length = (size_t) file_data.st_size;
 	char* buffer = not length ? NULL : mmap(0, (size_t) length, PROT_READ, MAP_SHARED, file, 0);
-	if (buffer == MAP_FAILED) { 
-		perror("mmap"); 
+	if (buffer == MAP_FAILED) {
+		perror("mmap");
 		return NULL;
 	}
 	close(file);
@@ -132,10 +134,15 @@ static char* read_file(const char* filename, size_t* out_length) {
 static void compile_in(const char* string) {
 	
 	if (base) {
-		ct_registers[*_] = (nat) strtoll(string, NULL, (int) base);
-		base = 0;
-		return;
+		if (base > 1) {
+			ct_registers[*_] = (nat) strtoll(string, NULL, (int) base); 
+			base = 0; 
+			return;
+		}
+		if (equal(string, "endliteral1")) base = 0;
+		return; 
 	}
+
 	if (equal(string, "pass")) {}
 	else if (equal(string, "11")) { _[0] = _[1]; }
 	else if (equal(string, "21")) { _[0] = _[2]; }
@@ -164,14 +171,16 @@ static void compile_in(const char* string) {
 	else if (equal(string, "ct_blt")) ins(op_ct_blt);
 	else if (equal(string, "print")) ins(op_debug);
 	else if (equal(string, "ctprint")) ins(op_ct_debug);
-	else if (equal(string, "hliteral")) { base = 16; }
-	else if (equal(string, "dliteral")) { base = 10; }
-	else if (equal(string, "bliteral")) { base = 2; }
+	else if (equal(string, "here")) ins(op_ct_here);
+	else if (equal(string, "cthere")) ct_registers[*_] = instruction_count; 
+	else if (equal(string, "literalbase")) { base = ct_registers[_[0]]; }
+	else if (equal(string, "literal16")) { base = 16; }
+	else if (equal(string, "literal10")) { base = 10; }
+	else if (equal(string, "literal2")) { base = 2; }
+	else if (equal(string, "literal1")) { base = 1; }
 	else if (equal(string, "delete")) { free(names[*_]); names[*_] = NULL; }
-	else if (equal(string, "here")) ct_registers[*_] = instruction_count; 
 	else {
-		nat name = 0;
-		nat open = name_count;
+		nat name = 0, open = name_count;
 		while (name < name_count) {
 			if (names[name]) {
 				if (equal(string, names[name])) break;
@@ -180,9 +189,7 @@ static void compile_in(const char* string) {
 			}
 			name++;
 		}
-
-		if (name == name_count) {
-			printf("new: %s\n", string);
+		if (name == name_count) {      // printf("new: %s\n", string);
 			if (open == name_count) name_count++;
 			names[open] = strdup(string);
 			name = open;
@@ -197,7 +204,8 @@ static void execute_ct_instruction(struct instruction I) {
 	else if (I.op == op_ct_add) ct_registers[I._0] = ct_registers[I._1] + ct_registers[I._2];
 	else if (I.op == op_ct_sub) ct_registers[I._0] = ct_registers[I._1] - ct_registers[I._2];
 	else if (I.op == op_ct_blt) { if (ct_registers[I._0] < ct_registers[I._1]) pc += ct_registers[I._2]; }
-	else if (I.op == op_ct_debug) printf("CT#%llu=%llu\n", I._0, ct_registers[I._0]);
+	else if (I.op == op_ct_here) ct_registers[I._0] = rt_ins_count; 
+	else if (I.op == op_ct_debug) printf("CT#%llu=%lld\n", I._0, ct_registers[I._0]);
 	else rt_instructions[rt_ins_count++] = I;
 	pc++;
 }
@@ -214,7 +222,7 @@ static void execute_instruction(struct instruction I) {
 	else if (I.op == op_slli) registers[I._0] = registers[I._1] << ct_registers[I._2];
 	else if (I.op == op_load64) registers[I._0] = *(((uint64_t*)memory) + (registers[I._1] + ct_registers[I._2])); 
 	else if (I.op == op_blt) { if (registers[I._0] < registers[I._1]) pc += ct_registers[I._2]; }
-	else if (I.op == op_debug) printf("R#%llu=%llu\n", I._0, registers[I._0]);
+	else if (I.op == op_debug) printf("R#%llu=%lld\n", I._0, registers[I._0]);
 	pc++;
 }
 
@@ -228,21 +236,21 @@ static void interpret(const char* text, const nat text_length) {
 	rt_ins_count = 0;
 	printf("CT parsing...\n");
 	for (nat i = 0; i < count; i++) {
-		printf(": parsing: %s\n", code[i]);
+		// printf(": parsing: %s\n", code[i]);
 		compile_in(code[i]);
 	}
 
 	pc = 0; 
 	printf("CT interpreting...\n");
 	while (pc < instruction_count) {
-		print_ins(instructions[pc], pc);
+		// print_ins(instructions[pc], pc);
 		execute_ct_instruction(instructions[pc]);
 	}
 
 	pc = 0;
 	printf("RT interpreting... \n");
 	while (pc < rt_ins_count) {
-		print_ins(rt_instructions[pc], pc);
+		// print_ins(rt_instructions[pc], pc);
 		execute_instruction(rt_instructions[pc]);
 	}
 }
@@ -251,17 +259,17 @@ int main() {
 
 	printf("a repl/interpreter for my language.\nwork in progress.\n");
 
-	char text[4096] = {0};
+	char line[4096] = {0};
 
 	memory = aligned_alloc(8, 1 << 16);
 	memset(registers, 0xF0, sizeof registers);
 	memset(ct_registers, 0xF0, sizeof ct_registers);
 
 _: 	printf(" • ");
-	fgets(text, sizeof text, stdin);
-	nat text_length = strlen(text);
-	char* string = strdup(text);
-	string[strlen(string) - 1] = 0;
+	fgets(line, sizeof line, stdin);
+	nat line_length = strlen(line);
+	char* string = strdup(line);
+	string[line_length - 1] = 0;
 
 	if (equal(string, "")) {}
 	else if (equal(string, "o") or equal(string, "clear")) printf("\033[H\033[J");
@@ -274,8 +282,8 @@ _: 	printf(" • ");
 		buffer[strlen(buffer) - 1] = 0;
 
 		size_t length = 0;
-		char* text = read_file(buffer, &length);
-		if (text) interpret(text, length);
+		char* contents = read_file(buffer, &length);
+		if (contents) interpret(contents, length);
 
 	} else if (equal(string, "?") or equal(string, "help"))
 
@@ -329,12 +337,14 @@ _: 	printf(" • ");
 		"201 : nat t2 = _[2]; _[2] = _[1]; _[1] = _[0]; _[0] = t2; \n\t"
 		"120 : nat t0 = _[0]; _[0] = _[1]; _[1] = _[2]; _[2] = t0; \n\t"
 
-		"hliteral : treat next word as a hex literal.\n\t"
-		"dliteral : treat next word as a decimal literal.\n\t"
-		"bliteral : treat next word as a binary literal.\n\t"
+		"literal16 : treat next word as a hex literal.\n\t"
+		"literal10 : treat next word as a decimal literal.\n\t"
+		"literal2 : treat next word as a binary literal.\n\t"
 
 		"delete : delete the 0th virtual from the defined list of names.\n\t"
-		"here : fill virtual[0] with the PC at parsing. used for implementing labels.\n\t"
+
+		"here : fill virtual[0] with the PC at ct_exec. used for implementing rt branches.\n\t"
+		"cthere : fill virtual[0] with the PC at parsing. used for implementing ct branches.\n\t"
 
 		"(hex literal) {16} : if in state base = 16\n\t"
 		"(decimal literal) {10} : if in state base = 10\n\t"
@@ -361,7 +371,7 @@ _: 	printf(" • ");
 		for (nat i = 0; i < name_count; i++) 
 			printf("name[%llu] =  \"%s\" \n", i, names[i] ? names[i] : "(null)");
 	}
-	else interpret(text, text_length);
+	else interpret(line, line_length);
 	goto _;
 done: 	printf("quitting...\n");
 }

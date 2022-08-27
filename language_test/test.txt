@@ -1,6 +1,56 @@
-zero 000
-ct_xor xor
-first dliteral 42 first zero first addi
-second dliteral 34 second zero second addi
-first print second print
-new label here
+zero 000 ct_xor xor
+
+one literal2 1 			zero one addi
+first literal10 34 		zero first addi
+second literal10 42 		zero second addi
+random1 literal10 9999999 	zero random1 addi
+random2 literal10 2999999 	zero random2 addi
+random3 literal10 3999999 	zero random3 addi
+random4 literal10 4999999 	zero random4 addi
+
+
+literal1 
+
+	this is a comment!! pretty cool huh?
+	first print
+
+			i can write anything i want in this comment!
+
+
+			very useful.
+
+
+
+				kind of. not really sure... 
+
+
+	
+			hmm
+
+
+yeah
+
+
+			as long as you dont type     "endliteral1"    in a word on its own,  then its fine lol. 
+
+
+
+endliteral1
+
+	first print
+	second print
+	random1 print
+
+loop here
+	first print
+	one 10 001 addi
+
+righthere here
+	loop . ct_sub one 10 001 ct_sub
+	second first blt
+	. delete
+
+	random1 print
+	zero print
+	one print
+
