@@ -1,8 +1,9 @@
 // my programming language! (repl version)
+// dwrr   started on 2208232.211844 
 // dwrr   written on 2208243.231335
+// dwrr    edited on 2208265.235140
 
 /*
-
 
 ------------------------ domain --------------------------
 
@@ -202,18 +203,18 @@ static char* read_file(const char* filename, size_t* out_length) {
 	const int file = open(filename, O_RDONLY);
 	if (file < 0) {
 		perror("open"); 
-		exit(1); 
+		return NULL;
 	}
 	struct stat file_data = {0};
 	if (stat(filename, &file_data) < 0) { 
 		perror("stat"); 
-		exit(1); 
+		return NULL;
 	}
 	const size_t length = (size_t) file_data.st_size;
 	char* buffer = not length ? NULL : mmap(0, (size_t) length, PROT_READ, MAP_SHARED, file, 0);
 	if (buffer == MAP_FAILED) { 
 		perror("mmap"); 
-		exit(1); 
+		return NULL;
 	}
 	close(file);
 	*out_length = length;
@@ -230,17 +231,23 @@ static bool equal(const char* s1, const char* s2) {
 
 
 static struct instruction instructions[4096] = {0};
-static nat instruction_count = 0,
+static nat instruction_count = 0;
 
 static nat _[4] = {0};
 static nat base = 0;
-
 
 static char* names[128] = {0};
 static nat name_count = 0;
 
 static char* label_names[2048] = {0};
 static nat labels[2048] = {0};
+
+
+static uint64_t* memory = NULL;
+static nat registers[128] = {0};
+static nat ct_registers[128] = {0};
+static nat pc = 0;
+
 
 
 
@@ -252,9 +259,9 @@ static void ins(nat op) {
 	};
 }
 
-static void print_ins(struct instruction O, nat pc) {
+static void print_ins(struct instruction O, nat p) {
 	printf("---> [%llu] instruction: { operation=%s, dest=%llu, first=%llu, second=%llu }\n", 
-		pc, op_code_spelling[O.op], O._0, O._1, O._2);
+		p, op_code_spelling[O.op], O._0, O._1, O._2);
 }
 
 
@@ -269,7 +276,7 @@ static void compile_in(const char* string) {
 	if (equal(string, "pass")) {}
 
 	else if (equal(string, "000")) { _[1] = _[0]; _[2] = _[0]; }
-	else if (equal(string, "001")) {nat t1 = _[1]; _[1] = _[0]; I._2 = t1;}
+	else if (equal(string, "001")) {nat t1 = _[1]; _[1] = _[0]; _[2] = t1;}
 
 	else if (equal(string, "021")) { nat t1 = _[1], t2 = _[2]; _[1] = t2; _[2] = t1; }
 	else if (equal(string, "10")) { nat t0 = _[0], t1 = _[1]; _[0] = t1; _[1] = t0; }
@@ -335,11 +342,8 @@ static void compile_in(const char* string) {
 }
 
 
-static uint64_t* memory = NULL;
-static nat registers[128] = {0};
-static nat ct_registers[128] = {0};
-static nat pc = 0;
-
+static nat rt_ins_count = 0;
+static struct instruction rt_instructions[1024] = {0};
 
 static void execute_ct_instruction(struct instruction I) {
 	if (I.op == op_nop) {}
@@ -347,10 +351,7 @@ static void execute_ct_instruction(struct instruction I) {
 	else if (I.op == op_ct_add) ct_registers[I._0] = ct_registers[I._1] + ct_registers[I._2];
 	else if (I.op == op_ct_sub) ct_registers[I._0] = ct_registers[I._1] - ct_registers[I._2];
 	else if (I.op == op_ct_debug) printf("CT#%llu=%llu\n", I._0, ct_registers[I._0]);
-
-	else { 
-		// then it must be a rt instruction. generate it!
-	}
+	else rt_instructions[rt_ins_count++] = I;
 	pc++;
 }
 
@@ -374,13 +375,15 @@ static void execute_instruction(struct instruction I) {
 
 static void interpret_file() {
 
+	char buffer[4096] = {0};
+
 	printf("file: ");
 	fgets(buffer, sizeof buffer, stdin);
 	buffer[strlen(buffer) - 1] = 0;
 
 	size_t text_length = 0;
 	char* text = read_file(buffer, &text_length);
-
+	if (not text) return;
 
 	const char delimiter = '.';    
 
@@ -402,11 +405,8 @@ static void interpret_file() {
 		printf("\t%s\n", code[i]);
 	}
 
-	nat ins_count = 0;
-	struct instruction ct_instructions[1024] = {0};
-
-	nat ins_count = 0;
-	struct instruction rt_instructions[1024] = {0};
+	instruction_count = 0;
+	memset(instructions, 0, sizeof instructions);
 
 	printf("----------------------- compiling... -------------------\n");
 	for (nat i = 0; i < count; i++) {
@@ -414,26 +414,25 @@ static void interpret_file() {
 		compile_in(code[i]);
 	}
 
-	nat pc = 0; 
-
-	printf("------------------- CT interpreting... -------------------\n");
-	while (pc < ins_count) {
-		print_ins(instructions[i], pc);
-		execute_ct_instruction(instructions[i]);
+	pc = 0; 
+	printf("------------------- CT interpreting : rt_generation... -------------------\n");
+	while (pc < instruction_count) {
+		print_ins(instructions[pc], pc);
+		execute_ct_instruction(instructions[pc]);
 	}
 
 	pc = 0;
 	printf("---------------- interpreting... -----------------------\n");
 	while (pc < rt_ins_count) {
-		print_ins(rt_instructions[i], pc);
-		execute_instruction(rt_instructions[i]);
+		print_ins(rt_instructions[pc], pc);
+		execute_instruction(rt_instructions[pc]);
 	}
 }
 
 
 int main() { 
 
-	printf("a repl/interpreter for my language. \ndwrr started on 2208232.211844 \n");
+	printf("a repl/interpreter for my language.\nwork in progress.\n");
 
 
 	memory = aligned_alloc(8, 1 << 16);
@@ -457,77 +456,101 @@ _: 	printf(" • ");
 
 
 	else if (not strcmp(string, "help"))
+
 		printf(	
-			"quit \n"
-			"help \n"
-			"file \n"
-			"o \n"
+		"\n\t"
+		"quit : quit the utility.\n\t"
+		"help : this help menu. \n\t"
+		"file : interpret a file. allows for control flow.\n\t"
+		"o : clear screen. \n\t"
+	
+		"debugregisters debug the current state of the registers.\n\t"
+		"debugctregisters : debug the current state of the compiletime registers.\n\t"
+		"debugnames : debug the currently defined names.\n\t"
+		"debugops : print the 4 operand registers for debug.\n\t"
+
+		"pass : nop operation.\n\t"
+
+		"ct_xor : compiletime xor.\n\t"
+		"xor : runtime xor instruction.\n\t"
+
+		"ct_add : compiletime add.\n\t"
+		"add : runtime add instruction.\n\t"
+		"addi : runtime add immediate instruction.\n\t"
+
+		"slt : runtime set less than instruction.\n\t"
+		"slti : runtime set less than immediate instruction\n\t"
+
+		"sub : runtime sub instruction.\n\t"
+		"ct_sub compiletime sub instruction.\n\t"
+
+		"slli : runtime shift logical left immediate instruction.\n\t"
+		"sll : runtime shift logical left instruction.\n\t"
+
+		"load64 : runtime load 64-bit word instruction.\n\t"
+		"blt : runtime branch less than instruction. \n\t"
+
+		"print : print register value for debug\n\t"
+		"ctprint : print compiletime value for debug\n\t"
 		
-			"debugregisters \n"
-			"debugctregisters \n"
-			"debugnames \n"
-			"debuginstruction \n"
-			"print \n"
-			
-			"ct_xor \n"
-			"xor \n"
-			"ct_add \n"
-			"add \n"
-			"addi \n"
-			"slt \n"
-			"sub \n"
-			"ct_sub \n"
-			"load64 \n"
+		"10 : nat t0 = _[0], t1 = _[1]; _[0] = t1; _[1] = t0; \n\t"
+		"11 : _[0] = _[1]; \n\t"
+		"21 : _[0] = _[2]; \n\t"
+		"00 : _[1] = _[0]; \n\t"
+		"02 : _[1] = _[2]; \n\t"
 
-			"pass \n"
-			"all \n"
-			"cycle+ \n"
-			"cycle- \n"
-			"dup0 \n"
-			"dup1 \n"
-			"switch \n"
-			"exchange \n"
-			"copy \n"
-			"back \n"
+		"000 : _[1] = _[0]; _[2] = _[0]; \n\t"
+		"001 : nat t1 = _[1]; _[1] = _[0]; _[2] = t1; \n\t"
+		"021 : nat t1 = _[1], t2 = _[2]; _[1] = t2; _[2] = t1; \n\t"
+		"210 : nat t0 = _[0], t2 = _[2]; _[0] = t2; _[2] = t0; \n\t"
+		"201 : nat t0 = _[0], t1 = _[1], t2 = _[2]; _[0] = t2; _[1] = t0; _[2] = t1; \n\t"
+		"120 : nat t0 = _[0], t1 = _[1], t2 = _[2]; _[0] = t1; _[1] = t2; _[2] = t0; \n\t"
 
-			"hliteral \n"
-			"dliteral \n"
-			"bliteral \n"
+		"hliteral : treat next word as a hex literal.\n\t"
+		"dliteral : treat next word as a decimal literal.\n\t"
+		"bliteral : treat next word as a binary literal.\n\t"
 
-			"(hex literal) {16}\n"
-			"(decimal literal) {10}\n"
-			"(binary literal) {2}\n"
+		"delete : delete the 0th virtual from the defined list of names.\n\t"
+		"here : fill virtual[0] with the PC at parsing. used for implementing labels.\n\t"
 
-			"(register name) {0}\n"
-		);
+		"(hex literal) {16} : if in state base = 16\n\t"
+		"(decimal literal) {10} : if in state base = 10\n\t"
+		"(binary literal) {2} : if in state base = 2\n\t"
+
+		"(register name) {0} : if not found as any other ins. will be defined if not.\n\t"
+
+		"\n"
+		);	
 
 
 
 
 	else if (equal(string, "debugregisters")) {
-		for (nat i = 0; i < 32; i++) printf("R#%llu=%llu\n", i, registers[i]);
+		for (nat i = 0; i < 32; i++) printf("\tR#%llu = %llu\n", i, registers[i]);
 	}
 	else if (equal(string, "debugctregisters")) {
-		for (nat i = 0; i < 32; i++) printf("CT#%llu=%llu\n", i, ct_registers[i]);
+		for (nat i = 0; i < 32; i++) printf("\tCT#%llu = %llu\n", i, ct_registers[i]);
 	}
-	else if (equal(string, "debugi")) {
-		printf("ins: { operation=%llu, dest=%llu, first=%llu, second=%llu }\n",
-			 I.op, I._0, I._1,I._2);
+	else if (equal(string, "debugops")) {
+		for (nat i = 0; i < 4; i++) printf("\tO#%llu = %llu\n", i, _[i]);	
+	}
 
-	}
 	else if (equal(string, "debugnames")) {
-		for (nat i = 0; i < count; i++) printf("name[%llu] =  \"%s\" \n", i, names[i]);
+		for (nat i = 0; i < name_count; i++) printf("name[%llu] =  \"%s\" \n", i, names[i] ? names[i] : "(null)");
 	}
 
 	else {
-		compile_in(string, 0);
-		execute_instruction(I);
+		compile_in(string);
+		if (instruction_count) {
+			execute_ct_instruction(instructions[instruction_count - 1]);
+			execute_instruction(instructions[instruction_count - 1]);
+			instruction_count = 0;
+		}
+		pc = 0;
 	}
 
 	goto _;
-done:	
-	
-
+done: 
 	printf("quitting...\n");
 }
 
