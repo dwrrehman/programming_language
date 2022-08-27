@@ -1,0 +1,16 @@
+zero. 000.
+ct_xor. xor.
+
+first. dliteral. 42.
+first. zero. first. addi.
+
+second. dliteral. 34.
+second. zero. second. addi.
+
+first. print.
+second. print.
+
+new label. here.
+
+i should look into having whitespace delimit a word? yes i really should.
+
