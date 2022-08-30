@@ -3,16 +3,6 @@
 // dwrr   written on 2208243.231335
 //         edited on 2208265.235140
 
-
-
-
-
-// the next major todo is to:
-
-//       document entirely how this code works, and why we made it work the way we did. 
-//       in a manual.txt file. every single word/instruction, and its semantics.
-
-
 #include <stdio.h>
 #include <stdbool.h>
 #include <iso646.h>
@@ -267,20 +257,10 @@ static void parse(const char* string) {
 
 	else if (equal(string, "here")) ins(op_ct_here);
 	else if (equal(string, "ct_here")) ct_registers[*_] = ins_count; 
-	else if (equal(string, "gensym")) {
-		names[name_count++] = strdup("");
-		nat i = sizeof _ / sizeof(nat) - 1;
-		while (i) { _[i] = _[i - 1]; i--; } *_ = name_count - 1;
-	}
 
 	else if (equal(string, "literalbase")) { base = ct_registers[_[0]]; }
 	else if (equal(string, "literal10")) { base = 10; }
 	else if (equal(string, "literal2")) { base = 2; }
-
-	
-
-
-
 
 		// the idea, is that we should make the call site    beautiful.
 
