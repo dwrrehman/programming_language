@@ -18,35 +18,36 @@
 typedef uint64_t nat;
 
 enum op_code {
-	op_nop,
+	op_nop, op_ct_nop,
 	op_ct_xor, op_xor,
 	op_add, op_ct_add, op_addi,
 	op_slt, op_slti,
 	op_sub, op_ct_sub,
 	op_sll, op_slli,
-	op_load64,
+
+	op_load64, op_store64,
+	op_load32, op_store32,
+	op_load16, op_store16,
+	op_load8, op_store8,
+	
+	op_ct_load64, op_ct_store64,
+	op_ct_load32, op_ct_store32,
+	op_ct_load16, op_ct_store16,
+	op_ct_load8, op_ct_store8,
+
 	op_blt, op_ct_blt,
 	op_ct_debug, op_debug, op_ct_here, 
 	op_mul, op_div, op_ct_mul, op_ct_div,
 	op_rem, op_ct_rem,
 	op_ct_sll, op_ct_slt,
+	op_bne, op_ct_bne,
+	op_or, op_ct_or,
+	op_and, op_ct_and,
+	op_srl, op_ct_srl,
 };
 
-static const char* op_code_spelling[] = {
-	"op_nop",
-	"op_ct_xor", "op_xor",
-	"op_add", "op_ct_add", "op_addi",
-	"op_slt", "op_slti",
-	"op_sub", "op_ct_sub",
-	"op_sll", "op_slli",
-	"op_load64",
-	"op_blt", "op_ct_blt",
-	"op_ct_debug", "op_debug", "op_ct_here", 
-	"op_mul", "op_div", "op_ct_mul", "op_ct_div",
-	"op_rem", "op_ct_rem",
-	"op_ct_sll", "op_ct_slt",
-	
-};
+
+
 
 struct instruction {
 	nat op;
@@ -55,14 +56,30 @@ struct instruction {
 	nat _2;
 };
 
-static nat instruction_count = 0, pc = 0, base = 0, macro = 0, name_count = 0, rt_ins_count = 0, stack_count = 0;
+static nat 
+	w_pc = 0, 
+	ct_pc = 0, 
+	rt_pc = 0, 
+	base = 0, 
+	macro = 0, 
+	name_count = 0, 
+	stack_count = 0,
+	code_count = 0,
+	ins_count = 0, 
+	rt_ins_count = 0;
+	
+	
 static nat _[30] = {0};
 static char* names[128] = {0};
 static nat addresses[128] = {0};
 static nat registers[128] = {0};
 static nat ct_registers[128] = {0};
-static uint64_t* memory = NULL;
+static uint8_t* memory = NULL;
+static uint8_t* ct_memory = NULL;
 static nat stack[4096] = {0};
+
+static char* code[4096] = {0};
+
 static struct instruction instructions[4096] = {0};
 static struct instruction rt_instructions[4096] = {0};
 
@@ -72,30 +89,60 @@ static bool equal(const char* s1, const char* s2) {
 }
 
 static void ins(nat op) {
-	instructions[instruction_count++] = (struct instruction) {
+	instructions[ins_count++] = (struct instruction) {
 		.op = op, ._0 = _[0], ._1 = _[1], ._2 = _[2]
 	};
 }
 
+
+/*
+static const char* op_code_spelling[] = {
+	"op_nop", "op_ct_nop",
+	"op_ct_xor", "op_xor",
+	"op_add", "op_ct_add", "op_addi",
+	"op_slt", "op_slti",
+	"op_sub", "op_ct_sub",
+	"op_sll", "op_slli",
+	
+	"op_load64", "op_store64",
+	"op_load32", "op_store32",
+	"op_load16", "op_store16",
+	"op_load8", "op_store8",
+
+	"op_ct_load64", "op_ct_store64",
+	"op_ct_load32", "op_ct_store32",
+	"op_ct_load16", "op_ct_store16",
+	"op_ct_load8", "op_ct_store8",
+
+	"op_blt", "op_ct_blt",
+	"op_ct_debug", "op_debug", "op_ct_here", 
+	"op_mul", "op_div", "op_ct_mul", "op_ct_div",
+	"op_rem", "op_ct_rem",
+	"op_ct_sll", "op_ct_slt",
+	"op_bne", "op_ct_bne",
+	"op_or", "op_ct_or",
+	"op_and", "op_ct_and",
+	"op_srl", "op_ct_srl",	
+};
 static void print_ins(struct instruction O, nat p) {
 	printf("---> [%llu] instruction: { operation=%s, dest=%llu, first=%llu, second=%llu }\n", 
 		p, op_code_spelling[O.op], O._0, O._1, O._2);
 }
 
-static void print_strings(char** code, nat count) {
+static void print_strings(char** list, nat count) {
 	printf("statement list(count=%llu): \n", count);
 	for (nat i = 0; i < count; i++) {
-		printf("\t\"%s\"\n", code[i]);
+		printf("\t\"%s\"\n", list[i]);
 	}
 	puts("[end-list]");
-}
+}*/
 
-static nat split_by_whitespace(
-	char** code, 
+
+static void split_by_whitespace(
 	const char* text, 
 	const nat text_length
 ) {
-	nat word_len = 0, count = 0, i = 0;
+	nat word_len = 0, i = 0;
 	char word[4096] = {0};
 
 	begin:	if (i >= text_length) goto done;
@@ -107,13 +154,12 @@ static nat split_by_whitespace(
 	add:	if (not word_len) goto begin;
 		word[word_len] = 0; 
 		word_len = 0;
-		code[count++] = strdup(word);
+		code[code_count++] = strdup(word);
 		if (i >= text_length) goto finish;
 	use: 	word[word_len++] = text[i++];
 		goto begin;
 	done:	if (word_len) goto add;
-
-	finish:	return count;
+	finish:	return;
 }
 
 static char* read_file(const char* filename, size_t* out_length) {
@@ -138,10 +184,11 @@ static char* read_file(const char* filename, size_t* out_length) {
 	return buffer;
 }
 
-static void parse(const char* string, nat* word_index) {
+static void parse(const char* string) {
 
-	if (macro) { if (equal(string, "macroreturn")) macro = 0; return; } 
-	if (base) { ct_registers[*_] = (nat) strtoll(string, NULL, (int) base); base = 0; return; }
+	if (macro) { if (equal(string, "]")) macro = 0; goto advance; } 
+	else if (equal(string, "]")) { w_pc = stack[--stack_count]; goto advance; }
+	if (base) { ct_registers[*_] = (nat) strtoll(string, NULL, (int) base); base = 0; goto advance; }
 
 	if (equal(string, "pass")) {}
 
@@ -163,46 +210,61 @@ static void parse(const char* string, nat* word_index) {
 	else if (equal(string, "swap6"))  { nat t0 = _[0]; _[0] = _[6]; _[6] = t0; }
 	else if (equal(string, "swap7"))  { nat t0 = _[0]; _[0] = _[7]; _[7] = t0; }
 	
-	
-	
-	
+	else if (equal(string, "ct_nop")) ins(op_ct_nop);
 	else if (equal(string, "ct_xor")) ins(op_ct_xor);
 	else if (equal(string, "ct_add")) ins(op_ct_add);
 	else if (equal(string, "ct_sub")) ins(op_ct_sub);
 	else if (equal(string, "ct_mul")) ins(op_ct_mul);
 	else if (equal(string, "ct_div")) ins(op_ct_div);
+	else if (equal(string, "ct_rem")) ins(op_ct_rem);
 	else if (equal(string, "ct_sll")) ins(op_ct_sll);
 	else if (equal(string, "ct_slt")) ins(op_ct_slt);
 	else if (equal(string, "ct_blt")) ins(op_ct_blt);
+	else if (equal(string, "ct_bne")) ins(op_ct_bne);
 	else if (equal(string, "ct_debug")) ins(op_ct_debug);
 
+	else if (equal(string, "ct_load64")) ins(op_ct_load64);
+	else if (equal(string, "ct_load32")) ins(op_ct_load32);
+	else if (equal(string, "ct_load16")) ins(op_ct_load16);
+	else if (equal(string, "ct_load8")) ins(op_ct_load8);
+
+	else if (equal(string, "ct_store64")) ins(op_ct_store64);
+	else if (equal(string, "ct_store32")) ins(op_ct_store32);
+	else if (equal(string, "ct_store16")) ins(op_ct_store16);
+	else if (equal(string, "ct_store8")) ins(op_ct_store8);
+
+	else if (equal(string, "nop")) ins(op_nop);
 	else if (equal(string, "xor")) ins(op_xor);
 	else if (equal(string, "add")) ins(op_add);
 	else if (equal(string, "addi")) ins(op_addi);
 	else if (equal(string, "sub")) ins(op_sub);
 	else if (equal(string, "mul")) ins(op_mul);
 	else if (equal(string, "div")) ins(op_div);
+	else if (equal(string, "rem")) ins(op_rem);
 	else if (equal(string, "slt")) ins(op_slt);
 	else if (equal(string, "slti")) ins(op_slti);
 	else if (equal(string, "sll")) ins(op_sll);
 	else if (equal(string, "slli")) ins(op_slli);
 	else if (equal(string, "blt")) ins(op_blt);
-
+	else if (equal(string, "bne")) ins(op_bne);
 	else if (equal(string, "debug")) ins(op_debug);
+
 	else if (equal(string, "load64")) ins(op_load64);
+	else if (equal(string, "load32")) ins(op_load32);
+	else if (equal(string, "load16")) ins(op_load16);
+	else if (equal(string, "load8")) ins(op_load8);
 
+	else if (equal(string, "store64")) ins(op_store64);
+	else if (equal(string, "store32")) ins(op_store32);
+	else if (equal(string, "store16")) ins(op_store16);
+	else if (equal(string, "store8")) ins(op_store8);
 
-	
 	else if (equal(string, "here")) ins(op_ct_here);
-	else if (equal(string, "ct_here")) ct_registers[*_] = instruction_count; 
-
-	
+	else if (equal(string, "ct_here")) ct_registers[*_] = ins_count; 
 
 	else if (equal(string, "literalbase")) { base = ct_registers[_[0]]; }
 	else if (equal(string, "literal10")) { base = 10; }
 	else if (equal(string, "literal2")) { base = 2; }
-	
-	else if (equal(string, "macroreturn")) *word_index = stack[--stack_count];
 
 		// the idea, is that we should make the call site    beautiful.
 
@@ -216,12 +278,12 @@ static void parse(const char* string, nat* word_index) {
 
 			// and we detect a call, because 
 
-	else if (equal(string, "defineas")) { 
+	else if (equal(string, "[")) { 
 
 		//  *_ holds the macro name aready...?
-		//  macros[macro_count++] = {.name = names[*_], .start = *word_index + 1};
+		//  macros[macro_count++] = {.name = names[*_], .start = w_pc + 1};
 
-		addresses[*_] = *word_index;
+		addresses[*_] = w_pc;
 		macro = 1;
 	}
 
@@ -263,18 +325,30 @@ static void parse(const char* string, nat* word_index) {
 
 		} else if (addresses[name]) {
 			// on call of a macro, push the word_index on the stack!   
-			stack[stack_count++] = *word_index;
-			*word_index = addresses[name];
-			return;
+			stack[stack_count++] = w_pc;
+			w_pc = addresses[name];
+			goto advance;
 		}
 		nat i = sizeof _ / sizeof(nat) - 1;
 		while (i) { _[i] = _[i - 1]; i--; } *_ = name;
 	}
+
+advance:
+	w_pc++;
 }
 
+
+
+
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wcast-align"
+
+
 static void execute_ct_instruction(struct instruction I) {
-	if (I.op == op_nop) {}
+	if (I.op == op_ct_nop) {}
 	else if (I.op == op_ct_xor) ct_registers[I._0] = ct_registers[I._1] ^ ct_registers[I._2];
+	else if (I.op == op_ct_and) ct_registers[I._0] = ct_registers[I._1] & ct_registers[I._2];
+	else if (I.op == op_ct_or)  ct_registers[I._0] = ct_registers[I._1] | ct_registers[I._2];
 	else if (I.op == op_ct_add) ct_registers[I._0] = ct_registers[I._1] + ct_registers[I._2];
 	else if (I.op == op_ct_sub) ct_registers[I._0] = ct_registers[I._1] - ct_registers[I._2];
 	else if (I.op == op_ct_mul) ct_registers[I._0] = ct_registers[I._1] * ct_registers[I._2];
@@ -282,63 +356,189 @@ static void execute_ct_instruction(struct instruction I) {
 	else if (I.op == op_ct_rem) ct_registers[I._0] = ct_registers[I._1] % ct_registers[I._2];
 	else if (I.op == op_ct_slt) ct_registers[I._0] = ct_registers[I._1] < ct_registers[I._2];
 	else if (I.op == op_ct_sll) ct_registers[I._0] = ct_registers[I._1] << ct_registers[I._2];
-	else if (I.op == op_ct_blt) { if (ct_registers[I._0] < ct_registers[I._1]) pc += ct_registers[I._2]; }
+	else if (I.op == op_ct_srl) ct_registers[I._0] = ct_registers[I._1] >> ct_registers[I._2];
+
+	else if (I.op == op_ct_load64) {
+		uint8_t* M = (uint8_t*) ct_memory;
+		uint8_t* U = M + ct_registers[I._1] + ct_registers[I._2];
+		ct_registers[I._0] = * (uint64_t*) U;
+	}
+
+	else if (I.op == op_ct_load32) {
+		uint8_t* M = (uint8_t*) ct_memory;
+		uint8_t* U = M + ct_registers[I._1] + ct_registers[I._2];
+		ct_registers[I._0] = * (uint32_t*) U;
+	}
+
+	else if (I.op == op_ct_load16) {
+		uint8_t* M = (uint8_t*) ct_memory;
+		uint8_t* U = M + ct_registers[I._1] + ct_registers[I._2];
+		ct_registers[I._0] = * (uint16_t*) U;
+	}
+
+	else if (I.op == op_ct_load8) {
+		uint8_t* M = (uint8_t*) ct_memory;
+		uint8_t* U = M + ct_registers[I._1] + ct_registers[I._2];
+		ct_registers[I._0] = * (uint8_t*) U;
+	}
+
+	else if (I.op == op_ct_store64) {
+		uint8_t* M = (uint8_t*) ct_memory;
+		uint8_t* U = M + ct_registers[I._1] + ct_registers[I._2];
+		* (uint64_t*) U = (uint64_t) ct_registers[I._0];
+	}
+
+	else if (I.op == op_ct_store32) {
+		uint8_t* M = (uint8_t*) ct_memory;
+		uint8_t* U = M + ct_registers[I._1] + ct_registers[I._2];
+		* (uint32_t*) U = (uint32_t) ct_registers[I._0];
+	}
+
+	else if (I.op == op_ct_store16) {
+		uint8_t* M = (uint8_t*) ct_memory;
+		uint8_t* U = M + ct_registers[I._1] + ct_registers[I._2];
+		* (uint16_t*) U = (uint16_t) ct_registers[I._0];
+	}
+
+	else if (I.op == op_ct_store8) {
+		uint8_t* M = (uint8_t*) ct_memory;
+		uint8_t* U = M + ct_registers[I._1] + ct_registers[I._2];
+		* (uint8_t*) U = (uint8_t) ct_registers[I._0];
+	}
+
+	else if (I.op == op_ct_blt) { if (ct_registers[I._0] < ct_registers[I._1]) ct_pc += ct_registers[I._2]; }
+	else if (I.op == op_ct_bne) { if (ct_registers[I._0] != ct_registers[I._1]) ct_pc += ct_registers[I._2]; }
+
 	else if (I.op == op_ct_here) ct_registers[I._0] = rt_ins_count; 
 	else if (I.op == op_ct_debug) printf("CT#%llu=%lld\n", I._0, ct_registers[I._0]);
 	else rt_instructions[rt_ins_count++] = I;
-	pc++;
+	ct_pc++;
 }
 
 static void execute_instruction(struct instruction I) {
 	if (I.op == op_nop) {}
 	else if (I.op == op_xor) registers[I._0] = registers[I._1] ^ registers[I._2];
+	else if (I.op == op_and) registers[I._0] = registers[I._1] & registers[I._2];
+	else if (I.op == op_or)  registers[I._0] = registers[I._1] | registers[I._2];
 	else if (I.op == op_add) registers[I._0] = registers[I._1] + registers[I._2];
 	else if (I.op == op_sub) registers[I._0] = registers[I._1] - registers[I._2];
 	else if (I.op == op_mul) registers[I._0] = registers[I._1] * registers[I._2];
 	else if (I.op == op_div) registers[I._0] = registers[I._1] / registers[I._2];
 	else if (I.op == op_rem) registers[I._0] = registers[I._1] % registers[I._2];
-	else if (I.op == op_addi) registers[I._0] = registers[I._1] + ct_registers[I._2];
 	else if (I.op == op_slt) registers[I._0] = registers[I._1] < registers[I._2];
-	else if (I.op == op_slti) registers[I._0] = registers[I._1] < ct_registers[I._2];
 	else if (I.op == op_sll) registers[I._0] = registers[I._1] << registers[I._2];
+	else if (I.op == op_srl) registers[I._0] = registers[I._1] >> registers[I._2];
+
+	else if (I.op == op_addi) registers[I._0] = registers[I._1] + ct_registers[I._2];
+	else if (I.op == op_slti) registers[I._0] = registers[I._1] < ct_registers[I._2];
 	else if (I.op == op_slli) registers[I._0] = registers[I._1] << ct_registers[I._2];
-	else if (I.op == op_load64) registers[I._0] = *(((uint64_t*)memory) + (registers[I._1] + ct_registers[I._2])); 
-	else if (I.op == op_blt) { if (registers[I._0] < registers[I._1]) pc += ct_registers[I._2]; }
+
+	else if (I.op == op_load64) {
+		uint8_t* M = (uint8_t*) memory;
+		uint8_t* U = M + registers[I._1] + ct_registers[I._2];
+		registers[I._0] = * (uint64_t*) U;
+	}
+
+	else if (I.op == op_load32) {
+		uint8_t* M = (uint8_t*) memory;
+		uint8_t* U = M + registers[I._1] + ct_registers[I._2];
+		registers[I._0] = * (uint32_t*) U;
+	}
+
+	else if (I.op == op_load16) {
+		uint8_t* M = (uint8_t*) memory;
+		uint8_t* U = M + registers[I._1] + ct_registers[I._2];
+		registers[I._0] = * (uint16_t*) U;
+	}
+
+	else if (I.op == op_load8) {
+		uint8_t* M = (uint8_t*) memory;
+		uint8_t* U = M + registers[I._1] + ct_registers[I._2];
+		registers[I._0] = * (uint8_t*) U;
+	}
+
+
+	else if (I.op == op_store64) {
+		uint8_t* M = (uint8_t*) memory;
+		uint8_t* U = M + registers[I._1] + ct_registers[I._2];
+		* (uint64_t*) U = (uint64_t) registers[I._0];
+	}
+
+	else if (I.op == op_store32) {
+		uint8_t* M = (uint8_t*) memory;
+		uint8_t* U = M + registers[I._1] + ct_registers[I._2];
+		* (uint32_t*) U = (uint32_t) registers[I._0];
+	}
+
+	else if (I.op == op_store16) {
+		uint8_t* M = (uint8_t*) memory;
+		uint8_t* U = M + registers[I._1] + ct_registers[I._2];
+		* (uint16_t*) U = (uint16_t) registers[I._0];
+	}
+
+	else if (I.op == op_store8) {
+		uint8_t* M = (uint8_t*) memory;
+		uint8_t* U = M + registers[I._1] + ct_registers[I._2];
+		* (uint8_t*) U = (uint8_t) registers[I._0];
+	}
+
+	//else if (I.op == op_store64) *((uint8_t*)memory + registers[I._1] + ct_registers[I._2]) = (uint64_t) registers[I._0]; 
+	
+	//else if (I.op == op_load32) registers[I._0] = *((uint8_t*)memory + registers[I._1] + ct_registers[I._2]);
+	//else if (I.op == op_store32) *((uint8_t*)memory + registers[I._1] + ct_registers[I._2]) = (uint32_t) registers[I._0]; 
+	
+	//else if (I.op == op_load16) registers[I._0] = *((uint8_t*)memory + registers[I._1] + ct_registers[I._2]);
+	//else if (I.op == op_store16) *((uint8_t*)memory + registers[I._1] + ct_registers[I._2]) = (uint16_t) registers[I._0]; 
+
+	//else if (I.op == op_load8) registers[I._0] = *((uint8_t*)memory + registers[I._1] + ct_registers[I._2]);
+	//else if (I.op == op_store8) *((uint8_t*)memory + registers[I._1] + ct_registers[I._2]) = (uint8_t) registers[I._0]; 
+
+	
+	else if (I.op == op_blt) { if (registers[I._0] < registers[I._1]) rt_pc += ct_registers[I._2]; }
+	else if (I.op == op_bne) { if (registers[I._0] != registers[I._1]) rt_pc += ct_registers[I._2]; }
 	else if (I.op == op_debug) printf("R#%llu=%lld\n", I._0, registers[I._0]);
-	pc++;
+	else {
+		puts("unknown RT instruction");
+		abort();
+	}
+	rt_pc++;
 }
 
-static void interpret(const char* text, const nat text_length) {
 
-	char* code[4096] = {0};
-	const nat count = split_by_whitespace(code, text, text_length);
-	print_strings(code, count);
+#pragma clang diagnostic pop
 
-	instruction_count = 0;
-	rt_ins_count = 0;
 
-	printf("CT parsing...\n");
-	for (nat i = 0; i < count;) {
-		printf(": parsing: %s\n", code[i]);
+static void resetenv() {
+	w_pc = 0; ct_pc = 0; rt_pc = 0;
+	base = 0; macro = 0;
+	code_count = 0; name_count = 0; rt_ins_count = 0;
+	ins_count = 0;  stack_count = 0;
 
-		parse(code[i], &i);
+	memset(_, 0, sizeof _);
 
-		i++;
-	}
+	memset(names, 0, sizeof names);
+	memset(addresses, 0, sizeof addresses);
+	memset(registers, 0xF0, sizeof registers);
+	memset(ct_registers, 0xF0, sizeof ct_registers);
 
-	pc = 0; 
-	printf("CT interpreting...\n");
-	while (pc < instruction_count) {
-		print_ins(instructions[pc], pc);
-		execute_ct_instruction(instructions[pc]);
-	}
+	memset(stack, 0, sizeof stack);
 
-	pc = 0;
-	printf("RT interpreting... \n");
-	while (pc < rt_ins_count) {
-		print_ins(rt_instructions[pc], pc);
-		execute_instruction(rt_instructions[pc]);
-	}
+	memset(code, 0, sizeof code);
+	memset(instructions, 0, sizeof instructions);
+	memset(rt_instructions, 0, sizeof rt_instructions);
+
+	free(memory);
+	memory = aligned_alloc(8, 1 << 16);
+
+	free(ct_memory);
+	ct_memory = aligned_alloc(8, 1 << 16);
+}
+
+static void interpret_in(const char* text, const nat text_length) {
+	split_by_whitespace(text, text_length);
+	while (w_pc < code_count) parse(code[w_pc]);
+	while (ct_pc < ins_count) execute_ct_instruction(instructions[ct_pc]);
+	while (rt_pc < rt_ins_count) execute_instruction(rt_instructions[rt_pc]);
 }
 
 int main() { 
@@ -347,9 +547,11 @@ int main() {
 
 	char line[4096] = {0};
 
-	memory = aligned_alloc(8, 1 << 16);
+	   memory = aligned_alloc(8, 1 << 16);
+	ct_memory = aligned_alloc(8, 1 << 16);
 	memset(registers, 0xF0, sizeof registers);
 	memset(ct_registers, 0xF0, sizeof ct_registers);
+	
 
 _: 	printf(" • ");
 	fgets(line, sizeof line, stdin);
@@ -358,9 +560,11 @@ _: 	printf(" • ");
 	string[line_length - 1] = 0;
 
 	if (equal(string, "")) {}
+	else if (equal(string, "resetenv")) resetenv();
 	else if (equal(string, "o") or equal(string, "clear")) printf("\033[H\033[J");
 	else if (equal(string, "?") or equal(string, "help")) puts("see manual.txt");
 	else if (equal(string, "q") or equal(string, "quit")) goto done;
+	
 	else if (equal(string, "f") or equal(string, "file")) {
 
 		char buffer[4096] = {0};
@@ -369,32 +573,8 @@ _: 	printf(" • ");
 		buffer[strlen(buffer) - 1] = 0;
 		size_t length = 0;
 		char* contents = read_file(buffer, &length);
-		if (contents) interpret(contents, length);
-
-
-	} else if (equal(string, "resetenv")) {
-		
-		pc = 0;
-		base = 0;
-		macro = 0;
-		name_count = 0;
-		rt_ins_count = 0;
-		instruction_count = 0; 
-		stack_count = 0;
-
-		memset(_, 0, sizeof _);
-		memset(names, 0, sizeof names);
-		memset(addresses, 0, sizeof addresses);
-		memset(registers, 0xF0, sizeof registers);
-		memset(ct_registers, 0xF0, sizeof ct_registers);
-
-		memset(stack, 0, sizeof stack);
-		memset(instructions, 0, sizeof instructions);
-		memset(rt_instructions, 0, sizeof rt_instructions);
-		free(memory);
-		memory = aligned_alloc(8, 1 << 16);
-		
-
+		if (contents) { resetenv(); interpret_in(contents, length); }
+	
 	} else if (equal(string, "debugregisters")) {
 		for (nat i = 0; i < 32; i++) printf("\tR#%llu = %llu\n", i, registers[i]);
 	}
@@ -410,11 +590,31 @@ _: 	printf(" • ");
 	else if (equal(string, "debugstate")) {
 		printf("state:\n\tbase=%llu, macro=%llu\n\n", base, macro);	
 	}
+	else if (equal(string, "debugmemory")) {
+		char buffer[4096] = {0};
+		printf("pointer: ");
+		fgets(buffer, sizeof buffer, stdin);
+		buffer[strlen(buffer) - 1] = 0;
+
+		const nat pointer = (nat) atoi(buffer);
+		printf("memory[%llu] = %02hhx\n", pointer, memory[pointer]);
+	}
+	else if (equal(string, "debugctmemory")) {
+		char buffer[4096] = {0};
+		printf("pointer: ");
+		fgets(buffer, sizeof buffer, stdin);
+		buffer[strlen(buffer) - 1] = 0;
+
+		const nat pointer = (nat) atoi(buffer);
+		printf("ct_memory[%llu] = %02hhx\n", pointer, ct_memory[pointer]);
+	}
 	else if (equal(string, "debugnames")) {
 		for (nat i = 0; i < name_count; i++) 
 			printf("name[%llu] =  %s \n", i, names[i] ? names[i] : "{NULL}");
 	}
-	else interpret(line, line_length);
+
+	else interpret_in(line, line_length);
+
 	goto _;
 done: 	printf("quitting...\n");
 }
