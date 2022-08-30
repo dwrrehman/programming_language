@@ -1,56 +1,47 @@
-zero 000 ct_xor xor
+one literal2 1
 
-one literal2 1 			zero one addi
-first literal10 34 		zero first addi
-second literal10 42 		zero second addi
-random1 literal10 9999999 	zero random1 addi
-random2 literal10 2999999 	zero random2 addi
-random3 literal10 3999999 	zero random3 addi
-random4 literal10 4999999 	zero random4 addi
+	setzero_and_print 
+defineas 
 
+	000 ct_xor ctprint 
 
-literal1 
-
-	this is a comment!! pretty cool huh?
-	first print
-
-			i can write anything i want in this comment!
-
-
-			very useful.
+macroreturn
 
 
 
-				kind of. not really sure... 
+	increment
+defineas
+	one swap1 001 ct_add
+macroreturn
 
 
-	
-			hmm
-
-
-yeah
-
-
-			as long as you dont type     "endliteral1"    in a word on its own,  then its fine lol. 
+	my_lovely_print
+defineas 
+	ctprint
+macroreturn
 
 
 
-endliteral1
 
-	first print
-	second print
-	random1 print
+_ defineas       this is a comment! :D  very simple.
+macroreturn
 
-loop here
-	first print
-	one 10 001 addi
 
-righthere here
-	loop . ct_sub one 10 001 ct_sub
-	second first blt
-	. delete
 
-	random1 print
-	zero print
-	one print
+
+my_variable setzero_and_print
+
+increment my_lovely_print
+increment my_lovely_print
+increment my_lovely_print
+increment my_lovely_print
+increment my_lovely_print
+increment my_lovely_print
+increment my_lovely_print
+increment my_lovely_print
+increment my_lovely_print
+increment my_lovely_print
+
+
+
 

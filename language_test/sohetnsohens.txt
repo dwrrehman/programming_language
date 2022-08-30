@@ -1,0 +1,30 @@
+
+	increment
+defineas
+	one swap1 001 ct_add
+macroreturn
+
+
+	my_lovely_print
+defineas 
+	ctprint
+macroreturn
+
+
+
+
+_ defineas       this is a comment! :D  very simple.
+macroreturn
+
+
+my_variable 
+
+setzero_and_print
+
+increment
+
+my_lovely_print
+
+increment
+
+my_lovely_print

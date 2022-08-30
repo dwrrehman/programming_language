@@ -1,0 +1,68 @@
+zero 000 ct_xor xor
+
+one literal2 1 			zero one addi
+
+three literal2 11
+
+first literal10 34 		zero first addi
+second literal10 42 		zero second addi
+random1 literal10 9999999 	zero random1 addi
+random2 literal10 2999999 	zero random2 addi
+random3 literal10 3999999 	zero random3 addi
+random4 literal10 4999999 	zero random4 addi
+
+
+literal1 
+
+	this is a comment!! pretty cool huh?
+	first print
+
+			i can write anything i want in this comment!
+
+
+			very useful.
+
+
+
+				kind of. not really sure... 
+
+
+	
+			hmm
+
+
+yeah
+
+
+			as long as you dont type     "endliteral1"    in a word on its own,  then its fine lol. 
+
+
+
+endliteral1
+
+	first ctprint
+	second ctprint
+	random1 ctprint
+
+loop cthere
+	first ctprint
+	one 10 001 ct_add
+	
+righthere cthere
+	loop . ct_sub   three 10 001 ct_sub
+	second first ct_blt
+	. delete
+
+
+
+
+
+
+
+
+
+
+
+
+
+

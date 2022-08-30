@@ -26,11 +26,13 @@ enum op_code {
 	op_sll, op_slli,
 	op_load64,
 	op_blt, op_ct_blt,
-	op_ct_debug, op_debug,
-	op_ct_here,
+	op_ct_debug, op_debug, op_ct_here, 
+	op_mul, op_div, op_ct_mul, op_ct_div,
+	op_rem, op_ct_rem,
+	op_ct_sll, op_ct_slt,
 };
 
-/*static const char* op_code_spelling[] = {
+static const char* op_code_spelling[] = {
 	"op_nop",
 	"op_ct_xor", "op_xor",
 	"op_add", "op_ct_add", "op_addi",
@@ -39,9 +41,12 @@ enum op_code {
 	"op_sll", "op_slli",
 	"op_load64",
 	"op_blt", "op_ct_blt",
-	"op_ct_debug", "op_debug",
-	"op_ct_here",
-};*/
+	"op_ct_debug", "op_debug", "op_ct_here", 
+	"op_mul", "op_div", "op_ct_mul", "op_ct_div",
+	"op_rem", "op_ct_rem",
+	"op_ct_sll", "op_ct_slt",
+	
+};
 
 struct instruction {
 	nat op;
@@ -50,13 +55,14 @@ struct instruction {
 	nat _2;
 };
 
-static nat instruction_count = 0, pc = 0, base = 0, name_count = 0, rt_ins_count = 0;
-
-static nat _[4] = {0};
+static nat instruction_count = 0, pc = 0, base = 0, macro = 0, name_count = 0, rt_ins_count = 0, stack_count = 0;
+static nat _[30] = {0};
 static char* names[128] = {0};
-static uint64_t* memory = NULL;
+static nat addresses[128] = {0};
 static nat registers[128] = {0};
 static nat ct_registers[128] = {0};
+static uint64_t* memory = NULL;
+static nat stack[4096] = {0};
 static struct instruction instructions[4096] = {0};
 static struct instruction rt_instructions[4096] = {0};
 
@@ -70,12 +76,12 @@ static void ins(nat op) {
 		.op = op, ._0 = _[0], ._1 = _[1], ._2 = _[2]
 	};
 }
-/*
+
 static void print_ins(struct instruction O, nat p) {
 	printf("---> [%llu] instruction: { operation=%s, dest=%llu, first=%llu, second=%llu }\n", 
 		p, op_code_spelling[O.op], O._0, O._1, O._2);
 }
-*/
+
 static void print_strings(char** code, nat count) {
 	printf("statement list(count=%llu): \n", count);
 	for (nat i = 0; i < count; i++) {
@@ -106,6 +112,7 @@ static nat split_by_whitespace(
 	use: 	word[word_len++] = text[i++];
 		goto begin;
 	done:	if (word_len) goto add;
+
 	finish:	return count;
 }
 
@@ -131,19 +138,13 @@ static char* read_file(const char* filename, size_t* out_length) {
 	return buffer;
 }
 
-static void compile_in(const char* string) {
-	
-	if (base) {
-		if (base > 1) {
-			ct_registers[*_] = (nat) strtoll(string, NULL, (int) base); 
-			base = 0; 
-			return;
-		}
-		if (equal(string, "endliteral1")) base = 0;
-		return; 
-	}
+static void parse(const char* string, nat* word_index) {
+
+	if (macro) { if (equal(string, "macroreturn")) macro = 0; return; } 
+	if (base) { ct_registers[*_] = (nat) strtoll(string, NULL, (int) base); base = 0; return; }
 
 	if (equal(string, "pass")) {}
+
 	else if (equal(string, "11")) { _[0] = _[1]; }
 	else if (equal(string, "21")) { _[0] = _[2]; }
 	else if (equal(string, "00")) { _[1] = _[0]; }
@@ -151,50 +152,123 @@ static void compile_in(const char* string) {
 	else if (equal(string, "000")) { _[1] = _[0]; _[2] = _[0]; }
 	else if (equal(string, "001")) { _[2] = _[1]; _[1] = _[0]; }
 	else if (equal(string, "021")) { nat t1 = _[1]; _[1] = _[2]; _[2] = t1; }
-	else if (equal(string, "10"))  { nat t0 = _[0]; _[0] = _[1]; _[1] = t0; }
-	else if (equal(string, "210")) { nat t0 = _[0]; _[0] = _[2]; _[2] = t0; }
 	else if (equal(string, "201")) { nat t2 = _[2]; _[2] = _[1]; _[1] = _[0]; _[0] = t2; }
 	else if (equal(string, "120")) { nat t0 = _[0]; _[0] = _[1]; _[1] = _[2]; _[2] = t0; }
-	else if (equal(string, "slt")) ins(op_slt);
-	else if (equal(string, "slti")) ins(op_slti);
-	else if (equal(string, "xor")) ins(op_xor);
+
+	else if (equal(string, "swap1"))  { nat t0 = _[0]; _[0] = _[1]; _[1] = t0; }
+	else if (equal(string, "swap2"))  { nat t0 = _[0]; _[0] = _[2]; _[2] = t0; }
+	else if (equal(string, "swap3"))  { nat t0 = _[0]; _[0] = _[3]; _[3] = t0; }
+	else if (equal(string, "swap4"))  { nat t0 = _[0]; _[0] = _[4]; _[4] = t0; }
+	else if (equal(string, "swap5"))  { nat t0 = _[0]; _[0] = _[5]; _[5] = t0; }
+	else if (equal(string, "swap6"))  { nat t0 = _[0]; _[0] = _[6]; _[6] = t0; }
+	else if (equal(string, "swap7"))  { nat t0 = _[0]; _[0] = _[7]; _[7] = t0; }
+	
+	
+	
+	
 	else if (equal(string, "ct_xor")) ins(op_ct_xor);
+	else if (equal(string, "ct_add")) ins(op_ct_add);
+	else if (equal(string, "ct_sub")) ins(op_ct_sub);
+	else if (equal(string, "ct_mul")) ins(op_ct_mul);
+	else if (equal(string, "ct_div")) ins(op_ct_div);
+	else if (equal(string, "ct_sll")) ins(op_ct_sll);
+	else if (equal(string, "ct_slt")) ins(op_ct_slt);
+	else if (equal(string, "ct_blt")) ins(op_ct_blt);
+	else if (equal(string, "ct_debug")) ins(op_ct_debug);
+
+	else if (equal(string, "xor")) ins(op_xor);
 	else if (equal(string, "add")) ins(op_add);
 	else if (equal(string, "addi")) ins(op_addi);
-	else if (equal(string, "ct_add")) ins(op_ct_add);
 	else if (equal(string, "sub")) ins(op_sub);
-	else if (equal(string, "ct_sub")) ins(op_ct_sub);
+	else if (equal(string, "mul")) ins(op_mul);
+	else if (equal(string, "div")) ins(op_div);
+	else if (equal(string, "slt")) ins(op_slt);
+	else if (equal(string, "slti")) ins(op_slti);
 	else if (equal(string, "sll")) ins(op_sll);
 	else if (equal(string, "slli")) ins(op_slli);
-	else if (equal(string, "load64")) ins(op_load64);
 	else if (equal(string, "blt")) ins(op_blt);
-	else if (equal(string, "ct_blt")) ins(op_ct_blt);
-	else if (equal(string, "print")) ins(op_debug);
-	else if (equal(string, "ctprint")) ins(op_ct_debug);
+
+	else if (equal(string, "debug")) ins(op_debug);
+	else if (equal(string, "load64")) ins(op_load64);
+
+
+	
 	else if (equal(string, "here")) ins(op_ct_here);
-	else if (equal(string, "cthere")) ct_registers[*_] = instruction_count; 
+	else if (equal(string, "ct_here")) ct_registers[*_] = instruction_count; 
+
+	
+
 	else if (equal(string, "literalbase")) { base = ct_registers[_[0]]; }
-	else if (equal(string, "literal16")) { base = 16; }
 	else if (equal(string, "literal10")) { base = 10; }
 	else if (equal(string, "literal2")) { base = 2; }
-	else if (equal(string, "literal1")) { base = 1; }
-	else if (equal(string, "delete")) { free(names[*_]); names[*_] = NULL; }
+	
+	else if (equal(string, "macroreturn")) *word_index = stack[--stack_count];
+
+		// the idea, is that we should make the call site    beautiful.
+
+		// just the macro name itself, nothing else. 
+
+			// and so, i feel like we shouldnt really need to actually return from mulitple places inside the macro itself... 
+					// which means that once we see a macro definition   "defineas" marker,  we are in macro mode, and can skip all the way until we see a return_from_macro statement. which then gets us out of macro mode. you cannot nest macro definitions, of course. thats not really useful at all. so yeah.
+
+	
+			// so yeah! now, we can consume the macro def, which means, we can store that branch address value away somewhere, (possibly even inside a compiletime register!) and then we can simply exit in_macro_mode,  and then start interpreting statements normally, until we find a call to it!
+
+			// and we detect a call, because 
+
+	else if (equal(string, "defineas")) { 
+
+		//  *_ holds the macro name aready...?
+		//  macros[macro_count++] = {.name = names[*_], .start = *word_index + 1};
+
+		addresses[*_] = *word_index;
+		macro = 1;
+	}
+
+// shoudld we just have an association btween the word, and its .start  by just storing the 
+
+// *word_index + 1 means go to the statement after you found the defineas. 
+//	thats where the body starts. and it ends where-ever you find the "macroreturn" statement. so yeah.
+
+// this is kinda like getting the current address during parse time.
+//  we need to find the statement after the function call.
+// we need to gather the defintion as one thing, and store its location,
+//      in assocation with the macro name. thats it. 
+
+// then, when we see a call, we simply look up the name into the 
+//	macro dict, and pull out its location, storing the location of
+//	 where we need to return to,   on a stack of return adresses!
+// then, when we finish with the macro, ie, we reach the position of 
+//	the done call, of which, btw, we could always find ourselves in 
+//	a macro, so we stop evaling it, and pop 
+
+	// when you encounter a "macroreturn",  pop and resume execution given by tos!
+
+
+	// this is essentially implementing comiletime(specifically at parse() time!) function definitions and function calls. basically.
+
+	else if (equal(string, "delete")) { free(names[*_]); names[*_] = NULL; addresses[*_] = 0; }
 	else {
 		nat name = 0, open = name_count;
 		while (name < name_count) {
 			if (names[name]) {
 				if (equal(string, names[name])) break;
-			} else if (open == name_count) {
-				open = name;
-			}
+			} else if (open == name_count) open = name;
 			name++;
 		}
-		if (name == name_count) {      // printf("new: %s\n", string);
+		if (name == name_count) {
 			if (open == name_count) name_count++;
 			names[open] = strdup(string);
 			name = open;
-		} 
-		_[2] = _[1]; _[1] = _[0]; _[0] = name;
+
+		} else if (addresses[name]) {
+			// on call of a macro, push the word_index on the stack!   
+			stack[stack_count++] = *word_index;
+			*word_index = addresses[name];
+			return;
+		}
+		nat i = sizeof _ / sizeof(nat) - 1;
+		while (i) { _[i] = _[i - 1]; i--; } *_ = name;
 	}
 }
 
@@ -203,6 +277,11 @@ static void execute_ct_instruction(struct instruction I) {
 	else if (I.op == op_ct_xor) ct_registers[I._0] = ct_registers[I._1] ^ ct_registers[I._2];
 	else if (I.op == op_ct_add) ct_registers[I._0] = ct_registers[I._1] + ct_registers[I._2];
 	else if (I.op == op_ct_sub) ct_registers[I._0] = ct_registers[I._1] - ct_registers[I._2];
+	else if (I.op == op_ct_mul) ct_registers[I._0] = ct_registers[I._1] * ct_registers[I._2];
+	else if (I.op == op_ct_div) ct_registers[I._0] = ct_registers[I._1] / ct_registers[I._2];
+	else if (I.op == op_ct_rem) ct_registers[I._0] = ct_registers[I._1] % ct_registers[I._2];
+	else if (I.op == op_ct_slt) ct_registers[I._0] = ct_registers[I._1] < ct_registers[I._2];
+	else if (I.op == op_ct_sll) ct_registers[I._0] = ct_registers[I._1] << ct_registers[I._2];
 	else if (I.op == op_ct_blt) { if (ct_registers[I._0] < ct_registers[I._1]) pc += ct_registers[I._2]; }
 	else if (I.op == op_ct_here) ct_registers[I._0] = rt_ins_count; 
 	else if (I.op == op_ct_debug) printf("CT#%llu=%lld\n", I._0, ct_registers[I._0]);
@@ -215,6 +294,9 @@ static void execute_instruction(struct instruction I) {
 	else if (I.op == op_xor) registers[I._0] = registers[I._1] ^ registers[I._2];
 	else if (I.op == op_add) registers[I._0] = registers[I._1] + registers[I._2];
 	else if (I.op == op_sub) registers[I._0] = registers[I._1] - registers[I._2];
+	else if (I.op == op_mul) registers[I._0] = registers[I._1] * registers[I._2];
+	else if (I.op == op_div) registers[I._0] = registers[I._1] / registers[I._2];
+	else if (I.op == op_rem) registers[I._0] = registers[I._1] % registers[I._2];
 	else if (I.op == op_addi) registers[I._0] = registers[I._1] + ct_registers[I._2];
 	else if (I.op == op_slt) registers[I._0] = registers[I._1] < registers[I._2];
 	else if (I.op == op_slti) registers[I._0] = registers[I._1] < ct_registers[I._2];
@@ -234,23 +316,27 @@ static void interpret(const char* text, const nat text_length) {
 
 	instruction_count = 0;
 	rt_ins_count = 0;
+
 	printf("CT parsing...\n");
-	for (nat i = 0; i < count; i++) {
-		// printf(": parsing: %s\n", code[i]);
-		compile_in(code[i]);
+	for (nat i = 0; i < count;) {
+		printf(": parsing: %s\n", code[i]);
+
+		parse(code[i], &i);
+
+		i++;
 	}
 
 	pc = 0; 
 	printf("CT interpreting...\n");
 	while (pc < instruction_count) {
-		// print_ins(instructions[pc], pc);
+		print_ins(instructions[pc], pc);
 		execute_ct_instruction(instructions[pc]);
 	}
 
 	pc = 0;
 	printf("RT interpreting... \n");
 	while (pc < rt_ins_count) {
-		// print_ins(rt_instructions[pc], pc);
+		print_ins(rt_instructions[pc], pc);
 		execute_instruction(rt_instructions[pc]);
 	}
 }
@@ -273,6 +359,7 @@ _: 	printf(" • ");
 
 	if (equal(string, "")) {}
 	else if (equal(string, "o") or equal(string, "clear")) printf("\033[H\033[J");
+	else if (equal(string, "?") or equal(string, "help")) puts("see manual.txt");
 	else if (equal(string, "q") or equal(string, "quit")) goto done;
 	else if (equal(string, "f") or equal(string, "file")) {
 
@@ -280,14 +367,137 @@ _: 	printf(" • ");
 		printf("filename: ");
 		fgets(buffer, sizeof buffer, stdin);
 		buffer[strlen(buffer) - 1] = 0;
-
 		size_t length = 0;
 		char* contents = read_file(buffer, &length);
 		if (contents) interpret(contents, length);
 
-	} else if (equal(string, "?") or equal(string, "help"))
 
-		printf(	
+	} else if (equal(string, "resetenv")) {
+		
+		pc = 0;
+		base = 0;
+		macro = 0;
+		name_count = 0;
+		rt_ins_count = 0;
+		instruction_count = 0; 
+		stack_count = 0;
+
+		memset(_, 0, sizeof _);
+		memset(names, 0, sizeof names);
+		memset(addresses, 0, sizeof addresses);
+		memset(registers, 0xF0, sizeof registers);
+		memset(ct_registers, 0xF0, sizeof ct_registers);
+
+		memset(stack, 0, sizeof stack);
+		memset(instructions, 0, sizeof instructions);
+		memset(rt_instructions, 0, sizeof rt_instructions);
+		free(memory);
+		memory = aligned_alloc(8, 1 << 16);
+		
+
+	} else if (equal(string, "debugregisters")) {
+		for (nat i = 0; i < 32; i++) printf("\tR#%llu = %llu\n", i, registers[i]);
+	}
+	else if (equal(string, "debugctregisters")) {
+		for (nat i = 0; i < 32; i++) printf("\tCT#%llu = %llu\n", i, ct_registers[i]);
+	}
+	else if (equal(string, "debugaddr")) {
+		for (nat i = 0; i < 32; i++) printf("\tA#%llu = %llu\n", i, addresses[i]);	
+	}
+	else if (equal(string, "debugops")) {
+		for (nat i = 0; i < sizeof _ / sizeof(nat); i++) printf("\tO#%llu = %llu\n", i, _[i]);	
+	}
+	else if (equal(string, "debugstate")) {
+		printf("state:\n\tbase=%llu, macro=%llu\n\n", base, macro);	
+	}
+	else if (equal(string, "debugnames")) {
+		for (nat i = 0; i < name_count; i++) 
+			printf("name[%llu] =  %s \n", i, names[i] ? names[i] : "{NULL}");
+	}
+	else interpret(line, line_length);
+	goto _;
+done: 	printf("quitting...\n");
+}
+
+
+
+
+
+
+
+
+
+
+
+/*
+
+
+2208287.163230:
+
+	so how are we going to implement macros!?
+
+			i think we are ready to implement those now. its a really important feature to get right.
+
+
+	
+	what is the syntax/words to do with macros?
+
+		
+	
+		in forth, you say           :     macro-name     word-list-here    ;
+
+		so yeah, thats cool i guess... but 
+
+
+
+	
+
+
+
+	well, we need to think about control flow, 
+
+
+		and we need to think about how to make things... use less names?
+
+
+			ie, use    imperative state,     to not have to specify   names of things
+
+
+				but simply have the thing just knowww    what to name to use 
+
+
+						thats the key 
+
+
+
+
+
+
+
+		and for control flow, 
+
+
+					i think we essentuail
+
+
+	
+
+
+
+
+
+
+
+
+
+
+previous help menu:          (use for manual.txt)
+
+
+
+
+
+	printf(	
 		"\n\t"
 		"quit(q) : quit the utility.\n\t"
 		"help(?) : this help menu. (abbrev = '?')\n\t"
@@ -343,8 +553,8 @@ _: 	printf(" • ");
 
 		"delete : delete the 0th virtual from the defined list of names.\n\t"
 
-		"here : fill virtual[0] with the PC at ct_exec. used for implementing rt branches.\n\t"
-		"cthere : fill virtual[0] with the PC at parsing. used for implementing ct branches.\n\t"
+		"here : fill ct_registers[_[0]] with the PC at ct_exec. used for implementing rt branches.\n\t"
+		"cthere : fill ct_registers[_[0]] with the PC at parsing. used for implementing ct branches.\n\t"
 
 		"(hex literal) {16} : if in state base = 16\n\t"
 		"(decimal literal) {10} : if in state base = 10\n\t"
@@ -353,28 +563,7 @@ _: 	printf(" • ");
 		"(register name) {0} : if not found as any other ins. will be defined if not.\n\t"
 
 		"\n"
-	);	
-
-	else if (equal(string, "debugregisters")) {
-		for (nat i = 0; i < 32; i++) 
-			printf("\tR#%llu = %llu\n", i, registers[i]);
-	}
-	else if (equal(string, "debugctregisters")) {
-		for (nat i = 0; i < 32; i++) 
-			printf("\tCT#%llu = %llu\n", i, ct_registers[i]);
-	}
-	else if (equal(string, "debugops")) {
-		for (nat i = 0; i < 4; i++) 
-			printf("\tO#%llu = %llu\n", i, _[i]);	
-	}
-	else if (equal(string, "debugnames")) {
-		for (nat i = 0; i < name_count; i++) 
-			printf("name[%llu] =  \"%s\" \n", i, names[i] ? names[i] : "(null)");
-	}
-	else interpret(line, line_length);
-	goto _;
-done: 	printf("quitting...\n");
-}
+	);
 
 
 
@@ -386,7 +575,14 @@ done: 	printf("quitting...\n");
 
 
 
-/*
+
+
+
+
+
+
+
+
 
 ------------------------ domain --------------------------
 
@@ -410,7 +606,7 @@ done: 	printf("quitting...\n");
 
 	3. flexibility: great language flexibility, very general compiletime 
 
-	4. readability: decent programmer abstractions for readability
+	[4. readability: decent programmer abstractions for readability]
 
 
 ----------------------------------- main idea ----------------------------------------
