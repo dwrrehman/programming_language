@@ -1,0 +1,1 @@
+clang -g -std=c2x -O0 -Weverything -Wno-declaration-after-statement -fsanitize=address,undefined n.c -o out

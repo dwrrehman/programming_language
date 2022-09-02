@@ -5,13 +5,19 @@
 
 
 
-
-
 // the next major todo is to:
 
 //       document entirely how this code works, and why we made it work the way we did. 
 //       in a manual.txt file. every single word/instruction, and its semantics.
 
+
+
+//    we need to implement    strtoll   functoin   ourself
+	// and make it work with unary,   and also with higher bases, all the way up to 85 characters?... not sure... hmm.. yeah... ill think about it... but yeah. 
+
+
+// #pragma clang diagnostic push
+// #pragma clang diagnostic ignored "-Wvla"
 
 #include <stdio.h>
 #include <stdbool.h>
@@ -26,67 +32,38 @@
 #include <sys/mman.h>
 
 typedef uint64_t nat;
+typedef uint8_t byte;
+struct instruction { nat op, _0, _1, _2; };
+
+static const char digits[96] = 
+	"0123456789abcdefghijklmnopqrstuvwxyz"
+	"ABCDEFGHIJKLMNOPQRSTUVWXYZ,."
+	";:-_=+/?!@#$%^&*()<>[]{}|\\~`\'\"";
 
 enum op_code {
-	op_nop, op_ct_nop,
-	op_ct_xor, op_xor,
-	op_add, op_ct_add, op_addi,
-	op_slt, op_slti,
-	op_sub, op_ct_sub,
-	op_sll, op_slli,
-
-	op_load64, op_store64,
-	op_load32, op_store32,
-	op_load16, op_store16,
-	op_load8, op_store8,
-	
-	op_ct_load64, op_ct_store64,
-	op_ct_load32, op_ct_store32,
-	op_ct_load16, op_ct_store16,
-	op_ct_load8, op_ct_store8,
-
-	op_blt, op_ct_blt,
-	op_ct_debug, op_debug, op_ct_here, 
-	op_mul, op_div, op_ct_mul, op_ct_div,
-	op_rem, op_ct_rem,
-	op_ct_sll, op_ct_slt,
-	op_bne, op_ct_bne,
-	op_or, op_ct_or,
-	op_and, op_ct_and,
-	op_srl, op_ct_srl,
-};
-
-struct instruction {
-	nat op;
-	nat _0;
-	nat _1;
-	nat _2;
+	op_nop, op_add, op_addi, op_sub, 
+	op_slt, op_slti, op_sll, op_slli, op_srl, op_blt, op_bne, 
+	op_xor, op_or, op_and, op_mul, op_div, op_rem, 
+	op_load64, op_store64, op_load32, op_store32,
+	op_load16, op_store16, op_load8, op_store8,
+	op_debug, op_ct_here
 };
 
 static nat 
-	w_pc = 0, 
-	ct_pc = 0, 
-	rt_pc = 0, 
-	base = 0, 
-	macro = 0, 
-	name_count = 0, 
-	stack_count = 0,
-	code_count = 0,
-	ins_count = 0, 
-	rt_ins_count = 0;
-	
+	w_pc = 0, ct_pc = 0, rt_pc = 0, 
+	base = 0, mode = 0, macro = 0, 
+	name_count = 0, stack_count = 0,
+	code_count = 0, ins_count = 0, rt_ins_count = 0;
 	
 static nat _[30] = {0};
 static char* names[128] = {0};
 static nat addresses[128] = {0};
 static nat registers[128] = {0};
 static nat ct_registers[128] = {0};
-static uint8_t* memory = NULL;
-static uint8_t* ct_memory = NULL;
 static nat stack[4096] = {0};
-
+static byte* memory = NULL;
+static byte* ct_memory = NULL;
 static char* code[4096] = {0};
-
 static struct instruction instructions[4096] = {0};
 static struct instruction rt_instructions[4096] = {0};
 
@@ -97,75 +74,48 @@ static bool equal(const char* s1, const char* s2) {
 
 static void ins(nat op) {
 	instructions[ins_count++] = (struct instruction) {
-		.op = op, ._0 = _[0], ._1 = _[1], ._2 = _[2]
-	};
+		.op = op | mode, ._0 = _[0], ._1 = _[1], ._2 = _[2]
+	}; mode = 0;
 }
 
-/*
-static const char* op_code_spelling[] = {
-	"op_nop", "op_ct_nop",
-	"op_ct_xor", "op_xor",
-	"op_add", "op_ct_add", "op_addi",
-	"op_slt", "op_slti",
-	"op_sub", "op_ct_sub",
-	"op_sll", "op_slli",
-	
-	"op_load64", "op_store64",
-	"op_load32", "op_store32",
-	"op_load16", "op_store16",
-	"op_load8", "op_store8",
-
-	"op_ct_load64", "op_ct_store64",
-	"op_ct_load32", "op_ct_store32",
-	"op_ct_load16", "op_ct_store16",
-	"op_ct_load8", "op_ct_store8",
-
-	"op_blt", "op_ct_blt",
-	"op_ct_debug", "op_debug", "op_ct_here", 
-	"op_mul", "op_div", "op_ct_mul", "op_ct_div",
-	"op_rem", "op_ct_rem",
-	"op_ct_sll", "op_ct_slt",
-	"op_bne", "op_ct_bne",
-	"op_or", "op_ct_or",
-	"op_and", "op_ct_and",
-	"op_srl", "op_ct_srl",	
-};
-static void print_ins(struct instruction O, nat p) {
-	printf("---> [%llu] instruction: { operation=%s, dest=%llu, first=%llu, second=%llu }\n", 
-		p, op_code_spelling[O.op], O._0, O._1, O._2);
+static nat string_to_number(char* string, nat* length) {
+	byte radix = 0, value = 0;
+	nat result = 0, index = 0, place = 1;
+begin:	if (index >= *length) goto done;
+	value = 0;
+top:	if (value >= 96) goto found;
+	if (digits[value] == string[index]) goto found;
+	value++;
+	goto top;
+found:	if (index) goto check;
+	radix = value;
+	goto next;
+check:	if (value >= radix) goto done;
+	result += place * (nat) value;
+	place *= radix;
+next:	index++;
+	goto begin;
+done:	*length = index;
+	return result;
 }
 
-static void print_strings(char** list, nat count) {
-	printf("statement list(count=%llu): \n", count);
-	for (nat i = 0; i < count; i++) {
-		printf("\t\"%s\"\n", list[i]);
-	}
-	puts("[end-list]");
-}*/
-
-
-static void split_by_whitespace(
-	const char* text, 
-	const nat text_length
-) {
+static void split_by_whitespace(char* text, nat text_length) {
 	nat word_len = 0, i = 0;
 	char word[4096] = {0};
-
-	begin:	if (i >= text_length) goto done;
-		if (isspace(text[i])) goto skip;
-		goto use;
-	skip:	i++;
-		if (i >= text_length) goto done;
-		if (isspace(text[i])) goto skip;
-	add:	if (not word_len) goto begin;
-		word[word_len] = 0; 
-		word_len = 0;
-		code[code_count++] = strdup(word);
-		if (i >= text_length) goto finish;
-	use: 	word[word_len++] = text[i++];
-		goto begin;
-	done:	if (word_len) goto add;
-	finish:	return;
+begin:	if (i >= text_length) goto done;
+	if (isspace(text[i])) goto skip;
+	goto use;
+skip:	i++;
+	if (i >= text_length) goto done;
+	if (isspace(text[i])) goto skip;
+add:	if (not word_len) goto begin;
+	word[word_len] = 0; 
+	word_len = 0;
+	code[code_count++] = strdup(word);
+	if (i >= text_length) return;
+use: 	word[word_len++] = text[i++];
+	goto begin;
+done:	if (word_len) goto add;
 }
 
 static char* read_file(const char* filename, size_t* out_length) {
@@ -190,14 +140,26 @@ static char* read_file(const char* filename, size_t* out_length) {
 	return buffer;
 }
 
-static void parse(const char* string) {
+static void parse(char* string) {
 
-	if (macro) { if (equal(string, "]")) macro = 0; goto advance; } 
-	else if (equal(string, "]")) { w_pc = stack[--stack_count]; goto advance; }
-	if (base) { ct_registers[*_] = (nat) strtoll(string, NULL, (int) base); base = 0; goto advance; }
+	nat name = 0, open = 0;
+
+	if (macro) { 
+		if (equal(string, "stop")) macro = 0; 
+		goto advance; 
+
+	} else if (equal(string, "stop")) { 
+		w_pc = stack[--stack_count]; 
+		goto advance; 
+
+	} else if (base) { 
+		nat length = strlen(string);
+		ct_registers[*_] = string_to_number(string, &length); 
+		base = 0;
+		goto advance; 
+	}
 
 	if (equal(string, "pass")) {}
-
 	else if (equal(string, "11")) { _[0] = _[1]; }
 	else if (equal(string, "21")) { _[0] = _[2]; }
 	else if (equal(string, "00")) { _[1] = _[0]; }
@@ -207,38 +169,13 @@ static void parse(const char* string) {
 	else if (equal(string, "021")) { nat t1 = _[1]; _[1] = _[2]; _[2] = t1; }
 	else if (equal(string, "201")) { nat t2 = _[2]; _[2] = _[1]; _[1] = _[0]; _[0] = t2; }
 	else if (equal(string, "120")) { nat t0 = _[0]; _[0] = _[1]; _[1] = _[2]; _[2] = t0; }
-
-	else if (equal(string, "swap1"))  { nat t0 = _[0]; _[0] = _[1]; _[1] = t0; }
-	else if (equal(string, "swap2"))  { nat t0 = _[0]; _[0] = _[2]; _[2] = t0; }
-	else if (equal(string, "swap3"))  { nat t0 = _[0]; _[0] = _[3]; _[3] = t0; }
-	else if (equal(string, "swap4"))  { nat t0 = _[0]; _[0] = _[4]; _[4] = t0; }
-	else if (equal(string, "swap5"))  { nat t0 = _[0]; _[0] = _[5]; _[5] = t0; }
-	else if (equal(string, "swap6"))  { nat t0 = _[0]; _[0] = _[6]; _[6] = t0; }
-	else if (equal(string, "swap7"))  { nat t0 = _[0]; _[0] = _[7]; _[7] = t0; }
-	
-	else if (equal(string, "ct_nop")) ins(op_ct_nop);
-	else if (equal(string, "ct_xor")) ins(op_ct_xor);
-	else if (equal(string, "ct_add")) ins(op_ct_add);
-	else if (equal(string, "ct_sub")) ins(op_ct_sub);
-	else if (equal(string, "ct_mul")) ins(op_ct_mul);
-	else if (equal(string, "ct_div")) ins(op_ct_div);
-	else if (equal(string, "ct_rem")) ins(op_ct_rem);
-	else if (equal(string, "ct_sll")) ins(op_ct_sll);
-	else if (equal(string, "ct_slt")) ins(op_ct_slt);
-	else if (equal(string, "ct_blt")) ins(op_ct_blt);
-	else if (equal(string, "ct_bne")) ins(op_ct_bne);
-	else if (equal(string, "ct_debug")) ins(op_ct_debug);
-
-	else if (equal(string, "ct_load64")) ins(op_ct_load64);
-	else if (equal(string, "ct_load32")) ins(op_ct_load32);
-	else if (equal(string, "ct_load16")) ins(op_ct_load16);
-	else if (equal(string, "ct_load8")) ins(op_ct_load8);
-
-	else if (equal(string, "ct_store64")) ins(op_ct_store64);
-	else if (equal(string, "ct_store32")) ins(op_ct_store32);
-	else if (equal(string, "ct_store16")) ins(op_ct_store16);
-	else if (equal(string, "ct_store8")) ins(op_ct_store8);
-
+	else if (equal(string, "swap1")) { nat t0 = _[0]; _[0] = _[1]; _[1] = t0; }
+	else if (equal(string, "swap2")) { nat t0 = _[0]; _[0] = _[2]; _[2] = t0; }
+	else if (equal(string, "swap3")) { nat t0 = _[0]; _[0] = _[3]; _[3] = t0; }
+	else if (equal(string, "swap4")) { nat t0 = _[0]; _[0] = _[4]; _[4] = t0; }
+	else if (equal(string, "swap5")) { nat t0 = _[0]; _[0] = _[5]; _[5] = t0; }
+	else if (equal(string, "swap6")) { nat t0 = _[0]; _[0] = _[6]; _[6] = t0; }
+	else if (equal(string, "swap7")) { nat t0 = _[0]; _[0] = _[7]; _[7] = t0; }
 	else if (equal(string, "nop")) ins(op_nop);
 	else if (equal(string, "xor")) ins(op_xor);
 	else if (equal(string, "add")) ins(op_add);
@@ -253,32 +190,23 @@ static void parse(const char* string) {
 	else if (equal(string, "slli")) ins(op_slli);
 	else if (equal(string, "blt")) ins(op_blt);
 	else if (equal(string, "bne")) ins(op_bne);
-	else if (equal(string, "debug")) ins(op_debug);
-
 	else if (equal(string, "load64")) ins(op_load64);
 	else if (equal(string, "load32")) ins(op_load32);
 	else if (equal(string, "load16")) ins(op_load16);
 	else if (equal(string, "load8")) ins(op_load8);
-
 	else if (equal(string, "store64")) ins(op_store64);
 	else if (equal(string, "store32")) ins(op_store32);
 	else if (equal(string, "store16")) ins(op_store16);
 	else if (equal(string, "store8")) ins(op_store8);
-
+	else if (equal(string, "print")) ins(op_debug);
 	else if (equal(string, "here")) ins(op_ct_here);
-	else if (equal(string, "ct_here")) ct_registers[*_] = ins_count; 
-	else if (equal(string, "gensym")) {
-		names[name_count++] = strdup("");
-		nat i = sizeof _ / sizeof(nat) - 1;
-		while (i) { _[i] = _[i - 1]; i--; } *_ = name_count - 1;
-	}
-
-	else if (equal(string, "literalbase")) { base = ct_registers[_[0]]; }
-	else if (equal(string, "literal10")) { base = 10; }
-	else if (equal(string, "literal2")) { base = 2; }
-
+	else if (equal(string, "literal")) base = 1;
+	else if (equal(string, "now")) mode = 1 << 8;
+	else if (equal(string, "cthere")) ct_registers[*_] = ins_count; 
+	else if (equal(string, "define")) { addresses[*_] = w_pc; macro = 1; }
+	else if (equal(string, "use")) { names[name = name_count++] = strdup(""); goto shift; }
+	else if (equal(string, "undefine")) { free(names[*_]); names[*_] = NULL; addresses[*_] = 0; }
 	
-
 
 
 
@@ -294,14 +222,9 @@ static void parse(const char* string) {
 
 			// and we detect a call, because 
 
-	else if (equal(string, "[")) { 
-
-		//  *_ holds the macro name aready...?
+	//  *_ holds the macro name aready...?
 		//  macros[macro_count++] = {.name = names[*_], .start = w_pc + 1};
-
-		addresses[*_] = w_pc;
-		macro = 1;
-	}
+	
 
 // shoudld we just have an association btween the word, and its .start  by just storing the 
 
@@ -325,9 +248,12 @@ static void parse(const char* string) {
 
 	// this is essentially implementing comiletime(specifically at parse() time!) function definitions and function calls. basically.
 
-	else if (equal(string, "delete")) { free(names[*_]); names[*_] = NULL; addresses[*_] = 0; }
+
+
+	
 	else {
-		nat name = 0, open = name_count;
+		name = 0; 
+		open = name_count;
 		while (name < name_count) {
 			if (names[name]) {
 				if (equal(string, names[name])) break;
@@ -345,230 +271,127 @@ static void parse(const char* string) {
 			w_pc = addresses[name];
 			goto advance;
 		}
-		nat i = sizeof _ / sizeof(nat) - 1;
+	shift:;	nat i = sizeof _ / sizeof(nat) - 1;
 		while (i) { _[i] = _[i - 1]; i--; } *_ = name;
 	}
-
-advance:
-	w_pc++;
+advance: w_pc++;
 }
-
-
-
 
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wcast-align"
 
-
 static void execute_ct_instruction(struct instruction I) {
-	if (I.op == op_ct_nop) {}
-	else if (I.op == op_ct_xor) ct_registers[I._0] = ct_registers[I._1] ^ ct_registers[I._2];
-	else if (I.op == op_ct_and) ct_registers[I._0] = ct_registers[I._1] & ct_registers[I._2];
-	else if (I.op == op_ct_or)  ct_registers[I._0] = ct_registers[I._1] | ct_registers[I._2];
-	else if (I.op == op_ct_add) ct_registers[I._0] = ct_registers[I._1] + ct_registers[I._2];
-	else if (I.op == op_ct_sub) ct_registers[I._0] = ct_registers[I._1] - ct_registers[I._2];
-	else if (I.op == op_ct_mul) ct_registers[I._0] = ct_registers[I._1] * ct_registers[I._2];
-	else if (I.op == op_ct_div) ct_registers[I._0] = ct_registers[I._1] / ct_registers[I._2];
-	else if (I.op == op_ct_rem) ct_registers[I._0] = ct_registers[I._1] % ct_registers[I._2];
-	else if (I.op == op_ct_slt) ct_registers[I._0] = ct_registers[I._1] < ct_registers[I._2];
-	else if (I.op == op_ct_sll) ct_registers[I._0] = ct_registers[I._1] << ct_registers[I._2];
-	else if (I.op == op_ct_srl) ct_registers[I._0] = ct_registers[I._1] >> ct_registers[I._2];
 
-	else if (I.op == op_ct_load64) {
-		uint8_t* M = (uint8_t*) ct_memory;
-		uint8_t* U = M + ct_registers[I._1] + ct_registers[I._2];
-		ct_registers[I._0] = * (uint64_t*) U;
-	}
+	if (not (I.op >> 8)) { rt_instructions[rt_ins_count++] = I; goto done; }
+	const nat op = I.op & (nat)~(1 << 8);
+	nat* r = ct_registers;
+	nat* ctr = ct_registers;
+	byte* m = ct_memory;
 
-	else if (I.op == op_ct_load32) {
-		uint8_t* M = (uint8_t*) ct_memory;
-		uint8_t* U = M + ct_registers[I._1] + ct_registers[I._2];
-		ct_registers[I._0] = * (uint32_t*) U;
-	}
-
-	else if (I.op == op_ct_load16) {
-		uint8_t* M = (uint8_t*) ct_memory;
-		uint8_t* U = M + ct_registers[I._1] + ct_registers[I._2];
-		ct_registers[I._0] = * (uint16_t*) U;
-	}
-
-	else if (I.op == op_ct_load8) {
-		uint8_t* M = (uint8_t*) ct_memory;
-		uint8_t* U = M + ct_registers[I._1] + ct_registers[I._2];
-		ct_registers[I._0] = * (uint8_t*) U;
-	}
-
-	else if (I.op == op_ct_store64) {
-		uint8_t* M = (uint8_t*) ct_memory;
-		uint8_t* U = M + ct_registers[I._1] + ct_registers[I._2];
-		* (uint64_t*) U = (uint64_t) ct_registers[I._0];
-	}
-
-	else if (I.op == op_ct_store32) {
-		uint8_t* M = (uint8_t*) ct_memory;
-		uint8_t* U = M + ct_registers[I._1] + ct_registers[I._2];
-		* (uint32_t*) U = (uint32_t) ct_registers[I._0];
-	}
-
-	else if (I.op == op_ct_store16) {
-		uint8_t* M = (uint8_t*) ct_memory;
-		uint8_t* U = M + ct_registers[I._1] + ct_registers[I._2];
-		* (uint16_t*) U = (uint16_t) ct_registers[I._0];
-	}
-
-	else if (I.op == op_ct_store8) {
-		uint8_t* M = (uint8_t*) ct_memory;
-		uint8_t* U = M + ct_registers[I._1] + ct_registers[I._2];
-		* (uint8_t*) U = (uint8_t) ct_registers[I._0];
-	}
-
-	else if (I.op == op_ct_blt) { if (ct_registers[I._0] < ct_registers[I._1]) ct_pc += ct_registers[I._2]; }
-	else if (I.op == op_ct_bne) { if (ct_registers[I._0] != ct_registers[I._1]) ct_pc += ct_registers[I._2]; }
-
-	else if (I.op == op_ct_here) ct_registers[I._0] = rt_ins_count; 
-	else if (I.op == op_ct_debug) printf("CT#%llu=%lld\n", I._0, ct_registers[I._0]);
-	else rt_instructions[rt_ins_count++] = I;
+	if (op == op_nop) {}
+	else if (op == op_xor) r[I._0] = r[I._1] ^ r[I._2];
+	else if (op == op_and) r[I._0] = r[I._1] & r[I._2];
+	else if (op == op_or)  r[I._0] = r[I._1] | r[I._2];
+	else if (op == op_add) r[I._0] = r[I._1] + r[I._2];
+	else if (op == op_sub) r[I._0] = r[I._1] - r[I._2];
+	else if (op == op_mul) r[I._0] = r[I._1] * r[I._2];
+	else if (op == op_div) r[I._0] = r[I._1] / r[I._2];
+	else if (op == op_rem) r[I._0] = r[I._1] % r[I._2];
+	else if (op == op_slt) r[I._0] = r[I._1] < r[I._2];
+	else if (op == op_sll) r[I._0] = r[I._1] << r[I._2];
+	else if (op == op_srl) r[I._0] = r[I._1] >> r[I._2];
+	else if (op == op_load64) r[I._0] = * (uint64_t*) (m + r[I._1] + ctr[I._2]);
+	else if (op == op_load32) r[I._0] = * (uint32_t*) (m + r[I._1] + ctr[I._2]);
+	else if (op == op_load16) r[I._0] = * (uint16_t*) (m + r[I._1] + ctr[I._2]);
+	else if (op == op_load8)  r[I._0] = * (uint8_t*)  (m + r[I._1] + ctr[I._2]);
+	else if (op == op_store64) * (uint64_t*) (m + r[I._1] + ctr[I._2]) = (uint64_t) r[I._0]; 
+	else if (op == op_store32) * (uint32_t*) (m + r[I._1] + ctr[I._2]) = (uint32_t) r[I._0]; 
+	else if (op == op_store16) * (uint16_t*) (m + r[I._1] + ctr[I._2]) = (uint16_t) r[I._0]; 
+	else if (op == op_store8)  * (uint8_t*)  (m + r[I._1] + ctr[I._2]) = (uint8_t)  r[I._0]; 	
+	else if (op == op_blt) { if (r[I._0] < r[I._1]) ct_pc += ctr[I._2]; }
+	else if (op == op_bne) { if (r[I._0] != r[I._1]) ct_pc += ctr[I._2]; }
+	else if (op == op_debug) printf("CT#%llu=%lld\n", I._0, r[I._0]);
+	else if (op == op_ct_here) ctr[I._0] = rt_ins_count; 
+done:
 	ct_pc++;
 }
 
 static void execute_instruction(struct instruction I) {
-	if (I.op == op_nop) {}
-	else if (I.op == op_xor) registers[I._0] = registers[I._1] ^ registers[I._2];
-	else if (I.op == op_and) registers[I._0] = registers[I._1] & registers[I._2];
-	else if (I.op == op_or)  registers[I._0] = registers[I._1] | registers[I._2];
-	else if (I.op == op_add) registers[I._0] = registers[I._1] + registers[I._2];
-	else if (I.op == op_sub) registers[I._0] = registers[I._1] - registers[I._2];
-	else if (I.op == op_mul) registers[I._0] = registers[I._1] * registers[I._2];
-	else if (I.op == op_div) registers[I._0] = registers[I._1] / registers[I._2];
-	else if (I.op == op_rem) registers[I._0] = registers[I._1] % registers[I._2];
-	else if (I.op == op_slt) registers[I._0] = registers[I._1] < registers[I._2];
-	else if (I.op == op_sll) registers[I._0] = registers[I._1] << registers[I._2];
-	else if (I.op == op_srl) registers[I._0] = registers[I._1] >> registers[I._2];
-
-	else if (I.op == op_addi) registers[I._0] = registers[I._1] + ct_registers[I._2];
-	else if (I.op == op_slti) registers[I._0] = registers[I._1] < ct_registers[I._2];
-	else if (I.op == op_slli) registers[I._0] = registers[I._1] << ct_registers[I._2];
-
-	else if (I.op == op_load64) {
-		uint8_t* M = (uint8_t*) memory;
-		uint8_t* U = M + registers[I._1] + ct_registers[I._2];
-		registers[I._0] = * (uint64_t*) U;
-	}
-
-	else if (I.op == op_load32) {
-		uint8_t* M = (uint8_t*) memory;
-		uint8_t* U = M + registers[I._1] + ct_registers[I._2];
-		registers[I._0] = * (uint32_t*) U;
-	}
-
-	else if (I.op == op_load16) {
-		uint8_t* M = (uint8_t*) memory;
-		uint8_t* U = M + registers[I._1] + ct_registers[I._2];
-		registers[I._0] = * (uint16_t*) U;
-	}
-
-	else if (I.op == op_load8) {
-		uint8_t* M = (uint8_t*) memory;
-		uint8_t* U = M + registers[I._1] + ct_registers[I._2];
-		registers[I._0] = * (uint8_t*) U;
-	}
-
-
-	else if (I.op == op_store64) {
-		uint8_t* M = (uint8_t*) memory;
-		uint8_t* U = M + registers[I._1] + ct_registers[I._2];
-		* (uint64_t*) U = (uint64_t) registers[I._0];
-	}
-
-	else if (I.op == op_store32) {
-		uint8_t* M = (uint8_t*) memory;
-		uint8_t* U = M + registers[I._1] + ct_registers[I._2];
-		* (uint32_t*) U = (uint32_t) registers[I._0];
-	}
-
-	else if (I.op == op_store16) {
-		uint8_t* M = (uint8_t*) memory;
-		uint8_t* U = M + registers[I._1] + ct_registers[I._2];
-		* (uint16_t*) U = (uint16_t) registers[I._0];
-	}
-
-	else if (I.op == op_store8) {
-		uint8_t* M = (uint8_t*) memory;
-		uint8_t* U = M + registers[I._1] + ct_registers[I._2];
-		* (uint8_t*) U = (uint8_t) registers[I._0];
-	}
-
-	//else if (I.op == op_store64) *((uint8_t*)memory + registers[I._1] + ct_registers[I._2]) = (uint64_t) registers[I._0]; 
 	
-	//else if (I.op == op_load32) registers[I._0] = *((uint8_t*)memory + registers[I._1] + ct_registers[I._2]);
-	//else if (I.op == op_store32) *((uint8_t*)memory + registers[I._1] + ct_registers[I._2]) = (uint32_t) registers[I._0]; 
+	const nat op = I.op;
+	nat* r = registers;
+	nat* ctr = ct_registers;
+	byte* m = memory;
 	
-	//else if (I.op == op_load16) registers[I._0] = *((uint8_t*)memory + registers[I._1] + ct_registers[I._2]);
-	//else if (I.op == op_store16) *((uint8_t*)memory + registers[I._1] + ct_registers[I._2]) = (uint16_t) registers[I._0]; 
-
-	//else if (I.op == op_load8) registers[I._0] = *((uint8_t*)memory + registers[I._1] + ct_registers[I._2]);
-	//else if (I.op == op_store8) *((uint8_t*)memory + registers[I._1] + ct_registers[I._2]) = (uint8_t) registers[I._0]; 
-
-	
-	else if (I.op == op_blt) { if (registers[I._0] < registers[I._1]) rt_pc += ct_registers[I._2]; }
-	else if (I.op == op_bne) { if (registers[I._0] != registers[I._1]) rt_pc += ct_registers[I._2]; }
-	else if (I.op == op_debug) printf("R#%llu=%lld\n", I._0, registers[I._0]);
-	else {
-		puts("unknown RT instruction");
-		abort();
-	}
+	if (op == op_nop) {}
+	else if (op == op_addi) r[I._0] = r[I._1] + ctr[I._2];
+	else if (op == op_slti) r[I._0] = r[I._1] < ctr[I._2];
+	else if (op == op_slli) r[I._0] = r[I._1] << ctr[I._2];
+	else if (op == op_xor) r[I._0] = r[I._1] ^ r[I._2];
+	else if (op == op_and) r[I._0] = r[I._1] & r[I._2];
+	else if (op == op_or)  r[I._0] = r[I._1] | r[I._2];
+	else if (op == op_add) r[I._0] = r[I._1] + r[I._2];
+	else if (op == op_sub) r[I._0] = r[I._1] - r[I._2];
+	else if (op == op_mul) r[I._0] = r[I._1] * r[I._2];
+	else if (op == op_div) r[I._0] = r[I._1] / r[I._2];
+	else if (op == op_rem) r[I._0] = r[I._1] % r[I._2];
+	else if (op == op_slt) r[I._0] = r[I._1] < r[I._2];
+	else if (op == op_sll) r[I._0] = r[I._1] << r[I._2];
+	else if (op == op_srl) r[I._0] = r[I._1] >> r[I._2];
+	else if (op == op_load64) r[I._0] = * (uint64_t*) (m + r[I._1] + ctr[I._2]);
+	else if (op == op_load32) r[I._0] = * (uint32_t*) (m + r[I._1] + ctr[I._2]);
+	else if (op == op_load16) r[I._0] = * (uint16_t*) (m + r[I._1] + ctr[I._2]);
+	else if (op == op_load8)  r[I._0] = * (uint8_t*)  (m + r[I._1] + ctr[I._2]);
+	else if (op == op_store64) * (uint64_t*) (m + r[I._1] + ctr[I._2]) = (uint64_t) r[I._0]; 
+	else if (op == op_store32) * (uint32_t*) (m + r[I._1] + ctr[I._2]) = (uint32_t) r[I._0]; 
+	else if (op == op_store16) * (uint16_t*) (m + r[I._1] + ctr[I._2]) = (uint16_t) r[I._0]; 
+	else if (op == op_store8)  * (uint8_t*)  (m + r[I._1] + ctr[I._2]) = (uint8_t)  r[I._0]; 	
+	else if (op == op_blt) { if (r[I._0] < r[I._1]) rt_pc += ctr[I._2]; }
+	else if (op == op_bne) { if (r[I._0] != r[I._1]) rt_pc += ctr[I._2]; }
+	else if (op == op_debug) printf("R#%llu=%lld\n", I._0, r[I._0]);
+	else { puts("unknown RT instruction"); abort(); }
 	rt_pc++;
 }
 
-
 #pragma clang diagnostic pop
-
 
 static void resetenv() {
 	w_pc = 0; ct_pc = 0; rt_pc = 0;
 	base = 0; macro = 0;
 	code_count = 0; name_count = 0; rt_ins_count = 0;
 	ins_count = 0;  stack_count = 0;
-
 	memset(_, 0, sizeof _);
-
 	memset(names, 0, sizeof names);
 	memset(addresses, 0, sizeof addresses);
 	memset(registers, 0xF0, sizeof registers);
 	memset(ct_registers, 0xF0, sizeof ct_registers);
-
 	memset(stack, 0, sizeof stack);
-
 	memset(code, 0, sizeof code);
 	memset(instructions, 0, sizeof instructions);
 	memset(rt_instructions, 0, sizeof rt_instructions);
-
 	free(memory);
 	memory = aligned_alloc(8, 1 << 16);
-
 	free(ct_memory);
 	ct_memory = aligned_alloc(8, 1 << 16);
 }
 
-static void interpret_in(const char* text, const nat text_length) {
+static void interpret_in(char* text, nat text_length) {
 	split_by_whitespace(text, text_length);
 	while (w_pc < code_count) parse(code[w_pc]);
 	while (ct_pc < ins_count) execute_ct_instruction(instructions[ct_pc]);
 	while (rt_pc < rt_ins_count) execute_instruction(rt_instructions[rt_pc]);
 }
 
-int main() { 
+int main() {
 
-	printf("a repl/interpreter for my language.\nwork in progress.\n");
+	puts("a repl/interpreter for my language.");
 
 	char line[4096] = {0};
-
 	   memory = aligned_alloc(8, 1 << 16);
 	ct_memory = aligned_alloc(8, 1 << 16);
-	memset(registers, 0xF0, sizeof registers);
+	memset(   registers, 0xF0, sizeof    registers);
 	memset(ct_registers, 0xF0, sizeof ct_registers);
 	
-
 _: 	printf(" • ");
 	fgets(line, sizeof line, stdin);
 	nat line_length = strlen(line);
@@ -589,7 +412,7 @@ _: 	printf(" • ");
 		buffer[strlen(buffer) - 1] = 0;
 		size_t length = 0;
 		char* contents = read_file(buffer, &length);
-		if (contents) { resetenv(); interpret_in(contents, length); }
+		if (contents) interpret_in(contents, length);
 	
 	} else if (equal(string, "debugregisters")) {
 		for (nat i = 0; i < 32; i++) printf("\tR#%llu = %llu\n", i, registers[i]);
@@ -645,7 +468,146 @@ done: 	printf("quitting...\n");
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 /*
+static const char* op_code_spelling[] = {
+	"op_nop", "op_ct_nop",
+	"op_ct_xor", "op_xor",
+	"op_add", "op_ct_add", "op_addi",
+	"op_slt", "op_slti",
+	"op_sub", "op_ct_sub",
+	"op_sll", "op_slli",
+	
+	"op_load64", "op_store64",
+	"op_load32", "op_store32",
+	"op_load16", "op_store16",
+	"op_load8", "op_store8",
+
+	"op_ct_load64", "op_ct_store64",
+	"op_ct_load32", "op_ct_store32",
+	"op_ct_load16", "op_ct_store16",
+	"op_ct_load8", "op_ct_store8",
+
+	"op_blt", "op_ct_blt",
+	"op_ct_debug", "op_debug", "op_ct_here", 
+	"op_mul", "op_div", "op_ct_mul", "op_ct_div",
+	"op_rem", "op_ct_rem",
+	"op_ct_sll", "op_ct_slt",
+	"op_bne", "op_ct_bne",
+	"op_or", "op_ct_or",
+	"op_and", "op_ct_and",
+	"op_srl", "op_ct_srl",	
+};
+static void print_ins(struct instruction O, nat p) {
+	printf("---> [%llu] instruction: { operation=%s, dest=%llu, first=%llu, second=%llu }\n", 
+		p, op_code_spelling[O.op], O._0, O._1, O._2);
+}
+
+static void print_strings(char** list, nat count) {
+	printf("statement list(count=%llu): \n", count);
+	for (nat i = 0; i < count; i++) {
+		printf("\t\"%s\"\n", list[i]);
+	}
+	puts("[end-list]");
+}*/
+
+
+
+
+
+
+
+
+
+/*
+
+
+		random piece of code lol
+
+	{
+		int a[5] = {4, 3, 2, 5, 6};
+		
+		for (int i = 5; i--;) {
+			printf("%d\n", a[i]);
+		}
+
+		exit(1);
+	}
+
+
+
+
+
+
+
+	//else if (I.op == op_store64) *((uint8_t*)memory + registers[I._1] + ct_registers[I._2]) = (uint64_t) registers[I._0]; 
+	
+	//else if (I.op == op_load32) registers[I._0] = *((uint8_t*)memory + registers[I._1] + ct_registers[I._2]);
+	//else if (I.op == op_store32) *((uint8_t*)memory + registers[I._1] + ct_registers[I._2]) = (uint32_t) registers[I._0]; 
+	
+	//else if (I.op == op_load16) registers[I._0] = *((uint8_t*)memory + registers[I._1] + ct_registers[I._2]);
+	//else if (I.op == op_store16) *((uint8_t*)memory + registers[I._1] + ct_registers[I._2]) = (uint16_t) registers[I._0]; 
+
+	//else if (I.op == op_load8) registers[I._0] = *((uint8_t*)memory + registers[I._1] + ct_registers[I._2]);
+	//else if (I.op == op_store8) *((uint8_t*)memory + registers[I._1] + ct_registers[I._2]) = (uint8_t) registers[I._0]; 
+
+
+
+
+
+
+
 
 
 2208287.163230:
