@@ -74,6 +74,9 @@ random5 literal a5999999
 
 
 
+count literal a5
+	transfer
+
 
 comment ------------------------------------ endcomment
 
@@ -83,98 +86,83 @@ comment ------------------------------------ endcomment
 
 	ctdecr define use literal 21 swap1 001 now sub endmacro
 
+	_______branch define    comment   this macro is not useful anymore. endcomment
+		swap2 
+		use at 
+		swap1 use now sub ctdecr 
+		swap2 swap3 
+		swap1 swap4
+		blt
+	endmacro
+
 	goto define 
 		zero zero beq
 	endmacro 
-
-	# define literal endmacro
-	rt define transfer endmacro
 
 	setzero define
 		000 xor
 	endmacro
 
 	incr define 
-		use literal 21 
-		swap1 001 addi 
+		use literal 21 swap1 001 addi 
 	endmacro
 
-	
-	decr define 
-		use literal gffffffffffffffff 
-		swap1 001 addi 
-	endmacro
-
-	set define 
-		zero swap1 add
-	endmacro
+comment ----------------------------- endcomment 
 
 
-
-
-	floop define 
-
-		iteration_count set
-		i setzero
-
-		1loop at
-			1exit i iteration_count beq
-			_
-			i incr
-			1loop goto
-		1exit at
-			literalmacro _ undefine now kill kill
-			iteration_count undefine now kill kill
-			i undefine now kill kill
-			
-	endmacro
-
-
-
-	bloop define 
-
-		i set
-		2loop at
-			2exit i zero beq
-			i decr
-			_
-			2loop goto
-		2exit at
-			literalmacro _ undefine now kill kill
-			i undefine now kill kill
-			
-	endmacro
-
-
-
-	comment     bug:   we are forced to have the labels all be unique. we shouldnt need to do that?... idk... hmm..
-			    we should be able to undefine a label? 
-				wait now, how would that work? hmmmmmm
-					if we actually want the programmer to be able to branch to anywhere...
-					we never undefine labels. thats interesting. hmm..
-
-
-
-comment -------------first ever loop!---------------- endcomment 
-	count # a01 rt
-
+	i setzero
+	count print
 	
 
-	_ define i print print endmacro 
-	count bloop
+	random5 print 
+	i print
+	random5 print
 
+
+_begin at
+
+	random4 print
+	i print
+	count print
+	random4 print
+
+	_end i count beq
+
+	random1 print 
+	i print
 	random1 print
 
-	_ define i print print endmacro 
-	count floop
+	i incr 
+
+	random2 print 
+	i print
+	random2 print
+
+
+	_begin zero zero beq
+	zero print
+
+_end at
+
+	random3 print 
+	i print
+	random3 print 
 
 
 	debughalt
 
 
 
+
+
 comment -------- macros ----------- endcomment
 
+
+
+decr define 
+	use literal gffffffffffffffff 
+	swap1 001 addi 
+endmacro
 
 
 
@@ -230,6 +218,7 @@ atbranch at
 
 
 
+
 loop_begin at 
 
 	loop_end  i second branch
@@ -248,3 +237,5 @@ loop_end at
 
 
 endcomment
+
+

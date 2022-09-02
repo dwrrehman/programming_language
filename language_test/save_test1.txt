@@ -1,0 +1,34 @@
+one literal 21
+
+
+
+increment
+	define
+		one swap1 001 now add
+	endmacro
+
+
+my_lovely_print 	define now print endmacro
+
+
+
+comment       this is a comment! :D  
+			very simple.   endcomment
+
+setzero_and_print define 
+	000 now xor my_lovely_print
+endmacro
+
+
+my_variable setzero_and_print
+
+increment my_lovely_print
+increment my_lovely_print
+increment my_lovely_print
+increment my_lovely_print
+increment my_lovely_print   comment i'm generating alot of statements using macro! endcomment
+increment my_lovely_print
+increment my_lovely_print
+increment my_lovely_print
+increment my_lovely_print
+increment my_lovely_print

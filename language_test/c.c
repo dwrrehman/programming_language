@@ -1,24 +1,24 @@
 // my programming language! (repl version)
 // dwrr   started on 2208232.211844 
-// dwrr   written on 2208243.231335
+//        written on 2208243.231335
 //         edited on 2208265.235140
+/*
+	todos:
+		- start the compiler backend for this language.
+
+	x	- add WARNINGS/ERRORS for unused variables, and when variables are only written to...? yeah... we need the control flow graph to make sense. this will catch alot of errors that happen because of typos.
+	x	- add comments ...somehow...
+	x	- add more instructions! like    BL   and SRA  and   
+	x	- figure out how to undefine a macro name... probably using a "name pointer" construct.. where you can undefine anything in names[] by using its index, you dont have to say its name to undefine it... i guess.. not sure... kinda risky... but yeah.
+
+		- add the jump-with-link instruction!
+		- make a for loop macro!
+		- make an if statement macro!
+
+		- make comments able to be nested...
 
 
-
-// the next major todo is to:
-
-//       document entirely how this code works, and why we made it work the way we did. 
-//       in a manual.txt file. every single word/instruction, and its semantics.
-
-
-
-//    we need to implement    strtoll   functoin   ourself
-	// and make it work with unary,   and also with higher bases, all the way up to 85 characters?... not sure... hmm.. yeah... ill think about it... but yeah. 
-
-
-// #pragma clang diagnostic push
-// #pragma clang diagnostic ignored "-Wvla"
-
+*/
 #include <stdio.h>
 #include <stdbool.h>
 #include <iso646.h>
@@ -41,17 +41,28 @@ static const char digits[96] =
 	";:-_=+/?!@#$%^&*()<>[]{}|\\~`\'\"";
 
 enum op_code {
-	op_nop, op_add, op_addi, op_sub, 
-	op_slt, op_slti, op_sll, op_slli, op_srl, op_blt, op_bne, 
-	op_xor, op_or, op_and, op_mul, op_div, op_rem, 
+	op_nop, 
+	op_add, op_sub, 
+	op_xor, op_or, op_and, 
+	op_sll, op_srl, op_sra, 
+	op_mul, op_div, op_rem, 
+	op_slt, op_sltu,
+	op_blt, op_bge, 
+	op_bne, op_beq, 
+	op_bltu, op_bgeu,
+	op_jal, op_jalr,
+	op_slli, op_srli, op_srai,
+	op_slti, op_sltiu,
+	op_addi, 
+	op_xori, op_andi, op_ori,
 	op_load64, op_store64, op_load32, op_store32,
 	op_load16, op_store16, op_load8, op_store8,
-	op_debug, op_ct_here
+	op_debug, op_debug_halt, op_debug_exit, op_ct_here, op_kill,
 };
 
 static nat 
 	w_pc = 0, ct_pc = 0, rt_pc = 0, 
-	base = 0, mode = 0, macro = 0, 
+	literal = 0, mode = 0, macro = 0, comment = 0, literalmacro = 0,
 	name_count = 0, stack_count = 0,
 	code_count = 0, ins_count = 0, rt_ins_count = 0;
 	
@@ -140,137 +151,108 @@ static char* read_file(const char* filename, size_t* out_length) {
 	return buffer;
 }
 
-static void parse(char* string) {
+static void parse(char* w) {
 
 	nat name = 0, open = 0;
 
-	if (macro) { 
-		if (equal(string, "stop")) macro = 0; 
-		goto advance; 
-
-	} else if (equal(string, "stop")) { 
-		w_pc = stack[--stack_count]; 
-		goto advance; 
-
-	} else if (base) { 
-		nat length = strlen(string);
-		ct_registers[*_] = string_to_number(string, &length); 
-		base = 0;
+	if (comment) { 
+		if (equal(w, "endcomment")) comment = 0; 
 		goto advance; 
 	}
+	else if (macro) { 
+		if (equal(w, "endmacro")) macro = 0; 
+		goto advance; 
 
-	if (equal(string, "pass")) {}
-	else if (equal(string, "11")) { _[0] = _[1]; }
-	else if (equal(string, "21")) { _[0] = _[2]; }
-	else if (equal(string, "00")) { _[1] = _[0]; }
-	else if (equal(string, "02")) { _[1] = _[2]; }
-	else if (equal(string, "000")) { _[1] = _[0]; _[2] = _[0]; }
-	else if (equal(string, "001")) { _[2] = _[1]; _[1] = _[0]; }
-	else if (equal(string, "021")) { nat t1 = _[1]; _[1] = _[2]; _[2] = t1; }
-	else if (equal(string, "201")) { nat t2 = _[2]; _[2] = _[1]; _[1] = _[0]; _[0] = t2; }
-	else if (equal(string, "120")) { nat t0 = _[0]; _[0] = _[1]; _[1] = _[2]; _[2] = t0; }
-	else if (equal(string, "swap1")) { nat t0 = _[0]; _[0] = _[1]; _[1] = t0; }
-	else if (equal(string, "swap2")) { nat t0 = _[0]; _[0] = _[2]; _[2] = t0; }
-	else if (equal(string, "swap3")) { nat t0 = _[0]; _[0] = _[3]; _[3] = t0; }
-	else if (equal(string, "swap4")) { nat t0 = _[0]; _[0] = _[4]; _[4] = t0; }
-	else if (equal(string, "swap5")) { nat t0 = _[0]; _[0] = _[5]; _[5] = t0; }
-	else if (equal(string, "swap6")) { nat t0 = _[0]; _[0] = _[6]; _[6] = t0; }
-	else if (equal(string, "swap7")) { nat t0 = _[0]; _[0] = _[7]; _[7] = t0; }
-	else if (equal(string, "nop")) ins(op_nop);
-	else if (equal(string, "xor")) ins(op_xor);
-	else if (equal(string, "add")) ins(op_add);
-	else if (equal(string, "addi")) ins(op_addi);
-	else if (equal(string, "sub")) ins(op_sub);
-	else if (equal(string, "mul")) ins(op_mul);
-	else if (equal(string, "div")) ins(op_div);
-	else if (equal(string, "rem")) ins(op_rem);
-	else if (equal(string, "slt")) ins(op_slt);
-	else if (equal(string, "slti")) ins(op_slti);
-	else if (equal(string, "sll")) ins(op_sll);
-	else if (equal(string, "slli")) ins(op_slli);
-	else if (equal(string, "blt")) ins(op_blt);
-	else if (equal(string, "bne")) ins(op_bne);
-	else if (equal(string, "load64")) ins(op_load64);
-	else if (equal(string, "load32")) ins(op_load32);
-	else if (equal(string, "load16")) ins(op_load16);
-	else if (equal(string, "load8")) ins(op_load8);
-	else if (equal(string, "store64")) ins(op_store64);
-	else if (equal(string, "store32")) ins(op_store32);
-	else if (equal(string, "store16")) ins(op_store16);
-	else if (equal(string, "store8")) ins(op_store8);
-	else if (equal(string, "print")) ins(op_debug);
-	else if (equal(string, "here")) ins(op_ct_here);
-	else if (equal(string, "literal")) base = 1;
-	else if (equal(string, "now")) mode = 1 << 8;
-	else if (equal(string, "cthere")) ct_registers[*_] = ins_count; 
-	else if (equal(string, "define")) { addresses[*_] = w_pc; macro = 1; }
-	else if (equal(string, "use")) { names[name = name_count++] = strdup(""); goto shift; }
-	else if (equal(string, "undefine")) { free(names[*_]); names[*_] = NULL; addresses[*_] = 0; }
-	
+	} else if (equal(w, "endmacro")) { 
+		w_pc = stack[--stack_count]; 
+		goto advance;
 
+	} else if (literal) { 
+		nat length = strlen(w);
+		ct_registers[*_] = string_to_number(w, &length); 
+		literal = 0;
+		goto advance; 
+	} 
 
-
-		// the idea, is that we should make the call site    beautiful.
-
-		// just the macro name itself, nothing else. 
-
-			// and so, i feel like we shouldnt really need to actually return from mulitple places inside the macro itself... 
-					// which means that once we see a macro definition   "defineas" marker,  we are in macro mode, and can skip all the way until we see a return_from_macro statement. which then gets us out of macro mode. you cannot nest macro definitions, of course. thats not really useful at all. so yeah.
-
-	
-			// so yeah! now, we can consume the macro def, which means, we can store that branch address value away somewhere, (possibly even inside a compiletime register!) and then we can simply exit in_macro_mode,  and then start interpreting statements normally, until we find a call to it!
-
-			// and we detect a call, because 
-
-	//  *_ holds the macro name aready...?
-		//  macros[macro_count++] = {.name = names[*_], .start = w_pc + 1};
-	
-
-// shoudld we just have an association btween the word, and its .start  by just storing the 
-
-// *word_index + 1 means go to the statement after you found the defineas. 
-//	thats where the body starts. and it ends where-ever you find the "macroreturn" statement. so yeah.
-
-// this is kinda like getting the current address during parse time.
-//  we need to find the statement after the function call.
-// we need to gather the defintion as one thing, and store its location,
-//      in assocation with the macro name. thats it. 
-
-// then, when we see a call, we simply look up the name into the 
-//	macro dict, and pull out its location, storing the location of
-//	 where we need to return to,   on a stack of return adresses!
-// then, when we finish with the macro, ie, we reach the position of 
-//	the done call, of which, btw, we could always find ourselves in 
-//	a macro, so we stop evaling it, and pop 
-
-	// when you encounter a "macroreturn",  pop and resume execution given by tos!
-
-
-	// this is essentially implementing comiletime(specifically at parse() time!) function definitions and function calls. basically.
-
-
-
+	if (equal(w, "pass")) {}
+	else if (equal(w, "11")) { _[0] = _[1]; }
+	else if (equal(w, "21")) { _[0] = _[2]; }
+	else if (equal(w, "00")) { _[1] = _[0]; }
+	else if (equal(w, "02")) { _[1] = _[2]; }
+	else if (equal(w, "000")) { _[1] = _[0]; _[2] = _[0]; }
+	else if (equal(w, "001")) { _[2] = _[1]; _[1] = _[0]; }
+	else if (equal(w, "021")) { nat t1 = _[1]; _[1] = _[2]; _[2] = t1; }
+	else if (equal(w, "201")) { nat t2 = _[2]; _[2] = _[1]; _[1] = _[0]; _[0] = t2; }
+	else if (equal(w, "120")) { nat t0 = _[0]; _[0] = _[1]; _[1] = _[2]; _[2] = t0; }
+	else if (equal(w, "swap1")) { nat t0 = _[0]; _[0] = _[1]; _[1] = t0; }
+	else if (equal(w, "swap2")) { nat t0 = _[0]; _[0] = _[2]; _[2] = t0; }
+	else if (equal(w, "swap3")) { nat t0 = _[0]; _[0] = _[3]; _[3] = t0; }
+	else if (equal(w, "swap4")) { nat t0 = _[0]; _[0] = _[4]; _[4] = t0; }
+	else if (equal(w, "swap5")) { nat t0 = _[0]; _[0] = _[5]; _[5] = t0; }
+	else if (equal(w, "swap6")) { nat t0 = _[0]; _[0] = _[6]; _[6] = t0; }
+	else if (equal(w, "swap7")) { nat t0 = _[0]; _[0] = _[7]; _[7] = t0; }
+	else if (equal(w, "nop")) ins(op_nop);
+	else if (equal(w, "xor")) ins(op_xor);
+	else if (equal(w, "add")) ins(op_add);
+	else if (equal(w, "sll")) ins(op_sll);
+	else if (equal(w, "srl")) ins(op_srl);
+	else if (equal(w, "sub")) ins(op_sub);
+	else if (equal(w, "mul")) ins(op_mul);
+	else if (equal(w, "div")) ins(op_div);
+	else if (equal(w, "rem")) ins(op_rem);
+	else if (equal(w, "slt")) ins(op_slt);
+	else if (equal(w, "blt")) ins(op_blt);
+	else if (equal(w, "bne")) ins(op_bne);
+	else if (equal(w, "beq")) ins(op_beq);
+	else if (equal(w, "bge")) ins(op_bge);
+	else if (equal(w, "slti")) ins(op_slti);
+	else if (equal(w, "addi")) ins(op_addi);
+	else if (equal(w, "slli")) ins(op_slli);
+	else if (equal(w, "load64")) ins(op_load64);
+	else if (equal(w, "load32")) ins(op_load32);
+	else if (equal(w, "load16")) ins(op_load16);
+	else if (equal(w, "load8")) ins(op_load8);
+	else if (equal(w, "store64")) ins(op_store64);
+	else if (equal(w, "store32")) ins(op_store32);
+	else if (equal(w, "store16")) ins(op_store16);
+	else if (equal(w, "store8")) ins(op_store8);
+	else if (equal(w, "print")) ins(op_debug);
+	else if (equal(w, "debugexit")) ins(op_debug_exit);
+	else if (equal(w, "debughalt")) ins(op_debug_halt);
+	else if (equal(w, "here")) ins(op_ct_here);
+	else if (equal(w, "kill")) ins(op_kill);
+	else if (equal(w, "literal")) literal = 1;
+	else if (equal(w, "literalmacro")) literalmacro = 1;
+	else if (equal(w, "comment")) comment = 1;
+	else if (equal(w, "now")) mode = 1 << 8;
+	else if (equal(w, "cthere")) ct_registers[*_] = ins_count; 
+	else if (equal(w, "define")) { addresses[*_] = w_pc; macro = 1; }
+	else if (equal(w, "use")) { names[name = name_count++] = strdup(""); goto shift; }
+	else if (equal(w, "undefine")) { free(names[*_]); names[*_] = NULL; addresses[*_] = 0; }
 	
 	else {
 		name = 0; 
 		open = name_count;
 		while (name < name_count) {
 			if (names[name]) {
-				if (equal(string, names[name])) break;
+				if (equal(w, names[name])) break;
 			} else if (open == name_count) open = name;
 			name++;
 		}
 		if (name == name_count) {
 			if (open == name_count) name_count++;
-			names[open] = strdup(string);
+			names[open] = strdup(w);
+			//printf("%s\n", w);
+			//getchar();
+			//ct_registers[open] = 0xF0F0F0F0F0F0F0F0;
+			//registers[open] = 0xF0F0F0F0F0F0F0F0;
+			//addresses[open] = 0;
 			name = open;
-
-		} else if (addresses[name]) {
-			// on call of a macro, push the word_index on the stack!   
+		} else if (not literalmacro and addresses[name]) {
 			stack[stack_count++] = w_pc;
 			w_pc = addresses[name];
 			goto advance;
-		}
+		} else if (literalmacro) literalmacro = 0;
 	shift:;	nat i = sizeof _ / sizeof(nat) - 1;
 		while (i) { _[i] = _[i - 1]; i--; } *_ = name;
 	}
@@ -284,8 +266,7 @@ static void execute_ct_instruction(struct instruction I) {
 
 	if (not (I.op >> 8)) { rt_instructions[rt_ins_count++] = I; goto done; }
 	const nat op = I.op & (nat)~(1 << 8);
-	nat* r = ct_registers;
-	nat* ctr = ct_registers;
+	nat* r = ct_registers, * ctr = ct_registers;
 	byte* m = ct_memory;
 
 	if (op == op_nop) {}
@@ -308,19 +289,41 @@ static void execute_ct_instruction(struct instruction I) {
 	else if (op == op_store32) * (uint32_t*) (m + r[I._1] + ctr[I._2]) = (uint32_t) r[I._0]; 
 	else if (op == op_store16) * (uint16_t*) (m + r[I._1] + ctr[I._2]) = (uint16_t) r[I._0]; 
 	else if (op == op_store8)  * (uint8_t*)  (m + r[I._1] + ctr[I._2]) = (uint8_t)  r[I._0]; 	
-	else if (op == op_blt) { if (r[I._0] < r[I._1]) ct_pc += ctr[I._2]; }
-	else if (op == op_bne) { if (r[I._0] != r[I._1]) ct_pc += ctr[I._2]; }
+	else if (op == op_blt) { if (r[I._0] < r[I._1]) ct_pc += (ctr[I._2] - ct_pc) - 1; }
+	else if (op == op_bge) { if (r[I._0] >= r[I._1]) ct_pc += (ctr[I._2] - ct_pc) - 1; }
+	else if (op == op_bne) { if (r[I._0] != r[I._1]) ct_pc += (ctr[I._2] - ct_pc) - 1; }
+	else if (op == op_beq) { if (r[I._0] == r[I._1]) ct_pc += (ctr[I._2] - ct_pc) - 1; }
 	else if (op == op_debug) printf("CT#%llu=%lld\n", I._0, r[I._0]);
-	else if (op == op_ct_here) ctr[I._0] = rt_ins_count; 
-done:
-	ct_pc++;
+	else if (op == op_kill) r[I._0] = 0xF0F0F0F0F0F0F0F0;
+	else if (op == op_debug_halt) ct_pc = ins_count - 1;
+	else if (op == op_debug_exit) exit(0);
+	else if (op == op_ct_here) ctr[I._0] = rt_ins_count;
+	else { puts("unknown CT instruction"); abort(); }
+done: 	ct_pc++;
 }
+
+
+/*
+nat save = ct_pc;
+while (ct_pc < ins_count and (ct_registers[label] & (1 << 63))) 
+	if (instructions[ct_pc] == op_ct_here) 
+		ctr[I._0] = rt_ins_count;
+	ct_pc++;
+
+save = ct_pc;
+*/
+
+
+
+
+
+
+
 
 static void execute_instruction(struct instruction I) {
 	
 	const nat op = I.op;
-	nat* r = registers;
-	nat* ctr = ct_registers;
+	nat* r = registers, * ctr = ct_registers;
 	byte* m = memory;
 	
 	if (op == op_nop) {}
@@ -346,9 +349,14 @@ static void execute_instruction(struct instruction I) {
 	else if (op == op_store32) * (uint32_t*) (m + r[I._1] + ctr[I._2]) = (uint32_t) r[I._0]; 
 	else if (op == op_store16) * (uint16_t*) (m + r[I._1] + ctr[I._2]) = (uint16_t) r[I._0]; 
 	else if (op == op_store8)  * (uint8_t*)  (m + r[I._1] + ctr[I._2]) = (uint8_t)  r[I._0]; 	
-	else if (op == op_blt) { if (r[I._0] < r[I._1]) rt_pc += ctr[I._2]; }
-	else if (op == op_bne) { if (r[I._0] != r[I._1]) rt_pc += ctr[I._2]; }
+	else if (op == op_blt) { if (r[I._0] < r[I._1]) rt_pc += (ctr[I._2] - rt_pc) - 1; }
+	else if (op == op_bge) { if (r[I._0] >= r[I._1]) rt_pc += (ctr[I._2] - rt_pc) - 1; }
+	else if (op == op_bne) { if (r[I._0] != r[I._1]) rt_pc += (ctr[I._2] - rt_pc) - 1; }
+	else if (op == op_beq) { if (r[I._0] == r[I._1]) rt_pc += (ctr[I._2] - rt_pc) - 1; }
 	else if (op == op_debug) printf("R#%llu=%lld\n", I._0, r[I._0]);
+	else if (op == op_kill) r[I._0] = 0xF0F0F0F0F0F0F0F0;
+	else if (op == op_debug_halt) rt_pc = rt_ins_count - 1;
+	else if (op == op_debug_exit) exit(0);
 	else { puts("unknown RT instruction"); abort(); }
 	rt_pc++;
 }
@@ -357,9 +365,9 @@ static void execute_instruction(struct instruction I) {
 
 static void resetenv() {
 	w_pc = 0; ct_pc = 0; rt_pc = 0;
-	base = 0; macro = 0;
-	code_count = 0; name_count = 0; rt_ins_count = 0;
-	ins_count = 0;  stack_count = 0;
+	literal = 0; mode = 0; macro = 0; comment = 0; literalmacro = 0;
+	name_count = 0; stack_count = 0;
+	code_count = 0; ins_count = 0; rt_ins_count = 0;
 	memset(_, 0, sizeof _);
 	memset(names, 0, sizeof names);
 	memset(addresses, 0, sizeof addresses);
@@ -380,24 +388,43 @@ static void interpret_in(char* text, nat text_length) {
 	while (w_pc < code_count) parse(code[w_pc]);
 	while (ct_pc < ins_count) execute_ct_instruction(instructions[ct_pc]);
 	while (rt_pc < rt_ins_count) execute_instruction(rt_instructions[rt_pc]);
+
+
+	bool error = false;
+	for (nat i = 0; i < name_count; i++) {
+		const nat uninitialized_value = 0xF0F0F0F0F0F0F0F0;
+		const nat zero_value = 0;
+		const bool C = not memcmp(ct_registers + i, &uninitialized_value, 8);
+		const bool R = not memcmp(   registers + i, &uninitialized_value, 8);
+		const bool A = not memcmp(   addresses + i, &zero_value, 8);
+
+		if (C and R and A and names[i]) {
+			printf("error: register \"%s\" unused.\n", names[i]);
+			error = true;
+		}
+	}
+
+	if (error) puts("ERROR: compiliation failed.");
 }
 
 int main() {
 
 	puts("a repl/interpreter for my language.");
-
-	char line[4096] = {0};
+	
 	   memory = aligned_alloc(8, 1 << 16);
 	ct_memory = aligned_alloc(8, 1 << 16);
 	memset(   registers, 0xF0, sizeof    registers);
 	memset(ct_registers, 0xF0, sizeof ct_registers);
+	memset(addresses, 0, sizeof addresses);
+
+	char line[4096] = {0};
 	
 _: 	printf(" • ");
 	fgets(line, sizeof line, stdin);
 	nat line_length = strlen(line);
 	char* string = strdup(line);
 	string[line_length - 1] = 0;
-
+	
 	if (equal(string, "")) {}
 	else if (equal(string, "resetenv")) resetenv();
 	else if (equal(string, "o") or equal(string, "clear")) printf("\033[H\033[J");
@@ -413,6 +440,16 @@ _: 	printf(" • ");
 		size_t length = 0;
 		char* contents = read_file(buffer, &length);
 		if (contents) interpret_in(contents, length);
+
+	} else if (equal(string, "i") or equal(string, "interpret")) {
+
+		char buffer[4096] = {0};
+		printf("filename: ");
+		fgets(buffer, sizeof buffer, stdin);
+		buffer[strlen(buffer) - 1] = 0;
+		size_t length = 0;
+		char* contents = read_file(buffer, &length);
+		if (contents) { resetenv(); interpret_in(contents, length); }
 	
 	} else if (equal(string, "debugregisters")) {
 		for (nat i = 0; i < 32; i++) printf("\tR#%llu = %llu\n", i, registers[i]);
@@ -427,9 +464,29 @@ _: 	printf(" • ");
 		for (nat i = 0; i < sizeof _ / sizeof(nat); i++) printf("\tO#%llu = %llu\n", i, _[i]);	
 	}
 	else if (equal(string, "debugstate")) {
-		printf("state:\n\tbase=%llu, macro=%llu\n\n", base, macro);	
-	}
-	else if (equal(string, "debugmemory")) {
+
+		printf("state: \n\t"
+			"w_pc=%llu "
+			"ct_pc=%llu "
+			"rt_pc=%llu \n\t"
+			"literal=%llu "
+			"mode=%llu "
+			"macro=%llu "
+			"comment=%llu \n\t"
+			"literalmacro=%llu \n\t"
+			"name_count=%llu "
+			"stack_count=%llu \n\t"
+			"code_count=%llu "
+			"ins_count=%llu "
+			"rt_ins_count=%llu \n\t"
+			"\n",
+				w_pc, ct_pc, rt_pc, 
+				literal, mode, macro, comment, literalmacro,
+				name_count, stack_count, 
+				code_count, ins_count, rt_ins_count
+		);
+
+	} else if (equal(string, "debugmemory")) {
 		char buffer[4096] = {0};
 		printf("pointer: ");
 		fgets(buffer, sizeof buffer, stdin);
@@ -510,6 +567,79 @@ done: 	printf("quitting...\n");
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+// the next major todo is to:
+
+//       document entirely how this code works, and why we made it work the way we did. 
+//       in a manual.txt file. every single word/instruction, and its semantics.
+
+
+
+//    we need to implement    strtoll   functoin   ourself
+	// and make it work with unary,   and also with higher bases, all the way up to 85 characters?... not sure... hmm.. yeah... ill think about it... but yeah. 
+
+
+// #pragma clang diagnostic push
+// #pragma clang diagnostic ignored "-Wvla"
+
+
+
+
+
+
+// on call of a macro, push the word_index on the stack!   
+
+
+
+
+
+		// the idea, is that we should make the call site    beautiful.
+
+		// just the macro name itself, nothing else. 
+
+			// and so, i feel like we shouldnt really need to actually return from mulitple places inside the macro itself... 
+					// which means that once we see a macro definition   "defineas" marker,  we are in macro mode, and can skip all the way until we see a return_from_macro statement. which then gets us out of macro mode. you cannot nest macro definitions, of course. thats not really useful at all. so yeah.
+
+	
+			// so yeah! now, we can consume the macro def, which means, we can store that branch address value away somewhere, (possibly even inside a compiletime register!) and then we can simply exit in_macro_mode,  and then start interpreting statements normally, until we find a call to it!
+
+			// and we detect a call, because 
+
+	//  *_ holds the macro name aready...?
+		//  macros[macro_count++] = {.name = names[*_], .start = w_pc + 1};
+	
+
+// shoudld we just have an association btween the word, and its .start  by just storing the 
+
+// *word_index + 1 means go to the statement after you found the defineas. 
+//	thats where the body starts. and it ends where-ever you find the "macroreturn" statement. so yeah.
+
+// this is kinda like getting the current address during parse time.
+//  we need to find the statement after the function call.
+// we need to gather the defintion as one thing, and store its location,
+//      in assocation with the macro name. thats it. 
+
+// then, when we see a call, we simply look up the name into the 
+//	macro dict, and pull out its location, storing the location of
+//	 where we need to return to,   on a stack of return adresses!
+// then, when we finish with the macro, ie, we reach the position of 
+//	the done call, of which, btw, we could always find ourselves in 
+//	a macro, so we stop evaling it, and pop 
+
+	// when you encounter a "macroreturn",  pop and resume execution given by tos!
+
+
+	// this is essentially implementing comiletime(specifically at parse() time!) function definitions and function calls. basically.
 
 
 
