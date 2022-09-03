@@ -195,3 +195,69 @@ comment -------- macros ----------- endcomment
 
 
 
+
+
+
+comment -------- literals ----------- endcomment
+
+
+
+
+comment
+
+
+
+
+i 000 xor
+first literal a34   	transfer
+second literal a3   	transfer
+
+random literal a999999  transfer
+random1 literal a199999  transfer
+random2 literal a299999  transfer
+
+
+
+
+
+
+
+
+	second i i add print 
+
+	random1 print
+	
+
+looplabel at
+	i incr print
+
+atbranch at
+	looplabel use now sub 
+	ctdecr
+	first i blt
+
+
+	random print 
+
+	one literal 21 	transfer 
+
+
+
+loop_begin at 
+
+	loop_end  i second branch
+
+	i decr print
+
+	loop_begin goto
+
+loop_end at 
+	random2 print
+
+
+
+
+
+
+
+endcomment

@@ -12,11 +12,20 @@
 	x	- figure out how to undefine a macro name... probably using a "name pointer" construct.. where you can undefine anything in names[] by using its index, you dont have to say its name to undefine it... i guess.. not sure... kinda risky... but yeah.
 
 		- add the jump-with-link instruction!
-		- make a for loop macro!
+	x	- make a for loop macro!
 		- make an if statement macro!
 
-		- make comments able to be nested...
+	x	- make comments able to be nested...     actually  nahhhhhhh       we should be using the ct branch
+											method to comment out code.
 
+
+		- be able to print text....?   how?
+
+	
+		- - i think we need a concat function....?
+
+	
+		- i feel like we need 
 
 */
 #include <stdio.h>
@@ -66,7 +75,10 @@ static nat
 	name_count = 0, stack_count = 0,
 	code_count = 0, ins_count = 0, rt_ins_count = 0;
 	
+
+static nat save[10] = {0};
 static nat _[30] = {0};
+
 static char* names[128] = {0};
 static nat addresses[128] = {0};
 static nat registers[128] = {0};
@@ -184,6 +196,16 @@ static void parse(char* w) {
 	else if (equal(w, "021")) { nat t1 = _[1]; _[1] = _[2]; _[2] = t1; }
 	else if (equal(w, "201")) { nat t2 = _[2]; _[2] = _[1]; _[1] = _[0]; _[0] = t2; }
 	else if (equal(w, "120")) { nat t0 = _[0]; _[0] = _[1]; _[1] = _[2]; _[2] = t0; }
+
+	else if (equal(w, "save0")) { save[0] = _[0]; }
+	else if (equal(w, "give0")) { _[0] = save[0]; }
+	else if (equal(w, "save1")) { save[1] = _[0]; }
+	else if (equal(w, "give1")) { _[0] = save[1]; }
+	else if (equal(w, "save2")) { save[2] = _[0]; }
+	else if (equal(w, "give2")) { _[0] = save[2]; }
+	else if (equal(w, "save3")) { save[3] = _[0]; }
+	else if (equal(w, "give3")) { _[0] = save[3]; }
+
 	else if (equal(w, "swap1")) { nat t0 = _[0]; _[0] = _[1]; _[1] = t0; }
 	else if (equal(w, "swap2")) { nat t0 = _[0]; _[0] = _[2]; _[2] = t0; }
 	else if (equal(w, "swap3")) { nat t0 = _[0]; _[0] = _[3]; _[3] = t0; }
@@ -191,6 +213,7 @@ static void parse(char* w) {
 	else if (equal(w, "swap5")) { nat t0 = _[0]; _[0] = _[5]; _[5] = t0; }
 	else if (equal(w, "swap6")) { nat t0 = _[0]; _[0] = _[6]; _[6] = t0; }
 	else if (equal(w, "swap7")) { nat t0 = _[0]; _[0] = _[7]; _[7] = t0; }
+	
 	else if (equal(w, "nop")) ins(op_nop);
 	else if (equal(w, "xor")) ins(op_xor);
 	else if (equal(w, "add")) ins(op_add);
@@ -302,24 +325,6 @@ static void execute_ct_instruction(struct instruction I) {
 done: 	ct_pc++;
 }
 
-
-/*
-nat save = ct_pc;
-while (ct_pc < ins_count and (ct_registers[label] & (1 << 63))) 
-	if (instructions[ct_pc] == op_ct_here) 
-		ctr[I._0] = rt_ins_count;
-	ct_pc++;
-
-save = ct_pc;
-*/
-
-
-
-
-
-
-
-
 static void execute_instruction(struct instruction I) {
 	
 	const nat op = I.op;
@@ -368,6 +373,7 @@ static void resetenv() {
 	literal = 0; mode = 0; macro = 0; comment = 0; literalmacro = 0;
 	name_count = 0; stack_count = 0;
 	code_count = 0; ins_count = 0; rt_ins_count = 0;
+	memset(save, 0, sizeof save);
 	memset(_, 0, sizeof _);
 	memset(names, 0, sizeof names);
 	memset(addresses, 0, sizeof addresses);
@@ -573,6 +579,16 @@ done: 	printf("quitting...\n");
 
 
 
+
+/*
+nat save = ct_pc;
+while (ct_pc < ins_count and (ct_registers[label] & (1 << 63))) 
+	if (instructions[ct_pc] == op_ct_here) 
+		ctr[I._0] = rt_ins_count;
+	ct_pc++;
+
+save = ct_pc;
+*/
 
 
 
