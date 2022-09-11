@@ -2,7 +2,32 @@
 // dwrr   started on 2208232.211844 
 //        written on 2208243.231335
 //         edited on 2208265.235140
+/*
+	todos:
+		- start the compiler backend for this language.
 
+	x	- add WARNINGS/ERRORS for unused variables, and when variables are only written to...? yeah... we need the control flow graph to make sense. this will catch alot of errors that happen because of typos.
+	x	- add comments ...somehow...
+	x	- add more instructions! like    BL   and SRA  and   
+	x	- figure out how to undefine a macro name... probably using a "name pointer" construct.. where you can undefine anything in names[] by using its index, you dont have to say its name to undefine it... i guess.. not sure... kinda risky... but yeah.
+
+		- add the jump-with-link instruction!
+	x	- make a for loop macro!
+		- make an if statement macro!
+
+	x	- make comments able to be nested...     actually  nahhhhhhh       we should be using the ct branch
+											method to comment out code.
+
+
+		- be able to print text....?   how?
+
+	
+		- - i think we need a concat function....?
+
+	
+		- i feel like we need 
+
+*/
 #include <stdio.h>
 #include <stdbool.h>
 #include <iso646.h>
@@ -41,44 +66,33 @@ enum op_code {
 	op_xori, op_andi, op_ori,
 	op_load64, op_store64, op_load32, op_store32,
 	op_load16, op_store16, op_load8, op_store8,
-	op_debug, op_debug_halt, op_debug_exit, op_ct_here, 
-	op_debug_kill, op_debug_name, op_debug_char,
+	op_debug, op_debug_halt, op_debug_exit, op_ct_here, op_kill,
 };
 
 static nat 
-	ct_pc = 0, rt_pc = 0, 
+	w_pc = 0, ct_pc = 0, rt_pc = 0, 
 	literal = 0, mode = 0, macro = 0, comment = 0, literalmacro = 0,
 	name_count = 0, stack_count = 0,
-	ins_count = 0, rt_ins_count = 0;
-
+	code_count = 0, ins_count = 0, rt_ins_count = 0;
+	
 
 static nat save[10] = {0};
 static nat _[30] = {0};
 
 static char* names[128] = {0};
 static nat addresses[128] = {0};
-
 static nat registers[128] = {0};
 static nat ct_registers[128] = {0};
-
+static nat stack[4096] = {0};
 static byte* memory = NULL;
 static byte* ct_memory = NULL;
-
-static char dict[4096] = {0};
-static nat words[4096] = {0};
-static nat stack[4096] = {0};
+static char* code[4096] = {0};
 static struct instruction instructions[4096] = {0};
 static struct instruction rt_instructions[4096] = {0};
 
-static nat dict_length = 0;
-static nat dict_begin = 0;
-
-static nat word_count = 0;
-static nat word_pc = 0;
-
-
 static bool equal(const char* s1, const char* s2) {
-	return not strcmp(s1, s2);
+	if (strlen(s1) != strlen(s2)) return false;
+	else return not strcmp(s1, s2);
 }
 
 static void ins(nat op) {
@@ -108,6 +122,24 @@ done:	*length = index;
 	return result;
 }
 
+static void split_by_whitespace(char* text, nat text_length) {
+	nat word_len = 0, i = 0;
+	char word[4096] = {0};
+begin:	if (i >= text_length) goto done;
+	if (isspace(text[i])) goto skip;
+	goto use;
+skip:	i++;
+	if (i >= text_length) goto done;
+	if (isspace(text[i])) goto skip;
+add:	if (not word_len) goto begin;
+	word[word_len] = 0; 
+	word_len = 0;
+	code[code_count++] = strdup(word);
+	if (i >= text_length) return;
+use: 	word[word_len++] = text[i++];
+	goto begin;
+done:	if (word_len) goto add;
+}
 
 static char* read_file(const char* filename, size_t* out_length) {
 	const int file = open(filename, O_RDONLY);
@@ -155,68 +187,6 @@ static void parse(char* w) {
 	} 
 
 	if (equal(w, "pass")) {}
-
-
-	else if (equal(w, "interpret")) { _[0] = _[1]; }
-
-
-size_t file_length = 0;
-		char* file = read_file("file.txt", &file_length);
-		
-		nat F_index = 0, F_begin = 0;
-		
-		goto s;
-
-		while (F_index < file_length) {
-
-			if (not isspace(file[F_index])) {
-				dict[dict_length++] = file[F_index++];
-				continue;
-			}
-
-		push:	dict[dict_length++] = ' ';
-			words[word_count++] = D_begin;
-
-		s:	while (F_index < file_length and isspace(file[F_index])) F_index++; 
-			F_begin = F_index;
-			D_begin = dict_length;
-		}
-		if (F_begin != F_index) goto push;
-		
-		munmap(file, length);
-
-			fact:
-
-
-						we are giong to need some sort of stack, 
-							so we should just be pushing to that file stack ever time we hit a interpret call, which is essentially an include call,   and then we use the following code,    as it occurs naturally in the interpret() function. there shouldonly be one copy of it. 
-
-
-					after pushing to the stack,    if we find the end of the file, that is TOS, then we pop and then context switch to the previous file (next level in stack that is now tos, 
-
-					)		and then,  stack frames also take into account    F_index and F_begin. 
-
-								so we need a ds for that, probably. 
-
-
-								and! note! after pushing to the stack, we actually continue parsing, and on and on and on and on until we hit the        THE STACK IS EMPTY    AND    REACHED THE END OF THE LAST FILES STRING!!!!
-								then we know we are done 
-
-
-
-
-						WITH PARSING.        thennnnn we move on to CT_EVAL.
-
-
-
-							so yeah, thats how it should work.   we definitely need a stack. 
-
-
-									2209106.184404
-
-
-	}
-
 	else if (equal(w, "11")) { _[0] = _[1]; }
 	else if (equal(w, "21")) { _[0] = _[2]; }
 	else if (equal(w, "00")) { _[1] = _[0]; }
@@ -269,15 +239,11 @@ size_t file_length = 0;
 	else if (equal(w, "store32")) ins(op_store32);
 	else if (equal(w, "store16")) ins(op_store16);
 	else if (equal(w, "store8")) ins(op_store8);
-
 	else if (equal(w, "print")) ins(op_debug);
 	else if (equal(w, "debugexit")) ins(op_debug_exit);
 	else if (equal(w, "debughalt")) ins(op_debug_halt);
-	else if (equal(w, "debugname")) ins(op_debug_name);
-	else if (equal(w, "debugchar")) ins(op_debug_char);
-	else if (equal(w, "debugkill")) ins(op_debug_kill);
 	else if (equal(w, "here")) ins(op_ct_here);
-	
+	else if (equal(w, "kill")) ins(op_kill);
 	else if (equal(w, "literal")) literal = 1;
 	else if (equal(w, "literalmacro")) literalmacro = 1;
 	else if (equal(w, "comment")) comment = 1;
@@ -351,11 +317,9 @@ static void execute_ct_instruction(struct instruction I) {
 	else if (op == op_bne) { if (r[I._0] != r[I._1]) ct_pc += (ctr[I._2] - ct_pc) - 1; }
 	else if (op == op_beq) { if (r[I._0] == r[I._1]) ct_pc += (ctr[I._2] - ct_pc) - 1; }
 	else if (op == op_debug) printf("CT#%llu=%lld\n", I._0, r[I._0]);
-	else if (op == op_debug_kill) r[I._0] = 0xF0F0F0F0F0F0F0F0;
+	else if (op == op_kill) r[I._0] = 0xF0F0F0F0F0F0F0F0;
 	else if (op == op_debug_halt) ct_pc = ins_count - 1;
 	else if (op == op_debug_exit) exit(0);
-	else if (op == op_debug_name) printf("%s ", names[I._0]);
-	else if (op == op_debug_char) printf("%c", (char) r[I._0]);
 	else if (op == op_ct_here) ctr[I._0] = rt_ins_count;
 	else { puts("unknown CT instruction"); abort(); }
 done: 	ct_pc++;
@@ -395,11 +359,9 @@ static void execute_instruction(struct instruction I) {
 	else if (op == op_bne) { if (r[I._0] != r[I._1]) rt_pc += (ctr[I._2] - rt_pc) - 1; }
 	else if (op == op_beq) { if (r[I._0] == r[I._1]) rt_pc += (ctr[I._2] - rt_pc) - 1; }
 	else if (op == op_debug) printf("R#%llu=%lld\n", I._0, r[I._0]);
-	else if (op == op_debug_kill) r[I._0] = 0xF0F0F0F0F0F0F0F0;
+	else if (op == op_kill) r[I._0] = 0xF0F0F0F0F0F0F0F0;
 	else if (op == op_debug_halt) rt_pc = rt_ins_count - 1;
 	else if (op == op_debug_exit) exit(0);
-	else if (op == op_debug_name) printf("%s ", names[I._0]);
-	else if (op == op_debug_char) printf("%c", (char) r[I._0]);
 	else { puts("unknown RT instruction"); abort(); }
 	rt_pc++;
 }
@@ -427,10 +389,12 @@ static void resetenv() {
 	ct_memory = aligned_alloc(8, 1 << 16);
 }
 
+static void interpret_in(char* text, nat text_length) {
+	split_by_whitespace(text, text_length);
+	while (w_pc < code_count) parse(code[w_pc]);
+	while (ct_pc < ins_count) execute_ct_instruction(instructions[ct_pc]);
+	while (rt_pc < rt_ins_count) execute_instruction(rt_instructions[rt_pc]);
 
-
-
-static void check_for_mistakes() {
 
 	bool error = false;
 	for (nat i = 0; i < name_count; i++) {
@@ -447,18 +411,6 @@ static void check_for_mistakes() {
 	}
 
 	if (error) puts("ERROR: compiliation failed.");
-
-}
-
-static void interpret(char* text, nat text_length) {
-
-
-		parse();
-
-	while (ct_pc < ins_count) execute_ct_instruction(instructions[ct_pc]);
-	while (rt_pc < rt_ins_count) execute_instruction(rt_instructions[rt_pc]);
-
-	check_for_mistakes();
 }
 
 int main() {
@@ -487,23 +439,23 @@ _: 	printf(" • ");
 	
 	else if (equal(string, "f") or equal(string, "file")) {
 
-		char filename[4096] = {0};
+		char buffer[4096] = {0};
 		printf("filename: ");
-		fgets(filename, sizeof filename, stdin);
-		filename[strlen(filename) - 1] = 0;
+		fgets(buffer, sizeof buffer, stdin);
+		buffer[strlen(buffer) - 1] = 0;
 		size_t length = 0;
-		char* contents = read_file(filename, &length);
-		if (contents) interpret(contents, length);
+		char* contents = read_file(buffer, &length);
+		if (contents) interpret_in(contents, length);
 
 	} else if (equal(string, "i") or equal(string, "interpret")) {
 
-		char filename[4096] = {0};
+		char buffer[4096] = {0};
 		printf("filename: ");
-		fgets(filename, sizeof filename, stdin);
-		filename[strlen(filename) - 1] = 0;
+		fgets(buffer, sizeof buffer, stdin);
+		buffer[strlen(buffer) - 1] = 0;
 		size_t length = 0;
-		char* contents = read_file(filename, &length);
-		if (contents) { resetenv(); interpret(contents, length); }
+		char* contents = read_file(buffer, &length);
+		if (contents) { resetenv(); interpret_in(contents, length); }
 	
 	} else if (equal(string, "debugregisters")) {
 		for (nat i = 0; i < 32; i++) printf("\tR#%llu = %llu\n", i, registers[i]);
@@ -518,7 +470,6 @@ _: 	printf(" • ");
 		for (nat i = 0; i < sizeof _ / sizeof(nat); i++) printf("\tO#%llu = %llu\n", i, _[i]);	
 	}
 	else if (equal(string, "debugstate")) {
-		/*
 
 		printf("state: \n\t"
 			"w_pc=%llu "
@@ -539,9 +490,7 @@ _: 	printf(" • ");
 				literal, mode, macro, comment, literalmacro,
 				name_count, stack_count, 
 				code_count, ins_count, rt_ins_count
-		);*/
-
-		puts("unimplemented.");
+		);
 
 	} else if (equal(string, "debugmemory")) {
 		char buffer[4096] = {0};
@@ -566,7 +515,7 @@ _: 	printf(" • ");
 			printf("name[%llu] =  %s \n", i, names[i] ? names[i] : "{NULL}");
 	}
 
-	else interpret(line, line_length);
+	else interpret_in(line, line_length);
 
 	goto _;
 done: 	printf("quitting...\n");
@@ -625,116 +574,8 @@ done: 	printf("quitting...\n");
 
 
 
-/*
-
-					currently, we cant handle backwards branches, i think. yikes.
-
-	todos:
-
-		- start the compiler backend for this language.
-
-		- add the jump-with-link instruction!
-
-		- make an if statement macro!
-
-		- - i think we need a concat-file function....?        (why?...)
-	
-		- figure out how to include a file!?!...
 
 
-
-
-???	x	- add WARNINGS/ERRORS for unused variables, and when variables are only written to...?
-				yeah... we need the control flow graph to make sense. 
-				this will catch alot of errors that happen because of typos.
-
-done	x	- add comments ...somehow...       (properly)
-
-done	x	- add more instructions! like    BL   and SRA  and   
-
-done	x	- figure out how to undefine a macro name... probably using a "name pointer" construct.. 
-				where you can undefine anything in names[] by using its index, 
-				you dont have to say its name to undefine it... i guess.. 
-				not sure... kinda risky... but yeah.
-
-
-done	x	- make a for loop macro!
-
-no	n	- make comments able to be nested...     actually  nahhhhhhh       we should be using the ct branch
-											method to comment out code.
-no	n	- be able to print text....?   how?
-
-
-
-
-
-
-
-
-*/
-
-
-
-
-
-
-/*
-
-
-
-nat word_len = 0, i = 0;
-	char word[4096] = {0};
-begin:	if (i >= text_length) goto done;
-	if (isspace(text[i])) goto skip;
-	goto use;
-skip:	i++;
-	if (i >= text_length) goto done;
-	if (isspace(text[i])) goto skip;
-add:	if (not word_len) goto begin;
-	word[word_len] = 0; 
-	word_len = 0;
-	code[code_count++] = strdup(word);
-	// interpret this word right here! i think.
-	if (i >= text_length) return;
-use: 	word[word_len++] = text[i++];
-	goto begin;
-done:	if (word_len) goto add;
-
-
-
-
-
-			 okay thats where we were. 
-
-
-			 we had just realized that we need to be lexing, as we go, so that we can simply start using a seperate code file, in order to finish parsing the rest of the language. includes in the language is strictly textbased,    because of macros, of course. so we need to actually have the interpreter read a seperate file, and then do everything, for that file, interjecting into the current state of everything, right when it sees the file. for that, we need to NOT push onto to the code  (ie, words) array, we need to stop where we are in the file, and literally call ourselves, with the current context, as it was left off, inside the file that included this file, and then resume with the newly changed/pushed to context, after the file which we included finishes parsing. yeah. very important. ie, including happens at parse time. its kinda like a preprocessor. although, instead of textual insertion,its actually just updating the environment according to that file, and then leaving it just as is, and resuming execution in the main file. so yeah. very correct way to do it, i think.
-
-
-
-lets redo the lexing stage, of spliting the strings. 
-*/
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-/*
-static void split_by_whitespace(char* text, nat text_length) {
-	
-}
-*/
 
 
 
