@@ -1,0 +1,957 @@
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+/*
+//printf("%s\n", w);
+			//getchar();
+			//ct_registers[open] = 0xF0F0F0F0F0F0F0F0;
+			//registers[open] = 0xF0F0F0F0F0F0F0F0;
+			//addresses[open] = 0;
+
+
+
+
+
+
+
+			fact:
+
+
+						we are giong to need some sort of stack, 
+							so we should just be pushing to that file stack ever time we hit a interpret call, which is essentially an include call,   and then we use the following code,    as it occurs naturally in the interpret() function. there shouldonly be one copy of it. 
+
+
+					after pushing to the stack,    if we find the end of the file, that is TOS, then we pop and then context switch to the previous file (next level in stack that is now tos, 
+
+					)		and then,  stack frames also take into account    F_index and F_begin. 
+
+								so we need a ds for that, probably. 
+
+
+								and! note! after pushing to the stack, we actually continue parsing, and on and on and on and on until we hit the        THE STACK IS EMPTY    AND    REACHED THE END OF THE LAST FILES STRING!!!!
+								then we know we are done 
+
+
+
+
+						WITH PARSING.        thennnnn we move on to CT_EVAL.
+
+
+
+							so yeah, thats how it should work.   we definitely need a stack. 
+
+
+									2209106.184404
+
+
+
+*/
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+/*
+
+					currently, we cant handle backwards branches, i think. yikes.
+
+	todos:
+
+		- start the compiler backend for this language.
+
+		- add the jump-with-link instruction!
+
+		- make an if statement macro!
+
+		- - i think we need a concat-file function....?        (why?...)
+	
+		- figure out how to include a file!?!...
+
+
+
+
+???	x	- add WARNINGS/ERRORS for unused variables, and when variables are only written to...?
+				yeah... we need the control flow graph to make sense. 
+				this will catch alot of errors that happen because of typos.
+
+done	x	- add comments ...somehow...       (properly)
+
+done	x	- add more instructions! like    BL   and SRA  and   
+
+done	x	- figure out how to undefine a macro name... probably using a "name pointer" construct.. 
+				where you can undefine anything in names[] by using its index, 
+				you dont have to say its name to undefine it... i guess.. 
+				not sure... kinda risky... but yeah.
+
+
+done	x	- make a for loop macro!
+
+no	n	- make comments able to be nested...     actually  nahhhhhhh       we should be using the ct branch
+											method to comment out code.
+no	n	- be able to print text....?   how?
+
+
+
+
+
+
+
+
+*/
+
+
+
+
+
+
+/*
+
+
+
+nat word_len = 0, i = 0;
+	char word[4096] = {0};
+begin:	if (i >= text_length) goto done;
+	if (isspace(text[i])) goto skip;
+	goto use;
+skip:	i++;
+	if (i >= text_length) goto done;
+	if (isspace(text[i])) goto skip;
+add:	if (not word_len) goto begin;
+	word[word_len] = 0; 
+	word_len = 0;
+	code[code_count++] = strdup(word);
+	// interpret this word right here! i think.
+	if (i >= text_length) return;
+use: 	word[word_len++] = text[i++];
+	goto begin;
+done:	if (word_len) goto add;
+
+
+
+
+
+			 okay thats where we were. 
+
+
+			 we had just realized that we need to be lexing, as we go, so that we can simply start using a seperate code file, in order to finish parsing the rest of the language. includes in the language is strictly textbased,    because of macros, of course. so we need to actually have the interpreter read a seperate file, and then do everything, for that file, interjecting into the current state of everything, right when it sees the file. for that, we need to NOT push onto to the code  (ie, words) array, we need to stop where we are in the file, and literally call ourselves, with the current context, as it was left off, inside the file that included this file, and then resume with the newly changed/pushed to context, after the file which we included finishes parsing. yeah. very important. ie, including happens at parse time. its kinda like a preprocessor. although, instead of textual insertion,its actually just updating the environment according to that file, and then leaving it just as is, and resuming execution in the main file. so yeah. very correct way to do it, i think.
+
+
+
+lets redo the lexing stage, of spliting the strings. 
+*/
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+/*
+static void split_by_whitespace(char* text, nat text_length) {
+	
+}
+*/
+
+
+
+
+/*
+nat save = ct_pc;
+while (ct_pc < ins_count and (ct_registers[label] & (1 << 63))) 
+	if (instructions[ct_pc] == op_ct_here) 
+		ctr[I._0] = rt_ins_count;
+	ct_pc++;
+
+save = ct_pc;
+*/
+
+
+
+
+
+// the next major todo is to:
+
+//       document entirely how this code works, and why we made it work the way we did. 
+//       in a manual.txt file. every single word/instruction, and its semantics.
+
+
+
+//    we need to implement    strtoll   functoin   ourself
+	// and make it work with unary,   and also with higher bases, all the way up to 85 characters?... not sure... hmm.. yeah... ill think about it... but yeah. 
+
+
+// #pragma clang diagnostic push
+// #pragma clang diagnostic ignored "-Wvla"
+
+
+
+
+
+
+// on call of a macro, push the word_index on the stack!   
+
+
+
+
+
+		// the idea, is that we should make the call site    beautiful.
+
+		// just the macro name itself, nothing else. 
+
+			// and so, i feel like we shouldnt really need to actually return from mulitple places inside the macro itself... 
+					// which means that once we see a macro definition   "defineas" marker,  we are in macro mode, and can skip all the way until we see a return_from_macro statement. which then gets us out of macro mode. you cannot nest macro definitions, of course. thats not really useful at all. so yeah.
+
+	
+			// so yeah! now, we can consume the macro def, which means, we can store that branch address value away somewhere, (possibly even inside a compiletime register!) and then we can simply exit in_macro_mode,  and then start interpreting statements normally, until we find a call to it!
+
+			// and we detect a call, because 
+
+	//  *_ holds the macro name aready...?
+		//  macros[macro_count++] = {.name = names[*_], .start = w_pc + 1};
+	
+
+// shoudld we just have an association btween the word, and its .start  by just storing the 
+
+// *word_index + 1 means go to the statement after you found the defineas. 
+//	thats where the body starts. and it ends where-ever you find the "macroreturn" statement. so yeah.
+
+// this is kinda like getting the current address during parse time.
+//  we need to find the statement after the function call.
+// we need to gather the defintion as one thing, and store its location,
+//      in assocation with the macro name. thats it. 
+
+// then, when we see a call, we simply look up the name into the 
+//	macro dict, and pull out its location, storing the location of
+//	 where we need to return to,   on a stack of return adresses!
+// then, when we finish with the macro, ie, we reach the position of 
+//	the done call, of which, btw, we could always find ourselves in 
+//	a macro, so we stop evaling it, and pop 
+
+	// when you encounter a "macroreturn",  pop and resume execution given by tos!
+
+
+	// this is essentially implementing comiletime(specifically at parse() time!) function definitions and function calls. basically.
+
+
+
+
+
+
+
+
+
+
+/*
+static const char* op_code_spelling[] = {
+	"op_nop", "op_ct_nop",
+	"op_ct_xor", "op_xor",
+	"op_add", "op_ct_add", "op_addi",
+	"op_slt", "op_slti",
+	"op_sub", "op_ct_sub",
+	"op_sll", "op_slli",
+	
+	"op_load64", "op_store64",
+	"op_load32", "op_store32",
+	"op_load16", "op_store16",
+	"op_load8", "op_store8",
+
+	"op_ct_load64", "op_ct_store64",
+	"op_ct_load32", "op_ct_store32",
+	"op_ct_load16", "op_ct_store16",
+	"op_ct_load8", "op_ct_store8",
+
+	"op_blt", "op_ct_blt",
+	"op_ct_debug", "op_debug", "op_ct_here", 
+	"op_mul", "op_div", "op_ct_mul", "op_ct_div",
+	"op_rem", "op_ct_rem",
+	"op_ct_sll", "op_ct_slt",
+	"op_bne", "op_ct_bne",
+	"op_or", "op_ct_or",
+	"op_and", "op_ct_and",
+	"op_srl", "op_ct_srl",	
+};
+static void print_ins(struct instruction O, nat p) {
+	printf("---> [%llu] instruction: { operation=%s, dest=%llu, first=%llu, second=%llu }\n", 
+		p, op_code_spelling[O.op], O._0, O._1, O._2);
+}
+
+static void print_strings(char** list, nat count) {
+	printf("statement list(count=%llu): \n", count);
+	for (nat i = 0; i < count; i++) {
+		printf("\t\"%s\"\n", list[i]);
+	}
+	puts("[end-list]");
+}*/
+
+
+
+
+
+
+
+
+
+/*
+
+
+		random piece of code lol
+
+	{
+		int a[5] = {4, 3, 2, 5, 6};
+		
+		for (int i = 5; i--;) {
+			printf("%d\n", a[i]);
+		}
+
+		exit(1);
+	}
+
+
+
+
+
+
+
+	//else if (I.op == op_store64) *((uint8_t*)memory + registers[I._1] + ct_registers[I._2]) = (uint64_t) registers[I._0]; 
+	
+	//else if (I.op == op_load32) registers[I._0] = *((uint8_t*)memory + registers[I._1] + ct_registers[I._2]);
+	//else if (I.op == op_store32) *((uint8_t*)memory + registers[I._1] + ct_registers[I._2]) = (uint32_t) registers[I._0]; 
+	
+	//else if (I.op == op_load16) registers[I._0] = *((uint8_t*)memory + registers[I._1] + ct_registers[I._2]);
+	//else if (I.op == op_store16) *((uint8_t*)memory + registers[I._1] + ct_registers[I._2]) = (uint16_t) registers[I._0]; 
+
+	//else if (I.op == op_load8) registers[I._0] = *((uint8_t*)memory + registers[I._1] + ct_registers[I._2]);
+	//else if (I.op == op_store8) *((uint8_t*)memory + registers[I._1] + ct_registers[I._2]) = (uint8_t) registers[I._0]; 
+
+
+
+
+
+
+
+
+
+2208287.163230:
+
+	so how are we going to implement macros!?
+
+			i think we are ready to implement those now. its a really important feature to get right.
+
+
+	
+	what is the syntax/words to do with macros?
+
+		
+	
+		in forth, you say           :     macro-name     word-list-here    ;
+
+		so yeah, thats cool i guess... but 
+
+
+
+	
+
+
+
+	well, we need to think about control flow, 
+
+
+		and we need to think about how to make things... use less names?
+
+
+			ie, use    imperative state,     to not have to specify   names of things
+
+
+				but simply have the thing just knowww    what to name to use 
+
+
+						thats the key 
+
+
+
+
+
+
+
+		and for control flow, 
+
+
+					i think we essentuail
+
+
+	
+
+
+
+
+
+
+
+
+
+
+previous help menu:          (use for manual.txt)
+
+
+
+
+
+	printf(	
+		"\n\t"
+		"quit(q) : quit the utility.\n\t"
+		"help(?) : this help menu. (abbrev = '?')\n\t"
+		"file(f) : interpret a file. allows for control flow.\n\t"
+		"clear(o) : clear screen. \n\t"
+	
+		"debugregisters debug the current state of the registers.\n\t"
+		"debugctregisters : debug the current state of the compiletime registers.\n\t"
+		"debugnames : debug the currently defined names.\n\t"
+		"debugops : print the 4 operand registers for debug.\n\t"
+
+		"pass : nop operation.\n\t"
+
+		"ct_xor : compiletime xor.\n\t"
+		"xor : runtime xor instruction.\n\t"
+
+		"ct_add : compiletime add.\n\t"
+		"add : runtime add instruction.\n\t"
+		"addi : runtime add immediate instruction.\n\t"
+
+		"slt : runtime set less than instruction.\n\t"
+		"slti : runtime set less than immediate instruction\n\t"
+
+		"sub : runtime sub instruction.\n\t"
+		"ct_sub compiletime sub instruction.\n\t"
+
+		"slli : runtime shift logical left immediate instruction.\n\t"
+		"sll : runtime shift logical left instruction.\n\t"
+
+		"load64 : runtime load 64-bit word instruction.\n\t"
+
+		"blt : runtime branch less than instruction. \n\t"
+		"ct_blt : compiletime branch less than instruction. \n\t"
+
+		"print : print register value for debug\n\t"
+		"ctprint : print compiletime value for debug\n\t"
+		
+		"11 : _[0] = _[1]; \n\t"
+		"21 : _[0] = _[2]; \n\t"
+		"00 : _[1] = _[0]; \n\t"
+		"02 : _[1] = _[2]; \n\t"
+		"000 : _[1] = _[0]; _[2] = _[0]; \n\t"
+		"001 : _[2] = _[1]; _[1] = _[0]; \n\t"
+		"021 : nat t1 = _[1]; _[1] = _[2]; _[2] = t1; \n\t"
+		"10 : nat t0 = _[0]; _[0] = _[1]; _[1] = t0; \n\t"
+		"210 : nat t0 = _[0]; _[0] = _[2]; _[2] = t0; \n\t"
+		"201 : nat t2 = _[2]; _[2] = _[1]; _[1] = _[0]; _[0] = t2; \n\t"
+		"120 : nat t0 = _[0]; _[0] = _[1]; _[1] = _[2]; _[2] = t0; \n\t"
+
+		"literal16 : treat next word as a hex literal.\n\t"
+		"literal10 : treat next word as a decimal literal.\n\t"
+		"literal2 : treat next word as a binary literal.\n\t"
+
+		"delete : delete the 0th virtual from the defined list of names.\n\t"
+
+		"here : fill ct_registers[_[0]] with the PC at ct_exec. used for implementing rt branches.\n\t"
+		"cthere : fill ct_registers[_[0]] with the PC at parsing. used for implementing ct branches.\n\t"
+
+		"(hex literal) {16} : if in state base = 16\n\t"
+		"(decimal literal) {10} : if in state base = 10\n\t"
+		"(binary literal) {2} : if in state base = 2\n\t"
+
+		"(register name) {0} : if not found as any other ins. will be defined if not.\n\t"
+
+		"\n"
+	);
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+------------------------ domain --------------------------
+
+
+	this language aims to be a small, simple, concise, 
+	optimized low-level language, for writing RISC 
+	like archiechiture assembly, but also allow for 
+	abstraction and flexibility to make writing of large 
+	systems possible with optimal performance.
+
+
+
+---------------------------- priorities of the language ------------------------------
+
+		ranked in order of importance!
+
+
+	1. performance: maximal runtime performance
+
+	2. simplicity: extreme minimalism and simplicity
+
+	3. flexibility: great language flexibility, very general compiletime 
+
+	[4. readability: decent programmer abstractions for readability]
+
+
+----------------------------------- main idea ----------------------------------------
+
+	- the language uses a strictly statement-based syntax and design, where state change
+	is the only real way to do anything in the language. (for: simplicity)
+
+	- the language has a complete compiletime evaluation system, which allows arbitrary data and code to be generated at compiletime. (for: flexibility, performance)
+
+	- the language has a simple macro system to allow the programmer to turn the low level language into a high level language. (for: readability)
+
+	- the instructions/constructs in the language are modelled very closely off of RISC ISA's, in particular RISC-V. this makes the language very efficient to compile to RISC processors. (for: performance, simplicity)
+
+	- 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+	----------- phases of the interpreter -----------
+
+
+
+
+
+//	step2.  identify macros, and expand them?...
+
+
+
+
+	step3.  generate RT, CT instructions, generating the 
+
+			CT instructions array: (struct instruction[])
+		and,
+			RT instructions array: (struct instruction[])
+
+
+
+
+
+//	step4.   macro expansion: expand all macros.
+		
+
+
+
+
+	step5.	 run the CT instructions, (with pc) this also computes and fills in 
+						certain relative branch distances. 
+	
+	step6.   run the resulting RISCV instructions. (with pc)
+
+
+
+
+
+
+				phase seq under construction
+
+
+
+
+
+
+
+
+
+
+
+		// we are in the middle of implementing labels and gotos and branches. 
+
+
+
+
+
+			// note: we totally dont even need the bool in_use array,because we can just use the name being a null pointer or not. and when we are done with a register, just set its name to be null. thats it. thats much better. 
+
+			//   and then the general algorithm for the     defining new register section 
+
+			// would be to just find an open null pointer in the array of names 
+				// if you went through the entire array of names, and didnt find anything, then you know you ran out of registers, i think.
+
+			// also when going through the array, you want to make sure the name  you are checking against, in the table is not a null pointer, of course. yeah this is good. 
+
+
+
+*/
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+/*
+here is the current language isa:
+-------------------------------
+
+
+
+
+	RV(32/64)I:
+========================
+
+
+memory:
+
+	load (8-bit/16-bit/32-bit/64-bit)
+	load unsigned (8-bit/16-bit/32-bit)
+
+	store (8-bit/16-bit/32-bit/64-bit)
+
+operations:
+
+	shift left          (zero-ext imm) 
+	shift right         (zero-ext imm)
+	shift arith right   (zero-ext imm)
+
+	xor    (sign-ext imm)
+	or     (sign-ext imm)
+	and    (sign-ext imm)
+
+	add         (sign-ext imm)
+	subtract    [no imm version]
+
+	set less than 	          (sign-ext imm)
+	set less than unsigned    (sign-ext imm)
+
+branches:
+
+	branch <
+	branch < unsigned
+
+	branch ≥
+	branch ≥ unsigned
+
+	branch =
+	branch ≠
+
+
+[end]
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+...
+
+
+
+
+thats it
+
+
+
+
+
+later on, we will add more complex instructions into the language, conditionally based on whether it is 
+
+	RV64M
+========================
+
+
+	multiply lower
+
+	multiply upper   (sign x sign)
+	multiply upper   (unsign x unsign)
+	multiply upper   (unsign x sign)
+
+	divide
+	divide unsigned
+
+	remainder
+	remainder unsigned
+
+	
+
+
+
+other instructions i'm probably not going to add:
+-----------------------------------------------------------
+
+
+	load upper imm 
+	
+	add upper imm to pc
+
+	jump and link
+
+	jump and link register
+
+
+
+
+
+
+
+
+else if (not strcmp(string, "da")) {
+	for (nat i = 0; i < 32; i++) printf("R#%llu=%llu\n", i, registers[i]);
+	for (nat i = 0; i < count; i++) printf("name[%llu] =  \"%s\" \n", i, names[i]);
+}
+
+
+
+*/
+
+
+
+
+
+
+/*
+		compile_in(string);
+		if (instruction_count) {
+			execute_ct_instruction(instructions[instruction_count - 1]);
+			execute_instruction(instructions[instruction_count - 1]);
+			instruction_count = 0;
+		}
+		pc = 0;
+		*/
+
+
+
+/// lets implement:
+///
+///       x =  *(buffer + i * 4) >= 33
+///
+///
+///   assume: 	buffer = feedbeef
+///          	i = 3
+///
+///   calculate x.
+
+
+/// implementation transcript:
+/*
+
+
+
+
+	zero 
+	all
+	xor
+
+	one
+	bliteral
+	1
+
+	one
+	zero
+	one
+	addi
+
+	buffer 
+	hliteral 
+	feedbeef
+
+	buffer 
+	zero 
+	buffer 
+	addi
+
+	i 
+	dliteral
+	3
+	
+	i 
+	zero 
+	i
+	addi
+
+
+
+
+
+
+	one
+	i
+	T
+	slli
+	dup0
+	slli
+
+	
+	buffer
+	TT
+	add
+
+	(((    all xor    )))           // i did this so i wont segfault. you wouldnt need this.
+
+	
+	zero
+	TT
+	*
+	load64
+
+	33
+	*
+	result
+	slt
+
+	one
+	result
+	dup
+	slt
+	
+	
+	
+	
+
+	
+
+
+	{0/1} < 1      // is a trick for inverting an slt.  very cool.
+
+	
+
+
+
+	
+	
+	
+
+
+
+
+
+
+	oh my gosh!! macros are just text replacement now!!! there are literally not arguments to any call ever!!! thats so cool!!!! i love that. 
+
+		i want to implement macros now. thats what i want to do next. and also get this thing to use a file. 
+
+			and then i also want to add control flow. somehow... 
+
+			yeah.. 
+
+					thats going to be tricky... but i think we can do it. 
+
+
+					
+*/
+
+
+
+
+

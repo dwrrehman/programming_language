@@ -1,0 +1,30 @@
+
+
+
+comment 
+nop
+
+testing      now debugname
+
+L    literal a56
+
+bubbles     now debugname 
+beans     now debugname 
+beans     now debugname 
+beans     now debugname 
+
+
+L 	now debugchar 
+
+bubbles     now debugname 
+bubbles     now debugname 
+bubbles     now debugname 
+beans     now debugname 
+
+L 	now debugchar 
+
+beans     now debugname 
+
+now debugexit
+
+endcomment 

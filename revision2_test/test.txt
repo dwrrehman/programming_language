@@ -1,0 +1,18 @@
+
+dothis define 
+	debugabort2
+	please_testing now debugname
+	debugabort3
+endmacro
+
+debugabort1
+
+dothis
+
+debugabort4
+
+include end.txt
+
+debugabort5
+
+	
