@@ -169,10 +169,11 @@ static void parse(nat word_begin) {
 
 	if (comment) { 
 		if (equal(w, "endcomment")) comment = 0; 
-
 	}
 
 	else if (include) {
+
+		printf(magenta "including %s...\n" reset , w);
 
 		size_t file_length = 0;
 		char* file = read_file(w, &file_length);
@@ -186,7 +187,7 @@ static void parse(nat word_begin) {
 			.F_begin = 0
 		};
 
-		//printf("\n\tMY_TOS={%s,%llu,%llu,%llu}\n\n", file_stack[file_stack_count - 1].file, file_stack[file_stack_count - 1].file_length, file_stack[file_stack_count - 1].F_index, file_stack[file_stack_count - 1].F_begin);
+		//printf("\n\tMY_TOS={%s,length=%llu,index=%llu,begin=%llu}\n\n", file_stack[file_stack_count - 1].file, file_stack[file_stack_count - 1].file_length, file_stack[file_stack_count - 1].F_index, file_stack[file_stack_count - 1].F_begin);
 
 		include = false;
 
@@ -204,7 +205,7 @@ static void parse(nat word_begin) {
 		literal = 0;
 	} 
 
-
+	
 
 	else if (equal(w, "pass")) {}
 
@@ -281,7 +282,7 @@ static void parse(nat word_begin) {
 	else if (equal(w, "now")) mode = 1 << 8;
 	else if (equal(w, "cthere")) ct_registers[*_] = ins_count; 
 	else if (equal(w, "define")) { addresses[*_] = word_pc; macro = 1; }
-	else if (equal(w, "use")) { 
+	else if (equal(w, "gensym")) { 
 		names[name_count++] = strdup(""); 
 		nat i = sizeof _ / sizeof(nat) - 1;
 		while (i) { _[i] = _[i - 1]; i--; } *_ = name_count;
@@ -289,7 +290,7 @@ static void parse(nat word_begin) {
 	else if (equal(w, "undefine")) { free(names[*_]); names[*_] = NULL; addresses[*_] = 0; }
 	
 	else {
-		printf("I AM HERE:  %s\n", w);
+		//printf("FOUND UNEXPECTED:  %s\n", w);
 		nat name = 0; 
 		nat open = name_count;
 		while (name < name_count) {
@@ -311,7 +312,7 @@ static void parse(nat word_begin) {
 		while (i) { _[i] = _[i - 1]; i--; } *_ = name;
 	}
 
-advance: word_pc++;
+advance: ;
 
 }
 
@@ -329,7 +330,7 @@ top:;
 
 	tos = file_stack + file_stack_count - 1;
 
-	//printf("\n\ttos={%s,%llu,%llu,%llu}\n\n", tos->file, tos->file_length, tos->F_index, tos->F_begin);
+	//printf("\n\ttos={%s,flength=%llu,findex=%llu,begin=%llu}\n\n", tos->file, tos->file_length, tos->F_index, tos->F_begin);
 
 
 	while (tos->F_index < tos->file_length and isspace(tos->file[tos->F_index])) tos->F_index++; 
@@ -347,14 +348,17 @@ top:;
 		dict[dict_length++] = ' ';
 		words[word_count++] = dict_begin;
 
-		// parse(word) should happen here.
-
 		while (tos->F_index < tos->file_length and isspace(tos->file[tos->F_index])) tos->F_index++; 
 		tos->F_begin = tos->F_index;
 		dict_begin = dict_length;
 
 		tos = file_stack + file_stack_count - 1;
-		while (word_pc < word_count) parse(words[word_pc]);
+
+		while (word_pc < word_count) {
+			parse(words[word_pc]);
+			word_pc++;
+		}
+
 		tos = file_stack + file_stack_count - 1;
 	}
 	if (tos->F_begin != tos->F_index) goto push;
