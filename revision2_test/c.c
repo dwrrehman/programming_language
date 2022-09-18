@@ -15,22 +15,18 @@
 #include <sys/stat.h>
 #include <sys/mman.h>
 
-
-
-#include <stdio.h>
-
 #define red   "\x1B[31m"
 #define green   "\x1B[32m"
 #define yellow   "\x1B[33m"
 #define blue   "\x1B[34m"
 #define magenta   "\x1B[35m"
 #define cyan   "\x1B[36m"
-#define white   "\x1B[37m"
 #define reset "\x1B[0m"
 
 typedef uint64_t nat;
 typedef uint8_t byte;
 struct instruction { nat op, _0, _1, _2; };
+struct file_frame { char* file; nat file_length, F_index, F_begin; };
 
 static const char digits[96] = 
 	"0123456789abcdefghijklmnopqrstuvwxyz"
@@ -44,66 +40,46 @@ enum op_code {
 	op_sra, op_mul, op_div, op_rem, 
 	op_slt, op_sltu, op_blt, op_bge, 
 
-	op_bne, op_beq, op_bltu, op_bgeu,    // first = 16
-	op_jal, op_jalr, op_slli, op_srli,   // first = 20
+	op_bne, op_beq, op_bltu, op_bgeu,
+	op_jal, op_jalr, op_slli, op_srli,  
 
-	op_srai, op_slti, op_sltiu, op_addi, // 24
-	op_xori, op_andi, op_ori, op_load64,  //28
+	op_srai, op_slti, op_sltiu, op_addi,
+	op_xori, op_andi, op_ori, op_load64,
 
-	op_store64, op_load32, op_store32, op_load16,  //32
-	op_store16, op_load8, op_store8, op_debug, // 36
+	op_store64, op_load32, op_store32, op_load16, 
+	op_store16, op_load8, op_store8, op_debug,
 
-	op_debug_halt, op_debug_exit, op_ct_here,  op_debug_kill, //40
-	op_debug_name, op_debug_char,  //44
-
-	// op_code_count = 46,
+	op_debug_halt, op_debug_exit, op_ct_here,  op_debug_kill, 
+	op_debug_name, op_debug_char, 
 };
 
 static nat 
 	ct_pc = 0, rt_pc = 0, 
-	literal = 0, mode = 0, macro = 0, comment = 0, literalmacro = 0, include = 0,
+	literal = 0, mode = 0, macro = 0, comment = 0, 
+	literalmacro = 0, include = 0,
 	name_count = 0, stack_count = 0,
 	ins_count = 0, rt_ins_count = 0;
 static nat dict_length = 0;
 static nat dict_begin = 0;
 static nat word_count = 0;
 static nat word_pc = 0;
-
+static nat file_stack_count = 0;
+static struct file_frame file_stack[128] = {0};
 static nat save[10] = {0};
 static nat _[30] = {0};
-
 static char* names[128] = {0};
 static nat addresses[128] = {0};
-
 static nat registers[128] = {0};
 static nat ct_registers[128] = {0};
-
 static byte* memory = NULL;
 static byte* ct_memory = NULL;
-
 static char dict[4096] = {0};
 static nat words[4096] = {0};
 static nat stack[4096] = {0};
 static struct instruction instructions[4096] = {0};
 static struct instruction rt_instructions[4096] = {0};
 
-
-
-
-struct file_frame {
-	char* file;
-	nat file_length;
-	nat F_index;
-	nat F_begin;
-};
-
-static nat file_stack_count = 0;
-static struct file_frame file_stack[128] = {0};
-
-
-static bool equal(const char* s1, const char* s2) {
-	return not strcmp(s1, s2);
-}
+static bool equal(const char* s1, const char* s2) { return not strcmp(s1, s2); }
 
 static void ins(nat op) {
 	instructions[ins_count++] = (struct instruction) {
@@ -164,9 +140,6 @@ static void parse(nat word_begin) {
 		w[_wc++] = dict[_i++];
 	}
 
-
-
-
 	if (comment) { 
 		if (equal(w, "endcomment")) comment = 0; 
 	}
@@ -187,7 +160,11 @@ static void parse(nat word_begin) {
 			.F_begin = 0
 		};
 
-		//printf("\n\tMY_TOS={%s,length=%llu,index=%llu,begin=%llu}\n\n", file_stack[file_stack_count - 1].file, file_stack[file_stack_count - 1].file_length, file_stack[file_stack_count - 1].F_index, file_stack[file_stack_count - 1].F_begin);
+		//printf("\n\tMY_TOS={%s,length=%llu,index=%llu,begin=%llu}\n\n", 
+			file_stack[file_stack_count - 1].file, 
+			file_stack[file_stack_count - 1].file_length, 
+			file_stack[file_stack_count - 1].F_index, 
+			file_stack[file_stack_count - 1].F_begin);
 
 		include = false;
 
@@ -205,12 +182,7 @@ static void parse(nat word_begin) {
 		literal = 0;
 	} 
 
-	
-
 	else if (equal(w, "pass")) {}
-
-
-
 	else if (equal(w, "abort")) {abort(); }
 	else if (equal(w, "debugabort1")) {printf(red "DEBUG_ABORT1();\n" reset); }
 	else if (equal(w, "debugabort2")) {printf(cyan "DEBUG_ABORT2();\n" reset); }
@@ -316,25 +288,13 @@ advance: ;
 
 }
 
-
-
-
-
 static void lex() {
-
 top:;
-
 	//printf("lexing [%llu]\n", file_stack_count - 1);
-
 	struct file_frame* tos;
-
 	tos = file_stack + file_stack_count - 1;
-
 	//printf("\n\ttos={%s,flength=%llu,findex=%llu,begin=%llu}\n\n", tos->file, tos->file_length, tos->F_index, tos->F_begin);
-
-
 	while (tos->F_index < tos->file_length and isspace(tos->file[tos->F_index])) tos->F_index++; 
-
 	tos->F_begin = tos->F_index;     // ?....
 
 	while (tos->F_index < tos->file_length) {
@@ -361,13 +321,10 @@ top:;
 
 		tos = file_stack + file_stack_count - 1;
 	}
-	if (tos->F_begin != tos->F_index) goto push;
-	
+	if (tos->F_begin != tos->F_index) goto push;	
 
 done:
 	munmap(tos->file, tos->file_length);
-
-
 	file_stack_count--;
 
 	if (file_stack_count == 0) {
@@ -376,10 +333,6 @@ done:
 		// move on to cteval.
 	} else goto top; // else, finish lexing the previous file. 
 }
-
-
-
-
 
 
 #pragma clang diagnostic push
@@ -508,9 +461,6 @@ static void resetenv() {
 	ct_memory = aligned_alloc(8, 1 << 16);
 }
 
-
-
-
 static void check_for_mistakes() {
 
 	bool error = false;
@@ -528,7 +478,6 @@ static void check_for_mistakes() {
 	}
 
 	if (error) puts("ERROR: compiliation failed.");
-
 }
 
 static void interpret(char* text, nat text_length) {
@@ -547,18 +496,6 @@ static void interpret(char* text, nat text_length) {
 
 	check_for_mistakes();
 }
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 int main() {
@@ -619,43 +556,29 @@ _: 	printf(" • ");
 	}
 	else if (equal(string, "debugstate")) {
 		
-
 		printf("state: ");
-
 	printf("\n\t");
-
 		printf("w_pc=%llu ", word_pc);
 		printf("ct_pc=%llu ", ct_pc);
 		printf("rt_pc=%llu ", rt_pc);
-
 	printf("\n\t");
-
 		printf("literal=%llu ", literal);
 		printf("mode=%llu ", mode);
 		printf("macro=%llu ", macro);
 		printf("comment=%llu ", comment);
 		printf("literalmacro=%llu ", literalmacro);
 		printf("include=%llu ", include);
-
 	printf("\n\t");
-
 		printf("name_count=%llu ", name_count);
 		printf("stack_count=%llu ", stack_count);
-
 	printf("\n\t");
-
 		printf("word_count=%llu ", word_count);
 		printf("ins_count=%llu ", ins_count);
 		printf("rt_ins_count=%llu ", rt_ins_count);
-
 	printf("\n\t");
-
 		printf("dict_length=%llu ", dict_length);	
 		printf("dict_begin=%llu ", dict_begin);	
-
 	printf("\n");
-
-
 
 	} else if (equal(string, "debugmemory")) {
 		char buffer[4096] = {0};
@@ -707,10 +630,4 @@ _: 	printf(" • ");
 	goto _;
 done: 	printf("quitting...\n");
 }
-
-
-
-
-
-
 
