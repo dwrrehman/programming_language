@@ -2,6 +2,18 @@
 // dwrr   started on 2208232.211844 
 //        written on 2208243.231335
 //         edited on 2208265.235140
+// 	   edited on 2209176.231314
+
+
+/*     ---------------- todo --------------------
+
+
+	- make the language a compiler! at least for webasm, i think, at first. 
+
+	- 
+
+*/
+
 
 #include <stdio.h>
 #include <stdbool.h>
@@ -18,9 +30,11 @@
 #define red   "\x1B[31m"
 #define green   "\x1B[32m"
 #define yellow   "\x1B[33m"
+
 #define blue   "\x1B[34m"
 #define magenta   "\x1B[35m"
 #define cyan   "\x1B[36m"
+
 #define reset "\x1B[0m"
 
 typedef uint64_t nat;
@@ -50,14 +64,14 @@ enum op_code {
 	op_store16, op_load8, op_store8, op_debug,
 
 	op_debug_halt, op_debug_exit, op_ct_here,  op_debug_kill, 
-	op_debug_name, op_debug_char, 
+	op_debug_name, op_debug_char, op_debug_alive,
 };
 
 static nat 
 	ct_pc = 0, rt_pc = 0, 
 	literal = 0, mode = 0, macro = 0, comment = 0, 
 	literalmacro = 0, include = 0,
-	name_count = 0, stack_count = 0,
+	name_count = 0, stack_pointer = 0, base_pointer = 0,
 	ins_count = 0, rt_ins_count = 0;
 static nat dict_length = 0;
 static nat dict_begin = 0;
@@ -65,7 +79,7 @@ static nat word_count = 0;
 static nat word_pc = 0;
 static nat file_stack_count = 0;
 static struct file_frame file_stack[128] = {0};
-static nat save[10] = {0};
+static nat save[40] = {0};
 static nat _[30] = {0};
 static char* names[128] = {0};
 static nat addresses[128] = {0};
@@ -76,6 +90,7 @@ static byte* ct_memory = NULL;
 static char dict[4096] = {0};
 static nat words[4096] = {0};
 static nat stack[4096] = {0};
+
 static struct instruction instructions[4096] = {0};
 static struct instruction rt_instructions[4096] = {0};
 
@@ -108,7 +123,6 @@ done:	*length = index;
 	return result;
 }
 
-
 static char* read_file(const char* filename, size_t* out_length) {
 	const int file = open(filename, O_RDONLY);
 	if (file < 0) {
@@ -131,6 +145,11 @@ static char* read_file(const char* filename, size_t* out_length) {
 	return buffer;
 }
 
+
+#define DDD 1
+
+#define DELAY 1
+
 static void parse(nat word_begin) {
 
 	nat _wc = 0, _i = word_begin;
@@ -139,6 +158,10 @@ static void parse(nat word_begin) {
 	while (dict[_i] != ' ') {
 		w[_wc++] = dict[_i++];
 	}
+
+
+	printf("--------- parsing word:(%llu/%llu)   \"%s\" -------------\n", word_pc, word_count, w);
+
 
 	if (comment) { 
 		if (equal(w, "endcomment")) comment = 0; 
@@ -160,35 +183,80 @@ static void parse(nat word_begin) {
 			.F_begin = 0
 		};
 
-		//printf("\n\tMY_TOS={%s,length=%llu,index=%llu,begin=%llu}\n\n", 
+		printf("\n\tMY_TOS(%llu)={%s,length=%llu,index=%llu,begin=%llu}\n\n", file_stack_count,
 			file_stack[file_stack_count - 1].file, 
 			file_stack[file_stack_count - 1].file_length, 
 			file_stack[file_stack_count - 1].F_index, 
 			file_stack[file_stack_count - 1].F_begin);
 
 		include = false;
-
+		goto advance;
 	}
 
-	else if (macro) { 
-		if (equal(w, "endmacro")) macro = 0; 
+	else if (macro) {
+		if (equal(w, "define")) macro++; 
+		if (equal(w, "endmacro")) macro--; 
+		goto advance;
 
-	} else if (equal(w, "endmacro")) { 
-		word_pc = stack[--stack_count]; 
+	} else if (equal(w, "endmacro") and not macro) {
+		if (not stack_pointer) { printf("cannot ret! endmacro not in macro!\n"); abort(); }
 
+		// base_pointer = stack[--stack_pointer]; 
+		// stack_pointer = base_pointer;
+		// word_pc = stack[base_pointer];
+
+		printf(green "RETURNING FROM MACRO!\n" reset);
+
+		if (DDD)printf("BEFORE: {pc=%llu,sp=%llu,bp=%llu}\n", word_pc, stack_pointer, base_pointer);
+
+		stack_pointer = base_pointer;
+		word_pc = stack[--stack_pointer];
+		base_pointer = stack[--stack_pointer];
+
+		if (DDD)printf("AFTER: {pc=%llu,sp=%llu,bp=%llu}\n", word_pc, stack_pointer, base_pointer);
+
+
+		goto advance;
+	
 	} else if (literal) { 
 		nat length = strlen(w);
 		ct_registers[*_] = string_to_number(w, &length); 
 		literal = 0;
 	} 
 
+
+
+/* 
+
+   ------------ ret ----------
+
+	sp = bp
+	wpc = stack[--sp]
+	bp = sp[bp]
+
+
+------------- call -----------
+
+	stack[sp++] = bp
+	stack[sp] = word_pc;
+	bp = sp
+
+
+*/
+
+
+
+
+
 	else if (equal(w, "pass")) {}
 	else if (equal(w, "abort")) {abort(); }
+	else if (equal(w, "show")) printf("SHOW: %llu\n", *_);
 	else if (equal(w, "debugabort1")) {printf(red "DEBUG_ABORT1();\n" reset); }
 	else if (equal(w, "debugabort2")) {printf(cyan "DEBUG_ABORT2();\n" reset); }
 	else if (equal(w, "debugabort3")) {printf(yellow "DEBUG_ABORT3();\n" reset); }
 	else if (equal(w, "debugabort4")) {printf(green "DEBUG_ABORT4();\n" reset); }
 	else if (equal(w, "debugabort5")) {printf(magenta "DEBUG_ABORT5();\n" reset); }
+	else if (equal(w, "debugabort6")) {printf(blue "DEBUG_ABORT6();\n" reset); }
 
 	else if (equal(w, "11")) { _[0] = _[1]; }
 	else if (equal(w, "21")) { _[0] = _[2]; }
@@ -200,10 +268,124 @@ static void parse(nat word_begin) {
 	else if (equal(w, "201")) { nat t2 = _[2]; _[2] = _[1]; _[1] = _[0]; _[0] = t2; }
 	else if (equal(w, "120")) { nat t0 = _[0]; _[0] = _[1]; _[1] = _[2]; _[2] = t0; }
 
-	else if (equal(w, "save0")) { save[0] = _[0]; }    // can these be done using the ct framework? no...?
-	else if (equal(w, "give0")) { _[0] = save[0]; }
-	else if (equal(w, "save1")) { save[1] = _[0]; }
-	else if (equal(w, "give1")) { _[0] = save[1]; }
+
+
+
+	else if (equal(w, "store0")) stack[stack_pointer++] = _[0];
+	else if (equal(w, "store1")) stack[stack_pointer++] = _[1];
+	else if (equal(w, "store2")) stack[stack_pointer++] = _[2];
+	else if (equal(w, "store3")) stack[stack_pointer++] = _[3];
+
+
+
+
+	else if (equal(w, "load0")) {
+		nat i = sizeof _ / sizeof(nat) - 1;
+		while (i) { _[i] = _[i - 1]; i--; } *_ = stack[base_pointer + 0];
+	}
+
+	else if (equal(w, "load1")) {
+		nat i = sizeof _ / sizeof(nat) - 1;
+		while (i) { _[i] = _[i - 1]; i--; } *_ = stack[base_pointer + 1];
+	}
+
+	else if (equal(w, "load2")) {
+		nat i = sizeof _ / sizeof(nat) - 1;
+		while (i) { _[i] = _[i - 1]; i--; } *_ = stack[base_pointer + 2];
+	}
+
+	else if (equal(w, "load3")) {
+		nat i = sizeof _ / sizeof(nat) - 1;
+		while (i) { _[i] = _[i - 1]; i--; } *_ = stack[base_pointer + 3];
+	}
+
+	else if (equal(w, "load4")) {
+		nat i = sizeof _ / sizeof(nat) - 1;
+		while (i) { _[i] = _[i - 1]; i--; } *_ = stack[base_pointer + 4];
+	}
+	else if (equal(w, "load5")) {
+		nat i = sizeof _ / sizeof(nat) - 1;
+		while (i) { _[i] = _[i - 1]; i--; } *_ = stack[base_pointer + 5];
+	}
+	else if (equal(w, "load6")) {
+		nat i = sizeof _ / sizeof(nat) - 1;
+		while (i) { _[i] = _[i - 1]; i--; } *_ = stack[base_pointer + 6];
+	}
+	else if (equal(w, "load7")) {
+		nat i = sizeof _ / sizeof(nat) - 1;
+		while (i) { _[i] = _[i - 1]; i--; } *_ = stack[base_pointer + 7];
+	}
+
+
+			// we should make this part of the compiletime evaluation system!!! 
+				// or somehow make compile time operations manipulate the stack pointer, base pointer, 
+				// or generally combine these two systems to make it so that you can programmabicallyyy go through and load from the stack variables. thats a very good idea. yup.
+
+
+
+
+	else if (equal(w, "save00")) { save[0] = _[0]; }     
+	else if (equal(w, "give00")) { _[0] = save[0]; }
+
+	else if (equal(w, "callsave")) { save[15] = _[0]; }
+
+	else if (equal(w, "push0")) { 
+		nat i = sizeof _ / sizeof(nat) - 1;
+		while (i) { _[i] = _[i - 1]; i--; } *_ = save[0];
+	}
+
+	else if (equal(w, "push1")) { 
+		nat i = sizeof _ / sizeof(nat) - 1;
+		while (i) { _[i] = _[i - 1]; i--; } *_ = save[1];
+	}
+
+	else if (equal(w, "push2")) { 
+		nat i = sizeof _ / sizeof(nat) - 1;
+		while (i) { _[i] = _[i - 1]; i--; } *_ = save[2];
+	}
+
+	else if (equal(w, "push3")) { 
+		nat i = sizeof _ / sizeof(nat) - 1;
+		while (i) { _[i] = _[i - 1]; i--; } *_ = save[3];
+	}
+
+	else if (equal(w, "push4")) { 
+		nat i = sizeof _ / sizeof(nat) - 1;
+		while (i) { _[i] = _[i - 1]; i--; } *_ = save[4];
+	}
+
+	else if (equal(w, "save01")) { save[0] = _[1]; }    
+	else if (equal(w, "give01")) { _[1] = save[0]; }     
+	else if (equal(w, "save02")) { save[0] = _[2]; }    
+	else if (equal(w, "give02")) { _[2] = save[0]; }
+
+	else if (equal(w, "save10")) { save[1] = _[0]; }
+	else if (equal(w, "give10")) { _[0] = save[1]; }
+	else if (equal(w, "save11")) { save[1] = _[1]; }
+	else if (equal(w, "give11")) { _[1] = save[1]; }
+	else if (equal(w, "save12")) { save[1] = _[2]; }
+	else if (equal(w, "give12")) { _[2] = save[1]; }
+
+	else if (equal(w, "save20")) { save[2] = _[0]; }
+	else if (equal(w, "give20")) { _[0] = save[2]; }
+	else if (equal(w, "save21")) { save[2] = _[1]; }
+	else if (equal(w, "give21")) { _[1] = save[2]; }
+	else if (equal(w, "save22")) { save[2] = _[2]; }
+	else if (equal(w, "give22")) { _[2] = save[2]; }
+
+	else if (equal(w, "save30")) { save[3] = _[0]; }
+	else if (equal(w, "give30")) { _[0] = save[3]; }
+	else if (equal(w, "save31")) { save[3] = _[1]; }
+	else if (equal(w, "give31")) { _[1] = save[3]; }
+	else if (equal(w, "save32")) { save[3] = _[2]; }
+	else if (equal(w, "give32")) { _[2] = save[3]; }
+
+	else if (equal(w, "save40")) { save[4] = _[0]; }
+	else if (equal(w, "give40")) { _[0] = save[4]; }
+	else if (equal(w, "save41")) { save[4] = _[1]; }
+	else if (equal(w, "give41")) { _[1] = save[4]; }        // are you sensing a pattern?....
+	else if (equal(w, "save42")) { save[4] = _[2]; }
+	else if (equal(w, "give42")) { _[2] = save[4]; }
 
 	else if (equal(w, "swap1")) { nat t0 = _[0]; _[0] = _[1]; _[1] = t0; }
 	else if (equal(w, "swap2")) { nat t0 = _[0]; _[0] = _[2]; _[2] = t0; }
@@ -243,6 +425,7 @@ static void parse(nat word_begin) {
 	else if (equal(w, "debugexit")) ins(op_debug_exit);
 	else if (equal(w, "debughalt")) ins(op_debug_halt);
 	else if (equal(w, "debugname")) ins(op_debug_name);
+	else if (equal(w, "alive")) ins(op_debug_alive);
 	else if (equal(w, "debugchar")) ins(op_debug_char);
 	else if (equal(w, "debugkill")) ins(op_debug_kill);
 	else if (equal(w, "here")) ins(op_ct_here);
@@ -253,16 +436,78 @@ static void parse(nat word_begin) {
 	else if (equal(w, "comment")) comment = 1;
 	else if (equal(w, "now")) mode = 1 << 8;
 	else if (equal(w, "cthere")) ct_registers[*_] = ins_count; 
-	else if (equal(w, "define")) { addresses[*_] = word_pc; macro = 1; }
+	else if (equal(w, "define")) { 
+
+
+
+
+			// if (names[*_] and equal(names[*_], "iterator")) {
+
+			// 	printf(blue "DEBUG_ABORT6();\n" reset); getchar(); }
+
+
+
+			addresses[*_] = word_pc; 
+			macro++; 
+
+			if (DDD) printf(red "ADDR: --> JUST GAVE  \"%s\" THE ADDRESS:  %llu.\n" reset, names[*_], word_pc);
+	}
+
+	else if (equal(w, "call")) {
+
+		if (DDD) printf("calling-by-CALL: \"%s\"\n", names[save[15]]);
+
+
+		
+		//stack[stack_pointer++] = word_pc;
+		//base_pointer = stack_pointer;
+		//word_pc = addresses[save[15]];
+
+		/*
+			stack[sp++] = bp
+			stack[sp] = word_pc;
+			bp = sp
+		*/
+
+		if (DDD)printf("BEFORE: {pc=%llu,sp=%llu,bp=%llu}\n", word_pc, stack_pointer, base_pointer);
+		stack[stack_pointer++] = base_pointer;
+		stack[stack_pointer++] = word_pc;
+		base_pointer = stack_pointer;
+		word_pc = addresses[save[15]];
+		
+		if (DDD)printf("AFTER: {pc=%llu,sp=%llu,bp=%llu}\n", word_pc, stack_pointer, base_pointer);
+
+		if (DDD) printf("CALL|  --->  addresses[save[15]] = %llu\n", addresses[save[15]]);         
+				 //todo: make this not stack-overflow lol.
+
+		goto advance;
+	}
+
 	else if (equal(w, "gensym")) { 
-		names[name_count++] = strdup(""); 
+
+		nat name = 0; 
+		nat open = name_count;
+
+		while (name < name_count) {
+			if (names[name]) {
+				
+			} else if (open == name_count) open = name;
+			name++;
+		}
+
+		if (DDD) printf("-->GENERATING SYMBOL:  n=%llu, open=%llu \"%s\"\n", name, open, "");
+		if (open == name_count) name_count++;
+		names[open] = strdup("");
+		name = open;
+
 		nat i = sizeof _ / sizeof(nat) - 1;
-		while (i) { _[i] = _[i - 1]; i--; } *_ = name_count;
+		while (i) { _[i] = _[i - 1]; i--; } *_ = name;
 	}
 	else if (equal(w, "undefine")) { free(names[*_]); names[*_] = NULL; addresses[*_] = 0; }
 	
 	else {
-		//printf("FOUND UNEXPECTED:  %s\n", w);
+		if (DDD) printf("FOUND NAME:  \"%s\"\n", w);
+
 		nat name = 0; 
 		nat open = name_count;
 		while (name < name_count) {
@@ -271,29 +516,62 @@ static void parse(nat word_begin) {
 			} else if (open == name_count) open = name;
 			name++;
 		}
+
+		if (DDD) printf("\t NAME HAS INDEX:  %llu(nc=%llu) \"%s\"\n", name, name_count, w);
+		if (name < name_count) {
+			if (DDD) printf("\t\t IS MACRO? %s\n", addresses[name] ? "true" : "false");
+		}
+
+
+
+
+
+
 		if (name == name_count) {
+
+			if (DDD) printf("\t--->FOUND UNDEFINED NAME:  %llu, \"%s\"\n", name, w);
+
 			if (open == name_count) name_count++;
 			names[open] = strdup(w);
 			name = open;
+
+
+
 		} else if (not literalmacro and addresses[name]) {
-			stack[stack_count++] = word_pc;
+
+
+			
+
+			if (DDD) printf("calling-by-name: \"%s\"\n", names[name]);
+
+
+			if (DDD)printf("BEFORE: {pc=%llu,sp=%llu,bp=%llu}\n", word_pc, stack_pointer, base_pointer);
+			
+			stack[stack_pointer++] = base_pointer; 
+			stack[stack_pointer++] = word_pc;
+			base_pointer = stack_pointer;
 			word_pc = addresses[name];
+			if (DDD)printf("AFTER: {pc=%llu,sp=%llu,bp=%llu}\n", word_pc, stack_pointer, base_pointer);
+			
+			if (DDD) printf("calling|  --->  addresses[name] = %llu, wpc=%llu\n", addresses[name], word_pc);
+			// getchar();
+			
 			goto advance;
+
 		} else if (literalmacro) literalmacro = 0;
+
 		nat i = sizeof _ / sizeof(nat) - 1;
 		while (i) { _[i] = _[i - 1]; i--; } *_ = name;
 	}
-
-advance: ;
-
+advance: usleep(100000);
 }
 
 static void lex() {
 top:;
-	//printf("lexing [%llu]\n", file_stack_count - 1);
+	printf("lexing [tos+1: fsc=%llu]\n", file_stack_count);
 	struct file_frame* tos;
 	tos = file_stack + file_stack_count - 1;
-	//printf("\n\ttos={%s,flength=%llu,findex=%llu,begin=%llu}\n\n", tos->file, tos->file_length, tos->F_index, tos->F_begin);
+	printf("\n\ttos={%s,flength=%llu,findex=%llu,begin=%llu}\n\n", tos->file, tos->file_length, tos->F_index, tos->F_begin);
 	while (tos->F_index < tos->file_length and isspace(tos->file[tos->F_index])) tos->F_index++; 
 	tos->F_begin = tos->F_index;     // ?....
 
@@ -312,15 +590,15 @@ top:;
 		tos->F_begin = tos->F_index;
 		dict_begin = dict_length;
 
-		tos = file_stack + file_stack_count - 1;
-
 		while (word_pc < word_count) {
+
+			nat nsave = file_stack_count;
 			parse(words[word_pc]);
 			word_pc++;
+			if (file_stack_count != nsave) goto top;
 		}
-
-		tos = file_stack + file_stack_count - 1;
 	}
+
 	if (tos->F_begin != tos->F_index) goto push;	
 
 done:
@@ -334,7 +612,6 @@ done:
 	} else goto top; // else, finish lexing the previous file. 
 }
 
-
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wcast-align"
 
@@ -343,6 +620,7 @@ static void execute_ct_instruction(struct instruction I) {
 	//printf("LLL\nexecutingCT: [%llu,PRE,%llu]\n\nLLL", ct_pc, I.op);
 
 	if (not (I.op >> 8)) { rt_instructions[rt_ins_count++] = I; goto done; }
+
 	const nat op = I.op & (nat)~(1 << 8);
 	nat* r = ct_registers, * ctr = ct_registers;
 	byte* m = ct_memory;
@@ -376,15 +654,8 @@ static void execute_ct_instruction(struct instruction I) {
 	else if (op == op_debug) printf("CT#%llu=%lld\n", I._0, r[I._0]);
 	else if (op == op_debug_kill) r[I._0] = 0xF0F0F0F0F0F0F0F0;
 	else if (op == op_debug_halt) ct_pc = ins_count - 1;
-	else if (op == op_debug_exit) 
-		//printf("---exiting now!!!!!!!-----NOTICE MEEEEEE PLEASEEEE\n");//
-		{exit(0);}
-	else if (op == op_debug_name) {
-		//printf("HERE IT IS: >>>> %s <<<\nXXX\nXXX", names[I._0]);
-		printf("%s\n", names[I._0]);
-		//if (equal(names[I._0], "testing")) abort();
-		//if (equal(names[I._0], "bubbles")) abort();
-	}
+	else if (op == op_debug_exit) exit(0);
+	else if (op == op_debug_name) printf("%s\n", names[I._0]);
 	else if (op == op_debug_char) printf("%c", (char) r[I._0]);
 	else if (op == op_ct_here) ctr[I._0] = rt_ins_count;
 	else { puts("unknown CT instruction"); abort(); }
@@ -423,17 +694,25 @@ static void execute_instruction(struct instruction I) {
 	else if (op == op_blt) { if (r[I._0] < r[I._1]) rt_pc += (ctr[I._2] - rt_pc) - 1; }
 	else if (op == op_bge) { if (r[I._0] >= r[I._1]) rt_pc += (ctr[I._2] - rt_pc) - 1; }
 	else if (op == op_bne) { if (r[I._0] != r[I._1]) rt_pc += (ctr[I._2] - rt_pc) - 1; }
-	else if (op == op_beq) { if (r[I._0] == r[I._1]) rt_pc += (ctr[I._2] - rt_pc) - 1; }
+	else if (op == op_beq) { 
+
+		if (DDD) printf("LEFT: %s\nRIGHT: %s\nLABEL: %s\n", names[I._0], names[I._1], names[I._2]);
+
+		if (r[I._0] == r[I._1]) rt_pc += (ctr[I._2] - rt_pc) - 1; 
+
+	}
 	else if (op == op_debug) printf("R#%llu=%lld\n", I._0, r[I._0]);
 	else if (op == op_debug_kill) r[I._0] = 0xF0F0F0F0F0F0F0F0;
 	else if (op == op_debug_halt) rt_pc = ins_count - 1;
 	else if (op == op_debug_exit) exit(0);
-	else if (op == op_debug_name) 
-		//printf("RUNTIME HERE IS: >>>> %s <<<\nXXX\nXXX", names[I._0]);
-		printf("%s\n", names[I._0]);
+	else if (op == op_debug_name) printf("%s\n", names[I._0]);
+	else if (op == op_debug_alive) printf(red "ALIVE\n" reset);
 	else if (op == op_debug_char) printf("%c", (char) r[I._0]);
 	else { puts("unknown RT instruction"); abort(); }
 	rt_pc++;
+	fflush(stdout);
+	if (DELAY) usleep(500000);
+	fflush(stdout);
 }
 
 #pragma clang diagnostic pop
@@ -442,7 +721,7 @@ static void resetenv() {
 	dict_length = 0; dict_begin = 0;
 	word_pc = 0; ct_pc = 0; rt_pc = 0;
 	literal = 0; mode = 0; macro = 0; comment = 0; literalmacro = 0; include = 0;
-	name_count = 0; stack_count = 0;
+	name_count = 0; stack_pointer = 0; base_pointer = 0;
 	word_count = 0; ins_count = 0; rt_ins_count = 0;
 	memset(save, 0, sizeof save);
 	memset(_, 0, sizeof _);
@@ -471,7 +750,7 @@ static void check_for_mistakes() {
 		const bool R = not memcmp(   registers + i, &uninitialized_value, 8);
 		const bool A = not memcmp(   addresses + i, &zero_value, 8);
 
-		if (C and R and A and names[i]) {
+		if (C and R and A and names[i] and strlen(names[i])) {
 			printf("error: register \"%s\" unused.\n", names[i]);
 			error = true;
 		}
@@ -490,9 +769,8 @@ static void interpret(char* text, nat text_length) {
 	};
 
 	lex();
-
 	while (ct_pc < ins_count) execute_ct_instruction(instructions[ct_pc]);
-	while (rt_pc < rt_ins_count) execute_instruction(rt_instructions[rt_pc]);
+	while (rt_pc < rt_ins_count) execute_instruction(rt_instructions[rt_pc]);   // only for the interpreter.
 
 	check_for_mistakes();
 }
@@ -570,7 +848,8 @@ _: 	printf(" • ");
 		printf("include=%llu ", include);
 	printf("\n\t");
 		printf("name_count=%llu ", name_count);
-		printf("stack_count=%llu ", stack_count);
+		printf("stack_pointer=%llu ", stack_pointer);
+		printf("base_pointer=%llu ", base_pointer);
 	printf("\n\t");
 		printf("word_count=%llu ", word_count);
 		printf("ins_count=%llu ", ins_count);
@@ -610,8 +889,9 @@ _: 	printf(" • ");
 
 	else if (equal(string, "debugwords")) {
 		for (nat i = 0; i < word_count; i++) {
-			printf(" %llu ", i);
+			
 			nat c = words[i];
+			printf(" %llu : %llu  ", i, c);
 
 			if (i == word_pc) printf(green " * " reset);
 			else printf(" - ");
@@ -631,3 +911,5 @@ _: 	printf(" • ");
 done: 	printf("quitting...\n");
 }
 
+
+// bubbles literal c01 now print

@@ -1,0 +1,23 @@
+include foundation
+
+limit literal a01 transfer
+limit2 literal a5 transfer
+
+gensym define 
+	alive
+	iterator print
+	alive
+
+	gensym define 
+		alive
+		bubbles print
+		alive
+	endmacro
+	limit2  bubbles  for 
+
+endmacro  
+limit  iterator  
+for 
+
+alive
+alive

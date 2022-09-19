@@ -1,0 +1,94 @@
+
+
+
+
+
+
+comment     a fun example using these:
+
+
+	constant a45 transfer double print        
+
+
+
+		which prints    a801
+
+
+endcomment
+
+
+
+
+comment 
+
+	todo:  i have to look into  slightly revising the swap1 and 001 functionality... 
+
+
+		one thing i did notice though, 
+
+			is that this language DOES NOT USE "space case" as its standard formatting
+
+
+
+
+			but actually uses       "nocase"          ie,   
+
+
+	
+					donothing         settozero          
+
+
+				ie, its spacecase, where you dont put any spaces!
+
+
+					i feel like nocase is the most readable. its also very neutral.
+
+
+
+
+						i actually love it! its the simplest to use too!
+
+								and can be pretty readable too!
+
+
+								i love it. 
+
+
+
+
+
+
+
+
+
+
+
+
+
+	 
+	snake_case       <------- or this one when necc.
+
+	
+	SHOUT_CASE
+
+
+	CamelCase
+
+
+	Snake_Camel_Case
+
+
+
+	space case
+
+
+
+	nocase          <--------------- this is the right one. for the most part. 
+
+	
+	
+
+
+
+endcomment
+

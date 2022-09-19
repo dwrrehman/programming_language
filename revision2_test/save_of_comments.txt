@@ -1,0 +1,121 @@
+
+
+
+comment foundational macros for using my language. 
+	written on 2209176.183230 by dwrr.
+endcomment 
+
+
+
+
+
+
+
+
+
+comment 
+
+gensym define
+		j print
+	endmacro
+	
+	# a5 , j for 
+
+
+
+
+
+
+
+
+
+
+	iterator print
+	alive
+
+	gensym define 
+		alive
+		bubbles print
+		alive
+	endmacro
+	limit2  bubbles  for 
+
+
+
+
+
+endcomment
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+			comment 
+
+						i think i figured out the problem!
+
+
+							we need to some how store, and preserve the values in the save[] array, 
+								and have each macro basically have its own namespace, in that way. 
+								which seems difficult... 
+								hmmmm
+
+
+										yeah, its possible though.. 
+									
+
+
+				endcomment
+
+
+			
+
+
+
+
+
+
+
+
+
+
+
+
+
+comment 
+		goto   define   zero zero beq    endmacro 
+
+
+give0 undefine
+		give1 undefine
+		give2 undefine
+		give4 undefine
+
+
+
+endcomment
