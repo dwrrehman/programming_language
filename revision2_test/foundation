@@ -1,38 +1,74 @@
+comment foundational macros for using my language. 
+	written on 2209176.183230 by dwrr.
+endcomment 
+
+
 donothing define  nop  endmacro
+
+
 settozero  define  000 xor   endmacro
+
 constant    define gensym literal  endmacro
+
 double define  constant 21  swap1 001 slli endmacro
+
 transfer    define  000 xor addi endmacro
-debugabort3
-debugabort3
+
 zero	literal 0 transfer
-debugabort3
-debugabort3
+
 one	literal 21 transfer
-debugabort3
-debugabort3
+
 incr     define    one swap1 001 add endmacro
+
+goto     define    zero one bne    endmacro
+
 
 for
 	define 
-		alive
-		alive
 		store0
 		store0 store1 store2
 		gensym store0
 		gensym store0
-		alive
 		load1 settozero 
-		alive
 	load4 now here
 		load5 load2 load1 beq 
 		load3 callsave call
 		load1 incr 
-		load4 zero one bne
+		load4 goto
 	load5 now here
 		load4 undefine
 		load5 undefine 
 		load1 undefine
 		load3 undefine
 	endmacro
+
+
+
+forbreak
+	define 
+		store0 store0 store1 store2 store3
+		gensym store0
+		load1 settozero 
+	load5 now here
+		load4 load2 load1 beq 
+		load3 callsave call
+		load1 incr 
+		load5 goto
+	load4 now here
+		load5 undefine 
+		load1 undefine
+		load3 undefine
+	endmacro
+
+
+
+
+
+
+
+
+
+
+
+
 

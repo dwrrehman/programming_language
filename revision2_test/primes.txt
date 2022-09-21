@@ -1,23 +1,147 @@
 include foundation
 
-limit literal a01 transfer
-limit2 literal a5 transfer
+comment    
+	a program which prints out the prime numbers less than a certain maximum.
+endcomment
+
+max literal a0000001 transfer
 
 gensym define 
-	alive
-	iterator print
-	alive
+	zero one isprime add
 
-	gensym define 
-		alive
-		bubbles print
-		alive
-	endmacro
-	limit2  bubbles  for 
+	break gensym define
+		skip j zero beq
+		skip j one beq
+		j i r rem
+		riszero r zero beq
+			skip goto
+		riszero now here
+			isprime settozero
+			break goto
+		skip  now here
+	endmacro i j forbreak
 
-endmacro  
-limit  iterator  
-for 
+	nexti isprime zero beq
+		i print
+	nexti now here
 
-alive
-alive
+endmacro  max i for
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+	comment
+
+
+			
+			debugabort4
+
+			j i r rem
+			next r zero blt
+				isprime settozero
+				debugabort5
+				break goto 
+			
+
+		endcomment
+
+
+
+
+
+comment
+	printprime isprime zero bne
+
+		COMPOSITE debugname
+		nexti goto 
+
+	printprime now here
+
+		PRIME debugname
+
+
+
+endcomment
+
+
+
+
+
+
+comment isprime zero endcomment
+
+
+
+comment
+
+
+	 
+	printprime isprime zero bne
+
+		COMPOSITE debugname
+		nexti goto 
+
+	printprime now here
+
+		PRIME debugname
+
+	nexti now here
+		nop
+
+endcomment
+
+
+
+
+
+
+comment 
+
+
+	for i < 1000 {
+		bool prime = true;
+		for j < i {
+			if (j divides i) {
+				prime = false;
+				break;
+			}
+		}
+		print "{i} is prime"
+	}
+
+	
+endcomment
+
+
+
+
+
+
+comment
+		debugabort3
+		next j zero beq
+		debugabort4
+
+		j i r rem
+		next r zero blt
+			isprime settozero
+			debugabort5
+			break goto 
+		next now here
+			nop
+
+	endcomment
+
+
+

@@ -30,7 +30,6 @@
 #define red   "\x1B[31m"
 #define green   "\x1B[32m"
 #define yellow   "\x1B[33m"
-
 #define blue   "\x1B[34m"
 #define magenta   "\x1B[35m"
 #define cyan   "\x1B[36m"
@@ -64,7 +63,8 @@ enum op_code {
 	op_store16, op_load8, op_store8, op_debug,
 
 	op_debug_halt, op_debug_exit, op_ct_here,  op_debug_kill, 
-	op_debug_name, op_debug_char, op_debug_alive,
+	op_debug_name, op_debug_char, op_debug_alive, op_debug_alive2,  op_debug_alive3, op_debug_alive4,
+	op_debug_alive5, op_debug_alive6,
 };
 
 static nat 
@@ -79,7 +79,9 @@ static nat word_count = 0;
 static nat word_pc = 0;
 static nat file_stack_count = 0;
 static struct file_frame file_stack[128] = {0};
-static nat save[40] = {0};
+
+static nat save[40] = {0}; /// delete me!!!!!       replace with     call_register
+
 static nat _[30] = {0};
 static char* names[128] = {0};
 static nat addresses[128] = {0};
@@ -146,9 +148,9 @@ static char* read_file(const char* filename, size_t* out_length) {
 }
 
 
-#define DDD 1
+#define DDD 0
 
-#define DELAY 1
+#define DELAY 0
 
 static void parse(nat word_begin) {
 
@@ -160,7 +162,7 @@ static void parse(nat word_begin) {
 	}
 
 
-	printf("--------- parsing word:(%llu/%llu)   \"%s\" -------------\n", word_pc, word_count, w);
+	if (DDD)printf("--------- parsing word:(%llu/%llu)   \"%s\" -------------\n", word_pc, word_count, w);
 
 
 	if (comment) { 
@@ -169,7 +171,7 @@ static void parse(nat word_begin) {
 
 	else if (include) {
 
-		printf(magenta "including %s...\n" reset , w);
+		if (DDD) printf(magenta "including %s...\n" reset , w);
 
 		size_t file_length = 0;
 		char* file = read_file(w, &file_length);
@@ -183,7 +185,7 @@ static void parse(nat word_begin) {
 			.F_begin = 0
 		};
 
-		printf("\n\tMY_TOS(%llu)={%s,length=%llu,index=%llu,begin=%llu}\n\n", file_stack_count,
+		if (DDD) printf("\n\tMY_TOS(%llu)={%s,length=%llu,index=%llu,begin=%llu}\n\n", file_stack_count,
 			file_stack[file_stack_count - 1].file, 
 			file_stack[file_stack_count - 1].file_length, 
 			file_stack[file_stack_count - 1].F_index, 
@@ -205,7 +207,7 @@ static void parse(nat word_begin) {
 		// stack_pointer = base_pointer;
 		// word_pc = stack[base_pointer];
 
-		printf(green "RETURNING FROM MACRO!\n" reset);
+		if (DDD)printf(green "RETURNING FROM MACRO!\n" reset);
 
 		if (DDD)printf("BEFORE: {pc=%llu,sp=%llu,bp=%llu}\n", word_pc, stack_pointer, base_pointer);
 
@@ -214,7 +216,6 @@ static void parse(nat word_begin) {
 		base_pointer = stack[--stack_pointer];
 
 		if (DDD)printf("AFTER: {pc=%llu,sp=%llu,bp=%llu}\n", word_pc, stack_pointer, base_pointer);
-
 
 		goto advance;
 	
@@ -232,13 +233,13 @@ static void parse(nat word_begin) {
 
 	sp = bp
 	wpc = stack[--sp]
-	bp = sp[bp]
+	bp = sp[--bp]
 
 
 ------------- call -----------
 
 	stack[sp++] = bp
-	stack[sp] = word_pc;
+	stack[sp++] = word_pc;
 	bp = sp
 
 
@@ -269,14 +270,10 @@ static void parse(nat word_begin) {
 	else if (equal(w, "120")) { nat t0 = _[0]; _[0] = _[1]; _[1] = _[2]; _[2] = t0; }
 
 
-
-
 	else if (equal(w, "store0")) stack[stack_pointer++] = _[0];
 	else if (equal(w, "store1")) stack[stack_pointer++] = _[1];
 	else if (equal(w, "store2")) stack[stack_pointer++] = _[2];
 	else if (equal(w, "store3")) stack[stack_pointer++] = _[3];
-
-
 
 
 	else if (equal(w, "load0")) {
@@ -324,10 +321,15 @@ static void parse(nat word_begin) {
 
 
 
+else if (equal(w, "callsave")) { save[15] = _[0]; }
+
+
+
+
+
 	else if (equal(w, "save00")) { save[0] = _[0]; }     
 	else if (equal(w, "give00")) { _[0] = save[0]; }
 
-	else if (equal(w, "callsave")) { save[15] = _[0]; }
 
 	else if (equal(w, "push0")) { 
 		nat i = sizeof _ / sizeof(nat) - 1;
@@ -353,7 +355,7 @@ static void parse(nat word_begin) {
 		nat i = sizeof _ / sizeof(nat) - 1;
 		while (i) { _[i] = _[i - 1]; i--; } *_ = save[4];
 	}
-
+/*
 	else if (equal(w, "save01")) { save[0] = _[1]; }    
 	else if (equal(w, "give01")) { _[1] = save[0]; }     
 	else if (equal(w, "save02")) { save[0] = _[2]; }    
@@ -386,7 +388,7 @@ static void parse(nat word_begin) {
 	else if (equal(w, "give41")) { _[1] = save[4]; }        // are you sensing a pattern?....
 	else if (equal(w, "save42")) { save[4] = _[2]; }
 	else if (equal(w, "give42")) { _[2] = save[4]; }
-
+*/
 	else if (equal(w, "swap1")) { nat t0 = _[0]; _[0] = _[1]; _[1] = t0; }
 	else if (equal(w, "swap2")) { nat t0 = _[0]; _[0] = _[2]; _[2] = t0; }
 	else if (equal(w, "swap3")) { nat t0 = _[0]; _[0] = _[3]; _[3] = t0; }
@@ -426,6 +428,11 @@ static void parse(nat word_begin) {
 	else if (equal(w, "debughalt")) ins(op_debug_halt);
 	else if (equal(w, "debugname")) ins(op_debug_name);
 	else if (equal(w, "alive")) ins(op_debug_alive);
+	else if (equal(w, "alive2")) ins(op_debug_alive2);
+	else if (equal(w, "alive3")) ins(op_debug_alive3);
+	else if (equal(w, "alive4")) ins(op_debug_alive4);
+	else if (equal(w, "alive5")) ins(op_debug_alive5);
+	else if (equal(w, "alive6")) ins(op_debug_alive6);
 	else if (equal(w, "debugchar")) ins(op_debug_char);
 	else if (equal(w, "debugkill")) ins(op_debug_kill);
 	else if (equal(w, "here")) ins(op_ct_here);
@@ -563,15 +570,16 @@ static void parse(nat word_begin) {
 		nat i = sizeof _ / sizeof(nat) - 1;
 		while (i) { _[i] = _[i - 1]; i--; } *_ = name;
 	}
-advance: usleep(100000);
+advance: 
+	if (DELAY) usleep(100000);
 }
 
 static void lex() {
 top:;
-	printf("lexing [tos+1: fsc=%llu]\n", file_stack_count);
+	if (DDD)printf("lexing [tos+1: fsc=%llu]\n", file_stack_count);
 	struct file_frame* tos;
 	tos = file_stack + file_stack_count - 1;
-	printf("\n\ttos={%s,flength=%llu,findex=%llu,begin=%llu}\n\n", tos->file, tos->file_length, tos->F_index, tos->F_begin);
+	if (DDD)printf("\n\ttos={%s,flength=%llu,findex=%llu,begin=%llu}\n\n", tos->file, tos->file_length, tos->F_index, tos->F_begin);
 	while (tos->F_index < tos->file_length and isspace(tos->file[tos->F_index])) tos->F_index++; 
 	tos->F_begin = tos->F_index;     // ?....
 
@@ -599,7 +607,7 @@ top:;
 		}
 	}
 
-	if (tos->F_begin != tos->F_index) goto push;	
+	if (tos->F_begin != tos->F_index) goto push;
 
 done:
 	munmap(tos->file, tos->file_length);
@@ -695,11 +703,8 @@ static void execute_instruction(struct instruction I) {
 	else if (op == op_bge) { if (r[I._0] >= r[I._1]) rt_pc += (ctr[I._2] - rt_pc) - 1; }
 	else if (op == op_bne) { if (r[I._0] != r[I._1]) rt_pc += (ctr[I._2] - rt_pc) - 1; }
 	else if (op == op_beq) { 
-
 		if (DDD) printf("LEFT: %s\nRIGHT: %s\nLABEL: %s\n", names[I._0], names[I._1], names[I._2]);
-
 		if (r[I._0] == r[I._1]) rt_pc += (ctr[I._2] - rt_pc) - 1; 
-
 	}
 	else if (op == op_debug) printf("R#%llu=%lld\n", I._0, r[I._0]);
 	else if (op == op_debug_kill) r[I._0] = 0xF0F0F0F0F0F0F0F0;
@@ -707,6 +712,11 @@ static void execute_instruction(struct instruction I) {
 	else if (op == op_debug_exit) exit(0);
 	else if (op == op_debug_name) printf("%s\n", names[I._0]);
 	else if (op == op_debug_alive) printf(red "ALIVE\n" reset);
+	else if (op == op_debug_alive2) printf(blue "ALIVE2\n" reset);
+	else if (op == op_debug_alive3) printf(green "ALIVE3\n" reset);
+	else if (op == op_debug_alive4) printf(yellow "PRIME\n" reset);
+	else if (op == op_debug_alive5) printf(cyan "ALIVE5\n" reset);
+	else if (op == op_debug_alive6) printf(magenta "ALIVE6\n" reset);
 	else if (op == op_debug_char) printf("%c", (char) r[I._0]);
 	else { puts("unknown RT instruction"); abort(); }
 	rt_pc++;
@@ -777,7 +787,6 @@ static void interpret(char* text, nat text_length) {
 
 
 int main() {
-
 	puts("a repl/interpreter for my language.");
 	
 	   memory = aligned_alloc(8, 1 << 16);
@@ -910,6 +919,5 @@ _: 	printf(" • ");
 	goto _;
 done: 	printf("quitting...\n");
 }
-
 
 // bubbles literal c01 now print

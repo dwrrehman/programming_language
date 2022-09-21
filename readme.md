@@ -18,7 +18,7 @@ The current implementation is an REPL and interpreter, but an optimizing compile
 
  - the language is currently still very much a work in progress.
  - macros (parse-time function defs/calls) are relied on heavily to make the language high-level.
- - add more stuff
+ - add more notes
 
 ### Example Code:
 
