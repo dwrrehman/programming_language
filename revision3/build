@@ -1,0 +1,4 @@
+clang -g -std=c2x -O0 -Weverything -Wno-declaration-after-statement -fsanitize=address,undefined c.c -o run
+
+# release mode:
+# clang -std=c2x -Ofast c.c -o run
