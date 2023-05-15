@@ -3,42 +3,53 @@
 #include <iso646.h>
 #include <string.h>
 #include <stdlib.h>
-#include <stdint.h>
 #include <unistd.h>
 #include <ctype.h>
 #include <fcntl.h>
 #include <sys/stat.h>
 #include <sys/mman.h>
-
 typedef size_t nat;
 
-
-static void interpret(char* string, nat length) {
-
-	for (nat i = 0; i < length; i++) {
-		if (isspace(string[i])) {
-			printf("SPACE");
-		} else {
-			printf("%c", string[i]);
-		}
-		puts("");
-	}
+static void print_word(char* string, nat start, nat count) {
+	for (nat i = 0; i < count; i++) putchar(string[i + start]);
 }
 
+static void interpret(char* string, nat length) {
+	nat count = 0, start = 0;
+	for (nat i = 0; i < length; i++) {
+		if (not isspace(string[i])) { 
+			if (not count) start = i; 
+			count++; continue; 
+		} else if (not count) continue;
+		here:; 
+		char* word = string + start;
+
+		if (not strncmp(word, "hello", count)) {
+			printf("executing hello command...\n");
+
+		} else if (not strncmp(word, "there", count)) {
+			printf("executing there command...\n");
+
+		} else {
+			printf("found user-defined variable: "); 
+			print_word(string, start, count); 
+			puts("");
+		}
+		count = 0;
+	}
+
+	if (count) goto here;
+}
 
 int main() {
 	puts("a repl for my programminglanguage.");
-
 	char line[4096] = {0};
-
 loop: 	printf(" : ");
 	fgets(line, sizeof line, stdin);
 	nat length = strlen(line);
 	line[--length] = 0;
-	
-	if (not strcmp(line, "")) {}
-	else if (not strcmp(line, "clear")) printf("\033[H\033[J");
-	else if (not strcmp(line, "quit")) goto done;
+	if (not strcmp(line, "q")) goto done;
+	else if (not strcmp(line, "o")) printf("\033[H\033[J");
 	else interpret(line, length);
 	goto loop; done:;
 }
@@ -73,6 +84,31 @@ loop: 	printf(" : ");
 
 
 /*
+
+printf("%c [%lu] ", string[i], count);
+puts("");
+
+
+
+
+
+printf("unknown word found: [@start=%lu, count=%lu]\n", start, count);
+				printf("ie, ---> ");
+				print_word(string, start, count);
+				puts("");
+
+
+printf("---> ");
+				print_word(string, start, count);
+				puts("");
+
+
+
+
+
+
+
+
 
 
 static char* read_file(const char* filename, size_t* out_length) {
