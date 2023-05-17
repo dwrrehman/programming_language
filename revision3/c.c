@@ -16,7 +16,6 @@
 #define magenta   "\x1B[35m"
 #define cyan   "\x1B[36m"
 #define reset "\x1B[0m"
-
 #define debug 1
 
 typedef size_t nat;
@@ -25,10 +24,8 @@ enum instruction_type { nulli, nop, add, _xor, bne };
 struct word { char* name; nat length, type, value; };
 
 static nat arguments[32] = {0};
-
 static nat dictionary_count = 0;
 static struct word* dictionary = NULL;
-
 static nat ins_count = 0;
 static nat* instructions = NULL;
 
@@ -203,8 +200,7 @@ static void interpret(char* string, nat length) {
 			if (debug) print_word(dictionary[dictionary_count - 1]);
 
 			finish_word:
-			if (dictionary[*arguments].type == generic_def or dictionary[*arguments].type == label_def) 
-				dictionary[*arguments].value = ins_count;
+			if (dictionary[*arguments].type == generic_def or dictionary[*arguments].type == label_def) dictionary[*arguments].value = ins_count;
 		}
 		count = 0;
 	}
@@ -230,6 +226,42 @@ loop: 	printf(" : ");
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 /*
 
 	zero zero zero xor
@@ -245,9 +277,6 @@ loop: 	printf(" : ");
 	nop
 
 	one one label bne
-
-
-
 
 */
 
