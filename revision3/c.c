@@ -1,3 +1,24 @@
+/*
+we are in the middle of implementing:
+
+	- revise the branching and label def system in the language.
+
+	- getting execution of the instructions working. 
+
+	- allowing the repl to have newlines on a line, by using getdelim. or our cool editor function lol!
+
+	- test control flow working in execution 
+
+	- add macros to the language, using compiletime function calls. 
+
+	- add some sort of constant system to the language. yup. 
+
+	- 
+
+*/
+
+
+
 #include <stdio.h>
 #include <stdbool.h>
 #include <iso646.h>
@@ -19,8 +40,11 @@
 #define debug 1
 
 typedef size_t nat;
-enum word_type { nullw, generic_def, generic2_def, label_def, label2_def, forward_def, backward_def, var_def };
+
+// enum word_type { nullw, generic_def, generic2_def, label_def, label2_def, forward_def, backward_def, var_def };
+
 enum instruction_type { nulli, nop, add, _xor, bne };
+
 struct word { char* name; nat length, type, value; };
 
 static nat arguments[32] = {0};
@@ -29,10 +53,8 @@ static struct word* dictionary = NULL;
 static nat ins_count = 0;
 static nat* instructions = NULL;
 
-//////////////////////////////////////////////////////////////////////////////////////////
-
-static const char* spell_type(nat t) { 
-	if (t == nullw) return "{null}";
+static const char* spell_type(nat t) {
+	return green "anything" reset;
 
 	if (t == generic_def) return yellow "generic_def" reset;
 	if (t == generic2_def) return yellow "generic2_def" reset;
@@ -110,15 +132,12 @@ static void print_instructions() {
 	printf("}\n");
 }
 
-//////////////////////////////////////////////////////////////////////////////////////////
-
-
 static void ins(nat op) {
 	instructions = realloc(instructions, sizeof(nat) * 4 * (ins_count + 1));
 	instructions[4 * ins_count + 0] = op;
 	instructions[4 * ins_count + 1] = arguments[0];
 	instructions[4 * ins_count + 2] = arguments[1];
-	instructions[4 * ins_count++ + 3] = arguments[2];
+	instructions[4 * ins_count + 3] = arguments[2];    ins_count++;
 }
 
 static void branch_check() {
@@ -155,27 +174,34 @@ static void operation_check() {
 }
 
 static void push_argument(nat argument) {
-	for (nat a = 31; a; a--) arguments[a] = arguments[a - 1]; 
-	arguments[0] = argument;
+	for (nat a = 31; a; a--) arguments[a] = arguments[a - 1];
+	*arguments = argument;
 }
 
 static void interpret(char* string, nat length) {
 
+	memset(arguments, 0, sizeof arguments);
+	dictionary_count = 0; 
+	free(dictionary); dictionary = NULL; 
+	ins_count = 0;
+	free(instructions); instructions = NULL;
+
 	nat count = 0, start = 0;
+
 	for (nat i = 0; i < length; i++) {
 
 		if (not isspace(string[i])) { 
-			if (not count) start = i; 
-			count++; continue; 
+			if (not count) start = i;
+			count++; continue;
 		} else if (not count) continue;
 
-		process_word:; 
+		process_word:;
 		char* word = string + start;
 
-		     if (not strncmp(word, "nop", count)) ins(nop);
-		else if (not strncmp(word, "add", count)) { ins(add); operation_check(); } 
-		else if (not strncmp(word, "xor", count)) { ins(_xor); operation_check(); } 
-		else if (not strncmp(word, "bne", count)) { ins(bne); branch_check(); }
+		     if (count == 3 and not strncmp(word, "nop", count)) ins(nop);
+		else if (count == 3 and not strncmp(word, "add", count)) { ins(add); operation_check(); }
+		else if (count == 3 and not strncmp(word, "xor", count)) { ins(_xor); operation_check(); }
+		else if (count == 3 and not strncmp(word, "bne", count)) { ins(bne); branch_check(); }
 
 		else {
 			for (nat d = 0; d < dictionary_count; d++) {
@@ -194,17 +220,36 @@ static void interpret(char* string, nat length) {
 
 			push_argument(dictionary_count);
 			dictionary = realloc(dictionary, sizeof(struct word) * (dictionary_count + 1));
-			dictionary[dictionary_count++] = (struct word) {.name = strndup(word, count), .length = count, .type = generic_def, .value = 0};
+
+			dictionary[dictionary_count++] = (struct word) {
+				.name = strndup(word, count), 
+				.length = count, 
+				.type = generic_def, 
+				.value = 0
+			};
 
 			if (debug) printf("[not defined]  -->  assuming  ");
 			if (debug) print_word(dictionary[dictionary_count - 1]);
 
 			finish_word:
-			if (dictionary[*arguments].type == generic_def or dictionary[*arguments].type == label_def) dictionary[*arguments].value = ins_count;
+			if (	dictionary[*arguments].type == generic_def or 
+				dictionary[*arguments].type == label_def)
+					dictionary[*arguments].value = ins_count;
 		}
 		count = 0;
 	}
 	if (count) goto process_word;
+
+
+
+	print_instructions();
+
+	for (nat ip = 0; ip < ins_count; ip++) {
+
+		printf("executing @%lu\n", ip);
+
+	}
+	puts("done");
 }
 
 int main() {
@@ -214,8 +259,8 @@ loop: 	printf(" : ");
 	fgets(line, sizeof line, stdin);
 	nat length = strlen(line);
 	line[--length] = 0;
-	if (not strcmp(line, "q")) goto done;
-	else if (not strcmp(line, "o")) printf("\033[H\033[J");
+	if (not strcmp(line, "q") or not strcmp(line, "quit")) goto done;
+	else if (not strcmp(line, "o") or not strcmp(line, "clear")) printf("\033[H\033[J");
 	else if (not strcmp(line, "arguments")) print_arguments();
 	else if (not strcmp(line, "dictionary")) print_dictionary();
 	else if (not strcmp(line, "instructions")) print_instructions();
@@ -256,6 +301,46 @@ loop: 	printf(" : ");
 
 
 
+
+
+
+
+
+
+/*
+
+	label:
+		instructions;
+		and;
+		stuff;
+		if (condition) goto done;
+				
+		goto label;
+
+	done:
+		other stuff;
+	
+
+
+
+
+	nop
+	nop
+	nop
+	zero one add
+label
+	nop
+	nop
+	one zero label bne
+	one zero done bne 
+	nop
+	nop
+	nop
+done
+
+
+
+*/
 
 
 
