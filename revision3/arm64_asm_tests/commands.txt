@@ -1,0 +1,3 @@
+clang -S c.c -o c.s -Os -Weverything
+as c.s -o obj.o
+clang -v obj.o

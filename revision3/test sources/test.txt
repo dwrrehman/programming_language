@@ -1,0 +1,6 @@
+z z z xor 
+iter add
+a001 z limit addi 
+loop limit iter done bge
+iter print incr
+iter iter loop bge done

@@ -1,0 +1,7 @@
+
+
+
+main
+	a01 zr output ori ret
+
+
