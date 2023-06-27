@@ -1,7 +1,7 @@
 #!/bin/zsh
 
 if [ "release" = "$1" ]; then
-	clang -std=c99 -Ofast c.c -o run
+	clang -Ofast c.c -o run
 
 
 elif [ "clean" = "$1" ]; then
@@ -10,7 +10,7 @@ elif [ "clean" = "$1" ]; then
 
 
 elif [ "" = "$1" ]; then 
-	clang -g -O0 -std=c99 -Weverything -Wno-declaration-after-statement -Wno-poison-system-directories -fsanitize=address,undefined c.c -o run 
+	clang -g -O0 -Weverything -Wno-declaration-after-statement -Wno-poison-system-directories -fsanitize=address,undefined c.c -o run -ferror-limit=4
 
 else 
 	echo "build: unknown target: $1"

@@ -1,157 +1,4 @@
-/*
-
-we are in the middle of implementing:
------------------------------------------------
-
-	
-	- make the compiler output arm64 assembly!!!  thats wayyy easier and more important.
-
-
-
-cool piece of code:
--------------------------------
-
-z z z xor 
-iter add
-a001 z limit addi
-loop limit iter done bge
-a1 iter iter debugprint addi
-iter iter loop bge done
-
--------------------------------
-other code:
--------------------------------
-
-0 0 0 xor 
-a5 0 5 addi 
-a6 0 6 addi 
-a7 0 7 addi 
-5 6 e mul 7 e add debugprint
-
-
-
-isa:
-
-=========================================================
-
-		8
-			r r r sll
-			r r r srl
-			r r r sra
-			r r r add
-			r r r xor
-			r r r and
-			r r r or
-			r r r sub
-		7
-			r r r mul
-			r r r mhs
-			r r r mhsu
-			r r r div
-			r r r rem
-			r r r divs
-			r r r rems
-		8
-			r r l blt
-			r r l bge
-			r r l blts
-			r r l bges
-			r r l bne
-			r r l beq
-			r l jal
-			r r jalr
-		12
-			r r store1
-			r r store2
-			r r store4
-			r r store8
-			r r load1
-			r r load2
-			r r load4
-			r r load8
-			r r load1s
-			r r load2s
-			r r load4s
-			i r loadi
-		2
-			ecall
-			ebreak
-
-
-
-registers:
-
-			zr 
-
-			
-
-=========================================================
-
-
-*/
-
-
-
-/*
-r r r sll
-r r r srl
-r r r sra
-r r r add
-r r r xor
-r r r and
-r r r or
-r r r sub
-r r r mul
-r r r mhs
-r r r mhsu
-r r r div
-r r r rem
-r r r divs
-r r r rems
-r r l blt
-r r l bge
-r r l blts
-r r l bges
-r r l bne
-r r l beq
-r l jal
-r r jalr
-r r store1
-r r store2
-r r store4
-r r store8
-r r load1
-r r load2
-r r load4
-r r load8
-r r load1s
-r r load2s
-r r load4s
-
-i r loadi
-ecall
-ebreak
-
-*/
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-#include <stdio.h>
+ #include <stdio.h>
 #include <stdbool.h>
 #include <iso646.h>
 #include <string.h>
@@ -174,6 +21,16 @@ ebreak
 #include <sys/types.h>
 #include <sys/ioctl.h>    
 
+#include <sys/syscall.h>
+
+// SYS_write
+// SYS_read
+// SYS_fork
+// SYS_open
+// SYS_exit
+// SYS_syscall
+
+
 #define red   	"\x1B[31m"
 #define green   "\x1B[32m"
 #define yellow  "\x1B[33m"
@@ -182,12 +39,14 @@ ebreak
 #define cyan   	"\x1B[36m"
 #define reset 	"\x1B[0m"
 
-typedef size_t nat;
+typedef uint64_t nat;
+
+enum thing_type {
+	type_null, type_variable, type_label,
+};
 
 enum instruction_type {
-	null,
-
-	slli,srli,srai,addi,xori,andi,ori,
+	null_ins,
 	sll,srl,sra,add,_xor,_and,_or,sub,
 	mul,mhs,mhsu,_div,rem,divs,rems,
 	blt,bge,blts,bges,bne,beq,jalr,jal,
@@ -195,45 +54,87 @@ enum instruction_type {
 	load1,load2,load4,load8,
 	load1s,load2s,load4s,loadi,
 	ecall, ebreak,
-	debugprint
+	debugprint, debughex, 
+
+	isa_count
 };
 
-struct word { char* name; nat length, is_macro, value; };
+static const nat arity[] = {
+	0,
+	3,3,3,3,3,3,3,3,
+	3,3,3,3,3,3,3,
+	3,3,3,3,3,3,2,2,
+	2,2,2,2,
+	2,2,2,2,
+	2,2,2,2,
+	7, 0,
+	1, 1
+};
+
+static const char* spelling[] = {
+	"{nulli}",
+	"sll","srl","sra","add","xor","and","or","sub",
+	"mul","mhs","mhsu","div","rem","divs","rems",
+	"blt","bge","blts","bges","bne","beq","jalr","jal",
+	"store1","store2","store4","store8",
+	"load1","load2","load4","load8",
+	"load1s","load2s","load4s","loadi",
+	"ecall","ebreak",
+	"debugprint","debughex"
+};
+
+struct instruction {
+	nat op;
+	nat in[7];
+	nat defs[7];
+	nat ph;
+	nat begin;
+	nat end;
+};
+
+struct word { 
+	char* name; 
+	nat length;
+	nat type;
+	nat value;
+	nat def;
+};
 
 static const char digits[96] = 
 	"0123456789abcdefghijklmnopqrstuvwxyz"
 	"ABCDEFGHIJKLMNOPQRSTUVWXYZ,."
 	";:-_=+/?!@#$%^&*()<>[]{}|\\~`\'\"";
 
-static nat arguments[32] = {0};
-static nat dictionary_count = 0;
-static struct word* dictionary = NULL;
-static nat ins_count = 0;
-static nat* instructions = NULL;
-static nat debug = 1;
-static nat registers[4096] = {0};
+static const nat debug = 1;
+static const nat arm64_register_count = 31;
+static const nat uninit = (nat) ~0;
+
+static const nat used = uninit;                  // delete me!
+
+
+static bool is_branch(nat b) { return b >= blt and b <= jal; }
+
+static const char* spell_type(nat t) { 
+	if (t == type_null) return "{null_type}";
+	if (t == type_label)  return cyan "label" reset;
+	if (t == type_variable)  return green "variable" reset;
+	return "unknown";
+}
 
 static const char* spell_ins(nat t) { 
 
-	if (t == null) return "{null}";
+	if (t == null_ins) return "{nulli}";
 	if (t == debugprint) return "debugprint";
-
-	if (t == slli) return green "slli" reset;
-	if (t == srli) return green "srli" reset;
-	if (t == srai) return green "srai" reset;
-	if (t == addi) return green "addi" reset;
-	if (t == xori) return green "xori" reset;
-	if (t == andi) return green "andi" reset;
-	if (t == ori)  return green "ori" reset;
+	if (t == debughex) return "debughex";
 
 	if (t == sll)  return red "sll" reset;
 	if (t == srl)  return red "srl" reset;
 	if (t == sra)  return red "sra" reset;
-	if (t == add)  return red "add" reset;
 	if (t == _xor) return red "xor" reset;
 	if (t == _and) return red "and" reset;
 	if (t == _or)  return red "or" reset;
-	if (t == sub)  return red "sub" reset;
+	if (t == add)  return green "add" reset;
+	if (t == sub)  return green "sub" reset;
 
 	if (t == mul)  return blue "mul" reset;
 	if (t == mhs)  return blue "mhs" reset;
@@ -281,52 +182,39 @@ static void print_name(struct word w) {
 
 static void print_word(struct word w) {
 	print_name(w);
-	printf(reset "  :  {  .type = %lu, .value = %ld } \n",  w.is_macro, w.value);
-}
-
-static void print_instruction(nat index) {
-	if (not instructions) { puts("null instructions"); return; } 
-
-	printf("{%lu %lu %lu %lu}\t",
-		instructions[4 * index + 0], 
-		instructions[4 * index + 1], 
-		instructions[4 * index + 2], 
-		instructions[4 * index + 3]
+	printf("   \t: (%llu) { .type = %s, .val = %lld .def = %lld } \n", 
+		w.length, spell_type(w.type), w.value, w.def
 	);
-	print_name(dictionary[instructions[4 * index + 1]]); 
+}
+
+static void print_instruction(struct instruction ins, struct word* dict) {
+
+	putchar(9);
+	if (arity[ins.op]) print_name(dict[ins.in[0]]);
 	printf(" = ");
-	printf("%s ", spell_ins(instructions[4 * index]));
-	printf("{ ");
-	print_name(dictionary[instructions[4 * index + 2]]); 
-	printf(", ");
-	print_name(dictionary[instructions[4 * index + 3]]); 
-	printf(" } ");
-	
-	puts("");
-}
-
-static void print_arguments(void) {
-	printf("arguments { \n");
-	for (nat i = 0; i < 32; i++) {
-		printf("\t%3lu : %lu \n", i, arguments[i]);
+	printf("%s ", spell_ins(ins.op));
+	printf("{");
+	for (nat i = 1; i < arity[ins.op]; i++) {
+		putchar(32);
+		print_name(dict[ins.in[i]]); 
 	}
-	printf("}\n");
+	printf(" }\n\t\t\t\t\t\t\t\t.ph = %lld .life = [%lld,%lld]\n", ins.ph, ins.begin, ins.end);
 }
 
-static void print_dictionary(void) {
+static void print_dictionary(struct word* dictionary, nat dictionary_count) {
 	printf("dictionary { \n");
 	for (nat i = 0; i < dictionary_count; i++) {
-		printf("\t%3lu  :  " green, i);
+		printf("\t%3llu  :  " green, i);
 		print_word(dictionary[i]);
 	}
 	printf("}\n");
 }
 
-static void print_instructions(void) {
+static void print_instructions(struct instruction* instructions, nat ins_count, struct word* dictionary) {
 	printf("instructions { \n");
 	for (nat i = 0; i < ins_count; i++) {
-		printf("\t%3lu  :  " , i);
-		print_instruction(i);
+		printf("\t%3llu  :  " , i);
+		print_instruction(instructions[i], dictionary);
 	}
 	printf("}\n");
 }
@@ -356,272 +244,244 @@ done:	*length = index;
 	return result;
 }
 
-static void ins(nat op, bool is_branch, int argument_count) {
-	if (is_branch) {
-		if (not dictionary) { puts(red "error: empty dictionary in branch" reset); return; }
-		struct word* label = dictionary + *arguments;
-		if (label->value == ins_count) label->value = (size_t) -1;
-	} else {
-		struct word* dest = dictionary + arguments[0];
-		if (argument_count >= 1) dest->value = (size_t) -2;
-		struct word* s1 = dictionary + arguments[1];
-		if (argument_count >= 2) s1->value = (size_t) -2;
-		struct word* s2 = dictionary + arguments[2];
-		if (argument_count >= 3) s2->value = (size_t) -2;
-	}
-	instructions = realloc(instructions, sizeof(nat) * 4 * (ins_count + 1));
-	instructions[4 * ins_count + 0] = op;
-	instructions[4 * ins_count + 1] = arguments[0];
-	instructions[4 * ins_count + 2] = arguments[1];
-	instructions[4 * ins_count + 3] = arguments[2];
-	ins_count++;
+static void ins(nat op, nat* arguments, struct word* dictionary, struct instruction** instructions, nat* ins_count) {
+
+	if (is_branch(op)) {
+		if (	dictionary[*arguments].type == type_label 	and 
+			dictionary[*arguments].value == *ins_count) 
+			dictionary[*arguments].value = uninit;
+	} else for (nat i = 0; i < arity[op]; i++) dictionary[arguments[i]].type = type_variable;
+
+	struct instruction new = {
+		.op = op,
+		.in = {0},
+		.ph = uninit,
+		.begin = uninit, 
+		.end = uninit, 
+	};
+	memset(new.in, 0xff, 7 * sizeof(nat));
+	memcpy(new.in, arguments, arity[op] * sizeof(nat));
+
+	*instructions = realloc(*instructions, sizeof(struct instruction) * (*ins_count + 1));
+	(*instructions)[(*ins_count)++] = new;
 }
 
-static void push_argument(nat argument) {
+static void push_argument(nat argument, nat* arguments) {
 	for (nat a = 31; a; a--) arguments[a] = arguments[a - 1];
 	*arguments = argument;
 }
 
-static void execute(void) {
-	if (debug) print_instructions();
+static void process_syscall(nat n, nat a0, nat a1, nat a2, nat a3, nat a4, nat a5, nat* variables) {
+
+	nat r0 = variables[a0], r1 = variables[a1], r2 = variables[a2], r3 = variables[a3], r4 = variables[a4], r5 = variables[a5];
+	printf(green "SYSCALL (NR=%llu): {%llu %llu %llu %llu %llu %llu}" reset "\n" , n, r0, r1, r2, r3, r4, r5);
+
+	if (n == 1) exit((int) r0);
+	if (n == 2) variables[a0] = (nat) fork();
+	if (n == 3) variables[a0] = (nat) read((int) r0, (void*) r1, r2);
+	if (n == 4) variables[a0] = (nat) write((int) r0, (void*) r1, r2);
+	if (n == 5) variables[a0] = (nat) open((const char*) r0, (int) r1, r2);
+	if (n == 6) variables[a0] = (nat) close((int) r0);
+	if (n == 7) variables[a0] = (nat) (void*) mmap((void*) r0, r1, (int) r2, (int) r3, (int) r4, (long long) r5);
+	if (n == 8) variables[a0] = (nat) munmap((void*) r0, r1);
+
+	///if (nr == 7) variables[a0] = (nat) (int) brk((void*) r0);
+}
+
+static void execute(struct instruction* instructions, nat ins_count, struct word* dictionary) {
+	if (debug) print_instructions(instructions, ins_count, dictionary);
+
+	static nat variables[4096] = {0};
+	variables[1] = (nat) (void*) malloc(65536);
 
 	for (nat ip = 0; ip < ins_count; ip++) {
+		variables[0] = 0;
 
-		registers[0] = 0;
-
-		if (debug) printf("executing @%lu : ", ip);
-		if (debug) print_instruction(ip);
+		if (debug) printf("executing @%llu : ", ip);
+		if (debug) print_instruction(instructions[ip], dictionary);
 	
-		const nat op  = instructions[4 * ip + 0];
-		const nat out = instructions[4 * ip + 1];
-		const nat in1 = instructions[4 * ip + 2];
-		const nat in2 = instructions[4 * ip + 3];
+		const nat op  = instructions[ip].op;
 
+		nat in[7] = {0};
+		memcpy(in, instructions[ip].in, 7 * sizeof(nat));
 
-		if (op == slli) {
-			if (debug) printf("executed slli: %lu = %lu %lu\n", out, in1, in2);
-			nat m = dictionary[in2].length;
-			const nat n = string_to_number(dictionary[in2].name, &m);
-			if (debug) { printf("in2 constant = %lu (length = %lu)\n", n, m); }
-			registers[out] = registers[in1] << n;
-
-		} else if (op == srli) {
-			if (debug) printf("executed srli: %lu = %lu %lu\n", out, in1, in2);
-			nat m = dictionary[in2].length;
-			const nat n = string_to_number(dictionary[in2].name, &m);
-			if (debug) { printf("in2 constant = %lu (length = %lu)\n", n, m); }
-			registers[out] = registers[in1] >> n;
-
-		} else if (op == srai) {
-			if (debug) printf("executed srai: %lu = %lu %lu\n", out, in1, in2);
-			nat m = dictionary[in2].length;
-			const nat n = string_to_number(dictionary[in2].name, &m);
-			if (debug) { printf("in2 constant = %lu (length = %lu)\n", n, m); }
-			registers[out] = registers[in1] >> n;
-
-		} else if (op == addi) {
-			if (debug) printf("executed addi: %lu = %lu %lu\n", out, in1, in2);
-			nat m = dictionary[in2].length;
-			const nat n = string_to_number(dictionary[in2].name, &m);
-			if (debug) { printf("in2 constant = %lu (length = %lu)\n", n, m); }
-			registers[out] = registers[in1] + n;
-
-		} else if (op == xori) {
-			if (debug) printf("executed xori: %lu = %lu %lu\n", out, in1, in2);
-			nat m = dictionary[in2].length;
-			const nat n = string_to_number(dictionary[in2].name, &m);
-			if (debug) { printf("in2 constant = %lu (length = %lu)\n", n, m); }
-			registers[out] = registers[in1] ^ n;
-
-		} else if (op == andi) {
-			if (debug) printf("executed andi: %lu = %lu %lu\n", out, in1, in2);
-			nat m = dictionary[in2].length;
-			const nat n = string_to_number(dictionary[in2].name, &m);
-			if (debug) { printf("in2 constant = %lu (length = %lu)\n", n, m); }
-			registers[out] = registers[in1] & n;
-
-		} else if (op == ori) {
-			if (debug) printf("executed ori: %lu = %lu %lu\n", out, in1, in2);
-			nat m = dictionary[in2].length;
-			const nat n = string_to_number(dictionary[in2].name, &m);
-			if (debug) { printf("in2 constant = %lu (length = %lu)\n", n, m); }
-			registers[out] = registers[in1] | n;
-		}
-
-
-
-		else if (op == sll) {
-			if (debug) printf("executed sll: %lu = %lu %lu\n", out, in1, in2);
-			registers[out] = registers[in1] << registers[in2];
+		if (op == sll) {
+			if (debug) printf("executed sll: %llu = %llu %llu\n", in[0], in[1], in[2]);
+			variables[in[0]] = variables[in[1]] << variables[in[2]];
 
 		} else if (op == srl) {
-			if (debug) printf("executed srl: %lu = %lu %lu\n", out, in1, in2);
-			registers[out] = registers[in1] >> registers[in2];
+			if (debug) printf("executed srl: %llu = %llu %llu\n", in[0], in[1], in[2]);
+			variables[in[0]] = variables[in[1]] >> variables[in[2]];
 
 		} else if (op == sra) {
-			if (debug) printf("executed sra: %lu = %lu %lu\n", out, in1, in2);
-			registers[out] = registers[in1] >> registers[in2];
+			if (debug) printf("executed sra: %llu = %llu %llu\n", in[0], in[1], in[2]);
+			variables[in[0]] = variables[in[1]] >> variables[in[2]];
 
 		} else if (op == add) {
-			if (debug) printf("executed add: %lu = %lu %lu\n", out, in1, in2);
-			registers[out] = registers[in1] + registers[in2];
+			if (debug) printf("executed add: %llu = %llu %llu\n", in[0], in[1], in[2]);
+			variables[in[0]] = variables[in[1]] + variables[in[2]];
 
 		} else if (op == _xor) {
-			if (debug) printf("executed xor: %lu = %lu %lu\n", out, in1, in2);
-			registers[out] = registers[in1] ^ registers[in2];
+			if (debug) printf("executed xor: %llu = %llu %llu\n", in[0], in[1], in[2]);
+			variables[in[0]] = variables[in[1]] ^ variables[in[2]];
 
 		} else if (op == _and) {
-			if (debug) printf("executed and: %lu = %lu %lu\n", out, in1, in2);
-			registers[out] = registers[in1] & registers[in2];
+			if (debug) printf("executed and: %llu = %llu %llu\n", in[0], in[1], in[2]);
+			variables[in[0]] = variables[in[1]] & variables[in[2]];
 
 		} else if (op == _or) {
-			if (debug) printf("executed or: %lu = %lu %lu\n", out, in1, in2);
-			registers[out] = registers[in1] | registers[in2];
+			if (debug) printf("executed or: %llu = %llu %llu\n", in[0], in[1], in[2]);
+			variables[in[0]] = variables[in[1]] | variables[in[2]];
 
 		} else if (op == sub) {
-			if (debug) printf("executed sub: %lu = %lu %lu\n", out, in1, in2);
-			registers[out] = registers[in1] - registers[in2];
-		}
+			if (debug) printf("executed sub: %llu = %llu %llu\n", in[0], in[1], in[2]);
+			variables[in[0]] = variables[in[1]] - variables[in[2]];
 
-
-
-
-		else if (op == mul) {
-			if (debug) printf("executed mul: %lu = %lu %lu\n", out, in1, in2);
-			registers[out] = registers[in1] * registers[in2];
+		} else if (op == mul) {
+			if (debug) printf("executed mul: %llu = %llu %llu\n", in[0], in[1], in[2]);
+			variables[in[0]] = variables[in[1]] * variables[in[2]];
 
 		} else if (op == mhs) {
-			if (debug) printf("ERROR: executed mhs: %lu = %lu %lu\n", out, in1, in2);
-			registers[out] = registers[in1] * registers[in2]; 
+			if (debug) printf("ERROR: executed mhs: %llu = %llu %llu\n", in[0], in[1], in[2]);
+			variables[in[0]] = variables[in[1]] * variables[in[2]]; 
 			abort();
 
 		} else if (op == mhsu) {
-			if (debug) printf("ERROR: executed mhsu: %lu = %lu %lu\n", out, in1, in2);
-			registers[out] = registers[in1] * registers[in2]; 
+			if (debug) printf("ERROR: executed mhsu: %llu = %llu %llu\n", in[0], in[1], in[2]);
+			variables[in[0]] = variables[in[1]] * variables[in[2]]; 
 			abort();
 
 		} else if (op == _div) {
-			if (debug) printf("executed div: %lu = %lu %lu\n", out, in1, in2);
-			registers[out] = registers[in1] / registers[in2]; 
+			if (debug) printf("executed div: %llu = %llu %llu\n", in[0], in[1], in[2]);
+			variables[in[0]] = variables[in[1]] / variables[in[2]]; 
 
 		} else if (op == rem) {
-			if (debug) printf("executed rem: %lu = %lu %lu\n", out, in1, in2);
-			registers[out] = registers[in1] % registers[in2]; 
+			if (debug) printf("executed rem: %llu = %llu %llu\n", in[0], in[1], in[2]);
+			variables[in[0]] = variables[in[1]] % variables[in[2]]; 
 
 		} else if (op == divs) {
-			if (debug) printf("executed divs: %lu = %lu %lu\n", out, in1, in2);
-			registers[out] = registers[in1] / registers[in2]; 
+			if (debug) printf("executed divs: %llu = %llu %llu\n", in[0], in[1], in[2]);
+			variables[in[0]] = variables[in[1]] / variables[in[2]]; 
 
 		} else if (op == rems) {
-			if (debug) printf("executed rems: %lu = %lu %lu\n", out, in1, in2);
-			registers[out] = registers[in1] % registers[in2]; 
+			if (debug) printf("executed rems: %llu = %llu %llu\n", in[0], in[1], in[2]);
+			variables[in[0]] = variables[in[1]] % variables[in[2]]; 
 		}
-
-
 
 		else if (op == blt) {
-			if (debug) printf("executing blt -> @%lu [%lu %lu]\n", dictionary[out].value, in1, in2);
-			if (dictionary[out].value == (size_t) -1) { puts(red "error: unspecified label in branch" reset); goto halt; }
-			if (registers[in1] < registers[in2]) ip = dictionary[out].value - 1;
+			if (debug) printf("executing blt -> @%llu [%llu %llu]\n", dictionary[in[0]].value, in[1], in[2]);
+			if (dictionary[in[0]].value == (size_t) -1) { puts(red "error: unspecified label in branch" reset); goto halt; }
+			if (variables[in[1]] < variables[in[2]]) ip = dictionary[in[0]].value - 1;
 
 		} else if (op == bge) {
-			if (debug) printf("executing bge -> @%lu [%lu %lu]\n", dictionary[out].value, in1, in2);
-			if (dictionary[out].value == (size_t) -1) { puts(red "error: unspecified label in branch" reset); goto halt; }
-			if (registers[in1] >= registers[in2]) ip = dictionary[out].value - 1;
+			if (debug) printf("executing bge -> @%llu [%llu %llu]\n", dictionary[in[0]].value, in[1], in[2]);
+			if (dictionary[in[0]].value == (size_t) -1) { puts(red "error: unspecified label in branch" reset); goto halt; }
+			if (variables[in[1]] >= variables[in[2]]) ip = dictionary[in[0]].value - 1;
 
 		} else if (op == blts) {
-			if (debug) printf("executing blts -> @%lu [%lu %lu]\n", dictionary[out].value, in1, in2);
-			if (dictionary[out].value == (size_t) -1) { puts(red "error: unspecified label in branch" reset); goto halt; }
-			if (registers[in1] < registers[in2]) ip = dictionary[out].value - 1;
+			if (debug) printf("executing blts -> @%llu [%llu %llu]\n", dictionary[in[0]].value, in[1], in[2]);
+			if (dictionary[in[0]].value == (size_t) -1) { puts(red "error: unspecified label in branch" reset); goto halt; }
+			if (variables[in[1]] < variables[in[2]]) ip = dictionary[in[0]].value - 1;
 
 		} else if (op == bges) {
-			if (debug) printf("executing bges -> @%lu [%lu %lu]\n", dictionary[out].value, in1, in2);
-			if (dictionary[out].value == (size_t) -1) { puts(red "error: unspecified label in branch" reset); goto halt; }
-			if (registers[in1] >= registers[in2]) ip = dictionary[out].value - 1;
+			if (debug) printf("executing bges -> @%llu [%llu %llu]\n", dictionary[in[0]].value, in[1], in[2]);
+			if (dictionary[in[0]].value == (size_t) -1) { puts(red "error: unspecified label in branch" reset); goto halt; }
+			if (variables[in[1]] >= variables[in[2]]) ip = dictionary[in[0]].value - 1;
 
 		} else if (op == bne) {
-			if (debug) printf("executing bne -> @%lu [%lu %lu]\n", dictionary[out].value, in1, in2);
-			if (dictionary[out].value == (size_t) -1) { puts(red "error: unspecified label in branch" reset); goto halt; }
-			if (registers[in1] != registers[in2]) ip = dictionary[out].value - 1;
+			if (debug) printf("executing bne -> @%llu [%llu %llu]\n", dictionary[in[0]].value, in[1], in[2]);
+			if (dictionary[in[0]].value == (size_t) -1) { puts(red "error: unspecified label in branch" reset); goto halt; }
+			if (variables[in[1]] != variables[in[2]]) ip = dictionary[in[0]].value - 1;
 
 		} else if (op == beq) {
-			if (debug) printf("executing beq -> @%lu [%lu %lu]\n", dictionary[out].value, in1, in2);
-			if (dictionary[out].value == (size_t) -1) { puts(red "error: unspecified label in branch" reset); goto halt; }
-			if (registers[in1] == registers[in2]) ip = dictionary[out].value - 1;
+			if (debug) printf("executing beq -> @%llu [%llu %llu]\n", dictionary[in[0]].value, in[1], in[2]);
+			if (dictionary[in[0]].value == (size_t) -1) { puts(red "error: unspecified label in branch" reset); goto halt; }
+			if (variables[in[1]] == variables[in[2]]) ip = dictionary[in[0]].value - 1;
 		
 		} else if (op == jal) {
-			if (debug) printf("executing jal -> @%lu (%lu) \n", out, dictionary[in1].value);
-			if (dictionary[out].value == (size_t) -1) { puts(red "error: unspecified label in branch" reset); goto halt; }
-			registers[in1] = ip; ip = dictionary[out].value - 1;
+			if (debug) printf("executing jal -> @%llu (%llu) \n", in[0], dictionary[in[1]].value);
+			if (dictionary[in[0]].value == (size_t) -1) { puts(red "error: unspecified label in branch" reset); goto halt; }
+			variables[in[1]] = ip; ip = dictionary[in[0]].value - 1;
 		
 		} else if (op == jalr) {
-			if (debug) printf("executing jalr (%lu) %lu %lu]\n", out, in1, in2);
-			nat m = dictionary[in2].length;
-			const nat n = string_to_number(dictionary[in2].name, &m);
-			if (debug) { printf("in2 constant = %lu (length = %lu)\n", n, m); }
-			registers[out] = ip; ip = registers[in1] + n;
+			if (debug) printf("executing jalr (%llu) -> %llu]\n", in[0], in[1]);
+			variables[in[0]] = ip; ip = variables[in[1]];
 		}
-
-
-
 
 		else if (op == store1) {
-			if (debug) printf("executed store1: *(%lu + %lu) <- %lu\n", out, in1, in2);
-			nat m = dictionary[in1].length;
-			const nat n = string_to_number(dictionary[in1].name, &m);
-			if (debug) { printf("in1 constant = %lu (length = %lu)\n", n, m); }
-			*(nat*)(registers[out] + n) = registers[in2];
+			if (debug) printf("executed store1: *(%llu) = %llu\n", in[0], in[1]);
+			*(uint8_t*)variables[in[0]] = (uint8_t) variables[in[1]];
 
 		} else if (op == store2) {
-			if (debug) printf("executed store2: *(%lu + %lu) <- %lu\n", out, in1, in2);
-			nat m = dictionary[in1].length;
-			const nat n = string_to_number(dictionary[in1].name, &m);
-			if (debug) { printf("in1 constant = %lu (length = %lu)\n", n, m); }
-			*(nat*)(registers[out] + n) = registers[in2];
+			if (debug) printf("executed store2: *(%llu) = %llu\n", in[0], in[1]);
+			*(uint16_t*)variables[in[0]] = (uint16_t) variables[in[1]];
 
 		} else if (op == store4) {
-			if (debug) printf("executed store4: *(%lu + %lu) <- %lu\n", out, in1, in2);
-			nat m = dictionary[in1].length;
-			const nat n = string_to_number(dictionary[in1].name, &m);
-			if (debug) { printf("in1 constant = %lu (length = %lu)\n", n, m); }
-			*(nat*)(registers[out]) = registers[in2];
+			if (debug) printf("executed store4: *(%llu) = %llu\n", in[0], in[1]);
+			*(uint32_t*)variables[in[0]] = (uint32_t) variables[in[1]];
 
 		} else if (op == store8) {
-			if (debug) printf("executed store8: *(%lu + %lu) <- %lu\n", out, in1, in2);
-			nat m = dictionary[in1].length;
-			const nat n = string_to_number(dictionary[in1].name, &m);
-			if (debug) { printf("in1 constant = %lu (length = %lu)\n", n, m); }
-			*(nat*)(registers[out]) = registers[in2];
+			if (debug) printf("executed store8: *(%llu) = %llu\n", in[0], in[1]);
+			*(uint64_t*)variables[in[0]] = (uint64_t) variables[in[1]];
+
+		} else if (op == load1) {
+			if (debug) printf("executed load1: %llu = *%llu\n", in[0], in[1]);
+			variables[in[0]] = (nat) *(uint8_t*)variables[in[1]];
+
+		} else if (op == load2) {
+			if (debug) printf("executed load2: %llu = *%llu\n", in[0], in[1]);
+			variables[in[0]] = (nat) *(uint16_t*)variables[in[1]];
+
+		} else if (op == load4) {
+			if (debug) printf("executed load4: %llu = *%llu\n", in[0], in[1]);
+			variables[in[0]] = (nat) *(uint32_t*)variables[in[1]];
+
+		} else if (op == load8) {
+			if (debug) printf("executed load8: %llu = *%llu\n", in[0], in[1]);
+			variables[in[0]] = (nat) *(uint64_t*)variables[in[1]];
+
+		} else if (op == load1s) {
+			if (debug) printf("executed load1s: %llu = *%llu\n", in[0], in[1]);
+			variables[in[0]] = (nat) *(int8_t*)variables[in[1]];
+
+		} else if (op == load2s) {
+			if (debug) printf("executed load2s: %llu = *%llu\n", in[0], in[1]);
+			variables[in[0]] = (nat) *(int16_t*)variables[in[1]];
+
+		} else if (op == load4s) {
+			if (debug) printf("executed load4s: %llu = *%llu\n", in[0], in[1]);
+			variables[in[0]] = (nat) *(int32_t*)variables[in[1]];
+
+		} else if (op == loadi) {
+			if (debug) printf("executing loadi %llu %llu]\n", in[0], in[1]);
+			nat m = dictionary[in[1]].length;
+			const nat n = string_to_number(dictionary[in[1]].name, &m);
+			if (debug) { printf("in[1] constant = %llu (length = %llu)\n", n, m); }
+			variables[in[0]] = n;
 		}
-
-		// todo:  finish implementing the load ins's.
-
-
-		else if (op == loadi) {
-			if (debug) printf("executing loadi %lu %lu]\n", out, in1);
-			nat m = dictionary[in1].length;
-			const nat n = string_to_number(dictionary[in1].name, &m);
-			if (debug) { printf("in1 constant = %lu (length = %lu)\n", n, m); }
-			registers[out] = n;
-		}
-
-
-
-
 
 		else if (op == ecall) {
-			if (debug) printf("executed ecall!!!!\n");
+			nat m = dictionary[in[0]].length;
+			const nat nr = string_to_number(dictionary[in[0]].name, &m);
+			if (debug) { printf("nr (in[0]) constant = %llu (length = %llu)\n", nr, m); }
+			if (debug) printf("executed ecall: { (%llu): [%llu, %llu, %llu, %llu, %llu, %llu] }\n", 
+					nr, in[1], in[2], in[3], in[4], in[5], in[6]);
+
+			process_syscall(nr, in[1], in[2], in[3], in[4], in[5], in[6], variables);
 
 		} else if (op == ebreak) {
 			if (debug) printf("executed ebreak!!!!!!\n");
 
-
 		} else if (op == debugprint) {
-			if (debug) printf("executed debugprint: %lu\n", out);
-			printf(green "debug: %lu\n" reset, registers[out]);
+			if (debug) printf("executed debugprint: %llu\n", in[0]);
+			printf(green "debug: %llu\n" reset, variables[in[0]]);
+
+		} else if (op == debughex) {
+			if (debug) printf("executed hex: %llu\n", in[0]);
+			printf(green "debug: %llx\n" reset, variables[in[0]]);
 
 		} else {
-			printf("execute: error: unexpected instruction: %lu\n", op);
+			printf("execute: error: unexpected instruction: %llu\n", op);
 			abort();
 		}
 	}
@@ -629,7 +489,14 @@ static void execute(void) {
 halt: 	if (debug) puts(green "[finished execution]" reset);
 }
 
-static void parse(char* string, nat length) {
+static void parse(char* string, nat length, struct instruction** out_instructions, nat *out_ins_count, struct word** out_dictionary, nat* out_dictionary_count) {
+
+	struct word* dictionary = *out_dictionary;
+	nat dictionary_count = *out_dictionary_count;
+
+	struct instruction* instructions = NULL;
+	nat ins_count = 0;
+	nat arguments[32] = {0};
 
 	nat count = 0, start = 0;
 	for (nat index = 0; index < length; index++) {
@@ -638,102 +505,57 @@ static void parse(char* string, nat length) {
 			count++; continue;
 		} else if (not count) continue;
 
-		process_word:;
+	process_word:;
 		char* word = string + start;
+		
+		bool found = false;
+		for (nat i = sll; i < isa_count; i++) {
+			if (is(spelling[i], word, count)) {
+				ins(i, arguments, dictionary, &instructions, &ins_count);
+				found = true;
+			}
+		}
 
-		     if (is("slli", word, count)) ins(slli, 0, 3);
-		else if (is("srli", word, count)) ins(srli, 0, 3);
-		else if (is("srai", word, count)) ins(srai, 0, 3);
-		else if (is("addi", word, count)) ins(addi, 0, 3);
-		else if (is("xori", word, count)) ins(xori, 0, 3);
-		else if (is("andi", word, count)) ins(andi, 0, 3);
-		else if (is("ori",  word, count)) ins(ori, 0, 3);
-
-		else if (is("sll", word, count)) ins(sll, 0, 3);
-		else if (is("srl", word, count)) ins(srl, 0, 3);
-		else if (is("sra", word, count)) ins(sra, 0, 3);
-		else if (is("add", word, count)) ins(add, 0, 3);
-		else if (is("xor", word, count)) ins(_xor, 0, 3);
-		else if (is("and", word, count)) ins(_and, 0, 3);
-		else if (is("or",  word, count)) ins(_or, 0, 3);
-		else if (is("sub", word, count)) ins(sub, 0, 3);
-
-		else if (is("mul",  word, count)) ins(mul, 0, 3);
-		else if (is("mhs",  word, count)) ins(mhs, 0, 3);
-		else if (is("mhsu", word, count)) ins(mhsu, 0, 3);
-		else if (is("div",  word, count)) ins(_div, 0, 3);
-		else if (is("rem",  word, count)) ins(rem, 0, 3);
-		else if (is("divs", word, count)) ins(divs, 0, 3);
-		else if (is("rems", word, count)) ins(rems, 0, 3);
-
-		else if (is("blt",  word, count)) ins(blt, 1, 3);
-		else if (is("bge",  word, count)) ins(bge, 1, 3);
-		else if (is("blts", word, count)) ins(blts, 1, 3);
-		else if (is("bges", word, count)) ins(bges, 1, 3);
-		else if (is("bne",  word, count)) ins(bne, 1, 3);
-		else if (is("beq",  word, count)) ins(beq, 1, 3);
-		else if (is("jal",  word, count)) ins(jal, 1, 2); 	// 2
-		else if (is("jalr", word, count)) ins(jalr, 1, 3);
-
-		else if (is("store1", word, count)) ins(store1, 0, 3);
-		else if (is("store2", word, count)) ins(store2, 0, 3);
-		else if (is("store4", word, count)) ins(store4, 0, 3);
-		else if (is("store8", word, count)) ins(store8, 0, 3);
-		else if (is("load1",  word, count)) ins(load1, 0, 3);
-		else if (is("load2",  word, count)) ins(load2, 0, 3);
-		else if (is("load4",  word, count)) ins(load4, 0, 3);
-		else if (is("load8",  word, count)) ins(load8, 0, 3);
-		else if (is("load1s", word, count)) ins(load1s, 0, 3);
-		else if (is("load2s", word, count)) ins(load2s, 0, 3);
-		else if (is("load4s", word, count)) ins(load4s, 0, 3);
-		else if (is("loadi",  word, count)) ins(loadi, 0, 2);    //  2
-
-		else if (is("debugprint", word, count)) ins(debugprint, 0, 1);
-
-		else {
+		if (not found) {
 			for (nat d = 0; d < dictionary_count; d++) {
 				if (dictionary[d].length != count or strncmp(dictionary[d].name, word, count)) continue;
 
 				if (debug) printf("[DEFINED]    ");
 				if (debug) print_word(dictionary[d]);
 
-				push_argument(d);
-				if (dictionary[*arguments].value == (size_t) -1) dictionary[*arguments].value = ins_count;
+				push_argument(d, arguments);
+				if (	dictionary[*arguments].type == type_label 	and
+					dictionary[*arguments].value == uninit
+				) 	dictionary[*arguments].value = ins_count;
+
 				goto done;
 			}
 
-			push_argument(dictionary_count);
+			push_argument(dictionary_count, arguments);
 			dictionary = realloc(dictionary, sizeof(struct word) * (dictionary_count + 1));
 
 			dictionary[dictionary_count++] = (struct word) {
 				.name = strndup(word, count), 
 				.length = count, 
-				.value = ins_count
+				.type = type_label,
+				.value = ins_count,
+				.def = uninit,
 			};
 
 			if (debug) printf("[not defined]  -->  assuming  ");
 			if (debug) print_word(dictionary[dictionary_count - 1]);
 			goto done;
 		}
-
-		if (debug) { if (ins_count) print_instruction(ins_count - 1); } 
-
+		if (debug) { if (ins_count) print_instruction(instructions[ins_count - 1], dictionary); } 
 		done: count = 0;
 	}
 	if (count) goto process_word;
-}
 
-static void reset_env(void) {
-	puts("resetting enviornment...");
-	memset(arguments, 0, sizeof arguments);
-	dictionary_count = 0; 
-	free(dictionary); dictionary = NULL; 
-	ins_count = 0;
-	free(instructions); instructions = NULL;
+	*out_dictionary = dictionary;
+	*out_dictionary_count = dictionary_count;
+	*out_instructions = instructions;
+	*out_ins_count = ins_count;
 	
-	// define the zero register:
-	dictionary = realloc(dictionary, sizeof(struct word) * (dictionary_count + 1));
-	dictionary[dictionary_count++] = (struct word) {.name = strndup("zr", 2), .length = 2, .value = (size_t) -2};
 }
 
 static char* read_file(const char* filename, size_t* count) {
@@ -753,30 +575,228 @@ static char* read_file(const char* filename, size_t* count) {
 	return text;
 }
 
-static void generate_add(FILE* file, nat out, nat in1, nat in2) {
-	fprintf(file, "\tadd x1, x0, x0\n");
+
+static struct word* create_dictionary(nat* dictionary_count) {
+	*dictionary_count = 0;
+	struct word* dictionary = malloc(sizeof(struct word) * (2));
+	dictionary[(*dictionary_count)++] = (struct word) {
+		.name = strndup("zr", 2), 
+		.length = 2, 
+		.type = type_variable, 
+		.value = 0, 
+		.def = uninit
+	};
+	return dictionary;
 }
 
 
-static void generate_ori(FILE* file, nat out, nat in1, nat in2) {
-	nat m = dictionary[in2].length;
-	const nat n = string_to_number(dictionary[in2].name, &m);
+static void print_labels(nat* labels, nat label_count, struct word* dictionary) {
+	printf("found %llu labels: {", label_count);
+	for (nat i = 0; i < label_count; i++) {
+		printf("#%llu: %s, ", i, dictionary[labels[i]].name);
+	}
+	puts("}");
+}
 
-	printf("info: generating ORR constant = %lu (length = %lu)\n", n, m);
 
-	// fprintf(file, "\torr w0, wzr, #%lu\n", n); 
+static void print_live(nat* live, nat count) {
+	printf("printing live registers { ");
+	for (nat i = 0; i < count; i++) {
+		printf("%llu, ", live[i]);
+	}
+	puts("}");
+}
 
-	   fprintf(file, "\torr x0, x0, \n"); 
-
+static nat* find_labels(struct word* dictionary, nat dictionary_count, nat* out_label_count) {
 	
+	nat label_count = 0;
+	nat* labels = malloc(4096 * sizeof(nat));
+
+	for (nat d = 0; d < dictionary_count; d++) {
+		if (dictionary[d].type == type_label) {
+			printf("found label: %s\n", dictionary[d].name);
+			labels[label_count++] = d;
+		}
+	}
+	*out_label_count = label_count;
+	return labels;
 }
 
-static void generate_ret(FILE* file) {
-	fprintf(file, "\tret\n");
+
+static void print_nats(nat* array, nat count) {
+	printf("{ ");
+	for (nat i = 0; i < count; i++) {
+		printf("%llu ", array[i]);
+	}
+	printf("}\n");
+}
+
+static nat is_in(nat element, nat* array, nat count) {
+	for (nat i = 0; i < count; i++) {
+		if (array[i] == element) return i;
+	}
+	return count;
+}
+
+static void find_lifetimes(struct instruction* instructions, nat ins_count, struct word* dictionary, nat dictionary_count) {
+
+	printf("RA: obtaining lifetime information...\n");
+
+	for (nat i = 0; i < ins_count; i++) {
+
+		puts("");
+		printf("looking at: \n\t#%llu:", i);
+		print_instruction(instructions[i], dictionary);
+
+		const nat op = instructions[i].op;
+		
+		for (nat j = 1; j < arity[op]; j++) {
+			if (op == loadi) continue;
+
+			const nat this = instructions[i].in[j];
+			const nat def = dictionary[this].def;
+			if (not this) continue;
+			if (def == uninit) { 
+				printf(yellow "warning: use of uninitialized variable \"%s\" in instruction: " reset "\n", dictionary[this].name);
+				print_instruction(instructions[i], dictionary);
+				abort(); 
+			}
+			instructions[def].end = i;
+
+			printf("encountered use of " magenta "%s" reset ", \nusing definition at ins #%llu: ", dictionary[this].name, def);
+			print_instruction(instructions[def], dictionary);
+		}
+
+		if (not arity[op]) continue;
+
+		const nat dest = instructions[i].in[0];
+		instructions[i].begin = i;
+		dictionary[dest].def = i;
+
+		printf("found definition! " magenta "%s" reset " is being defined at ins #%llu...\n", dictionary[dest].name, i);
+
+		printf("generated lifetime of: \n\t#%llu:", i);
+		print_instruction(instructions[i], dictionary);
+
+		printf("debugging dict: \n");
+		print_dictionary(dictionary, dictionary_count);
+		printf("-------------------\n");
+	}
+
+	printf("printing lifetimes...\n");
+	print_instructions(instructions, ins_count, dictionary);
+
+	for (nat i = 0; i < ins_count; i++) {
+		if (instructions[i].end == uninit) {
+			printf(yellow "warning: result \"%s\" unused in instruction: " reset "\n", dictionary[instructions[i].in[0]].name);
+			print_instruction(instructions[i], dictionary);
+		}
+	}
 }
 
 
-static void generate_assembly(void) {
+
+
+static void assign_registers(struct instruction* instructions, nat ins_count, struct word* dictionary, nat dictionary_count) {
+
+
+	nat next = 0;
+	nat* live = malloc(arm64_register_count * sizeof(nat));
+	
+
+
+	printf("RA: performing register allocation...\n");
+
+	for (nat ip = 0; ip < ins_count; ip++) {
+
+
+	}
+
+	printf("printing assignments...\n");
+	print_instructions(instructions, ins_count, dictionary);
+
+	abort();
+}
+
+
+
+
+
+static void format_register(FILE* file, nat r, struct instruction* instructions) {
+	if (r) fprintf(file, "x%llu, ", instructions[r].ph); 
+	else fprintf(file, "xzr, ");
+}
+
+static void generate_operation(
+	const char* op_string, FILE* file, struct instruction ins, 
+	struct instruction* instructions, struct word* dictionary
+) {
+	print_instruction(ins, dictionary);
+	fprintf(file, "\t%s ", op_string);
+	format_register(file, ins.in[0], instructions); fprintf(file, ", ");
+	format_register(file, ins.in[1], instructions); fprintf(file, ", ");
+	format_register(file, ins.in[2], instructions); fprintf(file, "\n");	
+}
+
+static void generate_loadi(FILE* file, struct instruction ins, struct instruction* instructions, struct word* dictionary) {
+
+	const nat r = ins.ph;
+	if (r > 31) abort();
+	nat m = dictionary[ins.in[1]].length;
+	const nat n = string_to_number(dictionary[ins.in[1]].name, &m);
+	if (debug) { printf("in[1] constant = %llu (length = %llu)\n", n, m); }
+
+	uint64_t raw = n;
+	uint16_t imm0 = (uint16_t) raw;
+	uint16_t imm16 = (uint16_t) (raw >> 16);
+	uint16_t imm32 = (uint16_t) (raw >> 32);
+	uint16_t imm48 = (uint16_t) (raw >> 48);
+
+	if (not imm0) goto here;
+	fprintf(file, "\tmovz ");
+	format_register(file, ins.in[0], instructions); fprintf(file, ", ");
+	fprintf(file, "0x%hx\n", (uint16_t) imm0);
+
+	if (not imm16) goto here;
+	fprintf(file, "\tmovk ");
+	format_register(file, ins.in[0], instructions); fprintf(file, ", ");
+	fprintf(file, "0x%hx, lsl 16\n", imm16);
+
+	if (not imm32) goto here;
+	fprintf(file, "\tmovk ");
+	format_register(file, ins.in[0], instructions); fprintf(file, ", ");
+	fprintf(file, "0x%hx, lsl 32\n", imm32);
+
+	if (not imm48) goto here;
+	fprintf(file, "\tmovk ");
+	format_register(file, ins.in[0], instructions); fprintf(file, ", ");
+	fprintf(file, "0x%hx, lsl 48\n", imm48);
+here: 	return;
+}
+
+static nat find_first_free(nat* live) {
+	for (nat i = 0; i < arm64_register_count; i++) {
+		if (i < 6)   continue;
+		if (i == 16) continue;
+		if (live[i] == 0) {
+			live[i] = used;
+			return i;
+		}
+	}
+	printf("ERROR: ran out of hardware registers to use find_first_free();\n");
+	print_live(live, arm64_register_count);
+	abort();
+}
+
+static void generate_ecall(FILE* file, struct instruction ins, struct word* dictionary, nat* live) {
+
+	printf("INFO: found STRING arguments[num=%s, a0=%s, a1=%s, a2=%s]\n", 
+	dictionary[ins.in[0]].name, dictionary[ins.in[1]].name, dictionary[ins.in[2]].name, dictionary[ins.in[3]].name);
+
+}
+
+static void generate_assembly(struct instruction* instructions, nat ins_count, struct word* dictionary, nat* labels, nat label_count) {
+
 	printf("generating asm file...\n");
 	
 	const char* header = "\
@@ -787,166 +807,214 @@ static void generate_assembly(void) {
 
 	FILE* file = fopen("asm_output.s", "w");
 	fprintf(file, "%s", header);
-
-
-	printf("finding all labels... ");
-	nat label_count = 0;
-	nat labels[4096] = {0};
-	for (nat d = 0; d < dictionary_count; d++) {
-		if ((ssize_t) dictionary[d].value >= 0) {
-			labels[label_count++] = d;
-		}
-	}
-	printf("found %lu labels.\n", label_count);
+	
+	// nat next = 0;
+	nat* live = calloc(arm64_register_count, sizeof(nat));
 
 	for (nat i = 0; i < ins_count; i++) {
 
 		printf("generate_assembly: generating this \n");
-		print_instruction(i);
+		print_instruction(instructions[i], dictionary);
 
 		for (nat l = 0; l < label_count; l++) {
 			if (dictionary[labels[l]].value == i) { 
-				printf("generating label for %s at %lu...\n", dictionary[labels[l]].name, i);
+				printf("generating label for %s at %llu...\n", dictionary[labels[l]].name, i);
 				fprintf(file, "_%s:\n", dictionary[labels[l]].name);
 			}
 		}
 
-		const nat op  = instructions[4 * i + 0];
-		const nat out = instructions[4 * i + 1];
-		const nat in1 = instructions[4 * i + 2];
-		const nat in2 = instructions[4 * i + 3];
+		const nat op  = instructions[i].op;
+		nat in[7] = {0};
+		memcpy(in, instructions[i].in, 7 * sizeof(nat));
 
-	//	     if (op == nop) fprintf(file, "\tnop\n");
-	//	else if (op == ret) generate_ret(file);
+		printf("printing live registers...\n");
+		print_live(live, arm64_register_count);
 
-	//	else if (op == add) generate_add(file, out, in1, in2);
-	//	else if (op == ori) generate_ori(file, out, in1, in2);
+		if (false) {}
 
-	//	else {
-			printf("unknown instruction to generate...\n");
-	//	}
+		else if (op == ecall) generate_ecall(file, instructions[i], dictionary, live);
+		else if (op == add)   generate_operation("add", file, instructions[i], instructions, dictionary);
+		else if (op == _or)   generate_operation("orr", file, instructions[i], instructions, dictionary);
+		else if (op == _xor)  generate_operation("eor", file, instructions[i], instructions, dictionary);
+		else if (op == _and)  generate_operation("and", file, instructions[i], instructions, dictionary);
+		else if (op == sub)   generate_operation("sub", file, instructions[i], instructions, dictionary);
+		else if (op == mul)   generate_operation("mul", file, instructions[i], instructions, dictionary);
+		else if (op == loadi) generate_loadi(file, instructions[i], instructions, dictionary);
+		else {
+			printf("error: unknown instruction to generate...\n");
+		}
 	}
-
 	fprintf(file, ".subsections_via_symbols\n");
 	fclose(file);
+
+	system("cat asm_output.s");
 }
 
 static void compile(char* text, const size_t count) {
-	printf("found text = \"%s\"\n", text);
-	parse(text, count);
-	print_instructions();
-	print_dictionary();
-	generate_assembly();
+
+	printf("compile: text = \"%s\"\n", text);
+
+	struct instruction* instructions = NULL;
+	nat ins_count = 0;
+
+	nat dictionary_count = 0;
+	struct word* dictionary = create_dictionary(&dictionary_count);
+
+	parse(text, count, &instructions, &ins_count, &dictionary, &dictionary_count);
+
+	print_instructions(instructions, ins_count, dictionary);
+	print_dictionary(dictionary, dictionary_count);
+
+	nat label_count = 0;
+	nat* labels = find_labels(dictionary, dictionary_count, &label_count);
+
+	print_labels(labels, label_count, dictionary);
+
+	find_lifetimes(instructions, ins_count, dictionary, dictionary_count);
+
+	assign_registers(instructions, ins_count, dictionary, dictionary_count);
+
+	generate_assembly(instructions, ins_count, dictionary, labels, label_count);
+
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+static void configure_terminal(void) {
+	struct termios terminal = {0}; 
+	tcgetattr(0, &terminal);
+	struct termios copy = terminal; 
+	copy.c_lflag &= ~((size_t)ICANON | ECHO);
+	tcsetattr(0, TCSAFLUSH, &copy);
+}
+
+static char* get_string(nat* out_length) {
+
+	struct winsize window = {0};
+
+	char* input = NULL;
+	uint8_t* tabs = NULL;
+	uint16_t* newlines = NULL;
+
+	size_t len = 0, capacity = 0, tab_count = 0, newline_count = 0;
+	uint16_t column = 0;
+	char w = 0, p = 0, d = 0;
+
+	ioctl(0, TIOCGWINSZ, &window);
+	write(1, "\n", 1);
+
+read:	read(0, &w, 1);
+	if (w == 127) goto delete;
+
+	if (w != 't' or p != 'r' or d != 'd') goto push;
+	if (len >= 2) len -= 2;
+	input[len] = 0;
+	*out_length = len;
+	return input;
+
+push:	if (w == 10) {
+		newlines = realloc(newlines, sizeof(uint16_t) * (newline_count + 1));
+		newlines[newline_count++] = column;
+		column = 0;
+		write(1, &w, 1);
+
+	} else if (w == 9) {
+		const uint8_t amount = 8 - column % 8;
+		column += amount; column %= window.ws_col;
+		write(1, "        ", amount);
+		tabs = realloc(tabs, tab_count + 1);
+		tabs[tab_count++] = amount;
+	} else {
+		if (column >= window.ws_col) column = 0;
+		if((unsigned char) w >> 6 != 2) column++;
+		write(1, &w, 1);
+	}
+	if (len + 1 >= capacity) {
+		capacity = 4 * (capacity + 1);
+		input = realloc(input, capacity);	
+	}
+	input[len++] = w;
+	goto next;
+
+delete: if (not len) goto next;
+	len--;
+	if (input[len] == 10) {
+		column = newlines[--newline_count];
+		printf("\033[A");
+		if (column) printf("\033[%huC", column);
+		fflush(stdout);
+
+	} else if (input[len] == 9) {
+		uint8_t amount = tabs[--tab_count];
+		column -= amount;
+		write(1, "\b\b\b\b\b\b\b\b", amount);
+
+	} else {
+		while ((unsigned char) input[len] >> 6 == 2) len--;
+		if (not column) {
+			column = window.ws_col - 1;
+			write(1, "\b", 1);
+		} else {
+			column--;
+			write(1, "\b \b", 3);
+		}
+	}
+
+next:	d = p; 
+	p = w; 
+	goto read;
+}
+
+
+static void repl(void) {
+	puts("a repl for my programming language.");
+	configure_terminal();
+
+	struct instruction* instructions = NULL;
+	nat ins_count = 0;
+
+	nat dictionary_count = 0;
+	struct word* dictionary = create_dictionary(&dictionary_count);
+
+loop:;
+	nat len = 0;
+	char* input = get_string(&len);
+	printf("\n\trecieved input(%llu): \n\n\t\t\"%s\"\n", len, input);
+
+	if (not strcmp(input, "q") or not strcmp(input, "quit")) return;
+	else if (not strcmp(input, "o") or not strcmp(input, "clear")) printf("\033[H\033[2J");
+	else if (not strcmp(input, "dictionary")) print_dictionary(dictionary, dictionary_count);
+	else if (not strcmp(input, "instructions")) print_instructions(instructions, ins_count, dictionary);
+	else if (not strcmp(input, "reset")) {dictionary_count = 0; ins_count = 0;}
+	else {
+		parse(input, len, &instructions, &ins_count, &dictionary, &dictionary_count);
+		execute(instructions, ins_count, dictionary); 
+	}
+	goto loop; 
 }
 
 int main(int argc, const char** argv) {
-	reset_env();
-
-	if (argc == 1) {
-		puts("a repl for my programming language.");
-
-		struct termios terminal; 
-		tcgetattr(0, &terminal);
-		struct termios copy = terminal; 
-		copy.c_lflag &= ~((size_t)ICANON | ECHO);
-		tcsetattr(0, TCSAFLUSH, &copy);
-		struct winsize window;
-		char* input = NULL;
-		uint8_t* tabs = NULL;
-		uint16_t* newlines = NULL;
-		size_t len = 0, capacity = 0, tab_count = 0, newline_count = 0;
-		uint16_t column = 0;
-		char w = 0, p = 0, d = 0;
-
-	loop: 	ioctl(0, TIOCGWINSZ, &window);
-		write(1, "\n", 1);
-		column = 0; w = 0; p = 0; d = 0; len = 0;
-		tab_count = 0; newline_count = 0;
-
-	rc:	if (read(0, &w, 1) <= 0) goto process;
-		if (w == 127) goto delete;
-		if (w != 't' or p != 'r' or d != 'd') goto push;
-		if (len >= 2) len -= 2;
-		goto process;
-
-	push:	if (w == 10) {
-			newlines = realloc(newlines, sizeof(uint16_t) * (newline_count + 1));
-			newlines[newline_count++] = column;
-			column = 0;
-			write(1, &w, 1);
-		} else if (w == 9) {
-			const uint8_t amount = 8 - column % 8;
-			column += amount; column %= window.ws_col;
-			write(1, "        ", amount);
-			tabs = realloc(tabs, tab_count + 1);
-			tabs[tab_count++] = amount;
-		} else {
-			if (column >= window.ws_col) column = 0;
-			if((unsigned char) w >> 6 != 2) column++;
-			write(1, &w, 1);
-		}
-		if (len + 1 >= capacity) {
-			capacity = 4 * (capacity + 1);
-			input = realloc(input, capacity);	
-		}
-		input[len++] = w;
-		goto next;
-	delete: if (not len) goto next;
-		len--;
-		if (input[len] == 10) {
-			column = newlines[--newline_count];
-			printf("\033[A");
-			if (column) printf("\033[%huC", column);
-			fflush(stdout);
-		} else if (input[len] == 9) {
-			uint8_t amount = tabs[--tab_count];
-			column -= amount;
-			write(1, "\b\b\b\b\b\b\b\b", amount);
-		} else {
-			while ((unsigned char) input[len] >> 6 == 2) len--;
-			if (not column) {
-				column = window.ws_col - 1;
-				write(1, "\b", 1);
-			} else {
-				column--;
-				write(1, "\b \b", 3);
-			}
-		}
-	next:	d = p; p = w; goto rc;
-
-	process:
-		input[len] = 0;
-		printf("\n\trecieved input(%lu): \n\n\t\t\"", len);
-		fwrite(input, len, 1, stdout);
-		printf("\"\n");
-		
-		fflush(stdout);
-		if (not strcmp(input, "q") or not strcmp(input, "quit")) goto done;
-		else if (not strcmp(input, "o") or not strcmp(input, "clear")) printf("\033[H\033[2J");
-		else if (not strcmp(input, "arguments")) print_arguments();
-		else if (not strcmp(input, "dictionary")) print_dictionary();
-		else if (not strcmp(input, "instructions")) print_instructions();
-		else if (not strcmp(input, "reset")) reset_env();
-		else { 
-			parse(input, len); 
-			execute(); 
-		}
-		goto loop; 
-	done:	tcsetattr(0, TCSAFLUSH, &terminal);
-
-
-
-
-
-	} else if (argc >= 2) {
+	if (argc == 1) repl();
+	else if (argc >= 2) {
 		const char* executable_name = "executable_program.out";
-
 		const char* filename = argv[1];
 		size_t count = 0;
 		char* contents = read_file(filename, &count);
 		compile(contents, count);
 		system("as asm_output.s -o object_output.o");
-
 		char linker_string[4096] = {0};
 		snprintf(linker_string, sizeof linker_string, 
 			"/Library/Developer/CommandLineTools/usr/bin/ld "
@@ -960,7 +1028,6 @@ int main(int argc, const char** argv) {
 			"-lSystem /Library/Developer/CommandLineTools/usr/lib/clang/14.0.3/lib/darwin/libclang_rt.osx.a"
 			, executable_name
 		);
-
 		system(linker_string);
 	}
 }
@@ -1001,82 +1068,49 @@ int main(int argc, const char** argv) {
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 /*
-
-
-
-
-
-
-
-
-x	- add macros to the language, x:using compiletime function calls;
-
-		using this syntax:             macro_name_here  body_for_macro_here  macro_name_here
-
-			thats it!
-
-		you need to make a late decision about the second instance of macro_name_here. 
-			consider it not a macro, until you see the next word is not a branch. if its a branch, its not a macro. 
-				if it is not, then it is a macro! i think. and you note down that its a macro, right when you see that it is not a branch. 
-				note, if its a macro call, then you need to expand it before determining your decision. 
-
-					actually lets not work on adding macros to the language. 
-
-										lets work on code gen first.
-											thats more important. 
-
-
-
-
-
-
-
-			
-x 	- do webasm assembly code gen?...  no. --> start with the native arm64 compiler backend!!!
-
-
-
-
-x	- revise the branching and label def system in the language.
-
-x	- getting execution of the instructions working. 
-
-x	- allowing the repl to have newlines on a line, by using getdelim. or our cool editor function lol!
-
-x	- test control flow working in execution 
-
-x	- add some sort of constant system to the language. yup. 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-		
-		size_t capacity = 0;
-		char* input = NULL;
-
-	loop: 	printf(" : ");
-		ssize_t r = getdelim(&input, &capacity, '`', stdin);
-		size_t length = (size_t) r; getchar();
-		input[--length] = 0;
-
-
-
-		done:;
-
+movz x0, 0x7788
+movk x0, 0x5566, lsl 16
+movk x0, 0x3344, lsl 32
+movk x0, 0x1122, lsl 48
 */
 
 
@@ -1091,24 +1125,18 @@ x	- add some sort of constant system to the language. yup.
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+/*struct decision {
+	nat instruction;
+	nat physical_register;
+	nat virtual_register;
+};*/
+/*struct machine_instruction {
+	nat opcode;
+	nat arg0;
+	nat arg1;
+	nat arg2;
+	nat last_use;
+};*/
 
 
 
@@ -1123,537 +1151,269 @@ x	- add some sort of constant system to the language. yup.
 
 
 /*
-		if (op == _xor) {
-			if (debug) printf("executed xor: %lu = %lu %lu\n", out, in1, in2);
-			registers[out] = registers[in1] ^ registers[in2];
+	for (nat ip = 0, pi = ins_count - 1; ip < ins_count; ip++, pi--) {
+		
+		if (	instructions[ip].in[1] and arity[instructions[ip].op] >= 2 and 
+			instructions[ip].op != loadi
+		) {
+			struct word* r = dictionary + instructions[ip].in[1];
+			if (r->begin == uninit) {
+				printf(red "ERROR: usage of uninitialized variable named \"%s\" is undefined behavior." reset "\n", r->name);
+				printf("at instruction: ");
+				print_instruction(instructions[ip], dictionary);
+				puts("");
+				abort(); 
+			}	
+		}
 
-		} else if (op == add) {
-			if (debug) printf("executed add: %lu = %lu %lu\n", out, in1, in2);
-			registers[out] = registers[in1] + registers[in2];
+		if (instructions[ip].in[2] and arity[instructions[ip].op] >= 3) {
+			struct word* r = dictionary + instructions[ip].in[2];
+			if (r->begin == uninit) {
+				printf(red "ERROR: usage of uninitialized variable named \"%s\" is undefined behavior." reset "\n", r->name);
+				printf("at instruction: ");
+				print_instruction(instructions[ip], dictionary);
+				puts("");
+				abort(); 
+			}	
+		}
 
-		} else if (op == sub) {
-			if (debug) printf("executed sub: %lu = %lu %lu\n", out, in1, in2);
-			registers[out] = registers[in1] - registers[in2];
+		if (instructions[ip].in[0] and arity[instructions[ip].op] >= 1) {
+			struct word* r = dictionary + instructions[ip].in[0];
+			if (r->begin == uninit) { r->begin = ip; }
+		}
 
-		} else if (op == addi) {
-			if (debug) printf("executed addi: %lu = %lu %lu\n", out, in1, in2);
-			nat m = dictionary[in2].length;
-			const nat n = string_to_number(dictionary[in2].name, &m);
-			if (debug) {
-				printf("in2 constant = %lu (length = %lu)\n", n, m);
+		if (instructions[pi].in[1] and arity[instructions[ip].op] >= 2) {
+			struct word* r = dictionary + instructions[pi].in[1];
+			if (r->end == uninit) { r->end = pi; }
+		} 
+
+		if (instructions[pi].in[2] and arity[instructions[ip].op] >= 3) {
+			struct word* r = dictionary + instructions[pi].in[2];
+			if (r->end == uninit) { r->end = pi; }
+		}
+	}
+
+
+
+	for (nat i = 1; i < dictionary_count; i++) {
+		if (dictionary[i].type != type_variable) continue;
+		if (dictionary[i].end == uninit) 
+			printf(magenta "WARNING: found variable which was set but never used: \"%s\"" reset "\n", dictionary[i].name);
+	}
+
+
+
+
+
+
+// dictionary[(*dictionary_count)++] = (struct word) {.name = strndup("debug_memory", 12), .length = 12, .value = (size_t) type_variable};
+
+	//.ph = uninit, 
+	//	.begin = uninit, 
+	//	.end = uninit
+
+
+
+
+
+*/
+
+
+
+
+
+
+
+
+
+
+
+/*
+		for (nat d = 1; d < dictionary_count; d++) {
+			if (dictionary[d].type != type_variable) {
+				printf("skipping over %s...\n", dictionary[d].name);
+				continue;
 			}
-			registers[out] = registers[in1] + n;
-
-		} else if (op == mul) {
-			if (debug) printf("executed mul: %lu = %lu %lu\n", out, in1, in2);
-			registers[out] = registers[in1] * registers[in2];
-
-		} else if (op == rem) {
-			if (debug) printf("executed rem: %lu = %lu %lu\n", out, in1, in2);
-			registers[out] = registers[in1] % registers[in2];
-
-		} else if (op == rem) {
-			if (debug) printf("executed rem: %lu = %lu %lu\n", out, in1, in2);
-			registers[out] = registers[in1] % registers[in2];
-
-*/
-
-
-
-
-
-
-
-
-/*
-
-	linker call:
-
-
-	"/Library/Developer/CommandLineTools/usr/bin/ld" -demangle -lto_library /Library/Developer/CommandLineTools/usr/lib/libLTO.dylib -dynamic -arch arm64 -platform_version macos 13.0.0 13.3 -syslibroot /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk -o a.out -L/usr/local/lib object_file.o -lSystem /Library/Developer/CommandLineTools/usr/lib/clang/14.0.3/lib/darwin/libclang_rt.osx.a
-
-
-
-
-
-
-
-
-
-
-	assembler     asm -> obj file   call:
-
-
-		as c.s -o obj_file.o
-
-		
-
-
-
-
-	.section	__TEXT,__text,regular,pure_instructions
-	.build_version macos, 13, 0	sdk_version 13, 3
-	.globl	_main                           ; -- Begin function main
-	.p2align	2
-_main:                                  ; @main
-	.cfi_startproc
-; %bb.0:
-	stp	x29, x30, [sp, #-16]!           ; 16-byte Folded Spill
-	.cfi_def_cfa_offset 16
-	mov	x29, sp
-	.cfi_def_cfa w29, 16
-	.cfi_offset w30, -8
-	.cfi_offset w29, -16
-Lloh0:
-	adrp	x0, l_.str@PAGE
-Lloh1:
-	add	x0, x0, l_.str@PAGEOFF
-	bl	_puts
-	mov	w0, #0
-	ldp	x29, x30, [sp], #16             ; 16-byte Folded Reload
-	ret
-	.loh AdrpAdd	Lloh0, Lloh1
-	.cfi_endproc
-                                        ; -- End function
-	.section	__TEXT,__cstring,cstring_literals
-l_.str:                                 ; @.str
-	.asciz	"hello there"
-
-.subsections_via_symbols
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-heres the smallest program:
-
-        .section __TEXT,__text,regular,pure_instructions
-        .build_version macos, 13, 0 sdk_version 13, 3
-        .globl _main 
-        .p2align 2
-
-_main: 
-	.cfi_startproc
-	mov w0, #0
-	ret
-	.cfi_endproc
-
-.subsections_via_symbols
-
-
-
-
-
-
-
-
-*/
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-/*
-printf("(%s) = ", spell_type(dictionary[instructions[4 * index + 1]].type));
-printf("(%s), ", spell_type(dictionary[instructions[4 * index + 2]].type));
-printf("(%s) }",  spell_type(dictionary[instructions[4 * index + 3]].type));
-*/
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-/*
-
-	label:
-		instructions;
-		and;
-		stuff;
-		if (condition) goto done;
-				
-		goto label;
-
-	done:
-		other stuff;
-	
-
-
-
-
-	nop
-	nop
-	nop
-	zero one add
-label
-	nop
-	nop
-	one zero label bne
-	one zero done bne 
-	nop
-	nop
-	nop
-done
-
-
-
-*/
-
-
-
-
-
-
-/*
-
-	zero zero zero xor
-
-	zero one label bne
-
-	label
-
-	zero label pasta add
-
-	nop
-
-	nop
-
-	one one label bne
-
-*/
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-/*
-
-label 
-zero one label bne
-
-
-zero one label bne
-
-
-
-
-
-
-
-
-
-
-
-else if (not strcmp(line, "i")) interpret(strdup(test_string), strlen(test_string));
-
-
-
-
-
-
-
-
-
-
-printf("%c [%lu] ", string[i], count);
-puts("");
-
-
-
-
-
-printf("unknown word found: [@start=%lu, count=%lu]\n", start, count);
-				printf("ie, ---> ");
-				print_word(string, start, count);
-				puts("");
-
-
-printf("---> ");
-				print_word(string, start, count);
-				puts("");
-
-
-
-
-
-
-
-
-
-
-static char* read_file(const char* filename, size_t* out_length) {
-	const int file = open(filename, O_RDONLY);
-	if (file < 0) {
-		perror("open"); 
-		return NULL;
-	}
-	struct stat file_data = {0};
-	if (stat(filename, &file_data) < 0) { 
-		perror("stat"); 
-		return NULL;
-	}
-	const size_t length = (size_t) file_data.st_size;
-	char* buffer = not length ? NULL : mmap(0, (size_t) length, PROT_READ, MAP_SHARED, file, 0);
-	if (buffer == MAP_FAILED) {
-		perror("mmap");
-		return NULL;
-	}
-	close(file);
-	*out_length = length;
-	return buffer;
-}
-
-
-
-
-
-	else if (not strcmp(string, "file")) {
-
-		char filename[4096] = {0};
-		printf("filename: ");
-		fgets(filename, sizeof filename, stdin);
-		filename[strlen(filename) - 1] = 0;
-		size_t length = 0;
-		char* contents = read_file(filename, &length);
-		if (contents) interpret(contents, length);
-	}
-
-
-
-static nat data_node_count = 0;
-static struct data_node data_nodes = NULL;
-
-
-
-
-//struct data_node { nat type, value; };
-
-
-data_node = realloc(data_node, sizeof(struct data_node) * (data_node_count + 1));
-			data_node[data_node_count++] = (struct data_node) {...};
-
-
-
-// if we see that the label argument's data node   has a value which is 0, then we know it was not defined yet. overwrite its type with 
-
-			// if (not data_node[*arguments].value) data_node[*arguments].type = forward_label;
-
-
-
-if (data_node[dictionary[entry].index].type == forward_label) {
-					
+			
+			struct word* r = dictionary + d;	
+
+			printf("processing word:  \"%s\"\n", r->name);
+
+			if (r->begin == ip) {
+				if (next >= 31) printf("next = %lld\n", next);
+				if ((ssize_t) next == -1) {
+					printf(red "ERROR: found negative   next available register   for %s" reset "\n", r->name);
+					abort();
+				} else {
+					live[next] = d;
+					r->ph = next;
 				}
 
-
-
-  // then define the name as a variable, with the data_node of the expression!
-
-
-// define the name as a label. 
-
-
-
-
-
-if (data_nodes[*arguments].type == expression) {  
-				
-			} else {  
-				
+				printf("FOUND START OF LIFETIME: r%lld now holds the value for \"%s\"\n", next, r->name);
+				next++;
 			}
 
-
-
-
-enum data_node_type { nulld, variable, label, forward_label };
-
-
-
-if (dictionary[instructions[4 * (ins_count - 1) + 1]].use_count == 1) {
-
-			if (debug) printf(red "ERROR: forward declaring label \"");
-			if (debug) print_word(dictionary[instructions[4 * (ins_count - 1) + 1]]);
-
-			type = 
 			
+			if (r->end == ip and instructions[ip].op != loadi) {
+				next = r->ph;
+				printf("FOUND END OF LIFETIME: r%lld is now open.\n", next);
+			}
+		}
+
+*/
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+/*
+	nat number = dictionary[ins.in[0]].ph;
+	nat arg0 = dictionary[ins.in[1]].ph;
+	nat arg1 = dictionary[ins.in[2]].ph;
+	nat arg2 = dictionary[ins.in[3]].ph;
+
+	nat free16 = find_first_free(live);
+	nat free0  = find_first_free(live);
+	nat free1  = find_first_free(live);
+	nat free2  = find_first_free(live);
+
+	printf("INFO: found frees[f16=%llu, f0=%llu, f1=%llu, f2=%llu]\n", free16, free0, free1, free2);
+	printf("INFO: found arguments[num=%llu, a0=%llu, a1=%llu, a2=%llu]\n", number, arg0, arg1, arg2);
+
+// save:
+	if (live[16]) fprintf(file, "\tadd x%llu, x%llu, xzr\n", free16, 16LLU); 
+	if (live[0])  fprintf(file, "\tadd x%llu, x%llu, xzr\n", free0, 0LLU); 
+	if (live[1])  fprintf(file, "\tadd x%llu, x%llu, xzr\n", free1, 1LLU);
+	if (live[2])  fprintf(file, "\tadd x%llu, x%llu, xzr\n", free2, 2LLU);
+
+// fill in inputs
+	if (number != 16) fprintf(file, "\tadd x%llu, x%llu, xzr\n", 16LLU, number); 
+	if (arg0 != 0)    fprintf(file, "\tadd x%llu, x%llu, xzr\n", 0LLU, arg0);
+	if (arg1 != 1)    fprintf(file, "\tadd x%llu, x%llu, xzr\n", 1LLU, arg1);
+	if (arg2 != 2)    fprintf(file, "\tadd x%llu, x%llu, xzr\n", 2LLU, arg2);
+
+	fprintf(file, "\tsvc 0x80"); fprintf(file, "\n");
+
+// fill in outputs
+	if (arg0 != 0) fprintf(file, "\tadd x%llu, x%llu, xzr\n", arg0, 0LLU); 
+	if (arg1 != 1) fprintf(file, "\tadd x%llu, x%llu, xzr\n", arg1, 1LLU); 
+
+// restore:
+	if (live[16]) fprintf(file, "\tadd x%llu, x%llu, xzr\n", 16LLU, free16);
+	if (live[0])  fprintf(file, "\tadd x%llu, x%llu, xzr\n", 0LLU, free0);
+	if (live[1])  fprintf(file, "\tadd x%llu, x%llu, xzr\n", 1LLU, free1);
+	if (live[2])  fprintf(file, "\tadd x%llu, x%llu, xzr\n", 2LLU, free2);
+
+	live[free16] = 0;
+	live[free0] = 0;
+	live[free1] = 0;
+	live[free2] = 0;
+
+
+
+
+
+
+
+//	nat def_count = 0;
+//	nat* defs = malloc(4096 * sizeof(nat));
+
+//	nat last_count = 0;
+//	nat* last_usages = malloc(4096 * sizeof(nat));
+	
+	puts("----------------------------forw------------------------------------------------------------------------");
+
+
+
+
+
+
+	print_nats(defs, def_count);
+
+
+	puts("---------------------------back-------------------------------------------------------------------------");
+	
+	for (nat j = ins_count; j--;) {
+		puts("\n\n");
+		puts("looking at: [backwards]");
+		print_instruction(instructions[j], dictionary);
+		const nat op = instructions[j].op;
+	}
+
+	puts("------------------------------end----------------------------------------------------------------------");
+		nat found = is_in(j, last_usages, last_count);
+		if (found == last_count) {
+
+			printf("[backwards]  found last usage! pushing %llu...\n", j);
+			last_usages[last_count++] = j;
+
+			printf("[backwards]  --> lastusages:  ");
+			print_nats(last_usages, last_count);
 		} else {
-			if (debug) printf(cyan "info: found already declared label.\n" reset);
-			if (debug) printf("[.use_count = %lu]\n", dictionary[instructions[4 * (ins_count - 1) + 1]].use_count);
+			printf("[backwards]  not the last usage! last one is at: %llu...\n", last_usages[found]);
 		}
 
 
-if (debug) printf(red "ERROR: type mismatch. expected label variable for branch arg0. ...aborting...\n" reset);
-		if (debug) printf("[.type = %lu]\n", dictionary[instructions[4 * (ins_count - 1) + 1]].type);
-		if (debug) abort();
 
 
 
-/// if (dictionary[d].type == label_def) dictionary[d].type = backward_def;
+		if (instructions[i].op == loadi) goto dpunrt;
 
+		if (i == dictionary[in[1]].end) {
+			const struct word w = dictionary[in[1]];
+			if (w.type != type_variable) abort();
 
+			printf("found the end of %s's lifetime! at %llu.\n", w.name, i);
+			
+			live[w.ph] = 0;
+		}
 
+		if (i == dictionary[in[2]].end) {
 
-if (dictionary[instructions[4 * (ins_count - 1) + 1]].type == forward_def) {
-		printf("forward def\n");
-		
-	} else {
-		printf("label def\n");
-	}
+			const struct word w = dictionary[in[2]];
 
+			if (w.type != type_variable) abort();
 
+			printf("found the end of %s's lifetime! at %llu.\n", w.name, i);
+			live[w.ph] = 0;
+		}
 
- puts(red "FORWARDS BRANCH" reset);
+	dpunrt: 
+		if (i == dictionary[in[0]].begin) {
+			const struct word w = dictionary[in[0]];
 
+			if (w.type != type_variable) abort();
 
- puts(green "BACKWARDS BRANCH" reset);
+			printf("found the beginning of %s's lifetime! at %llu.\n", w.name, i);
 
-  puts(red "DOUBLE FORWARDS BRANCH" reset);  
+			if (w.ph == uninit) abort();
 
-puts(red "IMM FORWARDS BRANCH" reset);
-
-
-
-
-	//else if (label->type == forward_def) {}  
-	//else if (label->type == backward_def) {} 
-	//else 
-
-
-
-
-else if (label->type == var_def) {
-		printf(red "error: found variable instead of label in branch: " reset);
-		print_instruction(ins_count - 1);
-	}
-
-
-
-
-for (nat i = 1; i < 4; i++) {
-		struct word* argument = dictionary + instructions[4 * (ins_count - 1) + i];
-
-		if (	argument->type == forward_def or argument->type == backward_def or
-			argument->type == label_def or argument->type == label2_def) {
-
-			if (argument->type == label2_def) argument->type = label_def;
-
-			printf(red "error: found label instead of variable at argument %lu in operation: " reset, i);
-			print_instruction(ins_count - 1);
-
-		} else argument->type = var_def;
-	}
-
-
-
-	     if (label->type == generic_def or label->type == label_def)   label->type = forward_def;
-	else if (label->type == generic2_def or label->type == label2_def) label->type = backward_def;
-
-
-
-if (dictionary[d].type == forward_def)      dictionary[d].type = label_def;
-				else if (dictionary[d].type == generic_def) dictionary[d].type = generic2_def;
-				else if (dictionary[d].type == label_def)   dictionary[d].type = label2_def;
-
-
-
+			live[w.ph] = in[0];
+		}
 
 */
 
 
 
-//	const nat color_count = 6;
-//	const char* color[color_count] = { red, green, yellow, blue, magenta, cyan };
 
 
 
-
-
-
-//	if (t == generic_def) return yellow "generic_def" reset;
-//	if (t == generic2_def) return yellow "generic2_def" reset;
-
-//	if (t == label_def) return magenta "label_def" reset;
-//	if (t == label2_def) return magenta "label2_def" reset;
-
-//	if (t == forward_def) return red "forwards_def" reset;
-//	if (t == backward_def) return green "backward_def" reset;
-
-//	if (t == var_def) return cyan "var_def" reset;
-//	return "unknown";
-
-
-
-
-//  static const char* spell_type(nat t) { return green "any" reset; }
-
-
-/*
-
-
-x x f bne     
-   nop
-   nop
-   nop
-f  a b c add
-   x x x xor
-`
-
-*/
-
-
-// enum word_type { nullw, generic_def, generic2_def, label_def, label2_def, forward_def, backward_def, var_def };
 

@@ -1,0 +1,1476 @@
+
+
+/*
+
+
+
+// save:
+	if (live[16]) { printf(yellow "\tadd x%llu, x%llu, xzr", free16, 16LLU); printf(reset "\n"); }
+	if (live[0]) { printf(yellow "\tadd x%llu, x%llu, xzr", free0, 0LLU); printf(reset "\n"); } 
+	if (live[1]) { printf(yellow "\tadd x%llu, x%llu, xzr", free1, 1LLU); printf(reset "\n"); } 
+	if (live[2]) { printf(yellow "\tadd x%llu, x%llu, xzr", free2, 2LLU); printf(reset "\n"); }
+
+// fill in inputs
+	printf(yellow "\tadd x%llu, x%llu, xzr\n", 16LLU, number); printf(reset "\n");
+	printf(yellow "\tadd x%llu, x%llu, xzr\n", 0LLU, arg0); printf(reset "\n");
+	printf(yellow "\tadd x%llu, x%llu, xzr\n", 1LLU, arg1); printf(reset "\n");
+	printf(yellow "\tadd x%llu, x%llu, xzr\n", 2LLU, arg2); printf(reset "\n");
+
+	printf(yellow "\tsvc 0x00"); printf(reset "\n");
+
+// fill in outputs
+	printf(yellow "\tadd x%llu, x%llu, xzr", arg0, 0LLU); printf(reset "\n");
+	printf(yellow "\tadd x%llu, x%llu, xzr", arg1, 1LLU); printf(reset "\n");
+	printf(yellow "\tadd x%llu, x%llu, xzr", arg2, 2LLU); printf(reset "\n");
+
+// restore:
+	if (live[16]) { printf(yellow "\tadd x%llu, x%llu, xzr", 16LLU, free16); printf(reset "\n"); }
+	if (live[0]) { printf(yellow "\tadd x%llu, x%llu, xzr", 0LLU, free0); printf(reset "\n"); }
+	if (live[1]) { printf(yellow "\tadd x%llu, x%llu, xzr", 1LLU, free1); printf(reset "\n"); }
+	if (live[2]) { printf(yellow "\tadd x%llu, x%llu, xzr", 2LLU, free2); printf(reset "\n"); }
+
+
+
+
+
+
+
+
+
+
+
+
+
+//  printf(yellow "\tadd x%llu, x%llu, xzr", 16LLU, ); printf(reset "\n");
+
+	printf(yellow "\tadd x%llu, x%llu, xzr", free16, 16LLU); printf(reset "\n");
+	printf(yellow "\tadd x%llu, x%llu, xzr", free0, 0LLU); printf(reset "\n");
+	printf(yellow "\tadd x%llu, x%llu, xzr", free1, 1LLU); printf(reset "\n");
+	printf(yellow "\tadd x%llu, x%llu, xzr", free2, 2LLU); printf(reset "\n");
+
+
+
+dictionary[live[0]].ph
+
+
+	
+	if (ins.in[0]) printf("x%llu ", dictionary[ins.in[0]].ph); else printf("xzr ");
+	if (ins.in[1]) printf("x%llu ", dictionary[ins.in[1]].ph); else printf("xzr ");
+	if (ins.in[2]) printf("x%llu",  dictionary[ins.in[2]].ph); else printf("xzr");
+
+
+
+
+
+
+
+
+
+
+
+ file printing:
+
+
+
+	fprintf(file, "\tsvc ");
+	if (ins.in[0]) fprintf(file, "x%llu, ", dictionary[ins.in[0]].ph); else fprintf(file, "xzr, ");
+	if (ins.in[1]) fprintf(file, "x%llu, ", dictionary[ins.in[1]].ph); else fprintf(file, "xzr, ");
+	if (ins.in[2]) fprintf(file, "x%llu",  dictionary[ins.in[2]].ph); else fprintf(file, "xzr");
+	fprintf(file, "\n");
+
+*/
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+/*
+
+	free(runtime_memory);
+	runtime_memory = malloc(65536);
+	puts("resetting enviornment...");
+	memset(arguments, 0, sizeof arguments);
+	dictionary_count = 0; 
+	free(dictionary); dictionary = NULL;
+	ins_count = 0;
+	free(instructions); instructions = NULL;
+	
+*/	
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+/*
+
+
+
+static void generate_ret(FILE* file) {
+	fprintf(file, "\tret\n");
+	printf(yellow "\tret\n" reset);
+}
+
+
+
+
+
+x	- add macros to the language, x:using compiletime function calls;
+
+		using this syntax:             macro_name_here  body_for_macro_here  macro_name_here
+
+			thats it!
+
+		you need to make a late decision about the second instance of macro_name_here. 
+			consider it not a macro, until you see the next word is not a branch. if its a branch, its not a macro. 
+				if it is not, then it is a macro! i think. and you note down that its a macro, right when you see that it is not a branch. 
+				note, if its a macro call, then you need to expand it before determining your decision. 
+
+					actually lets not work on adding macros to the language. 
+
+										lets work on code gen first.
+											thats more important. 
+
+
+
+
+
+
+
+			
+x 	- do webasm assembly code gen?...  no. --> start with the native arm64 compiler backend!!!
+
+
+
+
+x	- revise the branching and label def system in the language.
+
+x	- getting execution of the instructions working. 
+
+x	- allowing the repl to have newlines on a line, by using getdelim. or our cool editor function lol!
+
+x	- test control flow working in execution 
+
+x	- add some sort of constant system to the language. yup. 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+		
+		size_t capacity = 0;
+		char* input = NULL;
+
+	loop: 	printf(" : ");
+		ssize_t r = getdelim(&input, &capacity, '`', stdin);
+		size_t length = (size_t) r; getchar();
+		input[--length] = 0;
+
+
+
+		done:;
+
+*/
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+/*
+		if (op == _xor) {
+			if (debug) printf("executed xor: %llu = %llu %llu\n", in[0], in[1], in[2]);
+			variables[in[0]] = variables[in[1]] ^ variables[in[2]];
+
+		} else if (op == add) {
+			if (debug) printf("executed add: %llu = %llu %llu\n", in[0], in[1], in[2]);
+			variables[in[0]] = variables[in[1]] + variables[in[2]];
+
+		} else if (op == sub) {
+			if (debug) printf("executed sub: %llu = %llu %llu\n", in[0], in[1], in[2]);
+			variables[in[0]] = variables[in[1]] - variables[in[2]];
+
+		} else if (op == addi) {
+			if (debug) printf("executed addi: %llu = %llu %llu\n", in[0], in[1], in[2]);
+			nat m = dictionary[in[2]].length;
+			const nat n = string_to_number(dictionary[in[2]].name, &m);
+			if (debug) {
+				printf("in[2] constant = %llu (length = %llu)\n", n, m);
+			}
+			variables[in[0]] = variables[in[1]] + n;
+
+		} else if (op == mul) {
+			if (debug) printf("executed mul: %llu = %llu %llu\n", in[0], in[1], in[2]);
+			variables[in[0]] = variables[in[1]] * variables[in[2]];
+
+		} else if (op == rem) {
+			if (debug) printf("executed rem: %llu = %llu %llu\n", in[0], in[1], in[2]);
+			variables[in[0]] = variables[in[1]] % variables[in[2]];
+
+		} else if (op == rem) {
+			if (debug) printf("executed rem: %llu = %llu %llu\n", in[0], in[1], in[2]);
+			variables[in[0]] = variables[in[1]] % variables[in[2]];
+
+*/
+
+
+
+
+
+
+
+
+/*
+
+	linker call:
+
+
+	"/Library/Developer/CommandLineTools/usr/bin/ld" -demangle -lto_library /Library/Developer/CommandLineTools/usr/lib/libLTO.dylib -dynamic -arch arm64 -platform_version macos 13.0.0 13.3 -syslibroot /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk -o a.out -L/usr/local/lib object_file.o -lSystem /Library/Developer/CommandLineTools/usr/lib/clang/14.0.3/lib/darwin/libclang_rt.osx.a
+
+
+
+
+
+
+
+
+
+
+	assembler     asm -> obj file   call:
+
+
+		as c.s -o obj_file.o
+
+		
+
+
+
+
+	.section	__TEXT,__text,regular,pure_instructions
+	.build_version macos, 13, 0	sdk_version 13, 3
+	.globl	_main                           ; -- Begin function main
+	.p2align	2
+_main:                                  ; @main
+	.cfi_startproc
+; %bb.0:
+	stp	x29, x30, [sp, #-16]!           ; 16-byte Folded Spill
+	.cfi_def_cfa_offset 16
+	mov	x29, sp
+	.cfi_def_cfa w29, 16
+	.cfi_offset w30, -8
+	.cfi_offset w29, -16
+Lloh0:
+	adrp	x0, l_.str@PAGE
+Lloh1:
+	add	x0, x0, l_.str@PAGEOFF
+	bl	_puts
+	mov	w0, #0
+	ldp	x29, x30, [sp], #16             ; 16-byte Folded Reload
+	ret
+	.loh AdrpAdd	Lloh0, Lloh1
+	.cfi_endproc
+                                        ; -- End function
+	.section	__TEXT,__cstring,cstring_literals
+l_.str:                                 ; @.str
+	.asciz	"hello there"
+
+.subsections_via_symbols
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+heres the smallest program:
+
+        .section __TEXT,__text,regular,pure_instructions
+        .build_version macos, 13, 0 sdk_version 13, 3
+        .globl _main 
+        .p2align 2
+
+_main: 
+	.cfi_startproc
+	mov w0, #0
+	ret
+	.cfi_endproc
+
+.subsections_via_symbols
+
+
+
+
+
+
+
+
+*/
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+/*
+printf("(%s) = ", spell_type(dictionary[instructions[4 * index + 1]].type));
+printf("(%s), ", spell_type(dictionary[instructions[4 * index + 2]].type));
+printf("(%s) }",  spell_type(dictionary[instructions[4 * index + 3]].type));
+*/
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+/*
+
+	label:
+		instructions;
+		and;
+		stuff;
+		if (condition) goto done;
+				
+		goto label;
+
+	done:
+		other stuff;
+	
+
+
+
+
+	nop
+	nop
+	nop
+	zero one add
+label
+	nop
+	nop
+	one zero label bne
+	one zero done bne 
+	nop
+	nop
+	nop
+done
+
+
+
+*/
+
+
+
+
+
+
+/*
+
+	zero zero zero xor
+
+	zero one label bne
+
+	label
+
+	zero label pasta add
+
+	nop
+
+	nop
+
+	one one label bne
+
+*/
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+/*
+
+label 
+zero one label bne
+
+
+zero one label bne
+
+
+
+
+
+
+
+
+
+
+
+else if (not strcmp(line, "i")) interpret(strdup(test_string), strlen(test_string));
+
+
+
+
+
+
+
+
+
+
+printf("%c [%llu] ", string[i], count);
+puts("");
+
+
+
+
+
+printf("unknown word found: [@start=%llu, count=%llu]\n", start, count);
+				printf("ie, ---> ");
+				print_word(string, start, count);
+				puts("");
+
+
+printf("---> ");
+				print_word(string, start, count);
+				puts("");
+
+
+
+
+
+
+
+
+
+
+static char* read_file(const char* filename, size_t* in[0]_length) {
+	const int file = open(filename, O_RDONLY);
+	if (file < 0) {
+		perror("open"); 
+		return NULL;
+	}
+	struct stat file_data = {0};
+	if (stat(filename, &file_data) < 0) { 
+		perror("stat"); 
+		return NULL;
+	}
+	const size_t length = (size_t) file_data.st_size;
+	char* buffer = not length ? NULL : mmap(0, (size_t) length, PROT_READ, MAP_SHARED, file, 0);
+	if (buffer == MAP_FAILED) {
+		perror("mmap");
+		return NULL;
+	}
+	close(file);
+	*in[0]_length = length;
+	return buffer;
+}
+
+
+
+
+
+	else if (not strcmp(string, "file")) {
+
+		char filename[4096] = {0};
+		printf("filename: ");
+		fgets(filename, sizeof filename, stdin);
+		filename[strlen(filename) - 1] = 0;
+		size_t length = 0;
+		char* contents = read_file(filename, &length);
+		if (contents) interpret(contents, length);
+	}
+
+
+
+static nat data_node_count = 0;
+static struct data_node data_nodes = NULL;
+
+
+
+
+//struct data_node { nat type, value; };
+
+
+data_node = realloc(data_node, sizeof(struct data_node) * (data_node_count + 1));
+			data_node[data_node_count++] = (struct data_node) {...};
+
+
+
+// if we see that the label argument's data node   has a value which is 0, then we know it was not defined yet. overwrite its type with 
+
+			// if (not data_node[*arguments].value) data_node[*arguments].type = forward_label;
+
+
+
+if (data_node[dictionary[entry].index].type == forward_label) {
+					
+				}
+
+
+
+  // then define the name as a variable, with the data_node of the expression!
+
+
+// define the name as a label. 
+
+
+
+
+
+if (data_nodes[*arguments].type == expression) {  
+				
+			} else {  
+				
+			}
+
+
+
+
+enum data_node_type { nulld, variable, label, forward_label };
+
+
+
+if (dictionary[instructions[4 * (ins_count - 1) + 1]].use_count == 1) {
+
+			if (debug) printf(red "ERROR: forward declaring label \"");
+			if (debug) print_word(dictionary[instructions[4 * (ins_count - 1) + 1]]);
+
+			type = 
+			
+		} else {
+			if (debug) printf(cyan "info: found already declared label.\n" reset);
+			if (debug) printf("[.use_count = %llu]\n", dictionary[instructions[4 * (ins_count - 1) + 1]].use_count);
+		}
+
+
+if (debug) printf(red "ERROR: type mismatch. expected label variable for branch arg0. ...aborting...\n" reset);
+		if (debug) printf("[.type = %llu]\n", dictionary[instructions[4 * (ins_count - 1) + 1]].type);
+		if (debug) abort();
+
+
+
+/// if (dictionary[d].type == label_def) dictionary[d].type = backward_def;
+
+
+
+
+if (dictionary[instructions[4 * (ins_count - 1) + 1]].type == forward_def) {
+		printf("forward def\n");
+		
+	} else {
+		printf("label def\n");
+	}
+
+
+
+ puts(red "FORWARDS BRANCH" reset);
+
+
+ puts(green "BACKWARDS BRANCH" reset);
+
+  puts(red "DOUBLE FORWARDS BRANCH" reset);  
+
+puts(red "IMM FORWARDS BRANCH" reset);
+
+
+
+
+	//else if (label->type == forward_def) {}  
+	//else if (label->type == backward_def) {} 
+	//else 
+
+
+
+
+else if (label->type == var_def) {
+		printf(red "error: found variable instead of label in branch: " reset);
+		print_instruction(ins_count - 1);
+	}
+
+
+
+
+for (nat i = 1; i < 4; i++) {
+		struct word* argument = dictionary + instructions[4 * (ins_count - 1) + i];
+
+		if (	argument->type == forward_def or argument->type == backward_def or
+			argument->type == label_def or argument->type == label2_def) {
+
+			if (argument->type == label2_def) argument->type = label_def;
+
+			printf(red "error: found label instead of variable at argument %llu in operation: " reset, i);
+			print_instruction(ins_count - 1);
+
+		} else argument->type = var_def;
+	}
+
+
+
+	     if (label->type == generic_def or label->type == label_def)   label->type = forward_def;
+	else if (label->type == generic2_def or label->type == label2_def) label->type = backward_def;
+
+
+
+if (dictionary[d].type == forward_def)      dictionary[d].type = label_def;
+				else if (dictionary[d].type == generic_def) dictionary[d].type = generic2_def;
+				else if (dictionary[d].type == label_def)   dictionary[d].type = label2_def;
+
+
+
+
+*/
+
+
+
+//	const nat color_count = 6;
+//	const char* color[color_count] = { red, green, yellow, blue, magenta, cyan };
+
+
+
+
+
+
+//	if (t == generic_def) return yellow "generic_def" reset;
+//	if (t == generic2_def) return yellow "generic2_def" reset;
+
+//	if (t == label_def) return magenta "label_def" reset;
+//	if (t == label2_def) return magenta "label2_def" reset;
+
+//	if (t == forward_def) return red "forwards_def" reset;
+//	if (t == backward_def) return green "backward_def" reset;
+
+//	if (t == var_def) return cyan "var_def" reset;
+//	return "unknown";
+
+
+
+
+//  static const char* spell_type(nat t) { return green "any" reset; }
+
+
+/*
+
+
+x x f bne     
+   nop
+   nop
+   nop
+f  a b c add
+   x x x xor
+`
+
+*/
+
+
+// enum word_type { nullw, generic_def, generic2_def, label_def, label2_def, forward_def, backward_def, var_def };
+
+
+
+
+
+
+
+/*
+
+nat m = dictionary[in[2]].length;
+	const nat n = string_to_number(dictionary[in[2]].name, &m);
+
+	printf("info: generating ORR constant = %llu (length = %llu)\n", n, m);
+
+	// fprintf(file, "\torr w0, wzr, #%llu\n", n); 
+
+
+
+
+
+
+
+
+		//else if (is("increment", word, count)) ins(increment, 0, 1);
+		//else if (is("settozero", word, count)) ins(settozero, 0, 1);
+
+
+
+
+
+
+static void print_arguments(nat* arguments) {
+	printf("arguments { \n");
+	for (nat i = 0; i < 32; i++) {
+		printf("\t%3llu : %llu \n", i, arguments[i]);
+	}
+	printf("}\n");
+}
+
+
+
+
+
+
+*/
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+/*
+
+
+2306246.151452
+
+we are in the middle of implementing:
+-----------------------------------------------
+
+	
+	- make the compiler output arm64 assembly!!!  thats wayyy easier and more important.
+
+
+
+
+
+
+
+
+
+	todo:
+
+		- get code gen working:
+
+			- register allocation:  just a simple coloring based algorithm, probably? 
+
+			- scheduling can be just a   pass-through for now.   ie, the source ordering. 
+
+			- selection can be primitive for now, and include superfluous moves/registers. 
+
+
+		- lets make it so that we don't need to code in c anymore:   
+				 get code gen working so that we can make a self hosted compiler!!
+
+							get it optimized later!!! 
+
+
+
+
+
+		- - rewrite editor in this language once we have that compiler working 
+
+
+		- 
+
+
+
+
+a32 A loadi
+a01 \n loadi
+a1 1 loadi
+
+zr runtimememory string add
+zr zr i add 
+
+loop
+	i string at add
+	i A c add
+	c at store1
+	1 i i add
+	a401 . loadi i loop blt
+
+
+i string at add
+\n at store1
+1 i i add
+
+string 1 a4 ecall
+a24 code loadi 21 ecall
+
+
+
+
+
+
+
+
+
+
+m+0 one m+1 add
+m+1 one m+2 add
+m+2 one m+3 add
+dog m+0 store1
+dog m+1 store1
+dog m+2 store1
+dog m+3 store1
+m+0 result load4 hex
+
+
+
+
+
+
+
+
+
+
+
+
+
+---------------------------------------------
+revised cool piece of code:
+---------------------------------------------
+
+zr zr iter add
+a001 limit loadi
+
+loop 
+	limit iter done bge
+	21 . loadi iter iter print add
+	zr loop jal 
+done
+	a24 code loadi 21 ecall
+
+
+----------------------------------
+another dealing with memory:
+----------------------------------
+
+
+a721 dog loadi
+runtimememory zr m+0 add
+a1 one loadi
+m+0 one m+1 add
+m+1 one m+2 add
+m+2 one m+3 add
+dog m+0 store1
+dog m+1 store1
+dog m+2 store1
+dog m+3 store1
+m+0 result load4 hex
+
+
+
+
+
+----------------------------------
+outdated: looping 100 numbers code:
+-------------------------------
+
+z z z xor 
+iter add
+a001 z limit addi
+loop limit iter done bge
+a1 iter iter print addi
+iter iter loop bge done
+
+
+
+-------------------------------
+outdated: testing expressions code:
+-------------------------------
+
+0 0 0 xor 
+a5 0 5 addi 
+a6 0 6 addi 
+a7 0 7 addi 
+5 6 e mul 7 e add print
+
+
+
+
+
+--------------- working with syscalls: ----------------------
+
+
+a24 code loadi a1 ecall
+
+
+
+-----------------------------------------------------------
+
+
+
+
+
+
+
+a1 one loadi 
+zr exit add
+
+
+
+
+
+
+
+isa:
+
+=========================================================
+
+		8
+			r r r sll
+			r r r srl
+			r r r sra
+			r r r add
+			r r r xor
+			r r r and
+			r r r or
+			r r r sub
+		7
+			r r r mul
+			r r r mhs
+			r r r mhsu
+			r r r div
+			r r r rem
+			r r r divs
+			r r r rems
+		8
+			r r l blt
+			r r l bge
+			r r l blts
+			r r l bges
+			r r l bne
+			r r l beq
+			r l jal
+			r r jalr
+		12
+			r r store1
+			r r store2
+			r r store4
+			r r store8
+			r r load1
+			r r load2
+			r r load4
+			r r load8
+			r r load1s
+			r r load2s
+			r r load4s
+			i r loadi
+		2
+			ecall
+			ebreak
+
+
+
+variables:
+
+			zr 
+
+			
+
+=========================================================
+
+
+*/
+
+
+
+/*
+r r r sll
+r r r srl
+r r r sra
+r r r add
+r r r xor
+r r r and
+r r r or
+r r r sub
+r r r mul
+r r r mhs
+r r r mhsu
+r r r div
+r r r rem
+r r r divs
+r r r rems
+r r l blt
+r r l bge
+r r l blts
+r r l bges
+r r l bne
+r r l beq
+r l jal
+r r jalr
+r r store1
+r r store2
+r r store4
+r r store8
+r r load1
+r r load2
+r r load4
+r r load8
+r r load1s
+r r load2s
+r r load4s
+i r loadi
+
+ecall
+ebreak
+
+
+
+
+
+
+
+
+static nat arguments[32] = {0};
+
+static nat dictionary_count = 0;
+static struct word* dictionary = NULL;
+
+static nat ins_count = 0;
+static nat* instructions = NULL;
+
+static nat variables[4096] = {0};
+
+static uint8_t* runtime_memory = NULL;
+
+
+static nat mi_count = 0;
+static struct machine_instruction machine_instructions[4096] = {0};
+
+
+
+static nat label_count = 0;
+static nat labels[4096] = {0};
+
+
+static nat next = 0;
+static nat live[register_count] = {0};
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+todo:
+
+	- add a stackpointer to the language. we just need access to this. like seriously. lol. cool beans. 
+
+
+						will it be multiplexed with the zero register?...    i don't think so...? hm... idk. 
+
+
+
+
+	- make the ecall   generate   8 move instructions in order to save what is in the x0, x1, x2, and x3 regs, to some other set of 4 open regs, 
+
+					so that we can put the arguments to the ecall    at x0, through x3.     yay. 
+
+
+
+	- make the change to RA where you are able to split a variables lifetime up   by seeing that it is being overwritten   
+					from a dest usage        in an instruction. 
+
+
+				ie, when you come across a dest usage,           then treat   the variable as if it was a new variable now.     
+					and possibly end up using a different register   to put that "new" variable in.   because the var was reassigned. ie a dest usage. so yeah. 
+
+
+
+
+	- 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+*/
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+/*
+static void generate_ecall(FILE* file, struct instruction ins, struct word* dictionary) {
+
+	fprintf(file, "\tscv ");
+	if (ins.in[0]) fprintf(file, "x%llu, ", dictionary[ins.in[0]].ph); else fprintf(file, "xzr, ");
+	if (ins.in[1]) fprintf(file, "x%llu, ", dictionary[ins.in[1]].ph); else fprintf(file, "xzr, ");
+	if (ins.in[2]) fprintf(file, "x%llu",  dictionary[ins.in[2]].ph); else fprintf(file, "xzr");
+	fprintf(file, "\n");
+
+	printf(yellow "\tsvc ");
+	if (ins.in[0]) printf("x%llu ", dictionary[ins.in[0]].ph); else printf("xzr ");
+	if (ins.in[1]) printf("x%llu ", dictionary[ins.in[1]].ph); else printf("xzr ");
+	if (ins.in[2]) printf("x%llu",  dictionary[ins.in[2]].ph); else printf("xzr");
+	printf(reset "\n");
+}
+*/
+
+
+
+
+
+//		, dictionary[ins.in[0]].ph, dictionary[ins.in[1]].ph, dictionary[ins.in[2]].ph);
+//	printf("\tadd r%llu r%llu r%llu\n", dictionary[ins.in[0]].ph, dictionary[ins.in[1]].ph, dictionary[ins.in[2]].ph);
+
+// printf(yellow "\tadd xzr, xzr, xzr\n" reset); 
+
+//	in[0] = in[1] + in[2] + in[0];
+//	fprintf(file, "\teor xzr, xzr, xzr\n"); 
+//	printf(yellow "\teor xzr, xzr, xzr\n" reset); 
+//	in[0] = in[1] + in[2] + in[0];
+//	fprintf(file, "\tand xzr, xzr, xzr\n"); 
+//	printf(yellow "\tand xzr, xzr, xzr\n" reset); 
+//	in[0] = in[1] + in[2] + in[0];
+//	fprintf(file, "\tsub xzr, xzr, xzr\n"); 
+//	printf(yellow "\tsub xzr, xzr, xzr\n" reset); 
+//	in[0] = in[1] + in[2] + in[0];
+//	fprintf(file, "\torr xzr, xzr, xzr\n"); 
+//	printf(yellow "\torr xzr, xzr, xzr\n" reset); 
+//	in[0] = in[1] + in[2] + in[0];
+//	fprintf(file, "\tmul xzr, xzr, xzr\n"); 
+//	printf(yellow "\tmul xzr, xzr, xzr\n" reset); 
+//	in[0] = in[1] + in[2] + in[0];
+//	fprintf(file, "\tmul xzr, xzr, xzr\n"); 
+//	printf(yellow "\tmul xzr, xzr, xzr\n" reset); 
+
+
+
+
+
+
+
+
+
+/*
+
+
+
+		printf("RA: looking at: \n");
+		print_instruction(instructions[i], dictionary);
+
+		// const nat op  = instructions[i].op;
+		const nat in[0] = instructions[i].in[0];
+		const nat in[1] = instructions[i].in[1];
+		const nat in[2] = instructions[i].in[2];
+		
+		if (not in[0]) continue;
+
+		for (nat m = 0; m < next; m++) {
+			if (live[m] == in[0]) {
+				printf("found the overwritting of a live variable: #%llu: \"%s\", skipping...\n", 
+					in[0], dictionary[in[0]].name
+				);
+				goto here;
+			}
+		}
+
+		printf("#%llu: \"%s\" is now a live variable.\n", in[0], dictionary[in[0]].name);
+		live[next++] = in[0];
+
+	here:
+		if (not in[1]) {
+			// mark last usage for this ins here.
+		}
+
+		if (not in[2]) {
+			// mark last usage for this ins here.
+		}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+		else if (is("srl", word, count)) ins(srl, 0, arity[sll], arguments, dictionary, &instructions, &ins_count);
+		else if (is("sra", word, count)) ins(sra, 0, arity[sll], arguments, dictionary, &instructions, &ins_count);
+		else if (is("add", word, count)) ins(add, 0, arity[sll], arguments, dictionary, &instructions, &ins_count);
+		else if (is("xor", word, count)) ins(_xor, 0, arity[sll], arguments, dictionary, &instructions, &ins_count);
+		else if (is("and", word, count)) ins(_and, 0, arity[sll], arguments, dictionary, &instructions, &ins_count);
+		else if (is("or",  word, count)) ins(_or, 0, arity[sll], arguments, dictionary, &instructions, &ins_count);
+		else if (is("sub", word, count)) ins(sub, 0, arity[sll], arguments, dictionary, &instructions, &ins_count);
+
+		else if (is("mul",  word, count)) ins(mul, 0, 3, arguments, dictionary, &instructions, &ins_count);
+		else if (is("mhs",  word, count)) ins(mhs, 0, 3, arguments, dictionary, &instructions, &ins_count);
+		else if (is("mhsu", word, count)) ins(mhsu, 0, 3, arguments, dictionary, &instructions, &ins_count);
+		else if (is("div",  word, count)) ins(_div, 0, 3, arguments, dictionary, &instructions, &ins_count);
+		else if (is("rem",  word, count)) ins(rem, 0, 3, arguments, dictionary, &instructions, &ins_count);
+		else if (is("divs", word, count)) ins(divs, 0, 3, arguments, dictionary, &instructions, &ins_count);
+		else if (is("rems", word, count)) ins(rems, 0, 3, arguments, dictionary, &instructions, &ins_count);
+
+		else if (is("blt",  word, count)) ins(blt, 1, 3, arguments, dictionary, &instructions, &ins_count);
+		else if (is("bge",  word, count)) ins(bge, 1, 3, arguments, dictionary, &instructions, &ins_count);
+		else if (is("blts", word, count)) ins(blts, 1, 3, arguments, dictionary, &instructions, &ins_count);
+		else if (is("bges", word, count)) ins(bges, 1, 3, arguments, dictionary, &instructions, &ins_count);
+		else if (is("bne",  word, count)) ins(bne, 1, 3, arguments, dictionary, &instructions, &ins_count);
+		else if (is("beq",  word, count)) ins(beq, 1, 3, arguments, dictionary, &instructions, &ins_count);
+
+		else if (is("jal",  word, count))  ins(jal, 1, 2, arguments, dictionary, &instructions, &ins_count);
+		else if (is("jalr", word, count))  ins(jalr, 1, 2, arguments, dictionary, &instructions, &ins_count);
+
+		else if (is("store1", word, count)) ins(store1, 0, 2, arguments, dictionary, &instructions, &ins_count);
+		else if (is("store2", word, count)) ins(store2, 0, 2, arguments, dictionary, &instructions, &ins_count);
+		else if (is("store4", word, count)) ins(store4, 0, 2, arguments, dictionary, &instructions, &ins_count);
+		else if (is("store8", word, count)) ins(store8, 0, 2, arguments, dictionary, &instructions, &ins_count);
+		else if (is("load1",  word, count)) ins(load1, 0, 2, arguments, dictionary, &instructions, &ins_count);
+		else if (is("load2",  word, count)) ins(load2, 0, 2, arguments, dictionary, &instructions, &ins_count);
+		else if (is("load4",  word, count)) ins(load4, 0, 2, arguments, dictionary, &instructions, &ins_count);
+		else if (is("load8",  word, count)) ins(load8, 0, 2, arguments, dictionary, &instructions, &ins_count);
+		else if (is("load1s", word, count)) ins(load1s, 0, 2, arguments, dictionary, &instructions, &ins_count);
+		else if (is("load2s", word, count)) ins(load2s, 0, 2, arguments, dictionary, &instructions, &ins_count);
+		else if (is("load4s", word, count)) ins(load4s, 0, 2, arguments, dictionary, &instructions, &ins_count);
+		else if (is("loadi",  word, count)) ins(loadi, 0, 2, arguments, dictionary, &instructions, &ins_count);
+
+		else if (is("debugprint", word, count))  ins(debugprint, 0, 1, arguments, dictionary, &instructions, &ins_count);
+		else if (is("debughex", word, count))    ins(debughex, 0, 1, arguments, dictionary, &instructions, &ins_count);
+		
+
+
+
+
+
+
+
+		if (is("ecall", word, count)) {
+			instructions = realloc(instructions, sizeof(struct instruction) * (ins_count + 1));
+			instructions[ins_count].op = ecall;
+			instructions[ins_count].in[0] = arguments[0];
+			instructions[ins_count].in[1] = arguments[1];
+			instructions[ins_count].in[2] = arguments[2];
+			instructions[ins_count].in[3] = arguments[3];
+			instructions[ins_count].in[4] = arguments[4];
+			instructions[ins_count].in[5] = arguments[5];
+			instructions[ins_count].in[6] = arguments[6];
+			ins_count++;
+		}
+
+*/
+
+

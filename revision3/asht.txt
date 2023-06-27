@@ -1,0 +1,12 @@
+main
+	zr zr c add
+	zr zr r and
+	r r a or
+	a c b sub
+	c b c xor
+	r a b c ecall
+
+otherthingylabel
+	zr zr stuff add
+	stuff stuff otherstuff xor
+	a b r add
