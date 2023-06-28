@@ -1,14 +1,15 @@
 entrypoint
-
 	0 zr loadi
 	zr zr c add
 	zr c r and
 	r r a or
+	a r a ecall
 	a c b sub
 	c b c xor
-	r a b c ecall
+	a b r c ecall
 
 otherthingylabel
 	zr zr stuff add
 	stuff stuff otherstuff xor
 	a b r mul
+	stuff zr b ecall

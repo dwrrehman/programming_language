@@ -23,7 +23,6 @@
 
 #include <sys/syscall.h>
 
-
 #define red   	"\x1B[31m"
 #define green   "\x1B[32m"
 #define yellow  "\x1B[33m"
@@ -76,12 +75,26 @@ static const char* spelling[] = {
 	"debugprint","debughex"
 };
 
+static const char* ins_color[] = {
+	"",
+	red,red,red,green, red,red,red,green,
+	blue,blue,blue,blue,blue,blue,blue,
+	cyan,cyan,cyan,cyan,cyan,cyan,cyan,cyan,
+	yellow,yellow,yellow,yellow,
+	magenta,magenta,magenta,magenta,
+	magenta,magenta,magenta,magenta,
+	"","",
+	"","",
+};
+
 struct instruction {
 	nat op;
 	nat in[7];
 	nat ph;
+	nat defs[7];
 	nat begin;
 	nat end;
+	nat ct;
 };
 
 struct word { 
@@ -101,65 +114,14 @@ static const nat debug = 1;
 static const nat arm64_register_count = 31;
 static const nat uninit = (nat) ~0;
 
-static bool is_branch(nat b) { return b >= blt and b <= jal; }
+static bool is_branch(nat b)    { return b >= blt and b <= jal; }
+static bool is_operation(nat b) { return b >= sll and b <= rems; }
+static bool is_loadstore(nat b) { return b >= store1 and b <= load4s; }
 
 static const char* spell_type(nat t) { 
 	if (t == type_null) return "{null_type}";
 	if (t == type_label)  return cyan "label" reset;
 	if (t == type_variable)  return green "variable" reset;
-	return "unknown";
-}
-
-static const char* spell_ins(nat t) {         // delete me!!!!
-
-	if (t == null_ins) return "{nulli}";
-	if (t == debugprint) return "debugprint";
-	if (t == debughex) return "debughex";
-
-	if (t == sll)  return red "sll" reset;
-	if (t == srl)  return red "srl" reset;
-	if (t == sra)  return red "sra" reset;
-	if (t == _xor) return red "xor" reset;
-	if (t == _and) return red "and" reset;
-	if (t == _or)  return red "or" reset;
-	if (t == add)  return green "add" reset;
-	if (t == sub)  return green "sub" reset;
-
-	if (t == mul)  return blue "mul" reset;
-	if (t == mhs)  return blue "mhs" reset;
-	if (t == mhsu) return blue "mhsu" reset;
-	if (t == _div) return blue "div" reset;
-	if (t == rem)  return blue "rem" reset;
-	if (t == divs) return blue "divs" reset;
-	if (t == rems) return blue "rems" reset;
-
-	if (t == blt)  return cyan "blt" reset;
-	if (t == bge)  return cyan "bge" reset;
-	if (t == blts) return cyan "blts" reset;
-	if (t == bges) return cyan "bges" reset;
-	if (t == bne)  return cyan "bne" reset;
-	if (t == beq)  return cyan "beq" reset;
-	if (t == jal)  return cyan "jal" reset;
-	if (t == jalr) return cyan "jalr" reset;
-
-	if (t == store1) return yellow "store1" reset;
-	if (t == store2) return yellow "store2" reset;
-	if (t == store4) return yellow "store4" reset;
-	if (t == store8) return yellow "store8" reset;
-
-	if (t == load1)  return magenta "load1" reset;
-	if (t == load2)  return magenta "load2" reset;
-	if (t == load4)  return magenta "load4" reset;
-	if (t == load8)  return magenta "load8" reset;
-
-	if (t == load1s) return magenta "load1s" reset;
-	if (t == load2s) return magenta "load2s" reset;
-	if (t == load4s) return magenta "load4s" reset;
-	if (t == loadi)  return magenta "loadi" reset;
-
-	if (t == ecall)  return "ecall" reset;
-	if (t == ebreak) return "ebreak" reset;
-
 	return "unknown";
 }
 
@@ -176,18 +138,31 @@ static void print_word(struct word w) {
 	);
 }
 
-static void print_instruction(struct instruction ins, struct word* dict) {
+static void print_nats(nat* array, nat count) {
+	printf("{ ");
+	for (nat i = 0; i < count; i++) {
+		printf("%llu ", array[i]);
+	}
+	printf("}\n");
+}
 
+static void print_instruction(struct instruction ins, struct word* dict) {
 	putchar(9);
+
 	if (arity[ins.op]) print_name(dict[ins.in[0]]);
 	printf(" = ");
-	printf("%s ", spell_ins(ins.op));
+	printf("%s%s%s ", ins_color[ins.op], spelling[ins.op], reset);
+
 	printf("{");
 	for (nat i = 1; i < arity[ins.op]; i++) {
 		putchar(32);
 		print_name(dict[ins.in[i]]); 
 	}
-	printf(" }\n\t\t\t\t\t\t\t\t.ph = %lld .life = [%lld,%lld]\n", ins.ph, ins.begin, ins.end);
+	printf(" }\n\t\t\t\t\t\t\t"
+		".ph = %lld .life = [%lld,%lld] .ct = %lld .defs=", 
+		ins.ph, ins.begin, ins.end, ins.ct);
+
+	print_nats(ins.defs, arity[ins.op]);
 }
 
 static void print_dictionary(struct word* dictionary, nat dictionary_count) {
@@ -247,6 +222,8 @@ static void ins(nat op, nat* arguments, struct word* dictionary, struct instruct
 		.ph = uninit,
 		.begin = uninit, 
 		.end = uninit, 
+		.defs = {0},
+		.ct = op == loadi
 	};
 	memset(new.in, 0xff, 7 * sizeof(nat));
 	memcpy(new.in, arguments, arity[op] * sizeof(nat));
@@ -260,8 +237,7 @@ static void push_argument(nat argument, nat* arguments) {
 	*arguments = argument;
 }
 
-static void process_syscall(nat n, nat a0, nat a1, nat a2, nat a3, nat a4, nat a5, nat* variables) {
-
+static void process_syscall(nat a0, nat a1, nat a2, nat a3, nat a4, nat a5, nat n, nat* variables) {
 	nat r0 = variables[a0], r1 = variables[a1], r2 = variables[a2], r3 = variables[a3], r4 = variables[a4], r5 = variables[a5];
 	printf(green "SYSCALL (NR=%llu): {%llu %llu %llu %llu %llu %llu}" reset "\n" , n, r0, r1, r2, r3, r4, r5);
 
@@ -273,8 +249,6 @@ static void process_syscall(nat n, nat a0, nat a1, nat a2, nat a3, nat a4, nat a
 	if (n == 6) variables[a0] = (nat) close((int) r0);
 	if (n == 7) variables[a0] = (nat) (void*) mmap((void*) r0, r1, (int) r2, (int) r3, (int) r4, (long long) r5);
 	if (n == 8) variables[a0] = (nat) munmap((void*) r0, r1);
-
-	///if (nr == 7) variables[a0] = (nat) (int) brk((void*) r0);
 }
 
 static void execute(struct instruction* instructions, nat ins_count, struct word* dictionary) {
@@ -330,12 +304,12 @@ static void execute(struct instruction* instructions, nat ins_count, struct word
 			variables[in[0]] = variables[in[1]] * variables[in[2]];
 
 		} else if (op == mhs) {
-			if (debug) printf("ERROR: executed mhs: %llu = %llu %llu\n", in[0], in[1], in[2]);
+			if (debug) printf("internal error: executed mhs: %llu = %llu %llu\n", in[0], in[1], in[2]);
 			variables[in[0]] = variables[in[1]] * variables[in[2]]; 
 			abort();
 
 		} else if (op == mhsu) {
-			if (debug) printf("ERROR: executed mhsu: %llu = %llu %llu\n", in[0], in[1], in[2]);
+			if (debug) printf("internal error: executed mhsu: %llu = %llu %llu\n", in[0], in[1], in[2]);
 			variables[in[0]] = variables[in[1]] * variables[in[2]]; 
 			abort();
 
@@ -358,37 +332,37 @@ static void execute(struct instruction* instructions, nat ins_count, struct word
 
 		else if (op == blt) {
 			if (debug) printf("executing blt -> @%llu [%llu %llu]\n", dictionary[in[0]].value, in[1], in[2]);
-			if (dictionary[in[0]].value == (size_t) -1) { puts(red "error: unspecified label in branch" reset); goto halt; }
+			if (dictionary[in[0]].value == (size_t) -1) { puts(red "internal error: unspecified label in branch" reset); goto halt; }
 			if (variables[in[1]] < variables[in[2]]) ip = dictionary[in[0]].value - 1;
 
 		} else if (op == bge) {
 			if (debug) printf("executing bge -> @%llu [%llu %llu]\n", dictionary[in[0]].value, in[1], in[2]);
-			if (dictionary[in[0]].value == (size_t) -1) { puts(red "error: unspecified label in branch" reset); goto halt; }
+			if (dictionary[in[0]].value == (size_t) -1) { puts(red "internal error: unspecified label in branch" reset); goto halt; }
 			if (variables[in[1]] >= variables[in[2]]) ip = dictionary[in[0]].value - 1;
 
 		} else if (op == blts) {
 			if (debug) printf("executing blts -> @%llu [%llu %llu]\n", dictionary[in[0]].value, in[1], in[2]);
-			if (dictionary[in[0]].value == (size_t) -1) { puts(red "error: unspecified label in branch" reset); goto halt; }
+			if (dictionary[in[0]].value == (size_t) -1) { puts(red "internal error: unspecified label in branch" reset); goto halt; }
 			if (variables[in[1]] < variables[in[2]]) ip = dictionary[in[0]].value - 1;
 
 		} else if (op == bges) {
 			if (debug) printf("executing bges -> @%llu [%llu %llu]\n", dictionary[in[0]].value, in[1], in[2]);
-			if (dictionary[in[0]].value == (size_t) -1) { puts(red "error: unspecified label in branch" reset); goto halt; }
+			if (dictionary[in[0]].value == (size_t) -1) { puts(red "internal error: unspecified label in branch" reset); goto halt; }
 			if (variables[in[1]] >= variables[in[2]]) ip = dictionary[in[0]].value - 1;
 
 		} else if (op == bne) {
 			if (debug) printf("executing bne -> @%llu [%llu %llu]\n", dictionary[in[0]].value, in[1], in[2]);
-			if (dictionary[in[0]].value == (size_t) -1) { puts(red "error: unspecified label in branch" reset); goto halt; }
+			if (dictionary[in[0]].value == (size_t) -1) { puts(red "internal error: unspecified label in branch" reset); goto halt; }
 			if (variables[in[1]] != variables[in[2]]) ip = dictionary[in[0]].value - 1;
 
 		} else if (op == beq) {
 			if (debug) printf("executing beq -> @%llu [%llu %llu]\n", dictionary[in[0]].value, in[1], in[2]);
-			if (dictionary[in[0]].value == (size_t) -1) { puts(red "error: unspecified label in branch" reset); goto halt; }
+			if (dictionary[in[0]].value == (size_t) -1) { puts(red "internal error: unspecified label in branch" reset); goto halt; }
 			if (variables[in[1]] == variables[in[2]]) ip = dictionary[in[0]].value - 1;
 		
 		} else if (op == jal) {
 			if (debug) printf("executing jal -> @%llu (%llu) \n", in[0], dictionary[in[1]].value);
-			if (dictionary[in[0]].value == (size_t) -1) { puts(red "error: unspecified label in branch" reset); goto halt; }
+			if (dictionary[in[0]].value == (size_t) -1) { puts(red "internal error: unspecified label in branch" reset); goto halt; }
 			variables[in[1]] = ip; ip = dictionary[in[0]].value - 1;
 		
 		} else if (op == jalr) {
@@ -448,13 +422,10 @@ static void execute(struct instruction* instructions, nat ins_count, struct word
 			variables[in[0]] = n;
 
 		} else if (op == ecall) {
-			nat m = dictionary[in[0]].length;
-			const nat nr = string_to_number(dictionary[in[0]].name, &m);
-			if (debug) { printf("nr (in[0]) constant = %llu (length = %llu)\n", nr, m); }
-			if (debug) printf("executed ecall: { (%llu): [%llu, %llu, %llu, %llu, %llu, %llu] }\n", 
-					nr, in[1], in[2], in[3], in[4], in[5], in[6]);
+			if (debug) printf("executed ecall: { [%llu, %llu, %llu, %llu, %llu, %llu, :: #%llu] }\n", 
+					in[0], in[1], in[2], in[3], in[4], in[5], in[6]);
 
-			process_syscall(nr, in[1], in[2], in[3], in[4], in[5], in[6], variables);
+			process_syscall(in[0], in[1], in[2], in[3], in[4], in[5], in[6], variables);
 
 		} else if (op == ebreak) {
 			if (debug) printf("executed ebreak!!!!!!\n");
@@ -468,11 +439,10 @@ static void execute(struct instruction* instructions, nat ins_count, struct word
 			printf(green "debug: %llx\n" reset, variables[in[0]]);
 
 		} else {
-			printf("execute: error: unexpected instruction: %llu\n", op);
+			printf("internal error: execute: unexpected instruction: %llu\n", op);
 			abort();
 		}
 	}
-
 halt: 	if (debug) puts(green "[finished execution]" reset);
 }
 
@@ -484,17 +454,19 @@ static void parse(char* string, nat length, struct instruction** out_instruction
 	struct instruction* instructions = NULL;
 	nat ins_count = 0;
 	nat arguments[32] = {0};
-
 	nat count = 0, start = 0;
+	bool comment = false;
+
 	for (nat index = 0; index < length; index++) {
 		if (not isspace(string[index])) { 
 			if (not count) start = index;
 			count++; continue;
 		} else if (not count) continue;
 
-	process_word:;
-		char* word = string + start;
-		
+		process_word:; char* word = string + start;
+		if (is("note", word, count)) { comment = not comment; goto done; }
+		if (comment) goto done;
+
 		bool found = false;
 		for (nat i = sll; i < isa_count; i++) {
 			if (is(spelling[i], word, count)) {
@@ -542,14 +514,13 @@ static void parse(char* string, nat length, struct instruction** out_instruction
 	*out_dictionary_count = dictionary_count;
 	*out_instructions = instructions;
 	*out_ins_count = ins_count;
-	
 }
 
 static char* read_file(const char* filename, size_t* count) {
 	FILE* file = fopen(filename, "r");
-	if (not file) { 
+	if (not file) {
 		perror("fopen"); 
-		return 0;
+		exit(1);
 	}
 
 	fseek(file, 0, SEEK_END);
@@ -570,15 +541,6 @@ static void print_labels(nat* labels, nat label_count, struct word* dictionary) 
 	puts("}");
 }
 
-
-static void print_live(nat* live, nat count) {
-	printf("printing live registers { ");
-	for (nat i = 0; i < count; i++) {
-		printf("%llu, ", live[i]);
-	}
-	puts("}");
-}
-
 static nat* find_labels(struct word* dictionary, nat dictionary_count, nat* out_label_count) {
 	
 	nat label_count = 0;
@@ -594,27 +556,22 @@ static nat* find_labels(struct word* dictionary, nat dictionary_count, nat* out_
 	return labels;
 }
 
-/*
-static void print_nats(nat* array, nat count) {
-	printf("{ ");
-	for (nat i = 0; i < count; i++) {
-		printf("%llu ", array[i]);
+static nat* find_ecalls(struct instruction* instructions, nat ins_count, nat* out_ecall_count) {
+	
+	nat ecall_count = 0;
+	nat* ecalls = malloc(4096 * sizeof(nat));
+
+	for (nat i = 0; i < ins_count; i++) {
+		if (instructions[i].op == ecall) {
+			printf("found ecall: %llu\n", i);
+			ecalls[ecall_count++] = i;
+		}
 	}
-	printf("}\n");
+	*out_ecall_count = ecall_count;
+	return ecalls;
 }
-
-static nat is_in(nat element, nat* array, nat count) {
-	for (nat i = 0; i < count; i++) {
-		if (array[i] == element) return i;
-	}
-	return count;
-}
-*/
-
-
 
 static void find_lifetimes(struct instruction* instructions, nat ins_count, struct word* dictionary, nat dictionary_count) {
-
 	printf("RA: obtaining lifetime information...\n");
 
 	for (nat i = 0; i < ins_count; i++) {
@@ -624,34 +581,44 @@ static void find_lifetimes(struct instruction* instructions, nat ins_count, stru
 		print_instruction(instructions[i], dictionary);
 
 		const nat op = instructions[i].op;
-		
-		for (nat j = 1; j < arity[op]; j++) {
-			if (op == loadi) continue;
-
-			const nat this = instructions[i].in[j];
-			const nat def = dictionary[this].def;
-			if (not this) continue;
-			if (def == uninit) { 
-				printf(yellow "warning: use of uninitialized variable \"%s\" in instruction: " reset "\n", dictionary[this].name);
-				print_instruction(instructions[i], dictionary);
-				printf("continuing anyways without .end set....\n");
-			}
-
-			else {
-				instructions[def].end = i;
-
-				printf("encountered use of " magenta "%s" reset ", \nusing definition at ins #%llu: ", dictionary[this].name, 	def);
-				print_instruction(instructions[def], dictionary);
-			}
-		}
 
 		if (not arity[op]) continue;
 
-		const nat dest = instructions[i].in[0];
-		instructions[i].begin = i;
-		dictionary[dest].def = i;
+		if (not is_branch(op)) { 
 
-		printf("found definition! " magenta "%s" reset " is being defined at ins #%llu...\n", dictionary[dest].name, i);
+			for (nat j = 0; j < arity[op]; j++) {
+				if (op == loadi and j == 1) break;
+
+				const nat this = instructions[i].in[j];
+				const nat def = dictionary[this].def;
+				instructions[i].defs[j] = def;
+
+				if (not j and def == uninit) instructions[i].defs[j] = i;
+				if (not j) continue;
+
+				if (def == uninit) { 
+					printf(yellow "warning: use of uninitialized variable \"%s\" in instruction: " 
+						reset "\n", dictionary[this].name);
+					print_instruction(instructions[i], dictionary);
+					abort();
+
+				} else {
+					instructions[def].end = i;
+					printf("encountered use of " magenta "%s" reset 
+						", \n using definition at ins #%llu: ", dictionary[this].name, def);
+					print_instruction(instructions[def], dictionary);
+				}
+			}
+			
+			const nat dest = instructions[i].in[0];
+			instructions[i].begin = i;
+			dictionary[dest].def = i;
+			printf("found definition! " magenta "%s" reset " is being defined at ins #%llu...\n", dictionary[dest].name, i);
+
+		} else {
+			puts("branch unimpl");
+			abort();
+		} 
 
 		printf("generated lifetime of: \n\t#%llu:", i);
 		print_instruction(instructions[i], dictionary);
@@ -672,6 +639,22 @@ static void find_lifetimes(struct instruction* instructions, nat ins_count, stru
 	}
 }
 
+
+
+static void evaluate_ct(struct instruction* instructions, nat ins_count) {
+	for (nat i = 0; i < ins_count; i++) {
+		const nat op = instructions[i].op;
+		if (op == ecall) continue;
+		for (nat j = 1; j < arity[op]; j++) {
+			if (not instructions[instructions[i].defs[j]].ct) {
+				goto not_ct;
+			}
+		}
+		instructions[i].ct = 1;
+		not_ct: continue;
+	}
+}
+
 static nat find_available(nat* array, nat count) {
 	for (nat i = 0; i < count; i++) {
 		if (not array[i]) return i;
@@ -679,120 +662,111 @@ static nat find_available(nat* array, nat count) {
 	return count;
 }
 
-static void assign_registers(struct instruction* instructions, nat ins_count, struct word* dictionary, nat dictionary_count) {
+static void assign_registers(struct instruction* instructions, nat ins_count, struct word* dictionary) {
 	printf("RA: performing register allocation...\n");
 
 	const nat live_count = arm64_register_count;
 	nat* live = calloc(live_count, sizeof(nat));
 	
-	for (nat i = 0; i < ins_count; i++) {
+
+
+
+
+	/*
+		this code doesnt respect the existing   premade colorings/assignments to nodes   that have already been done. 
+
+		beacause they occur later,  and thus, we don't see them, until its too late.  and theres already a conlict. 
+
+				we need to loop over all the nodes and check if there would be a conflict with another lifetime, before generating one as a particular target. if that register doesnt work, we should try another one instead. repeat until we find one that doesnt conflict with ANY lifetime of any variable in the execution state. 
+
+
+									...this is a      n^2 algorithm in the instruction count... 
+													bad.
+
+						hm
+
+
+
+	
+
+	
+			lets try it, until we find something better lol. 
+
+						why not. 
+
 			
-		for (nat t = 0; t < live_count; t++) {
+
+
+
+
+*/
+
+
+	for (nat i = 0; i < ins_count; i++) {
+		
+		for (nat t = 0; t < live_count; t++) 
 			if (live[t] == i) live[t] = 0;
-		}
 
 		if (instructions[i].begin == i) {
+
 			const nat spot = find_available(live, live_count);
 			if (spot == live_count) { puts("ran out of regs!"); abort(); }
 
 			live[spot] = instructions[i].end;
-			instructions[i].ph = spot;
+			if (instructions[i].ph == uninit) instructions[i].ph = spot; 
+			else {
+				puts("found an already filled instruction ph!!!");
+				print_instruction(instructions[i], dictionary);
+				sleep(1);
+			}
 		}
 	}
-
 	printf("printing assignments...\n");
 	print_instructions(instructions, ins_count, dictionary);
 }
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-/*
-			if (dictionary[d].type != type_variable) {
-				printf("skipping over %s...\n", dictionary[d].name);
-				continue;
-			}
-			
-			struct word* r = dictionary + d;	
-
-			printf("processing word:  \"%s\"\n", r->name);
-
-			if (r->begin == ip) {
-				if (next >= 31) printf("next = %lld\n", next);
-				if ((ssize_t) next == -1) {
-					printf(red "ERROR: found negative   next available register   for %s" reset "\n", r->name);
-					abort();
-				} else {
-					live[next] = d;
-					r->ph = next;
-				}
-
-				printf("FOUND START OF LIFETIME: r%lld now holds the value for \"%s\"\n", next, r->name);
-				next++;
-			}
-
-			
-			if (r->end == ip and instructions[ip].op != loadi) {
-				next = r->ph;
-				printf("FOUND END OF LIFETIME: r%lld is now open.\n", next);
-			}
-*/
-
-
-
-
-
-static void format_register(FILE* file, nat name_index, struct instruction* instructions, struct word* dictionary, nat dictionary_count) {
-
-	const nat def = dictionary[name_index].def;
-	
+static void format_register(
+	FILE* file, 
+	nat def, 
+	struct instruction* instructions, 
+	struct word* dictionary
+) {
 	printf("format_register: generating register with def_ins_index of %lld...\n", def);
-	
-	print_dictionary(dictionary, dictionary_count);
-
 	print_instruction(instructions[def], dictionary);
-	puts("");
-	fflush(stdout);
 
 	const nat r = instructions[def].ph;
-
 	if (r == uninit) {
-		puts(red "ERROR: format_register: register index is uninitialized." reset);
+		puts(red "internal error: format_register: register index is uninitialized." reset);
 		abort();
-	} else {
-		printf("r = %llu\n", r);
 	}
-	
+
 	fprintf(file, "x%llu", r);
 }
 
 static void generate_operation(
-	const char* op_string, FILE* file, struct instruction ins, 
-	struct instruction* instructions, struct word* dictionary, nat dictionary_count
+	const char* op_string, 
+	FILE* file,
+	struct instruction ins,
+	struct instruction* instructions, 
+	struct word* dictionary
 ) {
 	print_instruction(ins, dictionary);
 	fprintf(file, "\t%s ", op_string);
-	format_register(file, ins.in[0], instructions, dictionary, dictionary_count); fprintf(file, ", ");
-	format_register(file, ins.in[1], instructions, dictionary, dictionary_count); fprintf(file, ", ");
-	format_register(file, ins.in[2], instructions, dictionary, dictionary_count); fprintf(file, "\n");	
+
+	fprintf(file, "x%llu", ins.ph); fprintf(file, ", ");
+	fprintf(file, "x%llu", instructions[ins.defs[1]].ph); fprintf(file, ", ");
+	fprintf(file, "x%llu", instructions[ins.defs[2]].ph); fprintf(file, "\n");	
 }
 
-static void generate_loadi(FILE* file, struct instruction ins, struct instruction* instructions, struct word* dictionary, nat dictionary_count) {
-
+static void generate_loadi(
+	FILE* file, 
+	struct instruction ins, 
+	struct instruction* instructions, 
+	struct word* dictionary
+) {
 	const nat r = ins.ph;
 	if (r > 31) {
-		printf("generate_loadi: error\n");
+		printf("internal error: generate_loadi: bad destination register\n");
 		abort();
 	}
 	nat m = dictionary[ins.in[1]].length;
@@ -805,54 +779,39 @@ static void generate_loadi(FILE* file, struct instruction ins, struct instructio
 	uint16_t imm32 = (uint16_t) (raw >> 32);
 	uint16_t imm48 = (uint16_t) (raw >> 48);
 
-	if (not imm0) goto here;
+	if (not imm0) return;
 	fprintf(file, "\tmovz ");
-	format_register(file, ins.in[0], instructions, dictionary, dictionary_count); fprintf(file, ", ");
-	fprintf(file, "0x%hx\n", (uint16_t) imm0);
+	fprintf(file, "x%llu", r);
+	fprintf(file, ", 0x%hx\n", (uint16_t) imm0);
 
-	if (not imm16) goto here;
+	if (not imm16) return;
 	fprintf(file, "\tmovk ");
-	format_register(file, ins.in[0], instructions, dictionary, dictionary_count); fprintf(file, ", ");
-	fprintf(file, "0x%hx, lsl 16\n", imm16);
+	fprintf(file, "x%llu", r);
+	fprintf(file, ", 0x%hx, lsl 16\n", imm16);
 
-	if (not imm32) goto here;
+	if (not imm32) return;
 	fprintf(file, "\tmovk ");
-	format_register(file, ins.in[0], instructions, dictionary, dictionary_count); fprintf(file, ", ");
-	fprintf(file, "0x%hx, lsl 32\n", imm32);
+	fprintf(file, "x%llu", r);
+	fprintf(file, ", 0x%hx, lsl 32\n", imm32);
 
-	if (not imm48) goto here;
+	if (not imm48) return;
 	fprintf(file, "\tmovk ");
-	format_register(file, ins.in[0], instructions, dictionary, dictionary_count); fprintf(file, ", ");
-	fprintf(file, "0x%hx, lsl 48\n", imm48);
-here: 	return;
+	fprintf(file, "x%llu", r);
+	fprintf(file, ", 0x%hx, lsl 48\n", imm48);
 }
 
-/*
-static nat find_first_free(nat* live) {
-	for (nat i = 0; i < arm64_register_count; i++) {
-		if (i < 6)   continue;
-		if (i == 16) continue;
-		if (live[i] == 0) {
-			live[i] = uninit;
-			return i;
-		}
-	}
-	printf("ERROR: ran out of hardware registers to use find_first_free();\n");
-	print_live(live, arm64_register_count);
-	abort();
-}
-*/
-
-static void generate_ecall(FILE* file, struct instruction ins, struct word* dictionary, nat* live) {
-	printf("INFO: found STRING arguments[num=%s, a0=%s, a1=%s, a2=%s]\n", 
-	dictionary[ins.in[0]].name, dictionary[ins.in[1]].name, dictionary[ins.in[2]].name, dictionary[ins.in[3]].name);
-}
-
-
-static void generate_assembly(struct instruction* instructions, nat ins_count, struct word* dictionary, nat dictionary_count, nat* labels, nat label_count) {
-
+static void generate_assembly(
+	struct instruction* instructions, nat ins_count, 
+	struct word* dictionary, nat dictionary_count, 
+	nat* labels, nat label_count
+) {
 	printf("generating asm file...\n");
 	
+	if (not dictionary_count) {
+		printf(red "error: missing entry point label" reset "\n");
+		abort();
+	}
+
 	FILE* file = fopen("asm_output.s", "w");
 	fprintf(file, "\
 	.section __TEXT,__text,regular,pure_instructions\n\
@@ -860,9 +819,6 @@ static void generate_assembly(struct instruction* instructions, nat ins_count, s
 	.globl %s\n\
 	.p2align 2\n", dictionary->name);
 	
-	// nat next = 0;
-	nat* live = calloc(arm64_register_count, sizeof(nat));
-
 	for (nat i = 0; i < ins_count; i++) {
 
 		printf("generate_assembly: generating this \n");
@@ -879,41 +835,64 @@ static void generate_assembly(struct instruction* instructions, nat ins_count, s
 		nat in[7] = {0};
 		memcpy(in, instructions[i].in, 7 * sizeof(nat));
 
-		//printf("printing live registers...\n");
-		//print_live(live, arm64_register_count);
-
 		if (false) {}
-
-		else if (op == 0)     fprintf(file, "\tadd xzr, xzr, xzr\n");
-		else if (op == ecall) generate_ecall(file, instructions[i], dictionary, live);
-		else if (op == add)   generate_operation("add", file, instructions[i], instructions, dictionary, dictionary_count);
-		else if (op == _or)   generate_operation("orr", file, instructions[i], instructions, dictionary, dictionary_count);
-		else if (op == _xor)  generate_operation("eor", file, instructions[i], instructions, dictionary, dictionary_count);
-		else if (op == _and)  generate_operation("and", file, instructions[i], instructions, dictionary, dictionary_count);
-		else if (op == sub)   generate_operation("sub", file, instructions[i], instructions, dictionary, dictionary_count);
-		else if (op == mul)   generate_operation("mul", file, instructions[i], instructions, dictionary, dictionary_count);
-		else if (op == loadi) generate_loadi(file, instructions[i], instructions, dictionary, dictionary_count);
-		else {
-			printf("error: unknown instruction to generate...\n");
-		}
+		else if (op == null_ins)	fprintf(file, "\tadd xzr, xzr, xzr\n");
+		else if (op == ecall) 		fprintf(file, "\tsvc 0x80\n");
+		else if (op == add)   generate_operation("add", file, instructions[i], instructions, dictionary);
+		else if (op == _or)   generate_operation("orr", file, instructions[i], instructions, dictionary);
+		else if (op == _xor)  generate_operation("eor", file, instructions[i], instructions, dictionary);
+		else if (op == _and)  generate_operation("and", file, instructions[i], instructions, dictionary);
+		else if (op == sub)   generate_operation("sub", file, instructions[i], instructions, dictionary);
+		else if (op == mul)   generate_operation("mul", file, instructions[i], instructions, dictionary);
+		else if (op == loadi) generate_loadi(file, instructions[i], instructions, dictionary);
+		else printf("internal error: unknown instruction to generate: %llu\n", op);
 	}
-
 	fprintf(file, "\tmov x0, #37\n");
 	fprintf(file, "\tmov x16, #%u\n", SYS_exit);
-	fprintf(file, "\tsvc #0\n");
+	fprintf(file, "\tsvc 0x80 ;generated\n");
 	fprintf(file, ".subsections_via_symbols\n");
 	fclose(file);
+}
+
+static void assign_ecall_registers(
+	struct instruction* instructions, nat ins_count, 
+	struct word* dictionary,
+	nat* ecalls, nat ecall_count
+) {
+
+	const nat system_call_registers[] = {0, 1, 2, 3, 4, 5, 16};
+
+	for (nat i = 0; i < ecall_count; i++) {
+		for (nat j = 0; j < arity[ecall]; j++) {
+			if (instructions[instructions[ecalls[i]].defs[j]].ph != uninit) {
+				puts("internal error: conflict in assigning registers! already assigned reg must be moved...\n");
+				abort();
+			} else {
+				instructions[instructions[ecalls[i]].defs[j]].ph = system_call_registers[j];
+			}
+	
+		}
+	}
+	printf("printing results from ecall reg assignments: \n");
+	print_instructions(instructions, ins_count, dictionary);
+}
+
+
+static void print_ecalls(nat* ecalls, nat ecall_count, struct instruction* instructions, struct word* dictionary) {
+	for (nat i = 0; i < ecall_count; i++) {
+		printf("ecall #%llu   :  ", i);
+		print_instruction(instructions[ecalls[i]], dictionary);
+	}
 }
 
 static void compile(char* text, const size_t count, const char* executable_name) {
 
 	printf("compile: text = \"%s\"\n", text);
-
 	nat ins_count = 0;
 	struct instruction* instructions = NULL;
 	nat dictionary_count = 0;
 	struct word* dictionary = NULL;
-	
+
 	parse(text, count, &instructions, &ins_count, &dictionary, &dictionary_count);
 
 	print_instructions(instructions, ins_count, dictionary);
@@ -921,19 +900,21 @@ static void compile(char* text, const size_t count, const char* executable_name)
 
 	nat label_count = 0;
 	nat* labels = find_labels(dictionary, dictionary_count, &label_count);
-
 	print_labels(labels, label_count, dictionary);
 
 	find_lifetimes(instructions, ins_count, dictionary, dictionary_count);
 
-	assign_registers(instructions, ins_count, dictionary, dictionary_count);
+	nat ecall_count = 0;
+	nat* ecalls = find_ecalls(instructions, ins_count, &ecall_count);
+	print_ecalls(ecalls, ecall_count, instructions, dictionary);
+	
+	assign_ecall_registers(instructions, ins_count, dictionary, ecalls, ecall_count);
+	assign_registers(instructions, ins_count, dictionary);
 
 	generate_assembly(instructions, ins_count, dictionary, dictionary_count, labels, label_count);
-
 	system("cat asm_output.s");
 
 	const char* assembler_string = "as -v asm_output.s -o object_output.o";
-
 	char linker_string[4096] = {0};
 	snprintf(linker_string, sizeof linker_string, 
 		"/Library/Developer/CommandLineTools/usr/bin/ld -v "
@@ -955,21 +936,6 @@ static void compile(char* text, const size_t count, const char* executable_name)
 	puts(linker_string);
 	system(linker_string);
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 static void configure_terminal(void) {
 	struct termios terminal = {0}; 
@@ -1056,7 +1022,6 @@ next:	d = p;
 	goto read;
 }
 
-
 static _Noreturn void repl(void) {
 	puts("a repl for my programming language.");
 	configure_terminal();
@@ -1090,6 +1055,54 @@ int main(int argc, const char** argv) {
 	char* contents = read_file(filename, &count);
 	compile(contents, count, "executable_program.out");
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -1508,6 +1521,324 @@ static struct word* create_dictionary(nat* dictionary_count) {
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+/*
+	nat free16 = find_first_free(live);
+	nat free0  = find_first_free(live);
+	
+
+	printf("INFO: found frees[f16=%llu, f0=%llu]\n", free16, free0);
+	printf("INFO: found arguments[num=%llu, a0=%llu]\n", number, arg0);
+
+// save:
+	if (live[16]) fprintf(file, "\tadd x%llu, x%llu, xzr\n", free16, 16LLU); 
+	if (live[0])  fprintf(file, "\tadd x%llu, x%llu, xzr\n", free0, 0LLU); 
+
+// fill in inputs
+	if (number != 16) fprintf(file, "\tadd x%llu, x%llu, xzr\n", 16LLU, number); 
+	if (arg0 != 0)    fprintf(file, "\tadd x%llu, x%llu, xzr\n", 0LLU, arg0);
+	if (arg1 != 1)    fprintf(file, "\tadd x%llu, x%llu, xzr\n", 1LLU, arg1);
+	if (arg2 != 2)    fprintf(file, "\tadd x%llu, x%llu, xzr\n", 2LLU, arg2);
+
+	
+
+// fill in outputs
+	if (arg0 != 0) fprintf(file, "\tadd x%llu, x%llu, xzr\n", arg0, 0LLU); 
+	if (arg1 != 1) fprintf(file, "\tadd x%llu, x%llu, xzr\n", arg1, 1LLU); 
+
+// restore:
+	if (live[16]) fprintf(file, "\tadd x%llu, x%llu, xzr\n", 16LLU, free16);
+	if (live[0])  fprintf(file, "\tadd x%llu, x%llu, xzr\n", 0LLU, free0);
+	if (live[1])  fprintf(file, "\tadd x%llu, x%llu, xzr\n", 1LLU, free1);
+	if (live[2])  fprintf(file, "\tadd x%llu, x%llu, xzr\n", 2LLU, free2);
+
+	live[free16] = 0;
+	live[free0] = 0;
+	live[free1] = 0;
+	live[free2] = 0;
+
+*/
+
+
+
+
+/*
+static nat find_first_free(nat* live) {
+	for (nat i = 0; i < arm64_register_count; i++) {
+		if (i < 6)   continue;
+		if (i == 16) continue;
+		if (live[i] == 0) {
+			live[i] = uninit;
+			return i;
+		}
+	}
+	printf("ERROR: ran out of hardware registers to use find_first_free();\n");
+	print_live(live, arm64_register_count);
+	abort();
+}
+
+
+
+
+	printf("INFO: found named arguments[num=%s, a0=%s, a1=%s, a2=%s]\n", dictionary[ins.in[0]].name, dictionary[ins.in[1]].name);
+
+	nat num =  instructions[dictionary[ins.in[0]].def].ph;
+	nat arg0 = instructions[dictionary[ins.in[1]].def].ph;
+*/
+
+
+
+
+
+
+
+
+
+
+
+/*
+
+, nat dictionary_count
+
+
+			if (dictionary[d].type != type_variable) {
+				printf("skipping over %s...\n", dictionary[d].name);
+				continue;
+			}
+			
+			struct word* r = dictionary + d;	
+
+			printf("processing word:  \"%s\"\n", r->name);
+
+			if (r->begin == ip) {
+				if (next >= 31) printf("next = %lld\n", next);
+				if ((ssize_t) next == -1) {
+					printf(red "ERROR: found negative   next available register   for %s" reset "\n", r->name);
+					abort();
+				} else {
+					live[next] = d;
+					r->ph = next;
+				}
+
+				printf("FOUND START OF LIFETIME: r%lld now holds the value for \"%s\"\n", next, r->name);
+				next++;
+			}
+
+			
+			if (r->end == ip and instructions[ip].op != loadi) {
+				next = r->ph;
+				printf("FOUND END OF LIFETIME: r%lld is now open.\n", next);
+			}
+*/
+
+
+
+
+
+
+
+
+
+
+/*
+static void print_nats(nat* array, nat count) {
+	printf("{ ");
+	for (nat i = 0; i < count; i++) {
+		printf("%llu ", array[i]);
+	}
+	printf("}\n");
+}
+
+static nat is_in(nat element, nat* array, nat count) {
+	for (nat i = 0; i < count; i++) {
+		if (array[i] == element) return i;
+	}
+	return count;
+}
+*/
+
+
+
+
+
+
+
+
+/*
+static void print_live(nat* live, nat count) {
+	printf("printing live registers { ");
+	for (nat i = 0; i < count; i++) {
+		printf("%llu, ", live[i]);
+	}
+	puts("}");
+}
+*/
+
+
+
+
+
+
+
+//printf("printing live registers...\n");
+		//print_live(live, arm64_register_count);
+
+
+
+
+
+///if (nr == 7) variables[a0] = (nat) (int) brk((void*) r0);
+
+
+
+
+
+// nat next = 0;
+	// nat* live = calloc(arm64_register_count, sizeof(nat));
+
+
+
+/*
+static const char* spell_ins(nat t) {         // delete me!!!!
+
+	if (t == null_ins) return "{nulli}";
+	if (t == debugprint) return "debugprint";
+	if (t == debughex) return "debughex";
+
+	if (t == sll)  return red "sll" reset;
+	if (t == srl)  return red "srl" reset;
+	if (t == sra)  return red "sra" reset;
+	if (t == _xor) return red "xor" reset;
+	if (t == _and) return red "and" reset;
+	if (t == _or)  return red "or" reset;
+	if (t == add)  return green "add" reset;
+	if (t == sub)  return green "sub" reset;
+
+	if (t == mul)  return blue "mul" reset;
+	if (t == mhs)  return blue "mhs" reset;
+	if (t == mhsu) return blue "mhsu" reset;
+	if (t == _div) return blue "div" reset;
+	if (t == rem)  return blue "rem" reset;
+	if (t == divs) return blue "divs" reset;
+	if (t == rems) return blue "rems" reset;
+
+	if (t == blt)  return cyan "blt" reset;
+	if (t == bge)  return cyan "bge" reset;
+	if (t == blts) return cyan "blts" reset;
+	if (t == bges) return cyan "bges" reset;
+	if (t == bne)  return cyan "bne" reset;
+	if (t == beq)  return cyan "beq" reset;
+	if (t == jal)  return cyan "jal" reset;
+	if (t == jalr) return cyan "jalr" reset;
+
+	if (t == store1) return yellow "store1" reset;
+	if (t == store2) return yellow "store2" reset;
+	if (t == store4) return yellow "store4" reset;
+	if (t == store8) return yellow "store8" reset;
+
+	if (t == load1)  return magenta "load1" reset;
+	if (t == load2)  return magenta "load2" reset;
+	if (t == load4)  return magenta "load4" reset;
+	if (t == load8)  return magenta "load8" reset;
+
+	if (t == load1s) return magenta "load1s" reset;
+	if (t == load2s) return magenta "load2s" reset;
+	if (t == load4s) return magenta "load4s" reset;
+	if (t == loadi)  return magenta "loadi" reset;
+
+	if (t == ecall)  return "ecall" reset;
+	if (t == ebreak) return "ebreak" reset;
+
+	return "unknown";
+}
+
+
+*/
+
+
+
+
+
+
+
+
+
+/*
+for (nat j = 0; j < arity[op]; j++) {
+
+				const nat this = instructions[i].in[j];
+				const nat def = dictionary[this].def;
+				instructions[i].defs[j] = def;
+
+
+			//	if (not j and def == uninit) instructions[i].defs[j] = i;
+			//	if (not j) continue;
+
+				if (def == uninit) { 
+					printf(yellow "warning: use of uninitialized variable \"%s\" in instruction: " 
+						reset "\n", dictionary[this].name);
+					print_instruction(instructions[i], dictionary);
+					abort();
+
+				} else {
+					instructions[def].end = i;
+					printf("encountered use of " magenta "%s" reset 
+						", \n using definition at ins #%llu: ", dictionary[this].name, def);
+					print_instruction(instructions[def], dictionary);
+				}
+			}
+
+			const nat dest = instructions[i].in[1];
+			instructions[i].begin = i;
+			dictionary[dest].def = i;
+			printf("found definition! " magenta "%s" reset " is being defined at ins #%llu...\n", dictionary[dest].name, i);
+
+
+*/
+
+
+
+
+
+
+
+
+/*
+
+const nat ar = ;
+
+		printf("looking at ecall call# reg : \n");
+		print_instruction(instructions[instructions[ecalls[i]].defs[6]], dictionary);
+		puts("");
+
+		if (instructions[instructions[ecalls[i]].defs[6]].ct) puts("the ecall # is known at compiletime!!!");
+		
+		// eval(instructions[instructions[ecalls[i]].defs[6]]);
+
+
+
+*/
+
+
+
+
+
+
+
+
+
+
+// instructions[instructions[ecalls[i]].defs[0]]     evaluate_ct(instructions, ins_count);
 
 
 
