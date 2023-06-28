@@ -59,7 +59,7 @@ static const nat arity[] = {
 	3,3,3,3,3,3,2,2,
 	2,2,2,2,
 	2,2,2,2,
-	2,2,2,2,1,
+	2,2,2,2,
 	7, 0,
 	1, 1
 };
@@ -71,7 +71,7 @@ static const char* spelling[] = {
 	"blt","bge","blts","bges","bne","beq","jalr","jal",
 	"store1","store2","store4","store8",
 	"load1","load2","load4","load8",
-	"load1s","load2s","load4s","loadi","crazy_instruction",
+	"load1s","load2s","load4s","loadi",
 	"ecall","ebreak",
 	"debugprint","debughex"
 };
@@ -79,7 +79,6 @@ static const char* spelling[] = {
 struct instruction {
 	nat op;
 	nat in[7];
-	nat defs[7];
 	nat ph;
 	nat begin;
 	nat end;
@@ -111,7 +110,7 @@ static const char* spell_type(nat t) {
 	return "unknown";
 }
 
-static const char* spell_ins(nat t) { 
+static const char* spell_ins(nat t) {         // delete me!!!!
 
 	if (t == null_ins) return "{nulli}";
 	if (t == debugprint) return "debugprint";
@@ -673,53 +672,128 @@ static void find_lifetimes(struct instruction* instructions, nat ins_count, stru
 	}
 }
 
-
-
+static nat find_available(nat* array, nat count) {
+	for (nat i = 0; i < count; i++) {
+		if (not array[i]) return i;
+	}
+	return count;
+}
 
 static void assign_registers(struct instruction* instructions, nat ins_count, struct word* dictionary, nat dictionary_count) {
-
-
-	//nat next = 0;
-	//nat* live = malloc(arm64_register_count * sizeof(nat));
-	
 	printf("RA: performing register allocation...\n");
+
+	const nat live_count = arm64_register_count;
+	nat* live = calloc(live_count, sizeof(nat));
 	
-	for (nat ip = 0; ip < ins_count; ip++) {
-		
+	for (nat i = 0; i < ins_count; i++) {
+			
+		for (nat t = 0; t < live_count; t++) {
+			if (live[t] == i) live[t] = 0;
+		}
+
+		if (instructions[i].begin == i) {
+			const nat spot = find_available(live, live_count);
+			if (spot == live_count) { puts("ran out of regs!"); abort(); }
+
+			live[spot] = instructions[i].end;
+			instructions[i].ph = spot;
+		}
 	}
 
 	printf("printing assignments...\n");
 	print_instructions(instructions, ins_count, dictionary);
-
-//	abort();
 }
 
 
 
 
 
-static void format_register(FILE* file, nat r, struct instruction* instructions) {
-	if (r) fprintf(file, "x%llu, ", instructions[r].ph); 
-	else fprintf(file, "xzr, ");
+
+
+
+
+
+
+
+
+
+
+/*
+			if (dictionary[d].type != type_variable) {
+				printf("skipping over %s...\n", dictionary[d].name);
+				continue;
+			}
+			
+			struct word* r = dictionary + d;	
+
+			printf("processing word:  \"%s\"\n", r->name);
+
+			if (r->begin == ip) {
+				if (next >= 31) printf("next = %lld\n", next);
+				if ((ssize_t) next == -1) {
+					printf(red "ERROR: found negative   next available register   for %s" reset "\n", r->name);
+					abort();
+				} else {
+					live[next] = d;
+					r->ph = next;
+				}
+
+				printf("FOUND START OF LIFETIME: r%lld now holds the value for \"%s\"\n", next, r->name);
+				next++;
+			}
+
+			
+			if (r->end == ip and instructions[ip].op != loadi) {
+				next = r->ph;
+				printf("FOUND END OF LIFETIME: r%lld is now open.\n", next);
+			}
+*/
+
+
+
+
+
+static void format_register(FILE* file, nat name_index, struct instruction* instructions, struct word* dictionary, nat dictionary_count) {
+
+	const nat def = dictionary[name_index].def;
+	
+	printf("format_register: generating register with def_ins_index of %lld...\n", def);
+	
+	print_dictionary(dictionary, dictionary_count);
+
+	print_instruction(instructions[def], dictionary);
+	puts("");
+	fflush(stdout);
+
+	const nat r = instructions[def].ph;
+
+	if (r == uninit) {
+		puts(red "ERROR: format_register: register index is uninitialized." reset);
+		abort();
+	} else {
+		printf("r = %llu\n", r);
+	}
+	
+	fprintf(file, "x%llu", r);
 }
 
 static void generate_operation(
 	const char* op_string, FILE* file, struct instruction ins, 
-	struct instruction* instructions, struct word* dictionary
+	struct instruction* instructions, struct word* dictionary, nat dictionary_count
 ) {
 	print_instruction(ins, dictionary);
 	fprintf(file, "\t%s ", op_string);
-	format_register(file, ins.in[0], instructions); fprintf(file, ", ");
-	format_register(file, ins.in[1], instructions); fprintf(file, ", ");
-	format_register(file, ins.in[2], instructions); fprintf(file, "\n");	
+	format_register(file, ins.in[0], instructions, dictionary, dictionary_count); fprintf(file, ", ");
+	format_register(file, ins.in[1], instructions, dictionary, dictionary_count); fprintf(file, ", ");
+	format_register(file, ins.in[2], instructions, dictionary, dictionary_count); fprintf(file, "\n");	
 }
 
-static void generate_loadi(FILE* file, struct instruction ins, struct instruction* instructions, struct word* dictionary) {
+static void generate_loadi(FILE* file, struct instruction ins, struct instruction* instructions, struct word* dictionary, nat dictionary_count) {
 
 	const nat r = ins.ph;
 	if (r > 31) {
 		printf("generate_loadi: error\n");
-		return;
+		abort();
 	}
 	nat m = dictionary[ins.in[1]].length;
 	const nat n = string_to_number(dictionary[ins.in[1]].name, &m);
@@ -733,22 +807,22 @@ static void generate_loadi(FILE* file, struct instruction ins, struct instructio
 
 	if (not imm0) goto here;
 	fprintf(file, "\tmovz ");
-	format_register(file, ins.in[0], instructions); fprintf(file, ", ");
+	format_register(file, ins.in[0], instructions, dictionary, dictionary_count); fprintf(file, ", ");
 	fprintf(file, "0x%hx\n", (uint16_t) imm0);
 
 	if (not imm16) goto here;
 	fprintf(file, "\tmovk ");
-	format_register(file, ins.in[0], instructions); fprintf(file, ", ");
+	format_register(file, ins.in[0], instructions, dictionary, dictionary_count); fprintf(file, ", ");
 	fprintf(file, "0x%hx, lsl 16\n", imm16);
 
 	if (not imm32) goto here;
 	fprintf(file, "\tmovk ");
-	format_register(file, ins.in[0], instructions); fprintf(file, ", ");
+	format_register(file, ins.in[0], instructions, dictionary, dictionary_count); fprintf(file, ", ");
 	fprintf(file, "0x%hx, lsl 32\n", imm32);
 
 	if (not imm48) goto here;
 	fprintf(file, "\tmovk ");
-	format_register(file, ins.in[0], instructions); fprintf(file, ", ");
+	format_register(file, ins.in[0], instructions, dictionary, dictionary_count); fprintf(file, ", ");
 	fprintf(file, "0x%hx, lsl 48\n", imm48);
 here: 	return;
 }
@@ -775,11 +849,10 @@ static void generate_ecall(FILE* file, struct instruction ins, struct word* dict
 }
 
 
-static void generate_assembly(struct instruction* instructions, nat ins_count, struct word* dictionary, nat* labels, nat label_count) {
+static void generate_assembly(struct instruction* instructions, nat ins_count, struct word* dictionary, nat dictionary_count, nat* labels, nat label_count) {
 
 	printf("generating asm file...\n");
 	
-
 	FILE* file = fopen("asm_output.s", "w");
 	fprintf(file, "\
 	.section __TEXT,__text,regular,pure_instructions\n\
@@ -806,20 +879,20 @@ static void generate_assembly(struct instruction* instructions, nat ins_count, s
 		nat in[7] = {0};
 		memcpy(in, instructions[i].in, 7 * sizeof(nat));
 
-		printf("printing live registers...\n");
-		print_live(live, arm64_register_count);
+		//printf("printing live registers...\n");
+		//print_live(live, arm64_register_count);
 
 		if (false) {}
 
 		else if (op == 0)     fprintf(file, "\tadd xzr, xzr, xzr\n");
 		else if (op == ecall) generate_ecall(file, instructions[i], dictionary, live);
-		else if (op == add)   generate_operation("add", file, instructions[i], instructions, dictionary);
-		else if (op == _or)   generate_operation("orr", file, instructions[i], instructions, dictionary);
-		else if (op == _xor)  generate_operation("eor", file, instructions[i], instructions, dictionary);
-		else if (op == _and)  generate_operation("and", file, instructions[i], instructions, dictionary);
-		else if (op == sub)   generate_operation("sub", file, instructions[i], instructions, dictionary);
-		else if (op == mul)   generate_operation("mul", file, instructions[i], instructions, dictionary);
-		else if (op == loadi) generate_loadi(file, instructions[i], instructions, dictionary);
+		else if (op == add)   generate_operation("add", file, instructions[i], instructions, dictionary, dictionary_count);
+		else if (op == _or)   generate_operation("orr", file, instructions[i], instructions, dictionary, dictionary_count);
+		else if (op == _xor)  generate_operation("eor", file, instructions[i], instructions, dictionary, dictionary_count);
+		else if (op == _and)  generate_operation("and", file, instructions[i], instructions, dictionary, dictionary_count);
+		else if (op == sub)   generate_operation("sub", file, instructions[i], instructions, dictionary, dictionary_count);
+		else if (op == mul)   generate_operation("mul", file, instructions[i], instructions, dictionary, dictionary_count);
+		else if (op == loadi) generate_loadi(file, instructions[i], instructions, dictionary, dictionary_count);
 		else {
 			printf("error: unknown instruction to generate...\n");
 		}
@@ -830,8 +903,6 @@ static void generate_assembly(struct instruction* instructions, nat ins_count, s
 	fprintf(file, "\tsvc #0\n");
 	fprintf(file, ".subsections_via_symbols\n");
 	fclose(file);
-
-	system("cat asm_output.s");
 }
 
 static void compile(char* text, const size_t count, const char* executable_name) {
@@ -857,28 +928,32 @@ static void compile(char* text, const size_t count, const char* executable_name)
 
 	assign_registers(instructions, ins_count, dictionary, dictionary_count);
 
-	generate_assembly(instructions, ins_count, dictionary, labels, label_count);
+	generate_assembly(instructions, ins_count, dictionary, dictionary_count, labels, label_count);
 
-	const char* assembler_string = "as asm_output.s -o object_output.o";
-		puts(assembler_string);
-		system(assembler_string);
-		system("objdump -D object_output.o");
-		char linker_string[4096] = {0};
-		snprintf(linker_string, sizeof linker_string, 
-			"/Library/Developer/CommandLineTools/usr/bin/ld -v "
-			"-demangle "
-			"-lto_library /Library/Developer/CommandLineTools/usr/lib/libLTO.dylib "
-			"-dynamic -arch arm64 -platform_version macos 13.0.0 13.3 "
-			"-syslibroot /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk "
-			"-e %s "
-			"-o %s "
-			"-L/usr/local/lib "
-			"object_output.o "
-			"-lSystem /Library/Developer/CommandLineTools/usr/lib/clang/14.0.3/lib/darwin/libclang_rt.osx.a"
-			, dictionary->name, executable_name
-		);
-		puts(linker_string);
-		system(linker_string);
+	system("cat asm_output.s");
+
+	const char* assembler_string = "as -v asm_output.s -o object_output.o";
+
+	char linker_string[4096] = {0};
+	snprintf(linker_string, sizeof linker_string, 
+		"/Library/Developer/CommandLineTools/usr/bin/ld -v "
+		"-demangle "
+		"-lto_library /Library/Developer/CommandLineTools/usr/lib/libLTO.dylib "
+		"-dynamic -arch arm64 -platform_version macos 13.0.0 13.3 "
+		"-syslibroot /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk "
+		"-e %s "
+		"-o %s "
+		"-L/usr/local/lib "
+		"object_output.o "
+		"-lSystem /Library/Developer/CommandLineTools/usr/lib/clang/14.0.3/lib/darwin/libclang_rt.osx.a"
+		, dictionary->name, executable_name
+	);
+
+	puts(assembler_string);
+	system(assembler_string);
+	system("objdump -D object_output.o");
+	puts(linker_string);
+	system(linker_string);
 }
 
 
@@ -1428,6 +1503,8 @@ static struct word* create_dictionary(nat* dictionary_count) {
 
 */
 
+
+//  else fprintf(file, "xzr");
 
 
 

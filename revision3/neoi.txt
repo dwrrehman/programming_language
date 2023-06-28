@@ -1,4 +1,6 @@
-main
+entrypoint
+
+	0 zr loadi
 	zr zr c add
 	zr c r and
 	r r a or
