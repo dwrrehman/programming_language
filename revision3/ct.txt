@@ -1,16 +1,12 @@
 startingthingy
 
-	a5 	5 	loadi
-	a6	6	loadi
+	a5 5 loadi
+	a6 6loadi
 	a7 	7	loadi
 	a8	8	loadi
-
-
 	
 	5 6 output 	add
 	7 8 drt 	sub
-
-	
 
 	0 _1	loadi
 	0 _2	loadi
@@ -19,10 +15,6 @@ startingthingy
 	a234 number loadi
 
 	number  _1 _2 _3    8 drt output   ecall
-
-
-
-
 
 	output 7 output add
 

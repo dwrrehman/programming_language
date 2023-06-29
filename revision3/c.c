@@ -1,5 +1,5 @@
- #include <stdio.h>
-#include <stdbool.h>
+#include <stdio.h>
+#include <stdbool.h>   // a programming language made by dwrr on 2306283.112548 
 #include <iso646.h>
 #include <string.h>
 #include <stdlib.h>
@@ -23,15 +23,25 @@
 
 #include <sys/syscall.h>
 
+
+#define compiler 	"unnamed: "
+
+#define interpreter_prompt   ":ready: "
+
+
+typedef uint64_t nat;
+
+static const nat debug = 0;
+
+
 #define red   	"\x1B[31m"
 #define green   "\x1B[32m"
 #define yellow  "\x1B[33m"
 #define blue   	"\x1B[34m"
 #define magenta "\x1B[35m"
 #define cyan   	"\x1B[36m"
+#define bold    "\033[1m"
 #define reset 	"\x1B[0m"
-
-typedef uint64_t nat;
 
 enum thing_type {
 	type_null, type_variable, type_label,
@@ -45,7 +55,7 @@ enum instruction_type {
 	store1,store2,store4,store8,
 	load1,load2,load4,load8,
 	load1s,load2s,load4s,loadi,
-	ecall, ebreak,
+	ecall,
 	debugprint, debughex, 
 
 	isa_count
@@ -59,7 +69,7 @@ static const nat arity[] = {
 	2,2,2,2,
 	2,2,2,2,
 	2,2,2,2,
-	7, 0,
+	7,
 	1, 1
 };
 
@@ -71,7 +81,7 @@ static const char* spelling[] = {
 	"store1","store2","store4","store8",
 	"load1","load2","load4","load8",
 	"load1s","load2s","load4s","loadi",
-	"ecall","ebreak",
+	"ecall",
 	"debugprint","debughex"
 };
 
@@ -82,8 +92,8 @@ static const char* ins_color[] = {
 	cyan,cyan,cyan,cyan,cyan,cyan,cyan,cyan,
 	yellow,yellow,yellow,yellow,
 	magenta,magenta,magenta,magenta,
-	magenta,magenta,magenta,magenta,
-	"","",
+	magenta,magenta,magenta,green,
+	"",
 	"","",
 };
 
@@ -95,6 +105,7 @@ struct instruction {
 	nat begin;
 	nat end;
 	nat ct;
+	nat start;
 };
 
 struct word { 
@@ -103,6 +114,7 @@ struct word {
 	nat type;
 	nat value;
 	nat def;
+	nat start;
 };
 
 static const char digits[96] = 
@@ -110,13 +122,10 @@ static const char digits[96] =
 	"ABCDEFGHIJKLMNOPQRSTUVWXYZ,."
 	";:-_=+/?!@#$%^&*()<>[]{}|\\~`\'\"";
 
-static const nat debug = 1;
 static const nat arm64_register_count = 31;
 static const nat uninit = (nat) ~0;
 
 static bool is_branch(nat b)    { return b >= blt and b <= jal; }
-static bool is_operation(nat b) { return b >= sll and b <= rems; }
-static bool is_loadstore(nat b) { return b >= store1 and b <= load4s; }
 
 static const char* spell_type(nat t) { 
 	if (t == type_null) return "{null_type}";
@@ -208,7 +217,7 @@ done:	*length = index;
 	return result;
 }
 
-static void ins(nat op, nat* arguments, struct word* dictionary, struct instruction** instructions, nat* ins_count) {
+static void ins(nat op, nat* arguments, struct word* dictionary, struct instruction** instructions, nat* ins_count, nat start) {
 
 	if (is_branch(op)) {
 		if (	dictionary[*arguments].type == type_label 	and 
@@ -223,7 +232,8 @@ static void ins(nat op, nat* arguments, struct word* dictionary, struct instruct
 		.begin = uninit, 
 		.end = uninit, 
 		.defs = {0},
-		.ct = op == loadi
+		.ct = op == loadi,
+		.start = start
 	};
 	memset(new.in, 0xff, 7 * sizeof(nat));
 	memcpy(new.in, arguments, arity[op] * sizeof(nat));
@@ -427,17 +437,14 @@ static void execute(struct instruction* instructions, nat ins_count, struct word
 
 			process_syscall(in[0], in[1], in[2], in[3], in[4], in[5], in[6], variables);
 
-		} else if (op == ebreak) {
-			if (debug) printf("executed ebreak!!!!!!\n");
-
 		} else if (op == debugprint) {
 			if (debug) printf("executed debugprint: %llu\n", in[0]);
-			printf(green "debug: %llu\n" reset, variables[in[0]]);
+			printf(green "debug: %llu" reset "\n" , variables[in[0]]);
 
 		} else if (op == debughex) {
 			if (debug) printf("executed hex: %llu\n", in[0]);
-			printf(green "debug: %llx\n" reset, variables[in[0]]);
-
+			printf(green "debug: %llx" reset "\n", variables[in[0]]);
+			
 		} else {
 			printf("internal error: execute: unexpected instruction: %llu\n", op);
 			abort();
@@ -446,7 +453,11 @@ static void execute(struct instruction* instructions, nat ins_count, struct word
 halt: 	if (debug) puts(green "[finished execution]" reset);
 }
 
-static void parse(char* string, nat length, struct instruction** out_instructions, nat *out_ins_count, struct word** out_dictionary, nat* out_dictionary_count) {
+static void parse(
+	char* string, nat length, 
+	struct instruction** out_instructions, nat *out_ins_count, 
+	struct word** out_dictionary, nat* out_dictionary_count
+) {
 
 	struct word* dictionary = *out_dictionary;
 	nat dictionary_count = *out_dictionary_count;
@@ -470,7 +481,7 @@ static void parse(char* string, nat length, struct instruction** out_instruction
 		bool found = false;
 		for (nat i = sll; i < isa_count; i++) {
 			if (is(spelling[i], word, count)) {
-				ins(i, arguments, dictionary, &instructions, &ins_count);
+				ins(i, arguments, dictionary, &instructions, &ins_count, index);
 				found = true;
 			}
 		}
@@ -499,6 +510,7 @@ static void parse(char* string, nat length, struct instruction** out_instruction
 				.type = type_label,
 				.value = ins_count,
 				.def = uninit,
+				.start = start + count
 			};
 
 			if (debug) printf("[not defined]  -->  assuming  ");
@@ -519,7 +531,9 @@ static void parse(char* string, nat length, struct instruction** out_instruction
 static char* read_file(const char* filename, size_t* count) {
 	FILE* file = fopen(filename, "r");
 	if (not file) {
-		perror("fopen"); 
+		fprintf(stderr, compiler bold red "error:" reset bold " ");
+		perror(filename);
+		fprintf(stderr, reset);
 		exit(1);
 	}
 
@@ -529,7 +543,8 @@ static char* read_file(const char* filename, size_t* count) {
         fseek(file, 0, SEEK_SET); 
 	fread(text, 1, *count, file);
 	fclose(file); 
-	printf("%s read %lu\n", filename, *count);
+
+	if (debug) printf("info: file \"%s\": read %lu bytes\n", filename, *count);
 	return text;
 }
 
@@ -548,7 +563,7 @@ static nat* find_labels(struct word* dictionary, nat dictionary_count, nat* out_
 
 	for (nat d = 0; d < dictionary_count; d++) {
 		if (dictionary[d].type == type_label) {
-			printf("found label: %s\n", dictionary[d].name);
+			if (debug) printf("found label: %s\n", dictionary[d].name);
 			labels[label_count++] = d;
 		}
 	}
@@ -563,7 +578,7 @@ static nat* find_ecalls(struct instruction* instructions, nat ins_count, nat* ou
 
 	for (nat i = 0; i < ins_count; i++) {
 		if (instructions[i].op == ecall) {
-			printf("found ecall: %llu\n", i);
+			if (debug) printf("found ecall: %llu\n", i);
 			ecalls[ecall_count++] = i;
 		}
 	}
@@ -572,75 +587,84 @@ static nat* find_ecalls(struct instruction* instructions, nat ins_count, nat* ou
 }
 
 static void find_lifetimes(struct instruction* instructions, nat ins_count, struct word* dictionary, nat dictionary_count) {
-	printf("RA: obtaining lifetime information...\n");
+	if (debug) printf("RA: obtaining lifetime information...\n");
 
 	for (nat i = 0; i < ins_count; i++) {
 
-		puts("");
-		printf("looking at: \n\t#%llu:", i);
-		print_instruction(instructions[i], dictionary);
+		if (debug) puts("");
+		if (debug) printf("looking at: \n\t#%llu:", i);
+		if (debug) print_instruction(instructions[i], dictionary);
 
 		const nat op = instructions[i].op;
 
 		if (not arity[op]) continue;
 
-		if (not is_branch(op)) { 
+		for (nat j = 0; j < arity[op]; j++) {
+			if (op == loadi and j == 1) break;
 
-			for (nat j = 0; j < arity[op]; j++) {
-				if (op == loadi and j == 1) break;
+			const nat this = instructions[i].in[j];
+			const nat def = dictionary[this].def;
+			instructions[i].defs[j] = def;
 
-				const nat this = instructions[i].in[j];
-				const nat def = dictionary[this].def;
-				instructions[i].defs[j] = def;
+			if (not j and def == uninit) instructions[i].defs[j] = i;
+			if (not j) continue;
 
-				if (not j and def == uninit) instructions[i].defs[j] = i;
-				if (not j) continue;
+			if (def == uninit) { 
+				printf(bold "%s:%llu:%llu: " red "error: " reset bold 
+					"use of uninitialized variable \"%s\" in instruction: " reset "\n", 				
 
-				if (def == uninit) { 
-					printf(yellow "warning: use of uninitialized variable \"%s\" in instruction: " 
-						reset "\n", dictionary[this].name);
-					print_instruction(instructions[i], dictionary);
-					abort();
+					"filename.txt",
+					instructions[i].start,
+					dictionary[this].start,
+					dictionary[this].name
+				);
+				print_instruction(instructions[i], dictionary);
 
-				} else {
-					instructions[def].end = i;
-					printf("encountered use of " magenta "%s" reset 
-						", \n using definition at ins #%llu: ", dictionary[this].name, def);
-					print_instruction(instructions[def], dictionary);
-				}
+			} else {
+				instructions[def].end = i;
+				if (debug) printf("encountered use of " magenta "%s" reset 
+					", \n using definition at ins #%llu: ", dictionary[this].name, def);
+				if (debug) print_instruction(instructions[def], dictionary);
 			}
-			
+		}
+
+		if (not is_branch(op)) { 
 			const nat dest = instructions[i].in[0];
 			instructions[i].begin = i;
 			dictionary[dest].def = i;
-			printf("found definition! " magenta "%s" reset " is being defined at ins #%llu...\n", dictionary[dest].name, i);
-
-		} else {
-			puts("branch unimpl");
-			abort();
+			if (debug) printf("found definition! " magenta "%s" reset " is being defined at ins #%llu...\n", dictionary[dest].name, i);
 		} 
 
-		printf("generated lifetime of: \n\t#%llu:", i);
-		print_instruction(instructions[i], dictionary);
+		if (debug) printf("generated lifetime of: \n\t#%llu:", i);
+		if (debug) print_instruction(instructions[i], dictionary);
 
-		printf("debugging dict: \n");
-		print_dictionary(dictionary, dictionary_count);
-		printf("-------------------\n");
+		if (debug) printf("debugging dict: \n");
+		if (debug) print_dictionary(dictionary, dictionary_count);
+		if (debug) printf("-------------------\n");
 	}
 
-	printf("printing lifetimes...\n");
-	print_instructions(instructions, ins_count, dictionary);
+	if (debug) printf("printing lifetimes...\n");
+	if (debug) print_instructions(instructions, ins_count, dictionary);
 
 	for (nat i = 0; i < ins_count; i++) {
-		if (instructions[i].end == uninit) {
-			printf(yellow "warning: result \"%s\" unused in instruction: " reset "\n", dictionary[instructions[i].in[0]].name);
+		if (dictionary[instructions[i].in[0]].type == type_label) continue;
+		if (instructions[i].end == uninit and instructions[i].begin != uninit) {
+
+			printf(bold "%s:%llu:%llu: " magenta "warning: " reset bold 
+				"result \"%s\" unused in instruction: " reset "\n", 
+
+				"filename.txt",
+				instructions[i].start, 
+				dictionary[instructions[i].in[0]].start, 
+				dictionary[instructions[i].in[0]].name
+			);
 			print_instruction(instructions[i], dictionary);
 		}
 	}
 }
 
 
-
+/*
 static void evaluate_ct(struct instruction* instructions, nat ins_count) {
 	for (nat i = 0; i < ins_count; i++) {
 		const nat op = instructions[i].op;
@@ -654,6 +678,7 @@ static void evaluate_ct(struct instruction* instructions, nat ins_count) {
 		not_ct: continue;
 	}
 }
+*/
 
 static nat find_available(nat* array, nat count) {
 	for (nat i = 0; i < count; i++) {
@@ -663,85 +688,29 @@ static nat find_available(nat* array, nat count) {
 }
 
 static void assign_registers(struct instruction* instructions, nat ins_count, struct word* dictionary) {
-	printf("RA: performing register allocation...\n");
+	if (debug) printf("RA: performing register allocation...\n");
 
 	const nat live_count = arm64_register_count;
 	nat* live = calloc(live_count, sizeof(nat));
 	
-
-
-
-
-	/*
-		this code doesnt respect the existing   premade colorings/assignments to nodes   that have already been done. 
-
-		beacause they occur later,  and thus, we don't see them, until its too late.  and theres already a conlict. 
-
-				we need to loop over all the nodes and check if there would be a conflict with another lifetime, before generating one as a particular target. if that register doesnt work, we should try another one instead. repeat until we find one that doesnt conflict with ANY lifetime of any variable in the execution state. 
-
-
-									...this is a      n^2 algorithm in the instruction count... 
-													bad.
-
-						hm
-
-
-
-	
-
-	
-			lets try it, until we find something better lol. 
-
-						why not. 
-
-			
-
-
-
-
-*/
-
-
 	for (nat i = 0; i < ins_count; i++) {
-		
-		for (nat t = 0; t < live_count; t++) 
-			if (live[t] == i) live[t] = 0;
-
-		if (instructions[i].begin == i) {
-
-			const nat spot = find_available(live, live_count);
-			if (spot == live_count) { puts("ran out of regs!"); abort(); }
-
-			live[spot] = instructions[i].end;
-			if (instructions[i].ph == uninit) instructions[i].ph = spot; 
-			else {
-				puts("found an already filled instruction ph!!!");
-				print_instruction(instructions[i], dictionary);
-				sleep(1);
+		if (instructions[i].ph != uninit) continue;
+		memset(live, 0, live_count * sizeof(nat));
+		for (nat i1 = 0; i1 < ins_count; i1++) {
+			bool conflict = 0;
+			if (instructions[i].end > instructions[i1].begin and instructions[i1].end > instructions[i].begin) {
+				conflict = 1;
 			}
+			if (instructions[i1].ph != uninit) live[instructions[i1].ph] = conflict;
 		}
+		const nat spot = find_available(live, live_count);
+		if (spot == live_count) { puts("internal error: ran out of regs! (fix me!)"); abort(); }
+		instructions[i].ph = spot;
 	}
-	printf("printing assignments...\n");
-	print_instructions(instructions, ins_count, dictionary);
+	if (debug) printf("printing assignments...\n");
+	if (debug) print_instructions(instructions, ins_count, dictionary);
 }
 
-static void format_register(
-	FILE* file, 
-	nat def, 
-	struct instruction* instructions, 
-	struct word* dictionary
-) {
-	printf("format_register: generating register with def_ins_index of %lld...\n", def);
-	print_instruction(instructions[def], dictionary);
-
-	const nat r = instructions[def].ph;
-	if (r == uninit) {
-		puts(red "internal error: format_register: register index is uninitialized." reset);
-		abort();
-	}
-
-	fprintf(file, "x%llu", r);
-}
 
 static void generate_operation(
 	const char* op_string, 
@@ -750,7 +719,7 @@ static void generate_operation(
 	struct instruction* instructions, 
 	struct word* dictionary
 ) {
-	print_instruction(ins, dictionary);
+	if (debug) print_instruction(ins, dictionary);
 	fprintf(file, "\t%s ", op_string);
 
 	fprintf(file, "x%llu", ins.ph); fprintf(file, ", ");
@@ -758,10 +727,28 @@ static void generate_operation(
 	fprintf(file, "x%llu", instructions[ins.defs[2]].ph); fprintf(file, "\n");	
 }
 
+
+static void generate_branch(
+	const char* condition_string, 
+	FILE* file,
+	struct instruction ins,
+	struct instruction* instructions, 
+	struct word* dictionary
+) {
+	const char* label = dictionary[ins.in[0]].name;
+	if (dictionary[ins.in[0]].value == uninit) {
+		puts("internal error: branch value was uninitialized: unknown branch...?");
+		abort();
+	}
+	const nat x = instructions[ins.defs[1]].ph;
+	const nat y = instructions[ins.defs[2]].ph;
+	fprintf(file, "\tcmp x%llu, x%llu\n", x, y);
+	fprintf(file, "\tb.%s L_%s\n", condition_string, label);
+}
+
 static void generate_loadi(
 	FILE* file, 
-	struct instruction ins, 
-	struct instruction* instructions, 
+	struct instruction ins,
 	struct word* dictionary
 ) {
 	const nat r = ins.ph;
@@ -779,7 +766,8 @@ static void generate_loadi(
 	uint16_t imm32 = (uint16_t) (raw >> 32);
 	uint16_t imm48 = (uint16_t) (raw >> 48);
 
-	if (not imm0) return;
+	// if (not imm0) return;                   ///TODO: use the zero register instead of the constant zero, when possible.
+
 	fprintf(file, "\tmovz ");
 	fprintf(file, "x%llu", r);
 	fprintf(file, ", 0x%hx\n", (uint16_t) imm0);
@@ -805,11 +793,11 @@ static void generate_assembly(
 	struct word* dictionary, nat dictionary_count, 
 	nat* labels, nat label_count
 ) {
-	printf("generating asm file...\n");
+	if (debug) printf("generating asm file...\n");
 	
 	if (not dictionary_count) {
-		printf(red "error: missing entry point label" reset "\n");
-		abort();
+		printf(compiler bold red "error: " reset bold "missing entry point label" reset "\n");
+		exit(1);
 	}
 
 	FILE* file = fopen("asm_output.s", "w");
@@ -820,14 +808,15 @@ static void generate_assembly(
 	.p2align 2\n", dictionary->name);
 	
 	for (nat i = 0; i < ins_count; i++) {
-
-		printf("generate_assembly: generating this \n");
-		print_instruction(instructions[i], dictionary);
+		
+		if (debug) printf("generate_assembly: generating this \n");
+		if (debug) print_instruction(instructions[i], dictionary);
 
 		for (nat l = 0; l < label_count; l++) {
 			if (dictionary[labels[l]].value == i) { 
-				printf("generating label for %s at %llu...\n", dictionary[labels[l]].name, i);
-				fprintf(file, "%s:\n", dictionary[labels[l]].name);
+				if (debug) printf("generating label for %s at %llu...\n", dictionary[labels[l]].name, i);
+				if (labels[l]) fprintf(file, "L_%s:\n", dictionary[labels[l]].name);
+				else fprintf(file, "%s:\n", dictionary[labels[l]].name);
 			}
 		}
 
@@ -835,21 +824,33 @@ static void generate_assembly(
 		nat in[7] = {0};
 		memcpy(in, instructions[i].in, 7 * sizeof(nat));
 
-		if (false) {}
-		else if (op == null_ins)	fprintf(file, "\tadd xzr, xzr, xzr\n");
-		else if (op == ecall) 		fprintf(file, "\tsvc 0x80\n");
+		if (not op) abort();
+		else if (op == ecall) fprintf(file, "\tsvc 0x80\n");
+		else if (op == loadi) generate_loadi(file, instructions[i], dictionary);
+
 		else if (op == add)   generate_operation("add", file, instructions[i], instructions, dictionary);
 		else if (op == _or)   generate_operation("orr", file, instructions[i], instructions, dictionary);
 		else if (op == _xor)  generate_operation("eor", file, instructions[i], instructions, dictionary);
 		else if (op == _and)  generate_operation("and", file, instructions[i], instructions, dictionary);
 		else if (op == sub)   generate_operation("sub", file, instructions[i], instructions, dictionary);
-		else if (op == mul)   generate_operation("mul", file, instructions[i], instructions, dictionary);
-		else if (op == loadi) generate_loadi(file, instructions[i], instructions, dictionary);
-		else printf("internal error: unknown instruction to generate: %llu\n", op);
+		else if (op == mul)   generate_operation("mul", file, instructions[i], instructions, dictionary);		
+
+		else if (op == bne)   generate_branch(    "ne", file, instructions[i], instructions, dictionary);
+		else if (op == beq)   generate_branch(    "eq", file, instructions[i], instructions, dictionary);
+		else if (op == blt)   generate_branch(    "lo", file, instructions[i], instructions, dictionary);
+		else if (op == bge)   generate_branch(    "hs", file, instructions[i], instructions, dictionary);
+		else if (op == blts)  generate_branch(    "lt", file, instructions[i], instructions, dictionary);
+		else if (op == bges)  generate_branch(    "ge", file, instructions[i], instructions, dictionary);
+	
+		else {
+			printf("internal error: unknown instruction to generate: %s : %llu\n", spelling[op], op);
+			abort();
+		}
 	}
+
 	fprintf(file, "\tmov x0, #37\n");
 	fprintf(file, "\tmov x16, #%u\n", SYS_exit);
-	fprintf(file, "\tsvc 0x80 ;generated\n");
+	fprintf(file, "\tsvc 0x80 ; temporary auto-generated exit syscall\n");
 	fprintf(file, ".subsections_via_symbols\n");
 	fclose(file);
 }
@@ -859,7 +860,6 @@ static void assign_ecall_registers(
 	struct word* dictionary,
 	nat* ecalls, nat ecall_count
 ) {
-
 	const nat system_call_registers[] = {0, 1, 2, 3, 4, 5, 16};
 
 	for (nat i = 0; i < ecall_count; i++) {
@@ -867,27 +867,27 @@ static void assign_ecall_registers(
 			if (instructions[instructions[ecalls[i]].defs[j]].ph != uninit) {
 				puts("internal error: conflict in assigning registers! already assigned reg must be moved...\n");
 				abort();
-			} else {
-				instructions[instructions[ecalls[i]].defs[j]].ph = system_call_registers[j];
-			}
-	
+
+			} else  instructions[instructions[ecalls[i]].defs[j]].ph = system_call_registers[j];
 		}
 	}
-	printf("printing results from ecall reg assignments: \n");
-	print_instructions(instructions, ins_count, dictionary);
+	if (debug) printf("printing results from ecall reg assignments: \n");
+	if (debug) print_instructions(instructions, ins_count, dictionary);
 }
 
 
 static void print_ecalls(nat* ecalls, nat ecall_count, struct instruction* instructions, struct word* dictionary) {
+	printf("printing list of ecalls found: \n");
 	for (nat i = 0; i < ecall_count; i++) {
 		printf("ecall #%llu   :  ", i);
 		print_instruction(instructions[ecalls[i]], dictionary);
 	}
+	printf("[end of ecall list]\n");
 }
 
 static void compile(char* text, const size_t count, const char* executable_name) {
 
-	printf("compile: text = \"%s\"\n", text);
+	if (debug) printf("compile: text = \"%s\"\n", text);
 	nat ins_count = 0;
 	struct instruction* instructions = NULL;
 	nat dictionary_count = 0;
@@ -895,24 +895,24 @@ static void compile(char* text, const size_t count, const char* executable_name)
 
 	parse(text, count, &instructions, &ins_count, &dictionary, &dictionary_count);
 
-	print_instructions(instructions, ins_count, dictionary);
-	print_dictionary(dictionary, dictionary_count);
+	if (debug) print_instructions(instructions, ins_count, dictionary);
+	if (debug) print_dictionary(dictionary, dictionary_count);
 
 	nat label_count = 0;
 	nat* labels = find_labels(dictionary, dictionary_count, &label_count);
-	print_labels(labels, label_count, dictionary);
+	if (debug) print_labels(labels, label_count, dictionary);
 
 	find_lifetimes(instructions, ins_count, dictionary, dictionary_count);
 
 	nat ecall_count = 0;
 	nat* ecalls = find_ecalls(instructions, ins_count, &ecall_count);
-	print_ecalls(ecalls, ecall_count, instructions, dictionary);
+	if (debug) print_ecalls(ecalls, ecall_count, instructions, dictionary);
 	
 	assign_ecall_registers(instructions, ins_count, dictionary, ecalls, ecall_count);
 	assign_registers(instructions, ins_count, dictionary);
 
 	generate_assembly(instructions, ins_count, dictionary, dictionary_count, labels, label_count);
-	system("cat asm_output.s");
+	if (debug) system("cat asm_output.s");
 
 	const char* assembler_string = "as -v asm_output.s -o object_output.o";
 	char linker_string[4096] = {0};
@@ -930,10 +930,10 @@ static void compile(char* text, const size_t count, const char* executable_name)
 		, dictionary->name, executable_name
 	);
 
-	puts(assembler_string);
+	if (debug) puts(assembler_string);
 	system(assembler_string);
-	system("objdump -D object_output.o");
-	puts(linker_string);
+	if (debug) system("objdump -D object_output.o");
+	if (debug) puts(linker_string);
 	system(linker_string);
 }
 
@@ -945,7 +945,7 @@ static void configure_terminal(void) {
 	tcsetattr(0, TCSAFLUSH, &copy);
 }
 
-static char* get_string(nat* out_length) {
+static char* get_string(const char* prompt, nat* out_length) {
 
 	struct winsize window = {0};
 
@@ -954,13 +954,15 @@ static char* get_string(nat* out_length) {
 	uint16_t* newlines = NULL;
 
 	size_t len = 0, capacity = 0, tab_count = 0, newline_count = 0;
-	uint16_t column = 0;
+	uint16_t column = (uint16_t) strlen(prompt);
 	char w = 0, p = 0, d = 0;
 
 	ioctl(0, TIOCGWINSZ, &window);
-	write(1, "\n", 1);
+
+	write(1, prompt, column);
 
 read:	read(0, &w, 1);
+	if (w == 27) goto next;
 	if (w == 127) goto delete;
 
 	if (w != 't' or p != 'r' or d != 'd') goto push;
@@ -1023,7 +1025,30 @@ next:	d = p;
 }
 
 static _Noreturn void repl(void) {
-	puts("a repl for my programming language.");
+	
+	const char* welcome_string = 
+
+		bold 
+		"{Unnamed Language} 0.0.1 2306283.211605 interpreter"   "\n"
+		"   Type \"helpdrt\" for more information." 
+		reset;
+
+
+	const char* help_string = 
+
+		bold 
+		"Help menu: " "\n"
+		"\t  " "(terminate all commands with \"drt\")" "\n"
+		"\t. " magenta "help: " reset "(you are here.)" "\n"
+		"\t. " cyan "quit: " reset "quit the interpreter." "\n"
+		"\t. " blue "dictionary: " reset "display the previous execution's dictionary." "\n"
+		"\t. " green "instructions: " reset "display the previous execution's instructions." "\n"
+		"\t. " red "reset: " reset "reset the instructions and dictionary to be empty." "\n"
+		"\t. " yellow "{expression}: " reset "self-contained code written in the language that will be run." "\n"
+		reset;
+
+	puts(welcome_string);
+
 	configure_terminal();
 
 	nat ins_count = 0;
@@ -1033,11 +1058,13 @@ static _Noreturn void repl(void) {
 
 loop:;
 	nat len = 0;
-	char* input = get_string(&len);
-	printf("\n\trecieved input(%llu): \n\n\t\t\"%s\"\n", len, input);
+	char* input = get_string(interpreter_prompt, &len);
+	puts("");
+	if (debug) printf("\n\trecieved input(%llu): \n\n\t\t\"%s\"\n", len, input);
 
 	if (not strcmp(input, "q") or not strcmp(input, "quit")) exit(0);
 	else if (not strcmp(input, "o") or not strcmp(input, "clear")) printf("\033[H\033[2J");
+	else if (not strcmp(input, "help")) puts(help_string);
 	else if (not strcmp(input, "dictionary")) print_dictionary(dictionary, dictionary_count);
 	else if (not strcmp(input, "instructions")) print_instructions(instructions, ins_count, dictionary);
 	else if (not strcmp(input, "reset")) {dictionary_count = 0; ins_count = 0;}
@@ -1839,6 +1866,120 @@ const nat ar = ;
 
 
 // instructions[instructions[ecalls[i]].defs[0]]     evaluate_ct(instructions, ins_count);
+
+
+
+
+
+
+
+
+
+
+	/*
+		this code doesnt respect the existing   premade colorings/assignments to nodes   that have already been done. 
+
+		beacause they occur later,  and thus, we don't see them, until its too late.  and theres already a conlict. 
+
+				we need to loop over all the nodes and check if there would be a conflict with another lifetime, before generating one as a particular target. if that register doesnt work, we should try another one instead. repeat until we find one that doesnt conflict with ANY lifetime of any variable in the execution state. 
+
+
+									...this is a      n^2 algorithm in the instruction count... 
+													bad.
+
+						hm
+
+
+
+	
+
+	
+			lets try it, until we find something better lol. 
+
+						why not. 
+
+			
+
+
+
+
+*/
+
+
+/*
+for (nat t = 0; t < live_count; t++) 
+			if (live[t] == i) live[t] = 0;
+
+		if (instructions[i].begin == i) {
+
+			const nat spot = find_available(live, live_count);
+			if (spot == live_count) { puts("ran out of regs!"); abort(); }
+
+			live[spot] = instructions[i].end;
+			if (instructions[i].ph == uninit) instructions[i].ph = spot; 
+			else {
+				puts("found an already filled instruction ph!!!");
+				print_instruction(instructions[i], dictionary);
+				sleep(1);
+			}
+		}
+*/
+
+
+
+
+
+
+
+
+
+/*
+static void format_register(
+	FILE* file, 
+	nat def, 
+	struct instruction* instructions, 
+	struct word* dictionary
+) {
+	printf("format_register: generating register with def_ins_index of %lld...\n", def);
+	print_instruction(instructions[def], dictionary);
+
+	const nat r = instructions[def].ph;
+	if (r == uninit) {
+		puts(red "internal error: format_register: register index is uninitialized." reset);
+		abort();
+	}
+
+	fprintf(file, "x%llu", r);
+}
+
+*/
+
+
+
+
+
+
+
+
+
+//puts("");
+			//printf("A: ");
+			//print_instruction(instructions[i], dictionary);
+			//printf("B: ");
+			//print_instruction(instructions[i1], dictionary);
+
+
+
+
+
+
+
+
+// static bool is_operation(nat b) { return b >= sll and b <= rems; }
+// static bool is_loadstore(nat b) { return b >= store1 and b <= load4s; }
+
+
+
 
 
 

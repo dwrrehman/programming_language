@@ -1,1 +1,24 @@
-pasta g1122334455667788 bubbles loadi 
+pasta 
+	g1122334455667788 bubbles loadi 
+
+	
+
+	0 i loadi a00000000001 max loadi   
+
+loop
+	a1 one loadi i i add  
+	max i loop bne
+	i i bubbles0 beq
+bubbles0
+	a24 returnvalue loadi
+	i i bubbles1 bge
+bubbles1
+	a24 returnvalue1 loadi
+	i i bubbles2 bges
+bubbles2
+	a24 returnvalue2 loadi
+	bubbles i bubbles3 blt
+bubbles3
+	a24 returnvalue2 loadi
+	bubbles i bubbles3 blts
+bubbles3

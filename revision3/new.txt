@@ -1,0 +1,14 @@
+foundation import
+
+	start
+		0 i loadi 
+		a1 1 loadi 
+
+		a01 max loadi
+
+		loop 	i debugprint    max i for
+
+
+		code   max debugprint   x 0 ifeq
+
+

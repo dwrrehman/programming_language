@@ -1,0 +1,20 @@
+start.here
+
+	loop
+
+	ebreak
+
+	a4    four    loadi 
+	a5 	five   loadi
+	
+	four five loop    blt
+
+	21 exit loadi
+	a24 return loadi
+	0 .-1 loadi
+	0 .-2 loadi
+	0 .-3 loadi
+	0 .-4 loadi
+	0 .-5 loadi
+	
+	exit .-5 .-4 .-3 .-2 .-1 return ecall
