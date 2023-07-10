@@ -8,31 +8,15 @@
 #include <fcntl.h>
 #include <sys/stat.h>
 #include <sys/mman.h>
-
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <fcntl.h>
-#include <unistd.h>
-#include <iso646.h>
-#include <stdbool.h>
 #include <stdint.h>
 #include <termios.h>
-#include <sys/types.h>
-#include <sys/ioctl.h>    
-
+#include <sys/ioctl.h>
 #include <sys/syscall.h>
 
-
-#define compiler 	"unnamed: "
-
-#define interpreter_prompt   ":ready: "
-
-
 typedef uint64_t nat;
+static const nat debug = 1;
 
-static const nat debug = 0;
-
+#define compiler  "unnamed: "
 
 #define red   	"\x1B[31m"
 #define green   "\x1B[32m"
@@ -43,9 +27,7 @@ static const nat debug = 0;
 #define bold    "\033[1m"
 #define reset 	"\x1B[0m"
 
-enum thing_type {
-	type_null, type_variable, type_label,
-};
+enum thing_type { type_null, type_variable, type_label };
 
 enum instruction_type {
 	null_ins,
@@ -195,6 +177,7 @@ static void print_instructions(struct instruction* instructions, nat ins_count, 
 static bool is(const char* thing, char* word, nat count) {
 	return count == strlen(thing) and not strncmp(word, thing, count);
 }
+
 
 static nat string_to_number(char* string, nat* length) {
 	nat radix = 0, value = 0;
@@ -377,7 +360,7 @@ static void execute(struct instruction* instructions, nat ins_count, struct word
 		
 		} else if (op == jalr) {
 			if (debug) printf("executing jalr (%llu) -> %llu]\n", in[0], in[1]);
-			variables[in[0]] = ip; ip = variables[in[1]];
+			variables[in[1]] = ip; ip = variables[in[0]];
 		}
 
 		else if (op == store1) {
@@ -548,6 +531,9 @@ static char* read_file(const char* filename, size_t* count) {
 	return text;
 }
 
+
+
+
 static void print_labels(nat* labels, nat label_count, struct word* dictionary) {
 	printf("found %llu labels: {", label_count);
 	for (nat i = 0; i < label_count; i++) {
@@ -663,23 +649,6 @@ static void find_lifetimes(struct instruction* instructions, nat ins_count, stru
 	}
 }
 
-
-/*
-static void evaluate_ct(struct instruction* instructions, nat ins_count) {
-	for (nat i = 0; i < ins_count; i++) {
-		const nat op = instructions[i].op;
-		if (op == ecall) continue;
-		for (nat j = 1; j < arity[op]; j++) {
-			if (not instructions[instructions[i].defs[j]].ct) {
-				goto not_ct;
-			}
-		}
-		instructions[i].ct = 1;
-		not_ct: continue;
-	}
-}
-*/
-
 static nat find_available(nat* array, nat count) {
 	for (nat i = 0; i < count; i++) {
 		if (not array[i]) return i;
@@ -711,7 +680,6 @@ static void assign_registers(struct instruction* instructions, nat ins_count, st
 	if (debug) print_instructions(instructions, ins_count, dictionary);
 }
 
-
 static void generate_operation(
 	const char* op_string, 
 	FILE* file,
@@ -726,7 +694,6 @@ static void generate_operation(
 	fprintf(file, "x%llu", instructions[ins.defs[1]].ph); fprintf(file, ", ");
 	fprintf(file, "x%llu", instructions[ins.defs[2]].ph); fprintf(file, "\n");	
 }
-
 
 static void generate_branch(
 	const char* condition_string, 
@@ -874,7 +841,6 @@ static void assign_ecall_registers(
 	if (debug) printf("printing results from ecall reg assignments: \n");
 	if (debug) print_instructions(instructions, ins_count, dictionary);
 }
-
 
 static void print_ecalls(nat* ecalls, nat ecall_count, struct instruction* instructions, struct word* dictionary) {
 	printf("printing list of ecalls found: \n");
@@ -1033,7 +999,6 @@ static _Noreturn void repl(void) {
 		"   Type \"helpdrt\" for more information." 
 		reset;
 
-
 	const char* help_string = 
 
 		bold 
@@ -1048,7 +1013,6 @@ static _Noreturn void repl(void) {
 		reset;
 
 	puts(welcome_string);
-
 	configure_terminal();
 
 	nat ins_count = 0;
@@ -1058,7 +1022,7 @@ static _Noreturn void repl(void) {
 
 loop:;
 	nat len = 0;
-	char* input = get_string(interpreter_prompt, &len);
+	char* input = get_string(":ready: ", &len);
 	puts("");
 	if (debug) printf("\n\trecieved input(%llu): \n\n\t\t\"%s\"\n", len, input);
 
@@ -1082,6 +1046,7 @@ int main(int argc, const char** argv) {
 	char* contents = read_file(filename, &count);
 	compile(contents, count, "executable_program.out");
 }
+
 
 
 
@@ -1980,6 +1945,269 @@ static void format_register(
 
 
 
+
+/*
+static void evaluate_ct(struct instruction* instructions, nat ins_count) {
+	for (nat i = 0; i < ins_count; i++) {
+		const nat op = instructions[i].op;
+		if (op == ecall) continue;
+		for (nat j = 1; j < arity[op]; j++) {
+			if (not instructions[instructions[i].defs[j]].ct) {
+				goto not_ct;
+			}
+		}
+		instructions[i].ct = 1;
+		not_ct: continue;
+	}
+}
+
+
+
+ls:
+--------
+
+
+asm_output.s
+build
+c.c
+executable_program.out
+object_output.o
+run
+run.dSYM
+tests
+
+
+
+
+
+
+
+build:
+--------------
+
+#!/bin/zsh
+
+if [ "release" = "$1" ]; then
+	clang -Weverything -Ofast c.c -o run
+
+
+elif [ "srelease" = "$1" ]; then
+	clang -Weverything -Os c.c -o run
+
+
+elif [ "clean" = "$1" ]; then
+	rm -rf run
+	rm -rf run.dSYM
+
+
+elif [ "" = "$1" ]; then 
+	clang -g -O0 -Weverything -Wno-declaration-after-statement -Wno-poison-system-directories -fsanitize=address,undefined c.c -o run -ferror-limit=4
+
+else 
+	echo "build: unknown target: $1"
+fi
+
+
+
+
+
+
+
+tests/test0.txt:
+
+pasta 
+	g1122334455667788 bubbles loadi 
+
+	0 i loadi a00000000001 max loadi   
+
+loop
+	a1 one loadi i i add  
+	max i loop bne
+	i i bubbles0 beq
+bubbles0
+	a24 returnvalue loadi
+	i i bubbles1 bge
+bubbles1
+	a24 returnvalue1 loadi
+	i i bubbles2 bges
+bubbles2
+	a24 returnvalue2 loadi
+	bubbles i bubbles3 blt
+bubbles3
+	a24 returnvalue2 loadi
+	bubbles i bubbles3 blts
+bubbles3
+
+
+
+
+
+c setzero
+
+(c < a) {
+	c increment
+}
+
+
+
+i setzero
+
+(i < b) {
+	i increment 
+	c increment
+}
+
+
+
+
+
+
+
+
+		8
+			r r r sll
+			r r r srl
+			r r r sra
+			r r r add
+			r r r xor
+			r r r and
+			r r r or
+			r r r sub
+		7
+			r r r mul
+			r r r mhs
+			r r r mhsu
+			r r r div
+			r r r rem
+			r r r divs
+			r r r rems
+		8
+			r r l blt
+			r r l bge
+			r r l blts
+			r r l bges
+			r r l bne
+			r r l beq
+			r l jal
+			r r jalr
+		12
+			r r store1
+			r r store2
+			r r store4
+			r r store8
+			r r load1
+			r r load2
+			r r load4
+			r r load8
+			r r load1s
+			r r load2s
+			r r load4s
+			i r loadi
+		2
+			ecall
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+load r -> r            load (size) r  ->  r
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+		a2 syswrite loadi
+		
+
+
+		... blt
+
+		
+		a1 one loadi character one syswrite ecall
+
+	
+
+							 one character one syswrite ecall
+
+
+
+
+
+
+main:
+
+...
+
+
+label:
+	linkerio my_function jal
+_2:	...more_stuff...
+
+	garbage savethisplease jalr
+_5:	...
+	...notexecuted...
+
+
+
+
+
+
+my_function:
+	...stuff...
+	savethisplease linkerio jalr
+_4:	....even_more_stuff...
+	...
+	...
+	..		
+
+
+
+
+
+
+*/
+
+
+
+/*
+a print b print a b c add c print
+
+a print b print c add print
+
+label: a print [goto label2]
+label2: b print [goto label3]
+label3: a b c add [goto label4]
+label4: c print [goto label5]
+label5:
+
+0: c
+1: b
+2: a
+3: -
+3: -
+...
+31: -
+*/
 
 
 

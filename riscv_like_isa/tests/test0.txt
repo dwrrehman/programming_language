@@ -22,3 +22,30 @@ bubbles3
 	a24 returnvalue2 loadi
 	bubbles i bubbles3 blts
 bubbles3
+
+
+
+
+
+
+
+
+
+	0 zero loadi
+
+
+
+
+
+	zero source dest add
+
+bubbles0
+	zero zero garbage add
+	i i bubbles0 beq
+
+
+
+
+
+
+

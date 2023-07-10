@@ -34,7 +34,5 @@ L_bubbles3:
 	movz x0, 0x2a
 	cmp x1, x0
 	b.lt L_bubbles3
-	mov x0, #37
-	mov x16, #1
-	svc 0x80 ; temporary auto-generated exit syscall
-.subsections_via_symbols
+	movz x0, 0x0
+	add x2, 
