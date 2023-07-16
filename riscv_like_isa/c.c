@@ -533,7 +533,6 @@ static char* read_file(const char* filename, size_t* count) {
 
 
 
-
 static void print_labels(nat* labels, nat label_count, struct word* dictionary) {
 	printf("found %llu labels: {", label_count);
 	for (nat i = 0; i < label_count; i++) {

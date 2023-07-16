@@ -13,19 +13,17 @@
 #include <sys/ioctl.h>
 #include <sys/syscall.h>
 /*	ISA:	
-
 	w increment
 	w setzero
-	l systemcall
+	w w l branch
 	w w l store
 	w w l load
-	w w l branch
-	w w l jump
+	l systemcall
 */
 typedef uint64_t nat;
-static const nat debug = 1;
+static const nat debug = 0;
 
-// #define compiler  "unnamed: "
+#define compiler  "unnamed: "
 
 #define lightblue "\033[38;5;67m"
 #define red   	"\x1B[31m"
@@ -38,13 +36,13 @@ static const nat debug = 1;
 #define reset 	"\x1B[0m"
 
 
-enum thing_type { type_null, type_variable, type_label };
+enum thing_type { type_null, type_variable, type_label, type_macro };
 
-enum instruction_type { null, increment, setzero, branch, jump, store, load, systemcall, debughex, isa_count };
-static const nat arity[] = { 0, 1, 1, 3, 3, 3, 3, 1, 1 };
-static const char* ins_color[] = { "", green, red, cyan, blue, yellow, magenta, bold, "" };
-static const char* spelling[] = {
-	"null", "increment", "setzero", "branch", "jump", "store", "load", "systemcall", "debughex"
+enum instruction_type { null, increment, setzero, branch, store, load, systemcall, debughex, isa_count };
+static const nat arity[isa_count] = { 0, 1, 1, 3, 3, 3, 1, 1 };
+static const char* ins_color[isa_count] = { "", green, red, cyan, yellow, magenta, bold, "" };
+static const char* spelling[isa_count] = {
+	"null", "increment", "setzero", "branch", "store", "load", "systemcall", "debughex"
 };
 
 struct instruction {
@@ -67,13 +65,14 @@ struct word {
 	nat file_location;
 };
 
-static const nat arm64_register_count = 31;
+// static const nat arm64_register_count = 31;
 static const nat uninit = (nat) ~0;
 
 static const char* spell_type(nat t) { 
 	if (t == type_null) return "{null_type}";
 	if (t == type_label)  return cyan "label" reset;
 	if (t == type_variable)  return green "variable" reset;
+	if (t == type_macro)  return yellow "macro" reset;
 	return "unknown";
 }
 
@@ -141,11 +140,16 @@ static bool is(const char* thing, char* word, nat count) {
 
 static void ins(nat op, nat* arguments, struct word* dictionary, struct instruction** instructions, nat* ins_count, nat start) {
 
-	if (op == branch or op == jump) {
-		if (	dictionary[*arguments].type == type_label 	and 
-			dictionary[*arguments].value == *ins_count) 
-			dictionary[*arguments].value = uninit;
-	} else for (nat i = 0; i < arity[op]; i++) dictionary[arguments[i]].type = type_variable;
+	if (op == branch or op == load or op == store) {
+		if (dictionary[arguments[0]].type == type_label and dictionary[*arguments].value == *ins_count) dictionary[*arguments].value = uninit;
+		if (dictionary[arguments[0]].type != type_label) { printf("bad br arg0 label :%llu\n", dictionary[arguments[0]].file_location); getchar(); }
+		if (dictionary[arguments[1]].type != type_variable) { printf("bad br arg1 var :%llu\n", dictionary[arguments[1]].file_location); getchar(); }
+		if (dictionary[arguments[2]].type != type_variable) { printf("bad br arg2 var :%llu\n", dictionary[arguments[2]].file_location); getchar(); }
+
+	}
+	else if (op == setzero) dictionary[*arguments].type = type_variable;
+	else if (op == increment) {   if (dictionary[*arguments].type != type_variable) { printf("bad incr arg0 var :%llu\n", dictionary[arguments[0]].file_location); getchar(); } } 
+	else if (op == systemcall) {  if (dictionary[*arguments].type != type_label)    { printf("bad syscall arg0 label :%llu\n", dictionary[arguments[0]].file_location); getchar(); } } 
 
 	struct instruction new = {
 		.op = op,
@@ -167,22 +171,25 @@ static void push_argument(nat argument, nat* arguments) {
 	*arguments = argument;
 }
 
-static void process_syscall(nat a0, nat a1, nat a2, nat a3, nat a4, nat a5, nat n, nat* variables) {
-	nat r0 = variables[a0], r1 = variables[a1], r2 = variables[a2], r3 = variables[a3], r4 = variables[a4], r5 = variables[a5];
+static void process_syscall(nat n, nat* variables) {
+	nat r0 = variables[0], r1 = variables[1], r2 = variables[2], r3 = variables[3], r4 = variables[4], r5 = variables[5];
 	printf(green "SYSCALL (NR=%llu): {%llu %llu %llu %llu %llu %llu}" reset "\n" , n, r0, r1, r2, r3, r4, r5);
 
 	if (n == 1) exit((int) r0);
-	if (n == 2) variables[a0] = (nat) fork();
-	if (n == 3) variables[a0] = (nat) read((int) r0, (void*) r1, r2);
-	if (n == 4) variables[a0] = (nat) write((int) r0, (void*) r1, r2);
-	if (n == 5) variables[a0] = (nat) open((const char*) r0, (int) r1, r2);
-	if (n == 6) variables[a0] = (nat) close((int) r0);
-	if (n == 7) variables[a0] = (nat) (void*) mmap((void*) r0, r1, (int) r2, (int) r3, (int) r4, (long long) r5);
-	if (n == 8) variables[a0] = (nat) munmap((void*) r0, r1);
+	if (n == 2) *variables = (nat) fork();
+	if (n == 3) *variables = (nat) read((int) r0, (void*) r1, r2);
+	if (n == 4) *variables = (nat) write((int) r0, (void*) r1, r2);
+	if (n == 5) *variables = (nat) open((const char*) r0, (int) r1, r2);
+	if (n == 6) *variables = (nat) close((int) r0);
+	if (n == 7) *variables = (nat) (void*) mmap((void*) r0, r1, (int) r2, (int) r3, (int) r4, (long long) r5);
+	if (n == 8) *variables = (nat) munmap((void*) r0, r1);
 }
 
 static void execute(struct instruction* instructions, nat ins_count, struct word* dictionary) {
-	if (debug) print_instructions(instructions, ins_count, dictionary);
+	if (debug) {
+		printf("executing these instructions: \n");
+		print_instructions(instructions, ins_count, dictionary);
+	}
 
 	static nat variables[4096] = {0};
 	*variables = (nat)(void*) malloc(65536);
@@ -215,20 +222,7 @@ static void execute(struct instruction* instructions, nat ins_count, struct word
 				ip = dictionary[in[0]].value - 1;
 
 
-		} else if (op == jump) {
-			if (debug) printf("executing jalr (%llu) -> %llu]\n", in[0], in[1]);
-			if (debug) printf("executing jalr -> @%llu (%llu) \n", in[0], dictionary[in[1]].value);
-			if (dictionary[in[0]].value == (size_t) -1) { 
-				puts(red "internal error: unspecified label in branch" reset); 
-				goto halt; 
-			}
-			variables[in[1]] = ip; 
-
-
-			ip = dictionary[in[0]].value - 1;
-		//or
-			ip = variables[in[0]];
-
+		
 
 		} else if (op == store) {
 			if (debug) printf("executed store: *(%llu) = %llu\n", in[0], in[1]);
@@ -248,14 +242,13 @@ static void execute(struct instruction* instructions, nat ins_count, struct word
 
 		} else if (op == systemcall) {
 			if (debug) printf("executed ecall: { #%llu] }\n", in[0]);
-			process_syscall(in[0], 0,0,0,0,0,0, variables);
+			process_syscall(in[0], variables);
 
 		} else if (op == debughex) {
 			if (debug) printf("executed hex: %llu\n", in[0]);
 			printf(green "debug: %llx" reset "\n", variables[in[0]]);
 		
 
-	
 		} else {
 			printf("internal error: execute: unexpected instruction: %llu\n", op);
 			abort();
@@ -263,6 +256,18 @@ static void execute(struct instruction* instructions, nat ins_count, struct word
 	}
 halt: 	if (debug) puts(green "[finished execution]" reset);
 }
+
+
+
+
+// static bool comment = false;
+
+static nat macro = 0;
+static nat addresses[1024] = {0};
+static nat stack[1024] = {0};
+static nat stack_pointer = 0;
+static nat base_pointer = 0;
+
 
 
 
@@ -279,8 +284,7 @@ static void parse(
 	nat ins_count = *out_ins_count;
 
 	nat count = 0, start = 0;
-	bool comment = false;
-
+	
 	for (nat index = 0; index < length; index++) {
 		if (not isspace(string[index])) { 
 			if (not count) start = index;
@@ -288,8 +292,28 @@ static void parse(
 		} else if (not count) continue;
 
 		process_word:; char* word = string + start;
-		if (is("note", word, count)) { comment = not comment; goto done; }
-		if (comment) goto done;
+
+	//	if (is("note", word, count)) { comment = not comment; goto next; }
+	//	if (comment) goto next;
+
+		if (macro) {
+			if (is("[", word, count)) macro++;
+			if (is("]", word, count)) macro--;
+			goto next;
+
+		} else if (is("[", word, count)) { 
+			dictionary[*arguments].type = type_macro; 
+			addresses[*arguments] = index; 
+			macro++; 
+			goto next; 
+
+		} else if (is("]", word, count)) { 
+			if (not stack_pointer) { printf("error: end not in macro\n"); abort(); }
+			stack_pointer = base_pointer;
+			index = stack[--stack_pointer];
+			base_pointer = stack[--stack_pointer];
+			goto next;
+		}
 
 		bool found = false;
 		for (nat i = null; i < isa_count; i++) {
@@ -306,12 +330,20 @@ static void parse(
 				if (debug) printf("[DEFINED]    ");
 				if (debug) print_word(dictionary[d]);
 
-				push_argument(d, arguments);
-				if (	dictionary[*arguments].type == type_label 	and
-					dictionary[*arguments].value == uninit
-				) 	dictionary[*arguments].value = ins_count;
+				if (addresses[d]) {
+					stack[stack_pointer++] = base_pointer; 
+					stack[stack_pointer++] = index;
+					base_pointer = stack_pointer;
+					index = addresses[d];
+					goto next;
+				}
 
-				goto done;
+				push_argument(d, arguments);
+
+				if (dictionary[d].type == type_label and dictionary[d].value == uninit)
+					dictionary[d].value = ins_count;
+
+				goto next;
 			}
 
 			push_argument(dictionary_count, arguments);
@@ -328,10 +360,10 @@ static void parse(
 
 			if (debug) printf("[not defined]  -->  assuming  ");
 			if (debug) print_word(dictionary[dictionary_count - 1]);
-			goto done;
+			goto next;
 		}
 		if (debug) { if (ins_count) print_instruction(instructions[ins_count - 1], dictionary); } 
-		done: count = 0;
+		next: count = 0;
 	}
 	if (count) goto process_word;
 
@@ -339,6 +371,26 @@ static void parse(
 	*out_dictionary_count = dictionary_count;
 	*out_instructions = instructions;
 	*out_ins_count = ins_count;
+}
+
+static char* read_file(const char* filename, size_t* count) {
+	FILE* file = fopen(filename, "r");
+	if (not file) {
+		fprintf(stderr, compiler bold red "error:" reset bold " ");
+		perror(filename);
+		fprintf(stderr, reset);
+		exit(1);
+	}
+
+	fseek(file, 0, SEEK_END);
+        *count = (size_t) ftell(file); 
+	char* text = calloc(*count + 1, 1);
+        fseek(file, 0, SEEK_SET); 
+	fread(text, 1, *count, file);
+	fclose(file); 
+
+	if (debug) printf("info: file \"%s\": read %lu bytes\n", filename, *count);
+	return text;
 }
 
 static _Noreturn void repl(void) {
@@ -365,17 +417,18 @@ static _Noreturn void repl(void) {
 		"\t     " lightblue "w w l " bold cyan "branch" reset "\n"
 		"\t     " lightblue "w w l " bold blue "jump" reset "\n"
 		;
-		
-
+	
 	puts(welcome_string);
 
+	char input[1024] = {0};
+	nat arguments[32] = {0};
 	nat ins_count = 0;
 	struct instruction* instructions = NULL;
 	nat dictionary_count = 0;
-	struct word* dictionary = NULL;
-	nat arguments[32] = {0};
-
-	char input[1024] = {0};
+	struct word* dictionary = calloc(3, sizeof(struct word));
+	dictionary[dictionary_count++] = (struct word) { .name = "s000", .length = 4, .type = type_variable, .def = uninit };
+	dictionary[dictionary_count++] = (struct word) { .name = "arg1", .length = 4, .type = type_variable, .def = uninit };
+	dictionary[dictionary_count++] = (struct word) { .name = "arg2", .length = 4, .type = type_variable, .def = uninit };
 
 loop:
 	printf(":%llu:%llu: ", dictionary_count, ins_count);
@@ -398,9 +451,208 @@ loop:
 }
 
 int main(int argc, const char** argv) {
-	if (argc <= 1) repl(); else exit(1);
-	
+	if (argc < 2) repl(); 
+
+	nat arguments[32] = {0};
+	nat ins_count = 0;
+	struct instruction* instructions = NULL;
+	nat dictionary_count = 0;
+	struct word* dictionary = calloc(3, sizeof(struct word));
+	dictionary[dictionary_count++] = (struct word) { .name = "s000", .length = 4, .type = type_variable, .def = uninit };
+	dictionary[dictionary_count++] = (struct word) { .name = "arg1", .length = 4, .type = type_variable, .def = uninit };
+	dictionary[dictionary_count++] = (struct word) { .name = "arg2", .length = 4, .type = type_variable, .def = uninit };
+
+	size_t count = 0;
+	char* text = read_file(argv[1], &count);
+	parse(text, count, &instructions, &ins_count, &dictionary, &dictionary_count, arguments);
+	execute(instructions, ins_count, dictionary); 
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+/*
+
+note 
+	first code with macros ever!
+note
+
+bubbles setzero 
+mr define increment increment increment end
+dr define mr mr mr mr end
+tr define increment end
+bubbles dr dr dr dr
+
+	i setzero 
+
+loop 
+	i tr
+	debughex
+	bubbles i loop branch
+
+
+*/
+
+
+
+
+
+
+
+
+
+
+
+
+/*
+	else if (include) {
+		size_t file_length = 0;
+		char* file = read_file(w, &file_length);
+		if (not file) abort();
+		file_stack[file_stack_count++] = (struct file_frame) {
+			.file = file, 
+			.file_length = file_length, 
+			.F_index = 0, 
+			.F_begin = 0
+		};
+		include = false;
+		goto advance;
+
+
+
+	} else if (macro) {
+		if (equal(w, "define")) macro++; 
+		if (equal(w, "endmacro")) macro--; 
+		goto advance;
+
+
+	} else if (equal(w, "endmacro")) {
+		if (not stack_pointer) { printf("cannot ret! endmacro not in macro!\n"); abort(); }
+		stack_pointer = base_pointer;
+		word_pc = stack[--stack_pointer];
+		base_pointer = stack[--stack_pointer];
+		goto advance;
+	} 
+
+
+	else if (equal(w, "callsave")) { save[15] = _[0]; }
+	else if (equal(w, "include")) include = 1;
+	else if (equal(w, "define")) { 
+		addresses[*_] = word_pc; 
+		macro++;
+	}
+
+	else if (equal(w, "call")) {
+		stack[stack_pointer++] = base_pointer;
+		stack[stack_pointer++] = word_pc;
+		base_pointer = stack_pointer;
+		word_pc = addresses[save[15]];
+		goto advance;
+	}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+	else if (equal(w, "gensym")) { 
+
+		nat name = 0; 
+		nat open = name_count;
+
+		while (name < name_count) {
+			if (names[name]) {
+			} else if (open == name_count) open = name;
+			name++;
+		}
+
+		if (open == name_count) name_count++;
+		names[open] = strdup("");
+		name = open;
+
+		nat i = sizeof _ / sizeof(nat) - 1;
+		while (i) { _[i] = _[i - 1]; i--; } *_ = name;
+	}
+
+
+
+
+
+*/
+
+
+
+
+
+
+
+
+
+
+
+
+
+/* 
+
+   ------------ ret ----------
+
+	sp = bp
+	wpc = stack[--sp]
+	bp = sp[--bp]
+
+
+------------- call -----------
+
+	stack[sp++] = bp
+	stack[sp++] = word_pc;
+	bp = sp
+
+
+*/
+
+
+
+
+
+
+
 
 
 
@@ -568,8 +820,46 @@ next:	d = p;
 	w w l store
 	w w l load
 	w w l branch
-	w w l jump
+	w w l jump 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+} else if (op == jump) {
+			if (debug) printf("executing jalr (%llu) -> %llu]\n", in[0], in[1]);
+			if (debug) printf("executing jalr -> @%llu (%llu) \n", in[0], dictionary[in[1]].value);
+			if (dictionary[in[0]].value == (size_t) -1) { 
+				puts(red "internal error: unspecified label in branch" reset); 
+				goto halt; 
+			}
+			variables[in[1]] = ip;
+			ip = dictionary[in[0]].value - 1;
+			ip = variables[in[0]];
+			abort();
 
 
 
