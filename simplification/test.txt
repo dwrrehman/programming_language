@@ -4,7 +4,7 @@
 	< [ branch ]
 	out [ debughex ]
 
-	+= [ 
+	+ [ 
 		i =
 	l 	B i a <
 		1 0 r <
@@ -18,12 +18,13 @@
 		this is a comment! i think its pretty cool lol. i like it alot. yay. 
 	]
 
+
 0 =
 1 = .
 A = . . . . . . . . . . . . . . . . . 
 B = . . . . . . .
 
-+= 
++ 
 
 A out
 

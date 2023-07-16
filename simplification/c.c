@@ -257,19 +257,11 @@ static void execute(struct instruction* instructions, nat ins_count, struct word
 halt: 	if (debug) puts(green "[finished execution]" reset);
 }
 
-
-
-
-// static bool comment = false;
-
 static nat macro = 0;
 static nat addresses[1024] = {0};
 static nat stack[1024] = {0};
 static nat stack_pointer = 0;
 static nat base_pointer = 0;
-
-
-
 
 static void parse(
 	char* string, nat length, 
@@ -277,14 +269,11 @@ static void parse(
 	struct word** out_dictionary, nat* out_dictionary_count,
 	nat* arguments
 ) {
-
 	struct word* dictionary = *out_dictionary;
 	nat dictionary_count = *out_dictionary_count;
 	struct instruction* instructions = *out_instructions;
 	nat ins_count = *out_ins_count;
-
 	nat count = 0, start = 0;
-	
 	for (nat index = 0; index < length; index++) {
 		if (not isspace(string[index])) { 
 			if (not count) start = index;
@@ -292,10 +281,6 @@ static void parse(
 		} else if (not count) continue;
 
 		process_word:; char* word = string + start;
-
-	//	if (is("note", word, count)) { comment = not comment; goto next; }
-	//	if (comment) goto next;
-
 		if (macro) {
 			if (is("[", word, count)) macro++;
 			if (is("]", word, count)) macro--;
@@ -319,51 +304,42 @@ static void parse(
 		for (nat i = null; i < isa_count; i++) {
 			if (is(spelling[i], word, count)) {
 				ins(i, arguments, dictionary, &instructions, &ins_count, index);
-				found = true;
-			}
-		}
-
-		if (not found) {
-			for (nat d = 0; d < dictionary_count; d++) {
-				if (dictionary[d].length != count or strncmp(dictionary[d].name, word, count)) continue;
-
-				if (debug) printf("[DEFINED]    ");
-				if (debug) print_word(dictionary[d]);
-
-				if (addresses[d]) {
-					stack[stack_pointer++] = base_pointer; 
-					stack[stack_pointer++] = index;
-					base_pointer = stack_pointer;
-					index = addresses[d];
-					goto next;
-				}
-
-				push_argument(d, arguments);
-
-				if (dictionary[d].type == type_label and dictionary[d].value == uninit)
-					dictionary[d].value = ins_count;
-
+				if (debug) { if (ins_count) print_instruction(instructions[ins_count - 1], dictionary); } 
 				goto next;
 			}
-
-			push_argument(dictionary_count, arguments);
-			dictionary = realloc(dictionary, sizeof(struct word) * (dictionary_count + 1));
-
-			dictionary[dictionary_count++] = (struct word) {
-				.name = strndup(word, count), 
-				.length = count, 
-				.type = type_label,
-				.value = ins_count,
-				.def = uninit,
-				.file_location = start + count
-			};
-
-			if (debug) printf("[not defined]  -->  assuming  ");
-			if (debug) print_word(dictionary[dictionary_count - 1]);
+		}
+		for (nat d = 0; d < dictionary_count; d++) {
+			if (dictionary[d].length != count or strncmp(dictionary[d].name, word, count)) continue;
+			if (debug) printf("[DEFINED]    ");
+			if (debug) print_word(dictionary[d]);
+			if (addresses[d]) {
+				stack[stack_pointer++] = base_pointer; 
+				stack[stack_pointer++] = index;
+				base_pointer = stack_pointer;
+				index = addresses[d];
+				goto next;
+			}
+			push_argument(d, arguments);
+			if (dictionary[d].type == type_label and dictionary[d].value == uninit)
+				dictionary[d].value = ins_count;
 			goto next;
 		}
-		if (debug) { if (ins_count) print_instruction(instructions[ins_count - 1], dictionary); } 
-		next: count = 0;
+
+		push_argument(dictionary_count, arguments);
+		dictionary = realloc(dictionary, sizeof(struct word) * (dictionary_count + 1));
+
+		dictionary[dictionary_count++] = (struct word) {
+			.name = strndup(word, count), 
+			.length = count, 
+			.type = type_label,
+			.value = ins_count,
+			.def = uninit,
+			.file_location = start + count
+		};
+
+		if (debug) printf("[not defined]  -->  assuming  ");
+		if (debug) print_word(dictionary[dictionary_count - 1]);
+	next: 	count = 0;
 	}
 	if (count) goto process_word;
 
@@ -411,11 +387,10 @@ static _Noreturn void repl(void) {
 		"ISA:" "\n"
 		"\t     " lightblue "w " bold green "increment" reset "\n"
 		"\t     " lightblue "w " bold red "setzero" reset "\n"
-		"\t     " lightblue "l " reset bold "systemcall" reset "\n"
+		"\t     " lightblue "w w l " bold cyan "branch" reset "\n"
 		"\t     " lightblue "w w l " bold yellow "store" reset "\n"
 		"\t     " lightblue "w w l " bold magenta "load" reset "\n"
-		"\t     " lightblue "w w l " bold cyan "branch" reset "\n"
-		"\t     " lightblue "w w l " bold blue "jump" reset "\n"
+		"\t     " lightblue "l " reset bold "systemcall" reset "\n"
 		;
 	
 	puts(welcome_string);
@@ -425,7 +400,8 @@ static _Noreturn void repl(void) {
 	nat ins_count = 0;
 	struct instruction* instructions = NULL;
 	nat dictionary_count = 0;
-	struct word* dictionary = calloc(3, sizeof(struct word));
+	struct word* dictionary = calloc(4, sizeof(struct word));
+	dictionary[dictionary_count++] = (struct word) { .name = "pc00", .length = 4, .type = type_variable, .def = uninit };
 	dictionary[dictionary_count++] = (struct word) { .name = "s000", .length = 4, .type = type_variable, .def = uninit };
 	dictionary[dictionary_count++] = (struct word) { .name = "arg1", .length = 4, .type = type_variable, .def = uninit };
 	dictionary[dictionary_count++] = (struct word) { .name = "arg2", .length = 4, .type = type_variable, .def = uninit };
@@ -457,7 +433,8 @@ int main(int argc, const char** argv) {
 	nat ins_count = 0;
 	struct instruction* instructions = NULL;
 	nat dictionary_count = 0;
-	struct word* dictionary = calloc(3, sizeof(struct word));
+	struct word* dictionary = calloc(4, sizeof(struct word));
+	dictionary[dictionary_count++] = (struct word) { .name = "pc00", .length = 4, .type = type_variable, .def = uninit };
 	dictionary[dictionary_count++] = (struct word) { .name = "s000", .length = 4, .type = type_variable, .def = uninit };
 	dictionary[dictionary_count++] = (struct word) { .name = "arg1", .length = 4, .type = type_variable, .def = uninit };
 	dictionary[dictionary_count++] = (struct word) { .name = "arg2", .length = 4, .type = type_variable, .def = uninit };
@@ -861,6 +838,9 @@ next:	d = p;
 			ip = variables[in[0]];
 			abort();
 
+
+	//	if (is("note", word, count)) { comment = not comment; goto next; }
+	//	if (comment) goto next;
 
 
 */
