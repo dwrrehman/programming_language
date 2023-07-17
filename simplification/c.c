@@ -288,6 +288,8 @@ static nat count = 0;
 static nat stack_pointer = 0;
 
 static nat stack[4096] = {0};
+static nat return_start[4096] = {0};
+static nat return_count[4096] = {0};
 
 static void parse(
 	char* string, nat length, nat starting_index,
@@ -310,19 +312,27 @@ static void parse(
 
 		process_word:; 
 
-		char*const word = 	string + start;
-		char*const delimiter = string + delimiter_start;
-		char*const previous = string + previous_start;
+		char* const word       = string + start;
+		char* const delimiter  = string + delimiter_start;
+		char* const previous   = string + previous_start;
+		char* const returnw    = stack_pointer ? string + return_start[stack_pointer - 1] : NULL;
 
 		if (macro) {
 			if (count == delimiter_count and not memcmp(word, delimiter, count)) {
-				if (debug) printf("MACRO: inside macro definition, found end of defintion! %s\n", 
-						strndup(delimiter, count));
+				if (debug) printf("MACRO: inside macro definition, found end of defintion! %s\n", strndup(delimiter, count));
 				macro = 0; count = 0; delimiter_count = 0;
 			} goto next;
 
-		} else if (is("39gnp3d4u15fg2wc", word, count)) { count = 0; goto push_new; }
+		} else if (is("fmgx6srl95ywtuan", word, count)) { argument_count--; goto next; }
+		  else if (is("6drwb5t2epv1ax4k", word, count)) { count = 0; goto push_new; }
 
+		  else if (is("hnav2gtf4bixkyuc", word, count)) { arguments[argument_count] = arguments[argument_count - 1]; argument_count++; goto next; }
+		  else if (is("nze1942qpht7dmcg", word, count)) { arguments[argument_count] = arguments[argument_count - 2]; argument_count++; goto next; }
+		  else if (is("3ba4te1ulnh26g0v", word, count)) { arguments[argument_count] = arguments[argument_count - 3]; argument_count++; goto next; }
+		  else if (is("rfph6jaw3diels2m", word, count)) { arguments[argument_count] = arguments[argument_count - 4]; argument_count++; goto next; }
+		  else if (is("n3oehasx4rv5iz06", word, count)) { arguments[argument_count] = arguments[argument_count - 5]; argument_count++; goto next; }
+		  else if (is("wgxzcp5o81yinebd", word, count)) { arguments[argument_count] = arguments[argument_count - 6]; argument_count++; goto next; }
+		
 		for (nat i = null; i < isa_count; i++) {
 			if (is(spelling[i], word, count)) {
 				ins(i, arguments, argument_count, dictionary, &instructions, &ins_count, index);
@@ -331,41 +341,44 @@ static void parse(
 			}
 		}
 
-		if (count == previous_count and not memcmp(word, previous, count)) {
+		if (stack_pointer and count == return_count[stack_pointer - 1] and not memcmp(word, returnw, count)) { 
+			if (debug) printf("MACRO: executing return statement for macro! %s\n", strndup(returnw, count));
+			index = stack[--stack_pointer]; 
+			count = 0; 
+			goto next;
+		}
+
+		else if (count == previous_count and not memcmp(word, previous, count)) {
 			if (debug) printf("MACRO: encountered macro definition! %s\n", strndup(previous, count));
 			dictionary[arguments[argument_count - 1]].type = type_macro;
 			dictionary[arguments[argument_count - 1]].address = index;
 			macro = 1;
-		set_delim:
 			delimiter_start = start;
 			delimiter_count = count; 
 			goto next;
 
-		} else if (count == delimiter_count and not memcmp(word, delimiter, count)) { 
-			if (debug) printf("MACRO: executing return statement for macro! %s\n", strndup(delimiter, count));
-			index = stack[--stack_pointer];
-			delimiter_count = 0; count = 0;
-			goto next;
-		}
+		} 
 
 		for (nat d = 0; d < dictionary_count; d++) {
 			if (dictionary[d].length != count or strncmp(dictionary[d].name, word, count)) continue;
 			if (debug) printf("[DEFINED]    ");
 			if (debug) print_word(dictionary[d]);
-			if (dictionary[d].address) {
+			if (dictionary[d].address and dictionary[d].type == type_macro) {
 				if (debug) printf("MACRO: calling macro! %s\n", dictionary[d].name);
-				stack[stack_pointer++] = index;
+				if (stack_pointer >= 4096) { puts("stack overflow"); abort(); } 
+				stack[stack_pointer] = index;
+				return_start[stack_pointer] = start;
+				return_count[stack_pointer++] = count;
 				index = dictionary[d].address;
-				goto set_delim;
+				count = 0;
+				goto next;
 			}
 			arguments[argument_count++] = d;
 			if (dictionary[d].type == type_label and dictionary[d].value == uninit)
 				dictionary[d].value = ins_count;
 			goto next;
 		}
-
-		push_new:
-		arguments[argument_count++] = dictionary_count;
+		push_new: arguments[argument_count++] = dictionary_count;
 		dictionary = realloc(dictionary, sizeof(struct word) * (dictionary_count + 1));
 
 		dictionary[dictionary_count++] = (struct word) {
@@ -508,9 +521,10 @@ int main(int argc, const char** argv) {
 
 	execute_directly(instructions, ins_count, dictionary); 
 
-
-	print_instructions(instructions, ins_count, dictionary);
+	print_nats(arguments, argument_count);
 	print_dictionary(dictionary, dictionary_count);
+	print_instructions(instructions, ins_count, dictionary);
+	
 	
 
 
