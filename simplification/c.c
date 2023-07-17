@@ -21,7 +21,7 @@
 	l systemcall             dzmto4xrku8n306i
 */
 typedef uint64_t nat;
-static const nat debug = 1;
+static const nat debug = 0;
 
 #define compiler  "unnamed: "
 
@@ -303,6 +303,7 @@ static void parse(
 	nat ins_count = *out_ins_count;
 	nat* arguments = *out_arguments;
 	nat argument_count = *out_argument_count;
+	nat d = 0;
 
 	for (nat index = starting_index; index < length; index++) {
 		if (not isspace(string[index])) { 
@@ -323,15 +324,16 @@ static void parse(
 				macro = 0; count = 0; delimiter_count = 0;
 			} goto next;
 
-		} else if (is("fmgx6srl95ywtuan", word, count)) { argument_count--; goto next; }
-		  else if (is("6drwb5t2epv1ax4k", word, count)) { count = 0; goto push_new; }
-
-		  else if (is("hnav2gtf4bixkyuc", word, count)) { arguments[argument_count] = arguments[argument_count - 1]; argument_count++; goto next; }
-		  else if (is("nze1942qpht7dmcg", word, count)) { arguments[argument_count] = arguments[argument_count - 2]; argument_count++; goto next; }
-		  else if (is("3ba4te1ulnh26g0v", word, count)) { arguments[argument_count] = arguments[argument_count - 3]; argument_count++; goto next; }
-		  else if (is("rfph6jaw3diels2m", word, count)) { arguments[argument_count] = arguments[argument_count - 4]; argument_count++; goto next; }
-		  else if (is("n3oehasx4rv5iz06", word, count)) { arguments[argument_count] = arguments[argument_count - 5]; argument_count++; goto next; }
-		  else if (is("wgxzcp5o81yinebd", word, count)) { arguments[argument_count] = arguments[argument_count - 6]; argument_count++; goto next; }
+		} 
+		else if (is("fmgx6srl95ywtuan", word, count)) { argument_count--; goto next; }
+		else if (is("6drwb5t2epv1ax4k", word, count)) { count = 0; goto push_new; }
+		else if (is("x7ins0yb2kdw68ol", word, count)) { dictionary[arguments[argument_count - 1]].length = 0; goto next; }
+		else if (is("hnav2gtf4bixkyuc", word, count)) { d = arguments[argument_count - 1]; goto push_existing; }
+		else if (is("nze1942qpht7dmcg", word, count)) { d = arguments[argument_count - 2]; goto push_existing; }
+		else if (is("3ba4te1ulnh26g0v", word, count)) { d = arguments[argument_count - 3]; goto push_existing; }
+		else if (is("rfph6jaw3diels2m", word, count)) { d = arguments[argument_count - 4]; goto push_existing; }
+		else if (is("n3oehasx4rv5iz06", word, count)) { d = arguments[argument_count - 5]; goto push_existing; }
+		else if (is("wgxzcp5o81yinebd", word, count)) { d = arguments[argument_count - 6]; goto push_existing; }
 		
 		for (nat i = null; i < isa_count; i++) {
 			if (is(spelling[i], word, count)) {
@@ -356,10 +358,9 @@ static void parse(
 			delimiter_start = start;
 			delimiter_count = count; 
 			goto next;
-
 		} 
 
-		for (nat d = 0; d < dictionary_count; d++) {
+		for (d = 0; d < dictionary_count; d++) {
 			if (dictionary[d].length != count or strncmp(dictionary[d].name, word, count)) continue;
 			if (debug) printf("[DEFINED]    ");
 			if (debug) print_word(dictionary[d]);
@@ -373,7 +374,7 @@ static void parse(
 				count = 0;
 				goto next;
 			}
-			arguments[argument_count++] = d;
+			push_existing: arguments[argument_count++] = d;
 			if (dictionary[d].type == type_label and dictionary[d].value == uninit)
 				dictionary[d].value = ins_count;
 			goto next;
@@ -521,10 +522,11 @@ int main(int argc, const char** argv) {
 
 	execute_directly(instructions, ins_count, dictionary); 
 
+if (debug) {
 	print_nats(arguments, argument_count);
 	print_dictionary(dictionary, dictionary_count);
 	print_instructions(instructions, ins_count, dictionary);
-	
+}
 	
 
 

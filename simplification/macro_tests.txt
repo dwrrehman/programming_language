@@ -1,10 +1,14 @@
-
+------- ------- ------- ------- ------- -------
+c900 c900       testing for macros!        c900
+------- ------- ------- ------- ------- -------
 
 = = 2dcw9o0u4ny7ekz1 =
 . . sdju0t9ah8vz5r26 .
 , , kb8g4tl0fwu1dco3 ,
 
+gensym gensym 6drwb5t2epv1ax4k gensym
 delete delete fmgx6srl95ywtuan delete
+removename removename x7ins0yb2kdw68ol removename
 : : delete :
 
 branch branch , delete delete delete branch
@@ -21,16 +25,27 @@ dup0 dup0 hnav2gtf4bixkyuc dup0
 dup1 dup1 nze1942qpht7dmcg dup1
 dup2 dup2 3ba4te1ulnh26g0v dup2
 
-------- ------- -------
+argument0 argument0 dup0 argument0
+argument1 argument1 dup1 argument1
 
-------- ------- -------
-
+------- ------- ------- ------- ------- -------
+c901 c901       basic constants            c901
+------- ------- ------- ------- ------- -------
 
 0 = 
 1 = .
 2 = . .
+3 = . . .
+4 = . . . . 
+5 = . . . . . 
+6 = . . . . . . 
 
-------- ------- -------
+------- ------- ------- ------- ------- -------
+c902 c902        defining addition         c902
+------- ------- ------- ------- ------- -------
+
+
+
 
 + + 
 	i settozero
@@ -43,20 +58,72 @@ skip :
 	1 0 loop branch
 return : 
 	delete
+	loop removename delete
+	skip removename delete
+	return removename delete
 +
 
-------- ------- -------
 
 
 
 
-5 = . . . . .
+------- ------- ------- ------- ------- -------
+c903 c903        defining assignment       c903
+------- ------- ------- ------- ------- -------
 
-4 = . . . .
+set set
+	dup0 settozero
+loop :
+	dup1 dup1 skip branch
+	1 0 return branch
+skip :
+	dup0 increment
+	1 0 loop branch
+return : 
+	delete
+	loop removename delete
+	skip removename delete
+	return removename delete
+set
 
-+
-
-print
 
 
-------- ------- -------
+
+------- ------- ------- ------- ------- -------
+c904 c904        testing addition          c904
+------- ------- ------- ------- ------- -------
+
+	1
+	12 = . . . . . . . . . . . . 
+	8  = . . . . . . . .
+
+	+ +
+
+	print
+
+
+
+
+
+
+
+
+
+------- ------- ------- ------- ------- -------
+c905 c905        testing assignment        c905
+------- ------- ------- ------- ------- -------
+
+	b = . . . . . . . . . . . . 
+	a = . . . . . . . 
+
+	set print
+
+	6 c set print
+
+	4 b set print
+
+	2 a set print
+
+
+
+
