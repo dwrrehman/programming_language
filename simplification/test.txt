@@ -1,32 +1,65 @@
+#!/bin/interpreter [ ]
 
-	= [ setzero ]
+
+c1092834 [ core primitives: ]
+
+	increment      [ sdju0t9ah8vz5r26 ]
+	settozero      [ 2dcw9o0u4ny7ekz1 ]
+	branchlessthan [ kb8g4tl0fwu1dco3 ]
+	storememory    [ er23nlvghmkzcpiw ] 
+	loadmemory     [ z7m9hjko172w5n0f ]
+	systemcall     [ dzmto4xrku8n306i ]
+	gensym	       [ 39gnp3d4u15fg2wc ]
+
+	print 	       [ temporary-debug-print-hex ]             ... [ <---- (this is temporary) ]
+
+c1092834 [ abbreviations: ]
+
 	. [ increment ]
-	< [ branch ]
-	out [ debughex ]
+	= [ settozero ]
+	< [ branchlessthan ]
+	* [ storememory ] 
+	@ [ loadmemory ]
+	! [ systemcall ]
+	
 
-	+ [ 
+c924385023 [ defining the addition operation from scratch: ] 
+
+
+
+
+	+ [
 		i =
-	l 	B i a <
+		l B i s <
 		1 0 r <
-	a 	A . i .
-		1 0 l < 
-	r 
-
+		s A .
+		i .
+		1 0 l <
+		r
 	]
 
-	puqdrwpfu [ 
-		this is a comment! i think its pretty cool lol. i like it alot. yay. 
+
+
+
+
+
+	adruntpadurntpadunrtp [
+		this is a comment! just an unused macro. i think its pretty cool lol. i like it alot. yay. 
 	]
 
 
 0 =
 1 = .
+
 A = . . . . . . . . . . . . . . . . . 
+
 B = . . . . . . .
 
-+ 
+	+ 
 
-A out
+A print
+
+
 
 
 
