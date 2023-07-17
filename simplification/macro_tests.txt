@@ -6,9 +6,13 @@ c900 c900       testing for macros!        c900
 . . sdju0t9ah8vz5r26 .
 , , kb8g4tl0fwu1dco3 ,
 
-gensym gensym 6drwb5t2epv1ax4k gensym
-delete delete fmgx6srl95ywtuan delete
-removename removename x7ins0yb2kdw68ol removename
+gensym gensym 		6drwb5t2epv1ax4k gensym
+delete delete 		fmgx6srl95ywtuan delete
+removename removename 	x7ins0yb2kdw68ol removename
+callmacro callmacro 	t607hxkab8swjczl callmacro
+dup1 dup1 		nze1942qpht7dmcg dup1
+dup2 dup2 		3ba4te1ulnh26g0v dup2
+
 : : delete :
 
 branch branch , delete delete delete branch
@@ -17,14 +21,11 @@ settozero settozero = delete settozero
 
 store store er23nlvghmkzcpiw store
 load load z7m9hjko172w5n0f load
-call call dzmto4xrku8n306i call
+systemcall systemcall dzmto4xrku8n306i systemcall
 
 print print temporary-debug-print-hex print
 
-dup0 dup0 hnav2gtf4bixkyuc dup0
-dup1 dup1 nze1942qpht7dmcg dup1
-dup2 dup2 3ba4te1ulnh26g0v dup2
-
+dup0 dup0 callmacro dup0
 argument0 argument0 dup0 argument0
 argument1 argument1 dup1 argument1
 
@@ -65,8 +66,6 @@ return :
 
 
 
-
-
 ------- ------- ------- ------- ------- -------
 c903 c903        defining assignment       c903
 ------- ------- ------- ------- ------- -------
@@ -88,23 +87,18 @@ set
 
 
 
-
 ------- ------- ------- ------- ------- -------
 c904 c904        testing addition          c904
 ------- ------- ------- ------- ------- -------
 
 	1
+	2
 	12 = . . . . . . . . . . . . 
 	8  = . . . . . . . .
 
-	+ +
+	+ + +
 
 	print
-
-
-
-
-
 
 
 
@@ -123,7 +117,6 @@ c905 c905        testing assignment        c905
 	4 b set print
 
 	2 a set print
-
 
 
 

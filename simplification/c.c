@@ -328,7 +328,7 @@ static void parse(
 		else if (is("fmgx6srl95ywtuan", word, count)) { argument_count--; goto next; }
 		else if (is("6drwb5t2epv1ax4k", word, count)) { count = 0; goto push_new; }
 		else if (is("x7ins0yb2kdw68ol", word, count)) { dictionary[arguments[argument_count - 1]].length = 0; goto next; }
-		else if (is("hnav2gtf4bixkyuc", word, count)) { d = arguments[argument_count - 1]; goto push_existing; }
+		else if (is("t607hxkab8swjczl", word, count)) { d = arguments[argument_count - 1]; goto call_macro; }
 		else if (is("nze1942qpht7dmcg", word, count)) { d = arguments[argument_count - 2]; goto push_existing; }
 		else if (is("3ba4te1ulnh26g0v", word, count)) { d = arguments[argument_count - 3]; goto push_existing; }
 		else if (is("rfph6jaw3diels2m", word, count)) { d = arguments[argument_count - 4]; goto push_existing; }
@@ -364,6 +364,7 @@ static void parse(
 			if (dictionary[d].length != count or strncmp(dictionary[d].name, word, count)) continue;
 			if (debug) printf("[DEFINED]    ");
 			if (debug) print_word(dictionary[d]);
+		call_macro: 
 			if (dictionary[d].address and dictionary[d].type == type_macro) {
 				if (debug) printf("MACRO: calling macro! %s\n", dictionary[d].name);
 				if (stack_pointer >= 4096) { puts("stack overflow"); abort(); } 
@@ -519,24 +520,19 @@ int main(int argc, const char** argv) {
 	size_t length = 0;
 	char* text = read_file(argv[1], &length);
 	parse(text, length, 0, &instructions, &ins_count, &dictionary, &dictionary_count, &arguments, &argument_count);
-
 	execute_directly(instructions, ins_count, dictionary); 
 
-if (debug) {
-	print_nats(arguments, argument_count);
-	print_dictionary(dictionary, dictionary_count);
-	print_instructions(instructions, ins_count, dictionary);
+	if (debug) {
+		print_nats(arguments, argument_count);
+		print_dictionary(dictionary, dictionary_count);
+		print_instructions(instructions, ins_count, dictionary);
+	}
+
 }
-	
 
 
-	// instead of executing instructions directly, we need to do instruction selection for  the     "C virtual machine ISA", ie, an interpreter in C. 
+// instead of executing instructions directly, we need to do instruction selection for  the     "C virtual machine ISA", ie, an interpreter in C. 
 	// ...for the actual compiler, we will use the machine ISA, of course. the usage of each instruction has an associated number of cycles. for C, everything is 1 cycle. 
-
-}
-
-
-
 
 
 
