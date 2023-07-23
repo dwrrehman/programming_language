@@ -21,7 +21,7 @@
 	l systemcall             dzmto4xrku8n306i
 */
 typedef uint64_t nat;
-static const nat debug = 0;
+static const nat debug = 1;
 
 #define compiler  "unnamed: "
 
@@ -235,12 +235,9 @@ static void execute_directly(struct instruction* instructions, nat ins_count, st
 				puts(red "internal error: unspecified label in branch" reset); 
 				goto halt; 
 			}
-			if (variables[in[1]] < variables[in[2]]) 
-				ip = dictionary[in[0]].value - 1;
+			if (variables[in[1]] < variables[in[2]])  ip = dictionary[in[0]].value - 1;
 
-
-		
-
+	
 		} else if (op == store) {
 			if (debug) printf("executed store: *(%llu) = %llu\n", in[0], in[1]);
 
@@ -248,7 +245,7 @@ static void execute_directly(struct instruction* instructions, nat ins_count, st
 			*(uint16_t*)variables[in[0]] = (uint16_t) variables[in[1]];
 			*(uint32_t*)variables[in[0]] = (uint32_t) variables[in[1]];
 			*(uint64_t*)variables[in[0]] = (uint64_t) variables[in[1]];
-
+			abort();
 
 		} else if (op == load) {
 			if (debug) printf("executed load: %llu = *%llu\n", in[0], in[1]);
@@ -256,15 +253,16 @@ static void execute_directly(struct instruction* instructions, nat ins_count, st
 			variables[in[0]] = (nat) *(uint16_t*)variables[in[1]];
 			variables[in[0]] = (nat) *(uint32_t*)variables[in[1]];
 			variables[in[0]] = (nat) *(uint64_t*)variables[in[1]];
+			abort();
 
 		} else if (op == systemcall) {
 			if (debug) printf("executed ecall: { #%llu] }\n", in[0]);
 			process_syscall(in[0], variables);
+			abort();
 
 		} else if (op == debughex) {
 			if (debug) printf("executed hex: %llu\n", in[0]);
-			printf(green "debug: %llx" reset "\n", variables[in[0]]);
-		
+			printf(green "debug: 0x%llx" reset "\n", variables[in[0]]);
 
 		} else {
 			printf("internal error: execute: unexpected instruction: %llu\n", op);
@@ -274,22 +272,32 @@ static void execute_directly(struct instruction* instructions, nat ins_count, st
 halt: 	if (debug) puts(green "[finished execution]" reset);
 }
 
-
 static bool macro = false;
-
 static nat previous_start = 0;
 static nat delimiter_start = 0;
 static nat start = 0;
-
 static nat previous_count = 0;
 static nat delimiter_count = 0;
 static nat count = 0;
-
 static nat stack_pointer = 0;
-
 static nat stack[4096] = {0};
 static nat return_start[4096] = {0};
 static nat return_count[4096] = {0};
+
+
+
+static void debug_stack(void) {
+	puts("debug: STACK POINTER NONZERO!!!");
+	puts("return_start"); print_nats(return_start, stack_pointer);
+	puts("return_count"); print_nats(return_count, stack_pointer);
+	puts("stack"); print_nats(stack, stack_pointer);
+	printf("values:    %d %llu %llu   %llu %llu %llu   %llu %llu   \n", 
+		macro, previous_start, delimiter_start, 
+		start, previous_count, delimiter_count, 
+		count, stack_pointer
+	);
+}
+
 
 static void parse(
 	char* string, nat length, nat starting_index,
@@ -311,7 +319,7 @@ static void parse(
 			count++; continue;
 		} else if (not count) continue;
 
-		process_word:; 
+		process_word:;
 
 		char* const word       = string + start;
 		char* const delimiter  = string + delimiter_start;
@@ -320,10 +328,9 @@ static void parse(
 
 		if (macro) {
 			if (count == delimiter_count and not memcmp(word, delimiter, count)) {
-				if (debug) printf("MACRO: inside macro definition, found end of defintion! %s\n", strndup(delimiter, count));
+				if (debug) printf("MACRO: inside macro definition, found end of defintion! " yellow "%s" reset "\n", strndup(delimiter, count));
 				macro = 0; count = 0; delimiter_count = 0;
 			} goto next;
-
 		} 
 		else if (is("fmgx6srl95ywtuan", word, count)) { argument_count--; goto next; }
 		else if (is("6drwb5t2epv1ax4k", word, count)) { count = 0; goto push_new; }
@@ -334,6 +341,7 @@ static void parse(
 		else if (is("rfph6jaw3diels2m", word, count)) { d = arguments[argument_count - 4]; goto push_existing; }
 		else if (is("n3oehasx4rv5iz06", word, count)) { d = arguments[argument_count - 5]; goto push_existing; }
 		else if (is("wgxzcp5o81yinebd", word, count)) { d = arguments[argument_count - 6]; goto push_existing; }
+		else if (is("debugarguments", word, count)) { print_nats(arguments, argument_count); goto next; }
 		
 		for (nat i = null; i < isa_count; i++) {
 			if (is(spelling[i], word, count)) {
@@ -344,19 +352,22 @@ static void parse(
 		}
 
 		if (stack_pointer and count == return_count[stack_pointer - 1] and not memcmp(word, returnw, count)) { 
-			if (debug) printf("MACRO: executing return statement for macro! %s\n", strndup(returnw, count));
+			if (debug) printf("MACRO: executing runtime return statement for macro! " magenta "%s" reset 
+					"  @ %llu\n", strndup(returnw, count), start + count);
+
 			index = stack[--stack_pointer]; 
 			count = 0; 
+			if (stack_pointer) debug_stack(); 
 			goto next;
 		}
 
 		else if (count == previous_count and not memcmp(word, previous, count)) {
-			if (debug) printf("MACRO: encountered macro definition! %s\n", strndup(previous, count));
+			if (debug) printf("MACRO: encountered macro definition! " red "%s" reset "\n", strndup(previous, count));
 			dictionary[arguments[argument_count - 1]].type = type_macro;
 			dictionary[arguments[argument_count - 1]].address = index;
 			macro = 1;
 			delimiter_start = start;
-			delimiter_count = count; 
+			delimiter_count = count;
 			goto next;
 		} 
 
@@ -366,13 +377,14 @@ static void parse(
 			if (debug) print_word(dictionary[d]);
 		call_macro: 
 			if (dictionary[d].address and dictionary[d].type == type_macro) {
-				if (debug) printf("MACRO: calling macro! %s\n", dictionary[d].name);
+				if (debug) printf("MACRO: calling macro! " cyan "%s" reset " @ %llu\n", dictionary[d].name, start + count);
 				if (stack_pointer >= 4096) { puts("stack overflow"); abort(); } 
 				stack[stack_pointer] = index;
 				return_start[stack_pointer] = start;
 				return_count[stack_pointer++] = count;
 				index = dictionary[d].address;
 				count = 0;
+				if (stack_pointer) debug_stack(); 
 				goto next;
 			}
 			push_existing: arguments[argument_count++] = d;
