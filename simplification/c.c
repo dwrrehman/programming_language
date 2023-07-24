@@ -36,18 +36,49 @@ static const nat debug = 1;
 #define reset 	"\x1B[0m"
 
 enum thing_type { type_null, type_variable, type_label, type_macro };
-enum instruction_type { null, increment, setzero, branch, store, load, systemcall, debughex, isa_count };
-static const nat arity[isa_count] = { 0, 1, 1, 3, 3, 3, 1, 1 };
-static const char* ins_color[isa_count] = { "", green, yellow, cyan, red, magenta, bold, "" };
+enum instruction_type { 
+	null, 
+	increment, setzero, branch, store, load, systemcall, 
+	deleteargument, newunnamed, deletename, 
+	callmacro, duplicate1, duplicate2, duplicate3, duplicate4, duplicate5, 
+	debugarguments, debughex, 
+	isa_count
+};
+static const nat arity[isa_count] = { 
+	0, 
+	1, 1, 3, 3, 3, 1, 
+	1, 0, 1, 
+	0, 0, 0, 0, 0, 0,
+	1, 1,
+};
+static const char* ins_color[isa_count] = { 
+	"", 
+	green, yellow, cyan, red, magenta, bold, 
+	blue, blue, blue,
+	blue, blue, blue, blue, blue, blue, 
+};
 static const char* spelling[isa_count] = {
-"", 
+	"",
 	"sdju0t9ah8vz5r26", 
 	"2dcw9o0u4ny7ekz1", 
 	"kb8g4tl0fwu1dco3", 
 	"er23nlvghmkzcpiw", 
 	"z7m9hjko172w5n0f", 
-	"dzmto4xrku8n306i", 
-	"temporary-debug-print-hex"
+	"dzmto4xrku8n306i",
+ 
+	"fmgx6srl95ywtuan",
+	"x7ins0yb2kdw68ol",
+	"6drwb5t2epv1ax4k",
+
+	"t607hxkab8swjczl",
+	"nze1942qpht7dmcg",
+	"3ba4te1ulnh26g0v",
+	"rfph6jaw3diels2m",
+	"n3oehasx4rv5iz06",
+	"wgxzcp5o81yinebd",
+
+	"temporary-debugarguments",
+	"temporary-debughex", 
 };
 
 struct instruction {
@@ -332,16 +363,16 @@ static void parse(
 				macro = 0; count = 0; delimiter_count = 0;
 			} goto next;
 		} 
-		else if (is("fmgx6srl95ywtuan", word, count)) { argument_count--; goto next; }
-		else if (is("6drwb5t2epv1ax4k", word, count)) { count = 0; goto push_new; }
-		else if (is("x7ins0yb2kdw68ol", word, count)) { dictionary[arguments[argument_count - 1]].length = 0; goto next; }
-		else if (is("t607hxkab8swjczl", word, count)) { d = arguments[argument_count - 1]; goto call_macro; }
-		else if (is("nze1942qpht7dmcg", word, count)) { d = arguments[argument_count - 2]; goto push_existing; }
-		else if (is("3ba4te1ulnh26g0v", word, count)) { d = arguments[argument_count - 3]; goto push_existing; }
-		else if (is("rfph6jaw3diels2m", word, count)) { d = arguments[argument_count - 4]; goto push_existing; }
-		else if (is("n3oehasx4rv5iz06", word, count)) { d = arguments[argument_count - 5]; goto push_existing; }
-		else if (is("wgxzcp5o81yinebd", word, count)) { d = arguments[argument_count - 6]; goto push_existing; }
-		else if (is("debugarguments", word, count)) { print_nats(arguments, argument_count); goto next; }
+		else if (is(spelling[deleteargument], word, count)) { argument_count--; goto next; }
+		else if (is(spelling[newunnamed], word, count)) { count = 0; goto push_new; }
+		else if (is(spelling[deletename], word, count)) { dictionary[arguments[argument_count - 1]].length = 0; goto next; }
+		else if (is(spelling[callmacro], word, count)) { d = arguments[argument_count - 1]; goto call_macro; }
+		else if (is(spelling[duplicate1], word, count)) { d = arguments[argument_count - 2]; goto push_existing; }
+		else if (is(spelling[duplicate2], word, count)) { d = arguments[argument_count - 3]; goto push_existing; }
+		else if (is(spelling[duplicate3], word, count)) { d = arguments[argument_count - 4]; goto push_existing; }
+		else if (is(spelling[duplicate4], word, count)) { d = arguments[argument_count - 5]; goto push_existing; }
+		else if (is(spelling[duplicate5], word, count)) { d = arguments[argument_count - 6]; goto push_existing; }
+		else if (is(spelling[debugarguments], word, count)) { print_nats(arguments, argument_count); goto next; }
 		
 		for (nat i = null; i < isa_count; i++) {
 			if (is(spelling[i], word, count)) {
@@ -456,14 +487,7 @@ static _Noreturn void repl(void) {
 		"\t. " bold green "instructions: " reset "display the current instructions." "\n"
 		"\t. " bold red "resetall: " reset "reset the instructions and dictionary to be empty." "\n"
 		"\t. " bold "{expression}: " reset "a series of instructions in the language ISA." "\n"
-		"ISA:" "\n"
-		"\t     " lightblue "w " bold green "increment" reset "\n"
-		"\t     " lightblue "w " bold yellow "setzero" reset "\n"
-		"\t     " lightblue "w w l " bold cyan "branch" reset "\n"
-		"\t     " lightblue "w w l " bold red "store" reset "\n"
-		"\t     " lightblue "w w l " bold magenta "load" reset "\n"
-		"\t     " lightblue "l " reset bold "systemcall" reset "\n"
-		;
+	;
 	
 	puts(welcome_string);
 
@@ -493,7 +517,14 @@ loop:
 
 	if (not strcmp(input, "q") or not strcmp(input, "quit")) exit(0);
 	else if (not strcmp(input, "o") or not strcmp(input, "clear")) printf("\033[H\033[2J");
-	else if (not strcmp(input, "help")) puts(help_string);
+	else if (not strcmp(input, "help")) {
+		puts(help_string);
+		puts("ISA:");
+		for (nat i = 0; i < isa_count; i++) {
+			printf("\t  " lightblue "(%llu)" reset bold "%s" "%s" reset "\n", arity[i], ins_color[i], spelling[i]);
+		}
+		puts("[done]");
+	}
 	else if (not strcmp(input, "undo")) {if (ins_count) ins_count--;}
 	else if (not strcmp(input, "arguments")) print_nats(arguments, argument_count);
 	else if (not strcmp(input, "dictionary")) print_dictionary(dictionary, dictionary_count);
@@ -545,6 +576,47 @@ int main(int argc, const char** argv) {
 
 // instead of executing instructions directly, we need to do instruction selection for  the     "C virtual machine ISA", ie, an interpreter in C. 
 	// ...for the actual compiler, we will use the machine ISA, of course. the usage of each instruction has an associated number of cycles. for C, everything is 1 cycle. 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
