@@ -1,0 +1,44 @@
+
+	print 
+	print   debugdec debugpause 
+	print
+
+	hex 
+	hex   debughex debugpause 
+	hex
+
+	nop
+	nop	_ zero
+	nop
+
+	a zero incr incr incr
+	b zero incr incr
+	c zero
+
+	a b c 
+	add print 
+	sub print
+	mul print
+	div print
+	rem print 
+	nor print 
+	shl print
+	shr print 
+	shrs print 
+	sp hex
+
+
+	a b label blt
+
+		c zero incr print
+
+	label
+		nop
+
+		c zero incr incr 
+
+		c sp s8 
+
+		sp frommemory l8 print
+
+		
