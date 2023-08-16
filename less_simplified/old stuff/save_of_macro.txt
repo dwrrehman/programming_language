@@ -1,0 +1,61 @@
+
+
+print print temporary-debug-print-hex print
+
+= = 2dcw9o0u4ny7ekz1 =
+. . sdju0t9ah8vz5r26 .
+, , kb8g4tl0fwu1dco3 ,
+
+delete delete fmgx6srl95ywtuan delete
+: : delete :
+
+dup0 dup0 hnav2gtf4bixkyuc dup0
+dup1 dup1 nze1942qpht7dmcg dup1
+dup2 dup2 3ba4te1ulnh26g0v dup2
+
+store store er23nlvghmkzcpiw store
+load load z7m9hjko172w5n0f load
+call call dzmto4xrku8n306i call
+
+--------------- --------------- ---------------
+
+
+branch branch , delete delete delete branch
+increment increment . delete increment
+settozero settozero = delete settozero
+
+
+--------------- --------------- ---------------
+
+0 = 
+1 = .
+2 = . .
+
+--------------- --------------- ---------------
+
++ + 
+	i settozero
+
+loop :
+	dup0 i skip branch
+	1 0 return branch
+
+skip :
+	i increment
+	dup1 increment
+	1 0 loop branch
+
+return : 
+	delete
++
+
+
+5 = . . . . .
+
+4 = . . . .
+
++
+
+print
+
+
