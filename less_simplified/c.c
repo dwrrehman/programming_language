@@ -11,23 +11,36 @@
 #include <stdint.h>
 #include <termios.h>
 #include <sys/ioctl.h>
-#include <sys/syscall.h> /// 1202307274.164349: i want to add strings to the language simply by making macros be turned into a string, via a language primitive.
-/// essentially the equivalent of #macroname    in a macro in C preprocessing,  but it turns the contents of the macro into a string! of course, this allows for any delimiter, not just quotes. yay!!! cool beans. even new lines would be allow, and all whitespace too! lets add a debugprintstring  routine to the language too! thats important lol. just for debugging, i think. yay. lets do that. we need to make the space after the macro name, not included though. thats important. lol. ie, one ws char after the first macro name.    
-/*	
+#include <sys/syscall.h> 
+#include <errno.h>
+/*
+
+1202307274.164349: 
+	i want to add strings to the language simply by making macros be turned into a string, via a language primitive.
+
+	essentially the equivalent of #macroname    
+	in a macro in C preprocessing,  
+
+	but it turns the contents of the macro into a string! 
+
+	of course, this allows for any delimiter, not just quotes. 
+
+	yay!!! cool beans. even new lines would be allow, and all whitespace too! 
+	lets add a debugprintstring  routine to the language too! 
+
+	thats important lol. just for debugging, 
+	
+	i think. yay. lets do that. we need to make the space after the macro name,
+	 not included though. thats important. 
+	lol. ie, one ws char after the first macro name.    
 
 
-
+lldb notes:
 	run
-
-
 	breakpoint set -f c.c -l 390
 
 
-
-
-
-
-	ISA:	
+outdated ISA:	
 	w incr
 	w zero 
 	
@@ -57,9 +70,11 @@ enum instruction_type {
 
 	debugpause, debughex, debugdec, 
 
-	incr, zero,   add, sub, mul, div_, rem,   nor,   mhs, mh, mhsu,   shl, shr, shrs,
+	incr, zero,   add, sub, mul, div_, rem,  
+	nor,   mhs, mh, mhsu,   shl, shr, shrs,
  
-	s1, s2, s4, s8,   l1, l2, l4, l8,    jalr, blt, blts,    exts,   rol, ror,   clz, ctz, csb,    dis, sc,
+	s1, s2, s4, s8,   l1, l2, l4, l8,    jalr, blt, blts,    
+	exts,   rol, ror,   clz, ctz, csb,    dis, sc,
 
 	del0, anon, gen,    dup0, dup1, dup2_, dup3, dup4, dup5,     debugarguments,
 
@@ -73,7 +88,8 @@ static const nat arity[isa_count] = {
 
 	1, 1,    3, 3, 3, 3, 3,     3,      3, 3, 3,     3, 3, 3, 
 
-	2, 2, 2, 2,    2, 2, 2, 2,      3, 3, 3,        1,    3, 3,      2, 2, 2,       1, 1, 
+	2, 2, 2, 2,    2, 2, 2, 2,      3, 3, 3,        
+	1,    3, 3,      2, 2, 2,       1, 1, 
 
 	1, 1, 0,    0, 0, 0, 0, 0, 0,   1, 
 };
@@ -82,9 +98,11 @@ static const char* ins_color[isa_count] = {
 
 	magenta, magenta, magenta, 
 
-	green, green,   green, green, green, green, green,   green,   green, green, green,   green, green, green,
+	green, green,   green, green, green, green, green,   
+	green,   green, green, green,   green, green, green,
  
-	yellow, yellow, yellow, yellow,   yellow, yellow, yellow, yellow,    yellow, yellow, yellow,    
+	yellow, yellow, yellow, yellow,   yellow, yellow, yellow, yellow,   
+	 yellow, yellow, yellow,    
 		yellow,   yellow, yellow,   yellow, yellow, yellow,    yellow, yellow,
 
 	blue, blue, blue,    blue, blue, blue, blue, blue, blue,    magenta, 
@@ -94,11 +112,14 @@ static const char* spelling[isa_count] = {
 
 	"debugpause", "debughex", "debugdec", 
 	
-	"incr", "zero",   "add", "sub", "mul", "div", "rem",   "nor",   "mhs", "mh", "mhsu",   "shl", "shr", "shrs",
+	"incr", "zero",   "add", "sub", "mul", "div", "rem",   
+	"nor",   "mhs", "mh", "mhsu",   "shl", "shr", "shrs",
  
-	"s1", "s2", "s4", "s8",   "l1", "l2", "l4", "l8",    "jalr", "blt", "blts",    "exts",   "rol", "ror",   "clz", "ctz", "csb",    "dis", "sc",
+	"s1", "s2", "s4", "s8",   "l1", "l2", "l4", "l8",    "jalr", "blt", "blts",
+	    "exts",   "rol", "ror",   "clz", "ctz", "csb",    "dis", "sc",
 
-	"del0", "anon", "gen",    "dup0", "dup1", "dup2", "dup3", "dup4", "dup5",    "debugarguments", 
+	"del0", "anon", "gen",    
+	"dup0", "dup1", "dup2", "dup3", "dup4", "dup5",    "debugarguments", 
 };
 
 struct instruction {
@@ -113,7 +134,7 @@ struct instruction {
 };
 
 struct word { 
-	char* name; 
+	char* name;
 	nat length;
 	nat type;
 	nat value;
@@ -256,19 +277,61 @@ static void ins(nat op,
 }
 
 
-static void process_syscall(nat n, nat* variables) {
-	nat r0 = variables[0], r1 = variables[1], r2 = variables[2], r3 = variables[3], r4 = variables[4], r5 = variables[5];
-	printf(green "SYSCALL (NR=%llu): {%llu %llu %llu %llu %llu %llu}" reset "\n" , n, r0, r1, r2, r3, r4, r5);
+static void process_syscall(nat n, nat* r) {
 
-	if (n == 1) exit((int) r0);
-	if (n == 2) *variables = (nat) fork();
-	if (n == 3) *variables = (nat) read((int) r0, (void*) r1, r2);
-	if (n == 4) *variables = (nat) write((int) r0, (void*) r1, r2);
-	if (n == 5) *variables = (nat) open((const char*) r0, (int) r1, r2);
-	if (n == 6) *variables = (nat) close((int) r0);
-	if (n == 7) *variables = (nat) (void*) mmap((void*) r0, r1, (int) r2, (int) r3, (int) r4, (long long) r5);
-	if (n == 8) *variables = (nat) munmap((void*) r0, r1);
+	nat 
+		r0 = r[1], 
+		r1 = r[2], 
+		r2 = r[3], 
+		r3 = r[4],
+		r4 = r[5], 
+		r5 = r[6];
+
+
+	printf(green "SYSCALL (NR=%llu): {%llu %llu %llu %llu %llu %llu}" reset "\n", 
+		n, r0, r1, r2, r3, r4, r5
+	);
+
+
+	if (n == 7) {
+		printf(cyan "calling exit(%llu);" reset "\n", r0);
+		exit((int) r0);
+	}
+
+	else if (n == 8) {
+		printf(cyan "calling read(%llu, %p, %llu);" reset "\n", r0, (void*) r1, r2);
+		r[1] = (nat) read((int) r0, (void*) r1, r2);
+		r[2] = (nat) (long long) errno;
+	}
+
+	else if (n == 9) {
+		printf(cyan "calling write(%llu, %p, %llu);" reset "\n", r0, (void*) r1, r2);
+		r[1] = (nat) write((int) r0, (void*) r1, r2);
+		r[2] = (nat) (long long) errno;
+	}
+
+	else if (n == 10) {
+		printf(cyan "calling open(%p, %llu, %llu);" reset "\n", (void*) r0, r1, r2);
+		r[1] = (nat) open((const char*) r0, (int) r1, r2);
+		r[2] = (nat) (long long) errno;
+	}
+
+	else if (n == 11) {
+		printf(cyan "calling close(%llu);" reset "\n", r0);
+		r[1] = (nat) close((int) r0);
+		r[2] = (nat) (long long) errno;
+	} else {
+		printf("unknown syscall: %llu\n", n);
+		 getchar();
+	}
+
+
+if (n == 1000) r[1] = (nat) fork();
+if (n == 1000)r[1]=(nat)(void*)mmap((void*)r0,r1,(int)r2,(int)r3,(int)r4,(long long) r5);
+if (n == 1000) r[1] = (nat)munmap((void*)r0, r1);
+
 }
+
 
 
 static void execute_directly(const nat starting_ip, struct instruction* instructions, nat ins_count, struct word* dictionary) {
@@ -286,7 +349,7 @@ static void execute_directly(const nat starting_ip, struct instruction* instruct
 
 		if (debug) printf("executing @%llu : ", ip);
 		if (debug) print_instruction(instructions[ip], dictionary);
-	
+
 		const nat op  = instructions[ip].op;
 
 		nat in[7] = {0};
@@ -315,7 +378,7 @@ static void execute_directly(const nat starting_ip, struct instruction* instruct
 		else if (op == s4) *(uint32_t*)r[in[0]] = (uint32_t) r[in[1]];
 		else if (op == s8) *(uint64_t*)r[in[0]] = (uint64_t) r[in[1]];
 		else if (op == dis) { printf(green "value discarded: %s" reset "\n", dictionary[in[0]].name); }
-		else if (op == sc) { process_syscall(in[0], r); abort(); }
+		else if (op == sc) { process_syscall(in[0], r); }
 
 		else if (op == debugpause) getchar();
 		else if (op == debughex) printf(green "debug: 0x%llx" reset "\n", r[in[0]]);
@@ -527,14 +590,34 @@ static _Noreturn void repl(void) {
 
 	nat ins_count = 0;
 	struct instruction* instructions = NULL;
-
+	
 	nat dictionary_count = 0;
-	struct word* dictionary = calloc(5, sizeof(struct word));
-	dictionary[dictionary_count++] = (struct word) { .name = "sp",   .length = 2, .type = type_variable, .def = uninit };
-	dictionary[dictionary_count++] = (struct word) { .name = "arg0", .length = 4, .type = type_variable, .def = uninit };
-	dictionary[dictionary_count++] = (struct word) { .name = "arg1", .length = 4, .type = type_variable, .def = uninit };
-	dictionary[dictionary_count++] = (struct word) { .name = "arg2", .length = 4, .type = type_variable, .def = uninit };
-	dictionary[dictionary_count++] = (struct word) { .name = "arg3", .length = 4, .type = type_variable, .def = uninit };
+	struct word* dictionary = calloc(12, sizeof(struct word));
+	dictionary[dictionary_count++] = (struct word) 
+	{ .name = "sp",   .length = 2, .type = type_variable, .def = uninit };
+	dictionary[dictionary_count++] = (struct word) 
+	{ .name = "arg0", .length = 4, .type = type_variable, .def = uninit };
+	dictionary[dictionary_count++] = (struct word) 
+	{ .name = "arg1", .length = 4, .type = type_variable, .def = uninit };
+	dictionary[dictionary_count++] = (struct word) 
+	{ .name = "arg2", .length = 4, .type = type_variable, .def = uninit };
+	dictionary[dictionary_count++] = (struct word) 
+	{ .name = "arg3", .length = 4, .type = type_variable, .def = uninit };
+	dictionary[dictionary_count++] = (struct word) 
+	{ .name = "arg4", .length = 4, .type = type_variable, .def = uninit };
+	dictionary[dictionary_count++] = (struct word) 
+	{ .name = "arg5", .length = 4, .type = type_variable, .def = uninit };
+
+	dictionary[dictionary_count++] = (struct word) 
+	{ .name = "sys_exit", .length = 8, .type = type_variable, .def = uninit };
+	dictionary[dictionary_count++] = (struct word) 
+	{ .name = "sys_read", .length = 8, .type = type_variable, .def = uninit };
+	dictionary[dictionary_count++] = (struct word) 
+	{ .name = "sys_write", .length = 9, .type = type_variable, .def = uninit };
+	dictionary[dictionary_count++] = (struct word) 
+	{ .name = "sys_open", .length = 8, .type = type_variable, .def = uninit };
+	dictionary[dictionary_count++] = (struct word) 
+	{ .name = "sys_close", .length = 9, .type = type_variable, .def = uninit };
 
 loop:
 	printf(":%llu:%llu: ", dictionary_count, ins_count);
@@ -581,13 +664,34 @@ int main(int argc, const char** argv) {
 
 	nat ins_count = 0;
 	struct instruction* instructions = NULL;
+
 	nat dictionary_count = 0;
-	struct word* dictionary = calloc(5, sizeof(struct word));
-	dictionary[dictionary_count++] = (struct word) { .name = "sp",   .length = 2, .type = type_variable, .def = uninit };
-	dictionary[dictionary_count++] = (struct word) { .name = "arg0", .length = 4, .type = type_variable, .def = uninit };
-	dictionary[dictionary_count++] = (struct word) { .name = "arg1", .length = 4, .type = type_variable, .def = uninit };
-	dictionary[dictionary_count++] = (struct word) { .name = "arg2", .length = 4, .type = type_variable, .def = uninit };
-	dictionary[dictionary_count++] = (struct word) { .name = "arg3", .length = 4, .type = type_variable, .def = uninit };
+	struct word* dictionary = calloc(12, sizeof(struct word));
+	dictionary[dictionary_count++] = (struct word) 
+	{ .name = "sp",   .length = 2, .type = type_variable, .def = uninit };
+	dictionary[dictionary_count++] = (struct word) 
+	{ .name = "arg0", .length = 4, .type = type_variable, .def = uninit };
+	dictionary[dictionary_count++] = (struct word) 
+	{ .name = "arg1", .length = 4, .type = type_variable, .def = uninit };
+	dictionary[dictionary_count++] = (struct word) 
+	{ .name = "arg2", .length = 4, .type = type_variable, .def = uninit };
+	dictionary[dictionary_count++] = (struct word) 
+	{ .name = "arg3", .length = 4, .type = type_variable, .def = uninit };
+	dictionary[dictionary_count++] = (struct word) 
+	{ .name = "arg4", .length = 4, .type = type_variable, .def = uninit };
+	dictionary[dictionary_count++] = (struct word) 
+	{ .name = "arg5", .length = 4, .type = type_variable, .def = uninit };
+
+	dictionary[dictionary_count++] = (struct word) 
+	{ .name = "sys_exit", .length = 8, .type = type_variable, .def = uninit };
+	dictionary[dictionary_count++] = (struct word) 
+	{ .name = "sys_read", .length = 8, .type = type_variable, .def = uninit };
+	dictionary[dictionary_count++] = (struct word) 
+	{ .name = "sys_write", .length = 9, .type = type_variable, .def = uninit };
+	dictionary[dictionary_count++] = (struct word) 
+	{ .name = "sys_open", .length = 8, .type = type_variable, .def = uninit };
+	dictionary[dictionary_count++] = (struct word) 
+	{ .name = "sys_close", .length = 9, .type = type_variable, .def = uninit };
 
 	size_t length = 0;
 	char* text = read_file(argv[1], &length);
