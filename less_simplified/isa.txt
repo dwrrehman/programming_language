@@ -1,0 +1,140 @@
+ISA reference manual
+=======================
+
+this document describes the entire language ISA as of today, 202309015.014954, and each instructions arguments / arity. 
+
+still a work in progress.
+
+
+nonruntime operations:
+
+
+	a del0	pop the top most argument off the argument stack. 
+
+	a anon	make the current top of arg stack anonymous, ie, have a name of "".
+
+	gen	make a new anonymous name, and push its index on the argument stack. 
+
+	dup0	duplicate (ie, push to top) the top of the argument stack, unless its a macro, in which execute it. 
+
+	dup1	duplicate the second to top of the argument stack. (does not call macro at all)
+
+	dup2	see above, but use third to top of arg stack.
+
+	dup3	etc. 
+
+	dup4.	etc.
+
+	dup5	etc.
+
+
+
+
+debug operations:     (all are temporary!)
+
+
+
+	debugarguments	a function use for debugging the current state of the arguments stack in the middle of an expression. 
+
+	debugpause     	calls getchar in the interpreter. 
+
+	a debughex	prints out a register as hexadecimal at runtime.
+	
+	a debugdec 	prints out a register as decimal at runtime.
+
+
+
+
+fundemental operations:
+
+	a incr		increments the register.
+
+	a zero		sets the register to zero.
+
+
+
+branches:
+
+	a b c blt	if b is less than a,  execution branches to label c. 
+
+	a b c blts	if b is less than a when a and b are both signed numbers, execution branches to label c. 
+
+	a b c jalr	used for doing a branch and link,   as well as a register-based branch. [...still unimplemented.]
+
+
+
+other useful ones:
+
+
+	a b c nor	c is assigned the value a bitwise NOR'd with b. 
+
+	a exts		the register is sign extended to full word size.
+
+	a dis		the registers value is marked as discarded, ie never used again. 
+
+	a sc		the system call label a is used to perform a system call. 
+
+
+
+
+arithmetic operations:
+
+
+	a b c add	c is given the sum of a and b. 
+
+	a b c sub	c is given b minus a.
+
+	a b c mul	c is given the lower bits of the product of a and b. 
+
+	a b c div	c is given b divided by a.
+
+	a b c rem	c is given b modulo a.
+
+
+	a b c mh	c is given the upper bits of the product of a and b, if both a and b are unsigned. 
+
+	a b c mhs	c is given the upper bits of the product of a and b, if both a and b are signed. 
+
+	a b c mhsu	c is given the upper bits of the product of a and b, if a is unsigned and b is signed. 
+ 
+
+shifts and rotates:
+
+
+	a b c shl	c is given b left shifted by a bits.
+
+	a b c shr	c is given b logically right shifted by a bits.
+
+	a b c shrs	c is given b arithmetically right shifted by a bits. b is signed. 
+
+
+	a b c rol	c is given b rotated left shifted by a bits.
+
+	a b c ror	c is given b rotated right shifted by a bits.
+
+
+memory operations:
+
+	a b s1		[undocumented so far]
+
+	a b s2
+
+	a b s4
+
+	a b s8
+
+
+	a b l1
+
+	a b l2
+
+	a b l4
+
+	a b l8
+
+
+
+
+
+
+	

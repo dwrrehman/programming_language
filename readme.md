@@ -20,7 +20,10 @@ The current implementation is an REPL and interpreter, but an optimizing compile
  - macros (parse-time function defs/calls) are relied on heavily to make the language high-level.
  - add more notes
 
+
+
 ### Example Code:
+##### Notes: All of this example code is horribly outdated. 
 
 nestedforloops.txt:
 

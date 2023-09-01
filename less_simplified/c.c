@@ -406,14 +406,24 @@ static nat return_count[4096] = {0};
 
 
 static void debug_stack(void) {
-	puts("debug: STACK POINTER NONZERO!!!");
+	puts("debug: [STACK POINTER NONZERO]");
+
 	puts("return_start"); print_nats(return_start, stack_pointer);
 	puts("return_count"); print_nats(return_count, stack_pointer);
+
 	puts("stack"); print_nats(stack, stack_pointer);
-	printf("values:    %d %llu %llu   %llu %llu %llu   %llu %llu   \n", 
-		macro, previous_start, delimiter_start, 
-		start, previous_count, delimiter_count, 
-		count, stack_pointer
+
+	printf(	"values: \n"
+		"\t is_in_macro=%d    stack_pointer=%llu\n"
+
+		"\t previous=[.start=%llu .count=%llu]\n"
+		"\t delimiter=[.start=%llu .count=%llu]\n"
+		"\t {word}=[.start=%llu .count=%llu]\n",
+
+		macro, stack_pointer,
+		previous_start, previous_count,
+		delimiter_start, delimiter_count, 
+		start, count
 	);
 }
 
@@ -444,19 +454,26 @@ static void parse(
 		char* const previous   = string + previous_start;
 		char* const returnw    = stack_pointer ? string + return_start[stack_pointer - 1] : NULL;
 
+		
+
+		
 		if (macro) {
+			char* t = strndup(word, count);
+			if (debug) printf("{%s}, ", t); 
+			free(t);
 			if (count == delimiter_count and not memcmp(word, delimiter, count)) {
 				char* s = strndup(delimiter, count);
-				if (debug) printf("MACRO: inside macro definition, found end of defintion! " yellow "%s" reset "\n", s);
+				if (debug) printf("\nMACRO: inside macro definition, found end of defintion! " yellow "%s" reset "\n", s);
 				macro = 0; count = 0; delimiter_count = 0;
 				free(s);
 			} goto next;
 		} 
-		else if (is(spelling[del0], word, count)) { argument_count--; goto next; }
-		else if (is(spelling[gen], word, count)) { count = 0; goto push_new; }
-		else if (is(spelling[anon], word, count)) { dictionary[arguments[argument_count - 1]].length = 0; goto next; }
-		else if (is(spelling[dup0], word, count)) { d = arguments[argument_count - 1]; goto call_macro; }
-		else if (is(spelling[dup1], word, count)) { d = arguments[argument_count - 2]; goto push_existing; }
+
+		else if (is(spelling[del0], word, count)) { if (debug) puts("DEL0 EXECUTED"); argument_count--; goto next; }
+		else if (is(spelling[gen], word, count)) { if (debug) puts("GEN EXECUTED"); count = 0; goto push_new; }
+		else if (is(spelling[anon], word, count)) { if (debug) puts("ANON EXECUTED"); dictionary[arguments[argument_count - 1]].length = 0; goto next; }
+		else if (is(spelling[dup0], word, count)) { if (debug) puts("DUP0 EXECUTED"); d = arguments[argument_count - 1]; goto call_macro; }
+		else if (is(spelling[dup1], word, count)) { if (debug) puts("DUP1 EXECUTED"); d = arguments[argument_count - 2]; goto push_existing; }
 		else if (is(spelling[dup2_], word, count)) { d = arguments[argument_count - 3]; goto push_existing; }
 		else if (is(spelling[dup3], word, count)) { d = arguments[argument_count - 4]; goto push_existing; }
 		else if (is(spelling[dup4], word, count)) { d = arguments[argument_count - 5]; goto push_existing; }
@@ -471,17 +488,19 @@ static void parse(
 			}
 		}
  
+
 		if (stack_pointer and count == return_count[stack_pointer - 1] and not memcmp(word, returnw, count)) { 
 			if (debug) printf("MACRO: executing runtime return statement for macro! " magenta "%s" reset 
 					"  @ %llu\n", strndup(returnw, count), start + count);
 
 			index = stack[--stack_pointer]; 
 			count = 0; 
-			if (stack_pointer) debug_stack(); 
+			if (debug and stack_pointer) debug_stack(); 
 			goto next;
 		}
 
-		else if (count == previous_count and not memcmp(word, previous, count)) {
+
+		if (count == previous_count and not memcmp(word, previous, count)) {
 			if (debug) printf("MACRO: encountered macro definition! " red "%s" reset "\n", strndup(previous, count));
 			dictionary[arguments[argument_count - 1]].type = type_macro;
 			dictionary[arguments[argument_count - 1]].address = index;
@@ -491,20 +510,22 @@ static void parse(
 			goto next;
 		} 
 
+		getchar();
+
 		for (d = 0; d < dictionary_count; d++) {
 			if (dictionary[d].length != count or strncmp(dictionary[d].name, word, count)) continue;
 			if (debug) printf("[DEFINED]    ");
 			if (debug) print_word(dictionary[d]);
 		call_macro: 
 			if (dictionary[d].address and dictionary[d].type == type_macro) {
-				if (debug) printf("MACRO: calling macro! " cyan "%s" reset " @ %llu\n", dictionary[d].name, start + count);
+				if (debug) printf("MACRO: calling macro! " cyan "%s" reset " @ %llu\n", dictionary[d].name, index);
 				if (stack_pointer >= 4096) { puts("stack overflow"); abort(); } 
 				stack[stack_pointer] = index;
-				return_start[stack_pointer] = start;
-				return_count[stack_pointer++] = count;
+				return_start[stack_pointer] = dictionary[d].address - dictionary[d].length;
+				return_count[stack_pointer++] = dictionary[d].length;
 				index = dictionary[d].address;
 				count = 0;
-				if (stack_pointer) debug_stack(); 
+				if (debug and stack_pointer) debug_stack(); 
 				goto next;
 			}
 			push_existing: arguments[argument_count++] = d;
