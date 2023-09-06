@@ -1,0 +1,140 @@
+
+comment1
+comment1
+
+	this is a text file, which is testing out the programming language that i am writing. 
+
+	currently, it just does some arithemtic tests, and system call tests, but i plan to test more of the language including user-level for loops, and if statements too. 
+
+	written on 1202308255.193930
+
+comment1
+
+
+print 
+print   debugdec debugpause 
+print
+
+hex 
+hex   debughex debugpause 
+hex
+
+nop
+nop	_ zero
+nop
+
+a zero incr incr incr
+b zero incr incr
+c zero
+
+a b c 
+add print 
+sub print
+mul print
+div print
+rem print 
+nor print 
+shl print
+shr print 
+shrs print 
+sp hex
+
+
+a b label blt
+
+	c zero incr print
+
+label nop
+
+c zero incr incr 
+
+c sp s8 
+
+sp frommemory l8 print
+
+
+
+0 zero
+1 zero incr
+2 zero incr incr
+5 zero incr incr incr incr incr
+5 2 10 mul
+10 2 20 mul
+1 5 4 sub
+4 10 40 mul 
+2 40 42 add
+5 40 46 add incr
+		
+1 46 92 shl
+20 92 112 add
+4 112 116 add
+4 116 120 add
+2 120 122 add
+
+		
+'\0' zero
+0   46 '.' add
+0  116 't' add
+0  120 'x' add
+0  122 'z' add
+
+		
+o_rdonly 	zero
+o_wronly 	zero incr 
+o_rdwr 		zero incr incr
+
+
+0 sp pointer add
+0 pointer filename add
+		
+'z' print pointer s1 incr hex
+'.' print pointer s1 incr hex
+'t' print pointer s1 incr hex
+'x' print pointer s1 incr hex
+'t' print pointer s1 incr hex
+'\0' print pointer s1 incr hex
+
+sp pointer length sub
+
+arg2 zero print
+0 o_rdonly arg1 add print
+0 filename arg0 add hex
+
+sys_open sc
+
+0 arg0 myfile add print
+arg1 print
+
+0 2 ENOENT add
+
+		
+		
+length 0 arg2 add
+filename 0 arg1 add
+arg0 zero incr
+
+sys_write sc
+
+		
+		
+		
+0 myfile arg0 add
+
+sys_close sc
+
+arg0 print
+
+
+
+0 42 arg0 add sys_exit sc
+
+
+
+
+
+
+
+
+
+
+

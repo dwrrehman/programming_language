@@ -1,0 +1,162 @@
+
+oaensht4eoa 
+oaensht4eoa       testing for macros!        
+oaensht4eoa
+
+
+= = 2dcw9o0u4ny7ekz1 =
+. . sdju0t9ah8vz5r26 .
+, , kb8g4tl0fwu1dco3 ,
+
+store store er23nlvghmkzcpiw store
+load load z7m9hjko172w5n0f load
+systemcall systemcall dzmto4xrku8n306i systemcall
+
+gensym gensym 		6drwb5t2epv1ax4k gensym
+delete delete 		fmgx6srl95ywtuan delete
+removename removename 	x7ins0yb2kdw68ol removename
+callmacro callmacro 	t607hxkab8swjczl callmacro
+dup1 dup1 		nze1942qpht7dmcg dup1
+dup2 dup2 		3ba4te1ulnh26g0v dup2
+
+: : delete :
+
+branch branch , delete delete delete branch
+increment increment . delete increment
+settozero settozero = delete settozero
+
+hide hide removename delete hide
+// // hide //
+
+print print temporary-debug-print-hex print
+
+dup0 dup0 callmacro dup0
+
+argument0 argument0 dup0 argument0
+argument1 argument1 dup1 argument1
+argument2 argument2 dup1 argument2
+
+2390458 2390458
+            basic constants             
+2390458
+
+0 = 
+1 = .
+2 = . .
+3 = . . .
+4 = . . . . 
+5 = . . . . . 
+6 = . . . . . . 
+
+92840981 92840981
+            defining assignment         
+92840981
+
+
+set set
+	dup0 settozero
+loop :
+	dup1 dup1 skip branch
+	1 0 return branch
+skip :
+	dup0 increment
+	1 0 loop branch
+return : 
+	delete  loop hide  skip hide  return hide
+set
+
+
+
+109238508 109238508             defining addition          
+
+       right here, we are trying to figure out addition that produces a result 
+
+		in a gensym, so that the addition kinda acts like in forth. 
+
+	gensym 
+	dup1 dup1 set
+	delete delete
+
+109238508 
+
+
+
++= +=
+	i settozero
+loop :
+	dup0 i skip branch
+	1 0 return branch
+skip :
+	i increment
+	dup1 increment
+	1 0 loop branch
+return : 
+	delete
+	loop hide  skip hide  return hide
++=
+
+
+
+
+dothisplease dothisplease callmacro dothisplease
+
+
+anon anon debugarguments var = . print debugarguments anon anon
+
+debugarguments callmacro debugarguments
+
+
+
+
+
+
+0293845 0293845            testing addition 0293845             
+
+	
+	12 = . . . . . . . . . . . . 
+	8  = . . . . . . . .
+
+	+=
+
+	print
+ 
+
+
+
+
+
+
+aoshnet aoshnet             testing assignment      aoshnet        
+
+
+	b = . . . . . . . . . . . . 
+	a = . . . . . . . 
+
+	set print
+
+	6 c set print
+
+	4 b set print
+
+	2 a set print
+
+	1 z set print
+
+
+
+
+
+
+
+
+
+
+ / / this is a comment 
+
+
+// hello there lol
+
+
+/* this is comment */
+
+/ //

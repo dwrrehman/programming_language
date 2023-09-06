@@ -1,0 +1,115 @@
+//
+//  lets try to create our own if statement! whatever that takes lol.  
+//
+
+
+
+
+forreference forreference    just a comment!
+
+
+	heres the full language isa, just in case we forget something:
+
+	enum instruction_type { 
+		null, 
+
+		debugpause, debughex, debugdec, 
+
+		incr, zero,   add, sub, mul, div_, rem,  
+		nor,   mhs, mh, mhsu,   shl, shr, shrs,
+	 
+		s1, s2, s4, s8,   l1, l2, l4, l8,    jalr, blt, blts,    
+		exts,   rol, ror,   clz, ctz, csb,    dis, sc,
+
+		del0, anon, gen,    dup0, dup1, dup2_, dup3, dup4, dup5,     debugarguments,
+
+		isa_count
+	};
+
+forreference
+
+
+
+
+
+
+0 zero 
+1 zero incr 
+2 zero incr incr 
+
+2 1 c add debugdec
+
+
+
+
+
+if if 
+
+	zero debugdec debugpause
+
+	blt
+
+	
+	
+if 
+
+
+. . 
+
+	b zero incr debughex debugpause 
+
+. c if 
+
+
+
+
+
+
+
+
+	
+
+
+
+
+
+example1 example1
+
+
+
+
+
+comment
+
+
+
+
+if if 
+	5 zero incr incr incr debugdec debugpause 
+	3 zero incr debughex debugpause 
+if
+
+dup0
+
+
+a a stuff
+
+a dup0
+
+
+
+x = 1
+
+
+if (x) {
+	print "hi"
+}
+
+
+{block} x if 
+
+
+
+
+
+example1
