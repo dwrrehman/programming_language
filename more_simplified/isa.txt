@@ -6,6 +6,98 @@ this document describes the entire language ISA as of today, 202309015.014954, a
 still a work in progress.
 
 
+
+
+
+
+
+
+variables:
+
+	programcounter
+	stackpointer
+	arg0
+	arg1
+	arg2
+	arg3
+	arg4
+	arg5
+
+
+
+ISA: (15 ins)
+
+	a dis
+	a anon
+	a sc
+	a incr
+	a zero
+	a b nor
+
+	a b s1
+	a b s2
+	a b s4
+	a b s8
+	a b l1
+	a b l2
+	a b l4
+	a b l8
+
+	a b c blt
+
+
+
+
+
+x	gen         <--- we don't need this!?!?!? we can just use a variable that we don't name by name again. 
+
+	
+
+temporary:
+	debugarguments
+	debugpause
+	a debughex
+	a debugdec
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+OLD ISA:
+
+
+
 nonruntime operations:
 -----------------------------
 
@@ -444,6 +536,19 @@ heres the ISA im gunna implement:
 	debugpause
 	a debughex
 	a debugdec
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
