@@ -1,1 +1,15 @@
-hi there
+
+
+2 zero incr incr sp store8 value load8 debughex
+
+
+a zero
+5 zero now incr now incr now 
+  incr now incr now incr now
+i zero now
+label
+a incr debugdec
+i incr now
+5 i label branch now
+
+debugarguments
