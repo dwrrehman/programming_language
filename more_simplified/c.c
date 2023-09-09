@@ -1,302 +1,37 @@
 #include <stdio.h>
 #include <stdbool.h>   // a programming language made by dwrr on 2306283.112548 
-#include <iso646.h>
+#include <iso646.h>    // simplified and revised on 202309063.134052
 #include <string.h>   
 #include <stdlib.h>
 #include <unistd.h>
 #include <ctype.h>
 #include <fcntl.h>
 #include <sys/stat.h>
-#include <sys/mman.h>    /// candidate names for the language {   }
+#include <sys/mman.h>
 #include <stdint.h>
 #include <termios.h>
 #include <sys/ioctl.h>
 #include <sys/syscall.h> 
 #include <errno.h>
-/*
-
-
-
-
-	current language ISA:
-===============================================
-
-
-
-
-variables:
-============================
-
-	programcounter
-	stackpointer
-	arg0
-	arg1
-	arg2
-	arg3
-	arg4
-	arg5
-
-
-
-labels:
-==============================
-
-	byte
-	doublebyte
-	quadbyte
-	octalbyte
-
-	exit
-	open
-	read
-	write
-	close
-
-
-ISA: (8 ins)
-============================
-
-	a dis
-	a anon
-	c sc
-	a incr
-	a zero
-	a b c st
-	a b c ld
-	a b c blt
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-deleted:
-
-x	a b nor
-
-x	a b s1
-x	a b s2
-x	a b s4
-x	a b s8
-x	a b l1
-x	a b l2
-x	a b l4
-x	a b l8
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-IHHHH
-
-FUST ASCESS THE PROGRAMM COUNTER
-
-
-	PC PC PC PC PC 
-
-
-add var    pc    
-
-x     jalr
-
-
-yay
-
-
-
-	a sc
-	a incr
-	a zero
-	a b nor
-	a b s1
-	a b s2
-	a b s4
-	a b s8
-	a b l1
-	a b l2
-	a b l4
-	a b l8
-
-	a b c blt
-
-	a b c jalr              <-------- we just need to figure out this instruction, now! then we are done. 
-
-
-	setcallbit
-
-	makeparsetime
-
-
-	a anon        still important.
-
-	gen           still important. 
-
-	a dis	   probably going to add this back in later?..
-
-
-
-
-							19 instructions now, so far?
-
-
-								we might be able to get rid another one, maybe. idk. hm. 
-								maybe setcallbit? or    gen?   or anon?    or dis?
-
-										hm
-
-				
-
-
-
-
-
-
-x	a del0       <--------- not neccessary anymore:   just a stack pop operation, derived using language isa at pt.
-
-x	a str       no more strings in the language?...
-
-x	debugarguments
-x	debugpause
-x	a debughex
-x	a debugdec
-
-x	dup0     these can be replaced with memory accesses using loads and stores!!
-x	dup1
-x	dup2
-x	dup3
-x	dup4
-x	dup5
-
-
-
-
-
-
-
-
-
-writing bitwise  and   or     using only += and control flow with blt's!    nice. love it. 
-
-
-
-
-// AND (&)
-c = 0;
-for (x = 0; x <= 15; ++x) {
-    c += c;
-    if (a < 0) {
-        if (b < 0) {
-            c += 1;
-        }
-    }
-    a += a;
-    b += b;
-}
-
-// OR (|)
-c = 0;
-for (x = 0; x <= 15; ++x) {
-    c += c;
-    if (a < 0) {
-        c += 1;
-    } else if (b < 0) {
-        c += 1;
-    }
-    a += a;
-    b += b;
-}
-
-
-
-
-
-
-*/
-
-
-
-
 
 typedef uint64_t nat;
 static const nat debug = 1;
 
-#define compiler  "unnamed: "
-
-#define lightblue "\033[38;5;67m"
-#define red   	"\x1B[31m"
-#define green   "\x1B[32m"
-#define yellow  "\x1B[33m"
-#define blue   	"\x1B[34m"
-#define magenta "\x1B[35m"
-#define cyan   	"\x1B[36m"
-#define bold    "\033[1m"
-#define reset 	"\x1B[0m"
-
 enum thing_type { type_null, type_variable, type_label };
-
 enum instruction_type { 
 	null, 
-
 	incr, zero,  st, ld, blt,  dis, sc,  anon,
-
-	debugpause, debughex, debugdec,  debugarguments,
-
-	isa_count
+	debugpause, debughex, debugdec,  debugarguments,    isa_count
 };
-
 static const nat arity[isa_count] = { 
 	0, 
- 
 	1, 1, 3, 3, 3, 1, 1,  1,
-
 	0,  1, 1,  0
 };
-static const char* ins_color[isa_count] = { 
-	"", 
 
-	green, green, yellow, yellow, cyan, blue, red, red,
-
-	magenta, magenta, magenta, magenta, 
-};
 static const char* spelling[isa_count] = {
 	"",
-
 	"incr", "zero", "st", "ld", "blt", "dis", "sc", "anon",
-
 	"debugpause", "debughex", "debugdec", "debugarguments"
 };
 
@@ -321,20 +56,17 @@ struct word {
 	nat address;
 };
 
-// static const nat arm64_register_count = 31;
 static const nat uninit = (nat) ~0;
 
 static const char* spell_type(nat t) {
 	if (t == type_null) return "{null_type}";
-	if (t == type_label)  return cyan "label" reset;
-	if (t == type_variable)  return green "variable" reset;
+	if (t == type_label)  return "label";
+	if (t == type_variable)  return "variable";
 	return "unknown";
 }
 
 static void print_name(struct word w) {
-	printf("\033[38;5;%dm", 67);
 	for (nat _ = 0; _ < w.length; _++) putchar(w.name[_]);
-	printf(reset);
 }
 
 static void print_word(struct word w) {
@@ -354,21 +86,12 @@ static void print_nats(nat* array, nat count) {
 
 static void print_instruction(struct instruction ins, struct word* dict, nat dictionary_count) {
 	putchar(9);
-
-	/*if (ins.op < isa_count or 
-	ins.in[0] >= dictionary_count) {
-		printf(red "error ins in 0 not in dict" reset);
-	} else 
-		if (arity[ins.op]) print_name(dict[ins.in[0]]);*/
-
-	printf(" ");
-	printf("%s%s%s ", ins_color[ins.op], spelling[ins.op], reset);
+	printf("%s ", spelling[ins.op]);
 
 	printf("{");
 	for (nat i = 0; i < arity[ins.op]; i++) {
 		putchar(32);
-		if (ins.in[i] < dictionary_count)
-			print_name(dict[ins.in[i]]); 
+		if (ins.in[i] < dictionary_count) print_name(dict[ins.in[i]]); 
 		else printf("{name null}");
 	}
 	printf(" }\n\t\t\t\t\t\t\t"
@@ -381,7 +104,7 @@ static void print_instruction(struct instruction ins, struct word* dict, nat dic
 static void print_dictionary(struct word* dictionary, nat dictionary_count) {
 	printf("dictionary { \n");
 	for (nat i = 0; i < dictionary_count; i++) {
-		printf("\t%3llu  :  " green, i);
+		printf("\t%3llu  :  ", i);
 		print_word(dictionary[i]);
 	}
 	printf("}\n");
@@ -397,7 +120,7 @@ static void print_instructions(struct instruction* instructions, nat ins_count, 
 }
 
 static bool is(const char* thing, char* word, nat count) {
-	// if (not thing) { puts("string was found null in is()."); }
+	
 	return count == strlen(thing) and not strncmp(word, thing, count);
 }
 
@@ -407,105 +130,143 @@ static void ins(nat op,
 	struct instruction** instructions, nat* ins_count, 
 	nat file_location, nat dictionary_count) {
 
-
 	const nat arg0 = argument_count > 0 ? arguments[argument_count - 1] : uninit;
 	const nat arg1 = argument_count > 1 ? arguments[argument_count - 2] : uninit;
 	const nat arg2 = argument_count > 2 ? arguments[argument_count - 3] : uninit;
 
 	if (op == blt) {
 		if (arg0 >= dictionary_count or arg1 >= dictionary_count or arg2 >= dictionary_count) {
-			printf(red "blt argument error\n" reset); return;
+			printf("error: blt argument error\n"); 
+			return;
 		}
 
-		if (dictionary[arg0].type == type_label and dictionary[arg0].value == *ins_count)  dictionary[arg0].value = uninit;
+		if (dictionary[arg0].type == type_label and dictionary[arg0].value == *ins_count)  
+			dictionary[arg0].value = uninit;
 
 
-		if (dictionary[arg0].type != type_label)    { printf(red "ERROR: bad branch arg0 label %llu:%llu :: expected label argument of type label." reset "\n", file_location, dictionary[arg0].file_location); return; }
-		if (dictionary[arg1].type != type_variable) { printf(red "ERROR: bad branch arg1 var %llu:%llu :: expected arg1 lhs to be a variable." reset "\n",   file_location, dictionary[arg1].file_location); return; }
-		if (dictionary[arg2].type != type_variable) { printf(red "ERROR: bad branch arg2 var %llu:%llu :: expected arg2 rhs to be a variable." reset "\n",   file_location, dictionary[arg2].file_location); return; }
+		if (dictionary[arg0].type != type_label)    { 
+		
+			printf("error: bad branch arg0 label %llu:%llu :: "
+				"expected label argument of type label.\n", 
+				file_location, dictionary[arg0].file_location
+			); 
+			return; 
+		}
 
-		if (not argument_count) { printf(red "error: argstack was empty, no arguments can be given for blt instruction." reset "\n"); return; }
+		if (dictionary[arg1].type != type_variable) { 
+			printf("error: bad branch arg1 var %llu:%llu :: "
+				"expected arg1 lhs to be a variable.\n",   
+				file_location, dictionary[arg1].file_location
+			); 
+			return; 
+		}
+
+		if (dictionary[arg2].type != type_variable) { 
+			printf("error: bad branch arg2 var %llu:%llu :: "
+				"expected arg2 rhs to be a variable.\n",   
+				file_location, dictionary[arg2].file_location
+			); 
+			return; 
+		}
 	} 
 
 	else if (op == zero) {
-		if (not argument_count) { printf(red "error: argstack was empty, no arguments can be given for zero instruction." reset "\n"); return; }
+
+		if (not argument_count) { 
+			printf("error: argstack was empty, no arguments can be given for zero instruction.\n"); 
+			return; 
+		}
 
 		if (arg0 >= dictionary_count) {
-			printf(red "zero argument error\n" reset); return;
+			printf("error: zero argument error\n"); return;
 		}
 
 		dictionary[arg0].type = type_variable;
 	}
 
-	/*else if (op == nor) {
-		if (arg0 >= dictionary_count or arg1 >= dictionary_count) {
-			printf(red "nor argument error\n" reset); return;
-		}
 
-		if (dictionary[arg0].type != type_variable) { 
-			printf(red "error: bad nor arg0 var %llu:%llu\n" reset, file_location, dictionary[arg0].file_location); 
+	else if (op == ld or op == st) {
+
+		if (arg0 >= dictionary_count or arg1 >= dictionary_count or arg2 >= dictionary_count) {
+			printf("error: load/store argument error\n"); 
 			return;
-		} 
+		}
+		
+		if (dictionary[arg0].type != type_label) { 
+			printf("error: ldst arg0 label %llu:%llu :: expected label argument of type label.\n", 
+				file_location, dictionary[arg0].file_location); 
+			return; 
+		}
 
 		if (dictionary[arg1].type != type_variable) { 
-			printf(red "error: bad nor arg1 var %llu:%llu\n" reset, file_location, dictionary[arg1].file_location); 
-			return;
-		} 
-
-		if (not argument_count) { printf(red "error: argstack was empty, no arguments can be given for nor instruction." reset "\n"); return; }
-	}*/
-
-	else if (	op == ld or op == st  ) {
-		if (arg0 >= dictionary_count or arg1 >= dictionary_count or arg2 >= dictionary_count) {
-			printf(red "load/store argument error\n" reset); return;
+			printf("error: ldst arg1 var %llu:%llu :: expected arg1 lhs to be a variable.\n",  
+				 file_location, dictionary[arg1].file_location); 
+			return; 
 		}
-		//dictionary[arg0].type = type_variable;
 
-			if (dictionary[arg0].type != type_label)    { printf(red "ERROR: bad ldst arg0 label %llu:%llu :: expected label argument of type label." reset "\n", file_location, dictionary[arg0].file_location); return; }
-		if (dictionary[arg1].type != type_variable) { printf(red "ERROR: bad ldst arg1 var %llu:%llu :: expected arg1 lhs to be a variable." reset "\n",   file_location, dictionary[arg1].file_location); return; }
-		if (dictionary[arg2].type != type_variable) { printf(red "ERROR: bad ldst arg2 var %llu:%llu :: expected arg2 rhs to be a variable." reset "\n",   file_location, dictionary[arg2].file_location); return; }
+		if (dictionary[arg2].type != type_variable) { 
+			printf("error: ldst arg2 var %llu:%llu :: expected arg2 rhs to be a variable.\n",   
+				file_location, dictionary[arg2].file_location); 
+			return; 
+		}
 
 
-		if (not argument_count) { printf(red "error: argstack was empty, no arguments can be given for nor instruction." reset "\n"); return; }
+		if (not argument_count) { 
+			printf("error: argstack was empty, no arguments can be given for nor instruction.\n"); 
+			return; 
+		}
 	}
 
 	else if (op == incr) {   
 		if (arg0 >= dictionary_count) {
-			printf(red "incr argument error\n" reset); return;
+			printf("error: incr argument error\n"); 
+			return;
 		}
 
 		if (dictionary[arg0].type != type_variable) { 
-			printf(red "error: incr arg0 %llu:%llu :: argument to increment is not a variable or is not initialized.\n" reset, file_location, dictionary[arg0].file_location); 
+			printf("error: incr arg0 %llu:%llu :: argument to increment is not a variable or is not initialized.\n",
+				 file_location, dictionary[arg0].file_location); 
+			return;
 		} 
 
-		if (not argument_count) { printf(red "error: argstack was empty, no arguments can be given for incr instruction." reset "\n"); return; }
+		if (not argument_count) { 
+			printf("error: argstack was empty, no arguments can be given for incr instruction.\n"); 
+			return; 
+		}
 	} 
 
 	else if (op == sc) {  
 		if (arg0 >= dictionary_count) {
-			printf(red "sc argument error\n" reset); return;
+			printf("error: sc argument error\n"); 
+			return;
 		}
 		if (dictionary[arg0].type != type_label) { 
-			printf(red "error: bad sc arg0 var %llu:%llu\n" reset, file_location, dictionary[arg0].file_location); 
+			printf("error: bad sc arg0 var %llu:%llu\n", file_location, dictionary[arg0].file_location); 
+			return;
 		} 
 
-		if (not argument_count) { printf(red "error: argstack was empty, no arguments can be given for sc instruction." reset "\n"); return; }
+		if (not argument_count) { 
+			printf("error: argstack was empty, no arguments can be given for sc instruction.\n"); 
+			return; 
+		}
 	} 
 
 	else if (op == dis) {
 		if (arg0 >= dictionary_count) {
-			printf(red "dis argument error\n" reset); return;
+			printf("error: discard argument error\n"); 
+			return;
 		}
 
 		if (dictionary[arg0].type != type_variable) { 
-			printf(red "error: bad dis arg0 var %llu:%llu\n" reset, file_location, dictionary[arg0].file_location); 
+			printf("error: bad dis arg0 var %llu:%llu\n", file_location, dictionary[arg0].file_location); 
+			return;
 		} 
 
-		if (not argument_count) { printf(red "error: argstack was empty, no arguments can be given for dis instruction." reset "\n"); return; }
+		if (not argument_count) { 
+			printf("error: argstack was empty, no arguments can be given for dis instruction.\n"); 
+			return; 
+		}
 	}
-
-
-	
 
 	*instructions = realloc(*instructions, sizeof(struct instruction) * (*ins_count + 1));
 	(*instructions)[(*ins_count)++] = (struct instruction) {
@@ -522,45 +283,37 @@ static void ins(nat op,
 
 static void process_syscall(nat n, nat* r) {
 
-	nat 
-		r0 = r[1], 
-		r1 = r[2], 
-		r2 = r[3], 
-		r3 = r[4],
-		r4 = r[5], 
-		r5 = r[6];
+	nat r0 = r[1], r1 = r[2], r2 = r[3], r3 = r[4], r4 = r[5], r5 = r[6];
 
-
-	printf(green "SYSCALL (NR=%llu): {%llu %llu %llu %llu %llu %llu}" reset "\n", 
+	printf("SYSCALL (NR=%llu): {%llu %llu %llu %llu %llu %llu}\n", 
 		n, r0, r1, r2, r3, r4, r5
 	);
 
-
 	if (n == 7) {
-		printf(cyan "calling exit(%llu);" reset "\n", r0);
+		printf("calling exit(%llu);\n", r0);
 		exit((int) r0);
 	}
 
 	else if (n == 8) {
-		printf(cyan "calling read(%llu, %p, %llu);" reset "\n", r0, (void*) r1, r2);
+		printf("calling read(%llu, %p, %llu);\n", r0, (void*) r1, r2);
 		r[1] = (nat) read((int) r0, (void*) r1, r2);
 		r[2] = (nat) (long long) errno;
 	}
 
 	else if (n == 9) {
-		printf(cyan "calling write(%llu, %p, %llu);" reset "\n", r0, (void*) r1, r2);
+		printf("calling write(%llu, %p, %llu);\n", r0, (void*) r1, r2);
 		r[1] = (nat) write((int) r0, (void*) r1, r2);
 		r[2] = (nat) (long long) errno;
 	}
 
 	else if (n == 10) {
-		printf(cyan "calling open(%p, %llu, %llu);" reset "\n", (void*) r0, r1, r2);
+		printf("calling open(%p, %llu, %llu);\n", (void*) r0, r1, r2);
 		r[1] = (nat) open((const char*) r0, (int) r1, r2);
 		r[2] = (nat) (long long) errno;
 	}
 
 	else if (n == 11) {
-		printf(cyan "calling close(%llu);" reset "\n", r0);
+		printf("calling close(%llu);\n", r0);
 		r[1] = (nat) close((int) r0);
 		r[2] = (nat) (long long) errno;
 	} else {
@@ -569,12 +322,12 @@ static void process_syscall(nat n, nat* r) {
 
 
 if (n == 1000) r[1] = (nat) fork();
-if (n == 1000)r[1]=(nat)(void*)mmap((void*)r0,r1,(int)r2,(int)r3,(int)r4,(long long) r5);
+if (n == 1000) r[1] = (nat)(void*)mmap((void*)r0,r1,(int)r2,(int)r3,(int)r4,(long long) r5);
 if (n == 1000) r[1] = (nat)munmap((void*)r0, r1);
 
 }
 
-// typedef long long integer;
+
 
 static void execute_directly(const nat starting_ip, struct instruction* instructions, nat ins_count, struct word* dictionary, nat dictionary_count) {
 	if (debug) {
@@ -598,65 +351,28 @@ static void execute_directly(const nat starting_ip, struct instruction* instruct
 		if (false) {}
 		else if (op == incr) r[in[0]]++;
 		else if (op == zero) r[in[0]] = 0;
-		// else if (op == compl) r[in[0]] = ~r[in[0]];
+		
 		else if (op == blt) { if (r[in[1]] < r[in[2]]) ip = dictionary[in[0]].value - 1; } 
-		else if (op == l1) r[in[0]] = (nat) *(uint8_t*)  r[in[1]];
-		else if (op == l2) r[in[0]] = (nat) *(uint16_t*) r[in[1]];
-		else if (op == l4) r[in[0]] = (nat) *(uint32_t*) r[in[1]];
-		else if (op == l8) r[in[0]] = (nat) *(uint64_t*) r[in[1]];
-		else if (op == s1) *(uint8_t*) r[in[0]] = (uint8_t)  r[in[1]];
-		else if (op == s2) *(uint16_t*)r[in[0]] = (uint16_t) r[in[1]];
-		else if (op == s4) *(uint32_t*)r[in[0]] = (uint32_t) r[in[1]];
-		else if (op == s8) *(uint64_t*)r[in[0]] = (uint64_t) r[in[1]];
-		else if (op == dis) { printf(green "value discarded: %s" reset "\n", dictionary[in[0]].name); }
+
+		
+		else if (op == ld) r[in[0]] = (nat) *(uint64_t*) r[in[1]];
+		
+		else if (op == st) *(uint64_t*)r[in[0]] = (uint64_t) r[in[1]];
+
+		else if (op == dis) { printf("value discarded: %s\n", dictionary[in[0]].name); }
 		else if (op == sc) { process_syscall(in[0], r); }
 
 		else if (op == debugpause) getchar();
-		else if (op == debughex) printf(green "debug: 0x%llx" reset "\n", r[in[0]]);
-		else if (op == debugdec) printf(green "debug: %lld" reset "\n", r[in[0]]);
+		else if (op == debughex) printf("debug: 0x%llx\n", r[in[0]]);
+		else if (op == debugdec) printf("debug: %lld\n", r[in[0]]);
 		else {
 			printf("internal error: execute: unexpected instruction: %llu\n", op);
 			abort();
 		}
 	}
- 	if (debug) puts(green "[finished execution]" reset);
+ 	if (debug) puts("[finished execution]");
 }
-/*
-static bool macro = false;
-static nat previous_start = 0;
-static nat delimiter_start = 0;
 
-static nat previous_count = 0;
-static nat delimiter_count = 0;
-
-static nat stack_pointer = 0;
-static nat stack[4096] = {0};
-static nat return_start[4096] = {0};
-static nat return_count[4096] = {0};
-
-
-
-static void debug_stack(void) {
-	puts("debug: [STACK POINTER NONZERO]");
-
-	puts("return_start"); print_nats(return_start, stack_pointer);
-	puts("return_count"); print_nats(return_count, stack_pointer);
-
-	puts("stack"); print_nats(stack, stack_pointer);
-
-	printf(	"values: \n"
-		"\t is_in_macro=%d    stack_pointer=%llu\n"
-
-		"\t previous=[.start=%llu .count=%llu]\n"
-		"\t delimiter=[.start=%llu .count=%llu]\n"
-		"\t {word}=[.start=%llu .count=%llu]\n",
-
-		macro, stack_pointer,
-		previous_start, previous_count,
-		delimiter_start, delimiter_count, 
-		start, count
-	);
-}*/
 
 static nat count = 0;
 static nat start = 0;
@@ -684,103 +400,51 @@ static void parse(
 		process_word:;
 
 		char* const word       = string + start;
-		//char* const delimiter  = string + delimiter_start;
-		//char* const previous   = string + previous_start;
-		//char* const returnw    = stack_pointer ? string + return_start[stack_pointer - 1] : NULL;
-	
-		/*if (macro) {
-			char* t = strndup(word, count);
-			if (debug) printf("{%s}, ", t); 
-			free(t);
-			if (count == delimiter_count and not memcmp(word, delimiter, count)) {
-				char* s = strndup(delimiter, count);
-				if (debug) printf("\nMACRO: inside macro definition, found end of defintion! " yellow "%s" reset "\n", s);
-				macro = 0; count = 0; delimiter_count = 0;
-				free(s);
-			} goto next;
-		} */
 
-		if (is(spelling[del0], word, count)) { if (debug) puts("DEL0 EXECUTED"); if (not argument_count) { puts(red "error: argument count is zero in del0\n" reset); } else argument_count--; goto next; }
-		//else if (is(spelling[gen], word, count)) { if (debug) puts("GEN EXECUTED"); count = 0; goto push_new; }
-		else if (is(spelling[anon], word, count)) { 
+		if (is(spelling[anon], word, count)) { 
 		
-	
-		if (debug) puts("ANON EXECUTED"); 
-		if (not argument_count) { 
-			printf(red "error: argstack was empty, no arguments can be given for anon instruction." reset "\n"); 
-			goto next; 
+			if (debug) puts("ANON EXECUTED"); 
+			if (not argument_count) { 
+				printf("error: argstack was empty, no arguments can be given for anon instruction.\n"); 
+				goto next; 
 
-		} 
-		if (arguments[argument_count - 1] >= dictionary_count) {
-			printf(red "error: dictionary was empty, no arguments can be given for anon instruction." reset "\n"); 
-			goto next;
+			} 
+			if (arguments[argument_count - 1] >= dictionary_count) {
+				printf("error: dictionary was empty, no arguments can be given for anon instruction.\n"); 
+				goto next;
+			}
+			dictionary[arguments[argument_count - 1]].length = 0; goto next; 
 		}
-		dictionary[arguments[argument_count - 1]].length = 0; goto next; }
-		//else if (is(spelling[dup0], word, count)) { if (debug) puts("DUP0 EXECUTED"); d = arguments[argument_count - 1]; goto call_macro; }
-		//else if (is(spelling[dup1], word, count)) { if (debug) puts("DUP1 EXECUTED"); d = arguments[argument_count - 2]; goto push_existing; }
-		//else if (is(spelling[dup2_], word, count)) { d = arguments[argument_count - 3]; goto push_existing; }
-		//else if (is(spelling[dup3], word, count)) { d = arguments[argument_count - 4]; goto push_existing; }
-		//else if (is(spelling[dup4], word, count)) { d = arguments[argument_count - 5]; goto push_existing; }
-		//else if (is(spelling[dup5], word, count)) { d = arguments[argument_count - 6]; goto push_existing; }
-		//else if (is(spelling[debugarguments], word, count)) { print_nats(arguments, argument_count); goto next; }
-		
-		for (nat i = null; i <= debugarguments; i++) {
+
+
+		for (nat i = null; i <= debugarguments; i++) { // todo: refactor this to be a simple if-elseif statement chain.
+
+
 			if (is(spelling[i], word, count)) {
 				ins(i, arguments, argument_count, dictionary, &instructions, &ins_count, index, dictionary_count);
-				if (debug) { if (ins_count) print_instruction(instructions[ins_count - 1], dictionary, dictionary_count); } 
+				if (debug and ins_count) {
+					print_instruction(
+						instructions[ins_count - 1], 
+						dictionary, dictionary_count
+					); 
+				}
 				goto next;
 			}
 		}
- 
-
-		/*if (stack_pointer and count == return_count[stack_pointer - 1] and not memcmp(word, returnw, count)) { 
-			if (debug) printf("MACRO: executing runtime return statement for macro! " magenta "%s" reset 
-					"  @ %llu\n", strndup(returnw, count), start + count);
-
-			index = stack[--stack_pointer]; 
-			count = 0; 
-			if (debug and stack_pointer) debug_stack(); 
-			goto next;
-		}*/
-
-
-		/* if (count == previous_count and not memcmp(word, previous, count)) {
-			if (debug) printf("MACRO: encountered macro definition! " red "%s" reset "\n", strndup(previous, count));
-			dictionary[arguments[argument_count - 1]].type = type_macro;
-			dictionary[arguments[argument_count - 1]].address = index;
-			macro = 1;
-			delimiter_start = start;
-			delimiter_count = count;
-			goto next;
-		} */
 
 		for (d = 0; d < dictionary_count; d++) {
 			if (dictionary[d].length != count or strncmp(dictionary[d].name, word, count)) continue;
 			if (debug) printf("[DEFINED]    ");
 			if (debug) print_word(dictionary[d]);
-		/*call_macro: 
-			if (dictionary[d].address and dictionary[d].type == type_macro) {
-				if (debug) printf("MACRO: calling macro! " cyan "%s" reset " @ %llu\n", dictionary[d].name, index);
-				if (stack_pointer >= 4096) { puts("stack overflow"); abort(); } 
-				stack[stack_pointer] = index;
-				return_start[stack_pointer] = dictionary[d].address - dictionary[d].length;
-				return_count[stack_pointer++] = dictionary[d].length;
-				index = dictionary[d].address;
-				count = 0;
-				if (debug and stack_pointer) debug_stack(); 
-				goto next;
-			}*/
-			//push_existing: 
-
+		
 			arguments[argument_count++] = d;
 			if (dictionary[d].type == type_label and dictionary[d].value == uninit)
 				dictionary[d].value = ins_count;
 			goto next;
 		}
-		//push_new: 
+
 		arguments[argument_count++] = dictionary_count;
 		dictionary = realloc(dictionary, sizeof(struct word) * (dictionary_count + 1));
-
 		dictionary[dictionary_count++] = (struct word) {
 			.name = strndup(word, count), 
 			.length = count, 
@@ -793,9 +457,7 @@ static void parse(
 		if (debug) printf("[not defined]  -->  assuming  ");
 		if (debug) print_word(dictionary[dictionary_count - 1]);
 
-	next: 	//previous_start = start;
-		//previous_count = count;
-		count = 0;
+	next: 	count = 0;
 	}
 	if (count) goto process_word;
 
@@ -810,9 +472,8 @@ static void parse(
 static char* read_file(const char* filename, size_t* length) {
 	FILE* file = fopen(filename, "r");
 	if (not file) {
-		fprintf(stderr, compiler bold red "error:" reset bold " ");
+		fprintf(stderr, "compiler-name: error: ");
 		perror(filename);
-		fprintf(stderr, reset);
 		exit(1);
 	}
 
@@ -827,6 +488,25 @@ static char* read_file(const char* filename, size_t* length) {
 	return text;
 }
 
+static void make_dictionary(struct word** dictionary, nat* dictionary_count) {
+
+	(*dictionary_count) = 0;
+	*dictionary = calloc(13, sizeof(struct word));
+	(*dictionary)[(*dictionary_count)++] = (struct word) { .name = "pc",  .length = 2, .type = type_variable, .def = uninit };
+	(*dictionary)[(*dictionary_count)++] = (struct word) { .name = "sp",  .length = 2, .type = type_variable, .def = uninit };
+	(*dictionary)[(*dictionary_count)++] = (struct word) { .name = "arg0", .length = 4, .type = type_variable, .def = uninit };
+	(*dictionary)[(*dictionary_count)++] = (struct word) { .name = "arg1", .length = 4, .type = type_variable, .def = uninit };
+	(*dictionary)[(*dictionary_count)++] = (struct word) { .name = "arg2", .length = 4, .type = type_variable, .def = uninit };
+	(*dictionary)[(*dictionary_count)++] = (struct word) { .name = "arg3", .length = 4, .type = type_variable, .def = uninit };
+	(*dictionary)[(*dictionary_count)++] = (struct word) { .name = "arg4", .length = 4, .type = type_variable, .def = uninit };
+	(*dictionary)[(*dictionary_count)++] = (struct word) { .name = "arg5", .length = 4, .type = type_variable, .def = uninit };
+	(*dictionary)[(*dictionary_count)++] = (struct word) { .name = "sys_exit", .length = 8, .type = type_label, .def = uninit };
+	(*dictionary)[(*dictionary_count)++] = (struct word) { .name = "sys_read", .length = 8, .type = type_label, .def = uninit };
+	(*dictionary)[(*dictionary_count)++] = (struct word) { .name = "sys_write", .length = 9, .type = type_label, .def = uninit };
+	(*dictionary)[(*dictionary_count)++] = (struct word) { .name = "sys_open", .length = 8, .type = type_label, .def = uninit };
+	(*dictionary)[(*dictionary_count)++] = (struct word) { .name = "sys_close", .length = 9, .type = type_label, .def = uninit };
+}
+
 static _Noreturn void repl(void) {
 	
 	const char* welcome_string = 
@@ -835,13 +515,13 @@ static _Noreturn void repl(void) {
 
 	const char* help_string = 
 		"Help menu: " "\n"
-		"\t. " bold magenta "help: " reset "(you are here.)" "\n"
-		"\t. " bold cyan "quit: " reset "quit the interpreter." "\n"
-		"\t. " bold yellow "undo: " reset "remove the last instruction." "\n"
-		"\t. " bold blue "dictionary: " reset "display the current dictionary." "\n"
-		"\t. " bold green "instructions: " reset "display the current instructions." "\n"
-		"\t. " bold red "resetall: " reset "reset the instructions and dictionary to be empty." "\n"
-		"\t. " bold "{expression}: " reset "a series of instructions in the language ISA." "\n"
+		"\t. help : 		(you are here.)\n"
+		"\t. quit : 		quit the interpreter.\n"
+		"\t. undo : 		remove the last instruction.\n"
+		"\t. dictionary : 	display the current dictionary.\n"
+		"\t. instructions : 	display the current instructions.\n"
+		"\t. resetall : 		reset the instructions and dictionary to be empty.\n"
+		"\t. {expression} : 	a series of instructions in the language ISA.\n"
 	;
 	
 	puts(welcome_string);
@@ -858,32 +538,8 @@ static _Noreturn void repl(void) {
 	struct instruction* instructions = NULL;
 	
 	nat dictionary_count = 0;
-	struct word* dictionary = calloc(12, sizeof(struct word));
-	dictionary[dictionary_count++] = (struct word) 
-	{ .name = "sp",   .length = 2, .type = type_variable, .def = uninit };
-	dictionary[dictionary_count++] = (struct word) 
-	{ .name = "arg0", .length = 4, .type = type_variable, .def = uninit };
-	dictionary[dictionary_count++] = (struct word) 
-	{ .name = "arg1", .length = 4, .type = type_variable, .def = uninit };
-	dictionary[dictionary_count++] = (struct word) 
-	{ .name = "arg2", .length = 4, .type = type_variable, .def = uninit };
-	dictionary[dictionary_count++] = (struct word) 
-	{ .name = "arg3", .length = 4, .type = type_variable, .def = uninit };
-	dictionary[dictionary_count++] = (struct word) 
-	{ .name = "arg4", .length = 4, .type = type_variable, .def = uninit };
-	dictionary[dictionary_count++] = (struct word) 
-	{ .name = "arg5", .length = 4, .type = type_variable, .def = uninit };
-
-	dictionary[dictionary_count++] = (struct word) 
-	{ .name = "sys_exit", .length = 8, .type = type_label, .def = uninit };
-	dictionary[dictionary_count++] = (struct word) 
-	{ .name = "sys_read", .length = 8, .type = type_label, .def = uninit };
-	dictionary[dictionary_count++] = (struct word) 
-	{ .name = "sys_write", .length = 9, .type = type_label, .def = uninit };
-	dictionary[dictionary_count++] = (struct word) 
-	{ .name = "sys_open", .length = 8, .type = type_label, .def = uninit };
-	dictionary[dictionary_count++] = (struct word) 
-	{ .name = "sys_close", .length = 9, .type = type_label, .def = uninit };
+	struct word* dictionary = NULL;
+	make_dictionary(&dictionary, &dictionary_count);
 
 loop:
 	printf(":%llu:%llu: ", dictionary_count, ins_count);
@@ -897,7 +553,7 @@ loop:
 		puts(help_string);
 		puts("ISA:");
 		for (nat i = 0; i < isa_count; i++) {
-			printf("\t  " lightblue "(%llu)" reset bold "%s" "%s" reset "\n", arity[i], ins_color[i], spelling[i]);
+			printf("\t  (%llu) %s \n", arity[i], spelling[i]);
 		}
 		puts("[done]");
 	}
@@ -932,7 +588,9 @@ int main(int argc, const char** argv) {
 	struct instruction* instructions = NULL;
 
 	nat dictionary_count = 0;
-	struct word* dictionary = calloc(12, sizeof(struct word));
+	struct word* dictionary = calloc(13, sizeof(struct word));
+	dictionary[dictionary_count++] = (struct word) 
+	{ .name = "pc",   .length = 2, .type = type_variable, .def = uninit };
 	dictionary[dictionary_count++] = (struct word) 
 	{ .name = "sp",   .length = 2, .type = type_variable, .def = uninit };
 	dictionary[dictionary_count++] = (struct word) 
@@ -974,6 +632,87 @@ int main(int argc, const char** argv) {
 	free(instructions);
 	free(dictionary);
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 // instead of executing instructions directly, we need to do instruction selection for  the     "C virtual machine ISA", ie, an interpreter in C. 
@@ -1514,6 +1253,457 @@ lldb notes:
 
 
 			*/
+
+
+
+
+
+
+//push_new: 
+
+
+// if (not thing) { puts("string was found null in is()."); }
+
+
+// typedef long long integer;
+
+
+
+
+
+/*
+
+
+
+
+	current language ISA:
+===============================================
+
+
+
+
+variables:
+============================
+
+	programcounter
+	stackpointer
+	arg0
+	arg1
+	arg2
+	arg3
+	arg4
+	arg5
+
+
+
+labels:
+==============================
+
+	byte
+	doublebyte
+	quadbyte
+	octalbyte
+
+	exit
+	open
+	read
+	write
+	close
+
+
+ISA: (8 ins)
+============================
+
+	a dis
+	a anon
+	c sc
+	a incr
+	a zero
+	a b c st
+	a b c ld
+	a b c blt
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+deleted:
+
+x	a b nor
+
+x	a b s1
+x	a b s2
+x	a b s4
+x	a b s8
+x	a b l1
+x	a b l2
+x	a b l4
+x	a b l8
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+IHHHH
+
+FUST ASCESS THE PROGRAMM COUNTER
+
+
+	PC PC PC PC PC 
+
+
+add var    pc    
+
+x     jalr
+
+
+yay
+
+
+
+	a sc
+	a incr
+	a zero
+	a b nor
+	a b s1
+	a b s2
+	a b s4
+	a b s8
+	a b l1
+	a b l2
+	a b l4
+	a b l8
+
+	a b c blt
+
+	a b c jalr              <-------- we just need to figure out this instruction, now! then we are done. 
+
+
+	setcallbit
+
+	makeparsetime
+
+
+	a anon        still important.
+
+	gen           still important. 
+
+	a dis	   probably going to add this back in later?..
+
+
+
+
+							19 instructions now, so far?
+
+
+								we might be able to get rid another one, maybe. idk. hm. 
+								maybe setcallbit? or    gen?   or anon?    or dis?
+
+										hm
+
+				
+
+
+
+
+
+
+x	a del0       <--------- not neccessary anymore:   just a stack pop operation, derived using language isa at pt.
+
+x	a str       no more strings in the language?...
+
+x	debugarguments
+x	debugpause
+x	a debughex
+x	a debugdec
+
+x	dup0     these can be replaced with memory accesses using loads and stores!!
+x	dup1
+x	dup2
+x	dup3
+x	dup4
+x	dup5
+
+
+
+
+
+
+
+
+
+writing bitwise  and   or     using only += and control flow with blt's!    nice. love it. 
+
+
+
+
+// AND (&)
+c = 0;
+for (x = 0; x <= 15; ++x) {
+    c += c;
+    if (a < 0) {
+        if (b < 0) {
+            c += 1;
+        }
+    }
+    a += a;
+    b += b;
+}
+
+// OR (|)
+c = 0;
+for (x = 0; x <= 15; ++x) {
+    c += c;
+    if (a < 0) {
+        c += 1;
+    } else if (b < 0) {
+        c += 1;
+    }
+    a += a;
+    b += b;
+}
+
+
+
+
+
+
+*/
+
+
+
+
+
+
+
+// static const nat arm64_register_count = 31;
+
+
+/*if (ins.op < isa_count or 
+	ins.in[0] >= dictionary_count) {
+		printf(red "error ins in 0 not in dict" reset);
+	} else 
+		if (arity[ins.op]) print_name(dict[ins.in[0]]);*/
+
+
+
+
+
+	/*else if (op == nor) {
+		if (arg0 >= dictionary_count or arg1 >= dictionary_count) {
+			printf(red "nor argument error\n" reset); return;
+		}
+
+		if (dictionary[arg0].type != type_variable) { 
+			printf(red "error: bad nor arg0 var %llu:%llu\n" reset, file_location, dictionary[arg0].file_location); 
+			return;
+		} 
+
+		if (dictionary[arg1].type != type_variable) { 
+			printf(red "error: bad nor arg1 var %llu:%llu\n" reset, file_location, dictionary[arg1].file_location); 
+			return;
+		} 
+
+		if (not argument_count) { printf(red "error: argstack was empty, no arguments can be given for nor instruction." reset "\n"); return; }
+	}*/
+
+
+
+
+//dictionary[arg0].type = type_variable;
+
+
+
+
+
+// else if (op == compl) r[in[0]] = ~r[in[0]];
+		//else if (op == l1) r[in[0]] = (nat) *(uint8_t*)  r[in[1]];
+		//else if (op == l2) r[in[0]] = (nat) *(uint16_t*) r[in[1]];
+		//else if (op == l4) r[in[0]] = (nat) *(uint32_t*) r[in[1]];
+		//else if (op == s1) *(uint8_t*) r[in[0]] = (uint8_t)  r[in[1]];
+		//else if (op == s2) *(uint16_t*)r[in[0]] = (uint16_t) r[in[1]];
+		//else if (op == s4) *(uint32_t*)r[in[0]] = (uint32_t) r[in[1]];
+
+
+
+
+
+/*
+static bool macro = false;
+static nat previous_start = 0;
+static nat delimiter_start = 0;
+
+static nat previous_count = 0;
+static nat delimiter_count = 0;
+
+static nat stack_pointer = 0;
+static nat stack[4096] = {0};
+static nat return_start[4096] = {0};
+static nat return_count[4096] = {0};
+
+
+
+static void debug_stack(void) {
+	puts("debug: [STACK POINTER NONZERO]");
+
+	puts("return_start"); print_nats(return_start, stack_pointer);
+	puts("return_count"); print_nats(return_count, stack_pointer);
+
+	puts("stack"); print_nats(stack, stack_pointer);
+
+	printf(	"values: \n"
+		"\t is_in_macro=%d    stack_pointer=%llu\n"
+
+		"\t previous=[.start=%llu .count=%llu]\n"
+		"\t delimiter=[.start=%llu .count=%llu]\n"
+		"\t {word}=[.start=%llu .count=%llu]\n",
+
+		macro, stack_pointer,
+		previous_start, previous_count,
+		delimiter_start, delimiter_count, 
+		start, count
+	);
+}*/
+
+
+
+
+
+		//char* const delimiter  = string + delimiter_start;
+		//char* const previous   = string + previous_start;
+		//char* const returnw    = stack_pointer ? string + return_start[stack_pointer - 1] : NULL;
+	
+		/*if (macro) {
+			char* t = strndup(word, count);
+			if (debug) printf("{%s}, ", t); 
+			free(t);
+			if (count == delimiter_count and not memcmp(word, delimiter, count)) {
+				char* s = strndup(delimiter, count);
+				if (debug) printf("\nMACRO: inside macro definition, found end of defintion! " yellow "%s" reset "\n", s);
+				macro = 0; count = 0; delimiter_count = 0;
+				free(s);
+			} goto next;
+		} */
+
+		//if (is(spelling[del0], word, count)) { if (debug) puts("DEL0 EXECUTED"); if (not argument_count) { puts(red "error: argument count is zero in del0\n" reset); } else argument_count--; goto next; }
+		//else if (is(spelling[gen], word, count)) { if (debug) puts("GEN EXECUTED"); count = 0; goto push_new; }
+
+
+
+
+
+
+	/*if (stack_pointer and count == return_count[stack_pointer - 1] and not memcmp(word, returnw, count)) { 
+			if (debug) printf("MACRO: executing runtime return statement for macro! " magenta "%s" reset 
+					"  @ %llu\n", strndup(returnw, count), start + count);
+
+			index = stack[--stack_pointer]; 
+			count = 0; 
+			if (debug and stack_pointer) debug_stack(); 
+			goto next;
+		}*/
+
+
+		/* if (count == previous_count and not memcmp(word, previous, count)) {
+			if (debug) printf("MACRO: encountered macro definition! " red "%s" reset "\n", strndup(previous, count));
+			dictionary[arguments[argument_count - 1]].type = type_macro;
+			dictionary[arguments[argument_count - 1]].address = index;
+			macro = 1;
+			delimiter_start = start;
+			delimiter_count = count;
+			goto next;
+		} */
+
+
+
+
+		//else if (is(spelling[dup0], word, count)) { if (debug) puts("DUP0 EXECUTED"); d = arguments[argument_count - 1]; goto call_macro; }
+		//else if (is(spelling[dup1], word, count)) { if (debug) puts("DUP1 EXECUTED"); d = arguments[argument_count - 2]; goto push_existing; }
+		//else if (is(spelling[dup2_], word, count)) { d = arguments[argument_count - 3]; goto push_existing; }
+		//else if (is(spelling[dup3], word, count)) { d = arguments[argument_count - 4]; goto push_existing; }
+		//else if (is(spelling[dup4], word, count)) { d = arguments[argument_count - 5]; goto push_existing; }
+		//else if (is(spelling[dup5], word, count)) { d = arguments[argument_count - 6]; goto push_existing; }
+		//else if (is(spelling[debugarguments], word, count)) { print_nats(arguments, argument_count); goto next; }
+		
+
+
+
+
+
+
+/*call_macro: 
+			if (dictionary[d].address and dictionary[d].type == type_macro) {
+				if (debug) printf("MACRO: calling macro! " cyan "%s" reset " @ %llu\n", dictionary[d].name, index);
+				if (stack_pointer >= 4096) { puts("stack overflow"); abort(); } 
+				stack[stack_pointer] = index;
+				return_start[stack_pointer] = dictionary[d].address - dictionary[d].length;
+				return_count[stack_pointer++] = dictionary[d].length;
+				index = dictionary[d].address;
+				count = 0;
+				if (debug and stack_pointer) debug_stack(); 
+				goto next;
+			}
+
+
+
+static const char* ins_color[isa_count] = { 
+	"", 
+	green, green, yellow, yellow, cyan, blue, red, red,
+	magenta, magenta, magenta, magenta, 
+};
+
+
+
+#define lightblue ""
+#define red   	""
+#define green   ""
+#define yellow  ""
+#define blue   	""
+#define magenta ""
+#define cyan   	""
+#define bold    ""
+#define reset 	""
+
+
+
+
+*/
+			//push_existing: 
 
 
 
