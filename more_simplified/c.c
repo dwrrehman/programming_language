@@ -17,25 +17,36 @@
 typedef uint64_t nat;
 static nat debug = 0;
 
-enum thing_type { type_null, type_variable, type_label };
-enum instruction_type { 
-	null, 
-	increment, zero,  store1, load1, store2, load2, store4, load4, store8, load8, 
-	branch, discard, systemcall,  unname, executenow, 
-	debugpause, debughex, debugdec,  debugarguments,    isa_count
+enum types {type_label, type_variable};
+enum instruction_set { 
+
+	increment, zero,  branch, 
+
+	store1, load1, store2, load2, store4, load4, store8, load8, 
+
+	discard,  unname, delete,
+
+	debugpause, debughex, debugdec,  debugarguments,    
+
+	isa_count
 };
 static const nat arity[isa_count] = { 
-	0, 
-	1, 1,  2, 2, 2, 2, 2, 2, 2, 2, 
-	3, 1, 1, 1, 0,
+	1, 1,  3,
+
+	2, 2, 2, 2, 2, 2, 2, 2, 
+
+	1, 1, 1, 
 
 	0, 1, 1, 0
 };
 
 static const char* spelling[isa_count] = {
-	"",
-	"incr", "zero", "store1", "load1", "store2", "load2", "store4", "load4", "store8", "load8", 
-	"branch", "discard", "system", "unname", "now",
+	"incr", "zero", "branch", 
+
+	"store1", "load1", "store2", "load2", "store4", "load4", "store8", "load8", 
+
+	"discard", "unname", "delete",
+
 	"debugpause", "debughex", "debugdec", "debugarguments"
 };
 
@@ -64,7 +75,6 @@ struct word {
 static const nat uninit = (nat) ~0;
 
 static const char* spell_type(nat t) {
-	if (t == type_null) return "{null_type}";
 	if (t == type_label)  return "label";
 	if (t == type_variable)  return "variable";
 	return "unknown";
@@ -83,9 +93,7 @@ static void print_word(struct word w) {
 
 static void print_nats(nat* array, nat count) {
 	printf("{ ");
-	for (nat i = 0; i < count; i++) {
-		printf("%llu ", array[i]);
-	}
+	for (nat i = 0; i < count; i++) printf("%llu ", array[i]);
 	printf("}\n");
 }
 
@@ -125,123 +133,9 @@ static void print_instructions(struct instruction* instructions, nat ins_count, 
 }
 
 static bool is(const char* thing, char* word, nat count) {
-	
 	return count == strlen(thing) and not strncmp(word, thing, count);
 }
 
-static void ins(nat op, 
-	nat* arguments, nat argument_count, 
-	struct word* dictionary, 
-	struct instruction** instructions, nat* ins_count, 
-	nat file_location, nat dictionary_count) {
-
-	const nat arg0 = argument_count > 0 ? arguments[argument_count - 1] : uninit;
-	const nat arg1 = argument_count > 1 ? arguments[argument_count - 2] : uninit;
-	const nat arg2 = argument_count > 2 ? arguments[argument_count - 3] : uninit;
-
-	if (op == branch) {
-		if (arg0 >= dictionary_count or arg1 >= dictionary_count or arg2 >= dictionary_count) {
-			printf("error: branch argument error\n"); 
-			return;
-		}
-
-		if (dictionary[arg0].type == type_label and dictionary[arg0].value == *ins_count) {
-			dictionary[arg0].value = uninit;
-			dictionary[arg0].pt_value = uninit;
-		}
-
-		if (dictionary[arg0].type != type_label) { 
-			printf("error: bad branch arg0 label %llu:%llu :: "
-				"expected label argument of type label.\n", 
-				file_location, dictionary[arg0].file_location
-			); 
-			return; 
-		}
-
-		dictionary[arg1].type = type_variable;
-		dictionary[arg2].type = type_variable;
-	} 
-
-
-	else if (op == load1 or op == store1 or
-		 op == load2 or op == store2 or
-		 op == load4 or op == store4 or
-		 op == load8 or op == store8) {
-
-		if (not argument_count) { 
-			printf("error: argstack was empty, no arguments can be given for load or store instruction.\n"); 
-			return; 
-		}
-
-		if (arg0 >= dictionary_count or arg1 >= dictionary_count) {
-			printf("error: load/store argument error\n"); 
-			return;
-		}
-
-		dictionary[arg0].type = type_variable;
-		dictionary[arg1].type = type_variable;
-	}
-
-
-	else if (op == zero or op == increment) {
-
-		if (not argument_count) { 
-			printf("error: argstack was empty, no arguments can be given for increment or zero instruction.\n"); 
-			return; 
-		}
-
-		if (arg0 >= dictionary_count) {
-			printf("error: zero argument error\n"); 
-			return;
-		}
-
-		dictionary[arg0].type = type_variable;
-	}
-
-	else if (op == systemcall) {  
-		if (arg0 >= dictionary_count) {
-			printf("error: systemcall argument error\n"); 
-			return;
-		}
-		if (dictionary[arg0].type != type_label) { 
-			printf("error: bad systemcall arg0 var %llu:%llu\n", file_location, dictionary[arg0].file_location); 
-			return;
-		}
-
-		if (not argument_count) { 
-			printf("error: argstack was empty, no arguments can be given for systemcall instruction.\n"); 
-			return; 
-		}
-	} 
-
-	else if (op == discard) {
-		if (arg0 >= dictionary_count) {
-			printf("error: discard argument error\n"); 
-			return;
-		}
-
-		if (dictionary[arg0].type != type_variable) { 
-			printf("error: bad discard arg0 var %llu:%llu\n", file_location, dictionary[arg0].file_location); 
-			return;
-		}
-
-		if (not argument_count) { 
-			printf("error: argstack was empty, no arguments can be given for discard instruction.\n"); 
-			return; 
-		}
-	}
-
-	*instructions = realloc(*instructions, sizeof(struct instruction) * (*ins_count + 1));
-	(*instructions)[(*ins_count)++] = (struct instruction) {
-		.op = op,
-		.in = {arg0, arg1, arg2},
-		.ph = uninit,
-		.begin = uninit, 
-		.end = uninit, 
-		.defs = {0},
-		.file_location = file_location
-	};
-}
 
 
 static void process_syscall(nat n, nat* r) {
@@ -353,6 +247,7 @@ static void execute_directly(
 static nat count = 0;
 static nat start = 0;
 
+
 static void parse(
 	char* string, nat length, nat starting_index,
 	struct instruction** out_instructions, nat *out_ins_count, 
@@ -360,14 +255,10 @@ static void parse(
 	nat* r
 ) {
 
-	// r[2] = (nat)(void*) malloc(65536);
-	// r[3] = 0;
-
 	struct word* dictionary = *out_dictionary;
 	nat dictionary_count = *out_dictionary_count;
 	struct instruction* instructions = *out_instructions;
 	nat ins_count = *out_ins_count;
-	nat d = 0;
 
 	for (*r = starting_index; *r < length; (*r)++) {
 		if (not isspace(string[*r])) { 
@@ -378,11 +269,270 @@ static void parse(
 		process_word:;
 		char* const word = string + start;
 
-
 		if (is(spelling[debugarguments], word, count)) print_nats((nat*) r[2], r[3]);
 
-		if (is(spelling[executenow], word, count)) {
-	
+		if (is(spelling[executenow], word, count)) { }
+
+		if (is(spelling[branch], word, count)) { abort(); }
+
+		for (nat d = 0; d < dictionary_count; d++) {
+			if (dictionary[d].length != count or strncmp(dictionary[d].name, word, count)) continue;
+			if (debug) printf("[DEFINED]    ");
+			if (debug) print_word(dictionary[d]);
+		
+			((nat*)r[2])[r[3]++] = d;
+
+			if (dictionary[d].type == type_label and dictionary[d].value == uninit) {
+				dictionary[d].value = ins_count;
+				dictionary[d].pt_value = *r;
+			}
+
+			goto next;
+		}
+
+		((nat*)r[2])[r[3]++] = dictionary_count;
+		dictionary = realloc(dictionary, sizeof(struct word) * (dictionary_count + 1));
+		dictionary[dictionary_count++] = (struct word) {
+			.name = strndup(word, count), 
+			.length = count, 
+			.type = type_label,
+			.value = ins_count,
+			.pt_value = *r,
+			.def = uninit,
+			.file_location = start + count
+		};
+
+		if (debug) printf("[not defined]  -->  assuming  ");
+		if (debug) print_word(dictionary[dictionary_count - 1]);
+
+		next: 	count = 0;
+	}
+	if (count) goto process_word;
+
+	*out_dictionary = dictionary;
+	*out_dictionary_count = dictionary_count;
+	*out_instructions = instructions;
+	*out_ins_count = ins_count;
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+/*
+
+
+	// r[2] = (nat)(void*) malloc(65536);
+	// r[3] = 0;
+
+
+
+if (is(spelling[unname], word, count)) { 
+		
+			if (debug) puts("UNNAME EXECUTED"); 
+			if (not r[3]) {
+				printf("error: argstack was empty, no arguments can be given for unname instruction.\n"); 
+				goto next; 
+
+			}
+
+			if (((nat*)r[2])[r[3] - 1] >= dictionary_count) {
+				printf("error: dictionary was empty, no arguments can be given for unname instruction.\n"); 
+				goto next;
+			}
+
+			dictionary[((nat*)r[2])[r[3] - 1]].length = 0; goto next; 
+		}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+nat* arguments = (nat*) r[2];
+	nat argument_count = r[3];
+
+	const nat file_location = *r;
+
+	const nat arg0 = argument_count > 0 ? arguments[argument_count - 1] : uninit;
+	const nat arg1 = argument_count > 1 ? arguments[argument_count - 2] : uninit;
+	const nat arg2 = argument_count > 2 ? arguments[argument_count - 3] : uninit;
+
+	if (op == branch) {
+		if (arg0 >= dictionary_count or arg1 >= dictionary_count or arg2 >= dictionary_count) {
+			printf("error: branch argument error\n"); 
+			return;
+		}
+
+		if (dictionary[arg0].type == type_label and dictionary[arg0].value == *ins_count) {
+			dictionary[arg0].value = uninit;
+			dictionary[arg0].pt_value = uninit;
+		}
+
+		if (dictionary[arg0].type != type_label) { 
+			printf("error: bad branch arg0 label %llu:%llu :: "
+				"expected label argument of type label.\n", 
+				file_location, dictionary[arg0].file_location
+			); 
+			return; 
+		}
+
+		dictionary[arg1].type = type_variable;
+		dictionary[arg2].type = type_variable;
+
+		*instructions = realloc(*instructions, sizeof(struct instruction) * (*ins_count + 1));
+		(*instructions)[(*ins_count)++] = (struct instruction) {
+			.op = op,
+			.in = {arg0, arg1, arg2},
+			.ph = uninit,
+			.begin = uninit, 
+			.end = uninit, 
+			.defs = {0},
+			.file_location = file_location
+		};
+	} 
+
+
+	else if (op == load1 or op == store1 or op == load2 or op == store2 or
+		 op == load4 or op == store4 or op == load8 or op == store8) {
+
+		if (not argument_count) { 
+			printf("error: argstack was empty, no arguments can be given for load or store instruction.\n"); 
+			return; 
+		}
+
+		if (arg0 >= dictionary_count or arg1 >= dictionary_count) {
+			printf("error: load/store argument error\n"); 
+			return;
+		}
+
+		dictionary[arg0].type = type_variable;
+		dictionary[arg1].type = type_variable;
+	}
+
+	else if (op == zero or op == increment) {
+
+		if (not argument_count) { 
+			printf("error: argstack was empty, no arguments can be given for increment or zero instruction.\n"); 
+			return; 
+		}
+
+		if (arg0 >= dictionary_count) {
+			printf("error: zero argument error\n"); 
+			return;
+		}
+
+		dictionary[arg0].type = type_variable;
+	}
+
+	else if (op == systemcall) {  
+		if (arg0 >= dictionary_count) {
+			printf("error: systemcall argument error\n"); 
+			return;
+		}
+		if (dictionary[arg0].type != type_label) { 
+			printf("error: bad systemcall arg0 var %llu:%llu\n", file_location, dictionary[arg0].file_location); 
+			return;
+		}
+
+		if (not argument_count) { 
+			printf("error: argstack was empty, no arguments can be given for systemcall instruction.\n"); 
+			return; 
+		}
+	}
+
+
+	else if (op == discard) {
+		if (arg0 >= dictionary_count) {
+			printf("error: discard argument error\n"); 
+			return;
+		}
+
+		if (dictionary[arg0].type != type_variable) { 
+			printf("error: bad discard arg0 var %llu:%llu\n", file_location, dictionary[arg0].file_location); 
+			return;
+		}
+
+		if (not argument_count) { 
+			printf("error: argstack was empty, no arguments can be given for discard instruction.\n"); 
+			return; 
+		}
+	}
+
+	*instructions = realloc(*instructions, sizeof(struct instruction) * (*ins_count + 1));
+	(*instructions)[(*ins_count)++] = (struct instruction) {
+		.op = op,
+		.in = {arg0, arg1, arg2},
+		.ph = uninit,
+		.begin = uninit, 
+		.end = uninit, 
+		.defs = {0},
+		.file_location = file_location
+	};
+	if (debug and ins_count) 
+		print_instruction(instructions[ins_count - 1], dictionary, dictionary_count); 
+	goto next;
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 			const struct instruction this = instructions[--ins_count];
 			const nat op  = this.op;
 
@@ -421,78 +571,15 @@ static void parse(
 			}
 
 			goto next;
-		}
 
-		if (is(spelling[unname], word, count)) { 
-		
-			if (debug) puts("UNNAME EXECUTED"); 
-			if (not r[3]) { 
-				printf("error: argstack was empty, no arguments can be given for unname instruction.\n"); 
-				goto next; 
+*/
 
-			}
 
-			if (((nat*)r[2])[r[3] - 1] >= dictionary_count) {
-				printf("error: dictionary was empty, no arguments can be given for unname instruction.\n"); 
-				goto next;
-			}
 
-			dictionary[((nat*)r[2])[r[3] - 1]].length = 0; goto next; 
-		}
 
-		for (nat i = null; i < isa_count; i++) {    // todo: refactor this to be a simple if-elseif statement chain.
 
-			if (is(spelling[i], word, count)) {
-				ins(i, (nat*)r[2], r[3], dictionary, &instructions, &ins_count, *r, dictionary_count);
-				if (debug and ins_count) {
-					print_instruction(
-						instructions[ins_count - 1], 
-						dictionary, dictionary_count
-					); 
-				}
-				goto next;
-			}
-		}
 
-		for (d = 0; d < dictionary_count; d++) {
-			if (dictionary[d].length != count or strncmp(dictionary[d].name, word, count)) continue;
-			if (debug) printf("[DEFINED]    ");
-			if (debug) print_word(dictionary[d]);
-		
-			((nat*)r[2])[r[3]++] = d;
 
-			if (dictionary[d].type == type_label and dictionary[d].value == uninit) {
-				dictionary[d].value = ins_count;
-				dictionary[d].pt_value = *r;
-			}
-
-			goto next;
-		}
-
-		((nat*)r[2])[r[3]++] = dictionary_count;
-		dictionary = realloc(dictionary, sizeof(struct word) * (dictionary_count + 1));
-		dictionary[dictionary_count++] = (struct word) {
-			.name = strndup(word, count), 
-			.length = count, 
-			.type = type_label,
-			.value = ins_count,
-			.pt_value = *r,
-			.def = uninit,
-			.file_location = start + count
-		};
-
-		if (debug) printf("[not defined]  -->  assuming  ");
-		if (debug) print_word(dictionary[dictionary_count - 1]);
-
-	next: 	count = 0;
-	}
-	if (count) goto process_word;
-
-	*out_dictionary = dictionary;
-	*out_dictionary_count = dictionary_count;
-	*out_instructions = instructions;
-	*out_ins_count = ins_count;
-}
 
 static char* read_file(const char* filename, size_t* length) {
 	FILE* file = fopen(filename, "r");
@@ -570,9 +657,10 @@ static _Noreturn void repl(void) {
 	create_dictionary(&dictionary, &dictionary_count);
 
 	nat* registers = malloc(65536 * sizeof(nat));
-	registers[1] = (nat)(void*) malloc(65536);
 	nat* pt_registers = malloc(65536 * sizeof(nat));
+	registers[1] = (nat)(void*) malloc(65536);
 	pt_registers[1] = (nat)(void*) malloc(65536);
+	memset((void *) pt_registers[1], 0xff, 65536);
 	pt_registers[2] = (nat)(void*) malloc(65536);
 	pt_registers[3] = 0;
 
@@ -607,7 +695,7 @@ loop:
 		const nat origin = ins_count;
 		parse(program, program_length, program_length - len,
 			&instructions, &ins_count, 
-			&dictionary, &dictionary_count,  pt_registers
+			&dictionary, &dictionary_count, pt_registers
 		);
 		execute_directly(origin, instructions, ins_count, dictionary, dictionary_count, registers); 
 	}
@@ -631,6 +719,7 @@ int main(int argc, const char** argv) {
 	registers[1] = (nat)(void*) malloc(65536);
 	nat* pt_registers = malloc(65536 * sizeof(nat));
 	pt_registers[1] = (nat)(void*) malloc(65536);
+	memset((void *) pt_registers[1], 0xff, 65536);
 	pt_registers[2] = (nat)(void*) malloc(65536);
 	pt_registers[3] = 0;
 
@@ -1827,7 +1916,8 @@ static const char* ins_color[isa_count] = {
 
 
 a zero
-5 zero now incr now incr now incr now incr now incr now
+5 zero now incr now incr now 
+  incr now incr now incr now
 i zero now
 label
 a incr

@@ -1,7 +1,5 @@
 
-
 2 zero incr incr sp store8 value load8 debughex
-
 
 a zero
 5 zero now incr now incr now 
@@ -12,4 +10,102 @@ a incr debugdec
 i incr now
 5 i label branch now
 
+
+
+
+sp neg load8 now
+
+sp sp store8 now tempaddr load8 now 
+tempaddr 
+	incr now incr now 
+	incr now incr now 
+	incr now incr now 
+	incr now incr now 
+
+
+ acount tempaddr store8 now tempaddr acountcopy load8 now
+
+
+
+i zero now
+addloop
+	neg incr now
+	debughex now
+	i incr now
+	debughex now
+	acountcopy i 	addloop branch now
+
+
+neg tempaddr store8 now tempaddr acount load8 now
+
 debugarguments
+
+
+
+
+
+
+
+
+
+
+
+
+
+	imagine addloop was a macro. 
+
+
+
+
+
+			how do we branch to it, if we skipped over the code
+
+
+			
+
+
+
+
+
+
+
+
+SHOOT
+
+
+	we did not think this through lol
+
+
+					the whole parse time macro system     using jumping 
+
+
+					won't work at all 
+
+
+						because we AT LEAST need to go over all the statements to know the locations of all the labels. 
+
+					because without that, we won't even know where to jump to lol. 
+
+						so yeah. it needs to be a two step process, for parsing, then. lol. 
+
+
+								but, i mean, i think we can restructure it!
+
+
+
+
+
+					also, it will actually allow us to make the execution parse time phase     actually use the correct instruction selection algorithm, so that we arent trying to actuallyexecute the incr and zero statements lol. because that is veryyyy computationally expensive. so yeah. we can rather just recognize instructions that we define for the parse time C-language ISA. pretty cool. 
+
+
+
+			okay, so yeah, we need to do that now lol
+
+
+
+
+
+
+
+
+

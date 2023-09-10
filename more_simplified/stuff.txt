@@ -1,0 +1,37 @@
+
+
+
+
+
+
+
+basic plan:
+
+
+	we will be using a   store-load    memory transfer to do the final copy from the variable acountcopy   to the actual acount variable. we need this access to happen in a single operation, because the acount variable is actually highly sensitive in the code, obviously. 
+
+	we will be incrementing the variable which stores    negative -1    neg       which was obtained by reading the all one's memory stored in the stack pointer (sp) memory region, preallocated of course by the compiler. 
+
+		the idea, is that we loop over a copy of acount, incrementing neg and i until we see that i and acountcopy are equal. then we have incremented -1 acount number of times.    theproblem, is that we need to transfer the current value of acount into acountcopy. 
+
+
+				but we can do that using a store-load memory transfer as well!   
+				
+
+				butttt the problem with that is that we need a vacant memory location  that we can use to do the transfer lol. 
+
+
+								i mean, i guess we can just use the sp  lol. 
+
+						but it would be nice to have a new memory location lol.
+
+					so i am going to perform a memory transfer  operation  on the sp  itself, 
+
+						so that we don't loose that value, 
+
+
+						and then i am going to increment the copy. so yeah. pretty cool.  then we can use that in transfers. 
+
+
+
+		
