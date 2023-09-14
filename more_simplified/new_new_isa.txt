@@ -1,0 +1,386 @@
+
+ISA
+===============================================
+
+
+
+var:
+===================================   7 + K     variables. 
+
+	sp
+
+
+	arg0
+
+	arg1
+
+	arg2
+
+	arg3
+
+	arg4
+
+	arg5
+	
+
+	sys_exit
+
+	sys_read
+
+	sys_write
+
+	sys_open
+
+	sys_close
+
+	sys_fork
+
+	...etc
+
+
+
+
+
+
+ins:
+===================================         13   instructions
+
+
+		x  	is
+
+		x 	at
+
+		x	incr 
+
+		x	zero
+
+		x	right
+
+		x	left
+
+		x	store
+
+		x	load
+
+		x	r1
+	
+		x	r2
+
+		x	r4
+
+		x	r8
+
+		<yourlabelhere>
+
+
+5 zero incr incr incr incr incr
+i zero
+
+
+loop at i incr left 5 right loop
+
+
+
+
+
+
+// this is a sequence of words in english, and we write it just like this lol.    why is this so bad????
+
+
+
+
+
+
+x y compare
+
+label
+
+
+
+
+===================================
+
+
+
+
+
+
+
+
+
+
+goto label;
+
+if (x) goto label;
+
+
+
+
+
+
+label;
+
+if (x < 5) label;
+
+
+
+
+
+
+
+
+
+
+
+myfunction at
+	...my cool code here!...
+
+	callindex incr left
+	2 right  backtocaller0
+	3 right  backtocaller1
+	4 right  backtocaller2
+	
+
+main
+	myfunction
+
+
+
+
+
+
+
+mymacro is ...my cool macro code here!...  mymacro
+
+
+mymacro2 is is mymacro2
+
+
+
+caoshnte  is    this is a cool comment!   caoshnte
+
+
+	
+
+
+
+
+main 
+	1 > 0 < 
+
+	callindex zero
+
+
+	myfunction
+backtocaller0 at
+	...stuff..
+
+	myfunction
+backtocaller1 at
+	...stuff..
+
+	myfunction
+backtocaller2 at
+	...stuff..
+
+
+
+	mymacro
+
+
+
+
+
+
+
+
+
+
+
+
+	w w l store
+
+	w w l load
+
+
+
+	w a store1
+	w a store2
+	w a store4
+	w a store8
+
+
+	a w load1
+	a w load2
+	a w load4
+	a w load8
+
+	
+
+
+
+
+==================================
+
+
+	a w store1
+	
+
+is the same as:
+
+
+	w r1
+	a store
+
+==================================
+
+
+
+
+
+
+==================================
+
+	a w load1
+	
+
+
+is the same as:
+
+
+	a load
+	w r1
+
+
+==================================
+
+
+
+
+==================================
+
+	a w load1 
+	a incr 
+	a t load1
+
+
+is the same as:
+
+
+	w r1 a load incr t r1
+
+
+==================================
+
+
+
+
+
+
+
+
+================================== load and store instructions ==================================
+
+
+		x	store
+
+		x	load
+
+		x	r1
+
+		x	r2
+
+		x	r4
+
+		x	r8
+
+
+
+
+
+======================================================================================================
+
+
+
+
+
+	x register
+
+	x address
+
+
+
+
+	store8
+
+	store4
+
+	store2
+
+	store1
+
+
+	load1
+
+	load2
+
+	load4
+
+	load8
+	
+
+
+
+
+
+=======================
+
+
+	a w load1 
+	a incr
+	a t load1
+
+
+is the same as
+
+
+	w register a address load1 incr t register load1
+
+
+=======================
+
+
+	
+
+
+
+
+
+
+
+
+
+
+
+
+
+we might also maybeeee not have the ins  		x  is
+
+???? hmm
+
+
+
+
+idk.
+
+ still deciding. 
+
+
+which marks a new var/label as a macro. so yeahhhh  (it also does the attirbution,  i think)
+
+
+	hm. interesting. 
+
+
+
+idk, we'll think about it. 

@@ -14,48 +14,104 @@
 #include <sys/syscall.h> 
 #include <errno.h>
 
+
+
+/*
+
+
+var:
+===================================   7 + K     variables. 
+
+	sp
+
+
+	arg0
+
+	arg1
+
+	arg2
+
+	arg3
+
+	arg4
+
+	arg5
+	
+
+	sys_exit
+
+	sys_read
+
+	sys_write
+
+	sys_open
+
+	sys_close
+
+	sys_fork
+
+	...etc
+
+
+
+
+
+
+ins:
+===================================         13   instructions
+
+
+		x  	is
+
+		x 	at
+
+		x	do
+
+		x	right
+
+		x	left
+
+		x	incr 
+
+		x	zero
+
+		x	store
+
+		x	load
+
+		x	r1
+	
+		x	r2
+
+		x	r4
+
+		x	r8
+
+
+
+*/
+
 typedef uint64_t nat;
 static nat debug = 0;
 
-enum types {type_label, type_variable};
 enum instruction_set { 
-
-	goto_, increment, zero,  branch, 
-
-	store1, load1, store2, load2, store4, load4, store8, load8, 
-
-	discard,  unname, delete,
-
+	is_, at, goto_,  incr, zero, right, left, store, load, r1, r2, r4, r8, 
+	external, volatile_, discard,  unname, unref,
 	debugpause, debughex, debugdec,  debugarguments,    
-
 	isa_count
 };
 
-static const nat arity[isa_count] = { 
-	0, 1, 1,  3, 
-
-	2, 2, 2, 2, 2, 2, 2, 2, 
-
-	1, 1, 1, 
-
-	0, 1, 1, 0
-};
-
-static const char* spelling[isa_count] = {
-	"", "incr", "zero", "branch", 
-
-	"store1", "load1", "store2", "load2", "store4", "load4", "store8", "load8", 
-
-	"discard", "unname", "delete",
-
+static const char* spelling[isa_count] = {	
+	"is", "at", "goto", "incr", "zero", "right", "left", "store", "load", "r1", "r2", "r4", "r8", 
+	 "external", "volatile", "discard", "unname", "unref",
 	"debugpause", "debughex", "debugdec", "debugarguments"
 };
 
 struct instruction {
 	nat op;
-	nat in[3];
+	nat in;
 	nat ph;
-	nat defs[3];
+	nat def;
 	nat begin;
 	nat end;
 	nat ct;
@@ -74,20 +130,14 @@ struct word {
 
 static const nat uninit = (nat) ~0;
 
-static const char* spell_type(nat t) {
-	if (t == type_label)  return "label";
-	if (t == type_variable)  return "variable";
-	return "unknown";
-}
-
 static void print_name(struct word w) {
 	for (nat _ = 0; _ < w.length; _++) putchar(w.name[_]);
 }
 
 static void print_word(struct word w) {
 	print_name(w);
-	printf("   \t: (%llu) { .type = %s, .val = %lld .def = %lld .fl = %lld .a = %lld } \n", 
-		w.length, spell_type(w.type), w.value, w.def, w.file_location, w.address
+	printf("   \t: (%llu) { .val = %lld .def = %lld .fl = %lld .a = %lld } \n", 
+		w.length, w.value, w.def, w.file_location, w.address
 	);
 }
 
@@ -102,16 +152,15 @@ static void print_instruction(struct instruction ins, struct word* dict, nat dic
 	printf("%s ", spelling[ins.op]);
 
 	printf("{");
-	for (nat i = 0; i < arity[ins.op]; i++) {
-		putchar(32);
-		if (ins.in[i] < dictionary_count) print_name(dict[ins.in[i]]); 
-		else printf("{name null}");
-	}
+	
+	putchar(32);
+	if (ins.in < dictionary_count) print_name(dict[ins.in]); 
+	else printf("{name null}");
 	printf(" }\n\t\t\t\t\t\t\t"
 		".ph = %lld .life = [%lld,%lld] .ct = %lld .defs=", 
 		ins.ph, ins.begin, ins.end, ins.ct);
 
-	print_nats(ins.defs, arity[ins.op]);
+	print_nats(&ins.def, 1);
 }
 
 static void print_dictionary(struct word* dictionary, nat dictionary_count) {
@@ -136,51 +185,6 @@ static bool is(const char* thing, char* word, nat count) {
 	return count == strlen(thing) and not strncmp(word, thing, count);
 }
 
-static void process_syscall(nat n, nat* r) {
-
-	nat r0 = r[1], r1 = r[2], r2 = r[3], r3 = r[4], r4 = r[5], r5 = r[6];
-
-	printf("SYSCALL (NR=%llu): {%llu %llu %llu %llu %llu %llu}\n", 
-		n, r0, r1, r2, r3, r4, r5
-	);
-
-	if (n == 7) {
-		printf("calling exit(%llu);\n", r0);
-		exit((int) r0);
-	}
-
-	else if (n == 8) {
-		printf("calling read(%llu, %p, %llu);\n", r0, (void*) r1, r2);
-		r[1] = (nat) read((int) r0, (void*) r1, r2);
-		r[2] = (nat) (long long) errno;
-	}
-
-	else if (n == 9) {
-		printf("calling write(%llu, %p, %llu);\n", r0, (void*) r1, r2);
-		r[1] = (nat) write((int) r0, (void*) r1, r2);
-		r[2] = (nat) (long long) errno;
-	}
-
-	else if (n == 10) {
-		printf("calling open(%p, %llu, %llu);\n", (void*) r0, r1, r2);
-		r[1] = (nat) open((const char*) r0, (int) r1, r2);
-		r[2] = (nat) (long long) errno;
-	}
-
-	else if (n == 11) {
-		printf("calling close(%llu);\n", r0);
-		r[1] = (nat) close((int) r0);
-		r[2] = (nat) (long long) errno;
-	} else {
-		printf("unknown syscall: %llu\n", n);
-	}
-
-
-if (n == 1000) r[1] = (nat) fork();
-if (n == 1000) r[1] = (nat)(void*)mmap((void*)r0,r1,(int)r2,(int)r3,(int)r4,(long long) r5);
-if (n == 1000) r[1] = (nat)munmap((void*)r0, r1);
-
-}
 
 static void execute_directly(
 	const nat starting_ip, struct instruction* instructions, 
@@ -188,45 +192,46 @@ static void execute_directly(
 	nat* r
 ) {
 
+	return;
+	bool n = 0;
 	if (debug) {
 		printf("executing these instructions: \n");
 		print_instructions(instructions, ins_count, dictionary, dictionary_count);
 	}
 
-	for (*r = starting_ip; *r < ins_count; (*r)++) {
+	for (nat pc = starting_ip; pc < ins_count; pc++) {
 
-		if (debug) printf("executing @%llu : ", *r);
-		if (debug) print_instruction(instructions[*r], dictionary, dictionary_count);
+		if (debug) printf("executing @%llu : ", pc);
+		if (debug) print_instruction(instructions[pc], dictionary, dictionary_count);
 
-		const nat op  = instructions[*r].op;
-
-		nat in[3] = {0};
-		memcpy(in, instructions[*r].in, 3 * sizeof(nat));
+		const nat op  = instructions[pc].op;
+		nat in = instructions[pc].in;
 
 		if (false) {}
-		else if (op == increment) r[in[0]]++;
-		else if (op == zero) r[in[0]] = 0;
-		
-		else if (op == branch) { if (r[in[1]] < r[in[2]]) *r = dictionary[in[0]].value - 1; } 
+		else if (op == incr) r[in]++;
+		else if (op == zero) r[in] = 0;
+		//else if (op == less) { n = r[in] < r[in]; } 
 
-		else if (op == load8) r[in[0]] = (nat) *(uint64_t*) r[in[1]];
-		else if (op == store8) *(uint64_t*)r[in[0]] = (uint64_t) r[in[1]];
+		//else if (op == load8) r[in] = (nat) *(uint64_t*) r[in[1]];
+		//else if (op == load4) r[in] = (nat) *(uint32_t*) r[in[1]];
+		//else if (op == load2) r[in] = (nat) *(uint16_t*) r[in[1]];
+		//else if (op == load1) r[in] = (nat) *(uint8_t *) r[in[1]];
 
-		else if (op == load4) r[in[0]] = (nat) *(uint32_t*) r[in[1]];
-		else if (op == store4) *(uint32_t*)r[in[0]] = (uint32_t) r[in[1]];
+		//else if (op == store8) *(uint64_t*)r[in[0]] = (uint64_t) r[in[1]];
+		//else if (op == store4) *(uint32_t*)r[in[0]] = (uint32_t) r[in[1]];
+		//else if (op == store2) *(uint16_t*)r[in[0]] = (uint16_t) r[in[1]];
+		//else if (op == store1) *(uint8_t *)r[in[0]] = (uint8_t)  r[in[1]];
 
-		else if (op == load2) r[in[0]] = (nat) *(uint16_t*) r[in[1]];
-		else if (op == store2) *(uint16_t*)r[in[0]] = (uint16_t) r[in[1]];
+		else if (op == discard) { printf("value discarded: %s\n", dictionary[in].name); }
 
-		else if (op == load1) r[in[0]] = (nat) *(uint8_t*) r[in[1]];
-		else if (op == store1) *(uint8_t*)r[in[0]] = (uint8_t) r[in[1]];
-
-		else if (op == discard) { printf("value discarded: %s\n", dictionary[in[0]].name); }
-		else if (op == goto_) { process_syscall(in[0], r); }
+		else if (op == goto_) {
+			if (n) { pc = dictionary[in].value - 1; }
+			n = 1;
+		}
 
 		else if (op == debugpause) getchar();
-		else if (op == debughex) printf("debug: 0x%llx\n", r[in[0]]);
-		else if (op == debugdec) printf("debug: %lld\n", r[in[0]]);
+		else if (op == debughex) printf("debug: 0x%llx\n", r[in]);
+		else if (op == debugdec) printf("debug: %lld\n", r[in]);
 		else if (op == debugarguments) printf("debug: error: no arguments exist during runtime\n");
 		else {
 			printf("internal error: execute: unexpected instruction: %llu\n", op);
@@ -261,71 +266,52 @@ static void parse(
 		process_word:;
 		char* const word = string + start;
 
-		if (is(spelling[debugarguments], word, count)) print_nats(arguments, 32);
-
-		if (is(spelling[branch], word, count)) { 
+		if (is(spelling[debugarguments], word, count)) 	print_nats(arguments, 32);
 		
-			if (dictionary[arguments[0]].type != type_label) { 
-				printf("error: branch destination %llu:%llu : "
-					"expected argument0 of type label.\n", 
-					index, dictionary[arguments[0]].file_location
-				);
-				return;
-			}
+		else if (is(spelling[at], word, count)) 	{ dictionary[*arguments].value = ins_count; goto next; }
+		else if (is(spelling[goto_], word, count)) 	{ op = goto_; goto push; }
+		else if (is(spelling[incr], word, count)) 	{ op = incr;  goto push; } 
+		else if (is(spelling[zero], word, count)) 	{ op = zero;  goto push; }
+		else if (is(spelling[left], word, count)) 	{ op = left;  goto push; }
+		else if (is(spelling[right], word, count)) 	{ op = right; goto push; }
+		else if (is(spelling[right], word, count)) 	{ op = right; goto push; }
 
-			if (dictionary[arguments[0]].value == ins_count) {
-				dictionary[arguments[0]].value = uninit;
-			} else ins_count--;
-
-			op = branch; goto push;
-		}
-
-		else if (is(spelling[increment], word, count)) { op = increment; goto push; } 
-		else if (is(spelling[store1], word, count)) { op = store1; goto push; }
-		else if (is(spelling[store2], word, count)) { op = store2; goto push; }
-		else if (is(spelling[store4], word, count)) { op = store4; goto push; }
-		else if (is(spelling[store8], word, count)) { op = store8; goto push; }
-
-		else if (is(spelling[zero], word, count)) { op = zero; goto var_push; }
- 		else if (is(spelling[load1], word, count)) { op = load1; goto var_push; }
-		else if (is(spelling[load2], word, count)) { op = load2; goto var_push; }
-		else if (is(spelling[load4], word, count)) { op = load4; goto var_push; }
-		else if (is(spelling[load8], word, count)) { op = load8; goto var_push; }
-
+		else if (is(spelling[debughex], word, count)) 	{ op = debughex; goto push; }
+		else if (is(spelling[debugdec], word, count)) 	{ op = debugdec; goto push; }
+		else if (is(spelling[debugpause], word, count)) { op = debugpause; goto push; }
+		
 		for (nat d = 0; d < dictionary_count; d++) {
 			if (dictionary[d].length != count or strncmp(dictionary[d].name, word, count)) continue;
 			if (debug) printf("[DEFINED]    ");
 			if (debug) print_word(dictionary[d]);
 
-			arguments[0] = d;
-
-			if (dictionary[d].type == type_label) {
-				if (dictionary[d].value != uninit) { op = goto_; goto push; }
-				dictionary[d].value = ins_count;
-			}
+			nat i = 32;
+			while (i-- > 1) arguments[i] = arguments[i - 1];
+			*arguments = d;
 
 			goto next;
 		}
 
+		nat i = 32;
+		while (i-- > 1) arguments[i] = arguments[i - 1];
 		arguments[0] = dictionary_count;
+
 		dictionary = realloc(dictionary, sizeof(struct word) * (dictionary_count + 1));
 		dictionary[dictionary_count++] = (struct word) {
 			.name = strndup(word, count), 
 			.length = count,
-			.type = type_label,
-			.value = ins_count,
+			.value = uninit,
 			.file_location = start + count
 		};
 
 		if (debug) printf("[not defined]  -->  assuming  ");
 		if (debug) print_word(dictionary[dictionary_count - 1]);
 		goto next;
-
-		var_push: dictionary[arguments[0]].type = type_variable;
-		push: instructions = realloc(instructions, sizeof(struct instruction) * (ins_count + 1));
+		
+	push: 	instructions = realloc(instructions, sizeof(struct instruction) * (ins_count + 1));
 		instructions[ins_count++] = (struct instruction) {
 			.op = op,
-			.in = {arguments[0], arguments[1], arguments[2]},
+			.in = *arguments,
 			.file_location = index
 		};
 		next: 	count = 0;
@@ -342,7 +328,22 @@ static void parse(
 
 
 
+/*
+instructions = realloc(instructions, sizeof(struct instruction) * (ins_count + 1));
+				instructions[ins_count++] = (struct instruction) {
+					.op = branch, .in = {d},
+					.file_location = index
+				};
+				goto next;
 
+
+
+push1:
+		if (dictionary[*arguments].type == type_label) {
+			dictionary[*arguments].type = type_variable;
+	pushat: 	ins_count--;
+		}
+*/
 
 
 
@@ -386,22 +387,20 @@ static void create_dictionary(struct word** dictionary, nat* dictionary_count) {
 
 	(*dictionary_count) = 0;
 	*dictionary = calloc(15, sizeof(struct word));
-	(*dictionary)[(*dictionary_count)++] = (struct word) { .name = "pc",  .length = 2, .type = type_variable, .def = uninit };
-	(*dictionary)[(*dictionary_count)++] = (struct word) { .name = "sp",  .length = 2, .type = type_variable, .def = uninit }; 
-	(*dictionary)[(*dictionary_count)++] = (struct word) { .name = "lr",  .length = 2, .type = type_variable, .def = uninit };
+	(*dictionary)[(*dictionary_count)++] = (struct word) { .name = "sp",  .length = 2, .def = uninit };
 
-	(*dictionary)[(*dictionary_count)++] = (struct word) { .name = "arg0", .length = 4, .type = type_variable, .def = uninit };
-	(*dictionary)[(*dictionary_count)++] = (struct word) { .name = "arg1", .length = 4, .type = type_variable, .def = uninit };
-	(*dictionary)[(*dictionary_count)++] = (struct word) { .name = "arg2", .length = 4, .type = type_variable, .def = uninit };
-	(*dictionary)[(*dictionary_count)++] = (struct word) { .name = "arg3", .length = 4, .type = type_variable, .def = uninit };
-	(*dictionary)[(*dictionary_count)++] = (struct word) { .name = "arg4", .length = 4, .type = type_variable, .def = uninit };
-	(*dictionary)[(*dictionary_count)++] = (struct word) { .name = "arg5", .length = 4, .type = type_variable, .def = uninit };
+	(*dictionary)[(*dictionary_count)++] = (struct word) { .name = "arg0", .length = 4,  .def = uninit };
+	(*dictionary)[(*dictionary_count)++] = (struct word) { .name = "arg1", .length = 4,  .def = uninit };
+	(*dictionary)[(*dictionary_count)++] = (struct word) { .name = "arg2", .length = 4,  .def = uninit };
+	(*dictionary)[(*dictionary_count)++] = (struct word) { .name = "arg3", .length = 4,  .def = uninit };
+	(*dictionary)[(*dictionary_count)++] = (struct word) { .name = "arg4", .length = 4,  .def = uninit };
+	(*dictionary)[(*dictionary_count)++] = (struct word) { .name = "arg5", .length = 4,  .def = uninit };
 
-	(*dictionary)[(*dictionary_count)++] = (struct word) { .name = "sys_exit", .length = 8, .type = type_label, .def = uninit };
-	(*dictionary)[(*dictionary_count)++] = (struct word) { .name = "sys_read", .length = 8, .type = type_label, .def = uninit };
-	(*dictionary)[(*dictionary_count)++] = (struct word) { .name = "sys_write", .length = 9, .type = type_label, .def = uninit };
-	(*dictionary)[(*dictionary_count)++] = (struct word) { .name = "sys_open", .length = 8, .type = type_label, .def = uninit };
-	(*dictionary)[(*dictionary_count)++] = (struct word) { .name = "sys_close", .length = 9, .type = type_label, .def = uninit };
+	(*dictionary)[(*dictionary_count)++] = (struct word) { .name = "sys_exit",  .length = 8, .def = uninit };
+	(*dictionary)[(*dictionary_count)++] = (struct word) { .name = "sys_read",  .length = 8, .def = uninit };
+	(*dictionary)[(*dictionary_count)++] = (struct word) { .name = "sys_write", .length = 9, .def = uninit };
+	(*dictionary)[(*dictionary_count)++] = (struct word) { .name = "sys_open",  .length = 8, .def = uninit };
+	(*dictionary)[(*dictionary_count)++] = (struct word) { .name = "sys_close", .length = 9, .def = uninit };
 }
 
 static _Noreturn void repl(void) {
@@ -412,15 +411,15 @@ static _Noreturn void repl(void) {
 
 	const char* help_string = 
 		"Help menu: " "\n"
-		"\t. help : 		(you are here.)\n"
-		"\t. quit : 		quit the interpreter.\n"
-		"\t. undo : 		remove the last instruction.\n"
-		"\t. dictionary : 	display the current dictionary.\n"
-		"\t. instructions : 	display the current instructions.\n"
-		"\t. arguments : 	display the current arguments array.\n"
-		"\t. resetall : 	reset the instructions and dictionary to be empty.\n"
-		"\t. toggledebug : 	toggle whether debug output is given.\n"
-		"\t. {expression} : 	a series of instructions in the language ISA.\n"
+		"\t. help  	.	(you are here.)\n"
+		"\t. quit  	.	quit the interpreter.\n"
+		"\t. undo  	. 	remove the last instruction.\n"
+		"\t. dictionary 	.	display the current dictionary.\n"
+		"\t. instructions	.	display the current instructions.\n"
+		"\t. arguments     .	display the current arguments array.\n"
+		"\t. reset  	.	reset the instructions and dictionary to be empty.\n"
+		"\t. debug  	.	toggle whether debug output is given.\n"
+		"\t. {expr} 	.	a series of instructions in the language ISA.\n"
 	;
 	
 	puts(welcome_string);
@@ -454,7 +453,7 @@ loop:
 		puts(help_string);
 		puts("ISA:");
 		for (nat i = 0; i < isa_count; i++) {
-			printf("\t  (%llu) %s \n", arity[i], spelling[i]);
+			printf("\t  (%u) %s \n", 1, spelling[i]);
 		}
 		puts("[done]");
 	}
@@ -462,8 +461,8 @@ loop:
 	else if (not strcmp(input, "arguments")) print_nats(arguments, 32);
 	else if (not strcmp(input, "dictionary")) print_dictionary(dictionary, dictionary_count);
 	else if (not strcmp(input, "instructions")) print_instructions(instructions, ins_count, dictionary, dictionary_count);
-	else if (not strcmp(input, "resetall")) { dictionary_count = 0; ins_count = 0; create_dictionary(&dictionary, &dictionary_count); }
-	else if (not strcmp(input, "toggledebug")) debug = not debug;
+	else if (not strcmp(input, "reset")) { dictionary_count = 0; ins_count = 0; create_dictionary(&dictionary, &dictionary_count); }
+	else if (not strcmp(input, "debug")) puts((debug = not debug) ? "debug" : "silent");
 	
 	else {
 		input[len++] = 32;
@@ -1947,6 +1946,117 @@ i incr now
 
 */
 			//push_existing: 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+/*
+static void process_syscall(nat n, nat* r) {
+
+	nat r0 = r[1], r1 = r[2], r2 = r[3], r3 = r[4], r4 = r[5], r5 = r[6];
+
+	printf("SYSCALL (NR=%llu): {%llu %llu %llu %llu %llu %llu}\n", 
+		n, r0, r1, r2, r3, r4, r5
+	);
+
+	if (n == 7) {
+		printf("calling exit(%llu);\n", r0);
+		exit((int) r0);
+	}
+
+	else if (n == 8) {
+		printf("calling read(%llu, %p, %llu);\n", r0, (void*) r1, r2);
+		r[1] = (nat) read((int) r0, (void*) r1, r2);
+		r[2] = (nat) (long long) errno;
+	}
+
+	else if (n == 9) {
+		printf("calling write(%llu, %p, %llu);\n", r0, (void*) r1, r2);
+		r[1] = (nat) write((int) r0, (void*) r1, r2);
+		r[2] = (nat) (long long) errno;
+	}
+
+	else if (n == 10) {
+		printf("calling open(%p, %llu, %llu);\n", (void*) r0, r1, r2);
+		r[1] = (nat) open((const char*) r0, (int) r1, r2);
+		r[2] = (nat) (long long) errno;
+	}
+
+	else if (n == 11) {
+		printf("calling close(%llu);\n", r0);
+		r[1] = (nat) close((int) r0);
+		r[2] = (nat) (long long) errno;
+	} else {
+		printf("unknown syscall: %llu\n", n);
+	}
+
+
+if (n == 1000) r[1] = (nat) fork();
+if (n == 1000) r[1] = (nat)(void*)mmap((void*)r0,r1,(int)r2,(int)r3,(int)r4,(long long) r5);
+if (n == 1000) r[1] = (nat)munmap((void*)r0, r1);
+
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+			if (dictionary[arguments[0]].type != type_label) { 
+				printf("error: branch destination %llu:%llu : "
+					"expected argument0 of type label.\n", 
+					index, dictionary[arguments[0]].file_location
+				);
+				return;
+			}
+
+			if (dictionary[arguments[0]].value == ins_count) {
+				dictionary[arguments[0]].value = uninit;
+			} else ins_count--;
+
+
+
+static const char* spell_type(nat t) {
+	if (t == type_label)  return "label";
+	if (t == type_variable)  return "variable";
+	return "unknown";
+}
+
+
+
+
+*/
+
+
 
 
 
