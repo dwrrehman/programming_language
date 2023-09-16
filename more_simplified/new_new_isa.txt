@@ -233,7 +233,7 @@ is the same as:
 	a store
 
 ==================================
-
+	a pointer w write1
 
 
 
@@ -253,8 +253,7 @@ is the same as:
 
 
 ==================================
-
-
+	a pointer w read1
 
 
 ==================================
@@ -271,8 +270,7 @@ is the same as:
 
 
 ==================================
-
-
+	a pointer w read1 a incr t read1
 
 
 

@@ -1,0 +1,634 @@
+
+/*
+
+
+
+	how are we going to implement    store's   and   load's   ???????
+
+		how?
+
+
+
+
+
+	heres the two instructions we are trying to recreate:      (and the 1/2/4 versions, but we don't care about those for now)
+										just the 8 byte version for now
+	
+
+
+		
+
+			a r store8
+
+			a r load8
+
+
+
+
+
+
+
+
+
+these cannnn become the following   unary instructions:
+
+
+
+
+			a address         <------------ register binding is the same across many stores/loads, but the value of the pointer can change, by incrementing the argument, possibly,  so to allow this binding to stay constant for most loads/stores    we have this statement be said as a secondary attribution statement, said before the following statements. (ie, this does not generate the st/ld instruction, only attributes its address argument. )
+
+
+
+
+			a write8      <-------------- binds the register that is used as the register argument to the store/load.
+							this initates the store. 
+
+
+			a read8   <------------ binds the register that is used as the register argument for the load/store
+	
+						this initiates the load.
+
+
+
+		
+
+
+
+
+
+
+
+		so thats      3 instructions for the full   load/store system
+
+
+
+
+							x  address       x write8       x read8
+
+
+
+
+
+				but we also need 
+
+								read1   write1   read2 write2   read4 write4 
+
+
+
+
+			
+
+				so yeah...        thats like     9 instructions, which is kind of insane... 
+
+					not quite happy with that yet. 
+
+
+
+
+		i dunno if its can be any simpler, though. thats the thing. 
+
+
+
+
+	hm	
+
+
+						
+
+
+						
+
+
+
+heres the thing that i am unhappy with:
+
+
+
+
+
+
+==================================
+
+	a w load1 
+	a incr 
+	a t load1
+
+
+is the same as:
+
+
+	a pointer w read1 a incr t read1
+
+
+==================================
+
+
+
+this is a snippet i am trying to translate    and get the minimal syntax. 
+
+	ideally, we will translate it as 
+
+	
+
+
+	w register a read1 incr t register1
+
+
+
+	ie, we can initiate a read by specifying the address second, or the register second.     thats the ideal situatino. 
+
+
+
+			i don't really now how to accomplish that though. 
+
+
+			i thinkkkk the only way to actually make that possible is to do 
+
+
+
+
+
+		x   address 
+
+
+		x   register 
+
+		
+		store1
+
+		store2
+
+		store4
+
+		store8
+
+		load1
+
+		load2
+
+		load4
+
+		load8
+
+
+
+
+	
+
+like thats the only way 
+
+
+				i think 
+
+
+
+					and to be honest, that setup is quite ideal in alot of waysss
+
+
+
+
+
+				i don't reallyyyy like the fact that the store and loads are like... not quite 
+
+
+						uhh
+
+
+						instructions
+
+
+						like, they don't take any arguments
+
+
+
+
+		the store and load situation kinda lends itself to 
+
+
+
+
+
+
+
+		x address          x  register            l store          l load
+
+
+
+
+		i think that would honestly be quite good. 
+
+
+
+				and then, we just supply a label,    1   2   4   or  8
+
+
+
+
+			the problem with that, is that i don't really want to push an argument on to the stack that i literally know will not be used at all lol. 
+
+
+						seems just pretty stupid. 
+
+
+
+			so yeah. 
+
+
+									should    store/load/branch        consume their arguments?!?!
+
+
+
+								hmmmmmmmm interestinggg
+
+
+
+
+
+
+
+			that is an interesitng idea. 
+
+
+
+
+			i hadnt thought of just deleting the argument,   using    delete   after the call,  and wrapping that in a macroo... 
+	
+
+
+
+
+	hm
+
+								ideally, i want the mental model to be simple though. no deleting stuff. ever. 
+
+
+
+
+
+
+
+	so yeah
+
+
+
+					this is not forth lol. 
+
+
+
+			
+
+
+
+
+note
+
+
+			i am okay with having:
+
+
+
+						store1 
+						store2 
+						store4 
+						store8 
+						load1 
+						load2 
+						load4 
+						load8 
+						x address 
+						x register
+
+
+
+
+			i am okay with adding 10 instructions to the language, just to accomplish what 8 instructions could do, but to have each one be unary. 
+
+
+
+						i think thats fine?
+
+
+
+			becuase like, that architecture has alot of benefits. 
+
+
+
+
+						its just. 
+
+
+
+
+
+		just, i wish i could do 
+
+
+
+
+
+					1 store
+
+
+								vs   store1
+
+
+
+
+
+
+					or        byte store 
+
+
+
+
+			hmmmm
+
+
+	idk 
+
+
+
+					because like, who's to say that we don't want to do a load or store of a different bit width
+
+
+
+								i mean, we probablyyyy won't have to anytime soon lol
+
+
+
+					but like
+
+
+							idk 
+
+
+
+
+
+
+				having the bit widths hardcoded into the language just feels really weird. 
+
+
+
+							hmmm. 
+
+
+
+
+
+					idk. 
+
+
+
+
+
+				but then again,          splitting up    store1    into    1 store 
+
+
+							only saves us from adding two constructs  in the language 
+
+
+
+							not really worth it honestly. 
+
+
+
+
+				its easier to implement the store1    store2  store4  store8  load1 load2 load4 and load8   manually 
+
+
+
+
+						so yeah. i think im going to do that. 
+
+
+
+
+						kind of a blemmish of the language. but idk. it feels hard to do this any other way, considering we don't have any type system AT ALL. the language is untyped lol
+
+
+
+
+				which i quite like. 
+
+
+
+
+
+
+
+	so yeah. 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+todo  for implementing:
+-------------------------------------------------------------------------------------
+
+
+
+
+
+
+
+
+						store1 
+
+						store2 
+
+						store4 
+
+						store8 
+
+						load1 
+
+						load2 
+
+						load4 
+
+						load8 
+
+						x address 
+
+						x register
+
+
+
+
+
+
+-----------------------------------------------------------------------------------
+
+
+
+
+
+
+
+what about memory alighment!?!?!?!
+
+	what about other memory widths?
+
+		shoud we specify the width and alightnment?!!?!
+
+
+
+
+			other attributes???
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+i zero label goto i incr incr label at bubbles zero incr label goto 
+
+
+
+
+	i zero 
+	label goto 
+
+	i incr incr 
+
+label at 
+	bubbles zero incr 
+	label goto 
+
+
+
+var:
+===================================   7 + K     variables. 
+
+	sp
+
+
+	arg0
+
+	arg1
+
+	arg2
+
+	arg3
+
+	arg4
+
+	arg5
+	
+
+	sys_exit
+
+	sys_read
+
+	sys_write
+
+	sys_open
+
+	sys_close
+
+	sys_fork
+
+	...etc
+
+
+
+
+
+
+ins:
+===================================         13   instructions
+
+
+		x  	is
+
+		x 	at
+
+		x	do
+
+		x	more
+
+		x	less
+
+		x	incr 
+
+		x	zero
+
+		x	store
+
+		x	load
+
+		x	r1
+	
+		x	r2
+
+		x	r4
+
+		x	r8
+
+
+
+*/
+
+
+
+

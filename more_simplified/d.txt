@@ -1,0 +1,36 @@
+
+
+, is goto ,
+= is zero =
+. is incr .
+< is less <
+> is more >
+& is addr &
+* is data *
+: is at :
+do is 0 < 1 > do
+
+print is debugdec print
+hex is debughex hex
+
+
+0 =  
+1 = . 
+2 = . .
+3 = . . .
+4 = . . . .
+5 = . . . . .
+6 = . . . . . .
+7 = . . . . . . .
+
+
+a = 
+i = 
+
+loop : 	i < 0 > skip ,
+	do done ,
+skip :	a . 
+	i print .  
+	do loop , 
+done :  a hex hex hex hex hex hex
+	

@@ -1,0 +1,37 @@
+
+
+	print is debugdec print
+
+
+	setzero is zero setzero
+
+	increment is incr increment
+
+	
+
+	comment is 
+
+			this is a cool comment. its pretty cool lol. i love comments in this language lol.
+
+
+				don't you? i love this language lol.  		yay!!
+
+
+	comment
+
+
+
+
+	0 setzero print
+	less 
+
+	1 setzero increment print
+
+	more 
+	skip goto
+	
+	bubbles zero incr incr incr debughex
+skip at 
+	0 debughex
+
+
