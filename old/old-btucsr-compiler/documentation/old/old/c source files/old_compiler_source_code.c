@@ -199,7 +199,6 @@ parent:
 
 	printf("generating code...\n");
 
-	
 	goto final;
 error:;
 	int at = 0, line = 1, column = 1;

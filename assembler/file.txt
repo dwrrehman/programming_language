@@ -1,0 +1,20 @@
+comment this is my assembler! comment
+
+
+segment readable executable
+
+label at
+	nop
+	svc
+	r4 r1 r5 orr
+	label jump
+
+[end]
+
+segment readable writable 
+
+label at  
+	"hello"
+
+
+

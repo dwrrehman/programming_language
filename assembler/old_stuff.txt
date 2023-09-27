@@ -1,0 +1,41 @@
+
+
+
+
+
+
+
+
+
+
+
+
+
+static const char digits[36] = "0123456789abcdefghijklmnopqrstuvwxyz"
+
+
+static nat string_to_number(char* string, nat* length) {
+	nat radix = 0, value = 0;
+	nat result = 0, index = 0, place = 1;
+begin:	if (index >= *length) goto done;
+	value = 0;
+top:	if (value >= 36) abort();
+	if (digits[value] == string[index]) goto found;
+	value++;
+	goto top;
+found:	if (index) goto check;
+	radix = value;
+	goto next;
+check:	if (value >= radix) goto done;
+	result += place * value;
+	place *= radix;
+next:	index++;
+	goto begin;
+done:	*length = index;
+	return result;
+}
+
+*/
+
+
+

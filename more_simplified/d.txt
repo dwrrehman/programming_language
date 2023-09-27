@@ -34,3 +34,80 @@ skip :	a .
 	do loop , 
 done :  a hex hex hex hex hex hex
 	
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+_comment_ is 
+
+	todo:
+
+	*****   - make working with mulitple files possible:   add a new built in word for using a word as a filename, and looking up it, and inserting its contents like a macro call.       
+
+						oh wait, we can just use        external  is           ie, a macro call thats external?  no..
+
+
+									is    is for definitions.   not calls. 
+
+					lets make a new built in,     called               use 
+
+
+
+								so, its appearance in code would be things like 
+
+
+											foundation.txt use 
+											mymodulefile.txt use 
+											
+
+	**	- make comments also strings! useful, for printing text. 
+		
+				add a new built-in word   for using the content of a macro body as a string. 
+
+	*	- make the hello world program. 
+
+	***	- make the execution mechanism use the correct instruction selection algorithm, not executing instructions directy!!!!
+		
+		- make a simple for loop macro, for an array of elements.
+	
+		- amke a while< loop macro
+
+		- make a if< statement macro
+
+		- figure out how to specify an array of elements, somehow!!! 
+
+
+		- make constants not suck, by defining some hex constants, binary constants, and decimal groups numbers by 9 digits,
+
+			so we can write     0x34         and        000 000 1         to mean  a million.  
+
+			
+
+
+
+
+
+
+
+
+
+
+
+_comment_
