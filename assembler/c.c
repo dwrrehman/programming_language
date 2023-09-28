@@ -253,11 +253,17 @@ int main(int argc, const char** argv) {
 
 		if (is(word, count, "at")) { }
 
-		else if (is(word, count, "r0")) { arg.value = 0; arguments[arg_count++] = arg; }
-		else if (is(word, count, "r1")) { arg.value = 1; arguments[arg_count++] = arg; }
-		else if (is(word, count, "r2")) { arg.value = 2; arguments[arg_count++] = arg; }
-		else if (is(word, count, "r3")) { arg.value = 3; arguments[arg_count++] = arg; }
-		else if (is(word, count, "r4")) { arg.value = 4; arguments[arg_count++] = arg; }
+		else if (is(word, count, "r0"))  { arg.value = 0;  arguments[arg_count++] = arg; }
+		else if (is(word, count, "r1"))  { arg.value = 1;  arguments[arg_count++] = arg; }
+		else if (is(word, count, "r2"))  { arg.value = 2;  arguments[arg_count++] = arg; }
+		else if (is(word, count, "r3"))  { arg.value = 3;  arguments[arg_count++] = arg; }
+		else if (is(word, count, "r4"))  { arg.value = 4;  arguments[arg_count++] = arg; }
+		else if (is(word, count, "r5"))  { arg.value = 5;  arguments[arg_count++] = arg; }
+		else if (is(word, count, "r6"))  { arg.value = 6;  arguments[arg_count++] = arg; }
+		else if (is(word, count, "r7"))  { arg.value = 7;  arguments[arg_count++] = arg; }
+		else if (is(word, count, "r8"))  { arg.value = 8;  arguments[arg_count++] = arg; }
+		else if (is(word, count, "r9"))  { arg.value = 9;  arguments[arg_count++] = arg; }
+		else if (is(word, count, "r10")) { arg.value = 10; arguments[arg_count++] = arg; }
 
 		else if (is(word, count, "svc"))    push(svc,   start, count);
 		else if (is(word, count, "nop"))    push(nop,   start, count);
@@ -324,12 +330,10 @@ int main(int argc, const char** argv) {
 
 
 
-	const nat number_of_sections = 1;
+	const nat number_of_sections = 2; 
 
-	struct mach_header_64 header = {0};	
-	struct segment_command_64 command = {0};
-	struct section_64 section = {0};
 
+	struct mach_header_64 header = {0};
 	header.magic = MH_MAGIC_64;
 	header.cputype = (int)CPU_TYPE_ARM | (int)CPU_ARCH_ABI64;
 	header.cpusubtype = (int) CPU_SUBTYPE_ARM64_ALL;
@@ -338,28 +342,59 @@ int main(int argc, const char** argv) {
 	header.sizeofcmds = 0;
 	header.flags = MH_NOUNDEFS | MH_SUBSECTIONS_VIA_SYMBOLS;
 	
+
+	struct segment_command_64 command = {0};
 	command.cmd = LC_SEGMENT_64;
-	command.cmdsize = sizeof(struct segment_command_64) + sizeof(struct section_64) * number_of_sections;
+	command.cmdsize = sizeof(struct segment_command_64) + sizeof(struct section_64) * 2;
+
 
 	header.sizeofcmds += command.cmdsize;
 
+
 	strncpy(command.segname, "__TEXT", 16);
-	command.vmsize = sizeof header + sizeof command + sizeof section * number_of_sections + byte_count;
+	command.vmsize = sizeof header + sizeof command + sizeof section * 2 + byte_count;
 	command.vmaddr = 0;
 	command.fileoff = 0;
-	command.filesize = sizeof header + sizeof command + sizeof section * number_of_sections + byte_count;
-	command.maxprot = (VM_PROT_READ | /*VM_PROT_WRITE | */VM_PROT_EXECUTE);
-	command.initprot = (VM_PROT_READ | /*VM_PROT_WRITE | */VM_PROT_EXECUTE);
-	command.nsects = number_of_sections;
+	command.filesize = sizeof header + sizeof command + sizeof section * 2 + byte_count;
+	command.maxprot = (VM_PROT_READ | VM_PROT_WRITE | VM_PROT_EXECUTE);
+	command.initprot = (VM_PROT_READ | VM_PROT_WRITE | VM_PROT_EXECUTE);
+	command.nsects = 2;
 	
+
+
+	struct section_64 section = {0};
 	strncpy(section.sectname, "__text", 16);
 	strncpy(section.segname, "__TEXT", 16);
 	section.addr = 0;
 	section.size = byte_count;
-	section.offset = sizeof header + sizeof command + sizeof section * number_of_sections;
+	section.offset = sizeof header + sizeof command + sizeof section * 2;
 	section.align = 3;
 	section.reloff = 0;
 	section.nreloc = 0;
+
+
+	strncpy(section.sectname, "__data", 16);
+	strncpy(section.segname, "__TEXT", 16);
+	section.addr = 0;
+	section.size = byte_count;
+	section.offset = sizeof header + sizeof command + sizeof section * 2;
+	section.align = 3;
+	section.reloff = 0;
+	section.nreloc = 0;
+
+
+/*
+struct symtab_command {
+   uint32_t   cmd;       /* LC_SYMTAB */
+   uint32_t   cmdsize;   /* sizeof(struct symtab_command) */
+   uint32_t   symoff;    /* symbol table offset */
+   uint32_t   nsyms;     /* number of symbol table entries */
+   uint32_t   stroff;    /* string table offset */
+   uint32_t   strsize;   /* string table size in bytes */
+};
+*/
+
+
 
 	printf("\ndebugging header bytes:\n------------------------\n");
 	dump_hex((uint8_t*) &header, sizeof header);
@@ -389,6 +424,10 @@ int main(int argc, const char** argv) {
 	write(file, &section, sizeof section);
 	write(file, bytes, byte_count);
 	close(file);
+
+
+	system("otool -txvVhlL program.o");
+	system("objdump program.o -DSast --disassembler-options=no-aliases");
 }
 
 
@@ -957,7 +996,210 @@ next:	index++;
 	goto begin;
 done:	*length = index;
 	return result;
-}*/
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+mach_header_64 header = {};
+header.magic          = MH_MAGIC_64;
+header.cputype        = CPU_TYPE_X86_64;
+header.cpusubtype     = CPU_SUBTYPE_X86_64_ALL;
+header.filetype       = MH_OBJECT;
+header.ncmds          = 0; /* to be modified */
+header.sizeofcmds     = 0; /* to be modified */
+header.flags          = MH_SUBSECTIONS_VIA_SYMBOLS;
+
+segment_command_64 segment = {};
+segment.cmd                = LC_SEGMENT_64;
+segment.cmdsize            = sizeof(segment) + sizeof(section_64);
+segment.vmaddr             = 0;
+segment.vmsize             = 0; /* to be modified */
+segment.fileoff            = 0; /* to be modified */
+segment.filesize           = 0; /* to be modified */
+segment.maxprot            = VM_PROT_READ | VM_PROT_EXECUTE;
+segment.initprot           = VM_PROT_READ | VM_PROT_EXECUTE;
+segment.nsects             = 0; /* to be modified */
+
+section_64 sectionText     = {};
+strcpy(sectionText.segname,  SEG_TEXT ); /* segname  <- __TEXT */
+strcpy(sectionText.sectname, SECT_TEXT); /* sectname <- __text */
+sectionText.addr           = 0;
+sectionText.size           = 0;          /* to be modified */
+sectionText.offset         = 0;          /* to be modified */
+sectionText.align          = 4;          /* 2^4 code alignment */
+sectionText.reloff         = 0;          /* to be modified */
+sectionText.nreloc         = 0;          /* to be modified */
+sectionText.flags          = S_REGULAR |
+                             S_ATTR_PURE_INSTRUCTIONS |
+                             S_ATTR_SOME_INSTRUCTIONS;
+
+const unsigned char code[] = {
+        0xE8, 0x00, 0x00, 0x00, 0x00,      // call <address> - someFuncExternal
+        0xE8, 0x00, 0x00, 0x00, 0x00,      // call <address> - someFunc
+        0xB8, 0x01, 0x00, 0x00, 0x02,      // mov     rax, 0x2000001 ; exit
+        0xBF, 0x00, 0x00, 0x00, 0x00,      // mov     rdi, 0
+        0x0F, 0x05,                        // syscall
+        // someFunc:
+        0x48, 0x31, 0xC0,                  // xor rax, rax
+        0xC3                               // ret
+};
+
+symtab_command symtabCommand    = {};
+symtabCommand.cmd               = LC_SYMTAB;
+symtabCommand.cmdsize           = sizeof(symtab_command);
+symtabCommand.symoff            = 0;       /* to be modified */
+symtabCommand.nsyms             = 0;       /* to be modified */
+symtabCommand.stroff            = 0;       /* to be modified */
+symtabCommand.strsize           = 0;       /* to be modified */
+
+const char stringTable[]        = "\0_someFunc0\0_someFuncExternal0\0";
+
+nlist_64 symbols[2] = {
+        {
+            1,                      // first index in string table
+            N_SECT | N_EXT,         // defined in the file, available externally
+            1,                      // first section
+            REFERENCE_FLAG_DEFINED, // defined in the file
+            4 * 5 + 2               // offset of this symbol in the section
+        },
+        {
+            12,                      // second string in string table
+            N_UNDF  | N_EXT,         // undefined in the file,
+                                     // must be defined externally
+            NO_SECT,                 // no section specified
+            REFERENCE_FLAG_UNDEFINED_NON_LAZY, // external non-lazy symbol
+            0                        // unused
+        }
+};
+
+dysymtab_command dysymtabCommand      = {};
+dysymtabCommand.cmd                   = LC_DYSYMTAB;
+dysymtabCommand.cmdsize               = sizeof(dysymtabCommand);
+dysymtabCommand.ilocalsym             = 0; // first symbol in symbol table
+dysymtabCommand.nlocalsym             = 1; // only one locally defined symbol
+dysymtabCommand.iextdefsym            = 1; // second symbol in symbol table
+dysymtabCommand.nextdefsym            = 1; // only one externally defined symbol
+
+relocation_info relocations[] = {
+        {
+            1,      // after first byte address to someFuncExternal
+            1,      // second symbol
+            1,      // relative call, PC counted
+            2,      // 4 bytes
+            1,      // external
+            GENERIC_RELOC_SECTDIFF
+        },
+        {
+            6,      // second call address
+            0,      // first symbol
+            1,      // relative call, PC counted
+            2,      // 4 bytes
+            1,      // external
+            GENERIC_RELOC_SECTDIFF
+        },
+};
+
+size_t offsetCounter = 0;
+FILE* binary = fopen("object.o", "wb");
+
+// Write header;
+header.ncmds = 3; // segment + symtab + dysymtab
+header.sizeofcmds = sizeof(segment) + sizeof(sectionText) + sizeof(symtabCommand) + sizeof(dysymtabCommand);
+fwrite(&header, 1, sizeof(header), binary);
+offsetCounter += sizeof(header);
+
+// Write segment
+segment.vmsize  = segment.filesize = sizeof(code);
+segment.fileoff = header.sizeofcmds + sizeof(header); // we'll place code just after all load commands.
+segment.nsects  = 1;
+fwrite(&segment, 1, sizeof(segment), binary);
+offsetCounter += sizeof(segment);
+
+// Write section
+sectionText.size   = segment.filesize;
+sectionText.offset = segment.fileoff;
+sectionText.reloff = segment.fileoff + segment.filesize; // just after the code
+sectionText.nreloc = sizeof(relocations) / sizeof(relocations[0]); // two calls
+fwrite(&sectionText, 1, sizeof(sectionText), binary);
+offsetCounter += sizeof(sectionText);
+
+// Write symtab
+symtabCommand.symoff = sectionText.reloff +
+                        sectionText.nreloc * sizeof(relocation_info); // just after relocations
+symtabCommand.nsyms = 2; // two functions
+symtabCommand.stroff = symtabCommand.symoff +
+                        symtabCommand.nsyms * sizeof(nlist_64); // just after symbol table
+symtabCommand.strsize = sizeof(stringTable);
+fwrite(&symtabCommand, 1, sizeof(symtabCommand), binary);
+offsetCounter += sizeof(symtabCommand);
+
+// Write dysymtab
+fwrite(&dysymtabCommand, 1, sizeof(dysymtabCommand), binary);
+offsetCounter += sizeof(dysymtabCommand);
+
+// Write code
+fwrite(&code, 1, sizeof(code), binary);
+
+// Write relocations
+fwrite(&relocations, 1, sizeof(relocations), binary);
+
+// Write symbol table
+fwrite(&symbols, 1, sizeof(symbols), binary);
+
+// Write string table
+fwrite(&stringTable, 1, sizeof(stringTable), binary);
+
+fclose(binary);
+
+
+
+
+
+
+
+
+
+*/
 
 
 
