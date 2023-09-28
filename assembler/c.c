@@ -10,42 +10,58 @@
 #include <ctype.h>
 #include <errno.h>
 #include <mach-o/loader.h>      
-
 /* 
 	useful for inspecing the object file: 
-
-		otool -tvVhlL program.o
-
-		objdump -D program.o                       <---- includes binary too!
-
-
- otool -txvVhlL hello.o
-
- objdump hello.o -DSast --disassembler-options=no-aliases
-
+		otool -txvVhlL program.o
+		objdump program.o -DSast --disassembler-options=no-aliases
 */
-
 typedef uint64_t nat;
-
+typedef uint32_t u32;
 enum instruction_type {
-	nop,
-	svc,
-	movzx,
-	movzw,
-	movk,
-	movn,
-	addi,
-	orr,
+	nop, svc, cfinv, br, 
 
-	ctzero,
-	ctincr,
-	ctadd,
-	ctsub,
-	ctmul,
-	ctdiv,
-	ctnor,
-	ctxor,
-	ctprint,
+	movzx, movzw,	movkx, movkw,	movnx, movnw,
+	addix, addiw,	addhx, addhw,
+	addixs, addiws,	addhxs, addhws,
+
+	adcx, adcw, 	adcxs, adcws, 
+	asrvx, asrvw, 
+
+	orrx, orrw,	ornx, ornw, 
+	addx, addw, 	addxs, addws,
+	subx, subw, 	subxs, subws,
+
+	ld64b, 		absx, absw, 	
+	clsx, clsw,	clzx, clzw,	ctzx, ctzw,	cntx, cntw,    
+	rbitx, rbitw,	revx, revw,  	revhx, revhw,
+
+	ctzero, ctincr,
+	ctadd, ctsub, ctmul, ctdiv,
+	ctnor, ctxor, ctprint,
+
+	instruction_set_count
+};
+
+static const char* instruction_spelling[instruction_set_count] = {
+	"nop", "svc", "cfinv", "br", 
+
+	"movzx", "movzw", "movkx", "movkw", "movnx", "movnw",
+	"addix", "addiw", "addhx", "addhw",
+	"addixs", "addiws", "addhxs", "addhws",
+
+	"adcx", "adcw", "adcxs", "adcws", 
+	"asrvx", "asrvw", 
+
+	"orrx", "orrw",	"ornx", "ornw", 
+
+	"ld64b", "absx", "absw",  
+	"clsx", "clsw", "clzx", "clzw", "ctzx", "ctzw", "cntx", "cntw",  
+	"rbitx", "rbitw", "revx", "revw", "revhx", "revhw",
+
+
+	"ctzero", "ctincr",
+	"ctadd", "ctsub", "ctmul", "ctdiv",
+	"ctnor", "ctxor", "ctprint",
 };
 
 struct word {
@@ -150,55 +166,114 @@ static void push(nat op, nat start, nat count) {
 	arg_count = 0;
 }
 
-static void emit(uint32_t x) {
+static void emit(u32 x) {
 	bytes[byte_count++] = (uint8_t) (x >> 0);
 	bytes[byte_count++] = (uint8_t) (x >> 8);
 	bytes[byte_count++] = (uint8_t) (x >> 16);
 	bytes[byte_count++] = (uint8_t) (x >> 24);
 }
 
-static uint32_t generate_movzx(struct argument* a) { // usage:    <imm16> <hw> <Rd> movzx
-	const nat imm_index = a[0].value;
-	const uint32_t hw = (uint32_t) a[1].value;
-	const uint32_t Rd = (uint32_t) a[2].value;
-
-	if (imm_index >= 31) {
-		char reason[4096] = {0};
-		snprintf(reason, sizeof reason, "movzx: invalid use of compiletime stackpointer register or label");
-		print_error(reason, a[0].start, a[0].count); 
-		exit(1);
-	}
-
-	const nat imm = registers[imm_index];
-
-	if (imm >= 65536) {
-		char reason[4096] = {0};
-		snprintf(reason, sizeof reason, "movzx: immediate value must be a 16-bit integer (%llu >= 65536)", imm);
-		print_error(reason, a[0].start, a[0].count); 
-		exit(1);
-	}
-
-	if (hw >= 32) {
-		char reason[4096] = {0};
-		snprintf(reason, sizeof reason, "movzx: invalid immediate-shift-register argument: %u", hw);
-		print_error(reason, a[1].start, a[1].count); 
-		exit(1);
-	}
-
-	if (Rd >= 32) {
-		char reason[4096] = {0};
-		snprintf(reason, sizeof reason, "movzx: invalid register argument: %u", Rd);
-		print_error(reason, a[2].start, a[2].count); 
-		exit(1);
-	}
-
-	printf("generating MOVZX with {%llu, %u, %u}\n", imm, hw, Rd);
-
-	return (1U << 31U) | (0xA5 << 23U) | (hw << 21U) | ((uint32_t) imm << 5U) | Rd;
+static void check(nat r, nat c, const struct argument a, const char* type) {
+	if (r < c) return;
+	char reason[4096] = {0};
+	snprintf(reason, sizeof reason, "invalid %s argument %llu (%llu >= %llu)", type, r, r, c);
+	print_error(reason, a.start, a.count); 
+	exit(1);
 }
-static uint32_t generate_movk(struct argument* a) { return 0xD503201F; }
-static uint32_t generate_movn(struct argument* a) { return 0xD503201F; }
-static uint32_t generate_addi(struct argument* a) { return 0xD503201F; }
+
+static u32 generate_mov(struct argument* a, u32 sf, u32 op) { 
+	const nat Im = a[0].value;
+	const u32 hw = (u32) a[1].value;
+	const u32 Rd = (u32) a[2].value;
+	check(hw, 32, a[1], "register");
+	check(Rd, 32, a[2], "register");
+	check(Im, 31, a[0], "ctregister");
+	const nat imm = registers[Im];
+	check(imm, 65536, a[0], "immediate");
+	return  (sf << 31U) | 
+		(op << 23U) | 
+		(hw << 21U) | 
+		((u32) imm << 5U) | 
+		 Rd;
+} 									// usage:    <imm16> <hw> <Rd> mov(z/k/n)(x/w)
+
+
+static u32 generate_addi(struct argument* a, u32 sf, u32 sh, u32 op) { 
+	const nat Im = a[0].value;
+	const u32 Rn = (u32) a[1].value;
+	const u32 Rd = (u32) a[2].value;
+	check(Rn, 32, a[1], "register");
+	check(Rd, 32, a[2], "register");
+	check(Im, 31, a[0], "ctregister");
+	const nat imm = registers[Im];
+	check(imm, 4096, a[0], "immediate");
+	return  (sf << 31U) | 
+		(op << 23U) | 
+		(sh << 22U) | 
+		((u32) imm << 10U) | 
+		(Rn << 5U)  | 
+		 Rd;
+}									// usage: <imm16> <hw> <Rd> add(i/h)(x/w)(s)
+
+
+static u32 generate_adc(struct argument* a, u32 sf, u32 op, u32 o2) {  
+	const u32 Rm = (u32) a[0].value;
+	const u32 Rn = (u32) a[1].value;
+	const u32 Rd = (u32) a[2].value;
+	check(Rm, 32, a[0], "register");
+	check(Rn, 32, a[1], "register");
+	check(Rd, 32, a[2], "register");
+	return  (sf << 31U) | 
+		(op << 21U) | 
+		(Rm << 16U) | 
+		(o2 << 10U) | 
+		(Rn << 5U)  | 
+		 Rd;
+} 									// usage: <Rm> <Rn> <Rd> adc(x/w)(s) 
+
+
+static u32 generate_orr(struct argument* a, u32 sf, u32 ne, u32 op) { 
+	const nat Im = 	     a[0].value;
+	const u32 sh = (u32) a[1].value;
+	const u32 Rm = (u32) a[2].value;
+	const u32 Rn = (u32) a[3].value;
+	const u32 Rd = (u32) a[4].value;
+
+	check(Im, 31, a[0], "ctregister");
+	check(sh, 32, a[1], "register");
+	check(Rm, 32, a[2], "register");
+	check(Rn, 32, a[3], "register");
+	check(Rd, 32, a[4], "register");
+
+	const nat imm = registers[Im];
+	check(imm, 32U << sf, a[0], "immediate");
+
+	return  (sf << 31U) | 
+		(op << 24U) | 
+		(sh << 22U) | 
+		(ne << 21U) | 
+		(Rm << 16U) | 
+		((u32) imm << 10U) | 
+		(Rn << 5U)  | 
+		 Rd;
+} 									// usage: <Rm> <Rn> <Rd> adc(x/w)(s) 
+
+static u32 generate_br(struct argument* a) { 
+	const u32 Rn = (u32) a[0].value;
+	check(Rn, 32, a[0], "register");
+	return (0x3587C0U << 10U) | (Rn << 5U);
+} 									// usage:  <Rn> br
+
+static u32 generate_abs(struct argument* a, u32 sf, u32 op) {  
+	const u32 Rn = (u32) a[0].value;
+	const u32 Rd = (u32) a[1].value;
+	check(Rn, 32, a[0], "register");
+	check(Rd, 32, a[1], "register");
+	return  (sf << 31U) | 
+		(op << 10U) | 
+		(Rn << 5U)  | 
+		 Rd;
+}									// usage:  <Rn> <Rd> abs(x/w)
 
 static void dump_hex(uint8_t* local_bytes, nat local_byte_count) {
 	printf("dumping hex bytes: (%llu)\n", local_byte_count);
@@ -247,78 +322,119 @@ int main(int argc, const char** argv) {
 
 	process:;
 		char* const word = text + start;
-
 		struct argument arg = { .value = 0, .start = start, .count = count };
 
+		//   if (is(word, count, "at"))     {  goto next; }
 
-		if (is(word, count, "at")) { }
-
-		else if (is(word, count, "r0"))  { arg.value = 0;  arguments[arg_count++] = arg; }
-		else if (is(word, count, "r1"))  { arg.value = 1;  arguments[arg_count++] = arg; }
-		else if (is(word, count, "r2"))  { arg.value = 2;  arguments[arg_count++] = arg; }
-		else if (is(word, count, "r3"))  { arg.value = 3;  arguments[arg_count++] = arg; }
-		else if (is(word, count, "r4"))  { arg.value = 4;  arguments[arg_count++] = arg; }
-		else if (is(word, count, "r5"))  { arg.value = 5;  arguments[arg_count++] = arg; }
-		else if (is(word, count, "r6"))  { arg.value = 6;  arguments[arg_count++] = arg; }
-		else if (is(word, count, "r7"))  { arg.value = 7;  arguments[arg_count++] = arg; }
-		else if (is(word, count, "r8"))  { arg.value = 8;  arguments[arg_count++] = arg; }
-		else if (is(word, count, "r9"))  { arg.value = 9;  arguments[arg_count++] = arg; }
-		else if (is(word, count, "r10")) { arg.value = 10; arguments[arg_count++] = arg; }
-
-		else if (is(word, count, "svc"))    push(svc,   start, count);
-		else if (is(word, count, "nop"))    push(nop,   start, count);
-		else if (is(word, count, "movzx"))  push(movzx, start, count);
-		else if (is(word, count, "movk"))   push(movk,  start, count);
-		else if (is(word, count, "movn"))   push(movn,  start, count);
-		else if (is(word, count, "addi"))   push(addi,  start, count);
-
-		else if (is(word, count, "ctadd"))   execute(ctadd);
-		else if (is(word, count, "ctsub"))   execute(ctsub);
-		else if (is(word, count, "ctmul"))   execute(ctmul);
-		else if (is(word, count, "ctdiv"))   execute(ctdiv);
-		else if (is(word, count, "ctnor"))   execute(ctnor);
-		else if (is(word, count, "ctincr"))  execute(ctincr);
-		else if (is(word, count, "ctzero"))  execute(ctzero);
-		else if (is(word, count, "ctprint")) execute(ctprint);
-		
-		else {
-			words[word_count++] = (struct word) {
-				.name = word,
-				.length = count,
-				.value = ins_count,
-				.file_index = start,
-			};
-
-			if (not arg_count) { 
-				arg.value = ~word_count; 
+		for (nat i = 0; i < 32; i++) {
+			char r[5] = {0};
+			snprintf(r, sizeof r, "r%llu", i);
+			if (is(word, count, r)) { 
+				arg.value = i;
 				arguments[arg_count++] = arg; 
+				goto next;
 			}
-			
-			char reason[4096] = {0};
-			snprintf(reason, sizeof reason, 
-				"undefined word found \"%.*s\"", 
-				(int) count, word
-			);
-			print_error(reason, start, count);
-			exit(1);
 		}
-		count = 0;
+
+		for (nat i = nop; i < instruction_set_count; i++) {
+			if (not is(word, count, instruction_spelling[i])) continue;
+			if (i >= ctzero) execute(i); else push(i, start, count);
+			goto next;
+		}
+
+	
+		words[word_count++] = (struct word) {
+			.name = word,
+			.length = count,
+			.value = ins_count,
+			.file_index = start,
+		};
+
+		if (not arg_count) { 
+			arg.value = ~word_count; 
+			arguments[arg_count++] = arg; 
+		}
+		
+		char reason[4096] = {0};
+		snprintf(reason, sizeof reason, 
+			"undefined word found \"%.*s\"", 
+			(int) count, word
+		);
+		print_error(reason, start, count);
+		exit(1);
+
+		next: count = 0;
 	}
 
 	if (count) goto process;
 
-
-
 	for (nat i = 0; i < ins_count; i++) {
 
 		const nat op = ins[i].op;
+		struct argument* const a = ins[i].arguments;
 
-		     if (op == svc)   emit(0xD4000001);
-		else if (op == nop)   emit(0xD503201F);
-		else if (op == movzx) emit(generate_movzx(ins[i].arguments));
-		else if (op == movk)  emit(generate_movk(ins[i].arguments));
-		else if (op == movn)  emit(generate_movn(ins[i].arguments));
-		else if (op == addi)  emit(generate_addi(ins[i].arguments));
+		     if (op == svc)    emit(0xD4000001);
+		else if (op == nop)    emit(0xD503201F);
+		else if (op == cfinv)  emit(0xD500401F);
+		else if (op == br)     emit(generate_br(a));
+
+		else if (op == absx)   emit(generate_abs(a, 1, 0x16B008U));
+		else if (op == absw)   emit(generate_abs(a, 0, 0x16B008U));
+		else if (op == clzx)   emit(generate_abs(a, 1, 0x16B004U));
+		else if (op == clzw)   emit(generate_abs(a, 0, 0x16B004U));
+		else if (op == clsx)   emit(generate_abs(a, 1, 0x16B005U));
+		else if (op == clsw)   emit(generate_abs(a, 0, 0x16B005U));
+		else if (op == ctzx)   emit(generate_abs(a, 1, 0x16B006U));
+		else if (op == ctzw)   emit(generate_abs(a, 0, 0x16B006U));
+		else if (op == cntx)   emit(generate_abs(a, 1, 0x16B007U));
+		else if (op == cntw)   emit(generate_abs(a, 0, 0x16B007U));
+		else if (op == rbitx)  emit(generate_abs(a, 1, 0x16B000U));
+		else if (op == rbitw)  emit(generate_abs(a, 0, 0x16B000U));
+		else if (op == revx)   emit(generate_abs(a, 1, 0x16B003U));
+		else if (op == revw)   emit(generate_abs(a, 1, 0x16B002U));
+		else if (op == revhx)  emit(generate_abs(a, 1, 0x16B001U));
+		else if (op == revhw)  emit(generate_abs(a, 0, 0x16B001U));
+		else if (op == ld64b)  emit(generate_abs(a, 1, 0x1E0FF4U));
+
+		else if (op == movzx)  emit(generate_mov(a, 1, 0xA5U));
+		else if (op == movzw)  emit(generate_mov(a, 0, 0xA5U));
+		else if (op == movkx)  emit(generate_mov(a, 1, 0xE5U));
+		else if (op == movkw)  emit(generate_mov(a, 0, 0xE5U));
+		else if (op == movnx)  emit(generate_mov(a, 1, 0x25U));
+		else if (op == movnw)  emit(generate_mov(a, 0, 0x25U));
+
+		else if (op == addix)  emit(generate_addi(a, 1, 0, 0x22U));
+		else if (op == addiw)  emit(generate_addi(a, 0, 0, 0x22U));
+		else if (op == addhx)  emit(generate_addi(a, 1, 1, 0x22U));
+		else if (op == addhw)  emit(generate_addi(a, 0, 1, 0x22U));
+		else if (op == addixs) emit(generate_addi(a, 1, 0, 0x62U));
+		else if (op == addiws) emit(generate_addi(a, 0, 0, 0x62U));
+		else if (op == addhxs) emit(generate_addi(a, 1, 1, 0x62U));
+		else if (op == addhws) emit(generate_addi(a, 0, 1, 0x62U));
+
+		else if (op == adcx)   emit(generate_adc(a, 1, 0x0D0U, 0x00));
+		else if (op == adcw)   emit(generate_adc(a, 0, 0x0D0U, 0x00));
+		else if (op == adcxs)  emit(generate_adc(a, 1, 0x1D0U, 0x00));
+		else if (op == adcws)  emit(generate_adc(a, 0, 0x1D0U, 0x00));
+		else if (op == asrvx)  emit(generate_adc(a, 1, 0x0D6U, 0x0A));
+		else if (op == asrvw)  emit(generate_adc(a, 0, 0x0D6U, 0x0A));
+
+		//else if (op == cselx)  emit(generate_adc(a, 0, 0x0D6U, 0x0A));
+		//else if (op == cselx)  emit(generate_adc(a, 0, 0x0D6U, 0x0A));
+
+		else if (op == orrx)   emit(generate_orr(a, 1, 0, 0x2AU));
+		else if (op == orrw)   emit(generate_orr(a, 0, 0, 0x2AU));
+		else if (op == ornx)   emit(generate_orr(a, 1, 1, 0x2AU));
+		else if (op == ornw)   emit(generate_orr(a, 0, 1, 0x2AU));
+		else if (op == addx)   emit(generate_orr(a, 1, 0, 0x0BU));
+		else if (op == addw)   emit(generate_orr(a, 0, 0, 0x0BU));
+		else if (op == addxs)  emit(generate_orr(a, 1, 0, 0x2BU));
+		else if (op == addws)  emit(generate_orr(a, 0, 0, 0x2BU));
+		else if (op == subx)   emit(generate_orr(a, 1, 0, 0x4BU));
+		else if (op == subw)   emit(generate_orr(a, 0, 0, 0x4BU));
+		else if (op == subxs)  emit(generate_orr(a, 1, 0, 0x6BU));
+		else if (op == subws)  emit(generate_orr(a, 0, 0, 0x6BU));
+
 		else {
 			printf("error: unknown instruction: %llu\n", op);
 			abort();
@@ -330,7 +446,13 @@ int main(int argc, const char** argv) {
 
 
 
-	const nat number_of_sections = 2; 
+
+
+
+
+
+
+	// const nat number_of_sections = 2; 
 
 
 	struct mach_header_64 header = {0};
@@ -344,21 +466,34 @@ int main(int argc, const char** argv) {
 	
 
 	struct segment_command_64 command = {0};
+
+
+
 	command.cmd = LC_SEGMENT_64;
-	command.cmdsize = sizeof(struct segment_command_64) + sizeof(struct section_64) * 2;
+	command.cmdsize = sizeof(struct segment_command_64) + sizeof(struct section_64) * 1;
 
 
 	header.sizeofcmds += command.cmdsize;
 
 
 	strncpy(command.segname, "__TEXT", 16);
-	command.vmsize = sizeof header + sizeof command + sizeof section * 2 + byte_count;
+	command.vmsize = 
+			sizeof (struct mach_header_64) + 
+			sizeof (struct segment_command_64) + 
+			sizeof(struct section_64) * 1 + 
+			byte_count;
+
 	command.vmaddr = 0;
 	command.fileoff = 0;
-	command.filesize = sizeof header + sizeof command + sizeof section * 2 + byte_count;
+	command.filesize = 
+			sizeof (struct mach_header_64) + 
+			sizeof (struct segment_command_64) + 
+			sizeof(struct section_64) * 1 + 
+			byte_count;
+
 	command.maxprot = (VM_PROT_READ | VM_PROT_WRITE | VM_PROT_EXECUTE);
 	command.initprot = (VM_PROT_READ | VM_PROT_WRITE | VM_PROT_EXECUTE);
-	command.nsects = 2;
+	command.nsects = 1;
 	
 
 
@@ -367,12 +502,16 @@ int main(int argc, const char** argv) {
 	strncpy(section.segname, "__TEXT", 16);
 	section.addr = 0;
 	section.size = byte_count;
-	section.offset = sizeof header + sizeof command + sizeof section * 2;
+	section.offset = sizeof (struct mach_header_64) + sizeof (struct segment_command_64) + sizeof section * 1;
 	section.align = 3;
 	section.reloff = 0;
 	section.nreloc = 0;
 
 
+
+
+
+/*
 	strncpy(section.sectname, "__data", 16);
 	strncpy(section.segname, "__TEXT", 16);
 	section.addr = 0;
@@ -381,17 +520,6 @@ int main(int argc, const char** argv) {
 	section.align = 3;
 	section.reloff = 0;
 	section.nreloc = 0;
-
-
-/*
-struct symtab_command {
-   uint32_t   cmd;       /* LC_SYMTAB */
-   uint32_t   cmdsize;   /* sizeof(struct symtab_command) */
-   uint32_t   symoff;    /* symbol table offset */
-   uint32_t   nsyms;     /* number of symbol table entries */
-   uint32_t   stroff;    /* string table offset */
-   uint32_t   strsize;   /* string table size in bytes */
-};
 */
 
 
@@ -1036,39 +1164,35 @@ done:	*length = index;
 
 
 
-
-
-
-
 mach_header_64 header = {};
 header.magic          = MH_MAGIC_64;
 header.cputype        = CPU_TYPE_X86_64;
 header.cpusubtype     = CPU_SUBTYPE_X86_64_ALL;
 header.filetype       = MH_OBJECT;
-header.ncmds          = 0; /* to be modified */
-header.sizeofcmds     = 0; /* to be modified */
+header.ncmds          = 0; 
+header.sizeofcmds     = 0; 
 header.flags          = MH_SUBSECTIONS_VIA_SYMBOLS;
 
 segment_command_64 segment = {};
 segment.cmd                = LC_SEGMENT_64;
 segment.cmdsize            = sizeof(segment) + sizeof(section_64);
 segment.vmaddr             = 0;
-segment.vmsize             = 0; /* to be modified */
-segment.fileoff            = 0; /* to be modified */
-segment.filesize           = 0; /* to be modified */
+segment.vmsize             = 0;
+segment.fileoff            = 0;
+segment.filesize           = 0;
 segment.maxprot            = VM_PROT_READ | VM_PROT_EXECUTE;
 segment.initprot           = VM_PROT_READ | VM_PROT_EXECUTE;
-segment.nsects             = 0; /* to be modified */
+segment.nsects             = 0; 
 
 section_64 sectionText     = {};
-strcpy(sectionText.segname,  SEG_TEXT ); /* segname  <- __TEXT */
-strcpy(sectionText.sectname, SECT_TEXT); /* sectname <- __text */
+strcpy(sectionText.segname,  SEG_TEXT ); // segname  <- __TEXT 
+strcpy(sectionText.sectname, SECT_TEXT); // sectname <- __text 
 sectionText.addr           = 0;
-sectionText.size           = 0;          /* to be modified */
-sectionText.offset         = 0;          /* to be modified */
-sectionText.align          = 4;          /* 2^4 code alignment */
-sectionText.reloff         = 0;          /* to be modified */
-sectionText.nreloc         = 0;          /* to be modified */
+sectionText.size           = 0;    
+sectionText.offset         = 0;    
+sectionText.align          = 4;          // 2^4 code alignment 
+sectionText.reloff         = 0;         
+sectionText.nreloc         = 0;         
 sectionText.flags          = S_REGULAR |
                              S_ATTR_PURE_INSTRUCTIONS |
                              S_ATTR_SOME_INSTRUCTIONS;
@@ -1087,10 +1211,10 @@ const unsigned char code[] = {
 symtab_command symtabCommand    = {};
 symtabCommand.cmd               = LC_SYMTAB;
 symtabCommand.cmdsize           = sizeof(symtab_command);
-symtabCommand.symoff            = 0;       /* to be modified */
-symtabCommand.nsyms             = 0;       /* to be modified */
-symtabCommand.stroff            = 0;       /* to be modified */
-symtabCommand.strsize           = 0;       /* to be modified */
+symtabCommand.symoff            = 0;   
+symtabCommand.nsyms             = 0;   
+symtabCommand.stroff            = 0;   
+symtabCommand.strsize           = 0;   
 
 const char stringTable[]        = "\0_someFunc0\0_someFuncExternal0\0";
 
@@ -1199,7 +1323,16 @@ fclose(binary);
 
 
 
-*/
+struct symtab_command {
+   uint32_t   cmd;      // * LC_SYMTAB 
+   uint32_t   cmdsize;  // * sizeof(struct symtab_command) *
+   uint32_t   symoff;   // * symbol table offset *
+   uint32_t   nsyms;    // * number of symbol table entries *
+   uint32_t   stroff;   // * string table offset *
+   uint32_t   strsize;  //  string table size in bytes *
+};
 
+
+*/
 
 
