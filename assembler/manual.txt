@@ -1,0 +1,11 @@
+=========================================
+   manual for the arm 64 bit assembler
+=========================================
+
+
+	imm16 sh2 Rd mov(z/k/n)(x/w)
+
+	imm16 hw Rd add(i/h)(x/w)(s/)
+
+	Rm Rn Rd adc(x/w)(s/)
+

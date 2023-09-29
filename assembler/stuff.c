@@ -525,7 +525,7 @@ int main(int argc, const char** argv) {
 	table.stroff            = 0;   
 	table.strsize           = 0;
 
-	const char strings[] = "\0_main\0";
+	const char strings[] = "\0_start\0";
 
 	struct nlist_64 symbols[] = {
 	        (struct nlist_64) {
@@ -592,31 +592,6 @@ int main(int argc, const char** argv) {
 	system("otool -txvVhlL object.o");
 	system("objdump object.o -DSast --disassembler-options=no-aliases");
 
-	system("/Library/Developer/CommandLineTools/usr/bin/ld "
-		"-demangle "
-		"-lto_library /Library/Developer/CommandLineTools/usr/lib/libLTO.dylib "
-		"-dynamic "
-		"-arch arm64 "
-		"-platform_version macos 13.0.0 13.3 "
-		"-syslibroot /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk "
-		"-o executable.out "
-		"-L/usr/local/lib "
-		"object.o "
-		"-lSystem /Library/Developer/CommandLineTools/usr/lib/clang/14.0.3/lib/darwin/libclang_rt.osx.a"
-	);
-}
-
-
-
-
-
-/*
-
-
-
-system("otool -txvVhlL object.o");
-	system("objdump object.o -DSast --disassembler-options=no-aliases");
-
 	system("/Library/Developer/CommandLineTools/usr/bin/ld -v "
 		"-demangle "
 		"object.o "
@@ -630,12 +605,13 @@ system("otool -txvVhlL object.o");
 	//system("ld -v -dynamic -arch arm64 object.o -o executable.out -e _start -lSystem -syslibroot /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk");
 
 	system("otool -txvVhlL executable.out");
+}
 
 
 
 
 
-
+/*
 
 symtabCommand.symoff = sectionText.reloff + sectionText.nreloc * sizeof(relocation_info);
 symtabCommand.nsyms = 1; 
