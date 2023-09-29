@@ -1,0 +1,3 @@
+./build && ./run file.s && ./executable.out 
+
+echo $?

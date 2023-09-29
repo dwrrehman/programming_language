@@ -250,8 +250,6 @@ static u32 generate_orr(struct argument* a, u32 sf, u32 ne, u32 op) {
 	const nat imm = registers[Im];
 	check(imm, 32U << sf, a[0], "immediate");
 
-	// printf("generating orr:  sf=%u op=%u sh=%u ne=%u Rm=%u imm=%llu Rn=%u Rd=%u\n", sf, op, sh, ne, Rm, imm, Rn, Rd);
-
 	return  (sf << 31U) | 
 		(op << 24U) | 
 		(sh << 22U) | 
@@ -260,13 +258,13 @@ static u32 generate_orr(struct argument* a, u32 sf, u32 ne, u32 op) {
 		((u32) imm << 10U) | 
 		(Rn << 5U)  | 
 		 Rd;
-} 									// usage: <imm[0..63/31]> <shift[0..3]> <Rm> <Rn> <Rd> add(x/w)(s)
+}
 
 static u32 generate_br(struct argument* a) { 
 	const u32 Rn = (u32) a[0].value;
 	check(Rn, 32, a[0], "register");
 	return (0x3587C0U << 10U) | (Rn << 5U);
-} 									// usage:  <Rn> br
+}
 
 static u32 generate_abs(struct argument* a, u32 sf, u32 op) {  
 	const u32 Rn = (u32) a[0].value;
@@ -277,7 +275,7 @@ static u32 generate_abs(struct argument* a, u32 sf, u32 op) {
 		(op << 10U) | 
 		(Rn << 5U)  | 
 		 Rd;
-}									// usage:  <Rn> <Rd> abs(x/w)
+}
 
 static void dump_hex(uint8_t* local_bytes, nat local_byte_count) {
 	printf("dumping hex bytes: (%llu)\n", local_byte_count);
@@ -322,74 +320,7 @@ static void execute(nat op) {
 	arg_count = 0;
 }
 
-int main(int argc, const char** argv) {
-	if (argc < 2) return puts("usage: assembler <file1.asm> <file2.asm> ... <filen.asm>");
-
-	filename = argv[1];
-	text_length = read_file(filename);
-
-	nat count = 0, start = 0;
-
-	registers[31] = (nat)(void*) malloc(65536);
-
-	for (nat index = 0; index < text_length; index++) {
-		if (not isspace(text[index])) { 
-			if (not count) start = index;
-			count++; continue;
-		} else if (not count) continue;
-
-	process:;
-		char* const word = text + start;
-		struct argument arg = { .value = 0, .start = start, .count = count };
-
-		//   if (is(word, count, "at"))     {  goto next; }
-
-		for (nat i = 0; i < 32; i++) {
-			char r[5] = {0};
-			snprintf(r, sizeof r, "r%llu", i);
-			if (is(word, count, r)) { 
-				arg.value = i;
-				if (arg_count >= 6) {
-					char reason[4096] = {0};
-					snprintf(reason, sizeof reason, "argument list full");
-					print_error(reason, start, count); 
-					exit(1);
-				}
-				arguments[arg_count++] = arg; 
-				goto next;
-			}
-		}
-
-		for (nat i = nop; i < instruction_set_count; i++) {
-			if (not is(word, count, instruction_spelling[i])) continue;
-			if (i >= ctzero) execute(i); else push(i, start, count);
-			goto next;
-		}
-
-		words[word_count++] = (struct word) {
-			.name = word,
-			.length = count,
-			.value = ins_count,
-			.file_index = start,
-		};
-
-		if (not arg_count) { 
-			arg.value = ~word_count; 
-			arguments[arg_count++] = arg; 
-		}
-		
-		char reason[4096] = {0};
-		snprintf(reason, sizeof reason, 
-			"undefined word found \"%.*s\"", 
-			(int) count, word
-		);
-		print_error(reason, start, count);
-		exit(1);
-
-		next: count = 0;
-	}
-
-	if (count) goto process;
+static void generate(void) {
 
 	for (nat i = 0; i < ins_count; i++) {
 
@@ -464,6 +395,95 @@ int main(int argc, const char** argv) {
 			abort();
 		}
 	}
+}
+
+
+static nat stack_count = 0;
+static nat return_count_stack[4096] = {0};
+static char* return_word[4096] = {0};
+static nat stack[4096] = {0};
+
+
+int main(int argc, const char** argv) {
+	if (argc < 2) return puts("usage: assembler <file1.asm> <file2.asm> ... <filen.asm>");
+
+	filename = argv[1];
+	text_length = read_file(filename);
+
+	nat count = 0, start = 0;
+
+	registers[31] = (nat)(void*) malloc(65536);
+
+	for (nat index = 0; index < text_length; index++) {
+		if (not isspace(text[index])) { 
+			if (not count) start = index;
+			count++; continue;
+		} else if (not count) continue;
+
+	process:;
+		char* const word = text + start;
+		struct argument arg = { .value = 0, .start = start, .count = count };
+
+
+		if (macro) {
+			
+			if (count == return_count_stack[stack_count - 1] and 
+				is(word, count, return_stack[])) {}
+			continue;
+		}
+
+
+		if (is(word, count, "at"))     {  goto next; }
+
+		
+		for (nat i = 0; i < 32; i++) {
+			char r[5] = {0};
+			snprintf(r, sizeof r, "r%llu", i);
+			if (is(word, count, r)) { 
+				arg.value = i;
+				if (arg_count >= 6) {
+					char reason[4096] = {0};
+					snprintf(reason, sizeof reason, "argument list full");
+					print_error(reason, start, count); 
+					exit(1);
+				}
+				arguments[arg_count++] = arg; 
+				goto next;
+			}
+		}
+
+		for (nat i = nop; i < instruction_set_count; i++) {
+			if (not is(word, count, instruction_spelling[i])) continue;
+			if (i >= ctzero) execute(i); else push(i, start, count);
+			goto next;
+		}
+
+		words[word_count++] = (struct word) {
+			.name = word,
+			.length = count,
+			.value = ins_count,
+			.file_index = start,
+		};
+
+		if (not arg_count) { 
+			arg.value = ~word_count; 
+			arguments[arg_count++] = arg; 
+		}
+		
+		char reason[4096] = {0};
+		snprintf(reason, sizeof reason, 
+			"undefined word found \"%.*s\"", 
+			(int) count, word
+		);
+		print_error(reason, start, count);
+		exit(1);
+
+		next: count = 0;
+	}
+
+	if (count) goto process;
+
+	generate();
 
 
 	struct mach_header_64 header = {0};
@@ -480,9 +500,7 @@ int main(int argc, const char** argv) {
 	segment.cmd = LC_SEGMENT_64;
 	segment.cmdsize = sizeof(struct segment_command_64) + sizeof(struct section_64) * 1;
 
-
 	header.sizeofcmds += segment.cmdsize;
-
 
 	strncpy(segment.segname, "__TEXT", 16);
 	segment.vmsize = 
@@ -504,7 +522,6 @@ int main(int argc, const char** argv) {
 	segment.nsects = 1;
 	
 
-
 	struct section_64 section = {0};
 	strncpy(section.sectname, "__text", 16);
 	strncpy(section.segname, "__TEXT", 16);
@@ -516,7 +533,6 @@ int main(int argc, const char** argv) {
 	section.nreloc = 0;
 	section.flags = S_ATTR_PURE_INSTRUCTIONS | S_ATTR_PURE_INSTRUCTIONS;
 
-
 	struct symtab_command table  = {0};
 	table.cmd               = LC_SYMTAB;
 	table.cmdsize           = sizeof(struct symtab_command);
@@ -525,7 +541,7 @@ int main(int argc, const char** argv) {
 	table.stroff            = 0;   
 	table.strsize           = 0;
 
-	const char strings[] = "\0_main\0";
+	const char strings[] = "\0_start\0";
 
 	struct nlist_64 symbols[] = {
 	        (struct nlist_64) {
@@ -544,7 +560,6 @@ int main(int argc, const char** argv) {
 	const int file = open(output_filename, flags, mode);
 
 	if (file < 0) { perror("open"); exit(1); }
-
 
 	header.ncmds = 2; 
 
@@ -582,8 +597,6 @@ int main(int argc, const char** argv) {
 	write(file, bytes, byte_count);
 	write(file, symbols, sizeof(struct nlist_64));
 	write(file, strings, sizeof strings);
-
-
 	close(file);
 
 	printf("\ndebugging bytes bytes:\n------------------------\n");
@@ -592,19 +605,70 @@ int main(int argc, const char** argv) {
 	system("otool -txvVhlL object.o");
 	system("objdump object.o -DSast --disassembler-options=no-aliases");
 
-	system("/Library/Developer/CommandLineTools/usr/bin/ld "
+	system("ld -v "
+		"object.o " 
+		"-o executable.out "
+		"-arch arm64 "
+		"-e _start "
+		"-platform_version macos 13.0.0 13.3 "
+		"-lSystem "
+		"-syslibroot /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk "
+	);
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+// printf("generating orr:  sf=%u op=%u sh=%u ne=%u Rm=%u imm=%llu Rn=%u Rd=%u\n", sf, op, sh, ne, Rm, imm, Rn, Rd); 
+
+
+
+/*
+	system("/Library/Developer/CommandLineTools/usr/bin/ld -v "
 		"-demangle "
 		"-lto_library /Library/Developer/CommandLineTools/usr/lib/libLTO.dylib "
 		"-dynamic "
 		"-arch arm64 "
+		"-e _start "
 		"-platform_version macos 13.0.0 13.3 "
 		"-syslibroot /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk "
 		"-o executable.out "
 		"-L/usr/local/lib "
 		"object.o "
-		"-lSystem /Library/Developer/CommandLineTools/usr/lib/clang/14.0.3/lib/darwin/libclang_rt.osx.a"
+		"-lSystem"        //""/Library/Developer/CommandLineTools/usr/lib/clang/14.0.3/lib/darwin/libclang_rt.osx.a"
 	);
-}
+*/
+
+
+/* ----- dynamic simpler linking -------------
+
+
+	system("/Library/Developer/CommandLineTools/usr/bin/ld -v "
+		//"-demangle "
+		//"-lto_library /Library/Developer/CommandLineTools/usr/lib/libLTO.dylib "
+		//"-dynamic "
+		"-arch arm64 "
+		"-e _start "
+		"-platform_version macos 13.0.0 13.3 "
+		"-syslibroot /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk "
+		"-o executable.out "
+		//"-L/usr/local/lib "
+		"object.o "
+		"-lSystem"        //""/Library/Developer/CommandLineTools/usr/lib/clang/14.0.3/lib/darwin/libclang_rt.osx.a"
+	);
+
+----- final linking ------------- */  
+
 
 
 
@@ -614,7 +678,7 @@ int main(int argc, const char** argv) {
 
 
 
-system("otool -txvVhlL object.o");
+	system("otool -txvVhlL object.o");
 	system("objdump object.o -DSast --disassembler-options=no-aliases");
 
 	system("/Library/Developer/CommandLineTools/usr/bin/ld -v "

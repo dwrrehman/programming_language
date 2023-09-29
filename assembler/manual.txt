@@ -9,3 +9,16 @@
 
 	Rm Rn Rd adc(x/w)(s/)
 
+	Rn Rd abs(x/w)
+
+	Rn br
+
+	nop
+	
+	svc
+
+	cfinv
+
+	imm[0..63/31] shift[0..3] Rm Rn Rd add(x/w)(s)
+
+
