@@ -11,15 +11,17 @@
 #include <errno.h>
 #include <mach-o/nlist.h>
 #include <mach-o/loader.h>
-/* 
-	useful for inspecing the object file: 
-		otool -txvVhlL program.o
-		objdump program.o -DSast --disassembler-options=no-aliases
-*/
 typedef uint64_t nat;
 typedef uint32_t u32;
+
 enum instruction_type {
-	nop, svc, cfinv, br, 
+	nop, svc, cfinv, 
+
+	br, 	b_, 	ba, 
+	bz, 	bc, 	bn, 	bv, 
+	bcz, 	bnv, 	bnvz, 	
+	bzn, 	bcn, 	bnn, 	bvn, 
+	bczn, 	bnvn, 	bnvzn, 
 
 	movzx, movzw,	movkx, movkw,	movnx, movnw,
 	addix, addiw,	addhx, addhw,
@@ -46,7 +48,13 @@ enum instruction_type {
 };
 
 static const char* instruction_spelling[instruction_set_count] = {
-	"nop", "svc", "cfinv", "br", 
+	"nop", "svc", "cfinv", 
+
+	"br", 	"b",  	"ba", 
+	"bz", 	"bc", 	"bn", 	"bv", 
+	"bcz", 	"bnv", 	"bnvz", 
+	"bzn", 	"bcn", 	"bnn", 	"bvn", 
+	"bczn", "bnvn", "bnvzn", 
 
 	"movzx", "movzw", "movkx", "movkw",	"movnx", "movnw",
 	"addix", "addiw", "addhx", "addhw",
@@ -73,9 +81,9 @@ static const char* instruction_spelling[instruction_set_count] = {
 struct word {
 	char* name;
 	nat length;
-	nat value;
+	nat type;
+	nat reg;
 	nat file_index;
-	nat _unused_;
 };
 
 struct argument {
@@ -108,10 +116,14 @@ static const char* filename = NULL;
 static nat arg_count = 0;
 static struct argument arguments[6] = {0};
 
-static nat registers[32] = {0};
+static nat registers[4096] = {0};
 
 static bool is(char* word, nat count, const char* this) {
 	return strlen(this) == count and not strncmp(word, this, count);
+}
+
+static bool equals(const char* word, nat count, const char* word2, nat count2) {
+	return count == count2 and not strncmp(word, word2, count);
 }
 
 static nat read_file(const char* name) {
@@ -156,7 +168,9 @@ static void print_error(const char* reason, const nat start_index, const nat err
 			printf("\033[0m\n\033[90m%5s\033[0m\033[32m │ \033[0m", " ");
 			for (nat ii = 0; ii < w; ii++) printf(" ");
 			printf("\033[1;32m^");
-			for (nat ii = 0; ii < end_index - start_index - 1; ii++) printf("~");
+			signed long long x = (signed long long)end_index - (signed long long)start_index - 1;
+			if (x < 0) x = 0;
+			for (nat ii = 0; ii < (nat) x; ii++) printf("~");
 			printf("\033[0m");
 		} 
 		if (text[i] == 10) w = 0; 
@@ -191,7 +205,7 @@ static u32 generate_mov(struct argument* a, u32 sf, u32 op) {
 	const nat Im = a[0].value;
 	const u32 hw = (u32) a[1].value;
 	const u32 Rd = (u32) a[2].value;
-	check(Im, 31, a[0], "ctregister");
+	check(Im, 4096, a[0], "ctregister");
 	check(hw, 4,  a[1], "register");
 	check(Rd, 32, a[2], "register");
 	const nat imm = registers[Im];
@@ -209,7 +223,7 @@ static u32 generate_addi(struct argument* a, u32 sf, u32 sh, u32 op) {
 	const u32 Rd = (u32) a[2].value;
 	check(Rn, 32, a[1], "register");
 	check(Rd, 32, a[2], "register");
-	check(Im, 31, a[0], "ctregister");
+	check(Im, 4096, a[0], "ctregister");
 	const nat imm = registers[Im];
 	check(imm, 4096, a[0], "immediate");
 	return  (sf << 31U) | 
@@ -243,7 +257,7 @@ static u32 generate_orr(struct argument* a, u32 sf, u32 ne, u32 op) {
 	const u32 Rn = (u32) a[3].value;
 	const u32 Rd = (u32) a[4].value;
 
-	check(Im, 31, a[0], "ctregister");
+	check(Im, 4096, a[0], "ctregister");
 	check(sh, 4,  a[1], "register");
 	check(Rm, 32, a[2], "register");
 	check(Rn, 32, a[3], "register");
@@ -266,6 +280,18 @@ static u32 generate_br(struct argument* a) {
 	const u32 Rn = (u32) a[0].value;
 	check(Rn, 32, a[0], "register");
 	return (0x3587C0U << 10U) | (Rn << 5U);
+}
+
+static u32 generate_b(struct argument* a, uint32_t pc) { 
+	const u32 Im = (u32) a[0].value;
+	check(Im, 4096, a[0], "ctregister");
+	return (0x05 << 26U) | (0x03FFFFFFU & ((uint32_t) registers[Im] - pc));
+}
+
+static u32 generate_bc(struct argument* a, uint32_t pc, uint32_t cond) { 
+	const u32 Im = (u32) a[0].value;
+	check(Im, 4096, a[0], "ctregister");
+	return (0x54U << 24U) | ((0x0007FFFFU & ((uint32_t) registers[Im] - pc)) << 5U) | cond;
 }
 
 static u32 generate_abs(struct argument* a, u32 sf, u32 op) {  
@@ -292,9 +318,10 @@ static void dump_hex(uint8_t* local_bytes, nat local_byte_count) {
 
 
 static nat stack_count = 0;
-static nat return_count_stack[4096] = {0};
-static char* return_word[4096] = {0};
 static nat stack[4096] = {0};
+
+static nat return_count = 0;
+static char* return_word = NULL;
 static nat macro = 0;
 
 static nat stop = 0;
@@ -350,7 +377,26 @@ static void generate(void) {
 		     if (op == svc)    emit(0xD4000001);
 		else if (op == nop)    emit(0xD503201F);
 		else if (op == cfinv)  emit(0xD500401F);
+
 		else if (op == br)     emit(generate_br(a));
+		else if (op == b_)     emit(generate_b(a, (uint32_t) i));
+		else if (op == ba)     emit(generate_bc(a, (uint32_t) i, 0xE));
+
+		else if (op == bz)     emit(generate_bc(a, (uint32_t) i, 0x0));
+		else if (op == bc)     emit(generate_bc(a, (uint32_t) i, 0x2));
+		else if (op == bn)     emit(generate_bc(a, (uint32_t) i, 0x4));
+		else if (op == bv)     emit(generate_bc(a, (uint32_t) i, 0x6));
+		else if (op == bcz)    emit(generate_bc(a, (uint32_t) i, 0x8));
+		else if (op == bnv)    emit(generate_bc(a, (uint32_t) i, 0xA));
+		else if (op == bnvz)   emit(generate_bc(a, (uint32_t) i, 0xC));
+
+		else if (op == bzn)    emit(generate_bc(a, (uint32_t) i, 0x1));
+		else if (op == bcn)    emit(generate_bc(a, (uint32_t) i, 0x3));
+		else if (op == bnn)    emit(generate_bc(a, (uint32_t) i, 0x5));
+		else if (op == bvn)    emit(generate_bc(a, (uint32_t) i, 0x7));
+		else if (op == bczn)   emit(generate_bc(a, (uint32_t) i, 0x9));
+		else if (op == bnvn)   emit(generate_bc(a, (uint32_t) i, 0xB));
+		else if (op == bnvzn)  emit(generate_bc(a, (uint32_t) i, 0xD));
 
 		else if (op == absx)   emit(generate_abs(a, 1, 0x16B008U));
 		else if (op == absw)   emit(generate_abs(a, 0, 0x16B008U));
@@ -417,7 +463,6 @@ static void generate(void) {
 	}
 }
 
-
 int main(int argc, const char** argv) {
 	if (argc < 2) return puts("usage: assembler <file1.asm> <file2.asm> ... <filen.asm>");
 
@@ -426,7 +471,7 @@ int main(int argc, const char** argv) {
 
 	nat count = 0, start = 0;
 
-	registers[31] = (nat)(void*) malloc(65536);
+	*registers = (nat)(void*) malloc(65536);
 
 	static nat index = 0; 
 	for (index = 0; index < text_length; index++) {
@@ -439,21 +484,20 @@ int main(int argc, const char** argv) {
 		char* const word = text + start;
 		struct argument arg = { .value = 0, .start = start, .count = count };
 
-
 		if (macro) {
-			//if (count == return_count_stack[stack_count - 1] and 
-			//	is(word, count, return_stack[])) {}
-			//continue;
+			if (equals(word, count, return_word, return_count)) {
+				macro = 0; goto next;
+			} else goto next;
 		}
 
+		//if (count == return_count_stack[stack_count - 1] and 
+			//	is(word, count, return_stack[])) {}
+			//continue;
 
-		
 
-		
-		
-		for (nat i = 0; i < 32; i++) {
+		for (nat i = 0; i < 4096; i++) {
 			char r[5] = {0};
-			snprintf(r, sizeof r, "r%llu", i);
+			snprintf(r, sizeof r, "%llu", i);
 			if (is(word, count, r)) { 
 				arg.value = i;
 				if (arg_count >= 6) {
@@ -477,19 +521,32 @@ int main(int argc, const char** argv) {
 		words[word_count++] = (struct word) {
 			.name = word,
 			.length = count,
-			.value = ins_count,
+			.reg = ins_count,
 			.file_index = start,
 		};
 
 
 		if (not arg_count) { 
-			printf("operational macro!!!\n");
+			
+
+			macro = 1;
+			return_word = word;
+			return_count = count;
+			goto next;
+
+		} else {
+
+			printf("simple register alias macro!!!!\n");
+
+			// ...
+			// d cfinv d
+			// printf("comment / operational macro!!!\n");
 
 			//arg.value = ~word_count; 
 			//arguments[arg_count++] = arg; 
+			// getchar();
 		}
 		
-
 		char reason[4096] = {0};
 		snprintf(reason, sizeof reason, 
 			"undefined word found \"%.*s\"", 
@@ -503,6 +560,14 @@ int main(int argc, const char** argv) {
 	}
 
 	if (count) goto process;
+
+
+	if (macro) {
+		char reason[4096] = {0};
+		snprintf(reason, sizeof reason, "unterminated operation macro");
+		print_error(reason, start, count);
+		exit(1);
+	}
 
 	generate();
 
@@ -1994,6 +2059,8 @@ assembler:
 
 
 
+	useful for inspecing the object file: 
+		otool -txvVhlL program.o
+		objdump program.o -DSast --disassembler-options=no-aliases
 */
-
 

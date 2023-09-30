@@ -1,50 +1,29 @@
 
 
-r0 ctzero 
-r1 ctzero ctincr 
-r4 ctzero ctincr ctincr ctincr ctincr
-r10 ctzero ctincr ctincr ctincr ctincr ctincr ctincr ctincr ctincr ctincr ctincr
+0 ctzero 
+1 ctzero ctincr 
+4 ctzero ctincr ctincr ctincr ctincr
+10 ctzero ctincr ctincr ctincr ctincr ctincr ctincr ctincr ctincr ctincr ctincr
 
-r4 r1 r5 ctshl
-r4 r5 r5 ctshl
+4 1 5 ctshl
+4 5 5 ctshl
 
-r4 r5 r5 ctsub
-r4 r5 r5 ctsub
-r4 r5 r5 ctsub
+4 5 5 ctsub
+4 5 5 ctsub
+4 5 5 ctsub
 
+d
+cfinv 
+d
 
-	r0 r0 r0 ctadd ctprint
-	r0 r0 r0 ctadd ctprint
-	r0 r0 r0 ctadd ctprint
-	r0 r0 r0 ctadd ctprint
-
-	r27 ctpc
-
-	r26 r10 r1 ctblt
-
-	r4 r4 r11 ctadd ctprint
-	r0 r0 r0 ctadd ctprint
-
-	r26 ctincr
-	r27 ctgoto
-	r1 ctstop
-
-	r5 r5 r7 ctadd ctprint
-	r1 r1 r7 ctadd ctprint
-	
-	
-
-	r5 ctprint
-	r5 ctprint
-	r5 ctprint
-
-
-
-
-
-
-r5 r0 r0 movzx
-r1 r0 r16 movzw
+20 bc
+5 0 17 movzx
+0 0 31 17 0 addx
+21 b
+20 ctat
+4 0 0 movzx
+21 ctat
+1 0 16 movzw
 svc
 
 
