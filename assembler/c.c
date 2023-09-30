@@ -37,9 +37,10 @@ enum instruction_type {
 	rbitx, rbitw,	revx, revw,  	revhx, revhw,
 
 	ctzero, ctincr,
-	ctadd, ctsub, ctmul, ctdiv,
+	ctadd, ctsub, ctmul, ctdiv, ctrem,
 	ctnor, ctxor, ctor, ctand, ctshl, ctshr, ctprint, 
 	ctld1, ctld2, ctld4, ctld8, ctst1, ctst2, ctst4, ctst8,
+	ctat, ctpc, ctblt, ctgoto, ctstop,
 
 	instruction_set_count
 };
@@ -58,14 +59,15 @@ static const char* instruction_spelling[instruction_set_count] = {
 	"addx", "addw", "addxs", "addws",
 	"subx", "subw", "subxs", "subws",
 
-	"ld64b", "st64b", "absx", "absw", 	
+	"ld64b", "st64b", "absx", "absw",
 	"clsx", "clsw",	"clzx", "clzw",	"ctzx", "ctzw",	"cntx", "cntw",
 	"rbitx", "rbitw", "revx", "revw", "revhx", "revhw",
 
 	"ctzero", "ctincr",
-	"ctadd", "ctsub", "ctmul", "ctdiv",
+	"ctadd", "ctsub", "ctmul", "ctdiv", "ctrem",
 	"ctnor", "ctxor", "ctor", "ctand", "ctshl", "ctshr", "ctprint",
 	"ctld1", "ctld2", "ctld4", "ctld8", "ctst1", "ctst2", "ctst4", "ctst8",
+	"ctat", "ctpc", "ctblt", "ctgoto", "ctstop",
 };
 
 struct word {
@@ -287,18 +289,36 @@ static void dump_hex(uint8_t* local_bytes, nat local_byte_count) {
 	puts("");
 }
 
-static void execute(nat op) {
+
+
+static nat stack_count = 0;
+static nat return_count_stack[4096] = {0};
+static char* return_word[4096] = {0};
+static nat stack[4096] = {0};
+static nat macro = 0;
+
+static nat stop = 0;
+
+static void execute(nat op, nat* pc) {
 	const nat a0 = arguments[0].value;
 	const nat a1 = arguments[1].value;
 	const nat a2 = arguments[2].value;
 
+	if (op == ctstop) {if (registers[a0] == stop) stop = 0; arg_count = 0; return; }
+	else if (stop) return;
+
 	if (false) {}
+	else if (op == ctat)   registers[a0] = ins_count;
+	else if (op == ctpc)   registers[a0] = *pc;
+	else if (op == ctgoto) *pc = registers[a0]; 
+	else if (op == ctblt)  { if (registers[a1] < registers[a0]) stop = registers[a2]; } 
 	else if (op == ctincr) registers[a0]++; 
 	else if (op == ctzero) registers[a0] = 0; 
 	else if (op == ctadd)  registers[a2] = registers[a1] + registers[a0]; 
 	else if (op == ctsub)  registers[a2] = registers[a1] - registers[a0]; 
 	else if (op == ctmul)  registers[a2] = registers[a1] * registers[a0]; 
 	else if (op == ctdiv)  registers[a2] = registers[a1] / registers[a0]; 
+	else if (op == ctrem)  registers[a2] = registers[a1] % registers[a0]; 
 	else if (op == ctxor)  registers[a2] = registers[a1] ^ registers[a0]; 
 	else if (op == ctor)   registers[a2] = registers[a1] | registers[a0]; 
 	else if (op == ctand)  registers[a2] = registers[a1] & registers[a0]; 
@@ -312,7 +332,7 @@ static void execute(nat op) {
 	else if (op == ctld4)  registers[a1] = *(uint32_t*)registers[a0]; 
 	else if (op == ctld8)  registers[a1] = *(uint64_t*)registers[a0]; 
 
-	else if (op == ctst1)  *(uint8_t*) registers[a1] = (uint8_t) registers[a0]; 
+	else if (op == ctst1)  *(uint8_t*) registers[a1] = (uint8_t)  registers[a0]; 
 	else if (op == ctst2)  *(uint16_t*)registers[a1] = (uint16_t) registers[a0]; 
 	else if (op == ctst4)  *(uint32_t*)registers[a1] = (uint32_t) registers[a0]; 
 	else if (op == ctst8)  *(uint64_t*)registers[a1] = (uint64_t) registers[a0]; 
@@ -398,12 +418,6 @@ static void generate(void) {
 }
 
 
-static nat stack_count = 0;
-static nat return_count_stack[4096] = {0};
-static char* return_word[4096] = {0};
-static nat stack[4096] = {0};
-
-
 int main(int argc, const char** argv) {
 	if (argc < 2) return puts("usage: assembler <file1.asm> <file2.asm> ... <filen.asm>");
 
@@ -414,7 +428,8 @@ int main(int argc, const char** argv) {
 
 	registers[31] = (nat)(void*) malloc(65536);
 
-	for (nat index = 0; index < text_length; index++) {
+	static nat index = 0; 
+	for (index = 0; index < text_length; index++) {
 		if (not isspace(text[index])) { 
 			if (not count) start = index;
 			count++; continue;
@@ -426,15 +441,15 @@ int main(int argc, const char** argv) {
 
 
 		if (macro) {
-			
-			if (count == return_count_stack[stack_count - 1] and 
-				is(word, count, return_stack[])) {}
-			continue;
+			//if (count == return_count_stack[stack_count - 1] and 
+			//	is(word, count, return_stack[])) {}
+			//continue;
 		}
 
 
-		if (is(word, count, "at"))     {  goto next; }
+		
 
+		
 		
 		for (nat i = 0; i < 32; i++) {
 			char r[5] = {0};
@@ -447,14 +462,15 @@ int main(int argc, const char** argv) {
 					print_error(reason, start, count); 
 					exit(1);
 				}
-				arguments[arg_count++] = arg; 
+				if (not stop) arguments[arg_count++] = arg; 
 				goto next;
 			}
 		}
 
 		for (nat i = nop; i < instruction_set_count; i++) {
 			if (not is(word, count, instruction_spelling[i])) continue;
-			if (i >= ctzero) execute(i); else push(i, start, count);
+			if (i >= ctzero) execute(i, &index); 
+			else if (not stop) push(i, start, count);
 			goto next;
 		}
 
@@ -465,11 +481,15 @@ int main(int argc, const char** argv) {
 			.file_index = start,
 		};
 
+
 		if (not arg_count) { 
-			arg.value = ~word_count; 
-			arguments[arg_count++] = arg; 
+			printf("operational macro!!!\n");
+
+			//arg.value = ~word_count; 
+			//arguments[arg_count++] = arg; 
 		}
 		
+
 		char reason[4096] = {0};
 		snprintf(reason, sizeof reason, 
 			"undefined word found \"%.*s\"", 
@@ -477,6 +497,7 @@ int main(int argc, const char** argv) {
 		);
 		print_error(reason, start, count);
 		exit(1);
+
 
 		next: count = 0;
 	}

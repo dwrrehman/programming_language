@@ -22,3 +22,40 @@
 	imm[0..63/31] shift[0..3] Rm Rn Rd add(x/w)(s)
 
 
+
+
+
+
+compiletime instructions:
+=================================
+
+	rd ctincr
+	rd ctzero
+	
+	rm rn rd ctadd
+	rm rn rd ctsub       (rn - rm)
+	rm rn rd ctmul
+	rm rn rd ctdiv       (rn / rm)
+	rm rn rd ctrem       (rn % rm)
+	
+	rm rn rd ctxor
+	rm rn rd ctor
+	rm rn rd ctand
+	rm rn rd ctnor
+	rm rn rd ctshl       (rn << rm)
+	rm rn rd ctshr       (rn >> rm)
+
+	rn ctprint
+
+	rn rd ctld1          (rd = *rn)
+	rn rd ctld2
+	rn rd ctld4
+	rn rd ctld8
+	
+	rn rd ctst1          (*rd = rn)
+	rn rd ctst2
+	rn rd ctst4
+	rn rd ctst8
+	
+
+	rn at 
