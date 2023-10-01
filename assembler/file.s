@@ -12,11 +12,10 @@
 4 5 5 ctsub
 4 5 5 ctsub
 
-d
-cfinv 
-d
 
-20 bc
+cfinv
+
+20 2 bc
 5 0 17 movzx
 0 0 31 17 0 addx
 21 b

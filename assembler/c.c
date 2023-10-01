@@ -13,15 +13,34 @@
 #include <mach-o/loader.h>
 typedef uint64_t nat;
 typedef uint32_t u32;
+/*
+	todo:
+		- implement macros fully 
+		- implement aliases fully 
 
+		- add a ctnop instruction!!!! very useful for argument stuff. and generally useful.
+
+		- add ctmalloc to the ct instructions! 
+		- add more ct branches. at least cteq, ctge     (b/f versions!)	
+
+		- add emitctbyterange   rt instruction, for generating the data section!
+
+		- work on generating the .data segment/section, and other bss/data sections. 
+
+		- add more rt instructions to make the language actually usable:
+			- shift left ins
+			- mul ins
+			- div ins
+			- rem ins
+			- store and load instructions!!!!!!!!!!!!!!!!!
+
+		- document the meaning of each argument for each ct/rt instruction more, 
+				also accoridng to the arm isa ref manual!
+
+		- 
+*/
 enum instruction_type {
-	nop, svc, cfinv, 
-
-	br, 	b_, 	ba, 
-	bz, 	bc, 	bn, 	bv, 
-	bcz, 	bnv, 	bnvz, 	
-	bzn, 	bcn, 	bnn, 	bvn, 
-	bczn, 	bnvn, 	bnvzn, 
+	nop, svc, cfinv, br, b_, bc, 
 
 	movzx, movzw,	movkx, movkw,	movnx, movnw,
 	addix, addiw,	addhx, addhw,
@@ -29,16 +48,18 @@ enum instruction_type {
 
 	adcx, adcw, 	adcxs, adcws, 
 	asrvx, asrvw, 
+	
+	cselx, cselw,
 
 	orrx, orrw,	ornx, ornw, 
 	addx, addw, 	addxs, addws,
 	subx, subw, 	subxs, subws,
 
 	ld64b, 	st64b,	absx, absw, 
-	clsx, clsw,	clzx, clzw,	ctzx, ctzw,	cntx, cntw,    
-	rbitx, rbitw,	revx, revw,  	revhx, revhw,
+	clsx, 	clsw,	clzx, clzw,	ctzx, ctzw,	cntx, cntw,    
+	rbitx, 	rbitw,	revx, revw,  	revhx, revhw,
 
-	ctzero, ctincr,
+	ctnop, ctzero, ctincr,
 	ctadd, ctsub, ctmul, ctdiv, ctrem,
 	ctnor, ctxor, ctor, ctand, ctshl, ctshr, ctprint, 
 	ctld1, ctld2, ctld4, ctld8, ctst1, ctst2, ctst4, ctst8,
@@ -48,13 +69,7 @@ enum instruction_type {
 };
 
 static const char* instruction_spelling[instruction_set_count] = {
-	"nop", "svc", "cfinv", 
-
-	"br", 	"b",  	"ba", 
-	"bz", 	"bc", 	"bn", 	"bv", 
-	"bcz", 	"bnv", 	"bnvz", 
-	"bzn", 	"bcn", 	"bnn", 	"bvn", 
-	"bczn", "bnvn", "bnvzn", 
+	"nop", "svc", "cfinv", "br", "b", "bc", 
 
 	"movzx", "movzw", "movkx", "movkw",	"movnx", "movnw",
 	"addix", "addiw", "addhx", "addhw",
@@ -62,6 +77,8 @@ static const char* instruction_spelling[instruction_set_count] = {
 
 	"adcx", "adcw", "adcxs", "adcws", 
 	"asrvx", "asrvw", 
+
+	"cselx", "cselw",
 
 	"orrx", "orrw",	"ornx", "ornw", 
 	"addx", "addw", "addxs", "addws",
@@ -71,7 +88,7 @@ static const char* instruction_spelling[instruction_set_count] = {
 	"clsx", "clsw",	"clzx", "clzw",	"ctzx", "ctzw",	"cntx", "cntw",
 	"rbitx", "rbitw", "revx", "revw", "revhx", "revhw",
 
-	"ctzero", "ctincr",
+	"ctnop", "ctzero", "ctincr",
 	"ctadd", "ctsub", "ctmul", "ctdiv", "ctrem",
 	"ctnor", "ctxor", "ctor", "ctand", "ctshl", "ctshr", "ctprint",
 	"ctld1", "ctld2", "ctld4", "ctld8", "ctst1", "ctst2", "ctst4", "ctst8",
@@ -116,7 +133,7 @@ static const char* filename = NULL;
 static nat arg_count = 0;
 static struct argument arguments[6] = {0};
 
-static nat registers[4096] = {0};
+static nat registers[32] = {0};
 
 static bool is(char* word, nat count, const char* this) {
 	return strlen(this) == count and not strncmp(word, this, count);
@@ -201,11 +218,19 @@ static void check(nat r, nat c, const struct argument a, const char* type) {
 	exit(1);
 }
 
+static void check_branch(int r, int c, const struct argument a, const char* type) {
+	if (r > -c or r < c) return;
+	char reason[4096] = {0};
+	snprintf(reason, sizeof reason, "invalid %s argument %d (%d <= %d or %d >= %d)", type, r, r, c, r, c);
+	print_error(reason, a.start, a.count); 
+	exit(1);
+}
+
 static u32 generate_mov(struct argument* a, u32 sf, u32 op) { 
 	const nat Im = a[0].value;
 	const u32 hw = (u32) a[1].value;
 	const u32 Rd = (u32) a[2].value;
-	check(Im, 4096, a[0], "ctregister");
+	check(Im, 32, a[0], "ctregister");
 	check(hw, 4,  a[1], "register");
 	check(Rd, 32, a[2], "register");
 	const nat imm = registers[Im];
@@ -223,9 +248,9 @@ static u32 generate_addi(struct argument* a, u32 sf, u32 sh, u32 op) {
 	const u32 Rd = (u32) a[2].value;
 	check(Rn, 32, a[1], "register");
 	check(Rd, 32, a[2], "register");
-	check(Im, 4096, a[0], "ctregister");
+	check(Im, 32, a[0], "ctregister");
 	const nat imm = registers[Im];
-	check(imm, 4096, a[0], "immediate");
+	check(imm, 1 << 12U, a[0], "immediate");
 	return  (sf << 31U) | 
 		(op << 23U) | 
 		(sh << 22U) | 
@@ -249,6 +274,23 @@ static u32 generate_adc(struct argument* a, u32 sf, u32 op, u32 o2) {
 		 Rd;
 }
 
+static u32 generate_csel(struct argument* a, u32 sf, u32 op) {  
+	const u32 Rm = (u32) a[0].value;
+	const u32 Rn = (u32) a[1].value;
+	const u32 Rd = (u32) a[2].value;
+	const u32 cd = (u32) a[3].value;
+	check(Rm, 32, a[0], "register");
+	check(Rn, 32, a[1], "register");
+	check(Rd, 32, a[2], "register");
+	check(cd, 16, a[3], "condition");
+	return  (sf << 31U) | 
+		(op << 21U) | 
+		(Rm << 16U) | 
+		(cd << 12U) | 
+		(Rn << 5U)  | 
+		 Rd;
+}
+
 static u32 generate_orr(struct argument* a, u32 sf, u32 ne, u32 op) { 
 
 	const nat Im = 	     a[0].value;
@@ -257,7 +299,7 @@ static u32 generate_orr(struct argument* a, u32 sf, u32 ne, u32 op) {
 	const u32 Rn = (u32) a[3].value;
 	const u32 Rd = (u32) a[4].value;
 
-	check(Im, 4096, a[0], "ctregister");
+	check(Im, 32, a[0], "ctregister");
 	check(sh, 4,  a[1], "register");
 	check(Rm, 32, a[2], "register");
 	check(Rn, 32, a[3], "register");
@@ -284,14 +326,20 @@ static u32 generate_br(struct argument* a) {
 
 static u32 generate_b(struct argument* a, uint32_t pc) { 
 	const u32 Im = (u32) a[0].value;
-	check(Im, 4096, a[0], "ctregister");
-	return (0x05 << 26U) | (0x03FFFFFFU & ((uint32_t) registers[Im] - pc));
+	check(Im, 32, a[0], "ctregister");
+	const u32 offset = ((uint32_t) registers[Im] - pc);
+	check_branch((int) offset, 1 << 25, a[0], "branch offset");
+	return (0x05 << 26U) | (0x03FFFFFFU & offset);
 }
 
-static u32 generate_bc(struct argument* a, uint32_t pc, uint32_t cond) { 
+static u32 generate_bc(struct argument* a, uint32_t pc) { 
 	const u32 Im = (u32) a[0].value;
-	check(Im, 4096, a[0], "ctregister");
-	return (0x54U << 24U) | ((0x0007FFFFU & ((uint32_t) registers[Im] - pc)) << 5U) | cond;
+	const u32 cd = (u32) a[1].value;
+	check(Im, 32, a[0], "ctregister");
+	check(cd, 16, a[1], "condition");
+	const u32 offset = ((uint32_t) registers[Im] - pc);
+	check_branch((int) offset, 1 << 18, a[0], "branch offset");
+	return (0x54U << 24U) | ((0x0007FFFFU & offset) << 5U) | cd;
 }
 
 static u32 generate_abs(struct argument* a, u32 sf, u32 op) {  
@@ -315,15 +363,12 @@ static void dump_hex(uint8_t* local_bytes, nat local_byte_count) {
 	puts("");
 }
 
-
-
 static nat stack_count = 0;
 static nat stack[4096] = {0};
 
 static nat return_count = 0;
 static char* return_word = NULL;
 static nat macro = 0;
-
 static nat stop = 0;
 
 static void execute(nat op, nat* pc) {
@@ -334,7 +379,7 @@ static void execute(nat op, nat* pc) {
 	if (op == ctstop) {if (registers[a0] == stop) stop = 0; arg_count = 0; return; }
 	else if (stop) return;
 
-	if (false) {}
+	if (op == ctnop) {}
 	else if (op == ctat)   registers[a0] = ins_count;
 	else if (op == ctpc)   registers[a0] = *pc;
 	else if (op == ctgoto) *pc = registers[a0]; 
@@ -380,23 +425,8 @@ static void generate(void) {
 
 		else if (op == br)     emit(generate_br(a));
 		else if (op == b_)     emit(generate_b(a, (uint32_t) i));
-		else if (op == ba)     emit(generate_bc(a, (uint32_t) i, 0xE));
 
-		else if (op == bz)     emit(generate_bc(a, (uint32_t) i, 0x0));
-		else if (op == bc)     emit(generate_bc(a, (uint32_t) i, 0x2));
-		else if (op == bn)     emit(generate_bc(a, (uint32_t) i, 0x4));
-		else if (op == bv)     emit(generate_bc(a, (uint32_t) i, 0x6));
-		else if (op == bcz)    emit(generate_bc(a, (uint32_t) i, 0x8));
-		else if (op == bnv)    emit(generate_bc(a, (uint32_t) i, 0xA));
-		else if (op == bnvz)   emit(generate_bc(a, (uint32_t) i, 0xC));
-
-		else if (op == bzn)    emit(generate_bc(a, (uint32_t) i, 0x1));
-		else if (op == bcn)    emit(generate_bc(a, (uint32_t) i, 0x3));
-		else if (op == bnn)    emit(generate_bc(a, (uint32_t) i, 0x5));
-		else if (op == bvn)    emit(generate_bc(a, (uint32_t) i, 0x7));
-		else if (op == bczn)   emit(generate_bc(a, (uint32_t) i, 0x9));
-		else if (op == bnvn)   emit(generate_bc(a, (uint32_t) i, 0xB));
-		else if (op == bnvzn)  emit(generate_bc(a, (uint32_t) i, 0xD));
+		else if (op == bc)     emit(generate_bc(a, (uint32_t) i));
 
 		else if (op == absx)   emit(generate_abs(a, 1, 0x16B008U));
 		else if (op == absw)   emit(generate_abs(a, 0, 0x16B008U));
@@ -440,9 +470,9 @@ static void generate(void) {
 		else if (op == asrvx)  emit(generate_adc(a, 1, 0x0D6U, 0x0A));
 		else if (op == asrvw)  emit(generate_adc(a, 0, 0x0D6U, 0x0A));
 
-		//else if (op == cselx)  emit(generate_adc(a, 0, 0x0D6U, 0x0A));
-		//else if (op == cselx)  emit(generate_adc(a, 0, 0x0D6U, 0x0A));
-
+		else if (op == cselx)  emit(generate_csel(a, 1, 0x0D4U));
+		else if (op == cselw)  emit(generate_csel(a, 0, 0x0D4U));
+		
 		else if (op == orrx)   emit(generate_orr(a, 1, 0, 0x2AU));
 		else if (op == orrw)   emit(generate_orr(a, 0, 0, 0x2AU));
 		else if (op == ornx)   emit(generate_orr(a, 1, 1, 0x2AU));
@@ -495,7 +525,7 @@ int main(int argc, const char** argv) {
 			//continue;
 
 
-		for (nat i = 0; i < 4096; i++) {
+		for (nat i = 0; i < 32; i++) {
 			char r[5] = {0};
 			snprintf(r, sizeof r, "%llu", i);
 			if (is(word, count, r)) { 
@@ -513,7 +543,7 @@ int main(int argc, const char** argv) {
 
 		for (nat i = nop; i < instruction_set_count; i++) {
 			if (not is(word, count, instruction_spelling[i])) continue;
-			if (i >= ctzero) execute(i, &index); 
+			if (i >= ctnop) execute(i, &index); 
 			else if (not stop) push(i, start, count);
 			goto next;
 		}
@@ -527,8 +557,6 @@ int main(int argc, const char** argv) {
 
 
 		if (not arg_count) { 
-			
-
 			macro = 1;
 			return_word = word;
 			return_count = count;
