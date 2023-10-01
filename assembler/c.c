@@ -15,13 +15,15 @@ typedef uint64_t nat;
 typedef uint32_t u32;
 /*
 	todo:
+
 		- implement macros fully 
 		- implement aliases fully 
 
-		- add a ctnop instruction!!!! very useful for argument stuff. and generally useful.
+	x	- add a ctnop instruction!!!! very useful for argument stuff. and generally useful.
 
 		- add ctmalloc to the ct instructions! 
 		- add more ct branches. at least cteq, ctge     (b/f versions!)	
+		- add a ctsyscall instruction!
 
 		- add emitctbyterange   rt instruction, for generating the data section!
 
@@ -33,6 +35,8 @@ typedef uint32_t u32;
 			- div ins
 			- rem ins
 			- store and load instructions!!!!!!!!!!!!!!!!!
+			- adr, adrp
+
 
 		- document the meaning of each argument for each ct/rt instruction more, 
 				also accoridng to the arm isa ref manual!
@@ -40,7 +44,7 @@ typedef uint32_t u32;
 		- 
 */
 enum instruction_type {
-	nop, svc, cfinv, br, b_, bc, 
+	nop, emitd, svc, cfinv, br, b_, bc, 
 
 	movzx, movzw,	movkx, movkw,	movnx, movnw,
 	addix, addiw,	addhx, addhw,
@@ -49,7 +53,10 @@ enum instruction_type {
 	adcx, adcw, 	adcxs, adcws, 
 	asrvx, asrvw, 
 	
-	cselx, cselw,
+	cselx, cselw, 	csincx, csincw, 
+	csinvx, csinvw, csnegx, csnegw, 
+
+	adr,
 
 	orrx, orrw,	ornx, ornw, 
 	addx, addw, 	addxs, addws,
@@ -59,7 +66,7 @@ enum instruction_type {
 	clsx, 	clsw,	clzx, clzw,	ctzx, ctzw,	cntx, cntw,    
 	rbitx, 	rbitw,	revx, revw,  	revhx, revhw,
 
-	ctnop, ctzero, ctincr,
+	ctnop, ctzero, ctincr, cted, ctdc,
 	ctadd, ctsub, ctmul, ctdiv, ctrem,
 	ctnor, ctxor, ctor, ctand, ctshl, ctshr, ctprint, 
 	ctld1, ctld2, ctld4, ctld8, ctst1, ctst2, ctst4, ctst8,
@@ -69,7 +76,7 @@ enum instruction_type {
 };
 
 static const char* instruction_spelling[instruction_set_count] = {
-	"nop", "svc", "cfinv", "br", "b", "bc", 
+	"nop", "emitd", "svc", "cfinv", "br", "b", "bc", 
 
 	"movzx", "movzw", "movkx", "movkw",	"movnx", "movnw",
 	"addix", "addiw", "addhx", "addhw",
@@ -78,7 +85,10 @@ static const char* instruction_spelling[instruction_set_count] = {
 	"adcx", "adcw", "adcxs", "adcws", 
 	"asrvx", "asrvw", 
 
-	"cselx", "cselw",
+	"cselx", "cselw", 	"csincx", "csincw", 
+	"csinvx", "csinvw", 	"csnegx", "csnegw", 
+
+	"adr",
 
 	"orrx", "orrw",	"ornx", "ornw", 
 	"addx", "addw", "addxs", "addws",
@@ -88,7 +98,7 @@ static const char* instruction_spelling[instruction_set_count] = {
 	"clsx", "clsw",	"clzx", "clzw",	"ctzx", "ctzw",	"cntx", "cntw",
 	"rbitx", "rbitw", "revx", "revw", "revhx", "revhw",
 
-	"ctnop", "ctzero", "ctincr",
+	"ctnop", "ctzero", "ctincr", "cted", "ctdc",
 	"ctadd", "ctsub", "ctmul", "ctdiv", "ctrem",
 	"ctnor", "ctxor", "ctor", "ctand", "ctshl", "ctshr", "ctprint",
 	"ctld1", "ctld2", "ctld4", "ctld8", "ctst1", "ctst2", "ctst4", "ctst8",
@@ -125,6 +135,9 @@ static struct word words[4096] = {0};
 
 static nat byte_count = 0;
 static uint8_t bytes[4096] = {0};
+
+static nat data_count = 4;
+static uint8_t data[4096] = {0xDE, 0xAD, 0xBE, 0xEF};
 
 static nat text_length = 0;
 static char* text = NULL;
@@ -210,6 +223,7 @@ static void emit(u32 x) {
 	bytes[byte_count++] = (uint8_t) (x >> 24);
 }
 
+
 static void check(nat r, nat c, const struct argument a, const char* type) {
 	if (r < c) return;
 	char reason[4096] = {0};
@@ -224,6 +238,12 @@ static void check_branch(int r, int c, const struct argument a, const char* type
 	snprintf(reason, sizeof reason, "invalid %s argument %d (%d <= %d or %d >= %d)", type, r, r, c, r, c);
 	print_error(reason, a.start, a.count); 
 	exit(1);
+}
+
+static void emitdata(struct argument* a) {
+	const nat Im = (u32) a[0].value;
+	check(Im, 32, a[0], "ctregister");
+	emit((u32) registers[Im]);
 }
 
 static u32 generate_mov(struct argument* a, u32 sf, u32 op) { 
@@ -274,7 +294,7 @@ static u32 generate_adc(struct argument* a, u32 sf, u32 op, u32 o2) {
 		 Rd;
 }
 
-static u32 generate_csel(struct argument* a, u32 sf, u32 op) {  
+static u32 generate_csel(struct argument* a, u32 sf, u32 op, u32 o2) {  
 	const u32 Rm = (u32) a[0].value;
 	const u32 Rn = (u32) a[1].value;
 	const u32 Rd = (u32) a[2].value;
@@ -287,6 +307,7 @@ static u32 generate_csel(struct argument* a, u32 sf, u32 op) {
 		(op << 21U) | 
 		(Rm << 16U) | 
 		(cd << 12U) | 
+		(o2 << 10U) | 
 		(Rn << 5U)  | 
 		 Rd;
 }
@@ -384,8 +405,10 @@ static void execute(nat op, nat* pc) {
 	else if (op == ctpc)   registers[a0] = *pc;
 	else if (op == ctgoto) *pc = registers[a0]; 
 	else if (op == ctblt)  { if (registers[a1] < registers[a0]) stop = registers[a2]; } 
-	else if (op == ctincr) registers[a0]++; 
-	else if (op == ctzero) registers[a0] = 0; 
+	else if (op == ctincr) registers[a0]++;
+	else if (op == ctzero) registers[a0] = 0;
+	else if (op == ctdc)   registers[a0] = data_count;
+	else if (op == cted)   data[data_count++] = (uint8_t) registers[a0];
 	else if (op == ctadd)  registers[a2] = registers[a1] + registers[a0]; 
 	else if (op == ctsub)  registers[a2] = registers[a1] - registers[a0]; 
 	else if (op == ctmul)  registers[a2] = registers[a1] * registers[a0]; 
@@ -420,13 +443,13 @@ static void generate(void) {
 		struct argument* const a = ins[i].arguments;
 
 		     if (op == svc)    emit(0xD4000001);
+		else if (op == emitd)  emitdata(a);
 		else if (op == nop)    emit(0xD503201F);
 		else if (op == cfinv)  emit(0xD500401F);
 
 		else if (op == br)     emit(generate_br(a));
-		else if (op == b_)     emit(generate_b(a, (uint32_t) i));
-
-		else if (op == bc)     emit(generate_bc(a, (uint32_t) i));
+		else if (op == b_)     emit(generate_b(a, (u32) i));
+		else if (op == bc)     emit(generate_bc(a, (u32) i));
 
 		else if (op == absx)   emit(generate_abs(a, 1, 0x16B008U));
 		else if (op == absw)   emit(generate_abs(a, 0, 0x16B008U));
@@ -470,8 +493,14 @@ static void generate(void) {
 		else if (op == asrvx)  emit(generate_adc(a, 1, 0x0D6U, 0x0A));
 		else if (op == asrvw)  emit(generate_adc(a, 0, 0x0D6U, 0x0A));
 
-		else if (op == cselx)  emit(generate_csel(a, 1, 0x0D4U));
-		else if (op == cselw)  emit(generate_csel(a, 0, 0x0D4U));
+		else if (op == cselx)  emit(generate_csel(a, 1, 0x0D4U, 0));
+		else if (op == cselw)  emit(generate_csel(a, 0, 0x0D4U, 0));
+		else if (op == csincx)  emit(generate_csel(a, 1, 0x0D4U, 1));
+		else if (op == csincw)  emit(generate_csel(a, 0, 0x0D4U, 1));
+		else if (op == csinvx)  emit(generate_csel(a, 1, 0x2D4U, 0));
+		else if (op == csinvw)  emit(generate_csel(a, 0, 0x2D4U, 0));
+		else if (op == csnegx)  emit(generate_csel(a, 1, 0x2D4U, 1));
+		else if (op == csnegw)  emit(generate_csel(a, 0, 0x2D4U, 1));
 		
 		else if (op == orrx)   emit(generate_orr(a, 1, 0, 0x2AU));
 		else if (op == orrw)   emit(generate_orr(a, 0, 0, 0x2AU));
@@ -493,18 +522,13 @@ static void generate(void) {
 	}
 }
 
-int main(int argc, const char** argv) {
-	if (argc < 2) return puts("usage: assembler <file1.asm> <file2.asm> ... <filen.asm>");
 
-	filename = argv[1];
-	text_length = read_file(filename);
+
+static void parse(void) {
 
 	nat count = 0, start = 0;
 
-	*registers = (nat)(void*) malloc(65536);
-
-	static nat index = 0; 
-	for (index = 0; index < text_length; index++) {
+	for (nat index = 0; index < text_length; index++) {
 		if (not isspace(text[index])) { 
 			if (not count) start = index;
 			count++; continue;
@@ -596,8 +620,14 @@ int main(int argc, const char** argv) {
 		print_error(reason, start, count);
 		exit(1);
 	}
+}
 
-	generate();
+
+static void make_object_file(void) {
+
+	data_count += (8 - data_count % 8);
+
+	byte_count += (8 - byte_count % 8);
 
 
 	struct mach_header_64 header = {0};
@@ -605,57 +635,86 @@ int main(int argc, const char** argv) {
 	header.cputype = (int)CPU_TYPE_ARM | (int)CPU_ARCH_ABI64;
 	header.cpusubtype = (int) CPU_SUBTYPE_ARM64_ALL;
 	header.filetype = MH_OBJECT;
-	header.ncmds = 1;
+	header.ncmds = 2;
 	header.sizeofcmds = 0;
 	header.flags = MH_NOUNDEFS | MH_SUBSECTIONS_VIA_SYMBOLS;
-	
+	header.sizeofcmds = 	sizeof(struct segment_command_64) + 
+				sizeof (struct section_64) + 
+				sizeof (struct section_64) + 
+				sizeof(struct symtab_command);
+
 
 	struct segment_command_64 segment = {0};
-	segment.cmd = LC_SEGMENT_64;
-	segment.cmdsize = sizeof(struct segment_command_64) + sizeof(struct section_64) * 1;
-
-	header.sizeofcmds += segment.cmdsize;
-
 	strncpy(segment.segname, "__TEXT", 16);
-	segment.vmsize = 
-			sizeof (struct mach_header_64) + 
-			sizeof (struct segment_command_64) + 
-			sizeof(struct section_64) * 1 + 
-			byte_count;
-
-	segment.vmaddr = 0;
-	segment.fileoff = 0;
-	segment.filesize = 
-			sizeof (struct mach_header_64) + 
-			sizeof (struct segment_command_64) + 
-			sizeof(struct section_64) * 1 + 
-			byte_count;
-
+	segment.cmd = LC_SEGMENT_64;
+	segment.cmdsize = sizeof(struct segment_command_64) + sizeof(struct section_64) * 2;
 	segment.maxprot = (VM_PROT_READ | VM_PROT_WRITE | VM_PROT_EXECUTE);
-	segment.initprot = (VM_PROT_READ | VM_PROT_WRITE | VM_PROT_EXECUTE);
-	segment.nsects = 1;
-	
+	segment.initprot = (VM_PROT_READ | VM_PROT_WRITE | VM_PROT_EXECUTE);		
+	segment.nsects = 2;
+	segment.vmaddr = 0;
+	segment.vmsize = byte_count + data_count;
+	segment.filesize = byte_count + data_count;
+
+	segment.fileoff = 	sizeof(struct mach_header_64) + 
+				sizeof(struct segment_command_64) + 
+				sizeof (struct section_64) + 
+				sizeof (struct section_64) + 
+				sizeof(struct symtab_command);
+
 
 	struct section_64 section = {0};
 	strncpy(section.sectname, "__text", 16);
 	strncpy(section.segname, "__TEXT", 16);
 	section.addr = 0;
-	section.size = byte_count;
-	section.offset = sizeof (struct mach_header_64) + sizeof (struct segment_command_64) + sizeof section * 1;
+	section.size = byte_count;	
 	section.align = 3;
 	section.reloff = 0;
 	section.nreloc = 0;
 	section.flags = S_ATTR_PURE_INSTRUCTIONS | S_ATTR_PURE_INSTRUCTIONS;
 
-	struct symtab_command table  = {0};
-	table.cmd               = LC_SYMTAB;
-	table.cmdsize           = sizeof(struct symtab_command);
-	table.symoff            = 0;   
-	table.nsyms             = 1;
-	table.stroff            = 0;   
-	table.strsize           = 0;
+	section.offset = 	sizeof (struct mach_header_64) + 
+				sizeof (struct segment_command_64) + 
+				sizeof (struct section_64) + 
+				sizeof (struct section_64) + 
+				sizeof (struct symtab_command);
+
+
+	struct section_64 dsection = {0};
+	strncpy(dsection.sectname, "__data", 16);
+	strncpy(dsection.segname, "__TEXT", 16);
+	dsection.addr = byte_count;
+	dsection.size = data_count;
+	dsection.align = 3;
+	dsection.reloff = 0;
+	dsection.nreloc = 0;
+	dsection.flags = S_REGULAR;
+
+	dsection.offset = 	sizeof (struct mach_header_64) + 
+				sizeof (struct segment_command_64) + 
+				sizeof (struct section_64) + 
+				sizeof (struct section_64) + 
+				sizeof (struct symtab_command) + 
+				byte_count;
+
 
 	const char strings[] = "\0_start\0";
+
+	struct symtab_command table  = {0};
+	table.cmd = LC_SYMTAB;
+	table.cmdsize = sizeof(struct symtab_command);
+	table.strsize = sizeof(strings);
+	table.nsyms = 1; 
+	table.stroff = 0;
+	
+	table.symoff = 		sizeof (struct mach_header_64) +
+				sizeof (struct segment_command_64) + 
+				sizeof (struct section_64) + 
+				sizeof (struct section_64) + 
+				sizeof (struct symtab_command) + 
+				byte_count + 
+				data_count;
+
+	table.stroff = table.symoff + sizeof(struct nlist_64) * 1;
 
 	struct nlist_64 symbols[] = {
 	        (struct nlist_64) {
@@ -667,7 +726,6 @@ int main(int argc, const char** argv) {
 	        }
 	};
 
-
 	const char* output_filename = "object.o";
 	const int flags = O_WRONLY | O_CREAT | O_TRUNC;               // | O_EXCL;
 	const mode_t mode = S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH;
@@ -675,43 +733,31 @@ int main(int argc, const char** argv) {
 
 	if (file < 0) { perror("open"); exit(1); }
 
-	header.ncmds = 2; 
-
-	header.sizeofcmds = 	sizeof(struct segment_command_64) + 
-				sizeof(struct section_64) + 
-				sizeof(struct symtab_command);
-
 	write(file, &header, sizeof(struct mach_header_64));
-	//counter += sizeof(struct mach_header_64);
-
-	segment.vmsize = byte_count;
-	segment.filesize = byte_count;
-	segment.fileoff = header.sizeofcmds + sizeof(struct mach_header_64); 
-	segment.nsects = 1;
-
 	write(file, &segment, sizeof (struct segment_command_64));
-	//counter += sizeof(struct segment_command_64);
-
-	section.size = segment.filesize;
-	section.offset = (uint32_t) segment.fileoff;
-	section.reloff = (uint32_t) (segment.fileoff + segment.filesize); 
-	section.nreloc = 0;
-
 	write(file, &section, sizeof(struct section_64));
-	//counter += sizeof(struct section_64);
-
-	table.symoff = section.reloff; 
-	table.nsyms = 1; 
-	table.stroff = table.symoff + 1 * sizeof(struct nlist_64);
-	table.strsize = sizeof(strings);
-
+	write(file, &dsection, sizeof(struct section_64));
 	write(file, &table, sizeof table);
-	//counter += sizeof(table);
-
 	write(file, bytes, byte_count);
+	write(file, data, data_count);
 	write(file, symbols, sizeof(struct nlist_64));
 	write(file, strings, sizeof strings);
+
 	close(file);
+}
+
+int main(int argc, const char** argv) {
+	if (argc < 2) return puts("usage: assembler <file1.asm> <file2.asm> ... <filen.asm>");
+
+	filename = argv[1];
+	text_length = read_file(filename);
+
+	*registers = (nat)(void*) malloc(65536);
+
+	parse();
+	generate();
+
+	make_object_file();
 
 	printf("\ndebugging bytes bytes:\n------------------------\n");
 	dump_hex((uint8_t*) bytes, byte_count);
