@@ -11,93 +11,22 @@
 #include <errno.h>
 #include <mach-o/nlist.h>
 #include <mach-o/loader.h>
-#include <mach-o/reloc.h>
-#include <mach-o/arm64/reloc.h>
 typedef uint64_t nat;
 typedef uint32_t u32;
+
 /*
-
-// we only need one of these!
-
-
-
-do we use these?
-
- adrp x0, _foo@PAGE
- *         r_type=ARM64_RELOC_PAGE21, r_length=2, r_extern=1, r_pcrel=1, r_symbolnum=_foo
- *         0x90000000
-
-
-
-or these?
-
-
- *     adrp x0, _foo@PAGE + 0x24
- *         r_type=ARM64_RELOC_ADDEND, r_length=2, r_extern=0, r_pcrel=0, r_symbolnum=0x000024
- *         r_type=ARM64_RELOC_PAGE21, r_length=2, r_extern=1, r_pcrel=1, r_symbolnum=_foo
- *         0x90000000
- *
-
-			^---------- this is the one we will use!    we will genreate one of these every time we see the ins      adrpd 
-
-
-
-
-					   and the usage of adrpd  is                <ct_constant> <rt_reg> adrpd
-
-
-						ie, you give it a ct constant offset from the b:only; relocated symbol   __data_start
-	
-						which is the implicit argument to   adrpd. 
-
-
-				
-
-					nice. i think this is pretty cool actually. nice. 
-
-
-
-		god i hope this works.  this seems complicated but we can do it. 
-
-
-
-			
-
-
 ==============================================
 
 	open major issues:
 
-
-
-
-0		- implment   adding two relocation entries for  the .data section  and .bss section,   
-									called    __data_start   and  __bss_start.
-				then   do a fixup on a pc-rel offset      and then use immediate offsets in ldr and str's to 
-					access globals and bssglobals. so yeah. this should work. 
-
-
 3		3- implement multiple files....
-
 
 1		1- implement aliases.
 		1.1- implement macros. 
 
-
 2		2- implement user strings.
 
-
-		6-   add an instruction to specify the bss size at compiletime.      "<imm: ctr0 + offset> bss"
-
-
-
 ==============================================
-
-
-
-
-
-
 
 	old todo:
 -----------------------------------------------------
@@ -110,9 +39,6 @@ or these?
 	x	- implement a .js backend!   for web stuff.      [actually, no. do this later]
 
 ------------------------------------------------------
-
-
-
 
 
 	usability:
@@ -178,7 +104,7 @@ or these?
 
 */
 enum instruction_type {
-	nop, emitd, svc, cfinv, br, blr, b_, bc, adr, adrp, adrpd,
+	nop, dw, svc, cfinv, br, blr, b_, bc, adr, adrp,
 
 	movzx, movzw,	movkx, movkw,	movnx, movnw,
 	addix, addiw,	addhx, addhw,
@@ -208,7 +134,7 @@ enum instruction_type {
 	rbitx, 	rbitw,	revx, revw,  	revhx, revhw,
 
 
-	ctnop, ctzero, ctincr, cted, ctdc, cter, 
+	ctnop, ctzero, ctincr, 
 	ctadd, ctsub, ctmul, ctdiv, ctrem,
 	ctnor, ctxor, ctor, ctand, ctshl, ctshr, ctprint, 
 	ctld1, ctld2, ctld4, ctld8, ctst1, ctst2, ctst4, ctst8,
@@ -219,9 +145,9 @@ enum instruction_type {
 };
 
 static const char* instruction_spelling[instruction_set_count] = {
-	"nop", "emitd", "svc", "cfinv", "br", "blr", "b", "bc", "adr", "adrp", "adrpd",
+	"nop", "dw", "svc", "cfinv", "br", "blr", "b", "bc", "adr", "adrp",
 
-	"movzx", "movzw", "movkx", "movkw",	"movnx", "movnw",
+	"movzx", "movzw", "movkx", "movkw", "movnx", "movnw",
 	"addix", "addiw", "addhx", "addhw",
 	"addixs", "addiws", "addhxs", "addhws",
 	"maddx", "maddw",
@@ -237,8 +163,8 @@ static const char* instruction_spelling[instruction_set_count] = {
 	"adcx", "adcw", "adcxs", "adcws", 
 	"asrvx", "asrvw", 
 
-	"cselx", "cselw", 	"csincx", "csincw", 
-	"csinvx", "csinvw", 	"csnegx", "csnegw",
+	"cselx", "cselw",  "csincx", "csincw", 
+	"csinvx", "csinvw", "csnegx", "csnegw",
 
 	"orrx", "orrw",	"ornx", "ornw", 
 	"addx", "addw", "addxs", "addws",
@@ -248,7 +174,7 @@ static const char* instruction_spelling[instruction_set_count] = {
 	"clsx", "clsw",	"clzx", "clzw",	"ctzx", "ctzw",	"cntx", "cntw",
 	"rbitx", "rbitw", "revx", "revw", "revhx", "revhw",
 
-	"ctnop", "ctzero", "ctincr", "cted", "ctdc", "cter",
+	"ctnop", "ctzero", "ctincr", 
 	"ctadd", "ctsub", "ctmul", "ctdiv", "ctrem",
 	"ctnor", "ctxor", "ctor", "ctand", "ctshl", "ctshr", "ctprint",
 	"ctld1", "ctld2", "ctld4", "ctld8", "ctst1", "ctst2", "ctst4", "ctst8",
@@ -283,20 +209,17 @@ static struct instruction ins[4096] = {0};
 static nat word_count = 0;
 static struct word words[4096] = {0};
 
-static nat byte_count = 0;
-static uint8_t bytes[4096] = {0};
-
-static nat data_count = 4;
-static uint8_t data[4096] = {0xDE, 0xAD, 0xBE, 0xEF}; 			// for testing: 0xDE, 0xAD, 0xBE, 0xEF
-
-static nat text_length = 0;
-static char* text = NULL;
-static const char* filename = NULL;
-
 static nat arg_count = 0;
 static struct argument arguments[6] = {0};
 
 static nat registers[32] = {0};
+
+static nat byte_count = 0;
+static uint8_t bytes[4096] = {0};
+
+static nat text_length = 0;
+static char* text = NULL;
+static const char* filename = NULL;
 
 static bool is(char* word, nat count, const char* this) {
 	return strlen(this) == count and not strncmp(word, this, count);
@@ -395,86 +318,68 @@ static u32 generate_mov(struct argument* a, u32 sf, u32 op) {
 	const u32 im = load(a[0].value);
 	const u32 hw = (u32) a[1].value;
 	const u32 Rd = (u32) a[2].value;
-
 	check(im, 1 << 16U, a[0], "immediate");
 	check(hw, 4,  a[1], "register");
 	check(Rd, 32, a[2], "register");
-
 	return  (sf << 31U) | 
 		(op << 23U) | 
 		(hw << 21U) | 
-		(im << 5U)  | 
-		 Rd;
+		(im <<  5U) | Rd;
 }
 
 static u32 generate_addi(struct argument* a, u32 sf, u32 sh, u32 op) { 
 	const u32 im = load(a[0].value);
 	const u32 Rn = (u32) a[1].value;
 	const u32 Rd = (u32) a[2].value;
-
 	check(im, 1 << 12U, a[0], "immediate");
 	check(Rn, 32, a[1], "register");
 	check(Rd, 32, a[2], "register");
-	
 	return  (sf << 31U) | 
 		(op << 23U) | 
 		(sh << 22U) | 
 		(im << 10U) | 
-		(Rn << 5U)  | 
-		 Rd;
+		(Rn <<  5U) | Rd;
 }
 
 static u32 generate_stri(struct argument* a, u32 si, u32 op, u32 o2) {
-	
 	const u32 im = load(a[0].value);
 	const u32 Rn = (u32) a[1].value;
 	const u32 Rt = (u32) a[2].value;
-
 	check(im, 1 << 9U, a[0], "immediate");
 	check(Rn, 32, a[1], "register");
 	check(Rt, 32, a[2], "register");
-	
 	return  (si << 30U) | 
 		(op << 21U) | 
 		(im << 12U) | 
 		(o2 << 10U) |
-		(Rn << 5U)  | 
-		 Rt;
+		(Rn <<  5U) | Rt;
 }
 
-
 static u32 generate_striu(struct argument* a, u32 si, u32 op) {
-	
 	const u32 im = load(a[0].value);
 	const u32 Rn = (u32) a[1].value;
 	const u32 Rt = (u32) a[2].value;
-
 	check(im, 1 << 12U, a[0], "immediate");
 	check(Rn, 32, a[1], "register");
 	check(Rt, 32, a[2], "register");
-
 	return  (si << 30U) | 
 		(op << 21U) | 
 		(im << 10U) | 
-		(Rn << 5U)  | 
-		 Rt;
+		(Rn <<  5U) | Rt;
 }
 
 static u32 generate_adc(struct argument* a, u32 sf, u32 op, u32 o2) {  
 	const u32 Rm = (u32) a[0].value;
 	const u32 Rn = (u32) a[1].value;
 	const u32 Rd = (u32) a[2].value;
-
 	check(Rm, 32, a[0], "register");
 	check(Rn, 32, a[1], "register");
 	check(Rd, 32, a[2], "register");
-
 	return  (sf << 31U) | 
 		(op << 21U) | 
 		(Rm << 16U) | 
 		(o2 << 10U) | 
-		(Rn << 5U)  | 
-		 Rd;
+		(Rn <<  5U) | Rd;
 }
 
 static u32 generate_madd(struct argument* a, u32 sf, u32 op, u32 o2) {  
@@ -482,19 +387,16 @@ static u32 generate_madd(struct argument* a, u32 sf, u32 op, u32 o2) {
 	const u32 Rm = (u32) a[1].value;
 	const u32 Rn = (u32) a[2].value;
 	const u32 Rd = (u32) a[3].value;
-
 	check(Ra, 32, a[0], "register-z");
 	check(Rm, 32, a[1], "register");
 	check(Rn, 32, a[2], "register");
 	check(Rd, 32, a[3], "register");
-
 	return  (sf << 31U) | 
 		(op << 21U) | 
 		(Rm << 16U) | 
 		(o2 << 15U) |
 		(Ra << 10U) | 
-		(Rn << 5U)  | 
-		 Rd;
+		(Rn <<  5U) | Rd;
 }
 
 static u32 generate_csel(struct argument* a, u32 sf, u32 op, u32 o2) {  
@@ -502,108 +404,82 @@ static u32 generate_csel(struct argument* a, u32 sf, u32 op, u32 o2) {
 	const u32 Rn = (u32) a[1].value;
 	const u32 Rd = (u32) a[2].value;
 	const u32 cd = (u32) a[3].value;
-
 	check(Rm, 32, a[0], "register");
 	check(Rn, 32, a[1], "register");
 	check(Rd, 32, a[2], "register");
 	check(cd, 16, a[3], "condition");
-
 	return  (sf << 31U) | 
 		(op << 21U) | 
 		(Rm << 16U) | 
 		(cd << 12U) | 
 		(o2 << 10U) | 
-		(Rn << 5U)  | 
-		 Rd;
+		(Rn <<  5U) | Rd;
 }
 
 static u32 generate_orr(struct argument* a, u32 sf, u32 ne, u32 op) { 
-
 	const u32 im = load( a[0].value);
 	const u32 sh = (u32) a[1].value;
 	const u32 Rm = (u32) a[2].value;
 	const u32 Rn = (u32) a[3].value;
 	const u32 Rd = (u32) a[4].value;
-
 	check(im, 32U << sf, a[0], "immediate");
 	check(sh, 4,  a[1], "register");
 	check(Rm, 32, a[2], "register");
 	check(Rn, 32, a[3], "register");
 	check(Rd, 32, a[4], "register");
-
 	return  (sf << 31U) | 
 		(op << 24U) | 
 		(sh << 22U) | 
 		(ne << 21U) | 
 		(Rm << 16U) | 
 		(im << 10U) | 
-		(Rn << 5U)  | 
-		 Rd;
+		(Rn <<  5U) | Rd;
 }
 
 static u32 generate_abs(struct argument* a, u32 sf, u32 op) {  
 	const u32 Rn = (u32) a[0].value;
 	const u32 Rd = (u32) a[1].value;
-
 	check(Rn, 32, a[0], "register");
 	check(Rd, 32, a[1], "register");
-
 	return  (sf << 31U) | 
 		(op << 10U) | 
-		(Rn << 5U)  | 
-		 Rd;
+		(Rn <<  5U) | Rd;
 }
 
 static u32 generate_br(struct argument* a, u32 op) { 
 	const u32 Rn = (u32) a[0].value;
-
 	check(Rn, 32, a[0], "register");
-
-	return  (op << 10U) | 
-		(Rn << 5U);
+	return  (op << 10U) | (Rn << 5U);
 }
 
 static u32 generate_b(struct argument* a, uint32_t pc) { 
 	const u32 im = load( a[0].value);
 	const u32 offset = im - pc;
-
 	check_branch((int) offset, 1 << (26 - 1), a[0], "branch offset");
-
-	return  (0x05 << 26U) | 
-		(0x03FFFFFFU & offset);
+	return (0x05 << 26U) | (0x03FFFFFFU & offset);
 }
 
 static u32 generate_bc(struct argument* a, uint32_t pc) { 
 	const u32 im = load( a[0].value);
 	const u32 cd = (u32) a[1].value;
 	const u32 offset = im - pc;
-
 	check_branch((int) offset, 1 << (19 - 1), a[0], "branch offset");
 	check(cd, 16, a[1], "condition");
-
-	return  (0x54U << 24U) | 
-		((0x0007FFFFU & offset) << 5U) | 
-		cd;
+	return (0x54U << 24U) | ((0x0007FFFFU & offset) << 5U) | cd;
 }
 
 static u32 generate_adr(struct argument* a, u32 op, u32 o2, uint32_t pc) { 
 	const u32 im = load( a[0].value);
 	const u32 Rd = (u32) a[1].value;
 	const u32 offset = im - pc;
-
 	check_branch((int) offset, 1 << (21 - 1), a[0], "pc-relative address");
 	check(Rd, 32, a[1], "register");
-
-	const u32 lo = 0x03U & offset;
-	const u32 hi = 0x07FFFFU & (offset >> 2);
-	
+	const u32 lo = 0x03U & offset, hi = 0x07FFFFU & (offset >> 2);
 	return  (o2 << 31U) | 
 		(lo << 29U) | 
 		(op << 24U) | 
-		(hi << 5U)  | 
-		 Rd;
+		(hi <<  5U) | Rd;
 }
-
 
 static void dump_hex(uint8_t* local_bytes, nat local_byte_count) {
 	printf("dumping hex bytes: (%llu)\n", local_byte_count);
@@ -623,6 +499,15 @@ static char* return_word = NULL;
 static nat macro = 0;
 static nat stop = 0;
 
+
+/// 		  * ( ( u32 * )  * registers + a0 ) = ins_count;
+
+
+
+
+
+
+
 static void execute(nat op, nat* pc) {
 	const nat a0 = arguments[0].value;
 	const nat a1 = arguments[1].value;
@@ -632,18 +517,16 @@ static void execute(nat op, nat* pc) {
 	else if (stop) return;
 
 	if (op == ctnop) {}
-	else if (op == ctat)   registers[a0] = ins_count;
-	else if (op == ctpc)   registers[a0] = *pc;
-	else if (op == ctgoto) *pc = registers[a0]; 
-	else if (op == ctblt)  { if (registers[a1] < registers[a0]) stop = registers[a2]; } 
+	else if (op == ctat)   *((u32*)*registers+a0) = ins_count;
+	else if (op == ctpc)   *((u32*)*registers+a0) = *pc;
+	else if (op == ctgoto) *pc = *((u32*)*registers+a0); 
+
+	else if (op == ctblt)  { if (registers[a1]  < registers[a0]) stop = registers[a2]; } 
 	else if (op == ctbge)  { if (registers[a1] >= registers[a0]) stop = registers[a2]; } 
 	else if (op == ctbeq)  { if (registers[a1] == registers[a0]) stop = registers[a2]; } 
 	else if (op == ctbne)  { if (registers[a1] != registers[a0]) stop = registers[a2]; } 
 	else if (op == ctincr) registers[a0]++;
 	else if (op == ctzero) registers[a0] = 0;
-	else if (op == ctdc)   registers[a0] = data_count;
-	else if (op == cted)   data[data_count++] = (uint8_t) registers[a0];
-	else if (op == cter)   { for (nat i = 0; i < registers[a0]; i++) data[data_count++] = *(uint8_t*) (registers[a1] + i); }
 	else if (op == ctadd)  registers[a2] = registers[a1] + registers[a0]; 
 	else if (op == ctsub)  registers[a2] = registers[a1] - registers[a0]; 
 	else if (op == ctmul)  registers[a2] = registers[a1] * registers[a0]; 
@@ -770,9 +653,6 @@ static void parse(void) {
 
 static void make_object_file(void) {
 
-	if (data_count % 8) data_count += (8 - data_count % 8);
-	if (byte_count % 8) byte_count += (8 - byte_count % 8);
-
 	struct mach_header_64 header = {0};
 	header.magic = MH_MAGIC_64;
 	header.cputype = (int)CPU_TYPE_ARM | (int)CPU_ARCH_ABI64;
@@ -781,27 +661,26 @@ static void make_object_file(void) {
 	header.ncmds = 2;
 	header.sizeofcmds = 0;
 	header.flags = MH_NOUNDEFS | MH_SUBSECTIONS_VIA_SYMBOLS;
+
 	header.sizeofcmds = 	sizeof(struct segment_command_64) + 
-				sizeof (struct section_64) + 
-				sizeof (struct section_64) + 
+				sizeof(struct section_64) + 
 				sizeof(struct symtab_command);
 
 
 	struct segment_command_64 segment = {0};
 	strncpy(segment.segname, "__TEXT", 16);
 	segment.cmd = LC_SEGMENT_64;
-	segment.cmdsize = sizeof(struct segment_command_64) + sizeof(struct section_64) * 2;
-	segment.maxprot = (VM_PROT_READ | VM_PROT_WRITE | VM_PROT_EXECUTE);
-	segment.initprot = (VM_PROT_READ | VM_PROT_WRITE | VM_PROT_EXECUTE);
-	segment.nsects = 2;
+	segment.cmdsize = sizeof(struct segment_command_64) + sizeof(struct section_64);
+	segment.maxprot =  (VM_PROT_READ | VM_PROT_EXECUTE);
+	segment.initprot = (VM_PROT_READ | VM_PROT_EXECUTE);
+	segment.nsects = 1;
 	segment.vmaddr = 0;
-	segment.vmsize = byte_count + data_count;
-	segment.filesize = byte_count + data_count;
+	segment.vmsize = byte_count;
+	segment.filesize = byte_count;
 
 	segment.fileoff = 	sizeof(struct mach_header_64) + 
 				sizeof(struct segment_command_64) + 
-				sizeof (struct section_64) + 
-				sizeof (struct section_64) + 
+				sizeof(struct section_64) + 
 				sizeof(struct symtab_command);
 
 
@@ -815,32 +694,10 @@ static void make_object_file(void) {
 	section.nreloc = 0;
 	section.flags = S_ATTR_PURE_INSTRUCTIONS | S_ATTR_PURE_INSTRUCTIONS;
 
-	section.offset = 	sizeof (struct mach_header_64) + 
-				sizeof (struct segment_command_64) + 
-				sizeof (struct section_64) + 
-				sizeof (struct section_64) + 
-				sizeof (struct symtab_command);
-
-
-	struct section_64 dsection = {0};
-	strncpy(dsection.sectname, "__data", 16);
-	strncpy(dsection.segname, "__TEXT", 16);
-	dsection.addr = byte_count;
-	dsection.size = data_count;
-	dsection.align = 3;
-	dsection.reloff = 0;
-	dsection.nreloc = 0;
-	dsection.flags = S_REGULAR;
-
-	dsection.offset = (uint32_t) (
-				sizeof (struct mach_header_64) + 
-				sizeof (struct segment_command_64) + 
-				sizeof (struct section_64) + 
-				sizeof (struct section_64) + 
-				sizeof (struct symtab_command) + 
-				byte_count
-			);
-
+	section.offset = 	sizeof(struct mach_header_64) + 
+				sizeof(struct segment_command_64) + 
+				sizeof(struct section_64) + 
+				sizeof(struct symtab_command);
 
 	const char strings[] = "\0_start\0";
 
@@ -852,21 +709,19 @@ static void make_object_file(void) {
 	table.stroff = 0;
 	
 	table.symoff = (uint32_t) (
-				sizeof (struct mach_header_64) +
-				sizeof (struct segment_command_64) + 
-				sizeof (struct section_64) + 
-				sizeof (struct section_64) + 
-				sizeof (struct symtab_command) + 
-				byte_count + 
-				data_count
+				sizeof(struct mach_header_64) +
+				sizeof(struct segment_command_64) + 
+				sizeof(struct section_64) + 
+				sizeof(struct symtab_command) + 
+				byte_count
 			);
 
-	table.stroff = table.symoff + sizeof(struct nlist_64) * 1;
+	table.stroff = table.symoff + sizeof(struct nlist_64);
 
 	struct nlist_64 symbols[] = {
 	        (struct nlist_64) {
 	            .n_un.n_strx = 1,
-	            .n_type = N_SECT | N_EXT,  
+	            .n_type = N_SECT | N_EXT,
 	            .n_sect = 1,
 	            .n_desc = REFERENCE_FLAG_DEFINED,
 	            .n_value = 0,
@@ -877,16 +732,13 @@ static void make_object_file(void) {
 	const int flags = O_WRONLY | O_CREAT | O_TRUNC;               // | O_EXCL;
 	const mode_t mode = S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH;
 	const int file = open(output_filename, flags, mode);
-
 	if (file < 0) { perror("open"); exit(1); }
 
 	write(file, &header, sizeof(struct mach_header_64));
 	write(file, &segment, sizeof (struct segment_command_64));
 	write(file, &section, sizeof(struct section_64));
-	write(file, &dsection, sizeof(struct section_64));
 	write(file, &table, sizeof table);
 	write(file, bytes, byte_count);
-	write(file, data, data_count);
 	write(file, symbols, sizeof(struct nlist_64));
 	write(file, strings, sizeof strings);
 
@@ -900,7 +752,7 @@ static void generate_machine_code(void) {
 		const nat op = ins[i].op;
 		struct argument* const a = ins[i].arguments;
 
-		     if (op == emitd)  emit(load(a->value));
+		     if (op == dw)     emit(load(a->value));
 		else if (op == svc)    emit(0xD4000001);
 		else if (op == nop)    emit(0xD503201F);
 		else if (op == cfinv)  emit(0xD500401F);
@@ -971,7 +823,6 @@ static void generate_machine_code(void) {
 		else if (op == ldtrb)   emit(generate_stri(a, 0, 0x01C2U, 0x2U));
 		else if (op == ldtrsbx) emit(generate_stri(a, 0, 0x01C4U, 0x2U));
 		else if (op == ldtrsbw) emit(generate_stri(a, 0, 0x01C6U, 0x2U));
-		
 		
 		else if (op == adcx)   emit(generate_adc(a, 1, 0x0D0U, 0x00));
 		else if (op == adcw)   emit(generate_adc(a, 0, 0x0D0U, 0x00));
@@ -1060,6 +911,35 @@ int main(int argc, const char** argv) {
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 //	filename = argv[1];
 //	text_length = read_file(filename);
 
@@ -1067,5 +947,147 @@ int main(int argc, const char** argv) {
 
 
 
+/*
+struct section_64 dsection = {0};
+	strncpy(dsection.sectname, "__data", 16);
+	strncpy(dsection.segname, "__TEXT", 16);
+	dsection.addr = byte_count;
+	dsection.size = data_count;
+	dsection.align = 3;
+	dsection.reloff = 0;
+	dsection.nreloc = 0;
+	dsection.flags = S_REGULAR;
+
+	dsection.offset = (uint32_t) (
+				sizeof (struct mach_header_64) + 
+				sizeof (struct segment_command_64) + 
+				sizeof (struct section_64) + 
+				sizeof (struct section_64) + 
+				sizeof (struct symtab_command) + 
+				byte_count
+			);
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+0		- implment   adding two relocation entries for  the .data section  and .bss section,   
+									called    __data_start   and  __bss_start.
+				then   do a fixup on a pc-rel offset      and then use immediate offsets in ldr and str's to 
+					access globals and bssglobals. so yeah. this should work. 
+
+
+
+// we only need one of these!
+
+
+
+do we use these?
+
+ adrp x0, _foo@PAGE
+ *         r_type=ARM64_RELOC_PAGE21, r_length=2, r_extern=1, r_pcrel=1, r_symbolnum=_foo
+ *         0x90000000
+
+
+
+or these?
+
+
+ *     adrp x0, _foo@PAGE + 0x24
+ *         r_type=ARM64_RELOC_ADDEND, r_length=2, r_extern=0, r_pcrel=0, r_symbolnum=0x000024
+ *         r_type=ARM64_RELOC_PAGE21, r_length=2, r_extern=1, r_pcrel=1, r_symbolnum=_foo
+ *         0x90000000
+ *
+
+			^---------- this is the one we will use!    we will genreate one of these every time we see the ins      adrpd 
+
+
+
+
+					   and the usage of adrpd  is                <ct_constant> <rt_reg> adrpd
+
+
+						ie, you give it a ct constant offset from the b:only; relocated symbol   __data_start
+	
+						which is the implicit argument to   adrpd. 
+
+
+				
+
+					nice. i think this is pretty cool actually. nice. 
+
+
+
+		god i hope this works.  this seems complicated but we can do it. 
+
+
+
+			
+	x	6-   add an instruction to specify the bss size at compiletime.      "<imm: ctr0 + offset> bss"
+
+
+
+
+
+
+
+
+
+
+
+// write(file, &dsection, sizeof(struct section_64));
+
+
+
+// 
+	// if (byte_count % 8) byte_count += (8 - byte_count % 8);
+
+
+// write(file, data, data_count);
+
+
+//else if (op == ctdc)   registers[a0] = data_count;
+	//else if (op == cted)   data[data_count++] = (uint8_t) registers[a0];
+	//else if (op == cter)   { for (nat i = 0; i < registers[a0]; i++) data[data_count++] = *(uint8_t*) (registers[a1] + i); }
+
+
+
+
+
+
+
+#include <mach-o/reloc.h>
+#include <mach-o/arm64/reloc.h>
+
+
+//static nat data_count = 4;
+//static uint8_t data[4096] = {0xDE, 0xAD, 0xBE, 0xEF}; 			// for testing: 0xDE, 0xAD, 0xBE, 0xEF
+
+
+
+
+
+
+static void emit_sequence(uint8_t* data, const nat count) {
+	memcpy(bytes + byte_count, data, count);
+	byte_count += count;
+	if (byte_count % 4) byte_count += (4 - byte_count % 4);
+}
+
+*/
 
 
