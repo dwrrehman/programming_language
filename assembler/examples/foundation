@@ -1,0 +1,11 @@
+
+comment    
+	      this is the foundation file,
+	the starting place for the standard library. 
+comment
+
+0 ctzero
+1 ctzero ctincr 
+2 ctzero ctincr ctincr
+3 ctzero ctincr ctincr ctincr
+

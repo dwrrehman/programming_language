@@ -25,7 +25,15 @@ typedef uint32_t u32;
 			...we should have an unlimited amount of them.  plz. 
 
 
-		- 
+
+		3- implement multiple files. 
+
+
+		1- implement aliases.
+		1.1- implement macros. 
+
+
+		2- implement user strings.
 
 
 
@@ -54,29 +62,32 @@ typedef uint32_t u32;
 
 	COMPILE TIME STUFF:
 	=======================================
-	x	- add a ctnop instruction!!!! very useful for argument stuff. and generally useful.
+	x	- add a ctnop instruction!!!!    ( very useful for argument stuff. and generally useful.)
 
 
 
 		- add ctmalloc to the ct instructions! 
 
-		- add more ct branches. at least cteq, ctge     (b/f versions!)	
+	x	- add more ct branches. at least cteq, ctge     (b/f versions!)	
 
 		- add a ctsyscall instruction!
 
-		- add emitctbyterange   rt instruction, for generating the data section!
+	x	- add emitctbyterange   rt instruction, for generating the data section!
 
 
 	OBJECT FILE STUFF 
 	=======================================
+
 	x	- work on generating the .data segment/section, 
+
 		- and other bss/data sections. 
+
 
 
 
 	ARM64 ISA RUNTIME STUFF 
 	=======================================
-		- add more rt instructions to make the language actually usable:
+	x	- add more rt instructions to make the language actually usable:
 
 		x	- shift left ins
 		x	- mul ins
@@ -529,9 +540,6 @@ static u32 generate_adr(struct argument* a, u32 op, u32 o2, uint32_t pc) {
 }
 
 
-
-
-
 static void dump_hex(uint8_t* local_bytes, nat local_byte_count) {
 	printf("dumping hex bytes: (%llu)\n", local_byte_count);
 	for (nat i = 0; i < local_byte_count; i++) {
@@ -696,10 +704,8 @@ static void parse(void) {
 
 static void make_object_file(void) {
 
-	data_count += (8 - data_count % 8);
-
-	byte_count += (8 - byte_count % 8);
-
+	if (data_count % 8) data_count += (8 - data_count % 8);
+	if (byte_count % 8) byte_count += (8 - byte_count % 8);
 
 	struct mach_header_64 header = {0};
 	header.magic = MH_MAGIC_64;
@@ -991,7 +997,8 @@ int main(int argc, const char** argv) {
 
 
 
-
+//	filename = argv[1];
+//	text_length = read_file(filename);
 
 
 
