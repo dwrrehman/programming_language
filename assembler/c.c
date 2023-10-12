@@ -11,29 +11,83 @@
 #include <errno.h>
 #include <mach-o/nlist.h>
 #include <mach-o/loader.h>
+#include <mach-o/reloc.h>
+#include <mach-o/arm64/reloc.h>
 typedef uint64_t nat;
 typedef uint32_t u32;
 /*
 
+// we only need one of these!
+
+
+
+do we use these?
+
+ adrp x0, _foo@PAGE
+ *         r_type=ARM64_RELOC_PAGE21, r_length=2, r_extern=1, r_pcrel=1, r_symbolnum=_foo
+ *         0x90000000
+
+
+
+or these?
+
+
+ *     adrp x0, _foo@PAGE + 0x24
+ *         r_type=ARM64_RELOC_ADDEND, r_length=2, r_extern=0, r_pcrel=0, r_symbolnum=0x000024
+ *         r_type=ARM64_RELOC_PAGE21, r_length=2, r_extern=1, r_pcrel=1, r_symbolnum=_foo
+ *         0x90000000
+ *
+
+			^---------- this is the one we will use!    we will genreate one of these every time we see the ins      adrpd 
+
+
+
+
+					   and the usage of adrpd  is                <ct_constant> <rt_reg> adrpd
+
+
+						ie, you give it a ct constant offset from the b:only; relocated symbol   __data_start
+	
+						which is the implicit argument to   adrpd. 
+
+
+				
+
+					nice. i think this is pretty cool actually. nice. 
+
+
+
+		god i hope this works.  this seems complicated but we can do it. 
+
+
+
+			
 
 
 ==============================================
 
 	open major issues:
 
-		- we only have 32 ctregisters to use to give labels to statements.   bad. 
-			...we should have an unlimited amount of them.  plz. 
 
 
 
-		3- implement multiple files. 
+0		- implment   adding two relocation entries for  the .data section  and .bss section,   
+									called    __data_start   and  __bss_start.
+				then   do a fixup on a pc-rel offset      and then use immediate offsets in ldr and str's to 
+					access globals and bssglobals. so yeah. this should work. 
 
 
-		1- implement aliases.
+3		3- implement multiple files....
+
+
+1		1- implement aliases.
 		1.1- implement macros. 
 
 
-		2- implement user strings.
+2		2- implement user strings.
+
+
+		6-   add an instruction to specify the bss size at compiletime.      "<imm: ctr0 + offset> bss"
 
 
 
@@ -45,9 +99,17 @@ typedef uint32_t u32;
 
 
 
-	todo:
+	old todo:
+-----------------------------------------------------
+
+
+	x	- we only have 32 ctregisters to use to give labels to statements.   bad. 
+			...we should have an unlimited amount of them.  plz. 
+
 
 	x	- implement a .js backend!   for web stuff.      [actually, no. do this later]
+
+------------------------------------------------------
 
 
 
@@ -66,11 +128,11 @@ typedef uint32_t u32;
 
 
 
-		- add ctmalloc to the ct instructions! 
+		- add ctmalloc to the ct instructions?
 
 	x	- add more ct branches. at least cteq, ctge     (b/f versions!)	
 
-		- add a ctsyscall instruction!
+		- add a ctsyscall instruction!..?
 
 	x	- add emitctbyterange   rt instruction, for generating the data section!
 
@@ -88,6 +150,10 @@ typedef uint32_t u32;
 	ARM64 ISA RUNTIME STUFF 
 	=======================================
 	x	- add more rt instructions to make the language actually usable:
+
+		- add the emmision of bytes   instread of words   in the text section!!      			"emitb"
+						just make sure its aligned afterwards though. yay. 
+
 
 		x	- shift left ins
 		x	- mul ins
@@ -107,18 +173,16 @@ typedef uint32_t u32;
 		- document the meaning of each argument for each ct/rt instruction more, 
 				also accoridng to the arm isa ref manual!
 
-		- 
-
+		- write a hello world program
 
 
 */
 enum instruction_type {
-	nop, emitd, svc, cfinv, br, blr, b_, bc, adr, adrp,
+	nop, emitd, svc, cfinv, br, blr, b_, bc, adr, adrp, adrpd,
 
 	movzx, movzw,	movkx, movkw,	movnx, movnw,
 	addix, addiw,	addhx, addhw,
 	addixs, addiws,	addhxs, addhws,
-
 	maddx, maddw,
 
 	striux, striuw,  ldriux,  ldriuw,  striox, 
@@ -148,18 +212,18 @@ enum instruction_type {
 	ctadd, ctsub, ctmul, ctdiv, ctrem,
 	ctnor, ctxor, ctor, ctand, ctshl, ctshr, ctprint, 
 	ctld1, ctld2, ctld4, ctld8, ctst1, ctst2, ctst4, ctst8,
-	ctat, ctpc, ctblt, ctbge, ctbeq, ctbne, ctgoto, ctstop,
+	ctat, ctpc, ctblt, ctbge, ctbeq, ctbne, ctgoto, ctstop, 
+	cthalt,
 
 	instruction_set_count
 };
 
 static const char* instruction_spelling[instruction_set_count] = {
-	"nop", "emitd", "svc", "cfinv", "br", "blr", "b", "bc", "adr", "adrp",
+	"nop", "emitd", "svc", "cfinv", "br", "blr", "b", "bc", "adr", "adrp", "adrpd",
 
 	"movzx", "movzw", "movkx", "movkw",	"movnx", "movnw",
 	"addix", "addiw", "addhx", "addhw",
 	"addixs", "addiws", "addhxs", "addhws",
-
 	"maddx", "maddw",
 
 	"striux", "striuw",  "ldriux",  "ldriuw",  "striox", 
@@ -188,7 +252,8 @@ static const char* instruction_spelling[instruction_set_count] = {
 	"ctadd", "ctsub", "ctmul", "ctdiv", "ctrem",
 	"ctnor", "ctxor", "ctor", "ctand", "ctshl", "ctshr", "ctprint",
 	"ctld1", "ctld2", "ctld4", "ctld8", "ctst1", "ctst2", "ctst4", "ctst8",
-	"ctat", "ctpc", "ctblt", "ctbge", "ctbeq", "ctbne", "ctgoto", "ctstop",
+	"ctat", "ctpc", "ctblt", "ctbge", "ctbeq", "ctbne", "ctgoto", "ctstop", 
+	"cthalt"
 };
 
 struct word {
@@ -221,8 +286,8 @@ static struct word words[4096] = {0};
 static nat byte_count = 0;
 static uint8_t bytes[4096] = {0};
 
-static nat data_count = 0;
-static uint8_t data[4096] = {0}; 			// for testing: 0xDE, 0xAD, 0xBE, 0xEF
+static nat data_count = 4;
+static uint8_t data[4096] = {0xDE, 0xAD, 0xBE, 0xEF}; 			// for testing: 0xDE, 0xAD, 0xBE, 0xEF
 
 static nat text_length = 0;
 static char* text = NULL;
@@ -308,7 +373,6 @@ static void emit(u32 x) {
 	bytes[byte_count++] = (uint8_t) (x >> 24);
 }
 
-
 static void check(nat r, nat c, const struct argument a, const char* type) {
 	if (r < c) return;
 	char reason[4096] = {0};
@@ -325,61 +389,54 @@ static void check_branch(int r, int c, const struct argument a, const char* type
 	exit(1);
 }
 
-static void emitdata(struct argument* a) {
-	const nat Im = (u32) a[0].value;
-	check(Im, 32, a[0], "ctregister");
-	emit((u32) registers[Im]);
-}
+static u32 load(const nat offset) { return *((u32*) *registers + offset); }
 
 static u32 generate_mov(struct argument* a, u32 sf, u32 op) { 
-	const nat Im = a[0].value;
+	const u32 im = load(a[0].value);
 	const u32 hw = (u32) a[1].value;
 	const u32 Rd = (u32) a[2].value;
-	check(Im, 32, a[0], "ctregister");
+
+	check(im, 1 << 16U, a[0], "immediate");
 	check(hw, 4,  a[1], "register");
 	check(Rd, 32, a[2], "register");
-	const nat imm = registers[Im];
-	check(imm, 65536, a[0], "immediate");
+
 	return  (sf << 31U) | 
 		(op << 23U) | 
 		(hw << 21U) | 
-		((u32) imm << 5U) | 
+		(im << 5U)  | 
 		 Rd;
 }
 
 static u32 generate_addi(struct argument* a, u32 sf, u32 sh, u32 op) { 
-	const nat Im = a[0].value;
+	const u32 im = load(a[0].value);
 	const u32 Rn = (u32) a[1].value;
 	const u32 Rd = (u32) a[2].value;
+
+	check(im, 1 << 12U, a[0], "immediate");
 	check(Rn, 32, a[1], "register");
 	check(Rd, 32, a[2], "register");
-	check(Im, 32, a[0], "ctregister");
-	const nat imm = registers[Im];
-	check(imm, 1 << 12U, a[0], "immediate");
+	
 	return  (sf << 31U) | 
 		(op << 23U) | 
 		(sh << 22U) | 
-		((u32) imm << 10U) | 
+		(im << 10U) | 
 		(Rn << 5U)  | 
 		 Rd;
 }
 
 static u32 generate_stri(struct argument* a, u32 si, u32 op, u32 o2) {
 	
-	const nat Im = a[0].value;
+	const u32 im = load(a[0].value);
 	const u32 Rn = (u32) a[1].value;
 	const u32 Rt = (u32) a[2].value;
 
-	check(Im, 32, a[0], "ctregister");
+	check(im, 1 << 9U, a[0], "immediate");
 	check(Rn, 32, a[1], "register");
 	check(Rt, 32, a[2], "register");
 	
-	const nat imm = registers[Im];
-	check(imm, 1 << 9U, a[0], "immediate");
-
 	return  (si << 30U) | 
 		(op << 21U) | 
-		((u32) imm << 12U) | 
+		(im << 12U) | 
 		(o2 << 10U) |
 		(Rn << 5U)  | 
 		 Rt;
@@ -388,20 +445,17 @@ static u32 generate_stri(struct argument* a, u32 si, u32 op, u32 o2) {
 
 static u32 generate_striu(struct argument* a, u32 si, u32 op) {
 	
-	const nat Im = a[0].value;
+	const u32 im = load(a[0].value);
 	const u32 Rn = (u32) a[1].value;
 	const u32 Rt = (u32) a[2].value;
 
-	check(Im, 32, a[0], "ctregister");
+	check(im, 1 << 12U, a[0], "immediate");
 	check(Rn, 32, a[1], "register");
 	check(Rt, 32, a[2], "register");
-	
-	const nat imm = registers[Im];
-	check(imm, 1 << 12U, a[0], "immediate");
 
 	return  (si << 30U) | 
 		(op << 21U) | 
-		((u32) imm << 10U) | 
+		(im << 10U) | 
 		(Rn << 5U)  | 
 		 Rt;
 }
@@ -410,9 +464,11 @@ static u32 generate_adc(struct argument* a, u32 sf, u32 op, u32 o2) {
 	const u32 Rm = (u32) a[0].value;
 	const u32 Rn = (u32) a[1].value;
 	const u32 Rd = (u32) a[2].value;
+
 	check(Rm, 32, a[0], "register");
 	check(Rn, 32, a[1], "register");
 	check(Rd, 32, a[2], "register");
+
 	return  (sf << 31U) | 
 		(op << 21U) | 
 		(Rm << 16U) | 
@@ -426,10 +482,12 @@ static u32 generate_madd(struct argument* a, u32 sf, u32 op, u32 o2) {
 	const u32 Rm = (u32) a[1].value;
 	const u32 Rn = (u32) a[2].value;
 	const u32 Rd = (u32) a[3].value;
+
 	check(Ra, 32, a[0], "register-z");
 	check(Rm, 32, a[1], "register");
 	check(Rn, 32, a[2], "register");
 	check(Rd, 32, a[3], "register");
+
 	return  (sf << 31U) | 
 		(op << 21U) | 
 		(Rm << 16U) | 
@@ -444,10 +502,12 @@ static u32 generate_csel(struct argument* a, u32 sf, u32 op, u32 o2) {
 	const u32 Rn = (u32) a[1].value;
 	const u32 Rd = (u32) a[2].value;
 	const u32 cd = (u32) a[3].value;
+
 	check(Rm, 32, a[0], "register");
 	check(Rn, 32, a[1], "register");
 	check(Rd, 32, a[2], "register");
 	check(cd, 16, a[3], "condition");
+
 	return  (sf << 31U) | 
 		(op << 21U) | 
 		(Rm << 16U) | 
@@ -459,27 +519,24 @@ static u32 generate_csel(struct argument* a, u32 sf, u32 op, u32 o2) {
 
 static u32 generate_orr(struct argument* a, u32 sf, u32 ne, u32 op) { 
 
-	const nat Im = 	     a[0].value;
+	const u32 im = load( a[0].value);
 	const u32 sh = (u32) a[1].value;
 	const u32 Rm = (u32) a[2].value;
 	const u32 Rn = (u32) a[3].value;
 	const u32 Rd = (u32) a[4].value;
 
-	check(Im, 32, a[0], "ctregister");
+	check(im, 32U << sf, a[0], "immediate");
 	check(sh, 4,  a[1], "register");
 	check(Rm, 32, a[2], "register");
 	check(Rn, 32, a[3], "register");
 	check(Rd, 32, a[4], "register");
-
-	const nat imm = registers[Im];
-	check(imm, 32U << sf, a[0], "immediate");
 
 	return  (sf << 31U) | 
 		(op << 24U) | 
 		(sh << 22U) | 
 		(ne << 21U) | 
 		(Rm << 16U) | 
-		((u32) imm << 10U) | 
+		(im << 10U) | 
 		(Rn << 5U)  | 
 		 Rd;
 }
@@ -487,8 +544,10 @@ static u32 generate_orr(struct argument* a, u32 sf, u32 ne, u32 op) {
 static u32 generate_abs(struct argument* a, u32 sf, u32 op) {  
 	const u32 Rn = (u32) a[0].value;
 	const u32 Rd = (u32) a[1].value;
+
 	check(Rn, 32, a[0], "register");
 	check(Rd, 32, a[1], "register");
+
 	return  (sf << 31U) | 
 		(op << 10U) | 
 		(Rn << 5U)  | 
@@ -497,37 +556,43 @@ static u32 generate_abs(struct argument* a, u32 sf, u32 op) {
 
 static u32 generate_br(struct argument* a, u32 op) { 
 	const u32 Rn = (u32) a[0].value;
+
 	check(Rn, 32, a[0], "register");
-	return (op << 10U) | (Rn << 5U);
+
+	return  (op << 10U) | 
+		(Rn << 5U);
 }
 
 static u32 generate_b(struct argument* a, uint32_t pc) { 
-	const u32 Im = (u32) a[0].value;
-	check(Im, 32, a[0], "ctregister");
-	const u32 offset = ((uint32_t) registers[Im] - pc);
-	check_branch((int) offset, 1 << 25, a[0], "branch offset");
-	return (0x05 << 26U) | (0x03FFFFFFU & offset);
+	const u32 im = load( a[0].value);
+	const u32 offset = im - pc;
+
+	check_branch((int) offset, 1 << (26 - 1), a[0], "branch offset");
+
+	return  (0x05 << 26U) | 
+		(0x03FFFFFFU & offset);
 }
 
 static u32 generate_bc(struct argument* a, uint32_t pc) { 
-	const u32 Im = (u32) a[0].value;
+	const u32 im = load( a[0].value);
 	const u32 cd = (u32) a[1].value;
-	check(Im, 32, a[0], "ctregister");
-	check(cd, 16, a[1], "condition");
-	const u32 offset = ((uint32_t) registers[Im] - pc);
+	const u32 offset = im - pc;
+
 	check_branch((int) offset, 1 << (19 - 1), a[0], "branch offset");
-	return (0x54U << 24U) | ((0x0007FFFFU & offset) << 5U) | cd;
+	check(cd, 16, a[1], "condition");
+
+	return  (0x54U << 24U) | 
+		((0x0007FFFFU & offset) << 5U) | 
+		cd;
 }
 
 static u32 generate_adr(struct argument* a, u32 op, u32 o2, uint32_t pc) { 
-	const u32 Im = (u32) a[0].value;
+	const u32 im = load( a[0].value);
 	const u32 Rd = (u32) a[1].value;
+	const u32 offset = im - pc;
 
-	check(Im, 32, a[0], "ctregister");
-	check(Rd, 32, a[1], "register");
-
-	const u32 offset = ((uint32_t) registers[Im] - pc);
 	check_branch((int) offset, 1 << (21 - 1), a[0], "pc-relative address");
+	check(Rd, 32, a[1], "register");
 
 	const u32 lo = 0x03U & offset;
 	const u32 hi = 0x07FFFFU & (offset >> 2);
@@ -535,7 +600,7 @@ static u32 generate_adr(struct argument* a, u32 op, u32 o2, uint32_t pc) {
 	return  (o2 << 31U) | 
 		(lo << 29U) | 
 		(op << 24U) | 
-		(hi << 5U) | 
+		(hi << 5U)  | 
 		 Rd;
 }
 
@@ -590,7 +655,7 @@ static void execute(nat op, nat* pc) {
 	else if (op == ctnor)  registers[a2] = ~(registers[a1] | registers[a0]); 
 	else if (op == ctshl)  registers[a2] = registers[a1] << registers[a0]; 
 	else if (op == ctshr)  registers[a2] = registers[a1] >> registers[a0]; 
-	else if (op == ctprint) printf("debug: \033[32m%llu\033[0m\n", registers[a0]); 
+	else if (op == ctprint) printf("debug: \033[32m%llu\033[0m \033[32m0x%llx\033[0m\n", registers[a0], registers[a0]); 
 	else if (op == ctld1)  registers[a1] = *(uint8_t*) registers[a0]; 
 	else if (op == ctld2)  registers[a1] = *(uint16_t*)registers[a0]; 
 	else if (op == ctld4)  registers[a1] = *(uint32_t*)registers[a0]; 
@@ -599,6 +664,7 @@ static void execute(nat op, nat* pc) {
 	else if (op == ctst2)  *(uint16_t*)registers[a1] = (uint16_t) registers[a0]; 
 	else if (op == ctst4)  *(uint32_t*)registers[a1] = (uint32_t) registers[a0]; 
 	else if (op == ctst8)  *(uint64_t*)registers[a1] = (uint64_t) registers[a0]; 
+	else if (op == cthalt) abort();
 	
 	arg_count = 0;
 }
@@ -628,8 +694,8 @@ static void parse(void) {
 			//continue;
 
 
-		for (nat i = 0; i < 32; i++) {
-			char r[5] = {0};
+		for (nat i = 0; i < 16384; i++) {
+			char r[16] = {0};
 			snprintf(r, sizeof r, "%llu", i);
 			if (is(word, count, r)) { 
 				arg.value = i;
@@ -726,7 +792,7 @@ static void make_object_file(void) {
 	segment.cmd = LC_SEGMENT_64;
 	segment.cmdsize = sizeof(struct segment_command_64) + sizeof(struct section_64) * 2;
 	segment.maxprot = (VM_PROT_READ | VM_PROT_WRITE | VM_PROT_EXECUTE);
-	segment.initprot = (VM_PROT_READ | VM_PROT_WRITE | VM_PROT_EXECUTE);		
+	segment.initprot = (VM_PROT_READ | VM_PROT_WRITE | VM_PROT_EXECUTE);
 	segment.nsects = 2;
 	segment.vmaddr = 0;
 	segment.vmsize = byte_count + data_count;
@@ -834,11 +900,11 @@ static void generate_machine_code(void) {
 		const nat op = ins[i].op;
 		struct argument* const a = ins[i].arguments;
 
-		     if (op == svc)    emit(0xD4000001);
-		else if (op == emitd)  emitdata(a);
+		     if (op == emitd)  emit(load(a->value));
+		else if (op == svc)    emit(0xD4000001);
 		else if (op == nop)    emit(0xD503201F);
 		else if (op == cfinv)  emit(0xD500401F);
-
+		
 		else if (op == br)     emit(generate_br(a, 0x3587C0U));
 		else if (op == blr)    emit(generate_br(a, 0x358FC0U));
 		else if (op == b_)     emit(generate_b(a, (u32) i));
@@ -907,9 +973,6 @@ static void generate_machine_code(void) {
 		else if (op == ldtrsbw) emit(generate_stri(a, 0, 0x01C6U, 0x2U));
 		
 		
-
-
-
 		else if (op == adcx)   emit(generate_adc(a, 1, 0x0D0U, 0x00));
 		else if (op == adcw)   emit(generate_adc(a, 0, 0x0D0U, 0x00));
 		else if (op == adcxs)  emit(generate_adc(a, 1, 0x1D0U, 0x00));

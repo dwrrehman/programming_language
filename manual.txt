@@ -1,16 +1,93 @@
 =========================================
-   manual for the arm 64 bit assembler
+   manual for the arm64 assembler
 =========================================
 
+this is a manual for the usage of the built-in instructions in my arm64 assembly programming language.
 
-imm16 sh2 Rd movzx      move zero 64
-imm16 sh2 Rd movzw	move zero 32
+this document examines both the runtime arm isa instructions, as well as the compiletime instructions. 
 
-imm16 sh2 Rd movkx	move keep 64
-imm16 sh2 Rd movkw	move keep 32
 
-imm16 sh2 Rd movnx	move negate 64
-imm16 sh2 Rd movnw	move negate 32
+---------------------------------------------------------
+
+movzx
+
+	usage:
+		imm16 sh2 Rd movzx      
+	descr:
+		move zero 64
+	args:
+		none
+	notes:
+		none
+
+---------------------------------------------------------
+
+movzw
+	usage: 
+		imm16 sh2 Rd movzw
+	descr: 
+		move zero 32
+	args:
+		none
+	notes:
+		none
+
+---------------------------------------------------------
+
+movkx
+	usage:
+		imm16 sh2 Rd movkx
+	descr:
+		move keep 64
+	args:	
+		none
+	notes:
+		none
+
+---------------------------------------------------------
+
+movkw
+	usage:
+		imm16 sh2 Rd movkw
+	descr:
+		move keep 32
+	args:
+		none
+	notes:
+		none
+
+	
+---------------------------------------------------------
+
+movnx
+
+	usage:
+		imm16 sh2 Rd movnx
+	descr:
+		move negate 64
+	args:
+		none
+	notes:
+		none
+
+----------------------------------------------------------
+
+
+movnw
+	usage:
+		imm16 sh2 Rd movnw
+	descr: 
+		move negate 32
+	args:
+		none
+	notes:
+		none
+
+---------------------------------------------------------
+
+
+
+
 
 
 imm16 hw Rd addix	add immediate 64
@@ -135,37 +212,18 @@ rn rd ctst8
 	
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-code:
-
-
-
-
-
-
-	if (op == ctstop) {if (registers[a0] == stop) stop = 0; arg_count = 0; return; }
-	else if (stop) return;
-
-	if (false) {}
 	else if (op == ctat)   registers[a0] = ins_count;
 	else if (op == ctpc)   registers[a0] = *pc;
 	else if (op == ctgoto) *pc = registers[a0]; 
 	else if (op == ctblt)  { if (registers[a1] < registers[a0]) stop = registers[a2]; } 
-	else if (op == ctincr) registers[a0]++; 
-	else if (op == ctzero) registers[a0] = 0; 
+	else if (op == ctbge)  { if (registers[a1] >= registers[a0]) stop = registers[a2]; } 
+	else if (op == ctbeq)  { if (registers[a1] == registers[a0]) stop = registers[a2]; } 
+	else if (op == ctbne)  { if (registers[a1] != registers[a0]) stop = registers[a2]; } 
+	else if (op == ctincr) registers[a0]++;
+	else if (op == ctzero) registers[a0] = 0;
+	else if (op == ctdc)   registers[a0] = data_count;
+	else if (op == cted)   data[data_count++] = (uint8_t) registers[a0];
+	else if (op == cter)   { for (nat i = 0; i < registers[a0]; i++) data[data_count++] = *(uint8_t*) (registers[a1] + i); }
 	else if (op == ctadd)  registers[a2] = registers[a1] + registers[a0]; 
 	else if (op == ctsub)  registers[a2] = registers[a1] - registers[a0]; 
 	else if (op == ctmul)  registers[a2] = registers[a1] * registers[a0]; 
@@ -177,18 +235,195 @@ code:
 	else if (op == ctnor)  registers[a2] = ~(registers[a1] | registers[a0]); 
 	else if (op == ctshl)  registers[a2] = registers[a1] << registers[a0]; 
 	else if (op == ctshr)  registers[a2] = registers[a1] >> registers[a0]; 
-	else if (op == ctprint)  printf("debug: \033[32m%llu\033[0m\n", registers[a0]); 
-
+	else if (op == ctprint) printf("debug: \033[32m%llu\033[0m\n", registers[a0]); 
 	else if (op == ctld1)  registers[a1] = *(uint8_t*) registers[a0]; 
 	else if (op == ctld2)  registers[a1] = *(uint16_t*)registers[a0]; 
 	else if (op == ctld4)  registers[a1] = *(uint32_t*)registers[a0]; 
 	else if (op == ctld8)  registers[a1] = *(uint64_t*)registers[a0]; 
+	else if (op == ctst1)  *(uint8_t*) registers[a1] = (uint8_t)  registers[a0]; 
+	else if (op == ctst2)  *(uint16_t*)registers[a1] = (uint16_t) registers[a0]; 
+	else if (op == ctst4)  *(uint32_t*)registers[a1] = (uint32_t) registers[a0]; 
+	else if (op == ctst8)  *(uint64_t*)registers[a1] = (uint64_t) registers[a0]; 
 
+
+
+
+
+
+
+
+
+
+
+
+
+all instructions:
+-----------------------------------------------------------------------------------------------------------------------------------------------
+
+
+
+
+
+
+
+
+
+enum instruction_type {
+	nop, emitd, svc, cfinv, br, blr, b_, bc, adr, adrp,
+
+	movzx, movzw,	movkx, movkw,	movnx, movnw,
+	addix, addiw,	addhx, addhw,
+	addixs, addiws,	addhxs, addhws,
+
+	maddx, maddw,
+
+	striux, striuw,  ldriux,  ldriuw,  striox, 
+	striow, striex,  striew,  ldriox,  ldriow, 
+	ldriex, ldriew,  ldurx,   ldtrx,   ldurw, 
+	ldtrw,  ldtrsw,  ldtrh,   ldtrshx, ldtrshw, 
+	ldtrb,  ldtrsbx, ldtrsbw, lslvx,   lslvw, 
+	udivx,  udivw,   umaxx,   umaxw,   uminx, 
+	uminw,  umaddlx, umaddlw, msubx,   msubw, 
+
+	adcx, adcw, 	adcxs, adcws, 
+	asrvx, asrvw, 
+	
+	cselx, cselw, 	csincx, csincw, 
+	csinvx, csinvw, csnegx, csnegw, 
+
+	orrx, orrw,	ornx, ornw, 
+	addx, addw, 	addxs, addws,
+	subx, subw, 	subxs, subws,
+
+	ld64b, 	st64b,	absx, absw, 
+	clsx, 	clsw,	clzx, clzw,	ctzx, ctzw,	cntx, cntw,    
+	rbitx, 	rbitw,	revx, revw,  	revhx, revhw,
+
+
+	ctnop, ctzero, ctincr, cted, ctdc, cter, 
+	ctadd, ctsub, ctmul, ctdiv, ctrem,
+	ctnor, ctxor, ctor, ctand, ctshl, ctshr, ctprint, 
+	ctld1, ctld2, ctld4, ctld8, ctst1, ctst2, ctst4, ctst8,
+	ctat, ctpc, ctblt, ctbge, ctbeq, ctbne, ctgoto, ctstop,
+
+	instruction_set_count
+};
+
+static const char* instruction_spelling[instruction_set_count] = {
+	"nop", "emitd", "svc", "cfinv", "br", "blr", "b", "bc", "adr", "adrp",
+
+	"movzx", "movzw", "movkx", "movkw",	"movnx", "movnw",
+	"addix", "addiw", "addhx", "addhw",
+	"addixs", "addiws", "addhxs", "addhws",
+
+	"maddx", "maddw",
+
+	"striux", "striuw",  "ldriux",  "ldriuw",  "striox", 
+	"striow", "striex",  "striew",  "ldriox",  "ldriow", 
+	"ldriex", "ldriew",  "ldurx",   "ldtrx",   "ldurw", 
+	"ldtrw",  "ldtrsw",  "ldtrh",   "ldtrshx", "ldtrshw", 
+	"ldtrb",  "ldtrsbx", "ldtrsbw", "lslvx",   "lslvw", 
+	"udivx",  "udivw",   "umaxx",   "umaxw",   "uminx", 
+	"uminw",  "umaddlx", "umaddlw", "msubx",   "msubw", 
+
+	"adcx", "adcw", "adcxs", "adcws", 
+	"asrvx", "asrvw", 
+
+	"cselx", "cselw", 	"csincx", "csincw", 
+	"csinvx", "csinvw", 	"csnegx", "csnegw",
+
+	"orrx", "orrw",	"ornx", "ornw", 
+	"addx", "addw", "addxs", "addws",
+	"subx", "subw", "subxs", "subws",
+
+	"ld64b", "st64b", "absx", "absw",
+	"clsx", "clsw",	"clzx", "clzw",	"ctzx", "ctzw",	"cntx", "cntw",
+	"rbitx", "rbitw", "revx", "revw", "revhx", "revhw",
+
+	"ctnop", "ctzero", "ctincr", "cted", "ctdc", "cter",
+	"ctadd", "ctsub", "ctmul", "ctdiv", "ctrem",
+	"ctnor", "ctxor", "ctor", "ctand", "ctshl", "ctshr", "ctprint",
+	"ctld1", "ctld2", "ctld4", "ctld8", "ctst1", "ctst2", "ctst4", "ctst8",
+	"ctat", "ctpc", "ctblt", "ctbge", "ctbeq", "ctbne", "ctgoto", "ctstop",
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+static void execute(nat op, nat* pc) {
+	const nat a0 = arguments[0].value;
+	const nat a1 = arguments[1].value;
+	const nat a2 = arguments[2].value;
+
+	if (op == ctstop) {if (registers[a0] == stop) stop = 0; arg_count = 0; return; }
+	else if (stop) return;
+
+	if (op == ctnop) {}
+	else if (op == ctat)   registers[a0] = ins_count;
+	else if (op == ctpc)   registers[a0] = *pc;
+	else if (op == ctgoto) *pc = registers[a0]; 
+	else if (op == ctblt)  { if (registers[a1] < registers[a0]) stop = registers[a2]; } 
+	else if (op == ctbge)  { if (registers[a1] >= registers[a0]) stop = registers[a2]; } 
+	else if (op == ctbeq)  { if (registers[a1] == registers[a0]) stop = registers[a2]; } 
+	else if (op == ctbne)  { if (registers[a1] != registers[a0]) stop = registers[a2]; } 
+	else if (op == ctincr) registers[a0]++;
+	else if (op == ctzero) registers[a0] = 0;
+	else if (op == ctdc)   registers[a0] = data_count;
+	else if (op == cted)   data[data_count++] = (uint8_t) registers[a0];
+	else if (op == cter)   { for (nat i = 0; i < registers[a0]; i++) data[data_count++] = *(uint8_t*) (registers[a1] + i); }
+	else if (op == ctadd)  registers[a2] = registers[a1] + registers[a0]; 
+	else if (op == ctsub)  registers[a2] = registers[a1] - registers[a0]; 
+	else if (op == ctmul)  registers[a2] = registers[a1] * registers[a0]; 
+	else if (op == ctdiv)  registers[a2] = registers[a1] / registers[a0]; 
+	else if (op == ctrem)  registers[a2] = registers[a1] % registers[a0]; 
+	else if (op == ctxor)  registers[a2] = registers[a1] ^ registers[a0]; 
+	else if (op == ctor)   registers[a2] = registers[a1] | registers[a0]; 
+	else if (op == ctand)  registers[a2] = registers[a1] & registers[a0]; 
+	else if (op == ctnor)  registers[a2] = ~(registers[a1] | registers[a0]); 
+	else if (op == ctshl)  registers[a2] = registers[a1] << registers[a0]; 
+	else if (op == ctshr)  registers[a2] = registers[a1] >> registers[a0]; 
+	else if (op == ctprint) printf("debug: \033[32m%llu\033[0m\n", registers[a0]); 
+	else if (op == ctld1)  registers[a1] = *(uint8_t*) registers[a0]; 
+	else if (op == ctld2)  registers[a1] = *(uint16_t*)registers[a0]; 
+	else if (op == ctld4)  registers[a1] = *(uint32_t*)registers[a0]; 
+	else if (op == ctld8)  registers[a1] = *(uint64_t*)registers[a0]; 
 	else if (op == ctst1)  *(uint8_t*) registers[a1] = (uint8_t)  registers[a0]; 
 	else if (op == ctst2)  *(uint16_t*)registers[a1] = (uint16_t) registers[a0]; 
 	else if (op == ctst4)  *(uint32_t*)registers[a1] = (uint32_t) registers[a0]; 
 	else if (op == ctst8)  *(uint64_t*)registers[a1] = (uint64_t) registers[a0]; 
 	
+	arg_count = 0;
+}
 
 
 
@@ -199,6 +434,235 @@ code:
 
 
 
+static void check(nat r, nat c, const struct argument a, const char* type) {
+	if (r < c) return;
+	char reason[4096] = {0};
+	snprintf(reason, sizeof reason, "invalid %s argument %llu (%llu >= %llu)", type, r, r, c);
+	print_error(reason, a.start, a.count); 
+	exit(1);
+}
+
+static void check_branch(int r, int c, const struct argument a, const char* type) {
+	if (r > -c or r < c) return;
+	char reason[4096] = {0};
+	snprintf(reason, sizeof reason, "invalid %s argument %d (%d <= %d or %d >= %d)", type, r, r, c, r, c);
+	print_error(reason, a.start, a.count); 
+	exit(1);
+}
+
+static void emitdata(struct argument* a) {
+	const nat Im = (u32) a[0].value;
+	check(Im, 32, a[0], "ctregister");
+	emit((u32) registers[Im]);
+}
+
+static u32 generate_mov(struct argument* a, u32 sf, u32 op) { 
+	const nat Im = a[0].value;
+	const u32 hw = (u32) a[1].value;
+	const u32 Rd = (u32) a[2].value;
+	check(Im, 32, a[0], "ctregister");
+	check(hw, 4,  a[1], "register");
+	check(Rd, 32, a[2], "register");
+	const nat imm = registers[Im];
+	check(imm, 65536, a[0], "immediate");
+	return  (sf << 31U) | 
+		(op << 23U) | 
+		(hw << 21U) | 
+		((u32) imm << 5U) | 
+		 Rd;
+}
+
+static u32 generate_addi(struct argument* a, u32 sf, u32 sh, u32 op) { 
+	const nat Im = a[0].value;
+	const u32 Rn = (u32) a[1].value;
+	const u32 Rd = (u32) a[2].value;
+	check(Rn, 32, a[1], "register");
+	check(Rd, 32, a[2], "register");
+	check(Im, 32, a[0], "ctregister");
+	const nat imm = registers[Im];
+	check(imm, 1 << 12U, a[0], "immediate");
+	return  (sf << 31U) | 
+		(op << 23U) | 
+		(sh << 22U) | 
+		((u32) imm << 10U) | 
+		(Rn << 5U)  | 
+		 Rd;
+}
+
+static u32 generate_stri(struct argument* a, u32 si, u32 op, u32 o2) {
+	
+	const nat Im = a[0].value;
+	const u32 Rn = (u32) a[1].value;
+	const u32 Rt = (u32) a[2].value;
+
+	check(Im, 32, a[0], "ctregister");
+	check(Rn, 32, a[1], "register");
+	check(Rt, 32, a[2], "register");
+	
+	const nat imm = registers[Im];
+	check(imm, 1 << 9U, a[0], "immediate");
+
+	return  (si << 30U) | 
+		(op << 21U) | 
+		((u32) imm << 12U) | 
+		(o2 << 10U) |
+		(Rn << 5U)  | 
+		 Rt;
+}
+
+
+static u32 generate_striu(struct argument* a, u32 si, u32 op) {
+	
+	const nat Im = a[0].value;
+	const u32 Rn = (u32) a[1].value;
+	const u32 Rt = (u32) a[2].value;
+
+	check(Im, 32, a[0], "ctregister");
+	check(Rn, 32, a[1], "register");
+	check(Rt, 32, a[2], "register");
+	
+	const nat imm = registers[Im];
+	check(imm, 1 << 12U, a[0], "immediate");
+
+	return  (si << 30U) | 
+		(op << 21U) | 
+		((u32) imm << 10U) | 
+		(Rn << 5U)  | 
+		 Rt;
+}
+
+static u32 generate_adc(struct argument* a, u32 sf, u32 op, u32 o2) {  
+	const u32 Rm = (u32) a[0].value;
+	const u32 Rn = (u32) a[1].value;
+	const u32 Rd = (u32) a[2].value;
+	check(Rm, 32, a[0], "register");
+	check(Rn, 32, a[1], "register");
+	check(Rd, 32, a[2], "register");
+	return  (sf << 31U) | 
+		(op << 21U) | 
+		(Rm << 16U) | 
+		(o2 << 10U) | 
+		(Rn << 5U)  | 
+		 Rd;
+}
+
+static u32 generate_madd(struct argument* a, u32 sf, u32 op, u32 o2) {  
+	const u32 Ra = (u32) a[0].value;
+	const u32 Rm = (u32) a[1].value;
+	const u32 Rn = (u32) a[2].value;
+	const u32 Rd = (u32) a[3].value;
+	check(Ra, 32, a[0], "register-z");
+	check(Rm, 32, a[1], "register");
+	check(Rn, 32, a[2], "register");
+	check(Rd, 32, a[3], "register");
+	return  (sf << 31U) | 
+		(op << 21U) | 
+		(Rm << 16U) | 
+		(o2 << 15U) |
+		(Ra << 10U) | 
+		(Rn << 5U)  | 
+		 Rd;
+}
+
+static u32 generate_csel(struct argument* a, u32 sf, u32 op, u32 o2) {  
+	const u32 Rm = (u32) a[0].value;
+	const u32 Rn = (u32) a[1].value;
+	const u32 Rd = (u32) a[2].value;
+	const u32 cd = (u32) a[3].value;
+	check(Rm, 32, a[0], "register");
+	check(Rn, 32, a[1], "register");
+	check(Rd, 32, a[2], "register");
+	check(cd, 16, a[3], "condition");
+	return  (sf << 31U) | 
+		(op << 21U) | 
+		(Rm << 16U) | 
+		(cd << 12U) | 
+		(o2 << 10U) | 
+		(Rn << 5U)  | 
+		 Rd;
+}
+
+static u32 generate_orr(struct argument* a, u32 sf, u32 ne, u32 op) { 
+
+	const nat Im = 	     a[0].value;
+	const u32 sh = (u32) a[1].value;
+	const u32 Rm = (u32) a[2].value;
+	const u32 Rn = (u32) a[3].value;
+	const u32 Rd = (u32) a[4].value;
+
+	check(Im, 32, a[0], "ctregister");
+	check(sh, 4,  a[1], "register");
+	check(Rm, 32, a[2], "register");
+	check(Rn, 32, a[3], "register");
+	check(Rd, 32, a[4], "register");
+
+	const nat imm = registers[Im];
+	check(imm, 32U << sf, a[0], "immediate");
+
+	return  (sf << 31U) | 
+		(op << 24U) | 
+		(sh << 22U) | 
+		(ne << 21U) | 
+		(Rm << 16U) | 
+		((u32) imm << 10U) | 
+		(Rn << 5U)  | 
+		 Rd;
+}
+
+static u32 generate_abs(struct argument* a, u32 sf, u32 op) {  
+	const u32 Rn = (u32) a[0].value;
+	const u32 Rd = (u32) a[1].value;
+	check(Rn, 32, a[0], "register");
+	check(Rd, 32, a[1], "register");
+	return  (sf << 31U) | 
+		(op << 10U) | 
+		(Rn << 5U)  | 
+		 Rd;
+}
+
+static u32 generate_br(struct argument* a, u32 op) { 
+	const u32 Rn = (u32) a[0].value;
+	check(Rn, 32, a[0], "register");
+	return (op << 10U) | (Rn << 5U);
+}
+
+static u32 generate_b(struct argument* a, uint32_t pc) { 
+	const u32 Im = (u32) a[0].value;
+	check(Im, 32, a[0], "ctregister");
+	const u32 offset = ((uint32_t) registers[Im] - pc);
+	check_branch((int) offset, 1 << 25, a[0], "branch offset");
+	return (0x05 << 26U) | (0x03FFFFFFU & offset);
+}
+
+static u32 generate_bc(struct argument* a, uint32_t pc) { 
+	const u32 Im = (u32) a[0].value;
+	const u32 cd = (u32) a[1].value;
+	check(Im, 32, a[0], "ctregister");
+	check(cd, 16, a[1], "condition");
+	const u32 offset = ((uint32_t) registers[Im] - pc);
+	check_branch((int) offset, 1 << (19 - 1), a[0], "branch offset");
+	return (0x54U << 24U) | ((0x0007FFFFU & offset) << 5U) | cd;
+}
+
+static u32 generate_adr(struct argument* a, u32 op, u32 o2, uint32_t pc) { 
+	const u32 Im = (u32) a[0].value;
+	const u32 Rd = (u32) a[1].value;
+
+	check(Im, 32, a[0], "ctregister");
+	check(Rd, 32, a[1], "register");
+
+	const u32 offset = ((uint32_t) registers[Im] - pc);
+	check_branch((int) offset, 1 << (21 - 1), a[0], "pc-relative address");
+
+	const u32 lo = 0x03U & offset;
+	const u32 hi = 0x07FFFFU & (offset >> 2);
+	
+	return  (o2 << 31U) | 
+		(lo << 29U) | 
+		(op << 24U) | 
+		(hi << 5U) | 
+		 Rd;
+}
 
 
 
@@ -207,19 +671,18 @@ code:
 
 
 
-
-
-static void generate(void) {
-
-	for (nat i = 0; i < ins_count; i++) {
-
-		const nat op = ins[i].op;
-		struct argument* const a = ins[i].arguments;
 
 		     if (op == svc)    emit(0xD4000001);
+		else if (op == emitd)  emitdata(a);
 		else if (op == nop)    emit(0xD503201F);
 		else if (op == cfinv)  emit(0xD500401F);
-		else if (op == br)     emit(generate_br(a));
+
+		else if (op == br)     emit(generate_br(a, 0x3587C0U));
+		else if (op == blr)    emit(generate_br(a, 0x358FC0U));
+		else if (op == b_)     emit(generate_b(a, (u32) i));
+		else if (op == bc)     emit(generate_bc(a, (u32) i));
+		else if (op == adr)    emit(generate_adr(a, 0x10U, 0, (u32) i));
+		else if (op == adrp)   emit(generate_adr(a, 0x10U, 1, (u32) i));
 
 		else if (op == absx)   emit(generate_abs(a, 1, 0x16B008U));
 		else if (op == absw)   emit(generate_abs(a, 0, 0x16B008U));
@@ -256,16 +719,63 @@ static void generate(void) {
 		else if (op == addhxs) emit(generate_addi(a, 1, 1, 0x62U));
 		else if (op == addhws) emit(generate_addi(a, 0, 1, 0x62U));
 
+		else if (op == striux)  emit(generate_striu(a, 3, 0xE4U));
+		else if (op == striuw)  emit(generate_striu(a, 2, 0xE4U));
+		else if (op == ldriux)  emit(generate_striu(a, 3, 0x1C2U));
+		else if (op == ldriuw)  emit(generate_striu(a, 2, 0x1C2U));
+
+		else if (op == striox)  emit(generate_stri(a, 3, 0x01C0U, 0x1U));
+		else if (op == striow)  emit(generate_stri(a, 2, 0x01C0U, 0x1U));
+		else if (op == striex)  emit(generate_stri(a, 3, 0x01C0U, 0x3U));
+		else if (op == striew)  emit(generate_stri(a, 2, 0x01C0U, 0x3U));
+		else if (op == ldriox)  emit(generate_stri(a, 3, 0x01C2U, 0x1U));
+		else if (op == ldriow)  emit(generate_stri(a, 2, 0x01C2U, 0x1U));
+		else if (op == ldriex)  emit(generate_stri(a, 3, 0x01C2U, 0x3U));
+		else if (op == ldriew)  emit(generate_stri(a, 2, 0x01C2U, 0x3U));
+		else if (op == ldurx)   emit(generate_stri(a, 3, 0x01C2U, 0x0U));
+		else if (op == ldtrx)   emit(generate_stri(a, 3, 0x01C2U, 0x2U));
+		else if (op == ldurw)   emit(generate_stri(a, 2, 0x01C2U, 0x0U));
+		else if (op == ldtrw)   emit(generate_stri(a, 2, 0x01C2U, 0x2U));
+		else if (op == ldtrsw)  emit(generate_stri(a, 2, 0x01C4U, 0x2U));
+		else if (op == ldtrh)   emit(generate_stri(a, 1, 0x01C2U, 0x2U));
+		else if (op == ldtrshx) emit(generate_stri(a, 1, 0x01C4U, 0x2U));
+		else if (op == ldtrshw) emit(generate_stri(a, 1, 0x01C6U, 0x2U));
+		else if (op == ldtrb)   emit(generate_stri(a, 0, 0x01C2U, 0x2U));
+		else if (op == ldtrsbx) emit(generate_stri(a, 0, 0x01C4U, 0x2U));
+		else if (op == ldtrsbw) emit(generate_stri(a, 0, 0x01C6U, 0x2U));
+		
+		
 		else if (op == adcx)   emit(generate_adc(a, 1, 0x0D0U, 0x00));
 		else if (op == adcw)   emit(generate_adc(a, 0, 0x0D0U, 0x00));
 		else if (op == adcxs)  emit(generate_adc(a, 1, 0x1D0U, 0x00));
 		else if (op == adcws)  emit(generate_adc(a, 0, 0x1D0U, 0x00));
 		else if (op == asrvx)  emit(generate_adc(a, 1, 0x0D6U, 0x0A));
 		else if (op == asrvw)  emit(generate_adc(a, 0, 0x0D6U, 0x0A));
+		else if (op == lslvx)  emit(generate_adc(a, 1, 0x0D6U, 0x08));
+		else if (op == lslvw)  emit(generate_adc(a, 0, 0x0D6U, 0x08));
+		else if (op == udivx)  emit(generate_adc(a, 1, 0x0D6U, 0x02));
+		else if (op == udivw)  emit(generate_adc(a, 0, 0x0D6U, 0x02));
+		else if (op == umaxx)  emit(generate_adc(a, 1, 0x0D6U, 0x19));
+		else if (op == umaxw)  emit(generate_adc(a, 0, 0x0D6U, 0x19));
+		else if (op == uminx)  emit(generate_adc(a, 1, 0x0D6U, 0x1B));
+		else if (op == uminw)  emit(generate_adc(a, 0, 0x0D6U, 0x1B));
 
-		//else if (op == cselx)  emit(generate_adc(a, 0, 0x0D6U, 0x0A));
-		//else if (op == cselx)  emit(generate_adc(a, 0, 0x0D6U, 0x0A));
+		else if (op == maddx)   emit(generate_madd(a, 1, 0x0D8, 0));
+		else if (op == maddw)   emit(generate_madd(a, 0, 0x0D8, 0));
+		else if (op == umaddlx) emit(generate_madd(a, 1, 0x0DD, 0));
+		else if (op == umaddlw) emit(generate_madd(a, 1, 0x0DD, 0));
+		else if (op == msubx)   emit(generate_madd(a, 1, 0x0D8, 1));
+		else if (op == msubw)   emit(generate_madd(a, 0, 0x0D8, 1));
 
+		else if (op == cselx)   emit(generate_csel(a, 1, 0x0D4U, 0));
+		else if (op == cselw)   emit(generate_csel(a, 0, 0x0D4U, 0));
+		else if (op == csincx)  emit(generate_csel(a, 1, 0x0D4U, 1));
+		else if (op == csincw)  emit(generate_csel(a, 0, 0x0D4U, 1));
+		else if (op == csinvx)  emit(generate_csel(a, 1, 0x2D4U, 0));
+		else if (op == csinvw)  emit(generate_csel(a, 0, 0x2D4U, 0));
+		else if (op == csnegx)  emit(generate_csel(a, 1, 0x2D4U, 1));
+		else if (op == csnegw)  emit(generate_csel(a, 0, 0x2D4U, 1));
+		
 		else if (op == orrx)   emit(generate_orr(a, 1, 0, 0x2AU));
 		else if (op == orrw)   emit(generate_orr(a, 0, 0, 0x2AU));
 		else if (op == ornx)   emit(generate_orr(a, 1, 1, 0x2AU));
@@ -278,13 +788,12 @@ static void generate(void) {
 		else if (op == subw)   emit(generate_orr(a, 0, 0, 0x4BU));
 		else if (op == subxs)  emit(generate_orr(a, 1, 0, 0x6BU));
 		else if (op == subws)  emit(generate_orr(a, 0, 0, 0x6BU));
-		else {
-			printf("error: unknown instruction: %llu\n", op);
-			printf("       unknown instruction: %s\n", instruction_spelling[op]);
-			abort();
-		}
-	}
-}
+
+
+
+
+
+
 
 
 
