@@ -3,7 +3,17 @@
 0 ctzero 
 1 ctzero ctincr 
 4 ctzero ctincr ctincr ctincr ctincr
-10 ctzero ctincr ctincr ctincr ctincr ctincr ctincr ctincr ctincr ctincr ctincr
+
+10  ctzero 
+
+	ctincr ctincr ctincr 
+	ctincr ctincr ctincr 
+	ctincr ctincr ctincr 
+	ctincr
+
+
+
+
 
 4 1 5 ctshl
 4 5 5 ctshl
@@ -27,6 +37,15 @@
 0 0 0 3 csnegw
 
 
+0 0 0 0 adr
+
+0 0 0 0 adrp
+
+
+
+
+
+
 10 cted 
 10 cted
 25 ctdc
@@ -36,7 +55,7 @@
 
 25 ctprint
 
-cfinv
+t cfinv t
 
 20 2 bc
 5 0 17 movzx

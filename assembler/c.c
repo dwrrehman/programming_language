@@ -14,34 +14,84 @@
 typedef uint64_t nat;
 typedef uint32_t u32;
 /*
+
+
+
+==============================================
+
+	open major issues:
+
+		- we only have 32 ctregisters to use to give labels to statements.   bad. 
+			...we should have an unlimited amount of them.  plz. 
+
+
+		- 
+
+
+
+==============================================
+
+
+
+
+
+
+
 	todo:
 
-		- implement a .js backend!   for web stuff. 
+	x	- implement a .js backend!   for web stuff.      [actually, no. do this later]
 
 
 
 
+
+	usability:
+	=======================================
 		- implement macros fully 
 		- implement aliases fully 
 
+
+
+	COMPILE TIME STUFF:
+	=======================================
 	x	- add a ctnop instruction!!!! very useful for argument stuff. and generally useful.
 
+
+
 		- add ctmalloc to the ct instructions! 
+
 		- add more ct branches. at least cteq, ctge     (b/f versions!)	
+
 		- add a ctsyscall instruction!
 
 		- add emitctbyterange   rt instruction, for generating the data section!
 
-		- work on generating the .data segment/section, and other bss/data sections. 
 
+	OBJECT FILE STUFF 
+	=======================================
+	x	- work on generating the .data segment/section, 
+		- and other bss/data sections. 
+
+
+
+	ARM64 ISA RUNTIME STUFF 
+	=======================================
 		- add more rt instructions to make the language actually usable:
-			- shift left ins
-			- mul ins
-			- div ins
-			- rem ins
-			- store and load instructions!!!!!!!!!!!!!!!!!
-			- adr, adrp
 
+		x	- shift left ins
+		x	- mul ins
+		x	- div ins
+		x	- rem ins
+		x	- store ins!
+		x	- load ins!
+		x	- adr
+		x	- adrp
+
+
+
+
+	DOCUMENATION STUFF
+	=======================================
 
 		- document the meaning of each argument for each ct/rt instruction more, 
 				also accoridng to the arm isa ref manual!
@@ -52,19 +102,27 @@ typedef uint32_t u32;
 
 */
 enum instruction_type {
-	nop, emitd, svc, cfinv, br, b_, bc, 
+	nop, emitd, svc, cfinv, br, blr, b_, bc, adr, adrp,
 
 	movzx, movzw,	movkx, movkw,	movnx, movnw,
 	addix, addiw,	addhx, addhw,
 	addixs, addiws,	addhxs, addhws,
+
+	maddx, maddw,
+
+	striux, striuw,  ldriux,  ldriuw,  striox, 
+	striow, striex,  striew,  ldriox,  ldriow, 
+	ldriex, ldriew,  ldurx,   ldtrx,   ldurw, 
+	ldtrw,  ldtrsw,  ldtrh,   ldtrshx, ldtrshw, 
+	ldtrb,  ldtrsbx, ldtrsbw, lslvx,   lslvw, 
+	udivx,  udivw,   umaxx,   umaxw,   uminx, 
+	uminw,  umaddlx, umaddlw, msubx,   msubw, 
 
 	adcx, adcw, 	adcxs, adcws, 
 	asrvx, asrvw, 
 	
 	cselx, cselw, 	csincx, csincw, 
 	csinvx, csinvw, csnegx, csnegw, 
-
-	adr,
 
 	orrx, orrw,	ornx, ornw, 
 	addx, addw, 	addxs, addws,
@@ -74,29 +132,38 @@ enum instruction_type {
 	clsx, 	clsw,	clzx, clzw,	ctzx, ctzw,	cntx, cntw,    
 	rbitx, 	rbitw,	revx, revw,  	revhx, revhw,
 
-	ctnop, ctzero, ctincr, cted, ctdc,
+
+	ctnop, ctzero, ctincr, cted, ctdc, cter, 
 	ctadd, ctsub, ctmul, ctdiv, ctrem,
 	ctnor, ctxor, ctor, ctand, ctshl, ctshr, ctprint, 
 	ctld1, ctld2, ctld4, ctld8, ctst1, ctst2, ctst4, ctst8,
-	ctat, ctpc, ctblt, ctgoto, ctstop,
+	ctat, ctpc, ctblt, ctbge, ctbeq, ctbne, ctgoto, ctstop,
 
 	instruction_set_count
 };
 
 static const char* instruction_spelling[instruction_set_count] = {
-	"nop", "emitd", "svc", "cfinv", "br", "b", "bc", 
+	"nop", "emitd", "svc", "cfinv", "br", "blr", "b", "bc", "adr", "adrp",
 
 	"movzx", "movzw", "movkx", "movkw",	"movnx", "movnw",
 	"addix", "addiw", "addhx", "addhw",
 	"addixs", "addiws", "addhxs", "addhws",
 
+	"maddx", "maddw",
+
+	"striux", "striuw",  "ldriux",  "ldriuw",  "striox", 
+	"striow", "striex",  "striew",  "ldriox",  "ldriow", 
+	"ldriex", "ldriew",  "ldurx",   "ldtrx",   "ldurw", 
+	"ldtrw",  "ldtrsw",  "ldtrh",   "ldtrshx", "ldtrshw", 
+	"ldtrb",  "ldtrsbx", "ldtrsbw", "lslvx",   "lslvw", 
+	"udivx",  "udivw",   "umaxx",   "umaxw",   "uminx", 
+	"uminw",  "umaddlx", "umaddlw", "msubx",   "msubw", 
+
 	"adcx", "adcw", "adcxs", "adcws", 
 	"asrvx", "asrvw", 
 
 	"cselx", "cselw", 	"csincx", "csincw", 
-	"csinvx", "csinvw", 	"csnegx", "csnegw", 
-
-	"adr",
+	"csinvx", "csinvw", 	"csnegx", "csnegw",
 
 	"orrx", "orrw",	"ornx", "ornw", 
 	"addx", "addw", "addxs", "addws",
@@ -106,11 +173,11 @@ static const char* instruction_spelling[instruction_set_count] = {
 	"clsx", "clsw",	"clzx", "clzw",	"ctzx", "ctzw",	"cntx", "cntw",
 	"rbitx", "rbitw", "revx", "revw", "revhx", "revhw",
 
-	"ctnop", "ctzero", "ctincr", "cted", "ctdc",
+	"ctnop", "ctzero", "ctincr", "cted", "ctdc", "cter",
 	"ctadd", "ctsub", "ctmul", "ctdiv", "ctrem",
 	"ctnor", "ctxor", "ctor", "ctand", "ctshl", "ctshr", "ctprint",
 	"ctld1", "ctld2", "ctld4", "ctld8", "ctst1", "ctst2", "ctst4", "ctst8",
-	"ctat", "ctpc", "ctblt", "ctgoto", "ctstop",
+	"ctat", "ctpc", "ctblt", "ctbge", "ctbeq", "ctbne", "ctgoto", "ctstop",
 };
 
 struct word {
@@ -134,7 +201,6 @@ struct instruction {
 	struct argument arguments[6];
 };
 
-
 static nat ins_count = 0;
 static struct instruction ins[4096] = {0};
 
@@ -144,8 +210,8 @@ static struct word words[4096] = {0};
 static nat byte_count = 0;
 static uint8_t bytes[4096] = {0};
 
-static nat data_count = 4;
-static uint8_t data[4096] = {0xDE, 0xAD, 0xBE, 0xEF};
+static nat data_count = 0;
+static uint8_t data[4096] = {0}; 			// for testing: 0xDE, 0xAD, 0xBE, 0xEF
 
 static nat text_length = 0;
 static char* text = NULL;
@@ -287,6 +353,48 @@ static u32 generate_addi(struct argument* a, u32 sf, u32 sh, u32 op) {
 		 Rd;
 }
 
+static u32 generate_stri(struct argument* a, u32 si, u32 op, u32 o2) {
+	
+	const nat Im = a[0].value;
+	const u32 Rn = (u32) a[1].value;
+	const u32 Rt = (u32) a[2].value;
+
+	check(Im, 32, a[0], "ctregister");
+	check(Rn, 32, a[1], "register");
+	check(Rt, 32, a[2], "register");
+	
+	const nat imm = registers[Im];
+	check(imm, 1 << 9U, a[0], "immediate");
+
+	return  (si << 30U) | 
+		(op << 21U) | 
+		((u32) imm << 12U) | 
+		(o2 << 10U) |
+		(Rn << 5U)  | 
+		 Rt;
+}
+
+
+static u32 generate_striu(struct argument* a, u32 si, u32 op) {
+	
+	const nat Im = a[0].value;
+	const u32 Rn = (u32) a[1].value;
+	const u32 Rt = (u32) a[2].value;
+
+	check(Im, 32, a[0], "ctregister");
+	check(Rn, 32, a[1], "register");
+	check(Rt, 32, a[2], "register");
+	
+	const nat imm = registers[Im];
+	check(imm, 1 << 12U, a[0], "immediate");
+
+	return  (si << 30U) | 
+		(op << 21U) | 
+		((u32) imm << 10U) | 
+		(Rn << 5U)  | 
+		 Rt;
+}
+
 static u32 generate_adc(struct argument* a, u32 sf, u32 op, u32 o2) {  
 	const u32 Rm = (u32) a[0].value;
 	const u32 Rn = (u32) a[1].value;
@@ -298,6 +406,24 @@ static u32 generate_adc(struct argument* a, u32 sf, u32 op, u32 o2) {
 		(op << 21U) | 
 		(Rm << 16U) | 
 		(o2 << 10U) | 
+		(Rn << 5U)  | 
+		 Rd;
+}
+
+static u32 generate_madd(struct argument* a, u32 sf, u32 op, u32 o2) {  
+	const u32 Ra = (u32) a[0].value;
+	const u32 Rm = (u32) a[1].value;
+	const u32 Rn = (u32) a[2].value;
+	const u32 Rd = (u32) a[3].value;
+	check(Ra, 32, a[0], "register-z");
+	check(Rm, 32, a[1], "register");
+	check(Rn, 32, a[2], "register");
+	check(Rd, 32, a[3], "register");
+	return  (sf << 31U) | 
+		(op << 21U) | 
+		(Rm << 16U) | 
+		(o2 << 15U) |
+		(Ra << 10U) | 
 		(Rn << 5U)  | 
 		 Rd;
 }
@@ -347,10 +473,21 @@ static u32 generate_orr(struct argument* a, u32 sf, u32 ne, u32 op) {
 		 Rd;
 }
 
-static u32 generate_br(struct argument* a) { 
+static u32 generate_abs(struct argument* a, u32 sf, u32 op) {  
+	const u32 Rn = (u32) a[0].value;
+	const u32 Rd = (u32) a[1].value;
+	check(Rn, 32, a[0], "register");
+	check(Rd, 32, a[1], "register");
+	return  (sf << 31U) | 
+		(op << 10U) | 
+		(Rn << 5U)  | 
+		 Rd;
+}
+
+static u32 generate_br(struct argument* a, u32 op) { 
 	const u32 Rn = (u32) a[0].value;
 	check(Rn, 32, a[0], "register");
-	return (0x3587C0U << 10U) | (Rn << 5U);
+	return (op << 10U) | (Rn << 5U);
 }
 
 static u32 generate_b(struct argument* a, uint32_t pc) { 
@@ -367,20 +504,33 @@ static u32 generate_bc(struct argument* a, uint32_t pc) {
 	check(Im, 32, a[0], "ctregister");
 	check(cd, 16, a[1], "condition");
 	const u32 offset = ((uint32_t) registers[Im] - pc);
-	check_branch((int) offset, 1 << 18, a[0], "branch offset");
+	check_branch((int) offset, 1 << (19 - 1), a[0], "branch offset");
 	return (0x54U << 24U) | ((0x0007FFFFU & offset) << 5U) | cd;
 }
 
-static u32 generate_abs(struct argument* a, u32 sf, u32 op) {  
-	const u32 Rn = (u32) a[0].value;
+static u32 generate_adr(struct argument* a, u32 op, u32 o2, uint32_t pc) { 
+	const u32 Im = (u32) a[0].value;
 	const u32 Rd = (u32) a[1].value;
-	check(Rn, 32, a[0], "register");
+
+	check(Im, 32, a[0], "ctregister");
 	check(Rd, 32, a[1], "register");
-	return  (sf << 31U) | 
-		(op << 10U) | 
-		(Rn << 5U)  | 
+
+	const u32 offset = ((uint32_t) registers[Im] - pc);
+	check_branch((int) offset, 1 << (21 - 1), a[0], "pc-relative address");
+
+	const u32 lo = 0x03U & offset;
+	const u32 hi = 0x07FFFFU & (offset >> 2);
+	
+	return  (o2 << 31U) | 
+		(lo << 29U) | 
+		(op << 24U) | 
+		(hi << 5U) | 
 		 Rd;
 }
+
+
+
+
 
 static void dump_hex(uint8_t* local_bytes, nat local_byte_count) {
 	printf("dumping hex bytes: (%llu)\n", local_byte_count);
@@ -413,10 +563,14 @@ static void execute(nat op, nat* pc) {
 	else if (op == ctpc)   registers[a0] = *pc;
 	else if (op == ctgoto) *pc = registers[a0]; 
 	else if (op == ctblt)  { if (registers[a1] < registers[a0]) stop = registers[a2]; } 
+	else if (op == ctbge)  { if (registers[a1] >= registers[a0]) stop = registers[a2]; } 
+	else if (op == ctbeq)  { if (registers[a1] == registers[a0]) stop = registers[a2]; } 
+	else if (op == ctbne)  { if (registers[a1] != registers[a0]) stop = registers[a2]; } 
 	else if (op == ctincr) registers[a0]++;
 	else if (op == ctzero) registers[a0] = 0;
 	else if (op == ctdc)   registers[a0] = data_count;
 	else if (op == cted)   data[data_count++] = (uint8_t) registers[a0];
+	else if (op == cter)   { for (nat i = 0; i < registers[a0]; i++) data[data_count++] = *(uint8_t*) (registers[a1] + i); }
 	else if (op == ctadd)  registers[a2] = registers[a1] + registers[a0]; 
 	else if (op == ctsub)  registers[a2] = registers[a1] - registers[a0]; 
 	else if (op == ctmul)  registers[a2] = registers[a1] * registers[a0]; 
@@ -428,13 +582,11 @@ static void execute(nat op, nat* pc) {
 	else if (op == ctnor)  registers[a2] = ~(registers[a1] | registers[a0]); 
 	else if (op == ctshl)  registers[a2] = registers[a1] << registers[a0]; 
 	else if (op == ctshr)  registers[a2] = registers[a1] >> registers[a0]; 
-	else if (op == ctprint)  printf("debug: \033[32m%llu\033[0m\n", registers[a0]); 
-
+	else if (op == ctprint) printf("debug: \033[32m%llu\033[0m\n", registers[a0]); 
 	else if (op == ctld1)  registers[a1] = *(uint8_t*) registers[a0]; 
 	else if (op == ctld2)  registers[a1] = *(uint16_t*)registers[a0]; 
 	else if (op == ctld4)  registers[a1] = *(uint32_t*)registers[a0]; 
 	else if (op == ctld8)  registers[a1] = *(uint64_t*)registers[a0]; 
-
 	else if (op == ctst1)  *(uint8_t*) registers[a1] = (uint8_t)  registers[a0]; 
 	else if (op == ctst2)  *(uint16_t*)registers[a1] = (uint16_t) registers[a0]; 
 	else if (op == ctst4)  *(uint32_t*)registers[a1] = (uint32_t) registers[a0]; 
@@ -608,12 +760,14 @@ static void make_object_file(void) {
 	dsection.nreloc = 0;
 	dsection.flags = S_REGULAR;
 
-	dsection.offset = 	sizeof (struct mach_header_64) + 
+	dsection.offset = (uint32_t) (
+				sizeof (struct mach_header_64) + 
 				sizeof (struct segment_command_64) + 
 				sizeof (struct section_64) + 
 				sizeof (struct section_64) + 
 				sizeof (struct symtab_command) + 
-				byte_count;
+				byte_count
+			);
 
 
 	const char strings[] = "\0_start\0";
@@ -625,13 +779,15 @@ static void make_object_file(void) {
 	table.nsyms = 1; 
 	table.stroff = 0;
 	
-	table.symoff = 		sizeof (struct mach_header_64) +
+	table.symoff = (uint32_t) (
+				sizeof (struct mach_header_64) +
 				sizeof (struct segment_command_64) + 
 				sizeof (struct section_64) + 
 				sizeof (struct section_64) + 
 				sizeof (struct symtab_command) + 
 				byte_count + 
-				data_count;
+				data_count
+			);
 
 	table.stroff = table.symoff + sizeof(struct nlist_64) * 1;
 
@@ -665,7 +821,7 @@ static void make_object_file(void) {
 	close(file);
 }
 
-static void generate(void) {
+static void generate_machine_code(void) {
 
 	for (nat i = 0; i < ins_count; i++) {
 
@@ -677,9 +833,12 @@ static void generate(void) {
 		else if (op == nop)    emit(0xD503201F);
 		else if (op == cfinv)  emit(0xD500401F);
 
-		else if (op == br)     emit(generate_br(a));
+		else if (op == br)     emit(generate_br(a, 0x3587C0U));
+		else if (op == blr)    emit(generate_br(a, 0x358FC0U));
 		else if (op == b_)     emit(generate_b(a, (u32) i));
 		else if (op == bc)     emit(generate_bc(a, (u32) i));
+		else if (op == adr)    emit(generate_adr(a, 0x10U, 0, (u32) i));
+		else if (op == adrp)   emit(generate_adr(a, 0x10U, 1, (u32) i));
 
 		else if (op == absx)   emit(generate_abs(a, 1, 0x16B008U));
 		else if (op == absw)   emit(generate_abs(a, 0, 0x16B008U));
@@ -716,12 +875,56 @@ static void generate(void) {
 		else if (op == addhxs) emit(generate_addi(a, 1, 1, 0x62U));
 		else if (op == addhws) emit(generate_addi(a, 0, 1, 0x62U));
 
+		else if (op == striux)  emit(generate_striu(a, 3, 0xE4U));
+		else if (op == striuw)  emit(generate_striu(a, 2, 0xE4U));
+		else if (op == ldriux)  emit(generate_striu(a, 3, 0x1C2U));
+		else if (op == ldriuw)  emit(generate_striu(a, 2, 0x1C2U));
+
+		else if (op == striox)  emit(generate_stri(a, 3, 0x01C0U, 0x1U));
+		else if (op == striow)  emit(generate_stri(a, 2, 0x01C0U, 0x1U));
+		else if (op == striex)  emit(generate_stri(a, 3, 0x01C0U, 0x3U));
+		else if (op == striew)  emit(generate_stri(a, 2, 0x01C0U, 0x3U));
+		else if (op == ldriox)  emit(generate_stri(a, 3, 0x01C2U, 0x1U));
+		else if (op == ldriow)  emit(generate_stri(a, 2, 0x01C2U, 0x1U));
+		else if (op == ldriex)  emit(generate_stri(a, 3, 0x01C2U, 0x3U));
+		else if (op == ldriew)  emit(generate_stri(a, 2, 0x01C2U, 0x3U));
+		else if (op == ldurx)   emit(generate_stri(a, 3, 0x01C2U, 0x0U));
+		else if (op == ldtrx)   emit(generate_stri(a, 3, 0x01C2U, 0x2U));
+		else if (op == ldurw)   emit(generate_stri(a, 2, 0x01C2U, 0x0U));
+		else if (op == ldtrw)   emit(generate_stri(a, 2, 0x01C2U, 0x2U));
+		else if (op == ldtrsw)  emit(generate_stri(a, 2, 0x01C4U, 0x2U));
+		else if (op == ldtrh)   emit(generate_stri(a, 1, 0x01C2U, 0x2U));
+		else if (op == ldtrshx) emit(generate_stri(a, 1, 0x01C4U, 0x2U));
+		else if (op == ldtrshw) emit(generate_stri(a, 1, 0x01C6U, 0x2U));
+		else if (op == ldtrb)   emit(generate_stri(a, 0, 0x01C2U, 0x2U));
+		else if (op == ldtrsbx) emit(generate_stri(a, 0, 0x01C4U, 0x2U));
+		else if (op == ldtrsbw) emit(generate_stri(a, 0, 0x01C6U, 0x2U));
+		
+		
+
+
+
 		else if (op == adcx)   emit(generate_adc(a, 1, 0x0D0U, 0x00));
 		else if (op == adcw)   emit(generate_adc(a, 0, 0x0D0U, 0x00));
 		else if (op == adcxs)  emit(generate_adc(a, 1, 0x1D0U, 0x00));
 		else if (op == adcws)  emit(generate_adc(a, 0, 0x1D0U, 0x00));
 		else if (op == asrvx)  emit(generate_adc(a, 1, 0x0D6U, 0x0A));
 		else if (op == asrvw)  emit(generate_adc(a, 0, 0x0D6U, 0x0A));
+		else if (op == lslvx)  emit(generate_adc(a, 1, 0x0D6U, 0x08));
+		else if (op == lslvw)  emit(generate_adc(a, 0, 0x0D6U, 0x08));
+		else if (op == udivx)  emit(generate_adc(a, 1, 0x0D6U, 0x02));
+		else if (op == udivw)  emit(generate_adc(a, 0, 0x0D6U, 0x02));
+		else if (op == umaxx)  emit(generate_adc(a, 1, 0x0D6U, 0x19));
+		else if (op == umaxw)  emit(generate_adc(a, 0, 0x0D6U, 0x19));
+		else if (op == uminx)  emit(generate_adc(a, 1, 0x0D6U, 0x1B));
+		else if (op == uminw)  emit(generate_adc(a, 0, 0x0D6U, 0x1B));
+
+		else if (op == maddx)   emit(generate_madd(a, 1, 0x0D8, 0));
+		else if (op == maddw)   emit(generate_madd(a, 0, 0x0D8, 0));
+		else if (op == umaddlx) emit(generate_madd(a, 1, 0x0DD, 0));
+		else if (op == umaddlw) emit(generate_madd(a, 1, 0x0DD, 0));
+		else if (op == msubx)   emit(generate_madd(a, 1, 0x0D8, 1));
+		else if (op == msubw)   emit(generate_madd(a, 0, 0x0D8, 1));
 
 		else if (op == cselx)   emit(generate_csel(a, 1, 0x0D4U, 0));
 		else if (op == cselw)   emit(generate_csel(a, 0, 0x0D4U, 0));
@@ -770,9 +973,6 @@ static void generate(void) {
 	);
 }
 
-static void generate_web(void) {
-	
-}
 
 int main(int argc, const char** argv) {
 	if (argc < 2) return puts("usage: assembler <file1.asm> <file2.asm> ... <filen.asm>");
