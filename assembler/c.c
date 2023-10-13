@@ -144,7 +144,7 @@ enum instruction_type {
 	instruction_set_count
 };
 
-static const char* instruction_spelling[instruction_set_count] = {
+static const char* const instruction_spelling[instruction_set_count] = {
 	"nop", "dw", "svc", "cfinv", "br", "blr", "b", "bc", "adr", "adrp",
 
 	"movzx", "movzw", "movkx", "movkw", "movnx", "movnw",
@@ -187,6 +187,8 @@ struct word {
 	nat length;
 	nat type;
 	nat reg;
+	nat end;
+	nat value;
 	nat file_index;
 };
 
@@ -204,22 +206,30 @@ struct instruction {
 };
 
 static nat ins_count = 0;
-static struct instruction ins[4096] = {0};
+static struct instruction ins[100] = {0};
 
 static nat word_count = 0;
-static struct word words[4096] = {0};
+static struct word words[100] = {0};
 
 static nat arg_count = 0;
 static struct argument arguments[6] = {0};
 
+static nat stack_count = 0;
+static nat stack[100] = {0};
+
+static nat return_count = 0;
+static char* return_word = NULL;
+static nat macro = 0;
+static nat stop = 0;
+
 static nat registers[32] = {0};
 
 static nat byte_count = 0;
-static uint8_t bytes[4096] = {0};
+static uint8_t bytes[100] = {0};
 
+static const char* filename = NULL;
 static nat text_length = 0;
 static char* text = NULL;
-static const char* filename = NULL;
 
 static bool is(char* word, nat count, const char* this) {
 	return strlen(this) == count and not strncmp(word, this, count);
@@ -229,20 +239,21 @@ static bool equals(const char* word, nat count, const char* word2, nat count2) {
 	return count == count2 and not strncmp(word, word2, count);
 }
 
-static nat read_file(const char* name) {
+static char* read_file(const char* name, nat* out_length) {
 	int d = open(name, O_RDONLY | O_DIRECTORY);
 	if (d >= 0) { close(d); errno = EISDIR; goto read_error; }
 
 	const int file = open(name, O_RDONLY, 0);
-	if (file < 0) { read_error: perror("open"); exit(1); }
+	if (file < 0) { read_error: perror("open"); printf("filename: \"%s\"\n", name); exit(1); }
 
 	size_t length = (size_t) lseek(file, 0, SEEK_END);
-	text = malloc(length);
+	char* string = malloc(length);
 	lseek(file, 0, SEEK_SET);
-	read(file, text, length);
+	read(file, string, length);
 	close(file); 
 
-	return length;
+	*out_length = length;
+	return string;
 }
 
 static void print_error(const char* reason, const nat start_index, const nat error_word_length) {
@@ -312,7 +323,10 @@ static void check_branch(int r, int c, const struct argument a, const char* type
 	exit(1);
 }
 
-static u32 load(const nat offset) { return *((u32*) *registers + offset); }
+static u32 load(const nat offset) { return *((u32*) *registers + offset); }  
+					///TODO: right here. this should be a simply deref, to either ctr[0] or ctr[i] 
+					where the user gives i for the instruction. i tihnk if there are ever two immediates that 
+					they need to give, which never happens, then we need to give an arbirary pointer. i think. hm. 
 
 static u32 generate_mov(struct argument* a, u32 sf, u32 op) { 
 	const u32 im = load(a[0].value);
@@ -491,22 +505,6 @@ static void dump_hex(uint8_t* local_bytes, nat local_byte_count) {
 	puts("");
 }
 
-static nat stack_count = 0;
-static nat stack[4096] = {0};
-
-static nat return_count = 0;
-static char* return_word = NULL;
-static nat macro = 0;
-static nat stop = 0;
-
-
-/// 		  * ( ( u32 * )  * registers + a0 ) = ins_count;
-
-
-
-
-
-
 
 static void execute(nat op, nat* pc) {
 	const nat a0 = arguments[0].value;
@@ -552,11 +550,28 @@ static void execute(nat op, nat* pc) {
 	arg_count = 0;
 }
 
+
+struct afile {
+	const char* filename;
+	char* text;
+	nat text_length;
+	nat start;
+	nat count;
+	nat index;
+	nat macro;
+	nat stop;
+};
+
+static nat filecount = 0;
+static struct afile filestack[4096] = {0};
+
 static void parse(void) {
 
+begin:
+	printf("info begining of processing for file: %s...\n", filename);
 	nat count = 0, start = 0;
-
-	for (nat index = 0; index < text_length; index++) {
+	nat index = 0;
+	for (; index < text_length; index++) {
 		if (not isspace(text[index])) { 
 			if (not count) start = index;
 			count++; continue;
@@ -564,10 +579,12 @@ static void parse(void) {
 
 	process:;
 		char* const word = text + start;
+		printf("%s: processing: \"\033[31m%.*s\033[0m\"...\n", filename, (int) count, word);
 		struct argument arg = { .value = 0, .start = start, .count = count };
-
+		
 		if (macro) {
 			if (equals(word, count, return_word, return_count)) {
+				words[word_count - 1].end = start;
 				macro = 0; goto next;
 			} else goto next;
 		}
@@ -577,10 +594,76 @@ static void parse(void) {
 			//continue;
 
 
-		for (nat i = 0; i < 16384; i++) {
-			char r[16] = {0};
+		else if (is(word, count, "include")) {
+			const struct word w = words[word_count - 1];
+
+			//printf("found macro string: %.*s --> %llu...%llu\n", (int) w.length, w.name, w.value, w.end);
+			//print_error("just for testing!", w.value + w.length + 1, 1);
+			//print_error("just for testing!", w.end - 1, 1);
+
+			char new_filename[4096] = {0};
+			memcpy(new_filename, text + w.value + w.length + 1, (w.end - 1) - (w.value + w.length + 1));
+			printf("\033[32mIncluding file \"%s\"...\033[0m\n", new_filename);
+
+
+
+			filestack[filecount++] = (struct afile) {
+				.filename = filename,
+				.text = text,
+				.text_length = text_length,
+				.start = start,
+				.count = count, 
+				.index = index,
+				.macro = macro,
+				.stop = stop,
+			};
+
+			filename = new_filename;
+			text = read_file(filename, &text_length);
+			printf("contents for %s: = \"%.*s\"\n", filename, (int) text_length, text);
+			
+			goto begin;
+			end:  
+			printf("info: finished processing that file, continuing to process %s...\n", filename);
+			goto next;
+		}
+
+
+
+		/*
+
+			so i found a problem with the language.  and its big:
+
+				how do we specify constnats?     if we can't give an offset that is large.
+
+							and we can't have a large number of virtual registers, 
+
+					like, i want to have registers referable by some name ,  but i don't want to have named labels be the only option 
+
+						like, ideally there is some other way to refer to labels. 
+						like,  what about computation???
+
+								that could workkk
+
+
+						i think 
+
+
+							ie, you make a pointer have a certain value and then thats what you give to the branch!
+
+								okay, cool, so it actually just derefs the pointer!!! that the trick. lol. thats easy cool. okay. 
+									it just derefs it. 
+
+								nice. 
+
+	
+		*/
+
+
+		for (nat i = 0; i < 32; i++) {
+			char r[5] = {0};
 			snprintf(r, sizeof r, "%llu", i);
-			if (is(word, count, r)) { 
+			if (is(word, count, r)) {
 				arg.value = i;
 				if (arg_count >= 6) {
 					char reason[4096] = {0};
@@ -600,47 +683,42 @@ static void parse(void) {
 			goto next;
 		}
 
-		words[word_count++] = (struct word) {
-			.name = word,
-			.length = count,
-			.reg = ins_count,
-			.file_index = start,
-		};
+		for (nat w = 0; w < word_count; w++) {
+			if (not equals(word, count, words[w].name, words[w].length)) continue;
+			printf("\033[35m CALLING A MACRO!! %.*s...\033[0m\n", (int) words[w].length, words[w].name);
+			
+		}
 
 
 		if (not arg_count) { 
+			
+			words[word_count++] = (struct word) {
+				.name = word, 
+				.length = count, 
+				.reg = 9999999LLU, 
+				.value = start, 
+				.file_index = index,
+			};
+
 			macro = 1;
 			return_word = word;
 			return_count = count;
 			goto next;
 
 		} else {
-
-			printf("simple register alias macro!!!!\n");
-
-			// ...
-			// d cfinv d
-			// printf("comment / operational macro!!!\n");
-
-			//arg.value = ~word_count; 
-			//arguments[arg_count++] = arg; 
-			// getchar();
+			char reason[4096] = {0};
+			snprintf(reason, sizeof reason, 
+				"undefined word found \"%.*s\"", 
+				(int) count, word
+			);
+			print_error(reason, start, count);
+			exit(1);
 		}
-		
-		char reason[4096] = {0};
-		snprintf(reason, sizeof reason, 
-			"undefined word found \"%.*s\"", 
-			(int) count, word
-		);
-		print_error(reason, start, count);
-		exit(1);
-
 
 		next: count = 0;
 	}
 
 	if (count) goto process;
-
 
 	if (macro) {
 		char reason[4096] = {0};
@@ -648,6 +726,19 @@ static void parse(void) {
 		print_error(reason, start, count);
 		exit(1);
 	}
+
+	if (not filecount) return;
+	
+	const struct afile f = filestack[--filecount];
+	filename = f.filename;
+	text = f.text;
+	text_length = f.text_length;
+	start = f.start;
+	count = f.count;
+	index = f.index;
+	macro = f.macro;
+	stop = f.stop;
+	goto end;
 }
 
 
@@ -743,6 +834,16 @@ static void make_object_file(void) {
 	write(file, strings, sizeof strings);
 
 	close(file);
+}
+
+
+static void debug(void) {
+	printf("\ndebugging bytes bytes:\n------------------------\n");
+	dump_hex((uint8_t*) bytes, byte_count);
+	system("otool -txvVhlL object.o");
+	system("otool -txvVhlL executable.out");
+	system("objdump object.o -DSast --disassembler-options=no-aliases");
+	system("objdump executable.out -DSast --disassembler-options=no-aliases");
 }
 
 static void generate_machine_code(void) {
@@ -876,13 +977,19 @@ static void generate_machine_code(void) {
 
 	make_object_file();
 
-	printf("\ndebugging bytes bytes:\n------------------------\n");
-	dump_hex((uint8_t*) bytes, byte_count);
-
-	system("otool -txvVhlL object.o");
-	system("objdump object.o -DSast --disassembler-options=no-aliases");
-
 	system("ld -v "
+		"-dead_strip "
+		"-print_statistics "
+		//" -version_details "
+		"-no_weak_imports "
+		"-fatal_warnings "
+		"-no_eh_labels "
+		"-warn_compact_unwind "
+		"-warn_unused_dylibs "
+		"-t "
+		"-S "
+		"-x "
+		//"-fno-unwind-tables -fno-asynchronous-unwind-tables "
 		"object.o " 
 		"-o executable.out "
 		"-arch arm64 "
@@ -890,22 +997,21 @@ static void generate_machine_code(void) {
 		"-platform_version macos 13.0.0 13.3 "
 		"-lSystem "
 		"-syslibroot /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk "
+		
+		
 	);
 }
 
-
 int main(int argc, const char** argv) {
+
 	if (argc < 2) return puts("usage: assembler <file1.asm> <file2.asm> ... <filen.asm>");
-
 	filename = argv[1];
-	text_length = read_file(filename);
-
+	text_length = 0;
+	text = read_file(filename, &text_length);	
 	*registers = (nat)(void*) malloc(65536);
-
 	parse();
-
 	generate_machine_code();
-
+	debug();
 }
 
 
@@ -924,6 +1030,15 @@ int main(int argc, const char** argv) {
 
 
 
+//printf("simple register alias macro!!!!\n");
+			
+			// ...
+			// d cfinv d
+			// printf("comment / operational macro!!!\n");
+
+			//arg.value = ~word_count; 
+			//arguments[arg_count++] = arg; 
+			// getchar();
 
 
 
@@ -936,6 +1051,7 @@ int main(int argc, const char** argv) {
 
 
 
+/// 		  * ( ( u32 * )  * registers + a0 ) = ins_count;
 
 
 

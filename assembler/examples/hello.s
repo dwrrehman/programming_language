@@ -53,18 +53,9 @@ c 5 c
 	6 5 5 ctshl 
 
 	10 ctzero ctincr ctincr ctincr ctincr ctincr ctincr ctincr ctincr ctincr ctincr
-	ctprint
 	8 ctzero ctincr ctincr ctincr ctincr ctincr ctincr ctincr ctincr 
-	ctprint
-
 	8 10 9 ctshl 
-	9 ctprint
-
-	5 ctprint
-
 	9 5 5 ctor
-
-	5 ctprint
 
 	5 ctincr ctincr ctincr
 
@@ -92,10 +83,8 @@ v 6 v
 	svc
 
 
-
+3 ctat
 	5 dw
-
-
 
 
 
