@@ -1,15 +1,7 @@
 
 . examples/constants . include 
 
-
-mymacro hello? mymacro 
-
-
-mymacro
+. examples/constructs . include 
 
 
-
-1 2 5 ctadd
-5 ctprint 
-cthalt
-
+endprogram

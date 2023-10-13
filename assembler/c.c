@@ -216,6 +216,7 @@ static struct argument arguments[6] = {0};
 
 static nat stack_count = 0;
 static nat stack[100] = {0};
+static nat word_stack[100] = {0};
 
 static nat return_count = 0;
 static char* return_word = NULL;
@@ -230,6 +231,22 @@ static uint8_t bytes[100] = {0};
 static const char* filename = NULL;
 static nat text_length = 0;
 static char* text = NULL;
+
+
+struct afile {
+	const char* filename;
+	char* text;
+	nat text_length;
+	nat start;
+	nat count;
+	nat index;
+	nat macro;
+	nat stop;
+};
+
+static nat filecount = 0;
+static struct afile filestack[4096] = {0};
+
 
 static bool is(char* word, nat count, const char* this) {
 	return strlen(this) == count and not strncmp(word, this, count);
@@ -323,18 +340,18 @@ static void check_branch(int r, int c, const struct argument a, const char* type
 	exit(1);
 }
 
-static u32 load(const nat offset) { return *((u32*) *registers + offset); }  
+//static u32 load(const nat offset) { return ; }  
 					///TODO: right here. this should be a simply deref, to either ctr[0] or ctr[i] 
-					where the user gives i for the instruction. i tihnk if there are ever two immediates that 
-					they need to give, which never happens, then we need to give an arbirary pointer. i think. hm. 
+					//where the user gives i for the instruction. i tihnk if there are ever two immediates that 
+					//they need to give, which never happens, then we need to give an arbirary pointer. i think. hm. 
 
 static u32 generate_mov(struct argument* a, u32 sf, u32 op) { 
-	const u32 im = load(a[0].value);
-	const u32 hw = (u32) a[1].value;
-	const u32 Rd = (u32) a[2].value;
+	const u32 im = *(u32*)*registers;
+	const u32 hw = (u32) a[0].value;
+	const u32 Rd = (u32) a[1].value;
 	check(im, 1 << 16U, a[0], "immediate");
-	check(hw, 4,  a[1], "register");
-	check(Rd, 32, a[2], "register");
+	check(hw, 4,  a[0], "register");
+	check(Rd, 32, a[1], "register");
 	return  (sf << 31U) | 
 		(op << 23U) | 
 		(hw << 21U) | 
@@ -342,12 +359,12 @@ static u32 generate_mov(struct argument* a, u32 sf, u32 op) {
 }
 
 static u32 generate_addi(struct argument* a, u32 sf, u32 sh, u32 op) { 
-	const u32 im = load(a[0].value);
-	const u32 Rn = (u32) a[1].value;
-	const u32 Rd = (u32) a[2].value;
+	const u32 im = *(u32*)*registers;
+	const u32 Rn = (u32) a[0].value;
+	const u32 Rd = (u32) a[1].value;
 	check(im, 1 << 12U, a[0], "immediate");
-	check(Rn, 32, a[1], "register");
-	check(Rd, 32, a[2], "register");
+	check(Rn, 32, a[0], "register");
+	check(Rd, 32, a[1], "register");
 	return  (sf << 31U) | 
 		(op << 23U) | 
 		(sh << 22U) | 
@@ -356,12 +373,12 @@ static u32 generate_addi(struct argument* a, u32 sf, u32 sh, u32 op) {
 }
 
 static u32 generate_stri(struct argument* a, u32 si, u32 op, u32 o2) {
-	const u32 im = load(a[0].value);
-	const u32 Rn = (u32) a[1].value;
-	const u32 Rt = (u32) a[2].value;
+	const u32 im = *(u32*)*registers;
+	const u32 Rn = (u32) a[0].value;
+	const u32 Rt = (u32) a[1].value;
 	check(im, 1 << 9U, a[0], "immediate");
-	check(Rn, 32, a[1], "register");
-	check(Rt, 32, a[2], "register");
+	check(Rn, 32, a[0], "register");
+	check(Rt, 32, a[1], "register");
 	return  (si << 30U) | 
 		(op << 21U) | 
 		(im << 12U) | 
@@ -370,12 +387,12 @@ static u32 generate_stri(struct argument* a, u32 si, u32 op, u32 o2) {
 }
 
 static u32 generate_striu(struct argument* a, u32 si, u32 op) {
-	const u32 im = load(a[0].value);
-	const u32 Rn = (u32) a[1].value;
-	const u32 Rt = (u32) a[2].value;
+	const u32 im = *(u32*)*registers;
+	const u32 Rn = (u32) a[0].value;
+	const u32 Rt = (u32) a[1].value;
 	check(im, 1 << 12U, a[0], "immediate");
-	check(Rn, 32, a[1], "register");
-	check(Rt, 32, a[2], "register");
+	check(Rn, 32, a[0], "register");
+	check(Rt, 32, a[1], "register");
 	return  (si << 30U) | 
 		(op << 21U) | 
 		(im << 10U) | 
@@ -431,16 +448,16 @@ static u32 generate_csel(struct argument* a, u32 sf, u32 op, u32 o2) {
 }
 
 static u32 generate_orr(struct argument* a, u32 sf, u32 ne, u32 op) { 
-	const u32 im = load( a[0].value);
-	const u32 sh = (u32) a[1].value;
-	const u32 Rm = (u32) a[2].value;
-	const u32 Rn = (u32) a[3].value;
-	const u32 Rd = (u32) a[4].value;
+	const u32 im = *(u32*)*registers;
+	const u32 sh = (u32) a[0].value;
+	const u32 Rm = (u32) a[1].value;
+	const u32 Rn = (u32) a[2].value;
+	const u32 Rd = (u32) a[3].value;
 	check(im, 32U << sf, a[0], "immediate");
-	check(sh, 4,  a[1], "register");
-	check(Rm, 32, a[2], "register");
-	check(Rn, 32, a[3], "register");
-	check(Rd, 32, a[4], "register");
+	check(sh, 4,  a[0], "register");
+	check(Rm, 32, a[1], "register");
+	check(Rn, 32, a[2], "register");
+	check(Rd, 32, a[3], "register");
 	return  (sf << 31U) | 
 		(op << 24U) | 
 		(sh << 22U) | 
@@ -467,27 +484,27 @@ static u32 generate_br(struct argument* a, u32 op) {
 }
 
 static u32 generate_b(struct argument* a, uint32_t pc) { 
-	const u32 im = load( a[0].value);
+	const u32 im = *(u32*)*registers;
 	const u32 offset = im - pc;
 	check_branch((int) offset, 1 << (26 - 1), a[0], "branch offset");
 	return (0x05 << 26U) | (0x03FFFFFFU & offset);
 }
 
 static u32 generate_bc(struct argument* a, uint32_t pc) { 
-	const u32 im = load( a[0].value);
-	const u32 cd = (u32) a[1].value;
+	const u32 im = *(u32*)*registers;
+	const u32 cd = (u32) a[0].value;
 	const u32 offset = im - pc;
 	check_branch((int) offset, 1 << (19 - 1), a[0], "branch offset");
-	check(cd, 16, a[1], "condition");
+	check(cd, 16, a[0], "condition");
 	return (0x54U << 24U) | ((0x0007FFFFU & offset) << 5U) | cd;
 }
 
 static u32 generate_adr(struct argument* a, u32 op, u32 o2, uint32_t pc) { 
-	const u32 im = load( a[0].value);
-	const u32 Rd = (u32) a[1].value;
+	const u32 im = *(u32*)*registers;
+	const u32 Rd = (u32) a[0].value;
 	const u32 offset = im - pc;
 	check_branch((int) offset, 1 << (21 - 1), a[0], "pc-relative address");
-	check(Rd, 32, a[1], "register");
+	check(Rd, 32, a[0], "register");
 	const u32 lo = 0x03U & offset, hi = 0x07FFFFU & (offset >> 2);
 	return  (o2 << 31U) | 
 		(lo << 29U) | 
@@ -505,7 +522,6 @@ static void dump_hex(uint8_t* local_bytes, nat local_byte_count) {
 	puts("");
 }
 
-
 static void execute(nat op, nat* pc) {
 	const nat a0 = arguments[0].value;
 	const nat a1 = arguments[1].value;
@@ -515,8 +531,8 @@ static void execute(nat op, nat* pc) {
 	else if (stop) return;
 
 	if (op == ctnop) {}
-	else if (op == ctat)   *((u32*)*registers+a0) = ins_count;
-	else if (op == ctpc)   *((u32*)*registers+a0) = *pc;
+	else if (op == ctat)   *((u32*)*registers+a0) = (u32) ins_count;
+	else if (op == ctpc)   *((u32*)*registers+a0) = (u32) *pc;
 	else if (op == ctgoto) *pc = *((u32*)*registers+a0); 
 
 	else if (op == ctblt)  { if (registers[a1]  < registers[a0]) stop = registers[a2]; } 
@@ -551,20 +567,6 @@ static void execute(nat op, nat* pc) {
 }
 
 
-struct afile {
-	const char* filename;
-	char* text;
-	nat text_length;
-	nat start;
-	nat count;
-	nat index;
-	nat macro;
-	nat stop;
-};
-
-static nat filecount = 0;
-static struct afile filestack[4096] = {0};
-
 static void parse(void) {
 
 begin:
@@ -589,13 +591,20 @@ begin:
 			} else goto next;
 		}
 
-		//if (count == return_count_stack[stack_count - 1] and 
-			//	is(word, count, return_stack[])) {}
-			//continue;
+		if (stack_count) {
+			const nat w = word_stack[stack_count - 1];
+			if (equals(word, count, words[w].name, words[w].length)) {
 
+				puts("EXITING MACRO: found return statement!");
+				//print_error("just for testing!", start, count);
+				index = stack[--stack_count];
+				//print_error("going back to here!", index, 1);
+				goto next;
+			}
+		}
 
 		else if (is(word, count, "include")) {
-			const struct word w = words[word_count - 1];
+			const struct word w = words[--word_count];
 
 			//printf("found macro string: %.*s --> %llu...%llu\n", (int) w.length, w.name, w.value, w.end);
 			//print_error("just for testing!", w.value + w.length + 1, 1);
@@ -630,7 +639,9 @@ begin:
 
 
 
-		/*
+		/* put this else where: todo
+
+
 
 			so i found a problem with the language.  and its big:
 
@@ -662,7 +673,7 @@ begin:
 
 		for (nat i = 0; i < 32; i++) {
 			char r[5] = {0};
-			snprintf(r, sizeof r, "%llu", i);
+			snprintf(r, sizeof r, "r%llu", i);
 			if (is(word, count, r)) {
 				arg.value = i;
 				if (arg_count >= 6) {
@@ -686,7 +697,11 @@ begin:
 		for (nat w = 0; w < word_count; w++) {
 			if (not equals(word, count, words[w].name, words[w].length)) continue;
 			printf("\033[35m CALLING A MACRO!! %.*s...\033[0m\n", (int) words[w].length, words[w].name);
-			
+			stack[stack_count] = index;
+			word_stack[stack_count] = w;
+			stack_count++;
+			index = words[w].file_index;
+			goto next;
 		}
 
 
@@ -723,7 +738,7 @@ begin:
 	if (macro) {
 		char reason[4096] = {0};
 		snprintf(reason, sizeof reason, "unterminated operation macro");
-		print_error(reason, start, count);
+		print_error(reason, words[word_count - 1].value, words[word_count - 1].length);
 		exit(1);
 	}
 
@@ -836,7 +851,6 @@ static void make_object_file(void) {
 	close(file);
 }
 
-
 static void debug(void) {
 	printf("\ndebugging bytes bytes:\n------------------------\n");
 	dump_hex((uint8_t*) bytes, byte_count);
@@ -853,7 +867,7 @@ static void generate_machine_code(void) {
 		const nat op = ins[i].op;
 		struct argument* const a = ins[i].arguments;
 
-		     if (op == dw)     emit(load(a->value));
+		     if (op == dw)     emit(*(u32*)*registers);
 		else if (op == svc)    emit(0xD4000001);
 		else if (op == nop)    emit(0xD503201F);
 		else if (op == cfinv)  emit(0xD500401F);
