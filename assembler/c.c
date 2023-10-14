@@ -15,633 +15,6 @@
 typedef uint64_t nat;
 typedef uint32_t u32;
 
-/*
-
-
-
-
-
-
-
-
-
-
-
-
-	macro print ... print
-	
-	
-
-
-
-	label
-
-		done r2 bc
-
-		r1 incr
-		
-
-
-
-	done
-		print
-
-
-
-
-
-
-FACT:
-
-	- i am okay with there only being 4096 constants which you need to name give by ctregister index. 
-
-			this is because there is genuinely a bounded very finite amount of possible constnats the user could want to use in their code, and they can always put together multiple of them to get what they want using ct instructions. so yeah. 
-
-				having a limited number of constants is kinda okay!
-
-
-	
-
-	- i KNOW THAT I NEEDDDD to have labels be spelt ONLY has user defined names. 
-		
-	- and furthermore, 
-			i know that i cannot distinguish a macro vs a label by simply 
-
-
-
-
-
-
-wait what if we just had macros and labels be the same thing. 
-
-
-	like, what if we said the macro name, 
-
-	and then put a "label ctreturn" on the end of the definition,     (ie, ctreturn takes the macro name/label as an argument)
-
-
-	and then when we called it, 
-
-
-			by just saying   label 
-
-
-
-
-
-		yess
-
-
-	okay that could work 
-
-	actually
- 	hm
-
-
-
-				interesting 
-
-
-
-			no repition neccessary, i guess
-
-
-
-
-			or like 
-
-
-	oh wait 
-
-
-			we have to know to skip over the code, though... thats the thing. crap. 
-
-	hm
-						interesting 
-
-
-
-			wait, what if just simply reverted the ins array?
-
-
-			well then you can't do a macro around ct instructions..... goshhhhh hmmmm
-
-
-
-	
-		uhh
-
-
-i feel like we must somehow force it to skip over the code until it sees another thingy 
-
-
-	hmmm
-
-				maybe we do 
-
-
-
-					label macro     body      label
-
-
-
-
-
-
-
-hmmmmmm
-
-
-
-
-	man this is difficult
-
-
-
-
-
-
-
-
-	i am quite confident that i dont' want to have labels be simply compiletime constants though... idk. its just... theres kinda alot of problems with it...... idk.... hm............
-
-
-
-					i mean, i guess its usable if we use memory instead.... 
-
-
-
-
-		
-
-
-
-	like, imagine if we had a macro for 
-
-
-
-		either looking at the current memory location 
-
-
-
-
-
-
-ohhh but thats the whole thing 
-
-
-			that a macro needs to then be a macro for  a value at a point in time 
-
-
-
-
-			but we can't have that because 
-
-
-
-
-	or 
-
-	well
-
-			actualy 
-
-
-
-					we coudl have a macro be a macro for a value at a point in time 
-
-
-						liek a memory location 
-
-
-					yeah
-
-
-
-					that coulddd work 
-
-
-
-					but then
-
-
-			hm
-
-
-
-					like, isnt that just an assignment at that point????
-
-
-
-
-
-		yeah. thats just an assignment. thats what an assignment is.    lol. 
-
-
-
-
-
-
-
-		hm
-
-					and so basically we are back to using labels as names for registers again 
-
-					its just all labels are registers at that point 
-
-
-
-						hmmmm
-
-
-
-
-				yeah
-
-
-
-
-	tahts pretty much whats happening theree. 
-
-
-
-
-		wow constants are so difficult in this language, why do they have to be so difficult. 
-
-
-
-
-					jeeezz
-
-
-
-
-
-
-
-	i'm seriouslyyyyyy thinking of just going full simplicity 
-
-
-			and just using  relative branches only 
-
-
-			literally just making as simple as possible of an assembler that still works
-
-
-				like 
-
-
-					i'm pretty sure i'm going to do it 
-
-
-
-				no more of this label stuff       no more names in the program
-
-
-
-
-
-
-		we add that later 
-
-
-
-
-
-	honestly 
-
-
-
-
-
-lets just do that 
-
-
-
-	and just see how bad it is to use honestly.     i feel like thats the right call. 
-
-
-
-
-		because like, as long as we give a compiletime register as the branch target,  then we can adjust it dynamically lol
-
-
-			idk 
-
-
-
-
-		hm
-
-
-
-						yeah, we'll see. 
-
-
-
-	lets just try to get everything working again. though.     labels are ct values,   along with every other immediate. they are not special in that way at all, i think.   lets try it. 
-
-
-
-
-
-
-
-
-
-
-simplicity is the friend of execution 
-
-
-
-	simple
-	
-
-	it must be simple
-
-
-
-
-
-
-
-
-
-202310146.135526:
-
-okay i think i found a good way to do constnats with a limited number of registers!
-
-
-	r3 const r0 r2 movzx
-
-
-	the way this works is that 
-
-		const     is a parse-time operator     that takes the current argument, and replaces the ct/rt register index   
-
-									with its    ct register value at that moment. 
-
-
-						thats all it does 
-
-
-			so basically you will use it wherever you need a constant 
-
-
-				and of course,   there will be a macro              (eventually)
-
-
-							which is like              5 r12 = . . . . . 5
-
-										where   =     is  ctzero 
-
-											and .    is ctincr
-
-
-
-														of course
-
-
-								so you can that now, with this sort of constant system, 
-
-
-									we can very easily supply constants!
-
-
-
-								the call would end up looking instead like 
-
-
-								5 lower r2 movzx
-
-
-									(where lower is a macro for    r0, denoting   "put this in the lower 16 bits of the register!")
-
-
-								
-							so yeah, i think thats quite readable, actually 
-
-
-							
-
-
-
-		so yeah, i think this way of doing things should workkkkk 
-
-
-			i think 
-
-
-		assuming we can get used to not having named labels /  branch names lol. 
-
-
-					thats going to be tough
-
-					but i am confident that our compiletime system will save us there   and make it bareable honestly 
-
-
-						so yeah
-
-
-						ill continue implementing this now
-
-
-		just wanted to show the   "const" operator,       becuase i think thast required 
-			
-	
-
-
-
-
-
-
-
-
-
-actually 
-
-	no
-				wait what if we just always applied the const operator to the first argument, 
-		ie, the first argument was either a rt or ct register 
-
-				and then all other registers must be    rt registers 
-
-
-				yes i think that could work too!
-
-
-					lets try that, 
-
-
-		i think we were even in the middle of implementing that solution lol 
-
-		itsjust 
-
-				now we arent even doing named labels or absolute labels anymore  lol
-					so yeah thats interesting 
-
-
-		
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-==============================================
-
-	open major issues:
-
-
-
-
-
-	x	- make labels built into the language,    remove   ctat 
-
-
-						x	and remove ctpc, ctgoto,    etc     
-								just have branch. labels record both the ct pc and the 
-									rt pc (ins count) all the time. 
-
-
-
-	x	- remove   the r0 r1 r2 being able to index into the ct registers. not useful. 
-
-				its only useful for the rt registers, because of the ABI, and because its dealing with real hardware. 
-					so we actuallly often need that control, actualy. 
-
-						we don't need that in the ctrs.
-
-
-						...also rename    r0 r1 r2  etc      to 46y5en34n2o3n25 names. don't make them numbers. 
-
-											we define those. 
-
-
-	
-			
-
-
-	
-		- define macros like                  define macroname body is here macroname
-
-
-
-
-								i dont like this syntax.... its prefix... and requires a word dedicated to it. (even though it can be redefined...)
-
-						there has to be a better way. 
-	
-
-
-
-
-
-
-FACT:
-
-	- we shouldnt have a limited number of constants.  thats the thing. 
-
-			edit, lets only have 4096 maybe?  thats enough i think. 
-
-			but unlimited labels! 
-
-
-	- fact:    both constants and labels are the same entity in the code. not seperate types.  theyre just a ct value. 
-
-
-		
-
-	- macros have to be something different though, because they trigger stuff. 
-
-	- - they need special treatment, quite sure. 
-
-
-	- 
-
- 
-
-
-
-
-	
-
-
-
-
-
-
-		- fix macros being defined/called in different files.    store the def in the words[] entry. 
-
-		- fix constants using the r[0].   store the value at that point in time! 
-			MAKE THIS PART OF THE LANGUAGE SIMPLER PLEASEEEEEEE PLEASE
-
-
-		- implement user strings.
-
-		- add the XOR ("eor") instruction!!!   add more instructions like this tooooo
-
-
-
-==============================================
-
-	USABILITY:
-	=======================================
-
-	x	- implement aliases 
-
-
-	COMPILE TIME STUFF:
-	=======================================
-
-		- add a ctsyscall instruction!..?
-
-
-	DOCUMENATION STUFF
-	=======================================
-
-		- document the meaning of each argument for each ct/rt instruction more, 
-				also accoridng to the arm isa ref manual!
-
-		- write a hello world program
-
-
-	OBJECT FILE STUFF 
-	=======================================
-
-	ARM64 ISA RUNTIME STUFF 
-	=======================================
-	
-*/
 enum instruction_type {
 	nop, dw, svc, cfinv, br, blr, b_, bc, adr, adrp,
 
@@ -721,8 +94,8 @@ static const char* const instruction_spelling[instruction_set_count] = {
 };
 
 struct word {
-	char* name;
-	char* body;
+	const char* name;
+	const char* body;
 	nat length;
 	nat body_length;
 };
@@ -743,14 +116,10 @@ struct instruction {
 };
 
 struct afile {
-	const char* filename;
-	char* text;
 	nat text_length;
-	nat start;
-	nat count;
 	nat index;
-	nat macro;
-	nat stop;
+	const char* text;
+	const char* filename;
 };
 
 static nat ins_count = 0;
@@ -760,10 +129,11 @@ static nat word_count = 0;
 static struct word words[4096] = {0};
 
 static nat arg_count = 0;
-static struct argument arguments[6] = {0}; /// decrease this to like 4 or something?... 
+static struct argument arguments[6] = {0};
 
 static nat macro = 0;
 static nat stop = 0;
+static u32 im = 0;
 static nat registers[32] = {0};
 
 static nat byte_count = 0;
@@ -774,26 +144,17 @@ static struct afile filestack[4096] = {0};
 
 static const char* filename = NULL;
 static nat text_length = 0;
-static char* text = NULL;
+static const char* text = NULL;
 
-static u32 im = 0;
+static const char* return_word = NULL;
+static nat return_count = 0;
 
 static void print_words(void) {
-
 	puts("dicitonary of words: {");
 	for (nat i = 0; i < word_count; i++) {
-	
-		printf("struct word { "
-				".name = %.*s, "
-				".body = %.*s, "
-				".length = %llu, "
-				".body_length = %llu, "
-				" }\n"
-			, 
+		printf("struct word { .name = %.*s, .body = %.*s, .length = %llu, .body_length = %llu, }\n",
 			(int) words[i].length, words[i].name, 
-			(int) words[i].body_length, words[i].body, 
-			words[i].length, 
-			words[i].body_length
+			(int) words[i].body_length, words[i].body,  words[i].length,  words[i].body_length
 		);
 		puts("");
 	}
@@ -801,7 +162,7 @@ static void print_words(void) {
 }
 
 
-static bool is(char* word, nat count, const char* this) {
+static bool is(const char* word, nat count, const char* this) {
 	return strlen(this) == count and not strncmp(word, this, count);
 }
 
@@ -1107,10 +468,6 @@ static void execute(nat op, nat* pc) {
 	arg_count = 0;
 }
 
-
-static char* return_word = NULL;
-static nat return_count = 0;
-
 static void parse(void) {
 
 begin:
@@ -1125,8 +482,12 @@ begin:
 		} else if (not count) continue;
 
 	process:;
-		char* const word = text + start;
-		printf("%s: processing: \"\033[31m%.*s\033[0m\"...\n", filename, (int) count, word);
+		const char* const word = text + start;
+
+		printf("[%s]:   %s: processing: \"\033[31m%.*s\033[0m\"...\n", 
+			macro ? "MACRO" : "standard", filename, (int) count, word
+		);
+
 		struct argument arg = { .value = 0, .start = start, .count = count };
 		
 		if (macro) {
@@ -1139,12 +500,6 @@ begin:
 		else if (is(word, count, "include")) {
 			const struct word w = words[--word_count];
 
-			
-
-			char newfilename[4096] = {0};
-			strncpy(newfilename, w.body, w.body_length);
-			printf("\033[32mIncluding file \"%s\"...\033[0m\n", newfilename);
-
 			filestack[filecount++] = (struct afile) {
 				.filename = filename,
 				.text = text,
@@ -1152,11 +507,15 @@ begin:
 				.index = index,
 			};
 
-			filename = newfilename;
-			text = read_file(filename, &text_length);
+			char newfilename[4096] = {0};
+			strncpy(newfilename, w.body, w.body_length);
+
+			filename = w.body;
+			printf("\033[32mIncluding file \"%s\"...\033[0m\n", filename);
+			text = read_file(newfilename, &text_length);
 			printf("contents for %s: = \"%.*s\"\n", filename, (int) text_length, text);
-			
 			goto begin; 
+
 			end: printf("info: finished processing that file, continuing to process %s...\n", filename);
 			goto next;
 		}
@@ -1187,11 +546,17 @@ begin:
 		for (nat w = 0; w < word_count; w++) {
 			if (not equals(word, count, words[w].name, words[w].length)) continue;
 			printf("\033[35m CALLING A MACRO!! %.*s...\033[0m\n", (int) words[w].length, words[w].name);
-			stack[stack_count] = index;
-			word_stack[stack_count] = w;
-			stack_count++;
-			index = words[w].file_index;
-			goto next;
+
+			filestack[filecount++] = (struct afile) {
+				.filename = filename,
+				.text = text,
+				.text_length = text_length,
+				.index = index,
+			};
+
+			text = words[w].body;
+			text_length = words[w].body_length;
+			goto begin;
 		}
 
 		if (not arg_count) { 
@@ -1199,8 +564,8 @@ begin:
 			words[word_count++] = (struct word) {
 				.name = word, 
 				.length = count, 
-				.body = text + start;
-				.body_length = 0;
+				.body = text + index,
+				.body_length = 0,
 			};
 
 			macro = 1;
@@ -1227,20 +592,18 @@ begin:
 	if (macro) {
 		char reason[4096] = {0};
 		snprintf(reason, sizeof reason, "unterminated operation macro");
-		print_error(reason, words[word_count - 1].value, words[word_count - 1].length);
+		print_error(reason, start, count);
+
+		// todo: we should show the file including / macro expansion backtrace! very useful. 
 		exit(1);
 	}
 
 	if (not filecount) return;
-	
-	const struct afile f = filestack[--filecount];
+	struct afile f = filestack[--filecount];
 	filename = f.filename;
 	text = f.text;
 	text_length = f.text_length;
-	start = f.start;
-	count = f.count;
 	index = f.index;
-	macro = f.macro;
 	goto end;
 }
 
@@ -1321,10 +684,10 @@ static void make_object_file(const char* object_filename) {
 	        }
 	};
 
-	const int flags = O_WRONLY | O_CREAT | O_TRUNC;               // | O_EXCL;
+	const int flags = O_WRONLY | O_CREAT | O_TRUNC | O_EXCL;
 	const mode_t mode = S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH;
 	const int file = open(object_filename, flags, mode);
-	if (file < 0) { perror("open"); exit(1); }
+	if (file < 0) { perror("obj:open"); exit(1); }
 
 	write(file, &header, sizeof(struct mach_header_64));
 	write(file, &segment, sizeof (struct segment_command_64));
@@ -1341,9 +704,9 @@ static void debug(void) {
 	printf("\ndebugging bytes bytes:\n------------------------\n");
 	dump_hex((uint8_t*) bytes, byte_count);
 	system("otool -txvVhlL object.o");
-	system("otool -txvVhlL executable.out");
+	system("otool -txvVhlL program.out");
 	system("objdump object.o -DSast --disassembler-options=no-aliases");
-	system("objdump executable.out -DSast --disassembler-options=no-aliases");
+	system("objdump program.out -DSast --disassembler-options=no-aliases");
 
 	
 }
@@ -1479,6 +842,12 @@ static void generate_machine_code(const char* object_filename, const char* execu
 	}
 
 	make_object_file(object_filename);
+
+	if (not access(executable_filename, F_OK)) {
+    		errno = EEXIST;
+		perror("exec:ld"); 
+		exit(1);
+	}
 
 	char link_command[4096] = {0};
 	snprintf(link_command, sizeof link_command, "ld -v -t -S -x "
@@ -1966,4 +1335,23 @@ if (filecount) {
 
 
 
+char newfilename[4096] = {0};
+			snprintf(newfilename, sizeof newfilename, "macro:%.*s", (int) words[w].length, words[w].name);
+
+
+
+
+
+
 */
+
+
+
+
+
+
+
+// static char newfilename[4096] = {0};
+
+
+

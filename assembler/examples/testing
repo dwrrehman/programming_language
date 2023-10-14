@@ -1,0 +1,12 @@
+0 r1 ctzero r1 0
+
+1 r1 ctzero ctincr r1 1
+
+2 r1 ctzero ctincr ctincr r1 2 
+
+
+2 r0 r0 movzx
+
+1 r0 r16 movzw
+
+svc
