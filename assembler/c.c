@@ -9,6 +9,7 @@
 #include <iso646.h>
 #include <ctype.h>
 #include <errno.h>
+#include <stdnoreturn.h>
 #include <mach-o/nlist.h>
 #include <mach-o/loader.h>
 typedef uint64_t nat;
@@ -19,17 +20,31 @@ typedef uint32_t u32;
 
 	open major issues:
 
-3		3- implement multiple files....
+		- fix macros being defined/called in different files.    store the def in the words[] entry. 
 
-1		1- implement aliases.
-		1.1- implement macros. 
+		- fix constants using the r[0].   store the value at that point in time! 
+			MAKE THIS PART OF THE LANGUAGE SIMPLER PLEASEEEEEEE PLEASE
 
-2		2- implement user strings.
+
+		- implement user strings.
+
+		- implement aliases.
+
 
 ==============================================
 
 	old todo:
 -----------------------------------------------------
+
+
+
+3	x	3- implement multiple files....
+
+
+	x	1.1- implement macros. 
+
+
+
 
 
 	x	- we only have 32 ctregisters to use to give labels to statements.   bad. 
@@ -43,7 +58,7 @@ typedef uint32_t u32;
 
 	usability:
 	=======================================
-		- implement macros fully 
+	x	- implement macros fully 
 		- implement aliases fully 
 
 
@@ -54,7 +69,7 @@ typedef uint32_t u32;
 
 
 
-		- add ctmalloc to the ct instructions?
+	x   	- add ctmalloc to the ct instructions?
 
 	x	- add more ct branches. at least cteq, ctge     (b/f versions!)	
 
@@ -63,12 +78,13 @@ typedef uint32_t u32;
 	x	- add emitctbyterange   rt instruction, for generating the data section!
 
 
+
 	OBJECT FILE STUFF 
 	=======================================
 
 	x	- work on generating the .data segment/section, 
 
-		- and other bss/data sections. 
+	x	- and other bss/data sections. 
 
 
 
@@ -77,7 +93,7 @@ typedef uint32_t u32;
 	=======================================
 	x	- add more rt instructions to make the language actually usable:
 
-		- add the emmision of bytes   instread of words   in the text section!!      			"emitb"
+	x	- add the emmision of bytes   instread of words   in the text section!!      			"emitb"
 						just make sure its aligned afterwards though. yay. 
 
 
@@ -205,6 +221,17 @@ struct instruction {
 	struct argument arguments[6];
 };
 
+struct afile {
+	const char* filename;
+	char* text;
+	nat text_length;
+	nat start;
+	nat count;
+	nat index;
+	nat macro;
+	nat stop;
+};
+
 static nat ins_count = 0;
 static struct instruction ins[100] = {0};
 
@@ -232,21 +259,8 @@ static const char* filename = NULL;
 static nat text_length = 0;
 static char* text = NULL;
 
-
-struct afile {
-	const char* filename;
-	char* text;
-	nat text_length;
-	nat start;
-	nat count;
-	nat index;
-	nat macro;
-	nat stop;
-};
-
 static nat filecount = 0;
 static struct afile filestack[4096] = {0};
-
 
 static bool is(char* word, nat count, const char* this) {
 	return strlen(this) == count and not strncmp(word, this, count);
@@ -339,11 +353,6 @@ static void check_branch(int r, int c, const struct argument a, const char* type
 	print_error(reason, a.start, a.count); 
 	exit(1);
 }
-
-//static u32 load(const nat offset) { return ; }  
-					///TODO: right here. this should be a simply deref, to either ctr[0] or ctr[i] 
-					//where the user gives i for the instruction. i tihnk if there are ever two immediates that 
-					//they need to give, which never happens, then we need to give an arbirary pointer. i think. hm. 
 
 static u32 generate_mov(struct argument* a, u32 sf, u32 op) { 
 	const u32 im = *(u32*)*registers;
@@ -757,7 +766,7 @@ begin:
 }
 
 
-static void make_object_file(void) {
+static void make_object_file(const char* object_filename) {
 
 	struct mach_header_64 header = {0};
 	header.magic = MH_MAGIC_64;
@@ -834,10 +843,10 @@ static void make_object_file(void) {
 	        }
 	};
 
-	const char* output_filename = "object.o";
+	
 	const int flags = O_WRONLY | O_CREAT | O_TRUNC;               // | O_EXCL;
 	const mode_t mode = S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH;
-	const int file = open(output_filename, flags, mode);
+	const int file = open(object_filename, flags, mode);
 	if (file < 0) { perror("open"); exit(1); }
 
 	write(file, &header, sizeof(struct mach_header_64));
@@ -851,7 +860,7 @@ static void make_object_file(void) {
 	close(file);
 }
 
-static void debug(void) {
+static void debug(void) { // const char* object_filename, const char* executable_filename
 	printf("\ndebugging bytes bytes:\n------------------------\n");
 	dump_hex((uint8_t*) bytes, byte_count);
 	system("otool -txvVhlL object.o");
@@ -860,7 +869,7 @@ static void debug(void) {
 	system("objdump executable.out -DSast --disassembler-options=no-aliases");
 }
 
-static void generate_machine_code(void) {
+static void generate_machine_code(const char* object_filename, const char* executable_filename) {
 
 	for (nat i = 0; i < ins_count; i++) {
 
@@ -989,42 +998,46 @@ static void generate_machine_code(void) {
 		}
 	}
 
-	make_object_file();
+	make_object_file(object_filename);
 
-	system("ld -v "
+	char link_command[4096] = {0};
+	snprintf(link_command, sizeof link_command, "ld -v -t -S -x "
 		"-dead_strip "
 		"-print_statistics "
-		//" -version_details "
 		"-no_weak_imports "
 		"-fatal_warnings "
 		"-no_eh_labels "
 		"-warn_compact_unwind "
 		"-warn_unused_dylibs "
-		"-t "
-		"-S "
-		"-x "
-		//"-fno-unwind-tables -fno-asynchronous-unwind-tables "
-		"object.o " 
-		"-o executable.out "
+		"%s -o %s "
 		"-arch arm64 "
 		"-e _start "
 		"-platform_version macos 13.0.0 13.3 "
 		"-lSystem "
-		"-syslibroot /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk "
-		
-		
+		"-syslibroot /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk ", 
+		object_filename, executable_filename
 	);
+	system(link_command);
 }
+
+static noreturn void usage(void) { exit(puts("\033[31;1merror: \033[0m\033[1musage: assembler <source.s> -c <object.o> -o <executable>\033[0m")); } 
 
 int main(int argc, const char** argv) {
 
-	if (argc < 2) return puts("usage: assembler <file1.asm> <file2.asm> ... <filen.asm>");
+	if (argc != 6) usage();
+	if (strcmp(argv[0], "run")) usage();
+	if (strcmp(argv[2], "-c")) usage();
+	if (strcmp(argv[4], "-o")) usage();
+
 	filename = argv[1];
+	const char* object = argv[3];
+	const char* executable = argv[5];
+
 	text_length = 0;
 	text = read_file(filename, &text_length);	
 	*registers = (nat)(void*) malloc(65536);
 	parse();
-	generate_machine_code();
+	generate_machine_code(object, executable);
 	debug();
 }
 
@@ -1039,6 +1052,45 @@ int main(int argc, const char** argv) {
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+//"-fno-unwind-tables -fno-asynchronous-unwind-tables "   //" -version_details "
 
 
 
@@ -1078,6 +1130,16 @@ int main(int argc, const char** argv) {
 
 
 /*
+
+
+//static u32 load(const nat offset) { return ; }  
+					///TODO: right here. this should be a simply deref, to either ctr[0] or ctr[i] 
+					//where the user gives i for the instruction. i tihnk if there are ever two immediates that 
+					//they need to give, which never happens, then we need to give an arbirary pointer. i think. hm. 
+
+
+
+
 struct section_64 dsection = {0};
 	strncpy(dsection.sectname, "__data", 16);
 	strncpy(dsection.segname, "__TEXT", 16);
