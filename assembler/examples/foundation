@@ -1,7 +1,19 @@
-
 . examples/constants . include 
 
-. examples/constructs . include 
+print ctprint print
+
+exit cthalt exit
+
+. ctincr .
++ ctadd +
+- ctsub -
+* ctmul *
+
+enable r31 ctzero ctincr enable
+disable r31 ctzero disable
 
 
-endprogram
+macros enable macros
+endmacros disable endmacros
+
+disable

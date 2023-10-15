@@ -15,6 +15,8 @@
 typedef uint64_t nat;
 typedef uint32_t u32;
 
+static const bool debug = false;
+
 enum instruction_type {
 	nop, dw, svc, cfinv, br, blr, b_, bc, adr, adrp,
 
@@ -49,14 +51,14 @@ enum instruction_type {
 	ctadd, ctsub, ctmul, ctdiv, ctrem,
 	ctnor, ctxor, ctor, ctand, ctshl, ctshr, ctprint, 
 	ctld1, ctld2, ctld4, ctld8, ctst1, ctst2, ctst4, ctst8,
-	ctpc, ctblt, ctbge, ctbeq, ctbne, ctgoto, ctstop, 
+	ctpc, ctblt, ctbge, ctbeq, ctbne, ctgoto, 
 	cthalt,
 
 	instruction_set_count
 };
 
 static const char* const instruction_spelling[instruction_set_count] = {
-	"nop", "dw", "svc", "cfinv", "br", "blr", "b", "bc", "adr", "adrp",
+	"nop", "dw", "svc", "cfinv", "br", "blr", "goto", "bc", "adr", "adrp",
 
 	"movzx", "movzw", "movkx", "movkw", "movnx", "movnw",
 	"addix", "addiw", "addhx", "addhw",
@@ -89,7 +91,7 @@ static const char* const instruction_spelling[instruction_set_count] = {
 	"ctadd", "ctsub", "ctmul", "ctdiv", "ctrem",
 	"ctnor", "ctxor", "ctor", "ctand", "ctshl", "ctshr", "ctprint",
 	"ctld1", "ctld2", "ctld4", "ctld8", "ctst1", "ctst2", "ctst4", "ctst8",
-	"ctpc", "ctblt", "ctbge", "ctbeq", "ctbne", "ctgoto", "ctstop", 
+	"ctpc", "ctblt", "ctbge", "ctbeq", "ctbne", "ctgoto", 
 	"cthalt"
 };
 
@@ -99,7 +101,6 @@ struct word {
 	nat length;
 	nat body_length;
 };
-
 
 struct argument {
 	nat value;
@@ -132,7 +133,7 @@ static nat arg_count = 0;
 static struct argument arguments[6] = {0};
 
 static nat macro = 0;
-static nat stop = 0;
+//static nat stop = 0;
 static u32 im = 0;
 static nat registers[32] = {0};
 
@@ -149,12 +150,14 @@ static const char* text = NULL;
 static const char* return_word = NULL;
 static nat return_count = 0;
 
+
 static void print_words(void) {
-	puts("dicitonary of words: {");
+	printf("dicitonary of words: (%llu){\n", word_count);
 	for (nat i = 0; i < word_count; i++) {
-		printf("struct word { .name = %.*s, .body = %.*s, .length = %llu, .body_length = %llu, }\n",
-			(int) words[i].length, words[i].name, 
-			(int) words[i].body_length, words[i].body,  words[i].length,  words[i].body_length
+		printf("struct word { .name = \033[31m\"%s\"\033[0m, .body = \033[32m\"%s\"\033[0m, .length = %llu, .body_length = %llu, }\n",
+			strndup(words[i].name, words[i].length),
+			strndup(words[i].body, words[i].body_length),
+			words[i].length,  words[i].body_length
 		);
 		puts("");
 	}
@@ -226,11 +229,11 @@ static void print_error(const char* reason, const nat start_index, const nat err
 
 static void push(nat op, nat start, nat count) {
 	struct instruction new = {
-		.op = op, 
+		.op = op,
 		.immediate = registers[arguments->value],
 		.arguments = {0}, 
-		.start = start, 
-		.count = count, 
+		.start = start,
+		.count = count,
 	};
 	memcpy(new.arguments, arguments, sizeof new.arguments);
 	ins[ins_count++] = new;
@@ -431,16 +434,16 @@ static void execute(nat op, nat* pc) {
 	const nat a1 = arguments[1].value;
 	const nat a2 = arguments[2].value;
 
-	if (op == ctstop) {if (registers[a0] == stop) stop = 0; arg_count = 0; return; }
-	else if (stop) return;
+	//if (op == ctstop) {if (registers[a0] == stop) stop = 0; arg_count = 0; return; }
+	//else if (stop) return;
 
 	if (op == ctnop) {}
-	else if (op == ctpc)   *((u32*)*registers+a0) = (u32) *pc;
-	else if (op == ctgoto) *pc = *((u32*)*registers+a0); 
-	else if (op == ctblt)  { if (registers[a1]  < registers[a0]) stop = registers[a2]; } 
-	else if (op == ctbge)  { if (registers[a1] >= registers[a0]) stop = registers[a2]; } 
-	else if (op == ctbeq)  { if (registers[a1] == registers[a0]) stop = registers[a2]; } 
-	else if (op == ctbne)  { if (registers[a1] != registers[a0]) stop = registers[a2]; } 
+	else if (op == ctpc)   registers[a0] = (u32) *pc;
+	else if (op == ctgoto) *pc = registers[a0]; 
+	else if (op == ctblt)  { if (registers[a1]  < registers[a0]) *pc += registers[a2]; } 
+	else if (op == ctbge)  { if (registers[a1] >= registers[a0]) *pc += registers[a2]; } 
+	else if (op == ctbeq)  { if (registers[a1] == registers[a0]) *pc += registers[a2]; } 
+	else if (op == ctbne)  { if (registers[a1] != registers[a0]) *pc += registers[a2]; } 
 	else if (op == ctincr) registers[a0]++;
 	else if (op == ctzero) registers[a0] = 0;
 	else if (op == ctadd)  registers[a2] = registers[a1] + registers[a0]; 
@@ -468,10 +471,19 @@ static void execute(nat op, nat* pc) {
 	arg_count = 0;
 }
 
+
+static void print_registers(void) {
+	for (nat i = 0; i < 32; i++) {
+		if (not (i % 6)) puts("");
+		printf("%010llx, ", registers[i]);
+	}
+	puts("");
+}
+
 static void parse(void) {
 
 begin:
-	printf("info begining of processing for file: %s...\n", filename);
+	if (debug) printf("info begining of processing for file: %s...\n", filename);
 
 	nat count = 0, start = 0, index = 0;
 	
@@ -484,7 +496,7 @@ begin:
 	process:;
 		const char* const word = text + start;
 
-		printf("[%s]:   %s: processing: \"\033[31m%.*s\033[0m\"...\n", 
+		if (debug) printf("[%s]:   %s: processing: \"\033[31m%.*s\033[0m\"...\n", 
 			macro ? "MACRO" : "standard", filename, (int) count, word
 		);
 
@@ -493,13 +505,20 @@ begin:
 		if (macro) {
 			if (equals(word, count, return_word, return_count)) {
 				words[word_count - 1].body_length = start - (nat) (words[word_count - 1].body - text);
-				macro = 0; goto next;
-			} else goto next;
+
+
+				words[word_count - 1].body = strndup(words[word_count - 1].body, words[word_count - 1].body_length);
+				macro = 0; 
+			}
+			goto next;
 		}
 
+		else if (is(word, count, "printregisters")) 	{ print_registers(); 	goto next; }
+		else if (is(word, count, "printwords")) 	{ print_words(); 	goto next; }
+		else if (is(word, count, "delete")) 		{ arg_count--; 		goto next; }
+		else if (is(word, count, "remove")) 		{ word_count--; 	goto next; }
 		else if (is(word, count, "include")) {
-			const struct word w = words[--word_count];
-
+			
 			filestack[filecount++] = (struct afile) {
 				.filename = filename,
 				.text = text,
@@ -508,15 +527,16 @@ begin:
 			};
 
 			char newfilename[4096] = {0};
-			strncpy(newfilename, w.body, w.body_length);
+			const struct word w = words[--word_count];
+			strncat(newfilename, w.body + 1, w.body_length - 2);
 
-			filename = w.body;
-			printf("\033[32mIncluding file \"%s\"...\033[0m\n", filename);
+			filename = strdup(newfilename);
+			if (debug) printf("\033[32mIncluding file \"%s\"...\033[0m\n", filename);
 			text = read_file(newfilename, &text_length);
-			printf("contents for %s: = \"%.*s\"\n", filename, (int) text_length, text);
+			if (debug) printf("contents for %s: = \"%.*s\"\n", filename, (int) text_length, text);
 			goto begin; 
 
-			end: printf("info: finished processing that file, continuing to process %s...\n", filename);
+			end: if (debug) printf("info: finished processing that file, continuing to process %s...\n", filename);
 			goto next;
 		}
 
@@ -531,21 +551,20 @@ begin:
 					print_error(reason, start, count); 
 					exit(1);
 				}
-				if (not stop) arguments[arg_count++] = arg; 
+				arguments[arg_count++] = arg; 
 				goto next;
 			}
 		}
 
 		for (nat i = nop; i < instruction_set_count; i++) {
 			if (not is(word, count, instruction_spelling[i])) continue;
-			if (i >= ctnop) execute(i, &index); 
-			else if (not stop) push(i, start, count);
+			if (i >= ctnop) execute(i, &index); else push(i, start, count);
 			goto next;
 		}
 
 		for (nat w = 0; w < word_count; w++) {
 			if (not equals(word, count, words[w].name, words[w].length)) continue;
-			printf("\033[35m CALLING A MACRO!! %.*s...\033[0m\n", (int) words[w].length, words[w].name);
+			if (debug) printf("\033[35m CALLING A MACRO!! %.*s...\033[0m\n", (int) words[w].length, words[w].name);
 
 			filestack[filecount++] = (struct afile) {
 				.filename = filename,
@@ -554,47 +573,92 @@ begin:
 				.index = index,
 			};
 
+			
+			char newfilename[4096] = {0};
+			memcpy(newfilename, filename, strlen(filename));
+			strncat(newfilename, ":", 1);
+			strncat(newfilename, words[w].name, words[w].length);
+			filename = strdup(newfilename); 
+
+	
 			text = words[w].body;
 			text_length = words[w].body_length;
 			goto begin;
 		}
 
-		if (not arg_count) { 
-			
-			words[word_count++] = (struct word) {
-				.name = word, 
-				.length = count, 
-				.body = text + index,
-				.body_length = 0,
-			};
-
-			macro = 1;
-			return_word = word;
-			return_count = count;
-			goto next;
-
-		} else {
+		if (not registers[31]) {
 			char reason[4096] = {0};
 			snprintf(reason, sizeof reason, 
-				"undefined word found \"%.*s\"", 
+				"undefined word \"%.*s\"", 
 				(int) count, word
 			);
 			print_error(reason, start, count);
+
+
+			if (debug) {
+				for (nat i = 0; i < filecount; i++) {
+				printf("struct file: { filename: %s, text:%.*s, text_length:%llu, index:%llu } \n", 
+					filestack[i].filename, 
+					(int) filestack[i].text_length, filestack[i].text, 
+					filestack[i].text_length, 
+					filestack[i].index
+				);
+
+				const struct afile save = {
+					.filename = filename, 
+					.text = text, 
+					.text_length = text_length, 
+					.index = index, 
+				};
+
+				filename = filestack[i].filename;
+				text = filestack[i].text;
+				text_length = filestack[i].text_length;
+
+				print_error("filestack[i]", filestack[i].index, 1);
+
+				filename = save.filename;
+				text = save.text;
+				text_length = save.text_length;
+				index = save.index;
+
+				puts("");
+				}
+				printf("---> struct file: { filename: %s, text:%.*s, text_length:%llu, index:%llu } \n", 
+						filename, 
+						(int) text_length, text, 
+						text_length, 
+						index
+				);
+				print_error("filestack[i]", index, 1);
+
+				print_registers();
+
+			}
+
 			exit(1);
 		}
 
-		next: print_words(); count = 0;
-			
+		words[word_count++] = (struct word) {
+			.name = strndup(word, count), 
+			.length = count, 
+			.body = text + index,
+			.body_length = 0,
+		};
+		macro = 1;
+		return_word = word;
+		return_count = count;
+
+		next: 
+		if (debug) print_words(); 
+		count = 0;
 	}
 
 	if (count) goto process;
-
-	if (macro) {
+	if (macro and not filecount) {
 		char reason[4096] = {0};
 		snprintf(reason, sizeof reason, "unterminated operation macro");
 		print_error(reason, start, count);
-
-		// todo: we should show the file including / macro expansion backtrace! very useful. 
 		exit(1);
 	}
 
@@ -606,6 +670,7 @@ begin:
 	index = f.index;
 	goto end;
 }
+
 
 static void make_object_file(const char* object_filename) {
 
@@ -622,7 +687,6 @@ static void make_object_file(const char* object_filename) {
 				sizeof(struct section_64) + 
 				sizeof(struct symtab_command);
 
-
 	struct segment_command_64 segment = {0};
 	strncpy(segment.segname, "__TEXT", 16);
 	segment.cmd = LC_SEGMENT_64;
@@ -638,7 +702,6 @@ static void make_object_file(const char* object_filename) {
 				sizeof(struct segment_command_64) + 
 				sizeof(struct section_64) + 
 				sizeof(struct symtab_command);
-
 
 	struct section_64 section = {0};
 	strncpy(section.sectname, "__text", 16);
@@ -696,25 +759,21 @@ static void make_object_file(const char* object_filename) {
 	write(file, bytes, byte_count);
 	write(file, symbols, sizeof(struct nlist_64));
 	write(file, strings, sizeof strings);
-
 	close(file);
 }
 
-static void debug(void) { 
+static void debug_output(void) { 
 	printf("\ndebugging bytes bytes:\n------------------------\n");
 	dump_hex((uint8_t*) bytes, byte_count);
 	system("otool -txvVhlL object.o");
 	system("otool -txvVhlL program.out");
 	system("objdump object.o -DSast --disassembler-options=no-aliases");
-	system("objdump program.out -DSast --disassembler-options=no-aliases");
-
-	
+	system("objdump program.out -DSast --disassembler-options=no-aliases");	
 }
 
 static void generate_machine_code(const char* object_filename, const char* executable_filename) {
 
 	for (nat i = 0; i < ins_count; i++) {
-
 		const nat op = ins[i].op;
 		im = (u32) ins[i].immediate;
 		struct argument* const a = ins[i].arguments;
@@ -723,7 +782,6 @@ static void generate_machine_code(const char* object_filename, const char* execu
 		else if (op == svc)    emit(0xD4000001);
 		else if (op == nop)    emit(0xD503201F);
 		else if (op == cfinv)  emit(0xD500401F);
-		
 		else if (op == br)     emit(generate_br(a, 0x3587C0U));
 		else if (op == blr)    emit(generate_br(a, 0x358FC0U));
 		else if (op == b_)     emit(generate_b(a));
@@ -821,7 +879,7 @@ static void generate_machine_code(const char* object_filename, const char* execu
 		else if (op == csinvw)  emit(generate_csel(a, 0, 0x2D4U, 0));
 		else if (op == csnegx)  emit(generate_csel(a, 1, 0x2D4U, 1));
 		else if (op == csnegw)  emit(generate_csel(a, 0, 0x2D4U, 1));
-		
+
 		else if (op == orrx)   emit(generate_orr(a, 1, 0, 0x2AU));
 		else if (op == orrw)   emit(generate_orr(a, 0, 0, 0x2AU));
 		else if (op == ornx)   emit(generate_orr(a, 1, 1, 0x2AU));
@@ -869,7 +927,10 @@ static void generate_machine_code(const char* object_filename, const char* execu
 	system(link_command);
 }
 
-static noreturn void usage(int x) { puts("\033[31;1merror: \033[0m\033[1musage: assembler <source.s> -c <object.o> -o <executable>\033[0m"); exit(x); } 
+static noreturn void usage(int x) { 
+	puts("\033[31;1merror: \033[0m\033[1musage: assembler <source.s> -c <object.o> -o <executable>\033[0m"); 
+	exit(x); 
+}
 
 int main(int argc, const char** argv) {
 	if (argc != 6) usage(1);
@@ -882,10 +943,10 @@ int main(int argc, const char** argv) {
 
 	text_length = 0;
 	text = read_file(filename, &text_length);	
-	*registers = (nat)(void*) malloc(65536);
+	*registers = (nat)(void*) malloc(65536); registers[31]++;
 	parse();
 	generate_machine_code(object, executable);
-	debug();
+	if (debug) debug_output();
 }
 
 
@@ -914,7 +975,19 @@ int main(int argc, const char** argv) {
 
 
 
+/*
 
+
+
+
+//		if (not arg_count) { 
+
+
+		} else {
+			
+		}
+
+*/
 
 
 

@@ -1,0 +1,5 @@
+rm object.o 
+rm program.out
+./run examples/hello_world.s -c object.o -o program.out
+./program.out
+echo $?
