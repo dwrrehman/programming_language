@@ -32,7 +32,6 @@ macros
 		28
 	address
 
-
 	last    r3 r3 +  r3 dw  	last
 	next    r3 r3 +  8 r3 r3 ctshl  next
 
@@ -51,8 +50,22 @@ macros
 		'\n'  next
 		'O'  last
 		
-
 	mystring
+
+	then string emit remove then
+	newline 10 db newline
+
+	mystring2
+		enable 
+			" Hello there from space! this is my cool string. yay. " 
+
+				then newline
+
+			" i still can't beleive this works lol... " 
+
+				then newline
+		disable
+	mystring2
 
 endmacros
 
@@ -62,7 +75,7 @@ endmacros
 
 address r1 adr  	enable ;41235 	string address  points to after __text section. 	;41235 disable
 
-8 r0 r2 movzx   	enable ;41236 	4 characters in string. 				;41236 disable
+100 r0 r2 movzx   	enable ;41236 	4 characters in string. 				;41236 disable
 
 4 r0 r16 movzw  	enable ;41237 	4 = write() system call. 				;41237 disable
 
@@ -75,7 +88,7 @@ svc
 
 address
 
-	mystring
+	mystring2
 
 
 

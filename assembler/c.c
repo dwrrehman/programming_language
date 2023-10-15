@@ -18,7 +18,7 @@ typedef uint32_t u32;
 static const bool debug = false;
 
 enum instruction_type {
-	nop, dw, svc, cfinv, br, blr, b_, bc, adr, adrp,
+	nop, dw, db, svc, cfinv, br, blr, b_, bc, adr, adrp, emitstring,
 
 	movzx, movzw,	movkx, movkw,	movnx, movnw,
 	addix, addiw,	addhx, addhw,
@@ -58,7 +58,7 @@ enum instruction_type {
 };
 
 static const char* const instruction_spelling[instruction_set_count] = {
-	"nop", "dw", "svc", "cfinv", "br", "blr", "goto", "bc", "adr", "adrp",
+	"nop", "dw", "db", "svc", "cfinv", "br", "blr", "goto", "bc", "adr", "adrp", "emit",
 
 	"movzx", "movzw", "movkx", "movkw", "movnx", "movnw",
 	"addix", "addiw", "addhx", "addhw",
@@ -230,7 +230,7 @@ static void print_error(const char* reason, const nat start_index, const nat err
 static void push(nat op, nat start, nat count) {
 	struct instruction new = {
 		.op = op,
-		.immediate = registers[arguments->value],
+		.immediate = arguments->value < 32 ? registers[arguments->value] : 0,
 		.arguments = {0}, 
 		.start = start,
 		.count = count,
@@ -240,11 +240,21 @@ static void push(nat op, nat start, nat count) {
 	arg_count = 0;
 }
 
+static void emit_byte(u32 x) {
+	bytes[byte_count++] = (uint8_t) (x >> 0);
+}
+
 static void emit(u32 x) {
 	bytes[byte_count++] = (uint8_t) (x >> 0);
 	bytes[byte_count++] = (uint8_t) (x >> 8);
 	bytes[byte_count++] = (uint8_t) (x >> 16);
 	bytes[byte_count++] = (uint8_t) (x >> 24);
+}
+
+static void emit_sequence(const char* string, const nat count) {
+	memcpy(bytes + byte_count, string, count);
+	byte_count += count;
+	if (byte_count % 4) byte_count += (4 - byte_count % 4);
 }
 
 static void check(nat r, nat c, const struct argument a, const char* type) {
@@ -525,11 +535,17 @@ begin:
 			goto next;
 		}
 
-		else if (is(word, count, "printregisters")) 	{ print_registers(); 	goto next; }
-		else if (is(word, count, "printwords")) 	{ print_words(); 	goto next; }
-		else if (is(word, count, "delete")) 		{ arg_count--; 		goto next; }
-		else if (is(word, count, "remove")) 		{ word_count--; 	goto next; }
-		else if (is(word, count, "include")) {
+		else if (is(word, count, "printregisters")) { print_registers(); goto next; }
+		else if (is(word, count, "printwords")) { print_words(); goto next; }
+		else if (is(word, count, "delete")) { arg_count--; goto next; }
+		else if (is(word, count, "remove")) { words[word_count - 1].length = 0; goto next; }
+
+		else if (is(word, count, "string")) { 
+			arg.value = word_count - 1; 
+			arguments[arg_count++] = arg; 
+			goto next; 
+
+		} else if (is(word, count, "include")) {
 			
 			filestack[filecount++] = (struct afile) {
 				.filename = filename,
@@ -790,7 +806,11 @@ static void generate_machine_code(const char* object_filename, const char* execu
 		im = (u32) ins[i].immediate;
 		struct argument* const a = ins[i].arguments;
 
-		     if (op == dw)     emit(im);
+		     if (op == dw)     		emit(im);
+		else if (op == db)     		emit_byte(im);
+		else if (op == emitstring)    	emit_sequence(words[a->value].body + 1, 
+							words[a->value].body_length - 2);
+
 		else if (op == svc)    emit(0xD4000001);
 		else if (op == nop)    emit(0xD503201F);
 		else if (op == cfinv)  emit(0xD500401F);
@@ -920,9 +940,9 @@ static void generate_machine_code(const char* object_filename, const char* execu
 	}
 
 	char link_command[4096] = {0};
-	snprintf(link_command, sizeof link_command, "ld -v -t -S -x "
+	snprintf(link_command, sizeof link_command, "ld -S -x " //  -v
 		"-dead_strip "
-		"-print_statistics "
+		//"-print_statistics "
 		"-no_weak_imports "
 		"-fatal_warnings "
 		"-no_eh_labels "
@@ -958,7 +978,7 @@ int main(int argc, const char** argv) {
 	*registers = (nat)(void*) malloc(65536); registers[31]++;
 	parse();
 	generate_machine_code(object, executable);
-	debug_output();
+	// debug_output();
 }
 
 
