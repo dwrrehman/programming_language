@@ -18,53 +18,64 @@ comment.0192840918234 disable
 
 
 macros
+
+	65 
+		15 r1 r2 +
+		2 r2 r2 *
+		5 r2 r2 +
+		r1 ctzero
+		r1 r2 r1 +
+		r1
+	65 
+
 	address
-		r1 ctzero ctincr ctincr ctincr 
-		r1 r1 r1 ctshl
-		r1 
+		28
 	address
 
-	'STR\n' 
-		5
-	'STR\n'
+
+	last    r3 r3 +  r3 dw  	last
+	next    r3 r3 +  8 r3 r3 ctshl  next
+
+	mystring
+		r3 ctzero
+
+		'L' next
+		'L'  next
+		'E'  next
+		'H'  last
+
+		r3 ctzero
+
+		'I' next
+		'H'  next
+		'\n'  next
+		'O'  last
+		
+
+	mystring
 
 endmacros
 
 
 
-r6 ctzero ctprint
-
-r7 ctzero ctincr ctprint
-
-
-12 print
-12 print
-12 print
-12 print
-12 print
-
-2 print
-3 print
-3 print
-4 print
-5 print
-
-
-exit
-
-
 1 r0 r0 movzx   	enable ;41234 	1 = stdout 						;41234 disable
-address r1 adr  	enable ;41235 	string address  points to after __text section. 	;41235 disable
-4 r0 r2 movzx   	enable ;41236 	4 characters in string. 				;41236 disable
-4 r0 r16 movzw  	enable ;41237 	4 = write() system call. 				;41237 disable
-svc
 
+address r1 adr  	enable ;41235 	string address  points to after __text section. 	;41235 disable
+
+8 r0 r2 movzx   	enable ;41236 	4 characters in string. 				;41236 disable
+
+4 r0 r16 movzw  	enable ;41237 	4 = write() system call. 				;41237 disable
+
+svc
 
 2 r0 r0 movzx
 1 r0 r16 movzw
 svc
 
-"ABC\n" dw
+
+address
+
+	mystring
 
 
 

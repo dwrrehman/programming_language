@@ -1,4 +1,5 @@
 . examples/constants . include 
+. examples/characters . include 
 
 print ctprint print
 
@@ -9,9 +10,8 @@ exit cthalt exit
 - ctsub -
 * ctmul *
 
-enable r31 ctzero ctincr enable
+enable r31 ctzero r31 ctincr enable
 disable r31 ctzero disable
-
 
 macros enable macros
 endmacros disable endmacros

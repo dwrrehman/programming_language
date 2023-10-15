@@ -47,7 +47,7 @@ enum instruction_type {
 	clsx, 	clsw,	clzx, clzw,	ctzx, ctzw,	cntx, cntw,    
 	rbitx, 	rbitw,	revx, revw,  	revhx, revhw,
 
-	ctnop, ctzero, ctincr, 
+	ctnop, ctzero, ctincr, ctset,
 	ctadd, ctsub, ctmul, ctdiv, ctrem,
 	ctnor, ctxor, ctor, ctand, ctshl, ctshr, ctprint, 
 	ctld1, ctld2, ctld4, ctld8, ctst1, ctst2, ctst4, ctst8,
@@ -87,7 +87,7 @@ static const char* const instruction_spelling[instruction_set_count] = {
 	"clsx", "clsw",	"clzx", "clzw",	"ctzx", "ctzw",	"cntx", "cntw",
 	"rbitx", "rbitw", "revx", "revw", "revhx", "revhw",
 
-	"ctnop", "ctzero", "ctincr", 
+	"ctnop", "ctzero", "ctincr", "ctset",
 	"ctadd", "ctsub", "ctmul", "ctdiv", "ctrem",
 	"ctnor", "ctxor", "ctor", "ctand", "ctshl", "ctshr", "ctprint",
 	"ctld1", "ctld2", "ctld4", "ctld8", "ctst1", "ctst2", "ctst4", "ctst8",
@@ -430,9 +430,9 @@ static void dump_hex(uint8_t* local_bytes, nat local_byte_count) {
 }
 
 static void execute(nat op, nat* pc) {
-	const nat a0 = arguments[0].value;
-	const nat a1 = arguments[1].value;
-	const nat a2 = arguments[2].value;
+	const nat a2 = arg_count >= 3 ? arguments[arg_count - 3].value : 999999;
+	const nat a1 = arg_count >= 2 ? arguments[arg_count - 2].value : 999999;
+	const nat a0 = arg_count >= 1 ? arguments[arg_count - 1].value : 999999;
 
 	//if (op == ctstop) {if (registers[a0] == stop) stop = 0; arg_count = 0; return; }
 	//else if (stop) return;
@@ -440,32 +440,33 @@ static void execute(nat op, nat* pc) {
 	if (op == ctnop) {}
 	else if (op == ctpc)   registers[a0] = (u32) *pc;
 	else if (op == ctgoto) *pc = registers[a0]; 
-	else if (op == ctblt)  { if (registers[a1]  < registers[a0]) *pc += registers[a2]; } 
-	else if (op == ctbge)  { if (registers[a1] >= registers[a0]) *pc += registers[a2]; } 
-	else if (op == ctbeq)  { if (registers[a1] == registers[a0]) *pc += registers[a2]; } 
-	else if (op == ctbne)  { if (registers[a1] != registers[a0]) *pc += registers[a2]; } 
+	else if (op == ctblt)  { if (registers[a1]  < registers[a2]) *pc += registers[a0]; } 
+	else if (op == ctbge)  { if (registers[a1] >= registers[a2]) *pc += registers[a0]; } 
+	else if (op == ctbeq)  { if (registers[a1] == registers[a2]) *pc += registers[a0]; } 
+	else if (op == ctbne)  { if (registers[a1] != registers[a2]) *pc += registers[a0]; } 
 	else if (op == ctincr) registers[a0]++;
 	else if (op == ctzero) registers[a0] = 0;
-	else if (op == ctadd)  registers[a2] = registers[a1] + registers[a0]; 
-	else if (op == ctsub)  registers[a2] = registers[a1] - registers[a0]; 
-	else if (op == ctmul)  registers[a2] = registers[a1] * registers[a0]; 
-	else if (op == ctdiv)  registers[a2] = registers[a1] / registers[a0]; 
-	else if (op == ctrem)  registers[a2] = registers[a1] % registers[a0]; 
-	else if (op == ctxor)  registers[a2] = registers[a1] ^ registers[a0]; 
-	else if (op == ctor)   registers[a2] = registers[a1] | registers[a0]; 
-	else if (op == ctand)  registers[a2] = registers[a1] & registers[a0]; 
-	else if (op == ctnor)  registers[a2] = ~(registers[a1] | registers[a0]); 
-	else if (op == ctshl)  registers[a2] = registers[a1] << registers[a0]; 
-	else if (op == ctshr)  registers[a2] = registers[a1] >> registers[a0]; 
+	else if (op == ctset)  registers[a0] = registers[a1];
+	else if (op == ctadd)  registers[a0] = registers[a1] + registers[a2]; 
+	else if (op == ctsub)  registers[a0] = registers[a1] - registers[a2]; 
+	else if (op == ctmul)  registers[a0] = registers[a1] * registers[a2]; 
+	else if (op == ctdiv)  registers[a0] = registers[a1] / registers[a2]; 
+	else if (op == ctrem)  registers[a0] = registers[a1] % registers[a2]; 
+	else if (op == ctxor)  registers[a0] = registers[a1] ^ registers[a2]; 
+	else if (op == ctor)   registers[a0] = registers[a1] | registers[a2]; 
+	else if (op == ctand)  registers[a0] = registers[a1] & registers[a2]; 
+	else if (op == ctnor)  registers[a0] = ~(registers[a1] | registers[a2]); 
+	else if (op == ctshl)  registers[a0] = registers[a1] << registers[a2]; 
+	else if (op == ctshr)  registers[a0] = registers[a1] >> registers[a2]; 
 	else if (op == ctprint) printf("debug: \033[32m%llu\033[0m \033[32m0x%llx\033[0m\n", registers[a0], registers[a0]); 
-	else if (op == ctld1)  registers[a1] = *(uint8_t*) registers[a0]; 
-	else if (op == ctld2)  registers[a1] = *(uint16_t*)registers[a0]; 
-	else if (op == ctld4)  registers[a1] = *(uint32_t*)registers[a0]; 
-	else if (op == ctld8)  registers[a1] = *(uint64_t*)registers[a0]; 
-	else if (op == ctst1)  *(uint8_t*) registers[a1] = (uint8_t)  registers[a0]; 
-	else if (op == ctst2)  *(uint16_t*)registers[a1] = (uint16_t) registers[a0]; 
-	else if (op == ctst4)  *(uint32_t*)registers[a1] = (uint32_t) registers[a0]; 
-	else if (op == ctst8)  *(uint64_t*)registers[a1] = (uint64_t) registers[a0]; 
+	else if (op == ctld1)  registers[a0] = *(uint8_t*) registers[a1]; 
+	else if (op == ctld2)  registers[a0] = *(uint16_t*)registers[a1]; 
+	else if (op == ctld4)  registers[a0] = *(uint32_t*)registers[a1]; 
+	else if (op == ctld8)  registers[a0] = *(uint64_t*)registers[a1]; 
+	else if (op == ctst1)  *(uint8_t*) registers[a0] = (uint8_t)  registers[a1]; 
+	else if (op == ctst2)  *(uint16_t*)registers[a0] = (uint16_t) registers[a1]; 
+	else if (op == ctst4)  *(uint32_t*)registers[a0] = (uint32_t) registers[a1]; 
+	else if (op == ctst8)  *(uint64_t*)registers[a0] = (uint64_t) registers[a1]; 
 	else if (op == cthalt) abort();
 	
 	arg_count = 0;
@@ -504,10 +505,21 @@ begin:
 		
 		if (macro) {
 			if (equals(word, count, return_word, return_count)) {
+				if (word_count == 0) abort();
 				words[word_count - 1].body_length = start - (nat) (words[word_count - 1].body - text);
 
-
-				words[word_count - 1].body = strndup(words[word_count - 1].body, words[word_count - 1].body_length);
+				if ((int) words[word_count - 1].body_length < 0) {
+					puts("macro is empty");
+					print_words();
+					abort();
+				}
+				
+				//printf("words[word_count - 1].body_length = %llu\n", words[word_count - 1].body_length);
+				words[word_count - 1].body = 
+						strndup(
+							words[word_count - 1].body, 
+							words[word_count - 1].body_length
+						);
 				macro = 0; 
 			}
 			goto next;
@@ -655,7 +667,7 @@ begin:
 	}
 
 	if (count) goto process;
-	if (macro and not filecount) {
+	if (macro) {
 		char reason[4096] = {0};
 		snprintf(reason, sizeof reason, "unterminated operation macro");
 		print_error(reason, start, count);
@@ -946,7 +958,7 @@ int main(int argc, const char** argv) {
 	*registers = (nat)(void*) malloc(65536); registers[31]++;
 	parse();
 	generate_machine_code(object, executable);
-	if (debug) debug_output();
+	debug_output();
 }
 
 
