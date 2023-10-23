@@ -15,7 +15,82 @@
 typedef uint64_t nat;
 typedef uint32_t u32;
 
-static const bool debug = false;
+
+/*
+======================
+	todo:
+======================
+
+	x - add a state variable using ctr[30]   which controls which macros are interpreted! you need the name to match, and the state variable to match. so yeah. 
+
+				this allows so much sort of syntax. its crazy. 
+
+					for instance, we could have spaces in names if we do that lol. 
+
+						seriously lol. 
+								like, we could define functions that are called
+
+										print usage and exit with error 2
+
+								thats the name of a single function. nice.
+									oh, and we could implement a type system with this state thingy too.  pretty amazing. lol. nice. 
+
+
+					OH MY GOSH WE SHOULD ADD THE ABILITY TO RENAME A MACROOOOO
+
+
+							YESSSSS LETS ADDD THAT TOOOOOO
+
+
+						super useful!!! maybe we don't need remove-name now?   
+							because thats simply renaming it to the empty stringgg lololol
+								idkkkk 
+
+
+								i feel like no.. we want to make the name uncallable... but we cannot spell the empty string at all. so we need remove,   aka    "rename-empty"   instruction. 
+
+
+
+
+										
+
+
+
+	
+	- make labels actually work properly, by having the value be persistent in memory!! ie, labels have an _attr_ ct ins, which fills in a number in a place in memory, 
+		and branch/label-taking instructions always deref the pointer that is given in memory, and we use a ctregisters value at parse time for the memory location/address, to store the persistent value in memory. 
+			.....yup. its that complicated lol.  
+
+
+
+			the way labels will work will be to 
+
+
+				basically we first need to add a       attr         ins         "ctat"
+
+				and then we need to make it cache the value of ctregisters?
+
+					
+
+	
+				and thennn we need to make all  branches/etc   use the deref'd ctr as the imm argument.
+
+
+
+				simple as that!! done. 
+
+
+				
+	
+
+
+
+
+*/
+
+
+static const bool debug = true;
+
 
 enum instruction_type {
 	nop, dw, db, svc, cfinv, br, blr, b_, bc, adr, adrp, emitstring,
@@ -51,7 +126,7 @@ enum instruction_type {
 	ctadd, ctsub, ctmul, ctdiv, ctrem,
 	ctnor, ctxor, ctor, ctand, ctshl, ctshr, ctprint, 
 	ctld1, ctld2, ctld4, ctld8, ctst1, ctst2, ctst4, ctst8,
-	ctpc, ctblt, ctbge, ctbeq, ctbne, ctgoto, 
+	ctpc, ctblt, ctbge, ctbeq, ctbne, ctgoto, ctat,
 	cthalt,
 
 	instruction_set_count
@@ -91,7 +166,7 @@ static const char* const instruction_spelling[instruction_set_count] = {
 	"ctadd", "ctsub", "ctmul", "ctdiv", "ctrem",
 	"ctnor", "ctxor", "ctor", "ctand", "ctshl", "ctshr", "ctprint",
 	"ctld1", "ctld2", "ctld4", "ctld8", "ctst1", "ctst2", "ctst4", "ctst8",
-	"ctpc", "ctblt", "ctbge", "ctbeq", "ctbne", "ctgoto", 
+	"ctpc", "ctblt", "ctbge", "ctbeq", "ctbne", "ctgoto", "ctat",
 	"cthalt"
 };
 
@@ -133,8 +208,7 @@ static nat arg_count = 0;
 static struct argument arguments[6] = {0};
 
 static nat macro = 0;
-//static nat stop = 0;
-static u32 im = 0;
+static nat im = 0;
 static nat registers[32] = {0};
 
 static nat byte_count = 0;
@@ -230,7 +304,7 @@ static void print_error(const char* reason, const nat start_index, const nat err
 static void push(nat op, nat start, nat count) {
 	struct instruction new = {
 		.op = op,
-		.immediate = arguments->value < 32 ? registers[arguments->value] : 0,
+		.immediate = arguments[0].value < 32 ? registers[arguments[0].value] : 0,
 		.arguments = {0}, 
 		.start = start,
 		.count = count,
@@ -241,7 +315,7 @@ static void push(nat op, nat start, nat count) {
 }
 
 static void emit_byte(u32 x) {
-	bytes[byte_count++] = (uint8_t) (x >> 0);
+	bytes[byte_count++] = (uint8_t) x;
 }
 
 static void emit(u32 x) {
@@ -274,6 +348,7 @@ static void check_branch(int r, int c, const struct argument a, const char* type
 }
 
 static u32 generate_mov(struct argument* a, u32 sf, u32 op) { 
+	const u32 Im = (u32) im;
 	const u32 hw = (u32) a[1].value;
 	const u32 Rd = (u32) a[2].value;
 	check(im, 1 << 16U, a[0], "immediate");
@@ -282,10 +357,11 @@ static u32 generate_mov(struct argument* a, u32 sf, u32 op) {
 	return  (sf << 31U) | 
 		(op << 23U) | 
 		(hw << 21U) | 
-		(im <<  5U) | Rd;
+		(Im <<  5U) | Rd;
 }
 
 static u32 generate_addi(struct argument* a, u32 sf, u32 sh, u32 op) { 
+	const u32 Im = (u32) im;
 	const u32 Rn = (u32) a[1].value;
 	const u32 Rd = (u32) a[2].value;
 	check(im, 1 << 12U, a[0], "immediate");
@@ -294,11 +370,12 @@ static u32 generate_addi(struct argument* a, u32 sf, u32 sh, u32 op) {
 	return  (sf << 31U) | 
 		(op << 23U) | 
 		(sh << 22U) | 
-		(im << 10U) | 
+		(Im << 10U) | 
 		(Rn <<  5U) | Rd;
 }
 
 static u32 generate_stri(struct argument* a, u32 si, u32 op, u32 o2) {
+	const u32 Im = (u32) im;
 	const u32 Rn = (u32) a[1].value;
 	const u32 Rt = (u32) a[2].value;
 	check(im, 1 << 9U, a[0], "immediate");
@@ -306,12 +383,13 @@ static u32 generate_stri(struct argument* a, u32 si, u32 op, u32 o2) {
 	check(Rt, 32, a[2], "register");
 	return  (si << 30U) | 
 		(op << 21U) | 
-		(im << 12U) | 
+		(Im << 12U) | 
 		(o2 << 10U) |
 		(Rn <<  5U) | Rt;
 }
 
 static u32 generate_striu(struct argument* a, u32 si, u32 op) {
+	const u32 Im = (u32) im;
 	const u32 Rn = (u32) a[1].value;
 	const u32 Rt = (u32) a[2].value;
 	check(im, 1 << 12U, a[0], "immediate");
@@ -319,7 +397,7 @@ static u32 generate_striu(struct argument* a, u32 si, u32 op) {
 	check(Rt, 32, a[2], "register");
 	return  (si << 30U) | 
 		(op << 21U) | 
-		(im << 10U) | 
+		(Im << 10U) | 
 		(Rn <<  5U) | Rt;
 }
 
@@ -372,6 +450,7 @@ static u32 generate_csel(struct argument* a, u32 sf, u32 op, u32 o2) {
 }
 
 static u32 generate_orr(struct argument* a, u32 sf, u32 ne, u32 op) { 
+	const u32 Im = (u32) im;
 	const u32 sh = (u32) a[1].value;
 	const u32 Rm = (u32) a[2].value;
 	const u32 Rn = (u32) a[3].value;
@@ -386,7 +465,7 @@ static u32 generate_orr(struct argument* a, u32 sf, u32 ne, u32 op) {
 		(sh << 22U) | 
 		(ne << 21U) | 
 		(Rm << 16U) | 
-		(im << 10U) | 
+		(Im << 10U) | 
 		(Rn <<  5U) | Rd;
 }
 
@@ -407,22 +486,25 @@ static u32 generate_br(struct argument* a, u32 op) {
 }
 
 static u32 generate_b(struct argument* a) {
-	check_branch((int) im, 1 << (26 - 1), a[0], "branch offset");
+	const u32 Im = * (u32*) im;
+	check_branch((int) Im, 1 << (26 - 1), a[0], "branch offset");
 	return (0x05 << 26U) | (0x03FFFFFFU & im);
 }
 
 static u32 generate_bc(struct argument* a) { 
-	const u32 cd = (u32) a[0].value;
-	check_branch((int) im, 1 << (19 - 1), a[0], "branch offset");
-	check(cd, 16, a[0], "condition");
-	return (0x54U << 24U) | ((0x0007FFFFU & im) << 5U) | cd;
+	const u32 Im = * (u32*) im;
+	const u32 cd = (u32) a[1].value;
+	check_branch((int) Im, 1 << (19 - 1), a[0], "branch offset");
+	check(cd, 16, a[1], "condition");
+	return (0x54U << 24U) | ((0x0007FFFFU & Im) << 5U) | cd;
 }
 
-static u32 generate_adr(struct argument* a, u32 op, u32 o2) { 
-	const u32 Rd = (u32) a[0].value;
-	check_branch((int) im, 1 << (21 - 1), a[0], "pc-relative address");
-	check(Rd, 32, a[0], "register");
-	const u32 lo = 0x03U & im, hi = 0x07FFFFU & (im >> 2);
+static u32 generate_adr(struct argument* a, u32 op, u32 o2) {
+	const u32 Im = * (u32*) im;
+	const u32 Rd = (u32) a[1].value;
+	check_branch((int) Im, 1 << (21 - 1), a[0], "pc-relative address");
+	check(Rd, 32, a[1], "register");
+	const u32 lo = 0x03U & Im, hi = 0x07FFFFU & (Im >> 2);
 	return  (o2 << 31U) | 
 		(lo << 29U) | 
 		(op << 24U) | 
@@ -448,6 +530,7 @@ static void execute(nat op, nat* pc) {
 	//else if (stop) return;
 
 	if (op == ctnop) {}
+	else if (op == ctat)   *(u32*)registers[a0] = (u32) ins_count;
 	else if (op == ctpc)   registers[a0] = (u32) *pc;
 	else if (op == ctgoto) *pc = registers[a0]; 
 	else if (op == ctblt)  { if (registers[a1]  < registers[a2]) *pc += registers[a0]; } 
@@ -520,7 +603,7 @@ begin:
 
 				if ((int) words[word_count - 1].body_length < 0) {
 					puts("macro is empty");
-					print_words();
+					//print_words();
 					abort();
 				}
 				
@@ -600,7 +683,6 @@ begin:
 				.text_length = text_length,
 				.index = index,
 			};
-
 			
 			char newfilename[4096] = {0};
 			memcpy(newfilename, filename, strlen(filename));
@@ -625,32 +707,32 @@ begin:
 
 			if (debug) {
 				for (nat i = 0; i < filecount; i++) {
-				printf("struct file: { filename: %s, text:%.*s, text_length:%llu, index:%llu } \n", 
-					filestack[i].filename, 
-					(int) filestack[i].text_length, filestack[i].text, 
-					filestack[i].text_length, 
-					filestack[i].index
-				);
+					printf("struct file: { filename: %s, text:%.*s, text_length:%llu, index:%llu } \n", 
+						filestack[i].filename, 
+						(int) filestack[i].text_length, filestack[i].text, 
+						filestack[i].text_length, 
+						filestack[i].index
+					);
 
-				const struct afile save = {
-					.filename = filename, 
-					.text = text, 
-					.text_length = text_length, 
-					.index = index, 
-				};
+					const struct afile save = {
+						.filename = filename, 
+						.text = text, 
+						.text_length = text_length, 
+						.index = index, 
+					};
 
-				filename = filestack[i].filename;
-				text = filestack[i].text;
-				text_length = filestack[i].text_length;
+					filename = filestack[i].filename;
+					text = filestack[i].text;
+					text_length = filestack[i].text_length;
 
-				print_error("filestack[i]", filestack[i].index, 1);
+					print_error("filestack[i]", filestack[i].index, 1);
 
-				filename = save.filename;
-				text = save.text;
-				text_length = save.text_length;
-				index = save.index;
+					filename = save.filename;
+					text = save.text;
+					text_length = save.text_length;
+					index = save.index;
 
-				puts("");
+					puts("");
 				}
 				printf("---> struct file: { filename: %s, text:%.*s, text_length:%llu, index:%llu } \n", 
 						filename, 
@@ -678,7 +760,7 @@ begin:
 		return_count = count;
 
 		next: 
-		if (debug) print_words(); 
+		// if (debug) print_words(); 
 		count = 0;
 	}
 
@@ -698,7 +780,6 @@ begin:
 	index = f.index;
 	goto end;
 }
-
 
 static void make_object_file(const char* object_filename) {
 
@@ -803,11 +884,11 @@ static void generate_machine_code(const char* object_filename, const char* execu
 
 	for (nat i = 0; i < ins_count; i++) {
 		const nat op = ins[i].op;
-		im = (u32) ins[i].immediate;
+		im = ins[i].immediate;
 		struct argument* const a = ins[i].arguments;
 
-		     if (op == dw)     		emit(im);
-		else if (op == db)     		emit_byte(im);
+		     if (op == dw)     		emit((u32) im);
+		else if (op == db)     		emit_byte((u32) im);
 		else if (op == emitstring)    	emit_sequence(words[a->value].body + 1, 
 							words[a->value].body_length - 2);
 
@@ -978,8 +1059,47 @@ int main(int argc, const char** argv) {
 	*registers = (nat)(void*) malloc(65536); registers[31]++;
 	parse();
 	generate_machine_code(object, executable);
-	// debug_output();
+	debug_output();
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 

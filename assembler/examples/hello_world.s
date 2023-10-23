@@ -1,6 +1,10 @@
 . examples/foundation . include
 
-enable comment.0192840918234
+enable 
+comment.0192840918234
+
+
+
 
 202310146.180557:
 
@@ -13,7 +17,33 @@ enable comment.0192840918234
 
 
 
-comment.0192840918234 disable
+	ctnop
+
+	r5 r6 r1 ctadd           [ 5, 6, 1  _ ]                             registers[1] = registers[6] + registers[5];
+				            ^      acount = 4
+	
+	r4 r3 r2 acountincr ctsub              [4, 3, 2, 1 ]
+				              ^              acount = 0
+
+
+	r4 r1 r6 ctmul
+
+	
+
+
+
+
+	stuff r0 r0 r1 ctadd stuff
+
+	stuff
+
+
+
+
+
+
+comment.0192840918234 
+disable
 
 
 
@@ -52,11 +82,14 @@ macros
 		
 	mystring
 
-	then string emit remove then
+	then
+		string emit remove
+	then
+
 	newline 10 db newline
 
 	mystring2
-		enable 
+		enable
 			" Hello there from space! this is my cool string. yay. " 
 
 				then newline
@@ -67,27 +100,31 @@ macros
 		disable
 	mystring2
 
+	noshift r0 noshift
+
+
+	macroname otherfile.s macroname
+
 endmacros
 
 
 
-1 r0 r0 movzx   	enable ;41234 	1 = stdout 						;41234 disable
+
+1 noshift r0 movzx   	enable ;41234 	1 = stdout 						;41234 disable
 
 address r1 adr  	enable ;41235 	string address  points to after __text section. 	;41235 disable
 
-100 r0 r2 movzx   	enable ;41236 	4 characters in string. 				;41236 disable
+100 noshift r2 movzx   	enable ;41236 	100 characters in string. 				;41236 disable
 
-4 r0 r16 movzw  	enable ;41237 	4 = write() system call. 				;41237 disable
+4 noshift r16 movzw  	enable ;41237 	4 = write() system call. 				;41237 disable
 
 svc
 
-2 r0 r0 movzx
-1 r0 r16 movzw
+45 noshift r0 movzx
+1 noshift r16 movzw
 svc
 
-
-address
-
+address at
 	mystring2
 
 
