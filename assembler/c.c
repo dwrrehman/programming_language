@@ -15,82 +15,7 @@
 typedef uint64_t nat;
 typedef uint32_t u32;
 
-
-/*
-======================
-	todo:
-======================
-
-	x - add a state variable using ctr[30]   which controls which macros are interpreted! you need the name to match, and the state variable to match. so yeah. 
-
-				this allows so much sort of syntax. its crazy. 
-
-					for instance, we could have spaces in names if we do that lol. 
-
-						seriously lol. 
-								like, we could define functions that are called
-
-										print usage and exit with error 2
-
-								thats the name of a single function. nice.
-									oh, and we could implement a type system with this state thingy too.  pretty amazing. lol. nice. 
-
-
-					OH MY GOSH WE SHOULD ADD THE ABILITY TO RENAME A MACROOOOO
-
-
-							YESSSSS LETS ADDD THAT TOOOOOO
-
-
-						super useful!!! maybe we don't need remove-name now?   
-							because thats simply renaming it to the empty stringgg lololol
-								idkkkk 
-
-
-								i feel like no.. we want to make the name uncallable... but we cannot spell the empty string at all. so we need remove,   aka    "rename-empty"   instruction. 
-
-
-
-
-										
-
-
-
-	
-	- make labels actually work properly, by having the value be persistent in memory!! ie, labels have an _attr_ ct ins, which fills in a number in a place in memory, 
-		and branch/label-taking instructions always deref the pointer that is given in memory, and we use a ctregisters value at parse time for the memory location/address, to store the persistent value in memory. 
-			.....yup. its that complicated lol.  
-
-
-
-			the way labels will work will be to 
-
-
-				basically we first need to add a       attr         ins         "ctat"
-
-				and then we need to make it cache the value of ctregisters?
-
-					
-
-	
-				and thennn we need to make all  branches/etc   use the deref'd ctr as the imm argument.
-
-
-
-				simple as that!! done. 
-
-
-				
-	
-
-
-
-
-*/
-
-
-static const bool debug = true;
-
+static const bool debug = false;
 
 enum instruction_type {
 	nop, dw, db, svc, cfinv, br, blr, b_, bc, adr, adrp, emitstring,
@@ -172,9 +97,9 @@ static const char* const instruction_spelling[instruction_set_count] = {
 
 struct word {
 	const char* name;
-	const char* body;
 	nat length;
-	nat body_length;
+	nat begin;
+	nat end;
 };
 
 struct argument {
@@ -189,13 +114,6 @@ struct instruction {
 	nat count;
 	nat immediate;
 	struct argument arguments[6];
-};
-
-struct afile {
-	nat text_length;
-	nat index;
-	const char* text;
-	const char* filename;
 };
 
 static nat ins_count = 0;
@@ -214,30 +132,27 @@ static nat registers[32] = {0};
 static nat byte_count = 0;
 static uint8_t bytes[4096] = {0};
 
-static nat filecount = 0;
-static struct afile filestack[4096] = {0};
-
 static const char* filename = NULL;
 static nat text_length = 0;
-static const char* text = NULL;
+static char* text = NULL;
 
 static const char* return_word = NULL;
 static nat return_count = 0;
 
+static nat indexstack[4096] = {0};
+static nat endstack[4096] = {0};
+static nat stack_count = 0;
 
 static void print_words(void) {
 	printf("dicitonary of words: (%llu){\n", word_count);
 	for (nat i = 0; i < word_count; i++) {
-		printf("struct word { .name = \033[31m\"%s\"\033[0m, .body = \033[32m\"%s\"\033[0m, .length = %llu, .body_length = %llu, }\n",
-			strndup(words[i].name, words[i].length),
-			strndup(words[i].body, words[i].body_length),
-			words[i].length,  words[i].body_length
+		printf("struct word { .name = \033[31m\"%s\"\033[0m, .length = %llu, .body = [%llu, %llu] }\n",
+			strndup(words[i].name, words[i].length), words[i].length, words[i].begin, words[i].end
 		);
 		puts("");
 	}
 	puts("}");
 }
-
 
 static bool is(const char* word, nat count, const char* this) {
 	return strlen(this) == count and not strncmp(word, this, count);
@@ -325,11 +240,11 @@ static void emit(u32 x) {
 	bytes[byte_count++] = (uint8_t) (x >> 24);
 }
 
-static void emit_sequence(const char* string, const nat count) {
+/*static void emit_sequence(const char* string, const nat count) {
 	memcpy(bytes + byte_count, string, count);
 	byte_count += count;
 	if (byte_count % 4) byte_count += (4 - byte_count % 4);
-}
+}*/
 
 static void check(nat r, nat c, const struct argument a, const char* type) {
 	if (r < c) return;
@@ -565,7 +480,6 @@ static void execute(nat op, nat* pc) {
 	arg_count = 0;
 }
 
-
 static void print_registers(void) {
 	for (nat i = 0; i < 32; i++) {
 		if (not (i % 6)) puts("");
@@ -575,47 +489,24 @@ static void print_registers(void) {
 }
 
 static void parse(void) {
-
-begin:
 	if (debug) printf("info begining of processing for file: %s...\n", filename);
-
-	nat count = 0, start = 0, index = 0;
-	
-	for (; index < text_length; index++) {
+	nat count = 0, start = 0, index = 0, end = text_length;
+	for (; index < end; index++) {
 		if (not isspace(text[index])) { 
 			if (not count) start = index;
 			count++; continue;
 		} else if (not count) continue;
-
 	process:;
 		const char* const word = text + start;
-
-		if (debug) printf("[%s]:   %s: processing: \"\033[31m%.*s\033[0m\"...\n", 
-			macro ? "MACRO" : "standard", filename, (int) count, word
-		);
+		if (debug) printf("[%s]:  %s: processing: \"\033[31m%.*s\033[0m\"...\n", macro ? "MACRO" : "[-]", filename, (int) count, word);
 
 		struct argument arg = { .value = 0, .start = start, .count = count };
 		
 		if (macro) {
-			if (equals(word, count, return_word, return_count)) {
-				if (word_count == 0) abort();
-				words[word_count - 1].body_length = start - (nat) (words[word_count - 1].body - text);
-
-				if ((int) words[word_count - 1].body_length < 0) {
-					puts("macro is empty");
-					//print_words();
-					abort();
-				}
-				
-				//printf("words[word_count - 1].body_length = %llu\n", words[word_count - 1].body_length);
-				words[word_count - 1].body = 
-						strndup(
-							words[word_count - 1].body, 
-							words[word_count - 1].body_length
-						);
-				macro = 0; 
-			}
-			goto next;
+			if (not equals(word, count, return_word, return_count)) goto next;
+			if (debug) printf("\033[32mterminated macro at %llu...\033[0m\n", start);
+			words[word_count - 1].end = start;
+			macro = 0; goto next;
 		}
 
 		else if (is(word, count, "printregisters")) { print_registers(); goto next; }
@@ -629,25 +520,19 @@ begin:
 			goto next; 
 
 		} else if (is(word, count, "include")) {
-			
-			filestack[filecount++] = (struct afile) {
-				.filename = filename,
-				.text = text,
-				.text_length = text_length,
-				.index = index,
-			};
-
 			char newfilename[4096] = {0};
 			const struct word w = words[--word_count];
-			strncat(newfilename, w.body + 1, w.body_length - 2);
-
-			filename = strdup(newfilename);
-			if (debug) printf("\033[32mIncluding file \"%s\"...\033[0m\n", filename);
-			text = read_file(newfilename, &text_length);
-			if (debug) printf("contents for %s: = \"%.*s\"\n", filename, (int) text_length, text);
-			goto begin; 
-
-			end: if (debug) printf("info: finished processing that file, continuing to process %s...\n", filename);
+			strncat(newfilename, text + w.begin + 1, w.end - w.begin - 2);
+			if (debug) printf("\033[32mIncluding file \"%s\"...\033[0m\n", newfilename);
+			nat newtext_length = 0;
+			const char* newtext = read_file(newfilename, &newtext_length);
+			text = realloc(text, text_length + newtext_length + 1);
+			memmove(text + index + 1 + newtext_length + 1, text + index + 1, text_length - (index + 1));
+			memcpy(text + index + 1, newtext, newtext_length);
+			text[index + 1 + newtext_length] = 32;
+			for (nat i = 0; i < stack_count; i++) endstack[i] += newtext_length + 1;
+			end += newtext_length + 1;
+			text_length += newtext_length + 1;
 			goto next;
 		}
 
@@ -676,109 +561,42 @@ begin:
 		for (nat w = 0; w < word_count; w++) {
 			if (not equals(word, count, words[w].name, words[w].length)) continue;
 			if (debug) printf("\033[35m CALLING A MACRO!! %.*s...\033[0m\n", (int) words[w].length, words[w].name);
-
-			filestack[filecount++] = (struct afile) {
-				.filename = filename,
-				.text = text,
-				.text_length = text_length,
-				.index = index,
-			};
-			
-			char newfilename[4096] = {0};
-			memcpy(newfilename, filename, strlen(filename));
-			strncat(newfilename, ":", 1);
-			strncat(newfilename, words[w].name, words[w].length);
-			filename = strdup(newfilename); 
-
-	
-			text = words[w].body;
-			text_length = words[w].body_length;
-			goto begin;
+			indexstack[stack_count] = index;
+			endstack[stack_count++] = end;
+			index = words[w].begin;
+			end = words[w].end;
+			goto next;
 		}
 
 		if (not registers[31]) {
 			char reason[4096] = {0};
-			snprintf(reason, sizeof reason, 
-				"undefined word \"%.*s\"", 
-				(int) count, word
-			);
+			snprintf(reason, sizeof reason, "undefined word \"%.*s\"", (int) count, word);
 			print_error(reason, start, count);
-
-
-			if (debug) {
-				for (nat i = 0; i < filecount; i++) {
-					printf("struct file: { filename: %s, text:%.*s, text_length:%llu, index:%llu } \n", 
-						filestack[i].filename, 
-						(int) filestack[i].text_length, filestack[i].text, 
-						filestack[i].text_length, 
-						filestack[i].index
-					);
-
-					const struct afile save = {
-						.filename = filename, 
-						.text = text, 
-						.text_length = text_length, 
-						.index = index, 
-					};
-
-					filename = filestack[i].filename;
-					text = filestack[i].text;
-					text_length = filestack[i].text_length;
-
-					print_error("filestack[i]", filestack[i].index, 1);
-
-					filename = save.filename;
-					text = save.text;
-					text_length = save.text_length;
-					index = save.index;
-
-					puts("");
-				}
-				printf("---> struct file: { filename: %s, text:%.*s, text_length:%llu, index:%llu } \n", 
-						filename, 
-						(int) text_length, text, 
-						text_length, 
-						index
-				);
-				print_error("filestack[i]", index, 1);
-
-				print_registers();
-
-			}
-
 			exit(1);
 		}
 
 		words[word_count++] = (struct word) {
 			.name = strndup(word, count), 
-			.length = count, 
-			.body = text + index,
-			.body_length = 0,
+			.length = count, .begin = index, .end = 0,
 		};
 		macro = 1;
 		return_word = word;
 		return_count = count;
-
-		next: 
-		// if (debug) print_words(); 
-		count = 0;
+		next:  count = 0;
 	}
 
+	if (stack_count) {
+		if (debug) printf("\033[35m RETURNING FROM A MACRO!! %.*s...\033[0m\n", (int) 0, "asht");
+		index = indexstack[--stack_count];
+		end = endstack[stack_count];
+		goto next;
+	}
 	if (count) goto process;
-	if (macro) {
-		char reason[4096] = {0};
-		snprintf(reason, sizeof reason, "unterminated operation macro");
-		print_error(reason, start, count);
-		exit(1);
-	}
-
-	if (not filecount) return;
-	struct afile f = filestack[--filecount];
-	filename = f.filename;
-	text = f.text;
-	text_length = f.text_length;
-	index = f.index;
-	goto end;
+	if (not macro) return;
+	char reason[4096] = {0};
+	snprintf(reason, sizeof reason, "unterminated operation macro");
+	print_error(reason, start, count);
+	exit(1);
 }
 
 static void make_object_file(const char* object_filename) {
@@ -889,8 +707,8 @@ static void generate_machine_code(const char* object_filename, const char* execu
 
 		     if (op == dw)     		emit((u32) im);
 		else if (op == db)     		emit_byte((u32) im);
-		else if (op == emitstring)    	emit_sequence(words[a->value].body + 1, 
-							words[a->value].body_length - 2);
+
+	//	else if (op == emitstring)    	emit_sequence(words[a->value].body + 1, words[a->value].body_length - 2);
 
 		else if (op == svc)    emit(0xD4000001);
 		else if (op == nop)    emit(0xD503201F);
@@ -1085,6 +903,148 @@ int main(int argc, const char** argv) {
 
 
 
+/*
+
+
+
+//if (debug) printf("contents for %s: = \"%.*s\"\n", filename, (int) text_length, text);
+			//if (debug) printf("contents for %s: = \"%.*s\"\n", newfilename, (int) newtext_length, newtext);
+
+
+
+
+
+// push the count onto the stack, and the previous "index" value! 
+
+
+
+======================
+	todo:
+======================
+
+
+
+
+
+	- redo how multiple files and macros are implemented, to make it do a string insertion into the current file, when a file is included. then, macros can get by without storing the body as a string in the dictionary for each word,  
+			 instead just merely storing a start and end   or start and length numbers. 
+
+
+
+
+
+
+
+	- make strings emit their bytes into the compiletime memory instead of the text byte section!!!!
+
+			so that we can essentially make a c_string table at compiletime, using ct instructions!
+
+
+						if we write the data onlyyy directly to the text section, we must write strings only at the end of the file, which isnt great.. so yeah. lets make them "relocatable" by making them output the raw bytes to the ct memory, and then move them at compiletime to the right runtime place in the text section, after the code, basically. so yeah. should work, i think. 
+
+
+					
+
+
+
+
+
+
+	- seperate out alignment from the emit string    or emit_sequence function      so that we can put strings back to back without any alignment reqiured! very important. make the  emit byte function not align at all. important. 
+
+					ie, only emit one byte. 
+
+
+		make suer there are no generated zero bytes by accident unless requested!!!
+
+
+					yay
+
+
+ 
+
+
+
+
+
+
+
+	x - add a state variable using ctr[30]   which controls which macros are interpreted! you need the name to match, and the state variable to match. so yeah. 
+
+				this allows so much sort of syntax. its crazy. 
+
+					for instance, we could have spaces in names if we do that lol. 
+
+						seriously lol. 
+								like, we could define functions that are called
+
+										print usage and exit with error 2
+
+								thats the name of a single function. nice.
+									oh, and we could implement a type system with this state thingy too.  pretty amazing. lol. nice. 
+
+
+					OH MY GOSH WE SHOULD ADD THE ABILITY TO RENAME A MACROOOOO
+
+
+							YESSSSS LETS ADDD THAT TOOOOOO
+
+
+						super useful!!! maybe we don't need remove-name now?   
+							because thats simply renaming it to the empty stringgg lololol
+								idkkkk 
+
+
+								i feel like no.. we want to make the name uncallable... but we cannot spell the empty string at all. so we need remove,   aka    "rename-empty"   instruction. 
+
+
+
+
+
+
+
+
+
+
+										
+
+
+
+	
+	- make labels actually work properly, by having the value be persistent in memory!! ie, labels have an _attr_ ct ins, which fills in a number in a place in memory, 
+		and branch/label-taking instructions always deref the pointer that is given in memory, and we use a ctregisters value at parse time for the memory location/address, to store the persistent value in memory. 
+			.....yup. its that complicated lol.  
+
+
+
+			the way labels will work will be to 
+
+
+				basically we first need to add a       attr         ins         "ctat"
+
+				and then we need to make it cache the value of ctregisters?
+
+					
+
+	
+				and thennn we need to make all  branches/etc   use the deref'd ctr as the imm argument.
+
+
+
+				simple as that!! done. 
+
+
+				
+	
+
+
+
+
+*/
+
+
+
+
 
 
 
@@ -1128,6 +1088,146 @@ int main(int argc, const char** argv) {
 
 
 /*
+
+
+
+
+
+struct afile {
+	nat text_length;
+	nat index;
+	const char* text;
+	const char* filename;
+};
+//static nat filecount = 0;
+//static struct afile filestack[4096] = {0};
+
+
+
+
+//filename = strdup(newfilename);
+
+
+
+
+//goto begin; 
+			//end: if (debug) printf("info: finished processing that file, continuing to process %s...\n", filename);
+			
+
+//char newfilename[4096] = {0};
+			//memcpy(newfilename, filename, strlen(filename));
+			//strncat(newfilename, ":", 1);
+			//strncat(newfilename, words[w].name, words[w].length);
+			//filename = strdup(newfilename); 
+			//text = words[w].body;
+			//text_length = words[w].body_length;
+
+
+
+
+
+
+
+if ((int) words[word_count - 1].count < 0) {
+	puts("macro is empty");
+	//print_words();
+	abort();
+}
+
+//printf("words[word_count - 1].body_length = %llu\n", words[word_count - 1].body_length);
+words[word_count - 1].body = 
+	strndup(
+		words[word_count - 1].body, 
+		words[word_count - 1].body_length
+	);
+
+
+
+
+
+
+filestack[filecount++] = (struct afile) {
+				.filename = filename,
+				.text = text,
+				.text_length = text_length,
+				.index = index,
+			};
+
+
+
+
+filestack[filecount++] = (struct afile) {
+				.filename = filename,
+				.text = text,
+				.text_length = text_length,
+				.index = index,
+			};
+
+
+
+
+
+
+
+
+if (debug) {
+				for (nat i = 0; i < filecount; i++) {
+					printf("struct file: { filename: %s, text:%.*s, text_length:%llu, index:%llu } \n", 
+						filestack[i].filename, 
+						(int) filestack[i].text_length, filestack[i].text, 
+						filestack[i].text_length, 
+						filestack[i].index
+					);
+
+					const struct afile save = {
+						.filename = filename, 
+						.text = text, 
+						.text_length = text_length, 
+						.index = index, 
+					};
+
+					filename = filestack[i].filename;
+					text = filestack[i].text;
+					text_length = filestack[i].text_length;
+
+					print_error("filestack[i]", filestack[i].index, 1);
+
+					filename = save.filename;
+					text = save.text;
+					text_length = save.text_length;
+					index = save.index;
+
+					puts("");
+				}
+				printf("---> struct file: { filename: %s, text:%.*s, text_length:%llu, index:%llu } \n", 
+						filename, 
+						(int) text_length, text, 
+						text_length, 
+						index
+				);
+				print_error("filestack[i]", index, 1);
+
+				print_registers();
+
+			}
+
+
+
+
+// if (debug) print_words(); 
+
+
+
+//if (not filecount) return;
+	//struct afile f = filestack[--filecount];
+	//filename = f.filename;
+	//text = f.text;
+	//text_length = f.text_length;
+	//index = f.index;
+	//goto end;
+
+
+
 
 
 

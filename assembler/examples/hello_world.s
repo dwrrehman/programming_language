@@ -58,9 +58,9 @@ macros
 		r1
 	65 
 
-	address
-		28
-	address
+	address r0 address
+
+	gotoaddress r0 ctat r0 gotoaddress
 
 	last    r3 r3 +  r3 dw  	last
 	next    r3 r3 +  8 r3 r3 ctshl  next
@@ -88,15 +88,12 @@ macros
 
 	newline 10 db newline
 
+	\n then newline \n
+
 	mystring2
 		enable
-			" Hello there from space! this is my cool string. yay. " 
-
-				then newline
-
-			" i still can't beleive this works lol... " 
-
-				then newline
+			" Hello there from space! this is my cool string. yay. "  \n
+			" i still can't beleive this works lol... " \n
 		disable
 	mystring2
 
@@ -105,6 +102,17 @@ macros
 
 	macroname otherfile.s macroname
 
+lives
+	r11 ctset 
+	4 r11 r11 ctadd
+	r11 ctat
+	address r21 ctld4
+	r11 r22 ctld4
+	r21 r22 r23 ctsub
+	4 r23 r23 ctmul
+	r23 address ctst4
+lives 
+
 endmacros
 
 
@@ -112,7 +120,7 @@ endmacros
 
 1 noshift r0 movzx   	enable ;41234 	1 = stdout 						;41234 disable
 
-address r1 adr  	enable ;41235 	string address  points to after __text section. 	;41235 disable
+gotoaddress r1 adr  	enable ;41235 	string address  points to after __text section. 	;41235 disable
 
 100 noshift r2 movzx   	enable ;41236 	100 characters in string. 				;41236 disable
 
@@ -124,7 +132,8 @@ svc
 1 noshift r16 movzw
 svc
 
-address at
+address lives 
+
 	mystring2
 
 
