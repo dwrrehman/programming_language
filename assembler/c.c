@@ -240,11 +240,11 @@ static void emit(u32 x) {
 	bytes[byte_count++] = (uint8_t) (x >> 24);
 }
 
-/*static void emit_sequence(const char* string, const nat count) {
+static void emit_sequence(const char* string, const nat count) {
 	memcpy(bytes + byte_count, string, count);
 	byte_count += count;
-	if (byte_count % 4) byte_count += (4 - byte_count % 4);
-}*/
+	// if (byte_count % 4) byte_count += (4 - byte_count % 4);     // TODO: do this in its own defined word:   "align <X>" 
+}
 
 static void check(nat r, nat c, const struct argument a, const char* type) {
 	if (r < c) return;
@@ -708,7 +708,8 @@ static void generate_machine_code(const char* object_filename, const char* execu
 		     if (op == dw)     		emit((u32) im);
 		else if (op == db)     		emit_byte((u32) im);
 
-	//	else if (op == emitstring)    	emit_sequence(words[a->value].body + 1, words[a->value].body_length - 2);
+		else if (op == emitstring)    	emit_sequence(text + words[a->value].begin + 1, words[a->value].end - words[a->value].begin - 2);
+									// text + w.begin + 1, w.end - w.begin - 2);
 
 		else if (op == svc)    emit(0xD4000001);
 		else if (op == nop)    emit(0xD503201F);
