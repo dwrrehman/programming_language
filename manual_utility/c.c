@@ -80,18 +80,22 @@ static void print_list(size_t count) {
 
 
 int main(int argc, const char** argv) {
-	printf("this is a utilty to look up the documentation for a given word in the dictionary, in my programming language.\n");
 	
 	const size_t count = sizeof manual / sizeof(*manual);	
 
-	if (argc == 0) {
-
+	if (argc != 1) {
+	        for (size_t i = 0; i < count; i++) {
+	                if (not strcmp(manual[i].name, argv[1])) {
+	                        print_entry(manual[i]);
+				exit(0);
+                	}
+        	}
+	        printf("error: word not found: %s\n", argv[1]);
+		exit(1);
 	}
 
-
-
-
 	char buffer[128] = {0};	
+	printf("this is a utilty to look up the documentation for a given word in the dictionary, in my programming language.\n");
 loop:
 	printf(":: ");
 	fgets(buffer, sizeof buffer, stdin);
