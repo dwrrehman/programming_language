@@ -2,16 +2,20 @@
           an arm 64-bit assembler
 =========================================
 
-this is an arm 64-bit macro assembler for the M1 max macbook pro, with a syntax similar to forth, and c in some ways. this assembler is intended to be the primary programming language that most of the command-line programs that i write will be written in.
+this is an arm 64-bit macro assembler for the M1 max macbook pro (or other arm 64-bit Mach-O machines) with a syntax similar to forth, and C in some ways. this assembler is intended to be the primary programming language that most of the command-line programs that i write will be written in.
 
-the language intentionally only includes the arm64 runtime instructions which have a unique binary encoding- that is, there are no alias instructions, as these are provided by macros if present at all. additionally, a set of custom compile-time instructions which are used to construct arbitrary data used for immediate values and branch address targets for each instruction. there is no way to write a constant in this assembly language, as it is not neccessary. 
+the language intentionally only includes the arm64 runtime instructions which have a unique binary encoding- that is, there are no alias instructions, as these are provided by macros if present at all. additionally, a set of custom compile-time instructions which are used to construct arbitrary data used for immediate values and branch address targets for each instruction. there is no way to write a literal or constant in this assembly language, as it is not neccessary due to the compile-time system existing. 
+
+
+
+
+
+
 
 
 
 
 heres some example code from the hello_world.s program:
-
-
 
 
 
@@ -117,7 +121,16 @@ address
 
 
 
+
+
+
 foundation library file:
+
+
+
+
+
+
 
 
 
@@ -169,7 +182,15 @@ comment.constants
 9 8 ctincr r1 9
 10 9 ctincr r1 10
 
-...etc...
+
+
+
+	...etc...
+
+
+
+
+
 
 
 

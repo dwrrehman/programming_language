@@ -74,11 +74,11 @@ static const char* const instruction_spelling[instruction_set_count] = {
 	"uminw",  "umaddlx", "umaddlw", "msubx",   "msubw", 
 
 	"adcx", "adcw", "adcxs", "adcws", 
-	"asrvx", "asrvw", 
-
+	"asrvx", "asrvw",
+	
 	"cselx", "cselw",  "csincx", "csincw", 
 	"csinvx", "csinvw", "csnegx", "csnegw",
-
+	
 	"orrx", "orrw",	"ornx", "ornw", 
 	"addx", "addw", "addxs", "addws",
 	"subx", "subw", "subxs", "subws",
@@ -441,13 +441,13 @@ static void execute(nat op, nat* pc) {
 	const nat a1 = arg_count >= 2 ? arguments[arg_count - 2].value : 999999;
 	const nat a0 = arg_count >= 1 ? arguments[arg_count - 1].value : 999999;
 
-	//if (op == ctstop) {if (registers[a0] == stop) stop = 0; arg_count = 0; return; }
+	//if (op == ctstop) {if (registers[a0] == stop) stop = 0; arg_count = 0; return; }      // put this back in!! don't use  pc +=   for jumps. ever.
 	//else if (stop) return;
 
 	if (op == ctnop) {}
 	else if (op == ctat)   *(u32*)registers[a0] = (u32) ins_count;
 	else if (op == ctpc)   registers[a0] = (u32) *pc;
-	else if (op == ctgoto) *pc = registers[a0]; 
+	else if (op == ctgoto) *pc = registers[a0];              // call this "backwards-goto"
 	else if (op == ctblt)  { if (registers[a1]  < registers[a2]) *pc += registers[a0]; } 
 	else if (op == ctbge)  { if (registers[a1] >= registers[a2]) *pc += registers[a0]; } 
 	else if (op == ctbeq)  { if (registers[a1] == registers[a2]) *pc += registers[a0]; } 
@@ -477,7 +477,7 @@ static void execute(nat op, nat* pc) {
 	else if (op == ctst8)  *(uint64_t*)registers[a0] = (uint64_t) registers[a1]; 
 	else if (op == cthalt) abort();
 	
-	arg_count = 0;
+	arg_count = 0;        // TODO:  use a stack-like argument thingy.       don't do this unconditionally.
 }
 
 static void print_registers(void) {
@@ -872,6 +872,11 @@ int main(int argc, const char** argv) {
 	filename = argv[1];
 	const char* object = argv[3];
 	const char* executable = argv[5];
+
+
+	//TODO:  make the foundation file implicitly included.  make this disableable   by supplying a command line flag, "-raw"...? maybe.
+
+			// implmeent this by simply mecpying a string into the beginning of the text buffer, then passing the new start of the text buffer to read file, and read file "appends" the contents to the end of where the include string left off. simple ish
 
 	text_length = 0;
 	text = read_file(filename, &text_length);	

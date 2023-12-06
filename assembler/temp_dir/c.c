@@ -1,9 +1,6 @@
 #include <stdio.h>
 
-
-int main() {
-
-
+int main(void) {
 	puts("");
 	for (int i = 0; i < 256; i++) {
 		if (!(i % 10)) puts("");
