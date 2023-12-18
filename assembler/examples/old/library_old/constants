@@ -1,0 +1,289 @@
+comment.constants
+
+	this is a file to hold commonly used constants for foundation library.
+
+comment.constants
+
+0 r30 ctzero r30 0
+
+1 0 ctincr r30 1
+2 1 ctincr r30 2
+3 2 ctincr r30 3
+4 3 ctincr r30 4
+5 4 ctincr r30 5
+6 5 ctincr r30 6
+7 6 ctincr r30 7
+8 7 ctincr r30 8
+9 8 ctincr r30 9
+10 9 ctincr r30 10
+
+11 10 ctincr r30 11
+12 11 ctincr r30 12
+13 12 ctincr r30 13
+14 13 ctincr r30 14
+15 14 ctincr r30 15
+16 15 ctincr r30 16
+17 16 ctincr r30 17
+18 17 ctincr r30 18
+19 18 ctincr r30 19
+20 19 ctincr r30 20
+
+21 20 ctincr r30 21
+22 21 ctincr r30 22
+23 22 ctincr r30 23
+24 23 ctincr r30 24
+25 24 ctincr r30 25
+26 25 ctincr r30 26
+27 26 ctincr r30 27
+28 27 ctincr r30 28
+29 28 ctincr r30 29
+30 29 ctincr r30 30
+
+31 30 ctincr r30 31
+32 31 ctincr r30 32
+33 32 ctincr r30 33
+34 33 ctincr r30 34
+35 34 ctincr r30 35
+36 35 ctincr r30 36
+37 36 ctincr r30 37
+38 37 ctincr r30 38
+39 38 ctincr r30 39
+40 39 ctincr r30 40
+
+41 40 ctincr r30 41
+42 41 ctincr r30 42
+43 42 ctincr r30 43
+44 43 ctincr r30 44
+45 44 ctincr r30 45
+46 45 ctincr r30 46
+47 46 ctincr r30 47
+48 47 ctincr r30 48
+49 48 ctincr r30 49
+50 49 ctincr r30 50
+
+51 50 ctincr r30 51
+52 51 ctincr r30 52
+53 52 ctincr r30 53
+54 53 ctincr r30 54
+55 54 ctincr r30 55
+56 55 ctincr r30 56
+57 56 ctincr r30 57
+58 57 ctincr r30 58
+59 58 ctincr r30 59
+60 59 ctincr r30 60
+
+61 60 ctincr r30 61
+62 61 ctincr r30 62
+63 62 ctincr r30 63
+64 63 ctincr r30 64
+65 64 ctincr r30 65
+66 65 ctincr r30 66
+67 66 ctincr r30 67
+68 67 ctincr r30 68
+69 68 ctincr r30 69
+70 69 ctincr r30 70
+
+71 70 ctincr r30 71
+72 71 ctincr r30 72
+73 72 ctincr r30 73
+74 73 ctincr r30 74
+75 74 ctincr r30 75
+76 75 ctincr r30 76
+77 76 ctincr r30 77
+78 77 ctincr r30 78
+79 78 ctincr r30 79
+80 79 ctincr r30 80
+
+81 80 ctincr r30 81
+82 81 ctincr r30 82
+83 82 ctincr r30 83
+84 83 ctincr r30 84
+85 84 ctincr r30 85
+86 85 ctincr r30 86
+87 86 ctincr r30 87
+88 87 ctincr r30 88
+89 88 ctincr r30 89
+90 89 ctincr r30 90
+
+91 90 ctincr r30 91
+92 91 ctincr r30 92
+93 92 ctincr r30 93
+94 93 ctincr r30 94
+95 94 ctincr r30 95
+96 95 ctincr r30 96
+97 96 ctincr r30 97
+98 97 ctincr r30 98
+99 98 ctincr r30 99
+100 99 ctincr r30 100
+
+101 100 ctincr r30 101
+102 101 ctincr r30 102
+103 102 ctincr r30 103
+104 103 ctincr r30 104
+105 104 ctincr r30 105
+106 105 ctincr r30 106
+107 106 ctincr r30 107
+108 107 ctincr r30 108
+109 108 ctincr r30 109
+110 109 ctincr r30 110
+
+111 110 ctincr r30 111
+112 111 ctincr r30 112
+113 112 ctincr r30 113
+114 113 ctincr r30 114
+115 114 ctincr r30 115
+116 115 ctincr r30 116
+117 116 ctincr r30 117
+118 117 ctincr r30 118
+119 118 ctincr r30 119
+120 119 ctincr r30 120
+
+121 120 ctincr r30 121
+122 121 ctincr r30 122
+123 122 ctincr r30 123
+124 123 ctincr r30 124
+125 124 ctincr r30 125
+126 125 ctincr r30 126
+127 126 ctincr r30 127
+128 127 ctincr r30 128
+129 128 ctincr r30 129
+130 129 ctincr r30 130
+
+131 130 ctincr r30 131
+132 131 ctincr r30 132
+133 132 ctincr r30 133
+134 133 ctincr r30 134
+135 134 ctincr r30 135
+136 135 ctincr r30 136
+137 136 ctincr r30 137
+138 137 ctincr r30 138
+139 138 ctincr r30 139
+140 139 ctincr r30 140
+
+141 140 ctincr r30 141
+142 141 ctincr r30 142
+143 142 ctincr r30 143
+144 143 ctincr r30 144
+145 144 ctincr r30 145
+146 145 ctincr r30 146
+147 146 ctincr r30 147
+148 147 ctincr r30 148
+149 148 ctincr r30 149
+150 149 ctincr r30 150
+
+151 150 ctincr r30 151
+152 151 ctincr r30 152
+153 152 ctincr r30 153
+154 153 ctincr r30 154
+155 154 ctincr r30 155
+156 155 ctincr r30 156
+157 156 ctincr r30 157
+158 157 ctincr r30 158
+159 158 ctincr r30 159
+160 159 ctincr r30 160
+
+161 160 ctincr r30 161
+162 161 ctincr r30 162
+163 162 ctincr r30 163
+164 163 ctincr r30 164
+165 164 ctincr r30 165
+166 165 ctincr r30 166
+167 166 ctincr r30 167
+168 167 ctincr r30 168
+169 168 ctincr r30 169
+170 169 ctincr r30 170
+
+171 170 ctincr r30 171
+172 171 ctincr r30 172
+173 172 ctincr r30 173
+174 173 ctincr r30 174
+175 174 ctincr r30 175
+176 175 ctincr r30 176
+177 176 ctincr r30 177
+178 177 ctincr r30 178
+179 178 ctincr r30 179
+180 179 ctincr r30 180
+
+181 180 ctincr r30 181
+182 181 ctincr r30 182
+183 182 ctincr r30 183
+184 183 ctincr r30 184
+185 184 ctincr r30 185
+186 185 ctincr r30 186
+187 186 ctincr r30 187
+188 187 ctincr r30 188
+189 188 ctincr r30 189
+190 189 ctincr r30 190
+
+191 190 ctincr r30 191
+192 191 ctincr r30 192
+193 192 ctincr r30 193
+194 193 ctincr r30 194
+195 194 ctincr r30 195
+196 195 ctincr r30 196
+197 196 ctincr r30 197
+198 197 ctincr r30 198
+199 198 ctincr r30 199
+200 199 ctincr r30 200
+
+201 200 ctincr r30 201
+202 201 ctincr r30 202
+203 202 ctincr r30 203
+204 203 ctincr r30 204
+205 204 ctincr r30 205
+206 205 ctincr r30 206
+207 206 ctincr r30 207
+208 207 ctincr r30 208
+209 208 ctincr r30 209
+210 209 ctincr r30 210
+
+211 210 ctincr r30 211
+212 211 ctincr r30 212
+213 212 ctincr r30 213
+214 213 ctincr r30 214
+215 214 ctincr r30 215
+216 215 ctincr r30 216
+217 216 ctincr r30 217
+218 217 ctincr r30 218
+219 218 ctincr r30 219
+220 219 ctincr r30 220
+
+221 220 ctincr r30 221
+222 221 ctincr r30 222
+223 222 ctincr r30 223
+224 223 ctincr r30 224
+225 224 ctincr r30 225
+226 225 ctincr r30 226
+227 226 ctincr r30 227
+228 227 ctincr r30 228
+229 228 ctincr r30 229
+230 229 ctincr r30 230
+
+231 230 ctincr r30 231
+232 231 ctincr r30 232
+233 232 ctincr r30 233
+234 233 ctincr r30 234
+235 234 ctincr r30 235
+236 235 ctincr r30 236
+237 236 ctincr r30 237
+238 237 ctincr r30 238
+239 238 ctincr r30 239
+240 239 ctincr r30 240
+
+241 240 ctincr r30 241
+242 241 ctincr r30 242
+243 242 ctincr r30 243
+244 243 ctincr r30 244
+245 244 ctincr r30 245
+246 245 ctincr r30 246
+247 246 ctincr r30 247
+248 247 ctincr r30 248
+249 248 ctincr r30 249
+250 249 ctincr r30 250
+
+251 250 ctincr r30 251
+252 251 ctincr r30 252
+253 252 ctincr r30 253
+254 253 ctincr r30 254
+255 254 ctincr r30 255
+256 255 ctincr r30 256

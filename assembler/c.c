@@ -39,7 +39,7 @@ enum instruction_type {
 	cselx, cselw, 	csincx, csincw, 
 	csinvx, csinvw, csnegx, csnegw, 
 
-	orrx, orrw,	ornx, ornw, 
+	orrx, orrw,	ornx, ornw,
 	addx, addw, 	addxs, addws,
 	subx, subw, 	subxs, subws,
 
@@ -146,8 +146,10 @@ static nat stack_count = 0;
 static void print_words(void) {
 	printf("dicitonary of words: (%llu){\n", word_count);
 	for (nat i = 0; i < word_count; i++) {
-		printf("struct word { .name = \033[31m\"%s\"\033[0m, .length = %llu, .body = [%llu, %llu] }\n",
-			strndup(words[i].name, words[i].length), words[i].length, words[i].begin, words[i].end
+		printf("struct word { .name = \033[31m\"%s\"\033[0m, .length = %llu, .body = [%llu, %llu] (\"\033[32m%.*s\033[0m\")}\n",
+			strndup(words[i].name, words[i].length), words[i].length, 
+			words[i].begin, words[i].end, 
+			(int)(words[i].end - words[i].begin), text + words[i].begin
 		);
 		puts("");
 	}
@@ -482,8 +484,8 @@ static void execute(nat op, nat* pc) {
 
 static void print_registers(void) {
 	for (nat i = 0; i < 32; i++) {
-		if (not (i % 6)) puts("");
-		printf("%010llx, ", registers[i]);
+		if (not (i % 4)) puts("");
+		printf("%02llu:%010llx, ", i, registers[i]);
 	}
 	puts("");
 }
@@ -502,12 +504,11 @@ static void parse(void) {
 
 		struct argument arg = { .value = 0, .start = start, .count = count };
 		
-		if (macro) {
-			if (not equals(word, count, return_word, return_count)) goto next;
+		if (macro and equals(word, count, return_word, return_count)) {
 			if (debug) printf("\033[32mterminated macro at %llu...\033[0m\n", start);
 			words[word_count - 1].end = start;
 			macro = 0; goto next;
-		}
+		} else if (macro) goto here1;
 
 		else if (is(word, count, "printregisters")) { print_registers(); goto next; }
 		else if (is(word, count, "printwords")) { print_words(); goto next; }
@@ -536,17 +537,21 @@ static void parse(void) {
 			goto next;
 		}
 
+
+
 		for (nat i = 0; i < 32; i++) {
 			char r[5] = {0};
 			snprintf(r, sizeof r, "r%llu", i);
 			if (is(word, count, r)) {
 				arg.value = i;
-				if (arg_count >= 6) {
-					char reason[4096] = {0};
-					snprintf(reason, sizeof reason, "argument list full");
-					print_error(reason, start, count); 
-					exit(1);
-				}
+				/*
+						if (arg_count >= ) {
+							char reason[4096] = {0};
+							snprintf(reason, sizeof reason, "argument list full");
+							print_error(reason, start, count); 
+							exit(1);
+						}
+				*/
 				arguments[arg_count++] = arg; 
 				goto next;
 			}
@@ -557,6 +562,8 @@ static void parse(void) {
 			if (i >= ctnop) execute(i, &index); else push(i, start, count);
 			goto next;
 		}
+
+		here1:
 
 		for (nat w = 0; w < word_count; w++) {
 			if (not equals(word, count, words[w].name, words[w].length)) continue;
@@ -708,8 +715,18 @@ static void generate_machine_code(const char* object_filename, const char* execu
 		     if (op == dw)     		emit((u32) im);
 		else if (op == db)     		emit_byte((u32) im);
 
-		else if (op == emitstring)    	emit_sequence(text + words[a->value].begin + 1, words[a->value].end - words[a->value].begin - 2);
-									// text + w.begin + 1, w.end - w.begin - 2);
+		else if (op == emitstring) abort(); 
+  	
+		/*	emit_sequence(
+				text + words[a->value].begin + 1, 
+				words[a->value].end - words[a->value].begin - 2
+			);
+
+			// text + w.begin + 1, w.end - w.begin - 2    
+		*/
+
+
+
 
 		else if (op == svc)    emit(0xD4000001);
 		else if (op == nop)    emit(0xD503201F);
@@ -872,12 +889,7 @@ int main(int argc, const char** argv) {
 	filename = argv[1];
 	const char* object = argv[3];
 	const char* executable = argv[5];
-
-
-	//TODO:  make the foundation file implicitly included.  make this disableable   by supplying a command line flag, "-raw"...? maybe.
-
-			// implmeent this by simply mecpying a string into the beginning of the text buffer, then passing the new start of the text buffer to read file, and read file "appends" the contents to the end of where the include string left off. simple ish
-
+	
 	text_length = 0;
 	text = read_file(filename, &text_length);	
 	*registers = (nat)(void*) malloc(65536); registers[31]++;
@@ -893,6 +905,9 @@ int main(int argc, const char** argv) {
 
 
 
+//TODO:  make the foundation file implicitly included.  make this disableable   by supplying a command line flag, "-raw"...? maybe.
+
+			// implmeent this by simply mecpying a string into the beginning of the text buffer, then passing the new start of the text buffer to read file, and read file "appends" the contents to the end of where the include string left off. simple ish
 
 
 
@@ -913,11 +928,6 @@ int main(int argc, const char** argv) {
 
 
 
-//if (debug) printf("contents for %s: = \"%.*s\"\n", filename, (int) text_length, text);
-			//if (debug) printf("contents for %s: = \"%.*s\"\n", newfilename, (int) newtext_length, newtext);
-
-
-
 
 
 // push the count onto the stack, and the previous "index" value! 
@@ -932,7 +942,7 @@ int main(int argc, const char** argv) {
 
 
 
-	- redo how multiple files and macros are implemented, to make it do a string insertion into the current file, when a file is included. then, macros can get by without storing the body as a string in the dictionary for each word,  
+x	- redo how multiple files and macros are implemented, to make it do a string insertion into the current file, when a file is included. then, macros can get by without storing the body as a string in the dictionary for each word,  
 			 instead just merely storing a start and end   or start and length numbers. 
 
 
@@ -952,7 +962,7 @@ int main(int argc, const char** argv) {
 					
 
 
-
+	
 
 
 
@@ -1094,6 +1104,20 @@ int main(int argc, const char** argv) {
 
 
 /*
+
+
+
+
+
+
+
+
+//if (debug) printf("contents for %s: = \"%.*s\"\n", filename, (int) text_length, text);
+			//if (debug) printf("contents for %s: = \"%.*s\"\n", newfilename, (int) newtext_length, newtext);
+
+
+
+
 
 
 
