@@ -1,0 +1,10 @@
+
+1 r0 r0 movzx 
+address r1 adr 
+100 r0 r2 movzx
+4 r0 r16 movzw 
+svc
+
+45 r0 r0 movzx
+1 r0 r16 movzw
+svc
