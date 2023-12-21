@@ -3,9 +3,7 @@ r1 r0 ctldi ctimm r0 r16 movzw
 svc
 
 
-
-
-endprogram
+eof
 
 
 

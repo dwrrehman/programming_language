@@ -116,7 +116,6 @@ struct instruction {
 	struct argument arguments[6];
 };
 
-
 static const char* filename = NULL;
 static nat text_length = 0;
 static char* text = NULL;
@@ -135,10 +134,6 @@ static uint8_t bytes[4096] = {0};
 
 static nat immediate = 0;
 static nat stop = 0;                     //  can we get rid of this?
-
-
-
-
 
 static bool is(const char* word, nat count, const char* this) {
 	return strlen(this) == count and not strncmp(word, this, count);
@@ -478,13 +473,18 @@ static void print_arguments(void) {
 static void print_instructions(void) {
 	printf("instructions: {\n");
 	for (nat i = 0; i < ins_count; i++) {
-
 		const struct instruction I = ins[i];
-		printf("\tins(.op=%llu (\"%s\"),(.start=%llu,.count=%llu),imm=%llu, args:{", I.op, instruction_spelling[I.op], I.start, I.count, I.immediate);
-		for (nat a = 0; a < 6; a++) {
-			printf("{%llu,(%llu,%llu)}, ",  I.arguments[a].value, I.arguments[a].start, I.arguments[a].count
+		printf("\tins(.op=%llu (\"%s\"),(.start=%llu,.count=%llu),"
+			"imm=%llu, args:{", 
+			I.op, instruction_spelling[I.op], 
+			I.start, I.count, I.immediate
+		);
+		for (nat a = 0; a < 6; a++) 
+			printf("{%llu,(%llu,%llu)}, ",  
+				I.arguments[a].value, 
+				I.arguments[a].start, 
+				I.arguments[a].count
 			);
-		}
 		puts("}");
 	}
 	puts("}");
@@ -504,7 +504,7 @@ static void parse(void) {
 
 		if (debug) printf("%s: processing: \"\033[32m%.*s\033[0m\"...\n", filename, (int) count, word);
 
-		if (is(word, count, "endprogram")) return;
+		if (is(word, count, "eof")) return;
 		if (is(word, count, "debugregisters")) { print_registers(); goto next; }
 		if (is(word, count, "debugarguments")) { print_arguments(); goto next; }
 		if (is(word, count, "debuginstructions")) { print_instructions(); goto next; }
@@ -530,7 +530,7 @@ static void parse(void) {
 		snprintf(reason, sizeof reason, "unknown word \"%.*s\"", (int) count, word);
 		print_error(reason, start, count);
 		exit(1);
-		next:  count = 0;
+		next: count = 0;
 	}
 	if (count) goto process;
 }
@@ -776,7 +776,6 @@ static void generate_machine_code(const char* object_filename, const char* execu
 	char link_command[4096] = {0};
 	snprintf(link_command, sizeof link_command, "ld -S -x " //  -v
 		"-dead_strip "
-		//"-print_statistics "
 		"-no_weak_imports "
 		"-fatal_warnings "
 		"-no_eh_labels "
@@ -793,20 +792,15 @@ static void generate_machine_code(const char* object_filename, const char* execu
 	system(link_command);
 }
 
-static noreturn void usage(int x) { 
-	puts("\033[31;1merror: \033[0m\033[1musage: assembler <source.s> -c <object.o> -o <executable>\033[0m"); 
-	exit(x); 
+static noreturn void usage(void) { 
+	exit(puts("\033[31;1merror: \033[0m\033[1musage: assembler <source.s> -c <object.o> -o <executable>\033[0m"));
 }
 
 int main(int argc, const char** argv) {
-	if (argc != 6) usage(1);
-	if (strcmp(argv[2], "-c")) usage(2);
-	if (strcmp(argv[4], "-o")) usage(3);
-
+	if (argc != 6 or strcmp(argv[2], "-c") or strcmp(argv[4], "-o")) usage();
 	filename = argv[1];
 	const char* object = argv[3];
 	const char* executable = argv[5];
-	
 	text_length = 0;
 	text = read_file(filename, &text_length);
 	*registers = (nat)(void*) malloc(65536); 
@@ -814,6 +808,20 @@ int main(int argc, const char** argv) {
 	generate_machine_code(object, executable);
 	debug_output();
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
