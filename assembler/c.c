@@ -15,7 +15,7 @@
 typedef uint64_t nat;
 typedef uint32_t u32;
 
-static const bool debug = true;
+static const bool debug = false;
 
 enum instruction_type {
 	nop, dw, db, svc, cfinv, br, blr, b_, bc, adr, adrp, 
@@ -52,7 +52,7 @@ enum instruction_type {
 	ctnor, ctxor, ctor, ctand, ctshl, ctshr, ctprint, 
 	ctld1, ctld2, ctld4, ctld8, ctst1, ctst2, ctst4, ctst8,
 	ctpc, ctblt, ctbge, ctbeq, ctbne, ctgoto, ctat, ctstop,
-	cthalt,
+	ctabort,
 
 	instruction_set_count
 };
@@ -92,14 +92,7 @@ static const char* const instruction_spelling[instruction_set_count] = {
 	"ctnor", "ctxor", "ctor", "ctand", "ctshl", "ctshr", "ctprint",
 	"ctld1", "ctld2", "ctld4", "ctld8", "ctst1", "ctst2", "ctst4", "ctst8",
 	"ctpc", "ctblt", "ctbge", "ctbeq", "ctbne", "ctgoto", "ctat", "ctstop",
-	"cthalt"
-};
-
-struct word {
-	const char* name;
-	nat length;
-	nat begin;
-	nat end;
+	"ctabort"
 };
 
 struct argument {
@@ -120,8 +113,7 @@ static const char* filename = NULL;
 static nat text_length = 0;
 static char* text = NULL;
 
-static const nat register_count = 256;
-static nat registers[register_count] = {0};
+static nat registers[256] = {0};
 
 static nat ins_count = 0;
 static struct instruction ins[4096] = {0};
@@ -133,7 +125,7 @@ static nat byte_count = 0;
 static uint8_t bytes[4096] = {0};
 
 static nat immediate = 0;
-static nat stop = 0;                     //  can we get rid of this?
+static nat stop = 0; 
 
 static bool is(const char* word, nat count, const char* this) {
 	return strlen(this) == count and not strncmp(word, this, count);
@@ -438,7 +430,6 @@ static void execute(nat op, nat* pc) {
 	else if (op == ctnor)  registers[a0] = ~(registers[a1] | registers[a2]); 
 	else if (op == ctshl)  registers[a0] = registers[a1] << registers[a2]; 
 	else if (op == ctshr)  registers[a0] = registers[a1] >> registers[a2]; 
-	else if (op == ctprint) printf("debug: \033[32m%llu\033[0m \033[32m0x%llx\033[0m\n", registers[a0], registers[a0]); 
 	else if (op == ctld1)  registers[a0] = *(uint8_t*) registers[a1]; 
 	else if (op == ctld2)  registers[a0] = *(uint16_t*)registers[a1]; 
 	else if (op == ctld4)  registers[a0] = *(uint32_t*)registers[a1]; 
@@ -447,11 +438,13 @@ static void execute(nat op, nat* pc) {
 	else if (op == ctst2)  *(uint16_t*)registers[a0] = (uint16_t) registers[a1]; 
 	else if (op == ctst4)  *(uint32_t*)registers[a0] = (uint32_t) registers[a1]; 
 	else if (op == ctst8)  *(uint64_t*)registers[a0] = (uint64_t) registers[a1]; 
-	else if (op == cthalt) abort();
+
+	else if (op == ctprint) printf("debug: \033[32m%llu\033[0m \033[32m0x%llx\033[0m\n", registers[a0], registers[a0]); 
+	else if (op == ctabort) abort();
 }
 
 static void print_registers(void) {
-	for (nat i = 0; i < register_count; i++) {
+	for (nat i = 0; i < 256; i++) {
 		if (not (i % 4)) puts("");
 		printf("%02llu:%010llx, ", i, registers[i]);
 	}
@@ -510,7 +503,7 @@ static void parse(void) {
 		if (is(word, count, "debuginstructions")) { print_instructions(); goto next; }
 		if (is(word, count, "delete")) { arg_count--; goto next; }
 
-		for (nat i = 0; i < register_count; i++) {
+		for (nat i = 0; i < 256; i++) {
 			char r[10] = {0};
 			snprintf(r, sizeof r, "r%llu", i);
 			if (is(word, count, r)) {
@@ -1971,4 +1964,13 @@ char newfilename[4096] = {0};
       // put this back in!! don't use  pc +=   for jumps. ever.
 
 
+/*
 
+struct word {
+	const char* name;
+	nat length;
+	nat begin;
+	nat end;
+};
+
+*/

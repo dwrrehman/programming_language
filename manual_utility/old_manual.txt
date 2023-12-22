@@ -8,6 +8,99 @@ this document examines both the runtime arm isa instructions, as well as the com
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+updated list:
+
+
+
+
+
+static const char* const instruction_spelling[instruction_set_count] = {
+	"nop", "dw", "db", "svc", "cfinv", "br", "blr", "goto", "bc", "adr", "adrp", 
+
+	"movzx", "movzw", "movkx", "movkw", "movnx", "movnw",
+	"addix", "addiw", "addhx", "addhw",
+	"addixs", "addiws", "addhxs", "addhws",
+	"maddx", "maddw",
+
+	"striux", "striuw",  "ldriux",  "ldriuw",  "striox", 
+	"striow", "striex",  "striew",  "ldriox",  "ldriow", 
+	"ldriex", "ldriew",  "ldurx",   "ldtrx",   "ldurw", 
+	"ldtrw",  "ldtrsw",  "ldtrh",   "ldtrshx", "ldtrshw", 
+	"ldtrb",  "ldtrsbx", "ldtrsbw", "lslvx",   "lslvw", 
+	"udivx",  "udivw",   "umaxx",   "umaxw",   "uminx", 
+	"uminw",  "umaddlx", "umaddlw", "msubx",   "msubw", 
+
+	"adcx", "adcw", "adcxs", "adcws", 
+	"asrvx", "asrvw",
+	
+	"cselx", "cselw",  "csincx", "csincw", 
+	"csinvx", "csinvw", "csnegx", "csnegw",
+	
+	"orrx", "orrw",	"ornx", "ornw", 
+	"addx", "addw", "addxs", "addws",
+	"subx", "subw", "subxs", "subws",
+
+	"ld64b", "st64b", "absx", "absw",
+	"clsx", "clsw",	"clzx", "clzw",	"ctzx", "ctzw",	"cntx", "cntw",
+	"rbitx", "rbitw", "revx", "revw", "revhx", "revhw",
+
+	"ctnop", "ctzero", "ctincr", "ctset", "ctimm", "ctldi",
+	"ctadd", "ctsub", "ctmul", "ctdiv", "ctrem",
+	"ctnor", "ctxor", "ctor", "ctand", "ctshl", "ctshr", "ctprint",
+	"ctld1", "ctld2", "ctld4", "ctld8", "ctst1", "ctst2", "ctst4", "ctst8",
+	"ctpc", "ctblt", "ctbge", "ctbeq", "ctbne", "ctgoto", "ctat", "ctstop",
+	"cthalt"
+};
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 heres a list of all instructions:
 
 	static const char* const instruction_spelling[instruction_set_count] = {
