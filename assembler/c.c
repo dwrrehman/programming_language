@@ -18,11 +18,13 @@ typedef uint32_t u32;
 static const bool debug = false;
 
 enum instruction_type {
-	nop, dw, db, svc, cfinv, br, blr, b_, bc, adr, adrp, 
+	nop, dw, svc, cfinv, br, blr, b_, bc, adr, adrp, 
 
 	movzx, movzw,	movkx, movkw,	movnx, movnw,
 	addix, addiw,	addhx, addhw,
 	addixs, addiws,	addhxs, addhws,
+	subix,  subiw,  subhx,  subhw,
+	subixs, subiws,	subhxs, subhws,
 	maddx, maddw,
 
 	striux, striuw,  ldriux,  ldriuw,  striox, 
@@ -58,11 +60,13 @@ enum instruction_type {
 };
 
 static const char* const instruction_spelling[instruction_set_count] = {
-	"nop", "dw", "db", "svc", "cfinv", "br", "blr", "goto", "bc", "adr", "adrp", 
+	"nop", "dw", "svc", "cfinv", "br", "blr", "goto", "bc", "adr", "adrp", 
 
 	"movzx", "movzw", "movkx", "movkw", "movnx", "movnw",
 	"addix", "addiw", "addhx", "addhw",
 	"addixs", "addiws", "addhxs", "addhws",
+	"subix", "subiw", "subhx", "subhw",
+	"subixs", "subiws", "subhxs", "subhws",
 	"maddx", "maddw",
 
 	"striux", "striuw",  "ldriux",  "ldriuw",  "striox", 
@@ -198,10 +202,6 @@ static void push(nat op, nat start, nat count) {
 		new.arguments[i] = arguments[arg_count - 1 - i];
 	}
 	ins[ins_count++] = new;
-}
-
-static void emit_byte(u32 x) {
-	bytes[byte_count++] = (uint8_t) x;
 }
 
 static void emit(u32 x) {
@@ -467,9 +467,9 @@ static void print_instructions(void) {
 	printf("instructions: {\n");
 	for (nat i = 0; i < ins_count; i++) {
 		const struct instruction I = ins[i];
-		printf("\tins(.op=%llu (\"%s\"),(.start=%llu,.count=%llu),"
+		printf("\t%llu\tins(.op=%llu (\"%s\"),(.start=%llu,.count=%llu),"
 			"imm=%llu, args:{", 
-			I.op, instruction_spelling[I.op], 
+			i, I.op, instruction_spelling[I.op], 
 			I.start, I.count, I.immediate
 		);
 		for (nat a = 0; a < 6; a++) 
@@ -636,7 +636,7 @@ static void generate_machine_code(const char* object_filename, const char* execu
 		struct argument* const a = ins[i].arguments;
 
 		     if (op == dw)     emit((u32) im);
-		else if (op == db)     emit_byte((u32) im);
+		//else if (op == db)     emit_byte((u32) im);
   
 		else if (op == svc)    emit(0xD4000001);
 		else if (op == nop)    emit(0xD503201F);
@@ -678,10 +678,18 @@ static void generate_machine_code(const char* object_filename, const char* execu
 		else if (op == addiw)  emit(generate_addi(a, 0, 0, 0x22U, im));
 		else if (op == addhx)  emit(generate_addi(a, 1, 1, 0x22U, im));
 		else if (op == addhw)  emit(generate_addi(a, 0, 1, 0x22U, im));
+		else if (op == subix)  emit(generate_addi(a, 1, 0, 0xA2U, im));
+		else if (op == subiw)  emit(generate_addi(a, 0, 0, 0xA2U, im));
+		else if (op == subhx)  emit(generate_addi(a, 1, 1, 0xA2U, im));
+		else if (op == subhw)  emit(generate_addi(a, 0, 1, 0xA2U, im));
 		else if (op == addixs) emit(generate_addi(a, 1, 0, 0x62U, im));
 		else if (op == addiws) emit(generate_addi(a, 0, 0, 0x62U, im));
 		else if (op == addhxs) emit(generate_addi(a, 1, 1, 0x62U, im));
 		else if (op == addhws) emit(generate_addi(a, 0, 1, 0x62U, im));
+		else if (op == subixs) emit(generate_addi(a, 1, 0, 0xE2U, im));
+		else if (op == subiws) emit(generate_addi(a, 0, 0, 0xE2U, im));
+		else if (op == subhxs) emit(generate_addi(a, 1, 1, 0xE2U, im));
+		else if (op == subhws) emit(generate_addi(a, 0, 1, 0xE2U, im));
 
 		else if (op == striux)  emit(generate_striu(a, 3, 0xE4U, im));
 		else if (op == striuw)  emit(generate_striu(a, 2, 0xE4U, im));
@@ -1973,4 +1981,14 @@ struct word {
 	nat end;
 };
 
+
+
+static void emit_byte(u32 x) {
+	bytes[byte_count++] = (uint8_t) x;
+}
+
+
+
+
 */
+
