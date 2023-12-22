@@ -9,11 +9,12 @@ svc
 
 
 r2 ctzero ctimm r0 r0 movzx
-r16 r2 ctldi ctimm r31 r31 subix
+r32 r9 ctldi ctimm r31 r31 subix
 r2 ctzero ctimm r31 r1 addix
-r16 r2 ctldi ctimm r0 r2 movzx
+r9 ctimm r0 r2 movzx
 r3 r2 ctldi ctimm r0 r16 movzw
 svc
+
 
 r2 ctzero ctimm r0 r6 addix
 
@@ -31,10 +32,6 @@ r6 r2 ctldi ctimm r0 r2 movzx
 r4 r2 ctldi ctimm r0 r16 movzw
 svc
 
-
-
-
-
 r2 ctzero ctimm r6 r0 addix
 r1 r2 ctldi ctimm r0 r16 movzw 
 svc
@@ -46,20 +43,16 @@ r3 r2 r3 ctsub
 r2 r2 ctldi r3 r3 ctshl
 r3 r1 ctst4
 
-
 r3 ctzero
-
 r104 r4 ctldi 
 r0 r8 ctldi r4 r4 ctshl r4 r3 r3 ctor
-
 r105 r4 ctldi 
 r8 r8 ctldi r4 r4 ctshl r4 r3 r3 ctor
-
 r10 r4 ctldi 
 r16 r8 ctldi r4 r4 ctshl r4 r3 r3 ctor
-
+r0 r4 ctldi 
+r24 r8 ctldi r4 r4 ctshl r4 r3 r3 ctor
 r3 ctimm dw
-
 
 r4 r4 ctldi r0 r1 ctadd 
 r3 ctld4
@@ -68,39 +61,26 @@ r3 r2 r3 ctsub
 r2 r2 ctldi r3 r3 ctshl
 r3 r1 ctst4
 
-
 r3 ctzero
-
-r10 r4 ctldi 
+r58 r4 ctldi 
 r0 r8 ctldi r4 r4 ctshl r4 r3 r3 ctor
-
 r100 r4 ctldi 
 r8 r8 ctldi r4 r4 ctshl r4 r3 r3 ctor
-
 r111 r4 ctldi 
 r16 r8 ctldi r4 r4 ctshl r4 r3 r3 ctor
-
 r110 r4 ctldi 
 r24 r8 ctldi r4 r4 ctshl r4 r3 r3 ctor
-
 r3 ctimm dw
 
-
-
 r3 ctzero
-
 r101 r4 ctldi 
 r0 r8 ctldi r4 r4 ctshl r4 r3 r3 ctor
-
 r10 r4 ctldi 
 r8 r8 ctldi r4 r4 ctshl r4 r3 r3 ctor
-
 r0 r4 ctldi 
 r16 r8 ctldi r4 r4 ctshl r4 r3 r3 ctor
-
 r0 r4 ctldi 
 r24 r8 ctldi r4 r4 ctshl r4 r3 r3 ctor
-
 r3 ctimm dw
 
 

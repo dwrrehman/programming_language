@@ -62,12 +62,12 @@ enum instruction_type {
 static const char* const instruction_spelling[instruction_set_count] = {
 	"nop", "dw", "svc", "cfinv", "br", "blr", "goto", "bc", "adr", "adrp", 
 
-	"movzx", "movzw", "movkx", "movkw", "movnx", "movnw",
-	"addix", "addiw", "addhx", "addhw",
+	"movzx",  "movzw",   "movkx", "movkw", "movnx", "movnw",
+	"addix",  "addiw",   "addhx", "addhw",
 	"addixs", "addiws", "addhxs", "addhws",
-	"subix", "subiw", "subhx", "subhw",
+	"subix",  "subiw",   "subhx", "subhw",
 	"subixs", "subiws", "subhxs", "subhws",
-	"maddx", "maddw",
+	"maddx",  "maddw",
 
 	"striux", "striuw",  "ldriux",  "ldriuw",  "striox", 
 	"striow", "striex",  "striew",  "ldriox",  "ldriow", 
@@ -77,10 +77,10 @@ static const char* const instruction_spelling[instruction_set_count] = {
 	"udivx",  "udivw",   "umaxx",   "umaxw",   "uminx", 
 	"uminw",  "umaddlx", "umaddlw", "msubx",   "msubw", 
 
-	"adcx", "adcw", "adcxs", "adcws", 
+	"adcx",  "adcw", "adcxs", "adcws", 
 	"asrvx", "asrvw",
 	
-	"cselx", "cselw",  "csincx", "csincw", 
+	"cselx",  "cselw",  "csincx", "csincw", 
 	"csinvx", "csinvw", "csnegx", "csnegw",
 	
 	"orrx", "orrw",	"ornx", "ornw", 
@@ -88,7 +88,7 @@ static const char* const instruction_spelling[instruction_set_count] = {
 	"subx", "subw", "subxs", "subws",
 
 	"ld64b", "st64b", "absx", "absw",
-	"clsx", "clsw",	"clzx", "clzw",	"ctzx", "ctzw",	"cntx", "cntw",
+	"clsx", "clsw",   "clzx", "clzw", "ctzx", "ctzw",  "cntx", "cntw",
 	"rbitx", "rbitw", "revx", "revw", "revhx", "revhw",
 
 	"ctnop", "ctzero", "ctincr", "ctset", "ctimm", "ctldi",
@@ -386,16 +386,6 @@ static u32 generate_adr(struct argument* a, u32 op, u32 o2, nat im) {
 		(hi <<  5U) | Rd;
 }
 
-static void dump_hex(uint8_t* local_bytes, nat local_byte_count) {
-	printf("dumping hex bytes: (%llu)\n", local_byte_count);
-	for (nat i = 0; i < local_byte_count; i++) {
-		if (not (i % 16)) printf("\n\t");
-		if (not (i % 4)) printf(" ");
-		printf("%02hhx ", local_bytes[i]);
-	}
-	puts("");
-}
-
 static void execute(nat op, nat* pc) {
 	const nat a2 = arg_count >= 3 ? arguments[arg_count - 3].value : 0;
 	const nat a1 = arg_count >= 2 ? arguments[arg_count - 2].value : 0;
@@ -620,8 +610,6 @@ static void make_object_file(const char* object_filename) {
 }
 
 static void debug_output(void) { 
-	printf("\ndebugging bytes bytes:\n------------------------\n");
-	dump_hex((uint8_t*) bytes, byte_count);
 	system("otool -txvVhlL object.o");
 	system("otool -txvVhlL program.out");
 	system("objdump object.o -DSast --disassembler-options=no-aliases");
@@ -785,6 +773,7 @@ static void generate_machine_code(const char* object_filename, const char* execu
 		"%s -o %s "
 		"-arch arm64 "
 		"-e _start "
+		"-stack_size 0x1000000 "
 		"-platform_version macos 13.0.0 13.3 "
 		"-lSystem "
 		"-syslibroot /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk ", 
@@ -1988,6 +1977,21 @@ static void emit_byte(u32 x) {
 }
 
 
+
+//printf("\ndebugging bytes bytes:\n------------------------\n");
+	//dump_hex((uint8_t*) bytes, byte_count);
+
+
+
+static void dump_hex(uint8_t* local_bytes, nat local_byte_count) {
+	printf("dumping hex bytes: (%llu)\n", local_byte_count);
+	for (nat i = 0; i < local_byte_count; i++) {
+		if (not (i % 16)) printf("\n\t");
+		if (not (i % 4)) printf(" ");
+		printf("%02hhx ", local_bytes[i]);
+	}
+	puts("");
+}
 
 
 */
