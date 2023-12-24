@@ -49,12 +49,13 @@ enum instruction_type {
 	clsx, 	clsw,	clzx, clzw,	ctzx, ctzw,	cntx, cntw,    
 	rbitx, 	rbitw,	revx, revw,  	revhx, revhw,
 
-	ctnop, ctzero, ctincr, ctset, ctimm, ctldi,
+	ctnop, ctzero, ctincr, ctset, ctimm, 
+	ctldi, ctlda, ctsta, ctdel,
 	ctadd, ctsub, ctmul, ctdiv, ctrem,
 	ctnor, ctxor, ctor, ctand, ctshl, ctshr, ctprint, 
 	ctld1, ctld2, ctld4, ctld8, ctst1, ctst2, ctst4, ctst8,
-	ctpc, ctblt, ctbge, ctbeq, ctbne, ctgoto, ctat, ctstop,
-	ctabort,
+	ctpc, ctblt, ctbge, ctbeq, ctbne, ctbr, ctgoto, ctat, ctstop,
+	ctput, ctget, ctabort,
 
 	instruction_set_count
 };
@@ -88,15 +89,16 @@ static const char* const instruction_spelling[instruction_set_count] = {
 	"subx", "subw", "subxs", "subws",
 
 	"ld64b", "st64b", "absx", "absw",
-	"clsx", "clsw",   "clzx", "clzw", "ctzx", "ctzw",  "cntx", "cntw",
+	"clsx",  "clsw",  "clzx", "clzw", "ctzx", "ctzw",  "cntx", "cntw",
 	"rbitx", "rbitw", "revx", "revw", "revhx", "revhw",
 
-	"ctnop", "ctzero", "ctincr", "ctset", "ctimm", "ctldi",
+	"ctnop", "ctzero", "ctincr", "ctset", "ctimm", 
+	"ctldi", "ctlda", "ctsta", "ctdel",
 	"ctadd", "ctsub", "ctmul", "ctdiv", "ctrem",
 	"ctnor", "ctxor", "ctor", "ctand", "ctshl", "ctshr", "ctprint",
 	"ctld1", "ctld2", "ctld4", "ctld8", "ctst1", "ctst2", "ctst4", "ctst8",
-	"ctpc", "ctblt", "ctbge", "ctbeq", "ctbne", "ctgoto", "ctat", "ctstop",
-	"ctabort"
+	"ctpc", "ctblt", "ctbge", "ctbeq", "ctbne", "ctbr", "ctgoto", "ctat", "ctstop",
+	"ctput", "ctget", "ctabort"
 };
 
 struct argument {
@@ -117,7 +119,7 @@ static const char* filename = NULL;
 static nat text_length = 0;
 static char* text = NULL;
 
-static nat registers[256] = {0};
+static nat registers[4096] = {0};
 
 static nat ins_count = 0;
 static struct instruction ins[4096] = {0};
@@ -187,21 +189,6 @@ static void print_error(const char* reason, const nat start_index, const nat err
 
 	}
 	puts("\033[0m\n");
-}
-
-static void push(nat op, nat start, nat count) {
-	struct instruction new = {
-		.op = op,
-		.immediate = immediate,
-		.arguments = {0}, 
-		.start = start,
-		.count = count,
-	};
-	for (nat i = 0; i < 6; i++) {
-		if (arg_count == i) break;
-		new.arguments[i] = arguments[arg_count - 1 - i];
-	}
-	ins[ins_count++] = new;
 }
 
 static void emit(u32 x) {
@@ -386,21 +373,52 @@ static u32 generate_adr(struct argument* a, u32 op, u32 o2, nat im) {
 		(hi <<  5U) | Rd;
 }
 
+static void push(nat op, nat start, nat count) {
+	if (stop) return;
+	struct instruction new = {
+		.op = op,
+		.immediate = immediate,
+		.arguments = {0}, 
+		.start = start,
+		.count = count,
+	};
+	for (nat i = 0; i < 6; i++) {
+		if (arg_count == i) break;
+		new.arguments[i] = arguments[arg_count - 1 - i];
+	}
+	ins[ins_count++] = new;
+}
+
 static void execute(nat op, nat* pc) {
 	const nat a2 = arg_count >= 3 ? arguments[arg_count - 3].value : 0;
 	const nat a1 = arg_count >= 2 ? arguments[arg_count - 2].value : 0;
 	const nat a0 = arg_count >= 1 ? arguments[arg_count - 1].value : 0;
 
 	if (op == ctstop) {
-		if (registers[a0] == stop) stop = 0; 
+		if (debug) printf("info: found stop instruction, currently in stop mode %llu, looking for stop mode %llu  ...  ", stop, registers[a0]);
+		if (registers[a0] == stop) {
+			if (debug) printf("SUCCESS\n");
+			stop = 0; 
+		} else {
+			if (debug) printf("[no-match]\n");
+		}
+		if (debug) printf("[stop = %llu]\n", stop);
 		return; 
-	} else if (stop) return;
+	} else if (stop) {
+		if (debug) printf("info: skipping over %llu (\"%s\"), in stop mode %llu\n", op, instruction_spelling[op], stop);
+		return;
+	}
+
+	if (debug) printf("@%llu: info: executing \033[1;32m%s\033[0m(%llu)  %lld %lld %lld\n", *pc, instruction_spelling[op], op, a0, a1, a2);
+	if (debug) getchar();
 
 	if (op == ctnop) {}
+	else if (op == ctdel)  { if (arg_count) arg_count--; }
 	else if (op == ctimm)  immediate = registers[a0];
 	else if (op == ctat)   *(u32*)registers[a0] = (u32) ins_count;
 	else if (op == ctpc)   registers[a0] = (u32) *pc;
-	else if (op == ctgoto) *pc = registers[a0];
+	else if (op == ctgoto) *pc  = registers[a0];
+	else if (op == ctbr)   stop = registers[a0];
 	else if (op == ctblt)  { if (registers[a1]  < registers[a2]) stop = registers[a0]; } 
 	else if (op == ctbge)  { if (registers[a1] >= registers[a2]) stop = registers[a0]; } 
 	else if (op == ctbeq)  { if (registers[a1] == registers[a2]) stop = registers[a0]; } 
@@ -428,13 +446,17 @@ static void execute(nat op, nat* pc) {
 	else if (op == ctst2)  *(uint16_t*)registers[a0] = (uint16_t) registers[a1]; 
 	else if (op == ctst4)  *(uint32_t*)registers[a0] = (uint32_t) registers[a1]; 
 	else if (op == ctst8)  *(uint64_t*)registers[a0] = (uint64_t) registers[a1]; 
+	else if (op == ctsta)  *(nat*)registers[a0] = a1;
+	else if (op == ctlda)  arguments[arg_count++].value = *(nat*)registers[a0]; 
+	else if (op == ctput)  putchar((char) registers[a0]);
+	else if (op == ctget)  registers[a0] = (nat) getchar();
 
 	else if (op == ctprint) printf("debug: \033[32m%llu\033[0m \033[32m0x%llx\033[0m\n", registers[a0], registers[a0]); 
 	else if (op == ctabort) abort();
 }
 
 static void print_registers(void) {
-	for (nat i = 0; i < 256; i++) {
+	for (nat i = 0; i < sizeof registers / sizeof(nat); i++) {
 		if (not (i % 4)) puts("");
 		printf("%02llu:%010llx, ", i, registers[i]);
 	}
@@ -473,6 +495,8 @@ static void print_instructions(void) {
 	puts("}");
 }
 
+
+
 static void parse(void) {
 	if (debug) printf("info: parsing file: %s...\n", filename);
 	nat count = 0, start = 0, index = 0, end = text_length;
@@ -488,14 +512,14 @@ static void parse(void) {
 		if (debug) printf("%s: processing: \"\033[32m%.*s\033[0m\"...\n", filename, (int) count, word);
 
 		if (is(word, count, "eof")) return;
+
 		if (is(word, count, "debugregisters")) { print_registers(); goto next; }
 		if (is(word, count, "debugarguments")) { print_arguments(); goto next; }
 		if (is(word, count, "debuginstructions")) { print_instructions(); goto next; }
-		if (is(word, count, "delete")) { arg_count--; goto next; }
-
-		for (nat i = 0; i < 256; i++) {
+		
+		for (nat i = 0; i < sizeof registers / sizeof(nat); i++) {
 			char r[10] = {0};
-			snprintf(r, sizeof r, "r%llu", i);
+			snprintf(r, sizeof r, "%llx", i);
 			if (is(word, count, r)) {
 				arg.value = i;
 				arguments[arg_count++] = arg; 

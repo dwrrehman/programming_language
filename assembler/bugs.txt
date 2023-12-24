@@ -5,32 +5,33 @@ current bugs to fix:
 		messages due to string inserting impl of file inclusion. make each file have its own 
 		starting index in the master input string, and start indexing the error indicies from that index. 
 
-	- make the argument stack not reset the stack count every time you do an operation. 
+x	- make the argument stack not reset the stack count every time you do an operation. 
 		each operation only decrements the stack count by a certain amount, 
 		based on the arguments that it consumes, if any. 
 
-	- make the macro state still interpret words just fine. 
+x	- make the macro state still interpret words just fine. 
 			its just, make it not generate any instructions, or do any runtime or compiletime operations. 
 
 
-		- - the macro state is less like a comment now, and more of like a way to redirect controlflow as in a function call.  this is a key change. 
+x		- - the macro state is less like a comment now, and more of like a way to redirect controlflow as in a function call.  this is a key change. 
 
 
-		- - figure out a new way to do comments lol. probably using compiletime jumps?... yup. hm.
+x		- - figure out a new way to do comments lol. probably using compiletime jumps?... yup. hm.
 
 
 
 
-	- make strings emit their bytes into the compiletime memory instead of the text byte section!!!!
+x	- make strings emit their bytes into the compiletime memory instead of the text byte section!!!!
 
 
-	- remove the emit_sequence() function. 
+x	- remove the emit_sequence() function. 
 
 
 
 	- check to see if runtime branches are working 
 
-	- check to see if compiletime branches are working 
+x	- check to see if compiletime branches are working 
+
 
 
 	- make the foundation file implicitly included.     (but toggleable)
