@@ -36,15 +36,12 @@ enum instruction_type {
 	uminw,  umaddlx, umaddlw, msubx,   msubw, 
 
 	adcx, adcw, 	adcxs, adcws, 
-	asrvx, asrvw, 
-	
+	asrvx, asrvw, 	
 	cselx, cselw, 	csincx, csincw, 
 	csinvx, csinvw, csnegx, csnegw, 
-
 	orrx, orrw,	ornx, ornw,
 	addx, addw, 	addxs, addws,
 	subx, subw, 	subxs, subws,
-
 	ld64b, 	st64b,	absx, absw, 
 	clsx, 	clsw,	clzx, clzw,	ctzx, ctzw,	cntx, cntw,    
 	rbitx, 	rbitw,	revx, revw,  	revhx, revhw,
@@ -80,14 +77,11 @@ static const char* const instruction_spelling[instruction_set_count] = {
 
 	"adcx",  "adcw", "adcxs", "adcws", 
 	"asrvx", "asrvw",
-	
 	"cselx",  "cselw",  "csincx", "csincw", 
 	"csinvx", "csinvw", "csnegx", "csnegw",
-	
 	"orrx", "orrw",	"ornx", "ornw", 
 	"addx", "addw", "addxs", "addws",
 	"subx", "subw", "subxs", "subws",
-
 	"ld64b", "st64b", "absx", "absw",
 	"clsx",  "clsw",  "clzx", "clzw", "ctzx", "ctzw",  "cntx", "cntw",
 	"rbitx", "rbitw", "revx", "revw", "revhx", "revhw",
@@ -119,19 +113,17 @@ static const char* filename = NULL;
 static nat text_length = 0;
 static char* text = NULL;
 
-static nat registers[4096] = {0};
-
 static nat ins_count = 0;
 static struct instruction ins[4096] = {0};
 
+static nat byte_count = 0;
+static uint8_t* bytes = NULL;
+
 static nat arg_count = 0;
 static struct argument arguments[4096] = {0};
+static nat registers[4096] = {0};
 
-static nat byte_count = 0;
-static uint8_t bytes[4096] = {0};
-
-static nat immediate = 0;
-static nat stop = 0; 
+static nat immediate = 0, stop = 0; 
 
 static bool is(const char* word, nat count, const char* this) {
 	return strlen(this) == count and not strncmp(word, this, count);
@@ -192,6 +184,7 @@ static void print_error(const char* reason, const nat start_index, const nat err
 }
 
 static void emit(u32 x) {
+	bytes = realloc(bytes, byte_count + 4);
 	bytes[byte_count++] = (uint8_t) (x >> 0);
 	bytes[byte_count++] = (uint8_t) (x >> 8);
 	bytes[byte_count++] = (uint8_t) (x >> 16);
@@ -395,21 +388,19 @@ static void execute(nat op, nat* pc) {
 	const nat a0 = arg_count >= 1 ? arguments[arg_count - 1].value : 0;
 
 	if (op == ctstop) {
-		if (debug) printf("info: found stop instruction, currently in stop mode %llu, looking for stop mode %llu  ...  ", stop, registers[a0]);
-		if (registers[a0] == stop) {
-			if (debug) printf("SUCCESS\n");
-			stop = 0; 
-		} else {
-			if (debug) printf("[no-match]\n");
-		}
+		if (debug) printf("info: found stop instruction, currently in stop mode %llu, "
+				"looking for stop mode %llu  ...  ", stop, registers[a0]);
+		if (registers[a0] == stop) { if (debug) printf("SUCCESS\n"); stop = 0; } 
+		else { if (debug) printf("[no-match]\n"); }
 		if (debug) printf("[stop = %llu]\n", stop);
 		return; 
 	} else if (stop) {
-		if (debug) printf("info: skipping over %llu (\"%s\"), in stop mode %llu\n", op, instruction_spelling[op], stop);
+		if (debug) printf("info: skipping over %llu (\"%s\"), in stop mode %llu\n", 
+				op, instruction_spelling[op], stop);
 		return;
 	}
-
-	if (debug) printf("@%llu: info: executing \033[1;32m%s\033[0m(%llu)  %lld %lld %lld\n", *pc, instruction_spelling[op], op, a0, a1, a2);
+	if (debug) printf("@%llu: info: executing \033[1;32m%s\033[0m(%llu) "
+			" %lld %lld %lld\n", *pc, instruction_spelling[op], op, a0, a1, a2);
 	if (debug) getchar();
 
 	if (op == ctnop) {}
@@ -450,7 +441,6 @@ static void execute(nat op, nat* pc) {
 	else if (op == ctlda)  arguments[arg_count++].value = *(nat*)registers[a0]; 
 	else if (op == ctput)  putchar((char) registers[a0]);
 	else if (op == ctget)  registers[a0] = (nat) getchar();
-
 	else if (op == ctprint) printf("debug: \033[32m%llu\033[0m \033[32m0x%llx\033[0m\n", registers[a0], registers[a0]); 
 	else if (op == ctabort) abort();
 }
@@ -495,8 +485,6 @@ static void print_instructions(void) {
 	puts("}");
 }
 
-
-
 static void parse(void) {
 	if (debug) printf("info: parsing file: %s...\n", filename);
 	nat count = 0, start = 0, index = 0, end = text_length;
@@ -512,7 +500,6 @@ static void parse(void) {
 		if (debug) printf("%s: processing: \"\033[32m%.*s\033[0m\"...\n", filename, (int) count, word);
 
 		if (is(word, count, "eof")) return;
-
 		if (is(word, count, "debugregisters")) { print_registers(); goto next; }
 		if (is(word, count, "debugarguments")) { print_arguments(); goto next; }
 		if (is(word, count, "debuginstructions")) { print_instructions(); goto next; }
@@ -532,7 +519,7 @@ static void parse(void) {
 			if (i >= ctnop) execute(i, &index); else push(i, start, count);
 			goto next;
 		}
-
+		if (stop) goto next;
 		char reason[4096] = {0};
 		snprintf(reason, sizeof reason, "unknown word \"%.*s\"", (int) count, word);
 		print_error(reason, start, count);
@@ -541,7 +528,6 @@ static void parse(void) {
 	}
 	if (count) goto process;
 }
-
 
 static void make_object_file(const char* object_filename) {
 
@@ -648,8 +634,6 @@ static void generate_machine_code(const char* object_filename, const char* execu
 		struct argument* const a = ins[i].arguments;
 
 		     if (op == dw)     emit((u32) im);
-		//else if (op == db)     emit_byte((u32) im);
-  
 		else if (op == svc)    emit(0xD4000001);
 		else if (op == nop)    emit(0xD503201F);
 		else if (op == cfinv)  emit(0xD500401F);
@@ -804,6 +788,8 @@ static void generate_machine_code(const char* object_filename, const char* execu
 		object_filename, executable_filename
 	);
 	system(link_command);
+
+	if (debug) debug_output();
 }
 
 static noreturn void usage(void) { 
@@ -813,14 +799,11 @@ static noreturn void usage(void) {
 int main(int argc, const char** argv) {
 	if (argc != 6 or strcmp(argv[2], "-c") or strcmp(argv[4], "-o")) usage();
 	filename = argv[1];
-	const char* object = argv[3];
-	const char* executable = argv[5];
 	text_length = 0;
 	text = read_file(filename, &text_length);
 	*registers = (nat)(void*) malloc(65536); 
 	parse();
-	generate_machine_code(object, executable);
-	debug_output();
+	generate_machine_code(argv[3], argv[5]);
 }
 
 

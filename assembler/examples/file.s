@@ -1,7 +1,26 @@
+
+
+0 ctbr 
+		....this is just a comment btw. (ie, a section of code which never gets executed.)
+
+	this program simply demonstrates the ability for the language to
+	have macros using the compiletime system, 
+
+	and create a simple hello world program, using the 
+	currently implemented runtime instructions.
+	
+	also calculating pc relative offsets is tested, along with generating 
+	constant data at compiletime to the .text section.
+
+	this language is still a major work in progress!
+
+0 ctstop
+
 5 4 ctldi
 14 7 ctldi
 
 1 ctzero
+
 
 128 ctpc
 ctdel 0 ctsta 2 ctzero 1 0 ctbeq 
@@ -14,19 +33,16 @@ ctdel 0 ctsta 2 ctzero 1 0 ctbeq
 
 0 ctlda ctbr 0 ctstop
 
-
 129 ctpc 
 ctdel 0 ctsta 2 ctzero 1 0 ctbeq 
 
 	77 2 ctldi ctprint
 	77 2 ctldi ctprint
 	77 2 ctldi ctprint
-
 	nop
 	nop
 
 0 ctlda ctbr 0 ctstop
-
 
 1 ctincr
 
@@ -41,7 +57,6 @@ ctdel 0 ctsta 2 ctzero 1 0 ctbeq
 66 ctpc 129 ctgoto
 66 ctstop
 
-
 41 2 ctldi ctput
 20 2 ctldi ctput
 42 2 ctldi ctput
@@ -49,16 +64,10 @@ a 2 ctldi ctput
 
 2 ctget
 
-
 43 2 ctldi ctput
 42 2 ctldi ctput
 41 2 ctldi ctput
 a 2 ctldi ctput
-
-
-
-
-
 
 
 1 2 ctldi ctimm 0 0 movzx
@@ -116,16 +125,12 @@ a 4 ctldi
 
 3 ctimm dw
 
-
-
 4 4 ctldi 0 1 ctadd 
 3 ctld4
 1 ctat 2 ctld4
 3 2 3 ctsub
 2 2 ctldi 3 3 ctshl
 3 1 ctst4
-
-
 
 3 ctzero
 
@@ -142,9 +147,6 @@ a 4 ctldi
 18 8 ctldi 4 4 ctshl 4 3 3 ctor
 
 3 ctimm dw
-
-
-
 
 3 ctzero
 
@@ -166,32 +168,9 @@ a 4 ctldi
 eof
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 write: w16=4, x0 fd    x1 buf    x2 len
 1 for stdout
-using .text section to store string literal. constructing the string literal using 
-db or dw? not sure... hm....
+
 
 
 
