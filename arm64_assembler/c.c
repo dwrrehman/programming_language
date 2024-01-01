@@ -1,5 +1,5 @@
-#include <stdio.h>    // arm64bit assembler written by dwrr on 202309262.203001
-#include <stdlib.h>   // made for only my own personal use, not for anyone else. 
+#include <stdio.h>    // arm64 assembler written by dwrr on 202309262.203001
+#include <stdlib.h>   // made for only my own personal use, not meant to be useful to anyone else,
 #include <string.h>   // and made specifically for the Macbook Pro's M1 Max CPU.
 #include <unistd.h>
 #include <sys/stat.h>
@@ -9,7 +9,6 @@
 #include <iso646.h>
 #include <ctype.h>
 #include <errno.h>
-#include <stdnoreturn.h>
 #include <mach-o/nlist.h>
 #include <mach-o/loader.h>
 typedef uint64_t nat;
@@ -17,99 +16,36 @@ typedef uint32_t u32;
 
 static const bool debug = true;
 
-
-
-/*
-	we should add an instruction to implicitly give a value for one of the arguments for a given instruction!
-
-
-			so that all the little bits that we are adding don't actaully have to be supplied, if its the same for all instructions in that area. 
-
-
-			ie,  theres an     sf instruction, which gives a value for the sf bit, for all subsequent instructions. 
-
-			and theres a       sh instruction,   which tells the shift amount, or shift type, if applicable. 
-
-				and  a     st   instruction    which tells if the flags should be set. 
-
-			and theres a       sb instruction,    which tells if a subtraction should be done
-
-
-			and theres a       ne  instructions,   which tells if it should be negated 
-
-	
-	hmm
-
-	theres alot of these, 
-
-
-	but we'll only include the ones that come up everywhere,   so we don't bloat things too much. 
-
-	starting with the sf instruction.  thats awesome. 
-
-
-	 
-
-
-
-*/
-
 enum instruction_type {
-
-
-	nop, data, svc, cfinv, 
-
-	br, blr, b_, bc, 
-
-	adr, adrp, 
-
-	mov, addi, madd, umadd, 
-
+	nop, data, svc, cfinv, br, blr, b_, bc, adr, adrp, 
+	mov, addi, madd, umadd, or_, add, csel, memi, memiu, 
 	adc, udiv, umax, umin, lslv, lsrv, asrv, rorv, 
-
-	or_, add, 
-
-	cls, clz, rbit, rev, revh, 
-
-	csel, 
-
-	memi, 
-
-	memiu, 
-
-	
-	sf_, st_, sb_, 
-
-
-
+	cls, clz, rbit, rev, revh, sf_, st_, sb_, 
 
 	ctnop, ctzero, ctincr, ctset, 
 	ctldi, ctlda, ctsta, ctdel,
 	ctadd, ctsub, ctmul, ctdiv,
 	ctnor, ctxor, ctor, ctand, 
-	ctshl, ctshr, 
+	ctshl, ctshr, ctldt, 
 	ctld1, ctld2, ctld4, ctld8, 
 	ctst1, ctst2, ctst4, ctst8,
 	ctblt, ctbge, ctbeq, ctbne, 
 	ctbr, ctgoto, ctpc, ctstop,
 	ctimm, ctat, ctprint, ctabort,
-
 	instruction_set_count
 };
 
 static const char* const instruction_spelling[instruction_set_count] = {
 	"nop", "data", "svc", "cfinv", "br", "blr", "b", "bc", "adr", "adrp", 
-	"mov", "addi", "madd", "umadd", 
+	"mov", "addi", "madd", "umadd", "or", "add", "csel", "memi", "memiu", 
 	"adc", "udiv", "umax", "umin", "lslv", "lsrv", "asrv", "rorv", 
-	"or", "add", "cls", "clz", "rbit", "rev", "revh", "csel", "memi", "memiu", 
-
-	"sf", "st", "sb", 
+	"cls", "clz", "rbit", "rev", "revh", "sf", "st", "sb", 
 
 	"ctnop", "ctzero", "ctincr", "ctset", 
 	"ctldi", "ctlda", "ctsta", "ctdel",
 	"ctadd", "ctsub", "ctmul", "ctdiv",
 	"ctnor", "ctxor", "ctor", "ctand", 
-	"ctshl", "ctshr", 
+	"ctshl", "ctshr", "ctldt",
 	"ctld1", "ctld2", "ctld4", "ctld8", 
 	"ctst1", "ctst2", "ctst4", "ctst8",
 	"ctblt", "ctbge", "ctbeq", "ctbne", 
@@ -146,9 +82,7 @@ static struct argument arguments[4096] = {0};
 static nat registers[4096] = {0};
 
 static nat immediate = 0, stop = 0;
-
 static u32 sf = 0, st = 0, sb = 0;
-
 
 static bool is(const char* word, nat count, const char* this) {
 	return strlen(this) == count and not strncmp(word, this, count);
@@ -203,7 +137,6 @@ static void print_error(const char* reason, const nat start_index, const nat err
 			printf("\033[0m");
 		} 
 		if (text[i] == 10) w = 0; 
-
 	}
 	puts("\033[0m\n");
 }
@@ -232,33 +165,23 @@ static void check_branch(int r, int c, const struct argument a, const char* type
 	exit(1);
 }
 
-
 static u32 generate_br(struct argument* a, u32 op) { 
-
 	u32 Rn = (u32) a[0].value;
-
 	check(Rn, 32, a[0], "register");
-
 	return  (op << 10U) | (Rn << 5U);
 }
 
 static u32 generate_b(struct argument* a, nat im) {
-
 	u32 Im = * (u32*) im;
-
 	check_branch((int) Im, 1 << (26 - 1), a[0], "branch offset");
-
 	return (0x05 << 26U) | (0x03FFFFFFU & im);
 }
 
 static u32 generate_bc(struct argument* a, nat im) { 
-
 	u32 cd = (u32) a[0].value;
 	u32 Im = * (u32*) im;
-
 	check_branch((int) Im, 1 << (19 - 1), a[1], "branch offset");
 	check(cd, 16, a[0], "condition");
-
 	return (0x54U << 24U) | ((0x0007FFFFU & Im) << 5U) | cd;
 }
 
@@ -278,11 +201,9 @@ static u32 generate_adr(struct argument* a, u32 op, u32 o2, nat im) {
 }
 
 static u32 generate_mov(struct argument* a, u32 op, u32 im) {  //     im Rd sh oc mov 
-
 	u32 oc = (u32) a[0].value;
 	u32 sh = (u32) a[1].value;
 	u32 Rd = (u32) a[2].value;
-
 	check(oc,  4, a[0], "opcode");
 	check(sh,  4, a[1], "shift");
 	check(Rd, 32, a[2], "register");
@@ -296,16 +217,13 @@ static u32 generate_mov(struct argument* a, u32 op, u32 im) {  //     im Rd sh o
 }
 
 static u32 generate_addi(struct argument* a, u32 op, u32 im) {     // im Rn Rd sh addi
-
 	u32 sh = (u32) a[0].value;
 	u32 Rd = (u32) a[1].value;
 	u32 Rn = (u32) a[2].value;
-
 	check(sh,  2, a[0], "shift");
 	check(Rd, 32, a[1], "register");
 	check(Rn, 32, a[2], "register");
 	check(im, 1 << 12U, a[3], "immediate");
-
 	return  (sf << 31U) | 
 		(sb << 30U) | 
 		(st << 29U) | 
@@ -315,19 +233,15 @@ static u32 generate_addi(struct argument* a, u32 op, u32 im) {     // im Rn Rd s
 		(Rn <<  5U) | Rd;
 }
 
-
 static u32 generate_madd(struct argument* a, u32 op) {       // Ra Rm Rn Rd madd/umaddl
-
 	u32 Rd = (u32) a[0].value;
 	u32 Rn = (u32) a[1].value;
 	u32 Rm = (u32) a[2].value;
 	u32 Ra = (u32) a[3].value;
-
 	check(Rd, 32, a[0], "register");
 	check(Rn, 32, a[1], "register");
 	check(Rm, 32, a[2], "register");
 	check(Ra, 32, a[3], "register");
-
 	return  (sf << 31U) |
 		(op << 21U) |
 		(Rm << 16U) |
@@ -337,15 +251,12 @@ static u32 generate_madd(struct argument* a, u32 op) {       // Ra Rm Rn Rd madd
 }
 
 static u32 generate_adc(struct argument* a, u32 op, u32 o2) {   //    Rm Rn Rd adc/udiv/umin/umax/
-
 	u32 Rd = (u32) a[0].value;
 	u32 Rn = (u32) a[1].value;
 	u32 Rm = (u32) a[2].value;
-
 	check(Rd, 32, a[0], "register");
 	check(Rn, 32, a[1], "register");
 	check(Rm, 32, a[2], "register");
-
 	return  (sf << 31U) |
 		(sb << 30U) |
 		(st << 29U) |
@@ -356,18 +267,15 @@ static u32 generate_adc(struct argument* a, u32 op, u32 o2) {   //    Rm Rn Rd a
 }
 
 static u32 generate_add(struct argument* a, u32 op, u32 im) {   //  im Rm Rn Rd sh or/add
-
 	u32 sh = (u32) a[0].value;
 	u32 Rd = (u32) a[1].value;
 	u32 Rn = (u32) a[2].value;
 	u32 Rm = (u32) a[3].value;
-
-	check(sh,  4, a[0], "shift");
+	check(sh,  8, a[0], "shift");
 	check(Rd, 32, a[1], "register");
 	check(Rn, 32, a[2], "register");
 	check(Rm, 32, a[3], "register");
 	check(im, 32U << sf, a[4], "immediate");
-
 	return  (sf << 31U) |
 		(sb << 30U) |
 		(st << 29U) |
@@ -379,34 +287,28 @@ static u32 generate_add(struct argument* a, u32 op, u32 im) {   //  im Rm Rn Rd 
 }
 
 static u32 generate_rev(struct argument* a, u32 op) {     //    Rn Rd clz/cls/rbit/rev/revh
-
 	u32 Rd = (u32) a[0].value;
 	u32 Rn = (u32) a[1].value;
-
 	check(Rd, 32, a[0], "register");
 	check(Rn, 32, a[1], "register");
-
 	return  (sf << 31U) | 
 		(op << 10U) | 
 		(Rn <<  5U) | Rd;
 }
 
 static u32 generate_csel(struct argument* a, u32 op) {    //      Rm Rn Rd cd ic iv csel
-
 	u32 iv = (u32) a[0].value;
 	u32 ic = (u32) a[1].value;
 	u32 cd = (u32) a[2].value;
 	u32 Rd = (u32) a[3].value;
 	u32 Rn = (u32) a[4].value;
 	u32 Rm = (u32) a[5].value;
-
 	check(iv,  2, a[0], "invert");
 	check(ic,  2, a[1], "increment");
 	check(cd, 16, a[2], "condition");
 	check(Rd, 32, a[3], "register");
 	check(Rn, 32, a[4], "register");
 	check(Rm, 32, a[5], "register");
-
 	return  (sf << 31U) | 
 		(iv << 30U) | 
 		(op << 21U) | 
@@ -417,20 +319,17 @@ static u32 generate_csel(struct argument* a, u32 op) {    //      Rm Rn Rd cd ic
 }
 
 static u32 generate_memi(struct argument* a, u32 op, u32 im) {     // im Rn Rt oe oc sz memi
-
 	u32 sz = (u32) a[0].value;
 	u32 oc = (u32) a[1].value;
 	u32 oe = (u32) a[2].value;
 	u32 Rt = (u32) a[3].value;
 	u32 Rn = (u32) a[4].value;
-
 	check(sz,  4, a[0], "size");
 	check(oc,  4, a[1], "opcode");
 	check(oe,  4, a[2], "mode");
 	check(Rt, 32, a[3], "register");
 	check(Rn, 32, a[4], "register");
 	check(im, 1 << 9U, a[5], "immediate");
-
 	return  (sz << 30U) | 
 		(op << 24U) | 
 		(oc << 22U) |
@@ -440,18 +339,15 @@ static u32 generate_memi(struct argument* a, u32 op, u32 im) {     // im Rn Rt o
 }
 
 static u32 generate_memiu(struct argument* a, u32 op, u32 im) {    // im Rn Rt oc sz memiu
-
 	u32 sz = (u32) a[0].value;
 	u32 oc = (u32) a[1].value;
 	u32 Rt = (u32) a[2].value;
 	u32 Rn = (u32) a[3].value;
-
 	check(sz,  4, a[0], "size");
 	check(oc,  4, a[1], "opcode");
 	check(Rt, 32, a[2], "register");
 	check(Rn, 32, a[3], "register");
 	check(im, 1 << 12U, a[4], "immediate");
-
 	return  (sz << 30U) | 
 		(op << 24U) | 
 		(oc << 22U) | 
@@ -494,7 +390,6 @@ static void execute(nat op, nat* pc) {
 	}
 	if (debug) printf("@%llu: info: executing \033[1;32m%s\033[0m(%llu) "
 			" %lld %lld %lld\n", *pc, instruction_spelling[op], op, a0, a1, a2);
-	//if (debug) getchar();
 
 	if (op == ctnop) {}
 	else if (op == ctdel)  { if (arg_count) arg_count--; }
@@ -510,29 +405,26 @@ static void execute(nat op, nat* pc) {
 	else if (op == ctincr) registers[a0]++;
 	else if (op == ctzero) registers[a0] = 0;
 	else if (op == ctldi)  registers[a0] = a1;
+	else if (op == ctldt)  registers[a0] = (nat) text[registers[a1]];
 	else if (op == ctset)  registers[a0] = registers[a1];
 	else if (op == ctadd)  registers[a0] = registers[a1] + registers[a2]; 
 	else if (op == ctsub)  registers[a0] = registers[a1] - registers[a2]; 
 	else if (op == ctmul)  registers[a0] = registers[a1] * registers[a2]; 
 	else if (op == ctdiv)  registers[a0] = registers[a1] / registers[a2]; 
-	//else if (op == ctrem)  registers[a0] = registers[a1] % registers[a2]; 
 	else if (op == ctxor)  registers[a0] = registers[a1] ^ registers[a2]; 
 	else if (op == ctor)   registers[a0] = registers[a1] | registers[a2]; 
 	else if (op == ctand)  registers[a0] = registers[a1] & registers[a2]; 
 	else if (op == ctnor)  registers[a0] = ~(registers[a1] | registers[a2]); 
 	else if (op == ctshl)  registers[a0] = registers[a1] << registers[a2]; 
 	else if (op == ctshr)  registers[a0] = registers[a1] >> registers[a2]; 
-
 	else if (op == ctld1)  registers[a0] = *(uint8_t*) registers[a1]; 
 	else if (op == ctld2)  registers[a0] = *(uint16_t*)registers[a1]; 
 	else if (op == ctld4)  registers[a0] = *(uint32_t*)registers[a1]; 
 	else if (op == ctld8)  registers[a0] = *(uint64_t*)registers[a1]; 
-
 	else if (op == ctst1)  *(uint8_t*) registers[a0] = (uint8_t)  registers[a1]; 
 	else if (op == ctst2)  *(uint16_t*)registers[a0] = (uint16_t) registers[a1]; 
 	else if (op == ctst4)  *(uint32_t*)registers[a0] = (uint32_t) registers[a1]; 
 	else if (op == ctst8)  *(uint64_t*)registers[a0] = (uint64_t) registers[a1]; 
-
 	else if (op == ctsta)  *(nat*)registers[a0] = a1;
 	else if (op == ctlda)  arguments[arg_count++].value = *(nat*)registers[a0]; 
 	else if (op == ctprint) printf("debug: \033[32m%llu\033[0m \033[32m0x%llx\033[0m\n", registers[a0], registers[a0]); 
@@ -580,7 +472,6 @@ static void print_instructions(void) {
 }
 
 static void generate_instructions(void) {
-	if (debug) printf("info: parsing file: %s...\n", filename);
 	nat count = 0, start = 0, index = 0, end = text_length;
 	for (; index < end; index++) {
 		if (not isspace(text[index])) { 
@@ -591,7 +482,9 @@ static void generate_instructions(void) {
 		const char* const word = text + start;
 		struct argument arg = { .value = 0, .start = start, .count = count };
 
-		if (debug) printf("%s: processing: \"\033[32m%.*s\033[0m\"...\n", filename, (int) count, word);
+		if (debug) printf(". %s: \"\033[32;1m%.*s\033[0m\"...\n", 
+				stop ? "\033[31mignoring\033[0m" : "\033[32mprocessing\033[0m", 
+				(int) count, word);
 
 		if (is(word, count, "eof")) return;
 		if (is(word, count, "use")) {
@@ -625,6 +518,7 @@ static void generate_instructions(void) {
 			else if (word[i] == '1') { r += s; s <<= 1; }
 			else goto other;
 		}
+		printf("[info: pushed %llu onto argument stack]\n", r);
 		arg.value = r;
 		arguments[arg_count++] = arg; 
 		goto next;
@@ -771,13 +665,11 @@ static void generate_machine_code(const char* object_filename, const char* execu
 		else if (op == rorv)   emit(generate_adc(a, 0x0D6U, 0x0B));
 		else if (op == or_)    emit(generate_add(a, 0x2AU, im));
 		else if (op == add)    emit(generate_add(a, 0x0BU, im));
-
 		else if (op == rbit)   emit(generate_rev(a, 0x16B000U));
 		else if (op == revh)   emit(generate_rev(a, 0x16B001U));
 		else if (op == rev)    emit(generate_rev(a, 0x16B002U));
 		else if (op == clz)    emit(generate_rev(a, 0x16B004U));
 		else if (op == cls)    emit(generate_rev(a, 0x16B005U));
-
 		else if (op == csel)   emit(generate_csel(a, 0x0D4U));
 		else if (op == memi)   emit(generate_memi(a,  0x38, im));
 		else if (op == memiu)  emit(generate_memiu(a, 0x39, im));
@@ -818,12 +710,9 @@ static void generate_machine_code(const char* object_filename, const char* execu
 	if (debug) debug_output();
 }
 
-static noreturn void usage(void) { 
-	exit(puts("\033[31;1merror: \033[0m\033[1musage: assembler <source.s> -c <object.o> -o <executable>\033[0m"));
-}
-
 int main(int argc, const char** argv) {
-	if (argc != 6 or strcmp(argv[2], "-c") or strcmp(argv[4], "-o")) usage();
+	if (argc != 6 or strcmp(argv[2], "-c") or strcmp(argv[4], "-o")) 
+		exit(puts("\033[31;1merror:\033[0m usage: ./run <code.s> -c <obj.o> -o <exec>"));
 	filename = argv[1];
 	text_length = 0;
 	text = read_file(filename, &text_length);
@@ -843,6 +732,30 @@ int main(int argc, const char** argv) {
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 // how to do a remainder on arm64:
 
  // udiv x2, x0, x1
@@ -850,6 +763,41 @@ int main(int argc, const char** argv) {
 
 
 
+
+/*
+	we should add an instruction to implicitly give a value for one of the arguments for a given instruction!
+
+
+			so that all the little bits that we are adding don't actaully have to be supplied, if its the same for all instructions in that area. 
+
+
+			ie,  theres an     sf instruction, which gives a value for the sf bit, for all subsequent instructions. 
+
+			and theres a       sh instruction,   which tells the shift amount, or shift type, if applicable. 
+
+				and  a     st   instruction    which tells if the flags should be set. 
+
+			and theres a       sb instruction,    which tells if a subtraction should be done
+
+
+			and theres a       ne  instructions,   which tells if it should be negated 
+
+	
+	hmm
+
+	theres alot of these, 
+
+
+	but we'll only include the ones that come up everywhere,   so we don't bloat things too much. 
+
+	starting with the sf instruction.  thats awesome. 
+
+
+	 
+
+
+
+*/
 
 
 
