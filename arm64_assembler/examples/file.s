@@ -18,14 +18,14 @@
 1000001 01 ctldi ctput
 0101 01 ctldi ctput
 
-
-
-
-
-
 0 ctstop
 
+0 0 0 0 rbit
+0 0 0 0 revh
+0 0 0 0 rev
+0 0 0 0 clz
+0 0 0 0 cls
 
-
-
-
+1001 01 ctldi ctimm 00000 0 01 1 mov
+1 01 ctldi ctimm 00001 0 01 0 mov 
+svc

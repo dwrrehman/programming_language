@@ -15,39 +15,106 @@
 typedef uint64_t nat;
 typedef uint32_t u32;
 
-static const bool debug = false;
+static const bool debug = true;
+
+
+
+/*
+	we should add an instruction to implicitly give a value for one of the arguments for a given instruction!
+
+
+			so that all the little bits that we are adding don't actaully have to be supplied, if its the same for all instructions in that area. 
+
+
+			ie,  theres an     sf instruction, which gives a value for the sf bit, for all subsequent instructions. 
+
+			and theres a       sh instruction,   which tells the shift amount, or shift type, if applicable. 
+
+				and  a     st   instruction    which tells if the flags should be set. 
+
+			and theres a       sb instruction,    which tells if a subtraction should be done
+
+
+			and theres a       ne  instructions,   which tells if it should be negated 
+
+	
+	hmm
+
+	theres alot of these, 
+
+
+	but we'll only include the ones that come up everywhere,   so we don't bloat things too much. 
+
+	starting with the sf instruction.  thats awesome. 
+
+
+	 
+
+
+
+*/
 
 enum instruction_type {
-	nop, dw, svc, cfinv, br, blr, b_, bc, adr, adrp, 
-	movz, movk, movn, addi, madd, umadd, adc, udiv, umax, umin, 
-	lslv, lsrv, asrv, rorv, or_, add, abs_, cls, clz, ctz, cnt, 
-	rbit, rev, revh, ld64, st64, csel, memi, memiu, 
-	ctnop, ctzero, ctincr, ctset, ctimm, 
+
+
+	nop, data, svc, cfinv, 
+
+	br, blr, b_, bc, 
+
+	adr, adrp, 
+
+	mov, addi, madd, umadd, 
+
+	adc, udiv, umax, umin, lslv, lsrv, asrv, rorv, 
+
+	or_, add, 
+
+	cls, clz, rbit, rev, revh, 
+
+	csel, 
+
+	memi, 
+
+	memiu, 
+
+	
+	sf_, st_, sb_, 
+
+
+
+
+	ctnop, ctzero, ctincr, ctset, 
 	ctldi, ctlda, ctsta, ctdel,
-	ctadd, ctsub, ctmul, ctdiv, ctrem,
-	ctnor, ctxor, ctor, ctand, ctshl, ctshr, 
-	ctld1, ctld2, ctld4, ctld8, ctst1, ctst2, ctst4, ctst8,
-	ctpc, ctblt, ctbge, ctbeq, ctbne, ctbr, ctgoto, ctat, ctstop,
-	ctprint, ctabort,
+	ctadd, ctsub, ctmul, ctdiv,
+	ctnor, ctxor, ctor, ctand, 
+	ctshl, ctshr, 
+	ctld1, ctld2, ctld4, ctld8, 
+	ctst1, ctst2, ctst4, ctst8,
+	ctblt, ctbge, ctbeq, ctbne, 
+	ctbr, ctgoto, ctpc, ctstop,
+	ctimm, ctat, ctprint, ctabort,
 
 	instruction_set_count
 };
 
 static const char* const instruction_spelling[instruction_set_count] = {
-	"nop", "dw", "svc", "cfinv", "br", "blr", 
-	"b", "bc", "adr", "adrp", "movz", "movk", 
-	"movn", "addi", "madd", "umadd", "adc", "udiv", 
-	"umax", "umin", "lslv", "lsrv", "asrv", "rorv", 
-	"or", "add", "abs", "cls", "clz", "ctz", 
-	"cnt", "rbit", "rev", "revh", "ld64", "st64", 
-	"csel", "memi", "memiu",
-	"ctnop", "ctzero", "ctincr", "ctset", "ctimm", 
+	"nop", "data", "svc", "cfinv", "br", "blr", "b", "bc", "adr", "adrp", 
+	"mov", "addi", "madd", "umadd", 
+	"adc", "udiv", "umax", "umin", "lslv", "lsrv", "asrv", "rorv", 
+	"or", "add", "cls", "clz", "rbit", "rev", "revh", "csel", "memi", "memiu", 
+
+	"sf", "st", "sb", 
+
+	"ctnop", "ctzero", "ctincr", "ctset", 
 	"ctldi", "ctlda", "ctsta", "ctdel",
-	"ctadd", "ctsub", "ctmul", "ctdiv", "ctrem",
-	"ctnor", "ctxor", "ctor", "ctand", "ctshl", "ctshr",
-	"ctld1", "ctld2", "ctld4", "ctld8", "ctst1", "ctst2", "ctst4", "ctst8",
-	"ctpc", "ctblt", "ctbge", "ctbeq", "ctbne", "ctbr", "ctgoto", "ctat", "ctstop",
-	"ctprint", "ctabort"
+	"ctadd", "ctsub", "ctmul", "ctdiv",
+	"ctnor", "ctxor", "ctor", "ctand", 
+	"ctshl", "ctshr", 
+	"ctld1", "ctld2", "ctld4", "ctld8", 
+	"ctst1", "ctst2", "ctst4", "ctst8",
+	"ctblt", "ctbge", "ctbeq", "ctbne", 
+	"ctbr", "ctgoto", "ctpc", "ctstop",
+	"ctimm", "ctat", "ctprint", "ctabort",
 };
 
 struct argument {
@@ -78,7 +145,10 @@ static nat arg_count = 0;
 static struct argument arguments[4096] = {0};
 static nat registers[4096] = {0};
 
-static nat immediate = 0, stop = 0; 
+static nat immediate = 0, stop = 0;
+
+static u32 sf = 0, st = 0, sb = 0;
+
 
 static bool is(const char* word, nat count, const char* this) {
 	return strlen(this) == count and not strncmp(word, this, count);
@@ -164,70 +234,77 @@ static void check_branch(int r, int c, const struct argument a, const char* type
 
 
 static u32 generate_br(struct argument* a, u32 op) { 
-	const u32 Rn = (u32) a[0].value;
+
+	u32 Rn = (u32) a[0].value;
+
 	check(Rn, 32, a[0], "register");
+
 	return  (op << 10U) | (Rn << 5U);
 }
 
 static u32 generate_b(struct argument* a, nat im) {
-	const u32 Im = * (u32*) im;
+
+	u32 Im = * (u32*) im;
+
 	check_branch((int) Im, 1 << (26 - 1), a[0], "branch offset");
+
 	return (0x05 << 26U) | (0x03FFFFFFU & im);
 }
 
 static u32 generate_bc(struct argument* a, nat im) { 
-	const u32 cd = (u32) a[0].value;
-	const u32 Im = * (u32*) im;
+
+	u32 cd = (u32) a[0].value;
+	u32 Im = * (u32*) im;
+
 	check_branch((int) Im, 1 << (19 - 1), a[1], "branch offset");
 	check(cd, 16, a[0], "condition");
+
 	return (0x54U << 24U) | ((0x0007FFFFU & Im) << 5U) | cd;
 }
 
 static u32 generate_adr(struct argument* a, u32 op, u32 o2, nat im) {
-	const u32 Rd = (u32) a[0].value;
-	const u32 Im = * (u32*) im;
+
+	u32 Rd = (u32) a[0].value;
+	u32 Im = * (u32*) im;
+
 	check(Rd, 32, a[0], "register");
 	check_branch((int) Im, 1 << (21 - 1), a[1], "pc-relative address");
-	const u32 lo = 0x03U & Im, hi = 0x07FFFFU & (Im >> 2);
+	u32 lo = 0x03U & Im, hi = 0x07FFFFU & (Im >> 2);
+
 	return  (o2 << 31U) | 
 		(lo << 29U) | 
 		(op << 24U) | 
 		(hi <<  5U) | Rd;
 }
 
-static u32 generate_mov(struct argument* a, u32 op, u32 im) {  //     im Rd hw sf movk/movz/movn 
+static u32 generate_mov(struct argument* a, u32 op, u32 im) {  //     im Rd sh oc mov 
 
-	u32 sf = (u32) a[0].value;
-	u32 hw = (u32) a[1].value;
+	u32 oc = (u32) a[0].value;
+	u32 sh = (u32) a[1].value;
 	u32 Rd = (u32) a[2].value;
 
-	check(sf,  2, a[0], "size");
-	check(hw,  4, a[1], "shift");
+	check(oc,  4, a[0], "opcode");
+	check(sh,  4, a[1], "shift");
 	check(Rd, 32, a[2], "register");
 	check(im, 1 << 16U, a[3], "immediate");
 
 	return  (sf << 31U) | 
+		(oc << 29U) | 
 		(op << 23U) | 
-		(hw << 21U) | 
+		(sh << 21U) | 
 		(im <<  5U) | Rd;
 }
 
-static u32 generate_addi(struct argument* a, u32 op, u32 im) {     // im Rn Rd sh st sb sf addi
+static u32 generate_addi(struct argument* a, u32 op, u32 im) {     // im Rn Rd sh addi
 
-	u32 sf = (u32) a[0].value;
-	u32 sb = (u32) a[1].value;
-	u32 st = (u32) a[2].value;
-	u32 sh = (u32) a[3].value;
-	u32 Rd = (u32) a[4].value;
-	u32 Rn = (u32) a[5].value;
+	u32 sh = (u32) a[0].value;
+	u32 Rd = (u32) a[1].value;
+	u32 Rn = (u32) a[2].value;
 
-	check(sf,  2, a[0], "size");
-	check(sb,  2, a[1], "sub");
-	check(st,  2, a[2], "setflags");
-	check(sh,  2, a[3], "shift");
-	check(Rd, 32, a[4], "register");
-	check(Rn, 32, a[5], "register");
-	check(im, 1 << 12U, a[6], "immediate");
+	check(sh,  2, a[0], "shift");
+	check(Rd, 32, a[1], "register");
+	check(Rn, 32, a[2], "register");
+	check(im, 1 << 12U, a[3], "immediate");
 
 	return  (sf << 31U) | 
 		(sb << 30U) | 
@@ -239,21 +316,17 @@ static u32 generate_addi(struct argument* a, u32 op, u32 im) {     // im Rn Rd s
 }
 
 
-static u32 generate_madd(struct argument* a, u32 op) {       // Ra Rm Rn Rd sb sf madd/umaddl
+static u32 generate_madd(struct argument* a, u32 op) {       // Ra Rm Rn Rd madd/umaddl
 
-	u32 sf = (u32) a[0].value;
-	u32 sb = (u32) a[1].value;
-	u32 Rd = (u32) a[2].value;
-	u32 Rn = (u32) a[3].value;
-	u32 Rm = (u32) a[4].value;
-	u32 Ra = (u32) a[5].value;
+	u32 Rd = (u32) a[0].value;
+	u32 Rn = (u32) a[1].value;
+	u32 Rm = (u32) a[2].value;
+	u32 Ra = (u32) a[3].value;
 
-	check(sf,  2, a[0], "size");
-	check(sb,  2, a[1], "sub");
-	check(Rd, 32, a[2], "register");
-	check(Rn, 32, a[3], "register");
-	check(Rm, 32, a[4], "register");
-	check(Ra, 32, a[5], "register");
+	check(Rd, 32, a[0], "register");
+	check(Rn, 32, a[1], "register");
+	check(Rm, 32, a[2], "register");
+	check(Ra, 32, a[3], "register");
 
 	return  (sf << 31U) |
 		(op << 21U) |
@@ -263,21 +336,15 @@ static u32 generate_madd(struct argument* a, u32 op) {       // Ra Rm Rn Rd sb s
 		(Rn <<  5U) | Rd;
 }
 
-static u32 generate_adc(struct argument* a, u32 op, u32 o2) {   //    Rm Rn Rd st sb sf adc/udiv/umin/umax/
+static u32 generate_adc(struct argument* a, u32 op, u32 o2) {   //    Rm Rn Rd adc/udiv/umin/umax/
 
-	u32 sf = (u32) a[0].value;
-	u32 sb = (u32) a[1].value;
-	u32 st = (u32) a[2].value;
-	u32 Rd = (u32) a[3].value;
-	u32 Rn = (u32) a[4].value;
-	u32 Rm = (u32) a[5].value;
+	u32 Rd = (u32) a[0].value;
+	u32 Rn = (u32) a[1].value;
+	u32 Rm = (u32) a[2].value;
 
-	check(sf,  2, a[0], "size");
-	check(sb,  2, a[1], "sub");
-	check(st,  2, a[2], "setflags");
-	check(Rd, 32, a[3], "register");
-	check(Rn, 32, a[4], "register");
-	check(Rm, 32, a[5], "register");
+	check(Rd, 32, a[0], "register");
+	check(Rn, 32, a[1], "register");
+	check(Rm, 32, a[2], "register");
 
 	return  (sf << 31U) |
 		(sb << 30U) |
@@ -288,70 +355,57 @@ static u32 generate_adc(struct argument* a, u32 op, u32 o2) {   //    Rm Rn Rd s
 		(Rn <<  5U) | Rd;
 }
 
-static u32 generate_add(struct argument* a, u32 op, u32 im) {   //  im Rm Rn Rd sh ne st sb sf or/add
+static u32 generate_add(struct argument* a, u32 op, u32 im) {   //  im Rm Rn Rd sh or/add
 
-	u32 sf = (u32) a[0].value;
-	u32 sb = (u32) a[1].value;
-	u32 st = (u32) a[2].value;
-	u32 ne = (u32) a[3].value;
-	u32 sh = (u32) a[4].value;
-	u32 Rd = (u32) a[5].value;
-	u32 Rn = (u32) a[6].value;
-	u32 Rm = (u32) a[7].value;
-	
-	check(sf,  2, a[0], "size");
-	check(sb,  2, a[1], "sub");
-	check(st,  2, a[2], "setflags");
-	check(ne,  2, a[3], "negate");
-	check(sh,  4, a[4], "shifttype");
-	check(Rd, 32, a[5], "register");
-	check(Rn, 32, a[6], "register");
-	check(Rm, 32, a[7], "register");
-	check(im, 32U << sf, a[8], "immediate");
+	u32 sh = (u32) a[0].value;
+	u32 Rd = (u32) a[1].value;
+	u32 Rn = (u32) a[2].value;
+	u32 Rm = (u32) a[3].value;
+
+	check(sh,  4, a[0], "shift");
+	check(Rd, 32, a[1], "register");
+	check(Rn, 32, a[2], "register");
+	check(Rm, 32, a[3], "register");
+	check(im, 32U << sf, a[4], "immediate");
 
 	return  (sf << 31U) |
 		(sb << 30U) |
 		(st << 29U) |
 		(op << 24U) | 
-		(sh << 22U) | 
-		(ne << 21U) |
+		(sh << 21U) |
 		(Rm << 16U) | 
 		(im << 10U) | 
 		(Rn <<  5U) | Rd;
 }
 
-static u32 generate_abs(struct argument* a, u32 op) {     //    Rn Rd sf abs/clz/cnt/ctz/cls/rbit/rev/revh/ld64/st64
+static u32 generate_rev(struct argument* a, u32 op) {     //    Rn Rd clz/cls/rbit/rev/revh
 
-	u32 sf = (u32) a[0].value;
-	u32 Rd = (u32) a[1].value;
-	u32 Rn = (u32) a[2].value;
+	u32 Rd = (u32) a[0].value;
+	u32 Rn = (u32) a[1].value;
 
-	check(sf,  2, a[0], "size");
-	check(Rd, 32, a[1], "register");
-	check(Rn, 32, a[2], "register");
+	check(Rd, 32, a[0], "register");
+	check(Rn, 32, a[1], "register");
 
 	return  (sf << 31U) | 
 		(op << 10U) | 
 		(Rn <<  5U) | Rd;
 }
 
-static u32 generate_csel(struct argument* a, u32 op) {    //      Rm Rn Rd cd ic iv sf csel
+static u32 generate_csel(struct argument* a, u32 op) {    //      Rm Rn Rd cd ic iv csel
 
-	u32 sf = (u32) a[0].value;
-	u32 iv = (u32) a[1].value;
-	u32 ic = (u32) a[2].value;
-	u32 cd = (u32) a[3].value;
-	u32 Rd = (u32) a[4].value;
-	u32 Rn = (u32) a[5].value;
-	u32 Rm = (u32) a[6].value;
+	u32 iv = (u32) a[0].value;
+	u32 ic = (u32) a[1].value;
+	u32 cd = (u32) a[2].value;
+	u32 Rd = (u32) a[3].value;
+	u32 Rn = (u32) a[4].value;
+	u32 Rm = (u32) a[5].value;
 
-	check(sf,  2, a[0], "size");
-	check(iv,  2, a[1], "invert");
-	check(ic,  2, a[2], "increment");
-	check(cd, 16, a[3], "condition");
-	check(Rd, 32, a[4], "register");
-	check(Rn, 32, a[5], "register");
-	check(Rm, 32, a[6], "register");
+	check(iv,  2, a[0], "invert");
+	check(ic,  2, a[1], "increment");
+	check(cd, 16, a[2], "condition");
+	check(Rd, 32, a[3], "register");
+	check(Rn, 32, a[4], "register");
+	check(Rm, 32, a[5], "register");
 
 	return  (sf << 31U) | 
 		(iv << 30U) | 
@@ -404,8 +458,6 @@ static u32 generate_memiu(struct argument* a, u32 op, u32 im) {    // im Rn Rt o
 		(im << 10U) | 
 		(Rn <<  5U) | Rt;
 }
-
-
 
 static void push(nat op, nat start, nat count) {
 	if (stop) return;
@@ -463,21 +515,24 @@ static void execute(nat op, nat* pc) {
 	else if (op == ctsub)  registers[a0] = registers[a1] - registers[a2]; 
 	else if (op == ctmul)  registers[a0] = registers[a1] * registers[a2]; 
 	else if (op == ctdiv)  registers[a0] = registers[a1] / registers[a2]; 
-	else if (op == ctrem)  registers[a0] = registers[a1] % registers[a2]; 
+	//else if (op == ctrem)  registers[a0] = registers[a1] % registers[a2]; 
 	else if (op == ctxor)  registers[a0] = registers[a1] ^ registers[a2]; 
 	else if (op == ctor)   registers[a0] = registers[a1] | registers[a2]; 
 	else if (op == ctand)  registers[a0] = registers[a1] & registers[a2]; 
 	else if (op == ctnor)  registers[a0] = ~(registers[a1] | registers[a2]); 
 	else if (op == ctshl)  registers[a0] = registers[a1] << registers[a2]; 
 	else if (op == ctshr)  registers[a0] = registers[a1] >> registers[a2]; 
+
 	else if (op == ctld1)  registers[a0] = *(uint8_t*) registers[a1]; 
 	else if (op == ctld2)  registers[a0] = *(uint16_t*)registers[a1]; 
 	else if (op == ctld4)  registers[a0] = *(uint32_t*)registers[a1]; 
 	else if (op == ctld8)  registers[a0] = *(uint64_t*)registers[a1]; 
+
 	else if (op == ctst1)  *(uint8_t*) registers[a0] = (uint8_t)  registers[a1]; 
 	else if (op == ctst2)  *(uint16_t*)registers[a0] = (uint16_t) registers[a1]; 
 	else if (op == ctst4)  *(uint32_t*)registers[a0] = (uint32_t) registers[a1]; 
 	else if (op == ctst8)  *(uint64_t*)registers[a0] = (uint64_t) registers[a1]; 
+
 	else if (op == ctsta)  *(nat*)registers[a0] = a1;
 	else if (op == ctlda)  arguments[arg_count++].value = *(nat*)registers[a0]; 
 	else if (op == ctprint) printf("debug: \033[32m%llu\033[0m \033[32m0x%llx\033[0m\n", registers[a0], registers[a0]); 
@@ -540,7 +595,7 @@ static void generate_instructions(void) {
 
 		if (is(word, count, "eof")) return;
 		if (is(word, count, "use")) {
-			if (not arg_count) abort();
+			if (not arg_count or stop) goto next;
 			char new[128] = {0};
 			snprintf(new, sizeof new, "%llx.s", arguments[arg_count - 1].value);
 			if (debug) printf("\033[32mIncluding file \"%s\"...\033[0m\n", new);
@@ -684,13 +739,17 @@ static void debug_output(void) {
 static void generate_machine_code(const char* object_filename, const char* executable_filename) {
 
 	for (nat i = 0; i < ins_count; i++) {
-		const nat op = ins[i].op;
-		const u32 im = (u32) ins[i].immediate;
-		struct argument* const a = ins[i].arguments;
 
-		     if (op == dw)     emit((u32) im);
-		else if (op == svc)    emit(0xD4000001);
+		nat op = ins[i].op;
+		u32 im = (u32) ins[i].immediate;
+		struct argument* a = ins[i].arguments;
+
+		     if (op == sf_)    sf = a->value & 1;
+		else if (op == sb_)    sb = a->value & 1;
+		else if (op == st_)    st = a->value & 1;
+		else if (op == data)   emit((u32) im);
 		else if (op == nop)    emit(0xD503201F);
+		else if (op == svc)    emit(0xD4000001);
 		else if (op == cfinv)  emit(0xD500401F);
 		else if (op == br)     emit(generate_br(a, 0x3587C0U));
 		else if (op == blr)    emit(generate_br(a, 0x358FC0U));
@@ -698,9 +757,7 @@ static void generate_machine_code(const char* object_filename, const char* execu
 		else if (op == bc)     emit(generate_bc(a, ins[i].immediate));
 		else if (op == adr)    emit(generate_adr(a, 0x10U, 0, ins[i].immediate));
 		else if (op == adrp)   emit(generate_adr(a, 0x10U, 1, ins[i].immediate));
-		else if (op == movz)   emit(generate_mov(a, 0xA5U, im));
-		else if (op == movk)   emit(generate_mov(a, 0xE5U, im));
-		else if (op == movn)   emit(generate_mov(a, 0x25U, im));
+		else if (op == mov)    emit(generate_mov(a,  0x25U, im));
 		else if (op == addi)   emit(generate_addi(a, 0x22U, im));
 		else if (op == madd)   emit(generate_madd(a, 0xD8));
 		else if (op == umadd)  emit(generate_madd(a, 0xDD));
@@ -714,16 +771,13 @@ static void generate_machine_code(const char* object_filename, const char* execu
 		else if (op == rorv)   emit(generate_adc(a, 0x0D6U, 0x0B));
 		else if (op == or_)    emit(generate_add(a, 0x2AU, im));
 		else if (op == add)    emit(generate_add(a, 0x0BU, im));
-		else if (op == abs_)   emit(generate_abs(a, 0x16B008U));
-		else if (op == clz)    emit(generate_abs(a, 0x16B004U));
-		else if (op == cls)    emit(generate_abs(a, 0x16B005U));
-		else if (op == ctz)    emit(generate_abs(a, 0x16B006U));
-		else if (op == cnt)    emit(generate_abs(a, 0x16B007U));
-		else if (op == rbit)   emit(generate_abs(a, 0x16B000U));
-		else if (op == rev)    emit(generate_abs(a, 0x16B002U));
-		else if (op == revh)   emit(generate_abs(a, 0x16B001U));
-		else if (op == ld64)   emit(generate_abs(a, 0x1E0FF4U));
-		else if (op == st64)   emit(generate_abs(a, 0x1E0FE4U));
+
+		else if (op == rbit)   emit(generate_rev(a, 0x16B000U));
+		else if (op == revh)   emit(generate_rev(a, 0x16B001U));
+		else if (op == rev)    emit(generate_rev(a, 0x16B002U));
+		else if (op == clz)    emit(generate_rev(a, 0x16B004U));
+		else if (op == cls)    emit(generate_rev(a, 0x16B005U));
+
 		else if (op == csel)   emit(generate_csel(a, 0x0D4U));
 		else if (op == memi)   emit(generate_memi(a,  0x38, im));
 		else if (op == memiu)  emit(generate_memiu(a, 0x39, im));
@@ -789,9 +843,10 @@ int main(int argc, const char** argv) {
 
 
 
+// how to do a remainder on arm64:
 
-
-
+ // udiv x2, x0, x1
+ // msub x3, x2, x1, x0
 
 
 
