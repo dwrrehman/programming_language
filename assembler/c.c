@@ -385,7 +385,7 @@ static u32 generate_memi(struct argument* a, u32 op, u32 im) {     // im Rn Rt o
 		(Rn <<  5U) | Rt;
 }
 
-static u32 generate_striu(struct argument* a, u32 op, u32 im) {    // im Rn Rt oc sz memiu
+static u32 generate_memiu(struct argument* a, u32 op, u32 im) {    // im Rn Rt oc sz memiu
 
 	u32 sz = (u32) a[0].value;
 	u32 oc = (u32) a[1].value;
