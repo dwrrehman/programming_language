@@ -485,7 +485,9 @@ static void print_instructions(void) {
 	puts("}");
 }
 
-static void parse(void) {
+// static bool include_state = false;
+
+static void generate_instructions(void) {
 	if (debug) printf("info: parsing file: %s...\n", filename);
 	nat count = 0, start = 0, index = 0, end = text_length;
 	for (; index < end; index++) {
@@ -500,6 +502,19 @@ static void parse(void) {
 		if (debug) printf("%s: processing: \"\033[32m%.*s\033[0m\"...\n", filename, (int) count, word);
 
 		if (is(word, count, "eof")) return;
+		if (is(word, count, "use")) {
+			char new[4096] = "examples/hello.txt";   // lets just make the filename an increasing number!! like a hex number. niceeeee. i like that. omg! we can just use the registers!!!! lets just do that. 
+			if (debug) printf("\033[32mIncluding file \"%s\"...\033[0m\n", new);
+			nat l = 0;
+			const char* s = read_file(new, &l);
+			text = realloc(text, text_length + l + 1);
+			memmove(text + index + 1 + l + 1, text + index + 1, text_length - (index + 1));
+			memcpy(text + index + 1, s, l);
+			text[index + 1 + l] = ' ';
+			text_length += l + 1;
+			goto next;
+		}
+
 		if (is(word, count, "debugregisters")) { print_registers(); goto next; }
 		if (is(word, count, "debugarguments")) { print_arguments(); goto next; }
 		if (is(word, count, "debuginstructions")) { print_instructions(); goto next; }
@@ -802,9 +817,50 @@ int main(int argc, const char** argv) {
 	text_length = 0;
 	text = read_file(filename, &text_length);
 	*registers = (nat)(void*) malloc(65536); 
-	parse();
+	generate_instructions();
 	generate_machine_code(argv[3], argv[5]);
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -1977,18 +2033,12 @@ struct word {
 	nat end;
 };
 
-
-
 static void emit_byte(u32 x) {
 	bytes[byte_count++] = (uint8_t) x;
 }
 
-
-
 //printf("\ndebugging bytes bytes:\n------------------------\n");
 	//dump_hex((uint8_t*) bytes, byte_count);
-
-
 
 static void dump_hex(uint8_t* local_bytes, nat local_byte_count) {
 	printf("dumping hex bytes: (%llu)\n", local_byte_count);
