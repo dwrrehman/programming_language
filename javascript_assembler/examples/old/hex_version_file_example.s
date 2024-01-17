@@ -1,25 +1,7 @@
-=========================================
-          a RV64GC assembler
-=========================================
-
-this is a risc-v 64-bit assembler, with a syntax similar to forth in some ways. this assembler is intended to be the programming language that the srnfgp algorithm will be written in, in order to maximize performance on my risc-v compute cluster.
-
-additionally, a set of compiletime-executed instructions are provided, which are used for everything from constructing more complex immediate values, to calculating branch address targets for an instruction, to generating arbitrary data at compiletime in the .text section, to creating compile-time function calls, which essentially provides a sort of macro-like functionality in the assembler. 
-
-the language does not provide any way for the user to create their own names/words/symbols in the program whatsoever- there are a predefined number of symbols in the language which does not change, and thus no dynamic dictionary is neccessary. instead, a set of numeric register names are provided for referencing control flow or data flow points. these could be runtime or compiletime- a given register number supplied to an instruction could be interpreted as a runtime register or compiletime register, depending on the semantics of the instruction. only the hexadecimal numeric index itself is used to identify the register. there are 32 runtime registers, and 4096 compiletime registers.
-
-whitespace is entirely ignored in this language, except for the existence of it to delimit words from one another. there must be at least one whitespace character (defined by isspace(c)) between two given words to parse them as seperate words. 
-
-
-
-
-heres an example program in the language currently:
-=====================================================
 
 
 0 ctbr 
-
-	....this is just a comment btw. (ie, a section of code which never gets executed.)
+		....this is just a comment btw. (ie, a section of code which never gets executed.)
 
 	this program simply demonstrates the ability for the language to
 	have macros using the compiletime system, 
@@ -32,9 +14,8 @@ heres an example program in the language currently:
 
 	this language is still a major work in progress!
 
-
 0 ctstop
-
+e
 5 4 ctldi
 14 7 ctldi
 
@@ -189,4 +170,214 @@ eof
 
 write: w16=4, x0 fd    x1 buf    x2 len
 1 for stdout
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+r10 r1 ctldi 
+r12 r2 ctldi 
+r1 ctprint r2 ctprint r3 ctadd ctprint 
+r1 r1 ctldi ctprint r3 ctprint r3 ctshl ctprint
+
+r10 r10 ctldi
+r5 r1 ctldi 
+r2 ctzero
+r9 ctpc
+
+r1 r2 r10 ctbeq
+
+	r2 ctprint
+
+	r11 r11 ctldi
+	r3 r4 ctldi 
+	r3 ctzero
+	r8 ctpc
+
+	r4 r3 r11 ctbeq
+
+	r3 ctprint
+
+	r3 ctincr
+	r8 ctgoto
+	r11 ctstop
+
+r2 ctincr
+r9 ctgoto
+r10 ctstop
+
+
+
+
+
+
+
+r42 r254 ctldi ctimm r0 r0 movzx 
+r1 r5 ctldi ctimm r0 r16 movzw 
+svc
+
+eof
+
+
+
+
+	idea:           we should allow for       alias   "macros" only        ie,        the ability to set      bubbles         as a synonym for r10 
+
+													or set       pasta        as a synonym for  r4
+
+
+															etc
+
+
+
+			that simple functionality would go a longggggggg way. but yeah. i mean, we don't needdddddd it. its just nice i guess. hm. 
+					ill think about it. ill see how far we can really get with just numbers, though. because obviosly thats preferable lol. 
+
+						mk 
+
+
+
+		
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+r0 ctzero ctincr r0 r0 movzx
+r0 ctzero r0 r1 adr
+r0 ctat
+r1 ctzero ctincr ctincr
+r1 r1 r1 ctadd
+r1 r0 r0 ctmul
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+r0 r0 r128 ctpc ctbeq
+
+
+
+ctstop
+
+
+r128 ctgoto 
+ctstop 
+
+
+
 

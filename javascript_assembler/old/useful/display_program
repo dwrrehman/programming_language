@@ -1,0 +1,2 @@
+otool -txvVhlL program.o
+objdump program.o -DSast --disassembler-options=no-aliases

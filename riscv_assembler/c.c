@@ -1,21 +1,6 @@
-/* programs to make:
-
-	helloworld.s
-	
-	printnumber.s
-
-	primes.s
-
-	guessinggame.s
-
-
-
-
-*/
-
-#include <stdio.h>    // arm64 assembler written by dwrr on 202309262.203001
-#include <stdlib.h>   // made for only my own personal use, not meant to be useful to anyone else,
-#include <string.h>   // and made specifically for the Macbook Pro's M1 Max CPU.
+#include <stdio.h>    // riscv 64 bit ELF assembler written by dwrr on 202401173.130844
+#include <stdlib.h>   // made for only my own personal use.
+#include <string.h>
 #include <unistd.h>
 #include <sys/stat.h>
 #include <fcntl.h>
@@ -32,12 +17,7 @@ typedef uint32_t u32;
 static const bool debug = true;
 
 enum instruction_type {
-	nop, data, svc, cfinv, br, blr, b_, bc, adr,
-	mov, addi, madd, umadd, or_, add, csel, memi, memiu, 
-	adc, udiv, umax, umin, lslv, lsrv, asrv, rorv, 
-	cls, clz, rbit, rev, revh, 
-
-	sf_, st_, sb_, sh_, oc_, 
+	db, add,
 
 	ctzero, ctincr, ctadd, ctsub, ctmul, ctdiv,
 	ctldi, ctlda, ctsta, ctdel,
@@ -51,12 +31,7 @@ enum instruction_type {
 };
 
 static const char* const instruction_spelling[instruction_set_count] = {
-	"nop", "data", "svc", "cfinv", "br", "blr", "b", "bc", "adr",
-	"mov", "addi", "madd", "umadd", "or", "add", "csel", "memi", "memiu", 
-	"adc", "udiv", "umax", "umin", "lslv", "lsrv", "asrv", "rorv", 
-	"cls", "clz", "rbit", "rev", "revh", 
-
-	"sf", "st", "sb", "sh", "oc",
+	"emit", "add", 
 
 	"ctzero", "ctincr", "ctadd", "ctsub", "ctmul", "ctdiv",
 	"ctldi", "ctlda", "ctsta", "ctdel",
@@ -68,18 +43,9 @@ static const char* const instruction_spelling[instruction_set_count] = {
 	"ctimm", "ctat", "ctprint", "ctabort",
 };
 
-struct argument {
-	nat value;
-	nat start;
-	nat count;
-};
-
 struct instruction {
 	nat op;
-	nat start;
-	nat count;
-	nat immediate;
-	struct argument arguments[16];
+	u32 arguments[4];
 };
 
 static const char* filename = NULL;
@@ -87,17 +53,17 @@ static nat text_length = 0;
 static char* text = NULL;
 
 static nat ins_count = 0;
-static struct instruction ins[4096] = {0};
+static struct instruction* ins = NULL;
 
 static nat byte_count = 0;
 static uint8_t* bytes = NULL;
 
 static nat arg_count = 0;
-static struct argument arguments[4096] = {0};
+static u32 arguments[4096] = {0};
+
 static nat registers[4096] = {0};
 
-static nat immediate = 0, stop = 0;
-static u32 sf = 0, st = 0, sb = 0, sh = 0, oc = 0;
+static nat stop = 0;
 
 static bool is(const char* word, nat count, const char* this) {
 	return strlen(this) == count and not strncmp(word, this, count);
@@ -164,22 +130,379 @@ static void emit(u32 x) {
 	bytes[byte_count++] = (uint8_t) (x >> 24);
 }
 
-static void check(nat r, nat c, const struct argument a, const char* type) {
+static void check(nat r, nat c, const char* type) {
 	if (r < c) return;
 	char reason[4096] = {0};
 	snprintf(reason, sizeof reason, "invalid %s argument %llu (%llu >= %llu)", type, r, r, c);
-	print_error(reason, a.start, a.count); 
+	print_error(reason, 99, 99); 
 	exit(1);
 }
 
-static void check_branch(int r, int c, const struct argument a, const char* type) {
+static void check_branch(int r, int c, const char* type) {
 	if (r > -c or r < c) return;
 	char reason[4096] = {0};
 	snprintf(reason, sizeof reason, "invalid %s argument %d (%d <= %d or %d >= %d)", type, r, r, c, r, c);
-	print_error(reason, a.start, a.count); 
+	print_error(reason, 99, 99); 
 	exit(1);
 }
 
+static u32 r_type(u32* a, u32 o, u32 f, u32 g) {   //  r r r op
+	check(a[0], 32, "register");
+	check(a[1], 32, "register");
+	check(a[2], 32, "register");
+	return (g << 25U) | (a[2] << 20U) | (a[1] << 15U) | (f << 12U) | (a[0] << 7U) | o;
+}
+
+static u32 i_type(u32* a, u32 o, u32 f) {   //  i r r op
+	check(a[0], 32, "register");
+	check(a[1], 32, "register");
+	check(a[2], 1 << 12, "immediate");
+	return (a[2] << 20U) | (a[1] << 15U) | (f << 12U) | (a[0] << 7U) | o;
+}
+
+static u32 u_type(u32* a, u32 o) {   //  i r op
+	check(a[0], 32, "register");
+	check(a[1], 1 << 12, "immediate");
+	return (a[1] << 12U) | (a[0] << 7U) | o;
+}
+
+static u32 s_type(u32* a, u32 o, u32 f) {   //  i r r op
+	check(a[0], 32, "register");
+	check(a[1], 32, "register");
+	check(a[2], 1 << 12, "immediate");
+	return ((a[0] >> 5U) << 25U) | (a[2] << 20U) | (a[1] << 15U) | (f << 12U) | ((a[0] & 0x1F) << 7U) | o;
+}
+
+
+static void push(nat op) {
+	if (stop) return;
+	struct instruction new = {
+		.op = op,
+		.arguments = {0}, 
+	};
+	for (nat i = 0; i < 3; i++) {
+		if (arg_count == i) break;
+		new.arguments[i] = arguments[arg_count - 1 - i];
+	}
+	ins = realloc(ins, sizeof(struct instruction) * (ins_count + 1));
+	ins[ins_count++] = new;
+}
+
+static void execute(nat op, nat* pc) {
+	const nat a2 = arg_count >= 3 ? arguments[arg_count - 3] : 0;
+	const nat a1 = arg_count >= 2 ? arguments[arg_count - 2] : 0;
+	const nat a0 = arg_count >= 1 ? arguments[arg_count - 1] : 0;
+
+	if (op == ctstop) {
+		if (debug) printf("info: found stop instruction, currently in stop mode %llu, "
+				"looking for stop mode %llu  ...  ", stop, registers[a0]);
+		if (registers[a0] == stop) { if (debug) printf("SUCCESS\n"); stop = 0; } 
+		else { if (debug) printf("[no-match]\n"); }
+		if (debug) printf("[stop = %llu]\n", stop);
+		return; 
+	} else if (stop) {
+		if (debug) printf("info: skipping over %llu (\"%s\"), in stop mode %llu\n", 
+				op, instruction_spelling[op], stop);
+		return;
+	}
+	if (debug) printf("@%llu: info: executing \033[1;32m%s\033[0m(%llu) "
+			" %lld %lld %lld\n", *pc, instruction_spelling[op], op, a0, a1, a2);
+
+	if (op == ctdel)  { if (arg_count) arg_count--; }
+	else if (op == ctldt)  registers[a0] = (nat) text[registers[a1]];
+	else if (op == ctlda)  arguments[arg_count++] = (u32) registers[a0]; 
+	else if (op == ctldi)  registers[a0] = a1;
+
+	else if (op == ctat)   *(u32*)registers[a0] = (u32) ins_count;      // delete this.
+
+	else if (op == ctpc)   registers[a0] = (u32) *pc;
+	else if (op == ctgoto) *pc  = registers[a0];
+
+	else if (op == ctbr)   stop = registers[a0];
+	else if (op == ctblt)  { if (registers[a1]  < registers[a2]) stop = registers[a0]; } 
+	else if (op == ctbge)  { if (registers[a1] >= registers[a2]) stop = registers[a0]; } 
+	else if (op == ctbeq)  { if (registers[a1] == registers[a2]) stop = registers[a0]; } 
+	else if (op == ctbne)  { if (registers[a1] != registers[a2]) stop = registers[a0]; }
+
+	else if (op == ctincr) registers[a0]++;
+	else if (op == ctzero) registers[a0] = 0;
+	
+	else if (op == ctadd)  registers[a0] = registers[a1] + registers[a2]; 
+	else if (op == ctsub)  registers[a0] = registers[a1] - registers[a2]; 
+	else if (op == ctmul)  registers[a0] = registers[a1] * registers[a2]; 
+	else if (op == ctdiv)  registers[a0] = registers[a1] / registers[a2]; 
+	else if (op == ctnor)  registers[a0] = ~(registers[a1] | registers[a2]); 
+
+	else if (op == ctshl)  registers[a0] = registers[a1] << registers[a2]; 
+	else if (op == ctshr)  registers[a0] = registers[a1] >> registers[a2]; 
+
+	else if (op == ctld1)  registers[a0] = *(uint8_t*) registers[a1]; 
+	else if (op == ctld2)  registers[a0] = *(uint16_t*)registers[a1]; 
+	else if (op == ctld4)  registers[a0] = *(uint32_t*)registers[a1]; 
+	else if (op == ctld8)  registers[a0] = *(uint64_t*)registers[a1]; 
+
+	else if (op == ctst1)  *(uint8_t*) registers[a0] = (uint8_t)  registers[a1]; 
+	else if (op == ctst2)  *(uint16_t*)registers[a0] = (uint16_t) registers[a1]; 
+	else if (op == ctst4)  *(uint32_t*)registers[a0] = (uint32_t) registers[a1]; 
+	else if (op == ctst8)  *(uint64_t*)registers[a0] = (uint64_t) registers[a1]; 
+	
+	else if (op == ctprint) printf("debug: \033[32m%llu\033[0m \033[32m0x%llx\033[0m\n", registers[a0], registers[a0]); 
+	else if (op == ctabort) abort();
+}
+
+static void print_registers(void) {
+	for (nat i = 0; i < sizeof registers / sizeof(nat); i++) {
+		if (not (i % 4)) puts("");
+		printf("%02llu:%010llx, ", i, registers[i]);
+	}
+	puts("");
+}
+
+static void print_arguments(void) {
+	printf("arguments: { ");
+	for (nat i = 0; i < arg_count; i++) {
+		printf("{%llu} ", (nat) arguments[i]);
+	}
+	puts("} ");
+}
+
+static void print_instructions(void) {
+	printf("instructions: {\n");
+	for (nat i = 0; i < ins_count; i++) {
+		const struct instruction I = ins[i];
+		printf("\t%llu\tins(.op=%llu (\"%s\"), args:{", i, I.op, instruction_spelling[I.op]);
+		for (nat a = 0; a < 6; a++) printf("{%llu,}, ", (nat) I.arguments[a]);
+		puts("}");
+	}
+	puts("}");
+}
+
+static void generate_instructions(void) {
+	nat count = 0, start = 0, index = 0;
+	for (; index < text_length; index++) {
+		if (not isspace(text[index])) { 
+			if (not count) start = index;
+			count++; continue;
+		} else if (not count) continue;
+	process:;
+		const char* const word = text + start;
+
+		if (debug) printf(". %s: \"\033[32;1m%.*s\033[0m\"...\n", 
+				stop ? "\033[31mignoring\033[0m" : "\033[32mprocessing\033[0m", 
+				(int) count, word);
+
+		if (is(word, count, "eof")) return;
+		if (is(word, count, "use")) {
+			if (not arg_count or stop) goto next;
+			char new[128] = {0};
+			snprintf(new, sizeof new, "examples/%llx.s", (nat) arguments[arg_count - 1]);
+			if (debug) printf("\033[32mIncluding file \"%s\"...\033[0m\n", new);
+			nat l = 0;
+			const char* s = read_file(new, &l);
+			text = realloc(text, text_length + l + 1);
+			memmove(text + index + 1 + l + 1, text + index + 1, text_length - (index + 1));
+			memcpy(text + index + 1, s, l);
+			text[index + 1 + l] = ' ';
+			text_length += l + 1;
+			goto next;
+		}
+
+		if (is(word, count, "debugregisters")) { print_registers(); goto next; }
+		if (is(word, count, "debugarguments")) { print_arguments(); goto next; }
+		if (is(word, count, "debuginstructions")) { print_instructions(); goto next; }
+		
+		for (nat i = db; i < instruction_set_count; i++) {
+			if (not is(word, count, instruction_spelling[i])) continue;
+			if (i >= ctzero) execute(i, &index); else push(i);
+			goto next;
+		}
+
+		u32 r = 0, s = 1;
+		for (nat i = 0; i < count; i++) {
+			if (word[i] == '0') s <<= 1;
+			else if (word[i] == '1') { r += s; s <<= 1; }
+			else goto other;
+		}
+		if (debug) printf("[info: pushed %llu onto argument stack]\n", (nat) r);
+		arguments[arg_count++] = r; 
+		goto next;
+	other:
+		if (stop) goto next;
+		char reason[4096] = {0};
+		snprintf(reason, sizeof reason, "unknown word \"%.*s\"", (int) count, word);
+		print_error(reason, start, count);
+		exit(1);
+		next: count = 0;
+	}
+	if (count) goto process;
+}
+
+static void make_object_file(const char* object_filename) {
+
+/*
+	struct mach_header_64 header = {0};
+	header.magic = MH_MAGIC_64;
+	header.cputype = (int)CPU_TYPE_ARM | (int)CPU_ARCH_ABI64;
+	header.cpusubtype = (int) CPU_SUBTYPE_ARM64_ALL;
+	header.filetype = MH_OBJECT;
+	header.ncmds = 2;
+	header.sizeofcmds = 0;
+	header.flags = MH_NOUNDEFS | MH_SUBSECTIONS_VIA_SYMBOLS;
+
+	header.sizeofcmds = 	sizeof(struct segment_command_64) + 
+				sizeof(struct section_64) + 
+				sizeof(struct symtab_command);
+
+	struct segment_command_64 segment = {0};
+	strncpy(segment.segname, "__TEXT", 16);
+	segment.cmd = LC_SEGMENT_64;
+	segment.cmdsize = sizeof(struct segment_command_64) + sizeof(struct section_64);
+	segment.maxprot =  (VM_PROT_READ | VM_PROT_EXECUTE);
+	segment.initprot = (VM_PROT_READ | VM_PROT_EXECUTE);
+	segment.nsects = 1;
+	segment.vmaddr = 0;
+	segment.vmsize = byte_count;
+	segment.filesize = byte_count;
+
+	segment.fileoff = 	sizeof(struct mach_header_64) + 
+				sizeof(struct segment_command_64) + 
+				sizeof(struct section_64) + 
+				sizeof(struct symtab_command);
+
+	struct section_64 section = {0};
+	strncpy(section.sectname, "__text", 16);
+	strncpy(section.segname, "__TEXT", 16);
+	section.addr = 0;
+	section.size = byte_count;	
+	section.align = 3;
+	section.reloff = 0;
+	section.nreloc = 0;
+	section.flags = S_ATTR_PURE_INSTRUCTIONS | S_ATTR_PURE_INSTRUCTIONS;
+
+	section.offset = 	sizeof(struct mach_header_64) + 
+				sizeof(struct segment_command_64) + 
+				sizeof(struct section_64) + 
+				sizeof(struct symtab_command);
+
+	const char strings[] = "\0_start\0";
+
+	struct symtab_command table  = {0};
+	table.cmd = LC_SYMTAB;
+	table.cmdsize = sizeof(struct symtab_command);
+	table.strsize = sizeof(strings);
+	table.nsyms = 1; 
+	table.stroff = 0;
+	
+	table.symoff = (uint32_t) (
+				sizeof(struct mach_header_64) +
+				sizeof(struct segment_command_64) + 
+				sizeof(struct section_64) + 
+				sizeof(struct symtab_command) + 
+				byte_count
+			);
+
+	table.stroff = table.symoff + sizeof(struct nlist_64);
+
+	struct nlist_64 symbols[] = {
+	        (struct nlist_64) {
+	            .n_un.n_strx = 1,
+	            .n_type = N_SECT | N_EXT,
+	            .n_sect = 1,
+	            .n_desc = REFERENCE_FLAG_DEFINED,
+	            .n_value = 0,
+	        }
+	};
+
+	const int flags = O_WRONLY | O_CREAT | O_TRUNC | O_EXCL;
+	const mode_t mode = S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH;
+	const int file = open(object_filename, flags, mode);
+	if (file < 0) { perror("obj:open"); exit(1); }
+
+	write(file, &header, sizeof(struct mach_header_64));
+	write(file, &segment, sizeof (struct segment_command_64));
+	write(file, &section, sizeof(struct section_64));
+	write(file, &table, sizeof table);
+	write(file, bytes, byte_count);
+	write(file, symbols, sizeof(struct nlist_64));
+	write(file, strings, sizeof strings);
+	close(file);
+*/
+}
+
+static void debug_output(void) { 
+	system("otool -txvVhlL object.o");
+	system("otool -txvVhlL program.out");
+	system("objdump object.o -DSast --disassembler-options=no-aliases");
+	system("objdump program.out -DSast --disassembler-options=no-aliases");	
+}
+
+static void generate_machine_code(const char* object_filename, const char* executable_filename) {
+	for (nat i = 0; i < ins_count; i++) {
+		nat op = ins[i].op;
+		u32* a = ins[i].arguments;
+		     if (op == db)     emit(a[0]);
+		else if (op == add)    emit(r_type(a, 0x33, 0x00, 0x00));
+		else {
+			printf("error: unknown instruction: %llu\n", op);
+			printf("       unknown instruction: %s\n", instruction_spelling[op]);
+			abort();
+		}
+	}
+
+	make_object_file(object_filename);
+
+	if (not access(executable_filename, F_OK)) {
+    		errno = EEXIST;
+		perror("exec:ld"); 
+		exit(1);
+	}
+
+	char link_command[4096] = {0};
+	snprintf(link_command, sizeof link_command, "ld -S -x " //  -v
+		"-dead_strip "
+		"-no_weak_imports "
+		"-fatal_warnings "
+		"-no_eh_labels "
+		"-warn_compact_unwind "
+		"-warn_unused_dylibs "
+		"%s -o %s "
+		"-arch arm64 "
+		"-e _start "
+		"-stack_size 0x1000000 "
+		"-platform_version macos 13.0.0 13.3 "
+		"-lSystem "
+		"-syslibroot /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk ", 
+		object_filename, executable_filename
+	);
+	system(link_command);
+
+	if (debug) debug_output();
+}
+
+int main(int argc, const char** argv) {
+	if (argc != 6 or strcmp(argv[2], "-c") or strcmp(argv[4], "-o")) 
+		exit(puts("\033[31;1merror:\033[0m usage: ./run <code.s> -c <obj.o> -o <exec>"));
+	filename = argv[1];
+	text_length = 0;
+	text = read_file(filename, &text_length);
+	*registers = (nat)(void*) malloc(65536); 
+	generate_instructions();
+	generate_machine_code(argv[3], argv[5]);
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+/*
 static u32 generate_br(struct argument* a, u32 op) {  //          blr: oc = 1
 	u32 Rn = (u32) a[0].value;
 	check(Rn, 32, a[0], "register");
@@ -353,381 +676,7 @@ static u32 generate_memiu(struct argument* a, u32 op, u32 im) {    // im Rn Rt m
 		(Rn <<  5U) | Rt;
 }
 
-static void push(nat op, nat start, nat count) {
-	if (stop) return;
-	struct instruction new = {
-		.op = op,
-		.immediate = immediate,
-		.arguments = {0}, 
-		.start = start,
-		.count = count,
-	};
-	for (nat i = 0; i < 6; i++) {
-		if (arg_count == i) break;
-		new.arguments[i] = arguments[arg_count - 1 - i];
-	}
-	ins[ins_count++] = new;
-}
-
-static void execute(nat op, nat* pc) {
-	const nat a2 = arg_count >= 3 ? arguments[arg_count - 3].value : 0;
-	const nat a1 = arg_count >= 2 ? arguments[arg_count - 2].value : 0;
-	const nat a0 = arg_count >= 1 ? arguments[arg_count - 1].value : 0;
-
-	if (op == ctstop) {
-		if (debug) printf("info: found stop instruction, currently in stop mode %llu, "
-				"looking for stop mode %llu  ...  ", stop, registers[a0]);
-		if (registers[a0] == stop) { if (debug) printf("SUCCESS\n"); stop = 0; } 
-		else { if (debug) printf("[no-match]\n"); }
-		if (debug) printf("[stop = %llu]\n", stop);
-		return; 
-	} else if (stop) {
-		if (debug) printf("info: skipping over %llu (\"%s\"), in stop mode %llu\n", 
-				op, instruction_spelling[op], stop);
-		return;
-	}
-	if (debug) printf("@%llu: info: executing \033[1;32m%s\033[0m(%llu) "
-			" %lld %lld %lld\n", *pc, instruction_spelling[op], op, a0, a1, a2);
-
-
-	if (op == ctdel)  { if (arg_count) arg_count--; }
-	else if (op == ctimm)  immediate = registers[a0];
-	else if (op == ctat)   *(u32*)registers[a0] = (u32) ins_count;
-	else if (op == ctpc)   registers[a0] = (u32) *pc;
-	else if (op == ctgoto) *pc  = registers[a0];
-	else if (op == ctbr)   stop = registers[a0];
-	else if (op == ctblt)  { if (registers[a1]  < registers[a2]) stop = registers[a0]; } 
-	else if (op == ctbge)  { if (registers[a1] >= registers[a2]) stop = registers[a0]; } 
-	else if (op == ctbeq)  { if (registers[a1] == registers[a2]) stop = registers[a0]; } 
-	else if (op == ctbne)  { if (registers[a1] != registers[a2]) stop = registers[a0]; }
-	else if (op == ctincr) registers[a0]++;
-	else if (op == ctzero) registers[a0] = 0;
-	else if (op == ctldi)  registers[a0] = a1;
-	else if (op == ctldt)  registers[a0] = (nat) text[registers[a1]];
-	else if (op == ctadd)  registers[a0] = registers[a1] + registers[a2]; 
-	else if (op == ctsub)  registers[a0] = registers[a1] - registers[a2]; 
-	else if (op == ctmul)  registers[a0] = registers[a1] * registers[a2]; 
-	else if (op == ctdiv)  registers[a0] = registers[a1] / registers[a2]; 
-	else if (op == ctnor)  registers[a0] = ~(registers[a1] | registers[a2]); 
-	else if (op == ctshl)  registers[a0] = registers[a1] << registers[a2]; 
-	else if (op == ctshr)  registers[a0] = registers[a1] >> registers[a2]; 
-	else if (op == ctld1)  registers[a0] = *(uint8_t*) registers[a1]; 
-	else if (op == ctld2)  registers[a0] = *(uint16_t*)registers[a1]; 
-	else if (op == ctld4)  registers[a0] = *(uint32_t*)registers[a1]; 
-	else if (op == ctld8)  registers[a0] = *(uint64_t*)registers[a1]; 
-	else if (op == ctst1)  *(uint8_t*) registers[a0] = (uint8_t)  registers[a1]; 
-	else if (op == ctst2)  *(uint16_t*)registers[a0] = (uint16_t) registers[a1]; 
-	else if (op == ctst4)  *(uint32_t*)registers[a0] = (uint32_t) registers[a1]; 
-	else if (op == ctst8)  *(uint64_t*)registers[a0] = (uint64_t) registers[a1]; 
-	else if (op == ctsta)  *(nat*)registers[a0] = a1;
-	else if (op == ctlda)  arguments[arg_count++].value = *(nat*)registers[a0]; 
-	else if (op == ctprint) printf("debug: \033[32m%llu\033[0m \033[32m0x%llx\033[0m\n", registers[a0], registers[a0]); 
-	else if (op == ctabort) abort();
-}
-
-static void print_registers(void) {
-	for (nat i = 0; i < sizeof registers / sizeof(nat); i++) {
-		if (not (i % 4)) puts("");
-		printf("%02llu:%010llx, ", i, registers[i]);
-	}
-	puts("");
-}
-
-static void print_arguments(void) {
-	printf("arguments: { ");
-	for (nat i = 0; i < arg_count; i++) {
-		printf("{%llu,(%llu,%llu)} ", 
-			arguments[i].value,
-			arguments[i].start,
-			arguments[i].count
-		);
-	}
-	puts("} ");
-}
-
-static void print_instructions(void) {
-	printf("instructions: {\n");
-	for (nat i = 0; i < ins_count; i++) {
-		const struct instruction I = ins[i];
-		printf("\t%llu\tins(.op=%llu (\"%s\"),(.start=%llu,.count=%llu),"
-			"imm=%llu, args:{", 
-			i, I.op, instruction_spelling[I.op], 
-			I.start, I.count, I.immediate
-		);
-		for (nat a = 0; a < 6; a++) 
-			printf("{%llu,(%llu,%llu)}, ",  
-				I.arguments[a].value, 
-				I.arguments[a].start, 
-				I.arguments[a].count
-			);
-		puts("}");
-	}
-	puts("}");
-}
-
-static void generate_instructions(void) {
-	nat count = 0, start = 0, index = 0;
-	for (; index < text_length; index++) {
-		if (not isspace(text[index])) { 
-			if (not count) start = index;
-			count++; continue;
-		} else if (not count) continue;
-	process:;
-		const char* const word = text + start;
-		struct argument arg = { .value = 0, .start = start, .count = count };
-
-		if (debug) printf(". %s: \"\033[32;1m%.*s\033[0m\"...\n", 
-				stop ? "\033[31mignoring\033[0m" : "\033[32mprocessing\033[0m", 
-				(int) count, word);
-
-		if (is(word, count, "eof")) return;
-		if (is(word, count, "use")) {
-			if (not arg_count or stop) goto next;
-			char new[128] = {0};
-			snprintf(new, sizeof new, "examples/%llx.s", arguments[arg_count - 1].value);
-			if (debug) printf("\033[32mIncluding file \"%s\"...\033[0m\n", new);
-			nat l = 0;
-			const char* s = read_file(new, &l);
-			text = realloc(text, text_length + l + 1);
-			memmove(text + index + 1 + l + 1, text + index + 1, text_length - (index + 1));
-			memcpy(text + index + 1, s, l);
-			text[index + 1 + l] = ' ';
-			text_length += l + 1;
-			goto next;
-		}
-
-		if (is(word, count, "debugregisters")) { print_registers(); goto next; }
-		if (is(word, count, "debugarguments")) { print_arguments(); goto next; }
-		if (is(word, count, "debuginstructions")) { print_instructions(); goto next; }
-		
-		for (nat i = nop; i < instruction_set_count; i++) {
-			if (not is(word, count, instruction_spelling[i])) continue;
-			if (i >= ctzero) execute(i, &index); else push(i, start, count);
-			goto next;
-		}
-
-		nat r = 0, s = 1;
-		for (nat i = 0; i < count; i++) {
-			if (word[i] == '0') s <<= 1;
-			else if (word[i] == '1') { r += s; s <<= 1; }
-			else goto other;
-		}
-		if (debug) printf("[info: pushed %llu onto argument stack]\n", r);
-		arg.value = r;
-		arguments[arg_count++] = arg; 
-		goto next;
-	other:
-		if (stop) goto next;
-		char reason[4096] = {0};
-		snprintf(reason, sizeof reason, "unknown word \"%.*s\"", (int) count, word);
-		print_error(reason, start, count);
-		exit(1);
-		next: count = 0;
-	}
-	if (count) goto process;
-}
-
-static void make_object_file(const char* object_filename) {
-
-	struct mach_header_64 header = {0};
-	header.magic = MH_MAGIC_64;
-	header.cputype = (int)CPU_TYPE_ARM | (int)CPU_ARCH_ABI64;
-	header.cpusubtype = (int) CPU_SUBTYPE_ARM64_ALL;
-	header.filetype = MH_OBJECT;
-	header.ncmds = 2;
-	header.sizeofcmds = 0;
-	header.flags = MH_NOUNDEFS | MH_SUBSECTIONS_VIA_SYMBOLS;
-
-	header.sizeofcmds = 	sizeof(struct segment_command_64) + 
-				sizeof(struct section_64) + 
-				sizeof(struct symtab_command);
-
-	struct segment_command_64 segment = {0};
-	strncpy(segment.segname, "__TEXT", 16);
-	segment.cmd = LC_SEGMENT_64;
-	segment.cmdsize = sizeof(struct segment_command_64) + sizeof(struct section_64);
-	segment.maxprot =  (VM_PROT_READ | VM_PROT_EXECUTE);
-	segment.initprot = (VM_PROT_READ | VM_PROT_EXECUTE);
-	segment.nsects = 1;
-	segment.vmaddr = 0;
-	segment.vmsize = byte_count;
-	segment.filesize = byte_count;
-
-	segment.fileoff = 	sizeof(struct mach_header_64) + 
-				sizeof(struct segment_command_64) + 
-				sizeof(struct section_64) + 
-				sizeof(struct symtab_command);
-
-	struct section_64 section = {0};
-	strncpy(section.sectname, "__text", 16);
-	strncpy(section.segname, "__TEXT", 16);
-	section.addr = 0;
-	section.size = byte_count;	
-	section.align = 3;
-	section.reloff = 0;
-	section.nreloc = 0;
-	section.flags = S_ATTR_PURE_INSTRUCTIONS | S_ATTR_PURE_INSTRUCTIONS;
-
-	section.offset = 	sizeof(struct mach_header_64) + 
-				sizeof(struct segment_command_64) + 
-				sizeof(struct section_64) + 
-				sizeof(struct symtab_command);
-
-	const char strings[] = "\0_start\0";
-
-	struct symtab_command table  = {0};
-	table.cmd = LC_SYMTAB;
-	table.cmdsize = sizeof(struct symtab_command);
-	table.strsize = sizeof(strings);
-	table.nsyms = 1; 
-	table.stroff = 0;
-	
-	table.symoff = (uint32_t) (
-				sizeof(struct mach_header_64) +
-				sizeof(struct segment_command_64) + 
-				sizeof(struct section_64) + 
-				sizeof(struct symtab_command) + 
-				byte_count
-			);
-
-	table.stroff = table.symoff + sizeof(struct nlist_64);
-
-	struct nlist_64 symbols[] = {
-	        (struct nlist_64) {
-	            .n_un.n_strx = 1,
-	            .n_type = N_SECT | N_EXT,
-	            .n_sect = 1,
-	            .n_desc = REFERENCE_FLAG_DEFINED,
-	            .n_value = 0,
-	        }
-	};
-
-	const int flags = O_WRONLY | O_CREAT | O_TRUNC | O_EXCL;
-	const mode_t mode = S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH;
-	const int file = open(object_filename, flags, mode);
-	if (file < 0) { perror("obj:open"); exit(1); }
-
-	write(file, &header, sizeof(struct mach_header_64));
-	write(file, &segment, sizeof (struct segment_command_64));
-	write(file, &section, sizeof(struct section_64));
-	write(file, &table, sizeof table);
-	write(file, bytes, byte_count);
-	write(file, symbols, sizeof(struct nlist_64));
-	write(file, strings, sizeof strings);
-	close(file);
-}
-
-static void debug_output(void) { 
-	system("otool -txvVhlL object.o");
-	system("otool -txvVhlL program.out");
-	system("objdump object.o -DSast --disassembler-options=no-aliases");
-	system("objdump program.out -DSast --disassembler-options=no-aliases");	
-}
-
-static void generate_machine_code(const char* object_filename, const char* executable_filename) {
-
-	for (nat i = 0; i < ins_count; i++) {
-
-		nat op = ins[i].op;
-		u32 im = (u32) ins[i].immediate;
-		struct argument* a = ins[i].arguments;
-
-		     if (op == sf_)    sf = im;
-		else if (op == sb_)    sb = im;
-		else if (op == st_)    st = im;
-		else if (op == sh_)    sh = im;
-		else if (op == oc_)    oc = im;
-		else if (op == data)   emit(im);
-		else if (op == nop)    emit(0xD503201F);
-		else if (op == svc)    emit(0xD4000001);
-		else if (op == cfinv)  emit(0xD500401F);
-		else if (op == br)     emit(generate_br(a, 0x3587C0U));
-		else if (op == b_)     emit(generate_b(a, ins[i].immediate));
-		else if (op == bc)     emit(generate_bc(a, ins[i].immediate));
-		else if (op == adr)    emit(generate_adr(a, 0x10U, ins[i].immediate));
-		else if (op == mov)    emit(generate_mov(a,  0x25U, im));
-		else if (op == addi)   emit(generate_addi(a, 0x22U, im));
-		else if (op == madd)   emit(generate_madd(a, 0xD8));
-		else if (op == umadd)  emit(generate_madd(a, 0xDD));
-		else if (op == adc)    emit(generate_adc(a, 0x0D0U, 0x00));
-		else if (op == udiv)   emit(generate_adc(a, 0x0D6U, 0x02));
-		else if (op == umax)   emit(generate_adc(a, 0x0D6U, 0x19));
-		else if (op == umin)   emit(generate_adc(a, 0x0D6U, 0x1B));
-		else if (op == lslv)   emit(generate_adc(a, 0x0D6U, 0x08));
-		else if (op == lsrv)   emit(generate_adc(a, 0x0D6U, 0x09));
-		else if (op == asrv)   emit(generate_adc(a, 0x0D6U, 0x0A));
-		else if (op == rorv)   emit(generate_adc(a, 0x0D6U, 0x0B));
-		else if (op == or_)    emit(generate_add(a, 0x2AU, im));
-		else if (op == add)    emit(generate_add(a, 0x0BU, im));
-		else if (op == rbit)   emit(generate_rev(a, 0x16B000U));
-		else if (op == revh)   emit(generate_rev(a, 0x16B001U));
-		else if (op == rev)    emit(generate_rev(a, 0x16B002U));
-		else if (op == clz)    emit(generate_rev(a, 0x16B004U));
-		else if (op == cls)    emit(generate_rev(a, 0x16B005U));
-		else if (op == csel)   emit(generate_csel(a, 0x0D4U));
-		else if (op == memi)   emit(generate_memi(a,  0x38, im));
-		else if (op == memiu)  emit(generate_memiu(a, 0x39, im));
-		else {
-			printf("error: unknown instruction: %llu\n", op);
-			printf("       unknown instruction: %s\n", instruction_spelling[op]);
-			abort();
-		}
-	}
-
-	make_object_file(object_filename);
-
-	if (not access(executable_filename, F_OK)) {
-    		errno = EEXIST;
-		perror("exec:ld"); 
-		exit(1);
-	}
-
-	char link_command[4096] = {0};
-	snprintf(link_command, sizeof link_command, "ld -S -x " //  -v
-		"-dead_strip "
-		"-no_weak_imports "
-		"-fatal_warnings "
-		"-no_eh_labels "
-		"-warn_compact_unwind "
-		"-warn_unused_dylibs "
-		"%s -o %s "
-		"-arch arm64 "
-		"-e _start "
-		"-stack_size 0x1000000 "
-		"-platform_version macos 13.0.0 13.3 "
-		"-lSystem "
-		"-syslibroot /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk ", 
-		object_filename, executable_filename
-	);
-	system(link_command);
-
-	if (debug) debug_output();
-}
-
-int main(int argc, const char** argv) {
-	if (argc != 6 or strcmp(argv[2], "-c") or strcmp(argv[4], "-o")) 
-		exit(puts("\033[31;1merror:\033[0m usage: ./run <code.s> -c <obj.o> -o <exec>"));
-	filename = argv[1];
-	text_length = 0;
-	text = read_file(filename, &text_length);
-	*registers = (nat)(void*) malloc(65536); 
-	generate_instructions();
-	generate_machine_code(argv[3], argv[5]);
-}
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+*/
 
 
 

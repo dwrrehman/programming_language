@@ -1,0 +1,9 @@
+. examples/constants . include 
+
+2 r0 r0 movzx
+
+1 r0 r16 movzw
+
+svc
+
+

@@ -1,0 +1,20 @@
+. examples/library/constants . include 
+. examples/library/characters . include 
+
+print ctprint print
+
+exit cthalt exit
+
+. ctincr .
++ ctadd +
+- ctsub -
+* ctmul *
+= ctset =
+
+enable r31 ctzero r31 ctincr enable
+disable r31 ctzero disable
+
+macros enable macros
+endmacros disable endmacros
+
+disable

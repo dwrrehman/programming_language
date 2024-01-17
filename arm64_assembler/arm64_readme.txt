@@ -1,10 +1,10 @@
 =========================================
-          a RV64GC assembler
+          an arm 64-bit assembler
 =========================================
 
-this is a risc-v 64-bit assembler, with a syntax similar to forth in some ways. this assembler is intended to be the programming language that the srnfgp algorithm will be written in, in order to maximize performance on my risc-v compute cluster.
+this is an arm 64-bit assembler for the M1 max macbook pro (or other arm 64-bit Mach-O machines) with a syntax similar to forth, and C in some ways. this assembler is intended to be the primary programming language that most of my command-line programs will be written in, assuming i can master the language to a sufficient degree. the source code for the assember is less than 900 lines of C code.
 
-additionally, a set of compiletime-executed instructions are provided, which are used for everything from constructing more complex immediate values, to calculating branch address targets for an instruction, to generating arbitrary data at compiletime in the .text section, to creating compile-time function calls, which essentially provides a sort of macro-like functionality in the assembler. 
+the language intentionally only includes the arm64 runtime instructions which have a unique binary encoding- that is, there are no alias instructions. additionally, a set of compiletime-executed instructions are provided, which are used for everything from constructing more complex immediate values, to calculating branch address targets for an instruction, to generating arbitrary data at compiletime in the .text section, to creating compile-time function calls, which essentially provides a sort of macro-like functionality in the assembler. 
 
 the language does not provide any way for the user to create their own names/words/symbols in the program whatsoever- there are a predefined number of symbols in the language which does not change, and thus no dynamic dictionary is neccessary. instead, a set of numeric register names are provided for referencing control flow or data flow points. these could be runtime or compiletime- a given register number supplied to an instruction could be interpreted as a runtime register or compiletime register, depending on the semantics of the instruction. only the hexadecimal numeric index itself is used to identify the register. there are 32 runtime registers, and 4096 compiletime registers.
 

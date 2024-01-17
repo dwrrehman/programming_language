@@ -1,4 +1,3 @@
-#!/bin/zsh
 rm object.o 
 rm program.out
 ./run examples/$1 -c object.o -o program.out

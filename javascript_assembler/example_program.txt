@@ -1,0 +1,44 @@
+
+async function my_program() {
+
+	putstring("Press a key: ");
+	registers[16] = 2n;
+	registers[1]  = 0n;
+	registers[2]  = 50n;
+	if (await svc()) return;
+
+	putstring("Pressed: ");
+	registers[16] = 3n;
+	registers[1]  = 0n;
+	registers[2]  = registers[0];
+	if (await svc()) return;
+
+	putstring("Press a key: ");
+	registers[16] = 2n;
+	registers[1]  = 0n;
+	registers[2]  = 50n;
+	if (await svc()) return;
+
+	putstring("Pressed: ");
+	registers[16] = 3n;
+	registers[1]  = 0n;
+	registers[2]  = registers[0];
+	if (await svc()) return;
+
+
+	putstring("Press a key: ");
+	registers[16] = 2n;
+	registers[1]  = 0n;
+	registers[2]  = 50n;
+	if (await svc()) return;
+
+	putstring("Pressed: ");
+	registers[16] = 3n;
+	registers[1]  = 0n;
+	registers[2]  = registers[0];
+	if (await svc()) return;
+
+	screen = startup_screen;
+	save();
+}
+

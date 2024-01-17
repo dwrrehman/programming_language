@@ -1,0 +1,1 @@
+. examples/small.s . include r31 ctzero r31 ctincr hi hi cthalt

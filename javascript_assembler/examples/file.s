@@ -5,9 +5,11 @@
 				and i don't think i am going to be going back.. i like it alot so far actually. 
 0 ctstop
 
+
 1000 use
 
-0 setsf 
+
+1 sf 
 
 0 0 rbit
 0 0 revh
@@ -15,15 +17,14 @@
 0 0 clz
 0 0 cls
 
-
-1 setst 1 setsb 
-1001 1 ctldi ctimm 0 11111 addi
+1 st 1 sb 
+1001 1 ctldi ctimm 0 11111 0 addi
 0 11111 0 0010 1 1 csel 			0 ctbr 		.0010 is mi condition for csel.    0 ctstop
 
 
 0 ctbr 
 
-	we should make a hello world program now! that uses the string      hello world from space      in the source,  to populate the .text section!!
+	we should make a hello world program now! that uses the string      hello world from space      in the source,  to print populate the .text section!!
 
 	lets work on that next. 
 
@@ -36,17 +37,8 @@
 0 ctstop
 
 
-01 setoc
-1001 1 ctldi ctimm 00000 mov
-1000 1 ctldi ctimm 00001 mov 
+
+1001 1 ctldi ctimm 00000 0 01 mov
+1000 1 ctldi ctimm 00001 0 01 mov 
 svc
-
-
-
-
-
-eof
-
-
-
 
