@@ -1,4 +1,4 @@
-#include <stdio.h>    // risc-v 64 bit ELF assembler written by dwrr on 202401173.130844
+#include <stdio.h>    // risc-v 64-bit ELF assembler written by dwrr on 202401173.130844
 #include <stdlib.h>   // made for only my own personal use, for writing fast programs
 #include <string.h>   // to run on my riscv cluster computer.
 #include <unistd.h>
@@ -13,32 +13,50 @@ typedef uint64_t nat;
 typedef uint32_t u32;
 
 static const bool debug = true;
+enum {
+	db, ecall, ebreak, fence, fencei, 
+	add, sub, sll, slt, sltu, xor_, 
+	srl, sra, or_, and_, addw, subw, 
+	sllw, srlw, sraw,
+	lb, lh, lw, ld, lbu, lhu, lwu, 
+	addi, slti, sltiu, xori, ori, andi, 
+	slli, srli, addiw, slliw, srliw, 
+	jalr, csrrw, csrrs, csrrc, 
+	csrrwi, csrrsi, csrrci, 
+	sb, sh, sw, sd, 
+	beq, bne, blt, bge, bltu, bgeu,
+	lui, auipc, jal, 
 
-enum instruction_type {
-	db, add, addi, 
-
-	ctzero, ctincr, ctadd, ctsub, ctmul, ctdiv,
-	ctldi, ctlda, ctsta, ctdel,
-	ctnor, ctshl, ctshr, ctldt, 
-	ctld1, ctld2, ctld4, ctld8, 
-	ctst1, ctst2, ctst4, ctst8,
-	ctblt, ctbge, ctbeq, ctbne, 
-	ctbr, ctgoto, ctpc, ctstop,
-	ctimm, ctat, ctprint, ctabort,
+	ctdel, ctldt, ctlda, ctldi,
+	ctat, ctpc, ctgoto,ctbr, ctblt,
+	ctbge, ctbeq, ctbne, ctincr, ctzero,
+	ctadd, ctmul, ctdiv, ctnor,
+	ctshl, ctshr, ctld1, ctld2, ctld4,
+	ctld8, ctst1, ctst2, ctst4, ctst8,
+	ctprint, ctabort,
 	instruction_set_count
 };
-
 static const char* const instruction_spelling[instruction_set_count] = {
-	"emit", "add", "addi", 
+	"db", "ecall", "ebreak", "fence", "fencei", 
+	"add", "sub", "sll", "slt", "sltu", "xor", 
+	"srl", "sra", "or", "and", "addw", "subw", 
+	"sllw", "srlw", "sraw",
+	"lb", "lh", "lw", "ld", "lbu", "lhu", "lwu", 
+	"addi", "slti", "sltiu", "xori", "ori", "andi", 
+	"slli", "srli", "addiw", "slliw", "srliw", 
+	"jalr", "csrrw", "csrrs", "csrrc", 
+	"csrrwi", "csrrsi", "csrrci", 
+	"sb", "sh", "sw", "sd", 
+	"beq", "bne", "blt", "bge", "bltu", "bgeu",
+	"lui", "auipc", "jal", 
 
-	"ctzero", "ctincr", "ctadd", "ctsub", "ctmul", "ctdiv",
-	"ctldi", "ctlda", "ctsta", "ctdel",
-	"ctnor", "ctshl", "ctshr", "ctldt",
-	"ctld1", "ctld2", "ctld4", "ctld8", 
-	"ctst1", "ctst2", "ctst4", "ctst8",
-	"ctblt", "ctbge", "ctbeq", "ctbne", 
-	"ctbr", "ctgoto", "ctpc", "ctstop",
-	"ctimm", "ctat", "ctprint", "ctabort",
+	"ctdel", "ctldt", "ctlda", "ctldi",
+	"ctat", "ctpc", "ctgoto", "ctbr", "ctblt",
+	"ctbge", "ctbeq", "ctbne", "ctincr", "ctzero",
+	"ctadd", "ctmul", "ctdiv", "ctnor",
+	"ctshl", "ctshr", "ctld1", "ctld2", "ctld4",
+	"ctld8", "ctst1", "ctst2", "ctst4", "ctst8",
+	"ctprint", "ctabort",
 };
 
 struct instruction { u32 op; u32 arguments[3]; };
@@ -133,34 +151,43 @@ static u32 i_type(u32* a, u32 o, u32 f) {   //  i r r op
 	return (a[2] << 20U) | (a[1] << 15U) | (f << 12U) | (a[0] << 7U) | o;
 }
 
-static u32 u_type(u32* a, u32 o) {   //  i r op
-	abort();
-	check(a[0], 32, "register");
-	check(a[1], 1 << 12, "immediate");
-	return (a[1] << 12U) | (a[0] << 7U) | o;
-}
-
 static u32 s_type(u32* a, u32 o, u32 f) {   //  i r r op
-	abort();
 	check(a[0], 32, "register");
 	check(a[1], 32, "register");
 	check(a[2], 1 << 12, "immediate");
 	return ((a[0] >> 5U) << 25U) | (a[2] << 20U) | (a[1] << 15U) | (f << 12U) | ((a[0] & 0x1F) << 7U) | o;
 }
 
-static u32 j_type(u32* a, u32 o) {   //  i r op
-	abort();
+static u32 u_type(u32* a, u32 o) {   	//  i r op
 	check(a[0], 32, "register");
-	check(a[1], 1 << 12, "immediate");
+	check(a[1], 1 << 20, "immediate");
 	return (a[1] << 12U) | (a[0] << 7U) | o;
+}
+
+static u32 j_type(u32* a, u32 o) {   	//  i r op
+	check(a[0], 32, "register");
+
+	check(a[1], 1 << 20, "pc-relative offset"); // todo: make this calculated. user only supplies (numeric) "label", maybe.
+
+	const u32 e = a[1];
+	const u32 imm19_12 = (e & 0x000FF000);
+	const u32 imm11    = (e & 0x00000800) << 9;
+	const u32 imm10_1  = (e & 0x000007FE) << 20;
+	const u32 imm20    = (e & 0x00100000) << 11;
+	const u32 imm = imm20 | imm10_1 | imm11 | imm19_12;
+	return (imm << 12U) | (a[0] << 7U) | o;
 }
 
 
 static u32 b_type(u32* a, u32 o) {   //  i r op
+
 	abort();
+
 	check(a[0], 32, "register");
 	check(a[1], 1 << 12, "immediate");
+
 	return (a[1] << 12U) | (a[0] << 7U) | o;
+
 }
 
 
@@ -215,7 +242,6 @@ static void execute(nat op, nat* pc) {
 	else if (op == ctzero) registers[a0] = 0;
 	
 	else if (op == ctadd)  registers[a0] = registers[a1] + registers[a2]; 
-	else if (op == ctsub)  registers[a0] = registers[a1] - registers[a2]; 
 	else if (op == ctmul)  registers[a0] = registers[a1] * registers[a2]; 
 	else if (op == ctdiv)  registers[a0] = registers[a1] / registers[a2]; 
 	else if (op == ctnor)  registers[a0] = ~(registers[a1] | registers[a2]); 
@@ -314,7 +340,7 @@ int main(int argc, const char** argv) {
 		
 		for (u32 i = db; i < instruction_set_count; i++) {
 			if (not is(word, count, instruction_spelling[i])) continue;
-			if (i >= ctzero) execute(i, &index); else push(i);
+			if (i >= ctdel) execute(i, &index); else push(i);
 			goto next;
 		}
 
