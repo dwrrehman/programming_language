@@ -14,21 +14,25 @@ typedef uint32_t u32;
 
 static const bool debug = true;
 enum {
-	db, ecall, ebreak, fence, fencei, 
+	dw, ecall, ebreak, fence, fencei, 
 	add, sub, sll, slt, sltu, xor_, 
-	srl, sra, or_, and_, addw, subw, 
+	srl, sra, or_, and_, addw, subw,
 	sllw, srlw, sraw,
 	lb, lh, lw, ld, lbu, lhu, lwu, 
 	addi, slti, sltiu, xori, ori, andi, 
 	slli, srli, addiw, slliw, srliw, 
 	jalr, csrrw, csrrs, csrrc, 
 	csrrwi, csrrsi, csrrci, 
-	sb, sh, sw, sd, 
-	beq, bne, blt, bge, bltu, bgeu,
-	lui, auipc, jal, 
+	sb, sh, sw, sd, lui, auipc, 
+	beq, bne, blt, bge, bltu, bgeu, jal, 
 
-	ctdel, ctldt, ctlda, ctldi,
-	ctat, ctpc, ctgoto,ctbr, ctblt,
+	dh, 
+	// compressed instructions here
+
+	db, 
+
+	ctdel, ctldt, ctlda, ctldi, ctstop,
+	ctat, ctpc, ctgoto, ctbr, ctblt,
 	ctbge, ctbeq, ctbne, ctincr, ctzero,
 	ctadd, ctmul, ctdiv, ctnor,
 	ctshl, ctshr, ctld1, ctld2, ctld4,
@@ -36,8 +40,8 @@ enum {
 	ctprint, ctabort,
 	instruction_set_count
 };
-static const char* const instruction_spelling[instruction_set_count] = {
-	"db", "ecall", "ebreak", "fence", "fencei", 
+static const char* instruction_spelling[instruction_set_count] = {
+	"dw", "ecall", "ebreak", "fence", "fencei", 
 	"add", "sub", "sll", "slt", "sltu", "xor", 
 	"srl", "sra", "or", "and", "addw", "subw", 
 	"sllw", "srlw", "sraw",
@@ -46,11 +50,15 @@ static const char* const instruction_spelling[instruction_set_count] = {
 	"slli", "srli", "addiw", "slliw", "srliw", 
 	"jalr", "csrrw", "csrrs", "csrrc", 
 	"csrrwi", "csrrsi", "csrrci", 
-	"sb", "sh", "sw", "sd", 
-	"beq", "bne", "blt", "bge", "bltu", "bgeu",
-	"lui", "auipc", "jal", 
+	"sb", "sh", "sw", "sd", "lui", "auipc", 
+	"beq", "bne", "blt", "bge", "bltu", "bgeu", "jal", 
 
-	"ctdel", "ctldt", "ctlda", "ctldi",
+	"dh", 
+	// compressed instructions here
+
+	"db",
+
+	"ctdel", "ctldt", "ctlda", "ctldi", "ctstop",
 	"ctat", "ctpc", "ctgoto", "ctbr", "ctblt",
 	"ctbge", "ctbeq", "ctbne", "ctincr", "ctzero",
 	"ctadd", "ctmul", "ctdiv", "ctnor",
@@ -61,21 +69,14 @@ static const char* const instruction_spelling[instruction_set_count] = {
 
 struct instruction { u32 op; u32 arguments[3]; };
 
-static const char* filename = NULL;
-static nat text_length = 0;
-static char* text = NULL;
-
-static nat ins_count = 0;
-static struct instruction* ins = NULL;
-
 static nat byte_count = 0;
 static uint8_t* bytes = NULL;
-
+static nat ins_count = 0;
+static struct instruction* ins = NULL;
+static nat stop = 0;
 static nat arg_count = 0;
 static u32 arguments[4096] = {0};
-static nat registers[4096] = {0};
-
-static nat stop = 0;
+static nat registers[65536] = {0};
 
 static bool is(const char* word, nat count, const char* this) {
 	return strlen(this) == count and not strncmp(word, this, count);
@@ -102,15 +103,36 @@ static void print_error(const char* reason, const nat start_index, const nat err
 
 	const nat end_index = start_index + error_word_length;
 
-	nat at = 0, line = 1, column = 1;
-	while (at < start_index) {
-		if (text[at++] == '\n') { line++; column = 1; } else column++;
-	}
+	//nat at = 0, line = 1, column = 1;
+	//while (at < start_index) {
+	//	if (text[at++] == '\n') { line++; column = 1; } else column++;
+	//}
 
 	fprintf(stderr, "\033[1m%s:%llu:%llu:%llu:%llu: "
 			"\033[1;31merror:\033[m \033[1m%s\033[m\n", 
-		filename, start_index, end_index, line, column, reason
+		"file", //filename, 
+		start_index, end_index, 
+		0LLU,0LLU,//line, column, 
+		reason
 	);
+}
+
+/*static void align(nat n) {
+	const nat w = (1 << n);
+	const nat r = (w - byte_count % w) % w;
+	bytes = realloc(bytes, byte_count + r);
+	for (nat i = 0; i < r; i++) bytes[byte_count++] = 0;
+}*/
+
+static void emit_byte(u32 x) {
+	bytes = realloc(bytes, byte_count + 1);
+	bytes[byte_count++] = (uint8_t) x;
+}
+
+static void emit_half(u32 x) {
+	bytes = realloc(bytes, byte_count + 2);
+	bytes[byte_count++] = (uint8_t) (x >> 0);
+	bytes[byte_count++] = (uint8_t) (x >> 8);
 }
 
 static void emit(u32 x) {
@@ -129,13 +151,13 @@ static void check(nat r, nat c, const char* type) {
 	exit(1);
 }
 
-static void check_branch(int r, int c, const char* type) {
+/*static void check_branch(int r, int c, const char* type) {
 	if (r > -c or r < c) return;
 	char reason[4096] = {0};
 	snprintf(reason, sizeof reason, "invalid %s argument %d (%d <= %d or %d >= %d)", type, r, r, c, r, c);
 	print_error(reason, 99, 99); 
 	exit(1);
-}
+}*/
 
 static u32 r_type(u32* a, u32 o, u32 f, u32 g) {   //  r r r op
 	check(a[0], 32, "register");
@@ -164,12 +186,29 @@ static u32 u_type(u32* a, u32 o) {   	//  i r op
 	return (a[1] << 12U) | (a[0] << 7U) | o;
 }
 
-static u32 j_type(u32* a, u32 o) {   	//  i r op
+static u32 calculate_offset(nat here, nat label) {
+	u32 offset = 0;
+	if (label < here) {
+		for (nat i = label; i < here; i++) {
+			     if (ins[i].op <= jal) offset -= 4; 
+			else if (ins[i].op == dh) offset -= 2;
+			else if (ins[i].op == db) offset -= 1;
+			else abort();
+		}
+	} else {
+		for (nat i = here; i < label; i++) {
+			     if (ins[i].op <= jal) offset += 4; 
+			else if (ins[i].op == dh) offset += 2;
+			else if (ins[i].op == db) offset += 1;
+			else abort();
+		}
+	}
+	return offset;
+}
+
+static u32 j_type(nat here, u32* a, u32 o) {   	//  L r op
 	check(a[0], 32, "register");
-
-	check(a[1], 1 << 20, "pc-relative offset"); // todo: make this calculated. user only supplies (numeric) "label", maybe.
-
-	const u32 e = a[1];
+	const u32 e = calculate_offset(here, a[1]);
 	const u32 imm19_12 = (e & 0x000FF000);
 	const u32 imm11    = (e & 0x00000800) << 9;
 	const u32 imm10_1  = (e & 0x000007FE) << 20;
@@ -178,36 +217,47 @@ static u32 j_type(u32* a, u32 o) {   	//  i r op
 	return (imm << 12U) | (a[0] << 7U) | o;
 }
 
-
-static u32 b_type(u32* a, u32 o) {   //  i r op
+static u32 b_type(nat here, u32* a, u32 o, u32 f) {   //  L r r op
 
 	abort();
 
 	check(a[0], 32, "register");
-	check(a[1], 1 << 12, "immediate");
+	check(a[1], 32, "register");
+	const u32 e = calculate_offset(here, a[2]);
+
+	const u32 imm19_12 = (e & 0x000FF000);
+	const u32 imm11    = (e & 0x00000800) << 9;
+	const u32 imm10_1  = (e & 0x000007FE) << 20;
+	const u32 imm20    = (e & 0x00100000) << 11;
+	const u32 imm = imm20 | imm10_1 | imm11 | imm19_12;
+
+	return (imm << 12U) | (a[0] << 7U) | o;
 
 	return (a[1] << 12U) | (a[0] << 7U) | o;
-
 }
 
-
 static void push(u32 op) {
-	if (stop) return;
 	struct instruction new = { .op = op, .arguments = {0} };
 	for (nat i = 0; i < 3; i++) {
 		if (arg_count == i) break;
 		new.arguments[i] = arguments[arg_count - 1 - i];
 	}
+	if (op >= beq and op < ctdel) new.arguments[2] = (u32) registers[new.arguments[2]];
 	ins = realloc(ins, sizeof(struct instruction) * (ins_count + 1));
 	ins[ins_count++] = new;
 }
 
-static void execute(nat op, nat* pc) {
+static void execute(nat op, nat* pc, char* text) {
 	const nat a2 = arg_count >= 3 ? arguments[arg_count - 3] : 0;
 	const nat a1 = arg_count >= 2 ? arguments[arg_count - 2] : 0;
 	const nat a0 = arg_count >= 1 ? arguments[arg_count - 1] : 0;
 
-	if (op == ctstop) {
+
+
+	if (op == ctstop) {      //todo:   how are we going to allow for     forwards branches at compiletime?...
+
+
+
 		if (debug) printf("info: found stop instruction, currently in stop mode %llu, "
 				"looking for stop mode %llu  ...  ", stop, registers[a0]);
 		if (registers[a0] == stop) { if (debug) printf("SUCCESS\n"); stop = 0; } 
@@ -222,14 +272,14 @@ static void execute(nat op, nat* pc) {
 	if (debug) printf("@%llu: info: executing \033[1;32m%s\033[0m(%llu) "
 			" %lld %lld %lld\n", *pc, instruction_spelling[op], op, a0, a1, a2);
 
+
+
 	if (op == ctdel)  { if (arg_count) arg_count--; }
 	else if (op == ctldt)  registers[a0] = (nat) text[registers[a1]];
 	else if (op == ctlda)  arguments[arg_count++] = (u32) registers[a0]; 
 	else if (op == ctldi)  registers[a0] = a1;
-
-	else if (op == ctat)   *(u32*)registers[a0] = (u32) ins_count;      // delete this.
-
-	else if (op == ctpc)   registers[a0] = (u32) *pc;
+	else if (op == ctat)   registers[a0] = ins_count;
+	else if (op == ctpc)   registers[a0] = *pc;
 	else if (op == ctgoto) *pc  = registers[a0];
 
 	else if (op == ctbr)   stop = registers[a0];
@@ -295,12 +345,16 @@ static void print_machine_code(void) {
 }
 
 int main(int argc, const char** argv) {
+
+	char* text = NULL;
+
 	if (argc != 4 or strcmp(argv[2], "-o")) 
 		exit(puts("\033[31;1merror:\033[0m usage: ./run <code.s> -o <exec>"));
-
+	
+	const char* filename = NULL;
 	filename = argv[1];
 
-	text_length = 0;
+	nat text_length = 0;
 	text = read_file(filename, &text_length);
 
 	*registers = (nat)(void*) malloc(65536); 
@@ -318,7 +372,7 @@ int main(int argc, const char** argv) {
 				stop ? "\033[31mignoring\033[0m" : "\033[32mprocessing\033[0m", 
 				(int) count, word);
 
-		if (is(word, count, "eof")) return;
+		if (is(word, count, "eof")) goto generate_ins;
 		if (is(word, count, "use")) {
 			if (not arg_count or stop) goto next;
 			char new[128] = {0};
@@ -338,9 +392,9 @@ int main(int argc, const char** argv) {
 		if (is(word, count, "debugarguments")) { print_arguments(); goto next; }
 		if (is(word, count, "debuginstructions")) { print_instructions(); goto next; }
 		
-		for (u32 i = db; i < instruction_set_count; i++) {
+		for (u32 i = dw; i < instruction_set_count; i++) {
 			if (not is(word, count, instruction_spelling[i])) continue;
-			if (i >= ctdel) execute(i, &index); else push(i);
+			if (i >= ctdel) execute(i, &index, text); else push(i);
 			goto next;
 		}
 
@@ -363,11 +417,14 @@ int main(int argc, const char** argv) {
 	}
 	if (count) goto process;
 
+generate_ins:
 	for (nat i = 0; i < ins_count; i++) {
 		nat op = ins[i].op;
 		u32* a = ins[i].arguments;
 
-		if (op == db) 		emit(*a);
+		     if (op == db)	emit_byte(a[0]);
+		else if (op == dh)	emit_half(a[0]);
+		else if (op == dw)	emit(a[0]);
 		else if (op == ecall)   emit(0x00000073);
 		else if (op == ebreak)  emit(0x00100073);
 		else if (op == fence)   emit(0x0000000F); // todo: not implemented fully. 
@@ -419,17 +476,18 @@ int main(int argc, const char** argv) {
 		else if (op == sh)      emit(s_type(a, 0x23, 0x1));
 		else if (op == sw)      emit(s_type(a, 0x23, 0x2));
 		else if (op == sd)      emit(s_type(a, 0x23, 0x3));
-		
-		else if (op == beq)     emit(b_type(a, 0x63, 0x0));
-		else if (op == bne)     emit(b_type(a, 0x63, 0x1));
-		else if (op == blt)     emit(b_type(a, 0x63, 0x4));
-		else if (op == bge)     emit(b_type(a, 0x63, 0x5));
-		else if (op == bltu)    emit(b_type(a, 0x63, 0x6));
-		else if (op == bgeu)    emit(b_type(a, 0x63, 0x7));
 
 		else if (op == lui)     emit(u_type(a, 0x37));
 		else if (op == auipc)   emit(u_type(a, 0x17));
-		else if (op == jal)     emit(j_type(a, 0x6F));
+		
+		else if (op == beq)     emit(b_type(i, a, 0x63, 0x0));
+		else if (op == bne)     emit(b_type(i, a, 0x63, 0x1));
+		else if (op == blt)     emit(b_type(i, a, 0x63, 0x4));
+		else if (op == bge)     emit(b_type(i, a, 0x63, 0x5));
+		else if (op == bltu)    emit(b_type(i, a, 0x63, 0x6));
+		else if (op == bgeu)    emit(b_type(i, a, 0x63, 0x7));
+
+		else if (op == jal)     emit(j_type(i, a, 0x6F));
 		
 		else {
 			printf("error: unknown instruction: %llu\n", op);
@@ -451,7 +509,190 @@ int main(int argc, const char** argv) {
 
 	close(file);
 
+	if (debug) print_machine_code();
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+// check_branch(a[2], 1 << 12, "pc-relative offset");
+
+// check(a[1], 1 << 20, "pc-relative offset"); // todo: make this calculated. user only supplies (numeric) "label", maybe.
+
+
+
+
+/*
+
+
+imm are constants   naked
+
+pcrel offsets are regs  ct regs only 
+holding atpc values
+
+
+make ctlda  or ctsta     not touch ctmemory    only touch regs!
+
+make ctst8/4/2/1  be the onlything that touches memory. 
+
+
+
+
+
+
+
+
+
+
+	how should labels word?
+
+
+
+
+
+
+
+
+
+
+01001101 at                 <--- this is a label, kinda?
+
+	01001101 0 1 blt        <----- this is a backwards branch, using riscv blt, comparing x0 with x1. 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+wait!
+
+
+	this whole thing can be solved 
+
+
+	just by making there be an infinite/dynamic number of virtual registers!!!!
+
+		cuz binary strings can be aritrarily big!
+
+			we can just allocate enough space to hold the one we encounter! prettycool.
+
+
+	at then just fills in its instruction location.
+
+
+	we then have to calcueate ethe number of bytse inbetween the jump and the at     and put that diff of locations   in the ins.
+
+
+
+
+niceee
+
+
+simple mental model, handles the common case
+
+nice
+
+
+lets do that
+
+
+note, you can always redefine a label lol 
+
+just calling at  on the same register in a different place lolol
+
+has very defined semantics    yay 
+
+
+thats cool
+
+
+nice
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+									now what about the ctstop system?
+
+								how do we do a ct forwards branch??...
+
+							hmmmm
+
+
+			i think we at least need to improve on the ctstop system lol
+
+
+						plz
+
+
+
+
+
+
+
+
+
+	
+
+
+*/
+
 
 
 

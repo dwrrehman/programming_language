@@ -1,6 +1,9 @@
-011 0 11 addi
-111 addi
-ecall
 
+
+
+
+011 0 0101 addi
+1011101 0 10001 addi
+ecall
 
 eof
