@@ -237,6 +237,7 @@ static u32 b_type(nat here, u32* a, u32 o, u32 f) {   //  L r r op
 }
 
 static void push(u32 op) {
+	if (stop) return;
 	struct instruction new = { .op = op, .arguments = {0} };
 	for (nat i = 0; i < 3; i++) {
 		if (arg_count == i) break;
@@ -252,27 +253,11 @@ static void execute(nat op, nat* pc, char* text) {
 	const nat a1 = arg_count >= 2 ? arguments[arg_count - 2] : 0;
 	const nat a0 = arg_count >= 1 ? arguments[arg_count - 1] : 0;
 
+	if (op == ctstop) { if (registers[a0] == stop) stop = 0; return; }
+	if (stop) return;
 
-
-	if (op == ctstop) {      //todo:   how are we going to allow for     forwards branches at compiletime?...
-
-
-
-		if (debug) printf("info: found stop instruction, currently in stop mode %llu, "
-				"looking for stop mode %llu  ...  ", stop, registers[a0]);
-		if (registers[a0] == stop) { if (debug) printf("SUCCESS\n"); stop = 0; } 
-		else { if (debug) printf("[no-match]\n"); }
-		if (debug) printf("[stop = %llu]\n", stop);
-		return; 
-	} else if (stop) {
-		if (debug) printf("info: skipping over %llu (\"%s\"), in stop mode %llu\n", 
-				op, instruction_spelling[op], stop);
-		return;
-	}
 	if (debug) printf("@%llu: info: executing \033[1;32m%s\033[0m(%llu) "
 			" %lld %lld %lld\n", *pc, instruction_spelling[op], op, a0, a1, a2);
-
-
 
 	if (op == ctdel)  { if (arg_count) arg_count--; }
 	else if (op == ctldt)  registers[a0] = (nat) text[registers[a1]];
@@ -346,16 +331,12 @@ static void print_machine_code(void) {
 
 int main(int argc, const char** argv) {
 
-	char* text = NULL;
-
 	if (argc != 4 or strcmp(argv[2], "-o")) 
 		exit(puts("\033[31;1merror:\033[0m usage: ./run <code.s> -o <exec>"));
 	
-	const char* filename = NULL;
-	filename = argv[1];
-
+	const char* filename = argv[1];
 	nat text_length = 0;
-	text = read_file(filename, &text_length);
+	char* text = read_file(filename, &text_length);
 
 	*registers = (nat)(void*) malloc(65536); 
 
