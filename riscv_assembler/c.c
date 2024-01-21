@@ -31,17 +31,17 @@ enum {
 
 	db, 
 
-	ctdel, ctldt, ctlda, ctldi, ctstop,
-	ctat, ctpc, ctgoto, ctbr, ctblt,
+	ctdel, ctls, ctarg, ctli, ctstop,
+	ctat, ctpc, ctb, ctf, ctblt,
 	ctbge, ctbeq, ctbne, ctincr, ctzero,
 	ctadd, ctmul, ctdiv, ctnor,
-	ctshl, ctshr, ctld1, ctld2, ctld4,
-	ctld8, ctst1, ctst2, ctst4, ctst8,
+	ctsl, ctsr, ctlb, ctlh, ctlw,
+	ctld, ctsb, ctsh, ctsw, ctsd,
 	ctprint, ctabort,
 	instruction_set_count
 };
 static const char* instruction_spelling[instruction_set_count] = {
-	"dw", "ecall", "ebreak", "fence", "fencei", 
+	"word", "ecall", "ebreak", "fence", "fencei", 
 	"add", "sub", "sll", "slt", "sltu", "xor", 
 	"srl", "sra", "or", "and", "addw", "subw", 
 	"sllw", "srlw", "sraw",
@@ -53,17 +53,17 @@ static const char* instruction_spelling[instruction_set_count] = {
 	"sb", "sh", "sw", "sd", "lui", "auipc", 
 	"beq", "bne", "blt", "bge", "bltu", "bgeu", "jal", 
 
-	"dh", 
+	"half", 
 	// compressed instructions here
 
-	"db",
+	"byte",
 
-	"ctdel", "ctldt", "ctlda", "ctldi", "ctstop",
-	"ctat", "ctpc", "ctgoto", "ctbr", "ctblt",
+	"ctdel", "ctls", "ctarg", "ctli", "ctstop",
+	"ctat", "ctpc", "ctb", "ctf", "ctblt",
 	"ctbge", "ctbeq", "ctbne", "ctincr", "ctzero",
 	"ctadd", "ctmul", "ctdiv", "ctnor",
-	"ctshl", "ctshr", "ctld1", "ctld2", "ctld4",
-	"ctld8", "ctst1", "ctst2", "ctst4", "ctst8",
+	"ctsl", "ctsr", "ctlb", "ctlh", "ctlw",
+	"ctld", "ctsb", "ctsh", "ctsw", "ctsd",
 	"ctprint", "ctabort",
 };
 
@@ -260,14 +260,13 @@ static void execute(nat op, nat* pc, char* text) {
 			" %lld %lld %lld\n", *pc, instruction_spelling[op], op, a0, a1, a2);
 
 	if (op == ctdel)  { if (arg_count) arg_count--; }
-	else if (op == ctldt)  registers[a0] = (nat) text[registers[a1]];
-	else if (op == ctlda)  arguments[arg_count++] = (u32) registers[a0]; 
-	else if (op == ctldi)  registers[a0] = a1;
+	else if (op == ctarg)  arguments[arg_count++] = (u32) registers[a0]; 
+	else if (op == ctls)   registers[a0] = (nat) text[registers[a1]];
+	else if (op == ctli)   registers[a0] = a1;
 	else if (op == ctat)   registers[a0] = ins_count;
 	else if (op == ctpc)   registers[a0] = *pc;
-	else if (op == ctgoto) *pc  = registers[a0];
-
-	else if (op == ctbr)   stop = registers[a0];
+	else if (op == ctb)     *pc = registers[a0];
+	else if (op == ctf)    stop = registers[a0];
 	else if (op == ctblt)  { if (registers[a1]  < registers[a2]) stop = registers[a0]; } 
 	else if (op == ctbge)  { if (registers[a1] >= registers[a2]) stop = registers[a0]; } 
 	else if (op == ctbeq)  { if (registers[a1] == registers[a2]) stop = registers[a0]; } 
@@ -281,18 +280,18 @@ static void execute(nat op, nat* pc, char* text) {
 	else if (op == ctdiv)  registers[a0] = registers[a1] / registers[a2]; 
 	else if (op == ctnor)  registers[a0] = ~(registers[a1] | registers[a2]); 
 
-	else if (op == ctshl)  registers[a0] = registers[a1] << registers[a2]; 
-	else if (op == ctshr)  registers[a0] = registers[a1] >> registers[a2]; 
+	else if (op == ctsl)  registers[a0] = registers[a1] << registers[a2]; 
+	else if (op == ctsr)  registers[a0] = registers[a1] >> registers[a2]; 
 
-	else if (op == ctld1)  registers[a0] = *(uint8_t*) registers[a1]; 
-	else if (op == ctld2)  registers[a0] = *(uint16_t*)registers[a1]; 
-	else if (op == ctld4)  registers[a0] = *(uint32_t*)registers[a1]; 
-	else if (op == ctld8)  registers[a0] = *(uint64_t*)registers[a1]; 
+	else if (op == ctlb)  registers[a0] = *(uint8_t*) registers[a1]; 
+	else if (op == ctlh)  registers[a0] = *(uint16_t*)registers[a1]; 
+	else if (op == ctlw)  registers[a0] = *(uint32_t*)registers[a1]; 
+	else if (op == ctld)  registers[a0] = *(uint64_t*)registers[a1]; 
 
-	else if (op == ctst1)  *(uint8_t*) registers[a0] = (uint8_t)  registers[a1]; 
-	else if (op == ctst2)  *(uint16_t*)registers[a0] = (uint16_t) registers[a1]; 
-	else if (op == ctst4)  *(uint32_t*)registers[a0] = (uint32_t) registers[a1]; 
-	else if (op == ctst8)  *(uint64_t*)registers[a0] = (uint64_t) registers[a1]; 
+	else if (op == ctsb)  *(uint8_t*) registers[a0] = (uint8_t)  registers[a1]; 
+	else if (op == ctsh)  *(uint16_t*)registers[a0] = (uint16_t) registers[a1]; 
+	else if (op == ctsw)  *(uint32_t*)registers[a0] = (uint32_t) registers[a1]; 
+	else if (op == ctsd)  *(uint64_t*)registers[a0] = (uint64_t) registers[a1]; 
 	
 	else if (op == ctprint) printf("debug: \033[32m%llu\033[0m \033[32m0x%llx\033[0m\n", registers[a0], registers[a0]); 
 	else if (op == ctabort) abort();
