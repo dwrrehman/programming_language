@@ -9,10 +9,14 @@
 #include <iso646.h>
 #include <ctype.h>
 #include <errno.h>
+
 typedef uint64_t nat;
 typedef uint32_t u32;
+typedef uint16_t u16;
+typedef uint8_t u8;
 
-static const bool debug = true;
+static const bool debug = false;
+
 enum {
 	dw, ecall, ebreak, fence, fencei, 
 	add, sub, sll, slt, sltu, xor_, 
@@ -25,23 +29,30 @@ enum {
 	csrrwi, csrrsi, csrrci, 
 	sb, sh, sw, sd, lui, auipc, 
 	beq, bne, blt, bge, bltu, bgeu, jal, 
+	mul, mulh, mulhsu, mulhu, 
+	div_, divu, rem, remu, 
 
 	dh, 
-	// compressed instructions here
+	cnop, caddi4spn, clw, cld, csw, csd, 
+	caddi, cjal, caddiw, cli, caddi16sp, 
+	clui, csrli, candi, csub, cxor, cor, 
+	cand, csubw, caddw, cj, cbeqz, cbnez, 
+	cslli, clwsp, cldsp, cjr, cmv, cebreak, 
+	cjalr, cadd, cswsp, csdsp, 
 
 	db, 
 
-	ctdel, ctls, ctarg, ctli, ctstop,
+	ctclear, ctdel, ctls, ctarg, ctli, ctstop,
 	ctat, ctpc, ctb, ctf, ctblt,
 	ctbge, ctbeq, ctbne, ctincr, ctzero,
-	ctadd, ctmul, ctdiv, ctnor,
+	ctadd, ctsub, ctmul, ctdiv, ctrem, ctnor, ctxor, ctand, ctor, 
 	ctsl, ctsr, ctlb, ctlh, ctlw,
 	ctld, ctsb, ctsh, ctsw, ctsd,
-	ctprint, ctabort,
+	ctprint, ctabort, ctget, ctput,
 	instruction_set_count
 };
 static const char* instruction_spelling[instruction_set_count] = {
-	"word", "ecall", "ebreak", "fence", "fencei", 
+	"u32", "ecall", "ebreak", "fence", "fencei", 
 	"add", "sub", "sll", "slt", "sltu", "xor", 
 	"srl", "sra", "or", "and", "addw", "subw", 
 	"sllw", "srlw", "sraw",
@@ -52,31 +63,45 @@ static const char* instruction_spelling[instruction_set_count] = {
 	"csrrwi", "csrrsi", "csrrci", 
 	"sb", "sh", "sw", "sd", "lui", "auipc", 
 	"beq", "bne", "blt", "bge", "bltu", "bgeu", "jal", 
+	"mul", "mulh", "mulhsu", "mulhu", 
+	"div_", "divu", "rem", "remu", 
 
-	"half", 
-	// compressed instructions here
+	"u16", 
+	"cnop", "caddi4spn", "clw", "cld", "csw", "csd", 
+	"caddi", "cjal", "caddiw", "cli", "caddi16sp", 
+	"clui", "csrli", "candi", "csub", "cxor", "cor", 
+	"cand", "csubw", "caddw", "cj", "cbeqz", "cbnez", 
+	"cslli", "clwsp", "cldsp", "cjr", "cmv", "cebreak", 
+	"cjalr", "cadd", "cswsp", "csdsp", 
 
-	"byte",
+	"u8",
 
-	"ctdel", "ctls", "ctarg", "ctli", "ctstop",
+	"ctclear", "ctdel", "ctls", "ctarg", "ctli", "ctstop",
 	"ctat", "ctpc", "ctb", "ctf", "ctblt",
 	"ctbge", "ctbeq", "ctbne", "ctincr", "ctzero",
-	"ctadd", "ctmul", "ctdiv", "ctnor",
+	"ctadd", "ctsub", "ctmul", "ctdiv", "ctrem", "ctnor", "ctxor", "ctand", "ctor", 
 	"ctsl", "ctsr", "ctlb", "ctlh", "ctlw",
 	"ctld", "ctsb", "ctsh", "ctsw", "ctsd",
-	"ctprint", "ctabort",
+	"ctprint", "ctabort", "ctget", "ctput",
 };
 
 struct instruction { u32 op; u32 arguments[3]; };
 
 static nat byte_count = 0;
-static uint8_t* bytes = NULL;
+static u8* bytes = NULL;
 static nat ins_count = 0;
 static struct instruction* ins = NULL;
 static nat stop = 0;
 static nat arg_count = 0;
 static u32 arguments[4096] = {0};
 static nat registers[65536] = {0};
+
+static nat defining = 0;
+static nat defining_length = 0;
+static nat dict_count = 0; 
+static char* names[4096] = {0};
+static u32 values[4096] = {0};
+
 
 static bool is(const char* word, nat count, const char* this) {
 	return strlen(this) == count and not strncmp(word, this, count);
@@ -103,10 +128,7 @@ static void print_error(const char* reason, const nat start_index, const nat err
 
 	const nat end_index = start_index + error_word_length;
 
-	//nat at = 0, line = 1, column = 1;
-	//while (at < start_index) {
-	//	if (text[at++] == '\n') { line++; column = 1; } else column++;
-	//}
+
 
 	fprintf(stderr, "\033[1m%s:%llu:%llu:%llu:%llu: "
 			"\033[1;31merror:\033[m \033[1m%s\033[m\n", 
@@ -117,30 +139,23 @@ static void print_error(const char* reason, const nat start_index, const nat err
 	);
 }
 
-/*static void align(nat n) {
-	const nat w = (1 << n);
-	const nat r = (w - byte_count % w) % w;
-	bytes = realloc(bytes, byte_count + r);
-	for (nat i = 0; i < r; i++) bytes[byte_count++] = 0;
-}*/
-
 static void emit_byte(u32 x) {
 	bytes = realloc(bytes, byte_count + 1);
-	bytes[byte_count++] = (uint8_t) x;
+	bytes[byte_count++] = (u8) x;
 }
 
-static void emit_half(u32 x) {
+static void emith(u32 x) {
 	bytes = realloc(bytes, byte_count + 2);
-	bytes[byte_count++] = (uint8_t) (x >> 0);
-	bytes[byte_count++] = (uint8_t) (x >> 8);
+	bytes[byte_count++] = (u8) (x >> 0);
+	bytes[byte_count++] = (u8) (x >> 8);
 }
 
 static void emit(u32 x) {
 	bytes = realloc(bytes, byte_count + 4);
-	bytes[byte_count++] = (uint8_t) (x >> 0);
-	bytes[byte_count++] = (uint8_t) (x >> 8);
-	bytes[byte_count++] = (uint8_t) (x >> 16);
-	bytes[byte_count++] = (uint8_t) (x >> 24);
+	bytes[byte_count++] = (u8) (x >> 0);
+	bytes[byte_count++] = (u8) (x >> 8);
+	bytes[byte_count++] = (u8) (x >> 16);
+	bytes[byte_count++] = (u8) (x >> 24);
 }
 
 static void check(nat r, nat c, const char* type) {
@@ -236,6 +251,45 @@ static u32 b_type(nat here, u32* a, u32 o, u32 f) {   //  L r r op
 	return (a[1] << 12U) | (a[0] << 7U) | o;
 }
 
+
+/*
+static u16 cr_type(u32* a, u16 o, u32 f, u32 g) {
+	check(a[0], 32, "register");
+	check(a[1], 32, "register");
+	check(a[2], 32, "register");
+	return (u16) ((g << 25U) | (a[2] << 20U) | (a[1] << 15U) | (f << 12U) | (a[0] << 7U) | o);
+}
+
+static u32 ci_type(u32* a, u32 o, u32 f, u32 g) {
+	return 0;
+}
+
+static u32 css_type(u32* a, u32 o, u32 f, u32 g) {
+	return 0;
+}
+
+static u32 ciw_type(u32* a, u32 o, u32 f, u32 g) {
+	return 0;
+}
+
+static u32 cl_type(u32* a, u32 o, u32 f, u32 g) {
+	return 0;
+}
+
+static u32 cs_type(u32* a, u32 o, u32 f, u32 g) {
+	return 0;
+}
+
+static u32 cb_type(u32* a, u32 o, u32 f, u32 g) {
+	return 0;
+}
+
+static u32 cj_type(u32* a, u32 o, u32 f, u32 g) {
+	return 0;
+}
+*/
+
+
 static void push(u32 op) {
 	if (stop) return;
 	struct instruction new = { .op = op, .arguments = {0} };
@@ -243,10 +297,12 @@ static void push(u32 op) {
 		if (arg_count == i) break;
 		new.arguments[i] = arguments[arg_count - 1 - i];
 	}
-	if (op >= beq and op < ctdel) new.arguments[2] = (u32) registers[new.arguments[2]];
+	if (op >= beq and op <= jal) new.arguments[2] = (u32) registers[new.arguments[2]];
 	ins = realloc(ins, sizeof(struct instruction) * (ins_count + 1));
 	ins[ins_count++] = new;
 }
+
+static bool flag = true;
 
 static void execute(nat op, nat* pc, char* text) {
 	const nat a2 = arg_count >= 3 ? arguments[arg_count - 3] : 0;
@@ -254,55 +310,68 @@ static void execute(nat op, nat* pc, char* text) {
 	const nat a0 = arg_count >= 1 ? arguments[arg_count - 1] : 0;
 
 	if (op == ctstop) { if (registers[a0] == stop) stop = 0; return; }
+
 	if (stop) return;
 
 	if (debug) printf("@%llu: info: executing \033[1;32m%s\033[0m(%llu) "
 			" %lld %lld %lld\n", *pc, instruction_spelling[op], op, a0, a1, a2);
 
-	if (op == ctdel)  { if (arg_count) arg_count--; }
+	if (op == ctclear) arg_count = 0;
+	else if (op == ctdel)  { if (arg_count) arg_count--; }
 	else if (op == ctarg)  arguments[arg_count++] = (u32) registers[a0]; 
 	else if (op == ctls)   registers[a0] = (nat) text[registers[a1]];
 	else if (op == ctli)   registers[a0] = a1;
 	else if (op == ctat)   registers[a0] = ins_count;
 	else if (op == ctpc)   registers[a0] = *pc;
-	else if (op == ctb)     *pc = registers[a0];
-	else if (op == ctf)    stop = registers[a0];
-	else if (op == ctblt)  { if (registers[a1]  < registers[a2]) stop = registers[a0]; } 
-	else if (op == ctbge)  { if (registers[a1] >= registers[a2]) stop = registers[a0]; } 
-	else if (op == ctbeq)  { if (registers[a1] == registers[a2]) stop = registers[a0]; } 
-	else if (op == ctbne)  { if (registers[a1] != registers[a2]) stop = registers[a0]; }
+	else if (op == ctb)    { if (flag)  *pc = registers[a0]; }
+	else if (op == ctf)    { if (flag) stop = registers[a0]; }
+	else if (op == ctblt)  flag = registers[a0]  < registers[a1];
+	else if (op == ctbge)  flag = registers[a0] >= registers[a1];
+	else if (op == ctbeq)  flag = registers[a0] == registers[a1];
+	else if (op == ctbne)  flag = registers[a0] != registers[a1];
 
 	else if (op == ctincr) registers[a0]++;
 	else if (op == ctzero) registers[a0] = 0;
 	
 	else if (op == ctadd)  registers[a0] = registers[a1] + registers[a2]; 
+	else if (op == ctsub)  registers[a0] = registers[a1] - registers[a2]; 
 	else if (op == ctmul)  registers[a0] = registers[a1] * registers[a2]; 
 	else if (op == ctdiv)  registers[a0] = registers[a1] / registers[a2]; 
+	else if (op == ctrem)  registers[a0] = registers[a1] % registers[a2]; 
+	else if (op == ctxor)  registers[a0] = registers[a1] ^ registers[a2]; 
+	else if (op == ctand)  registers[a0] = registers[a1] & registers[a2]; 
+	else if (op == ctor)   registers[a0] = registers[a1] | registers[a2]; 
 	else if (op == ctnor)  registers[a0] = ~(registers[a1] | registers[a2]); 
+	else if (op == ctsl)   registers[a0] = registers[a1] << registers[a2]; 
+	else if (op == ctsr)   registers[a0] = registers[a1] >> registers[a2]; 
 
-	else if (op == ctsl)  registers[a0] = registers[a1] << registers[a2]; 
-	else if (op == ctsr)  registers[a0] = registers[a1] >> registers[a2]; 
+	else if (op == ctlb)  registers[a0] = *(u8*) registers[a1]; 
+	else if (op == ctlh)  registers[a0] = *(u16*)registers[a1]; 
+	else if (op == ctlw)  registers[a0] = *(u32*)registers[a1]; 
+	else if (op == ctld)  registers[a0] = *(nat*)registers[a1]; 
 
-	else if (op == ctlb)  registers[a0] = *(uint8_t*) registers[a1]; 
-	else if (op == ctlh)  registers[a0] = *(uint16_t*)registers[a1]; 
-	else if (op == ctlw)  registers[a0] = *(uint32_t*)registers[a1]; 
-	else if (op == ctld)  registers[a0] = *(uint64_t*)registers[a1]; 
-
-	else if (op == ctsb)  *(uint8_t*) registers[a0] = (uint8_t)  registers[a1]; 
-	else if (op == ctsh)  *(uint16_t*)registers[a0] = (uint16_t) registers[a1]; 
-	else if (op == ctsw)  *(uint32_t*)registers[a0] = (uint32_t) registers[a1]; 
-	else if (op == ctsd)  *(uint64_t*)registers[a0] = (uint64_t) registers[a1]; 
+	else if (op == ctsb)  *(u8*) registers[a0] = (u8)  registers[a1]; 
+	else if (op == ctsh)  *(u16*)registers[a0] = (u16) registers[a1]; 
+	else if (op == ctsw)  *(u32*)registers[a0] = (u32) registers[a1]; 
+	else if (op == ctsd)  *(nat*)registers[a0] = (nat) registers[a1]; 
 	
-	else if (op == ctprint) printf("debug: \033[32m%llu\033[0m \033[32m0x%llx\033[0m\n", registers[a0], registers[a0]); 
+	else if (op == ctprint) printf("debug: \033[32m%llu (%lld)\033[0m \033[32m0x%llx\033[0m\n", registers[a0], registers[a0], registers[a0]); 
 	else if (op == ctabort) abort();
+	else if (op == ctget) registers[a0] = (nat) getchar();
+	else if (op == ctput) putchar((char) registers[a0]);
 }
 
 static void print_registers(void) {
+	nat printed_count = 0;
+	printf("debug: registers = {\n");
 	for (nat i = 0; i < sizeof registers / sizeof(nat); i++) {
-		if (not (i % 4)) puts("");
-		printf("%02llu:%010llx, ", i, registers[i]);
+		if (not (printed_count % 4)) puts("");
+		if (registers[i]) {
+			printf("%02llu:%010llx, ", i, registers[i]);
+			printed_count++;
+		}
 	}
-	puts("");
+	puts("}");
 }
 
 static void print_arguments(void) {
@@ -324,14 +393,29 @@ static void print_instructions(void) {
 	puts("}");
 }
 
+
+static void dump_hex(uint8_t* local_bytes, nat local_byte_count) {
+	printf("dumping hex bytes: (%llu)\n", local_byte_count);
+	for (nat i = 0; i < local_byte_count; i++) {
+		if (not (i % 16)) printf("\n\t");
+		if (not (i % 4)) printf(" ");
+		printf("%02hhx ", local_bytes[i]);
+	}
+	puts("");
+}
+
+
 static void print_machine_code(void) { 
-	system("objdump program.out -DSast --disassembler-options=no-aliases");	
+
+	//system("objdump program.out -DSast --disassembler-options=no-aliases");
+
+	printf("\ndebugging bytes bytes:\n------------------------\n");
+	dump_hex((uint8_t*) bytes, byte_count);
 }
 
 int main(int argc, const char** argv) {
 
-	if (argc != 4 or strcmp(argv[2], "-o")) 
-		exit(puts("\033[31;1merror:\033[0m usage: ./run <code.s> -o <exec>"));
+	if (argc != 4 or strcmp(argv[2], "-o")) exit(puts("\033[31;1merror:\033[0m usage: ./run <code.s> -o <exec>"));
 	
 	const char* filename = argv[1];
 	nat text_length = 0;
@@ -352,7 +436,25 @@ int main(int argc, const char** argv) {
 				stop ? "\033[31mignoring\033[0m" : "\033[32mprocessing\033[0m", 
 				(int) count, word);
 
+		if (is(word, count, "define")) {
+			if (not arg_count or stop) goto next;
+			const u32 r = arguments[arg_count - 1];
+			
+			names[dict_count] = strndup(text + defining, defining_length);
+			values[dict_count++] = r;
+
+			if (debug) printf("info: defining macro with value: %llu,  the macro is named: \"%s\"\n", 
+				(nat) values[dict_count - 1], names[dict_count - 1]
+			);
+
+			defining_length = 0; defining = 0;
+			goto next;
+		}
+
+		if (defining) goto error;
+
 		if (is(word, count, "eof")) goto generate_ins;
+
 		if (is(word, count, "use")) {
 			if (not arg_count or stop) goto next;
 			char new[128] = {0};
@@ -368,13 +470,15 @@ int main(int argc, const char** argv) {
 			goto next;
 		}
 
+		
 		if (is(word, count, "debugregisters")) { print_registers(); goto next; }
 		if (is(word, count, "debugarguments")) { print_arguments(); goto next; }
 		if (is(word, count, "debuginstructions")) { print_instructions(); goto next; }
 		
 		for (u32 i = dw; i < instruction_set_count; i++) {
+			// printf("trying \"%s\"...\n", instruction_spelling[i]);
 			if (not is(word, count, instruction_spelling[i])) continue;
-			if (i >= ctdel) execute(i, &index, text); else push(i);
+			if (i < ctclear) push(i); else execute(i, &index, text);
 			goto next;
 		}
 
@@ -382,15 +486,27 @@ int main(int argc, const char** argv) {
 		for (nat i = 0; i < count; i++) {
 			if (word[i] == '0') s <<= 1;
 			else if (word[i] == '1') { r += s; s <<= 1; }
-			else goto other;
+			else goto other_word;
 		}
 		if (debug) printf("[info: pushed %llu onto argument stack]\n", (nat) r);
-		arguments[arg_count++] = r; 
+		arguments[arg_count++] = r;
 		goto next;
-	other:
+	other_word:
+		for (nat i = 0; i < dict_count; i++) {
+			if (not is(word, count, names[i])) continue;
+			if (debug) printf("[info: FOUND USER-DEFINED NAME: pushed (%s)  value %llu  onto argument stack]\n", 
+					names[i], (nat) values[i]);
+			arguments[arg_count++] = values[i]; 
+			goto next;
+		}
 		if (stop) goto next;
+		if (debug) printf("found undefined word %.*s... setting defined = %llu.\n", (int) count, word, start);
+		defining = start; defining_length = count; 
+		goto next;
+
+	error:;
 		char reason[4096] = {0};
-		snprintf(reason, sizeof reason, "unknown word \"%.*s\"", (int) count, word);
+		snprintf(reason, sizeof reason, "unknown word \"%.*s\"", (int) defining_length, text + defining);
 		print_error(reason, start, count);
 		exit(1);
 		next: count = 0;
@@ -403,7 +519,7 @@ generate_ins:
 		u32* a = ins[i].arguments;
 
 		     if (op == db)	emit_byte(a[0]);
-		else if (op == dh)	emit_half(a[0]);
+		else if (op == dh)	emith(a[0]);
 		else if (op == dw)	emit(a[0]);
 		else if (op == ecall)   emit(0x00000073);
 		else if (op == ebreak)  emit(0x00100073);
@@ -468,7 +584,37 @@ generate_ins:
 		else if (op == bgeu)    emit(b_type(i, a, 0x63, 0x7));
 
 		else if (op == jal)     emit(j_type(i, a, 0x6F));
+
+
+
+
+		//else if (op == cnop emith(0);
+		//else if (op == caddi4spn) emith(ci_type(a, ));
+
+
+
+
 		
+
+
+
+/*
+
+	dh, 
+	cnop, caddi4spn, clw, cld, csw, csd, 
+	caddi, cjal, caddiw, cli, caddi16sp, 
+	clui, csrli, candi, csub, cxor, cor, 
+	cand, csubw, caddw, cj, cbeqz, cbnez, 
+	cslli, clwsp, cldsp, cjr, cmv, cebreak, 
+	cjalr, cadd, cswsp, csdsp, 
+
+*/
+
+
+
+
+
+
 		else {
 			printf("error: unknown instruction: %llu\n", op);
 			printf("       unknown instruction: %s\n", instruction_spelling[op]);
@@ -489,7 +635,9 @@ generate_ins:
 
 	close(file);
 
-	if (debug) print_machine_code();
+
+	print_machine_code();
+
 }
 
 
@@ -524,6 +672,16 @@ generate_ins:
 
 
 
+	//nat at = 0, line = 1, column = 1;
+	//while (at < start_index) {
+	//	if (text[at++] == '\n') { line++; column = 1; } else column++;
+	//}
+/*static void align(nat n) {
+	const nat w = (1 << n);
+	const nat r = (w - byte_count % w) % w;
+	bytes = realloc(bytes, byte_count + r);
+	for (nat i = 0; i < r; i++) bytes[byte_count++] = 0;
+}*/
 
 
 
