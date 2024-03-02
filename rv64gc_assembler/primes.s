@@ -1,4 +1,4 @@
-0 ctf 
+0 ctf   202402073.002206 dwrr
 this is a prime number program written
 in the compiletime programming language of 
 my assembler. its not very fast, but it does
@@ -10,7 +10,7 @@ set the largest prime to print.
 
 0000000000001 0001 count define ctli 
 
-1001  1001 tab   define ctli
+1001 1001 tab define ctli
 01 nextnumber define 
 001 nextdivisor define
 111 composite define 
