@@ -1,0 +1,14 @@
+0 false define
+1 true define
+0 noruntime define 
+1 riscv32 define
+01 riscv64 define
+11 arm32 define
+001 arm64 define
+101 x86_32 define
+011 x86_64 define
+0 printbinary define
+1 elfobjectfile define
+01 elfexecutable define
+11 machoobjectfile define
+001 machoexecutable define
