@@ -1,8 +1,56 @@
 0 library/targets define include
 0 library/ascii define include
+
+arm64 settarget
+machoexecutable setoutputformat
+object.o define setobjectname 
+program.out define setexecutablename
+false preserveexistingexecutable
+false preserveexistingobject
+
+01 11 001 addi
+01 11 001 add
+
+0 0 0 add
+0 0 0 addi
+
+
+ecall
+
+true enabledebugoutput
+eof 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+the following code prints out a message at compile time:
+
+
+
+
+ library/targets define include
+0 library/ascii define include
 noruntime settarget
 printbinary setoutputformat
-
 
 1 c define 
 01 lower define 
@@ -58,28 +106,3 @@ space ctput
 
 
 
-
-
-
-
-eof 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-my_object.o define setobjectname 
-my_program.out define setexecutablename
-true preserveexistingexecutable
-false preserveexistingobject
-
-01 01 11 addi

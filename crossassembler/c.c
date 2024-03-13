@@ -56,8 +56,7 @@ static const char* output_format_spelling[output_format_count] = {
 	"macho_objectfile", "macho_executable"
 };
 
-
-enum {
+enum language_ISA {
 	dw, ecall, ebreak, fence,  // base ISA.
 	fencei, add, sub, sll, 
 	slt, sltu, xor_, srl, 
@@ -76,8 +75,8 @@ enum {
 
 	mul, mulh, mulhsu, mulhu,       //  M extension
 	div_, divu, rem, remu, 
-
-	// TODO:   add mulw, divw, divuw, remw, remuw!!!!
+	mulw, divw, divuw, remw, 
+	remuw,
 
 	dh, 
 	cnop, caddi4spn, clw, cld, csw, csd,   // C extension
@@ -117,9 +116,9 @@ static const char* instruction_spelling[instruction_set_count] = {
 
 	"mul", "mulh", "mulhsu", "mulhu", 
 	"div_", "divu", "rem", "remu", 
-
-	// TODO: add other half of the M extension. 
-
+	"mulw", "divw", "divuw", "remw", 
+	"remuw",
+	
 	"u16", 
 	"cnop", "caddi4spn", "clw", "cld", "csw", "csd", 
 	"caddi", "cjal", "caddiw", "cli", "caddi16sp", 
@@ -139,7 +138,7 @@ static const char* instruction_spelling[instruction_set_count] = {
 	"ctprint", "ctabort", "ctget", "ctput",
 };
 
-struct instruction { u32 op; u32 arguments[3]; };
+struct instruction { u32 op; u32 arguments[3]; }; //  make arguments not an array. use a0, a1 and a2 directly, as variables. simpler. 
 
 static nat byte_count = 0;
 static u8* bytes = NULL;
@@ -157,7 +156,6 @@ static char* names[4096] = {0};
 static u32 values[4096] = {0};
 
 static bool ct_flag = true;       // todo: make the ct system more risc-v like.  delete this by making the branch do the check.
-
 
 static bool is(const char* word, nat count, const char* this) {
 	return strlen(this) == count and not strncmp(word, this, count);
@@ -286,7 +284,7 @@ static void print_instructions(void) {
 	for (nat i = 0; i < ins_count; i++) {
 		const struct instruction I = ins[i];
 		printf("\t%llu\tins(.op=%u (\"%s\"), args:{", i, I.op, instruction_spelling[I.op]);
-		for (nat a = 0; a < 6; a++) printf("{%llu,}, ", (nat) I.arguments[a]);
+		for (nat a = 0; a < 3; a++) printf("%llu ", (nat) I.arguments[a]);
 		puts("}");
 	}
 	puts("}");
@@ -324,11 +322,18 @@ static void emit(u32 x) {
 	bytes[byte_count++] = (u8) (x >> 24);
 }
 
+static void zero_register_error(const char* instruction) {
+	char reason[4096] = {0};
+	snprintf(reason, sizeof reason, "zero register used with %s instruction is invalid", instruction);
+	print_error(reason, 1, 1); 
+	exit(1);
+}
+
 static void check(nat r, nat c, const char* type) {
 	if (r < c) return;
 	char reason[4096] = {0};
 	snprintf(reason, sizeof reason, "invalid %s argument %llu (%llu >= %llu)", type, r, r, c);
-	print_error(reason, 99, 99); 
+	print_error(reason, 1, 1); 
 	exit(1);
 }
 
@@ -518,20 +523,20 @@ static void generate_riscv_machine_code(void) {
 
 
 
-static u32 generate_br(nat* a, u32 op, u32 oc) {  //          blr: oc = 1
+static u32 generate_br(u32* a, u32 op, u32 oc) {  //          blr: oc = 1
 	u32 Rn = (u32) a[0];
 	check(Rn, 32, "register");
 	return (oc << 21U) | (op << 10U) | (Rn << 5U);
 }
 
-static u32 generate_b(nat* a, nat im, u32 oc) {   //           bl: oc = 1
+static u32 generate_b(u32* a, nat im, u32 oc) {   //           bl: oc = 1
 	//u32 Im = * (u32*) a[0];
 	//check_branch((int) Im, 1 << (26 - 1), a[0], "branch offset");
 	//return (oc << 31U) | (0x05 << 26U) | (0x03FFFFFFU & Im);
 	return 0;
 }
 
-static u32 generate_bc(nat* a, nat im) { 
+static u32 generate_bc(u32* a, nat im) { 
 	u32 cd = (u32) a[0];
 	u32 Im = * (u32*) im;
 	//check_branch((int) Im, 1 << (19 - 1), a[1], "branch offset");
@@ -539,7 +544,7 @@ static u32 generate_bc(nat* a, nat im) {
 	return (0x54U << 24U) | ((0x0007FFFFU & Im) << 5U) | cd;
 }
 
-static u32 generate_adr(nat* a, u32 op, nat im, u32 oc) {   //      adrp: oc = 1 
+static u32 generate_adr(u32* a, u32 op, nat im, u32 oc) {   //      adrp: oc = 1 
 
 	u32 Rd = (u32) a[0];
 	u32 Im = * (u32*) im;
@@ -554,10 +559,9 @@ static u32 generate_adr(nat* a, u32 op, nat im, u32 oc) {   //      adrp: oc = 1
 		(hi <<  5U) | Rd;
 }
 
-static u32 generate_mov(nat* a, u32 op, u32 im, u32 sf, u32 oc) {  //     im Rd mov         movz: oc = 2   movk: oc = 3   movn: oc = 0        // lui
-	u32 Rd = (u32) a[0];
+static u32 generate_mov(u32 Rd, u32 op, u32 im, u32 sf, u32 oc) {  //     im Rd mov     movz: oc = 2   movk: oc = 3   movn: oc = 0    // lui
 	check(Rd, 32, "register");
-	check(im, 1 << 16U, "immediate");
+	check(im, 1 << 12U, "immediate");
 	return  (sf << 31U) | 
 		(oc << 29U) | 
 		(op << 23U) | 
@@ -565,9 +569,9 @@ static u32 generate_mov(nat* a, u32 op, u32 im, u32 sf, u32 oc) {  //     im Rd 
 		(im <<  5U) | Rd;
 }
 
-static u32 generate_addi(nat* a, u32 op, u32 im, u32 sf, u32 sb, u32 st, u32 sh) {     // im Rn Rd addi            // addi
-	u32 Rd = (u32) a[0];
-	u32 Rn = (u32) a[1];
+static u32 generate_addi(u32 Rd, u32 Rn, u32 op, u32 im, u32 sf, u32 sb, u32 st, u32 sh) {  // im Rn Rd addi    // addi
+	if (not Rd) zero_register_error("addi");
+	if (not Rn) return generate_mov(Rd, 0x25U, im, 0, 0);
 	check(Rd, 32, "register");
 	check(Rn, 32, "register");
 	check(im, 1 << 12U, "immediate");
@@ -580,7 +584,7 @@ static u32 generate_addi(nat* a, u32 op, u32 im, u32 sf, u32 sb, u32 st, u32 sh)
 		(Rn <<  5U) | Rd;
 }
 
-static u32 generate_memi(nat* a, u32 op, u32 im, u32 sf, u32 oc) {     // im Rn Rt oe memi            // sd,sw,sh,sb,   ld,lw,lh,lb
+static u32 generate_memi(u32* a, u32 op, u32 im, u32 sf, u32 oc) {     // im Rn Rt oe memi            // sd,sw,sh,sb,   ld,lw,lh,lb
 	u32 oe = (u32) a[0];
 	u32 Rt = (u32) a[1];
 	u32 Rn = (u32) a[2];
@@ -596,7 +600,7 @@ static u32 generate_memi(nat* a, u32 op, u32 im, u32 sf, u32 oc) {     // im Rn 
 		(Rn <<  5U) | Rt;
 }
 
-static u32 generate_memiu(nat* a, u32 op, u32 im, u32 sf, u32 oc) {    // im Rn Rt memiu
+static u32 generate_memiu(u32* a, u32 op, u32 im, u32 sf, u32 oc) {    // im Rn Rt memiu
 	u32 Rt = (u32) a[0];
 	u32 Rn = (u32) a[1];
 	check(Rt, 32, "register");
@@ -609,10 +613,10 @@ static u32 generate_memiu(nat* a, u32 op, u32 im, u32 sf, u32 oc) {    // im Rn 
 		(Rn <<  5U) | Rt;
 }
 
-static u32 generate_add(nat* a, u32 op, u32 im, u32 sf, u32 st, u32 sb, u32 sh) {   //  im Rm Rn Rd or/add
-	u32 Rd = (u32) a[0];
-	u32 Rn = (u32) a[1];
-	u32 Rm = (u32) a[2];
+static u32 generate_add(u32 Rd, u32 Rn, u32 Rm, u32 op, u32 im, u32 sf, u32 st, u32 sb, u32 sh) {   //  im Rm Rn Rd or/add
+	if (Rd == 0) Rd = 31;
+	if (Rn == 0) Rn = 31;
+	if (Rm == 0) Rm = 31;
 	check(Rd, 32, "register");
 	check(Rn, 32, "register");
 	check(Rm, 32, "register");
@@ -629,12 +633,7 @@ static u32 generate_add(nat* a, u32 op, u32 im, u32 sf, u32 st, u32 sb, u32 sh) 
 
 
 
-
-
-
-static void generate_arm64_machine_code(void) {
-
-
+/*	
 	// original:
 	for (nat i = 0; i < ins_count; i++) {
 
@@ -646,7 +645,7 @@ static void generate_arm64_machine_code(void) {
 		     if (op == dw)     emit(im);
 		else if (op == ecall)  emit(0xD4000001);
 
-/*		else if (op == br)     emit(generate_br(a, 0x3587C0U));
+		else if (op == br)     emit(generate_br(a, 0x3587C0U));
 		else if (op == b_)     emit(generate_b(a, ins[i].immediate));
 		else if (op == bc)     emit(generate_bc(a, ins[i].immediate));
 		else if (op == adr)    emit(generate_adr(a, 0x10U, ins[i].immediate));
@@ -672,7 +671,7 @@ static void generate_arm64_machine_code(void) {
 		else if (op == csel)   emit(generate_csel(a, 0x0D4U));
 		else if (op == memi)   emit(generate_memi(a,  0x38, im));
 		else if (op == memiu)  emit(generate_memiu(a, 0x39, im));
-*/
+
 
 		else {
 			printf("error: unknown instruction: %llu\n", op);
@@ -682,7 +681,15 @@ static void generate_arm64_machine_code(void) {
 	}
 
 
-	// risv version: use this one as a template for the op==opcode's, but with the above arm instruction encoding functions.., with the apropriote arguments hardcoded to get the right semantics. 
+*/
+
+
+
+static void generate_arm64_machine_code(void) {
+
+	// risv version: use this one as a template for the op==opcode's, but with 
+	//  the above arm instruction encoding functions.., 
+	// with the apropriote arguments hardcoded to get the right semantics. 
 
 	for (nat i = 0; i < ins_count; i++) {
 		nat op = ins[i].op;
@@ -691,99 +698,79 @@ static void generate_arm64_machine_code(void) {
 		     if (op == db)	emit_byte(a[0]);
 		else if (op == dh)	emith(a[0]);
 		else if (op == dw)	emit(a[0]);
-		else if (op == ecall)   emit(0x00000073);
+		else if (op == ecall)   emit(0xD4000001);
 
-		else if (op == add)     emit(r_type(a, 0x33, 0x0, 0x00));
-		else if (op == sub)     emit(r_type(a, 0x33, 0x0, 0x20));
-		else if (op == sll)     emit(r_type(a, 0x33, 0x1, 0x00));
-		else if (op == slt)     emit(r_type(a, 0x33, 0x2, 0x00));
-		else if (op == sltu)    emit(r_type(a, 0x33, 0x3, 0x00));
-		else if (op == xor_)    emit(r_type(a, 0x33, 0x4, 0x00));
-		else if (op == srl)     emit(r_type(a, 0x33, 0x5, 0x00));
-		else if (op == sra)     emit(r_type(a, 0x33, 0x5, 0x20));
-		else if (op == or_)     emit(r_type(a, 0x33, 0x6, 0x00));
-		else if (op == and_)    emit(r_type(a, 0x33, 0x7, 0x00));
-		else if (op == addw)    emit(r_type(a, 0x3B, 0x0, 0x00));
-		else if (op == subw)    emit(r_type(a, 0x3B, 0x0, 0x20));
-		else if (op == sllw)    emit(r_type(a, 0x3B, 0x1, 0x00));
-		else if (op == srlw)    emit(r_type(a, 0x3B, 0x5, 0x00));
-		else if (op == sraw)    emit(r_type(a, 0x3B, 0x5, 0x20));
-
-		else if (op == lb)      emit(i_type(a, 0x03, 0x0));
-		else if (op == lh)      emit(i_type(a, 0x03, 0x1));
-		else if (op == lw)      emit(i_type(a, 0x03, 0x2));
-		else if (op == ld)      emit(i_type(a, 0x03, 0x3));
-		else if (op == lbu)     emit(i_type(a, 0x03, 0x4));
-		else if (op == lhu)     emit(i_type(a, 0x03, 0x5));
-		else if (op == lwu)     emit(i_type(a, 0x03, 0x6));
-		else if (op == addi)    emit(i_type(a, 0x13, 0x0));
-		else if (op == slti)    emit(i_type(a, 0x13, 0x2));
-		else if (op == sltiu)   emit(i_type(a, 0x13, 0x3));
-		else if (op == xori)    emit(i_type(a, 0x13, 0x4));
-		else if (op == ori)     emit(i_type(a, 0x13, 0x6));
-		else if (op == andi)    emit(i_type(a, 0x13, 0x7));
-		else if (op == slli)    emit(i_type(a, 0x13, 0x1));
-		else if (op == srli)    emit(i_type(a, 0x13, 0x5));  
-		else if (op == addiw)   emit(i_type(a, 0x1B, 0x0));
-		else if (op == slliw)   emit(i_type(a, 0x1B, 0x1));
-		else if (op == srliw)   emit(i_type(a, 0x1B, 0x5));
-		else if (op == jalr)    emit(i_type(a, 0x67, 0x0));
-		else if (op == sb)      emit(s_type(a, 0x23, 0x0));
-		else if (op == sh)      emit(s_type(a, 0x23, 0x1));
-		else if (op == sw)      emit(s_type(a, 0x23, 0x2));
-		else if (op == sd)      emit(s_type(a, 0x23, 0x3));
-
-		else if (op == lui)     emit(u_type(a, 0x37));
-		else if (op == auipc)   emit(u_type(a, 0x17));
-		
-		else if (op == beq)     emit(b_type(i, a, 0x63, 0x0));
-		else if (op == bne)     emit(b_type(i, a, 0x63, 0x1));
-		else if (op == blt)     emit(b_type(i, a, 0x63, 0x4));
-		else if (op == bge)     emit(b_type(i, a, 0x63, 0x5));
-		else if (op == bltu)    emit(b_type(i, a, 0x63, 0x6));
-		else if (op == bgeu)    emit(b_type(i, a, 0x63, 0x7));
-
-		else if (op == jal)     emit(j_type(i, a, 0x6F));
-
-		//else if (op == cnop emith(0);  // TODO: finish C extension implementation. 
-		//else if (op == caddi4spn) emith(ci_type(a, ));   
+		else if (op == add)    emit(generate_add(a[0], a[1], a[2], 0x0BU, 0, 0, 0, 0, 0));
+		else if (op == sub)    {}
+		else if (op == sll)    {}
+		else if (op == slt)    {}
+		else if (op == sltu)   {}
+		else if (op == xor_)   {}
+		else if (op == srl)    {}
+		else if (op == sra)    {}
+		else if (op == or_)    emit(generate_add(a[0], a[1], a[2], 0x2AU, 0, 0, 0, 0, 0));
+		else if (op == and_)   {}
+		else if (op == addw)   {}
+		else if (op == subw)   {}
+		else if (op == sllw)   {}
+		else if (op == srlw)   {}
+		else if (op == sraw)   {}
+		else if (op == lb)     {}
+		else if (op == lh)     {}
+		else if (op == lw)     {}
+		else if (op == ld)     {}
+		else if (op == lbu)    {}
+		else if (op == lhu)    {}
+		else if (op == lwu)    {}
+		else if (op == addi)   emit(generate_addi(a[0], a[1], 0x22U, a[2], 0, 0, 0, 0));
+		else if (op == slti)   {}
+		else if (op == sltiu)  {}
+		else if (op == xori)   {}
+		else if (op == ori)    {}
+		else if (op == andi)   {}
+		else if (op == slli)   {}
+		else if (op == srli)   {}
+		else if (op == addiw)  {}
+		else if (op == slliw)  {}
+		else if (op == srliw)  {}
+		else if (op == jalr)   {}
+		else if (op == sb)     {}
+		else if (op == sh)     {}
+		else if (op == sw)     {}
+		else if (op == sd)     {}
+		else if (op == lui)    {}
+		else if (op == auipc)  {}
+		else if (op == beq)    {}
+		else if (op == bne)    {}
+		else if (op == blt)    {}
+		else if (op == bge)    {}
+		else if (op == bltu)   {}
+		else if (op == bgeu)   {}
+		else if (op == jal)    {}
 		else {
-			printf("error: unknown instruction: %llu\n", op);
-			printf("       unknown instruction: %s\n", instruction_spelling[op]);
+			printf("error: arm64: unknown instruction: %llu\n", op);
+			printf("       unknown instruction name: %s\n", instruction_spelling[op]);
 			abort();
 		}
 	}
 }
 
 
-
-
-
-
 static void make_elf_object_file(const char* object_filename) {
-
 	puts("make_elf_object_file: unimplemented");
 	abort();
-
-	//   system("objdump program.out -DSast --disassembler-options=no-aliases");    // eventually, we'll use objdump and  readelf   to debug the output. 
-	//   system "readelf program.out");
-
-
+//   system("objdump program.out -DSast --disassembler-options=no-aliases");    // eventually, we'll use objdump and  readelf   to debug the output. 
+//   system "readelf program.out");
 /*		
 	const int flags = O_WRONLY | O_CREAT | O_TRUNC | O_EXCL;
 	const mode_t mode = S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH;
-
 	const int file = open(argv[3], flags, mode);
 	if (file < 0) { perror("obj:open"); exit(1); }
-
 	write(file, NULL, 0);
 	write(file, NULL, 0);
 	write(file, NULL, 0);
-
 	close(file);
 */
-
-
 }
 
 static void make_macho_object_file(const char* object_filename, const bool preserve_existing_object) {
@@ -880,13 +867,7 @@ static void make_macho_object_file(const char* object_filename, const bool prese
 	write(file, symbols, sizeof(struct nlist_64));
 	write(file, strings, sizeof strings);
 	close(file);
-
-	
 }
-
-
-
-
 
 int main(int argc, const char** argv) {
 
