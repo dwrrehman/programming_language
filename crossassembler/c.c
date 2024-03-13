@@ -8,6 +8,7 @@
 	use a translation layer to translate the risc-v ISA instructions
 	into the target's ISA (eg, arm64, arm32, x86, x86_64).
 
+	
 */
 
 #include <stdio.h>   
@@ -38,12 +39,14 @@ enum target_architecture {
 	x86_32, x86_64, 
 	target_count 
 };
+
 static const char* target_spelling[target_count] = { 
 	"noruntime", 
 	"riscv32", "riscv64", 
 	"arm32", "arm64", 
 	"x86_32", "x86_64" 
 };
+
 enum output_formats { 
 	print_binary, 
 	elf_objectfile, elf_executable, 
@@ -54,6 +57,16 @@ static const char* output_format_spelling[output_format_count] = {
 	"print_binary", 
 	"elf_objectfile", "elf_executable", 
 	"macho_objectfile", "macho_executable"
+};
+
+enum host_systems { linux, macos };
+
+
+static u32 arm64_macos_abi[] = {        // note:  x9 is call-clobbered. save it before calls. 
+	31,30,31,13,14,15, 7,17,
+	29, 9, 0, 1, 2, 3, 4, 5,
+	 6,16,19,20,21,22,23,24,
+	25,26,27,28,12, 8,11,10,
 };
 
 enum language_ISA {
@@ -138,22 +151,47 @@ static const char* instruction_spelling[instruction_set_count] = {
 	"ctprint", "ctabort", "ctget", "ctput",
 };
 
-struct instruction { u32 op; u32 arguments[3]; }; //  make arguments not an array. use a0, a1 and a2 directly, as variables. simpler. 
+
+
+
+struct location {
+	nat start;
+	nat count;
+};
+
+struct instruction { 
+	u32 a[4]; 
+	struct location loc[4];
+}; 
+
+//  make arguments not an array. use a0, a1 and a2 directly, as variables. simpler. 
+// or make op be simply arguments[0]. either one. 
+
+
+
+
 
 static nat byte_count = 0;
 static u8* bytes = NULL;
 static nat ins_count = 0;
 static struct instruction* ins = NULL;
 static nat stop = 0;
+static nat registers[65536] = {0};
+
 static nat arg_count = 0;
 static u32 arguments[4096] = {0};
-static nat registers[65536] = {0};
+static struct location arg_locations[4096] = {0};
 
 static nat defining = 0;
 static nat defining_length = 0;
 static nat dict_count = 0; 
 static char* names[4096] = {0};
 static u32 values[4096] = {0};
+
+static nat file_count = 0;
+static struct location files[4096] = {0};
+static const char* filenames[4096] = {0};
+static struct instruction current_ins = {0};
 
 static bool ct_flag = true;       // todo: make the ct system more risc-v like.  delete this by making the branch do the check.
 
@@ -178,30 +216,40 @@ static char* read_file(const char* name, nat* out_length) {
 	return string;
 }
 
-static void print_error(const char* reason, const nat start_index, const nat error_word_length) {
-	const nat end_index = start_index + error_word_length;
-	fprintf(stderr, "\033[1m%s:%llu:%llu:%llu:%llu: "
-			"\033[1;31merror:\033[m \033[1m%s\033[m\n", 
-		"file", //filename, 
-		start_index, end_index, 
-		0LLU,0LLU,//line, column, 
-		reason
-	);
+static void print_error(const char* reason, struct location spot) {
+
+	for (nat i = 1; i < file_count; i++) {
+		if (files[i].start < spot.start) spot.start -= files[i].count;
+	}
+
+	struct instruction this = current_ins;
+	for (nat a = 0; a < 4; a++) {
+		for (nat i = 1; i < file_count; i++) {
+			if (files[i].start < this.loc[a].start) this.loc[a].start -= files[i].count;
+		}
+	}
+	fprintf(stderr, "\033[1m%s:{%llu,%llu}[", "s.s", spot.start, spot.count);
+	for (nat i = 0; i < 4; i++) fprintf(stderr, "%llu,%llu|", this.loc[i].start, this.loc[i].count);
+	fprintf(stderr, "] \033[1;31merror:\033[m \033[1m%s\033[m\n", reason);
 }
 
-static void push(u32 op) {
+static void push(u32 op, struct location here) {
 	if (stop) return;
-	struct instruction new = { .op = op, .arguments = {0} };
-	for (nat i = 0; i < 3; i++) {
-		if (arg_count == i) break;
-		new.arguments[i] = arguments[arg_count - 1 - i];
+	struct instruction new = {0};
+	new.a[0] = op;
+	new.loc[0] = here;
+	for (nat i = 1; i < 4; i++) {
+		if (i > arg_count) break;
+		new.loc[i] = arg_locations[arg_count - i];
+		new.a[i] = arguments[arg_count - i];
 	}
-	if (op >= beq and op <= jal) new.arguments[2] = (u32) registers[new.arguments[2]];
+	
+	if (op >= beq and op <= jal) new.a[3] = (u32) registers[new.a[3]];
 	ins = realloc(ins, sizeof(struct instruction) * (ins_count + 1));
 	ins[ins_count++] = new;
 }
 
-static void execute(nat op, nat* pc, char* text) {
+static void execute(nat op, nat* pc, char* text, struct location here) {
 	const nat a2 = arg_count >= 3 ? arguments[arg_count - 3] : 0;
 	const nat a1 = arg_count >= 2 ? arguments[arg_count - 2] : 0;
 	const nat a0 = arg_count >= 1 ? arguments[arg_count - 1] : 0;
@@ -215,7 +263,12 @@ static void execute(nat op, nat* pc, char* text) {
 
 	if (op == ctclear) arg_count = 0;
 	else if (op == ctdel)  { if (arg_count) arg_count--; }
-	else if (op == ctarg)  arguments[arg_count++] = (u32) registers[a0]; 
+
+	else if (op == ctarg)  {
+		arg_locations[arg_count] = here;
+		arguments[arg_count++] = (u32) registers[a0]; 
+	}
+
 	else if (op == ctls)   registers[a0] = (nat) text[registers[a1]];
 	else if (op == ctli)   registers[a0] = a1;
 	else if (op == ctat)   registers[a0] = ins_count;
@@ -274,17 +327,34 @@ static void print_registers(void) {
 static void print_arguments(void) {
 	printf("arguments: { ");
 	for (nat i = 0; i < arg_count; i++) {
-		printf("{%llu} ", (nat) arguments[i]);
+		printf("{%llu:(%llu:%llu)} ", 
+			(nat) arguments[i], 
+			arg_locations[i].start,
+			arg_locations[i].count
+		);
 	}
 	puts("} ");
 }
 
+
 static void print_instructions(void) {
 	printf("instructions: {\n");
 	for (nat i = 0; i < ins_count; i++) {
-		const struct instruction I = ins[i];
-		printf("\t%llu\tins(.op=%u (\"%s\"), args:{", i, I.op, instruction_spelling[I.op]);
-		for (nat a = 0; a < 3; a++) printf("%llu ", (nat) I.arguments[a]);
+		printf("\t%llu\tins(.op=%u (\"%s\"), args:{ ", 
+			i, ins[i].a[0], instruction_spelling[ins[i].a[0]]
+		);
+		for (nat a = 0; a < 3; a++) printf("%llu ", (nat) ins[i].a[a + 1]);
+		printf("} offsets:{ ");
+		printf("(%llu:%llu)* ", 
+			ins[i].loc[0].start, 
+			ins[i].loc[0].count
+		);
+		for (nat o = 0; o < 3; o++) {
+			printf("(%llu:%llu) ", 
+				ins[i].loc[o + 1].start, 
+				ins[i].loc[o + 1].count
+			);
+		}
 		puts("}");
 	}
 	puts("}");
@@ -322,18 +392,20 @@ static void emit(u32 x) {
 	bytes[byte_count++] = (u8) (x >> 24);
 }
 
-static void zero_register_error(const char* instruction) {
+static void zero_register_error(nat arg_index) {
 	char reason[4096] = {0};
-	snprintf(reason, sizeof reason, "zero register used with %s instruction is invalid", instruction);
-	print_error(reason, 1, 1); 
+	snprintf(reason, sizeof reason, "use of zero register for argument %llu in %s instruction is not supported", 
+			arg_index, instruction_spelling[current_ins.a[0]]
+	);
+	print_error(reason, current_ins.loc[arg_index + 1]); 
 	exit(1);
 }
 
-static void check(nat r, nat c, const char* type) {
+static void check(nat r, nat c, const char* type, nat arg_index) {
 	if (r < c) return;
 	char reason[4096] = {0};
-	snprintf(reason, sizeof reason, "invalid %s argument %llu (%llu >= %llu)", type, r, r, c);
-	print_error(reason, 1, 1); 
+	snprintf(reason, sizeof reason, "argument %llu: invalid %s, %llu (%llu >= %llu)", arg_index, type, r, r, c);
+	print_error(reason, current_ins.loc[arg_index + 1]); 
 	exit(1);
 }
 
@@ -341,29 +413,29 @@ static void check(nat r, nat c, const char* type) {
 
 
 static u32 r_type(u32* a, u32 o, u32 f, u32 g) {   //  r r r op
-	check(a[0], 32, "register");
-	check(a[1], 32, "register");
-	check(a[2], 32, "register");
+	check(a[0], 32, "register", 0);
+	check(a[1], 32, "register", 1);
+	check(a[2], 32, "register", 2);
 	return (g << 25U) | (a[2] << 20U) | (a[1] << 15U) | (f << 12U) | (a[0] << 7U) | o;
 }
 
 static u32 i_type(u32* a, u32 o, u32 f) {   //  i r r op
-	check(a[0], 32, "register");
-	check(a[1], 32, "register");
-	check(a[2], 1 << 12, "immediate");
+	check(a[0], 32, "register", 0);
+	check(a[1], 32, "register", 1);
+	check(a[2], 1 << 12, "immediate", 2);
 	return (a[2] << 20U) | (a[1] << 15U) | (f << 12U) | (a[0] << 7U) | o;
 }
 
 static u32 s_type(u32* a, u32 o, u32 f) {   //  i r r op
-	check(a[0], 32, "register");
-	check(a[1], 32, "register");
-	check(a[2], 1 << 12, "immediate");
+	check(a[0], 32, "register", 0);
+	check(a[1], 32, "register", 1);
+	check(a[2], 1 << 12, "immediate", 2);
 	return ((a[0] >> 5U) << 25U) | (a[2] << 20U) | (a[1] << 15U) | (f << 12U) | ((a[0] & 0x1F) << 7U) | o;
 }
 
 static u32 u_type(u32* a, u32 o) {   	//  i r op
-	check(a[0], 32, "register");
-	check(a[1], 1 << 20, "immediate");
+	check(a[0], 32, "register", 0);
+	check(a[1], 1 << 20, "immediate", 1);
 	return (a[1] << 12U) | (a[0] << 7U) | o;
 }
 
@@ -371,16 +443,16 @@ static u32 calculate_offset(nat here, nat label) {
 	u32 offset = 0;
 	if (label < here) {
 		for (nat i = label; i < here; i++) {
-			     if (ins[i].op <= jal) offset -= 4; 
-			else if (ins[i].op == dh) offset -= 2;
-			else if (ins[i].op == db) offset -= 1;
+			     if (ins[i].a[0] <= jal) offset -= 4; 
+			else if (ins[i].a[0] == dh) offset -= 2;
+			else if (ins[i].a[0] == db) offset -= 1;
 			else abort();
 		}
 	} else {
 		for (nat i = here; i < label; i++) {
-			     if (ins[i].op <= jal) offset += 4; 
-			else if (ins[i].op == dh) offset += 2;
-			else if (ins[i].op == db) offset += 1;
+			     if (ins[i].a[0] <= jal) offset += 4; 
+			else if (ins[i].a[0] == dh) offset += 2;
+			else if (ins[i].a[0] == db) offset += 1;
 			else abort();
 		}
 	}
@@ -388,7 +460,7 @@ static u32 calculate_offset(nat here, nat label) {
 }
 
 static u32 j_type(nat here, u32* a, u32 o) {   	//  L r op
-	check(a[0], 32, "register");
+	check(a[0], 32, "register", 0);
 	const u32 e = calculate_offset(here, a[1]);
 	const u32 imm19_12 = (e & 0x000FF000);
 	const u32 imm11    = (e & 0x00000800) << 9;
@@ -436,8 +508,9 @@ static u32 cj_type(u32* a, u32 o, u32 f, u32 g) { return 0; }
 
 static void generate_riscv_machine_code(void) {
 	for (nat i = 0; i < ins_count; i++) {
-		nat op = ins[i].op;
-		u32* a = ins[i].arguments;
+		current_ins = ins[i];
+		nat op = ins[i].a[0];
+		u32* a = ins[i].a + 1;
 
 		     if (op == db)	emit_byte(a[0]);
 		else if (op == dh)	emith(a[0]);
@@ -525,7 +598,7 @@ static void generate_riscv_machine_code(void) {
 
 static u32 generate_br(u32* a, u32 op, u32 oc) {  //          blr: oc = 1
 	u32 Rn = (u32) a[0];
-	check(Rn, 32, "register");
+	check(Rn, 32, "register", 0);
 	return (oc << 21U) | (op << 10U) | (Rn << 5U);
 }
 
@@ -540,7 +613,7 @@ static u32 generate_bc(u32* a, nat im) {
 	u32 cd = (u32) a[0];
 	u32 Im = * (u32*) im;
 	//check_branch((int) Im, 1 << (19 - 1), a[1], "branch offset");
-	check(cd, 16, "condition");
+	check(cd, 16, "condition", 0);
 	return (0x54U << 24U) | ((0x0007FFFFU & Im) << 5U) | cd;
 }
 
@@ -549,19 +622,24 @@ static u32 generate_adr(u32* a, u32 op, nat im, u32 oc) {   //      adrp: oc = 1
 	u32 Rd = (u32) a[0];
 	u32 Im = * (u32*) im;
 
-	check(Rd, 32, "register");
+	check(Rd, 32, "register", 0);
 	//check_branch((int) Im, 1 << (21 - 1), a[1], "pc-relative address");
 	u32 lo = 0x03U & Im, hi = 0x07FFFFU & (Im >> 2);
 
 	return  (oc << 31U) | 
 		(lo << 29U) | 
-		(op << 24U) | 
+		(op << 24U) |
 		(hi <<  5U) | Rd;
 }
 
-static u32 generate_mov(u32 Rd, u32 op, u32 im, u32 sf, u32 oc) {  //     im Rd mov     movz: oc = 2   movk: oc = 3   movn: oc = 0    // lui
-	check(Rd, 32, "register");
-	check(im, 1 << 12U, "immediate");
+//     im Rd mov     movz: oc = 2   movk: oc = 3   movn: oc = 0    // lui
+static u32 generate_mov(u32 Rd, u32 op, u32 im, u32 sf, u32 oc, u32 sh) {  
+
+	check(Rd, 32, "register", 0);
+
+	Rd = arm64_macos_abi[Rd];
+
+	check(im, 1 << 12U, "immediate", 1);
 	return  (sf << 31U) | 
 		(oc << 29U) | 
 		(op << 23U) | 
@@ -569,12 +647,18 @@ static u32 generate_mov(u32 Rd, u32 op, u32 im, u32 sf, u32 oc) {  //     im Rd 
 		(im <<  5U) | Rd;
 }
 
-static u32 generate_addi(u32 Rd, u32 Rn, u32 op, u32 im, u32 sf, u32 sb, u32 st, u32 sh) {  // im Rn Rd addi    // addi
-	if (not Rd) zero_register_error("addi");
-	if (not Rn) return generate_mov(Rd, 0x25U, im, 0, 0);
-	check(Rd, 32, "register");
-	check(Rn, 32, "register");
-	check(im, 1 << 12U, "immediate");
+// im Rn Rd addi    // addi
+static u32 generate_addi(u32 Rd, u32 Rn, u32 op, u32 im, u32 sf, u32 sb, u32 st, u32 sh) {  
+	if (not Rd) zero_register_error(0);
+	if (not Rn) return generate_mov(Rd, 0x25U, im, sf, 2, 0);
+	
+	check(Rd, 32, "register", 0);
+	check(Rn, 32, "register", 1);
+
+	Rd = arm64_macos_abi[Rd];
+	Rn = arm64_macos_abi[Rn];
+
+	check(im, 1 << 12U, "immediate", 2);
 	return  (sf << 31U) | 
 		(sb << 30U) | 
 		(st << 29U) | 
@@ -584,14 +668,20 @@ static u32 generate_addi(u32 Rd, u32 Rn, u32 op, u32 im, u32 sf, u32 sb, u32 st,
 		(Rn <<  5U) | Rd;
 }
 
-static u32 generate_memi(u32* a, u32 op, u32 im, u32 sf, u32 oc) {     // im Rn Rt oe memi            // sd,sw,sh,sb,   ld,lw,lh,lb
+// im Rn Rt oe memi            // sd,sw,sh,sb,   ld,lw,lh,lb
+static u32 generate_memi(u32* a, u32 op, u32 im, u32 sf, u32 oc) {     
 	u32 oe = (u32) a[0];
 	u32 Rt = (u32) a[1];
 	u32 Rn = (u32) a[2];
-	check(oe,  4, "mode");
-	check(Rt, 32, "register");
-	check(Rn, 32, "register");
-	check(im, 1 << 9U, "immediate");
+
+	check(oe,  4, "mode", 0);
+	check(Rt, 32, "register", 1);
+	check(Rn, 32, "register", 2);
+
+	Rt = arm64_macos_abi[Rt];
+	Rn = arm64_macos_abi[Rn];
+
+	check(im, 1 << 9U, "immediate", 3);
 	return  (sf << 30U) | 
 		(op << 24U) | 
 		(oc << 22U) |
@@ -603,9 +693,9 @@ static u32 generate_memi(u32* a, u32 op, u32 im, u32 sf, u32 oc) {     // im Rn 
 static u32 generate_memiu(u32* a, u32 op, u32 im, u32 sf, u32 oc) {    // im Rn Rt memiu
 	u32 Rt = (u32) a[0];
 	u32 Rn = (u32) a[1];
-	check(Rt, 32, "register");
-	check(Rn, 32, "register");
-	check(im, 1 << 12U, "immediate");
+	check(Rt, 32, "register", 0);
+	check(Rn, 32, "register", 1);
+	check(im, 1 << 12U, "immediate", 2);
 	return  (sf << 30U) | 
 		(op << 24U) | 
 		(oc << 22U) | 
@@ -613,14 +703,18 @@ static u32 generate_memiu(u32* a, u32 op, u32 im, u32 sf, u32 oc) {    // im Rn 
 		(Rn <<  5U) | Rt;
 }
 
-static u32 generate_add(u32 Rd, u32 Rn, u32 Rm, u32 op, u32 im, u32 sf, u32 st, u32 sb, u32 sh) {   //  im Rm Rn Rd or/add
-	if (Rd == 0) Rd = 31;
-	if (Rn == 0) Rn = 31;
-	if (Rm == 0) Rm = 31;
-	check(Rd, 32, "register");
-	check(Rn, 32, "register");
-	check(Rm, 32, "register");
-	check(im, 32U << sf, "immediate");
+//  im Rm Rn Rd or/add
+static u32 generate_add(u32 Rd, u32 Rn, u32 Rm, u32 op, u32 im, u32 sf, u32 st, u32 sb, u32 sh) {
+
+	check(Rd, 32, "register", 0);
+	check(Rn, 32, "register", 1);
+	check(Rm, 32, "register", 2);
+	check(im, 32U << sf, "immediate", 3);
+
+	Rd = arm64_macos_abi[Rd];
+	Rn = arm64_macos_abi[Rn];
+	Rm = arm64_macos_abi[Rm];
+
 	return  (sf << 31U) |
 		(sb << 30U) |
 		(st << 29U) |
@@ -631,6 +725,78 @@ static u32 generate_add(u32 Rd, u32 Rn, u32 Rm, u32 op, u32 im, u32 sf, u32 st, 
 		(Rn <<  5U) | Rd;
 }
 
+static void generate_arm64_machine_code(void) {
+
+	// risv version: use this one as a template for the op==opcode's, but with 
+	//  the above arm instruction encoding functions.., 
+	// with the apropriote arguments hardcoded to get the right semantics. 
+
+	for (nat i = 0; i < ins_count; i++) {
+		current_ins = ins[i];
+		nat op = ins[i].a[0];
+		u32* a = ins[i].a + 1;
+
+		     if (op == db)	emit_byte(a[0]);
+		else if (op == dh)	emith(a[0]);
+		else if (op == dw)	emit(a[0]);
+		else if (op == ecall)   emit(0xD4000001);
+
+		else if (op == add)    emit(generate_add(a[0], a[1], a[2], 0x0BU, 0, 1, 0, 0, 0));
+		else if (op == sub)    {}
+		else if (op == sll)    {}
+		else if (op == slt)    {}
+		else if (op == sltu)   {}
+		else if (op == xor_)   {}
+		else if (op == srl)    {}
+		else if (op == sra)    {}
+		else if (op == or_)    emit(generate_add(a[0], a[1], a[2], 0x2AU, 0, 1, 0, 0, 0));
+		else if (op == and_)   {}
+		else if (op == addw)   emit(generate_add(a[0], a[1], a[2], 0x0BU, 0, 0, 0, 0, 0));
+		else if (op == subw)   {}
+		else if (op == sllw)   {}
+		else if (op == srlw)   {}
+		else if (op == sraw)   {}
+		else if (op == lb)     {}
+		else if (op == lh)     {}
+		else if (op == lw)     {}
+		else if (op == ld)     {}
+		else if (op == lbu)    {}
+		else if (op == lhu)    {}
+		else if (op == lwu)    {}
+		else if (op == addi)   emit(generate_addi(a[0], a[1], 0x22U, a[2], 1, 0, 0, 0));
+		else if (op == slti)   {}
+		else if (op == sltiu)  {}
+		else if (op == xori)   {}
+		else if (op == ori)    {}
+		else if (op == andi)   {}
+		else if (op == slli)   {}
+		else if (op == srli)   {}
+		else if (op == addiw)  emit(generate_addi(a[0], a[1], 0x22U, a[2], 0, 0, 0, 0));
+		else if (op == slliw)  {}
+		else if (op == srliw)  {}
+		else if (op == jalr)   {}
+		else if (op == sb)     {}
+		else if (op == sh)     {}
+		else if (op == sw)     {}
+		else if (op == sd)     {}
+		else if (op == lui)    {}
+		else if (op == auipc)  {}
+		else if (op == beq)    {}
+		else if (op == bne)    {}
+		else if (op == blt)    {}
+		else if (op == bge)    {}
+		else if (op == bltu)   {}
+		else if (op == bgeu)   {}
+		else if (op == jal)    {}
+		else {
+			printf("error: arm64: unknown instruction: %llu\n", op);
+			printf("       unknown instruction name: %s\n", instruction_spelling[op]);
+			abort();
+		}
+	}
+}
+
+
 
 
 /*	
@@ -640,6 +806,7 @@ static u32 generate_add(u32 Rd, u32 Rn, u32 Rm, u32 op, u32 im, u32 sf, u32 st, 
 		nat op = ins[i].op;
 		u32 im = (u32) ins[i].op;
 		u32 a[3] = {0}; 
+
 		memcpy(a, ins[i].arguments, sizeof a);
 
 		     if (op == dw)     emit(im);
@@ -679,81 +846,7 @@ static u32 generate_add(u32 Rd, u32 Rn, u32 Rm, u32 op, u32 im, u32 sf, u32 st, 
 			
 		}
 	}
-
-
 */
-
-
-
-static void generate_arm64_machine_code(void) {
-
-	// risv version: use this one as a template for the op==opcode's, but with 
-	//  the above arm instruction encoding functions.., 
-	// with the apropriote arguments hardcoded to get the right semantics. 
-
-	for (nat i = 0; i < ins_count; i++) {
-		nat op = ins[i].op;
-		u32* a = ins[i].arguments;
-
-		     if (op == db)	emit_byte(a[0]);
-		else if (op == dh)	emith(a[0]);
-		else if (op == dw)	emit(a[0]);
-		else if (op == ecall)   emit(0xD4000001);
-
-		else if (op == add)    emit(generate_add(a[0], a[1], a[2], 0x0BU, 0, 0, 0, 0, 0));
-		else if (op == sub)    {}
-		else if (op == sll)    {}
-		else if (op == slt)    {}
-		else if (op == sltu)   {}
-		else if (op == xor_)   {}
-		else if (op == srl)    {}
-		else if (op == sra)    {}
-		else if (op == or_)    emit(generate_add(a[0], a[1], a[2], 0x2AU, 0, 0, 0, 0, 0));
-		else if (op == and_)   {}
-		else if (op == addw)   {}
-		else if (op == subw)   {}
-		else if (op == sllw)   {}
-		else if (op == srlw)   {}
-		else if (op == sraw)   {}
-		else if (op == lb)     {}
-		else if (op == lh)     {}
-		else if (op == lw)     {}
-		else if (op == ld)     {}
-		else if (op == lbu)    {}
-		else if (op == lhu)    {}
-		else if (op == lwu)    {}
-		else if (op == addi)   emit(generate_addi(a[0], a[1], 0x22U, a[2], 0, 0, 0, 0));
-		else if (op == slti)   {}
-		else if (op == sltiu)  {}
-		else if (op == xori)   {}
-		else if (op == ori)    {}
-		else if (op == andi)   {}
-		else if (op == slli)   {}
-		else if (op == srli)   {}
-		else if (op == addiw)  {}
-		else if (op == slliw)  {}
-		else if (op == srliw)  {}
-		else if (op == jalr)   {}
-		else if (op == sb)     {}
-		else if (op == sh)     {}
-		else if (op == sw)     {}
-		else if (op == sd)     {}
-		else if (op == lui)    {}
-		else if (op == auipc)  {}
-		else if (op == beq)    {}
-		else if (op == bne)    {}
-		else if (op == blt)    {}
-		else if (op == bge)    {}
-		else if (op == bltu)   {}
-		else if (op == bgeu)   {}
-		else if (op == jal)    {}
-		else {
-			printf("error: arm64: unknown instruction: %llu\n", op);
-			printf("       unknown instruction name: %s\n", instruction_spelling[op]);
-			abort();
-		}
-	}
-}
 
 
 static void make_elf_object_file(const char* object_filename) {
@@ -879,6 +972,8 @@ int main(int argc, const char** argv) {
 	char* text = read_file(filename, &text_length);
 
 	*registers = (nat)(void*) malloc(65536); 
+	arg_locations[arg_count] = (struct location){0};
+	arguments[arg_count++] = 0;
 
 	const char* object_filename = "object0.o";
 	const char* executable_filename = "executable0.out";
@@ -886,6 +981,9 @@ int main(int argc, const char** argv) {
 	bool preserve_existing_executable = true;
 	nat architecture = 0;
 	nat output_format = 0;
+
+	filenames[file_count] = filename;
+	files[file_count++] = (struct location) {.start = 0, .count = text_length};
 
 	nat count = 0, start = 0, index = 0;
 	for (; index < text_length; index++) {
@@ -895,6 +993,7 @@ int main(int argc, const char** argv) {
 		} else if (not count) continue;
 	process:;
 		const char* const word = text + start;
+		const struct location here = {start, count};
 
 		if (debug) printf(". %s: \"\033[32;1m%.*s\033[0m\"...\n", 
 				stop ? "\033[31mignoring\033[0m" : "\033[32mprocessing\033[0m", 
@@ -939,18 +1038,18 @@ int main(int argc, const char** argv) {
 			memcpy(text + index + 1, s, l);
 			text[index + 1 + l] = ' ';
 			text_length += l + 1;
+			filenames[file_count] = strdup(new);
+			files[file_count++] = (struct location) {.start = index + 1, .count = l + 1};
 			goto next;
 		}
 
-		
 		if (is(word, count, "debugregisters")) { print_registers(); goto next; }
 		if (is(word, count, "debugarguments")) { print_arguments(); goto next; }
 		if (is(word, count, "debuginstructions")) { print_instructions(); goto next; }
 		
 		for (u32 i = dw; i < instruction_set_count; i++) {
-			// printf("trying \"%s\"...\n", instruction_spelling[i]);
 			if (not is(word, count, instruction_spelling[i])) continue;
-			if (i < ctclear) push(i); else execute(i, &index, text);
+			if (i < ctclear) push(i, here); else execute(i, &index, text, here);
 			goto next;
 		}
 
@@ -961,13 +1060,16 @@ int main(int argc, const char** argv) {
 			else goto other_word;
 		}
 		if (debug) printf("[info: pushed %llu onto argument stack]\n", (nat) r);
+		arg_locations[arg_count] = here;
 		arguments[arg_count++] = r;
+		
 		goto next;
 	other_word:
 		for (nat i = 0; i < dict_count; i++) {
 			if (not is(word, count, names[i])) continue;
-			if (debug) printf("[info: FOUND USER-DEFINED NAME: pushed (%s)  value %llu  onto argument stack]\n", 
+			if (debug) printf("[info: found user-defined name: pushed (%s)  value %llu  onto argument stack]\n", 
 					names[i], (nat) values[i]);
+			arg_locations[arg_count] = here;
 			arguments[arg_count++] = values[i]; 
 			goto next;
 		}
@@ -979,7 +1081,7 @@ int main(int argc, const char** argv) {
 	error:;
 		char reason[4096] = {0};
 		snprintf(reason, sizeof reason, "unknown word \"%.*s\"", (int) defining_length, text + defining);
-		print_error(reason, start, count);
+		print_error(reason, here);
 		exit(1);
 		next: count = 0;
 	}
@@ -995,7 +1097,8 @@ generate_ins:
 
 	if (architecture == noruntime) {
 		if (not ins_count) exit(0);
-		print_error("encountered runtime instruction with target \"noruntime\"", 0, 0);
+		current_ins = ins[0];
+		print_error("encountered runtime instruction with target \"noruntime\"", ins[0].loc[0]);
 		exit(1);
 
 	} else if (architecture == riscv32 or architecture == riscv64) {
