@@ -61,7 +61,6 @@ static const char* output_format_spelling[output_format_count] = {
 
 enum host_systems { linux, macos };
 
-
 static u32 arm64_macos_abi[] = {        // note:  x9 is call-clobbered. save it before calls. 
 	31,30,31,13,14,15, 7,17,
 	29, 9, 0, 1, 2, 3, 4, 5,
@@ -591,13 +590,9 @@ static void generate_riscv_machine_code(void) {
 
 /////////////////////////////////////////////////
 
-
-
-
-
-
-static u32 generate_br(u32* a, u32 op, u32 oc) {  //          blr: oc = 1
-	u32 Rn = (u32) a[0];
+static u32 generate_br(u32 Rn, u32 im, u32 op, u32 oc) { 
+	if (oc >= 2 or im) zero_register_error(1);
+	Rn = arm64_macos_abi[Rn];
 	check(Rn, 32, "register", 0);
 	return (oc << 21U) | (op << 10U) | (Rn << 5U);
 }
@@ -649,7 +644,7 @@ static u32 generate_mov(u32 Rd, u32 op, u32 im, u32 sf, u32 oc, u32 sh) {
 
 // im Rn Rd addi    // addi
 static u32 generate_addi(u32 Rd, u32 Rn, u32 op, u32 im, u32 sf, u32 sb, u32 st, u32 sh) {  
-	if (not Rd) zero_register_error(0);
+	if (not Rd) return 0xD503201F;
 	if (not Rn) return generate_mov(Rd, 0x25U, im, sf, 2, 0);
 	
 	check(Rd, 32, "register", 0);
@@ -742,9 +737,9 @@ static void generate_arm64_machine_code(void) {
 		else if (op == ecall)   emit(0xD4000001);
 
 		else if (op == add)    emit(generate_add(a[0], a[1], a[2], 0x0BU, 0, 1, 0, 0, 0));
-		else if (op == sub)    {}
-		else if (op == sll)    {}
-		else if (op == slt)    {}
+		else if (op == sub)    emit(generate_add(a[0], a[1], a[2], 0x0BU, 0, 1, 0, 1, 0));
+		else if (op == sll)    {}    // next lets do      emit(generate_adc(a, 0x0D6U, 0x08));  // lslv
+		else if (op == slt)    {} // omg do we impl the slt/sltu via CSEL!!?!!?
 		else if (op == sltu)   {}
 		else if (op == xor_)   {}
 		else if (op == srl)    {}
@@ -752,7 +747,7 @@ static void generate_arm64_machine_code(void) {
 		else if (op == or_)    emit(generate_add(a[0], a[1], a[2], 0x2AU, 0, 1, 0, 0, 0));
 		else if (op == and_)   {}
 		else if (op == addw)   emit(generate_add(a[0], a[1], a[2], 0x0BU, 0, 0, 0, 0, 0));
-		else if (op == subw)   {}
+		else if (op == subw)   emit(generate_add(a[0], a[1], a[2], 0x0BU, 0, 0, 0, 1, 0));
 		else if (op == sllw)   {}
 		else if (op == srlw)   {}
 		else if (op == sraw)   {}
@@ -774,7 +769,7 @@ static void generate_arm64_machine_code(void) {
 		else if (op == addiw)  emit(generate_addi(a[0], a[1], 0x22U, a[2], 0, 0, 0, 0));
 		else if (op == slliw)  {}
 		else if (op == srliw)  {}
-		else if (op == jalr)   {}
+		else if (op == jalr)   emit(generate_br(a[0], a[1], 0x3587C0U, a[2]));
 		else if (op == sb)     {}
 		else if (op == sh)     {}
 		else if (op == sw)     {}
@@ -809,9 +804,6 @@ static void generate_arm64_machine_code(void) {
 
 		memcpy(a, ins[i].arguments, sizeof a);
 
-		     if (op == dw)     emit(im);
-		else if (op == ecall)  emit(0xD4000001);
-
 		else if (op == br)     emit(generate_br(a, 0x3587C0U));
 		else if (op == b_)     emit(generate_b(a, ins[i].immediate));
 		else if (op == bc)     emit(generate_bc(a, ins[i].immediate));
@@ -822,19 +814,12 @@ static void generate_arm64_machine_code(void) {
 		else if (op == umadd)  emit(generate_madd(a, 0xDD));
 		else if (op == adc)    emit(generate_adc(a, 0x0D0U, 0x00));
 		else if (op == udiv)   emit(generate_adc(a, 0x0D6U, 0x02));
-		else if (op == umax)   emit(generate_adc(a, 0x0D6U, 0x19));
-		else if (op == umin)   emit(generate_adc(a, 0x0D6U, 0x1B));
 		else if (op == lslv)   emit(generate_adc(a, 0x0D6U, 0x08));
 		else if (op == lsrv)   emit(generate_adc(a, 0x0D6U, 0x09));
 		else if (op == asrv)   emit(generate_adc(a, 0x0D6U, 0x0A));
 		else if (op == rorv)   emit(generate_adc(a, 0x0D6U, 0x0B));
 		else if (op == or_)    emit(generate_add(a, 0x2AU, im));
 		else if (op == add)    emit(generate_add(a, 0x0BU, im));
-		else if (op == rbit)   emit(generate_rev(a, 0x16B000U));
-		else if (op == revh)   emit(generate_rev(a, 0x16B001U));
-		else if (op == rev)    emit(generate_rev(a, 0x16B002U));
-		else if (op == clz)    emit(generate_rev(a, 0x16B004U));
-		else if (op == cls)    emit(generate_rev(a, 0x16B005U));
 		else if (op == csel)   emit(generate_csel(a, 0x0D4U));
 		else if (op == memi)   emit(generate_memi(a,  0x38, im));
 		else if (op == memiu)  emit(generate_memiu(a, 0x39, im));
@@ -1179,7 +1164,78 @@ generate_ins:
 
 
 
+/*
+Riscv and arm ABI:
 
+
+
+
+arm64:
+====================
+
+	x0-x7 : function arguments  			   (call-clobbered) *  A0-A7
+
+	x8 : temporary on macos, callnumber on linux.      (call-clobbered) *       syscall on linux.
+
+	x9-x15 : temporary registers			   (call-clobbered) * 
+
+	x16-x17 : intraprocedural call registers	   (call-clobbered) *       syscall on macos.
+	
+	x18 : platform specific, not usable at all         (call-clobbered) *   .
+
+	x19-x28 : callee-saved registers 		   (call-preserved)    S0-S9
+
+	x29 : frame pointer  				   (call-preserved)    FP
+
+	x30 : link register				   (call-clobbered) *  LR
+
+	x31 : zero regsiter or stack pointer		   (call-preserved)    SP
+
+
+
+has:
+	10 (x8,x9-x15,x16,x17) temporaries (call-clobbered) registers
+	10 (x19-x28) callee-saved (call-preserved) registers
+
+
+
+riscv64:
+====================
+
+	x0 : zero register                                     neither
+
+	x1 : return address / link register                (call-clobbered) *  LR
+
+	x2 : stack pointer 				   (call-preserved)    SP
+
+	x3 : global pointer (temporary)                        neither
+
+	x4 : thread pointer (temporary)                        neither
+
+	x5-x7 : temporaries				   (call-clobbered) *
+
+	x8 : frame pointer or callee-saved		   (call-preserved)    FP
+
+	x9 : callee-saved register			   (call-preserved)    
+
+	x10-x17 : function arguments			   (call-clobbered) *  A0-A7
+
+	x18-x27 : callee-saved registers 		   (call-preserved)    S0-S9
+	
+	x28-x31 : temporaries 				   (call-clobbered) * 
+
+
+has:
+	9 (x3,x4,x5-x7,x28-x31) temporaries (call-clobbered) registers
+	11 (x9,x18-x27) callee-saved (call-preserved) registers
+
+
+
+
+
+
+
+*/
 
 
 

@@ -56,11 +56,39 @@
 11 		systemcall.read 	define
 001 		systemcall.write 	define
 101 		systemcall.open 	define 
+011		systemcall.close	define
+
 0011		systemcall.chdir	define
+
 100001		systemcall.access	define
 110111		systemcall.execve	define
 
 
+
+
+0 ctf 
+others to add soon:
+
+	197	systemcall.mmap 	define
+
+	199	systemcall.lseek	define
+
+	189	systemcall.fstat	define
+
+	201	systemcall.ftruncate	define
+
+	136	systemcall.mkdir 	define
+
+	137	systemcall.rmdir	define
+
+	128	systemcall.rename	define
+
+	73	systemcall.munmap	define
+
+	54	systemcall.ioctl	define
+
+
+0 ctstop
 
 
 
