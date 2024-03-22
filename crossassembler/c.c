@@ -8,7 +8,6 @@
 	use a translation layer to translate the risc-v ISA instructions
 	into the target's ISA (eg, arm64, arm32, x86, x86_64).
 
-	
 */
 
 #include <stdio.h>   
@@ -69,7 +68,7 @@ static u32 arm64_macos_abi[] = {        // note:  x9 is call-clobbered. save it 
 };
 
 enum language_ISA {
-	dw, ecall, ebreak, fence,  // base ISA.
+	dw, ecall, ebreak, fence,  // base ISA:   (I)
 	fencei, add, sub, sll, 
 	slt, sltu, xor_, srl, 
 	sra, or_, and_, addw, 
@@ -84,21 +83,12 @@ enum language_ISA {
 	sh, sw, sd, lui, 
 	auipc, beq, bne, blt, 
 	bge, bltu, bgeu, jal, 
-
 	mul, mulh, mulhsu, mulhu,       //  M extension
 	div_, divu, rem, remu, 
 	mulw, divw, divuw, remw, 
 	remuw,
-
-	dh, 
-	cnop, caddi4spn, clw, cld, csw, csd,   // C extension
-	caddi, cjal, caddiw, cli, caddi16sp, 
-	clui, csrli, candi, csub, cxor, cor, 
-	cand, csubw, caddw, cj, cbeqz, cbnez, 
-	cslli, clwsp, cldsp, cjr, cmv, cebreak, 
-	cjalr, cadd, cswsp, csdsp, 
-
-	db, 
+		// todo: add atomic (A) extension, and F/D extensions, as well.  eventually lol.
+	dh,  db, 
 
 	ctclear, ctdel, ctls, ctarg, ctli, ctstop,   // compiletime system.
 	ctat, ctpc, ctb, ctf, ctblt,
@@ -109,6 +99,23 @@ enum language_ISA {
 	ctprint, ctabort, ctget, ctput,
 	instruction_set_count
 };
+
+
+
+
+	// todo:    wait....  do any of these C-extension ins even do anything that the main instructions can't do!?!? i feel like we can just have the assembler know to use these instructions when appropriate?  and just know how to use the main instructions, to get these instructions, i feel like that makes alot more sense!!! that way it keeps the language both small and portable, and still fully performance-expressable for riscv archs.
+
+	//cnop, caddi4spn, clw, cld, csw, csd,   // C extension
+	//caddi, cjal, caddiw, cli, caddi16sp, 
+	//clui, csrli, candi, csub, cxor, cor, 
+	//cand, csubw, caddw, cj, cbeqz, cbnez, 
+	//cslli, clwsp, cldsp, cjr, cmv, cebreak, 
+	//cjalr, cadd, cswsp, csdsp, 
+
+
+
+
+
 static const char* instruction_spelling[instruction_set_count] = {
 	"u32", "ecall", "ebreak", "fence", 
 	"fencei", "add", "sub", "sll", 
@@ -122,22 +129,25 @@ static const char* instruction_spelling[instruction_set_count] = {
 	"addiw", "slliw", "srliw", "sraiw",
 	"jalr", "csrrw", "csrrs", "csrrc", 
 	"csrrwi", "csrrsi", "csrrci", "sb", 
-	"sh", "sw", "sd", "lui", 
+	"sh", "sw", "sd", "lui",
 	"auipc", "beq", "bne", "blt", 
 	"bge", "bltu", "bgeu", "jal", 
-
 	"mul", "mulh", "mulhsu", "mulhu", 
 	"div_", "divu", "rem", "remu", 
 	"mulw", "divw", "divuw", "remw", 
 	"remuw",
 	
 	"u16", 
-	"cnop", "caddi4spn", "clw", "cld", "csw", "csd", 
-	"caddi", "cjal", "caddiw", "cli", "caddi16sp", 
-	"clui", "csrli", "candi", "csub", "cxor", "cor", 
-	"cand", "csubw", "caddw", "cj", "cbeqz", "cbnez", 
-	"cslli", "clwsp", "cldsp", "cjr", "cmv", "cebreak", 
-	"cjalr", "cadd", "cswsp", "csdsp", 
+
+
+		// see above.
+
+//	"cnop", "caddi4spn", "clw", "cld", "csw", "csd", 
+//	"caddi", "cjal", "caddiw", "cli", "caddi16sp", 
+//	"clui", "csrli", "candi", "csub", "cxor", "cor", 
+//	"cand", "csubw", "caddw", "cj", "cbeqz", "cbnez", 
+//	"cslli", "clwsp", "cldsp", "cjr", "cmv", "cebreak", 
+//	"cjalr", "cadd", "cswsp", "csdsp", 
 
 	"u8",
 
