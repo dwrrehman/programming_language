@@ -1,18 +1,26 @@
-this is an example file. 
+"snincr"
+"snprint"
+"snpush"
+"debugarguments"
 
-"hello there from space"
-
-"hello there"
-
+snincr
+snincr
+snincr
+snincr
+snpush
+snprint
 "hello"
-	hello there from space?
-	
-	nice lol. hellonice.
 
-"i am cool"
-yup thats all.
-		"lol"
+hello
+hello
+hellohello
+	 d e b u g    a r
+g u m
+
+e n t s
 
 
-end of program please
+
+
+
 
