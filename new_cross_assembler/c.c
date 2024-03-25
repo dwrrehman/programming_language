@@ -7,11 +7,20 @@
 	only the risc-v target has performance guarantees. other targets
 	use a translation layer to translate the risc-v ISA instructions
 	into the target's ISA (eg, arm64, arm32, x86, x86_64).
-*/
 
-///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-///////////////////////////////          we need to implement contexts next!!!           ////////////////////////// 
-///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+todo stuff:
+
+	 - implement contexts for names. 
+
+	- implement including files.
+
+	- flush out the branching system for risc-v compiletime system.
+
+	- start trying to figure out branches for arm64. 
+
+	- 
+*/
 
 #include <stdio.h>   
 #include <stdlib.h>  
@@ -79,8 +88,17 @@ static u32 arm64_macos_abi[] = {        // note:  x9 is call-clobbered. save it 
 	31,30,31,13,14,15, 7,17,
 	29, 9, 0, 1, 2, 3, 4, 5,
 	 6,16,19,20,21,22,23,24,
-	25,26,27,28,12, 8,11,10,
+	25,26,27,28,12, 8,11,10,    
 };
+
+
+
+//   WRONG:     we solved this properly actually. 
+
+    //  TODO:   problem:   we arent translating the syscall number   regs  properly between riscv-linux (a7)   and arm64 linux/arm64 macos. we need to do this properly! 
+
+
+
 
 enum language_ISA {
 
@@ -259,7 +277,50 @@ static void push_arg(nat r) {
 
 static char* get_name(nat name) {
 	
+	const nat start = names[name];
+	nat end = start;
+	while (text[end] != '"') end++;
+
+	
+	char* string = calloc(end - start + 1, 1);
+	memcpy(string, text + start, end - start);
+	return string;
+
+
+
+
+
+/*
+					we left off here
+
+			make this function not use  lengths[]       instead, determine the length of the string ourselves, including all whitespace!!
+
+
+
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+
+prveiosu implmentation:
+
+
 	return strndup(text + names[name], lengths[name]);
+*/
+
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+
+
+
+
+
+
+
+
+
+
+
 	
 }
 
@@ -909,11 +970,9 @@ static void make_macho_object_file(const char* object_filename, const bool prese
 		exit(1);
 	}
 
-	puts("object_filename");
-
-	puts(object_filename);
-
-	exit(0);
+//	puts("object_filename");
+//	puts(object_filename);
+//	exit(0);
 
 
 	const int flags = O_WRONLY | O_CREAT | O_TRUNC | (preserve_existing_object ? O_EXCL : 0);
@@ -939,7 +998,6 @@ static void execute_push(u32 op, struct location here) {
 		nat a1 = arg_count > 1 ? arguments[arg_count - 1 - 1] : 0;
 		nat a0 = arg_count > 0 ? arguments[arg_count - 1 - 0] : 0;
 
-
 		     if (op == add)   registers[a0] = registers[a1] + registers[a2]; 
 		else if (op == sub)   registers[a0] = registers[a1] - registers[a2]; 
 		else if (op == mul)   registers[a0] = registers[a1] * registers[a2]; 
@@ -956,7 +1014,7 @@ static void execute_push(u32 op, struct location here) {
 		else if (op == xori)   registers[a0] = registers[a1] ^ a2; 
 		else if (op == slti)   registers[a0] = registers[a1] < a2; 
 		else if (op == sltiu)  registers[a0] = registers[a1] < a2; 
-
+		else { puts("unknown ct instruction!"); abort(); }
 		return;
 	}
 
@@ -1052,12 +1110,19 @@ int main(int argc, const char** argv) {
 		else if (is("setarchitecture", e)) 	architecture = arguments[arg_count - 1];
 		else if (is("setoutputformat", e)) 	output_format = arguments[arg_count - 1]; 
 		else if (is("preserveobject", e)) 	preserve_existing_object = arguments[arg_count - 1]; 
-		else if (is("preserveexecuteable", e)) 	preserve_existing_executable = arguments[arg_count - 1]; 
+		else if (is("preserveexecutable", e)) 	preserve_existing_executable = arguments[arg_count - 1]; 
 		else if (is("setobjectname", e)) 	object_filename = get_name(spot); 
 		else if (is("setexecutablename", e)) 	executable_filename = get_name(spot); 
 
 		else if (is("ctincr", e)) registers[a0]++;
 		else if (is("ctzero", e)) registers[a0] = 0;
+
+
+		else if (is("ecall", e)) execute_push(ecall, here); 
+		else if (is("ebreak", e)) execute_push(ebreak, here); 
+		else if (is("fence", e)) execute_push(fence, here); 
+		else if (is("fencei", e)) execute_push(fencei, here); 
+
 
 		else if (is("add", e)) execute_push(add, here); 
 		else if (is("sub", e)) execute_push(sub, here); 
