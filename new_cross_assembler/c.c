@@ -83,37 +83,19 @@ static u32 arm64_macos_abi[] = {        // note:  x9 is call-clobbered. save it 
 };
 
 enum language_ISA {
-	ins_eof, 
-	ins_0, 
-	ins_1, 
-	ins_l, 
 
-	ins_d, 
-	ins_da, 
-	ins_dr, 
-	ins_di, 
-	ins_dd,
-
-	ins_ar, 
-	ins_of, 
-	ins_on, 
-	ins_en, 
-	ins_po, 
-	ins_pe,
-
-	ins_del, 
-	ins_arg, 
-
+	ctzero,
+	ctincr, 
+	ctmode, 
+	ctclear,
 	ctabort, 
 	ctprint, 
-	ctmode, 
-	ctat, 
 	ctget, 
 	ctput,
-	ctclear,
+	ctdel, 
+	ctarg, 
+	ctat, 
 
-	incr, 
-	zero,
 	db, 
 	dh, 
 	dw, 
@@ -189,190 +171,9 @@ enum language_ISA {
 	divuw, 
 	remw, 
 	remuw, 
+
 	instruction_set_count
 };
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-/*
-
-
-
-static const char* spelling[instruction_set_count] = {
-	"ins_eof", 
-	"ins_0", 
-	"ins_1", 
-	"ins_l", 
-
-	"ins_d", 
-	"ins_da", 
-	"ins_dr", 
-	"ins_di", 
-	"ins_dd",
-
-	"ins_ar", 
-	"ins_of", 
-	"ins_on", 
-	"ins_en", 
-	"ins_po", 
-	"ins_pe",
-
-	"ins_del", 
-	"ins_arg", 
-
-	"ctabort", 
-	"ctprint", 
-	"ctmode", 
-	"ctat", 
-	"ctget", 
-	"ctput",
-
-
-	"ctclear", 
-	"ctls", 
-	"ctli", 
-	"ctstop",
-
-	"ctpc", 
-	"ctb", 
-	"ctf", 
-	"ctblt",
-	"ctbge", 
-	"ctbeq", 
-	"ctbne",
- 
-	"ctincr", 
-	"ctzero",
-
-	"ctadd", 
-	"ctsub", 
-	"ctmul", 
-	"ctdiv", 
-	"ctrem", 
-
-	"ctnor", 
-	"ctxor", 
-	"ctand", 
-	"ctor",
-	"ctsl", 
-	"ctsr",
- 
-	"ctlb", 
-	"ctlh", 
-	"ctlw",
-	"ctld", 
-
-	"ctsb", 
-	"ctsh", 
-	"ctsw", 
-	"ctsd",
-
-	"db", 
-	"dh", 
-	"dw", 
-
-	"ecall", 
-	"ebreak", 
-	"fence", 
-	"fencei", 
-	
-	"add", 
-	"sub", 
-	"sll", 
-	"slt", 
-	"sltu", 
-	"xor_", 
-	"srl", 
-	"sra", 
-	"or_", 
-	"and_", 
-	"addw", 
-	"subw", 
-	"sllw", 
-	"srlw", 
-	"sraw",
-	"lb", 
-	"lh", 
-	"lw", 
-	"ld", 
-	"lbu", 
-	"lhu", 
-	"lwu", 
-	"addi", 
-	"slti", 
-	"sltiu", 
-	"xori", 
-	"ori", 
-	"andi", 
-	"slli", 
-	"srli", 
-	"srai", 
-	"addiw", 
-	"slliw", 
-	"srliw", 
-	"sraiw",
-	"jalr", 
-	"csrrw", 
-	"csrrs", 
-	"csrrc", 
-	"csrrwi", 
-	"csrrsi", 
-	"csrrci", 
-	"sb", 
-	"sh", 
-	"sw", 
-	"sd", 
-	"lui", 
-	"auipc", 
-	"beq", 
-	"bne", 
-	"blt", 
-	"bge", 
-	"bltu", 
-	"bgeu", 
-	"jal", 
-	"mul", 
-	"mulh", 
-	"mulhsu", 
-	"mulhu",
-	"div_", 
-	"divu", 
-	"rem", 
-	"remu", 
-	"mulw", 
-	"divw", 
-	"divuw", 
-	"remw", 
-	"remuw", 
-
-	
-};
-
-*/
-
-
-
-
-
-
-
-//static nat defining = 0;
-//static nat defining_length = 0;
-//static nat dict_count = 0; 
-//static char* names[4096] = {0};
-//static u32 values[4096] = {0};
 
 
 struct location {
@@ -422,11 +223,6 @@ static bool is(const char* literal, nat initial) {
 	return text[i] == '"' and not literal[j];
 }
 
-
-
-
-
-
 static char* read_file(const char* name, nat* out_length) {
 	int d = open(name, O_RDONLY | O_DIRECTORY);
 	if (d >= 0) { close(d); errno = EISDIR; goto read_error; }
@@ -444,7 +240,6 @@ static char* read_file(const char* name, nat* out_length) {
 	return string;
 }
 
-
 // use this instead:
 
 	//int file = open(argv[1], O_RDONLY);
@@ -456,12 +251,17 @@ static char* read_file(const char* name, nat* out_length) {
 	//close(file);
 
 
+static void push_arg(nat r) {
+	if (debug) printf("[info: pushed %llu onto argument stack]\n", (nat) r);
+	arg_locations[arg_count] = (struct location) {0};
+	arguments[arg_count++] = (u32) r;
+}
 
-
-
-
-
-
+static char* get_name(nat name) {
+	
+	return strndup(text + names[name], lengths[name]);
+	
+}
 
 static void print_error(const char* reason, struct location spot) {
 
@@ -480,102 +280,6 @@ static void print_error(const char* reason, struct location spot) {
 	fprintf(stderr, "] \033[1;31merror:\033[m \033[1m%s\033[m\n", reason);
 }
 
-static void execute_push(u32 op, struct location here) {
-
-	if (is_compiletime) {
-		if (op == add)   registers[a0] = registers[a1] + registers[a2]; 
-		if (op == sub)   registers[a0] = registers[a1] - registers[a2]; 
-		if (op == mul)   registers[a0] = registers[a1] * registers[a2]; 
-		if (op == div_)  registers[a0] = registers[a1] / registers[a2]; 
-		if (op == and_)  registers[a0] = registers[a1] & registers[a2]; 
-		if (op == or_)   registers[a0] = registers[a1] | registers[a2]; 
-		if (op == xor_)  registers[a0] = registers[a1] ^ registers[a2]; 
-		if (op == slt_)  registers[a0] = registers[a1] < registers[a2]; 
-		if (op == sltu_)  registers[a0] = registers[a1] < registers[a2]; 
-		if (op == sltu_)  registers[a0] = registers[a1] < registers[a2]; 	
-		return;
-	}
-
-	struct instruction new = {0};
-	new.a[0] = op;
-	new.loc[0] = here;
-	for (nat i = 1; i < 4; i++) {
-		if (i > arg_count) break;
-		new.loc[i] = arg_locations[arg_count - i];
-		new.a[i] = arguments[arg_count - i];
-	}
-	
-	if (op >= beq and op <= jal) new.a[3] = (u32) registers[new.a[3]];
-	ins = realloc(ins, sizeof(struct instruction) * (ins_count + 1));
-	ins[ins_count++] = new;
-}
-
-
-/*
-static void execute(nat op, nat* pc, char* text, struct location here) {
-	const nat a2 = arg_count >= 3 ? arguments[arg_count - 3] : 0;
-	const nat a1 = arg_count >= 2 ? arguments[arg_count - 2] : 0;
-	const nat a0 = arg_count >= 1 ? arguments[arg_count - 1] : 0;
-
-	//if (op == ctstop) { if (registers[a0] == stop) stop = 0; return; }
-	//if (stop) return;
-
-	//if (debug) printf("@%llu: info: executing \033[1;32m%s\033[0m(%llu) "
-	//		" %lld %lld %lld\n", *pc, instruction_spelling[op], op, a0, a1, a2);
-
-	//if (op == ctclear) arg_count = 0;
-	
-
-//	else if (op == ctarg)  {
-//		arg_locations[arg_count] = here;
-//		arguments[arg_count++] = (u32) registers[a0]; 
-//	}
-
-	else if (op == ctls)   registers[a0] = (nat) text[registers[a1]];
-	else if (op == ctli)   registers[a0] = a1;
-	else if (op == ctat)   registers[a0] = ins_count;
-	else if (op == ctpc)   registers[a0] = *pc;
-	else if (op == ctb)    { if (ct_flag)  *pc = registers[a0]; }
-	else if (op == ctf)    { if (ct_flag) stop = registers[a0]; }
-	else if (op == ctblt)  ct_flag = registers[a0]  < registers[a1];
-	else if (op == ctbge)  ct_flag = registers[a0] >= registers[a1];
-	else if (op == ctbeq)  ct_flag = registers[a0] == registers[a1];
-	else if (op == ctbne)  ct_flag = registers[a0] != registers[a1];
-
-	else if (op == ctincr) registers[a0]++;
-	else if (op == ctzero) registers[a0] = 0;
-	
-	else if (op == ctadd)  registers[a0] = registers[a1] + registers[a2]; 
-	else if (op == ctsub)  registers[a0] = registers[a1] - registers[a2]; 
-	else if (op == ctmul)  registers[a0] = registers[a1] * registers[a2]; 
-	else if (op == ctdiv)  registers[a0] = registers[a1] / registers[a2]; 
-	else if (op == ctrem)  registers[a0] = registers[a1] % registers[a2]; 
-	else if (op == ctxor)  registers[a0] = registers[a1] ^ registers[a2]; 
-	else if (op == ctand)  registers[a0] = registers[a1] & registers[a2]; 
-	else if (op == ctor)   registers[a0] = registers[a1] | registers[a2]; 
-	else if (op == ctnor)  registers[a0] = ~(registers[a1] | registers[a2]); 
-	else if (op == ctsl)   registers[a0] = registers[a1] << registers[a2]; 
-	else if (op == ctsr)   registers[a0] = registers[a1] >> registers[a2]; 
-
-	else if (op == ctlb)  registers[a0] = *(u8*) registers[a1]; 
-	else if (op == ctlh)  registers[a0] = *(u16*)registers[a1]; 
-	else if (op == ctlw)  registers[a0] = *(u32*)registers[a1]; 
-	else if (op == ctld)  registers[a0] = *(nat*)registers[a1]; 
-
-	else if (op == ctsb)  *(u8*) registers[a0] = (u8)  registers[a1]; 
-	else if (op == ctsh)  *(u16*)registers[a0] = (u16) registers[a1]; 
-	else if (op == ctsw)  *(u32*)registers[a0] = (u32) registers[a1]; 
-	else if (op == ctsd)  *(nat*)registers[a0] = (nat) registers[a1]; 
-	
-	else if (op == ctprint) printf("debug: \033[32m%llu (%lld)\033[0m \033[32m0x%llx\033[0m\n", registers[a0], registers[a0], registers[a0]); 
-	else if (op == ctabort) abort();
-	else if (op == ctget) registers[a0] = (nat) getchar();
-	else if (op == ctput) putchar((char) registers[a0]);
-}
-*/
-
-
-
 static void print_registers(void) {
 	nat printed_count = 0;
 	printf("debug: registers = {\n");
@@ -590,15 +294,14 @@ static void print_registers(void) {
 }
 
 static void print_arguments(void) {
-	printf("arguments: { ");
+	printf("\narguments[]: { \n");
 	for (nat i = 0; i < arg_count; i++) {
-		printf("{%llu:(%llu:%llu)} ", 
-			(nat) arguments[i], 
-			arg_locations[i].start,
-			arg_locations[i].count
+		printf("\targuments[%llu] = { %llu  :  (.start=%llu,.count=%llu)} \n", 
+			i, (nat) arguments[i], 
+			arg_locations[i].start, arg_locations[i].count
 		);
 	}
-	puts("} ");
+	puts("} \n");
 }
 
 static void print_instructions(void) {
@@ -1203,7 +906,15 @@ static void make_macho_object_file(const char* object_filename, const bool prese
 	if (preserve_existing_object and not access(object_filename, F_OK)) {
 		puts("asm: object_file: file exists"); 
 		puts(object_filename);
+		exit(1);
 	}
+
+	puts("object_filename");
+
+	puts(object_filename);
+
+	exit(0);
+
 
 	const int flags = O_WRONLY | O_CREAT | O_TRUNC | (preserve_existing_object ? O_EXCL : 0);
 	const mode_t mode = S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH;
@@ -1221,42 +932,46 @@ static void make_macho_object_file(const char* object_filename, const bool prese
 }
 
 
+static void execute_push(u32 op, struct location here) {
+
+	if (is_compiletime) {
+		nat a2 = arg_count > 2 ? arguments[arg_count - 1 - 2] : 0;
+		nat a1 = arg_count > 1 ? arguments[arg_count - 1 - 1] : 0;
+		nat a0 = arg_count > 0 ? arguments[arg_count - 1 - 0] : 0;
 
 
+		     if (op == add)   registers[a0] = registers[a1] + registers[a2]; 
+		else if (op == sub)   registers[a0] = registers[a1] - registers[a2]; 
+		else if (op == mul)   registers[a0] = registers[a1] * registers[a2]; 
+		else if (op == div_)  registers[a0] = registers[a1] / registers[a2]; 
+		else if (op == and_)  registers[a0] = registers[a1] & registers[a2]; 
+		else if (op == or_)   registers[a0] = registers[a1] | registers[a2]; 
+		else if (op == xor_)  registers[a0] = registers[a1] ^ registers[a2]; 
+		else if (op == slt)   registers[a0] = registers[a1] < registers[a2]; 
+		else if (op == sltu)  registers[a0] = registers[a1] < registers[a2]; 
 
+		else if (op == addi)   registers[a0] = registers[a1] + a2; 
+		else if (op == andi)   registers[a0] = registers[a1] & a2; 
+		else if (op == ori)    registers[a0] = registers[a1] | a2; 
+		else if (op == xori)   registers[a0] = registers[a1] ^ a2; 
+		else if (op == slti)   registers[a0] = registers[a1] < a2; 
+		else if (op == sltiu)  registers[a0] = registers[a1] < a2; 
 
+		return;
+	}
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-static void push_arg(nat r) {
-	if (debug) printf("[info: pushed %llu onto argument stack]\n", (nat) r);
-	arg_locations[arg_count] = (struct location) {0};
-	arguments[arg_count++] = (u32) r;
-}
-
-static char* get_name(nat name) {
-	return strndup(text + names[name], lengths[name]);
+	struct instruction new = {0};
+	new.a[0] = op;
+	new.loc[0] = here;
+	for (nat i = 1; i < 4; i++) {
+		if (i > arg_count) break;
+		new.loc[i] = arg_locations[arg_count - i];
+		new.a[i] = arguments[arg_count - i];
+	}
+	
+	if (op >= beq and op <= jal) new.a[3] = (u32) registers[new.a[3]];
+	ins = realloc(ins, sizeof(struct instruction) * (ins_count + 1));
+	ins[ins_count++] = new;
 }
 
 int main(int argc, const char** argv) {
@@ -1267,9 +982,7 @@ int main(int argc, const char** argv) {
 	text_length = 0;
 	text = read_file(filename, &text_length);
 
-	*registers = (nat)(void*) malloc(65536);
-	arg_locations[arg_count] = (struct location){0};
-	arguments[arg_count++] = 0;
+	registers[2] = (nat)(void*) malloc(65536);
 
 	const char* object_filename = "object0.o";
 	const char* executable_filename = "executable0.out";
@@ -1281,13 +994,13 @@ int main(int argc, const char** argv) {
 	filenames[file_count] = filename;
 	files[file_count++] = (struct location) {.start = 0, .count = text_length};
 
-	nat start = 0, length = 0, name_starts_at = 0, r = 0, s = 0, called_name = 0;
+	nat start = 0, length = 0, name_starts_at = 0, r = 0, s = 1, called_name = 0, spot = 0;
 
 	for (nat index = 0; index < text_length; index++) {
 		if ((unsigned char) text[index] < 33) goto next_char;
 		if (text[index] == '"') {
 			if (not start) { start = index + 1; length = 0; goto next_char; } 
-			nat spot = 0;
+			spot = 0;
 			for (; spot < name_count; spot++) if (length >= lengths[spot]) break;
 			memmove(lengths + spot + 1, lengths + spot, sizeof(nat) * (name_count - spot));
 			memmove(names + spot + 1, names + spot, sizeof(nat) * (name_count - spot));
@@ -1333,77 +1046,45 @@ int main(int argc, const char** argv) {
 		struct location here = {0};
 
 		     if (is("eof", e)) 	break;
+
+		else if (is("setcompiletime", e)) 	is_compiletime = true;
+		else if (is("setruntime", e)) 		is_compiletime = false;
+		else if (is("setarchitecture", e)) 	architecture = arguments[arg_count - 1];
+		else if (is("setoutputformat", e)) 	output_format = arguments[arg_count - 1]; 
+		else if (is("preserveobject", e)) 	preserve_existing_object = arguments[arg_count - 1]; 
+		else if (is("preserveexecuteable", e)) 	preserve_existing_executable = arguments[arg_count - 1]; 
+		else if (is("setobjectname", e)) 	object_filename = get_name(spot); 
+		else if (is("setexecutablename", e)) 	executable_filename = get_name(spot); 
+
+		else if (is("ctincr", e)) registers[a0]++;
+		else if (is("ctzero", e)) registers[a0] = 0;
+
+		else if (is("add", e)) execute_push(add, here); 
+		else if (is("sub", e)) execute_push(sub, here); 
+		else if (is("and", e)) execute_push(and_, here); 
+		else if (is("or",  e)) execute_push(or_, here); 
+		else if (is("xor", e)) execute_push(xor_, here); 
+		else if (is("slt", e)) execute_push(slt, here); 
+		else if (is("sltu",e)) execute_push(sltu, here); 
+
+
+		else if (is("addi", e)) execute_push(addi, here); 
+		else if (is("andi", e)) execute_push(andi, here); 
+		else if (is("ori",  e)) execute_push(ori, here); 
+		else if (is("xori", e)) execute_push(xori, here); 
+		else if (is("slti", e)) execute_push(slti, here); 
+		else if (is("sltiu",e)) execute_push(sltiu, here); 
+
 		else if (is("0", e)) 	s <<= 1;                        // todo: delete these eventually. 
 		else if (is("1", e)) 	{ r += s; s <<= 1; }            // and make these user-level-made.
-		else if (is(".", e)) 	{ push_arg(r); r = 0; s = 1; }  // using ct system / macros.
+		else if (is("=", e)) 	{ push_arg(r); r = 0; s = 1; }  // using ct system / macros.
 
-		else if (is("enabledebug", e)) 		debug = arguments[arg_count - 1];
+		else if (is("setdebug", e)) 		debug = arguments[arg_count - 1];
 		else if (is("debugarguments", e)) 	print_arguments();
 		else if (is("debugregisters", e)) 	print_registers();
 		else if (is("debuginstructions", e))	print_instructions();
 		else if (is("debugdictionary", e))	print_dictionary();
-
-		else if (is("settargetarch", e)) 	architecture = arguments[arg_count - 1];
-		else if (is("setoutputformat", e)) 	output_format = arguments[arg_count - 1]; 
-		else if (is("objectname", e)) 		object_filename = get_name(name_count - 1); 
-		else if (is("executablename", e)) 	executable_filename = get_name(name_count - 1); 
-		else if (is("preserveobject", e)) 	preserve_existing_object = arguments[arg_count - 1]; 
-		else if (is("preserveexecuteable", e)) 	preserve_existing_executable = arguments[arg_count - 1]; 
-
-		else if (is("add", e)) execute_push(add, here); 
-		else if (is("sub", e)) execute_push(sub, here); 
-		else if (is("incr", e)) execute_push(incr, here); 
-		}
-		else if (is("sub", e))  push(sub, (struct location) {0}); 
-		else if (is("and", e)) 	push(and_, (struct location) {0}); 
-		else if (is("or", e))  	push(or_, (struct location) {0}); 
-		else if (e == xor_) 	push(xor_, (struct location) {0}); 
-		else if (e == slt)  	push(slt, (struct location) {0}); 
-		else if (e == sltu) 	push(sltu, (struct location) {0}); 
-
-	
-
-
-
-	/*
-		else if (e == ins_del)  { if (arg_count) arg_count--; }
-		else if (e == ins_arg)	push_arg(registers[a0]);
-
-		else if (e == ctli)   registers[a0] = a1;
-		else if (e == ctat)   registers[a0] = ins_count;
-		else if (e == ctpc)   registers[a0] = index;
-		else if (e == ctb)    { if (ct_flag) index = registers[a0]; }
-		else if (e == ctf)    { if (ct_flag) stop = registers[a0]; }
-		else if (e == ctblt)  ct_flag = registers[a0]  < registers[a1];
-		else if (e == ctbge)  ct_flag = registers[a0] >= registers[a1];
-		else if (e == ctbeq)  ct_flag = registers[a0] == registers[a1];
-		else if (e == ctbne)  ct_flag = registers[a0] != registers[a1];
-
-		else if (e == ctincr) registers[a0]++;
-		else if (e == ctzero) registers[a0] = 0;
-		
-		else if (e == ctsub)  registers[a0] = registers[a1] - registers[a2]; 
-		else if (e == ctmul)  registers[a0] = registers[a1] * registers[a2]; 
-		else if (e == ctdiv)  registers[a0] = registers[a1] / registers[a2]; 
-		else if (e == ctrem)  registers[a0] = registers[a1] % registers[a2]; 
-		else if (e == ctxor)  registers[a0] = registers[a1] ^ registers[a2]; 
-		else if (e == ctand)  registers[a0] = registers[a1] & registers[a2]; 
-		else if (e == ctor)   registers[a0] = registers[a1] | registers[a2]; 
-		else if (e == ctnor)  registers[a0] = ~(registers[a1] | registers[a2]); 
-		else if (e == ctsl)   registers[a0] = registers[a1] << registers[a2]; 
-		else if (e == ctsr)   registers[a0] = registers[a1] >> registers[a2]; 
-
-		else if (e == ctlb)  registers[a0] = *(u8*) registers[a1]; 
-		else if (e == ctlh)  registers[a0] = *(u16*)registers[a1]; 
-		else if (e == ctlw)  registers[a0] = *(u32*)registers[a1]; 
-		else if (e == ctld)  registers[a0] = *(nat*)registers[a1]; 
-
-		else if (e == ctsb)  *(u8*) registers[a0] = (u8)  registers[a1]; 
-		else if (e == ctsh)  *(u16*)registers[a0] = (u16) registers[a1]; 
-		else if (e == ctsw)  *(u32*)registers[a0] = (u32) registers[a1]; 
-		else if (e == ctsd)  *(nat*)registers[a0] = (nat) registers[a1]; 
-		
-		else if (e == ctprint) 
+		else if (is("ctdebug", e)) 
 				printf("debug: \033[32m%llu (%lld)\033[0m "
 					"\033[32m0x%llx\033[0m\n", 
 					registers[a0], 
@@ -1411,17 +1092,19 @@ int main(int argc, const char** argv) {
 					registers[a0]
 				); 
 
-		else if (e == ctabort) abort();
-		else if (e == ctget) registers[a0] = (nat) getchar();
-		else if (e == ctput) putchar((char) registers[a0]);
 
-
-	*/
-
-	
+		else if (is("ctabort", e)) 		abort();
+		else if (is("ctget", e)) 		registers[a0] = (nat) getchar();
+		else if (is("ctput", e)) 		putchar((char) registers[a0]);
+		else if (is("deleteargument", e))  	{ if (arg_count) arg_count--; }
+		else if (is("newargument", e))		push_arg(registers[a0]);
 
 		// else if (names[i].is_callonuse) {} // call macro
-		else push_arg(values[e]);
+
+
+		else 
+			push_arg(values[called_name]);
+
 		registers[0] = 0;
 		next_char:;
 	}
@@ -1921,6 +1604,307 @@ we can't use indicies,  of the dictionary entries
 
 
 
+
+
+
+
+
+
+
+
+
+/*
+
+
+
+static const char* spelling[instruction_set_count] = {
+	"ins_eof", 
+	"ins_0", 
+	"ins_1", 
+	"ins_l", 
+
+	"ins_d", 
+	"ins_da", 
+	"ins_dr", 
+	"ins_di", 
+	"ins_dd",
+
+	"ins_ar", 
+	"ins_of", 
+	"ins_on", 
+	"ins_en", 
+	"ins_po", 
+	"ins_pe",
+
+	"ins_del", 
+	"ins_arg", 
+
+	"ctabort", 
+	"ctprint", 
+	"ctmode", 
+	"ctat", 
+	"ctget", 
+	"ctput",
+
+
+	"ctclear", 
+	"ctls", 
+	"ctli", 
+	"ctstop",
+
+	"ctpc", 
+	"ctb", 
+	"ctf", 
+	"ctblt",
+	"ctbge", 
+	"ctbeq", 
+	"ctbne",
+ 
+	"ctincr", 
+	"ctzero",
+
+	"ctadd", 
+	"ctsub", 
+	"ctmul", 
+	"ctdiv", 
+	"ctrem", 
+
+	"ctnor", 
+	"ctxor", 
+	"ctand", 
+	"ctor",
+	"ctsl", 
+	"ctsr",
+ 
+	"ctlb", 
+	"ctlh", 
+	"ctlw",
+	"ctld", 
+
+	"ctsb", 
+	"ctsh", 
+	"ctsw", 
+	"ctsd",
+
+	"db", 
+	"dh", 
+	"dw", 
+
+	"ecall", 
+	"ebreak", 
+	"fence", 
+	"fencei", 
+	
+	"add", 
+	"sub", 
+	"sll", 
+	"slt", 
+	"sltu", 
+	"xor_", 
+	"srl", 
+	"sra", 
+	"or_", 
+	"and_", 
+	"addw", 
+	"subw", 
+	"sllw", 
+	"srlw", 
+	"sraw",
+	"lb", 
+	"lh", 
+	"lw", 
+	"ld", 
+	"lbu", 
+	"lhu", 
+	"lwu", 
+	"addi", 
+	"slti", 
+	"sltiu", 
+	"xori", 
+	"ori", 
+	"andi", 
+	"slli", 
+	"srli", 
+	"srai", 
+	"addiw", 
+	"slliw", 
+	"srliw", 
+	"sraiw",
+	"jalr", 
+	"csrrw", 
+	"csrrs", 
+	"csrrc", 
+	"csrrwi", 
+	"csrrsi", 
+	"csrrci", 
+	"sb", 
+	"sh", 
+	"sw", 
+	"sd", 
+	"lui", 
+	"auipc", 
+	"beq", 
+	"bne", 
+	"blt", 
+	"bge", 
+	"bltu", 
+	"bgeu", 
+	"jal", 
+	"mul", 
+	"mulh", 
+	"mulhsu", 
+	"mulhu",
+	"div_", 
+	"divu", 
+	"rem", 
+	"remu", 
+	"mulw", 
+	"divw", 
+	"divuw", 
+	"remw", 
+	"remuw", 
+
+	
+};
+
+*/
+
+
+
+
+
+
+
+//static nat defining = 0;
+//static nat defining_length = 0;
+//static nat dict_count = 0; 
+//static char* names[4096] = {0};
+//static u32 values[4096] = {0};
+
+
+
+
+
+
+
+
+
+
+
+
+/*
+static void execute(nat op, nat* pc, char* text, struct location here) {
+	const nat a2 = arg_count >= 3 ? arguments[arg_count - 3] : 0;
+	const nat a1 = arg_count >= 2 ? arguments[arg_count - 2] : 0;
+	const nat a0 = arg_count >= 1 ? arguments[arg_count - 1] : 0;
+
+	//if (op == ctstop) { if (registers[a0] == stop) stop = 0; return; }
+	//if (stop) return;
+
+	//if (debug) printf("@%llu: info: executing \033[1;32m%s\033[0m(%llu) "
+	//		" %lld %lld %lld\n", *pc, instruction_spelling[op], op, a0, a1, a2);
+
+	//if (op == ctclear) arg_count = 0;
+	
+
+//	else if (op == ctarg)  {
+//		arg_locations[arg_count] = here;
+//		arguments[arg_count++] = (u32) registers[a0]; 
+//	}
+
+	else if (op == ctls)   registers[a0] = (nat) text[registers[a1]];
+	else if (op == ctli)   registers[a0] = a1;
+	else if (op == ctat)   registers[a0] = ins_count;
+	else if (op == ctpc)   registers[a0] = *pc;
+	else if (op == ctb)    { if (ct_flag)  *pc = registers[a0]; }
+	else if (op == ctf)    { if (ct_flag) stop = registers[a0]; }
+	else if (op == ctblt)  ct_flag = registers[a0]  < registers[a1];
+	else if (op == ctbge)  ct_flag = registers[a0] >= registers[a1];
+	else if (op == ctbeq)  ct_flag = registers[a0] == registers[a1];
+	else if (op == ctbne)  ct_flag = registers[a0] != registers[a1];
+	
+	else if (op == ctadd)  registers[a0] = registers[a1] + registers[a2]; 
+	else if (op == ctsub)  registers[a0] = registers[a1] - registers[a2]; 
+	else if (op == ctmul)  registers[a0] = registers[a1] * registers[a2]; 
+	else if (op == ctdiv)  registers[a0] = registers[a1] / registers[a2]; 
+	else if (op == ctrem)  registers[a0] = registers[a1] % registers[a2]; 
+	else if (op == ctxor)  registers[a0] = registers[a1] ^ registers[a2]; 
+	else if (op == ctand)  registers[a0] = registers[a1] & registers[a2]; 
+	else if (op == ctor)   registers[a0] = registers[a1] | registers[a2]; 
+	else if (op == ctnor)  registers[a0] = ~(registers[a1] | registers[a2]); 
+	else if (op == ctsl)   registers[a0] = registers[a1] << registers[a2]; 
+	else if (op == ctsr)   registers[a0] = registers[a1] >> registers[a2]; 
+
+	else if (op == ctlb)  registers[a0] = *(u8*) registers[a1]; 
+	else if (op == ctlh)  registers[a0] = *(u16*)registers[a1]; 
+	else if (op == ctlw)  registers[a0] = *(u32*)registers[a1]; 
+	else if (op == ctld)  registers[a0] = *(nat*)registers[a1]; 
+
+	else if (op == ctsb)  *(u8*) registers[a0] = (u8)  registers[a1]; 
+	else if (op == ctsh)  *(u16*)registers[a0] = (u16) registers[a1]; 
+	else if (op == ctsw)  *(u32*)registers[a0] = (u32) registers[a1]; 
+	else if (op == ctsd)  *(nat*)registers[a0] = (nat) registers[a1]; 
+	
+	
+}
+*/
+
+
+
+
+
+
+
+
+
+
+
+
+	/*
+		
+
+		else if (e == ctli)   registers[a0] = a1;
+		else if (e == ctat)   registers[a0] = ins_count;
+		else if (e == ctpc)   registers[a0] = index;
+		else if (e == ctb)    { if (ct_flag) index = registers[a0]; }
+		else if (e == ctf)    { if (ct_flag) stop = registers[a0]; }
+		else if (e == ctblt)  ct_flag = registers[a0]  < registers[a1];
+		else if (e == ctbge)  ct_flag = registers[a0] >= registers[a1];
+		else if (e == ctbeq)  ct_flag = registers[a0] == registers[a1];
+		else if (e == ctbne)  ct_flag = registers[a0] != registers[a1];
+
+		else if (e == ctincr) 
+		else if (e == ctzero) 
+		
+		else if (e == ctsub)  registers[a0] = registers[a1] - registers[a2]; 
+		else if (e == ctmul)  registers[a0] = registers[a1] * registers[a2]; 
+		else if (e == ctdiv)  registers[a0] = registers[a1] / registers[a2]; 
+		else if (e == ctrem)  registers[a0] = registers[a1] % registers[a2]; 
+		else if (e == ctxor)  registers[a0] = registers[a1] ^ registers[a2]; 
+		else if (e == ctand)  registers[a0] = registers[a1] & registers[a2]; 
+		else if (e == ctor)   registers[a0] = registers[a1] | registers[a2]; 
+		else if (e == ctnor)  registers[a0] = ~(registers[a1] | registers[a2]); 
+		else if (e == ctsl)   registers[a0] = registers[a1] << registers[a2]; 
+		else if (e == ctsr)   registers[a0] = registers[a1] >> registers[a2]; 
+
+		else if (e == ctlb)  registers[a0] = *(u8*) registers[a1]; 
+		else if (e == ctlh)  registers[a0] = *(u16*)registers[a1]; 
+		else if (e == ctlw)  registers[a0] = *(u32*)registers[a1]; 
+		else if (e == ctld)  registers[a0] = *(nat*)registers[a1]; 
+
+		else if (e == ctsb)  *(u8*) registers[a0] = (u8)  registers[a1]; 
+		else if (e == ctsh)  *(u16*)registers[a0] = (u16) registers[a1]; 
+		else if (e == ctsw)  *(u32*)registers[a0] = (u32) registers[a1]; 
+		else if (e == ctsd)  *(nat*)registers[a0] = (nat) registers[a1]; 
+		
+		
+			
+		
+
+
+	*/
+
+	
 
 
 

@@ -1,13 +1,47 @@
-"eof"
-"0"
-"1"
-"/"
+"eof" "0" "1" "=" "debug arguments" "setarchitecture"  "setoutputformat" 
+"set object name" "set executable name"
+"setcompiletime" "setruntime" "add" "sub" "addi" "ctdebug" 
+"set debug" "ecall"
+
+1 = set debug
+
+0 = "no runtime"
+1 = "riscv 32"
+01 = "riscv 64"
+11 = "arm 32"
+001 = "arm 64"
+
+0 = "print binary"
+1 = "elf object"
+01 = "elf executable"
+11 = "macho object"
+001 = "macho executable"
+
+0 = "zr"
+001 = "4"
+101 = "5"
+011 = "sum"
+
+set compiletime
+4 zr sum addi 
+5 sum sum addi
+ct debug
+
+arm 64 			set architecture
+macho executable 	set output format
+"my_cool_ob   yect.o"	set object name
+"program.out"		set executable name
 
 
+set runtime 
+
+4 zr sum addi
+ecall
 
 
 
 eof
+
 
 
 
