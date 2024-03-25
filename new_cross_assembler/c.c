@@ -36,14 +36,6 @@ todo stuff:
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <sys/mman.h>
-#include <fcntl.h>
-#include <unistd.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <stdint.h>
-#include <iso646.h>
-#include <stdbool.h>
 #include <stdnoreturn.h>
 #include <mach-o/nlist.h>
 #include <mach-o/loader.h>
@@ -91,113 +83,30 @@ static u32 arm64_macos_abi[] = {        // note:  x9 is call-clobbered. save it 
 	25,26,27,28,12, 8,11,10,    
 };
 
-
-
-//   WRONG:     we solved this properly actually. 
-
-    //  TODO:   problem:   we arent translating the syscall number   regs  properly between riscv-linux (a7)   and arm64 linux/arm64 macos. we need to do this properly! 
-
-
-
-
 enum language_ISA {
-
-	ctzero,
-	ctincr, 
-	ctmode, 
-	ctclear,
-	ctabort, 
-	ctprint, 
-	ctget, 
-	ctput,
-	ctdel, 
-	ctarg, 
-	ctat, 
-
-	db, 
-	dh, 
-	dw, 
-	ecall, 
-	ebreak, 
-	fence, 
-	fencei, 
-	add, 
-	sub, 
-	sll, 
-	slt, 
-	sltu, 
-	xor_, 
-	srl, 
-	sra, 
-	or_, 
-	and_, 
-	addw, 
-	subw, 
-	sllw, 
-	srlw, 
-	sraw,
-	lb, 
-	lh, 
-	lw, 
-	ld, 
-	lbu, 
-	lhu, 
-	lwu, 
-	addi, 
-	slti, 
-	sltiu, 
-	xori, 
-	ori, 
-	andi, 
-	slli, 
-	srli, 
-	srai, 
-	addiw, 
-	slliw, 
-	srliw, 
-	sraiw,
+	ctzero, ctincr, ctmode, 
+	ctclear, ctabort, ctprint, ctget, ctput,
+	ctdel, ctarg, ctat, 
+	db, dh, dw, 
+	ecall, ebreak, fence, fencei, 
+	add, sub, sll, slt, sltu, xor_, srl, sra, or_, and_, 
+	addw, subw, sllw, srlw, sraw,
+	lb, lh, lw, ld, lbu, lhu, lwu, 
+	addi, slti, sltiu, xori, ori, andi, slli, srli, srai, 
+	addiw, slliw, srliw, sraiw,
 	jalr, 
-	csrrw, 
-	csrrs, 
-	csrrc, 
-	csrrwi, 
-	csrrsi, 
-	csrrci, 
-	sb, 
-	sh, 
-	sw, 
-	sd, 
-	lui, 
-	auipc, 
-	beq, 
-	bne, 
-	blt, 
-	bge, 
-	bltu, 
-	bgeu, 
-	jal, 
-	mul, 
-	mulh, 
-	mulhsu, 
-	mulhu,
-	div_, 
-	divu, 
-	rem, 
-	remu, 
-	mulw, 
-	divw, 
-	divuw, 
-	remw, 
-	remuw, 
+	csrrw, csrrs, csrrc, csrrwi, csrrsi, csrrci, 
+	sb, sh, sw, sd, 
+	lui, auipc, 
+	beq, bne, blt, bge, bltu, bgeu, jal, 
+	mul, mulh, mulhsu, mulhu,
+	div_, divu, rem, remu, 
+	mulw, divw, divuw, remw, remuw, 
 
 	instruction_set_count
 };
 
-
-struct location {
-	nat start;
-	nat count;
-};
+struct location { nat start; nat count; };
 
 struct instruction { 
 	u32 a[4]; 
@@ -206,13 +115,10 @@ struct instruction {
 
 static nat byte_count = 0;
 static u8* bytes = NULL;
-
 static nat ins_count = 0;
 static struct instruction* ins = NULL;
 static struct instruction current_ins = {0};
-
 static nat registers[65536] = {0};
-
 static nat arg_count = 0;
 static u32 arguments[4096] = {0};
 static struct location arg_locations[4096] = {0};
@@ -220,7 +126,6 @@ static struct location arg_locations[4096] = {0};
 static nat file_count = 0;
 static struct location files[4096] = {0};
 static const char* filenames[4096] = {0};
-
 static char* text = NULL;
 static nat text_length = 0;
 
@@ -228,7 +133,6 @@ static nat names[4096] = {0};
 static nat lengths[4096] = {0};
 static nat values[4096] = {0};
 static nat name_count = 0;
-
 static bool is_compiletime = false;
 
 static bool is(const char* literal, nat initial) {
@@ -259,7 +163,6 @@ static char* read_file(const char* name, nat* out_length) {
 }
 
 // use this instead:
-
 	//int file = open(argv[1], O_RDONLY);
 	//if (file < 0) { perror("open"); exit(1); } 
 	//struct stat st;
@@ -276,52 +179,12 @@ static void push_arg(nat r) {
 }
 
 static char* get_name(nat name) {
-	
 	const nat start = names[name];
 	nat end = start;
 	while (text[end] != '"') end++;
-
-	
 	char* string = calloc(end - start + 1, 1);
 	memcpy(string, text + start, end - start);
 	return string;
-
-
-
-
-
-/*
-					we left off here
-
-			make this function not use  lengths[]       instead, determine the length of the string ourselves, including all whitespace!!
-
-
-
-
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
-
-prveiosu implmentation:
-
-
-	return strndup(text + names[name], lengths[name]);
-*/
-
-
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
-
-
-
-
-
-
-
-
-
-
-
-	
 }
 
 static void print_error(const char* reason, struct location spot) {
@@ -446,7 +309,6 @@ static void check(nat r, nat c, const char* type, nat arg_index) {
 }
 
 ////////////////// riscv backend //////////////
-
 
 static u32 r_type(u32* a, u32 o, u32 f, u32 g) {   //  r r r op
 	check(a[0], 32, "register", 0);
@@ -970,11 +832,6 @@ static void make_macho_object_file(const char* object_filename, const bool prese
 		exit(1);
 	}
 
-//	puts("object_filename");
-//	puts(object_filename);
-//	exit(0);
-
-
 	const int flags = O_WRONLY | O_CREAT | O_TRUNC | (preserve_existing_object ? O_EXCL : 0);
 	const mode_t mode = S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH;
 	const int file = open(object_filename, flags, mode);
@@ -1117,12 +974,10 @@ int main(int argc, const char** argv) {
 		else if (is("ctincr", e)) registers[a0]++;
 		else if (is("ctzero", e)) registers[a0] = 0;
 
-
-		else if (is("ecall", e)) execute_push(ecall, here); 
+		else if (is("ecall", e))  execute_push(ecall, here); 
 		else if (is("ebreak", e)) execute_push(ebreak, here); 
-		else if (is("fence", e)) execute_push(fence, here); 
+		else if (is("fence", e))  execute_push(fence, here); 
 		else if (is("fencei", e)) execute_push(fencei, here); 
-
 
 		else if (is("add", e)) execute_push(add, here); 
 		else if (is("sub", e)) execute_push(sub, here); 
@@ -1131,7 +986,6 @@ int main(int argc, const char** argv) {
 		else if (is("xor", e)) execute_push(xor_, here); 
 		else if (is("slt", e)) execute_push(slt, here); 
 		else if (is("sltu",e)) execute_push(sltu, here); 
-
 
 		else if (is("addi", e)) execute_push(addi, here); 
 		else if (is("andi", e)) execute_push(andi, here); 
@@ -1152,11 +1006,8 @@ int main(int argc, const char** argv) {
 		else if (is("ctdebug", e)) 
 				printf("debug: \033[32m%llu (%lld)\033[0m "
 					"\033[32m0x%llx\033[0m\n", 
-					registers[a0], 
-					registers[a0], 
-					registers[a0]
+					registers[a0], registers[a0], registers[a0]
 				); 
-
 
 		else if (is("ctabort", e)) 		abort();
 		else if (is("ctget", e)) 		registers[a0] = (nat) getchar();
@@ -1165,16 +1016,11 @@ int main(int argc, const char** argv) {
 		else if (is("newargument", e))		push_arg(registers[a0]);
 
 		// else if (names[i].is_callonuse) {} // call macro
-
-
-		else 
-			push_arg(values[called_name]);
+		else push_arg(values[called_name]);
 
 		registers[0] = 0;
 		next_char:;
 	}
-
-// generate_ins:
 
 	if (debug) {
 		printf("info: building for target:\n\tarchitecture:  \033[31;1m%s\033[0m\n\toutput_format: \033[32;1m%s\033[0m.\n\n", 
@@ -1970,6 +1816,56 @@ static void execute(nat op, nat* pc, char* text, struct location here) {
 	*/
 
 	
+
+
+
+
+
+
+
+
+
+/*
+					we left off here
+
+			make this function not use  lengths[]       instead, determine the length of the string ourselves, including all whitespace!!
+
+
+
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+
+prveiosu implmentation:
+
+
+	return strndup(text + names[name], lengths[name]);
+*/
+
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+//   WRONG:     we solved this properly actually. 
+
+    //  TODO:   problem:   we arent translating the syscall number   regs  properly between riscv-linux (a7)   and arm64 linux/arm64 macos. we need to do this properly! 
+
+
+
 
 
 

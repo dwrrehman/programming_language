@@ -31,7 +31,22 @@
 0111 = "a4"
 1111 = "a5"
 00001 = "a6"
-10001 = "a7"
+10001 = "a7" "system call number"
+
+1 = "system exit"     a0 "system exit code"
+01 = "system fork"
+11 = "system read"    a0 "system read fd"     a1 "system read buffer"      a2 "system read length"
+001 = "system write"
+101 = "system open"
+011 = "system close"
+
+0 = "standard in"
+1 = "standard out"
+
+
+1 = "ra"
+01 = "sp"
+
 
 
 1 = set debug
@@ -48,8 +63,10 @@ ct debug
 
 arm 64 			set architecture
 macho executable 	set output format
-"object.o"		set object name		0 = preserve object
-"program.out"		set executable name	0 = preserve executable
+"object.o"		set object name
+"program.out"		set executable name
+0 = preserve object
+0 = preserve executable
 
 
 set runtime 
@@ -57,12 +74,21 @@ set runtime
 
 
 "         
-	todo:  we should call   the write()  system call next!  
+	todo:  we should also call   the write()  system call next!  
 "
 
-10101= zr a0 addi
-1= zr a7 addi
+
+
+standard in= 	zr 	system read fd 	addi
+sp= 		zr 	system read buffer 	addi
+1= 		zr 	system read length 	addi
+system read 	zr 	system call number 	addi 
 ecall
+
+11111= 		zr 	system exit code 	addi
+system exit 	zr 	system call number 	addi 
+ecall
+
 
 eof
 
