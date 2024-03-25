@@ -7,8 +7,11 @@
 	only the risc-v target has performance guarantees. other targets
 	use a translation layer to translate the risc-v ISA instructions
 	into the target's ISA (eg, arm64, arm32, x86, x86_64).
-
 */
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////          we need to implement contexts next!!!           ////////////////////////// 
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 #include <stdio.h>   
 #include <stdlib.h>  
@@ -21,6 +24,18 @@
 #include <iso646.h>
 #include <ctype.h>
 #include <errno.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <sys/mman.h>
+#include <fcntl.h>
+#include <unistd.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <stdint.h>
+#include <iso646.h>
+#include <stdbool.h>
+#include <stdnoreturn.h>
 #include <mach-o/nlist.h>
 #include <mach-o/loader.h>
 
@@ -29,7 +44,7 @@ typedef uint32_t u32;
 typedef uint16_t u16;
 typedef uint8_t u8;
 
-static bool debug = false;
+static bool debug = 1;
 
 enum target_architecture { 
 	noruntime, 
@@ -68,99 +83,296 @@ static u32 arm64_macos_abi[] = {        // note:  x9 is call-clobbered. save it 
 };
 
 enum language_ISA {
-	dw, ecall, ebreak, fence,  // base ISA:   (I)
-	fencei, add, sub, sll, 
-	slt, sltu, xor_, srl, 
-	sra, or_, and_, addw, 
-	subw, sllw, srlw, sraw,
-	lb, lh, lw, ld, 
-	lbu, lhu, lwu, addi, 
-	slti, sltiu, xori, ori, 
-	andi, slli, srli, srai, 
-	addiw, slliw, srliw, sraiw,
-	jalr, csrrw, csrrs, csrrc, 
-	csrrwi, csrrsi, csrrci, sb, 
-	sh, sw, sd, lui, 
-	auipc, beq, bne, blt, 
-	bge, bltu, bgeu, jal, 
-	mul, mulh, mulhsu, mulhu,       //  M extension
-	div_, divu, rem, remu, 
-	mulw, divw, divuw, remw, 
-	remuw,
-		// todo: add atomic (A) extension, and F/D extensions, as well.  eventually lol.
-	dh,  db, 
+	ins_eof, 
+	ins_0, 
+	ins_1, 
+	ins_l, 
 
-	ctclear, ctdel, ctls, ctarg, ctli, ctstop,   // compiletime system.
-	ctat, ctpc, ctb, ctf, ctblt,
-	ctbge, ctbeq, ctbne, ctincr, ctzero,
-	ctadd, ctsub, ctmul, ctdiv, ctrem, ctnor, ctxor, ctand, ctor, 
-	ctsl, ctsr, ctlb, ctlh, ctlw,
-	ctld, ctsb, ctsh, ctsw, ctsd,
-	ctprint, ctabort, ctget, ctput,
+	ins_d, 
+	ins_da, 
+	ins_dr, 
+	ins_di, 
+	ins_dd,
+
+	ins_ar, 
+	ins_of, 
+	ins_on, 
+	ins_en, 
+	ins_po, 
+	ins_pe,
+
+	ins_del, 
+	ins_arg, 
+
+	ctabort, 
+	ctprint, 
+	ctmode, 
+	ctat, 
+	ctget, 
+	ctput,
+	ctclear,
+
+	incr, 
+	zero,
+	db, 
+	dh, 
+	dw, 
+	ecall, 
+	ebreak, 
+	fence, 
+	fencei, 
+	add, 
+	sub, 
+	sll, 
+	slt, 
+	sltu, 
+	xor_, 
+	srl, 
+	sra, 
+	or_, 
+	and_, 
+	addw, 
+	subw, 
+	sllw, 
+	srlw, 
+	sraw,
+	lb, 
+	lh, 
+	lw, 
+	ld, 
+	lbu, 
+	lhu, 
+	lwu, 
+	addi, 
+	slti, 
+	sltiu, 
+	xori, 
+	ori, 
+	andi, 
+	slli, 
+	srli, 
+	srai, 
+	addiw, 
+	slliw, 
+	srliw, 
+	sraiw,
+	jalr, 
+	csrrw, 
+	csrrs, 
+	csrrc, 
+	csrrwi, 
+	csrrsi, 
+	csrrci, 
+	sb, 
+	sh, 
+	sw, 
+	sd, 
+	lui, 
+	auipc, 
+	beq, 
+	bne, 
+	blt, 
+	bge, 
+	bltu, 
+	bgeu, 
+	jal, 
+	mul, 
+	mulh, 
+	mulhsu, 
+	mulhu,
+	div_, 
+	divu, 
+	rem, 
+	remu, 
+	mulw, 
+	divw, 
+	divuw, 
+	remw, 
+	remuw, 
 	instruction_set_count
 };
 
 
 
 
-	// todo:    wait....  do any of these C-extension ins even do anything that the main instructions can't do!?!? i feel like we can just have the assembler know to use these instructions when appropriate?  and just know how to use the main instructions, to get these instructions, i feel like that makes alot more sense!!! that way it keeps the language both small and portable, and still fully performance-expressable for riscv archs.
-
-	//cnop, caddi4spn, clw, cld, csw, csd,   // C extension
-	//caddi, cjal, caddiw, cli, caddi16sp, 
-	//clui, csrli, candi, csub, cxor, cor, 
-	//cand, csubw, caddw, cj, cbeqz, cbnez, 
-	//cslli, clwsp, cldsp, cjr, cmv, cebreak, 
-	//cjalr, cadd, cswsp, csdsp, 
 
 
 
 
 
-static const char* instruction_spelling[instruction_set_count] = {
-	"u32", "ecall", "ebreak", "fence", 
-	"fencei", "add", "sub", "sll", 
-	"slt", "sltu", "xor", "srl", 
-	"sra", "or", "and", "addw", 
-	"subw", "sllw", "srlw", "sraw",
-	"lb", "lh", "lw", "ld", 
-	"lbu", "lhu", "lwu", "addi", 
-	"slti", "sltiu", "xori", "ori", 
-	"andi", "slli", "srli", "srai", 
-	"addiw", "slliw", "srliw", "sraiw",
-	"jalr", "csrrw", "csrrs", "csrrc", 
-	"csrrwi", "csrrsi", "csrrci", "sb", 
-	"sh", "sw", "sd", "lui",
-	"auipc", "beq", "bne", "blt", 
-	"bge", "bltu", "bgeu", "jal", 
-	"mul", "mulh", "mulhsu", "mulhu", 
-	"div_", "divu", "rem", "remu", 
-	"mulw", "divw", "divuw", "remw", 
-	"remuw",
+
+
+
+
+
+
+/*
+
+
+
+static const char* spelling[instruction_set_count] = {
+	"ins_eof", 
+	"ins_0", 
+	"ins_1", 
+	"ins_l", 
+
+	"ins_d", 
+	"ins_da", 
+	"ins_dr", 
+	"ins_di", 
+	"ins_dd",
+
+	"ins_ar", 
+	"ins_of", 
+	"ins_on", 
+	"ins_en", 
+	"ins_po", 
+	"ins_pe",
+
+	"ins_del", 
+	"ins_arg", 
+
+	"ctabort", 
+	"ctprint", 
+	"ctmode", 
+	"ctat", 
+	"ctget", 
+	"ctput",
+
+
+	"ctclear", 
+	"ctls", 
+	"ctli", 
+	"ctstop",
+
+	"ctpc", 
+	"ctb", 
+	"ctf", 
+	"ctblt",
+	"ctbge", 
+	"ctbeq", 
+	"ctbne",
+ 
+	"ctincr", 
+	"ctzero",
+
+	"ctadd", 
+	"ctsub", 
+	"ctmul", 
+	"ctdiv", 
+	"ctrem", 
+
+	"ctnor", 
+	"ctxor", 
+	"ctand", 
+	"ctor",
+	"ctsl", 
+	"ctsr",
+ 
+	"ctlb", 
+	"ctlh", 
+	"ctlw",
+	"ctld", 
+
+	"ctsb", 
+	"ctsh", 
+	"ctsw", 
+	"ctsd",
+
+	"db", 
+	"dh", 
+	"dw", 
+
+	"ecall", 
+	"ebreak", 
+	"fence", 
+	"fencei", 
 	
-	"u16", 
+	"add", 
+	"sub", 
+	"sll", 
+	"slt", 
+	"sltu", 
+	"xor_", 
+	"srl", 
+	"sra", 
+	"or_", 
+	"and_", 
+	"addw", 
+	"subw", 
+	"sllw", 
+	"srlw", 
+	"sraw",
+	"lb", 
+	"lh", 
+	"lw", 
+	"ld", 
+	"lbu", 
+	"lhu", 
+	"lwu", 
+	"addi", 
+	"slti", 
+	"sltiu", 
+	"xori", 
+	"ori", 
+	"andi", 
+	"slli", 
+	"srli", 
+	"srai", 
+	"addiw", 
+	"slliw", 
+	"srliw", 
+	"sraiw",
+	"jalr", 
+	"csrrw", 
+	"csrrs", 
+	"csrrc", 
+	"csrrwi", 
+	"csrrsi", 
+	"csrrci", 
+	"sb", 
+	"sh", 
+	"sw", 
+	"sd", 
+	"lui", 
+	"auipc", 
+	"beq", 
+	"bne", 
+	"blt", 
+	"bge", 
+	"bltu", 
+	"bgeu", 
+	"jal", 
+	"mul", 
+	"mulh", 
+	"mulhsu", 
+	"mulhu",
+	"div_", 
+	"divu", 
+	"rem", 
+	"remu", 
+	"mulw", 
+	"divw", 
+	"divuw", 
+	"remw", 
+	"remuw", 
 
-
-		// see above.
-
-//	"cnop", "caddi4spn", "clw", "cld", "csw", "csd", 
-//	"caddi", "cjal", "caddiw", "cli", "caddi16sp", 
-//	"clui", "csrli", "candi", "csub", "cxor", "cor", 
-//	"cand", "csubw", "caddw", "cj", "cbeqz", "cbnez", 
-//	"cslli", "clwsp", "cldsp", "cjr", "cmv", "cebreak", 
-//	"cjalr", "cadd", "cswsp", "csdsp", 
-
-	"u8",
-
-	"ctclear", "ctdel", "ctls", "ctarg", "ctli", "ctstop",
-	"ctat", "ctpc", "ctb", "ctf", "ctblt",
-	"ctbge", "ctbeq", "ctbne", "ctincr", "ctzero",
-	"ctadd", "ctsub", "ctmul", "ctdiv", "ctrem", "ctnor", "ctxor", "ctand", "ctor", 
-	"ctsl", "ctsr", "ctlb", "ctlh", "ctlw",
-	"ctld", "ctsb", "ctsh", "ctsw", "ctsd",
-	"ctprint", "ctabort", "ctget", "ctput",
+	
 };
 
+*/
 
+
+
+
+
+
+
+//static nat defining = 0;
+//static nat defining_length = 0;
+//static nat dict_count = 0; 
+//static char* names[4096] = {0};
+//static u32 values[4096] = {0};
 
 
 struct location {
@@ -173,40 +385,47 @@ struct instruction {
 	struct location loc[4];
 }; 
 
-//  make arguments not an array. use a0, a1 and a2 directly, as variables. simpler. 
-// or make op be simply arguments[0]. either one. 
-
-
-
-
-
 static nat byte_count = 0;
 static u8* bytes = NULL;
+
 static nat ins_count = 0;
 static struct instruction* ins = NULL;
-static nat stop = 0;
+static struct instruction current_ins = {0};
+
 static nat registers[65536] = {0};
 
 static nat arg_count = 0;
 static u32 arguments[4096] = {0};
 static struct location arg_locations[4096] = {0};
 
-static nat defining = 0;
-static nat defining_length = 0;
-static nat dict_count = 0; 
-static char* names[4096] = {0};
-static u32 values[4096] = {0};
-
 static nat file_count = 0;
 static struct location files[4096] = {0};
 static const char* filenames[4096] = {0};
-static struct instruction current_ins = {0};
 
-static bool ct_flag = true;       // todo: make the ct system more risc-v like.  delete this by making the branch do the check.
+static char* text = NULL;
+static nat text_length = 0;
 
-static bool is(const char* word, nat count, const char* this) {
-	return strlen(this) == count and not strncmp(word, this, count);
+static nat names[4096] = {0};
+static nat lengths[4096] = {0};
+static nat values[4096] = {0};
+static nat name_count = 0;
+
+static bool is_compiletime = false;
+
+static bool is(const char* literal, nat initial) {
+	nat i = initial, j = 0;
+	for (; text[i] != '"' and literal[j]; i++) {
+		if ((unsigned char) text[i] < 33) continue;
+		if (text[i] != literal[j]) return false;
+		j++;
+	}
+	return text[i] == '"' and not literal[j];
 }
+
+
+
+
+
 
 static char* read_file(const char* name, nat* out_length) {
 	int d = open(name, O_RDONLY | O_DIRECTORY);
@@ -225,6 +444,25 @@ static char* read_file(const char* name, nat* out_length) {
 	return string;
 }
 
+
+// use this instead:
+
+	//int file = open(argv[1], O_RDONLY);
+	//if (file < 0) { perror("open"); exit(1); } 
+	//struct stat st;
+	//fstat (file, &st);
+	//text_length = (nat) st.st_size;
+	//text = mmap(0, text_length, PROT_READ, MAP_PRIVATE, file, 0);
+	//close(file);
+
+
+
+
+
+
+
+
+
 static void print_error(const char* reason, struct location spot) {
 
 	for (nat i = 1; i < file_count; i++) {
@@ -242,8 +480,22 @@ static void print_error(const char* reason, struct location spot) {
 	fprintf(stderr, "] \033[1;31merror:\033[m \033[1m%s\033[m\n", reason);
 }
 
-static void push(u32 op, struct location here) {
-	if (stop) return;
+static void execute_push(u32 op, struct location here) {
+
+	if (is_compiletime) {
+		if (op == add)   registers[a0] = registers[a1] + registers[a2]; 
+		if (op == sub)   registers[a0] = registers[a1] - registers[a2]; 
+		if (op == mul)   registers[a0] = registers[a1] * registers[a2]; 
+		if (op == div_)  registers[a0] = registers[a1] / registers[a2]; 
+		if (op == and_)  registers[a0] = registers[a1] & registers[a2]; 
+		if (op == or_)   registers[a0] = registers[a1] | registers[a2]; 
+		if (op == xor_)  registers[a0] = registers[a1] ^ registers[a2]; 
+		if (op == slt_)  registers[a0] = registers[a1] < registers[a2]; 
+		if (op == sltu_)  registers[a0] = registers[a1] < registers[a2]; 
+		if (op == sltu_)  registers[a0] = registers[a1] < registers[a2]; 	
+		return;
+	}
+
 	struct instruction new = {0};
 	new.a[0] = op;
 	new.loc[0] = here;
@@ -258,25 +510,26 @@ static void push(u32 op, struct location here) {
 	ins[ins_count++] = new;
 }
 
+
+/*
 static void execute(nat op, nat* pc, char* text, struct location here) {
 	const nat a2 = arg_count >= 3 ? arguments[arg_count - 3] : 0;
 	const nat a1 = arg_count >= 2 ? arguments[arg_count - 2] : 0;
 	const nat a0 = arg_count >= 1 ? arguments[arg_count - 1] : 0;
 
-	if (op == ctstop) { if (registers[a0] == stop) stop = 0; return; }
+	//if (op == ctstop) { if (registers[a0] == stop) stop = 0; return; }
+	//if (stop) return;
 
-	if (stop) return;
+	//if (debug) printf("@%llu: info: executing \033[1;32m%s\033[0m(%llu) "
+	//		" %lld %lld %lld\n", *pc, instruction_spelling[op], op, a0, a1, a2);
 
-	if (debug) printf("@%llu: info: executing \033[1;32m%s\033[0m(%llu) "
-			" %lld %lld %lld\n", *pc, instruction_spelling[op], op, a0, a1, a2);
+	//if (op == ctclear) arg_count = 0;
+	
 
-	if (op == ctclear) arg_count = 0;
-	else if (op == ctdel)  { if (arg_count) arg_count--; }
-
-	else if (op == ctarg)  {
-		arg_locations[arg_count] = here;
-		arguments[arg_count++] = (u32) registers[a0]; 
-	}
+//	else if (op == ctarg)  {
+//		arg_locations[arg_count] = here;
+//		arguments[arg_count++] = (u32) registers[a0]; 
+//	}
 
 	else if (op == ctls)   registers[a0] = (nat) text[registers[a1]];
 	else if (op == ctli)   registers[a0] = a1;
@@ -319,6 +572,9 @@ static void execute(nat op, nat* pc, char* text, struct location here) {
 	else if (op == ctget) registers[a0] = (nat) getchar();
 	else if (op == ctput) putchar((char) registers[a0]);
 }
+*/
+
+
 
 static void print_registers(void) {
 	nat printed_count = 0;
@@ -348,8 +604,8 @@ static void print_arguments(void) {
 static void print_instructions(void) {
 	printf("instructions: {\n");
 	for (nat i = 0; i < ins_count; i++) {
-		printf("\t%llu\tins(.op=%u (\"%s\"), args:{ ", 
-			i, ins[i].a[0], instruction_spelling[ins[i].a[0]]
+		printf("\t%llu\tins(.op=%u (\"ins__\"), args:{ ", 
+			i, ins[i].a[0]
 		);
 		for (nat a = 0; a < 3; a++) printf("%llu ", (nat) ins[i].a[a + 1]);
 		printf("} offsets:{ ");
@@ -368,6 +624,15 @@ static void print_instructions(void) {
 	puts("}");
 }
 
+static void print_dictionary(void) {
+	puts("dictionary = {");
+	for (nat i = 0; i < name_count; i++) {
+		printf("\t#%llu: (@%llu):(len=%llu):(val=%llu) ", i, names[i], lengths[i], values[i]);
+		for (nat c = names[i]; text[c] != '"'; c++) putchar(text[c]);
+		puts("");
+	}
+	puts("}");
+}
 
 static void dump_hex(uint8_t* local_bytes, nat local_byte_count) {
 	printf("\ndebugging bytes bytes:\n------------------------\n");
@@ -379,7 +644,6 @@ static void dump_hex(uint8_t* local_bytes, nat local_byte_count) {
 	}
 	puts("");
 }
-
 
 static void emit_byte(u32 x) {
 	bytes = realloc(bytes, byte_count + 1);
@@ -400,10 +664,10 @@ static void emit(u32 x) {
 	bytes[byte_count++] = (u8) (x >> 24);
 }
 
-static void zero_register_error(nat arg_index) {
+static noreturn void zero_register_error(nat arg_index) {
 	char reason[4096] = {0};
-	snprintf(reason, sizeof reason, "use of zero register for argument %llu in %s instruction is not supported", 
-			arg_index, instruction_spelling[current_ins.a[0]]
+	snprintf(reason, sizeof reason, "use of zero register for argument %llu in %u instruction is not supported", 
+			arg_index, current_ins.a[0]
 	);
 	print_error(reason, current_ins.loc[arg_index + 1]); 
 	exit(1);
@@ -591,7 +855,7 @@ static void generate_riscv_machine_code(void) {
 		//else if (op == caddi4spn) emith(ci_type(a, ));   
 		else {
 			printf("error: unknown instruction: %llu\n", op);
-			printf("       unknown instruction: %s\n", instruction_spelling[op]);
+			// printf("       unknown instruction: %s\n", instruction_spelling[op]);
 			
 		}
 	}
@@ -794,7 +1058,7 @@ static void generate_arm64_machine_code(void) {
 		else if (op == jal)    {}
 		else {
 			printf("error: arm64: unknown instruction: %llu\n", op);
-			printf("       unknown instruction name: %s\n", instruction_spelling[op]);
+			//printf("       unknown instruction name: %s\n", instruction_spelling[op]);
 			abort();
 		}
 	}
@@ -843,7 +1107,7 @@ static void generate_arm64_machine_code(void) {
 */
 
 
-static void make_elf_object_file(const char* object_filename) {
+static noreturn void make_elf_object_file(const char* object_filename) {
 	puts("make_elf_object_file: unimplemented");
 	abort();
 //   system("objdump program.out -DSast --disassembler-options=no-aliases");    // eventually, we'll use objdump and  readelf   to debug the output. 
@@ -956,16 +1220,54 @@ static void make_macho_object_file(const char* object_filename, const bool prese
 	close(file);
 }
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+static void push_arg(nat r) {
+	if (debug) printf("[info: pushed %llu onto argument stack]\n", (nat) r);
+	arg_locations[arg_count] = (struct location) {0};
+	arguments[arg_count++] = (u32) r;
+}
+
+static char* get_name(nat name) {
+	return strndup(text + names[name], lengths[name]);
+}
+
 int main(int argc, const char** argv) {
 
-	if (argc != 2) 
-		exit(puts("asm: \033[31;1merror:\033[0m usage: ./asm <source.s>"));
+	if (argc != 2) exit(puts("asm: \033[31;1merror:\033[0m usage: ./asm <source.s>"));
 	
 	const char* filename = argv[1];
-	nat text_length = 0;
-	char* text = read_file(filename, &text_length);
+	text_length = 0;
+	text = read_file(filename, &text_length);
 
-	*registers = (nat)(void*) malloc(65536); 
+	*registers = (nat)(void*) malloc(65536);
 	arg_locations[arg_count] = (struct location){0};
 	arguments[arg_count++] = 0;
 
@@ -979,109 +1281,152 @@ int main(int argc, const char** argv) {
 	filenames[file_count] = filename;
 	files[file_count++] = (struct location) {.start = 0, .count = text_length};
 
-	nat count = 0, start = 0, index = 0;
-	for (; index < text_length; index++) {
-		if (not isspace(text[index])) { 
-			if (not count) start = index;
-			count++; continue;
-		} else if (not count) continue;
-	process:;
-		const char* const word = text + start;
-		const struct location here = {start, count};
+	nat start = 0, length = 0, name_starts_at = 0, r = 0, s = 0, called_name = 0;
 
-		if (debug) printf(". %s: \"\033[32;1m%.*s\033[0m\"...\n", 
-				stop ? "\033[31mignoring\033[0m" : "\033[32mprocessing\033[0m", 
-				(int) count, word);
-
-		if (is(word, count, "define")) {
-			if (not arg_count or stop) goto next;
-			const u32 r = arguments[arg_count - 1];
-			
-			names[dict_count] = strndup(text + defining, defining_length);
-			values[dict_count++] = r;
-
-			if (debug) printf("info: defining macro with value: %llu,  the macro is named: \"%s\"\n", 
-				(nat) values[dict_count - 1], names[dict_count - 1]
-			);
-
-			defining_length = 0; defining = 0;
-			goto next;
+	for (nat index = 0; index < text_length; index++) {
+		if ((unsigned char) text[index] < 33) goto next_char;
+		if (text[index] == '"') {
+			if (not start) { start = index + 1; length = 0; goto next_char; } 
+			nat spot = 0;
+			for (; spot < name_count; spot++) if (length >= lengths[spot]) break;
+			memmove(lengths + spot + 1, lengths + spot, sizeof(nat) * (name_count - spot));
+			memmove(names + spot + 1, names + spot, sizeof(nat) * (name_count - spot));
+			memmove(values + spot + 1, values + spot, sizeof(nat) * (name_count - spot));
+			lengths[spot] = length;
+			names[spot] = start;
+			values[spot] = arg_count ? arguments[arg_count - 1] : 0;
+			name_count++; 
+			start = 0;
+			goto next_char;
 		}
-
-		if (defining) goto error;
-		if (is(word, count, "eof")) goto generate_ins;
-		if (is(word, count, "settarget")) { architecture = arguments[arg_count - 1]; goto next; } 
-		if (is(word, count, "setoutputformat")) { output_format = arguments[arg_count - 1]; goto next; }
-		
-		if (is(word, count, "setobjectname")) { object_filename = names[dict_count - 1]; goto next; }
-		if (is(word, count, "setexecutablename")) { executable_filename = names[dict_count - 1]; goto next; }
-		if (is(word, count, "preserveexistingobject")) { preserve_existing_object = arguments[arg_count - 1]; goto next; }
-		if (is(word, count, "preserveexistingexecutable")) { preserve_existing_executable = arguments[arg_count - 1]; goto next; }
-		if (is(word, count, "enabledebugoutput")) { debug = arguments[arg_count - 1]; goto next; }
-
-
-		if (is(word, count, "include")) {
-			if (not dict_count or stop) goto next;
-			char new[128] = {0};
-			snprintf(new, sizeof new, "%s.s", names[dict_count - 1]);
-			if (debug) printf("\033[32mIncluding file \"%s\"...\033[0m\n", new);
-			nat l = 0;
-			const char* s = read_file(new, &l);
-			text = realloc(text, text_length + l + 1);
-			memmove(text + index + 1 + l + 1, text + index + 1, text_length - (index + 1));
-			memcpy(text + index + 1, s, l);
-			text[index + 1 + l] = ' ';
-			text_length += l + 1;
-			filenames[file_count] = strdup(new);
-			files[file_count++] = (struct location) {.start = index + 1, .count = l + 1};
-			goto next;
+		if (start) { length++; goto next_char; } 
+		nat imax = 0;
+		for (nat name = 0; name < name_count; name++) {
+			called_name = name;
+			name_starts_at = names[name];
+			nat c = name_starts_at, i = 0;
+			for (; text[c] != '"'; ) {
+				if (i > imax) imax = i;
+				if (index + i >= text_length) goto next_name;
+				if ((unsigned char) text[index + i] < 33) { i++; continue; }
+				if ((unsigned char) text[c] < 33) { c++; continue; }
+				if (text[index + i] != text[c]) goto next_name;
+				i++; c++;
+			}
+			index += i - 1;
+			goto process_name;
+			next_name:;
 		}
-
-		if (is(word, count, "debugregisters")) { print_registers(); goto next; }
-		if (is(word, count, "debugarguments")) { print_arguments(); goto next; }
-		if (is(word, count, "debuginstructions")) { print_instructions(); goto next; }
-		
-		for (u32 i = dw; i < instruction_set_count; i++) {
-			if (not is(word, count, instruction_spelling[i])) continue;
-			if (i < ctclear) push(i, here); else execute(i, &index, text, here);
-			goto next;
-		}
-
-		u32 r = 0, s = 1;
-		for (nat i = 0; i < count; i++) {
-			if (word[i] == '0') s <<= 1;
-			else if (word[i] == '1') { r += s; s <<= 1; }
-			else goto other_word;
-		}
-		if (debug) printf("[info: pushed %llu onto argument stack]\n", (nat) r);
-		arg_locations[arg_count] = here;
-		arguments[arg_count++] = r;
-		
-		goto next;
-	other_word:
-		for (nat i = 0; i < dict_count; i++) {
-			if (not is(word, count, names[i])) continue;
-			if (debug) printf("[info: found user-defined name: pushed (%s)  value %llu  onto argument stack]\n", 
-					names[i], (nat) values[i]);
-			arg_locations[arg_count] = here;
-			arguments[arg_count++] = values[i]; 
-			goto next;
-		}
-		if (stop) goto next;
-		if (debug) printf("found undefined word %.*s... setting defined = %llu.\n", (int) count, word, start);
-		defining = start; defining_length = count; 
-		goto next;
-
-	error:;
-		char reason[4096] = {0};
-		snprintf(reason, sizeof reason, "unknown word \"%.*s\"", (int) defining_length, text + defining);
-		print_error(reason, here);
+		printf("asm: \033[31;1merror:\033[0m %s:%llu:%llu: unresolved symbol\n", argv[1], index, index + imax);
 		exit(1);
-		next: count = 0;
-	}
-	if (count) goto process;
+	process_name:;
+		registers[0] = 0;
+		nat a2 = arg_count > 2 ? arguments[arg_count - 1 - 2] : 0;
+		nat a1 = arg_count > 1 ? arguments[arg_count - 1 - 1] : 0;
+		nat a0 = arg_count > 0 ? arguments[arg_count - 1 - 0] : 0;
+		if (debug) {
+			printf("info: calling: \"\033[32;1m");
+			for (nat cc = names[called_name]; text[cc] != '"'; cc++) putchar(text[cc]);
+			printf("\033[0m\",args={a0:%llu,a1:%llu,a2:%llu\n", a0, a1, a2);
+		}
+		const nat e = name_starts_at;
+		struct location here = {0};
 
-generate_ins:
+		     if (is("eof", e)) 	break;
+		else if (is("0", e)) 	s <<= 1;                        // todo: delete these eventually. 
+		else if (is("1", e)) 	{ r += s; s <<= 1; }            // and make these user-level-made.
+		else if (is(".", e)) 	{ push_arg(r); r = 0; s = 1; }  // using ct system / macros.
+
+		else if (is("enabledebug", e)) 		debug = arguments[arg_count - 1];
+		else if (is("debugarguments", e)) 	print_arguments();
+		else if (is("debugregisters", e)) 	print_registers();
+		else if (is("debuginstructions", e))	print_instructions();
+		else if (is("debugdictionary", e))	print_dictionary();
+
+		else if (is("settargetarch", e)) 	architecture = arguments[arg_count - 1];
+		else if (is("setoutputformat", e)) 	output_format = arguments[arg_count - 1]; 
+		else if (is("objectname", e)) 		object_filename = get_name(name_count - 1); 
+		else if (is("executablename", e)) 	executable_filename = get_name(name_count - 1); 
+		else if (is("preserveobject", e)) 	preserve_existing_object = arguments[arg_count - 1]; 
+		else if (is("preserveexecuteable", e)) 	preserve_existing_executable = arguments[arg_count - 1]; 
+
+		else if (is("add", e)) execute_push(add, here); 
+		else if (is("sub", e)) execute_push(sub, here); 
+		else if (is("incr", e)) execute_push(incr, here); 
+		}
+		else if (is("sub", e))  push(sub, (struct location) {0}); 
+		else if (is("and", e)) 	push(and_, (struct location) {0}); 
+		else if (is("or", e))  	push(or_, (struct location) {0}); 
+		else if (e == xor_) 	push(xor_, (struct location) {0}); 
+		else if (e == slt)  	push(slt, (struct location) {0}); 
+		else if (e == sltu) 	push(sltu, (struct location) {0}); 
+
+	
+
+
+
+	/*
+		else if (e == ins_del)  { if (arg_count) arg_count--; }
+		else if (e == ins_arg)	push_arg(registers[a0]);
+
+		else if (e == ctli)   registers[a0] = a1;
+		else if (e == ctat)   registers[a0] = ins_count;
+		else if (e == ctpc)   registers[a0] = index;
+		else if (e == ctb)    { if (ct_flag) index = registers[a0]; }
+		else if (e == ctf)    { if (ct_flag) stop = registers[a0]; }
+		else if (e == ctblt)  ct_flag = registers[a0]  < registers[a1];
+		else if (e == ctbge)  ct_flag = registers[a0] >= registers[a1];
+		else if (e == ctbeq)  ct_flag = registers[a0] == registers[a1];
+		else if (e == ctbne)  ct_flag = registers[a0] != registers[a1];
+
+		else if (e == ctincr) registers[a0]++;
+		else if (e == ctzero) registers[a0] = 0;
+		
+		else if (e == ctsub)  registers[a0] = registers[a1] - registers[a2]; 
+		else if (e == ctmul)  registers[a0] = registers[a1] * registers[a2]; 
+		else if (e == ctdiv)  registers[a0] = registers[a1] / registers[a2]; 
+		else if (e == ctrem)  registers[a0] = registers[a1] % registers[a2]; 
+		else if (e == ctxor)  registers[a0] = registers[a1] ^ registers[a2]; 
+		else if (e == ctand)  registers[a0] = registers[a1] & registers[a2]; 
+		else if (e == ctor)   registers[a0] = registers[a1] | registers[a2]; 
+		else if (e == ctnor)  registers[a0] = ~(registers[a1] | registers[a2]); 
+		else if (e == ctsl)   registers[a0] = registers[a1] << registers[a2]; 
+		else if (e == ctsr)   registers[a0] = registers[a1] >> registers[a2]; 
+
+		else if (e == ctlb)  registers[a0] = *(u8*) registers[a1]; 
+		else if (e == ctlh)  registers[a0] = *(u16*)registers[a1]; 
+		else if (e == ctlw)  registers[a0] = *(u32*)registers[a1]; 
+		else if (e == ctld)  registers[a0] = *(nat*)registers[a1]; 
+
+		else if (e == ctsb)  *(u8*) registers[a0] = (u8)  registers[a1]; 
+		else if (e == ctsh)  *(u16*)registers[a0] = (u16) registers[a1]; 
+		else if (e == ctsw)  *(u32*)registers[a0] = (u32) registers[a1]; 
+		else if (e == ctsd)  *(nat*)registers[a0] = (nat) registers[a1]; 
+		
+		else if (e == ctprint) 
+				printf("debug: \033[32m%llu (%lld)\033[0m "
+					"\033[32m0x%llx\033[0m\n", 
+					registers[a0], 
+					registers[a0], 
+					registers[a0]
+				); 
+
+		else if (e == ctabort) abort();
+		else if (e == ctget) registers[a0] = (nat) getchar();
+		else if (e == ctput) putchar((char) registers[a0]);
+
+
+	*/
+
+	
+
+		// else if (names[i].is_callonuse) {} // call macro
+		else push_arg(values[e]);
+		registers[0] = 0;
+		next_char:;
+	}
+
+// generate_ins:
 
 	if (debug) {
 		printf("info: building for target:\n\tarchitecture:  \033[31;1m%s\033[0m\n\toutput_format: \033[32;1m%s\033[0m.\n\n", 
@@ -1090,7 +1435,10 @@ generate_ins:
 	}
 
 	if (architecture == noruntime) {
-		if (not ins_count) exit(0);
+
+		if (not ins_count) 
+			exit(0);
+
 		current_ins = ins[0];
 		print_error("encountered runtime instruction with target \"noruntime\"", ins[0].loc[0]);
 		exit(1);
@@ -1158,6 +1506,8 @@ generate_ins:
 		system("objdump object.o -DSast --disassembler-options=no-aliases");
 		system("objdump program.out -DSast --disassembler-options=no-aliases");	
 	}
+
+	munmap(text, length);
 }
 
 
@@ -1173,7 +1523,211 @@ generate_ins:
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 /*
+
+
+
+
+
+
+
+
+// todo: add atomic (A) extension, and F/D extensions, as well.  eventually lol.
+
+enum language_ISA {
+	ctclear, ctls, ctarg, ctli, ctstop,   // compiletime system.
+	ctpc, ctb, ctf, ctblt,
+	ctbge, ctbeq, ctbne, ctincr, ctzero,
+	ctadd, ctsub, ctmul, ctdiv, ctrem, 
+	ctnor, ctxor, ctand, ctor,
+	ctsl, ctsr, ctlb, ctlh, ctlw,
+	ctld, ctsb, ctsh, ctsw, ctsd,
+};
+
+
+
+
+
+
+
+
+static const char* instruction_spelling[instruction_set_count] = {
+	"u32", "ecall", "ebreak", "fence", 
+	"fencei", "add", "sub", "sll", 
+	"slt", "sltu", "xor", "srl", 
+	"sra", "or", "and", "addw", 
+	"subw", "sllw", "srlw", "sraw",
+	"lb", "lh", "lw", "ld", 
+	"lbu", "lhu", "lwu", "addi", 
+	"slti", "sltiu", "xori", "ori", 
+	"andi", "slli", "srli", "srai", 
+	"addiw", "slliw", "srliw", "sraiw",
+	"jalr", "csrrw", "csrrs", "csrrc", 
+	"csrrwi", "csrrsi", "csrrci", "sb", 
+	"sh", "sw", "sd", "lui",
+	"auipc", "beq", "bne", "blt", 
+	"bge", "bltu", "bgeu", "jal", 
+	"mul", "mulh", "mulhsu", "mulhu", 
+	"div_", "divu", "rem", "remu", 
+	"mulw", "divw", "divuw", "remw", 
+	"remuw",
+	
+	"u16",
+	"u8",
+	"ctclear", "ctdel", "ctls", "ctarg", "ctli", "ctstop",
+	"ctat", "ctpc", "ctb", "ctf", "ctblt",
+	"ctbge", "ctbeq", "ctbne", "ctincr", "ctzero",
+	"ctadd", "ctsub", "ctmul", "ctdiv", "ctrem", "ctnor", "ctxor", "ctand", "ctor", 
+	"ctsl", "ctsr", "ctlb", "ctlh", "ctlw",
+	"ctld", "ctsb", "ctsh", "ctsw", "ctsd",
+	"ctprint", "ctabort", "ctget", "ctput",
+};
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+static void process(nat i) {
+
+
+		const char* const word = text + start;
+		const struct location here = {start, count};
+
+		if (debug) printf(". %s: \"\033[32;1m%.*s\033[0m\"...\n", 
+				stop ? "\033[31mignoring\033[0m" : "\033[32mprocessing\033[0m", 
+				(int) count, word);
+
+		if (is(word, count, "define")) {
+			if (not arg_count or stop) goto next;
+			const u32 r = arguments[arg_count - 1];
+			
+			names[dict_count] = strndup(text + defining, defining_length);
+			values[dict_count++] = r;
+
+			if (debug) printf("info: defining macro with value: %llu,  the macro is named: \"%s\"\n", 
+				(nat) values[dict_count - 1], names[dict_count - 1]
+			);
+
+			defining_length = 0; defining = 0;
+			goto next;
+		}
+	
+
+	
+
+		if (is(word, count, "include")) {
+			if (not dict_count or stop) goto next;
+			char new[128] = {0};
+			snprintf(new, sizeof new, "%s.s", names[dict_count - 1]);
+			if (debug) printf("\033[32mIncluding file \"%s\"...\033[0m\n", new);
+			nat l = 0;
+			const char* s = read_file(new, &l);
+			text = realloc(text, text_length + l + 1);
+			memmove(text + index + 1 + l + 1, text + index + 1, text_length - (index + 1));
+			memcpy(text + index + 1, s, l);
+			text[index + 1 + l] = ' ';
+			text_length += l + 1;
+			filenames[file_count] = strdup(new);
+			files[file_count++] = (struct location) {.start = index + 1, .count = l + 1};
+			goto next;
+		}
+	
+
+
+
+		for (u32 i = dw; i < instruction_set_count; i++) {
+			if (not is(word, count, instruction_spelling[i])) continue;
+			if (i < ctclear) push(i, here); else execute(i, &index, text, here);
+			goto next;
+		}
+
+	
+	
+		u32 r = 0, s = 1;
+		for (nat i = 0; i < count; i++) {
+			if (word[i] == '0') s <<= 1;
+			else if (word[i] == '1') { r += s; s <<= 1; }
+			else goto other_word;
+		}
+		if (debug) printf("[info: pushed %llu onto argument stack]\n", (nat) r);
+		arg_locations[arg_count] = here;
+		arguments[arg_count++] = r;
+		
+		goto next;
+	other_word:
+		for (nat i = 0; i < dict_count; i++) {
+			if (not is(word, count, names[i])) continue;
+			if (debug) printf("[info: found user-defined name: pushed (%s)  value %llu  onto argument stack]\n", 
+					names[i], (nat) values[i]);
+			arg_locations[arg_count] = here;
+			arguments[arg_count++] = values[i]; 
+			goto next;
+		}
+		if (stop) goto next;
+		if (debug) printf("found undefined word %.*s... setting defined = %llu.\n", (int) count, word, start);
+		defining = start; defining_length = count; 
+		goto next;
+
+	error:;
+		char reason[4096] = {0};
+		snprintf(reason, sizeof reason, "unknown word \"%.*s\"", (int) defining_length, text + defining);
+		print_error(reason, here);
+		exit(1);
+		next: count = 0;
+	
+
+
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 Riscv and arm ABI:
 
 
@@ -1243,6 +1797,35 @@ has:
 
 
 
+	// todo:    wait....  do any of these C-extension ins even do anything that the main instructions can't do!?!? i feel like we can just have the assembler know to use these instructions when appropriate?  and just know how to use the main instructions, to get these instructions, i feel like that makes alot more sense!!! that way it keeps the language both small and portable, and still fully performance-expressable for riscv archs.
+
+	//cnop, caddi4spn, clw, cld, csw, csd,   // C extension
+	//caddi, cjal, caddiw, cli, caddi16sp, 
+	//clui, csrli, candi, csub, cxor, cor, 
+	//cand, csubw, caddw, cj, cbeqz, cbnez, 
+	//cslli, clwsp, cldsp, cjr, cmv, cebreak, 
+	//cjalr, cadd, cswsp, csdsp, 
+
+
+// see above.
+//	"cnop", "caddi4spn", "clw", "cld", "csw", "csd", 
+//	"caddi", "cjal", "caddiw", "cli", "caddi16sp", 
+//	"clui", "csrli", "candi", "csub", "cxor", "cor", 
+//	"cand", "csubw", "caddw", "cj", "cbeqz", "cbnez", 
+//	"cslli", "clwsp", "cldsp", "cjr", "cmv", "cebreak", 
+//	"cjalr", "cadd", "cswsp", "csdsp", 
+
+
+//  make arguments not an array. use a0, a1 and a2 directly, as variables. simpler. 
+// or make op be simply arguments[0]. either one. 
+
+
+
+
+
+
+
+
 
 */
 
@@ -1265,6 +1848,72 @@ has:
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+/*          
+
+202403247.203537:
+
+
+
+we can't use indicies,  of the dictionary entries
+
+
+
+
+
+
+	   the index of a name changes, as we sort it via insertion sort. crap. we will either need to have the sorted version,a nd use the indicies then,  
+					ie, order        wait no we don't even know what names they gave the
+							crpa
+
+
+					we need to hard code the names   theres no way around it 
+
+	lol 
+						okay so lets do that now.   we will need the equal function. dang it. 
+	hm
+
+
+
+
+
+
+
+
+
+
+
+// static nat literal_r = 0, literal_p = 1;
+// static nat stop = 0;
+// static bool ct_flag = 0;       // todo: make the ct system more risc-v like.  delete this by making the branch do the check.
+
+//static bool is(const char* word, nat count, const char* this) {
+//	return strlen(this) == count and not strncmp(word, this, count);
+//}
+
+
+
+
+
+
+
+
+
+*/
 
 
 

@@ -10,6 +10,14 @@
 #include <iso646.h>
 #include <stdbool.h>
 
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////          we need to implement contexts next!!!           ////////////////////////// 
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+
+
+
 typedef uint64_t nat;
 
 static char* text = NULL;
@@ -24,7 +32,7 @@ static nat values[4096] = {0};
 
 static nat name_count = 0, length = 0, 
 	start = 0, argument_count = 0, 
-	sn = 0;
+	r = 0, p = 1;
 
 static bool equals(const char* literal, nat initial) {
 	nat i = initial, j = 0;
@@ -38,21 +46,19 @@ static bool equals(const char* literal, nat initial) {
 
 static void process(nat n, nat name) {
 
-	if (equals("snincr", n)) { sn++; }
-	else if (equals("snzero", n)) { sn = 0; } 
-	else if (equals("snshl", n)) { sn <<= 1; } 
-	else if (equals("0", n)) { sn <<= 1; } 
-	else if (equals("1", n)) { sn++; sn <<= 1; } 
-	else if (equals("#", n)) { arguments[argument_count++] = sn; } 
-	else if (equals("snpush", n)) { arguments[argument_count++] = sn; } 
-	else if (equals("snprint", n)) { printf("sn = %llu\n", sn); } 
+	if (equals("0", n)) { p <<= 1; } 
+	else if (equals("1", n)) { r += p; p <<= 1; } 
+	else if (equals("#", n)) { arguments[argument_count++] = r; r = 0; p = 1; } 
+
+
+	else if (equals("snpush", n)) { arguments[argument_count++] = r; } 
+	else if (equals("snprint", n)) { printf("r = %llu, p = %llu\n", r, p); } 
 	else if (equals("argprint", n)) { printf("debug: %llu\n", arguments[argument_count - 1]); } 
 	else if (equals("debugarguments", n)) { 
 		printf("debug: .args={ ");
 		for (nat a = 0; a < argument_count; a++) printf("%llu ", arguments[a]);
 		puts("}");
 	} else arguments[argument_count++] = values[name];
-
 }
 
 int main(int argc, const char** argv) {
@@ -98,6 +104,10 @@ int main(int argc, const char** argv) {
 				if (text[index + i] != text[c]) goto next_name;
 				i++; c++;
 			}
+			printf("[found the name: <<<");
+			for (nat cc = names[name]; text[cc] != '"'; cc++) putchar(text[cc]);
+			printf(">>>, ");
+			printf("moved along %llu chars...\n", i);
 			process(n, name);
 			index += i - 1;
 			goto next_char;
@@ -110,8 +120,6 @@ int main(int argc, const char** argv) {
 		next_char:;
 	}
 
-
-
 	puts("current names: {");
 	for (nat i = 0; i < name_count; i++) {
 		printf("\t#%llu: @%llu:len=%llu:val=%llu ", i, names[i], lengths[i], values[i]);
@@ -123,7 +131,7 @@ int main(int argc, const char** argv) {
 	munmap(text, length);
 }
 
-
+    
 
 
 

@@ -1,0 +1,208 @@
+"eof"
+"0"
+"1"
+"/"
+
+
+
+
+
+eof
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+"enable debug output"
+"print arguments"
+"print registers"
+"print instructions"
+"print dictionary"
+"set target arch"
+"set output format"
+"set object name"
+"set executable name"
+"preserve existing object"
+"preserve existing executable"
+"delete last argument"
+"push new argument"
+
+
+
+
+
+"enable debug output"
+"print arguments"
+"print registers"
+"print instructions"
+"print dictionary"
+
+
+
+print dictionary 
+
+end of file
+
+
+
+
+	ins_eof, 
+	ins_0, 
+	ins_1, 
+	ins_l, 
+
+	ins_d, 
+	ins_da, 
+	ins_dr, 
+	ins_di, 
+	ins_dd,
+
+	ins_ar, 
+	ins_of, 
+	ins_on, 
+	ins_en, 
+	ins_po, 
+	ins_pe,
+
+	ins_del, 
+	ins_arg, 
+
+	ctabort, 
+	ctprint, 
+	ctmode, 
+	ctat, 
+	ctget, 
+	ctput,
+
+
+	ctclear, 
+	ctls, 
+	ctli, 
+	ctstop,
+
+	ctpc, 
+	ctb, 
+	ctf, 
+	ctblt,
+	ctbge, 
+	ctbeq, 
+	ctbne,
+ 
+	ctincr, 
+	ctzero,
+
+	ctadd, 
+	ctsub, 
+	ctmul, 
+	ctdiv, 
+	ctrem, 
+
+	ctnor, 
+	ctxor, 
+	ctand, 
+	ctor,
+	ctsl, 
+	ctsr,
+ 
+	ctlb, 
+	ctlh, 
+	ctlw,
+	ctld, 
+
+	ctsb, 
+	ctsh, 
+	ctsw, 
+	ctsd,
+
+	db, 
+	dh, 
+	dw, 
+
+	ecall, 
+	ebreak, 
+	fence, 
+	fencei, 
+	
+	add, 
+	sub, 
+	sll, 
+	slt, 
+	sltu, 
+	xor_, 
+	srl, 
+	sra, 
+	or_, 
+	and_, 
+	addw, 
+	subw, 
+	sllw, 
+	srlw, 
+	sraw,
+	lb, 
+	lh, 
+	lw, 
+	ld, 
+	lbu, 
+	lhu, 
+	lwu, 
+	addi, 
+	slti, 
+	sltiu, 
+	xori, 
+	ori, 
+	andi, 
+	slli, 
+	srli, 
+	srai, 
+	addiw, 
+	slliw, 
+	srliw, 
+	sraiw,
+	jalr, 
+	csrrw, 
+	csrrs, 
+	csrrc, 
+	csrrwi, 
+	csrrsi, 
+	csrrci, 
+	sb, 
+	sh, 
+	sw, 
+	sd, 
+	lui, 
+	auipc, 
+	beq, 
+	bne, 
+	blt, 
+	bge, 
+	bltu, 
+	bgeu, 
+	jal, 
+	mul, 
+	mulh, 
+	mulhsu, 
+	mulhu,
+	div_, 
+	divu, 
+	rem, 
+	remu, 
+	mulw, 
+	divw, 
+	divuw, 
+	remw, 
+	remuw, 
+
