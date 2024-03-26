@@ -15,6 +15,12 @@ todo stuff:
 
 	- implement including files.
 
+
+
+
+branches:
+------------
+
 	- flush out the branching system for risc-v compiletime system.
 
 	- start trying to figure out branches for arm64. 
@@ -24,7 +30,7 @@ todo stuff:
 
 #include <stdio.h>   
 #include <stdlib.h>  
-#include <string.h>  
+#include <string.h>
 #include <unistd.h>  
 #include <sys/stat.h>
 #include <fcntl.h>   
@@ -84,9 +90,10 @@ static u32 arm64_macos_abi[] = {        // note:  x9 is call-clobbered. save it 
 };
 
 enum language_ISA {
-	ctzero, ctincr, ctmode, 
-	ctclear, ctabort, ctprint, ctget, ctput,
-	ctdel, ctarg, ctat, 
+	null_instruction, ctzero, ctincr, ctmode, ctat, 
+
+	ctclear, ctabort, ctprint, ctget, ctput, ctdel, ctarg, 
+
 	db, dh, dw, 
 	ecall, ebreak, fence, fencei, 
 	add, sub, sll, slt, sltu, xor_, srl, sra, or_, and_, 
@@ -173,7 +180,7 @@ static char* read_file(const char* name, nat* out_length) {
 
 
 static void push_arg(nat r) {
-	if (debug) printf("[info: pushed %llu onto argument stack]\n", (nat) r);
+	if (debug) printf("info: pushed %llu onto argument stack\n", (nat) r);
 	arg_locations[arg_count] = (struct location) {0};
 	arguments[arg_count++] = (u32) r;
 }
@@ -208,8 +215,8 @@ static void print_registers(void) {
 	nat printed_count = 0;
 	printf("debug: registers = {\n");
 	for (nat i = 0; i < sizeof registers / sizeof(nat); i++) {
-		if (not (printed_count % 4)) puts("");
 		if (registers[i]) {
+			if (printed_count % 4 == 0) puts("");
 			printf("%02llu:%010llx, ", i, registers[i]);
 			printed_count++;
 		}
@@ -637,51 +644,51 @@ static void generate_arm64_machine_code(void) {
 
 		else if (op == add)    emit(generate_add(a[0], a[1], a[2], 0x0BU, 0, 1, 0, 0, 0));
 		else if (op == sub)    emit(generate_add(a[0], a[1], a[2], 0x0BU, 0, 1, 0, 1, 0));
-		else if (op == sll)    {}    // next lets do      emit(generate_adc(a, 0x0D6U, 0x08));  // lslv
-		else if (op == slt)    {} // omg do we impl the slt/sltu via CSEL!!?!!?
-		else if (op == sltu)   {}
-		else if (op == xor_)   {}
-		else if (op == srl)    {}
-		else if (op == sra)    {}
+		else if (op == sll)    {abort();}    // next lets do      emit(generate_adc(a, 0x0D6U, 0x08));  // lslv
+		else if (op == slt)    {abort();} // omg do we impl the slt/sltu via CSEL!!?!!?
+		else if (op == sltu)   {abort();}
+		else if (op == xor_)   {abort();}
+		else if (op == srl)    {abort();}
+		else if (op == sra)    {abort();}
 		else if (op == or_)    emit(generate_add(a[0], a[1], a[2], 0x2AU, 0, 1, 0, 0, 0));
-		else if (op == and_)   {}
+		else if (op == and_)   {abort();}
 		else if (op == addw)   emit(generate_add(a[0], a[1], a[2], 0x0BU, 0, 0, 0, 0, 0));
 		else if (op == subw)   emit(generate_add(a[0], a[1], a[2], 0x0BU, 0, 0, 0, 1, 0));
-		else if (op == sllw)   {}
-		else if (op == srlw)   {}
-		else if (op == sraw)   {}
-		else if (op == lb)     {}
-		else if (op == lh)     {}
-		else if (op == lw)     {}
-		else if (op == ld)     {}
-		else if (op == lbu)    {}
-		else if (op == lhu)    {}
-		else if (op == lwu)    {}
+		else if (op == sllw)   {abort();}
+		else if (op == srlw)   {abort();}
+		else if (op == sraw)   {abort();}
+		else if (op == lb)     {abort();}
+		else if (op == lh)     {abort();}
+		else if (op == lw)     {abort();}
+		else if (op == ld)     {abort();}
+		else if (op == lbu)    {abort();}
+		else if (op == lhu)    {abort();}
+		else if (op == lwu)    {abort();}
 		else if (op == addi)   emit(generate_addi(a[0], a[1], 0x22U, a[2], 1, 0, 0, 0));
-		else if (op == slti)   {}
-		else if (op == sltiu)  {}
-		else if (op == xori)   {}
-		else if (op == ori)    {}
-		else if (op == andi)   {}
-		else if (op == slli)   {}
-		else if (op == srli)   {}
+		else if (op == slti)   {abort();}
+		else if (op == sltiu)  {abort();}
+		else if (op == xori)   {abort();}
+		else if (op == ori)    {abort();}
+		else if (op == andi)   {abort();}
+		else if (op == slli)   {abort();}
+		else if (op == srli)   {abort();}
 		else if (op == addiw)  emit(generate_addi(a[0], a[1], 0x22U, a[2], 0, 0, 0, 0));
-		else if (op == slliw)  {}
-		else if (op == srliw)  {}
+		else if (op == slliw)  {abort();}
+		else if (op == srliw)  {abort();}
 		else if (op == jalr)   emit(generate_br(a[0], a[1], 0x3587C0U, a[2]));
-		else if (op == sb)     {}
-		else if (op == sh)     {}
-		else if (op == sw)     {}
-		else if (op == sd)     {}
-		else if (op == lui)    {}
-		else if (op == auipc)  {}
-		else if (op == beq)    {}
-		else if (op == bne)    {}
-		else if (op == blt)    {}
-		else if (op == bge)    {}
-		else if (op == bltu)   {}
-		else if (op == bgeu)   {}
-		else if (op == jal)    {}
+		else if (op == sb)     {abort();}
+		else if (op == sh)     {abort();}
+		else if (op == sw)     {abort();}
+		else if (op == sd)     {abort();}
+		else if (op == lui)    {abort();}
+		else if (op == auipc)  {abort();}
+		else if (op == beq)    {abort();}
+		else if (op == bne)    {abort();}
+		else if (op == blt)    {abort();}
+		else if (op == bge)    {abort();}
+		else if (op == bltu)   {abort();}
+		else if (op == bgeu)   {abort();}
+		else if (op == jal)    {abort();}
 		else {
 			printf("error: arm64: unknown instruction: %llu\n", op);
 			//printf("       unknown instruction name: %s\n", instruction_spelling[op]);
@@ -848,46 +855,19 @@ static void make_macho_object_file(const char* object_filename, const bool prese
 }
 
 
-static void execute_push(u32 op, struct location here) {
 
-	if (is_compiletime) {
-		nat a2 = arg_count > 2 ? arguments[arg_count - 1 - 2] : 0;
-		nat a1 = arg_count > 1 ? arguments[arg_count - 1 - 1] : 0;
-		nat a0 = arg_count > 0 ? arguments[arg_count - 1 - 0] : 0;
 
-		     if (op == add)   registers[a0] = registers[a1] + registers[a2]; 
-		else if (op == sub)   registers[a0] = registers[a1] - registers[a2]; 
-		else if (op == mul)   registers[a0] = registers[a1] * registers[a2]; 
-		else if (op == div_)  registers[a0] = registers[a1] / registers[a2]; 
-		else if (op == and_)  registers[a0] = registers[a1] & registers[a2]; 
-		else if (op == or_)   registers[a0] = registers[a1] | registers[a2]; 
-		else if (op == xor_)  registers[a0] = registers[a1] ^ registers[a2]; 
-		else if (op == slt)   registers[a0] = registers[a1] < registers[a2]; 
-		else if (op == sltu)  registers[a0] = registers[a1] < registers[a2]; 
 
-		else if (op == addi)   registers[a0] = registers[a1] + a2; 
-		else if (op == andi)   registers[a0] = registers[a1] & a2; 
-		else if (op == ori)    registers[a0] = registers[a1] | a2; 
-		else if (op == xori)   registers[a0] = registers[a1] ^ a2; 
-		else if (op == slti)   registers[a0] = registers[a1] < a2; 
-		else if (op == sltiu)  registers[a0] = registers[a1] < a2; 
-		else { puts("unknown ct instruction!"); abort(); }
-		return;
-	}
+/*
 
-	struct instruction new = {0};
-	new.a[0] = op;
-	new.loc[0] = here;
-	for (nat i = 1; i < 4; i++) {
-		if (i > arg_count) break;
-		new.loc[i] = arg_locations[arg_count - i];
-		new.a[i] = arguments[arg_count - i];
-	}
-	
-	if (op >= beq and op <= jal) new.a[3] = (u32) registers[new.a[3]];
-	ins = realloc(ins, sizeof(struct instruction) * (ins_count + 1));
-	ins[ins_count++] = new;
-}
+
+
+// if (op >= beq and op <= jal) new.a[3] = (u32) registers[new.a[3]];
+
+*/
+
+
+
 
 int main(int argc, const char** argv) {
 
@@ -909,7 +889,10 @@ int main(int argc, const char** argv) {
 	filenames[file_count] = filename;
 	files[file_count++] = (struct location) {.start = 0, .count = text_length};
 
+	struct location here = {0};
 	nat start = 0, length = 0, name_starts_at = 0, r = 0, s = 1, called_name = 0, spot = 0;
+	nat forwards_branching = 0;
+
 
 	for (nat index = 0; index < text_length; index++) {
 		if ((unsigned char) text[index] < 33) goto next_char;
@@ -943,12 +926,13 @@ int main(int argc, const char** argv) {
 			}
 			index += i - 1;
 			goto process_name;
-			next_name:;
+			next_name: continue;
 		}
 		printf("asm: \033[31;1merror:\033[0m %s:%llu:%llu: unresolved symbol\n", argv[1], index, index + imax);
 		exit(1);
+
 	process_name:;
-		registers[0] = 0;
+		*registers = 0;
 		nat a2 = arg_count > 2 ? arguments[arg_count - 1 - 2] : 0;
 		nat a1 = arg_count > 1 ? arguments[arg_count - 1 - 1] : 0;
 		nat a0 = arg_count > 0 ? arguments[arg_count - 1 - 0] : 0;
@@ -957,11 +941,9 @@ int main(int argc, const char** argv) {
 			for (nat cc = names[called_name]; text[cc] != '"'; cc++) putchar(text[cc]);
 			printf("\033[0m\",args={a0:%llu,a1:%llu,a2:%llu\n", a0, a1, a2);
 		}
-		const nat e = name_starts_at;
-		struct location here = {0};
+		nat e = name_starts_at, op = 0;
 
-		     if (is("eof", e)) 	break;
-
+		if (is("eof", e)) break;
 		else if (is("setcompiletime", e)) 	is_compiletime = true;
 		else if (is("setruntime", e)) 		is_compiletime = false;
 		else if (is("setarchitecture", e)) 	architecture = arguments[arg_count - 1];
@@ -971,28 +953,52 @@ int main(int argc, const char** argv) {
 		else if (is("setobjectname", e)) 	object_filename = get_name(spot); 
 		else if (is("setexecutablename", e)) 	executable_filename = get_name(spot); 
 
-		else if (is("ctincr", e)) registers[a0]++;
-		else if (is("ctzero", e)) registers[a0] = 0;
+		else if (is("ctat", e)) {
+			//puts("inside ctat!");
+			//printf("I AM HERE IN THE FILE: %llu\n", index);
+			//getchar();
+			registers[a0] = index;
 
-		else if (is("ecall", e))  execute_push(ecall, here); 
-		else if (is("ebreak", e)) execute_push(ebreak, here); 
-		else if (is("fence", e))  execute_push(fence, here); 
-		else if (is("fencei", e)) execute_push(fencei, here); 
+			if (forwards_branching == a0) {
+				//puts("setzerod forwards_branching!");
+				forwards_branching = 0;
+			} else {
+				//puts("did not reset forwards_branching.");
+			}
+		}
 
-		else if (is("add", e)) execute_push(add, here); 
-		else if (is("sub", e)) execute_push(sub, here); 
-		else if (is("and", e)) execute_push(and_, here); 
-		else if (is("or",  e)) execute_push(or_, here); 
-		else if (is("xor", e)) execute_push(xor_, here); 
-		else if (is("slt", e)) execute_push(slt, here); 
-		else if (is("sltu",e)) execute_push(sltu, here); 
+		else if (is("ctzero", e)) { op = ctzero; goto push; }
+		else if (is("ctincr", e)) { op = ctincr; goto push; }
 
-		else if (is("addi", e)) execute_push(addi, here); 
-		else if (is("andi", e)) execute_push(andi, here); 
-		else if (is("ori",  e)) execute_push(ori, here); 
-		else if (is("xori", e)) execute_push(xori, here); 
-		else if (is("slti", e)) execute_push(slti, here); 
-		else if (is("sltiu",e)) execute_push(sltiu, here); 
+		else if (is("ecall", e)) { op = ecall; goto push; }
+		else if (is("ebreak", e)) { op = ebreak; goto push; }
+		else if (is("fence", e)) { op = fence; goto push; }
+		else if (is("fencei", e)) { op = fencei; goto push; }
+		else if (is("add", e)) { op = add; goto push; }
+		else if (is("sub", e)) { op = sub; goto push; }
+		else if (is("and", e)) { op = and_; goto push; }
+		else if (is("or",  e)) { op = or_; goto push; }
+		else if (is("xor", e)) { op = xor_; goto push; }
+		else if (is("slt", e)) { op = slt; goto push; }
+		else if (is("sltu",e)) { op = sltu; goto push; }
+		else if (is("addi", e)) { op = addi; goto push; }
+		else if (is("andi", e)) { op = andi; goto push; }
+		else if (is("ori",  e)) { op = ori; goto push; }
+		else if (is("xori", e)) { op = xori; goto push; }
+		else if (is("slti", e)) { op = slti; goto push; }
+		else if (is("sltiu",e)) { op = sltiu; goto push; }
+		else if (is("lb", e)) { op = lb; goto push; }
+		else if (is("lh", e)) { op = lh; goto push; }
+		else if (is("lw", e)) { op = lw; goto push; }
+		else if (is("ld", e)) { op = ld; goto push; }
+		else if (is("sb", e)) { op = sb; goto push; }
+		else if (is("sh", e)) { op = sh; goto push; }
+		else if (is("sw", e)) { op = sw; goto push; }
+		else if (is("sd", e)) { op = sd; goto push; }
+		else if (is("bltu", e)) { op = bltu; goto push; }
+		else if (is("jalr", e)) { op = jalr; goto push; }
+		else if (is("jal",  e)) { op = jal; goto push; }
+		
 
 		else if (is("0", e)) 	s <<= 1;                        // todo: delete these eventually. 
 		else if (is("1", e)) 	{ r += s; s <<= 1; }            // and make these user-level-made.
@@ -1018,9 +1024,85 @@ int main(int argc, const char** argv) {
 		// else if (names[i].is_callonuse) {} // call macro
 		else push_arg(values[called_name]);
 
-		registers[0] = 0;
-		next_char:;
+		*registers = 0;
+		goto next_char;
+
+	push:
+				//printf("AT PUSH LABEL: op = %llu...\n", op);
+
+		if (forwards_branching) goto next_char;
+				//puts("YESS, forwards_branching is zero...");
+		if (not is_compiletime) goto push_rt;
+				//puts("YESS, in compiletime executtion state...");
+
+		*registers = 0;
+
+		if (op == ctzero) 	registers[a0] = 0;
+		else if (op == ctincr) 	registers[a0]++;
+
+		else if (op == add)   registers[a0] = registers[a1] + registers[a2]; 
+		else if (op == sub)   registers[a0] = registers[a1] - registers[a2]; 
+		else if (op == mul)   registers[a0] = registers[a1] * registers[a2]; 
+		else if (op == div_)  registers[a0] = registers[a1] / registers[a2]; 
+		else if (op == and_)  registers[a0] = registers[a1] & registers[a2]; 
+		else if (op == or_)   registers[a0] = registers[a1] | registers[a2]; 
+		else if (op == xor_)  registers[a0] = registers[a1] ^ registers[a2]; 
+		else if (op == slt)   registers[a0] = registers[a1] < registers[a2]; 
+		else if (op == sltu)  registers[a0] = registers[a1] < registers[a2]; 
+
+		else if (op == addi)   registers[a0] = registers[a1] + a2; 
+		else if (op == andi)   registers[a0] = registers[a1] & a2; 
+		else if (op == ori)    registers[a0] = registers[a1] | a2; 
+		else if (op == xori)   registers[a0] = registers[a1] ^ a2; 
+		else if (op == slti)   registers[a0] = registers[a1] < a2; 
+		else if (op == sltiu)  registers[a0] = registers[a1] < a2; 
+
+		else if (op == lb) registers[a0] = *( u8*)(registers[a1] + a2); 
+		else if (op == lh) registers[a0] = *(u16*)(registers[a1] + a2); 
+		else if (op == lw) registers[a0] = *(u32*)(registers[a1] + a2); 
+		else if (op == ld) registers[a0] = *(nat*)(registers[a1] + a2); 
+
+		else if (op == sb) *( u8*)(registers[a0] + a1) = ( u8)registers[a2]; 
+		else if (op == sh) *(u16*)(registers[a0] + a1) = (u16)registers[a2]; 
+		else if (op == sw) *(u32*)(registers[a0] + a1) = (u32)registers[a2]; 
+		else if (op == sd) *(nat*)(registers[a0] + a1) = (nat)registers[a2]; 
+
+		else if (op == bltu) {   
+			puts("inside bltu ct impl...");
+			if (registers[a0] < registers[a1]) {
+				puts("condition was true!");
+				if (registers[a2]) {
+					puts("backwards branching using regs[a2]!");
+					index = registers[a2]; 
+				} else {
+					puts("forwards branching using a2!");
+					forwards_branching = a2;
+				}
+			}
+
+		} else { puts("unknown ct instruction!"); printf("op = %llu\n", op); abort(); }
+
+		*registers = 0;
+		goto next_char;
+
+	push_rt:;
+
+		puts("inside push_rt! ...pushhing runtime instruction!");
+		struct instruction new = {0};
+		new.a[0] = (u32) op;
+		new.loc[0] = here;
+		for (nat i = 1; i < 4; i++) {
+			if (i > arg_count) break;
+			new.loc[i] = arg_locations[arg_count - i];
+			new.a[i] = arguments[arg_count - i];
+		}
+		
+		ins = realloc(ins, sizeof(struct instruction) * (ins_count + 1));
+		ins[ins_count++] = new;
+
+		next_char: continue;
 	}
+
 
 	if (debug) {
 		printf("info: building for target:\n\tarchitecture:  \033[31;1m%s\033[0m\n\toutput_format: \033[32;1m%s\033[0m.\n\n", 
@@ -1133,8 +1215,76 @@ int main(int argc, const char** argv) {
 
 
 
+	/*
 
-/*
+
+
+
+
+
+
+
+
+
+
+			 this is a forwards branch...
+					
+
+
+					// FACT: we need to skip ahead to find the place in the code where the user says:
+
+						//             label name here   ctat
+
+
+					// we need to find where that is. somehow. 
+
+
+
+					// or rather,         we need to skip over instructions,     NOT executing anything anymore, 
+
+												(or generating anything btw!   (rt)) 
+
+
+					and we need to wait until we EXECUTE a    ctat   instruction,    where the register  is     label name here 
+
+					ie, we keep track of the register given to us,     "registers[a2]" 
+
+
+						or rather,     a2, specifically         we want a2,            we are looking for the value of a2    to be found being given as an argument to the ctat instruction. and when that happens, we start executing things agian. 
+
+
+
+
+			wow!!!      no reparsing or double parsing of the document neccessary at all!
+
+
+
+		neat! 
+						just need to set a flag that says we are ignoring stuff, 
+
+
+					and set it when we do a forwards branch. 
+
+
+					note,      the flag is actually the value of a2 itself 
+
+
+
+						if a2 is zero,    we are executing things         if its nonzero,   then we are skipping, waiting for a  "a2 ctat"  instance to pop up.    note. we cannot skip ctats obviously lol. 
+
+
+
+
+so yeah, thats how it works! nice
+202403251.171256
+
+
+
+
+
+
+
+
 
 
 
@@ -1145,7 +1295,7 @@ int main(int argc, const char** argv) {
 
 // todo: add atomic (A) extension, and F/D extensions, as well.  eventually lol.
 
-enum language_ISA {
+enum lattntgtutagtet_tItSA {
 	ctclear, ctls, ctarg, ctli, ctstop,   // compiletime system.
 	ctpc, ctb, ctf, ctblt,
 	ctbge, ctbeq, ctbne, ctincr, ctzero,
@@ -1270,7 +1420,7 @@ static void process(nat i) {
 			else if (word[i] == '1') { r += s; s <<= 1; }
 			else goto other_word;
 		}
-		if (debug) printf("[info: pushed %llu onto argument stack]\n", (nat) r);
+		if (debug) printf("info: pushed %llu onto argument stack\n", (nat) r);
 		arg_locations[arg_count] = here;
 		arguments[arg_count++] = r;
 		

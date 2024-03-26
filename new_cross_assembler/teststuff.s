@@ -3,14 +3,35 @@
 	everything is working really well so far! we got the first working rt program yayyyy
 	on 202403251.044244.  
 	dwrr
-
 "
 
-"eof" "0" "1" "=" "debug arguments" "setarchitecture"  "setoutputformat" 
+"eof" "0" "1" "=" 
+"debug arguments" "debug instructions" "debug registers" "debug dictionary"
+"setarchitecture"  "setoutputformat" 
 "preserveexecutable" "preserveobject"
 "set object name" "set executable name"
-"setcompiletime" "setruntime" "add" "sub" "addi" "ctdebug" 
-"set debug" "ecall"
+"setcompiletime" "setruntime" 
+"ctdebug" "set debug" "ctget" "ctput" "ctabort"
+
+"ctat"
+"ctincr"
+"ctzero"
+
+"add" 
+"sub" 
+"addi" 
+"blt"
+"bltu"
+"jalr"
+"jal"
+"ecall"
+
+
+
+0 = set debug
+
+
+
 
 0 = "no runtime"
 1 = "riscv 32"
@@ -43,19 +64,20 @@
 0 = "standard in"
 1 = "standard out"
 
-
+0 = "zr"
 1 = "ra"
 01 = "sp"
 
-
-
-1 = set debug
-
-0 = "zr"
+01 = "2"
+11 = "3"
 001 = "4"
 101 = "5"
-011 = "sum"
+011 = "6"
+111 = "7"
+0001 = "8"
+1001 = "9"
 
+011 = "sum"
 set compiletime
 4 zr sum addi 
 5 sum sum addi
@@ -69,224 +91,59 @@ macho executable 	set output format
 0 = preserve executable
 
 
-set runtime 
 
 
 
-"         
-	todo:  we should also call   the write()  system call next!  
+
+001 = "one"
+101 = "a"
+011 = "count"
+
+0000001 = "my loop label" 	ctzero
+1000001 = "skip to exit call" 	ctzero
+
+set compiletime
+
+zr zr a addi
+2 zr count addi
+
+"
+my loop label ctat
+	debug registers
+
+	zr ctget
+
+	a ctincr
+	my loop label count a bltu
 "
 
 
 
-standard in= 	zr 	system read fd 	addi
+1 = set debug
+
+one ctzero ctincr ctincr
+
+debug registers zr ctget
+
+skip to exit call count one bltu
+
+debug registers zr ctget
+
+
+set runtime 
+standard in= 	zr 	system read fd 		addi
 sp= 		zr 	system read buffer 	addi
 1= 		zr 	system read length 	addi
 system read 	zr 	system call number 	addi 
 ecall
 
+skip to exit call ctat 
+
+set runtime 
 11111= 		zr 	system exit code 	addi
 system exit 	zr 	system call number 	addi 
 ecall
 
 
 eof
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-"enable debug output"
-"print arguments"
-"print registers"
-"print instructions"
-"print dictionary"
-"set target arch"
-"set output format"
-"set object name"
-"set executable name"
-"preserve existing object"
-"preserve existing executable"
-"delete last argument"
-"push new argument"
-
-
-
-
-
-"enable debug output"
-"print arguments"
-"print registers"
-"print instructions"
-"print dictionary"
-
-
-
-print dictionary 
-
-end of file
-
-
-
-
-	ins_eof, 
-	ins_0, 
-	ins_1, 
-	ins_l, 
-
-	ins_d, 
-	ins_da, 
-	ins_dr, 
-	ins_di, 
-	ins_dd,
-
-	ins_ar, 
-	ins_of, 
-	ins_on, 
-	ins_en, 
-	ins_po, 
-	ins_pe,
-
-	ins_del, 
-	ins_arg, 
-
-	ctabort, 
-	ctprint, 
-	ctmode, 
-	ctat, 
-	ctget, 
-	ctput,
-
-
-	ctclear, 
-	ctls, 
-	ctli, 
-	ctstop,
-
-	ctpc, 
-	ctb, 
-	ctf, 
-	ctblt,
-	ctbge, 
-	ctbeq, 
-	ctbne,
- 
-	ctincr, 
-	ctzero,
-
-	ctadd, 
-	ctsub, 
-	ctmul, 
-	ctdiv, 
-	ctrem, 
-
-	ctnor, 
-	ctxor, 
-	ctand, 
-	ctor,
-	ctsl, 
-	ctsr,
- 
-	ctlb, 
-	ctlh, 
-	ctlw,
-	ctld, 
-
-	ctsb, 
-	ctsh, 
-	ctsw, 
-	ctsd,
-
-	db, 
-	dh, 
-	dw, 
-
-	ecall, 
-	ebreak, 
-	fence, 
-	fencei, 
-	
-	add, 
-	sub, 
-	sll, 
-	slt, 
-	sltu, 
-	xor_, 
-	srl, 
-	sra, 
-	or_, 
-	and_, 
-	addw, 
-	subw, 
-	sllw, 
-	srlw, 
-	sraw,
-	lb, 
-	lh, 
-	lw, 
-	ld, 
-	lbu, 
-	lhu, 
-	lwu, 
-	addi, 
-	slti, 
-	sltiu, 
-	xori, 
-	ori, 
-	andi, 
-	slli, 
-	srli, 
-	srai, 
-	addiw, 
-	slliw, 
-	srliw, 
-	sraiw,
-	jalr, 
-	csrrw, 
-	csrrs, 
-	csrrc, 
-	csrrwi, 
-	csrrsi, 
-	csrrci, 
-	sb, 
-	sh, 
-	sw, 
-	sd, 
-	lui, 
-	auipc, 
-	beq, 
-	bne, 
-	blt, 
-	bge, 
-	bltu, 
-	bgeu, 
-	jal, 
-	mul, 
-	mulh, 
-	mulhsu, 
-	mulhu,
-	div_, 
-	divu, 
-	rem, 
-	remu, 
-	mulw, 
-	divw, 
-	divuw, 
-	remw, 
-	remuw, 
 
