@@ -1,3 +1,7 @@
+"include" 
+
+"library/foundation.s" include
+
 "
 	this is a program to test the ct/rt language, and generating arm64 machine code. 
 	everything is working really well so far! we got the first working rt program yayyyy
@@ -5,83 +9,10 @@
 	dwrr
 "
 
-"eof" "0" "1" "=" 
-"debug arguments" "debug instructions" "debug registers" "debug dictionary"
-"setarchitecture"  "setoutputformat" 
-"preserveexecutable" "preserveobject"
-"set object name" "set executable name"
-"setcompiletime" "setruntime" 
-"ctdebug" "set debug" "ctget" "ctput" "ctabort"
+set compiletime 
+"assembler: loaded foundation successfully..." ctprint
+set runtime
 
-"ctat"
-"ctincr"
-"ctzero"
-
-"add" 
-"sub" 
-"addi" 
-"blt"
-"bltu"
-"jalr"
-"jal"
-"ecall"
-
-
-
-0 = set debug
-
-
-
-
-0 = "no runtime"
-1 = "riscv 32"
-01 = "riscv 64"
-11 = "arm 32"
-001 = "arm 64"
-
-0 = "print binary"
-1 = "elf object"
-01 = "elf executable"
-11 = "macho object"
-001 = "macho executable"
-
-0101 = "a0"
-1101 = "a1"
-0011 = "a2"
-1011 = "a3"
-0111 = "a4"
-1111 = "a5"
-00001 = "a6"
-10001 = "a7" "system call number"
-
-1 = "system exit"     a0 "system exit code"
-01 = "system fork"
-11 = "system read"    a0 "system read fd"     a1 "system read buffer"      a2 "system read length"
-001 = "system write"
-101 = "system open"
-011 = "system close"
-
-0 = "standard in"
-1 = "standard out"
-
-0 = "zr"
-1 = "ra"
-01 = "sp"
-
-01 = "2"
-11 = "3"
-001 = "4"
-101 = "5"
-011 = "6"
-111 = "7"
-0001 = "8"
-1001 = "9"
-
-011 = "sum"
-set compiletime
-4 zr sum addi 
-5 sum sum addi
-ct debug
 
 arm 64 			set architecture
 macho executable 	set output format
@@ -90,44 +21,38 @@ macho executable 	set output format
 0 = preserve object
 0 = preserve executable
 
-
-
-
-
-
-001 = "one"
-101 = "a"
-011 = "count"
-
-0000001 = "my loop label" 	ctzero
-1000001 = "skip to exit call" 	ctzero
-
 set compiletime
 
-zr zr a addi
-2 zr count addi
+011 = "sum"
+4 zr sum addi 
+5 sum sum addi
 
-"
+zr zr 101 = "a" addi
+5 zr 011 = "count" addi
+
+
+0000001 = "my loop label"
 my loop label ctat
-	debug registers
-
-	zr ctget
-
-	a ctincr
+	a ctdebug ctincr
 	my loop label count a bltu
-"
 
 
+1= zr 111 = "should skip" addi
+1= zr 001 = "one" addi
 
-1 = set debug
+1000001 = "skip over getchar"
 
-one ctzero ctincr ctincr
+skip over getchar   should skip  one bltu
 
-debug registers zr ctget
+	set runtime 
 
-skip to exit call count one bltu
+	standard in= 	zr 	system read fd 		addi
+	sp= 		zr 	system read buffer 	addi
+	1= 		zr 	system read length 	addi
+	system read 	zr 	system call number 	addi 
+	ecall
 
-debug registers zr ctget
+skip over getchar ctat 
 
 
 set runtime 
@@ -137,13 +62,69 @@ sp= 		zr 	system read buffer 	addi
 system read 	zr 	system call number 	addi 
 ecall
 
-skip to exit call ctat 
-
-set runtime 
 11111= 		zr 	system exit code 	addi
 system exit 	zr 	system call number 	addi 
 ecall
 
 
+
+
+
+
+
+
+
+
+enable debug 
 eof
+
+
+
+
+
+
+
+
+
+
+0= zr 001= addi
+1= zr 101= addi
+"runtime skip label" 001= 101= beq
+
+
+
+
+
+runtime skip label ctat
+
+
+
+
+
+
+
+
+
+
+
+
+
+how to comment out code currently.. its not the best:
+
+	set compiletime 1111111= zr jal
+
+		set compiletime 
+		"ending assembly program!" ctprint
+		ctabort
+
+	1111111= ctat
+
+
+
+
+
+
+
+
+
 

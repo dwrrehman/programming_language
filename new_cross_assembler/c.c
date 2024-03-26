@@ -51,7 +51,7 @@ typedef uint32_t u32;
 typedef uint16_t u16;
 typedef uint8_t u8;
 
-static bool debug = 1;
+static bool debug = 0;
 
 enum target_architecture { 
 	noruntime, 
@@ -92,7 +92,7 @@ static u32 arm64_macos_abi[] = {        // note:  x9 is call-clobbered. save it 
 enum language_ISA {
 	null_instruction, ctzero, ctincr, ctmode, ctat, 
 
-	ctclear, ctabort, ctprint, ctget, ctput, ctdel, ctarg, 
+	ctabort, ctprint, ctdebug, ctget, ctput, ctdel, ctarg, ctsetdebug, 
 
 	db, dh, dw, 
 	ecall, ebreak, fence, fencei, 
@@ -131,8 +131,12 @@ static u32 arguments[4096] = {0};
 static struct location arg_locations[4096] = {0};
 
 static nat file_count = 0;
+//static nat filecounts[4096] = {0};
+//static nat fileparent[4096] = {0};
+
 static struct location files[4096] = {0};
 static const char* filenames[4096] = {0};
+
 static char* text = NULL;
 static nat text_length = 0;
 
@@ -194,22 +198,203 @@ static char* get_name(nat name) {
 	return string;
 }
 
+
+
+static void print_files(void) {
+	printf("here are the current files used in the program: (%lld files) { \n", file_count);
+	for (nat i = 0; i < file_count; i++) {
+		printf("\t file #%-8lld :   name = \"%-30s\", .filesize=%-8lld, .parent = %-8lld, .start = %-8lld, .count = %-8lld   :   [%lld, %lld)\n",
+			i, filenames[i], -1LL, -1LL, files[i].start, files[i].count, files[i].start, files[i].start + files[i].count);
+	}
+	puts("}");
+}
+
 static void print_error(const char* reason, struct location spot) {
 
-	for (nat i = 1; i < file_count; i++) {
-		if (files[i].start < spot.start) spot.start -= files[i].count;
+
+	printf("the error was located at: {.start=%lld, .count=%lld}, (in absolute file offset space.)\n", spot.start, spot.count);
+	print_files();
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+	nat file = (nat) -1;
+	nat index = 0;
+
+	for (nat i = file_count; i--; ) {
+
+		const nat start = files[i].start;
+		const nat end = files[i].start + files[i].count;
+	
+		if (spot.start >= start and spot.start < end) {
+			printf("ERROR IS LOCATED IN \"%s\"!...\n", filenames[i]);
+			file = i;
+			break;
+		} else {
+			index += files[i].count;
+			printf("[%s]: added %llu to index... (index now %llu)\n", filenames[i], files[i].count, index);
+			
+		}
 	}
 
-	struct instruction this = current_ins;
+	if (file == (nat) -1) {
+		puts("error: could not find any file with the right .start, .counts...\n");
+		abort();
+	} else {
+		printf("info: spot was belevied to be located in file \"%s\"...\n", filenames[file]);
+
+		spot.start -= files[file].start;
+		printf("[%s]: subtracted %llu from spot.start... (spot now %llu)\n", filenames[file], files[file].start, spot.start);
+
+		spot.start -= index;
+		printf("[%s]: subtracted index%llu from spot.start... (spot now %llu)\n", filenames[file], index, spot.start);
+		
+	}
+	
+
+	fprintf(stderr, "\033[1m%s:{%llu,%llu}:", filenames[file], spot.start, spot.count);
+	fprintf(stderr, " \033[1;31merror:\033[m \033[1m%s\033[m\n", reason);
+
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+/*	
+	const nat this = spot.start;
+
+
+	nat index = 0;
+
+	nat file = (nat) -1;
+	for (nat i = 0; i < file_count; i++) {
+
+	
+		const nat start = files[i].start;
+		const nat end = files[i].start + files[i].count;
+		
+		if (this >= end) {
+
+			printf("info: error was not in file \"%s\"... (spot=%llu >= end=%llu)\n", filenames[i], this, end);
+
+			index += filecounts[i];
+			printf("[%s]: added %llu to index... (index now %llu)\n", filenames[i], files[i].count, index);
+
+		} else { 
+			printf("info: overwriting \"file\" to look at i = \"%s\"... (spot=%llu < end=%llu)\n", filenames[i], this, end);
+			file = i; 
+
+			//if (i) { 
+			//	index -= files[i].start;
+			//	printf("[%s]: subtracted %llu from index... (index now %llu)\n", filenames[i], files[i].start, index);
+			//}
+		} 
+	}
+	
+	if (file == (nat) -1) {
+		puts("error: could not find any file with the right .start, .counts...\n");
+		abort();
+	} else 
+		printf("info: spot was belevied to be located in file \"%s\"...\n", filenames[file]);
+
+
+	//spot.start -= files[file].start;
+	spot.start -= index;
+
+	printf("FINAL RESULT = %lld\n", spot.start);
+*/	
+
+
+
+
+/*	struct instruction this = current_ins;
 	for (nat a = 0; a < 4; a++) {
 		for (nat i = 1; i < file_count; i++) {
 			if (files[i].start < this.loc[a].start) this.loc[a].start -= files[i].count;
 		}
 	}
-	fprintf(stderr, "\033[1m%s:{%llu,%llu}[", "s.s", spot.start, spot.count);
-	for (nat i = 0; i < 4; i++) fprintf(stderr, "%llu,%llu|", this.loc[i].start, this.loc[i].count);
-	fprintf(stderr, "] \033[1;31merror:\033[m \033[1m%s\033[m\n", reason);
-}
+
+
+	//for (nat i = 0; i < 4; i++) fprintf(stderr, "%llu,%llu|", this.loc[i].start, this.loc[i].count);
+
+
+
+//nat file = 0;
+
+
+
+			puts("found correct file!");
+			puts(filenames[i]);
+
+			spot.start -= files[i].start;
+
+			file = i;
+
+			break;
+
+			
+
+		}
+
+
+
+*/
+
+
+
+
+
+
+
+
+
+
+
+
 
 static void print_registers(void) {
 	nat printed_count = 0;
@@ -682,7 +867,7 @@ static void generate_arm64_machine_code(void) {
 		else if (op == sd)     {abort();}
 		else if (op == lui)    {abort();}
 		else if (op == auipc)  {abort();}
-		else if (op == beq)    {abort();}
+		else if (op == beq)    {puts("found rt beq, no impl though."); abort();}
 		else if (op == bne)    {abort();}
 		else if (op == blt)    {abort();}
 		else if (op == bge)    {abort();}
@@ -887,12 +1072,13 @@ int main(int argc, const char** argv) {
 	nat output_format = 0;
 
 	filenames[file_count] = filename;
+	//fileparent[file_count] = (nat) ~0;
 	files[file_count++] = (struct location) {.start = 0, .count = text_length};
+	//nat file_head = 0;
 
 	struct location here = {0};
 	nat start = 0, length = 0, name_starts_at = 0, r = 0, s = 1, called_name = 0, spot = 0;
 	nat forwards_branching = 0;
-
 
 	for (nat index = 0; index < text_length; index++) {
 		if ((unsigned char) text[index] < 33) goto next_char;
@@ -928,7 +1114,9 @@ int main(int argc, const char** argv) {
 			goto process_name;
 			next_name: continue;
 		}
-		printf("asm: \033[31;1merror:\033[0m %s:%llu:%llu: unresolved symbol\n", argv[1], index, index + imax);
+		//printf("asm: \033[31;1merror:\033[0m %s:%llu:%llu: unresolved symbol\n", argv[1], index, index + imax);
+
+		print_error("unresolved symbol", (struct location){index + imax, 0});
 		exit(1);
 
 	process_name:;
@@ -943,9 +1131,55 @@ int main(int argc, const char** argv) {
 		}
 		nat e = name_starts_at, op = 0;
 
+		//if (index >= files[file_head].start + files[file_head].count) {
+		//	file_head = fileparent[file_head];
+		//}
+
 		if (is("eof", e)) break;
+
+		else if (is("include", e)) {
+			filenames[file_count] = get_name(spot);
+
+	
+			//printf("currently inside of file \"%s\"...\n", filenames[file_head]);
+			printf("including file \"%s\"...", filenames[file_count]);
+			
+
+			nat l = 0;
+			const char* str = read_file(filenames[file_count], &l);
+			text = realloc(text, text_length + l + 1);
+			memmove(text + index + 1 + l + 1, text + index + 1, text_length - (index + 1));
+			memcpy(text + index + 1, str, l);
+			text[index + 1 + l] = ' ';
+			text_length += l + 1;
+
+
+			printf(" found %llu characters.\n", l + 1);
+
+			//nat current = file_head;
+			//while (current != (nat) -1) {
+			//	files[current].count += l + 1;
+			//	current = fileparent[current];
+			//}
+
+			//filecounts[file_count] = l + 1;
+			files[file_count] = (struct location) {.start = index + 1, .count = l + 1};
+			//fileparent[file_count] = file_head;
+			
+			//file_head = file_count++;
+
+		 	file_count++;
+
+			print_files();
+			//getchar();
+		}
+
+
+		else if (is("enabledebug", e)) 		debug = true;
+		else if (is("disabledebug", e)) 	debug = false;
 		else if (is("setcompiletime", e)) 	is_compiletime = true;
 		else if (is("setruntime", e)) 		is_compiletime = false;
+
 		else if (is("setarchitecture", e)) 	architecture = arguments[arg_count - 1];
 		else if (is("setoutputformat", e)) 	output_format = arguments[arg_count - 1]; 
 		else if (is("preserveobject", e)) 	preserve_existing_object = arguments[arg_count - 1]; 
@@ -969,7 +1203,6 @@ int main(int argc, const char** argv) {
 
 		else if (is("ctzero", e)) { op = ctzero; goto push; }
 		else if (is("ctincr", e)) { op = ctincr; goto push; }
-
 		else if (is("ecall", e)) { op = ecall; goto push; }
 		else if (is("ebreak", e)) { op = ebreak; goto push; }
 		else if (is("fence", e)) { op = fence; goto push; }
@@ -996,30 +1229,27 @@ int main(int argc, const char** argv) {
 		else if (is("sw", e)) { op = sw; goto push; }
 		else if (is("sd", e)) { op = sd; goto push; }
 		else if (is("bltu", e)) { op = bltu; goto push; }
+		else if (is("beq", e))  { op = beq; goto push; }
 		else if (is("jalr", e)) { op = jalr; goto push; }
 		else if (is("jal",  e)) { op = jal; goto push; }
-		
 
 		else if (is("0", e)) 	s <<= 1;                        // todo: delete these eventually. 
 		else if (is("1", e)) 	{ r += s; s <<= 1; }            // and make these user-level-made.
 		else if (is("=", e)) 	{ push_arg(r); r = 0; s = 1; }  // using ct system / macros.
 
-		else if (is("setdebug", e)) 		debug = arguments[arg_count - 1];
+		else if (is("ctabort",  e))    { op = ctabort; goto push; }
+		else if (is("ctdel",  e))      { op = ctdel; goto push; }
+		else if (is("ctarg",  e))      { op = ctarg; goto push; }
+		else if (is("ctget",  e))      { op = ctget; goto push; }
+		else if (is("ctput",  e))      { op = ctput; goto push; }
+		else if (is("ctprint",  e))    { op = ctprint; goto push; }
+		else if (is("ctdebug",  e))   { op = ctdebug; goto push; }
+
+		
 		else if (is("debugarguments", e)) 	print_arguments();
 		else if (is("debugregisters", e)) 	print_registers();
 		else if (is("debuginstructions", e))	print_instructions();
 		else if (is("debugdictionary", e))	print_dictionary();
-		else if (is("ctdebug", e)) 
-				printf("debug: \033[32m%llu (%lld)\033[0m "
-					"\033[32m0x%llx\033[0m\n", 
-					registers[a0], registers[a0], registers[a0]
-				); 
-
-		else if (is("ctabort", e)) 		abort();
-		else if (is("ctget", e)) 		registers[a0] = (nat) getchar();
-		else if (is("ctput", e)) 		putchar((char) registers[a0]);
-		else if (is("deleteargument", e))  	{ if (arg_count) arg_count--; }
-		else if (is("newargument", e))		push_arg(registers[a0]);
 
 		// else if (names[i].is_callonuse) {} // call macro
 		else push_arg(values[called_name]);
@@ -1028,17 +1258,26 @@ int main(int argc, const char** argv) {
 		goto next_char;
 
 	push:
-				//printf("AT PUSH LABEL: op = %llu...\n", op);
-
+		if (debug) printf("info:[forwards_branching=%llu]:[is_compiletime=%u]: processing op = %llu...\n", 
+					forwards_branching, is_compiletime, op);
 		if (forwards_branching) goto next_char;
-				//puts("YESS, forwards_branching is zero...");
 		if (not is_compiletime) goto push_rt;
-				//puts("YESS, in compiletime executtion state...");
 
 		*registers = 0;
 
 		if (op == ctzero) 	registers[a0] = 0;
 		else if (op == ctincr) 	registers[a0]++;
+
+
+		else if (op == ctabort) abort();
+		else if (op == ctdel) { if (arg_count) arg_count--; }
+		else if (op == ctarg) push_arg(registers[a0]);
+		else if (op == ctget) registers[a0] = (nat) getchar();
+		else if (op == ctput) putchar((char) registers[a0]);
+		else if (op == ctprint) puts(get_name(spot));
+		else if (op == ctdebug) printf("debug: \033[32m%llu (%lld)\033[0m "
+					"\033[32m0x%llx\033[0m\n", registers[a0], registers[a0], registers[a0]); 
+
 
 		else if (op == add)   registers[a0] = registers[a1] + registers[a2]; 
 		else if (op == sub)   registers[a0] = registers[a1] - registers[a2]; 
@@ -1068,26 +1307,32 @@ int main(int argc, const char** argv) {
 		else if (op == sd) *(nat*)(registers[a0] + a1) = (nat)registers[a2]; 
 
 		else if (op == bltu) {   
-			puts("inside bltu ct impl...");
+			//puts("inside bltu ct impl...");
 			if (registers[a0] < registers[a1]) {
-				puts("condition was true!");
+				//puts("condition was true!");
 				if (registers[a2]) {
-					puts("backwards branching using regs[a2]!");
+					//puts("backwards branching using regs[a2]!");
 					index = registers[a2]; 
 				} else {
-					puts("forwards branching using a2!");
+					//puts("forwards branching using a2!");
 					forwards_branching = a2;
 				}
 			}
 
-		} else { puts("unknown ct instruction!"); printf("op = %llu\n", op); abort(); }
+		}
+
+		else if (op == jal) {
+			registers[a0] = index;
+			if (registers[a1]) index = registers[a1]; else forwards_branching = a1;
+		}
+
+		else { puts("unknown ct instruction!"); printf("op = %llu\n", op); abort(); }
 
 		*registers = 0;
 		goto next_char;
 
 	push_rt:;
-
-		puts("inside push_rt! ...pushhing runtime instruction!");
+		if (debug) puts("inside push_rt! ...pushing runtime instruction!");
 		struct instruction new = {0};
 		new.a[0] = (u32) op;
 		new.loc[0] = here;
