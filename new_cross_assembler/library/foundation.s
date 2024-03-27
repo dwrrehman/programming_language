@@ -62,11 +62,6 @@
 1 = "ra"
 01 = "sp"
 
-
-
-
-
-
 0101 = "a0"
 1101 = "a1"
 0011 = "a2"
@@ -88,13 +83,5 @@
 
 disable debug
 set runtime
-
-
-
-
-
-
-
-quail
 
 
