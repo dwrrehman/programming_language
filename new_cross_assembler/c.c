@@ -162,7 +162,11 @@ static char* read_file(const char* name, nat* out_length) {
 	int d = open(name, O_RDONLY | O_DIRECTORY);
 	if (d >= 0) { close(d); errno = EISDIR; goto read_error; }
 	const int file = open(name, O_RDONLY, 0);
-	if (file < 0) { read_error: perror("open"); printf("filename: \"%s\"\n", name); exit(1); }
+	if (file < 0) { 
+		read_error: 
+		fprintf(stderr, "asm: \033[31;1merror:\033[0m %s: \"%s\"\n", strerror(errno), name); 
+		exit(1); 
+	}
 	size_t length = (size_t) lseek(file, 0, SEEK_END);
 	char* string = malloc(length);
 	lseek(file, 0, SEEK_SET);
@@ -198,7 +202,7 @@ static char* get_name(nat name) {
 
 
 
-static void print_files(void) {
+/*static void print_files(void) {
 	printf("here are the current files used in the program: (%lld files) { \n", file_count);
 	for (nat i = 0; i < file_count; i++) {
 		printf("\t file #%-8lld :   name = \"%-30s\", .start = %-8lld, .size = %-8lld\n",
@@ -216,6 +220,8 @@ static void print_stack(nat* stack_i, nat* stack_f, nat* stack_o, nat stack_coun
 	}
 	puts("}");
 }
+*/
+
 
 static void print_error(const char* reason, struct location spot) {
 
@@ -234,7 +240,7 @@ static void print_error(const char* reason, struct location spot) {
 		for (nat f = 0; f < file_count; f++) {
 
 			const nat start = files[f].location.start;
-			const nat count = files[f].location.count;
+			//const nat count = files[f].location.count;
 
 			if (index == start) {
 				//printf("file %s begins at %llu!\n", files[f].name, index);
@@ -1063,11 +1069,12 @@ int main(int argc, const char** argv) {
 				if (text[index + i] != text[c]) goto next_name;
 				i++; c++;
 			}
+			here = (struct location) {.start = index, .count = i};
 			index += i - 1;
 			goto process_name;
 			next_name: continue;
 		}
-		print_error("unresolved symbol", (struct location){index + imax, 0});
+		print_error("unresolved symbol", (struct location){index, imax});
 		exit(1);
 
 	process_name:;
@@ -1256,7 +1263,6 @@ int main(int argc, const char** argv) {
 		next_char: continue;
 	}
 
-
 	if (debug) {
 		printf("info: building for target:\n\tarchitecture:  \033[31;1m%s\033[0m\n\toutput_format: \033[32;1m%s\033[0m.\n\n", 
 			target_spelling[architecture  % target_count], output_format_spelling[output_format % output_format_count]
@@ -1264,10 +1270,7 @@ int main(int argc, const char** argv) {
 	}
 
 	if (architecture == noruntime) {
-
-		if (not ins_count) 
-			exit(0);
-
+		if (not ins_count) exit(0);
 		current_ins = ins[0];
 		print_error("encountered runtime instruction with target \"noruntime\"", ins[0].loc[0]);
 		exit(1);
