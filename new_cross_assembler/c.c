@@ -13,7 +13,7 @@ todo stuff:
 
 	 - implement contexts for names. 
 
-	 - implement including files.
+x	 - implement including files.
 
 
 
@@ -176,15 +176,6 @@ static char* read_file(const char* name, nat* out_length) {
 	return string;
 }
 
-// use this instead:
-	//int file = open(argv[1], O_RDONLY);
-	//if (file < 0) { perror("open"); exit(1); } 
-	//struct stat st;
-	//fstat (file, &st);
-	//text_length = (nat) st.st_size;
-	//text = mmap(0, text_length, PROT_READ, MAP_PRIVATE, file, 0);
-	//close(file);
-
 static void push_arg(nat r) {
 	if (debug) printf("info: pushed %llu onto argument stack\n", (nat) r);
 	arg_locations[arg_count] = (struct location) {0};
@@ -200,48 +191,15 @@ static char* get_name(nat name) {
 	return string;
 }
 
-
-
-/*static void print_files(void) {
-	printf("here are the current files used in the program: (%lld files) { \n", file_count);
-	for (nat i = 0; i < file_count; i++) {
-		printf("\t file #%-8lld :   name = \"%-30s\", .start = %-8lld, .size = %-8lld\n",
-			i, files[i].name, files[i].location.start, files[i].location.count);
-	}
-	puts("}");
-}
-
-
-static void print_stack(nat* stack_i, nat* stack_f, nat* stack_o, nat stack_count) {
-	printf("current stack: (%lld entries) { \n", stack_count);
-	for (nat i = 0; i < stack_count; i++) {
-		printf("\t entry #%-8lld :   name = \"%-30s\", i = %-8lld, f = %-8lld, o = %-8lld / %lld\n", 
-			i, files[stack_f[i]].name, stack_i[i], stack_f[i], stack_o[i], files[stack_f[i]].location.count);
-	}
-	puts("}");
-}
-*/
-
-
 static void print_error(const char* reason, struct location spot) {
-
-	//printf("the error was located at: {.start=%lld, .count=%lld}, (in absolute file offset space.)\n", spot.start, spot.count);
-	//print_files();
-
 	nat location = 0;
 	const char* filename = NULL;
-
-	//int colors[] = {31, 32, 33, 34, 35};
 	nat stack_i[4096] = {0}, stack_f[4096] = {0}, stack_o[4096] = {0};
 	nat stack_count = 0;
-
 	for (nat index = 0; index < text_length; index++) {
-
 		for (nat f = 0; f < file_count; f++) {
-
 			const nat start = files[f].location.start;
 			//const nat count = files[f].location.count;
-
 			if (index == start) {
 				//printf("file %s begins at %llu!\n", files[f].name, index);
 				stack_i[stack_count] = index;
@@ -249,7 +207,6 @@ static void print_error(const char* reason, struct location spot) {
 				stack_o[stack_count++] = 0;
 				break;
 			} 
-
 			if (stack_o[stack_count - 1] == files[stack_f[stack_count - 1]].location.count)  {
 				//print_stack(stack_i, stack_f, stack_o, stack_count);
 				//printf("file %s reached the end the file! (stack_o[%llu] == count == %llu)\n", files[f].name, stack_count - 1, count);
@@ -257,123 +214,21 @@ static void print_error(const char* reason, struct location spot) {
 				if (not stack_count) goto done; else break;
 			}
 		}
-
 		if (index == spot.start) {
 	//		printf("\033[38;5;255m(ERROR_HERE:%s:%llu)\033[0m", files[stack_f[stack_count - 1]].name, stack_o[stack_count - 1]);
 			filename = files[stack_f[stack_count - 1]].name;
 			location = stack_o[stack_count - 1];
+			goto done;
 		}
-
 	//	printf("\033[%dm", colors[stack_count - 1]);
 	//	putchar(text[index]);
 	//	printf("\033[0m");
-
 		stack_o[stack_count - 1]++;
 		//printf("[%s]: incremented stack_o[top=%llu] to be now %llu...\n", files[stack_f[stack_count - 1]].name, stack_count - 1, stack_o[stack_count - 1]);
 	}
-done:;
-	fprintf(stderr, "\033[1masm: %s:%llu:%llu:", filename, location, spot.count);
+done:	fprintf(stderr, "\033[1masm: %s:%llu:%llu:", filename, location, spot.count);
 	fprintf(stderr, " \033[1;31merror:\033[m \033[1m%s\033[m\n", reason);
 }
-
-
-
-
-
-
-
-
-
-
-
-/*
-
-
-
-if (file == (nat) -1) {
-		puts("error: could not find any file with the right .start, .counts...\n");
-		abort();
-	} else {
-		printf("info: spot was belevied to be located in file \"%s\"...\n", files[file].name);
-	}
-
-
-
-
-
-
-
-for (nat i = 0; i < file_count; i++) {
-
-		offset[head] = 0;
-
-		const nat start = files[i].location.start;
-		const nat count = files[i].location.count;
-		const nat end = start + count;
-	
-		if (spot.start >= start and spot.start < end) {
-			printf("ERROR IS LOCATED IN \"%s\"!...\n", files[i].name);
-			file = i;
-
-		} else {
-			
-		}
-	}
-
-
-
-
-
-
-
-			//index += count;
-			//printf("[%s]: added %llu to index... (index now %llu)\n", files[i].name, count, index);
-
-
-		//spot.start -= files[file].location.start;
-		//printf("[%s]: subtracted %llu from spot.start... (spot now %llu)\n", files[file].name, files[file].location.start, spot.start);
-
-		//spot.start -= index;
-		//printf("[%s]: subtracted index%llu from spot.start... (spot now %llu)\n", files[file].name, index, spot.start);
-
-
-
-*/
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 static void print_registers(void) {
 	nat printed_count = 0;
@@ -861,9 +716,6 @@ static void generate_arm64_machine_code(void) {
 	}
 }
 
-
-
-
 /*	
 	// original:
 	for (nat i = 0; i < ins_count; i++) {
@@ -1093,8 +945,7 @@ int main(int argc, const char** argv) {
 
 		else if (is("include", e)) {
 			files[file_count].name = get_name(spot);
-			//printf("info: including file \"%s\"...\n", files[file_count].name);
-
+			if (debug) printf("info: including file \"%s\"...\n", files[file_count].name);
 			nat l = 0;
 			const char* str = read_file(files[file_count].name, &l);
 			text = realloc(text, text_length + l + 1);
@@ -1102,8 +953,6 @@ int main(int argc, const char** argv) {
 			memcpy(text + index + 1, str, l);
 			text[index + 1 + l] = ' ';
 			text_length += l + 1;
-
-			//printf(" found %llu characters.\n", l + 1);
 			files[file_count].location = (struct location) {.start = index + 1, .count = l + 1};
 		 	file_count++;
 		}
@@ -1153,7 +1002,11 @@ int main(int argc, const char** argv) {
 		else if (is("sw", e)) { op = sw; goto push; }
 		else if (is("sd", e)) { op = sd; goto push; }
 		else if (is("bltu", e)) { op = bltu; goto push; }
+		else if (is("bgeu", e)) { op = bltu; goto push; }
+		else if (is("blt", e)) { op = bltu; goto push; }
+		else if (is("bge", e)) { op = bltu; goto push; }
 		else if (is("beq", e))  { op = beq; goto push; }
+		else if (is("bne", e))  { op = beq; goto push; }
 		else if (is("jalr", e)) { op = jalr; goto push; }
 		else if (is("jal",  e)) { op = jal; goto push; }
 
@@ -1192,10 +1045,10 @@ int main(int argc, const char** argv) {
 		else if (op == ctincr) 	registers[a0]++;
 
 		else if (op == ctabort) abort();
-		else if (op == ctdel) { if (arg_count) arg_count--; }
-		else if (op == ctarg) push_arg(registers[a0]);
-		else if (op == ctget) registers[a0] = (nat) getchar();
-		else if (op == ctput) putchar((char) registers[a0]);
+		else if (op == ctdel)   { if (arg_count) arg_count--; }
+		else if (op == ctarg)   push_arg(registers[a0]);
+		else if (op == ctget)   registers[a0] = (nat) getchar();
+		else if (op == ctput)   putchar((char) registers[a0]);
 		else if (op == ctprint) puts(get_name(spot));
 		else if (op == ctdebug) printf("debug: \033[32m%llu (%lld)\033[0m "
 					"\033[32m0x%llx\033[0m\n", registers[a0], registers[a0], registers[a0]); 
@@ -1227,23 +1080,19 @@ int main(int argc, const char** argv) {
 		else if (op == sw) *(u32*)(registers[a0] + a1) = (u32)registers[a2]; 
 		else if (op == sd) *(nat*)(registers[a0] + a1) = (nat)registers[a2]; 
 
-		else if (op == bltu) {   
-			if (registers[a0] < registers[a1]) {
-				if (registers[a2]) {
-					index = registers[a2]; 
-				} else {
-					forwards_branching = a2;
-				}
-			}
-		}
-
+		else if (op == bltu) { if (registers[a0]  < registers[a1]) { if (registers[a2]) index = registers[a2]; else forwards_branching = a2; } } 
+		else if (op == blt)  { if (registers[a0]  < registers[a1]) { if (registers[a2]) index = registers[a2]; else forwards_branching = a2; } } 
+		else if (op == bgeu) { if (registers[a0] >= registers[a1]) { if (registers[a2]) index = registers[a2]; else forwards_branching = a2; } } 
+		else if (op == bge)  { if (registers[a0] >= registers[a1]) { if (registers[a2]) index = registers[a2]; else forwards_branching = a2; } } 
+		else if (op == beq)  { if (registers[a0] == registers[a1]) { if (registers[a2]) index = registers[a2]; else forwards_branching = a2; } } 
+		else if (op == bne)  { if (registers[a0] != registers[a1]) { if (registers[a2]) index = registers[a2]; else forwards_branching = a2; } } 
+	
 		else if (op == jal) {
 			registers[a0] = index;
 			if (registers[a1]) index = registers[a1]; else forwards_branching = a1;
 		}
 
 		else { puts("unknown ct instruction!"); printf("op = %llu\n", op); abort(); }
-
 		*registers = 0;
 		goto next_char;
 
@@ -2346,6 +2195,161 @@ prveiosu implmentation:
 
 //static nat filecounts[4096] = {0};
 //static nat fileparent[4096] = {0};
+
+
+
+
+
+
+
+// use this instead:
+	//int file = open(argv[1], O_RDONLY);
+	//if (file < 0) { perror("open"); exit(1); } 
+	//struct stat st;
+	//fstat (file, &st);
+	//text_length = (nat) st.st_size;
+	//text = mmap(0, text_length, PROT_READ, MAP_PRIVATE, file, 0);
+	//close(file);
+
+
+
+
+
+
+
+
+/*static void print_files(void) {
+	printf("here are the current files used in the program: (%lld files) { \n", file_count);
+	for (nat i = 0; i < file_count; i++) {
+		printf("\t file #%-8lld :   name = \"%-30s\", .start = %-8lld, .size = %-8lld\n",
+			i, files[i].name, files[i].location.start, files[i].location.count);
+	}
+	puts("}");
+}
+
+
+static void print_stack(nat* stack_i, nat* stack_f, nat* stack_o, nat stack_count) {
+	printf("current stack: (%lld entries) { \n", stack_count);
+	for (nat i = 0; i < stack_count; i++) {
+		printf("\t entry #%-8lld :   name = \"%-30s\", i = %-8lld, f = %-8lld, o = %-8lld / %lld\n", 
+			i, files[stack_f[i]].name, stack_i[i], stack_f[i], stack_o[i], files[stack_f[i]].location.count);
+	}
+	puts("}");
+}
+*/
+
+
+
+
+
+
+	//printf("the error was located at: {.start=%lld, .count=%lld}, (in absolute file offset space.)\n", spot.start, spot.count);
+	//print_files();
+
+
+
+
+
+
+
+
+
+/*
+
+
+
+if (file == (nat) -1) {
+		puts("error: could not find any file with the right .start, .counts...\n");
+		abort();
+	} else {
+		printf("info: spot was belevied to be located in file \"%s\"...\n", files[file].name);
+	}
+
+
+
+
+
+
+
+for (nat i = 0; i < file_count; i++) {
+
+		offset[head] = 0;
+
+		const nat start = files[i].location.start;
+		const nat count = files[i].location.count;
+		const nat end = start + count;
+	
+		if (spot.start >= start and spot.start < end) {
+			printf("ERROR IS LOCATED IN \"%s\"!...\n", files[i].name);
+			file = i;
+
+		} else {
+			
+		}
+	}
+
+
+
+
+
+
+
+			//index += count;
+			//printf("[%s]: added %llu to index... (index now %llu)\n", files[i].name, count, index);
+
+
+		//spot.start -= files[file].location.start;
+		//printf("[%s]: subtracted %llu from spot.start... (spot now %llu)\n", files[file].name, files[file].location.start, spot.start);
+
+		//spot.start -= index;
+		//printf("[%s]: subtracted index%llu from spot.start... (spot now %llu)\n", files[file].name, index, spot.start);
+
+
+
+*/
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+	//int colors[] = {31, 32, 33, 34, 35};
+
 
 
 
