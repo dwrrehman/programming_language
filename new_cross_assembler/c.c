@@ -10,22 +10,31 @@
 
 
 todo stuff:
+-----------------------------
 
-	 - implement contexts for names. 
+	- implement contexts for names. 
 
-x	 - implement including files.
+	- add more instructions for arm64. 
 
-
+	- add the load/store instructions for arm64. 
 
 
 branches:
 ------------
 
-x	- flush out the branching system for risc-v compiletime system.
+	- figure out branches for the riscv arch!!!
 
 	- start trying to figure out branches for arm64. 
 
-	- 
+
+
+done:
+-------------
+
+x	- implement including files.
+
+x	- flush out the branching system for risc-v compiletime system.
+
 */
 
 #include <stdio.h>   
@@ -113,11 +122,35 @@ enum language_ISA {
 	instruction_set_count
 };
 
+
+static const char* ins_spelling[] = {
+	"null_instruction", "ctzero", "ctincr", "ctmode", "ctat", 
+
+	"ctabort", "ctprint", "ctdebug", "ctget", "ctput", "ctdel", "ctarg", "ctsetdebug", 
+
+	"db", "dh", "dw", 
+	"ecall", "ebreak", "fence", "fencei", 
+	"add", "sub", "sll", "slt", "sltu", "xor", "srl", "sra", "or", "and", 
+	"addw", "subw", "sllw", "srlw", "sraw",
+	"lb", "lh", "lw", "ld", "lbu", "lhu", "lwu", 
+	"addi", "slti", "sltiu", "xori", "ori", "andi", "slli", "srli", "srai", 
+	"addiw", "slliw", "srliw", "sraiw",
+	"jalr", 
+	"csrrw", "csrrs", "csrrc", "csrrwi", "csrrsi", "csrrci", 
+	"sb", "sh", "sw", "sd", 
+	"lui", "auipc", 
+	"beq", "bne", "blt", "bge", "bltu", "bgeu", "jal", 
+	"mul", "mulh", "mulhsu", "mulhu",
+	"div", "divu", "rem", "remu", 
+	"mulw", "divw", "divuw", "remw", "remuw", 
+};
+
 struct location { nat start; nat count; };
 
 struct instruction { 
 	u32 a[4]; 
 	struct location loc[4];
+	nat size;
 }; 
 
 struct file {
@@ -158,24 +191,6 @@ static bool is(const char* literal, nat initial) {
 	return text[i] == '"' and not literal[j];
 }
 
-static char* read_file(const char* name, nat* out_length) {
-	int d = open(name, O_RDONLY | O_DIRECTORY);
-	if (d >= 0) { close(d); errno = EISDIR; goto read_error; }
-	const int file = open(name, O_RDONLY, 0);
-	if (file < 0) { 
-		read_error: 
-		fprintf(stderr, "asm: \033[31;1merror:\033[0m %s: \"%s\"\n", strerror(errno), name); 
-		exit(1); 
-	}
-	size_t length = (size_t) lseek(file, 0, SEEK_END);
-	char* string = malloc(length);
-	lseek(file, 0, SEEK_SET);
-	read(file, string, length);
-	close(file); 
-	*out_length = length;
-	return string;
-}
-
 static void push_arg(nat r) {
 	if (debug) printf("info: pushed %llu onto argument stack\n", (nat) r);
 	arg_locations[arg_count] = (struct location) {0};
@@ -189,6 +204,24 @@ static char* get_name(nat name) {
 	char* string = calloc(end - start + 1, 1);
 	memcpy(string, text + start, end - start);
 	return string;
+}
+
+static void print_files(void) {
+	printf("here are the current files used in the program: (%lld files) { \n", file_count);
+	for (nat i = 0; i < file_count; i++) {
+		printf("\t file #%-8lld :   name = \"%-30s\", .start = %-8lld, .size = %-8lld\n",
+			i, files[i].name, files[i].location.start, files[i].location.count);
+	}
+	puts("}");
+}
+
+static void print_stack(nat* stack_i, nat* stack_f, nat* stack_o, nat stack_count) {
+	printf("current stack: (%lld entries) { \n", stack_count);
+	for (nat i = 0; i < stack_count; i++) {
+		printf("\t entry #%-8lld :   name = \"%-30s\", i = %-8lld, f = %-8lld, o = %-8lld / %lld\n", 
+			i, files[stack_f[i]].name, stack_i[i], stack_f[i], stack_o[i], files[stack_f[i]].location.count);
+	}
+	puts("}");
 }
 
 static void print_error(const char* reason, struct location spot) {
@@ -226,8 +259,32 @@ static void print_error(const char* reason, struct location spot) {
 		stack_o[stack_count - 1]++;
 		//printf("[%s]: incremented stack_o[top=%llu] to be now %llu...\n", files[stack_f[stack_count - 1]].name, stack_count - 1, stack_o[stack_count - 1]);
 	}
-done:	fprintf(stderr, "\033[1masm: %s:%llu:%llu:", filename, location, spot.count);
+done:	
+	//if (debug) print_files();
+	//if (debug) print_stack(stack_i, stack_f, stack_o, stack_count);
+	fprintf(stderr, "\033[1masm: %s:%llu:%llu:", filename ? filename : "(top-level)", location, spot.count);
 	fprintf(stderr, " \033[1;31merror:\033[m \033[1m%s\033[m\n", reason);
+}
+
+static char* read_file(const char* name, nat* out_length, struct location here) {
+	int d = open(name, O_RDONLY | O_DIRECTORY);
+	if (d >= 0) { close(d); errno = EISDIR; goto read_error; }
+	const int file = open(name, O_RDONLY, 0);
+	if (file < 0) { 
+		read_error:;
+		char reason[4096] = {0};
+		snprintf(reason, sizeof reason, "%s: \"%s\"", strerror(errno), name);
+		print_error(reason, here);
+		//fprintf(stderr, "asm: \033[31;1merror:\033[0m %s: \"%s\"\n", strerror(errno), name); 
+		exit(1); 
+	}
+	size_t length = (size_t) lseek(file, 0, SEEK_END);
+	char* string = malloc(length);
+	lseek(file, 0, SEEK_SET);
+	read(file, string, length);
+	close(file); 
+	*out_length = length;
+	return string;
 }
 
 static void print_registers(void) {
@@ -257,8 +314,8 @@ static void print_arguments(void) {
 static void print_instructions(void) {
 	printf("instructions: {\n");
 	for (nat i = 0; i < ins_count; i++) {
-		printf("\t%llu\tins(.op=%u (\"ins__\"), args:{ ", 
-			i, ins[i].a[0]
+		printf("\t%llu\tins(.op=%u (\"%s\"), .size=%llu, args:{ ", 
+			i, ins[i].a[0], ins_spelling[ins[i].a[0]], ins[i].size
 		);
 		for (nat a = 0; a < 3; a++) printf("%llu ", (nat) ins[i].a[a + 1]);
 		printf("} offsets:{ ");
@@ -317,15 +374,6 @@ static void emit(u32 x) {
 	bytes[byte_count++] = (u8) (x >> 24);
 }
 
-static noreturn void zero_register_error(nat arg_index) {
-	char reason[4096] = {0};
-	snprintf(reason, sizeof reason, "use of zero register for argument %llu in %u instruction is not supported", 
-			arg_index, current_ins.a[0]
-	);
-	print_error(reason, current_ins.loc[arg_index + 1]); 
-	exit(1);
-}
-
 static void check(nat r, nat c, const char* type, nat arg_index) {
 	if (r < c) return;
 	char reason[4096] = {0};
@@ -367,17 +415,11 @@ static u32 calculate_offset(nat here, nat label) {
 	u32 offset = 0;
 	if (label < here) {
 		for (nat i = label; i < here; i++) {
-			     if (ins[i].a[0] <= jal) offset -= 4; 
-			else if (ins[i].a[0] == dh) offset -= 2;
-			else if (ins[i].a[0] == db) offset -= 1;
-			else abort();
+			offset -= ins[i].size;
 		}
 	} else {
 		for (nat i = here; i < label; i++) {
-			     if (ins[i].a[0] <= jal) offset += 4; 
-			else if (ins[i].a[0] == dh) offset += 2;
-			else if (ins[i].a[0] == db) offset += 1;
-			else abort();
+			offset += ins[i].size;
 		}
 	}
 	return offset;
@@ -394,7 +436,7 @@ static u32 j_type(nat here, u32* a, u32 o) {   	//  L r op
 	return (imm << 12U) | (a[0] << 7U) | o;
 }
 
-static u32 b_type(__attribute__((unused)) nat here, __attribute__((unused)) u32* a, __attribute__((unused)) u32 o, __attribute__((unused)) u32 f) {   //  L r r op
+static u32 b_type( nat here,  u32* a, u32 o, u32 f) {   //  L r r op
 	return 0;
 //	abort();
 //	check(a[0], 32, "register");
@@ -494,7 +536,7 @@ static void generate_riscv_machine_code(void) {
 		else if (op == lui)     emit(u_type(a, 0x37));
 		else if (op == auipc)   emit(u_type(a, 0x17));
 		
-		else if (op == beq)     emit(b_type(i, a, 0x63, 0x0));
+		else if (op == beq)     emit(b_type(i, a, 0x63, 0x0));  // TODO: do these properly. 
 		else if (op == bne)     emit(b_type(i, a, 0x63, 0x1));
 		else if (op == blt)     emit(b_type(i, a, 0x63, 0x4));
 		else if (op == bge)     emit(b_type(i, a, 0x63, 0x5));
@@ -506,36 +548,14 @@ static void generate_riscv_machine_code(void) {
 		//else if (op == cnop emith(0);  // TODO: finish C extension implementation. 
 		//else if (op == caddi4spn) emith(ci_type(a, ));   
 		else {
-			printf("error: unknown instruction: %llu\n", op);
-			// printf("       unknown instruction: %s\n", instruction_spelling[op]);
-			
+			printf("error: riscv: unknown runtime instruction: %s : %llu\n", ins_spelling[op], op);
+			print_error("unknown instruction", current_ins.loc[0]);
+			abort();
 		}
 	}
 }
 
 /////////////////////////////////////////////////
-
-static u32 generate_br(u32 Rn, u32 im, u32 op, u32 oc) { 
-	if (oc >= 2 or im) zero_register_error(1);
-	Rn = arm64_macos_abi[Rn];
-	check(Rn, 32, "register", 0);
-	return (oc << 21U) | (op << 10U) | (Rn << 5U);
-}
-
-static u32 generate_b(u32* a, nat im, u32 oc) {   //           bl: oc = 1
-	//u32 Im = * (u32*) a[0];
-	//check_branch((int) Im, 1 << (26 - 1), a[0], "branch offset");
-	//return (oc << 31U) | (0x05 << 26U) | (0x03FFFFFFU & Im);
-	return 0;
-}
-
-static u32 generate_bc(u32* a, nat im) { 
-	u32 cd = (u32) a[0];
-	u32 Im = * (u32*) im;
-	//check_branch((int) Im, 1 << (19 - 1), a[1], "branch offset");
-	check(cd, 16, "condition", 0);
-	return (0x54U << 24U) | ((0x0007FFFFU & Im) << 5U) | cd;
-}
 
 static u32 generate_adr(u32* a, u32 op, nat im, u32 oc) {   //      adrp: oc = 1 
 
@@ -568,7 +588,7 @@ static u32 generate_mov(u32 Rd, u32 op, u32 im, u32 sf, u32 oc, u32 sh) {
 }
 
 // im Rn Rd addi    // addi
-static u32 generate_addi(u32 Rd, u32 Rn, u32 op, u32 im, u32 sf, u32 sb, u32 st, u32 sh) {  
+static u32 generate_addi(u32 Rd, u32 Rn, u32 im, u32 op, u32 sf, u32 sb, u32 st, u32 sh) {  
 	if (not Rd) return 0xD503201F;
 	if (not Rn) return generate_mov(Rd, 0x25U, im, sf, 2, 0);
 	
@@ -623,7 +643,14 @@ static u32 generate_memiu(u32* a, u32 op, u32 im, u32 sf, u32 oc) {    // im Rn 
 		(Rn <<  5U) | Rt;
 }
 
-//  im Rm Rn Rd or/add
+//  Rm Rn Rd or/add         "add (shifted register)"
+
+//      sh: 3 bits  shift type. 000=lsl, 010=lsr, 100=asr, 
+// 	sb: 1 bit   subtraction mode.
+// 	sf: 1 bit   32 or 64 bit
+//	st: 1 bit   set condition flags
+//	im: 6 bits  6 bit immediate for left shifting. 
+
 static u32 generate_add(u32 Rd, u32 Rn, u32 Rm, u32 op, u32 im, u32 sf, u32 st, u32 sb, u32 sh) {
 
 	check(Rd, 32, "register", 0);
@@ -639,10 +666,48 @@ static u32 generate_add(u32 Rd, u32 Rn, u32 Rm, u32 op, u32 im, u32 sf, u32 st, 
 		(sb << 30U) |
 		(st << 29U) |
 		(op << 24U) | 
-		(sh << 21U) |
+		(sh << 21U) | 
 		(Rm << 16U) | 
 		(im << 10U) | 
 		(Rn <<  5U) | Rd;
+}
+
+
+
+static u32 generate_br(void) { 
+// 	u32 Rn, u32 im, u32 op, u32 oc
+//	if (oc >= 2) print_error("jalr: only zr and ra are supported for", current_ins.loc[0]);
+//	if (im) print_error("jalr: nonzero immediate not supported for jalr", current_ins.loc[0]);
+//	Rn = arm64_macos_abi[Rn];
+//	check(Rn, 32, "register", 0);
+//	return (oc << 21U) | (op << 10U) | (Rn << 5U);
+
+	return 0;
+}
+
+static u32 generate_b(void) {  
+//           bl: oc = 1
+//	u32* a, nat im, u32 oc
+//	const u32 e = calculate_offset(here, a[2]);
+//	u32 Im = * (u32*) a[0];
+//	check_branch((int) Im, 1 << (26 - 1), a[0], "branch offset");
+//	return (oc << 31U) | (0x05 << 26U) | (0x03FFFFFFU & im);
+	
+	return 0;
+}
+
+static u32 generate_bc(u32 condition, nat here, nat target) { 
+
+	printf("target = %llu, here = %llu\n", target, here);
+	getchar();
+	const u32 byte_offset = calculate_offset(here, target) - 4;
+	const u32 imm = byte_offset >> 2;
+	return (0x54U << 24U) | ((0x0007FFFFU & imm) << 5U) | condition;
+}
+
+static void emit_and_generate_branch(u32 R_left, u32 R_right, u32 target, nat here, u32 condition) {
+	emit(generate_add(0, R_left, R_right, 0x0BU, 0, 1, 1, 1, 0));
+	emit(generate_bc(condition, here, registers[target])); //  + (registers[target] < here)
 }
 
 static void generate_arm64_machine_code(void) {
@@ -663,60 +728,100 @@ static void generate_arm64_machine_code(void) {
 
 		else if (op == add)    emit(generate_add(a[0], a[1], a[2], 0x0BU, 0, 1, 0, 0, 0));
 		else if (op == sub)    emit(generate_add(a[0], a[1], a[2], 0x0BU, 0, 1, 0, 1, 0));
-		else if (op == sll)    {abort();}    // next lets do      emit(generate_adc(a, 0x0D6U, 0x08));  // lslv
-		else if (op == slt)    {abort();} // omg do we impl the slt/sltu via CSEL!!?!!?
-		else if (op == sltu)   {abort();}
-		else if (op == xor_)   {abort();}
-		else if (op == srl)    {abort();}
-		else if (op == sra)    {abort();}
-		else if (op == or_)    emit(generate_add(a[0], a[1], a[2], 0x2AU, 0, 1, 0, 0, 0));
-		else if (op == and_)   {abort();}
 		else if (op == addw)   emit(generate_add(a[0], a[1], a[2], 0x0BU, 0, 0, 0, 0, 0));
 		else if (op == subw)   emit(generate_add(a[0], a[1], a[2], 0x0BU, 0, 0, 0, 1, 0));
-		else if (op == sllw)   {abort();}
-		else if (op == srlw)   {abort();}
-		else if (op == sraw)   {abort();}
-		else if (op == lb)     {abort();}
-		else if (op == lh)     {abort();}
-		else if (op == lw)     {abort();}
-		else if (op == ld)     {abort();}
-		else if (op == lbu)    {abort();}
-		else if (op == lhu)    {abort();}
-		else if (op == lwu)    {abort();}
-		else if (op == addi)   emit(generate_addi(a[0], a[1], 0x22U, a[2], 1, 0, 0, 0));
-		else if (op == slti)   {abort();}
-		else if (op == sltiu)  {abort();}
-		else if (op == xori)   {abort();}
-		else if (op == ori)    {abort();}
-		else if (op == andi)   {abort();}
-		else if (op == slli)   {abort();}
-		else if (op == srli)   {abort();}
-		else if (op == addiw)  emit(generate_addi(a[0], a[1], 0x22U, a[2], 0, 0, 0, 0));
-		else if (op == slliw)  {abort();}
-		else if (op == srliw)  {abort();}
-		else if (op == jalr)   emit(generate_br(a[0], a[1], 0x3587C0U, a[2]));
-		else if (op == sb)     {abort();}
-		else if (op == sh)     {abort();}
-		else if (op == sw)     {abort();}
-		else if (op == sd)     {abort();}
-		else if (op == lui)    {abort();}
-		else if (op == auipc)  {abort();}
-		else if (op == beq)    {puts("found rt beq, no impl though."); abort();}
-		else if (op == bne)    {abort();}
-		else if (op == blt)    {abort();}
-		else if (op == bge)    {abort();}
-		else if (op == bltu)   {abort();}
-		else if (op == bgeu)   {abort();}
-		else if (op == jal)    {abort();}
+		else if (op == or_)    emit(generate_add(a[0], a[1], a[2], 0x2AU, 0, 1, 0, 0, 0));
+
+		else if (op == addi)   emit(generate_addi(a[0], a[1], a[2], 0x22U, 1, 0, 0, 0));
+		else if (op == addiw)  emit(generate_addi(a[0], a[1], a[2], 0x22U, 0, 0, 0, 0));
+
+		else if (op == bltu)   emit_and_generate_branch(a[0], a[1], a[2], i, 3);
+		else if (op == bgeu)   emit_and_generate_branch(a[0], a[1], a[2], i, 2);
+
+		else if (op == sll)    goto here; 
+		else if (op == slt)    goto here;
+		else if (op == sltu)   goto here;
+		else if (op == xor_)   goto here;
+		else if (op == srl)    goto here;
+		else if (op == sra)    goto here;
+		else if (op == and_)   goto here;
+		else if (op == sllw)   goto here;
+		else if (op == srlw)   goto here;
+		else if (op == sraw)   goto here;
+		else if (op == lb)     goto here;
+		else if (op == lh)     goto here;
+		else if (op == lw)     goto here;
+		else if (op == ld)     goto here;
+		else if (op == lbu)    goto here;
+		else if (op == lhu)    goto here;
+		else if (op == lwu)    goto here;
+		else if (op == slti)   goto here;
+		else if (op == sltiu)  goto here;
+		else if (op == xori)   goto here;
+		else if (op == ori)    goto here;
+		else if (op == andi)   goto here;
+		else if (op == slli)   goto here;
+		else if (op == srli)   goto here;
+		else if (op == slliw)  goto here;
+		else if (op == srliw)  goto here;
+		else if (op == jalr)   goto here;
+		else if (op == sb)     goto here;
+		else if (op == sh)     goto here;
+		else if (op == sw)     goto here;
+		else if (op == sd)     goto here;
+		else if (op == lui)    goto here;
+		else if (op == auipc)  goto here;
+		else if (op == beq)    goto here;
+		else if (op == bne)    goto here;
+		else if (op == blt)    goto here;
+		else if (op == bge)    goto here;
+		else if (op == jal)    goto here;
 		else {
-			printf("error: arm64: unknown instruction: %llu\n", op);
-			//printf("       unknown instruction name: %s\n", instruction_spelling[op]);
+			here: printf("error: arm64: unknown runtime instruction: %s : %llu\n", ins_spelling[op], op);
+			print_error("unknown instruction", current_ins.loc[0]);
 			abort();
 		}
 	}
 }
 
 /*	
+
+//	u32 Im, u32 cd
+//	u32 cd = (u32) a[0];
+//	u32 Im = * (u32*) a[1];
+//	check_branch((int) Im, 1 << (19 - 1), a[1], "branch offset");
+//	check(cd, 16, "condition", 0);
+
+
+
+
+static u32 j_type(nat here, u32* a, u32 o) {   	//  L r op
+	check(a[0], 32, "register", 0);
+	const u32 e = calculate_offset(here, a[1]);
+	const u32 imm19_12 = (e & 0x000FF000);
+	const u32 imm11    = (e & 0x00000800) << 9;
+	const u32 imm10_1  = (e & 0x000007FE) << 20;
+	const u32 imm20    = (e & 0x00100000) << 11;
+	const u32 imm = imm20 | imm10_1 | imm11 | imm19_12;
+	return (imm << 12U) | (a[0] << 7U) | o;
+}
+
+emit(b_type(i, a, 0x63, 0x0));
+
+
+
+
+
+
+  // next lets do:   
+
+
+sll	emit(generate_adc(a, 0x0D6U, 0x08));  // lslv
+
+
+jalr	emit(generate_br(a[0], a[1], 0x3587C0U, a[2]));
+
+
 	// original:
 	for (nat i = 0; i < ins_count; i++) {
 
@@ -748,7 +853,7 @@ static void generate_arm64_machine_code(void) {
 
 
 		else {
-			printf("error: unknown instruction: %llu\n", op);
+			printf("error: unknown runtime instruction: %llu\n", op);
 			printf("       unknown instruction: %s\n", instruction_spelling[op]);
 			
 		}
@@ -874,7 +979,7 @@ int main(int argc, const char** argv) {
 
 	const char* filename = argv[1];
 	text_length = 0;
-	text = read_file(filename, &text_length);
+	text = read_file(filename, &text_length, (struct location){0});
 
 	const char* object_filename = "object0.o";
 	const char* executable_filename = "executable0.out";
@@ -947,7 +1052,7 @@ int main(int argc, const char** argv) {
 			files[file_count].name = get_name(spot);
 			if (debug) printf("info: including file \"%s\"...\n", files[file_count].name);
 			nat l = 0;
-			const char* str = read_file(files[file_count].name, &l);
+			const char* str = read_file(files[file_count].name, &l, here);
 			text = realloc(text, text_length + l + 1);
 			memmove(text + index + 1 + l + 1, text + index + 1, text_length - (index + 1));
 			memcpy(text + index + 1, str, l);
@@ -970,7 +1075,7 @@ int main(int argc, const char** argv) {
 		else if (is("setexecutablename", e)) 	executable_filename = get_name(spot); 
 
 		else if (is("ctat", e)) {
-			registers[a0] = index;
+			registers[a0] = is_compiletime ? index : ins_count;
 			if (forwards_branching == a0) forwards_branching = 0;
 		}
 
@@ -1002,11 +1107,11 @@ int main(int argc, const char** argv) {
 		else if (is("sw", e)) { op = sw; goto push; }
 		else if (is("sd", e)) { op = sd; goto push; }
 		else if (is("bltu", e)) { op = bltu; goto push; }
-		else if (is("bgeu", e)) { op = bltu; goto push; }
-		else if (is("blt", e)) { op = bltu; goto push; }
-		else if (is("bge", e)) { op = bltu; goto push; }
+		else if (is("bgeu", e)) { op = bgeu; goto push; }
+		else if (is("blt", e))  { op = blt; goto push; }
+		else if (is("bge", e))  { op = bge; goto push; }
 		else if (is("beq", e))  { op = beq; goto push; }
-		else if (is("bne", e))  { op = beq; goto push; }
+		else if (is("bne", e))  { op = bne; goto push; }
 		else if (is("jalr", e)) { op = jalr; goto push; }
 		else if (is("jal",  e)) { op = jal; goto push; }
 
@@ -1106,10 +1211,15 @@ int main(int argc, const char** argv) {
 			new.loc[i] = arg_locations[arg_count - i];
 			new.a[i] = arguments[arg_count - i];
 		}
-		
+		if (op == bltu or op == bgeu) new.size = 8; else new.size = 4;
 		ins = realloc(ins, sizeof(struct instruction) * (ins_count + 1));
 		ins[ins_count++] = new;
 		next_char: continue;
+	}
+
+	for (nat i = 0; i < ins_count; i++) {
+		
+		// TODO: check if the instruction can be turned into a compressed instruction, on riscv. ...eventually. lol.
 	}
 
 	if (debug) {
@@ -1182,9 +1292,9 @@ int main(int argc, const char** argv) {
 	}
 
 	if (debug) {
-		system("otool -txvVhlL object.o");
+		//system("otool -txvVhlL object.o");
 		system("otool -txvVhlL program.out");
-		system("objdump object.o -DSast --disassembler-options=no-aliases");
+		//system("objdump object.o -DSast --disassembler-options=no-aliases");
 		system("objdump program.out -DSast --disassembler-options=no-aliases");	
 	}
 
@@ -2306,43 +2416,20 @@ for (nat i = 0; i < file_count; i++) {
 
 
 
+
+
+
+static noreturn void zero_register_error(nat arg_index) {
+	char reason[4096] = {0};
+	snprintf(reason, sizeof reason, "use of zero register for argument %llu in %u instruction is not supported", 
+			arg_index, current_ins.a[0]
+	);
+	print_error(reason, current_ins.loc[arg_index + 1]); 
+	exit(1);
+}
+
+
 */
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 

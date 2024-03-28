@@ -1,11 +1,5 @@
 "eof" 
-
 "0" "1" "=" 
-
-
-"yet_another_empty_file.s" include
-
-
 
 "set compiletime" 
 "set runtime" 
@@ -33,18 +27,17 @@
 
 "ctat" "ctincr" "ctzero"
 
+
+
 "add"  "sub"  "addi" 
-"beq" "blt" "bltu" "jalr" "jal"
+
+"beq"  "bne" 
+"bltu" "blt" 
+"bgeu" "bge" 
+"jalr" "jal"
+
 "ecall"
 
-01 = "2"
-11 = "3"
-001 = "4"
-101 = "5"
-011 = "6"
-111 = "7"
-0001 = "8"
-1001 = "9"
 
 0 = "no runtime"
 1 = "riscv 32"
@@ -81,7 +74,9 @@
 0 = "standard in"
 1 = "standard out"
 
+0 = "false"
+1 = "true"
+
 disable debug
 set runtime
-
 
