@@ -1206,6 +1206,26 @@ int main(int argc, const char** argv) {
 			//printf("set index(%llu) = registers[a1](%llu) + a2(%llu);\n", index, registers[a1], a2);
 			index = registers[a1] + a2;
 			//getchar();
+
+
+
+
+
+	// 	if (is_a_macro_call) {     // use call on use here.         set the call on use to the label register value?...  hmm
+	//		arg_count -= 2; 
+	//		const nat link_register = 1;
+	//		registers[link_register] = index;
+	//		if (registers[a1]) index = registers[a1];     // use the label register associated with the macro itself!       
+	//		else forwards_branching = a1;
+	//	}
+
+
+
+
+
+
+
+
 		} else { 
 			puts("unknown ct instruction!"); 
 			printf("op = %llu (\"%s\") \n", op, ins_spelling[op]); 
