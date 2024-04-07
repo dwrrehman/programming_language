@@ -101,7 +101,7 @@ static u32 arm64_macos_abi[] = {        // note:  x9 is call-clobbered. save it 
 enum language_ISA {
 	null_instruction, ctzero, ctincr, ctmode, ctat, 
 
-	ctabort, ctprint, ctdebug, ctget, ctput, ctdel, ctarg, ctsetdebug, 
+	ctabort, ctprint, ctdebug, ctget, ctput, ctdel, ctlast, cttop, ctarg, ctsetdebug, 
 
 	db, dh, dw, 
 	ecall, ebreak, fence, fencei, 
@@ -126,7 +126,7 @@ enum language_ISA {
 static const char* ins_spelling[] = {
 	"null_instruction", "ctzero", "ctincr", "ctmode", "ctat", 
 
-	"ctabort", "ctprint", "ctdebug", "ctget", "ctput", "ctdel", "ctarg", "ctsetdebug", 
+	"ctabort", "ctprint", "ctdebug", "ctget", "ctput", "ctdel", "ctlast", "cttop", "ctarg", "ctsetdebug", 
 
 	"db", "dh", "dw", 
 	"ecall", "ebreak", "fence", "fencei", 
@@ -1079,8 +1079,6 @@ int main(int argc, const char** argv) {
 			if (forwards_branching == a0) forwards_branching = 0;
 		}
 
-		else if (is("ctzero", e)) { op = ctzero; goto push; }
-		else if (is("ctincr", e)) { op = ctincr; goto push; }
 		else if (is("ecall", e)) { op = ecall; goto push; }
 		else if (is("ebreak", e)) { op = ebreak; goto push; }
 		else if (is("fence", e)) { op = fence; goto push; }
@@ -1121,11 +1119,13 @@ int main(int argc, const char** argv) {
 
 		else if (is("ctabort",  e))    { op = ctabort; goto push; }
 		else if (is("ctdel",  e))      { op = ctdel; goto push; }
+		else if (is("ctlast",  e))     { op = ctlast; goto push; }
 		else if (is("ctarg",  e))      { op = ctarg; goto push; }
+		else if (is("cttop",  e))      { op = cttop; goto push; }
 		else if (is("ctget",  e))      { op = ctget; goto push; }
 		else if (is("ctput",  e))      { op = ctput; goto push; }
 		else if (is("ctprint",  e))    { op = ctprint; goto push; }
-		else if (is("ctdebug",  e))   { op = ctdebug; goto push; }
+		else if (is("ctdebug",  e))    { op = ctdebug; goto push; }
 
 		else if (is("debugarguments", e)) 	print_arguments();
 		else if (is("debugregisters", e)) 	print_registers();
@@ -1146,17 +1146,17 @@ int main(int argc, const char** argv) {
 
 		*registers = 0;
 
-		if (op == ctzero) 	registers[a0] = 0;
-		else if (op == ctincr) 	registers[a0]++;
-
-		else if (op == ctabort) abort();
+		if (op == ctabort) abort();
 		else if (op == ctdel)   { if (arg_count) arg_count--; }
-		else if (op == ctarg)   push_arg(registers[a0]);
+		else if (op == ctlast)  arg_count++;
+		else if (op == ctarg)   { arg_count--; push_arg(registers[a0]); }
 		else if (op == ctget)   registers[a0] = (nat) getchar();
 		else if (op == ctput)   putchar((char) registers[a0]);
 		else if (op == ctprint) puts(get_name(spot));
 		else if (op == ctdebug) printf("debug: \033[32m%llu (%lld)\033[0m "
 					"\033[32m0x%llx\033[0m\n", registers[a0], registers[a0], registers[a0]); 
+
+		else if (op == cttop)  { arg_count--; registers[a0] = arguments[arg_count - 1]; }
 
 		else if (op == add)   registers[a0] = registers[a1] + registers[a2]; 
 		else if (op == sub)   registers[a0] = registers[a1] - registers[a2]; 
@@ -1185,19 +1185,32 @@ int main(int argc, const char** argv) {
 		else if (op == sw) *(u32*)(registers[a0] + a1) = (u32)registers[a2]; 
 		else if (op == sd) *(nat*)(registers[a0] + a1) = (nat)registers[a2]; 
 
-		else if (op == bltu) { if (registers[a0]  < registers[a1]) { if (registers[a2]) index = registers[a2]; else forwards_branching = a2; } } 
-		else if (op == blt)  { if (registers[a0]  < registers[a1]) { if (registers[a2]) index = registers[a2]; else forwards_branching = a2; } } 
-		else if (op == bgeu) { if (registers[a0] >= registers[a1]) { if (registers[a2]) index = registers[a2]; else forwards_branching = a2; } } 
-		else if (op == bge)  { if (registers[a0] >= registers[a1]) { if (registers[a2]) index = registers[a2]; else forwards_branching = a2; } } 
-		else if (op == beq)  { if (registers[a0] == registers[a1]) { if (registers[a2]) index = registers[a2]; else forwards_branching = a2; } } 
-		else if (op == bne)  { if (registers[a0] != registers[a1]) { if (registers[a2]) index = registers[a2]; else forwards_branching = a2; } } 
+		else if (op == bltu) { arg_count -= 3; if (registers[a0]  < registers[a1]) { if (registers[a2]) index = registers[a2]; else forwards_branching = a2; } } 
+		else if (op == blt)  { arg_count -= 3; if (registers[a0]  < registers[a1]) { if (registers[a2]) index = registers[a2]; else forwards_branching = a2; } } 
+		else if (op == bgeu) { arg_count -= 3; if (registers[a0] >= registers[a1]) { if (registers[a2]) index = registers[a2]; else forwards_branching = a2; } } 
+		else if (op == bge)  { arg_count -= 3; if (registers[a0] >= registers[a1]) { if (registers[a2]) index = registers[a2]; else forwards_branching = a2; } } 
+		else if (op == beq)  { arg_count -= 3; if (registers[a0] == registers[a1]) { if (registers[a2]) index = registers[a2]; else forwards_branching = a2; } } 
+		else if (op == bne)  { arg_count -= 3; if (registers[a0] != registers[a1]) { if (registers[a2]) index = registers[a2]; else forwards_branching = a2; } } 
 	
 		else if (op == jal) {
+			arg_count -= 2; 
 			registers[a0] = index;
-			if (registers[a1]) index = registers[a1]; else forwards_branching = a1;
-		}
+			if (registers[a1]) index = registers[a1]; 
+			else forwards_branching = a1;
 
-		else { puts("unknown ct instruction!"); printf("op = %llu\n", op); abort(); }
+		} else if (op == jalr) { 		// syntax:  jump_imm_offset jump_addr_register link_register jalr
+			arg_count -= 3; 
+			//puts("executing jalr...");
+			//printf("set registers[a0](%llu) = index(%llu);\n", registers[a0], index);
+			registers[a0] = index;
+			//printf("set index(%llu) = registers[a1](%llu) + a2(%llu);\n", index, registers[a1], a2);
+			index = registers[a1] + a2;
+			//getchar();
+		} else { 
+			puts("unknown ct instruction!"); 
+			printf("op = %llu (\"%s\") \n", op, ins_spelling[op]); 
+			abort(); 
+		}
 		*registers = 0;
 		goto next_char;
 

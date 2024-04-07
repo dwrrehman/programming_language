@@ -22,20 +22,19 @@
 "ctdebug" 
 "ctget" 
 "ctput"
+"ctdel"
+"ctlast"
+"ctarg"
+"cttop"
 "ctabort" 
 "ctprint"
 
-"ctat" "ctincr" "ctzero"
-
-
-
+"ctat"
 "add"  "sub"  "addi" 
-
 "beq"  "bne" 
 "bltu" "blt" 
 "bgeu" "bge" 
 "jalr" "jal"
-
 "ecall"
 
 

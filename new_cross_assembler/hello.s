@@ -22,7 +22,10 @@ loop ctat
 	1= i i addi
 loop n i bltu
 
-set exit code ctat zr sum exit code add
+set exit code ctat 
+	zr sum exit code add
+
+false zr 0001 = "should not getchar" addi
 
 standard in= zr system read fd addi
 zr zr system read buffer addi
