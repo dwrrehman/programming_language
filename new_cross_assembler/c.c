@@ -24,7 +24,7 @@ branches:
 
 	- figure out branches for the riscv arch!!!
 
-	- start trying to figure out branches for arm64. 
+x	- start trying to figure out branches for arm64. 
 
 
 
@@ -37,7 +37,7 @@ x	- flush out the branching system for risc-v compiletime system.
 
 */
 
-#include <stdio.h>   
+#include <stdio.h>
 #include <stdlib.h>  
 #include <string.h>
 #include <unistd.h>  
@@ -60,7 +60,9 @@ typedef uint32_t u32;
 typedef uint16_t u16;
 typedef uint8_t u8;
 
-static bool debug = 0;
+static const nat ct_register_count = 1 << 16;
+static const nat ct_stack_size = 1 << 16;
+static const nat callonuse_macro_threshold = 1 << 15;
 
 enum target_architecture { 
 	noruntime, 
@@ -102,6 +104,7 @@ enum language_ISA {
 	null_instruction, ctzero, ctincr, ctmode, ctat, 
 
 	ctabort, ctprint, ctdebug, ctget, ctput, ctdel, ctlast, cttop, ctarg, ctsetdebug, 
+	ctdebugarguments, ctdebugregisters, ctdebuginstructions, ctdebugdictionary,
 
 	db, dh, dw, 
 	ecall, ebreak, fence, fencei, 
@@ -122,11 +125,11 @@ enum language_ISA {
 	instruction_set_count
 };
 
-
 static const char* ins_spelling[] = {
 	"null_instruction", "ctzero", "ctincr", "ctmode", "ctat", 
 
 	"ctabort", "ctprint", "ctdebug", "ctget", "ctput", "ctdel", "ctlast", "cttop", "ctarg", "ctsetdebug", 
+	"ctdebugarguments", "ctdebugregisters", "ctdebuginstructions", "ctdebugdictionary",
 
 	"db", "dh", "dw", 
 	"ecall", "ebreak", "fence", "fencei", 
@@ -160,10 +163,13 @@ struct file {
 
 static nat byte_count = 0;
 static u8* bytes = NULL;
+
 static nat ins_count = 0;
 static struct instruction* ins = NULL;
 static struct instruction current_ins = {0};
-static nat registers[65536] = {0};
+
+static nat* registers = NULL;
+
 static nat arg_count = 0;
 static u32 arguments[4096] = {0};
 static struct location arg_locations[4096] = {0};
@@ -180,6 +186,7 @@ static nat values[4096] = {0};
 static nat name_count = 0;
 
 static bool is_compiletime = false;
+static bool debug = false;
 
 static bool is(const char* literal, nat initial) {
 	nat i = initial, j = 0;
@@ -290,7 +297,7 @@ static char* read_file(const char* name, nat* out_length, struct location here) 
 static void print_registers(void) {
 	nat printed_count = 0;
 	printf("debug: registers = {\n");
-	for (nat i = 0; i < sizeof registers / sizeof(nat); i++) {
+	for (nat i = 0; i < ct_register_count; i++) {
 		if (registers[i]) {
 			if (printed_count % 4 == 0) puts("");
 			printf("%02llu:%010llx, ", i, registers[i]);
@@ -516,7 +523,19 @@ static void generate_riscv_machine_code(void) {
 		else if (op == ori)     emit(i_type(a, 0x13, 0x6));
 		else if (op == andi)    emit(i_type(a, 0x13, 0x7));
 		else if (op == slli)    emit(i_type(a, 0x13, 0x1));
-		else if (op == srli)    emit(i_type(a, 0x13, 0x5));   // TODO: make this not use the immediate as a bit in the opcode. toggle this bit if the user gives a sraiw/srai.  comment version old:(for srai/sraiw, give the appropriate a[2] with imm[10] set.)
+
+
+
+		else if (op == srli)    emit(i_type(a, 0x13, 0x5));   
+
+
+			// TODO: make this not use the immediate as a bit in the opcode. 
+			// toggle this bit if the user gives a sraiw/srai.  comment 
+			// version old:(for srai/sraiw, give the appropriate a[2] with imm[10] set.)
+
+
+
+
 		else if (op == addiw)   emit(i_type(a, 0x1B, 0x0));
 		else if (op == slliw)   emit(i_type(a, 0x1B, 0x1));
 		else if (op == srliw)   emit(i_type(a, 0x1B, 0x5));
@@ -784,6 +803,15 @@ static void generate_arm64_machine_code(void) {
 	}
 }
 
+
+
+
+
+
+
+
+
+
 /*	
 
 //	u32 Im, u32 cd
@@ -859,6 +887,13 @@ jalr	emit(generate_br(a[0], a[1], 0x3587C0U, a[2]));
 		}
 	}
 */
+
+
+
+
+
+
+
 
 
 static noreturn void make_elf_object_file(const char* object_filename) {
@@ -988,7 +1023,8 @@ int main(int argc, const char** argv) {
 	nat architecture = 0;
 	nat output_format = 0;
 
-	registers[2] = (nat)(void*) malloc(65536);
+	registers = calloc(ct_register_count, sizeof(nat));
+	registers[2] = (nat)(void*) calloc(ct_stack_size, 1);
 	files[file_count].name = filename;
 	files[file_count++].location = (struct location) {.start = 0, .count = text_length};
 
@@ -1036,13 +1072,16 @@ int main(int argc, const char** argv) {
 
 	process_name:;
 		*registers = 0;
-		nat a2 = arg_count > 2 ? arguments[arg_count - 1 - 2] : 0;
-		nat a1 = arg_count > 1 ? arguments[arg_count - 1 - 1] : 0;
-		nat a0 = arg_count > 0 ? arguments[arg_count - 1 - 0] : 0;
+
 		if (debug) {
+			print_arguments();
+			print_registers();
+			//print_instructions();
+			print_dictionary();
+			
 			printf("info: calling: \"\033[32;1m");
 			for (nat cc = names[called_name]; text[cc] != '"'; cc++) putchar(text[cc]);
-			printf("\033[0m\",args={a0:%llu,a1:%llu,a2:%llu\n", a0, a1, a2);
+			printf("\033[0m\".\n");
 		}
 		nat e = name_starts_at, op = 0;
 
@@ -1075,6 +1114,7 @@ int main(int argc, const char** argv) {
 		else if (is("setexecutablename", e)) 	executable_filename = get_name(spot); 
 
 		else if (is("ctat", e)) {
+			const nat a0 = arg_count > 0 ? arguments[arg_count - 1 - 0] : 0;
 			registers[a0] = is_compiletime ? index : ins_count;
 			if (forwards_branching == a0) forwards_branching = 0;
 		}
@@ -1120,43 +1160,77 @@ int main(int argc, const char** argv) {
 		else if (is("ctabort",  e))    { op = ctabort; goto push; }
 		else if (is("ctdel",  e))      { op = ctdel; goto push; }
 		else if (is("ctlast",  e))     { op = ctlast; goto push; }
-		else if (is("ctarg",  e))      { op = ctarg; goto push; }
 		else if (is("cttop",  e))      { op = cttop; goto push; }
+		else if (is("ctarg",  e))      { op = ctarg; goto push; }
+
 		else if (is("ctget",  e))      { op = ctget; goto push; }
 		else if (is("ctput",  e))      { op = ctput; goto push; }
 		else if (is("ctprint",  e))    { op = ctprint; goto push; }
 		else if (is("ctdebug",  e))    { op = ctdebug; goto push; }
 
-		else if (is("debugarguments", e)) 	print_arguments();
-		else if (is("debugregisters", e)) 	print_registers();
-		else if (is("debuginstructions", e))	print_instructions();
-		else if (is("debugdictionary", e))	print_dictionary();
+		else if (is("ctdebugarguments", e)) 	{ op = ctdebugarguments; goto push; }// print_arguments();
+		else if (is("ctdebugregisters", e)) 	{ op = ctdebugregisters; goto push; }// print_registers();
+		else if (is("ctdebuginstructions", e))	{ op = ctdebuginstructions; goto push; }// print_instructions();
+		else if (is("ctdebugdictionary", e))	{ op = ctdebugdictionary; goto push; }// print_dictionary();
 
-		// else if (names[i].is_callonuse) {} // call macro
+
+		else if (values[called_name] >= callonuse_macro_threshold) {
+
+			push_arg(values[called_name]);
+
+			if (registers[values[called_name]]) {
+				if (debug) puts("\033[32mGOOD MACRO CALL\033[0m");
+				if (debug) printf("calling a macro! values[called_name] = %llu...\n", values[called_name]);
+				push_arg(1);
+				op = jal; goto push;
+			} else { 
+				if (debug) puts("\033[31mBAD UNDEFINED MACRO: macro used before it was defined...?\033[0m"); 
+			}
+
+			
+
+		}
+
 		else push_arg(values[called_name]);
 
 		*registers = 0;
-		goto next_char;
+		goto word_done;
 
-	push:
-		if (debug) printf("info:[forwards_branching=%llu]:[is_compiletime=%u]: processing op = %llu...\n", 
-					forwards_branching, is_compiletime, op);
-		if (forwards_branching) goto next_char;
+	push:;
+		nat a2 = arg_count > 2 ? arguments[arg_count - 1 - 2] : 0;
+		nat a1 = arg_count > 1 ? arguments[arg_count - 1 - 1] : 0;
+		nat a0 = arg_count > 0 ? arguments[arg_count - 1 - 0] : 0;
+
+		if (debug) {
+			printf("info: push: EXECUTING: \"\033[32;1m");
+			for (nat cc = names[called_name]; text[cc] != '"'; cc++) putchar(text[cc]);
+			printf("\033[0m\", op = %llu, args={a0:%llu,a1:%llu,a2:%llu}\n", op, a0, a1, a2);
+			printf("info:[forwards_branching=%llu]:[is_compiletime=%u]: processing op = %llu (\"%s\")...\n", 
+						forwards_branching, is_compiletime, op, ins_spelling[op]);
+		}
+
+		if (forwards_branching) goto word_done;
 		if (not is_compiletime) goto push_rt;
 
 		*registers = 0;
 
 		if (op == ctabort) abort();
+
 		else if (op == ctdel)   { if (arg_count) arg_count--; }
 		else if (op == ctlast)  arg_count++;
+		else if (op == cttop)   { arg_count--; registers[a0] = arguments[arg_count - 1]; }
 		else if (op == ctarg)   { arg_count--; push_arg(registers[a0]); }
+
 		else if (op == ctget)   registers[a0] = (nat) getchar();
 		else if (op == ctput)   putchar((char) registers[a0]);
 		else if (op == ctprint) puts(get_name(spot));
 		else if (op == ctdebug) printf("debug: \033[32m%llu (%lld)\033[0m "
 					"\033[32m0x%llx\033[0m\n", registers[a0], registers[a0], registers[a0]); 
 
-		else if (op == cttop)  { arg_count--; registers[a0] = arguments[arg_count - 1]; }
+		else if (op == ctdebugarguments) 	print_arguments();
+		else if (op == ctdebugregisters) 	print_registers();
+		else if (op == ctdebuginstructions) 	print_instructions();
+		else if (op == ctdebugdictionary) 	print_dictionary();
 
 		else if (op == add)   registers[a0] = registers[a1] + registers[a2]; 
 		else if (op == sub)   registers[a0] = registers[a1] - registers[a2]; 
@@ -1232,7 +1306,7 @@ int main(int argc, const char** argv) {
 			abort(); 
 		}
 		*registers = 0;
-		goto next_char;
+		goto word_done;
 
 	push_rt:;
 		if (debug) puts("inside push_rt! ...pushing runtime instruction!");
@@ -1247,17 +1321,45 @@ int main(int argc, const char** argv) {
 		if (op == bltu or op == bgeu) new.size = 8; else new.size = 4;
 		ins = realloc(ins, sizeof(struct instruction) * (ins_count + 1));
 		ins[ins_count++] = new;
-		next_char: continue;
+
+	word_done:
+		if (debug) {
+			printf("[finshed: ");
+			printf(" {\"\033[32;1m");
+			for (nat cc = names[called_name]; text[cc] != '"'; cc++) putchar(text[cc]);
+			printf("\033[0m\"}");
+			printf(" ]...");
+			fflush(stdout);
+			getchar();
+		}
+	next_char: 
+		continue;
+
 	}
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 	for (nat i = 0; i < ins_count; i++) {
-		
-		// TODO: check if the instruction can be turned into a compressed instruction, on riscv. ...eventually. lol.
+		// TODO: check if the instruction can be turned into a compressed instruction on riscv
 	}
 
 	if (debug) {
-		printf("info: building for target:\n\tarchitecture:  \033[31;1m%s\033[0m\n\toutput_format: \033[32;1m%s\033[0m.\n\n", 
-			target_spelling[architecture  % target_count], output_format_spelling[output_format % output_format_count]
+		printf("info: building for target:\n\tarchitecture:  "
+			"\033[31;1m%s\033[0m\n\toutput_format: \033[32;1m%s\033[0m.\n\n", 
+			target_spelling[architecture  % target_count], 
+			output_format_spelling[output_format % output_format_count]
 		);
 	}
 
