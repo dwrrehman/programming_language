@@ -1024,6 +1024,7 @@ int main(int argc, const char** argv) {
 	nat output_format = 0;
 
 	registers = calloc(ct_register_count, sizeof(nat));
+	registers[1] = 1;
 	registers[2] = (nat)(void*) calloc(ct_stack_size, 1);
 	files[file_count].name = filename;
 	files[file_count++].location = (struct location) {.start = 0, .count = text_length};
@@ -1162,22 +1163,18 @@ int main(int argc, const char** argv) {
 		else if (is("ctlast",  e))     { op = ctlast; goto push; }
 		else if (is("cttop",  e))      { op = cttop; goto push; }
 		else if (is("ctarg",  e))      { op = ctarg; goto push; }
-
 		else if (is("ctget",  e))      { op = ctget; goto push; }
 		else if (is("ctput",  e))      { op = ctput; goto push; }
 		else if (is("ctprint",  e))    { op = ctprint; goto push; }
 		else if (is("ctdebug",  e))    { op = ctdebug; goto push; }
 
-		else if (is("ctdebugarguments", e)) 	{ op = ctdebugarguments; goto push; }// print_arguments();
-		else if (is("ctdebugregisters", e)) 	{ op = ctdebugregisters; goto push; }// print_registers();
-		else if (is("ctdebuginstructions", e))	{ op = ctdebuginstructions; goto push; }// print_instructions();
-		else if (is("ctdebugdictionary", e))	{ op = ctdebugdictionary; goto push; }// print_dictionary();
-
+		else if (is("ctdebugarguments", e)) 	{ op = ctdebugarguments; goto push; }
+		else if (is("ctdebugregisters", e)) 	{ op = ctdebugregisters; goto push; }
+		else if (is("ctdebuginstructions", e))	{ op = ctdebuginstructions; goto push; }
+		else if (is("ctdebugdictionary", e))	{ op = ctdebugdictionary; goto push; }
 
 		else if (values[called_name] >= callonuse_macro_threshold) {
-
 			push_arg(values[called_name]);
-
 			if (registers[values[called_name]]) {
 				if (debug) puts("\033[32mGOOD MACRO CALL\033[0m");
 				if (debug) printf("calling a macro! values[called_name] = %llu...\n", values[called_name]);
@@ -1186,9 +1183,6 @@ int main(int argc, const char** argv) {
 			} else { 
 				if (debug) puts("\033[31mBAD UNDEFINED MACRO: macro used before it was defined...?\033[0m"); 
 			}
-
-			
-
 		}
 
 		else push_arg(values[called_name]);
@@ -1210,12 +1204,10 @@ int main(int argc, const char** argv) {
 		}
 
 		if (forwards_branching) goto word_done;
-		if (not is_compiletime) goto push_rt;
 
 		*registers = 0;
 
 		if (op == ctabort) abort();
-
 		else if (op == ctdel)   { if (arg_count) arg_count--; }
 		else if (op == ctlast)  arg_count++;
 		else if (op == cttop)   { arg_count--; registers[a0] = arguments[arg_count - 1]; }
@@ -1231,6 +1223,8 @@ int main(int argc, const char** argv) {
 		else if (op == ctdebugregisters) 	print_registers();
 		else if (op == ctdebuginstructions) 	print_instructions();
 		else if (op == ctdebugdictionary) 	print_dictionary();
+
+		else if (not is_compiletime) goto push_rt;
 
 		else if (op == add)   registers[a0] = registers[a1] + registers[a2]; 
 		else if (op == sub)   registers[a0] = registers[a1] - registers[a2]; 
@@ -1259,20 +1253,61 @@ int main(int argc, const char** argv) {
 		else if (op == sw) *(u32*)(registers[a0] + a1) = (u32)registers[a2]; 
 		else if (op == sd) *(nat*)(registers[a0] + a1) = (nat)registers[a2]; 
 
-		else if (op == bltu) { arg_count -= 3; if (registers[a0]  < registers[a1]) { if (registers[a2]) index = registers[a2]; else forwards_branching = a2; } } 
-		else if (op == blt)  { arg_count -= 3; if (registers[a0]  < registers[a1]) { if (registers[a2]) index = registers[a2]; else forwards_branching = a2; } } 
-		else if (op == bgeu) { arg_count -= 3; if (registers[a0] >= registers[a1]) { if (registers[a2]) index = registers[a2]; else forwards_branching = a2; } } 
-		else if (op == bge)  { arg_count -= 3; if (registers[a0] >= registers[a1]) { if (registers[a2]) index = registers[a2]; else forwards_branching = a2; } } 
-		else if (op == beq)  { arg_count -= 3; if (registers[a0] == registers[a1]) { if (registers[a2]) index = registers[a2]; else forwards_branching = a2; } } 
-		else if (op == bne)  { arg_count -= 3; if (registers[a0] != registers[a1]) { if (registers[a2]) index = registers[a2]; else forwards_branching = a2; } } 
+		else if (op == bltu) { 
+			arg_count -= 3; 
+			if (registers[a0]  < registers[a1]) { 
+				if (registers[a2]) index = registers[a2]; 
+				else forwards_branching = a2; 
+			} 
+		} 
+		
+		else if (op == blt)  { 
+			arg_count -= 3; 
+			if (registers[a0]  < registers[a1]) { 
+				if (registers[a2]) index = registers[a2]; 
+				else forwards_branching = a2; 
+			} 
+		} 
+
+		else if (op == bgeu) { 
+			arg_count -= 3; 
+			if (registers[a0] >= registers[a1]) { 
+				if (registers[a2]) index = registers[a2]; 
+				else forwards_branching = a2; 
+			} 
+		}
+ 
+		else if (op == bge)  { 
+			arg_count -= 3; 
+			if (registers[a0] >= registers[a1]) { 
+				if (registers[a2]) index = registers[a2]; 
+				else forwards_branching = a2; 
+			} 
+		} 
+
+		else if (op == beq)  { 
+			arg_count -= 3; 
+			if (registers[a0] == registers[a1]) { 
+				if (registers[a2]) index = registers[a2]; 
+				else forwards_branching = a2; 
+			} 
+		} 
+		else if (op == bne)  { 
+			arg_count -= 3; 
+			if (registers[a0] != registers[a1]) { 
+				if (registers[a2]) index = registers[a2]; 
+				else forwards_branching = a2; 
+			} 
+		} 
 	
 		else if (op == jal) {
 			arg_count -= 2; 
 			registers[a0] = index;
 			if (registers[a1]) index = registers[a1]; 
 			else forwards_branching = a1;
+		} 
 
-		} else if (op == jalr) { 		// syntax:  jump_imm_offset jump_addr_register link_register jalr
+		else if (op == jalr) { 		// syntax:  jump_imm_offset jump_addr_register link_register jalr
 			arg_count -= 3; 
 			//puts("executing jalr...");
 			//printf("set registers[a0](%llu) = index(%llu);\n", registers[a0], index);
@@ -1280,32 +1315,16 @@ int main(int argc, const char** argv) {
 			//printf("set index(%llu) = registers[a1](%llu) + a2(%llu);\n", index, registers[a1], a2);
 			index = registers[a1] + a2;
 			//getchar();
+		} 
 
-
-
-
-
-	// 	if (is_a_macro_call) {     // use call on use here.         set the call on use to the label register value?...  hmm
-	//		arg_count -= 2; 
-	//		const nat link_register = 1;
-	//		registers[link_register] = index;
-	//		if (registers[a1]) index = registers[a1];     // use the label register associated with the macro itself!       
-	//		else forwards_branching = a1;
-	//	}
-
-
-
-
-
-
-
-
-		} else { 
+		else { 
 			puts("unknown ct instruction!"); 
 			printf("op = %llu (\"%s\") \n", op, ins_spelling[op]); 
 			abort(); 
 		}
+
 		*registers = 0;
+
 		goto word_done;
 
 	push_rt:;
@@ -1466,6 +1485,26 @@ int main(int argc, const char** argv) {
 
 
 /*
+
+
+
+
+	// 	if (is_a_macro_call) {     // use call on use here.         set the call on use to the label register value?...  hmm
+	//		arg_count -= 2; 
+	//		const nat link_register = 1;
+	//		registers[link_register] = index;
+	//		if (registers[a1]) index = registers[a1];     // use the label register associated with the macro itself!       
+	//		else forwards_branching = a1;
+	//	}
+
+
+
+
+
+
+
+
+
 
 
 
