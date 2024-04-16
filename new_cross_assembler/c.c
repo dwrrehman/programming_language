@@ -1,4 +1,23 @@
 /*
+
+
+
+
+// todo: make the debug register index be register 3 or something.  ie, when registers[3] is set, debug is enabled. 
+
+		same for compiletime too? make that 4?   or switch them? idk. something like that 
+
+
+
+
+dont have   enable debug       etc 
+ bad 
+
+
+
+
+
+
 		risc-v 64-bit cross assembler 
 	     written by dwrr on 202403111.010146
 
@@ -63,6 +82,7 @@ typedef uint8_t u8;
 static const nat ct_register_count = 1 << 16;
 static const nat ct_stack_size = 1 << 16;
 static const nat callonuse_macro_threshold = 1 << 15;
+static const nat callonuse_function_threshold = 1 << 16;
 
 enum target_architecture { 
 	noruntime, 
@@ -103,8 +123,9 @@ static u32 arm64_macos_abi[] = {        // note:  x9 is call-clobbered. save it 
 enum language_ISA {
 	null_instruction, ctzero, ctincr, ctmode, ctat, 
 
-	ctabort, ctprint, ctdebug, ctget, ctput, ctdel, ctlast, cttop, ctarg, ctsetdebug, 
+	ctabort, ctprint, ctdebug, ctget, ctput, ctdel, ctlast, ctset, ctarg, ctsetdebug, 
 	ctdebugarguments, ctdebugregisters, ctdebuginstructions, ctdebugdictionary,
+	enabledebug, disabledebug,
 
 	db, dh, dw, 
 	ecall, ebreak, fence, fencei, 
@@ -128,8 +149,9 @@ enum language_ISA {
 static const char* ins_spelling[] = {
 	"null_instruction", "ctzero", "ctincr", "ctmode", "ctat", 
 
-	"ctabort", "ctprint", "ctdebug", "ctget", "ctput", "ctdel", "ctlast", "cttop", "ctarg", "ctsetdebug", 
+	"ctabort", "ctprint", "ctdebug", "ctget", "ctput", "ctdel", "ctlast", "ctset", "ctarg", "ctsetdebug", 
 	"ctdebugarguments", "ctdebugregisters", "ctdebuginstructions", "ctdebugdictionary",
+	"enabledebug", "disabledebug",
 
 	"db", "dh", "dw", 
 	"ecall", "ebreak", "fence", "fencei", 
@@ -185,8 +207,7 @@ static nat lengths[4096] = {0};
 static nat values[4096] = {0};
 static nat name_count = 0;
 
-static bool is_compiletime = false;
-static bool debug = false;
+#define debug registers[4]
 
 static bool is(const char* literal, nat initial) {
 	nat i = initial, j = 0;
@@ -618,6 +639,7 @@ static u32 generate_addi(u32 Rd, u32 Rn, u32 im, u32 op, u32 sf, u32 sb, u32 st,
 	Rn = arm64_macos_abi[Rn];
 
 	check(im, 1 << 12U, "immediate", 2);
+
 	return  (sf << 31U) | 
 		(sb << 30U) | 
 		(st << 29U) | 
@@ -627,34 +649,34 @@ static u32 generate_addi(u32 Rd, u32 Rn, u32 im, u32 op, u32 sf, u32 sb, u32 st,
 		(Rn <<  5U) | Rd;
 }
 
-// im Rn Rt oe memi            // sd,sw,sh,sb,   ld,lw,lh,lb
-static u32 generate_memi(u32* a, u32 op, u32 im, u32 sf, u32 oc) {     
-	u32 oe = (u32) a[0];
-	u32 Rt = (u32) a[1];
-	u32 Rn = (u32) a[2];
-
-	check(oe,  4, "mode", 0);
-	check(Rt, 32, "register", 1);
-	check(Rn, 32, "register", 2);
+static u32 generate_memi(u32 Rt, u32 Rn, u32 im, u32 oe, u32 op, u32 oc, u32 sf) {     
+	
+	check(Rt, 32, "register", 0);
+	check(Rn, 32, "register", 1);
 
 	Rt = arm64_macos_abi[Rt];
 	Rn = arm64_macos_abi[Rn];
 
-	check(im, 1 << 9U, "immediate", 3);
-	return  (sf << 30U) | 
-		(op << 24U) | 
+	check(im, 1 << 9U, "immediate", 2);
+
+	return  (sf << 30U) |
+		(op << 24U) |
 		(oc << 22U) |
-		(im << 12U) | 
+		(im << 12U) |
 		(oe << 10U) |
 		(Rn <<  5U) | Rt;
 }
 
-static u32 generate_memiu(u32* a, u32 op, u32 im, u32 sf, u32 oc) {    // im Rn Rt memiu
-	u32 Rt = (u32) a[0];
-	u32 Rn = (u32) a[1];
+static u32 generate_memiu(u32 Rt, u32 Rn, u32 im, u32 op, u32 oc, u32 sf) {
+
 	check(Rt, 32, "register", 0);
 	check(Rn, 32, "register", 1);
+
+	Rt = arm64_macos_abi[Rt];
+	Rn = arm64_macos_abi[Rn];
+
 	check(im, 1 << 12U, "immediate", 2);
+
 	return  (sf << 30U) | 
 		(op << 24U) | 
 		(oc << 22U) | 
@@ -690,8 +712,6 @@ static u32 generate_add(u32 Rd, u32 Rn, u32 Rm, u32 op, u32 im, u32 sf, u32 st, 
 		(im << 10U) | 
 		(Rn <<  5U) | Rd;
 }
-
-
 
 static u32 generate_br(void) { 
 // 	u32 Rn, u32 im, u32 op, u32 oc
@@ -767,13 +787,20 @@ static void generate_arm64_machine_code(void) {
 		else if (op == sllw)   goto here;
 		else if (op == srlw)   goto here;
 		else if (op == sraw)   goto here;
-		else if (op == lb)     goto here;
-		else if (op == lh)     goto here;
-		else if (op == lw)     goto here;
-		else if (op == ld)     goto here;
-		else if (op == lbu)    goto here;
-		else if (op == lhu)    goto here;
-		else if (op == lwu)    goto here;
+
+		else if (op == lb)     emit(generate_memiu(a[0], a[1], a[2], 0x00, 0x00, 0));
+		else if (op == lh)     emit(generate_memiu(a[0], a[1], a[2], 0x00, 0x00, 0));
+		else if (op == lw)     emit(generate_memiu(a[0], a[1], a[2], 0x00, 0x00, 0));
+		else if (op == ld)     emit(generate_memiu(a[0], a[1], a[2], 0x00, 0x00, 0));
+		else if (op == lbu)    emit(generate_memiu(a[0], a[1], a[2], 0x00, 0x00, 0));
+		else if (op == lhu)    emit(generate_memiu(a[0], a[1], a[2], 0x00, 0x00, 0));
+		else if (op == lwu)    emit(generate_memiu(a[0], a[1], a[2], 0x00, 0x00, 0));
+
+		else if (op == sb)     emit(generate_memiu(a[0], a[1], a[2], 0x00, 0x00, 0));
+		else if (op == sh)     emit(generate_memiu(a[0], a[1], a[2], 0x00, 0x00, 0));
+		else if (op == sw)     emit(generate_memiu(a[0], a[1], a[2], 0x00, 0x00, 0));
+		else if (op == sd)     emit(generate_memiu(a[0], a[1], a[2], 0x00, 0x00, 0));
+
 		else if (op == slti)   goto here;
 		else if (op == sltiu)  goto here;
 		else if (op == xori)   goto here;
@@ -784,10 +811,7 @@ static void generate_arm64_machine_code(void) {
 		else if (op == slliw)  goto here;
 		else if (op == srliw)  goto here;
 		else if (op == jalr)   goto here;
-		else if (op == sb)     goto here;
-		else if (op == sh)     goto here;
-		else if (op == sw)     goto here;
-		else if (op == sd)     goto here;
+		
 		else if (op == lui)    goto here;
 		else if (op == auipc)  goto here;
 		else if (op == beq)    goto here;
@@ -1024,8 +1048,123 @@ int main(int argc, const char** argv) {
 	nat output_format = 0;
 
 	registers = calloc(ct_register_count, sizeof(nat));
-	registers[1] = 1;
-	registers[2] = (nat)(void*) calloc(ct_stack_size, 1);
+
+
+
+
+
+
+
+
+
+			// is it possible to create constants at compiletime to create register arguments!?!?!
+
+
+			// ie, to get rid of making  0 and 1  and = built in. basically. is it possible?????
+
+
+
+
+
+	registers[2] = (nat)(void*) calloc(ct_stack_size, 1);     
+
+
+					
+/*
+
+
+// <------ our only way to have a nonzero value, if one register is set to be nonzero.   we'll use an slt instruction  (sp zr slt) to get the constant 1 maybe?...  hmm we would need some way to put sp and zr on the stack though... zr is easy, sure. but sp??? hm...... idk.... maybe its possible. but.. i feel like we will need to add an instruction to do that. hypothetically possible though.
+
+
+						hmmmm
+								yeah i think its possible actually. just requires adding a couple more instructions, in replace of 0 and 1 lol. so yeah. basically unary constants will be the only way to specify reg indicies, natively. binary will be constructed from that, i think. so yeah. yay. cool. thats amazing.  perfect. yay
+
+
+
+
+							UNARY
+
+
+				yes. nice. cool 
+
+
+
+
+
+
+
+			LETS JUST INCREMENT THE TOP OF STACK!!!    to get unary constants.  ie, no r  no s, just the top of stack thats value gets manipulated directly! nice. yay. 
+
+
+
+			that should work well, i think. 
+
+
+
+		also, no setzero should be strictly neccessary, but lets add it anyways though lol. so yeah. 
+
+
+
+	argstacktop++
+
+	argstacktop = 0
+
+
+
+
+thats how we will get constants. this way, we can give any register indicies to any instruction eventuallyyy lol. so yeah. 
+
+
+
+	BUTTTT   the trick here, is that we need to make the value of a register able to be put on the argument stack. 
+
+
+			that way we'll get a loop:
+
+
+
+
+		argstacktop++/=0    ins   feed argument register index values to ct instructions, which produce register values that are then interpreted as argument register index values, or constants for other ct instructions!
+
+
+				so yeah. it should be self sustaining from there lol.   we just need to like.. boot strap the process witht he argstacktop stuff. 
+
+
+
+							althoughhhhh maybe not?
+
+
+
+				maybe we just push certain values on the stack initially!?!?!
+
+					that woudl work tooo hmmm wowwww
+
+
+
+		interestinggg
+
+
+
+
+	idk
+				ill think about it         quite interesting 
+
+
+
+
+
+yay
+
+
+
+
+
+
+*/
+
+
+
+
 	files[file_count].name = filename;
 	files[file_count++].location = (struct location) {.start = 0, .count = text_length};
 
@@ -1102,21 +1241,16 @@ int main(int argc, const char** argv) {
 		 	file_count++;
 		}
 
-		else if (is("enabledebug", e)) 		debug = true;
-		else if (is("disabledebug", e)) 	debug = false;
-		else if (is("setcompiletime", e)) 	is_compiletime = true;
-		else if (is("setruntime", e)) 		is_compiletime = false;
-
-		else if (is("setarchitecture", e)) 	architecture = arguments[arg_count - 1];
-		else if (is("setoutputformat", e)) 	output_format = arguments[arg_count - 1]; 
-		else if (is("preserveobject", e)) 	preserve_existing_object = arguments[arg_count - 1]; 
-		else if (is("preserveexecutable", e)) 	preserve_existing_executable = arguments[arg_count - 1]; 
+		else if (is("setarchitecture", e)) 	architecture = arguments[arg_count - 1]; // make these just use ct registers. instead.
+		else if (is("setoutputformat", e)) 	output_format = arguments[arg_count - 1]; //
+		else if (is("preserveobject", e)) 	preserve_existing_object = arguments[arg_count - 1];  //
+		else if (is("preserveexecutable", e)) 	preserve_existing_executable = arguments[arg_count - 1];  //
 		else if (is("setobjectname", e)) 	object_filename = get_name(spot); 
 		else if (is("setexecutablename", e)) 	executable_filename = get_name(spot); 
 
 		else if (is("ctat", e)) {
 			const nat a0 = arg_count > 0 ? arguments[arg_count - 1 - 0] : 0;
-			registers[a0] = is_compiletime ? index : ins_count;
+			registers[a0] = registers[3] ? index : ins_count;
 			if (forwards_branching == a0) forwards_branching = 0;
 		}
 
@@ -1161,7 +1295,7 @@ int main(int argc, const char** argv) {
 		else if (is("ctabort",  e))    { op = ctabort; goto push; }
 		else if (is("ctdel",  e))      { op = ctdel; goto push; }
 		else if (is("ctlast",  e))     { op = ctlast; goto push; }
-		else if (is("cttop",  e))      { op = cttop; goto push; }
+		else if (is("ctset",  e))      { op = ctset; goto push; }
 		else if (is("ctarg",  e))      { op = ctarg; goto push; }
 		else if (is("ctget",  e))      { op = ctget; goto push; }
 		else if (is("ctput",  e))      { op = ctput; goto push; }
@@ -1174,10 +1308,13 @@ int main(int argc, const char** argv) {
 		else if (is("ctdebugdictionary", e))	{ op = ctdebugdictionary; goto push; }
 
 		else if (values[called_name] >= callonuse_macro_threshold) {
+
+			
 			push_arg(values[called_name]);
 			if (registers[values[called_name]]) {
 				if (debug) puts("\033[32mGOOD MACRO CALL\033[0m");
 				if (debug) printf("calling a macro! values[called_name] = %llu...\n", values[called_name]);
+				registers[3] = values[called_name] < callonuse_function_threshold;
 				push_arg(1);
 				op = jal; goto push;
 			} else { 
@@ -1199,8 +1336,8 @@ int main(int argc, const char** argv) {
 			printf("info: push: EXECUTING: \"\033[32;1m");
 			for (nat cc = names[called_name]; text[cc] != '"'; cc++) putchar(text[cc]);
 			printf("\033[0m\", op = %llu, args={a0:%llu,a1:%llu,a2:%llu}\n", op, a0, a1, a2);
-			printf("info:[forwards_branching=%llu]:[is_compiletime=%u]: processing op = %llu (\"%s\")...\n", 
-						forwards_branching, is_compiletime, op, ins_spelling[op]);
+			printf("info:[forwards_branching=%llu]:[is_compiletime(registers[3])=%llu]: processing op = %llu (\"%s\")...\n", 
+						forwards_branching, registers[3], op, ins_spelling[op]);
 		}
 
 		if (forwards_branching) goto word_done;
@@ -1210,8 +1347,8 @@ int main(int argc, const char** argv) {
 		if (op == ctabort) abort();
 		else if (op == ctdel)   { if (arg_count) arg_count--; }
 		else if (op == ctlast)  arg_count++;
-		else if (op == cttop)   { arg_count--; registers[a0] = arguments[arg_count - 1]; }
-		else if (op == ctarg)   { arg_count--; push_arg(registers[a0]); }
+		else if (op == ctset)   { if (arg_count) arg_count--; registers[a0] = arguments[--arg_count]; }
+		else if (op == ctarg)   { if (arg_count) arg_count--; push_arg(registers[a0]); }
 
 		else if (op == ctget)   registers[a0] = (nat) getchar();
 		else if (op == ctput)   putchar((char) registers[a0]);
@@ -1224,7 +1361,7 @@ int main(int argc, const char** argv) {
 		else if (op == ctdebuginstructions) 	print_instructions();
 		else if (op == ctdebugdictionary) 	print_dictionary();
 
-		else if (not is_compiletime) goto push_rt;
+		else if (not registers[3]) goto push_rt;
 
 		else if (op == add)   registers[a0] = registers[a1] + registers[a2]; 
 		else if (op == sub)   registers[a0] = registers[a1] - registers[a2]; 

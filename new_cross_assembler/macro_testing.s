@@ -11,20 +11,23 @@ set compiletime
 10011100 = "this"
 
 10011111 = "please print the message"
-0000 0000 0000 0001  = "set to zero"       "<---- this defines a call on use macro!"
+0000 0000 0000 0001  = "set to zero"       "<---- this defines a call on use macro!  r >= 32768 "
 1000 0000 0000 0001  = "increment"
 0100 0000 0000 0001  = "set to zero at runtime"
+
+
+
 
 zr zr e addi
 
 
-please print the message ctat skip 0= e beq
+please print the message ctat skip zr e beq
 	"hello world!" ctprint 
 	0= ra zr jalr
 skip ctat zr zr skip addi
 
 
-set to zero ctat skip 0= e beq
+set to zero ctat skip zr e beq
 	this cttop
 	zr zr this ctarg addi 
 	ctdel ctdel ctdel
@@ -32,7 +35,7 @@ set to zero ctat skip 0= e beq
 skip ctat zr zr skip addi
 
 
-increment ctat skip 0= e beq
+increment ctat skip zr e beq
 	this cttop
 	1= this ctarg this ctarg addi 
 	ctdel ctdel ctdel
@@ -40,7 +43,7 @@ increment ctat skip 0= e beq
 skip ctat zr zr skip addi
 
 
-set to zero at runtime ctat skip 0= e beq
+set to zero at runtime ctat skip zr e beq
 	this cttop
 	zr zr this ctarg set runtime addi set compiletime
 	ctdel ctdel ctdel
@@ -49,6 +52,10 @@ skip ctat zr zr skip addi
 
 
 1= zr e addi
+
+
+
+
 
 
 1000001 = "A"
