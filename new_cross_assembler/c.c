@@ -50,8 +50,8 @@ typedef uint8_t  u8;
 
 static const nat ct_register_count = 1 << 16;
 static const nat ct_stack_size = 1 << 16;
-static const nat callonuse_macro_threshold = 1 << 15;
-static const nat callonuse_function_threshold = 1 << 16;
+//static const nat callonuse_macro_threshold = 1 << 15;
+//static const nat callonuse_function_threshold = 1 << 16;
 
 enum target_architecture { 
 	noruntime, 
@@ -90,49 +90,36 @@ static u32 arm64_macos_abi[] = {        // note:  x9 is call-clobbered. save it 
 };
 
 enum special_function_registers {
-	r_zero, r_link, r_stackpointer, r_mode, r_debug,
+	r_zero, r_link, r_stackpointer, r_mode, r_debug, r_build, 
 };
 
 enum language_ISA {
-	null_instruction, 
-	ctabort, ctprint, ctprintn, ctget, ctput, ctdel, ctlast, ctset, ctarg, ctat, 
-	db, dh, dw, 
-	ecall, ebreak, fence, fencei, 
-	add, sub, sll, slt, sltu, xor_, srl, sra, or_, and_, 
-	addw, subw, sllw, srlw, sraw,
-	lb, lh, lw, ld, lbu, lhu, lwu, 
-	addi, slti, sltiu, xori, ori, andi, slli, srli, srai, 
+	null_instruction, ctabort, ctprintn, ctprint, 
+	ecall, ebreak, fence, fencei, ctlast, 
 	addiw, slliw, srliw, sraiw, jalr,
-	sb, sh, sw, sd,  lui, auipc, 
-	beq, bne, blt, bge, bltu, bgeu, jal, 
-
-	csrrw, csrrs, csrrc, csrrwi, csrrsi, csrrci,     // <------- delete these eventually... not useful for us. 
-
-	mul, mulh, mulhsu, mulhu,
-	div_, divu, rem, remu, 
+	ctget, ctput, ctdel, ctset, ctarg, ctat, 
+	auipc, mulh, mulhsu, mulhu, sltiu, 
+	addw, subw, sllw, srlw, sraw, bltu, bgeu, 
 	mulw, divw, divuw, remw, remuw, 
-
-	instruction_set_count
+	addi, slti, xori, ori, andi, slli, srli, srai, sltu, 
+	jal, lui, div_, divu, rem, remu, lbu, lhu, lwu, 
+	mul, beq, bne, blt, bge, add, sub, sll, slt, xor_, srl, sra, and_, 
+	or_, sb, sh, sw, sd,  db, dh, dw, lb, lh, lw, ld, 
+	isa_count
 };
 
-static const char* ins_spelling[] = {
-	"null_instruction", 
-	"ctabort", "ctprint", "ctprintn", "ctget", "ctput", "ctdel", "ctlast", "ctset", "ctarg", "ctat",
-	"db", "dh", "dw", 
-	"ecall", "ebreak", "fence", "fencei", 
-	"add", "sub", "sll", "slt", "sltu", "xor", "srl", "sra", "or", "and", 
-	"addw", "subw", "sllw", "srlw", "sraw",
-	"lb", "lh", "lw", "ld", "lbu", "lhu", "lwu", 
-	"addi", "slti", "sltiu", "xori", "ori", "andi", "slli", "srli", "srai", 
-	"addiw", "slliw", "srliw", "sraiw", "jalr", 
-	"sb", "sh", "sw", "sd", "lui", "auipc", 
-	"beq", "bne", "blt", "bge", "bltu", "bgeu", "jal", 
-
-	"csrrw", "csrrs", "csrrc", "csrrwi", "csrrsi", "csrrci",   // <------------- these as well.
-
-	"mul", "mulh", "mulhsu", "mulhu",
-	"div", "divu", "rem", "remu", 
+static const char* spelling[] = {
+	"null_instruction", "ctabort", "ctprintn", "ctprint",
+	"ecall", "ebreak", "fence", "fencei", "ctlast", 
+	"addiw", "slliw", "srliw", "sraiw", "jalr",
+	"ctget", "ctput", "ctdel", "ctset", "ctarg", "ctat", 
+	"auipc", "mulh", "mulhsu", "mulhu", "sltiu", 
+	"addw", "subw", "sllw", "srlw", "sraw", "bltu", "bgeu", 
 	"mulw", "divw", "divuw", "remw", "remuw", 
+	"addi", "slti", "xori", "ori", "andi", "slli", "srli", "srai", "sltu", 
+	"jal", "lui", "div", "divu", "rem", "remu", "lbu", "lhu", "lwu", 
+	"mul", "beq", "bne", "blt", "bge", "add", "sub", "sll", "slt", "xor", "srl", "sra", "and", 
+	"or", "sb", "sh", "sw", "sd", "db", "dh", "dw", "lb", "lh", "lw", "ld", 
 };
 
 struct location { nat start; nat count; };
@@ -150,27 +137,14 @@ struct file {
 
 static nat byte_count = 0;
 static u8* bytes = NULL;
-
 static nat ins_count = 0;
 static struct instruction* ins = NULL;
 static struct instruction current_ins = {0};
-
 static nat* registers = NULL;
-
-static nat arg_count = 0;
-static u32 arguments[4096] = {0};
-static struct location arg_locations[4096] = {0};
-
 static nat file_count = 0;
 static struct file files[4096] = {0};
-
 static char* text = NULL;
 static nat text_length = 0;
-
-static nat names[4096] = {0};
-static nat lengths[4096] = {0};
-static nat values[4096] = {0};
-static nat name_count = 0;
 
 
 static void print_error(const char* reason, struct location spot) {
@@ -418,12 +392,6 @@ static void generate_riscv_machine_code(void) {
 		else if (op == slliw)   emit(i_type(a, 0x1B, 0x1));
 		else if (op == srliw)   emit(i_type(a, 0x1B, 0x5));
 		else if (op == jalr)    emit(i_type(a, 0x67, 0x0));
-		else if (op == csrrw)   emit(i_type(a, 0x73, 0x1));
-		else if (op == csrrs)   emit(i_type(a, 0x73, 0x2));
-		else if (op == csrrc)   emit(i_type(a, 0x73, 0x3));
-		else if (op == csrrwi)  emit(i_type(a, 0x73, 0x5));
-		else if (op == csrrsi)  emit(i_type(a, 0x73, 0x6));
-		else if (op == csrrci)  emit(i_type(a, 0x73, 0x7));
 
 		else if (op == sb)      emit(s_type(a, 0x23, 0x0));
 		else if (op == sh)      emit(s_type(a, 0x23, 0x1));
@@ -445,7 +413,7 @@ static void generate_riscv_machine_code(void) {
 		//else if (op == cnop emith(0);  // TODO: finish C extension implementation. 
 		//else if (op == caddi4spn) emith(ci_type(a, ));   
 		else {
-			printf("error: riscv: unknown runtime instruction: %s : %llu\n", ins_spelling[op], op);
+			printf("error: riscv: unknown runtime instruction: %s : %llu\n", spelling[op], op);
 			print_error("unknown instruction", current_ins.loc[0]);
 			abort();
 		}
@@ -677,7 +645,7 @@ static void generate_arm64_machine_code(void) {
 		else if (op == bge)    goto here;
 		else if (op == jal)    goto here;
 		else {
-			here: printf("error: arm64: unknown runtime instruction: %s : %llu\n", ins_spelling[op], op);
+			here: printf("error: arm64: unknown runtime instruction: %s : %llu\n", spelling[op], op);
 			print_error("unknown instruction", current_ins.loc[0]);
 			abort();
 		}
@@ -891,38 +859,53 @@ static void make_macho_object_file(const char* object_filename, const bool prese
 }
 
 
+static void execute(nat op) {
+
+	printf("\033[32mcalling op = %llu (\"%s\")\033[0m...\n", op, spelling[op]);
+
+
+	
+
+	if (op == ctabort) 	abort();
+	else if (op == ctlast)  arg_count++;
+	else if (op == ctdel)   { if (arg_count) arg_count--; }
+	else if (op == ctset)   { if (arg_count) arg_count--; registers[a0] = arguments[--arg_count]; }
+	else if (op == ctarg)   { if (arg_count) arg_count--; push_arg(registers[a0]); }
+
+	else if (op == ctget)    registers[a0] = (nat) getchar();
+	else if (op == ctput)    putchar((char) registers[a0]);
+	else if (op == ctprint)  puts(get_name(spot));
+	else if (op == ctprintn) printf("debug: \033[32m%llu (%lld)\033[0m \033[32m0x%llx\033[0m\n", registers[a0], registers[a0], registers[a0]); 
+
+	else if (op == add)   	registers[a0] = registers[a1] + registers[a2]; 
+	else if (op == sub)   	registers[a0] = registers[a1] - registers[a2]; 
+	else if (op == mul)   	registers[a0] = registers[a1] * registers[a2]; 
+	else if (op == div_)  	registers[a0] = registers[a1] / registers[a2]; 
+	else if (op == and_)  	registers[a0] = registers[a1] & registers[a2]; 
+	else if (op == or_)   	registers[a0] = registers[a1] | registers[a2]; 
+	else if (op == xor_)  	registers[a0] = registers[a1] ^ registers[a2]; 
+	else if (op == slt)   	registers[a0] = registers[a1] < registers[a2]; 
+	else if (op == sltu)  	registers[a0] = registers[a1] < registers[a2]; 
+	else if (op == addi)   	registers[a0] = registers[a1] + a2; 
+	else if (op == andi)   	registers[a0] = registers[a1] & a2; 
+	else if (op == ori)    	registers[a0] = registers[a1] | a2; 
+	else if (op == xori)   	registers[a0] = registers[a1] ^ a2; 
+	else if (op == slti)   	registers[a0] = registers[a1] < a2; 
+	else if (op == sltiu)  	registers[a0] = registers[a1] < a2; 
+	else if (op == lb) 	registers[a0] = *( u8*)(registers[a1] + a2); 
+	else if (op == lh) 	registers[a0] = *(u16*)(registers[a1] + a2); 
+	else if (op == lw) 	registers[a0] = *(u32*)(registers[a1] + a2); 
+	else if (op == ld) 	registers[a0] = *(nat*)(registers[a1] + a2); 
+	else if (op == sb) 	*( u8*)(registers[a0] + a1) = ( u8)registers[a2]; 
+	else if (op == sh) 	*(u16*)(registers[a0] + a1) = (u16)registers[a2]; 
+	else if (op == sw) 	*(u32*)(registers[a0] + a1) = (u32)registers[a2]; 
+	else if (op == sd) 	*(nat*)(registers[a0] + a1) = (nat)registers[a2]; 
 
 
 
-
-
-
-
-
-static bool is(const char* literal, nat initial) {
-	nat i = initial, j = 0;
-	for (; text[i] != '"' and literal[j]; i++) {
-		if ((unsigned char) text[i] < 33) continue;
-		if (text[i] != literal[j]) return false;
-		j++;
-	}
-	return text[i] == '"' and not literal[j];
 }
 
-static void push_arg(nat r) {
-	if (registers[r_debug]) printf("info: pushed %llu onto argument stack\n", (nat) r);
-	arg_locations[arg_count] = (struct location) {0};
-	arguments[arg_count++] = (u32) r;
-}
 
-static char* get_name(nat name) {
-	const nat start = names[name];
-	nat end = start;
-	while (text[end] != '"') end++;
-	char* string = calloc(end - start + 1, 1);
-	memcpy(string, text + start, end - start);
-	return string;
-}
 
 int main(int argc, const char** argv) {
 	if (argc != 2) exit(puts("asm: \033[31;1merror:\033[0m usage: ./asm <source.s>"));
@@ -930,67 +913,203 @@ int main(int argc, const char** argv) {
 	const char* filename = argv[1];
 	text_length = 0;
 	text = read_file(filename, &text_length, (struct location){0});
-
-	const char* object_filename = "object0.o";
-	const char* executable_filename = "executable0.out";
-	bool preserve_existing_object = true;
-	bool preserve_existing_executable = true;
-	nat architecture = 0;
-	nat output_format = 0;
-
 	registers = calloc(ct_register_count, sizeof(nat));
-	registers[2] = (nat)(void*) calloc(ct_stack_size, 1);
-
+	registers[r_stackpointer] = (nat)(void*) calloc(ct_stack_size, 1);
+	registers[r_mode] = true;
+	registers[r_debug] = true;
 	files[file_count].name = filename;
 	files[file_count++].location = (struct location) {.start = 0, .count = text_length};
 
-	struct location here = {0};
-	nat start = 0, length = 0, name_starts_at = 0, called_name = 0, spot = 0;
-	nat forwards_branching = 0;
+	{ nat index = 0, at = 0, save = 0, op = 0;
+begin:	if (at == strlen(spelling[op])) goto found;
+	if (index >= text_length) goto done;
+	if ((unsigned char) text[index] < 33) goto nextc;
+	if (op >= isa_count) goto error;
+	if (spelling[op][at] != text[index]) goto fail;
+	at++; goto nextc;
+found:	execute(op);
+	save = index; op = 0; at = 0; goto begin;
+fail: 	op++; index = save; at = 0; goto begin;
+nextc:	index++; goto begin; 
+error:	print_error("unresolved symbol", (struct location){save, index}); exit(1); }
+done:;	const nat architecture = (registers[r_build] >> 0) & 0xF;
+	const nat output_format = (registers[r_build] >> 4) & 0xF;
+	const bool preserve_existing_object = (registers[r_build] >> 8) & 0xF;
+	const bool preserve_existing_executable = (registers[r_build] >> 9) & 0xF;
+	const char* object_filename = "object0.o";
+	const char* executable_filename = "executable0.out";
 
+	if (registers[r_debug]) {
+		printf("info: building for target:\n\tarchitecture:  "
+			"\033[31;1m%s\033[0m\n\toutput_format: \033[32;1m%s\033[0m.\n\n", 
+			target_spelling[architecture  % target_count], 
+			output_format_spelling[output_format % output_format_count]
+		);
+	}
 
-	for (nat index = 0; index < text_length; index++) {
-
-		if ((unsigned char) text[index] < 33) goto next_char;
-
-		if (text[index] == '"') {
-
-			if (not start) { start = index + 1; length = 0; goto next_char; } 
-			spot = 0;
-			for (; spot < name_count; spot++) if (length >= lengths[spot]) break;
-			memmove(lengths + spot + 1, lengths + spot, sizeof(nat) * (name_count - spot));
-			memmove(names + spot + 1, names + spot, sizeof(nat) * (name_count - spot));
-			memmove(values + spot + 1, values + spot, sizeof(nat) * (name_count - spot));
-			lengths[spot] = length;
-			names[spot] = start;
-			values[spot] = arg_count ? arguments[arg_count - 1] : 0;
-			name_count++;
-			start = 0;
-			goto next_char;
-		}
-		if (start) { length++; goto next_char; } 
-		nat imax = 0;
-		for (nat name = 0; name < name_count; name++) {
-			called_name = name;
-			name_starts_at = names[name];
-			nat c = name_starts_at, i = 0;
-			for (; text[c] != '"'; ) {
-				if (i > imax) imax = i;
-				if (index + i >= text_length) goto next_name;
-				if ((unsigned char) text[index + i] < 33) { i++; continue; }
-				if ((unsigned char) text[c] < 33) { c++; continue; }
-				if (text[index + i] != text[c]) goto next_name;
-				i++; c++;
-			}
-			here = (struct location) {.start = index, .count = i};
-			index += i - 1;
-			goto process_name;
-			next_name: continue;
-		}
-		print_error("unresolved symbol", (struct location){index, imax});
+	if (architecture == noruntime) {
+		if (not ins_count) exit(0);
+		current_ins = ins[0];
+		print_error("encountered runtime instruction with target \"noruntime\"", ins[0].loc[0]);
 		exit(1);
 
-	process_name:;
+	} else if (architecture == riscv32 or architecture == riscv64) {
+		generate_riscv_machine_code();
+
+	} else if (architecture == arm64) {
+		generate_arm64_machine_code();
+
+	} else {
+		puts("asm: \033[31;1merror:\033[0m unknown target architecture specified, valid values: "); // TODO: use print_error();
+		for (nat i = 0; i < target_count; i++) {
+			printf("\t%llu : %s\n", i, target_spelling[i]);
+		}
+		exit(1);
+	}
+
+	if (output_format == print_binary) 
+		dump_hex((uint8_t*) bytes, byte_count);
+
+	else if (output_format == elf_objectfile or output_format == elf_executable)
+		make_elf_object_file(object_filename);
+
+	else if (output_format == macho_objectfile or output_format == macho_executable) 
+		make_macho_object_file(object_filename, preserve_existing_object);
+	else {
+		puts("asm: \033[31;1merror:\033[0m unknown output format specified, valid values: "); // TODO: use print_error();
+		for (nat i = 0; i < output_format_count; i++) {
+			printf("\t%llu : %s\n", i, output_format_spelling[i]);
+		}
+	}
+
+	if (output_format == elf_executable or output_format == macho_executable) {
+
+		if (preserve_existing_executable and not access(executable_filename, F_OK)) {
+			puts("asm: executable_file: file exists");  // TODO: use print_error();
+			puts(executable_filename);
+			exit(1);
+		}
+		
+		char link_command[4096] = {0};
+		snprintf(link_command, sizeof link_command, "ld -S -x " //  -v
+			"-dead_strip "
+			"-no_weak_imports "
+			"-fatal_warnings "
+			"-no_eh_labels "
+			"-warn_compact_unwind "
+			"-warn_unused_dylibs "
+			"%s -o %s "
+			"-arch arm64 "
+			"-e _start "
+			"-stack_size 0x1000000 "
+			"-platform_version macos 13.0.0 13.3 "
+			"-lSystem "
+			"-syslibroot /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk ", 
+			object_filename, executable_filename
+		);
+		system(link_command);
+	}
+
+	if (registers[r_debug]) {
+		//system("otool -txvVhlL object.o");
+		system("otool -txvVhlL program.out");
+		//system("objdump object.o -DSast --disassembler-options=no-aliases");
+		system("objdump program.out -DSast --disassembler-options=no-aliases");	
+	}
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+/*
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+process_name:;
 		*registers = 0;
 
 		if (registers[r_debug]) {
@@ -1011,14 +1130,10 @@ int main(int argc, const char** argv) {
 			printf("called END NAME.\n");
 			getchar();
 
-
-
 		} else if (is("end_name", e)) {
 			
 			printf("called END NAME.\n");
 			getchar();
-
-
 
 		} else if (is("include", e)) {
 			files[file_count].name = get_name(spot);
@@ -1042,49 +1157,6 @@ int main(int argc, const char** argv) {
 			registers[a0] = registers[3] ? index : ins_count;
 			if (forwards_branching == a0) forwards_branching = 0;
 		}
-
-		else if (is("ecall", e)) 	{ op = ecall; goto push; }
-		else if (is("ebreak", e))	{ op = ebreak; goto push; }
-		else if (is("fence", e)) 	{ op = fence; goto push; }
-		else if (is("fencei", e)) 	{ op = fencei; goto push; }
-		else if (is("add", e)) 		{ op = add; goto push; }
-		else if (is("sub", e)) 		{ op = sub; goto push; }
-		else if (is("and", e)) 		{ op = and_; goto push; }
-		else if (is("or",  e)) 		{ op = or_; goto push; }
-		else if (is("xor", e)) 		{ op = xor_; goto push; }
-		else if (is("slt", e)) 		{ op = slt; goto push; }
-		else if (is("sltu",e)) 		{ op = sltu; goto push; }
-		else if (is("addi", e)) 	{ op = addi; goto push; }
-		else if (is("andi", e)) 	{ op = andi; goto push; }
-		else if (is("ori",  e)) 	{ op = ori; goto push; }
-		else if (is("xori", e)) 	{ op = xori; goto push; }
-		else if (is("slti", e)) 	{ op = slti; goto push; }
-		else if (is("sltiu",e)) 	{ op = sltiu; goto push; }
-		else if (is("lb", e)) 		{ op = lb; goto push; }
-		else if (is("lh", e)) 		{ op = lh; goto push; }
-		else if (is("lw", e)) 		{ op = lw; goto push; }
-		else if (is("ld", e)) 		{ op = ld; goto push; }
-		else if (is("sb", e)) 		{ op = sb; goto push; }
-		else if (is("sh", e)) 		{ op = sh; goto push; }
-		else if (is("sw", e)) 		{ op = sw; goto push; }
-		else if (is("sd", e)) 		{ op = sd; goto push; }
-		else if (is("bltu", e)) 	{ op = bltu; goto push; }
-		else if (is("bgeu", e))		{ op = bgeu; goto push; }
-		else if (is("blt", e))		{ op = blt; goto push; }
-		else if (is("bge", e))		{ op = bge; goto push; }
-		else if (is("beq", e))		{ op = beq; goto push; }
-		else if (is("bne", e)) 		{ op = bne; goto push; }
-		else if (is("jalr", e)) 	{ op = jalr; goto push; }
-		else if (is("jal",  e)) 	{ op = jal; goto push; }
-		else if (is("ctabort",  e))	{ op = ctabort; goto push; }
-		else if (is("ctdel",  e))	{ op = ctdel; goto push; }
-		else if (is("ctlast",  e))	{ op = ctlast; goto push; }
-		else if (is("ctset",  e))	{ op = ctset; goto push; }
-		else if (is("ctarg",  e))	{ op = ctarg; goto push; }
-		else if (is("ctget",  e))	{ op = ctget; goto push; }
-		else if (is("ctput",  e))	{ op = ctput; goto push; }
-		else if (is("ctprint",  e))	{ op = ctprint; goto push; }
-		else if (is("ctprintn",  e))	{ op = ctprintn; goto push; }
 
 		else if (values[called_name] >= callonuse_macro_threshold) {
 			push_arg(values[called_name]);
@@ -1122,7 +1194,7 @@ int main(int argc, const char** argv) {
 
 		*registers = 0;
 
-		if (op == ctabort) abort();
+		if (op == ctabort) 	abort();
 		else if (op == ctlast)  arg_count++;
 		else if (op == ctdel)   { if (arg_count) arg_count--; }
 		else if (op == ctset)   { if (arg_count) arg_count--; registers[a0] = arguments[--arg_count]; }
@@ -1261,97 +1333,533 @@ int main(int argc, const char** argv) {
 	next_char: 
 		continue;
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+	printf("@ [    %c     ](%u)==   [  %c  ](%u)::<%s>(%u) : [index = %llu, name_index = %llu, save = %llu, op = %llu]\n", 
+			text[index], text[index], 
+			spelling[op][namei], spelling[op][namei], spelling[op], op, 
+			index, namei, save, op
+	);
+	getchar();
+
+
+
+
+
+
+
+
+
+
+//	printf("@ [%c](%u): [index = %llu, name_index = %llu, save = %llu, op = %llu]\n", 
+//			text[index], text[index], index, namei, save, op
+//	);
+//	getchar();
+
+
+
+
+	while (index < text_length) {
+
+		if ((unsigned char) text[index] < 33) { index++; continue; }
+
+		for (nat op = 0; op < isa_count; op++) {
+
+			const nat name_length = strlen(spelling[op]);
+
+			while (1) {
+				if (i == name_length) goto found_name;
+				if (t >= text_length) goto next_name;
+				if ((unsigned char) spelling[op][i] < 33) { i++; continue; }
+				if ((unsigned char) text[t] < 33) { t++; continue; }
+				if (spelling[op][i] != text[t]) goto next_name;
+				index++; name_index++;
+			}
+			next_name: continue;
+		}
+		puts("error: unknown instruction");
+		exit(1);
+
+	found_name:
+		puts("found a name!");
+		const struct location here = (struct location) {.start = index};
+		continue;
 	}
 
-	architecture = registers[1400];
-	output_format = registers[1401];
-	preserve_existing_object = registers[1402];
-	preserve_existing_executable = registers[1403];
 
 
-	for (nat i = 0; i < ins_count; i++) {
+
+
+printf("looking at c = %c(%u)...\n", text[index], text[index]);
+
+
+
+
+
+				if (index + i >= text_length) goto next_name;
+				if ((unsigned char) text[index + i] < 33) { i++; continue; }
+				if ((unsigned char) text[c] < 33) { c++; continue; }
+				if (text[index + i] != text[c]) goto next_name;
+				i++; c++;
+
+
+
+
+
+
+	struct location here = {0};
+
+
+
+	//nat start = 0, ;
+	// name_starts_at = 0, called_name = 0, spot = 0;
+	//nat forwards_branching = 0;
+
+
+
+
+
+
+
+
+
+
+for (nat i = 0; i < ins_count; i++) {
 		// TODO: check if the instruction can be turned into a compressed instruction on riscv
 	}
 
-	if (registers[r_debug]) {
-		printf("info: building for target:\n\tarchitecture:  "
-			"\033[31;1m%s\033[0m\n\toutput_format: \033[32;1m%s\033[0m.\n\n", 
-			target_spelling[architecture  % target_count], 
-			output_format_spelling[output_format % output_format_count]
-		);
-	}
 
-	if (architecture == noruntime) {
-		if (not ins_count) exit(0);
-		current_ins = ins[0];
-		print_error("encountered runtime instruction with target \"noruntime\"", ins[0].loc[0]);
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+		nat imax = 0;
+
+		for (nat name = 0; name < name_count; name++) {
+			called_name = name;
+			name_starts_at = names[name];
+			nat c = name_starts_at, i = 0;
+			for (; text[c] != '"'; ) {
+				if (i > imax) imax = i;
+				if (index + i >= text_length) goto next_name;
+				if ((unsigned char) text[index + i] < 33) { i++; continue; }
+				if ((unsigned char) text[c] < 33) { c++; continue; }
+				if (text[index + i] != text[c]) goto next_name;
+				i++; c++;
+			}
+			here = (struct location) {.start = index, .count = i};
+			index += i - 1;
+			goto process_name;
+			next_name: continue;
+		}
+
+
+
+
+
+
+
+
+		print_error("unresolved symbol", (struct location){index, imax});
+
 		exit(1);
 
-	} else if (architecture == riscv32 or architecture == riscv64) {
-		generate_riscv_machine_code();
+	process_name:;
+		*registers = 0;
 
-	} else if (architecture == arm64) {
-		generate_arm64_machine_code();
-
-	} else {
-		puts("asm: \033[31;1merror:\033[0m unknown target architecture specified, valid values: "); // TODO: use print_error();
-		for (nat i = 0; i < target_count; i++) {
-			printf("\t%llu : %s\n", i, target_spelling[i]);
+		if (registers[r_debug]) {
+			
+			
+			printf("info: calling: \"\033[32;1m");
+			for (nat cc = names[called_name]; text[cc] != '"'; cc++) putchar(text[cc]);
+			printf("\033[0m\".\n");
 		}
-		exit(1);
-	}
 
-	if (output_format == print_binary) 
-		dump_hex((uint8_t*) bytes, byte_count);
+		nat e = name_starts_at, op = 0;
 
-	else if (output_format == elf_objectfile or output_format == elf_executable)
-		make_elf_object_file(object_filename);
+		if (is("eof", e)) break;
 
-	else if (output_format == macho_objectfile or output_format == macho_executable) 
-		make_macho_object_file(object_filename, preserve_existing_object);
-	else {
-		puts("asm: \033[31;1merror:\033[0m unknown output format specified, valid values: "); // TODO: use print_error();
-		for (nat i = 0; i < output_format_count; i++) {
-			printf("\t%llu : %s\n", i, output_format_spelling[i]);
+
+		else if (is("begin_name", e)) {
+
+			printf("called END NAME.\n");
+			getchar();
+
+
+
+		} else if (is("end_name", e)) {
+			
+			printf("called END NAME.\n");
+			getchar();
+
+
+
+		} else if (is("include", e)) {
+			files[file_count].name = get_name(spot);
+			if (registers[r_debug]) printf("info: including file \"%s\"...\n", files[file_count].name);
+			nat l = 0;
+			const char* str = read_file(files[file_count].name, &l, here);
+			text = realloc(text, text_length + l + 1);
+			memmove(text + index + 1 + l + 1, text + index + 1, text_length - (index + 1));
+			memcpy(text + index + 1, str, l);
+			text[index + 1 + l] = ' ';
+			text_length += l + 1;
+			files[file_count].location = (struct location) {.start = index + 1, .count = l + 1};
+		 	file_count++;
 		}
-	}
 
-	if (output_format == elf_executable or output_format == macho_executable) {
+		else if (is("setobjectname", e)) 	object_filename = get_name(spot);      // delete these eventually.
+		else if (is("setexecutablename", e)) 	executable_filename = get_name(spot); 
 
-		if (preserve_existing_executable and not access(executable_filename, F_OK)) {
-			puts("asm: executable_file: file exists");  // TODO: use print_error();
-			puts(executable_filename);
-			exit(1);
+		else if (is("ctat", e)) {
+			const nat a0 = arg_count > 0 ? arguments[arg_count - 1 - 0] : 0;
+			registers[a0] = registers[3] ? index : ins_count;
+			if (forwards_branching == a0) forwards_branching = 0;
 		}
+
+		else if (is("ecall", e)) 	{ op = ecall; goto push; }
+		else if (is("ebreak", e))	{ op = ebreak; goto push; }
+		else if (is("fence", e)) 	{ op = fence; goto push; }
+		else if (is("fencei", e)) 	{ op = fencei; goto push; }
+		else if (is("add", e)) 		{ op = add; goto push; }
+		else if (is("sub", e)) 		{ op = sub; goto push; }
+		else if (is("and", e)) 		{ op = and_; goto push; }
+		else if (is("or",  e)) 		{ op = or_; goto push; }
+		else if (is("xor", e)) 		{ op = xor_; goto push; }
+		else if (is("slt", e)) 		{ op = slt; goto push; }
+		else if (is("sltu",e)) 		{ op = sltu; goto push; }
+		else if (is("addi", e)) 	{ op = addi; goto push; }
+		else if (is("andi", e)) 	{ op = andi; goto push; }
+		else if (is("ori",  e)) 	{ op = ori; goto push; }
+		else if (is("xori", e)) 	{ op = xori; goto push; }
+		else if (is("slti", e)) 	{ op = slti; goto push; }
+		else if (is("sltiu",e)) 	{ op = sltiu; goto push; }
+		else if (is("lb", e)) 		{ op = lb; goto push; }
+		else if (is("lh", e)) 		{ op = lh; goto push; }
+		else if (is("lw", e)) 		{ op = lw; goto push; }
+		else if (is("ld", e)) 		{ op = ld; goto push; }
+		else if (is("sb", e)) 		{ op = sb; goto push; }
+		else if (is("sh", e)) 		{ op = sh; goto push; }
+		else if (is("sw", e)) 		{ op = sw; goto push; }
+		else if (is("sd", e)) 		{ op = sd; goto push; }
+		else if (is("bltu", e)) 	{ op = bltu; goto push; }
+		else if (is("bgeu", e))		{ op = bgeu; goto push; }
+		else if (is("blt", e))		{ op = blt; goto push; }
+		else if (is("bge", e))		{ op = bge; goto push; }
+		else if (is("beq", e))		{ op = beq; goto push; }
+		else if (is("bne", e)) 		{ op = bne; goto push; }
+		else if (is("jalr", e)) 	{ op = jalr; goto push; }
+		else if (is("jal",  e)) 	{ op = jal; goto push; }
+		else if (is("ctabort",  e))	{ op = ctabort; goto push; }
+		else if (is("ctdel",  e))	{ op = ctdel; goto push; }
+		else if (is("ctlast",  e))	{ op = ctlast; goto push; }
+		else if (is("ctset",  e))	{ op = ctset; goto push; }
+		else if (is("ctarg",  e))	{ op = ctarg; goto push; }
+		else if (is("ctget",  e))	{ op = ctget; goto push; }
+		else if (is("ctput",  e))	{ op = ctput; goto push; }
+		else if (is("ctprint",  e))	{ op = ctprint; goto push; }
+		else if (is("ctprintn",  e))	{ op = ctprintn; goto push; }
+
+		else if (values[called_name] >= callonuse_macro_threshold) {
+			push_arg(values[called_name]);
+			if (registers[values[called_name]]) {
+				if (registers[r_debug]) puts("\033[32mGOOD MACRO CALL\033[0m");
+				if (registers[r_debug]) printf("calling a macro! values[called_name] = %llu...\n", values[called_name]);
+				registers[3] = values[called_name] < callonuse_function_threshold;
+				push_arg(1);
+				op = jal; goto push;
+			} else { 
+				if (registers[r_debug]) puts("\033[31mBAD UNDEFINED MACRO: macro used before it was defined...?\033[0m"); 
+			}
+		}
+		else push_arg(values[called_name]);
+
+
+		*registers = 0;
+
+		goto word_done;
+
+	push:;
+		nat a2 = arg_count > 2 ? arguments[arg_count - 1 - 2] : 0;
+		nat a1 = arg_count > 1 ? arguments[arg_count - 1 - 1] : 0;
+		nat a0 = arg_count > 0 ? arguments[arg_count - 1 - 0] : 0;
+
+		if (registers[r_debug]) {
+			printf("info: push: EXECUTING: \"\033[32;1m");
+			for (nat cc = names[called_name]; text[cc] != '"'; cc++) putchar(text[cc]);
+			printf("\033[0m\", op = %llu, args={a0:%llu,a1:%llu,a2:%llu}\n", op, a0, a1, a2);
+			printf("info:[forwards_branching=%llu]:[is_compiletime(registers[3])=%llu]: processing op = %llu (\"%s\")...\n", 
+						forwards_branching, registers[3], op, ins_spelling[op]);
+		}
+
+		if (forwards_branching) goto word_done;
+
+		*registers = 0;
+
+		if (op == ctabort) 	abort();
+		else if (op == ctlast)  arg_count++;
+		else if (op == ctdel)   { if (arg_count) arg_count--; }
+		else if (op == ctset)   { if (arg_count) arg_count--; registers[a0] = arguments[--arg_count]; }
+		else if (op == ctarg)   { if (arg_count) arg_count--; push_arg(registers[a0]); }
+
+		else if (op == ctget)   registers[a0] = (nat) getchar();
+		else if (op == ctput)   putchar((char) registers[a0]);
+		else if (op == ctprint) puts(get_name(spot));
+		else if (op == ctprintn) printf("debug: \033[32m%llu (%lld)\033[0m "
+					"\033[32m0x%llx\033[0m\n", registers[a0], registers[a0], registers[a0]); 
+
+		else if (not registers[3]) goto push_rt;
+
+		else if (op == add)   	registers[a0] = registers[a1] + registers[a2]; 
+		else if (op == sub)   	registers[a0] = registers[a1] - registers[a2]; 
+		else if (op == mul)   	registers[a0] = registers[a1] * registers[a2]; 
+		else if (op == div_)  	registers[a0] = registers[a1] / registers[a2]; 
+		else if (op == and_)  	registers[a0] = registers[a1] & registers[a2]; 
+		else if (op == or_)   	registers[a0] = registers[a1] | registers[a2]; 
+		else if (op == xor_)  	registers[a0] = registers[a1] ^ registers[a2]; 
+		else if (op == slt)   	registers[a0] = registers[a1] < registers[a2]; 
+		else if (op == sltu)  	registers[a0] = registers[a1] < registers[a2]; 
+		else if (op == addi)   	registers[a0] = registers[a1] + a2; 
+		else if (op == andi)   	registers[a0] = registers[a1] & a2; 
+		else if (op == ori)    	registers[a0] = registers[a1] | a2; 
+		else if (op == xori)   	registers[a0] = registers[a1] ^ a2; 
+		else if (op == slti)   	registers[a0] = registers[a1] < a2; 
+		else if (op == sltiu)  	registers[a0] = registers[a1] < a2; 
+		else if (op == lb) 	registers[a0] = *( u8*)(registers[a1] + a2); 
+		else if (op == lh) 	registers[a0] = *(u16*)(registers[a1] + a2); 
+		else if (op == lw) 	registers[a0] = *(u32*)(registers[a1] + a2); 
+		else if (op == ld) 	registers[a0] = *(nat*)(registers[a1] + a2); 
+		else if (op == sb) 	*( u8*)(registers[a0] + a1) = ( u8)registers[a2]; 
+		else if (op == sh) 	*(u16*)(registers[a0] + a1) = (u16)registers[a2]; 
+		else if (op == sw) 	*(u32*)(registers[a0] + a1) = (u32)registers[a2]; 
+		else if (op == sd) 	*(nat*)(registers[a0] + a1) = (nat)registers[a2]; 
+
+		else if (op == bltu) { 
+			arg_count -= 3; 
+			if (registers[a0]  < registers[a1]) { 
+				if (registers[a2]) index = registers[a2]; 
+				else forwards_branching = a2; 
+			} 
+		} 
 		
-		char link_command[4096] = {0};
-		snprintf(link_command, sizeof link_command, "ld -S -x " //  -v
-			"-dead_strip "
-			"-no_weak_imports "
-			"-fatal_warnings "
-			"-no_eh_labels "
-			"-warn_compact_unwind "
-			"-warn_unused_dylibs "
-			"%s -o %s "
-			"-arch arm64 "
-			"-e _start "
-			"-stack_size 0x1000000 "
-			"-platform_version macos 13.0.0 13.3 "
-			"-lSystem "
-			"-syslibroot /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk ", 
-			object_filename, executable_filename
-		);
-		system(link_command);
-	}
+		else if (op == blt)  { 
+			arg_count -= 3; 
+			if (registers[a0]  < registers[a1]) { 
+				if (registers[a2]) index = registers[a2]; 
+				else forwards_branching = a2; 
+			} 
+		} 
 
-	if (registers[r_debug]) {
-		//system("otool -txvVhlL object.o");
-		system("otool -txvVhlL program.out");
-		//system("objdump object.o -DSast --disassembler-options=no-aliases");
-		system("objdump program.out -DSast --disassembler-options=no-aliases");	
-	}
+		else if (op == bgeu) { 
+			arg_count -= 3; 
+			if (registers[a0] >= registers[a1]) { 
+				if (registers[a2]) index = registers[a2]; 
+				else forwards_branching = a2; 
+			} 
+		}
+ 
+		else if (op == bge)  { 
+			arg_count -= 3; 
+			if (registers[a0] >= registers[a1]) { 
+				if (registers[a2]) index = registers[a2]; 
+				else forwards_branching = a2; 
+			} 
+		} 
 
-	munmap(text, length);
+		else if (op == beq)  { 
+			arg_count -= 3; 
+			if (registers[a0] == registers[a1]) { 
+				if (registers[a2]) index = registers[a2]; 
+				else forwards_branching = a2; 
+			} 
+		} 
+		else if (op == bne)  { 
+			arg_count -= 3; 
+			if (registers[a0] != registers[a1]) { 
+				if (registers[a2]) index = registers[a2]; 
+				else forwards_branching = a2; 
+			} 
+		} 
+	
+		else if (op == jal) {
+			arg_count -= 2; 
+			registers[a0] = index;
+			if (registers[a1]) index = registers[a1]; 
+			else forwards_branching = a1;
+		} 
+
+		else if (op == jalr) { 		// syntax:  jump_imm_offset jump_addr_register link_register jalr
+			arg_count -= 3; 
+			//puts("executing jalr...");
+			//printf("set registers[a0](%llu) = index(%llu);\n", registers[a0], index);
+			registers[a0] = index;
+			//printf("set index(%llu) = registers[a1](%llu) + a2(%llu);\n", index, registers[a1], a2);
+			index = registers[a1] + a2;
+			//getchar();
+		} 
+
+		else { 
+			puts("unknown ct instruction!"); 
+			printf("op = %llu (\"%s\") \n", op, ins_spelling[op]); 
+			abort(); 
+		}
+
+		*registers = 0;
+
+		goto word_done;
+
+	push_rt:;
+		if (registers[r_debug]) puts("inside push_rt! ...pushing runtime instruction!");
+		struct instruction new = {0};
+		new.a[0] = (u32) op;
+		new.loc[0] = here;
+		for (nat i = 1; i < 4; i++) {
+			if (i > arg_count) break;
+			new.loc[i] = arg_locations[arg_count - i];
+			new.a[i] = arguments[arg_count - i];
+		}
+		if (op == bltu or op == bgeu) new.size = 8; else new.size = 4;
+		ins = realloc(ins, sizeof(struct instruction) * (ins_count + 1));
+		ins[ins_count++] = new;
+
+	word_done:
+		if (registers[r_debug]) {
+			printf("[finshed: ");
+			printf(" {\"\033[32;1m");
+			for (nat cc = names[called_name]; text[cc] != '"'; cc++) putchar(text[cc]);
+			printf("\033[0m\"}");
+			printf(" ]...");
+			fflush(stdout);
+			getchar();
+		}
+	next_char: 
+		continue;
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+static nat arg_count = 0;
+static u32 arguments[4096] = {0};
+static struct location arg_locations[4096] = {0};
+static nat names[4096] = {0};
+static nat lengths[4096] = {0};
+static nat values[4096] = {0};
+static nat name_count = 0;
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+static bool is(const char* literal, nat initial) {
+	nat i = initial, j = 0;
+	for (; text[i] != '"' and literal[j]; i++) {
+		if ((unsigned char) text[i] < 33) continue;
+		if (text[i] != literal[j]) return false;
+		j++;
+	}
+	return text[i] == '"' and not literal[j];
+}
+
+static void push_arg(nat r) {
+	if (registers[r_debug]) printf("info: pushed %llu onto argument stack\n", (nat) r);
+	arg_locations[arg_count] = (struct location) {0};
+	arguments[arg_count++] = (u32) r;
+}
+
+
+static char* get_name(nat name) {
+	const nat start = names[name];
+	nat end = start;
+	while (text[end] != '"') end++;
+	char* string = calloc(end - start + 1, 1);
+	memcpy(string, text + start, end - start);
+	return string;
 }
 
 
@@ -1359,6 +1867,59 @@ int main(int argc, const char** argv) {
 
 
 
+
+
+
+		if (text[index] == '"') {
+
+			if (not start) { start = index + 1; length = 0; goto next_char; } 
+			spot = 0;
+			for (; spot < name_count; spot++) if (length >= lengths[spot]) break;
+			memmove(lengths + spot + 1, lengths + spot, sizeof(nat) * (name_count - spot));
+			memmove(names + spot + 1, names + spot, sizeof(nat) * (name_count - spot));
+			memmove(values + spot + 1, values + spot, sizeof(nat) * (name_count - spot));
+			lengths[spot] = length;
+			names[spot] = start;
+			values[spot] = arg_count ? arguments[arg_count - 1] : 0;
+			name_count++;
+			start = 0;
+			goto next_char;
+		}
+
+		if (start) { length++; goto next_char; } 
+
+
+
+
+		nat imax = 0;
+
+		for (nat name = 0; name < name_count; name++) {
+			called_name = name;
+			name_starts_at = names[name];
+			nat c = name_starts_at, i = 0;
+			for (; text[c] != '"'; ) {
+				if (i > imax) imax = i;
+				if (index + i >= text_length) goto next_name;
+				if ((unsigned char) text[index + i] < 33) { i++; continue; }
+				if ((unsigned char) text[c] < 33) { c++; continue; }
+				if (text[index + i] != text[c]) goto next_name;
+				i++; c++;
+			}
+			here = (struct location) {.start = index, .count = i};
+			index += i - 1;
+			goto process_name;
+			next_name: continue;
+		}
+
+
+
+
+
+
+
+
+
+*/
 
 
 
@@ -1616,7 +2177,7 @@ enum lattntgtutagtet_tItSA {
 
 
 
-static const char* instruction_spelling[instruction_set_count] = {
+static const char* itnstrutction_spetlling[instruction_set_count] = {
 	"u32", "ecall", "ebreak", "fence", 
 	"fencei", "add", "sub", "sll", 
 	"slt", "sltu", "xor", "srl", 
@@ -2167,7 +2728,7 @@ static void execute(nat op, nat* pc, char* text, struct location here) {
 	//if (stop) return;
 
 	//if (debug) printf("@%llu: info: executing \033[1;32m%s\033[0m(%llu) "
-	//		" %lld %lld %lld\n", *pc, instruction_spelling[op], op, a0, a1, a2);
+	//		" %lld %lld %lld\n", *pc, insttruction_speltling[op], op, a0, a1, a2);
 
 	//if (op == ctclear) arg_count = 0;
 	
@@ -2691,5 +3252,28 @@ x	- flush out the branching system for risc-v compiletime system.
 			//print_registers();
 			//print_instructions();
 			//print_dictionary();
+
+
+
+
+
+
+
+
+/*
+
+		else if (op == csrrw)   emit(i_type(a, 0x73, 0x1));
+		else if (op == csrrs)   emit(i_type(a, 0x73, 0x2));
+		else if (op == csrrc)   emit(i_type(a, 0x73, 0x3));
+		else if (op == csrrwi)  emit(i_type(a, 0x73, 0x5));
+		else if (op == csrrsi)  emit(i_type(a, 0x73, 0x6));
+		else if (op == csrrci)  emit(i_type(a, 0x73, 0x7));
+
+*/
+// csrrw, csrrs, csrrc, csrrwi, csrrsi, csrrci,     // <------- delete these eventually... not useful for us. 
+// "csrrw", "csrrs", "csrrc", "csrrwi", "csrrsi", "csrrci",   // <------------- these as well.
+
+
+
 
 
