@@ -1,23 +1,5 @@
 /*
 
-
-
-
-// todo: make the debug register index be register 3 or something.  ie, when registers[3] is set, debug is enabled. 
-
-		same for compiletime too? make that 4?   or switch them? idk. something like that 
-
-
-
-
-dont have   enable debug       etc 
- bad 
-
-
-
-
-
-
 		risc-v 64-bit cross assembler 
 	     written by dwrr on 202403111.010146
 
@@ -43,12 +25,12 @@ branches:
 
 	- figure out branches for the riscv arch!!!
 
-x	- start trying to figure out branches for arm64. 
-
 
 
 done:
 -------------
+
+x	- start trying to figure out branches for arm64. 
 
 x	- implement including files.
 
@@ -121,11 +103,13 @@ static u32 arm64_macos_abi[] = {        // note:  x9 is call-clobbered. save it 
 };
 
 enum language_ISA {
-	null_instruction, ctzero, ctincr, ctmode, ctat, 
+	null_instruction, 
 
 	ctabort, ctprint, ctdebug, ctget, ctput, ctdel, ctlast, ctset, ctarg, ctsetdebug, 
 	ctdebugarguments, ctdebugregisters, ctdebuginstructions, ctdebugdictionary,
-	enabledebug, disabledebug,
+	enabledebug, disabledebug, 
+
+	ctat, 
 
 	db, dh, dw, 
 	ecall, ebreak, fence, fencei, 
@@ -147,11 +131,13 @@ enum language_ISA {
 };
 
 static const char* ins_spelling[] = {
-	"null_instruction", "ctzero", "ctincr", "ctmode", "ctat", 
+	"null_instruction", 
 
 	"ctabort", "ctprint", "ctdebug", "ctget", "ctput", "ctdel", "ctlast", "ctset", "ctarg", "ctsetdebug", 
 	"ctdebugarguments", "ctdebugregisters", "ctdebuginstructions", "ctdebugdictionary",
 	"enabledebug", "disabledebug",
+
+	"ctat",
 
 	"db", "dh", "dw", 
 	"ecall", "ebreak", "fence", "fencei", 
@@ -1048,128 +1034,13 @@ int main(int argc, const char** argv) {
 	nat output_format = 0;
 
 	registers = calloc(ct_register_count, sizeof(nat));
-
-
-
-
-
-
-
-
-
-			// is it possible to create constants at compiletime to create register arguments!?!?!
-
-
-			// ie, to get rid of making  0 and 1  and = built in. basically. is it possible?????
-
-
-
-
-
-	registers[2] = (nat)(void*) calloc(ct_stack_size, 1);     
-
-
-					
-/*
-
-
-// <------ our only way to have a nonzero value, if one register is set to be nonzero.   we'll use an slt instruction  (sp zr slt) to get the constant 1 maybe?...  hmm we would need some way to put sp and zr on the stack though... zr is easy, sure. but sp??? hm...... idk.... maybe its possible. but.. i feel like we will need to add an instruction to do that. hypothetically possible though.
-
-
-						hmmmm
-								yeah i think its possible actually. just requires adding a couple more instructions, in replace of 0 and 1 lol. so yeah. basically unary constants will be the only way to specify reg indicies, natively. binary will be constructed from that, i think. so yeah. yay. cool. thats amazing.  perfect. yay
-
-
-
-
-							UNARY
-
-
-				yes. nice. cool 
-
-
-
-
-
-
-
-			LETS JUST INCREMENT THE TOP OF STACK!!!    to get unary constants.  ie, no r  no s, just the top of stack thats value gets manipulated directly! nice. yay. 
-
-
-
-			that should work well, i think. 
-
-
-
-		also, no setzero should be strictly neccessary, but lets add it anyways though lol. so yeah. 
-
-
-
-	argstacktop++
-
-	argstacktop = 0
-
-
-
-
-thats how we will get constants. this way, we can give any register indicies to any instruction eventuallyyy lol. so yeah. 
-
-
-
-	BUTTTT   the trick here, is that we need to make the value of a register able to be put on the argument stack. 
-
-
-			that way we'll get a loop:
-
-
-
-
-		argstacktop++/=0    ins   feed argument register index values to ct instructions, which produce register values that are then interpreted as argument register index values, or constants for other ct instructions!
-
-
-				so yeah. it should be self sustaining from there lol.   we just need to like.. boot strap the process witht he argstacktop stuff. 
-
-
-
-							althoughhhhh maybe not?
-
-
-
-				maybe we just push certain values on the stack initially!?!?!
-
-					that woudl work tooo hmmm wowwww
-
-
-
-		interestinggg
-
-
-
-
-	idk
-				ill think about it         quite interesting 
-
-
-
-
-
-yay
-
-
-
-
-
-
-*/
-
-
-
+	registers[2] = (nat)(void*) calloc(ct_stack_size, 1);
 
 	files[file_count].name = filename;
 	files[file_count++].location = (struct location) {.start = 0, .count = text_length};
 
 	struct location here = {0};
-	nat start = 0, length = 0, name_starts_at = 0, r = 0, s = 1, called_name = 0, spot = 0;
+	nat start = 0, length = 0, name_starts_at = 0, called_name = 0, spot = 0;
 	nat forwards_branching = 0;
 
 	for (nat index = 0; index < text_length; index++) {
@@ -1223,11 +1094,27 @@ yay
 			for (nat cc = names[called_name]; text[cc] != '"'; cc++) putchar(text[cc]);
 			printf("\033[0m\".\n");
 		}
+
 		nat e = name_starts_at, op = 0;
 
 		if (is("eof", e)) break;
 
-		else if (is("include", e)) {
+
+		else if (is("begin_name", e)) {
+
+			printf("called END NAME.\n");
+			getchar();
+
+
+
+		} else if (is("end_name", e)) {
+			
+			printf("called END NAME.\n");
+			getchar();
+
+
+
+		} else if (is("include", e)) {
 			files[file_count].name = get_name(spot);
 			if (debug) printf("info: including file \"%s\"...\n", files[file_count].name);
 			nat l = 0;
@@ -1241,11 +1128,7 @@ yay
 		 	file_count++;
 		}
 
-		else if (is("setarchitecture", e)) 	architecture = arguments[arg_count - 1]; // make these just use ct registers. instead.
-		else if (is("setoutputformat", e)) 	output_format = arguments[arg_count - 1]; //
-		else if (is("preserveobject", e)) 	preserve_existing_object = arguments[arg_count - 1];  //
-		else if (is("preserveexecutable", e)) 	preserve_existing_executable = arguments[arg_count - 1];  //
-		else if (is("setobjectname", e)) 	object_filename = get_name(spot); 
+		else if (is("setobjectname", e)) 	object_filename = get_name(spot);      // delete these eventually.
 		else if (is("setexecutablename", e)) 	executable_filename = get_name(spot); 
 
 		else if (is("ctat", e)) {
@@ -1254,62 +1137,54 @@ yay
 			if (forwards_branching == a0) forwards_branching = 0;
 		}
 
-		else if (is("ecall", e)) { op = ecall; goto push; }
-		else if (is("ebreak", e)) { op = ebreak; goto push; }
-		else if (is("fence", e)) { op = fence; goto push; }
-		else if (is("fencei", e)) { op = fencei; goto push; }
-		else if (is("add", e)) { op = add; goto push; }
-		else if (is("sub", e)) { op = sub; goto push; }
-		else if (is("and", e)) { op = and_; goto push; }
-		else if (is("or",  e)) { op = or_; goto push; }
-		else if (is("xor", e)) { op = xor_; goto push; }
-		else if (is("slt", e)) { op = slt; goto push; }
-		else if (is("sltu",e)) { op = sltu; goto push; }
-		else if (is("addi", e)) { op = addi; goto push; }
-		else if (is("andi", e)) { op = andi; goto push; }
-		else if (is("ori",  e)) { op = ori; goto push; }
-		else if (is("xori", e)) { op = xori; goto push; }
-		else if (is("slti", e)) { op = slti; goto push; }
-		else if (is("sltiu",e)) { op = sltiu; goto push; }
-		else if (is("lb", e)) { op = lb; goto push; }
-		else if (is("lh", e)) { op = lh; goto push; }
-		else if (is("lw", e)) { op = lw; goto push; }
-		else if (is("ld", e)) { op = ld; goto push; }
-		else if (is("sb", e)) { op = sb; goto push; }
-		else if (is("sh", e)) { op = sh; goto push; }
-		else if (is("sw", e)) { op = sw; goto push; }
-		else if (is("sd", e)) { op = sd; goto push; }
-		else if (is("bltu", e)) { op = bltu; goto push; }
-		else if (is("bgeu", e)) { op = bgeu; goto push; }
-		else if (is("blt", e))  { op = blt; goto push; }
-		else if (is("bge", e))  { op = bge; goto push; }
-		else if (is("beq", e))  { op = beq; goto push; }
-		else if (is("bne", e))  { op = bne; goto push; }
-		else if (is("jalr", e)) { op = jalr; goto push; }
-		else if (is("jal",  e)) { op = jal; goto push; }
-
-		else if (is("0", e)) 	s <<= 1;                        // todo: delete these eventually. 
-		else if (is("1", e)) 	{ r += s; s <<= 1; }            // and make these user-level-made.
-		else if (is("=", e)) 	{ push_arg(r); r = 0; s = 1; }  // using ct system / macros.
-
-		else if (is("ctabort",  e))    { op = ctabort; goto push; }
-		else if (is("ctdel",  e))      { op = ctdel; goto push; }
-		else if (is("ctlast",  e))     { op = ctlast; goto push; }
-		else if (is("ctset",  e))      { op = ctset; goto push; }
-		else if (is("ctarg",  e))      { op = ctarg; goto push; }
-		else if (is("ctget",  e))      { op = ctget; goto push; }
-		else if (is("ctput",  e))      { op = ctput; goto push; }
-		else if (is("ctprint",  e))    { op = ctprint; goto push; }
-		else if (is("ctdebug",  e))    { op = ctdebug; goto push; }
-
+		else if (is("ecall", e)) 	{ op = ecall; goto push; }
+		else if (is("ebreak", e))	{ op = ebreak; goto push; }
+		else if (is("fence", e)) 	{ op = fence; goto push; }
+		else if (is("fencei", e)) 	{ op = fencei; goto push; }
+		else if (is("add", e)) 		{ op = add; goto push; }
+		else if (is("sub", e)) 		{ op = sub; goto push; }
+		else if (is("and", e)) 		{ op = and_; goto push; }
+		else if (is("or",  e)) 		{ op = or_; goto push; }
+		else if (is("xor", e)) 		{ op = xor_; goto push; }
+		else if (is("slt", e)) 		{ op = slt; goto push; }
+		else if (is("sltu",e)) 		{ op = sltu; goto push; }
+		else if (is("addi", e)) 	{ op = addi; goto push; }
+		else if (is("andi", e)) 	{ op = andi; goto push; }
+		else if (is("ori",  e)) 	{ op = ori; goto push; }
+		else if (is("xori", e)) 	{ op = xori; goto push; }
+		else if (is("slti", e)) 	{ op = slti; goto push; }
+		else if (is("sltiu",e)) 	{ op = sltiu; goto push; }
+		else if (is("lb", e)) 		{ op = lb; goto push; }
+		else if (is("lh", e)) 		{ op = lh; goto push; }
+		else if (is("lw", e)) 		{ op = lw; goto push; }
+		else if (is("ld", e)) 		{ op = ld; goto push; }
+		else if (is("sb", e)) 		{ op = sb; goto push; }
+		else if (is("sh", e)) 		{ op = sh; goto push; }
+		else if (is("sw", e)) 		{ op = sw; goto push; }
+		else if (is("sd", e)) 		{ op = sd; goto push; }
+		else if (is("bltu", e)) 	{ op = bltu; goto push; }
+		else if (is("bgeu", e))		{ op = bgeu; goto push; }
+		else if (is("blt", e))		{ op = blt; goto push; }
+		else if (is("bge", e))		{ op = bge; goto push; }
+		else if (is("beq", e))		{ op = beq; goto push; }
+		else if (is("bne", e)) 		{ op = bne; goto push; }
+		else if (is("jalr", e)) 	{ op = jalr; goto push; }
+		else if (is("jal",  e)) 	{ op = jal; goto push; }
+		else if (is("ctabort",  e))	{ op = ctabort; goto push; }
+		else if (is("ctdel",  e))	{ op = ctdel; goto push; }
+		else if (is("ctlast",  e))	{ op = ctlast; goto push; }
+		else if (is("ctset",  e))	{ op = ctset; goto push; }
+		else if (is("ctarg",  e))	{ op = ctarg; goto push; }
+		else if (is("ctget",  e))	{ op = ctget; goto push; }
+		else if (is("ctput",  e))	{ op = ctput; goto push; }
+		else if (is("ctprint",  e))	{ op = ctprint; goto push; }
+		else if (is("ctdebug",  e))	{ op = ctdebug; goto push; }
 		else if (is("ctdebugarguments", e)) 	{ op = ctdebugarguments; goto push; }
 		else if (is("ctdebugregisters", e)) 	{ op = ctdebugregisters; goto push; }
 		else if (is("ctdebuginstructions", e))	{ op = ctdebuginstructions; goto push; }
 		else if (is("ctdebugdictionary", e))	{ op = ctdebugdictionary; goto push; }
 
 		else if (values[called_name] >= callonuse_macro_threshold) {
-
-			
 			push_arg(values[called_name]);
 			if (registers[values[called_name]]) {
 				if (debug) puts("\033[32mGOOD MACRO CALL\033[0m");
@@ -1321,10 +1196,11 @@ yay
 				if (debug) puts("\033[31mBAD UNDEFINED MACRO: macro used before it was defined...?\033[0m"); 
 			}
 		}
-
 		else push_arg(values[called_name]);
 
+
 		*registers = 0;
+
 		goto word_done;
 
 	push:;
@@ -1345,8 +1221,8 @@ yay
 		*registers = 0;
 
 		if (op == ctabort) abort();
-		else if (op == ctdel)   { if (arg_count) arg_count--; }
 		else if (op == ctlast)  arg_count++;
+		else if (op == ctdel)   { if (arg_count) arg_count--; }
 		else if (op == ctset)   { if (arg_count) arg_count--; registers[a0] = arguments[--arg_count]; }
 		else if (op == ctarg)   { if (arg_count) arg_count--; push_arg(registers[a0]); }
 
@@ -1363,32 +1239,29 @@ yay
 
 		else if (not registers[3]) goto push_rt;
 
-		else if (op == add)   registers[a0] = registers[a1] + registers[a2]; 
-		else if (op == sub)   registers[a0] = registers[a1] - registers[a2]; 
-		else if (op == mul)   registers[a0] = registers[a1] * registers[a2]; 
-		else if (op == div_)  registers[a0] = registers[a1] / registers[a2]; 
-		else if (op == and_)  registers[a0] = registers[a1] & registers[a2]; 
-		else if (op == or_)   registers[a0] = registers[a1] | registers[a2]; 
-		else if (op == xor_)  registers[a0] = registers[a1] ^ registers[a2]; 
-		else if (op == slt)   registers[a0] = registers[a1] < registers[a2]; 
-		else if (op == sltu)  registers[a0] = registers[a1] < registers[a2]; 
-
-		else if (op == addi)   registers[a0] = registers[a1] + a2; 
-		else if (op == andi)   registers[a0] = registers[a1] & a2; 
-		else if (op == ori)    registers[a0] = registers[a1] | a2; 
-		else if (op == xori)   registers[a0] = registers[a1] ^ a2; 
-		else if (op == slti)   registers[a0] = registers[a1] < a2; 
-		else if (op == sltiu)  registers[a0] = registers[a1] < a2; 
-
-		else if (op == lb) registers[a0] = *( u8*)(registers[a1] + a2); 
-		else if (op == lh) registers[a0] = *(u16*)(registers[a1] + a2); 
-		else if (op == lw) registers[a0] = *(u32*)(registers[a1] + a2); 
-		else if (op == ld) registers[a0] = *(nat*)(registers[a1] + a2); 
-
-		else if (op == sb) *( u8*)(registers[a0] + a1) = ( u8)registers[a2]; 
-		else if (op == sh) *(u16*)(registers[a0] + a1) = (u16)registers[a2]; 
-		else if (op == sw) *(u32*)(registers[a0] + a1) = (u32)registers[a2]; 
-		else if (op == sd) *(nat*)(registers[a0] + a1) = (nat)registers[a2]; 
+		else if (op == add)   	registers[a0] = registers[a1] + registers[a2]; 
+		else if (op == sub)   	registers[a0] = registers[a1] - registers[a2]; 
+		else if (op == mul)   	registers[a0] = registers[a1] * registers[a2]; 
+		else if (op == div_)  	registers[a0] = registers[a1] / registers[a2]; 
+		else if (op == and_)  	registers[a0] = registers[a1] & registers[a2]; 
+		else if (op == or_)   	registers[a0] = registers[a1] | registers[a2]; 
+		else if (op == xor_)  	registers[a0] = registers[a1] ^ registers[a2]; 
+		else if (op == slt)   	registers[a0] = registers[a1] < registers[a2]; 
+		else if (op == sltu)  	registers[a0] = registers[a1] < registers[a2]; 
+		else if (op == addi)   	registers[a0] = registers[a1] + a2; 
+		else if (op == andi)   	registers[a0] = registers[a1] & a2; 
+		else if (op == ori)    	registers[a0] = registers[a1] | a2; 
+		else if (op == xori)   	registers[a0] = registers[a1] ^ a2; 
+		else if (op == slti)   	registers[a0] = registers[a1] < a2; 
+		else if (op == sltiu)  	registers[a0] = registers[a1] < a2; 
+		else if (op == lb) 	registers[a0] = *( u8*)(registers[a1] + a2); 
+		else if (op == lh) 	registers[a0] = *(u16*)(registers[a1] + a2); 
+		else if (op == lw) 	registers[a0] = *(u32*)(registers[a1] + a2); 
+		else if (op == ld) 	registers[a0] = *(nat*)(registers[a1] + a2); 
+		else if (op == sb) 	*( u8*)(registers[a0] + a1) = ( u8)registers[a2]; 
+		else if (op == sh) 	*(u16*)(registers[a0] + a1) = (u16)registers[a2]; 
+		else if (op == sw) 	*(u32*)(registers[a0] + a1) = (u32)registers[a2]; 
+		else if (op == sd) 	*(nat*)(registers[a0] + a1) = (nat)registers[a2]; 
 
 		else if (op == bltu) { 
 			arg_count -= 3; 
@@ -1493,18 +1366,10 @@ yay
 
 	}
 
-
-
-
-
-
-
-
-
-
-
-
-
+	architecture = registers[1400];
+	output_format = registers[1401];
+	preserve_existing_object = registers[1402];
+	preserve_existing_executable = registers[1403];
 
 
 	for (nat i = 0; i < ins_count; i++) {
@@ -1622,6 +1487,57 @@ yay
 
 
 /*
+
+
+
+
+
+
+//else if (is("setarchitecture", e)) 	architecture = arguments[arg_count - 1]; // make these just use ct registers. instead.
+		//else if (is("setoutputformat", e)) 	output_format = arguments[arg_count - 1]; //
+		//else if (is("preserveobject", e)) 	preserve_existing_object = arguments[arg_count - 1];  //
+		//else if (is("preserveexecutable", e)) 	preserve_existing_executable = arguments[arg_count - 1];  //
+
+
+
+
+
+
+
+
+r = 0, s = 1, 
+
+
+202404221.183817:
+
+	how we did constants before:
+
+			now we are giong to try to use the langage it self to construct these. 
+			because its not much different hopefully!
+
+
+
+	
+		else if (is("0", e)) 	s <<= 1;                        // todo: delete these eventually. 
+		else if (is("1", e)) 	{ r += s; s <<= 1; }            // and make these user-level-made.
+		else if (is("=", e)) 	{ push_arg(r); r = 0; s = 1; }  // using ct system / macros.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
