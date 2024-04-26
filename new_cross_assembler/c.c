@@ -49,7 +49,7 @@ typedef uint16_t u16;
 typedef uint8_t  u8;
 
 static const nat ct_register_count = 1 << 16;
-static const nat ct_stack_size = 1 << 16;
+// static const nat ct_stack_size = 1 << 16;
 //static const nat callonuse_macro_threshold = 1 << 15;
 //static const nat callonuse_function_threshold = 1 << 16;
 
@@ -90,11 +90,18 @@ static u32 arm64_macos_abi[] = {        // note:  x9 is call-clobbered. save it 
 };
 
 enum special_function_registers {
-	r_zero, r_link, r_stackpointer, r_mode, r_debug, r_build, 
+	r_zero, r_link, r_stackpointer, r_debug, r_build, 
 };
 
 enum language_ISA {
-	null_instruction, ctabort, ctprintn, ctprint, 
+	null_instruction, 
+
+	ct0, ct1, ct2, ct3, 
+	ct4, ct5, ct6, ct7, 
+	ct8, ct9, ctA, ctB, 
+	ctC, ctD, ctE, ctF,
+
+	ctabort, ctprintn, ctprint, 
 	ecall, ebreak, fence, fencei, ctlast, 
 	addiw, slliw, srliw, sraiw, jalr,
 	ctget, ctput, ctdel, ctset, ctarg, ctat, 
@@ -109,7 +116,21 @@ enum language_ISA {
 };
 
 static const char* spelling[] = {
-	"null_instruction", "ctabort", "ctprintn", "ctprint",
+	"null_instruction", 
+
+	"[endoffile]", "pointer++;", "pointer=0;", "pointer<<=1;", 
+	"array[pointer]++;", "array[pointer]=0;", "array[pointer]--;", "array[pointer]<<=1;", 
+	"comparator++;", "comparator=0;", "comparator--;", "comparator<<=1;", 
+
+	"ifcomparator<array[pointer]thenpointer++;", 
+
+	"printcurrentstate;", 
+
+	"ctE", "ctF",
+
+
+
+	"ctabort", "ctprintn", "ctprint",
 	"ecall", "ebreak", "fence", "fencei", "ctlast", 
 	"addiw", "slliw", "srliw", "sraiw", "jalr",
 	"ctget", "ctput", "ctdel", "ctset", "ctarg", "ctat", 
@@ -140,12 +161,12 @@ static u8* bytes = NULL;
 static nat ins_count = 0;
 static struct instruction* ins = NULL;
 static struct instruction current_ins = {0};
-static nat* registers = NULL;
 static nat file_count = 0;
 static struct file files[4096] = {0};
 static char* text = NULL;
 static nat text_length = 0;
-
+static nat pointer = 0, comparator = 0;
+static nat* array = NULL;
 
 static void print_error(const char* reason, struct location spot) {
 	nat location = 0;
@@ -569,9 +590,9 @@ static u32 generate_bc(u32 condition, nat here, nat target) {
 	return (0x54U << 24U) | ((0x0007FFFFU & imm) << 5U) | condition;
 }
 
-static void emit_and_generate_branch(u32 R_left, u32 R_right, u32 target, nat here, u32 condition) {
+static void emit_and_generate_branch(u32 R_left, u32 R_right, nat target, nat here, u32 condition) {
 	emit(generate_add(0, R_left, R_right, 0x0BU, 0, 1, 1, 1, 0));
-	emit(generate_bc(condition, here, registers[target])); //  + (registers[target] < here)
+	emit(generate_bc(condition, here, target));
 }
 
 static void generate_arm64_machine_code(void) {
@@ -859,12 +880,51 @@ static void make_macho_object_file(const char* object_filename, const bool prese
 }
 
 
-static void execute(nat op) {
+static bool execute(nat op) {
 
 	printf("\033[32mcalling op = %llu (\"%s\")\033[0m...\n", op, spelling[op]);
 
+	if (op == ct0) return 1;
 
+	else if (op == ctD) {
+		printf("debugging info: \n\tpointer = %llu\n\tcomparator = %llu\n\tarray = {", pointer, comparator);
+		for (nat i = 0; i < 10; i++) {
+			printf("%llx(%lld), ", array[i], array[i]);
+		}
+		printf("}\n\n");
+	}
+
+
+	else if (op == ct1) pointer++;
+	else if (op == ct2) pointer = 0;
+	else if (op == ct3) pointer <<= 1;
+
+	else if (op == ct4) array[pointer]++;
+	else if (op == ct5) array[pointer] = 0;
+	else if (op == ct6) array[pointer]--;
+	else if (op == ct7) array[pointer] <<= 1;
 	
+	else if (op == ct8) comparator++;
+	else if (op == ct9) comparator = 0;
+	else if (op == ctA) comparator--;
+	else if (op == ctB) comparator <<= 1;
+	
+
+	else if (op == ctC) { if (comparator < array[pointer]) pointer++; }
+
+
+
+	else {
+		printf("asm: internal error: trying to execute(op = %llu) unknown op code: \"%s\"...\n", op, spelling[op]);
+		abort();
+	}
+
+	return 0;
+	
+}
+
+
+/*
 
 	if (op == ctabort) 	abort();
 	else if (op == ctlast)  arg_count++;
@@ -899,47 +959,50 @@ static void execute(nat op) {
 	else if (op == sb) 	*( u8*)(registers[a0] + a1) = ( u8)registers[a2]; 
 	else if (op == sh) 	*(u16*)(registers[a0] + a1) = (u16)registers[a2]; 
 	else if (op == sw) 	*(u32*)(registers[a0] + a1) = (u32)registers[a2]; 
-	else if (op == sd) 	*(nat*)(registers[a0] + a1) = (nat)registers[a2]; 
+	else if (op == sd) 	*(nat*)(registers[a0] + a1) = (nat)registers[a2];
+
+*/
 
 
-
-}
-
+// registers[r_mode] = true;
 
 
 int main(int argc, const char** argv) {
+
 	if (argc != 2) exit(puts("asm: \033[31;1merror:\033[0m usage: ./asm <source.s>"));
 
 	const char* filename = argv[1];
 	text_length = 0;
 	text = read_file(filename, &text_length, (struct location){0});
-	registers = calloc(ct_register_count, sizeof(nat));
-	registers[r_stackpointer] = (nat)(void*) calloc(ct_stack_size, 1);
-	registers[r_mode] = true;
-	registers[r_debug] = true;
+
+	array = calloc(ct_register_count, sizeof(nat));
+	//registers[r_stackpointer] = (nat)(void*) calloc(ct_stack_size, 1);
+	//registers[r_debug] = true;
+
 	files[file_count].name = filename;
 	files[file_count++].location = (struct location) {.start = 0, .count = text_length};
 
 	{ nat index = 0, at = 0, save = 0, op = 0;
-begin:	if (at == strlen(spelling[op])) goto found;
+begin:	if (op >= isa_count) goto error;
+	if (at == strlen(spelling[op])) goto found;
 	if (index >= text_length) goto done;
 	if ((unsigned char) text[index] < 33) goto nextc;
-	if (op >= isa_count) goto error;
 	if (spelling[op][at] != text[index]) goto fail;
-	at++; goto nextc;
-found:	execute(op);
+	at++; goto nextc; found: if (execute(op)) goto done;
 	save = index; op = 0; at = 0; goto begin;
 fail: 	op++; index = save; at = 0; goto begin;
 nextc:	index++; goto begin; 
 error:	print_error("unresolved symbol", (struct location){save, index}); exit(1); }
-done:;	const nat architecture = (registers[r_build] >> 0) & 0xF;
-	const nat output_format = (registers[r_build] >> 4) & 0xF;
-	const bool preserve_existing_object = (registers[r_build] >> 8) & 0xF;
-	const bool preserve_existing_executable = (registers[r_build] >> 9) & 0xF;
+
+done:;	const bool debug = array[r_debug]; 
+	const nat architecture = (array[r_build] >> 0) & 0xF;
+	const nat output_format = (array[r_build] >> 4) & 0xF;
+	const bool preserve_existing_object = (array[r_build] >> 8) & 0xF;
+	const bool preserve_existing_executable = (array[r_build] >> 9) & 0xF;
 	const char* object_filename = "object0.o";
 	const char* executable_filename = "executable0.out";
 
-	if (registers[r_debug]) {
+	if (debug) {
 		printf("info: building for target:\n\tarchitecture:  "
 			"\033[31;1m%s\033[0m\n\toutput_format: \033[32;1m%s\033[0m.\n\n", 
 			target_spelling[architecture  % target_count], 
@@ -1010,7 +1073,7 @@ done:;	const nat architecture = (registers[r_build] >> 0) & 0xF;
 		system(link_command);
 	}
 
-	if (registers[r_debug]) {
+	if (debug) {
 		//system("otool -txvVhlL object.o");
 		system("otool -txvVhlL program.out");
 		//system("objdump object.o -DSast --disassembler-options=no-aliases");
