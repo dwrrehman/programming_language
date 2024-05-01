@@ -105,9 +105,9 @@ enum language_ISA {
 	ctone,
 
 	ctabort, ctprint, 
-	ecall, ebreak, fence, fencei, ctlast, 
+	ecall, ebreak, fencei, fence,
 	addiw, slliw, srliw, sraiw, jalr,
-	ctget, ctput, ctdel, ctset, ctarg, ctat, 
+	ctget, ctput, ctat, 
 	auipc, mulh, mulhsu, mulhu, sltiu, 
 	addw, subw, sllw, srlw, sraw, bltu, bgeu, 
 	mulw, divw, divuw, remw, remuw, 
@@ -130,12 +130,11 @@ static const char* spelling[] = {
 
 	"printcurrentstate;", 
 	"#", "0", "1",
-
-
 	"ctabort", "ctprint",
-	"ecall", "ebreak", "fence", "fencei", "ctlast", 
+
+	"ecall", "ebreak", "fencei", "fence", 
 	"addiw", "slliw", "srliw", "sraiw", "jalr",
-	"ctget", "ctput", "ctdel", "ctset", "ctarg", "ctat", 
+	"ctget", "ctput", "ctat", 
 	"auipc", "mulh", "mulhsu", "mulhu", "sltiu", 
 	"addw", "subw", "sllw", "srlw", "sraw", "bltu", "bgeu", 
 	"mulw", "divw", "divuw", "remw", "remuw", 
@@ -171,10 +170,8 @@ static nat pointer = 0, comparator = 0;
 static nat* array = NULL;
 
 static void print_error(const char* reason, struct location spot) {
-
 	while (spot.start < text_length and (unsigned char) text[spot.start] < 33) spot.start++;
 	while (spot.count < text_length and (unsigned char) text[spot.count] < 33) spot.count++;
-
 	nat location = 0;
 	const char* filename = NULL;
 	nat stack_i[4096] = {0}, stack_f[4096] = {0}, stack_o[4096] = {0};
