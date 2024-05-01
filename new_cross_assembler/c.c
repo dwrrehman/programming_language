@@ -89,25 +89,20 @@ static u32 arm64_macos_abi[] = {        // note:  x9 is call-clobbered. save it 
 	25,26,27,28,12, 8,11,10,    
 };
 
+
 enum language_ISA {
 	null_instruction, 
 
-	cteof, 
-
-	ct0, ct1, ct2, ct3, 
-	ct4, ct5, ct6, ct7, 
-	ct8, ct9, ct10, ct11, 
-	ct12, ct13, ct14, ct15,
-
-	ctprintcurrentstate,
-	ctliteral,
-	ctzero,
-	ctone,
-
-	ctabort, ctprint, 
+	cteof, ctstate, ctabort, ctprint,
+	rtat, ctat,
+	ctpi, ctpz, ctps, ctpd, ctpl,
+	ctmi, ctmz, ctms, ctmd, ctml,
+	ctlm, ctrm, ctadd, ctmul,
+	ctl, cte,
+	
 	ecall, ebreak, fencei, fence,
 	addiw, slliw, srliw, sraiw, jalr,
-	ctget, ctput, ctat, 
+	ctget, ctput,  
 	auipc, mulh, mulhsu, mulhu, sltiu, 
 	addw, subw, sllw, srlw, sraw, bltu, bgeu, 
 	mulw, divw, divuw, remw, remuw, 
@@ -121,20 +116,16 @@ enum language_ISA {
 static const char* spelling[] = {
 	"null_instruction", 
 
-	"[endoffile]", 
-
-	"pointer++;", "pointer=0;", "pointer<<=1;", "pointer--;", 
-	"array[pointer]++;", "array[pointer]=0;", "array[pointer]<<=1;", "array[pointer]--;",
-	"comparator++;", "comparator=0;", "comparator<<=1;", "comparator--;",
-	"comparator+=array[pointer];", "array[pointer]+=comparator;", "pointer+=comparator;", "ifcomparator<array[pointer]thenpointer++;",
-
-	"printcurrentstate;", 
-	"#", "0", "1",
-	"ctabort", "ctprint",
+	"cteof", "ctstate", "ctabort", "ctprint",
+	"rtat", "ctat",
+	"ctpi", "ctpz", "ctps", "ctpd", "ctpl",
+	"ctmi", "ctmz", "ctms", "ctmd", "ctml",
+	"ctlm", "ctrm", "ctadd", "ctmul",
+	"ctl", "cte",
 
 	"ecall", "ebreak", "fencei", "fence", 
 	"addiw", "slliw", "srliw", "sraiw", "jalr",
-	"ctget", "ctput", "ctat", 
+	"ctget", "ctput",
 	"auipc", "mulh", "mulhsu", "mulhu", "sltiu", 
 	"addw", "subw", "sllw", "srlw", "sraw", "bltu", "bgeu", 
 	"mulw", "divw", "divuw", "remw", "remuw", 
@@ -166,8 +157,10 @@ static nat file_count = 0;
 static struct file files[4096] = {0};
 static char* text = NULL;
 static nat text_length = 0;
-static nat pointer = 0, comparator = 0;
-static nat* array = NULL;
+
+static nat* array = NULL, 
+	pointer = 0, skipping = 0, 
+	left = 0, right = 0;
 
 static void print_error(const char* reason, struct location spot) {
 	while (spot.start < text_length and (unsigned char) text[spot.start] < 33) spot.start++;
@@ -790,82 +783,81 @@ static void make_macho_object_file(const char* object_filename, const bool prese
 	close(file);
 }
 
+static bool execute(nat op, nat* index) {
 
-
-
-/*
-
-	cteof, 
-
-	ct0, ct1, ct2, ct3, 
-	ct4, ct5, ct6, ct7, 
-	ct8, ct9, ct10, ct11, 
-	ct12, ct13, ct14, ct15,
-
-	ctprintcurrentstate,
-	ctliteral,
-	ctzero,
-	ctone,
-
-	"[endoffile]", 
-
-	"pointer++;", "pointer=0;", "pointer<<=1;", "pointer--;", 
-	"array[pointer]++;", "array[pointer]=0;", "array[pointer]<<=1;", "array[pointer]--;",
-	"comparator++;", "comparator=0;", "comparator<<=1;", "comparator--;",
-	"comparator+=array[pointer];", "array[pointer]+=comparator;", "pointer+=comparator;", "ifcomparator<array[pointer]thenpointer++;",
-
-	"printcurrentstate;", 
-	"#", "0", "1",
-
-
-
-*/
-
-static bool execute(nat op) {
-
-	printf("\033[32mcalling op = %llu (\"%s\")\033[0m...\n", op, spelling[op]);
+	printf("\033[32mcalling op = %llu "
+		"(\"%s\")\033[0m...\n", 
+		op, spelling[op]);
 
 	if (op == cteof) return 1;
+	else if (skipping) return 0;
 	else if (op == ctabort) abort();
-	else if (op == ctprint) printf("debug: \033[32m%llu (%lld)\033[0m \033[32m0x%llx\033[0m\n", 
-					array[pointer], array[pointer], array[pointer]);
+	else if (op == ctprint) 
+		printf("debug: \033[32m%llu "
+			"(%lld)\033[0m "
+			"\033[32m0x%llx\033[0m\n", 
+			array[pointer], 
+			array[pointer],
+			array[pointer]
+		);
 
-	else if (op == ct0) pointer++;
-	else if (op == ct1) pointer = 0;
-	else if (op == ct2) pointer <<= 1;
-	else if (op == ct3) pointer--;
 
-	else if (op == ct4) array[pointer]++;
-	else if (op == ct5) array[pointer] = 0;
-	else if (op == ct6) array[pointer] <<= 1;
-	else if (op == ct7) array[pointer]--;
+	else if (op == rtat) {
+		array[pointer] = ins_count;
+		if (skipping == pointer) skipping = 0;
+	}
+	else if (op == ctat) {
+		array[pointer] = *index;
+		if (skipping == pointer) skipping = 0;
+	}
 
-	else if (op == ct8) comparator++;
-	else if (op == ct9) comparator = 0;
-	else if (op == ct10) comparator <<= 1;
-	else if (op == ct11) comparator--;
+	else if (op == ctpi) pointer++;
+	else if (op == ctpz) pointer = 0;
+	else if (op == ctps) pointer <<= 1;
+	else if (op == ctpd) pointer--;
+	else if (op == ctpl) pointer = left;
 
-	else if (op == ct12) comparator += array[pointer];
-	else if (op == ct13) array[pointer] += comparator;
-	else if (op == ct14) pointer += comparator;
-	else if (op == ct15) { if (comparator < array[pointer]) pointer++; }
+	else if (op == ctmi) array[pointer]++;
+	else if (op == ctmz) array[pointer] = 0;
+	else if (op == ctms) array[pointer] <<= 1;
+	else if (op == ctmd) array[pointer]--;
+	else if (op == ctml) array[pointer] = left;
 
-	else if (op == ctprintcurrentstate) {
-		printf("debugging info: \n\tpointer = %llu\n\tcomparator = %llu\n\tarray = {", pointer, comparator);
-		for (nat i = 0; i < 10; i++) {
+	else if (op == ctlm) left = array[pointer];
+	else if (op == ctrm) right = array[pointer];
+	else if (op == ctadd) left += array[pointer];
+	else if (op == ctmul) left *= array[pointer];
+
+	else if (op == ctl) { 
+		if (left < right) {
+			if (array[pointer]) *index = array[pointer];
+			else skipping = pointer; 
+		}
+	} 
+
+	else if (op == cte) { 
+		if (left == right) {
+			if (array[pointer]) *index = array[pointer];
+			else skipping = pointer; 
+		} 
+	}
+
+	else if (op == ctstate) {
+		printf("state info: skipping = %llu"
+			"\n\tpointer = %llu"
+			"\n\tleft = %llu"
+			"\n\tright = %llu"
+			"\n\tarray = {", 
+			skipping, pointer, 
+			left, right
+		);
+		for (nat i = 0; i < 20; i++) {
 			printf("%llx(%lld), ", array[i], array[i]);
 		}
 		printf("}\n\n");
-	}
+	} else goto rt;
 
-	else if (op == ctliteral) pointer++;
-	else if (op == ctzero) { array[pointer] <<= 1; }
-	else if (op == ctone) { array[pointer] <<= 1; array[pointer]++; }
-
-	else goto rt;
 	return 0;
-
-
 
 rt:	printf("pushing runtime instruction: %llu(\"%s\").\n", op, spelling[op]);
 	struct instruction new = {0};
@@ -902,7 +894,7 @@ begin:	if (op >= isa_count) goto error;
 	if (index >= text_length) goto done;
 	if ((unsigned char) text[index] < 33) goto nextc;
 	if (spelling[op][at] != text[index]) goto fail;
-	at++; goto nextc; found: if (execute(op)) goto done;
+	at++; goto nextc; found: if (execute(op, &index)) goto done;
 	save = index; op = 0; at = 0; goto begin;
 fail: 	op++; index = save; at = 0; goto begin;
 nextc:	index++; if (index > max) max = index; goto begin; 
@@ -914,10 +906,6 @@ done:;	const nat architecture = (*array >> 0) & 0xF;
 	const bool preserve_existing_object = (*array >> 9) & 0x1;
 	const bool preserve_existing_executable = (*array >> 10) & 0x1;
 	
-
-	//  001000101
-
-
 	const char* object_filename = "object0.o";
 	const char* executable_filename = "executable0.out";
 
@@ -1004,6 +992,62 @@ done:;	const nat architecture = (*array >> 0) & 0xF;
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+/*
+
+	cteof, 
+
+	ct0, ct1, ct2, ct3, 
+	ct4, ct5, ct6, ct7, 
+	ct8, ct9, ct10, ct11, 
+	ct12, ct13, ct14, ct15,
+
+	ctprintcurrentstate,
+	ctliteral,
+	ctzero,
+	ctone,
+
+	"[endoffile]", 
+
+	"pointer++;", "pointer=0;", "pointer<<=1;", "pointer--;", 
+	"array[pointer]++;", "array[pointer]=0;", "array[pointer]<<=1;", "array[pointer]--;",
+	"comparator++;", "comparator=0;", "comparator<<=1;", "comparator--;",
+	"comparator+=array[pointer];", "array[pointer]+=comparator;", "pointer+=comparator;", "ifcomparator<array[pointer]thenpointer++;",
+
+	"printcurrentstate;", 
+	"#", "0", "1",
+
+
+
+*/
+
+
+	//  001000101
+
+	//else if (op == ctliteral) pointer++;
+	//else if (op == ctzero) { array[pointer] <<= 1; }
+	//else if (op == ctone) { array[pointer] <<= 1; array[pointer]++; }
 
 
 
