@@ -61,26 +61,43 @@ enum target_architecture {
 	target_count 
 };
 
-static const char* target_spelling[target_count] = { 
-	"noruntime", 
-	"riscv32", "riscv64", 
-	"arm32", "arm64", 
-	"x86_32", "x86_64" 
-};
-
 enum output_formats { 
 	print_binary, 
 	elf_objectfile, elf_executable, 
 	macho_objectfile, macho_executable, 
 	output_format_count 
 };
-static const char* output_format_spelling[output_format_count] = { 
-	"print_binary", 
-	"elf_objectfile", "elf_executable", 
-	"macho_objectfile", "macho_executable"
-};
 
 enum host_systems { linux, macos };
+
+enum language_ISA {
+	cteof, ctstate, ctabort, ctprint, 
+
+	rtat, ctat,
+	ctpi, ctpz, ctpd,
+	ctmi, ctmz, ctmd,
+	ctl, cte,
+	
+	ecall, 
+
+
+/*
+	jalr, jal,
+	auipc, lui, imm, 
+	mul, div, rem, mulh, 
+	mulhsu, mulhu, divu, remu, 
+	beq, bne, blt, bge, bltu, bgeu,
+	add, sub, 
+	sll, srl, sra, slt, sltu,
+	xor, and, or, 
+	sb, sh, sw, sd,  
+	lbu, lhu, lwu, lb, lh, lw, ld, 
+	db, dh, dw, 
+*/
+
+
+	isa_count
+};
 
 static u32 arm64_macos_abi[] = {        // note:  x9 is call-clobbered. save it before calls. 
 	31,30,31,13,14,15, 7,17,
@@ -88,31 +105,6 @@ static u32 arm64_macos_abi[] = {        // note:  x9 is call-clobbered. save it 
 	 6,16,19,20,21,22,23,24,
 	25,26,27,28,12, 8,11,10,    
 };
-
-enum language_ISA {
-	cteof, ctnop, ctstate, ctabort, ctprint, 
-
-	rtat, ctat,
-	ctpi, ctpz,
-	ctmi, ctmz,
-	ctl, cte,
-	
-	ecall, jalr, jal,
-	auipc, lui, imm, 
-
-	mul, div, rem, mulh, mulhsu, mulhu, divu, remu, 
-
-	beq, bne, blt, bge, bltu, bgeu,
-	
-	add, sub, 
-	sll, srl, sra, slt, sltu,   xor, and, or, 
-
-	sb, sh, sw, sd,  
-	lbu, lhu, lwu, lb, lh, lw, ld, 
-	db, dh, dw, 
-	isa_count
-};
-
 
 struct location { nat start; nat count; };
 
@@ -137,9 +129,7 @@ static struct file files[4096] = {0};
 static char* text = NULL;
 static nat text_length = 0;
 
-static nat* array = NULL, 
-	pointer = 0, skipping = 0, 
-	left = 0, right = 0;
+static nat* array = NULL, pointer = 0, left = 0, right = 0;
 
 static void print_error(const char* reason, struct location spot) {
 	while (spot.start < text_length and (unsigned char) text[spot.start] < 33) spot.start++;
@@ -331,7 +321,7 @@ static u32 cl_type(u32* a, u32 o, u32 f, u32 g) { return 0; }
 static u32 cs_type(u32* a, u32 o, u32 f, u32 g) { return 0; } 
 static u32 cb_type(u32* a, u32 o, u32 f, u32 g) { return 0; } 
 static u32 cj_type(u32* a, u32 o, u32 f, u32 g) { return 0; } 
-*/
+
 
 static void generate_riscv_machine_code(void) {
 	for (nat i = 0; i < ins_count; i++) {
@@ -415,6 +405,8 @@ static void generate_riscv_machine_code(void) {
 		}
 	}
 }
+
+*/
 
 /////////////////////////////////////////////////
 
@@ -570,6 +562,8 @@ static void emit_and_generate_branch(u32 R_left, u32 R_right, nat target, nat he
 	emit(generate_bc(condition, here, array[target]));
 }
 
+
+/*
 static void generate_arm64_machine_code(void) {
 
 	// risv version: use this one as a template for the op==opcode's, but with 
@@ -647,7 +641,7 @@ static void generate_arm64_machine_code(void) {
 		}
 	}
 }
-
+*/
 
 static noreturn void make_elf_object_file(const char* object_filename) {
 	puts("make_elf_object_file: unimplemented");
@@ -762,14 +756,13 @@ static void make_macho_object_file(const char* object_filename, const bool prese
 	close(file);
 }
 
-static bool execute(nat op, nat* index) {
+static void execute(nat op) {
 
-	printf("\033[32mcalling op = %llu "
-		"(\"%s\")\033[0m...\n", 
-		op, spelling[op]);
+	printf("\033[32m%llu\033[0m\n", op);
+	return;
 
-	if (op == cteof) return 1;
-	else if (skipping) return 0;
+	if (op == cteof) return;
+
 	else if (op == ctabort) abort();
 
 	else if (op == ctprint) {
@@ -786,13 +779,12 @@ static bool execute(nat op, nat* index) {
 	}
 
 	else if (op == ctstate) {
-		printf("state info: skipping = %llu"
+		printf("state info:"
 			"\n\tpointer = %llu"
 			"\n\tleft = %llu"
 			"\n\tright = %llu"
 			"\n\tarray = {", 
-			skipping, pointer, 
-			left, right
+			pointer, left, right
 		);
 		for (nat i = 0; i < 20; i++) {
 			printf("%llx(%lld), ", array[i], array[i]);
@@ -802,50 +794,21 @@ static bool execute(nat op, nat* index) {
 
 	else if (op == rtat) {
 		array[pointer] = ins_count;
-		if (skipping == pointer) skipping = 0;
-	}
-	else if (op == ctat) {
-		array[pointer] = *index;
-		if (skipping == pointer) skipping = 0;
+		//if (skipping == pointer) skipping = 0;
 	}
 
 	else if (op == ctpi) pointer++;
 	else if (op == ctpz) pointer = 0;
-	else if (op == ctps) pointer <<= 1;
 	else if (op == ctpd) pointer--;
-	else if (op == ctpl) pointer = left;
 
 	else if (op == ctmi) array[pointer]++;
 	else if (op == ctmz) array[pointer] = 0;
-	else if (op == ctms) array[pointer] <<= 1;
 	else if (op == ctmd) array[pointer]--;
-	else if (op == ctml) array[pointer] = left;
-
-	else if (op == ctlm)  left = array[pointer];
-	else if (op == ctrm)  right = array[pointer];
-	else if (op == ctlp)  left = pointer;
-	else if (op == ctadd) left += array[pointer];
-	else if (op == ctmul) left *= array[pointer];
-	else if (op == ctnor) left = ~(left | array[pointer]);
-
-	else if (op == ctl) { 
-		if (left < right) {
-			if (array[pointer]) *index = array[pointer];
-			else skipping = pointer; 
-		}
-	}
-
-	else if (op == cte) { 
-		if (left == right) {
-			if (array[pointer]) *index = array[pointer];
-			else skipping = pointer; 
-		}
-	}
 
 	else goto push;
-	return 0;
+	return;
 
-push:	printf("pushing runtime instruction: %llu(\"%s\").\n", op, spelling[op]);
+push:	printf("pushing runtime instruction: %llu.\n", op);
 	struct instruction new = {0};
 	new.a[0] = (u32) op;
 	new.loc[0] = (struct location) {0};
@@ -854,13 +817,16 @@ push:	printf("pushing runtime instruction: %llu(\"%s\").\n", op, spelling[op]);
 		printf("found argument #%llu : u32 = %u\n", i, new.a[i]);
 	}
 
-	if (op == bltu or op == bgeu) new.size = 8;     // todo: lookup the size for the ins in a table, based on the target.
-	else new.size = 4;
+	//      if (op == bltu or op == bgeu) new.size = 8;     TODO : lookup the size for the ins in a table, based on the target. else 
+
+	new.size = 4;
 
 	ins = realloc(ins, sizeof(struct instruction) * (ins_count + 1));
 	ins[ins_count++] = new;
-	return 0;
+	return;
 }
+
+static bool special(char c) { return isspace(c) or c == '.'; }
 
 int main(int argc, const char** argv) {
 
@@ -874,19 +840,12 @@ int main(int argc, const char** argv) {
 	files[file_count].name = filename;
 	files[file_count++].location = (struct location) {.start = 0, .count = text_length};
 
-	{ nat index = 0, at = 0, save = 0, op = 0, max = 0;
-begin:	if (op >= isa_count) goto error;
-	if (at == strlen(spelling[op])) goto found;
-	if (index >= text_length) goto done;
-	if ((unsigned char) text[index] < 33) goto nextc;
-	if (spelling[op][at] != text[index]) goto fail;
-	at++; goto nextc; found: if (execute(op, &index)) goto done;
-	save = index; op = 0; at = 0; goto begin;
-fail: 	op++; index = save; at = 0; goto begin;
-nextc:	index++; if (index > max) max = index; goto begin; 
-error:	print_error("unresolved symbol", (struct location){save, max}); exit(1); }
+	for (nat c = 0, i = 0; i + 1 < text_length; i++) {
+		if (text[i] == '.') { execute(c); c = 0; }
+		if (not special(text[i]) and special(text[i + 1])) c++;
+	}
 
-done:;	const nat architecture = (*array >> 0) & 0xF;
+	const nat architecture = (*array >> 0) & 0xF;
 	const nat output_format = (*array >> 4) & 0xF;
 	const bool debug = (*array >> 8) & 0x1;
 	const bool preserve_existing_object = (*array >> 9) & 0x1;
@@ -895,13 +854,7 @@ done:;	const nat architecture = (*array >> 0) & 0xF;
 	const char* object_filename = "object0.o";
 	const char* executable_filename = "executable0.out";
 
-	if (debug) {
-		printf("info: building for target:\n\tarchitecture:  "
-			"\033[31;1m%s\033[0m\n\toutput_format: \033[32;1m%s\033[0m.\n\n", 
-			target_spelling[architecture  % target_count], 
-			output_format_spelling[output_format % output_format_count]
-		);
-	}
+	if (debug) printf("info: building for target:\n\tarch:  %llu\n\toutput: %llu\n\n", architecture, output_format);
 
 	if (architecture == noruntime) {
 		if (not ins_count) exit(0);
@@ -910,16 +863,13 @@ done:;	const nat architecture = (*array >> 0) & 0xF;
 		exit(1);
 
 	} else if (architecture == riscv32 or architecture == riscv64) {
-		generate_riscv_machine_code();
+		//generate_riscv_machine_code();
 
 	} else if (architecture == arm64) {
-		generate_arm64_machine_code();
+		//generate_arm64_machine_code();
 
 	} else {
-		puts("asm: \033[31;1merror:\033[0m unknown target architecture specified, valid values: "); // TODO: use print_error();
-		for (nat i = 0; i < target_count; i++) {
-			printf("\t%llu : %s\n", i, target_spelling[i]);
-		}
+		puts("asm: \033[31;1merror:\033[0m unknown target architecture specified");
 		exit(1);
 	}
 
@@ -932,10 +882,7 @@ done:;	const nat architecture = (*array >> 0) & 0xF;
 	else if (output_format == macho_objectfile or output_format == macho_executable) 
 		make_macho_object_file(object_filename, preserve_existing_object);
 	else {
-		puts("asm: \033[31;1merror:\033[0m unknown output format specified, valid values: "); // TODO: use print_error();
-		for (nat i = 0; i < output_format_count; i++) {
-			printf("\t%llu : %s\n", i, output_format_spelling[i]);
-		}
+		puts("asm: \033[31;1merror:\033[0m unknown output format specified, ");
 	}
 
 	if (output_format == elf_executable or output_format == macho_executable) {
@@ -982,6 +929,48 @@ done:;	const nat architecture = (*array >> 0) & 0xF;
 
 
 
+/*
+
+
+
+	for (nat c = 0, s = 1, i = 0; i < text_length; i++) {
+
+		printf("i=%llu\tc=%llu\ts=%llu\tisspace(text[i])=%u\ttext[i] = %u(%c)     %s\n", 
+			i, c, s, isspace(text[i]), text[i], text[i], isspace(text[i]) ? "[whitespace]" : "");
+
+
+		if (not c and s and isspace(text[i])) {
+			printf("\n\t\t\t\t\t\t\tskipping over whitespace after dot....\n\n");
+			continue;
+		}
+
+		
+		if ((nat) isspace(text[i]) == s) { 
+			
+			s ^= 1; 
+			c++; 
+			printf("\n\t\t\t\t\t\t\tisspace(text[i]) == s, toggling s to be %llu, and incr'ing c to be %llu....\n\n", s, c);
+		}
+
+		if (text[i] == '.') { 
+			printf("\t\t\t\tFOUND PERIOD!!!");
+			// execute(c); 
+			// c = 0; 
+		}
+	}
+
+
+
+//	hello there from space.
+	
+
+
+
+
+
+
+
+*/
 
 
 
@@ -992,11 +981,17 @@ done:;	const nat architecture = (*array >> 0) & 0xF;
 
 
 
+ //  if (not s and not b) { c++; s = 1; } else if (s and b) s = 0; 
+
+
+		// printf("c = %u(%c) [%s]\n", text[i], text[i], isspace(text[i]) ? "whitespace" : "");
 
 
 
 
 
+
+//if (not s and not b) { c++; s = 1; } else if (s and b) s = 0; 
 
 
 
@@ -3579,6 +3574,99 @@ static const char* spelling[] = {
 */
 
 
+
+
+
+
+
+
+
+
+
+
+/*
+	{ nat index = 0, at = 0, save = 0, op = 0, max = 0;
+begin:	if (op >= isa_count) goto error;
+	if (at == strlen(spelling[op])) goto found;
+	if (index >= text_length) goto done;
+	if ((unsigned char) text[index] < 33) goto nextc;
+	if (spelling[op][at] != text[index]) goto fail;
+	at++; goto nextc; found: if (execute(op, &index)) goto done;
+	save = index; op = 0; at = 0; goto begin;
+fail: 	op++; index = save; at = 0; goto begin;
+nextc:	index++; if (index > max) max = index; goto begin; 
+error:	print_error("unresolved symbol", (struct location){save, max}); exit(1); }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+else if (op == ctpi) pointer++;
+	else if (op == ctpz) pointer = 0;
+	else if (op == ctpd) pointer--;
+	else if (op == ctpl) pointer = left;
+
+	else if (op == ctmi) array[pointer]++;
+	else if (op == ctmz) array[pointer] = 0;
+	else if (op == ctmd) array[pointer]--;
+	else if (op == ctml) array[pointer] = left;
+
+	else if (op == ctlm)  left = array[pointer];
+	else if (op == ctrm)  right = array[pointer];
+	else if (op == ctlp)  left = pointer;
+	else if (op == ctadd) left += array[pointer];
+	else if (op == ctmul) left *= array[pointer];
+	else if (op == ctnor) left = ~(left | array[pointer]);
+
+	else if (op == ctl) { 
+		if (left < right) {
+			if (array[pointer]) *index = array[pointer];
+			else skipping = pointer; 
+		}
+	}
+
+	else if (op == cte) { 
+		if (left == right) {
+			if (array[pointer]) *index = array[pointer];
+			else skipping = pointer; 
+		}
+	}
+
+
+
+
+
+
+// TODO: use print_error();
+		for (nat i = 0; i < target_count; i++) {
+			printf("\t%llu : %s\n", i, target_spelling[i]);
+		}
+
+
+
+
+
+
+valid values: "); // TODO: use print_error();
+		for (nat i = 0; i < output_format_count; i++) {
+			printf("\t%llu : %s\n", i, output_format_spelling[i]);
+		}
+
+
+
+
+*/
 
 
 

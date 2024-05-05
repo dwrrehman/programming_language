@@ -1,0 +1,52 @@
+"snincr"
+"snprint"
+"snpush"
+"debugarguments"
+
+sn
+incr
+snincr
+snincr
+snincr
+snpush
+snprint
+"hello"
+
+hello
+hello
+hellohello
+	 d e b u g    a r
+g u m
+
+e n t s
+
+
+
+"hello there from space!"
+
+hellotherefromspace!
+hello there from space!
+
+h e l l o t h e r e  f r
+ o m s  p a c e ! 
+ 
+"do this thing"
+"and then"
+
+
+		do this thing and then hello there from space!
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
