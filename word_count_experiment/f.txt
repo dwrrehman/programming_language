@@ -1,0 +1,8 @@
+hello there you
+
+this is test  of the language 
+just testing the instruction  system kinda
+
+okay, now lets  try to make the  system print.
+
+endofdocument 

@@ -756,16 +756,17 @@ static void make_macho_object_file(const char* object_filename, const bool prese
 	close(file);
 }
 
-static void execute(nat op) {
+static bool execute(nat op) {
 
 	printf("\033[32m%llu\033[0m\n", op);
-	return;
 
-	if (op == cteof) return;
+	return 0;
 
-	else if (op == ctabort) abort();
+	if (op == 1) return 1;
 
-	else if (op == ctprint) {
+	else if (op == 2) abort();
+
+	else if (op == 11) {
 		printf("debug: \033[32m%llu "
 			"(%lld)\033[0m "
 			"\033[32m0x%llx\033[0m\n", 
@@ -773,12 +774,9 @@ static void execute(nat op) {
 			array[pointer],
 			array[pointer]
 		);
-		if (left < text_length and right < text_length) {
-			printf("string: \"%.*s\"\n", (int) (right - left), text + left);
-		} else puts("string: [error: out of bounds]");
 	}
 
-	else if (op == ctstate) {
+	else if (op == 10) {
 		printf("state info:"
 			"\n\tpointer = %llu"
 			"\n\tleft = %llu"
@@ -792,21 +790,19 @@ static void execute(nat op) {
 		printf("}\n\n");
 	} 
 
-	else if (op == rtat) {
-		array[pointer] = ins_count;
-		//if (skipping == pointer) skipping = 0;
-	}
+	
 
-	else if (op == ctpi) pointer++;
-	else if (op == ctpz) pointer = 0;
-	else if (op == ctpd) pointer--;
+	else if (op == 3) pointer++;
+	else if (op == 4) pointer = 0;
+	else if (op == 5) pointer--;
 
-	else if (op == ctmi) array[pointer]++;
-	else if (op == ctmz) array[pointer] = 0;
-	else if (op == ctmd) array[pointer]--;
+	else if (op == 6) array[pointer]++;
+	else if (op == 7) array[pointer] = 0;
+	else if (op == 8) array[pointer]--;
+	else if (op == 9) array[pointer] = ins_count;
 
-	else goto push;
-	return;
+	//else goto push;
+	return 0;
 
 push:	printf("pushing runtime instruction: %llu.\n", op);
 	struct instruction new = {0};
@@ -823,10 +819,8 @@ push:	printf("pushing runtime instruction: %llu.\n", op);
 
 	ins = realloc(ins, sizeof(struct instruction) * (ins_count + 1));
 	ins[ins_count++] = new;
-	return;
+	return 0;
 }
-
-static bool special(char c) { return isspace(c) or c == '.'; }
 
 int main(int argc, const char** argv) {
 
@@ -840,10 +834,17 @@ int main(int argc, const char** argv) {
 	files[file_count].name = filename;
 	files[file_count++].location = (struct location) {.start = 0, .count = text_length};
 
-	for (nat c = 0, i = 0; i + 1 < text_length; i++) {
-		if (text[i] == '.') { execute(c); c = 0; }
-		if (not special(text[i]) and special(text[i + 1])) c++;
-	}
+	//for (nat c = 0, k = 0, i = 0; i + 1 < text_length; i++) {
+	//	//printf("c = %05llu, k = %05llu, i = %05llu, text[i] = %05u(%c)    (%5s)\n", c, k, i, text[i], text[i], isspace(text[i]) ? "[ws]" : "");
+	//	if (not isspace(text[i])) { if (isspace(text[i + 1])) c++; k++; } else { if (k >= 10) { if (execute(c)) break; c = 0; } k = 0; }
+	//}
+
+
+	for (size_t c = 0, i = 0; i + 1 < text_length; i++) {
+		if (not isspace(text[i])) { if (isspace(text[i + 1])) c++; }
+		else if (isspace(text[i + 1]) and c) { if (execute(c)) break; c = 0; }
+        }
+
 
 	const nat architecture = (*array >> 0) & 0xF;
 	const nat output_format = (*array >> 4) & 0xF;
@@ -930,6 +931,42 @@ int main(int argc, const char** argv) {
 
 
 /*
+
+
+
+
+
+
+
+
+
+
+
+202405061.031058: old system: uses period:     switching out with the word_length approcah,  and thresholding on somethingggg to find if a word is a unarynumber delimeter/terminator
+
+
+
+
+
+	static bool special(char c) { return isspace(c) or c == '\t'; }
+
+	for (nat c = 0, k = 0, i = 0; i + 1 < text_length; i++) {
+		if (text[i] == '\t') { if (execute(c)) break; c = 0; }
+		if (not special(text[i]) and special(text[i + 1])) c++;
+	}
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
