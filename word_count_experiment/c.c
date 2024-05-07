@@ -1,4 +1,12 @@
 /*
+
+	202405072.114223: dwrr
+	this language is designed to convey a pure sequenc of numbers by 
+	giving a english sentece which describes the code it is specifying. 
+
+
+
+old:
 		risc-v 64-bit cross assembler 
 	     written by dwrr on 202403111.010146
 
@@ -12,12 +20,9 @@
 todo stuff:
 -----------------------------
 
-	- implement contexts for names. 
-
 	- add more instructions for arm64. 
 
 	- add the load/store instructions for arm64. 
-
 
 branches:
 ------------
@@ -71,17 +76,109 @@ enum output_formats {
 enum host_systems { linux, macos };
 
 enum language_ISA {
-	cteof, ctstate, ctabort, ctprint, 
+	cteof, ctstate, ctabort, ctprint,
+	imm, rtat, ctat, ctpi, ctpz, ctpd, ctmi, ctmz, ctmd, ctl, cte,
+	add, sub, mul, div_, rem, mulhss, mulhsu, mulhuu, divu, remu, 
+	xor_, and_, or_, sll, srl, sra, slt, sltu,
+	beq, bne, blt, bge, bltu, bgeu, jalr, jal,
+	lbu, lhu, lwu, lb, lh, lw, ld, sb, sh, sw, sd, 
+	ecall, auipc, lui, db, dh, dw, dd,
 
-	rtat, ctat,
-	ctpi, ctpz, ctpd,
-	ctmi, ctmz, ctmd,
-	ctl, cte,
-	
-	ecall, 
+	isa_count
+};
 
 
 /*
+	//cteof, ctstate, ctabort, ctprint, 
+
+	                    //     add ins for  pushing  a literal number to the array! ie   ctml
+	//ctpi, ctpz, ctpd,               //      it "quotes" the next number. 
+	//ctmi, ctmz, ctmd,
+	//ctl, cte,
+	
+
+					// also add the rt ins tree   "tree" meaning that any given rt ins is created by two numbersssss
+
+					// stores    loads   math    logic    shifts     branching   other.
+
+						// those are the categories yay
+
+
+							//actually logic and shifts are merged probably. 
+
+									// but yeah  those are the categs.
+
+										
+								
+
+
+
+
+if its indented a further level, it means it will take a longer sequence of numbers to say it. 
+
+	ie, eg, single level indents will take 1 or 2 numbers total, to say them,   indented ones will take 2 or 3. 
+
+
+[word count = 7]
+math		
+		add[8], sub[9], mul[10], divu[11], remu[12],
+10			mulhss[6,8], mulhsu[6,7], mulhuu[6,6],
+			div[6,11], rem[6,12], 
+
+[word count = 8]
+logic		
+		and[7], or[9], xor[10], 
+8		sll[11], srl[12], 
+			sra[6,12], 
+		sltu[13], 
+			slt[6,13],
+
+[word count = 9]
+branching
+8		bltu[7], bgeu[8],
+			blt[6,7], bge[6,8], 
+		bne[10], beq[11], 
+		jal[12], jalr[13],
+
+[word count = 10]
+stores		
+		sb[13], sh[12], sw[8], sd[7],  
+4
+
+[word count = 11]
+loads		
+		lbu[13], lhu[12], lwu[8], ld[7],
+7			lb[6,13], lh[6,12], lw[6,8], 
+
+
+[word count = 12]
+other 		
+		ecall[9],
+8		auipc[11], 
+		lui[10],
+		db[13], dh[12], dw[8], dd[7]
+
+
+[word count = 6]
+compiletime
+	cteof[6]
+	imm[7], 
+	ctml[8],
+	attr[9],
+	
+7	ctmi[10,7], ctmz[10,8], ctmd[10,9], 
+	ctpi[11,7], ctpz[11,8], ctpd[11,9],
+
+3	cte[12,7], ctl[12,8], 
+	ctsetcomparator,
+
+
+
+
+
+
+
+
 	jalr, jal,
 	auipc, lui, imm, 
 	mul, div, rem, mulh, 
@@ -93,11 +190,19 @@ enum language_ISA {
 	sb, sh, sw, sd,  
 	lbu, lhu, lwu, lb, lh, lw, ld, 
 	db, dh, dw, 
+
+
+
+
+
+	
 */
 
 
-	isa_count
-};
+
+
+
+
 
 static u32 arm64_macos_abi[] = {        // note:  x9 is call-clobbered. save it before calls. 
 	31,30,31,13,14,15, 7,17,
@@ -756,17 +861,244 @@ static void make_macho_object_file(const char* object_filename, const bool prese
 	close(file);
 }
 
+
+
+
+
+
+
+
+/*
+
+
+
+------------------- language ISA: -----------------------------
+
+[word count = 7]
+math		
+		add[8], sub[9], mul[10], divu[11], remu[12],
+10			mulhss[6,8], mulhsu[6,7], mulhuu[6,6],
+			div[6,11], rem[6,12], 
+
+[word count = 8]
+logic		
+		and[7], or[8], xor[9], 
+8		sll[10], srl[11], 
+			sra[6,11], 
+		sltu[12], 
+			slt[6,12],
+
+[word count = 9]
+branching
+8		bltu[7], bgeu[8],
+			blt[6,7], bge[6,8], 
+		bne[10], beq[11], 
+		jal[12],
+			jalr[6,12],
+
+[word count = 11]
+stores		
+		sb[12], sh[9], sw[8], sd[7],  
+4
+
+[word count = 10]
+loads		
+		lbu[12], lhu[9], lwu[8], ld[7],
+7			lb[6,12], lh[6,9], lw[6,8], 
+
+
+[word count = 12]
+other 		
+		ecall[11],
+		lui[10],
+			auipc[6,10], 
+		db[12], dh[9], dw[8], dd[7]
+
+			cteof[6,6]
+
+
+
+
+
+[word count = 6]
+compiletime
+	imm[7],
+	rtat[8], 
+
+	ctmi[9],
+	ctmz[10],
+	ctmd[11],
+
+	BLAH[12],
+
+		ctat[6,6],
+		cte[6,7], ctl[6,8],
+
+		ctpi[6,9], ctpz[6,10], ctpd[6,11], 
+
+		
+		ctBLAH[6,12]
+
+
+
+
+	
+
+
+
+
+
+
+*/
+
+
+enum categories {
+	no_category,
+	compiletime,
+	math,
+	logic, 
+	branching, 
+	loads,
+	stores, 
+	other,
+};
+
+static nat state = 0, category = 0;
+
 static bool execute(nat op) {
+	printf("execute: \033[32m%llu\033[0m\n", op);
+	if (op < 6 or op > 12) { printf("...ignoring input %llu...\n", op); return 0; }
 
-	printf("\033[32m%llu\033[0m\n", op);
+	nat e = 0;
 
-	return 0;
+	if (state == 0) {
+		if (op == 6)  { state = 1; category = compiletime; return 0; }
+		if (op == 7)  { state = 1; category = math; return 0; }
+		if (op == 8)  { state = 1; category = logic; return 0; }
+		if (op == 9)  { state = 1; category = branching; return 0; }
+		if (op == 10) { state = 1; category = loads; return 0; }
+		if (op == 11) { state = 1; category = stores; return 0; }
+		if (op == 12) { state = 1; category = other; return 0; }
+		puts("error: s2: undefined op category, aborting..");
+		abort();
 
-	if (op == 1) return 1;
+	} else if (state == 1) {
 
-	else if (op == 2) abort();
+		if (category == compiletime) {
+			if (op == 6)  state = 2;
+			if (op == 7)  { e = imm;  goto push; }
+			if (op == 8)  { e = rtat; goto push; }
+			if (op == 9)  { e = ctmi; goto push; }
+			if (op == 10) { e = ctmz; goto push; }
+			if (op == 11) { e = ctmd; goto push; }
+			if (op == 12) { e = ctprint; goto push; }
 
-	else if (op == 11) {
+		} else if (category == math) {
+			if (op == 6)  state = 2;
+			if (op == 8)  { e = add;  goto push; }
+			if (op == 9)  { e = sub;  goto push; }
+			if (op == 10) { e = mul;  goto push; }
+			if (op == 11) { e = divu; goto push; }
+			if (op == 12) { e = remu; goto push; }
+
+		} else if (category == logic) {
+			if (op == 6)  state = 2;
+			if (op == 7)  { e = and_; goto push; }
+			if (op == 8)  { e = or_;  goto push; }
+			if (op == 9)  { e = xor_; goto push; }
+			if (op == 10) { e = sll;  goto push; }
+			if (op == 11) { e = srl;  goto push; }
+			if (op == 12) { e = sltu; goto push; }
+
+		} else if (category == branching) {
+			if (op == 6)  state = 2;
+			if (op == 7)  { e = bltu; goto push; }
+			if (op == 8)  { e = bgeu; goto push; }
+			if (op == 10) { e = bne;  goto push; }
+			if (op == 11) { e = beq;  goto push; }
+			if (op == 12) { e = jal;  goto push; }
+
+		} else if (category == loads) {
+			if (op == 6)  state = 2;
+			if (op == 7)  { e = ld;  goto push; }
+			if (op == 8)  { e = lwu; goto push; }
+			if (op == 9)  { e = lhu; goto push; }
+			if (op == 12) { e = lbu; goto push; }
+
+		} else if (category == stores) {
+			if (op == 7)  { e = sd; goto push; }
+			if (op == 8)  { e = sw; goto push; }
+			if (op == 9)  { e = sh; goto push; }
+			if (op == 12) { e = sb; goto push; }
+
+		} else if (category == other) {
+			if (op == 6)  state = 2;
+			if (op == 7)  { e = dd;    goto push; }
+			if (op == 8)  { e = dw;    goto push; }
+			if (op == 9)  { e = dh;    goto push; }
+			if (op == 10) { e = lui;   goto push; }
+			if (op == 11) { e = ecall; goto push; }
+			if (op == 12) { e = db;    goto push; }
+	
+		} 
+		puts("error: s2: undefined op or category not in [1,7], aborting..");
+		abort();
+
+	} else if (state == 2) {
+
+		if (category == compiletime) {
+			if (op == 6)  { e = ctat; goto push; }
+			if (op == 7)  { e = cte;  goto push; }
+			if (op == 8)  { e = ctl;  goto push; }
+			if (op == 9)  { e = ctpi; goto push; }
+			if (op == 10) { e = ctpz; goto push; }
+			if (op == 11) { e = ctpd; goto push; }
+			if (op == 12) { e = ctstate; goto push; }
+
+		} else if (category == math) {
+			if (op == 6)  { e = mulhuu; goto push; }
+			if (op == 7)  { e = mulhsu; goto push; }
+			if (op == 8)  { e = mulhss; goto push; }
+			if (op == 11) { e = div_;   goto push; }
+			if (op == 12) { e = rem;    goto push; }
+
+		} else if (category == logic) {
+			if (op == 11) { e = sra; goto push; }
+			if (op == 12) { e = slt; goto push; }
+
+		} else if (category == branching) {
+			if (op == 7)  { e = blt;  goto push; }
+			if (op == 8)  { e = bge;  goto push; }
+			if (op == 12) { e = jalr; goto push; }
+
+		} else if (category == loads) {
+			if (op == 8)  { e = lw; goto push; }
+			if (op == 9)  { e = lh; goto push; }
+			if (op == 12) { e = lb; goto push; }
+
+		} else if (category == stores) {
+			// none.
+
+		} else if (category == other) {
+			if (op == 6)  { e = cteof; goto push; }
+			if (op == 10) { e = auipc; goto push; }
+		} 
+		puts("error: s2: undefined op or category not in [1,7], aborting..");
+		abort();
+	} else {
+		puts("error: state not in [0,2], aborting..");
+		abort();
+	}
+	
+
+push:	
+	state = 0; category = 0; 
+	
+	if (e == cteof) return 1;
+
+	else if (e == ctabort) abort();
+
+	else if (e == ctprint) {
 		printf("debug: \033[32m%llu "
 			"(%lld)\033[0m "
 			"\033[32m0x%llx\033[0m\n", 
@@ -776,7 +1108,7 @@ static bool execute(nat op) {
 		);
 	}
 
-	else if (op == 10) {
+	else if (e == ctstate) {
 		printf("state info:"
 			"\n\tpointer = %llu"
 			"\n\tleft = %llu"
@@ -790,37 +1122,51 @@ static bool execute(nat op) {
 		printf("}\n\n");
 	} 
 
-	
+	else if (e == ctpi) { puts("executing ctpi"); pointer++; }
+	else if (e == ctpz) { puts("executing ctpz"); pointer = 0; }
+	else if (e == ctpd) { puts("executing ctpd"); pointer--; }
 
-	else if (op == 3) pointer++;
-	else if (op == 4) pointer = 0;
-	else if (op == 5) pointer--;
+	else if (e == ctmi) { puts("executing ctmi"); array[pointer]++; }
+	else if (e == ctmz) { puts("executing ctmz"); array[pointer] = 0; }
+	else if (e == ctmd) { puts("executing ctmd"); array[pointer]--; }
+	else if (e == rtat) { puts("executing rtat"); array[pointer] = ins_count; }
+	else if (e == ctat) { puts("executing ctat"); array[pointer] = 99; }    // todo: load index.
 
-	else if (op == 6) array[pointer]++;
-	else if (op == 7) array[pointer] = 0;
-	else if (op == 8) array[pointer]--;
-	else if (op == 9) array[pointer] = ins_count;
+	else {
+		printf("pushing runtime instruction: %llu...\n", e);
+		struct instruction new = {0};
+		new.a[0] = (u32) e;
+		new.loc[0] = (struct location) {0};
+		for (nat i = 1; i < 4; i++) {
+			new.a[i] = (u32) array[pointer - (i - 1)];
+			printf("found argument #%llu : u32 = %u\n", i, new.a[i]);
+		}
 
-	//else goto push;
-	return 0;
 
-push:	printf("pushing runtime instruction: %llu.\n", op);
-	struct instruction new = {0};
-	new.a[0] = (u32) op;
-	new.loc[0] = (struct location) {0};
-	for (nat i = 1; i < 4; i++) {
-		new.a[i] = (u32) array[pointer - (i - 1)];
-		printf("found argument #%llu : u32 = %u\n", i, new.a[i]);
+		//      if (op == bltu or op == bgeu) new.size = 8; else   
+		// TODO : lookup the size for the ins in a table, based on the target. 
+
+
+		new.size = 4;
+
+
+
+
+		ins = realloc(ins, sizeof(struct instruction) * (ins_count + 1));
+		ins[ins_count++] = new;
 	}
 
-	//      if (op == bltu or op == bgeu) new.size = 8;     TODO : lookup the size for the ins in a table, based on the target. else 
-
-	new.size = 4;
-
-	ins = realloc(ins, sizeof(struct instruction) * (ins_count + 1));
-	ins[ins_count++] = new;
 	return 0;
 }
+
+
+
+
+
+
+
+
+
 
 int main(int argc, const char** argv) {
 
@@ -834,17 +1180,14 @@ int main(int argc, const char** argv) {
 	files[file_count].name = filename;
 	files[file_count++].location = (struct location) {.start = 0, .count = text_length};
 
-	//for (nat c = 0, k = 0, i = 0; i + 1 < text_length; i++) {
-	//	//printf("c = %05llu, k = %05llu, i = %05llu, text[i] = %05u(%c)    (%5s)\n", c, k, i, text[i], text[i], isspace(text[i]) ? "[ws]" : "");
-	//	if (not isspace(text[i])) { if (isspace(text[i + 1])) c++; k++; } else { if (k >= 10) { if (execute(c)) break; c = 0; } k = 0; }
-	//}
-
-
 	for (size_t c = 0, i = 0; i + 1 < text_length; i++) {
-		if (not isspace(text[i])) { if (isspace(text[i + 1])) c++; }
-		else if (isspace(text[i + 1]) and c) { if (execute(c)) break; c = 0; }
-        }
-
+		if (not isspace(text[i])) { 
+			if (isspace(text[i + 1])) c++; 
+		} else if (isspace(text[i + 1]) and c) { 
+			if (execute(c)) break; 
+			c = 0; 
+		}
+	}
 
 	const nat architecture = (*array >> 0) & 0xF;
 	const nat output_format = (*array >> 4) & 0xF;
@@ -936,6 +1279,10 @@ int main(int argc, const char** argv) {
 
 
 
+	//for (nat c = 0, k = 0, i = 0; i + 1 < text_length; i++) {
+	//	//printf("c = %05llu, k = %05llu, i = %05llu, text[i] = %05u(%c)    (%5s)\n", c, k, i, text[i], text[i], isspace(text[i]) ? "[ws]" : "");
+	//	if (not isspace(text[i])) { if (isspace(text[i + 1])) c++; k++; } else { if (k >= 10) { if (execute(c)) break; c = 0; } k = 0; }
+	//}
 
 
 
