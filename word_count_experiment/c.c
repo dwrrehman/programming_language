@@ -1,35 +1,9 @@
-/*
-
-	202405072.114223: dwrr
-	this language is designed to convey a pure sequenc of numbers by 
-	giving a english sentece which describes the code it is specifying. 
-
-
-
-old:
-		risc-v 64-bit cross assembler 
-	     written by dwrr on 202403111.010146
-
-	this is made to be my primary cross-platform programming language, 
-	to ideally replace my use of C for programming most of my projects.
-	only the risc-v target has performance guarantees. other targets
-	use a translation layer to translate the risc-v ISA instructions
-	into the target's ISA (eg, arm64, arm32, x86, x86_64).
-
-
-todo stuff:
------------------------------
-
-	- add more instructions for arm64. 
-
-	- add the load/store instructions for arm64. 
-
-branches:
-------------
-
-	- figure out branches for the riscv arch!!!
+/*  my assembler on 202405072.114223: by dwrr
+	this language is designed to convey 
+	an instruction sequence by giving 
+	an english sentence which could
+	describe the code it is specifying. 
 */
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -53,156 +27,30 @@ typedef uint32_t u32;
 typedef uint16_t u16;
 typedef uint8_t  u8;
 
-static const nat ct_register_count = 1 << 16;
-// static const nat ct_stack_size = 1 << 16;
-//static const nat callonuse_macro_threshold = 1 << 15;
-//static const nat callonuse_function_threshold = 1 << 16;
+static const nat ct_array_count = 1 << 16;
+static const nat ct_memory_count = 1 << 16;
 
 enum target_architecture { 
-	noruntime, 
-	riscv32, riscv64, 
-	arm32, arm64, 
-	x86_32, x86_64, 
-	target_count 
+	noruntime, riscv32, riscv64, 
+	arm32, arm64, x86_32, x86_64, target_count 
 };
-
 enum output_formats { 
-	print_binary, 
-	elf_objectfile, elf_executable, 
-	macho_objectfile, macho_executable, 
-	output_format_count 
+	print_binary, elf_objectfile, elf_executable, 
+	macho_objectfile, macho_executable, output_format_count 
 };
-
 enum host_systems { linux, macos };
-
+enum categories { none, core, math, logic, flow, loads, stores, debug };
 enum language_ISA {
-	cteof, ctstate, ctabort, ctprint,
-	imm, rtat, ctat, ctpi, ctpz, ctpd, ctmi, ctmz, ctmd, ctl, cte,
-	add, sub, mul, div_, rem, mulhss, mulhsu, mulhuu, divu, remu, 
-	xor_, and_, or_, sll, srl, sra, slt, sltu,
-	beq, bne, blt, bge, bltu, bgeu, jalr, jal,
-	lbu, lhu, lwu, lb, lh, lw, ld, sb, sh, sw, sd, 
-	ecall, auipc, lui, db, dh, dw, dd,
-
+	null,
+	imm,  sign, exec, ctpi, ctpm, ctmi, ctmz, 
+	add,  sub,  mul,  div_, rem,  mulh, mhsu,
+	xor_, and_, or_,  sll,  srl,  slt,  ecal,
+	beq,  bne,  blt,  bge,  jalr, jal,  attr, 
+	lb,   lh,   lw,   ld,   lui,  aipc, dd,
+	sb,   sh,   sw,   sd,   db,   dh,   dw,
+	eof,  ctab, ctpr, ctst, ctd1, ctd2, ctd3,
 	isa_count
 };
-
-
-/*
-	//cteof, ctstate, ctabort, ctprint, 
-
-	                    //     add ins for  pushing  a literal number to the array! ie   ctml
-	//ctpi, ctpz, ctpd,               //      it "quotes" the next number. 
-	//ctmi, ctmz, ctmd,
-	//ctl, cte,
-	
-
-					// also add the rt ins tree   "tree" meaning that any given rt ins is created by two numbersssss
-
-					// stores    loads   math    logic    shifts     branching   other.
-
-						// those are the categories yay
-
-
-							//actually logic and shifts are merged probably. 
-
-									// but yeah  those are the categs.
-
-										
-								
-
-
-
-
-if its indented a further level, it means it will take a longer sequence of numbers to say it. 
-
-	ie, eg, single level indents will take 1 or 2 numbers total, to say them,   indented ones will take 2 or 3. 
-
-
-[word count = 7]
-math		
-		add[8], sub[9], mul[10], divu[11], remu[12],
-10			mulhss[6,8], mulhsu[6,7], mulhuu[6,6],
-			div[6,11], rem[6,12], 
-
-[word count = 8]
-logic		
-		and[7], or[9], xor[10], 
-8		sll[11], srl[12], 
-			sra[6,12], 
-		sltu[13], 
-			slt[6,13],
-
-[word count = 9]
-branching
-8		bltu[7], bgeu[8],
-			blt[6,7], bge[6,8], 
-		bne[10], beq[11], 
-		jal[12], jalr[13],
-
-[word count = 10]
-stores		
-		sb[13], sh[12], sw[8], sd[7],  
-4
-
-[word count = 11]
-loads		
-		lbu[13], lhu[12], lwu[8], ld[7],
-7			lb[6,13], lh[6,12], lw[6,8], 
-
-
-[word count = 12]
-other 		
-		ecall[9],
-8		auipc[11], 
-		lui[10],
-		db[13], dh[12], dw[8], dd[7]
-
-
-[word count = 6]
-compiletime
-	cteof[6]
-	imm[7], 
-	ctml[8],
-	attr[9],
-	
-7	ctmi[10,7], ctmz[10,8], ctmd[10,9], 
-	ctpi[11,7], ctpz[11,8], ctpd[11,9],
-
-3	cte[12,7], ctl[12,8], 
-	ctsetcomparator,
-
-
-
-
-
-
-
-
-	jalr, jal,
-	auipc, lui, imm, 
-	mul, div, rem, mulh, 
-	mulhsu, mulhu, divu, remu, 
-	beq, bne, blt, bge, bltu, bgeu,
-	add, sub, 
-	sll, srl, sra, slt, sltu,
-	xor, and, or, 
-	sb, sh, sw, sd,  
-	lbu, lhu, lwu, lb, lh, lw, ld, 
-	db, dh, dw, 
-
-
-
-
-
-	
-*/
-
-
-
-
-
-
 
 static u32 arm64_macos_abi[] = {        // note:  x9 is call-clobbered. save it before calls. 
 	31,30,31,13,14,15, 7,17,
@@ -212,13 +60,13 @@ static u32 arm64_macos_abi[] = {        // note:  x9 is call-clobbered. save it 
 };
 
 struct location { nat start; nat count; };
-
 struct instruction { 
 	u32 a[4];
 	struct location loc[4];
+	nat is_immediate;
+	nat is_signed;
 	nat size;
 }; 
-
 struct file {
 	struct location location;
 	const char* name;
@@ -234,7 +82,14 @@ static struct file files[4096] = {0};
 static char* text = NULL;
 static nat text_length = 0;
 
-static nat* array = NULL, pointer = 0, left = 0, right = 0;
+static nat* array = NULL, 
+	pointer = 0, 
+	category = 0, 
+	is_immediate = 0, 
+	is_signed, 
+	is_compiletime = 0, 
+	skip = 0;
+
 
 static void print_error(const char* reason, struct location spot) {
 	while (spot.start < text_length and (unsigned char) text[spot.start] < 33) spot.start++;
@@ -683,16 +538,15 @@ static void generate_arm64_machine_code(void) {
 		     if (op == db)	emit_byte(a[0]);
 		else if (op == dh)	emith(a[0]);
 		else if (op == dw)	emit(a[0]);
-		else if (op == ecall)   emit(0xD4000001);
+		else if (op == ecal)   emit(0xD4000001);
 
 		else if (op == add)    emit(generate_add(a[0], a[1], a[2], 0x0BU, 0, 1, 0, 0, 0));
 		else if (op == sub)    emit(generate_add(a[0], a[1], a[2], 0x0BU, 0, 1, 0, 1, 0));
-		else if (op == addw)   emit(generate_add(a[0], a[1], a[2], 0x0BU, 0, 0, 0, 0, 0));
-		else if (op == subw)   emit(generate_add(a[0], a[1], a[2], 0x0BU, 0, 0, 0, 1, 0));
+		
 		else if (op == or_)    emit(generate_add(a[0], a[1], a[2], 0x2AU, 0, 1, 0, 0, 0));
 
 		else if (op == addi)   emit(generate_addi(a[0], a[1], a[2], 0x22U, 1, 0, 0, 0));
-		else if (op == addiw)  emit(generate_addi(a[0], a[1], a[2], 0x22U, 0, 0, 0, 0));
+		
 
 		else if (op == bltu)   emit_and_generate_branch(a[0], a[1], a[2], i, 3);
 		else if (op == bgeu)   emit_and_generate_branch(a[0], a[1], a[2], i, 2);
@@ -704,9 +558,6 @@ static void generate_arm64_machine_code(void) {
 		else if (op == srl)    goto here;
 		else if (op == sra)    goto here;
 		else if (op == and_)   goto here;
-		else if (op == sllw)   goto here;
-		else if (op == srlw)   goto here;
-		else if (op == sraw)   goto here;
 
 		else if (op == lb)     emit(generate_memiu(a[0], a[1], a[2], 0x00, 0x00, 0));
 		else if (op == lh)     emit(generate_memiu(a[0], a[1], a[2], 0x00, 0x00, 0));
@@ -728,8 +579,7 @@ static void generate_arm64_machine_code(void) {
 		else if (op == andi)   goto here;
 		else if (op == slli)   goto here;
 		else if (op == srli)   goto here;
-		else if (op == slliw)  goto here;
-		else if (op == srliw)  goto here;
+
 		else if (op == jalr)   goto here;
 		
 		else if (op == lui)    goto here;
@@ -747,6 +597,26 @@ static void generate_arm64_machine_code(void) {
 	}
 }
 */
+
+
+
+/*
+word instructions that are implemented, but not used:
+
+
+		//else if (op == addw)   emit(generate_add(a[0], a[1], a[2], 0x0BU, 0, 0, 0, 0, 0));
+		//else if (op == subw)   emit(generate_add(a[0], a[1], a[2], 0x0BU, 0, 0, 0, 1, 0));
+		// else if (op == addiw)  emit(generate_addi(a[0], a[1], a[2], 0x22U, 0, 0, 0, 0));
+		else if (op == slliw)  goto here;
+		else if (op == srliw)  goto here;
+		else if (op == sllw)   goto here;
+		else if (op == srlw)   goto here;
+		else if (op == sraw)   goto here;
+
+
+
+*/
+
 
 static noreturn void make_elf_object_file(const char* object_filename) {
 	puts("make_elf_object_file: unimplemented");
@@ -862,243 +732,30 @@ static void make_macho_object_file(const char* object_filename, const bool prese
 }
 
 
-
-
-
-
-
-
 /*
-
-
-
-------------------- language ISA: -----------------------------
-
-[word count = 7]
-math		
-		add[8], sub[9], mul[10], divu[11], remu[12],
-10			mulhss[6,8], mulhsu[6,7], mulhuu[6,6],
-			div[6,11], rem[6,12], 
-
-[word count = 8]
-logic		
-		and[7], or[8], xor[9], 
-8		sll[10], srl[11], 
-			sra[6,11], 
-		sltu[12], 
-			slt[6,12],
-
-[word count = 9]
-branching
-8		bltu[7], bgeu[8],
-			blt[6,7], bge[6,8], 
-		bne[10], beq[11], 
-		jal[12],
-			jalr[6,12],
-
-[word count = 11]
-stores		
-		sb[12], sh[9], sw[8], sd[7],  
-4
-
-[word count = 10]
-loads		
-		lbu[12], lhu[9], lwu[8], ld[7],
-7			lb[6,12], lh[6,9], lw[6,8], 
-
-
-[word count = 12]
-other 		
-		ecall[11],
-		lui[10],
-			auipc[6,10], 
-		db[12], dh[9], dw[8], dd[7]
-
-			cteof[6,6]
-
-
-
-
-
-[word count = 6]
-compiletime
-	imm[7],
-	rtat[8], 
-
-	ctmi[9],
-	ctmz[10],
-	ctmd[11],
-
-	BLAH[12],
-
-		ctat[6,6],
-		cte[6,7], ctl[6,8],
-
-		ctpi[6,9], ctpz[6,10], ctpd[6,11], 
-
-		
-		ctBLAH[6,12]
-
-
-
-
-	
-
-
-
-
-
-
+enum language_ISA {
+	null,
+	imm,  sign, exec, ctpi, ctpz, ctmi, ctmz, 
+	add,  sub,  mul,  div_, rem,  mulh, mhsu,
+	xor_, and_, or_,  sll,  srl,  slt,  ecal,
+	beq,  bne,  blt,  bge,  jalr, jal,  attr, 
+	lb,   lh,   lw,   ld,   lui,  aipc, dd,
+	sb,   sh,   sw,   sd,   db,   dh,   dw,
+	eof,  ctab, ctpr, ctst, ctd1, ctd2, ctd3,
+	isa_count
+};
 */
 
 
-enum categories {
-	no_category,
-	compiletime,
-	math,
-	logic, 
-	branching, 
-	loads,
-	stores, 
-	other,
-};
 
-static nat state = 0, category = 0;
-
-static bool execute(nat op) {
-	printf("execute: \033[32m%llu\033[0m\n", op);
-	if (op < 6 or op > 12) { printf("...ignoring input %llu...\n", op); return 0; }
-
-	nat e = 0;
-
-	if (state == 0) {
-		if (op == 6)  { state = 1; category = compiletime; return 0; }
-		if (op == 7)  { state = 1; category = math; return 0; }
-		if (op == 8)  { state = 1; category = logic; return 0; }
-		if (op == 9)  { state = 1; category = branching; return 0; }
-		if (op == 10) { state = 1; category = loads; return 0; }
-		if (op == 11) { state = 1; category = stores; return 0; }
-		if (op == 12) { state = 1; category = other; return 0; }
-		puts("error: s2: undefined op category, aborting..");
-		abort();
-
-	} else if (state == 1) {
-
-		if (category == compiletime) {
-			if (op == 6)  state = 2;
-			if (op == 7)  { e = imm;  goto push; }
-			if (op == 8)  { e = rtat; goto push; }
-			if (op == 9)  { e = ctmi; goto push; }
-			if (op == 10) { e = ctmz; goto push; }
-			if (op == 11) { e = ctmd; goto push; }
-			if (op == 12) { e = ctprint; goto push; }
-
-		} else if (category == math) {
-			if (op == 6)  state = 2;
-			if (op == 8)  { e = add;  goto push; }
-			if (op == 9)  { e = sub;  goto push; }
-			if (op == 10) { e = mul;  goto push; }
-			if (op == 11) { e = divu; goto push; }
-			if (op == 12) { e = remu; goto push; }
-
-		} else if (category == logic) {
-			if (op == 6)  state = 2;
-			if (op == 7)  { e = and_; goto push; }
-			if (op == 8)  { e = or_;  goto push; }
-			if (op == 9)  { e = xor_; goto push; }
-			if (op == 10) { e = sll;  goto push; }
-			if (op == 11) { e = srl;  goto push; }
-			if (op == 12) { e = sltu; goto push; }
-
-		} else if (category == branching) {
-			if (op == 6)  state = 2;
-			if (op == 7)  { e = bltu; goto push; }
-			if (op == 8)  { e = bgeu; goto push; }
-			if (op == 10) { e = bne;  goto push; }
-			if (op == 11) { e = beq;  goto push; }
-			if (op == 12) { e = jal;  goto push; }
-
-		} else if (category == loads) {
-			if (op == 6)  state = 2;
-			if (op == 7)  { e = ld;  goto push; }
-			if (op == 8)  { e = lwu; goto push; }
-			if (op == 9)  { e = lhu; goto push; }
-			if (op == 12) { e = lbu; goto push; }
-
-		} else if (category == stores) {
-			if (op == 7)  { e = sd; goto push; }
-			if (op == 8)  { e = sw; goto push; }
-			if (op == 9)  { e = sh; goto push; }
-			if (op == 12) { e = sb; goto push; }
-
-		} else if (category == other) {
-			if (op == 6)  state = 2;
-			if (op == 7)  { e = dd;    goto push; }
-			if (op == 8)  { e = dw;    goto push; }
-			if (op == 9)  { e = dh;    goto push; }
-			if (op == 10) { e = lui;   goto push; }
-			if (op == 11) { e = ecall; goto push; }
-			if (op == 12) { e = db;    goto push; }
-	
-		} 
-		puts("error: s2: undefined op or category not in [1,7], aborting..");
-		abort();
-
-	} else if (state == 2) {
-
-		if (category == compiletime) {
-			if (op == 6)  { e = ctat; goto push; }
-			if (op == 7)  { e = cte;  goto push; }
-			if (op == 8)  { e = ctl;  goto push; }
-			if (op == 9)  { e = ctpi; goto push; }
-			if (op == 10) { e = ctpz; goto push; }
-			if (op == 11) { e = ctpd; goto push; }
-			if (op == 12) { e = ctstate; goto push; }
-
-		} else if (category == math) {
-			if (op == 6)  { e = mulhuu; goto push; }
-			if (op == 7)  { e = mulhsu; goto push; }
-			if (op == 8)  { e = mulhss; goto push; }
-			if (op == 11) { e = div_;   goto push; }
-			if (op == 12) { e = rem;    goto push; }
-
-		} else if (category == logic) {
-			if (op == 11) { e = sra; goto push; }
-			if (op == 12) { e = slt; goto push; }
-
-		} else if (category == branching) {
-			if (op == 7)  { e = blt;  goto push; }
-			if (op == 8)  { e = bge;  goto push; }
-			if (op == 12) { e = jalr; goto push; }
-
-		} else if (category == loads) {
-			if (op == 8)  { e = lw; goto push; }
-			if (op == 9)  { e = lh; goto push; }
-			if (op == 12) { e = lb; goto push; }
-
-		} else if (category == stores) {
-			// none.
-
-		} else if (category == other) {
-			if (op == 6)  { e = cteof; goto push; }
-			if (op == 10) { e = auipc; goto push; }
-		} 
-		puts("error: s2: undefined op or category not in [1,7], aborting..");
-		abort();
-	} else {
-		puts("error: state not in [0,2], aborting..");
-		abort();
-	}
-	
-
-push:	
-	state = 0; category = 0; 
-	
-	if (e == cteof) return 1;
-
-	else if (e == ctabort) abort();
-
-	else if (e == ctprint) {
+static bool execute(nat op, nat* index) {
+	printf("debug: execute: \033[32m%llu\033[0m\n", op);
+	if (op < 6 or op > 12) { printf("debug: ignoring input %llu...\n", op); return 0; }
+	if (category == none) { category = core + (op - 6); return 0; }
+	const nat e = (category - 1) * 7 + (op - 6); category = 0;
+	if (e == eof) return 1;
+	else if (e == ctab) abort();
+	else if (e == ctpr) {
 		printf("debug: \033[32m%llu "
 			"(%lld)\033[0m "
 			"\033[32m0x%llx\033[0m\n", 
@@ -1106,66 +763,97 @@ push:
 			array[pointer],
 			array[pointer]
 		);
-	}
-
-	else if (e == ctstate) {
-		printf("state info:"
-			"\n\tpointer = %llu"
-			"\n\tleft = %llu"
-			"\n\tright = %llu"
-			"\n\tarray = {", 
-			pointer, left, right
-		);
-		for (nat i = 0; i < 20; i++) {
-			printf("%llx(%lld), ", array[i], array[i]);
-		}
+	} else if (e == ctst) {
+		printf("state info:\n\tpointer = %llu\n\tarray = {", pointer);
+		for (nat i = 0; i < 20; i++) printf("%llx(%lld), ", array[i], array[i]);
 		printf("}\n\n");
 	} 
 
-	else if (e == ctpi) { puts("executing ctpi"); pointer++; }
-	else if (e == ctpz) { puts("executing ctpz"); pointer = 0; }
-	else if (e == ctpd) { puts("executing ctpd"); pointer--; }
+	else if (e == imm)  { puts("executing imm...");  is_immediate = true; }
+	else if (e == sign) { puts("executing sign..."); is_signed = true; }
+	else if (e == exec) { puts("executing exec..."); is_compiletime = true; }
 
+	else if (e == ctpi) { puts("executing ctpi"); pointer++; }
+	else if (e == ctpm) { puts("executing ctpz"); pointer = array[pointer]; }
 	else if (e == ctmi) { puts("executing ctmi"); array[pointer]++; }
 	else if (e == ctmz) { puts("executing ctmz"); array[pointer] = 0; }
-	else if (e == ctmd) { puts("executing ctmd"); array[pointer]--; }
-	else if (e == rtat) { puts("executing rtat"); array[pointer] = ins_count; }
-	else if (e == ctat) { puts("executing ctat"); array[pointer] = 99; }    // todo: load index.
 
-	else {
+	else if (e == attr) { 
+		puts("executing attr"); 
+		array[array[pointer]] = is_compiletime ? *index : ins_count;
+		if (skip == array[pointer]) skip = 0;
+	}
+
+	else if (not is_compiletime) {
 		printf("pushing runtime instruction: %llu...\n", e);
 		struct instruction new = {0};
 		new.a[0] = (u32) e;
 		new.loc[0] = (struct location) {0};
+		new.is_immediate = is_immediate; is_immediate = false;
+		new.is_signed = is_signed; is_signed = false;
 		for (nat i = 1; i < 4; i++) {
 			new.a[i] = (u32) array[pointer - (i - 1)];
 			printf("found argument #%llu : u32 = %u\n", i, new.a[i]);
 		}
 
-
-		//      if (op == bltu or op == bgeu) new.size = 8; else   
-		// TODO : lookup the size for the ins in a table, based on the target. 
-
-
 		new.size = 4;
-
-
-
-
 		ins = realloc(ins, sizeof(struct instruction) * (ins_count + 1));
 		ins[ins_count++] = new;
+
+	} else {
+		is_compiletime = false;
+		nat a0 = array[pointer - 0];
+		nat a1 = pointer >= 1 ? array[pointer - 1] : 0;
+		nat a2 = pointer >= 2 ? array[pointer - 2] : 0;
+		printf("info: push: EXECUTING: e = %llu, args={a0:%llu,a1:%llu,a2:%llu}\n", e, a0, a1, a2);
+
+		     if (e == add)	array[a0] = array[a1] + (is_immediate ? a2 : array[a2]); 
+		else if (e == sub)	array[a0] = array[a1] - (is_immediate ? a2 : array[a2]); 
+		else if (e == mul)	array[a0] = array[a1] * (is_immediate ? a2 : array[a2]); 
+		else if (e == div_)	array[a0] = array[a1] / (is_immediate ? a2 : array[a2]); 
+		else if (e == rem)	array[a0] = array[a1] % (is_immediate ? a2 : array[a2]);
+		else if (e == and_)	array[a0] = array[a1] & (is_immediate ? a2 : array[a2]); 
+		else if (e == or_)	array[a0] = array[a1] | (is_immediate ? a2 : array[a2]); 
+		else if (e == xor_)	array[a0] = array[a1] ^ (is_immediate ? a2 : array[a2]); 
+		else if (e == slt)	array[a0] = array[a1] < (is_immediate ? a2 : array[a2]); 
+		else if (e == lb)	array[a0] = *( u8*)(array[a1] + a2); 
+		else if (e == lh)	array[a0] = *(u16*)(array[a1] + a2); 
+		else if (e == lw)	array[a0] = *(u32*)(array[a1] + a2); 
+		else if (e == ld)	array[a0] = *(nat*)(array[a1] + a2); 
+		else if (e == sb)	*( u8*)(array[a0] + a1) = ( u8)array[a2]; 
+		else if (e == sh)	*(u16*)(array[a0] + a1) = (u16)array[a2]; 
+		else if (e == sw)	*(u32*)(array[a0] + a1) = (u32)array[a2]; 
+		else if (e == sd)	*(nat*)(array[a0] + a1) = (nat)array[a2];
+		else if (e == blt) { 
+			pointer -= 3; 
+			if (array[a0]  < array[a1]) { if (array[a2]) *index = array[a2]; else skip = a2; } 
+		} else if (e == bge)  { 
+			pointer -= 3; 
+			if (array[a0] >= array[a1]) { if (array[a2]) *index = array[a2]; else skip = a2; } 
+		} else if (e == beq)  { 
+			pointer -= 3; 
+			if (array[a0] == array[a1]) { if (array[a2]) *index = array[a2]; else skip = a2; } 
+		} else if (e == bne)  { 
+			pointer -= 3; 
+			if (array[a0] != array[a1]) { if (array[a2]) *index = array[a2]; else skip = a2; } 
+		} else if (e == jal) {
+			pointer -= 2; 
+			array[a0] = *index;
+			if (array[a1]) *index = array[a1]; else skip = a1;
+		} else if (e == jalr) {
+			pointer -= 3; 
+			array[a0] = *index;
+			*index = array[a1] + a2;
+		} else { printf("internal error: unknown compiletime instruction = %llu \n", e); abort(); }
+
+		is_immediate = false; is_signed = false;
 	}
 
 	return 0;
 }
 
-
-
-
-
-
-
-
+		//      if (op == bltu or op == bgeu) new.size = 8; else   
+		// TODO : lookup the size for the ins in a table, based on the target. 
 
 
 int main(int argc, const char** argv) {
@@ -1175,17 +863,19 @@ int main(int argc, const char** argv) {
 	const char* filename = argv[1];
 	text_length = 0;
 	text = read_file(filename, &text_length, (struct location){0});
-	array = calloc(ct_register_count, sizeof(nat));
+
+	array = calloc(ct_array_count, sizeof(nat));
+	array[2] = (nat) (void*) calloc(ct_memory_count, sizeof(nat));
 
 	files[file_count].name = filename;
 	files[file_count++].location = (struct location) {.start = 0, .count = text_length};
 
-	for (size_t c = 0, i = 0; i + 1 < text_length; i++) {
+	for (nat c = 0, i = 0; i + 1 < text_length; i++) {
 		if (not isspace(text[i])) { 
 			if (isspace(text[i + 1])) c++; 
 		} else if (isspace(text[i + 1]) and c) { 
-			if (execute(c)) break; 
-			c = 0; 
+			if (execute(c, &i)) break; 
+			c = 0;
 		}
 	}
 
@@ -1210,7 +900,7 @@ int main(int argc, const char** argv) {
 		//generate_riscv_machine_code();
 
 	} else if (architecture == arm64) {
-		//generate_arm64_machine_code();
+		// generate_arm64_machine_code();
 
 	} else {
 		puts("asm: \033[31;1merror:\033[0m unknown target architecture specified");
@@ -2997,7 +2687,7 @@ riscv64:
 
 	x9 : callee-saved register			   (call-preserved)    
 
-	x10-x17 : function arguments			   (call-clobbered) *  A0-A7
+	x10-x17 : function arguments			   (call-clobbered) *  A0-A7       (A7 is syscall)
 
 	x18-x27 : callee-saved registers 		   (call-preserved)    S0-S9
 	
@@ -3903,7 +3593,7 @@ enum language_ISA {
 	null_instruction, 
 
 	cteof, ctstate, ctabort, ctprint, 
-	rtat, ctat,
+	sign, ctat,
 	ctpi, ctpz, ctps, ctpd, ctpl,
 	ctmi, ctmz, ctms, ctmd, ctml,
 	ctlm, ctrm, ctlp, ctadd, ctmul, ctnor,
@@ -4051,6 +3741,489 @@ valid values: "); // TODO: use print_error();
 
 
 */
+
+
+
+
+
+
+
+
+/*
+	//cteof, ctstate, ctabort, ctprint, 
+
+	                    //     add ins for  pushing  a literal number to the array! ie   ctml
+	//ctpi, ctpz, ctpd,               //      it "quotes" the next number. 
+	//ctmi, ctmz, ctmd,
+	//ctl, cte,
+	
+
+					// also add the rt ins tree   "tree" meaning that any given rt ins is created by two numbersssss
+
+					// stores    loads   math    logic    shifts     branching   other.
+
+						// those are the categories yay
+
+
+							//actually logic and shifts are merged probably. 
+
+									// but yeah  those are the categs.
+
+										
+								
+
+
+
+
+if its indented a further level, it means it will take a longer sequence of numbers to say it. 
+
+	ie, eg, single level indents will take 1 or 2 numbers total, to say them,   indented ones will take 2 or 3. 
+
+
+[word count = 7]
+math		
+		add[8], sub[9], mul[10], divu[11], remu[12],
+10			mulhss[6,8], mulhsu[6,7], mulhuu[6,6],
+			div[6,11], rem[6,12], 
+
+[word count = 8]
+logic		
+		and[7], or[9], xor[10], 
+8		sll[11], srl[12], 
+			sra[6,12], 
+		sltu[13], 
+			slt[6,13],
+
+[word count = 9]
+branching
+8		bltu[7], bgeu[8],
+			blt[6,7], bge[6,8], 
+		bne[10], beq[11], 
+		jal[12], jalr[13],
+
+[word count = 10]
+stores		
+		sb[13], sh[12], sw[8], sd[7],  
+4
+
+[word count = 11]
+loads		
+		lbu[13], lhu[12], lwu[8], ld[7],
+7			lb[6,13], lh[6,12], lw[6,8], 
+
+
+[word count = 12]
+other 		
+		ecall[9],
+8		auipc[11], 
+		lui[10],
+		db[13], dh[12], dw[8], dd[7]
+
+
+[word count = 6]
+compiletime
+	cteof[6]
+	imm[7], 
+	ctml[8],
+	attr[9],
+	
+7	ctmi[10,7], ctmz[10,8], ctmd[10,9], 
+	ctpi[11,7], ctpz[11,8], ctpd[11,9],
+
+3	cte[12,7], ctl[12,8], 
+	ctsetcomparator,
+
+
+
+
+
+
+
+
+	jalr, jal,
+	auipc, lui, imm, 
+	mul, div, rem, mulh, 
+	mulhsu, mulhu, divu, remu, 
+	beq, bne, blt, bge, bltu, bgeu,
+	add, sub, 
+	sll, srl, sra, slt, sltu,
+	xor, and, or, 
+	sb, sh, sw, sd,  
+	lbu, lhu, lwu, lb, lh, lw, ld, 
+	db, dh, dw, 
+
+
+
+
+
+	
+*/
+
+
+
+// system calls: riscv abi:   notes:
+// --------------------------------
+// x17 is the riscv register for the system call, 
+// x10 through x16 are the arguments for the system call.
+
+
+
+
+
+
+
+
+
+
+
+
+/*
+
+
+
+
+old:
+		risc-v 64-bit cross assembler 
+	     written by dwrr on 202403111.010146
+
+	this is made to be my primary cross-platform programming language, 
+	to ideally replace my use of C for programming most of my projects.
+	only the risc-v target has performance guarantees. other targets
+	use a translation layer to translate the risc-v ISA instructions
+	into the target's ISA (eg, arm64, arm32, x86, x86_64).
+
+
+todo stuff:
+-----------------------------
+
+	- add more instructions for arm64. 
+
+	- add the load/store instructions for arm64. 
+
+branches:
+------------
+
+	- figure out branches for the riscv arch!!!
+
+
+riscv64:
+====================
+
+	x0 : zero register                                     neither
+
+	x1 : return address / link register                (call-clobbered) *  LR
+
+	x2 : stack pointer 				   (call-preserved)    SP
+
+	x3 : global pointer (temporary)                        neither
+
+	x4 : thread pointer (temporary)                        neither
+
+	x5-x7 : temporaries				   (call-clobbered) *
+
+	x8 : frame pointer or callee-saved		   (call-preserved)    FP
+
+	x9 : callee-saved register			   (call-preserved)    
+
+	x10-x17 : function arguments			   (call-clobbered) *  A0-A7       (A7 is syscall)
+
+	x18-x27 : callee-saved registers 		   (call-preserved)    S0-S9
+	
+	x28-x31 : temporaries 				   (call-clobbered) * 
+
+
+has:
+	9 (x3,x4,x5-x7,x28-x31) temporaries (call-clobbered) registers
+	11 (x9,x18-x27) callee-saved (call-preserved) registers
+
+
+
+
+
+
+
+*/
+
+
+
+
+
+
+// static const nat ct_stack_size = 1 << 16;
+//static const nat callonuse_macro_threshold = 1 << 15;
+//static const nat callonuse_function_threshold = 1 << 16;
+
+
+
+
+
+
+
+
+
+
+
+
+/*
+
+
+
+------------------- language ISA: -----------------------------
+
+[word count = 7]
+math		
+		add[8], sub[9], mul[10], divu[11], remu[12],
+10			mulhss[6,8], mulhsu[6,7], mulhuu[6,6],
+			div[6,11], rem[6,12], 
+
+[word count = 8]
+logic		
+		and[7], or[8], xor[9], 
+8		sll[10], srl[11], 
+			sra[6,11], 
+		sltu[12], 
+			slt[6,12],
+
+[word count = 9]
+branching
+8		bltu[7], bgeu[8],
+			blt[6,7], bge[6,8], 
+		bne[10], beq[11], 
+		jal[12],
+			jalr[6,12],
+
+[word count = 11]
+stores		
+		sb[12], sh[9], sw[8], sd[7],  
+4
+
+[word count = 10]
+loads		
+		lbu[12], lhu[9], lwu[8], ld[7],
+7			lb[6,12], lh[6,9], lw[6,8], 
+
+
+[word count = 12]
+other 		
+		ecall[11],
+		lui[10],
+			auipc[6,10], 
+		db[12], dh[9], dw[8], dd[7]
+
+			cteof[6,6]
+
+
+[word count = 6]
+compiletime
+	imm[7],
+	rtat[8], 
+
+	ctmi[9],
+	ctmz[10],
+	ctmd[11],
+
+	BLAH[12],
+		ctat[6,6],
+		cte[6,7], ctl[6,8],
+		ctpi[6,9], ctpz[6,10], ctpd[6,11], 
+
+		ctBLAH[6,12]
+
+
+
+
+	
+	imm,  sign, exec, ctpi, ctpz, ctmi, ctmz, 
+	add,  sub,  mul,  div_, rem,  mulh, mhsu,
+	xor_, and_, or_,  sll,  srl,  slt,  ecal,
+	beq,  bne,  blt,  bge,  jalr, jal,  rtat, 
+	lb,   lh,   lw,   ld,   lui,  aipc, dd,
+	sb,   sh,   sw,   sd,   db,   dh,   dw,
+	eof,  ctab, ctpr, ctst, ctd1, ctd2, ctd3,
+
+	isa_count
+
+
+
+6
+core
+	imm, sign, exec, ctpi, ctpz, ctmi, ctmz,         ::       6, 7, 8, 9, 10, 11, 12,
+
+7
+math
+	add, sub, mul, div_, rem, mulh, mulhsu,
+
+8
+logic
+	xor_, and_, or_, sll, srl, slt, ecall,
+
+9
+branching
+	beq, bne, blt, bge, jalr, jal, rtat, 
+
+10
+loads
+	lb, lh, lw, ld, lui, auipc, dd,
+
+11
+stores
+	sb, sh, sw, sd, db, dh, dw,
+
+12
+debug
+	cteof, ctab, ctpr, ctst, ctd1, ctd2, ctd3
+
+
+
+
+
+
+
+
+
+else if (category == core) { e = imm + (op - 6); goto push; }
+
+	} else if (category == math) {
+		if (op == 6)  { e = imm; goto push; }
+		if (op == 7)  { e = sign; goto push; }
+		if (op == 8)  { e = exec; goto push; }
+		if (op == 9)  { e = ctpi; goto push; }
+		if (op == 10) { e = ctpz; goto push; }
+		if (op == 11) { e = ctmi; goto push; }
+		if (op == 12) { e = ctmz; goto push; }
+
+	} else if (category == logic) {
+			if (op == 6)  state = 2;
+			if (op == 7)  { e = and_; goto push; }
+			if (op == 8)  { e = or_;  goto push; }
+			if (op == 9)  { e = xor_; goto push; }
+			if (op == 10) { e = sll;  goto push; }
+			if (op == 11) { e = srl;  goto push; }
+			if (op == 12) { e = sltu; goto push; }
+
+		} else if (category == branching) {
+			if (op == 6)  state = 2;
+			if (op == 7)  { e = bltu; goto push; }
+			if (op == 8)  { e = bgeu; goto push; }
+			if (op == 10) { e = bne;  goto push; }
+			if (op == 11) { e = beq;  goto push; }
+			if (op == 12) { e = jal;  goto push; }
+
+		} else if (category == loads) {
+			if (op == 6)  state = 2;
+			if (op == 7)  { e = ld;  goto push; }
+			if (op == 8)  { e = lwu; goto push; }
+			if (op == 9)  { e = lhu; goto push; }
+			if (op == 12) { e = lbu; goto push; }
+
+		} else if (category == stores) {
+			if (op == 7)  { e = sd; goto push; }
+			if (op == 8)  { e = sw; goto push; }
+			if (op == 9)  { e = sh; goto push; }
+			if (op == 12) { e = sb; goto push; }
+
+		} else if (category == other) {
+			if (op == 6)  state = 2;
+			if (op == 7)  { e = dd;    goto push; }
+			if (op == 8)  { e = dw;    goto push; }
+			if (op == 9)  { e = dh;    goto push; }
+			if (op == 10) { e = lui;   goto push; }
+			if (op == 11) { e = ecall; goto push; }
+			if (op == 12) { e = db;    goto push; }
+	
+		} 
+		puts("error: s2: undefined op or category not in [1,7], aborting..");
+		abort();
+
+	} else if (state == 2) {
+
+		if (category == compiletime) {
+			if (op == 6)  { e = ctat; goto push; }
+			if (op == 7)  { e = cte;  goto push; }
+			if (op == 8)  { e = ctl;  goto push; }
+			if (op == 9)  { e = ctpi; goto push; }
+			if (op == 10) { e = ctpz; goto push; }
+			if (op == 11) { e = ctpd; goto push; }
+			if (op == 12) { e = ctstate; goto push; }
+
+		} else if (category == math) {
+			if (op == 6)  { e = mulhuu; goto push; }
+			if (op == 7)  { e = mulhsu; goto push; }
+			if (op == 8)  { e = mulhss; goto push; }
+			if (op == 11) { e = div_;   goto push; }
+			if (op == 12) { e = rem;    goto push; }
+
+		} else if (category == logic) {
+			if (op == 11) { e = sra; goto push; }
+			if (op == 12) { e = slt; goto push; }
+
+		} else if (category == branching) {
+			if (op == 7)  { e = blt;  goto push; }
+			if (op == 8)  { e = bge;  goto push; }
+			if (op == 12) { e = jalr; goto push; }
+
+		} else if (category == loads) {
+			if (op == 8)  { e = lw; goto push; }
+			if (op == 9)  { e = lh; goto push; }
+			if (op == 12) { e = lb; goto push; }
+
+		} else if (category == stores) {
+			// none.
+
+		} else if (category == other) {
+			if (op == 6)  { e = cteof; goto push; }
+			if (op == 10) { e = auipc; goto push; }
+		} 
+		puts("error: s2: undefined op or category not in [1,7], aborting..");
+		abort();
+	} else {
+		puts("error: state not in [0,2], aborting..");
+		abort();
+	}
+	
+
+
+
+
+
+
+
+*/
+
+
+
+
+
+
+
+
+
+
+
+/*
+
+finished ISA structure on 202405072.161000:
+
+
+
+  categories { none, core, math, logic, flow, loads, stores, debug }
+
+  ISA {
+	imm,  sign, exec, ctpi, ctpz, ctmi, ctmz, 
+	add,  sub,  mul,  div_, rem,  mulh, mhsu,
+	xor_, and_, or_,  sll,  srl,  slt,  ecal,
+	beq,  bne,  blt,  bge,  jalr, jal,  attr, 
+	lb,   lh,   lw,   ld,   lui,  aipc, dd,
+	sb,   sh,   sw,   sd,   db,   dh,   dw,
+	eof,  ctab, ctpr, ctst, ctd1, ctd2, ctd3,
+  }
+
+
+
+
+*/
+
+
 
 
 

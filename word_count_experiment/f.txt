@@ -1,6 +1,10 @@
+this program is intended to be a minimal exit program to show how the language works.
+because this sentence is long enough, it functions as a comment!
 
- . . . . . .  . . . . . . . . . . . .
- . . . . . .  . . . . . . . . .
- 
- . . . . . .  . . . . . . . . . . . .
+the actual values we want to give to the first addi instruction are: 0 0 4. this will cause the 
+
+
+
+	we will first begin by preparing
+	the stack to have
 
