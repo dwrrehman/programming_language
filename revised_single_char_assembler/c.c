@@ -155,7 +155,7 @@ static void print_instructions(void) {
 	puts("}");
 }
 
-static void print_error(const char* reason, nat spot, nat __attribute__((unused)) spot2) {
+static void print_error(const char* reason, nat spot, nat spot2) {
 
 	const int colors[] = {31, 32, 33, 34, 35};
 
@@ -200,7 +200,7 @@ static void print_error(const char* reason, nat spot, nat __attribute__((unused)
 done:	
 	print_files();
 	print_stack(stack_i, stack_f, stack_o, stack_count);
-	fprintf(stderr, "\033[1masm: %s:%lld:%lld:", filename ? filename : "(top-level)", location, (nat)-1);
+	fprintf(stderr, "\033[1masm: %s:%lld:%lld:", filename ? filename : "(top-level)", location, spot2);
 	fprintf(stderr, " \033[1;31merror:\033[m \033[1m%s\033[m\n", reason);
 }
 
@@ -225,11 +225,7 @@ static char* read_file(const char* name, nat* out_length, nat here) {
 	return string;
 }
 
-
-
-
 static void push_name(const char* new, const nat length) {
-
 	nat spot = 0;
 	for (; spot < name_count; spot++) 
 		if (length >= lengths[spot]) break;
@@ -238,13 +234,19 @@ static void push_name(const char* new, const nat length) {
 	memmove(values  + spot + 1, values  + spot,         sizeof(nat) * (name_count - spot));
 	memmove(names   + spot + 1, names   + spot, sizeof(const char*) * (name_count - spot));
 	
-	lengths[spot] = length;
-	names[spot] = strndup(new, length);
+	nat l = 0; 
+	char* string = calloc(length + 1, 1);
+
+	for (nat i = 0; i < length; i++) {
+		if ((unsigned char) new[i] < 33) continue;
+		string[l++] = new[i];
+	}
+
+	lengths[spot] = l;
+	names[spot] = string;
 	values[spot] = arg_count ? arguments[arg_count - 1] : 0;
 	name_count++;
 }
-
-
 
 int main(int argc, const char** argv) {
 
@@ -281,13 +283,17 @@ begin:	if (op >= name_count) goto error;
 found: 	
 	for (nat i = 0; i < isa_count; i++) 
 		if (not strcmp(ins_spelling[i], names[op])) { op = i; goto builtin; }
-	puts("internal error: found user defined name!");
-	abort();
-	// process "names[op]" as a regular call to a user-defined name!;
-	goto advance;
-builtin:
 
+	printf("info: found user-defined name:     calling \"%s\"!! \n", names[op]);
+	arguments[arg_count++] = values[op];
+	printf("----> pushed: user-defined value %llu onto stack...\n", arguments[arg_count - 1]);
+
+	goto advance;
+
+
+builtin:
 	if (op == null_ins) {}
+	else if (op == end_ins) {}
 	else if (op == eof_ins) goto done;
 	else if (op == rt_ins) is_compiletime = false;
 	else if (op == ct_ins) is_compiletime = true;
@@ -296,9 +302,36 @@ builtin:
 	else if (op == off_ins) bit <<= 1;
 	else if (op == push_ins) { arguments[arg_count++] = literal; literal = 0; bit = 1; }
 	else if (op == size_ins) word_size = arg_count ? arguments[arg_count - 1] : 0;
-	else if (op == begin_ins) { /* skip forwards index until you find end_ins. */ }
 
-	else if (not is_compiletime) {
+	else if (op == begin_ins) { 
+		const nat nstart = index;
+		//printf("found nstart = %llu.\n", nstart);
+		const nat l = (nat) strlen(ins_spelling[end_ins]);
+		for (; index < text_length; index++) {
+			const nat length = text_length - index < l ? text_length - index : l;
+			if (not strncmp(text + index, ins_spelling[end_ins], length)) {
+				// puts("found the end!!!");
+				goto found_end;
+			}
+		}
+		printf("asm: fatal error: %llu: could not find closing name delimiter\n", save);
+		abort();
+	found_end:;
+		const nat nend = index;
+		//printf("found nend = %llu.\n", nend);
+		printf("user is defining the name \"");
+		fwrite(text + nstart, 1, nend - nstart, stdout);
+		printf("\"... will have the value %llu...\n", arguments[arg_count - 1]);
+		push_name(text + nstart, nend - nstart);
+	}
+
+	else if (not is_compiletime) { 
+
+
+				// TODO: we still need to edit the argstack after pushing the rt ins!!!!
+
+
+
 		printf("info: pushing runtime instruction %llu(\"%s\")...\n", op, ins_spelling[op]);
 		struct instruction new = {0};
 		new.a[0] = (u32) op;
@@ -317,7 +350,6 @@ builtin:
 		nat a1 = arg_count > 1 ? arguments[arg_count - 2] : 0;
 		nat a2 = arg_count > 2 ? arguments[arg_count - 3] : 0;
 		
-
 		printf("------> info: CT: EXECUTING: op = %llu (\"%s\"), "
 			"args={a0:%llu, a1:%llu, a2:%llu}\n", 
 			op, ins_spelling[op], a0, a1, a2
@@ -402,12 +434,17 @@ builtin:
 advance: save = index; op = 0; at = 0; goto begin;
 fail: 	op++; index = save; at = 0; goto begin;
 nextc:	index++; if (index > max) max = index; goto begin; 
-error:	print_error("unresolved symbol", save, max); exit(1); }
+error:	
+	print_error("unresolved symbol", save, max); 
+	print_dictionary();
+	exit(1); 
+}
 
 
 
 done:;
 	puts("DONE: finished assembling program.");
+	print_arguments();
 	print_dictionary();
 	print_instructions();
 	return 0;
