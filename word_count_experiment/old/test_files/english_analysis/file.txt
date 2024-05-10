@@ -1,0 +1,45 @@
+
+	because if you are writing chinese characters, or unicode chars generally speaking,    then one char will be mulitple bytes, and thus the word length calculation will be off!
+
+
+
+
+
+
+	so yeah. when you start a word, you need to like.. record the word length of the first word as well 
+
+
+
+					and then except like... something related to that... hm.. 
+
+
+
+
+
+
+
+
+
+
+		yeah, i feel like doing an analysis of the word lengths and their counts associated with them would be a good idea right about now lol.
+
+
+
+lets do that on this very document, maybe lol. okay sure yeah lets try that lol.
+
+
+
+
+
+
+
+
+gunna take the last few sentences and put it through a c program that ill write real quick to analyze the word lengths of each word in each sentence lol 
+
+
+
+yay
+
+
+takeen from a tb that i am writing right now, on 202405072.013216.
+

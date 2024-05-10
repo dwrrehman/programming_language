@@ -1,0 +1,397 @@
+enum categories { none, core, math, logic, flow, loads, stores, debug };
+
+
+
+	exec(·)	imm(.)	sign(±)	size(§)	attr(:)	jump(!) dup(`) swap(~)
+
+	add(+)	sub(-)	mul(*)	div(/)	rem(%)	
+
+	mulh(•)	mhsu(∏)
+
+	xor(^)	and(&)	or(|)	sll(‹)	srl(›)	slt(?)
+
+	ecal(ø)
+
+	beq(=)	bne(≠)	blt(<)	bge(≥)
+	
+	jalr($)	jal(ˆ)
+
+	lui(_)	aipc(@)
+
+	load(')	store(,)	emit(\)
+
+	eof(…)	incl 	ctab	ctpr	ctst
+
+
+
+
+0 1 2 3 4 5 6 7 8 9 a b c d e f g h i j k l m n o p q r s t u v
+
+w x y z           compiletime only registers.
+
+
+
+most instructions will actually delete the two top elements that made up the argument, and leave th result on the argument register index stack, i think. not sure yet. hm. 
+
+
+but yeah, by saying 0 1 2 3 etc   you push stuff to the argument stack, as you would think.
+
+these can be used as constants, immediates, or register indicies, just depends on the instruction you pass it to lol. so yeah. yay. 
+
+
+
+heres some example code:
+
+b a c + 
+
+
+computes    c = a + b
+
+
+the equal "=" is implied obviously, because c is the first argument to + 
+
+
+
+you can also write it 
+
+		bac+
+
+
+    just for characters! cool. 
+
+
+heres an infinite loop, using the attr and jal instructions, i think?... its small lol:
+
+
+
+	l:l0ˆ
+
+
+
+so yeah only a couple characters as well lol.       wow this is an interesting experiment lol. hm. 
+
+
+
+
+
+
+we should add an operation to duplicate the top of the stack!!
+
+
+	also to swap the top two elements maybe. idk though... ill see how useful that is-
+
+		but yeah, the dup would be soooo useful! i think 
+
+
+
+
+						yeah lets add swap actually, thats pretty handy lol
+
+			yay
+
+
+
+
+
+
+
+
+
+	heres the code to load something from memory, lets say the index of an element in a uint64 array, as we usually want to do:
+
+
+	03§i`.‹a1+m'
+
+
+0 is pushed for the final step, for the last argument to  '  which does the load. 0 for the constant offset.
+
+§, the set-loadstore-size operator, leaves the argument on the stack, i think. in this case 3, which is used for the shifting too.
+
+here i is duplicated using `  and shifted 3 bits up left shifting  by  .‹   which leaves i on the stack, using dot to make it the immediate version. (which i feel like it should be by default, but okay lol...)
+
+
+and then, i is added to the array starting address, a,  and sum is put into 1. then given to the load command as the seconddd argument, with the third being 0, which was pushed earlier..  and then the first being m, which is the destination regsiter for the 64bit memory chunk that was loaded. 
+
+	m will now contain the memory at element position  i    in array  a           yay!
+
+
+
+		and its only 		03§i`.‹a1+m'
+
+					m = array[i]
+
+							lol same number of characters
+
+
+				oh, but also, you can omit the §  call if its already set to that value, so it becomes
+
+
+				03i1.‹a1+m'
+
+
+	
+
+		so yeah, thats cool! nice.  considering there is no syntax sugar like in c for array indexing, id say thats pretty good lol. 
+
+
+
+					technically in c, the full version is:
+
+						m = *(a + (i << 3));
+
+					thats the actual equivalent to 
+
+
+
+						03i1.‹a1+m'
+
+
+
+
+
+			so yeah, idk, it seems like its on par i think lol. 
+
+					no parenthesis helps a tonnnnn too 
+
+
+						and having implicit assignments always
+
+
+						yay 
+
+
+								yeah thats super cool 
+
+
+
+					i kindaaa wish things just implicitly overwrote the first argument, so that only two were ever needed lol 
+
+
+					butttt on the other hand, sometimes you want to keep that thing around lololol... soooo idk.. then we would need a move instruction lol.. and yeah.. idk. 
+
+
+
+					i think its good like it is i guess lol 
+
+			i might change things up later 
+
+
+
+
+
+
+yayyy
+
+
+
+
+
+
+
+
+im trying to think of other little examples to write out 
+
+
+	oh! the     minimal exit(0)  program!!!
+
+
+lets write that too lol 
+
+
+
+
+	so its actually pretty easy here 
+
+
+
+
+			40a.+
+			10h.+
+			ø
+
+
+	i think thats it actually!
+
+
+				just           40a.+10h.+ø
+
+
+
+								versus c code's   "exit(0);"
+
+
+
+				pretty cool lol
+
+			basically we are just loading    4, the exit code   into argument 0, 
+
+									register a, ie, 10, 
+
+
+			and then loading 1 into register 17, which is the system call number, in riscv. 
+
+						so yeah 
+
+
+
+			pretty cool 
+
+
+
+
+	lol
+ 
+
+
+
+
+lol 
+
+
+
+this language is kindaaa like if       forth     apl      and riscv       all decided to make a frankenstein baby together lol 
+
+
+
+			kinda interesting 
+
+
+
+		i like it 
+
+
+
+		its interestinggg 
+
+
+
+
+
+	lol  idk... 
+
+
+
+					hmm
+
+
+							but yeah, not bad neccessiarlyy
+
+
+
+
+	just might take some getting used lol  
+
+
+			idk, its good, just     definitely different lololo 
+
+
+
+				the more concise i think      the more likely i am to use it 
+
+
+					probably, not sure though. 
+
+
+
+
+			
+
+
+
+
+
+
+		40a.+10h.+ø   this is pretty good for a minimal working program though! 
+
+
+					it would be a bit more complex in c, 
+
+
+
+				it would be        int main(void){return 4;}
+
+
+				to do the equivalent thing lol 
+
+
+			so yeah 
+
+
+
+				similar, but different lol 
+
+
+
+		my program,   40a.+10h.+ø    is alottt more low level       becuase its litrallyyy donig the system call itself lolol 
+
+
+	which is cool lol 
+
+
+yay
+
+				very nice 
+
+
+
+	
+
+
+
+nextttt taskkk
+
+
+
+				will be to figure out how we are going to do strings, because that is currently the part of the language that makes the absolute LEAST sense 
+
+
+
+	lol 
+									like, 
+
+
+
+
+
+						how would that even work in this language!?!?!
+
+
+
+
+
+
+
+			i feel like we are basically doing to have to use    "
+
+
+
+				and like, figure out how to do strings properly in the language at that point lol 
+	hmm
+
+
+		idk 
+
+
+			i think its possible,      luckily no instruction is actually using   "
+
+
+
+			so yeah we are free to implement strings using it, but still lol 
+
+
+	hm
+
+
+
+
+anwyays
+
+
+
+very cool!
+
+
+
+
+
+

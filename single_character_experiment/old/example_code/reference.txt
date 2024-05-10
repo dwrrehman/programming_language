@@ -1,0 +1,6 @@
+awesome link to find out the insturction encodings for riscv 32/64 bit:
+
+	https://msyksphinz-self.github.io/riscv-isadoc/html/rvi.html
+
+
+

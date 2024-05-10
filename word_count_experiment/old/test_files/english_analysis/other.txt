@@ -1,0 +1,57 @@
+uite simple
+
+
+
+	the k >= 10 part         is the part that we are currently trying to reengineer  or somehow make different   in a way that doesnt suck and completely ruin the english sentence that it is part of lol 
+
+
+
+			so yeah           basically to make code  in an english sentence       ableeee to be detected that it is there-
+
+
+
+					but notttttt   make it obsiouvlyyyyy  there      just like     if you needed to know what the instrutions are, you can read them very simply from the english   by parsing it in a particular way 
+
+
+
+
+
+		but like, for the most part, the way the language works shouldnt impact the english flow and explanation text at all 
+
+
+
+					like, it should pretty muchhh just look like a regular english tb lololol 
+
+
+
+			so yeah 
+
+
+
+								hmmm 
+
+
+
+
+
+			using word length and word count        allows us to do that        to a very high degree      which is greattt
+
+
+
+
+
+		but what exact conditionnnnn          involving word length        triggers us to reset our count, and terminate that particular unary unmber that we are constructing 
+
+
+						thats the missing part of this 
+
+
+
+	hm
+			
+
+
+
+
+
+

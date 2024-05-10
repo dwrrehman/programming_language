@@ -3,6 +3,40 @@
 	an instruction sequence by giving 
 	an english sentence which could
 	describe the code it is specifying. 
+
+
+size(…) sign(±) rt(•)   ct(°)   attr(:) dup(¨)   swap(;)
+add(+)  sub(-)  mul(*)  mulh(∏) div(/)  rem(%)   slt(~) 
+xor(^)  and(&)  or(|)   xori(ˆ) andi(ˇ) ori(')   addi(·) 
+sll(«)  srl(»)  slli(‹) srli(›) ld(`)   str(,)   slti(˜)
+blt(<)  bge(≥)  bne(≠)  beq(=)  aipc(@) ecall(\) emit(#)
+
+
+20a·10h·\           <--- this is the minimal valid program lol.
+
+03…io‹ab+m`         <---  equivalent to    "m = a[i];"  for a uint64_t array.   
+
+
+
+202405094.204005:
+
+i think we are going to use the whole string method that we thought of-   we just have to figure out how we are going to be able to edit the defined list of names though... hm thats the tricky part
+
+wait how do we define names??!!
+
+
+	uhh
+
+
+		hmm
+
+
+	
+
+
+
+
+
 */
 #include <stdio.h>
 #include <stdlib.h>
@@ -123,8 +157,6 @@ static void print_stack(nat* stack_i, nat* stack_f, nat* stack_o, nat stack_coun
 	}
 	puts("}");
 }
-
-
 
 static void print_error(const char* reason, nat spot, nat __attribute__((unused)) spot2) {
 
