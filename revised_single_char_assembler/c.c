@@ -1,6 +1,52 @@
 // started 202405094.232703: by dwrr
 // simple risc-v like language, with minimal terse syntax.
 
+/*
+
+\ _ , . ; :     < = > ~      + - * /    & | ^ 
+! @ # $ %  ?     " ' `       ( ) [ ] { }
+
+
+
+          ( ) 
+
+
+	size_ins( ),  sign_ins( ), on_ins( ),   off_ins( ),  push_ins( ), dup_ins( ),  swap_ins( ), 
+	add_ins(+),   sub_ins(-),  mul_ins(*),  mulh_ins( ), div_ins(/),  rem_ins(%),  slt_ins(~),
+	xor_ins(^),   and_ins(&),  or_ins(|),   xori_ins( ), andi_ins( ), ori_ins( ),  addi_ins(.),
+	sll_ins(<<),  srl_ins(>>), slli_ins( ), srli_ins( ), ld_ins( ),   str_ins( ),  slti_ins( ),
+	blt_ins(<),   bge_ins(>=), bne_ins(!=), beq_ins(==), aipc_ins( ), ecal_ins( ), emit_ins( ),
+	begin_ins([), end_ins(]),  eof_ins(;),  attr_ins(:), rt_ins( ),   ct_ins( ), 
+	jal_ins( ),   jalr_ins( ),
+
+
+
+single char ascii version:
+-----------------------------
+
+	size_ins(?),  imm_ins(.),  sign_ins(`), jal_ins(;),  jalr_ins( ), emit_ins( ),
+	on_ins(1),    off_ins(0),  push_ins(#), dup_ins("),  swap_ins($), slt_ins(~),
+	add_ins(+),   sub_ins(-),  mul_ins(*),  mulh_ins( ), div_ins(/),  rem_ins(%),  
+	sll_ins({),   srl_ins(}),  ld_ins('),   str_ins(,),  xor_ins(^),  and_ins(&),  or_ins(|),
+	blt_ins(<),   bge_ins(>),  bne_ins(!),  beq_ins(=),  aipc_ins(@), ecal_ins(\), 
+	begin_ins([), end_ins(]),  attr_ins(:), rt_ins( ),   ct_ins( ), 
+
+
+
+*/
+
+// missing: text of strings, including files, and deleting names/contexts
+
+/*
+how to specify constants in the language:  (only little endian binary constants)
+
+•°•°°••°•/ / °°•/ ·      setting register 4 to the value (5 + 32 + 64 + 256)
+
+
+•°•°°••°•/ ˛hello¸ 
+
+*/
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -52,15 +98,6 @@ static const char* ins_spelling[] = {
 	"_JAL_", "_RET_",   // 
 };
 
-// missing: text of strings, including files, and deleting names/contexts
-
-/*
-how to specify constants in the language:  (only little endian binary constants)
-
-•°•°°••°•/ / °°•/ ·      setting register 4 to the value (5 + 32 + 64 + 256)
-
-*/
-
 struct instruction { 
 	u32 a[4];
 	nat start;
@@ -94,12 +131,6 @@ static nat values[4096] = {0};
 static nat lengths[4096] = {0};
 
 static nat* array = NULL;
-
-static nat 	word_size = 0,
-		is_signed = 0, 
-		is_compiletime = 0, 
-		skip = 0;
-
 
 static void print_files(void) {
 	printf("here are the current files used in the program: (%lld files) { \n", file_count);
@@ -255,7 +286,6 @@ int main(int argc, const char** argv) {
 	for (nat i = 0; i < isa_count; i++) 
 		push_name(ins_spelling[i], strlen(ins_spelling[i]));
 	
-
 	const char* filename = argv[1];
 	text_length = 0;
 	text = read_file(filename, &text_length, 0);
@@ -270,9 +300,22 @@ int main(int argc, const char** argv) {
 	files[file_count].count = text_length;
 	files[file_count++].start = 0;
 
-	nat literal = 0, bit = 1;
 
-	{ nat index = 0, at = 0, save = 0, op = 0, max = 0;
+{ 
+	nat 
+		index = 0, 
+		at = 0, 
+		save = 0, 
+		op = 0, 
+		max = 0,
+		literal = 0, 
+		bit = 1,
+		word_size = 0,
+		is_signed = 0, 
+		is_compiletime = 0, 
+		skip = 0
+	;
+
 begin:	if (op >= name_count) goto error;
 	if (at == lengths[op]) goto found;
 	if (index >= text_length) goto done;
@@ -280,8 +323,7 @@ begin:	if (op >= name_count) goto error;
 	if (names[op][at] != text[index]) goto fail;
 	at++; goto nextc; 
 
-found: 	
-	for (nat i = 0; i < isa_count; i++) 
+found: 	for (nat i = 0; i < isa_count; i++) 
 		if (not strcmp(ins_spelling[i], names[op])) { op = i; goto builtin; }
 
 	printf("info: found user-defined name:     calling \"%s\"!! \n", names[op]);
@@ -290,7 +332,6 @@ found:
 
 	goto advance;
 
-
 builtin:
 	if (op == null_ins) {}
 	else if (op == end_ins) {}
@@ -298,6 +339,13 @@ builtin:
 	else if (op == rt_ins) is_compiletime = false;
 	else if (op == ct_ins) is_compiletime = true;
 	else if (op == sign_ins) is_signed = true;
+
+
+
+	// TODO: implement     attr     and ctskipping  next!!!   ie, ct branches. 
+
+
+
 	else if (op == on_ins) { literal += bit; bit <<= 1; } 
 	else if (op == off_ins) bit <<= 1;
 	else if (op == push_ins) { arguments[arg_count++] = literal; literal = 0; bit = 1; }
@@ -327,15 +375,14 @@ builtin:
 
 	else if (not is_compiletime) { 
 
-
 				// TODO: we still need to edit the argstack after pushing the rt ins!!!!
-
 
 
 		printf("info: pushing runtime instruction %llu(\"%s\")...\n", op, ins_spelling[op]);
 		struct instruction new = {0};
 		new.a[0] = (u32) op;
 		new.start = index;
+		new.is_signed = is_signed; is_signed = false;
 		for (nat i = 1; i < 4; i++) {
 			new.a[i] = (u32) (arg_count > i - 1 ? arguments[arg_count - 1 - (i - 1)] : 0);
 			printf(" ... argument #%llu : u32 = %u\n", i, new.a[i]);
@@ -418,7 +465,6 @@ builtin:
 			index = array[a1] + a2;
 			is_compiletime = false;
 
-
 		} else { 
 			printf("internal error: found unimplemented "
 				"operation: %llu (\"%s\")...\n", 
@@ -440,15 +486,22 @@ error:
 	exit(1); 
 }
 
-
-
-done:;
-	puts("DONE: finished assembling program.");
+done:;  puts("DONE: finished assembling program.");
 	print_arguments();
 	print_dictionary();
 	print_instructions();
 	return 0;
 }
+
+
+
+
+
+
+
+
+
+
 
 
 
