@@ -1,3 +1,4 @@
+// my assembler: written on 202405304.122455 by dwrr.
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -37,10 +38,10 @@ static const nat ct_memory_count = 1 << 16;
 enum language_isa {
 	null_instruction, 
 	db, dh, dw, dd,
-	drop, dup_, over, third, swap, rot, def, arc,  ct, attr, 
+	drop, dup_, over, third, swap, rot, def, arc, ct, attr, 
 	add, addi, sub, slt, slti, slts, sltis, 
-	and_, andi,  ior, iori, 
-	eor, eori,   sll, slli,  srl, srli, sra, srai, 
+	and_, andi, ior, iori, 
+	eor, eori, sll, slli,  srl, srli, sra, srai, 
 	blt, blts, bge, bges, bne, beq, 
 	ldb, ldh, ldw, ldd, stb, sth, stw, std, 
 	mul, mulh, mulhs, div_, divs, rem, rems, 
@@ -969,7 +970,7 @@ int main(int argc, const char** argv) {
 	print_instructions();
 	printf("SUCCESSFUL ASSEMBLING\n");
 
-	const nat architecture = arm64;
+	const nat architecture = riscv64;
 	const nat output_format = macho_executable;
 	const bool debug = true;
 	const bool preserve_existing_object = false;
