@@ -106,34 +106,6 @@ static bool enable_debug_output = false;
 static const nat ct_array_count = 1 << 16;
 static const nat ct_memory_count = 1 << 16;
 
-enum language_isa {
-	null_instruction, 
-	db, dh, dw, dd,
-	drop, dup_, over, third, swap, rot, def, arc, ct, attr, 
-	add, addi, sub, slt, slti, slts, sltis, 
-	and_, andi, ior, iori, 
-	eor, eori, sll, slli,  srl, srli, sra, srai, 
-	blt, blts, bge, bges, bne, beq, 
-	ldb, ldh, ldw, ldd, stb, sth, stw, std, 
-	mul, mulh, mulhs, div_, divs, rem, rems, 
-	jalr, jal, auipc, ecall, isa_count
-};
-
-static const char* spelling[isa_count] = {
-	"null_instruction", 
-	"db", "dh", "dw", "dd",
-	"drop", "dup", "over", "third", "swap", "rot",
-	"def", "arc", "ct", "attr", 
-	"add", "addi", "sub", 
-	"slt", "slti", "slts", "sltis", 
-	"and", "andi", "ior", "iori", 
-	"eor", "eori",  "sll", "slli",  "srl", "srli","sra", "srai", 
-	"blt", "blts", "bge", "bges", "bne", "beq", 
-	"ldb", "ldh", "ldw", "ldd", "stb", "sth", "stw", "std", 
-	"mul", "mulh", "mulhs", "div", "divs", "rem", "rems", 
-	"jalr", "jal", "auipc", "ecall"
-};
-
 enum target_architecture { 
 	noruntime, 
 	riscv32, riscv64, 
@@ -170,6 +142,34 @@ static u32 arm64_macos_abi[] = {        // note:  x9 is call-clobbered. save it 
 	25,26,27,28,12, 8,11,10,    
 };
 
+enum language_isa {
+	null_instruction, 
+	db, dh, dw, dd,
+	drop, dup_, over, third, swap, rot, def, arc, ct, attr, 
+	add, addi, sub, slt, slti, slts, sltis, 
+	and_, andi, ior, iori, 
+	eor, eori, sll, slli,  srl, srli, sra, srai, 
+	blt, blts, bge, bges, bne, beq, 
+	ldb, ldh, ldw, ldd, stb, sth, stw, std, 
+	mul, mulh, mulhs, div_, divs, rem, rems, 
+	jalr, jal, auipc, ecall, isa_count
+};
+
+static const char* spelling[isa_count] = {
+	"null_instruction", 
+	"db", "dh", "dw", "dd",
+	"drop", "dup", "over", "third", "swap", "rot",
+	"def", "arc", "ct", "attr", 
+	"add", "addi", "sub", 
+	"slt", "slti", "slts", "sltis", 
+	"and", "andi", "ior", "iori", 
+	"eor", "eori",  "sll", "slli",  "srl", "srli","sra", "srai", 
+	"blt", "blts", "bge", "bges", "bne", "beq", 
+	"ldb", "ldh", "ldw", "ldd", "stb", "sth", "stw", "std", 
+	"mul", "mulh", "mulhs", "div", "divs", "rem", "rems", 
+	"jalr", "jal", "auipc", "ecall"
+};
+
 struct instruction { 
 	nat a[4];
 	nat start;
@@ -202,6 +202,9 @@ static char* names[4096] = {0};
 static nat values[4096] = {0};
 
 static nat* array = NULL;
+
+
+
 
 static void print_files(void) {
 	printf("here are the current files used "
@@ -708,13 +711,10 @@ static void generate_arm64_machine_code(void) {
 		else if (op == bne)    generate_branch(a[0], a[1], a[2], i, 1);
 		else if (op == bge)    generate_branch(a[0], a[1], a[2], i, 2);
 		else if (op == blt)    generate_branch(a[0], a[1], a[2], i, 3);
-
 		
 		else if (op == sll)    generate_adc(a[0], a[1], a[2], 0x0D6U, 0x08, 1, 0, 0);
 		else if (op == srl)    generate_adc(a[0], a[1], a[2], 0x0D6U, 0x09, 1, 0, 0);
 		else if (op == sra)    generate_adc(a[0], a[1], a[2], 0x0D6U, 0x0A, 1, 0, 0);
-
-		
 
 		else if (op == ldb)     generate_memiu(a[0], a[1], a[2], 0x00, 0x00, 0);
 		else if (op == ldh)     generate_memiu(a[0], a[1], a[2], 0x00, 0x00, 0);
@@ -858,6 +858,91 @@ static void make_macho_object_file(const char* object_filename, const bool prese
 	close(file);
 }
 
+
+
+static bool execute(nat op, nat a0, nat a1, nat a2) {
+	if ((0)) {}
+	else if (op == addi)  array[a0] = array[a1] + a2;
+	else if (op == slti)  array[a0] = array[a1] < a2;
+
+	else if (op == add)   array[a0] = array[a1] + array[a2];
+	else if (op == sub)   array[a0] = array[a1] - array[a2];
+	else if (op == ior)   array[a0] = array[a1] | array[a2];
+	else if (op == eor)   array[a0] = array[a1] ^ array[a2];
+	else if (op == and_)   array[a0] = array[a1] & array[a2];
+	else if (op == slt)   array[a0] = array[a1] < array[a2];
+	else if (op == slts)  array[a0] = array[a1] < array[a2];
+	else if (op == sll)   array[a0] = array[a1] << array[a2];
+	else if (op == srl)   array[a0] = array[a1] >> array[a2];
+	else if (op == sra)   array[a0] = array[a1] >> array[a2];
+
+	else if (op == ecall) {
+		if (a0 == 1) return true;
+		else if (a0 == 2) printf("debug: %lld (hex 0x%016llx)\n", array[a1], array[a1]);
+		else if (a0 == 3) array[a1] = (nat) getchar();
+		else if (a0 == 4) putchar((char) array[a1]);
+		else if (a0 == 5) print_dictionary();
+		else if (a0 == 6) print_instructions();
+		else if (a0 == 7) print_registers();
+		else if (a0 == 8) print_arguments();
+		else {
+			printf("error: ct: unknown ecall number %llu... aborting...\n", a0);
+			abort();
+		}
+	}
+
+	else { puts("error: internal ct execute error"); abort(); }
+	return false;
+}
+
+
+static void execute_branch(nat op, nat a0, nat a1, nat a2, nat* skip, nat* index) {
+	if ((0)) {}
+	else if (op == blt)  { if (array[a0] <  array[a1]) goto jump; } 
+	else if (op == bge)  { if (array[a0] >= array[a1]) goto jump; } 
+	else if (op == bne)  { if (array[a0] != array[a1]) goto jump; } 
+	else if (op == beq)  { if (array[a0] == array[a1]) goto jump; } 
+	else if (op == blts) { if (array[a0] <  array[a1]) goto jump; } 
+	else if (op == bges) { if (array[a0] >= array[a1]) goto jump; } 
+	else { puts("error: internal ct execute error"); abort(); }
+	return;
+jump: 	if (array[a2]) *index = array[a2]; 
+	else *skip = a2;
+}
+
+static nat ins_size(nat op, nat target) {
+
+	if (target == arm64) {
+		if (	op == slt or
+			op == slts or 
+			op == blt or 
+			op == bge or 
+			op == bne or
+			op == beq or 
+			op == blts or 
+			op == bges
+
+		) return 8; return 4;
+
+	} else {
+		puts("that target is not supported yet...");
+		abort();
+	}
+
+}
+
+
+static void push_ins(nat op, nat a0, nat a1, nat a2, nat index, nat target) {
+	struct instruction new = {0};
+	new.a[0] = op;
+	new.size = ins_size(op, target);
+	new.a[1] = a0; new.a[2] = a1; new.a[3] = a2;
+	new.start = index;
+	ins = realloc(ins, sizeof(struct instruction) * (ins_count + 1));
+	ins[ins_count++] = new;
+}
+
+
 #define dd if (enable_debug_output)
 
 int main(int argc, const char** argv) {
@@ -886,9 +971,19 @@ int main(int argc, const char** argv) {
 	files[file_count].count = text_length;
 	files[file_count++].start = 0;
 
-	arguments[arg_count++] = 0;
+	bool defining = 0, is_compiletime = 0;
+	nat skip = 0, start = 0, count = 0;
 
-	nat defining = 0, skip = 0, is_compiletime = 0, start = 0, count = 0;
+	nat architecture = arm64;
+	nat output_format = macho_executable;
+	bool debug = true;
+	bool preserve_existing_object = false;
+	bool preserve_existing_executable = false;
+	
+	const char* object_filename = "object0.o";
+	const char* executable_filename = "executable0.out";
+
+
 
 	for (nat index = 0; index < text_length; index++) {
 		dd printf("%llu: %c...\n", index, text[index]);
@@ -945,7 +1040,6 @@ int main(int argc, const char** argv) {
 				defining = true;
 
 			} else if (op == ct) {
-
 				puts("executing ct...");
 				is_compiletime = true;
 
@@ -958,7 +1052,7 @@ int main(int argc, const char** argv) {
 				arguments[arg_count - 1] = array[a0]; 
 
 			} else if (op == attr) {
-				puts("executing atr...");
+				puts("executing attr...");
 				array[a0] = is_compiletime ? index : ins_count;
 				if (skip == a0) skip = 0;
 				is_compiletime = false;
@@ -982,18 +1076,16 @@ int main(int argc, const char** argv) {
 
 			} else if (op == rot) {
 				puts("executing rot...");
-				// 1 2 3 -> 2 3 1
 				arguments[arg_count - 1] = a2;
 				arguments[arg_count - 2] = a0;
 				arguments[arg_count - 3] = a1;
 
 
-
-
-
-
-			} else if (op == add) {
-
+			} else if (	op == addi or op == add  or op == sub or
+					op == ior  or op == eor  or op == and_ or
+					op == slt  or op == slts or op == ecall or
+					op == sll  or op == srl  or op == sra
+			) {
 				arg_count -= 2;
 				arguments[arg_count - 1] = a0; 
 
@@ -1004,467 +1096,28 @@ int main(int argc, const char** argv) {
 					a0, spelling[op], a1, a2
 				);
 
-				if (is_compiletime) {
-					array[a0] = array[a1] + array[a2];
-				} else {
-					struct instruction new = {0};
-					new.a[0] = op;
-					new.size = 4;
-					new.a[1] = a0;
-					new.a[2] = a1;
-					new.a[3] = a2;
-					new.start = index;
-					ins = realloc(ins, sizeof(struct instruction) * (ins_count + 1));
-					ins[ins_count++] = new;		
-				}
+				if (is_compiletime) { if (execute(op, a0, a1, a2)) break; is_compiletime = false; }
+				else push_ins(op, a0, a1, a2, index, architecture);
 
 
-			} else if (op == addi) {
 
-				arg_count -= 2;
-				arguments[arg_count - 1] = a0; 
-
-				printf("%s %llu = %s(%llu %llu)\n", 
-					is_compiletime
-						? "executing compiletime" 
-						: "generating runtime" ,
-					a0, spelling[op], a1, a2
-				);
-
-				if (is_compiletime) {
-					array[a0] = array[a1] + a2;
-				} else {
-					struct instruction new = {0};
-					new.a[0] = op;
-					new.size = 4;
-					new.a[1] = a0;
-					new.a[2] = a1;
-					new.a[3] = a2;
-					new.start = index;
-					ins = realloc(ins, sizeof(struct instruction) * (ins_count + 1));
-					ins[ins_count++] = new;		
-				}
-
-
-			} else if (op == sub) {
-
-				arg_count -= 2;
-				arguments[arg_count - 1] = a0; 
-
-				printf("%s %llu = %s(%llu %llu)\n", 
-					is_compiletime
-						? "executing compiletime" 
-						: "generating runtime" ,
-					a0, spelling[op], a1, a2
-				);
-
-
-				if (is_compiletime) {
-					array[a0] = array[a1] - array[a2];
-				} else {
-					struct instruction new = {0};
-					new.a[0] = op;
-					new.size = 4;
-					new.a[1] = a0;
-					new.a[2] = a1;
-					new.a[3] = a2;
-					new.start = index;
-					ins = realloc(ins, sizeof(struct instruction) * (ins_count + 1));
-					ins[ins_count++] = new;		
-				}
-
-
-
-			} else if (op == ior) {
-
-				arg_count -= 2;
-				arguments[arg_count - 1] = a0; 
-
-				printf("%s %llu = %s(%llu %llu)\n", 
-					is_compiletime
-						? "executing compiletime" 
-						: "generating runtime" ,
-					a0, spelling[op], a1, a2
-				);
-
-
-				if (is_compiletime) {
-					array[a0] = array[a1] | array[a2];
-				} else {
-					struct instruction new = {0};
-					new.a[0] = op;
-					new.size = 4;
-					new.a[1] = a0;
-					new.a[2] = a1;
-					new.a[3] = a2;
-					new.start = index;
-					ins = realloc(ins, sizeof(struct instruction) * (ins_count + 1));
-					ins[ins_count++] = new;		
-				}
-
-
-
-
-			} else if (op == eor) {
-
-				arg_count -= 2;
-				arguments[arg_count - 1] = a0; 
-
-				printf("%s %llu = %s(%llu %llu)\n", 
-					is_compiletime
-						? "executing compiletime" 
-						: "generating runtime" ,
-					a0, spelling[op], a1, a2
-				);
-
-
-				if (is_compiletime) {
-					array[a0] = array[a1] ^ array[a2];
-				} else {
-					struct instruction new = {0};
-					new.a[0] = op;
-					new.size = 4;
-					new.a[1] = a0;
-					new.a[2] = a1;
-					new.a[3] = a2;
-					new.start = index;
-					ins = realloc(ins, sizeof(struct instruction) * (ins_count + 1));
-					ins[ins_count++] = new;		
-				}
-
-
-
-
-			} else if (op == and_) {
-
-				arg_count -= 2;
-				arguments[arg_count - 1] = a0; 
-
-				printf("%s %llu = %s(%llu %llu)\n", 
-					is_compiletime
-						? "executing compiletime" 
-						: "generating runtime" ,
-					a0, spelling[op], a1, a2
-				);
-
-
-				if (is_compiletime) {
-					array[a0] = array[a1] & array[a2];
-				} else {
-					struct instruction new = {0};
-					new.a[0] = op;
-					new.size = 4;
-					new.a[1] = a0;
-					new.a[2] = a1;
-					new.a[3] = a2;
-					new.start = index;
-					ins = realloc(ins, sizeof(struct instruction) * (ins_count + 1));
-					ins[ins_count++] = new;		
-				}
-
-
-
-			} else if (op == slt) {
-
-				arg_count -= 2;
-				arguments[arg_count - 1] = a0; 
-
-				printf("%s %llu = %s(%llu %llu)\n", 
-					is_compiletime
-						? "executing compiletime" 
-						: "generating runtime" ,
-					a0, spelling[op], a1, a2
-				);
-
-
-				if (is_compiletime) {
-					array[a0] = array[a1] < array[a2];
-				} else {
-					struct instruction new = {0};
-					new.a[0] = op;
-					new.size = 4;
-					new.a[1] = a0;
-					new.a[2] = a1;
-					new.a[3] = a2;
-					new.start = index;
-					ins = realloc(ins, sizeof(struct instruction) * (ins_count + 1));
-					ins[ins_count++] = new;		
-				}
-
-
-			} else if (op == slts) {
-
-				arg_count -= 2;
-				arguments[arg_count - 1] = a0; 
-
-				printf("%s %llu = %s(%llu %llu)\n", 
-					is_compiletime
-						? "executing compiletime" 
-						: "generating runtime" ,
-					a0, spelling[op], a1, a2
-				);
-
-
-				if (is_compiletime) {
-					array[a0] = array[a1] < array[a2];
-				} else {
-					struct instruction new = {0};
-					new.a[0] = op;
-					new.size = 4;
-					new.a[1] = a0;
-					new.a[2] = a1;
-					new.a[3] = a2;
-					new.start = index;
-					ins = realloc(ins, sizeof(struct instruction) * (ins_count + 1));
-					ins[ins_count++] = new;		
-				}
-
-			} else if (op == sll) {
-
-				arg_count -= 2;
-				arguments[arg_count - 1] = a0; 
-
-				printf("%s %llu = %s(%llu %llu)\n", 
-					is_compiletime
-						? "executing compiletime" 
-						: "generating runtime" ,
-					a0, spelling[op], a1, a2
-				);
-
-
-				if (is_compiletime) {
-					array[a0] = array[a1] << array[a2];
-				} else {
-					struct instruction new = {0};
-					new.a[0] = op;
-					new.size = 4;
-					new.a[1] = a0;
-					new.a[2] = a1;
-					new.a[3] = a2;
-					new.start = index;
-					ins = realloc(ins, sizeof(struct instruction) * (ins_count + 1));
-					ins[ins_count++] = new;	
-				}
-
-
-			} else if (op == srl) {
-
-				arg_count -= 2;
-				arguments[arg_count - 1] = a0; 
-
-				printf("%s %llu = %s(%llu %llu)\n", 
-					is_compiletime
-						? "executing compiletime" 
-						: "generating runtime" ,
-					a0, spelling[op], a1, a2
-				);
-
-
-				if (is_compiletime) {
-					array[a0] = array[a1] >> array[a2];
-				} else {
-					struct instruction new = {0};
-					new.a[0] = op;
-					new.size = 4;
-					new.a[1] = a0;
-					new.a[2] = a1;
-					new.a[3] = a2;
-					new.start = index;
-					ins = realloc(ins, sizeof(struct instruction) * (ins_count + 1));
-					ins[ins_count++] = new;	
-				}
-
-
-			
-			} else if (op == sra) {
-
-				arg_count -= 2;
-				arguments[arg_count - 1] = a0; 
-
-				printf("%s %llu = %s(%llu %llu)\n", 
-					is_compiletime
-						? "executing compiletime" 
-						: "generating runtime" ,
-					a0, spelling[op], a1, a2
-				);
-
-				if (is_compiletime) {
-					array[a0] = array[a1] >> array[a2];
-				} else {
-					struct instruction new = {0};
-					new.a[0] = op;
-					new.size = 4;
-					new.a[1] = a0;
-					new.a[2] = a1;
-					new.a[3] = a2;
-					new.start = index;
-					ins = realloc(ins, sizeof(struct instruction) * (ins_count + 1));
-					ins[ins_count++] = new;	
-				}
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-			} else if (op == blt) {
+			} else if (	op == blt  or op == bge or
+					op == bne  or op == beq or
+					op == blts or op == bges or
+					op == jalr or op == jal
+				) {
 
 				arg_count -= 3;
 
-				if (is_compiletime) {
-					printf("executing blt(%llu %llu  --> @%llu)\n", a0, a1, a2);
-					if (array[a0] < array[a1]) { 
-						if (array[a2]) index = array[a2]; 
-						else skip = a2; 
-					} 
-				} else {
-					printf("generating blt(%llu %llu  --> @%llu)\n", a0, a1, a2);
-					struct instruction new = {0};
-					new.a[0] = blt;
-					new.size = 4;
-					new.a[1] = a0;
-					new.a[2] = a1;
-					new.a[3] = a2;
-					new.start = index;
-					ins = realloc(ins, sizeof(struct instruction) * (ins_count + 1));
-					ins[ins_count++] = new;		
-				}
+				printf("%s %s(%llu %llu --> @%llu)\n",
+					is_compiletime
+						? "executing compiletime" 
+						: "generating runtime",
+					spelling[op], a0, a1, a2
+				);
 
-
-			} else if (op == bge) {
-
-				arg_count -= 3;
-
-				if (is_compiletime) {
-					printf("executing bge(%llu %llu  --> @%llu)\n", a0, a1, a2);
-					if (array[a0] >= array[a1]) { 
-						if (array[a2]) index = array[a2]; 
-						else skip = a2; 
-					} 
-				} else {
-					printf("generating bge(%llu %llu  --> @%llu)\n", a0, a1, a2);
-					struct instruction new = {0};
-					new.a[0] = bge;
-					new.size = 4;
-					new.a[1] = a0;
-					new.a[2] = a1;
-					new.a[3] = a2;
-					new.start = index;
-					ins = realloc(ins, sizeof(struct instruction) * (ins_count + 1));
-					ins[ins_count++] = new;		
-				}
-
-
-
-
-			} else if (op == beq) {
-
-				arg_count -= 3;
-
-				if (is_compiletime) {
-					printf("executing beq(%llu %llu  --> @%llu)\n", a0, a1, a2);
-					if (array[a0] == array[a1]) {
-						if (array[a2]) index = array[a2]; 
-						else skip = a2; 
-					} 
-				} else {
-					printf("generating beq(%llu %llu  --> @%llu)\n", a0, a1, a2);
-					struct instruction new = {0};
-					new.a[0] = beq;
-					new.size = 4;
-					new.a[1] = a0;
-					new.a[2] = a1;
-					new.a[3] = a2;
-					new.start = index;
-					ins = realloc(ins, sizeof(struct instruction) * (ins_count + 1));
-					ins[ins_count++] = new;		
-				}
-
-
-
-
-			} else if (op == bne) {
-
-				arg_count -= 3;
-
-				if (is_compiletime) {
-					printf("executing bne(%llu %llu  --> @%llu)\n", a0, a1, a2);
-					if (array[a0] != array[a1]) {
-						if (array[a2]) index = array[a2]; 
-						else skip = a2; 
-					} 
-				} else {
-					printf("generating bne(%llu %llu  --> @%llu)\n", a0, a1, a2);
-					struct instruction new = {0};
-					new.a[0] = bne;
-					new.size = 4;
-					new.a[1] = a0;
-					new.a[2] = a1;
-					new.a[3] = a2;
-					new.start = index;
-					ins = realloc(ins, sizeof(struct instruction) * (ins_count + 1));
-					ins[ins_count++] = new;		
-				}
-
-
-
-
-
-
-
-			} else if (op == ecall) {
-
-				if (is_compiletime) {
-					printf("executing ecall...\n");
-
-					if (a0 == 1) break;
-					else if (a0 == 2) printf("debug: %lld (hex 0x%016llx)\n", array[a1], array[a1]);
-					else if (a0 == 3) array[a1] = (nat) getchar();
-					else if (a0 == 4) putchar((char) array[a1]);
-					else if (a0 == 5) print_dictionary();
-					else if (a0 == 6) print_instructions();
-					else if (a0 == 7) print_registers();
-					else if (a0 == 8) print_arguments();
-					else {
-						printf("error: ct: unknown ecall number %llu... aborting...\n", a0);
-						abort();
-					}
-
-				} else {
-					printf("generating ecall\n");
-					struct instruction new = {0};
-					new.a[0] = ecall;
-					new.size = 4;
-					new.start = index;
-					ins = realloc(ins, sizeof(struct instruction) * (ins_count + 1));
-					ins[ins_count++] = new;		
-				}
-
-
-
-
-
+				if (is_compiletime) { execute_branch(op, a0, a1, a2, &skip, &index); is_compiletime = false; }
+				else push_ins(op, a0, a1, a2, index, architecture);
 
 			} else {
 				printf("pushing name %llu on the stack..\n", values[op]);
@@ -1481,15 +1134,6 @@ int main(int argc, const char** argv) {
 	print_arguments();
 	print_instructions();
 	printf("SUCCESSFUL ASSEMBLING\n");
-
-	const nat architecture = arm64;
-	const nat output_format = macho_executable;
-	const bool debug = true;
-	const bool preserve_existing_object = false;
-	const bool preserve_existing_executable = false;
-	
-	const char* object_filename = "object0.o";
-	const char* executable_filename = "executable0.out";
 
 	if (debug) {
 		printf("info: building for target:\n\tarchitecture:  "
