@@ -1,3 +1,71 @@
+/*
+
+
+1202405304.012527:
+
+
+		next step is to add in the backend for riscv and arm64,
+
+			the goal is to get everythinggg working with JUST the instructions:
+
+				addi   sub   add 
+
+
+		thats it   very simple langage     (oh and their compiletime versions,   and the core languaeg primitives like dup and swap etc)
+
+
+				like, just those simple things- just getting those working-
+
+
+				and then we can go through and add a ton of extra instructions and work on just getting branches working properly    as a seperate thing 
+
+
+			but just getting the whole pipeline working,     just using    add  sub   addi 
+
+
+						only 
+
+
+
+			thats the goal.    very attainable. 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+copy do ./build
+
+do ./run
+file.s
+
+
+*/
+
+// a rewrite of the assembler to be totally word based, like forth. 
+// basically to see if we can allow for whitespace in names
+// without using the string system. written on 1202405293.112619 dwrr
+
+// old header:
+// a cross assembler written by dwrr on 1202405186.174952
+// used my modal editor to write this whole document! yay. 
+
+// old header: 
+// started 202405094.232703: by dwrr
+// simple risc-v like language, with minimal terse syntax.
+
+
+			
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -36,67 +104,74 @@ static const nat ct_memory_count = 1 << 16;
 
 enum language_isa {
 	null_instruction, 
-	db, dh, dw, dd,
-	drop, dup_, over, third, swap, rot, def, arc,  ct, attr, 
-	add, addi, sub, slt, slti, slts, sltis, 
-	and_, andi,  ior, iori, 
-	eor, eori,   sll, slli,  srl, srli, sra, srai, 
-	blt, blts, bge, bges, bne, beq, 
-	ldb, ldh, ldw, ldd, stb, sth, stw, std, 
-	mul, mulh, mulhs, div_, divs, rem, rems, 
-	jalr, jal, auipc, ecall, isa_count
+
+	drop, dup_, over, third, swap, rot,
+
+	def, arc, 
+	ct, attr, 
+
+	add, addi, sub, 
+	slt, slti, slts, sltis, 
+
+	and_, andi, 
+	ior, iori, 
+	eor, eori,  
+	sll, slli,  
+	srl, srli,
+	sra, srai, 
+
+	blt, blts,
+	bge, bges,
+	bne, beq, 
+
+	ldb, ldh, ldw, ldd,
+	stb, sth, stw, std, 
+	
+	mul, mulh, mulhs,
+	div_, divs,
+	rem, rems, 
+
+	jalr, jal,
+
+	auipc, 
+	ecall,
+
+	isa_count
 };
 
 static const char* spelling[isa_count] = {
 	"null_instruction", 
-	"db", "dh", "dw", "dd",
+
 	"drop", "dup", "over", "third", "swap", "rot",
-	"def", "arc", "ct", "attr", 
+
+	"def", "arc", 
+	"ct", "attr", 
+
 	"add", "addi", "sub", 
 	"slt", "slti", "slts", "sltis", 
-	"and", "andi", "ior", "iori", 
-	"eor", "eori",  "sll", "slli",  "srl", "srli","sra", "srai", 
-	"blt", "blts", "bge", "bges", "bne", "beq", 
-	"ldb", "ldh", "ldw", "ldd", "stb", "sth", "stw", "std", 
-	"mul", "mulh", "mulhs", "div", "divs", "rem", "rems", 
-	"jalr", "jal", "auipc", "ecall"
-};
 
+	"and", "andi", 
+	"ior", "iori", 
+	"eor", "eori",  
+	"sll", "slli",  
+	"srl", "srli",
+	"sra", "srai", 
 
-enum target_architecture { 
-	noruntime, 
-	riscv32, riscv64, 
-	arm32, arm64, 
-	x86_32, x86_64, 
-	target_count 
-};
+	"blt", "blts",
+	"bge", "bges",
+	"bne", "beq", 
 
-static const char* target_spelling[target_count] = { 
-	"noruntime", 
-	"riscv32", "riscv64", 
-	"arm32", "arm64", 
-	"x86_32", "x86_64" 
-};
+	"ldb", "ldh", "ldw", "ldd",
+	"stb", "sth", "stw", "std", 
+	
+	"mul", "mulh", "mulhs",
+	"div", "divs",
+	"rem", "rems", 
 
-enum output_formats { 
-	print_binary, 
-	elf_objectfile, elf_executable, 
-	macho_objectfile, macho_executable, 
-	output_format_count 
-};
-static const char* output_format_spelling[output_format_count] = { 
-	"print_binary", 
-	"elf_objectfile", "elf_executable", 
-	"macho_objectfile", "macho_executable"
-};
+	"jalr", "jal",
 
-enum host_systems { linux, macos };
-
-static u32 arm64_macos_abi[] = {        // note:  x9 is call-clobbered. save it before calls. 
-	31,30,31,13,14,15, 7,17,
-	29, 9, 0, 1, 2, 3, 4, 5,
-	 6,16,19,20,21,22,23,24,
-	25,26,27,28,12, 8,11,10,    
+	"auipc", 
+	"ecall"
 };
 
 struct instruction { 
@@ -216,8 +291,11 @@ static void print_registers(void) {
 }
 
 static void print_error(const char* reason, nat spot, nat spot2) {
+
 	const int colors[] = {31, 32, 33, 34, 35};
+
 	printf("\033[%dm", colors[1]);
+
 	nat location = 0;
 	const char* filename = NULL;
 	nat stack_i[4096] = {0}, stack_f[4096] = {0}, stack_o[4096] = {0};
@@ -234,19 +312,15 @@ static void print_error(const char* reason, nat spot, nat spot2) {
 				stack_o[stack_count++] = 0;
 				break;
 			} 
-			if (stack_o[stack_count - 1] == files[
-				stack_f[stack_count - 1]].count)  {
+			if (stack_o[stack_count - 1] == files[stack_f[stack_count - 1]].count)  {
 				print_stack(stack_i, stack_f, stack_o, stack_count);
-				printf("file %s reached the end the "
-					"file! (stack_o[%llu] == count == %llu)\n", 
-				files[f].name, stack_count - 1, count);
+				printf("file %s reached the end the file! (stack_o[%llu] == count == %llu)\n", files[f].name, stack_count - 1, count);
 				stack_count--;
 				if (not stack_count) goto done; else break;
 			}
 		}
 		if (index == spot) {
-			printf("\033[38;5;255m(ERROR_HERE:%s:%llu)\033[0m",
-			 files[stack_f[stack_count - 1]].name, stack_o[stack_count - 1]);
+			printf("\033[38;5;255m(ERROR_HERE:%s:%llu)\033[0m", files[stack_f[stack_count - 1]].name, stack_o[stack_count - 1]);
 			filename = files[stack_f[stack_count - 1]].name;
 			location = stack_o[stack_count - 1];
 			goto done;
@@ -255,11 +329,10 @@ static void print_error(const char* reason, nat spot, nat spot2) {
 		putchar(text[index]);
 		//printf("\033[0m");
 		stack_o[stack_count - 1]++;
-		//printf("[%s]: incremented stack_o[top=%llu] to be 
-		// now %llu...\n", files[stack_f[stack_count - 1]].name, 
-		// stack_count - 1, stack_o[stack_count - 1]);
+		//printf("[%s]: incremented stack_o[top=%llu] to be now %llu...\n", files[stack_f[stack_count - 1]].name, stack_count - 1, stack_o[stack_count - 1]);
 	}
 	printf("\033[0m");
+	
 done:	
 	print_files();
 	print_stack(stack_i, stack_f, stack_o, stack_count);
@@ -301,473 +374,6 @@ static void print_index_pair(nat start, nat end) {
 	}
 	puts("");
 }
-
-
-static void dump_hex(uint8_t* local_bytes, nat local_byte_count) {
-	printf("\ndebugging bytes bytes:\n------------------------\n");
-	printf("dumping hex bytes: (%llu)\n", local_byte_count);
-	for (nat i = 0; i < local_byte_count; i++) {
-		if (not (i % 16)) printf("\n\t");
-		if (not (i % 4)) printf(" ");
-		printf("%02hhx ", local_bytes[i]);
-	}
-	puts("");
-}
-
-static void emitb(nat x) {
-	bytes = realloc(bytes, byte_count + 1);
-	bytes[byte_count++] = (u8) (x >> 0);
-}
-
-static void emith(nat x) {
-	bytes = realloc(bytes, byte_count + 2);
-	bytes[byte_count++] = (u8) (x >> 0);
-	bytes[byte_count++] = (u8) (x >> 8);
-}
-
-static void emitw(nat x) {
-	bytes = realloc(bytes, byte_count + 4);
-	bytes[byte_count++] = (u8) (x >> 0);
-	bytes[byte_count++] = (u8) (x >> 8);
-	bytes[byte_count++] = (u8) (x >> 16);
-	bytes[byte_count++] = (u8) (x >> 24);
-}
-
-static void emitd(nat x) {
-	bytes = realloc(bytes, byte_count + 4);
-	bytes[byte_count++] = (u8) (x >> 0);
-	bytes[byte_count++] = (u8) (x >> 8);
-	bytes[byte_count++] = (u8) (x >> 16);
-	bytes[byte_count++] = (u8) (x >> 24);
-	bytes[byte_count++] = (u8) (x >> 32);
-	bytes[byte_count++] = (u8) (x >> 40);
-	bytes[byte_count++] = (u8) (x >> 48);
-	bytes[byte_count++] = (u8) (x >> 56);
-}
-
-static void check(nat value, nat limit) {
-	if (value >= limit) {
-		puts("check error");
-		print_error("error: sorry bad logic or something", 0, 0);
-		abort();
-	}
-}
-
-static nat r_type(nat* a, nat o, nat f, nat g) {
-	check(a[0], 32);
-	check(a[1], 32);
-	check(a[2], 32);
-	return (g << 25U) | (a[2] << 20U) | (a[1] << 15U) | (f << 12U) | (a[0] << 7U) | o;
-}
-
-static nat i_type(nat* a, nat o, nat f) { 
-	check(a[0], 32);
-	check(a[1], 32);
-	check(a[2], 1 << 12);
-	return (a[2] << 20U) | (a[1] << 15U) | (f << 12U) | (a[0] << 7U) | o;
-}
-
-static nat s_type(nat* a, nat o, nat f) {
-	check(a[0], 32);
-	check(a[1], 32);
-	check(a[2], 1 << 12);
-	return ((a[0] >> 5U) << 25U) | (a[2] << 20U) | (a[1] << 15U) | (f << 12U) | ((a[0] & 0x1F) << 7U) | o;
-}
-
-static nat u_type(nat* a, nat o) { 
-	check(a[0], 32);
-	check(a[1], 1 << 20);
-	return (a[1] << 12U) | (a[0] << 7U) | o;
-}
-
-static nat calculate_offset(nat here, nat label) {
-	nat offset = 0;
-	if (label < here) {
-		for (nat i = label; i < here; i++) {
-			offset -= ins[i].size;
-		}
-	} else {
-		for (nat i = here; i < label; i++) {
-			offset += ins[i].size;
-		}
-	}
-	return offset;
-}
-
-static nat j_type(nat here, nat* a, nat o) {   	//  L r op
-	check(a[0], 32);
-	const nat e = calculate_offset(here, a[1]);
-	const nat imm19_12 = (e & 0x000FF000);
-	const nat imm11    = (e & 0x00000800) << 9;
-	const nat imm10_1  = (e & 0x000007FE) << 20;
-	const nat imm20    = (e & 0x00100000) << 11;
-	const nat imm = imm20 | imm10_1 | imm11 | imm19_12;
-	return (imm << 12U) | (a[0] << 7U) | o;
-}
-
-static void generate_riscv_machine_code(void) {
-
-	for (nat i = 0; i < ins_count; i++) {
-
-		const nat op = ins[i].a[0];
-		nat* a = ins[i].a + 1;
-
-		     if (op == db)	emitb(a[0]);
-		else if (op == dh)	emith(a[0]);
-		else if (op == dw)	emitw(a[0]);
-		else if (op == dd)	emitd(a[0]);
-		else if (op == ecall)   emitw(0x00000073);
-
-		else if (op == add)     emitw(r_type(a, 0x33, 0x0, 0x00));
-		else if (op == sub)     emitw(r_type(a, 0x33, 0x0, 0x20));
-		else if (op == sll)     emitw(r_type(a, 0x33, 0x1, 0x00));
-		else if (op == slts)    emitw(r_type(a, 0x33, 0x2, 0x00));
-		else if (op == slt)     emitw(r_type(a, 0x33, 0x3, 0x00));
-		else if (op == eor)     emitw(r_type(a, 0x33, 0x4, 0x00));
-		else if (op == srl)     emitw(r_type(a, 0x33, 0x5, 0x00));
-		else if (op == sra)     emitw(r_type(a, 0x33, 0x5, 0x20));
-		else if (op == ior)     emitw(r_type(a, 0x33, 0x6, 0x00));
-		else if (op == and_)    emitw(r_type(a, 0x33, 0x7, 0x00));
-
-		else if (op == ldb)      emitw(i_type(a, 0x03, 0x0));
-		else if (op == ldh)      emitw(i_type(a, 0x03, 0x1));
-		else if (op == ldw)      emitw(i_type(a, 0x03, 0x2));
-		else if (op == ldd)      emitw(i_type(a, 0x03, 0x3));
-		else if (op == addi)    emitw(i_type(a, 0x13, 0x0));
-		else if (op == sltis)   emitw(i_type(a, 0x13, 0x2));
-		else if (op == slti)    emitw(i_type(a, 0x13, 0x3));
-		else if (op == eori)    emitw(i_type(a, 0x13, 0x4));
-		else if (op == iori)    emitw(i_type(a, 0x13, 0x6));
-		else if (op == andi)    emitw(i_type(a, 0x13, 0x7));
-		else if (op == slli)    emitw(i_type(a, 0x13, 0x1));
-
-		else if (op == srli)    emitw(i_type(a, 0x13, 0x5));   
-
-			// TODO: make this not use the immediate as a bit in the opcode. 
-			// toggle this bit if the user gives a sraiw/srai.  comment 
-			// version old:(for srai/sraiw, give the appropriate a[2] with imm[10] set.)
-
-		else if (op == jalr)    emitw(i_type(a, 0x67, 0x0));
-
-		else if (op == stb)      emitw(s_type(a, 0x23, 0x0));
-		else if (op == sth)      emitw(s_type(a, 0x23, 0x1));
-		else if (op == stw)      emitw(s_type(a, 0x23, 0x2));
-		else if (op == std)      emitw(s_type(a, 0x23, 0x3));
-
-		// else if (op == lui)     emitw(u_type(a, 0x37));
-		else if (op == auipc)   emitw(u_type(a, 0x17));
-		else if (op == jal)     emitw(j_type(i, a, 0x6F));
-
-		else {
-			printf("error: riscv: unknown runtime instruction: %s : %llu\n", spelling[op], op);
-			print_error("unknown instruction", (nat)~0, (nat)~0);
-			abort();
-		}
-	}
-}
-
-
-
-
-
-
-/////////////////////////////////////////////////
-
-static nat generate_adr(nat* a, nat op, 
-			nat im, nat oc) {   //      adrp: oc = 1 
-
-	nat Rd = (nat) a[0];
-	nat Im = * (nat*) im;
-	check(Rd, 32);
-	nat lo = 0x03U & Im, hi = 0x07FFFFU & (Im >> 2);
-
-	return  (oc << 31U) | 
-		(lo << 29U) | 
-		(op << 24U) |
-		(hi <<  5U) | Rd;
-}
-
-static nat generate_mov(nat Rd, nat op, nat im, 
-			nat sf, nat oc, nat sh) {  
-
-	check(Rd, 32);
-
-	Rd = arm64_macos_abi[Rd];
-
-	check(im, 1 << 12U);
-	return  (sf << 31U) | 
-		(oc << 29U) | 
-		(op << 23U) | 
-		(sh << 21U) | 
-		(im <<  5U) | Rd;
-}
-
-static nat generate_addi(nat Rd, nat Rn, nat im, 
-			nat op, nat sf, nat sb, 
-			nat st, nat sh) {  
-	if (not Rd) return 0xD503201F;
-	if (not Rn) return generate_mov(Rd, 0x25U, im, sf, 2, 0);
-	
-	check(Rd, 32);
-	check(Rn, 32);
-
-	Rd = arm64_macos_abi[Rd];
-	Rn = arm64_macos_abi[Rn];
-
-	check(im, 1 << 12U);
-
-	return  (sf << 31U) | 
-		(sb << 30U) | 
-		(st << 29U) | 
-		(op << 23U) | 
-		(sh << 22U) | 
-		(im << 10U) | 
-		(Rn <<  5U) | Rd;
-}
-
-static nat generate_memi(nat Rt, nat Rn, nat im, nat oe, nat op, nat oc, nat sf) {     
-	
-	check(Rt, 32);
-	check(Rn, 32);
-
-	Rt = arm64_macos_abi[Rt];
-	Rn = arm64_macos_abi[Rn];
-
-	check(im, 1 << 9U);
-
-	return  (sf << 30U) |
-		(op << 24U) |
-		(oc << 22U) |
-		(im << 12U) |
-		(oe << 10U) |
-		(Rn <<  5U) | Rt;
-}
-
-static nat generate_memiu(nat Rt, nat Rn, nat im, nat op, nat oc, nat sf) {
-
-	check(Rt, 32);
-	check(Rn, 32);
-
-	Rt = arm64_macos_abi[Rt];
-	Rn = arm64_macos_abi[Rn];
-
-	check(im, 1 << 12U);
-
-	return  (sf << 30U) | 
-		(op << 24U) | 
-		(oc << 22U) | 
-		(im << 10U) | 
-		(Rn <<  5U) | Rt;
-}
-
-static nat generate_add(nat Rd, nat Rn, nat Rm, 
-			nat op, nat im, nat sf, 
-			nat st, nat sb, nat sh) {
-
-	check(Rd, 32);
-	check(Rn, 32);
-	check(Rm, 32);
-	check(im, 32U << sf);
-
-	Rd = arm64_macos_abi[Rd];
-	Rn = arm64_macos_abi[Rn];
-	Rm = arm64_macos_abi[Rm];
-
-	return  (sf << 31U) |
-		(sb << 30U) |
-		(st << 29U) |
-		(op << 24U) | 
-		(sh << 21U) | 
-		(Rm << 16U) | 
-		(im << 10U) | 
-		(Rn <<  5U) | Rd;
-}
-
-static nat generate_bc(nat condition, nat here, nat target) { 
-
-	printf("target = %llu, here = %llu\n", target, here);
-	getchar();
-	const nat byte_offset = calculate_offset(here, target) - 4;
-	const nat imm = byte_offset >> 2;
-	return (0x54U << 24U) | ((0x0007FFFFU & imm) << 5U) | condition;
-}
-
-static void emit_and_generate_branch(nat R_left, nat R_right, nat target, nat here, nat condition) {
-	emitw(generate_add(0, R_left, R_right, 0x0BU, 0, 1, 1, 1, 0));
-	emitw(generate_bc(condition, here, array[target]));
-}
-
-static void generate_arm64_machine_code(void) {
-
-	for (nat i = 0; i < ins_count; i++) {
-		nat op = ins[i].a[0];
-		nat* a = ins[i].a + 1;
-
-		     if (op == db)	emitb(a[0]);
-		else if (op == dh)	emith(a[0]);
-		else if (op == dw)	emitw(a[0]);
-		else if (op == dd)      emitd(a[0]);
-
-		else if (op == ecall)   emitw(0xD4000001);
-
-		else if (op == add)    emitw(generate_add(a[0], a[1], a[2], 0x0BU, 0, 1, 0, 0, 0));
-		else if (op == sub)    emitw(generate_add(a[0], a[1], a[2], 0x0BU, 0, 1, 0, 1, 0));
-		else if (op == ior)    emitw(generate_add(a[0], a[1], a[2], 0x2AU, 0, 1, 0, 0, 0));
-		else if (op == addi)   emitw(generate_addi(a[0], a[1], a[2], 0x22U, 1, 0, 0, 0));
-
-		else if (op == blt)   emit_and_generate_branch(a[0], a[1], a[2], i, 3);
-		else if (op == bge)   emit_and_generate_branch(a[0], a[1], a[2], i, 2);
-
-		else if (op == sll)    goto here; 
-		else if (op == slts)    goto here;
-		else if (op == slt)   goto here;
-		else if (op == eor)   goto here;
-		else if (op == srl)    goto here;
-		else if (op == sra)    goto here;
-		else if (op == and_)   goto here;
-
-		else if (op == ldb)     emitw(generate_memiu(a[0], a[1], a[2], 0x00, 0x00, 0));
-		else if (op == ldh)     emitw(generate_memiu(a[0], a[1], a[2], 0x00, 0x00, 0));
-		else if (op == ldw)     emitw(generate_memiu(a[0], a[1], a[2], 0x00, 0x00, 0));
-		else if (op == ldd)     emitw(generate_memiu(a[0], a[1], a[2], 0x00, 0x00, 0));
-
-		else if (op == stb)     emitw(generate_memiu(a[0], a[1], a[2], 0x00, 0x00, 0));
-		else if (op == sth)     emitw(generate_memiu(a[0], a[1], a[2], 0x00, 0x00, 0));
-		else if (op == stw)     emitw(generate_memiu(a[0], a[1], a[2], 0x00, 0x00, 0));
-		else if (op == std)     emitw(generate_memiu(a[0], a[1], a[2], 0x00, 0x00, 0));
-
-		else if (op == sltis)   goto here;
-		else if (op == slti)  goto here;
-		else if (op == eori)   goto here;
-		else if (op == iori)    goto here;
-		else if (op == andi)   goto here;
-		else if (op == slli)   goto here;
-		else if (op == srli)   goto here;
-		else if (op == jalr)   goto here;
-		
-		else if (op == auipc)  goto here;
-		else if (op == beq)    goto here;
-		else if (op == bne)    goto here;
-		else if (op == blt)    goto here;
-		else if (op == bge)    goto here;
-		else if (op == jal)    goto here;
-		else {
-			here: printf("error: arm64: unknown runtime instruction: %s : %llu\n", spelling[op], op);
-			print_error("unknown instruction", (nat) ~0, (nat) ~0);
-			abort();
-		}
-	}
-}
-
-static void make_elf_object_file(const char* object_filename) {
-	puts("make_elf_object_file: unimplemented");
-	getchar();
-	const int flags = O_WRONLY | O_CREAT | O_TRUNC | O_EXCL;
-	const mode_t mode = S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH;
-	const int file = open(object_filename, flags, mode);
-	if (file < 0) { perror("obj:open"); exit(1); }
-	write(file, NULL, 0);
-	write(file, NULL, 0);
-	write(file, NULL, 0);
-	close(file);
-}
-
-static void make_macho_object_file(const char* object_filename, const bool preserve_existing_object) {
-
-	struct mach_header_64 header = {0};
-	header.magic = MH_MAGIC_64;
-	header.cputype = (int)CPU_TYPE_ARM | (int)CPU_ARCH_ABI64;
-	header.cpusubtype = (int) CPU_SUBTYPE_ARM64_ALL;
-	header.filetype = MH_OBJECT;
-	header.ncmds = 2;
-	header.sizeofcmds = 0;
-	header.flags = MH_NOUNDEFS | MH_SUBSECTIONS_VIA_SYMBOLS;
-
-	header.sizeofcmds = 	sizeof(struct segment_command_64) + 
-				sizeof(struct section_64) + 
-				sizeof(struct symtab_command);
-
-	struct segment_command_64 segment = {0};
-	strncpy(segment.segname, "__TEXT", 16);
-	segment.cmd = LC_SEGMENT_64;
-	segment.cmdsize = sizeof(struct segment_command_64) + sizeof(struct section_64);
-	segment.maxprot =  (VM_PROT_READ | VM_PROT_EXECUTE);
-	segment.initprot = (VM_PROT_READ | VM_PROT_EXECUTE);
-	segment.nsects = 1;
-	segment.vmaddr = 0;
-	segment.vmsize = byte_count;
-	segment.filesize = byte_count;
-
-	segment.fileoff = 	sizeof(struct mach_header_64) + 
-				sizeof(struct segment_command_64) + 
-				sizeof(struct section_64) + 
-				sizeof(struct symtab_command);
-
-	struct section_64 section = {0};
-	strncpy(section.sectname, "__text", 16);
-	strncpy(section.segname, "__TEXT", 16);
-	section.addr = 0;
-	section.size = byte_count;	
-	section.align = 3;
-	section.reloff = 0;
-	section.nreloc = 0;
-	section.flags = S_ATTR_PURE_INSTRUCTIONS | S_ATTR_PURE_INSTRUCTIONS;
-
-	section.offset = 	sizeof(struct mach_header_64) + 
-				sizeof(struct segment_command_64) + 
-				sizeof(struct section_64) + 
-				sizeof(struct symtab_command);
-
-	const char strings[] = "\0_start\0";
-
-	struct symtab_command table  = {0};
-	table.cmd = LC_SYMTAB;
-	table.cmdsize = sizeof(struct symtab_command);
-	table.strsize = sizeof(strings);
-	table.nsyms = 1; 
-	table.stroff = 0;
-	
-	table.symoff = (uint32_t) (
-				sizeof(struct mach_header_64) +
-				sizeof(struct segment_command_64) + 
-				sizeof(struct section_64) + 
-				sizeof(struct symtab_command) + 
-				byte_count
-			);
-
-	table.stroff = table.symoff + sizeof(struct nlist_64);
-
-	struct nlist_64 symbols[] = {
-	        (struct nlist_64) {
-	            .n_un.n_strx = 1,
-	            .n_type = N_SECT | N_EXT,
-	            .n_sect = 1,
-	            .n_desc = REFERENCE_FLAG_DEFINED,
-	            .n_value = 0,
-	        }
-	};
-
-	if (preserve_existing_object and not access(object_filename, F_OK)) {
-		puts("asm: object_file: file exists"); 
-		puts(object_filename);
-		exit(1);
-	}
-
-	const int flags = O_WRONLY | O_CREAT | O_TRUNC | (preserve_existing_object ? O_EXCL : 0);
-	const mode_t mode = S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH;
-	const int file = open(object_filename, flags, mode);
-	if (file < 0) { perror("obj:open"); exit(1); }
-
-	write(file, &header, sizeof(struct mach_header_64));
-	write(file, &segment, sizeof (struct segment_command_64));
-	write(file, &section, sizeof(struct section_64));
-	write(file, &table, sizeof table);
-	write(file, bytes, byte_count);
-	write(file, symbols, sizeof(struct nlist_64));
-	write(file, strings, sizeof strings);
-	close(file);
-}
-
 
 #define dd if (enable_debug_output)
 
@@ -893,6 +499,9 @@ int main(int argc, const char** argv) {
 				arguments[arg_count - 2] = a0;
 				arguments[arg_count - 3] = a1;
 
+
+
+
 			} else if (op == add) {
 
 				arg_count -= 2;
@@ -913,6 +522,7 @@ int main(int argc, const char** argv) {
 					ins = realloc(ins, sizeof(struct instruction) * (ins_count + 1));
 					ins[ins_count++] = new;		
 				}
+
 
 
 			} else if (op == addi) {
@@ -973,159 +583,7 @@ int main(int argc, const char** argv) {
 	print_arguments();
 	print_instructions();
 	printf("SUCCESSFUL ASSEMBLING\n");
-
-
-
-
-
-
-
-
-
-
-
-
-done:;	const nat architecture = (*array >> 0) & 0xF;
-	const nat output_format = (*array >> 4) & 0xF;
-	const bool debug = (*array >> 8) & 0x1;
-	const bool preserve_existing_object = (*array >> 9) & 0x1;
-	const bool preserve_existing_executable = (*array >> 10) & 0x1;
-	
-	const char* object_filename = "object0.o";
-	const char* executable_filename = "executable0.out";
-
-	if (debug) {
-		printf("info: building for target:\n\tarchitecture:  "
-			"\033[31;1m%s\033[0m\n\toutput_format: \033[32;1m%s\033[0m.\n\n", 
-			target_spelling[architecture  % target_count], 
-			output_format_spelling[output_format % output_format_count]
-		);
-	}
-
-	if (architecture == noruntime) {
-		if (not ins_count) exit(0);
-		current_ins = ins[0];
-		print_error("encountered runtime instruction with target \"noruntime\"", ins[0].loc[0]);
-		exit(1);
-
-	} else if (architecture == riscv32 or architecture == riscv64) {
-		generate_riscv_machine_code();
-
-	} else if (architecture == arm64) {
-		generate_arm64_machine_code();
-
-	} else {
-		puts("asm: \033[31;1merror:\033[0m unknown target architecture specified, valid values: "); // TODO: use print_error();
-		for (nat i = 0; i < target_count; i++) {
-			printf("\t%llu : %s\n", i, target_spelling[i]);
-		}
-		exit(1);
-	}
-
-	if (output_format == print_binary) 
-		dump_hex((uint8_t*) bytes, byte_count);
-
-	else if (output_format == elf_objectfile or output_format == elf_executable)
-		make_elf_object_file(object_filename);
-
-	else if (output_format == macho_objectfile or output_format == macho_executable) 
-		make_macho_object_file(object_filename, preserve_existing_object);
-	else {
-		puts("asm: \033[31;1merror:\033[0m unknown output format specified, valid values: "); // TODO: use print_error();
-		for (nat i = 0; i < output_format_count; i++) {
-			printf("\t%llu : %s\n", i, output_format_spelling[i]);
-		}
-	}
-
-	if (output_format == elf_executable or output_format == macho_executable) {
-
-		if (preserve_existing_executable and not access(executable_filename, F_OK)) {
-			puts("asm: executable_file: file exists");  // TODO: use print_error();
-			puts(executable_filename);
-			exit(1);
-		}
-		
-		char link_command[4096] = {0};
-		snprintf(link_command, sizeof link_command, "ld -S -x " //  -v
-			"-dead_strip "
-			"-no_weak_imports "
-			"-fatal_warnings "
-			"-no_eh_labels "
-			"-warn_compact_unwind "
-			"-warn_unused_dylibs "
-			"%s -o %s "
-			"-arch arm64 "
-			"-e _start "
-			"-stack_size 0x1000000 "
-			"-platform_version macos 13.0.0 13.3 "
-			"-lSystem "
-			"-syslibroot /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk ", 
-			object_filename, executable_filename
-		);
-		system(link_command);
-	}
-
-	if (debug) {
-		system("otool -txvVhlL object0.o");
-		system("otool -txvVhlL executable0.out");
-		system("objdump object0.o -DSast --disassembler-options=no-aliases");
-		system("objdump executable0.out -DSast --disassembler-options=no-aliases");
-	}
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 
@@ -1631,22 +1089,4 @@ static void push_name(const char* raw_string, const nat raw_length) {
 
 
 		print out where we are in the file inside of our parsing algorithm!
-
-
-
-
-
-static void check(nat r, nat c, const char* type, nat arg_index) {
-	if (r < c) return;
-	char reason[4096] = {0};
-	snprintf(reason, sizeof reason, "argument %llu: invalid %s, %llu (%llu >= %llu)", arg_index, type, r, r, c);
-	print_error(reason, arg_index, 0); 
-	exit(1);
-}
-
-
-
-
-
-
 */
