@@ -928,6 +928,31 @@ int main(int argc, const char** argv) {
 					ins[ins_count++] = new;		
 				}
 
+
+
+			} else if (op == ecall) {
+
+				if (is_compiletime) {
+					printf("executing ecall...\n");
+
+					puts("?");
+					getchar();
+
+				} else {
+					printf("generating ecall\n");
+					struct instruction new = {0};
+					new.a[0] = ecall;
+					new.size = 4;
+					new.start = index;
+					ins = realloc(ins, sizeof(struct instruction) * (ins_count + 1));
+					ins[ins_count++] = new;		
+				}
+
+
+
+
+
+
 			} else {
 				printf("pushing name %llu on the stack..\n", values[op]);
 				arguments[arg_count++] = values[op];
@@ -947,8 +972,8 @@ int main(int argc, const char** argv) {
 	const nat architecture = arm64;
 	const nat output_format = macho_executable;
 	const bool debug = true;
-	const bool preserve_existing_object = true;
-	const bool preserve_existing_executable = true;
+	const bool preserve_existing_object = false;
+	const bool preserve_existing_executable = false;
 	
 	const char* object_filename = "object0.o";
 	const char* executable_filename = "executable0.out";
@@ -1654,6 +1679,46 @@ static nat generate_memi(nat Rt, nat Rn, nat im, nat oe, nat op, nat oc, nat sf)
 		(oe << 10U) |
 		(Rn <<  5U) | Rt;
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+example testing code on 202405304.122037:
+
+
+
+
+
+
+101 dup 111 add 
+
+def hello
+
+001 dup hello swap sub
+
+001 001 001 ecall
+
+011 011 011 addi
+
+
+
+
+
+
+
+
+
+
 */
 
 
