@@ -473,19 +473,7 @@ static void generate_riscv_machine_code(void) {
 
 /////////////////////////////////////////////////
 
-static nat generate_adr(nat* a, nat op, 
-			nat im, nat oc) {   //      adrp: oc = 1 
 
-	nat Rd = (nat) a[0];
-	nat Im = * (nat*) im;
-	check(Rd, 32);
-	nat lo = 0x03U & Im, hi = 0x07FFFFU & (Im >> 2);
-
-	return  (oc << 31U) | 
-		(lo << 29U) | 
-		(op << 24U) |
-		(hi <<  5U) | Rd;
-}
 
 static nat generate_mov(nat Rd, nat op, nat im, 
 			nat sf, nat oc, nat sh) {  
@@ -525,23 +513,6 @@ static nat generate_addi(nat Rd, nat Rn, nat im,
 		(Rn <<  5U) | Rd;
 }
 
-static nat generate_memi(nat Rt, nat Rn, nat im, nat oe, nat op, nat oc, nat sf) {     
-	
-	check(Rt, 32);
-	check(Rn, 32);
-
-	Rt = arm64_macos_abi[Rt];
-	Rn = arm64_macos_abi[Rn];
-
-	check(im, 1 << 9U);
-
-	return  (sf << 30U) |
-		(op << 24U) |
-		(oc << 22U) |
-		(im << 12U) |
-		(oe << 10U) |
-		(Rn <<  5U) | Rt;
-}
 
 static nat generate_memiu(nat Rt, nat Rn, nat im, nat op, nat oc, nat sf) {
 
@@ -768,7 +739,6 @@ static void make_macho_object_file(const char* object_filename, const bool prese
 	close(file);
 }
 
-
 #define dd if (enable_debug_output)
 
 int main(int argc, const char** argv) {
@@ -974,22 +944,11 @@ int main(int argc, const char** argv) {
 	print_instructions();
 	printf("SUCCESSFUL ASSEMBLING\n");
 
-
-
-
-
-
-
-
-
-
-
-
-done:;	const nat architecture = (*array >> 0) & 0xF;
-	const nat output_format = (*array >> 4) & 0xF;
-	const bool debug = (*array >> 8) & 0x1;
-	const bool preserve_existing_object = (*array >> 9) & 0x1;
-	const bool preserve_existing_executable = (*array >> 10) & 0x1;
+	const nat architecture = arm64;
+	const nat output_format = macho_executable;
+	const bool debug = true;
+	const bool preserve_existing_object = true;
+	const bool preserve_existing_executable = true;
 	
 	const char* object_filename = "object0.o";
 	const char* executable_filename = "executable0.out";
@@ -1004,8 +963,7 @@ done:;	const nat architecture = (*array >> 0) & 0xF;
 
 	if (architecture == noruntime) {
 		if (not ins_count) exit(0);
-		current_ins = ins[0];
-		print_error("encountered runtime instruction with target \"noruntime\"", ins[0].loc[0]);
+		print_error("encountered runtime instruction with target \"noruntime\"", (nat) ~0, (nat) ~0);
 		exit(1);
 
 	} else if (architecture == riscv32 or architecture == riscv64) {
@@ -1650,3 +1608,53 @@ static void check(nat r, nat c, const char* type, nat arg_index) {
 
 
 */
+
+
+
+
+
+
+/*static nat generate_adr(nat* a, nat op, 
+			nat im, nat oc) {   //      adrp: oc = 1 
+
+	nat Rd = (nat) a[0];
+	nat Im = * (nat*) im;
+	check(Rd, 32);
+	nat lo = 0x03U & Im, hi = 0x07FFFFU & (Im >> 2);
+
+	return  (oc << 31U) | 
+		(lo << 29U) | 
+		(op << 24U) |
+		(hi <<  5U) | Rd;
+}*/
+
+
+
+
+
+
+
+
+
+/*
+static nat generate_memi(nat Rt, nat Rn, nat im, nat oe, nat op, nat oc, nat sf) {     
+	
+	check(Rt, 32);
+	check(Rn, 32);
+
+	Rt = arm64_macos_abi[Rt];
+	Rn = arm64_macos_abi[Rn];
+
+	check(im, 1 << 9U);
+
+	return  (sf << 30U) |
+		(op << 24U) |
+		(oc << 22U) |
+		(im << 12U) |
+		(oe << 10U) |
+		(Rn <<  5U) | Rt;
+}
+*/
+
+
+
