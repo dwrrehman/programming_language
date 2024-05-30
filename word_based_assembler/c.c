@@ -23,123 +23,78 @@
 #include <sys/mman.h>
 #include <stdnoreturn.h>
 
-#define CPU_SUBTYPE_ARM64_ALL    0
-#define CPU_TYPE_ARM   12
-#define CPU_ARCH_ABI64          0x01000000 
-#define MH_MAGIC_64 	0xfeedfacf
-#define MH_SUBSECTIONS_VIA_SYMBOLS 0x2000/* safe to divide up the sections into
-					    sub-sections via symbols for dead
-					    code stripping */
-
-#define	N_SECT	0xe		/* defined in section number n_sect */
-#define	N_EXT	0x01  /* external symbol bit, set for external symbols */
-
-#define REFERENCE_FLAG_DEFINED				2
-
-
+#define CPU_SUBTYPE_ARM64_ALL 0
+#define CPU_TYPE_ARM  12
+#define CPU_ARCH_ABI64  0x01000000 
+#define MH_MAGIC_64 0xfeedfacf
+#define MH_SUBSECTIONS_VIA_SYMBOLS 0x2000
+#define S_ATTR_PURE_INSTRUCTIONS 0x80000000
+#define	N_SECT 0xe
+#define	N_EXT 0x01
+#define	LC_SYMTAB 0x2
+#define	MH_OBJECT 0x1
+#define REFERENCE_FLAG_DEFINED 2
+#define VM_PROT_READ    0x01
+#define VM_PROT_EXECUTE 0x04
+#define	MH_NOUNDEFS	0x1
+#define	LC_SEGMENT_64	0x19
 
 struct nlist_64 {
-    union {
-        uint32_t  n_strx; /* index into the string table */
-    } n_un;
-    uint8_t n_type;        /* type flag, see below */
-    uint8_t n_sect;        /* section number or NO_SECT */
-    uint16_t n_desc;       /* see <mach-o/stab.h> */
-    uint64_t n_value;      /* value of this symbol (or stab offset) */
-};
-
-
-
-
-
-#define S_ATTR_PURE_INSTRUCTIONS 0x80000000	/* section contains only true
-						   machine instructions */
-
-
-// #define	LC_SEGMENT	0x1	/* segment of this file to be mapped */
-#define	LC_SYMTAB	0x2	/* link-edit stab symbol table info */
-
-
-
-
-typedef int             vm_prot_t;
-
-/*
- *	Protection values, defined as bits within the vm_prot_t type
- */
-
-// #define VM_PROT_NONE    ((vm_prot_t) 0x00)
-
-#define VM_PROT_READ    ((vm_prot_t) 0x01)      /* read permission */
-
-// #define VM_PROT_WRITE   ((vm_prot_t) 0x02)      /* write permission */
-
-#define VM_PROT_EXECUTE ((vm_prot_t) 0x04)      /* execute permission */
-
-
-
-
-#define	MH_OBJECT	0x1		/* relocatable object file */
-
-// #define	MH_EXECUTE	0x2		/* demand paged executable file */
-
-#define	MH_NOUNDEFS	0x1
-
-#define	LC_SEGMENT_64	0x19	/* 64-bit segment of this file to be
-				   mapped */
-
-
-
-struct segment_command_64 { /* for 64-bit architectures */
-	uint32_t	cmd;		/* LC_SEGMENT_64 */
-	uint32_t	cmdsize;	/* includes sizeof section_64 structs */
-	char		segname[16];	/* segment name */
-	uint64_t	vmaddr;		/* memory address of this segment */
-	uint64_t	vmsize;		/* memory size of this segment */
-	uint64_t	fileoff;	/* file offset of this segment */
-	uint64_t	filesize;	/* amount to map from the file */
-	int32_t		maxprot;	/* maximum VM protection */
-	int32_t		initprot;	/* initial VM protection */
-	uint32_t	nsects;		/* number of sections in segment */
-	uint32_t	flags;		/* flags */
+    union { uint32_t  n_strx; } n_un;
+    uint8_t n_type;
+    uint8_t n_sect; 
+    uint16_t n_desc; 
+    uint64_t n_value;  
 };
 
 struct mach_header_64 {
-	uint32_t	magic;		/* mach magic number identifier */
-	int32_t		cputype;	/* cpu specifier */
-	int32_t		cpusubtype;	/* machine specifier */
-	uint32_t	filetype;	/* type of file */
-	uint32_t	ncmds;		/* number of load commands */
-	uint32_t	sizeofcmds;	/* the size of all the load commands */
-	uint32_t	flags;		/* flags */
-	uint32_t	reserved;	/* reserved */
+	uint32_t	magic;
+	int32_t		cputype;
+	int32_t		cpusubtype;
+	uint32_t	filetype;
+	uint32_t	ncmds;
+	uint32_t	sizeofcmds;
+	uint32_t	flags;
+	uint32_t	reserved;
 };
 
+struct segment_command_64 {
+	uint32_t	cmd;
+	uint32_t	cmdsize;
+	char		segname[16];
+	uint64_t	vmaddr;
+	uint64_t	vmsize;
+	uint64_t	fileoff;
+	uint64_t	filesize;
+	int32_t		maxprot;
+	int32_t		initprot;
+	uint32_t	nsects;
+	uint32_t	flags;
+};
 
-struct section_64 { /* for 64-bit architectures */
-	char		sectname[16];	/* name of this section */
-	char		segname[16];	/* segment this section goes in */
-	uint64_t	addr;		/* memory address of this section */
-	uint64_t	size;		/* size in bytes of this section */
-	uint32_t	offset;		/* file offset of this section */
-	uint32_t	align;		/* section alignment (power of 2) */
-	uint32_t	reloff;		/* file offset of relocation entries */
-	uint32_t	nreloc;		/* number of relocation entries */
-	uint32_t	flags;		/* flags (section type and attributes)*/
-	uint32_t	reserved1;	/* reserved (for offset or index) */
-	uint32_t	reserved2;	/* reserved (for count or sizeof) */
-	uint32_t	reserved3;	/* reserved */
+struct section_64 {
+	char		sectname[16];
+	char		segname[16];
+	uint64_t	addr;
+	uint64_t	size;
+	uint32_t	offset;
+	uint32_t	align;
+	uint32_t	reloff;
+	uint32_t	nreloc;
+	uint32_t	flags;
+	uint32_t	reserved1;
+	uint32_t	reserved2;
+	uint32_t	reserved3;
 };
 
 struct symtab_command {
-	uint32_t	cmd;		/* LC_SYMTAB */
-	uint32_t	cmdsize;	/* sizeof(struct symtab_command) */
-	uint32_t	symoff;		/* symbol table offset */
-	uint32_t	nsyms;		/* number of symbol table entries */
-	uint32_t	stroff;		/* string table offset */
-	uint32_t	strsize;	/* string table size in bytes */
+	uint32_t	cmd;
+	uint32_t	cmdsize;
+	uint32_t	symoff;
+	uint32_t	nsyms;
+	uint32_t	stroff;
+	uint32_t	strsize;
 };
-
 
 typedef uint64_t nat;
 typedef uint32_t u32;
@@ -179,7 +134,6 @@ static const char* spelling[isa_count] = {
 	"jalr", "jal", "auipc", "ecall"
 };
 
-
 enum target_architecture { 
 	noruntime, 
 	riscv32, riscv64, 
@@ -207,7 +161,7 @@ static const char* output_format_spelling[output_format_count] = {
 	"macho_objectfile", "macho_executable"
 };
 
-enum host_systems { linux, macos };
+enum host_systems { use_linux, use_macos };
 
 static u32 arm64_macos_abi[] = {        // note:  x9 is call-clobbered. save it before calls. 
 	31,30,31,13,14,15, 7,17,
@@ -673,9 +627,10 @@ static nat generate_add(nat Rd, nat Rn, nat Rm,
 
 static nat generate_bc(nat condition, nat here, nat target) { 
 
-	printf("target = %llu, here = %llu\n", target, here);
-	getchar();
-	const nat byte_offset = calculate_offset(here, target) - 4;
+	//printf("target = %llu, here = %llu\n", target, here);
+	//getchar();
+
+	const nat byte_offset = calculate_offset(here, target);
 	const nat imm = byte_offset >> 2;
 	return (0x54U << 24U) | ((0x0007FFFFU & imm) << 5U) | condition;
 }
@@ -706,6 +661,11 @@ static void generate_arm64_machine_code(void) {
 		else if (op == blt)   emit_and_generate_branch(a[0], a[1], a[2], i, 3);
 		else if (op == bge)   emit_and_generate_branch(a[0], a[1], a[2], i, 2);
 
+
+		else if (op == beq)   emit_and_generate_branch(a[0], a[1], a[2], i, 0);
+		else if (op == bne)   emit_and_generate_branch(a[0], a[1], a[2], i, 1);
+
+
 		else if (op == sll)    goto here; 
 		else if (op == slts)    goto here;
 		else if (op == slt)   goto here;
@@ -734,7 +694,7 @@ static void generate_arm64_machine_code(void) {
 		else if (op == jalr)   goto here;
 		
 		else if (op == auipc)  goto here;
-		else if (op == beq)    goto here;
+		
 		else if (op == bne)    goto here;
 		else if (op == blt)    goto here;
 		else if (op == bge)    goto here;
@@ -942,6 +902,11 @@ int main(int argc, const char** argv) {
 				puts("executing def...");
 				defining = true;
 
+			} else if (op == ct) {
+
+				puts("executing ct...");
+				is_compiletime = true;
+
 			} else if (op == drop) { 
 				puts("executing drop...");
 				arg_count--;
@@ -1047,13 +1012,162 @@ int main(int argc, const char** argv) {
 
 
 
+			} else if (op == ior) {
+
+				arg_count -= 2;
+				arguments[arg_count - 1] = a0; 
+
+				if (is_compiletime) {
+					printf("executing %llu = ior(%llu %llu)\n", a0, a1, a2);
+					array[a0] = array[a1] | array[a2];
+				} else {
+					printf("generating %llu = ior(%llu %llu)\n", a0, a1, a2);
+					struct instruction new = {0};
+					new.a[0] = ior;
+					new.size = 4;
+					new.a[1] = a0;
+					new.a[2] = a1;
+					new.a[3] = a2;
+					new.start = index;
+					ins = realloc(ins, sizeof(struct instruction) * (ins_count + 1));
+					ins[ins_count++] = new;		
+				}
+
+
+
+
+			} else if (op == eor) {
+
+				arg_count -= 2;
+				arguments[arg_count - 1] = a0; 
+
+				if (is_compiletime) {
+					printf("executing %llu = eor(%llu %llu)\n", a0, a1, a2);
+					array[a0] = array[a1] ^ array[a2];
+				} else {
+					printf("generating %llu = eor(%llu %llu)\n", a0, a1, a2);
+					struct instruction new = {0};
+					new.a[0] = eor;
+					new.size = 4;
+					new.a[1] = a0;
+					new.a[2] = a1;
+					new.a[3] = a2;
+					new.start = index;
+					ins = realloc(ins, sizeof(struct instruction) * (ins_count + 1));
+					ins[ins_count++] = new;		
+				}
+
+
+
+
+
+
+
+			} else if (op == and_) {
+
+				arg_count -= 2;
+				arguments[arg_count - 1] = a0; 
+
+				if (is_compiletime) {
+					printf("executing %llu = and(%llu %llu)\n", a0, a1, a2);
+					array[a0] = array[a1] & array[a2];
+				} else {
+					printf("generating %llu = and(%llu %llu)\n", a0, a1, a2);
+					struct instruction new = {0};
+					new.a[0] = and_;
+					new.size = 4;
+					new.a[1] = a0;
+					new.a[2] = a1;
+					new.a[3] = a2;
+					new.start = index;
+					ins = realloc(ins, sizeof(struct instruction) * (ins_count + 1));
+					ins[ins_count++] = new;		
+				}
+
+
+
+
+
+
+
+
+
+			} else if (op == blt) {
+
+				arg_count -= 3;
+
+				if (is_compiletime) {
+					printf("executing blt(%llu %llu  --> @%llu)\n", a0, a1, a2);
+					if (array[a0] < array[a1]) { 
+						if (array[a2]) index = array[a2]; 
+						else skip = a2; 
+					} 
+				} else {
+					printf("generating blt(%llu %llu  --> @%llu)\n", a0, a1, a2);
+					struct instruction new = {0};
+					new.a[0] = blt;
+					new.size = 4;
+					new.a[1] = a0;
+					new.a[2] = a1;
+					new.a[3] = a2;
+					new.start = index;
+					ins = realloc(ins, sizeof(struct instruction) * (ins_count + 1));
+					ins[ins_count++] = new;		
+				}
+
+
+
+
+
+			} else if (op == beq) {
+
+				arg_count -= 3;
+
+				if (is_compiletime) {
+					printf("executing beq(%llu %llu  --> @%llu)\n", a0, a1, a2);
+					if (array[a0] == array[a1]) {
+						if (array[a2]) index = array[a2]; 
+						else skip = a2; 
+					} 
+				} else {
+					printf("generating beq(%llu %llu  --> @%llu)\n", a0, a1, a2);
+					struct instruction new = {0};
+					new.a[0] = beq;
+					new.size = 4;
+					new.a[1] = a0;
+					new.a[2] = a1;
+					new.a[3] = a2;
+					new.start = index;
+					ins = realloc(ins, sizeof(struct instruction) * (ins_count + 1));
+					ins[ins_count++] = new;		
+				}
+
+
+
+
+
+
+
+
+
+
 			} else if (op == ecall) {
 
 				if (is_compiletime) {
 					printf("executing ecall...\n");
 
-					puts("?");
-					getchar();
+					if (a0 == 1) break;
+					else if (a0 == 2) printf("debug: %lld (hex 0x%016llx)\n", array[a1], array[a1]);
+					else if (a0 == 3) array[a1] = (nat) getchar();
+					else if (a0 == 4) putchar((char) array[a1]);
+					else if (a0 == 5) print_dictionary();
+					else if (a0 == 6) print_instructions();
+					else if (a0 == 7) print_registers();
+					else if (a0 == 8) print_arguments();
+					else {
+						printf("error: ct: unknown ecall number %llu... aborting...\n", a0);
+						abort();
+					}
 
 				} else {
 					printf("generating ecall\n");
@@ -1064,11 +1178,6 @@ int main(int argc, const char** argv) {
 					ins = realloc(ins, sizeof(struct instruction) * (ins_count + 1));
 					ins[ins_count++] = new;		
 				}
-
-
-
-
-
 
 			} else {
 				printf("pushing name %llu on the stack..\n", values[op]);
@@ -1086,7 +1195,7 @@ int main(int argc, const char** argv) {
 	print_instructions();
 	printf("SUCCESSFUL ASSEMBLING\n");
 
-	const nat architecture = riscv64;
+	const nat architecture = arm64;
 	const nat output_format = macho_executable;
 	const bool debug = true;
 	const bool preserve_existing_object = false;
