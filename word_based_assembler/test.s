@@ -1,14 +1,33 @@
 
-1000001 def label
+100001 	def label
 10001 	def callnumber
+0 	def zero
+1 	def ra
+01 	def sp
 0101 	def a0 
-1101 	def a1
-0011 	def a2
+1101	def a1
 a0 	def exitcode
-0001 	def exitfail
+a1 	def was_less
 
 
-exitfail 0 exitcode addi
+ra zero a1 slt
+0011 was_less exitcode addi
+1 zero callnumber addi
+ecall
+
+
+
+1 ct ecall
+
+
+
+
+
+
+
+
+
+
 0 exitcode exitcode addi
 
 
@@ -24,16 +43,48 @@ label attr
 000001 exitcode exitcode addi
 000001 exitcode exitcode addi
 
-1 0 callnumber addi
-ecall
 
 
-1 ct ecall
+exitcode def z
+
+z z z eor 
+z z z and
+
+z z z slt
+z z z slts
 
 
 
 
 
+
+
+1101 	def a1
+0011 	def a2
+0001 	def exitfail
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+sf = sf  (32bit==0,64bit==1)
+sb = 1
+st = 0
+op = 0x0A
+sh = 0x0
 
 
 

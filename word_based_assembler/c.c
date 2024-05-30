@@ -424,31 +424,31 @@ static void check(nat value, nat limit) {
 	}
 }
 
-static nat r_type(nat* a, nat o, nat f, nat g) {
+static void r_type(nat* a, nat o, nat f, nat g) {
 	check(a[0], 32);
 	check(a[1], 32);
 	check(a[2], 32);
-	return (g << 25U) | (a[2] << 20U) | (a[1] << 15U) | (f << 12U) | (a[0] << 7U) | o;
+	emitw( (g << 25U) | (a[2] << 20U) | (a[1] << 15U) | (f << 12U) | (a[0] << 7U) | o);
 }
 
-static nat i_type(nat* a, nat o, nat f) { 
+static void i_type(nat* a, nat o, nat f) { 
 	check(a[0], 32);
 	check(a[1], 32);
 	check(a[2], 1 << 12);
-	return (a[2] << 20U) | (a[1] << 15U) | (f << 12U) | (a[0] << 7U) | o;
+	emitw( (a[2] << 20U) | (a[1] << 15U) | (f << 12U) | (a[0] << 7U) | o);
 }
 
-static nat s_type(nat* a, nat o, nat f) {
+static void s_type(nat* a, nat o, nat f) {
 	check(a[0], 32);
 	check(a[1], 32);
 	check(a[2], 1 << 12);
-	return ((a[0] >> 5U) << 25U) | (a[2] << 20U) | (a[1] << 15U) | (f << 12U) | ((a[0] & 0x1F) << 7U) | o;
+	emitw( ((a[0] >> 5U) << 25U) | (a[2] << 20U) | (a[1] << 15U) | (f << 12U) | ((a[0] & 0x1F) << 7U) | o);
 }
 
-static nat u_type(nat* a, nat o) { 
+static void u_type(nat* a, nat o) { 
 	check(a[0], 32);
 	check(a[1], 1 << 20);
-	return (a[1] << 12U) | (a[0] << 7U) | o;
+	emitw( (a[1] << 12U) | (a[0] << 7U) | o);
 }
 
 static nat calculate_offset(nat here, nat label) {
@@ -465,7 +465,7 @@ static nat calculate_offset(nat here, nat label) {
 	return offset;
 }
 
-static nat j_type(nat here, nat* a, nat o) {   	//  L r op
+static void j_type(nat here, nat* a, nat o) {
 	check(a[0], 32);
 	const nat e = calculate_offset(here, a[1]);
 	const nat imm19_12 = (e & 0x000FF000);
@@ -473,7 +473,7 @@ static nat j_type(nat here, nat* a, nat o) {   	//  L r op
 	const nat imm10_1  = (e & 0x000007FE) << 20;
 	const nat imm20    = (e & 0x00100000) << 11;
 	const nat imm = imm20 | imm10_1 | imm11 | imm19_12;
-	return (imm << 12U) | (a[0] << 7U) | o;
+	emitw( (imm << 12U) | (a[0] << 7U) | o);
 }
 
 static void generate_riscv_machine_code(void) {
@@ -489,45 +489,40 @@ static void generate_riscv_machine_code(void) {
 		else if (op == dd)	emitd(a[0]);
 		else if (op == ecall)   emitw(0x00000073);
 
-		else if (op == add)     emitw(r_type(a, 0x33, 0x0, 0x00));
-		else if (op == sub)     emitw(r_type(a, 0x33, 0x0, 0x20));
-		else if (op == sll)     emitw(r_type(a, 0x33, 0x1, 0x00));
-		else if (op == slts)    emitw(r_type(a, 0x33, 0x2, 0x00));
-		else if (op == slt)     emitw(r_type(a, 0x33, 0x3, 0x00));
-		else if (op == eor)     emitw(r_type(a, 0x33, 0x4, 0x00));
-		else if (op == srl)     emitw(r_type(a, 0x33, 0x5, 0x00));
-		else if (op == sra)     emitw(r_type(a, 0x33, 0x5, 0x20));
-		else if (op == ior)     emitw(r_type(a, 0x33, 0x6, 0x00));
-		else if (op == and_)    emitw(r_type(a, 0x33, 0x7, 0x00));
+		else if (op == add)     r_type(a, 0x33, 0x0, 0x00);
+		else if (op == sub)     r_type(a, 0x33, 0x0, 0x20);
+		else if (op == sll)     r_type(a, 0x33, 0x1, 0x00);
+		else if (op == slts)    r_type(a, 0x33, 0x2, 0x00);
+		else if (op == slt)     r_type(a, 0x33, 0x3, 0x00);
+		else if (op == eor)     r_type(a, 0x33, 0x4, 0x00);
+		else if (op == srl)     r_type(a, 0x33, 0x5, 0x00);
+		else if (op == sra)     r_type(a, 0x33, 0x5, 0x20);
+		else if (op == ior)     r_type(a, 0x33, 0x6, 0x00);
+		else if (op == and_)    r_type(a, 0x33, 0x7, 0x00);
 
-		else if (op == ldb)      emitw(i_type(a, 0x03, 0x0));
-		else if (op == ldh)      emitw(i_type(a, 0x03, 0x1));
-		else if (op == ldw)      emitw(i_type(a, 0x03, 0x2));
-		else if (op == ldd)      emitw(i_type(a, 0x03, 0x3));
-		else if (op == addi)    emitw(i_type(a, 0x13, 0x0));
-		else if (op == sltis)   emitw(i_type(a, 0x13, 0x2));
-		else if (op == slti)    emitw(i_type(a, 0x13, 0x3));
-		else if (op == eori)    emitw(i_type(a, 0x13, 0x4));
-		else if (op == iori)    emitw(i_type(a, 0x13, 0x6));
-		else if (op == andi)    emitw(i_type(a, 0x13, 0x7));
-		else if (op == slli)    emitw(i_type(a, 0x13, 0x1));
+		else if (op == ldb)     i_type(a, 0x03, 0x0);
+		else if (op == ldh)     i_type(a, 0x03, 0x1);
+		else if (op == ldw)     i_type(a, 0x03, 0x2);
+		else if (op == ldd)     i_type(a, 0x03, 0x3);
+		else if (op == addi)    i_type(a, 0x13, 0x0);
+		else if (op == sltis)   i_type(a, 0x13, 0x2);
+		else if (op == slti)    i_type(a, 0x13, 0x3);
+		else if (op == eori)    i_type(a, 0x13, 0x4);
+		else if (op == iori)    i_type(a, 0x13, 0x6);
+		else if (op == andi)    i_type(a, 0x13, 0x7);
+		else if (op == slli)    i_type(a, 0x13, 0x1);
+		else if (op == srli)    i_type(a, 0x13, 0x5);
+		else if (op == srai)    i_type(a, 0x13, 0x5);
+		else if (op == jalr)    i_type(a, 0x67, 0x0);
 
-		else if (op == srli)    emitw(i_type(a, 0x13, 0x5));   
+		else if (op == stb)      s_type(a, 0x23, 0x0);
+		else if (op == sth)      s_type(a, 0x23, 0x1);
+		else if (op == stw)      s_type(a, 0x23, 0x2);
+		else if (op == std)      s_type(a, 0x23, 0x3);
 
-			// TODO: make this not use the immediate as a bit in the opcode. 
-			// toggle this bit if the user gives a sraiw/srai.  comment 
-			// version old:(for srai/sraiw, give the appropriate a[2] with imm[10] set.)
-
-		else if (op == jalr)    emitw(i_type(a, 0x67, 0x0));
-
-		else if (op == stb)      emitw(s_type(a, 0x23, 0x0));
-		else if (op == sth)      emitw(s_type(a, 0x23, 0x1));
-		else if (op == stw)      emitw(s_type(a, 0x23, 0x2));
-		else if (op == std)      emitw(s_type(a, 0x23, 0x3));
-
-		// else if (op == lui)     emitw(u_type(a, 0x37));
-		else if (op == auipc)   emitw(u_type(a, 0x17));
-		else if (op == jal)     emitw(j_type(i, a, 0x6F));
+		// else if (op == lui)  u_type(a, 0x37);
+		else if (op == auipc)   u_type(a, 0x17);
+		else if (op == jal)     j_type(i, a, 0x6F);
 
 		else {
 			printf("error: riscv: unknown runtime instruction: %s : %llu\n", spelling[op], op);
@@ -546,7 +541,7 @@ static void generate_riscv_machine_code(void) {
 
 
 
-static nat generate_mov(nat Rd, nat op, nat im, 
+static void generate_mov(nat Rd, nat op, nat im, 
 			nat sf, nat oc, nat sh) {  
 
 	check(Rd, 32);
@@ -554,18 +549,18 @@ static nat generate_mov(nat Rd, nat op, nat im,
 	Rd = arm64_macos_abi[Rd];
 
 	check(im, 1 << 12U);
-	return  (sf << 31U) | 
+	emitw(  (sf << 31U) | 
 		(oc << 29U) | 
 		(op << 23U) | 
 		(sh << 21U) | 
-		(im <<  5U) | Rd;
+		(im <<  5U) | Rd);
 }
 
-static nat generate_addi(nat Rd, nat Rn, nat im, 
+static void generate_addi(nat Rd, nat Rn, nat im, 
 			nat op, nat sf, nat sb, 
 			nat st, nat sh) {  
-	if (not Rd) return 0xD503201F;
-	if (not Rn) return generate_mov(Rd, 0x25U, im, sf, 2, 0);
+	if (not Rd) { emitw(0xD503201F); return; }
+	if (not Rn) { generate_mov(Rd, 0x25U, im, sf, 2, 0); return; }
 	
 	check(Rd, 32);
 	check(Rn, 32);
@@ -575,17 +570,17 @@ static nat generate_addi(nat Rd, nat Rn, nat im,
 
 	check(im, 1 << 12U);
 
-	return  (sf << 31U) | 
+	emitw(  (sf << 31U) | 
 		(sb << 30U) | 
 		(st << 29U) | 
 		(op << 23U) | 
 		(sh << 22U) | 
 		(im << 10U) | 
-		(Rn <<  5U) | Rd;
+		(Rn <<  5U) | Rd);
 }
 
 
-static nat generate_memiu(nat Rt, nat Rn, nat im, nat op, nat oc, nat sf) {
+static void generate_memiu(nat Rt, nat Rn, nat im, nat op, nat oc, nat sf) {
 
 	check(Rt, 32);
 	check(Rn, 32);
@@ -595,14 +590,14 @@ static nat generate_memiu(nat Rt, nat Rn, nat im, nat op, nat oc, nat sf) {
 
 	check(im, 1 << 12U);
 
-	return  (sf << 30U) | 
+	emitw(  (sf << 30U) | 
 		(op << 24U) | 
 		(oc << 22U) | 
 		(im << 10U) | 
-		(Rn <<  5U) | Rt;
+		(Rn <<  5U) | Rt);
 }
 
-static nat generate_add(nat Rd, nat Rn, nat Rm, 
+static void generate_add(nat Rd, nat Rn, nat Rm, 
 			nat op, nat im, nat sf, 
 			nat st, nat sb, nat sh) {
 
@@ -615,29 +610,54 @@ static nat generate_add(nat Rd, nat Rn, nat Rm,
 	Rn = arm64_macos_abi[Rn];
 	Rm = arm64_macos_abi[Rm];
 
-	return  (sf << 31U) |
+	emitw(  (sf << 31U) |
 		(sb << 30U) |
 		(st << 29U) |
 		(op << 24U) | 
 		(sh << 21U) | 
 		(Rm << 16U) | 
 		(im << 10U) | 
-		(Rn <<  5U) | Rd;
+		(Rn <<  5U) | Rd);
 }
 
-static nat generate_bc(nat condition, nat here, nat target) { 
 
-	//printf("target = %llu, here = %llu\n", target, here);
-	//getchar();
 
+static void generate_csel(nat Rd, nat Rn, nat Rm, nat cd, nat op, nat sf, nat ic, nat iv) {
+
+	check(iv,  2);
+	check(ic,  2);
+	check(cd, 16);
+	check(Rd, 32);
+	check(Rn, 32);
+	check(Rm, 32);
+
+	Rd = arm64_macos_abi[Rd];
+	Rn = arm64_macos_abi[Rn];
+	Rm = arm64_macos_abi[Rm];
+
+	emitw(  (sf << 31U) | 
+		(iv << 30U) | 
+		(op << 21U) | 
+		(Rm << 16U) | 
+		(cd << 12U) | 
+		(ic << 10U) | 
+		(Rn <<  5U) | Rd);
+}
+
+static void generate_bc(nat condition, nat here, nat target) {
 	const nat byte_offset = calculate_offset(here, target);
 	const nat imm = byte_offset >> 2;
-	return (0x54U << 24U) | ((0x0007FFFFU & imm) << 5U) | condition;
+	emitw((0x54U << 24U) | ((0x0007FFFFU & imm) << 5U) | condition);
 }
 
-static void emit_and_generate_branch(nat R_left, nat R_right, nat target, nat here, nat condition) {
-	emitw(generate_add(0, R_left, R_right, 0x0BU, 0, 1, 1, 1, 0));
-	emitw(generate_bc(condition, here, array[target]));
+static void generate_branch(nat R_left, nat R_right, nat target, nat here, nat condition) {
+	generate_add(0, R_left, R_right, 0x0BU, 0, 1, 1, 1, 0);
+	generate_bc(condition, here, array[target]);
+}
+
+static void generate_slt(nat Rd, nat Rn, nat Rm, nat cond) {
+	generate_add(0, Rn, Rm, 0x0BU, 0, 1, 1, 1, 0);
+	generate_csel(Rd, 0, 0, cond, 0x0D4U, 1, 1, 0);
 }
 
 static void generate_arm64_machine_code(void) {
@@ -653,40 +673,72 @@ static void generate_arm64_machine_code(void) {
 
 		else if (op == ecall)   emitw(0xD4000001);
 
-		else if (op == add)    emitw(generate_add(a[0], a[1], a[2], 0x0BU, 0, 1, 0, 0, 0));
-		else if (op == sub)    emitw(generate_add(a[0], a[1], a[2], 0x0BU, 0, 1, 0, 1, 0));
-		else if (op == ior)    emitw(generate_add(a[0], a[1], a[2], 0x2AU, 0, 1, 0, 0, 0));
-		else if (op == addi)   emitw(generate_addi(a[0], a[1], a[2], 0x22U, 1, 0, 0, 0));
+		else if (op == addi)   generate_addi(a[0], a[1], a[2], 0x22U, 1, 0, 0, 0);
 
-		else if (op == blt)   emit_and_generate_branch(a[0], a[1], a[2], i, 3);
-		else if (op == bge)   emit_and_generate_branch(a[0], a[1], a[2], i, 2);
+		else if (op == add)    generate_add(a[0], a[1], a[2], 0x0BU, 0, 1, 0, 0, 0);
+		else if (op == ior)    generate_add(a[0], a[1], a[2], 0x2AU, 0, 1, 0, 0, 0);
+		else if (op == sub)    generate_add(a[0], a[1], a[2], 0x0BU, 0, 1, 0, 1, 0);
+		else if (op == eor)    generate_add(a[0], a[1], a[2], 0x0AU, 0, 1, 0, 1, 0);
+		else if (op == and_)   generate_add(a[0], a[1], a[2], 0x0AU, 0, 1, 0, 0, 0);
 
+		else if (op == beq)    generate_branch(a[0], a[1], a[2], i, 0);
+		else if (op == bne)    generate_branch(a[0], a[1], a[2], i, 1);
+		else if (op == bge)    generate_branch(a[0], a[1], a[2], i, 2);
+		else if (op == blt)    generate_branch(a[0], a[1], a[2], i, 3);
 
-		else if (op == beq)   emit_and_generate_branch(a[0], a[1], a[2], i, 0);
-		else if (op == bne)   emit_and_generate_branch(a[0], a[1], a[2], i, 1);
+		else if (op == slt)    generate_slt(a[0], a[1], a[2], 2);
+		else if (op == slts)   generate_slt(a[0], a[1], a[2], 10);
 
 
 		else if (op == sll)    goto here; 
-		else if (op == slts)    goto here;
-		else if (op == slt)   goto here;
-		else if (op == eor)   goto here;
 		else if (op == srl)    goto here;
 		else if (op == sra)    goto here;
-		else if (op == and_)   goto here;
 
-		else if (op == ldb)     emitw(generate_memiu(a[0], a[1], a[2], 0x00, 0x00, 0));
-		else if (op == ldh)     emitw(generate_memiu(a[0], a[1], a[2], 0x00, 0x00, 0));
-		else if (op == ldw)     emitw(generate_memiu(a[0], a[1], a[2], 0x00, 0x00, 0));
-		else if (op == ldd)     emitw(generate_memiu(a[0], a[1], a[2], 0x00, 0x00, 0));
 
-		else if (op == stb)     emitw(generate_memiu(a[0], a[1], a[2], 0x00, 0x00, 0));
-		else if (op == sth)     emitw(generate_memiu(a[0], a[1], a[2], 0x00, 0x00, 0));
-		else if (op == stw)     emitw(generate_memiu(a[0], a[1], a[2], 0x00, 0x00, 0));
-		else if (op == std)     emitw(generate_memiu(a[0], a[1], a[2], 0x00, 0x00, 0));
+
+/*
+static u32 generate_adc(struct argument* a, u32 op, u32 o2) {   //    Rm Rn Rd adc/udiv/umin/umax/
+	u32 Rd = (u32) a[0].value;
+	u32 Rn = (u32) a[1].value;
+	u32 Rm = (u32) a[2].value;
+	check(Rd, 32, a[0], "register");
+	check(Rn, 32, a[1], "register");
+	check(Rm, 32, a[2], "register");
+	return  (sf << 31U) |
+		(sb << 30U) |
+		(st << 29U) |
+		(op << 21U) |
+		(Rm << 16U) |
+		(o2 << 10U) |
+		(Rn <<  5U) | Rd;
+}
+*/
+
+
+
+
+
+		//else if (op == lslv)   emit(generate_adc(a, 0x0D6U, 0x08));
+		//else if (op == lsrv)   emit(generate_adc(a, 0x0D6U, 0x09));
+		//else if (op == asrv)   emit(generate_adc(a, 0x0D6U, 0x0A));
+
+
+
+		
+
+		else if (op == ldb)     generate_memiu(a[0], a[1], a[2], 0x00, 0x00, 0);
+		else if (op == ldh)     generate_memiu(a[0], a[1], a[2], 0x00, 0x00, 0);
+		else if (op == ldw)     generate_memiu(a[0], a[1], a[2], 0x00, 0x00, 0);
+		else if (op == ldd)     generate_memiu(a[0], a[1], a[2], 0x00, 0x00, 0);
+
+		else if (op == stb)     generate_memiu(a[0], a[1], a[2], 0x00, 0x00, 0);
+		else if (op == sth)     generate_memiu(a[0], a[1], a[2], 0x00, 0x00, 0);
+		else if (op == stw)     generate_memiu(a[0], a[1], a[2], 0x00, 0x00, 0);
+		else if (op == std)     generate_memiu(a[0], a[1], a[2], 0x00, 0x00, 0);
 
 		else if (op == sltis)   goto here;
-		else if (op == slti)  goto here;
-		else if (op == eori)   goto here;
+		else if (op == slti)    goto here;
+		else if (op == eori)    goto here;
 		else if (op == iori)    goto here;
 		else if (op == andi)   goto here;
 		else if (op == slli)   goto here;
@@ -1060,9 +1112,6 @@ int main(int argc, const char** argv) {
 
 
 
-
-
-
 			} else if (op == and_) {
 
 				arg_count -= 2;
@@ -1083,6 +1132,58 @@ int main(int argc, const char** argv) {
 					ins = realloc(ins, sizeof(struct instruction) * (ins_count + 1));
 					ins[ins_count++] = new;		
 				}
+
+
+
+			} else if (op == slt) {
+
+				arg_count -= 2;
+				arguments[arg_count - 1] = a0; 
+
+				if (is_compiletime) {
+					printf("executing %llu = slt(%llu %llu)\n", a0, a1, a2);
+					array[a0] = array[a1] < array[a2];
+				} else {
+					printf("generating %llu = slt(%llu %llu)\n", a0, a1, a2);
+					struct instruction new = {0};
+					new.a[0] = slt;
+					new.size = 4;
+					new.a[1] = a0;
+					new.a[2] = a1;
+					new.a[3] = a2;
+					new.start = index;
+					ins = realloc(ins, sizeof(struct instruction) * (ins_count + 1));
+					ins[ins_count++] = new;		
+				}
+
+
+			} else if (op == slts) {
+
+				arg_count -= 2;
+				arguments[arg_count - 1] = a0; 
+
+				if (is_compiletime) {
+					printf("executing %llu = slts(%llu %llu)\n", a0, a1, a2);
+					array[a0] = array[a1] < array[a2];
+				} else {
+					printf("generating %llu = slts(%llu %llu)\n", a0, a1, a2);
+					struct instruction new = {0};
+					new.a[0] = slts;
+					new.size = 4;
+					new.a[1] = a0;
+					new.a[2] = a1;
+					new.a[3] = a2;
+					new.start = index;
+					ins = realloc(ins, sizeof(struct instruction) * (ins_count + 1));
+					ins[ins_count++] = new;		
+				}
+
+
+
+
+
+
+
 
 
 
@@ -1116,6 +1217,29 @@ int main(int argc, const char** argv) {
 				}
 
 
+			} else if (op == bge) {
+
+				arg_count -= 3;
+
+				if (is_compiletime) {
+					printf("executing bge(%llu %llu  --> @%llu)\n", a0, a1, a2);
+					if (array[a0] >= array[a1]) { 
+						if (array[a2]) index = array[a2]; 
+						else skip = a2; 
+					} 
+				} else {
+					printf("generating bge(%llu %llu  --> @%llu)\n", a0, a1, a2);
+					struct instruction new = {0};
+					new.a[0] = bge;
+					new.size = 4;
+					new.a[1] = a0;
+					new.a[2] = a1;
+					new.a[3] = a2;
+					new.start = index;
+					ins = realloc(ins, sizeof(struct instruction) * (ins_count + 1));
+					ins[ins_count++] = new;		
+				}
+
 
 
 
@@ -1144,6 +1268,29 @@ int main(int argc, const char** argv) {
 
 
 
+
+			} else if (op == bne) {
+
+				arg_count -= 3;
+
+				if (is_compiletime) {
+					printf("executing bne(%llu %llu  --> @%llu)\n", a0, a1, a2);
+					if (array[a0] != array[a1]) {
+						if (array[a2]) index = array[a2]; 
+						else skip = a2; 
+					} 
+				} else {
+					printf("generating bne(%llu %llu  --> @%llu)\n", a0, a1, a2);
+					struct instruction new = {0};
+					new.a[0] = bne;
+					new.size = 4;
+					new.a[1] = a0;
+					new.a[2] = a1;
+					new.a[3] = a2;
+					new.start = index;
+					ins = realloc(ins, sizeof(struct instruction) * (ins_count + 1));
+					ins[ins_count++] = new;		
+				}
 
 
 
@@ -1178,6 +1325,11 @@ int main(int argc, const char** argv) {
 					ins = realloc(ins, sizeof(struct instruction) * (ins_count + 1));
 					ins[ins_count++] = new;		
 				}
+
+
+
+
+
 
 			} else {
 				printf("pushing name %llu on the stack..\n", values[op]);
