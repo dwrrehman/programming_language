@@ -22,8 +22,124 @@
 #include <sys/stat.h>
 #include <sys/mman.h>
 #include <stdnoreturn.h>
-#include <mach-o/nlist.h>
-#include <mach-o/loader.h>
+
+#define CPU_SUBTYPE_ARM64_ALL    0
+#define CPU_TYPE_ARM   12
+#define CPU_ARCH_ABI64          0x01000000 
+#define MH_MAGIC_64 	0xfeedfacf
+#define MH_SUBSECTIONS_VIA_SYMBOLS 0x2000/* safe to divide up the sections into
+					    sub-sections via symbols for dead
+					    code stripping */
+
+#define	N_SECT	0xe		/* defined in section number n_sect */
+#define	N_EXT	0x01  /* external symbol bit, set for external symbols */
+
+#define REFERENCE_FLAG_DEFINED				2
+
+
+
+struct nlist_64 {
+    union {
+        uint32_t  n_strx; /* index into the string table */
+    } n_un;
+    uint8_t n_type;        /* type flag, see below */
+    uint8_t n_sect;        /* section number or NO_SECT */
+    uint16_t n_desc;       /* see <mach-o/stab.h> */
+    uint64_t n_value;      /* value of this symbol (or stab offset) */
+};
+
+
+
+
+
+#define S_ATTR_PURE_INSTRUCTIONS 0x80000000	/* section contains only true
+						   machine instructions */
+
+
+// #define	LC_SEGMENT	0x1	/* segment of this file to be mapped */
+#define	LC_SYMTAB	0x2	/* link-edit stab symbol table info */
+
+
+
+
+typedef int             vm_prot_t;
+
+/*
+ *	Protection values, defined as bits within the vm_prot_t type
+ */
+
+// #define VM_PROT_NONE    ((vm_prot_t) 0x00)
+
+#define VM_PROT_READ    ((vm_prot_t) 0x01)      /* read permission */
+
+// #define VM_PROT_WRITE   ((vm_prot_t) 0x02)      /* write permission */
+
+#define VM_PROT_EXECUTE ((vm_prot_t) 0x04)      /* execute permission */
+
+
+
+
+#define	MH_OBJECT	0x1		/* relocatable object file */
+
+// #define	MH_EXECUTE	0x2		/* demand paged executable file */
+
+#define	MH_NOUNDEFS	0x1
+
+#define	LC_SEGMENT_64	0x19	/* 64-bit segment of this file to be
+				   mapped */
+
+
+
+struct segment_command_64 { /* for 64-bit architectures */
+	uint32_t	cmd;		/* LC_SEGMENT_64 */
+	uint32_t	cmdsize;	/* includes sizeof section_64 structs */
+	char		segname[16];	/* segment name */
+	uint64_t	vmaddr;		/* memory address of this segment */
+	uint64_t	vmsize;		/* memory size of this segment */
+	uint64_t	fileoff;	/* file offset of this segment */
+	uint64_t	filesize;	/* amount to map from the file */
+	int32_t		maxprot;	/* maximum VM protection */
+	int32_t		initprot;	/* initial VM protection */
+	uint32_t	nsects;		/* number of sections in segment */
+	uint32_t	flags;		/* flags */
+};
+
+struct mach_header_64 {
+	uint32_t	magic;		/* mach magic number identifier */
+	int32_t		cputype;	/* cpu specifier */
+	int32_t		cpusubtype;	/* machine specifier */
+	uint32_t	filetype;	/* type of file */
+	uint32_t	ncmds;		/* number of load commands */
+	uint32_t	sizeofcmds;	/* the size of all the load commands */
+	uint32_t	flags;		/* flags */
+	uint32_t	reserved;	/* reserved */
+};
+
+
+struct section_64 { /* for 64-bit architectures */
+	char		sectname[16];	/* name of this section */
+	char		segname[16];	/* segment this section goes in */
+	uint64_t	addr;		/* memory address of this section */
+	uint64_t	size;		/* size in bytes of this section */
+	uint32_t	offset;		/* file offset of this section */
+	uint32_t	align;		/* section alignment (power of 2) */
+	uint32_t	reloff;		/* file offset of relocation entries */
+	uint32_t	nreloc;		/* number of relocation entries */
+	uint32_t	flags;		/* flags (section type and attributes)*/
+	uint32_t	reserved1;	/* reserved (for offset or index) */
+	uint32_t	reserved2;	/* reserved (for count or sizeof) */
+	uint32_t	reserved3;	/* reserved */
+};
+
+struct symtab_command {
+	uint32_t	cmd;		/* LC_SYMTAB */
+	uint32_t	cmdsize;	/* sizeof(struct symtab_command) */
+	uint32_t	symoff;		/* symbol table offset */
+	uint32_t	nsyms;		/* number of symbol table entries */
+	uint32_t	stroff;		/* string table offset */
+	uint32_t	strsize;	/* string table size in bytes */
+};
+
 
 typedef uint64_t nat;
 typedef uint32_t u32;
