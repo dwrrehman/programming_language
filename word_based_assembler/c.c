@@ -1,6 +1,50 @@
 /*
 
-copy do ./buildline 367
+
+1202405304.012527:
+
+
+		next step is to add in the backend for riscv and arm64,
+
+			the goal is to get everythinggg working with JUST the instructions:
+
+				addi   sub   add 
+
+
+		thats it   very simple langage     (oh and their compiletime versions,   and the core languaeg primitives like dup and swap etc)
+
+
+				like, just those simple things- just getting those working-
+
+
+				and then we can go through and add a ton of extra instructions and work on just getting branches working properly    as a seperate thing 
+
+
+			but just getting the whole pipeline working,     just using    add  sub   addi 
+
+
+						only 
+
+
+
+			thats the goal.    very attainable. 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+copy do ./build
 
 do ./run
 file.s
@@ -131,7 +175,7 @@ static const char* spelling[isa_count] = {
 };
 
 struct instruction { 
-	u32 a[4];
+	nat a[4];
 	nat start;
 	nat size;
 };
@@ -226,10 +270,10 @@ static void print_dictionary(void) {
 static void print_instructions(void) {
 	printf("instructions: {\n");
 	for (nat i = 0; i < ins_count; i++) {
-		printf("\t%llu\tins(.op=%u (\"%s\"), .size=%llu, args:{ ", 
+		printf("\t%llu\tins(.op=%llu (\"%s\"), .size=%llu, args:{ ", 
 			i, ins[i].a[0], spelling[ins[i].a[0]], ins[i].size
 		);
-		for (nat a = 0; a < 3; a++) printf("%llu ", (nat) ins[i].a[a + 1]);
+		for (nat a = 0; a < 3; a++) printf("%llu ", ins[i].a[a + 1]);
 		
 		printf("} -- [found @ %llu]\n", ins[i].start);
 
@@ -459,13 +503,70 @@ int main(int argc, const char** argv) {
 
 
 			} else if (op == add) {
-				printf("executing %llu = add(%llu %llu)\n", a0, a1, a2);
 
-				
+				arg_count -= 2;
+				arguments[arg_count - 1] = a0; 
+
+				if (is_compiletime) {
+					printf("executing %llu = add(%llu %llu)\n", a0, a1, a2);
+					array[a0] = array[a1] + array[a2];
+				} else {
+					printf("generating %llu = add(%llu %llu)\n", a0, a1, a2);
+					struct instruction new = {0};
+					new.a[0] = add;
+					new.size = 4;
+					new.a[1] = a0;
+					new.a[2] = a1;
+					new.a[3] = a2;
+					new.start = index;
+					ins = realloc(ins, sizeof(struct instruction) * (ins_count + 1));
+					ins[ins_count++] = new;		
+				}
+
+
+
+			} else if (op == addi) {
+
+				arg_count -= 2;
+				arguments[arg_count - 1] = a0; 
+
+				if (is_compiletime) {
+					printf("executing %llu = addi(%llu #%llu)\n", a0, a1, a2);
+					array[a0] = array[a1] + a2;
+				} else {
+					printf("generating %llu = addi(%llu #%llu)\n", a0, a1, a2);
+					struct instruction new = {0};
+					new.a[0] = addi;
+					new.size = 4;
+					new.a[1] = a0;
+					new.a[2] = a1;
+					new.a[3] = a2;
+					new.start = index;
+					ins = realloc(ins, sizeof(struct instruction) * (ins_count + 1));
+					ins[ins_count++] = new;		
+				}
+
+
 			} else if (op == sub) {
-				printf("executing %llu = sub(%llu %llu)\n", a0, a1, a2);
 
+				arg_count -= 2;
+				arguments[arg_count - 1] = a0; 
 
+				if (is_compiletime) {
+					printf("executing %llu = sub(%llu %llu)\n", a0, a1, a2);
+					array[a0] = array[a1] - array[a2];
+				} else {
+					printf("generating %llu = sub(%llu %llu)\n", a0, a1, a2);
+					struct instruction new = {0};
+					new.a[0] = sub;
+					new.size = 4;
+					new.a[1] = a0;
+					new.a[2] = a1;
+					new.a[3] = a2;
+					new.start = index;
+					ins = realloc(ins, sizeof(struct instruction) * (ins_count + 1));
+					ins[ins_count++] = new;		
+				}
 
 			} else {
 				printf("pushing name %llu on the stack..\n", values[op]);
@@ -476,15 +577,60 @@ int main(int argc, const char** argv) {
 	}
 	
 	printf("processing the text now...\n");
-
-	dd puts("DONE: finished assembling program.");
-	dd print_dictionary();
-	dd print_registers();
-	dd print_arguments();
-	dd print_instructions();
-
+	puts("DONE: finished assembling program.");
+	print_dictionary();
+	print_registers();
+	print_arguments();
+	print_instructions();
 	printf("SUCCESSFUL ASSEMBLING\n");
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+/*
+	} else if (not is_compiletime) {
+
+		struct instruction new = {0};
+		new.a[0] = (u32) op;
+		new.start = index;
+		new.is_signed = is_signed;
+		new.is_immediate = is_immediate;
+
+		is_signed = false; is_immediate = false;
+
+		for (nat i = 1; i < 4; i++) {
+			new.a[i] = (u32) (arg_count > i - 1 
+				? arguments[arg_count - 1 - (i - 1)] 
+				: 0
+				);
+			dd printf(" ... argument #%llu : u32 = %u\n", 
+				i, new.a[i]);
+		}
+		new.size = 4;
+		ins = realloc(ins, sizeof(struct instruction) * (ins_count + 1));
+		ins[ins_count++] = new;
+
+*/
+
+
+
+
+
+
+
 
 
 
