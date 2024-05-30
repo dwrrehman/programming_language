@@ -620,9 +620,29 @@ static void generate_add(nat Rd, nat Rn, nat Rm,
 		(Rn <<  5U) | Rd);
 }
 
+static void generate_adc(nat Rd, nat Rn, nat Rm, 
+			nat op, nat o2, nat sf, 
+			nat st, nat sb) {
+	check(Rd, 32);
+	check(Rn, 32);
+	check(Rm, 32);
 
+	Rd = arm64_macos_abi[Rd];
+	Rn = arm64_macos_abi[Rn];
+	Rm = arm64_macos_abi[Rm];
 
-static void generate_csel(nat Rd, nat Rn, nat Rm, nat cd, nat op, nat sf, nat ic, nat iv) {
+	emitw(  (sf << 31U) |
+		(sb << 30U) |
+		(st << 29U) |
+		(op << 21U) |
+		(Rm << 16U) |
+		(o2 << 10U) |
+		(Rn <<  5U) | Rd);
+}
+
+static void generate_csel(nat Rd, nat Rn, nat Rm, 
+			nat cd, nat op, nat sf, 
+			nat ic, nat iv) {
 
 	check(iv,  2);
 	check(ic,  2);
@@ -681,48 +701,18 @@ static void generate_arm64_machine_code(void) {
 		else if (op == eor)    generate_add(a[0], a[1], a[2], 0x0AU, 0, 1, 0, 1, 0);
 		else if (op == and_)   generate_add(a[0], a[1], a[2], 0x0AU, 0, 1, 0, 0, 0);
 
+		else if (op == slt)    generate_slt(a[0], a[1], a[2], 2);
+		else if (op == slts)   generate_slt(a[0], a[1], a[2], 10);
+
 		else if (op == beq)    generate_branch(a[0], a[1], a[2], i, 0);
 		else if (op == bne)    generate_branch(a[0], a[1], a[2], i, 1);
 		else if (op == bge)    generate_branch(a[0], a[1], a[2], i, 2);
 		else if (op == blt)    generate_branch(a[0], a[1], a[2], i, 3);
 
-		else if (op == slt)    generate_slt(a[0], a[1], a[2], 2);
-		else if (op == slts)   generate_slt(a[0], a[1], a[2], 10);
-
-
-		else if (op == sll)    goto here; 
-		else if (op == srl)    goto here;
-		else if (op == sra)    goto here;
-
-
-
-/*
-static u32 generate_adc(struct argument* a, u32 op, u32 o2) {   //    Rm Rn Rd adc/udiv/umin/umax/
-	u32 Rd = (u32) a[0].value;
-	u32 Rn = (u32) a[1].value;
-	u32 Rm = (u32) a[2].value;
-	check(Rd, 32, a[0], "register");
-	check(Rn, 32, a[1], "register");
-	check(Rm, 32, a[2], "register");
-	return  (sf << 31U) |
-		(sb << 30U) |
-		(st << 29U) |
-		(op << 21U) |
-		(Rm << 16U) |
-		(o2 << 10U) |
-		(Rn <<  5U) | Rd;
-}
-*/
-
-
-
-
-
-		//else if (op == lslv)   emit(generate_adc(a, 0x0D6U, 0x08));
-		//else if (op == lsrv)   emit(generate_adc(a, 0x0D6U, 0x09));
-		//else if (op == asrv)   emit(generate_adc(a, 0x0D6U, 0x0A));
-
-
+		
+		else if (op == sll)    generate_adc(a[0], a[1], a[2], 0x0D6U, 0x08, 1, 0, 0);
+		else if (op == srl)    generate_adc(a[0], a[1], a[2], 0x0D6U, 0x09, 1, 0, 0);
+		else if (op == sra)    generate_adc(a[0], a[1], a[2], 0x0D6U, 0x0A, 1, 0, 0);
 
 		
 
@@ -997,18 +987,28 @@ int main(int argc, const char** argv) {
 				arguments[arg_count - 2] = a0;
 				arguments[arg_count - 3] = a1;
 
+
+
+
+
+
 			} else if (op == add) {
 
 				arg_count -= 2;
 				arguments[arg_count - 1] = a0; 
 
+				printf("%s %llu = %s(%llu %llu)\n", 
+					is_compiletime
+						? "executing compiletime" 
+						: "generating runtime",
+					a0, spelling[op], a1, a2
+				);
+
 				if (is_compiletime) {
-					printf("executing %llu = add(%llu %llu)\n", a0, a1, a2);
 					array[a0] = array[a1] + array[a2];
 				} else {
-					printf("generating %llu = add(%llu %llu)\n", a0, a1, a2);
 					struct instruction new = {0};
-					new.a[0] = add;
+					new.a[0] = op;
 					new.size = 4;
 					new.a[1] = a0;
 					new.a[2] = a1;
@@ -1024,13 +1024,18 @@ int main(int argc, const char** argv) {
 				arg_count -= 2;
 				arguments[arg_count - 1] = a0; 
 
+				printf("%s %llu = %s(%llu %llu)\n", 
+					is_compiletime
+						? "executing compiletime" 
+						: "generating runtime" ,
+					a0, spelling[op], a1, a2
+				);
+
 				if (is_compiletime) {
-					printf("executing %llu = addi(%llu #%llu)\n", a0, a1, a2);
 					array[a0] = array[a1] + a2;
 				} else {
-					printf("generating %llu = addi(%llu #%llu)\n", a0, a1, a2);
 					struct instruction new = {0};
-					new.a[0] = addi;
+					new.a[0] = op;
 					new.size = 4;
 					new.a[1] = a0;
 					new.a[2] = a1;
@@ -1046,13 +1051,19 @@ int main(int argc, const char** argv) {
 				arg_count -= 2;
 				arguments[arg_count - 1] = a0; 
 
+				printf("%s %llu = %s(%llu %llu)\n", 
+					is_compiletime
+						? "executing compiletime" 
+						: "generating runtime" ,
+					a0, spelling[op], a1, a2
+				);
+
+
 				if (is_compiletime) {
-					printf("executing %llu = sub(%llu %llu)\n", a0, a1, a2);
 					array[a0] = array[a1] - array[a2];
 				} else {
-					printf("generating %llu = sub(%llu %llu)\n", a0, a1, a2);
 					struct instruction new = {0};
-					new.a[0] = sub;
+					new.a[0] = op;
 					new.size = 4;
 					new.a[1] = a0;
 					new.a[2] = a1;
@@ -1069,13 +1080,19 @@ int main(int argc, const char** argv) {
 				arg_count -= 2;
 				arguments[arg_count - 1] = a0; 
 
+				printf("%s %llu = %s(%llu %llu)\n", 
+					is_compiletime
+						? "executing compiletime" 
+						: "generating runtime" ,
+					a0, spelling[op], a1, a2
+				);
+
+
 				if (is_compiletime) {
-					printf("executing %llu = ior(%llu %llu)\n", a0, a1, a2);
 					array[a0] = array[a1] | array[a2];
 				} else {
-					printf("generating %llu = ior(%llu %llu)\n", a0, a1, a2);
 					struct instruction new = {0};
-					new.a[0] = ior;
+					new.a[0] = op;
 					new.size = 4;
 					new.a[1] = a0;
 					new.a[2] = a1;
@@ -1093,13 +1110,19 @@ int main(int argc, const char** argv) {
 				arg_count -= 2;
 				arguments[arg_count - 1] = a0; 
 
+				printf("%s %llu = %s(%llu %llu)\n", 
+					is_compiletime
+						? "executing compiletime" 
+						: "generating runtime" ,
+					a0, spelling[op], a1, a2
+				);
+
+
 				if (is_compiletime) {
-					printf("executing %llu = eor(%llu %llu)\n", a0, a1, a2);
 					array[a0] = array[a1] ^ array[a2];
 				} else {
-					printf("generating %llu = eor(%llu %llu)\n", a0, a1, a2);
 					struct instruction new = {0};
-					new.a[0] = eor;
+					new.a[0] = op;
 					new.size = 4;
 					new.a[1] = a0;
 					new.a[2] = a1;
@@ -1117,13 +1140,19 @@ int main(int argc, const char** argv) {
 				arg_count -= 2;
 				arguments[arg_count - 1] = a0; 
 
+				printf("%s %llu = %s(%llu %llu)\n", 
+					is_compiletime
+						? "executing compiletime" 
+						: "generating runtime" ,
+					a0, spelling[op], a1, a2
+				);
+
+
 				if (is_compiletime) {
-					printf("executing %llu = and(%llu %llu)\n", a0, a1, a2);
 					array[a0] = array[a1] & array[a2];
 				} else {
-					printf("generating %llu = and(%llu %llu)\n", a0, a1, a2);
 					struct instruction new = {0};
-					new.a[0] = and_;
+					new.a[0] = op;
 					new.size = 4;
 					new.a[1] = a0;
 					new.a[2] = a1;
@@ -1140,13 +1169,19 @@ int main(int argc, const char** argv) {
 				arg_count -= 2;
 				arguments[arg_count - 1] = a0; 
 
+				printf("%s %llu = %s(%llu %llu)\n", 
+					is_compiletime
+						? "executing compiletime" 
+						: "generating runtime" ,
+					a0, spelling[op], a1, a2
+				);
+
+
 				if (is_compiletime) {
-					printf("executing %llu = slt(%llu %llu)\n", a0, a1, a2);
 					array[a0] = array[a1] < array[a2];
 				} else {
-					printf("generating %llu = slt(%llu %llu)\n", a0, a1, a2);
 					struct instruction new = {0};
-					new.a[0] = slt;
+					new.a[0] = op;
 					new.size = 4;
 					new.a[1] = a0;
 					new.a[2] = a1;
@@ -1162,13 +1197,19 @@ int main(int argc, const char** argv) {
 				arg_count -= 2;
 				arguments[arg_count - 1] = a0; 
 
+				printf("%s %llu = %s(%llu %llu)\n", 
+					is_compiletime
+						? "executing compiletime" 
+						: "generating runtime" ,
+					a0, spelling[op], a1, a2
+				);
+
+
 				if (is_compiletime) {
-					printf("executing %llu = slts(%llu %llu)\n", a0, a1, a2);
 					array[a0] = array[a1] < array[a2];
 				} else {
-					printf("generating %llu = slts(%llu %llu)\n", a0, a1, a2);
 					struct instruction new = {0};
-					new.a[0] = slts;
+					new.a[0] = op;
 					new.size = 4;
 					new.a[1] = a0;
 					new.a[2] = a1;
@@ -1177,6 +1218,100 @@ int main(int argc, const char** argv) {
 					ins = realloc(ins, sizeof(struct instruction) * (ins_count + 1));
 					ins[ins_count++] = new;		
 				}
+
+			} else if (op == sll) {
+
+				arg_count -= 2;
+				arguments[arg_count - 1] = a0; 
+
+				printf("%s %llu = %s(%llu %llu)\n", 
+					is_compiletime
+						? "executing compiletime" 
+						: "generating runtime" ,
+					a0, spelling[op], a1, a2
+				);
+
+
+				if (is_compiletime) {
+					array[a0] = array[a1] << array[a2];
+				} else {
+					struct instruction new = {0};
+					new.a[0] = op;
+					new.size = 4;
+					new.a[1] = a0;
+					new.a[2] = a1;
+					new.a[3] = a2;
+					new.start = index;
+					ins = realloc(ins, sizeof(struct instruction) * (ins_count + 1));
+					ins[ins_count++] = new;	
+				}
+
+
+			} else if (op == srl) {
+
+				arg_count -= 2;
+				arguments[arg_count - 1] = a0; 
+
+				printf("%s %llu = %s(%llu %llu)\n", 
+					is_compiletime
+						? "executing compiletime" 
+						: "generating runtime" ,
+					a0, spelling[op], a1, a2
+				);
+
+
+				if (is_compiletime) {
+					array[a0] = array[a1] >> array[a2];
+				} else {
+					struct instruction new = {0};
+					new.a[0] = op;
+					new.size = 4;
+					new.a[1] = a0;
+					new.a[2] = a1;
+					new.a[3] = a2;
+					new.start = index;
+					ins = realloc(ins, sizeof(struct instruction) * (ins_count + 1));
+					ins[ins_count++] = new;	
+				}
+
+
+			
+			} else if (op == sra) {
+
+				arg_count -= 2;
+				arguments[arg_count - 1] = a0; 
+
+				printf("%s %llu = %s(%llu %llu)\n", 
+					is_compiletime
+						? "executing compiletime" 
+						: "generating runtime" ,
+					a0, spelling[op], a1, a2
+				);
+
+				if (is_compiletime) {
+					array[a0] = array[a1] >> array[a2];
+				} else {
+					struct instruction new = {0};
+					new.a[0] = op;
+					new.size = 4;
+					new.a[1] = a0;
+					new.a[2] = a1;
+					new.a[3] = a2;
+					new.start = index;
+					ins = realloc(ins, sizeof(struct instruction) * (ins_count + 1));
+					ins[ins_count++] = new;	
+				}
+
+
+
+
+
+
+
+
+
+
+
 
 
 

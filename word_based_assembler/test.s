@@ -10,6 +10,11 @@ a0 	def exitcode
 a1 	def was_less
 
 
+
+
+
+
+
 ra zero a1 slt
 0011 was_less exitcode addi
 1 zero callnumber addi
@@ -17,9 +22,21 @@ ecall
 
 
 
+
 1 ct ecall
 
 
+
+
+
+
+
+
+
+
+zero zero zero sll
+zero zero zero srl
+zero zero zero sra
 
 
 
