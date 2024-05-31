@@ -1072,7 +1072,7 @@ int main(int argc, const char** argv) {
 				goto next;
 
 				unknown: print_error("undefined word", start, count);
-				puts("error: unknown word...");
+				printf("error: unknown word... \"%s\"...\n", word);
 				print_index_pair(start, index);
 				abort();
 			}

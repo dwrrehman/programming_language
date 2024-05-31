@@ -17,7 +17,20 @@ ecall
 
 my_string attr
 
-	makestring
+	makestring     <-------- this should take a pointer and length     into ct mem.
 
 1 ct ecall
+
+the basic scheme is that we are going to construct the string table in ct memory first, 
+
+	and then we will have all the indexes into it that we need, along with a variable that stores the length of every single string too. 
+
+
+	that should be enough to use the strings in the program no problem. they don't even need to be null terminated!
+
+
+
+yay
+
+
 
