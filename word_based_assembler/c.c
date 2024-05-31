@@ -23,6 +23,16 @@
 #include <sys/mman.h>
 #include <stdnoreturn.h>
 
+
+
+
+
+static const char* default_string = "hello there from space!\nthis is a test. yay!\n";
+
+
+
+
+
 #define CPU_SUBTYPE_ARM64_ALL 0
 #define CPU_TYPE_ARM  12
 #define CPU_ARCH_ABI64  0x01000000 
@@ -152,7 +162,8 @@ enum language_isa {
 	blt, blts, bge, bges, bne, beq, 
 	ldb, ldh, ldw, ldd, stb, sth, stw, std, 
 	mul, mulh, mulhs, div_, divs, rem, rems, 
-	jalr, jal, auipc, ecall, isa_count
+	jalr, jal, auipc, ecall, makestring, ctstrlen,
+	isa_count
 };
 
 static const char* spelling[isa_count] = {
@@ -167,7 +178,7 @@ static const char* spelling[isa_count] = {
 	"blt", "blts", "bge", "bges", "bne", "beq", 
 	"ldb", "ldh", "ldw", "ldd", "stb", "sth", "stw", "std", 
 	"mul", "mulh", "mulhs", "div", "divs", "rem", "rems", 
-	"jalr", "jal", "auipc", "ecall"
+	"jalr", "jal", "auipc", "ecall", "makestring", "ctstrlen",
 };
 
 struct instruction { 
@@ -408,7 +419,7 @@ static void emitw(nat x) {
 }
 
 static void emitd(nat x) {
-	bytes = realloc(bytes, byte_count + 4);
+	bytes = realloc(bytes, byte_count + 8);
 	bytes[byte_count++] = (u8) (x >> 0);
 	bytes[byte_count++] = (u8) (x >> 8);
 	bytes[byte_count++] = (u8) (x >> 16);
@@ -455,16 +466,20 @@ static void u_type(nat* a, nat o) {
 }
 
 static nat calculate_offset(nat here, nat label) {
+	printf("calculate_offset: called using here=%llu, label=%llu...\n", here, label);
 	nat offset = 0;
 	if (label < here) {
+		printf("backwards branch...\n");
 		for (nat i = label; i < here; i++) {
 			offset -= ins[i].size;
 		}
 	} else {
+		printf("forwards branch...\n");
 		for (nat i = here; i < label; i++) {
 			offset += ins[i].size;
 		}
 	}
+	printf("output: found an offset of %llu bytes.\n", offset);
 	return offset;
 }
 
@@ -667,6 +682,22 @@ static void generate_csel(nat Rd, nat Rn, nat Rm,
 		(Rn <<  5U) | Rd);
 }
 
+static void generate_adr(nat Rd, nat op, nat oc, nat target, nat here) { 
+
+	nat im = calculate_offset(here, array[target]);
+
+	check(Rd, 32);
+	check(im, 1 << 20);
+
+	Rd = arm64_macos_abi[Rd];
+
+	nat lo = 0x03U & im, hi = 0x07FFFFU & (im >> 2);
+	emitw(  (oc << 31U) | 
+		(lo << 29U) | 
+		(op << 24U) | 
+		(hi <<  5U) | Rd);
+}
+
 static void generate_bc(nat condition, nat here, nat target) {
 	const nat byte_offset = calculate_offset(here, target);
 	const nat imm = byte_offset >> 2;
@@ -694,9 +725,17 @@ static void generate_arm64_machine_code(void) {
 		else if (op == dw)	emitw(a[0]);
 		else if (op == dd)      emitd(a[0]);
 
-		else if (op == ecall)   emitw(0xD4000001);
+		else if (op == makestring) {
+			for (nat c = 0; c < strlen(default_string) + 1; c++) {
+				emitb((nat) default_string[c]);
+			}
+		}
+
+		else if (op == ecall)  emitw(0xD4000001);
 
 		else if (op == addi)   generate_addi(a[0], a[1], a[2], 0x22U, 1, 0, 0, 0);
+
+		else if (op == auipc)  generate_adr(a[0], 0x10, 0, a[1], i);
 
 		else if (op == add)    generate_add(a[0], a[1], a[2], 0x0BU, 0, 1, 0, 0, 0);
 		else if (op == ior)    generate_add(a[0], a[1], a[2], 0x2AU, 0, 1, 0, 0, 0);
@@ -716,31 +755,30 @@ static void generate_arm64_machine_code(void) {
 		else if (op == srl)    generate_adc(a[0], a[1], a[2], 0x0D6U, 0x09, 1, 0, 0);
 		else if (op == sra)    generate_adc(a[0], a[1], a[2], 0x0D6U, 0x0A, 1, 0, 0);
 
-		else if (op == ldb)     generate_memiu(a[0], a[1], a[2], 0x00, 0x00, 0);
-		else if (op == ldh)     generate_memiu(a[0], a[1], a[2], 0x00, 0x00, 0);
-		else if (op == ldw)     generate_memiu(a[0], a[1], a[2], 0x00, 0x00, 0);
-		else if (op == ldd)     generate_memiu(a[0], a[1], a[2], 0x00, 0x00, 0);
+		else if (op == ldb)    generate_memiu(a[0], a[1], a[2], 0x00, 0x00, 0);
+		else if (op == ldh)    generate_memiu(a[0], a[1], a[2], 0x00, 0x00, 0);
+		else if (op == ldw)    generate_memiu(a[0], a[1], a[2], 0x00, 0x00, 0);
+		else if (op == ldd)    generate_memiu(a[0], a[1], a[2], 0x00, 0x00, 0);
 
-		else if (op == stb)     generate_memiu(a[0], a[1], a[2], 0x00, 0x00, 0);
-		else if (op == sth)     generate_memiu(a[0], a[1], a[2], 0x00, 0x00, 0);
-		else if (op == stw)     generate_memiu(a[0], a[1], a[2], 0x00, 0x00, 0);
-		else if (op == std)     generate_memiu(a[0], a[1], a[2], 0x00, 0x00, 0);
+		else if (op == stb)    generate_memiu(a[0], a[1], a[2], 0x00, 0x00, 0);
+		else if (op == sth)    generate_memiu(a[0], a[1], a[2], 0x00, 0x00, 0);
+		else if (op == stw)    generate_memiu(a[0], a[1], a[2], 0x00, 0x00, 0);
+		else if (op == std)    generate_memiu(a[0], a[1], a[2], 0x00, 0x00, 0);
 
-		else if (op == sltis)   goto here;
-		else if (op == slti)    goto here;
-		else if (op == eori)    goto here;
-		else if (op == iori)    goto here;
+		else if (op == sltis)  goto here;
+		else if (op == slti)   goto here;
+		else if (op == eori)   goto here;
+		else if (op == iori)   goto here;
 		else if (op == andi)   goto here;
 		else if (op == slli)   goto here;
 		else if (op == srli)   goto here;
+
+
 		else if (op == jalr)   goto here;
-		
-		else if (op == auipc)  goto here;
-		
-		else if (op == bne)    goto here;
-		else if (op == blt)    goto here;
-		else if (op == bge)    goto here;
+
+
 		else if (op == jal)    goto here;
+
 		else {
 			here: printf("error: arm64: unknown runtime instruction: %s : %llu\n", spelling[op], op);
 			print_error("unknown instruction", (nat) ~0, (nat) ~0);
@@ -860,16 +898,25 @@ static void make_macho_object_file(const char* object_filename, const bool prese
 
 
 
-static bool execute(nat op, nat a0, nat a1, nat a2) {
+static bool execute(nat op, nat a0, nat a1, nat a2, nat index) {
 	if ((0)) {}
+
+	else if (op == auipc) array[a0] = index + a2;
+
 	else if (op == addi)  array[a0] = array[a1] + a2;
 	else if (op == slti)  array[a0] = array[a1] < a2;
+	else if (op == iori)  array[a0] = array[a1] | a2;
+	else if (op == eori)  array[a0] = array[a1] ^ a2;
+	else if (op == andi)  array[a0] = array[a1] & a2;
+	else if (op == slli)  array[a0] = array[a1] << a2;
+	else if (op == srli)  array[a0] = array[a1] >> a2;
+	else if (op == srai)  array[a0] = array[a1] >> a2;
 
 	else if (op == add)   array[a0] = array[a1] + array[a2];
 	else if (op == sub)   array[a0] = array[a1] - array[a2];
 	else if (op == ior)   array[a0] = array[a1] | array[a2];
 	else if (op == eor)   array[a0] = array[a1] ^ array[a2];
-	else if (op == and_)   array[a0] = array[a1] & array[a2];
+	else if (op == and_)  array[a0] = array[a1] & array[a2];
 	else if (op == slt)   array[a0] = array[a1] < array[a2];
 	else if (op == slts)  array[a0] = array[a1] < array[a2];
 	else if (op == sll)   array[a0] = array[a1] << array[a2];
@@ -912,6 +959,11 @@ jump: 	if (array[a2]) *index = array[a2];
 
 static nat ins_size(nat op, nat target) {
 
+	if (op == db) return 1;
+	if (op == dh) return 2;
+	if (op == dw) return 4;
+	if (op == dd) return 8;
+
 	if (target == arm64) {
 		if (	op == slt or
 			op == slts or 
@@ -931,7 +983,6 @@ static nat ins_size(nat op, nat target) {
 
 }
 
-
 static void push_ins(nat op, nat a0, nat a1, nat a2, nat index, nat target) {
 	struct instruction new = {0};
 	new.a[0] = op;
@@ -942,8 +993,6 @@ static void push_ins(nat op, nat a0, nat a1, nat a2, nat index, nat target) {
 	ins[ins_count++] = new;
 }
 
-
-#define dd if (enable_debug_output)
 
 int main(int argc, const char** argv) {
 
@@ -960,9 +1009,9 @@ int main(int argc, const char** argv) {
 	text_length = 0;
 	text = read_file(filename, &text_length, 0);
 
-	dd printf("read file: (length = %llu): \n<<<", text_length);
-	dd fwrite(text, 1, text_length, stdout);
-	dd puts(">>>");
+	printf("read file: (length = %llu): \n<<<", text_length);
+	fwrite(text, 1, text_length, stdout);
+	puts(">>>");
 
 	array = calloc(ct_array_count, sizeof(nat));
 	array[2] = (nat) (void*) calloc(ct_memory_count, sizeof(nat));
@@ -979,14 +1028,11 @@ int main(int argc, const char** argv) {
 	bool debug = true;
 	bool preserve_existing_object = false;
 	bool preserve_existing_executable = false;
-	
 	const char* object_filename = "object0.o";
 	const char* executable_filename = "executable0.out";
 
-
-
 	for (nat index = 0; index < text_length; index++) {
-		dd printf("%llu: %c...\n", index, text[index]);
+		printf("%llu: %c...\n", index, text[index]);
 
 		if (not isspace(text[index])) {
 			if (not count) start = index;
@@ -1052,8 +1098,9 @@ int main(int argc, const char** argv) {
 				arguments[arg_count - 1] = array[a0]; 
 
 			} else if (op == attr) {
-				puts("executing attr...");
+				printf("executing attr(--> %llu)...\n", a0);
 				array[a0] = is_compiletime ? index : ins_count;
+				printf("loaded array[%llu] with the value %llu...\n", a0, array[a0]);
 				if (skip == a0) skip = 0;
 				is_compiletime = false;
 
@@ -1080,14 +1127,55 @@ int main(int argc, const char** argv) {
 				arguments[arg_count - 2] = a0;
 				arguments[arg_count - 3] = a1;
 
+			} else if (op == ctstrlen) {
+				puts("executing ctstrlen...");
+				array[a0] = strlen(default_string);
+		
 
-			} else if (	op == addi or op == add  or op == sub or
+			} else if (op == makestring) {
+
+				printf("%s %llu = %s(%llu %llu)\n", 
+					"generating runtime",
+					a0, spelling[op], a1, a2
+				);
+
+				struct instruction new = {0};
+				new.a[0] = op;
+				new.size = strlen(default_string);
+				new.a[1] = a0;
+				new.start = index;
+				ins = realloc(ins, sizeof(struct instruction) * (ins_count + 1));
+				ins[ins_count++] = new;
+
+
+
+
+
+
+
+
+
+			} else if (	op == addi or op == iori or 
+					op == eori or op == andi or 
+					op == slli or op == srli or 
+					op == srai or op == slti or 
+					op == sltis or op == auipc or
+					op == add  or op == sub or
 					op == ior  or op == eor  or op == and_ or
 					op == slt  or op == slts or op == ecall or
-					op == sll  or op == srl  or op == sra
+					op == sll  or op == srl  or op == sra or 
+					op == db or op == dh or op == dw or op == dd
 			) {
-				arg_count -= 2;
-				arguments[arg_count - 1] = a0; 
+				if (op == db or op == dh or op == dw or op == dd) {
+					arg_count--;
+				} else if (op == auipc) {
+					arg_count--;
+					arguments[arg_count - 1] = a0;
+
+				} else if (op != ecall) {
+					arg_count -= 2;
+					arguments[arg_count - 1] = a0; 
+				} 
 
 				printf("%s %llu = %s(%llu %llu)\n", 
 					is_compiletime
@@ -1096,8 +1184,14 @@ int main(int argc, const char** argv) {
 					a0, spelling[op], a1, a2
 				);
 
-				if (is_compiletime) { if (execute(op, a0, a1, a2)) break; is_compiletime = false; }
+				if (is_compiletime) { if (execute(op, a0, a1, a2, index)) break; is_compiletime = false; }
 				else push_ins(op, a0, a1, a2, index, architecture);
+
+
+
+
+
+
 
 
 
