@@ -25,6 +25,28 @@
 
 
 
+/*
+
+
+				ADD CONTEXTS FOR NAMES!!!!!!
+
+
+
+							lexical stack of them, controlled via ct too!!!
+
+
+
+
+
+
+	shifts:     slli   
+
+	math:       mul   mulh     div   rem
+*/
+
+
+
+
 
 
 static const char* default_string = "hello there from space!\nthis is a test. yay!\n";
@@ -111,7 +133,7 @@ typedef uint32_t u32;
 typedef uint16_t u16;
 typedef uint8_t  u8;
 
-static bool enable_debug_output = false;
+// static bool enable_debug_output = false;
 
 static const nat ct_array_count = 1 << 16;
 static const nat ct_memory_count = 1 << 16;
@@ -181,9 +203,16 @@ static const char* spelling[isa_count] = {
 	"jalr", "jal", "auipc", "ecall", "makestring", "ctstrlen",
 };
 
+struct argument {
+	nat value;
+	nat start;
+	nat count;
+};
+
 struct instruction { 
 	nat a[4];
-	nat start;
+	nat start[4];
+	nat count[4];
 	nat size;
 };
  
@@ -205,18 +234,11 @@ static char* text = NULL;
 static nat file_count = 0;
 static struct file files[4096] = {0};
 
-static nat arg_count = 0;
-static nat arguments[4096] = {0};
-
-static nat name_count = 0;
-static char* names[4096] = {0};
-static nat values[4096] = {0};
-
 static nat* array = NULL;
 
 
 
-
+/*
 static void print_files(void) {
 	printf("here are the current files used "
 		"in the program: (%lld files) { \n", 
@@ -255,13 +277,28 @@ static void print_stack(nat* stack_i,
 	puts("}");
 }
 
+
+static void print_index_pair(nat start, nat end) {
+	for (nat i = 0; i < text_length; i++) {
+		if (i == start or i == end) printf("\033[32;1m");
+		putchar(text[i]);
+		if (i == start or i == end) printf("\033[0m");
+	}
+	puts("");
+}
+
+
+*/
+
+
 static void print_arguments(void) {
 	printf("\narguments[]: { \n");
 	for (nat i = 0; i < arg_count; i++) {
 		printf("\targuments[%llu] = { %llu  :"
 			"  (.start=%llu,.count=%llu)} \n", 
 			i, (nat) arguments[i], 
-			0LLU, 0LLU
+			argument_locations[2 * i + 0], 
+			argument_locations[2 * i + 1]
 		);
 	}
 	puts("} \n");
@@ -285,8 +322,12 @@ static void print_instructions(void) {
 		);
 		for (nat a = 0; a < 3; a++) printf("%llu ", ins[i].a[a + 1]);
 		
-		printf("} -- [found @ %llu]\n", ins[i].start);
-
+		printf("} -- [found @ \n");
+		for (nat a = 0; a < 4; a++) {
+			printf("[%llu]:(%llu:%llu)", a, ins[i].start[a], ins[i].count[a]);
+			if (a < 3) printf(", ");
+		}
+		puts("]");
 	}
 	puts("}");
 }
@@ -300,9 +341,9 @@ static void print_registers(void) {
 	puts("\n}\n");
 }
 
-static void print_error(const char* reason, nat spot, nat spot2) {
-	const int colors[] = {31, 32, 33, 34, 35};
-	printf("\033[%dm", colors[1]);
+static void print_error(const char* reason, nat spot, nat error_length) {
+	// const int colors[] = {31, 32, 33, 34, 35};
+	//printf("\033[%dm", colors[1]);
 	nat location = 0;
 	const char* filename = NULL;
 	nat stack_i[4096] = {0}, stack_f[4096] = {0}, stack_o[4096] = {0};
@@ -310,7 +351,7 @@ static void print_error(const char* reason, nat spot, nat spot2) {
 	for (nat index = 0; index < text_length; index++) {
 		for (nat f = 0; f < file_count; f++) {
 			const nat start = files[f].start;
-			const nat count = files[f].count;
+			// const nat count = files[f].count;
 			if (index == start) {
 				//printf("file %s begins at %llu!\n", 
 				//files[f].name, index);
@@ -321,38 +362,63 @@ static void print_error(const char* reason, nat spot, nat spot2) {
 			} 
 			if (stack_o[stack_count - 1] == files[
 				stack_f[stack_count - 1]].count)  {
-				print_stack(stack_i, stack_f, stack_o, stack_count);
-				printf("file %s reached the end the "
-					"file! (stack_o[%llu] == count == %llu)\n", 
-				files[f].name, stack_count - 1, count);
+				//print_stack(stack_i, stack_f, stack_o, stack_count);
+				//printf("file %s reached the end the "
+				//	"file! (stack_o[%llu] == count == %llu)\n", 
+				// files[f].name, stack_count - 1, count);
 				stack_count--;
 				if (not stack_count) goto done; else break;
 			}
 		}
 		if (index == spot) {
-			printf("\033[38;5;255m(ERROR_HERE:%s:%llu)\033[0m",
-			 files[stack_f[stack_count - 1]].name, stack_o[stack_count - 1]);
+			//printf("\033[38;5;255m(ERROR_HERE:%s:%llu)\033[0m",
+			// files[stack_f[stack_count - 1]].name, stack_o[stack_count - 1]);
 			filename = files[stack_f[stack_count - 1]].name;
 			location = stack_o[stack_count - 1];
 			goto done;
 		}
 		//printf("\033[%dm", colors[stack_count - 1]);
-		putchar(text[index]);
+		// putchar(text[index]);
 		//printf("\033[0m");
 		stack_o[stack_count - 1]++;
 		//printf("[%s]: incremented stack_o[top=%llu] to be 
 		// now %llu...\n", files[stack_f[stack_count - 1]].name, 
 		// stack_count - 1, stack_o[stack_count - 1]);
 	}
-	printf("\033[0m");
-done:	
-	print_files();
-	print_stack(stack_i, stack_f, stack_o, stack_count);
-	fprintf(stdout, "\033[1masm: %s:%lld:%lld:", 
+	// printf("\033[0m");
+done:;
+
+	// print_files();
+	// print_stack(stack_i, stack_f, stack_o, stack_count);
+
+
+	printf("\033[1masm: %s:%lld:%lld:", 
 		filename ? filename : "(top-level)", 
-		location, spot2
+		location, error_length
 	);
-	fprintf(stdout, " \033[1;31merror:\033[m \033[1m%s\033[m\n", reason);
+	printf(" \033[1;31merror:\033[m \033[1m%s\033[m\n", reason);
+
+	nat line_begin = location;
+	while (line_begin and text[line_begin - 1] != 10) line_begin--;
+	nat line_end = location;
+	while (line_end < text_length and text[line_end] != 10) line_end++;
+
+	printf("\n\t");
+	for (nat i = line_begin; i < line_end; i++) {
+		if (i == location) printf("\033[33;1m");
+		if (text[i] == 9) putchar(32);
+		else putchar(text[i]);
+		if (i == location + error_length) printf("\033[0m");
+	}
+	printf("\n\t");
+	for (nat i = 0; i < location - line_begin; i++) 
+		printf(" "); 
+	printf("\033[32;1m^");
+	if (error_length) {
+		for (nat i = 0; i < error_length - 1; i++) 
+			printf("~"); 
+	}
+	printf("\033[0m\n\n"); 
 }
 
 static char* read_file(const char* name, nat* out_length, nat here) {
@@ -376,15 +442,6 @@ static char* read_file(const char* name, nat* out_length, nat here) {
 	close(file); 
 	*out_length = length;
 	return string;
-}
-
-static void print_index_pair(nat start, nat end) {
-	for (nat i = 0; i < text_length; i++) {
-		if (i == start or i == end) printf("\033[32;1m");
-		putchar(text[i]);
-		if (i == start or i == end) printf("\033[0m");
-	}
-	puts("");
 }
 
 
@@ -430,58 +487,60 @@ static void emitd(nat x) {
 	bytes[byte_count++] = (u8) (x >> 56);
 }
 
-static void check(nat value, nat limit) {
+static void check(nat value, nat limit, struct instruction this) {
 	if (value >= limit) {
 		puts("check error");
-		print_error("error: sorry bad logic or something, arg check() did not succed for instruction", 0, 0);
-		abort();
+		char reason[4096] = {0};
+		snprintf(reason, sizeof reason, "check: value %llu >= limit %llu check did not succeed for instruction", value, limit);
+		print_error(reason, this.start[0], this.count[0]);
+		exit(1);
 	}
 }
 
 
-static void check_offset(nat value, nat limit) {
+static void check_offset(nat value, nat limit, struct instruction this) {
 	if ((0)) {
 		puts("check_offset error");
-		print_error("error: sorry bad logic or something", 0, 0);
-		abort();
+		print_error("error: sorry bad logic or something", this.start[0], this.count[0]);
+		exit(1);
 	}
 }
 
-static void r_type(nat* a, nat o, nat f, nat g) {
-	check(a[0], 32);
-	check(a[1], 32);
-	check(a[2], 32);
+static void r_type(nat* a, nat o, nat f, nat g, struct instruction this) {
+	check(a[0], 32, this);
+	check(a[1], 32, this);
+	check(a[2], 32, this);
 	emitw( (g << 25U) | (a[2] << 20U) | (a[1] << 15U) | (f << 12U) | (a[0] << 7U) | o);
 }
 
-static void i_type(nat* a, nat o, nat f) { 
-	check(a[0], 32);
-	check(a[1], 32);
-	check(a[2], 1 << 12);
+static void i_type(nat* a, nat o, nat f, struct instruction this) { 
+	check(a[0], 32, this);
+	check(a[1], 32, this);
+	check(a[2], 1 << 12, this);
 	emitw( (a[2] << 20U) | (a[1] << 15U) | (f << 12U) | (a[0] << 7U) | o);
 }
 
-static void s_type(nat* a, nat o, nat f) {
-	check(a[0], 32);
-	check(a[1], 32);
-	check(a[2], 1 << 12);
+static void s_type(nat* a, nat o, nat f, struct instruction this) {
+	check(a[0], 32, this);
+	check(a[1], 32, this);
+	check(a[2], 1 << 12, this);
 	emitw( ((a[0] >> 5U) << 25U) | (a[2] << 20U) | (a[1] << 15U) | (f << 12U) | ((a[0] & 0x1F) << 7U) | o);
 }
 
-static void u_type(nat* a, nat o) { 
-	check(a[0], 32);
-	check(a[1], 1 << 20);
+static void u_type(nat* a, nat o, struct instruction this) { 
+	check(a[0], 32, this);
+	check(a[1], 1 << 20, this);
 	emitw( (a[1] << 12U) | (a[0] << 7U) | o);
 }
 
-static nat calculate_offset(nat here, nat label) {
+static nat calculate_offset(nat here, nat label, struct instruction this) {
 	printf("calculate_offset: called using here=%llu, label=%llu...\n", here, label);
 	nat offset = 0;
 	if (label < here) {
 		printf("backwards branch...\n");
 		for (nat i = label; i < here; i++) {
 			if (i >= ins_count) {
-				print_error("invalid label given to a branching instruction", 0, 0);
+				print_error("invalid label given to a branching instruction", this.start[0], this.count[0]);
 				abort();
 			}
 			offset -= ins[i].size;
@@ -490,7 +549,7 @@ static nat calculate_offset(nat here, nat label) {
 		printf("forwards branch...\n");
 		for (nat i = here; i < label; i++) {
 			if (i >= ins_count) {
-				print_error("invalid label given to a branching instruction", 0, 0);
+				print_error("invalid label given to a branching instruction", this.start[0], this.count[0]);
 				abort();
 			}
 			offset += ins[i].size;
@@ -500,12 +559,12 @@ static nat calculate_offset(nat here, nat label) {
 	return offset;
 }
 
-static void j_type(nat here, nat* a, nat o) {
+static void j_type(nat here, nat* a, nat o, struct instruction this) {
 	
-	const nat e = calculate_offset(here, a[1]);
+	const nat e = calculate_offset(here, a[1], this);
 
-	check(a[0], 32);
-	check_offset(e, 1 << 0);
+	check(a[0], 32, this);
+	check_offset(e, 1 << 0, this);
 
 	const nat imm19_12 = (e & 0x000FF000);
 	const nat imm11    = (e & 0x00000800) << 9;
@@ -519,8 +578,9 @@ static void generate_riscv_machine_code(void) {
 
 	for (nat i = 0; i < ins_count; i++) {
 
-		const nat op = ins[i].a[0];
-		nat* a = ins[i].a + 1;
+		struct instruction this = ins[i];
+		nat op = this.a[0];
+		nat* a = this.a + 1;
 
 		     if (op == db)	emitb(a[0]);
 		else if (op == dh)	emith(a[0]);
@@ -528,45 +588,46 @@ static void generate_riscv_machine_code(void) {
 		else if (op == dd)	emitd(a[0]);
 		else if (op == ecall)   emitw(0x00000073);
 
-		else if (op == add)     r_type(a, 0x33, 0x0, 0x00);
-		else if (op == sub)     r_type(a, 0x33, 0x0, 0x20);
-		else if (op == sll)     r_type(a, 0x33, 0x1, 0x00);
-		else if (op == slts)    r_type(a, 0x33, 0x2, 0x00);
-		else if (op == slt)     r_type(a, 0x33, 0x3, 0x00);
-		else if (op == eor)     r_type(a, 0x33, 0x4, 0x00);
-		else if (op == srl)     r_type(a, 0x33, 0x5, 0x00);
-		else if (op == sra)     r_type(a, 0x33, 0x5, 0x20);
-		else if (op == ior)     r_type(a, 0x33, 0x6, 0x00);
-		else if (op == and_)    r_type(a, 0x33, 0x7, 0x00);
+		else if (op == add)     r_type(a, 0x33, 0x0, 0x00, this);
+		else if (op == sub)     r_type(a, 0x33, 0x0, 0x20, this);
+		else if (op == sll)     r_type(a, 0x33, 0x1, 0x00, this);
+		else if (op == slts)    r_type(a, 0x33, 0x2, 0x00, this);
+		else if (op == slt)     r_type(a, 0x33, 0x3, 0x00, this);
+		else if (op == eor)     r_type(a, 0x33, 0x4, 0x00, this);
+		else if (op == srl)     r_type(a, 0x33, 0x5, 0x00, this);
+		else if (op == sra)     r_type(a, 0x33, 0x5, 0x20, this);
+		else if (op == ior)     r_type(a, 0x33, 0x6, 0x00, this);
+		else if (op == and_)    r_type(a, 0x33, 0x7, 0x00, this);
 
-		else if (op == ldb)     i_type(a, 0x03, 0x0);
-		else if (op == ldh)     i_type(a, 0x03, 0x1);
-		else if (op == ldw)     i_type(a, 0x03, 0x2);
-		else if (op == ldd)     i_type(a, 0x03, 0x3);
-		else if (op == addi)    i_type(a, 0x13, 0x0);
-		else if (op == sltis)   i_type(a, 0x13, 0x2);
-		else if (op == slti)    i_type(a, 0x13, 0x3);
-		else if (op == eori)    i_type(a, 0x13, 0x4);
-		else if (op == iori)    i_type(a, 0x13, 0x6);
-		else if (op == andi)    i_type(a, 0x13, 0x7);
-		else if (op == slli)    i_type(a, 0x13, 0x1);
-		else if (op == srli)    i_type(a, 0x13, 0x5);
-		else if (op == srai)    i_type(a, 0x13, 0x5);
-		else if (op == jalr)    i_type(a, 0x67, 0x0);
+		else if (op == ldb)     i_type(a, 0x03, 0x0, this);
+		else if (op == ldh)     i_type(a, 0x03, 0x1, this);
+		else if (op == ldw)     i_type(a, 0x03, 0x2, this);
+		else if (op == ldd)     i_type(a, 0x03, 0x3, this);
+		else if (op == addi)    i_type(a, 0x13, 0x0, this);
+		else if (op == sltis)   i_type(a, 0x13, 0x2, this);
+		else if (op == slti)    i_type(a, 0x13, 0x3, this);
+		else if (op == eori)    i_type(a, 0x13, 0x4, this);
+		else if (op == iori)    i_type(a, 0x13, 0x6, this);
+		else if (op == andi)    i_type(a, 0x13, 0x7, this);
+		else if (op == slli)    i_type(a, 0x13, 0x1, this);
+		else if (op == srli)    i_type(a, 0x13, 0x5, this);
+		else if (op == srai)    i_type(a, 0x13, 0x5, this);
+		else if (op == jalr)    i_type(a, 0x67, 0x0, this);
 
-		else if (op == stb)      s_type(a, 0x23, 0x0);
-		else if (op == sth)      s_type(a, 0x23, 0x1);
-		else if (op == stw)      s_type(a, 0x23, 0x2);
-		else if (op == std)      s_type(a, 0x23, 0x3);
+		else if (op == stb)      s_type(a, 0x23, 0x0, this);
+		else if (op == sth)      s_type(a, 0x23, 0x1, this);
+		else if (op == stw)      s_type(a, 0x23, 0x2, this);
+		else if (op == std)      s_type(a, 0x23, 0x3, this);
 
-		// else if (op == lui)  u_type(a, 0x37);
-		else if (op == auipc)   u_type(a, 0x17);
-		else if (op == jal)     j_type(i, a, 0x6F);
+		// else if (op == lui)  u_type(a, 0x37, this);
+		else if (op == auipc)   u_type(a, 0x17, this);
+		else if (op == jal)     j_type(i, a, 0x6F, this);
 
 		else {
-			printf("error: riscv: unknown runtime instruction: %s : %llu\n", spelling[op], op);
-			print_error("unknown instruction", (nat)~0, (nat)~0);
-			abort();
+			char reason[4096] = {0};
+			snprintf(reason, sizeof reason, "riscv: unknown runtime instruction: \"%s\" (%llu)\n", spelling[op], op);
+			print_error(reason, this.start[0], this.count[0]);
+			exit(1);
 		}
 	}
 }
@@ -581,13 +642,15 @@ static void generate_riscv_machine_code(void) {
 
 
 static void generate_mov(nat Rd, nat op, nat im, 
-			nat sf, nat oc, nat sh) {  
+			nat sf, nat oc, nat sh, 
+		struct instruction this
+) {  
 
-	check(Rd, 32);
+	check(Rd, 32, this);
 
 	Rd = arm64_macos_abi[Rd];
 
-	check(im, 1 << 12U);
+	check(im, 1 << 12U, this);
 	emitw(  (sf << 31U) | 
 		(oc << 29U) | 
 		(op << 23U) | 
@@ -597,17 +660,18 @@ static void generate_mov(nat Rd, nat op, nat im,
 
 static void generate_addi(nat Rd, nat Rn, nat im, 
 			nat op, nat sf, nat sb, 
-			nat st, nat sh) {  
+			nat st, nat sh, struct instruction this
+) {  
 	if (not Rd) { emitw(0xD503201F); return; }
-	if (not Rn) { generate_mov(Rd, 0x25U, im, sf, 2, 0); return; }
+	if (not Rn) { generate_mov(Rd, 0x25U, im, sf, 2, 0, this); return; }
 	
-	check(Rd, 32);
-	check(Rn, 32);
+	check(Rd, 32, this);
+	check(Rn, 32, this);
 
 	Rd = arm64_macos_abi[Rd];
 	Rn = arm64_macos_abi[Rn];
 
-	check(im, 1 << 12U);
+	check(im, 1 << 12U, this);
 
 	emitw(  (sf << 31U) | 
 		(sb << 30U) | 
@@ -619,15 +683,15 @@ static void generate_addi(nat Rd, nat Rn, nat im,
 }
 
 
-static void generate_memiu(nat Rt, nat Rn, nat im, nat op, nat oc, nat sf) {
+static void generate_memiu(nat Rt, nat Rn, nat im, nat op, nat oc, nat sf, struct instruction this) {
 
-	check(Rt, 32);
-	check(Rn, 32);
+	check(Rt, 32, this);
+	check(Rn, 32, this);
 
 	Rt = arm64_macos_abi[Rt];
 	Rn = arm64_macos_abi[Rn];
 
-	check(im, 1 << 12U);
+	check(im, 1 << 12U, this);
 
 	emitw(  (sf << 30U) | 
 		(op << 24U) | 
@@ -638,12 +702,13 @@ static void generate_memiu(nat Rt, nat Rn, nat im, nat op, nat oc, nat sf) {
 
 static void generate_add(nat Rd, nat Rn, nat Rm, 
 			nat op, nat im, nat sf, 
-			nat st, nat sb, nat sh) {
+			nat st, nat sb, nat sh, struct instruction this
+) {
 
-	check(Rd, 32);
-	check(Rn, 32);
-	check(Rm, 32);
-	check(im, 32U << sf);
+	check(Rd, 32, this);
+	check(Rn, 32, this);
+	check(Rm, 32, this);
+	check(im, 32U << sf, this);
 
 	Rd = arm64_macos_abi[Rd];
 	Rn = arm64_macos_abi[Rn];
@@ -661,10 +726,11 @@ static void generate_add(nat Rd, nat Rn, nat Rm,
 
 static void generate_adc(nat Rd, nat Rn, nat Rm, 
 			nat op, nat o2, nat sf, 
-			nat st, nat sb) {
-	check(Rd, 32);
-	check(Rn, 32);
-	check(Rm, 32);
+			nat st, nat sb, struct instruction this
+) {
+	check(Rd, 32, this);
+	check(Rn, 32, this);
+	check(Rm, 32, this);
 
 	Rd = arm64_macos_abi[Rd];
 	Rn = arm64_macos_abi[Rn];
@@ -681,14 +747,14 @@ static void generate_adc(nat Rd, nat Rn, nat Rm,
 
 static void generate_csel(nat Rd, nat Rn, nat Rm, 
 			nat cd, nat op, nat sf, 
-			nat ic, nat iv) {
+			nat ic, nat iv, struct instruction this) {
 
-	check(iv,  2);
-	check(ic,  2);
-	check(cd, 16);
-	check(Rd, 32);
-	check(Rn, 32);
-	check(Rm, 32);
+	check(iv,  2, this);
+	check(ic,  2, this);
+	check(cd, 16, this);
+	check(Rd, 32, this);
+	check(Rn, 32, this);
+	check(Rm, 32, this);
 
 	Rd = arm64_macos_abi[Rd];
 	Rn = arm64_macos_abi[Rn];
@@ -703,12 +769,63 @@ static void generate_csel(nat Rd, nat Rn, nat Rm,
 		(Rn <<  5U) | Rd);
 }
 
-static void generate_adr(nat Rd, nat op, nat oc, nat target, nat here) { 
+static void generate_slli(nat Rd, nat Rn, nat im, nat op, nat oc, nat sf, struct instruction this) {
 
-	nat im = calculate_offset(here, array[target]);
+	check(Rd, 32, this);
+	check(Rn, 32, this);
+	check(im, 64, this);
 
-	check(Rd, 32);
-	check_offset(im, 1 << 20);
+	Rd = arm64_macos_abi[Rd];
+	Rn = arm64_macos_abi[Rn];
+
+	nat nn = sf, is = 63 - im, ir = (64 - im) % 64;
+	printf("generating ubfm using the values: \n");
+	printf("\t sf = %lld\n", sf);
+	printf("\t N = %lld\n", nn);
+	printf("\t immr = %lld\n", ir);
+	printf("\t imms = %lld\n", is);
+
+	emitw(  (sf << 31U) | 
+		(oc << 29U) | 
+		(op << 23U) | 
+		(nn << 22U) | 
+		(ir << 16U) | 
+		(is << 10U) | 
+		(Rn <<  5U) | Rd);
+}
+
+
+static void generate_srli(nat Rd, nat Rn, nat im, nat op, nat oc, nat sf, struct instruction this) {
+
+	check(Rd, 32, this);
+	check(Rn, 32, this);
+	check(im, 64, this);
+
+	Rd = arm64_macos_abi[Rd];
+	Rn = arm64_macos_abi[Rn];
+
+	nat nn = sf, is = 63, ir = im;
+	printf("generating ubfm using the values: \n");
+	printf("\t sf = %lld\n", sf);
+	printf("\t N = %lld\n", nn);
+	printf("\t immr = %lld\n", ir);
+	printf("\t imms = %lld\n", is);
+
+	emitw(  (sf << 31U) | 
+		(oc << 29U) | 
+		(op << 23U) | 
+		(nn << 22U) | 
+		(ir << 16U) | 
+		(is << 10U) | 
+		(Rn <<  5U) | Rd);
+}
+
+static void generate_adr(nat Rd, nat op, nat oc, nat target, nat here, struct instruction this) { 
+
+	nat im = calculate_offset(here, array[target], this);
+
+	check(Rd, 32, this);
+	check_offset(im, 1 << 20, this);
 
 	Rd = arm64_macos_abi[Rd];
 
@@ -719,10 +836,10 @@ static void generate_adr(nat Rd, nat op, nat oc, nat target, nat here) {
 		(hi <<  5U) | Rd);
 }
 
-static void generate_jalr(nat Rd, nat Rn, nat op) {
+static void generate_jalr(nat Rd, nat Rn, nat op, struct instruction this) {
 
-	check(Rd, 32);
-	check(Rn, 32);
+	check(Rd, 32, this);
+	check(Rn, 32, this);
 
 	nat oc = Rd;
 	if (Rd != 0 and Rd != 1) {
@@ -736,7 +853,7 @@ static void generate_jalr(nat Rd, nat Rn, nat op) {
 	emitw( ((nat)(Rd == 1) << 22) | (oc << 21U) | (op << 10U) | (Rn << 5U));
 }
 
-static void generate_jal(nat Rd, nat here, nat target) {  
+static void generate_jal(nat Rd, nat here, nat target, struct instruction this) {  
 
 	nat oc = Rd;
 	if (Rd != 0 and Rd != 1) {
@@ -744,33 +861,35 @@ static void generate_jal(nat Rd, nat here, nat target) {
 		abort();
 	}
 
-	nat im = calculate_offset(here, array[target]);
-	check_offset(im, 1 << 25);
+	nat im = calculate_offset(here, array[target], this);
+	check_offset(im, 1 << 25, this);
 	emitw( (oc << 31U) | (0x05 << 26U) | (0x03FFFFFFU & im));
 }
 
-static void generate_bc(nat condition, nat here, nat target) {
-	const nat byte_offset = calculate_offset(here, target);
+static void generate_bc(nat condition, nat here, nat target, struct instruction this) {
+	const nat byte_offset = calculate_offset(here, target, this);
 	const nat imm = byte_offset >> 2;
-	check_offset(imm, 1 << 0);
+	check_offset(imm, 1 << 0, this);
 	emitw((0x54U << 24U) | ((0x0007FFFFU & imm) << 5U) | condition);
 }
 
-static void generate_branch(nat R_left, nat R_right, nat target, nat here, nat condition) {
-	generate_add(0, R_left, R_right, 0x0BU, 0, 1, 1, 1, 0);
-	generate_bc(condition, here, array[target]);
+static void generate_branch(nat R_left, nat R_right, nat target, nat here, nat condition, struct instruction this) {
+	generate_add(0, R_left, R_right, 0x0BU, 0, 1, 1, 1, 0, this);
+	generate_bc(condition, here, array[target], this);
 }
 
-static void generate_slt(nat Rd, nat Rn, nat Rm, nat cond) {
-	generate_add(0, Rn, Rm, 0x0BU, 0, 1, 1, 1, 0);
-	generate_csel(Rd, 0, 0, cond, 0x0D4U, 1, 1, 0);
+static void generate_slt(nat Rd, nat Rn, nat Rm, nat cond, struct instruction this) {
+	generate_add(0, Rn, Rm, 0x0BU, 0, 1, 1, 1, 0, this);
+	generate_csel(Rd, 0, 0, cond, 0x0D4U, 1, 1, 0, this);
 }
 
 static void generate_arm64_machine_code(void) {
 
 	for (nat i = 0; i < ins_count; i++) {
-		nat op = ins[i].a[0];
-		nat* a = ins[i].a + 1;
+
+		struct instruction this = ins[i];
+		nat op = this.a[0];
+		nat* a = this.a + 1;
 
 		     if (op == db)	emitb(a[0]);
 		else if (op == dh)	emith(a[0]);
@@ -785,55 +904,64 @@ static void generate_arm64_machine_code(void) {
 
 		else if (op == ecall)  emitw(0xD4000001);
 
-		else if (op == addi)   generate_addi(a[0], a[1], a[2], 0x22U, 1, 0, 0, 0);
+		else if (op == addi)   generate_addi(a[0], a[1], a[2], 0x22U, 1, 0, 0, 0, this);
+		else if (op == slli)   generate_slli(a[0], a[1], a[2], 0x26U, 2, 1, this);
+		else if (op == srli)   generate_srli(a[0], a[1], a[2], 0x26U, 2, 1, this);
+		else if (op == srai)   generate_srli(a[0], a[1], a[2], 0x26U, 0, 1, this);
 
-		else if (op == auipc)  generate_adr(a[0], 0x10, 0, a[1], i);
 
-		else if (op == add)    generate_add(a[0], a[1], a[2], 0x0BU, 0, 1, 0, 0, 0);
-		else if (op == ior)    generate_add(a[0], a[1], a[2], 0x2AU, 0, 1, 0, 0, 0);
-		else if (op == sub)    generate_add(a[0], a[1], a[2], 0x0BU, 0, 1, 0, 1, 0);
-		else if (op == eor)    generate_add(a[0], a[1], a[2], 0x0AU, 0, 1, 0, 1, 0);
-		else if (op == and_)   generate_add(a[0], a[1], a[2], 0x0AU, 0, 1, 0, 0, 0);
+		else if (op == div_)   generate_adc(a[0], a[1], a[2], 0xD6, 2, 1, 0, 0, this);
+		else if (op == divs)   generate_adc(a[0], a[1], a[2], 0xD6, 3, 1, 0, 0, this);
+		else if (op == mulh)   generate_adc(a[0], a[1], a[2], 0xDE, 31, 1, 0, 0, this);
 
-		else if (op == slt)    generate_slt(a[0], a[1], a[2], 2);
-		else if (op == slts)   generate_slt(a[0], a[1], a[2], 10);
+		// else if (op == mul)    generate_umaddl(a[0], a[1], a[2], 0xDE, 31, 1, 0, 0, this);
 
-		else if (op == beq)    generate_branch(a[0], a[1], a[2], i, 0);
-		else if (op == bne)    generate_branch(a[0], a[1], a[2], i, 1);
-		else if (op == bge)    generate_branch(a[0], a[1], a[2], i, 2);
-		else if (op == blt)    generate_branch(a[0], a[1], a[2], i, 3);
+		else if (op == auipc)  generate_adr(a[0], 0x10, 0, a[1], i, this);
 
-		else if (op == jalr)   generate_jalr(a[0], a[1], 0x3587C0U);
-		else if (op == jal)    generate_jal(a[0], i, a[1]);
+		else if (op == add)    generate_add(a[0], a[1], a[2], 0x0BU, 0, 1, 0, 0, 0, this);
+		else if (op == ior)    generate_add(a[0], a[1], a[2], 0x2AU, 0, 1, 0, 0, 0, this);
+		else if (op == sub)    generate_add(a[0], a[1], a[2], 0x0BU, 0, 1, 0, 1, 0, this);
+		else if (op == eor)    generate_add(a[0], a[1], a[2], 0x0AU, 0, 1, 0, 1, 0, this);
+		else if (op == and_)   generate_add(a[0], a[1], a[2], 0x0AU, 0, 1, 0, 0, 0, this);
 
-		else if (op == sll)    generate_adc(a[0], a[1], a[2], 0x0D6U, 0x08, 1, 0, 0);
-		else if (op == srl)    generate_adc(a[0], a[1], a[2], 0x0D6U, 0x09, 1, 0, 0);
-		else if (op == sra)    generate_adc(a[0], a[1], a[2], 0x0D6U, 0x0A, 1, 0, 0);
+		else if (op == slt)    generate_slt(a[0], a[1], a[2], 2, this);
+		else if (op == slts)   generate_slt(a[0], a[1], a[2], 10, this);
 
-		else if (op == ldb)    generate_memiu(a[0], a[1], a[2], 0x00, 0x00, 0);
-		else if (op == ldh)    generate_memiu(a[0], a[1], a[2], 0x00, 0x00, 0);
-		else if (op == ldw)    generate_memiu(a[0], a[1], a[2], 0x00, 0x00, 0);
-		else if (op == ldd)    generate_memiu(a[0], a[1], a[2], 0x00, 0x00, 0);
+		else if (op == beq)    generate_branch(a[0], a[1], a[2], i, 0, this);
+		else if (op == bne)    generate_branch(a[0], a[1], a[2], i, 1, this);
+		else if (op == bge)    generate_branch(a[0], a[1], a[2], i, 2, this);
+		else if (op == blt)    generate_branch(a[0], a[1], a[2], i, 3, this);
 
-		else if (op == stb)    generate_memiu(a[0], a[1], a[2], 0x00, 0x00, 0);
-		else if (op == sth)    generate_memiu(a[0], a[1], a[2], 0x00, 0x00, 0);
-		else if (op == stw)    generate_memiu(a[0], a[1], a[2], 0x00, 0x00, 0);
-		else if (op == std)    generate_memiu(a[0], a[1], a[2], 0x00, 0x00, 0);
+		else if (op == jalr)   generate_jalr(a[0], a[1], 0x3587C0U, this);
+		else if (op == jal)    generate_jal(a[0], i, a[1], this);
+
+		else if (op == sll)    generate_adc(a[0], a[1], a[2], 0x0D6U, 0x08, 1, 0, 0, this);
+		else if (op == srl)    generate_adc(a[0], a[1], a[2], 0x0D6U, 0x09, 1, 0, 0, this);
+		else if (op == sra)    generate_adc(a[0], a[1], a[2], 0x0D6U, 0x0A, 1, 0, 0, this);
+
+		else if (op == ldb)    generate_memiu(a[0], a[1], a[2], 0x00, 0x00, 0, this);
+		else if (op == ldh)    generate_memiu(a[0], a[1], a[2], 0x00, 0x00, 0, this);
+		else if (op == ldw)    generate_memiu(a[0], a[1], a[2], 0x00, 0x00, 0, this);
+		else if (op == ldd)    generate_memiu(a[0], a[1], a[2], 0x00, 0x00, 0, this);
+
+		else if (op == stb)    generate_memiu(a[0], a[1], a[2], 0x00, 0x00, 0, this);
+		else if (op == sth)    generate_memiu(a[0], a[1], a[2], 0x00, 0x00, 0, this);
+		else if (op == stw)    generate_memiu(a[0], a[1], a[2], 0x00, 0x00, 0, this);
+		else if (op == std)    generate_memiu(a[0], a[1], a[2], 0x00, 0x00, 0, this);
 
 		else if (op == sltis)  goto here;
 		else if (op == slti)   goto here;
 		else if (op == eori)   goto here;
 		else if (op == iori)   goto here;
 		else if (op == andi)   goto here;
-		else if (op == slli)   goto here;
 		else if (op == srli)   goto here;
 
-		
-
 		else {
-			here: printf("error: arm64: unknown runtime instruction: %s : %llu\n", spelling[op], op);
-			print_error("unknown instruction", (nat) ~0, (nat) ~0);
-			abort();
+			here:;
+			char reason[4096] = {0};
+			snprintf(reason, sizeof reason, "arm64: unknown runtime instruction: %s : %llu", spelling[op], op);
+			print_error(reason, this.start[0], this.count[0]);
+			exit(1);
 		}
 	}
 }
@@ -949,110 +1077,84 @@ static void make_macho_object_file(const char* object_filename, const bool prese
 
 
 
-static bool execute(nat op, nat a0, nat a1, nat a2, nat index) {
-	if ((0)) {}
+static bool execute(nat op, nat a0, nat a1, nat a2, nat index, nat count) {
 
-	else if (op == auipc) array[a0] = index + a2;
-
-	else if (op == addi)  array[a0] = array[a1] + a2;
-	else if (op == slti)  array[a0] = array[a1] < a2;
-	else if (op == iori)  array[a0] = array[a1] | a2;
-	else if (op == eori)  array[a0] = array[a1] ^ a2;
-	else if (op == andi)  array[a0] = array[a1] & a2;
-	else if (op == slli)  array[a0] = array[a1] << a2;
-	else if (op == srli)  array[a0] = array[a1] >> a2;
-	else if (op == srai)  array[a0] = array[a1] >> a2;
-
-	else if (op == add)   array[a0] = array[a1] + array[a2];
-	else if (op == sub)   array[a0] = array[a1] - array[a2];
-	else if (op == ior)   array[a0] = array[a1] | array[a2];
-	else if (op == eor)   array[a0] = array[a1] ^ array[a2];
-	else if (op == and_)  array[a0] = array[a1] & array[a2];
-	else if (op == slt)   array[a0] = array[a1] < array[a2];
-	else if (op == slts)  array[a0] = array[a1] < array[a2];
-	else if (op == sll)   array[a0] = array[a1] << array[a2];
-	else if (op == srl)   array[a0] = array[a1] >> array[a2];
-	else if (op == sra)   array[a0] = array[a1] >> array[a2];
-
-	else if (op == ecall) {
-		if (a0 == 1) return true;
-		else if (a0 == 2) printf("debug: %lld (hex 0x%016llx)\n", array[a1], array[a1]);
-		else if (a0 == 3) array[a1] = (nat) getchar();
-		else if (a0 == 4) putchar((char) array[a1]);
-		else if (a0 == 5) print_dictionary();
-		else if (a0 == 6) print_instructions();
-		else if (a0 == 7) print_registers();
-		else if (a0 == 8) print_arguments();
-		else {
-			printf("error: ct: unknown ecall number %llu... aborting...\n", a0);
-			abort();
-		}
-	}
-
-	else { puts("error: internal ct execute error"); abort(); }
-	return false;
 }
 
 
 static void execute_branch(nat op, nat a0, nat a1, nat a2, nat* skip, nat* index) {
 	if ((0)) {}
-	else if (op == blt)  { if (array[a0] <  array[a1]) goto jump; } 
-	else if (op == bge)  { if (array[a0] >= array[a1]) goto jump; } 
-	else if (op == bne)  { if (array[a0] != array[a1]) goto jump; } 
-	else if (op == beq)  { if (array[a0] == array[a1]) goto jump; } 
-	else if (op == blts) { if (array[a0] <  array[a1]) goto jump; } 
-	else if (op == bges) { if (array[a0] >= array[a1]) goto jump; }
-	else if (op == jalr) {
-		array[a0] = *index;
-		*index = array[a1] + a2;
-	} else if (op == jal) {
-		array[a0] = *index;
-		if (array[a1]) *index = array[a1]; 
-		else *skip = a1;
-	} else { puts("error: internal ct execute_branch error"); abort(); }
-	return;
-jump: 	if (array[a2]) *index = array[a2]; 
-	else *skip = a2;
+	
 }
 
 static nat ins_size(nat op, nat target) {
+
+	if (op == makestring) return strlen(default_string);
 
 	if (op == db) return 1;
 	if (op == dh) return 2;
 	if (op == dw) return 4;
 	if (op == dd) return 8;
-
 	if (target == arm64) {
-		if (	op == slt or
-			op == slts or 
-			op == blt or 
-			op == bge or 
-			op == bne or
-			op == beq or 
-			op == blts or 
-			op == bges
-
-		) return 8; return 4;
-
+		if (	op == slt or  op == slts or 
+			op == blt or  op == bge or 
+			op == bne or  op == beq or 
+			op == blts or op == bges
+		) return 8; 
+		return 4;
 	} else {
 		puts("that target is not supported yet...");
 		abort();
 	}
-
 }
 
-static void push_ins(nat op, nat a0, nat a1, nat a2, nat index, nat target) {
+static void push_ins(
+
+	nat op, 
+	nat a0, 
+	nat a1, 
+	nat a2, 
+
+	nat so, nat co, 
+	nat s0, nat c0, 
+	nat s1, nat c1, 
+	nat s2, nat c2,	
+
+	nat size
+) {
 	struct instruction new = {0};
+	
 	new.a[0] = op;
-	new.size = ins_size(op, target);
-	new.a[1] = a0; new.a[2] = a1; new.a[3] = a2;
-	new.start = index;
+	new.a[1] = a0; 
+	new.a[2] = a1; 
+	new.a[3] = a2;
+
+	new.start[0] = so;
+	new.count[0] = co;
+
+	new.start[1] = s0;
+	new.count[1] = c0;
+
+	new.start[2] = s1;
+	new.count[2] = c1;
+
+	new.start[3] = s2;
+	new.count[3] = c2;
+
+	new.size = size;
+	
 	ins = realloc(ins, sizeof(struct instruction) * (ins_count + 1));
 	ins[ins_count++] = new;
 }
 
-
 int main(int argc, const char** argv) {
+
+	nat arg_count = 0;
+	struct argument arguments[4096] = {0};
+
+	nat name_count = 0;
+	char* names[4096] = {0};
+	nat values[4096] = {0};
 
 	if (argc != 2) exit(puts("asm: \033[31;1merror:\033[0m "
 				"usage: ./asm <source.s>"));
@@ -1097,6 +1199,7 @@ int main(int argc, const char** argv) {
 			count++;
 
 		} else if (count) {
+			process:
 			printf("found word at %llu:%llu... \"%.*s\"\n", 
 				start, count, (int) count, text + start);
 			
@@ -1129,15 +1232,16 @@ int main(int argc, const char** argv) {
 				arguments[arg_count++] = r;
 				goto next;
 
-				unknown: print_error("undefined word", start, count);
-				printf("error: unknown word... \"%s\"...\n", word);
-				print_index_pair(start, index);
-				abort();
+				unknown:;
+				char reason[4096] = {0};
+				snprintf(reason, sizeof reason, "undefined word \"%s\"", word);
+				print_error(reason, start, count);
+				exit(1);
 			}
 		process_word:;
-			nat a0 = arg_count > 0 ? arguments[arg_count - 1] : 0;
-			nat a1 = arg_count > 1 ? arguments[arg_count - 2] : 0;
-			nat a2 = arg_count > 2 ? arguments[arg_count - 3] : 0;
+			struct argument a0 = arguments[arg_count - 1];
+			struct argument a1 = arguments[arg_count - 2];
+			struct argument a2 = arguments[arg_count - 3];
 
 			if (op == def) {
 				puts("executing def...");
@@ -1152,8 +1256,10 @@ int main(int argc, const char** argv) {
 				arg_count--;
 
 			} else if (op == arc) {
-				printf("executing carg(%llu)...\n", a0); 
-				arguments[arg_count - 1] = array[a0]; 
+				printf("executing arc(%llu)...\n", a0); 
+				arguments[arg_count - 1].value = array[a0]; 
+				arguments[arg_count - 1].start = start;
+				arguments[arg_count - 1].count = count;
 
 			} else if (op == attr) {
 				printf("executing attr(--> %llu)...\n", a0);
@@ -1164,7 +1270,7 @@ int main(int argc, const char** argv) {
 
 			} else if (op == dup_) {
 				puts("executing dup...");
-				arguments[arg_count++] = a0;	
+				arguments[arg_count++] = a0;
 
 			} else if (op == over) {
 				puts("executing over...");
@@ -1188,83 +1294,119 @@ int main(int argc, const char** argv) {
 			} else if (op == ctstrlen) {
 				puts("executing ctstrlen...");
 				array[a0] = strlen(default_string);
-		
-
-			} else if (op == makestring) {
-
-				printf("%s %llu = %s(%llu %llu)\n", 
-					"generating runtime",
-					a0, spelling[op], a1, a2
-				);
-
-				struct instruction new = {0};
-				new.a[0] = op;
-				new.size = strlen(default_string);
-				new.a[1] = a0;
-				new.start = index;
-				ins = realloc(ins, sizeof(struct instruction) * (ins_count + 1));
-				ins[ins_count++] = new;
 
 
+			} else if (op < isa_count) {
 
+				if (op == ecall or op == makestring) {}
+				else if (op == db or op == dh or op == dw or op == dd) arg_count--;
+				else if (op == jalr or op == jal) arg_count -= 2;
+				else if (op == blt  or op == bge or op == bne  or op == beq or
+					 op == blts or op == bges) arg_count -= 3;
+				else if (op == auipc) { arg_count--; arguments[arg_count - 1] = a0; } 
+				else { arg_count -= 2; arguments[arg_count - 1] = a0; }
 
-
-
-
-
-
-			} else if (	op == addi or op == iori or 
-					op == eori or op == andi or 
-					op == slli or op == srli or 
-					op == srai or op == slti or 
-					op == sltis or op == auipc or
-					op == add  or op == sub or
-					op == ior  or op == eor  or op == and_ or
-					op == slt  or op == slts or op == ecall or
-					op == sll  or op == srl  or op == sra or 
-					op == db or op == dh or op == dw or op == dd
-			) {
-				if (op == db or op == dh or op == dw or op == dd) {
-					arg_count--;
-				} else if (op == auipc) {
-					arg_count--;
-					arguments[arg_count - 1] = a0;
-
-				} else if (op != ecall) {
-					arg_count -= 2;
-					arguments[arg_count - 1] = a0; 
-				} 
-
-				printf("%s %llu = %s(%llu %llu)\n", 
-					is_compiletime
-						? "executing compiletime" 
-						: "generating runtime",
-					a0, spelling[op], a1, a2
-				);
-
-				if (is_compiletime) { if (execute(op, a0, a1, a2, index)) break; is_compiletime = false; }
-				else push_ins(op, a0, a1, a2, index, architecture);
-
-
-
-			} else if (	op == blt  or op == bge or
+				if (	op == blt  or op == bge or
 					op == bne  or op == beq or
-					op == blts or op == bges or
-					op == jalr or op == jal
-				) {
+					op == blts or op == bges
 
-				if (op == jalr or op == jal) arg_count -= 2;
-				else arg_count -= 3;
+				)	printf("%s %s(%llu %llu --> @%llu)\n",
+						is_compiletime
+							? "executing compiletime" 
+							: "generating runtime",
+						spelling[op], a0, a1, a2
+					);
+				else 
+					printf("%s %llu = %s(%llu %llu)\n", 
+						is_compiletime
+							? "executing compiletime" 
+							: "generating runtime",
+						a0, spelling[op], a1, a2
+					);
 
-				printf("%s %s(%llu %llu --> @%llu)\n",
-					is_compiletime
-						? "executing compiletime" 
-						: "generating runtime",
-					spelling[op], a0, a1, a2
-				);
 
-				if (is_compiletime) { execute_branch(op, a0, a1, a2, &skip, &index); is_compiletime = false; }
-				else push_ins(op, a0, a1, a2, index, architecture);
+				if (is_compiletime) { 
+
+					if (op == auipc) array[a0] = index + a2;
+
+	else if (op == addi)  array[a0] = array[a1] + a2;
+	else if (op == slti)  array[a0] = array[a1] < a2;
+	else if (op == iori)  array[a0] = array[a1] | a2;
+	else if (op == eori)  array[a0] = array[a1] ^ a2;
+	else if (op == andi)  array[a0] = array[a1] & a2;
+	else if (op == slli)  array[a0] = array[a1] << a2;
+	else if (op == srli)  array[a0] = array[a1] >> a2;
+	else if (op == srai)  array[a0] = array[a1] >> a2;
+
+	else if (op == add)   array[a0] = array[a1] + array[a2];
+	else if (op == sub)   array[a0] = array[a1] - array[a2];
+	else if (op == ior)   array[a0] = array[a1] | array[a2];
+	else if (op == eor)   array[a0] = array[a1] ^ array[a2];
+	else if (op == and_)  array[a0] = array[a1] & array[a2];
+	else if (op == slt)   array[a0] = array[a1] < array[a2];
+	else if (op == slts)  array[a0] = array[a1] < array[a2];
+	else if (op == sll)   array[a0] = array[a1] << array[a2];
+	else if (op == srl)   array[a0] = array[a1] >> array[a2];
+	else if (op == sra)   array[a0] = array[a1] >> array[a2];
+
+	else if (op == ecall) {
+		if (a0 == 1) return true;
+		else if (a0 == 2) printf("debug: %lld (hex 0x%016llx)\n", array[a1], array[a1]);
+		else if (a0 == 3) array[a1] = (nat) getchar();
+		else if (a0 == 4) putchar((char) array[a1]);
+		else if (a0 == 5) print_dictionary();
+		else if (a0 == 6) print_instructions();
+		else if (a0 == 7) print_registers();
+		else if (a0 == 8) print_arguments();
+		else {
+			char reason[4096] = {0};
+			snprintf(reason, sizeof reason, "unknown compiletime system call number %llu", a0);
+			print_error(reason, index - count, count);
+			exit(1);
+		}
+	}
+
+	else if (op == blt)  { if (array[a0] <  array[a1]) goto jump; } 
+	else if (op == bge)  { if (array[a0] >= array[a1]) goto jump; } 
+	else if (op == bne)  { if (array[a0] != array[a1]) goto jump; } 
+	else if (op == beq)  { if (array[a0] == array[a1]) goto jump; } 
+	else if (op == blts) { if (array[a0] <  array[a1]) goto jump; } 
+	else if (op == bges) { if (array[a0] >= array[a1]) goto jump; }
+	else if (op == jalr) {
+		array[a0] = *index;
+		*index = array[a1] + a2;
+	} else if (op == jal) {
+		array[a0] = *index;
+		if (array[a1]) *index = array[a1]; 
+		else *skip = a1;
+	} 
+
+	else { puts("error: internal ct execute error"); abort(); }
+	return;
+
+jump: 	if (array[a2]) *index = array[a2]; 
+	else *skip = a2;
+
+
+
+
+
+
+					is_compiletime = false; 
+				}
+
+
+
+				else 	push_ins(op, a0, a1, a2, 
+
+						start, count, 
+						argument_locations[2 * (arg_count - 1) + 0],
+						argument_locations[2 * (arg_count - 1) + 1],
+						0,0,0,0,
+
+						ins_size(op, architecture)
+					);
+			
 
 			} else {
 				printf("pushing name %llu on the stack..\n", values[op]);
@@ -1273,6 +1415,7 @@ int main(int argc, const char** argv) {
 			next: count = 0;
 		}
 	}
+	if (count) goto process;
 	
 	printf("processing the text now...\n");
 	puts("DONE: finished assembling program.");
@@ -1292,7 +1435,7 @@ int main(int argc, const char** argv) {
 
 	if (architecture == noruntime) {
 		if (not ins_count) exit(0);
-		print_error("encountered runtime instruction with target \"noruntime\"", (nat) ~0, (nat) ~0);
+		print_error("encountered runtime instruction with target \"noruntime\"", ins[0].start[0], ins[0].count[0]);
 		exit(1);
 
 	} else if (architecture == riscv32 or architecture == riscv64) {
@@ -1302,10 +1445,7 @@ int main(int argc, const char** argv) {
 		generate_arm64_machine_code();
 
 	} else {
-		puts("asm: \033[31;1merror:\033[0m unknown target architecture specified, valid values: "); // TODO: use print_error();
-		for (nat i = 0; i < target_count; i++) {
-			printf("\t%llu : %s\n", i, target_spelling[i]);
-		}
+		print_error("unknown target architecture specified", ins[0].start[0], ins[0].count[0]);
 		exit(1);
 	}
 
@@ -1318,10 +1458,8 @@ int main(int argc, const char** argv) {
 	else if (output_format == macho_objectfile or output_format == macho_executable) 
 		make_macho_object_file(object_filename, preserve_existing_object);
 	else {
-		puts("asm: \033[31;1merror:\033[0m unknown output format specified, valid values: "); // TODO: use print_error();
-		for (nat i = 0; i < output_format_count; i++) {
-			printf("\t%llu : %s\n", i, output_format_spelling[i]);
-		}
+		print_error("unknown output format specified", ins[0].start[0], ins[0].count[0]);
+		exit(1);
 	}
 
 	if (output_format == elf_executable or output_format == macho_executable) {
@@ -2021,9 +2159,32 @@ def hello
 
 
 
+puts("asm: \033[31;1merror:\033[0m unknown target architecture specified, valid values: "); // TODO: use print_error();
+		for (nat i = 0; i < target_count; i++) {
+			printf("\t%llu : %s\n", i, target_spelling[i]);
+		}
+
+
+
+
+
+
+puts("asm: \033[31;1merror:\033[0m unknown output format specified, valid values: "); // TODO: use print_error();
+		for (nat i = 0; i < output_format_count; i++) {
+			printf("\t%llu : %s\n", i, output_format_spelling[i]);
+		}
+
+
+
+
 
 
 */
+
+
+
+
+
 
 
 
