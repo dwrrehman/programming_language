@@ -433,6 +433,15 @@ static void emitd(nat x) {
 static void check(nat value, nat limit) {
 	if (value >= limit) {
 		puts("check error");
+		print_error("error: sorry bad logic or something, arg check() did not succed for instruction", 0, 0);
+		abort();
+	}
+}
+
+
+static void check_offset(nat value, nat limit) {
+	if ((0)) {
+		puts("check_offset error");
 		print_error("error: sorry bad logic or something", 0, 0);
 		abort();
 	}
@@ -471,11 +480,19 @@ static nat calculate_offset(nat here, nat label) {
 	if (label < here) {
 		printf("backwards branch...\n");
 		for (nat i = label; i < here; i++) {
+			if (i >= ins_count) {
+				print_error("invalid label given to a branching instruction", 0, 0);
+				abort();
+			}
 			offset -= ins[i].size;
 		}
 	} else {
 		printf("forwards branch...\n");
 		for (nat i = here; i < label; i++) {
+			if (i >= ins_count) {
+				print_error("invalid label given to a branching instruction", 0, 0);
+				abort();
+			}
 			offset += ins[i].size;
 		}
 	}
@@ -484,8 +501,12 @@ static nat calculate_offset(nat here, nat label) {
 }
 
 static void j_type(nat here, nat* a, nat o) {
-	check(a[0], 32);
+	
 	const nat e = calculate_offset(here, a[1]);
+
+	check(a[0], 32);
+	check_offset(e, 1 << 0);
+
 	const nat imm19_12 = (e & 0x000FF000);
 	const nat imm11    = (e & 0x00000800) << 9;
 	const nat imm10_1  = (e & 0x000007FE) << 20;
@@ -687,7 +708,7 @@ static void generate_adr(nat Rd, nat op, nat oc, nat target, nat here) {
 	nat im = calculate_offset(here, array[target]);
 
 	check(Rd, 32);
-	check(im, 1 << 20);
+	check_offset(im, 1 << 20);
 
 	Rd = arm64_macos_abi[Rd];
 
@@ -698,9 +719,40 @@ static void generate_adr(nat Rd, nat op, nat oc, nat target, nat here) {
 		(hi <<  5U) | Rd);
 }
 
+static void generate_jalr(nat Rd, nat Rn, nat op) {
+
+	check(Rd, 32);
+	check(Rn, 32);
+
+	nat oc = Rd;
+	if (Rd != 0 and Rd != 1) {
+		print_error("non return address register destination specified, but not supported yet", 0, 0);
+		abort();
+	}
+
+	Rd = arm64_macos_abi[Rd];
+	Rn = arm64_macos_abi[Rn];
+
+	emitw( ((nat)(Rd == 1) << 22) | (oc << 21U) | (op << 10U) | (Rn << 5U));
+}
+
+static void generate_jal(nat Rd, nat here, nat target) {  
+
+	nat oc = Rd;
+	if (Rd != 0 and Rd != 1) {
+		print_error("non return address register destination specified, but not supported yet", 0, 0);
+		abort();
+	}
+
+	nat im = calculate_offset(here, array[target]);
+	check_offset(im, 1 << 25);
+	emitw( (oc << 31U) | (0x05 << 26U) | (0x03FFFFFFU & im));
+}
+
 static void generate_bc(nat condition, nat here, nat target) {
 	const nat byte_offset = calculate_offset(here, target);
 	const nat imm = byte_offset >> 2;
+	check_offset(imm, 1 << 0);
 	emitw((0x54U << 24U) | ((0x0007FFFFU & imm) << 5U) | condition);
 }
 
@@ -750,7 +802,10 @@ static void generate_arm64_machine_code(void) {
 		else if (op == bne)    generate_branch(a[0], a[1], a[2], i, 1);
 		else if (op == bge)    generate_branch(a[0], a[1], a[2], i, 2);
 		else if (op == blt)    generate_branch(a[0], a[1], a[2], i, 3);
-		
+
+		else if (op == jalr)   generate_jalr(a[0], a[1], 0x3587C0U);
+		else if (op == jal)    generate_jal(a[0], i, a[1]);
+
 		else if (op == sll)    generate_adc(a[0], a[1], a[2], 0x0D6U, 0x08, 1, 0, 0);
 		else if (op == srl)    generate_adc(a[0], a[1], a[2], 0x0D6U, 0x09, 1, 0, 0);
 		else if (op == sra)    generate_adc(a[0], a[1], a[2], 0x0D6U, 0x0A, 1, 0, 0);
@@ -773,11 +828,7 @@ static void generate_arm64_machine_code(void) {
 		else if (op == slli)   goto here;
 		else if (op == srli)   goto here;
 
-
-		else if (op == jalr)   goto here;
-
-
-		else if (op == jal)    goto here;
+		
 
 		else {
 			here: printf("error: arm64: unknown runtime instruction: %s : %llu\n", spelling[op], op);
@@ -950,8 +1001,15 @@ static void execute_branch(nat op, nat a0, nat a1, nat a2, nat* skip, nat* index
 	else if (op == bne)  { if (array[a0] != array[a1]) goto jump; } 
 	else if (op == beq)  { if (array[a0] == array[a1]) goto jump; } 
 	else if (op == blts) { if (array[a0] <  array[a1]) goto jump; } 
-	else if (op == bges) { if (array[a0] >= array[a1]) goto jump; } 
-	else { puts("error: internal ct execute error"); abort(); }
+	else if (op == bges) { if (array[a0] >= array[a1]) goto jump; }
+	else if (op == jalr) {
+		array[a0] = *index;
+		*index = array[a1] + a2;
+	} else if (op == jal) {
+		array[a0] = *index;
+		if (array[a1]) *index = array[a1]; 
+		else *skip = a1;
+	} else { puts("error: internal ct execute_branch error"); abort(); }
 	return;
 jump: 	if (array[a2]) *index = array[a2]; 
 	else *skip = a2;
@@ -1189,19 +1247,14 @@ int main(int argc, const char** argv) {
 
 
 
-
-
-
-
-
-
 			} else if (	op == blt  or op == bge or
 					op == bne  or op == beq or
 					op == blts or op == bges or
 					op == jalr or op == jal
 				) {
 
-				arg_count -= 3;
+				if (op == jalr or op == jal) arg_count -= 2;
+				else arg_count -= 3;
 
 				printf("%s %s(%llu %llu --> @%llu)\n",
 					is_compiletime
