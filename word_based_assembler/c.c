@@ -23,37 +23,7 @@
 #include <sys/mman.h>
 #include <stdnoreturn.h>
 
-
-
-/*
-
-
-				ADD CONTEXTS FOR NAMES!!!!!!
-
-
-
-							lexical stack of them, controlled via ct too!!!
-
-
-
-
-
-
-	shifts:     slli   
-
-	math:       mul   mulh     div   rem
-*/
-
-
-
-
-
-
 static const char* default_string = "hello there from space!\nthis is a test. yay!\n";
-
-
-
-
 
 #define CPU_SUBTYPE_ARM64_ALL 0
 #define CPU_TYPE_ARM  12
@@ -133,7 +103,6 @@ typedef uint32_t u32;
 typedef uint16_t u16;
 typedef uint8_t  u8;
 
-// static bool enable_debug_output = false;
 
 static const nat ct_array_count = 1 << 16;
 static const nat ct_memory_count = 1 << 16;
@@ -238,77 +207,23 @@ static nat* array = NULL;
 
 
 
-/*
-static void print_files(void) {
-	printf("here are the current files used "
-		"in the program: (%lld files) { \n", 
-		file_count
-	);
-	for (nat i = 0; i < file_count; i++) {
-		printf("\t file #%-8lld :   "
-			"name = \"%-20s\", "
-			".start = %-8lld, "
-			".size = %-8lld\n",
-			i, files[i].name, 
-			files[i].start, 
-			files[i].count
-		);
-	}
-	puts("}");
-}
 
-static void print_stack(nat* stack_i, 
-	nat* stack_f, 
-	nat* stack_o, 
-	nat stack_count
-) {
-	printf("current stack: (%lld entries) { \n", stack_count);
-	for (nat i = 0; i < stack_count; i++) {
-		printf("\t entry #%-8lld :   "
-			"name = \"%-20s\", "
-			"i = %-8lld, "
-			"f = %-8lld, "
-			"o = %-8lld / %lld\n", 
-			i, files[stack_f[i]].name, 
-			stack_i[i], stack_f[i], 
-			stack_o[i], files[stack_f[i]].count
-		);
-	}
-	puts("}");
-}
-
-
-static void print_index_pair(nat start, nat end) {
-	for (nat i = 0; i < text_length; i++) {
-		if (i == start or i == end) printf("\033[32;1m");
-		putchar(text[i]);
-		if (i == start or i == end) printf("\033[0m");
-	}
-	puts("");
-}
-
-
-*/
-
-
-static void print_arguments(void) {
+static void print_arguments(struct argument* arguments, nat arg_count) {
 	printf("\narguments[]: { \n");
 	for (nat i = 0; i < arg_count; i++) {
 		printf("\targuments[%llu] = { %llu  :"
 			"  (.start=%llu,.count=%llu)} \n", 
-			i, (nat) arguments[i], 
-			argument_locations[2 * i + 0], 
-			argument_locations[2 * i + 1]
+			i, arguments[i].value, arguments[i].start, arguments[i].count
 		);
 	}
 	puts("} \n");
 }
 
-static void print_dictionary(void) {
+static void print_dictionary(char** names, struct argument* values, nat name_count) {
 	puts("printing dictionary...");
 	for (nat i = 0; i < name_count; i++) {
-		printf("\t#%llu: name %s  ... value %llu\n", i, 
-			names[i], values[i]
+		printf("\t#%llu: name %s  ... (value %llu, (.start=%llu,.count=%llu))\n", i, 
+			names[i], values[i].value, values[i].start, values[i].count
 		);
 	}
 	puts("done.");
@@ -1075,18 +990,6 @@ static void make_macho_object_file(const char* object_filename, const bool prese
 	close(file);
 }
 
-
-
-static bool execute(nat op, nat a0, nat a1, nat a2, nat index, nat count) {
-
-}
-
-
-static void execute_branch(nat op, nat a0, nat a1, nat a2, nat* skip, nat* index) {
-	if ((0)) {}
-	
-}
-
 static nat ins_size(nat op, nat target) {
 
 	if (op == makestring) return strlen(default_string);
@@ -1108,60 +1011,19 @@ static nat ins_size(nat op, nat target) {
 	}
 }
 
-static void push_ins(
-
-	nat op, 
-	nat a0, 
-	nat a1, 
-	nat a2, 
-
-	nat so, nat co, 
-	nat s0, nat c0, 
-	nat s1, nat c1, 
-	nat s2, nat c2,	
-
-	nat size
-) {
-	struct instruction new = {0};
-	
-	new.a[0] = op;
-	new.a[1] = a0; 
-	new.a[2] = a1; 
-	new.a[3] = a2;
-
-	new.start[0] = so;
-	new.count[0] = co;
-
-	new.start[1] = s0;
-	new.count[1] = c0;
-
-	new.start[2] = s1;
-	new.count[2] = c1;
-
-	new.start[3] = s2;
-	new.count[3] = c2;
-
-	new.size = size;
-	
-	ins = realloc(ins, sizeof(struct instruction) * (ins_count + 1));
-	ins[ins_count++] = new;
-}
-
 int main(int argc, const char** argv) {
 
-	nat arg_count = 0;
 	struct argument arguments[4096] = {0};
-
-	nat name_count = 0;
+	struct argument values[4096] = {0};
 	char* names[4096] = {0};
-	nat values[4096] = {0};
-
+	nat name_count = 0, arg_count = 0;
+	
 	if (argc != 2) exit(puts("asm: \033[31;1merror:\033[0m "
 				"usage: ./asm <source.s>"));
 
 	for (nat i = 0; i < isa_count; i++) {
 		names[name_count] = strdup(spelling[i]);
-		values[name_count] = 0;
+		values[name_count] = (struct argument) {.value = 0, .start = 0, .count = 0};
 		name_count++;
 	}
 
@@ -1198,230 +1060,195 @@ int main(int argc, const char** argv) {
 			if (not count) start = index;
 			count++;
 
-		} else if (count) {
-			process:
-			printf("found word at %llu:%llu... \"%.*s\"\n", 
-				start, count, (int) count, text + start);
-			
-			char* word = strndup(text + start, count);
+		} else if (not count) continue;
 
-			nat op = 0;
-			for (nat i = 0; i < name_count; i++) {
-				if (not strcmp(names[i], word)) {
-					op = i;
-					goto process_word;
-				}
+		process:
+		printf("found word at %llu:%llu... \"%.*s\"\n", 
+			start, count, (int) count, text + start);
+		
+		char* word = strndup(text + start, count);
+
+		nat op = 0;
+		for (nat i = 0; i < name_count; i++) {
+			if (not strcmp(names[i], word)) {
+				op = i;
+				goto process_word;
 			}
-			
-			if (defining) {
-				printf("defining new word \"%s\"...\n", word);
-				names[name_count] = word;
-				values[name_count] = arguments[arg_count - 1];
-				name_count++;
-				defining = false;
-				goto next;
-			} else {
-				nat r = 0, s = 1;
-				for (nat i = 0; i < count; i++) {
-					if (word[i] == '0') s <<= 1;
-					else if (word[i] == '1') { r += s; s <<= 1; }
-					else goto unknown;
-				}
-
-				printf("pushing literal %llu on the stack..\n", values[op]);
-				arguments[arg_count++] = r;
-				goto next;
-
-				unknown:;
-				char reason[4096] = {0};
-				snprintf(reason, sizeof reason, "undefined word \"%s\"", word);
-				print_error(reason, start, count);
-				exit(1);
+		}
+		
+		if (defining) {
+			printf("defining new word \"%s\"...\n", word);
+			names[name_count] = word;
+			values[name_count] = arguments[arg_count - 1];
+			name_count++;
+			defining = false;
+			goto next;
+		} else {
+			nat r = 0, s = 1;
+			for (nat i = 0; i < count; i++) {
+				if (word[i] == '0') s <<= 1;
+				else if (word[i] == '1') { r += s; s <<= 1; }
+				else goto unknown;
 			}
-		process_word:;
-			struct argument a0 = arguments[arg_count - 1];
-			struct argument a1 = arguments[arg_count - 2];
-			struct argument a2 = arguments[arg_count - 3];
 
-			if (op == def) {
-				puts("executing def...");
-				defining = true;
+			printf("pushing literal %llu on the stack..\n", r);
+			arguments[arg_count++] = (struct argument) {.value = r, .start = start, .count = count};
+			goto next;
 
-			} else if (op == ct) {
-				puts("executing ct...");
-				is_compiletime = true;
-
-			} else if (op == drop) { 
-				puts("executing drop...");
-				arg_count--;
-
-			} else if (op == arc) {
-				printf("executing arc(%llu)...\n", a0); 
-				arguments[arg_count - 1].value = array[a0]; 
-				arguments[arg_count - 1].start = start;
-				arguments[arg_count - 1].count = count;
-
-			} else if (op == attr) {
-				printf("executing attr(--> %llu)...\n", a0);
-				array[a0] = is_compiletime ? index : ins_count;
-				printf("loaded array[%llu] with the value %llu...\n", a0, array[a0]);
-				if (skip == a0) skip = 0;
-				is_compiletime = false;
-
-			} else if (op == dup_) {
-				puts("executing dup...");
-				arguments[arg_count++] = a0;
-
-			} else if (op == over) {
-				puts("executing over...");
-				arguments[arg_count++] = a1;
-
-			} else if (op == third) {
-				puts("executing third...");
-				arguments[arg_count++] = a2;
-
-			} else if (op == swap) {
-				puts("executing swap..."); 
-				arguments[arg_count - 1] = a1;
-				arguments[arg_count - 2] = a0;
-
-			} else if (op == rot) {
-				puts("executing rot...");
-				arguments[arg_count - 1] = a2;
-				arguments[arg_count - 2] = a0;
-				arguments[arg_count - 3] = a1;
-
-			} else if (op == ctstrlen) {
-				puts("executing ctstrlen...");
-				array[a0] = strlen(default_string);
-
-
-			} else if (op < isa_count) {
-
-				if (op == ecall or op == makestring) {}
-				else if (op == db or op == dh or op == dw or op == dd) arg_count--;
-				else if (op == jalr or op == jal) arg_count -= 2;
-				else if (op == blt  or op == bge or op == bne  or op == beq or
-					 op == blts or op == bges) arg_count -= 3;
-				else if (op == auipc) { arg_count--; arguments[arg_count - 1] = a0; } 
-				else { arg_count -= 2; arguments[arg_count - 1] = a0; }
-
-				if (	op == blt  or op == bge or
-					op == bne  or op == beq or
-					op == blts or op == bges
-
-				)	printf("%s %s(%llu %llu --> @%llu)\n",
-						is_compiletime
-							? "executing compiletime" 
-							: "generating runtime",
-						spelling[op], a0, a1, a2
-					);
-				else 
-					printf("%s %llu = %s(%llu %llu)\n", 
-						is_compiletime
-							? "executing compiletime" 
-							: "generating runtime",
-						a0, spelling[op], a1, a2
-					);
-
-
-				if (is_compiletime) { 
-
-					if (op == auipc) array[a0] = index + a2;
-
-	else if (op == addi)  array[a0] = array[a1] + a2;
-	else if (op == slti)  array[a0] = array[a1] < a2;
-	else if (op == iori)  array[a0] = array[a1] | a2;
-	else if (op == eori)  array[a0] = array[a1] ^ a2;
-	else if (op == andi)  array[a0] = array[a1] & a2;
-	else if (op == slli)  array[a0] = array[a1] << a2;
-	else if (op == srli)  array[a0] = array[a1] >> a2;
-	else if (op == srai)  array[a0] = array[a1] >> a2;
-
-	else if (op == add)   array[a0] = array[a1] + array[a2];
-	else if (op == sub)   array[a0] = array[a1] - array[a2];
-	else if (op == ior)   array[a0] = array[a1] | array[a2];
-	else if (op == eor)   array[a0] = array[a1] ^ array[a2];
-	else if (op == and_)  array[a0] = array[a1] & array[a2];
-	else if (op == slt)   array[a0] = array[a1] < array[a2];
-	else if (op == slts)  array[a0] = array[a1] < array[a2];
-	else if (op == sll)   array[a0] = array[a1] << array[a2];
-	else if (op == srl)   array[a0] = array[a1] >> array[a2];
-	else if (op == sra)   array[a0] = array[a1] >> array[a2];
-
-	else if (op == ecall) {
-		if (a0 == 1) return true;
-		else if (a0 == 2) printf("debug: %lld (hex 0x%016llx)\n", array[a1], array[a1]);
-		else if (a0 == 3) array[a1] = (nat) getchar();
-		else if (a0 == 4) putchar((char) array[a1]);
-		else if (a0 == 5) print_dictionary();
-		else if (a0 == 6) print_instructions();
-		else if (a0 == 7) print_registers();
-		else if (a0 == 8) print_arguments();
-		else {
+			unknown:;
 			char reason[4096] = {0};
-			snprintf(reason, sizeof reason, "unknown compiletime system call number %llu", a0);
-			print_error(reason, index - count, count);
+			snprintf(reason, sizeof reason, "undefined word \"%s\"", word);
+			print_error(reason, start, count);
 			exit(1);
 		}
-	}
+	process_word:;
+		struct argument a0 = arguments[arg_count - 1];
+		struct argument a1 = arguments[arg_count - 2];
+		struct argument a2 = arguments[arg_count - 3];
 
-	else if (op == blt)  { if (array[a0] <  array[a1]) goto jump; } 
-	else if (op == bge)  { if (array[a0] >= array[a1]) goto jump; } 
-	else if (op == bne)  { if (array[a0] != array[a1]) goto jump; } 
-	else if (op == beq)  { if (array[a0] == array[a1]) goto jump; } 
-	else if (op == blts) { if (array[a0] <  array[a1]) goto jump; } 
-	else if (op == bges) { if (array[a0] >= array[a1]) goto jump; }
-	else if (op == jalr) {
-		array[a0] = *index;
-		*index = array[a1] + a2;
-	} else if (op == jal) {
-		array[a0] = *index;
-		if (array[a1]) *index = array[a1]; 
-		else *skip = a1;
-	} 
+		if ((0)) {}
+		else if (op == def)   defining = true;
+		else if (op == ct)    is_compiletime = true;
+		else if (op == drop)  arg_count--;
+		else if (op == dup_)  arguments[arg_count++] = a0;
+		else if (op == over)  arguments[arg_count++] = a1;
+		else if (op == third) arguments[arg_count++] = a2;
+		else if (op == ctstrlen) array[a0.value] = strlen(default_string);
 
-	else { puts("error: internal ct execute error"); abort(); }
-	return;
+		else if (op == swap) {
+			puts("executing swap..."); 
+			arguments[arg_count - 1] = a1;
+			arguments[arg_count - 2] = a0;
 
-jump: 	if (array[a2]) *index = array[a2]; 
-	else *skip = a2;
+		} else if (op == rot) {
+			puts("executing rot...");
+			arguments[arg_count - 1] = a2;
+			arguments[arg_count - 2] = a0;
+			arguments[arg_count - 3] = a1;
 
+		} else if (op == arc) {
+			printf("executing arc(%llu)...\n", a0.value); 
+			arguments[arg_count - 1].value = array[a0.value]; 
+			arguments[arg_count - 1].start = start;
+			arguments[arg_count - 1].count = count;
 
+		} else if (op == attr) {
+			printf("executing attr(--> %llu)...\n", a0.value);
+			array[a0.value] = is_compiletime ? index : ins_count;
+			printf("loaded array[%llu] with the value %llu...\n", a0.value, array[a0.value]);
+			if (skip == a0.value) skip = 0;
+			is_compiletime = false;
 
+		} else if (op >= isa_count) {
+			printf("pushing name %llu on the stack..\n", values[op].value);
+			arguments[arg_count++] = values[op];
 
+		} else {
+			if (op == ecall or op == makestring) {}
+			else if (op == db or op == dh or op == dw or op == dd) arg_count--;
+			else if (op == jalr or op == jal) arg_count -= 2;
+			else if (op == blt  or op == bge or op == bne  or op == beq or
+				 op == blts or op == bges) arg_count -= 3;
+			else if (op == auipc) { arg_count--; arguments[arg_count - 1] = a0; } 
+			else { arg_count -= 2; arguments[arg_count - 1] = a0; }
 
+			if (	op == blt  or op == bge or
+				op == bne  or op == beq or
+				op == blts or op == bges
 
-					is_compiletime = false; 
-				}
+			)	printf("%s %s(%llu %llu --> @%llu)\n",
+					is_compiletime
+						? "executing compiletime" 
+						: "generating runtime",
+					spelling[op], a0.value, a1.value, a2.value
+				);
+			else 
+				printf("%s %llu = %s(%llu %llu)\n", 
+					is_compiletime
+						? "executing compiletime" 
+						: "generating runtime",
+					a0.value, spelling[op], a1.value, a2.value
+				);
 
+			if (is_compiletime) { 
+				is_compiletime = false;
+				nat d = a0.value, r = a1.value, s = a2.value;
+				if (op == auipc) array[d] = index + r;
+				else if (op == addi)  array[d] = array[r] + s;
+				else if (op == slti)  array[d] = array[r] < s;
+				else if (op == iori)  array[d] = array[r] | s;
+				else if (op == eori)  array[d] = array[r] ^ s;
+				else if (op == andi)  array[d] = array[r] & s;
+				else if (op == slli)  array[d] = array[r] << s;
+				else if (op == srli)  array[d] = array[r] >> s;
+				else if (op == srai)  array[d] = array[r] >> s;
+				else if (op == add)   array[d] = array[r] + array[s];
+				else if (op == sub)   array[d] = array[r] - array[s];
+				else if (op == ior)   array[d] = array[r] | array[s];
+				else if (op == eor)   array[d] = array[r] ^ array[s];
+				else if (op == and_)  array[d] = array[r] & array[s];
+				else if (op == slt)   array[d] = array[r] < array[s];
+				else if (op == slts)  array[d] = array[r] < array[s];
+				else if (op == sll)   array[d] = array[r] << array[s];
+				else if (op == srl)   array[d] = array[r] >> array[s];
+				else if (op == sra)   array[d] = array[r] >> array[s];
 
+				else if (op == blt)  { if (array[d] <  array[r]) { jump: if (array[s]) index = array[s]; else skip = s; } } 
+				else if (op == bge)  { if (array[d] >= array[r]) goto jump; } 
+				else if (op == bne)  { if (array[d] != array[r]) goto jump; } 
+				else if (op == beq)  { if (array[d] == array[r]) goto jump; } 
+				else if (op == blts) { if (array[d] <  array[r]) goto jump; } 
+				else if (op == bges) { if (array[d] >= array[r]) goto jump; }
+				else if (op == jalr) { array[d] = index; index = array[r] + s; } 
+				else if (op == jal) { array[d] = index; if (array[r]) index = array[r]; else skip = r; } 
 
-				else 	push_ins(op, a0, a1, a2, 
+				else if (op == ecall) {
+					if (d == 1) return true;
+					else if (d == 2) printf("debug: %lld (hex 0x%016llx)\n", array[r], array[r]);
+					else if (d == 3) array[r] = (nat) getchar();
+					else if (d == 4) putchar((char) array[r]);
+					else if (d == 5) print_dictionary(names, values, name_count);
+					else if (d == 6) print_instructions();
+					else if (d == 7) print_registers();
+					else if (d == 8) print_arguments(arguments, arg_count);
+					else {
+						char reason[4096] = {0};
+						snprintf(reason, sizeof reason, 
+							"unknown compiletime system call number %llu", d);
+						print_error(reason, index - count, count);
+						exit(1);
+					}
 
-						start, count, 
-						argument_locations[2 * (arg_count - 1) + 0],
-						argument_locations[2 * (arg_count - 1) + 1],
-						0,0,0,0,
-
-						ins_size(op, architecture)
-					);
-			
+				} else { puts("error: internal ct execute error"); abort(); }
 
 			} else {
-				printf("pushing name %llu on the stack..\n", values[op]);
-				arguments[arg_count++] = values[op];
+				struct instruction new = {0};
+				new.a[0] = op;
+				new.a[1] = a0.value; 
+				new.a[2] = a1.value; 
+				new.a[3] = a2.value;
+				new.start[0] = start;
+				new.count[0] = count;
+				new.start[1] = a0.start;
+				new.count[1] = a0.count;
+				new.start[2] = a1.start;
+				new.count[2] = a1.count;
+				new.start[2] = a2.start;
+				new.count[2] = a2.count;
+				new.size = ins_size(op, architecture);
+				ins = realloc(ins, sizeof(struct instruction) * (ins_count + 1));
+				ins[ins_count++] = new;
 			}
-			next: count = 0;
 		}
+		next: count = 0;
 	}
 	if (count) goto process;
 	
 	printf("processing the text now...\n");
 	puts("DONE: finished assembling program.");
-	print_dictionary();
+	print_dictionary(names, values, name_count);
 	print_registers();
-	print_arguments();
+	print_arguments(arguments, arg_count);
 	print_instructions();
 	printf("SUCCESSFUL ASSEMBLING\n");
 
@@ -1471,7 +1298,7 @@ jump: 	if (array[a2]) *index = array[a2];
 		}
 		
 		char link_command[4096] = {0};
-		snprintf(link_command, sizeof link_command, "ld -S -x " //  -v
+		snprintf(link_command, sizeof link_command, "ld -S -x "
 			"-dead_strip "
 			"-no_weak_imports "
 			"-fatal_warnings "
@@ -2178,11 +2005,100 @@ puts("asm: \033[31;1merror:\033[0m unknown output format specified, valid values
 
 
 
+static bool execute(nat op, nat a0, nat a1, nat a2, nat index, nat count) {
+
+}
+
+
+static void execute_branch(nat op, nat a0, nat a1, nat a2, nat* skip, nat* index) {
+	if ((0)) {}
+	
+}
+
+
 
 */
 
 
 
+
+
+
+/*
+static void print_files(void) {
+	printf("here are the current files used "
+		"in the program: (%lld files) { \n", 
+		file_count
+	);
+	for (nat i = 0; i < file_count; i++) {
+		printf("\t file #%-8lld :   "
+			"name = \"%-20s\", "
+			".start = %-8lld, "
+			".size = %-8lld\n",
+			i, files[i].name, 
+			files[i].start, 
+			files[i].count
+		);
+	}
+	puts("}");
+}
+
+static void print_stack(nat* stack_i, 
+	nat* stack_f, 
+	nat* stack_o, 
+	nat stack_count
+) {
+	printf("current stack: (%lld entries) { \n", stack_count);
+	for (nat i = 0; i < stack_count; i++) {
+		printf("\t entry #%-8lld :   "
+			"name = \"%-20s\", "
+			"i = %-8lld, "
+			"f = %-8lld, "
+			"o = %-8lld / %lld\n", 
+			i, files[stack_f[i]].name, 
+			stack_i[i], stack_f[i], 
+			stack_o[i], files[stack_f[i]].count
+		);
+	}
+	puts("}");
+}
+
+
+static void print_index_pair(nat start, nat end) {
+	for (nat i = 0; i < text_length; i++) {
+		if (i == start or i == end) printf("\033[32;1m");
+		putchar(text[i]);
+		if (i == start or i == end) printf("\033[0m");
+	}
+	puts("");
+}
+
+
+*/
+
+
+
+
+
+
+/*
+
+
+				ADD CONTEXTS FOR NAMES!!!!!!
+
+
+
+							lexical stack of them, controlled via ct too!!!
+
+
+
+
+
+
+	shifts:     slli   
+
+	math:       mul   mulh     div   rem
+*/
 
 
 
