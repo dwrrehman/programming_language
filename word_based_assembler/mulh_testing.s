@@ -1,5 +1,6 @@
 101 def x
 
+1001 def hellotherefromspace
 
 
 x dup dup mulh

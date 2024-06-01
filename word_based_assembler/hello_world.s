@@ -17,9 +17,29 @@ ecall
 
 my_string attr
 
-	makestring     <-------- this should take a pointer and length     into ct mem.
+	makestring  
 
 1 ct ecall
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+how to fix this program:
+
+
+
+
+		   makestring     <-------- this should take a pointer and length     into ct mem.
 
 the basic scheme is that we are going to construct the string table in ct memory first, 
 

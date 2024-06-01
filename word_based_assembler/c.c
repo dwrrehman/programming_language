@@ -235,9 +235,9 @@ static void print_instructions(void) {
 		printf("\t%llu\tins(.op=%llu (\"%s\"), .size=%llu, args:{ ", 
 			i, ins[i].a[0], spelling[ins[i].a[0]], ins[i].size
 		);
-		for (nat a = 0; a < 3; a++) printf("%llu ", ins[i].a[a + 1]);
+		for (nat a = 1; a < 4; a++) printf("%llu ", ins[i].a[a]);
 		
-		printf("} -- [found @ \n");
+		printf("}   -- \t[found @   ");
 		for (nat a = 0; a < 4; a++) {
 			printf("[%llu]:(%llu:%llu)", a, ins[i].start[a], ins[i].count[a]);
 			if (a < 3) printf(", ");
@@ -320,7 +320,7 @@ done:;
 
 	printf("\n\t");
 	for (nat i = line_begin; i < line_end; i++) {
-		if (i == location) printf("\033[33;1m");
+		if (i == location) printf("\033[38;5;%llum", 178LLU);
 		if (text[i] == 9) putchar(32);
 		else putchar(text[i]);
 		if (i == location + error_length) printf("\033[0m");
@@ -402,12 +402,12 @@ static void emitd(nat x) {
 	bytes[byte_count++] = (u8) (x >> 56);
 }
 
-static void check(nat value, nat limit, struct instruction this) {
+static void check(nat value, nat limit, nat a, struct instruction this) {
 	if (value >= limit) {
 		puts("check error");
 		char reason[4096] = {0};
 		snprintf(reason, sizeof reason, "check: value %llu >= limit %llu check did not succeed for instruction", value, limit);
-		print_error(reason, this.start[0], this.count[0]);
+		print_error(reason, this.start[a], this.count[a]);
 		exit(1);
 	}
 }
@@ -422,29 +422,29 @@ static void check_offset(nat value, nat limit, struct instruction this) {
 }
 
 static void r_type(nat* a, nat o, nat f, nat g, struct instruction this) {
-	check(a[0], 32, this);
-	check(a[1], 32, this);
-	check(a[2], 32, this);
+	check(a[0], 32, 0, this);
+	check(a[1], 32, 1, this);
+	check(a[2], 32, 2, this);
 	emitw( (g << 25U) | (a[2] << 20U) | (a[1] << 15U) | (f << 12U) | (a[0] << 7U) | o);
 }
 
 static void i_type(nat* a, nat o, nat f, struct instruction this) { 
-	check(a[0], 32, this);
-	check(a[1], 32, this);
-	check(a[2], 1 << 12, this);
+	check(a[0], 32, 0, this);
+	check(a[1], 32, 1, this);
+	check(a[2], 1 << 12, 2, this);
 	emitw( (a[2] << 20U) | (a[1] << 15U) | (f << 12U) | (a[0] << 7U) | o);
 }
 
 static void s_type(nat* a, nat o, nat f, struct instruction this) {
-	check(a[0], 32, this);
-	check(a[1], 32, this);
-	check(a[2], 1 << 12, this);
+	check(a[0], 32, 0, this);
+	check(a[1], 32, 1, this);
+	check(a[2], 1 << 12, 2, this);
 	emitw( ((a[0] >> 5U) << 25U) | (a[2] << 20U) | (a[1] << 15U) | (f << 12U) | ((a[0] & 0x1F) << 7U) | o);
 }
 
 static void u_type(nat* a, nat o, struct instruction this) { 
-	check(a[0], 32, this);
-	check(a[1], 1 << 20, this);
+	check(a[0], 32, 0, this);
+	check(a[1], 1 << 20, 1, this);
 	emitw( (a[1] << 12U) | (a[0] << 7U) | o);
 }
 
@@ -478,7 +478,7 @@ static void j_type(nat here, nat* a, nat o, struct instruction this) {
 	
 	const nat e = calculate_offset(here, a[1], this);
 
-	check(a[0], 32, this);
+	check(a[0], 32, 0, this);
 	check_offset(e, 1 << 0, this);
 
 	const nat imm19_12 = (e & 0x000FF000);
@@ -561,11 +561,11 @@ static void generate_mov(nat Rd, nat op, nat im,
 		struct instruction this
 ) {  
 
-	check(Rd, 32, this);
+	check(Rd, 32, 0, this);
 
 	Rd = arm64_macos_abi[Rd];
 
-	check(im, 1 << 12U, this);
+	check(im, 1 << 12U, 1, this);
 	emitw(  (sf << 31U) | 
 		(oc << 29U) | 
 		(op << 23U) | 
@@ -580,13 +580,13 @@ static void generate_addi(nat Rd, nat Rn, nat im,
 	if (not Rd) { emitw(0xD503201F); return; }
 	if (not Rn) { generate_mov(Rd, 0x25U, im, sf, 2, 0, this); return; }
 	
-	check(Rd, 32, this);
-	check(Rn, 32, this);
+	check(Rd, 32, 0, this);
+	check(Rn, 32, 1, this);
 
 	Rd = arm64_macos_abi[Rd];
 	Rn = arm64_macos_abi[Rn];
 
-	check(im, 1 << 12U, this);
+	check(im, 1 << 12U, 2, this);
 
 	emitw(  (sf << 31U) | 
 		(sb << 30U) | 
@@ -600,13 +600,13 @@ static void generate_addi(nat Rd, nat Rn, nat im,
 
 static void generate_memiu(nat Rt, nat Rn, nat im, nat op, nat oc, nat sf, struct instruction this) {
 
-	check(Rt, 32, this);
-	check(Rn, 32, this);
+	check(Rt, 32, 0, this);
+	check(Rn, 32, 1, this);
 
 	Rt = arm64_macos_abi[Rt];
 	Rn = arm64_macos_abi[Rn];
 
-	check(im, 1 << 12U, this);
+	check(im, 1 << 12U, 2, this);
 
 	emitw(  (sf << 30U) | 
 		(op << 24U) | 
@@ -620,10 +620,10 @@ static void generate_add(nat Rd, nat Rn, nat Rm,
 			nat st, nat sb, nat sh, struct instruction this
 ) {
 
-	check(Rd, 32, this);
-	check(Rn, 32, this);
-	check(Rm, 32, this);
-	check(im, 32U << sf, this);
+	check(Rd, 32, 0, this);
+	check(Rn, 32, 1, this);
+	check(Rm, 32, 2, this);
+	check(im, 32U << sf, 3, this);
 
 	Rd = arm64_macos_abi[Rd];
 	Rn = arm64_macos_abi[Rn];
@@ -643,9 +643,9 @@ static void generate_adc(nat Rd, nat Rn, nat Rm,
 			nat op, nat o2, nat sf, 
 			nat st, nat sb, struct instruction this
 ) {
-	check(Rd, 32, this);
-	check(Rn, 32, this);
-	check(Rm, 32, this);
+	check(Rd, 32, 0, this);
+	check(Rn, 32, 1, this);
+	check(Rm, 32, 2, this);
 
 	Rd = arm64_macos_abi[Rd];
 	Rn = arm64_macos_abi[Rn];
@@ -664,12 +664,9 @@ static void generate_csel(nat Rd, nat Rn, nat Rm,
 			nat cd, nat op, nat sf, 
 			nat ic, nat iv, struct instruction this) {
 
-	check(iv,  2, this);
-	check(ic,  2, this);
-	check(cd, 16, this);
-	check(Rd, 32, this);
-	check(Rn, 32, this);
-	check(Rm, 32, this);
+	check(Rd, 32, 0, this);
+	check(Rn, 32, 1, this);
+	check(Rm, 32, 2, this);
 
 	Rd = arm64_macos_abi[Rd];
 	Rn = arm64_macos_abi[Rn];
@@ -686,9 +683,9 @@ static void generate_csel(nat Rd, nat Rn, nat Rm,
 
 static void generate_slli(nat Rd, nat Rn, nat im, nat op, nat oc, nat sf, struct instruction this) {
 
-	check(Rd, 32, this);
-	check(Rn, 32, this);
-	check(im, 64, this);
+	check(Rd, 32, 0, this);
+	check(Rn, 32, 1, this);
+	check(im, 64, 2, this);
 
 	Rd = arm64_macos_abi[Rd];
 	Rn = arm64_macos_abi[Rn];
@@ -712,9 +709,9 @@ static void generate_slli(nat Rd, nat Rn, nat im, nat op, nat oc, nat sf, struct
 
 static void generate_srli(nat Rd, nat Rn, nat im, nat op, nat oc, nat sf, struct instruction this) {
 
-	check(Rd, 32, this);
-	check(Rn, 32, this);
-	check(im, 64, this);
+	check(Rd, 32, 0, this);
+	check(Rn, 32, 1, this);
+	check(im, 64, 2, this);
 
 	Rd = arm64_macos_abi[Rd];
 	Rn = arm64_macos_abi[Rn];
@@ -874,7 +871,7 @@ static void generate_arm64_machine_code(void) {
 		else {
 			here:;
 			char reason[4096] = {0};
-			snprintf(reason, sizeof reason, "arm64: unknown runtime instruction: %s : %llu", spelling[op], op);
+			snprintf(reason, sizeof reason, "arm64: unknown runtime instruction: \"%s\" (%llu)\n", spelling[op], op);
 			print_error(reason, this.start[0], this.count[0]);
 			exit(1);
 		}
@@ -883,7 +880,7 @@ static void generate_arm64_machine_code(void) {
 
 static void make_elf_object_file(const char* object_filename) {
 	puts("make_elf_object_file: unimplemented");
-	getchar();
+	// getchar();
 	const int flags = O_WRONLY | O_CREAT | O_TRUNC | O_EXCL;
 	const mode_t mode = S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH;
 	const int file = open(object_filename, flags, mode);
@@ -1011,6 +1008,72 @@ static nat ins_size(nat op, nat target) {
 	}
 }
 
+
+static void print_source_instruction_mappings(void) {
+
+
+	for (nat i = 0; i < ins_count; i++) {
+
+
+		printf("-------------------[ins #%llu]---------------------\n", i);
+
+		printf("\t%llu\tins(.op=%llu (\"%s\"), .size=%llu, args:{ ", 
+			i, ins[i].a[0], spelling[ins[i].a[0]], ins[i].size
+		);
+		for (nat a = 0; a < 3; a++) printf("%llu ", ins[i].a[a + 1]);
+		
+		printf("}   -- \t[found @   ");
+		for (nat a = 0; a < 4; a++) {
+			printf("[%llu]:(%llu:%llu)", a, ins[i].start[a], ins[i].count[a]);
+			if (a < 3) printf(", ");
+		}
+		puts("]");
+
+
+		for (nat a = 0; a < 4; a++) {
+
+			nat start = ins[i].start[a];
+			nat count = ins[i].count[a];
+
+
+			printf("\033[1masm: %s:%lld:%lld:", 
+				"filename ? filename : (top-level)", 
+				start, count
+			);
+			printf(" \033[1;31minfo:\033[m \033[1m%s%llu\033[m\n", "debugging argument: ", a);
+
+			nat line_begin = start;
+			while (line_begin and text[line_begin - 1] != 10) line_begin--;
+			nat line_end = start;
+			while (line_end < text_length and text[line_end] != 10) line_end++;
+
+			printf("\n\t");
+			for (nat c = line_begin; c < line_end; c++) {
+				if (c == start) printf("\033[38;5;%llum", 178LLU);
+				if (text[c] == 9) putchar(32);
+				else putchar(text[c]);
+				if (c == start + count) printf("\033[0m");
+			}
+			printf("\n\t");
+			for (nat _ = 0; _ < start - line_begin; _++) 
+				printf(" "); 
+			printf("\033[32;1m^");
+			if (count) {
+				for (nat _ = 0; _ < count - 1; _++) 
+					printf("~"); 
+			}
+			printf("\033[0m\n\n"); 
+
+			puts("\n");
+		}
+
+		puts("-----------------------------------------");
+	}
+}
+
+
+
+
 int main(int argc, const char** argv) {
 
 	struct argument arguments[4096] = {0};
@@ -1059,6 +1122,7 @@ int main(int argc, const char** argv) {
 		if (not isspace(text[index])) {
 			if (not count) start = index;
 			count++;
+			continue;
 
 		} else if (not count) continue;
 
@@ -1091,7 +1155,8 @@ int main(int argc, const char** argv) {
 				else goto unknown;
 			}
 
-			printf("pushing literal %llu on the stack..\n", r);
+			printf("pushing literal %llu on the stack.. (found at .start=%llu,.count=%llu)\n", r, start, count);
+			// getchar();
 			arguments[arg_count++] = (struct argument) {.value = r, .start = start, .count = count};
 			goto next;
 
@@ -1102,9 +1167,10 @@ int main(int argc, const char** argv) {
 			exit(1);
 		}
 	process_word:;
-		struct argument a0 = arguments[arg_count - 1];
-		struct argument a1 = arguments[arg_count - 2];
-		struct argument a2 = arguments[arg_count - 3];
+		struct argument invalid = { (nat)-1, (nat) -1, (nat) -1 };
+		struct argument a0 = arg_count > 0 ? arguments[arg_count - 1] : invalid;
+		struct argument a1 = arg_count > 1 ? arguments[arg_count - 2] : invalid;
+		struct argument a2 = arg_count > 2 ? arguments[arg_count - 3] : invalid;
 
 		if ((0)) {}
 		else if (op == def)   defining = true;
@@ -1142,15 +1208,30 @@ int main(int argc, const char** argv) {
 		} else if (op >= isa_count) {
 			printf("pushing name %llu on the stack..\n", values[op].value);
 			arguments[arg_count++] = values[op];
+			arguments[arg_count - 1].start = start;
+			arguments[arg_count - 1].count = count;
 
 		} else {
 			if (op == ecall or op == makestring) {}
-			else if (op == db or op == dh or op == dw or op == dd) arg_count--;
-			else if (op == jalr or op == jal) arg_count -= 2;
-			else if (op == blt  or op == bge or op == bne  or op == beq or
-				 op == blts or op == bges) arg_count -= 3;
-			else if (op == auipc) { arg_count--; arguments[arg_count - 1] = a0; } 
-			else { arg_count -= 2; arguments[arg_count - 1] = a0; }
+
+			else if (op == db or op == dh or op == dw or op == dd) { 
+				if (arg_count < 1) goto er; arg_count--; 
+
+			} else if (op == jalr or op == jal) { 
+				if (arg_count < 2) goto er; arg_count -= 2; 
+
+			} else if (op == blt  or op == bge or op == bne  or op == beq or op == blts or op == bges) { 
+				if (arg_count < 3) goto er; arg_count -= 3; 
+			
+			} else if (op == auipc) { 
+				if (arg_count < 3) goto er; arg_count -= 2; 
+				arguments[arg_count++] = a0;
+
+			} else { 
+				if (arg_count < 3) goto er; arg_count -= 3; 
+				arguments[arg_count++] = a0; 
+			}
+
 
 			if (	op == blt  or op == bge or
 				op == bne  or op == beq or
@@ -1163,11 +1244,11 @@ int main(int argc, const char** argv) {
 					spelling[op], a0.value, a1.value, a2.value
 				);
 			else 
-				printf("%s %llu = %s(%llu %llu)\n", 
+				printf("%s %llu(%llu:%llu) = %s(%llu(%llu:%llu) %llu(%llu:%llu))\n", 
 					is_compiletime
 						? "executing compiletime" 
 						: "generating runtime",
-					a0.value, spelling[op], a1.value, a2.value
+					a0.value, a0.start, a0.count, spelling[op], a1.value, a1.start, a1.count, a2.value, a2.start, a2.count
 				);
 
 			if (is_compiletime) { 
@@ -1203,7 +1284,7 @@ int main(int argc, const char** argv) {
 				else if (op == jal) { array[d] = index; if (array[r]) index = array[r]; else skip = r; } 
 
 				else if (op == ecall) {
-					if (d == 1) return true;
+					if (d == 1) { count = 0; break; }
 					else if (d == 2) printf("debug: %lld (hex 0x%016llx)\n", array[r], array[r]);
 					else if (d == 3) array[r] = (nat) getchar();
 					else if (d == 4) putchar((char) array[r]);
@@ -1219,25 +1300,21 @@ int main(int argc, const char** argv) {
 						exit(1);
 					}
 
-				} else { puts("error: internal ct execute error"); abort(); }
+				} else { 
+					puts("error: internal ct execute error"); 
+					abort(); 
+					er: print_error("not enough arguments on the stack for the given instruction.", start, count);
+					exit(1);
+				}
 
 			} else {
-				struct instruction new = {0};
-				new.a[0] = op;
-				new.a[1] = a0.value; 
-				new.a[2] = a1.value; 
-				new.a[3] = a2.value;
-				new.start[0] = start;
-				new.count[0] = count;
-				new.start[1] = a0.start;
-				new.count[1] = a0.count;
-				new.start[2] = a1.start;
-				new.count[2] = a1.count;
-				new.start[2] = a2.start;
-				new.count[2] = a2.count;
-				new.size = ins_size(op, architecture);
 				ins = realloc(ins, sizeof(struct instruction) * (ins_count + 1));
-				ins[ins_count++] = new;
+				ins[ins_count++] = (struct instruction) {
+					.size = ins_size(op, architecture),
+					.a =     {   op, a0.value, a1.value, a2.value},
+					.start = {start, a0.start, a1.start, a2.start},
+					.count = {count, a0.count, a1.count, a2.count},
+				};
 			}
 		}
 		next: count = 0;
@@ -1251,6 +1328,8 @@ int main(int argc, const char** argv) {
 	print_arguments(arguments, arg_count);
 	print_instructions();
 	printf("SUCCESSFUL ASSEMBLING\n");
+
+	print_source_instruction_mappings();
 
 	if (debug) {
 		printf("info: building for target:\n\tarchitecture:  "
