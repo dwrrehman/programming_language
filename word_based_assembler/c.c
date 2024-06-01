@@ -308,10 +308,11 @@ done:;
 
 
 	printf("\033[1masm: %s:%lld:%lld:", 
-		filename ? filename : "(top-level)", 
+		filename ? filename : "(invocation)", 
 		location, error_length
 	);
 	printf(" \033[1;31merror:\033[m \033[1m%s\033[m\n", reason);
+	if (not filename) return;
 
 	nat line_begin = location;
 	while (line_begin and text[line_begin - 1] != 10) line_begin--;
@@ -346,8 +347,7 @@ static char* read_file(const char* name, nat* out_length, nat here) {
 		snprintf(reason, sizeof reason, "%s: \"%s\"", 
 			strerror(errno), name);
 		print_error(reason, here, 0);
-		fprintf(stdout, "asm: \033[31;1merror:\033[0m %s: "
-				"\"%s\"\n", strerror(errno), name); 
+		
 		exit(1); 
 	}
 	size_t length = (size_t) lseek(file, 0, SEEK_END);
@@ -407,13 +407,13 @@ static void check(nat value, nat limit, nat a, struct instruction this) {
 		puts("check error");
 		char reason[4096] = {0};
 		snprintf(reason, sizeof reason, "check: value %llu >= limit %llu check did not succeed for instruction", value, limit);
-		print_error(reason, this.start[a], this.count[a]);
+		print_error(reason, this.start[a + 1], this.count[a + 1]);
 		exit(1);
 	}
 }
 
 
-static void check_offset(nat value, nat limit, struct instruction this) {
+static void check_offset(nat value, nat limit, nat a, struct instruction this) {
 	if ((0)) {
 		puts("check_offset error");
 		print_error("error: sorry bad logic or something", this.start[0], this.count[0]);
@@ -479,7 +479,7 @@ static void j_type(nat here, nat* a, nat o, struct instruction this) {
 	const nat e = calculate_offset(here, a[1], this);
 
 	check(a[0], 32, 0, this);
-	check_offset(e, 1 << 0, this);
+	check_offset(e, 1 << 0, 1, this);
 
 	const nat imm19_12 = (e & 0x000FF000);
 	const nat imm11    = (e & 0x00000800) << 9;
@@ -734,10 +734,12 @@ static void generate_srli(nat Rd, nat Rn, nat im, nat op, nat oc, nat sf, struct
 
 static void generate_adr(nat Rd, nat op, nat oc, nat target, nat here, struct instruction this) { 
 
+	
+
 	nat im = calculate_offset(here, array[target], this);
 
-	check(Rd, 32, this);
-	check_offset(im, 1 << 20, this);
+	check(Rd, 32, 0, this);
+	check_offset(im, 1 << 20, 1, this);
 
 	Rd = arm64_macos_abi[Rd];
 
@@ -750,8 +752,8 @@ static void generate_adr(nat Rd, nat op, nat oc, nat target, nat here, struct in
 
 static void generate_jalr(nat Rd, nat Rn, nat op, struct instruction this) {
 
-	check(Rd, 32, this);
-	check(Rn, 32, this);
+	check(Rd, 32, 0, this);
+	check(Rn, 32, 1, this);
 
 	nat oc = Rd;
 	if (Rd != 0 and Rd != 1) {
@@ -774,14 +776,15 @@ static void generate_jal(nat Rd, nat here, nat target, struct instruction this) 
 	}
 
 	nat im = calculate_offset(here, array[target], this);
-	check_offset(im, 1 << 25, this);
+	check(Rd, 32, 0, this);
+	check_offset(im, 1 << 25, 1, this);
 	emitw( (oc << 31U) | (0x05 << 26U) | (0x03FFFFFFU & im));
 }
 
 static void generate_bc(nat condition, nat here, nat target, struct instruction this) {
 	const nat byte_offset = calculate_offset(here, target, this);
 	const nat imm = byte_offset >> 2;
-	check_offset(imm, 1 << 0, this);
+	check_offset(imm, 1 << 0, 0, this);
 	emitw((0x54U << 24U) | ((0x0007FFFFU & imm) << 5U) | condition);
 }
 
@@ -2174,9 +2177,23 @@ static void print_index_pair(nat start, nat end) {
 
 
 
-	shifts:     slli   
+	shifts:    x  slli   
 
-	math:       mul   mulh     div   rem
+	math:       mul   x mulh    x  div   rem
+
+
+
+
+
+
+
+fprintf(stdout, "asm: \033[31;1merror:\033[0m %s: "
+				"\"%s\"\n", strerror(errno), name); 
+
+
+
+
+
 */
 
 
