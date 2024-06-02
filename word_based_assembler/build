@@ -4,7 +4,7 @@ if [ "release" = "$1" ]; then
 	clang -Weverything -Ofast c.c -o run
 
 elif [ "srelease" = "$1" ]; then
-	clang -Weverything -Os c.c -o run
+	clang -v -Weverything -Os c.c -o run
 
 elif [ "clean" = "$1" ]; then
 	rm -rf run

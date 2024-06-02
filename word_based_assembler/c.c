@@ -191,6 +191,8 @@ struct file {
 	const char* name;
 };
 
+static char reason[4096] = {0};
+
 static nat byte_count = 0;
 static u8* bytes = NULL;
 
@@ -256,7 +258,21 @@ static void print_registers(void) {
 	puts("\n}\n");
 }
 
-static void print_error(const char* reason, nat spot, nat error_length) {
+enum diagnostic_type { no_message, error, warning, info, user, debug };
+
+static const char* type_string[] = {
+	"(none):", 
+	"\033[1;31merror:\033[0m", 
+	"\033[1;35mwarning:\033[0m", 
+	"\033[1;36minfo:\033[0m", 
+	"\033[1;32mdata:\033[0m", 
+	"\033[1;33mdebug:\033[0m"
+};
+
+
+
+
+static void print_message(nat type, const char* reason_string, nat spot, nat error_length) {
 	// const int colors[] = {31, 32, 33, 34, 35};
 	//printf("\033[%dm", colors[1]);
 	nat location = 0;
@@ -306,13 +322,11 @@ done:;
 	// print_files();
 	// print_stack(stack_i, stack_f, stack_o, stack_count);
 
-
-	printf("\033[1masm: %s:%lld:%lld:", 
-		filename ? filename : "(invocation)", 
-		location, error_length
-	);
-	printf(" \033[1;31merror:\033[m \033[1m%s\033[m\n", reason);
+	printf("\033[1masm: %s:", filename ? filename : "(invocation)");
+	if (location or error_length) printf("%lld:%lld:", location, error_length);
+	printf(" %s \033[1m%s\033[m\n", type_string[type], reason_string);
 	if (not filename) return;
+	if (not spot and not error_length) goto finish;
 
 	nat line_begin = location;
 	while (line_begin and text[line_begin - 1] != 10) line_begin--;
@@ -334,7 +348,8 @@ done:;
 		for (nat i = 0; i < error_length - 1; i++) 
 			printf("~"); 
 	}
-	printf("\033[0m\n\n"); 
+	printf("\033[0m\n"); 
+finish: puts("");
 }
 
 static char* read_file(const char* name, nat* out_length, nat here) {
@@ -343,10 +358,9 @@ static char* read_file(const char* name, nat* out_length, nat here) {
 	const int file = open(name, O_RDONLY, 0);
 	if (file < 0) { 
 		read_error:;
-		char reason[4096] = {0};
 		snprintf(reason, sizeof reason, "%s: \"%s\"", 
 			strerror(errno), name);
-		print_error(reason, here, 0);
+		print_message(error, reason, here, 0);
 		
 		exit(1); 
 	}
@@ -405,9 +419,8 @@ static void emitd(nat x) {
 static void check(nat value, nat limit, nat a, struct instruction this) {
 	if (value >= limit) {
 		puts("check error");
-		char reason[4096] = {0};
 		snprintf(reason, sizeof reason, "check: value %llu >= limit %llu check did not succeed for instruction", value, limit);
-		print_error(reason, this.start[a + 1], this.count[a + 1]);
+		print_message(error, reason, this.start[a + 1], this.count[a + 1]);
 		exit(1);
 	}
 }
@@ -416,7 +429,7 @@ static void check(nat value, nat limit, nat a, struct instruction this) {
 static void check_offset(nat value, nat limit, nat a, struct instruction this) {
 	if ((0)) {
 		puts("check_offset error");
-		print_error("error: sorry bad logic or something", this.start[0], this.count[0]);
+		print_message(error, "sorry bad logic or something", this.start[0], this.count[0]);
 		exit(1);
 	}
 }
@@ -455,8 +468,8 @@ static nat calculate_offset(nat here, nat label, struct instruction this) {
 		printf("backwards branch...\n");
 		for (nat i = label; i < here; i++) {
 			if (i >= ins_count) {
-				print_error("invalid label given to a branching instruction", this.start[0], this.count[0]);
-				abort();
+				print_message(error, "invalid label given to a branching instruction", this.start[0], this.count[0]);
+				exit(1);
 			}
 			offset -= ins[i].size;
 		}
@@ -464,8 +477,8 @@ static nat calculate_offset(nat here, nat label, struct instruction this) {
 		printf("forwards branch...\n");
 		for (nat i = here; i < label; i++) {
 			if (i >= ins_count) {
-				print_error("invalid label given to a branching instruction", this.start[0], this.count[0]);
-				abort();
+				print_message(error, "invalid label given to a branching instruction", this.start[0], this.count[0]);
+				exit(1);
 			}
 			offset += ins[i].size;
 		}
@@ -539,9 +552,8 @@ static void generate_riscv_machine_code(void) {
 		else if (op == jal)     j_type(i, a, 0x6F, this);
 
 		else {
-			char reason[4096] = {0};
 			snprintf(reason, sizeof reason, "riscv: unknown runtime instruction: \"%s\" (%llu)\n", spelling[op], op);
-			print_error(reason, this.start[0], this.count[0]);
+			print_message(error, reason, this.start[0], this.count[0]);
 			exit(1);
 		}
 	}
@@ -757,8 +769,8 @@ static void generate_jalr(nat Rd, nat Rn, nat op, struct instruction this) {
 
 	nat oc = Rd;
 	if (Rd != 0 and Rd != 1) {
-		print_error("non return address register destination specified, but not supported yet", 0, 0);
-		abort();
+		print_message(error, "non return address register destination specified, but not supported yet", 0, 0);
+		exit(1);
 	}
 
 	Rd = arm64_macos_abi[Rd];
@@ -771,8 +783,8 @@ static void generate_jal(nat Rd, nat here, nat target, struct instruction this) 
 
 	nat oc = Rd;
 	if (Rd != 0 and Rd != 1) {
-		print_error("non return address register destination specified, but not supported yet", 0, 0);
-		abort();
+		print_message(error, "non return address register destination specified, but not supported yet", 0, 0);
+		exit(1);
 	}
 
 	nat im = calculate_offset(here, array[target], this);
@@ -872,10 +884,8 @@ static void generate_arm64_machine_code(void) {
 		else if (op == srli)   goto here;
 
 		else {
-			here:;
-			char reason[4096] = {0};
-			snprintf(reason, sizeof reason, "arm64: unknown runtime instruction: \"%s\" (%llu)\n", spelling[op], op);
-			print_error(reason, this.start[0], this.count[0]);
+			here: snprintf(reason, sizeof reason, "arm64: unknown runtime instruction: \"%s\" (%llu)\n", spelling[op], op);
+			print_message(error, reason, this.start[0], this.count[0]);
 			exit(1);
 		}
 	}
@@ -1011,12 +1021,9 @@ static nat ins_size(nat op, nat target) {
 	}
 }
 
-
 static void print_source_instruction_mappings(void) {
 
-
 	for (nat i = 0; i < ins_count; i++) {
-
 
 		printf("-------------------[ins #%llu]---------------------\n", i);
 
@@ -1038,12 +1045,11 @@ static void print_source_instruction_mappings(void) {
 			nat start = ins[i].start[a];
 			nat count = ins[i].count[a];
 
-
 			printf("\033[1masm: %s:%lld:%lld:", 
 				"filename ? filename : (top-level)", 
 				start, count
 			);
-			printf(" \033[1;31minfo:\033[m \033[1m%s%llu\033[m\n", "debugging argument: ", a);
+			printf(" \033[1;32msource:\033[m \033[1m%s%llu\033[m\n", "debugging argument: ", a);
 
 			nat line_begin = start;
 			while (line_begin and text[line_begin - 1] != 10) line_begin--;
@@ -1111,16 +1117,16 @@ int main(int argc, const char** argv) {
 	bool defining = 0, is_compiletime = 0;
 	nat skip = 0, start = 0, count = 0;
 
+	nat stack_size = 0x1000000;
 	nat architecture = arm64;
 	nat output_format = macho_executable;
-	bool debug = true;
 	bool preserve_existing_object = false;
 	bool preserve_existing_executable = false;
 	const char* object_filename = "object0.o";
 	const char* executable_filename = "executable0.out";
 
 	for (nat index = 0; index < text_length; index++) {
-		printf("%llu: %c...\n", index, text[index]);
+		// printf("%llu: %c...\n", index, text[index]);
 
 		if (not isspace(text[index])) {
 			if (not count) start = index;
@@ -1129,9 +1135,9 @@ int main(int argc, const char** argv) {
 
 		} else if (not count) continue;
 
-		process:
-		printf("found word at %llu:%llu... \"%.*s\"\n", 
-			start, count, (int) count, text + start);
+		process:;
+
+		// printf("found word at %llu:%llu... \"%.*s\"\n",  start, count, (int) count, text + start);
 		
 		char* word = strndup(text + start, count);
 
@@ -1144,7 +1150,7 @@ int main(int argc, const char** argv) {
 		}
 		
 		if (defining) {
-			printf("defining new word \"%s\"...\n", word);
+			// printf("defining new word \"%s\"...\n", word);
 			names[name_count] = word;
 			values[name_count] = arguments[arg_count - 1];
 			name_count++;
@@ -1158,15 +1164,13 @@ int main(int argc, const char** argv) {
 				else goto unknown;
 			}
 
-			printf("pushing literal %llu on the stack.. (found at .start=%llu,.count=%llu)\n", r, start, count);
+			// printf("pushing literal %llu on the stack.. (found at .start=%llu,.count=%llu)\n", r, start, count);
 			// getchar();
 			arguments[arg_count++] = (struct argument) {.value = r, .start = start, .count = count};
 			goto next;
 
-			unknown:;
-			char reason[4096] = {0};
-			snprintf(reason, sizeof reason, "undefined word \"%s\"", word);
-			print_error(reason, start, count);
+			unknown: snprintf(reason, sizeof reason, "undefined word \"%s\"", word);
+			print_message(error, reason, start, count);
 			exit(1);
 		}
 	process_word:;
@@ -1185,18 +1189,18 @@ int main(int argc, const char** argv) {
 		else if (op == ctstrlen) array[a0.value] = strlen(default_string);
 
 		else if (op == swap) {
-			puts("executing swap..."); 
+			//puts("executing swap..."); 
 			arguments[arg_count - 1] = a1;
 			arguments[arg_count - 2] = a0;
 
 		} else if (op == rot) {
-			puts("executing rot...");
+			//puts("executing rot...");
 			arguments[arg_count - 1] = a2;
 			arguments[arg_count - 2] = a0;
 			arguments[arg_count - 3] = a1;
 
 		} else if (op == arc) {
-			printf("executing arc(%llu)...\n", a0.value); 
+			//printf("executing arc(%llu)...\n", a0.value); 
 			arguments[arg_count - 1].value = array[a0.value]; 
 			arguments[arg_count - 1].start = start;
 			arguments[arg_count - 1].count = count;
@@ -1209,7 +1213,7 @@ int main(int argc, const char** argv) {
 			is_compiletime = false;
 
 		} else if (op >= isa_count) {
-			printf("pushing name %llu on the stack..\n", values[op].value);
+			// printf("pushing name %llu on the stack..\n", values[op].value);
 			arguments[arg_count++] = values[op];
 			arguments[arg_count - 1].start = start;
 			arguments[arg_count - 1].count = count;
@@ -1235,6 +1239,8 @@ int main(int argc, const char** argv) {
 				arguments[arg_count++] = a0; 
 			}
 
+			
+			if ((0)) {
 
 			if (	op == blt  or op == bge or
 				op == bne  or op == beq or
@@ -1253,6 +1259,9 @@ int main(int argc, const char** argv) {
 						: "generating runtime",
 					a0.value, a0.start, a0.count, spelling[op], a1.value, a1.start, a1.count, a2.value, a2.start, a2.count
 				);
+
+			}
+
 
 			if (is_compiletime) { 
 				is_compiletime = false;
@@ -1287,26 +1296,34 @@ int main(int argc, const char** argv) {
 				else if (op == jal) { array[d] = index; if (array[r]) index = array[r]; else skip = r; } 
 
 				else if (op == ecall) {
+					d = array[17]; r = array[10];
+
 					if (d == 1) { count = 0; break; }
-					else if (d == 2) printf("debug: %lld (hex 0x%016llx)\n", array[r], array[r]);
-					else if (d == 3) array[r] = (nat) getchar();
-					else if (d == 4) putchar((char) array[r]);
-					else if (d == 5) print_dictionary(names, values, name_count);
-					else if (d == 6) print_instructions();
-					else if (d == 7) print_registers();
-					else if (d == 8) print_arguments(arguments, arg_count);
+
+					else if (d == 2) {
+						snprintf(reason, sizeof reason, "%lld (0x%016llx)", r, r);
+						print_message(user, reason, start, count);
+
+					} else if (d == 3) {     // ctabort(); for debugging.
+						abort();
+					}
+
+					else if (d == 4) array[10] = (nat) getchar();
+					else if (d == 5) putchar((char) r);
+					else if (d == 6) print_dictionary(names, values, name_count);
+					else if (d == 7) print_instructions();
+					else if (d == 8) print_registers();
+					else if (d == 9) print_arguments(arguments, arg_count);
 					else {
-						char reason[4096] = {0};
-						snprintf(reason, sizeof reason, 
-							"unknown compiletime system call number %llu", d);
-						print_error(reason, index - count, count);
+						snprintf(reason, sizeof reason, "unknown ct ecall number %llu", d);
+						print_message(error, reason, index - count, count);
 						exit(1);
 					}
 
 				} else { 
 					puts("error: internal ct execute error"); 
 					abort(); 
-					er: print_error("not enough arguments on the stack for the given instruction.", start, count);
+					er: print_message(error, "insufficient arguments for instruction", start, count);
 					exit(1);
 				}
 
@@ -1330,21 +1347,22 @@ int main(int argc, const char** argv) {
 	print_registers();
 	print_arguments(arguments, arg_count);
 	print_instructions();
+	print_source_instruction_mappings();
 	printf("SUCCESSFUL ASSEMBLING\n");
 
-	print_source_instruction_mappings();
+	printf("info: building for target:\n\tarchitecture:  "
+		"\033[31;1m%s\033[0m\n\toutput_format: \033[32;1m%s\033[0m.\n\n", 
+		target_spelling[architecture  % target_count], 
+		output_format_spelling[output_format % output_format_count]
+	);
 
-	if (debug) {
-		printf("info: building for target:\n\tarchitecture:  "
-			"\033[31;1m%s\033[0m\n\toutput_format: \033[32;1m%s\033[0m.\n\n", 
-			target_spelling[architecture  % target_count], 
-			output_format_spelling[output_format % output_format_count]
-		);
-	}
+	snprintf(reason, sizeof reason, "this assembler is currently a work in progress");
+	print_message(warning, reason, 0, 0);
+
 
 	if (architecture == noruntime) {
 		if (not ins_count) exit(0);
-		print_error("encountered runtime instruction with target \"noruntime\"", ins[0].start[0], ins[0].count[0]);
+		print_message(error, "encountered runtime instruction with noruntime target", ins[0].start[0], ins[0].count[0]);
 		exit(1);
 
 	} else if (architecture == riscv32 or architecture == riscv64) {
@@ -1354,9 +1372,10 @@ int main(int argc, const char** argv) {
 		generate_arm64_machine_code();
 
 	} else {
-		print_error("unknown target architecture specified", ins[0].start[0], ins[0].count[0]);
+		print_message(error, "unknown target architecture specified", ins[0].start[0], ins[0].count[0]);
 		exit(1);
 	}
+
 
 	if (output_format == print_binary) 
 		dump_hex((uint8_t*) bytes, byte_count);
@@ -1367,7 +1386,7 @@ int main(int argc, const char** argv) {
 	else if (output_format == macho_objectfile or output_format == macho_executable) 
 		make_macho_object_file(object_filename, preserve_existing_object);
 	else {
-		print_error("unknown output format specified", ins[0].start[0], ins[0].count[0]);
+		print_message(error, "unknown output format specified", ins[0].start[0], ins[0].count[0]);
 		exit(1);
 	}
 
@@ -1381,25 +1400,29 @@ int main(int argc, const char** argv) {
 		
 		char link_command[4096] = {0};
 		snprintf(link_command, sizeof link_command, "ld -S -x "
+
 			"-dead_strip "
-			"-no_weak_imports "
-			"-fatal_warnings "
+			"-dead_strip_dylibs "
 			"-no_eh_labels "
+			"-no_uuid "
+			"-no_weak_imports "
+			"-no_function_starts "
 			"-warn_compact_unwind "
 			"-warn_unused_dylibs "
+			"-fatal_warnings "
+
 			"%s -o %s "
 			"-arch arm64 "
 			"-e _start "
-			"-stack_size 0x1000000 "
+			"-stack_size 0x%llx "
 			"-platform_version macos 13.0.0 13.3 "
 			"-lSystem "
 			"-syslibroot /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk ", 
-			object_filename, executable_filename
+			object_filename, executable_filename, stack_size
 		);
+		printf("executing linker command: \"%s\"...\n", link_command);
 		system(link_command);
-	}
 
-	if (debug) {
 		system("otool -txvVhlL object0.o");
 		system("otool -txvVhlL executable0.out");
 		system("objdump object0.o -DSast --disassembler-options=no-aliases");
@@ -1470,7 +1493,10 @@ int main(int argc, const char** argv) {
 
 
 
-
+//print_message(info, reason, start, count);
+//print_message(warning, reason, start, count);
+//print_message(error, reason, start, count);
+//print_message(no_message, reason, start, count);
 
 
 

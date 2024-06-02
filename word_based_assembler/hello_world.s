@@ -19,7 +19,9 @@ my_string attr
 
 	makestring  
 
-1 ct ecall
+
+1 0 callnumber ct addi
+ct ecall
 
 
 
