@@ -144,31 +144,51 @@ static u32 arm64_macos_abi[] = {        // note:  x9 is call-clobbered. save it 
 };
 
 enum language_isa {
-	db, dh, dw, dd,
-	drop, dup_, over, third, swap, rot, def, arc, ct, attr, 
+	dup_, over, third, drop, swap, rot, 
+	def, arc, ct, attr, 
 	add, addi, sub, slt, slti, slts, sltis, 
 	and_, andi, ior, iori, 
 	eor, eori, sll, slli,  srl, srli, sra, srai, 
 	blt, blts, bge, bges, bne, beq, 
 	ldb, ldh, ldw, ldd, stb, sth, stw, std, 
 	mul, mulh, mulhs, div_, divs, rem, rems, 
-	jalr, jal, auipc, ecall, makestring, ctstrlen,
+	jalr, jal, auipc, ecall, ecm, cst,
 	isa_count
 };
 
 static const char* spelling[isa_count] = {
-	"db", "dh", "dw", "dd",
-	"drop", "dup", "over", "third", "swap", "rot",
+	"dup", "over", "third", "drop", "swap", "rot",
 	"def", "arc", "ct", "attr", 
-	"add", "addi", "sub", 
-	"slt", "slti", "slts", "sltis", 
+	"add", "addi", "sub", "slt", "slti", "slts", "sltis", 
 	"and", "andi", "ior", "iori", 
 	"eor", "eori",  "sll", "slli",  "srl", "srli","sra", "srai", 
 	"blt", "blts", "bge", "bges", "bne", "beq", 
 	"ldb", "ldh", "ldw", "ldd", "stb", "sth", "stw", "std", 
 	"mul", "mulh", "mulhs", "div", "divs", "rem", "rems", 
-	"jalr", "jal", "auipc", "ecall", "makestring", "ctstrlen",
+	"jalr", "jal", "auipc", "ecall", "ecm", "cst",
 };
+
+
+programmers api:
+
+
+	BYTE_COUNT CTM_POINTER ecm
+
+	END_INDEX BEGIN_INDEX cst
+
+
+----------------------------------------------
+
+
+	
+
+
+
+
+
+
+
+
 
 struct argument {
 	nat value;
@@ -1157,8 +1177,8 @@ int main(int argc, const char** argv) {
 		if (skip) {
 			printf("[in skip mode...]\n");
 			if (op == ct) is_compiletime = true;
-			if (op == attr) goto execute_attr;
-			if (values[op].value == skip) goto push_name; 
+			else if (op == attr) goto execute_attr;
+			else if (values[op].value == skip) goto push_name; 
 			goto next;
 		}
 		
@@ -1204,10 +1224,7 @@ int main(int argc, const char** argv) {
 		} else {
 			if (op == ecall or op == makestring) {}
 
-			else if (op == db or op == dh or op == dw or op == dd) { 
-				if (arg_count < 1) goto er; arg_count--; 
-
-			} else if (op == jalr or op == jal) { 
+			else if (op == ecm or op == jalr or op == jal) { 
 				if (arg_count < 2) goto er; arg_count -= 2; 
 
 			} else if (op == blt or op == bge or op == bne or
@@ -1215,7 +1232,7 @@ int main(int argc, const char** argv) {
 				if (arg_count < 3) goto er; arg_count -= 3; 
 			
 			} else if (op == auipc) { 
-				if (arg_count < 3) goto er; arg_count -= 2; 
+				if (arg_count < 2) goto er; arg_count -= 2; 
 				arguments[arg_count++] = a0;
 
 			} else { 

@@ -51,6 +51,16 @@ one swap dup ct addi
 arc def ten drop
 zero dup dup ct eor drop
 
+ten zero dup ct addi 
+one swap dup ct addi 
+arc def eleven drop
+zero dup dup ct eor drop
+
+eleven zero dup ct addi 
+one swap dup ct addi 
+arc def twelve drop
+zero dup dup ct eor drop
+
 zero	def 0	drop
 one	def 1	def ra drop
 two	def 2	def sp drop
@@ -62,6 +72,8 @@ seven	def 7	drop
 eight	def 8	drop
 nine	def 9	drop
 ten 	def 10	def arg0 drop
+eleven 	def 11	def arg1 drop
+twelve 	def 12	def arg2 drop
 
 eight zero one ct addi
 dup dup ct slli
@@ -70,20 +82,32 @@ zero zero one ct add drop
 
 
 
+
+
+
+
+
+
 		0 def now.lets.try.to.define.a.macro!!!!... drop
 
-
-
 			0 def also.we.need.to.figure.out.comments.lollllll drop
-
-
 
 			0 def next_task:======>...strings. drop
 
 
+one three ct jal
+
+				<---- note: we are putting the address of RIGHT AFTER the ctjal into   three 
+
+					so that in theoryyyyy we could     use   this entire method of 
+
+								ct branching / block comment-like thingies 
 
 
-one zero ct jal
+							in order to implement strings too!!!!   YAY  so yeah, trying to think ahead to that a little bit 
+
+
+
 
 
 	ohhh turns out we already implemented comments via ct branches! lol. its actually super simple lol. 
@@ -94,17 +118,13 @@ one zero ct jal
 
 
 
+		so yeah, the next step is to figure out how to do string-table generation, i think.
+
+			that will be quite fun.
 
 
 
-
-						so yeah, the next step is to figure out how to do string-table generation, i think.
-
-							that will be quite fun.
-
-
-
-							oh and defining a macro! lets do that now maybe. yeah. lets do that now. 
+			oh and defining a macro! lets do that now maybe. yeah. lets do that now. 
 
 
 
@@ -120,16 +140,39 @@ one ct attr dup dup ct eor drop
 
 
 
-	
 
-
-
+2 0 arg0 addi  drop
+7 def my_string arg1 auipc drop
+5 ctstrlen arc 0 arg2 addi drop
+4 0 function addi  drop
+ecall
 
 10 0 arg0 addi drop 
 1 0 function addi drop
 ecall
 
+my_string attr drop 
+makestring
 
+1 0 function ct addi drop
+ct ecall
+
+
+
+
+
+
+
+paste this after a variable to see its value at compiletime:
+
+
+
+
+0 arg0 ct addi drop
+2 0 function ct addi drop
+ct ecall
+3 0 function ct addi drop
+ct ecall
 
 
 
