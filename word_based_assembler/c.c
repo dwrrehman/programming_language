@@ -143,6 +143,8 @@ static u32 arm64_macos_abi[] = {        // note:  x9 is call-clobbered. save it 
 	25,26,27,28,12, 8,11,10,    
 };
 
+static const char zero_digit = '0', one_digit = '1', seperator_digit = '/';
+
 enum language_isa {
 	null_instruction, 
 	db, dh, dw, dd,
@@ -1086,6 +1088,14 @@ static void print_source_instruction_mappings(void) {
 	}
 }
 
+static bool is_binary_literal(char* word) {
+	for (nat i = 0; i < strlen(word); i++) 
+		if (	word[i] != zero_digit and 
+			word[i] != one_digit  and
+			word[i] != seperator_digit) 
+			return false; 
+	return true;
+}
 
 
 
@@ -1147,8 +1157,6 @@ int main(int argc, const char** argv) {
 
 		compact_print_arguments(arguments, arg_count);
 
-
-		
 		char* word = strndup(text + start, count);
 
 		nat op = 0;
@@ -1168,6 +1176,14 @@ int main(int argc, const char** argv) {
 		}
 
 		if (defining) {
+
+			if (is_binary_literal(word)) {
+				snprintf(reason, sizeof reason, "expected "
+				"undefined word, word \"%s\" is a "
+				"defined binary literal", word); print_message(error, 
+				reason, start, count); exit(1);
+			}
+
 			printf("\033[32mdefining new word\033[0m \"%s\" to be %llu...\n", word, arguments[arg_count - 1].value);
 			names[name_count] = word;
 			values[name_count] = arguments[arg_count - 1];
@@ -1178,8 +1194,9 @@ int main(int argc, const char** argv) {
 			defining = false;
 			nat r = 0, s = 1;
 			for (nat i = 0; i < count; i++) {
-				if (word[i] == '0') s <<= 1;
-				else if (word[i] == '1') { r += s; s <<= 1; }
+				if (word[i] == seperator_digit) continue;
+				if (word[i] == zero_digit) s <<= 1;
+				else if (word[i] == one_digit) { r += s; s <<= 1; }
 				else goto unknown;
 			}
 
@@ -1495,6 +1512,229 @@ int main(int argc, const char** argv) {
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+/*
+	i think i am actaully going to make binary constants in the language simply use:
+
+
+
+
+			'        for 1  
+
+			.        for 0 
+
+
+
+	ie, natural numbers would be:
+
+
+	0	.
+
+	1	'
+	
+	2	.'
+
+	3	''
+		
+	4	..'
+
+	5	'.'
+	
+	6	.''
+
+	7	'''
+
+	8	...'
+
+	9	'..'
+
+	10	.'.'
+
+	11	''.'
+	
+	12 	..''
+
+
+
+
+							oh also, you can have "/" in your literals too, as a seperator, its just ignored lol. so yeah. easy stuff. 
+
+
+
+
+
+
+yeah, i think this is the way we are going to write binary constants. pretty cool huh!
+
+		i like it alot actaully. its so simple, yet so elegant, and really easy to read too!!! nice..
+
+
+
+
+
+
+
+
+simplest program now:
+
+	
+	'.' . .'.' addi
+	' . '...' addi
+	ecall
+
+
+would it be more readable like this?:
+
+
+	,., . .,., addi
+	, . ,..., addi
+	ecall
+
+				<--- yeah that version is actually a lot more readable! 
+						okay lets just use that then. lol. 
+
+
+	
+
+
+	so that this language only uses these symbols in total:
+
+		abcdefghijklmnopqrstuvwxyz,.
+
+
+					perfection!   nice. love ittttt   thats so cool 
+
+
+
+					ideallyyyyyy it would just be the letters, but this is still good.
+
+					doing constants without.. hm.. 
+
+
+
+
+							waitttt
+
+
+
+
+
+
+		okay wait technically we could get away with not having the . and , lol 
+
+
+			ie, no binary constants at all... hm.. 
+
+
+					because,  like, we can construct them at compiletime lolol 
+
+
+
+						soooooooo  yeah 
+
+
+
+
+				i mean, technically we could just use    "arc"  to computationally construct literals at compiletime,  and then once they are assigned to a variable, we have them forever lol.
+
+
+
+							soooooo likeeeee
+
+
+
+
+
+			yeah honestly, ngl, i feel like we can do this without literals. omg. 
+
+
+
+	okay 
+
+
+
+					lets do it.   we got this.   lets JUST have   arc, 
+
+
+									thats it 
+
+
+
+
+
+
+			okay wait, but then in order to properly boostrap outselves, we alsooooo need to have a couple of things already pre defined, so for instance, i think we probably need the numbers 0 through 5 already defined, but thats it, i think. cool!  okay we can do this lol. yay. 
+
+
+
+
+			lets call them the abi names too,      so 2 is sp    1 is ra   0 is zero 
+
+								gp is 3,    tp is 4    
+
+
+
+			actuallyyyy i might rename them idk... hm.. 
+
+
+
+				i mean, i guess it makes sense to keep the names that riscv gave for them.. idk.. hm.. 
+
+					yeah probably i guess okay  
+
+
+
+					i think we only need the           wait yeah 
+
+
+								we only need ra and 0 right? becuase then from there we can construct any other lol 
+
+
+			okay yeah, i think so 
+
+
+
+			well      hmmm idk    yeah 
+
+									lets build in    0, 1, 2,    thats it 
+
+
+
+							i think 3 will not be built in, i don't think we need it i think lol 
+
+
+
+
+		yay
+
+
+	okay lets try this, omg
+
+
+
+
+
+
+ 
+
+
+
+	
+	
+*/	
 
 
 
