@@ -143,11 +143,10 @@ static u32 arm64_macos_abi[] = {        // note:  x9 is call-clobbered. save it 
 	25,26,27,28,12, 8,11,10,    
 };
 
-static const char zero_digit = '0', one_digit = '1', seperator_digit = '/';
+
 
 enum language_isa {
-	null_instruction, 
-	db, dh, dw, dd,
+	zero, ra, sp, db, dh, dw, dd,
 	drop, dup_, over, third, swap, rot, def, arc, ct, attr, 
 	add, addi, sub, slt, slti, slts, sltis, 
 	and_, andi, ior, iori, 
@@ -160,8 +159,7 @@ enum language_isa {
 };
 
 static const char* spelling[isa_count] = {
-	"null_instruction", 
-	"db", "dh", "dw", "dd",
+	"zero", "ra", "sp", "db", "dh", "dw", "dd",
 	"drop", "dup", "over", "third", "swap", "rot",
 	"def", "arc", "ct", "attr", 
 	"add", "addi", "sub", 
@@ -232,7 +230,7 @@ static void print_arguments(struct argument* arguments, nat arg_count) {
 static void print_dictionary(char** names, struct argument* values, nat name_count) {
 	puts("printing dictionary...");
 	for (nat i = 0; i < name_count; i++) {
-		printf("\t#%llu: name %s  ... (value %llu, (.start=%llu,.count=%llu))\n", i, 
+		printf("\t#%-6llu: name %-8s ..... %-5lld \t\t(.start=%llu,.count=%llu))\n", i, 
 			names[i], values[i].value, values[i].start, values[i].count
 		);
 	}
@@ -331,7 +329,7 @@ done:;
 	// print_stack(stack_i, stack_f, stack_o, stack_count);
 
 	printf("\033[1masm: %s:", filename ? filename : "(invocation)");
-	if (location or error_length) printf("%lld:%lld:", location, error_length);
+	if (location or error_length) printf("%llu:%llu:", location, error_length);
 	printf(" %s \033[1m%s\033[m\n", type_string[type], reason_string);
 	if (not filename) return;
 	if (not spot and not error_length) goto finish;
@@ -711,11 +709,11 @@ static void generate_slli(nat Rd, nat Rn, nat im, nat op, nat oc, nat sf, struct
 	Rn = arm64_macos_abi[Rn];
 
 	nat nn = sf, is = 63 - im, ir = (64 - im) % 64;
-	printf("generating ubfm using the values: \n");
-	printf("\t sf = %lld\n", sf);
-	printf("\t N = %lld\n", nn);
-	printf("\t immr = %lld\n", ir);
-	printf("\t imms = %lld\n", is);
+	//printf("generating ubfm using the values: \n");
+	//printf("\t sf = %lld\n", sf);
+	//printf("\t N = %lld\n", nn);
+	//printf("\t immr = %lld\n", ir);
+	//printf("\t imms = %lld\n", is);
 
 	emitw(  (sf << 31U) | 
 		(oc << 29U) | 
@@ -737,11 +735,11 @@ static void generate_srli(nat Rd, nat Rn, nat im, nat op, nat oc, nat sf, struct
 	Rn = arm64_macos_abi[Rn];
 
 	nat nn = sf, is = 63, ir = im;
-	printf("generating ubfm using the values: \n");
-	printf("\t sf = %lld\n", sf);
-	printf("\t N = %lld\n", nn);
-	printf("\t immr = %lld\n", ir);
-	printf("\t imms = %lld\n", is);
+	//printf("generating ubfm using the values: \n");
+	//printf("\t sf = %lld\n", sf);
+	//printf("\t N = %lld\n", nn);
+	//printf("\t immr = %lld\n", ir);
+	//printf("\t imms = %lld\n", is);
 
 	emitw(  (sf << 31U) | 
 		(oc << 29U) | 
@@ -1053,7 +1051,7 @@ static void print_source_instruction_mappings(void) {
 			nat start = ins[i].start[a];
 			nat count = ins[i].count[a];
 
-			printf("\033[1masm: %s:%lld:%lld:", 
+			printf("\033[1masm: %s:%llu:%llu:", 
 				"filename ? filename : (top-level)", 
 				start, count
 			);
@@ -1088,17 +1086,6 @@ static void print_source_instruction_mappings(void) {
 	}
 }
 
-static bool is_binary_literal(char* word) {
-	for (nat i = 0; i < strlen(word); i++) 
-		if (	word[i] != zero_digit and 
-			word[i] != one_digit  and
-			word[i] != seperator_digit) 
-			return false; 
-	return true;
-}
-
-
-
 int main(int argc, const char** argv) {
 
 	struct argument arguments[4096] = {0};
@@ -1111,8 +1098,7 @@ int main(int argc, const char** argv) {
 
 	for (nat i = 0; i < isa_count; i++) {
 		names[name_count] = strdup(spelling[i]);
-		values[name_count] = (struct argument) {.value = 0, .start = 0, .count = 0};
-		name_count++;
+		values[name_count++].value = i;
 	}
 
 	const char* filename = argv[1];
@@ -1143,72 +1129,44 @@ int main(int argc, const char** argv) {
 
 	for (nat index = 0; index < text_length; index++) {
 		// printf("%llu: %c...\n", index, text[index]);
-
 		if (not isspace(text[index])) {
 			if (not count) start = index;
 			count++;
 			continue;
-
 		} else if (not count) continue;
 
 		process:;
-
 		printf("found word at %llu:%llu... \"%.*s\"\n",  start, count, (int) count, text + start);
-
 		compact_print_arguments(arguments, arg_count);
-
 		char* word = strndup(text + start, count);
-
 		nat op = 0;
 		for (nat n = 0; n < name_count; n++) {
 			if (not strcmp(names[n], word)) {
-
 				if (defining) {
 					snprintf(reason, sizeof reason, "expected "
 					"undefined word, word \"%s\" is already "
 					"defined", word); print_message(error, 
 					reason, start, count); exit(1);
 				}
-
-				op = n;
-				goto process_word;
+				op = n; goto process_word;
 			}
 		}
 
-		if (defining) {
-
-			if (is_binary_literal(word)) {
-				snprintf(reason, sizeof reason, "expected "
-				"undefined word, word \"%s\" is a "
-				"defined binary literal", word); print_message(error, 
-				reason, start, count); exit(1);
-			}
-
-			printf("\033[32mdefining new word\033[0m \"%s\" to be %llu...\n", word, arguments[arg_count - 1].value);
-			names[name_count] = word;
-			values[name_count] = arguments[arg_count - 1];
-			name_count++;
-			defining = false;
-			goto next;
-		} else {
-			defining = false;
-			nat r = 0, s = 1;
-			for (nat i = 0; i < count; i++) {
-				if (word[i] == seperator_digit) continue;
-				if (word[i] == zero_digit) s <<= 1;
-				else if (word[i] == one_digit) { r += s; s <<= 1; }
-				else goto unknown;
-			}
-
-			// printf("pushing literal %llu on the stack.. (found at .start=%llu,.count=%llu)\n", r, start, count);
-			// getchar();
-			arguments[arg_count++] = (struct argument) {.value = r, .start = start, .count = count};
-			goto next;
-
-			unknown: snprintf(reason, sizeof reason, "undefined word \"%s\"", word);
+		if (not defining) {
+			snprintf(reason, sizeof reason, "undefined word \"%s\"", word);
 			print_message(error, reason, start, count);
 			exit(1);
 		}
+
+		printf("\033[32mdefining new word\033[0m \"%s\" to be %llu...\n", 
+				word, arguments[arg_count - 1].value);
+
+		names[name_count] = word;
+		values[name_count] = arguments[arg_count - 1];
+		name_count++;
+		defining = false;
+		goto next;
+
 	process_word:;
 		struct argument invalid = { (nat)-1, (nat) -1, (nat) -1 };
 		struct argument a0 = arg_count > 0 ? arguments[arg_count - 1] : invalid;
@@ -1236,7 +1194,7 @@ int main(int argc, const char** argv) {
 			arguments[arg_count - 3] = a1;
 
 		} else if (op == arc) {
-			//printf("executing arc(%llu)...\n", a0.value); 
+			printf("executing arc(%llu), replaced with %llu...\n", a0.value, array[a0.value]); 
 			arguments[arg_count - 1].value = array[a0.value]; 
 			arguments[arg_count - 1].start = start;
 			arguments[arg_count - 1].count = count;
@@ -1248,14 +1206,15 @@ int main(int argc, const char** argv) {
 			if (skip == a0.value) skip = 0;
 			is_compiletime = false;
 
-		} else if (op >= isa_count) {
+		} else if (op < 3 or op >= isa_count) {
 			printf("\033[31mpushing name %s\033[0m, pushing value %llu on the stack..\n", names[op], values[op].value);
 			arguments[arg_count++] = values[op];
 			arguments[arg_count - 1].start = start;
 			arguments[arg_count - 1].count = count;
 
 		} else {
-			if (op == ecall or op == makestring) {}
+			if (op == zero or op == ra or op == sp or 
+			    op == ecall or op == makestring) {}
 
 			else if (op == db or op == dh or op == dw or op == dd) { 
 				if (arg_count < 1) goto er; arg_count--; 
@@ -2487,4 +2446,72 @@ fprintf(stdout, "asm: \033[31;1merror:\033[0m %s: "
 
 
 
+
+
+
+
+//  
+		// } else 
+
+			// defining = false;
+
+			/*nat r = 0, s = 1;
+			for (nat i = 0; i < count; i++) {
+				if (word[i] == seperator_digit) continue;
+				if (word[i] == zero_digit) s <<= 1;
+				else if (word[i] == one_digit) { r += s; s <<= 1; }
+				else goto unknown;
+			}*/
+
+			// printf("pushing literal %llu on the stack.. 
+			// (found at .start=%llu,.count=%llu)\n", r, start, count);
+			// getchar();
+			//arguments[arg_count++] = (struct argument) {.value = r, 
+			// .start = start, .count = count};
+
+
+			// puts("you did a dumb dumb lol");
+			// getchar();
+
+			
+			// goto next;
+
+			// unknown: 
+		//}
+
+
+
+
+
+
+
+
+/*if (is_binary_literal(word)) {
+			snprintf(reason, sizeof reason, "expected "
+			"undefined word, word \"%s\" is a "
+			"defined binary literal", word); print_message(error, 
+			reason, start, count); exit(1);
+		}*/
+
+
+
+
+
+
+/*static bool is_binary_literal(char* word) {
+	for (nat i = 0; i < strlen(word); i++) 
+		if (	word[i] != zero_digit and 
+			word[i] != one_digit  and
+			word[i] != seperator_digit) 
+			return false; 
+	return true;
+}*/
+
+
+
+
+
+
+
+// static const char zero_digit = '0', one_digit = '1', seperator_digit = '/';
 
