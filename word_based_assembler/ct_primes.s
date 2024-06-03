@@ -24,17 +24,17 @@ ct ecall  def hello
 
 sp 0 arg0 ct add
 ctecall_print 0 callnumber ct addi 
-ct ecall 
+ct ecall def hello
 
 1 sp sp ct addi
 
 sp 0 arg0 ct add
 ctecall_print 0 callnumber ct addi 
-ct ecall 
+ct ecall def hello
 
 1 sp sp ct addi
 
 ctecall_abort 0 callnumber ct addi
-ct ecall
+ct ecall def hello
 
 everything from here is comments..

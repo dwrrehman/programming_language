@@ -208,7 +208,13 @@ static struct file files[4096] = {0};
 static nat* array = NULL;
 
 
-
+static void compact_print_arguments(struct argument* arguments, nat arg_count) {
+	printf("args { ");
+	for (nat i = 0; i < arg_count; i++) {
+		printf("%llu ", arguments[i].value);
+	}
+	puts("} \n");
+}
 
 static void print_arguments(struct argument* arguments, nat arg_count) {
 	printf("\narguments[]: { \n");
@@ -1137,26 +1143,39 @@ int main(int argc, const char** argv) {
 
 		process:;
 
-		// printf("found word at %llu:%llu... \"%.*s\"\n",  start, count, (int) count, text + start);
+		printf("found word at %llu:%llu... \"%.*s\"\n",  start, count, (int) count, text + start);
+
+		compact_print_arguments(arguments, arg_count);
+
+
 		
 		char* word = strndup(text + start, count);
 
 		nat op = 0;
-		for (nat i = 0; i < name_count; i++) {
-			if (not strcmp(names[i], word)) {
-				op = i;
+		for (nat n = 0; n < name_count; n++) {
+			if (not strcmp(names[n], word)) {
+
+				if (defining) {
+					snprintf(reason, sizeof reason, "expected "
+					"undefined word, word \"%s\" is already "
+					"defined", word); print_message(error, 
+					reason, start, count); exit(1);
+				}
+
+				op = n;
 				goto process_word;
 			}
 		}
-		
+
 		if (defining) {
-			// printf("defining new word \"%s\"...\n", word);
+			printf("\033[32mdefining new word\033[0m \"%s\" to be %llu...\n", word, arguments[arg_count - 1].value);
 			names[name_count] = word;
 			values[name_count] = arguments[arg_count - 1];
 			name_count++;
 			defining = false;
 			goto next;
 		} else {
+			defining = false;
 			nat r = 0, s = 1;
 			for (nat i = 0; i < count; i++) {
 				if (word[i] == '0') s <<= 1;
@@ -1213,7 +1232,7 @@ int main(int argc, const char** argv) {
 			is_compiletime = false;
 
 		} else if (op >= isa_count) {
-			// printf("pushing name %llu on the stack..\n", values[op].value);
+			printf("\033[31mpushing name %s\033[0m, pushing value %llu on the stack..\n", names[op], values[op].value);
 			arguments[arg_count++] = values[op];
 			arguments[arg_count - 1].start = start;
 			arguments[arg_count - 1].count = count;
@@ -1239,8 +1258,11 @@ int main(int argc, const char** argv) {
 				arguments[arg_count++] = a0; 
 			}
 
+			printf("after executing: \n");
+			compact_print_arguments(arguments, arg_count);
+
 			
-			if ((0)) {
+			if ((1)) {
 
 			if (	op == blt  or op == bge or
 				op == bne  or op == beq or
