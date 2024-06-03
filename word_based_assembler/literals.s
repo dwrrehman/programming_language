@@ -1,4 +1,4 @@
-def zero 
+def zero
 zero ct attr 
 arc def nonzero
 zero dup dup ct eor
@@ -51,7 +51,6 @@ one swap dup ct addi
 arc def ten drop
 zero dup dup ct eor drop
 
-
 zero	def 0	drop
 one	def 1	def ra drop
 two	def 2	def sp drop
@@ -70,8 +69,64 @@ dup dup ct addi arc def 17 def arg7 def function drop
 zero zero one ct add drop
 
 
-5 0 arg0 addi 
-1 0 function addi 
+
+		0 def now.lets.try.to.define.a.macro!!!!... drop
+
+
+
+			0 def also.we.need.to.figure.out.comments.lollllll drop
+
+
+
+			0 def next_task:======>...strings. drop
+
+
+
+
+one zero ct jal
+
+
+	ohhh turns out we already implemented comments via ct branches! lol. its actually super simple lol. 
+
+		you can even nest comments if you get the labels done right lol. so yeah. this works lol. yay.
+
+
+
+
+
+
+
+
+
+						so yeah, the next step is to figure out how to do string-table generation, i think.
+
+							that will be quite fun.
+
+
+
+							oh and defining a macro! lets do that now maybe. yeah. lets do that now. 
+
+
+
+
+
+
+
+one ct attr dup dup ct eor drop
+
+
+
+
+
+
+
+	
+
+
+
+
+10 0 arg0 addi drop 
+1 0 function addi drop
 ecall
 
 

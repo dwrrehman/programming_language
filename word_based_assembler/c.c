@@ -1117,10 +1117,14 @@ int main(int argc, const char** argv) {
 			count++; continue;
 		} else if (not count) continue;
 	process:;
+
+
 		printf("found word at %llu:%llu... \"%.*s\"\n",  start, count, (int) count, text + start);
 		struct argument a0 = arg_count > 0 ? arguments[arg_count - 1] : (struct argument){0};
 		struct argument a1 = arg_count > 1 ? arguments[arg_count - 2] : (struct argument){0};
 		struct argument a2 = arg_count > 2 ? arguments[arg_count - 3] : (struct argument){0};
+
+		
 
 		compact_print_arguments(arguments, arg_count);
 		char* word = strndup(text + start, count);
@@ -1136,7 +1140,7 @@ int main(int argc, const char** argv) {
 				op = n; goto process_word;
 			}
 		}
-
+		if (skip) goto next;
 		if (not defining) {
 			snprintf(reason, sizeof reason, "undefined word \"%s\"", word);
 			print_message(error, reason, start, count);
@@ -1150,6 +1154,13 @@ int main(int argc, const char** argv) {
 		goto next;
 
 	process_word:;
+		if (skip) {
+			printf("[in skip mode...]\n");
+			if (op == ct) is_compiletime = true;
+			if (op == attr) goto execute_attr;
+			if (values[op].value == skip) goto push_name; 
+			goto next;
+		}
 		
 		     if (op == def)   defining = true;
 		else if (op == ct)    is_compiletime = true;
@@ -1174,6 +1185,7 @@ int main(int argc, const char** argv) {
 			arguments[arg_count - 1].count = count;
 
 		} else if (op == attr) {
+			execute_attr: 
 			printf("executing attr(--> %llu)...\n", a0.value);
 			array[a0.value] = is_compiletime ? index : ins_count;
 			printf("loaded array[%llu] with the value %llu...\n", a0.value, array[a0.value]);
@@ -1181,6 +1193,7 @@ int main(int argc, const char** argv) {
 			is_compiletime = false;
 
 		} else if (op >= isa_count) {
+			push_name:
 			printf("\033[31mpushing name %s\033[0m, pushing value %llu on the stack..\n", 
 				names[op], values[op].value);
 
@@ -1213,7 +1226,7 @@ int main(int argc, const char** argv) {
 			// printf("after executing: \n");
 			// compact_print_arguments(arguments, arg_count);
 
-			if ((0)) {
+			if ((1)) {
 
 			if (	op == blt  or op == bge or
 				op == bne  or op == beq or
@@ -1265,8 +1278,8 @@ int main(int argc, const char** argv) {
 				else if (op == beq)  { if (array[d] == array[r]) goto jump; } 
 				else if (op == blts) { if (array[d] <  array[r]) goto jump; } 
 				else if (op == bges) { if (array[d] >= array[r]) goto jump; }
-				else if (op == jalr) { array[d] = index; index = array[r] + s; } 
-				else if (op == jal) { array[d] = index; if (array[r]) index = array[r]; else skip = r; } 
+				else if (op == jalr) { if (d) array[d] = index; index = array[r]; } 
+				else if (op == jal) { if (d) array[d] = index; if (array[r]) index = array[r]; else skip = r; } 
 
 				else if (op == ecall) {
 					d = array[17]; r = array[10];
