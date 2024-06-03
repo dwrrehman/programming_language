@@ -143,10 +143,8 @@ static u32 arm64_macos_abi[] = {        // note:  x9 is call-clobbered. save it 
 	25,26,27,28,12, 8,11,10,    
 };
 
-
-
 enum language_isa {
-	zero, ra, sp, db, dh, dw, dd,
+	db, dh, dw, dd,
 	drop, dup_, over, third, swap, rot, def, arc, ct, attr, 
 	add, addi, sub, slt, slti, slts, sltis, 
 	and_, andi, ior, iori, 
@@ -159,7 +157,7 @@ enum language_isa {
 };
 
 static const char* spelling[isa_count] = {
-	"zero", "ra", "sp", "db", "dh", "dw", "dd",
+	"db", "dh", "dw", "dd",
 	"drop", "dup", "over", "third", "swap", "rot",
 	"def", "arc", "ct", "attr", 
 	"add", "addi", "sub", 
@@ -274,9 +272,6 @@ static const char* type_string[] = {
 	"\033[1;32mdata:\033[0m", 
 	"\033[1;33mdebug:\033[0m"
 };
-
-
-
 
 static void print_message(nat type, const char* reason_string, nat spot, nat error_length) {
 	// const int colors[] = {31, 32, 33, 34, 35};
@@ -564,15 +559,6 @@ static void generate_riscv_machine_code(void) {
 		}
 	}
 }
-
-
-
-
-
-
-/////////////////////////////////////////////////
-
-
 
 static void generate_mov(nat Rd, nat op, nat im, 
 			nat sf, nat oc, nat sh, 
@@ -1081,7 +1067,6 @@ static void print_source_instruction_mappings(void) {
 
 			puts("\n");
 		}
-
 		puts("-----------------------------------------");
 	}
 }
@@ -1093,13 +1078,12 @@ int main(int argc, const char** argv) {
 	char* names[4096] = {0};
 	nat name_count = 0, arg_count = 0;
 	
-	if (argc != 2) exit(puts("asm: \033[31;1merror:\033[0m "
-				"usage: ./asm <source.s>"));
+	if (argc != 2) 
+		exit(puts("asm: \033[31;1merror:\033[0m "
+			"usage: ./asm <source.s>")
+		);
 
-	for (nat i = 0; i < isa_count; i++) {
-		names[name_count] = strdup(spelling[i]);
-		values[name_count++].value = i;
-	}
+	for (nat i = 0; i < isa_count; i++) names[name_count++] = strdup(spelling[i]);
 
 	const char* filename = argv[1];
 	text_length = 0;
@@ -1128,15 +1112,16 @@ int main(int argc, const char** argv) {
 	const char* executable_filename = "executable0.out";
 
 	for (nat index = 0; index < text_length; index++) {
-		// printf("%llu: %c...\n", index, text[index]);
 		if (not isspace(text[index])) {
 			if (not count) start = index;
-			count++;
-			continue;
+			count++; continue;
 		} else if (not count) continue;
-
-		process:;
+	process:;
 		printf("found word at %llu:%llu... \"%.*s\"\n",  start, count, (int) count, text + start);
+		struct argument a0 = arg_count > 0 ? arguments[arg_count - 1] : (struct argument){0};
+		struct argument a1 = arg_count > 1 ? arguments[arg_count - 2] : (struct argument){0};
+		struct argument a2 = arg_count > 2 ? arguments[arg_count - 3] : (struct argument){0};
+
 		compact_print_arguments(arguments, arg_count);
 		char* word = strndup(text + start, count);
 		nat op = 0;
@@ -1156,39 +1141,28 @@ int main(int argc, const char** argv) {
 			snprintf(reason, sizeof reason, "undefined word \"%s\"", word);
 			print_message(error, reason, start, count);
 			exit(1);
-		}
-
-		printf("\033[32mdefining new word\033[0m \"%s\" to be %llu...\n", 
-				word, arguments[arg_count - 1].value);
-
-		names[name_count] = word;
-		values[name_count] = arguments[arg_count - 1];
-		name_count++;
+		} 
 		defining = false;
+		printf("\033[32mdefining new word\033[0m \"%s\" to be %llu...\n", 
+				word, a0.value);
+		names[name_count] = word;
+		values[name_count++] = a0;
 		goto next;
 
 	process_word:;
-		struct argument invalid = { (nat)-1, (nat) -1, (nat) -1 };
-		struct argument a0 = arg_count > 0 ? arguments[arg_count - 1] : invalid;
-		struct argument a1 = arg_count > 1 ? arguments[arg_count - 2] : invalid;
-		struct argument a2 = arg_count > 2 ? arguments[arg_count - 3] : invalid;
-
-		if ((0)) {}
-		else if (op == def)   defining = true;
+		
+		     if (op == def)   defining = true;
 		else if (op == ct)    is_compiletime = true;
 		else if (op == drop)  arg_count--;
 		else if (op == dup_)  arguments[arg_count++] = a0;
 		else if (op == over)  arguments[arg_count++] = a1;
 		else if (op == third) arguments[arg_count++] = a2;
 		else if (op == ctstrlen) array[a0.value] = strlen(default_string);
-
 		else if (op == swap) {
-			//puts("executing swap..."); 
 			arguments[arg_count - 1] = a1;
 			arguments[arg_count - 2] = a0;
 
 		} else if (op == rot) {
-			//puts("executing rot...");
 			arguments[arg_count - 1] = a2;
 			arguments[arg_count - 2] = a0;
 			arguments[arg_count - 3] = a1;
@@ -1206,15 +1180,16 @@ int main(int argc, const char** argv) {
 			if (skip == a0.value) skip = 0;
 			is_compiletime = false;
 
-		} else if (op < 3 or op >= isa_count) {
-			printf("\033[31mpushing name %s\033[0m, pushing value %llu on the stack..\n", names[op], values[op].value);
+		} else if (op >= isa_count) {
+			printf("\033[31mpushing name %s\033[0m, pushing value %llu on the stack..\n", 
+				names[op], values[op].value);
+
 			arguments[arg_count++] = values[op];
 			arguments[arg_count - 1].start = start;
 			arguments[arg_count - 1].count = count;
 
 		} else {
-			if (op == zero or op == ra or op == sp or 
-			    op == ecall or op == makestring) {}
+			if (op == ecall or op == makestring) {}
 
 			else if (op == db or op == dh or op == dw or op == dd) { 
 				if (arg_count < 1) goto er; arg_count--; 
@@ -1222,7 +1197,8 @@ int main(int argc, const char** argv) {
 			} else if (op == jalr or op == jal) { 
 				if (arg_count < 2) goto er; arg_count -= 2; 
 
-			} else if (op == blt  or op == bge or op == bne  or op == beq or op == blts or op == bges) { 
+			} else if (op == blt or op == bge or op == bne or
+				   op == beq or op == blts or op == bges) { 
 				if (arg_count < 3) goto er; arg_count -= 3; 
 			
 			} else if (op == auipc) { 
@@ -1234,11 +1210,10 @@ int main(int argc, const char** argv) {
 				arguments[arg_count++] = a0; 
 			}
 
-			printf("after executing: \n");
-			compact_print_arguments(arguments, arg_count);
+			// printf("after executing: \n");
+			// compact_print_arguments(arguments, arg_count);
 
-			
-			if ((1)) {
+			if ((0)) {
 
 			if (	op == blt  or op == bge or
 				op == bne  or op == beq or
@@ -1374,7 +1349,6 @@ int main(int argc, const char** argv) {
 		exit(1);
 	}
 
-
 	if (output_format == print_binary) 
 		dump_hex((uint8_t*) bytes, byte_count);
 
@@ -1398,7 +1372,6 @@ int main(int argc, const char** argv) {
 		
 		char link_command[4096] = {0};
 		snprintf(link_command, sizeof link_command, "ld -S -x "
-
 			"-dead_strip "
 			"-dead_strip_dylibs "
 			"-no_eh_labels "
@@ -1408,7 +1381,6 @@ int main(int argc, const char** argv) {
 			"-warn_compact_unwind "
 			"-warn_unused_dylibs "
 			"-fatal_warnings "
-
 			"%s -o %s "
 			"-arch arm64 "
 			"-e _start "
@@ -2505,7 +2477,25 @@ fprintf(stdout, "asm: \033[31;1merror:\033[0m %s: "
 			word[i] != seperator_digit) 
 			return false; 
 	return true;
-}*/
+}
+
+
+
+
+sp zero zero ct addi
+ra zero zero ct addi
+arc def three drop drop
+
+three three three ct addi
+ra zero three ct addi
+arc def four drop drop
+
+
+
+
+
+
+*/
 
 
 
@@ -2514,4 +2504,5 @@ fprintf(stdout, "asm: \033[31;1merror:\033[0m %s: "
 
 
 // static const char zero_digit = '0', one_digit = '1', seperator_digit = '/';
+
 
