@@ -132,6 +132,26 @@ one three ct jal
 
 
 
+
+
+
+
+
+first lets get multiple files working i think..
+
+			andd... lets do it right lol.. 
+
+
+so yeah
+
+
+				basically we'll figure out how to do macros, without doing textual inclusion, basically. so yeah. 
+
+				lets try that. hm. 
+
+				
+
+
 one ct attr dup dup ct eor drop
 
 

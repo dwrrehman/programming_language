@@ -23,7 +23,7 @@
 #include <sys/mman.h>
 #include <stdnoreturn.h>
 
-static const char* default_string = "hello there from space!\nthis is a test. yay!\n";
+
 
 #define CPU_SUBTYPE_ARM64_ALL 0
 #define CPU_TYPE_ARM  12
@@ -145,50 +145,28 @@ static u32 arm64_macos_abi[] = {        // note:  x9 is call-clobbered. save it 
 
 enum language_isa {
 	dup_, over, third, drop, swap, rot, 
-	def, arc, ct, attr, 
+	def, arc, cte, attr, 
 	add, addi, sub, slt, slti, slts, sltis, 
 	and_, andi, ior, iori, 
 	eor, eori, sll, slli,  srl, srli, sra, srai, 
 	blt, blts, bge, bges, bne, beq, 
 	ldb, ldh, ldw, ldd, stb, sth, stw, std, 
 	mul, mulh, mulhs, div_, divs, rem, rems, 
-	jalr, jal, auipc, ecall, ecm, cst,
+	jalr, jal, auipc, ecall, ecm, stl,
 	isa_count
 };
 
 static const char* spelling[isa_count] = {
 	"dup", "over", "third", "drop", "swap", "rot",
-	"def", "arc", "ct", "attr", 
+	"def", "arc", "cte", "attr", 
 	"add", "addi", "sub", "slt", "slti", "slts", "sltis", 
 	"and", "andi", "ior", "iori", 
 	"eor", "eori",  "sll", "slli",  "srl", "srli","sra", "srai", 
 	"blt", "blts", "bge", "bges", "bne", "beq", 
 	"ldb", "ldh", "ldw", "ldd", "stb", "sth", "stw", "std", 
 	"mul", "mulh", "mulhs", "div", "divs", "rem", "rems", 
-	"jalr", "jal", "auipc", "ecall", "ecm", "cst",
+	"jalr", "jal", "auipc", "ecall", "ecm", "stl",
 };
-
-
-programmers api:
-
-
-	BYTE_COUNT CTM_POINTER ecm
-
-	END_INDEX BEGIN_INDEX cst
-
-
-----------------------------------------------
-
-
-	
-
-
-
-
-
-
-
-
 
 struct argument {
 	nat value;
@@ -277,7 +255,7 @@ static void print_registers(void) {
 	printf("registers: {\n");
 	for (nat i = 0; i < 32; i++) {
 		if (i % 2 == 0) puts("");
-		printf("\t%llu:\t%016llx\t", i, array[i]);
+		printf("\t%llu:\t%016llx = %-7lld\t", i, array[i], array[i]);
 	}
 	puts("\n}\n");
 }
@@ -394,14 +372,12 @@ static char* read_file(const char* name, nat* out_length, nat here) {
 	return string;
 }
 
-
-static void dump_hex(uint8_t* local_bytes, nat local_byte_count) {
-	printf("\ndebugging bytes bytes:\n------------------------\n");
-	printf("dumping hex bytes: (%llu)\n", local_byte_count);
-	for (nat i = 0; i < local_byte_count; i++) {
+static void dump_hex(uint8_t* memory, nat count) {
+	printf("dumping bytes: (%llu)\n", count);
+	for (nat i = 0; i < count; i++) {
 		if (not (i % 16)) printf("\n\t");
 		if (not (i % 4)) printf(" ");
-		printf("%02hhx ", local_bytes[i]);
+		printf("%02hhx(%c) ", memory[i], memory[i] >= 32 ? memory[i] : ' ');
 	}
 	puts("");
 }
@@ -411,11 +387,11 @@ static void emitb(nat x) {
 	bytes[byte_count++] = (u8) (x >> 0);
 }
 
-static void emith(nat x) {
+/*static void emith(nat x) {
 	bytes = realloc(bytes, byte_count + 2);
 	bytes[byte_count++] = (u8) (x >> 0);
 	bytes[byte_count++] = (u8) (x >> 8);
-}
+}*/
 
 static void emitw(nat x) {
 	bytes = realloc(bytes, byte_count + 4);
@@ -425,7 +401,7 @@ static void emitw(nat x) {
 	bytes[byte_count++] = (u8) (x >> 24);
 }
 
-static void emitd(nat x) {
+/*static void emitd(nat x) {
 	bytes = realloc(bytes, byte_count + 8);
 	bytes[byte_count++] = (u8) (x >> 0);
 	bytes[byte_count++] = (u8) (x >> 8);
@@ -435,7 +411,7 @@ static void emitd(nat x) {
 	bytes[byte_count++] = (u8) (x >> 40);
 	bytes[byte_count++] = (u8) (x >> 48);
 	bytes[byte_count++] = (u8) (x >> 56);
-}
+}*/
 
 static void check(nat value, nat limit, nat a, struct instruction this) {
 	if (value >= limit) {
@@ -531,11 +507,7 @@ static void generate_riscv_machine_code(void) {
 		nat op = this.a[0];
 		nat* a = this.a + 1;
 
-		     if (op == db)	emitb(a[0]);
-		else if (op == dh)	emith(a[0]);
-		else if (op == dw)	emitw(a[0]);
-		else if (op == dd)	emitd(a[0]);
-		else if (op == ecall)   emitw(0x00000073);
+		if (op == ecall)   emitw(0x00000073);
 
 		else if (op == add)     r_type(a, 0x33, 0x0, 0x00, this);
 		else if (op == sub)     r_type(a, 0x33, 0x0, 0x20, this);
@@ -830,17 +802,9 @@ static void generate_arm64_machine_code(void) {
 		nat op = this.a[0];
 		nat* a = this.a + 1;
 
-		     if (op == db)	emitb(a[0]);
-		else if (op == dh)	emith(a[0]);
-		else if (op == dw)	emitw(a[0]);
-		else if (op == dd)      emitd(a[0]);
-
-		else if (op == makestring) {
-			for (nat c = 0; c < strlen(default_string) + 1; c++) {
-				emitb((nat) default_string[c]);
-			}
+		if (op == ecm) {
+			for (nat n = 0; n < a[1]; n++) emitb(((uint8_t*)a[0])[n]);
 		}
-
 		else if (op == ecall)  emitw(0xD4000001);
 
 		else if (op == addi)   generate_addi(a[0], a[1], a[2], 0x22U, 1, 0, 0, 0, this);
@@ -1014,12 +978,6 @@ static void make_macho_object_file(const char* object_filename, const bool prese
 
 static nat ins_size(nat op, nat target) {
 
-	if (op == makestring) return strlen(default_string);
-
-	if (op == db) return 1;
-	if (op == dh) return 2;
-	if (op == dw) return 4;
-	if (op == dd) return 8;
 	if (target == arm64) {
 		if (	op == slt or  op == slts or 
 			op == blt or  op == bge or 
@@ -1137,14 +1095,10 @@ int main(int argc, const char** argv) {
 			count++; continue;
 		} else if (not count) continue;
 	process:;
-
-
 		printf("found word at %llu:%llu... \"%.*s\"\n",  start, count, (int) count, text + start);
 		struct argument a0 = arg_count > 0 ? arguments[arg_count - 1] : (struct argument){0};
 		struct argument a1 = arg_count > 1 ? arguments[arg_count - 2] : (struct argument){0};
 		struct argument a2 = arg_count > 2 ? arguments[arg_count - 3] : (struct argument){0};
-
-		
 
 		compact_print_arguments(arguments, arg_count);
 		char* word = strndup(text + start, count);
@@ -1176,19 +1130,19 @@ int main(int argc, const char** argv) {
 	process_word:;
 		if (skip) {
 			printf("[in skip mode...]\n");
-			if (op == ct) is_compiletime = true;
+			if (op == cte) is_compiletime = true;
 			else if (op == attr) goto execute_attr;
 			else if (values[op].value == skip) goto push_name; 
 			goto next;
 		}
 		
 		     if (op == def)   defining = true;
-		else if (op == ct)    is_compiletime = true;
+		else if (op == cte)   is_compiletime = true;
 		else if (op == drop)  arg_count--;
 		else if (op == dup_)  arguments[arg_count++] = a0;
 		else if (op == over)  arguments[arg_count++] = a1;
 		else if (op == third) arguments[arg_count++] = a2;
-		else if (op == ctstrlen) array[a0.value] = strlen(default_string);
+
 		else if (op == swap) {
 			arguments[arg_count - 1] = a1;
 			arguments[arg_count - 2] = a0;
@@ -1222,8 +1176,7 @@ int main(int argc, const char** argv) {
 			arguments[arg_count - 1].count = count;
 
 		} else {
-			if (op == ecall or op == makestring) {}
-
+			if (op == ecall) {}
 			else if (op == ecm or op == jalr or op == jal) { 
 				if (arg_count < 2) goto er; arg_count -= 2; 
 
@@ -1262,14 +1215,13 @@ int main(int argc, const char** argv) {
 						: "generating runtime",
 					a0.value, a0.start, a0.count, spelling[op], a1.value, a1.start, a1.count, a2.value, a2.start, a2.count
 				);
-
 			}
-
 
 			if (is_compiletime) { 
 				is_compiletime = false;
 				nat d = a0.value, r = a1.value, s = a2.value;
 				if (op == auipc) array[d] = index + r;
+				else if (op == stl)   memcpy((uint8_t*) array[a0.value], text + array[a1.value], array[a2.value]);
 				else if (op == addi)  array[d] = array[r] + s;
 				else if (op == slti)  array[d] = array[r] < s;
 				else if (op == iori)  array[d] = array[r] | s;
@@ -1288,6 +1240,15 @@ int main(int argc, const char** argv) {
 				else if (op == sll)   array[d] = array[r] << array[s];
 				else if (op == srl)   array[d] = array[r] >> array[s];
 				else if (op == sra)   array[d] = array[r] >> array[s];
+
+				else if (op == ldb)   array[d] = *( u8*)(array[r] + s);
+				else if (op == ldh)   array[d] = *(u16*)(array[r] + s);
+				else if (op == ldw)   array[d] = *(u32*)(array[r] + s);
+				else if (op == ldd)   array[d] = *(nat*)(array[r] + s);
+				else if (op == stb)   *( u8*)(array[d] + r) = ( u8)array[s];
+				else if (op == sth)   *(u16*)(array[d] + r) = (u16)array[s];
+				else if (op == stw)   *(u32*)(array[d] + r) = (u32)array[s];
+				else if (op == std)   *(nat*)(array[d] + r) = (nat)array[s];
 
 				else if (op == blt)  { if (array[d] <  array[r]) { jump: if (array[s]) index = array[s]; else skip = s; } } 
 				else if (op == bge)  { if (array[d] >= array[r]) goto jump; } 
@@ -1317,27 +1278,32 @@ int main(int argc, const char** argv) {
 					else if (d == 7) print_instructions();
 					else if (d == 8) print_registers();
 					else if (d == 9) print_arguments(arguments, arg_count);
+					else if (d == 10) dump_hex((uint8_t*) array[2], 4096);
 					else {
 						snprintf(reason, sizeof reason, "unknown ct ecall number %llu", d);
 						print_message(error, reason, index - count, count);
 						exit(1);
 					}
-
 				} else { 
 					puts("error: internal ct execute error"); 
 					abort(); 
 					er: print_message(error, "insufficient arguments for instruction", start, count);
 					exit(1);
 				}
-
 			} else {
-				ins = realloc(ins, sizeof(struct instruction) * (ins_count + 1));
-				ins[ins_count++] = (struct instruction) {
+				struct instruction new = {
 					.size = ins_size(op, architecture),
 					.a =     {   op, a0.value, a1.value, a2.value},
 					.start = {start, a0.start, a1.start, a2.start},
 					.count = {count, a0.count, a1.count, a2.count},
 				};
+				if (op == ecm) {
+					new.a[1] = array[a0.value];
+					new.a[2] = array[a1.value];
+					new.size = array[a1.value];
+				}
+				ins = realloc(ins, sizeof(struct instruction) * (ins_count + 1));
+				ins[ins_count++] = new;
 			}
 		}
 		next: count = 0;
@@ -2534,5 +2500,32 @@ arc def four drop drop
 
 
 // static const char zero_digit = '0', one_digit = '1', seperator_digit = '/';
+
+
+/* 
+
+programmers api:
+
+
+	BYTE_COUNT CTM_POINTER ecm
+
+	END_INDEX BEGIN_INDEX CTM_DEST_ADDR stl
+
+
+----------------------------------------------
+
+
+
+
+static const char* default_string = "hello there from space!\nthis is a test. yay!\n";
+
+
+
+
+*/	
+
+
+
+
 
 
