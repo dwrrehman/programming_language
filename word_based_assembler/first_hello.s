@@ -75,8 +75,6 @@ ten 	def 10	def arg0   def newline drop
 eleven 	def 11	def arg1 drop
 twelve 	def 12	def arg2 drop
 
-
-
 1	def ct_exit		drop
 2	def ct_print def debug  drop
 3	def ct_abort		drop
@@ -107,9 +105,7 @@ arc def 66 def "B" drop
 0 dup 5 cte add drop
 
 
-
 0 dup -------------------user.code.starts.here!------------------------ drop
-
 
 
 3 def string_begin drop
@@ -152,7 +148,6 @@ string_end string_begin cte jal ......(this is an empty string)....
 string_begin string_end byte_count2 cte sub
 string_begin pointer cte stl drop
 byte_count2 pointer dup cte add drop
-
 
 1 0 arg0 addi drop
 my_string arg1 auipc drop

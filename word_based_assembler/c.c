@@ -25,6 +25,25 @@
 
 
 
+/*
+
+remaining features:
+
+	- double check all forwards/backwards branches behavior
+
+	- add bne,beq,bge,blt
+
+	- add ld's and st's for arm64 backend
+
+	- get mulitple files working, to include stdlib's foundation file, which creates constants. 
+
+	- 
+	
+
+
+*/
+
+
 #define CPU_SUBTYPE_ARM64_ALL 0
 #define CPU_TYPE_ARM  12
 #define CPU_ARCH_ABI64  0x01000000 
