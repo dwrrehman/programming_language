@@ -105,7 +105,7 @@ arc def 66 def "B" drop
 0 dup 5 cte add drop
 
 
-0 dup -------------------user.code.starts.here!------------------------ drop
+0 def -------------------user.code.starts.here!------------------------ drop
 
 
 3 def string_begin drop
