@@ -1,8 +1,8 @@
 def zero
-zero cte attr 
+zero cte attr
 arc def nonzero
 zero dup dup cte eor
-nonzero zero over cte addi 
+nonzero zero over cte addi
 drop over cte slt 
 arc def one drop 
 zero dup nonzero cte add drop
@@ -10,7 +10,7 @@ one dup dup cte addi drop
 one dup dup cte addi 
 arc def two drop
 zero dup one cte addi drop
-
+	
 two zero dup cte addi 
 one swap dup cte addi 
 arc def three drop
@@ -105,6 +105,8 @@ arc def 66 def "B" drop
 0 dup 5 cte add drop
 
 
+
+
 0 def -------------------user.code.starts.here!------------------------ drop
 
 
@@ -117,6 +119,7 @@ arc def 66 def "B" drop
 9 def byte_count2 drop
 
 0 sp pointer cte add drop
+
 string_end string_begin cte jal Hello there from space!
 this is my document, basically, i am going to try to write as many characters as i want into this string, and see if we are able to actually write it out lol.
 
@@ -165,15 +168,22 @@ ecall
 1 0 function addi drop
 ecall
 
+
+
 0 sp pointer cte add
-my_string attr drop 
+my_string attr drop
 byte_count swap ecm
 byte_count pointer dup cte add
 my_string2 attr drop 
 byte_count2 swap ecm
 byte_count2 pointer dup cte add
 
+
+
+
+
 ct_exit 0 function cte addi drop cte ecall
+
 
 
 ------------------------------------------
@@ -189,6 +199,15 @@ ct_exit 0 function cte addi drop cte ecall
 
 
 
+	.0101 .1100 .
+
+
+	s = 1;   r = 0;
+
+		
+	r += 10 * s; s <<= 4;
+
+	r += 3 * s; s <<= 4;
 
 
 
@@ -199,13 +218,29 @@ ct_exit 0 function cte addi drop cte ecall
 
 
 
+0 0 arg0 addi drop
+1 0 function addi drop
+ecall
 
 
 
 
 
+ct_exit 0 function cte addi drop cte ecall
 
 
+
+
+	"dup", "over", "third", "drop", "swap", "rot",
+	"def", "arc", "cte", "attr", 
+
+	"add", "addi", "sub", "slt", "slti", "slts", "sltis", 
+	"and", "andi", "ior", "iori", 
+	"eor", "eori",  "sll", "slli",  "srl", "srli","sra", "srai", 
+	"blt", "blts", "bge", "bges", "bne", "beq", 
+	"ldb", "ldh", "ldw", "ldd", "stb", "sth", "stw", "std", 
+	"mul", "mulh", "mulhs", "div", "divs", "rem", "rems", 
+	"jalr", "jal", "auipc", "ecall", "ecm", "stl",
 
 
 

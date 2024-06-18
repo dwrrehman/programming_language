@@ -831,7 +831,6 @@ static void generate_arm64_machine_code(void) {
 		else if (op == srli)   generate_srli(a[0], a[1], a[2], 0x26U, 2, 1, this);
 		else if (op == srai)   generate_srli(a[0], a[1], a[2], 0x26U, 0, 1, this);
 
-
 		else if (op == div_)   generate_adc(a[0], a[1], a[2], 0xD6, 2, 1, 0, 0, this);
 		else if (op == divs)   generate_adc(a[0], a[1], a[2], 0xD6, 3, 1, 0, 0, this);
 		else if (op == mulh)   generate_adc(a[0], a[1], a[2], 0xDE, 31, 1, 0, 0, this);
