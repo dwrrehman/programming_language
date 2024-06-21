@@ -1,31 +1,44 @@
-// my assembler: written on 202405304.122455 by dwrr.
+// rewritten on 202406215.012903: word based, but simpler stage structure
+//  and simpler system of doing strings and comments.
+
+// old: my assembler: written on 202405304.122455 by dwrr.
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <iso646.h>
 #include <stdbool.h>
 #include <stdint.h>
-#include <fcntl.h>
-#include <unistd.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
 #include <unistd.h>
 #include <sys/stat.h>
 #include <fcntl.h>
-#include <stdint.h>
-#include <stdbool.h>
-#include <iso646.h>
 #include <ctype.h>
 #include <errno.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <sys/mman.h>
 #include <stdnoreturn.h>
-
-
-
+ 
 /*
+
+
+
+	- implement 3 stages:
+
+		- parsing/lexing:   names, def, strings, comments, ins op codes, [add a name-push instruction to get args?]
+					wait... how do we do arc.... CRAPPPPP
+
+		- compiletime interpretting:    execute rt instructions, and regenerate rt ins
+
+		- code generation / byte emmision / instruction selection  on rt instructions, according to arch/target
+
+
+
+
+
+
+
+
+
 
 
 
@@ -186,7 +199,7 @@ static const char* output_format_spelling[output_format_count] = {
 	"macho_objectfile", "macho_executable"
 };
 
-enum host_systems { use_linux, use_macos };
+enum host_systems { host_linux, host_macos };
 
 static u32 arm64_macos_abi[] = {        // note:  x9 is call-clobbered. save it before calls. 
 	31,30,31,13,14,15, 7,17,
@@ -196,28 +209,28 @@ static u32 arm64_macos_abi[] = {        // note:  x9 is call-clobbered. save it 
 };
 
 enum language_isa {
-	dup_, over, third, drop, swap, rot, 
-	def, arc, cte, attr, 
+	cbeg, cend, push_arg, dup_, over, back, drop, 
+	swap, def, arc, comp, attr, 
 	add, addi, sub, slt, slti, slts, sltis, 
 	and_, andi, ior, iori, 
 	eor, eori, sll, slli,  srl, srli, sra, srai, 
 	blt, blts, bge, bges, bne, beq, 
 	ldb, ldh, ldw, ldd, stb, sth, stw, std, 
 	mul, mulh, mulhs, div_, divs, rem, rems, 
-	jalr, jal, auipc, ecall, ecm, stl,
+	jalr, jal, aipc, ecall, ecm, stl,
 	isa_count
 };
 
 static const char* spelling[isa_count] = {
-	"dup", "over", "third", "drop", "swap", "rot",
-	"def", "arc", "cte", "attr", 
+	"cbeg", "cend", "push_arg", "dup", "over", "back", "drop", 
+	"swap", "def", "arc", "comp", "attr", 
 	"add", "addi", "sub", "slt", "slti", "slts", "sltis", 
 	"and", "andi", "ior", "iori", 
-	"eor", "eori",  "sll", "slli",  "srl", "srli","sra", "srai", 
+	"eor", "eori", "sll", "slli", "srl", "srli", "sra", "srai", 
 	"blt", "blts", "bge", "bges", "bne", "beq", 
 	"ldb", "ldh", "ldw", "ldd", "stb", "sth", "stw", "std", 
 	"mul", "mulh", "mulhs", "div", "divs", "rem", "rems", 
-	"jalr", "jal", "auipc", "ecall", "ecm", "stl",
+	"jalr", "jal", "aipc", "ecall", "ecm", "stl",
 };
 
 struct argument {
@@ -232,6 +245,13 @@ struct instruction {
 	nat count[4];
 	nat size;
 };
+
+struct ct_instruction {
+	nat op;
+	nat ct;
+	nat start;
+	nat count;
+}
  
 struct file {
 	nat start;
@@ -592,7 +612,7 @@ static void generate_riscv_machine_code(void) {
 		else if (op == std)      s_type(a, 0x23, 0x3, this);
 
 		// else if (op == lui)  u_type(a, 0x37, this);
-		else if (op == auipc)   u_type(a, 0x17, this);
+		else if (op == aipc)   u_type(a, 0x17, this);
 		else if (op == jal)     j_type(i, a, 0x6F, this);
 
 		else {
@@ -869,7 +889,7 @@ static void generate_arm64_machine_code(void) {
 
 		// else if (op == mul)    generate_umaddl(a[0], a[1], a[2], 0xDE, 31, 1, 0, 0, this);
 
-		else if (op == auipc)  generate_adr(a[0], 0x10, 0, a[1], i, this);
+		else if (op == aipc)  generate_adr(a[0], 0x10, 0, a[1], i, this);
 
 		else if (op == add)    generate_add(a[0], a[1], a[2], 0x0BU, 0, 1, 0, 0, 0, this);
 		else if (op == ior)    generate_add(a[0], a[1], a[2], 0x2AU, 0, 1, 0, 0, 0, this);
@@ -1121,37 +1141,27 @@ int main(int argc, const char** argv) {
 	fwrite(text, 1, text_length, stdout);
 	puts(">>>");
 
-	array = calloc(ct_array_count, sizeof(nat));
-	array[2] = (nat) (void*) calloc(ct_memory_count, sizeof(nat));
-
 	files[file_count].name = filename;
 	files[file_count].count = text_length;
 	files[file_count++].start = 0;
 
 	bool defining = 0, is_compiletime = 0;
-	nat skip = 0, start = 0, count = 0;
-
-	nat stack_size = 0x1000000;
-	nat architecture = arm64;
-	nat output_format = macho_executable;
-	bool preserve_existing_object = false;
-	bool preserve_existing_executable = false;
-	const char* object_filename = "object0.o";
-	const char* executable_filename = "executable0.out";
+	nat start = 0, count = 0;
+	nat runtime_instruction_count = 0;
+	struct ct_instruction ct_ins[4096] - {0};
+	nat ct_ins_count = 0;
 
 	for (nat index = 0; index < text_length; index++) {
 		if (not isspace(text[index])) {
 			if (not count) start = index;
 			count++; continue;
 		} else if (not count) continue;
-	process:;
-		printf("found word at %llu:%llu... \"%.*s\"\n",  start, count, (int) count, text + start);
-		struct argument a0 = arg_count > 0 ? arguments[arg_count - 1] : (struct argument){0};
-		struct argument a1 = arg_count > 1 ? arguments[arg_count - 2] : (struct argument){0};
-		struct argument a2 = arg_count > 2 ? arguments[arg_count - 3] : (struct argument){0};
 
-		compact_print_arguments(arguments, arg_count);
+	process:;
+		printf("found word at %llu:%llu... \"%.*s\"\n",  
+			start, count, (int) count, text + start);
 		char* word = strndup(text + start, count);
+
 		nat op = 0;
 		for (nat n = 0; n < name_count; n++) {
 			if (not strcmp(names[n], word)) {
@@ -1164,7 +1174,6 @@ int main(int argc, const char** argv) {
 				op = n; goto process_word;
 			}
 		}
-		if (skip) goto next;
 		if (not defining) {
 			snprintf(reason, sizeof reason, "undefined word \"%s\"", word);
 			print_message(error, reason, start, count);
@@ -1178,55 +1187,102 @@ int main(int argc, const char** argv) {
 		goto next;
 
 	process_word:;
-		if (skip) {
-			printf("[in skip mode...]\n");
-			if (op == cte) is_compiletime = true;
-			else if (op == attr) goto execute_attr;
-			else if (values[op].value == skip) goto push_name; 
-			goto next;
-		}
-		
-		     if (op == def)   defining = true;
-		else if (op == cte)   is_compiletime = true;
-		else if (op == drop)  arg_count--;
-		else if (op == dup_)  arguments[arg_count++] = a0;
-		else if (op == over)  arguments[arg_count++] = a1;
-		else if (op == third) arguments[arg_count++] = a2;
 
-		else if (op == swap) {
-			arguments[arg_count - 1] = a1;
-			arguments[arg_count - 2] = a0;
 
-		} else if (op == rot) {
-			arguments[arg_count - 1] = a2;
-			arguments[arg_count - 2] = a0;
-			arguments[arg_count - 3] = a1;
 
-		} else if (op == arc) {
-			printf("executing arc(%llu), replaced with %llu...\n", a0.value, array[a0.value]); 
-			arguments[arg_count - 1].value = array[a0.value]; 
-			arguments[arg_count - 1].start = start;
-			arguments[arg_count - 1].count = count;
 
-		} else if (op == attr) {
-			execute_attr: 
-			printf("executing attr(--> %llu)...\n", a0.value);
-			array[a0.value] = is_compiletime ? index : ins_count;
-			printf("loaded array[%llu] with the value %llu...\n", a0.value, array[a0.value]);
-			if (skip == a0.value) skip = 0;
-			is_compiletime = false;
 
-		} else if (op >= isa_count) {
-			push_name:
+		if (op >= isa_count) {
+			
 			printf("\033[31mpushing name %s\033[0m, pushing value %llu on the stack..\n", 
 				names[op], values[op].value);
 
-			arguments[arg_count++] = values[op];
-			arguments[arg_count - 1].start = start;
-			arguments[arg_count - 1].count = count;
 
-		} else {
-			if (op == ecall) {}
+			ct_ins[ct_ins_count++] = (struct ct_instruction) {
+				.op = push_arg,
+				.ct = values[op].value,
+				.start = start, 
+				.count = count,
+			};
+
+
+			
+
+
+		} else if (op < isa_count) 
+			ct_ins[ct_ins_count++] = (struct ct_instruction) {
+				.op = op,
+				.ct = is_compiletime,
+				.start = start, 
+				.count = count,
+			};
+		
+
+
+
+		next: count = 0;
+	}
+	if (count) goto process;
+
+
+
+
+
+
+
+
+
+	nat stack_size = 0x1000000;
+	nat architecture = arm64;
+	nat output_format = macho_executable;
+	bool preserve_existing_object = false;
+	bool preserve_existing_executable = false;
+	const char* object_filename = "object0.o";
+	const char* executable_filename = "executable0.out";
+
+
+
+	array = calloc(ct_array_count, sizeof(nat));
+	array[2] = (nat) (void*) calloc(ct_memory_count, sizeof(nat));
+
+
+
+
+
+
+	// stage two: ct system:
+
+	// ct_ins_count and ct_ins will be set to an array of instructions that we can process/execute now!
+
+	for (nat i = 0; i < ct_ins_count; i++) {
+
+		printf("processing instruction #%llu: [%llu : %llu %llu %llu]\n",
+			 i, ins[i].a[0], ins[i].a[0], ins[i].a[0], ins[i].a[0]
+		);
+
+
+		abort();
+
+
+
+
+
+
+
+
+
+		struct argument a0 = arg_count > 0 ? arguments[arg_count - 1] : (struct argument){0};
+		struct argument a1 = arg_count > 1 ? arguments[arg_count - 2] : (struct argument){0};
+		struct argument a2 = arg_count > 2 ? arguments[arg_count - 3] : (struct argument){0};
+
+		compact_print_arguments(arguments, arg_count);
+
+
+
+
+
+
+	if (op == ecall) {}
 			else if (op == ecm or op == jalr or op == jal) { 
 				if (arg_count < 2) goto er; arg_count -= 2; 
 
@@ -1234,7 +1290,7 @@ int main(int argc, const char** argv) {
 				   op == beq or op == blts or op == bges) { 
 				if (arg_count < 3) goto er; arg_count -= 3; 
 			
-			} else if (op == auipc) { 
+			} else if (op == aipc) { 
 				if (arg_count < 2) goto er; arg_count -= 2; 
 				arguments[arg_count++] = a0;
 
@@ -1267,10 +1323,39 @@ int main(int argc, const char** argv) {
 				);
 			}
 
-			if (is_compiletime) { 
-				is_compiletime = false;
-				nat d = a0.value, r = a1.value, s = a2.value;
-				if (op == auipc) array[d] = index + r;
+
+
+
+
+
+		
+		     if (op == def)   defining = true;
+		else if (op == comp)  is_compiletime ^= 1;
+		else if (op == drop)  arg_count--;
+		else if (op == dup_)  arguments[arg_count++] = a0;
+		else if (op == over)  arguments[arg_count++] = a1;
+		else if (op == back)  arguments[arg_count++] = a2;
+
+		else if (op == swap) {
+			arguments[arg_count - 1] = a1;
+			arguments[arg_count - 2] = a0;
+
+		} else if (op == arc) {
+			printf("executing arc(%llu), replaced with %llu...\n", a0.value, array[a0.value]); 
+			arguments[arg_count - 1].value = array[a0.value]; 
+			arguments[arg_count - 1].start = start;
+			arguments[arg_count - 1].count = count;
+
+		} else if (op == attr) {
+			
+			printf("executing attr(--> %llu)...\n", a0.value);
+			array[a0.value] = is_compiletime ? index : ins_count;
+			printf("loaded array[%llu] with the value %llu...\n", a0.value, array[a0.value]);
+
+
+
+nat d = a0.value, r = a1.value, s = a2.value;
+				if (op == aipc) array[d] = index + r;
 				else if (op == stl)   memcpy((uint8_t*) array[a0.value], text + array[a1.value], array[a2.value]);
 				else if (op == addi)  array[d] = array[r] + s;
 				else if (op == slti)  array[d] = array[r] < s;
@@ -1309,6 +1394,9 @@ int main(int argc, const char** argv) {
 				else if (op == jalr) { if (d) array[d] = index; index = array[r]; } 
 				else if (op == jal) { if (d) array[d] = index; if (array[r]) index = array[r]; else skip = r; } 
 
+
+ 
+
 				else if (op == ecall) {
 					d = array[17]; r = array[10];
 
@@ -1340,6 +1428,18 @@ int main(int argc, const char** argv) {
 					er: print_message(error, "insufficient arguments for instruction", start, count);
 					exit(1);
 				}
+
+
+
+
+
+
+
+
+
+
+
+
 			} else {
 				struct instruction new = {
 					.size = ins_size(op, architecture),
@@ -1356,9 +1456,22 @@ int main(int argc, const char** argv) {
 				ins[ins_count++] = new;
 			}
 		}
-		next: count = 0;
+
+
+
+
+
+
+
 	}
-	if (count) goto process;
+
+
+
+
+
+
+
+
 	
 	printf("processing the text now...\n");
 	puts("DONE: finished assembling program.");
@@ -1504,6 +1617,198 @@ int main(int argc, const char** argv) {
 
 
 /*
+
+
+
+202406215.021857:
+in process word   in lexing, 
+
+
+
+// note: this stage also implements call-on-used semantics here too, by just generating a runtime/compiletime jalr ra <r> instruction when we see a name. if not call on use, (which is a bit you set for a given name)  then we just generate a push_argument instruction instead, which just takes a single number as argument, and pushes it onto the stack. 
+
+
+				// i think an arc instruction is actually a ct ins too..
+
+
+				// in fact, we can't hard code the arguments to any of these instructions,  which means that the master ins array is the rt array, and we need to make a new array for the ct instructions. which will just be an array of nats actually!!   or rather, i guess arguments because we need the source locations of these words lololololol idk  yeah probably 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+			if (is_compiletime) { 
+
+ 
+
+				else if (op == ecall) {
+					d = array[17]; r = array[10];
+
+					if (d == 1) { count = 0; break; }
+
+					else if (d == 2) {
+						snprintf(reason, sizeof reason, "%lld (0x%016llx)", r, r);
+						print_message(user, reason, start, count);
+
+					} else if (d == 3) {     // ctabort(); for debugging.
+						abort();
+					}
+
+					else if (d == 4) array[10] = (nat) getchar();
+					else if (d == 5) putchar((char) r);
+					else if (d == 6) print_dictionary(names, values, name_count);
+					else if (d == 7) print_instructions();
+					else if (d == 8) print_registers();
+					else if (d == 9) print_arguments(arguments, arg_count);
+					else if (d == 10) dump_hex((uint8_t*) array[2], 4096);
+					else {
+						snprintf(reason, sizeof reason, "unknown ct ecall number %llu", d);
+						print_message(error, reason, index - count, count);
+						exit(1);
+					}
+				} else { 
+					puts("error: internal ct execute error"); 
+					abort(); 
+					er: print_message(error, "insufficient arguments for instruction", start, count);
+					exit(1);
+				}
+			} else {
+				struct instruction new = {
+					.size = ins_size(op, architecture),
+					.a =     {   op, a0.value, a1.value, a2.value},
+					.start = {start, a0.start, a1.start, a2.start},
+					.count = {count, a0.count, a1.count, a2.count},
+				};
+				if (op == ecm) {
+					new.a[1] = array[a0.value];
+					new.a[2] = array[a1.value];
+					new.size = array[a1.value];
+				}
+				ins = realloc(ins, sizeof(struct instruction) * (ins_count + 1));
+				ins[ins_count++] = new;
+			}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+				nat d = a0.value, r = a1.value, s = a2.value;
+				if (op == aipc) array[d] = index + r;
+				else if (op == stl)   memcpy((uint8_t*) array[a0.value], text + array[a1.value], array[a2.value]);
+				else if (op == addi)  array[d] = array[r] + s;
+				else if (op == slti)  array[d] = array[r] < s;
+				else if (op == iori)  array[d] = array[r] | s;
+				else if (op == eori)  array[d] = array[r] ^ s;
+				else if (op == andi)  array[d] = array[r] & s;
+				else if (op == slli)  array[d] = array[r] << s;
+				else if (op == srli)  array[d] = array[r] >> s;
+				else if (op == srai)  array[d] = array[r] >> s;
+				else if (op == add)   array[d] = array[r] + array[s];
+				else if (op == sub)   array[d] = array[r] - array[s];
+				else if (op == ior)   array[d] = array[r] | array[s];
+				else if (op == eor)   array[d] = array[r] ^ array[s];
+				else if (op == and_)  array[d] = array[r] & array[s];
+				else if (op == slt)   array[d] = array[r] < array[s];
+				else if (op == slts)  array[d] = array[r] < array[s];
+				else if (op == sll)   array[d] = array[r] << array[s];
+				else if (op == srl)   array[d] = array[r] >> array[s];
+				else if (op == sra)   array[d] = array[r] >> array[s];
+
+				else if (op == ldb)   array[d] = *( u8*)(array[r] + s);
+				else if (op == ldh)   array[d] = *(u16*)(array[r] + s);
+				else if (op == ldw)   array[d] = *(u32*)(array[r] + s);
+				else if (op == ldd)   array[d] = *(nat*)(array[r] + s);
+				else if (op == stb)   *( u8*)(array[d] + r) = ( u8)array[s];
+				else if (op == sth)   *(u16*)(array[d] + r) = (u16)array[s];
+				else if (op == stw)   *(u32*)(array[d] + r) = (u32)array[s];
+				else if (op == std)   *(nat*)(array[d] + r) = (nat)array[s];
+
+				else if (op == blt)  { if (array[d] <  array[r]) { jump: if (array[s]) index = array[s]; else skip = s; } } 
+				else if (op == bge)  { if (array[d] >= array[r]) goto jump; } 
+				else if (op == bne)  { if (array[d] != array[r]) goto jump; } 
+				else if (op == beq)  { if (array[d] == array[r]) goto jump; } 
+				else if (op == blts) { if (array[d] <  array[r]) goto jump; } 
+				else if (op == bges) { if (array[d] >= array[r]) goto jump; }
+				else if (op == jalr) { if (d) array[d] = index; index = array[r]; } 
+				else if (op == jal) { if (d) array[d] = index; if (array[r]) index = array[r]; else skip = r; }
+
+
+
+
+
+
+
+
+
+
+
+
+if (skip) {
+			printf("[in skip mode...]\n");
+			if (op == comp) is_compiletime = not;
+			else if (op == attr) goto execute_attr;
+			else if (values[op].value == skip) goto push_name; 
+			goto next;
+		}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+		} else if (op == rot) {
+			arguments[arg_count - 1] = a2;
+			arguments[arg_count - 2] = a0;
+			arguments[arg_count - 3] = a1;
+
+
+
+
+
+
 	i think i am actaully going to make binary constants in the language simply use:
 
 
