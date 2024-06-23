@@ -1,3 +1,9 @@
+// a simpler version of the language: 202406237.022917: dwrr 
+// ...made a tonnnn more simpler without a ct system or arg stack, 
+//  so that the isa is just the riscv isa plus the label attribution ins.
+// very cool so far
+
+// old
 // rewritten on 202406215.012903: word based, but simpler stage structure
 //  and simpler system of doing strings and comments.
 
@@ -368,25 +374,34 @@ static const char* spelling[isa_count] = {
 };
 
 
-
-
 enum compiletime_variables {
-
 	var_zero,
+	var_ra,
+	var_sp,
+	var_argn,
+	var_arg0,
+	var_arg1,
+	var_arg2,
+	var_arg3,
+	var_arg4,
+	var_arg5,
 	var_stacksize,
-
 	variable_count	
 };
 
-
-
 static const char* variable_spelling[variable_count] = {
 	"zero",
+	"ra",
+	"sp",
+	"argn",
+	"arg0",
+	"arg1",
+	"arg2",
+	"arg3",
+	"arg4",
+	"arg5",
 	"stacksize",
 };
-
-
-
 
 
 struct instruction { 
@@ -1206,7 +1221,10 @@ static void make_macho_object_file(void) {
 
 static void execute_instructions(nat* label) {
 
-	nat reg[1 << 16] = {0};
+	const nat z = isa_count + var_zero;
+
+	nat reg[1 << 16];
+	reg[isa_count + var_sp] = (nat) (void*) calloc(1 << 16, 1);
 
 	for (nat pc = 0; pc < ins_count; pc++) {
 
@@ -1252,21 +1270,33 @@ static void execute_instructions(nat* label) {
 		else if (op == beq)   { if (reg[d] == reg[r]) pc = label[s]; }
 		else if (op == blts)  { if (reg[d] <  reg[r]) pc = label[s]; }
 		else if (op == bges)  { if (reg[d] >= reg[r]) pc = label[s]; }
-		else if (op == jalr)  { if (d != var_zero) reg[d] = pc; pc = reg[s]; } 
-		else if (op == jal)   { if (d != var_zero) reg[d] = pc; pc = label[s]; } 
+		else if (op == jalr)  { if (d != z) reg[d] = pc; pc = reg[s]; } 
+		else if (op == jal)   { if (d != z) reg[d] = pc; pc = label[s]; } 
 
 		else if (op == ecall) {
-			const nat d = reg[17];
-			const nat r = reg[10];
+			const nat a0 = reg[isa_count + var_arg0];
+			const nat a1 = reg[isa_count + var_arg1];
+			const nat a2 = reg[isa_count + var_arg2];
+			//const nat a3 = reg[isa_count + var_arg3];
+			//const nat a4 = reg[isa_count + var_arg4];
+			//const nat a5 = reg[isa_count + var_arg5];
+			const nat n = reg[isa_count + var_argn];
 
-			if (d == 2) {
-				snprintf(reason, sizeof reason, "%lld (0x%016llx)", r, r);
+			if (n == 0) {
+				snprintf(reason, sizeof reason, "%lld (0x%016llx)", a0, a0);
 				print_message(user, reason, ins[pc].start[0], ins[pc].count[0]);
-			} else if (d == 3) abort();
-			else if (d == 4) reg[10] = (nat) getchar();
-			else if (d == 5) putchar((char) r);
+			} 
+
+			else if (n == 1) exit((int) a0);
+			else if (n == 2) fork();
+			else if (n == 3) read((int) a0, (void*) a1, (size_t) a2);
+			else if (n == 4) write((int) a0, (void*) a1, (size_t) a2);
+			else if (n == 5) open((const char*) a0, (int) a1, (int) a2);	
+			else if (n == 6) close((int) a0);
+			else if (n == 59) execve((char*) a0, (char**) a1, (char**) a2);
+			
 			else {
-				snprintf(reason, sizeof reason, "unknown ct ecall number %llu", d);
+				snprintf(reason, sizeof reason, "unknown ct ecall number %llu", n);
 				print_message(error, reason, ins[pc].start[0], ins[pc].count[0]);
 				exit(1);
 			}
@@ -1328,6 +1358,7 @@ int main(int argc, const char** argv) {
 	push: 	if (n < isa_count) {
 			ins_count++;
 			ins = realloc(ins, sizeof(struct instruction) * (ins_count + 1));
+			ins[ins_count] = (struct instruction) {0};
 			a = 0;
 		} 
 
@@ -1429,6 +1460,83 @@ int main(int argc, const char** argv) {
 		system("objdump executable0.out -DSast --disassembler-options=no-aliases");
 	}
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
