@@ -92,7 +92,36 @@
 
 
 
-					is there a functionally any difference between 			
+					is there a functionally any difference between     the optimizer running something   because its statically known    and the user saying that they want something run  becuase they set the ct bit?                   NO. theres not. 
+
+
+									theres no difference, and there shouldnt be a difference.   we should prefer and only supply the first method.    delete the second. 
+
+
+
+yay
+
+
+
+
+
+							ie, this is now a   2 main passes   assembler-     	parsing, which does label attribution, and word parsing, 
+
+
+									and instruction generation, 
+
+
+
+
+
+
+
+					with an analysis and optimization phase in the middle!!!
+
+
+
+
+								which allows staticaly known ct computation to happen.   YAYYY
 
 
 
@@ -104,7 +133,7 @@
 
 
 
-
+old:
 
 
 	- implement 3 stages:
@@ -123,7 +152,7 @@
 
 
 
-
+old:
 
 
 
@@ -157,7 +186,7 @@
 
 
 
-
+old:
 remaining features:
 
 	- double check all forwards/backwards branches behavior
@@ -291,7 +320,7 @@ static u32 arm64_macos_abi[] = {        // note:  x9 is call-clobbered. save it 
 
 enum language_isa {
 
-	comp, set, att, ecm, ecall,
+	att, ecall,
 
 	add, addi, sub, 
 	slt, slti, slts, sltis, 
@@ -311,26 +340,26 @@ enum language_isa {
 
 isa_count};
 
+
 static const char* spelling[isa_count] = {
 
-	comp, set, att, ecm, ecall,
+	"att", "ecall",
 
-	add, addi, sub, 
-	slt, slti, slts, sltis, 
+	"add", "addi", "sub", 
+	"slt", "slti", "slts", "sltis", 
 
-	and_, andi, ior, iori, eor, eori, 
-	sll, slli, srl, srli, sra, srai, 
+	"and_", "andi", "ior", "iori", "eor", "eori", 
+	"sll", "slli", "srl", "srli", "sra", "srai", 
 
-	ldb, ldh, ldw, ldd, 
-	stb, sth, stw, std, 
+	"ldb", "ldh", "ldw", "ldd", 
+	"stb", "sth", "stw", "std", 
 
-	mul, mulh, mulhs, 
-	div_, divs, 
-	rem, rems, 
+	"mul", "mulh", "mulhs", 
+	"div_", "divs", 
+	"rem", "rems", 
 
-	blt, blts, bge, bges, bne, beq,   
-
-	jalr, jal, aipc,
+	"blt", "blts", "bge", "bges", "bne", "beq",   
+	"jalr", "jal", "aipc",
 };
 
 struct instruction { 
@@ -599,6 +628,21 @@ static void u_type(nat* a, nat o, struct instruction this) {
 	emitw( (a[1] << 12U) | (a[0] << 7U) | o);
 }
 
+static nat ins_size(nat op, nat target) {
+
+	if (target == arm64) {
+		if (	op == slt or  op == slts or 
+			op == blt or  op == bge or 
+			op == bne or  op == beq or 
+			op == blts or op == bges
+		) return 8; 
+		return 4;
+	} else {
+		puts("that target is not supported yet...");
+		abort();
+	}
+}
+
 static nat calculate_offset(nat here, nat label, struct instruction this) {
 	printf("calculate_offset: called using here=%llu, label=%llu...\n", here, label);
 	nat offset = 0;
@@ -609,7 +653,7 @@ static nat calculate_offset(nat here, nat label, struct instruction this) {
 				print_message(error, "invalid label given to a branching instruction", this.start[0], this.count[0]);
 				exit(1);
 			}
-			offset -= ins[i].size;
+			offset -= ins_size(ins[i].a[0]);
 		}
 	} else {
 		printf("forwards branch...\n");
@@ -618,7 +662,7 @@ static nat calculate_offset(nat here, nat label, struct instruction this) {
 				print_message(error, "invalid label given to a branching instruction", this.start[0], this.count[0]);
 				exit(1);
 			}
-			offset += ins[i].size;
+			offset += ins_size(ins[i].a[0]);
 		}
 	}
 	printf("output: found an offset of %llu bytes.\n", offset);
@@ -1116,20 +1160,7 @@ static void make_macho_object_file(const char* object_filename, const bool prese
 	close(file);
 }
 
-static nat ins_size(nat op, nat target) {
 
-	if (target == arm64) {
-		if (	op == slt or  op == slts or 
-			op == blt or  op == bge or 
-			op == bne or  op == beq or 
-			op == blts or op == bges
-		) return 8; 
-		return 4;
-	} else {
-		puts("that target is not supported yet...");
-		abort();
-	}
-}
 
 static void print_source_instruction_mappings(void) {
 
@@ -1230,9 +1261,27 @@ int main(int argc, const char** argv) {
 
 	nat name_count = 0, top = 0,
 	char* names[4096] = {0};
+
+
+
 	struct instruction operations[4096] = {
 		{.a = {add,0,0,0}}
 	};
+
+
+
+			struct instruction 
+			ins = realloc(ins, sizeof(struct instruction) * (ins_count + 1));
+			ins[ins_count++] = new = {
+				.size = ins_size(op, architecture),
+				.a =     {   op, a0.value, a1.value, a2.value},
+				.start = {start, a0.start, a1.start, a2.start},
+				.count = {count, a0.count, a1.count, a2.count},
+			};
+
+
+
+
 	
 	for (nat s = 0, c = 0, a = 0, i = 0; i < text_length; i++) {
 		if (not isspace(text[i])) {
@@ -1261,8 +1310,9 @@ int main(int argc, const char** argv) {
 	}
 
 
-	bool interpreting = 0;
-	nat arg_count = 0;
+	//bool interpreting = 0;
+	//nat arg_count = 0;
+
 	nat stack_size = 0x1000000;
 	nat architecture = arm64;
 	nat output_format = macho_executable;
@@ -1271,16 +1321,16 @@ int main(int argc, const char** argv) {
 	const char* object_filename = "object0.o";
 	const char* executable_filename = "executable0.out";
 
-	struct argument arguments[4096] = {0};
-	array = calloc(1 << 16, sizeof(nat));
-	array[2] = (nat) (void*) calloc(1 << 16, sizeof(nat));
+	//struct argument arguments[4096] = {0};
+	//array = calloc(1 << 16, sizeof(nat));
+	//array[2] = (nat) (void*) calloc(1 << 16, sizeof(nat));
 
 
 
 	
 
 
-
+/*
 	
 	for (nat pc = 0; pc < ct_ins_count; pc++) {
 
@@ -1311,19 +1361,7 @@ int main(int argc, const char** argv) {
 			printf("loaded array[%llu] with the value %llu...\n", a0.value, array[a0.value]);
 
 		} else if (not interpreting) {
-			struct instruction new = {
-				.size = ins_size(op, architecture),
-				.a =     {   op, a0.value, a1.value, a2.value},
-				.start = {start, a0.start, a1.start, a2.start},
-				.count = {count, a0.count, a1.count, a2.count},
-			};
-			if (op == ecm) {
-				new.a[1] = array[a0.value];
-				new.a[2] = array[a1.value];
-				new.size = array[a1.value];
-			}
-			ins = realloc(ins, sizeof(struct instruction) * (ins_count + 1));
-			ins[ins_count++] = new;
+			
 
 		} else {
 			if (op == aipc) array[d] = index + r;
