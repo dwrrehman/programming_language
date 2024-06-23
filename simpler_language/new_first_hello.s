@@ -1,2 +1,2 @@
-add zero zero zero
+add zero stacksize stacksize
 sub zero zero zero
