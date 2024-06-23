@@ -22,6 +22,91 @@
 
 
 
+
+202406237.003701:
+
+
+		changed the language up completely, to be prefix now, and not use an argument stack at all.
+		heres what code looks like now. the first argument is the destination, which is defined if not defined. only dest does this though. 
+
+
+			add hello 4 5 
+
+			sub hello hello 3
+	
+			mul result 6 4 33 5 56       // error: too many arguments given to instruction mul.
+
+
+			mul result result 2       
+						// these two are equivalent of course lol
+			sll result result 1
+
+
+
+			aipc pointer 0         // gets the pc
+
+			ldd a pointer 4          // loads from the pc+4 a double-word (64 bits)
+
+
+			
+
+
+
+	how do we do compiletime computation now then?... 
+
+
+			thats the major question im trying to figure out now. 
+	hm
+						
+
+
+
+									hoenstly this is kinda calling into question the entire language now, actually, 
+
+
+
+
+
+
+					because like, 
+
+
+
+
+
+
+
+
+			
+
+
+
+											.... 
+
+
+
+
+
+
+
+
+
+
+					is there a functionally any difference between 			
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 	- implement 3 stages:
 
 		- parsing/lexing:   names, def, strings, comments, ins op codes, [add a name-push instruction to get args?]
@@ -168,10 +253,6 @@ typedef uint32_t u32;
 typedef uint16_t u16;
 typedef uint8_t  u8;
 
-
-static const nat ct_array_count = 1 << 16;
-static const nat ct_memory_count = 1 << 16;
-
 enum target_architecture { 
 	noruntime, 
 	riscv32, riscv64, 
@@ -209,50 +290,55 @@ static u32 arm64_macos_abi[] = {        // note:  x9 is call-clobbered. save it 
 };
 
 enum language_isa {
-	cbeg, cend, push_arg, dup_, over, back, drop, 
-	swap, def, arc, comp, attr, 
-	add, addi, sub, slt, slti, slts, sltis, 
-	and_, andi, ior, iori, 
-	eor, eori, sll, slli,  srl, srli, sra, srai, 
-	blt, blts, bge, bges, bne, beq, 
-	ldb, ldh, ldw, ldd, stb, sth, stw, std, 
-	mul, mulh, mulhs, div_, divs, rem, rems, 
-	jalr, jal, aipc, ecall, ecm, stl,
-	isa_count
-};
+
+	comp, set, att, ecm, ecall,
+
+	add, addi, sub, 
+	slt, slti, slts, sltis, 
+
+	and_, andi, ior, iori, eor, eori, 
+	sll, slli, srl, srli, sra, srai, 
+
+	ldb, ldh, ldw, ldd, 
+	stb, sth, stw, std, 
+
+	mul, mulh, mulhs, 
+	div_, divs, 
+	rem, rems, 
+
+	blt, blts, bge, bges, bne, beq,   
+	jalr, jal, aipc,
+
+isa_count};
 
 static const char* spelling[isa_count] = {
-	"cbeg", "cend", "push_arg", "dup", "over", "back", "drop", 
-	"swap", "def", "arc", "comp", "attr", 
-	"add", "addi", "sub", "slt", "slti", "slts", "sltis", 
-	"and", "andi", "ior", "iori", 
-	"eor", "eori", "sll", "slli", "srl", "srli", "sra", "srai", 
-	"blt", "blts", "bge", "bges", "bne", "beq", 
-	"ldb", "ldh", "ldw", "ldd", "stb", "sth", "stw", "std", 
-	"mul", "mulh", "mulhs", "div", "divs", "rem", "rems", 
-	"jalr", "jal", "aipc", "ecall", "ecm", "stl",
-};
 
-struct argument {
-	nat value;
-	nat start;
-	nat count;
+	comp, set, att, ecm, ecall,
+
+	add, addi, sub, 
+	slt, slti, slts, sltis, 
+
+	and_, andi, ior, iori, eor, eori, 
+	sll, slli, srl, srli, sra, srai, 
+
+	ldb, ldh, ldw, ldd, 
+	stb, sth, stw, std, 
+
+	mul, mulh, mulhs, 
+	div_, divs, 
+	rem, rems, 
+
+	blt, blts, bge, bges, bne, beq,   
+
+	jalr, jal, aipc,
 };
 
 struct instruction { 
 	nat a[4];
 	nat start[4];
 	nat count[4];
-	nat size;
 };
 
-struct ct_instruction {
-	nat op;
-	nat ct;
-	nat start;
-	nat count;
-}
- 
 struct file {
 	nat start;
 	nat count;
@@ -458,12 +544,6 @@ static void emitb(nat x) {
 	bytes[byte_count++] = (u8) (x >> 0);
 }
 
-/*static void emith(nat x) {
-	bytes = realloc(bytes, byte_count + 2);
-	bytes[byte_count++] = (u8) (x >> 0);
-	bytes[byte_count++] = (u8) (x >> 8);
-}*/
-
 static void emitw(nat x) {
 	bytes = realloc(bytes, byte_count + 4);
 	bytes[byte_count++] = (u8) (x >> 0);
@@ -472,17 +552,7 @@ static void emitw(nat x) {
 	bytes[byte_count++] = (u8) (x >> 24);
 }
 
-/*static void emitd(nat x) {
-	bytes = realloc(bytes, byte_count + 8);
-	bytes[byte_count++] = (u8) (x >> 0);
-	bytes[byte_count++] = (u8) (x >> 8);
-	bytes[byte_count++] = (u8) (x >> 16);
-	bytes[byte_count++] = (u8) (x >> 24);
-	bytes[byte_count++] = (u8) (x >> 32);
-	bytes[byte_count++] = (u8) (x >> 40);
-	bytes[byte_count++] = (u8) (x >> 48);
-	bytes[byte_count++] = (u8) (x >> 56);
-}*/
+
 
 static void check(nat value, nat limit, nat a, struct instruction this) {
 	if (value >= limit) {
@@ -1119,24 +1189,37 @@ static void print_source_instruction_mappings(void) {
 	}
 }
 
+
+/*
+
+
+				snprintf(reason, sizeof reason, 
+					"expected undefined word, "
+					"word \"%s\" is defined", word
+				); 
+				print_message(error, reason, start, count); 
+				exit(1);
+
+
+
+			printf("\033[32mdefining new dest word\033[0m \"%s\"...\n", word);
+
+*/
+
+
+
+
+
 int main(int argc, const char** argv) {
 
-	struct argument arguments[4096] = {0};
-	struct argument values[4096] = {0};
-	char* names[4096] = {0};
-	nat name_count = 0, arg_count = 0;
-	
-	if (argc != 2) 
-		exit(puts("asm: \033[31;1merror:\033[0m "
-			"usage: ./asm <source.s>")
-		);
+	if (argc != 2) exit(puts("asm: \033[31;1merror:\033[0m usage: ./asm <source.s>"));
 
-	for (nat i = 0; i < isa_count; i++) names[name_count++] = strdup(spelling[i]);
+	for (nat i = 0; i < isa_count; i++) 
+		names[name_count++] = strdup(spelling[i]);
 
 	const char* filename = argv[1];
 	text_length = 0;
 	text = read_file(filename, &text_length, 0);
-
 	printf("read file: (length = %llu): \n<<<", text_length);
 	fwrite(text, 1, text_length, stdout);
 	puts(">>>");
@@ -1145,93 +1228,41 @@ int main(int argc, const char** argv) {
 	files[file_count].count = text_length;
 	files[file_count++].start = 0;
 
-	bool defining = 0, is_compiletime = 0;
-	nat start = 0, count = 0;
-	nat runtime_instruction_count = 0;
-	struct ct_instruction ct_ins[4096] - {0};
-	nat ct_ins_count = 0;
-
-	for (nat index = 0; index < text_length; index++) {
-		if (not isspace(text[index])) {
-			if (not count) start = index;
-			count++; continue;
-		} else if (not count) continue;
-
-	process:;
-		printf("found word at %llu:%llu... \"%.*s\"\n",  
-			start, count, (int) count, text + start);
-		char* word = strndup(text + start, count);
-
-		nat op = 0;
-		for (nat n = 0; n < name_count; n++) {
-			if (not strcmp(names[n], word)) {
-				if (defining) {
-					snprintf(reason, sizeof reason, "expected "
-					"undefined word, word \"%s\" is already "
-					"defined", word); print_message(error, 
-					reason, start, count); exit(1);
-				}
-				op = n; goto process_word;
-			}
-		}
-		if (not defining) {
-			snprintf(reason, sizeof reason, "undefined word \"%s\"", word);
-			print_message(error, reason, start, count);
+	nat name_count = 0, top = 0,
+	char* names[4096] = {0};
+	struct instruction operations[4096] = {
+		{.a = {add,0,0,0}}
+	};
+	
+	for (nat s = 0, c = 0, a = 0, i = 0; i < text_length; i++) {
+		if (not isspace(text[i])) {
+			if (not c) s = i; c++; 
+			if (i + 1 < text_length) continue;
+		} else if (not c) continue;
+	process_word:;
+		char* word = strndup(text + s, c);
+		printf("one: word: \"%s\"\n", word);
+		nat n = 0;
+		for (;n < name_count; n++) if (not strcmp(names[n], word)) goto push;
+		if (a != 1) {
+			snprintf(reason, sizeof reason, "use of undefined \"%s\"", word);
+			print_message(error, reason, s, c);
 			exit(1);
 		} 
-		defining = false;
-		printf("\033[32mdefining new word\033[0m \"%s\" to be %llu...\n", 
-				word, a0.value);
-		names[name_count] = word;
-		values[name_count++] = a0;
+		operations[top].a[a++] = name_count;
+		names[name_count++] = word;
 		goto next;
-
-	process_word:;
-
-
-
-
-
-		if (op >= isa_count) {
-			
-			printf("\033[31mpushing name %s\033[0m, pushing value %llu on the stack..\n", 
-				names[op], values[op].value);
-
-
-			ct_ins[ct_ins_count++] = (struct ct_instruction) {
-				.op = push_arg,
-				.ct = values[op].value,
-				.start = start, 
-				.count = count,
-			};
-
-
-			
-
-
-		} else if (op < isa_count) 
-			ct_ins[ct_ins_count++] = (struct ct_instruction) {
-				.op = op,
-				.ct = is_compiletime,
-				.start = start, 
-				.count = count,
-			};
-		
-
-
-
-		next: count = 0;
+	push: 	if (n < isa_count) operations[++top].a[a = 0] = n;
+		else operations[top].a[a++] = n;
+	next:;	const nat op = operations[top].a[0];
+		const nat d = operations[top].a[1];
+		if (op == att and a == 2) array[d] = top;
+		c = 0;
 	}
-	if (count) goto process;
 
 
-
-
-
-
-
-
-
+	bool interpreting = 0;
+	nat arg_count = 0;
 	nat stack_size = 0x1000000;
 	nat architecture = arm64;
 	nat output_format = macho_executable;
@@ -1240,239 +1271,129 @@ int main(int argc, const char** argv) {
 	const char* object_filename = "object0.o";
 	const char* executable_filename = "executable0.out";
 
-
-
-	array = calloc(ct_array_count, sizeof(nat));
-	array[2] = (nat) (void*) calloc(ct_memory_count, sizeof(nat));
-
-
-
-
-
-
-	// stage two: ct system:
-
-	// ct_ins_count and ct_ins will be set to an array of instructions that we can process/execute now!
-
-	for (nat i = 0; i < ct_ins_count; i++) {
-
-		printf("processing instruction #%llu: [%llu : %llu %llu %llu]\n",
-			 i, ins[i].a[0], ins[i].a[0], ins[i].a[0], ins[i].a[0]
-		);
-
-
-		abort();
-
-
-
-
-
-
-
-
-
-		struct argument a0 = arg_count > 0 ? arguments[arg_count - 1] : (struct argument){0};
-		struct argument a1 = arg_count > 1 ? arguments[arg_count - 2] : (struct argument){0};
-		struct argument a2 = arg_count > 2 ? arguments[arg_count - 3] : (struct argument){0};
-
-		compact_print_arguments(arguments, arg_count);
-
-
-
-
-
-
-	if (op == ecall) {}
-			else if (op == ecm or op == jalr or op == jal) { 
-				if (arg_count < 2) goto er; arg_count -= 2; 
-
-			} else if (op == blt or op == bge or op == bne or
-				   op == beq or op == blts or op == bges) { 
-				if (arg_count < 3) goto er; arg_count -= 3; 
-			
-			} else if (op == aipc) { 
-				if (arg_count < 2) goto er; arg_count -= 2; 
-				arguments[arg_count++] = a0;
-
-			} else { 
-				if (arg_count < 3) goto er; arg_count -= 3; 
-				arguments[arg_count++] = a0; 
-			}
-
-			// printf("after executing: \n");
-			// compact_print_arguments(arguments, arg_count);
-
-			if ((1)) {
-
-			if (	op == blt  or op == bge or
-				op == bne  or op == beq or
-				op == blts or op == bges
-
-			)	printf("%s %s(%llu %llu --> @%llu)\n",
-					is_compiletime
-						? "executing compiletime" 
-						: "generating runtime",
-					spelling[op], a0.value, a1.value, a2.value
-				);
-			else 
-				printf("%s %llu(%llu:%llu) = %s(%llu(%llu:%llu) %llu(%llu:%llu))\n", 
-					is_compiletime
-						? "executing compiletime" 
-						: "generating runtime",
-					a0.value, a0.start, a0.count, spelling[op], a1.value, a1.start, a1.count, a2.value, a2.start, a2.count
-				);
-			}
-
-
-
-
-
-
-		
-		     if (op == def)   defining = true;
-		else if (op == comp)  is_compiletime ^= 1;
-		else if (op == drop)  arg_count--;
-		else if (op == dup_)  arguments[arg_count++] = a0;
-		else if (op == over)  arguments[arg_count++] = a1;
-		else if (op == back)  arguments[arg_count++] = a2;
-
-		else if (op == swap) {
-			arguments[arg_count - 1] = a1;
-			arguments[arg_count - 2] = a0;
-
-		} else if (op == arc) {
-			printf("executing arc(%llu), replaced with %llu...\n", a0.value, array[a0.value]); 
-			arguments[arg_count - 1].value = array[a0.value]; 
-			arguments[arg_count - 1].start = start;
-			arguments[arg_count - 1].count = count;
-
-		} else if (op == attr) {
-			
-			printf("executing attr(--> %llu)...\n", a0.value);
-			array[a0.value] = is_compiletime ? index : ins_count;
-			printf("loaded array[%llu] with the value %llu...\n", a0.value, array[a0.value]);
-
-
-
-nat d = a0.value, r = a1.value, s = a2.value;
-				if (op == aipc) array[d] = index + r;
-				else if (op == stl)   memcpy((uint8_t*) array[a0.value], text + array[a1.value], array[a2.value]);
-				else if (op == addi)  array[d] = array[r] + s;
-				else if (op == slti)  array[d] = array[r] < s;
-				else if (op == iori)  array[d] = array[r] | s;
-				else if (op == eori)  array[d] = array[r] ^ s;
-				else if (op == andi)  array[d] = array[r] & s;
-				else if (op == slli)  array[d] = array[r] << s;
-				else if (op == srli)  array[d] = array[r] >> s;
-				else if (op == srai)  array[d] = array[r] >> s;
-				else if (op == add)   array[d] = array[r] + array[s];
-				else if (op == sub)   array[d] = array[r] - array[s];
-				else if (op == ior)   array[d] = array[r] | array[s];
-				else if (op == eor)   array[d] = array[r] ^ array[s];
-				else if (op == and_)  array[d] = array[r] & array[s];
-				else if (op == slt)   array[d] = array[r] < array[s];
-				else if (op == slts)  array[d] = array[r] < array[s];
-				else if (op == sll)   array[d] = array[r] << array[s];
-				else if (op == srl)   array[d] = array[r] >> array[s];
-				else if (op == sra)   array[d] = array[r] >> array[s];
-
-				else if (op == ldb)   array[d] = *( u8*)(array[r] + s);
-				else if (op == ldh)   array[d] = *(u16*)(array[r] + s);
-				else if (op == ldw)   array[d] = *(u32*)(array[r] + s);
-				else if (op == ldd)   array[d] = *(nat*)(array[r] + s);
-				else if (op == stb)   *( u8*)(array[d] + r) = ( u8)array[s];
-				else if (op == sth)   *(u16*)(array[d] + r) = (u16)array[s];
-				else if (op == stw)   *(u32*)(array[d] + r) = (u32)array[s];
-				else if (op == std)   *(nat*)(array[d] + r) = (nat)array[s];
-
-				else if (op == blt)  { if (array[d] <  array[r]) { jump: if (array[s]) index = array[s]; else skip = s; } } 
-				else if (op == bge)  { if (array[d] >= array[r]) goto jump; } 
-				else if (op == bne)  { if (array[d] != array[r]) goto jump; } 
-				else if (op == beq)  { if (array[d] == array[r]) goto jump; } 
-				else if (op == blts) { if (array[d] <  array[r]) goto jump; } 
-				else if (op == bges) { if (array[d] >= array[r]) goto jump; }
-				else if (op == jalr) { if (d) array[d] = index; index = array[r]; } 
-				else if (op == jal) { if (d) array[d] = index; if (array[r]) index = array[r]; else skip = r; } 
-
-
- 
-
-				else if (op == ecall) {
-					d = array[17]; r = array[10];
-
-					if (d == 1) { count = 0; break; }
-
-					else if (d == 2) {
-						snprintf(reason, sizeof reason, "%lld (0x%016llx)", r, r);
-						print_message(user, reason, start, count);
-
-					} else if (d == 3) {     // ctabort(); for debugging.
-						abort();
-					}
-
-					else if (d == 4) array[10] = (nat) getchar();
-					else if (d == 5) putchar((char) r);
-					else if (d == 6) print_dictionary(names, values, name_count);
-					else if (d == 7) print_instructions();
-					else if (d == 8) print_registers();
-					else if (d == 9) print_arguments(arguments, arg_count);
-					else if (d == 10) dump_hex((uint8_t*) array[2], 4096);
-					else {
-						snprintf(reason, sizeof reason, "unknown ct ecall number %llu", d);
-						print_message(error, reason, index - count, count);
-						exit(1);
-					}
-				} else { 
-					puts("error: internal ct execute error"); 
-					abort(); 
-					er: print_message(error, "insufficient arguments for instruction", start, count);
-					exit(1);
-				}
-
-
-
-
-
-
-
-
-
-
-
-
-			} else {
-				struct instruction new = {
-					.size = ins_size(op, architecture),
-					.a =     {   op, a0.value, a1.value, a2.value},
-					.start = {start, a0.start, a1.start, a2.start},
-					.count = {count, a0.count, a1.count, a2.count},
-				};
-				if (op == ecm) {
-					new.a[1] = array[a0.value];
-					new.a[2] = array[a1.value];
-					new.size = array[a1.value];
-				}
-				ins = realloc(ins, sizeof(struct instruction) * (ins_count + 1));
-				ins[ins_count++] = new;
-			}
-		}
-
-
-
-
-
-
-
-	}
-
-
-
-
-
+	struct argument arguments[4096] = {0};
+	array = calloc(1 << 16, sizeof(nat));
+	array[2] = (nat) (void*) calloc(1 << 16, sizeof(nat));
 
 
 
 	
+
+
+
+	
+	for (nat pc = 0; pc < ct_ins_count; pc++) {
+
+		const struct argument a0 = arg_count > 0 ? arguments[arg_count - 1] : (struct argument){0};
+		const struct argument a1 = arg_count > 1 ? arguments[arg_count - 2] : (struct argument){0};
+		const struct argument a2 = arg_count > 2 ? arguments[arg_count - 3] : (struct argument){0};
+		const nat op = ct_ins[i].op, start = ct_ins[i].start, count = ct_ins[i].count;
+		const nat d = a0.value, r = a1.value, s = a2.value, 
+		printf("two: executing ct_ins #%llu:  [ %s : %llu : %llu %llu %llu]  ::  (start=%llu, count=%llu)\n", 
+			i, spelling[op], op, d, r, s, start, count
+		);
+		compact_print_arguments(arguments, arg_count);
+		drop_top_n(arity[op], &arg_count, start, count);
+		compact_print_arguments(arguments, arg_count);
+		
+		if (op == drop) {}
+		else if (op == dup_)  arguments[arg_count++] = a0;
+		else if (op == over)  arguments[arg_count++] = a1;
+		else if (op == back)  arguments[arg_count++] = a2;
+		else if (op == swap) { arguments[arg_count - 1] = a1; arguments[arg_count - 2] = a0; } 
+		else if (op == arc) {
+			printf("executing arc(%llu), replaced with %llu...\n", a0.value, array[a0.value]); 
+			arguments[arg_count++] = (struct argument) {array[a0.value], start, count};
+
+		} else if (op == attr) {			
+			printf("executing attr(--> %llu)...\n", a0.value);
+			array[a0.value] = interpreting ? pc : ins_count;
+			printf("loaded array[%llu] with the value %llu...\n", a0.value, array[a0.value]);
+
+		} else if (not interpreting) {
+			struct instruction new = {
+				.size = ins_size(op, architecture),
+				.a =     {   op, a0.value, a1.value, a2.value},
+				.start = {start, a0.start, a1.start, a2.start},
+				.count = {count, a0.count, a1.count, a2.count},
+			};
+			if (op == ecm) {
+				new.a[1] = array[a0.value];
+				new.a[2] = array[a1.value];
+				new.size = array[a1.value];
+			}
+			ins = realloc(ins, sizeof(struct instruction) * (ins_count + 1));
+			ins[ins_count++] = new;
+
+		} else {
+			if (op == aipc) array[d] = index + r;
+			else if (op == addi)  array[d] = array[r] + s;
+			else if (op == slti)  array[d] = array[r] < s;
+			else if (op == iori)  array[d] = array[r] | s;
+			else if (op == eori)  array[d] = array[r] ^ s;
+			else if (op == andi)  array[d] = array[r] & s;
+			else if (op == slli)  array[d] = array[r] << s;
+			else if (op == srli)  array[d] = array[r] >> s;
+			else if (op == srai)  array[d] = array[r] >> s;
+			else if (op == add)   array[d] = array[r] + array[s];
+			else if (op == sub)   array[d] = array[r] - array[s];
+			else if (op == ior)   array[d] = array[r] | array[s];
+			else if (op == eor)   array[d] = array[r] ^ array[s];
+			else if (op == and_)  array[d] = array[r] & array[s];
+			else if (op == slt)   array[d] = array[r] < array[s];
+			else if (op == slts)  array[d] = array[r] < array[s];
+			else if (op == sll)   array[d] = array[r] << array[s];
+			else if (op == srl)   array[d] = array[r] >> array[s];
+			else if (op == sra)   array[d] = array[r] >> array[s];
+			else if (op == ldb)   array[d] = *( u8*)(array[r] + s);
+			else if (op == ldh)   array[d] = *(u16*)(array[r] + s);
+			else if (op == ldw)   array[d] = *(u32*)(array[r] + s);
+			else if (op == ldd)   array[d] = *(nat*)(array[r] + s);
+			else if (op == stb)   *( u8*)(array[d] + r) = ( u8)array[s];
+			else if (op == sth)   *(u16*)(array[d] + r) = (u16)array[s];
+			else if (op == stw)   *(u32*)(array[d] + r) = (u32)array[s];
+			else if (op == std)   *(nat*)(array[d] + r) = (nat)array[s];
+			else if (op == blt)  { if (array[d] <  array[r]) { jump: if (array[s]) index = array[s]; else skip = s; } } 
+			else if (op == bge)  { if (array[d] >= array[r]) goto jump; } 
+			else if (op == bne)  { if (array[d] != array[r]) goto jump; } 
+			else if (op == beq)  { if (array[d] == array[r]) goto jump; } 
+			else if (op == blts) { if (array[d] <  array[r]) goto jump; } 
+			else if (op == bges) { if (array[d] >= array[r]) goto jump; }
+			else if (op == jalr) { if (d) array[d] = index; index = array[r]; } 
+			else if (op == jal) { if (d) array[d] = index; if (array[r]) index = array[r]; else skip = r; } 
+
+			else if (op == ecall) {
+				d = array[17]; r = array[10];
+
+				if (d == 1) { count = 0; break; }
+
+				else if (d == 2) {
+					snprintf(reason, sizeof reason, "%lld (0x%016llx)", r, r);
+					print_message(user, reason, start, count);
+
+				} else if (d == 3) {     // ctabort(); for debugging.
+					abort();
+				}
+
+				else if (d == 4) array[10] = (nat) getchar();
+				else if (d == 5) putchar((char) r);
+				else if (d == 6) print_dictionary(names, values, name_count);
+				else if (d == 7) print_instructions();
+				else if (d == 8) print_registers();
+				else if (d == 9) print_arguments(arguments, arg_count);
+				else if (d == 10) dump_hex((uint8_t*) array[2], 4096);
+				else {
+					snprintf(reason, sizeof reason, "unknown ct ecall number %llu", d);
+					print_message(error, reason, index - count, count);
+					exit(1);
+				}
+			} else { 
+				puts("error: internal ct execute error"); 
+				abort(); 
+			}
+		}
+	}
+
 	printf("processing the text now...\n");
 	puts("DONE: finished assembling program.");
 	print_dictionary(names, values, name_count);
@@ -1572,7 +1493,7 @@ nat d = a0.value, r = a1.value, s = a2.value;
 
 
 
-
+// else if (op == stl)   memcpy((uint8_t*) array[a0.value], text + array[a1.value], array[a2.value]);
 
 
 
@@ -1617,6 +1538,64 @@ nat d = a0.value, r = a1.value, s = a2.value;
 
 
 /*
+
+
+
+
+static void drop_top_n(nat n, nat* arg_count, nat start, nat count) {
+	if (*arg_count >= n) *arg_count -= n;
+	else {
+		print_message(error, "insufficient arguments for instruction", start, count);
+		exit(1);
+	}
+}
+
+
+
+
+
+
+
+
+
+if (	op == blt  or op == bge or
+			op == bne  or op == beq or
+			op == blts or op == bges
+
+		)	printf("%s %s(%llu %llu --> @%llu)\n",
+				is_compiletime
+					? "executing compiletime" 
+					: "generating runtime",
+				spelling[op], a0.value, a1.value, a2.value
+			);
+		else 
+			printf("%s %llu(%llu:%llu) = %s(%llu(%llu:%llu) %llu(%llu:%llu))\n", 
+				is_compiletime
+					? "executing compiletime" 
+					: "generating runtime",
+				a0.value, a0.start, a0.count, 
+				spelling[op], 
+				a1.value, a1.start, a1.count, 
+				a2.value, a2.start, a2.count
+			);
+
+
+
+
+
+
+
+
+
+printf("\033[31mpushing name %s\033[0m, "
+				"pushing value %llu on the stack..\n", 
+				names[op], values[op].value
+			);
+
+
+
+
+
 
 
 
@@ -1782,6 +1761,33 @@ if (skip) {
 
 
 
+
+
+
+
+
+
+
+
+if (	op == comp or 
+			op == drop or 
+			op == swap or 
+			op == dup_ or 
+			op == over or 
+			op == back or 
+			op == ecall
+		) {}
+
+		else if (op == ecm or op == jalr or op == jal) {  if (arg_count < 2) goto er; arg_count -= 2; } 
+		else if (op == blt or op == bge or op == bne or op == beq or op == blts or op == bges) { 
+			if (arg_count < 3) goto er; arg_count -= 3; 
+		} else if (op == aipc) { 
+			if (arg_count < 2) goto er; arg_count -= 2;
+			arguments[arg_count++] = a0;
+		} else { 
+			if (arg_count < 3) goto er; arg_count -= 3; 
+			arguments[arg_count++] = a0; 
+		}
 
 
 
@@ -2877,8 +2883,98 @@ static const char* default_string = "hello there from space!\nthis is a test. ya
 
 
 
+
+
+printf("found word at %llu:%llu... \"%.*s\"\n",  
+			start, count, (int) count, text + start);
+
+
+
+
+
+
+
+// stage two: ct system:
+	// ct_ins_count and ct_ins will be set to an array of instructions that we can process/execute now!
+
+
+
+
+
+
+
+
+// printf("after executing: \n");
+			// compact_print_arguments(arguments, arg_count);
+
+
+
+
+
+
+
+
+
+
+
+static const u8 arity[isa_count] = {
+	0, 0, 1, 0, 
+	0, 2, 0, 0, 
+
+	0, 0, 0, 0, 
+	2, 2, 2, 2, 
+
+	2, 2, 2, 2, 
+	2, 2, 2, 2, 
+
+
+
+	2, 2, 2, 2, 
+	2, 2, 2, 2, 
+
+	2, 2, 2, 2, 
+	2, 2, 2, 2, 
+
+	2, 2, 2, 2, 
+	2, 2, 3, 3, 
+
+
+
+	3, 3, 3, 3, 
+	2, 2, 1
+
+};
+
+
+
+
+
+
+
+
+
+
 */	
 
+
+/*static void emith(nat x) {
+	bytes = realloc(bytes, byte_count + 2);
+	bytes[byte_count++] = (u8) (x >> 0);
+	bytes[byte_count++] = (u8) (x >> 8);
+}*/
+
+
+/*static void emitd(nat x) {
+	bytes = realloc(bytes, byte_count + 8);
+	bytes[byte_count++] = (u8) (x >> 0);
+	bytes[byte_count++] = (u8) (x >> 8);
+	bytes[byte_count++] = (u8) (x >> 16);
+	bytes[byte_count++] = (u8) (x >> 24);
+	bytes[byte_count++] = (u8) (x >> 32);
+	bytes[byte_count++] = (u8) (x >> 40);
+	bytes[byte_count++] = (u8) (x >> 48);
+	bytes[byte_count++] = (u8) (x >> 56);
+}*/
 
 
 
