@@ -204,6 +204,119 @@ remaining features:
 */
 
 
+
+
+
+/*
+
+
+				snprintf(reason, sizeof reason, 
+					"expected undefined word, "
+					"word \"%s\" is defined", word
+				); 
+				print_message(error, reason, start, count); 
+				exit(1);
+
+
+
+			printf("\033[32mdefining new dest word\033[0m \"%s\"...\n", word);
+
+*/
+
+
+
+
+
+/*
+
+//static nat* array = NULL;
+
+static void compact_print_arguments(struct argument* arguments, nat arg_count) {
+	printf("args { ");
+	for (nat i = 0; i < arg_count; i++) {
+		printf("%llu ", arguments[i].value);
+	}
+	puts("} \n");
+}
+
+static void print_arguments(struct argument* arguments, nat arg_count) {
+	printf("\narguments[]: { \n");
+	for (nat i = 0; i < arg_count; i++) {
+		printf("\targuments[%llu] = { %llu  :"
+			"  (.start=%llu,.count=%llu)} \n", 
+			i, arguments[i].value, arguments[i].start, arguments[i].count
+		);
+	}
+	puts("} \n");
+}
+
+static void print_dictionary(char** names, struct argument* values, nat name_count) {
+	puts("printing dictionary...");
+	for (nat i = 0; i < name_count; i++) {
+		printf("\t#%-6llu: name %-8s ..... %-5lld \t\t(.start=%llu,.count=%llu))\n", i, 
+			names[i], values[i].value, values[i].start, values[i].count
+		);
+	}
+	puts("done.");
+}
+
+
+static void print_registers(void) {
+	printf("registers: {\n");
+	for (nat i = 0; i < 32; i++) {
+		if (i % 2 == 0) puts("");
+		printf("\t%llu:\t%016llx = %-7lld\t", i, array[i], array[i]);
+	}
+	puts("\n}\n");
+}
+
+
+	// print_files();
+	// print_stack(stack_i, stack_f, stack_o, stack_count);
+
+	// const int colors[] = {31, 32, 33, 34, 35};
+	//printf("\033[%dm", colors[1]);
+
+	//printf("file %s begins at %llu!\n", 
+	//files[f].name, index);
+
+
+	// const nat count = files[f].count;
+
+
+	//print_stack(stack_i, stack_f, stack_o, stack_count);
+				//printf("file %s reached the end the "
+				//	"file! (stack_o[%llu] == count == %llu)\n", 
+				// files[f].name, stack_count - 1, count);
+
+
+//printf("\033[38;5;255m(ERROR_HERE:%s:%llu)\033[0m",
+			// files[stack_f[stack_count - 1]].name, stack_o[stack_count - 1]);
+
+
+
+
+//printf("\033[%dm", colors[stack_count - 1]);
+		// putchar(text[index]);
+		//printf("\033[0m");
+		//printf("[%s]: incremented stack_o[top=%llu] to be 
+		// now %llu...\n", files[stack_f[stack_count - 1]].name, 
+		// stack_count - 1, stack_o[stack_count - 1]);
+
+	// printf("\033[0m");
+
+
+
+
+*/
+
+
+
+
+
+
+
+
 #define CPU_SUBTYPE_ARM64_ALL 0
 #define CPU_TYPE_ARM  12
 #define CPU_ARCH_ABI64  0x01000000 
@@ -376,6 +489,14 @@ struct file {
 
 static char reason[4096] = {0};
 
+static nat stack_size = 0x1000000;
+static nat architecture = arm64;
+static nat output_format = macho_executable;
+static bool preserve_existing_object = false;
+static bool preserve_existing_executable = false;
+static const char* object_filename = "object0.o";
+static const char* executable_filename = "executable0.out";
+
 static nat byte_count = 0;
 static u8* bytes = NULL;
 
@@ -388,42 +509,30 @@ static char* text = NULL;
 static nat file_count = 0;
 static struct file files[4096] = {0};
 
-static nat* array = NULL;
+enum diagnostic_type { no_message, error, warning, info, user, debug };
 
-static void compact_print_arguments(struct argument* arguments, nat arg_count) {
-	printf("args { ");
-	for (nat i = 0; i < arg_count; i++) {
-		printf("%llu ", arguments[i].value);
-	}
-	puts("} \n");
-}
+static const char* type_string[] = {
+	"(none):", 
+	"\033[1;31merror:\033[0m", 
+	"\033[1;35mwarning:\033[0m", 
+	"\033[1;36minfo:\033[0m", 
+	"\033[1;32mdata:\033[0m", 
+	"\033[1;33mdebug:\033[0m"
+};
 
-static void print_arguments(struct argument* arguments, nat arg_count) {
-	printf("\narguments[]: { \n");
-	for (nat i = 0; i < arg_count; i++) {
-		printf("\targuments[%llu] = { %llu  :"
-			"  (.start=%llu,.count=%llu)} \n", 
-			i, arguments[i].value, arguments[i].start, arguments[i].count
-		);
-	}
-	puts("} \n");
-}
-
-static void print_dictionary(char** names, struct argument* values, nat name_count) {
+static void print_dictionary(char** names, nat* locations, nat name_count) {
 	puts("printing dictionary...");
 	for (nat i = 0; i < name_count; i++) {
-		printf("\t#%-6llu: name %-8s ..... %-5lld \t\t(.start=%llu,.count=%llu))\n", i, 
-			names[i], values[i].value, values[i].start, values[i].count
-		);
+		printf("\t#%-6llu: name %-10s ..... %llu\n", i, names[i], locations[i]);
 	}
-	puts("done.");
+	puts("end of dictionary.");
 }
 
 static void print_instructions(void) {
 	printf("instructions: {\n");
 	for (nat i = 0; i < ins_count; i++) {
 		printf("\t%llu\tins(.op=%llu (\"%s\"), .size=%llu, args:{ ", 
-			i, ins[i].a[0], spelling[ins[i].a[0]], ins[i].size
+			i, ins[i].a[0], spelling[ins[i].a[0]], (nat)-1
 		);
 		for (nat a = 1; a < 4; a++) printf("%llu ", ins[i].a[a]);
 		
@@ -437,29 +546,7 @@ static void print_instructions(void) {
 	puts("}");
 }
 
-static void print_registers(void) {
-	printf("registers: {\n");
-	for (nat i = 0; i < 32; i++) {
-		if (i % 2 == 0) puts("");
-		printf("\t%llu:\t%016llx = %-7lld\t", i, array[i], array[i]);
-	}
-	puts("\n}\n");
-}
-
-enum diagnostic_type { no_message, error, warning, info, user, debug };
-
-static const char* type_string[] = {
-	"(none):", 
-	"\033[1;31merror:\033[0m", 
-	"\033[1;35mwarning:\033[0m", 
-	"\033[1;36minfo:\033[0m", 
-	"\033[1;32mdata:\033[0m", 
-	"\033[1;33mdebug:\033[0m"
-};
-
 static void print_message(nat type, const char* reason_string, nat spot, nat error_length) {
-	// const int colors[] = {31, 32, 33, 34, 35};
-	//printf("\033[%dm", colors[1]);
 	nat location = 0;
 	const char* filename = NULL;
 	nat stack_i[4096] = {0}, stack_f[4096] = {0}, stack_o[4096] = {0};
@@ -467,10 +554,7 @@ static void print_message(nat type, const char* reason_string, nat spot, nat err
 	for (nat index = 0; index < text_length; index++) {
 		for (nat f = 0; f < file_count; f++) {
 			const nat start = files[f].start;
-			// const nat count = files[f].count;
-			if (index == start) {
-				//printf("file %s begins at %llu!\n", 
-				//files[f].name, index);
+			if (index == start) {				
 				stack_i[stack_count] = index;
 				stack_f[stack_count] = f;
 				stack_o[stack_count++] = 0;
@@ -478,36 +562,19 @@ static void print_message(nat type, const char* reason_string, nat spot, nat err
 			} 
 			if (stack_o[stack_count - 1] == files[
 				stack_f[stack_count - 1]].count)  {
-				//print_stack(stack_i, stack_f, stack_o, stack_count);
-				//printf("file %s reached the end the "
-				//	"file! (stack_o[%llu] == count == %llu)\n", 
-				// files[f].name, stack_count - 1, count);
 				stack_count--;
 				if (not stack_count) goto done; else break;
 			}
 		}
-		if (index == spot) {
-			//printf("\033[38;5;255m(ERROR_HERE:%s:%llu)\033[0m",
-			// files[stack_f[stack_count - 1]].name, stack_o[stack_count - 1]);
+		if (index == spot) {			
 			filename = files[stack_f[stack_count - 1]].name;
 			location = stack_o[stack_count - 1];
 			goto done;
 		}
-		//printf("\033[%dm", colors[stack_count - 1]);
-		// putchar(text[index]);
-		//printf("\033[0m");
 		stack_o[stack_count - 1]++;
-		//printf("[%s]: incremented stack_o[top=%llu] to be 
-		// now %llu...\n", files[stack_f[stack_count - 1]].name, 
-		// stack_count - 1, stack_o[stack_count - 1]);
 	}
-	// printf("\033[0m");
 done:;
-
-	// print_files();
-	// print_stack(stack_i, stack_f, stack_o, stack_count);
-
-	printf("\033[1masm: %s:", filename ? filename : "(invocation)");
+	printf("\033[1mlanguage: %s:", filename ? filename : "(invocation)");
 	if (location or error_length) printf("%llu:%llu:", location, error_length);
 	printf(" %s \033[1m%s\033[m\n", type_string[type], reason_string);
 	if (not filename) return;
@@ -534,8 +601,68 @@ done:;
 			printf("~"); 
 	}
 	printf("\033[0m\n"); 
-finish: puts("");
+	finish: puts("");
 }
+
+
+static void print_source_instruction_mappings(void) {
+
+	for (nat i = 0; i < ins_count; i++) {
+
+		printf("-------------------[ins #%llu]---------------------\n", i);
+
+		printf("\t%llu\tins(.op=%llu (\"%s\"), .size=%llu, args:{ ", 
+			i, ins[i].a[0], spelling[ins[i].a[0]], (nat) -1
+		);
+		for (nat a = 0; a < 3; a++) printf("%llu ", ins[i].a[a + 1]);
+		
+		printf("}   -- \t[found @   ");
+		for (nat a = 0; a < 4; a++) {
+			printf("[%llu]:(%llu:%llu)", a, ins[i].start[a], ins[i].count[a]);
+			if (a < 3) printf(", ");
+		}
+		puts("]");
+
+
+		for (nat a = 0; a < 4; a++) {
+
+			nat start = ins[i].start[a];
+			nat count = ins[i].count[a];
+
+			printf("\033[1mlanguage: %s:%llu:%llu:", 
+				"filename ? filename : (top-level)", 
+				start, count
+			);
+			printf(" \033[1;32msource:\033[m \033[1m%s%llu\033[m\n", "debugging argument: ", a);
+
+			nat line_begin = start;
+			while (line_begin and text[line_begin - 1] != 10) line_begin--;
+			nat line_end = start;
+			while (line_end < text_length and text[line_end] != 10) line_end++;
+
+			printf("\n\t");
+			for (nat c = line_begin; c < line_end; c++) {
+				if (c == start) printf("\033[38;5;%llum", 178LLU);
+				if (text[c] == 9) putchar(32);
+				else putchar(text[c]);
+				if (c == start + count) printf("\033[0m");
+			}
+			printf("\n\t");
+			for (nat _ = 0; _ < start - line_begin; _++) 
+				printf(" "); 
+			printf("\033[32;1m^");
+			if (count) {
+				for (nat _ = 0; _ < count - 1; _++) 
+					printf("~"); 
+			}
+			printf("\033[0m\n\n"); 
+
+			puts("\n");
+		}
+		puts("-----------------------------------------");
+	}
+}
+
 
 static char* read_file(const char* name, nat* out_length, nat here) {
 	int d = open(name, O_RDONLY | O_DIRECTORY);
@@ -580,8 +707,6 @@ static void emitw(nat x) {
 	bytes[byte_count++] = (u8) (x >> 16);
 	bytes[byte_count++] = (u8) (x >> 24);
 }
-
-
 
 static void check(nat value, nat limit, nat a, struct instruction this) {
 	if (value >= limit) {
@@ -628,9 +753,9 @@ static void u_type(nat* a, nat o, struct instruction this) {
 	emitw( (a[1] << 12U) | (a[0] << 7U) | o);
 }
 
-static nat ins_size(nat op, nat target) {
+static nat ins_size(nat op) {
 
-	if (target == arm64) {
+	if (architecture == arm64) {
 		if (	op == slt or  op == slts or 
 			op == blt or  op == bge or 
 			op == bne or  op == beq or 
@@ -916,8 +1041,7 @@ static void generate_srli(nat Rd, nat Rn, nat im, nat op, nat oc, nat sf, struct
 static void generate_adr(nat Rd, nat op, nat oc, nat target, nat here, struct instruction this) { 
 
 	
-
-	nat im = calculate_offset(here, array[target], this);
+	nat im = calculate_offset(here, target, this);
 
 	check(Rd, 32, 0, this);
 	check_offset(im, 1 << 20, 1, this);
@@ -956,7 +1080,7 @@ static void generate_jal(nat Rd, nat here, nat target, struct instruction this) 
 		exit(1);
 	}
 
-	nat im = calculate_offset(here, array[target], this);
+	nat im = calculate_offset(here, target, this);
 	check(Rd, 32, 0, this);
 	check_offset(im, 1 << 25, 1, this);
 	emitw( (oc << 31U) | (0x05 << 26U) | (0x03FFFFFFU & im));
@@ -971,7 +1095,7 @@ static void generate_bc(nat condition, nat here, nat target, struct instruction 
 
 static void generate_branch(nat R_left, nat R_right, nat target, nat here, nat condition, struct instruction this) {
 	generate_add(0, R_left, R_right, 0x0BU, 0, 1, 1, 1, 0, this);
-	generate_bc(condition, here, array[target], this);
+	generate_bc(condition, here, target, this);
 }
 
 static void generate_slt(nat Rd, nat Rn, nat Rm, nat cond, struct instruction this) {
@@ -987,10 +1111,12 @@ static void generate_arm64_machine_code(void) {
 		nat op = this.a[0];
 		nat* a = this.a + 1;
 
-		if (op == ecm) {
-			for (nat n = 0; n < a[1]; n++) emitb(((uint8_t*)a[0])[n]);
-		}
-		else if (op == ecall)  emitw(0xD4000001);
+		//if (op == ecm) {
+		//	for (nat n = 0; n < a[1]; n++) emitb(((uint8_t*)a[0])[n]);
+		//}
+		//else 
+
+		if (op == ecall)  emitw(0xD4000001);
 
 		else if (op == addi)   generate_addi(a[0], a[1], a[2], 0x22U, 1, 0, 0, 0, this);
 		else if (op == slli)   generate_slli(a[0], a[1], a[2], 0x26U, 2, 1, this);
@@ -1051,12 +1177,12 @@ static void generate_arm64_machine_code(void) {
 	}
 }
 
-static void make_elf_object_file(const char* object_filename) {
+static void make_elf_object_file(const char* given_object_filename) {
 	puts("make_elf_object_file: unimplemented");
 	// getchar();
 	const int flags = O_WRONLY | O_CREAT | O_TRUNC | O_EXCL;
 	const mode_t mode = S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH;
-	const int file = open(object_filename, flags, mode);
+	const int file = open(given_object_filename, flags, mode);
 	if (file < 0) { perror("obj:open"); exit(1); }
 	write(file, NULL, 0);
 	write(file, NULL, 0);
@@ -1064,7 +1190,7 @@ static void make_elf_object_file(const char* object_filename) {
 	close(file);
 }
 
-static void make_macho_object_file(const char* object_filename, const bool preserve_existing_object) {
+static void make_macho_object_file(void) {
 
 	struct mach_header_64 header = {0};
 	header.magic = MH_MAGIC_64;
@@ -1160,90 +1286,13 @@ static void make_macho_object_file(const char* object_filename, const bool prese
 	close(file);
 }
 
-
-
-static void print_source_instruction_mappings(void) {
-
-	for (nat i = 0; i < ins_count; i++) {
-
-		printf("-------------------[ins #%llu]---------------------\n", i);
-
-		printf("\t%llu\tins(.op=%llu (\"%s\"), .size=%llu, args:{ ", 
-			i, ins[i].a[0], spelling[ins[i].a[0]], ins[i].size
-		);
-		for (nat a = 0; a < 3; a++) printf("%llu ", ins[i].a[a + 1]);
-		
-		printf("}   -- \t[found @   ");
-		for (nat a = 0; a < 4; a++) {
-			printf("[%llu]:(%llu:%llu)", a, ins[i].start[a], ins[i].count[a]);
-			if (a < 3) printf(", ");
-		}
-		puts("]");
-
-
-		for (nat a = 0; a < 4; a++) {
-
-			nat start = ins[i].start[a];
-			nat count = ins[i].count[a];
-
-			printf("\033[1masm: %s:%llu:%llu:", 
-				"filename ? filename : (top-level)", 
-				start, count
-			);
-			printf(" \033[1;32msource:\033[m \033[1m%s%llu\033[m\n", "debugging argument: ", a);
-
-			nat line_begin = start;
-			while (line_begin and text[line_begin - 1] != 10) line_begin--;
-			nat line_end = start;
-			while (line_end < text_length and text[line_end] != 10) line_end++;
-
-			printf("\n\t");
-			for (nat c = line_begin; c < line_end; c++) {
-				if (c == start) printf("\033[38;5;%llum", 178LLU);
-				if (text[c] == 9) putchar(32);
-				else putchar(text[c]);
-				if (c == start + count) printf("\033[0m");
-			}
-			printf("\n\t");
-			for (nat _ = 0; _ < start - line_begin; _++) 
-				printf(" "); 
-			printf("\033[32;1m^");
-			if (count) {
-				for (nat _ = 0; _ < count - 1; _++) 
-					printf("~"); 
-			}
-			printf("\033[0m\n\n"); 
-
-			puts("\n");
-		}
-		puts("-----------------------------------------");
-	}
-}
-
-
-/*
-
-
-				snprintf(reason, sizeof reason, 
-					"expected undefined word, "
-					"word \"%s\" is defined", word
-				); 
-				print_message(error, reason, start, count); 
-				exit(1);
-
-
-
-			printf("\033[32mdefining new dest word\033[0m \"%s\"...\n", word);
-
-*/
-
-
-
-
-
 int main(int argc, const char** argv) {
 
-	if (argc != 2) exit(puts("asm: \033[31;1merror:\033[0m usage: ./asm <source.s>"));
+	if (argc != 2) exit(puts("language: \033[31;1merror:\033[0m usage: ./asm <source.s>"));
+
+	nat name_count = 0;
+	char* names[4096] = {0};
+	nat locations[4096] = {0};
 
 	for (nat i = 0; i < isa_count; i++) 
 		names[name_count++] = strdup(spelling[i]);
@@ -1258,68 +1307,233 @@ int main(int argc, const char** argv) {
 	files[file_count].name = filename;
 	files[file_count].count = text_length;
 	files[file_count++].start = 0;
-
-	nat name_count = 0, top = 0,
-	char* names[4096] = {0};
-
-
-
-	struct instruction operations[4096] = {
-		{.a = {add,0,0,0}}
-	};
-
-
-
-			struct instruction 
-			ins = realloc(ins, sizeof(struct instruction) * (ins_count + 1));
-			ins[ins_count++] = new = {
-				.size = ins_size(op, architecture),
-				.a =     {   op, a0.value, a1.value, a2.value},
-				.start = {start, a0.start, a1.start, a2.start},
-				.count = {count, a0.count, a1.count, a2.count},
-			};
-
-
-
-
 	
 	for (nat s = 0, c = 0, a = 0, i = 0; i < text_length; i++) {
 		if (not isspace(text[i])) {
-			if (not c) s = i; c++; 
+			if (not c) s = i; 
+			c++; 
 			if (i + 1 < text_length) continue;
 		} else if (not c) continue;
-	process_word:;
+
 		char* word = strndup(text + s, c);
 		printf("one: word: \"%s\"\n", word);
+
 		nat n = 0;
-		for (;n < name_count; n++) if (not strcmp(names[n], word)) goto push;
+		for (;n < name_count; n++) 
+			if (not strcmp(names[n], word)) goto push;
+
 		if (a != 1) {
 			snprintf(reason, sizeof reason, "use of undefined \"%s\"", word);
 			print_message(error, reason, s, c);
 			exit(1);
 		} 
-		operations[top].a[a++] = name_count;
+		n = name_count; 
 		names[name_count++] = word;
-		goto next;
-	push: 	if (n < isa_count) operations[++top].a[a = 0] = n;
-		else operations[top].a[a++] = n;
-	next:;	const nat op = operations[top].a[0];
-		const nat d = operations[top].a[1];
-		if (op == att and a == 2) array[d] = top;
+		goto arg;
+		
+	push: 	if (n < isa_count) {
+			ins_count++;
+			ins = realloc(ins, sizeof(struct instruction) * (ins_count + 1));
+			a = 0;
+		} 
+
+	arg:	ins[ins_count].a[a] = n;
+		ins[ins_count].start[a] = s;
+		ins[ins_count].count[a] = c;
+		a++;
+
+		if (ins[ins_count].a[0] == att and a == 2) { locations[ins[ins_count].a[1]] = ins_count; ins_count--; }
 		c = 0;
 	}
+
+	puts("debug: finished parsing files.");
+
+
+	print_dictionary(names, locations, name_count);
+	print_instructions();
+	print_source_instruction_mappings();
+	
+	printf("info: building for target:\n\tarchitecture:  "
+		"\033[31;1m%s\033[0m\n\toutput_format: \033[32;1m%s\033[0m.\n\n", 
+		target_spelling[architecture  % target_count], 
+		output_format_spelling[output_format % output_format_count]
+	);
+
+
+	
+
+
+
+
+
+
+	print_message(warning, "this assembler is currently a work in progress, optimization phase not implemented yet...", 0, 0);
+
+	
+	// 			optimization phases here!!
+
+	// 		register-only based register allocation goes here!!
+
+	
+
+
+
+
+
+	if (architecture == noruntime) {
+		if (not ins_count) exit(0);
+		print_message(error, "encountered runtime instruction with noruntime target", ins[0].start[0], ins[0].count[0]);
+		exit(1);
+
+	} else if (architecture == riscv32 or architecture == riscv64) {
+		generate_riscv_machine_code();
+
+	} else if (architecture == arm64) {
+		generate_arm64_machine_code();
+
+	} else {
+		print_message(error, "unknown target architecture specified", ins[0].start[0], ins[0].count[0]);
+		exit(1);
+	}
+
+
+
+	if (output_format == print_binary) 
+		dump_hex((uint8_t*) bytes, byte_count);
+
+	else if (output_format == elf_objectfile or output_format == elf_executable)
+		make_elf_object_file(object_filename);
+
+	else if (output_format == macho_objectfile or output_format == macho_executable) 
+		make_macho_object_file();
+	else {
+		print_message(error, "unknown output format specified", ins[0].start[0], ins[0].count[0]);
+		exit(1);
+	}
+
+	if (output_format == elf_executable or output_format == macho_executable) {
+
+		if (preserve_existing_executable and not access(executable_filename, F_OK)) {
+			puts("asm: executable_file: file exists");  // TODO: use print_error();
+			puts(executable_filename);
+			exit(1);
+		}
+		
+		char link_command[4096] = {0};
+		snprintf(link_command, sizeof link_command, "ld -S -x "
+			"-dead_strip "
+			"-dead_strip_dylibs "
+			"-no_eh_labels "
+			"-no_uuid "
+			"-no_weak_imports "
+			"-no_function_starts "
+			"-warn_compact_unwind "
+			"-warn_unused_dylibs "
+			"-fatal_warnings "
+			"%s -o %s "
+			"-arch arm64 "
+			"-e _start "
+			"-stack_size 0x%llx "
+			"-platform_version macos 13.0.0 13.3 "
+			"-lSystem "
+			"-syslibroot /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk ", 
+			object_filename, executable_filename, stack_size
+		);
+		printf("executing linker command: \"%s\"...\n", link_command);
+		system(link_command);
+
+		system("otool -txvVhlL object0.o");
+		system("otool -txvVhlL executable0.out");
+		system("objdump object0.o -DSast --disassembler-options=no-aliases");
+		system("objdump executable0.out -DSast --disassembler-options=no-aliases");
+	}
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+// else if (op == stl)   memcpy((uint8_t*) array[a0.value], text + array[a1.value], array[a2.value]);
+
+
+
+
+
+/*
+
+
+struct instruction operations[4096] = {
+		{.a = {add,0,0,0}}
+	};
+
+
+
+print_registers();
+		print_arguments(arguments, arg_count);
+
+	}
+
+
+
+
+
+
+
+
+*/
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+/*
+	
+
 
 
 	//bool interpreting = 0;
 	//nat arg_count = 0;
 
-	nat stack_size = 0x1000000;
-	nat architecture = arm64;
-	nat output_format = macho_executable;
-	bool preserve_existing_object = false;
-	bool preserve_existing_executable = false;
-	const char* object_filename = "object0.o";
-	const char* executable_filename = "executable0.out";
 
 	//struct argument arguments[4096] = {0};
 	//array = calloc(1 << 16, sizeof(nat));
@@ -1330,8 +1544,8 @@ int main(int argc, const char** argv) {
 	
 
 
-/*
-	
+
+
 	for (nat pc = 0; pc < ct_ins_count; pc++) {
 
 		const struct argument a0 = arg_count > 0 ? arguments[arg_count - 1] : (struct argument){0};
@@ -1432,147 +1646,10 @@ int main(int argc, const char** argv) {
 		}
 	}
 
-	printf("processing the text now...\n");
-	puts("DONE: finished assembling program.");
-	print_dictionary(names, values, name_count);
-	print_registers();
-	print_arguments(arguments, arg_count);
-	print_instructions();
-	print_source_instruction_mappings();
-	printf("SUCCESSFUL ASSEMBLING\n");
 
-	printf("info: building for target:\n\tarchitecture:  "
-		"\033[31;1m%s\033[0m\n\toutput_format: \033[32;1m%s\033[0m.\n\n", 
-		target_spelling[architecture  % target_count], 
-		output_format_spelling[output_format % output_format_count]
-	);
 
-	snprintf(reason, sizeof reason, "this assembler is currently a work in progress");
-	print_message(warning, reason, 0, 0);
 
-
-	if (architecture == noruntime) {
-		if (not ins_count) exit(0);
-		print_message(error, "encountered runtime instruction with noruntime target", ins[0].start[0], ins[0].count[0]);
-		exit(1);
-
-	} else if (architecture == riscv32 or architecture == riscv64) {
-		generate_riscv_machine_code();
-
-	} else if (architecture == arm64) {
-		generate_arm64_machine_code();
-
-	} else {
-		print_message(error, "unknown target architecture specified", ins[0].start[0], ins[0].count[0]);
-		exit(1);
-	}
-
-	if (output_format == print_binary) 
-		dump_hex((uint8_t*) bytes, byte_count);
-
-	else if (output_format == elf_objectfile or output_format == elf_executable)
-		make_elf_object_file(object_filename);
-
-	else if (output_format == macho_objectfile or output_format == macho_executable) 
-		make_macho_object_file(object_filename, preserve_existing_object);
-	else {
-		print_message(error, "unknown output format specified", ins[0].start[0], ins[0].count[0]);
-		exit(1);
-	}
-
-	if (output_format == elf_executable or output_format == macho_executable) {
-
-		if (preserve_existing_executable and not access(executable_filename, F_OK)) {
-			puts("asm: executable_file: file exists");  // TODO: use print_error();
-			puts(executable_filename);
-			exit(1);
-		}
-		
-		char link_command[4096] = {0};
-		snprintf(link_command, sizeof link_command, "ld -S -x "
-			"-dead_strip "
-			"-dead_strip_dylibs "
-			"-no_eh_labels "
-			"-no_uuid "
-			"-no_weak_imports "
-			"-no_function_starts "
-			"-warn_compact_unwind "
-			"-warn_unused_dylibs "
-			"-fatal_warnings "
-			"%s -o %s "
-			"-arch arm64 "
-			"-e _start "
-			"-stack_size 0x%llx "
-			"-platform_version macos 13.0.0 13.3 "
-			"-lSystem "
-			"-syslibroot /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk ", 
-			object_filename, executable_filename, stack_size
-		);
-		printf("executing linker command: \"%s\"...\n", link_command);
-		system(link_command);
-
-		system("otool -txvVhlL object0.o");
-		system("otool -txvVhlL executable0.out");
-		system("objdump object0.o -DSast --disassembler-options=no-aliases");
-		system("objdump executable0.out -DSast --disassembler-options=no-aliases");
-	}
-}
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-// else if (op == stl)   memcpy((uint8_t*) array[a0.value], text + array[a1.value], array[a2.value]);
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+*/
 
 
 /*
