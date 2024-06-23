@@ -330,49 +330,26 @@ static u32 arm64_macos_abi[] = {        // note:  x9 is call-clobbered. save it 
 };
 
 enum language_isa {
-
 	att, ecall,
-
-	add, addi, sub, 
-	slt, slti, slts, sltis, 
-
-	and_, andi, ior, iori, eor, eori, 
-	sll, slli, srl, srli, sra, srai, 
-
-	ldb, ldh, ldw, ldd, 
-	stb, sth, stw, std, 
-
-	mul, mulh, mulhs, 
-	div_, divs, 
-	rem, rems, 
-
+	add, sub, slt, slts, 
+	and_, ior, eor, sll, srl, sra, 
+	ldb, ldh, ldw, ldd, stb, sth, stw, std,
+	mul, mulh, mulhs, div_, divs, rem, rems, 
 	blt, blts, bge, bges, bne, beq,   
-	jalr, jal, aipc,
+	jalr, jal, lpa,
 
 isa_count};
 
 
 static const char* spelling[isa_count] = {
-
 	"att", "ecall",
-
-	"add", "addi", "sub", 
-	"slt", "slti", "slts", "sltis", 
-
-	"and_", "andi", "ior", "iori", "eor", "eori", 
-	"sll", "slli", "srl", "srli", "sra", "srai", 
-
-	"ldb", "ldh", "ldw", "ldd", 
-	"stb", "sth", "stw", "std", 
-
-	"mul", "mulh", "mulhs", 
-	"div_", "divs", 
-	"rem", "rems", 
-
+	"add", "sub", "slt", "slts", 
+	"and", "ior", "eor", "sll", "srl", "sra", 
+	"ldb", "ldh", "ldw", "ldd", "stb", "sth", "stw", "std",
+	"mul", "mulh", "mulhs", "div", "divs", "rem", "rems", 
 	"blt", "blts", "bge", "bges", "bne", "beq",   
-	"jalr", "jal", "aipc",
+	"jalr", "jal", "lpa",
 };
-
 
 enum compiletime_variables {
 	var_zero,
@@ -763,15 +740,15 @@ static void generate_riscv_machine_code(void) {
 		else if (op == ldh)     i_type(a, 0x03, 0x1, this);
 		else if (op == ldw)     i_type(a, 0x03, 0x2, this);
 		else if (op == ldd)     i_type(a, 0x03, 0x3, this);
-		else if (op == addi)    i_type(a, 0x13, 0x0, this);
-		else if (op == sltis)   i_type(a, 0x13, 0x2, this);
-		else if (op == slti)    i_type(a, 0x13, 0x3, this);
-		else if (op == eori)    i_type(a, 0x13, 0x4, this);
-		else if (op == iori)    i_type(a, 0x13, 0x6, this);
-		else if (op == andi)    i_type(a, 0x13, 0x7, this);
-		else if (op == slli)    i_type(a, 0x13, 0x1, this);
-		else if (op == srli)    i_type(a, 0x13, 0x5, this);
-		else if (op == srai)    i_type(a, 0x13, 0x5, this);
+		//else if (op == addi)    i_type(a, 0x13, 0x0, this);
+		//else if (op == sltis)   i_type(a, 0x13, 0x2, this);
+		//else if (op == slti)    i_type(a, 0x13, 0x3, this);
+		//else if (op == eori)    i_type(a, 0x13, 0x4, this);
+		//else if (op == iori)    i_type(a, 0x13, 0x6, this);
+		//else if (op == andi)    i_type(a, 0x13, 0x7, this);
+		//else if (op == slli)    i_type(a, 0x13, 0x1, this);
+		//else if (op == srli)    i_type(a, 0x13, 0x5, this);
+		//else if (op == srai)    i_type(a, 0x13, 0x5, this);
 		else if (op == jalr)    i_type(a, 0x67, 0x0, this);
 
 		else if (op == stb)      s_type(a, 0x23, 0x0, this);
@@ -780,7 +757,8 @@ static void generate_riscv_machine_code(void) {
 		else if (op == std)      s_type(a, 0x23, 0x3, this);
 
 		// else if (op == lui)  u_type(a, 0x37, this);
-		else if (op == aipc)   u_type(a, 0x17, this);
+		// else if (op == lpa)   u_type(a, 0x17, this);
+
 		else if (op == jal)     j_type(i, a, 0x6F, this);
 
 		else {
@@ -1047,10 +1025,10 @@ static void generate_arm64_machine_code(void) {
 
 		if (op == ecall)  emitw(0xD4000001);
 
-		else if (op == addi)   generate_addi(a[0], a[1], a[2], 0x22U, 1, 0, 0, 0, this);
-		else if (op == slli)   generate_slli(a[0], a[1], a[2], 0x26U, 2, 1, this);
-		else if (op == srli)   generate_srli(a[0], a[1], a[2], 0x26U, 2, 1, this);
-		else if (op == srai)   generate_srli(a[0], a[1], a[2], 0x26U, 0, 1, this);
+		//else if (op == addi)   generate_addi(a[0], a[1], a[2], 0x22U, 1, 0, 0, 0, this);
+		//else if (op == slli)   generate_slli(a[0], a[1], a[2], 0x26U, 2, 1, this);
+		//else if (op == srli)   generate_srli(a[0], a[1], a[2], 0x26U, 2, 1, this);
+		//else if (op == srai)   generate_srli(a[0], a[1], a[2], 0x26U, 0, 1, this);
 
 		else if (op == div_)   generate_adc(a[0], a[1], a[2], 0xD6, 2, 1, 0, 0, this);
 		else if (op == divs)   generate_adc(a[0], a[1], a[2], 0xD6, 3, 1, 0, 0, this);
@@ -1058,7 +1036,7 @@ static void generate_arm64_machine_code(void) {
 
 		// else if (op == mul)    generate_umaddl(a[0], a[1], a[2], 0xDE, 31, 1, 0, 0, this);
 
-		else if (op == aipc)  generate_adr(a[0], 0x10, 0, a[1], i, this);
+		// else if (op == lpa)  generate_adr(a[0], 0x10, 0, a[1], i, this);
 
 		else if (op == add)    generate_add(a[0], a[1], a[2], 0x0BU, 0, 1, 0, 0, 0, this);
 		else if (op == ior)    generate_add(a[0], a[1], a[2], 0x2AU, 0, 1, 0, 0, 0, this);
@@ -1091,15 +1069,15 @@ static void generate_arm64_machine_code(void) {
 		else if (op == stw)    generate_memiu(a[0], a[1], a[2], 0x00, 0x00, 0, this);
 		else if (op == std)    generate_memiu(a[0], a[1], a[2], 0x00, 0x00, 0, this);
 
-		else if (op == sltis)  goto here;
-		else if (op == slti)   goto here;
-		else if (op == eori)   goto here;
-		else if (op == iori)   goto here;
-		else if (op == andi)   goto here;
-		else if (op == srli)   goto here;
+		//else if (op == sltis)  goto here;
+		//else if (op == slti)   goto here;
+		//else if (op == eori)   goto here;
+		//else if (op == iori)   goto here;
+		//else if (op == andi)   goto here;
+		//else if (op == srli)   goto here;
 
 		else {
-			here: snprintf(reason, sizeof reason, "arm64: unknown runtime instruction: \"%s\" (%llu)\n", spelling[op], op);
+			snprintf(reason, sizeof reason, "arm64: unknown runtime instruction: \"%s\" (%llu)\n", spelling[op], op);
 			print_message(error, reason, this.start[0], this.count[0]);
 			exit(1);
 		}
@@ -1237,15 +1215,17 @@ static void execute_instructions(nat* label) {
 			pc, spelling[op], op, d, r, s
 		);
 
-		if (op == aipc)       reg[d] = pc + r;
-		else if (op == addi)  reg[d] = reg[r] + s;
-		else if (op == slti)  reg[d] = reg[r] < s;
-		else if (op == iori)  reg[d] = reg[r] | s;
-		else if (op == eori)  reg[d] = reg[r] ^ s;
-		else if (op == andi)  reg[d] = reg[r] & s;
-		else if (op == slli)  reg[d] = reg[r] << s;
-		else if (op == srli)  reg[d] = reg[r] >> s;
-		else if (op == srai)  reg[d] = reg[r] >> s;
+		if (op == lpa)       reg[d] = label[r];
+
+		//else if (op == addi)  reg[d] = reg[r] + s;
+		//else if (op == slti)  reg[d] = reg[r] < s;
+		//else if (op == iori)  reg[d] = reg[r] | s;
+		//else if (op == eori)  reg[d] = reg[r] ^ s;
+		//else if (op == andi)  reg[d] = reg[r] & s;
+		//else if (op == slli)  reg[d] = reg[r] << s;
+		//else if (op == srli)  reg[d] = reg[r] >> s;
+		//else if (op == srai)  reg[d] = reg[r] >> s;
+
 		else if (op == add)   reg[d] = reg[r] + reg[s];
 		else if (op == sub)   reg[d] = reg[r] - reg[s];
 		else if (op == ior)   reg[d] = reg[r] | reg[s];
