@@ -8,6 +8,870 @@
 //  and simpler system of doing strings and comments.
 
 // old: my assembler: written on 202405304.122455 by dwrr.
+
+/*
+
+
+
+	202406241.013212:
+		just implemented mulitple files in the language, it was really simple becuase our lexing/parsing is super simple now lol, and the language as a whole is much simpler lol.
+
+
+			now, we have to actually do   scopes,   and namespaces.   ie, contexts.    ie, some way of grouping names, in a way that allows you to encapsulate things,  defining the same name to mulitple entities,  each in their own context, and used for different things. this is a MUST, as often in human language, the same name is used for several things, but when used in different contexts,  they mean different things.   same idea in programming, its a fundemental way of humans speaking, kinda.  so yeah. its kind of not that ergonomic to require that everything be a unique name, by its name alone. it would be nice to define a context, that allows for names to be shorter, on average, while operating within that context.  this is a almost universal ergonomic feature of humans procressing, i think. and just generally speaking. 
+
+
+				so acheive this, i propose a way of creating a scope, 
+
+
+					and then attributing a name to that scope. 
+
+
+			so, basically, we will at the very least, have some sort of opening and closing tags, 
+
+
+					ns_begin  ns_end                        ns standing for namespace, lets say lololol   just some rough names
+
+
+			and then ns_end actually takes an argument, which is the name of the namespace. so yeah. its not defined until you leave the namespace, basically. 
+
+					or rather maybe you should have the begin    define the name?   yeah lets try that i think. 
+
+
+
+
+
+			so yeah, basically, you do 
+
+
+
+
+							ns_begin my_namespace_name_here
+
+								...code...
+
+								add hello                   <--- defines hello, and sets it to zero. 
+
+							ns_end
+
+
+
+			and that basically sets it up 
+
+
+
+
+	and then as far as using elements in the name space, 
+
+
+			you actually refer to them like this:
+
+							my_namespace_name_here hello
+
+
+
+			ie, you say the namespace, and then the hello. 
+
+
+
+
+
+			and basically, 
+
+
+					(first, it should be noted:    the LANG ISA    is actually universally across accessible across namespaces, 
+
+											wihch makes sense)
+
+
+
+						(but the list of names, are not neccessarilyyy. rather, there is a default namespace,  which has the name <EMPTY_STRING>, ie "",  and then the default builtin variables, like zero, ra, etc     are in there, 
+
+
+									and then when you open up a new namespace, it makes a new    user variable dictionary   for names    in that namespace       basicallyyy
+
+
+
+
+
+					the look up for looking up sometihng  basically firsttttt involves   selecting the namespace, 
+
+
+
+						OH!!
+
+
+										wait!!
+
+
+
+
+
+
+					a NAMESPACE NAME     IS ITSELF     IN THE GLOBAL NAMESPACEEEE           LOLOLOL
+
+
+
+
+						okay cool lol thats neat
+
+
+
+
+
+					so yeah, the my_namespace_name_here    name       that name is in the global namespace,   
+
+
+
+							ie, the namespace  "" 
+
+
+
+
+				so yeah even taht name is itself technically      namespace-qualified      lol technically   you just can't see the ns because its the empty string lolol 
+
+							so yeah 
+
+
+
+
+
+
+							basically, if you refer to a name,  it doesnt actually push an arg, 
+
+
+
+
+
+								it just sets the         ns            nat 
+
+
+
+							which,  then causes the NEXT word to be looked up   in that namespace with that ns index 
+
+
+
+
+										and then after pushing a name succesfully, we ALWAYS revert back to the global namespace. always. 
+
+
+								so yeah, that has the effect that things which are not in the global space, always need to be qualified, basically. 
+
+
+							so yeah! very cool. i like this lol. yay!!!!
+
+
+
+
+
+
+
+so cool 
+
+
+
+
+		this is actually so good so far 
+
+
+					
+
+		hm
+
+					now, note 
+
+
+										technically, namespaces are ALSOOO   kinda like 
+
+
+
+
+
+								scopes!!!
+
+
+
+
+
+
+
+
+					(its just, obviusly, theres no stack allocations happening in them that get automatically deallocated lolol, like in c lol)
+
+
+
+								but yeah, minus that whole thing, they operate like in c,      you can have shadowing of variable names, and the local closest copy gets used, just as you would think, 
+
+
+
+								and of course, you don't have to qualify names while in that namespace lolol
+ 
+
+
+
+
+
+
+
+		OHHH 		
+
+						okay cool so when you define a namespace, you actually set the ns  nat    like permentently 
+
+
+
+								until you leave that namespace, 
+
+
+
+
+
+								BUTTTTTT
+
+
+										okay crap lol 
+
+
+
+
+										so actually, we need  like      3 lookups
+
+
+
+
+
+											first we try to look up the word in the operation list, 
+
+												which is universal across everythin, 
+
+
+
+
+
+											then we try to look it up in the local namespace, 
+
+
+												then we try to look it up in the local namespace, 
+
+
+													
+
+
+
+
+
+
+
+		oh, and btw, you cannot nest namespaces.   
+
+				... 
+
+
+										is that a good idea?
+
+
+
+
+
+
+
+		hmmm actually 
+
+
+	idkkkk 
+			i feel like you should be able to nest them... 
+
+
+butt
+
+
+		yeah, that would just get a bit too complex to implement, so i will say that no  you cannot nest them lolol 
+
+		i don't exactlyy wanttttt this language to be expresion based in any way 
+
+					like, i don't even really likethe fact taht the    nsbegin and nsend        ie   nsb   and nse 
+
+
+										kinda look like {    and      }          lol 
+
+
+
+				ie,           namespace hello { ... }          from c++         LOL          like, its quite similar to that, 
+
+
+
+									except for the fact that you cannot nest namespaces, 
+
+
+
+
+								ANDDDD     qualifying a ns  to a variable looks like 
+
+												ns::name   in c++,    but   ns name     in our language,
+
+
+							and 
+
+
+
+
+								yeah  					ns name          is MUCHHH more readable lolol 
+
+
+
+
+													and easier to type  
+
+
+
+
+
+				so yeah 
+
+
+
+
+
+		so yeah,              not nestable, and more readable   i think its a fine way to do things 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+but yeah, 3 lookups, 
+
+
+
+		1. look up in the operation isa listing
+
+		2. look up in the current namespace's variable dictionary
+
+		3. look up in the global namespaces variable dictionary 
+
+
+
+
+
+
+
+	note the order-  this is how we support shadowing lol. so yeah. i think that makes sense. 
+
+
+
+
+
+	yayyyyyyy this is quite cool 
+
+
+
+
+				honestly the more i think about it, the more nesting these things kindaaaa makes sense and is really useful-
+
+
+
+							particularly when thinking about namespaces as actually just straight up scopes lololol
+
+
+
+
+
+							butttttt on the other hand.. idk... ill probably pass on it for now.. idk.. hm.. 
+
+
+
+
+
+
+			ill think about it. and see how complex it might be to implement it.. 
+
+
+
+							basically, we would need a stack of currently open namespaces, as opposed to just one currently open one, given by the ns index... 
+
+
+	
+
+								like,     ALSOOO   OMG  the call would need to be super complex then 
+
+
+
+												like,
+
+
+
+
+									if lets say you had:
+
+
+
+
+
+
+		nsb a
+
+			nsb b
+
+				nsb c
+
+
+					add hello
+
+
+				nse
+
+			nse
+
+		nse
+
+
+
+
+
+		like,   you would look it up like 
+
+
+					a b c hello           right?
+
+
+
+
+
+
+
+
+				GAHH
+
+
+						yeah thats actually so complex to implement i think lololo 
+
+
+						hm
+
+
+
+
+
+
+
+		ERR WAIT
+
+				IS IT?
+
+
+
+					because like, we would just be saying that 
+
+
+
+
+
+						we are calling          a          first     which then puts us in the a ns
+
+
+
+
+
+
+
+								and then   b             which is a name    in           a 
+
+
+
+
+												which ends up putting us in the b namespace, 
+
+
+
+									and then  finally         c         similar procress, again, 
+
+
+
+
+										and then finally            hello 
+
+
+
+										which is in c 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+		so like!?!?
+
+
+
+					okay interesting so actually call kinda solves itself lololol
+
+
+
+					thats interesting 
+
+
+
+							wow 
+
+
+
+
+
+		okay maybe we do allow for nesting- 
+
+							like, the implmentation is really just complicated by the     opening of nested ones
+
+
+
+
+
+
+						like, 
+
+
+
+
+
+							here,              nsb a nsb b nsb c add hello nse nse nse              
+
+
+
+										in that code, we have to keep track of a stack, of currently open namespaces, 
+
+
+
+
+										buttt... 
+
+
+
+
+										thats really the only complicatation to the typical case that we need to add!!?!?
+
+
+
+										so yeah lets make these lil guys nestable loolo 
+
+
+
+
+										its makes sense to now 
+
+
+
+
+
+
+				yay
+
+
+
+
+
+
+
+
+
+
+
+
+	oh my gosh!!!
+
+
+
+
+
+			ANDDDD technically     ALLL NAMESPACES   ARE NESTED
+
+
+
+
+						because     THE GLOBAL NAMESPACE!!!
+
+
+
+
+
+					like everything is AT LEAST nested in thereeeee loloolol
+
+
+
+								WOWWW okay thast prety cool lololol
+					nice 
+
+
+			i like that 
+
+
+
+
+					thats pretty cool 
+
+
+
+
+					
+
+
+
+
+		oh wait, and also, 
+
+
+
+
+	waittt
+
+
+
+
+
+
+		okay so then wait 
+
+
+
+
+
+			we also have this notion of the currently open, and then not open ones,
+
+
+
+
+			like we need to know 
+
+
+
+
+
+
+
+waittt
+
+
+
+			okay so   we know that if we are in a given namespace, we don't need to qualify things, 
+
+
+
+				(lets ignore the fact that the global namespace doesnt have a name. in fact, lets give it a name, lets say the global ns is called like "global_namespace" or something,  
+
+
+					)
+
+
+					BUTTTT we never have to qualify   things         with that 
+
+
+
+
+								because    WE ARE IN IT
+
+
+
+
+							ALL FILES  and their CONTENTS    are in it 
+
+
+
+
+					so no need to qualify
+
+
+
+
+
+
+		but if you are outside the namespace, then you need to qualify things 
+
+
+
+
+
+		so 
+
+
+
+			if you did 
+
+
+
+
+
+
+
+		nsb a 
+
+
+			add hello
+
+
+			nsb b
+
+				add cat
+
+			nse
+
+
+			nsb c
+
+				...use "b cat"....         <---- see how we needed to backtrack to looking at a's ns, 
+									to find b, which too us to its ns?... yes. this is important. 
+
+			nse
+
+		nse
+
+
+
+
+
+	oh, and note, a namespace can be anonymous,  ie, 
+
+		you are allowed to just say 
+
+
+				nsb  add hello  nse 
+
+
+
+			and now, hello is technically entirely local, theres no way of using it out side that scope basically oll 
+
+
+			quite cool
+
+
+
+	this allows you to effectively create public and private interfaces,  for implmentation level stuff, and interface stuff, 
+
+
+
+				for example, 
+
+
+
+
+
+
+
+
+
+
+						nsb myinterface
+
+							add function0
+
+							add function1
+
+							nsb 
+								...some complex implementation details...
+								add function0 value_BLAH          // 
+								add function1 value_BLAH          // <--- these two function as assignments.
+							nse
+						nse
+						
+
+						...use "myinterface function0"...
+
+						...use "myinterface function1"...
+
+
+			
+
+
+
+
+
+
+
+			and see how the implementation stuff is completely hidden and doesnt pollute the symbol table at all, 
+
+
+				and has all the wonderful scoping semantics that is useful in c,   
+
+
+						YETTTT you can choose to keep   function0 and function1  accessible from the outside!!
+
+
+
+
+
+
+
+	so yeah, i think we literally just make a stack of open dictionaries
+
+			the global one is the base of the stack,
+
+
+				and when you open a new   ns             via nsb <name>        you push onto the stack,
+
+
+					and when you look up a name, you always look backwards through our dictionary, 
+							looking for a match, 
+
+
+
+							if you see the name of a namespace  that matches,   then its a qualification, 
+
+								we qualify by actually 
+
+
+
+
+		ohhh wowwww
+
+
+
+		okay so actually 
+
+
+			we push ALLL namespacessss    to   MASTER namespace array
+
+
+				for use later, when we are doing a qualified lookup   
+
+
+					and then, we actually  push an    index    corresponding to the new ns that we just pushed to the master namespace array
+
+
+							ie, the stack of namespaces,  is actually just a stack of indicies lool 
+
+
+
+
+
+							and then calling a namespace name     just sets the current namespace we are looking at, to be that ns index. in the master array.  so yeah. its a tiny bit more complicated, but still totally simple i thinkkk nice 
+
+
+
+
+
+
+					
+
+
+
+
+*/
+
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -23,584 +887,6 @@
 #include <sys/stat.h>
 #include <sys/mman.h>
 #include <stdnoreturn.h>
- 
-/*
-
-
-
-
-202406237.152400:
-
-
-	note:
-
-
-		i think we are going to have to allow for macros   via       detecting if a variable is used at the first position, 
-
-				if it is,  then we can basically do something special, there are a couple of things that we could do:
-
-
-
-							1.  we could make it so that thats label!   this might be optimal actually!
-
-
-
-							2. if its already defined as a label,   then we could actually call it as a function!
-
-										ie, generate a runtime     jal ra labelname
-
-
-
-										
-
-
-
-									that could work also work great!    basically to allow for calling functions just by saying the name of the function! which we definitely want to support lol.
-
-
-
-
-									so yeah, that will make it call on use. 
-
-
-												thats nice 
-
-
-
-
-
-						
-	so code would end up looking like:
-
-
-
-
-		myfunction
-			add hello 4 5 
-
-			sub hello hello 3
-
-			jalr zero ra
-
-
-
-		main
-			myfunction
-
-
-
-
-
-		
-
-
-pretty cool huh!
-
-
-	that actually would work great i think 
-
-	hm
-
-			interesting 
-
-
-	wow
-
-
-	yeah, i think i like this a lot lol 
-
-
-
-			its just   what about argument passing? 
-
-
-				well, i think the only real way to do it now, is via   assigning to particular registers,
-
-
-					and just happen to using those registers, 
-
-						which i think is fine honestly, that gets the job done lol 
-
-							hm
-										ill think about it more though 
-
-
-
-
-							maybe theres a way to not require assigning to registers?..
-
-
-
-
-
-			well wait no 
-
-						because you have to realize that function inlining will happennnnn
-
-
-
-						
-
-	which will end up transforming:
-
-
-
-		myfunction
-			add hello 4 5 
-
-			sub hello hello 3
-
-			jalr zero ra
-
-
-
-		main
-			myfunction
-
-
-
-
-	into simplfy being:
-
-
-
-
-		main
-			add hello 4 5 
-
-			sub hello hello 3
-
-
-
-
-
-
-	and so like, data flow needs to be optimized accordingly
-
-
-		like, if you don't want those extraneous moves and copies of the arguments to particular input registers,
-
-					 to happen,  then you shouldnt write them lol
-
-
-							just literally write out the variables you want to manipulate lol 
-
-
-								not too hard i think 
-
-
-
-
-
-
-
-
-
-				interesting 
-
-	hm
-
-							so yeah, for now that will work i think. 
-
-
-
-
-
-
-
-		just supporting that 
-
-
-
-
-					if the label is defined, (ie, set to some value other than -1)
-
-
-								then we will treat the occurence of the label as a    "jal ra label"
-
-
-								but if you say a label at the first position,   with no operation before it, 
-
-
-								andddd it hasnt been defined yet, 
-
-
-											(ie, given a label address value / location)
-
-
-
-
-									then we will say that its a label attribution statement!
-
-								pretty easy i think
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-202406237.003701:
-
-
-		changed the language up completely, to be prefix now, and not use an argument stack at all.
-		heres what code looks like now. the first argument is the destination, which is defined if not defined. only dest does this though. 
-
-
-			add hello 4 5 
-
-			sub hello hello 3
-	
-			mul result 6 4 33 5 56       // error: too many arguments given to instruction mul.
-
-
-			mul result result 2       
-						// these two are equivalent of course lol
-			sll result result 1
-
-
-
-			aipc pointer 0         // gets the pc
-
-			ldd a pointer 4          // loads from the pc+4 a double-word (64 bits)
-
-
-			
-
-
-
-	how do we do compiletime computation now then?... 
-
-
-			thats the major question im trying to figure out now. 
-	hm
-						
-
-
-
-									hoenstly this is kinda calling into question the entire language now, actually, 
-
-
-
-
-
-
-					because like, 
-
-
-
-
-
-
-
-
-			
-
-
-
-											.... 
-
-
-
-
-
-
-
-
-
-
-					is there a functionally any difference between     the optimizer running something   because its statically known    and the user saying that they want something run  becuase they set the ct bit?                   NO. theres not. 
-
-
-									theres no difference, and there shouldnt be a difference.   we should prefer and only supply the first method.    delete the second. 
-
-
-
-yay
-
-
-
-
-
-							ie, this is now a   2 main passes   assembler-     	parsing, which does label attribution, and word parsing, 
-
-
-									and instruction generation, 
-
-
-
-
-
-
-
-					with an analysis and optimization phase in the middle!!!
-
-
-
-
-								which allows staticaly known ct computation to happen.   YAYYY
-
-
-
-
-
-
-
-
-
-
-
-old:
-
-
-	- implement 3 stages:
-
-		- parsing/lexing:   names, def, strings, comments, ins op codes, [add a name-push instruction to get args?]
-					wait... how do we do arc.... CRAPPPPP
-
-		- compiletime interpretting:    execute rt instructions, and regenerate rt ins
-
-		- code generation / byte emmision / instruction selection  on rt instructions, according to arch/target
-
-
-
-
-
-
-
-
-old:
-
-
-
-	new semantics to implment:
-
-
-		- make variable names the default construct,
-		     make register assignment implicit
-
-		- make labels easier to work with?..
-
-
-		- make the complietime system not do file-offset ct-branching.... do it properly.
-
-
-		- make the language isa the IR of the compiler.
-
-
-		- make strings use a different system....
-
-
-		- add an interpreter mode!   where the runtime code is just interpreted 
-			in a virtual machine, for maximum portability lol. 
-
-
-		- 
-
-
-
-
-
-
-
-old:
-remaining features:
-
-	- double check all forwards/backwards branches behavior
-
-	- add bne,beq,bge,blt
-
-	- add ld's and st's for arm64 backend
-
-	- get mulitple files working, to include stdlib's foundation file, which creates constants. 
-
-	- 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-ecall
-
-ldb/h/w/d dest source		good
-stb/h/w/d source source     				<----- hmmmmmmm danggg
-
-jalr dest source		good
-jal dest label           				<------ another special case  
-lpa dest label          				<---- another one!
-
-add dest source source		good
-sub dest source source		good
-slt dest source source		good
-slts dest source source		good
-and dest source source		good
-ior dest source source		good
-eor dest source source		good
-sll dest source source		good
-srl dest source source		good
-sra dest source source		good
-mul dest source source		good
-mulh dest source source		good
-mlhs dest source source		good
-div dest source source		good
-divs dest source source		good
-rem dest source source		good
-rems dest source source		good
-
-blt label source source		good
-blts label source source	good
-bge label source source		good
-bges label source source	good
-bne label source source		good
-beq label source source 	good
-
-
-
-
-cool okay so only    3 special casese technicallyyyyy nice nice 
-
-
-	because yeah, for all instructions, (EXCEPT FOR THE STORE INS's)   the destination register   is able to be defined by the user on its first occurence in that position. very cool. 
-
-
-		oh, same for the zeroth position too,  in replace of the op code lol.  this would be an label attribution though.  so yeah. 
-
-
-
-
-	then, we just need to know that          store instructions have no destination    or labels, and therefore don't define values ever 
-
-
-		AND
-
-
-
-			the jal and lpa (aka auipc) instructions     actually ONLY take values  which can be defined on their first use,
-
-						ie, it only takes destinations- kinda      labels are destinations,   in a way
-
-
-						but with the lpa, it literally has a destination,  a dest register, 
-
-								ANDDD it takes a label, 
-
-
-
-							and then with jal,   it has a destination register, AND it performs a branch. so yeah. a label "dest" too. 
-
-
-	
-								
-
-
-						so yeah, thats everything i think. nice.
-
-
-
-
-			lets code that up, just 3 special casese in total    not too bad 
-
-
-
-
-	
-
-
-
-											oh plus  ecall, which is kinda special in every way LOL
-
-
-										we'll just ignore ecall, its super easy, it takes nothing, and is as plain as you could make an instruction loolol. a single op code with no arguments
-
-					very amazing actually 
-
-	but yeah 
-
-anyways
-
-
-
-
-
-
-
-ISA  as of 202406237.182942:
-================================================
-
-
-	ecall
-	att 	label
-	jalr 	source 	dest
-	jal 	label 	dest
-	ldb 	dest 	pointer
-	ldh 	dest 	pointer 
-	ldw 	dest 	pointer
-	ldd 	dest 	pointer 
-	stb 	source 	pointer
-	sth 	source 	pointer 
-	stw 	source 	pointer
-	std 	source 	pointer
-	add 	dest 	source 	source 
-	sub 	dest 	source 	source
-	slt 	dest 	source 	source
-	slts 	dest 	source 	source
-	and 	dest 	source 	source
-	ior 	dest 	source 	source
-	eor 	dest 	source 	source
-	sll 	dest 	source 	source
-	srl 	dest 	source 	source
-	sra 	dest 	source 	source
-	mul 	dest 	source 	source
-	mulh 	dest 	source 	source
-	mlhs 	dest 	source 	source
-	div 	dest 	source 	source
-	divs 	dest 	source 	source
-	rem 	dest 	source 	source
-	rems 	dest 	source 	source
-	blt 	label 	source 	source 
-	blts 	label 	source 	source
-	bge 	label 	source 	source
-	bges 	label 	source 	source
-	bne 	label 	source 	source
-	beq 	label 	source 	source
-	
-
-================================================
-
-
-
-*/
-
-
-
-
-
-
 
 #define CPU_SUBTYPE_ARM64_ALL 0
 #define CPU_TYPE_ARM  12
@@ -717,16 +1003,15 @@ static u32 arm64_macos_abi[] = {        // note:  x9 is call-clobbered. save it 
 };
 
 enum language_isa {
-	null_instruction, ecall, att, 
+	null_instruction, ecall, att, use, nsb, nse, 
 	ldb, ldh, ldw, ldd, stb, sth, stw, std, jalr, jal, 
 	add, sub, slt, slts, and_, ior, eor, sll, srl, sra, mul, mulh, 
 	mlhs, div_, divs, rem, rems, blt, blts, bge, bges, bne, beq, 
-
-isa_count};
-
+	isa_count
+};
 
 static const char* spelling[isa_count] = {
-	"", "ecall", "att",
+	"", "ecall", "att", "use", "nsb", "nse",
 	"ldb", "ldh", "ldw", "ldd", "stb", "sth", "stw", "std", "jalr", "jal",
 	"add", "sub", "slt", "slts", "and", "ior", "eor", "sll", "srl", "sra", "mul", "mulh", 
 	"mlhs", "div", "divs", "rem", "rems", "blt", "blts", "bge", "bges", "bne", "beq", 
@@ -761,7 +1046,6 @@ static const char* variable_spelling[variable_count] = {
 	"stacksize",
 };
 
-
 struct instruction { 
 	nat a[4];
 	nat start[4];
@@ -769,9 +1053,17 @@ struct instruction {
 };
 
 struct file {
-	nat start;
+	nat index;
 	nat count;
 	const char* name;
+	char* text;
+};
+
+struct namespace {
+	char** names;
+	nat* locations;
+	nat* index;
+	nat name_count;
 };
 
 static char reason[4096] = {0};
@@ -792,9 +1084,7 @@ static struct instruction* ins = NULL;
 
 static nat text_length = 0;
 static char* text = NULL;
-
-static nat file_count = 0;
-static struct file files[4096] = {0};
+static const char* filename = NULL;
 
 enum diagnostic_type { no_message, error, warning, info, user, debug };
 
@@ -815,14 +1105,14 @@ static void print_dictionary(char** names, nat* locations, nat name_count) {
 	puts("end of dictionary.");
 }
 
-static void print_instructions(char** names) {
+static void print_instructions(char** names, nat name_count) {
 	printf("instructions: {\n");
 	for (nat i = 0; i < ins_count; i++) {
-		printf("\t%-8llu\tins(.op = %-5s  { ", i, spelling[ins[i].a[0]]);
-		for (nat a = 1; a < 4; a++) printf(" %-8s    ", names[ins[i].a[a]]);
+		printf("\t%-8llu\tins(.op = %-5s  { ", i, ins[i].a[0] < isa_count ? spelling[ins[i].a[0]] : "UNDEFINED OP ERR");
+		for (nat a = 1; a < 4; a++) printf(" %-8s    ", ins[i].a[a] < name_count ? names[ins[i].a[a]] : "UNDEFINED OP ERR");
 		printf("}   -- \t[found @   ");
 		for (nat a = 0; a < 4; a++) {
-			printf("[%llu]:{a%llu}(%llu:%llu)", a, ins[i].a[a], ins[i].start[a], ins[i].count[a]);
+			printf("[%llu]:{a%llx}(%llx:%llx)", a, ins[i].a[a], ins[i].start[a], ins[i].count[a]);
 			if (a < 3) printf(", ");
 		}
 		puts("]\n");
@@ -831,9 +1121,41 @@ static void print_instructions(char** names) {
 }
 
 static void print_message(nat type, const char* reason_string, nat spot, nat error_length) {
-	nat location = 0;
-	const char* filename = NULL;
-	nat stack_i[4096] = {0}, stack_f[4096] = {0}, stack_o[4096] = {0};
+	printf("\033[1mlanguage: %s:", filename ? filename : "(invocation)");
+	if (spot or error_length) printf("%llu:%llu:", spot, error_length);
+	printf(" %s \033[1m%s\033[m\n", type_string[type], reason_string);
+	if (not filename) return;
+	if (not spot and not error_length) goto finish;
+
+	nat line_begin = spot;
+	while (line_begin and text[line_begin - 1] != 10) line_begin--;
+	nat line_end = spot;
+	while (line_end < text_length and text[line_end] != 10) line_end++;
+
+	printf("\n\t");
+	for (nat i = line_begin; i < line_end; i++) {
+		if (i == spot) printf("\033[38;5;%llum", 178LLU);
+		if (text[i] == 9) putchar(32);
+		else putchar(text[i]);
+		if (i == spot + error_length) printf("\033[0m");
+	}
+	printf("\n\t");
+	for (nat i = 0; i < spot - line_begin; i++) 
+		printf(" "); 
+	printf("\033[32;1m^");
+	if (error_length) {
+		for (nat i = 0; i < error_length - 1; i++) 
+			printf("~"); 
+	}
+	printf("\033[0m\n"); 
+	finish: puts("");
+}
+
+
+
+/*
+
+nat stack_i[4096] = {0}, stack_f[4096] = {0}, stack_o[4096] = {0};
 	nat stack_count = 0;
 	for (nat index = 0; index < text_length; index++) {
 		for (nat f = 0; f < file_count; f++) {
@@ -857,36 +1179,8 @@ static void print_message(nat type, const char* reason_string, nat spot, nat err
 		}
 		stack_o[stack_count - 1]++;
 	}
-done:;
-	printf("\033[1mlanguage: %s:", filename ? filename : "(invocation)");
-	if (location or error_length) printf("%llu:%llu:", location, error_length);
-	printf(" %s \033[1m%s\033[m\n", type_string[type], reason_string);
-	if (not filename) return;
-	if (not spot and not error_length) goto finish;
+*/
 
-	nat line_begin = location;
-	while (line_begin and text[line_begin - 1] != 10) line_begin--;
-	nat line_end = location;
-	while (line_end < text_length and text[line_end] != 10) line_end++;
-
-	printf("\n\t");
-	for (nat i = line_begin; i < line_end; i++) {
-		if (i == location) printf("\033[38;5;%llum", 178LLU);
-		if (text[i] == 9) putchar(32);
-		else putchar(text[i]);
-		if (i == location + error_length) printf("\033[0m");
-	}
-	printf("\n\t");
-	for (nat i = 0; i < location - line_begin; i++) 
-		printf(" "); 
-	printf("\033[32;1m^");
-	if (error_length) {
-		for (nat i = 0; i < error_length - 1; i++) 
-			printf("~"); 
-	}
-	printf("\033[0m\n"); 
-	finish: puts("");
-}
 
 
 static void print_source_instruction_mappings(void) {
@@ -948,7 +1242,7 @@ static void print_source_instruction_mappings(void) {
 }
 
 
-static char* read_file(const char* name, nat* out_length, nat here) {
+static char* read_file(const char* name, nat* out_length, nat start, nat count) {
 	int d = open(name, O_RDONLY | O_DIRECTORY);
 	if (d >= 0) { close(d); errno = EISDIR; goto read_error; }
 	const int file = open(name, O_RDONLY, 0);
@@ -956,7 +1250,7 @@ static char* read_file(const char* name, nat* out_length, nat here) {
 		read_error:;
 		snprintf(reason, sizeof reason, "%s: \"%s\"", 
 			strerror(errno), name);
-		print_message(error, reason, here, 0);
+		print_message(error, reason, start, count);
 		
 		exit(1); 
 	}
@@ -1572,18 +1866,13 @@ static void make_macho_object_file(void) {
 }
 
 
-
-
-
 static void execute_instructions(nat* label, nat name_count) {
-
-	// const nat z = var_zero;
 
 	nat reg[1 << 16];
 	memcpy(reg, label, sizeof(nat) * name_count);
 	reg[var_sp] = (nat) (void*) calloc(1 << 16, 1);
 
-	for (nat pc = 1; pc < ins_count; ) {
+	for (nat pc = 0; pc < ins_count; ) {
 
 		const nat op = ins[pc].a[0];
 		const nat d =  ins[pc].a[1];
@@ -1666,61 +1955,165 @@ static void execute_instructions(nat* label, nat name_count) {
 	}
 }
 
-
 static nat arity(const nat op) { 
-	if (op == ecall) return 1; 
-	if (op == att) return 2;
+	if (not op) abort();
+	if (op == ecall or op == nse) return 1; 
+	if (op == nsb or op == att or op == use) return 2;
 	if (op < add) return 3; 
 	if (op < isa_count) return 4; 
 	abort();
 }
 
 static bool define_on_use(nat op, nat count) {
-	if (op >= stb and op <= std) return false;
+	if (not op) abort();
 	if (op == jal) 	return true;
+	if (op >= stb and op <= std) return false;
 	if (op == jalr) return count == 2;
 	if (op < isa_count) return count == 1;
 	abort();
+}
+
+
+static void print_namespaces(nat* activens, nat activens_count, struct namespace* ns, nat ns_count) {
+	printf("active ns = {");
+	for (nat i = 0; i < activens_count; i++) {
+		printf("%llu ", activens[i]);
+	}
+	puts("}");
+
+	for (nat n = 0; n < ns_count; n++) {
+		printf("ns #%llu = {\n", n);
+		for (nat i = 0; i < ns[n].name_count; i++) {
+			printf("\t.  (\"%s\" : l%lld : i%lld)\n", ns[n].names[i], ns[n].locations[i], ns[n].index[i]);
+		}
+		puts("}");
+		puts("");
+	}
+	puts("...end.");
 }
 
 int main(int argc, const char** argv) {
 
 	if (argc != 2) exit(puts("language: \033[31;1merror:\033[0m usage: ./asm <source.s>"));
 
-	nat name_count = 0;
-	char* names[4096] = {0};
-	nat locations[4096] = {0};
-	for (nat i = 0; i < variable_count; i++) names[name_count++] = strdup(variable_spelling[i]);
 
-	const char* filename = argv[1];
+	struct namespace* ns = calloc(1, sizeof(struct namespace));
+	nat ns_count = 0;
+	nat activens[128] = {0};
+	nat activens_count = 0;
+	char* dictionary[4096] = {0};
+	nat locations[4096] = {0};
+	nat dictionary_count = 0;
+		
+	for (nat i = 0; i < variable_count; i++) {
+		nat ni = ns_count;
+		char* word = strdup(variable_spelling[i]);
+
+		ns[ni].names = realloc(ns[ni].names, sizeof(char*) * (ns[ni].name_count + 1)); 
+		ns[ni].names[ns[ni].name_count] = word;
+		ns[ni].locations = realloc(ns[ni].locations, sizeof(char*) * (ns[ni].name_count + 1)); 
+		ns[ni].locations[ns[ni].name_count] = 0;
+		ns[ni].index = realloc(ns[ni].index, sizeof(char*) * (ns[ni].name_count + 1)); 
+		ns[ni].index[ns[ni].name_count++] = dictionary_count;
+
+		locations[dictionary_count] = 0;
+		dictionary[dictionary_count++] = word;
+	}
+
+	activens[activens_count++] = ns_count++;
+
+
+	print_namespaces(activens, activens_count, ns, ns_count);
+
 	text_length = 0;
-	text = read_file(filename, &text_length, 0);
+	filename = argv[1];
+	text = read_file(filename, &text_length, 0, 0);
 	printf("read file: (length = %llu): \n<<<", text_length);
 	fwrite(text, 1, text_length, stdout);
 	puts(">>>");
 
-	files[file_count].name = filename;
-	files[file_count].count = text_length;
-	files[file_count++].start = 0;
+	nat NS = 0;
+	nat file_count = 0;
+	struct file files[4096] = {0};
+	nat index = 0;
+	ins_count = (nat) -1;
 
-	ins = realloc(ins, sizeof(struct instruction) * (ins_count + 1));
-	ins[ins_count] = (struct instruction) {0};
+parse_file:
 
-	for (nat o = 0, n = 0, s = 0, c = 0, a = 0, i = 0; i < text_length; i++) {
+	for (nat o = 0, s = 0, c = 0, a = 0, i = index; i < text_length; i++) {
 		if (not isspace(text[i])) {
 			if (not c) s = i;  c++; 
 			if (i + 1 < text_length) continue;
 		} else if (not c) continue;
 		char* word = strndup(text + s, c);
+
+		nat* l = NULL;
+		nat n = 0;
+
+		print_namespaces(activens, activens_count, ns, ns_count);
+
 		for (n = 0; n < isa_count; n++) if (not strcmp(spelling[n], word)) goto ins;
-		for (n = 0; n < name_count; n++) if (not strcmp(names[n], word)) goto arg;
+
+		if (not NS) { 
+			for (nat e = activens_count; e--;) {
+				struct namespace this = ns[activens[e]];
+				for (n = 0; n < this.name_count; n++) {
+					if (not strcmp(this.names[n], word)) {
+						
+						l = this.locations + n;
+						n = this.index[n];
+
+						
+
+						goto arg;
+					}
+				}
+			}
+		} else {
+			struct namespace this = ns[NS];  NS = 0;
+			for (n = 0; n < this.name_count; n++) {
+				if (not strcmp(this.names[n], word)) {
+					
+					l = this.locations + n;
+					n = this.index[n];
+
+					
+
+					goto arg;
+				}
+			}
+		}
+
 		if (not define_on_use(o, a)) {
 			snprintf(reason, sizeof reason, "use of undefined word \"%s\"", word);
 			print_message(error, reason, s, c);
 			exit(1);
 		}
-		names[name_count++] = word;
+
+
+		const nat e = activens[activens_count - 1];
+		struct namespace* this = ns + e;
+		const nat nc = this->name_count;
+		
+		n = dictionary_count;
+
+		this->names = realloc(this->names, sizeof(char*) * (nc + 1)); 
+		this->names[nc] = word;
+
+		this->locations = realloc(this->locations, sizeof(char*) * (nc + 1)); 
+		this->locations[nc] = 0;
+		
+		this->index = realloc(this->index, sizeof(char*) * (nc + 1)); 
+		this->index[this->name_count++] = n;
+
+		locations[dictionary_count] = 0;
+		dictionary[dictionary_count++] = word;
+
+		l = this->locations + nc; 
+		
 		goto arg;
+
+
 	ins:	ins_count++; a = 0;
 		ins = realloc(ins, sizeof(struct instruction) * (ins_count + 1));
 		ins[ins_count] = (struct instruction) { .start = {s, s, s, s}, .count = {c, c, c, c} };
@@ -1730,71 +2123,107 @@ int main(int argc, const char** argv) {
 			print_message(error, reason, s, c);
 			exit(1);
 		}
+
+		if (l and (int64_t) *l < 0) {
+			NS = -*l;
+			c = 0; continue;
+		}
+		
 		ins[ins_count].a[a] = n;
 		ins[ins_count].start[a] = s;
 		ins[ins_count].count[a] = c;
 		a++;
+
 		if (o == att and a == 2) locations[n] = ins_count--;
+		if (o == nse and a == 1) {
+			if (not activens_count) { puts("ans error"); abort(); }
+			ins_count--; activens_count--;
+		}
+		if (o == nsb and a == 2) { 
+			*l = -ns_count;
+			ins_count--; 
+			ns = realloc(ns, sizeof(struct namespace) * (ns_count + 1));
+			ns[ns_count] = (struct namespace) {0};
+			activens[activens_count++] = ns_count++;
+		}
+		if (o == use and a == 2) {
+			ins_count--;
+			files[file_count++] = (struct file) {
+				.index = i,
+				.count = text_length,
+				.name = filename,
+				.text = text,
+			};
+			text_length = 0;
+			filename = word;
+			text = read_file(filename, &text_length, s, c);
+			index = 0;
+			goto parse_file;
+		}
 		c = 0;
+	}
+	if (file_count) {
+		struct file this = files[--file_count];
+		text = this.text;
+		filename = this.name;
+		text_length = this.count;
+		index = this.index;
+		goto parse_file;
 	}
 	ins_count++;
 
-	puts("debug: finished parsing files.");
+	puts("debug: finished parsing all input files.");
 
-	print_dictionary(names, locations, name_count);
-	print_instructions(names);
-	print_source_instruction_mappings();
-
-	puts("executing now...");
-
-
-
-	// abort();
-
-
-
-
-
-/*	else if (n < isa_count) {
-			snprintf(reason, sizeof reason, "invalid use of op code \"%s\" as argument", word);
-			print_message(error, reason, s, c);
-			exit(1);
-		}
-
-
-
-			else ins[ins_count] = (struct instruction) {
-				.a = {jal, isa_count + var_ra, n},
-				.start = {s, s, s},
-				.count = {c, c, c}
-			}; 
-
-
-
-
-
-
-
-
-
-	stb/h/w/d source source     				<----- hmmmmmmm danggg
+	print_dictionary(dictionary, locations, dictionary_count);
+	print_instructions(dictionary, dictionary_count);
 	
-	jal dest label           				<------ another special case  
-	lpa dest label          				<---- another one!
-*/
-
-
-
-	
-
-
-
 	print_message(warning, "this assembler is currently a work in progress, optimization phase not implemented yet...", 0, 0);
 
-	
-	// 			optimization phases here!!
 
-	// 		register-only based register allocation goes here!!
+
+
+	abort();
+
+
+
+
+
+
+
+
+
+	// constant propagation: 	static ct execution:
+
+
+	for (nat i = 0; i < ins_count; i++) {
+		
+
+	}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+	//files[file_count].name = argv[1];
+	//files[file_count].count = text_length;
+	//files[file_count].text = text;
+	//files[file_count].index = 0;
+
+
+
+// print_source_instruction_mappings();
+
+
+
 
 
 
@@ -1807,7 +2236,13 @@ int main(int argc, const char** argv) {
 		target_spelling[architecture], output_format_spelling[output_format]
 	);
 
-	if (architecture == noruntime) execute_instructions(locations, name_count);
+
+
+
+
+	puts("executing now...");
+
+	if (architecture == noruntime) execute_instructions(locations, dictionary_count);
 	else if (architecture == riscv32 or architecture == riscv64) generate_riscv_machine_code();
 	else if (architecture == arm64) generate_arm64_machine_code();
 	else {
@@ -1956,7 +2391,111 @@ int main(int argc, const char** argv) {
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 // else if (op == stl)   memcpy((uint8_t*) array[a0.value], text + array[a1.value], array[a2.value]);
+
+
+
+
+
+/*	else if (n < isa_count) {
+			snprintf(reason, sizeof reason, "invalid use of op code \"%s\" as argument", word);
+			print_message(error, reason, s, c);
+			exit(1);
+		}
+
+
+
+			else ins[ins_count] = (struct instruction) {
+				.a = {jal, isa_count + var_ra, n},
+				.start = {s, s, s},
+				.count = {c, c, c}
+			}; 
+
+
+
+
+
+
+
+
+
+	stb/h/w/d source source     				<----- hmmmmmmm danggg
+	
+	jal dest label           				<------ another special case  
+	lpa dest label          				<---- another one!
+*/
+
+
+
+	
+
+
+
+	
+	// 			optimization phases here!!
+
+	// 		register-only based register allocation goes here!!
+
+
+
+
 
 
 
@@ -3810,6 +4349,607 @@ static void print_registers(void) {
 
 
 */
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ 
+/*
+
+
+
+
+202406237.152400:
+
+
+	note:
+
+
+		i think we are going to have to allow for macros   via       detecting if a variable is used at the first position, 
+
+				if it is,  then we can basically do something special, there are a couple of things that we could do:
+
+
+
+							1.  we could make it so that thats label!   this might be optimal actually!
+
+
+
+							2. if its already defined as a label,   then we could actually call it as a function!
+
+										ie, generate a runtime     jal ra labelname
+
+
+
+										
+
+
+
+									that could work also work great!    basically to allow for calling functions just by saying the name of the function! which we definitely want to support lol.
+
+
+
+
+									so yeah, that will make it call on use. 
+
+
+												thats nice 
+
+
+
+
+
+						
+	so code would end up looking like:
+
+
+
+
+		myfunction
+			add hello 4 5 
+
+			sub hello hello 3
+
+			jalr zero ra
+
+
+
+		main
+			myfunction
+
+
+
+
+
+		
+
+
+pretty cool huh!
+
+
+	that actually would work great i think 
+
+	hm
+
+			interesting 
+
+
+	wow
+
+
+	yeah, i think i like this a lot lol 
+
+
+
+			its just   what about argument passing? 
+
+
+				well, i think the only real way to do it now, is via   assigning to particular registers,
+
+
+					and just happen to using those registers, 
+
+						which i think is fine honestly, that gets the job done lol 
+
+							hm
+										ill think about it more though 
+
+
+
+
+							maybe theres a way to not require assigning to registers?..
+
+
+
+
+
+			well wait no 
+
+						because you have to realize that function inlining will happennnnn
+
+
+
+						
+
+	which will end up transforming:
+
+
+
+		myfunction
+			add hello 4 5 
+
+			sub hello hello 3
+
+			jalr zero ra
+
+
+
+		main
+			myfunction
+
+
+
+
+	into simplfy being:
+
+
+
+
+		main
+			add hello 4 5 
+
+			sub hello hello 3
+
+
+
+
+
+
+	and so like, data flow needs to be optimized accordingly
+
+
+		like, if you don't want those extraneous moves and copies of the arguments to particular input registers,
+
+					 to happen,  then you shouldnt write them lol
+
+
+							just literally write out the variables you want to manipulate lol 
+
+
+								not too hard i think 
+
+
+
+
+
+
+
+
+
+				interesting 
+
+	hm
+
+							so yeah, for now that will work i think. 
+
+
+
+
+
+
+
+		just supporting that 
+
+
+
+
+					if the label is defined, (ie, set to some value other than -1)
+
+
+								then we will treat the occurence of the label as a    "jal ra label"
+
+
+								but if you say a label at the first position,   with no operation before it, 
+
+
+								andddd it hasnt been defined yet, 
+
+
+											(ie, given a label address value / location)
+
+
+
+
+									then we will say that its a label attribution statement!
+
+								pretty easy i think
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+202406237.003701:
+
+
+		changed the language up completely, to be prefix now, and not use an argument stack at all.
+		heres what code looks like now. the first argument is the destination, which is defined if not defined. only dest does this though. 
+
+
+			add hello 4 5 
+
+			sub hello hello 3
+	
+			mul result 6 4 33 5 56       // error: too many arguments given to instruction mul.
+
+
+			mul result result 2       
+						// these two are equivalent of course lol
+			sll result result 1
+
+
+
+			aipc pointer 0         // gets the pc
+
+			ldd a pointer 4          // loads from the pc+4 a double-word (64 bits)
+
+
+			
+
+
+
+	how do we do compiletime computation now then?... 
+
+
+			thats the major question im trying to figure out now. 
+	hm
+						
+
+
+
+									hoenstly this is kinda calling into question the entire language now, actually, 
+
+
+
+
+
+
+					because like, 
+
+
+
+
+
+
+
+
+			
+
+
+
+											.... 
+
+
+
+
+
+
+
+
+
+
+					is there a functionally any difference between     the optimizer running something   because its statically known    and the user saying that they want something run  becuase they set the ct bit?                   NO. theres not. 
+
+
+									theres no difference, and there shouldnt be a difference.   we should prefer and only supply the first method.    delete the second. 
+
+
+
+yay
+
+
+
+
+
+							ie, this is now a   2 main passes   assembler-     	parsing, which does label attribution, and word parsing, 
+
+
+									and instruction generation, 
+
+
+
+
+
+
+
+					with an analysis and optimization phase in the middle!!!
+
+
+
+
+								which allows staticaly known ct computation to happen.   YAYYY
+
+
+
+
+
+
+
+
+
+
+
+old:
+
+
+	- implement 3 stages:
+
+		- parsing/lexing:   names, def, strings, comments, ins op codes, [add a name-push instruction to get args?]
+					wait... how do we do arc.... CRAPPPPP
+
+		- compiletime interpretting:    execute rt instructions, and regenerate rt ins
+
+		- code generation / byte emmision / instruction selection  on rt instructions, according to arch/target
+
+
+
+
+
+
+
+
+old:
+
+
+
+	new semantics to implment:
+
+
+		- make variable names the default construct,
+		     make register assignment implicit
+
+		- make labels easier to work with?..
+
+
+		- make the complietime system not do file-offset ct-branching.... do it properly.
+
+
+		- make the language isa the IR of the compiler.
+
+
+		- make strings use a different system....
+
+
+		- add an interpreter mode!   where the runtime code is just interpreted 
+			in a virtual machine, for maximum portability lol. 
+
+
+		- 
+
+
+
+
+
+
+
+old:
+remaining features:
+
+	- double check all forwards/backwards branches behavior
+
+	- add bne,beq,bge,blt
+
+	- add ld's and st's for arm64 backend
+
+	- get mulitple files working, to include stdlib's foundation file, which creates constants. 
+
+	- 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ecall
+
+ldb/h/w/d dest source		good
+stb/h/w/d source source     				<----- hmmmmmmm danggg
+
+jalr dest source		good
+jal dest label           				<------ another special case  
+lpa dest label          				<---- another one!
+
+add dest source source		good
+sub dest source source		good
+slt dest source source		good
+slts dest source source		good
+and dest source source		good
+ior dest source source		good
+eor dest source source		good
+sll dest source source		good
+srl dest source source		good
+sra dest source source		good
+mul dest source source		good
+mulh dest source source		good
+mlhs dest source source		good
+div dest source source		good
+divs dest source source		good
+rem dest source source		good
+rems dest source source		good
+
+blt label source source		good
+blts label source source	good
+bge label source source		good
+bges label source source	good
+bne label source source		good
+beq label source source 	good
+
+
+
+
+cool okay so only    3 special casese technicallyyyyy nice nice 
+
+
+	because yeah, for all instructions, (EXCEPT FOR THE STORE INS's)   the destination register   is able to be defined by the user on its first occurence in that position. very cool. 
+
+
+		oh, same for the zeroth position too,  in replace of the op code lol.  this would be an label attribution though.  so yeah. 
+
+
+
+
+	then, we just need to know that          store instructions have no destination    or labels, and therefore don't define values ever 
+
+
+		AND
+
+
+
+			the jal and lpa (aka auipc) instructions     actually ONLY take values  which can be defined on their first use,
+
+						ie, it only takes destinations- kinda      labels are destinations,   in a way
+
+
+						but with the lpa, it literally has a destination,  a dest register, 
+
+								ANDDD it takes a label, 
+
+
+
+							and then with jal,   it has a destination register, AND it performs a branch. so yeah. a label "dest" too. 
+
+
+	
+								
+
+
+						so yeah, thats everything i think. nice.
+
+
+
+
+			lets code that up, just 3 special casese in total    not too bad 
+
+
+
+
+	
+
+
+
+											oh plus  ecall, which is kinda special in every way LOL
+
+
+										we'll just ignore ecall, its super easy, it takes nothing, and is as plain as you could make an instruction loolol. a single op code with no arguments
+
+					very amazing actually 
+
+	but yeah 
+
+anyways
+
+
+
+
+
+
+
+ISA  as of 202406237.182942:
+================================================
+
+
+	ecall
+	att 	label
+	jalr 	source 	dest
+	jal 	label 	dest
+	ldb 	dest 	pointer
+	ldh 	dest 	pointer 
+	ldw 	dest 	pointer
+	ldd 	dest 	pointer 
+	stb 	source 	pointer
+	sth 	source 	pointer 
+	stw 	source 	pointer
+	std 	source 	pointer
+	add 	dest 	source 	source 
+	sub 	dest 	source 	source
+	slt 	dest 	source 	source
+	slts 	dest 	source 	source
+	and 	dest 	source 	source
+	ior 	dest 	source 	source
+	eor 	dest 	source 	source
+	sll 	dest 	source 	source
+	srl 	dest 	source 	source
+	sra 	dest 	source 	source
+	mul 	dest 	source 	source
+	mulh 	dest 	source 	source
+	mlhs 	dest 	source 	source
+	div 	dest 	source 	source
+	divs 	dest 	source 	source
+	rem 	dest 	source 	source
+	rems 	dest 	source 	source
+	blt 	label 	source 	source 
+	blts 	label 	source 	source
+	bge 	label 	source 	source
+	bges 	label 	source 	source
+	bne 	label 	source 	source
+	beq 	label 	source 	source
+	
+
+================================================
+
+
+
+*/
+
+
+
+
+
+
+
+
 
 
 
