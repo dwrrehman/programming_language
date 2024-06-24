@@ -828,7 +828,6 @@ static void print_instructions(char** names) {
 		puts("]\n");
 	}
 	puts("}");
-	getchar();
 }
 
 static void print_message(nat type, const char* reason_string, nat spot, nat error_length) {
@@ -1578,13 +1577,13 @@ static void make_macho_object_file(void) {
 
 static void execute_instructions(nat* label, nat name_count) {
 
-	const nat z = isa_count + var_zero;
+	// const nat z = var_zero;
 
 	nat reg[1 << 16];
 	memcpy(reg, label, sizeof(nat) * name_count);
-	reg[isa_count + var_sp] = (nat) (void*) calloc(1 << 16, 1);
+	reg[var_sp] = (nat) (void*) calloc(1 << 16, 1);
 
-	for (nat pc = 0; pc < ins_count; pc++) {
+	for (nat pc = 1; pc < ins_count; ) {
 
 		const nat op = ins[pc].a[0];
 		const nat d =  ins[pc].a[1];
@@ -1616,24 +1615,24 @@ static void execute_instructions(nat* label, nat name_count) {
 		else if (op == stw)   *(u32*)(reg[r]) = (u32)reg[d];
 		else if (op == std)   *(nat*)(reg[r]) = (nat)reg[d];
 
-		else if (op == blt)   { if (reg[r] <  reg[s]) pc = label[d]; }
-		else if (op == bge)   { if (reg[r] >= reg[s]) pc = label[d]; }
-		else if (op == bne)   { if (reg[r] != reg[s]) pc = label[d]; }
-		else if (op == beq)   { if (reg[r] == reg[s]) pc = label[d]; }
-		else if (op == blts)  { if (reg[r] <  reg[s]) pc = label[d]; }
-		else if (op == bges)  { if (reg[r] >= reg[s]) pc = label[d]; }
+		else if (op == blt)   { if (reg[r] <  reg[s]) { pc = label[d]; continue; } }
+		else if (op == bge)   { if (reg[r] >= reg[s]) { pc = label[d]; continue; } }
+		else if (op == bne)   { if (reg[r] != reg[s]) { pc = label[d]; continue; } }
+		else if (op == beq)   { if (reg[r] == reg[s]) { pc = label[d]; continue; } }
+		else if (op == blts)  { if (reg[r] <  reg[s]) { pc = label[d]; continue; } }
+		else if (op == bges)  { if (reg[r] >= reg[s]) { pc = label[d]; continue; } }
 
-		else if (op == jalr)  { if (r != z) reg[r] = pc; pc = reg[d]; } 
-		else if (op == jal)   { if (r != z) reg[r] = pc; pc = label[d]; } 
+		else if (op == jalr)  { reg[r] = pc; pc = reg[d]; continue; } 
+		else if (op == jal)   { reg[r] = pc; pc = label[d]; continue; } 
 
 		else if (op == ecall) {
-			const nat a0 = reg[isa_count + var_arg0];
-			const nat a1 = reg[isa_count + var_arg1];
-			const nat a2 = reg[isa_count + var_arg2];
-			//const nat a3 = reg[isa_count + var_arg3];
-			//const nat a4 = reg[isa_count + var_arg4];
-			//const nat a5 = reg[isa_count + var_arg5];
-			const nat n = reg[isa_count + var_argn];
+			const nat a0 = reg[var_arg0];
+			const nat a1 = reg[var_arg1];
+			const nat a2 = reg[var_arg2];
+			//const nat a3 = reg[var_arg3];
+			//const nat a4 = reg[var_arg4];
+			//const nat a5 = reg[var_arg5];
+			const nat n = reg[var_argn];
 
 			if (n == 0) {
 				snprintf(reason, sizeof reason, "%lld (0x%016llx)", a0, a0);
@@ -1655,8 +1654,12 @@ static void execute_instructions(nat* label, nat name_count) {
 			}
 		} else { 
 			puts("error: internal ct execute error: unknown instruction encountered"); 
+			printf("found bad instruction: %llu : %s\n", op, op < isa_count ? spelling[op] : "(NON-INS OP CODE)");
 			abort(); 
 		}
+
+		reg[0] = 0;
+		pc++;
 	}
 }
 
