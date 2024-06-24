@@ -1060,6 +1060,7 @@ struct file {
 };
 
 struct namespace {
+	char* name;
 	char** names;
 	nat* locations;
 	nat* index;
@@ -1100,7 +1101,7 @@ static const char* type_string[] = {
 static void print_dictionary(char** names, nat* locations, nat name_count) {
 	puts("printing dictionary...");
 	for (nat i = 0; i < name_count; i++) {
-		printf("\t#%-6llu: name %-10s ..... %llu\n", i, names[i], locations[i]);
+		printf("\t#%-6llu:   %-20s ..... %-7llu\n", i, names[i], locations[i]);
 	}
 	puts("end of dictionary.");
 }
@@ -1121,7 +1122,7 @@ static void print_instructions(char** names, nat name_count) {
 }
 
 static void print_message(nat type, const char* reason_string, nat spot, nat error_length) {
-	printf("\033[1mlanguage: %s:", filename ? filename : "(invocation)");
+	printf("\033[1mlanguage: %s:", filename);
 	if (spot or error_length) printf("%llu:%llu:", spot, error_length);
 	printf(" %s \033[1m%s\033[m\n", type_string[type], reason_string);
 	if (not filename) return;
@@ -1982,7 +1983,7 @@ static void print_namespaces(nat* activens, nat activens_count, struct namespace
 	puts("}");
 
 	for (nat n = 0; n < ns_count; n++) {
-		printf("ns #%llu = {\n", n);
+		printf("ns #%llu = (\"%s\") => {\n", n, ns[n].name);
 		for (nat i = 0; i < ns[n].name_count; i++) {
 			printf("\t.  (\"%s\" : l%lld : i%lld)\n", ns[n].names[i], ns[n].locations[i], ns[n].index[i]);
 		}
@@ -1992,10 +1993,19 @@ static void print_namespaces(nat* activens, nat activens_count, struct namespace
 	puts("...end.");
 }
 
+static char* generate_global_qualified_name(struct namespace* ns, nat* activens, nat activens_count, char* word) {
+	char buffer[4096] = {0};
+	for (nat i = 1; i < activens_count; i++) {
+		strlcat(buffer, ns[activens[i]].name, sizeof buffer);
+		strlcat(buffer, "::", sizeof buffer);
+	}
+	strlcat(buffer, word, sizeof buffer);
+	return strdup(buffer);
+}
+
 int main(int argc, const char** argv) {
 
 	if (argc != 2) exit(puts("language: \033[31;1merror:\033[0m usage: ./asm <source.s>"));
-
 
 	struct namespace* ns = calloc(1, sizeof(struct namespace));
 	nat ns_count = 0;
@@ -2008,7 +2018,7 @@ int main(int argc, const char** argv) {
 	for (nat i = 0; i < variable_count; i++) {
 		nat ni = ns_count;
 		char* word = strdup(variable_spelling[i]);
-
+		ns[ni].name = strdup("");
 		ns[ni].names = realloc(ns[ni].names, sizeof(char*) * (ns[ni].name_count + 1)); 
 		ns[ni].names[ns[ni].name_count] = word;
 		ns[ni].locations = realloc(ns[ni].locations, sizeof(char*) * (ns[ni].name_count + 1)); 
@@ -2021,9 +2031,6 @@ int main(int argc, const char** argv) {
 	}
 
 	activens[activens_count++] = ns_count++;
-
-
-	print_namespaces(activens, activens_count, ns, ns_count);
 
 	text_length = 0;
 	filename = argv[1];
@@ -2050,6 +2057,7 @@ parse_file:
 		nat* l = NULL;
 		nat n = 0;
 
+		puts("searching over these ns...");
 		print_namespaces(activens, activens_count, ns, ns_count);
 
 		for (n = 0; n < isa_count; n++) if (not strcmp(spelling[n], word)) goto ins;
@@ -2059,12 +2067,8 @@ parse_file:
 				struct namespace this = ns[activens[e]];
 				for (n = 0; n < this.name_count; n++) {
 					if (not strcmp(this.names[n], word)) {
-						
 						l = this.locations + n;
 						n = this.index[n];
-
-						
-
 						goto arg;
 					}
 				}
@@ -2073,12 +2077,8 @@ parse_file:
 			struct namespace this = ns[NS];  NS = 0;
 			for (n = 0; n < this.name_count; n++) {
 				if (not strcmp(this.names[n], word)) {
-					
 					l = this.locations + n;
 					n = this.index[n];
-
-					
-
 					goto arg;
 				}
 			}
@@ -2090,11 +2090,9 @@ parse_file:
 			exit(1);
 		}
 
-
 		const nat e = activens[activens_count - 1];
 		struct namespace* this = ns + e;
 		const nat nc = this->name_count;
-		
 		n = dictionary_count;
 
 		this->names = realloc(this->names, sizeof(char*) * (nc + 1)); 
@@ -2107,10 +2105,9 @@ parse_file:
 		this->index[this->name_count++] = n;
 
 		locations[dictionary_count] = 0;
-		dictionary[dictionary_count++] = word;
+		dictionary[dictionary_count++] = generate_global_qualified_name(ns, activens, activens_count, word);
 
 		l = this->locations + nc; 
-		
 		goto arg;
 
 
@@ -2143,7 +2140,7 @@ parse_file:
 			*l = -ns_count;
 			ins_count--; 
 			ns = realloc(ns, sizeof(struct namespace) * (ns_count + 1));
-			ns[ns_count] = (struct namespace) {0};
+			ns[ns_count] = (struct namespace) {.name = word};
 			activens[activens_count++] = ns_count++;
 		}
 		if (o == use and a == 2) {

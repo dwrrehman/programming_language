@@ -2,6 +2,10 @@
 
 sub
 use test1.s
-mul
 
+nsb math
 
+add one bubbles hello
+mul output bubbles x one
+
+nse

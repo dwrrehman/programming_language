@@ -8,3 +8,6 @@ nsb bubbles
 
 nse
 
+
+add zero bubbles hello zero
+
