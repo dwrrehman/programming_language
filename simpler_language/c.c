@@ -29,6 +29,227 @@
 
 
 
+202406237.152400:
+
+
+	note:
+
+
+		i think we are going to have to allow for macros   via       detecting if a variable is used at the first position, 
+
+				if it is,  then we can basically do something special, there are a couple of things that we could do:
+
+
+
+							1.  we could make it so that thats label!   this might be optimal actually!
+
+
+
+							2. if its already defined as a label,   then we could actually call it as a function!
+
+										ie, generate a runtime     jal ra labelname
+
+
+
+										
+
+
+
+									that could work also work great!    basically to allow for calling functions just by saying the name of the function! which we definitely want to support lol.
+
+
+
+
+									so yeah, that will make it call on use. 
+
+
+												thats nice 
+
+
+
+
+
+						
+	so code would end up looking like:
+
+
+
+
+		myfunction
+			add hello 4 5 
+
+			sub hello hello 3
+
+			jalr zero ra
+
+
+
+		main
+			myfunction
+
+
+
+
+
+		
+
+
+pretty cool huh!
+
+
+	that actually would work great i think 
+
+	hm
+
+			interesting 
+
+
+	wow
+
+
+	yeah, i think i like this a lot lol 
+
+
+
+			its just   what about argument passing? 
+
+
+				well, i think the only real way to do it now, is via   assigning to particular registers,
+
+
+					and just happen to using those registers, 
+
+						which i think is fine honestly, that gets the job done lol 
+
+							hm
+										ill think about it more though 
+
+
+
+
+							maybe theres a way to not require assigning to registers?..
+
+
+
+
+
+			well wait no 
+
+						because you have to realize that function inlining will happennnnn
+
+
+
+						
+
+	which will end up transforming:
+
+
+
+		myfunction
+			add hello 4 5 
+
+			sub hello hello 3
+
+			jalr zero ra
+
+
+
+		main
+			myfunction
+
+
+
+
+	into simplfy being:
+
+
+
+
+		main
+			add hello 4 5 
+
+			sub hello hello 3
+
+
+
+
+
+
+	and so like, data flow needs to be optimized accordingly
+
+
+		like, if you don't want those extraneous moves and copies of the arguments to particular input registers,
+
+					 to happen,  then you shouldnt write them lol
+
+
+							just literally write out the variables you want to manipulate lol 
+
+
+								not too hard i think 
+
+
+
+
+
+
+
+
+
+				interesting 
+
+	hm
+
+							so yeah, for now that will work i think. 
+
+
+
+
+
+
+
+		just supporting that 
+
+
+
+
+					if the label is defined, (ie, set to some value other than -1)
+
+
+								then we will treat the occurence of the label as a    "jal ra label"
+
+
+								but if you say a label at the first position,   with no operation before it, 
+
+
+								andddd it hasnt been defined yet, 
+
+
+											(ie, given a label address value / location)
+
+
+
+
+									then we will say that its a label attribution statement!
+
+								pretty easy i think
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 202406237.003701:
 
 
@@ -204,7 +425,173 @@ remaining features:
 	- get mulitple files working, to include stdlib's foundation file, which creates constants. 
 
 	- 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ecall
+
+ldb/h/w/d dest source		good
+stb/h/w/d source source     				<----- hmmmmmmm danggg
+
+jalr dest source		good
+jal dest label           				<------ another special case  
+lpa dest label          				<---- another one!
+
+add dest source source		good
+sub dest source source		good
+slt dest source source		good
+slts dest source source		good
+and dest source source		good
+ior dest source source		good
+eor dest source source		good
+sll dest source source		good
+srl dest source source		good
+sra dest source source		good
+mul dest source source		good
+mulh dest source source		good
+mlhs dest source source		good
+div dest source source		good
+divs dest source source		good
+rem dest source source		good
+rems dest source source		good
+
+blt label source source		good
+blts label source source	good
+bge label source source		good
+bges label source source	good
+bne label source source		good
+beq label source source 	good
+
+
+
+
+cool okay so only    3 special casese technicallyyyyy nice nice 
+
+
+	because yeah, for all instructions, (EXCEPT FOR THE STORE INS's)   the destination register   is able to be defined by the user on its first occurence in that position. very cool. 
+
+
+		oh, same for the zeroth position too,  in replace of the op code lol.  this would be an label attribution though.  so yeah. 
+
+
+
+
+	then, we just need to know that          store instructions have no destination    or labels, and therefore don't define values ever 
+
+
+		AND
+
+
+
+			the jal and lpa (aka auipc) instructions     actually ONLY take values  which can be defined on their first use,
+
+						ie, it only takes destinations- kinda      labels are destinations,   in a way
+
+
+						but with the lpa, it literally has a destination,  a dest register, 
+
+								ANDDD it takes a label, 
+
+
+
+							and then with jal,   it has a destination register, AND it performs a branch. so yeah. a label "dest" too. 
+
+
 	
+								
+
+
+						so yeah, thats everything i think. nice.
+
+
+
+
+			lets code that up, just 3 special casese in total    not too bad 
+
+
+
+
+	
+
+
+
+											oh plus  ecall, which is kinda special in every way LOL
+
+
+										we'll just ignore ecall, its super easy, it takes nothing, and is as plain as you could make an instruction loolol. a single op code with no arguments
+
+					very amazing actually 
+
+	but yeah 
+
+anyways
+
+
+
+
+
+
+
+ISA  as of 202406237.182942:
+================================================
+
+
+	ecall
+	att 	label
+	jalr 	source 	dest
+	jal 	label 	dest
+	ldb 	dest 	pointer
+	ldh 	dest 	pointer 
+	ldw 	dest 	pointer
+	ldd 	dest 	pointer 
+	stb 	source 	pointer
+	sth 	source 	pointer 
+	stw 	source 	pointer
+	std 	source 	pointer
+	add 	dest 	source 	source 
+	sub 	dest 	source 	source
+	slt 	dest 	source 	source
+	slts 	dest 	source 	source
+	and 	dest 	source 	source
+	ior 	dest 	source 	source
+	eor 	dest 	source 	source
+	sll 	dest 	source 	source
+	srl 	dest 	source 	source
+	sra 	dest 	source 	source
+	mul 	dest 	source 	source
+	mulh 	dest 	source 	source
+	mlhs 	dest 	source 	source
+	div 	dest 	source 	source
+	divs 	dest 	source 	source
+	rem 	dest 	source 	source
+	rems 	dest 	source 	source
+	blt 	label 	source 	source 
+	blts 	label 	source 	source
+	bge 	label 	source 	source
+	bges 	label 	source 	source
+	bne 	label 	source 	source
+	beq 	label 	source 	source
+	
+
+================================================
+
 
 
 */
@@ -330,25 +717,19 @@ static u32 arm64_macos_abi[] = {        // note:  x9 is call-clobbered. save it 
 };
 
 enum language_isa {
-	att, ecall,
-	add, sub, slt, slts, 
-	and_, ior, eor, sll, srl, sra, 
-	ldb, ldh, ldw, ldd, stb, sth, stw, std,
-	mul, mulh, mulhs, div_, divs, rem, rems, 
-	blt, blts, bge, bges, bne, beq,   
-	jalr, jal, lpa,
+	null_instruction, ecall, att, 
+	ldb, ldh, ldw, ldd, stb, sth, stw, std, jalr, jal, 
+	add, sub, slt, slts, and_, ior, eor, sll, srl, sra, mul, mulh, 
+	mlhs, div_, divs, rem, rems, blt, blts, bge, bges, bne, beq, 
 
 isa_count};
 
 
 static const char* spelling[isa_count] = {
-	"att", "ecall",
-	"add", "sub", "slt", "slts", 
-	"and", "ior", "eor", "sll", "srl", "sra", 
-	"ldb", "ldh", "ldw", "ldd", "stb", "sth", "stw", "std",
-	"mul", "mulh", "mulhs", "div", "divs", "rem", "rems", 
-	"blt", "blts", "bge", "bges", "bne", "beq",   
-	"jalr", "jal", "lpa",
+	"", "ecall", "att",
+	"ldb", "ldh", "ldw", "ldd", "stb", "sth", "stw", "std", "jalr", "jal",
+	"add", "sub", "slt", "slts", "and", "ior", "eor", "sll", "srl", "sra", "mul", "mulh", 
+	"mlhs", "div", "divs", "rem", "rems", "blt", "blts", "bge", "bges", "bne", "beq", 
 };
 
 enum compiletime_variables {
@@ -434,22 +815,20 @@ static void print_dictionary(char** names, nat* locations, nat name_count) {
 	puts("end of dictionary.");
 }
 
-static void print_instructions(void) {
+static void print_instructions(char** names) {
 	printf("instructions: {\n");
 	for (nat i = 0; i < ins_count; i++) {
-		printf("\t%llu\tins(.op=%llu (\"%s\"), .size=%lld, args:{ ", 
-			i, ins[i].a[0], spelling[ins[i].a[0]], (nat)-1
-		);
-		for (nat a = 1; a < 4; a++) printf("%llu ", ins[i].a[a]);
-		
+		printf("\t%-8llu\tins(.op = %-5s  { ", i, spelling[ins[i].a[0]]);
+		for (nat a = 1; a < 4; a++) printf(" %-8s    ", names[ins[i].a[a]]);
 		printf("}   -- \t[found @   ");
 		for (nat a = 0; a < 4; a++) {
-			printf("[%llu]:(%llu:%llu)", a, ins[i].start[a], ins[i].count[a]);
+			printf("[%llu]:{a%llu}(%llu:%llu)", a, ins[i].a[a], ins[i].start[a], ins[i].count[a]);
 			if (a < 3) printf(", ");
 		}
-		puts("]");
+		puts("]\n");
 	}
 	puts("}");
+	getchar();
 }
 
 static void print_message(nat type, const char* reason_string, nat spot, nat error_length) {
@@ -1197,36 +1576,26 @@ static void make_macho_object_file(void) {
 
 
 
-static void execute_instructions(nat* label) {
+static void execute_instructions(nat* label, nat name_count) {
 
 	const nat z = isa_count + var_zero;
 
 	nat reg[1 << 16];
+	memcpy(reg, label, sizeof(nat) * name_count);
 	reg[isa_count + var_sp] = (nat) (void*) calloc(1 << 16, 1);
 
 	for (nat pc = 0; pc < ins_count; pc++) {
 
 		const nat op = ins[pc].a[0];
-		const nat d = ins[pc].a[1];
-		const nat r = ins[pc].a[2];
-		const nat s = ins[pc].a[3];
+		const nat d =  ins[pc].a[1];
+		const nat r =  ins[pc].a[2];
+		const nat s =  ins[pc].a[3];
 		
 		printf("executing ins  @pc=%llu:  [ %s (%llu)  :: d %llu  r %llu  s %llu ]\n", 
 			pc, spelling[op], op, d, r, s
 		);
 
-		if (op == lpa)       reg[d] = label[r];
-
-		//else if (op == addi)  reg[d] = reg[r] + s;
-		//else if (op == slti)  reg[d] = reg[r] < s;
-		//else if (op == iori)  reg[d] = reg[r] | s;
-		//else if (op == eori)  reg[d] = reg[r] ^ s;
-		//else if (op == andi)  reg[d] = reg[r] & s;
-		//else if (op == slli)  reg[d] = reg[r] << s;
-		//else if (op == srli)  reg[d] = reg[r] >> s;
-		//else if (op == srai)  reg[d] = reg[r] >> s;
-
-		else if (op == add)   reg[d] = reg[r] + reg[s];
+		     if (op == add)   reg[d] = reg[r] + reg[s];
 		else if (op == sub)   reg[d] = reg[r] - reg[s];
 		else if (op == ior)   reg[d] = reg[r] | reg[s];
 		else if (op == eor)   reg[d] = reg[r] ^ reg[s];
@@ -1236,22 +1605,26 @@ static void execute_instructions(nat* label) {
 		else if (op == sll)   reg[d] = reg[r] << reg[s];
 		else if (op == srl)   reg[d] = reg[r] >> reg[s];
 		else if (op == sra)   reg[d] = reg[r] >> reg[s];
-		else if (op == ldb)   reg[d] = *( u8*)(reg[r] + s);
-		else if (op == ldh)   reg[d] = *(u16*)(reg[r] + s);
-		else if (op == ldw)   reg[d] = *(u32*)(reg[r] + s);
-		else if (op == ldd)   reg[d] = *(nat*)(reg[r] + s);
-		else if (op == stb)   *( u8*)(reg[d] + r) = ( u8)reg[s];
-		else if (op == sth)   *(u16*)(reg[d] + r) = (u16)reg[s];
-		else if (op == stw)   *(u32*)(reg[d] + r) = (u32)reg[s];
-		else if (op == std)   *(nat*)(reg[d] + r) = (nat)reg[s];
-		else if (op == blt)   { if (reg[d] <  reg[r]) pc = label[s]; }
-		else if (op == bge)   { if (reg[d] >= reg[r]) pc = label[s]; }
-		else if (op == bne)   { if (reg[d] != reg[r]) pc = label[s]; }
-		else if (op == beq)   { if (reg[d] == reg[r]) pc = label[s]; }
-		else if (op == blts)  { if (reg[d] <  reg[r]) pc = label[s]; }
-		else if (op == bges)  { if (reg[d] >= reg[r]) pc = label[s]; }
-		else if (op == jalr)  { if (d != z) reg[d] = pc; pc = reg[s]; } 
-		else if (op == jal)   { if (d != z) reg[d] = pc; pc = label[s]; } 
+
+		else if (op == ldb)   reg[d] = *( u8*)(reg[r]);
+		else if (op == ldh)   reg[d] = *(u16*)(reg[r]);
+		else if (op == ldw)   reg[d] = *(u32*)(reg[r]);
+		else if (op == ldd)   reg[d] = *(nat*)(reg[r]);
+
+		else if (op == stb)   *( u8*)(reg[r]) = ( u8)reg[d];
+		else if (op == sth)   *(u16*)(reg[r]) = (u16)reg[d];
+		else if (op == stw)   *(u32*)(reg[r]) = (u32)reg[d];
+		else if (op == std)   *(nat*)(reg[r]) = (nat)reg[d];
+
+		else if (op == blt)   { if (reg[r] <  reg[s]) pc = label[d]; }
+		else if (op == bge)   { if (reg[r] >= reg[s]) pc = label[d]; }
+		else if (op == bne)   { if (reg[r] != reg[s]) pc = label[d]; }
+		else if (op == beq)   { if (reg[r] == reg[s]) pc = label[d]; }
+		else if (op == blts)  { if (reg[r] <  reg[s]) pc = label[d]; }
+		else if (op == bges)  { if (reg[r] >= reg[s]) pc = label[d]; }
+
+		else if (op == jalr)  { if (r != z) reg[r] = pc; pc = reg[d]; } 
+		else if (op == jal)   { if (r != z) reg[r] = pc; pc = label[d]; } 
 
 		else if (op == ecall) {
 			const nat a0 = reg[isa_count + var_arg0];
@@ -1288,6 +1661,22 @@ static void execute_instructions(nat* label) {
 }
 
 
+static nat arity(const nat op) { 
+	if (op == ecall) return 1; 
+	if (op == att) return 2;
+	if (op < add) return 3; 
+	if (op < isa_count) return 4; 
+	abort();
+}
+
+static bool define_on_use(nat op, nat count) {
+	if (op >= stb and op <= std) return false;
+	if (op == jal) 	return true;
+	if (op == jalr) return count == 2;
+	if (op < isa_count) return count == 1;
+	abort();
+}
+
 int main(int argc, const char** argv) {
 
 	if (argc != 2) exit(puts("language: \033[31;1merror:\033[0m usage: ./asm <source.s>"));
@@ -1295,10 +1684,7 @@ int main(int argc, const char** argv) {
 	nat name_count = 0;
 	char* names[4096] = {0};
 	nat locations[4096] = {0};
-	for (nat i = 0; i < isa_count; i++) 
-		names[name_count++] = strdup(spelling[i]);
-	for (nat i = 0; i < variable_count; i++) 
-		names[name_count++] = strdup(variable_spelling[i]);
+	for (nat i = 0; i < variable_count; i++) names[name_count++] = strdup(variable_spelling[i]);
 
 	const char* filename = argv[1];
 	text_length = 0;
@@ -1311,54 +1697,87 @@ int main(int argc, const char** argv) {
 	files[file_count].count = text_length;
 	files[file_count++].start = 0;
 
-	ins_count = (nat) -1;
-	for (nat s = 0, c = 0, a = 0, i = 0; i < text_length; i++) {
+	ins = realloc(ins, sizeof(struct instruction) * (ins_count + 1));
+	ins[ins_count] = (struct instruction) {0};
+
+	for (nat o = 0, n = 0, s = 0, c = 0, a = 0, i = 0; i < text_length; i++) {
 		if (not isspace(text[i])) {
-			if (not c) s = i; 
-			c++; 
+			if (not c) s = i;  c++; 
 			if (i + 1 < text_length) continue;
 		} else if (not c) continue;
-
 		char* word = strndup(text + s, c);
-		printf("one: word: \"%s\"\n", word);
-
-		nat n = 0;
-		for (;n < name_count; n++) 
-			if (not strcmp(names[n], word)) goto push;
-
-		if (a != 1) {
-			snprintf(reason, sizeof reason, "use of undefined \"%s\"", word);
+		for (n = 0; n < isa_count; n++) if (not strcmp(spelling[n], word)) goto ins;
+		for (n = 0; n < name_count; n++) if (not strcmp(names[n], word)) goto arg;
+		if (not define_on_use(o, a)) {
+			snprintf(reason, sizeof reason, "use of undefined word \"%s\"", word);
 			print_message(error, reason, s, c);
 			exit(1);
-		} 
-		n = name_count;
+		}
 		names[name_count++] = word;
 		goto arg;
-		
-	push: 	if (n < isa_count) {
-			ins_count++;
-			ins = realloc(ins, sizeof(struct instruction) * (ins_count + 1));
-			ins[ins_count] = (struct instruction) {0};
-			a = 0;
-		} 
-
-	arg:	ins[ins_count].a[a] = n;
+	ins:	ins_count++; a = 0;
+		ins = realloc(ins, sizeof(struct instruction) * (ins_count + 1));
+		ins[ins_count] = (struct instruction) { .start = {s, s, s, s}, .count = {c, c, c, c} };
+		o = n;
+	arg: 	if (a >= arity(o)) {
+			snprintf(reason, sizeof reason, "excess arguments to %s instruction", spelling[o]);
+			print_message(error, reason, s, c);
+			exit(1);
+		}
+		ins[ins_count].a[a] = n;
 		ins[ins_count].start[a] = s;
 		ins[ins_count].count[a] = c;
 		a++;
-
-		if (ins[ins_count].a[0] == att and a == 2) { 
-			locations[ins[ins_count].a[1]] = ins_count; 
-			ins_count--; 
-		}
+		if (o == att and a == 2) locations[n] = ins_count--;
 		c = 0;
 	}
 	ins_count++;
+
 	puts("debug: finished parsing files.");
 
 	print_dictionary(names, locations, name_count);
-	print_instructions();
+	print_instructions(names);
 	print_source_instruction_mappings();
+
+	puts("executing now...");
+
+
+
+	// abort();
+
+
+
+
+
+/*	else if (n < isa_count) {
+			snprintf(reason, sizeof reason, "invalid use of op code \"%s\" as argument", word);
+			print_message(error, reason, s, c);
+			exit(1);
+		}
+
+
+
+			else ins[ins_count] = (struct instruction) {
+				.a = {jal, isa_count + var_ra, n},
+				.start = {s, s, s},
+				.count = {c, c, c}
+			}; 
+
+
+
+
+
+
+
+
+
+	stb/h/w/d source source     				<----- hmmmmmmm danggg
+	
+	jal dest label           				<------ another special case  
+	lpa dest label          				<---- another one!
+*/
+
+
 
 	
 
@@ -1382,7 +1801,7 @@ int main(int argc, const char** argv) {
 		target_spelling[architecture], output_format_spelling[output_format]
 	);
 
-	if (architecture == noruntime) execute_instructions(locations);
+	if (architecture == noruntime) execute_instructions(locations, name_count);
 	else if (architecture == riscv32 or architecture == riscv64) generate_riscv_machine_code();
 	else if (architecture == arm64) generate_arm64_machine_code();
 	else {
@@ -1540,6 +1959,81 @@ int main(int argc, const char** argv) {
 /*
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+	for (nat o = 0, n = 0, s = 0, c = 0, a = 0, i = 0; i < text_length; i++) {
+		if (not isspace(text[i])) {
+			if (not c) s = i;  c++; 
+			if (i + 1 < text_length) continue;
+		} else if (not c) continue;
+		char* word = strndup(text + s, c);
+
+		puts("\n\n------------------------------------------");
+		printf("one: word: \"%s\"\n", word);
+		puts("------------------------------------------");
+
+		puts("searching for matching operation word...");
+		for (n = 0; n < isa_count; n++) if (not strcmp(spelling[n], word)) { printf("FOUND OP %llu :: %s!\n", n, spelling[n]); goto ins; }
+		puts("searching for matching variable_name word...");
+		for (n = 0; n < name_count; n++) if (not strcmp(names[n], word)) { printf("FOUND VAR %llu :: %s!\n", n, names[n]); goto arg; }
+
+		puts("could not find any op or var_name that matched...");
+		if (not define_on_use(o, a)) {
+			snprintf(reason, sizeof reason, "use of undefined \"%s\"", word);
+			print_message(error, reason, s, c);
+			exit(1);
+		} else {
+			names[name_count++] = word;
+			printf("instead, defined word \"%s\"...\n", word);
+			goto arg;
+		}
+	ins:	printf("at :ins: before, ins_count = %llu, a = %llu...\n", ins_count, a);
+		ins_count++; a = 0;
+		printf("at :ins: after, ins_count = %llu, a = %llu...\n", ins_count, a);
+		ins = realloc(ins, sizeof(struct instruction) * (ins_count + 1));
+		ins[ins_count] = (struct instruction) {0};
+		o = n;
+		printf("assigning o to be %llu...\n", o);
+
+	arg: 	if (a >= arity(o)) {
+			snprintf(reason, sizeof reason, "excess arguments to %s instruction", spelling[o]);
+			print_message(error, reason, s, c);
+			exit(1);
+		}
+		ins[ins_count].a[a] = n;
+		ins[ins_count].start[a] = s;
+		ins[ins_count].count[a] = c;
+		a++;
+
+		printf("pushed argument at %llu: { %llu %llu %llu }\n", a - 1, n, s, c); 
+		printf("there are now %llu arguments now...\n", a);
+
+		//if (o == att and a == 2) locations[n] = ins_count--;
+
+		puts("going to next word...");
+
+		c = 0;
+	}
+	ins_count++;
+
+
+
+
+
+
+
+
+
 struct instruction operations[4096] = {
 		{.a = {add,0,0,0}}
 	};
@@ -1550,6 +2044,22 @@ print_registers();
 		print_arguments(arguments, arg_count);
 
 	}
+
+
+
+
+
+
+
+		//else if (op == addi)  reg[d] = reg[r] + s;
+		//else if (op == slti)  reg[d] = reg[r] < s;
+		//else if (op == iori)  reg[d] = reg[r] | s;
+		//else if (op == eori)  reg[d] = reg[r] ^ s;
+		//else if (op == andi)  reg[d] = reg[r] & s;
+		//else if (op == slli)  reg[d] = reg[r] << s;
+		//else if (op == srli)  reg[d] = reg[r] >> s;
+		//else if (op == srai)  reg[d] = reg[r] >> s;
+
 
 
 
