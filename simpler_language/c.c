@@ -752,12 +752,12 @@ static const char* variable_spelling[variable_count] = {
 	"ra",
 	"sp",
 	"argn",
-	"arg0",
-	"arg1",
-	"arg2",
-	"arg3",
-	"arg4",
-	"arg5",
+	"arga",
+	"argb",
+	"argc",
+	"argd",
+	"arge",
+	"argf",
 	"stacksize",
 };
 
@@ -1590,9 +1590,9 @@ static void execute_instructions(nat* label, nat name_count) {
 		const nat r =  ins[pc].a[2];
 		const nat s =  ins[pc].a[3];
 		
-		printf("executing ins  @pc=%llu:  [ %s (%llu)  :: d %llu  r %llu  s %llu ]\n", 
-			pc, spelling[op], op, d, r, s
-		);
+	//	printf("executing ins  @pc=%llu:  [ %s (%llu)  :: d %llu  r %llu  s %llu ]\n", 
+	//		pc, spelling[op], op, d, r, s
+	//	);
 
 		     if (op == add)   reg[d] = reg[r] + reg[s];
 		else if (op == sub)   reg[d] = reg[r] - reg[s];
@@ -1604,6 +1604,9 @@ static void execute_instructions(nat* label, nat name_count) {
 		else if (op == sll)   reg[d] = reg[r] << reg[s];
 		else if (op == srl)   reg[d] = reg[r] >> reg[s];
 		else if (op == sra)   reg[d] = reg[r] >> reg[s];
+		else if (op == div_)  reg[d] = reg[r] / reg[s];
+		else if (op == mul)   reg[d] = reg[r] * reg[s];
+		else if (op == rem)   reg[d] = reg[r] % reg[s];
 
 		else if (op == ldb)   reg[d] = *( u8*)(reg[r]);
 		else if (op == ldh)   reg[d] = *(u16*)(reg[r]);
