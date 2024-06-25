@@ -1003,7 +1003,7 @@ static u32 arm64_macos_abi[] = {        // note:  x9 is call-clobbered. save it 
 };
 
 enum language_isa {
-	null_instruction, ecall, att, use, nsb, nse, 
+	null_instruction, ecl, att, use, nsb, nse, 
 	ldb, ldh, ldw, ldd, stb, sth, stw, std, jalr, jal, 
 	add, sub, slt, slts, and_, ior, eor, sll, srl, sra, mul, mulh, 
 	mlhs, div_, divs, rem, rems, blt, blts, bge, bges, bne, beq, 
@@ -1011,7 +1011,7 @@ enum language_isa {
 };
 
 static const char* spelling[isa_count] = {
-	"", "ecall", "att", "use", "nsb", "nse",
+	"", "ecl", "att", "use", "nsb", "nse",
 	"ldb", "ldh", "ldw", "ldd", "stb", "sth", "stw", "std", "jalr", "jal",
 	"add", "sub", "slt", "slts", "and", "ior", "eor", "sll", "srl", "sra", "mul", "mulh", 
 	"mlhs", "div", "divs", "rem", "rems", "blt", "blts", "bge", "bges", "bne", "beq", 
@@ -1109,17 +1109,36 @@ static void print_dictionary(char** names, nat* locations, nat name_count) {
 static void print_instructions(char** names, nat name_count) {
 	printf("instructions: {\n");
 	for (nat i = 0; i < ins_count; i++) {
-		printf("\t%-8llu\tins(.op = %-5s  { ", i, ins[i].a[0] < isa_count ? spelling[ins[i].a[0]] : "UNDEFINED OP ERR");
-		for (nat a = 1; a < 4; a++) printf(" %-8s    ", ins[i].a[a] < name_count ? names[ins[i].a[a]] : "UNDEFINED OP ERR");
-		printf("}   -- \t[found @   ");
+		printf("\t%-8llu\tins(.op = %-8s  { ", i, ins[i].a[0] < isa_count ? spelling[ins[i].a[0]] : "UNDEFINED OP ERR");
+		for (nat a = 1; a < 4; a++) printf(" %-15s    ", ins[i].a[a] < name_count ? names[ins[i].a[a]] : "UNDEFINED OP ERR");
+		printf("} -- [");
 		for (nat a = 0; a < 4; a++) {
-			printf("[%llu]:{a%llx}(%llx:%llx)", a, ins[i].a[a], ins[i].start[a], ins[i].count[a]);
-			if (a < 3) printf(", ");
+			printf("%llu:%llx:%llx:%llx", a, ins[i].a[a], ins[i].start[a], ins[i].count[a]);
+			if (a < 3) printf(",");
 		}
 		puts("]\n");
 	}
 	puts("}");
 }
+
+static void print_namespaces(nat* activens, nat activens_count, struct namespace* ns, nat ns_count) {
+	printf("active ns = {");
+	for (nat i = 0; i < activens_count; i++) {
+		printf("%llu ", activens[i]);
+	}
+	puts("}");
+
+	for (nat n = 0; n < ns_count; n++) {
+		printf("ns #%llu :: .name = \"%s\" => {\n", n, ns[n].name);
+		for (nat i = 0; i < ns[n].name_count; i++) {
+			printf("\t.  (     %-15s   : l%lld : i%lld)\n", ns[n].names[i], ns[n].locations[i], ns[n].index[i]);
+		}
+		puts("}");
+		puts("");
+	}
+	puts("...end.");
+}
+
 
 static void print_message(nat type, const char* reason_string, nat spot, nat error_length) {
 	printf("\033[1mlanguage: %s:", filename);
@@ -1396,7 +1415,7 @@ static void generate_riscv_machine_code(void) {
 		nat op = this.a[0];
 		nat* a = this.a + 1;
 
-		if (op == ecall)   emitw(0x00000073);
+		if (op == ecl)   emitw(0x00000073);
 
 		else if (op == add)     r_type(a, 0x33, 0x0, 0x00, this);
 		else if (op == sub)     r_type(a, 0x33, 0x0, 0x20, this);
@@ -1696,7 +1715,7 @@ static void generate_arm64_machine_code(void) {
 		//}
 		//else 
 
-		if (op == ecall)  emitw(0xD4000001);
+		if (op == ecl)  emitw(0xD4000001);
 
 		//else if (op == addi)   generate_addi(a[0], a[1], a[2], 0x22U, 1, 0, 0, 0, this);
 		//else if (op == slli)   generate_slli(a[0], a[1], a[2], 0x26U, 2, 1, this);
@@ -1918,7 +1937,7 @@ static void execute_instructions(nat* label, nat name_count) {
 		else if (op == jalr)  { reg[r] = pc; pc = reg[d]; continue; } 
 		else if (op == jal)   { reg[r] = pc; pc = label[d]; continue; } 
 
-		else if (op == ecall) {
+		else if (op == ecl) {
 			const nat a0 = reg[var_arg0];
 			const nat a1 = reg[var_arg1];
 			const nat a2 = reg[var_arg2];
@@ -1941,7 +1960,7 @@ static void execute_instructions(nat* label, nat name_count) {
 			else if (n == 59) execve((char*) a0, (char**) a1, (char**) a2);
 			
 			else {
-				snprintf(reason, sizeof reason, "unknown ct ecall number %llu", n);
+				snprintf(reason, sizeof reason, "unknown ct ecl number %llu", n);
 				print_message(error, reason, ins[pc].start[0], ins[pc].count[0]);
 				exit(1);
 			}
@@ -1958,7 +1977,7 @@ static void execute_instructions(nat* label, nat name_count) {
 
 static nat arity(const nat op) { 
 	if (not op) abort();
-	if (op == ecall or op == nse) return 1; 
+	if (op == ecl or op == nse) return 1; 
 	if (op == nsb or op == att or op == use) return 2;
 	if (op < add) return 3; 
 	if (op < isa_count) return 4; 
@@ -1975,23 +1994,6 @@ static bool define_on_use(nat op, nat count) {
 }
 
 
-static void print_namespaces(nat* activens, nat activens_count, struct namespace* ns, nat ns_count) {
-	printf("active ns = {");
-	for (nat i = 0; i < activens_count; i++) {
-		printf("%llu ", activens[i]);
-	}
-	puts("}");
-
-	for (nat n = 0; n < ns_count; n++) {
-		printf("ns #%llu = (\"%s\") => {\n", n, ns[n].name);
-		for (nat i = 0; i < ns[n].name_count; i++) {
-			printf("\t.  (\"%s\" : l%lld : i%lld)\n", ns[n].names[i], ns[n].locations[i], ns[n].index[i]);
-		}
-		puts("}");
-		puts("");
-	}
-	puts("...end.");
-}
 
 static char* generate_global_qualified_name(struct namespace* ns, nat* activens, nat activens_count, char* word) {
 	char buffer[4096] = {0};
@@ -2007,14 +2009,20 @@ int main(int argc, const char** argv) {
 
 	if (argc != 2) exit(puts("language: \033[31;1merror:\033[0m usage: ./asm <source.s>"));
 
-	struct namespace* ns = calloc(1, sizeof(struct namespace));
+
 	nat ns_count = 0;
-	nat activens[128] = {0};
+	struct namespace* ns = calloc(1, sizeof(struct namespace));
+	
 	nat activens_count = 0;
+	nat activens[4096] = {0};
+
+	nat dictionary_count = 0;
 	char* dictionary[4096] = {0};
 	nat locations[4096] = {0};
-	nat dictionary_count = 0;
-		
+	
+	nat file_count = 0;
+	struct file files[4096] = {0};
+	
 	for (nat i = 0; i < variable_count; i++) {
 		nat ni = ns_count;
 		char* word = strdup(variable_spelling[i]);
@@ -2039,52 +2047,43 @@ int main(int argc, const char** argv) {
 	fwrite(text, 1, text_length, stdout);
 	puts(">>>");
 
-	nat NS = 0;
-	nat file_count = 0;
-	struct file files[4096] = {0};
-	nat index = 0;
+	nat qualifier = 0, index = 0;
 	ins_count = (nat) -1;
-
 parse_file:
-
-	for (nat o = 0, s = 0, c = 0, a = 0, i = index; i < text_length; i++) {
+	for (nat op = 0, s = 0, c = 0, a = 0, i = index; i < text_length; i++) {
 		if (not isspace(text[i])) {
 			if (not c) s = i;  c++; 
 			if (i + 1 < text_length) continue;
 		} else if (not c) continue;
 		char* word = strndup(text + s, c);
 
-		nat* l = NULL;
+		nat* location = NULL;
 		nat n = 0;
-
-		puts("searching over these ns...");
-		print_namespaces(activens, activens_count, ns, ns_count);
-
 		for (n = 0; n < isa_count; n++) if (not strcmp(spelling[n], word)) goto ins;
 
-		if (not NS) { 
+		if (not qualifier) { 
 			for (nat e = activens_count; e--;) {
 				struct namespace this = ns[activens[e]];
 				for (n = 0; n < this.name_count; n++) {
 					if (not strcmp(this.names[n], word)) {
-						l = this.locations + n;
+						location = this.locations + n;
 						n = this.index[n];
 						goto arg;
 					}
 				}
 			}
 		} else {
-			struct namespace this = ns[NS];  NS = 0;
+			struct namespace this = ns[qualifier];  qualifier = 0;
 			for (n = 0; n < this.name_count; n++) {
 				if (not strcmp(this.names[n], word)) {
-					l = this.locations + n;
+					location = this.locations + n;
 					n = this.index[n];
 					goto arg;
 				}
 			}
 		}
 
-		if (not define_on_use(o, a)) {
+		if (not define_on_use(op, a)) {
 			snprintf(reason, sizeof reason, "use of undefined word \"%s\"", word);
 			print_message(error, reason, s, c);
 			exit(1);
@@ -2107,43 +2106,39 @@ parse_file:
 		locations[dictionary_count] = 0;
 		dictionary[dictionary_count++] = generate_global_qualified_name(ns, activens, activens_count, word);
 
-		l = this->locations + nc; 
+		location = this->locations + nc; 
 		goto arg;
-
 
 	ins:	ins_count++; a = 0;
 		ins = realloc(ins, sizeof(struct instruction) * (ins_count + 1));
 		ins[ins_count] = (struct instruction) { .start = {s, s, s, s}, .count = {c, c, c, c} };
-		o = n;
-	arg: 	if (a >= arity(o)) {
-			snprintf(reason, sizeof reason, "excess arguments to %s instruction", spelling[o]);
+		op = n;
+	arg: 	if (a >= arity(op)) {
+			snprintf(reason, sizeof reason, "excess arguments to %s instruction", spelling[op]);
 			print_message(error, reason, s, c);
 			exit(1);
 		}
 
-		if (l and (int64_t) *l < 0) {
-			NS = -*l;
-			c = 0; continue;
-		}
+		if (location and (int64_t) *location < 0) { qualifier = -*location; c = 0; continue; }
 		
 		ins[ins_count].a[a] = n;
 		ins[ins_count].start[a] = s;
 		ins[ins_count].count[a] = c;
 		a++;
 
-		if (o == att and a == 2) locations[n] = ins_count--;
-		if (o == nse and a == 1) {
+		if (op == att and a == 2) locations[n] = ins_count--;
+		if (op == nse and a == 1) {
 			if (not activens_count) { puts("ans error"); abort(); }
 			ins_count--; activens_count--;
 		}
-		if (o == nsb and a == 2) { 
-			*l = -ns_count;
+		if (op == nsb and a == 2) { 
+			*location = -ns_count;
 			ins_count--; 
 			ns = realloc(ns, sizeof(struct namespace) * (ns_count + 1));
 			ns[ns_count] = (struct namespace) {.name = word};
 			activens[activens_count++] = ns_count++;
 		}
-		if (o == use and a == 2) {
+		if (op == use and a == 2) {
 			ins_count--;
 			files[file_count++] = (struct file) {
 				.index = i,
@@ -2170,31 +2165,42 @@ parse_file:
 	ins_count++;
 
 	puts("debug: finished parsing all input files.");
-
+	print_namespaces(activens, activens_count, ns, ns_count);
 	print_dictionary(dictionary, locations, dictionary_count);
 	print_instructions(dictionary, dictionary_count);
-	
 	print_message(warning, "this assembler is currently a work in progress, optimization phase not implemented yet...", 0, 0);
 
 
 
-
-	abort();
-
-
-
-
-
-
+	/*
+		code will create constants starting from the   pc   and   zero    because those two things are statically known. 
+	*/
 
 
 
 	// constant propagation: 	static ct execution:
+	// 1. form data flow dag	
+	// 2. track which instructions have statically knowable inputs and outputs. (constants)
 
+
+
+	struct DAG_node {
+		nat* data_inputs;
+		nat* data_output;
+		
+		nat* flow_inputs;
+		nat flow_output;
+	};
 
 	for (nat i = 0; i < ins_count; i++) {
-		
-
+		printf("looking at instruction: "
+			"{%s %s %s %s}\n", 
+			spelling[ins[i].a[0]],
+			dictionary[ins[i].a[1]], 
+			dictionary[ins[i].a[2]], 
+			dictionary[ins[i].a[3]]
+		);
+		puts("");
 	}
 
 
@@ -2204,8 +2210,7 @@ parse_file:
 
 
 
-
-
+	abort();
 
 
 
@@ -2755,7 +2760,7 @@ if (not ins_count) exit(0);
 			else if (op == jalr) { if (d) array[d] = index; index = array[r]; } 
 			else if (op == jal) { if (d) array[d] = index; if (array[r]) index = array[r]; else skip = r; } 
 
-			else if (op == ecall) {
+			else if (op == ecl) {
 				d = array[17]; r = array[10];
 
 				if (d == 1) { count = 0; break; }
@@ -2776,7 +2781,7 @@ if (not ins_count) exit(0);
 				else if (d == 9) print_arguments(arguments, arg_count);
 				else if (d == 10) dump_hex((uint8_t*) array[2], 4096);
 				else {
-					snprintf(reason, sizeof reason, "unknown ct ecall number %llu", d);
+					snprintf(reason, sizeof reason, "unknown ct ecl number %llu", d);
 					print_message(error, reason, index - count, count);
 					exit(1);
 				}
@@ -2891,7 +2896,7 @@ in process word   in lexing,
 
  
 
-				else if (op == ecall) {
+				else if (op == ecl) {
 					d = array[17]; r = array[10];
 
 					if (d == 1) { count = 0; break; }
@@ -4897,8 +4902,11 @@ ISA  as of 202406237.182942:
 ================================================
 
 
-	ecall
+	ecl
+	nse
+	use	filename
 	att 	label
+	nsb 	namespace
 	jalr 	source 	dest
 	jal 	label 	dest
 	ldb 	dest 	pointer
