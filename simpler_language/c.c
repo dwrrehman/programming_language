@@ -1207,6 +1207,11 @@ parse_file:
 		}
 		c = 0;
 	}
+	if (ns_count != 1) {
+			snprintf(reason, sizeof reason, "unbalanced namespace delimiters, ns_count = %llu", ns_count);
+			print_message(error, reason, 0, 0);
+			exit(1);
+	}
 	if (file_count) {
 		struct file this = files[--file_count];
 		text = this.text;
