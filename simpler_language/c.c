@@ -232,13 +232,13 @@ static void print_dictionary(char** names, nat* locations, nat name_count) {
 static void print_instructions(char** names, nat name_count) {
 	printf("instructions: {\n");
 	for (nat i = 0; i < ins_count; i++) {
-		printf("\t%-8llu\tins(.op = %-8s  { ", i, 
+		printf("\t%-8llu\tins(.op = %-5s  { ", i, 
 			ins[i].a[0] < isa_count 
 				? spelling[ins[i].a[0]] 
 				: "UNDEFINED OP ERR"
 		);
 		for (nat a = 1; a < 4; a++) 
-			printf(" %-15s    ", 
+			printf(" %-8s    ", 
 				ins[i].a[a] < name_count 
 					? names[ins[i].a[a]] 
 					: "UNDEFINED OP ERR"
@@ -253,30 +253,6 @@ static void print_instructions(char** names, nat name_count) {
 	}
 	puts("}");
 }
-
-
-/*
-
-static void print_namespaces(nat* activens, nat activens_count, struct namespace* ns, nat ns_count) {
-	printf("active ns = {");
-	for (nat i = 0; i < activens_count; i++) {
-		printf("%llu ", activens[i]);
-	}
-	puts("}");
-
-	for (nat n = 0; n < ns_count; n++) {
-		printf("ns #%llu :: .name = \"%s\" => {\n", n, ns[n].name);
-		for (nat i = 0; i < ns[n].name_count; i++) {
-			printf("\t.  (     %-15s   : l%lld : i%lld)\n", 
-				ns[n].names[i], ns[n].locations[i], ns[n].index[i]);
-		}
-		puts("}");
-		puts("");
-	}
-	puts("...end.");
-}
-
-*/
 
 static void print_message(nat type, const char* reason_string, nat spot, nat error_length) {
 	printf("\033[1mlanguage: %s:", filename);
@@ -1075,56 +1051,14 @@ static bool define_on_use(nat op, nat count) {
 	abort();
 }
 
-/* 
-
-static char* generate_global_qualified_name(struct namespace* ns, nat* activens, nat activens_count, char* word) {
-	char buffer[4096] = {0};
-	for (nat i = 1; i < activens_count; i++) {
-		strlcat(buffer, ns[activens[i]].name, sizeof buffer);
-		strlcat(buffer, ".", sizeof buffer);
-	}
-	strlcat(buffer, word, sizeof buffer);
-	return strdup(buffer);
-}
-
-
-*/ 
-
 int main(int argc, const char** argv) {
-
 	if (argc != 2) exit(puts("language: \033[31;1merror:\033[0m usage: ./asm <source.s>"));
 
-//	nat ns_count = 0;
-//	struct namespace* ns = calloc(1, sizeof(struct namespace));
-	
-//	nat activens_count = 0;
-//	nat activens[4096] = {0};
-
-	nat dictionary_count = 0;
-	char* dictionary[4096] = {0};
+	nat name_count = 0;
+	char* names[4096] = {0};
 	nat locations[4096] = {0};
+	for (nat i = 0; i < variable_count; i++) names[name_count++] = strdup(variable_spelling[i]);
 	
-	nat file_count = 0;
-	struct file files[4096] = {0};
-	
-	for (nat i = 0; i < variable_count; i++) {
-	//	nat ni = ns_count;
-	//	char* word = strdup(variable_spelling[i]);
-	//	ns[ni].name = strdup("");
-	//	ns[ni].names = realloc(ns[ni].names, sizeof(char*) * (ns[ni].name_count + 1)); 
-	//	ns[ni].names[ns[ni].name_count] = word;
-	//	ns[ni].locations = realloc(ns[ni].locations, sizeof(char*) * (ns[ni].name_count + 1)); 
-	//	ns[ni].locations[ns[ni].name_count] = 0;
-	//	ns[ni].index = realloc(ns[ni].index, sizeof(char*) * (ns[ni].name_count + 1)); 
-	//	ns[ni].index[ns[ni].name_count++] = dictionary_count;
-
-	//	locations[dictionary_count] = 0;
-
-		dictionary[dictionary_count++] = variable_spelling[i];
-	}
-
-	//activens[activens_count++] = ns_count++;
-
 	text_length = 0;
 	filename = argv[1];
 	text = read_file(filename, &text_length, 0, 0);
@@ -1132,10 +1066,10 @@ int main(int argc, const char** argv) {
 	fwrite(text, 1, text_length, stdout);
 	puts(">>>");
 
-	//nat qualifier = 0, 
+	nat file_count = 0;
+	struct file files[4096] = {0};
 
 	nat index = 0;
-
 	ins_count = (nat) -1;
 parse_file:
 	for (nat op = 0, s = 0, c = 0, a = 0, i = index; i < text_length; i++) {
@@ -1144,146 +1078,55 @@ parse_file:
 			if (i + 1 < text_length) continue;
 		} else if (not c) continue;
 		char* word = strndup(text + s, c);
-
-		//nat* location = NULL;
-
 		nat n = 0;
 		for (n = 0; n < isa_count; n++) if (not strcmp(spelling[n], word)) goto ins;
-
-		for (n = 0; n < dictionary_count; n++) if (not strcmp(dictionary[n], word)) goto arg;
-
-
-
-
-	/*	if (not qualifier) { 
-			for (nat e = activens_count; e--;) {
-				struct namespace this = ns[activens[e]];
-				for (n = 0; n < this.name_count; n++) {
-					if (not strcmp(this.names[n], word)) {
-						location = this.locations + n;
-						n = this.index[n];
-						goto arg;
-					}
-				}
-			}
-		} else {
-			struct namespace this = ns[qualifier];  qualifier = 0;
-			for (n = 0; n < this.name_count; n++) {
-				if (not strcmp(this.names[n], word)) {
-					location = this.locations + n;
-					n = this.index[n];
-					goto arg;
-				}
-			}
-		}
-
-	*/
-
-
-
-		if (not define_on_use(op, a)) {
+		for (n = 0; n < name_count; n++) if (not strcmp(names[n], word)) goto def;
+		if (not op or not define_on_use(op, a)) {
 			snprintf(reason, sizeof reason, "use of undefined word \"%s\"", word);
 			print_message(error, reason, s, c);
 			exit(1);
 		}
-
-		//const nat e = activens[activens_count - 1];
-		//struct namespace* this = ns + e;
-		//const nat nc = this->name_count;
-		//n = dictionary_count;
-
-		//this->names = realloc(this->names, sizeof(char*) * (nc + 1)); 
-		//this->names[nc] = word;
-
-		//this->locations = realloc(this->locations, sizeof(char*) * (nc + 1)); 
-		//this->locations[nc] = 0;
 		
-		//this->index = realloc(this->index, sizeof(char*) * (nc + 1)); 
-		//this->index[this->name_count++] = n;
-
-		//locations[dictionary_count] = 0;
-		
-
-		//location = this->locations + nc; 
-
-
-		dictionary[dictionary_count++] = word;// generate_global_qualified_name(ns, activens, activens_count, word);
+		names[name_count++] = word;
 		goto arg;
-
-	ins:	
-	/*	if (op == nse and a == 1) {
-			if (not activens_count) { puts("ans error"); abort(); }
-			ins_count--; activens_count--;
-		}
-		if (op == nsb and a == 1) {
-			ins_count--; 
-			ns = realloc(ns, sizeof(struct namespace) * (ns_count + 1));
-			ns[ns_count] = (struct namespace) {.name = strdup("")};
-			activens[activens_count++] = ns_count++;
-		}
-	*/
-
-		ins_count++; a = 0;
+	ins:	if (op != rn or a != 2) ins_count++;
+		a = 0;
 		ins = realloc(ins, sizeof(struct instruction) * (ins_count + 1));
 		ins[ins_count] = (struct instruction) { .start = {s, s, s, s}, .count = {c, c, c, c} };
 		op = n;
-
-	arg: 	if (a >= arity(op)) {
+	def: 	if (op == rn and a == 2) {
+			snprintf(reason, sizeof reason, "rename destination exists");
+			print_message(error, reason, s, c);
+			exit(1);
+		}
+	arg:	if (a >= arity(op)) {
 			snprintf(reason, sizeof reason, "excess arguments to %s instruction", spelling[op]);
 			print_message(error, reason, s, c);
 			exit(1);
 		}
-
-		// if (location and (int64_t) *location < 0) { qualifier = -*location; c = 0; continue; }
-		
 		ins[ins_count].a[a] = n;
 		ins[ins_count].start[a] = s;
 		ins[ins_count].count[a] = c;
 		a++;
-
+		if (op == rn and a == 2) names[n] = strdup(""); 
+		if (op == rn and a == 3) { names[ins[ins_count].a[1]] = names[n]; name_count--; ins_count--; }
 		if (op == att and a == 2) locations[n] = ins_count--;
-
-
-
-	/*	if (op == nsb and a == 2) { 
-			*location = -ns_count;
-			ins_count--; 
-			ns = realloc(ns, sizeof(struct namespace) * (ns_count + 1));
-			ns[ns_count] = (struct namespace) {.name = word};
-			activens[activens_count++] = ns_count++;
-		}
-
-	*/
-
-
 		if (op == use and a == 2) {
 			ins_count--;
 			files[file_count++] = (struct file) {
-				.index = i,
-				.count = text_length,
-				.name = filename,
+				.index = i, 
+				.count = text_length, 
+				.name = filename, 
 				.text = text,
 			};
-			text_length = 0;
+			text_length = 0; 
 			filename = word;
 			text = read_file(filename, &text_length, s, c);
-			index = 0;
+			index = 0; 
 			goto parse_file;
 		}
-
-
 		c = 0;
 	}
-
-
-/*	if (ns_count != 1) {
-			snprintf(reason, sizeof reason, "unbalanced namespace delimiters, ns_count = %llu", ns_count);
-			print_message(error, reason, 0, 0);
-			exit(1);
-	}
-*/
-
-
 	if (file_count) {
 		struct file this = files[--file_count];
 		text = this.text;
@@ -1292,17 +1135,29 @@ parse_file:
 		index = this.index;
 		goto parse_file;
 	}
-	ins_count++;
+	ins_count++; 
 
 	puts("debug: finished parsing all input files.");
 
-	// print_namespaces(activens, activens_count, ns, ns_count);
+	print_dictionary(names, locations, name_count);
+	print_instructions(names, name_count);
 
-	print_dictionary(dictionary, locations, dictionary_count);
-	print_instructions(dictionary, dictionary_count);
 	print_message(warning, "this assembler is currently a work in progress, "
-				"optimization phase not implemented yet...", 0, 0
+				"runtime/optimization phase not implemented yet...", 
+			0, 0
 	);
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -1335,9 +1190,9 @@ parse_file:
 		printf("instruction: "
 			"{%s %s %s %s}\n",
 			spelling[ins[i].a[0]],
-			dictionary[ins[i].a[1]],
-			dictionary[ins[i].a[2]],
-			dictionary[ins[i].a[3]]
+			names[ins[i].a[1]],
+			names[ins[i].a[2]],
+			names[ins[i].a[3]]
 		);
 
 		
@@ -1351,7 +1206,7 @@ parse_file:
 
 
 
-	//abort();
+	abort();
 
 
 
@@ -1368,7 +1223,7 @@ parse_file:
 
 	puts("executing now...");
 
-	if (architecture == noruntime) execute_instructions(locations, dictionary_count);
+	if (architecture == noruntime) execute_instructions(locations, name_count);
 	else if (architecture == riscv32 or architecture == riscv64) generate_riscv_machine_code();
 	else if (architecture == arm64) generate_arm64_machine_code();
 	else {
