@@ -1136,11 +1136,11 @@ parse_file:
 		nat n = 0;
 		for (n = 0; n < isa_count; n++) if (not strcmp(spelling[n], word)) goto ins;
 		for (n = 0; n < name_count; n++) if (not strcmp(names[n], word)) goto def;
-		if (not op or not define_on_use(op, a)) {
+		/*if (not op or not define_on_use(op, a)) {
 			snprintf(reason, sizeof reason, "use of undefined word \"%s\"", word);
 			print_message(error, reason, s, c);
 			exit(1);
-		}
+		}*/
 		
 		names[name_count++] = word;
 		goto arg;
@@ -1256,12 +1256,13 @@ parse_file:
 		const nat output_reg = ins[i].a[1];
 		nat input0 = 0, input1 = 0;
 
-		// print_nodes(nodes, node_count, names);
+		print_nodes(nodes, node_count, names);
 
 		if (arity(ins[i].a[0]) > 1) {
-			for (nat j = 0; j < node_count; j++) {
+			printf("searching for first argument definition...\n");
+			for (nat j = node_count; j--;) {
 				printf("looking for input0 nodes to this instruction: %llu / %llu...\n", j, i);
-				printf("checking to see if nodes[j].output_reg(=%llu) == ins[i].a[2](=%llu)...\n", nodes[j].output_reg, ins[i].a[2]);
+				printf("checking to see if nodes[j].output_reg(=%llu)(%s) == ins[i].a[2](=%llu)...\n", nodes[j].output_reg, names[nodes[j].output_reg], ins[i].a[2]);
 				if (nodes[j].output_reg == ins[i].a[2]) {
 					input0 = j;
 					printf("FOUND INPUT0 = %llu!!!!\n", j);
@@ -1277,9 +1278,10 @@ parse_file:
 
 	bubbles:
 		if (arity(ins[i].a[0]) > 2) {
-			for (nat j = 0; j < node_count; j++) {
+			printf("searching for second argument definition...\n");
+			for (nat j = node_count; j--;) {
 				printf("looking for input1 nodes to this instruction: %llu / %llu...\n", j, i);
-				printf("checking to see if nodes[j].output_reg(=%llu) == ins[i].a[3](=%llu)...\n", nodes[j].output_reg, ins[i].a[3]);
+				printf("checking to see if nodes[j].output_reg(=%llu) (%s) == ins[i].a[3](=%llu)...\n", nodes[j].output_reg, names[nodes[j].output_reg], ins[i].a[3]);
 				if (nodes[j].output_reg == ins[i].a[3]) {
 					input1 = j;
 					printf("FOUND INPUT1 = %llu!!!!\n", j);
@@ -1289,10 +1291,13 @@ parse_file:
 				}
 			}
 
-			printf("ERROR: could not find definition of %s....\n", names[ins[i].a[2]]);
+			printf("ERROR: could not find definition of %s....\n", names[ins[i].a[3]]);
 			abort();
 		}
-	push:
+
+	push:;
+		const nat statically_known = output_reg == var_zero or (nodes[input0].sk and nodes[input1].sk);
+
 		nodes[node_count++] = (struct node) {
 			.data_outputs = {0},
 			.data_output_count = 0,
@@ -1300,11 +1305,23 @@ parse_file:
 			.input1 = input1,
 			.op = ins[i].a[0],
 			.output_reg = output_reg,
-			.sk = nodes[input0].sk and nodes[input1].sk,
+			.sk = statically_known
 		};
 		
 	}
 
+
+
+/*
+		we need to specialize    which    a[N]  (which value of N)            ie which arguments        are the destinations and sources for a given op code, because its different for each instruction.   so yeah. 
+
+
+				
+
+
+					shouldnt be that bad, we just need to actually define that very specifically so that this stage knows what the output register is, and how many inputs it has, and how many outputs,   and using labels as inputs or outputs, etc. 
+
+*/
 
 	
 	puts("done parsing nodes... printing...");
