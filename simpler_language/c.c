@@ -134,19 +134,27 @@ static u32 arm64_macos_abi[] = {        // note:  x9 is call-clobbered. save it 
 };
 
 enum language_isa {
-	null_instruction, ecl, att, use, rn,
-	ldb, ldh, ldw, ldd, stb, sth, stw, std, jalr, jal, 
-	add, sub, slt, slts, and_, ior, eor, sll, srl, sra, mul, muh, 
-	muhs, div_, divs, rem, rems, blt, blts, bge, bges, bne, beq, 
+	null_instruction,
+	ec, at, use, rn,
+	lb, lh, lw, ld, lbs, lhs, lws, sb, sh, sw, sd, cr, cl,
+	add, sub, slt, sls, and_, or_, eor, sl, sr, sra, mul, mh, 
+	mhs, div_, dvs, rem, rms, lt, lts, ge, ges, ne, eq, 
 	isa_count
 };
 
 static const char* spelling[isa_count] = {
-	"", "ecl", "att", "use", "rn",
-	"ldb", "ldh", "ldw", "ldd", "stb", "sth", "stw", "std", "jalr", "jal",
-	"add", "sub", "slt", "slts", "and", "ior", "eor", "sll", "srl", "sra", "mul", "muh", 
-	"muhs", "div", "divs", "rem", "rems", "blt", "blts", "bge", "bges", "bne", "beq", 
+	"_null", 
+	"ec", "at", "use", "rn",
+	"lb", "lh", "lw", "ld", "lbs", "lhs", "lws", "sb", "sh", "sw", "sd", "cr", "cl", 
+	"add", "sub", "slt", "sls", "and", "or", "eor", "sl", "sr", "sra", "mul", "mh", 
+	"mhs", "div", "dvs", "rem", "rms", "lt", "lts", "ge", "ges", "ne", "eq",
 };
+
+//null_instruction, ecl, att, use, rn,
+//ldb, ldh, ldw, ldd, stb, sth, stw, std, jalr, jal, 
+//add, sub, slt, slts, and_, ior, eor, sll, srl, sra, mul, muh, 
+//muhs, div_, divs, rem, rems, blt, blts, bge, bges, bne, beq, 
+
 
 enum compiletime_variables {
 	var_zero,
@@ -375,10 +383,10 @@ static void u_type(nat* a, nat o, struct instruction this) {
 static nat ins_size(nat op) {
 
 	if (architecture == arm64) {
-		if (	op == slt or  op == slts or 
-			op == blt or  op == bge or 
-			op == bne or  op == beq or 
-			op == blts or op == bges
+		if (	op == slt or  op == sls or 
+			op == lt or  op == ge or 
+			op == ne or  op == eq or 
+			op == lts or op == ges
 		) return 8; 
 		return 4;
 	} else {
@@ -438,23 +446,24 @@ static void generate_riscv_machine_code(void) {
 		nat op = this.a[0];
 		nat* a = this.a + 1;
 
-		if (op == ecl)   emitw(0x00000073);
+		if (op == ec)   emitw(0x00000073);
 
 		else if (op == add)     r_type(a, 0x33, 0x0, 0x00, this);
 		else if (op == sub)     r_type(a, 0x33, 0x0, 0x20, this);
-		else if (op == sll)     r_type(a, 0x33, 0x1, 0x00, this);
-		else if (op == slts)    r_type(a, 0x33, 0x2, 0x00, this);
+		else if (op == sl)     r_type(a, 0x33, 0x1, 0x00, this);
+		else if (op == sls)    r_type(a, 0x33, 0x2, 0x00, this);
 		else if (op == slt)     r_type(a, 0x33, 0x3, 0x00, this);
 		else if (op == eor)     r_type(a, 0x33, 0x4, 0x00, this);
-		else if (op == srl)     r_type(a, 0x33, 0x5, 0x00, this);
+		else if (op == sr)     r_type(a, 0x33, 0x5, 0x00, this);
 		else if (op == sra)     r_type(a, 0x33, 0x5, 0x20, this);
-		else if (op == ior)     r_type(a, 0x33, 0x6, 0x00, this);
+		else if (op == or_)     r_type(a, 0x33, 0x6, 0x00, this);
 		else if (op == and_)    r_type(a, 0x33, 0x7, 0x00, this);
 
-		else if (op == ldb)     i_type(a, 0x03, 0x0, this);
-		else if (op == ldh)     i_type(a, 0x03, 0x1, this);
-		else if (op == ldw)     i_type(a, 0x03, 0x2, this);
-		else if (op == ldd)     i_type(a, 0x03, 0x3, this);
+		else if (op == lb)     i_type(a, 0x03, 0x0, this);
+		else if (op == lh)     i_type(a, 0x03, 0x1, this);
+		else if (op == lw)     i_type(a, 0x03, 0x2, this);
+		else if (op == ld)     i_type(a, 0x03, 0x3, this);
+
 		//else if (op == addi)    i_type(a, 0x13, 0x0, this);
 		//else if (op == sltis)   i_type(a, 0x13, 0x2, this);
 		//else if (op == slti)    i_type(a, 0x13, 0x3, this);
@@ -464,17 +473,17 @@ static void generate_riscv_machine_code(void) {
 		//else if (op == slli)    i_type(a, 0x13, 0x1, this);
 		//else if (op == srli)    i_type(a, 0x13, 0x5, this);
 		//else if (op == srai)    i_type(a, 0x13, 0x5, this);
-		else if (op == jalr)    i_type(a, 0x67, 0x0, this);
+		else if (op == cr)    i_type(a, 0x67, 0x0, this);
 
-		else if (op == stb)      s_type(a, 0x23, 0x0, this);
-		else if (op == sth)      s_type(a, 0x23, 0x1, this);
-		else if (op == stw)      s_type(a, 0x23, 0x2, this);
-		else if (op == std)      s_type(a, 0x23, 0x3, this);
+		else if (op == sb)      s_type(a, 0x23, 0x0, this);
+		else if (op == sh)      s_type(a, 0x23, 0x1, this);
+		else if (op == sw)      s_type(a, 0x23, 0x2, this);
+		else if (op == sd)      s_type(a, 0x23, 0x3, this);
 
 		// else if (op == lui)  u_type(a, 0x37, this);
 		// else if (op == lpa)   u_type(a, 0x17, this);
 
-		else if (op == jal)     j_type(i, a, 0x6F, this);
+		else if (op == cl)     j_type(i, a, 0x6F, this);
 
 		else {
 			snprintf(reason, sizeof reason, "riscv: unknown runtime instruction: \"%s\" (%llu)\n", spelling[op], op);
@@ -766,7 +775,7 @@ static void generate_arm64_machine_code(void) {
 		//}
 		//else 
 
-		if (op == ecl)  emitw(0xD4000001);
+		if (op == ec)  emitw(0xD4000001);
 
 		//else if (op == addi)   generate_addi(a[0], a[1], a[2], 0x22U, 1, 0, 0, 0, this);
 		//else if (op == slli)   generate_slli(a[0], a[1], a[2], 0x26U, 2, 1, this);
@@ -774,42 +783,42 @@ static void generate_arm64_machine_code(void) {
 		//else if (op == srai)   generate_srli(a[0], a[1], a[2], 0x26U, 0, 1, this);
 
 		else if (op == div_)   generate_adc(a[0], a[1], a[2], 0xD6, 2, 1, 0, 0, this);
-		else if (op == divs)   generate_adc(a[0], a[1], a[2], 0xD6, 3, 1, 0, 0, this);
-		else if (op == muh)   generate_adc(a[0], a[1], a[2], 0xDE, 31, 1, 0, 0, this);
+		else if (op == dvs)   generate_adc(a[0], a[1], a[2], 0xD6, 3, 1, 0, 0, this);
+		else if (op == mh)   generate_adc(a[0], a[1], a[2], 0xDE, 31, 1, 0, 0, this);
 
 		// else if (op == mul)    generate_umaddl(a[0], a[1], a[2], 0xDE, 31, 1, 0, 0, this);
 		// else if (op == lpa)  generate_adr(a[0], 0x10, 0, a[1], i, this);
 
 		else if (op == add)    generate_add(a[0], a[1], a[2], 0x0BU, 0, 1, 0, 0, 0, this);
-		else if (op == ior)    generate_add(a[0], a[1], a[2], 0x2AU, 0, 1, 0, 0, 0, this);
+		else if (op == or_)    generate_add(a[0], a[1], a[2], 0x2AU, 0, 1, 0, 0, 0, this);
 		else if (op == sub)    generate_add(a[0], a[1], a[2], 0x0BU, 0, 1, 0, 1, 0, this);
 		else if (op == eor)    generate_add(a[0], a[1], a[2], 0x0AU, 0, 1, 0, 1, 0, this);
 		else if (op == and_)   generate_add(a[0], a[1], a[2], 0x0AU, 0, 1, 0, 0, 0, this);
 
 		else if (op == slt)    generate_slt(a[0], a[1], a[2], 2, this);
-		else if (op == slts)   generate_slt(a[0], a[1], a[2], 10, this);
+		else if (op == sls)   generate_slt(a[0], a[1], a[2], 10, this);
 
-		else if (op == beq)    generate_branch(a[0], a[1], a[2], i, 0, this);
-		else if (op == bne)    generate_branch(a[0], a[1], a[2], i, 1, this);
-		else if (op == bge)    generate_branch(a[0], a[1], a[2], i, 2, this);
-		else if (op == blt)    generate_branch(a[0], a[1], a[2], i, 3, this);
+		else if (op == eq)    generate_branch(a[0], a[1], a[2], i, 0, this);
+		else if (op == ne)    generate_branch(a[0], a[1], a[2], i, 1, this);
+		else if (op == ge)    generate_branch(a[0], a[1], a[2], i, 2, this);
+		else if (op == lt)    generate_branch(a[0], a[1], a[2], i, 3, this);
 
-		else if (op == jalr)   generate_jalr(a[0], a[1], 0x3587C0U, this);
-		else if (op == jal)    generate_jal(a[0], i, a[1], this);
+		else if (op == cr)   generate_jalr(a[0], a[1], 0x3587C0U, this);
+		else if (op == cl)    generate_jal(a[0], i, a[1], this);
 
-		else if (op == sll)    generate_adc(a[0], a[1], a[2], 0x0D6U, 0x08, 1, 0, 0, this);
-		else if (op == srl)    generate_adc(a[0], a[1], a[2], 0x0D6U, 0x09, 1, 0, 0, this);
+		else if (op == sl)    generate_adc(a[0], a[1], a[2], 0x0D6U, 0x08, 1, 0, 0, this);
+		else if (op == sr)    generate_adc(a[0], a[1], a[2], 0x0D6U, 0x09, 1, 0, 0, this);
 		else if (op == sra)    generate_adc(a[0], a[1], a[2], 0x0D6U, 0x0A, 1, 0, 0, this);
 
-		else if (op == ldb)    generate_memiu(a[0], a[1], a[2], 0x00, 0x00, 0, this);
-		else if (op == ldh)    generate_memiu(a[0], a[1], a[2], 0x00, 0x00, 0, this);
-		else if (op == ldw)    generate_memiu(a[0], a[1], a[2], 0x00, 0x00, 0, this);
-		else if (op == ldd)    generate_memiu(a[0], a[1], a[2], 0x00, 0x00, 0, this);
+		else if (op == lb)    generate_memiu(a[0], a[1], a[2], 0x00, 0x00, 0, this);
+		else if (op == lh)    generate_memiu(a[0], a[1], a[2], 0x00, 0x00, 0, this);
+		else if (op == lw)    generate_memiu(a[0], a[1], a[2], 0x00, 0x00, 0, this);
+		else if (op == ld)    generate_memiu(a[0], a[1], a[2], 0x00, 0x00, 0, this);
 
-		else if (op == stb)    generate_memiu(a[0], a[1], a[2], 0x00, 0x00, 0, this);
-		else if (op == sth)    generate_memiu(a[0], a[1], a[2], 0x00, 0x00, 0, this);
-		else if (op == stw)    generate_memiu(a[0], a[1], a[2], 0x00, 0x00, 0, this);
-		else if (op == std)    generate_memiu(a[0], a[1], a[2], 0x00, 0x00, 0, this);
+		else if (op == sb)    generate_memiu(a[0], a[1], a[2], 0x00, 0x00, 0, this);
+		else if (op == sh)    generate_memiu(a[0], a[1], a[2], 0x00, 0x00, 0, this);
+		else if (op == sw)    generate_memiu(a[0], a[1], a[2], 0x00, 0x00, 0, this);
+		else if (op == sd)    generate_memiu(a[0], a[1], a[2], 0x00, 0x00, 0, this);
 
 		//else if (op == sltis)  goto here;
 		//else if (op == slti)   goto here;
@@ -955,39 +964,39 @@ static void execute_instructions(nat* label, nat name_count) {
 
 		     if (op == add)   reg[d] = reg[r] + reg[s];
 		else if (op == sub)   reg[d] = reg[r] - reg[s];
-		else if (op == ior)   reg[d] = reg[r] | reg[s];
+		else if (op == or_)   reg[d] = reg[r] | reg[s];
 		else if (op == eor)   reg[d] = reg[r] ^ reg[s];
 		else if (op == and_)  reg[d] = reg[r] & reg[s];
 		else if (op == slt)   reg[d] = reg[r] < reg[s];
-		else if (op == slts)  reg[d] = reg[r] < reg[s];
-		else if (op == sll)   reg[d] = reg[r] << reg[s];
-		else if (op == srl)   reg[d] = reg[r] >> reg[s];
+		else if (op == sls)  reg[d] = reg[r] < reg[s];
+		else if (op == sl)   reg[d] = reg[r] << reg[s];
+		else if (op == sr)   reg[d] = reg[r] >> reg[s];
 		else if (op == sra)   reg[d] = reg[r] >> reg[s];
 		else if (op == div_)  reg[d] = reg[r] / reg[s];
 		else if (op == mul)   reg[d] = reg[r] * reg[s];
 		else if (op == rem)   reg[d] = reg[r] % reg[s];
 
-		else if (op == ldb)   reg[d] = *( u8*)(reg[r]);
-		else if (op == ldh)   reg[d] = *(u16*)(reg[r]);
-		else if (op == ldw)   reg[d] = *(u32*)(reg[r]);
-		else if (op == ldd)   reg[d] = *(nat*)(reg[r]);
+		else if (op == lb)   reg[d] = *( u8*)(reg[r]);
+		else if (op == lh)   reg[d] = *(u16*)(reg[r]);
+		else if (op == lw)   reg[d] = *(u32*)(reg[r]);
+		else if (op == ld)   reg[d] = *(nat*)(reg[r]);
 
-		else if (op == stb)   *( u8*)(reg[r]) = ( u8)reg[d];
-		else if (op == sth)   *(u16*)(reg[r]) = (u16)reg[d];
-		else if (op == stw)   *(u32*)(reg[r]) = (u32)reg[d];
-		else if (op == std)   *(nat*)(reg[r]) = (nat)reg[d];
+		else if (op == sb)   *( u8*)(reg[d]) = ( u8)reg[r];
+		else if (op == sh)   *(u16*)(reg[d]) = (u16)reg[r];
+		else if (op == sw)   *(u32*)(reg[d]) = (u32)reg[r];
+		else if (op == sd)   *(nat*)(reg[d]) = (nat)reg[r];
 
-		else if (op == blt)   { if (reg[r] <  reg[s]) { pc = label[d]; continue; } }
-		else if (op == bge)   { if (reg[r] >= reg[s]) { pc = label[d]; continue; } }
-		else if (op == bne)   { if (reg[r] != reg[s]) { pc = label[d]; continue; } }
-		else if (op == beq)   { if (reg[r] == reg[s]) { pc = label[d]; continue; } }
-		else if (op == blts)  { if (reg[r] <  reg[s]) { pc = label[d]; continue; } }
-		else if (op == bges)  { if (reg[r] >= reg[s]) { pc = label[d]; continue; } }
+		else if (op == lt)   { if (reg[r] <  reg[s]) { pc = label[d]; continue; } }
+		else if (op == ge)   { if (reg[r] >= reg[s]) { pc = label[d]; continue; } }
+		else if (op == ne)   { if (reg[r] != reg[s]) { pc = label[d]; continue; } }
+		else if (op == eq)   { if (reg[r] == reg[s]) { pc = label[d]; continue; } }
+		else if (op == lts)  { if (reg[r] <  reg[s]) { pc = label[d]; continue; } }
+		else if (op == ges)  { if (reg[r] >= reg[s]) { pc = label[d]; continue; } }
 
-		else if (op == jalr)  { reg[r] = pc; pc = reg[d]; continue; } 
-		else if (op == jal)   { reg[r] = pc; pc = label[d]; continue; } 
+		else if (op == cr)  { reg[r] = pc; pc = reg[d]; continue; } 
+		else if (op == cl)   { reg[r] = pc; pc = label[d]; continue; } 
 
-		else if (op == ecl) {
+		else if (op == ec) {
 			const nat a0 = reg[var_arg0];
 			const nat a1 = reg[var_arg1];
 			const nat a2 = reg[var_arg2];
@@ -1030,8 +1039,8 @@ static nat arity(const nat op) {
 		printf("zero op does not have arity\n");
 		abort();
 	}
-	if (op == ecl) return 1;  //  or op == nse
-	if (op == att or op == use) return 2;
+	if (op == ec) return 1;  //  or op == nse
+	if (op == at or op == use) return 2;
 	if (op < add) return 3; 
 	if (op < isa_count) return 4; 
 	printf("unknown arity for %llu...\n", op);
@@ -1043,13 +1052,59 @@ static bool define_on_use(nat op, nat count) {
 		printf("zero op does not have arguments\n");
 		abort();
 	}
-	if (op == jal) 	return true;
-	if (op >= stb and op <= std) return false;
-	if (op == jalr or op == rn) return count == 2;
+	if (op == cl) 	return true;
+	if (op == cr or op == rn) return count == 2;
 	if (op < isa_count) return count == 1;
 	printf("unknown defineonuse semantics for %llu...\n", op);
 	abort();
 }
+
+
+
+
+struct node {
+	nat data_outputs[32];
+	nat data_output_count;
+	nat output_reg;
+	nat input0;
+	nat input1;
+	nat op;
+	nat sk; // statically_known
+};
+
+
+
+static void print_nodes(struct node* nodes, nat node_count, char** names) {
+	printf("printing %llu nodes...\n", node_count);
+	for (nat n = 0; n < node_count; n++) {
+
+		printf("[%s] node #%-5llu: {"
+			".op = %-5llu (\"\033[35;1m%-8s\033[0m\"), "
+			".or = %-5llu (\"\033[36;1m%-8s\033[0m\"), "
+			".0 = #%-5llu (\"\033[33;1m%-8s\033[0m\"), "
+			".1 = #%-5llu (\"\033[33;1m%-8s\033[0m\"), "
+			".doc = %-5llu, "
+			".do = { ", 
+			nodes[n].sk ? "\033[32;1mSK\033[0m" : "  ",
+			n, 
+			nodes[n].op, spelling[nodes[n].op],
+			nodes[n].output_reg, names[nodes[n].output_reg],
+			nodes[n].input0, nodes[nodes[n].input0].output_reg ? names[nodes[nodes[n].input0].output_reg] : "",
+			nodes[n].input1, nodes[nodes[n].input1].output_reg ? names[nodes[nodes[n].input1].output_reg] : "",
+			nodes[n].data_output_count
+		);
+		for (nat j = 0; j < nodes[n].data_output_count; j++) {
+			printf("%llu ", nodes[n].data_outputs[j]);
+		}
+		puts(" } }\n");
+		
+	}
+	puts("done");
+}
+
+
+
+
 
 int main(int argc, const char** argv) {
 	if (argc != 2) exit(puts("language: \033[31;1merror:\033[0m usage: ./asm <source.s>"));
@@ -1110,7 +1165,7 @@ parse_file:
 		a++;
 		if (op == rn and a == 2) names[n] = strdup(""); 
 		if (op == rn and a == 3) { names[ins[ins_count].a[1]] = names[n]; name_count--; ins_count--; }
-		if (op == att and a == 2) locations[n] = ins_count--;
+		if (op == at and a == 2) locations[n] = ins_count--;
 		if (op == use and a == 2) {
 			ins_count--;
 			files[file_count++] = (struct file) {
@@ -1174,19 +1229,20 @@ parse_file:
 
 
 
-	struct node {
-		nat data_outputs[32];
-		nat data_output_count;
-		nat output_reg;
-		nat input0;
-		nat input1;
-		nat op;
-		nat sk; // statically_known
-	};
-
+	
 	struct node nodes[4096] = {0};
-	nat node_count = 1;
-	nodes[0].sk = true;
+	nat node_count = 0;
+	
+	nodes[node_count++] = (struct node) { .output_reg = var_zero, .sk = 1 };
+	nodes[node_count++] = (struct node) { .output_reg = var_ra };
+	nodes[node_count++] = (struct node) { .output_reg = var_sp };
+	nodes[node_count++] = (struct node) { .output_reg = var_argn };
+	nodes[node_count++] = (struct node) { .output_reg = var_arg0 };
+	nodes[node_count++] = (struct node) { .output_reg = var_arg1 };
+	nodes[node_count++] = (struct node) { .output_reg = var_arg2 };
+	nodes[node_count++] = (struct node) { .output_reg = var_arg3 };
+	nodes[node_count++] = (struct node) { .output_reg = var_arg4 };
+	nodes[node_count++] = (struct node) { .output_reg = var_stacksize, .sk = 1 };
 
 	for (nat i = 0; i < ins_count; i++) {
 		printf("instruction: "
@@ -1198,33 +1254,45 @@ parse_file:
 		);
 
 		const nat output_reg = ins[i].a[1];
+		nat input0 = 0, input1 = 0;
 
+		// print_nodes(nodes, node_count, names);
 
-		nat input0 = 0;
-		nat input1 = 0;
-
-		for (nat j = 0; j < node_count; j++) {
-			printf("looking for input0 nodes to this instruction: %llu / %llu...\n", j, i);
-			if (nodes[j].output_reg == ins[i].a[2]) {
-				input0 = j;
-				printf("FOUND INPUT0 = %llu!!!!\n", j);
-				//getchar();
-				nodes[j].data_outputs[nodes[j].data_output_count++] = node_count;
-				break;
+		if (arity(ins[i].a[0]) > 1) {
+			for (nat j = 0; j < node_count; j++) {
+				printf("looking for input0 nodes to this instruction: %llu / %llu...\n", j, i);
+				printf("checking to see if nodes[j].output_reg(=%llu) == ins[i].a[2](=%llu)...\n", nodes[j].output_reg, ins[i].a[2]);
+				if (nodes[j].output_reg == ins[i].a[2]) {
+					input0 = j;
+					printf("FOUND INPUT0 = %llu!!!!\n", j);
+					//getchar();
+					nodes[j].data_outputs[nodes[j].data_output_count++] = node_count;
+					goto bubbles;
+				}
 			}
+
+			printf("ERROR: could not find definition of %s....\n", names[ins[i].a[2]]);
+			abort();
 		}
 
-		for (nat j = 0; j < node_count; j++) {
-			printf("looking for input1 nodes to this instruction: %llu / %llu...\n", j, i);
-			if (nodes[j].output_reg == ins[i].a[3]) {
-				input1 = j;
-				printf("FOUND INPUT1 = %llu!!!!\n", j);
-				//getchar();
-				nodes[j].data_outputs[nodes[j].data_output_count++] = node_count;
-				break;
+	bubbles:
+		if (arity(ins[i].a[0]) > 2) {
+			for (nat j = 0; j < node_count; j++) {
+				printf("looking for input1 nodes to this instruction: %llu / %llu...\n", j, i);
+				printf("checking to see if nodes[j].output_reg(=%llu) == ins[i].a[3](=%llu)...\n", nodes[j].output_reg, ins[i].a[3]);
+				if (nodes[j].output_reg == ins[i].a[3]) {
+					input1 = j;
+					printf("FOUND INPUT1 = %llu!!!!\n", j);
+					//getchar();
+					nodes[j].data_outputs[nodes[j].data_output_count++] = node_count;
+					goto push;
+				}
 			}
-		}
 
+			printf("ERROR: could not find definition of %s....\n", names[ins[i].a[2]]);
+			abort();
+		}
+	push:
 		nodes[node_count++] = (struct node) {
 			.data_outputs = {0},
 			.data_output_count = 0,
@@ -1233,40 +1301,22 @@ parse_file:
 			.op = ins[i].a[0],
 			.output_reg = output_reg,
 			.sk = nodes[input0].sk and nodes[input1].sk,
-		}
-;
-		//getchar();
+		};
 		
 	}
 
 
-	printf("printing %llu nodes...\n", node_count);
-	for (nat n = 0; n < node_count; n++) {
+	
+	puts("done parsing nodes... printing...");
 
-		printf("node #%llu: {"
-			".op = %llu (\"%s\"), "
-			".output_reg = %llu (\"%s\"), "
-			".input0 = #%llu, "
-			".input1 = #%llu, "
-			".data_output_count = %llu, "
-			".data_output = { ", 
-			n, 
-			nodes[n].op, spelling[nodes[n].op],
-			nodes[n].output_reg, names[nodes[n].output_reg],
-			nodes[n].input0, nodes[n].input1, nodes[n].data_output_count);
-		for (nat j = 0; j < nodes[n].data_output_count; j++) {
-			printf("%llu ", nodes[n].data_outputs[j]);
-		}
-		puts(" } }");
-		
-	}
-
-
-	puts("done");
-
+	print_nodes(nodes, node_count, names);
 
 
 	abort();
+
+
+
+
 
 
 
