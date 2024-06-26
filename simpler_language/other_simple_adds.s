@@ -17,6 +17,6 @@ rn two other
 add two hello
 
 
-rn two one
+rn two one_other
 
 

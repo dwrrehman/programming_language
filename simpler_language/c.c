@@ -1175,16 +1175,18 @@ parse_file:
 
 
 	struct node {
-		
-		nat data_inputs[4];
-		nat data_output[32];
-		nat data_input_count;
+		nat data_outputs[32];
 		nat data_output_count;
+		nat output_reg;
+		nat input0;
+		nat input1;
+		nat op;
+		nat sk; // statically_known
 	};
 
 	struct node nodes[4096] = {0};
-
-	
+	nat node_count = 1;
+	nodes[0].sk = true;
 
 	for (nat i = 0; i < ins_count; i++) {
 		printf("instruction: "
@@ -1195,14 +1197,72 @@ parse_file:
 			names[ins[i].a[3]]
 		);
 
-		
+		const nat output_reg = ins[i].a[1];
+
+
+		nat input0 = 0;
+		nat input1 = 0;
+
+		for (nat j = 0; j < node_count; j++) {
+			printf("looking for input0 nodes to this instruction: %llu / %llu...\n", j, i);
+			if (nodes[j].output_reg == ins[i].a[2]) {
+				input0 = j;
+				printf("FOUND INPUT0 = %llu!!!!\n", j);
+				//getchar();
+				nodes[j].data_outputs[nodes[j].data_output_count++] = node_count;
+				break;
+			}
+		}
+
+		for (nat j = 0; j < node_count; j++) {
+			printf("looking for input1 nodes to this instruction: %llu / %llu...\n", j, i);
+			if (nodes[j].output_reg == ins[i].a[3]) {
+				input1 = j;
+				printf("FOUND INPUT1 = %llu!!!!\n", j);
+				//getchar();
+				nodes[j].data_outputs[nodes[j].data_output_count++] = node_count;
+				break;
+			}
+		}
+
+		nodes[node_count++] = (struct node) {
+			.data_outputs = {0},
+			.data_output_count = 0,
+			.input0 = input0,
+			.input1 = input1,
+			.op = ins[i].a[0],
+			.output_reg = output_reg,
+			.sk = nodes[input0].sk and nodes[input1].sk,
+		}
+;
+		//getchar();
 		
 	}
 
 
+	printf("printing %llu nodes...\n", node_count);
+	for (nat n = 0; n < node_count; n++) {
+
+		printf("node #%llu: {"
+			".op = %llu (\"%s\"), "
+			".output_reg = %llu (\"%s\"), "
+			".input0 = #%llu, "
+			".input1 = #%llu, "
+			".data_output_count = %llu, "
+			".data_output = { ", 
+			n, 
+			nodes[n].op, spelling[nodes[n].op],
+			nodes[n].output_reg, names[nodes[n].output_reg],
+			nodes[n].input0, nodes[n].input1, nodes[n].data_output_count);
+		for (nat j = 0; j < nodes[n].data_output_count; j++) {
+			printf("%llu ", nodes[n].data_outputs[j]);
+		}
+		puts(" } }");
+		
+	}
 
 
-
+	puts("done");
 
 
 
