@@ -3,875 +3,6 @@
 //  so that the isa is just the riscv isa plus the label attribution ins.
 // very cool so far
 
-// old
-// rewritten on 202406215.012903: word based, but simpler stage structure
-//  and simpler system of doing strings and comments.
-
-// old: my assembler: written on 202405304.122455 by dwrr.
-
-/*
-
-
-
-	202406241.013212:
-		just implemented mulitple files in the language, it was really simple becuase our lexing/parsing is super simple now lol, and the language as a whole is much simpler lol.
-
-
-			now, we have to actually do   scopes,   and namespaces.   ie, contexts.    ie, some way of grouping names, in a way that allows you to encapsulate things,  defining the same name to mulitple entities,  each in their own context, and used for different things. this is a MUST, as often in human language, the same name is used for several things, but when used in different contexts,  they mean different things.   same idea in programming, its a fundemental way of humans speaking, kinda.  so yeah. its kind of not that ergonomic to require that everything be a unique name, by its name alone. it would be nice to define a context, that allows for names to be shorter, on average, while operating within that context.  this is a almost universal ergonomic feature of humans procressing, i think. and just generally speaking. 
-
-
-				so acheive this, i propose a way of creating a scope, 
-
-
-					and then attributing a name to that scope. 
-
-
-			so, basically, we will at the very least, have some sort of opening and closing tags, 
-
-
-					ns_begin  ns_end                        ns standing for namespace, lets say lololol   just some rough names
-
-
-			and then ns_end actually takes an argument, which is the name of the namespace. so yeah. its not defined until you leave the namespace, basically. 
-
-					or rather maybe you should have the begin    define the name?   yeah lets try that i think. 
-
-
-
-
-
-			so yeah, basically, you do 
-
-
-
-
-							ns_begin my_namespace_name_here
-
-								...code...
-
-								add hello                   <--- defines hello, and sets it to zero. 
-
-							ns_end
-
-
-
-			and that basically sets it up 
-
-
-
-
-	and then as far as using elements in the name space, 
-
-
-			you actually refer to them like this:
-
-							my_namespace_name_here hello
-
-
-
-			ie, you say the namespace, and then the hello. 
-
-
-
-
-
-			and basically, 
-
-
-					(first, it should be noted:    the LANG ISA    is actually universally across accessible across namespaces, 
-
-											wihch makes sense)
-
-
-
-						(but the list of names, are not neccessarilyyy. rather, there is a default namespace,  which has the name <EMPTY_STRING>, ie "",  and then the default builtin variables, like zero, ra, etc     are in there, 
-
-
-									and then when you open up a new namespace, it makes a new    user variable dictionary   for names    in that namespace       basicallyyy
-
-
-
-
-
-					the look up for looking up sometihng  basically firsttttt involves   selecting the namespace, 
-
-
-
-						OH!!
-
-
-										wait!!
-
-
-
-
-
-
-					a NAMESPACE NAME     IS ITSELF     IN THE GLOBAL NAMESPACEEEE           LOLOLOL
-
-
-
-
-						okay cool lol thats neat
-
-
-
-
-
-					so yeah, the my_namespace_name_here    name       that name is in the global namespace,   
-
-
-
-							ie, the namespace  "" 
-
-
-
-
-				so yeah even taht name is itself technically      namespace-qualified      lol technically   you just can't see the ns because its the empty string lolol 
-
-							so yeah 
-
-
-
-
-
-
-							basically, if you refer to a name,  it doesnt actually push an arg, 
-
-
-
-
-
-								it just sets the         ns            nat 
-
-
-
-							which,  then causes the NEXT word to be looked up   in that namespace with that ns index 
-
-
-
-
-										and then after pushing a name succesfully, we ALWAYS revert back to the global namespace. always. 
-
-
-								so yeah, that has the effect that things which are not in the global space, always need to be qualified, basically. 
-
-
-							so yeah! very cool. i like this lol. yay!!!!
-
-
-
-
-
-
-
-so cool 
-
-
-
-
-		this is actually so good so far 
-
-
-					
-
-		hm
-
-					now, note 
-
-
-										technically, namespaces are ALSOOO   kinda like 
-
-
-
-
-
-								scopes!!!
-
-
-
-
-
-
-
-
-					(its just, obviusly, theres no stack allocations happening in them that get automatically deallocated lolol, like in c lol)
-
-
-
-								but yeah, minus that whole thing, they operate like in c,      you can have shadowing of variable names, and the local closest copy gets used, just as you would think, 
-
-
-
-								and of course, you don't have to qualify names while in that namespace lolol
- 
-
-
-
-
-
-
-
-		OHHH 		
-
-						okay cool so when you define a namespace, you actually set the ns  nat    like permentently 
-
-
-
-								until you leave that namespace, 
-
-
-
-
-
-								BUTTTTTT
-
-
-										okay crap lol 
-
-
-
-
-										so actually, we need  like      3 lookups
-
-
-
-
-
-											first we try to look up the word in the operation list, 
-
-												which is universal across everythin, 
-
-
-
-
-
-											then we try to look it up in the local namespace, 
-
-
-												then we try to look it up in the local namespace, 
-
-
-													
-
-
-
-
-
-
-
-		oh, and btw, you cannot nest namespaces.   
-
-				... 
-
-
-										is that a good idea?
-
-
-
-
-
-
-
-		hmmm actually 
-
-
-	idkkkk 
-			i feel like you should be able to nest them... 
-
-
-butt
-
-
-		yeah, that would just get a bit too complex to implement, so i will say that no  you cannot nest them lolol 
-
-		i don't exactlyy wanttttt this language to be expresion based in any way 
-
-					like, i don't even really likethe fact taht the    nsbegin and nsend        ie   nsb   and nse 
-
-
-										kinda look like {    and      }          lol 
-
-
-
-				ie,           namespace hello { ... }          from c++         LOL          like, its quite similar to that, 
-
-
-
-									except for the fact that you cannot nest namespaces, 
-
-
-
-
-								ANDDDD     qualifying a ns  to a variable looks like 
-
-												ns::name   in c++,    but   ns name     in our language,
-
-
-							and 
-
-
-
-
-								yeah  					ns name          is MUCHHH more readable lolol 
-
-
-
-
-													and easier to type  
-
-
-
-
-
-				so yeah 
-
-
-
-
-
-		so yeah,              not nestable, and more readable   i think its a fine way to do things 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-but yeah, 3 lookups, 
-
-
-
-		1. look up in the operation isa listing
-
-		2. look up in the current namespace's variable dictionary
-
-		3. look up in the global namespaces variable dictionary 
-
-
-
-
-
-
-
-	note the order-  this is how we support shadowing lol. so yeah. i think that makes sense. 
-
-
-
-
-
-	yayyyyyyy this is quite cool 
-
-
-
-
-				honestly the more i think about it, the more nesting these things kindaaaa makes sense and is really useful-
-
-
-
-							particularly when thinking about namespaces as actually just straight up scopes lololol
-
-
-
-
-
-							butttttt on the other hand.. idk... ill probably pass on it for now.. idk.. hm.. 
-
-
-
-
-
-
-			ill think about it. and see how complex it might be to implement it.. 
-
-
-
-							basically, we would need a stack of currently open namespaces, as opposed to just one currently open one, given by the ns index... 
-
-
-	
-
-								like,     ALSOOO   OMG  the call would need to be super complex then 
-
-
-
-												like,
-
-
-
-
-									if lets say you had:
-
-
-
-
-
-
-		nsb a
-
-			nsb b
-
-				nsb c
-
-
-					add hello
-
-
-				nse
-
-			nse
-
-		nse
-
-
-
-
-
-		like,   you would look it up like 
-
-
-					a b c hello           right?
-
-
-
-
-
-
-
-
-				GAHH
-
-
-						yeah thats actually so complex to implement i think lololo 
-
-
-						hm
-
-
-
-
-
-
-
-		ERR WAIT
-
-				IS IT?
-
-
-
-					because like, we would just be saying that 
-
-
-
-
-
-						we are calling          a          first     which then puts us in the a ns
-
-
-
-
-
-
-
-								and then   b             which is a name    in           a 
-
-
-
-
-												which ends up putting us in the b namespace, 
-
-
-
-									and then  finally         c         similar procress, again, 
-
-
-
-
-										and then finally            hello 
-
-
-
-										which is in c 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-		so like!?!?
-
-
-
-					okay interesting so actually call kinda solves itself lololol
-
-
-
-					thats interesting 
-
-
-
-							wow 
-
-
-
-
-
-		okay maybe we do allow for nesting- 
-
-							like, the implmentation is really just complicated by the     opening of nested ones
-
-
-
-
-
-
-						like, 
-
-
-
-
-
-							here,              nsb a nsb b nsb c add hello nse nse nse              
-
-
-
-										in that code, we have to keep track of a stack, of currently open namespaces, 
-
-
-
-
-										buttt... 
-
-
-
-
-										thats really the only complicatation to the typical case that we need to add!!?!?
-
-
-
-										so yeah lets make these lil guys nestable loolo 
-
-
-
-
-										its makes sense to now 
-
-
-
-
-
-
-				yay
-
-
-
-
-
-
-
-
-
-
-
-
-	oh my gosh!!!
-
-
-
-
-
-			ANDDDD technically     ALLL NAMESPACES   ARE NESTED
-
-
-
-
-						because     THE GLOBAL NAMESPACE!!!
-
-
-
-
-
-					like everything is AT LEAST nested in thereeeee loloolol
-
-
-
-								WOWWW okay thast prety cool lololol
-					nice 
-
-
-			i like that 
-
-
-
-
-					thats pretty cool 
-
-
-
-
-					
-
-
-
-
-		oh wait, and also, 
-
-
-
-
-	waittt
-
-
-
-
-
-
-		okay so then wait 
-
-
-
-
-
-			we also have this notion of the currently open, and then not open ones,
-
-
-
-
-			like we need to know 
-
-
-
-
-
-
-
-waittt
-
-
-
-			okay so   we know that if we are in a given namespace, we don't need to qualify things, 
-
-
-
-				(lets ignore the fact that the global namespace doesnt have a name. in fact, lets give it a name, lets say the global ns is called like "global_namespace" or something,  
-
-
-					)
-
-
-					BUTTTT we never have to qualify   things         with that 
-
-
-
-
-								because    WE ARE IN IT
-
-
-
-
-							ALL FILES  and their CONTENTS    are in it 
-
-
-
-
-					so no need to qualify
-
-
-
-
-
-
-		but if you are outside the namespace, then you need to qualify things 
-
-
-
-
-
-		so 
-
-
-
-			if you did 
-
-
-
-
-
-
-
-		nsb a 
-
-
-			add hello
-
-
-			nsb b
-
-				add cat
-
-			nse
-
-
-			nsb c
-
-				...use "b cat"....         <---- see how we needed to backtrack to looking at a's ns, 
-									to find b, which too us to its ns?... yes. this is important. 
-
-			nse
-
-		nse
-
-
-
-
-
-	oh, and note, a namespace can be anonymous,  ie, 
-
-		you are allowed to just say 
-
-
-				nsb  add hello  nse 
-
-
-
-			and now, hello is technically entirely local, theres no way of using it out side that scope basically oll 
-
-
-			quite cool
-
-
-
-	this allows you to effectively create public and private interfaces,  for implmentation level stuff, and interface stuff, 
-
-
-
-				for example, 
-
-
-
-
-
-
-
-
-
-
-						nsb myinterface
-
-							add function0
-
-							add function1
-
-							nsb 
-								...some complex implementation details...
-								add function0 value_BLAH          // 
-								add function1 value_BLAH          // <--- these two function as assignments.
-							nse
-						nse
-						
-
-						...use "myinterface function0"...
-
-						...use "myinterface function1"...
-
-
-			
-
-
-
-
-
-
-
-			and see how the implementation stuff is completely hidden and doesnt pollute the symbol table at all, 
-
-
-				and has all the wonderful scoping semantics that is useful in c,   
-
-
-						YETTTT you can choose to keep   function0 and function1  accessible from the outside!!
-
-
-
-
-
-
-
-	so yeah, i think we literally just make a stack of open dictionaries
-
-			the global one is the base of the stack,
-
-
-				and when you open a new   ns             via nsb <name>        you push onto the stack,
-
-
-					and when you look up a name, you always look backwards through our dictionary, 
-							looking for a match, 
-
-
-
-							if you see the name of a namespace  that matches,   then its a qualification, 
-
-								we qualify by actually 
-
-
-
-
-		ohhh wowwww
-
-
-
-		okay so actually 
-
-
-			we push ALLL namespacessss    to   MASTER namespace array
-
-
-				for use later, when we are doing a qualified lookup   
-
-
-					and then, we actually  push an    index    corresponding to the new ns that we just pushed to the master namespace array
-
-
-							ie, the stack of namespaces,  is actually just a stack of indicies lool 
-
-
-
-
-
-							and then calling a namespace name     just sets the current namespace we are looking at, to be that ns index. in the master array.  so yeah. its a tiny bit more complicated, but still totally simple i thinkkk nice 
-
-
-
-
-
-
-					
-
-
-
-
-*/
-
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -1109,8 +240,18 @@ static void print_dictionary(char** names, nat* locations, nat name_count) {
 static void print_instructions(char** names, nat name_count) {
 	printf("instructions: {\n");
 	for (nat i = 0; i < ins_count; i++) {
-		printf("\t%-8llu\tins(.op = %-8s  { ", i, ins[i].a[0] < isa_count ? spelling[ins[i].a[0]] : "UNDEFINED OP ERR");
-		for (nat a = 1; a < 4; a++) printf(" %-15s    ", ins[i].a[a] < name_count ? names[ins[i].a[a]] : "UNDEFINED OP ERR");
+		printf("\t%-8llu\tins(.op = %-8s  { ", i, 
+			ins[i].a[0] < isa_count 
+				? spelling[ins[i].a[0]] 
+				: "UNDEFINED OP ERR"
+		);
+		for (nat a = 1; a < 4; a++) 
+			printf(" %-15s    ", 
+				ins[i].a[a] < name_count 
+					? names[ins[i].a[a]] 
+					: "UNDEFINED OP ERR"
+				);
+
 		printf("} -- [");
 		for (nat a = 0; a < 4; a++) {
 			printf("%llu:%llx:%llx:%llx", a, ins[i].a[a], ins[i].start[a], ins[i].count[a]);
@@ -1131,7 +272,8 @@ static void print_namespaces(nat* activens, nat activens_count, struct namespace
 	for (nat n = 0; n < ns_count; n++) {
 		printf("ns #%llu :: .name = \"%s\" => {\n", n, ns[n].name);
 		for (nat i = 0; i < ns[n].name_count; i++) {
-			printf("\t.  (     %-15s   : l%lld : i%lld)\n", ns[n].names[i], ns[n].locations[i], ns[n].index[i]);
+			printf("\t.  (     %-15s   : l%lld : i%lld)\n", 
+				ns[n].names[i], ns[n].locations[i], ns[n].index[i]);
 		}
 		puts("}");
 		puts("");
@@ -1171,97 +313,6 @@ static void print_message(nat type, const char* reason_string, nat spot, nat err
 	finish: puts("");
 }
 
-
-
-/*
-
-nat stack_i[4096] = {0}, stack_f[4096] = {0}, stack_o[4096] = {0};
-	nat stack_count = 0;
-	for (nat index = 0; index < text_length; index++) {
-		for (nat f = 0; f < file_count; f++) {
-			const nat start = files[f].start;
-			if (index == start) {				
-				stack_i[stack_count] = index;
-				stack_f[stack_count] = f;
-				stack_o[stack_count++] = 0;
-				break;
-			} 
-			if (stack_o[stack_count - 1] == files[
-				stack_f[stack_count - 1]].count)  {
-				stack_count--;
-				if (not stack_count) goto done; else break;
-			}
-		}
-		if (index == spot) {			
-			filename = files[stack_f[stack_count - 1]].name;
-			location = stack_o[stack_count - 1];
-			goto done;
-		}
-		stack_o[stack_count - 1]++;
-	}
-*/
-
-
-
-static void print_source_instruction_mappings(void) {
-
-	for (nat i = 0; i < ins_count; i++) {
-
-		printf("-------------------[ins #%llu]---------------------\n", i);
-
-		printf("\t%llu\tins(.op=%llu (\"%s\"), .size=%lld, args:{ ", 
-			i, ins[i].a[0], spelling[ins[i].a[0]], (nat) -1
-		);
-		for (nat a = 0; a < 3; a++) printf("%llu ", ins[i].a[a + 1]);
-		
-		printf("}   -- \t[found @   ");
-		for (nat a = 0; a < 4; a++) {
-			printf("[%llu]:(%llu:%llu)", a, ins[i].start[a], ins[i].count[a]);
-			if (a < 3) printf(", ");
-		}
-		puts("]");
-
-
-		for (nat a = 0; a < 4; a++) {
-
-			nat start = ins[i].start[a];
-			nat count = ins[i].count[a];
-
-			printf("\033[1mlanguage: %s:%llu:%llu:", 
-				"filename ? filename : (top-level)", 
-				start, count
-			);
-			printf(" \033[1;32msource:\033[m \033[1m%s%llu\033[m\n", "debugging argument: ", a);
-
-			nat line_begin = start;
-			while (line_begin and text[line_begin - 1] != 10) line_begin--;
-			nat line_end = start;
-			while (line_end < text_length and text[line_end] != 10) line_end++;
-
-			printf("\n\t");
-			for (nat c = line_begin; c < line_end; c++) {
-				if (c == start) printf("\033[38;5;%llum", 178LLU);
-				if (text[c] == 9) putchar(32);
-				else putchar(text[c]);
-				if (c == start + count) printf("\033[0m");
-			}
-			printf("\n\t");
-			for (nat _ = 0; _ < start - line_begin; _++) 
-				printf(" "); 
-			printf("\033[32;1m^");
-			if (count) {
-				for (nat _ = 0; _ < count - 1; _++) 
-					printf("~"); 
-			}
-			printf("\033[0m\n\n"); 
-
-			puts("\n");
-		}
-		puts("-----------------------------------------");
-	}
-}
-
-
 static char* read_file(const char* name, nat* out_length, nat start, nat count) {
 	int d = open(name, O_RDONLY | O_DIRECTORY);
 	if (d >= 0) { close(d); errno = EISDIR; goto read_error; }
@@ -1270,8 +321,7 @@ static char* read_file(const char* name, nat* out_length, nat start, nat count) 
 		read_error:;
 		snprintf(reason, sizeof reason, "%s: \"%s\"", 
 			strerror(errno), name);
-		print_message(error, reason, start, count);
-		
+		print_message(error, reason, start, count);		
 		exit(1); 
 	}
 	size_t length = (size_t) lseek(file, 0, SEEK_END);
@@ -1314,7 +364,6 @@ static void check(nat value, nat limit, nat a, struct instruction this) {
 		exit(1);
 	}
 }
-
 
 static void check_offset(nat value, nat limit, nat a, struct instruction this) {
 	if ((0)) {
@@ -1373,7 +422,8 @@ static nat calculate_offset(nat here, nat label, struct instruction this) {
 		printf("backwards branch...\n");
 		for (nat i = label; i < here; i++) {
 			if (i >= ins_count) {
-				print_message(error, "invalid label given to a branching instruction", this.start[0], this.count[0]);
+				print_message(error, "invalid label given to a branching instruction", 
+						this.start[0], this.count[0]);
 				exit(1);
 			}
 			offset -= ins_size(ins[i].a[0]);
@@ -1382,7 +432,8 @@ static nat calculate_offset(nat here, nat label, struct instruction this) {
 		printf("forwards branch...\n");
 		for (nat i = here; i < label; i++) {
 			if (i >= ins_count) {
-				print_message(error, "invalid label given to a branching instruction", this.start[0], this.count[0]);
+				print_message(error, "invalid label given to a branching instruction", 
+						this.start[0], this.count[0]);
 				exit(1);
 			}
 			offset += ins_size(ins[i].a[0]);
@@ -1639,7 +690,6 @@ static void generate_srli(nat Rd, nat Rn, nat im, nat op, nat oc, nat sf, struct
 
 static void generate_adr(nat Rd, nat op, nat oc, nat target, nat here, struct instruction this) { 
 
-	
 	nat im = calculate_offset(here, target, this);
 
 	check(Rd, 32, 0, this);
@@ -1727,7 +777,6 @@ static void generate_arm64_machine_code(void) {
 		else if (op == mulh)   generate_adc(a[0], a[1], a[2], 0xDE, 31, 1, 0, 0, this);
 
 		// else if (op == mul)    generate_umaddl(a[0], a[1], a[2], 0xDE, 31, 1, 0, 0, this);
-
 		// else if (op == lpa)  generate_adr(a[0], 0x10, 0, a[1], i, this);
 
 		else if (op == add)    generate_add(a[0], a[1], a[2], 0x0BU, 0, 1, 0, 0, 0, this);
@@ -1993,13 +1042,11 @@ static bool define_on_use(nat op, nat count) {
 	abort();
 }
 
-
-
 static char* generate_global_qualified_name(struct namespace* ns, nat* activens, nat activens_count, char* word) {
 	char buffer[4096] = {0};
 	for (nat i = 1; i < activens_count; i++) {
 		strlcat(buffer, ns[activens[i]].name, sizeof buffer);
-		strlcat(buffer, "::", sizeof buffer);
+		strlcat(buffer, ".", sizeof buffer);
 	}
 	strlcat(buffer, word, sizeof buffer);
 	return strdup(buffer);
@@ -2008,7 +1055,6 @@ static char* generate_global_qualified_name(struct namespace* ns, nat* activens,
 int main(int argc, const char** argv) {
 
 	if (argc != 2) exit(puts("language: \033[31;1merror:\033[0m usage: ./asm <source.s>"));
-
 
 	nat ns_count = 0;
 	struct namespace* ns = calloc(1, sizeof(struct namespace));
@@ -2109,7 +1155,14 @@ parse_file:
 		location = this->locations + nc; 
 		goto arg;
 
-	ins:	ins_count++; a = 0;
+	ins:	
+		if (op == nsb and a == 1) { 
+			ins_count--; 
+			ns = realloc(ns, sizeof(struct namespace) * (ns_count + 1));
+			ns[ns_count] = (struct namespace) {.name = strdup("")};
+			activens[activens_count++] = ns_count++;
+		}
+		ins_count++; a = 0;
 		ins = realloc(ins, sizeof(struct instruction) * (ins_count + 1));
 		ins[ins_count] = (struct instruction) { .start = {s, s, s, s}, .count = {c, c, c, c} };
 		op = n;
@@ -4958,6 +4011,998 @@ ISA  as of 202406237.182942:
 
 
 
+
+
+
+
+
+
+
+
+
+
+// old
+// rewritten on 202406215.012903: word based, but simpler stage structure
+//  and simpler system of doing strings and comments.
+
+// old: my assembler: written on 202405304.122455 by dwrr.
+
+/*
+
+
+
+	202406241.013212:
+		just implemented mulitple files in the language, it was really simple becuase our lexing/parsing is super simple now lol, and the language as a whole is much simpler lol.
+
+
+			now, we have to actually do   scopes,   and namespaces.   ie, contexts.    ie, some way of grouping names, in a way that allows you to encapsulate things,  defining the same name to mulitple entities,  each in their own context, and used for different things. this is a MUST, as often in human language, the same name is used for several things, but when used in different contexts,  they mean different things.   same idea in programming, its a fundemental way of humans speaking, kinda.  so yeah. its kind of not that ergonomic to require that everything be a unique name, by its name alone. it would be nice to define a context, that allows for names to be shorter, on average, while operating within that context.  this is a almost universal ergonomic feature of humans procressing, i think. and just generally speaking. 
+
+
+				so acheive this, i propose a way of creating a scope, 
+
+
+					and then attributing a name to that scope. 
+
+
+			so, basically, we will at the very least, have some sort of opening and closing tags, 
+
+
+					ns_begin  ns_end                        ns standing for namespace, lets say lololol   just some rough names
+
+
+			and then ns_end actually takes an argument, which is the name of the namespace. so yeah. its not defined until you leave the namespace, basically. 
+
+					or rather maybe you should have the begin    define the name?   yeah lets try that i think. 
+
+
+
+
+
+			so yeah, basically, you do 
+
+
+
+
+							ns_begin my_namespace_name_here
+
+								...code...
+
+								add hello                   <--- defines hello, and sets it to zero. 
+
+							ns_end
+
+
+
+			and that basically sets it up 
+
+
+
+
+	and then as far as using elements in the name space, 
+
+
+			you actually refer to them like this:
+
+							my_namespace_name_here hello
+
+
+
+			ie, you say the namespace, and then the hello. 
+
+
+
+
+
+			and basically, 
+
+
+					(first, it should be noted:    the LANG ISA    is actually universally across accessible across namespaces, 
+
+											wihch makes sense)
+
+
+
+						(but the list of names, are not neccessarilyyy. rather, there is a default namespace,  which has the name <EMPTY_STRING>, ie "",  and then the default builtin variables, like zero, ra, etc     are in there, 
+
+
+									and then when you open up a new namespace, it makes a new    user variable dictionary   for names    in that namespace       basicallyyy
+
+
+
+
+
+					the look up for looking up sometihng  basically firsttttt involves   selecting the namespace, 
+
+
+
+						OH!!
+
+
+										wait!!
+
+
+
+
+
+
+					a NAMESPACE NAME     IS ITSELF     IN THE GLOBAL NAMESPACEEEE           LOLOLOL
+
+
+
+
+						okay cool lol thats neat
+
+
+
+
+
+					so yeah, the my_namespace_name_here    name       that name is in the global namespace,   
+
+
+
+							ie, the namespace  "" 
+
+
+
+
+				so yeah even taht name is itself technically      namespace-qualified      lol technically   you just can't see the ns because its the empty string lolol 
+
+							so yeah 
+
+
+
+
+
+
+							basically, if you refer to a name,  it doesnt actually push an arg, 
+
+
+
+
+
+								it just sets the         ns            nat 
+
+
+
+							which,  then causes the NEXT word to be looked up   in that namespace with that ns index 
+
+
+
+
+										and then after pushing a name succesfully, we ALWAYS revert back to the global namespace. always. 
+
+
+								so yeah, that has the effect that things which are not in the global space, always need to be qualified, basically. 
+
+
+							so yeah! very cool. i like this lol. yay!!!!
+
+
+
+
+
+
+
+so cool 
+
+
+
+
+		this is actually so good so far 
+
+
+					
+
+		hm
+
+					now, note 
+
+
+										technically, namespaces are ALSOOO   kinda like 
+
+
+
+
+
+								scopes!!!
+
+
+
+
+
+
+
+
+					(its just, obviusly, theres no stack allocations happening in them that get automatically deallocated lolol, like in c lol)
+
+
+
+								but yeah, minus that whole thing, they operate like in c,      you can have shadowing of variable names, and the local closest copy gets used, just as you would think, 
+
+
+
+								and of course, you don't have to qualify names while in that namespace lolol
+ 
+
+
+
+
+
+
+
+		OHHH 		
+
+						okay cool so when you define a namespace, you actually set the ns  nat    like permentently 
+
+
+
+								until you leave that namespace, 
+
+
+
+
+
+								BUTTTTTT
+
+
+										okay crap lol 
+
+
+
+
+										so actually, we need  like      3 lookups
+
+
+
+
+
+											first we try to look up the word in the operation list, 
+
+												which is universal across everythin, 
+
+
+
+
+
+											then we try to look it up in the local namespace, 
+
+
+												then we try to look it up in the local namespace, 
+
+
+													
+
+
+
+
+
+
+
+		oh, and btw, you cannot nest namespaces.   
+
+				... 
+
+
+										is that a good idea?
+
+
+
+
+
+
+
+		hmmm actually 
+
+
+	idkkkk 
+			i feel like you should be able to nest them... 
+
+
+butt
+
+
+		yeah, that would just get a bit too complex to implement, so i will say that no  you cannot nest them lolol 
+
+		i don't exactlyy wanttttt this language to be expresion based in any way 
+
+					like, i don't even really likethe fact taht the    nsbegin and nsend        ie   nsb   and nse 
+
+
+										kinda look like {    and      }          lol 
+
+
+
+				ie,           namespace hello { ... }          from c++         LOL          like, its quite similar to that, 
+
+
+
+									except for the fact that you cannot nest namespaces, 
+
+
+
+
+								ANDDDD     qualifying a ns  to a variable looks like 
+
+												ns::name   in c++,    but   ns name     in our language,
+
+
+							and 
+
+
+
+
+								yeah  					ns name          is MUCHHH more readable lolol 
+
+
+
+
+													and easier to type  
+
+
+
+
+
+				so yeah 
+
+
+
+
+
+		so yeah,              not nestable, and more readable   i think its a fine way to do things 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+but yeah, 3 lookups, 
+
+
+
+		1. look up in the operation isa listing
+
+		2. look up in the current namespace's variable dictionary
+
+		3. look up in the global namespaces variable dictionary 
+
+
+
+
+
+
+
+	note the order-  this is how we support shadowing lol. so yeah. i think that makes sense. 
+
+
+
+
+
+	yayyyyyyy this is quite cool 
+
+
+
+
+				honestly the more i think about it, the more nesting these things kindaaaa makes sense and is really useful-
+
+
+
+							particularly when thinking about namespaces as actually just straight up scopes lololol
+
+
+
+
+
+							butttttt on the other hand.. idk... ill probably pass on it for now.. idk.. hm.. 
+
+
+
+
+
+
+			ill think about it. and see how complex it might be to implement it.. 
+
+
+
+							basically, we would need a stack of currently open namespaces, as opposed to just one currently open one, given by the ns index... 
+
+
+	
+
+								like,     ALSOOO   OMG  the call would need to be super complex then 
+
+
+
+												like,
+
+
+
+
+									if lets say you had:
+
+
+
+
+
+
+		nsb a
+
+			nsb b
+
+				nsb c
+
+
+					add hello
+
+
+				nse
+
+			nse
+
+		nse
+
+
+
+
+
+		like,   you would look it up like 
+
+
+					a b c hello           right?
+
+
+
+
+
+
+
+
+				GAHH
+
+
+						yeah thats actually so complex to implement i think lololo 
+
+
+						hm
+
+
+
+
+
+
+
+		ERR WAIT
+
+				IS IT?
+
+
+
+					because like, we would just be saying that 
+
+
+
+
+
+						we are calling          a          first     which then puts us in the a ns
+
+
+
+
+
+
+
+								and then   b             which is a name    in           a 
+
+
+
+
+												which ends up putting us in the b namespace, 
+
+
+
+									and then  finally         c         similar procress, again, 
+
+
+
+
+										and then finally            hello 
+
+
+
+										which is in c 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+		so like!?!?
+
+
+
+					okay interesting so actually call kinda solves itself lololol
+
+
+
+					thats interesting 
+
+
+
+							wow 
+
+
+
+
+
+		okay maybe we do allow for nesting- 
+
+							like, the implmentation is really just complicated by the     opening of nested ones
+
+
+
+
+
+
+						like, 
+
+
+
+
+
+							here,              nsb a nsb b nsb c add hello nse nse nse              
+
+
+
+										in that code, we have to keep track of a stack, of currently open namespaces, 
+
+
+
+
+										buttt... 
+
+
+
+
+										thats really the only complicatation to the typical case that we need to add!!?!?
+
+
+
+										so yeah lets make these lil guys nestable loolo 
+
+
+
+
+										its makes sense to now 
+
+
+
+
+
+
+				yay
+
+
+
+
+
+
+
+
+
+
+
+
+	oh my gosh!!!
+
+
+
+
+
+			ANDDDD technically     ALLL NAMESPACES   ARE NESTED
+
+
+
+
+						because     THE GLOBAL NAMESPACE!!!
+
+
+
+
+
+					like everything is AT LEAST nested in thereeeee loloolol
+
+
+
+								WOWWW okay thast prety cool lololol
+					nice 
+
+
+			i like that 
+
+
+
+
+					thats pretty cool 
+
+
+
+
+					
+
+
+
+
+		oh wait, and also, 
+
+
+
+
+	waittt
+
+
+
+
+
+
+		okay so then wait 
+
+
+
+
+
+			we also have this notion of the currently open, and then not open ones,
+
+
+
+
+			like we need to know 
+
+
+
+
+
+
+
+waittt
+
+
+
+			okay so   we know that if we are in a given namespace, we don't need to qualify things, 
+
+
+
+				(lets ignore the fact that the global namespace doesnt have a name. in fact, lets give it a name, lets say the global ns is called like "global_namespace" or something,  
+
+
+					)
+
+
+					BUTTTT we never have to qualify   things         with that 
+
+
+
+
+								because    WE ARE IN IT
+
+
+
+
+							ALL FILES  and their CONTENTS    are in it 
+
+
+
+
+					so no need to qualify
+
+
+
+
+
+
+		but if you are outside the namespace, then you need to qualify things 
+
+
+
+
+
+		so 
+
+
+
+			if you did 
+
+
+
+
+
+
+
+		nsb a 
+
+
+			add hello
+
+
+			nsb b
+
+				add cat
+
+			nse
+
+
+			nsb c
+
+				...use "b cat"....         <---- see how we needed to backtrack to looking at a's ns, 
+									to find b, which too us to its ns?... yes. this is important. 
+
+			nse
+
+		nse
+
+
+
+
+
+	oh, and note, a namespace can be anonymous,  ie, 
+
+		you are allowed to just say 
+
+
+				nsb  add hello  nse 
+
+
+
+			and now, hello is technically entirely local, theres no way of using it out side that scope basically oll 
+
+
+			quite cool
+
+
+
+	this allows you to effectively create public and private interfaces,  for implmentation level stuff, and interface stuff, 
+
+
+
+				for example, 
+
+
+
+
+
+
+
+
+
+
+						nsb myinterface
+
+							add function0
+
+							add function1
+
+							nsb 
+								...some complex implementation details...
+								add function0 value_BLAH          // 
+								add function1 value_BLAH          // <--- these two function as assignments.
+							nse
+						nse
+						
+
+						...use "myinterface function0"...
+
+						...use "myinterface function1"...
+
+
+			
+
+
+
+
+
+
+
+			and see how the implementation stuff is completely hidden and doesnt pollute the symbol table at all, 
+
+
+				and has all the wonderful scoping semantics that is useful in c,   
+
+
+						YETTTT you can choose to keep   function0 and function1  accessible from the outside!!
+
+
+
+
+
+
+
+	so yeah, i think we literally just make a stack of open dictionaries
+
+			the global one is the base of the stack,
+
+
+				and when you open a new   ns             via nsb <name>        you push onto the stack,
+
+
+					and when you look up a name, you always look backwards through our dictionary, 
+							looking for a match, 
+
+
+
+							if you see the name of a namespace  that matches,   then its a qualification, 
+
+								we qualify by actually 
+
+
+
+
+		ohhh wowwww
+
+
+
+		okay so actually 
+
+
+			we push ALLL namespacessss    to   MASTER namespace array
+
+
+				for use later, when we are doing a qualified lookup   
+
+
+					and then, we actually  push an    index    corresponding to the new ns that we just pushed to the master namespace array
+
+
+							ie, the stack of namespaces,  is actually just a stack of indicies lool 
+
+
+
+
+
+							and then calling a namespace name     just sets the current namespace we are looking at, to be that ns index. in the master array.  so yeah. its a tiny bit more complicated, but still totally simple i thinkkk nice 
+
+
+
+
+
+
+					
+
+
+
+
+*/
+
+
+
+
+
+/*
+
+nat stack_i[4096] = {0}, stack_f[4096] = {0}, stack_o[4096] = {0};
+	nat stack_count = 0;
+	for (nat index = 0; index < text_length; index++) {
+		for (nat f = 0; f < file_count; f++) {
+			const nat start = files[f].start;
+			if (index == start) {				
+				stack_i[stack_count] = index;
+				stack_f[stack_count] = f;
+				stack_o[stack_count++] = 0;
+				break;
+			} 
+			if (stack_o[stack_count - 1] == files[
+				stack_f[stack_count - 1]].count)  {
+				stack_count--;
+				if (not stack_count) goto done; else break;
+			}
+		}
+		if (index == spot) {			
+			filename = files[stack_f[stack_count - 1]].name;
+			location = stack_o[stack_count - 1];
+			goto done;
+		}
+		stack_o[stack_count - 1]++;
+	}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+static void print_source_instruction_mappings(void) {
+
+	for (nat i = 0; i < ins_count; i++) {
+
+		printf("-------------------[ins #%llu]---------------------\n", i);
+
+		printf("\t%llu\tins(.op=%llu (\"%s\"), .size=%lld, args:{ ", 
+			i, ins[i].a[0], spelling[ins[i].a[0]], (nat) -1
+		);
+		for (nat a = 0; a < 3; a++) printf("%llu ", ins[i].a[a + 1]);
+		
+		printf("}   -- \t[found @   ");
+		for (nat a = 0; a < 4; a++) {
+			printf("[%llu]:(%llu:%llu)", a, ins[i].start[a], ins[i].count[a]);
+			if (a < 3) printf(", ");
+		}
+		puts("]");
+
+
+		for (nat a = 0; a < 4; a++) {
+
+			nat start = ins[i].start[a];
+			nat count = ins[i].count[a];
+
+			printf("\033[1mlanguage: %s:%llu:%llu:", 
+				"filename ? filename : (top-level)", 
+				start, count
+			);
+			printf(" \033[1;32msource:\033[m \033[1m%s%llu\033[m\n", "debugging argument: ", a);
+
+			nat line_begin = start;
+			while (line_begin and text[line_begin - 1] != 10) line_begin--;
+			nat line_end = start;
+			while (line_end < text_length and text[line_end] != 10) line_end++;
+
+			printf("\n\t");
+			for (nat c = line_begin; c < line_end; c++) {
+				if (c == start) printf("\033[38;5;%llum", 178LLU);
+				if (text[c] == 9) putchar(32);
+				else putchar(text[c]);
+				if (c == start + count) printf("\033[0m");
+			}
+			printf("\n\t");
+			for (nat _ = 0; _ < start - line_begin; _++) 
+				printf(" "); 
+			printf("\033[32;1m^");
+			if (count) {
+				for (nat _ = 0; _ < count - 1; _++) 
+					printf("~"); 
+			}
+			printf("\033[0m\n\n"); 
+
+			puts("\n");
+		}
+		puts("-----------------------------------------");
+	}
+}
+
+
+
+
+
+
+
+*/
 
 
 
