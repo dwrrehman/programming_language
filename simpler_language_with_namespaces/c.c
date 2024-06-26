@@ -134,7 +134,7 @@ static u32 arm64_macos_abi[] = {        // note:  x9 is call-clobbered. save it 
 };
 
 enum language_isa {
-	null_instruction, ecl, att, use, rn,
+	null_instruction, ecl, att, use, nsb, nse, 
 	ldb, ldh, ldw, ldd, stb, sth, stw, std, jalr, jal, 
 	add, sub, slt, slts, and_, ior, eor, sll, srl, sra, mul, muh, 
 	muhs, div_, divs, rem, rems, blt, blts, bge, bges, bne, beq, 
@@ -142,7 +142,7 @@ enum language_isa {
 };
 
 static const char* spelling[isa_count] = {
-	"", "ecl", "att", "use", "rn",
+	"", "ecl", "att", "use", "nsb", "nse",
 	"ldb", "ldh", "ldw", "ldd", "stb", "sth", "stw", "std", "jalr", "jal",
 	"add", "sub", "slt", "slts", "and", "ior", "eor", "sll", "srl", "sra", "mul", "muh", 
 	"muhs", "div", "divs", "rem", "rems", "blt", "blts", "bge", "bges", "bne", "beq", 
@@ -188,6 +188,14 @@ struct file {
 	nat count;
 	const char* name;
 	char* text;
+};
+
+struct namespace {
+	char* name;
+	char** names;
+	nat* locations;
+	nat* index;
+	nat name_count;
 };
 
 static char reason[4096] = {0};
@@ -254,9 +262,6 @@ static void print_instructions(char** names, nat name_count) {
 	puts("}");
 }
 
-
-/*
-
 static void print_namespaces(nat* activens, nat activens_count, struct namespace* ns, nat ns_count) {
 	printf("active ns = {");
 	for (nat i = 0; i < activens_count; i++) {
@@ -276,7 +281,6 @@ static void print_namespaces(nat* activens, nat activens_count, struct namespace
 	puts("...end.");
 }
 
-*/
 
 static void print_message(nat type, const char* reason_string, nat spot, nat error_length) {
 	printf("\033[1mlanguage: %s:", filename);
@@ -1050,32 +1054,22 @@ static void execute_instructions(nat* label, nat name_count) {
 }
 
 static nat arity(const nat op) { 
-	if (not op) {
-		printf("zero op does not have arity\n");
-		abort();
-	}
-	if (op == ecl) return 1;  //  or op == nse
-	if (op == att or op == use) return 2;
+	if (not op) abort();
+	if (op == ecl or op == nse) return 1; 
+	if (op == nsb or op == att or op == use) return 2;
 	if (op < add) return 3; 
 	if (op < isa_count) return 4; 
-	printf("unknown arity for %llu...\n", op);
 	abort();
 }
 
 static bool define_on_use(nat op, nat count) {
-	if (not op) {
-		printf("zero op does not have arguments\n");
-		abort();
-	}
+	if (not op) abort();
 	if (op == jal) 	return true;
 	if (op >= stb and op <= std) return false;
-	if (op == jalr or op == rn) return count == 2;
+	if (op == jalr) return count == 2;
 	if (op < isa_count) return count == 1;
-	printf("unknown defineonuse semantics for %llu...\n", op);
 	abort();
 }
-
-/* 
 
 static char* generate_global_qualified_name(struct namespace* ns, nat* activens, nat activens_count, char* word) {
 	char buffer[4096] = {0};
@@ -1087,18 +1081,15 @@ static char* generate_global_qualified_name(struct namespace* ns, nat* activens,
 	return strdup(buffer);
 }
 
-
-*/ 
-
 int main(int argc, const char** argv) {
 
 	if (argc != 2) exit(puts("language: \033[31;1merror:\033[0m usage: ./asm <source.s>"));
 
-//	nat ns_count = 0;
-//	struct namespace* ns = calloc(1, sizeof(struct namespace));
+	nat ns_count = 0;
+	struct namespace* ns = calloc(1, sizeof(struct namespace));
 	
-//	nat activens_count = 0;
-//	nat activens[4096] = {0};
+	nat activens_count = 0;
+	nat activens[4096] = {0};
 
 	nat dictionary_count = 0;
 	char* dictionary[4096] = {0};
@@ -1108,22 +1099,21 @@ int main(int argc, const char** argv) {
 	struct file files[4096] = {0};
 	
 	for (nat i = 0; i < variable_count; i++) {
-	//	nat ni = ns_count;
-	//	char* word = strdup(variable_spelling[i]);
-	//	ns[ni].name = strdup("");
-	//	ns[ni].names = realloc(ns[ni].names, sizeof(char*) * (ns[ni].name_count + 1)); 
-	//	ns[ni].names[ns[ni].name_count] = word;
-	//	ns[ni].locations = realloc(ns[ni].locations, sizeof(char*) * (ns[ni].name_count + 1)); 
-	//	ns[ni].locations[ns[ni].name_count] = 0;
-	//	ns[ni].index = realloc(ns[ni].index, sizeof(char*) * (ns[ni].name_count + 1)); 
-	//	ns[ni].index[ns[ni].name_count++] = dictionary_count;
+		nat ni = ns_count;
+		char* word = strdup(variable_spelling[i]);
+		ns[ni].name = strdup("");
+		ns[ni].names = realloc(ns[ni].names, sizeof(char*) * (ns[ni].name_count + 1)); 
+		ns[ni].names[ns[ni].name_count] = word;
+		ns[ni].locations = realloc(ns[ni].locations, sizeof(char*) * (ns[ni].name_count + 1)); 
+		ns[ni].locations[ns[ni].name_count] = 0;
+		ns[ni].index = realloc(ns[ni].index, sizeof(char*) * (ns[ni].name_count + 1)); 
+		ns[ni].index[ns[ni].name_count++] = dictionary_count;
 
-	//	locations[dictionary_count] = 0;
-
-		dictionary[dictionary_count++] = variable_spelling[i];
+		locations[dictionary_count] = 0;
+		dictionary[dictionary_count++] = word;
 	}
 
-	//activens[activens_count++] = ns_count++;
+	activens[activens_count++] = ns_count++;
 
 	text_length = 0;
 	filename = argv[1];
@@ -1132,10 +1122,7 @@ int main(int argc, const char** argv) {
 	fwrite(text, 1, text_length, stdout);
 	puts(">>>");
 
-	//nat qualifier = 0, 
-
-	nat index = 0;
-
+	nat qualifier = 0, index = 0;
 	ins_count = (nat) -1;
 parse_file:
 	for (nat op = 0, s = 0, c = 0, a = 0, i = index; i < text_length; i++) {
@@ -1145,17 +1132,11 @@ parse_file:
 		} else if (not c) continue;
 		char* word = strndup(text + s, c);
 
-		//nat* location = NULL;
-
+		nat* location = NULL;
 		nat n = 0;
 		for (n = 0; n < isa_count; n++) if (not strcmp(spelling[n], word)) goto ins;
 
-		for (n = 0; n < dictionary_count; n++) if (not strcmp(dictionary[n], word)) goto arg;
-
-
-
-
-	/*	if (not qualifier) { 
+		if (not qualifier) { 
 			for (nat e = activens_count; e--;) {
 				struct namespace this = ns[activens[e]];
 				for (n = 0; n < this.name_count; n++) {
@@ -1177,41 +1158,34 @@ parse_file:
 			}
 		}
 
-	*/
-
-
-
 		if (not define_on_use(op, a)) {
 			snprintf(reason, sizeof reason, "use of undefined word \"%s\"", word);
 			print_message(error, reason, s, c);
 			exit(1);
 		}
 
-		//const nat e = activens[activens_count - 1];
-		//struct namespace* this = ns + e;
-		//const nat nc = this->name_count;
-		//n = dictionary_count;
+		const nat e = activens[activens_count - 1];
+		struct namespace* this = ns + e;
+		const nat nc = this->name_count;
+		n = dictionary_count;
 
-		//this->names = realloc(this->names, sizeof(char*) * (nc + 1)); 
-		//this->names[nc] = word;
+		this->names = realloc(this->names, sizeof(char*) * (nc + 1)); 
+		this->names[nc] = word;
 
-		//this->locations = realloc(this->locations, sizeof(char*) * (nc + 1)); 
-		//this->locations[nc] = 0;
+		this->locations = realloc(this->locations, sizeof(char*) * (nc + 1)); 
+		this->locations[nc] = 0;
 		
-		//this->index = realloc(this->index, sizeof(char*) * (nc + 1)); 
-		//this->index[this->name_count++] = n;
+		this->index = realloc(this->index, sizeof(char*) * (nc + 1)); 
+		this->index[this->name_count++] = n;
 
-		//locations[dictionary_count] = 0;
-		
+		locations[dictionary_count] = 0;
+		dictionary[dictionary_count++] = generate_global_qualified_name(ns, activens, activens_count, word);
 
-		//location = this->locations + nc; 
-
-
-		dictionary[dictionary_count++] = word;// generate_global_qualified_name(ns, activens, activens_count, word);
+		location = this->locations + nc; 
 		goto arg;
 
 	ins:	
-	/*	if (op == nse and a == 1) {
+		if (op == nse and a == 1) {
 			if (not activens_count) { puts("ans error"); abort(); }
 			ins_count--; activens_count--;
 		}
@@ -1221,20 +1195,18 @@ parse_file:
 			ns[ns_count] = (struct namespace) {.name = strdup("")};
 			activens[activens_count++] = ns_count++;
 		}
-	*/
-
+		
 		ins_count++; a = 0;
 		ins = realloc(ins, sizeof(struct instruction) * (ins_count + 1));
 		ins[ins_count] = (struct instruction) { .start = {s, s, s, s}, .count = {c, c, c, c} };
 		op = n;
-
 	arg: 	if (a >= arity(op)) {
 			snprintf(reason, sizeof reason, "excess arguments to %s instruction", spelling[op]);
 			print_message(error, reason, s, c);
 			exit(1);
 		}
 
-		// if (location and (int64_t) *location < 0) { qualifier = -*location; c = 0; continue; }
+		if (location and (int64_t) *location < 0) { qualifier = -*location; c = 0; continue; }
 		
 		ins[ins_count].a[a] = n;
 		ins[ins_count].start[a] = s;
@@ -1242,20 +1214,13 @@ parse_file:
 		a++;
 
 		if (op == att and a == 2) locations[n] = ins_count--;
-
-
-
-	/*	if (op == nsb and a == 2) { 
+		if (op == nsb and a == 2) { 
 			*location = -ns_count;
 			ins_count--; 
 			ns = realloc(ns, sizeof(struct namespace) * (ns_count + 1));
 			ns[ns_count] = (struct namespace) {.name = word};
 			activens[activens_count++] = ns_count++;
 		}
-
-	*/
-
-
 		if (op == use and a == 2) {
 			ins_count--;
 			files[file_count++] = (struct file) {
@@ -1270,20 +1235,13 @@ parse_file:
 			index = 0;
 			goto parse_file;
 		}
-
-
 		c = 0;
 	}
-
-
-/*	if (ns_count != 1) {
+	if (ns_count != 1) {
 			snprintf(reason, sizeof reason, "unbalanced namespace delimiters, ns_count = %llu", ns_count);
 			print_message(error, reason, 0, 0);
 			exit(1);
 	}
-*/
-
-
 	if (file_count) {
 		struct file this = files[--file_count];
 		text = this.text;
@@ -1295,15 +1253,10 @@ parse_file:
 	ins_count++;
 
 	puts("debug: finished parsing all input files.");
-
-	// print_namespaces(activens, activens_count, ns, ns_count);
-
+	print_namespaces(activens, activens_count, ns, ns_count);
 	print_dictionary(dictionary, locations, dictionary_count);
 	print_instructions(dictionary, dictionary_count);
-	print_message(warning, "this assembler is currently a work in progress, "
-				"optimization phase not implemented yet...", 0, 0
-	);
-
+	print_message(warning, "this assembler is currently a work in progress, optimization phase not implemented yet...", 0, 0);
 
 
 

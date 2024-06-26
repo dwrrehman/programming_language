@@ -1,0 +1,15 @@
+nsb module_name
+
+	att coolfunction nsb 
+		jal system write ra
+		jalr ra
+	nse
+
+	att setupfunction nsb
+		jal coolfunction
+		jalr ra
+	nse
+nse
+
+
+
