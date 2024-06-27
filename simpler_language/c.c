@@ -134,29 +134,26 @@ static u32 arm64_macos_abi[] = {        // note:  x9 is call-clobbered. save it 
 };
 
 enum language_isa {
-	null_instruction,
-	ec, at, use, rn,
-	lb, lh, lw, ld, lbs, lhs, lws, sb, sh, sw, sd, cr, cl,
-	add, sub, slt, sls, and_, or_, eor, sl, sr, sra, mul, mh, 
-	mhs, div_, dvs, rem, rms, lt, lts, ge, ges, ne, eq, 
+	_nullins, 
+	ss, env, use, at, rn, dr, do_, 
+	lb, lh, lw, ld, sb, sh, sw, sd,
+	add, sub, slt, and_, or_, eor, sl, sr,
+	lt, ge, ne, eq, mul, muh, div_, rem,
+	alr, asc, aswp, aadd, aand, aor, aeor, amax, amin,
 	isa_count
 };
 
 static const char* spelling[isa_count] = {
-	"_null", 
-	"ec", "at", "use", "rn",
-	"lb", "lh", "lw", "ld", "lbs", "lhs", "lws", "sb", "sh", "sw", "sd", "cr", "cl", 
-	"add", "sub", "slt", "sls", "and", "or", "eor", "sl", "sr", "sra", "mul", "mh", 
-	"mhs", "div", "dvs", "rem", "rms", "lt", "lts", "ge", "ges", "ne", "eq",
+        "_nullins", 
+	"ss", "env", "use", "at", "rn", "dr", "do", 
+	"lb", "lh", "lw", "ld", "sb", "sh", "sw", "sd",
+	"add", "sub", "slt", "and_", "or_", "eor", "sl", "sr",
+	"lt", "ge", "ne", "eq", "mul", "muh", "div_", "rem",
+	"alr", "asc", "aswp", "aadd", "aand", "aor", "aeor", "amax", "amin",
 };
 
-//null_instruction, ecl, att, use, rn,
-//ldb, ldh, ldw, ldd, stb, sth, stw, std, jalr, jal, 
-//add, sub, slt, slts, and_, ior, eor, sll, srl, sra, mul, muh, 
-//muhs, div_, divs, rem, rems, blt, blts, bge, bges, bne, beq, 
-
-
 enum compiletime_variables {
+	var_nullvar,
 	var_zero,
 	var_ra,
 	var_sp,
@@ -168,10 +165,11 @@ enum compiletime_variables {
 	var_arg4,
 	var_arg5,
 	var_stacksize,
-	variable_count	
+	variable_count
 };
 
 static const char* variable_spelling[variable_count] = {
+	"_nullvar",
 	"zero",
 	"ra",
 	"sp",
@@ -229,10 +227,11 @@ static const char* type_string[] = {
 	"\033[1;33mdebug:\033[0m"
 };
 
-static void print_dictionary(char** names, nat* locations, nat name_count) {
+static void print_dictionary(char** names, nat* values, nat* locations, nat name_count) {
 	puts("printing dictionary...");
 	for (nat i = 0; i < name_count; i++) {
-		printf("\t#%-6llu:   %-20s ..... %-7llu\n", i, names[i], locations[i]);
+		printf("\t#%-6llu:   %-20s ..... %-7lld    @{%llu,%llu}\n", 
+		i, names[i], values[i], locations[2 * i], locations[2 * i + 1]);
 	}
 	puts("end of dictionary.");
 }
@@ -383,10 +382,10 @@ static void u_type(nat* a, nat o, struct instruction this) {
 static nat ins_size(nat op) {
 
 	if (architecture == arm64) {
-		if (	op == slt or  op == sls or 
+		if (
 			op == lt or  op == ge or 
-			op == ne or  op == eq or 
-			op == lts or op == ges
+			op == ne or  op == eq or
+			op == slt
 		) return 8; 
 		return 4;
 	} else {
@@ -439,25 +438,34 @@ static void j_type(nat here, nat* a, nat o, struct instruction this) {
 }
 
 static void generate_riscv_machine_code(void) {
+	abort();
 
+	/*
 	for (nat i = 0; i < ins_count; i++) {
 
 		struct instruction this = ins[i];
 		nat op = this.a[0];
 		nat* a = this.a + 1;
 
-		if (op == ec)   emitw(0x00000073);
+		if (op == env)   emitw(0x00000073);
 
 		else if (op == add)     r_type(a, 0x33, 0x0, 0x00, this);
 		else if (op == sub)     r_type(a, 0x33, 0x0, 0x20, this);
-		else if (op == sl)     r_type(a, 0x33, 0x1, 0x00, this);
-		else if (op == sls)    r_type(a, 0x33, 0x2, 0x00, this);
 		else if (op == slt)     r_type(a, 0x33, 0x3, 0x00, this);
-		else if (op == eor)     r_type(a, 0x33, 0x4, 0x00, this);
-		else if (op == sr)     r_type(a, 0x33, 0x5, 0x00, this);
-		else if (op == sra)     r_type(a, 0x33, 0x5, 0x20, this);
-		else if (op == or_)     r_type(a, 0x33, 0x6, 0x00, this);
+		
+		
+	
 		else if (op == and_)    r_type(a, 0x33, 0x7, 0x00, this);
+		else if (op == or_)     r_type(a, 0x33, 0x6, 0x00, this);
+		else if (op == eor)     r_type(a, 0x33, 0x4, 0x00, this);
+		else if (op == sl)      r_type(a, 0x33, 0x1, 0x00, this);
+		else if (op == sr)      r_type(a, 0x33, 0x5, 0x00, this);
+		
+		
+		
+
+		else if (op == sl and is_signed)     r_type(a, 0x33, 0x2, 0x00, this);
+		else if (op == sr and is_signed)     r_type(a, 0x33, 0x5, 0x20, this);
 
 		else if (op == lb)     i_type(a, 0x03, 0x0, this);
 		else if (op == lh)     i_type(a, 0x03, 0x1, this);
@@ -473,6 +481,7 @@ static void generate_riscv_machine_code(void) {
 		//else if (op == slli)    i_type(a, 0x13, 0x1, this);
 		//else if (op == srli)    i_type(a, 0x13, 0x5, this);
 		//else if (op == srai)    i_type(a, 0x13, 0x5, this);
+
 		else if (op == cr)    i_type(a, 0x67, 0x0, this);
 
 		else if (op == sb)      s_type(a, 0x23, 0x0, this);
@@ -491,6 +500,7 @@ static void generate_riscv_machine_code(void) {
 			exit(1);
 		}
 	}
+	*/
 }
 
 static void generate_mov(nat Rd, nat op, nat im, 
@@ -770,12 +780,14 @@ static void generate_arm64_machine_code(void) {
 		nat op = this.a[0];
 		nat* a = this.a + 1;
 
+		nat is_signed = false;
+
 		//if (op == ecm) {
 		//	for (nat n = 0; n < a[1]; n++) emitb(((uint8_t*)a[0])[n]);
 		//}
 		//else 
 
-		if (op == ec)  emitw(0xD4000001);
+		if (op == env)  emitw(0xD4000001);
 
 		//else if (op == addi)   generate_addi(a[0], a[1], a[2], 0x22U, 1, 0, 0, 0, this);
 		//else if (op == slli)   generate_slli(a[0], a[1], a[2], 0x26U, 2, 1, this);
@@ -783,8 +795,8 @@ static void generate_arm64_machine_code(void) {
 		//else if (op == srai)   generate_srli(a[0], a[1], a[2], 0x26U, 0, 1, this);
 
 		else if (op == div_)   generate_adc(a[0], a[1], a[2], 0xD6, 2, 1, 0, 0, this);
-		else if (op == dvs)   generate_adc(a[0], a[1], a[2], 0xD6, 3, 1, 0, 0, this);
-		else if (op == mh)   generate_adc(a[0], a[1], a[2], 0xDE, 31, 1, 0, 0, this);
+		else if (op == div_ and is_signed)   generate_adc(a[0], a[1], a[2], 0xD6, 3, 1, 0, 0, this);
+		else if (op == muh)   generate_adc(a[0], a[1], a[2], 0xDE, 31, 1, 0, 0, this);
 
 		// else if (op == mul)    generate_umaddl(a[0], a[1], a[2], 0xDE, 31, 1, 0, 0, this);
 		// else if (op == lpa)  generate_adr(a[0], 0x10, 0, a[1], i, this);
@@ -796,19 +808,19 @@ static void generate_arm64_machine_code(void) {
 		else if (op == and_)   generate_add(a[0], a[1], a[2], 0x0AU, 0, 1, 0, 0, 0, this);
 
 		else if (op == slt)    generate_slt(a[0], a[1], a[2], 2, this);
-		else if (op == sls)   generate_slt(a[0], a[1], a[2], 10, this);
+		else if (op == slt and is_signed)   generate_slt(a[0], a[1], a[2], 10, this);
 
 		else if (op == eq)    generate_branch(a[0], a[1], a[2], i, 0, this);
 		else if (op == ne)    generate_branch(a[0], a[1], a[2], i, 1, this);
 		else if (op == ge)    generate_branch(a[0], a[1], a[2], i, 2, this);
 		else if (op == lt)    generate_branch(a[0], a[1], a[2], i, 3, this);
 
-		else if (op == cr)   generate_jalr(a[0], a[1], 0x3587C0U, this);
-		else if (op == cl)    generate_jal(a[0], i, a[1], this);
+		else if (op == dr)   generate_jalr(a[0], a[1], 0x3587C0U, this);
+		else if (op == do_)    generate_jal(a[0], i, a[1], this);
 
 		else if (op == sl)    generate_adc(a[0], a[1], a[2], 0x0D6U, 0x08, 1, 0, 0, this);
 		else if (op == sr)    generate_adc(a[0], a[1], a[2], 0x0D6U, 0x09, 1, 0, 0, this);
-		else if (op == sra)    generate_adc(a[0], a[1], a[2], 0x0D6U, 0x0A, 1, 0, 0, this);
+		else if (op == sr and is_signed)    generate_adc(a[0], a[1], a[2], 0x0D6U, 0x0A, 1, 0, 0, this);
 
 		else if (op == lb)    generate_memiu(a[0], a[1], a[2], 0x00, 0x00, 0, this);
 		else if (op == lh)    generate_memiu(a[0], a[1], a[2], 0x00, 0x00, 0, this);
@@ -968,10 +980,8 @@ static void execute_instructions(nat* label, nat name_count) {
 		else if (op == eor)   reg[d] = reg[r] ^ reg[s];
 		else if (op == and_)  reg[d] = reg[r] & reg[s];
 		else if (op == slt)   reg[d] = reg[r] < reg[s];
-		else if (op == sls)  reg[d] = reg[r] < reg[s];
-		else if (op == sl)   reg[d] = reg[r] << reg[s];
-		else if (op == sr)   reg[d] = reg[r] >> reg[s];
-		else if (op == sra)   reg[d] = reg[r] >> reg[s];
+		else if (op == sl)    reg[d] = reg[r] << reg[s];
+		else if (op == sr)    reg[d] = reg[r] >> reg[s];
 		else if (op == div_)  reg[d] = reg[r] / reg[s];
 		else if (op == mul)   reg[d] = reg[r] * reg[s];
 		else if (op == rem)   reg[d] = reg[r] % reg[s];
@@ -990,13 +1000,11 @@ static void execute_instructions(nat* label, nat name_count) {
 		else if (op == ge)   { if (reg[r] >= reg[s]) { pc = label[d]; continue; } }
 		else if (op == ne)   { if (reg[r] != reg[s]) { pc = label[d]; continue; } }
 		else if (op == eq)   { if (reg[r] == reg[s]) { pc = label[d]; continue; } }
-		else if (op == lts)  { if (reg[r] <  reg[s]) { pc = label[d]; continue; } }
-		else if (op == ges)  { if (reg[r] >= reg[s]) { pc = label[d]; continue; } }
 
-		else if (op == cr)  { reg[r] = pc; pc = reg[d]; continue; } 
-		else if (op == cl)   { reg[r] = pc; pc = label[d]; continue; } 
+		else if (op == dr)  { reg[r] = pc; pc = reg[d]; continue; } 
+		else if (op == do_)   { reg[r] = pc; pc = label[d]; continue; } 
 
-		else if (op == ec) {
+		else if (op == env) {
 			const nat a0 = reg[var_arg0];
 			const nat a1 = reg[var_arg1];
 			const nat a2 = reg[var_arg2];
@@ -1036,13 +1044,13 @@ static void execute_instructions(nat* label, nat name_count) {
 
 static nat arity(const nat op) { 
 	if (not op) {
-		printf("zero op does not have arity\n");
+		printf("null ins does not have arity: internal error\n");
 		abort();
 	}
-	if (op == ec) return 1;  //  or op == nse
-	if (op == at or op == use) return 2;
-	if (op < add) return 3; 
-	if (op < isa_count) return 4; 
+	if (op == env or op == ss) return 0;
+	if (op == at or op == use) return 1;
+	if (op < add) return 2; 
+	if (op < isa_count) return 3; 
 	printf("unknown arity for %llu...\n", op);
 	abort();
 }
@@ -1052,15 +1060,12 @@ static bool define_on_use(nat op, nat count) {
 		printf("zero op does not have arguments\n");
 		abort();
 	}
-	if (op == cl) 	return true;
-	if (op == cr or op == rn) return count == 2;
+	if (op == do_) 	return true;
+	if (op == dr or op == rn) return count == 2;
 	if (op < isa_count) return count == 1;
 	printf("unknown defineonuse semantics for %llu...\n", op);
 	abort();
 }
-
-
-
 
 struct node {
 	nat data_outputs[32];
@@ -1070,6 +1075,9 @@ struct node {
 	nat input1;
 	nat op;
 	nat sk; // statically_known
+	nat input0_value;
+	nat input1_value;
+	nat output_value;
 };
 
 
@@ -1079,18 +1087,26 @@ static void print_nodes(struct node* nodes, nat node_count, char** names) {
 	for (nat n = 0; n < node_count; n++) {
 
 		printf("[%s] node #%-5llu: {"
-			".op = %-5llu (\"\033[35;1m%-8s\033[0m\"), "
-			".or = %-5llu (\"\033[36;1m%-8s\033[0m\"), "
-			".0 = #%-5llu (\"\033[33;1m%-8s\033[0m\"), "
-			".1 = #%-5llu (\"\033[33;1m%-8s\033[0m\"), "
-			".doc = %-5llu, "
-			".do = { ", 
+			".op=%2llu (\"\033[35;1m%-10s\033[0m\") "
+			".or=%2llu (\"\033[36;1m%-10s\033[0m\") "
+			".0=%2llu (\"\033[33;1m%-10s\033[0m\") "
+			".1=%2llu (\"\033[33;1m%-10s\033[0m\") "
+			".0v=%2llu "
+			".1v=%2llu "
+			".ov=%2llu "
+			".oc=%2llu "
+			".o={ ", 
 			nodes[n].sk ? "\033[32;1mSK\033[0m" : "  ",
 			n, 
 			nodes[n].op, spelling[nodes[n].op],
 			nodes[n].output_reg, names[nodes[n].output_reg],
-			nodes[n].input0, nodes[nodes[n].input0].output_reg ? names[nodes[nodes[n].input0].output_reg] : "",
-			nodes[n].input1, nodes[nodes[n].input1].output_reg ? names[nodes[nodes[n].input1].output_reg] : "",
+			nodes[n].input0, nodes[nodes[n].input0].output_reg 
+					? names[nodes[nodes[n].input0].output_reg] : "",
+			nodes[n].input1, nodes[nodes[n].input1].output_reg 
+					? names[nodes[nodes[n].input1].output_reg] : "",
+			nodes[n].input0_value,
+			nodes[n].input1_value,
+			nodes[n].output_value,
 			nodes[n].data_output_count
 		);
 		for (nat j = 0; j < nodes[n].data_output_count; j++) {
@@ -1111,8 +1127,12 @@ int main(int argc, const char** argv) {
 
 	nat name_count = 0;
 	char* names[4096] = {0};
-	nat locations[4096] = {0};
-	for (nat i = 0; i < variable_count; i++) names[name_count++] = strdup(variable_spelling[i]);
+	nat values[4096] = {0};
+	nat locations[4096 * 2] = {0};
+	for (nat i = 0; i < variable_count; i++) {
+		values[name_count] = (nat) 0;
+		names[name_count++] = strdup(variable_spelling[i]);
+	}
 	
 	text_length = 0;
 	filename = argv[1];
@@ -1136,26 +1156,27 @@ parse_file:
 		nat n = 0;
 		for (n = 0; n < isa_count; n++) if (not strcmp(spelling[n], word)) goto ins;
 		for (n = 0; n < name_count; n++) if (not strcmp(names[n], word)) goto def;
-		/*if (not op or not define_on_use(op, a)) {
-			snprintf(reason, sizeof reason, "use of undefined word \"%s\"", word);
-			print_message(error, reason, s, c);
-			exit(1);
-		}*/
-		
+		locations[2 * name_count + 0] = s;
+		locations[2 * name_count + 1] = c;
+		values[name_count] = (nat) -1;
 		names[name_count++] = word;
 		goto arg;
 	ins:	if (op != rn or a != 2) ins_count++;
 		a = 0;
 		ins = realloc(ins, sizeof(struct instruction) * (ins_count + 1));
-		ins[ins_count] = (struct instruction) { .start = {s, s, s, s}, .count = {c, c, c, c} };
+		ins[ins_count] = (struct instruction) { 
+			.a     = {1, 1, 1, 1},
+			.start = {s, s, s, s}, 
+			.count = {c, c, c, c},
+		};
 		op = n;
 	def: 	if (op == rn and a == 2) {
 			snprintf(reason, sizeof reason, "rename destination exists");
 			print_message(error, reason, s, c);
 			exit(1);
 		}
-	arg:	if (a >= arity(op)) {
-			snprintf(reason, sizeof reason, "excess arguments to %s instruction", spelling[op]);
+	arg:	if (a >= arity(op) + 1) {
+			snprintf(reason, sizeof reason, "excess arguments to %s", spelling[op]);
 			print_message(error, reason, s, c);
 			exit(1);
 		}
@@ -1165,7 +1186,7 @@ parse_file:
 		a++;
 		if (op == rn and a == 2) names[n] = strdup(""); 
 		if (op == rn and a == 3) { names[ins[ins_count].a[1]] = names[n]; name_count--; ins_count--; }
-		if (op == at and a == 2) locations[n] = ins_count--;
+		if (op == at and a == 2) values[n] = ins_count--;
 		if (op == use and a == 2) {
 			ins_count--;
 			files[file_count++] = (struct file) {
@@ -1177,7 +1198,7 @@ parse_file:
 			text_length = 0; 
 			filename = word;
 			text = read_file(filename, &text_length, s, c);
-			index = 0; 
+			index = 0;
 			goto parse_file;
 		}
 		c = 0;
@@ -1192,9 +1213,53 @@ parse_file:
 	}
 	ins_count++; 
 
+
+
+	puts("debug: checking for errors...");
+
+	for (nat i = 0; i < ins_count; i++) {
+
+		nat op = ins[i].a[0];
+		nat dest = ins[i].a[1];
+		nat input0 = ins[i].a[2];
+		nat input1 = ins[i].a[3];
+
+		printf("checking instruction: "
+			"{%s %s %s %s}\n",
+			spelling[ins[i].a[0]],
+			names[ins[i].a[1]],
+			names[ins[i].a[2]],
+			names[ins[i].a[3]]
+		);
+
+
+
+		if (not define_on_use(op, 2) and values[input0] == (nat) -1) {
+			nat s = ins[i].start[2]; //locations[2 * input0 + 0];
+			nat c = ins[i].count[2]; //locations[2 * input0 + 1];
+			snprintf(reason, sizeof reason, "use of undefined word \"%s\"", names[input0]);
+			print_message(error, reason, s, c);
+			exit(1);
+		}
+
+		if (not define_on_use(op, 3) and values[input1] == (nat) -1) {
+			nat s = ins[i].start[3]; //locations[2 * input1 + 0];
+			nat c = ins[i].count[3]; //locations[2 * input1 + 1];
+			snprintf(reason, sizeof reason, "use of undefined word \"%s\"", names[input1]);
+			print_message(error, reason, s, c);
+			exit(1);
+		}
+
+		if (values[dest] == (nat) -1) values[dest] = 0;
+	}
+
+
+
+
+
 	puts("debug: finished parsing all input files.");
 
-	print_dictionary(names, locations, name_count);
+	print_dictionary(names, values, locations, name_count);
 	print_instructions(names, name_count);
 
 	print_message(warning, "this assembler is currently a work in progress, "
@@ -1208,9 +1273,11 @@ parse_file:
 
 
 
-
-
-
+		/*if (not op or not define_on_use(op, a)) {
+			snprintf(reason, sizeof reason, "use of undefined word \"%s\"", word);
+			print_message(error, reason, s, c);
+			exit(1);
+		}*/
 
 
 
@@ -1227,12 +1294,10 @@ parse_file:
 	// 1. form data flow dag	
 	// 2. track which instructions have statically knowable inputs and outputs. (constants)
 
-
-
-	
 	struct node nodes[4096] = {0};
 	nat node_count = 0;
-	
+
+	nodes[node_count++] = (struct node) { .output_reg = var_nullvar, .sk = 1 };
 	nodes[node_count++] = (struct node) { .output_reg = var_zero, .sk = 1 };
 	nodes[node_count++] = (struct node) { .output_reg = var_ra };
 	nodes[node_count++] = (struct node) { .output_reg = var_sp };
@@ -1243,8 +1308,9 @@ parse_file:
 	nodes[node_count++] = (struct node) { .output_reg = var_arg3 };
 	nodes[node_count++] = (struct node) { .output_reg = var_arg4 };
 	nodes[node_count++] = (struct node) { .output_reg = var_stacksize, .sk = 1 };
-
+	
 	for (nat i = 0; i < ins_count; i++) {
+
 		printf("instruction: "
 			"{%s %s %s %s}\n",
 			spelling[ins[i].a[0]],
@@ -1252,18 +1318,21 @@ parse_file:
 			names[ins[i].a[2]],
 			names[ins[i].a[3]]
 		);
-
+		
+		const nat op = ins[i].a[0];
 		const nat output_reg = ins[i].a[1];
+		const nat first = ins[i].a[2];
+		const nat second = ins[i].a[3];
 		nat input0 = 0, input1 = 0;
 
 		print_nodes(nodes, node_count, names);
 
-		if (arity(ins[i].a[0]) > 1) {
+		if (arity(op) > 1 and not values[first]) {
 			printf("searching for first argument definition...\n");
 			for (nat j = node_count; j--;) {
 				printf("looking for input0 nodes to this instruction: %llu / %llu...\n", j, i);
-				printf("checking to see if nodes[j].output_reg(=%llu)(%s) == ins[i].a[2](=%llu)...\n", nodes[j].output_reg, names[nodes[j].output_reg], ins[i].a[2]);
-				if (nodes[j].output_reg == ins[i].a[2]) {
+				printf("checking to see if nodes[j].output_reg(=%llu)(%s) == ins[i].a[2](=%llu)...\n", nodes[j].output_reg, names[nodes[j].output_reg], first);
+				if (nodes[j].output_reg == first) {
 					input0 = j;
 					printf("FOUND INPUT0 = %llu!!!!\n", j);
 					//getchar();
@@ -1272,17 +1341,17 @@ parse_file:
 				}
 			}
 
-			printf("ERROR: could not find definition of %s....\n", names[ins[i].a[2]]);
+			printf("ERROR: could not find definition of %s....\n", names[first]);
 			abort();
 		}
 
 	bubbles:
-		if (arity(ins[i].a[0]) > 2) {
+		if (arity(op) > 2 and not values[second]) {
 			printf("searching for second argument definition...\n");
 			for (nat j = node_count; j--;) {
 				printf("looking for input1 nodes to this instruction: %llu / %llu...\n", j, i);
-				printf("checking to see if nodes[j].output_reg(=%llu) (%s) == ins[i].a[3](=%llu)...\n", nodes[j].output_reg, names[nodes[j].output_reg], ins[i].a[3]);
-				if (nodes[j].output_reg == ins[i].a[3]) {
+				printf("checking to see if nodes[j].output_reg(=%llu) (%s) == ins[i].a[3](=%llu)...\n", nodes[j].output_reg, names[nodes[j].output_reg], second);
+				if (nodes[j].output_reg == second) {
 					input1 = j;
 					printf("FOUND INPUT1 = %llu!!!!\n", j);
 					//getchar();
@@ -1290,8 +1359,7 @@ parse_file:
 					goto push;
 				}
 			}
-
-			printf("ERROR: could not find definition of %s....\n", names[ins[i].a[3]]);
+			printf("ERROR: could not find definition of %s....\n", names[second]);
 			abort();
 		}
 
@@ -1305,37 +1373,105 @@ parse_file:
 			.input1 = input1,
 			.op = ins[i].a[0],
 			.output_reg = output_reg,
-			.sk = statically_known
+			.sk = statically_known,
+			.input0_value = not input0 ? values[first] : 0, 
+			.input1_value = not input1 ? values[second] : 0, 
+			.output_value = 0,
 		};
 		
 	}
 
 
 
-/*
-		we need to specialize    which    a[N]  (which value of N)            ie which arguments        are the destinations and sources for a given op code, because its different for each instruction.   so yeah. 
-
-
-				
-
-
-					shouldnt be that bad, we just need to actually define that very specifically so that this stage knows what the output register is, and how many inputs it has, and how many outputs,   and using labels as inputs or outputs, etc. 
-
-*/
-
 	
-	puts("done parsing nodes... printing...");
-
+	puts("done creating DAG nodes... printing DAG:");
 	print_nodes(nodes, node_count, names);
 
 
+
+
+	puts("evaluating statically-known nodes..");
+
+
+	for (nat i = 0; i < node_count; i++) {
+
+		struct node this = nodes[i];
+
+		if (not this.sk) {
+			printf("not sk: skipping over node %llu...\n", i);
+
+			if (nodes[nodes[i].input0].sk) {
+				nodes[i].input0_value = nodes[nodes[i].input0].output_value;
+			}
+
+			if (nodes[nodes[i].input1].sk) {
+				nodes[i].input1_value = nodes[nodes[i].input1].output_value;
+			}
+
+			continue;
+		}
+
+
+		const nat op = this.op;
+		const nat first = this.input0;
+		const nat second = this.input1;
+		nat first_value = this.input0_value;
+		nat second_value = this.input1_value;
+
+		if (this.input0) first_value = nodes[i].input0_value = nodes[this.input0].output_value;
+		if (this.input1) second_value = nodes[i].input1_value = nodes[this.input1].output_value;
+
+		if (this.op == 0) {
+			puts("found null instruction node... ignoring...");
+			continue;
+
+
+		} else if (this.op == add) {
+			nodes[i].output_value = first_value + second_value;
+
+		} else if (this.op == sub) {
+			nodes[i].output_value = first_value - second_value;
+
+		} else if (this.op == mul) {
+			nodes[i].output_value = first_value * second_value;
+
+		} else if (this.op == div_) {
+			nodes[i].output_value = first_value / second_value;
+	
+		} else if (this.op == rem) {
+			nodes[i].output_value = first_value % second_value;
+
+		} else if (this.op == slt) {
+			nodes[i].output_value = first_value < second_value;
+
+
+		} else if (this.op == and_) {
+			nodes[i].output_value = first_value % second_value;
+
+		} else if (this.op == or_) {
+			nodes[i].output_value = first_value | second_value;
+
+		} else if (this.op == eor) {
+			nodes[i].output_value = first_value ^ second_value;
+
+		} else if (this.op == sl) {
+			nodes[i].output_value = first_value << second_value;
+
+		} else if (this.op == sr) {
+			nodes[i].output_value = first_value >> second_value;
+
+		} else {
+			printf("error: op = %llu (\"%s\"): found unknown op that is sk but cannot eval cuz i don't know the op\n", op, spelling[op]);
+			abort();
+		}
+	}
+
+	puts("done evaluating and filling in all constants into rt instructions: here are the results: ");
+
+	print_nodes(nodes, node_count, names);
+
+	puts("[DONE COMPILING]");
 	abort();
-
-
-
-
-
-
 
 	if (architecture >= target_count) abort();
 	if (output_format >= output_format_count) abort();
@@ -1344,13 +1480,10 @@ parse_file:
 		target_spelling[architecture], output_format_spelling[output_format]
 	);
 
-
-
-
-
-	puts("executing now...");
-
-	if (architecture == noruntime) execute_instructions(locations, name_count);
+	if (architecture == noruntime) {
+		puts("executing output instructions now...");
+		execute_instructions(values, name_count);
+	}
 	else if (architecture == riscv32 or architecture == riscv64) generate_riscv_machine_code();
 	else if (architecture == arm64) generate_arm64_machine_code();
 	else {
@@ -1460,6 +1593,62 @@ parse_file:
 
 
 
+
+/*
+
+
+
+
+
+
+
+
+
+
+
+	puts("filling in statically known arguments into runtime instructions....");
+
+	for (nat i = 0; i < node_count; i++) {
+
+		struct node this = nodes[i];
+		if (this.sk) continue;
+
+		if (nodes[nodes[i].input0].sk) {
+			nodes[i].input0_value = nodes[nodes[i].input0].output_value;
+		}
+
+		if (nodes[nodes[i].input1].sk) {
+			nodes[i].input1_value = nodes[nodes[i].input1].output_value;
+		}
+	}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+		we need to specialize    which    a[N]  (which value of N)            ie which arguments        are the destinations and sources for a given op code, because its different for each instruction.   so yeah. 
+
+
+				
+
+
+					shouldnt be that bad, we just need to actually define that very specifically so that this stage knows what the output register is, and how many inputs it has, and how many outputs,   and using labels as inputs or outputs, etc. 
+
+*/
 
 
 
@@ -5059,6 +5248,150 @@ static void print_source_instruction_mappings(void) {
 		puts("-----------------------------------------");
 	}
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ISA  as of 202406263.153008:
+================================================
+
+
+7	ec
+	use	file
+	att 	label
+	la	dest 	label
+	cl 	label 	dest
+	cr 	source 	dest
+	rn	source	dest
+
+11	lb 	dest 	source
+	lh 	dest 	source 
+	lw 	dest 	source
+	ld 	dest 	source 
+	lbs 	dest 	source
+	lhs 	dest 	source 
+	lws 	dest 	source
+	sb 	source	source
+	sh 	source	source
+	sw 	source	source
+	sd 	source	source
+
+10	add 	dest 	source 	source 
+	sub 	dest 	source 	source
+	slt 	dest 	source 	source
+	sls 	dest 	source 	source
+	and 	dest 	source 	source
+	or 	dest 	source 	source
+	eor 	dest 	source 	source
+	sl 	dest 	source 	source
+	sr 	dest 	source 	source
+	sra 	dest 	source 	source
+
+7	mul 	dest 	source 	source
+	mh 	dest 	source 	source
+	mhs 	dest 	source 	source
+	div 	dest 	source 	source
+	dvs 	dest 	source 	source
+	rem 	dest 	source 	source
+	rms 	dest 	source 	source
+
+6	lt 	label 	source 	source 
+	lts 	label 	source 	source
+	ge 	label 	source 	source
+	ges 	label 	source 	source
+	ne 	label 	source 	source
+	eq 	label 	source 	source
+	
+
+
+================================================
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ISA  as of 202406263.153008:
+================================================
+
+8	si
+	ec
+	use	file
+	at 	label
+	rn	source	dest
+	ar 	source 	dest
+	al 	label 	dest
+	la	dest 	label
+
+4	lt 	label 	source 	source 
+	ge 	label 	source 	source
+	ne 	label 	source 	source
+	eq 	label 	source 	source
+
+4	mul 	dest 	source 	source
+	mh 	dest 	source 	source
+	div 	dest 	source 	source
+	rem 	dest 	source 	source
+
+8	add 	dest 	source 	source 
+	sub 	dest 	source 	source
+	slt 	dest 	source 	source
+	and 	dest 	source 	source
+	or 	dest 	source 	source
+	eor 	dest 	source 	source
+	sl 	dest 	source 	source
+	sr 	dest 	source 	source
+
+8	lb 	dest 	source
+	lh 	dest 	source 
+	lw 	dest 	source
+	ld 	dest 	source
+	sb 	source	source
+	sh 	source	source
+	sw 	source	source
+	sd 	source	source
 
 
 
