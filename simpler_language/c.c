@@ -1119,9 +1119,6 @@ static void print_nodes(struct node* nodes, nat node_count, char** names) {
 }
 
 
-
-
-
 int main(int argc, const char** argv) {
 	if (argc != 2) exit(puts("language: \033[31;1merror:\033[0m usage: ./asm <source.s>"));
 
