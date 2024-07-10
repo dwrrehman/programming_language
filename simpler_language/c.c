@@ -3,6 +3,31 @@
 //  so that the isa is just the riscv isa plus the label attribution ins.
 // very cool so far
 
+
+/*
+
+	
+
+
+
+
+	ss, env, use, at, rn, dr, do_, 
+	lb, lh, lw, ld, sb, sh, sw, sd,
+	add, sub, slt, and_, or_, eor, sl, sr,
+	lt, ge, ne, eq, mul, muh, div_, rem,
+	alr, asc, aswp, aadd, aand, aor, aeor, amax, amin,
+	isa_count
+
+
+
+
+
+*/
+
+
+
+
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -184,9 +209,10 @@ static const char* variable_spelling[variable_count] = {
 };
 
 struct instruction { 
-	nat a[4];
+	nat args[4];
 	nat start[4];
 	nat count[4];
+	nat flags[4];
 };
 
 struct file {
@@ -240,20 +266,20 @@ static void print_instructions(char** names, nat name_count) {
 	printf("instructions: {\n");
 	for (nat i = 0; i < ins_count; i++) {
 		printf("\t%-8llu\tins(.op = %-5s  { ", i, 
-			ins[i].a[0] < isa_count 
-				? spelling[ins[i].a[0]] 
+			ins[i].args[0] < isa_count 
+				? spelling[ins[i].args[0]] 
 				: "UNDEFINED OP ERR"
 		);
 		for (nat a = 1; a < 4; a++) 
 			printf(" %-8s    ", 
-				ins[i].a[a] < name_count 
-					? names[ins[i].a[a]] 
+				ins[i].args[a] < name_count 
+					? names[ins[i].args[a]] 
 					: "UNDEFINED OP ERR"
 				);
 
 		printf("} -- [");
 		for (nat a = 0; a < 4; a++) {
-			printf("%llu:%llx:%llx:%llx", a, ins[i].a[a], ins[i].start[a], ins[i].count[a]);
+			printf("%llu:%llx:%llx:%llx", a, ins[i].args[a], ins[i].start[a], ins[i].count[a]);
 			if (a < 3) printf(",");
 		}
 		puts("]\n");
@@ -322,10 +348,10 @@ static void dump_hex(uint8_t* memory, nat count) {
 	puts("");
 }
 
-static void emitb(nat x) {
+/*static void emitb(nat x) {
 	bytes = realloc(bytes, byte_count + 1);
 	bytes[byte_count++] = (u8) (x >> 0);
-}
+}*/
 
 static void emitw(nat x) {
 	bytes = realloc(bytes, byte_count + 4);
@@ -344,7 +370,7 @@ static void check(nat value, nat limit, nat a, struct instruction this) {
 	}
 }
 
-static void check_offset(nat value, nat limit, nat a, struct instruction this) {
+static void check_offset(__attribute__((unused)) nat value, __attribute__((unused)) nat limit, __attribute__((unused)) nat arg, struct instruction this) {
 	if ((0)) {
 		puts("check_offset error");
 		print_message(error, "sorry bad logic or something", this.start[0], this.count[0]);
@@ -352,7 +378,7 @@ static void check_offset(nat value, nat limit, nat a, struct instruction this) {
 	}
 }
 
-static void r_type(nat* a, nat o, nat f, nat g, struct instruction this) {
+/*static void r_type(nat* a, nat o, nat f, nat g, struct instruction this) {
 	check(a[0], 32, 0, this);
 	check(a[1], 32, 1, this);
 	check(a[2], 32, 2, this);
@@ -377,7 +403,7 @@ static void u_type(nat* a, nat o, struct instruction this) {
 	check(a[0], 32, 0, this);
 	check(a[1], 1 << 20, 1, this);
 	emitw( (a[1] << 12U) | (a[0] << 7U) | o);
-}
+}*/
 
 static nat ins_size(nat op) {
 
@@ -405,7 +431,7 @@ static nat calculate_offset(nat here, nat label, struct instruction this) {
 						this.start[0], this.count[0]);
 				exit(1);
 			}
-			offset -= ins_size(ins[i].a[0]);
+			offset -= ins_size(ins[i].args[0]);
 		}
 	} else {
 		printf("forwards branch...\n");
@@ -415,14 +441,14 @@ static nat calculate_offset(nat here, nat label, struct instruction this) {
 						this.start[0], this.count[0]);
 				exit(1);
 			}
-			offset += ins_size(ins[i].a[0]);
+			offset += ins_size(ins[i].args[0]);
 		}
 	}
 	printf("output: found an offset of %llu bytes.\n", offset);
 	return offset;
 }
 
-static void j_type(nat here, nat* a, nat o, struct instruction this) {
+/*static void j_type(nat here, nat* a, nat o, struct instruction this) {
 	
 	const nat e = calculate_offset(here, a[1], this);
 
@@ -440,12 +466,12 @@ static void j_type(nat here, nat* a, nat o, struct instruction this) {
 static void generate_riscv_machine_code(void) {
 	abort();
 
-	/*
+	
 	for (nat i = 0; i < ins_count; i++) {
 
 		struct instruction this = ins[i];
-		nat op = this.a[0];
-		nat* a = this.a + 1;
+		nat op = this.args[0];
+		nat* a = this.args + 1;
 
 		if (op == env)   emitw(0x00000073);
 
@@ -500,7 +526,7 @@ static void generate_riscv_machine_code(void) {
 			exit(1);
 		}
 	}
-	*/
+	
 }
 
 static void generate_mov(nat Rd, nat op, nat im, 
@@ -542,7 +568,7 @@ static void generate_addi(nat Rd, nat Rn, nat im,
 		(sh << 22U) | 
 		(im << 10U) | 
 		(Rn <<  5U) | Rd);
-}
+}*/
 
 
 static void generate_memiu(nat Rt, nat Rn, nat im, nat op, nat oc, nat sf, struct instruction this) {
@@ -628,7 +654,7 @@ static void generate_csel(nat Rd, nat Rn, nat Rm,
 		(Rn <<  5U) | Rd);
 }
 
-static void generate_slli(nat Rd, nat Rn, nat im, nat op, nat oc, nat sf, struct instruction this) {
+/*static void generate_slli(nat Rd, nat Rn, nat im, nat op, nat oc, nat sf, struct instruction this) {
 
 	check(Rd, 32, 0, this);
 	check(Rn, 32, 1, this);
@@ -693,7 +719,7 @@ static void generate_adr(nat Rd, nat op, nat oc, nat target, nat here, struct in
 		(lo << 29U) | 
 		(op << 24U) | 
 		(hi <<  5U) | Rd);
-}
+}*/
 
 static void generate_jalr(nat Rd, nat Rn, nat op, struct instruction this) {
 
@@ -777,8 +803,8 @@ static void generate_arm64_machine_code(void) {
 	for (nat i = 0; i < ins_count; i++) {
 
 		struct instruction this = ins[i];
-		nat op = this.a[0];
-		nat* a = this.a + 1;
+		nat op = this.args[0];
+		nat* a = this.args + 1;
 
 		nat is_signed = false;
 
@@ -965,10 +991,10 @@ static void execute_instructions(nat* label, nat name_count) {
 
 	for (nat pc = 0; pc < ins_count; ) {
 
-		const nat op = ins[pc].a[0];
-		const nat d =  ins[pc].a[1];
-		const nat r =  ins[pc].a[2];
-		const nat s =  ins[pc].a[3];
+		const nat op = ins[pc].args[0];
+		const nat d =  ins[pc].args[1];
+		const nat r =  ins[pc].args[2];
+		const nat s =  ins[pc].args[3];
 		
 	//	printf("executing ins  @pc=%llu:  [ %s (%llu)  :: d %llu  r %llu  s %llu ]\n", 
 	//		pc, spelling[op], op, d, r, s
@@ -1162,9 +1188,11 @@ parse_file:
 		a = 0;
 		ins = realloc(ins, sizeof(struct instruction) * (ins_count + 1));
 		ins[ins_count] = (struct instruction) { 
-			.a     = {1, 1, 1, 1},
+			.flags = {0, 0, 0, 0},
+			.args  = {1, 1, 1, 1},
 			.start = {s, s, s, s}, 
 			.count = {c, c, c, c},
+			
 		};
 		op = n;
 	def: 	if (op == rn and a == 2) {
@@ -1177,12 +1205,13 @@ parse_file:
 			print_message(error, reason, s, c);
 			exit(1);
 		}
-		ins[ins_count].a[a] = n;
+		ins[ins_count].args[a] = n;
 		ins[ins_count].start[a] = s;
 		ins[ins_count].count[a] = c;
 		a++;
+		if (op == ss and not a) ins[ins_count].flags[0] = true;
 		if (op == rn and a == 2) names[n] = strdup(""); 
-		if (op == rn and a == 3) { names[ins[ins_count].a[1]] = names[n]; name_count--; ins_count--; }
+		if (op == rn and a == 3) { names[ins[ins_count].args[1]] = names[n]; name_count--; ins_count--; }
 		if (op == at and a == 2) values[n] = ins_count--;
 		if (op == use and a == 2) {
 			ins_count--;
@@ -1216,17 +1245,17 @@ parse_file:
 
 	for (nat i = 0; i < ins_count; i++) {
 
-		nat op = ins[i].a[0];
-		nat dest = ins[i].a[1];
-		nat input0 = ins[i].a[2];
-		nat input1 = ins[i].a[3];
+		nat op = ins[i].args[0];
+		nat dest = ins[i].args[1];
+		nat input0 = ins[i].args[2];
+		nat input1 = ins[i].args[3];
 
 		printf("checking instruction: "
 			"{%s %s %s %s}\n",
-			spelling[ins[i].a[0]],
-			names[ins[i].a[1]],
-			names[ins[i].a[2]],
-			names[ins[i].a[3]]
+			spelling[ins[i].args[0]],
+			names[ins[i].args[1]],
+			names[ins[i].args[2]],
+			names[ins[i].args[3]]
 		);
 
 
@@ -1310,16 +1339,16 @@ parse_file:
 
 		printf("instruction: "
 			"{%s %s %s %s}\n",
-			spelling[ins[i].a[0]],
-			names[ins[i].a[1]],
-			names[ins[i].a[2]],
-			names[ins[i].a[3]]
+			spelling[ins[i].args[0]],
+			names[ins[i].args[1]],
+			names[ins[i].args[2]],
+			names[ins[i].args[3]]
 		);
 		
-		const nat op = ins[i].a[0];
-		const nat output_reg = ins[i].a[1];
-		const nat first = ins[i].a[2];
-		const nat second = ins[i].a[3];
+		const nat op = ins[i].args[0];
+		const nat output_reg = ins[i].args[1];
+		const nat first = ins[i].args[2];
+		const nat second = ins[i].args[3];
 		nat input0 = 0, input1 = 0;
 
 		print_nodes(nodes, node_count, names);
@@ -1328,7 +1357,7 @@ parse_file:
 			printf("searching for first argument definition...\n");
 			for (nat j = node_count; j--;) {
 				printf("looking for input0 nodes to this instruction: %llu / %llu...\n", j, i);
-				printf("checking to see if nodes[j].output_reg(=%llu)(%s) == ins[i].a[2](=%llu)...\n", nodes[j].output_reg, names[nodes[j].output_reg], first);
+				printf("checking to see if nodes[j].output_reg(=%llu)(%s) == ins[i].args[2](=%llu)...\n", nodes[j].output_reg, names[nodes[j].output_reg], first);
 				if (nodes[j].output_reg == first) {
 					input0 = j;
 					printf("FOUND INPUT0 = %llu!!!!\n", j);
@@ -1347,7 +1376,7 @@ parse_file:
 			printf("searching for second argument definition...\n");
 			for (nat j = node_count; j--;) {
 				printf("looking for input1 nodes to this instruction: %llu / %llu...\n", j, i);
-				printf("checking to see if nodes[j].output_reg(=%llu) (%s) == ins[i].a[3](=%llu)...\n", nodes[j].output_reg, names[nodes[j].output_reg], second);
+				printf("checking to see if nodes[j].output_reg(=%llu) (%s) == ins[i].args[3](=%llu)...\n", nodes[j].output_reg, names[nodes[j].output_reg], second);
 				if (nodes[j].output_reg == second) {
 					input1 = j;
 					printf("FOUND INPUT1 = %llu!!!!\n", j);
@@ -1368,7 +1397,7 @@ parse_file:
 			.data_output_count = 0,
 			.input0 = input0,
 			.input1 = input1,
-			.op = ins[i].a[0],
+			.op = ins[i].args[0],
 			.output_reg = output_reg,
 			.sk = statically_known,
 			.input0_value = not input0 ? values[first] : 0, 
@@ -1410,8 +1439,8 @@ parse_file:
 
 
 		const nat op = this.op;
-		const nat first = this.input0;
-		const nat second = this.input1;
+		//const nat first = this.input0;
+		//const nat second = this.input1;
 		nat first_value = this.input0_value;
 		nat second_value = this.input1_value;
 
@@ -1468,10 +1497,22 @@ parse_file:
 	print_nodes(nodes, node_count, names);
 
 	puts("[DONE COMPILING]");
-	abort();
+
+
+
+
+
+
 
 	if (architecture >= target_count) abort();
 	if (output_format >= output_format_count) abort();
+
+
+	
+
+
+
+
 	printf("info: building for target:\n\tarchitecture:  "
 		"\033[31;1m%s\033[0m\n\toutput_format: \033[32;1m%s\033[0m.\n\n", 
 		target_spelling[architecture], output_format_spelling[output_format]
@@ -1481,8 +1522,8 @@ parse_file:
 		puts("executing output instructions now...");
 		execute_instructions(values, name_count);
 	}
-	else if (architecture == riscv32 or architecture == riscv64) generate_riscv_machine_code();
-	else if (architecture == arm64) generate_arm64_machine_code();
+	else if (architecture == riscv32 or architecture == riscv64) { //generate_riscv_machine_code();
+	} else if (architecture == arm64) generate_arm64_machine_code();
 	else {
 		print_message(error, "unknown target architecture specified", ins[0].start[0], ins[0].count[0]);
 		exit(1);
