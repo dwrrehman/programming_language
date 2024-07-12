@@ -8,15 +8,168 @@
 
 	
 
+(.x means x is a required argument.)
+
+	LANGUAGE ISA
+========================================================================= ec ms
+
+
+	ms					:	make operation signed. valid only for the following instructions: 
+								at, lt, ge, ne, eq, lb, lh, lw, ld, slt, sr, mul, muh, div, rem.
+	ec					:	enviornment call
+
+	use .filename				: 	use existing source file
+
+	at .label				:	attribute label address here
+
+	rn .destname sourcename			:	rename / remove name
+
+	dr source destination 			:	jump-and-link to register
+	do label destination			:	jump-and-link to label
+
+	lt .label source0 source1 		:	branch to label if source0 is less than source1
+	ge .label source0 source1 		:	branch to label if source0 is greater than or equal to source1
+	ne .label source0 source1 		:	branch to label if source0 is not equal to source1
+	eq .label source0 source1 		:	branch to label if source0 is equal to source1
+
+	lb destination address			:	load uint8_t memory at address into destination
+	lh destination address			:	load uint16_t memory at address into destination
+	lw destination address			:	load uint32_t memory at address into destination
+	ld destination address			:	load uint64_t memory at address into destination
+
+	sb address source			:	store low uint8_t source into memory at address
+	sh address source 			:	store low uint16_t source into memory at address
+	sw address source 			:	store low uint32_t source into memory at address
+	sd address source 			:	store low uint64_t source into memory at address
+
+	add destination source0 source1 	:	add source0 and source1 and store result into destination.
+	sub destination source0 source1 	:	subtract source0 and source1 and store result into destination.
+	slt destination source0 source1 	:	set destination=1 if source0 less than source1, else set destination=0.
+
+	and destination source0 source1 	:	bitwise and source0 and source1 and store result into destination.
+	or destination source0 source1 		:	bitwise or source0 and source1 and store result into destination.
+	eor destination source0 source1 	:	bitwise exclusive-or source0 and source1 and store result into destination.
+
+	sl destination source0 source1 		:	shift left source0 by source1 bits and store result into destination.
+	sr destination source0 source1 		:	shift right source0 by source1 bits and store result into destination.
+
+	mul destination source0 source1 	:	multiply source0 and source1 and store the least significant 64-bits into destination.
+	muh destination source0 source1 	:	multiply source0 and source1 and store the most significant 64-bits into destination.
+	div destination source0 source1 	:	divide source0 and source1 and store into destination.
+	rem destination source0 source1 	:	compute source0 modulo source1, and store result into destination.
 
 
 
-	ss, env, use, at, rn, dr, do_, 
-	lb, lh, lw, ld, sb, sh, sw, sd,
-	add, sub, slt, and_, or_, eor, sl, sr,
-	lt, ge, ne, eq, mul, muh, div_, rem,
+todo:  write documentation for:
+
 	alr, asc, aswp, aadd, aand, aor, aeor, amax, amin,
-	isa_count
+
+
+
+
+
+showing letter frequency used in this set of 40 words...
+ a :  15 : ###############
+ s :  12 : ############
+ d :  11 : ###########
+ l :   9 : #########
+ r :   9 : #########
+ e :   8 : ########
+ m :   6 : ######
+ n :   5 : #####
+ o :   5 : #####
+ u :   4 : ####
+ b :   3 : ###
+ h :   3 : ###
+ t :   3 : ###
+ w :   3 : ###
+ c :   2 : ##
+ i :   2 : ##
+ g :   1 : #
+ p :   1 : #
+ q :   1 : #
+ v :   1 : #
+ x :   1 : #
+ f :   0 : 
+ j :   0 : 
+ k :   0 : 
+ y :   0 : 
+ z :   0 : 
+done
+
+
+
+
+
+
+
+
+phases of the compiler:
+
+
+		0. optimization passes (opt)
+
+		1. instruction selection (ins sel)
+
+		2. register allocation (ra)
+
+		3. instruction scheduling (ins sch)
+
+
+
+
+
+optimization 	:	 optional,  not doing it for now, until everything else is done. 
+
+instruction selection 	: 	basicallyyyy done, but we need to represent a machine instruction internally now. 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -122,6 +275,8 @@ typedef uint32_t u32;
 typedef uint16_t u16;
 typedef uint8_t  u8;
 
+enum diagnostic_type { no_message, error, warning, info, user, debug };
+
 enum target_architecture { 
 	noruntime, 
 	riscv32, riscv64, 
@@ -151,16 +306,9 @@ static const char* output_format_spelling[output_format_count] = {
 
 enum host_systems { host_linux, host_macos };
 
-static u32 arm64_macos_abi[] = {        // note:  x9 is call-clobbered. save it before calls. 
-	31,30,31,13,14,15, 7,17,
-	29, 9, 0, 1, 2, 3, 4, 5,
-	 6,16,19,20,21,22,23,24,
-	25,26,27,28,12, 8,11,10,    
-};
-
 enum language_isa {
 	_nullins, 
-	ss, env, use, at, rn, dr, do_, 
+	ms, ec, use, at, rn, dr, do_, 
 	lb, lh, lw, ld, sb, sh, sw, sd,
 	add, sub, slt, and_, or_, eor, sl, sr,
 	lt, ge, ne, eq, mul, muh, div_, rem,
@@ -170,12 +318,37 @@ enum language_isa {
 
 static const char* spelling[isa_count] = {
         "_nullins", 
-	"ss", "env", "use", "at", "rn", "dr", "do", 
+	"ms", "ec", "use", "at", "rn", "dr", "do", 
 	"lb", "lh", "lw", "ld", "sb", "sh", "sw", "sd",
-	"add", "sub", "slt", "and_", "or_", "eor", "sl", "sr",
-	"lt", "ge", "ne", "eq", "mul", "muh", "div_", "rem",
+	"add", "sub", "slt", "and", "or", "eor", "sl", "sr",
+	"lt", "ge", "ne", "eq", "mul", "muh", "div", "rem",
 	"alr", "asc", "aswp", "aadd", "aand", "aor", "aeor", "amax", "amin",
 };
+
+
+enum arm64_isa {
+	arm64_mov,  arm64_addi,
+	arm64_memiu, arm64_add,
+	arm64_adc, arm64_csel,
+	arm64_slli, arm64_srli,
+	arm64_adr, arm64_blr,
+	arm64_bl, arm64_bc,
+	arm64_madd,
+	arm64_isa_count,
+};
+
+static const char* arm64_spelling[arm64_isa_count] = {
+	"arm64_mov", "arm64_addi",
+	"arm64_memiu", "arm64_add",
+	"arm64_adc", "arm64_csel",
+	"arm64_slli", "arm64_srli",
+	"arm64_adr", "arm64_blr",
+	"arm64_bl", "arm64_bc",
+	"arm64_madd",
+};
+
+
+
 
 enum compiletime_variables {
 	var_nullvar,
@@ -208,41 +381,76 @@ static const char* variable_spelling[variable_count] = {
 	"stacksize",
 };
 
-struct instruction { 
-	nat args[4];
-	nat start[4];
-	nat count[4];
-	nat flags[4];
-};
-
 struct file {
 	nat index;
+	nat parent;
 	nat count;
 	const char* name;
 	char* text;
 };
 
-static char reason[4096] = {0};
+struct source_location {
+	nat start;
+	nat count;
+	nat file;
+};
+
+struct instruction { 
+	nat args[4];
+	struct source_location source[4];
+	nat flags[4];
+};
+
+struct machine_instruction {
+	nat args[16];
+	nat arg_count;
+	nat instructions[16];
+	nat ins_count;
+	nat op;
+};
+
+struct node {
+	nat data_outputs[32];
+	nat data_output_count;
+	nat output_reg;
+	nat input0;
+	nat input1;
+	nat op;
+	nat statically_known; 
+	nat input0_value;
+	nat input1_value;
+	nat output_value;
+};
+
 
 static nat stack_size = 0x1000000;
+
 static nat architecture = arm64;
 static nat output_format = macho_executable;
+
 static bool preserve_existing_object = false;
 static bool preserve_existing_executable = false;
+
 static const char* object_filename = "object0.o";
 static const char* executable_filename = "executable0.out";
+
 
 static nat byte_count = 0;
 static u8* bytes = NULL;
 
+static nat mi_count = 0;
+static struct machine_instruction mis[4096] = {0};
+
 static nat ins_count = 0;
 static struct instruction* ins = NULL;
 
-static nat text_length = 0;
-static char* text = NULL;
-static const char* filename = NULL;
+static nat file_count = 0;
+static struct file files[4096] = {0};
 
-enum diagnostic_type { no_message, error, warning, info, user, debug };
+static char reason[4096] = {0};
+
+static const struct source_location undefined_location = {0};
+
 
 static const char* type_string[] = {
 	"(none):", 
@@ -278,47 +486,49 @@ static void print_instructions(char** names, nat name_count) {
 				);
 
 		printf("} -- [");
-		for (nat a = 0; a < 4; a++) {
-			printf("%llu:%llx:%llx:%llx", a, ins[i].args[a], ins[i].start[a], ins[i].count[a]);
-			if (a < 3) printf(",");
-		}
-		puts("]\n");
+		printf("todo: add me]");
+		//for (nat a = 0; a < 4; a++) {
+		//	printf("%llu:%llx:%llx:%llx", a, ins[i].args[a], ins[i].start[a], ins[i].count[a]);
+		//	if (a < 3) printf(",");
+		//}
+		puts("]");
 	}
 	puts("}");
 }
 
-static void print_message(nat type, const char* reason_string, nat spot, nat error_length) {
-	printf("\033[1mlanguage: %s:", filename);
-	if (spot or error_length) printf("%llu:%llu:", spot, error_length);
-	printf(" %s \033[1m%s\033[m\n", type_string[type], reason_string);
-	if (not filename) return;
-	if (not spot and not error_length) goto finish;
+static void print_message(nat type, const char* reason_string, struct source_location location) {
+	printf("\033[1mlanguage: %s:", files[location.file].name);
 
-	nat line_begin = spot;
-	while (line_begin and text[line_begin - 1] != 10) line_begin--;
-	nat line_end = spot;
-	while (line_end < text_length and text[line_end] != 10) line_end++;
+	if (location.start or location.count) printf("%llu:%llu:", location.start, location.count);
+	printf(" %s \033[1m%s\033[m\n", type_string[type], reason_string);
+	if (not files[location.file].name) return;
+	if (not location.start and not location.count) goto finish;
+
+	nat line_begin = location.start;
+	while (line_begin and files[location.file].text[line_begin - 1] != 10) line_begin--;
+	nat line_end = location.start;
+	while (line_end < files[location.file].count and files[location.file].text[line_end] != 10) line_end++;
 
 	printf("\n\t");
 	for (nat i = line_begin; i < line_end; i++) {
-		if (i == spot) printf("\033[38;5;%llum", 178LLU);
-		if (text[i] == 9) putchar(32);
-		else putchar(text[i]);
-		if (i == spot + error_length) printf("\033[0m");
+		if (i == location.start) printf("\033[38;5;%llum", 178LLU);
+		if (files[location.file].text[i] == 9) putchar(32);
+		else putchar(files[location.file].text[i]);
+		if (i == location.start + location.count) printf("\033[0m");
 	}
 	printf("\n\t");
-	for (nat i = 0; i < spot - line_begin; i++) 
+	for (nat i = 0; i < location.start - line_begin; i++) 
 		printf(" "); 
 	printf("\033[32;1m^");
-	if (error_length) {
-		for (nat i = 0; i < error_length - 1; i++) 
+	if (location.count) {
+		for (nat i = 0; i < location.count - 1; i++) 
 			printf("~"); 
 	}
 	printf("\033[0m\n"); 
 	finish: puts("");
 }
 
-static char* read_file(const char* name, nat* out_length, nat start, nat count) {
+static char* read_file(const char* name, nat* out_length, struct source_location location) {
 	int d = open(name, O_RDONLY | O_DIRECTORY);
 	if (d >= 0) { close(d); errno = EISDIR; goto read_error; }
 	const int file = open(name, O_RDONLY, 0);
@@ -326,7 +536,7 @@ static char* read_file(const char* name, nat* out_length, nat start, nat count) 
 		read_error:;
 		snprintf(reason, sizeof reason, "%s: \"%s\"", 
 			strerror(errno), name);
-		print_message(error, reason, start, count);		
+		print_message(error, reason, location);		
 		exit(1); 
 	}
 	size_t length = (size_t) lseek(file, 0, SEEK_END);
@@ -351,7 +561,7 @@ static void dump_hex(uint8_t* memory, nat count) {
 /*static void emitb(nat x) {
 	bytes = realloc(bytes, byte_count + 1);
 	bytes[byte_count++] = (u8) (x >> 0);
-}*/
+}
 
 static void emitw(nat x) {
 	bytes = realloc(bytes, byte_count + 4);
@@ -361,11 +571,13 @@ static void emitw(nat x) {
 	bytes[byte_count++] = (u8) (x >> 24);
 }
 
+
+
 static void check(nat value, nat limit, nat a, struct instruction this) {
 	if (value >= limit) {
 		puts("check error");
 		snprintf(reason, sizeof reason, "check: value %llu >= limit %llu check did not succeed for instruction", value, limit);
-		print_message(error, reason, this.start[a + 1], this.count[a + 1]);
+		print_message(error, reason, this.source[a + 1]);
 		exit(1);
 	}
 }
@@ -373,12 +585,12 @@ static void check(nat value, nat limit, nat a, struct instruction this) {
 static void check_offset(__attribute__((unused)) nat value, __attribute__((unused)) nat limit, __attribute__((unused)) nat arg, struct instruction this) {
 	if ((0)) {
 		puts("check_offset error");
-		print_message(error, "sorry bad logic or something", this.start[0], this.count[0]);
+		print_message(error, "sorry bad logic or something", this.source[0]);
 		exit(1);
 	}
 }
 
-/*static void r_type(nat* a, nat o, nat f, nat g, struct instruction this) {
+static void r_type(nat* a, nat o, nat f, nat g, struct instruction this) {
 	check(a[0], 32, 0, this);
 	check(a[1], 32, 1, this);
 	check(a[2], 32, 2, this);
@@ -403,7 +615,7 @@ static void u_type(nat* a, nat o, struct instruction this) {
 	check(a[0], 32, 0, this);
 	check(a[1], 1 << 20, 1, this);
 	emitw( (a[1] << 12U) | (a[0] << 7U) | o);
-}*/
+}
 
 static nat ins_size(nat op) {
 
@@ -420,6 +632,7 @@ static nat ins_size(nat op) {
 	}
 }
 
+
 static nat calculate_offset(nat here, nat label, struct instruction this) {
 	printf("calculate_offset: called using here=%llu, label=%llu...\n", here, label);
 	nat offset = 0;
@@ -428,7 +641,7 @@ static nat calculate_offset(nat here, nat label, struct instruction this) {
 		for (nat i = label; i < here; i++) {
 			if (i >= ins_count) {
 				print_message(error, "invalid label given to a branching instruction", 
-						this.start[0], this.count[0]);
+						this.source[0]);
 				exit(1);
 			}
 			offset -= ins_size(ins[i].args[0]);
@@ -438,7 +651,7 @@ static nat calculate_offset(nat here, nat label, struct instruction this) {
 		for (nat i = here; i < label; i++) {
 			if (i >= ins_count) {
 				print_message(error, "invalid label given to a branching instruction", 
-						this.start[0], this.count[0]);
+						this.source[0]);
 				exit(1);
 			}
 			offset += ins_size(ins[i].args[0]);
@@ -448,7 +661,7 @@ static nat calculate_offset(nat here, nat label, struct instruction this) {
 	return offset;
 }
 
-/*static void j_type(nat here, nat* a, nat o, struct instruction this) {
+static void j_type(nat here, nat* a, nat o, struct instruction this) {
 	
 	const nat e = calculate_offset(here, a[1], this);
 
@@ -473,7 +686,7 @@ static void generate_riscv_machine_code(void) {
 		nat op = this.args[0];
 		nat* a = this.args + 1;
 
-		if (op == env)   emitw(0x00000073);
+		if (op == ec)   emitw(0x00000073);
 
 		else if (op == add)     r_type(a, 0x33, 0x0, 0x00, this);
 		else if (op == sub)     r_type(a, 0x33, 0x0, 0x20, this);
@@ -568,7 +781,7 @@ static void generate_addi(nat Rd, nat Rn, nat im,
 		(sh << 22U) | 
 		(im << 10U) | 
 		(Rn <<  5U) | Rd);
-}*/
+}
 
 
 static void generate_memiu(nat Rt, nat Rn, nat im, nat op, nat oc, nat sf, struct instruction this) {
@@ -654,7 +867,7 @@ static void generate_csel(nat Rd, nat Rn, nat Rm,
 		(Rn <<  5U) | Rd);
 }
 
-/*static void generate_slli(nat Rd, nat Rn, nat im, nat op, nat oc, nat sf, struct instruction this) {
+static void generate_slli(nat Rd, nat Rn, nat im, nat op, nat oc, nat sf, struct instruction this) {
 
 	check(Rd, 32, 0, this);
 	check(Rn, 32, 1, this);
@@ -678,7 +891,6 @@ static void generate_csel(nat Rd, nat Rn, nat Rm,
 		(is << 10U) | 
 		(Rn <<  5U) | Rd);
 }
-
 
 static void generate_srli(nat Rd, nat Rn, nat im, nat op, nat oc, nat sf, struct instruction this) {
 
@@ -719,7 +931,7 @@ static void generate_adr(nat Rd, nat op, nat oc, nat target, nat here, struct in
 		(lo << 29U) | 
 		(op << 24U) | 
 		(hi <<  5U) | Rd);
-}*/
+}
 
 static void generate_jalr(nat Rd, nat Rn, nat op, struct instruction this) {
 
@@ -728,7 +940,7 @@ static void generate_jalr(nat Rd, nat Rn, nat op, struct instruction this) {
 
 	nat oc = Rd;
 	if (Rd != 0 and Rd != 1) {
-		print_message(error, "non return address register destination specified, but not supported yet", 0, 0);
+		print_message(error, "non return address register destination specified, but not supported yet", this.source[0]);
 		exit(1);
 	}
 
@@ -742,8 +954,8 @@ static void generate_jal(nat Rd, nat here, nat target, struct instruction this) 
 
 	nat oc = Rd;
 	if (Rd != 0 and Rd != 1) {
-		print_message(error, "non return address register destination specified, but not supported yet", 0, 0);
-		exit(1);
+		// print_message(error, "non return address register destination specified, but not supported yet", 0, 0);
+		abort();
 	}
 
 	nat im = calculate_offset(here, target, this);
@@ -770,7 +982,7 @@ static void generate_slt(nat Rd, nat Rn, nat Rm, nat cond, struct instruction th
 }
 
 
-/*
+
 static u32 generate_madd(struct argument* a, u32 op) {       // Ra Rm Rn Rd madd/umaddl
 	u32 Rd = (u32) a[0].value;
 	u32 Rn = (u32) a[1].value;
@@ -798,7 +1010,7 @@ static u32 generate_madd(struct argument* a, u32 op) {       // Ra Rm Rn Rd madd
 
 
 
-static void generate_arm64_machine_code(void) {
+/*static void generate_arm64_machine_code(void) {
 
 	for (nat i = 0; i < ins_count; i++) {
 
@@ -813,7 +1025,7 @@ static void generate_arm64_machine_code(void) {
 		//}
 		//else 
 
-		if (op == env)  emitw(0xD4000001);
+		if (op == ec)  emitw(0xD4000001);
 
 		//else if (op == addi)   generate_addi(a[0], a[1], a[2], 0x22U, 1, 0, 0, 0, this);
 		//else if (op == slli)   generate_slli(a[0], a[1], a[2], 0x26U, 2, 1, this);
@@ -867,11 +1079,11 @@ static void generate_arm64_machine_code(void) {
 
 		else {
 			snprintf(reason, sizeof reason, "arm64: unknown runtime instruction: \"%s\" (%llu)\n", spelling[op], op);
-			print_message(error, reason, this.start[0], this.count[0]);
+			print_message(error, reason, undefined_location);
 			exit(1);
 		}
 	}
-}
+}*/
 
 static void make_elf_object_file(const char* given_object_filename) {
 	puts("make_elf_object_file: unimplemented");
@@ -1030,7 +1242,7 @@ static void execute_instructions(nat* label, nat name_count) {
 		else if (op == dr)  { reg[r] = pc; pc = reg[d]; continue; } 
 		else if (op == do_)   { reg[r] = pc; pc = label[d]; continue; } 
 
-		else if (op == env) {
+		else if (op == ec) {
 			const nat a0 = reg[var_arg0];
 			const nat a1 = reg[var_arg1];
 			const nat a2 = reg[var_arg2];
@@ -1041,7 +1253,7 @@ static void execute_instructions(nat* label, nat name_count) {
 
 			if (n == 0) {
 				snprintf(reason, sizeof reason, "%lld (0x%016llx)", a0, a0);
-				print_message(user, reason, ins[pc].start[0], ins[pc].count[0]);
+				print_message(user, reason, ins[pc].source[0]);
 			} 
 
 			else if (n == 1) exit((int) a0);
@@ -1054,7 +1266,7 @@ static void execute_instructions(nat* label, nat name_count) {
 			
 			else {
 				snprintf(reason, sizeof reason, "unknown ct ecl number %llu", n);
-				print_message(error, reason, ins[pc].start[0], ins[pc].count[0]);
+				print_message(error, reason, ins[pc].source[0]);
 				exit(1);
 			}
 		} else { 
@@ -1073,7 +1285,7 @@ static nat arity(const nat op) {
 		printf("null ins does not have arity: internal error\n");
 		abort();
 	}
-	if (op == env or op == ss) return 0;
+	if (op == ec or op == ms) return 0;
 	if (op == at or op == use) return 1;
 	if (op < add) return 2; 
 	if (op < isa_count) return 3; 
@@ -1093,19 +1305,6 @@ static bool define_on_use(nat op, nat count) {
 	abort();
 }
 
-struct node {
-	nat data_outputs[32];
-	nat data_output_count;
-	nat output_reg;
-	nat input0;
-	nat input1;
-	nat op;
-	nat sk; // statically_known
-	nat input0_value;
-	nat input1_value;
-	nat output_value;
-};
-
 
 
 static void print_nodes(struct node* nodes, nat node_count, char** names) {
@@ -1122,14 +1321,11 @@ static void print_nodes(struct node* nodes, nat node_count, char** names) {
 			".ov=%2llu "
 			".oc=%2llu "
 			".o={ ", 
-			nodes[n].sk ? "\033[32;1mSK\033[0m" : "  ",
-			n, 
+			nodes[n].statically_known ? "\033[32;1mSK\033[0m" : "  ", n, 
 			nodes[n].op, spelling[nodes[n].op],
 			nodes[n].output_reg, names[nodes[n].output_reg],
-			nodes[n].input0, nodes[nodes[n].input0].output_reg 
-					? names[nodes[nodes[n].input0].output_reg] : "",
-			nodes[n].input1, nodes[nodes[n].input1].output_reg 
-					? names[nodes[nodes[n].input1].output_reg] : "",
+			nodes[n].input0, names[nodes[nodes[n].input0].output_reg],
+			nodes[n].input1, names[nodes[nodes[n].input1].output_reg],
 			nodes[n].input0_value,
 			nodes[n].input1_value,
 			nodes[n].output_value,
@@ -1138,44 +1334,71 @@ static void print_nodes(struct node* nodes, nat node_count, char** names) {
 		for (nat j = 0; j < nodes[n].data_output_count; j++) {
 			printf("%llu ", nodes[n].data_outputs[j]);
 		}
-		puts(" } }\n");
+		puts(" } }");
 		
 	}
 	puts("done");
 }
 
 
+static void print_machine_instructions(void) {
+	printf("printing %llu machine instructions...\n", mi_count);
+	for (nat i = 0; i < mi_count; i++) {
+		printf("machine instruction {.op = %llu (\"%s\"), .args = ................ }\n", mis[i].op, arm64_spelling[mis[i].op]); 
+	}
+	puts("[done]");
+}
+
 int main(int argc, const char** argv) {
 	if (argc != 2) exit(puts("language: \033[31;1merror:\033[0m usage: ./asm <source.s>"));
+
+	print_message(warning, "this assembler is currently a work in progress, "
+				"backend is currently not fully implemented yet...", 
+			undefined_location
+	);
+
+
+
 
 	nat name_count = 0;
 	char* names[4096] = {0};
 	nat values[4096] = {0};
 	nat locations[4096 * 2] = {0};
+
 	for (nat i = 0; i < variable_count; i++) {
 		values[name_count] = (nat) 0;
 		names[name_count++] = strdup(variable_spelling[i]);
 	}
+
 	
-	text_length = 0;
-	filename = argv[1];
-	text = read_file(filename, &text_length, 0, 0);
-	printf("read file: (length = %llu): \n<<<", text_length);
-	fwrite(text, 1, text_length, stdout);
-	puts(">>>");
+	{
+		nat count = 0;
+		const char* filename = argv[1];
+		char* text = read_file(filename, &count, undefined_location);
+		printf("read file: (length = %llu): \n<<<", count);
+		fwrite(text, 1, count, stdout);
+		puts(">>>");
+		files[file_count++] = (struct file) {
+			.index = 0,
+			.count = count,
+			.name = filename,
+			.text = text,
+		};
+	}
+	
+	nat stack_count = 0;
+	nat stack[4096] = {0};
 
-	nat file_count = 0;
-	struct file files[4096] = {0};
-
-	nat index = 0;
 	ins_count = (nat) -1;
+{
+	nat begin_at = 0;
 parse_file:
-	for (nat op = 0, s = 0, c = 0, a = 0, i = index; i < text_length; i++) {
-		if (not isspace(text[i])) {
+	for (nat op = 0, s = 0, c = 0, a = 0, i = begin_at; i < files[stack[stack_count]].count; i++) {
+		if (not isspace(files[stack[stack_count]].text[i])) {
 			if (not c) s = i;  c++; 
-			if (i + 1 < text_length) continue;
+			if (i + 1 < files[stack[stack_count]].count) continue;
 		} else if (not c) continue;
-		char* word = strndup(text + s, c);
+		char* word = strndup(files[stack[stack_count]].text + s, c);
 		nat n = 0;
 		for (n = 0; n < isa_count; n++) if (not strcmp(spelling[n], word)) goto ins;
 		for (n = 0; n < name_count; n++) if (not strcmp(names[n], word)) goto def;
@@ -1190,58 +1413,55 @@ parse_file:
 		ins[ins_count] = (struct instruction) { 
 			.flags = {0, 0, 0, 0},
 			.args  = {1, 1, 1, 1},
-			.start = {s, s, s, s}, 
-			.count = {c, c, c, c},
-			
+			.source = {undefined_location, undefined_location, undefined_location, undefined_location},
 		};
 		op = n;
 	def: 	if (op == rn and a == 2) {
 			snprintf(reason, sizeof reason, "rename destination exists");
-			print_message(error, reason, s, c);
+			print_message(error, reason, undefined_location);
 			exit(1);
 		}
 	arg:	if (a >= arity(op) + 1) {
 			snprintf(reason, sizeof reason, "excess arguments to %s", spelling[op]);
-			print_message(error, reason, s, c);
+			print_message(error, reason, undefined_location);
 			exit(1);
 		}
 		ins[ins_count].args[a] = n;
-		ins[ins_count].start[a] = s;
-		ins[ins_count].count[a] = c;
 		a++;
-		if (op == ss and not a) ins[ins_count].flags[0] = true;
+		if (op == ms and a == 1) { 
+			if (not ins_count) {
+				snprintf(reason, sizeof reason, "excess arguments to %s", spelling[op]);
+				print_message(error, reason, undefined_location);
+				exit(1);
+			}
+			ins_count--;
+			if (ins[ins_count].args[0] == ec) { ins_count--; break; }
+			ins[ins_count].flags[0] = 1;
+		}
 		if (op == rn and a == 2) names[n] = strdup(""); 
 		if (op == rn and a == 3) { names[ins[ins_count].args[1]] = names[n]; name_count--; ins_count--; }
 		if (op == at and a == 2) values[n] = ins_count--;
 		if (op == use and a == 2) {
 			ins_count--;
-			files[file_count++] = (struct file) {
-				.index = i, 
-				.count = text_length, 
-				.name = filename, 
-				.text = text,
-			};
-			text_length = 0; 
-			filename = word;
-			text = read_file(filename, &text_length, s, c);
-			index = 0;
+			struct file new = { .name = word };
+			new.text = read_file(new.name, &(new.count), undefined_location);
+			files[stack[stack_count]].index = i; 
+			stack[stack_count++] = file_count;
+			files[file_count++] = new;
+			begin_at = 0;
 			goto parse_file;
 		}
 		c = 0;
 	}
-	if (file_count) {
-		struct file this = files[--file_count];
-		text = this.text;
-		filename = this.name;
-		text_length = this.count;
-		index = this.index;
+	if (stack_count) {
+		stack_count--;
+		begin_at = files[stack[stack_count]].index;
 		goto parse_file;
 	}
 	ins_count++; 
+}
 
-
-
-	puts("debug: checking for errors...");
+	puts("stage: checking for dictionary undefined/usage errors...");
 
 	for (nat i = 0; i < ins_count; i++) {
 
@@ -1258,21 +1478,17 @@ parse_file:
 			names[ins[i].args[3]]
 		);
 
-
-
 		if (not define_on_use(op, 2) and values[input0] == (nat) -1) {
-			nat s = ins[i].start[2]; //locations[2 * input0 + 0];
-			nat c = ins[i].count[2]; //locations[2 * input0 + 1];
+			struct source_location s = ins[i].source[2];
 			snprintf(reason, sizeof reason, "use of undefined word \"%s\"", names[input0]);
-			print_message(error, reason, s, c);
+			print_message(error, reason, s);
 			exit(1);
 		}
 
 		if (not define_on_use(op, 3) and values[input1] == (nat) -1) {
-			nat s = ins[i].start[3]; //locations[2 * input1 + 0];
-			nat c = ins[i].count[3]; //locations[2 * input1 + 1];
+			struct source_location s = ins[i].source[3]; 
 			snprintf(reason, sizeof reason, "use of undefined word \"%s\"", names[input1]);
-			print_message(error, reason, s, c);
+			print_message(error, reason, s);
 			exit(1);
 		}
 
@@ -1280,22 +1496,12 @@ parse_file:
 	}
 
 
+	//puts("debug: finished parsing all input files.");
 
-
-
-	puts("debug: finished parsing all input files.");
+	puts("passed. finished parsing.");
 
 	print_dictionary(names, values, locations, name_count);
 	print_instructions(names, name_count);
-
-	print_message(warning, "this assembler is currently a work in progress, "
-				"runtime/optimization phase not implemented yet...", 
-			0, 0
-	);
-
-
-
-
 
 
 
@@ -1304,10 +1510,6 @@ parse_file:
 			print_message(error, reason, s, c);
 			exit(1);
 		}*/
-
-
-
-
 
 
 	/*
@@ -1323,8 +1525,8 @@ parse_file:
 	struct node nodes[4096] = {0};
 	nat node_count = 0;
 
-	nodes[node_count++] = (struct node) { .output_reg = var_nullvar, .sk = 1 };
-	nodes[node_count++] = (struct node) { .output_reg = var_zero, .sk = 1 };
+	nodes[node_count++] = (struct node) { .output_reg = var_nullvar, .statically_known = 1 }; // used for any other name besides these.
+	nodes[node_count++] = (struct node) { .output_reg = var_zero, .statically_known = 1 };
 	nodes[node_count++] = (struct node) { .output_reg = var_ra };
 	nodes[node_count++] = (struct node) { .output_reg = var_sp };
 	nodes[node_count++] = (struct node) { .output_reg = var_argn };
@@ -1333,8 +1535,11 @@ parse_file:
 	nodes[node_count++] = (struct node) { .output_reg = var_arg2 };
 	nodes[node_count++] = (struct node) { .output_reg = var_arg3 };
 	nodes[node_count++] = (struct node) { .output_reg = var_arg4 };
-	nodes[node_count++] = (struct node) { .output_reg = var_stacksize, .sk = 1 };
+	nodes[node_count++] = (struct node) { .output_reg = var_stacksize, .statically_known = 1 };
 	
+
+	puts("stage: constructing data flow DAG...");
+
 	for (nat i = 0; i < ins_count; i++) {
 
 		printf("instruction: "
@@ -1351,16 +1556,16 @@ parse_file:
 		const nat second = ins[i].args[3];
 		nat input0 = 0, input1 = 0;
 
-		print_nodes(nodes, node_count, names);
+		//print_nodes(nodes, node_count, names);
 
 		if (arity(op) > 1 and not values[first]) {
-			printf("searching for first argument definition...\n");
+			//printf("searching for first argument definition...\n");
 			for (nat j = node_count; j--;) {
-				printf("looking for input0 nodes to this instruction: %llu / %llu...\n", j, i);
-				printf("checking to see if nodes[j].output_reg(=%llu)(%s) == ins[i].args[2](=%llu)...\n", nodes[j].output_reg, names[nodes[j].output_reg], first);
+				//printf("looking for input0 nodes to this instruction: %llu / %llu...\n", j, i);
+				//printf("checking to see if nodes[j].output_reg(=%llu)(%s) == ins[i].args[2](=%llu)...\n", nodes[j].output_reg, names[nodes[j].output_reg], first);
 				if (nodes[j].output_reg == first) {
 					input0 = j;
-					printf("FOUND INPUT0 = %llu!!!!\n", j);
+					//printf("FOUND INPUT0 = %llu!!!!\n", j);
 					//getchar();
 					nodes[j].data_outputs[nodes[j].data_output_count++] = node_count;
 					goto bubbles;
@@ -1373,13 +1578,13 @@ parse_file:
 
 	bubbles:
 		if (arity(op) > 2 and not values[second]) {
-			printf("searching for second argument definition...\n");
+			//printf("searching for second argument definition...\n");
 			for (nat j = node_count; j--;) {
-				printf("looking for input1 nodes to this instruction: %llu / %llu...\n", j, i);
-				printf("checking to see if nodes[j].output_reg(=%llu) (%s) == ins[i].args[3](=%llu)...\n", nodes[j].output_reg, names[nodes[j].output_reg], second);
+				//printf("looking for input1 nodes to this instruction: %llu / %llu...\n", j, i);
+				//printf("checking to see if nodes[j].output_reg(=%llu) (%s) == ins[i].args[3](=%llu)...\n", nodes[j].output_reg, names[nodes[j].output_reg], second);
 				if (nodes[j].output_reg == second) {
 					input1 = j;
-					printf("FOUND INPUT1 = %llu!!!!\n", j);
+					//printf("FOUND INPUT1 = %llu!!!!\n", j);
 					//getchar();
 					nodes[j].data_outputs[nodes[j].data_output_count++] = node_count;
 					goto push;
@@ -1390,7 +1595,7 @@ parse_file:
 		}
 
 	push:;
-		const nat statically_known = output_reg == var_zero or (nodes[input0].sk and nodes[input1].sk);
+		const nat statically_known = output_reg == var_zero or (nodes[input0].statically_known and nodes[input1].statically_known);
 
 		nodes[node_count++] = (struct node) {
 			.data_outputs = {0},
@@ -1399,7 +1604,7 @@ parse_file:
 			.input1 = input1,
 			.op = ins[i].args[0],
 			.output_reg = output_reg,
-			.sk = statically_known,
+			.statically_known = statically_known,
 			.input0_value = not input0 ? values[first] : 0, 
 			.input1_value = not input1 ? values[second] : 0, 
 			.output_value = 0,
@@ -1407,30 +1612,24 @@ parse_file:
 		
 	}
 
-
-
-	
 	puts("done creating DAG nodes... printing DAG:");
 	print_nodes(nodes, node_count, names);
 
 
-
-
-	puts("evaluating statically-known nodes..");
-
+	puts("stage: evaluating statically-known data_DAG nodes..");
 
 	for (nat i = 0; i < node_count; i++) {
 
 		struct node this = nodes[i];
 
-		if (not this.sk) {
-			printf("not sk: skipping over node %llu...\n", i);
+		if (not this.statically_known) {
+			// printf("not statically_known: skipping over node %llu...\n", i);
 
-			if (nodes[nodes[i].input0].sk) {
+			if (nodes[nodes[i].input0].statically_known) {
 				nodes[i].input0_value = nodes[nodes[i].input0].output_value;
 			}
 
-			if (nodes[nodes[i].input1].sk) {
+			if (nodes[nodes[i].input1].statically_known) {
 				nodes[i].input1_value = nodes[nodes[i].input1].output_value;
 			}
 
@@ -1470,7 +1669,6 @@ parse_file:
 		} else if (this.op == slt) {
 			nodes[i].output_value = first_value < second_value;
 
-
 		} else if (this.op == and_) {
 			nodes[i].output_value = first_value % second_value;
 
@@ -1486,8 +1684,11 @@ parse_file:
 		} else if (this.op == sr) {
 			nodes[i].output_value = first_value >> second_value;
 
+		} else if (this.op == dr) {
+			puts("tried to evaluate dr, no known methods so far...");
+
 		} else {
-			printf("error: op = %llu (\"%s\"): found unknown op that is sk but cannot eval cuz i don't know the op\n", op, spelling[op]);
+			printf("error: operation \"%s\": evaluation not implemented\n", spelling[op]);
 			abort();
 		}
 	}
@@ -1496,39 +1697,82 @@ parse_file:
 
 	print_nodes(nodes, node_count, names);
 
-	puts("[DONE COMPILING]");
 
 
 
-
-
-
-
-	if (architecture >= target_count) abort();
-	if (output_format >= output_format_count) abort();
+	// do optimization passes here, using:   nodes[].
 
 
 	
 
+	puts("beginning backend");
 
-
+	if (architecture >= target_count) abort();
+	if (output_format >= output_format_count) abort();
 
 	printf("info: building for target:\n\tarchitecture:  "
 		"\033[31;1m%s\033[0m\n\toutput_format: \033[32;1m%s\033[0m.\n\n", 
 		target_spelling[architecture], output_format_spelling[output_format]
 	);
 
+	
+
 	if (architecture == noruntime) {
 		puts("executing output instructions now...");
 		execute_instructions(values, name_count);
+		exit(0);
 	}
-	else if (architecture == riscv32 or architecture == riscv64) { //generate_riscv_machine_code();
-	} else if (architecture == arm64) generate_arm64_machine_code();
-	else {
-		print_message(error, "unknown target architecture specified", ins[0].start[0], ins[0].count[0]);
+
+	puts("stage: performing instruction selection.... ");
+
+	if (architecture == arm64) {
+
+		mi_count = 0;
+
+		for (nat i = 0; i < node_count; i++) {
+			
+
+			if (nodes[i].op == 0) { 
+				puts("found zero op... ignoring?"); 
+				continue; 
+
+			} else if (nodes[i].op == add) {
+				
+				struct machine_instruction new = {0};
+					
+				new.op = arm64_add;
+				new.args[new.arg_count++] = nodes[i].output_reg;
+				new.args[new.arg_count++] = nodes[i].input0;
+				new.args[new.arg_count++] = nodes[i].input1;
+				new.instructions[new.ins_count++] = i;
+				mis[mi_count++] = new;
+
+			} else if (0) {
+			
+				
+			} else {
+				puts("unknown op to translate into machine instruction...");
+				abort();
+			}
+
+		}
+
+
+	} else {
+		print_message(error, "unknown target architecture specified", undefined_location);
 		exit(1);
 	}
 
+
+	print_machine_instructions();
+
+
+
+	puts("[done with final stage]");
+	abort();
+
+
+	
 
 	if (architecture == noruntime) exit(0);
 
@@ -1538,7 +1782,7 @@ parse_file:
 	else if (output_format == macho_objectfile or output_format == macho_executable) 
 		make_macho_object_file();
 	else {
-		print_message(error, "unknown output format specified", ins[0].start[0], ins[0].count[0]);
+		print_message(error, "unknown output format specified", undefined_location);
 		exit(1);
 	}
 
@@ -5439,7 +5683,17 @@ ISA  as of 202406263.153008:
 
 */
 
+//static u32 arm64_macos_abi[] = {        // note:  x9 is call-clobbered. save it before calls. 
+//	31,30,31,13,14,15, 7,17,
+//	29, 9, 0, 1, 2, 3, 4, 5,
+//	 6,16,19,20,21,22,23,24,
+//	25,26,27,28,12, 8,11,10,    
+//};
 
 
+
+
+// else if (architecture == riscv32 or architecture == riscv64) { //generate_riscv_machine_code();
+	// } else if (architecture == arm64) generate_arm64_machine_code();
 
 

@@ -243,11 +243,19 @@ done
 #include <string.h>
 
 static const char* words[] = {
-	"ss", "env", "use", "at",  "rn",  "dr",  "do",  "la", 
-	"lt",  "ge",  "ne",  "eq",  "mul", "muh",  "div", "rem",
-	"add", "sub", "slt", "and", "or",  "eor", "sl",  "sr",
-	"lb",  "lh",  "lw",  "ld",  "sb",  "sh",  "sw",  "sd",
-	"alr", "asc", "swap", "aadd", "aand", "aor", "aeor", "amax", "amin"
+//	"ss", "env", "use", "at",  "rn",  "dr",  "do",  "la", 
+//	"lt",  "ge",  "ne",  "eq",  "mul", "muh",  "div", "rem",
+//	"add", "sub", "slt", "and", "or",  "eor", "sl",  "sr",
+//	"lb",  "lh",  "lw",  "ld",  "sb",  "sh",  "sw",  "sd",
+//	"alr", "asc", "swap", "aadd", "aand", "aor", "aeor", "amax", "amin"
+
+	"ms", "ec", "use", "at", "rn", "dr", "do", 
+	"lb", "lh", "lw", "ld", "sb", "sh", "sw", "sd",
+	"add", "sub", "slt", "and", "or", "eor", "sl", "sr",
+	"lt", "ge", "ne", "eq", "mul", "muh", "div", "rem",
+	"alr", "asc", "aswp", "aadd", "aand", "aor", "aeor", "amax", "amin",
+
+
 };
 
 
@@ -773,11 +781,11 @@ int main(void) {
 			counts[words[w][l] - 'a']++;
 		}
 	}
-	printf("showing letter frequency used in this set of %llu words...\n", sizeof words / sizeof *words);
+	printf("showing letter frequency used in this set of %lu words...\n", sizeof words / sizeof *words);
 	for (nat v = 50; v--;) {
 		for (nat l = 0; l < sizeof counts / sizeof *counts; l++) {
 			if (counts[l] == v) {
-				printf(" %c : %3llu : ", 'a' + l, counts[l]);
+				printf(" %c : %3llu : ", (int)('a' + l), counts[l]);
 				for (nat _ = 0; _ < counts[l]; _++) {
 					putchar('#');
 				}

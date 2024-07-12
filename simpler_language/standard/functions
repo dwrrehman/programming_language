@@ -1,0 +1,24 @@
+use standard/constants
+
+at shownumber
+	add
+	add
+	add
+	add
+	dr ra
+
+
+at show
+	add
+	add
+	add
+	add
+	dr ra
+
+
+
+at exit
+	add
+	add
+	add
+	dr ra
