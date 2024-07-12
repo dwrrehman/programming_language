@@ -461,11 +461,11 @@ static const char* type_string[] = {
 	"\033[1;33mdebug:\033[0m"
 };
 
-static void print_dictionary(char** names, nat* values, nat* locations, nat name_count) {
+static void print_dictionary(char** names, nat* locations, nat name_count) { // nat* values, 
 	puts("printing dictionary...");
 	for (nat i = 0; i < name_count; i++) {
-		printf("\t#%-6llu:   %-20s ..... %-7lld    @{%llu,%llu}\n", 
-		i, names[i], values[i], locations[2 * i], locations[2 * i + 1]);
+		printf("\t#%-6llu:   %-20s .....     @{%llu,%llu}\n", // %-7lld
+		i, names[i], locations[2 * i], locations[2 * i + 1]);
 	}
 	puts("end of dictionary.");
 }
@@ -1344,10 +1344,147 @@ static void print_nodes(struct node* nodes, nat node_count, char** names) {
 static void print_machine_instructions(void) {
 	printf("printing %llu machine instructions...\n", mi_count);
 	for (nat i = 0; i < mi_count; i++) {
-		printf("machine instruction {.op = %llu (\"%s\"), .args = ................ }\n", mis[i].op, arm64_spelling[mis[i].op]); 
+		printf("machine instruction {.op = %llu (\"%s\"), .args = (%llu)[%llu, %llu, %llu, %llu] }\n", 
+			mis[i].op, arm64_spelling[mis[i].op],
+			mis[i].arg_count, 
+			mis[i].args[0],mis[i].args[1],mis[i].args[2],mis[i].args[3]
+		); 
 	}
 	puts("[done]");
 }
+
+
+/*
+
+
+202407125.014338:			<----- most recent progress
+
+
+	we had just realized that		 in order to allow for    
+
+				  at label     statements      
+
+
+		we need to model basic blocks, because what if an instruction gets deleted that the label was pointing to,      at least with bb's,   we will know when a basic block is about to be empty!  note, labels start basic blocks, always, i think. 
+
+
+			basic blocks can also flow into each other,    ie if you have:
+
+					at label
+						add1
+						add2
+					at label2
+						add3
+						add4
+						do somethingelse
+
+
+			here,  the "label" basic block, which has add1 and add2    flows into   the second bb, "label2", and each bb has its own variables that live into and go out of it. it need not terminate with a branch, but rather, terminate with an implicit ip++   is fine as well. either are a unconditional/conditional control flow to the next bb, which is always defined  based on the labels!!
+
+
+
+	we are right in the middle of trying to get ins sel working, on    add's   and arm64_addi's   using the statically known bit, 
+		and using the 1259423.6345.37_5625.txt file, which has some labels and addi and stuff that is useful. 
+
+
+		
+	consider this code constantly, when trying to get the sk system to work:
+
+
+			add arga 5
+			add argn system_exit
+			ec
+
+									assume we have     system_exit = 1,   and 5 = 5
+
+
+		see how the compiler currently doesnt know that any of these instructions are not sk,  except for the ec,    and thus will not emit them. 
+
+			instead, we need to force the compiler to emit instructions which touch registers which are actually used for other instructions like ec, 
+
+				so i think an easy fix is to just force writes to argn/arga etc    to always happen? no matter what? hmmmmm
+
+
+						i think we can do better though... idk. 
+
+
+		better yet, 
+
+			i really want to actually TELLLL the compiler the inputs to the ec call. thats what i want to do.
+
+
+									but then it would need a variable number of arguments, and it would be.. not pretty lol... 
+
+
+		so yah 
+
+					i think instead, we will probably just 
+
+
+
+
+
+okay wow 
+
+
+	like 
+
+
+							we need to figure out a better way to do system calls. 
+
+
+
+
+
+
+									like actually though 
+
+
+
+
+
+
+
+
+
+	we needdddd to 
+
+
+					in a way thats     performant,     ANDDD cross platform, and   simple and easy to use 
+
+
+
+
+	uhhh
+
+
+
+
+		okay ill think on it more... 
+hmm
+
+
+
+
+
+
+
+
+
+
+
+*/
+struct basic_block {
+	nat* data_outputs;
+	nat data_output_count;
+	nat* data_inputs;
+	nat data_input_count;
+	nat* predecessors;
+	nat predecessor_count;
+	nat successor;
+	nat dag_count;
+	nat* dag;
+};
 
 int main(int argc, const char** argv) {
 	if (argc != 2) exit(puts("language: \033[31;1merror:\033[0m usage: ./asm <source.s>"));
@@ -1362,11 +1499,11 @@ int main(int argc, const char** argv) {
 
 	nat name_count = 0;
 	char* names[4096] = {0};
-	nat values[4096] = {0};
+	// nat values[4096] = {0};
 	nat locations[4096 * 2] = {0};
 
 	for (nat i = 0; i < variable_count; i++) {
-		values[name_count] = (nat) 0;
+		//values[name_count] = (nat) 0;
 		names[name_count++] = strdup(variable_spelling[i]);
 	}
 
@@ -1404,7 +1541,7 @@ parse_file:
 		for (n = 0; n < name_count; n++) if (not strcmp(names[n], word)) goto def;
 		locations[2 * name_count + 0] = s;
 		locations[2 * name_count + 1] = c;
-		values[name_count] = (nat) -1;
+		// values[name_count] = (nat) -1;
 		names[name_count++] = word;
 		goto arg;
 	ins:	if (op != rn or a != 2) ins_count++;
@@ -1440,13 +1577,13 @@ parse_file:
 		}
 		if (op == rn and a == 2) names[n] = strdup(""); 
 		if (op == rn and a == 3) { names[ins[ins_count].args[1]] = names[n]; name_count--; ins_count--; }
-		if (op == at and a == 2) values[n] = ins_count--;
+		// if (op == at and a == 2) values[n] = ins_count--;
 		if (op == use and a == 2) {
 			ins_count--;
 			struct file new = { .name = word };
 			new.text = read_file(new.name, &(new.count), undefined_location);
 			files[stack[stack_count]].index = i; 
-			stack[stack_count++] = file_count;
+			stack[++stack_count] = file_count;
 			files[file_count++] = new;
 			begin_at = 0;
 			goto parse_file;
@@ -1463,10 +1600,10 @@ parse_file:
 
 	puts("stage: checking for dictionary undefined/usage errors...");
 
-	for (nat i = 0; i < ins_count; i++) {
+/*	for (nat i = 0; i < ins_count; i++) {
 
 		nat op = ins[i].args[0];
-		nat dest = ins[i].args[1];
+		// nat dest = ins[i].args[1];
 		nat input0 = ins[i].args[2];
 		nat input1 = ins[i].args[3];
 
@@ -1478,29 +1615,32 @@ parse_file:
 			names[ins[i].args[3]]
 		);
 
-		if (not define_on_use(op, 2) and values[input0] == (nat) -1) {
+		if (not define_on_use(op, 2) ) { //and values[input0] == (nat) -1
 			struct source_location s = ins[i].source[2];
 			snprintf(reason, sizeof reason, "use of undefined word \"%s\"", names[input0]);
 			print_message(error, reason, s);
 			exit(1);
 		}
 
-		if (not define_on_use(op, 3) and values[input1] == (nat) -1) {
+		if (not define_on_use(op, 3) ) { // and values[input1] == (nat) -1
 			struct source_location s = ins[i].source[3]; 
 			snprintf(reason, sizeof reason, "use of undefined word \"%s\"", names[input1]);
 			print_message(error, reason, s);
 			exit(1);
 		}
 
-		if (values[dest] == (nat) -1) values[dest] = 0;
+		// if (values[dest] == (nat) -1) values[dest] = 0;
 	}
+*/
+
+
 
 
 	//puts("debug: finished parsing all input files.");
 
 	puts("passed. finished parsing.");
 
-	print_dictionary(names, values, locations, name_count);
+	print_dictionary(names, locations, name_count);
 	print_instructions(names, name_count);
 
 
@@ -1540,6 +1680,11 @@ parse_file:
 
 	puts("stage: constructing data flow DAG...");
 
+
+
+	nat graph[4096] = {0};
+	nat graph_count = 0;
+
 	for (nat i = 0; i < ins_count; i++) {
 
 		printf("instruction: "
@@ -1558,7 +1703,7 @@ parse_file:
 
 		//print_nodes(nodes, node_count, names);
 
-		if (arity(op) > 1 and not values[first]) {
+		if (arity(op) > 1) {// not values[first]
 			//printf("searching for first argument definition...\n");
 			for (nat j = node_count; j--;) {
 				//printf("looking for input0 nodes to this instruction: %llu / %llu...\n", j, i);
@@ -1572,12 +1717,14 @@ parse_file:
 				}
 			}
 
-			printf("ERROR: could not find definition of %s....\n", names[first]);
+			printf("ERROR: could not find forward definition of %s ... trying global node search...\n", names[first]);
+
+			
 			abort();
 		}
 
 	bubbles:
-		if (arity(op) > 2 and not values[second]) {
+		if (arity(op) > 2 ) {// and not values[second]
 			//printf("searching for second argument definition...\n");
 			for (nat j = node_count; j--;) {
 				//printf("looking for input1 nodes to this instruction: %llu / %llu...\n", j, i);
@@ -1597,6 +1744,8 @@ parse_file:
 	push:;
 		const nat statically_known = output_reg == var_zero or (nodes[input0].statically_known and nodes[input1].statically_known);
 
+
+		graph[graph_count++] = node_count;
 		nodes[node_count++] = (struct node) {
 			.data_outputs = {0},
 			.data_output_count = 0,
@@ -1605,10 +1754,13 @@ parse_file:
 			.op = ins[i].args[0],
 			.output_reg = output_reg,
 			.statically_known = statically_known,
-			.input0_value = not input0 ? values[first] : 0, 
-			.input1_value = not input1 ? values[second] : 0, 
+			.input0_value = 0,//not input0 ? values[first] : 0, 
+			.input1_value = 0,//not input1 ? values[second] : 0, 
 			.output_value = 0,
 		};
+
+		
+		
 		
 	}
 
@@ -1719,7 +1871,7 @@ parse_file:
 
 	if (architecture == noruntime) {
 		puts("executing output instructions now...");
-		execute_instructions(values, name_count);
+		//execute_instructions(values, name_count);
 		exit(0);
 	}
 
@@ -1737,15 +1889,48 @@ parse_file:
 				continue; 
 
 			} else if (nodes[i].op == add) {
+
 				
-				struct machine_instruction new = {0};
-					
-				new.op = arm64_add;
-				new.args[new.arg_count++] = nodes[i].output_reg;
-				new.args[new.arg_count++] = nodes[i].input0;
-				new.args[new.arg_count++] = nodes[i].input1;
-				new.instructions[new.ins_count++] = i;
-				mis[mi_count++] = new;
+				const nat i0 = nodes[i].input0;
+				const nat i1 = nodes[i].input1;
+				const nat or_sk = nodes[i].statically_known;
+				const nat i0_sk = nodes[i0].statically_known;
+				const nat i1_sk = nodes[i1].statically_known;
+
+				printf("found add node instruction! transforming into machineinstruction arm64_add...\n");
+				printf("found sk info: %llu, %llu, %llu\n", or_sk, i0_sk, i1_sk);
+				
+
+				if (or_sk) { 
+					puts("not generating, because this instruction is fully statically unknown, and thus already evaluated...");
+
+				} else if (i0_sk) {
+					struct machine_instruction new = {0};
+					new.op = arm64_addi;
+					new.args[new.arg_count++] = nodes[i].output_reg;
+					new.args[new.arg_count++] = nodes[i].input1;
+					new.args[new.arg_count++] = nodes[i].input0;
+					new.instructions[new.ins_count++] = i;
+					mis[mi_count++] = new;
+
+				} else if (i1_sk) {
+					struct machine_instruction new = {0};
+					new.op = arm64_addi;
+					new.args[new.arg_count++] = nodes[i].output_reg;
+					new.args[new.arg_count++] = nodes[i].input0;
+					new.args[new.arg_count++] = nodes[i].input1;
+					new.instructions[new.ins_count++] = i;
+					mis[mi_count++] = new;
+				} else {
+					struct machine_instruction new = {0};
+					new.op = arm64_add;
+					new.args[new.arg_count++] = nodes[i].output_reg;
+					new.args[new.arg_count++] = nodes[i].input0;
+					new.args[new.arg_count++] = nodes[i].input1;
+					new.instructions[new.ins_count++] = i;
+					mis[mi_count++] = new;
+				}
+
 
 			} else if (0) {
 			
@@ -1763,14 +1948,22 @@ parse_file:
 		exit(1);
 	}
 
-
 	print_machine_instructions();
+
+
+
+
+
+
+
+
+
+
 
 
 
 	puts("[done with final stage]");
 	abort();
-
 
 	
 
