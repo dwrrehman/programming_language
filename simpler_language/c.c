@@ -417,11 +417,22 @@ struct node {
 	nat input1;
 	nat op;
 	nat statically_known; 
-	nat input0_value;
-	nat input1_value;
+	//nat input0_value;
+	//nat input1_value;
 	nat output_value;
 };
 
+struct basic_block {
+	nat* data_outputs;
+	nat data_output_count;
+	nat* data_inputs;
+	nat data_input_count;
+	nat* predecessors;
+	nat predecessor_count;
+	nat successor;
+	nat dag_count;
+	nat* dag;
+};
 
 static nat stack_size = 0x1000000;
 
@@ -1316,18 +1327,18 @@ static void print_nodes(struct node* nodes, nat node_count, char** names) {
 			".or=%2llu (\"\033[36;1m%-10s\033[0m\") "
 			".0=%2llu (\"\033[33;1m%-10s\033[0m\") "
 			".1=%2llu (\"\033[33;1m%-10s\033[0m\") "
-			".0v=%2llu "
-			".1v=%2llu "
+			//".0v=%2llu "
+			//".1v=%2llu "
 			".ov=%2llu "
 			".oc=%2llu "
 			".o={ ", 
 			nodes[n].statically_known ? "\033[32;1mSK\033[0m" : "  ", n, 
 			nodes[n].op, spelling[nodes[n].op],
 			nodes[n].output_reg, names[nodes[n].output_reg],
-			nodes[n].input0, names[nodes[nodes[n].input0].output_reg],
-			nodes[n].input1, names[nodes[nodes[n].input1].output_reg],
-			nodes[n].input0_value,
-			nodes[n].input1_value,
+			nodes[n].input0, "[i0]", //names[nodes[nodes[n].input0].output_reg],
+			nodes[n].input1, "[i1]", //names[nodes[nodes[n].input1].output_reg],
+			//nodes[n].input0_value,
+			//nodes[n].input1_value,
 			nodes[n].output_value,
 			nodes[n].data_output_count
 		);
@@ -1474,17 +1485,40 @@ hmm
 
 
 */
-struct basic_block {
-	nat* data_outputs;
-	nat data_output_count;
-	nat* data_inputs;
-	nat data_input_count;
-	nat* predecessors;
-	nat predecessor_count;
-	nat successor;
-	nat dag_count;
-	nat* dag;
-};
+
+
+
+static void print_basic_blocks(struct basic_block* blocks, nat block_count, 
+			struct node* nodes, nat node_count, char** names
+) {
+	puts("blocks:");
+	for (nat b = 0; b < block_count; b++) {
+	
+		printf("block #%llu: {.count = %llu, .dag = { ", b, blocks[b].dag_count);
+
+		for (nat d = 0; d < blocks[b].dag_count; d++) {
+			printf("%llu ", blocks[b].dag[d]);
+		}
+		puts("}");
+	}
+	puts("[end of cfg]");
+
+	puts("printing out cfg with node data: ");
+
+	for (nat b = 0; b < block_count; b++) {
+	
+		printf("block #%llu:\n", b);
+
+		for (nat d = 0; d < blocks[b].dag_count; d++) {
+			printf("\tnode %llu:   %s  %llu(\"%s\") %llu %llu\n\n", blocks[b].dag[d], spelling[nodes[blocks[b].dag[d]].op], nodes[blocks[b].dag[d]].output_reg, names[nodes[blocks[b].dag[d]].output_reg], nodes[blocks[b].dag[d]].input0, nodes[blocks[b].dag[d]].input1 );
+		}
+		puts("}");
+	}
+	puts("[end of node cfg]");
+}
+
+
+
 
 int main(int argc, const char** argv) {
 	if (argc != 2) exit(puts("language: \033[31;1merror:\033[0m usage: ./asm <source.s>"));
@@ -1493,8 +1527,6 @@ int main(int argc, const char** argv) {
 				"backend is currently not fully implemented yet...", 
 			undefined_location
 	);
-
-
 
 
 	nat name_count = 0;
@@ -1633,19 +1665,7 @@ parse_file:
 	}
 */
 
-
-
-
-	//puts("debug: finished parsing all input files.");
-
-	puts("passed. finished parsing.");
-
-	print_dictionary(names, locations, name_count);
-	print_instructions(names, name_count);
-
-
-
-		/*if (not op or not define_on_use(op, a)) {
+	/*if (not op or not define_on_use(op, a)) {
 			snprintf(reason, sizeof reason, "use of undefined word \"%s\"", word);
 			print_message(error, reason, s, c);
 			exit(1);
@@ -1656,8 +1676,15 @@ parse_file:
 		code will create constants starting from the   pc   and   zero    because those two things are statically known. 
 	*/
 
+	//puts("debug: finished parsing all input files.");
 
 
+	puts("passed. finished parsing.");
+
+	print_dictionary(names, locations, name_count);
+	print_instructions(names, name_count);
+
+	
 	// constant propagation: 	static ct execution:
 	// 1. form data flow dag	
 	// 2. track which instructions have statically knowable inputs and outputs. (constants)
@@ -1677,13 +1704,10 @@ parse_file:
 	nodes[node_count++] = (struct node) { .output_reg = var_arg4 };
 	nodes[node_count++] = (struct node) { .output_reg = var_stacksize, .statically_known = 1 };
 	
-
 	puts("stage: constructing data flow DAG...");
 
-
-
-	nat graph[4096] = {0};
-	nat graph_count = 0;
+	struct basic_block blocks[4096] = {0};
+	nat block_count = 0;
 
 	for (nat i = 0; i < ins_count; i++) {
 
@@ -1695,57 +1719,30 @@ parse_file:
 			names[ins[i].args[3]]
 		);
 		
-		const nat op = ins[i].args[0];
+		//const nat op = ins[i].args[0];
 		const nat output_reg = ins[i].args[1];
-		const nat first = ins[i].args[2];
-		const nat second = ins[i].args[3];
+		//const nat first = ins[i].args[2];
+		//const nat second = ins[i].args[3];
 		nat input0 = 0, input1 = 0;
 
-		//print_nodes(nodes, node_count, names);
+		
 
-		if (arity(op) > 1) {// not values[first]
-			//printf("searching for first argument definition...\n");
-			for (nat j = node_count; j--;) {
-				//printf("looking for input0 nodes to this instruction: %llu / %llu...\n", j, i);
-				//printf("checking to see if nodes[j].output_reg(=%llu)(%s) == ins[i].args[2](=%llu)...\n", nodes[j].output_reg, names[nodes[j].output_reg], first);
-				if (nodes[j].output_reg == first) {
-					input0 = j;
-					//printf("FOUND INPUT0 = %llu!!!!\n", j);
-					//getchar();
-					nodes[j].data_outputs[nodes[j].data_output_count++] = node_count;
-					goto bubbles;
-				}
-			}
-
-			printf("ERROR: could not find forward definition of %s ... trying global node search...\n", names[first]);
-
-			
-			abort();
-		}
-
-	bubbles:
-		if (arity(op) > 2 ) {// and not values[second]
-			//printf("searching for second argument definition...\n");
-			for (nat j = node_count; j--;) {
-				//printf("looking for input1 nodes to this instruction: %llu / %llu...\n", j, i);
-				//printf("checking to see if nodes[j].output_reg(=%llu) (%s) == ins[i].args[3](=%llu)...\n", nodes[j].output_reg, names[nodes[j].output_reg], second);
-				if (nodes[j].output_reg == second) {
-					input1 = j;
-					//printf("FOUND INPUT1 = %llu!!!!\n", j);
-					//getchar();
-					nodes[j].data_outputs[nodes[j].data_output_count++] = node_count;
-					goto push;
-				}
-			}
-			printf("ERROR: could not find definition of %s....\n", names[second]);
-			abort();
-		}
-
-	push:;
-		const nat statically_known = output_reg == var_zero or (nodes[input0].statically_known and nodes[input1].statically_known);
+	//push:;
+		const nat statically_known = 
+			output_reg == var_zero or 
+			//input0 == -1 or
+			//input1 == -1 or
+			(nodes[input0].statically_known and 
+			 nodes[input1].statically_known
+			);
 
 
-		graph[graph_count++] = node_count;
+		if (ins[i].args[0] == at and blocks[block_count].dag_count) block_count++;
+
+		struct basic_block* block = blocks + block_count;
+
+		block->dag = realloc(block->dag, sizeof(nat) * (block->dag_count + 1));
+		block->dag[block->dag_count++] = node_count;
 		nodes[node_count++] = (struct node) {
 			.data_outputs = {0},
 			.data_output_count = 0,
@@ -1754,18 +1751,48 @@ parse_file:
 			.op = ins[i].args[0],
 			.output_reg = output_reg,
 			.statically_known = statically_known,
-			.input0_value = 0,//not input0 ? values[first] : 0, 
-			.input1_value = 0,//not input1 ? values[second] : 0, 
 			.output_value = 0,
 		};
 
-		
-		
-		
+		if (	ins[i].args[0] == lt or 
+			ins[i].args[0] == ge or 
+			ins[i].args[0] == ne or 
+			ins[i].args[0] == eq or 
+			ins[i].args[0] == do_ or 
+			ins[i].args[0] == dr
+		) block_count++;
 	}
+ 	block_count++;
+	
 
-	puts("done creating DAG nodes... printing DAG:");
+	puts("done creating isa nodes... printing nodes:");
 	print_nodes(nodes, node_count, names);
+
+	puts("done creating basic blocks... printing cfg/dag:");
+	print_basic_blocks(blocks, block_count, nodes, node_count, names);
+
+
+
+	puts("finished the trickiest stage.");
+	abort();
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+	
 
 
 	puts("stage: evaluating statically-known data_DAG nodes..");
@@ -1777,13 +1804,13 @@ parse_file:
 		if (not this.statically_known) {
 			// printf("not statically_known: skipping over node %llu...\n", i);
 
-			if (nodes[nodes[i].input0].statically_known) {
-				nodes[i].input0_value = nodes[nodes[i].input0].output_value;
-			}
+			//if (nodes[nodes[i].input0].statically_known) {
+			//	nodes[i].input0_value = nodes[nodes[i].input0].output_value;
+			//}
 
-			if (nodes[nodes[i].input1].statically_known) {
-				nodes[i].input1_value = nodes[nodes[i].input1].output_value;
-			}
+			//if (nodes[nodes[i].input1].statically_known) {
+			//	nodes[i].input1_value = nodes[nodes[i].input1].output_value;
+			//}
 
 			continue;
 		}
@@ -1792,11 +1819,11 @@ parse_file:
 		const nat op = this.op;
 		//const nat first = this.input0;
 		//const nat second = this.input1;
-		nat first_value = this.input0_value;
-		nat second_value = this.input1_value;
+		nat first_value = 0; //this.input0_value;
+		nat second_value = 0; //this.input1_value;
 
-		if (this.input0) first_value = nodes[i].input0_value = nodes[this.input0].output_value;
-		if (this.input1) second_value = nodes[i].input1_value = nodes[this.input1].output_value;
+		//if (this.input0) first_value = nodes[i].input0_value = nodes[this.input0].output_value;
+		//if (this.input1) second_value = nodes[i].input1_value = nodes[this.input1].output_value;
 
 		if (this.op == 0) {
 			puts("found null instruction node... ignoring...");
@@ -1963,6 +1990,7 @@ parse_file:
 
 
 	puts("[done with final stage]");
+
 	abort();
 
 	
@@ -2070,6 +2098,53 @@ parse_file:
 
 
 /*
+
+
+
+
+//print_nodes(nodes, node_count, names);
+
+		if (arity(op) > 1) {// not values[first]
+			//printf("searching for first argument definition...\n");
+			for (nat j = node_count; j--;) {
+				//printf("looking for input0 nodes to this instruction: %llu / %llu...\n", j, i);
+				//printf("checking to see if nodes[j].output_reg(=%llu)(%s) == ins[i].args[2](=%llu)...\n", 					//	nodes[j].output_reg, names[nodes[j].output_reg], first);
+				if (nodes[j].output_reg == first) {
+					input0 = j;
+					//printf("FOUND INPUT0 = %llu!!!!\n", j);
+					//getchar();
+					nodes[j].data_outputs[nodes[j].data_output_count++] = node_count;
+					goto bubbles;
+				}
+			}
+
+			printf("ERROR: could not find forward definition of %s ... trying global node search...\n", names[first]);
+
+			input0 = -1;
+		}
+
+	bubbles:
+		if (arity(op) > 2 ) {// and not values[second]
+			//printf("searching for second argument definition...\n");
+			for (nat j = node_count; j--;) {
+				//printf("looking for input1 nodes to this instruction: %llu / %llu...\n", j, i);
+				//printf("checking to see if nodes[j].output_reg(=%llu) (%s) == ins[i].
+					//  args[3](=%llu)...\n", nodes[j].output_reg, names[nodes[j].output_reg], second);
+				if (nodes[j].output_reg == second) {
+					input1 = j;
+					//printf("FOUND INPUT1 = %llu!!!!\n", j);
+					//getchar();
+					nodes[j].data_outputs[nodes[j].data_output_count++] = node_count;
+					goto push;
+				}
+			}
+			printf("ERROR: could not find definition of %s....\n", names[second]);
+			printf("ERROR: could not find forward definition of %s ... "
+				"trying global node search...\n", names[second]);
+			input0 = -1;
+		}
+
+
 
 
 
