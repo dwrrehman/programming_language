@@ -6,13 +6,133 @@
 
 /*
 
-	
+
+
+
+
+
+
+
+
+
+1	ms
+2	ec
+3	rn n
+4	at l 
+5	lf f
+
+6	ab p 
+7	ah p 
+8	aw p 
+9	ad p 
+
+10	ld d p
+11	st r p
+
+12	lr d o 
+13	sc d r
+14	lt l r s 
+15	ge l r s
+16	ne l r s 
+17	eq l r s 
+18	do l d
+19	dr d d
+20	setzero d
+21	increment d  
+
+
 
 (.x means x is a required argument.)
 
 	LANGUAGE ISA
-========================================================================= ec ms
+=========================================================================
 
+
+	ms					:	make operation signed. valid only for the instructions: lt, ge, ld, sr, muh.
+	ec					:	enviornment call
+
+	lf filename				: 	use existing source file
+	at label				:	attribute label address here
+	rn destname				:	remove name
+
+	ab address				:	set address for load/store with size 8 bits
+	ah address				:	set address for load/store with size 16 bits
+	aw address				:	set address for load/store with size 32 bits
+	ad address				:	set address for load/store with size 64 bits
+
+	ld destination 				:	load memory into register destination
+	st source 				:	store register source into memory
+	sc success source ordering		:	store conditional atomic instruction
+	lr destination ordering			:	load reserved atomic instruction
+
+	increment register 			:	increment register by 1.
+	setzero register 			:	set register to zero.
+	
+	lt label source0 source1 		:	branch to label if source0 is less than source1
+	ge label source0 source1 		:	branch to label if source0 is greater than or equal to source1
+	ne label source0 source1 		:	branch to label if source0 is not equal to source1
+	eq label source0 source1 		:	branch to label if source0 is equal to source1
+
+	dr source-pc destination-link 		:	jump-and-link to register containing pc value
+	do label destination-link		:	jump-and-link to label
+
+
+
+
+
+
+
+
+
+
+note: internally, only arithemetic branches are used to represent branches' conditions. 
+
+
+
+
+
+
+
+
+
+	OLD:
+
+
+1	ms
+2	ec
+3	rn n
+4	at l 
+5	use f
+6	ab p 
+7	ah p 
+8	aw p 
+9	ad p 
+10	ld r
+11	st r
+12	lr d
+22	sr d
+13	sc d r
+14	lt l r s 
+15	ge l r s
+16	ne l r s 
+17	eq l r s 
+18	add d r s 
+19	mul d r s 
+20	muh d r s 
+21	nor d r s 
+
+
+
+
+
+
+
+
+
+(.x means x is a required argument.)
+
+	LANGUAGE ISA
+=========================================================================
 
 	ms					:	make operation signed. valid only for the following instructions: 
 								at, lt, ge, ne, eq, lb, lh, lw, ld, slt, sr, mul, muh, div, rem.
@@ -24,8 +144,7 @@
 
 	rn .destname sourcename			:	rename / remove name
 
-	dr source destination 			:	jump-and-link to register
-	do label destination			:	jump-and-link to label
+
 
 	lt .label source0 source1 		:	branch to label if source0 is less than source1
 	ge .label source0 source1 		:	branch to label if source0 is greater than or equal to source1
