@@ -1,0 +1,145 @@
+[1mlanguage: (null): [1;35mwarning:[0m [1mthis assembler is currently a work in progress, backend is currently not fully implemented yet...[m
+read file: (length = 140): 
+<<<add i 
+
+at loop
+at begin
+	add i i ra
+	add j
+
+	at testifprime 
+	at loop2
+		add j j ra
+		lt loop2 j i
+
+	add j i i 
+	lt loop i sp
+
+add i sp sp
+>>>
+stage: checking for dictionary undefined/usage errors...
+passed. finished parsing.
+printing dictionary...
+	#0     :   _nullvar             .....     @{0,0}
+	#1     :   zero                 .....     @{0,0}
+	#2     :   ra                   .....     @{0,0}
+	#3     :   sp                   .....     @{0,0}
+	#4     :   argn                 .....     @{0,0}
+	#5     :   arga                 .....     @{0,0}
+	#6     :   argb                 .....     @{0,0}
+	#7     :   argc                 .....     @{0,0}
+	#8     :   argd                 .....     @{0,0}
+	#9     :   arge                 .....     @{0,0}
+	#10    :   argf                 .....     @{0,0}
+	#11    :   stacksize            .....     @{0,0}
+	#12    :   i                    .....     @{4,1}
+	#13    :   loop                 .....     @{11,4}
+	#14    :   begin                .....     @{19,5}
+	#15    :   j                    .....     @{42,1}
+	#16    :   testifprime          .....     @{49,11}
+	#17    :   loop2                .....     @{66,5}
+end of dictionary.
+instructions: {
+	0       	ins(.op = add    {  i            zero         zero        } -- [todo: add me]]
+	1       	ins(.op = at     {  loop         zero         zero        } -- [todo: add me]]
+	2       	ins(.op = at     {  begin        zero         zero        } -- [todo: add me]]
+	3       	ins(.op = add    {  i            i            ra          } -- [todo: add me]]
+	4       	ins(.op = add    {  j            zero         zero        } -- [todo: add me]]
+	5       	ins(.op = at     {  testifprime     zero         zero        } -- [todo: add me]]
+	6       	ins(.op = at     {  loop2        zero         zero        } -- [todo: add me]]
+	7       	ins(.op = add    {  j            j            ra          } -- [todo: add me]]
+	8       	ins(.op = lt     {  loop2        j            i           } -- [todo: add me]]
+	9       	ins(.op = add    {  j            i            i           } -- [todo: add me]]
+	10      	ins(.op = lt     {  loop         i            sp          } -- [todo: add me]]
+	11      	ins(.op = add    {  i            sp           sp          } -- [todo: add me]]
+}
+stage: constructing data flow DAG...
+instruction: {add i zero zero}
+instruction: {at loop zero zero}
+instruction: {at begin zero zero}
+instruction: {add i i ra}
+instruction: {add j zero zero}
+instruction: {at testifprime zero zero}
+instruction: {at loop2 zero zero}
+instruction: {add j j ra}
+instruction: {lt loop2 j i}
+instruction: {add j i i}
+instruction: {lt loop i sp}
+instruction: {add i sp sp}
+done creating isa nodes... printing nodes:
+printing 23 nodes...
+[[32;1mSK[0m] node #0    : {.op= 0 ("[35;1m_nullins  [0m") .or= 0 ("[36;1m_nullvar  [0m") .0= 0 ("[33;1m[i0]      [0m") .1= 0 ("[33;1m[i1]      [0m") .ov= 0 .oc= 0 .o={  } }
+[[32;1mSK[0m] node #1    : {.op= 0 ("[35;1m_nullins  [0m") .or= 1 ("[36;1mzero      [0m") .0= 0 ("[33;1m[i0]      [0m") .1= 0 ("[33;1m[i1]      [0m") .ov= 0 .oc= 0 .o={  } }
+[  ] node #2    : {.op= 0 ("[35;1m_nullins  [0m") .or= 2 ("[36;1mra        [0m") .0= 0 ("[33;1m[i0]      [0m") .1= 0 ("[33;1m[i1]      [0m") .ov= 0 .oc= 0 .o={  } }
+[  ] node #3    : {.op= 0 ("[35;1m_nullins  [0m") .or= 3 ("[36;1msp        [0m") .0= 0 ("[33;1m[i0]      [0m") .1= 0 ("[33;1m[i1]      [0m") .ov= 0 .oc= 0 .o={  } }
+[  ] node #4    : {.op= 0 ("[35;1m_nullins  [0m") .or= 4 ("[36;1margn      [0m") .0= 0 ("[33;1m[i0]      [0m") .1= 0 ("[33;1m[i1]      [0m") .ov= 0 .oc= 0 .o={  } }
+[  ] node #5    : {.op= 0 ("[35;1m_nullins  [0m") .or= 5 ("[36;1marga      [0m") .0= 0 ("[33;1m[i0]      [0m") .1= 0 ("[33;1m[i1]      [0m") .ov= 0 .oc= 0 .o={  } }
+[  ] node #6    : {.op= 0 ("[35;1m_nullins  [0m") .or= 6 ("[36;1margb      [0m") .0= 0 ("[33;1m[i0]      [0m") .1= 0 ("[33;1m[i1]      [0m") .ov= 0 .oc= 0 .o={  } }
+[  ] node #7    : {.op= 0 ("[35;1m_nullins  [0m") .or= 7 ("[36;1margc      [0m") .0= 0 ("[33;1m[i0]      [0m") .1= 0 ("[33;1m[i1]      [0m") .ov= 0 .oc= 0 .o={  } }
+[  ] node #8    : {.op= 0 ("[35;1m_nullins  [0m") .or= 8 ("[36;1margd      [0m") .0= 0 ("[33;1m[i0]      [0m") .1= 0 ("[33;1m[i1]      [0m") .ov= 0 .oc= 0 .o={  } }
+[  ] node #9    : {.op= 0 ("[35;1m_nullins  [0m") .or= 9 ("[36;1marge      [0m") .0= 0 ("[33;1m[i0]      [0m") .1= 0 ("[33;1m[i1]      [0m") .ov= 0 .oc= 0 .o={  } }
+[[32;1mSK[0m] node #10   : {.op= 0 ("[35;1m_nullins  [0m") .or=11 ("[36;1mstacksize [0m") .0= 0 ("[33;1m[i0]      [0m") .1= 0 ("[33;1m[i1]      [0m") .ov= 0 .oc= 0 .o={  } }
+[[32;1mSK[0m] node #11   : {.op=16 ("[35;1madd       [0m") .or=12 ("[36;1mi         [0m") .0= 0 ("[33;1m[i0]      [0m") .1= 0 ("[33;1m[i1]      [0m") .ov= 0 .oc= 0 .o={  } }
+[[32;1mSK[0m] node #12   : {.op= 4 ("[35;1mat        [0m") .or=13 ("[36;1mloop      [0m") .0= 0 ("[33;1m[i0]      [0m") .1= 0 ("[33;1m[i1]      [0m") .ov= 0 .oc= 0 .o={  } }
+[[32;1mSK[0m] node #13   : {.op= 4 ("[35;1mat        [0m") .or=14 ("[36;1mbegin     [0m") .0= 0 ("[33;1m[i0]      [0m") .1= 0 ("[33;1m[i1]      [0m") .ov= 0 .oc= 0 .o={  } }
+[[32;1mSK[0m] node #14   : {.op=16 ("[35;1madd       [0m") .or=12 ("[36;1mi         [0m") .0= 0 ("[33;1m[i0]      [0m") .1= 0 ("[33;1m[i1]      [0m") .ov= 0 .oc= 0 .o={  } }
+[[32;1mSK[0m] node #15   : {.op=16 ("[35;1madd       [0m") .or=15 ("[36;1mj         [0m") .0= 0 ("[33;1m[i0]      [0m") .1= 0 ("[33;1m[i1]      [0m") .ov= 0 .oc= 0 .o={  } }
+[[32;1mSK[0m] node #16   : {.op= 4 ("[35;1mat        [0m") .or=16 ("[36;1mtestifprime[0m") .0= 0 ("[33;1m[i0]      [0m") .1= 0 ("[33;1m[i1]      [0m") .ov= 0 .oc= 0 .o={  } }
+[[32;1mSK[0m] node #17   : {.op= 4 ("[35;1mat        [0m") .or=17 ("[36;1mloop2     [0m") .0= 0 ("[33;1m[i0]      [0m") .1= 0 ("[33;1m[i1]      [0m") .ov= 0 .oc= 0 .o={  } }
+[[32;1mSK[0m] node #18   : {.op=16 ("[35;1madd       [0m") .or=15 ("[36;1mj         [0m") .0= 0 ("[33;1m[i0]      [0m") .1= 0 ("[33;1m[i1]      [0m") .ov= 0 .oc= 0 .o={  } }
+[[32;1mSK[0m] node #19   : {.op=24 ("[35;1mlt        [0m") .or=17 ("[36;1mloop2     [0m") .0= 0 ("[33;1m[i0]      [0m") .1= 0 ("[33;1m[i1]      [0m") .ov= 0 .oc= 0 .o={  } }
+[[32;1mSK[0m] node #20   : {.op=16 ("[35;1madd       [0m") .or=15 ("[36;1mj         [0m") .0= 0 ("[33;1m[i0]      [0m") .1= 0 ("[33;1m[i1]      [0m") .ov= 0 .oc= 0 .o={  } }
+[[32;1mSK[0m] node #21   : {.op=24 ("[35;1mlt        [0m") .or=13 ("[36;1mloop      [0m") .0= 0 ("[33;1m[i0]      [0m") .1= 0 ("[33;1m[i1]      [0m") .ov= 0 .oc= 0 .o={  } }
+[[32;1mSK[0m] node #22   : {.op=16 ("[35;1madd       [0m") .or=12 ("[36;1mi         [0m") .0= 0 ("[33;1m[i0]      [0m") .1= 0 ("[33;1m[i1]      [0m") .ov= 0 .oc= 0 .o={  } }
+done
+done creating basic blocks... printing cfg/dag:
+blocks:
+block #0: {.count = 1, .dag = { 11 }
+block #1: {.count = 1, .dag = { 12 }
+block #2: {.count = 3, .dag = { 13 14 15 }
+block #3: {.count = 1, .dag = { 16 }
+block #4: {.count = 3, .dag = { 17 18 19 }
+block #5: {.count = 2, .dag = { 20 21 }
+block #6: {.count = 1, .dag = { 22 }
+[end of cfg]
+printing out cfg with node data: 
+block #0:
+	node 11:   add  12("i") 0 0
+
+}
+block #1:
+	node 12:   at  13("loop") 0 0
+
+}
+block #2:
+	node 13:   at  14("begin") 0 0
+
+	node 14:   add  12("i") 0 0
+
+	node 15:   add  15("j") 0 0
+
+}
+block #3:
+	node 16:   at  16("testifprime") 0 0
+
+}
+block #4:
+	node 17:   at  17("loop2") 0 0
+
+	node 18:   add  15("j") 0 0
+
+	node 19:   lt  17("loop2") 0 0
+
+}
+block #5:
+	node 20:   add  15("j") 0 0
+
+	node 21:   lt  13("loop") 0 0
+
+}
+block #6:
+	node 22:   add  12("i") 0 0
+
+}
+[end of node cfg]
+finished the trickiest stage.

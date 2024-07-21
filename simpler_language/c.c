@@ -6,12 +6,777 @@
 
 /*
 
+202407162.195134:
+
+
+	e			: system call
+	r			: return
+
+	rn r			: remove name
+	lf f			: load file
+
+	a l			: attribute label
+	p r			: attribute operation input/output parameter
+
+	o d			: setzero operation
+	i d			: increment operation
+	n d			: bitwise-invert operation
+
+	l t d p                 : memory load operation          <------- t is statically known: the number of bytes. (load-signed if t is negative!)
+	s t p r			: memory store operation         <------- t is statically known: the number of bytes.
+
+	lr o d p 	        : atomic load reserved operation        <------- o is statically known: the memory ordering: 0 through 3.
+	sc o d r p		: atomic store conditional operation    <------- o is statically known: the memory ordering: 0 through 3.
+
+	lt l r s 		: branch if less than
+	ge l r s		: branch if greater than or equal
+	ls l r s 		: branch if less than (signed)
+	gs l r s		: branch if greater than or equal (signed)
+	ne l r s 		: branch if not equal to
+	eq l r s 		: branch if equal to
+
+
+
+
+
+				20 instructions
+
+
+									...i think this is the isa!!! found on 202407162.195134! quite simple!!!
 
 
 
 
 
 
+								heres a loop
+
+
+											o counter 
+
+											o limit 
+											i limit 
+											i limit
+											i limit    <--------------- hmm.. ahhh.. saying the name each increment 
+														is actually quite rough... uhh.... 
+															maybe it should be stack based then?? hmmmm
+															that would solve our argument problem for
+															user defined functionsssss actuallyyy
+																well.. kind of. not actually.. crap
+
+															i guess this repetition shouldnt ever really
+															come up in real code, because we'll have "set".
+															   ..and like, constants (made at user level)
+											a label 
+												i counter 
+												lt label counter limit
+											
+
+
+
+
+
+
+
+
+
+				oh wait!
+					we can make the     use of just a label as is,   a function call maybe!!! yeah!!! niceeee 
+
+
+					okay coollll that worksss
+
+
+											niceee
+
+
+					
+							now we just need some way of allowing the user to specify the number of arguments that a given function takes.. 
+
+								uhh
+
+									(compiletime function of course lolol)
+
+
+									hmmmmm
+
+
+
+							maybe we could do something like 
+
+
+
+
+
+
+									arg register-name
+
+									after the function "at"    and thus we know that this is an argument to this function!
+
+										a register argument 
+
+
+											niceeee
+
+
+
+
+
+								okay that could work, its unary, and simple, and now the compiler knows how many to expect, and the order of these arguments too, just based on the lsting of 
+
+										at functionname 
+											arg param0
+											arg param1
+											arg param2
+
+											return
+
+
+
+						which would probably re spelt to be simply:
+
+
+
+										a functionname 
+											p param0
+											p param1
+											p param2
+
+											r
+
+	
+
+
+
+							which i think its better lololl 
+
+
+					so yeah!
+
+
+					now, note, 
+
+
+							you cannot call a function which hasnt been defined yet, i think,right?
+
+
+
+			well actually no!!!!
+
+
+			its alwaysss unambigiousssss
+
+
+
+				when one list of arguments from the previous instruction    ends   and when the next one begins!!!
+
+
+					niceeeee okay this is awesome actually wow 
+
+
+
+
+									EXCEPTTTT WAIT WAIT      EXCEPTTTT        when there are two user defined function calls 
+
+
+													next to each other, 
+
+
+
+
+
+											then those have to get parsed out... as a seperate stage lol.   crap hmm... 
+
+
+
+
+
+						okay, i mean, i feel like this is not really an issue, kinda?
+
+
+
+
+	well wait though, what if you wanted to pass a label into a function???
+
+
+
+					OH WAITTT THE ARITY
+
+
+							NICEEEE
+
+
+					BEAUTIFULLLL
+
+									okay yeah so given the start of the name in the sequence,   then you alwayssss know the first function call, the number of arguments, then the next function call, then its arguments, etc all the way until you finally reach an instruction which is   
+
+
+							like,      built in!
+
+
+
+	
+
+now, note 
+
+
+	i kindaaa want to support calling a function which is... 
+
+		like, 
+
+			afterrrr where its defined, 						ie,       call     and thennn   definition
+
+				because in actually assembly, you can do that lolol  its all just jump-and-link stateements lol. 
+
+
+	hmmm idk 
+		
+
+		seems difficultttt lolol 
+
+
+
+				OH ALSOOO
+							CRAPPP
+
+
+
+		problem 
+
+					we actually need to figure out some way to load the return address, 
+
+
+
+						because we actually need to figure out some way to store that somewhere, 
+
+									SO THATTT we can perform more function calls lol.    so yeah. thats actually kind of an important step lol. 
+
+
+
+
+						see, in c,   this is all just implicitly happening on the stack, 
+
+
+
+
+
+
+														in memory, 
+
+
+
+
+
+					but in this language, we just give you the registers-  and if you want memory, you have to load/store from it yourselffff
+
+
+
+
+									so yeah.     cool beans 
+
+
+
+
+
+					i think we need an          ra r         instruction          which loads the return-address (ra)   into a given register. 
+
+
+
+			and similarly, i feel like we need a         sp r            instruction    which loads the stack-pointer (sp)   into a given register. 
+
+
+
+
+		probably required, if i had to guess lol...      sooooooo yeah lol. cool. so lets do that i guess. 
+
+
+					thats two more instructions lol. so yeah. nice
+
+
+
+	wait actually i think we can just     build in      ra  and sp     as variables into the language, i think, thats probably simpler lol. mmk. 
+
+
+
+		because like, we need      discard,   arga, argb, argc, argd, arge, argf, argn       for system calls and deleting DAG results. or like, marking them as used i mean lol. so yeah. 
+
+						cool 
+
+
+
+									10 variables that are predefined i think     not tooooo bad   i guess
+
+
+
+			
+
+
+
+202407162.203818:
+
+
+	to handle this case               function1 params1 function2 params2 function3 params3
+
+	which just looks like, to the compiler, a single function call, 
+		we first just 
+
+basically, we need to detect the first function call
+
+						wait
+
+												no that doesnt even workkkk 
+
+
+
+							because we need to know the arityyyy of the functionnnnn omg    crappppppp 
+
+				hmmm dangggg that actually sucks i guess hmm...... 
+
+
+					we can't even just like skip the section too, because the only way we can know if we found the regular sequence of instructions now, is the arityyyy thats literally the only wayyyyy to know if we are doing the right thinggg    CRAPPPP
+
+
+
+	hmmm oh noooooo okay this needs more thought lol 
+
+
+
+		we were so closeeee to the syntax of 
+
+
+
+				functionname a b c 
+
+
+			actually being the syntax for function calls   ANDDDD unconditional goto statements...      DAMNN
+
+
+					literally so close
+
+
+
+			hmmmm...... ill think about it moreee 
+
+
+
+
+
+
+
+
+
+FACT:
+		i want there to be NO argument passing. 
+
+
+			i want it to be literally invisible. 
+
+			and ideallyyyy it would use names. 
+
+				but the problem is-   using the same code in multiple places,  makes this difficult, because like, we need to reaname the registers   internally, to be routed to something different for each call instanceeeee
+
+
+						yeah, thats the mainnn problem i think 
+
+
+								and like, it feels like           p parameter     after the      "a function name" part  
+
+										is good, solves the definition situation, 
+
+
+
+
+							but the call, still needs the list of arguments, of which, i don't like. 
+
+
+
+					okay soooooooo 
+									sooooooo
+
+
+
+			what iffffff
+							we were to... idk.. just like... 
+
+
+		not use that syntax/way of doing things?... hmm well 
+
+
+	i mean 
+
+		hmm 
+						like,   what if we were to uh
+
+
+
+								figure out some way to give arguments that the history of names you have said so far, to pass thattt to the function?
+
+
+
+						orrr
+
+
+
+		what if we were to 
+						well ideallyyyyyyy each dag computation didnt take arguments at alllll then this wouldnt even be an issue lolol 
+
+
+
+							but like, for things like,        add       or    set     for instance, 
+
+
+
+
+											these things come up   LITERALY ALL THE TIMEEE in code lol 
+
+
+
+									and like, technically the are a loop with an increment in the body of the loop    in this language,now, 
+
+
+								which is good, and totally fine  lol
+
+
+
+											but like,      the problem we have now, is that     we want to be able to write this  code for "set"         ONCE     and then just use that code everywhere else- and have the functions always inline away because they are statically known branches, technically speaking lol. so yeah!
+
+
+
+							like, that shoulddd be possible, but then a couple problems with that-
+
+
+
+
+
+			well,
+
+					OH WAIT!!!!
+
+
+						okay first of all, to solve the returnaddress problem; 
+
+
+
+										WE JUST TRANSFORM THE RETURN INTO A GOTO      i think      for each call???
+
+
+							hmmm 
+
+
+									so really, we only have a syntactic function-  we don't really need  the function to actually behave in terms of the   ra/sp stuff (and abi stuff)     as a function
+
+
+								it just has to be appear that way, in terms of   ignoring   compiletime evaluation  and thinking about the code   just in terms of the runtime equivalent lol 
+
+
+
+
+		okay, so 
+				a function  p input0  p input1  p input2                   <-------- all these are unary instructions! nice.
+
+					r						<------- doesnt do any    ra stuff at all!    because we statically know the
+														goto's and calls and branches and labels statically
+													like, entirely (even if its in a language standard library file,
+
+																we can inline all of this per call!!
+
+
+																	as just control flow alone!
+																		nice.
+
+
+
+
+
+now, 
+
+
+	i think in the future, we mightttt want to allow for externallll function calls,   
+
+		ie,   functions definitions, and function calls, which follow the C ABI   to the letter-  so that we can interop with any other libraries lol. 
+
+
+
+					we'll probably do that wayyyy down the line lol.  for now, this is the way we are going to do function calls, i think. nice!
+
+
+
+
+
+
+
+
+
+cool, so now, we just need to figure out the call. 
+
+
+
+		either, we need to enforce functions being defined before they are used, 
+
+				orrrr we need to make function calls have some     "call"  thingy at the beginning. 
+
+
+
+								one makes a TONN more sense than the other LOL 
+
+
+
+
+
+				so yeah, we are probablyyyy just going to have      functions have to be defined before use, which looks like:
+
+
+
+			
+
+
+	a myoperation p x p y
+		i x 
+		o y i y
+		r
+
+
+
+	a main p argc p argv
+
+		o a o b
+		myoperation a b
+		r
+
+
+
+
+
+
+pretty interesting!!!
+
+
+	i think this is the way to go. 
+
+	note: 
+
+		if you want to branch to something that actually is NOT defined yet, 
+
+			for instance the following code:
+
+
+
+					
+					code1
+					code2
+					code3
+					skip
+					nop
+					nop
+					nop
+				at skip	
+					code4
+					code5
+					code6
+
+
+		i actually don't know if thats allowed??? i think it is??
+
+					i think we just consider it a branch alwayssss if its already defined.   yeah. probably. okay cool, nice. 
+
+
+					and if it is defined, we check its arity, and then we recognize thatttt many arguments. basically. 
+
+							note, you cannnnn technicallyyyyyyy perform   forward-branching function calls, using this-
+
+
+										IFFFFFF      they have an arity of zero          LOL 
+
+
+									cool lol   thats   uhh kinda interesting i think 
+
+
+
+								lol 
+
+												yeah, i think thats working as intended lololol  kinda complex, but its fine lol 
+
+
+
+
+				
+				
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+	wow this language might actually HAPPENNNNN WOWWW
+
+
+				niceeeeeeee i'm super excited to code this up now,  i feel like its actually quite thought through now, 
+
+
+			i feel like everything in the language makes sense, now, i thinkkkk 
+
+
+
+	oh wait! do we give access to the return addressss 
+
+
+		i feel like we don't neccessarily need to now? beacuse like, we can alwaysssssss validly (without any special manipulations/concerns) 
+	
+
+							nest function calls 
+
+
+											ie, calling a function, while you are defining a function, 
+
+
+
+
+					and like, thats alwaysss fine to do, because the compiler can just easily figure out that each function invocation needs a unique RA,   and thus, you never need actual access to ra ever lol... so thats cool!
+
+
+
+				niceee
+
+							yay
+
+										we just give the function call syntax, as instructions,  and thats it!  niceee
+
+
+
+
+
+													a label        p parameter          and    r    
+
+
+
+								those are the only syntax thats used for function calls, and the first thing is used for branches too!
+
+
+												lol. nice. this is quite cool actually. interesting. 
+
+
+
+
+
+			
+
+
+
+
+
+
+
+
+
+
+
+
+
+other stuff ----------------
+
+
+
+
+
+
+
+
+
+
+
+202407162.191730:
+we can use single letter names, because we are always requiring all arguments to be supplied for a given instruction, so we know that the first position for a instruction word sequence is always one of the above names,  l, g, ls, gs, etc.
+
+
+alsooo
+
+
+	lb d p           <---------------------i think we can get the signed versions of lb, lh, lw, using  not on a zerod register before loading! ie, r = -1;
+	lh d p
+	lw d p											maybe?... hmmmm.. wait i think the riscv semantics are differentttt...
+	ld d p
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+2	ec
+3	at l
+4	rn n
+5	lf f
+
+6	lc d p
+7	ls d p
+8	li d p
+
+6	lb d p
+7	lh d p
+8	lw d p
+9	ld d p
+
+10	sb p r 
+11	sh p r 
+12	sw p r 
+13	sd p r 
+
+14	lr d o 
+15	sc d r o
+
+16	lt l r s 
+17	ge l r s
+16	ls l r s 
+17	gs l r s
+18	ne l r s 
+19	eq l r s 
+
+20	do d l
+21	dr d r
+
+22	setzero d
+23	increment d  
+
+
+
+
+
+
+
+dr d r --->   return  (no arguments),  equivalent to        dr zero ra
+
+do d l -->    call l       (one argument)       equivalent to    do ra l 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ 
 
 
 

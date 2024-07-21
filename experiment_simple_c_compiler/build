@@ -1,0 +1,14 @@
+#!/bin/zsh
+
+if [ "release" = "$1" ]; then
+	clang -Ofast c.c -Weverything -o run
+
+elif [ "clean" = "$1" ]; then
+	echo unimplemented
+
+elif [ "" = "$1" ]; then 
+	clang -g -O0 c.c -Weverything -fsanitize=address,undefined -Wno-declaration-after-statement -o run -ferror-limit=1
+
+else 
+	echo "build: unknown target: $1"
+fi

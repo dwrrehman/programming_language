@@ -1,0 +1,109 @@
+
+1	ms
+2	ec
+3	at l
+4	rn n
+5	lf f
+
+6	lb d p
+7	lh d p
+8	lw d p
+9	ld d p
+
+10	sb p r 
+11	sh p r 
+12	sw p r 
+13	sd p r 
+
+14	lr d o 
+15	sc d r o
+
+16	lt l r s 
+17	ge l r s
+18	ne l r s 
+19	eq l r s 
+
+20	do d l
+21	dr d r
+
+22	setzero d
+23	increment d  
+
+
+problems:
+
+	- fix the ra, do, dr system, and use of the return address register... 
+			figure out when a register is used as a return address, rather. 
+
+
+	- simplify the load/store system and  ms     to maybe add a sign extend thingy?.. idk.. hm.. 
+
+
+	- add the signed version of the branches, so that we dont need ms.    ie, 
+
+			lts,  ges,     which are signed less than   signed greater than equal to 
+
+		simpler mental model for programmer, basically, and shorter to write!
+
+
+				only adds two instructions lol. 
+
+2	ec
+3	at l
+4	rn n
+5	lf f
+
+6	lc d p
+7	ls d p
+8	li d p
+
+6	lb d p
+7	lh d p
+8	lw d p
+9	ld d p
+
+10	sb p r 
+11	sh p r 
+12	sw p r 
+13	sd p r 
+
+14	lr d o 
+15	sc d r o
+
+16	lt l r s 
+17	ge l r s
+16	lts l r s 
+17	ges l r s
+18	ne l r s 
+19	eq l r s 
+
+20	do d l
+21	dr d r
+
+22	setzero d
+23	increment d  
+
+ec at rn lf lbs
+
+
+
+
+
+actually maybe we keep the ms  instruction??... its providing the     at ms   thingy toooooo crapppp 
+
+
+	hmmmm 
+			otherwise we would need some way to make the language able to specify the callonuse semantics for a label.... hm...... crappppp
+
+
+uhh
+
+
+yeah for now we'll keep the ms, i think... hm... dang 
+
+
+
+thats alright
+
+
+
