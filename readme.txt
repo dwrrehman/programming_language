@@ -1,8 +1,20 @@
-      a RISC-V cross assembler:   
- written on 202405127.013227 by dwrr. 
---------------------------------------
+a compiler for a programming language
+---------------------------------------
+written by dwrr on 202407217.003650
 
-this is the assembler/compiler/interpreter for a RISC-V-like language that is designed to target mulitple ISA's, including RV32/64, arm32/64, and x86/x64. the language is similar to forth, as arguments are specified in postfix notation, via an argument stack. the language has a compiletime system that allows any runtime instruction to be executed at compiletime, excluding system calls. the language is somewhat terse in comparison to assembly, as most built in operators/instructions in the language are a single character. 
+this is a language that is designed to be as simple as possible, without loosing any control on performance on the target architectures that it chooses to target. 
+
+this language targets risc-v (32 bit and 64 bit) arm (32 bit and 64 bit) as well as possibly x86-64, in the future. the first two archs and their two subtypes are the main priorities in the language, however.
+
+the language's current isa consists of only branches, loads and stores, and the increment and set-zero operations, currently. this is subject to change. 
+
+this language is still majorly a work in progress, and is going through a lot of developmental changes to do with how arguments are passed to instructions in the language. it should all be worked out fairly soon though (hopefully)
+
+
+hope you find it interesting!
+
+
+dwrr
 
 
 
