@@ -74,6 +74,8 @@ example code, usage of the "obs" instruction
 
 
 
+stands for "observable", and is used for making a function live outside of another function, but of course still being able to call all of the stuff it had access to while in side the parent function. useful for making interfaces to certain api's.
+
 
 
 
@@ -212,17 +214,8 @@ enum language_isa {
 	div_, dvs, rem, rms, and_, or_, eor, 
 	sr, srs, sl, s_, z_, not_, 
 	lt, ge, lts, ges, eq, ne, 
-	ld, st, lf 
-at  l 
-reg r
-rdo r
-env
-def o
-ar r
-ret
-obs
-
-
+	ld, st, lf, at, reg, rdo, 
+	env, def, ar, ret, obs,
 	isa_count
 };
 
@@ -232,7 +225,8 @@ static const char* spelling[isa_count] = {
 	"div", "dvs", "rem", "rms", "and", "or", "eor", 
 	"sr", "srs", "sl", "s", "z", "not", 
 	"lt", "ge", "lts", "ges", "eq", "ne", 
-	"ld", "st", "lf", "at", "reg", "env",
+	"ld", "st", "lf", "at", "reg", "rdo", 
+	"env", "def", "ar", "ret", "obs",
 };
 
 
@@ -275,13 +269,13 @@ static const char* variable_spelling[variable_count] = {
 	"__null_var__",
 	"stackpointer",
 	"stacksize",
-	"argn",
-	"arga",
-	"argb",
-	"argc",
-	"argd",
-	"arge",
-	"argf",
+	"envn",
+	"enva",
+	"envb",
+	"envc",
+	"envd",
+	"enve",
+	"envf",
 };
 
 struct file {
@@ -697,7 +691,7 @@ static nat arity(const nat op) {
 		abort();
 	}
 
-	if (op == env) return 0;
+	if (op == env or op == ret or op == obs) return 0;
 
 	if (
 		op == s_ or 
@@ -705,7 +699,9 @@ static nat arity(const nat op) {
 		op == not_ or 
 		op == lf or 
 		op == at or 
-		op == reg
+		op == reg or
+		op == rdo or
+		op == ar
 	) return 1;
 
 
@@ -935,7 +931,7 @@ parse_file:
 		if (op == rn and a == 2) names[n] = strdup(""); 
 		if (op == rn and a == 3) { names[ins[ins_count].args[1]] = names[n]; name_count--; ins_count--; }
 		// if (op == at and a == 2) values[n] = ins_count--;
-		if (op == use and a == 2) {
+		if (op == lf and a == 2) {
 			ins_count--;
 			struct file new = { .name = word };
 			new.text = read_file(new.name, &(new.count), undefined_location);
