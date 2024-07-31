@@ -1,0 +1,4 @@
+#!/bin/zsh
+clang -g -Weverything -O0 -fsanitize=address,undefined -o run c.c -ferror-limit=1 -Wno-declaration-after-statement
+
+

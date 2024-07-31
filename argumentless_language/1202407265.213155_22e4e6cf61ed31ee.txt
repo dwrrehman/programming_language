@@ -1,0 +1,2 @@
+#!/bin/zsh
+clang -g -Weverything -O0 -fsanitize=address,undefined -o run c.c
