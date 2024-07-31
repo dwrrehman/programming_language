@@ -6,7 +6,7 @@
 copyb insert ./build
 copya do ,./run
 
-
+line 279
 
 
 rename todo:
@@ -71,7 +71,6 @@ struct instruction {
 };
 
 struct function {
-	nat entry;
 	nat arity;
 	nat* arguments;
 	struct instruction* body;
@@ -87,6 +86,7 @@ struct dictionary {
 struct scope {
 	nat** list;
 	nat* count;
+	nat function;
 };
 
 
@@ -138,11 +138,24 @@ static void debug_scopes(struct scope* scopes, nat scope_count) {
 	puts("done");
 }
 
+static void debug_functions(struct function* functions, nat function_count) {
+
+	printf("functions: (%llu count)\n", function_count);
+	for (nat f = 0; f < function_count; f++) {
+		printf("%llu: .args = (%llu)[ ", f, functions[f].arity);
+		for (nat a = 0; a < functions[f].arity; a++) {
+			printf("%llu ", functions[f].arguments[a]);
+		}
+		puts("]");
+		puts("body: ");
+		debug_instructions(functions[f].body, functions[f].body_count);
+		puts("[end-body]");
+	}
+	puts("done");
+}
+
 
 static void parse(char* text, const nat text_length) {
-
-	struct instruction* ins = NULL;
-	nat ins_count = 0;
 
 	struct function* functions = NULL;
 	nat function_count = 0;
@@ -152,6 +165,7 @@ static void parse(char* text, const nat text_length) {
 
 	scopes[0].list = calloc(2, sizeof(nat*));
 	scopes[0].count = calloc(2, sizeof(nat));
+	scopes[0].function = 0;
 
 	struct dictionary d = {0};
 
@@ -161,10 +175,10 @@ static void parse(char* text, const nat text_length) {
 
 		functions = realloc(functions, sizeof(struct function) * (function_count + 1));
 		functions[function_count++] = (struct function) {
-			.entry = d.count,
 			.arity = a,
 			.arguments = calloc(a, sizeof(nat)),
-			.body = NULL
+			.body = NULL,
+			.body_count = 0,
 		};
 
 		scopes[0].list[0] = realloc(scopes[0].list[0], sizeof(nat) * (scopes[0].count[0] + 1));
@@ -173,7 +187,7 @@ static void parse(char* text, const nat text_length) {
 		d.names = realloc(d.names, sizeof(char*) * (d.count + 1));
 		d.values = realloc(d.values, sizeof(nat) * (d.count + 1));
 		d.names[d.count] = strdup(ins_spelling[i]);
-		d.values[d.count++] = 0;
+		d.values[d.count++] = function_count - 1;
 	}
 
 	for (nat i = 0; i < builtin_count; i++) {
@@ -183,7 +197,7 @@ static void parse(char* text, const nat text_length) {
 		d.names = realloc(d.names, sizeof(char*) * (d.count + 1));
 		d.values = realloc(d.values, sizeof(nat) * (d.count + 1));
 		d.names[d.count] = strdup(builtin_spelling[i]);
-		d.values[d.count++] = 1;
+		d.values[d.count++] = 0;
 	}
 
 	nat word_length = 0, word_start = 0, in_args = 0, arg_count = 0;
@@ -198,17 +212,13 @@ static void parse(char* text, const nat text_length) {
 		
 		printf("%llu:%llu: @ word: %s..\n", word_start, word_length, word);
 
-		debug_instructions(ins, ins_count);
-		debug_dictionary(d);
-		debug_scopes(scopes, scope_count);
-
 		nat name = -1;
 		for (nat s = scope_count; s--;) {
 			nat* list = scopes[s].list[in_args];
 			nat count = scopes[s].count[in_args];
 			for (nat i = 0; i < count; i++) {
 				if (not strcmp(d.names[list[i]], word) and 
-					in_args == d.values[list[i]]) {
+					in_args != d.values[list[i]]) {
 
 					puts("found name!");
 					puts(word);
@@ -223,17 +233,16 @@ static void parse(char* text, const nat text_length) {
 			puts("unknown operation: ");
 			puts(word);
 			printf("in_args = %llu\n", in_args);
-
-			debug_instructions(ins, ins_count);
-			debug_dictionary(d);
-
 			abort();
 
 		} else {
 			puts("defining a new name:");
 			puts(word);
 	
-			if (ins[ins_count - 1].args[0] == def) goto found;
+			if (functions[scopes[scope_count - 1].function]
+				.body[functions[scopes[scope_count - 1]
+				.function].body_count - 1]
+				.args[0] == def) goto found;
 			const nat t = 1;
 			scopes[scope_count - 1].list[t] = 
 			realloc(scopes[scope_count - 1].list[t], 
@@ -244,21 +253,32 @@ static void parse(char* text, const nat text_length) {
 			d.names = realloc(d.names, sizeof(char*) * (d.count + 1));
 			d.values = realloc(d.values, sizeof(nat) * (d.count + 1));
 			d.names[d.count] = word;
-			d.values[d.count++] = t;
+			d.values[d.count++] = 0;
 			name = d.count - 1;
 		}
 	found:
 		if (not in_args) {
-			ins = realloc(ins, sizeof(struct instruction) * (ins_count + 1));
-			ins[ins_count++] = (struct instruction) {0};
+
+			functions[scopes[scope_count - 1].function].body = 
+			realloc(functions[scopes[scope_count - 1].function].body
+			, sizeof(struct instruction) * (functions[scopes[
+			scope_count - 1].function].body_count + 1));
+			functions[scopes[scope_count - 1].function].
+			body[functions[scopes[scope_count - 1].
+			function].body_count++] = (struct instruction) {0};
+
 			in_args = 1;
 		}
 
-		ins[ins_count - 1].args[arg_count++] = name;
+		functions[scopes[scope_count - 1].function].body[
+		functions[scopes[scope_count - 1].function].body_count - 1]
+		.args[arg_count++] = name;
 
-		const nat op = ins[ins_count - 1].args[0];
+		const nat op = functions[scopes[scope_count - 1].function]
+		.body[functions[scopes[scope_count - 1].function]
+		.body_count - 1].args[0];
 
-		if (arg_count == functions[op].arity + 1) {
+		if (arg_count == functions[d.values[op]].arity + 1) {
 
 			if (op == ret) {
 				puts("executing ret....");
@@ -276,9 +296,7 @@ static void parse(char* text, const nat text_length) {
 				puts(word);
 				
 				functions = realloc(functions, sizeof(struct function) * (function_count + 1));
-				functions[function_count++] = (struct function) {
-					.entry = d.count
-				};
+				functions[function_count++] = (struct function) {0};
 
 				const nat t = 0;
 				scopes[scope_count - 1].list[t] = 
@@ -290,18 +308,29 @@ static void parse(char* text, const nat text_length) {
 				d.names = realloc(d.names, sizeof(char*) * (d.count + 1));
 				d.values = realloc(d.values, sizeof(nat) * (d.count + 1));
 				d.names[d.count] = word;
-				d.values[d.count++] = t;
-				ins[ins_count - 1].args[arg_count - 1] = d.count - 1;
+				d.values[d.count++] = function_count - 1;
+				functions[scopes[scope_count - 1].function].body[
+				functions[scopes[scope_count - 1].function].body_count - 1]
+				.args[arg_count - 1] = d.count - 1;
 
 				scopes = realloc(scopes, sizeof(struct scope) * (scope_count + 1));
 				scopes[scope_count++] = (struct scope) {0};
 				scopes[scope_count - 1].list = calloc(2, sizeof(nat*));
 				scopes[scope_count - 1].count = calloc(2, sizeof(nat));
+				scopes[scope_count - 1].function = function_count - 1;
 
 			}
 			in_args = 0; 
 			arg_count = 0; 
 		}
+
+		puts("finished with word");
+		puts(word);
+
+		debug_dictionary(d);
+		debug_functions(functions, function_count);
+		debug_scopes(scopes, scope_count);
+
 		word_length = 0;
 	}
 }
