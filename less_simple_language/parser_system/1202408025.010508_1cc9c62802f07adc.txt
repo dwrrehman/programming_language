@@ -1,0 +1,6774 @@
+
+
+
+
+
+
+	// puts("just parsed:");
+	// puts(text);
+	// printf("text_length = %llu\n", text_length);
+
+
+
+
+
+
+
+
+
+/*
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+info: now processing file: simple.s...
+2:4: @ word: zero..
+finished with word
+zero
+dictionary: (12 count)
+    0: .name =                   (), .value =     0
+    1: .name =                 zero, .value =     1
+    2: .name =                 incr, .value =     2
+    3: .name =                 decr, .value =     3
+    4: .name =                  add, .value =     4
+    5: .name =                  def, .value =     5
+    6: .name =                  ret, .value =     6
+    7: .name =                   ar, .value =     7
+    8: .name =                   lf, .value =     8
+    9: .name =                 (nv), .value =     0
+   10: .name =         stackpointer, .value =     0
+   11: .name =            stacksize, .value =     0
+done
+
+functions: (9 count)
+    0: .args = (2)[     0     0 ]
+body: 
+instructions: (1 count) 
+    0:                 zero : 1                       () : 0                       () : 0                       () : 0    
+done
+
+[end-body]
+    1: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    2: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    3: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    4: .args = (2)[     0     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    5: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    6: .args = (0)[ ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    7: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    8: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+done
+
+scope stack: (1 count)
+	scope     0: 
+		[   0]:    0    1    2    3    4    5    6    7    8 
+		[   1]:    9   10   11 
+
+done
+
+7:4: @ word: zero..
+defining a new name:
+zero
+finished with word
+zero
+dictionary: (13 count)
+    0: .name =                   (), .value =     0
+    1: .name =                 zero, .value =     1
+    2: .name =                 incr, .value =     2
+    3: .name =                 decr, .value =     3
+    4: .name =                  add, .value =     4
+    5: .name =                  def, .value =     5
+    6: .name =                  ret, .value =     6
+    7: .name =                   ar, .value =     7
+    8: .name =                   lf, .value =     8
+    9: .name =                 (nv), .value =     0
+   10: .name =         stackpointer, .value =     0
+   11: .name =            stacksize, .value =     0
+   12: .name =                 zero, .value =     0
+done
+
+functions: (9 count)
+    0: .args = (2)[     0     0 ]
+body: 
+instructions: (1 count) 
+    0:                 zero : 1                     zero : 12                      () : 0                       () : 0    
+done
+
+[end-body]
+    1: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    2: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    3: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    4: .args = (2)[     0     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    5: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    6: .args = (0)[ ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    7: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    8: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+done
+
+scope stack: (1 count)
+	scope     0: 
+		[   0]:    0    1    2    3    4    5    6    7    8 
+		[   1]:    9   10   11   12 
+
+done
+
+12:4: @ word: zero..
+finished with word
+zero
+dictionary: (13 count)
+    0: .name =                   (), .value =     0
+    1: .name =                 zero, .value =     1
+    2: .name =                 incr, .value =     2
+    3: .name =                 decr, .value =     3
+    4: .name =                  add, .value =     4
+    5: .name =                  def, .value =     5
+    6: .name =                  ret, .value =     6
+    7: .name =                   ar, .value =     7
+    8: .name =                   lf, .value =     8
+    9: .name =                 (nv), .value =     0
+   10: .name =         stackpointer, .value =     0
+   11: .name =            stacksize, .value =     0
+   12: .name =                 zero, .value =     0
+done
+
+functions: (9 count)
+    0: .args = (2)[     0     0 ]
+body: 
+instructions: (2 count) 
+    0:                 zero : 1                     zero : 12                      () : 0                       () : 0    
+    1:                 zero : 1                       () : 0                       () : 0                       () : 0    
+done
+
+[end-body]
+    1: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    2: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    3: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    4: .args = (2)[     0     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    5: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    6: .args = (0)[ ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    7: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    8: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+done
+
+scope stack: (1 count)
+	scope     0: 
+		[   0]:    0    1    2    3    4    5    6    7    8 
+		[   1]:    9   10   11   12 
+
+done
+
+17:3: @ word: one..
+defining a new name:
+one
+finished with word
+one
+dictionary: (14 count)
+    0: .name =                   (), .value =     0
+    1: .name =                 zero, .value =     1
+    2: .name =                 incr, .value =     2
+    3: .name =                 decr, .value =     3
+    4: .name =                  add, .value =     4
+    5: .name =                  def, .value =     5
+    6: .name =                  ret, .value =     6
+    7: .name =                   ar, .value =     7
+    8: .name =                   lf, .value =     8
+    9: .name =                 (nv), .value =     0
+   10: .name =         stackpointer, .value =     0
+   11: .name =            stacksize, .value =     0
+   12: .name =                 zero, .value =     0
+   13: .name =                  one, .value =     0
+done
+
+functions: (9 count)
+    0: .args = (2)[     0     0 ]
+body: 
+instructions: (2 count) 
+    0:                 zero : 1                     zero : 12                      () : 0                       () : 0    
+    1:                 zero : 1                      one : 13                      () : 0                       () : 0    
+done
+
+[end-body]
+    1: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    2: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    3: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    4: .args = (2)[     0     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    5: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    6: .args = (0)[ ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    7: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    8: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+done
+
+scope stack: (1 count)
+	scope     0: 
+		[   0]:    0    1    2    3    4    5    6    7    8 
+		[   1]:    9   10   11   12   13 
+
+done
+
+21:4: @ word: incr..
+finished with word
+incr
+dictionary: (14 count)
+    0: .name =                   (), .value =     0
+    1: .name =                 zero, .value =     1
+    2: .name =                 incr, .value =     2
+    3: .name =                 decr, .value =     3
+    4: .name =                  add, .value =     4
+    5: .name =                  def, .value =     5
+    6: .name =                  ret, .value =     6
+    7: .name =                   ar, .value =     7
+    8: .name =                   lf, .value =     8
+    9: .name =                 (nv), .value =     0
+   10: .name =         stackpointer, .value =     0
+   11: .name =            stacksize, .value =     0
+   12: .name =                 zero, .value =     0
+   13: .name =                  one, .value =     0
+done
+
+functions: (9 count)
+    0: .args = (2)[     0     0 ]
+body: 
+instructions: (3 count) 
+    0:                 zero : 1                     zero : 12                      () : 0                       () : 0    
+    1:                 zero : 1                      one : 13                      () : 0                       () : 0    
+    2:                 incr : 2                       () : 0                       () : 0                       () : 0    
+done
+
+[end-body]
+    1: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    2: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    3: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    4: .args = (2)[     0     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    5: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    6: .args = (0)[ ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    7: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    8: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+done
+
+scope stack: (1 count)
+	scope     0: 
+		[   0]:    0    1    2    3    4    5    6    7    8 
+		[   1]:    9   10   11   12   13 
+
+done
+
+26:3: @ word: one..
+finished with word
+one
+dictionary: (14 count)
+    0: .name =                   (), .value =     0
+    1: .name =                 zero, .value =     1
+    2: .name =                 incr, .value =     2
+    3: .name =                 decr, .value =     3
+    4: .name =                  add, .value =     4
+    5: .name =                  def, .value =     5
+    6: .name =                  ret, .value =     6
+    7: .name =                   ar, .value =     7
+    8: .name =                   lf, .value =     8
+    9: .name =                 (nv), .value =     0
+   10: .name =         stackpointer, .value =     0
+   11: .name =            stacksize, .value =     0
+   12: .name =                 zero, .value =     0
+   13: .name =                  one, .value =     0
+done
+
+functions: (9 count)
+    0: .args = (2)[     0     0 ]
+body: 
+instructions: (3 count) 
+    0:                 zero : 1                     zero : 12                      () : 0                       () : 0    
+    1:                 zero : 1                      one : 13                      () : 0                       () : 0    
+    2:                 incr : 2                      one : 13                      () : 0                       () : 0    
+done
+
+[end-body]
+    1: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    2: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    3: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    4: .args = (2)[     0     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    5: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    6: .args = (0)[ ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    7: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    8: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+done
+
+scope stack: (1 count)
+	scope     0: 
+		[   0]:    0    1    2    3    4    5    6    7    8 
+		[   1]:    9   10   11   12   13 
+
+done
+
+31:3: @ word: def..
+finished with word
+def
+dictionary: (14 count)
+    0: .name =                   (), .value =     0
+    1: .name =                 zero, .value =     1
+    2: .name =                 incr, .value =     2
+    3: .name =                 decr, .value =     3
+    4: .name =                  add, .value =     4
+    5: .name =                  def, .value =     5
+    6: .name =                  ret, .value =     6
+    7: .name =                   ar, .value =     7
+    8: .name =                   lf, .value =     8
+    9: .name =                 (nv), .value =     0
+   10: .name =         stackpointer, .value =     0
+   11: .name =            stacksize, .value =     0
+   12: .name =                 zero, .value =     0
+   13: .name =                  one, .value =     0
+done
+
+functions: (9 count)
+    0: .args = (2)[     0     0 ]
+body: 
+instructions: (4 count) 
+    0:                 zero : 1                     zero : 12                      () : 0                       () : 0    
+    1:                 zero : 1                      one : 13                      () : 0                       () : 0    
+    2:                 incr : 2                      one : 13                      () : 0                       () : 0    
+    3:                  def : 5                       () : 0                       () : 0                       () : 0    
+done
+
+[end-body]
+    1: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    2: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    3: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    4: .args = (2)[     0     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    5: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    6: .args = (0)[ ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    7: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    8: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+done
+
+scope stack: (1 count)
+	scope     0: 
+		[   0]:    0    1    2    3    4    5    6    7    8 
+		[   1]:    9   10   11   12   13 
+
+done
+
+35:6: @ word: addone..
+EXECUTING DEF!!!
+defining a new name:
+addone
+finished with word
+addone
+dictionary: (15 count)
+    0: .name =                   (), .value =     0
+    1: .name =                 zero, .value =     1
+    2: .name =                 incr, .value =     2
+    3: .name =                 decr, .value =     3
+    4: .name =                  add, .value =     4
+    5: .name =                  def, .value =     5
+    6: .name =                  ret, .value =     6
+    7: .name =                   ar, .value =     7
+    8: .name =                   lf, .value =     8
+    9: .name =                 (nv), .value =     0
+   10: .name =         stackpointer, .value =     0
+   11: .name =            stacksize, .value =     0
+   12: .name =                 zero, .value =     0
+   13: .name =                  one, .value =     0
+   14: .name =               addone, .value =     9
+done
+
+functions: (10 count)
+    0: .args = (2)[     0     0 ]
+body: 
+instructions: (4 count) 
+    0:                 zero : 1                     zero : 12                      () : 0                       () : 0    
+    1:                 zero : 1                      one : 13                      () : 0                       () : 0    
+    2:                 incr : 2                      one : 13                      () : 0                       () : 0    
+    3:                  def : 5                   addone : 14                      () : 0                       () : 0    
+done
+
+[end-body]
+    1: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    2: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    3: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    4: .args = (2)[     0     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    5: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    6: .args = (0)[ ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    7: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    8: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    9: .args = (0)[ ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+done
+
+scope stack: (2 count)
+	scope     0: 
+		[   0]:    0    1    2    3    4    5    6    7    8   14 
+		[   1]:    9   10   11   12   13 
+
+	scope     1: 
+		[   0]: 
+		[   1]: 
+
+done
+
+42:2: @ word: ar..
+finished with word
+ar
+dictionary: (15 count)
+    0: .name =                   (), .value =     0
+    1: .name =                 zero, .value =     1
+    2: .name =                 incr, .value =     2
+    3: .name =                 decr, .value =     3
+    4: .name =                  add, .value =     4
+    5: .name =                  def, .value =     5
+    6: .name =                  ret, .value =     6
+    7: .name =                   ar, .value =     7
+    8: .name =                   lf, .value =     8
+    9: .name =                 (nv), .value =     0
+   10: .name =         stackpointer, .value =     0
+   11: .name =            stacksize, .value =     0
+   12: .name =                 zero, .value =     0
+   13: .name =                  one, .value =     0
+   14: .name =               addone, .value =     9
+done
+
+functions: (10 count)
+    0: .args = (2)[     0     0 ]
+body: 
+instructions: (4 count) 
+    0:                 zero : 1                     zero : 12                      () : 0                       () : 0    
+    1:                 zero : 1                      one : 13                      () : 0                       () : 0    
+    2:                 incr : 2                      one : 13                      () : 0                       () : 0    
+    3:                  def : 5                   addone : 14                      () : 0                       () : 0    
+done
+
+[end-body]
+    1: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    2: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    3: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    4: .args = (2)[     0     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    5: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    6: .args = (0)[ ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    7: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    8: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    9: .args = (0)[ ]
+body: 
+instructions: (1 count) 
+    0:                   ar : 7                       () : 0                       () : 0                       () : 0    
+done
+
+[end-body]
+done
+
+scope stack: (2 count)
+	scope     0: 
+		[   0]:    0    1    2    3    4    5    6    7    8   14 
+		[   1]:    9   10   11   12   13 
+
+	scope     1: 
+		[   0]: 
+		[   1]: 
+
+done
+
+45:1: @ word: x..
+executing ar....
+finished with word
+x
+dictionary: (16 count)
+    0: .name =                   (), .value =     0
+    1: .name =                 zero, .value =     1
+    2: .name =                 incr, .value =     2
+    3: .name =                 decr, .value =     3
+    4: .name =                  add, .value =     4
+    5: .name =                  def, .value =     5
+    6: .name =                  ret, .value =     6
+    7: .name =                   ar, .value =     7
+    8: .name =                   lf, .value =     8
+    9: .name =                 (nv), .value =     0
+   10: .name =         stackpointer, .value =     0
+   11: .name =            stacksize, .value =     0
+   12: .name =                 zero, .value =     0
+   13: .name =                  one, .value =     0
+   14: .name =               addone, .value =     9
+   15: .name =                    x, .value =     0
+done
+
+functions: (10 count)
+    0: .args = (2)[     0     0 ]
+body: 
+instructions: (4 count) 
+    0:                 zero : 1                     zero : 12                      () : 0                       () : 0    
+    1:                 zero : 1                      one : 13                      () : 0                       () : 0    
+    2:                 incr : 2                      one : 13                      () : 0                       () : 0    
+    3:                  def : 5                   addone : 14                      () : 0                       () : 0    
+done
+
+[end-body]
+    1: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    2: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    3: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    4: .args = (2)[     0     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    5: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    6: .args = (0)[ ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    7: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    8: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    9: .args = (1)[    15 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+done
+
+scope stack: (2 count)
+	scope     0: 
+		[   0]:    0    1    2    3    4    5    6    7    8   14 
+		[   1]:    9   10   11   12   13 
+
+	scope     1: 
+		[   0]: 
+		[   1]:   15 
+
+done
+
+48:4: @ word: incr..
+finished with word
+incr
+dictionary: (16 count)
+    0: .name =                   (), .value =     0
+    1: .name =                 zero, .value =     1
+    2: .name =                 incr, .value =     2
+    3: .name =                 decr, .value =     3
+    4: .name =                  add, .value =     4
+    5: .name =                  def, .value =     5
+    6: .name =                  ret, .value =     6
+    7: .name =                   ar, .value =     7
+    8: .name =                   lf, .value =     8
+    9: .name =                 (nv), .value =     0
+   10: .name =         stackpointer, .value =     0
+   11: .name =            stacksize, .value =     0
+   12: .name =                 zero, .value =     0
+   13: .name =                  one, .value =     0
+   14: .name =               addone, .value =     9
+   15: .name =                    x, .value =     0
+done
+
+functions: (10 count)
+    0: .args = (2)[     0     0 ]
+body: 
+instructions: (4 count) 
+    0:                 zero : 1                     zero : 12                      () : 0                       () : 0    
+    1:                 zero : 1                      one : 13                      () : 0                       () : 0    
+    2:                 incr : 2                      one : 13                      () : 0                       () : 0    
+    3:                  def : 5                   addone : 14                      () : 0                       () : 0    
+done
+
+[end-body]
+    1: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    2: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    3: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    4: .args = (2)[     0     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    5: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    6: .args = (0)[ ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    7: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    8: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    9: .args = (1)[    15 ]
+body: 
+instructions: (1 count) 
+    0:                 incr : 2                       () : 0                       () : 0                       () : 0    
+done
+
+[end-body]
+done
+
+scope stack: (2 count)
+	scope     0: 
+		[   0]:    0    1    2    3    4    5    6    7    8   14 
+		[   1]:    9   10   11   12   13 
+
+	scope     1: 
+		[   0]: 
+		[   1]:   15 
+
+done
+
+53:1: @ word: x..
+finished with word
+x
+dictionary: (16 count)
+    0: .name =                   (), .value =     0
+    1: .name =                 zero, .value =     1
+    2: .name =                 incr, .value =     2
+    3: .name =                 decr, .value =     3
+    4: .name =                  add, .value =     4
+    5: .name =                  def, .value =     5
+    6: .name =                  ret, .value =     6
+    7: .name =                   ar, .value =     7
+    8: .name =                   lf, .value =     8
+    9: .name =                 (nv), .value =     0
+   10: .name =         stackpointer, .value =     0
+   11: .name =            stacksize, .value =     0
+   12: .name =                 zero, .value =     0
+   13: .name =                  one, .value =     0
+   14: .name =               addone, .value =     9
+   15: .name =                    x, .value =     0
+done
+
+functions: (10 count)
+    0: .args = (2)[     0     0 ]
+body: 
+instructions: (4 count) 
+    0:                 zero : 1                     zero : 12                      () : 0                       () : 0    
+    1:                 zero : 1                      one : 13                      () : 0                       () : 0    
+    2:                 incr : 2                      one : 13                      () : 0                       () : 0    
+    3:                  def : 5                   addone : 14                      () : 0                       () : 0    
+done
+
+[end-body]
+    1: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    2: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    3: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    4: .args = (2)[     0     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    5: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    6: .args = (0)[ ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    7: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    8: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    9: .args = (1)[    15 ]
+body: 
+instructions: (1 count) 
+    0:                 incr : 2                        x : 15                      () : 0                       () : 0    
+done
+
+[end-body]
+done
+
+scope stack: (2 count)
+	scope     0: 
+		[   0]:    0    1    2    3    4    5    6    7    8   14 
+		[   1]:    9   10   11   12   13 
+
+	scope     1: 
+		[   0]: 
+		[   1]:   15 
+
+done
+
+56:3: @ word: ret..
+executing ret....
+finished with word
+ret
+dictionary: (16 count)
+    0: .name =                   (), .value =     0
+    1: .name =                 zero, .value =     1
+    2: .name =                 incr, .value =     2
+    3: .name =                 decr, .value =     3
+    4: .name =                  add, .value =     4
+    5: .name =                  def, .value =     5
+    6: .name =                  ret, .value =     6
+    7: .name =                   ar, .value =     7
+    8: .name =                   lf, .value =     8
+    9: .name =                 (nv), .value =     0
+   10: .name =         stackpointer, .value =     0
+   11: .name =            stacksize, .value =     0
+   12: .name =                 zero, .value =     0
+   13: .name =                  one, .value =     0
+   14: .name =               addone, .value =     9
+   15: .name =                    x, .value =     0
+done
+
+functions: (10 count)
+    0: .args = (2)[     0     0 ]
+body: 
+instructions: (3 count) 
+    0:                 zero : 1                     zero : 12                      () : 0                       () : 0    
+    1:                 zero : 1                      one : 13                      () : 0                       () : 0    
+    2:                 incr : 2                      one : 13                      () : 0                       () : 0    
+done
+
+[end-body]
+    1: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    2: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    3: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    4: .args = (2)[     0     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    5: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    6: .args = (0)[ ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    7: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    8: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    9: .args = (1)[    15 ]
+body: 
+instructions: (1 count) 
+    0:                 incr : 2                        x : 15                      () : 0                       () : 0    
+done
+
+[end-body]
+done
+
+scope stack: (1 count)
+	scope     0: 
+		[   0]:    0    1    2    3    4    5    6    7    8   14 
+		[   1]:    9   10   11   12   13 
+
+done
+
+processing_file: finished last file.
+dictionary: (16 count)
+    0: .name =                   (), .value =     0
+    1: .name =                 zero, .value =     1
+    2: .name =                 incr, .value =     2
+    3: .name =                 decr, .value =     3
+    4: .name =                  add, .value =     4
+    5: .name =                  def, .value =     5
+    6: .name =                  ret, .value =     6
+    7: .name =                   ar, .value =     7
+    8: .name =                   lf, .value =     8
+    9: .name =                 (nv), .value =     0
+   10: .name =         stackpointer, .value =     0
+   11: .name =            stacksize, .value =     0
+   12: .name =                 zero, .value =     0
+   13: .name =                  one, .value =     0
+   14: .name =               addone, .value =     9
+   15: .name =                    x, .value =     0
+done
+
+functions: (10 count)
+    0: .args = (2)[     0     0 ]
+body: 
+instructions: (3 count) 
+    0:                 zero : 1                     zero : 12                      () : 0                       () : 0    
+    1:                 zero : 1                      one : 13                      () : 0                       () : 0    
+    2:                 incr : 2                      one : 13                      () : 0                       () : 0    
+done
+
+[end-body]
+    1: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    2: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    3: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    4: .args = (2)[     0     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    5: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    6: .args = (0)[ ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    7: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    8: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    9: .args = (1)[    15 ]
+body: 
+instructions: (1 count) 
+    0:                 incr : 2                        x : 15                      () : 0                       () : 0    
+done
+
+[end-body]
+done
+
+scope stack: (1 count)
+	scope     0: 
+		[   0]:    0    1    2    3    4    5    6    7    8   14 
+		[   1]:    9   10   11   12   13 
+
+done
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+info: now processing file: simple.s...
+2:4: @ word: zero..
+finished with word
+zero
+dictionary: (12 count)
+    0: .name =                   (), .value =     0
+    1: .name =                 zero, .value =     1
+    2: .name =                 incr, .value =     2
+    3: .name =                 decr, .value =     3
+    4: .name =                  add, .value =     4
+    5: .name =                  def, .value =     5
+    6: .name =                  ret, .value =     6
+    7: .name =                   ar, .value =     7
+    8: .name =                   lf, .value =     8
+    9: .name =                 (nv), .value =     0
+   10: .name =         stackpointer, .value =     0
+   11: .name =            stacksize, .value =     0
+done
+
+functions: (9 count)
+    0: .args = (2)[     0     0 ]
+body: 
+instructions: (1 count) 
+    0:                 zero : 1                       () : 0                       () : 0                       () : 0    
+done
+
+[end-body]
+    1: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    2: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    3: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    4: .args = (2)[     0     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    5: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    6: .args = (0)[ ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    7: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    8: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+done
+
+scope stack: (1 count)
+	scope     0: 
+		[   0]:    0    1    2    3    4    5    6    7    8 
+		[   1]:    9   10   11 
+
+done
+
+7:4: @ word: zero..
+defining a new name:
+zero
+finished with word
+zero
+dictionary: (13 count)
+    0: .name =                   (), .value =     0
+    1: .name =                 zero, .value =     1
+    2: .name =                 incr, .value =     2
+    3: .name =                 decr, .value =     3
+    4: .name =                  add, .value =     4
+    5: .name =                  def, .value =     5
+    6: .name =                  ret, .value =     6
+    7: .name =                   ar, .value =     7
+    8: .name =                   lf, .value =     8
+    9: .name =                 (nv), .value =     0
+   10: .name =         stackpointer, .value =     0
+   11: .name =            stacksize, .value =     0
+   12: .name =                 zero, .value =     0
+done
+
+functions: (9 count)
+    0: .args = (2)[     0     0 ]
+body: 
+instructions: (1 count) 
+    0:                 zero : 1                     zero : 12                      () : 0                       () : 0    
+done
+
+[end-body]
+    1: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    2: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    3: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    4: .args = (2)[     0     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    5: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    6: .args = (0)[ ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    7: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    8: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+done
+
+scope stack: (1 count)
+	scope     0: 
+		[   0]:    0    1    2    3    4    5    6    7    8 
+		[   1]:    9   10   11   12 
+
+done
+
+12:4: @ word: zero..
+finished with word
+zero
+dictionary: (13 count)
+    0: .name =                   (), .value =     0
+    1: .name =                 zero, .value =     1
+    2: .name =                 incr, .value =     2
+    3: .name =                 decr, .value =     3
+    4: .name =                  add, .value =     4
+    5: .name =                  def, .value =     5
+    6: .name =                  ret, .value =     6
+    7: .name =                   ar, .value =     7
+    8: .name =                   lf, .value =     8
+    9: .name =                 (nv), .value =     0
+   10: .name =         stackpointer, .value =     0
+   11: .name =            stacksize, .value =     0
+   12: .name =                 zero, .value =     0
+done
+
+functions: (9 count)
+    0: .args = (2)[     0     0 ]
+body: 
+instructions: (2 count) 
+    0:                 zero : 1                     zero : 12                      () : 0                       () : 0    
+    1:                 zero : 1                       () : 0                       () : 0                       () : 0    
+done
+
+[end-body]
+    1: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    2: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    3: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    4: .args = (2)[     0     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    5: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    6: .args = (0)[ ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    7: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    8: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+done
+
+scope stack: (1 count)
+	scope     0: 
+		[   0]:    0    1    2    3    4    5    6    7    8 
+		[   1]:    9   10   11   12 
+
+done
+
+17:3: @ word: one..
+defining a new name:
+one
+finished with word
+one
+dictionary: (14 count)
+    0: .name =                   (), .value =     0
+    1: .name =                 zero, .value =     1
+    2: .name =                 incr, .value =     2
+    3: .name =                 decr, .value =     3
+    4: .name =                  add, .value =     4
+    5: .name =                  def, .value =     5
+    6: .name =                  ret, .value =     6
+    7: .name =                   ar, .value =     7
+    8: .name =                   lf, .value =     8
+    9: .name =                 (nv), .value =     0
+   10: .name =         stackpointer, .value =     0
+   11: .name =            stacksize, .value =     0
+   12: .name =                 zero, .value =     0
+   13: .name =                  one, .value =     0
+done
+
+functions: (9 count)
+    0: .args = (2)[     0     0 ]
+body: 
+instructions: (2 count) 
+    0:                 zero : 1                     zero : 12                      () : 0                       () : 0    
+    1:                 zero : 1                      one : 13                      () : 0                       () : 0    
+done
+
+[end-body]
+    1: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    2: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    3: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    4: .args = (2)[     0     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    5: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    6: .args = (0)[ ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    7: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    8: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+done
+
+scope stack: (1 count)
+	scope     0: 
+		[   0]:    0    1    2    3    4    5    6    7    8 
+		[   1]:    9   10   11   12   13 
+
+done
+
+21:4: @ word: incr..
+finished with word
+incr
+dictionary: (14 count)
+    0: .name =                   (), .value =     0
+    1: .name =                 zero, .value =     1
+    2: .name =                 incr, .value =     2
+    3: .name =                 decr, .value =     3
+    4: .name =                  add, .value =     4
+    5: .name =                  def, .value =     5
+    6: .name =                  ret, .value =     6
+    7: .name =                   ar, .value =     7
+    8: .name =                   lf, .value =     8
+    9: .name =                 (nv), .value =     0
+   10: .name =         stackpointer, .value =     0
+   11: .name =            stacksize, .value =     0
+   12: .name =                 zero, .value =     0
+   13: .name =                  one, .value =     0
+done
+
+functions: (9 count)
+    0: .args = (2)[     0     0 ]
+body: 
+instructions: (3 count) 
+    0:                 zero : 1                     zero : 12                      () : 0                       () : 0    
+    1:                 zero : 1                      one : 13                      () : 0                       () : 0    
+    2:                 incr : 2                       () : 0                       () : 0                       () : 0    
+done
+
+[end-body]
+    1: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    2: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    3: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    4: .args = (2)[     0     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    5: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    6: .args = (0)[ ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    7: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    8: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+done
+
+scope stack: (1 count)
+	scope     0: 
+		[   0]:    0    1    2    3    4    5    6    7    8 
+		[   1]:    9   10   11   12   13 
+
+done
+
+26:3: @ word: one..
+finished with word
+one
+dictionary: (14 count)
+    0: .name =                   (), .value =     0
+    1: .name =                 zero, .value =     1
+    2: .name =                 incr, .value =     2
+    3: .name =                 decr, .value =     3
+    4: .name =                  add, .value =     4
+    5: .name =                  def, .value =     5
+    6: .name =                  ret, .value =     6
+    7: .name =                   ar, .value =     7
+    8: .name =                   lf, .value =     8
+    9: .name =                 (nv), .value =     0
+   10: .name =         stackpointer, .value =     0
+   11: .name =            stacksize, .value =     0
+   12: .name =                 zero, .value =     0
+   13: .name =                  one, .value =     0
+done
+
+functions: (9 count)
+    0: .args = (2)[     0     0 ]
+body: 
+instructions: (3 count) 
+    0:                 zero : 1                     zero : 12                      () : 0                       () : 0    
+    1:                 zero : 1                      one : 13                      () : 0                       () : 0    
+    2:                 incr : 2                      one : 13                      () : 0                       () : 0    
+done
+
+[end-body]
+    1: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    2: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    3: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    4: .args = (2)[     0     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    5: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    6: .args = (0)[ ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    7: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    8: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+done
+
+scope stack: (1 count)
+	scope     0: 
+		[   0]:    0    1    2    3    4    5    6    7    8 
+		[   1]:    9   10   11   12   13 
+
+done
+
+31:3: @ word: def..
+finished with word
+def
+dictionary: (14 count)
+    0: .name =                   (), .value =     0
+    1: .name =                 zero, .value =     1
+    2: .name =                 incr, .value =     2
+    3: .name =                 decr, .value =     3
+    4: .name =                  add, .value =     4
+    5: .name =                  def, .value =     5
+    6: .name =                  ret, .value =     6
+    7: .name =                   ar, .value =     7
+    8: .name =                   lf, .value =     8
+    9: .name =                 (nv), .value =     0
+   10: .name =         stackpointer, .value =     0
+   11: .name =            stacksize, .value =     0
+   12: .name =                 zero, .value =     0
+   13: .name =                  one, .value =     0
+done
+
+functions: (9 count)
+    0: .args = (2)[     0     0 ]
+body: 
+instructions: (4 count) 
+    0:                 zero : 1                     zero : 12                      () : 0                       () : 0    
+    1:                 zero : 1                      one : 13                      () : 0                       () : 0    
+    2:                 incr : 2                      one : 13                      () : 0                       () : 0    
+    3:                  def : 5                       () : 0                       () : 0                       () : 0    
+done
+
+[end-body]
+    1: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    2: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    3: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    4: .args = (2)[     0     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    5: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    6: .args = (0)[ ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    7: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    8: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+done
+
+scope stack: (1 count)
+	scope     0: 
+		[   0]:    0    1    2    3    4    5    6    7    8 
+		[   1]:    9   10   11   12   13 
+
+done
+
+35:6: @ word: addone..
+EXECUTING DEF!!!
+defining a new name:
+addone
+finished with word
+addone
+dictionary: (15 count)
+    0: .name =                   (), .value =     0
+    1: .name =                 zero, .value =     1
+    2: .name =                 incr, .value =     2
+    3: .name =                 decr, .value =     3
+    4: .name =                  add, .value =     4
+    5: .name =                  def, .value =     5
+    6: .name =                  ret, .value =     6
+    7: .name =                   ar, .value =     7
+    8: .name =                   lf, .value =     8
+    9: .name =                 (nv), .value =     0
+   10: .name =         stackpointer, .value =     0
+   11: .name =            stacksize, .value =     0
+   12: .name =                 zero, .value =     0
+   13: .name =                  one, .value =     0
+   14: .name =               addone, .value =     9
+done
+
+functions: (10 count)
+    0: .args = (2)[     0     0 ]
+body: 
+instructions: (4 count) 
+    0:                 zero : 1                     zero : 12                      () : 0                       () : 0    
+    1:                 zero : 1                      one : 13                      () : 0                       () : 0    
+    2:                 incr : 2                      one : 13                      () : 0                       () : 0    
+    3:                  def : 5                   addone : 14                      () : 0                       () : 0    
+done
+
+[end-body]
+    1: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    2: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    3: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    4: .args = (2)[     0     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    5: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    6: .args = (0)[ ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    7: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    8: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    9: .args = (0)[ ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+done
+
+scope stack: (2 count)
+	scope     0: 
+		[   0]:    0    1    2    3    4    5    6    7    8   14 
+		[   1]:    9   10   11   12   13 
+
+	scope     1: 
+		[   0]: 
+		[   1]: 
+
+done
+
+42:2: @ word: ar..
+finished with word
+ar
+dictionary: (15 count)
+    0: .name =                   (), .value =     0
+    1: .name =                 zero, .value =     1
+    2: .name =                 incr, .value =     2
+    3: .name =                 decr, .value =     3
+    4: .name =                  add, .value =     4
+    5: .name =                  def, .value =     5
+    6: .name =                  ret, .value =     6
+    7: .name =                   ar, .value =     7
+    8: .name =                   lf, .value =     8
+    9: .name =                 (nv), .value =     0
+   10: .name =         stackpointer, .value =     0
+   11: .name =            stacksize, .value =     0
+   12: .name =                 zero, .value =     0
+   13: .name =                  one, .value =     0
+   14: .name =               addone, .value =     9
+done
+
+functions: (10 count)
+    0: .args = (2)[     0     0 ]
+body: 
+instructions: (4 count) 
+    0:                 zero : 1                     zero : 12                      () : 0                       () : 0    
+    1:                 zero : 1                      one : 13                      () : 0                       () : 0    
+    2:                 incr : 2                      one : 13                      () : 0                       () : 0    
+    3:                  def : 5                   addone : 14                      () : 0                       () : 0    
+done
+
+[end-body]
+    1: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    2: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    3: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    4: .args = (2)[     0     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    5: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    6: .args = (0)[ ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    7: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    8: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    9: .args = (0)[ ]
+body: 
+instructions: (1 count) 
+    0:                   ar : 7                       () : 0                       () : 0                       () : 0    
+done
+
+[end-body]
+done
+
+scope stack: (2 count)
+	scope     0: 
+		[   0]:    0    1    2    3    4    5    6    7    8   14 
+		[   1]:    9   10   11   12   13 
+
+	scope     1: 
+		[   0]: 
+		[   1]: 
+
+done
+
+45:1: @ word: x..
+executing ar....
+finished with word
+x
+dictionary: (16 count)
+    0: .name =                   (), .value =     0
+    1: .name =                 zero, .value =     1
+    2: .name =                 incr, .value =     2
+    3: .name =                 decr, .value =     3
+    4: .name =                  add, .value =     4
+    5: .name =                  def, .value =     5
+    6: .name =                  ret, .value =     6
+    7: .name =                   ar, .value =     7
+    8: .name =                   lf, .value =     8
+    9: .name =                 (nv), .value =     0
+   10: .name =         stackpointer, .value =     0
+   11: .name =            stacksize, .value =     0
+   12: .name =                 zero, .value =     0
+   13: .name =                  one, .value =     0
+   14: .name =               addone, .value =     9
+   15: .name =                    x, .value =     0
+done
+
+functions: (10 count)
+    0: .args = (2)[     0     0 ]
+body: 
+instructions: (4 count) 
+    0:                 zero : 1                     zero : 12                      () : 0                       () : 0    
+    1:                 zero : 1                      one : 13                      () : 0                       () : 0    
+    2:                 incr : 2                      one : 13                      () : 0                       () : 0    
+    3:                  def : 5                   addone : 14                      () : 0                       () : 0    
+done
+
+[end-body]
+    1: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    2: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    3: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    4: .args = (2)[     0     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    5: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    6: .args = (0)[ ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    7: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    8: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    9: .args = (1)[    15 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+done
+
+scope stack: (2 count)
+	scope     0: 
+		[   0]:    0    1    2    3    4    5    6    7    8   14 
+		[   1]:    9   10   11   12   13 
+
+	scope     1: 
+		[   0]: 
+		[   1]:   15 
+
+done
+
+48:4: @ word: incr..
+finished with word
+incr
+dictionary: (16 count)
+    0: .name =                   (), .value =     0
+    1: .name =                 zero, .value =     1
+    2: .name =                 incr, .value =     2
+    3: .name =                 decr, .value =     3
+    4: .name =                  add, .value =     4
+    5: .name =                  def, .value =     5
+    6: .name =                  ret, .value =     6
+    7: .name =                   ar, .value =     7
+    8: .name =                   lf, .value =     8
+    9: .name =                 (nv), .value =     0
+   10: .name =         stackpointer, .value =     0
+   11: .name =            stacksize, .value =     0
+   12: .name =                 zero, .value =     0
+   13: .name =                  one, .value =     0
+   14: .name =               addone, .value =     9
+   15: .name =                    x, .value =     0
+done
+
+functions: (10 count)
+    0: .args = (2)[     0     0 ]
+body: 
+instructions: (4 count) 
+    0:                 zero : 1                     zero : 12                      () : 0                       () : 0    
+    1:                 zero : 1                      one : 13                      () : 0                       () : 0    
+    2:                 incr : 2                      one : 13                      () : 0                       () : 0    
+    3:                  def : 5                   addone : 14                      () : 0                       () : 0    
+done
+
+[end-body]
+    1: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    2: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    3: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    4: .args = (2)[     0     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    5: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    6: .args = (0)[ ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    7: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    8: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    9: .args = (1)[    15 ]
+body: 
+instructions: (1 count) 
+    0:                 incr : 2                       () : 0                       () : 0                       () : 0    
+done
+
+[end-body]
+done
+
+scope stack: (2 count)
+	scope     0: 
+		[   0]:    0    1    2    3    4    5    6    7    8   14 
+		[   1]:    9   10   11   12   13 
+
+	scope     1: 
+		[   0]: 
+		[   1]:   15 
+
+done
+
+53:1: @ word: x..
+finished with word
+x
+dictionary: (16 count)
+    0: .name =                   (), .value =     0
+    1: .name =                 zero, .value =     1
+    2: .name =                 incr, .value =     2
+    3: .name =                 decr, .value =     3
+    4: .name =                  add, .value =     4
+    5: .name =                  def, .value =     5
+    6: .name =                  ret, .value =     6
+    7: .name =                   ar, .value =     7
+    8: .name =                   lf, .value =     8
+    9: .name =                 (nv), .value =     0
+   10: .name =         stackpointer, .value =     0
+   11: .name =            stacksize, .value =     0
+   12: .name =                 zero, .value =     0
+   13: .name =                  one, .value =     0
+   14: .name =               addone, .value =     9
+   15: .name =                    x, .value =     0
+done
+
+functions: (10 count)
+    0: .args = (2)[     0     0 ]
+body: 
+instructions: (4 count) 
+    0:                 zero : 1                     zero : 12                      () : 0                       () : 0    
+    1:                 zero : 1                      one : 13                      () : 0                       () : 0    
+    2:                 incr : 2                      one : 13                      () : 0                       () : 0    
+    3:                  def : 5                   addone : 14                      () : 0                       () : 0    
+done
+
+[end-body]
+    1: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    2: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    3: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    4: .args = (2)[     0     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    5: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    6: .args = (0)[ ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    7: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    8: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    9: .args = (1)[    15 ]
+body: 
+instructions: (1 count) 
+    0:                 incr : 2                        x : 15                      () : 0                       () : 0    
+done
+
+[end-body]
+done
+
+scope stack: (2 count)
+	scope     0: 
+		[   0]:    0    1    2    3    4    5    6    7    8   14 
+		[   1]:    9   10   11   12   13 
+
+	scope     1: 
+		[   0]: 
+		[   1]:   15 
+
+done
+
+56:3: @ word: ret..
+executing ret....
+finished with word
+ret
+dictionary: (16 count)
+    0: .name =                   (), .value =     0
+    1: .name =                 zero, .value =     1
+    2: .name =                 incr, .value =     2
+    3: .name =                 decr, .value =     3
+    4: .name =                  add, .value =     4
+    5: .name =                  def, .value =     5
+    6: .name =                  ret, .value =     6
+    7: .name =                   ar, .value =     7
+    8: .name =                   lf, .value =     8
+    9: .name =                 (nv), .value =     0
+   10: .name =         stackpointer, .value =     0
+   11: .name =            stacksize, .value =     0
+   12: .name =                 zero, .value =     0
+   13: .name =                  one, .value =     0
+   14: .name =               addone, .value =     9
+   15: .name =                    x, .value =     0
+done
+
+functions: (10 count)
+    0: .args = (2)[     0     0 ]
+body: 
+instructions: (4 count) 
+    0:                 zero : 1                     zero : 12                      () : 0                       () : 0    
+    1:                 zero : 1                      one : 13                      () : 0                       () : 0    
+    2:                 incr : 2                      one : 13                      () : 0                       () : 0    
+    3:                  def : 5                   addone : 14                      () : 0                       () : 0    
+done
+
+[end-body]
+    1: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    2: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    3: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    4: .args = (2)[     0     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    5: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    6: .args = (0)[ ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    7: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    8: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    9: .args = (1)[    15 ]
+body: 
+instructions: (1 count) 
+    0:                 incr : 2                        x : 15                      () : 0                       () : 0    
+done
+
+[end-body]
+done
+
+scope stack: (1 count)
+	scope     0: 
+		[   0]:    0    1    2    3    4    5    6    7    8   14 
+		[   1]:    9   10   11   12   13 
+
+done
+
+processing_file: finished last file.
+dictionary: (16 count)
+    0: .name =                   (), .value =     0
+    1: .name =                 zero, .value =     1
+    2: .name =                 incr, .value =     2
+    3: .name =                 decr, .value =     3
+    4: .name =                  add, .value =     4
+    5: .name =                  def, .value =     5
+    6: .name =                  ret, .value =     6
+    7: .name =                   ar, .value =     7
+    8: .name =                   lf, .value =     8
+    9: .name =                 (nv), .value =     0
+   10: .name =         stackpointer, .value =     0
+   11: .name =            stacksize, .value =     0
+   12: .name =                 zero, .value =     0
+   13: .name =                  one, .value =     0
+   14: .name =               addone, .value =     9
+   15: .name =                    x, .value =     0
+done
+
+functions: (10 count)
+    0: .args = (2)[     0     0 ]
+body: 
+instructions: (4 count) 
+    0:                 zero : 1                     zero : 12                      () : 0                       () : 0    
+    1:                 zero : 1                      one : 13                      () : 0                       () : 0    
+    2:                 incr : 2                      one : 13                      () : 0                       () : 0    
+    3:                  def : 5                   addone : 14                      () : 0                       () : 0    
+done
+
+[end-body]
+    1: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    2: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    3: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    4: .args = (2)[     0     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    5: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    6: .args = (0)[ ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    7: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    8: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    9: .args = (1)[    15 ]
+body: 
+instructions: (1 count) 
+    0:                 incr : 2                        x : 15                      () : 0                       () : 0    
+done
+
+[end-body]
+done
+
+scope stack: (1 count)
+	scope     0: 
+		[   0]:    0    1    2    3    4    5    6    7    8   14 
+		[   1]:    9   10   11   12   13 
+
+done
+
+
+
+
+info: now processing file: simple.s...
+2:4: @ word: zero..
+finished with word
+zero
+dictionary: (12 count)
+    0: .name =                   (), .value =     0
+    1: .name =                 zero, .value =     1
+    2: .name =                 incr, .value =     2
+    3: .name =                 decr, .value =     3
+    4: .name =                  add, .value =     4
+    5: .name =                  def, .value =     5
+    6: .name =                  ret, .value =     6
+    7: .name =                   ar, .value =     7
+    8: .name =                   lf, .value =     8
+    9: .name =                 (nv), .value =     0
+   10: .name =         stackpointer, .value =     0
+   11: .name =            stacksize, .value =     0
+done
+
+functions: (9 count)
+    0: .args = (2)[     0     0 ]
+body: 
+instructions: (1 count) 
+    0:                 zero : 1                       () : 0                       () : 0                       () : 0    
+done
+
+[end-body]
+    1: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    2: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    3: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    4: .args = (2)[     0     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    5: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    6: .args = (0)[ ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    7: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    8: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+done
+
+scope stack: (1 count)
+	scope     0: 
+		[   0]:    0    1    2    3    4    5    6    7    8 
+		[   1]:    9   10   11 
+
+done
+
+7:4: @ word: zero..
+defining a new name:
+zero
+finished with word
+zero
+dictionary: (13 count)
+    0: .name =                   (), .value =     0
+    1: .name =                 zero, .value =     1
+    2: .name =                 incr, .value =     2
+    3: .name =                 decr, .value =     3
+    4: .name =                  add, .value =     4
+    5: .name =                  def, .value =     5
+    6: .name =                  ret, .value =     6
+    7: .name =                   ar, .value =     7
+    8: .name =                   lf, .value =     8
+    9: .name =                 (nv), .value =     0
+   10: .name =         stackpointer, .value =     0
+   11: .name =            stacksize, .value =     0
+   12: .name =                 zero, .value =     0
+done
+
+functions: (9 count)
+    0: .args = (2)[     0     0 ]
+body: 
+instructions: (1 count) 
+    0:                 zero : 1                     zero : 12                      () : 0                       () : 0    
+done
+
+[end-body]
+    1: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    2: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    3: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    4: .args = (2)[     0     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    5: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    6: .args = (0)[ ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    7: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    8: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+done
+
+scope stack: (1 count)
+	scope     0: 
+		[   0]:    0    1    2    3    4    5    6    7    8 
+		[   1]:    9   10   11   12 
+
+done
+
+12:4: @ word: zero..
+finished with word
+zero
+dictionary: (13 count)
+    0: .name =                   (), .value =     0
+    1: .name =                 zero, .value =     1
+    2: .name =                 incr, .value =     2
+    3: .name =                 decr, .value =     3
+    4: .name =                  add, .value =     4
+    5: .name =                  def, .value =     5
+    6: .name =                  ret, .value =     6
+    7: .name =                   ar, .value =     7
+    8: .name =                   lf, .value =     8
+    9: .name =                 (nv), .value =     0
+   10: .name =         stackpointer, .value =     0
+   11: .name =            stacksize, .value =     0
+   12: .name =                 zero, .value =     0
+done
+
+functions: (9 count)
+    0: .args = (2)[     0     0 ]
+body: 
+instructions: (2 count) 
+    0:                 zero : 1                     zero : 12                      () : 0                       () : 0    
+    1:                 zero : 1                       () : 0                       () : 0                       () : 0    
+done
+
+[end-body]
+    1: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    2: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    3: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    4: .args = (2)[     0     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    5: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    6: .args = (0)[ ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    7: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    8: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+done
+
+scope stack: (1 count)
+	scope     0: 
+		[   0]:    0    1    2    3    4    5    6    7    8 
+		[   1]:    9   10   11   12 
+
+done
+
+17:3: @ word: one..
+defining a new name:
+one
+finished with word
+one
+dictionary: (14 count)
+    0: .name =                   (), .value =     0
+    1: .name =                 zero, .value =     1
+    2: .name =                 incr, .value =     2
+    3: .name =                 decr, .value =     3
+    4: .name =                  add, .value =     4
+    5: .name =                  def, .value =     5
+    6: .name =                  ret, .value =     6
+    7: .name =                   ar, .value =     7
+    8: .name =                   lf, .value =     8
+    9: .name =                 (nv), .value =     0
+   10: .name =         stackpointer, .value =     0
+   11: .name =            stacksize, .value =     0
+   12: .name =                 zero, .value =     0
+   13: .name =                  one, .value =     0
+done
+
+functions: (9 count)
+    0: .args = (2)[     0     0 ]
+body: 
+instructions: (2 count) 
+    0:                 zero : 1                     zero : 12                      () : 0                       () : 0    
+    1:                 zero : 1                      one : 13                      () : 0                       () : 0    
+done
+
+[end-body]
+    1: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    2: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    3: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    4: .args = (2)[     0     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    5: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    6: .args = (0)[ ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    7: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    8: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+done
+
+scope stack: (1 count)
+	scope     0: 
+		[   0]:    0    1    2    3    4    5    6    7    8 
+		[   1]:    9   10   11   12   13 
+
+done
+
+21:4: @ word: incr..
+finished with word
+incr
+dictionary: (14 count)
+    0: .name =                   (), .value =     0
+    1: .name =                 zero, .value =     1
+    2: .name =                 incr, .value =     2
+    3: .name =                 decr, .value =     3
+    4: .name =                  add, .value =     4
+    5: .name =                  def, .value =     5
+    6: .name =                  ret, .value =     6
+    7: .name =                   ar, .value =     7
+    8: .name =                   lf, .value =     8
+    9: .name =                 (nv), .value =     0
+   10: .name =         stackpointer, .value =     0
+   11: .name =            stacksize, .value =     0
+   12: .name =                 zero, .value =     0
+   13: .name =                  one, .value =     0
+done
+
+functions: (9 count)
+    0: .args = (2)[     0     0 ]
+body: 
+instructions: (3 count) 
+    0:                 zero : 1                     zero : 12                      () : 0                       () : 0    
+    1:                 zero : 1                      one : 13                      () : 0                       () : 0    
+    2:                 incr : 2                       () : 0                       () : 0                       () : 0    
+done
+
+[end-body]
+    1: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    2: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    3: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    4: .args = (2)[     0     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    5: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    6: .args = (0)[ ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    7: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    8: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+done
+
+scope stack: (1 count)
+	scope     0: 
+		[   0]:    0    1    2    3    4    5    6    7    8 
+		[   1]:    9   10   11   12   13 
+
+done
+
+26:3: @ word: one..
+finished with word
+one
+dictionary: (14 count)
+    0: .name =                   (), .value =     0
+    1: .name =                 zero, .value =     1
+    2: .name =                 incr, .value =     2
+    3: .name =                 decr, .value =     3
+    4: .name =                  add, .value =     4
+    5: .name =                  def, .value =     5
+    6: .name =                  ret, .value =     6
+    7: .name =                   ar, .value =     7
+    8: .name =                   lf, .value =     8
+    9: .name =                 (nv), .value =     0
+   10: .name =         stackpointer, .value =     0
+   11: .name =            stacksize, .value =     0
+   12: .name =                 zero, .value =     0
+   13: .name =                  one, .value =     0
+done
+
+functions: (9 count)
+    0: .args = (2)[     0     0 ]
+body: 
+instructions: (3 count) 
+    0:                 zero : 1                     zero : 12                      () : 0                       () : 0    
+    1:                 zero : 1                      one : 13                      () : 0                       () : 0    
+    2:                 incr : 2                      one : 13                      () : 0                       () : 0    
+done
+
+[end-body]
+    1: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    2: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    3: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    4: .args = (2)[     0     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    5: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    6: .args = (0)[ ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    7: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    8: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+done
+
+scope stack: (1 count)
+	scope     0: 
+		[   0]:    0    1    2    3    4    5    6    7    8 
+		[   1]:    9   10   11   12   13 
+
+done
+
+processing_file: finished last file.
+dictionary: (14 count)
+    0: .name =                   (), .value =     0
+    1: .name =                 zero, .value =     1
+    2: .name =                 incr, .value =     2
+    3: .name =                 decr, .value =     3
+    4: .name =                  add, .value =     4
+    5: .name =                  def, .value =     5
+    6: .name =                  ret, .value =     6
+    7: .name =                   ar, .value =     7
+    8: .name =                   lf, .value =     8
+    9: .name =                 (nv), .value =     0
+   10: .name =         stackpointer, .value =     0
+   11: .name =            stacksize, .value =     0
+   12: .name =                 zero, .value =     0
+   13: .name =                  one, .value =     0
+done
+
+functions: (9 count)
+    0: .args = (2)[     0     0 ]
+body: 
+instructions: (3 count) 
+    0:                 zero : 1                     zero : 12                      () : 0                       () : 0    
+    1:                 zero : 1                      one : 13                      () : 0                       () : 0    
+    2:                 incr : 2                      one : 13                      () : 0                       () : 0    
+done
+
+[end-body]
+    1: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    2: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    3: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    4: .args = (2)[     0     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    5: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    6: .args = (0)[ ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    7: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    8: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+done
+
+scope stack: (1 count)
+	scope     0: 
+		[   0]:    0    1    2    3    4    5    6    7    8 
+		[   1]:    9   10   11   12   13 
+
+done
+
+
+
+
+
+
+
+
+
+
+
+
+info: now processing file: simple.s...
+2:4: @ word: zero..
+finished with word
+zero
+dictionary: (12 count)
+    0: .name =                   (), .value =     0
+    1: .name =                 zero, .value =     1
+    2: .name =                 incr, .value =     2
+    3: .name =                 decr, .value =     3
+    4: .name =                  add, .value =     4
+    5: .name =                  def, .value =     5
+    6: .name =                  ret, .value =     6
+    7: .name =                   ar, .value =     7
+    8: .name =                   lf, .value =     8
+    9: .name =                 (nv), .value =     0
+   10: .name =         stackpointer, .value =     0
+   11: .name =            stacksize, .value =     0
+done
+
+functions: (9 count)
+    0: .args = (2)[     0     0 ]
+body: 
+instructions: (1 count) 
+    0:                 zero : 1                       () : 0                       () : 0                       () : 0    
+done
+
+[end-body]
+    1: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    2: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    3: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    4: .args = (2)[     0     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    5: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    6: .args = (0)[ ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    7: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    8: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+done
+
+scope stack: (1 count)
+	scope     0: 
+		[   0]:    0    1    2    3    4    5    6    7    8 
+		[   1]:    9   10   11 
+
+done
+
+7:4: @ word: zero..
+defining a new name:
+zero
+finished with word
+zero
+dictionary: (13 count)
+    0: .name =                   (), .value =     0
+    1: .name =                 zero, .value =     1
+    2: .name =                 incr, .value =     2
+    3: .name =                 decr, .value =     3
+    4: .name =                  add, .value =     4
+    5: .name =                  def, .value =     5
+    6: .name =                  ret, .value =     6
+    7: .name =                   ar, .value =     7
+    8: .name =                   lf, .value =     8
+    9: .name =                 (nv), .value =     0
+   10: .name =         stackpointer, .value =     0
+   11: .name =            stacksize, .value =     0
+   12: .name =                 zero, .value =     0
+done
+
+functions: (9 count)
+    0: .args = (2)[     0     0 ]
+body: 
+instructions: (1 count) 
+    0:                 zero : 1                     zero : 12                      () : 0                       () : 0    
+done
+
+[end-body]
+    1: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    2: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    3: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    4: .args = (2)[     0     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    5: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    6: .args = (0)[ ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    7: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    8: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+done
+
+scope stack: (1 count)
+	scope     0: 
+		[   0]:    0    1    2    3    4    5    6    7    8 
+		[   1]:    9   10   11   12 
+
+done
+
+12:4: @ word: zero..
+finished with word
+zero
+dictionary: (13 count)
+    0: .name =                   (), .value =     0
+    1: .name =                 zero, .value =     1
+    2: .name =                 incr, .value =     2
+    3: .name =                 decr, .value =     3
+    4: .name =                  add, .value =     4
+    5: .name =                  def, .value =     5
+    6: .name =                  ret, .value =     6
+    7: .name =                   ar, .value =     7
+    8: .name =                   lf, .value =     8
+    9: .name =                 (nv), .value =     0
+   10: .name =         stackpointer, .value =     0
+   11: .name =            stacksize, .value =     0
+   12: .name =                 zero, .value =     0
+done
+
+functions: (9 count)
+    0: .args = (2)[     0     0 ]
+body: 
+instructions: (2 count) 
+    0:                 zero : 1                     zero : 12                      () : 0                       () : 0    
+    1:                 zero : 1                       () : 0                       () : 0                       () : 0    
+done
+
+[end-body]
+    1: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    2: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    3: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    4: .args = (2)[     0     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    5: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    6: .args = (0)[ ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    7: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    8: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+done
+
+scope stack: (1 count)
+	scope     0: 
+		[   0]:    0    1    2    3    4    5    6    7    8 
+		[   1]:    9   10   11   12 
+
+done
+
+17:3: @ word: one..
+defining a new name:
+one
+finished with word
+one
+dictionary: (14 count)
+    0: .name =                   (), .value =     0
+    1: .name =                 zero, .value =     1
+    2: .name =                 incr, .value =     2
+    3: .name =                 decr, .value =     3
+    4: .name =                  add, .value =     4
+    5: .name =                  def, .value =     5
+    6: .name =                  ret, .value =     6
+    7: .name =                   ar, .value =     7
+    8: .name =                   lf, .value =     8
+    9: .name =                 (nv), .value =     0
+   10: .name =         stackpointer, .value =     0
+   11: .name =            stacksize, .value =     0
+   12: .name =                 zero, .value =     0
+   13: .name =                  one, .value =     0
+done
+
+functions: (9 count)
+    0: .args = (2)[     0     0 ]
+body: 
+instructions: (2 count) 
+    0:                 zero : 1                     zero : 12                      () : 0                       () : 0    
+    1:                 zero : 1                      one : 13                      () : 0                       () : 0    
+done
+
+[end-body]
+    1: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    2: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    3: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    4: .args = (2)[     0     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    5: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    6: .args = (0)[ ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    7: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    8: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+done
+
+scope stack: (1 count)
+	scope     0: 
+		[   0]:    0    1    2    3    4    5    6    7    8 
+		[   1]:    9   10   11   12   13 
+
+done
+
+21:4: @ word: incr..
+finished with word
+incr
+dictionary: (14 count)
+    0: .name =                   (), .value =     0
+    1: .name =                 zero, .value =     1
+    2: .name =                 incr, .value =     2
+    3: .name =                 decr, .value =     3
+    4: .name =                  add, .value =     4
+    5: .name =                  def, .value =     5
+    6: .name =                  ret, .value =     6
+    7: .name =                   ar, .value =     7
+    8: .name =                   lf, .value =     8
+    9: .name =                 (nv), .value =     0
+   10: .name =         stackpointer, .value =     0
+   11: .name =            stacksize, .value =     0
+   12: .name =                 zero, .value =     0
+   13: .name =                  one, .value =     0
+done
+
+functions: (9 count)
+    0: .args = (2)[     0     0 ]
+body: 
+instructions: (3 count) 
+    0:                 zero : 1                     zero : 12                      () : 0                       () : 0    
+    1:                 zero : 1                      one : 13                      () : 0                       () : 0    
+    2:                 incr : 2                       () : 0                       () : 0                       () : 0    
+done
+
+[end-body]
+    1: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    2: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    3: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    4: .args = (2)[     0     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    5: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    6: .args = (0)[ ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    7: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    8: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+done
+
+scope stack: (1 count)
+	scope     0: 
+		[   0]:    0    1    2    3    4    5    6    7    8 
+		[   1]:    9   10   11   12   13 
+
+done
+
+26:3: @ word: one..
+finished with word
+one
+dictionary: (14 count)
+    0: .name =                   (), .value =     0
+    1: .name =                 zero, .value =     1
+    2: .name =                 incr, .value =     2
+    3: .name =                 decr, .value =     3
+    4: .name =                  add, .value =     4
+    5: .name =                  def, .value =     5
+    6: .name =                  ret, .value =     6
+    7: .name =                   ar, .value =     7
+    8: .name =                   lf, .value =     8
+    9: .name =                 (nv), .value =     0
+   10: .name =         stackpointer, .value =     0
+   11: .name =            stacksize, .value =     0
+   12: .name =                 zero, .value =     0
+   13: .name =                  one, .value =     0
+done
+
+functions: (9 count)
+    0: .args = (2)[     0     0 ]
+body: 
+instructions: (3 count) 
+    0:                 zero : 1                     zero : 12                      () : 0                       () : 0    
+    1:                 zero : 1                      one : 13                      () : 0                       () : 0    
+    2:                 incr : 2                      one : 13                      () : 0                       () : 0    
+done
+
+[end-body]
+    1: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    2: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    3: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    4: .args = (2)[     0     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    5: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    6: .args = (0)[ ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    7: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    8: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+done
+
+scope stack: (1 count)
+	scope     0: 
+		[   0]:    0    1    2    3    4    5    6    7    8 
+		[   1]:    9   10   11   12   13 
+
+done
+
+31:3: @ word: def..
+finished with word
+def
+dictionary: (14 count)
+    0: .name =                   (), .value =     0
+    1: .name =                 zero, .value =     1
+    2: .name =                 incr, .value =     2
+    3: .name =                 decr, .value =     3
+    4: .name =                  add, .value =     4
+    5: .name =                  def, .value =     5
+    6: .name =                  ret, .value =     6
+    7: .name =                   ar, .value =     7
+    8: .name =                   lf, .value =     8
+    9: .name =                 (nv), .value =     0
+   10: .name =         stackpointer, .value =     0
+   11: .name =            stacksize, .value =     0
+   12: .name =                 zero, .value =     0
+   13: .name =                  one, .value =     0
+done
+
+functions: (9 count)
+    0: .args = (2)[     0     0 ]
+body: 
+instructions: (4 count) 
+    0:                 zero : 1                     zero : 12                      () : 0                       () : 0    
+    1:                 zero : 1                      one : 13                      () : 0                       () : 0    
+    2:                 incr : 2                      one : 13                      () : 0                       () : 0    
+    3:                  def : 5                       () : 0                       () : 0                       () : 0    
+done
+
+[end-body]
+    1: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    2: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    3: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    4: .args = (2)[     0     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    5: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    6: .args = (0)[ ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    7: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    8: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+done
+
+scope stack: (1 count)
+	scope     0: 
+		[   0]:    0    1    2    3    4    5    6    7    8 
+		[   1]:    9   10   11   12   13 
+
+done
+
+35:6: @ word: addone..
+EXECUTING DEF!!!
+defining a new name:
+addone
+finished with word
+addone
+dictionary: (15 count)
+    0: .name =                   (), .value =     0
+    1: .name =                 zero, .value =     1
+    2: .name =                 incr, .value =     2
+    3: .name =                 decr, .value =     3
+    4: .name =                  add, .value =     4
+    5: .name =                  def, .value =     5
+    6: .name =                  ret, .value =     6
+    7: .name =                   ar, .value =     7
+    8: .name =                   lf, .value =     8
+    9: .name =                 (nv), .value =     0
+   10: .name =         stackpointer, .value =     0
+   11: .name =            stacksize, .value =     0
+   12: .name =                 zero, .value =     0
+   13: .name =                  one, .value =     0
+   14: .name =               addone, .value =     9
+done
+
+functions: (10 count)
+    0: .args = (2)[     0     0 ]
+body: 
+instructions: (3 count) 
+    0:                 zero : 1                     zero : 12                      () : 0                       () : 0    
+    1:                 zero : 1                      one : 13                      () : 0                       () : 0    
+    2:                 incr : 2                   addone : 14                      () : 0                       () : 0    
+done
+
+[end-body]
+    1: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    2: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    3: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    4: .args = (2)[     0     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    5: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    6: .args = (0)[ ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    7: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    8: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    9: .args = (0)[ ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+done
+
+scope stack: (2 count)
+	scope     0: 
+		[   0]:    0    1    2    3    4    5    6    7    8   14 
+		[   1]:    9   10   11   12   13 
+
+	scope     1: 
+		[   0]: 
+		[   1]: 
+
+done
+
+42:2: @ word: ar..
+finished with word
+ar
+dictionary: (15 count)
+    0: .name =                   (), .value =     0
+    1: .name =                 zero, .value =     1
+    2: .name =                 incr, .value =     2
+    3: .name =                 decr, .value =     3
+    4: .name =                  add, .value =     4
+    5: .name =                  def, .value =     5
+    6: .name =                  ret, .value =     6
+    7: .name =                   ar, .value =     7
+    8: .name =                   lf, .value =     8
+    9: .name =                 (nv), .value =     0
+   10: .name =         stackpointer, .value =     0
+   11: .name =            stacksize, .value =     0
+   12: .name =                 zero, .value =     0
+   13: .name =                  one, .value =     0
+   14: .name =               addone, .value =     9
+done
+
+functions: (10 count)
+    0: .args = (2)[     0     0 ]
+body: 
+instructions: (3 count) 
+    0:                 zero : 1                     zero : 12                      () : 0                       () : 0    
+    1:                 zero : 1                      one : 13                      () : 0                       () : 0    
+    2:                 incr : 2                   addone : 14                      () : 0                       () : 0    
+done
+
+[end-body]
+    1: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    2: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    3: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    4: .args = (2)[     0     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    5: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    6: .args = (0)[ ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    7: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    8: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    9: .args = (0)[ ]
+body: 
+instructions: (1 count) 
+    0:                   ar : 7                       () : 0                       () : 0                       () : 0    
+done
+
+[end-body]
+done
+
+scope stack: (2 count)
+	scope     0: 
+		[   0]:    0    1    2    3    4    5    6    7    8   14 
+		[   1]:    9   10   11   12   13 
+
+	scope     1: 
+		[   0]: 
+		[   1]: 
+
+done
+
+45:1: @ word: x..
+executing ar....
+finished with word
+x
+dictionary: (16 count)
+    0: .name =                   (), .value =     0
+    1: .name =                 zero, .value =     1
+    2: .name =                 incr, .value =     2
+    3: .name =                 decr, .value =     3
+    4: .name =                  add, .value =     4
+    5: .name =                  def, .value =     5
+    6: .name =                  ret, .value =     6
+    7: .name =                   ar, .value =     7
+    8: .name =                   lf, .value =     8
+    9: .name =                 (nv), .value =     0
+   10: .name =         stackpointer, .value =     0
+   11: .name =            stacksize, .value =     0
+   12: .name =                 zero, .value =     0
+   13: .name =                  one, .value =     0
+   14: .name =               addone, .value =     9
+   15: .name =                    x, .value =     0
+done
+
+functions: (10 count)
+    0: .args = (2)[     0     0 ]
+body: 
+instructions: (3 count) 
+    0:                 zero : 1                     zero : 12                      () : 0                       () : 0    
+    1:                 zero : 1                      one : 13                      () : 0                       () : 0    
+    2:                 incr : 2                   addone : 14                      () : 0                       () : 0    
+done
+
+[end-body]
+    1: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    2: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    3: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    4: .args = (2)[     0     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    5: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    6: .args = (0)[ ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    7: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    8: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    9: .args = (1)[    15 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+done
+
+scope stack: (2 count)
+	scope     0: 
+		[   0]:    0    1    2    3    4    5    6    7    8   14 
+		[   1]:    9   10   11   12   13 
+
+	scope     1: 
+		[   0]: 
+		[   1]:   15 
+
+done
+
+48:4: @ word: incr..
+finished with word
+incr
+dictionary: (16 count)
+    0: .name =                   (), .value =     0
+    1: .name =                 zero, .value =     1
+    2: .name =                 incr, .value =     2
+    3: .name =                 decr, .value =     3
+    4: .name =                  add, .value =     4
+    5: .name =                  def, .value =     5
+    6: .name =                  ret, .value =     6
+    7: .name =                   ar, .value =     7
+    8: .name =                   lf, .value =     8
+    9: .name =                 (nv), .value =     0
+   10: .name =         stackpointer, .value =     0
+   11: .name =            stacksize, .value =     0
+   12: .name =                 zero, .value =     0
+   13: .name =                  one, .value =     0
+   14: .name =               addone, .value =     9
+   15: .name =                    x, .value =     0
+done
+
+functions: (10 count)
+    0: .args = (2)[     0     0 ]
+body: 
+instructions: (3 count) 
+    0:                 zero : 1                     zero : 12                      () : 0                       () : 0    
+    1:                 zero : 1                      one : 13                      () : 0                       () : 0    
+    2:                 incr : 2                   addone : 14                      () : 0                       () : 0    
+done
+
+[end-body]
+    1: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    2: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    3: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    4: .args = (2)[     0     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    5: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    6: .args = (0)[ ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    7: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    8: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    9: .args = (1)[    15 ]
+body: 
+instructions: (1 count) 
+    0:                 incr : 2                       () : 0                       () : 0                       () : 0    
+done
+
+[end-body]
+done
+
+scope stack: (2 count)
+	scope     0: 
+		[   0]:    0    1    2    3    4    5    6    7    8   14 
+		[   1]:    9   10   11   12   13 
+
+	scope     1: 
+		[   0]: 
+		[   1]:   15 
+
+done
+
+53:1: @ word: x..
+finished with word
+x
+dictionary: (16 count)
+    0: .name =                   (), .value =     0
+    1: .name =                 zero, .value =     1
+    2: .name =                 incr, .value =     2
+    3: .name =                 decr, .value =     3
+    4: .name =                  add, .value =     4
+    5: .name =                  def, .value =     5
+    6: .name =                  ret, .value =     6
+    7: .name =                   ar, .value =     7
+    8: .name =                   lf, .value =     8
+    9: .name =                 (nv), .value =     0
+   10: .name =         stackpointer, .value =     0
+   11: .name =            stacksize, .value =     0
+   12: .name =                 zero, .value =     0
+   13: .name =                  one, .value =     0
+   14: .name =               addone, .value =     9
+   15: .name =                    x, .value =     0
+done
+
+functions: (10 count)
+    0: .args = (2)[     0     0 ]
+body: 
+instructions: (3 count) 
+    0:                 zero : 1                     zero : 12                      () : 0                       () : 0    
+    1:                 zero : 1                      one : 13                      () : 0                       () : 0    
+    2:                 incr : 2                   addone : 14                      () : 0                       () : 0    
+done
+
+[end-body]
+    1: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    2: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    3: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    4: .args = (2)[     0     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    5: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    6: .args = (0)[ ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    7: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    8: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    9: .args = (1)[    15 ]
+body: 
+instructions: (1 count) 
+    0:                 incr : 2                        x : 15                      () : 0                       () : 0    
+done
+
+[end-body]
+done
+
+scope stack: (2 count)
+	scope     0: 
+		[   0]:    0    1    2    3    4    5    6    7    8   14 
+		[   1]:    9   10   11   12   13 
+
+	scope     1: 
+		[   0]: 
+		[   1]:   15 
+
+done
+
+56:3: @ word: ret..
+executing ret....
+finished with word
+ret
+dictionary: (16 count)
+    0: .name =                   (), .value =     0
+    1: .name =                 zero, .value =     1
+    2: .name =                 incr, .value =     2
+    3: .name =                 decr, .value =     3
+    4: .name =                  add, .value =     4
+    5: .name =                  def, .value =     5
+    6: .name =                  ret, .value =     6
+    7: .name =                   ar, .value =     7
+    8: .name =                   lf, .value =     8
+    9: .name =                 (nv), .value =     0
+   10: .name =         stackpointer, .value =     0
+   11: .name =            stacksize, .value =     0
+   12: .name =                 zero, .value =     0
+   13: .name =                  one, .value =     0
+   14: .name =               addone, .value =     9
+   15: .name =                    x, .value =     0
+done
+
+functions: (10 count)
+    0: .args = (2)[     0     0 ]
+body: 
+instructions: (3 count) 
+    0:                 zero : 1                     zero : 12                      () : 0                       () : 0    
+    1:                 zero : 1                      one : 13                      () : 0                       () : 0    
+    2:                 incr : 2                   addone : 14                      () : 0                       () : 0    
+done
+
+[end-body]
+    1: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    2: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    3: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    4: .args = (2)[     0     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    5: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    6: .args = (0)[ ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    7: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    8: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    9: .args = (1)[    15 ]
+body: 
+instructions: (1 count) 
+    0:                 incr : 2                        x : 15                      () : 0                       () : 0    
+done
+
+[end-body]
+done
+
+scope stack: (1 count)
+	scope     0: 
+		[   0]:    0    1    2    3    4    5    6    7    8   14 
+		[   1]:    9   10   11   12   13 
+
+done
+
+processing_file: finished last file.
+dictionary: (16 count)
+    0: .name =                   (), .value =     0
+    1: .name =                 zero, .value =     1
+    2: .name =                 incr, .value =     2
+    3: .name =                 decr, .value =     3
+    4: .name =                  add, .value =     4
+    5: .name =                  def, .value =     5
+    6: .name =                  ret, .value =     6
+    7: .name =                   ar, .value =     7
+    8: .name =                   lf, .value =     8
+    9: .name =                 (nv), .value =     0
+   10: .name =         stackpointer, .value =     0
+   11: .name =            stacksize, .value =     0
+   12: .name =                 zero, .value =     0
+   13: .name =                  one, .value =     0
+   14: .name =               addone, .value =     9
+   15: .name =                    x, .value =     0
+done
+
+functions: (10 count)
+    0: .args = (2)[     0     0 ]
+body: 
+instructions: (3 count) 
+    0:                 zero : 1                     zero : 12                      () : 0                       () : 0    
+    1:                 zero : 1                      one : 13                      () : 0                       () : 0    
+    2:                 incr : 2                   addone : 14                      () : 0                       () : 0    
+done
+
+[end-body]
+    1: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    2: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    3: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    4: .args = (2)[     0     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    5: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    6: .args = (0)[ ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    7: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    8: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    9: .args = (1)[    15 ]
+body: 
+instructions: (1 count) 
+    0:                 incr : 2                        x : 15                      () : 0                       () : 0    
+done
+
+[end-body]
+done
+
+scope stack: (1 count)
+	scope     0: 
+		[   0]:    0    1    2    3    4    5    6    7    8   14 
+		[   1]:    9   10   11   12   13 
+
+done
+
+
+
+
+
+
+c.c:270:14: warning: implicit conversion changes signedness: 'int' to 'nat' (aka 'unsigned long long') [-Wsign-conversion]
+                nat name = -1;
+                    ~~~~   ^~
+1 warning generated.
+
+
+
+
+
+
+
+
+info: now processing file: test.s...
+info: now processing file: library/foundation...
+executing ar....
+executing ret....
+executing ar....
+executing ret....
+processing next file in the stack...
+info: now processing file: test.s...
+executing ret....
+executing ret....
+processing_file: finished last file.
+dictionary: (25 count)
+    0: .name =                   (), .value =     0
+    1: .name =                 zero, .value =     1
+    2: .name =                 incr, .value =     2
+    3: .name =                 decr, .value =     3
+    4: .name =                  add, .value =     4
+    5: .name =                  def, .value =     5
+    6: .name =                  ret, .value =     6
+    7: .name =                   ar, .value =     7
+    8: .name =                   lf, .value =     8
+    9: .name =                 (nv), .value =     0
+   10: .name =         stackpointer, .value =     0
+   11: .name =            stacksize, .value =     0
+   12: .name =   library/foundation, .value =     0
+   13: .name =                 zero, .value =     0
+   14: .name =                  one, .value =     0
+   15: .name =            settozero, .value =     9
+   16: .name =                    x, .value =     0
+   17: .name =               addone, .value =    10
+   18: .name =                    x, .value =     0
+   19: .name =                    x, .value =     0
+   20: .name =             function, .value =    11
+   21: .name =                    y, .value =     0
+   22: .name =             function, .value =    12
+   23: .name =                    y, .value =     0
+   24: .name =                    y, .value =     0
+done
+
+functions: (13 count)
+    0: .args = (2)[     0     0 ]
+body: 
+instructions: (9 count) 
+    0:                 zero : 1                     zero : 13                      () : 0                       () : 0    
+    1:                 zero : 1                      one : 14                      () : 0                       () : 0    
+    2:                 incr : 2                   addone : 17                      () : 0                       () : 0    
+    3:                 zero : 1                        x : 19                      () : 0                       () : 0    
+    4:                 incr : 2                 function : 20                      () : 0                       () : 0    
+    5:             function : 20                function : 22                      () : 0                       () : 0    
+    6:             function : 20                      () : 0                       () : 0                       () : 0    
+    7:             function : 20                      () : 0                       () : 0                       () : 0    
+    8:                  add : 4                        y : 24                       x : 19                      () : 0    
+done
+
+[end-body]
+    1: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    2: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    3: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    4: .args = (2)[     0     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    5: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    6: .args = (0)[ ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    7: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    8: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    9: .args = (1)[    16 ]
+body: 
+instructions: (1 count) 
+    0:                 zero : 1                        x : 16                      () : 0                       () : 0    
+done
+
+[end-body]
+   10: .args = (1)[    18 ]
+body: 
+instructions: (1 count) 
+    0:                 incr : 2                        x : 18                      () : 0                       () : 0    
+done
+
+[end-body]
+   11: .args = (0)[ ]
+body: 
+instructions: (1 count) 
+    0:                  add : 4                        x : 19                       y : 21                      () : 0    
+done
+
+[end-body]
+   12: .args = (0)[ ]
+body: 
+instructions: (1 count) 
+    0:                  add : 4                        x : 19                       y : 23                      () : 0    
+done
+
+[end-body]
+done
+
+scope stack: (1 count)
+	scope     0: 
+		[   0]:    0    1    2    3    4    5    6    7    8   15   17   20   22 
+		[   1]:    9   10   11   12   13   14   19   24 
+
+done
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+c.c:270:14: warning: implicit conversion changes signedness: 'int' to 'nat' (aka 'unsigned long long') [-Wsign-conversion]
+                nat name = -1;
+                    ~~~~   ^~
+1 warning generated.
+
+info: now processing file: test.s...
+info: now processing file: library/foundation...
+executing ar....
+executing ret....
+executing ar....
+executing ret....
+processing next file in the stack...
+info: now processing file: test.s...
+executing ret....
+executing ret....
+processing_file: finished last file.
+dictionary: (25 count)
+    0: .name =                   (), .value =     0
+    1: .name =                 zero, .value =     1
+    2: .name =                 incr, .value =     2
+    3: .name =                 decr, .value =     3
+    4: .name =                  add, .value =     4
+    5: .name =                  def, .value =     5
+    6: .name =                  ret, .value =     6
+    7: .name =                   ar, .value =     7
+    8: .name =                   lf, .value =     8
+    9: .name =                 (nv), .value =     0
+   10: .name =         stackpointer, .value =     0
+   11: .name =            stacksize, .value =     0
+   12: .name =   library/foundation, .value =     0
+   13: .name =                 zero, .value =     0
+   14: .name =                  one, .value =     0
+   15: .name =            settozero, .value =     9
+   16: .name =                    x, .value =     0
+   17: .name =               addone, .value =    10
+   18: .name =                    x, .value =     0
+   19: .name =                    x, .value =     0
+   20: .name =             function, .value =    11
+   21: .name =                    y, .value =     0
+   22: .name =             function, .value =    12
+   23: .name =                    y, .value =     0
+   24: .name =                    y, .value =     0
+done
+
+functions: (13 count)
+    0: .args = (2)[     0     0 ]
+body: 
+instructions: (9 count) 
+    0:                 zero : 1                     zero : 13                    zero : 0                     zero : 0    
+    1:                 zero : 1                     zero : 14                    zero : 0                     zero : 0    
+    2:                 incr : 2                     incr : 17                    incr : 0                     incr : 0    
+    3:                 zero : 1                     zero : 19                    zero : 0                     zero : 0    
+    4:                 incr : 2                     incr : 20                    incr : 0                     incr : 0    
+    5:             function : 20                function : 22                function : 0                 function : 0    
+    6:             function : 20                function : 0                 function : 0                 function : 0    
+    7:             function : 20                function : 0                 function : 0                 function : 0    
+    8:                  add : 4                      add : 24                     add : 19                     add : 0    
+done
+
+[end-body]
+    1: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    2: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    3: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    4: .args = (2)[     0     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    5: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    6: .args = (0)[ ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    7: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    8: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    9: .args = (1)[    16 ]
+body: 
+instructions: (1 count) 
+    0:                 zero : 1                     zero : 16                    zero : 0                     zero : 0    
+done
+
+[end-body]
+   10: .args = (1)[    18 ]
+body: 
+instructions: (1 count) 
+    0:                 incr : 2                     incr : 18                    incr : 0                     incr : 0    
+done
+
+[end-body]
+   11: .args = (0)[ ]
+body: 
+instructions: (1 count) 
+    0:                  add : 4                      add : 19                     add : 21                     add : 0    
+done
+
+[end-body]
+   12: .args = (0)[ ]
+body: 
+instructions: (1 count) 
+    0:                  add : 4                      add : 19                     add : 23                     add : 0    
+done
+
+[end-body]
+done
+
+scope stack: (1 count)
+	scope     0: 
+		[   0]:    0    1    2    3    4    5    6    7    8   15   17   20   22 
+		[   1]:    9   10   11   12   13   14   19   24 
+
+done
+
+
+line 128
+
+
+
+
+
+
+
+
+
+info: now processing file: test.s...
+info: now processing file: library/foundation...
+executing ar....
+executing ret....
+executing ar....
+executing ret....
+processing next file in the stack...
+info: now processing file: test.s...
+executing ret....
+executing ret....
+processing_file: finished last file.
+dictionary: (25 count)
+    0: .name =                   (), .value =     0
+    1: .name =                 zero, .value =     1
+    2: .name =                 incr, .value =     2
+    3: .name =                 decr, .value =     3
+    4: .name =                  add, .value =     4
+    5: .name =                  def, .value =     5
+    6: .name =                  ret, .value =     6
+    7: .name =                   ar, .value =     7
+    8: .name =                   lf, .value =     8
+    9: .name =                 (nv), .value =     0
+   10: .name =         stackpointer, .value =     0
+   11: .name =            stacksize, .value =     0
+   12: .name =   library/foundation, .value =     0
+   13: .name =                 zero, .value =     0
+   14: .name =                  one, .value =     0
+   15: .name =            settozero, .value =     9
+   16: .name =                    x, .value =     0
+   17: .name =               addone, .value =    10
+   18: .name =                    x, .value =     0
+   19: .name =                    x, .value =     0
+   20: .name =             function, .value =    11
+   21: .name =                    y, .value =     0
+   22: .name =             function, .value =    12
+   23: .name =                    y, .value =     0
+   24: .name =                    y, .value =     0
+done
+
+functions: (13 count)
+    0: .args = (2)[     0     0 ]
+body: 
+instructions: (9 count) 
+    0:     1(                zero)    13(                zero)     0(                  ())     0(                  ())
+    1:     1(                zero)    14(                 one)     0(                  ())     0(                  ())
+    2:     2(                incr)    17(              addone)     0(                  ())     0(                  ())
+    3:     1(                zero)    19(                   x)     0(                  ())     0(                  ())
+    4:     2(                incr)    20(            function)     0(                  ())     0(                  ())
+    5:    20(            function)    22(            function)     0(                  ())     0(                  ())
+    6:    20(            function)     0(                  ())     0(                  ())     0(                  ())
+    7:    20(            function)     0(                  ())     0(                  ())     0(                  ())
+    8:     4(                 add)    24(                   y)    19(                   x)     0(                  ())
+done
+
+[end-body]
+    1: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    2: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    3: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    4: .args = (2)[     0     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    5: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    6: .args = (0)[ ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    7: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    8: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    9: .args = (1)[    16 ]
+body: 
+instructions: (1 count) 
+    0:     1(                zero)    16(                   x)     0(                  ())     0(                  ())
+done
+
+[end-body]
+   10: .args = (1)[    18 ]
+body: 
+instructions: (1 count) 
+    0:     2(                incr)    18(                   x)     0(                  ())     0(                  ())
+done
+
+[end-body]
+   11: .args = (0)[ ]
+body: 
+instructions: (1 count) 
+    0:     4(                 add)    19(                   x)    21(                   y)     0(                  ())
+done
+
+[end-body]
+   12: .args = (0)[ ]
+body: 
+instructions: (1 count) 
+    0:     4(                 add)    19(                   x)    23(                   y)     0(                  ())
+done
+
+[end-body]
+done
+
+scope stack: (1 count)
+	scope     0: 
+		[   0]:    0    1    2    3    4    5    6    7    8   15   17   20   22 
+		[   1]:    9   10   11   12   13   14   19   24 
+
+done
+
+
+
+
+
+
+
+
+
+
+
+
+info: now processing file: test.s...
+info: now processing file: library/foundation...
+executing ar....
+executing ret....
+executing ar....
+executing ret....
+processing next file in the stack...
+info: now processing file: test.s...
+executing ret....
+executing ret....
+processing_file: finished last file.
+dictionary: (25 count)
+    0: .name =                   (), .value =     0
+    1: .name =                 zero, .value =     1
+    2: .name =                 incr, .value =     2
+    3: .name =                 decr, .value =     3
+    4: .name =                  add, .value =     4
+    5: .name =                  def, .value =     5
+    6: .name =                  ret, .value =     6
+    7: .name =                   ar, .value =     7
+    8: .name =                   lf, .value =     8
+    9: .name =                 (nv), .value =     0
+   10: .name =         stackpointer, .value =     0
+   11: .name =            stacksize, .value =     0
+   12: .name =   library/foundation, .value =     0
+   13: .name =                 zero, .value =     0
+   14: .name =                  one, .value =     0
+   15: .name =            settozero, .value =     9
+   16: .name =                    x, .value =     0
+   17: .name =               addone, .value =    10
+   18: .name =                    x, .value =     0
+   19: .name =                    x, .value =     0
+   20: .name =             function, .value =    11
+   21: .name =                    y, .value =     0
+   22: .name =             function, .value =    12
+   23: .name =                    y, .value =     0
+   24: .name =                    y, .value =     0
+done
+
+functions: (13 count)
+    0: .args = (2)[     0     0 ]
+body: 
+instructions: (9 count) 
+    0:                 zero:1                     zero:13                    zero:0                     zero:0    
+    1:                 zero:1                     zero:14                    zero:0                     zero:0    
+    2:                 incr:2                     incr:17                    incr:0                     incr:0    
+    3:                 zero:1                     zero:19                    zero:0                     zero:0    
+    4:                 incr:2                     incr:20                    incr:0                     incr:0    
+    5:             function:20                function:22                function:0                 function:0    
+    6:             function:20                function:0                 function:0                 function:0    
+    7:             function:20                function:0                 function:0                 function:0    
+    8:                  add:4                      add:24                     add:19                     add:0    
+done
+
+[end-body]
+    1: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    2: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    3: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    4: .args = (2)[     0     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    5: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    6: .args = (0)[ ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    7: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    8: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    9: .args = (1)[    16 ]
+body: 
+instructions: (1 count) 
+    0:                 zero:1                     zero:16                    zero:0                     zero:0    
+done
+
+[end-body]
+   10: .args = (1)[    18 ]
+body: 
+instructions: (1 count) 
+    0:                 incr:2                     incr:18                    incr:0                     incr:0    
+done
+
+[end-body]
+   11: .args = (0)[ ]
+body: 
+instructions: (1 count) 
+    0:                  add:4                      add:19                     add:21                     add:0    
+done
+
+[end-body]
+   12: .args = (0)[ ]
+body: 
+instructions: (1 count) 
+    0:                  add:4                      add:19                     add:23                     add:0    
+done
+
+[end-body]
+done
+
+scope stack: (1 count)
+	scope     0: 
+		[   0]:    0    1    2    3    4    5    6    7    8   15   17   20   22 
+		[   1]:    9   10   11   12   13   14   19   24 
+
+done
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+c.c:272:14: warning: implicit conversion changes signedness: 'int' to 'nat' (aka 'unsigned long long') [-Wsign-conversion]
+                nat name = -1;
+                    ~~~~   ^~
+1 warning generated.
+info: now processing file: test.s...
+info: now processing file: library/foundation...
+executing ar....
+dictionary: (17 count)
+    0: .name =            _nullins_, .value =     0
+    1: .name =                 zero, .value =     1
+    2: .name =                 incr, .value =     2
+    3: .name =                 decr, .value =     3
+    4: .name =                  add, .value =     4
+    5: .name =                  def, .value =     5
+    6: .name =                  ret, .value =     6
+    7: .name =                   ar, .value =     7
+    8: .name =                   lf, .value =     8
+    9: .name =            _nullvar_, .value =     0
+   10: .name =         stackpointer, .value =     0
+   11: .name =            stacksize, .value =     0
+   12: .name =   library/foundation, .value =     0
+   13: .name =                 zero, .value =     0
+   14: .name =                  one, .value =     0
+   15: .name =            settozero, .value =     9
+   16: .name =                    x, .value =     0
+done
+
+functions: (10 count)
+    0: .args = (2)[     0     0 ]
+body: 
+instructions: (3 count) 
+    0:                      zero    13     0     0
+    1:                      zero    14     0     0
+    2:                      incr    15     0     0
+done
+
+[end-body]
+    1: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    2: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    3: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    4: .args = (2)[     0     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    5: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    6: .args = (0)[ ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    7: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    8: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    9: .args = (1)[    16 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+done
+
+scope stack: (2 count)
+	scope     0: 
+		[   0]:    0    1    2    3    4    5    6    7    8   15 
+		[   1]:    9   10   11   12   13   14 
+
+	scope     1: 
+		[   0]: 
+		[   1]:   16 
+
+done
+
+executing ret....
+executing ar....
+dictionary: (19 count)
+    0: .name =            _nullins_, .value =     0
+    1: .name =                 zero, .value =     1
+    2: .name =                 incr, .value =     2
+    3: .name =                 decr, .value =     3
+    4: .name =                  add, .value =     4
+    5: .name =                  def, .value =     5
+    6: .name =                  ret, .value =     6
+    7: .name =                   ar, .value =     7
+    8: .name =                   lf, .value =     8
+    9: .name =            _nullvar_, .value =     0
+   10: .name =         stackpointer, .value =     0
+   11: .name =            stacksize, .value =     0
+   12: .name =   library/foundation, .value =     0
+   13: .name =                 zero, .value =     0
+   14: .name =                  one, .value =     0
+   15: .name =            settozero, .value =     9
+   16: .name =                    x, .value =     0
+   17: .name =               addone, .value =    10
+   18: .name =                    x, .value =     0
+done
+
+functions: (11 count)
+    0: .args = (2)[     0     0 ]
+body: 
+instructions: (3 count) 
+    0:                      zero    13     0     0
+    1:                      zero    14     0     0
+    2:                      incr    17     0     0
+done
+
+[end-body]
+    1: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    2: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    3: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    4: .args = (2)[     0     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    5: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    6: .args = (0)[ ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    7: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    8: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    9: .args = (1)[    16 ]
+body: 
+instructions: (1 count) 
+    0:                      zero    16     0     0
+done
+
+[end-body]
+   10: .args = (1)[    18 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+done
+
+scope stack: (2 count)
+	scope     0: 
+		[   0]:    0    1    2    3    4    5    6    7    8   15   17 
+		[   1]:    9   10   11   12   13   14 
+
+	scope     1: 
+		[   0]: 
+		[   1]:   18 
+
+done
+
+executing ret....
+processing next file in the stack...
+info: now processing file: test.s...
+executing ret....
+executing ret....
+processing_file: finished last file.
+dictionary: (25 count)
+    0: .name =            _nullins_, .value =     0
+    1: .name =                 zero, .value =     1
+    2: .name =                 incr, .value =     2
+    3: .name =                 decr, .value =     3
+    4: .name =                  add, .value =     4
+    5: .name =                  def, .value =     5
+    6: .name =                  ret, .value =     6
+    7: .name =                   ar, .value =     7
+    8: .name =                   lf, .value =     8
+    9: .name =            _nullvar_, .value =     0
+   10: .name =         stackpointer, .value =     0
+   11: .name =            stacksize, .value =     0
+   12: .name =   library/foundation, .value =     0
+   13: .name =                 zero, .value =     0
+   14: .name =                  one, .value =     0
+   15: .name =            settozero, .value =     9
+   16: .name =                    x, .value =     0
+   17: .name =               addone, .value =    10
+   18: .name =                    x, .value =     0
+   19: .name =                    x, .value =     0
+   20: .name =             function, .value =    11
+   21: .name =                    y, .value =     0
+   22: .name =             function, .value =    12
+   23: .name =                    y, .value =     0
+   24: .name =                    y, .value =     0
+done
+
+functions: (13 count)
+    0: .args = (2)[     0     0 ]
+body: 
+instructions: (9 count) 
+    0:                      zero    13     0     0
+    1:                      zero    14     0     0
+    2:                      incr    17     0     0
+    3:                      zero    19     0     0
+    4:                      incr    20     0     0
+    5:   (user-defined-function)    22     0     0
+    6:   (user-defined-function)     0     0     0
+    7:   (user-defined-function)     0     0     0
+    8:                       add    24    19     0
+done
+
+[end-body]
+    1: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    2: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    3: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    4: .args = (2)[     0     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    5: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    6: .args = (0)[ ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    7: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    8: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    9: .args = (1)[    16 ]
+body: 
+instructions: (1 count) 
+    0:                      zero    16     0     0
+done
+
+[end-body]
+   10: .args = (1)[    18 ]
+body: 
+instructions: (1 count) 
+    0:                      incr    18     0     0
+done
+
+[end-body]
+   11: .args = (0)[ ]
+body: 
+instructions: (1 count) 
+    0:                       add    19    21     0
+done
+
+[end-body]
+   12: .args = (0)[ ]
+body: 
+instructions: (1 count) 
+    0:                       add    19    23     0
+done
+
+[end-body]
+done
+
+scope stack: (1 count)
+	scope     0: 
+		[   0]:    0    1    2    3    4    5    6    7    8   15   17   20   22 
+		[   1]:    9   10   11   12   13   14   19   24 
+
+done
+
+
+
+info: now processing file: test.s...
+info: now processing file: library/foundation...
+executing ar....
+dictionary: (18 count)
+    0: .name =            _nullins_, .value =     0
+    1: .name =                 zero, .value =     1
+    2: .name =                 incr, .value =     2
+    3: .name =                 decr, .value =     3
+    4: .name =                  add, .value =     4
+    5: .name =                  def, .value =     5
+    6: .name =                  ret, .value =     6
+    7: .name =                   ar, .value =     7
+    8: .name =                   lf, .value =     8
+    9: .name =            _nullvar_, .value =     0
+   10: .name =         stackpointer, .value =     0
+   11: .name =            stacksize, .value =     0
+   12: .name =   library/foundation, .value =     0
+   13: .name =                 zero, .value =     0
+   14: .name =                  one, .value =     0
+   15: .name =            settozero, .value =     9
+   16: .name =                    x, .value =     0
+   17: .name =                    x, .value =     0
+done
+
+functions: (10 count)
+    0: .args = (2)[     0     0 ]
+body: 
+instructions: (3 count) 
+    0:                      zero    13     0     0
+    1:                      zero    14     0     0
+    2:                      incr    15     0     0
+done
+
+[end-body]
+    1: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    2: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    3: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    4: .args = (2)[     0     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    5: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    6: .args = (0)[ ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    7: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    8: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    9: .args = (1)[    17 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+done
+
+scope stack: (2 count)
+	scope     0: 
+		[   0]:    0    1    2    3    4    5    6    7    8   15 
+		[   1]:    9   10   11   12   13   14 
+
+	scope     1: 
+		[   0]: 
+		[   1]:   16   17 
+
+done
+
+executing ret....
+executing ar....
+dictionary: (21 count)
+    0: .name =            _nullins_, .value =     0
+    1: .name =                 zero, .value =     1
+    2: .name =                 incr, .value =     2
+    3: .name =                 decr, .value =     3
+    4: .name =                  add, .value =     4
+    5: .name =                  def, .value =     5
+    6: .name =                  ret, .value =     6
+    7: .name =                   ar, .value =     7
+    8: .name =                   lf, .value =     8
+    9: .name =            _nullvar_, .value =     0
+   10: .name =         stackpointer, .value =     0
+   11: .name =            stacksize, .value =     0
+   12: .name =   library/foundation, .value =     0
+   13: .name =                 zero, .value =     0
+   14: .name =                  one, .value =     0
+   15: .name =            settozero, .value =     9
+   16: .name =                    x, .value =     0
+   17: .name =                    x, .value =     0
+   18: .name =               addone, .value =    10
+   19: .name =                    x, .value =     0
+   20: .name =                    x, .value =     0
+done
+
+functions: (11 count)
+    0: .args = (2)[     0     0 ]
+body: 
+instructions: (3 count) 
+    0:                      zero    13     0     0
+    1:                      zero    14     0     0
+    2:                      incr    18     0     0
+done
+
+[end-body]
+    1: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    2: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    3: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    4: .args = (2)[     0     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    5: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    6: .args = (0)[ ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    7: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    8: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    9: .args = (1)[    17 ]
+body: 
+instructions: (1 count) 
+    0:                      zero    16     0     0
+done
+
+[end-body]
+   10: .args = (1)[    20 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+done
+
+scope stack: (2 count)
+	scope     0: 
+		[   0]:    0    1    2    3    4    5    6    7    8   15   18 
+		[   1]:    9   10   11   12   13   14 
+
+	scope     1: 
+		[   0]: 
+		[   1]:   19   20 
+
+done
+
+executing ret....
+processing next file in the stack...
+info: now processing file: test.s...
+executing ret....
+executing ret....
+processing_file: finished last file.
+dictionary: (27 count)
+    0: .name =            _nullins_, .value =     0
+    1: .name =                 zero, .value =     1
+    2: .name =                 incr, .value =     2
+    3: .name =                 decr, .value =     3
+    4: .name =                  add, .value =     4
+    5: .name =                  def, .value =     5
+    6: .name =                  ret, .value =     6
+    7: .name =                   ar, .value =     7
+    8: .name =                   lf, .value =     8
+    9: .name =            _nullvar_, .value =     0
+   10: .name =         stackpointer, .value =     0
+   11: .name =            stacksize, .value =     0
+   12: .name =   library/foundation, .value =     0
+   13: .name =                 zero, .value =     0
+   14: .name =                  one, .value =     0
+   15: .name =            settozero, .value =     9
+   16: .name =                    x, .value =     0
+   17: .name =                    x, .value =     0
+   18: .name =               addone, .value =    10
+   19: .name =                    x, .value =     0
+   20: .name =                    x, .value =     0
+   21: .name =                    x, .value =     0
+   22: .name =             function, .value =    11
+   23: .name =                    y, .value =     0
+   24: .name =             function, .value =    12
+   25: .name =                    y, .value =     0
+   26: .name =                    y, .value =     0
+done
+
+functions: (13 count)
+    0: .args = (2)[     0     0 ]
+body: 
+instructions: (9 count) 
+    0:                      zero    13     0     0
+    1:                      zero    14     0     0
+    2:                      incr    18     0     0
+    3:                      zero    21     0     0
+    4:                      incr    22     0     0
+    5:   (user-defined-function)    24     0     0
+    6:   (user-defined-function)     0     0     0
+    7:   (user-defined-function)     0     0     0
+    8:                       add    26    21     0
+done
+
+[end-body]
+    1: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    2: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    3: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    4: .args = (2)[     0     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    5: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    6: .args = (0)[ ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    7: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    8: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    9: .args = (1)[    17 ]
+body: 
+instructions: (1 count) 
+    0:                      zero    16     0     0
+done
+
+[end-body]
+   10: .args = (1)[    20 ]
+body: 
+instructions: (1 count) 
+    0:                      incr    19     0     0
+done
+
+[end-body]
+   11: .args = (0)[ ]
+body: 
+instructions: (1 count) 
+    0:                       add    21    23     0
+done
+
+[end-body]
+   12: .args = (0)[ ]
+body: 
+instructions: (1 count) 
+    0:                       add    21    25     0
+done
+
+[end-body]
+done
+
+scope stack: (1 count)
+	scope     0: 
+		[   0]:    0    1    2    3    4    5    6    7    8   15   18   22   24 
+		[   1]:    9   10   11   12   13   14   21   26 
+
+done
+
+
+
+
+c.c:272:14: warning: implicit conversion changes signedness: 'int' to 'nat' (aka 'unsigned long long') [-Wsign-conversion]
+                nat name = -1;
+                    ~~~~   ^~
+1 warning generated.
+
+
+info: now processing file: test.s...
+info: now processing file: library/foundation...
+executing ar....
+dictionary: (18 count)
+    0: .name =            _nullins_, .value =     0
+    1: .name =                 zero, .value =     1
+    2: .name =                 incr, .value =     2
+    3: .name =                 decr, .value =     3
+    4: .name =                  add, .value =     4
+    5: .name =                  def, .value =     5
+    6: .name =                  ret, .value =     6
+    7: .name =                   ar, .value =     7
+    8: .name =                   lf, .value =     8
+    9: .name =            _nullvar_, .value =     0
+   10: .name =         stackpointer, .value =     0
+   11: .name =            stacksize, .value =     0
+   12: .name =   library/foundation, .value =     0
+   13: .name =                 zero, .value =     0
+   14: .name =                  one, .value =     0
+   15: .name =            settozero, .value =     9
+   16: .name =                    x, .value =     0
+   17: .name =                    x, .value =     0
+done
+
+functions: (10 count)
+    0: .args = (2)[     0     0 ]
+body: 
+instructions: (5 count) 
+    0:                        lf    12     0     0
+    1:                      zero    13     0     0
+    2:                      zero    14     0     0
+    3:                      incr    14     0     0
+    4:                       def    15     0     0
+done
+
+[end-body]
+    1: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    2: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    3: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    4: .args = (2)[     0     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    5: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    6: .args = (0)[ ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    7: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    8: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    9: .args = (1)[    17 ]
+body: 
+instructions: (1 count) 
+    0:                        ar    16     0     0
+done
+
+[end-body]
+done
+
+scope stack: (2 count)
+	scope     0: 
+		[   0]:    0    1    2    3    4    5    6    7    8   15 
+		[   1]:    9   10   11   12   13   14 
+
+	scope     1: 
+		[   0]: 
+		[   1]:   16   17 
+
+done
+
+executing ret....
+executing ar....
+dictionary: (21 count)
+    0: .name =            _nullins_, .value =     0
+    1: .name =                 zero, .value =     1
+    2: .name =                 incr, .value =     2
+    3: .name =                 decr, .value =     3
+    4: .name =                  add, .value =     4
+    5: .name =                  def, .value =     5
+    6: .name =                  ret, .value =     6
+    7: .name =                   ar, .value =     7
+    8: .name =                   lf, .value =     8
+    9: .name =            _nullvar_, .value =     0
+   10: .name =         stackpointer, .value =     0
+   11: .name =            stacksize, .value =     0
+   12: .name =   library/foundation, .value =     0
+   13: .name =                 zero, .value =     0
+   14: .name =                  one, .value =     0
+   15: .name =            settozero, .value =     9
+   16: .name =                    x, .value =     0
+   17: .name =                    x, .value =     0
+   18: .name =               addone, .value =    10
+   19: .name =                    x, .value =     0
+   20: .name =                    x, .value =     0
+done
+
+functions: (11 count)
+    0: .args = (2)[     0     0 ]
+body: 
+instructions: (6 count) 
+    0:                        lf    12     0     0
+    1:                      zero    13     0     0
+    2:                      zero    14     0     0
+    3:                      incr    14     0     0
+    4:                       def    15     0     0
+    5:                       def    18     0     0
+done
+
+[end-body]
+    1: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    2: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    3: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    4: .args = (2)[     0     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    5: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    6: .args = (0)[ ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    7: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    8: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    9: .args = (1)[    17 ]
+body: 
+instructions: (3 count) 
+    0:                        ar    16     0     0
+    1:                      zero    16     0     0
+    2:                       ret     0     0     0
+done
+
+[end-body]
+   10: .args = (1)[    20 ]
+body: 
+instructions: (1 count) 
+    0:                        ar    19     0     0
+done
+
+[end-body]
+done
+
+scope stack: (2 count)
+	scope     0: 
+		[   0]:    0    1    2    3    4    5    6    7    8   15   18 
+		[   1]:    9   10   11   12   13   14 
+
+	scope     1: 
+		[   0]: 
+		[   1]:   19   20 
+
+done
+
+executing ret....
+processing next file in the stack...
+info: now processing file: test.s...
+executing ret....
+executing ret....
+processing_file: finished last file.
+dictionary: (27 count)
+    0: .name =            _nullins_, .value =     0
+    1: .name =                 zero, .value =     1
+    2: .name =                 incr, .value =     2
+    3: .name =                 decr, .value =     3
+    4: .name =                  add, .value =     4
+    5: .name =                  def, .value =     5
+    6: .name =                  ret, .value =     6
+    7: .name =                   ar, .value =     7
+    8: .name =                   lf, .value =     8
+    9: .name =            _nullvar_, .value =     0
+   10: .name =         stackpointer, .value =     0
+   11: .name =            stacksize, .value =     0
+   12: .name =   library/foundation, .value =     0
+   13: .name =                 zero, .value =     0
+   14: .name =                  one, .value =     0
+   15: .name =            settozero, .value =     9
+   16: .name =                    x, .value =     0
+   17: .name =                    x, .value =     0
+   18: .name =               addone, .value =    10
+   19: .name =                    x, .value =     0
+   20: .name =                    x, .value =     0
+   21: .name =                    x, .value =     0
+   22: .name =             function, .value =    11
+   23: .name =                    y, .value =     0
+   24: .name =             function, .value =    12
+   25: .name =                    y, .value =     0
+   26: .name =                    y, .value =     0
+done
+
+functions: (13 count)
+    0: .args = (2)[     0     0 ]
+body: 
+instructions: (14 count) 
+    0:                        lf    12     0     0
+    1:                      zero    13     0     0
+    2:                      zero    14     0     0
+    3:                      incr    14     0     0
+    4:                       def    15     0     0
+    5:                       def    18     0     0
+    6:                      zero    21     0     0
+    7:                      incr    21     0     0
+    8:                       def    22     0     0
+    9:   (user-defined-function)     0     0     0
+   10:                       def    24     0     0
+   11:   (user-defined-function)     0     0     0
+   12:   (user-defined-function)     0     0     0
+   13:                       add    26    21     0
+done
+
+[end-body]
+    1: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    2: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    3: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    4: .args = (2)[     0     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    5: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    6: .args = (0)[ ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    7: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    8: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    9: .args = (1)[    17 ]
+body: 
+instructions: (3 count) 
+    0:                        ar    16     0     0
+    1:                      zero    16     0     0
+    2:                       ret     0     0     0
+done
+
+[end-body]
+   10: .args = (1)[    20 ]
+body: 
+instructions: (3 count) 
+    0:                        ar    19     0     0
+    1:                      incr    19     0     0
+    2:                       ret     0     0     0
+done
+
+[end-body]
+   11: .args = (0)[ ]
+body: 
+instructions: (2 count) 
+    0:                       add    21    23     0
+    1:                       ret     0     0     0
+done
+
+[end-body]
+   12: .args = (0)[ ]
+body: 
+instructions: (2 count) 
+    0:                       add    21    25     0
+    1:                       ret     0     0     0
+done
+
+[end-body]
+done
+
+scope stack: (1 count)
+	scope     0: 
+		[   0]:    0    1    2    3    4    5    6    7    8   15   18   22   24 
+		[   1]:    9   10   11   12   13   14   21   26 
+
+done
+
+
+
+
+c.c:272:14: warning: implicit conversion changes signedness: 'int' to 'nat' (aka 'unsigned long long') [-Wsign-conversion]
+                nat name = -1;
+                    ~~~~   ^~
+1 warning generated.
+
+
+info: now processing file: test.s...
+info: now processing file: library/foundation...
+executing ar....
+executing ret....
+executing ar....
+executing ret....
+processing next file in the stack...
+info: now processing file: test.s...
+executing ret....
+executing ret....
+processing_file: finished last file.
+dictionary: (25 count)
+    0: .name =            _nullins_, .value =     0
+    1: .name =                 zero, .value =     1
+    2: .name =                 incr, .value =     2
+    3: .name =                 decr, .value =     3
+    4: .name =                  add, .value =     4
+    5: .name =                  def, .value =     5
+    6: .name =                  ret, .value =     6
+    7: .name =                   ar, .value =     7
+    8: .name =                   lf, .value =     8
+    9: .name =            _nullvar_, .value =     0
+   10: .name =         stackpointer, .value =     0
+   11: .name =            stacksize, .value =     0
+   12: .name =   library/foundation, .value =     0
+   13: .name =                 zero, .value =     0
+   14: .name =                  one, .value =     0
+   15: .name =            settozero, .value =     9
+   16: .name =                    x, .value =     0
+   17: .name =               addone, .value =    10
+   18: .name =                    x, .value =     0
+   19: .name =                    x, .value =     0
+   20: .name =             function, .value =    11
+   21: .name =                    y, .value =     0
+   22: .name =             function, .value =    12
+   23: .name =                    y, .value =     0
+   24: .name =                    y, .value =     0
+done
+
+functions: (13 count)
+    0: .args = (2)[     0     0 ]
+body: 
+instructions: (14 count) 
+    0:                        lf    12     0     0
+    1:                      zero    13     0     0
+    2:                      zero    14     0     0
+    3:                      incr    14     0     0
+    4:                       def    15     0     0
+    5:                       def    17     0     0
+    6:                      zero    19     0     0
+    7:                      incr    19     0     0
+    8:                       def    20     0     0
+    9:   (user-defined-function)     0     0     0
+   10:                       def    22     0     0
+   11:   (user-defined-function)     0     0     0
+   12:   (user-defined-function)     0     0     0
+   13:                       add    24    19     0
+done
+
+[end-body]
+    1: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    2: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    3: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    4: .args = (2)[     0     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    5: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    6: .args = (0)[ ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    7: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    8: .args = (1)[     0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+    9: .args = (0)[ ]
+body: 
+instructions: (3 count) 
+    0:                        ar    16     0     0
+    1:                      zero    16     0     0
+    2:                       ret     0     0     0
+done
+
+[end-body]
+   10: .args = (0)[ ]
+body: 
+instructions: (3 count) 
+    0:                        ar    18     0     0
+    1:                      incr    18     0     0
+    2:                       ret     0     0     0
+done
+
+[end-body]
+   11: .args = (0)[ ]
+body: 
+instructions: (2 count) 
+    0:                       add    19    21     0
+    1:                       ret     0     0     0
+done
+
+[end-body]
+   12: .args = (0)[ ]
+body: 
+instructions: (2 count) 
+    0:                       add    19    23     0
+    1:                       ret     0     0     0
+done
+
+[end-body]
+done
+
+scope stack: (1 count)
+	scope     0: 
+		[   0]:    0    1    2    3    4    5    6    7    8   15   17   20   22 
+		[   1]:    9   10   11   12   13   14   19   24 
+
+done
+
+
+
+
+
+info: now processing file: test.s...
+info: now processing file: library/foundation...
+executing ar....
+executing ret....
+executing ar....
+executing ret....
+processing next file in the stack...
+info: now processing file: test.s...
+executing ret....
+executing ret....
+processing_file: finished last file.
+dictionary: (25 count)
+0: .name = _nullins_, .value = 0
+1: .name = zero, .value = 1
+2: .name = incr, .value = 2
+3: .name = decr, .value = 3
+4: .name = add, .value = 4
+5: .name = def, .value = 5
+6: .name = ret, .value = 6
+7: .name = ar, .value = 7
+8: .name = lf, .value = 8
+9: .name = _nullvar_, .value = 0
+10: .name = stackpointer, .value = 0
+11: .name = stacksize, .value = 0
+12: .name = library/foundation, .value = 0
+13: .name = zero, .value = 0
+14: .name = one, .value = 0
+15: .name = settozero, .value = 9
+16: .name = x, .value = 0
+17: .name = addone, .value = 10
+18: .name = x, .value = 0
+19: .name = x, .value = 0
+20: .name = function, .value = 11
+21: .name = y, .value = 0
+22: .name = function, .value = 12
+23: .name = y, .value = 0
+24: .name = y, .value = 0
+done
+
+functions: (13 count)
+0: .args = (2)[ 0 0 ]
+body: 
+instructions: (14 count) 
+0: lf 12 0 0
+1: zero 13 0 0
+2: zero 14 0 0
+3: incr 14 0 0
+4: def 15 0 0
+5: def 17 0 0
+6: zero 19 0 0
+7: incr 19 0 0
+8: def 20 0 0
+9: (user-defined-function) 0 0 0
+10: def 22 0 0
+11: (user-defined-function) 0 0 0
+12: (user-defined-function) 0 0 0
+13: add 24 19 0
+done
+
+[end-body]
+1: .args = (1)[ 0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+2: .args = (1)[ 0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+3: .args = (1)[ 0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+4: .args = (2)[ 0 0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+5: .args = (1)[ 0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+6: .args = (0)[ ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+7: .args = (1)[ 0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+8: .args = (1)[ 0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+9: .args = (0)[ ]
+body: 
+instructions: (3 count) 
+0: ar 16 0 0
+1: zero 16 0 0
+2: ret 0 0 0
+done
+
+[end-body]
+10: .args = (0)[ ]
+body: 
+instructions: (3 count) 
+0: ar 18 0 0
+1: incr 18 0 0
+2: ret 0 0 0
+done
+
+[end-body]
+11: .args = (0)[ ]
+body: 
+instructions: (2 count) 
+0: add 19 21 0
+1: ret 0 0 0
+done
+
+[end-body]
+12: .args = (0)[ ]
+body: 
+instructions: (2 count) 
+0: add 19 23 0
+1: ret 0 0 0
+done
+
+[end-body]
+done
+
+scope stack: (1 count)
+	scope 0: 
+		[0]: 0 1 2 3 4 5 6 7 8 15 17 20 22 
+		[1]: 9 10 11 12 13 14 19 24 
+
+done
+
+
+
+
+
+insert cat test.s
+
+
+
+
+zero x 
+incr x
+
+def function
+	add x y
+	ret
+
+function
+
+def function
+	add x y
+	ret
+
+function
+function
+
+add y x
+
+
+
+
+
+
+
+
+executing ret....
+executing ret....
+dictionary: (17 count)
+0: .name = _nullins_, .value = 0
+1: .name = zero, .value = 1
+2: .name = incr, .value = 2
+3: .name = decr, .value = 3
+4: .name = add, .value = 4
+5: .name = def, .value = 5
+6: .name = ret, .value = 6
+7: .name = ar, .value = 7
+8: .name = _nullvar_, .value = 0
+9: .name = stackpointer, .value = 0
+10: .name = stacksize, .value = 0
+11: .name = x, .value = 0
+12: .name = function, .value = 8
+13: .name = y, .value = 0
+14: .name = function, .value = 9
+15: .name = y, .value = 0
+16: .name = y, .value = 0
+done
+
+functions: (10 count)
+0: .args = (2)[ 0 0 ]
+body: 
+instructions: (8 count) 
+0: zero 11 0 0
+1: incr 11 0 0
+2: def 12 0 0
+3: (user-defined-function) 0 0 0
+4: def 14 0 0
+5: (user-defined-function) 0 0 0
+6: (user-defined-function) 0 0 0
+7: add 16 11 0
+done
+
+[end-body]
+1: .args = (1)[ 0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+2: .args = (1)[ 0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+3: .args = (1)[ 0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+4: .args = (2)[ 0 0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+5: .args = (1)[ 0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+6: .args = (0)[ ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+7: .args = (1)[ 0 ]
+body: 
+instructions: (0 count) 
+done
+
+[end-body]
+8: .args = (0)[ ]
+body: 
+instructions: (2 count) 
+0: add 11 13 0
+1: ret 0 0 0
+done
+
+[end-body]
+9: .args = (0)[ ]
+body: 
+instructions: (2 count) 
+0: add 11 15 0
+1: ret 0 0 0
+done
+
+[end-body]
+done
+
+scope stack: (1 count)
+	scope 0: 
+		[0]: 0 1 2 3 4 5 6 7 12 14 
+		[1]: 8 9 10 11 16 
+
+done
+
+just parsed:
+zero x 
+incr x
+def function
+	add x y
+	ret
+function
+def function
+	add x y
+	ret
+function
+function
+add y x
+
+
+text_length = 105
+
+
+
+
+
+		// const char* name = "(user-defined-function)";
+		// if (ins[i].args[0] < isa_count) name = ins_spelling[ins[i].args[0]];
+
+
+
+*/
+
+
+
+
+
+

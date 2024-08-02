@@ -1,0 +1,16 @@
+
+zero zero
+zero one
+incr one
+
+
+def settozero ar x
+	zero x
+	ret
+
+
+def addone ar x
+	incr x
+	ret
+
+

@@ -1,27 +1,22 @@
-// 1202407302.211405  dwrr 
+// 1202407302.211405  dwrr
 // the parser for the programming language,
 // the new version with function defs and riscv isa ish...
 //
 /*
 copyb insert ./build
+copya insert ./run
+copyb do ,./build
 copya do ,./run
 
-line 279
-
-
 rename todo:
-
-add these names:
-
+add these names to the isa:
 
 		incr
-
 		decr
-
 		zero
 
-
 those are pretty important lol... so yeah. i think i want those names too.
+
 
 */
 
@@ -37,19 +32,16 @@ those are pretty important lol... so yeah. i think i want those names too.
 
 typedef uint64_t nat;
 
-
-
 enum language_isa {
 	nullins,
-	zero, incr, decr, add, def, ret, 
+	zero, incr, decr, add, def, ret, ar, lf,
 	isa_count
 };
 
 static const char* ins_spelling[isa_count] = {
-	"_nullins_",
-	"zero", "incr", "decr", "add", "def", "ret", 
+	"()",
+	"zero", "incr", "decr", "add", "def", "ret", "ar", "lf", 
 };
-
 
 
 enum language_builtins {
@@ -59,7 +51,7 @@ enum language_builtins {
 };
 
 static const char* builtin_spelling[builtin_count] = {
-	"_nullvar_",
+	"(nv)",
 	"stackpointer", "stacksize",
 };
 
@@ -89,73 +81,78 @@ struct scope {
 	nat function;
 };
 
+struct file {
+	nat index;
+	nat text_length;
+	char* text;
+	const char* filename;
+};
+
 
 static nat arity(nat i) {
 	if (i == ret) return 0; 
-	if (i == incr or i == decr or i == zero or i == def) return 1;
+	if (i == incr or i == decr or i == zero or i == def or i == ar or i == lf) return 1;
 	return 2;
 }
 
-static void debug_instructions(struct instruction* ins, nat ins_count) {
+static void debug_instructions(struct instruction* ins, nat ins_count, struct dictionary d) {
 	
 	printf("instructions: (%llu count) \n", ins_count);
 
 	for (nat i = 0; i < ins_count; i++) {
 
-		const char* name = "(user-defined-function)";
-		if (ins[i].args[0] < isa_count) name = ins_spelling[ins[i].args[0]];
-
-		printf("%llu: %s %lld %lld %lld\n", 
-			i, name, 
-			ins[i].args[1], ins[i].args[2], 
-			ins[i].args[3]
+		printf("%5llu: %20s : %-5lld %20s : %-5lld %20s : %-5lld %20s : %-5lld\n", 
+			i, 
+			d.names[ins[i].args[0]], ins[i].args[0],
+			d.names[ins[i].args[1]], ins[i].args[1],
+			d.names[ins[i].args[2]], ins[i].args[2],
+			d.names[ins[i].args[3]], ins[i].args[3]
 		);
 	}
-	puts("done");
+	puts("done\n");
 }
 
 
 static void debug_dictionary(struct dictionary d) {
 	printf("dictionary: (%llu count)\n", d.count);
 	for (nat i = 0; i < d.count; i++) {
-		printf("%llu: .name = %s, .value = %llu\n", i, d.names[i], d.values[i]);
+		printf("%5llu: .name = %20s, .value = %5llu\n", i, d.names[i], d.values[i]);
 	}
-	puts("done");
+	puts("done\n");
 }
 
 static void debug_scopes(struct scope* scopes, nat scope_count) {
 	printf("scope stack: (%llu count)\n", scope_count);
 	for (nat i = 0; i < scope_count; i++) {
-		printf("\tscope %llu: \n", i);
+		printf("\tscope %5llu: \n", i);
 		for (nat t = 0; t < 2; t++) {
-			printf("\t\t[%llu]: ", t);
+			printf("\t\t[%4llu]: ", t);
 			for (nat n = 0; n < scopes[i].count[t]; n++) 
-				printf("%llu ", scopes[i].list[t][n]);
+				printf("%4llu ", scopes[i].list[t][n]);
 			puts("");
 		}
 		puts("");
 	}
-	puts("done");
+	puts("done\n");
 }
 
-static void debug_functions(struct function* functions, nat function_count) {
+static void debug_functions(struct function* functions, nat function_count, struct dictionary d) {
 
 	printf("functions: (%llu count)\n", function_count);
 	for (nat f = 0; f < function_count; f++) {
-		printf("%llu: .args = (%llu)[ ", f, functions[f].arity);
+		printf("%5llu: .args = (%llu)[ ", f, functions[f].arity);
 		for (nat a = 0; a < functions[f].arity; a++) {
-			printf("%llu ", functions[f].arguments[a]);
+			printf("%5llu ", functions[f].arguments[a]);
 		}
 		puts("]");
 		puts("body: ");
-		debug_instructions(functions[f].body, functions[f].body_count);
+		debug_instructions(functions[f].body, functions[f].body_count, d);
 		puts("[end-body]");
 	}
-	puts("done");
+	puts("done\n");
 }
 
-
-static void parse(char* text, const nat text_length) {
+static void parse(const char* given_filename) {
 
 	struct function* functions = NULL;
 	nat function_count = 0;
@@ -168,6 +165,25 @@ static void parse(char* text, const nat text_length) {
 	scopes[0].function = 0;
 
 	struct dictionary d = {0};
+
+	nat stack_count = 1;
+	struct file stack[4096] = {0};
+	
+{
+	int file = open(given_filename, O_RDONLY);
+	if (file < 0) { puts(given_filename); perror("open"); exit(1); }
+	const nat text_length = (nat) lseek(file, 0, SEEK_END);
+	lseek(file, 0, SEEK_SET);
+	char* text = calloc(text_length + 1, 1);
+	read(file, text, text_length);
+	close(file);
+
+	stack[0].filename = given_filename;
+	stack[0].text = text;
+	stack[0].text_length = text_length;
+	stack[0].index = 0;
+}
+
 
 	for (nat i = 0; i < isa_count; i++) {
 
@@ -200,9 +216,19 @@ static void parse(char* text, const nat text_length) {
 		d.values[d.count++] = 0;
 	}
 
+
+process_file:;
+
 	nat word_length = 0, word_start = 0, in_args = 0, arg_count = 0;
 
-	for (nat index = 0; index < text_length; index++) {
+	const nat starting_index = 	stack[stack_count - 1].index;
+	const nat text_length = 	stack[stack_count - 1].text_length;
+	char* text = 			stack[stack_count - 1].text;
+	const char* filename = 		stack[stack_count - 1].filename;
+
+	printf("info: now processing file: %s...\n", filename);
+
+	for (nat index = starting_index; index < stack[stack_count - 1].text_length; index++) {
 		if (not isspace(text[index])) {
 			if (not word_length) word_start = index;
 			word_length++; 
@@ -220,9 +246,9 @@ static void parse(char* text, const nat text_length) {
 				if (not strcmp(d.names[list[i]], word) and 
 					in_args != d.values[list[i]]) {
 
-					puts("found name!");
-					puts(word);
-					printf("in_args = %llu\n", in_args);
+					// puts("found name!");
+					// puts(word);
+					// printf("in_args = %llu\n", in_args);
 					name = list[i];
 					goto found;
 				}
@@ -236,13 +262,18 @@ static void parse(char* text, const nat text_length) {
 			abort();
 
 		} else {
-			puts("defining a new name:");
-			puts(word);
-	
-			if (functions[scopes[scope_count - 1].function]
+
+			const nat op = functions[scopes[scope_count - 1].function]
 				.body[functions[scopes[scope_count - 1]
 				.function].body_count - 1]
-				.args[0] == def) goto found;
+				.args[0];
+	
+			if (op == def or op == ar) goto found;
+
+			puts("defining a new name:");
+			puts(word);
+
+
 			const nat t = 1;
 			scopes[scope_count - 1].list[t] = 
 			realloc(scopes[scope_count - 1].list[t], 
@@ -278,23 +309,68 @@ static void parse(char* text, const nat text_length) {
 		.body[functions[scopes[scope_count - 1].function]
 		.body_count - 1].args[0];
 
-		if (arg_count == functions[d.values[op]].arity + 1) {
+		if (arg_count >= functions[d.values[op]].arity + 1) {
+
+			if (op == lf) {
+				functions[scopes[scope_count - 1].function].body_count--;
+				int file = open(word, O_RDONLY);
+				if (file < 0) { puts(word); perror("open"); exit(1); }
+				const nat new_text_length = (nat) lseek(file, 0, SEEK_END);
+				lseek(file, 0, SEEK_SET);
+				char* new_text = calloc(new_text_length + 1, 1);
+				read(file, new_text, new_text_length);
+				close(file);
+
+				stack[stack_count - 1].index = index;
+				stack[stack_count].filename = word;
+				stack[stack_count].text = new_text;
+				stack[stack_count].text_length = new_text_length;
+				stack[stack_count++].index = 0;
+				goto process_file;
+			}
 
 			if (op == ret) {
 				puts("executing ret....");
+				functions[scopes[scope_count - 1].function].body_count--;
 				scope_count--;
+				functions[scopes[scope_count - 1].function].body_count--;
 			}
 
-			/*if (op == ar) {
+			if (op == ar) {
+				functions[scopes[scope_count - 1].function].body_count--;
 				puts("executing ar....");
-			}*/
+
+				const nat t = 1;
+				scopes[scope_count - 1].list[t] = 
+				realloc(scopes[scope_count - 1].list[t], 
+				sizeof(nat) * (scopes[scope_count - 1].count[t] + 1));
+				scopes[scope_count - 1].list[t][
+				scopes[scope_count - 1].count[t]++] = d.count;
+
+				d.names = realloc(d.names, sizeof(char*) * (d.count + 1));
+				d.values = realloc(d.values, sizeof(nat) * (d.count + 1));
+				d.names[d.count] = word;
+				d.values[d.count++] = 0;
+
+				functions[function_count - 1].arguments = realloc(
+				functions[function_count - 1].arguments, sizeof(nat) * (
+				functions[function_count - 1].arity + 1));
+				functions[function_count - 1].arguments[
+				functions[function_count - 1].arity++] = d.count - 1;
+
+				// debug_dictionary(d);
+				// debug_functions(functions, function_count, d);
+				// debug_scopes(scopes, scope_count);
+			}
 
 			if (op == def) {
 
 				puts("EXECUTING DEF!!!");
 				puts("defining a new name:");
 				puts(word);
-				
+
+				//functions[scopes[scope_count - 1].function].body_count--;
+
 				functions = realloc(functions, sizeof(struct function) * (function_count + 1));
 				functions[function_count++] = (struct function) {0};
 
@@ -324,37 +400,48 @@ static void parse(char* text, const nat text_length) {
 			arg_count = 0; 
 		}
 
-		puts("finished with word");
-		puts(word);
 
-		debug_dictionary(d);
-		debug_functions(functions, function_count);
-		debug_scopes(scopes, scope_count);
+		// puts("finished with word");
+		// puts(word);
+
+		// debug_dictionary(d);
+		// debug_functions(functions, function_count, d);
+		// debug_scopes(scopes, scope_count);
 
 		word_length = 0;
 	}
+
+	stack_count--;
+
+	if (not stack_count) {
+		puts("processing_file: finished last file.");
+		// do nothing. 
+	} else {
+		puts("processing next file in the stack...");
+		goto process_file;
+	}
+
+	debug_dictionary(d);
+	debug_functions(functions, function_count, d);
+	debug_scopes(scopes, scope_count);
+
 }
 
 
-int main(void) {
-
-	int file = open("test.s", O_RDONLY);
-	if (file < 0) { perror("open"); exit(1); }
-
-	const nat text_length = (nat) lseek(file, 0, SEEK_END);
-	lseek(file, 0, SEEK_SET);
-	char* text = calloc(text_length + 1, 1);
-	read(file, text, text_length);
-	close(file);
-
-	parse(text, text_length);
-	puts("just parsed:");
-	puts(text);
-	printf("text_length = %llu\n", text_length);
+int main(int argc, const char** argv) {
+	const char* root = argc == 2 ? argv[1] : "simple.s";
+	parse(root);
 }
 
 
 // exit
+
+
+
+
+
+
+
 
 
 
