@@ -121,13 +121,15 @@ typedef uint64_t nat;
 
 enum language_isa {
 	nullins,
-	zero, incr, decr, add, lt, def, ret, ar, lf,
+	zero, incr, decr, add, sub, mul, div_, rem, 
+	lt, ge, ne, eq, env, at, def, ret, ar, lf,
 	isa_count
 };
 
 static const char* ins_spelling[isa_count] = {
 	"()",
-	"zero", "incr", "decr", "add", "lt", "def", "ret", "ar", "lf", 
+	"zero", "incr", "decr", "add", "sub", "mul", "div", "rem", 
+	"lt", "ge", "ne", "eq", "env", "at", "def", "ret", "ar", "lf", 
 };
 
 
@@ -175,11 +177,11 @@ struct file {
 	const char* filename;
 };
 
-
 static nat arity(nat i) {
-	if (i == ret) return 0; 
-	if (i == incr or i == decr or i == zero or i == def or i == ar or i == lf) return 1;
-	if (i == lt) return 3;
+	if (i == ret or i == env) return 0; 
+	if (i == incr or i == decr or i == zero or 
+	i == def or i == ar or i == lf or i == at) return 1;
+	if (i == lt or i == ge or i == ne or i == eq) return 3;
 	return 2;
 }
 
@@ -188,7 +190,6 @@ static void debug_instructions(struct instruction* ins, nat ins_count, struct di
 	printf("instructions: (%llu count) \n", ins_count);
 
 	for (nat i = 0; i < ins_count; i++) {
-
 		printf("%5llu: %20s : %-5lld %20s : %-5lld %20s : %-5lld %20s : %-5lld\n", 
 			i, 
 			d.names[ins[i].args[0]], ins[i].args[0],
@@ -225,7 +226,6 @@ static void debug_scopes(struct scope* scopes, nat scope_count) {
 }
 
 static void debug_functions(struct function* functions, nat function_count, struct dictionary d) {
-
 	printf("functions: (%llu count)\n", function_count);
 	for (nat f = 0; f < function_count; f++) {
 		printf("%5llu: .args = (%llu)[ ", f, functions[f].arity);
@@ -240,19 +240,37 @@ static void debug_functions(struct function* functions, nat function_count, stru
 	puts("done\n");
 }
 
-static void parse(const char* given_filename) {
+
+
+static void debug_registers(nat* r, nat count) {
+	printf("registers: (%llu count)\n", count);
+	for (nat i = 0; i < count; i++) {
+		if (i % 4 == 0) puts("");
+		printf("%5llu: 0x%016llx %5lld      ", i, r[i], r[i]);
+	}
+	puts("\ndone\n");
+}
+
+
+int main(int argc, const char** argv) {
+	if (argc != 2) exit(puts("compiler: \033[31;1merror:\033[0m usage: ./run <file.s>"));
+
+	puts("this assembler is currently a work in progress, "
+		"backend is currently not fully implemented yet..."
+	);
+
+	const char* given_filename = argv[1];
 
 	struct function* functions = NULL;
 	nat function_count = 0;
 
 	nat scope_count = 1;
 	struct scope* scopes = calloc(1, sizeof(struct scope));
-
 	scopes[0].list = calloc(2, sizeof(nat*));
 	scopes[0].count = calloc(2, sizeof(nat));
 	scopes[0].function = 0;
 
-	struct dictionary d = {0};
+	struct dictionary dictionary = {0};
 
 	nat stack_count = 1;
 	struct file stack[4096] = {0};
@@ -272,7 +290,6 @@ static void parse(const char* given_filename) {
 	stack[0].index = 0;
 }
 
-
 	for (nat i = 0; i < isa_count; i++) {
 
 		const nat a = arity(i);
@@ -286,27 +303,25 @@ static void parse(const char* given_filename) {
 		};
 
 		scopes[0].list[0] = realloc(scopes[0].list[0], sizeof(nat) * (scopes[0].count[0] + 1));
-		scopes[0].list[0][scopes[0].count[0]++] = d.count;
+		scopes[0].list[0][scopes[0].count[0]++] = dictionary.count;
 
-		d.names = realloc(d.names, sizeof(char*) * (d.count + 1));
-		d.values = realloc(d.values, sizeof(nat) * (d.count + 1));
-		d.names[d.count] = strdup(ins_spelling[i]);
-		d.values[d.count++] = function_count - 1;
+		dictionary.names = realloc(dictionary.names, sizeof(char*) * (dictionary.count + 1));
+		dictionary.values = realloc(dictionary.values, sizeof(nat) * (dictionary.count + 1));
+		dictionary.names[dictionary.count] = strdup(ins_spelling[i]);
+		dictionary.values[dictionary.count++] = function_count - 1;
 	}
 
 	for (nat i = 0; i < builtin_count; i++) {
 		scopes[0].list[1] = realloc(scopes[0].list[1], sizeof(nat) * (scopes[0].count[1] + 1));
-		scopes[0].list[1][scopes[0].count[1]++] = d.count;
+		scopes[0].list[1][scopes[0].count[1]++] = dictionary.count;
 
-		d.names = realloc(d.names, sizeof(char*) * (d.count + 1));
-		d.values = realloc(d.values, sizeof(nat) * (d.count + 1));
-		d.names[d.count] = strdup(builtin_spelling[i]);
-		d.values[d.count++] = 0;
+		dictionary.names = realloc(dictionary.names, sizeof(char*) * (dictionary.count + 1));
+		dictionary.values = realloc(dictionary.values, sizeof(nat) * (dictionary.count + 1));
+		dictionary.names[dictionary.count] = strdup(builtin_spelling[i]);
+		dictionary.values[dictionary.count++] = 0;
 	}
 
-
 process_file:;
-
 	nat word_length = 0, word_start = 0, in_args = 0, arg_count = 0;
 
 	const nat starting_index = 	stack[stack_count - 1].index;
@@ -324,15 +339,15 @@ process_file:;
 		} else if (not word_length) continue;
 		char* word = strndup(text + word_start, word_length);
 		
-		printf("%llu:%llu: @ word: %s..\n", word_start, word_length, word);
+		// printf("%llu:%llu: @ word: %s..\n", word_start, word_length, word);
 
-		nat name = -1;
+		nat name = (nat) -1;
 		for (nat s = scope_count; s--;) {
 			nat* list = scopes[s].list[in_args];
 			nat count = scopes[s].count[in_args];
 			for (nat i = 0; i < count; i++) {
-				if (not strcmp(d.names[list[i]], word) and 
-					in_args != d.values[list[i]]) {
+				if (not strcmp(dictionary.names[list[i]], word) and 
+					in_args != dictionary.values[list[i]]) {
 
 					// puts("found name!");
 					// puts(word);
@@ -367,13 +382,13 @@ process_file:;
 			realloc(scopes[scope_count - 1].list[t], 
 			sizeof(nat) * (scopes[scope_count - 1].count[t] + 1));
 			scopes[scope_count - 1].list[t][
-			scopes[scope_count - 1].count[t]++] = d.count;
+			scopes[scope_count - 1].count[t]++] = dictionary.count;
 
-			d.names = realloc(d.names, sizeof(char*) * (d.count + 1));
-			d.values = realloc(d.values, sizeof(nat) * (d.count + 1));
-			d.names[d.count] = word;
-			d.values[d.count++] = 0;
-			name = d.count - 1;
+			dictionary.names = realloc(dictionary.names, sizeof(char*) * (dictionary.count + 1));
+			dictionary.values = realloc(dictionary.values, sizeof(nat) * (dictionary.count + 1));
+			dictionary.names[dictionary.count] = word;
+			dictionary.values[dictionary.count++] = 0;
+			name = dictionary.count - 1;
 		}
 	found:
 		if (not in_args) {
@@ -397,7 +412,7 @@ process_file:;
 		.body[functions[scopes[scope_count - 1].function]
 		.body_count - 1].args[0];
 
-		if (arg_count >= functions[d.values[op]].arity + 1) {
+		if (arg_count >= functions[dictionary.values[op]].arity + 1) {
 
 			if (op == lf) {
 				functions[scopes[scope_count - 1].function].body_count--;
@@ -433,21 +448,21 @@ process_file:;
 				realloc(scopes[scope_count - 1].list[t], 
 				sizeof(nat) * (scopes[scope_count - 1].count[t] + 1));
 				scopes[scope_count - 1].list[t][
-				scopes[scope_count - 1].count[t]++] = d.count;
+				scopes[scope_count - 1].count[t]++] = dictionary.count;
 
-				d.names = realloc(d.names, sizeof(char*) * (d.count + 1));
-				d.values = realloc(d.values, sizeof(nat) * (d.count + 1));
-				d.names[d.count] = word;
-				d.values[d.count++] = 0;
+				dictionary.names = realloc(dictionary.names, sizeof(char*) * (dictionary.count + 1));
+				dictionary.values = realloc(dictionary.values, sizeof(nat) * (dictionary.count + 1));
+				dictionary.names[dictionary.count] = word;
+				dictionary.values[dictionary.count++] = 0;
 
 				functions[function_count - 1].arguments = realloc(
 				functions[function_count - 1].arguments, sizeof(nat) * (
 				functions[function_count - 1].arity + 1));
 				functions[function_count - 1].arguments[
-				functions[function_count - 1].arity++] = d.count - 1;
+				functions[function_count - 1].arity++] = dictionary.count - 1;
 
-				// debug_dictionary(d);
-				// debug_functions(functions, function_count, d);
+				// debug_dictionary(dictionary);
+				// debug_functions(functions, function_count, dictionary);
 				// debug_scopes(scopes, scope_count);
 			}
 
@@ -467,15 +482,15 @@ process_file:;
 				realloc(scopes[scope_count - 1].list[t], 
 				sizeof(nat) * (scopes[scope_count - 1].count[t] + 1));
 				scopes[scope_count - 1].list[t][
-				scopes[scope_count - 1].count[t]++] = d.count;
+				scopes[scope_count - 1].count[t]++] = dictionary.count;
 
-				d.names = realloc(d.names, sizeof(char*) * (d.count + 1));
-				d.values = realloc(d.values, sizeof(nat) * (d.count + 1));
-				d.names[d.count] = word;
-				d.values[d.count++] = function_count - 1;
+				dictionary.names = realloc(dictionary.names, sizeof(char*) * (dictionary.count + 1));
+				dictionary.values = realloc(dictionary.values, sizeof(nat) * (dictionary.count + 1));
+				dictionary.names[dictionary.count] = word;
+				dictionary.values[dictionary.count++] = function_count - 1;
 				functions[scopes[scope_count - 1].function].body[
 				functions[scopes[scope_count - 1].function].body_count - 1]
-				.args[arg_count - 1] = d.count - 1;
+				.args[arg_count - 1] = dictionary.count - 1;
 
 				scopes = realloc(scopes, sizeof(struct scope) * (scope_count + 1));
 				scopes[scope_count++] = (struct scope) {0};
@@ -509,16 +524,82 @@ process_file:;
 		goto process_file;
 	}
 
-	debug_dictionary(d);
-	debug_functions(functions, function_count, d);
+	debug_dictionary(dictionary);
+	debug_functions(functions, function_count, dictionary);
 	debug_scopes(scopes, scope_count);
 
-}
 
+	puts("done parsing! finding ats...");
 
-int main(int argc, const char** argv) {
-	const char* root = argc == 2 ? argv[1] : "simple.s";
-	parse(root);
+	nat* R = calloc(dictionary.count, sizeof(nat));
+
+	for (nat f = 0; f < function_count; f++) {
+		for (nat i = 0; i < functions[f].body_count; i++) {
+			printf("parsing:    %5llu: %20s : %-5lld %20s : %-5lld %20s : %-5lld %20s : %-5lld\n", 
+				i, 
+				dictionary.names[functions[f].body[i].args[0]], functions[f].body[i].args[0],
+				dictionary.names[functions[f].body[i].args[1]], functions[f].body[i].args[1],
+				dictionary.names[functions[f].body[i].args[2]], functions[f].body[i].args[2],
+				dictionary.names[functions[f].body[i].args[3]], functions[f].body[i].args[3]
+			);
+
+			const nat op = functions[f].body[i].args[0];
+			const nat d  = functions[f].body[i].args[1];
+			//const nat r  = functions[f].body[i].args[2];
+			//const nat s  = functions[f].body[i].args[3];
+
+			if (op == at) {
+				printf("executed at: assigned R[%llu] = %llu...\n", d, i);
+				R[d] = i;
+			}
+		}
+	}
+
+	puts("executing instructions now...");
+
+	nat f = 0;
+
+	nat last_used = 0;
+
+	for (nat i = 0; i < functions->body_count; i++) {
+		if (0) printf("executing:    %5llu: %20s : %-5lld %20s : %-5lld %20s : %-5lld %20s : %-5lld\n", 
+			i, 
+			dictionary.names[functions[f].body[i].args[0]], functions[f].body[i].args[0],
+			dictionary.names[functions[f].body[i].args[1]], functions[f].body[i].args[1],
+			dictionary.names[functions[f].body[i].args[2]], functions[f].body[i].args[2],
+			dictionary.names[functions[f].body[i].args[3]], functions[f].body[i].args[3]
+		);
+
+		const nat op = functions[f].body[i].args[0];
+		const nat d  = functions[f].body[i].args[1];
+		const nat r  = functions[f].body[i].args[2];
+		const nat s  = functions[f].body[i].args[3];
+
+		if (false) {}
+		else if (op == at) {}// { puts("executed at.... IGNORING INS...."); }
+		else if (op == zero) R[d] = 0;
+		else if (op == incr) R[d]++;
+		else if (op == decr) R[d]--;
+		else if (op == add) R[d] += R[r];
+		else if (op == sub) R[d] -= R[r];
+		else if (op == mul) R[d] *= R[r];
+		else if (op == div_) R[d] /= R[r];
+		else if (op == rem) R[d] %= R[r];
+		else if (op == lt) { if (R[r] < R[s]) { i = R[d]; } } 
+		else if (op == ge) { if (R[r] >= R[s]) { i = R[d]; } } 
+		else if (op == ne) { if (R[r] != R[s]) { i = R[d]; } } 
+		else if (op == eq) { if (R[r] == R[s]) { i = R[d]; } } 
+		else if (op == env) printf("\033[32;1mdebug:   0x%llx : %lld\033[0m\n", R[last_used], R[last_used]); 
+		else {
+			printf("error: executing unknown instruction: %llu (%s)\n", op, dictionary.names[op]);
+			abort();
+		}
+
+		last_used = d;
+	}
+	debug_registers(R, dictionary.count);   
+
+	exit(0);
 }
 
 
