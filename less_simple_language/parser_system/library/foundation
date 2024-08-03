@@ -1,16 +1,21 @@
+lf library/constants
 
-zero zero
-zero one
-incr one
-
-
-def settozero ar x
-	zero x
+def square ar x
+	mul x x
 	ret
 
+def double ar x
+	add x x
+	ret
 
 def addone ar x
 	incr x
 	ret
 
+
+def settozero_ifequal 
+	ar x 	ar a 	ar b
+	ne done a b
+	set x 0
+	at done ret
 

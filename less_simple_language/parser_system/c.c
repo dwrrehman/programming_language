@@ -121,14 +121,14 @@ typedef uint64_t nat;
 
 enum language_isa {
 	nullins,
-	zero, incr, decr, add, sub, mul, div_, rem, 
+	zero, incr, decr, set, add, sub, mul, div_, rem, sl, sr, 
 	lt, ge, ne, eq, env, at, def, ret, ar, lf,
 	isa_count
 };
 
 static const char* ins_spelling[isa_count] = {
 	"()",
-	"zero", "incr", "decr", "add", "sub", "mul", "div", "rem", 
+	"zero", "incr", "decr", "set", "add", "sub", "mul", "div", "rem", "sl", "sr", 
 	"lt", "ge", "ne", "eq", "env", "at", "def", "ret", "ar", "lf", 
 };
 
@@ -148,7 +148,8 @@ static const char* builtin_spelling[builtin_count] = {
 
 
 struct instruction {
-	nat args[4];
+	nat* args;
+	nat count;
 };
 
 struct function {
@@ -178,6 +179,7 @@ struct file {
 };
 
 static nat arity(nat i) {
+	if (not i) return 0;
 	if (i == ret or i == env) return 0; 
 	if (i == incr or i == decr or i == zero or 
 	i == def or i == ar or i == lf or i == at) return 1;
@@ -186,17 +188,13 @@ static nat arity(nat i) {
 }
 
 static void debug_instructions(struct instruction* ins, nat ins_count, struct dictionary d) {
-	
 	printf("instructions: (%llu count) \n", ins_count);
-
 	for (nat i = 0; i < ins_count; i++) {
-		printf("%5llu: %20s : %-5lld %20s : %-5lld %20s : %-5lld %20s : %-5lld\n", 
-			i, 
-			d.names[ins[i].args[0]], ins[i].args[0],
-			d.names[ins[i].args[1]], ins[i].args[1],
-			d.names[ins[i].args[2]], ins[i].args[2],
-			d.names[ins[i].args[3]], ins[i].args[3]
-		);
+		printf("%5llu:", i);
+		for (nat a = 0; a < ins[i].count; a++) {
+			 printf("  %20s : %-5lld", d.names[ins[i].args[a]], ins[i].args[a]);
+		}
+		puts("");
 	}
 	puts("done\n");
 }
@@ -321,8 +319,11 @@ int main(int argc, const char** argv) {
 		dictionary.values[dictionary.count++] = 0;
 	}
 
+	const char* included_files[4096] = {0};
+	nat included_file_count = 0;
+
 process_file:;
-	nat word_length = 0, word_start = 0, in_args = 0, arg_count = 0;
+	nat word_length = 0, word_start = 0, in_args = 0;
 
 	const nat starting_index = 	stack[stack_count - 1].index;
 	const nat text_length = 	stack[stack_count - 1].text_length;
@@ -393,29 +394,52 @@ process_file:;
 	found:
 		if (not in_args) {
 
-			functions[scopes[scope_count - 1].function].body = 
-			realloc(functions[scopes[scope_count - 1].function].body
-			, sizeof(struct instruction) * (functions[scopes[
-			scope_count - 1].function].body_count + 1));
-			functions[scopes[scope_count - 1].function].
-			body[functions[scopes[scope_count - 1].
-			function].body_count++] = (struct instruction) {0};
+			functions[scopes[scope_count - 1].function].body = realloc(
+			functions[scopes[scope_count - 1].function].body, 
+			sizeof(struct instruction) * (
+			functions[scopes[scope_count - 1].function].body_count + 1));
+			functions[scopes[scope_count - 1].function].body[
+			functions[scopes[scope_count - 1].function].body_count++
+			] = (struct instruction) {0};
 
 			in_args = 1;
 		}
 
+
+		functions[scopes[scope_count - 1].function].body[
+		functions[scopes[scope_count - 1].function].body_count - 1].args = realloc(
+		functions[scopes[scope_count - 1].function].body[
+		functions[scopes[scope_count - 1].function].body_count - 1].args,
+		sizeof(nat) * (functions[scopes[scope_count - 1].function].body[
+		functions[scopes[scope_count - 1].function].body_count - 1].count + 1));
+
 		functions[scopes[scope_count - 1].function].body[
 		functions[scopes[scope_count - 1].function].body_count - 1]
-		.args[arg_count++] = name;
+		.args[functions[scopes[scope_count - 1].function].body[
+		functions[scopes[scope_count - 1].function].body_count - 1]
+		.count++] = name;
 
 		const nat op = functions[scopes[scope_count - 1].function]
 		.body[functions[scopes[scope_count - 1].function]
 		.body_count - 1].args[0];
 
-		if (arg_count >= functions[dictionary.values[op]].arity + 1) {
+		if (functions[scopes[scope_count - 1].function].body[
+		functions[scopes[scope_count - 1].function].body_count - 1]
+		.count >= functions[dictionary.values[op]].arity + 1) {
 
 			if (op == lf) {
 				functions[scopes[scope_count - 1].function].body_count--;
+
+				for (nat i = 0; i < included_file_count; i++) {
+					if (not strcmp(included_files[i], word)) {
+						printf("warning: %s: this file has already been included, ignoring.\n", word);
+						goto skip_include;
+					}
+				}
+
+				printf("including file %s...\n", word);
+				included_files[included_file_count++] = word;
+
 				int file = open(word, O_RDONLY);
 				if (file < 0) { puts(word); perror("open"); exit(1); }
 				const nat new_text_length = (nat) lseek(file, 0, SEEK_END);
@@ -430,6 +454,8 @@ process_file:;
 				stack[stack_count].text_length = new_text_length;
 				stack[stack_count++].index = 0;
 				goto process_file;
+
+				skip_include:;
 			}
 
 			if (op == ret) {
@@ -490,7 +516,9 @@ process_file:;
 				dictionary.values[dictionary.count++] = function_count - 1;
 				functions[scopes[scope_count - 1].function].body[
 				functions[scopes[scope_count - 1].function].body_count - 1]
-				.args[arg_count - 1] = dictionary.count - 1;
+				.args[functions[scopes[scope_count - 1].function].body[
+				functions[scopes[scope_count - 1].function].body_count - 1]
+				.count - 1] = dictionary.count - 1;
 
 				scopes = realloc(scopes, sizeof(struct scope) * (scope_count + 1));
 				scopes[scope_count++] = (struct scope) {0};
@@ -499,8 +527,7 @@ process_file:;
 				scopes[scope_count - 1].function = function_count - 1;
 
 			}
-			in_args = 0; 
-			arg_count = 0; 
+			in_args = 0;
 		}
 
 
@@ -528,77 +555,136 @@ process_file:;
 	debug_functions(functions, function_count, dictionary);
 	debug_scopes(scopes, scope_count);
 
-
 	puts("done parsing! finding ats...");
 
 	nat* R = calloc(dictionary.count, sizeof(nat));
 
 	for (nat f = 0; f < function_count; f++) {
-		for (nat i = 0; i < functions[f].body_count; i++) {
+		for (nat pc = 0; pc < functions[f].body_count; pc++) {
+
+
+
+
+			printf("executing: %5llu:", pc);
+			for (nat a = 0; a < functions[f].body[pc].count; a++) {
+				 printf("  %20s : %-5lld", dictionary.names[functions[f].body[pc].args[a]], functions[f].body[pc].args[a]);
+			}
+			puts("");
+
+
+			/*for () {
+
+			}
 			printf("parsing:    %5llu: %20s : %-5lld %20s : %-5lld %20s : %-5lld %20s : %-5lld\n", 
 				i, 
 				dictionary.names[functions[f].body[i].args[0]], functions[f].body[i].args[0],
 				dictionary.names[functions[f].body[i].args[1]], functions[f].body[i].args[1],
 				dictionary.names[functions[f].body[i].args[2]], functions[f].body[i].args[2],
 				dictionary.names[functions[f].body[i].args[3]], functions[f].body[i].args[3]
-			);
+			);*/
 
-			const nat op = functions[f].body[i].args[0];
-			const nat d  = functions[f].body[i].args[1];
+			
 			//const nat r  = functions[f].body[i].args[2];
 			//const nat s  = functions[f].body[i].args[3];
 
+
+
+
+			const nat op = functions[f].body[pc].args[0];
 			if (op == at) {
-				printf("executed at: assigned R[%llu] = %llu...\n", d, i);
-				R[d] = i;
+				const nat d = functions[f].body[pc].args[1];
+				printf("executed at: assigned R[%llu] = %llu...\n", d, pc);
+				R[d] = pc;
 			}
 		}
 	}
 
 	puts("executing instructions now...");
 
-	nat f = 0;
+	nat call_stack_count = 1;
+	nat call_stack[4096] = {0};
+	nat return_address_stack[4096] = {0};
+	nat* argumentlist_stack[4096] = {0};
+
+	// add something to help with implmenting exec arguments.
 
 	nat last_used = 0;
 
-	for (nat i = 0; i < functions->body_count; i++) {
-		if (0) printf("executing:    %5llu: %20s : %-5lld %20s : %-5lld %20s : %-5lld %20s : %-5lld\n", 
-			i, 
-			dictionary.names[functions[f].body[i].args[0]], functions[f].body[i].args[0],
-			dictionary.names[functions[f].body[i].args[1]], functions[f].body[i].args[1],
-			dictionary.names[functions[f].body[i].args[2]], functions[f].body[i].args[2],
-			dictionary.names[functions[f].body[i].args[3]], functions[f].body[i].args[3]
-		);
+execute_function:;
 
-		const nat op = functions[f].body[i].args[0];
-		const nat d  = functions[f].body[i].args[1];
-		const nat r  = functions[f].body[i].args[2];
-		const nat s  = functions[f].body[i].args[3];
+	const nat f = call_stack[call_stack_count - 1];
+	const nat init_pc = return_address_stack[call_stack_count - 1];
+	nat* call_arguments = argumentlist_stack[call_stack_count - 1];
+
+	for (nat pc = init_pc; pc < functions[f].body_count; pc++) {
+
+		const nat op = functions[f].body[pc].args[0];
+
+		nat d = functions[f].body[pc].count >= 2 ? functions[f].body[pc].args[1] : 0;
+		nat r = functions[f].body[pc].count >= 3 ? functions[f].body[pc].args[2] : 0;
+		nat s = functions[f].body[pc].count >= 4 ? functions[f].body[pc].args[3] : 0;
+
+		for (nat a = 0; a < functions[f].arity; a++) {
+			if (d == functions[f].arguments[a]) d = call_arguments[a];
+			if (r == functions[f].arguments[a]) r = call_arguments[a];
+			if (s == functions[f].arguments[a]) s = call_arguments[a];
+		}
+
+		/*printf("executing: %5llu: %20s : %-5lld %20s : %-5lld %20s : %-5lld %20s : %-5lld\n", 
+			pc, 
+			dictionary.names[op], op,
+			dictionary.names[d], d,
+			dictionary.names[r], r,
+			dictionary.names[s], s
+		);*/
+
+
+	
+		printf("executing: %5llu:", pc);
+		for (nat a = 0; a < functions[f].body[pc].count; a++) {
+			  printf("  %20s : %-5lld", dictionary.names[functions[f].body[pc].args[a]], functions[f].body[pc].args[a]);
+		}
+		puts("");
+
+
+
 
 		if (false) {}
-		else if (op == at) {}// { puts("executed at.... IGNORING INS...."); }
+		else if (op == at) {}// { puts("executed at: IGNORING"); }
 		else if (op == zero) R[d] = 0;
 		else if (op == incr) R[d]++;
 		else if (op == decr) R[d]--;
-		else if (op == add) R[d] += R[r];
-		else if (op == sub) R[d] -= R[r];
-		else if (op == mul) R[d] *= R[r];
+		else if (op == set)  R[d]  = R[r];
+		else if (op == add)  R[d] += R[r];
+		else if (op == sub)  R[d] -= R[r];
+		else if (op == mul)  R[d] *= R[r];
 		else if (op == div_) R[d] /= R[r];
-		else if (op == rem) R[d] %= R[r];
-		else if (op == lt) { if (R[r] < R[s]) { i = R[d]; } } 
-		else if (op == ge) { if (R[r] >= R[s]) { i = R[d]; } } 
-		else if (op == ne) { if (R[r] != R[s]) { i = R[d]; } } 
-		else if (op == eq) { if (R[r] == R[s]) { i = R[d]; } } 
+		else if (op == rem)  R[d] %= R[r];
+		else if (op == sl)  R[d] <<= R[r];
+		else if (op == sr)  R[d] >>= R[r];
+		else if (op == lt) { if (R[r] < R[s]) { pc = R[d]; } } 
+		else if (op == ge) { if (R[r] >= R[s]) { pc = R[d]; } } 
+		else if (op == ne) { if (R[r] != R[s]) { pc = R[d]; } } 
+		else if (op == eq) { if (R[r] == R[s]) { pc = R[d]; } } 
 		else if (op == env) printf("\033[32;1mdebug:   0x%llx : %lld\033[0m\n", R[last_used], R[last_used]); 
-		else {
+		else if (op >= isa_count) {
+			printf("executing user-defined function: %s...\n", dictionary.names[op]);
+			return_address_stack[call_stack_count - 1] = pc + 1;
+			return_address_stack[call_stack_count] = 0;
+
+			argumentlist_stack[call_stack_count] = functions[f].body[pc].args + 1;
+			call_stack[call_stack_count++] = dictionary.values[op];
+			goto execute_function;
+			
+		} else {
 			printf("error: executing unknown instruction: %llu (%s)\n", op, dictionary.names[op]);
 			abort();
 		}
-
 		last_used = d;
 	}
-	debug_registers(R, dictionary.count);   
-
+	call_stack_count--;
+	if (call_stack_count) goto execute_function;
+	debug_registers(R, dictionary.count);
 	exit(0);
 }
 
