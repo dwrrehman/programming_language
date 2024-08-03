@@ -2,6 +2,66 @@
 // the parser for the programming language,
 // the new version with function defs and riscv isa ish...
 //
+
+
+
+NOTE
+
+
+	there is a difference between macros and functions:  i just figured it out now:
+		   ---------------------------------------
+
+
+			it has to do with labels:
+
+
+					if you want to be able to jump from one label defined in a top level scope, for example, 
+
+
+						but you want to jump to it, FROM a goto inside of a "function" ("macro", really)
+
+								then we need to actually do the instruction subsitution for the call, 
+
+
+									BEFOREEEE we execute it.  i think this is the only real way to do this. 
+
+
+
+				NOTE:   allowing for these types of jumps is quite useful, becuse then it literally means that  you can redefine 
+
+
+				like,    a branch if equal,    or a less than branch              TO BE called ANYTHING YOU WANT
+
+
+							ie, these are true macros, now, 
+
+
+
+								 that just HAPPENNNN to be veryyyy hygenic becuase of the way we made them lol. 
+
+											so yeah. 
+
+
+
+
+
+				i think this is the right way to go, i thinkkkkkk
+
+
+
+
+
+
+
+
+
+
+
+
+				
+
+
+
 /*
 copyb insert ./build
 copya insert ./run
@@ -121,14 +181,14 @@ typedef uint64_t nat;
 
 enum language_isa {
 	nullins,
-	zero, incr, decr, set, add, sub, mul, div_, rem, sl, sr, 
+	zero, incr, decr, set, add, sub, mul, div_, rem, sl, sr, and_, or_, eor, not_, 
 	lt, ge, ne, eq, env, at, def, ret, ar, lf,
 	isa_count
 };
 
 static const char* ins_spelling[isa_count] = {
 	"()",
-	"zero", "incr", "decr", "set", "add", "sub", "mul", "div", "rem", "sl", "sr", 
+	"zero", "incr", "decr", "set", "add", "sub", "mul", "div", "rem", "sl", "sr", "and", "or", "eor", "not", 
 	"lt", "ge", "ne", "eq", "env", "at", "def", "ret", "ar", "lf", 
 };
 
@@ -181,7 +241,7 @@ struct file {
 static nat arity(nat i) {
 	if (not i) return 0;
 	if (i == ret or i == env) return 0; 
-	if (i == incr or i == decr or i == zero or 
+	if (i == incr or i == decr or i == zero or i == not_ or
 	i == def or i == ar or i == lf or i == at) return 1;
 	if (i == lt or i == ge or i == ne or i == eq) return 3;
 	return 2;
@@ -572,21 +632,7 @@ process_file:;
 			puts("");
 
 
-			/*for () {
-
-			}
-			printf("parsing:    %5llu: %20s : %-5lld %20s : %-5lld %20s : %-5lld %20s : %-5lld\n", 
-				i, 
-				dictionary.names[functions[f].body[i].args[0]], functions[f].body[i].args[0],
-				dictionary.names[functions[f].body[i].args[1]], functions[f].body[i].args[1],
-				dictionary.names[functions[f].body[i].args[2]], functions[f].body[i].args[2],
-				dictionary.names[functions[f].body[i].args[3]], functions[f].body[i].args[3]
-			);*/
-
-			
-			//const nat r  = functions[f].body[i].args[2];
-			//const nat s  = functions[f].body[i].args[3];
-
+		
 
 
 
@@ -630,16 +676,7 @@ execute_function:;
 			if (s == functions[f].arguments[a]) s = call_arguments[a];
 		}
 
-		/*printf("executing: %5llu: %20s : %-5lld %20s : %-5lld %20s : %-5lld %20s : %-5lld\n", 
-			pc, 
-			dictionary.names[op], op,
-			dictionary.names[d], d,
-			dictionary.names[r], r,
-			dictionary.names[s], s
-		);*/
 
-
-	
 		printf("executing: %5llu:", pc);
 		for (nat a = 0; a < functions[f].body[pc].count; a++) {
 			  printf("  %20s : %-5lld", dictionary.names[functions[f].body[pc].args[a]], functions[f].body[pc].args[a]);
@@ -647,21 +684,23 @@ execute_function:;
 		puts("");
 
 
-
-
 		if (false) {}
 		else if (op == at) {}// { puts("executed at: IGNORING"); }
 		else if (op == zero) R[d] = 0;
 		else if (op == incr) R[d]++;
 		else if (op == decr) R[d]--;
+		else if (op == not_) R[d] = ~R[d];
 		else if (op == set)  R[d]  = R[r];
 		else if (op == add)  R[d] += R[r];
 		else if (op == sub)  R[d] -= R[r];
 		else if (op == mul)  R[d] *= R[r];
 		else if (op == div_) R[d] /= R[r];
 		else if (op == rem)  R[d] %= R[r];
-		else if (op == sl)  R[d] <<= R[r];
-		else if (op == sr)  R[d] >>= R[r];
+		else if (op == sl)   R[d]<<= R[r];
+		else if (op == sr)   R[d]>>= R[r];
+		else if (op == and_) R[d] &= R[r];
+		else if (op == or_)  R[d] |= R[r];
+		else if (op == eor)  R[d] ^= R[r];
 		else if (op == lt) { if (R[r] < R[s]) { pc = R[d]; } } 
 		else if (op == ge) { if (R[r] >= R[s]) { pc = R[d]; } } 
 		else if (op == ne) { if (R[r] != R[s]) { pc = R[d]; } } 
@@ -690,6 +729,54 @@ execute_function:;
 
 
 // exit
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+		/*printf("executing: %5llu: %20s : %-5lld %20s : %-5lld %20s : %-5lld %20s : %-5lld\n", 
+			pc, 
+			dictionary.names[op], op,
+			dictionary.names[d], d,
+			dictionary.names[r], r,
+			dictionary.names[s], s
+		);*/
+
+
+
+
+
+
+	/*for () {
+
+			}
+			printf("parsing:    %5llu: %20s : %-5lld %20s : %-5lld %20s : %-5lld %20s : %-5lld\n", 
+				i, 
+				dictionary.names[functions[f].body[i].args[0]], functions[f].body[i].args[0],
+				dictionary.names[functions[f].body[i].args[1]], functions[f].body[i].args[1],
+				dictionary.names[functions[f].body[i].args[2]], functions[f].body[i].args[2],
+				dictionary.names[functions[f].body[i].args[3]], functions[f].body[i].args[3]
+			);*/
+
+			
+			//const nat r  = functions[f].body[i].args[2];
+			//const nat s  = functions[f].body[i].args[3];
+
+
+
+
+
+
 
 
 
