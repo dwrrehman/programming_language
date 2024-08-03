@@ -18,6 +18,93 @@ add these names to the isa:
 those are pretty important lol... so yeah. i think i want those names too.
 
 
+
+
+
+language isa:
+===================
+
+
+set d r
+
+add d r
+sub d r
+
+mul d r
+muh d r
+mhs d r
+div d r
+dvs d r
+rem d r
+rms d r
+
+and d r
+or  d r
+eor d r
+sr  d r
+srs d r
+sl  d r
+
+incr d
+zero d
+decr d
+not d
+
+lt  l r s
+ge  l r s
+lts l r s
+ges l r s
+eq  l r s
+ne  l r s
+
+ld  d p t
+st  p r t
+
+lf  f
+at  l 
+
+reg r
+rdo r
+ctk r
+
+env
+
+def o
+ar r
+ret
+obs
+
+
+
+
+
+example code, usage of the "obs" instruction
+
+
+		def local_scope
+
+			def actual_logic ar x
+
+				...something with x...
+
+				ret
+
+
+			def public_interface obs ar x
+				actual_logic x
+				ret
+
+
+		ret
+
+
+		set my_x 4
+		public_interface my_x
+
+
+
+
+
 */
 
 #include <stdio.h>
@@ -34,13 +121,13 @@ typedef uint64_t nat;
 
 enum language_isa {
 	nullins,
-	zero, incr, decr, add, def, ret, ar, lf,
+	zero, incr, decr, add, lt, def, ret, ar, lf,
 	isa_count
 };
 
 static const char* ins_spelling[isa_count] = {
 	"()",
-	"zero", "incr", "decr", "add", "def", "ret", "ar", "lf", 
+	"zero", "incr", "decr", "add", "lt", "def", "ret", "ar", "lf", 
 };
 
 
@@ -92,6 +179,7 @@ struct file {
 static nat arity(nat i) {
 	if (i == ret) return 0; 
 	if (i == incr or i == decr or i == zero or i == def or i == ar or i == lf) return 1;
+	if (i == lt) return 3;
 	return 2;
 }
 
