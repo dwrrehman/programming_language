@@ -1,7 +1,7 @@
 lf library/foundation
 
 set limit 5
-sl limit 1
+su limit 1
 mul limit limit
 mul limit limit
 

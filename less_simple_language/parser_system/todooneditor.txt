@@ -1,0 +1,12 @@
+four things to add to the editor: 1202408073.211500
+---------------------------------
+
+	0. write some documentation about how it works, if you would. 
+
+	1. find some way to quit it faster 
+
+	2. add     line XXX   as a keybind   make it like sublime.
+
+	3. add     edit STRING    for opening up other files    using execute_command function already within the editor.  ie, just call out into the existing executable, don't try to modify the current file-state to open the new file. just use a new process. easy peasy. 
+
+
