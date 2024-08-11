@@ -889,6 +889,25 @@ note: internally, only arithemetic branches are used to represent branches' cond
 
 
 
+slt
+
+
+if (r < s) d = 1; 
+else d = 0;
+
+
+
+
+bge r s done
+
+less:
+	d = 1
+	goto skip;
+done:
+	d = 0;
+skip:	
+	...
+
 
 
 

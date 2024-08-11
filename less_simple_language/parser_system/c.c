@@ -95,8 +95,12 @@ those are pretty important lol... so yeah. i think i want those names too.
 language isa:
 ===================
 
+			note:   d  ==   r   ==  s  ==  l    all just simply variables.  l must be compiletime known though.
+					but o and f are different, and different from those above. 
 
-set d r
+
+
+set d r   		<--- d define on use
 add d r
 sub d r
 
@@ -113,36 +117,154 @@ or  d r
 eor d r
 sd  d r
 sds d r
-su  d r
+si  d r
+
+ld  d r l
+st  d r l
+
+sta  d l
+bca  d l
+
+lt  r s l   		<--- l define on use
+ge  r s l   		<--- l define on use
+lts r s l   		<--- l define on use
+ges r s l   		<--- l define on use
+eq  r s l   		<--- l define on use
+ne  r s l   		<--- l define on use
+
+lf  f   			<--- f is a file, not part of the symbol table.
+at  l   		<--- l define on use
+sc
 
 incr d
-zero d
+zero d   		<--- d define on use
 decr d
 not d
 
-lt  l r s
-ge  l r s
-lts l r s
-ges l r s
-eq  l r s
-ne  l r s
-
-ld  d p t
-st  p r t
-
-lf  f
-at  l 
-
-reg r
-rdo r
-ctk r
-
-env
-
-def o
-ar r
+def o   			<--- o must be new
+ar r   				<--- r must be new
 ret
 obs
+
+
+
+
+builtins:
+---------------
+
+undefined
+builtinstacksize
+builtinstackpointer
+
+
+
+
+
+
+
+------------------------w.i.p.------------------------- 
+
+mem r l  <--- r define on use       <----- this wohle system can be simplified:   if l is 0, we know its a register...?.. hm. 
+reg r    <--- r define on use
+
+ctk r    <--- r define on use
+rtk r    <--- r define on use
+
+rdo r        						<-- i feel like this system can be generalized....
+------------------------------------------------- 
+
+
+
+
+202408106.170451:
+
+
+	OMG!!! after thinking about things a tonn, i think i figured out the fundemental requirements that we need in the programming language to be able to get all possible storage qualifiers and access qualifiers we could possibly want in the language, and have everything work together and be very composable and orthogonal and so on.  its just these simple three instructions/directives:
+
+
+
+sto r l                  l == 0  means   r is statically known at compiletime.
+			 l == 1  means   r must be in a register.
+			 l == 2  means   r must be in memory on the stack.
+			 l == 3  means   r can be in memory or a register, or deduced to be compiletime known. (default)
+
+acc r l                  l == 0  means   non-accessible. (neither write or read accessible).
+			 l == 1  means   r is read-only.
+			 l == 2  means   r is write-only.
+			 l == 3  means   r is read accessible and write accessible. (default)
+
+bit r l			 
+			 l is the number of bits which r's value takes up at most.  
+					(64 or 32 is the default, depending on the target.)
+
+
+
+
+202408106.172516:
+actually  got it down to only    a  single instruction... here it is:
+
+
+
+
+
+				sa r l b                b == 0 means r is inaccessible, 
+							b > 0 means b is the bit-count accessible for writing/reading, 
+							b < 0 means b is the bit-count accessible for reading
+								(b == 64 or 32 is the default, depending on the target)
+
+							l == 0 means compiletime known only.
+							l == 1 means r is stored in a register, at runtime.
+							l == 2 means r is stored in memory on the stack, at runtime.
+							l == 3 means automatic detection/storage selection. (default)
+
+								and these all modify  the variable    r
+
+
+
+
+				sa r 3 64       <----- this use of "sa" is implied to happen on define of r, on 64 bit archs.
+
+			 
+
+
+
+
+
+
+
+
+	orrr rather, we could do:
+
+
+
+			bit r b         b == 0 means inaccessible, 
+					b > 0 means writing bits and reading bits   bitcount
+					b < 0 means reading bits only   bitcount
+
+					
+
+			sto r l    l == 0 means compiletime only   
+				   l == 1 means rt-register storage only
+				   l == 2 means rt-memory storage only
+				   l == 3 means runtime only (ie, reg or mem)
+
+
+
+	perfect. 
+
+	i love it. 
+
+wow 
+
+	so good 				literally a perfect way to solve that aspect of the language, honestly. YAYY
+
+
+
+
+
+
+
+
 
 
 
@@ -164,12 +286,30 @@ example code, usage of the "obs" instruction
 				actual_logic x
 				ret
 
-
 		ret
-
 
 		set my_x 4
 		public_interface my_x
+
+
+
+
+
+
+
+
+	def findintersection  ar set
+
+		....
+		ret
+
+
+
+
+
+	set x 5
+	x x 
+
 
 
 
@@ -207,7 +347,7 @@ enum language_isa {
 	nullins,
 	zero, incr, decr, 
 	set, add, sub, mul, div_, rem, 
-	su, sd, and_, or_, eor, not_, 
+	si, sd, and_, or_, eor, not_, 
 	lt, ge, ne, eq, env, at, def, ret, ar, lf,
 	isa_count
 };
@@ -216,10 +356,9 @@ static const char* ins_spelling[isa_count] = {
 	"()",
 	"zero", "incr", "decr", 
 	"set", "add", "sub", "mul", "div", "rem", 
-	"su", "sd", "and", "or", "eor", "not", 
+	"si", "sd", "and", "or", "eor", "not", 
 	"lt", "ge", "ne", "eq", "env", "at", "def", "ret", "ar", "lf", 
 };
-
 
 enum language_builtins {
 	nullvar,
@@ -231,6 +370,33 @@ static const char* builtin_spelling[builtin_count] = {
 	"(nv)",
 	"stackpointer", "stacksize",
 };
+
+
+
+enum arm64_isa {
+	arm64_mov,  arm64_addi,
+	arm64_memiu, arm64_add,
+	arm64_adc, arm64_csel,
+	arm64_slli, arm64_srli,
+	arm64_adr, arm64_blr,
+	arm64_bl, arm64_bc,
+	arm64_madd,
+	arm64_isa_count,
+};
+
+static const char* arm64_spelling[arm64_isa_count] = {
+	"arm64_mov", "arm64_addi",
+	"arm64_memiu", "arm64_add",
+	"arm64_adc", "arm64_csel",
+	"arm64_slli", "arm64_srli",
+	"arm64_adr", "arm64_blr",
+	"arm64_bl", "arm64_bc",
+	"arm64_madd",
+};
+
+
+
+
 
 struct instruction {
 	nat* args;
@@ -263,13 +429,139 @@ struct file {
 	const char* filename;
 };
 
+
+struct machine_instruction {
+	nat args[16];
+	nat arg_count;
+	nat instructions[16];
+	nat ins_count;
+	nat op;
+};
+
+struct node {
+	nat data_outputs[32];
+	nat data_output_count;
+	nat output_reg;
+	nat input0;
+	nat input1;
+	nat op;
+	nat statically_known;
+	nat output_value;
+};
+
+struct basic_block {
+	nat* data_outputs;
+	nat data_output_count;
+	nat* data_inputs;
+	nat data_input_count;
+	nat* predecessors;
+	nat predecessor_count;
+	nat successor;
+	nat dag_count;
+	nat* dag;
+};
+
+/*
+
+static nat stack_size = 0x1000000;
+
+static nat architecture = arm64;
+static nat output_format = macho_executable;
+
+static bool preserve_existing_object = false;
+static bool preserve_existing_executable = false;
+
+static const char* object_filename = "object0.o";
+static const char* executable_filename = "executable0.out";
+
+*/
+
 static nat arity(nat i) {
 	if (not i) return 0;
 	if (i == ret or i == env) return 0; 
-	if (i == incr or i == decr or i == zero or i == not_ or
-	i == def or i == ar or i == lf or i == at) return 1;
+	if (	i == incr or i == decr or i == zero or i == not_ or
+		i == def or i == ar or i == lf or i == at) return 1;
 	if (i == lt or i == ge or i == ne or i == eq) return 3;
 	return 2;
+}
+
+
+
+static void print_nodes(struct node* nodes, nat node_count, char** names) {
+	printf("printing %3llu nodes...\n", node_count);
+	for (nat n = 0; n < node_count; n++) {
+
+		printf("[%s] node #%-5llu: {"
+			".op=%2llu (\"\033[35;1m%-10s\033[0m\") "
+			".or=%2llu (\"\033[36;1m%-10s\033[0m\") "
+			".0=%2llu (\"\033[33;1m%-10s\033[0m\") "
+			".1=%2llu (\"\033[33;1m%-10s\033[0m\") "
+			//".0v=%2llu "
+			//".1v=%2llu "
+			".ov=%2llu "
+			".oc=%2llu "
+			".o={ ", 
+			nodes[n].statically_known ? "\033[32;1mSK\033[0m" : "  ", n, 
+			nodes[n].op, ins_spelling[nodes[n].op],
+			nodes[n].output_reg, names[nodes[n].output_reg],
+			nodes[n].input0, "[i0]", //names[nodes[nodes[n].input0].output_reg],
+			nodes[n].input1, "[i1]", //names[nodes[nodes[n].input1].output_reg],
+			//nodes[n].input0_value,
+			//nodes[n].input1_value,
+			nodes[n].output_value,
+			nodes[n].data_output_count
+		);
+		for (nat j = 0; j < nodes[n].data_output_count; j++) {
+			printf("%llu ", nodes[n].data_outputs[j]);
+		}
+		puts(" } }");
+		
+	}
+	puts("done");
+}
+
+
+static void print_machine_instructions(struct machine_instruction* mis, const nat mi_count) {
+	printf("printing %llu machine instructions...\n", mi_count);
+	for (nat i = 0; i < mi_count; i++) {
+		printf("machine instruction {.op = %3llu (\"%s\"), .args = (%3llu)[%3llu, %3llu, %3llu, %3llu] }\n", 
+			mis[i].op, arm64_spelling[mis[i].op],
+			mis[i].arg_count, 
+			mis[i].args[0],mis[i].args[1],mis[i].args[2],mis[i].args[3]
+		); 
+	}
+	puts("[done]");
+}
+
+
+
+static void print_basic_blocks(struct basic_block* blocks, nat block_count, 
+			struct node* nodes, char** names
+) {
+	puts("blocks:");
+	for (nat b = 0; b < block_count; b++) {
+		printf("block #%3llu: {.count = %llu, .dag = { ", b, blocks[b].dag_count);
+		for (nat d = 0; d < blocks[b].dag_count; d++) 
+			printf("%3llu ", blocks[b].dag[d]);
+		puts("}");
+	}
+	puts("[end of cfg]");
+
+	puts("printing out cfg with node data: ");
+	for (nat b = 0; b < block_count; b++) {
+		printf("block #%5llu:\n", b);
+		for (nat d = 0; d < blocks[b].dag_count; d++) {
+			printf("\tnode %3llu:   \033[32;1m%7s\033[0m  %3llu(\"%10s\") %3llu %3llu\n\n", 
+				blocks[b].dag[d], ins_spelling[nodes[blocks[b].dag[d]].op], 
+				nodes[blocks[b].dag[d]].output_reg, 
+				names[nodes[blocks[b].dag[d]].output_reg], 
+				nodes[blocks[b].dag[d]].input0, 
+				nodes[blocks[b].dag[d]].input1 
+			);
+		}
+		puts("}");
+	}
+	puts("[end of node cfg]");
 }
 
 static void debug_instructions(struct instruction* ins, nat ins_count, struct dictionary d) {
@@ -407,7 +699,8 @@ process_file:;
 
 	printf("info: now processing file: %s...\n", filename);
 
-	for (nat index = starting_index; index < stack[stack_count - 1].text_length; index++) {
+	for (nat index = starting_index; index < text_length; index++) {
+
 		if (not isspace(text[index])) {
 			if (not word_length) word_start = index;
 			word_length++; 
@@ -600,7 +893,6 @@ process_file:;
 				scopes[scope_count - 1].list = calloc(2, sizeof(nat*));
 				scopes[scope_count - 1].count = calloc(2, sizeof(nat));
 				scopes[scope_count - 1].function = function_count - 1;
-
 			}
 			in_args = 0;
 		}
@@ -626,29 +918,8 @@ process_file:;
 	debug_dictionary(dictionary);
 	debug_functions(functions, function_count, dictionary);
 	debug_scopes(scopes, scope_count);
-	puts("done parsing! finding ats...");
-	nat* R = calloc(dictionary.count, sizeof(nat));
 
-	for (nat f = 0; f < function_count; f++) {
-		for (nat pc = 0; pc < functions[f].body_count; pc++) {
-			printf("executing: %5llu:", pc);
-			for (nat a = 0; a < functions[f].body[pc].count; a++) {
-				 printf("  %20s : %-5lld", 
-					dictionary.names[functions[f].body[pc].args[a]], 
-					functions[f].body[pc].args[a]);
-			}
-			puts("");
-
-			const nat op = functions[f].body[pc].args[0];
-			if (op == at) {
-				const nat d = functions[f].body[pc].args[1];
-				printf("executed at: assigned R[%llu] = %llu...\n", d, pc);
-				R[d] = pc;
-			}
-		}
-	}
-
-	puts("generating inine instructions now...");
+	puts("generating inline instructions now...");
 	struct instruction* ins = NULL;
 	nat ins_count = 0;
 	nat call_stack_count = 1;
@@ -672,9 +943,9 @@ generate_function:;
 				if (new.args[b] == functions[f].arguments[a]) 
 					new.args[b] = call_arguments[a];
 		
-		printf("generating inline: %5llu:", pc);
+		printf("generating inline: %4llu:", pc);
 		for (nat a = 0; a < functions[f].body[pc].count; a++) {
-			  printf("  %20s : %-5lld", 
+			  printf("  %10s : %-4lld", 
 				dictionary.names[functions[f].body[pc].args[a]], 
 				functions[f].body[pc].args[a]
 			);
@@ -691,7 +962,7 @@ generate_function:;
 			call_stack[call_stack_count++] = dictionary.values[op];
 			goto generate_function;
 		} else {
-			puts("genreating instruction...");
+			//puts("generating instruction...");
 			ins = realloc(ins, sizeof(struct instruction) * (ins_count + 1));
 			ins[ins_count++] = new;
 		}
@@ -701,6 +972,143 @@ generate_function:;
 
 	puts("generated these instructions:");
 	debug_instructions(ins, ins_count, dictionary);
+
+
+
+
+
+
+
+
+
+
+
+
+	puts("finding label attrs...");
+	nat* R = calloc(dictionary.count, sizeof(nat));
+
+	for (nat pc = 0; pc < ins_count; pc++) {
+		const nat op = ins[pc].args[0];
+		nat d = ins[pc].count >= 2 ? ins[pc].args[1] : 0;
+		if (op == at) {
+			printf("executed at: assigned R[%llu] = %llu...\n", d, pc);
+			R[d] = pc;
+		}
+	}
+
+
+
+	
+	// constant propagation: 	static ct execution:
+	// 1. form data flow dag	
+	// 2. track which instructions have statically knowable inputs and outputs. (constants)
+
+	struct node nodes[4096] = {0};
+	nat node_count = 0;
+
+	nodes[node_count++] = (struct node) { .output_reg = 0, .statically_known = 1 }; // used for any other name besides these.
+	//nodes[node_count++] = (struct node) { .output_reg = var_stacksize, .statically_known = 1 };
+	
+	puts("stage: constructing data flow DAG...");
+
+	struct basic_block blocks[4096] = {0};
+	nat block_count = 0;
+
+	for (nat i = 0; i < ins_count; i++) {
+
+		const nat op = ins[i].args[0];
+		nat d = ins[i].count >= 2 ? ins[i].args[1] : 0;
+		nat r = ins[i].count >= 3 ? ins[i].args[2] : 0;
+		nat s = ins[i].count >= 4 ? ins[i].args[3] : 0;
+
+		printf("instruction: "
+			"{ %s  %s  %s  %s }\n",
+
+			ins_spelling[op],
+			dictionary.names[d],
+			dictionary.names[r],
+			dictionary.names[s]
+		);
+		
+		
+		const nat output_reg = d;
+		nat input0 = 0, input1 = 0;
+
+	//push:;
+		const nat statically_known = (nodes[input0].statically_known and 
+			 nodes[input1].statically_known
+			);
+
+			//output_reg == var_zero or 
+			//input0 == -1 or
+			//input1 == -1 or
+			//;
+
+
+		if (ins[i].args[0] == at and blocks[block_count].dag_count) block_count++;
+
+		struct basic_block* block = blocks + block_count;
+
+		block->dag = realloc(block->dag, sizeof(nat) * (block->dag_count + 1));
+		block->dag[block->dag_count++] = node_count;
+		nodes[node_count++] = (struct node) {
+			.data_outputs = {0},
+			.data_output_count = 0,
+			.input0 = input0,
+			.input1 = input1,
+			.op = ins[i].args[0],
+			.output_reg = output_reg,
+			.statically_known = statically_known,
+			.output_value = 0,
+		};
+
+		if (	ins[i].args[0] == lt or 
+			ins[i].args[0] == ge or 
+			ins[i].args[0] == ne or 
+			ins[i].args[0] == eq
+			//ins[i].args[0] == lts or 
+			//ins[i].args[0] == ges
+		) block_count++;
+	}
+ 	block_count++;
+	
+
+	puts("done creating isa nodes... printing nodes:");
+	print_nodes(nodes, node_count, dictionary.names);
+
+	puts("done creating basic blocks... printing cfg/dag:");
+	print_basic_blocks(blocks, block_count, nodes, dictionary.names);
+
+
+
+	puts("finished the trickiest stage.");
+	abort();
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+	exit(0);
+
 
 	puts("executing instructions... ");
 	nat last_used = 0;
@@ -723,15 +1131,15 @@ generate_function:;
 		else if (op == mul)  R[d] *= R[r];
 		else if (op == div_) R[d] /= R[r];
 		else if (op == rem)  R[d] %= R[r];
-		else if (op == su)   R[d]<<= R[r];
+		else if (op == si)   R[d]<<= R[r];
 		else if (op == sd)   R[d]>>= R[r];
 		else if (op == and_) R[d] &= R[r];
 		else if (op == or_)  R[d] |= R[r];
 		else if (op == eor)  R[d] ^= R[r];
-		else if (op == lt) { if (R[r] < R[s]) { pc = R[d]; } } 
-		else if (op == ge) { if (R[r] >= R[s]) { pc = R[d]; } } 
-		else if (op == ne) { if (R[r] != R[s]) { pc = R[d]; } } 
-		else if (op == eq) { if (R[r] == R[s]) { pc = R[d]; } } 
+		else if (op == lt) { if (R[d] < R[r]) { pc = R[s]; } } 
+		else if (op == ge) { if (R[d] >= R[r]) { pc = R[s]; } } 
+		else if (op == ne) { if (R[d] != R[r]) { pc = R[s]; } } 
+		else if (op == eq) { if (R[d] == R[r]) { pc = R[s]; } } 
 		else if (op == env) printf("\033[32;1mdebug:   0x%llx : %lld\033[0m\n", R[last_used], R[last_used]); 
 		else {
 			printf("error: executing unknown instruction: %llu (%s)\n", op, dictionary.names[op]);
@@ -741,12 +1149,6 @@ generate_function:;
 	}
 
 	debug_registers(R, dictionary.count);
-
-
-
-
-
-
 
 
 	exit(0);
