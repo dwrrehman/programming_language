@@ -9,16 +9,16 @@ zero i
 at loop
 	set j 2
 	at inner
-		ge prime j i
+		ge j i prime 
 		set r i rem r j
-		eq composite r 0
+		eq r 0 composite
 		incr j
-		eq inner 0 0 
+		eq 0 0 inner
 
 at prime
-	add i 0 env
+	debug_number i
 at composite
 	incr i
-	lt loop i limit
+	lt i limit loop
 
 

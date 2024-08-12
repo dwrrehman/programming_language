@@ -362,16 +362,16 @@ static const char* ins_spelling[isa_count] = {
 
 enum language_builtins {
 	nullvar,
+	undefined,
 	stackpointer, stacksize,
 	builtin_count
 };
 
 static const char* builtin_spelling[builtin_count] = {
 	"(nv)",
+	"undefined", 
 	"stackpointer", "stacksize",
 };
-
-
 
 enum arm64_isa {
 	arm64_mov,  arm64_addi,
@@ -439,14 +439,16 @@ struct machine_instruction {
 };
 
 struct node {
-	nat data_outputs[32];
+	nat* data_outputs;
 	nat data_output_count;
+
+	nat* data_inputs;
+	nat data_input_count;
+
 	nat output_reg;
-	nat input0;
-	nat input1;
+
 	nat op;
 	nat statically_known;
-	nat output_value;
 };
 
 struct basic_block {
@@ -492,33 +494,57 @@ static void print_nodes(struct node* nodes, nat node_count, char** names) {
 	for (nat n = 0; n < node_count; n++) {
 
 		printf("[%s] node #%-5llu: {"
-			".op=%2llu (\"\033[35;1m%-10s\033[0m\") "
-			".or=%2llu (\"\033[36;1m%-10s\033[0m\") "
-			".0=%2llu (\"\033[33;1m%-10s\033[0m\") "
-			".1=%2llu (\"\033[33;1m%-10s\033[0m\") "
-			//".0v=%2llu "
-			//".1v=%2llu "
-			".ov=%2llu "
+
+			".opcode=%2llu (\"\033[35;1m%-10s\033[0m\") "
+			".outreg=%2llu (\"\033[36;1m%-10s\033[0m\") "
+
+			
 			".oc=%2llu "
-			".o={ ", 
+			".ic=%2llu "
+			".io={ ", 
+
 			nodes[n].statically_known ? "\033[32;1mSK\033[0m" : "  ", n, 
+
 			nodes[n].op, ins_spelling[nodes[n].op],
+
 			nodes[n].output_reg, names[nodes[n].output_reg],
-			nodes[n].input0, "[i0]", //names[nodes[nodes[n].input0].output_reg],
-			nodes[n].input1, "[i1]", //names[nodes[nodes[n].input1].output_reg],
+
+			//nodes[n].input0, "[i0]", //names[nodes[nodes[n].input0].output_reg],
+			//nodes[n].input1, "[i1]", //names[nodes[nodes[n].input1].output_reg],
 			//nodes[n].input0_value,
 			//nodes[n].input1_value,
-			nodes[n].output_value,
-			nodes[n].data_output_count
+			//nodes[n].output_value,
+			nodes[n].data_output_count,
+			nodes[n].data_input_count
 		);
+
 		for (nat j = 0; j < nodes[n].data_output_count; j++) {
 			printf("%llu ", nodes[n].data_outputs[j]);
+		}
+		printf(" | ");
+
+		for (nat j = 0; j < nodes[n].data_input_count; j++) {
+			printf("%llu ", nodes[n].data_inputs[j]);
 		}
 		puts(" } }");
 		
 	}
 	puts("done");
 }
+
+
+
+
+
+
+//".0=%2llu (\"\033[33;1m%-10s\033[0m\") "
+			//".1=%2llu (\"\033[33;1m%-10s\033[0m\") "
+			//".0v=%2llu "
+			//".1v=%2llu "
+			//".ov=%2llu "
+
+
+
 
 
 static void print_machine_instructions(struct machine_instruction* mis, const nat mi_count) {
@@ -555,8 +581,8 @@ static void print_basic_blocks(struct basic_block* blocks, nat block_count,
 				blocks[b].dag[d], ins_spelling[nodes[blocks[b].dag[d]].op], 
 				nodes[blocks[b].dag[d]].output_reg, 
 				names[nodes[blocks[b].dag[d]].output_reg], 
-				nodes[blocks[b].dag[d]].input0, 
-				nodes[blocks[b].dag[d]].input1 
+				(nat) -1,//nodes[blocks[b].dag[d]].input0, 
+				(nat) -1//nodes[blocks[b].dag[d]].input1 
 			);
 		}
 		puts("}");
@@ -742,8 +768,37 @@ process_file:;
 	
 			if (op == def or op == ar) goto found;
 
+
+			if (op != zero and op != set and op != at and op != lf and
+				op != lt and op != ge and
+				op != ne and op != eq
+			) {
+
+			undecl_error:
+				printf("file: %s, index: %llu\n", filename, index);
+				printf("error: use of undeclared identifier: %s\n", word);
+				abort();
+			}
+
+			if (functions[scopes[scope_count - 1].function].body[
+				functions[scopes[scope_count - 1].function].body_count - 1]
+				.count != 1 and op == set) goto undecl_error;
+			
+
+			if (functions[scopes[scope_count - 1].function].body[
+				functions[scopes[scope_count - 1].function].body_count - 1]
+				.count != 3 
+					and (
+						op == lt or 
+						op == ge or 
+						op == ne or 
+						op == eq
+					)) goto undecl_error;
+
+
 			puts("defining a new name:");
 			puts(word);
+			// getchar();
 
 
 			const nat t = 1;
@@ -977,13 +1032,6 @@ generate_function:;
 
 
 
-
-
-
-
-
-
-
 	puts("finding label attrs...");
 	nat* R = calloc(dictionary.count, sizeof(nat));
 
@@ -998,15 +1046,18 @@ generate_function:;
 
 
 
-	
-	// constant propagation: 	static ct execution:
-	// 1. form data flow dag	
-	// 2. track which instructions have statically knowable inputs and outputs. (constants)
 
-	struct node nodes[4096] = {0};
+
+
+
+
+	puts("starting the DAG formation stage...");
+	getchar();
+	
+	struct node nodes[4096] = {0}; 
 	nat node_count = 0;
 
-	nodes[node_count++] = (struct node) { .output_reg = 0, .statically_known = 1 }; // used for any other name besides these.
+	nodes[node_count++] = (struct node) { .output_reg = 0, .statically_known = 1 };
 	//nodes[node_count++] = (struct node) { .output_reg = var_stacksize, .statically_known = 1 };
 	
 	puts("stage: constructing data flow DAG...");
@@ -1021,46 +1072,45 @@ generate_function:;
 		nat r = ins[i].count >= 3 ? ins[i].args[2] : 0;
 		nat s = ins[i].count >= 4 ? ins[i].args[3] : 0;
 
-		printf("instruction: "
+		printf("generating DAG node for ins: "
 			"{ %s  %s  %s  %s }\n",
-
 			ins_spelling[op],
 			dictionary.names[d],
 			dictionary.names[r],
 			dictionary.names[s]
 		);
 		
-		
-		const nat output_reg = d;
-		nat input0 = 0, input1 = 0;
+				
+		// const nat output_reg = d;
 
-	//push:;
-		const nat statically_known = (nodes[input0].statically_known and 
-			 nodes[input1].statically_known
-			);
+		const nat statically_known = 0; //(nodes[input0].statically_known and nodes[input1].statically_known);
 
-			//output_reg == var_zero or 
-			//input0 == -1 or
-			//input1 == -1 or
-			//;
-
+		printf("statically_known = %llu\n", statically_known);
 
 		if (ins[i].args[0] == at and blocks[block_count].dag_count) block_count++;
 
 		struct basic_block* block = blocks + block_count;
-
 		block->dag = realloc(block->dag, sizeof(nat) * (block->dag_count + 1));
 		block->dag[block->dag_count++] = node_count;
+
 		nodes[node_count++] = (struct node) {
-			.data_outputs = {0},
+
+			.data_outputs = NULL,
 			.data_output_count = 0,
-			.input0 = input0,
-			.input1 = input1,
+
+			.data_inputs = NULL,
+			.data_input_count = 0,
+
 			.op = ins[i].args[0],
-			.output_reg = output_reg,
+
 			.statically_known = statically_known,
-			.output_value = 0,
 		};
+
+		printf("generated node #%llu into block %llu (of %llu): \n", 
+			node_count, block_count, block->dag_count);
+
+		puts("inputs and outputs null for now");
+		
 
 		if (	ins[i].args[0] == lt or 
 			ins[i].args[0] == ge or 
@@ -1069,6 +1119,9 @@ generate_function:;
 			//ins[i].args[0] == lts or 
 			//ins[i].args[0] == ges
 		) block_count++;
+
+
+		getchar();
 	}
  	block_count++;
 	
@@ -1164,12 +1217,20 @@ generate_function:;
 
 
 
+//push:;
+
+
+	// constant propagation: 	static ct execution:
+	// 1. form data flow dag	
+	// 2. track which instructions have statically knowable inputs and outputs. (constants)
 
 
 
 
-
-
+			//output_reg == var_zero or 
+			//input0 == -1 or
+			//input1 == -1 or
+			//;
 
 
 

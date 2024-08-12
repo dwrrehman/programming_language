@@ -15,7 +15,11 @@ def addone ar x
 
 def settozero_ifequal 
 	ar x 	ar a 	ar b
-	ne done a b
+	ne a b done
 	set x 0
 	at done ret
+
+def debug_number ar i 
+	add i 0 env
+	ret
 
