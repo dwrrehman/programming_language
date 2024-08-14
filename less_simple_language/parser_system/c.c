@@ -132,7 +132,7 @@ ges r s l   		<--- l define on use
 eq  r s l   		<--- l define on use
 ne  r s l   		<--- l define on use
 
-lf  f   			<--- f is a file, not part of the symbol table.
+lf  f   		<--- f is a file, not part of the symbol table.
 at  l   		<--- l define on use
 sc
 
@@ -141,12 +141,30 @@ zero d   		<--- d define on use
 decr d
 not d
 
-sb
-se
-
-obs
-dm o   			<--- o must be new
+def o  			<--- o must be new
 ar r   			<--- r must be new
+da r   			<--- r must be new
+ret
+obs
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -366,7 +384,7 @@ enum language_isa {
 	zero, incr, decr, 
 	set, add, sub, mul, div_, rem, 
 	si, sd, and_, or_, eor, not_, 
-	lt, ge, lts, ges, ne, eq, env, at, def, ret, ar, lf,
+	lt, ge, lts, ges, ne, eq, env, at, def, ret, ar, da, lf,
 	isa_count
 };
 
@@ -375,19 +393,17 @@ static const char* ins_spelling[isa_count] = {
 	"zero", "incr", "decr", 
 	"set", "add", "sub", "mul", "div", "rem", 
 	"si", "sd", "and", "or", "eor", "not", 
-	"lt", "ge", "lts", "ges", "ne", "eq", "env", "at", "def", "ret", "ar", "lf", 
+	"lt", "ge", "lts", "ges", "ne", "eq", "env", "at", "def", "ret", "ar", "da", "lf", 
 };
 
 enum language_builtins {
 	nullvar,
-	undefined,
 	stackpointer, stacksize,
 	builtin_count
 };
 
 static const char* builtin_spelling[builtin_count] = {
 	"(nv)",
-	"undefined", 
 	"stackpointer", "stacksize",
 };
 
@@ -505,33 +521,19 @@ static nat arity(nat i) {
 	return 2;
 }
 
-
-
 static void print_nodes(struct node* nodes, nat node_count, char** names) {
 	printf("printing %3llu nodes...\n", node_count);
 	for (nat n = 0; n < node_count; n++) {
 
 		printf("[%s] node #%-5llu: {"
-
 			".opcode=%2llu (\"\033[35;1m%-10s\033[0m\") "
 			".outreg=%2llu (\"\033[36;1m%-10s\033[0m\") "
-
-			
 			".oc=%2llu "
 			".ic=%2llu "
 			".io={ ", 
-
 			nodes[n].statically_known ? "\033[32;1mSK\033[0m" : "  ", n, 
-
 			nodes[n].op, ins_spelling[nodes[n].op],
-
 			nodes[n].output_reg, names[nodes[n].output_reg],
-
-			//nodes[n].input0, "[i0]", //names[nodes[nodes[n].input0].output_reg],
-			//nodes[n].input1, "[i1]", //names[nodes[nodes[n].input1].output_reg],
-			//nodes[n].input0_value,
-			//nodes[n].input1_value,
-			//nodes[n].output_value,
 			nodes[n].data_output_count,
 			nodes[n].data_input_count
 		);
@@ -550,40 +552,6 @@ static void print_nodes(struct node* nodes, nat node_count, char** names) {
 	puts("done");
 }
 
-
-
-
-
-
-//".0=%2llu (\"\033[33;1m%-10s\033[0m\") "
-			//".1=%2llu (\"\033[33;1m%-10s\033[0m\") "
-			//".0v=%2llu "
-			//".1v=%2llu "
-			//".ov=%2llu "
-
-
-
-/*
-
-	dm f obs sb ar x
-		zero x
-	se f
-
-
-	dm f sb ar x
-		zero x
-	se f
-
-
-	dm f sb
-		...
-	se f
-
-
-	dm f
-		...
-	f
-*/
 static void print_machine_instructions(struct machine_instruction* mis, const nat mi_count) {
 	printf("printing %llu machine instructions...\n", mi_count);
 	for (nat i = 0; i < mi_count; i++) {
@@ -595,8 +563,6 @@ static void print_machine_instructions(struct machine_instruction* mis, const na
 	}
 	puts("[done]");
 }
-
-
 
 static void print_basic_blocks(struct basic_block* blocks, nat block_count, 
 			struct node* nodes, char** names
@@ -848,15 +814,12 @@ process_file:;
 			in_args = 1;
 		}
 
-
 		{
 		const nat s = scope_count - 1;
 		const nat f = scopes[s].function;
 		const nat b = functions[f].body_count - 1;
-
 		functions[f].body[b].args = realloc(functions[f].body[b].args, sizeof(nat) * (functions[f].body[b].count + 1));
 		functions[f].body[b].args[functions[f].body[b].count++] = name;
-
 		}
 
 
@@ -906,22 +869,23 @@ process_file:;
 				const nat f = scopes[s].function;
 				functions[f].body_count--;
 				scope_count--;
-				functions[scopes[scope_count - 1].function].body_count--;
+				const nat s2 = scope_count - 1;
+				const nat f2 = scopes[s2].function;
+				functions[f2].body_count--;
 			}
 
 			if (op == ar) {
 				const nat s = scope_count - 1;
-				functions[scopes[s].function].body_count--;
+				const nat f2 = scopes[s].function;
+				functions[f2].body_count--;
+
 				puts("executing ar....");
 
 				const nat t = 1;
 				const nat d = dictionary.count;
 
-				scopes[s].list[t] = 
-				realloc(scopes[s].list[t], 
-				sizeof(nat) * (scopes[s].count[t] + 1));
-				scopes[s].list[t][
-				scopes[s].count[t]++] = d;
+				scopes[s].list[t] = realloc(scopes[s].list[t], sizeof(nat) * (scopes[s].count[t] + 1));
+				scopes[s].list[t][scopes[s].count[t]++] = d;
 
 				dictionary.names = realloc(dictionary.names, sizeof(char*) * (d + 1));
 				dictionary.values = realloc(dictionary.values, sizeof(nat) * (d + 1));
@@ -929,12 +893,8 @@ process_file:;
 				dictionary.values[dictionary.count++] = 0;
 
 				const nat f = function_count - 1;
-
-				functions[f].arguments = realloc(
-				functions[f].arguments, sizeof(nat) * (
-				functions[f].arity + 1));
-				functions[f].arguments[
-				functions[f].arity++] = d;
+				functions[f].arguments = realloc(functions[f].arguments, sizeof(nat) * (functions[f].arity + 1));
+				functions[f].arguments[functions[f].arity++] = d;
 			}
 
 			if (op == def) {
@@ -1059,7 +1019,6 @@ generate_function:;
 
 
 	puts("starting the DAG formation stage...");
-	//getchar();
 	
 	struct node nodes[4096] = {0}; 
 	nat node_count = 0;
@@ -1138,12 +1097,6 @@ generate_function:;
 
 	puts("finished the trickiest stage.");
 	//abort();
-
-
-
-
-
-	//exit(0);
 
 
 	puts("executing instructions... ");
@@ -1308,6 +1261,49 @@ generate_function:;
 
 
 
+
+
+
+
+
+
+
+
+			//nodes[n].input0, "[i0]", //names[nodes[nodes[n].input0].output_reg],
+			//nodes[n].input1, "[i1]", //names[nodes[nodes[n].input1].output_reg],
+			//nodes[n].input0_value,
+			//nodes[n].input1_value,
+			//nodes[n].output_value,
+
+//".0=%2llu (\"\033[33;1m%-10s\033[0m\") "
+			//".1=%2llu (\"\033[33;1m%-10s\033[0m\") "
+			//".0v=%2llu "
+			//".1v=%2llu "
+			//".ov=%2llu "
+
+
+
+/*
+
+	dm f obs sb ar x
+		zero x
+	se f
+
+
+	dm f sb ar x
+		zero x
+	se f
+
+
+	dm f sb
+		...
+	se f
+
+
+	dm f
+		...
+	f
+*/
 
 
 
