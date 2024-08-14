@@ -141,10 +141,28 @@ zero d   		<--- d define on use
 decr d
 not d
 
-def o   			<--- o must be new
-ar r   				<--- r must be new
-ret
+sb
+se
+
 obs
+dm o   			<--- o must be new
+ar r   			<--- r must be new
+
+
+
+dm macro 
+ar x 
+ar y
+	tttt....
+macro
+
+
+
+
+
+
+
+
 
 
 
@@ -545,8 +563,27 @@ static void print_nodes(struct node* nodes, nat node_count, char** names) {
 
 
 
+/*
+
+	dm f obs sb ar x
+		zero x
+	se f
 
 
+	dm f sb ar x
+		zero x
+	se f
+
+
+	dm f sb
+		...
+	se f
+
+
+	dm f
+		...
+	f
+*/
 static void print_machine_instructions(struct machine_instruction* mis, const nat mi_count) {
 	printf("printing %llu machine instructions...\n", mi_count);
 	for (nat i = 0; i < mi_count; i++) {
@@ -740,7 +777,7 @@ process_file:;
 		for (nat s = scope_count; s--;) {
 			nat* list = scopes[s].list[in_args];
 			nat count = scopes[s].count[in_args];
-			for (nat i = 0; i < count; i++) {
+			for (nat i = count; i--;) {
 				if (not strcmp(dictionary.names[list[i]], word) and 
 					in_args != dictionary.values[list[i]]) {
 					name = list[i];
@@ -1149,7 +1186,7 @@ generate_function:;
 		last_used = d;
 	}
 
-	debug_registers(R, dictionary.count);
+	//debug_registers(R, dictionary.count);
 
 	exit(0);
 }
