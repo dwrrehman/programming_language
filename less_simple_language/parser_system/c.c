@@ -348,7 +348,7 @@ enum language_isa {
 	zero, incr, decr, 
 	set, add, sub, mul, div_, rem, 
 	si, sd, and_, or_, eor, not_, 
-	lt, ge, ne, eq, env, at, def, ret, ar, lf,
+	lt, ge, lts, ges, ne, eq, env, at, def, ret, ar, lf,
 	isa_count
 };
 
@@ -357,7 +357,7 @@ static const char* ins_spelling[isa_count] = {
 	"zero", "incr", "decr", 
 	"set", "add", "sub", "mul", "div", "rem", 
 	"si", "sd", "and", "or", "eor", "not", 
-	"lt", "ge", "ne", "eq", "env", "at", "def", "ret", "ar", "lf", 
+	"lt", "ge", "lts", "ges", "ne", "eq", "env", "at", "def", "ret", "ar", "lf", 
 };
 
 enum language_builtins {
@@ -743,10 +743,6 @@ process_file:;
 			for (nat i = 0; i < count; i++) {
 				if (not strcmp(dictionary.names[list[i]], word) and 
 					in_args != dictionary.values[list[i]]) {
-
-					// puts("found name!");
-					// puts(word);
-					// printf("in_args = %llu\n", in_args);
 					name = list[i];
 					goto found;
 				}
@@ -761,16 +757,17 @@ process_file:;
 
 		} else {
 
-			const nat op = functions[scopes[scope_count - 1].function]
-				.body[functions[scopes[scope_count - 1]
-				.function].body_count - 1]
-				.args[0];
+			const nat s = scope_count - 1;
+			const nat f = scopes[s].function;
+			const nat b = functions[f].body_count - 1;
+			const nat op = functions[f].body[b].args[0];
+			const nat ac = functions[f].body[b].count;
 	
 			if (op == def or op == ar) goto found;
 
-
 			if (op != zero and op != set and op != at and op != lf and
 				op != lt and op != ge and
+				op != lts and op != ges and
 				op != ne and op != eq
 			) {
 
@@ -780,82 +777,67 @@ process_file:;
 				abort();
 			}
 
-			if (functions[scopes[scope_count - 1].function].body[
-				functions[scopes[scope_count - 1].function].body_count - 1]
-				.count != 1 and op == set) goto undecl_error;
-			
-
-			if (functions[scopes[scope_count - 1].function].body[
-				functions[scopes[scope_count - 1].function].body_count - 1]
-				.count != 3 
-					and (
-						op == lt or 
-						op == ge or 
-						op == ne or 
-						op == eq
-					)) goto undecl_error;
-
+			if (ac != 1 and op == set) goto undecl_error;
+			if (ac != 3 and (op == lt or op == ge or
+					 op == lts or op == ges or
+					 op == ne or op == eq
+					)
+				) goto undecl_error;
 
 			puts("defining a new name:");
 			puts(word);
-			// getchar();
-
 
 			const nat t = 1;
-			scopes[scope_count - 1].list[t] = 
-			realloc(scopes[scope_count - 1].list[t], 
-			sizeof(nat) * (scopes[scope_count - 1].count[t] + 1));
-			scopes[scope_count - 1].list[t][
-			scopes[scope_count - 1].count[t]++] = dictionary.count;
+			const nat d = dictionary.count;
+			const nat ss = scopes[s].count[t];
 
-			dictionary.names = realloc(dictionary.names, sizeof(char*) * (dictionary.count + 1));
-			dictionary.values = realloc(dictionary.values, sizeof(nat) * (dictionary.count + 1));
-			dictionary.names[dictionary.count] = word;
+			scopes[s].list[t] = realloc(scopes[s].list[t], sizeof(nat) * (ss + 1));
+			scopes[s].list[t][scopes[s].count[t]++] = d;
+
+			dictionary.names = realloc(dictionary.names, sizeof(char*) * (d + 1));
+			dictionary.values = realloc(dictionary.values, sizeof(nat) * (d + 1));
+			dictionary.names[d] = word;
 			dictionary.values[dictionary.count++] = 0;
-			name = dictionary.count - 1;
+			name = d;
 		}
 	found:
-		if (not in_args) {
+		if (not in_args) {	
+			const nat s = scope_count - 1;
+			const nat f = scopes[s].function;
+			const nat b = functions[f].body_count;
 
-			functions[scopes[scope_count - 1].function].body = realloc(
-			functions[scopes[scope_count - 1].function].body, 
-			sizeof(struct instruction) * (
-			functions[scopes[scope_count - 1].function].body_count + 1));
-			functions[scopes[scope_count - 1].function].body[
-			functions[scopes[scope_count - 1].function].body_count++
-			] = (struct instruction) {0};
-
+			functions[f].body = realloc(functions[f].body, sizeof(struct instruction) * (b + 1));
+			functions[f].body[functions[f].body_count++] = (struct instruction) {0};
 			in_args = 1;
 		}
 
 
-		functions[scopes[scope_count - 1].function].body[
-		functions[scopes[scope_count - 1].function].body_count - 1].args = realloc(
-		functions[scopes[scope_count - 1].function].body[
-		functions[scopes[scope_count - 1].function].body_count - 1].args,
-		sizeof(nat) * (functions[scopes[scope_count - 1].function].body[
-		functions[scopes[scope_count - 1].function].body_count - 1].count + 1));
+		{
+		const nat s = scope_count - 1;
+		const nat f = scopes[s].function;
+		const nat b = functions[f].body_count - 1;
 
-		functions[scopes[scope_count - 1].function].body[
-		functions[scopes[scope_count - 1].function].body_count - 1]
-		.args[functions[scopes[scope_count - 1].function].body[
-		functions[scopes[scope_count - 1].function].body_count - 1]
-		.count++] = name;
+		functions[f].body[b].args = realloc(functions[f].body[b].args, sizeof(nat) * (functions[f].body[b].count + 1));
+		functions[f].body[b].args[functions[f].body[b].count++] = name;
 
-		const nat op = functions[scopes[scope_count - 1].function]
-		.body[functions[scopes[scope_count - 1].function]
-		.body_count - 1].args[0];
+		}
 
-		if (functions[scopes[scope_count - 1].function].body[
-		functions[scopes[scope_count - 1].function].body_count - 1]
-		.count >= functions[dictionary.values[op]].arity + 1) {
+
+		const nat _s = scope_count - 1;
+		const nat _f = scopes[_s].function;
+		const nat _b = functions[_f].body_count - 1;
+		const nat op = functions[_f].body[_b].args[0];
+		const nat _ac = functions[_f].body[_b].count;
+		const nat _a = functions[dictionary.values[op]].arity;
+
+		if (_ac >= _a + 1) {
 
 			if (op == lf) {
 				functions[scopes[scope_count - 1].function].body_count--;
 
 				for (nat i = 0; i < included_file_count; i++) {
 					if (not strcmp(included_files[i], word)) {
-						printf("warning: %s: this file has already been included, ignoring.\n", word);
+						printf("warning: %s: file already included\n", word);
 						goto skip_include;
 					}
 				}
@@ -871,100 +853,96 @@ process_file:;
 				read(file, new_text, new_text_length);
 				close(file);
 
-				stack[stack_count - 1].index = index;
-				stack[stack_count].filename = word;
-				stack[stack_count].text = new_text;
-				stack[stack_count].text_length = new_text_length;
+				const nat s = stack_count;
+				stack[s - 1].index = index;
+				stack[s].filename = word;
+				stack[s].text = new_text;
+				stack[s].text_length = new_text_length;
 				stack[stack_count++].index = 0;
 				goto process_file;
-
 				skip_include:;
 			}
 
 			if (op == ret) {
 				puts("executing ret....");
-				functions[scopes[scope_count - 1].function].body_count--;
+				const nat s = scope_count - 1;
+				const nat f = scopes[s].function;
+				functions[f].body_count--;
 				scope_count--;
 				functions[scopes[scope_count - 1].function].body_count--;
 			}
 
 			if (op == ar) {
-				functions[scopes[scope_count - 1].function].body_count--;
+				const nat s = scope_count - 1;
+				functions[scopes[s].function].body_count--;
 				puts("executing ar....");
 
 				const nat t = 1;
-				scopes[scope_count - 1].list[t] = 
-				realloc(scopes[scope_count - 1].list[t], 
-				sizeof(nat) * (scopes[scope_count - 1].count[t] + 1));
-				scopes[scope_count - 1].list[t][
-				scopes[scope_count - 1].count[t]++] = dictionary.count;
+				const nat d = dictionary.count;
 
-				dictionary.names = realloc(dictionary.names, sizeof(char*) * (dictionary.count + 1));
-				dictionary.values = realloc(dictionary.values, sizeof(nat) * (dictionary.count + 1));
-				dictionary.names[dictionary.count] = word;
+				scopes[s].list[t] = 
+				realloc(scopes[s].list[t], 
+				sizeof(nat) * (scopes[s].count[t] + 1));
+				scopes[s].list[t][
+				scopes[s].count[t]++] = d;
+
+				dictionary.names = realloc(dictionary.names, sizeof(char*) * (d + 1));
+				dictionary.values = realloc(dictionary.values, sizeof(nat) * (d + 1));
+				dictionary.names[d] = word;
 				dictionary.values[dictionary.count++] = 0;
 
-				functions[function_count - 1].arguments = realloc(
-				functions[function_count - 1].arguments, sizeof(nat) * (
-				functions[function_count - 1].arity + 1));
-				functions[function_count - 1].arguments[
-				functions[function_count - 1].arity++] = dictionary.count - 1;
+				const nat f = function_count - 1;
 
-				// debug_dictionary(dictionary);
-				// debug_functions(functions, function_count, dictionary);
-				// debug_scopes(scopes, scope_count);
+				functions[f].arguments = realloc(
+				functions[f].arguments, sizeof(nat) * (
+				functions[f].arity + 1));
+				functions[f].arguments[
+				functions[f].arity++] = d;
 			}
 
 			if (op == def) {
-
 				puts("EXECUTING DEF!!!");
-				puts("defining a new name:");
 				puts(word);
-
-				//functions[scopes[scope_count - 1].function].body_count--;
 
 				functions = realloc(functions, sizeof(struct function) * (function_count + 1));
 				functions[function_count++] = (struct function) {0};
 
 				const nat t = 0;
-				scopes[scope_count - 1].list[t] = 
-				realloc(scopes[scope_count - 1].list[t], 
-				sizeof(nat) * (scopes[scope_count - 1].count[t] + 1));
-				scopes[scope_count - 1].list[t][
-				scopes[scope_count - 1].count[t]++] = dictionary.count;
+				const nat s = scope_count - 1;
+				const nat w = scopes[s].function;
+				const nat d = dictionary.count;
+				const nat f = function_count - 1;
 
-				dictionary.names = realloc(dictionary.names, sizeof(char*) * (dictionary.count + 1));
-				dictionary.values = realloc(dictionary.values, sizeof(nat) * (dictionary.count + 1));
-				dictionary.names[dictionary.count] = word;
-				dictionary.values[dictionary.count++] = function_count - 1;
-				functions[scopes[scope_count - 1].function].body[
-				functions[scopes[scope_count - 1].function].body_count - 1]
-				.args[functions[scopes[scope_count - 1].function].body[
-				functions[scopes[scope_count - 1].function].body_count - 1]
-				.count - 1] = dictionary.count - 1;
+				scopes[s].list[t] = 
+				realloc(scopes[s].list[t], 
+				sizeof(nat) * (scopes[s].count[t] + 1));
+				scopes[s].list[t][
+				scopes[s].count[t]++] = d;
 
-				scopes = realloc(scopes, sizeof(struct scope) * (scope_count + 1));
-				scopes[scope_count++] = (struct scope) {0};
-				scopes[scope_count - 1].list = calloc(2, sizeof(nat*));
-				scopes[scope_count - 1].count = calloc(2, sizeof(nat));
-				scopes[scope_count - 1].function = function_count - 1;
+				dictionary.names = realloc(dictionary.names, sizeof(char*) * (d + 1));
+				dictionary.values = realloc(dictionary.values, sizeof(nat) * (d + 1));
+				dictionary.names[d] = word;
+				dictionary.values[dictionary.count++] = f;
+
+				const nat b = functions[w].body_count - 1;
+				const nat c = functions[w].body[b].count - 1;
+				functions[w].body[b].args[c] = d;
+
+				const nat sc = scope_count;
+				scopes = realloc(scopes, sizeof(struct scope) * (sc + 1));
+				scopes[sc] = (struct scope) {0};
+				scopes[sc].list = calloc(2, sizeof(nat*));
+				scopes[sc].count = calloc(2, sizeof(nat));
+				scopes[sc].function = f;
+				scope_count++;
 			}
 			in_args = 0;
 		}
-		// puts("finished with word");
-		// puts(word);
-		// debug_dictionary(d);
-		// debug_functions(functions, function_count, d);
-		// debug_scopes(scopes, scope_count);
-
 		word_length = 0;
 	}
-
 	stack_count--;
-
 	if (not stack_count) {
 		puts("processing_file: finished last file.");
-		// do nothing. 
 	} else {
 		puts("processing next file in the stack...");
 		goto process_file;
@@ -975,12 +953,14 @@ process_file:;
 	debug_scopes(scopes, scope_count);
 
 	puts("generating inline instructions now...");
+
 	struct instruction* ins = NULL;
 	nat ins_count = 0;
 	nat call_stack_count = 1;
 	nat call_stack[4096] = {0};
 	nat return_address_stack[4096] = {0};
 	nat* argumentlist_stack[4096] = {0};
+
 generate_function:;
 	const nat f = call_stack[call_stack_count - 1];
 	const nat init_pc = return_address_stack[call_stack_count - 1];
@@ -1013,11 +993,10 @@ generate_function:;
 			printf("executing user-defined function: %s...\n", dictionary.names[op]);
 			return_address_stack[call_stack_count - 1] = pc + 1;
 			return_address_stack[call_stack_count] = 0;
-			argumentlist_stack[call_stack_count] = functions[f].body[pc].args + 1;
+			argumentlist_stack[call_stack_count] = new.args + 1;
 			call_stack[call_stack_count++] = dictionary.values[op];
 			goto generate_function;
 		} else {
-			//puts("generating instruction...");
 			ins = realloc(ins, sizeof(struct instruction) * (ins_count + 1));
 			ins[ins_count++] = new;
 		}
@@ -1027,9 +1006,6 @@ generate_function:;
 
 	puts("generated these instructions:");
 	debug_instructions(ins, ins_count, dictionary);
-
-
-
 
 
 	puts("finding label attrs...");
@@ -1045,14 +1021,8 @@ generate_function:;
 	}
 
 
-
-
-
-
-
-
 	puts("starting the DAG formation stage...");
-	getchar();
+	//getchar();
 	
 	struct node nodes[4096] = {0}; 
 	nat node_count = 0;
@@ -1080,7 +1050,7 @@ generate_function:;
 			dictionary.names[s]
 		);
 		
-				
+
 		// const nat output_reg = d;
 
 		const nat statically_known = 0; //(nodes[input0].statically_known and nodes[input1].statically_known);
@@ -1115,13 +1085,10 @@ generate_function:;
 		if (	ins[i].args[0] == lt or 
 			ins[i].args[0] == ge or 
 			ins[i].args[0] == ne or 
-			ins[i].args[0] == eq
-			//ins[i].args[0] == lts or 
-			//ins[i].args[0] == ges
+			ins[i].args[0] == eq or
+			ins[i].args[0] == lts or 
+			ins[i].args[0] == ges
 		) block_count++;
-
-
-		getchar();
 	}
  	block_count++;
 	
@@ -1132,35 +1099,14 @@ generate_function:;
 	puts("done creating basic blocks... printing cfg/dag:");
 	print_basic_blocks(blocks, block_count, nodes, dictionary.names);
 
-
-
 	puts("finished the trickiest stage.");
-	abort();
+	//abort();
 
 
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-	exit(0);
+	//exit(0);
 
 
 	puts("executing instructions... ");
@@ -1189,10 +1135,12 @@ generate_function:;
 		else if (op == and_) R[d] &= R[r];
 		else if (op == or_)  R[d] |= R[r];
 		else if (op == eor)  R[d] ^= R[r];
-		else if (op == lt) { if (R[d] < R[r]) { pc = R[s]; } } 
-		else if (op == ge) { if (R[d] >= R[r]) { pc = R[s]; } } 
-		else if (op == ne) { if (R[d] != R[r]) { pc = R[s]; } } 
-		else if (op == eq) { if (R[d] == R[r]) { pc = R[s]; } } 
+		else if (op == lt)  { if (R[d] < R[r])  { pc = R[s]; } } 
+		else if (op == ge)  { if (R[d] >= R[r]) { pc = R[s]; } } 
+		else if (op == lts) { if (R[d] < R[r])  { pc = R[s]; } } 
+		else if (op == ges) { if (R[d] >= R[r]) { pc = R[s]; } } 
+		else if (op == ne)  { if (R[d] != R[r]) { pc = R[s]; } } 
+		else if (op == eq)  { if (R[d] == R[r]) { pc = R[s]; } } 
 		else if (op == env) printf("\033[32;1mdebug:   0x%llx : %lld\033[0m\n", R[last_used], R[last_used]); 
 		else {
 			printf("error: executing unknown instruction: %llu (%s)\n", op, dictionary.names[op]);
@@ -1202,7 +1150,6 @@ generate_function:;
 	}
 
 	debug_registers(R, dictionary.count);
-
 
 	exit(0);
 }
@@ -1296,6 +1243,9 @@ generate_function:;
 
 
 
+				// debug_dictionary(dictionary);
+				// debug_functions(functions, function_count, dictionary);
+				// debug_scopes(scopes, scope_count);
 
 
 
@@ -1304,6 +1254,19 @@ generate_function:;
 
 
 
+					// puts("found name!");
+					// puts(word);
+					// printf("in_args = %llu\n", in_args);
+
+
+
+
+
+		// puts("finished with word");
+		// puts(word);
+		// debug_dictionary(d);
+		// debug_functions(functions, function_count, d);
+		// debug_scopes(scopes, scope_count);
 
 
 
