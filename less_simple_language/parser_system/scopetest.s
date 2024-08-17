@@ -32,13 +32,23 @@ def .
 		ret
 ret
 
+
+def print ar x debug_number x ret
+
+
 define-as-zero bubbles
 incr bubbles
 debug_number bubbles
 
+set 8 4
+mul 8 2
 
+print stacksize
+print stackpointer
 
-
+st stackpointer 5 8
+ld r stackpointer 8
+print r
 
 
 

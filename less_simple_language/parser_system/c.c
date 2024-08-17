@@ -105,51 +105,51 @@ language isa:
 
 
 
-set d r   		<--- d define on use
-add d r
-sub d r
+x	set d r   		<--- d define on use 
+x	add d r
+x	sub d r
 
-mul d r
-muh d r
-mhs d r
-div d r
-dvs d r
-rem d r
-rms d r
+x	mul d r
+	muh d r
+	mhs d r
+x	div d r
+	dvs d r
+x	rem d r
+	rms d r
 
-and d r
-or  d r
-eor d r
-sd  d r
-sds d r
-si  d r
+x	and d r
+x	or  d r
+x	eor d r
+x	sd  d r
+	sds d r
+x	si  d r
 
-ld  d r l
-st  d r l
+	ld  d r l
+	st  d r l
 
-sta  d l
-bca  d l
+	sta  d l
+	bca  d l
 
-lt  r s l   		<--- l define on use
-ge  r s l   		<--- l define on use
-lts r s l   		<--- l define on use
-ges r s l   		<--- l define on use
-eq  r s l   		<--- l define on use
-ne  r s l   		<--- l define on use
+x	lt  r s l   		<--- l define on use
+x	ge  r s l   		<--- l define on use
+x	lts r s l   		<--- l define on use
+x	ges r s l   		<--- l define on use
+x	eq  r s l   		<--- l define on use
+x	ne  r s l   		<--- l define on use
+	
+x	lf  f   		<--- f is a file, not part of the symbol table.
+x	at  l   		<--- l define on use
+x	sc
 
-lf  f   		<--- f is a file, not part of the symbol table.
-at  l   		<--- l define on use
-sc
+x	incr d
+x	zero d   		<--- d define on use
+x	decr d
+x	not d
 
-incr d
-zero d   		<--- d define on use
-decr d
-not d
-
-def o  			<--- o must be new
-ar r   			<--- r must be new
-ret
-obs
+x	def o  			<--- o must be new
+x	ar r   			<--- r must be new
+x	ret
+x	obs
 
 
 
@@ -387,7 +387,7 @@ enum language_isa {
 	nullins,
 	zero, incr, decr, 
 	set, add, sub, mul, div_, rem, 
-	si, sd, and_, or_, eor, not_, 
+	si, sd, and_, or_, eor, not_, ld, st, sta, bca,
 	lt, ge, lts, ges, ne, eq, sc, at, def, ret, ar, obs, lf,
 	isa_count
 };
@@ -396,7 +396,7 @@ static const char* ins_spelling[isa_count + 1] = {
 	"()",
 	"zero", "incr", "decr", 
 	"set", "add", "sub", "mul", "div", "rem", 
-	"si", "sd", "and", "or", "eor", "not", 
+	"si", "sd", "and", "or", "eor", "not", "ld", "st", "sta", "bca", 
 	"lt", "ge", "lts", "ges", "ne", "eq", "sc", "at", "def", "ret", "ar", "obs", "lf", 
 	"isa_count",
 };
@@ -520,7 +520,7 @@ static nat arity(nat i) {
 	if (i == ret or i == sc or i == obs) return 0; 
 	if (	i == incr or i == decr or i == zero or i == not_ or
 		i == def or i == ar or i == lf or i == at) return 1;
-	if (i == lt or i == ge or i == lts or i == ges or i == ne or i == eq) return 3;
+	if (i == lt or i == ge or i == lts or i == ges or i == ne or i == eq or i == ld or i == st) return 3;
 	return 2;
 }
 
@@ -701,7 +701,7 @@ int main(int argc, const char** argv) {
 			.body_count = 0,
 		};
 
-		if (i == zero or i == set or i == at or i == lf) 
+		if (i == zero or i == set or i == at or i == lf or i == ld) 
 			functions[function_count - 1].define_on_use[0] = 1;
 
 		if (	i == lt or i == ge or
@@ -736,7 +736,7 @@ int main(int argc, const char** argv) {
 	debug_functions(functions, function_count, dictionary);
 	debug_scopes(scopes, scope_count);
 	puts("parsing top level file...");
-	getchar();
+	// getchar();
 
 
 process_file:;
@@ -1133,6 +1133,10 @@ generate_function:;
 
 	puts("executing instructions... ");
 	nat last_used = 0;
+
+	R[isa_count + stacksize] = 65536;
+	R[isa_count + stackpointer] = (nat) (void*) malloc(65536);
+
 	for (nat pc = 0; pc < ins_count; pc++) {
 
 		const nat op = ins[pc].args[0];
@@ -1157,6 +1161,21 @@ generate_function:;
 		else if (op == and_) R[d] &= R[r];
 		else if (op == or_)  R[d] |= R[r];
 		else if (op == eor)  R[d] ^= R[r];
+
+		else if (op == st) {
+			     if (R[s] == 1) { *( uint8_t*)(R[d]) = ( uint8_t)R[r]; }
+			else if (R[s] == 2) { *(uint16_t*)(R[d]) = (uint16_t)R[r]; }
+			else if (R[s] == 4) { *(uint32_t*)(R[d]) = (uint32_t)R[r]; }
+			else if (R[s] == 8) { *(uint64_t*)(R[d]) = (uint64_t)R[r]; }
+			else abort();
+
+		} else if (op == ld) {
+			     if (R[s] == 1) { R[d] = *( uint8_t*)(R[r]); }
+			else if (R[s] == 2) { R[d] = *(uint16_t*)(R[r]); }
+			else if (R[s] == 4) { R[d] = *(uint32_t*)(R[r]); }
+			else if (R[s] == 8) { R[d] = *(uint64_t*)(R[r]); }
+			else abort();
+		}
 		else if (op == lt)  { if (R[d] < R[r])  { pc = R[s]; } } 
 		else if (op == ge)  { if (R[d] >= R[r]) { pc = R[s]; } } 
 		else if (op == lts) { if (R[d] < R[r])  { pc = R[s]; } } 
@@ -1177,6 +1196,39 @@ generate_function:;
 }
 
 
+
+
+/*
+		else if (op == env) {
+			const nat a0 = reg[var_arg0];
+			const nat a1 = reg[var_arg1];
+			const nat a2 = reg[var_arg2];
+			//const nat a3 = reg[var_arg3];
+			//const nat a4 = reg[var_arg4];
+			//const nat a5 = reg[var_arg5];
+			const nat n = reg[var_argn];
+
+			if (n == 0) {
+				snprintf(reason, sizeof reason, "%lld (0x%016llx)", a0, a0);
+				print_message(user, reason, ins[pc].source[0]);
+			} 
+
+			else if (n == 1) exit((int) a0);
+			else if (n == 2) fork();
+			else if (n == 3) read((int) a0, (void*) a1, (size_t) a2);
+			else if (n == 4) write((int) a0, (void*) a1, (size_t) a2);
+			else if (n == 5) open((const char*) a0, (int) a1, (int) a2);	
+			else if (n == 6) close((int) a0);
+			else if (n == 59) execve((char*) a0, (char**) a1, (char**) a2);
+			
+			else {
+				snprintf(reason, sizeof reason, "unknown ct ecl number %llu", n);
+				print_message(error, reason, ins[pc].source[0]);
+				exit(1);
+			}
+
+
+*/
 
 
 
