@@ -20,6 +20,6 @@ def settozero_ifequal
 	at done ret
 
 def debug_number ar i 
-	add i 0 env
+	add i 0 sc
 	ret
 

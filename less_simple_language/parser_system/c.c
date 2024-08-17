@@ -15,6 +15,21 @@ copya insert ./run
 copyb do ,./build
 copya do ,./run
 
+*/
+
+
+
+
+
+
+	
+
+
+
+/*
+
+
+
 
 
 
@@ -62,18 +77,8 @@ NOTE
 
 
 
-*/
 
 
-
-
-
-
-	
-
-
-
-/*
 copyb insert ./build
 copya insert ./run
 copyb do ,./build
@@ -143,7 +148,6 @@ not d
 
 def o  			<--- o must be new
 ar r   			<--- r must be new
-da r   			<--- r must be new
 ret
 obs
 
@@ -384,16 +388,17 @@ enum language_isa {
 	zero, incr, decr, 
 	set, add, sub, mul, div_, rem, 
 	si, sd, and_, or_, eor, not_, 
-	lt, ge, lts, ges, ne, eq, env, at, def, ret, ar, da, lf,
+	lt, ge, lts, ges, ne, eq, sc, at, def, ret, ar, obs, lf,
 	isa_count
 };
 
-static const char* ins_spelling[isa_count] = {
+static const char* ins_spelling[isa_count + 1] = {
 	"()",
 	"zero", "incr", "decr", 
 	"set", "add", "sub", "mul", "div", "rem", 
 	"si", "sd", "and", "or", "eor", "not", 
-	"lt", "ge", "lts", "ges", "ne", "eq", "env", "at", "def", "ret", "ar", "da", "lf", 
+	"lt", "ge", "lts", "ges", "ne", "eq", "sc", "at", "def", "ret", "ar", "obs", "lf", 
+	"isa_count",
 };
 
 enum language_builtins {
@@ -429,9 +434,6 @@ static const char* arm64_spelling[arm64_isa_count] = {
 };
 
 
-
-
-
 struct instruction {
 	nat* args;
 	nat count;
@@ -440,6 +442,7 @@ struct instruction {
 struct function {
 	nat arity;
 	nat* arguments;
+	nat* define_on_use;
 	struct instruction* body;
 	nat body_count;
 };
@@ -514,10 +517,10 @@ static const char* executable_filename = "executable0.out";
 
 static nat arity(nat i) {
 	if (not i) return 0;
-	if (i == ret or i == env) return 0; 
+	if (i == ret or i == sc or i == obs) return 0; 
 	if (	i == incr or i == decr or i == zero or i == not_ or
 		i == def or i == ar or i == lf or i == at) return 1;
-	if (i == lt or i == ge or i == ne or i == eq) return 3;
+	if (i == lt or i == ge or i == lts or i == ges or i == ne or i == eq) return 3;
 	return 2;
 }
 
@@ -634,7 +637,7 @@ static void debug_functions(struct function* functions, nat function_count, stru
 	for (nat f = 0; f < function_count; f++) {
 		printf("%5llu: .args = (%llu)[ ", f, functions[f].arity);
 		for (nat a = 0; a < functions[f].arity; a++) {
-			printf("%5llu ", functions[f].arguments[a]);
+			printf("%5llu(%llu) ", functions[f].arguments[a], functions[f].define_on_use[a]);
 		}
 		puts("]");
 		puts("body: ");
@@ -655,6 +658,7 @@ static void debug_registers(nat* r, nat count) {
 
 
 int main(int argc, const char** argv) {
+	if (strcmp(ins_spelling[isa_count], "isa_count")) { puts("spelling mismatch"); abort(); }
 	if (argc != 2) exit(puts("compiler: \033[31;1merror:\033[0m usage: ./run <file.s>"));
 
 	puts("this assembler is currently a work in progress, "
@@ -692,9 +696,18 @@ int main(int argc, const char** argv) {
 		functions[function_count++] = (struct function) {
 			.arity = a,
 			.arguments = calloc(a, sizeof(nat)),
+			.define_on_use = calloc(a, sizeof(nat)),
 			.body = NULL,
 			.body_count = 0,
 		};
+
+		if (i == zero or i == set or i == at or i == lf) 
+			functions[function_count - 1].define_on_use[0] = 1;
+
+		if (	i == lt or i == ge or
+			i == lts or i == ges or 
+			i == ne or i == eq) 
+			functions[function_count - 1].define_on_use[2] = 1;
 
 		scopes[0].list[0] = realloc(scopes[0].list[0], sizeof(nat) * (scopes[0].count[0] + 1));
 		scopes[0].list[0][scopes[0].count[0]++] = dictionary.count;
@@ -717,6 +730,14 @@ int main(int argc, const char** argv) {
 
 	const char* included_files[4096] = {0};
 	nat included_file_count = 0;
+
+
+	debug_dictionary(dictionary);
+	debug_functions(functions, function_count, dictionary);
+	debug_scopes(scopes, scope_count);
+	puts("parsing top level file...");
+	getchar();
+
 
 process_file:;
 	nat word_length = 0, word_start = 0, in_args = 0;
@@ -753,9 +774,8 @@ process_file:;
 		}
 
 		if (not in_args) {
-			puts("unknown operation: ");
-			puts(word);
-			printf("in_args = %llu\n", in_args);
+			printf("file: %s, index: %llu\n", filename, index);
+			printf("error: use of undefined operation \"%s\"\n", word);
 			abort();
 
 		} else {
@@ -764,28 +784,16 @@ process_file:;
 			const nat f = scopes[s].function;
 			const nat b = functions[f].body_count - 1;
 			const nat op = functions[f].body[b].args[0];
+			const nat op_f = dictionary.values[op];
 			const nat ac = functions[f].body[b].count;
 	
 			if (op == def or op == ar) goto found;
 
-			if (op != zero and op != set and op != at and op != lf and
-				op != lt and op != ge and
-				op != lts and op != ges and
-				op != ne and op != eq
-			) {
-
-			undecl_error:
+			if (not functions[op_f].define_on_use[ac - 1]) { 
 				printf("file: %s, index: %llu\n", filename, index);
-				printf("error: use of undeclared identifier: %s\n", word);
+				printf("error: use of undefined variable \"%s\"\n", word);
 				abort();
 			}
-
-			if (ac != 1 and op == set) goto undecl_error;
-			if (ac != 3 and (op == lt or op == ge or
-					 op == lts or op == ges or
-					 op == ne or op == eq
-					)
-				) goto undecl_error;
 
 			puts("defining a new name:");
 			puts(word);
@@ -827,10 +835,10 @@ process_file:;
 		const nat _f = scopes[_s].function;
 		const nat _b = functions[_f].body_count - 1;
 		const nat op = functions[_f].body[_b].args[0];
-		const nat _ac = functions[_f].body[_b].count;
+		const nat _c = functions[_f].body[_b].count;
 		const nat _a = functions[dictionary.values[op]].arity;
 
-		if (_ac >= _a + 1) {
+		if (_c >= _a + 1) {
 
 			if (op == lf) {
 				functions[scopes[scope_count - 1].function].body_count--;
@@ -842,7 +850,7 @@ process_file:;
 					}
 				}
 
-				printf("including file %s...\n", word);
+				//printf("including file %s...\n", word);
 				included_files[included_file_count++] = word;
 
 				int file = open(word, O_RDONLY);
@@ -864,7 +872,7 @@ process_file:;
 			}
 
 			if (op == ret) {
-				puts("executing ret....");
+				//puts("executing ret....");
 				const nat s = scope_count - 1;
 				const nat f = scopes[s].function;
 				functions[f].body_count--;
@@ -874,12 +882,33 @@ process_file:;
 				functions[f2].body_count--;
 			}
 
+			if (op == obs) {
+				//puts("executing obs...");
+				const nat s = scope_count - 1;
+				const nat f2 = scopes[s].function;
+				functions[f2].body_count--;
+				const nat f = function_count - 1;
+				if (functions[f].arity == 0) {
+					puts("def obs: making function have public lexical scoping...");	
+					if (s < 2) {
+						puts("invalid use of obs instruction, aborting...");
+						abort();
+					}
+					const nat t = 0;
+					scopes[s - 2].list[t] = realloc(scopes[s - 2].list[t], sizeof(nat) * (scopes[s - 2].count[t] + 1));
+					scopes[s - 2].list[t][scopes[s - 2].count[t]++] =  dictionary.count - 1;
+				} else {
+					printf("info: ar obs: made argument %llu define on use...\n", functions[f].arity - 1);
+					functions[f].define_on_use[functions[f].arity - 1] = 1;
+				}
+			}
+
 			if (op == ar) {
 				const nat s = scope_count - 1;
 				const nat f2 = scopes[s].function;
 				functions[f2].body_count--;
 
-				puts("executing ar....");
+				//puts("executing ar....");
 
 				const nat t = 1;
 				const nat d = dictionary.count;
@@ -894,12 +923,15 @@ process_file:;
 
 				const nat f = function_count - 1;
 				functions[f].arguments = realloc(functions[f].arguments, sizeof(nat) * (functions[f].arity + 1));
-				functions[f].arguments[functions[f].arity++] = d;
+				functions[f].arguments[functions[f].arity] = d;
+
+				functions[f].define_on_use = realloc(functions[f].define_on_use, sizeof(nat) * (functions[f].arity + 1));
+				functions[f].define_on_use[functions[f].arity++] = 0;
 			}
 
 			if (op == def) {
-				puts("EXECUTING DEF!!!");
-				puts(word);
+				//puts("EXECUTING DEF!!!");
+				//puts(word);
 
 				functions = realloc(functions, sizeof(struct function) * (function_count + 1));
 				functions[function_count++] = (struct function) {0};
@@ -1131,7 +1163,7 @@ generate_function:;
 		else if (op == ges) { if (R[d] >= R[r]) { pc = R[s]; } } 
 		else if (op == ne)  { if (R[d] != R[r]) { pc = R[s]; } } 
 		else if (op == eq)  { if (R[d] == R[r]) { pc = R[s]; } } 
-		else if (op == env) printf("\033[32;1mdebug:   0x%llx : %lld\033[0m\n", R[last_used], R[last_used]); 
+		else if (op == sc) printf("\033[32;1mdebug:   0x%llx : %lld\033[0m\n", R[last_used], R[last_used]); 
 		else {
 			printf("error: executing unknown instruction: %llu (%s)\n", op, dictionary.names[op]);
 			abort();
@@ -1144,6 +1176,53 @@ generate_function:;
 	exit(0);
 }
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+					//const nat _b = functions[f2].body_count - 1;
+					//const nat op = functions[f2].body[_b].args[0];
+
+				
+				//functions[f].arguments = realloc(functions[f].arguments, sizeof(nat) * (functions[f].arity + 1));
+				//functions[f].arguments[functions[f].arity] = d;
+
+				//functions[f].define_on_use = realloc(functions[f].define_on_use, sizeof(nat) * (functions[f].arity + 1));
+				//functions[f].define_on_use[functions[f].arity++] = 0;
 
 
 
@@ -1178,6 +1257,20 @@ generate_function:;
 
 
 
+
+			/*
+			if (ac != 1 and op == set) goto undecl_error;
+			if (ac != 3 and (op == lt or op == ge or
+					 op == lts or op == ges or
+					 op == ne or op == eq
+					)
+				) goto undecl_error;
+
+				op != zero and op != set and op != at and op != lf and
+				op != lt and op != ge and
+				op != lts and op != ges and
+				op != ne and op != eq
+			*/
 
 
 

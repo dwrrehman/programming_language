@@ -26,33 +26,15 @@ ret
 
 
 
+def . 
+	def define-as-zero obs ar variable obs
+		zero variable
+		ret
+ret
 
-
-
-def define-as-zero ar variable
-
-	zero variable
-
-	ret
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+define-as-zero bubbles
+incr bubbles
+debug_number bubbles
 
 
 
