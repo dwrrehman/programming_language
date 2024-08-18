@@ -28,6 +28,146 @@ copya do ,./run
 
 /*
 
+202408187.002119:
+things i have realized recently:
+====================================
+
+
+	- command line arguments passed in registers?
+	
+	- generating a mach-o executable directly.
+
+	- adding system calls to our language, by adding them as instructions!
+
+	- 
+
+
+
+
+
+
+
+
+
+
+
+
+	we alsoooo need to not allocate a stack when we start up,
+
+		anddd we need to like, somehow have some built variables for
+
+			argv and argc, (which we are going to rename!)
+				these are usually passed in registers, upon the executable starting up. so yeah. important to preserve these, i think.
+
+		
+
+	this way, we can get arguments from the command-line. very important, actually. well, kinda. not really. but sortt of important lol. 
+		sooo yeah. 
+
+				becuase like technically, you donnt needdd cli args, you wan just get stnadard in from the user, or something like taht, ie, using pipes, and standard in/out to do arguments. easy enough. i wish unix did this always actually. but yeah. 
+
+
+
+
+
+
+
+
+
+
+
+						we are going to generate an executable directly, 
+
+						both for   macho, and elf.  becuase we can lol. 
+
+									shouldnt be thattt bad honestly. 
+
+
+							the only main problem is that now using an external library will be... 
+								difficult lol. but we'll solve taht problem later lol. i think its definitely fixable, i think. honestly it shouldnt even be that bad, i think!   like,  yeah. idk. technically speaking it shouldnt be thattt bad. 
+
+							we can always call out to the linker for doing thatttt linking step lol. so yeah. 
+
+								yay nice. 
+
+
+
+exit
+execve
+fork
+wait
+open
+close
+write
+read
+ioctl
+poll
+lseek
+
+
+
+-------------------- LINUX  -------------------- 
+
+	exit execve fork wait/wait4
+	open openat close write read ioctl poll lseek
+	mmmap mprotect mremap munmap msync
+
+	readv writev select access
+	pipe dup dup2
+	nanosleep rt_sigaction kill pause alarm getpid
+	
+	socket connect accept/accept4
+	sendto recvfrom sendmsg recvmsg shutdown
+	bind listen getsockname getpeername
+	socketpair setsockopt getsockopt
+	
+	fcntl flock fsync sync fdatasync
+	mlock msync munlock
+	fdatasync truncate ftruncate
+	getdents getcwd chdir fchdir chroot
+	rename mkdir mkdirat mknod mknodat rmdir
+	link linkat unlink unlinkat symlink readlink
+	chmod fchmod chown fchown fchownat
+
+	gettimeofday getrlimit setrlimit getrusage
+	getuid setuid getgid setgid utime umask
+	getpriority setpriority
+	mount unmount
+	
+
+
+
+-------------------- MACOS -------------------- 
+
+
+exit fork read write open close wait4 lseek ioctl poll
+munmap mprotect mmap 
+
+link unlink chdir fchdir
+rename flock  mkdir rmdir utimes 
+mknod chmod chown getpid setuid getuid 
+
+recvmsg sendmsg recvfrom accept getpeername getsockname 
+sendto socket connect bind setsockopt listen getsockopt 
+shutdown socketpair
+
+access sync kill dup dup2 pipe sigaction
+getgid symlink readlink execve umask chroot 
+
+fcntl select fsync setpriority getpriority
+gettimeofday getrusage  writev readv  fchown fchmod 
+
+setgid truncate ftruncate getdents(getdirentries) 
+getrlimit setrlimit 
+fstat lstat stat fdatasync
+mlock msync munlock
+mount unmount
+
+
+
+
+
+
 
 
 
@@ -121,14 +261,11 @@ x	and d r
 x	or  d r
 x	eor d r
 x	sd  d r
-	sds d r
+x	sds d r
 x	si  d r
 
-	ld  d r l
-	st  d r l
-
-	sta  d l
-	bca  d l
+x	ld  d r l
+x	st  d r l
 
 x	lt  r s l   		<--- l define on use
 x	ge  r s l   		<--- l define on use
@@ -137,21 +274,23 @@ x	ges r s l   		<--- l define on use
 x	eq  r s l   		<--- l define on use
 x	ne  r s l   		<--- l define on use
 	
-x	lf  f   		<--- f is a file, not part of the symbol table.
-x	at  l   		<--- l define on use
-x	sc
-
 x	incr d
 x	zero d   		<--- d define on use
 x	decr d
 x	not d
+
+x	lf  f   		<--- f is a file, not part of the symbol table.
+x	at  l   		<--- l define on use
 
 x	def o  			<--- o must be new
 x	ar r   			<--- r must be new
 x	ret
 x	obs
 
+	sta  d l
+	bca  d l
 
+	sc  n  r r r  r r r       <----- n should usuallyyyyyyy be statically known. doesnt have to be though, technically speaking. 
 
 
 
@@ -368,6 +507,13 @@ example code, usage of the "obs" instruction
 
 copya do ,./run,test1.s
 
+
+
+
+
+
+
+
 */
 
 
@@ -380,25 +526,45 @@ copya do ,./run,test1.s
 #include <fcntl.h>
 #include <unistd.h>
 #include <ctype.h>
+#include <sys/mman.h>
+
 
 typedef uint64_t nat;
 
 enum language_isa {
-	nullins,
-	zero, incr, decr, 
+	nullins, zero, incr, decr, 
 	set, add, sub, mul, div_, rem, 
-	si, sd, and_, or_, eor, not_, ld, st, sta, bca,
-	lt, ge, lts, ges, ne, eq, sc, at, def, ret, ar, obs, lf,
+	si, sd, sds, and_, or_, eor, not_, 
+	ld, st, sta, bca,
+	lt, ge, lts, ges, ne, eq, 
+	def, ret, ar, obs, at, lf, sc,
 	isa_count
 };
 
-static const char* ins_spelling[isa_count + 1] = {
-	"()",
-	"zero", "incr", "decr", 
+static const char* ins_spelling[isa_count] = {
+	"()", "zero", "incr", "decr", 
 	"set", "add", "sub", "mul", "div", "rem", 
-	"si", "sd", "and", "or", "eor", "not", "ld", "st", "sta", "bca", 
-	"lt", "ge", "lts", "ges", "ne", "eq", "sc", "at", "def", "ret", "ar", "obs", "lf", 
-	"isa_count",
+	"si", "sd", "sds", "and", "or", "eor", "not", 
+	"ld", "st", "sta", "bca", 
+	"lt", "ge", "lts", "ges", "ne", "eq", 
+	"def", "ret", "ar", "obs", "at", "lf", "sc", 
+};
+
+enum system_call_table {
+	system_call_undefined, 
+	system_exit, system_execve, system_fork, system_wait,
+	system_openat, system_close, system_write, system_read,
+	system_ioctl, system_poll, system_lseek, 
+	system_munmap, system_mprotect, system_mmap, 
+	system_call_count
+};
+
+static const char* system_call_spelling[system_call_count] = {
+	"system_call_undefined", 
+	"system_exit", "system_execve", "system_fork", "system_wait",
+	"system_openat", "system_close", "system_write", "system_read",
+	"system_ioctl", "system_poll", "system_lseek", 
+	"system_munmap", "system_mprotect", "system_mmap", 
 };
 
 enum language_builtins {
@@ -409,7 +575,7 @@ enum language_builtins {
 
 static const char* builtin_spelling[builtin_count] = {
 	"(nv)",
-	"stackpointer", "stacksize",
+	"process_stackpointer", "process_stacksize",
 };
 
 enum arm64_isa {
@@ -517,10 +683,10 @@ static const char* executable_filename = "executable0.out";
 
 static nat arity(nat i) {
 	if (not i) return 0;
-	if (i == ret or i == sc or i == obs) return 0; 
-	if (	i == incr or i == decr or i == zero or i == not_ or
-		i == def or i == ar or i == lf or i == at) return 1;
+	if (i == ret or i == obs) return 0; 
+	if (i == incr or i == decr or i == zero or i == not_ or i == def or i == ar or i == lf or i == at) return 1;
 	if (i == lt or i == ge or i == lts or i == ges or i == ne or i == eq or i == ld or i == st) return 3;
+	if (i == sc) return 7;
 	return 2;
 }
 
@@ -658,7 +824,6 @@ static void debug_registers(nat* r, nat count) {
 
 
 int main(int argc, const char** argv) {
-	if (strcmp(ins_spelling[isa_count], "isa_count")) { puts("spelling mismatch"); abort(); }
 	if (argc != 2) exit(puts("compiler: \033[31;1merror:\033[0m usage: ./run <file.s>"));
 
 	puts("this assembler is currently a work in progress, "
@@ -1127,13 +1292,7 @@ generate_function:;
 	puts("done creating basic blocks... printing cfg/dag:");
 	print_basic_blocks(blocks, block_count, nodes, dictionary.names);
 
-	puts("finished the trickiest stage.");
-	//abort();
-
-
 	puts("executing instructions... ");
-	nat last_used = 0;
-
 	R[isa_count + stacksize] = 65536;
 	R[isa_count + stackpointer] = (nat) (void*) malloc(65536);
 
@@ -1158,6 +1317,7 @@ generate_function:;
 		else if (op == rem)  R[d] %= R[r];
 		else if (op == si)   R[d]<<= R[r];
 		else if (op == sd)   R[d]>>= R[r];
+		else if (op == sds)  R[d]>>= R[r];
 		else if (op == and_) R[d] &= R[r];
 		else if (op == or_)  R[d] |= R[r];
 		else if (op == eor)  R[d] ^= R[r];
@@ -1182,12 +1342,35 @@ generate_function:;
 		else if (op == ges) { if (R[d] >= R[r]) { pc = R[s]; } } 
 		else if (op == ne)  { if (R[d] != R[r]) { pc = R[s]; } } 
 		else if (op == eq)  { if (R[d] == R[r]) { pc = R[s]; } } 
-		else if (op == sc) printf("\033[32;1mdebug:   0x%llx : %lld\033[0m\n", R[last_used], R[last_used]); 
+		else if (op == sc) {
+			const nat n = R[ins[pc].args[1]];
+			const nat a0 = ins[pc].args[2];
+			const nat a1 = ins[pc].args[3];
+			const nat a2 = ins[pc].args[4];
+			const nat a3 = ins[pc].args[5];
+			const nat a4 = ins[pc].args[6];
+			const nat a5 = ins[pc].args[7];
+
+			     if (n == system_call_undefined) printf("\033[32;1mdebug:   0x%llx : %lld\033[0m\n", R[a0], R[a0]); 
+			else if (n == system_exit) 	exit((int) R[a0]);
+			else if (n == system_fork) 	R[a0] = (nat) fork(); 
+			else if (n == system_openat) 	R[a0] = (nat) openat((int) R[a0], (const char*) R[a1], (int) R[a2], (int) R[a3]);
+			else if (n == system_close) 	R[a0] = (nat) close((int) R[a0]);
+			else if (n == system_read) 	R[a0] = (nat) read((int) R[a0], (void*) R[a1], (size_t) R[a2]);
+			else if (n == system_write) 	R[a0] = (nat) write((int) R[a0], (void*) R[a1], (size_t) R[a2]);
+			else if (n == system_lseek) 	R[a0] = (nat) lseek((int) R[a0], (off_t) R[a1], (int) R[a2]);
+			else if (n == system_mmap) 	R[a0] = (nat) (void*) mmap((void*) R[a0], (size_t) R[a1], (int) R[a2], (int) R[a3], (int) R[a4], (off_t) R[a5]);
+			else if (n == system_munmap) 	R[a0] = (nat) munmap((void*) R[a0], (size_t) R[a1]); 
+			else {
+				puts("bad system call");
+				printf("%llu: system call not supported.\n", n);
+				abort();
+			}
+		}
 		else {
 			printf("error: executing unknown instruction: %llu (%s)\n", op, dictionary.names[op]);
 			abort();
 		}
-		last_used = d;
 	}
 
 	//debug_registers(R, dictionary.count);

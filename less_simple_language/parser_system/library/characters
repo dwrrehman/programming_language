@@ -1,0 +1,127 @@
+lf library/foundation
+
+
+
+set char_newline 10
+set char_tab 9
+
+set char_0 10
+mul char_0 4
+add char_0 8
+
+set char_space 10
+mul char_space 3
+add char_space 2
+
+
+set char_1 char_0
+incr char_1
+
+set char_2 char_1
+incr char_2
+
+set char_3 char_2
+incr char_3
+
+set char_4 char_3
+incr char_4
+
+set char_5 char_4
+incr char_5
+
+set char_6 char_5
+incr char_6
+
+set char_7 char_6
+incr char_7
+
+set char_8 char_7
+incr char_8
+
+set char_9 char_8
+incr char_9
+
+
+
+set char_A 10
+mul char_A 6
+add char_A 5
+
+set char_B char_A 
+incr char_B
+
+set char_C char_B
+incr char_C
+
+set char_D char_C
+incr char_D
+
+set char_E char_D
+incr char_E
+
+set char_F char_E
+incr char_F
+
+set char_G char_F
+incr char_G
+
+set char_H char_G
+incr char_H
+
+set char_I char_H
+incr char_I
+
+set char_J char_I
+incr char_J
+
+set char_K char_J
+incr char_K
+
+set char_L char_K
+incr char_L
+
+set char_M char_L
+incr char_M
+
+set char_N char_M
+incr char_N
+
+set char_O char_N
+incr char_O
+
+set char_P char_O
+incr char_P
+
+set char_Q char_P
+incr char_Q
+
+set char_R char_Q
+incr char_R
+
+set char_S char_R
+incr char_S
+
+set char_T char_S
+incr char_T
+
+set char_U char_T
+incr char_U
+
+set char_V char_U
+incr char_V
+
+set char_W char_V
+incr char_W
+
+set char_X char_W
+incr char_X
+
+set char_Y char_X
+incr char_Y
+
+set char_Z char_Y
+incr char_Z
+
+
+
+
