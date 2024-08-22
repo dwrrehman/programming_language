@@ -1,0 +1,24 @@
+dr limit 
+zero limit 
+incr limit 
+incr limit 
+incr limit
+
+dr i zero i
+at outer
+	dr j zero j
+	at inner
+		incr j
+		lt j limit inner
+	incr i
+	lt i limit outer
+
+
+def function ar x
+	dr localvar
+	zero localvar
+	incr localvar
+	add localvar x
+
+	ret
+

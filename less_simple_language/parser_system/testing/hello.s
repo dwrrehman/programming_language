@@ -1,6 +1,13 @@
 lf library/foundation
 lf library/characters
 
+comment
+todo: implement a print_number function!
+also add comments
+also fix the control flow in macros bug!!!
+comment
+
+
 def getchar ar buffer
 	read 0 buffer 1
 	ret

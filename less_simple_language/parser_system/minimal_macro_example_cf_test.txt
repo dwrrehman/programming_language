@@ -1,0 +1,21 @@
+zero 5
+incr 5 incr 5 incr 5 incr 5 incr 5
+
+def clip_to_5 ar x
+	ge 5 x skip
+	set x 5
+	at skip
+	ret
+
+zero a
+incr a
+incr a
+
+clip_to_5 a
+
+zero b
+incr b
+
+clip_to_5 b
+
+

@@ -674,7 +674,7 @@ enum language_isa {
 	si, sd, sds, and_, or_, eor, not_, 
 	ld, st, sta, bca,
 	lt, ge, lts, ges, ne, eq, 
-	def, ret, ar, obs, dr, at, lf, sc, 
+	def, ret, ar, obs, at, lf, sc,
 	isa_count
 };
 
@@ -684,7 +684,7 @@ static const char* ins_spelling[isa_count] = {
 	"si", "sd", "sds", "and", "or", "eor", "not", 
 	"ld", "st", "sta", "bca", 
 	"lt", "ge", "lts", "ges", "ne", "eq", 
-	"def", "ret", "ar", "obs", "dr", "at", "lf", "sc", 
+	"def", "ret", "ar", "obs", "at", "lf", "sc", 
 };
 
 enum system_call_table {
@@ -736,35 +736,30 @@ static const char* arm64_spelling[arm64_isa_count] = {
 	"arm64_madd",
 };
 
+
 struct instruction {
 	nat* args;
 	nat count;
 };
 
-struct operation {
-	char* name;
-
-	nat** scope;
-	nat* scope_count;
-
+struct function {
 	nat arity;
 	nat* arguments;
-	nat* type;
-
+	nat* define_on_use;
 	struct instruction* body;
 	nat body_count;
-
-	nat parent;
 };
 
-struct label {
-	char* name;
-	nat value;
+struct dictionary {
+	char** names;
+	nat* values;
+	nat count;
 };
 
-struct variable {
-	char* name;
-	nat value;
+struct scope {
+	nat** list;
+	nat* count;
+	nat function;
 };
 
 struct file {
@@ -773,6 +768,7 @@ struct file {
 	char* text;
 	const char* filename;
 };
+
 
 struct machine_instruction {
 	nat args[16];
@@ -825,16 +821,12 @@ static const char* executable_filename = "executable0.out";
 static nat arity(nat i) {
 	if (not i) return 0;
 	if (i == ret or i == obs) return 0; 
-	if (i == incr or i == decr or i == zero or i == not_ or i == def or i == ar or i == dr or i == lf or i == at) return 1;
+	if (i == incr or i == decr or i == zero or i == not_ or i == def or i == ar or i == lf or i == at) return 1;
 	if (i == lt or i == ge or i == lts or i == ges or i == ne or i == eq or i == ld or i == st) return 3;
 	if (i == sc) return 7;
 	return 2;
 }
 
-
-
-
-/*
 static void print_nodes(struct node* nodes, nat node_count, char** names) {
 	printf("printing %3llu nodes...\n", node_count);
 	for (nat n = 0; n < node_count; n++) {
@@ -968,182 +960,6 @@ static void debug_registers(nat* r, nat count) {
 }
 
 
-
-*/
-
-
-
-
-
-
-	/* each function has a lexical scope,
-
-		which, as we parse each function, essentially comprises a stack.
-
-		note. we can only ever call functions from functions which are in our scope list, (operation symbol table) and we can also walk backwards to try to find our parent functions. i think thissss part needs to be implemented as a listttt of function pointers. or rather function indicies. ie, we keep a stack of nats, which referrrr to functions. simple as that.
-
-		basically, we will tryyy to actually use the masterrrr function table as much as possible, basically just utilizing the nat scope stack to instill what the hierarchy is. althoughhhhh becuase of the fact that everything is lexical in nature and unchanging for each call, i think we coulddd just implement some parent pointers instead!!! 
-
-
-			because like, we only ever reallly want to walk the stack of scopes backwards right? like, if thats all we want to do, then i think we can get away with only having a set of .parent members on each function. like, every function (except one of course lol) has a parent, and it will usually just be an index to another function in this master list. like, super easy actually lol. nice.
-
-
-		oh what about the top level then??
-
-	well, i think we are going to actually make the top level be its own parent, basically.
-
-			all of which have the value 0 lol. and we just know we are done if we finish the body of the top level lol. so yeah. 
-
-
-				kinda interesting
-
-			so yeah i think we just need a pointer aka   nat   to the function which is currently getting parsed. thats all we really need. then we can just follow the parent pointers backwards lol.
-
-
-so yeah! pretty neat actually.  nice. i like this. no need for a nat scope stack even. we have everything that we could want just with the function array lol. and the varaible array. nice. cool. lets do this. also lets write debug functions for all this functionality first lol. 
-
-		ie, printing stuff out. then we can work on assemblying the starting out symble table, which shouldnt be thattt hard i think. basically we need toconstruct a function for every builtin operation in the language, and then add those to the operation scope list of the null operaiton, which has function index 0, and then we treat that as the top level, setting its parent to 0 too lol. heck, technically the builtin functions alsooo have a parent of 0 too lol. soyeah. we'll try to get all that assembled first, then we'll write the parser itself, which shouldnt be thattt bad now becuase we'll have a better data structure to work with lol. so yeah thats good. lets see. 
-
-		
-
-
-	*/
-
-
-/*
-
-
-
-struct instruction {
-	nat* args;
-	nat count;
-};
-
-struct operation {
-	char* name;
-
-	nat** scope;
-	nat* scope_count;
-
-	nat arity;
-	nat* arguments;
-	nat* type;
-
-	struct instruction* body;
-	nat body_count;
-
-	nat parent;
-};
-
-struct label {
-	char* name;
-	nat value;
-};
-
-struct variable {
-	char* name;
-	nat value;
-};
-
-
-*/
-
-
-
-
-
-
-enum argument_type {
-	type_variable, 
-	type_dou, 
-	type_label, 
-};
-
-static nat type_of_argument(nat op, nat arg) {
-
-//	if (op == set  and arg == 0) return type_dou;    // note: should these be DOU?...  is that good or bad?..
-//	if (op == zero and arg == 0) return type_dou;    // note: should these be DOU?...  is that good or bad?..
-
-	if (op == dr   and arg == 0) return type_dou;
-//	if (op == ar   and arg == 0) return type_dou;
-	if (op == lf   and arg == 0) return type_dou;
-
-	if (op == at  and arg == 0) return type_label;
-	if (op == lt  and arg == 2) return type_label;
-	if (op == ge  and arg == 2) return type_label;
-	if (op == lts and arg == 2) return type_label;
-	if (op == ges and arg == 2) return type_label;
-	if (op == ne  and arg == 2) return type_label;
-	if (op == eq  and arg == 2) return type_label;
-
-	return type_variable;
-}
-
-
-static void debug_instructions(struct instruction* ins, nat ins_count) {
-	printf("instructions: (%llu count) \n", ins_count);
-	for (nat i = 0; i < ins_count; i++) {
-		printf("%5llu:", i);
-		for (nat a = 0; a < ins[i].count; a++) {
-			 printf("%-5lld ", ins[i].args[a]);
-		}
-		puts("");
-	}
-	puts("done\n");
-}
-
-static void debug_dictionary(
-	struct operation* operations, nat operation_count, 
-	struct variable* variables, nat variable_count, 
-	struct label* labels, nat label_count
-) {
-
-	printf("variable symbol table: %llu\n", variable_count);
-	for (nat i = 0; i < variable_count; i++) {
-		printf("var #%5llu:   %10s  :  %llu\n", i, variables[i].name, variables[i].value);
-	}
-
-	printf("label symbol table: %llu\n", label_count);
-	for (nat i = 0; i < label_count; i++) {
-		printf("label #%5llu:   %10s  :  %llu\n", i, labels[i].name, labels[i].value);
-	}
-
-	printf("operation symbol table: %llu\n", operation_count);
-	for (nat i = 0; i < operation_count; i++) {
-		printf("operation #%5llu: .name = %-10s : .arity = %llu : .parent = %llu : .bodycount = %llu\n.args = ", 
-			i, operations[i].name, operations[i].arity, operations[i].parent, operations[i].body_count
-		);
-		printf("[  ");
-		for (nat a = 0; a < operations[i].arity; a++) {
-			printf("%llu:%llu  ", operations[i].arguments[a], operations[i].type[a]);
-		}
-		printf("]\n");
-		for (nat s = 0; s < 3; s++) {
-			printf("sym #%llu: [ ", s);
-			for (nat n = 0; n < operations[i].scope_count[s]; n++) {
-				printf("%llu ", operations[i].scope[s][n]);
-			}
-			printf("]\n");
-		}
-		printf("body = ");
-		if (operations[i].body_count) debug_instructions(operations[i].body, operations[i].body_count);
-		else printf("{empty}\n");
-		puts("");
-	}
-	puts("done printing dictionary.");
-}
-
-
-
-static const nat undefined = (nat) -1;
-
-static const char* agt[4] = {
-	"type_variable",
-	"type_dou", 
-	"type_label",
-	"type_operation"
-};
-
 int main(int argc, const char** argv) {
 	if (argc != 2) exit(puts("compiler: \033[31;1merror:\033[0m usage: ./run <file.s>"));
 
@@ -1151,328 +967,30 @@ int main(int argc, const char** argv) {
 		"backend is currently not fully implemented yet..."
 	);
 
-	nat operation_count = 1;
-	struct operation* operations = calloc(1, sizeof(struct operation));
-	operations[0].scope = calloc(3, sizeof(nat*));
-	operations[0].scope_count = calloc(3, sizeof(nat));
-	operations[0].name = "(top-level)";
-	operations[0].parent = (nat) -1;
-	struct label* labels = NULL;
-	nat label_count = 0;
-	struct variable* variables = NULL;
-	nat variable_count = 0;
-
-
-	struct file filestack[4096] = {0};
-	nat filestack_count = 1;
-
-	const char* included_files[4096] = {0};
-	nat included_file_count = 0;
-
+	const char* given_filename = argv[1];
+	struct function* functions = NULL;
+	nat function_count = 0;
+	nat scope_count = 1;
+	struct scope* scopes = calloc(1, sizeof(struct scope));
+	scopes[0].list = calloc(2, sizeof(nat*));
+	scopes[0].count = calloc(2, sizeof(nat));
+	scopes[0].function = 0;
+	struct dictionary dictionary = {0};
+	nat stack_count = 1;
+	struct file stack[4096] = {0};
 {
-	int file = open(argv[1], O_RDONLY);
-	if (file < 0) { puts(argv[1]); perror("open"); exit(1); }
+	int file = open(given_filename, O_RDONLY);
+	if (file < 0) { puts(given_filename); perror("open"); exit(1); }
 	const nat text_length = (nat) lseek(file, 0, SEEK_END);
 	lseek(file, 0, SEEK_SET);
 	char* text = calloc(text_length + 1, 1);
 	read(file, text, text_length);
 	close(file);
-	filestack[0].filename = argv[1];
-	filestack[0].text = text;
-	filestack[0].text_length = text_length;
-	filestack[0].index = 0;
+	stack[0].filename = given_filename;
+	stack[0].text = text;
+	stack[0].text_length = text_length;
+	stack[0].index = 0;
 }
-
-	puts("defining builtin operations...");
-	for (nat i = 1; i < isa_count; i++) {
-		const nat a = arity(i);
-
-		operations = realloc(operations, sizeof(struct operation) * (operation_count + 1));
-		operations[operation_count] = (struct operation) {
-			.name = strdup(ins_spelling[i]),
-			.arity = a,
-			.arguments = calloc(a, sizeof(nat)),
-			.type = calloc(a, sizeof(nat)),
-			.scope = calloc(3, sizeof(nat*)),
-			.scope_count = calloc(3, sizeof(nat)),
-		};
-		for (nat t = 0; t < a; t++) operations[operation_count].type[t] = type_of_argument(i, t);
-		operation_count++;
-
-		operations[0].scope[0] = realloc(operations[0].scope[0], sizeof(nat) * (operations[0].scope_count[0] + 1));
-		operations[0].scope[0][operations[0].scope_count[0]++] = i;
-	}
-
-	for (nat i = 0; i < builtin_count; i++) {
-
-		variables = realloc(variables, sizeof(struct variable) * (variable_count + 1));
-		variables[variable_count] = (struct variable) {
-			.name = strdup(builtin_spelling[i]),
-			.value = 0,
-		};
-		variable_count++;
-
-		operations[0].scope[1] = realloc(operations[0].scope[1], sizeof(nat) * (operations[0].scope_count[1] + 1));
-		operations[0].scope[1][operations[0].scope_count[1]++] = i;
-	}
-
-	debug_dictionary(operations, operation_count, variables, variable_count, labels, label_count);
-	puts("parsing top level file...");
-
-process_file:;
-	nat word_length = 0, word_start = 0, expecting_type = 0, define_on_use = 0, in_scope = 0;
-
-	const nat starting_index = 	filestack[filestack_count - 1].index;
-	const nat text_length = 	filestack[filestack_count - 1].text_length;
-	char* text = 			filestack[filestack_count - 1].text;
-	const char* filename = 		filestack[filestack_count - 1].filename;
-
-	printf("info: now processing file: %s...\n", filename);
-
-	for (nat index = starting_index; index < text_length; index++) {
-
-		if (not isspace(text[index])) {
-			if (not word_length) word_start = index;
-			word_length++; 
-			if (index + 1 < text_length) continue;
-		} else if (not word_length) continue;
-
-		char* word = strndup(text + word_start, word_length);
-
-		//printf("%llu:%llu: @ word: %s..\n", word_start, word_length, word);
-
-		nat calling = undefined, s = in_scope;
-		while (s != undefined) {
-			nat* list = operations[s].scope[expecting_type];
-			nat count = operations[s].scope_count[expecting_type];
-
-			if (expecting_type == 0) {
-				for (nat i = count; i--;) {
-					if (not strcmp(operations[list[i]].name, word)) {
-						calling = list[i];
-						goto found;
-					} 
-				}
-			} else if (expecting_type == 1) {
-				for (nat i = count; i--;) {
-					if (not strcmp(variables[list[i]].name, word)) {
-						calling = list[i];
-						goto found;
-					}
-				}
-			} else if (expecting_type == 2) {
-				for (nat i = count; i--;) {
-					if (not strcmp(labels[list[i]].name, word)) {
-						calling = list[i];
-						goto found;
-					}
-				}
-			}
-			s = operations[s].parent;
-		}
-
-		{struct operation* this = operations + in_scope;
-		struct instruction* ins = this->body + this->body_count - 1;
-		const nat op = ins->args[0];
-		const nat count = ins->count;
-		if (op == def and count == 1) {
-			calling = operation_count;
-			goto found;
-		}}
-
-		{struct operation* this = operations + in_scope;
-		struct instruction* ins = this->body + this->body_count - 1;
-		const nat op = ins->args[0];
-		const nat count = ins->count;
-		if ((op == ar or op == dr) and count == 1) {
-			calling = variable_count;
-			goto found;
-		}}
-
-		if (expecting_type == 0) {
-			puts("programming error");
-		}
-
-
-
-
-		/******************************************
-
-
-
-
-
-
-			crapppp we need to get these semantics nailed down:      is it possible for a macro to force define something?
-
-				or does it always have the semantics of   use-or-define-on-first-use 
-
-
-					like,   what is our stance on that!?!?!?  do we want to force define or not, on every definition!!!???!
-
-					we just need to nail that down. 
-
-
-	
-								force defining is cumbersome, but reliable, 
-
-								and define on first use is very convinient, but kind of error prone maybe...
-
-
-									GAHHHHHH
-
-
-		so yeah we just need to decide. its critical to decide this upfront. 
-
-
-			becuase then the macro machinery will mirror whatever decision we make here. so yeah. 
-
-
-
-
-
-
-
-
-
-
-
-
-		*********************************/
-
-
-
-
-
-		if (expecting_type == 1 and define_on_use) {
-			puts("expecting variable type. ");
-			if (not define_on_use) goto print_error;
-
-			calling = variable_count;
-			variables = realloc(variables, sizeof(struct variable) * (variable_count + 1));
-			variables[variable_count++] = (struct variable) { .name = word, .value = 0 };
-
-			struct operation* this = operations + in_scope;
-			this->scope[1] = realloc(this->scope[1], sizeof(nat) * (this->scope_count[1] + 1));
-			this->scope[1][this->scope_count[1]++] = calling;
-			goto found;
-
-		} else if (expecting_type == 2 and define_on_use) {
-			puts("expecting label type. ");
-			if (not define_on_use) goto print_error;
-
-			calling = label_count;
-			labels = realloc(labels, sizeof(struct label) * (label_count + 1));
-			labels[label_count++] = (struct label) { .name = word, .value = 0 };
-
-			struct operation* this = operations + in_scope;
-			this->scope[2] = realloc(this->scope[2], sizeof(nat) * (this->scope_count[2] + 1));
-			this->scope[2][this->scope_count[2]++] = calling;
-			goto found;
-		}
-
-	print_error:
-		printf("file: %s, index: %llu\n", filename, index);
-		printf("error: use of undefined word \"%s\"\n", word);
-		abort();
-
-	found:;
-		//printf("calling %llu...\n", calling);
-		struct operation* this = operations + in_scope;
-
-		if (expecting_type == 0 and calling < isa_count) {
-			this->body = realloc(this->body, sizeof(struct instruction) * (this->body_count + 1));
-			this->body[this->body_count++] = (struct instruction) {0};
-		}
-
-		struct instruction* ins = this->body + this->body_count - 1;
-		ins->args = realloc(ins->args, sizeof(nat) * (ins->count + 1));
-		ins->args[ins->count++] = calling;
-
-		const nat op = ins->args[0];
-		const nat t = type_of_argument(op, ins->count - 1);
-
-		printf("now expecting argtype=%s for op=%s at position=%llu...\n", agt[t], ins_spelling[op], ins->count - 1);
-
-		if (t == type_variable) { expecting_type = 1; define_on_use = 0; }
-		else if (t == type_dou) { expecting_type = 1; define_on_use = 1; }
-		else if (t == type_label) { expecting_type = 2; define_on_use = 1; }
-		
-		if (ins->count == operations[op].arity + 1) {
-
-			if (op >= isa_count) {
-				printf("calling a macro!!!!");
-				abort();
-			} 
-
-			else if (op == def) {
-				puts("executing def...");
-				printf("defining: ");
-				puts(word);
-
-				this->body_count--;
-
-				operations = realloc(operations, sizeof(struct operation) * (operation_count + 1));
-				operations[operation_count++] = (struct operation) { 
-					.name = word,
-					.parent = in_scope,
-					.scope = calloc(3, sizeof(nat*)),
-					.scope_count = calloc(3, sizeof(nat)),
-				};
-
-				struct operation* this = operations + in_scope;
-				this->scope[0] = realloc(this->scope[0], sizeof(nat) * (this->scope_count[0] + 1));
-				this->scope[0][this->scope_count[0]++] = calling;
-
-				in_scope = calling;
-			}
-
-			else if (op == dr) {
-				puts("executing dr...");
-			}
-
-			else if (op == ar) {
-				puts("executing ar...");
-			}
-
-			else if (op == ret) {
-				puts("executing ret...");
-				this->body_count--;
-				in_scope = this->parent;
-			}
-
-			else if (op == obs) {
-				puts("executing obs...");
-				this->body_count--;
-
-			} else {
-				printf("executing a builtin opcode: ");
-				printf("op=%s arity=%llu...\n", ins_spelling[op], ins->count - 1);
-			}
-
-			expecting_type = 0;
-			define_on_use = 0;
-		}
-		word_length = 0;
-	}
-	filestack_count--;
-	if (not filestack_count) {
-		puts("processing_file: finished last file.");
-	} else {
-		puts("processing next file in the stack...");
-		goto process_file;
-	}
-	
-	debug_dictionary(operations, operation_count, variables, variable_count, labels, label_count);
-
-
-
-	exit(0);
-
-/*
-
-
-
 	for (nat i = 0; i < isa_count; i++) {
 
 		const nat a = arity(i);
@@ -1481,6 +999,8 @@ process_file:;
 			.arity = a,
 			.arguments = calloc(a, sizeof(nat)),
 			.define_on_use = calloc(a, sizeof(nat)),
+			.body = NULL,
+			.body_count = 0,
 		};
 
 		if (i == zero or i == set or i == at or i == lf or i == ld) 
@@ -1513,11 +1033,13 @@ process_file:;
 	const char* included_files[4096] = {0};
 	nat included_file_count = 0;
 
+
 	debug_dictionary(dictionary);
 	debug_functions(functions, function_count, dictionary);
 	debug_scopes(scopes, scope_count);
 	puts("parsing top level file...");
 	// getchar();
+
 
 process_file:;
 	nat word_length = 0, word_start = 0, in_args = 0;
@@ -1995,87 +1517,7 @@ generate_function:;
 	//debug_registers(R, dictionary.count);
 
 	exit(0);
-
-
-
-*/
-
-} // main()
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+}
 
 
 
