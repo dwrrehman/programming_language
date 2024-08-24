@@ -250,7 +250,7 @@ language isa:
 
 
 
-x	set d r   		<--- d define on use 
+x	set d r   		<--- d define on use       NOPE    no longer that.
 x	add d r
 x	sub d r
 
@@ -272,23 +272,23 @@ x	si  d r
 x	ld  d r l
 x	st  d r l
 
-x	lt  r s l   		<--- l define on use
-x	ge  r s l   		<--- l define on use
-x	lts r s l   		<--- l define on use
-x	ges r s l   		<--- l define on use
-x	eq  r s l   		<--- l define on use
-x	ne  r s l   		<--- l define on use
+x	lt  r s l   		<--- l define on use   labels are still dou. 
+x	ge  r s l   		<--- l define on use   labels are still dou. 
+x	lts r s l   		<--- l define on use   labels are still dou. 
+x	ges r s l   		<--- l define on use   labels are still dou. 
+x	eq  r s l   		<--- l define on use   labels are still dou. 
+x	ne  r s l   		<--- l define on use   labels are still dou. 
 	
 x	incr d
-x	zero d   		<--- d define on use
+x	zero d   		<--- d define on use       NOPE    no longer that.
 x	decr d
 x	not d
 
 x	lf  f   		<--- f is a file, not part of the symbol table.
-x	at  l   		<--- l define on use
+x	at  l   		<--- l define on use   labels are still dou. 
 
-x	def o  			<--- o must be new
-x	ar r   			<--- r must be new
+x	def o  			<--- o must be new    can shadow. 
+x	ar r   			<--- r must be new    can shadow. 
 x	ret
 x	obs
 
@@ -1332,11 +1332,717 @@ process_file:;
 
 
 
+1202408246.011103
+
+i think after a bit of thought, i think it makes sense for the entire language to use 
+
+	define new             and NOT      define on use, or ie use existing.  
+
+
+	the first is like C, the second one is like python.   the C method is superior, because basically, often i use the act of removing a variable as a way to cause errors, that end up informing me what pieces of code depend on that variable. 
+
+		like, its actually a highly effective way of coding. just removing the definition, and then being told what other pieces of code depend on that definition!  i want this functionality in our code,  
+
+				butttt in order to do that, we need an explicit definition. 
+
+
+
+					and further more, we need  a macro to be able to acheive this definition approach, 
+
+
+
+						so thatttt, for instance, we coulddd make a macro to define AND initialize a variable in a single instruction. 
 
 
 
 
 
+	oh, also this way, theres only one instruction, which does defining.   at least like built into the language. 
+
+
+		waitttt 
+
+
+								...what if theres    NO INSTRUCTION that does itttt
+
+
+
+		and macrossss are the only way!!!! OMG WAIT THATS SO COOL
+
+
+			ie, you'd need to define 
+
+
+
+
+
+
+
+					def declare ar variablename obs ret
+
+
+
+
+
+
+
+
+		ie, that would be in the standard library!!!
+
+		and used like the following:
+
+
+
+
+
+
+					declare my_var
+
+					set my_var 4
+
+
+
+
+
+
+			like!?!??!
+
+
+		is that not the coolest thing ever!?!?! thats how we are going to do thins. i'm quite sure. so yeah. 
+
+
+				YAYYYYY  so happy ifound this.  requires adding zero instructions to the language lol. 
+
+				theres no builtin way to define a variable in this language!   you write/come up with the syntax for it. so good. 
+
+
+
+
+
+	yayyyy
+	okay lets implement that then. 
+
+
+
+
+			so yeah, from there, the idea is that     
+
+				theres actually no way in this language to redefine/redeclare an existing name, i think, 
+
+
+				well, so.... lets see.  becuase like, 
+
+
+
+
+		i thinkkkk technically speaking, we coulddd choose the semantics of this definition... 
+
+			like, whether we want it to.. either  error on use of an 
+				existing variable with the same name,   or define a new one,    
+
+		hmmm wowww
+
+					yeah, i don't really think the  python way of doing it is that important, honestly. 
+
+					like, definition of it should be explicit. and we shouldnt let it just   shadow over an existing one!! that shouldnt happen. like ever. so yeah. 
+
+						furthermore, we shoulddddd actually error if the variable is already defined. 
+
+							and like, i don't really think we should be able to overwrite it???.. orr like shadow things like that... idk... hm.. 
+
+
+								i mean, on the other hand, maybeeee we could idk. 
+
+						but
+
+
+							i mean it makes more sense to not shadow, though. kinda. idk. 
+
+
+
+
+
+								i think we'll opt to throw the error.  "redefinition of symbol".
+
+									thats just what makes sense.
+
+						
+	
+
+
+		okay so heres my full stance actually 
+
+					basically, 
+
+							labels 
+
+
+								and labels alone,
+
+
+
+					have proper define-on-use semantics. they are defined lazily, and as neccessary, 
+
+
+						so it kinda gives the illusion that you never ever need to define them at all, 
+
+
+						because they are kinda already defined in a way. 
+
+						like, and macro label arguments are alsoooo having this property. 
+
+						so yeah. they are defined in the outside scope, kinda like how we implemented dou semantics anyways previously. thats all how labelssssss are going to work!
+
+
+		BUTTTT    
+
+			define/declared variable arguments,  (which are NOT labels of course, different symbol table!)
+
+				variables that are declared like this   are written          ar nameofvar obs
+
+
+						in the definition of the macro, 
+
+
+
+
+
+		butttttttt   i feel like to allow for a label to be used as an argument... like, ifeel like we need toactually
+
+
+	cuz like, i actually just realized something-
+
+
+		i feel like we need to actually type  the arguments to macros.
+
+				at least a tinyyyy bit 
+
+
+						which is problematiccc because like 
+
+
+
+
+
+
+
+							 the way we are writing out the types of arguments currently, is that 
+
+
+
+
+
+			ar x         just means that the variable is the default type:  a variable. in the var symbol table.
+
+			ar x obs     just means that the variable is force defined. ie, declared in the call's scope. 
+							very beautiful simple way of using this instruction! nice. 
+
+
+		
+
+	well then how do we do labels then!?!?!
+
+		uhh
+
+				yeah like, literally how lolol 
+
+
+	uh 
+
+	hm
+
+
+			we kinda would need to add another insturction to the language, enevitably i thinkkkk idk 
+
+
+		hm
+
+
+		which yeah, i don't reallyyyyy want todo, i think. there has to be another solution that isnt so   idk invasive
+
+
+		hm
+						
+
+							i think the way i want to try to make label arguments  is 
+
+				the same syntax as     ar x  
+					i think 
+
+
+								its just.. well
+
+
+
+			i think the first use of x will determine the type of it, i guess. which really isnt great though.. idk. i don't really like that....
+
+				i kinda want the type of it to be defined prior kinda. idk. hm. 
+
+
+
+
+					mannnn     jeez this is difficult to do without adding an instruction thoughhh 
+
+
+
+
+
+	uhh
+
+		hmm
+				okay how about we make uhh 
+
+	hmmm
+
+
+
+
+
+			yeah basically, the way label macro arguments work is this:
+
+
+
+				def goto    ar mylabel
+
+					beq 0 0 mylabel
+
+					ret
+
+			
+
+
+
+
+
+				thats a real life example of how label macro arguments will be used. 
+
+					soooo yeah. as we can see, we are using mylabel   as a label, here, because its being passed to beq. 
+
+						sooo yeah like, that kinda clears things up, about its type. 
+
+
+				buttttt then the problem issss what if we did this. 
+
+
+			
+
+				def gotoandset    ar mylabel   ar mylabel
+
+					set mylabel 0 
+
+					beq 0 0 mylabel
+
+					ret
+
+
+
+			like, in theorryyyyyyy this should be perfectly well formed code lol. 
+
+
+		buttttt you can probably see the issue lololol
+
+
+					soooo yeah 
+
+
+
+
+				so i think we actually need to like...   allow the     "ar mylabel"  to say the type. i feel like thats required, basically. hm..
+
+
+
+						okay, so i think the obvious way is to use like 
+
+
+
+					al     for label  maybe 
+
+
+
+				so you'd say              al mylabel    instead of         ar 
+
+
+					we could also do  
+
+
+								la mylabel 
+
+
+
+				which is just short for label argument. yeah that would work, i think. interesting. hm.
+
+
+
+
+				yeah i think that would work. 
+
+
+
+
+	basically, there are only really three ways to define things in the language:
+
+
+			you can define a variable, via     ar x         or even      ar x obs     if you want it to be public
+
+
+			you can define an operation via     def x      or even   def x obs       if you want it to be public lol. 
+
+	and 
+
+			you can define a label, via       la x       but i don't thinkkk you can have it be private at all... 
+										so i think its always obs, i think. basically. 
+
+
+									becasue like, its always defined if not already defined, in the parent scope lol. so yeah. i think so at least. hm. interesting 
+
+
+
+
+
+
+	yeah i wonder actually if there might be some use of        la x obs 
+
+
+					like, is there!?!?
+
+
+				maybe?
+
+
+			hmm interesting. idk. ill think about it. 
+
+
+
+		but yeah, all the other uses of obs make sense a ton, i think, so yeah. i like those. 
+
+
+
+	oh and yeah, you kinda can guess,      la  defines something into the label symbol table,   ar into the variable symbol table, and def  into the operation symbol table.   so yeah.  cool beans!!!
+
+
+
+
+
+
+	at least, i think these three types exist in the language. 
+
+		like, i think they are actually fundemental types. 
+
+
+			basically, they exist becuase:
+
+
+						
+
+
+					a label is a pc-relative    program counter value
+
+
+
+							who's exact absolute runtime value isnt even known  of course until runtime						
+
+					a variable is a data register. or memory variable. just like, some piece of mutable data.
+
+							and its not a label, because its mutable and is known, and labels arent mutable. and labels values arent known.  ever, basically. 
+
+
+					an operation    is  a collection of source code instructions.   its just code. 
+
+							its not data, because  you can't edit it in anyway, and its all statically known always, 
+
+
+								and its not a label because...  crap 
+
+
+
+
+									wait technically speaking labels and operations are the same? kinda... 
+
+						well!!!! NO!!! actually they arent 
+
+
+
+
+				because the code itself    might exist mulitple places in the executable, and thus the label would not take on just one value... ie, because they are macros, not functions lol. so yeah. 
+
+
+
+
+
+
+buttt 
+
+	i just realized something terrible though lol... 
+
+
+	i just realized that i don't know if we can actually write to the .text section anymore, then..
+
+									which was our way of generating compiletime data.....
+
+										into the text section... VERY USEFUL to do this...
+
+
+	like,    either that, or we need to actually figure out how we could   use a label value as a piece of data. basically. 
+
+			like, we need to be able to do that, technically speaking, actually. oof. 
+
+
+	man thats actually something i hadnt considered... 
+
+		jeez
+
+				hm
+						okay i mean, we couldddd add an instruction to translate between the label and variable world explicitlyyyyy
+
+
+							like, that woulddd work
+
+
+
+
+
+
+
+	orrrrrr i mean   
+
+
+
+	hm
+		idk
+
+
+							gahhh i really don't knowwww what the right call here isss
+
+
+
+	like, it kinda feels like it should even be a runtime instruction, actually, 
+
+		loading a label as a variable.   because like, if we do writes to that,  then we KNOW for certain thats what the user meant to do, basically.  like, for instance   take this code for example:
+
+
+
+				lpc  address     mylabel
+
+
+				st   address  data  64_bits
+
+
+
+
+		hmm
+
+		yeah, i think we need that. cool beans.   
+
+			ah i think riscv actually calls this   "la" already lololololololool   crap okay 
+
+			alright we'll call it   la too probably idk 
+
+
+					why not lol 
+
+		so we get:
+
+			la r label
+			st address data 64 
+
+		to write some data to the .text section. which is amazing. i love that. nice!!! perfect. 
+
+
+
+
+		okay
+			and then      the   label argument thingy  for macrossss
+
+
+
+					that i thinkkk will just use uhh... hmm 
+
+							i mean technically can't we just   use      
+
+
+									
+
+
+		wait a secondddd
+
+			maybe the     bca  instruction is relevant here maybe?  becuase it kinda does   typing of some sort??
+				nahh but it only uses variables though. thats the thing. and variables and labels have different symbol tables. so yeahhh 
+
+
+
+
+			i think we need a dedicated instruction to define label arguments. which is stupid lol. 
+
+
+							i meannnnn technicallyyyy speakinggg we can just use  a   add on word, right?
+
+				like, how we are doing the obs thingy lol 
+
+
+
+
+
+		like, we could easily just add another thingy like thattt lololol
+
+
+	okay cool lets do that then 
+
+
+					i think    lbl      makes sense kinda? idk 
+
+						obs and lbl
+
+						or maybe         lab  works too kinda  ehh not really though 
+
+						i like obs,  i think we just need like one more thinggg 
+
+
+						hm       okay so i think          ar x lbl      is closeee 
+
+								i think i want it to be three characters for sure,  so not lb
+
+
+								hmmm   i feel like  pca    would work!
+									program counter address
+
+
+								that would work!!
+
+					interestinggg
+					hm
+
+									yeah, pca, i guess lol. neat. cuz thats technicaly what it is kinda? hmmmm
+
+
+
+
+
+
+
+
+	and i think the cool part of all of this, is that 
+
+
+			obs     and   pca i thinkkkk are technicallyyy speaking able to be redefined? 
+				oh actually maybe not... yikes... hm.... 
+
+
+				yeah they would be an operation that you geuinely can't make a macro for... 
+					everything elseeeee you coulddd
+
+
+
+			dang itttt 
+
+
+
+
+
+
+
+
+
+
+
+					okay in that instance, i think i actually want to instead  use the existing instructions, i think.
+
+							so like, i feel like it could make sense to 
+
+
+						like, maybe use the obs instruction twice on it?  like, that couldddd work lolol
+
+
+						a bit odd... 
+
+
+
+		so you would say:
+
+					def goto ar label obs obs     eq 0 0 label  ret 
+
+
+
+			thattt would be how you define it. 
+
+			its not the prettiest thing in the world... buttt uhh
+
+			i mean, yeah i really don't want to add another unreproducable/unredefinedable instruction to the language loll... soooo yeah. it makes sense to resuse the existing instructions for this, like a lotttt
+
+
+							hmm interesting
+
+
+
+
+	and yeah,  def and ret are not available, and we are already using ar lol.  so yeah, obs it is!
+
+
+
+		obs is basically a form of unary encoding of the type of arguments lolololoolol. basicallyyyyyyyyyy speaking thats whats happening lolol 
+
+
+
+
+					idk i kinda like that actually. lol its kinda odd but i think its good. 
+
+
+
+	so yeah. very minimalist and cool becuase the common cases make sense, honestly. so yeah. i like this solution. 
+
+					like mostttt of the time, you arent writing a macro that takes a label as an argument. 
+
+
+
+
+
+
+
+
+							like, you only need to do that when you are literally writing your own control flow macros!!! lolol. so yeah not something you do every day. 
+								so yeah, putting multiple  obs's   after an   ar      does label stuff now.  cool. 
+
+
+
+
+	so we have this now:
+
+
+
+		la r l          for getting a label value as a variable.  (neccessary now, because we split the symbol tables)
+
+		ar x     defines a variable locally.
+
+		ar x obs   defines a variable into the parent scope. must be undefined already. 
+
+		def o    defines an operation locally. 
+
+		def o obs    defines an operation into the parent scope, 
+
+		ar x obs obs     defines a label into the parent scope, if not already defined. 
+
+
+
+
+
+
+and thats it!
+
+
+thats all the semantics  we need to define i think!!!
+
+
+so yeah nowwww we can code this up i thinkkk yayyy
+
+
+
+
+cool beans
+
+
+
+
+
+								
 
 		*********************************/
 
