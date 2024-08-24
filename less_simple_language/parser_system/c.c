@@ -1,657 +1,19 @@
 // 1202407302.211405  dwrr
 // the parser for the programming language,
 // the new version with function defs and riscv isa ish...
-//
-
-
-
-
-//   todo       to implement still:      obs,    st, ld,     reg, rdo, ctk,   
-
+// 202408246.021822:   rewrite v2
 
 /*
-copyb insert ./build
-copya insert ./run
-copyb do ,./build
-copya do ,./run
-
-*/
-
-
-
-
-
-
-	
-
-
-
-/*
-
-202408187.002119:
-things i have realized recently:
-====================================
-
-
 	- command line arguments passed in registers?
-	
 *	- generating a mach-o executable directly.
-
-
 X	- adding system calls to our language, by adding them as instructions!
-
-
 **	- add comments
-
 ***	- fix macro and control flow
-
 *	- write a print_binary_lsb_number function for the stdlib
-
 ***	- implement sta and bca in the language isa. 
 
-
-
-
-
-
-
-
-
-	we alsoooo need to not allocate a stack when we start up,
-
-		anddd we need to like, somehow have some built variables for
-
-			argv and argc, (which we are going to rename!)
-				these are usually passed in registers, upon the executable starting up. so yeah. important to preserve these, i think.
-
-		
-
-	this way, we can get arguments from the command-line. very important, actually. well, kinda. not really. but sortt of important lol. 
-		sooo yeah. 
-
-				becuase like technically, you donnt needdd cli args, you wan just get stnadard in from the user, or something like taht, ie, using pipes, and standard in/out to do arguments. easy enough. i wish unix did this always actually. but yeah. 
-
-
-
-
-
-
-
-
-
-
-
-						we are going to generate an executable directly, 
-
-						both for   macho, and elf.  becuase we can lol. 
-
-									shouldnt be thattt bad honestly. 
-
-
-							the only main problem is that now using an external library will be... 
-								difficult lol. but we'll solve taht problem later lol. i think its definitely fixable, i think. honestly it shouldnt even be that bad, i think!   like,  yeah. idk. technically speaking it shouldnt be thattt bad. 
-
-							we can always call out to the linker for doing thatttt linking step lol. so yeah. 
-
-								yay nice. 
-
-
-
-exit
-execve
-fork
-wait
-open
-close
-write
-read
-ioctl
-poll
-lseek
-
-
-
--------------------- LINUX  -------------------- 
-
-	exit execve fork wait/wait4
-	open openat close write read ioctl poll lseek
-	mmmap mprotect mremap munmap msync
-
-	readv writev select access
-	pipe dup dup2
-	nanosleep rt_sigaction kill pause alarm getpid
-	
-	socket connect accept/accept4
-	sendto recvfrom sendmsg recvmsg shutdown
-	bind listen getsockname getpeername
-	socketpair setsockopt getsockopt
-	
-	fcntl flock fsync sync fdatasync
-	mlock msync munlock
-	fdatasync truncate ftruncate
-	getdents getcwd chdir fchdir chroot
-	rename mkdir mkdirat mknod mknodat rmdir
-	link linkat unlink unlinkat symlink readlink
-	chmod fchmod chown fchown fchownat
-
-	gettimeofday getrlimit setrlimit getrusage
-	getuid setuid getgid setgid utime umask
-	getpriority setpriority
-	mount unmount
-	
-
-
-
--------------------- MACOS -------------------- 
-
-
-exit fork read write open close wait4 lseek ioctl poll
-munmap mprotect mmap 
-
-link unlink chdir fchdir
-rename flock  mkdir rmdir utimes 
-mknod chmod chown getpid setuid getuid 
-
-recvmsg sendmsg recvfrom accept getpeername getsockname 
-sendto socket connect bind setsockopt listen getsockopt 
-shutdown socketpair
-
-access sync kill dup dup2 pipe sigaction
-getgid symlink readlink execve umask chroot 
-
-fcntl select fsync setpriority getpriority
-gettimeofday getrusage  writev readv  fchown fchmod 
-
-setgid truncate ftruncate getdents(getdirentries) 
-getrlimit setrlimit 
-fstat lstat stat fdatasync
-mlock msync munlock
-mount unmount
-
-
-
-
-
-
-
-
-
-
-
-NOTE
-
-
-	there is a difference between macros and functions:  i just figured it out now:
-		   ---------------------------------------
-
-
-			it has to do with labels:
-
-
-					if you want to be able to jump from one label defined in a top level scope, for example, 
-
-
-						but you want to jump to it, FROM a goto inside of a "function" ("macro", really)
-
-								then we need to actually do the instruction subsitution for the call, 
-
-
-									BEFOREEEE we execute it.  i think this is the only real way to do this. 
-
-
-
-				NOTE:   allowing for these types of jumps is quite useful, becuse then it literally means that  you can redefine 
-
-
-				like,    a branch if equal,    or a less than branch              TO BE called ANYTHING YOU WANT
-
-
-							ie, these are true macros, now, 
-
-
-
-								 that just HAPPENNNN to be veryyyy hygenic becuase of the way we made them lol. 
-
-											so yeah. 
-
-
-
-
-
-				i think this is the right way to go, i thinkkkkkk
-
-
-
-
-
-copyb insert ./build
-copya insert ./run
-copyb do ,./build
-copya do ,./run
-
-rename todo:
-add these names to the isa:
-
-		incr
-		decr
-		zero
-
-those are pretty important lol... so yeah. i think i want those names too.
-
-
-
-
-
-language isa:
-===================
-
-			note:   d  ==   r   ==  s  ==  l    all just simply variables.  l must be compiletime known though.
-					but o and f are different, and different from those above. 
-
-
-
-x	set d r   		<--- d define on use       NOPE    no longer that.
-x	add d r
-x	sub d r
-
-x	mul d r
-	muh d r
-	mhs d r
-x	div d r
-	dvs d r
-x	rem d r
-	rms d r
-
-x	and d r
-x	or  d r
-x	eor d r
-x	sd  d r
-x	sds d r
-x	si  d r
-
-x	ld  d r l
-x	st  d r l
-
-x	lt  r s l   		<--- l define on use   labels are still dou. 
-x	ge  r s l   		<--- l define on use   labels are still dou. 
-x	lts r s l   		<--- l define on use   labels are still dou. 
-x	ges r s l   		<--- l define on use   labels are still dou. 
-x	eq  r s l   		<--- l define on use   labels are still dou. 
-x	ne  r s l   		<--- l define on use   labels are still dou. 
-	
-x	incr d
-x	zero d   		<--- d define on use       NOPE    no longer that.
-x	decr d
-x	not d
-
-x	lf  f   		<--- f is a file, not part of the symbol table.
-x	at  l   		<--- l define on use   labels are still dou. 
-
-x	def o  			<--- o must be new    can shadow. 
-x	ar r   			<--- r must be new    can shadow. 
-x	ret
-x	obs
-
-	sta  d l
-	bca  d l
-
-	sc  n  r r r  r r r       <----- n should usuallyyyyyyy be statically known. doesnt have to be though, technically speaking. 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-dm macro 
-ar x 
-ar y
-	tttt....
-macro
-
-
-
-
-
-
-
-
-
-
-
-
-builtins:
----------------
-
-undefined
-builtinstacksize
-builtinstackpointer
-
-
-
-
-
-
-
-------------------------w.i.p.------------------------- 
-
-mem r l  <--- r define on use       <----- this wohle system can be simplified:   if l is 0, we know its a register...?.. hm. 
-reg r    <--- r define on use
-
-ctk r    <--- r define on use
-rtk r    <--- r define on use
-
-rdo r        						<-- i feel like this system can be generalized....
-------------------------------------------------- 
-
-
-
-
-202408106.170451:
-
-
-	OMG!!! after thinking about things a tonn, i think i figured out the fundemental requirements that we need in the programming language to be able to get all possible storage qualifiers and access qualifiers we could possibly want in the language, and have everything work together and be very composable and orthogonal and so on.  its just these simple three instructions/directives:
-
-
-
-sto r l                  l == 0  means   r is statically known at compiletime.
-			 l == 1  means   r must be in a register.
-			 l == 2  means   r must be in memory on the stack.
-			 l == 3  means   r can be in memory or a register, or deduced to be compiletime known. (default)
-
-acc r l                  l == 0  means   non-accessible. (neither write or read accessible).
-			 l == 1  means   r is read-only.
-			 l == 2  means   r is write-only.
-			 l == 3  means   r is read accessible and write accessible. (default)
-
-bit r l			 
-			 l is the number of bits which r's value takes up at most.  
-					(64 or 32 is the default, depending on the target.)
-
-
-
-
-202408106.172516:
-actually  got it down to only    a  single instruction... here it is:
-
-
-
-
-
-				sa r l b                b == 0 means r is inaccessible, 
-							b > 0 means b is the bit-count accessible for writing/reading, 
-							b < 0 means b is the bit-count accessible for reading
-								(b == 64 or 32 is the default, depending on the target)
-
-							l == 0 means compiletime known only.
-							l == 1 means r is stored in a register, at runtime.
-							l == 2 means r is stored in memory on the stack, at runtime.
-							l == 3 means automatic detection/storage selection. (default)
-
-								and these all modify  the variable    r
-
-
-
-
-				sa r 3 64       <----- this use of "sa" is implied to happen on define of r, on 64 bit archs.
-
-			 
-
-
-
-
-
-
-
-
-	orrr rather, we could do:
-
-
-
-			bit r b         b == 0 means inaccessible, 
-					b > 0 means writing bits and reading bits   bitcount
-					b < 0 means reading bits only   bitcount
-
-					
-
-			sto r l    l == 0 means compiletime only   
-				   l == 1 means rt-register storage only
-				   l == 2 means rt-memory storage only
-				   l == 3 means runtime only (ie, reg or mem)
-
-
-
-	perfect. 
-
-	i love it. 
-
-wow 
-
-	so good 				literally a perfect way to solve that aspect of the language, honestly. YAYY
-
-
-
-
-
-
-
-
-
-
-
-
-
-example code, usage of the "obs" instruction
-
-
-		def local_scope
-
-			def actual_logic ar x
-
-				...something with x...
-
-				ret
-
-
-			def public_interface obs ar x
-				actual_logic x
-				ret
-
-		ret
-
-		set my_x 4
-		public_interface my_x
-
-
-
-
-
-
-
-
-	def findintersection  ar set
-
-		....
-		ret
-
-
-
-
-
-	set x 5
-	x x 
-
-
-
-
-
-
-
-
-// todo:  implmeent  printing out a number  using little endian binary! 
-		instead of using env.  make env print out a character instead, by calling write(). 
-		lets implement printf ourselves basically, and interpret it at complietime. yay. 
-
-
-
-
-
-
-copya do ,./run,test1.s
-
-
-
-202408187.171516:
-
-okay so i think i figured out a possibleee solution to the macro-control flow problem, 
-
-	it all has to do with the fact that the label is technicallyyy already defined?
-
-		WAIT IT ISNT THOUGHHHH WAIT A SECONDDDD HUHHHHH
-	uhh okay wait a second 
-
-			hold on 
-
-	when we use the label      teh first time, its not define though...
-
-
-			WAIT BUT AFTER THE FIRST CALL IT ISSSS OHHHHHH okay that makes sense 
-
-
-	yeah so after the first call, it is already defined lol. hmm interesting. okay. 
-
-
-					its defined in the outter scope, which means we'll pick up on itlol. 
-
-
-	so yeah, basically, what we wantttt is to be able to say       this label should be created newly each time. 
-
-			thats what we want.  and thats actually easily acheivable via:
-
-					the        ar         or sta   instructions 
-
-			i think 
-						becuase those alreadyyyyy are built to do that, well not really   sta 
-
-							i think sta is technicallyyy just attributing things. not neccessarily saying if its defined or not. thats handled by if an argument is define on use. 
-
-
-								so yeah. 
-
-
-
-
-
-						only parameters which are   "dou"    (ie, obs)    can define values newly 
-
-								and note:   ar    always does in the local scope, 
-
-									same with def,     but    ar obs  
-
-
-									does it in the parent scope, 
-											and same with  def obs. its in the parent scope.  so yeah. 
-
-
-										kinda interesting 
-
-
-						
-
-
-		ohhhh okay i get itttt
-
-
-
-
-
-
-	i think we just need to know     which values were defineddddd INNNNN this function    ie, are entirely local to this function 
-
-				then THOSEEEEEE shouldnt actually be left as is,    rather, we should define them newly, each call site.  
-			ie, seperate entries in the dictionary. 
-
-
-							yeah. this is the root of the issue.  i think we need to make the macro inlining happening in the parser now lol. i think thats basicallyyyy the only way to solve this lol. 
-
-
-		hmmmmm interestinggg
-
-							yeah, basically, the root of the problem is that we need to keep track of whether a value was alreadyyyy defined prior to entering this function/macro,  (ie, the parent scope)   orrrr whether this name was definedddd AS PART of this macro.  ie, an instruction with a    DOU argument caused us to define it INTO this current scope. 
-					if its the second thing, 
-									then we actually know to actually DUPLICATE this definition   FOR EACH CALL.  thats actually incredibly required lol
-
-
-
-		ie,,,     whileee going through and parsing the function body again, and generating those insturctions into the final instruction sequence,
-
-
-						we NEEDDDD to actually    parse those instructions again, WITH AN EMPTY SYMBOL TABLE  (ie, just theparent scope)  just as we did, when we parsed the definition.   every call needs to be like that. 
-
-
-						so yeah. thats the only way this makes sense lol. 
-
-
-
-
-	buttttt theres also the problem of 
-
-
-		like, the def's symbol table/scoping might be vasly different from the calls though.... sooo how does that work?
-
-
-	hm
-
-			uhh
-
-				hmmm i mean, like, we'll at least know what values originated from the macro itself though. 
-						like, we always know that lol. so yeah. 
-
-
-					and so we should be able to know whether we want to reuse old definitions in the dictionary of a given variable   orrrr  use a new one lol. 
-
-
-
-
-
-	oh ALSOO   (side tangent kinda)
-
-		i was thinking... 
-				should variables have their own symbol table???..... uhh... 
-
-	like, 
-			like, i was just thinking... is there any use of a compiletime computed goto though? like... 
-
-				hmmm idk. i feel like maybeeeee there is... buttttt i can't exactly think of it. 
-
-
-			basically    we can only have different symbol tables for labels and variables and operations, 
-
-							if we dont have computed gotos. thats the key. hm.... idk. ill thik about it more lol. i want to code up this rewrite of the parser first though lol
-
-
-
-
-
-
-
-
-
-
 */
+
 
 
 #include <stdio.h>
@@ -665,16 +27,15 @@ okay so i think i figured out a possibleee solution to the macro-control flow pr
 #include <ctype.h>
 #include <sys/mman.h>
 
-
 typedef uint64_t nat;
 
 enum language_isa {
 	nullins, zero, incr, decr, 
 	set, add, sub, mul, div_, rem, 
 	si, sd, sds, and_, or_, eor, not_, 
-	ld, st, sta, bca,
+	ld, st, sta, bca, la, 
 	lt, ge, lts, ges, ne, eq, 
-	def, ret, ar, obs, dr, at, lf, sc, 
+	def, ret, ar, obs, at, lf, sc, 
 	isa_count
 };
 
@@ -682,9 +43,9 @@ static const char* ins_spelling[isa_count] = {
 	"()", "zero", "incr", "decr", 
 	"set", "add", "sub", "mul", "div", "rem", 
 	"si", "sd", "sds", "and", "or", "eor", "not", 
-	"ld", "st", "sta", "bca", 
+	"ld", "st", "sta", "bca", "la",
 	"lt", "ge", "lts", "ges", "ne", "eq", 
-	"def", "ret", "ar", "obs", "dr", "at", "lf", "sc", 
+	"def", "ret", "ar", "obs", "at", "lf", "sc", 
 };
 
 enum system_call_table {
@@ -825,7 +186,7 @@ static const char* executable_filename = "executable0.out";
 static nat arity(nat i) {
 	if (not i) return 0;
 	if (i == ret or i == obs) return 0; 
-	if (i == incr or i == decr or i == zero or i == not_ or i == def or i == ar or i == dr or i == lf or i == at) return 1;
+	if (i == incr or i == decr or i == zero or i == not_ or i == def or i == ar or i == lf or i == at) return 1;
 	if (i == lt or i == ge or i == lts or i == ges or i == ne or i == eq or i == ld or i == st) return 3;
 	if (i == sc) return 7;
 	return 2;
@@ -974,100 +335,14 @@ static void debug_registers(nat* r, nat count) {
 
 
 
-
-
-	/* each function has a lexical scope,
-
-		which, as we parse each function, essentially comprises a stack.
-
-		note. we can only ever call functions from functions which are in our scope list, (operation symbol table) and we can also walk backwards to try to find our parent functions. i think thissss part needs to be implemented as a listttt of function pointers. or rather function indicies. ie, we keep a stack of nats, which referrrr to functions. simple as that.
-
-		basically, we will tryyy to actually use the masterrrr function table as much as possible, basically just utilizing the nat scope stack to instill what the hierarchy is. althoughhhhh becuase of the fact that everything is lexical in nature and unchanging for each call, i think we coulddd just implement some parent pointers instead!!! 
-
-
-			because like, we only ever reallly want to walk the stack of scopes backwards right? like, if thats all we want to do, then i think we can get away with only having a set of .parent members on each function. like, every function (except one of course lol) has a parent, and it will usually just be an index to another function in this master list. like, super easy actually lol. nice.
-
-
-		oh what about the top level then??
-
-	well, i think we are going to actually make the top level be its own parent, basically.
-
-			all of which have the value 0 lol. and we just know we are done if we finish the body of the top level lol. so yeah. 
-
-
-				kinda interesting
-
-			so yeah i think we just need a pointer aka   nat   to the function which is currently getting parsed. thats all we really need. then we can just follow the parent pointers backwards lol.
-
-
-so yeah! pretty neat actually.  nice. i like this. no need for a nat scope stack even. we have everything that we could want just with the function array lol. and the varaible array. nice. cool. lets do this. also lets write debug functions for all this functionality first lol. 
-
-		ie, printing stuff out. then we can work on assemblying the starting out symble table, which shouldnt be thattt hard i think. basically we need toconstruct a function for every builtin operation in the language, and then add those to the operation scope list of the null operaiton, which has function index 0, and then we treat that as the top level, setting its parent to 0 too lol. heck, technically the builtin functions alsooo have a parent of 0 too lol. soyeah. we'll try to get all that assembled first, then we'll write the parser itself, which shouldnt be thattt bad now becuase we'll have a better data structure to work with lol. so yeah thats good. lets see. 
-
-		
-
-
-	*/
-
-
-/*
-
-
-
-struct instruction {
-	nat* args;
-	nat count;
-};
-
-struct operation {
-	char* name;
-
-	nat** scope;
-	nat* scope_count;
-
-	nat arity;
-	nat* arguments;
-	nat* type;
-
-	struct instruction* body;
-	nat body_count;
-
-	nat parent;
-};
-
-struct label {
-	char* name;
-	nat value;
-};
-
-struct variable {
-	char* name;
-	nat value;
-};
-
-
-*/
-
-
-
-
-
-
 enum argument_type {
 	type_variable, 
-	type_dou, 
+	type_declared, 
 	type_label, 
 };
 
 static nat type_of_argument(nat op, nat arg) {
-
-//	if (op == set  and arg == 0) return type_dou;    // note: should these be DOU?...  is that good or bad?..
-//	if (op == zero and arg == 0) return type_dou;    // note: should these be DOU?...  is that good or bad?..
-
-	if (op == dr   and arg == 0) return type_dou;
-//	if (op == ar   and arg == 0) return type_dou;
-	if (op == lf   and arg == 0) return type_dou;
-
+	if (op == lf  and arg == 0) return type_label;
 	if (op == at  and arg == 0) return type_label;
 	if (op == lt  and arg == 2) return type_label;
 	if (op == ge  and arg == 2) return type_label;
@@ -1075,10 +350,8 @@ static nat type_of_argument(nat op, nat arg) {
 	if (op == ges and arg == 2) return type_label;
 	if (op == ne  and arg == 2) return type_label;
 	if (op == eq  and arg == 2) return type_label;
-
 	return type_variable;
 }
-
 
 static void debug_instructions(struct instruction* ins, nat ins_count) {
 	printf("instructions: (%llu count) \n", ins_count);
@@ -1134,12 +407,11 @@ static void debug_dictionary(
 }
 
 
-
 static const nat undefined = (nat) -1;
 
 static const char* agt[4] = {
 	"type_variable",
-	"type_dou", 
+	"type_declared", 
 	"type_label",
 	"type_operation"
 };
@@ -1294,762 +566,6 @@ process_file:;
 		}
 
 
-
-
-		/******************************************
-
-
-
-
-
-
-			crapppp we need to get these semantics nailed down:      is it possible for a macro to force define something?
-
-				or does it always have the semantics of   use-or-define-on-first-use 
-
-
-					like,   what is our stance on that!?!?!?  do we want to force define or not, on every definition!!!???!
-
-					we just need to nail that down. 
-
-
-	
-								force defining is cumbersome, but reliable, 
-
-								and define on first use is very convinient, but kind of error prone maybe...
-
-
-									GAHHHHHH
-
-
-		so yeah we just need to decide. its critical to decide this upfront. 
-
-
-			becuase then the macro machinery will mirror whatever decision we make here. so yeah. 
-
-
-
-
-
-
-1202408246.011103
-
-i think after a bit of thought, i think it makes sense for the entire language to use 
-
-	define new             and NOT      define on use, or ie use existing.  
-
-
-	the first is like C, the second one is like python.   the C method is superior, because basically, often i use the act of removing a variable as a way to cause errors, that end up informing me what pieces of code depend on that variable. 
-
-		like, its actually a highly effective way of coding. just removing the definition, and then being told what other pieces of code depend on that definition!  i want this functionality in our code,  
-
-				butttt in order to do that, we need an explicit definition. 
-
-
-
-					and further more, we need  a macro to be able to acheive this definition approach, 
-
-
-
-						so thatttt, for instance, we coulddd make a macro to define AND initialize a variable in a single instruction. 
-
-
-
-
-
-	oh, also this way, theres only one instruction, which does defining.   at least like built into the language. 
-
-
-		waitttt 
-
-
-								...what if theres    NO INSTRUCTION that does itttt
-
-
-
-		and macrossss are the only way!!!! OMG WAIT THATS SO COOL
-
-
-			ie, you'd need to define 
-
-
-
-
-
-
-
-					def declare ar variablename obs ret
-
-
-
-
-
-
-
-
-		ie, that would be in the standard library!!!
-
-		and used like the following:
-
-
-
-
-
-
-					declare my_var
-
-					set my_var 4
-
-
-
-
-
-
-			like!?!??!
-
-
-		is that not the coolest thing ever!?!?! thats how we are going to do thins. i'm quite sure. so yeah. 
-
-
-				YAYYYYY  so happy ifound this.  requires adding zero instructions to the language lol. 
-
-				theres no builtin way to define a variable in this language!   you write/come up with the syntax for it. so good. 
-
-
-
-
-
-	yayyyy
-	okay lets implement that then. 
-
-
-
-
-			so yeah, from there, the idea is that     
-
-				theres actually no way in this language to redefine/redeclare an existing name, i think, 
-
-
-				well, so.... lets see.  becuase like, 
-
-
-
-
-		i thinkkkk technically speaking, we coulddd choose the semantics of this definition... 
-
-			like, whether we want it to.. either  error on use of an 
-				existing variable with the same name,   or define a new one,    
-
-		hmmm wowww
-
-					yeah, i don't really think the  python way of doing it is that important, honestly. 
-
-					like, definition of it should be explicit. and we shouldnt let it just   shadow over an existing one!! that shouldnt happen. like ever. so yeah. 
-
-						furthermore, we shoulddddd actually error if the variable is already defined. 
-
-							and like, i don't really think we should be able to overwrite it???.. orr like shadow things like that... idk... hm.. 
-
-
-								i mean, on the other hand, maybeeee we could idk. 
-
-						but
-
-
-							i mean it makes more sense to not shadow, though. kinda. idk. 
-
-
-
-
-
-								i think we'll opt to throw the error.  "redefinition of symbol".
-
-									thats just what makes sense.
-
-						
-	
-
-
-		okay so heres my full stance actually 
-
-					basically, 
-
-							labels 
-
-
-								and labels alone,
-
-
-
-					have proper define-on-use semantics. they are defined lazily, and as neccessary, 
-
-
-						so it kinda gives the illusion that you never ever need to define them at all, 
-
-
-						because they are kinda already defined in a way. 
-
-						like, and macro label arguments are alsoooo having this property. 
-
-						so yeah. they are defined in the outside scope, kinda like how we implemented dou semantics anyways previously. thats all how labelssssss are going to work!
-
-
-		BUTTTT    
-
-			define/declared variable arguments,  (which are NOT labels of course, different symbol table!)
-
-				variables that are declared like this   are written          ar nameofvar obs
-
-
-						in the definition of the macro, 
-
-
-
-
-
-		butttttttt   i feel like to allow for a label to be used as an argument... like, ifeel like we need toactually
-
-
-	cuz like, i actually just realized something-
-
-
-		i feel like we need to actually type  the arguments to macros.
-
-				at least a tinyyyy bit 
-
-
-						which is problematiccc because like 
-
-
-
-
-
-
-
-							 the way we are writing out the types of arguments currently, is that 
-
-
-
-
-
-			ar x         just means that the variable is the default type:  a variable. in the var symbol table.
-
-			ar x obs     just means that the variable is force defined. ie, declared in the call's scope. 
-							very beautiful simple way of using this instruction! nice. 
-
-
-		
-
-	well then how do we do labels then!?!?!
-
-		uhh
-
-				yeah like, literally how lolol 
-
-
-	uh 
-
-	hm
-
-
-			we kinda would need to add another insturction to the language, enevitably i thinkkkk idk 
-
-
-		hm
-
-
-		which yeah, i don't reallyyyyy want todo, i think. there has to be another solution that isnt so   idk invasive
-
-
-		hm
-						
-
-							i think the way i want to try to make label arguments  is 
-
-				the same syntax as     ar x  
-					i think 
-
-
-								its just.. well
-
-
-
-			i think the first use of x will determine the type of it, i guess. which really isnt great though.. idk. i don't really like that....
-
-				i kinda want the type of it to be defined prior kinda. idk. hm. 
-
-
-
-
-					mannnn     jeez this is difficult to do without adding an instruction thoughhh 
-
-
-
-
-
-	uhh
-
-		hmm
-				okay how about we make uhh 
-
-	hmmm
-
-
-
-
-
-			yeah basically, the way label macro arguments work is this:
-
-
-
-				def goto    ar mylabel
-
-					beq 0 0 mylabel
-
-					ret
-
-			
-
-
-
-
-
-				thats a real life example of how label macro arguments will be used. 
-
-					soooo yeah. as we can see, we are using mylabel   as a label, here, because its being passed to beq. 
-
-						sooo yeah like, that kinda clears things up, about its type. 
-
-
-				buttttt then the problem issss what if we did this. 
-
-
-			
-
-				def gotoandset    ar mylabel   ar mylabel
-
-					set mylabel 0 
-
-					beq 0 0 mylabel
-
-					ret
-
-
-
-			like, in theorryyyyyyy this should be perfectly well formed code lol. 
-
-
-		buttttt you can probably see the issue lololol
-
-
-					soooo yeah 
-
-
-
-
-				so i think we actually need to like...   allow the     "ar mylabel"  to say the type. i feel like thats required, basically. hm..
-
-
-
-						okay, so i think the obvious way is to use like 
-
-
-
-					al     for label  maybe 
-
-
-
-				so you'd say              al mylabel    instead of         ar 
-
-
-					we could also do  
-
-
-								la mylabel 
-
-
-
-				which is just short for label argument. yeah that would work, i think. interesting. hm.
-
-
-
-
-				yeah i think that would work. 
-
-
-
-
-	basically, there are only really three ways to define things in the language:
-
-
-			you can define a variable, via     ar x         or even      ar x obs     if you want it to be public
-
-
-			you can define an operation via     def x      or even   def x obs       if you want it to be public lol. 
-
-	and 
-
-			you can define a label, via       la x       but i don't thinkkk you can have it be private at all... 
-										so i think its always obs, i think. basically. 
-
-
-									becasue like, its always defined if not already defined, in the parent scope lol. so yeah. i think so at least. hm. interesting 
-
-
-
-
-
-
-	yeah i wonder actually if there might be some use of        la x obs 
-
-
-					like, is there!?!?
-
-
-				maybe?
-
-
-			hmm interesting. idk. ill think about it. 
-
-
-
-		but yeah, all the other uses of obs make sense a ton, i think, so yeah. i like those. 
-
-
-
-	oh and yeah, you kinda can guess,      la  defines something into the label symbol table,   ar into the variable symbol table, and def  into the operation symbol table.   so yeah.  cool beans!!!
-
-
-
-
-
-
-	at least, i think these three types exist in the language. 
-
-		like, i think they are actually fundemental types. 
-
-
-			basically, they exist becuase:
-
-
-						
-
-
-					a label is a pc-relative    program counter value
-
-
-
-							who's exact absolute runtime value isnt even known  of course until runtime						
-
-					a variable is a data register. or memory variable. just like, some piece of mutable data.
-
-							and its not a label, because its mutable and is known, and labels arent mutable. and labels values arent known.  ever, basically. 
-
-
-					an operation    is  a collection of source code instructions.   its just code. 
-
-							its not data, because  you can't edit it in anyway, and its all statically known always, 
-
-
-								and its not a label because...  crap 
-
-
-
-
-									wait technically speaking labels and operations are the same? kinda... 
-
-						well!!!! NO!!! actually they arent 
-
-
-
-
-				because the code itself    might exist mulitple places in the executable, and thus the label would not take on just one value... ie, because they are macros, not functions lol. so yeah. 
-
-
-
-
-
-
-buttt 
-
-	i just realized something terrible though lol... 
-
-
-	i just realized that i don't know if we can actually write to the .text section anymore, then..
-
-									which was our way of generating compiletime data.....
-
-										into the text section... VERY USEFUL to do this...
-
-
-	like,    either that, or we need to actually figure out how we could   use a label value as a piece of data. basically. 
-
-			like, we need to be able to do that, technically speaking, actually. oof. 
-
-
-	man thats actually something i hadnt considered... 
-
-		jeez
-
-				hm
-						okay i mean, we couldddd add an instruction to translate between the label and variable world explicitlyyyyy
-
-
-							like, that woulddd work
-
-
-
-
-
-
-
-	orrrrrr i mean   
-
-
-
-	hm
-		idk
-
-
-							gahhh i really don't knowwww what the right call here isss
-
-
-
-	like, it kinda feels like it should even be a runtime instruction, actually, 
-
-		loading a label as a variable.   because like, if we do writes to that,  then we KNOW for certain thats what the user meant to do, basically.  like, for instance   take this code for example:
-
-
-
-				lpc  address     mylabel
-
-
-				st   address  data  64_bits
-
-
-
-
-		hmm
-
-		yeah, i think we need that. cool beans.   
-
-			ah i think riscv actually calls this   "la" already lololololololool   crap okay 
-
-			alright we'll call it   la too probably idk 
-
-
-					why not lol 
-
-		so we get:
-
-			la r label
-			st address data 64 
-
-		to write some data to the .text section. which is amazing. i love that. nice!!! perfect. 
-
-
-
-
-		okay
-			and then      the   label argument thingy  for macrossss
-
-
-
-					that i thinkkk will just use uhh... hmm 
-
-							i mean technically can't we just   use      
-
-
-									
-
-
-		wait a secondddd
-
-			maybe the     bca  instruction is relevant here maybe?  becuase it kinda does   typing of some sort??
-				nahh but it only uses variables though. thats the thing. and variables and labels have different symbol tables. so yeahhh 
-
-
-
-
-			i think we need a dedicated instruction to define label arguments. which is stupid lol. 
-
-
-							i meannnnn technicallyyyy speakinggg we can just use  a   add on word, right?
-
-				like, how we are doing the obs thingy lol 
-
-
-
-
-
-		like, we could easily just add another thingy like thattt lololol
-
-
-	okay cool lets do that then 
-
-
-					i think    lbl      makes sense kinda? idk 
-
-						obs and lbl
-
-						or maybe         lab  works too kinda  ehh not really though 
-
-						i like obs,  i think we just need like one more thinggg 
-
-
-						hm       okay so i think          ar x lbl      is closeee 
-
-								i think i want it to be three characters for sure,  so not lb
-
-
-								hmmm   i feel like  pca    would work!
-									program counter address
-
-
-								that would work!!
-
-					interestinggg
-					hm
-
-									yeah, pca, i guess lol. neat. cuz thats technicaly what it is kinda? hmmmm
-
-
-
-
-
-
-
-
-	and i think the cool part of all of this, is that 
-
-
-			obs     and   pca i thinkkkk are technicallyyy speaking able to be redefined? 
-				oh actually maybe not... yikes... hm.... 
-
-
-				yeah they would be an operation that you geuinely can't make a macro for... 
-					everything elseeeee you coulddd
-
-
-
-			dang itttt 
-
-
-
-
-
-
-
-
-
-
-
-					okay in that instance, i think i actually want to instead  use the existing instructions, i think.
-
-							so like, i feel like it could make sense to 
-
-
-						like, maybe use the obs instruction twice on it?  like, that couldddd work lolol
-
-
-						a bit odd... 
-
-
-
-		so you would say:
-
-					def goto ar label obs obs     eq 0 0 label  ret 
-
-
-
-			thattt would be how you define it. 
-
-			its not the prettiest thing in the world... buttt uhh
-
-			i mean, yeah i really don't want to add another unreproducable/unredefinedable instruction to the language loll... soooo yeah. it makes sense to resuse the existing instructions for this, like a lotttt
-
-
-							hmm interesting
-
-
-
-
-	and yeah,  def and ret are not available, and we are already using ar lol.  so yeah, obs it is!
-
-
-
-		obs is basically a form of unary encoding of the type of arguments lolololoolol. basicallyyyyyyyyyy speaking thats whats happening lolol 
-
-
-
-
-					idk i kinda like that actually. lol its kinda odd but i think its good. 
-
-
-
-	so yeah. very minimalist and cool becuase the common cases make sense, honestly. so yeah. i like this solution. 
-
-					like mostttt of the time, you arent writing a macro that takes a label as an argument. 
-
-
-
-
-
-
-
-
-							like, you only need to do that when you are literally writing your own control flow macros!!! lolol. so yeah not something you do every day. 
-								so yeah, putting multiple  obs's   after an   ar      does label stuff now.  cool. 
-
-
-
-
-	so we have this now:
-
-
-
-		la r l          for getting a label value as a variable.  (neccessary now, because we split the symbol tables)
-
-		ar x     defines a variable locally.
-
-		ar x obs   defines a variable into the parent scope. must be undefined already. 
-
-		def o    defines an operation locally. 
-
-		def o obs    defines an operation into the parent scope, 
-
-		ar x obs obs     defines a label into the parent scope, if not already defined. 
-
-
-
-
-
-
-and thats it!
-
-
-thats all the semantics  we need to define i think!!!
-
-
-so yeah nowwww we can code this up i thinkkk yayyy
-
-
-
-
-cool beans
-
-
-
-
-
-								
-
-		*********************************/
-
-
-
-
-
 		if (expecting_type == 1 and define_on_use) {
 			puts("expecting variable type. ");
 			if (not define_on_use) goto print_error;
@@ -2173,7 +689,28 @@ cool beans
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
 	exit(0);
+
+
+
+
+
+
+
+
+
 
 /*
 
@@ -3036,6 +1573,48 @@ generate_function:;
 	dm f
 		...
 	f
+*/
+
+
+
+
+
+/*
+
+
+
+struct instruction {
+	nat* args;
+	nat count;
+};
+
+struct operation {
+	char* name;
+
+	nat** scope;
+	nat* scope_count;
+
+	nat arity;
+	nat* arguments;
+	nat* type;
+
+	struct instruction* body;
+	nat body_count;
+
+	nat parent;
+};
+
+struct label {
+	char* name;
+	nat value;
+};
+
+struct variable {
+	char* name;
+	nat value;
+};
+
+
 */
 
 
