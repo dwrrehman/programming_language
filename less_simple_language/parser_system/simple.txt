@@ -1,12 +1,17 @@
-dr limit 
+
+
+def declare ar x obs ret
+
+
+declare limit 
 zero limit 
 incr limit 
 incr limit 
 incr limit
 
-dr i zero i
+declare i zero i
 at outer
-	dr j zero j
+	declare j zero j
 	at inner
 		incr j
 		lt j limit inner
@@ -15,10 +20,9 @@ at outer
 
 
 def function ar x
-	dr localvar
+	declare localvar
 	zero localvar
 	incr localvar
 	add localvar x
-
 	ret
 

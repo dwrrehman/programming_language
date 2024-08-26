@@ -3,7 +3,7 @@
 // the new version with function defs and riscv isa ish...
 // 202408246.021822:   rewrite v2
 
-/*
+/*  todo
 	- command line arguments passed in registers?
 *	- generating a mach-o executable directly.
 X	- adding system calls to our language, by adding them as instructions!
@@ -13,8 +13,6 @@ X	- adding system calls to our language, by adding them as instructions!
 ***	- implement sta and bca in the language isa. 
 
 */
-
-
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -528,6 +526,7 @@ process_file:;
 			} else if (expecting_type == 1) {
 				for (nat i = count; i--;) {
 					if (not strcmp(variables[list[i]].name, word)) {
+						if (define_on_use) { puts("redefinition"); abort(); }
 						calling = list[i];
 						goto found;
 					}
@@ -544,6 +543,9 @@ process_file:;
 		}
 
 		{struct operation* this = operations + in_scope;
+		if (this->body_count == 0) {
+			goto next_check;
+		}
 		struct instruction* ins = this->body + this->body_count - 1;
 		const nat op = ins->args[0];
 		const nat count = ins->count;
@@ -551,16 +553,20 @@ process_file:;
 			calling = operation_count;
 			goto found;
 		}}
-
+		next_check:
 		{struct operation* this = operations + in_scope;
+		if (this->body_count == 0) {
+			goto next_check2;
+		}
 		struct instruction* ins = this->body + this->body_count - 1;
 		const nat op = ins->args[0];
 		const nat count = ins->count;
-		if ((op == ar or op == dr) and count == 1) {
+		if (op == ar and count == 1) {
 			calling = variable_count;
 			goto found;
 		}}
 
+		next_check2:
 		if (expecting_type == 0) {
 			puts("programming error");
 		}
@@ -579,9 +585,8 @@ process_file:;
 			this->scope[1][this->scope_count[1]++] = calling;
 			goto found;
 
-		} else if (expecting_type == 2 and define_on_use) {
+		} else if (expecting_type == 2) {
 			puts("expecting label type. ");
-			if (not define_on_use) goto print_error;
 
 			calling = label_count;
 			labels = realloc(labels, sizeof(struct label) * (label_count + 1));
@@ -617,7 +622,7 @@ process_file:;
 		printf("now expecting argtype=%s for op=%s at position=%llu...\n", agt[t], ins_spelling[op], ins->count - 1);
 
 		if (t == type_variable) { expecting_type = 1; define_on_use = 0; }
-		else if (t == type_dou) { expecting_type = 1; define_on_use = 1; }
+		else if (t == type_declared) { expecting_type = 1; define_on_use = 1; }
 		else if (t == type_label) { expecting_type = 2; define_on_use = 1; }
 		
 		if (ins->count == operations[op].arity + 1) {
@@ -649,12 +654,10 @@ process_file:;
 				in_scope = calling;
 			}
 
-			else if (op == dr) {
-				puts("executing dr...");
-			}
-
 			else if (op == ar) {
 				puts("executing ar...");
+				abort();
+				// define into the var st, first. then if obs, make it declared. then, if obs again, then move it to label st. 
 			}
 
 			else if (op == ret) {
