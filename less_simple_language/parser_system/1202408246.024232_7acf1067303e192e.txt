@@ -1,9 +1,10 @@
-def declare ar x obs ret
+def declare ar myname obs 
+	zero myname
+	add myname myname
+	ret
 
 
-
-
-tdeclare x
+declare bubbles
 
 
 

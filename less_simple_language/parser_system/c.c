@@ -8,6 +8,7 @@
 *	- generating a mach-o executable directly.
 X	- adding system calls to our language, by adding them as instructions!
 **	- add comments
+**	- add strings. 
 ***	- fix macro and control flow
 *	- write a print_binary_lsb_number function for the stdlib
 ***	- implement sta and bca in the language isa. 
@@ -354,11 +355,15 @@ static nat type_of_argument(nat op, nat arg) {
 static void debug_instructions(struct instruction* ins, nat ins_count) {
 	printf("instructions: (%llu count) \n", ins_count);
 	for (nat i = 0; i < ins_count; i++) {
-		printf("%5llu:", i);
+		printf("ins[%llu] = { ", i);
 		for (nat a = 0; a < ins[i].count; a++) {
-			 printf("%-5lld ", ins[i].args[a]);
+
+			const char* str = "";
+			if (a == 0 and ins[i].args[0] < isa_count) str = ins_spelling[ins[i].args[0]];
+
+			 printf(".args[%llu]=%lld %s      ", a, ins[i].args[a], str);
 		}
-		puts("");
+		puts("} ");
 	}
 	puts("done\n");
 }
@@ -407,11 +412,12 @@ static void debug_dictionary(
 
 static const nat undefined = (nat) -1;
 
-static const char* agt[4] = {
+static const char* agt[5] = {
 	"type_variable",
 	"type_declared", 
 	"type_label",
-	"type_operation"
+	"type_operation", 
+	"type_UNDEFINED",
 };
 
 int main(int argc, const char** argv) {
@@ -453,6 +459,9 @@ int main(int argc, const char** argv) {
 	filestack[0].index = 0;
 }
 
+
+
+
 	puts("defining builtin operations...");
 	for (nat i = 1; i < isa_count; i++) {
 		const nat a = arity(i);
@@ -473,6 +482,8 @@ int main(int argc, const char** argv) {
 		operations[0].scope[0][operations[0].scope_count[0]++] = i;
 	}
 
+
+
 	for (nat i = 0; i < builtin_count; i++) {
 
 		variables = realloc(variables, sizeof(struct variable) * (variable_count + 1));
@@ -486,8 +497,12 @@ int main(int argc, const char** argv) {
 		operations[0].scope[1][operations[0].scope_count[1]++] = i;
 	}
 
-	debug_dictionary(operations, operation_count, variables, variable_count, labels, label_count);
+
+
+	// debug_dictionary(operations, operation_count, variables, variable_count, labels, label_count);
 	puts("parsing top level file...");
+
+
 
 process_file:;
 	nat word_length = 0, word_start = 0, expecting_type = 0, define_on_use = 0, in_scope = 0;
@@ -542,7 +557,11 @@ process_file:;
 			s = operations[s].parent;
 		}
 
-		{struct operation* this = operations + in_scope;
+
+
+
+	{
+		struct operation* this = operations + in_scope;
 		if (this->body_count == 0) {
 			goto next_check;
 		}
@@ -552,9 +571,16 @@ process_file:;
 		if (op == def and count == 1) {
 			calling = operation_count;
 			goto found;
-		}}
+		}
+	}
+
+
+
+
+	
 		next_check:
-		{struct operation* this = operations + in_scope;
+	{
+		struct operation* this = operations + in_scope;
 		if (this->body_count == 0) {
 			goto next_check2;
 		}
@@ -564,12 +590,17 @@ process_file:;
 		if (op == ar and count == 1) {
 			calling = variable_count;
 			goto found;
-		}}
+		}
+	}
+
+
+
 
 		next_check2:
 		if (expecting_type == 0) {
 			puts("programming error");
 		}
+
 
 
 		if (expecting_type == 1 and define_on_use) {
@@ -607,9 +638,14 @@ process_file:;
 		//printf("calling %llu...\n", calling);
 		struct operation* this = operations + in_scope;
 
-		if (expecting_type == 0 and calling < isa_count) {
+		if (expecting_type == 0) {
 			this->body = realloc(this->body, sizeof(struct instruction) * (this->body_count + 1));
 			this->body[this->body_count++] = (struct instruction) {0};
+		}
+
+		if (not this->body_count) { // delete this eventually. 
+			puts("error: there is no current instruction, to add an arg to. error"); 
+			abort();
 		}
 
 		struct instruction* ins = this->body + this->body_count - 1;
@@ -617,9 +653,27 @@ process_file:;
 		ins->args[ins->count++] = calling;
 
 		const nat op = ins->args[0];
-		const nat t = type_of_argument(op, ins->count - 1);
+									// const nat t = type_of_argument(op, ins->count - 1);
 
-		printf("now expecting argtype=%s for op=%s at position=%llu...\n", agt[t], ins_spelling[op], ins->count - 1);
+		printf("op = %llu (%s)\n", op, op < isa_count ? ins_spelling[op] : "bLahhhhhh");
+		printf("ins->count = %llu\n", ins->count);
+		printf("arity = %llu\n", operations[op].arity);		
+		printf("operation_count == %llu\n", operation_count);
+
+		const nat t = ins->count - 1 < operations[op].arity
+				? operations[op].type[ins->count - 1] 
+				: 4;
+
+		if (op < isa_count) 
+			printf("builtin: now expecting argtype=%s for op=%s at position=%llu...\n", 
+				agt[t], ins_spelling[op], ins->count - 1
+			);
+		else {
+			printf("macro: now expecting argtype=%s for op=%llu at position=%llu...\n", 
+				agt[t], op, ins->count - 1
+			);
+		}
+
 
 		if (t == type_variable) { expecting_type = 1; define_on_use = 0; }
 		else if (t == type_declared) { expecting_type = 1; define_on_use = 1; }
@@ -628,8 +682,91 @@ process_file:;
 		if (ins->count == operations[op].arity + 1) {
 
 			if (op >= isa_count) {
-				printf("calling a macro!!!!");
-				abort();
+				puts("calling a macro!!!!");
+
+				const struct instruction call = *ins;
+				this->body_count--;
+
+
+				printf("heres the call : count=%llu \n", call.count);
+				for (nat i = 0; i < call.count; i++) 
+					printf("ins[%llu] = %llu\n", i, call.args[i]);
+				puts("done call");
+
+
+				const struct operation* macro = operations + op;
+				const nat macro_arity = operations[op].arity;
+
+				puts("macro body");
+				for (nat i = 0; i < macro->body_count; i++) {
+					printf("ins (%llu) { op = %llu     ...args... }\n", 
+						macro->body[i].count, macro->body[i].args[0]);
+				}
+				puts("done macro body");
+
+
+
+
+				puts("generating body");
+				for (nat b = 0; b < macro->body_count; b++) {
+
+					const struct instruction bi = macro->body[b];
+
+					struct instruction new = { 
+						.count = bi.count, 
+						.args = calloc(bi.count, sizeof(nat)) 
+					};
+					for (nat i = 0; i < new.count; i++) new.args[i] = bi.args[i];
+
+
+					const nat new_op = new.args[0];
+
+					for (nat j = 1; j < new.count; j++) {
+
+						const nat type = operations[new_op].type[j - 1];
+
+						for (nat a = 0; a < macro_arity; a++) {
+
+							nat type2 = macro->type[a];
+							if (type2 == type_declared) type2 = type_variable;
+
+							if (new.args[j] == macro->arguments[a] and type == type2) {
+
+								printf("subsituting %llu with %llu\n", 
+									new.args[j], call.args[a+1]
+								);
+
+								new.args[j] = call.args[a + 1];
+
+
+							} else {
+								printf("didnt subsititue becuase: \n");
+								printf("either: \n");
+								printf("   %llu != %llu \n", new.args[j], macro->arguments[a]);
+								printf("or: \n");
+								printf("   %s != %s \n", agt[type], agt[macro->type[a]]);
+								puts("");
+							}
+						}
+					}
+					this->body = realloc(this->body, sizeof(struct instruction) * (this->body_count + 1));
+					this->body[this->body_count++] = new;
+				}
+
+
+
+
+
+
+
+				debug_dictionary(operations, operation_count, variables, variable_count, labels, label_count);
+				puts("scroll up.");
+				getchar();
+
+
+
+
+
 			} 
 
 			else if (op == def) {
@@ -647,17 +784,36 @@ process_file:;
 					.scope_count = calloc(3, sizeof(nat)),
 				};
 
-				struct operation* this = operations + in_scope;
-				this->scope[0] = realloc(this->scope[0], sizeof(nat) * (this->scope_count[0] + 1));
-				this->scope[0][this->scope_count[0]++] = calling;
+				struct operation* this_new = operations + in_scope;
+				this_new->scope[0] = realloc(this_new->scope[0], sizeof(nat) * (this_new->scope_count[0] + 1));
+				this_new->scope[0][this_new->scope_count[0]++] = calling;
 
 				in_scope = calling;
 			}
 
 			else if (op == ar) {
+
 				puts("executing ar...");
-				abort();
-				// define into the var st, first. then if obs, make it declared. then, if obs again, then move it to label st. 
+				this->body_count--;
+
+				this->arguments = realloc(this->arguments, sizeof(nat) * (this->arity + 1));
+				this->arguments[this->arity] = calling;
+				this->type = realloc(this->type, sizeof(nat) * (this->arity + 1));
+				this->type[this->arity] = 0; // type_variable;
+				this->arity++;
+
+				variables = realloc(variables, sizeof(struct variable) * (variable_count + 1));
+				variables[variable_count++] = (struct variable) { .name = word, .value = 0 };
+	
+				this->scope[1] = realloc(this->scope[1], sizeof(nat) * (this->scope_count[1] + 1));
+				this->scope[1][this->scope_count[1]++] = calling;
+
+				// debug_dictionary(operations, operation_count, variables, variable_count, labels, label_count);
+				// getchar();
+
+				// define into the var st, first. 
+				// then if obs, make it declared. 
+				// then, if obs again, then move it to label st. 
 			}
 
 			else if (op == ret) {
@@ -669,6 +825,16 @@ process_file:;
 			else if (op == obs) {
 				puts("executing obs...");
 				this->body_count--;
+
+				if (this->type[this->arity - 1] == 0) {
+					this->type[this->arity - 1]++;
+
+				} else if (this->type[this->arity - 1] == 1) {
+					puts("obs on ar obs    unimpl");
+					abort();
+				}
+				// debug_dictionary(operations, operation_count, variables, variable_count, labels, label_count);
+				// getchar();
 
 			} else {
 				printf("executing a builtin opcode: ");
