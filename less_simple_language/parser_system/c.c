@@ -497,12 +497,8 @@ int main(int argc, const char** argv) {
 		operations[0].scope[1][operations[0].scope_count[1]++] = i;
 	}
 
-
-
 	// debug_dictionary(operations, operation_count, variables, variable_count, labels, label_count);
 	puts("parsing top level file...");
-
-
 
 process_file:;
 	nat word_length = 0, word_start = 0, expecting_type = 0, define_on_use = 0, in_scope = 0;
@@ -557,9 +553,6 @@ process_file:;
 			s = operations[s].parent;
 		}
 
-
-
-
 	{
 		struct operation* this = operations + in_scope;
 		if (this->body_count == 0) {
@@ -573,11 +566,6 @@ process_file:;
 			goto found;
 		}
 	}
-
-
-
-
-	
 		next_check:
 	{
 		struct operation* this = operations + in_scope;
@@ -592,16 +580,10 @@ process_file:;
 			goto found;
 		}
 	}
-
-
-
-
 		next_check2:
 		if (expecting_type == 0) {
 			puts("programming error");
 		}
-
-
 
 		if (expecting_type == 1 and define_on_use) {
 			puts("expecting variable type. ");
@@ -680,19 +662,15 @@ process_file:;
 		else if (t == type_label) { expecting_type = 2; define_on_use = 1; }
 		
 		if (ins->count == operations[op].arity + 1) {
-
 			if (op >= isa_count) {
 				puts("calling a macro!!!!");
-
 				const struct instruction call = *ins;
 				this->body_count--;
-
 
 				printf("heres the call : count=%llu \n", call.count);
 				for (nat i = 0; i < call.count; i++) 
 					printf("ins[%llu] = %llu\n", i, call.args[i]);
 				puts("done call");
-
 
 				const struct operation* macro = operations + op;
 				const nat macro_arity = operations[op].arity;
@@ -704,40 +682,29 @@ process_file:;
 				}
 				puts("done macro body");
 
-
-
-
 				puts("generating body");
 				for (nat b = 0; b < macro->body_count; b++) {
-
 					const struct instruction bi = macro->body[b];
-
 					struct instruction new = { 
 						.count = bi.count, 
 						.args = calloc(bi.count, sizeof(nat)) 
 					};
 					for (nat i = 0; i < new.count; i++) new.args[i] = bi.args[i];
 
-
 					const nat new_op = new.args[0];
 
 					for (nat j = 1; j < new.count; j++) {
-
 						const nat type = operations[new_op].type[j - 1];
 
 						for (nat a = 0; a < macro_arity; a++) {
-
 							nat type2 = macro->type[a];
 							if (type2 == type_declared) type2 = type_variable;
 
 							if (new.args[j] == macro->arguments[a] and type == type2) {
-
 								printf("subsituting %llu with %llu\n", 
 									new.args[j], call.args[a+1]
 								);
-
 								new.args[j] = call.args[a + 1];
-
 
 							} else {
 								printf("didnt subsititue becuase: \n");
@@ -753,19 +720,8 @@ process_file:;
 					this->body[this->body_count++] = new;
 				}
 
-
-
-
-
-
-
-				debug_dictionary(operations, operation_count, variables, variable_count, labels, label_count);
-				puts("scroll up.");
-				getchar();
-
-
-
-
+				// debug_dictionary(operations, operation_count, variables, variable_count, labels, label_count);
+				// getchar();
 
 			} 
 
@@ -830,11 +786,27 @@ process_file:;
 					this->type[this->arity - 1]++;
 
 				} else if (this->type[this->arity - 1] == 1) {
+
+					this->type[this->arity - 1]++;
+					struct variable w = variables[--variable_count];
+					this->scope_count[1]--;
+
+					calling = label_count;
+					labels = realloc(labels, sizeof(struct label) * (label_count + 1));
+					labels[label_count++] = (struct label) { .name = w.name, .value = w.value };
+
+					this->scope[2] = realloc(this->scope[2], sizeof(nat) * (this->scope_count[2] + 1));
+					this->scope[2][this->scope_count[2]++] = calling;
+
+					this->arguments[this->arity - 1] = calling;
+
+					debug_dictionary(operations, operation_count, variables, variable_count, labels, label_count);
+					getchar();
+
 					puts("obs on ar obs    unimpl");
-					abort();
+					// abort();
+
 				}
-				// debug_dictionary(operations, operation_count, variables, variable_count, labels, label_count);
-				// getchar();
 
 			} else {
 				printf("executing a builtin opcode: ");
@@ -857,17 +829,8 @@ process_file:;
 	debug_dictionary(operations, operation_count, variables, variable_count, labels, label_count);
 
 
-
-
-
-
-
-
-
-
-
-
-
+	puts("these instructions were generated.");
+	debug_instructions(operations[0].body, operations[0].body_count);
 
 
 	exit(0);

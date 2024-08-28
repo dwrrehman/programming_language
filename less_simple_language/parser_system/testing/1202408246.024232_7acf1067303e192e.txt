@@ -1,0 +1,17 @@
+def mydeclare ar myname obs 
+	zero myname
+	add myname myname
+	ret
+
+mydeclare bubbles
+mydeclare beans
+
+def declare ar something obs ret
+
+declare pasta
+set pasta bubbles
+
+
+
+
+
