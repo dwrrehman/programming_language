@@ -62,6 +62,8 @@ X	- adding system calls to our language, by adding them as instructions!
 
 typedef uint64_t nat;
 
+static const nat undefined = (nat) ~0;
+
 enum language_isa {
 	nullins, zero, incr, decr, 
 	set, add, sub, mul, div_, rem, 
@@ -108,6 +110,40 @@ static const char* builtin_spelling[builtin_count] = {
 	"(nv)",
 	"_discardunused", "_process_stackpointer", "_process_stacksize",
 };
+
+enum symbol_type {
+	symbol_type_operation, 
+	symbol_type_variable, 
+	symbol_type_label, 
+	symbol_type_undefined,
+};
+
+static const char* symbol_type_spelling[4] = {
+	"symbol_type_operation",
+	"symbol_type_variable", 
+	"symbol_type_label",
+	"symbol_type_undefined", 
+};
+
+
+
+
+enum argument_type {
+	argument_type_variable, 
+	argument_type_declared, 
+	argument_type_label, 
+	argument_type_undefined,
+};
+
+static const char* argument_type_spelling[4] = {
+	"ARG_variable",
+	"ARG_declared", 
+	"ARG_label",
+	"ARG_undefined",
+};
+
+
+
 
 enum arm64_isa {
 	arm64_mov,  arm64_addi,
@@ -216,7 +252,23 @@ static const char* executable_filename = "executable0.out";
 
 */
 
-static nat arity(nat i) {
+
+
+
+
+static nat isa_type_of_argument(nat op, nat arg) {
+	if (op == lf  and arg == 0) return argument_type_label;
+	if (op == at  and arg == 0) return argument_type_label;
+	if (op == lt  and arg == 2) return argument_type_label;
+	if (op == ge  and arg == 2) return argument_type_label;
+	if (op == lts and arg == 2) return argument_type_label;
+	if (op == ges and arg == 2) return argument_type_label;
+	if (op == ne  and arg == 2) return argument_type_label;
+	if (op == eq  and arg == 2) return argument_type_label;
+	return argument_type_variable;
+}
+
+static nat isa_arity(nat i) {
 	if (not i) return 0;
 	if (i == ret or i == obs) return 0; 
 	if (i == incr or i == decr or i == zero or i == not_ or i == def or i == ar or i == lf or i == at) return 1;
@@ -302,92 +354,6 @@ static void print_basic_blocks(struct basic_block* blocks, nat block_count,
 
 
 
-/*
-static void debug_instructions(struct instruction* ins, nat ins_count, struct dictionary d) {
-	printf("instructions: (%llu count) \n", ins_count);
-	for (nat i = 0; i < ins_count; i++) {
-		printf("%5llu:", i);
-		for (nat a = 0; a < ins[i].count; a++) {
-			 printf("  %20s : %-5lld", d.names[ins[i].args[a]], ins[i].args[a]);
-		}
-		puts("");
-	}
-	puts("done\n");
-}
-
-
-static void debug_dictionary(struct dictionary d) {
-	printf("dictionary: (%llu count)\n", d.count);
-	for (nat i = 0; i < d.count; i++) {
-		printf("%5llu: .name = %20s, .value = %5llu\n", i, d.names[i], d.values[i]);
-	}
-	puts("done\n");
-}
-
-static void debug_scopes(struct scope* scopes, nat scope_count) {
-	printf("scope stack: (%llu count)\n", scope_count);
-	for (nat i = 0; i < scope_count; i++) {
-		printf("\tscope %5llu: \n", i);
-		for (nat t = 0; t < 2; t++) {
-			printf("\t\t[%4llu]: ", t);
-			for (nat n = 0; n < scopes[i].count[t]; n++) 
-				printf("%4llu ", scopes[i].list[t][n]);
-			puts("");
-		}
-		puts("");
-	}
-	puts("done\n");
-}
-
-static void debug_functions(struct function* functions, nat function_count, struct dictionary d) {
-	printf("functions: (%llu count)\n", function_count);
-	for (nat f = 0; f < function_count; f++) {
-		printf("%5llu: .args = (%llu)[ ", f, functions[f].arity);
-		for (nat a = 0; a < functions[f].arity; a++) {
-			printf("%5llu(%llu) ", functions[f].arguments[a], functions[f].define_on_use[a]);
-		}
-		puts("]");
-		puts("body: ");
-		debug_instructions(functions[f].body, functions[f].body_count, d);
-		puts("[end-body]");
-	}
-	puts("done\n");
-}
-
-static void debug_registers(nat* r, nat count) {
-	printf("registers: (%llu count)\n", count);
-	for (nat i = 0; i < count; i++) {
-		if (i % 2 == 0) puts("");
-		printf("%5llu: 0x%016llx %5lld      ", i, r[i], r[i]);
-	}
-	puts("\ndone\n");
-}
-
-
-
-*/
-
-
-
-
-enum argument_type {
-	type_variable, 
-	type_declared, 
-	type_label, 
-};
-
-static nat type_of_argument(nat op, nat arg) {
-	if (op == lf  and arg == 0) return type_label;
-	if (op == at  and arg == 0) return type_label;
-	if (op == lt  and arg == 2) return type_label;
-	if (op == ge  and arg == 2) return type_label;
-	if (op == lts and arg == 2) return type_label;
-	if (op == ges and arg == 2) return type_label;
-	if (op == ne  and arg == 2) return type_label;
-	if (op == eq  and arg == 2) return type_label;
-	return type_variable;
-}
-
 static void debug_instructions(struct instruction* ins, nat ins_count) {
 	printf("instructions: (%llu count) \n", ins_count);
 	for (nat i = 0; i < ins_count; i++) {
@@ -403,6 +369,17 @@ static void debug_instructions(struct instruction* ins, nat ins_count) {
 	}
 	puts("done\n");
 }
+
+
+static void debug_registers(nat* r, nat count) {
+	printf("registers: (%llu count)\n", count);
+	for (nat i = 0; i < count; i++) {
+		if (i % 2 == 0) puts("");
+		printf("%5llu: 0x%016llx %15lld      ", i, r[i], r[i]);
+	}
+	puts("\ndone\n");
+}
+
 
 static void debug_dictionary(
 	struct operation* operations, nat operation_count, 
@@ -427,7 +404,7 @@ static void debug_dictionary(
 		);
 		printf("[  ");
 		for (nat a = 0; a < operations[i].arity; a++) {
-			printf("%llu:%llu  ", operations[i].arguments[a], operations[i].type[a]);
+			printf("%llu:%s  ", operations[i].arguments[a], argument_type_spelling[operations[i].type[a]]);
 		}
 		printf("]\n");
 		for (nat s = 0; s < 3; s++) {
@@ -446,15 +423,6 @@ static void debug_dictionary(
 }
 
 
-static const nat undefined = (nat) -1;
-
-static const char* agt[5] = {
-	"type_variable",
-	"type_declared", 
-	"type_label",
-	"type_operation", 
-	"type_UNDEFINED",
-};
 
 int main(int argc, const char** argv) {
 	if (argc != 2) exit(puts("compiler: \033[31;1merror:\033[0m usage: ./run <file.s>"));
@@ -500,7 +468,7 @@ int main(int argc, const char** argv) {
 
 	puts("defining builtin operations...");
 	for (nat i = 1; i < isa_count; i++) {
-		const nat a = arity(i);
+		const nat a = isa_arity(i);
 
 		operations = realloc(operations, sizeof(struct operation) * (operation_count + 1));
 		operations[operation_count] = (struct operation) {
@@ -511,11 +479,12 @@ int main(int argc, const char** argv) {
 			.scope = calloc(3, sizeof(nat*)),
 			.scope_count = calloc(3, sizeof(nat)),
 		};
-		for (nat t = 0; t < a; t++) operations[operation_count].type[t] = type_of_argument(i, t);
+		for (nat t = 0; t < a; t++) operations[operation_count].type[t] = isa_type_of_argument(i, t);
 		operation_count++;
 
-		operations[0].scope[0] = realloc(operations[0].scope[0], sizeof(nat) * (operations[0].scope_count[0] + 1));
-		operations[0].scope[0][operations[0].scope_count[0]++] = i;
+		const nat t = symbol_type_operation;
+		operations[0].scope[t] = realloc(operations[0].scope[t], sizeof(nat) * (operations[0].scope_count[t] + 1));
+		operations[0].scope[t][operations[0].scope_count[t]++] = i;
 	}
 
 
@@ -556,7 +525,9 @@ process_file:;
 
 		char* word = strndup(text + word_start, word_length);
 
-		//printf("%llu:%llu: @ word: %s..\n", word_start, word_length, word);
+		printf("%llu:%llu: @ word: %s..\n", word_start, word_length, word);
+
+		printf("expecting: %s...\n", symbol_type_spelling[expecting_type]);
 
 		nat calling = undefined, s = in_scope;
 		while (s != undefined) {
@@ -617,11 +588,10 @@ process_file:;
 		}
 	}
 		next_check2:
-		if (expecting_type == 0) {
-			puts("programming error");
-		}
+		if (expecting_type == symbol_type_operation) {
+			puts("trying to define on use an operation");
 
-		if (expecting_type == 1 and define_on_use) {
+		} else if (expecting_type == symbol_type_variable) {
 			puts("expecting variable type. ");
 			if (not define_on_use) goto print_error;
 
@@ -634,7 +604,7 @@ process_file:;
 			this->scope[1][this->scope_count[1]++] = calling;
 			goto found;
 
-		} else if (expecting_type == 2) {
+		} else if (expecting_type == symbol_type_label) {
 			puts("expecting label type. ");
 
 			calling = label_count;
@@ -648,7 +618,7 @@ process_file:;
 		}
 
 	print_error:
-		printf("file: %s, index: %llu\n", filename, index);
+		printf("\n\nfile: %s, index: %llu\n", filename, index);
 		printf("error: use of undefined word \"%s\"\n", word);
 		abort();
 
@@ -671,7 +641,7 @@ process_file:;
 		ins->args[ins->count++] = calling;
 
 		const nat op = ins->args[0];
-		const nat t = ins->count - 1 < operations[op].arity ? operations[op].type[ins->count - 1] : 4;
+		const nat argument_type = ins->count - 1 < operations[op].arity ? operations[op].type[ins->count - 1] : argument_type_undefined;
 
 		// const nat t = type_of_argument(op, ins->count - 1);
 		printf("op = %llu (%s)\n", op, op < isa_count ? ins_spelling[op] : "bLahhhhhh");
@@ -680,15 +650,15 @@ process_file:;
 		printf("operation_count == %llu\n", operation_count);
 		if (op < isa_count) 
 			printf("builtin: now expecting argtype=%s for op=%s at position=%llu...\n", 
-				agt[t], ins_spelling[op], ins->count - 1);
+				argument_type_spelling[argument_type], ins_spelling[op], ins->count - 1);
 		else {
 			printf("macro: now expecting argtype=%s for op=%llu at position=%llu...\n", 
-				agt[t], op, ins->count - 1);
+				argument_type_spelling[argument_type], op, ins->count - 1);
 		}
 
-		if (t == type_variable) { expecting_type = 1; define_on_use = 0; }
-		else if (t == type_declared) { expecting_type = 1; define_on_use = 1; }
-		else if (t == type_label) { expecting_type = 2; define_on_use = 1; }
+		if (argument_type == argument_type_variable) { expecting_type = symbol_type_variable; define_on_use = false; }
+		else if (argument_type == argument_type_declared) { expecting_type = symbol_type_variable; define_on_use = true; }
+		else if (argument_type == argument_type_label) { expecting_type = symbol_type_label; define_on_use = true; }
 		
 		if (ins->count == operations[op].arity + 1) {
 			if (op >= isa_count) {
@@ -711,6 +681,11 @@ process_file:;
 				}
 				puts("done macro body");
 
+				nat* generated_name = NULL;
+				nat* generated_type = NULL;
+				nat* generated_value = NULL;
+				nat generated_count = 0;
+
 				puts("generating body");
 				for (nat b = 0; b < macro->body_count; b++) {
 					const struct instruction bi = macro->body[b];
@@ -727,24 +702,104 @@ process_file:;
 
 						for (nat a = 0; a < macro_arity; a++) {
 							nat type2 = macro->type[a];
-							if (type2 == type_declared) type2 = type_variable;
+							if (type2 == argument_type_declared) type2 = argument_type_variable;
 
 							if (new.args[j] == macro->arguments[a] and type == type2) {
 								printf("subsituting %llu with %llu\n", 
 									new.args[j], call.args[a+1]
 								);
 								new.args[j] = call.args[a + 1];
+								goto next_j;
 
 							} else {
-								printf("didnt subsititue becuase: \n");
+								printf("didnt subsititute becuase: \n");
 								printf("either: \n");
 								printf("   %llu != %llu \n", new.args[j], macro->arguments[a]);
 								printf("or: \n");
-								printf("   %s != %s \n", agt[type], agt[macro->type[a]]);
+								printf("   %s != %s \n", argument_type_spelling[type], argument_type_spelling[macro->type[a]]);
 								puts("");
 							}
 						}
-					}
+
+						const nat type_index = type == argument_type_label ? symbol_type_label : symbol_type_variable;
+
+						for (nat i = 0; i < macro->scope_count[type_index]; i++) {
+							if (macro->scope[type_index][i] == new.args[j]) {
+								puts("found the local variable!!!");
+								goto local_variable_found;
+							}
+						}
+
+						puts("external variable found");
+
+						printf("inside of instruction: %s : %llu\n", ins_spelling[new.args[0]], new.count);
+						printf("used variable %llu: .name=%s\n", new.args[j], type == argument_type_label 
+								? labels[new.args[j]].name 
+								: variables[new.args[j]].name);
+						// do nothing.
+						// getchar();
+						continue;
+
+					local_variable_found:
+						puts("local variable found, replacing with new generated copy!!!");
+						printf("inside of instruction: %s : %llu\n", ins_spelling[new.args[0]], new.count);
+						printf("used variable %llu: .name=%s\n", new.args[j], type == argument_type_label 
+								? labels[new.args[j]].name 
+								: variables[new.args[j]].name);
+
+						printf("macro scope index = %llu\n", op);
+
+						// TODO: here, we need to replace the first occurence of this local variable with a new generated one,
+
+						// and then literally replace all other instances of it in the function, with this version. we need to generate a mapping in some array of mappings, and then when we see an element in the mapping, then we replace it, if its indeed local as well. so yeah. this only applies to local variables though. so yeah. cool beans!! niceeee nice. yay. 
+
+
+						for (nat i = 0; i < generated_count; i++) {
+							if (	new.args[j] == generated_name[i] and 
+								type_index == generated_type[i]) {
+
+								new.args[j] = generated_value[i];
+								goto found_generated;
+							}
+						}
+
+						nat new_generated_name = 0;
+						if (type_index == symbol_type_variable) {
+							new_generated_name = variable_count;
+							variables = realloc(variables, sizeof(struct variable) * (variable_count + 1));
+							variables[variable_count++] = (struct variable) { 
+								.name = variables[new.args[j]].name, 
+								.value = variables[new.args[j]].value 
+							};
+							macro->scope[1] = realloc(macro->scope[1], sizeof(nat) * (macro->scope_count[1] + 1));
+							macro->scope[1][macro->scope_count[1]++] = new_generated_name;
+
+						} else if (type_index == symbol_type_label) {
+							new_generated_name = label_count;
+							labels = realloc(labels, sizeof(struct label) * (label_count + 1));
+							labels[label_count++] = (struct label) { 
+								.name = labels[new.args[j]].name, 
+								.value = labels[new.args[j]].value 
+							};
+							macro->scope[2] = realloc(macro->scope[2], sizeof(nat) * (macro->scope_count[2] + 1));
+							macro->scope[2][macro->scope_count[2]++] = new_generated_name;
+						}
+
+						generated_name = realloc(generated_name, sizeof(nat) * (generated_count + 1));
+						generated_name[generated_count] = new.args[j];
+						generated_type = realloc(generated_type, sizeof(nat) * (generated_count + 1));
+						generated_type[generated_count] = type_index;
+						generated_value = realloc(generated_value, sizeof(nat) * (generated_count + 1));
+						generated_value[generated_count++] = new_generated_name;
+						new.args[j] = new_generated_name;
+						found_generated:;
+
+
+						//debug_dictionary(operations, operation_count, variables, variable_count, labels, label_count);
+						//abort();
+						
+						next_j: continue;
+					} // j loop
 					this->body = realloc(this->body, sizeof(struct instruction) * (this->body_count + 1));
 					this->body[this->body_count++] = new;
 				}
@@ -801,7 +856,7 @@ process_file:;
 				this->arguments = realloc(this->arguments, sizeof(nat) * (this->arity + 1));
 				this->arguments[this->arity] = calling;
 				this->type = realloc(this->type, sizeof(nat) * (this->arity + 1));
-				this->type[this->arity] = 0; // type_variable;
+				this->type[this->arity] = argument_type_variable;
 				this->arity++;
 				variables = realloc(variables, sizeof(struct variable) * (variable_count + 1));
 				variables[variable_count++] = (struct variable) { .name = word, .value = 0 };
@@ -822,12 +877,29 @@ process_file:;
 				puts("executing obs...");
 				this->body_count--;
 
-				if (this->type[this->arity - 1] == 0) {
-					this->type[this->arity - 1]++;
+				if (not this->arity) {
+					puts("found def obs usage...");
+					if (this->parent == undefined) { 
+						puts("parent scope undefined  on def obs"); 
+						abort(); 
+					} 
+					if (operations[this->parent].parent == undefined) { 
+						puts("parents parent scope undefined  on def obs"); 
+						abort(); 
+					} 
 
-				} else if (this->type[this->arity - 1] == 1) {
+					const nat type = symbol_type_operation;
+					struct operation* m = operations + this->parent;
+					struct operation* p = operations + operations[this->parent].parent;
+					p->scope[type] = realloc(p->scope[type], sizeof(nat) * (p->scope_count[type] + 1));
+					p->scope[type][p->scope_count[type]++] = m->scope[type][m->scope_count[type] - 1];
+					
+				} else if (this->type[this->arity - 1] == argument_type_variable) {
+					this->type[this->arity - 1] = argument_type_declared;
 
-					this->type[this->arity - 1]++;
+				} else if (this->type[this->arity - 1] == argument_type_declared) {
+
+					this->type[this->arity - 1] = argument_type_label;
 					struct variable w = variables[--variable_count];
 					this->scope_count[1]--;
 
@@ -835,9 +907,11 @@ process_file:;
 					labels = realloc(labels, sizeof(struct label) * (label_count + 1));
 					labels[label_count++] = (struct label) { .name = w.name, .value = w.value };
 
-					this->scope[2] = realloc(this->scope[2], sizeof(nat) * (this->scope_count[2] + 1));
-					this->scope[2][this->scope_count[2]++] = calling;
+					const nat type = symbol_type_label;
+					this->scope[type] = realloc(this->scope[type], sizeof(nat) * (this->scope_count[type] + 1));
+					this->scope[type][this->scope_count[type]++] = calling;
 					this->arguments[this->arity - 1] = calling;
+
 					//debug_dictionary(operations, operation_count, variables, variable_count, labels, label_count);
 					//getchar();
 					puts("obs on ar obs    unimpl");
@@ -852,6 +926,8 @@ process_file:;
 		}
 		word_length = 0;
 	}
+	if (in_scope != 0) { puts("trailing ret missing to terminate macro definition."); abort(); }
+
 	filestack_count--;
 	if (not filestack_count) {
 		puts("processing_file: finished last file.");
@@ -954,9 +1030,9 @@ process_file:;
 
 	puts("executing instructions... ");
 
-	nat* R = calloc(65536, sizeof(nat));
-	R[isa_count + stacksize] = 65536;
-	R[isa_count + stackpointer] = (nat) (void*) malloc(65536);
+	nat* R = calloc(variable_count, sizeof(nat));
+	R[stacksize] = 65536;
+	R[stackpointer] = (nat) (void*) malloc(65536);
 
 	for (nat pc = 0; pc < ins_count; pc++) {
 
@@ -998,12 +1074,12 @@ process_file:;
 			else if (R[s] == 8) { R[d] = *(uint64_t*)(R[r]); }
 			else abort();
 		}
-		else if (op == lt)  { if (R[d] < R[r])  { pc = R[s]; } } 
-		else if (op == ge)  { if (R[d] >= R[r]) { pc = R[s]; } } 
-		else if (op == lts) { if (R[d] < R[r])  { pc = R[s]; } } 
-		else if (op == ges) { if (R[d] >= R[r]) { pc = R[s]; } } 
-		else if (op == ne)  { if (R[d] != R[r]) { pc = R[s]; } } 
-		else if (op == eq)  { if (R[d] == R[r]) { pc = R[s]; } } 
+		else if (op == lt)  { if (R[d] < R[r])  { pc = labels[s].value; } } 
+		else if (op == ge)  { if (R[d] >= R[r]) { pc = labels[s].value; } } 
+		else if (op == lts) { if (R[d] < R[r])  { pc = labels[s].value; } } 
+		else if (op == ges) { if (R[d] >= R[r]) { pc = labels[s].value; } } 
+		else if (op == ne)  { if (R[d] != R[r]) { pc = labels[s].value; } } 
+		else if (op == eq)  { if (R[d] == R[r]) { pc = labels[s].value; } } 
 		else if (op == sc) {
 			const nat n = R[ins[pc].args[1]];
 			const nat a0 = ins[pc].args[2];
@@ -1028,6 +1104,7 @@ process_file:;
 				printf("%llu: system call not supported.\n", n);
 				abort();
 			}
+			// sleep(1);
 		}
 		else {
 			printf("error: executing unknown instruction: %llu (%s)\n", op, ins_spelling[op]);
@@ -1035,7 +1112,7 @@ process_file:;
 		}
 	}
 
-	//debug_registers(R, dictionary.count);
+	debug_registers(R, variable_count);
 
 	exit(0);
 
@@ -1103,6 +1180,72 @@ process_file:;
 
 
 
+
+
+/*
+static void debug_instructions(struct instruction* ins, nat ins_count, struct dictionary d) {
+	printf("instructions: (%llu count) \n", ins_count);
+	for (nat i = 0; i < ins_count; i++) {
+		printf("%5llu:", i);
+		for (nat a = 0; a < ins[i].count; a++) {
+			 printf("  %20s : %-5lld", d.names[ins[i].args[a]], ins[i].args[a]);
+		}
+		puts("");
+	}
+	puts("done\n");
+}
+
+
+static void debug_dictionary(struct dictionary d) {
+	printf("dictionary: (%llu count)\n", d.count);
+	for (nat i = 0; i < d.count; i++) {
+		printf("%5llu: .name = %20s, .value = %5llu\n", i, d.names[i], d.values[i]);
+	}
+	puts("done\n");
+}
+
+static void debug_scopes(struct scope* scopes, nat scope_count) {
+	printf("scope stack: (%llu count)\n", scope_count);
+	for (nat i = 0; i < scope_count; i++) {
+		printf("\tscope %5llu: \n", i);
+		for (nat t = 0; t < 2; t++) {
+			printf("\t\t[%4llu]: ", t);
+			for (nat n = 0; n < scopes[i].count[t]; n++) 
+				printf("%4llu ", scopes[i].list[t][n]);
+			puts("");
+		}
+		puts("");
+	}
+	puts("done\n");
+}
+
+static void debug_functions(struct function* functions, nat function_count, struct dictionary d) {
+	printf("functions: (%llu count)\n", function_count);
+	for (nat f = 0; f < function_count; f++) {
+		printf("%5llu: .args = (%llu)[ ", f, functions[f].arity);
+		for (nat a = 0; a < functions[f].arity; a++) {
+			printf("%5llu(%llu) ", functions[f].arguments[a], functions[f].define_on_use[a]);
+		}
+		puts("]");
+		puts("body: ");
+		debug_instructions(functions[f].body, functions[f].body_count, d);
+		puts("[end-body]");
+	}
+	puts("done\n");
+}
+
+static void debug_registers(nat* r, nat count) {
+	printf("registers: (%llu count)\n", count);
+	for (nat i = 0; i < count; i++) {
+		if (i % 2 == 0) puts("");
+		printf("%5llu: 0x%016llx %5lld      ", i, r[i], r[i]);
+	}
+	puts("\ndone\n");
+}
+
+
+
+*/
 
 
 

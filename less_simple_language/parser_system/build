@@ -1,10 +1,10 @@
 #!/bin/zsh
 
 if [ "release" = "$1" ]; then
-	clang -Weverything -Ofast c.c -o run
+	clang -Weverything -Wno-declaration-after-statement -Ofast c.c -o run
 
 elif [ "srelease" = "$1" ]; then
-	clang -v -Weverything -Os c.c -o run
+	clang -Weverything -Wno-declaration-after-statement -Os c.c -o run
 
 elif [ "clean" = "$1" ]; then
 	rm -rf run
