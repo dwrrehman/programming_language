@@ -1,0 +1,138 @@
+def scope
+	def  dr  obs   ar a obs 
+		ret
+	ret
+
+def dz  ar a obs 
+	zero a 
+	ret
+
+dz 0
+dz 1 incr 1
+dz 2 incr 2 incr 2 
+dz 3 incr 3 incr 3 incr 3
+dz 4 incr 4 incr 4 incr 4 incr 4
+dz 5 incr 5 incr 5 incr 5 incr 5 incr 5
+
+def init  ar dest obs  ar source 
+	set dest source 
+	ret
+
+def goto   ar label obs obs
+	eq 0 0 label
+	ret
+
+def print ar number
+	sc 0 number 0 0 0 0 0
+	ret
+
+def displaystop print _process_stackpointer ret
+
+
+
+def printfivetimes
+	init i 0
+	at loop
+		ge i 5 done
+		print i
+		incr i
+		goto loop
+	at done
+	ret
+
+
+printfivetimes
+printfivetimes
+displaystop
+
+
+
+def local_scope
+
+	init i 0
+
+	def loop obs   ar count
+
+		set i 0
+		at loop
+			ge i count done
+			print i
+			incr i
+			goto loop
+		at done
+		ret
+
+	def end obs 
+
+ret
+
+	PROBLEM:
+
+
+
+				HOW WOULD WE WRITE A FOR LOOP ?????
+
+
+					do we need to be able to pass a macro into a macro!?!?!?!?!?
+
+
+
+
+								i feel like yes.. idk.... hmmm
+
+
+
+
+
+
+
+				i don't think it needs any arguments though, probably.. idk.. hm.. 
+
+
+	
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
