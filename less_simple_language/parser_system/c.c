@@ -5,47 +5,23 @@
 
 
 
+/*  todo 1202408283.031842
 
-
-
-
-
-
-
-
-// 1202408283.031842
-//						implement     lf       please.  then we are done. 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-/*  todo
-	- command line arguments passed in registers?
+*	- command line arguments passed in registers?
 *	- generating a mach-o executable directly.
-X	- adding system calls to our language, by adding them as instructions!
+
 **	- add comments
 **	- add strings. 
 
-***	- fix macro and control flow  <------ create new names each macro call.
-
 *	- write a print_binary_lsb_number function for the stdlib
-**	- implement sta and bca in the language isa. 
+
+
+// done:
+
+X	- adding system calls to our language, by adding them as instructions!
+x **	- implement sta and bca in the language isa. 
+x ***	- fix macro and control flow  <------ create new names each macro call.
+//					x	implement     lf       please.  then we are done. 
 
 */
 
@@ -102,13 +78,15 @@ static const char* system_call_spelling[system_call_count] = {
 
 enum language_builtins {
 	nullvar,
-	discardunused, stackpointer, stacksize,
+	discardunused, 
+	stackpointer, stacksize,
 	builtin_count
 };
 
 static const char* builtin_spelling[builtin_count] = {
 	"(nv)",
-	"_discardunused", "_process_stackpointer", "_process_stacksize",
+	"_discardunused", 
+	"_process_stackpointer", "_process_stacksize",
 };
 
 enum symbol_type {
@@ -125,9 +103,6 @@ static const char* symbol_type_spelling[4] = {
 	"symbol_type_undefined", 
 };
 
-
-
-
 enum argument_type {
 	argument_type_variable, 
 	argument_type_declared, 
@@ -141,9 +116,6 @@ static const char* argument_type_spelling[4] = {
 	"ARG_label",
 	"ARG_undefined",
 };
-
-
-
 
 enum arm64_isa {
 	arm64_mov,  arm64_addi,
@@ -254,8 +226,6 @@ static const char* executable_filename = "executable0.out";
 
 
 
-
-
 static nat isa_type_of_argument(nat op, nat arg) {
 	if (op == lf  and arg == 0) return argument_type_label;
 	if (op == at  and arg == 0) return argument_type_label;
@@ -276,9 +246,6 @@ static nat isa_arity(nat i) {
 	if (i == sc) return 7;
 	return 2;
 }
-
-
-
 
 static void print_nodes(struct node* nodes, nat node_count) {
 	printf("printing %3llu nodes...\n", node_count);
@@ -422,8 +389,6 @@ static void debug_dictionary(
 	puts("done printing dictionary.");
 }
 
-
-
 int main(int argc, const char** argv) {
 	if (argc != 2) exit(puts("compiler: \033[31;1merror:\033[0m usage: ./run <file.s>"));
 
@@ -442,10 +407,8 @@ int main(int argc, const char** argv) {
 	struct variable* variables = NULL;
 	nat variable_count = 0;
 
-
 	struct file filestack[4096] = {0};
 	nat filestack_count = 1;
-
 	const char* included_files[4096] = {0};
 	nat included_file_count = 0;
 
@@ -462,9 +425,6 @@ int main(int argc, const char** argv) {
 	filestack[0].text_length = text_length;
 	filestack[0].index = 0;
 }
-
-
-
 
 	puts("defining builtin operations...");
 	for (nat i = 1; i < isa_count; i++) {
@@ -487,8 +447,6 @@ int main(int argc, const char** argv) {
 		operations[0].scope[t][operations[0].scope_count[t]++] = i;
 	}
 
-
-
 	for (nat i = 0; i < builtin_count; i++) {
 
 		variables = realloc(variables, sizeof(struct variable) * (variable_count + 1));
@@ -502,21 +460,17 @@ int main(int argc, const char** argv) {
 		operations[0].scope[1][operations[0].scope_count[1]++] = i;
 	}
 
-	// debug_dictionary(operations, operation_count, variables, variable_count, labels, label_count);
+	debug_dictionary(operations, operation_count, variables, variable_count, labels, label_count);
 	puts("parsing top level file...");
 
 process_file:;
 	nat word_length = 0, word_start = 0, expecting_type = 0, define_on_use = 0, in_scope = 0;
-
 	const nat starting_index = 	filestack[filestack_count - 1].index;
 	const nat text_length = 	filestack[filestack_count - 1].text_length;
 	char* text = 			filestack[filestack_count - 1].text;
 	const char* filename = 		filestack[filestack_count - 1].filename;
-
 	printf("info: now processing file: %s...\n", filename);
-
 	for (nat index = starting_index; index < text_length; index++) {
-
 		if (not isspace(text[index])) {
 			if (not word_length) word_start = index;
 			word_length++; 
@@ -524,10 +478,11 @@ process_file:;
 		} else if (not word_length) continue;
 
 		char* word = strndup(text + word_start, word_length);
-
 		printf("%llu:%llu: @ word: %s..\n", word_start, word_length, word);
-
 		printf("expecting: %s...\n", symbol_type_spelling[expecting_type]);
+
+		struct operation* this = operations + in_scope;
+		struct instruction* ins = this->body + this->body_count - 1;
 
 		nat calling = undefined, s = in_scope;
 		while (s != undefined) {
@@ -560,90 +515,49 @@ process_file:;
 			s = operations[s].parent;
 		}
 
-	{
-		struct operation* this = operations + in_scope;
-		if (this->body_count == 0) {
-			goto next_check;
-		}
-		struct instruction* ins = this->body + this->body_count - 1;
-		const nat op = ins->args[0];
-		const nat count = ins->count;
-		if (op == def and count == 1) {
-			calling = operation_count;
-			goto found;
-		}
-	}
-		next_check:
-	{
-		struct operation* this = operations + in_scope;
-		if (this->body_count == 0) {
-			goto next_check2;
-		}
-		struct instruction* ins = this->body + this->body_count - 1;
-		const nat op = ins->args[0];
-		const nat count = ins->count;
-		if (op == ar and count == 1) {
-			calling = variable_count;
-			goto found;
-		}
-	}
-		next_check2:
-		if (expecting_type == symbol_type_operation) {
-			puts("trying to define on use an operation");
-
-		} else if (expecting_type == symbol_type_variable) {
+		if (not this->body_count) abort();
+		if (ins->args[0] == def and ins->count == 1) { calling = operation_count; goto found; }
+		if (ins->args[0] == ar  and ins->count == 1) { calling = variable_count;  goto found; }
+		
+		if (expecting_type == symbol_type_variable) {
 			puts("expecting variable type. ");
 			if (not define_on_use) goto print_error;
-
 			calling = variable_count;
 			variables = realloc(variables, sizeof(struct variable) * (variable_count + 1));
 			variables[variable_count++] = (struct variable) { .name = word, .value = 0 };
-
-			struct operation* this = operations + in_scope;
 			this->scope[1] = realloc(this->scope[1], sizeof(nat) * (this->scope_count[1] + 1));
 			this->scope[1][this->scope_count[1]++] = calling;
-			goto found;
 
 		} else if (expecting_type == symbol_type_label) {
 			puts("expecting label type. ");
-
 			calling = label_count;
 			labels = realloc(labels, sizeof(struct label) * (label_count + 1));
 			labels[label_count++] = (struct label) { .name = word, .value = 0 };
-
-			struct operation* this = operations + in_scope;
 			this->scope[2] = realloc(this->scope[2], sizeof(nat) * (this->scope_count[2] + 1));
 			this->scope[2][this->scope_count[2]++] = calling;
-			goto found;
+		} else {
+			puts("trying to define on use an operation");
+			abort();
 		}
-
+		goto found;
 	print_error:
 		printf("\n\nfile: %s, index: %llu\n", filename, index);
-		printf("error: use of undefined word \"%s\"\n", word);
+		printf("error: use of undefined word \"%s\", expecting %s name\n", word, expecting_type == symbol_type_variable ? "variable" : "label");
 		abort();
 
 	found:;
-		//printf("calling %llu...\n", calling);
-		struct operation* this = operations + in_scope;
-
-		if (expecting_type == 0) {
+		printf("calling %llu...\n", calling);
+		if (expecting_type == symbol_type_operation) {
 			this->body = realloc(this->body, sizeof(struct instruction) * (this->body_count + 1));
 			this->body[this->body_count++] = (struct instruction) {0};
+			ins = this->body + this->body_count - 1;
 		}
 
-		if (not this->body_count) { // delete this eventually. 
-			puts("error: there is no current instruction, to add an arg to. error"); 
-			abort();
-		}
-
-		struct instruction* ins = this->body + this->body_count - 1;
 		ins->args = realloc(ins->args, sizeof(nat) * (ins->count + 1));
 		ins->args[ins->count++] = calling;
 
 		const nat op = ins->args[0];
 		const nat argument_type = ins->count - 1 < operations[op].arity ? operations[op].type[ins->count - 1] : argument_type_undefined;
-
-		// const nat t = type_of_argument(op, ins->count - 1);
 		printf("op = %llu (%s)\n", op, op < isa_count ? ins_spelling[op] : "bLahhhhhh");
 		printf("ins->count = %llu\n", ins->count);
 		printf("arity = %llu\n", operations[op].arity);		
@@ -680,12 +594,10 @@ process_file:;
 						macro->body[i].count, macro->body[i].args[0]);
 				}
 				puts("done macro body");
-
 				nat* generated_name = NULL;
 				nat* generated_type = NULL;
 				nat* generated_value = NULL;
 				nat generated_count = 0;
-
 				puts("generating body");
 				for (nat b = 0; b < macro->body_count; b++) {
 					const struct instruction bi = macro->body[b];
@@ -722,22 +634,18 @@ process_file:;
 						}
 
 						const nat type_index = type == argument_type_label ? symbol_type_label : symbol_type_variable;
-
 						for (nat i = 0; i < macro->scope_count[type_index]; i++) {
 							if (macro->scope[type_index][i] == new.args[j]) {
 								puts("found the local variable!!!");
 								goto local_variable_found;
 							}
 						}
-
 						puts("external variable found");
 
 						printf("inside of instruction: %s : %llu\n", ins_spelling[new.args[0]], new.count);
 						printf("used variable %llu: .name=%s\n", new.args[j], type == argument_type_label 
 								? labels[new.args[j]].name 
 								: variables[new.args[j]].name);
-						// do nothing.
-						// getchar();
 						continue;
 
 					local_variable_found:
@@ -746,14 +654,7 @@ process_file:;
 						printf("used variable %llu: .name=%s\n", new.args[j], type == argument_type_label 
 								? labels[new.args[j]].name 
 								: variables[new.args[j]].name);
-
 						printf("macro scope index = %llu\n", op);
-
-						// TODO: here, we need to replace the first occurence of this local variable with a new generated one,
-
-						// and then literally replace all other instances of it in the function, with this version. we need to generate a mapping in some array of mappings, and then when we see an element in the mapping, then we replace it, if its indeed local as well. so yeah. this only applies to local variables though. so yeah. cool beans!! niceeee nice. yay. 
-
-
 						for (nat i = 0; i < generated_count; i++) {
 							if (	new.args[j] == generated_name[i] and 
 								type_index == generated_type[i]) {
@@ -793,19 +694,12 @@ process_file:;
 						generated_value[generated_count++] = new_generated_name;
 						new.args[j] = new_generated_name;
 						found_generated:;
-
-
-						//debug_dictionary(operations, operation_count, variables, variable_count, labels, label_count);
-						//abort();
 						
 						next_j: continue;
-					} // j loop
+					} 
 					this->body = realloc(this->body, sizeof(struct instruction) * (this->body_count + 1));
 					this->body[this->body_count++] = new;
 				}
-				// debug_dictionary(operations, operation_count, variables, variable_count, labels, label_count);
-				// getchar();
-
 			} 
 
 			else if (op == lf) {
@@ -862,12 +756,6 @@ process_file:;
 				variables[variable_count++] = (struct variable) { .name = word, .value = 0 };
 				this->scope[1] = realloc(this->scope[1], sizeof(nat) * (this->scope_count[1] + 1));
 				this->scope[1][this->scope_count[1]++] = calling;
-				// debug_dictionary(operations, operation_count, variables, variable_count, labels, label_count);
-				// getchar();
-				// define into the var st, first. 
-				// then if obs, make it declared. 
-				// then, if obs again, then move it to label st. 
-
 			} else if (op == ret) {
 				puts("executing ret...");
 				this->body_count--;
@@ -910,12 +798,7 @@ process_file:;
 					const nat type = symbol_type_label;
 					this->scope[type] = realloc(this->scope[type], sizeof(nat) * (this->scope_count[type] + 1));
 					this->scope[type][this->scope_count[type]++] = calling;
-					this->arguments[this->arity - 1] = calling;
-
-					//debug_dictionary(operations, operation_count, variables, variable_count, labels, label_count);
-					//getchar();
-					puts("obs on ar obs    unimpl");
-					// abort();
+					this->arguments[this->arity - 1] = calling;	
 				}
 			} else {
 				printf("executing a builtin opcode: ");
@@ -937,6 +820,10 @@ process_file:;
 	}
 	debug_dictionary(operations, operation_count, variables, variable_count, labels, label_count);
 
+
+
+
+
 	puts("these instructions were generated.");
 
 	struct instruction* ins = operations->body;
@@ -954,7 +841,6 @@ process_file:;
 		}
 	}
 
-
 	puts("starting the DAG formation stage...");
 	
 	struct node nodes[4096] = {0}; 
@@ -971,9 +857,6 @@ process_file:;
 	for (nat i = 0; i < ins_count; i++) {
 
 		const nat op = ins[i].args[0];
-		//nat d = ins[i].count >= 2 ? ins[i].args[1] : 0;
-		//nat r = ins[i].count >= 3 ? ins[i].args[2] : 0;
-		//nat s = ins[i].count >= 4 ? ins[i].args[3] : 0;
 
 		printf("generating DAG node for ins: { %s ", ins_spelling[op]);
 
@@ -1166,19 +1049,48 @@ process_file:;
 
 
 
+		/*if (not this->body_count) { // delete this eventually. 
+			puts("error: there is no current instruction, to add an arg to. error"); 
+			abort();
+		}*/
 
 
 
 
+// const nat t = type_of_argument(op, ins->count - 1);
+
+
+// puts("obs on ar obs    ");
+					// abort(); 
+
+
+//debug_dictionary(operations, operation_count, variables, variable_count, labels, label_count);
+					//getchar();
 
 
 
+						// TODO: here, we need to replace the first occurence of this local variable with a new generated one,
+
+						// and then literally replace all other instances of it in the function, with this version. we need to generate a mapping in some array of mappings, and then when we see an element in the mapping, then we replace it, if its indeed local as well. so yeah. this only applies to local variables though. so yeah. cool beans!! niceeee nice. yay. 
 
 
 
+// debug_dictionary(operations, operation_count, variables, variable_count, labels, label_count);
+				// getchar();
 
 
 
+		//nat d = ins[i].count >= 2 ? ins[i].args[1] : 0;
+		//nat r = ins[i].count >= 3 ? ins[i].args[2] : 0;
+		//nat s = ins[i].count >= 4 ? ins[i].args[3] : 0;
+
+
+
+				// debug_dictionary(operations, operation_count, variables, variable_count, labels, label_count);
+				// getchar();
+				// define into the var st, first. 
+				// then if obs, make it declared. 
+				// then, if obs again, then move it to label st. 
 
 
 
@@ -1327,6 +1239,7 @@ static void debug_registers(nat* r, nat count) {
 	debug_functions(functions, function_count, dictionary);
 	debug_scopes(scopes, scope_count);
 	puts("parsing top level file...");
+
 	// getchar();
 
 process_file:;
