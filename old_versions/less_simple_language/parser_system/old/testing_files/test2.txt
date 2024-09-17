@@ -1,0 +1,102 @@
+def scope
+	def  dr  obs   ar a obs 
+		ret
+	ret
+
+def dz  ar a obs 
+	zero a 
+	ret
+
+dz 0
+dz 1 incr 1
+dz 2 incr 2 incr 2 
+dz 3 incr 3 incr 3 incr 3
+dz 4 incr 4 incr 4 incr 4 incr 4
+dz 5 incr 5 incr 5 incr 5 incr 5 incr 5
+
+def init  ar dest obs  ar source 
+	set dest source 
+	ret
+
+def goto   ar label obs obs
+	eq 0 0 label
+	ret
+
+def print ar number
+	sc 0 number 0 0 0 0 0
+	ret
+
+def displaystop print _process_stackpointer ret
+
+
+
+def printfivetimes
+	init i 0
+	at loop
+		ge i 5 done
+		print i
+		incr i
+		goto loop
+	at done
+		displaystop
+ret
+
+
+
+printfivetimes
+
+printfivetimes
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

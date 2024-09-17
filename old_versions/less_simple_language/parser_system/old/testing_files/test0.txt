@@ -1,0 +1,13 @@
+lf test1.txt
+
+
+def local_scope
+	def inner
+		zero _process_stackpointer
+	ret inner
+ret local_scope
+
+
+macro
+
+

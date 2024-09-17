@@ -1,0 +1,12 @@
+def decl ar i obs ret
+decl 0 zero 0
+def goto ar label obs obs 
+	eq 0 0 label
+	ret
+decl pasta
+goto pasta
+	zero pasta
+	incr pasta
+at pasta
+	zero pasta
+

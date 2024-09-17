@@ -1,0 +1,54 @@
+lf library/constants
+
+def square ar x
+	mul x x
+	ret
+
+def double ar x
+	add x x
+	ret
+
+def addone ar x
+	incr x
+	ret
+
+def settozero_ifequal 
+	ar x 	ar a 	ar b
+	ne a b done
+	set x 0
+	at done ret
+
+
+set system_call_undefined 0
+set system_call_exit 	1
+set system_call_execve 	2
+set system_call_fork 	3
+set system_call_wait 	4
+set system_call_openat 	5
+set system_call_close 	6
+set system_call_write 	7
+set system_call_read 	8
+set system_call_ioctl 	9
+set system_call_poll 	10
+set system_call_lseek 	11
+set system_call_munmap 	12
+set system_call_mprotect 13
+set system_call_mmap 	14
+
+
+def debug_number ar number 
+	sc system_call_undefined  number 0 0  0 0 0
+	ret
+
+def exit ar exitcode
+	sc system_call_exit exitcode 0 0  0 0 0
+	ret
+
+def write ar fd ar buffer ar length
+	sc system_call_write fd buffer length  0 0 0
+	ret
+
+def read ar fd ar buffer ar length
+	sc system_call_read fd buffer length  0 0 0
+	ret
+

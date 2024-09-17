@@ -1,0 +1,36 @@
+
+
+
+
+
+
+def ret ret
+
+
+
+
+
+
+
+
+
+
+
+
+
+def mymacro
+	mymacro
+	zero _process_stackpointer
+	mymacro
+	ret
+
+mymacro
+
+def mymacro
+	mymacro
+	incr _process_stackpointer
+	mymacro
+	ret
+
+mymacro
+

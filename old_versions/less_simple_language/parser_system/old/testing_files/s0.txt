@@ -1,0 +1,16 @@
+
+def dr ar x obs ret
+
+
+dr outsideglobal
+zero outsideglobal
+incr outsideglobal
+
+def localscope 
+	zero outsideglobal
+	dr bubbles
+	set bubbles outsideglobal
+	incr bubbles
+ret localscope
+
+

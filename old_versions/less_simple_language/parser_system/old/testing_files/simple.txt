@@ -1,0 +1,28 @@
+
+
+def declare ar x obs ret
+
+
+declare limit 
+zero limit 
+incr limit 
+incr limit 
+incr limit
+
+declare i zero i
+at outer
+	declare j zero j
+	at inner
+		incr j
+		lt j limit inner
+	incr i
+	lt i limit outer
+
+
+def function ar x
+	declare localvar
+	zero localvar
+	incr localvar
+	add localvar x
+	ret
+

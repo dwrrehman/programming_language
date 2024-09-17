@@ -1,0 +1,38 @@
+zero 0
+
+zero 1
+incr 1
+
+zero 2
+incr 2
+incr 2
+
+zero 3
+incr 3
+incr 3
+incr 3
+
+zero 4
+incr 4
+incr 4
+incr 4
+incr 4
+
+zero 5
+incr 5
+incr 5
+incr 5
+incr 5
+incr 5
+
+set 6 5 incr 6 
+set 7 6 incr 7
+set 8 7 incr 8
+set 9 8 incr 9
+set 10 9 incr 10
+set 11 10 incr 11
+set 12 11 incr 12
+set 13 12 incr 13
+set 14 13 incr 14
+set 15 14 incr 15
+

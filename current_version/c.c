@@ -22,6 +22,50 @@ x **	- implement sta and bca in the language isa.
 x ***	- fix macro and control flow  <------ create new names each macro call.
 //					x	implement     lf       please.  then we are done. 
 
+
+
+
+
+also i want to implement these things in the language, after we do strings/comments         (if we do them lol)
+
+
+
+
+	- label unused
+
+	- label has no definition
+
+
+	- varaible unused
+
+	- varaible set but not used 
+
+	- variable uninited at use 
+
+
+	- analysis of types deref'd pointers   loads and stores
+
+	- analysis of valid pointer + offset array indexes
+
+	- analysis of extending register bitcount  value outsite bitcount range for given size bits
+
+
+
+
+
+
+current state:
+	
+	i think we devised a way to use the existing argument system in order to have unique labels inside a macro, to be able to create a for loop, ie, control flow macros. i think thats where we were...
+
+	and i think we alsooo needed still to figure out how strings would be done. 
+
+
+	so yeah. 
+
+
+
+
 */
 
 #include <stdio.h>
@@ -33,6 +77,7 @@ x ***	- fix macro and control flow  <------ create new names each macro call.
 #include <fcntl.h>
 #include <unistd.h>
 #include <ctype.h>
+#include <termios.h>
 #include <sys/mman.h>
 
 typedef uint64_t nat;
@@ -388,13 +433,56 @@ static void debug_dictionary(
 	puts("done printing dictionary.");
 }
 
+static void get_input_string(char* string, nat max_length) {
+
+	struct termios term = {0}, restore = {0};
+	tcgetattr(0, &term);
+	tcgetattr(0, &restore);
+	term.c_lflag &= ~(size_t)(ICANON | ECHO);
+	tcsetattr(0, TCSANOW, &term);	
+	write(1, "\033[6n", 4);
+	nat row = 0, column = 0;
+	scanf("\033[%llu;%lluR", &row, &column);
+	nat length = 0, cursor = 0;
+	printf("\033[?25l");
+	while (1) {
+		printf("\033[%llu;%lluH", row, column);
+		for (nat i = 0; i < length; i++) {
+			if (string[i] == 10) printf("\033[K");
+			if (i == cursor) printf("\033[7m"); 
+			putchar(string[i]);
+			if (i == cursor) printf("\033[0m");
+			if (string[i] == 10) printf("\033[K");
+		}
+		if (cursor == length) printf("\033[7m \033[0m");
+		printf("\033[K");
+		fflush(stdout);
+		char c = 0;
+		read(0, &c, 1);
+
+		if (c == '/') { break; } 
+		else if (c == ',') { if (cursor) cursor--; }
+		else if (c == '.') { if (cursor < length) cursor++; }
+		else if (c == 127) { 
+			if (cursor and length) { 
+				cursor--; length--;
+				memmove(string + cursor, string + cursor + 1, length - cursor);
+			}
+		} else if (length < max_length - 2) {
+			memmove(string + cursor + 1, string + cursor, length - cursor);
+			string[cursor] = c;
+			cursor++; length++;
+		}
+	}
+	printf("\033[?25h");
+	string[length] = 0;
+	puts("done. got string: ");
+	puts(string);
+}
+
+
 int main(int argc, const char** argv) {
-	if (argc != 2) exit(puts("compiler: \033[31;1merror:\033[0m usage: ./run <file.s>"));
-
-	puts("this assembler is currently a work in progress, "
-		"backend is currently not fully implemented yet..."
-	);
-
+	if (argc > 2) exit(puts("compiler: \033[31;1merror:\033[0m usage: ./run [file.s]"));
 	nat operation_count = 1;
 	struct operation* operations = calloc(1, sizeof(struct operation));
 	operations[0].scope = calloc(3, sizeof(nat*));
@@ -405,25 +493,33 @@ int main(int argc, const char** argv) {
 	nat label_count = 0;
 	struct variable* variables = NULL;
 	nat variable_count = 0;
-
 	struct file filestack[4096] = {0};
 	nat filestack_count = 1;
 	const char* included_files[4096] = {0};
 	nat included_file_count = 0;
 
-{
-	int file = open(argv[1], O_RDONLY);
-	if (file < 0) { puts(argv[1]); perror("open"); exit(1); }
-	const nat text_length = (nat) lseek(file, 0, SEEK_END);
-	lseek(file, 0, SEEK_SET);
-	char* text = calloc(text_length + 1, 1);
-	read(file, text, text_length);
-	close(file);
-	filestack[0].filename = argv[1];
-	filestack[0].text = text;
-	filestack[0].text_length = text_length;
-	filestack[0].index = 0;
-}
+	if (argc < 2) {
+		char buffer[4096] = {0};
+		puts("give the input string to process:\n");
+		get_input_string(buffer, sizeof buffer);
+
+		filestack[0].filename = "<top-level-input-string>";
+		filestack[0].text = strdup(buffer);
+		filestack[0].text_length = strlen(buffer);
+		filestack[0].index = 0;
+	} else {
+		int file = open(argv[1], O_RDONLY);
+		if (file < 0) { puts(argv[1]); perror("open"); exit(1); }
+		const nat text_length = (nat) lseek(file, 0, SEEK_END);
+		lseek(file, 0, SEEK_SET);
+		char* text = calloc(text_length + 1, 1);
+		read(file, text, text_length);
+		close(file);
+		filestack[0].filename = argv[1];
+		filestack[0].text = text;
+		filestack[0].text_length = text_length;
+		filestack[0].index = 0;
+	}
 
 	puts("defining builtin operations...");
 	for (nat i = 1; i < isa_count; i++) {
@@ -510,9 +606,14 @@ process_file:;
 		}
 		if (expecting_type == symbol_type_variable) {
 			if (not define_on_use) {
+
+			print_error: 
 				printf("\n\nfile: %s, index: %llu\n", filename, index);
-				printf("error: use of undefined word \"%s\", expecting %s name\n", word, 
-					expecting_type == symbol_type_variable ? "variable" : "label");
+				printf("error: use of undefined word \"%s\", expecting %s\n", word, 
+					expecting_type == symbol_type_variable ? "variable" : 
+					expecting_type == symbol_type_operation ? "operation" : 
+					"label"
+				);
 				abort();
 			}
 			calling = variable_count;
@@ -527,7 +628,7 @@ process_file:;
 			labels[label_count++] = (struct label) { .name = word, .value = 0 };
 			this->scope[2] = realloc(this->scope[2], sizeof(nat) * (this->scope_count[2] + 1));
 			this->scope[2][this->scope_count[2]++] = calling;
-		} else { puts("trying to define-on-use an operation"); abort(); }
+		} else { expecting_type = symbol_type_operation; goto print_error; }
 	found:
 		if (expecting_type == symbol_type_operation) {
 			this->body = realloc(this->body, sizeof(struct instruction) * (this->body_count + 1));
@@ -924,6 +1025,67 @@ process_file:;
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+//	puts("this assembler is currently a work in progress,\n"
+//		"backend is currently not fully implemented yet..."
+//	);
 
 
 
