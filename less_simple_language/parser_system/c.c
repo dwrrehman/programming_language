@@ -4,7 +4,6 @@
 // 202408246.021822:   rewrite v2
 
 
-
 /*  todo 1202408283.031842
 
 *	- command line arguments passed in registers?
@@ -546,7 +545,12 @@ process_file:;
 		else if (argument_type == argument_type_label) { expecting_type = symbol_type_label; define_on_use = true; }
 		
 		if (ins->count != operations[op].arity + 1) goto next_word;
-		if (op >= isa_count) goto inline_macro;
+		if (op >= isa_count and op != in_scope) goto inline_macro;
+		if (op >= isa_count and op == in_scope) {
+			puts("warning: recursive macro call ignored");
+			this->body_count--;
+			goto finish_instruction;
+		}
 
 		if (op == lf) {
 			this->body_count--;
@@ -626,14 +630,22 @@ process_file:;
 		}
 		goto finish_instruction;
 	inline_macro:;
+		printf("inline: calling macro op=%llu...\n", op);
+		getchar();
 		const struct instruction call = *ins;
 		this->body_count--;
 		const struct operation* macro = operations + op;
 		const nat macro_arity = operations[op].arity;
 		nat* generated_name = NULL, * generated_type = NULL;
 		nat* generated_value = NULL, generated_count = 0;
-		
+
+		printf("bodycount = %llu\n", macro->body_count);
+		getchar();
+
 		for (nat b = 0; b < macro->body_count; b++) {
+			printf("b = %llu: in macro %llu.\n", b, op);
+			getchar();
+
 			const struct instruction bi = macro->body[b];
 			struct instruction new = { 
 				.count = bi.count, 
