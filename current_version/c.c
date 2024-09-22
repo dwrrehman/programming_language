@@ -4,7 +4,71 @@
 // 202408246.021822:   rewrite v2
 
 
-/*  todo 1202408283.031842
+/*  
+
+
+	plan to make the language better: 1202409216.030428
+		
+		- get rid of everything to do with macros, and any high level abstraction features we added
+
+		- figure out how to do arguments for builtin instructions, properly
+
+		- implement the backend for those builtin rt instructions,
+	
+			- dag and cfg formation
+
+			- unused variable detection
+
+			- inssel, ra, inssched
+
+
+
+
+
+	the instructions we will keep in the language are:
+
+
+		zero incr decr 
+		set add sub 
+		mul muh mhs 
+		div rem dvs rms
+		si sd sds 
+		and or eor not 
+		ld st sc la 
+		lt ge lts ges ne eq 
+		sta bca at lf
+
+
+
+	all those (basically) are required and relevant for runtime code. 
+
+		no macro machinery,  and no   anything   that is high level lol.
+
+
+	also we need to decide if we want to have        multiple symbol tables per type.  
+
+				ie, contexts.
+
+
+
+			so yeah, we need to decide that. hmmm
+
+
+
+	
+
+
+
+
+
+
+
+
+
+
+
+
+todo 1202408283.031842
 
 *	- command line arguments passed in registers?
 *	- generating a mach-o executable directly.
@@ -62,6 +126,16 @@ current state:
 
 
 	so yeah. 
+
+
+
+
+			zero incr decr sc
+			set add sub mul div rem muh mhs dvs rms 
+			si sd sds and or eor not ld st la
+			lt ge lts ges ne eq
+			at lf sta bca
+
 
 
 
