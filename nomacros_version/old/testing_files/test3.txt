@@ -1,0 +1,17 @@
+def dr ar a obs ret
+
+dr 0 zero 0 
+
+def loop	
+	at label
+	ne 0 0 label
+	ret
+
+loop
+
+loop
+
+
+
+
+

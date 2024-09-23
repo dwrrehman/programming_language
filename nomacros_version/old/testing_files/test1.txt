@@ -1,0 +1,11 @@
+
+incr _process_stackpointer
+
+def macro
+	incr _process_stacksize
+	ret
+
+
+
+
+
