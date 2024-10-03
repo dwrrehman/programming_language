@@ -6,12 +6,32 @@
 
 /*  
 
+1202409231.164909
+current language isa:
+
+	zero, incr, decr, set, add, sub, 
+	mul, muh, mhs, div, dvs, rem, rms, 
+	si, sd, sds, and, or, eor, not, 
+	ld, st, sta, bca, sc, at, lf, 
+	lt, ge, lts, ges, ne, eq, do, 
+
+
+just using these instructions, we are able to recreate the macro system. this also allows us to have code more code compression than with macros, too, becuase we can actually compress the code in a way that is still executable, like a loop vs a sequence of statements. but in our case its single function body instead of a macro which pastes it everywhere. butttttt there no real.. function... machinery though. like in typical programming languages lol. so yeah. pretty interesting. hm. 
+
+
+
+
+
+
+
+
+
 
 	plan to make the language better: 1202409216.030428
 		
-		- get rid of everything to do with macros, and any high level abstraction features we added
+	x	- get rid of everything to do with macros, and any high level abstraction features we added
 
-		- figure out how to do arguments for builtin instructions, properly
+	x	- figure out how to do arguments for builtin instructions, properly
 
 		- implement the backend for those builtin rt instructions,
 	
@@ -117,7 +137,7 @@ also i want to implement these things in the language, after we do strings/comme
 
 
 
-
+outdated
 current state:
 	
 	i think we devised a way to use the existing argument system in order to have unique labels inside a macro, to be able to create a for loop, ie, control flow macros. i think thats where we were...
@@ -529,6 +549,9 @@ process_file:;
 	char* text = 			filestack[filestack_count - 1].text;
 	const char* filename = 		filestack[filestack_count - 1].filename;
 
+	printf("(filestack_count=%llu): PROCESSING FILE: { starting_index=%llu : text_length=%llu : filename=%s\n", filestack_count, starting_index, text_length, filename);
+	getchar();
+
 	for (nat index = starting_index; index < text_length; index++) {
 		if (not isspace(text[index])) {
 			if (not word_length) word_start = index;
@@ -536,10 +559,15 @@ process_file:;
 			if (index + 1 < text_length) continue;
 		} else if (not word_length) continue;
 		char* word = strndup(text + word_start, word_length);
+
+		printf("@ word: (%llu,%llu):   %s\n", word_start, word_length, word);
 		nat calling = 0;
 		if (not expecting_var) {
 			for (nat i = 0; i < isa_count; i++) 
 				if (not strcmp(ins_spelling[i], word)) { calling = i; goto found; }
+
+			printf("fatal error: %s:%llu: unexpcted word: %s\n", filename, index, word);
+			//abort();
 		} else {
 			for (nat i = name_count; i--;) 
 				if (not strcmp(names[i], word)) { calling = i; goto found; } 
@@ -557,6 +585,7 @@ process_file:;
 		this->args[this->count++] = calling;
 		if (this->count != isa_arity(this->args[0]) + 1) goto next_word;
 		if (this->args[0] == lf) {
+			printf("including a file %s...\n", word);
 			ins_count--;
 			for (nat i = 0; i < included_file_count; i++) {
 				if (not strcmp(included_files[i], word)) {
@@ -564,6 +593,7 @@ process_file:;
 					goto finish_instruction;
 				}
 			}
+
 			included_files[included_file_count++] = word;
 			int file = open(word, O_RDONLY);
 			if (file < 0) { puts(word); perror("open"); exit(1); }
@@ -572,27 +602,36 @@ process_file:;
 			char* new_text = calloc(new_text_length + 1, 1);
 			read(file, new_text, new_text_length);
 			close(file);
+			printf("read %llu bytes from file %s...\n", new_text_length, word);
+			printf("again: contents: read %s bytes from file %s...\n", new_text, word);
 			filestack[filestack_count - 1].index = index;
 			filestack[filestack_count].filename = word;
 			filestack[filestack_count].text = new_text;
 			filestack[filestack_count].text_length = new_text_length;
 			filestack[filestack_count++].index = 0;
+			goto process_file;
 		}
 		finish_instruction: expecting_var = 0;
 		next_word: word_length = 0;
 	}
 
+	printf("decrementing filestack_count: finished processing filestack_count=%llu...\n", filestack_count);
 	filestack_count--;
 	if (not filestack_count) {
-		//puts("processing_file: finished last file.");
+		puts("processing_file: finished last file.");
 	} else {
-		//puts("processing next file in the stack...");
+		puts("processing next file in the stack...");
 		goto process_file;
 	}
 
-	//debug_dictionary(names, name_count);
-	//puts("these instructions were generated.");
-	//debug_instructions(ins, ins_count);
+	debug_dictionary(names, name_count);
+	puts("these instructions were generated.");
+	debug_instructions(ins, ins_count);
+
+
+
+
+
 
 
 /*
@@ -674,7 +713,7 @@ process_file:;
 
 */
 
-	//puts("executing instructions... ");
+	puts("executing instructions... ");
 	nat* R = calloc(name_count, sizeof(nat));
 	R[stacksize] = 65536;
 	R[stackpointer] = (nat) (void*) malloc(65536);
@@ -764,7 +803,7 @@ process_file:;
 		}
 	}
 
-	//debug_registers(R, name_count);
+	debug_registers(R, name_count);
 
 	exit(0);
 
