@@ -1,10 +1,8 @@
 lf library/foundation
 
-set arg 4 at ret do printnumber
+set n 24 zero i at loop
+	set arg 65536 at ret do printnumber
+	incr i 
+	lt i n loop
 
-set arg 6 at ret do printnumber
-
-set arg 2 at ret do printnumber
-
-set arg 12 at ret do printnumber
 

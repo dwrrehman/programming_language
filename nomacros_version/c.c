@@ -6,6 +6,122 @@
 
 /*  
 
+
+so turns out, we only need to actually add like one more instruction i think!
+
+	to get positional syntax for anything we want    
+
+					(basically, theres a limit, but its reasonable lol)
+
+
+	as opposed to forcing name based syntax alll the time for every  function call lol 
+
+
+
+			basically, the pattern:
+
+
+
+
+				set arg0 X
+				set arg1 Y
+				set arg2 Z
+
+				at ret
+					do my_function_name
+
+
+				like,   thats really   very automateable, to   allow the user to simply write  the equivalent syntax:   "my_function_name X Y Z" simply.
+
+							(for brievity only, of course, servers no other purpose really, but it makes sense for things like making constants, using the binary literal trick with groups,  or like superrr minimal operations like slt, which are a wrapper around two or one real instructions. 
+
+			basically, the 			idea is that 
+
+
+			we can just annotate the function body, which still looks like 
+
+
+			at my_function_name
+
+				...use arg0 arg1 arg2 etc in the body contents....
+
+				incr ret do ret
+
+
+
+			like thats still the body, no macro syntax required, 
+
+					BUTTT
+
+
+						we just need to tellll the compiler    that when you see           my_function_name, it is bothhh an operatin and variable,  the var is the at label, and the operation is now somehting new! 
+
+		its just meaning that the front end should generate the      set arg0 ... set arg1 ... at ret do my)function_name
+
+
+					like, we just generate those exact statements. simple as that. 
+
+
+								i think the only problem with this now, is that we need to pass in the ret i think, or something like that, not sure. hmmm
+
+
+
+				yeah thats the trick party lol.    i kindaa wan to have like a builtin variable, or somehting, im not sure..h mmmm
+
+
+
+					i mean we could also pass it in as an argument, but then its kinda obvious that its not quite like... hmmm idk. 
+
+					like, hmmmmm yeh crappp we don't know the return label lol. thats the thing hmmmmmmm dang itttt
+
+
+
+			crappppppp 
+
+
+	but yeah thats the idae 
+
+
+				we can attribute the function body with something like 
+
+
+							atttribute_as_macro my_function_name 3
+
+					and the 3 means arity of 3, the first three variables used in the body are the parameters, basically. thast the idea 
+
+	hm
+
+					idkkkk i mean it hink it need some workkk  but its getting somewhereee 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 1202409231.164909
 current language isa:
 
@@ -550,7 +666,7 @@ process_file:;
 	const char* filename = 		filestack[filestack_count - 1].filename;
 
 	printf("(filestack_count=%llu): PROCESSING FILE: { starting_index=%llu : text_length=%llu : filename=%s\n", filestack_count, starting_index, text_length, filename);
-	getchar();
+	//getchar();
 
 	for (nat index = starting_index; index < text_length; index++) {
 		if (not isspace(text[index])) {
