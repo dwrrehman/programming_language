@@ -37,7 +37,7 @@ set 30 counter incr counter
 set 31 counter incr counter
 
 set 65 10 mul 65 6 add 65 5
-
+set 48 31 add 48 17
 set 50 25 mul 50 2
 set 75 25 mul 75 3
 set 100 50 mul 100 2
@@ -74,25 +74,25 @@ set systemcall.munmap 	12
 set systemcall.protect 	13
 set systemcall.mmap 	14
 
-do jumpoverfunctions
+do foundation_jumpoverfunctions
 
 at printnumber
 	sc systemcall.debug arg 0 0 0 0 0 
-	incr ret do ret
+	incr lr do lr
 
 at exit
 	sc systemcall.exit exitcode 0 0 0 0 0
-	incr ret do ret
+	incr lr do lr
 
 at read
 	sc systemcall.read fd buffer length 0 0 0
-	incr ret do ret
+	incr lr do lr
 
 at write
 	sc systemcall.write fd buffer length 0 0 0
-	incr ret do ret
+	incr lr do lr
 
 
-at jumpoverfunctions
+at foundation_jumpoverfunctions
 
 

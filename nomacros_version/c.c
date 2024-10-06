@@ -6,6 +6,32 @@
 
 /*  
 
+1202410034.000348
+
+instead of adding postiional syntax, instead lets add the requirement that    names must be defined  by either  the label of a barnch, or by a select few instructions, like at, zero, set.. orrrr uhhhh hmmm
+
+	actually maybe just leave that as is? hmmm idk.. because we can resolve most problems due to this via    unused_variable  checking   and sensibility checks lol. during the backend. so yeah idk actually. hmmm
+
+
+
+
+
+
+
+
+1202410034.123914
+
+so actually i think we just need to add a way to remove names, i think!
+
+
+
+
+
+
+
+
+
+
 
 so turns out, we only need to actually add like one more instruction i think!
 
@@ -292,23 +318,21 @@ current state:
 
 typedef uint64_t nat;
 
-//static const nat undefined = (nat) ~0;
-
 enum language_isa {
 	nullins, zero, incr, decr, set, add, sub, 
 	mul, muh, mhs, div_, dvs, rem, rms, 
-	si, sd, sds, and_, or_, eor, not_, 
-	ld, st, sta, bca, sc, at, lf, 
-	lt, ge, lts, ges, ne, eq, do_, 
+	si, sd, sds, and_, or_, eor, not_,
+	ld, st, sta, bca, sc, at, lf, un, 
+	lt, ge, lts, ges, ne, eq, do_, eoi, 
 	isa_count
 };
 
 static const char* ins_spelling[isa_count] = {
-	"_nullins", "zero", "incr", "decr", "set", "add", "sub", 
+	"__nullins__", "zero", "incr", "decr", "set", "add", "sub", 
 	"mul", "muh", "mhs", "div", "dvs", "rem", "rms", 
 	"si", "sd", "sds", "and", "or", "eor", "not", 
-	"ld", "st", "sta", "bca", "sc", "at", "lf", 
-	"lt", "ge", "lts", "ges", "ne", "eq", "do", 
+	"ld", "st", "sta", "bca", "sc", "at", "lf", "un", 
+	"lt", "ge", "lts", "ges", "ne", "eq", "do", "eoi", 
 };
 
 enum system_call_table {
@@ -437,7 +461,8 @@ struct basic_block {
 
 static nat isa_arity(nat i) {
 	if (not i) return 0;
-	if (i == incr or i == decr or i == zero or i == not_ or i == lf or i == at or i == do_) return 1;
+	if (i == eoi) return 0;
+	if (i == incr or i == decr or i == zero or i == not_ or i == lf or i == at or i == do_ or i == un) return 1;
 	if (i == lt or i == ge or i == lts or i == ges or i == ne or i == eq or i == ld or i == st) return 3;
 	if (i == sc) return 7;
 	return 2;
@@ -602,7 +627,7 @@ static void get_input_string(char* string, nat max_length) {
 		char c = 0;
 		read(0, &c, 1);
 
-		if (c == '/') { break; } 
+		if (c == '`') { break; } 
 		else if (c == ',') { if (cursor) cursor--; }
 		else if (c == '.') { if (cursor < length) cursor++; }
 		else if (c == 127) { 
@@ -634,9 +659,11 @@ int main(int argc, const char** argv) {
 	const char* included_files[4096] = {0};
 	nat included_file_count = 0;
 
-	if (argc < 2) {
+	if (argc < 2) { // todo: make the repl. 
 		char buffer[4096] = {0};
-		puts("give the input string to process:\n");
+		puts(	"give the input string to process:\n"
+			"(press '`' to terminate)\n"
+		);
 		get_input_string(buffer, sizeof buffer);
 		filestack[0].filename = "<top-level>";
 		filestack[0].text = strdup(buffer);
@@ -665,7 +692,7 @@ process_file:;
 	char* text = 			filestack[filestack_count - 1].text;
 	const char* filename = 		filestack[filestack_count - 1].filename;
 
-	printf("(filestack_count=%llu): PROCESSING FILE: { starting_index=%llu : text_length=%llu : filename=%s\n", filestack_count, starting_index, text_length, filename);
+	//printf("(filestack_count=%llu): PROCESSING FILE: { starting_index=%llu : text_length=%llu : filename=%s\n", filestack_count, starting_index, text_length, filename);
 	//getchar();
 
 	for (nat index = starting_index; index < text_length; index++) {
@@ -676,14 +703,14 @@ process_file:;
 		} else if (not word_length) continue;
 		char* word = strndup(text + word_start, word_length);
 
-		printf("@ word: (%llu,%llu):   %s\n", word_start, word_length, word);
+		//printf("@ word: (%llu,%llu):   %s\n", word_start, word_length, word);
 		nat calling = 0;
 		if (not expecting_var) {
 			for (nat i = 0; i < isa_count; i++) 
 				if (not strcmp(ins_spelling[i], word)) { calling = i; goto found; }
 
-			printf("fatal error: %s:%llu: unexpcted word: %s\n", filename, index, word);
-			//abort();
+			//printf("fatal error: %s:%llu: unexpcted word: %s\n", filename, index, word);
+			goto next_word;
 		} else {
 			for (nat i = name_count; i--;) 
 				if (not strcmp(names[i], word)) { calling = i; goto found; } 
@@ -701,7 +728,7 @@ process_file:;
 		this->args[this->count++] = calling;
 		if (this->count != isa_arity(this->args[0]) + 1) goto next_word;
 		if (this->args[0] == lf) {
-			printf("including a file %s...\n", word);
+			//printf("including a file %s...\n", word);
 			ins_count--;
 			for (nat i = 0; i < included_file_count; i++) {
 				if (not strcmp(included_files[i], word)) {
@@ -718,31 +745,38 @@ process_file:;
 			char* new_text = calloc(new_text_length + 1, 1);
 			read(file, new_text, new_text_length);
 			close(file);
-			printf("read %llu bytes from file %s...\n", new_text_length, word);
-			printf("again: contents: read %s bytes from file %s...\n", new_text, word);
+			//printf("read %llu bytes from file %s...\n", new_text_length, word);
+			//printf("again: contents: read %s bytes from file %s...\n", new_text, word);
 			filestack[filestack_count - 1].index = index;
 			filestack[filestack_count].filename = word;
 			filestack[filestack_count].text = new_text;
 			filestack[filestack_count].text_length = new_text_length;
 			filestack[filestack_count++].index = 0;
 			goto process_file;
+		} else if (this->args[0] == eoi) {
+			//printf("encountered end of input!\n");
+			ins_count--;
+			break;
 		}
 		finish_instruction: expecting_var = 0;
 		next_word: word_length = 0;
 	}
 
-	printf("decrementing filestack_count: finished processing filestack_count=%llu...\n", filestack_count);
+	//printf("decrementing filestack_count: finished processing filestack_count=%llu...\n", filestack_count);
 	filestack_count--;
 	if (not filestack_count) {
-		puts("processing_file: finished last file.");
+		//puts("processing_file: finished last file.");
 	} else {
-		puts("processing next file in the stack...");
+		//puts("processing next file in the stack...");
 		goto process_file;
 	}
 
-	debug_dictionary(names, name_count);
-	puts("these instructions were generated.");
-	debug_instructions(ins, ins_count);
+	//debug_dictionary(names, name_count);
+	//puts("these instructions were generated.");
+	//debug_instructions(ins, ins_count);
+
+
+
 
 
 
@@ -829,7 +863,7 @@ process_file:;
 
 */
 
-	puts("executing instructions... ");
+	//puts("executing instructions... ");
 	nat* R = calloc(name_count, sizeof(nat));
 	R[stacksize] = 65536;
 	R[stackpointer] = (nat) (void*) malloc(65536);
@@ -845,6 +879,18 @@ process_file:;
 		nat d = ins[pc].count >= 2 ? ins[pc].args[1] : 0;
 		nat r = ins[pc].count >= 3 ? ins[pc].args[2] : 0;
 		nat s = ins[pc].count >= 4 ? ins[pc].args[3] : 0;
+
+
+
+/*
+		printf("executing instruction: %s ", ins_spelling[op]);
+		for (nat i = 0; i < isa_arity(op); i++) {
+			printf("   %s   ", names[ins[pc].args[1 + i]]);
+		}
+		puts("");
+		usleep(500000);
+*/
+
 
 		if (not op) {}
 
@@ -919,11 +965,44 @@ process_file:;
 		}
 	}
 
-	debug_registers(R, name_count);
+	//debug_registers(R, name_count);
 
 	exit(0);
 
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
