@@ -322,7 +322,7 @@ enum language_isa {
 	nullins, zero, incr, decr, set, add, sub, 
 	mul, muh, mhs, div_, dvs, rem, rms, 
 	si, sd, sds, and_, or_, eor, not_,
-	ld, st, sta, bca, sc, at, lf, un, 
+	ld, st, sta, bca, sc, at, lf, def, udf, 
 	lt, ge, lts, ges, ne, eq, do_, eoi, 
 	isa_count
 };
@@ -331,7 +331,7 @@ static const char* ins_spelling[isa_count] = {
 	"__nullins__", "zero", "incr", "decr", "set", "add", "sub", 
 	"mul", "muh", "mhs", "div", "dvs", "rem", "rms", 
 	"si", "sd", "sds", "and", "or", "eor", "not", 
-	"ld", "st", "sta", "bca", "sc", "at", "lf", "un", 
+	"ld", "st", "sta", "bca", "sc", "at", "lf", "def", "udf",
 	"lt", "ge", "lts", "ges", "ne", "eq", "do", "eoi", 
 };
 
@@ -462,7 +462,10 @@ struct basic_block {
 static nat isa_arity(nat i) {
 	if (not i) return 0;
 	if (i == eoi) return 0;
-	if (i == incr or i == decr or i == zero or i == not_ or i == lf or i == at or i == do_ or i == un) return 1;
+	if (i == incr or i == decr or i == zero or 
+		i == not_ or i == lf or i == at or 
+		i == do_ or i == def or i == udf 
+	) return 1;
 	if (i == lt or i == ge or i == lts or i == ges or i == ne or i == eq or i == ld or i == st) return 3;
 	if (i == sc) return 7;
 	return 2;
@@ -651,6 +654,7 @@ int main(int argc, const char** argv) {
 	if (argc > 2) exit(puts("compiler: \033[31;1merror:\033[0m usage: ./run [file.s]"));
 	
 	char* names[4096] = {0};
+	bool active[4096] = {0};
 	nat name_count = 0;
 	struct instruction* ins = NULL;
 	nat ins_count = 0;
@@ -682,7 +686,12 @@ int main(int argc, const char** argv) {
 		filestack[0].text_length = text_length;
 		filestack[0].index = 0;
 	}
-	for (nat i = 0; i < builtin_count; i++) names[name_count++] = strdup(builtin_spelling[i]);
+
+	for (nat i = 0; i < builtin_count; i++) {
+		active[name_count] = 1;
+		names[name_count++] = strdup(builtin_spelling[i]);
+	}
+
 	//puts("parsing top level file...");
 
 process_file:;
@@ -710,11 +719,19 @@ process_file:;
 				if (not strcmp(ins_spelling[i], word)) { calling = i; goto found; }
 
 			//printf("fatal error: %s:%llu: unexpcted word: %s\n", filename, index, word);
-			goto next_word;
+			goto next_word; // treat part of comment!
 		} else {
+			const nat my_op = ins[ins_count - 1].args[0];
+			if (my_op == def or my_op == lf) goto create_name;
 			for (nat i = name_count; i--;) 
-				if (not strcmp(names[i], word)) { calling = i; goto found; } 
+				if (active[i] and not strcmp(names[i], word)) { calling = i; goto found; } 
+
+			printf("fatal error: %s:%llu: undefined variable: %s\n", filename, index, word);
+			abort();
+			
+		create_name:
 			calling = name_count;
+			active[name_count] = 1;
 			names[name_count++] = word;
 		}
 	found:
@@ -730,6 +747,7 @@ process_file:;
 		if (this->args[0] == lf) {
 			//printf("including a file %s...\n", word);
 			ins_count--;
+			active[this->args[1]] = 0;
 			for (nat i = 0; i < included_file_count; i++) {
 				if (not strcmp(included_files[i], word)) {
 					printf("warning: %s: file already included\n", word);
@@ -753,6 +771,12 @@ process_file:;
 			filestack[filestack_count].text_length = new_text_length;
 			filestack[filestack_count++].index = 0;
 			goto process_file;
+
+		} else if (this->args[0] == def) {
+			ins_count--;
+		} else if (this->args[0] == udf) {
+			active[this->args[1]] = 0;
+			ins_count--;
 		} else if (this->args[0] == eoi) {
 			//printf("encountered end of input!\n");
 			ins_count--;
@@ -771,7 +795,7 @@ process_file:;
 		goto process_file;
 	}
 
-	//debug_dictionary(names, name_count);
+	//debug_dictionary(names, active, name_count);
 	//puts("these instructions were generated.");
 	//debug_instructions(ins, ins_count);
 
