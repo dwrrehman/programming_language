@@ -5,6 +5,21 @@
 
 
 /*  
+1202410082.204140
+
+gunna try generating the executable now!!!
+
+found a simple minimal executable example using LC_UNIXTHREAD which should be quite cool! yay 
+	then ill try using   LC_THREAD too as well   which doesnt have a stack, which will be super cool lolllll 
+		so yeah yay
+
+
+
+
+
+
+
+
 
 1202410034.000348
 
@@ -372,13 +387,6 @@ enum symbol_type {
 	symbol_type_undefined,
 };
 
-/*static const char* symbol_type_spelling[4] = {
-	"symbol_type_operation",
-	"symbol_type_variable", 
-	"symbol_type_label",
-	"symbol_type_undefined", 
-};*/
-
 enum argument_type {
 	argument_type_variable, 
 	argument_type_declared, 
@@ -650,7 +658,163 @@ static void get_input_string(char* string, nat max_length) {
 	puts(string);
 }
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+static void insert_byte(uint8_t** output_data, nat* output_data_count, uint8_t x) {
+	*output_data = realloc(*output_data, *output_data_count + 1);
+	*output_data[(*output_data_count)++] = x;
+}
+
+static void insert_bytes(uint8_t** d, nat* c, char* s, nat len) {
+	for (nat i = 0; i < len; i++) insert_byte(d, c, s[i]);
+}
+
+static void insert_u16(uint8_t** d, nat* c, uint16_t x) {
+	insert_byte(d, c, (x << 0) & 0xFF);
+	insert_byte(d, c, (x << 8) & 0xFF);
+}
+
+static void insert_u32(uint8_t** d, nat* c, uint32_t x) {
+	insert_u16(d, c, (x << 0) & 0xFF);
+	insert_u16(d, c, (x << 16) & 0xFF);
+}
+
+static void insert_u64(uint8_t** d, nat* c, uint64_t x) {
+	insert_u32(d, c, (x << 0) & 0xFF);
+	insert_u32(d, c, (x << 32) & 0xFF);
+}
+
+
+
+
+
+
+#define MH_MAGIC_64             0xfeedfacf
+
+#define MH_EXECUTE              2
+#define	MH_NOUNDEFS		1
+
+#define LC_UNIXTHREAD           5
+#define LC_THREAD            	4
+#define	LC_SEGMENT_64		0x19
+
+#define CPU_SUBTYPE_ARM64_ALL   0
+#define CPU_TYPE_ARM            12
+#define CPU_ARCH_ABI64          0x01000000 
+
+#define VM_PROT_READ       	1
+#define VM_PROT_WRITE   	2
+#define VM_PROT_EXECUTE 	4
+
+#define ARM_THREAD_STATE 	1
+
+
+
 int main(int argc, const char** argv) {
+
+{
+	uint8_t* data = NULL;
+	nat count = 0;	
+
+	insert_u32(&data, &count, MH_MAGIC_64);
+	insert_u32(&data, &count, CPU_TYPE_ARM | (int)CPU_ARCH_ABI64);
+	insert_u32(&data, &count, CPU_SUBTYPE_ARM64_ALL);
+	insert_u32(&data, &count, MH_EXECUTE);
+	insert_u32(&data, &count, 3);
+	insert_u32(&data, &count, XXX);    			// command_end - command_start
+	insert_u32(&data, &count, MH_NOUNDEFS);
+	insert_u32(&data, &count, 0);
+
+
+	const nat command_start = count;
+	const nat pagezero_start = count;
+	insert_u32(&data, &count, LC_SEGMENT_64);
+	insert_u32(&data, &count, XXXXX); 			// pagezero_end - pagezero_start
+	insert_bytes(&output_data, &output_data_count, (char[]){
+		'_', '_', 'P', 'A', 'G', 'E', 'Z', 'E', 
+		'R', 'O',  0,   0,   0,   0,   0,   0
+	}, 16);
+	insert_u64(&data, &count, 0);
+	insert_u64(&data, &count, 4096);
+	insert_u64(&data, &count, 0);
+	insert_u64(&data, &count, 0);
+	insert_u32(&data, &count, 0);
+	insert_u32(&data, &count, 0);
+	insert_u32(&data, &count, 0);
+	insert_u32(&data, &count, 0);
+
+	const nat text_start = output_data_count;
+	insert_u32(&data, &count, LC_SEGMENT_64);
+	insert_u32(&data, &count, XXXXX); 			// text_end - text_start
+	insert_bytes(&data, &count, (char[]){
+		'_', '_', 'T', 'E', 'X', 'T',  0,   0, 
+		 0,   0,   0,   0,   0,   0,   0,   0
+	}, 16);
+	insert_u64(&data, &count, 0x100000000);
+	insert_u64(&data, &count, XXXX);     //  code_end - 0 (ie, __origin)
+	insert_u64(&data, &count, 0);
+	insert_u64(&data, &count, XXXX);     //  code_end - 0 (ie, __origin)
+	insert_u32(&data, &count, VM_PROT_READ | VM_PROT_WRITE | VM_PROT_EXECUTE);
+	insert_u32(&data, &count, VM_PROT_READ | VM_PROT_EXECUTE);
+	insert_u32(&data, &count, 0);
+	insert_u32(&data, &count, 0);
+
+	const nat thread_start = count;
+	insert_u32(&data, &count, LC_THREAD);
+	insert_u32(&data, &count, XXXXX);                       // thread_end - thread_start
+	insert_u32(&data, &count, ARM_THREAD_STATE);
+	insert_u32(&data, &count, 2 * (32 + 2));
+	for (nat i = 0; i < 32; i++) insert_u64(&data, &count, 0);
+	insert_u64(&data, &count, 0); // pc
+	insert_u32(&data, &count, 0); // cpsr
+	insert_u32(&data, &count, 0);
+	const nat thread_end = count;
+	const nat command_end = count;
+	for (nat i = 0; i < code_byte_count; i++) insert_byte(code_bytes[i]);
+	const nat code_end = count;
+
+
+
+
+
+	int file = open("output_executable", O_WRONLY | O_CREAT | O_EXCL);
+	if (file < 0) { perror("could not create executable file"); exit(1); }
+	
+	int r = fchmod(file, 0777);
+	if (r < 0) { perror("could not make the output file executable"); exit(1); }
+
+	
+
+
+}
+	exit(1);
+
+
+
+
+
+
+
+
+
 	if (argc > 2) exit(puts("compiler: \033[31;1merror:\033[0m usage: ./run [file.s]"));
 	
 	char* names[4096] = {0};
@@ -1046,6 +1210,168 @@ process_file:;
 
 
 
+
+
+
+/*
+
+
+
+DD        LC_UNIXTHREAD                                 ; cmd
+DD        __UNIX_THREADend - __UNIX_THREADstart         ; cmdsize
+DD        x86_THREAD_STATE64                            ; flavor
+DD        x86_EXCEPTION_STATE64_COUNT                   ; count
+
+	__uint64_t x[29]; /* General purpose registers x0-x28 */
+	__uint64_t fp;    /* Frame pointer x29 */
+	__uint64_t lr;    /* Link register x30 */
+	__uint64_t sp;    /* Stack pointer x31 */
+	__uint64_t pc;    /* Program counter */
+	__uint32_t cpsr;  /* Current program status register */
+	__uint32_t __pad; /* Same size for 32-bit or 64-bit clients */
+
+
+
+
+struct mach_header_64 {
+	uint32_t	magic;
+	int32_t		cputype;
+	int32_t		cpusubtype;
+	uint32_t	filetype;
+	uint32_t	ncmds;
+	uint32_t	sizeofcmds;
+	uint32_t	flags;
+	uint32_t	reserved;
+};
+
+struct segment_command_64 {
+	uint32_t	cmd;
+	uint32_t	cmdsize;
+	char		segname[16];
+	uint64_t	vmaddr;
+	uint64_t	vmsize;
+	uint64_t	fileoff;
+	uint64_t	filesize;
+	int32_t		maxprot;
+	int32_t		initprot;
+	uint32_t	nsects;
+	uint32_t	flags;
+};
+
+
+static void make_macho_object_file(void) {
+
+	struct mach_header_64 header = {0};
+	header.magic = MH_MAGIC_64;
+	header.cputype = (int)CPU_TYPE_ARM | (int)CPU_ARCH_ABI64;
+	header.cpusubtype = (int) CPU_SUBTYPE_ARM64_ALL;
+	header.filetype = MH_OBJECT;
+	header.ncmds = 2;
+	header.sizeofcmds = 0;
+	header.flags = MH_NOUNDEFS | MH_SUBSECTIONS_VIA_SYMBOLS;
+
+	header.sizeofcmds = 	sizeof(struct segment_command_64) + 
+				sizeof(struct section_64) + 
+				sizeof(struct symtab_command);
+
+	struct segment_command_64 segment = {0};
+	strncpy(segment.segname, "__TEXT", 16);
+	segment.cmd = LC_SEGMENT_64;
+	segment.cmdsize = sizeof(struct segment_command_64) + sizeof(struct section_64);
+	segment.maxprot =  (VM_PROT_READ | VM_PROT_EXECUTE);
+	segment.initprot = (VM_PROT_READ | VM_PROT_EXECUTE);
+	segment.nsects = 1;
+	segment.vmaddr = 0;
+	segment.vmsize = byte_count;
+	segment.filesize = byte_count;
+
+	segment.fileoff = 	sizeof(struct mach_header_64) + 
+				sizeof(struct segment_command_64) + 
+				sizeof(struct section_64) + 
+				sizeof(struct symtab_command);
+
+	struct section_64 section = {0};
+	strncpy(section.sectname, "__text", 16);
+	strncpy(section.segname, "__TEXT", 16);
+	section.addr = 0;
+	section.size = byte_count;	
+	section.align = 3;
+	section.reloff = 0;
+	section.nreloc = 0;
+	section.flags = S_ATTR_PURE_INSTRUCTIONS | S_ATTR_PURE_INSTRUCTIONS;
+
+	section.offset = 	sizeof(struct mach_header_64) + 
+				sizeof(struct segment_command_64) + 
+				sizeof(struct section_64) + 
+				sizeof(struct symtab_command);
+
+	const char strings[] = "\0_start\0";
+
+	struct symtab_command table  = {0};
+	table.cmd = LC_SYMTAB;
+	table.cmdsize = sizeof(struct symtab_command);
+	table.strsize = sizeof(strings);
+	table.nsyms = 1;
+	table.stroff = 0;
+	
+	table.symoff = (uint32_t) (
+				sizeof(struct mach_header_64) +
+				sizeof(struct segment_command_64) + 
+				sizeof(struct section_64) + 
+				sizeof(struct symtab_command) + 
+				byte_count
+			);
+
+	table.stroff = table.symoff + sizeof(struct nlist_64);
+
+	struct nlist_64 symbols[] = {
+	        (struct nlist_64) {
+	            .n_un.n_strx = 1,
+	            .n_type = N_SECT | N_EXT,
+	            .n_sect = 1,
+	            .n_desc = REFERENCE_FLAG_DEFINED,
+	            .n_value = 0x0000000000,
+	        }
+	};
+
+	if (preserve_existing_object and not access(object_filename, F_OK)) {
+		puts("asm: object_file: file exists"); 
+		puts(object_filename);
+		exit(1);
+	}
+
+	const int flags = O_WRONLY | O_CREAT | O_TRUNC | (preserve_existing_object ? O_EXCL : 0);
+	const mode_t mode = S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH;
+	const int file = open(object_filename, flags, mode);
+	if (file < 0) { perror("obj:open"); exit(1); }
+
+	write(file, &header, sizeof(struct mach_header_64));
+	write(file, &segment, sizeof (struct segment_command_64));
+	write(file, &section, sizeof(struct section_64));
+	write(file, &table, sizeof table);
+	write(file, bytes, byte_count);
+	write(file, symbols, sizeof(struct nlist_64));
+	write(file, strings, sizeof strings);
+	close(file);
+}
+
+
+
+struct segment_command_64 {
+	uint32_t	cmd;
+	uint32_t	cmdsize;
+	char		segname[16];
+	uint64_t	vmaddr;
+	uint64_t	vmsize;
+	uint64_t	fileoff;
+	uint64_t	filesize;
+	int32_t		maxprot;
+	int32_t		initprot;
+	uint32_t	nsects;
+	uint32_t	flags;
+};
+
+*/
 
 
 
@@ -2516,3 +2842,10 @@ struct variable {
 
 
 
+
+/*static const char* symbol_type_spelling[4] = {
+	"symbol_type_operation",
+	"symbol_type_variable", 
+	"symbol_type_label",
+	"symbol_type_undefined", 
+};*/
