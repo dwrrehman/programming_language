@@ -1,0 +1,7 @@
+clang -Xlinker -unexported_symbol -Xlinker "*" hello.c -o simple_program -Os
+
+otool -xtvVhl simple_program
+
+objdump -D simple_program
+
+xxd simple_program

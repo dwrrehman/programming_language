@@ -319,6 +319,8 @@ current state:
 
 */
 
+#include <sys/types.h>
+#include <sys/stat.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -359,13 +361,13 @@ enum system_call_table {
 	system_call_count
 };
 
-static const char* system_call_spelling[system_call_count] = {
+/*static const char* system_call_spelling[system_call_count] = {
 	"system_call_undefined", 
 	"system_exit", "system_execve", "system_fork", "system_wait",
 	"system_openat", "system_close", "system_write", "system_read",
 	"system_ioctl", "system_poll", "system_lseek", 
 	"system_munmap", "system_mprotect", "system_mmap", 
-};
+};*/
 
 enum language_builtins {
 	nullvar,
@@ -680,56 +682,49 @@ static void get_input_string(char* string, nat max_length) {
 
 static void insert_byte(uint8_t** output_data, nat* output_data_count, uint8_t x) {
 	*output_data = realloc(*output_data, *output_data_count + 1);
-	*output_data[(*output_data_count)++] = x;
+	(*output_data)[(*output_data_count)++] = x;
 }
 
 static void insert_bytes(uint8_t** d, nat* c, char* s, nat len) {
-	for (nat i = 0; i < len; i++) insert_byte(d, c, s[i]);
+	for (nat i = 0; i < len; i++) insert_byte(d, c, (uint8_t) s[i]);
 }
 
 static void insert_u16(uint8_t** d, nat* c, uint16_t x) {
-	insert_byte(d, c, (x << 0) & 0xFF);
-	insert_byte(d, c, (x << 8) & 0xFF);
+	insert_byte(d, c, (x >> 0) & 0xFF);
+	insert_byte(d, c, (x >> 8) & 0xFF);
 }
 
 static void insert_u32(uint8_t** d, nat* c, uint32_t x) {
-	insert_u16(d, c, (x << 0) & 0xFF);
-	insert_u16(d, c, (x << 16) & 0xFF);
+	insert_u16(d, c, (x >> 0) & 0xFFFF);
+	insert_u16(d, c, (x >> 16) & 0xFFFF);
 }
 
 static void insert_u64(uint8_t** d, nat* c, uint64_t x) {
-	insert_u32(d, c, (x << 0) & 0xFF);
-	insert_u32(d, c, (x << 32) & 0xFF);
+	insert_u32(d, c, (x >> 0) & 0xFFFFFFFF);
+	insert_u32(d, c, (x >> 32) & 0xFFFFFFFF);
 }
-
-
-
 
 
 
 #define MH_MAGIC_64             0xfeedfacf
-
 #define MH_EXECUTE              2
 #define	MH_NOUNDEFS		1
-
+#define	MH_PIE			0x200000
 #define LC_UNIXTHREAD           5
+#define LC_UUID            	0x1b
 #define LC_THREAD            	4
 #define	LC_SEGMENT_64		0x19
-
 #define CPU_SUBTYPE_ARM64_ALL   0
 #define CPU_TYPE_ARM            12
 #define CPU_ARCH_ABI64          0x01000000 
-
 #define VM_PROT_READ       	1
 #define VM_PROT_WRITE   	2
 #define VM_PROT_EXECUTE 	4
-
 #define ARM_THREAD_STATE 	1
-
-
+#define ARM_THREAD_STATE64      6
+//#define MH_SUBSECTIONS_VIA_SYMBOLS 0x2000
 
 int main(int argc, const char** argv) {
-
 {
 	uint8_t* data = NULL;
 	nat count = 0;	
@@ -738,17 +733,16 @@ int main(int argc, const char** argv) {
 	insert_u32(&data, &count, CPU_TYPE_ARM | (int)CPU_ARCH_ABI64);
 	insert_u32(&data, &count, CPU_SUBTYPE_ARM64_ALL);
 	insert_u32(&data, &count, MH_EXECUTE);
-	insert_u32(&data, &count, 3);
-	insert_u32(&data, &count, XXX);    			// command_end - command_start
-	insert_u32(&data, &count, MH_NOUNDEFS);
+	insert_u32(&data, &count, 5);
+	insert_u32(&data, &count, 504 + 24);  // command_end - command_start
+	insert_u32(&data, &count, MH_NOUNDEFS | MH_PIE);
 	insert_u32(&data, &count, 0);
-
 
 	const nat command_start = count;
 	const nat pagezero_start = count;
 	insert_u32(&data, &count, LC_SEGMENT_64);
-	insert_u32(&data, &count, XXXXX); 			// pagezero_end - pagezero_start
-	insert_bytes(&output_data, &output_data_count, (char[]){
+	insert_u32(&data, &count, 72); 			// pagezero_end - pagezero_start
+	insert_bytes(&data, &count, (char[]){
 		'_', '_', 'P', 'A', 'G', 'E', 'Z', 'E', 
 		'R', 'O',  0,   0,   0,   0,   0,   0
 	}, 16);
@@ -760,56 +754,124 @@ int main(int argc, const char** argv) {
 	insert_u32(&data, &count, 0);
 	insert_u32(&data, &count, 0);
 	insert_u32(&data, &count, 0);
+	while (count % 4096) insert_byte(&data, &count, 0);
+	const nat pagezero_end = count;
 
-	const nat text_start = output_data_count;
+	const nat text_start_address = 0x100000000;
+
+	const nat text_start = count;
 	insert_u32(&data, &count, LC_SEGMENT_64);
-	insert_u32(&data, &count, XXXXX); 			// text_end - text_start
+	insert_u32(&data, &count, 72); 	// text_end - text_start
 	insert_bytes(&data, &count, (char[]){
 		'_', '_', 'T', 'E', 'X', 'T',  0,   0, 
 		 0,   0,   0,   0,   0,   0,   0,   0
 	}, 16);
-	insert_u64(&data, &count, 0x100000000);
-	insert_u64(&data, &count, XXXX);     //  code_end - 0 (ie, __origin)
+	insert_u64(&data, &count, text_start_address);
+	insert_u64(&data, &count, 8192);     //  code_end - 0 (ie, __origin)  // todo: round this up to the nearest page.
 	insert_u64(&data, &count, 0);
-	insert_u64(&data, &count, XXXX);     //  code_end - 0 (ie, __origin)
-	insert_u32(&data, &count, VM_PROT_READ | VM_PROT_WRITE | VM_PROT_EXECUTE);
+	insert_u64(&data, &count, 8192);     //  code_end - 0 (ie, __origin)  // oh also make it dynamically computed.
+	insert_u32(&data, &count, VM_PROT_READ | VM_PROT_EXECUTE);
 	insert_u32(&data, &count, VM_PROT_READ | VM_PROT_EXECUTE);
 	insert_u32(&data, &count, 0);
 	insert_u32(&data, &count, 0);
+	while (count % 4096) insert_byte(&data, &count, 0);
+	const nat text_end = count;
 
 	const nat thread_start = count;
-	insert_u32(&data, &count, LC_THREAD);
-	insert_u32(&data, &count, XXXXX);                       // thread_end - thread_start
-	insert_u32(&data, &count, ARM_THREAD_STATE);
+	insert_u32(&data, &count, LC_UNIXTHREAD);
+	insert_u32(&data, &count, 288);                       // thread_end - thread_start
+	insert_u32(&data, &count, ARM_THREAD_STATE64);
 	insert_u32(&data, &count, 2 * (32 + 2));
-	for (nat i = 0; i < 32; i++) insert_u64(&data, &count, 0);
-	insert_u64(&data, &count, 0); // pc
+	for (nat i = 0; i < 32; i++) insert_u64(&data, &count, 0xa5a5a5a5a5a5a5a5);
+	insert_u64(&data, &count, text_start_address + 464); // pc
 	insert_u32(&data, &count, 0); // cpsr
 	insert_u32(&data, &count, 0);
+	while (count % 4096) insert_byte(&data, &count, 0);
 	const nat thread_end = count;
+
+	const nat uuid_start = count;
+	insert_u32(&data, &count, LC_UUID);
+	insert_u32(&data, &count, 24);    // uuid_end - uuid_start
+	insert_u32(&data, &count, rand());
+	insert_u32(&data, &count, rand());
+	insert_u32(&data, &count, rand());
+	insert_u32(&data, &count, rand());
+	while (count % 4096) insert_byte(&data, &count, 0);
+	const nat uuid_end = count;
+
+	const nat linkedit_start = count;
+	insert_u32(&data, &count, LC_SEGMENT_64);
+	insert_u32(&data, &count, 72); 	// linkedit_end - linkedit_start
+	insert_bytes(&data, &count, (char[]){
+		'_', '_', 'L', 'I', 'N', 'K', 'E', 'D', 
+		'I', 'T',  0,   0,   0,   0,   0,   0
+	}, 16);
+	insert_u64(&data, &count, 0);
+	insert_u64(&data, &count, 0);
+	insert_u64(&data, &count, 0);
+	insert_u64(&data, &count, 0);
+	insert_u32(&data, &count, VM_PROT_READ | VM_PROT_WRITE);
+	insert_u32(&data, &count, VM_PROT_READ | VM_PROT_WRITE);
+	insert_u32(&data, &count, 0);
+	insert_u32(&data, &count, 0);
+	const nat linkedit_end = count;
+
 	const nat command_end = count;
-	for (nat i = 0; i < code_byte_count; i++) insert_byte(code_bytes[i]);
+
+	uint8_t* code_bytes = 0;//(uint8_t*) "hello world ashtasht";
+	const nat code_byte_count = 4096;//(nat) strlen("hello world ashtasht");
+	const nat code_start = count;
+	for (nat i = 0; i < code_byte_count; i++) insert_byte(&data, &count, (uint8_t) (rand() % 0xFF));
+	while (count < 4096 or count % 4096) insert_byte(&data, &count, 0);
 	const nat code_end = count;
 
+	printf("code_start = %llu, code_end = %llu\n", code_start, code_end);
+	puts("offsets");
+	printf("\t command_end - command_start = %llu\n", command_end - command_start);
+	printf("\t pagezero_end - pagezero_start = %llu\n", pagezero_end - pagezero_start);
+	printf("\t text_end - text_start = %llu\n", text_end - text_start);
+	printf("\t thread_end - thread_start = %llu\n", thread_end - thread_start);
+	printf("\t linkedit_end - linkedit_start = %llu\n", linkedit_end - linkedit_start);
+	printf("\t uuid_end - uuid_start = %llu\n", uuid_end - uuid_start);
+	printf("\t code_end = %llu\n", code_end - 0);	
+	puts("");
 
+	puts("bytes: ");
+	for (nat i = 0; i < count; i++) {
+		if (i % 32 == 0) puts("");
+		if (data[i]) printf("\033[32;1m");
+		printf("%02hhx ", data[i]);
+		if (data[i]) printf("\033[0m");
+	}
+	puts("");
 
-
-
-	int file = open("output_executable", O_WRONLY | O_CREAT | O_EXCL);
+	if (not access("output_executable", F_OK)) {
+		printf("file exists. do you wish to remove the previous one? ");
+		fflush(stdout);
+		int c = getchar();
+		if (c == 'y') {
+			puts("file was removed.");
+			int r = remove("output_executable");
+			if (r < 0) { perror("remove"); exit(1); }
+		} else {
+			puts("not removed");
+		}
+	}
+	int file = open("output_executable", O_WRONLY | O_CREAT | O_EXCL, 0777);
 	if (file < 0) { perror("could not create executable file"); exit(1); }
-	
 	int r = fchmod(file, 0777);
 	if (r < 0) { perror("could not make the output file executable"); exit(1); }
 
-	
-
-
+	write(file, data, count);
+	close(file);
+	printf("wrote %llu bytes to file %s.\n", count, "output_executable");
 }
 	exit(1);
 
-
-
-
+  // system("otool -txvVhlL object0.o");
+    //            system("otool -txvVhlL executable0.out");
+    //            system("objdump object0.o -DSast --disassembler-options=no-aliases");
+    //            system("objdump executable0.out -DSast --disassembler-options=no-aliases");
 
 
 
@@ -1222,13 +1284,13 @@ DD        __UNIX_THREADend - __UNIX_THREADstart         ; cmdsize
 DD        x86_THREAD_STATE64                            ; flavor
 DD        x86_EXCEPTION_STATE64_COUNT                   ; count
 
-	__uint64_t x[29]; /* General purpose registers x0-x28 */
-	__uint64_t fp;    /* Frame pointer x29 */
-	__uint64_t lr;    /* Link register x30 */
-	__uint64_t sp;    /* Stack pointer x31 */
-	__uint64_t pc;    /* Program counter */
-	__uint32_t cpsr;  /* Current program status register */
-	__uint32_t __pad; /* Same size for 32-bit or 64-bit clients */
+	__uint64_t x[29]; // General purpose registers x0-x28 //
+	__uint64_t fp;    // Frame pointer x29 //
+	__uint64_t lr;    // Link register x30 //
+	__uint64_t sp;    // Stack pointer x31 //
+	__uint64_t pc;    // Program counter //
+	__uint32_t cpsr;  // Current program status register //
+	__uint32_t __pad; // Same size for 32-bit or 64-bit clients //
 
 
 
