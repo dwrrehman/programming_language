@@ -3,6 +3,16 @@
 // the new version with function defs and riscv isa ish...
 // 202408246.021822:   rewrite v2
 
+
+
+
+
+// codesign --remove-signature output_executable
+
+// codesign -s - output_executable
+
+
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -252,10 +262,10 @@ static void debug_registers(nat* r, nat count) {
 	puts("\ndone\n");
 }
 
-static void debug_dictionary(char** names, nat name_count) {
+static void debug_dictionary(char** names, bool* active, nat name_count) {
 	printf("dictionary: %llu\n", name_count);
 	for (nat i = 0; i < name_count; i++) 
-		printf("var #%5llu:   %10s\n", i, names[i]);
+		printf("[ %c ] var #%5llu:   %10s\n", active[i] ? ' ' : 'd', i, names[i]);
 	puts("done printing dictionary.");
 }
 
@@ -307,21 +317,334 @@ static void get_input_string(char* string, nat max_length) {
 }
 
 
+
+
+
+
+
+
+
+
+static void insert_byte(uint8_t** output_data, nat* output_data_count, uint8_t x) {
+	*output_data = realloc(*output_data, *output_data_count + 1);
+	(*output_data)[(*output_data_count)++] = x;
+}
+
+static void insert_bytes(uint8_t** d, nat* c, char* s, nat len) {
+	for (nat i = 0; i < len; i++) insert_byte(d, c, (uint8_t) s[i]);
+}
+
+static void insert_u16(uint8_t** d, nat* c, uint16_t x) {
+	insert_byte(d, c, (x >> 0) & 0xFF);
+	insert_byte(d, c, (x >> 8) & 0xFF);
+}
+
+static void insert_u32(uint8_t** d, nat* c, uint32_t x) {
+	insert_u16(d, c, (x >> 0) & 0xFFFF);
+	insert_u16(d, c, (x >> 16) & 0xFFFF);
+}
+
+static void insert_u64(uint8_t** d, nat* c, uint64_t x) {
+	insert_u32(d, c, (x >> 0) & 0xFFFFFFFF);
+	insert_u32(d, c, (x >> 32) & 0xFFFFFFFF);
+}
+
+
+#define MH_MAGIC_64             0xfeedfacf
+#define MH_EXECUTE              2
+#define	MH_NOUNDEFS		1
+#define	MH_PIE			0x200000
+#define LC_UNIXTHREAD           5
+#define LC_UUID            	0x1b
+#define LC_THREAD            	4
+#define LC_CODE_SIGNATURE       0x1d
+#define	LC_SEGMENT_64		0x19
+#define CPU_SUBTYPE_ARM64_ALL   0
+#define CPU_TYPE_ARM            12
+#define CPU_ARCH_ABI64          0x01000000 
+#define VM_PROT_READ       	1
+//#define VM_PROT_WRITE   	2
+#define VM_PROT_EXECUTE 	4
+// #define ARM_THREAD_STATE 	1
+#define ARM_THREAD_STATE64      6
+//#define MH_SUBSECTIONS_VIA_SYMBOLS 0x2000
+
+
 int main(int argc, const char** argv) {
+
+
+{ // testing macho code:
+
+	uint8_t* data = NULL;
+	nat count = 0;	
+
+	insert_u32(&data, &count, MH_MAGIC_64);
+	insert_u32(&data, &count, CPU_TYPE_ARM | (int)CPU_ARCH_ABI64);
+	insert_u32(&data, &count, CPU_SUBTYPE_ARM64_ALL);
+	insert_u32(&data, &count, MH_EXECUTE);
+	insert_u32(&data, &count, 6);
+	insert_u32(&data, &count, 72 * 3 + 288 + 24 + 16 );  // command_end - command_start
+	insert_u32(&data, &count, MH_NOUNDEFS | MH_PIE);
+	insert_u32(&data, &count, 0);
+
+	const nat command_start = count;
+	const nat pagezero_start = count;
+	insert_u32(&data, &count, LC_SEGMENT_64);
+	insert_u32(&data, &count, 72); 			// pagezero_end - pagezero_start
+	insert_bytes(&data, &count, (char[]){
+		'_', '_', 'P', 'A', 'G', 'E', 'Z', 'E', 
+		'R', 'O',  0,   0,   0,   0,   0,   0
+	}, 16);
+	insert_u64(&data, &count, 0);
+	insert_u64(&data, &count, 0x0000000100000000);
+	insert_u64(&data, &count, 0);
+	insert_u64(&data, &count, 0);
+	insert_u32(&data, &count, 0);
+	insert_u32(&data, &count, 0);
+	insert_u32(&data, &count, 0);
+	insert_u32(&data, &count, 0);
+	//while (count % 4096) insert_byte(&data, &count, 0);
+	const nat pagezero_end = count;
+
+	//const nat text_start_address = 0x100000000;
+
+	const nat text_start = count;
+	insert_u32(&data, &count, LC_SEGMENT_64);
+	insert_u32(&data, &count, 72); 	// text_end - text_start
+	insert_bytes(&data, &count, (char[]){
+		'_', '_', 'T', 'E', 'X', 'T',  0,   0, 
+		 0,   0,   0,   0,   0,   0,   0,   0
+	}, 16);
+	insert_u64(&data, &count, 0x0000000100000000);
+	insert_u64(&data, &count, 0x0000000000004000);
+	insert_u64(&data, &count, 0);
+	insert_u64(&data, &count, 16384);
+	insert_u32(&data, &count, VM_PROT_READ | VM_PROT_EXECUTE);
+	insert_u32(&data, &count, VM_PROT_READ | VM_PROT_EXECUTE);
+	insert_u32(&data, &count, 0);
+	insert_u32(&data, &count, 0);
+	//while (count % 4096) insert_byte(&data, &count, 0);
+	const nat text_end = count;
+
+	const nat linkedit_start = count;
+	insert_u32(&data, &count, LC_SEGMENT_64);
+	insert_u32(&data, &count, 72); 	// linkedit_end - linkedit_start
+	insert_bytes(&data, &count, (char[]){
+		'_', '_', 'L', 'I', 'N', 'K', 'E', 'D', 
+		'I', 'T',  0,   0,   0,   0,   0,   0
+	}, 16);
+	insert_u64(&data, &count, 0x0000000100004000);
+	insert_u64(&data, &count, 0x0000000000004000);
+	insert_u64(&data, &count, 16384);
+	insert_u64(&data, &count, 416);
+	insert_u32(&data, &count, VM_PROT_READ);
+	insert_u32(&data, &count, VM_PROT_READ);
+	insert_u32(&data, &count, 0);
+	insert_u32(&data, &count, 0);
+	const nat linkedit_end = count;
+
+	const nat thread_start = count;
+	insert_u32(&data, &count, LC_UNIXTHREAD);
+	insert_u32(&data, &count, 288);                       // thread_end - thread_start
+	insert_u32(&data, &count, ARM_THREAD_STATE64);
+	insert_u32(&data, &count, 2 * (32 + 2));
+	for (nat i = 0; i < 32; i++) insert_u64(&data, &count, 0xa5a5a5a5a5a5a5a5);
+	insert_u64(&data, &count, 0x0000000100000000 + 16340); // pc
+	insert_u32(&data, &count, 0); // cpsr
+	insert_u32(&data, &count, 0);
+	//while (count % 4096) insert_byte(&data, &count, 0);
+	const nat thread_end = count;
+
+	const nat uuid_start = count;
+	insert_u32(&data, &count, LC_UUID);
+	insert_u32(&data, &count, 24);    // uuid_end - uuid_start
+	insert_u32(&data, &count, (uint32_t) rand());
+	insert_u32(&data, &count, (uint32_t) rand());
+	insert_u32(&data, &count, (uint32_t) rand());
+	insert_u32(&data, &count, (uint32_t) rand());
+	//while (count % 4096) insert_byte(&data, &count, 0);
+	const nat uuid_end = count;
+
+	const nat code_signature_start = count;
+	insert_u32(&data, &count, LC_CODE_SIGNATURE);
+	insert_u32(&data, &count, 16);    // code_signature_end - code_signature_start
+	insert_u32(&data, &count, 16384);
+	insert_u32(&data, &count, 416);
+	const nat code_signature_end = count;
+
+	const nat command_end = count;
+
+
+
+
+/*
+100003f80: ff 83 00 d1 	sub	sp, sp, #32
+100003f84: fd 7b 01 a9 	stp	x29, x30, [sp, #16]
+100003f88: fd 43 00 91 	add	x29, sp, #16
+100003f8c: a8 00 80 52 	mov	w8, #5
+
+100003f90: e8 03 00 f9 	str	x8, [sp]
+100003f94: 20 00 80 52 	mov	w0, #1
+100003f98: 05 00 00 94 	bl	0x100003fac <_syscall+0x100003fac>
+100003f9c: 00 00 80 52 	mov	w0, #0
+
+100003fa0: fd 7b 41 a9 	ldp	x29, x30, [sp, #16]
+100003fa4: ff 83 00 91 	add	sp, sp, #32
+100003fa8: c0 03 5f d6 	ret
+*/
+
+
+
+
+
+	const uint8_t my_bytes[] = {
+		  0xff , 0x83 , 0x00 , 0xd1
+		, 0xfd , 0x7b , 0x01 , 0xa9
+		, 0xfd , 0x43 , 0x00 , 0x91
+		, 0xa8 , 0x00 , 0x80 , 0x52
+		, 0xe8 , 0x03 , 0x00 , 0xf9
+		, 0x20 , 0x00 , 0x80 , 0x52
+		, 0x05 , 0x00 , 0x00 , 0x94
+		, 0x00 , 0x00 , 0x80 , 0x52
+		, 0xfd , 0x7b , 0x41 , 0xa9
+		, 0xff , 0x83 , 0x00 , 0x91
+		, 0xc0 , 0x03 , 0x5f , 0xd6
+	};
+	const nat my_count = sizeof my_bytes;
+
+
+	while (count < 16384 - my_count) 
+		insert_byte(&data, &count, 0);
+
+	const nat code_start = count;
+	printf("code_start = %llu\n", code_start);
+	for (nat i = 0; i < my_count; i++) 
+		insert_byte(&data, &count, my_bytes[i]);
+	const nat code_end = count;
+
+	const nat signature_start = count;
+	for (nat i = 0; i < 416; i++) insert_byte(&data, &count, 0);
+	const nat signature_end = count;
+
+
+	printf("code_start = %llu, code_end = %llu\n", code_start, code_end);
+	puts("offsets");
+	printf("\t command_end - command_start = %llu\n", command_end - command_start);
+	printf("\t pagezero_end - pagezero_start = %llu\n", pagezero_end - pagezero_start);
+	printf("\t text_end - text_start = %llu\n", text_end - text_start);
+	printf("\t linkedit_end - linkedit_start = %llu\n", linkedit_end - linkedit_start);
+	printf("\t thread_end - thread_start = %llu\n", thread_end - thread_start);
+	printf("\t uuid_end - uuid_start = %llu\n", uuid_end - uuid_start);
+	printf("\t code_signature_end - code_signature_start = %llu\n", code_signature_end - code_signature_start);	
+
+	printf("\t code_end - code_start = %llu\n", code_end - code_start);
+	printf("\t signature_end - signature_start = %llu\n", signature_end - signature_start);	
+
+	puts("");
+
+
+	puts("bytes: ");
+	for (nat i = 0; i < count; i++) {
+		if (i % 32 == 0) puts("");
+		if (data[i]) printf("\033[32;1m");
+		printf("%02hhx ", data[i]);
+		if (data[i]) printf("\033[0m");
+	}
+	puts("");
+
+	puts("preparing for writing out the data.");
+
+	//exit(1);
+
+
+
+	if (not access("output_executable", F_OK)) {
+		printf("file exists. do you wish to remove the previous one? ");
+		fflush(stdout);
+		int c = getchar();
+		if (c == 'y') {
+			puts("file was removed.");
+			int r = remove("output_executable");
+			if (r < 0) { perror("remove"); exit(1); }
+		} else {
+			puts("not removed");
+		}
+	}
+	int file = open("output_executable", O_WRONLY | O_CREAT | O_EXCL, 0777);
+	if (file < 0) { perror("could not create executable file"); exit(1); }
+	int r = fchmod(file, 0777);
+	if (r < 0) { perror("could not make the output file executable"); exit(1); }
+
+	write(file, data, count);
+	close(file);
+	printf("wrote %llu bytes to file %s.\n", count, "output_executable");
+
+	exit(1);
+
+
+}
+
+
+
+
+
+	//uint8_t* code_bytes = 0;//(uint8_t*) "hello world ashtasht";
+	//const nat code_byte_count = 4096;//(nat) strlen("hello world ashtasht");
+	//for (nat i = 0; i < code_byte_count; i++) insert_byte(&data, &count, (uint8_t) (rand() % 0xFF));
+	//while (count < 4096 or count % 4096) insert_byte(&data, &count, 0);
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+	//system("otool -txvVhlL object0.o");
+	//system("otool -txvVhlL executable0.out");
+	//system("objdump object0.o -DSast --disassembler-options=no-aliases");
+	//system("objdump executable0.out -DSast --disassembler-options=no-aliases");
+
+
+
+
+
+
 
 	if (argc > 2) exit(puts("compiler: \033[31;1merror:\033[0m usage: ./run [file.s]"));
 	
 	char* names[4096] = {0};
 	bool active[4096] = {0};
 	nat name_count = 0;
+
 	struct instruction* ins = NULL;
 	nat ins_count = 0;
+
 	struct file filestack[4096] = {0};
 	nat filestack_count = 1;
 	const char* included_files[4096] = {0};
 	nat included_file_count = 0;
 
-	if (argc < 2) { // todo: make the repl. 
+	if (argc < 2) {
 		char buffer[4096] = {0};
 		puts(	"give the input string to process:\n"
 			"(press '`' to terminate)\n"
@@ -350,17 +673,12 @@ int main(int argc, const char** argv) {
 		names[name_count++] = strdup(builtin_spelling[i]);
 	}
 
-	//puts("parsing top level file...");
-
 process_file:;
 	nat word_length = 0, word_start = 0, expecting_var = 0;
 	const nat starting_index = 	filestack[filestack_count - 1].index;
 	const nat text_length = 	filestack[filestack_count - 1].text_length;
 	char* text = 			filestack[filestack_count - 1].text;
 	const char* filename = 		filestack[filestack_count - 1].filename;
-
-	//printf("(filestack_count=%llu): PROCESSING FILE: { starting_index=%llu : text_length=%llu : filename=%s\n", filestack_count, starting_index, text_length, filename);
-	//getchar();
 
 	for (nat index = starting_index; index < text_length; index++) {
 		if (not isspace(text[index])) {
@@ -369,21 +687,16 @@ process_file:;
 			if (index + 1 < text_length) continue;
 		} else if (not word_length) continue;
 		char* word = strndup(text + word_start, word_length);
-
-		//printf("@ word: (%llu,%llu):   %s\n", word_start, word_length, word);
 		nat calling = 0;
 		if (not expecting_var) {
 			for (nat i = 0; i < isa_count; i++) 
 				if (not strcmp(ins_spelling[i], word)) { calling = i; goto found; }
-
-			//printf("fatal error: %s:%llu: unexpcted word: %s\n", filename, index, word);
-			goto next_word; // treat part of comment!
+			goto next_word;
 		} else {
 			const nat my_op = ins[ins_count - 1].args[0];
 			if (my_op == def or my_op == lf) goto create_name;
 			for (nat i = name_count; i--;) 
 				if (active[i] and not strcmp(names[i], word)) { calling = i; goto found; } 
-
 			printf("fatal error: %s:%llu: undefined variable: %s\n", filename, index, word);
 			abort();
 			
@@ -403,14 +716,12 @@ process_file:;
 		this->args[this->count++] = calling;
 		if (this->count != isa_arity(this->args[0]) + 1) goto next_word;
 		if (this->args[0] == lf) {
-			//printf("including a file %s...\n", word);
 			ins_count--;
 			active[this->args[1]] = 0;
 			for (nat i = 0; i < included_file_count; i++) {
-				if (not strcmp(included_files[i], word)) {
-					printf("warning: %s: file already included\n", word);
-					goto finish_instruction;
-				}
+				if (strcmp(included_files[i], word)) continue;
+				printf("warning: %s: file already included\n", word);
+				goto finish_instruction;
 			}
 
 			included_files[included_file_count++] = word;
@@ -421,22 +732,18 @@ process_file:;
 			char* new_text = calloc(new_text_length + 1, 1);
 			read(file, new_text, new_text_length);
 			close(file);
-			//printf("read %llu bytes from file %s...\n", new_text_length, word);
-			//printf("again: contents: read %s bytes from file %s...\n", new_text, word);
 			filestack[filestack_count - 1].index = index;
 			filestack[filestack_count].filename = word;
 			filestack[filestack_count].text = new_text;
 			filestack[filestack_count].text_length = new_text_length;
 			filestack[filestack_count++].index = 0;
 			goto process_file;
-
 		} else if (this->args[0] == def) {
 			ins_count--;
 		} else if (this->args[0] == udf) {
 			active[this->args[1]] = 0;
 			ins_count--;
 		} else if (this->args[0] == eoi) {
-			//printf("encountered end of input!\n");
 			ins_count--;
 			break;
 		}
@@ -444,35 +751,14 @@ process_file:;
 		next_word: word_length = 0;
 	}
 
-	//printf("decrementing filestack_count: finished processing filestack_count=%llu...\n", filestack_count);
 	filestack_count--;
-	if (not filestack_count) {
-		//puts("processing_file: finished last file.");
-	} else {
-		//puts("processing next file in the stack...");
-		goto process_file;
-	}
-
-	//debug_dictionary(names, active, name_count);
-	//puts("these instructions were generated.");
-	//debug_instructions(ins, ins_count);
-
-
-
-
-
+	if (filestack_count) goto process_file;
 
 
 
 
 
 /*
-			printf("\n\nfile: %s, index: %llu\n", filename, index);
-			printf("error: use of undefined word \"%s\", expecting %s\n", word, 
-				expecting_var ? "variable" : "operation"
-			);
-			abort(); 
-
 
 
 	puts("finding label attrs...");
@@ -492,12 +778,16 @@ process_file:;
 
 
 
-	puts("starting the DAG formation stage...");
+
+
 	struct node nodes[4096] = {0}; 
 	nat node_count = 0;
 	nodes[node_count++] = (struct node) { .output_reg = 0, .statically_known = 1 };
 	//nodes[node_count++] = (struct node) { .output_reg = var_stacksize, .statically_known = 1 };
+
+
 	puts("stage: constructing data flow DAG...");
+
 	struct basic_block blocks[4096] = {0};
 	nat block_count = 0;
 	for (nat i = 0; i < ins_count; i++) {
@@ -543,9 +833,25 @@ process_file:;
 	puts("done creating basic blocks... printing cfg/dag:");
 	print_basic_blocks(blocks, block_count, nodes);
 
+
 */
 
-	//puts("executing instructions... ");
+
+
+
+
+
+
+	exit(1);
+
+
+
+
+
+
+
+
+
 	nat* R = calloc(name_count, sizeof(nat));
 	R[stacksize] = 65536;
 	R[stackpointer] = (nat) (void*) malloc(65536);
@@ -562,20 +868,7 @@ process_file:;
 		nat r = ins[pc].count >= 3 ? ins[pc].args[2] : 0;
 		nat s = ins[pc].count >= 4 ? ins[pc].args[3] : 0;
 
-
-
-/*
-		printf("executing instruction: %s ", ins_spelling[op]);
-		for (nat i = 0; i < isa_arity(op); i++) {
-			printf("   %s   ", names[ins[pc].args[1 + i]]);
-		}
-		puts("");
-		usleep(500000);
-*/
-
-
 		if (not op) {}
-
 		else if (op == at) R[d] = pc;
 		else if (op == zero) R[d] = 0;
 		else if (op == incr) R[d]++;
@@ -624,8 +917,13 @@ process_file:;
 			const nat a4 = ins[pc].args[6];
 			const nat a5 = ins[pc].args[7];
 
-			     if (n == system_call_undefined) printf("\033[32;1mdebug:   0x%llx : %lld\033[0m\n", R[a0], R[a0]); 
-			else if (n == system_exit) 	exit((int) R[a0]);
+			if (n == system_call_undefined) {
+				     if (R[a1] == 0) printf("\033[32;1mdebug:   0x%llx : %lld\033[0m\n", R[a0], R[a0]); 
+				else if (R[a1] == 1) debug_registers(R, name_count);
+				else if (R[a1] == 2) debug_dictionary(names, active, name_count);
+				else if (R[a1] == 3) debug_instructions(ins, ins_count);
+
+			} else if (n == system_exit) 	exit((int) R[a0]);
 			else if (n == system_fork) 	R[a0] = (nat) fork(); 
 			else if (n == system_openat) 	R[a0] = (nat) openat((int) R[a0], (const char*) R[a1], (int) R[a2], (int) R[a3]);
 			else if (n == system_close) 	R[a0] = (nat) close((int) R[a0]);
@@ -639,18 +937,12 @@ process_file:;
 				printf("%llu: system call not supported.\n", n);
 				abort();
 			}
-			// sleep(1);
 		}
 		else {
 			printf("error: executing unknown instruction: %llu (%s)\n", op, ins_spelling[op]);
 			abort();
 		}
 	}
-
-	//debug_registers(R, name_count);
-
-	exit(0);
-
 }
 
 
@@ -693,6 +985,269 @@ process_file:;
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+/*
+
+
+
+
+
+
+
+static void make_macho_object_file(void) {
+
+	struct mach_header_64 header = {0};
+	header.magic = MH_MAGIC_64;
+	header.cputype = (int)CPU_TYPE_ARM | (int)CPU_ARCH_ABI64;
+	header.cpusubtype = (int) CPU_SUBTYPE_ARM64_ALL;
+	header.filetype = MH_OBJECT;
+	header.ncmds = 2;
+	header.sizeofcmds = 0;
+	header.flags = MH_NOUNDEFS | MH_SUBSECTIONS_VIA_SYMBOLS;
+
+	header.sizeofcmds = 	sizeof(struct segment_command_64) + 
+				sizeof(struct section_64) + 
+				sizeof(struct symtab_command);
+
+	struct segment_command_64 segment = {0};
+	strncpy(segment.segname, "__TEXT", 16);
+	segment.cmd = LC_SEGMENT_64;
+	segment.cmdsize = sizeof(struct segment_command_64) + sizeof(struct section_64);
+	segment.maxprot =  (VM_PROT_READ | VM_PROT_EXECUTE);
+	segment.initprot = (VM_PROT_READ | VM_PROT_EXECUTE);
+	segment.nsects = 1;
+	segment.vmaddr = 0;
+	segment.vmsize = byte_count;
+	segment.filesize = byte_count;
+
+	segment.fileoff = 	sizeof(struct mach_header_64) + 
+				sizeof(struct segment_command_64) + 
+				sizeof(struct section_64) + 
+				sizeof(struct symtab_command);
+
+	struct section_64 section = {0};
+	strncpy(section.sectname, "__text", 16);
+	strncpy(section.segname, "__TEXT", 16);
+	section.addr = 0;
+	section.size = byte_count;	
+	section.align = 3;
+	section.reloff = 0;
+	section.nreloc = 0;
+	section.flags = S_ATTR_PURE_INSTRUCTIONS | S_ATTR_PURE_INSTRUCTIONS;
+
+	section.offset = 	sizeof(struct mach_header_64) + 
+				sizeof(struct segment_command_64) + 
+				sizeof(struct section_64) + 
+				sizeof(struct symtab_command);
+
+	const char strings[] = "\0_start\0";
+
+	struct symtab_command table  = {0};
+	table.cmd = LC_SYMTAB;
+	table.cmdsize = sizeof(struct symtab_command);
+	table.strsize = sizeof(strings);
+	table.nsyms = 1;
+	table.stroff = 0;
+	
+	table.symoff = (uint32_t) (
+				sizeof(struct mach_header_64) +
+				sizeof(struct segment_command_64) + 
+				sizeof(struct section_64) + 
+				sizeof(struct symtab_command) + 
+				byte_count
+			);
+
+	table.stroff = table.symoff + sizeof(struct nlist_64);
+
+	struct nlist_64 symbols[] = {
+	        (struct nlist_64) {
+	            .n_un.n_strx = 1,
+	            .n_type = N_SECT | N_EXT,
+	            .n_sect = 1,
+	            .n_desc = REFERENCE_FLAG_DEFINED,
+	            .n_value = 0x0000000000,
+	        }
+	};
+
+	if (preserve_existing_object and not access(object_filename, F_OK)) {
+		puts("asm: object_file: file exists"); 
+		puts(object_filename);
+		exit(1);
+	}
+
+	const int flags = O_WRONLY | O_CREAT | O_TRUNC | (preserve_existing_object ? O_EXCL : 0);
+	const mode_t mode = S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH;
+	const int file = open(object_filename, flags, mode);
+	if (file < 0) { perror("obj:open"); exit(1); }
+
+	write(file, &header, sizeof(struct mach_header_64));
+	write(file, &segment, sizeof (struct segment_command_64));
+	write(file, &section, sizeof(struct section_64));
+	write(file, &table, sizeof table);
+	write(file, bytes, byte_count);
+	write(file, symbols, sizeof(struct nlist_64));
+	write(file, strings, sizeof strings);
+	close(file);
+}
+
+
+
+
+*/
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+/*
+
+
+
+//printf("read %llu bytes from file %s...\n", new_text_length, word);
+			//printf("again: contents: read %s bytes from file %s...\n", new_text, word);
+
+	//printf("decrementing filestack_count: finished processing filestack_count=%llu...\n", filestack_count);
+
+	//debug_dictionary(names, active, name_count);
+	//puts("these instructions were generated.");
+	//debug_instructions(ins, ins_count);
+
+		//printf("@ word: (%llu,%llu):   %s\n", word_start, word_length, word);
+			//printf("fatal error: %s:%llu: unexpcted word: %s\n", filename, index, word);
+
+
+
+			printf("\n\nfile: %s, index: %llu\n", filename, index);
+			printf("error: use of undefined word \"%s\", expecting %s\n", word, 
+				expecting_var ? "variable" : "operation"
+			);
+			abort(); 
+
+
+
+*/
+
+
+
+
+
+
+/*
+		printf("executing instruction: %s ", ins_spelling[op]);
+		for (nat i = 0; i < isa_arity(op); i++) {
+			printf("   %s   ", names[ins[pc].args[1 + i]]);
+		}
+		puts("");
+		usleep(500000);
+*/
+
+
+
+
+
+//printf("(filestack_count=%llu): PROCESSING FILE: { starting_index=%llu : text_length=%llu : filename=%s\n", filestack_count, starting_index, text_length, filename);
+	//getchar();
 
 
 /*  
