@@ -3,324 +3,6 @@
 // the new version with function defs and riscv isa ish...
 // 202408246.021822:   rewrite v2
 
-
-/*  
-1202410082.204140
-
-gunna try generating the executable now!!!
-
-found a simple minimal executable example using LC_UNIXTHREAD which should be quite cool! yay 
-	then ill try using   LC_THREAD too as well   which doesnt have a stack, which will be super cool lolllll 
-		so yeah yay
-
-
-
-
-
-
-
-
-
-1202410034.000348
-
-instead of adding postiional syntax, instead lets add the requirement that    names must be defined  by either  the label of a barnch, or by a select few instructions, like at, zero, set.. orrrr uhhhh hmmm
-
-	actually maybe just leave that as is? hmmm idk.. because we can resolve most problems due to this via    unused_variable  checking   and sensibility checks lol. during the backend. so yeah idk actually. hmmm
-
-
-
-
-
-
-
-
-1202410034.123914
-
-so actually i think we just need to add a way to remove names, i think!
-
-
-
-
-
-
-
-
-
-
-
-so turns out, we only need to actually add like one more instruction i think!
-
-	to get positional syntax for anything we want    
-
-					(basically, theres a limit, but its reasonable lol)
-
-
-	as opposed to forcing name based syntax alll the time for every  function call lol 
-
-
-
-			basically, the pattern:
-
-
-
-
-				set arg0 X
-				set arg1 Y
-				set arg2 Z
-
-				at ret
-					do my_function_name
-
-
-				like,   thats really   very automateable, to   allow the user to simply write  the equivalent syntax:   "my_function_name X Y Z" simply.
-
-							(for brievity only, of course, servers no other purpose really, but it makes sense for things like making constants, using the binary literal trick with groups,  or like superrr minimal operations like slt, which are a wrapper around two or one real instructions. 
-
-			basically, the 			idea is that 
-
-
-			we can just annotate the function body, which still looks like 
-
-
-			at my_function_name
-
-				...use arg0 arg1 arg2 etc in the body contents....
-
-				incr ret do ret
-
-
-
-			like thats still the body, no macro syntax required, 
-
-					BUTTT
-
-
-						we just need to tellll the compiler    that when you see           my_function_name, it is bothhh an operatin and variable,  the var is the at label, and the operation is now somehting new! 
-
-		its just meaning that the front end should generate the      set arg0 ... set arg1 ... at ret do my)function_name
-
-
-					like, we just generate those exact statements. simple as that. 
-
-
-								i think the only problem with this now, is that we need to pass in the ret i think, or something like that, not sure. hmmm
-
-
-
-				yeah thats the trick party lol.    i kindaa wan to have like a builtin variable, or somehting, im not sure..h mmmm
-
-
-
-					i mean we could also pass it in as an argument, but then its kinda obvious that its not quite like... hmmm idk. 
-
-					like, hmmmmm yeh crappp we don't know the return label lol. thats the thing hmmmmmmm dang itttt
-
-
-
-			crappppppp 
-
-
-	but yeah thats the idae 
-
-
-				we can attribute the function body with something like 
-
-
-							atttribute_as_macro my_function_name 3
-
-					and the 3 means arity of 3, the first three variables used in the body are the parameters, basically. thast the idea 
-
-	hm
-
-					idkkkk i mean it hink it need some workkk  but its getting somewhereee 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-1202409231.164909
-current language isa:
-
-	zero, incr, decr, set, add, sub, 
-	mul, muh, mhs, div, dvs, rem, rms, 
-	si, sd, sds, and, or, eor, not, 
-	ld, st, sta, bca, sc, at, lf, 
-	lt, ge, lts, ges, ne, eq, do, 
-
-
-just using these instructions, we are able to recreate the macro system. this also allows us to have code more code compression than with macros, too, becuase we can actually compress the code in a way that is still executable, like a loop vs a sequence of statements. but in our case its single function body instead of a macro which pastes it everywhere. butttttt there no real.. function... machinery though. like in typical programming languages lol. so yeah. pretty interesting. hm. 
-
-
-
-
-
-
-
-
-
-
-	plan to make the language better: 1202409216.030428
-		
-	x	- get rid of everything to do with macros, and any high level abstraction features we added
-
-	x	- figure out how to do arguments for builtin instructions, properly
-
-		- implement the backend for those builtin rt instructions,
-	
-			- dag and cfg formation
-
-			- unused variable detection
-
-			- inssel, ra, inssched
-
-
-
-
-
-	the instructions we will keep in the language are:
-
-
-		zero incr decr 
-		set add sub 
-		mul muh mhs 
-		div rem dvs rms
-		si sd sds 
-		and or eor not 
-		ld st sc la 
-		lt ge lts ges ne eq 
-		sta bca at lf
-
-
-
-	all those (basically) are required and relevant for runtime code. 
-
-		no macro machinery,  and no   anything   that is high level lol.
-
-
-	also we need to decide if we want to have        multiple symbol tables per type.  
-
-				ie, contexts.
-
-
-
-			so yeah, we need to decide that. hmmm
-
-
-
-	
-
-
-
-
-
-
-
-
-
-
-
-
-todo 1202408283.031842
-
-*	- command line arguments passed in registers?
-*	- generating a mach-o executable directly.
-
-**	- add comments
-**	- add strings. 
-
-*	- write a print_binary_lsb_number function for the stdlib
-
-
-// done:
-
-X	- adding system calls to our language, by adding them as instructions!
-x **	- implement sta and bca in the language isa. 
-x ***	- fix macro and control flow  <------ create new names each macro call.
-//					x	implement     lf       please.  then we are done. 
-
-
-
-
-
-also i want to implement these things in the language, after we do strings/comments         (if we do them lol)
-
-
-
-
-	- label unused
-
-	- label has no definition
-
-
-	- varaible unused
-
-	- varaible set but not used 
-
-	- variable uninited at use 
-
-
-	- analysis of types deref'd pointers   loads and stores
-
-	- analysis of valid pointer + offset array indexes
-
-	- analysis of extending register bitcount  value outsite bitcount range for given size bits
-
-
-
-
-
-outdated
-current state:
-	
-	i think we devised a way to use the existing argument system in order to have unique labels inside a macro, to be able to create a for loop, ie, control flow macros. i think thats where we were...
-
-	and i think we alsooo needed still to figure out how strings would be done. 
-
-
-	so yeah. 
-
-
-
-
-			zero incr decr sc
-			set add sub mul div rem muh mhs dvs rms 
-			si sd sds and or eor not ld st la
-			lt ge lts ges ne eq
-			at lf sta bca
-
-
-
-
-
-*/
-
-#include <sys/types.h>
-#include <sys/stat.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -332,6 +14,8 @@ current state:
 #include <ctype.h>
 #include <termios.h>
 #include <sys/mman.h>
+#include <sys/types.h>
+#include <sys/stat.h>
 
 typedef uint64_t nat;
 
@@ -396,13 +80,6 @@ enum argument_type {
 	argument_type_undefined,
 };
 
-/*static const char* argument_type_spelling[4] = {
-	"ARG_variable",
-	"ARG_declared", 
-	"ARG_label",
-	"ARG_undefined",
-};*/
-
 enum arm64_isa {
 	arm64_mov,  arm64_addi,
 	arm64_memiu, arm64_add,
@@ -447,12 +124,9 @@ struct machine_instruction {
 struct node {
 	nat* data_outputs;
 	nat data_output_count;
-
 	nat* data_inputs;
 	nat data_input_count;
-
 	nat output_reg;
-
 	nat op;
 	nat statically_known;
 };
@@ -524,7 +198,6 @@ static void print_nodes(struct node* nodes, nat node_count) {
 	puts("[done]");
 }*/
 
-
 static void print_basic_blocks(struct basic_block* blocks, nat block_count, 
 			struct node* nodes
 ) {
@@ -580,36 +253,9 @@ static void debug_registers(nat* r, nat count) {
 }
 
 static void debug_dictionary(char** names, nat name_count) {
-
 	printf("dictionary: %llu\n", name_count);
 	for (nat i = 0; i < name_count; i++) 
 		printf("var #%5llu:   %10s\n", i, names[i]);
-	
-
-/*
-	printf("operation symbol table: %llu\n", operation_count);
-	for (nat i = 0; i < operation_count; i++) {
-		printf("operation #%5llu: .name = %-10s : .arity = %llu : .parent = %llu : .bodycount = %llu\n.args = ", 
-			i, operations[i].name, operations[i].arity, operations[i].parent, operations[i].body_count
-		);
-		printf("[  ");
-		for (nat a = 0; a < operations[i].arity; a++) {
-			printf("%llu:%s  ", operations[i].arguments[a], argument_type_spelling[operations[i].type[a]]);
-		}
-		printf("]\n");
-		for (nat s = 0; s < 3; s++) {
-			printf("sym #%llu: [ ", s);
-			for (nat n = 0; n < operations[i].scope_count[s]; n++) {
-				printf("%llu ", operations[i].scope[s][n]);
-			}
-			printf("]\n");
-		}
-		printf("body = ");
-		if (operations[i].body_count) debug_instructions(operations[i].body, operations[i].body_count);
-		else printf("{empty}\n");
-		puts("");
-	}
-*/
 	puts("done printing dictionary.");
 }
 
@@ -661,221 +307,7 @@ static void get_input_string(char* string, nat max_length) {
 }
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-static void insert_byte(uint8_t** output_data, nat* output_data_count, uint8_t x) {
-	*output_data = realloc(*output_data, *output_data_count + 1);
-	(*output_data)[(*output_data_count)++] = x;
-}
-
-static void insert_bytes(uint8_t** d, nat* c, char* s, nat len) {
-	for (nat i = 0; i < len; i++) insert_byte(d, c, (uint8_t) s[i]);
-}
-
-static void insert_u16(uint8_t** d, nat* c, uint16_t x) {
-	insert_byte(d, c, (x >> 0) & 0xFF);
-	insert_byte(d, c, (x >> 8) & 0xFF);
-}
-
-static void insert_u32(uint8_t** d, nat* c, uint32_t x) {
-	insert_u16(d, c, (x >> 0) & 0xFFFF);
-	insert_u16(d, c, (x >> 16) & 0xFFFF);
-}
-
-static void insert_u64(uint8_t** d, nat* c, uint64_t x) {
-	insert_u32(d, c, (x >> 0) & 0xFFFFFFFF);
-	insert_u32(d, c, (x >> 32) & 0xFFFFFFFF);
-}
-
-
-
-#define MH_MAGIC_64             0xfeedfacf
-#define MH_EXECUTE              2
-#define	MH_NOUNDEFS		1
-#define	MH_PIE			0x200000
-#define LC_UNIXTHREAD           5
-#define LC_UUID            	0x1b
-#define LC_THREAD            	4
-#define	LC_SEGMENT_64		0x19
-#define CPU_SUBTYPE_ARM64_ALL   0
-#define CPU_TYPE_ARM            12
-#define CPU_ARCH_ABI64          0x01000000 
-#define VM_PROT_READ       	1
-#define VM_PROT_WRITE   	2
-#define VM_PROT_EXECUTE 	4
-#define ARM_THREAD_STATE 	1
-#define ARM_THREAD_STATE64      6
-//#define MH_SUBSECTIONS_VIA_SYMBOLS 0x2000
-
 int main(int argc, const char** argv) {
-{
-	uint8_t* data = NULL;
-	nat count = 0;	
-
-	insert_u32(&data, &count, MH_MAGIC_64);
-	insert_u32(&data, &count, CPU_TYPE_ARM | (int)CPU_ARCH_ABI64);
-	insert_u32(&data, &count, CPU_SUBTYPE_ARM64_ALL);
-	insert_u32(&data, &count, MH_EXECUTE);
-	insert_u32(&data, &count, 5);
-	insert_u32(&data, &count, 504 + 24);  // command_end - command_start
-	insert_u32(&data, &count, MH_NOUNDEFS | MH_PIE);
-	insert_u32(&data, &count, 0);
-
-	const nat command_start = count;
-	const nat pagezero_start = count;
-	insert_u32(&data, &count, LC_SEGMENT_64);
-	insert_u32(&data, &count, 72); 			// pagezero_end - pagezero_start
-	insert_bytes(&data, &count, (char[]){
-		'_', '_', 'P', 'A', 'G', 'E', 'Z', 'E', 
-		'R', 'O',  0,   0,   0,   0,   0,   0
-	}, 16);
-	insert_u64(&data, &count, 0);
-	insert_u64(&data, &count, 4096);
-	insert_u64(&data, &count, 0);
-	insert_u64(&data, &count, 0);
-	insert_u32(&data, &count, 0);
-	insert_u32(&data, &count, 0);
-	insert_u32(&data, &count, 0);
-	insert_u32(&data, &count, 0);
-	while (count % 4096) insert_byte(&data, &count, 0);
-	const nat pagezero_end = count;
-
-	const nat text_start_address = 0x100000000;
-
-	const nat text_start = count;
-	insert_u32(&data, &count, LC_SEGMENT_64);
-	insert_u32(&data, &count, 72); 	// text_end - text_start
-	insert_bytes(&data, &count, (char[]){
-		'_', '_', 'T', 'E', 'X', 'T',  0,   0, 
-		 0,   0,   0,   0,   0,   0,   0,   0
-	}, 16);
-	insert_u64(&data, &count, text_start_address);
-	insert_u64(&data, &count, 8192);     //  code_end - 0 (ie, __origin)  // todo: round this up to the nearest page.
-	insert_u64(&data, &count, 0);
-	insert_u64(&data, &count, 8192);     //  code_end - 0 (ie, __origin)  // oh also make it dynamically computed.
-	insert_u32(&data, &count, VM_PROT_READ | VM_PROT_EXECUTE);
-	insert_u32(&data, &count, VM_PROT_READ | VM_PROT_EXECUTE);
-	insert_u32(&data, &count, 0);
-	insert_u32(&data, &count, 0);
-	while (count % 4096) insert_byte(&data, &count, 0);
-	const nat text_end = count;
-
-	const nat thread_start = count;
-	insert_u32(&data, &count, LC_UNIXTHREAD);
-	insert_u32(&data, &count, 288);                       // thread_end - thread_start
-	insert_u32(&data, &count, ARM_THREAD_STATE64);
-	insert_u32(&data, &count, 2 * (32 + 2));
-	for (nat i = 0; i < 32; i++) insert_u64(&data, &count, 0xa5a5a5a5a5a5a5a5);
-	insert_u64(&data, &count, text_start_address + 464); // pc
-	insert_u32(&data, &count, 0); // cpsr
-	insert_u32(&data, &count, 0);
-	while (count % 4096) insert_byte(&data, &count, 0);
-	const nat thread_end = count;
-
-	const nat uuid_start = count;
-	insert_u32(&data, &count, LC_UUID);
-	insert_u32(&data, &count, 24);    // uuid_end - uuid_start
-	insert_u32(&data, &count, rand());
-	insert_u32(&data, &count, rand());
-	insert_u32(&data, &count, rand());
-	insert_u32(&data, &count, rand());
-	while (count % 4096) insert_byte(&data, &count, 0);
-	const nat uuid_end = count;
-
-	const nat linkedit_start = count;
-	insert_u32(&data, &count, LC_SEGMENT_64);
-	insert_u32(&data, &count, 72); 	// linkedit_end - linkedit_start
-	insert_bytes(&data, &count, (char[]){
-		'_', '_', 'L', 'I', 'N', 'K', 'E', 'D', 
-		'I', 'T',  0,   0,   0,   0,   0,   0
-	}, 16);
-	insert_u64(&data, &count, 0);
-	insert_u64(&data, &count, 0);
-	insert_u64(&data, &count, 0);
-	insert_u64(&data, &count, 0);
-	insert_u32(&data, &count, VM_PROT_READ | VM_PROT_WRITE);
-	insert_u32(&data, &count, VM_PROT_READ | VM_PROT_WRITE);
-	insert_u32(&data, &count, 0);
-	insert_u32(&data, &count, 0);
-	const nat linkedit_end = count;
-
-	const nat command_end = count;
-
-	uint8_t* code_bytes = 0;//(uint8_t*) "hello world ashtasht";
-	const nat code_byte_count = 4096;//(nat) strlen("hello world ashtasht");
-	const nat code_start = count;
-	for (nat i = 0; i < code_byte_count; i++) insert_byte(&data, &count, (uint8_t) (rand() % 0xFF));
-	while (count < 4096 or count % 4096) insert_byte(&data, &count, 0);
-	const nat code_end = count;
-
-	printf("code_start = %llu, code_end = %llu\n", code_start, code_end);
-	puts("offsets");
-	printf("\t command_end - command_start = %llu\n", command_end - command_start);
-	printf("\t pagezero_end - pagezero_start = %llu\n", pagezero_end - pagezero_start);
-	printf("\t text_end - text_start = %llu\n", text_end - text_start);
-	printf("\t thread_end - thread_start = %llu\n", thread_end - thread_start);
-	printf("\t linkedit_end - linkedit_start = %llu\n", linkedit_end - linkedit_start);
-	printf("\t uuid_end - uuid_start = %llu\n", uuid_end - uuid_start);
-	printf("\t code_end = %llu\n", code_end - 0);	
-	puts("");
-
-	puts("bytes: ");
-	for (nat i = 0; i < count; i++) {
-		if (i % 32 == 0) puts("");
-		if (data[i]) printf("\033[32;1m");
-		printf("%02hhx ", data[i]);
-		if (data[i]) printf("\033[0m");
-	}
-	puts("");
-
-	if (not access("output_executable", F_OK)) {
-		printf("file exists. do you wish to remove the previous one? ");
-		fflush(stdout);
-		int c = getchar();
-		if (c == 'y') {
-			puts("file was removed.");
-			int r = remove("output_executable");
-			if (r < 0) { perror("remove"); exit(1); }
-		} else {
-			puts("not removed");
-		}
-	}
-	int file = open("output_executable", O_WRONLY | O_CREAT | O_EXCL, 0777);
-	if (file < 0) { perror("could not create executable file"); exit(1); }
-	int r = fchmod(file, 0777);
-	if (r < 0) { perror("could not make the output file executable"); exit(1); }
-
-	write(file, data, count);
-	close(file);
-	printf("wrote %llu bytes to file %s.\n", count, "output_executable");
-}
-	exit(1);
-
-  // system("otool -txvVhlL object0.o");
-    //            system("otool -txvVhlL executable0.out");
-    //            system("objdump object0.o -DSast --disassembler-options=no-aliases");
-    //            system("objdump executable0.out -DSast --disassembler-options=no-aliases");
-
-
-
-
 
 	if (argc > 2) exit(puts("compiler: \033[31;1merror:\033[0m usage: ./run [file.s]"));
 	
@@ -1263,6 +695,14 @@ process_file:;
 
 
 
+/*  
+1202410082.204140
+
+gunna try generating the executable now!!!
+
+found a simple minimal executable example using LC_UNIXTHREAD which should be quite cool! yay 
+	then ill try using   LC_THREAD too as well   which doesnt have a stack, which will be super cool lolllll 
+		so yeah yay
 
 
 
@@ -1270,12 +710,583 @@ process_file:;
 
 
 
+
+
+1202410034.000348
+
+instead of adding postiional syntax, instead lets add the requirement that    names must be defined  by either  the label of a barnch, or by a select few instructions, like at, zero, set.. orrrr uhhhh hmmm
+
+	actually maybe just leave that as is? hmmm idk.. because we can resolve most problems due to this via    unused_variable  checking   and sensibility checks lol. during the backend. so yeah idk actually. hmmm
+
+
+
+
+
+
+
+
+1202410034.123914
+
+so actually i think we just need to add a way to remove names, i think!
+
+
+
+
+
+
+
+
+
+
+
+so turns out, we only need to actually add like one more instruction i think!
+
+	to get positional syntax for anything we want    
+
+					(basically, theres a limit, but its reasonable lol)
+
+
+	as opposed to forcing name based syntax alll the time for every  function call lol 
+
+
+
+			basically, the pattern:
+
+
+
+
+				set arg0 X
+				set arg1 Y
+				set arg2 Z
+
+				at ret
+					do my_function_name
+
+
+				like,   thats really   very automateable, to   allow the user to simply write  the equivalent syntax:   "my_function_name X Y Z" simply.
+
+							(for brievity only, of course, servers no other purpose really, but it makes sense for things like making constants, using the binary literal trick with groups,  or like superrr minimal operations like slt, which are a wrapper around two or one real instructions. 
+
+			basically, the 			idea is that 
+
+
+			we can just annotate the function body, which still looks like 
+
+
+			at my_function_name
+
+				...use arg0 arg1 arg2 etc in the body contents....
+
+				incr ret do ret
+
+
+
+			like thats still the body, no macro syntax required, 
+
+					BUTTT
+
+
+						we just need to tellll the compiler    that when you see           my_function_name, it is bothhh an operatin and variable,  the var is the at label, and the operation is now somehting new! 
+
+		its just meaning that the front end should generate the      set arg0 ... set arg1 ... at ret do my)function_name
+
+
+					like, we just generate those exact statements. simple as that. 
+
+
+								i think the only problem with this now, is that we need to pass in the ret i think, or something like that, not sure. hmmm
+
+
+
+				yeah thats the trick party lol.    i kindaa wan to have like a builtin variable, or somehting, im not sure..h mmmm
+
+
+
+					i mean we could also pass it in as an argument, but then its kinda obvious that its not quite like... hmmm idk. 
+
+					like, hmmmmm yeh crappp we don't know the return label lol. thats the thing hmmmmmmm dang itttt
+
+
+
+			crappppppp 
+
+
+	but yeah thats the idae 
+
+
+				we can attribute the function body with something like 
+
+
+							atttribute_as_macro my_function_name 3
+
+					and the 3 means arity of 3, the first three variables used in the body are the parameters, basically. thast the idea 
+
+	hm
+
+					idkkkk i mean it hink it need some workkk  but its getting somewhereee 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+1202409231.164909
+current language isa:
+
+	zero, incr, decr, set, add, sub, 
+	mul, muh, mhs, div, dvs, rem, rms, 
+	si, sd, sds, and, or, eor, not, 
+	ld, st, sta, bca, sc, at, lf, 
+	lt, ge, lts, ges, ne, eq, do, 
+
+
+just using these instructions, we are able to recreate the macro system. this also allows us to have code more code compression than with macros, too, becuase we can actually compress the code in a way that is still executable, like a loop vs a sequence of statements. but in our case its single function body instead of a macro which pastes it everywhere. butttttt there no real.. function... machinery though. like in typical programming languages lol. so yeah. pretty interesting. hm. 
+
+
+
+
+
+
+
+
+
+
+	plan to make the language better: 1202409216.030428
+		
+	x	- get rid of everything to do with macros, and any high level abstraction features we added
+
+	x	- figure out how to do arguments for builtin instructions, properly
+
+		- implement the backend for those builtin rt instructions,
+	
+			- dag and cfg formation
+
+			- unused variable detection
+
+			- inssel, ra, inssched
+
+
+
+
+
+	the instructions we will keep in the language are:
+
+
+		zero incr decr 
+		set add sub 
+		mul muh mhs 
+		div rem dvs rms
+		si sd sds 
+		and or eor not 
+		ld st sc la 
+		lt ge lts ges ne eq 
+		sta bca at lf
+
+
+
+	all those (basically) are required and relevant for runtime code. 
+
+		no macro machinery,  and no   anything   that is high level lol.
+
+
+	also we need to decide if we want to have        multiple symbol tables per type.  
+
+				ie, contexts.
+
+
+
+			so yeah, we need to decide that. hmmm
+
+
+
+	
+
+
+
+
+
+
+
+
+
+
+
+
+todo 1202408283.031842
+
+*	- command line arguments passed in registers?
+*	- generating a mach-o executable directly.
+
+**	- add comments
+**	- add strings. 
+
+*	- write a print_binary_lsb_number function for the stdlib
+
+
+// done:
+
+X	- adding system calls to our language, by adding them as instructions!
+x **	- implement sta and bca in the language isa. 
+x ***	- fix macro and control flow  <------ create new names each macro call.
+//					x	implement     lf       please.  then we are done. 
+
+
+
+
+
+also i want to implement these things in the language, after we do strings/comments         (if we do them lol)
+
+
+
+
+	- label unused
+
+	- label has no definition
+
+
+	- varaible unused
+
+	- varaible set but not used 
+
+	- variable uninited at use 
+
+
+	- analysis of types deref'd pointers   loads and stores
+
+	- analysis of valid pointer + offset array indexes
+
+	- analysis of extending register bitcount  value outsite bitcount range for given size bits
+
+
+
+
+
+outdated
+current state:
+	
+	i think we devised a way to use the existing argument system in order to have unique labels inside a macro, to be able to create a for loop, ie, control flow macros. i think thats where we were...
+
+	and i think we alsooo needed still to figure out how strings would be done. 
+
+
+	so yeah. 
+
+
+
+
+			zero incr decr sc
+			set add sub mul div rem muh mhs dvs rms 
+			si sd sds and or eor not ld st la
+			lt ge lts ges ne eq
+			at lf sta bca
+
+
+
+
+
+*/
+
+
+
+
+
+
+/*static const char* argument_type_spelling[4] = {
+	"ARG_variable",
+	"ARG_declared", 
+	"ARG_label",
+	"ARG_undefined",
+};*/
 
 
 
 
 
 /*
+	printf("operation symbol table: %llu\n", operation_count);
+	for (nat i = 0; i < operation_count; i++) {
+		printf("operation #%5llu: .name = %-10s : .arity = %llu : .parent = %llu : .bodycount = %llu\n.args = ", 
+			i, operations[i].name, operations[i].arity, operations[i].parent, operations[i].body_count
+		);
+		printf("[  ");
+		for (nat a = 0; a < operations[i].arity; a++) {
+			printf("%llu:%s  ", operations[i].arguments[a], argument_type_spelling[operations[i].type[a]]);
+		}
+		printf("]\n");
+		for (nat s = 0; s < 3; s++) {
+			printf("sym #%llu: [ ", s);
+			for (nat n = 0; n < operations[i].scope_count[s]; n++) {
+				printf("%llu ", operations[i].scope[s][n]);
+			}
+			printf("]\n");
+		}
+		printf("body = ");
+		if (operations[i].body_count) debug_instructions(operations[i].body, operations[i].body_count);
+		else printf("{empty}\n");
+		puts("");
+	}
+*/
+
+
+
+/*
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+static void insert_byte(uint8_t** output_data, nat* output_data_count, uint8_t x) {
+	*output_data = realloc(*output_data, *output_data_count + 1);
+	(*output_data)[(*output_data_count)++] = x;
+}
+
+static void insert_bytes(uint8_t** d, nat* c, char* s, nat len) {
+	for (nat i = 0; i < len; i++) insert_byte(d, c, (uint8_t) s[i]);
+}
+
+static void insert_u16(uint8_t** d, nat* c, uint16_t x) {
+	insert_byte(d, c, (x >> 0) & 0xFF);
+	insert_byte(d, c, (x >> 8) & 0xFF);
+}
+
+static void insert_u32(uint8_t** d, nat* c, uint32_t x) {
+	insert_u16(d, c, (x >> 0) & 0xFFFF);
+	insert_u16(d, c, (x >> 16) & 0xFFFF);
+}
+
+static void insert_u64(uint8_t** d, nat* c, uint64_t x) {
+	insert_u32(d, c, (x >> 0) & 0xFFFFFFFF);
+	insert_u32(d, c, (x >> 32) & 0xFFFFFFFF);
+}
+
+
+
+#define MH_MAGIC_64             0xfeedfacf
+#define MH_EXECUTE              2
+#define	MH_NOUNDEFS		1
+#define	MH_PIE			0x200000
+#define LC_UNIXTHREAD           5
+#define LC_UUID            	0x1b
+#define LC_THREAD            	4
+#define	LC_SEGMENT_64		0x19
+#define CPU_SUBTYPE_ARM64_ALL   0
+#define CPU_TYPE_ARM            12
+#define CPU_ARCH_ABI64          0x01000000 
+#define VM_PROT_READ       	1
+#define VM_PROT_WRITE   	2
+#define VM_PROT_EXECUTE 	4
+#define ARM_THREAD_STATE 	1
+#define ARM_THREAD_STATE64      6
+//#define MH_SUBSECTIONS_VIA_SYMBOLS 0x2000
+
+
+
+
+	uint8_t* data = NULL;
+	nat count = 0;	
+
+	insert_u32(&data, &count, MH_MAGIC_64);
+	insert_u32(&data, &count, CPU_TYPE_ARM | (int)CPU_ARCH_ABI64);
+	insert_u32(&data, &count, CPU_SUBTYPE_ARM64_ALL);
+	insert_u32(&data, &count, MH_EXECUTE);
+	insert_u32(&data, &count, 5);
+	insert_u32(&data, &count, 504 + 24);  // command_end - command_start
+	insert_u32(&data, &count, MH_NOUNDEFS | MH_PIE);
+	insert_u32(&data, &count, 0);
+
+	const nat command_start = count;
+	const nat pagezero_start = count;
+	insert_u32(&data, &count, LC_SEGMENT_64);
+	insert_u32(&data, &count, 72); 			// pagezero_end - pagezero_start
+	insert_bytes(&data, &count, (char[]){
+		'_', '_', 'P', 'A', 'G', 'E', 'Z', 'E', 
+		'R', 'O',  0,   0,   0,   0,   0,   0
+	}, 16);
+	insert_u64(&data, &count, 0);
+	insert_u64(&data, &count, 4096);
+	insert_u64(&data, &count, 0);
+	insert_u64(&data, &count, 0);
+	insert_u32(&data, &count, 0);
+	insert_u32(&data, &count, 0);
+	insert_u32(&data, &count, 0);
+	insert_u32(&data, &count, 0);
+	while (count % 4096) insert_byte(&data, &count, 0);
+	const nat pagezero_end = count;
+
+	const nat text_start_address = 0x100000000;
+
+	const nat text_start = count;
+	insert_u32(&data, &count, LC_SEGMENT_64);
+	insert_u32(&data, &count, 72); 	// text_end - text_start
+	insert_bytes(&data, &count, (char[]){
+		'_', '_', 'T', 'E', 'X', 'T',  0,   0, 
+		 0,   0,   0,   0,   0,   0,   0,   0
+	}, 16);
+	insert_u64(&data, &count, text_start_address);
+	insert_u64(&data, &count, 8192);     //  code_end - 0 (ie, __origin)  // todo: round this up to the nearest page.
+	insert_u64(&data, &count, 0);
+	insert_u64(&data, &count, 8192);     //  code_end - 0 (ie, __origin)  // oh also make it dynamically computed.
+	insert_u32(&data, &count, VM_PROT_READ | VM_PROT_EXECUTE);
+	insert_u32(&data, &count, VM_PROT_READ | VM_PROT_EXECUTE);
+	insert_u32(&data, &count, 0);
+	insert_u32(&data, &count, 0);
+	while (count % 4096) insert_byte(&data, &count, 0);
+	const nat text_end = count;
+
+	const nat thread_start = count;
+	insert_u32(&data, &count, LC_UNIXTHREAD);
+	insert_u32(&data, &count, 288);                       // thread_end - thread_start
+	insert_u32(&data, &count, ARM_THREAD_STATE64);
+	insert_u32(&data, &count, 2 * (32 + 2));
+	for (nat i = 0; i < 32; i++) insert_u64(&data, &count, 0xa5a5a5a5a5a5a5a5);
+	insert_u64(&data, &count, text_start_address + 464); // pc
+	insert_u32(&data, &count, 0); // cpsr
+	insert_u32(&data, &count, 0);
+	while (count % 4096) insert_byte(&data, &count, 0);
+	const nat thread_end = count;
+
+	const nat uuid_start = count;
+	insert_u32(&data, &count, LC_UUID);
+	insert_u32(&data, &count, 24);    // uuid_end - uuid_start
+	insert_u32(&data, &count, rand());
+	insert_u32(&data, &count, rand());
+	insert_u32(&data, &count, rand());
+	insert_u32(&data, &count, rand());
+	while (count % 4096) insert_byte(&data, &count, 0);
+	const nat uuid_end = count;
+
+	const nat linkedit_start = count;
+	insert_u32(&data, &count, LC_SEGMENT_64);
+	insert_u32(&data, &count, 72); 	// linkedit_end - linkedit_start
+	insert_bytes(&data, &count, (char[]){
+		'_', '_', 'L', 'I', 'N', 'K', 'E', 'D', 
+		'I', 'T',  0,   0,   0,   0,   0,   0
+	}, 16);
+	insert_u64(&data, &count, 0);
+	insert_u64(&data, &count, 0);
+	insert_u64(&data, &count, 0);
+	insert_u64(&data, &count, 0);
+	insert_u32(&data, &count, VM_PROT_READ | VM_PROT_WRITE);
+	insert_u32(&data, &count, VM_PROT_READ | VM_PROT_WRITE);
+	insert_u32(&data, &count, 0);
+	insert_u32(&data, &count, 0);
+	const nat linkedit_end = count;
+
+	const nat command_end = count;
+
+	uint8_t* code_bytes = 0;//(uint8_t*) "hello world ashtasht";
+	const nat code_byte_count = 4096;//(nat) strlen("hello world ashtasht");
+	const nat code_start = count;
+	for (nat i = 0; i < code_byte_count; i++) insert_byte(&data, &count, (uint8_t) (rand() % 0xFF));
+	while (count < 4096 or count % 4096) insert_byte(&data, &count, 0);
+	const nat code_end = count;
+
+	printf("code_start = %llu, code_end = %llu\n", code_start, code_end);
+	puts("offsets");
+	printf("\t command_end - command_start = %llu\n", command_end - command_start);
+	printf("\t pagezero_end - pagezero_start = %llu\n", pagezero_end - pagezero_start);
+	printf("\t text_end - text_start = %llu\n", text_end - text_start);
+	printf("\t thread_end - thread_start = %llu\n", thread_end - thread_start);
+	printf("\t linkedit_end - linkedit_start = %llu\n", linkedit_end - linkedit_start);
+	printf("\t uuid_end - uuid_start = %llu\n", uuid_end - uuid_start);
+	printf("\t code_end = %llu\n", code_end - 0);	
+	puts("");
+
+	puts("bytes: ");
+	for (nat i = 0; i < count; i++) {
+		if (i % 32 == 0) puts("");
+		if (data[i]) printf("\033[32;1m");
+		printf("%02hhx ", data[i]);
+		if (data[i]) printf("\033[0m");
+	}
+	puts("");
+
+	if (not access("output_executable", F_OK)) {
+		printf("file exists. do you wish to remove the previous one? ");
+		fflush(stdout);
+		int c = getchar();
+		if (c == 'y') {
+			puts("file was removed.");
+			int r = remove("output_executable");
+			if (r < 0) { perror("remove"); exit(1); }
+		} else {
+			puts("not removed");
+		}
+	}
+	int file = open("output_executable", O_WRONLY | O_CREAT | O_EXCL, 0777);
+	if (file < 0) { perror("could not create executable file"); exit(1); }
+	int r = fchmod(file, 0777);
+	if (r < 0) { perror("could not make the output file executable"); exit(1); }
+
+	write(file, data, count);
+	close(file);
+	printf("wrote %llu bytes to file %s.\n", count, "output_executable");
+}
+	exit(1);
+
+  // system("otool -txvVhlL object0.o");
+    //            system("otool -txvVhlL executable0.out");
+    //            system("objdump object0.o -DSast --disassembler-options=no-aliases");
+    //            system("objdump executable0.out -DSast --disassembler-options=no-aliases");
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
