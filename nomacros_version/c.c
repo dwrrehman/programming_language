@@ -355,41 +355,32 @@ static void insert_u64(uint8_t** d, nat* c, uint64_t x) {
 #define	MH_PIE			0x200000
 #define MH_DYLDLINK 		0x4
 #define MH_TWOLEVEL		0x80
-
 #define	LC_SEGMENT_64		0x19
 #define LC_DYSYMTAB		0xb
 #define LC_SYMTAB		0x2
 #define LC_LOAD_DYLINKER	0xe
 #define LC_LOAD_DYLIB		0xc
-//#define LC_DYLD_INFO_ONLY	0x22
-//#define LC_UNIXTHREAD		0x5
 #define LC_REQ_DYLD		0x80000000
 #define LC_MAIN			(0x28 | LC_REQ_DYLD)
 #define LC_BUILD_VERSION 	0x32
 #define LC_SOURCE_VERSION 	0x2A
 #define LC_UUID            	0x1B
-
 #define S_ATTR_PURE_INSTRUCTIONS 0x80000000
 #define S_ATTR_SOME_INSTRUCTIONS 0x00000400
-//#define S_REGULAR		0x00
-
 #define CPU_SUBTYPE_ARM64_ALL   0
 #define CPU_TYPE_ARM            12
 #define CPU_ARCH_ABI64          0x01000000 
-
 #define VM_PROT_READ       	1
 #define VM_PROT_WRITE   	2
 #define VM_PROT_EXECUTE 	4
-
 #define TOOL_LD	3
 #define PLATFORM_MACOS 1
 
 
+
 int main(int argc, const char** argv) {
 
-
-{ // testing macho code:
-
+{ 
 	uint8_t* data = NULL;
 	nat count = 0;	
 
@@ -398,7 +389,7 @@ int main(int argc, const char** argv) {
 	insert_u32(&data, &count, CPU_SUBTYPE_ARM64_ALL);
 	insert_u32(&data, &count, MH_EXECUTE);
 	insert_u32(&data, &count, 11);
-	insert_u32(&data, &count, 72 + (72 + 80) + 72 + 24 + 80 + 32 +  24 + 32 + 16 + 24 +  (24 + 32) ); 
+	insert_u32(&data, &count, 72 + (72 + 80) + 72 + 24 + 80 + 32 + 24 + 32 + 16 + 24 +  (24 + 32) ); 
 	insert_u32(&data, &count, MH_NOUNDEFS | MH_PIE | MH_DYLDLINK | MH_TWOLEVEL);
 	insert_u32(&data, &count, 0);
 //
@@ -543,10 +534,12 @@ int main(int argc, const char** argv) {
 	}, 32);
 
 	const uint8_t my_bytes[] = {
-		0x30, 0x00, 0x80, 0xD2, 
-		0xe0, 0x00, 0x80, 0xD2, 
-		0x01, 0x00, 0x00, 0xD4, 
-		0x00, 0x00, 0x00, 0x00, 
+
+		0x30, 0x00, 0x80, 0xD2, // mov x16, 1
+		0xe0, 0x01, 0x80, 0xD2, // mov x0, 15
+		0x01, 0x00, 0x00, 0xD4, // svc 0
+
+		0x00, 0x00, 0x00, 0x00, // (padding)
 	};
 	const nat my_count = sizeof my_bytes;
 	while (count < 16384 - my_count) insert_byte(&data, &count, 0);
@@ -564,8 +557,6 @@ int main(int argc, const char** argv) {
 	puts("");
 
 	puts("preparing for writing out the data.");
-
-	//exit(1);
 
 	if (not access("output_executable_new", F_OK)) {
 		printf("file exists. do you wish to remove the previous one? ");
@@ -588,8 +579,13 @@ int main(int argc, const char** argv) {
 	close(file);
 	printf("wrote %llu bytes to file %s.\n", count, "output_executable_new");
 
+
+
+
 	system("codesign -s - output_executable_new");
-	system("codesign -d -vvvvvvv output_executable_new");
+	//system("codesign -d -vvvvvvv output_executable_new");   // for debugging
+
+
 
 	exit(1);
 
@@ -1001,6 +997,23 @@ process_file:;
 
 
 
+
+
+
+/*
+	insert_u32(&data, &count, LC_UNIXTHREAD);
+	insert_u32(&data, &count, 288);
+	insert_u32(&data, &count, ARM_THREAD_STATE64);
+	insert_u32(&data, &count, 2 * (32 + 2));
+	for (nat i = 0; i < 32; i++) {
+		if (i == 16) insert_u64(&data, &count, 0x1);
+		else if (i == 0) insert_u64(&data, &count, 0x42);
+		else insert_u64(&data, &count, 0);
+	}
+	insert_u64(&data, &count, 0x0000000100000000 + 16384 - 16);
+	insert_u32(&data, &count, 0);
+	insert_u32(&data, &count, 0);
+*/
 
 
 
