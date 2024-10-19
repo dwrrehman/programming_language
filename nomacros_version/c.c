@@ -349,25 +349,40 @@ static void insert_u64(uint8_t** d, nat* c, uint64_t x) {
 	insert_u32(d, c, (x >> 32) & 0xFFFFFFFF);
 }
 
-
 #define MH_MAGIC_64             0xfeedfacf
 #define MH_EXECUTE              2
 #define	MH_NOUNDEFS		1
 #define	MH_PIE			0x200000
-#define LC_UNIXTHREAD           5
-#define LC_UUID            	0x1b
-#define LC_THREAD            	4
-#define LC_CODE_SIGNATURE       0x1d
+#define MH_DYLDLINK 		0x4
+#define MH_TWOLEVEL		0x80
+
 #define	LC_SEGMENT_64		0x19
+#define LC_DYSYMTAB		0xb
+#define LC_SYMTAB		0x2
+#define LC_LOAD_DYLINKER	0xe
+#define LC_LOAD_DYLIB		0xc
+//#define LC_DYLD_INFO_ONLY	0x22
+//#define LC_UNIXTHREAD		0x5
+#define LC_REQ_DYLD		0x80000000
+#define LC_MAIN			(0x28 | LC_REQ_DYLD)
+#define LC_BUILD_VERSION 	0x32
+#define LC_SOURCE_VERSION 	0x2A
+#define LC_UUID            	0x1B
+
+#define S_ATTR_PURE_INSTRUCTIONS 0x80000000
+#define S_ATTR_SOME_INSTRUCTIONS 0x00000400
+//#define S_REGULAR		0x00
+
 #define CPU_SUBTYPE_ARM64_ALL   0
 #define CPU_TYPE_ARM            12
 #define CPU_ARCH_ABI64          0x01000000 
+
 #define VM_PROT_READ       	1
-//#define VM_PROT_WRITE   	2
+#define VM_PROT_WRITE   	2
 #define VM_PROT_EXECUTE 	4
-// #define ARM_THREAD_STATE 	1
-#define ARM_THREAD_STATE64      6
-//#define MH_SUBSECTIONS_VIA_SYMBOLS 0x2000
+
+#define TOOL_LD	3
+#define PLATFORM_MACOS 1
 
 
 int main(int argc, const char** argv) {
@@ -382,15 +397,13 @@ int main(int argc, const char** argv) {
 	insert_u32(&data, &count, CPU_TYPE_ARM | (int)CPU_ARCH_ABI64);
 	insert_u32(&data, &count, CPU_SUBTYPE_ARM64_ALL);
 	insert_u32(&data, &count, MH_EXECUTE);
-	insert_u32(&data, &count, 6);
-	insert_u32(&data, &count, 72 * 3 + 288 + 24 + 16 );  // command_end - command_start
-	insert_u32(&data, &count, MH_NOUNDEFS | MH_PIE);
+	insert_u32(&data, &count, 11);
+	insert_u32(&data, &count, 72 + (72 + 80) + 72 + 24 + 80 + 32 +  24 + 32 + 16 + 24 +  (24 + 32) ); 
+	insert_u32(&data, &count, MH_NOUNDEFS | MH_PIE | MH_DYLDLINK | MH_TWOLEVEL);
 	insert_u32(&data, &count, 0);
-
-	const nat command_start = count;
-	const nat pagezero_start = count;
+//
 	insert_u32(&data, &count, LC_SEGMENT_64);
-	insert_u32(&data, &count, 72); 			// pagezero_end - pagezero_start
+	insert_u32(&data, &count, 72);
 	insert_bytes(&data, &count, (char[]){
 		'_', '_', 'P', 'A', 'G', 'E', 'Z', 'E', 
 		'R', 'O',  0,   0,   0,   0,   0,   0
@@ -403,14 +416,9 @@ int main(int argc, const char** argv) {
 	insert_u32(&data, &count, 0);
 	insert_u32(&data, &count, 0);
 	insert_u32(&data, &count, 0);
-	//while (count % 4096) insert_byte(&data, &count, 0);
-	const nat pagezero_end = count;
-
-	//const nat text_start_address = 0x100000000;
-
-	const nat text_start = count;
+//
 	insert_u32(&data, &count, LC_SEGMENT_64);
-	insert_u32(&data, &count, 72); 	// text_end - text_start
+	insert_u32(&data, &count, 72 + 80);
 	insert_bytes(&data, &count, (char[]){
 		'_', '_', 'T', 'E', 'X', 'T',  0,   0, 
 		 0,   0,   0,   0,   0,   0,   0,   0
@@ -421,14 +429,31 @@ int main(int argc, const char** argv) {
 	insert_u64(&data, &count, 16384);
 	insert_u32(&data, &count, VM_PROT_READ | VM_PROT_EXECUTE);
 	insert_u32(&data, &count, VM_PROT_READ | VM_PROT_EXECUTE);
+	insert_u32(&data, &count, 1);
 	insert_u32(&data, &count, 0);
-	insert_u32(&data, &count, 0);
-	//while (count % 4096) insert_byte(&data, &count, 0);
-	const nat text_end = count;
+//
+	insert_bytes(&data, &count, (char[]){
+		'_', '_', 't', 'e', 'x', 't',  0,   0, 
+		 0,   0,   0,   0,   0,   0,   0,   0
+	}, 16);
+	insert_bytes(&data, &count, (char[]){
+		'_', '_', 'T', 'E', 'X', 'T',  0,   0, 
+		 0,   0,   0,   0,   0,   0,   0,   0
+	}, 16);
 
-	const nat linkedit_start = count;
+	insert_u64(&data, &count, 0x0000000100000000 + 16384 - 16);
+	insert_u64(&data, &count, 16); 
+	insert_u32(&data, &count, 16384 - 16);
+	insert_u32(&data, &count, 4); 
+	insert_u32(&data, &count, 0);
+	insert_u32(&data, &count, 0); 
+	insert_u32(&data, &count, S_ATTR_PURE_INSTRUCTIONS | S_ATTR_SOME_INSTRUCTIONS);
+	insert_u32(&data, &count, 0); 
+	insert_u32(&data, &count, 0); 
+	insert_u32(&data, &count, 0); 
+//
 	insert_u32(&data, &count, LC_SEGMENT_64);
-	insert_u32(&data, &count, 72); 	// linkedit_end - linkedit_start
+	insert_u32(&data, &count, 72);
 	insert_bytes(&data, &count, (char[]){
 		'_', '_', 'L', 'I', 'N', 'K', 'E', 'D', 
 		'I', 'T',  0,   0,   0,   0,   0,   0
@@ -436,113 +461,99 @@ int main(int argc, const char** argv) {
 	insert_u64(&data, &count, 0x0000000100004000);
 	insert_u64(&data, &count, 0x0000000000004000);
 	insert_u64(&data, &count, 16384);
-	insert_u64(&data, &count, 416);
-	insert_u32(&data, &count, VM_PROT_READ);
-	insert_u32(&data, &count, VM_PROT_READ);
+	insert_u64(&data, &count, 800);
+	insert_u32(&data, &count, VM_PROT_READ | VM_PROT_WRITE);
+	insert_u32(&data, &count, VM_PROT_READ | VM_PROT_WRITE);
 	insert_u32(&data, &count, 0);
 	insert_u32(&data, &count, 0);
-	const nat linkedit_end = count;
-
-	const nat thread_start = count;
-	insert_u32(&data, &count, LC_UNIXTHREAD);
-	insert_u32(&data, &count, 288);                       // thread_end - thread_start
-	insert_u32(&data, &count, ARM_THREAD_STATE64);
-	insert_u32(&data, &count, 2 * (32 + 2));
-	for (nat i = 0; i < 32; i++) insert_u64(&data, &count, 0xa5a5a5a5a5a5a5a5);
-	insert_u64(&data, &count, 0x0000000100000000 + 16340); // pc
-	insert_u32(&data, &count, 0); // cpsr
+//
+	insert_u32(&data, &count, LC_SYMTAB);
+	insert_u32(&data, &count, 24); 
 	insert_u32(&data, &count, 0);
-	//while (count % 4096) insert_byte(&data, &count, 0);
-	const nat thread_end = count;
-
-	const nat uuid_start = count;
+	insert_u32(&data, &count, 0);
+	insert_u32(&data, &count, 0);
+	insert_u32(&data, &count, 0);
+//
+	insert_u32(&data, &count, LC_DYSYMTAB);
+	insert_u32(&data, &count, 80); 
+	insert_u32(&data, &count, 0);
+	insert_u32(&data, &count, 0);
+	insert_u32(&data, &count, 0);
+	insert_u32(&data, &count, 0);
+	insert_u32(&data, &count, 0);
+	insert_u32(&data, &count, 0);
+	insert_u32(&data, &count, 0);
+	insert_u32(&data, &count, 0);
+	insert_u32(&data, &count, 0);
+	insert_u32(&data, &count, 0);
+	insert_u32(&data, &count, 0);
+	insert_u32(&data, &count, 0);
+	insert_u32(&data, &count, 0);
+	insert_u32(&data, &count, 0);
+	insert_u32(&data, &count, 0);
+	insert_u32(&data, &count, 0);
+	insert_u32(&data, &count, 0);
+	insert_u32(&data, &count, 0);
+//
+	insert_u32(&data, &count, LC_LOAD_DYLINKER);
+	insert_u32(&data, &count, 32);
+	insert_u32(&data, &count, 12);
+	insert_bytes(&data, &count, (char[]){
+		'/', 'u', 's', 'r', '/', 'l', 'i', 'b', 
+		'/', 'd', 'y',  'l', 'd',  0,   0,   0
+	}, 16);
+	insert_u32(&data, &count, 0);
+//
 	insert_u32(&data, &count, LC_UUID);
-	insert_u32(&data, &count, 24);    // uuid_end - uuid_start
+	insert_u32(&data, &count, 24); 
 	insert_u32(&data, &count, (uint32_t) rand());
 	insert_u32(&data, &count, (uint32_t) rand());
 	insert_u32(&data, &count, (uint32_t) rand());
 	insert_u32(&data, &count, (uint32_t) rand());
-	//while (count % 4096) insert_byte(&data, &count, 0);
-	const nat uuid_end = count;
-
-	const nat code_signature_start = count;
-	insert_u32(&data, &count, LC_CODE_SIGNATURE);
-	insert_u32(&data, &count, 16);    // code_signature_end - code_signature_start
-	insert_u32(&data, &count, 16384);
-	insert_u32(&data, &count, 416);
-	const nat code_signature_end = count;
-
-	const nat command_end = count;
-
-
-
-
-/*
-100003f80: ff 83 00 d1 	sub	sp, sp, #32
-100003f84: fd 7b 01 a9 	stp	x29, x30, [sp, #16]
-100003f88: fd 43 00 91 	add	x29, sp, #16
-100003f8c: a8 00 80 52 	mov	w8, #5
-
-100003f90: e8 03 00 f9 	str	x8, [sp]
-100003f94: 20 00 80 52 	mov	w0, #1
-100003f98: 05 00 00 94 	bl	0x100003fac <_syscall+0x100003fac>
-100003f9c: 00 00 80 52 	mov	w0, #0
-
-100003fa0: fd 7b 41 a9 	ldp	x29, x30, [sp, #16]
-100003fa4: ff 83 00 91 	add	sp, sp, #32
-100003fa8: c0 03 5f d6 	ret
-*/
-
-
-
-
+//
+	insert_u32(&data, &count, LC_BUILD_VERSION);
+	insert_u32(&data, &count, 32);
+	insert_u32(&data, &count, PLATFORM_MACOS);
+	insert_u32(&data, &count, 13 << 16);
+	insert_u32(&data, &count, (13 << 16) | (3 << 8));
+	insert_u32(&data, &count, 1);
+	insert_u32(&data, &count, TOOL_LD);
+	insert_u32(&data, &count, (857 << 16) | (1 << 8));
+//
+	insert_u32(&data, &count, LC_SOURCE_VERSION);
+	insert_u32(&data, &count, 16);
+	insert_u64(&data, &count, 0);
+//
+	insert_u32(&data, &count, LC_MAIN);
+	insert_u32(&data, &count, 24);
+	insert_u64(&data, &count, 16384 - 16);
+	insert_u64(&data, &count, 0);
+//
+	insert_u32(&data, &count, LC_LOAD_DYLIB);
+	insert_u32(&data, &count, 24 + 32);
+	insert_u32(&data, &count, 24);
+	insert_u32(&data, &count, 0);
+	insert_u32(&data, &count, (1319 << 16) | (100 << 8) | 3);
+	insert_u32(&data, &count, 1 << 16);
+	insert_bytes(&data, &count, (char[]){
+		'/', 'u', 's', 'r', '/', 'l', 'i', 'b', 
+		'/', 'l', 'i', 'b', 'S', 'y', 's', 't',
+		'e', 'm', '.', 'B', '.', 'd', 'y', 'l', 
+		'i', 'b',  0,   0,   0,   0,   0,   0
+	}, 32);
 
 	const uint8_t my_bytes[] = {
-		  0xff , 0x83 , 0x00 , 0xd1
-		, 0xfd , 0x7b , 0x01 , 0xa9
-		, 0xfd , 0x43 , 0x00 , 0x91
-		, 0xa8 , 0x00 , 0x80 , 0x52
-		, 0xe8 , 0x03 , 0x00 , 0xf9
-		, 0x20 , 0x00 , 0x80 , 0x52
-		, 0x05 , 0x00 , 0x00 , 0x94
-		, 0x00 , 0x00 , 0x80 , 0x52
-		, 0xfd , 0x7b , 0x41 , 0xa9
-		, 0xff , 0x83 , 0x00 , 0x91
-		, 0xc0 , 0x03 , 0x5f , 0xd6
+		  0x01, 0x00, 0x00, 0xD8, 
+		  0x01, 0x00, 0x00, 0xD8, 
+		  0x01, 0x00, 0x00, 0xD8, 
+		  0x01, 0x00, 0x00, 0xD8, 
 	};
 	const nat my_count = sizeof my_bytes;
-
-
-	while (count < 16384 - my_count) 
-		insert_byte(&data, &count, 0);
-
-	const nat code_start = count;
-	printf("code_start = %llu\n", code_start);
-	for (nat i = 0; i < my_count; i++) 
-		insert_byte(&data, &count, my_bytes[i]);
-	const nat code_end = count;
-
-	const nat signature_start = count;
-	for (nat i = 0; i < 416; i++) insert_byte(&data, &count, 0);
-	const nat signature_end = count;
-
-
-	printf("code_start = %llu, code_end = %llu\n", code_start, code_end);
-	puts("offsets");
-	printf("\t command_end - command_start = %llu\n", command_end - command_start);
-	printf("\t pagezero_end - pagezero_start = %llu\n", pagezero_end - pagezero_start);
-	printf("\t text_end - text_start = %llu\n", text_end - text_start);
-	printf("\t linkedit_end - linkedit_start = %llu\n", linkedit_end - linkedit_start);
-	printf("\t thread_end - thread_start = %llu\n", thread_end - thread_start);
-	printf("\t uuid_end - uuid_start = %llu\n", uuid_end - uuid_start);
-	printf("\t code_signature_end - code_signature_start = %llu\n", code_signature_end - code_signature_start);	
-
-	printf("\t code_end - code_start = %llu\n", code_end - code_start);
-	printf("\t signature_end - signature_start = %llu\n", signature_end - signature_start);	
+	while (count < 16384 - my_count) insert_byte(&data, &count, 0);
+	for (nat i = 0; i < my_count; i++) insert_byte(&data, &count, my_bytes[i]);
+	for (nat i = 0; i < 800; i++) insert_byte(&data, &count, 0);
 
 	puts("");
-
-
 	puts("bytes: ");
 	for (nat i = 0; i < count; i++) {
 		if (i % 32 == 0) puts("");
@@ -556,31 +567,31 @@ int main(int argc, const char** argv) {
 
 	//exit(1);
 
-
-
-	if (not access("output_executable", F_OK)) {
+	if (not access("output_executable_new", F_OK)) {
 		printf("file exists. do you wish to remove the previous one? ");
 		fflush(stdout);
 		int c = getchar();
 		if (c == 'y') {
 			puts("file was removed.");
-			int r = remove("output_executable");
+			int r = remove("output_executable_new");
 			if (r < 0) { perror("remove"); exit(1); }
 		} else {
 			puts("not removed");
 		}
 	}
-	int file = open("output_executable", O_WRONLY | O_CREAT | O_EXCL, 0777);
+	int file = open("output_executable_new", O_WRONLY | O_CREAT | O_EXCL, 0777);
 	if (file < 0) { perror("could not create executable file"); exit(1); }
 	int r = fchmod(file, 0777);
 	if (r < 0) { perror("could not make the output file executable"); exit(1); }
 
 	write(file, data, count);
 	close(file);
-	printf("wrote %llu bytes to file %s.\n", count, "output_executable");
+	printf("wrote %llu bytes to file %s.\n", count, "output_executable_new");
+
+	system("codesign -s - output_executable_new");
+	system("codesign -d -vvvvvvv output_executable_new");
 
 	exit(1);
-
 
 }
 
@@ -588,41 +599,6 @@ int main(int argc, const char** argv) {
 
 
 
-	//uint8_t* code_bytes = 0;//(uint8_t*) "hello world ashtasht";
-	//const nat code_byte_count = 4096;//(nat) strlen("hello world ashtasht");
-	//for (nat i = 0; i < code_byte_count; i++) insert_byte(&data, &count, (uint8_t) (rand() % 0xFF));
-	//while (count < 4096 or count % 4096) insert_byte(&data, &count, 0);
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-	//system("otool -txvVhlL object0.o");
-	//system("otool -txvVhlL executable0.out");
-	//system("objdump object0.o -DSast --disassembler-options=no-aliases");
-	//system("objdump executable0.out -DSast --disassembler-options=no-aliases");
 
 
 
@@ -1007,8 +983,243 @@ process_file:;
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+	//system("codesign --remove-signature output_executable_new");
+
+
+
+	//uint8_t* code_bytes = 0;//(uint8_t*) "hello world ashtasht";
+	//const nat code_byte_count = 4096;//(nat) strlen("hello world ashtasht");
+	//for (nat i = 0; i < code_byte_count; i++) insert_byte(&data, &count, (uint8_t) (rand() % 0xFF));
+	//while (count < 4096 or count % 4096) insert_byte(&data, &count, 0);
+
+
+
+
+//	printf("code_start = %llu, code_end = %llu\n", code_start, code_end);
+//	puts("offsets");
+//	printf("\t command_end - command_start = %llu\n", command_end - command_start);
+//	printf("\t pagezero_end - pagezero_start = %llu\n", pagezero_end - pagezero_start);
+//	printf("\t text_end - text_start = %llu\n", text_end - text_start);
+//	printf("\t linkedit_end - linkedit_start = %llu\n", linkedit_end - linkedit_start);
+//	printf("\t thread_end - thread_start = %llu\n", thread_end - thread_start);
+//	printf("\t code_end - code_start = %llu\n", code_end - code_start);
+//
+
+
+
+//	const nat thread_start = count;
+//	insert_u32(&data, &count, LC_UNIXTHREAD);
+//	insert_u32(&data, &count, 288);                       // thread_end - thread_start
+//	insert_u32(&data, &count, ARM_THREAD_STATE64);
+//	insert_u32(&data, &count, 2 * (32 + 2));
+//	for (nat i = 0; i < 32; i++) {
+//		if (i == 16) insert_u64(&data, &count, 0x1);
+//		else if (i == 0) insert_u64(&data, &count, 0x42);
+//		else insert_u64(&data, &count, 0);
+//	}
+//	insert_u64(&data, &count, 0x0000000100000000 + 16340); // pc
+//	insert_u32(&data, &count, 0); // cpsr
+//	insert_u32(&data, &count, 0);
+//	const nat thread_end = count;
+
+
+
+
+	//printf("\t uuid_end - uuid_start = %llu\n", uuid_end - uuid_start);
+	//printf("\t code_signature_end - code_signature_start = %llu\n", code_signature_end - code_signature_start);	
+	//printf("\t signature_end - signature_start = %llu\n", signature_end - signature_start);	
+
+
+
+
+
+
+
+
+
+
+/*
+100003f80: ff 83 00 d1 	sub	sp, sp, #32
+100003f84: fd 7b 01 a9 	stp	x29, x30, [sp, #16]
+100003f88: fd 43 00 91 	add	x29, sp, #16
+100003f8c: a8 00 80 52 	mov	w8, #5
+
+100003f90: e8 03 00 f9 	str	x8, [sp]
+100003f94: 20 00 80 52 	mov	w0, #1
+100003f98: 05 00 00 94 	bl	0x100003fac <_syscall+0x100003fac>
+100003f9c: 00 00 80 52 	mov	w0, #0
+
+100003fa0: fd 7b 41 a9 	ldp	x29, x30, [sp, #16]
+100003fa4: ff 83 00 91 	add	sp, sp, #32
+100003fa8: c0 03 5f d6 	ret
+*/
+
+/*
+	const nat code_signature_start = count;
+	insert_u32(&data, &count, LC_CODE_SIGNATURE);
+	insert_u32(&data, &count, 16);    // code_signature_end - code_signature_start
+	insert_u32(&data, &count, 16384);
+	insert_u32(&data, &count, 800);
+	const nat code_signature_end = count;
+*/
+
+
+
+
+
+
+	//system("otool -txvVhlL object0.o");
+	//system("otool -txvVhlL executable0.out");
+	//system("objdump object0.o -DSast --disassembler-options=no-aliases");
+	//system("objdump executable0.out -DSast --disassembler-options=no-aliases");
+
+
+
+
+
 /*
 
+
+
+
+
+
+
+
+
+
+
+//#define LC_CODE_SIGNATURE	0x1d
+//#define LC_SOURCE_VERSION 	0x2A
+// #define ARM_THREAD_STATE64      6
+
+//          /usr/lib/libSystem.B.dylib        the lib we want to use, lets say. 
+//          /usr/lib/dyld                  the linker we want to use, lets say. 
+
+
+struct section_64 { * for 64-bit architectures *
+	char		sectname[16];	* name of this section *
+	char		segname[16];	* segment this section goes in *
+	uint64_t	addr;		* memory address of this sectio *
+	uint64_t	size;		* size in bytes of this section 
+	uint32_t	offset;		* file offset of this section *
+	uint32_t	align;		* section alignment (power of 2) *
+	uint32_t	reloff;		* file offset of relocation entries *
+	uint32_t	nreloc;		* number of relocation entries *
+	uint32_t	flags;		* flags (section type and attributes)*
+	uint32_t	reserved1;	* reserved (for offset or index) *
+	uint32_t	reserved2;	* reserved (for count or sizeof) *
+	uint32_t	reserved3;	* reserved *
+};
+
+
+
+struct symtab_command {
+	uint_32 cmd;
+	uint_32 cmdsize;
+	uint_32 symoff;
+	uint_32 nsyms;
+	uint_32 stroff;
+	uint_32 strsize;
+};
+
+struct entry_point_command {
+    uint32_t  cmd;	* LC_MAIN only used in MH_EXECUTE filetypes *
+    uint32_t  cmdsize;	* 24 *
+    uint64_t  entryoff;	* file (__TEXT) offset of main() *
+    uint64_t  stacksize;* if not zero, initial stack size *
+};
+
+struct symtab_command {
+	uint32_t	cmd;		* LC_SYMTAB *
+	uint32_t	cmdsize;	* sizeof(struct symtab_command) *
+	uint32_t	symoff;		* symbol table offset *
+	uint32_t	nsyms;		* number of symbol table entries *
+	uint32_t	stroff;		* string table offset *
+	uint32_t	strsize;	* string table size in bytes *
+};
+
+struct dysymtab_command {
+    uint32_t cmd;	* LC_DYSYMTAB *
+    uint32_t cmdsize;	* sizeof(struct dysymtab_command) *
+    uint32_t ilocalsym;	* index to local symbols *
+    uint32_t nlocalsym;	* number of local symbols *
+    uint32_t iextdefsym;* index to externally defined symbols *
+    uint32_t nextdefsym;* number of externally defined symbols *
+    uint32_t iundefsym;	* index to undefined symbols *
+    uint32_t nundefsym;	* number of undefined symbols *
+    uint32_t tocoff;	* file offset to table of contents *
+    uint32_t ntoc;	* number of entries in table of contents *
+    uint32_t modtaboff;	* file offset to module table *
+    uint32_t nmodtab;	* number of module table entries *
+    uint32_t extrefsymoff;	* offset to referenced symbol table *
+    uint32_t nextrefsyms;	* number of referenced symbol table entries *
+    uint32_t indirectsymoff; * file offset to the indirect symbol table *
+    uint32_t nindirectsyms;  * number of indirect symbol table entries *
+    uint32_t extreloff;	* offset to external relocation entries *
+    uint32_t nextrel;	* number of external relocation entries *
+    uint32_t locreloff;	* offset to local relocation entries *
+    uint32_t nlocrel;	* number of local relocation entries *
+};	
+
+
+struct dylinker_command {
+	uint32_t	cmd;		* LC_ID_DYLINKER, LC_LOAD_DYLINKER o
+					   LC_DYLD_ENVIRONMENT *
+	uint32_t	cmdsize;	* includes pathname string /       8 + 16   with 3 padding zeros.
+	union lc_str    name;		* dynamic linker's path name /   8 
+};
+
+
+struct dylib_command {
+	uint32_t	cmd;		* LC_ID_DYLIB, LC_LOAD_{,WEAK_}DYLIB,
+					   LC_REEXPORT_DYLIB *
+	uint32_t	cmdsize;	* includes pathname string *
+
+    	uint32_t  name;			* library's path name *
+    	uint32_t timestamp;			* library's build time stamp *
+   	uint32_t current_version;		* library's current version number *
+   	uint32_t compatibility_version;	/ library's compatibility vers number*
+};
+
+
+
+
+
+#define LC_VERSION_MIN_MACOSX 0x24
+struct version_min_command {
+    uint32_t	cmd;		
+    uint32_t	cmdsize;	
+    uint32_t	version;	
+    uint32_t	sdk;		
+};
 
 
 
