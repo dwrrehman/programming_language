@@ -50,6 +50,76 @@ current state:
 
 
 
+							CRAP  wait i just realized we can't rip out the literal system, because we would neeed 
+
+
+							virtual registers. 
+
+
+								like, of some sort. 
+
+												DANGGG
+
+
+				hmm i mean i guess we couldd just give a set of virtual registers too lollll like that coulddd worklol 
+
+					hmmm interesting 
+
+
+								i think i would probablyyy just want to just have literals though, i think instead of adding ct virtual registers. yeah probably.  
+
+
+
+	okay cool so we have to figure out this whole literal situation, i think lol. shouldnt be thatttt bad, but yeah we need to sort it out. 
+
+
+
+
+hmm maybe we make a dictionary entry for the literal!
+
+
+		i think we still need a flag set to tell that that entry is a literal though... hmmmm crap 
+
+
+									uhh
+
+
+
+				hmmmmm  just i don't think theres any way around this, we need to annotate the type basically, inside the symbol table 
+
+							at the very least, whether its a label, immediate, or regsiter/instruction.  
+
+
+				i think we need those at leastttt    
+						no other types other than those though lol. so yeah thats good i guess
+
+
+		hmmmm
+
+
+
+					i kinda wish the registers / instruction opcodes were seperate though hmmm idk 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 arm isa that will be supported:
