@@ -54,23 +54,83 @@ our previous isa:
 #include <sys/mman.h>
 #include <sys/types.h>
 #include <sys/stat.h>
+#include <errno.h>
 
 typedef uint64_t nat;
 
+
+/*
+
+
+isa:
+
+	nop
+
+	svc
+
+
+
+	mov type=z(default)/k/n shift=00 imm16=00000..0  Rd=00000  sf=1(default)/0
+
+		mov [size8(default)/size4] [zero(default)/keep/inv]   Rd_bn    [imm16_bn default=0]
+		
+
+
+	csel incr=0 inv=0 Rn=00000 Rm=00000 Rd=00000 cond=0000 sf=1(default)/0
+
+
+		csel [size8(default)/size4] [incr] [inv]  [cond]   Rd_bn    Rm_bn   Rn_bn
+
+
+
+
+	lf file.txt
+
+	eoi
+
+
+
+
+	mov r16  101000 101011  010100110
+
+	
+
+
+
+
+
+*/
+
+
 enum language_isa {
 	nullins,
-	nop, svc, 
+	size1, size2, size4, size8, 
+	zero, incr, keep, inv, _true, _false, 
+	carry, negative, overflow,
+	sless, sgreater, ugreater, always,
+	r0,  r1,  r2,  r3,  r4,  r5,  r6,  r7, 
+	r8,  r9,  r10, r11, r12, r13, r14, r15, 
+	r16, r17, r18, r19, r20, r21, r22, r23, 
+	r24, r25, r26, r27, r28, r29, r30, r31, 
+	nop, systemcall, 
 	mov, csel,
-	lf, eoi, 
-
+	loadfile, eoi, 
 	isa_count
 };
 
 static const char* ins_spelling[isa_count] = {
-	"_null_", 
-	"nop", "svc", 
+	"__nullins__",
+	"size1", "size2", "size4", "size8", 
+	"zero", "incr", "keep", "inv", "true", "false", 
+	"carry", "negative", "overflow",
+	"sless", "sgreater", "ugreater", "always",
+	"r0",  "r1",  "r2",  "r3",  "r4",  "r5",  "r6",  "r7", 
+	"r8",  "r9",  "r10", "r11", "r12", "r13", "r14", "r15", 
+	"r16", "r17", "r18", "r19", "r20", "r21", "r22", "r23", 
+	"r24", "r25", "r26", "r27", "r28", "r29", "r30", "r31", 
+	"nop", "systemcall", 
 	"mov", "csel",
-	"lf", "eoi", 
+	"loadfile", "eoi",
 };
 
 struct file {
@@ -85,8 +145,6 @@ struct instruction {
 	nat arg_count;
 	nat op;
 };
-
-
 
 static void get_input_string(char* string, nat max_length) {
 
@@ -116,8 +174,8 @@ static void get_input_string(char* string, nat max_length) {
 		read(0, &c, 1);
 
 		if (c == '`') { break; } 
-		else if (c == ',') { if (cursor) cursor--; }
-		else if (c == '.') { if (cursor < length) cursor++; }
+		else if (c == '<') { if (cursor) cursor--; }
+		else if (c == '>') { if (cursor < length) cursor++; }
 		else if (c == 127) { 
 			if (cursor and length) { 
 				cursor--; length--;
@@ -184,10 +242,20 @@ static void insert_u64(uint8_t** d, nat* c, uint64_t x) {
 #define VM_PROT_READ       	1
 #define VM_PROT_WRITE   	2
 #define VM_PROT_EXECUTE 	4
-#define TOOL_LD	3
-#define PLATFORM_MACOS 1
+#define TOOL_LD			3
+#define PLATFORM_MACOS 		1
 
 
+#define is_immediate		(1LLU << 32LLU)
+
+
+
+static void debug_dictionary(char** names, bool* active, nat* values, nat name_count) {
+	printf("dictionary: %llu\n", name_count);
+	for (nat i = 0; i < name_count; i++) 
+		printf("[ %c ] var #%5llu:   %10s  --->  %llu\n", active[i] ? ' ' : 'd', i, names[i], values[i]);
+	puts("done printing dictionary.");
+}
 
 static void print_machine_instructions(struct instruction* mis, const nat mi_count) {
 	printf("printing %llu machine instructions...\n", mi_count);
@@ -200,7 +268,6 @@ static void print_machine_instructions(struct instruction* mis, const nat mi_cou
 	}
 	puts("[done]");
 }
-
 
 
 int main(int argc, const char** argv) {
@@ -254,7 +321,7 @@ int main(int argc, const char** argv) {
 
 
 process_file:;
-	nat word_length = 0, word_start = 0;
+	nat word_length = 0, word_start = 0, in_filename = 0;
 
 	const nat starting_index = 	filestack[filestack_count - 1].index;
 	const nat text_length = 	filestack[filestack_count - 1].text_length;
@@ -268,89 +335,63 @@ process_file:;
 			if (index + 1 < text_length) continue;
 		} else if (not word_length) continue;
 		char* word = strndup(text + word_start, word_length);
-		for (nat i = 0; i < name_count; i++) {
-			if (not strcmp(names[i], word)) { 
-				calling = values[i]; 
-				goto found; 
-			}
-		}
-		if (previous_call >= 0 and previous_call <= r31);
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-				we need binary literals.. 
-
-
-						basically the only way forwards are two paths:
-
-
-						1. we have virtual regsiters, and a reg alloc, 
-							and have constants just be particular const ct vr's, 
-
-						2. we spell out binary literals as like its an instruction, and we allow us to rename them by putting the name after the binary constant. this is the simplest and cleaned approach. for the entire language. 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-		calling = previous_call;
-		active[name_count] = 1;
-		names[name_count] = word;
-		values[name_count++] = previous_call;
-		goto next_word;
-	found:	previous_call = calling;
-		if (calling == lf) {
+		if (in_filename) {
+			in_filename = 0;
 			for (nat i = 0; i < included_file_count; i++) {
 				if (strcmp(included_files[i], word)) continue;
 				printf("warning: %s: file already included\n", word);
 				goto next_word;
 			}
-			included_files[included_file_count++] = "file.txt";
+			included_files[included_file_count++] = word;
 
-			int file = open("file.txt", O_RDONLY);
-			if (file < 0) { puts(word); perror("open"); exit(1); }
+			int file = open(word, O_RDONLY);
+			if (file < 0) { printf("fatal error: loadfile %s: open: %s\n", word, strerror(errno)); exit(1); }
 			const nat new_text_length = (nat) lseek(file, 0, SEEK_END);
 			lseek(file, 0, SEEK_SET);
 			char* new_text = calloc(new_text_length + 1, 1);
 			read(file, new_text, new_text_length);
 			close(file);
 			filestack[filestack_count - 1].index = index;
-			filestack[filestack_count].filename = "file.txt";
+			filestack[filestack_count].filename = word;
 			filestack[filestack_count].text = new_text;
 			filestack[filestack_count].text_length = new_text_length;
 			filestack[filestack_count++].index = 0;
 			goto process_file;
 
-		} else if (calling == eoi) break;
+		} 
+
+
+		for (nat i = 0; i < name_count; i++) {
+			if (not strcmp(names[i], word)) { 
+				calling = values[i]; 
+				goto found; 
+			}
+		}
+		nat r = 0, s = 1;
+		for (nat i = 0; i < strlen(word); i++) {
+			if (s >= is_immediate) { puts("bad imm"); abort(); } 
+			if (word[i] == '1') r += s;
+			else if (word[i] == '.') continue;
+			else if (word[i] != '0') goto create_new;
+			s <<= 1;
+			printf("r = %llu, s = %llu\n", r, s);
+		}
+		calling = is_immediate | r;
+		goto push;
+
+	create_new:
+		calling = previous_call;
+		active[name_count] = 1;
+		names[name_count] = word;
+		values[name_count++] = previous_call;
+		goto next_word;
+
+	found:	previous_call = calling;
+		if (calling == loadfile) in_filename = 1;
+		else if (calling == eoi) break;
 		else {
-			printf("regular calling = %llu\n", calling);
+		push:	printf("regular calling = %llu\n", calling);
 			ins = realloc(ins, sizeof(nat) * (ins_count + 1));
 			ins[ins_count++] = calling;
 		}
@@ -360,13 +401,19 @@ process_file:;
 	filestack_count--;
 	if (filestack_count) goto process_file;
 
+	debug_dictionary(names, active, values, name_count);
+
+	puts("printing instructions:");
+	puts("[INS_BEGIN]");
+	for (nat i = 0; i < ins_count; i++) {
+		if (i and i % 8 == 0) puts("");
+		if (ins[i] >> 32LLU) printf("#0x%llx  ", ins[i] ^ is_immediate);
+		else printf("%s  ", ins_spelling[ins[i]]);
+	}
+	puts("\n[END]");
 
 	exit(1);
-
-
 	
-
-
 
 
 
@@ -571,18 +618,78 @@ process_file:;
 	close(file);
 	printf("wrote %llu bytes to file %s.\n", count, "output_executable_new");
 
-
-
-
 	system("codesign -s - output_executable_new");
-	//system("codesign -d -vvvvvvv output_executable_new");   // for debugging
-
-
 
 	exit(1);
 
 }
 
+
+
+
+
+	//system("codesign -d -vvvvvvv output_executable_new");   // for debugging
+
+		/*
+
+
+		1202410196.201443:
+				we need binary literals.. 
+
+
+						basically the only way forwards are two paths:
+
+
+						1. we have virtual regsiters, and a reg alloc, 
+							and have constants just be particular const ct vr's, 
+
+						2. we spell out binary literals as like its an instruction, and we allow us to rename them by putting the name after the binary constant. this is the simplest and cleaned approach. for the entire language. 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+figuring out the names for all the conditions:
+
+
+	equal
+	not_equal
+	carry_set
+	carry_clear
+	negative
+	not_negative
+	overflow_set
+	overflow_clear
+
+	unsigned_greater
+	unsigned_less_than_or_equal_to
+
+	greater_than_or_equal_to
+	less_than
+
+	less_than_or_equal_to
+	greater_than
+
+	always
+	never
+	
+
+
+
+		*/
 
 
 

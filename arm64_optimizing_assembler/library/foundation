@@ -1,0 +1,8 @@
+
+
+
+mov zero r16 1000
+mov keep r0 111001
+
+systemcall
+
