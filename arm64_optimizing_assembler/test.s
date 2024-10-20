@@ -1,1 +1,9 @@
-mov x16 0
+
+
+
+systemcall svc
+
+svc svc svc svc
+
+
+

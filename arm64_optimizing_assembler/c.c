@@ -6,6 +6,52 @@ for the optimization process.
 
 ----------------------------------------
 
+1202410207.002512
+current state:
+
+		so i just realized why the imm    macro   system  
+
+		ie,    def hello 01      mov zero r0 hello
+
+
+			isnt working. 
+
+
+	its because 
+
+
+			we need to actually differentiate what the type of the elements in our dictionary is. 
+
+				like, the root of the difficulty is that we need to be able to represent a 64bit literal,
+
+									(i think...!?!?!)
+
+
+				buttt of course we don't have any way to tell apart an element in our dict that is a reference to another machinery, or a literal value of that value in the dict. 
+
+							so yeah, we need to distinguish these.  AT LEAST. 
+
+
+
+	buttt tbh theres probably a muchhh better way to do this whole   immediate thing altogether lol.   probablyyy involving making everything derived computationally and not even providing a way to write an immediate lol. 
+
+
+
+
+	tbh yeah. thats probably it lol.  nice okay. coool.  letst just rip out the imm system then lol. yay
+
+
+
+
+
+
+
+
+
+
+
+
+
 arm isa that will be supported:
 
 			adc(s) addxr(s) addi(s) addsr(s)  adr(p)   
@@ -101,7 +147,6 @@ isa:
 
 */
 
-
 enum language_isa {
 	nullins,
 	size1, size2, size4, size8, 
@@ -112,14 +157,14 @@ enum language_isa {
 	r8,  r9,  r10, r11, r12, r13, r14, r15, 
 	r16, r17, r18, r19, r20, r21, r22, r23, 
 	r24, r25, r26, r27, r28, r29, r30, r31, 
-	nop, systemcall, 
+	nop, svc, 
 	mov, csel,
-	loadfile, eoi, 
+	at, def, loadfile, eoi, 
 	isa_count
 };
 
 static const char* ins_spelling[isa_count] = {
-	"__nullins__",
+	" ",
 	"size1", "size2", "size4", "size8", 
 	"zero", "incr", "keep", "inv", "true", "false", 
 	"carry", "negative", "overflow",
@@ -128,9 +173,9 @@ static const char* ins_spelling[isa_count] = {
 	"r8",  "r9",  "r10", "r11", "r12", "r13", "r14", "r15", 
 	"r16", "r17", "r18", "r19", "r20", "r21", "r22", "r23", 
 	"r24", "r25", "r26", "r27", "r28", "r29", "r30", "r31", 
-	"nop", "systemcall", 
+	"nop", "svc", 
 	"mov", "csel",
-	"loadfile", "eoi",
+	"at", "def", "include", "eoi",
 };
 
 struct file {
@@ -141,8 +186,11 @@ struct file {
 };
 
 struct instruction {
-	nat args[14];
-	nat arg_count;
+	nat modifiers[6];
+	nat registers[6];
+	nat immediate;
+	nat label;
+	nat size;
 	nat op;
 };
 
@@ -245,11 +293,6 @@ static void insert_u64(uint8_t** d, nat* c, uint64_t x) {
 #define TOOL_LD			3
 #define PLATFORM_MACOS 		1
 
-
-#define is_immediate		(1LLU << 32LLU)
-
-
-
 static void debug_dictionary(char** names, bool* active, nat* values, nat name_count) {
 	printf("dictionary: %llu\n", name_count);
 	for (nat i = 0; i < name_count; i++) 
@@ -257,18 +300,31 @@ static void debug_dictionary(char** names, bool* active, nat* values, nat name_c
 	puts("done printing dictionary.");
 }
 
-static void print_machine_instructions(struct instruction* mis, const nat mi_count) {
-	printf("printing %llu machine instructions...\n", mi_count);
-	for (nat i = 0; i < mi_count; i++) {
-		printf("machine instruction {.op = %3llu (\"%s\"), .args = (%3llu)[%3llu, %3llu, %3llu, %3llu] }\n", 
-			mis[i].op, ins_spelling[mis[i].op],
-			mis[i].arg_count, 
-			mis[i].args[0],mis[i].args[1],mis[i].args[2],mis[i].args[3]
+static void print_instructions(struct instruction* list, const nat count, char** names) {
+	printf("printing %llu instructions...\n", count);
+	for (nat i = 0; i < count; i++) {
+		printf("ins { op=%s,.size=%s,.label=%s,.immediate=%llu,"
+			".registers=[%s, %s, %s, %s, %s, %s] } "
+			".modifiers=[%s, %s, %s, %s, %s, %s] } \n",
+			ins_spelling[list[i].op], ins_spelling[list[i].size], 
+			names[list[i].label], list[i].immediate,
+			ins_spelling[list[i].registers[0]], 
+			ins_spelling[list[i].registers[1]], 
+			ins_spelling[list[i].registers[2]], 
+			ins_spelling[list[i].registers[3]], 
+			ins_spelling[list[i].registers[4]], 
+			ins_spelling[list[i].registers[5]], 
+
+			ins_spelling[list[i].modifiers[0]], 
+			ins_spelling[list[i].modifiers[1]], 
+			ins_spelling[list[i].modifiers[2]], 
+			ins_spelling[list[i].modifiers[3]], 
+			ins_spelling[list[i].modifiers[4]], 
+			ins_spelling[list[i].modifiers[5]]
 		); 
 	}
 	puts("[done]");
 }
-
 
 int main(int argc, const char** argv) {
 
@@ -279,7 +335,7 @@ int main(int argc, const char** argv) {
 	bool active[4096] = {0};
 	nat name_count = 0;
 
-	nat* ins = NULL;
+	struct instruction* ins = NULL;
 	nat ins_count = 0;
 
 	struct file filestack[4096] = {0};
@@ -317,11 +373,10 @@ int main(int argc, const char** argv) {
 		values[name_count++] = i;
 	}
 
-	nat calling = 0, previous_call = 0;
-
-
 process_file:;
-	nat word_length = 0, word_start = 0, in_filename = 0;
+	nat 	word_length = 0, word_start = 0, calling = 0, 
+		in_filename = 0, in_define = 0, imm = 0,
+		register_count = 0, modifier_count = 0;
 
 	const nat starting_index = 	filestack[filestack_count - 1].index;
 	const nat text_length = 	filestack[filestack_count - 1].text_length;
@@ -335,7 +390,6 @@ process_file:;
 			if (index + 1 < text_length) continue;
 		} else if (not word_length) continue;
 		char* word = strndup(text + word_start, word_length);
-
 		if (in_filename) {
 			in_filename = 0;
 			for (nat i = 0; i < included_file_count; i++) {
@@ -344,7 +398,6 @@ process_file:;
 				goto next_word;
 			}
 			included_files[included_file_count++] = word;
-
 			int file = open(word, O_RDONLY);
 			if (file < 0) { printf("fatal error: loadfile %s: open: %s\n", word, strerror(errno)); exit(1); }
 			const nat new_text_length = (nat) lseek(file, 0, SEEK_END);
@@ -359,66 +412,105 @@ process_file:;
 			filestack[filestack_count++].index = 0;
 			goto process_file;
 
-		} 
-
-
-		for (nat i = 0; i < name_count; i++) {
-			if (not strcmp(names[i], word)) { 
-				calling = values[i]; 
-				goto found; 
-			}
+		} else if (in_define == 1) {
+			in_define = name_count;
+			active[name_count] = 1;
+			names[name_count] = word;
+			name_count++;
+			goto next_word;
+		}
+		for (nat i = 1; i < name_count; i++) {
+			if (not strcmp(names[i], word)) { calling = values[i]; goto found; }
 		}
 		nat r = 0, s = 1;
 		for (nat i = 0; i < strlen(word); i++) {
-			if (s >= is_immediate) { puts("bad imm"); abort(); } 
 			if (word[i] == '1') r += s;
 			else if (word[i] == '.') continue;
-			else if (word[i] != '0') goto create_new;
+			else if (word[i] != '0') goto create_label;
 			s <<= 1;
-			printf("r = %llu, s = %llu\n", r, s);
 		}
-		calling = is_immediate | r;
-		goto push;
+		calling = 0; imm = r;
+		goto found;
 
-	create_new:
-		calling = previous_call;
+	create_label: calling = name_count;
 		active[name_count] = 1;
 		names[name_count] = word;
-		values[name_count++] = previous_call;
-		goto next_word;
+		values[name_count] = name_count;
+		name_count++;
+	found: 	if (in_define) {
+			values[in_define] = calling ? calling : imm;
+			in_define = 0;
+			goto next_word;
+		}
+		if (calling == eoi) break;
+		else if (calling == loadfile) in_filename = 1;
+		else if (calling == def) in_define = 1;
+		else if (calling >= nop and calling < isa_count) {
+			register_count = 0;
+			modifier_count = 0;
+			ins = realloc(ins, sizeof(struct instruction) * (ins_count + 1));
+			ins[ins_count++] = (struct instruction) {
+				.op = calling,
+				.size = 8,
+				.immediate = 0,
+				.label = 0,
+				.modifiers = {0},
+				.registers = {0},
+			};
 
-	found:	previous_call = calling;
-		if (calling == loadfile) in_filename = 1;
-		else if (calling == eoi) break;
-		else {
-		push:	printf("regular calling = %llu\n", calling);
-			ins = realloc(ins, sizeof(nat) * (ins_count + 1));
-			ins[ins_count++] = calling;
+		} else if (calling == 0) {
+			if (not ins_count or ins[ins_count - 1].immediate) { puts("bad fill imm"); abort(); }
+			ins[ins_count - 1].immediate = imm;
+
+		} else if (calling >= size1 and calling <= size8) {
+			if (not ins_count) { puts("bad fill size"); abort(); }
+			ins[ins_count - 1].size = calling;
+
+		} else if (calling >= r0 and calling <= r31) {
+			if (register_count >= 6) { puts("bad fill reg"); abort(); }
+			ins[ins_count - 1].registers[register_count++] = calling;
+
+		} else if (calling < isa_count) {
+			if (modifier_count >= 6) { puts("bad fill mod"); abort(); }
+			ins[ins_count - 1].modifiers[modifier_count++] = calling;
+
+		} else {
+			if (not ins_count or ins[ins_count - 1].label) { puts("bad fill label"); abort(); }
+			ins[ins_count - 1].label = calling;
 		}
 		next_word: word_length = 0;
 	}
-
 	filestack_count--;
 	if (filestack_count) goto process_file;
 
 	debug_dictionary(names, active, values, name_count);
 
-	puts("printing instructions:");
-	puts("[INS_BEGIN]");
-	for (nat i = 0; i < ins_count; i++) {
-		if (i and i % 8 == 0) puts("");
-		if (ins[i] >> 32LLU) printf("#0x%llx  ", ins[i] ^ is_immediate);
-		else printf("%s  ", ins_spelling[ins[i]]);
-	}
-	puts("\n[END]");
+	print_instructions(ins, ins_count, names);
+
+
+
+
+
+
+/*
+
+
+def hello 100011100
+at loop
+        mov zero loop r0 11010
+	mov zero loop r0 hello
+
+
+
+def hello 100011100
+mov zero r0 hello
+
+*/
+
+
+
 
 	exit(1);
-	
-
-
-
-
-
 
 	uint8_t* data = NULL;
 	nat count = 0;	
@@ -656,7 +748,7 @@ process_file:;
 
 
 
-
+//if (calling >= isa_count and values[calling] < isa_count) calling = values[calling];
 
 
 
@@ -687,6 +779,15 @@ figuring out the names for all the conditions:
 	never
 	
 
+
+	//puts("printing instructions:");
+	//puts("[INS_BEGIN]");
+	//for (nat i = 0; i < ins_count; i++) {
+	//	if (i and i % 8 == 0) puts("");
+	//	if (ins[i] >> 32LLU) printf("#0x%llx  ", ins[i] ^ is_immediate);
+	//	else printf("%s  ", ins_spelling[ins[i]]);
+	//}
+	//puts("\n[END]");
 
 
 		*/
