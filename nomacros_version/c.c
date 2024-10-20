@@ -190,8 +190,7 @@ static void print_nodes(struct node* nodes, nat node_count) {
 		for (nat j = 0; j < nodes[n].data_input_count; j++) {
 			printf("%llu ", nodes[n].data_inputs[j]);
 		}
-		puts(" } }");
-		
+		puts(" } }");		
 	}
 	puts("done");
 }
