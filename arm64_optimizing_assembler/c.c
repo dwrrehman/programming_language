@@ -1,6 +1,66 @@
 /*
+
+do loop
+mov r0 01
+at loop
+mov r0 0010011
+mov r16 1
+svc
+eoi
+
+
+commands for the editor:
+----------------------------
+copyb insert ./build
+copya insert ./run c.c
+copya do  /bin/zsh
+----------------------------
+do './run'string'
+mov r0 010101
+mov r16 1
+svc
+----------------------------
+copya insert ./run string "
+mov r0 010101
+mov r16 1
+svc
+"
+-------------------------
+do  ./output_executable_new
+
+
+
+
+
+
+do loop
+mov r0 0010011
+mov r16 1
+at loop
+svc
+eoi
+
+becomes:
+
+output_executable_new:	file format mach-o arm64
+
+Disassembly of section __TEXT,__text:
+
+0000000100003ff0 <__text>:
+100003ff0: 03 00 00 14 	b	0x100003ffc <__text+0xc>
+100003ff4: 80 0c 80 d2 	mov	x0, #100
+100003ff8: 30 00 80 d2 	mov	x16, #1
+100003ffc: 01 00 00 d4 	svc	#0
+warning: ignoring label
+ins[i].label = 66
+i = 0
+target = 3
+file was removed.
+wrote 17184 bytes to file output_executable_new.
+
+
 written on 1202410196.164450 dwrr    
-an optimizing assembler that uses the 
+an optimizing arm64 assembler that uses the 
 arm64 (or machine code) isa as the ir 
 for the optimization process.
 
@@ -308,7 +368,6 @@ isa:
 	svc
 
 
-
 	mov type=z(default)/k/n shift=00 imm16=00000..0  Rd=00000  sf=1(default)/0
 
 		mov [size8(default)/size4] [zero(default)/keep/inv]   Rd_bn    [imm16_bn default=0]
@@ -333,6 +392,38 @@ isa:
 	mov r16  101000 101011  010100110
 
 	
+
+
+
+
+commands for the editor:
+----------------------------
+
+
+copyb insert ./build
+copya do  /bin/zsh
+
+
+----------------------------
+
+do './run'string'
+mov r0 010101
+mov r16 1
+svc
+
+
+----------------------------
+
+copya insert ./run string "
+mov r0 010101
+mov r16 1
+svc
+"
+
+
+
+
+do  ./output_executable_new
 
 
 
@@ -378,6 +469,11 @@ enum language_isa {
 	r24, r25, r26, r27, r28, r29, r30, r31, 
 	nop, svc, 
 	mov, csel,
+
+	adc,
+	addi,      // this is what we are working on next!!!! yayyy
+	_do,
+
 	at, def, loadfile, eoi, 
 	isa_count
 };
@@ -386,14 +482,19 @@ static const char* ins_spelling[isa_count] = {
 	" ",
 	"size1", "size2", "size4", "size8", 
 	"zero", "incr", "keep", "inv", "shift0", "shift16", "shift32", "shift48", "true", "false", 
-	"carry", "negative", "overflow",
-	"sless", "sgreater", "ugreater", "always",
+	"carry", "negative", "overflow", "sless", "sgreater", "ugreater", "always",
 	"r0",  "r1",  "r2",  "r3",  "r4",  "r5",  "r6",  "r7", 
 	"r8",  "r9",  "r10", "r11", "r12", "r13", "r14", "r15", 
 	"r16", "r17", "r18", "r19", "r20", "r21", "r22", "r23", 
 	"r24", "r25", "r26", "r27", "r28", "r29", "r30", "r31", 
 	"nop", "svc", 
 	"mov", "csel",
+
+	"adc", 
+	"addi",
+	"do", 
+
+
 	"at", "def", "include", "eoi",
 };
 
@@ -561,7 +662,7 @@ static void print_instructions(struct instruction* list, const nat count, char**
 
 int main(int argc, const char** argv) {
 
-	if (argc > 2) exit(puts("compiler: \033[31;1merror:\033[0m usage: ./run [file.s]"));
+	//if (argc > 3) exit(puts("compiler: \033[31;1merror:\033[0m usage: ./run [file.s]"));
 
 	char* names[4096] = {0};
 	nat values[4096] = {0};
@@ -576,12 +677,16 @@ int main(int argc, const char** argv) {
 	const char* included_files[4096] = {0};
 	nat included_file_count = 0;
 
-	if (argc < 2) {
+	if (argc < 2 or not strcmp(argv[1], "string")) {
 		char buffer[4096] = {0};
-		puts(	"give the input string to process:\n"
-			"(press '`' to terminate)\n"
-		);
-		get_input_string(buffer, sizeof buffer);
+		if (strcmp(argv[1], "string")) {
+			puts(	"give the input string to process:\n"
+				"(press '`' to terminate)\n"
+			);
+			get_input_string(buffer, sizeof buffer);
+		} else {
+			strlcpy(buffer, argv[2], sizeof buffer);
+		}
 		filestack[0].filename = "<top-level>";
 		filestack[0].text = strdup(buffer);
 		filestack[0].text_length = strlen(buffer);
@@ -633,7 +738,12 @@ process_file:;
 			}
 			included_files[included_file_count++] = word;
 			int file = open(word, O_RDONLY);
-			if (file < 0) { printf("fatal error: loadfile %s: open: %s\n", word, strerror(errno)); exit(1); }
+			if (file < 0) { 
+				printf("fatal error: loadfile %s: open: %s\n", 
+					word, strerror(errno)
+				); 
+				exit(1); 
+			}
 			const nat new_text_length = (nat) lseek(file, 0, SEEK_END);
 			lseek(file, 0, SEEK_SET);
 			char* new_text = calloc(new_text_length + 1, 1);
@@ -723,9 +833,17 @@ process_file:;
 			ins[ins_count - 1].modifiers[modifier_count++] = n;
 
 		} else if (T == type_label)  {
-			if (not ins_count or ins[ins_count - 1].label) { puts("bad fill label"); abort(); }
+
+			if (not ins_count) { 
+				puts("warning: ignoring label"); 
+				goto next_word;
+			}
+			if (ins[ins_count - 1].label) { 
+				puts("bad fill label"); 
+				abort(); 
+			}
 			ins[ins_count - 1].label = n;
-			if (ins[ins_count - 1].op == at) values[n] = ins_count;
+			if (ins[ins_count - 1].op == at) { values[n] = --ins_count; }
 
 		} else { 
 			puts("unknown symbol"); 
@@ -741,10 +859,8 @@ process_file:;
 	filestack_count--;
 	if (filestack_count) goto process_file;
 
-	debug_dictionary(names, types, values, name_count);
-
-	print_instructions(ins, ins_count, names);
-
+	//debug_dictionary(names, types, values, name_count);
+	//print_instructions(ins, ins_count, names);
 
 
 
@@ -787,6 +903,30 @@ my_bytes:
 
 		if (op == nop) insert_u32(&my_bytes, &my_count, 0xD503201F);
 		else if (op == svc) insert_u32(&my_bytes, &my_count, 0xD4000001);
+
+		else if (op == adc) {
+
+			abort();
+		}
+
+		else if (op == _do) {
+
+			// just put the value five at index twenty six and then put the imm two six colon zero zero. ie, the immediate offset is encoded as the divide by four version, ithink. so yeah. 
+
+			//printf("ins[i].label = %llu\n", ins[i].label);
+			//printf("i = %llu\n", i);
+
+			const nat target = values[ins[i].label];
+			//printf("target = %llu\n", target);
+
+			const uint32_t offset = 
+				0x3ffffff & (target - i);
+
+			const uint32_t to_emit = (0x5U << 26U) | (offset);
+			insert_u32(&my_bytes, &my_count, to_emit);
+		}
+
+
 		else if (op == mov) {
 			if (imm >= 65536) { puts("bad mov literal"); abort(); } 
 			const uint32_t Im = (uint32_t) imm;
@@ -840,7 +980,6 @@ my_bytes:
 				if (ins[i].modifiers[m] == sless) 	cond = 5;
 				if (ins[i].modifiers[m] == sgreater) 	cond = 6;
 				if (ins[i].modifiers[m] == always) 	cond = 7;
-
 			}
 
 			const uint32_t to_emit = 
@@ -859,16 +998,36 @@ my_bytes:
 	}
 	while (my_count % 16) insert_byte(&my_bytes, &my_count, 0);
 
+
+
+
+	/*
 	puts("generated machine code: ");
 	for (nat i = 0; i < my_count; i++) {
-		if (i % 32 == 0) puts("");
+		if (i % 8 == 0) puts("");
 		printf("%02hhx ", my_bytes[i]);
 	}
 	puts("");
+	*/
+
+
+
+	//const nat multiples = my_count / 16;
+
+	
 
 
 
 /*
+
+
+
+
+
+
+
+
+
 
 
 csel r3 r4 r5 inv incr
@@ -936,9 +1095,9 @@ mov r16 1
 		 0,   0,   0,   0,   0,   0,   0,   0
 	}, 16);
 
-	insert_u64(&data, &count, 0x0000000100000000 + 16384 - 16);
-	insert_u64(&data, &count, 16); 
-	insert_u32(&data, &count, 16384 - 16);
+	insert_u64(&data, &count, 0x0000000100000000 + 16384 - my_count);
+	insert_u64(&data, &count, my_count); 
+	insert_u32(&data, &count, 16384 - (uint32_t) my_count);
 	insert_u32(&data, &count, 4); 
 	insert_u32(&data, &count, 0);
 	insert_u32(&data, &count, 0); 
@@ -1021,7 +1180,7 @@ mov r16 1
 //
 	insert_u32(&data, &count, LC_MAIN);
 	insert_u32(&data, &count, 24);
-	insert_u64(&data, &count, 16384 - 16);
+	insert_u64(&data, &count, 16384 - my_count);
 	insert_u64(&data, &count, 0);
 //
 	insert_u32(&data, &count, LC_LOAD_DYLIB);
@@ -1041,24 +1200,24 @@ mov r16 1
 	for (nat i = 0; i < my_count; i++) insert_byte(&data, &count, my_bytes[i]);
 	for (nat i = 0; i < 800; i++) insert_byte(&data, &count, 0);
 
-	puts("");
-	puts("bytes: ");
-	for (nat i = 0; i < count; i++) {
-		if (i % 32 == 0) puts("");
-		if (data[i]) printf("\033[32;1m");
-		printf("%02hhx ", data[i]);
-		if (data[i]) printf("\033[0m");
-	}
-	puts("");
+//	puts("");
+//	puts("bytes: ");
+//	for (nat i = 0; i < count; i++) {
+//		if (i % 32 == 0) puts("");
+//		if (data[i]) printf("\033[32;1m");
+//		printf("%02hhx ", data[i]);
+//		if (data[i]) printf("\033[0m");
+//	}
+//	puts("");
 
-	puts("preparing for writing out the data.");
+	//puts("preparing for writing out the data.");
 
 
 	const bool overwrite_executable_always = true;
 
 	if (not access("output_executable_new", F_OK)) {
-		printf("file exists. do you wish to remove the previous one? ");
-		fflush(stdout);
+		//printf("file exists. do you wish to remove the previous one? ");
+		//fflush(stdout);
 		if (overwrite_executable_always or getchar() == 'y') {
 			puts("file was removed.");
 			int r = remove("output_executable_new");
@@ -1075,12 +1234,13 @@ mov r16 1
 	write(file, data, count);
 	close(file);
 	printf("wrote %llu bytes to file %s.\n", count, "output_executable_new");
-
 	system("codesign -s - output_executable_new");
 
-	system("otool -htvxVlL output_executable_new");
 
-	exit(1);
+// debugging:
+
+	//system("otool -htvxVlL output_executable_new");
+	system("objdump -D output_executable_new");
 
 }
 
