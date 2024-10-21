@@ -1,5 +1,13 @@
 /*
 
+mov inv r2 
+nop nop nop
+
+
+
+eoi
+
+
 do loop
 mov r0 01
 at loop
@@ -11,9 +19,33 @@ eoi
 
 commands for the editor:
 ----------------------------
+
 copyb insert ./build
 copya insert ./run c.c
-copya do  /bin/zsh
+
+do  ./output_executable_new
+do  /bin/zsh
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+old commands:
 ----------------------------
 do './run'string'
 mov r0 010101
@@ -27,9 +59,7 @@ svc
 "
 -------------------------
 do  ./output_executable_new
-
-
-
+do  /bin/zsh
 
 
 

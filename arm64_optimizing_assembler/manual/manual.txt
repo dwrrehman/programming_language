@@ -1,0 +1,209 @@
+arm64 assembler manual
+------------------------
+written by dwrr 
+on 1202410211.002846
+-------------------------
+
+this is a manual on how to use the 
+arm64 assembler's language for programming. 
+written just for my own use, but you 
+might find it useful too lol. 
+
+
+
+available instructions:
+-----------------------
+
+nop 		no operation
+
+svc		system call
+
+mov		copy immediate 16-bit into register
+
+csel		conditionally select result
+
+adc		add with carry (unimplemented)
+
+do 		unconditionally branch to label
+
+
+
+
+assembler directives:
+----------------------
+
+include		include another assembly source file
+
+eoi		end of input
+
+at		attribute a label to a position
+
+def		define a macro for another word
+
+
+available registers:
+
+r0  r1  r2  r3   r4  r5  r6  r7
+r8  r9  r10 r11  r12 r13 r14 r15
+r16 r17 r18 r19  r20 r21 r22 r23
+r24 r25 r26 r27  r28 r29 r30 r31
+
+
+
+available modifiers:
+
+zero		zero extend, or the zero flag/condition.
+keep		keep existing bits when doing a mov.
+inv		bitwise invert operation
+incr		increment operation 
+
+shift0		operation of shifting left by 0 bits
+shift16		operation of shifting left by 16 bits
+shift32		operation of shifting left by 32 bits
+shift48		operation of shifting left by 48 bits
+
+true		branch if condition is true
+false		branch if condition is false
+
+carry		carry flag/condition
+negative	negative flag/condition
+overflow	overflow flag/condition
+ugreater	unsigned greater than comparison
+sless		signed less than comparison
+sgreater	signed greater than comparison
+always		the condition which is always true.
+
+
+
+[note: modifiers can appear anywhere in a given instruction, as long as no contradictory ones are given to the same instruction. ]
+
+
+
+
+
+
+
+
+
+instruction descriptions:
+----------------------------
+
+
+mov
+--------
+
+desc:
+	loads a 16-bit literal into a register, rd
+
+form:
+	mov [keep/zero/inv] rd [imm] [shift0/shift16/shift32/shift48]
+
+args:
+	zero modifier: zeros extends the immediate to 
+		fill the entire regsiter.
+		implied if no other modifiers are present.
+
+	keep modifier: keeps existing register bits, 
+
+	inv modifier: inverts regsiter contents after loading.
+
+	rd: destination register, must be r0-r31. required. 
+
+	imm: a binary immediate. optional.
+			if not given, 0 is assumed. 
+examples:
+	mov r0			zeros the register r0.	
+	mov zero r4 1001	loads the value 9 into r4.
+	mov r4 1001		also loads the value 9 into r4.
+	mov r4 1 shift32	loads 1 << 32 into r4.
+	mov keep r4 1100101	loads an imm into the bottom 16 bits, retaining the rest of the bits that were in r4. 
+	mov inv r4		loads the value -1 into r4.
+
+
+
+
+
+
+
+
+csel
+--------
+
+desc:
+	conditionally selects a value to load into a register. 
+	can perfect an increment, bitwire inversion or both
+	on one input.
+
+form:
+	csel [incr] [inv] rd rm rn [cond] [true/false]
+
+args:
+	incr modifier: causes a true condition to load rm+1.
+
+	inv modifier: causes a true condition to load 
+			the bitwise inversion of rm. 
+
+	rd: destination register, must be r0-r31. required. 
+	rm: source0 register, must be r0-r31. required.
+	rn: source1 register, must be r0-r31. required. 
+
+examples:
+
+	....
+
+
+
+
+
+
+
+adc
+----------
+
+
+	(unimplemented)
+
+
+
+
+
+
+do
+-----------
+
+desc:
+	an unconditional branch to a label (pc-relative offset)
+
+form:
+	do label
+
+args:
+
+	label: a label with an attribution somewhere else in the code.
+		required. 
+
+
+examples:
+
+	do mylocationhere
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
