@@ -6,6 +6,27 @@ for the optimization process.
 
 ----------------------------------------
 
+
+
+1202410207.191257
+i finally got this code working!!
+
+totally overhauled the way i am handling the dictionary lol.. i think it should work well now, i think!!
+
+
+
+def hello 0001
+def bubbles hello
+
+mov r3 bubbles
+def myvar r5
+
+mov myvar hello
+
+
+
+
+
 1202410207.002512
 current state:
 
@@ -363,10 +384,24 @@ static void insert_u64(uint8_t** d, nat* c, uint64_t x) {
 #define TOOL_LD			3
 #define PLATFORM_MACOS 		1
 
-static void debug_dictionary(char** names, bool* active, nat* values, nat name_count) {
+enum word_types {
+	type_undefined,
+	type_keyword,
+	type_label,
+	type_immediate,
+};
+
+static const char* type_spelling[] = {
+	"undefined",
+	"keyword",
+	"label",
+	"immediate",
+};
+
+static void debug_dictionary(char** names, nat* types, nat* values, nat name_count) {
 	printf("dictionary: %llu\n", name_count);
 	for (nat i = 0; i < name_count; i++) 
-		printf("[ %c ] var #%5llu:   %10s  --->  %llu\n", active[i] ? ' ' : 'd', i, names[i], values[i]);
+		printf("\t%5llu  :   %10s : %-10s --->  %llu\n", i, names[i], type_spelling[types[i]], values[i]);
 	puts("done printing dictionary.");
 }
 
@@ -402,7 +437,7 @@ int main(int argc, const char** argv) {
 
 	char* names[4096] = {0};
 	nat values[4096] = {0};
-	bool active[4096] = {0};
+	nat types[4096] = {0};
 	nat name_count = 0;
 
 	struct instruction* ins = NULL;
@@ -438,14 +473,15 @@ int main(int argc, const char** argv) {
 	}
 
 	for (nat i = 0; i < isa_count; i++) {
-		active[name_count] = 1;
+		types[name_count] = type_keyword;
 		names[name_count] = strdup(ins_spelling[i]);
-		values[name_count++] = i;
+		values[name_count] = name_count;
+		name_count++;
 	}
 
 process_file:;
 	nat 	word_length = 0, word_start = 0, calling = 0, 
-		in_filename = 0, in_define = 0, imm = 0,
+		in_filename = 0, in_define = 0,
 		register_count = 0, modifier_count = 0;
 
 	const nat starting_index = 	filestack[filestack_count - 1].index;
@@ -484,14 +520,18 @@ process_file:;
 
 		} else if (in_define == 1) {
 			in_define = name_count;
-			active[name_count] = 1;
 			names[name_count] = word;
+			types[name_count] = 0;
 			name_count++;
 			goto next_word;
 		}
-		for (nat i = 1; i < name_count; i++) {
-			if (not strcmp(names[i], word)) { calling = values[i]; goto found; }
-		}
+
+		for (nat i = 0; i < name_count; i++) 
+			if (not strcmp(names[i], word)) { calling = i; goto found; }
+
+		calling = name_count;
+		names[name_count] = word;
+
 		nat r = 0, s = 1;
 		for (nat i = 0; i < strlen(word); i++) {
 			if (word[i] == '1') r += s;
@@ -499,66 +539,82 @@ process_file:;
 			else if (word[i] != '0') goto create_label;
 			s <<= 1;
 		}
-		calling = 0; imm = r;
-		goto found;
 
-	create_label: calling = name_count;
-		active[name_count] = 1;
-		names[name_count] = word;
-		values[name_count] = name_count;
+		types[name_count] = type_immediate;
+		values[name_count] = r;
 		name_count++;
+		goto found;
+		
+	create_label:
+		types[name_count] = type_label;
+		values[name_count] = (nat) -1;
+		name_count++;
+
 	found: 	if (in_define) {
-			values[in_define] = calling ? calling : imm;
+			values[in_define] = values[calling];
+			types[in_define] = types[calling];
 			in_define = 0;
 			goto next_word;
 		}
-		if (calling == eoi) break;
-		else if (calling == loadfile) in_filename = 1;
-		else if (calling == def) in_define = 1;
-		else if (calling >= nop and calling < isa_count) {
+
+		nat n = calling;
+		const nat T = types[n];
+
+		if (T == type_keyword) n = values[n];
+
+		if (n == eoi) break;
+		else if (n == loadfile) in_filename = 1;
+		else if (n == def) in_define = 1;
+		else if (n >= nop and n < isa_count) {
 			register_count = 0;
 			modifier_count = 0;
 			ins = realloc(ins, sizeof(struct instruction) * (ins_count + 1));
 			ins[ins_count++] = (struct instruction) {
-				.op = calling,
-				.size = 8,
+				.op = n,
+				.size = size8,
 				.immediate = 0,
 				.label = 0,
 				.modifiers = {0},
 				.registers = {0},
 			};
 
-		} else if (calling == 0) {
+		} else if (T == type_immediate) {
 			if (not ins_count or ins[ins_count - 1].immediate) { puts("bad fill imm"); abort(); }
-			ins[ins_count - 1].immediate = imm;
+			ins[ins_count - 1].immediate = values[n];
 
-		} else if (calling >= size1 and calling <= size8) {
+		} else if (n >= size1 and n <= size8) {
 			if (not ins_count) { puts("bad fill size"); abort(); }
-			ins[ins_count - 1].size = calling;
+			ins[ins_count - 1].size = n;
 
-		} else if (calling >= r0 and calling <= r31) {
+		} else if (n >= r0 and n <= r31) {
 			if (register_count >= 6) { puts("bad fill reg"); abort(); }
-			ins[ins_count - 1].registers[register_count++] = calling;
+			ins[ins_count - 1].registers[register_count++] = n;
 
-		} else if (calling < isa_count) {
+		} else if (n < isa_count) {
 			if (modifier_count >= 6) { puts("bad fill mod"); abort(); }
-			ins[ins_count - 1].modifiers[modifier_count++] = calling;
+			ins[ins_count - 1].modifiers[modifier_count++] = n;
 
-		} else {
+		} else if (T == type_label)  {
 			if (not ins_count or ins[ins_count - 1].label) { puts("bad fill label"); abort(); }
-			ins[ins_count - 1].label = calling;
+			ins[ins_count - 1].label = n;
+
+		} else { 
+			puts("unknown symbol"); 
+			printf("n = %llu, calling = %llu, values[n] = %llu, types[n] = %llu\n", 
+				n, calling, values[n], types[n]
+			);
+			debug_dictionary(names, types, values, name_count);
+			abort(); 
 		}
+
 		next_word: word_length = 0;
 	}
 	filestack_count--;
 	if (filestack_count) goto process_file;
 
-	debug_dictionary(names, active, values, name_count);
+	debug_dictionary(names, types, values, name_count);
 
 	print_instructions(ins, ins_count, names);
-
-
-
 
 
 
