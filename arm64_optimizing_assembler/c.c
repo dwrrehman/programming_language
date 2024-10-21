@@ -25,6 +25,108 @@ mov myvar hello
 
 
 
+which now generates the right instructions:
+
+
+	dictionary: (62 words)
+	    0  :              : keyword    --->  0
+	    1  :        size1 : keyword    --->  1
+	    
+		....etc...
+
+	   54  :           at : keyword    --->  54
+	   55  :          def : keyword    --->  55
+	   56  :      include : keyword    --->  56
+	   57  :          eoi : keyword    --->  57
+	   58  :        hello : immediate  --->  8
+	   59  :         0001 : immediate  --->  8
+	   60  :      bubbles : immediate  --->  8
+	   61  :        myvar : keyword    --->  23
+done printing dictionary.
+
+printing 2 instructions...
+ins { op=mov,.size=size8,.label= ,.immediate=8,.registers=[r3,  ,  ,  ,  ,  ] } .modifiers=[ ,  ,  ,  ,  ,  ] } 
+ins { op=mov,.size=size8,.label= ,.immediate=8,.registers=[r5,  ,  ,  ,  ,  ] } .modifiers=[ ,  ,  ,  ,  ,  ] } 
+[done]
+
+
+
+YAYYY it works lol. lets continue testing ittt
+
+
+
+this code also works:
+
+	def hello loop
+	at hello
+
+
+which generates the instructions:
+
+
+printing 1 instructions...
+ins { op=at,.size=size8,.label=hello,.immediate=0,.registers=[ ,  ,  ,  ,  ,  ] } .modifiers=[ ,  ,  ,  ,  ,  ] } 
+[done]
+
+
+
+heck, we can even do:
+
+def hello eoi
+hello
+mov r0 1001
+
+
+which generates no instructions, as it should!!! wow. thats literally so cool. i love that lol. YAYYY
+
+
+
+nice. so this macro system is the correct one i think lol. yayyy. cool beans 
+
+
+
+
+
+
+lets start code gen now!!!
+
+lets try this program, for testing:
+
+
+def systemexit 1
+def exitcode 1001
+
+mov r0 exitcode
+mov r16 systemexit
+svc
+
+
+which outputs:
+
+printing 3 instructions...
+ins { op=mov,.size=size8,.label= ,.immediate=9,.registers=[r0,  ,  ,  ,  ,  ] } .modifiers=[ ,  ,  ,  ,  ,  ] } 
+ins { op=mov,.size=size8,.label= ,.immediate=1,.registers=[r16,  ,  ,  ,  ,  ] } .modifiers=[ ,  ,  ,  ,  ,  ] } 
+ins { op=svc,.size=size8,.label= ,.immediate=0,.registers=[ ,  ,  ,  ,  ,  ] } .modifiers=[ ,  ,  ,  ,  ,  ] } 
+[done]
+
+
+
+
+gosh i love this so much!!!! this is going well lol. YAY
+
+
+lets do code gen now lol. i think we are ready lol. 
+
+
+
+
+
+
+
+
+
+
+
 
 
 1202410207.002512
@@ -238,10 +340,36 @@ isa:
 
 */
 
+
+
+/*
+
+
+
+1202410207.192311
+this code works now too. yayyyyy
+
+
+
+def hello 100011100
+at loop
+        mov zero loop r0 11010
+	mov zero loop r0 hello
+
+
+
+def hello 100011100
+mov zero r0 hello
+
+*/
+
+
+
+
 enum language_isa {
 	nullins,
 	size1, size2, size4, size8, 
-	zero, incr, keep, inv, _true, _false, 
+	zero, incr, keep, inv, shift0, shift16, shift32, shift48, _true, _false, 
 	carry, negative, overflow,
 	sless, sgreater, ugreater, always,
 	r0,  r1,  r2,  r3,  r4,  r5,  r6,  r7, 
@@ -257,7 +385,7 @@ enum language_isa {
 static const char* ins_spelling[isa_count] = {
 	" ",
 	"size1", "size2", "size4", "size8", 
-	"zero", "incr", "keep", "inv", "true", "false", 
+	"zero", "incr", "keep", "inv", "shift0", "shift16", "shift32", "shift48", "true", "false", 
 	"carry", "negative", "overflow",
 	"sless", "sgreater", "ugreater", "always",
 	"r0",  "r1",  "r2",  "r3",  "r4",  "r5",  "r6",  "r7", 
@@ -597,6 +725,7 @@ process_file:;
 		} else if (T == type_label)  {
 			if (not ins_count or ins[ins_count - 1].label) { puts("bad fill label"); abort(); }
 			ins[ins_count - 1].label = n;
+			if (ins[ins_count - 1].op == at) values[n] = ins_count;
 
 		} else { 
 			puts("unknown symbol"); 
@@ -618,25 +747,143 @@ process_file:;
 
 
 
+
 /*
 
-
-def hello 100011100
-at loop
-        mov zero loop r0 11010
-	mov zero loop r0 hello
+	zero, carry, negative, overflow,
+	sless, sgreater, ugreater, always,
 
 
+	uint8_t* my_bytes = {
+		//0x30, 0x00, 0x80, 0xD2, // mov x16, 1
+		//0xe0, 0x01, 0x80, 0xD2, // mov x0, 15
+		//0x01, 0x00, 0x00, 0xD4, // svc 0
+		0x00, 0x00, 0x00, 0x00, // (padding)
+	};
+	const nat my_count = sizeof my_bytes;    // make sure my_count is a multiple of 16 bytes. 
 
-def hello 100011100
-mov zero r0 hello
 
+
+
+
+printing 1 instructions...
+ins { op=mov,.size=size8,.label= ,.immediate=1,.registers=[r16,  ,  ,  ,  ,  ] } .modifiers=[zero, shift0,  ,  ,  ,  ] } 
+[done]
+my_bytes: 
+
+30 00 80 d2 00 00 00 00 00 00 00 00 00 00 00 00 
 */
 
 
+	uint8_t* my_bytes = NULL;
+	nat my_count = 0;
+	
+
+	for (nat i = 0; i < ins_count; i++) {
+		const nat op = ins[i].op;
+		const uint32_t sf = ins[i].size == size8;
+		const nat imm = ins[i].immediate;
+	
+
+		if (op == nop) insert_u32(&my_bytes, &my_count, 0xD503201F);
+		else if (op == svc) insert_u32(&my_bytes, &my_count, 0xD4000001);
+		else if (op == mov) {
+			if (imm >= 65536) { puts("bad mov literal"); abort(); } 
+			const uint32_t Im = (uint32_t) imm;
+			const uint32_t Rd = (uint32_t) (ins[i].registers[0] - r0);
+			if (Rd >= 32) { puts("bad mov reg"); abort(); }
+
+			uint32_t opc = 2, shift = 0;
+			for (nat m = 0; m < 6; m++) {
+				if (ins[i].modifiers[m] == zero) 	opc = 2;
+				if (ins[i].modifiers[m] == keep) 	opc = 3;
+				if (ins[i].modifiers[m] == inv) 	opc = 0;
+				if (ins[i].modifiers[m] == shift0) 	shift = 0;
+				if (ins[i].modifiers[m] == shift16) 	shift = 1;
+				if (ins[i].modifiers[m] == shift32) 	shift = 2;
+				if (ins[i].modifiers[m] == shift48) 	shift = 3;
+			}
+			const uint32_t to_emit = 
+				(sf << 31U) | 
+				(opc << 29U) | 
+				(0x25U << 23U) | 
+				(shift << 21U) | 
+				(Im << 5U) | 
+				(Rd);
+
+			insert_u32(&my_bytes, &my_count, to_emit);
+
+		} else if (op == csel) {
+
+			const uint32_t Rd = (uint32_t) (ins[i].registers[0] - r0);
+			const uint32_t Rn = (uint32_t) (ins[i].registers[1] - r0);
+			const uint32_t Rm = (uint32_t) (ins[i].registers[2] - r0);
+
+			if (Rd >= 32) { puts("bad mov reg Rd"); abort(); }
+			if (Rn >= 32) { puts("bad mov reg Rn"); abort(); }
+			if (Rm >= 32) { puts("bad mov reg Rm"); abort(); }
+
+			uint32_t o1 = 2, o2 = 0, cond = 0, inv_cond = 0;
+			for (nat m = 0; m < 6; m++) {
+
+				if (ins[i].modifiers[m] == incr) 	o2 = 1;
+				if (ins[i].modifiers[m] == inv) 	o1 = 1;
+
+				if (ins[i].modifiers[m] == _true) 	inv_cond = 0; 
+				if (ins[i].modifiers[m] == _false) 	inv_cond = 1;
+
+				if (ins[i].modifiers[m] == zero) 	cond = 0;
+				if (ins[i].modifiers[m] == carry) 	cond = 1;
+				if (ins[i].modifiers[m] == negative) 	cond = 2;
+				if (ins[i].modifiers[m] == overflow) 	cond = 3;
+				if (ins[i].modifiers[m] == ugreater) 	cond = 4;
+				if (ins[i].modifiers[m] == sless) 	cond = 5;
+				if (ins[i].modifiers[m] == sgreater) 	cond = 6;
+				if (ins[i].modifiers[m] == always) 	cond = 7;
+
+			}
+
+			const uint32_t to_emit = 
+				(sf << 31U) | 
+				(o1 << 30U) | 
+				(0xD4 << 21U) | 
+				(Rm << 16U) | 
+				(cond << 13U) | 
+				(inv_cond << 12U) | 
+				(o2 << 10U) | 
+				(Rn << 5U) | 
+				(Rd);
+
+			insert_u32(&my_bytes, &my_count, to_emit);			
+		}
+	}
+	while (my_count % 16) insert_byte(&my_bytes, &my_count, 0);
+
+	puts("generated machine code: ");
+	for (nat i = 0; i < my_count; i++) {
+		if (i % 32 == 0) puts("");
+		printf("%02hhx ", my_bytes[i]);
+	}
+	puts("");
 
 
-	exit(1);
+
+/*
+
+
+csel r3 r4 r5 inv incr
+mov r16 1
+
+
+
+
+*/
+	//exit(1);
+
+
+
+
+
 
 	uint8_t* data = NULL;
 	nat count = 0;	
@@ -790,15 +1037,6 @@ mov zero r0 hello
 		'i', 'b',  0,   0,   0,   0,   0,   0
 	}, 32);
 
-	const uint8_t my_bytes[] = {
-
-		0x30, 0x00, 0x80, 0xD2, // mov x16, 1
-		0xe0, 0x01, 0x80, 0xD2, // mov x0, 15
-		0x01, 0x00, 0x00, 0xD4, // svc 0
-
-		0x00, 0x00, 0x00, 0x00, // (padding)
-	};
-	const nat my_count = sizeof my_bytes;
 	while (count < 16384 - my_count) insert_byte(&data, &count, 0);
 	for (nat i = 0; i < my_count; i++) insert_byte(&data, &count, my_bytes[i]);
 	for (nat i = 0; i < 800; i++) insert_byte(&data, &count, 0);
@@ -815,11 +1053,13 @@ mov zero r0 hello
 
 	puts("preparing for writing out the data.");
 
+
+	const bool overwrite_executable_always = true;
+
 	if (not access("output_executable_new", F_OK)) {
 		printf("file exists. do you wish to remove the previous one? ");
 		fflush(stdout);
-		int c = getchar();
-		if (c == 'y') {
+		if (overwrite_executable_always or getchar() == 'y') {
 			puts("file was removed.");
 			int r = remove("output_executable_new");
 			if (r < 0) { perror("remove"); exit(1); }
@@ -837,6 +1077,8 @@ mov zero r0 hello
 	printf("wrote %llu bytes to file %s.\n", count, "output_executable_new");
 
 	system("codesign -s - output_executable_new");
+
+	system("otool -htvxVlL output_executable_new");
 
 	exit(1);
 
