@@ -3,38 +3,50 @@
 // with something simpler and faster hopefully.
 
 /*
-arm isa that will be supported:
+arm isa remaining to implement:
 
-	addxr(s)  addsr(s)  adr(p)
+	addxr(s)  addsr(s)  
+	adr(p)
 	andi(s)  andsr(s)  
 
-	b.cond(16 conds)
-
 	bfm bic(s) 
-	cbnz   cbz   
-	ccmni  ccmnr  cmpi   cmpr
 	cls clz 
-	
-	eonsr eorsr eori  extr
+
+	eonsr eorsr eori  
+	extr
+
 	ldp ldri ldrl ldrr 
 	ldrb ldrsb ldrh ldrsh ldrsw
-	   madd msub
 	
 	ornsr orri orrsr
 	rbit rev rev16 rev32
-	ret   sbc(s)  sbfm 
-	sdiv smaddl smsubl smulh 
+
+	sbfm  ubfm
+	smulh  umulh
+
 	stp stri strr strbi strbr strhi strhr 
 	subxr(s)  subsr(s) 
-	    tbnz tbz    ubfm
-	udiv umaddl umsubl umulh
+		
+	tbnz tbz
 
 
 
 
-done:
-	br   blr 
+
+
+
+
+done:          (on same line means they are the same instruction!!!)
+
+
+
+	sdiv  udiv 
+	umaddl umsubl  smaddl smsubl    madd msub
+	cbnz   cbz
+	b.cond(16 conds)
+	br   blr   ret
 	b  bl
+	ccmni  cmpi   cmpr   ccmnr  
 	adc(s) sbc(s)
 	addi(s) subi(s)
 	lslv  lsrv   asrv   rorv 
@@ -67,18 +79,20 @@ typedef uint64_t nat;
 enum language_isa {
 	nullins,
 	size1, size2, size4, size8, 
-	zero, incr, keep, inv, flags, link_, regimm, 
+	zero, incr, keep, inv, flags, 
+	link_, regimm, return_, 
 	up, down, rotate,
 	signed_, unsigned_, 
 	shift12, shift16, shift32, shift48, 
-	not_, carry, negative, overflow,
-	sless, sgreater, ugreater, always,
+	not_, carry, negative, overflow, nev, always,
 	r0,  r1,  r2,  r3,  r4,  r5,  r6,  r7, 
 	r8,  r9,  r10, r11, r12, r13, r14, r15, 
 	r16, r17, r18, r19, r20, r21, r22, r23, 
 	r24, r25, r26, r27, r28, r29, r30, r31, 
 
-	nop, svc, mov, csel, do_, adc, addi, shift, br, ccmp,
+	nop, svc, mov, csel, do_, adc, 
+	addi, shift, br, ccmp, if_, cbz, 
+	madd, div_, 
 
 	at, def, loadfile, eoi, 
 	isa_count
@@ -87,17 +101,22 @@ enum language_isa {
 static const char* ins_spelling[isa_count] = {
 	" ",
 	"size1", "size2", "size4", "size8", 
-	"zero", "incr", "keep", "inv", "flags", "link", "regimm", 
+	"zero", "incr", "keep", "inv", "flags", 
+	"link", "regimm", "return",
 	"up", "down", "rotate", 
 	"signed", "unsigned",
 	"shift12", "shift16", "shift32", "shift48", 
-	"not", "carry", "negative", "overflow", "sless", "sgreater", "ugreater", "always",
+
+	"not", "carry", "negative", "overflow", "nev", "always",
+
 	"r0",  "r1",  "r2",  "r3",  "r4",  "r5",  "r6",  "r7", 
 	"r8",  "r9",  "r10", "r11", "r12", "r13", "r14", "r15", 
 	"r16", "r17", "r18", "r19", "r20", "r21", "r22", "r23", 
 	"r24", "r25", "r26", "r27", "r28", "r29", "r30", "r31", 
 
-	"nop", "svc", "mov", "csel", "do", "adc", "addi", "shift",  "br", "ccmp", 
+	"nop", "svc", "mov", "csel", "do", "adc", 
+	"addi", "shift",  "br", "ccmp", "if", "cbz", 
+	"madd", "div", 
 
 	"at", "def", "include", "eoi",
 };
@@ -265,6 +284,43 @@ static void print_instructions(struct instruction* list, const nat count, char**
 }
 
 
+static uint32_t parse_condition(nat* modifiers) {
+	uint32_t 
+		inv_cond = 0, 
+		zero_set = 0, 
+		carry_set = 0, 
+		negative_set = 0, 
+		overflow_set = 0, 
+		nev_set = 0,
+		always_set = 0
+	;
+
+	for (nat m = 0; m < 6; m++) {
+
+		const nat k = modifiers[m];
+		if (k == not_)		inv_cond = 1;
+		if (k == zero) 		zero_set = 1;
+		if (k == carry) 	carry_set = 1;
+		if (k == negative) 	negative_set = 1;
+		if (k == overflow) 	overflow_set = 1;
+		if (k == nev) 		nev_set = 1;
+		if (k == always) 	always_set = 1;
+	}
+
+	uint32_t cond = 0;
+
+	if (carry_set and zero_set) cond = 4;
+	else if (nev_set and zero_set) cond = 6;
+	else if (zero_set) cond = 0;
+	else if (carry_set) cond = 1;
+	else if (negative_set) cond = 2;
+	else if (overflow_set) cond = 3;
+	else if (nev_set) cond = 5;
+	else if (always_set) cond = 7;
+
+	return (cond << 1) | inv_cond;
+}
+
 int main(int argc, const char** argv) {
 
 	char* names[4096] = {0};
@@ -358,7 +414,6 @@ process_file:;
 			filestack[filestack_count].text_length = new_text_length;
 			filestack[filestack_count++].index = 0;
 			goto process_file;
-
 
 		} else if (in_define == 1) {
 			in_define = name_count;
@@ -477,6 +532,7 @@ process_file:;
 		const uint32_t Rd = (uint32_t) (ins[i].registers[0] - r0);
 		const uint32_t Rn = (uint32_t) (ins[i].registers[1] - r0);
 		const uint32_t Rm = (uint32_t) (ins[i].registers[2] - r0);
+		const uint32_t Ra = (uint32_t) (ins[i].registers[3] - r0);
 
 		if (op == nop) insert_u32(&my_bytes, &my_count, 0xD503201F);
 		else if (op == svc) insert_u32(&my_bytes, &my_count, 0xD4000001);
@@ -486,6 +542,7 @@ process_file:;
 			for (nat m = 0; m < 6; m++) {
 				const nat k = ins[i].modifiers[m];
 				if (k == link_) l = 1;
+				if (k == return_) l = 2;
 			}
 
 			const uint32_t to_emit = 
@@ -502,8 +559,8 @@ process_file:;
 			uint32_t op1 = 0xD0, op2 = 0, o1 = 0, s = 0;
 			for (nat m = 0; m < 6; m++) {
 				const nat k = ins[i].modifiers[m];
-				if (k == flags) 	s = 1;
-				if (k == inv) 		o1 = 1;
+				if (k == flags) s = 1;
+				if (k == inv) o1 = 1;
 			}
 
 			const uint32_t to_emit = 
@@ -543,34 +600,57 @@ process_file:;
 			insert_u32(&my_bytes, &my_count, to_emit);
 		}
 
+		else if (op == if_) {
+			const uint32_t cond = parse_condition(ins[i].modifiers);
+			const nat target = values[ins[i].label];
+			const uint32_t offset = 0x7ffff & (target - i);
 
+			const uint32_t to_emit = 
+				(0x54U << 24U) | 
+				(offset << 5U) | 
+				(cond);
 
+			insert_u32(&my_bytes, &my_count, to_emit);
+		}
+
+		else if (op == cbz) {
+
+			uint32_t o1 = 0;
+			for (nat m = 0; m < 6; m++) {
+				const nat k = ins[i].modifiers[m];
+				if (k == not_) o1 = 1;
+			}
+
+			const nat target = values[ins[i].label];
+			const uint32_t offset = 0x7ffff & (target - i);
+
+			const uint32_t to_emit = 
+				(sf << 31U) | 
+				(0x1AU << 25U) | 
+				(o1 << 24U) |
+				(offset << 5U) | 
+				(Rd);
+
+			insert_u32(&my_bytes, &my_count, to_emit);
+		}
 
 		else if (op == ccmp) {
 
-			uint32_t o1 = 0, cond = 0, r = 0, inv_cond = 0;
+			uint32_t o1 = 0, r = 0;
 			for (nat m = 0; m < 6; m++) {
 				const nat k = ins[i].modifiers[m];
-				if (k == inv) 		o1 = 1;
-				if (k == regimm) 	r = 1;
-				
-				if (k == not_)		inv_cond = 1;
-				if (k == zero) 		cond = 0;
-				if (k == carry) 	cond = 1;
-				if (k == negative) 	cond = 2;
-				if (k == overflow) 	cond = 3;
-				if (k == ugreater) 	cond = 4;
-				if (k == sless) 	cond = 5;
-				if (k == sgreater) 	cond = 6;
-				if (k == always) 	cond = 7;
+				if (k == inv) o1 = 1;
+				if (k == regimm) r = 1;
 			}
+
+			const uint32_t cond = parse_condition(ins[i].modifiers);
+
 			const uint32_t to_emit = 
 				(sf << 31U) | 
 				(o1 << 30U) | 
 				(0x1D2 << 21U) | 
 				(Rn << 16U) | 
-				(cond << 13U) |
-				(inv_cond << 12U) |
+				(cond << 12U) |
 				(r << 11U) | 
 				(Rd << 5U) | 
 				(Rm & 0xF); 
@@ -640,33 +720,70 @@ process_file:;
 
 			insert_u32(&my_bytes, &my_count, to_emit);
 
-		} else if (op == csel) {
+		} 
 
-			uint32_t o1 = 2, o2 = 0, inv_cond = 0, cond = 0;
+		else if (op == csel) {
+
+			uint32_t o1 = 2, o2 = 0;
 			for (nat m = 0; m < 6; m++) {
 				const nat k = ins[i].modifiers[m];
 				if (k == incr) 		o2 = 1;
 				if (k == inv) 		o1 = 1;
-
-				if (k == not_) 		inv_cond = 1;
-				if (k == zero) 		cond = 0;
-				if (k == carry) 	cond = 1;
-				if (k == negative) 	cond = 2;
-				if (k == overflow) 	cond = 3;
-				if (k == ugreater) 	cond = 4;
-				if (k == sless) 	cond = 5;
-				if (k == sgreater) 	cond = 6;
-				if (k == always) 	cond = 7;
 			}
+
+			const uint32_t cond = parse_condition(ins[i].modifiers);
 
 			const uint32_t to_emit = 
 				(sf << 31U) | 
 				(o1 << 30U) | 
 				(0xD4 << 21U) | 
 				(Rm << 16U) | 
-				(cond << 13U) | 
-				(inv_cond << 12U) | 
+				(cond << 12U) | 
 				(o2 << 10U) | 
+				(Rn << 5U) | 
+				(Rd);
+
+			insert_u32(&my_bytes, &my_count, to_emit);
+		} 
+
+		else if (op == madd) {
+
+			uint32_t o0 = 0, o1 = 0;
+			for (nat m = 0; m < 6; m++) {
+				const nat k = ins[i].modifiers[m];
+				if (k == inv) 		o0 = 1;
+				if (k == signed_) 	o1 = 1;
+				if (k == unsigned_) 	o1 = 5;
+			}
+
+			const uint32_t to_emit = 
+				(sf << 31U) | 
+				(0x1B << 24U) | 
+				(o1 << 21U) |
+				(Rm << 16U) |
+				(o0 << 15U) | 
+				(Ra << 10U) | 
+				(Rn << 5U) | 
+				(Rd);
+
+			insert_u32(&my_bytes, &my_count, to_emit);
+		}
+
+		else if (op == div_) {
+
+			uint32_t op1 = 0xD6, s = 0;
+			for (nat m = 0; m < 6; m++) {
+				const nat k = ins[i].modifiers[m];
+				if (k == unsigned_) s = 0;
+				if (k == signed_) s = 1;
+			}
+
+			const uint32_t to_emit = 
+				(sf << 31U) | 
+				(op1 << 21U) | 
+				(Rm << 16U) | 
+				(1 << 11U) |
+				(s << 10U) |
 				(Rn << 5U) | 
 				(Rd);
 
@@ -674,50 +791,6 @@ process_file:;
 		}
 	}
 	while (my_count % 16) insert_byte(&my_bytes, &my_count, 0);
-
-
-
-
-	/*
-	puts("generated machine code: ");
-	for (nat i = 0; i < my_count; i++) {
-		if (i % 8 == 0) puts("");
-		printf("%02hhx ", my_bytes[i]);
-	}
-	puts("");
-	*/
-
-
-
-	//const nat multiples = my_count / 16;
-
-	
-
-
-
-/*
-
-
-
-
-
-
-
-
-
-
-
-csel r3 r4 r5 inv incr
-mov r16 1
-
-
-
-
-*/
-	//exit(1);
-
-
-
 
 
 
@@ -924,6 +997,85 @@ mov r16 1
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 	//system("codesign -d -vvvvvvv output_executable_new");   // for debugging
 
 		/*
@@ -1053,5 +1205,59 @@ my_bytes:
 			//printf("ins[i].label = %llu\n", ins[i].label);
 			//printf("i = %llu\n", i);
 			//printf("target = %llu\n", target);
+
+
+
+
+
+
+
+
+
+	/*
+	puts("generated machine code: ");
+	for (nat i = 0; i < my_count; i++) {
+		if (i % 8 == 0) puts("");
+		printf("%02hhx ", my_bytes[i]);
+	}
+	puts("");
+	*/
+
+
+
+	//const nat multiples = my_count / 16;
+
+	
+
+
+
+/*
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+csel r3 r4 r5 inv incr
+mov r16 1
+
+
+
+
+*/
+	//exit(1);
+
+
+
 
 
