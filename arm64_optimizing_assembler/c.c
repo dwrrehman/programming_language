@@ -1,374 +1,51 @@
+// 202410292.021344: arm64 assembler by dwrr
+// written as an experiment to replace the compiler
+// with something simpler and faster hopefully.
+
 /*
-
-mov inv r2 
-nop nop nop
-
-
-
-eoi
-
-
-do loop
-mov r0 01
-at loop
-mov r0 0010011
-mov r16 1
-svc
-eoi
-
-
-commands for the editor:
-----------------------------
-
-copyb insert ./build
-copya insert ./run c.c
-
-do  ./output_executable_new
-do  /bin/zsh
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-old commands:
-----------------------------
-do './run'string'
-mov r0 010101
-mov r16 1
-svc
-----------------------------
-copya insert ./run string "
-mov r0 010101
-mov r16 1
-svc
-"
--------------------------
-do  ./output_executable_new
-do  /bin/zsh
-
-
-
-do loop
-mov r0 0010011
-mov r16 1
-at loop
-svc
-eoi
-
-becomes:
-
-output_executable_new:	file format mach-o arm64
-
-Disassembly of section __TEXT,__text:
-
-0000000100003ff0 <__text>:
-100003ff0: 03 00 00 14 	b	0x100003ffc <__text+0xc>
-100003ff4: 80 0c 80 d2 	mov	x0, #100
-100003ff8: 30 00 80 d2 	mov	x16, #1
-100003ffc: 01 00 00 d4 	svc	#0
-warning: ignoring label
-ins[i].label = 66
-i = 0
-target = 3
-file was removed.
-wrote 17184 bytes to file output_executable_new.
-
-
-written on 1202410196.164450 dwrr    
-an optimizing arm64 assembler that uses the 
-arm64 (or machine code) isa as the ir 
-for the optimization process.
-
-----------------------------------------
-
-
-
-1202410207.191257
-i finally got this code working!!
-
-totally overhauled the way i am handling the dictionary lol.. i think it should work well now, i think!!
-
-
-
-def hello 0001
-def bubbles hello
-
-mov r3 bubbles
-def myvar r5
-
-mov myvar hello
-
-
-
-which now generates the right instructions:
-
-
-	dictionary: (62 words)
-	    0  :              : keyword    --->  0
-	    1  :        size1 : keyword    --->  1
-	    
-		....etc...
-
-	   54  :           at : keyword    --->  54
-	   55  :          def : keyword    --->  55
-	   56  :      include : keyword    --->  56
-	   57  :          eoi : keyword    --->  57
-	   58  :        hello : immediate  --->  8
-	   59  :         0001 : immediate  --->  8
-	   60  :      bubbles : immediate  --->  8
-	   61  :        myvar : keyword    --->  23
-done printing dictionary.
-
-printing 2 instructions...
-ins { op=mov,.size=size8,.label= ,.immediate=8,.registers=[r3,  ,  ,  ,  ,  ] } .modifiers=[ ,  ,  ,  ,  ,  ] } 
-ins { op=mov,.size=size8,.label= ,.immediate=8,.registers=[r5,  ,  ,  ,  ,  ] } .modifiers=[ ,  ,  ,  ,  ,  ] } 
-[done]
-
-
-
-YAYYY it works lol. lets continue testing ittt
-
-
-
-this code also works:
-
-	def hello loop
-	at hello
-
-
-which generates the instructions:
-
-
-printing 1 instructions...
-ins { op=at,.size=size8,.label=hello,.immediate=0,.registers=[ ,  ,  ,  ,  ,  ] } .modifiers=[ ,  ,  ,  ,  ,  ] } 
-[done]
-
-
-
-heck, we can even do:
-
-def hello eoi
-hello
-mov r0 1001
-
-
-which generates no instructions, as it should!!! wow. thats literally so cool. i love that lol. YAYYY
-
-
-
-nice. so this macro system is the correct one i think lol. yayyy. cool beans 
-
-
-
-
-
-
-lets start code gen now!!!
-
-lets try this program, for testing:
-
-
-def systemexit 1
-def exitcode 1001
-
-mov r0 exitcode
-mov r16 systemexit
-svc
-
-
-which outputs:
-
-printing 3 instructions...
-ins { op=mov,.size=size8,.label= ,.immediate=9,.registers=[r0,  ,  ,  ,  ,  ] } .modifiers=[ ,  ,  ,  ,  ,  ] } 
-ins { op=mov,.size=size8,.label= ,.immediate=1,.registers=[r16,  ,  ,  ,  ,  ] } .modifiers=[ ,  ,  ,  ,  ,  ] } 
-ins { op=svc,.size=size8,.label= ,.immediate=0,.registers=[ ,  ,  ,  ,  ,  ] } .modifiers=[ ,  ,  ,  ,  ,  ] } 
-[done]
-
-
-
-
-gosh i love this so much!!!! this is going well lol. YAY
-
-
-lets do code gen now lol. i think we are ready lol. 
-
-
-
-
-
-
-
-
-
-
-
-
-
-1202410207.002512
-current state:
-
-		so i just realized why the imm    macro   system  
-
-		ie,    def hello 01      mov zero r0 hello
-
-
-			isnt working. 
-
-
-	its because 
-
-
-			we need to actually differentiate what the type of the elements in our dictionary is. 
-
-				like, the root of the difficulty is that we need to be able to represent a 64bit literal,
-
-									(i think...!?!?!)
-
-
-				buttt of course we don't have any way to tell apart an element in our dict that is a reference to another machinery, or a literal value of that value in the dict. 
-
-							so yeah, we need to distinguish these.  AT LEAST. 
-
-
-
-	buttt tbh theres probably a muchhh better way to do this whole   immediate thing altogether lol.   probablyyy involving making everything derived computationally and not even providing a way to write an immediate lol. 
-
-
-
-
-	tbh yeah. thats probably it lol.  nice okay. coool.  letst just rip out the imm system then lol. yay
-
-
-
-
-
-
-
-
-
-
-
-							CRAP  wait i just realized we can't rip out the literal system, because we would neeed 
-
-
-							virtual registers. 
-
-
-								like, of some sort. 
-
-												DANGGG
-
-
-				hmm i mean i guess we couldd just give a set of virtual registers too lollll like that coulddd worklol 
-
-					hmmm interesting 
-
-
-								i think i would probablyyy just want to just have literals though, i think instead of adding ct virtual registers. yeah probably.  
-
-
-
-	okay cool so we have to figure out this whole literal situation, i think lol. shouldnt be thatttt bad, but yeah we need to sort it out. 
-
-
-
-
-hmm maybe we make a dictionary entry for the literal!
-
-
-		i think we still need a flag set to tell that that entry is a literal though... hmmmm crap 
-
-
-									uhh
-
-
-
-				hmmmmm  just i don't think theres any way around this, we need to annotate the type basically, inside the symbol table 
-
-							at the very least, whether its a label, immediate, or regsiter/instruction.  
-
-
-				i think we need those at leastttt    
-						no other types other than those though lol. so yeah thats good i guess
-
-
-		hmmmm
-
-
-
-					i kinda wish the registers / instruction opcodes were seperate though hmmm idk 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 arm isa that will be supported:
 
-			adc(s) addxr(s) addi(s) addsr(s)  adr(p)   
-			andi(s)  andsr(s)  asrv
-			b  bl   b.cond(16 conds)   br   blr
-			bfm bic(s) 
-			cbnz   cbz   ccmni  ccmnr  cmpi   cmpr     cfinv cls clz 
-			csel csinc csinv csneg
-			eonsr eorsr eori  extr
-			ldp ldri ldrl ldrr 
-			ldrb ldrsb ldrh ldrsh ldrsw
-			lslv   madd msub
-			movk movn movz  nop
-			ornsr orri orrsr
-			rbit rev rev16 rev32
-			ret   rorv sbc(s)  sbfm 
-			sdiv smaddl smsubl smulh 
-			stp stri strr strbi strbr strhi strhr 
-			subxr(s) subi(s) subsr(s) 
-			svc    tbnz tbz    ubfm
-			udiv umaddl umsubl umulh
+	addxr(s)  addsr(s)  adr(p)
+	andi(s)  andsr(s)  
+
+	b.cond(16 conds)
+
+	bfm bic(s) 
+	cbnz   cbz   
+	ccmni  ccmnr  cmpi   cmpr
+	cls clz 
+	
+	eonsr eorsr eori  extr
+	ldp ldri ldrl ldrr 
+	ldrb ldrsb ldrh ldrsh ldrsw
+	   madd msub
+	
+	ornsr orri orrsr
+	rbit rev rev16 rev32
+	ret   sbc(s)  sbfm 
+	sdiv smaddl smsubl smulh 
+	stp stri strr strbi strbr strhi strhr 
+	subxr(s)  subsr(s) 
+	    tbnz tbz    ubfm
+	udiv umaddl umsubl umulh
 
 
 
-our previous isa:
 
-
-	zero, incr, decr, set, add, sub, 
-	mul, muh, mhs, div_, dvs, rem, rms, 
-	si, sd, sds, and_, or_, eor, not_,
-	ld, st, sta, bca, sc, at, lf, def, udf, 
-	lt, ge, lts, ges, ne, eq, do_, 
+done:
+	br   blr 
+	b  bl
+	adc(s) sbc(s)
+	addi(s) subi(s)
+	lslv  lsrv   asrv   rorv 
+	movk movn movz  
+	csel csinc csinv csneg
+	nop 
+	svc
 
 */
+
+
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -387,122 +64,21 @@ our previous isa:
 
 typedef uint64_t nat;
 
-
-/*
-
-
-isa:
-
-	nop
-
-	svc
-
-
-	mov type=z(default)/k/n shift=00 imm16=00000..0  Rd=00000  sf=1(default)/0
-
-		mov [size8(default)/size4] [zero(default)/keep/inv]   Rd_bn    [imm16_bn default=0]
-		
-
-
-	csel incr=0 inv=0 Rn=00000 Rm=00000 Rd=00000 cond=0000 sf=1(default)/0
-
-
-		csel [size8(default)/size4] [incr] [inv]  [cond]   Rd_bn    Rm_bn   Rn_bn
-
-
-
-
-	lf file.txt
-
-	eoi
-
-
-
-
-	mov r16  101000 101011  010100110
-
-	
-
-
-
-
-commands for the editor:
-----------------------------
-
-
-copyb insert ./build
-copya do  /bin/zsh
-
-
-----------------------------
-
-do './run'string'
-mov r0 010101
-mov r16 1
-svc
-
-
-----------------------------
-
-copya insert ./run string "
-mov r0 010101
-mov r16 1
-svc
-"
-
-
-
-
-do  ./output_executable_new
-
-
-
-
-
-*/
-
-
-
-/*
-
-
-
-1202410207.192311
-this code works now too. yayyyyy
-
-
-
-def hello 100011100
-at loop
-        mov zero loop r0 11010
-	mov zero loop r0 hello
-
-
-
-def hello 100011100
-mov zero r0 hello
-
-*/
-
-
-
-
 enum language_isa {
 	nullins,
 	size1, size2, size4, size8, 
-	zero, incr, keep, inv, shift0, shift16, shift32, shift48, _true, _false, 
-	carry, negative, overflow,
+	zero, incr, keep, inv, flags, link_, regimm, 
+	up, down, rotate,
+	signed_, unsigned_, 
+	shift12, shift16, shift32, shift48, 
+	not_, carry, negative, overflow,
 	sless, sgreater, ugreater, always,
 	r0,  r1,  r2,  r3,  r4,  r5,  r6,  r7, 
 	r8,  r9,  r10, r11, r12, r13, r14, r15, 
 	r16, r17, r18, r19, r20, r21, r22, r23, 
 	r24, r25, r26, r27, r28, r29, r30, r31, 
-	nop, svc, 
-	mov, csel,
 
-	adc,
-	addi,      // this is what we are working on next!!!! yayyy
-	_do,
+	nop, svc, mov, csel, do_, adc, addi, shift, br, ccmp,
 
 	at, def, loadfile, eoi, 
 	isa_count
@@ -511,19 +87,17 @@ enum language_isa {
 static const char* ins_spelling[isa_count] = {
 	" ",
 	"size1", "size2", "size4", "size8", 
-	"zero", "incr", "keep", "inv", "shift0", "shift16", "shift32", "shift48", "true", "false", 
-	"carry", "negative", "overflow", "sless", "sgreater", "ugreater", "always",
+	"zero", "incr", "keep", "inv", "flags", "link", "regimm", 
+	"up", "down", "rotate", 
+	"signed", "unsigned",
+	"shift12", "shift16", "shift32", "shift48", 
+	"not", "carry", "negative", "overflow", "sless", "sgreater", "ugreater", "always",
 	"r0",  "r1",  "r2",  "r3",  "r4",  "r5",  "r6",  "r7", 
 	"r8",  "r9",  "r10", "r11", "r12", "r13", "r14", "r15", 
 	"r16", "r17", "r18", "r19", "r20", "r21", "r22", "r23", 
 	"r24", "r25", "r26", "r27", "r28", "r29", "r30", "r31", 
-	"nop", "svc", 
-	"mov", "csel",
 
-	"adc", 
-	"addi",
-	"do", 
-
+	"nop", "svc", "mov", "csel", "do", "adc", "addi", "shift",  "br", "ccmp", 
 
 	"at", "def", "include", "eoi",
 };
@@ -690,9 +264,8 @@ static void print_instructions(struct instruction* list, const nat count, char**
 	puts("[done]");
 }
 
-int main(int argc, const char** argv) {
 
-	//if (argc > 3) exit(puts("compiler: \033[31;1merror:\033[0m usage: ./run [file.s]"));
+int main(int argc, const char** argv) {
 
 	char* names[4096] = {0};
 	nat values[4096] = {0};
@@ -709,7 +282,7 @@ int main(int argc, const char** argv) {
 
 	if (argc < 2 or not strcmp(argv[1], "string")) {
 		char buffer[4096] = {0};
-		if (strcmp(argv[1], "string")) {
+		if (argc < 2 or strcmp(argv[1], "string")) {
 			puts(	"give the input string to process:\n"
 				"(press '`' to terminate)\n"
 			);
@@ -786,6 +359,7 @@ process_file:;
 			filestack[filestack_count++].index = 0;
 			goto process_file;
 
+
 		} else if (in_define == 1) {
 			in_define = name_count;
 			names[name_count] = word;
@@ -843,7 +417,7 @@ process_file:;
 				.immediate = 0,
 				.label = 0,
 				.modifiers = {0},
-				.registers = {0},
+				.registers = {r31, r31, r31, r31, r31, r31},
 			};
 
 		} else if (T == type_immediate) {
@@ -889,89 +463,172 @@ process_file:;
 	filestack_count--;
 	if (filestack_count) goto process_file;
 
-	//debug_dictionary(names, types, values, name_count);
-	//print_instructions(ins, ins_count, names);
-
-
-
-/*
-
-	zero, carry, negative, overflow,
-	sless, sgreater, ugreater, always,
-
-
-	uint8_t* my_bytes = {
-		//0x30, 0x00, 0x80, 0xD2, // mov x16, 1
-		//0xe0, 0x01, 0x80, 0xD2, // mov x0, 15
-		//0x01, 0x00, 0x00, 0xD4, // svc 0
-		0x00, 0x00, 0x00, 0x00, // (padding)
-	};
-	const nat my_count = sizeof my_bytes;    // make sure my_count is a multiple of 16 bytes. 
-
-
-
-
-
-printing 1 instructions...
-ins { op=mov,.size=size8,.label= ,.immediate=1,.registers=[r16,  ,  ,  ,  ,  ] } .modifiers=[zero, shift0,  ,  ,  ,  ] } 
-[done]
-my_bytes: 
-
-30 00 80 d2 00 00 00 00 00 00 00 00 00 00 00 00 
-*/
-
+	debug_dictionary(names, types, values, name_count);
+	print_instructions(ins, ins_count, names);
 
 	uint8_t* my_bytes = NULL;
 	nat my_count = 0;
-	
 
 	for (nat i = 0; i < ins_count; i++) {
 		const nat op = ins[i].op;
-		const uint32_t sf = ins[i].size == size8;
 		const nat imm = ins[i].immediate;
-	
+		const uint32_t sf = ins[i].size == size8;
+		const uint32_t Im = (uint32_t) imm;
+		const uint32_t Rd = (uint32_t) (ins[i].registers[0] - r0);
+		const uint32_t Rn = (uint32_t) (ins[i].registers[1] - r0);
+		const uint32_t Rm = (uint32_t) (ins[i].registers[2] - r0);
 
 		if (op == nop) insert_u32(&my_bytes, &my_count, 0xD503201F);
 		else if (op == svc) insert_u32(&my_bytes, &my_count, 0xD4000001);
 
+		else if (op == br) {
+			uint32_t l = 0;
+			for (nat m = 0; m < 6; m++) {
+				const nat k = ins[i].modifiers[m];
+				if (k == link_) l = 1;
+			}
+
+			const uint32_t to_emit = 
+				(0x6BU << 25U) | 
+				(l << 21U) | 
+				(0x1FU << 16U) | 
+				(Rd << 5U);
+
+			insert_u32(&my_bytes, &my_count, to_emit);
+		}		
+
 		else if (op == adc) {
 
-			abort();
+			uint32_t op1 = 0xD0, op2 = 0, o1 = 0, s = 0;
+			for (nat m = 0; m < 6; m++) {
+				const nat k = ins[i].modifiers[m];
+				if (k == flags) 	s = 1;
+				if (k == inv) 		o1 = 1;
+			}
+
+			const uint32_t to_emit = 
+				(sf << 31U) | 
+				(o1 << 30U) | 
+				(s << 29U) | 
+				(op1 << 21U) | 
+				(Rm << 16U) | 
+				(op2 << 10U) |
+				(Rn << 5U) | 
+				(Rd);
+
+			insert_u32(&my_bytes, &my_count, to_emit);
 		}
 
-		else if (op == _do) {
+		else if (op == shift) {
 
-			// just put the value five at index twenty six and then put the imm two six colon zero zero. ie, the immediate offset is encoded as the divide by four version, ithink. so yeah. 
+			uint32_t op1 = 0xD6, op2 = 8, o1 = 0, s = 0;
+			for (nat m = 0; m < 6; m++) {
+				const nat k = ins[i].modifiers[m];
+				if (k == up) 		op2 = 8;
+				if (k == down) 		op2 = 9;
+				if (k == signed_) 	op2 = 10;
+				if (k == rotate) 	op2 = 11;
+			}
 
-			//printf("ins[i].label = %llu\n", ins[i].label);
-			//printf("i = %llu\n", i);
+			const uint32_t to_emit = 
+				(sf << 31U) | 
+				(o1 << 30U) | 
+				(s << 29U) | 
+				(op1 << 21U) | 
+				(Rm << 16U) | 
+				(op2 << 10U) |
+				(Rn << 5U) | 
+				(Rd);
 
-			const nat target = values[ins[i].label];
-			//printf("target = %llu\n", target);
-
-			const uint32_t offset = 
-				0x3ffffff & (target - i);
-
-			const uint32_t to_emit = (0x5U << 26U) | (offset);
 			insert_u32(&my_bytes, &my_count, to_emit);
 		}
 
 
+
+
+		else if (op == ccmp) {
+
+			uint32_t o1 = 0, cond = 0, r = 0, inv_cond = 0;
+			for (nat m = 0; m < 6; m++) {
+				const nat k = ins[i].modifiers[m];
+				if (k == inv) 		o1 = 1;
+				if (k == regimm) 	r = 1;
+				
+				if (k == not_)		inv_cond = 1;
+				if (k == zero) 		cond = 0;
+				if (k == carry) 	cond = 1;
+				if (k == negative) 	cond = 2;
+				if (k == overflow) 	cond = 3;
+				if (k == ugreater) 	cond = 4;
+				if (k == sless) 	cond = 5;
+				if (k == sgreater) 	cond = 6;
+				if (k == always) 	cond = 7;
+			}
+			const uint32_t to_emit = 
+				(sf << 31U) | 
+				(o1 << 30U) | 
+				(0x1D2 << 21U) | 
+				(Rn << 16U) | 
+				(cond << 13U) |
+				(inv_cond << 12U) |
+				(r << 11U) | 
+				(Rd << 5U) | 
+				(Rm & 0xF); 
+			insert_u32(&my_bytes, &my_count, to_emit);
+		}
+
+
+		else if (op == addi) {
+			if (imm >= (1 << 12)) { puts("bad mov literal"); abort(); } 
+
+			uint32_t o1 = 0, s = 0, sh = 0;
+			for (nat m = 0; m < 6; m++) {
+				const nat k = ins[i].modifiers[m];
+				if (k == flags) 	s = 1;
+				if (k == inv) 		o1 = 1;
+				if (k == shift12) 	sh = 1;
+			}
+			const uint32_t to_emit = 
+				(sf << 31U) | 
+				(o1 << 30U) | 
+				(s << 29U) | 
+				(0x22 << 23U) | 
+				(sh << 22U) |
+				(Im << 10U) |
+				(Rn << 5U) | 
+				(Rd);
+			insert_u32(&my_bytes, &my_count, to_emit);
+		}
+
+		else if (op == do_) {
+			uint32_t l = 0;
+			for (nat m = 0; m < 6; m++) {
+				const nat k = ins[i].modifiers[m];
+				if (k == link_) l = 1;
+			}
+
+			const nat target = values[ins[i].label];
+			const uint32_t offset = 0x3ffffff & (target - i);
+
+			const uint32_t to_emit = 
+				(l << 31U) | 
+				(0x5U << 26U) | 
+				(offset);
+
+			insert_u32(&my_bytes, &my_count, to_emit);
+		}
+
 		else if (op == mov) {
-			if (imm >= 65536) { puts("bad mov literal"); abort(); } 
-			const uint32_t Im = (uint32_t) imm;
-			const uint32_t Rd = (uint32_t) (ins[i].registers[0] - r0);
-			if (Rd >= 32) { puts("bad mov reg"); abort(); }
+			if (imm >= (1 << 16)) { puts("bad mov literal"); abort(); } 
 
 			uint32_t opc = 2, shift = 0;
 			for (nat m = 0; m < 6; m++) {
-				if (ins[i].modifiers[m] == zero) 	opc = 2;
-				if (ins[i].modifiers[m] == keep) 	opc = 3;
-				if (ins[i].modifiers[m] == inv) 	opc = 0;
-				if (ins[i].modifiers[m] == shift0) 	shift = 0;
-				if (ins[i].modifiers[m] == shift16) 	shift = 1;
-				if (ins[i].modifiers[m] == shift32) 	shift = 2;
-				if (ins[i].modifiers[m] == shift48) 	shift = 3;
+				const nat k = ins[i].modifiers[m];
+				if (k == keep) 		opc = 3;
+				if (k == inv) 		opc = 0;
+				if (k == shift16) 	shift = 1;
+				if (k == shift32) 	shift = 2;
+				if (k == shift48) 	shift = 3;
 			}
 			const uint32_t to_emit = 
 				(sf << 31U) | 
@@ -985,31 +642,21 @@ my_bytes:
 
 		} else if (op == csel) {
 
-			const uint32_t Rd = (uint32_t) (ins[i].registers[0] - r0);
-			const uint32_t Rn = (uint32_t) (ins[i].registers[1] - r0);
-			const uint32_t Rm = (uint32_t) (ins[i].registers[2] - r0);
-
-			if (Rd >= 32) { puts("bad mov reg Rd"); abort(); }
-			if (Rn >= 32) { puts("bad mov reg Rn"); abort(); }
-			if (Rm >= 32) { puts("bad mov reg Rm"); abort(); }
-
-			uint32_t o1 = 2, o2 = 0, cond = 0, inv_cond = 0;
+			uint32_t o1 = 2, o2 = 0, inv_cond = 0, cond = 0;
 			for (nat m = 0; m < 6; m++) {
+				const nat k = ins[i].modifiers[m];
+				if (k == incr) 		o2 = 1;
+				if (k == inv) 		o1 = 1;
 
-				if (ins[i].modifiers[m] == incr) 	o2 = 1;
-				if (ins[i].modifiers[m] == inv) 	o1 = 1;
-
-				if (ins[i].modifiers[m] == _true) 	inv_cond = 0; 
-				if (ins[i].modifiers[m] == _false) 	inv_cond = 1;
-
-				if (ins[i].modifiers[m] == zero) 	cond = 0;
-				if (ins[i].modifiers[m] == carry) 	cond = 1;
-				if (ins[i].modifiers[m] == negative) 	cond = 2;
-				if (ins[i].modifiers[m] == overflow) 	cond = 3;
-				if (ins[i].modifiers[m] == ugreater) 	cond = 4;
-				if (ins[i].modifiers[m] == sless) 	cond = 5;
-				if (ins[i].modifiers[m] == sgreater) 	cond = 6;
-				if (ins[i].modifiers[m] == always) 	cond = 7;
+				if (k == not_) 		inv_cond = 1;
+				if (k == zero) 		cond = 0;
+				if (k == carry) 	cond = 1;
+				if (k == negative) 	cond = 2;
+				if (k == overflow) 	cond = 3;
+				if (k == ugreater) 	cond = 4;
+				if (k == sless) 	cond = 5;
+				if (k == sgreater) 	cond = 6;
+				if (k == always) 	cond = 7;
 			}
 
 			const uint32_t to_emit = 
@@ -1023,7 +670,7 @@ my_bytes:
 				(Rn << 5U) | 
 				(Rd);
 
-			insert_u32(&my_bytes, &my_count, to_emit);			
+			insert_u32(&my_bytes, &my_count, to_emit);
 		}
 	}
 	while (my_count % 16) insert_byte(&my_bytes, &my_count, 0);
@@ -1242,7 +889,6 @@ mov r16 1
 
 	//puts("preparing for writing out the data.");
 
-
 	const bool overwrite_executable_always = true;
 
 	if (not access("output_executable_new", F_OK)) {
@@ -1351,5 +997,61 @@ figuring out the names for all the conditions:
 		*/
 
 
+
+
+
+
+
+
+
+/*
+
+	zero, carry, negative, overflow,
+	sless, sgreater, ugreater, always,
+
+
+	uint8_t* my_bytes = {
+		//0x30, 0x00, 0x80, 0xD2, // mov x16, 1
+		//0xe0, 0x01, 0x80, 0xD2, // mov x0, 15
+		//0x01, 0x00, 0x00, 0xD4, // svc 0
+		0x00, 0x00, 0x00, 0x00, // (padding)
+	};
+	const nat my_count = sizeof my_bytes;    // make sure my_count is a multiple of 16 bytes. 
+
+
+
+
+
+printing 1 instructions...
+ins { op=mov,.size=size8,.label= ,.immediate=1,.registers=[r16,  ,  ,  ,  ,  ] } .modifiers=[zero, shift0,  ,  ,  ,  ] } 
+[done]
+my_bytes: 
+
+30 00 80 d2 00 00 00 00 00 00 00 00 00 00 00 00 
+*/
+
+
+
+
+
+
+
+
+
+
+//if (argc > 3) exit(puts("compiler: \033[31;1merror:\033[0m usage: ./run [file.s]"));
+
+
+
+
+
+
+
+
+// just put the value five at index twenty six and then put the imm two six colon zero zero. ie, the immediate offset is encoded as the divide by four version, ithink. so yeah. 
+
+			//printf("ins[i].label = %llu\n", ins[i].label);
+			//printf("i = %llu\n", i);
+			//printf("target = %llu\n", target);
 
 
