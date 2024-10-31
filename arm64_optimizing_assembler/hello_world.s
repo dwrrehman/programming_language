@@ -1,11 +1,9 @@
-include library/constants
+include library/foundation
 
-comment 
+stringliteral 
 	an arm64 assembly hello world program!
 	written on 202410314.132919 by dwrr.
-comment 
-
-def length 0011
+stringliteral ignore
 
 mov r0 stdout
 adr r1 string_begin
@@ -22,10 +20,24 @@ at string_begin stringliteral
 hello there from space! 
 this is my hello world program lol.
 what do you think of it?
-
-stringliteral at string_end
+ stringliteral at string_end
 
 eoi 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 emit size1  char_H char_I char_space char_A

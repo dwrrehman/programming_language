@@ -1,0 +1,23 @@
+
+
+stringliteral 	the standard library file for the language 
+stringliteral ignore
+
+
+
+
+
+
+
+
+comment 
+
+mov zero r16 1000
+mov keep r0 111001
+
+systemcall
+
+comment
+
+
+

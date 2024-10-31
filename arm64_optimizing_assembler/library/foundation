@@ -1,22 +1,32 @@
+stringliteral
+
+	a constants file for the standard library.
+
+stringliteral ignore
+
+def char_A 1000001
+def char_B 0100001
+def char_C 1100001
+def char_D 0010001
+def char_E 1010001
+def char_F 0110001
+def char_G 1110001
+def char_H 0001001
+def char_I 1001001
+
+def char_newline 0101
+def char_tab 1001
+def char_space 000001
+
+def system_exit 	1
+def system_read 	11
+def system_write 	001
+def stdout 	1
 
 
-comment 	the standard library file for the language 
-comment
 
-
-
-
-
-
-
-comment 
-
-mov zero r16 1000
-mov keep r0 111001
-
-systemcall
-
-comment
-
+def lr r30
+def sp r31
+def zr r31
 
 

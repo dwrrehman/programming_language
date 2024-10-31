@@ -107,7 +107,7 @@ enum language_isa {
 	addi, add, sh_, br, ccmp, if_, cbz, 
 	mul, div_, tbz, bfm, adr, emit,
 
-	at, def, loadfile, stringliteral, eoi, 
+	at, def, loadfile, stringliteral, ignore, eoi, 
 	isa_count
 };
 
@@ -131,7 +131,7 @@ static const char* ins_spelling[isa_count] = {
 	"addi", "add", "sh",  "br", "ccmp", "if", "cbz", 
 	"mul", "div", "tbz", "bfm",  "adr", "emit", 
 
-	"at", "def", "include", "stringliteral", "eoi",
+	"at", "def", "include", "stringliteral", "ignore", "eoi",
 };
 
 struct file {
@@ -503,6 +503,7 @@ process_file:;
 		if (T == type_keyword) n = values[n];
 
 		if (n == eoi) break;
+		else if (n == ignore) { if (ins_count) ins_count--; }
 		else if (n == loadfile) in_filename = 1;
 		else if (n == def) in_define = 1;
 		else if (n >= nop and n < isa_count) {
@@ -551,8 +552,8 @@ process_file:;
 		} else if (T == type_label)  {
 
 			if (not ins_count) { 
-				puts("warning: ignoring label"); 
-				goto next_word;
+				printf("error: unexpected label: "); puts(word);
+				abort();
 			}
 			if (ins[ins_count - 1].label) { 
 				puts("bad fill label"); 
@@ -613,7 +614,7 @@ process_file:;
 
 		} else if (op == stringliteral) {
 			for (nat t = imm0; t < imm1; t++) {
-				printf("emitting: %c (%d)\n", text[t], text[t]);
+				//printf("emitting: %c (%d)\n", text[t], text[t]);
 				insert_byte(&my_bytes, &my_count, (uint8_t) text[t]);
 			}
 			//abort();
