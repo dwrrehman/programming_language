@@ -5,41 +5,35 @@
 /*
 arm isa remaining to implement:
 
-	addxr(s)  addsr(s)  
-	adr(p)
-	andi(s)  andsr(s)  
+	addxr(s)  addsr(s)   subxr(s)  subsr(s) 
 
-	bfm bic(s) 
+	adr(p)
+	
+	bic(s) 
+
 	cls clz 
 
-	eonsr eorsr eori  
+	andi(s)  andsr(s)  
+	eonsr eorsr eori 
+	ornsr orri orrsr 
+
 	extr
 
 	ldp ldri ldrl ldrr 
 	ldrb ldrsb ldrh ldrsh ldrsw
-	
-	ornsr orri orrsr
+	stp stri strr strbi strbr strhi strhr 
+
 	rbit rev rev16 rev32
 
 	sbfm  ubfm
 	smulh  umulh
 
-	stp stri strr strbi strbr strhi strhr 
-	subxr(s)  subsr(s) 
-		
-	tbnz tbz
-
-
-
-
-
-
-
 
 done:          (on same line means they are the same instruction!!!)
 
+	bfm   sbfm  ubfm
 
-
+	tbnz tbz
 	sdiv  udiv 
 	umaddl umsubl  smaddl smsubl    madd msub
 	cbnz   cbz
@@ -55,6 +49,25 @@ done:          (on same line means they are the same instruction!!!)
 	nop 
 	svc
 
+
+
+isa:
+
+	nop
+	svc
+	mov
+	csel
+	do
+	adc
+	addi
+	sh
+	br
+	ccmp
+	if
+	cbz 
+	mul
+	div 
+	tbz
 */
 
 
@@ -80,7 +93,7 @@ enum language_isa {
 	nullins,
 	size1, size2, size4, size8, 
 	zero, incr, keep, inv, flags, 
-	link_, regimm, return_, 
+	link_, regimm, return_, page, 
 	up, down, rotate,
 	signed_, unsigned_, 
 	shift12, shift16, shift32, shift48, 
@@ -91,10 +104,10 @@ enum language_isa {
 	r24, r25, r26, r27, r28, r29, r30, r31, 
 
 	nop, svc, mov, csel, do_, adc, 
-	addi, shift, br, ccmp, if_, cbz, 
-	madd, div_, 
+	addi, sh_, br, ccmp, if_, cbz, 
+	mul, div_, tbz, bfm, adr, emit,
 
-	at, def, loadfile, eoi, 
+	at, def, loadfile, comment, eoi, 
 	isa_count
 };
 
@@ -102,7 +115,7 @@ static const char* ins_spelling[isa_count] = {
 	" ",
 	"size1", "size2", "size4", "size8", 
 	"zero", "incr", "keep", "inv", "flags", 
-	"link", "regimm", "return",
+	"link", "regimm", "return", "page", 
 	"up", "down", "rotate", 
 	"signed", "unsigned",
 	"shift12", "shift16", "shift32", "shift48", 
@@ -115,10 +128,10 @@ static const char* ins_spelling[isa_count] = {
 	"r24", "r25", "r26", "r27", "r28", "r29", "r30", "r31", 
 
 	"nop", "svc", "mov", "csel", "do", "adc", 
-	"addi", "shift",  "br", "ccmp", "if", "cbz", 
-	"madd", "div", 
+	"addi", "sh",  "br", "ccmp", "if", "cbz", 
+	"mul", "div", "tbz", "bfm",  "adr", "emit", 
 
-	"at", "def", "include", "eoi",
+	"at", "def", "include", "comment", "eoi",
 };
 
 struct file {
@@ -131,7 +144,7 @@ struct file {
 struct instruction {
 	nat modifiers[6];
 	nat registers[6];
-	nat immediate;
+	nat immediates[6];
 	nat label;
 	nat size;
 	nat op;
@@ -260,11 +273,20 @@ static void debug_dictionary(char** names, nat* types, nat* values, nat name_cou
 static void print_instructions(struct instruction* list, const nat count, char** names) {
 	printf("printing %llu instructions...\n", count);
 	for (nat i = 0; i < count; i++) {
-		printf("ins { op=%s,.size=%s,.label=%s,.immediate=%llu,"
+		printf("ins { op=%s,.size=%s,.label=%s,"
+			".immediates=[%llu, %llu, %llu, %llu, %llu, %llu] } "
 			".registers=[%s, %s, %s, %s, %s, %s] } "
 			".modifiers=[%s, %s, %s, %s, %s, %s] } \n",
 			ins_spelling[list[i].op], ins_spelling[list[i].size], 
-			names[list[i].label], list[i].immediate,
+			names[list[i].label], 
+
+			list[i].immediates[0],
+			list[i].immediates[1],
+			list[i].immediates[2],
+			list[i].immediates[3],
+			list[i].immediates[4],
+			list[i].immediates[5],
+
 			ins_spelling[list[i].registers[0]], 
 			ins_spelling[list[i].registers[1]], 
 			ins_spelling[list[i].registers[2]], 
@@ -373,8 +395,8 @@ int main(int argc, const char** argv) {
 
 process_file:;
 	nat 	word_length = 0, word_start = 0, calling = 0, 
-		in_filename = 0, in_define = 0,
-		register_count = 0, modifier_count = 0;
+		in_filename = 0, in_define = 0, in_comment = 0,
+		register_count = 0, modifier_count = 0, immediate_count = 0;
 
 	const nat starting_index = 	filestack[filestack_count - 1].index;
 	const nat text_length = 	filestack[filestack_count - 1].text_length;
@@ -388,6 +410,10 @@ process_file:;
 			if (index + 1 < text_length) continue;
 		} else if (not word_length) continue;
 		char* word = strndup(text + word_start, word_length);
+		if (in_comment) {
+			if (not strcmp(word, ins_spelling[comment])) in_comment = 0;
+			goto next_word;
+		}
 		if (in_filename) {
 			in_filename = 0;
 			for (nat i = 0; i < included_file_count; i++) {
@@ -460,28 +486,30 @@ process_file:;
 		if (T == type_keyword) n = values[n];
 
 		if (n == eoi) break;
+		else if (n == comment) in_comment = 1;
 		else if (n == loadfile) in_filename = 1;
 		else if (n == def) in_define = 1;
 		else if (n >= nop and n < isa_count) {
 			register_count = 0;
 			modifier_count = 0;
+			immediate_count = 0;
 			ins = realloc(ins, sizeof(struct instruction) * (ins_count + 1));
 			ins[ins_count++] = (struct instruction) {
 				.op = n,
 				.size = size8,
-				.immediate = 0,
+				.immediates = {0},
 				.label = 0,
 				.modifiers = {0},
 				.registers = {r31, r31, r31, r31, r31, r31},
 			};
 
-		} else if (T == type_immediate) {
-			if (not ins_count or ins[ins_count - 1].immediate) { puts("bad fill imm"); abort(); }
-			ins[ins_count - 1].immediate = values[n];
-
 		} else if (n >= size1 and n <= size8) {
 			if (not ins_count) { puts("bad fill size"); abort(); }
 			ins[ins_count - 1].size = n;
+
+		} else if (T == type_immediate) {
+			if (not ins_count or immediate_count >= 6) { puts("bad fill imm"); abort(); }
+			ins[ins_count - 1].immediates[immediate_count++] = values[n];
 
 		} else if (n >= r0 and n <= r31) {
 			if (register_count >= 6) { puts("bad fill reg"); abort(); }
@@ -526,15 +554,35 @@ process_file:;
 
 	for (nat i = 0; i < ins_count; i++) {
 		const nat op = ins[i].op;
-		const nat imm = ins[i].immediate;
+		const nat imm0 = ins[i].immediates[0];
+		const nat imm1 = ins[i].immediates[1];
+		const nat imm2 = ins[i].immediates[2];
+		const nat imm3 = ins[i].immediates[3];
+		const uint32_t Im0 = (uint32_t) imm0;
+		const uint32_t Im1 = (uint32_t) imm1;
 		const uint32_t sf = ins[i].size == size8;
-		const uint32_t Im = (uint32_t) imm;
 		const uint32_t Rd = (uint32_t) (ins[i].registers[0] - r0);
 		const uint32_t Rn = (uint32_t) (ins[i].registers[1] - r0);
 		const uint32_t Rm = (uint32_t) (ins[i].registers[2] - r0);
 		const uint32_t Ra = (uint32_t) (ins[i].registers[3] - r0);
 
-		if (op == nop) insert_u32(&my_bytes, &my_count, 0xD503201F);
+		if (op == emit) {
+			if (ins[i].size == size8) ins[i].size = size4;
+
+			if (ins[i].size == size4) {
+				insert_u32(&my_bytes, &my_count, Im0);
+			} else if (ins[i].size == size2) { 
+				insert_u16(&my_bytes, &my_count, (uint16_t) imm0); 
+				insert_u16(&my_bytes, &my_count, (uint16_t) imm1);
+			} else if (ins[i].size == size1) { 
+				insert_byte(&my_bytes, &my_count, (uint8_t) imm0); 
+				insert_byte(&my_bytes, &my_count, (uint8_t) imm1); 
+				insert_byte(&my_bytes, &my_count, (uint8_t) imm2); 
+				insert_byte(&my_bytes, &my_count, (uint8_t) imm3);
+			} 
+		}
+
+		else if (op == nop) insert_u32(&my_bytes, &my_count, 0xD503201F);
 		else if (op == svc) insert_u32(&my_bytes, &my_count, 0xD4000001);
 
 		else if (op == br) {
@@ -576,7 +624,7 @@ process_file:;
 			insert_u32(&my_bytes, &my_count, to_emit);
 		}
 
-		else if (op == shift) {
+		else if (op == sh_) {
 
 			uint32_t op1 = 0xD6, op2 = 8, o1 = 0, s = 0;
 			for (nat m = 0; m < 6; m++) {
@@ -613,6 +661,29 @@ process_file:;
 			insert_u32(&my_bytes, &my_count, to_emit);
 		}
 
+		else if (op == adr) {
+
+			uint32_t o1 = 0;
+			for (nat m = 0; m < 6; m++) {
+				const nat k = ins[i].modifiers[m];
+				if (k == page) o1 = 1;
+			}
+
+			const nat target = values[ins[i].label];
+			const nat count = (4 * (target - i)) / (o1 ? 4096 : 1);
+			const uint32_t offset = 0x1fffff & count;
+			const uint32_t lo = offset & 3, hi = offset >> 2;
+
+			const uint32_t to_emit = 
+				(o1 << 31U) | 
+				(lo << 29U) |
+				(0x10U << 24U) | 
+				(hi << 5U) | 
+				(Rd);
+
+			insert_u32(&my_bytes, &my_count, to_emit);
+		}
+
 		else if (op == cbz) {
 
 			uint32_t o1 = 0;
@@ -628,6 +699,32 @@ process_file:;
 				(sf << 31U) | 
 				(0x1AU << 25U) | 
 				(o1 << 24U) |
+				(offset << 5U) | 
+				(Rd);
+
+			insert_u32(&my_bytes, &my_count, to_emit);
+		}
+
+		else if (op == tbz) {
+			if (imm0 >= (1 << 6)) { puts("bad literal"); abort(); } 
+
+			const uint32_t b40 = Im0 & 0x1F;
+			const uint32_t b5 = Im0 >> 5;
+
+			uint32_t o1 = 0;
+			for (nat m = 0; m < 6; m++) {
+				const nat k = ins[i].modifiers[m];
+				if (k == not_) o1 = 1;
+			}
+
+			const nat target = values[ins[i].label];
+			const uint32_t offset = 0x3fff & (target - i);
+
+			const uint32_t to_emit = 
+				(b5 << 31U) | 
+				(0x1BU << 25U) | 
+				(o1 << 24U) |
+				(b40 << 19U) |
 				(offset << 5U) | 
 				(Rd);
 
@@ -659,7 +756,7 @@ process_file:;
 
 
 		else if (op == addi) {
-			if (imm >= (1 << 12)) { puts("bad mov literal"); abort(); } 
+			if (imm0 >= (1 << 12)) { puts("bad literal"); abort(); } 
 
 			uint32_t o1 = 0, s = 0, sh = 0;
 			for (nat m = 0; m < 6; m++) {
@@ -674,7 +771,7 @@ process_file:;
 				(s << 29U) | 
 				(0x22 << 23U) | 
 				(sh << 22U) |
-				(Im << 10U) |
+				(Im0 << 10U) |
 				(Rn << 5U) | 
 				(Rd);
 			insert_u32(&my_bytes, &my_count, to_emit);
@@ -699,7 +796,7 @@ process_file:;
 		}
 
 		else if (op == mov) {
-			if (imm >= (1 << 16)) { puts("bad mov literal"); abort(); } 
+			if (imm0 >= (1 << 16)) { puts("bad literal"); abort(); } 
 
 			uint32_t opc = 2, shift = 0;
 			for (nat m = 0; m < 6; m++) {
@@ -715,11 +812,54 @@ process_file:;
 				(opc << 29U) | 
 				(0x25U << 23U) | 
 				(shift << 21U) | 
-				(Im << 5U) | 
+				(Im0 << 5U) | 
 				(Rd);
 
 			insert_u32(&my_bytes, &my_count, to_emit);
+		} 
 
+		else if (op == bfm) {
+
+			const uint32_t bit_count = Im0;
+			const uint32_t position = Im1;
+			const uint32_t max = (sf ? 64 : 32);
+
+			if (not bit_count) { puts("bad field bit count"); abort(); }
+			if (not position) { puts("???? bfm position zero??"); abort(); }
+			if (position + bit_count > max or position >= max) {
+				puts("bfm: bit field outside register width");
+				abort();
+			}
+
+			uint32_t opc = 1, msb = 0;
+			for (nat m = 0; m < 6; m++) {
+				const nat k = ins[i].modifiers[m];
+				if (k == signed_) 	opc = 0;
+				if (k == unsigned_) 	opc = 2;
+				if (k == not_) 		msb = 1;
+			}
+
+			const uint32_t N = sf;
+			uint32_t imms = 0, immr = 0;
+			if (not msb) {
+				imms = position + bit_count - 1;
+				immr = position;
+			} else {
+				imms = bit_count - 1;
+				immr = max - position;
+			}
+
+			const uint32_t to_emit = 
+				(sf << 31U) | 
+				(opc << 29U) | 	
+				(0x26U << 23U) | 
+				(N << 22U) | 
+				(immr << 16U) |
+				(imms << 10U) |
+				(Rn << 5U) | 
+				(Rd);
+
+			insert_u32(&my_bytes, &my_count, to_emit);
 		} 
 
 		else if (op == csel) {
@@ -746,7 +886,7 @@ process_file:;
 			insert_u32(&my_bytes, &my_count, to_emit);
 		} 
 
-		else if (op == madd) {
+		else if (op == mul) {
 
 			uint32_t o0 = 0, o1 = 0;
 			for (nat m = 0; m < 6; m++) {
