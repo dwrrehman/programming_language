@@ -1,3 +1,12 @@
+
+comment
+
+a constants file for the std lib. 
+
+comment
+
+
+
 def char_A 1000001
 def char_B 0100001
 def char_C 1100001
