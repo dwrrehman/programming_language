@@ -3,7 +3,18 @@
 // with something simpler and faster hopefully.
 
 /*
-arm isa remaining to implement:
+test code:
+	def undefined
+	def 2
+	def hello 2
+	mov hello 2
+	udf hello
+	mov hello 2      <----- error, hello is not defined.
+
+
+
+
+arm isa stuff to implement:
 
 	addxr(s)  addsr(s)   subxr(s)  subsr(s) 
 
@@ -94,21 +105,14 @@ enum language_isa {
 	nullins,
 	size1, size2, size4, size8, 
 	zero, incr, keep, inv, flags, 
-	link_, regimm, return_, page, 
-	up, down, rotate,
-	signed_, unsigned_, 
+	link_, return_, page, up, down, rotate, signed_, unsigned_, 
 	shift12, shift16, shift32, shift48, 
 	not_, carry, negative, overflow, nev, always,
-	r0,  r1,  r2,  r3,  r4,  r5,  r6,  r7, 
-	r8,  r9,  r10, r11, r12, r13, r14, r15, 
-	r16, r17, r18, r19, r20, r21, r22, r23, 
-	r24, r25, r26, r27, r28, r29, r30, r31, 
 
 	nop, svc, mov, csel, do_, adc, 
 	addi, add, sh_, br, ccmp, if_, cbz, 
 	mul, div_, tbz, bfm, adr, emit,
-
-	at, def, loadfile, stringliteral, ignore, eoi, 
+	at, def, udf, loadfile, stringliteral, ignore, eoi, 
 	isa_count
 };
 
@@ -116,23 +120,14 @@ static const char* ins_spelling[isa_count] = {
 	" ",
 	"size1", "size2", "size4", "size8", 
 	"zero", "incr", "keep", "inv", "flags", 
-	"link", "regimm", "return", "page", 
-	"up", "down", "rotate", 
-	"signed", "unsigned",
+	"link", "return", "page", "up", "down", "rotate", "signed", "unsigned",
 	"shift12", "shift16", "shift32", "shift48", 
-
 	"not", "carry", "negative", "overflow", "nev", "always",
-
-	"r0",  "r1",  "r2",  "r3",  "r4",  "r5",  "r6",  "r7", 
-	"r8",  "r9",  "r10", "r11", "r12", "r13", "r14", "r15", 
-	"r16", "r17", "r18", "r19", "r20", "r21", "r22", "r23", 
-	"r24", "r25", "r26", "r27", "r28", "r29", "r30", "r31", 
 
 	"nop", "svc", "mov", "csel", "do", "adc", 
 	"addi", "add", "sh",  "br", "ccmp", "if", "cbz", 
 	"mul", "div", "tbz", "bfm",  "adr", "emit", 
-
-	"at", "def", "include", "stringliteral", "ignore", "eoi",
+	"at", "def", "udf", "include", "stringliteral", "ignore", "eoi",
 };
 
 struct file {
@@ -144,13 +139,10 @@ struct file {
 
 struct instruction {
 	nat op;
-	nat label;
 	nat size;
 	nat length;
-	nat immediate_count;
 	nat modifiers[6];
 	nat registers[6];
-	nat immediates[64];
 };
 
 static void get_input_string(char* string, nat max_length) {
@@ -199,6 +191,11 @@ static void get_input_string(char* string, nat max_length) {
 	puts("done. got string: ");
 	puts(string);
 }
+
+
+
+
+/*
 
 
 static void insert_byte(uint8_t** output_data, nat* output_data_count, uint8_t x) {
@@ -252,50 +249,45 @@ static void insert_u64(uint8_t** d, nat* c, uint64_t x) {
 #define TOOL_LD			3
 #define PLATFORM_MACOS 		1
 
+
+*/
 enum word_types {
 	type_undefined,
-	type_keyword,
-	type_label,
-	type_immediate,
+	type_operation,
+	type_variable,
 };
 
 static const char* type_spelling[] = {
-	"undefined",
-	"keyword",
-	"label",
-	"immediate",
+	"type_undefined",
+	"type_operation",
+	"type_variable",
 };
 
-static void debug_dictionary(char** names, nat* types, nat* values, nat name_count) {
+static void debug_dictionary(const char** names, nat* types, nat* values, nat name_count) {
 	printf("dictionary: %llu\n", name_count);
 	for (nat i = 0; i < name_count; i++) 
-		printf("\t%5llu  :   %10s : %-10s --->  %llu\n", i, names[i], type_spelling[types[i]], values[i]);
+		printf("\t%5llu  :   %16s : %-16s --->  %16llu (\"%s\")\n", 
+			i, names[i], type_spelling[types[i]], values[i], values[i] < name_count ? names[values[i]] : "{ERROR}");
 	puts("done printing dictionary.");
 }
 
-static void print_instructions(struct instruction* list, const nat count, char** names) {
+static void print_instructions(struct instruction* list, const nat count, const char** names) {
 	printf("printing %llu instructions...\n", count);
 	for (nat i = 0; i < count; i++) {
-		printf("ins { op=%s,.size=%s,.length=%llu,.label=%s,"
-			".immediates=[%llu, %llu, %llu, %llu, %llu, %llu] } "
+		printf("ins { op=%s,.size=%s,.length=%llu,"
 			".registers=[%s, %s, %s, %s, %s, %s] } "
 			".modifiers=[%s, %s, %s, %s, %s, %s] } \n",
-			ins_spelling[list[i].op], ins_spelling[list[i].size],  list[i].length,
-			names[list[i].label], 
 
-			list[i].immediates[0],
-			list[i].immediates[1],
-			list[i].immediates[2],
-			list[i].immediates[3],
-			list[i].immediates[4],
-			list[i].immediates[5],
+			ins_spelling[list[i].op], 
+			ins_spelling[list[i].size],  
+			list[i].length,
 
-			ins_spelling[list[i].registers[0]], 
-			ins_spelling[list[i].registers[1]], 
-			ins_spelling[list[i].registers[2]], 
-			ins_spelling[list[i].registers[3]], 
-			ins_spelling[list[i].registers[4]], 
-			ins_spelling[list[i].registers[5]], 
+			names[list[i].registers[0]], 
+			names[list[i].registers[1]], 
+			names[list[i].registers[2]], 
+			names[list[i].registers[3]], 
+			names[list[i].registers[4]], 
+			names[list[i].registers[5]], 
 
 			ins_spelling[list[i].modifiers[0]], 
 			ins_spelling[list[i].modifiers[1]], 
@@ -308,7 +300,7 @@ static void print_instructions(struct instruction* list, const nat count, char**
 	puts("[done]");
 }
 
-
+/*
 static uint32_t parse_condition(nat* modifiers) {
 	uint32_t 
 		inv_cond = 0, 
@@ -354,10 +346,11 @@ static nat calculate_offset(struct instruction* ins, nat here, nat target) {
 		for (nat i = target; i < here; i++) offset -= ins[i].length;
 	return offset;
 }
+*/
 
 int main(int argc, const char** argv) {
 
-	char* names[4096] = {0};
+	const char* names[4096] = {0};
 	nat values[4096] = {0};
 	nat types[4096] = {0};
 	nat name_count = 0;
@@ -365,8 +358,9 @@ int main(int argc, const char** argv) {
 	struct instruction* ins = NULL;
 	nat ins_count = 0;
 
-	const nat min_stack_size = 16384 + 1;
-	nat stack_size = min_stack_size;
+	// const nat min_stack_size = 16384 + 1;
+	// nat stack_size = min_stack_size;
+	char* given_output_filename = "output_executable_new";
 
 	struct file filestack[4096] = {0};
 	nat filestack_count = 1;
@@ -401,19 +395,10 @@ int main(int argc, const char** argv) {
 		filestack[0].index = 0;
 	}
 
-	for (nat i = 0; i < isa_count; i++) {
-		types[name_count] = type_keyword;
-		names[name_count] = strdup(ins_spelling[i]);
-		values[name_count] = name_count;
-		name_count++;
-	}
-
-	char* given_output_filename = "output_executable_new";
 
 process_file:;
-	nat 	word_length = 0, word_start = 0, calling = 0, 
-		in_filename = 0, in_define = 0, in_string = 0,
-		register_count = 0, modifier_count = 0, immediate_count = 0;
+	nat 	word_length = 0, word_start = 0, calling = 0, state = 0,
+		register_count = 0, modifier_count = 0;
 
 	const nat starting_index = 	filestack[filestack_count - 1].index;
 	const nat text_length = 	filestack[filestack_count - 1].text_length;
@@ -427,17 +412,9 @@ process_file:;
 			if (index + 1 < text_length) continue;
 		} else if (not word_length) continue;
 		char* word = strndup(text + word_start, word_length);
-		if (in_string) {
-			if (not strcmp(word, ins_spelling[stringliteral])) {
-				in_string = 0;
-				ins[ins_count - 1].immediates[immediate_count++] = word_start - 1;
-				ins[ins_count - 1].length = ins[ins_count - 1].immediates[1] -  
-							    ins[ins_count - 1].immediates[0];
-			}
-			goto next_word;
-		}
-		if (in_filename == 1) {
-			in_filename = 0;
+
+		if (state == 1) {
+			state = 0;
 			for (nat i = 0; i < included_file_count; i++) {
 				if (strcmp(included_files[i], word)) continue;
 				printf("warning: %s: file already included\n", word);
@@ -463,135 +440,76 @@ process_file:;
 			filestack[filestack_count++].index = 0;
 			goto process_file;
 
-		} else if (in_filename == 2) {
-			in_filename = 0;
+		} else if (state == 2) {
+			state = 0;
 			given_output_filename = word;
 			goto next_word;
 
-		} else if (in_define == 1) {
-			in_define = name_count;
+		} else if (state == 3) {
+			state = 4;
 			names[name_count] = word;
-			types[name_count] = 0;
-			name_count++;
+			types[name_count] = type_variable;
+			values[name_count++] = 0;
+			goto next_word;
+		} 
+		for (nat i = isa_count; i--;) 
+			if (not strcmp(ins_spelling[i], word)) { calling = i; goto found_operation; }
+		for (nat i = name_count; i--;) 
+			if (types[i] and not strcmp(names[i], word)) { calling = i; goto found_variable; }
+		printf("compiler: fatal error: unknown word found: %s\n", word);
+		abort();
+	found_variable:;
+		if (state == 4) {
+			values[name_count - 1] = calling;
+			state = 0;
+			goto next_word;
+		} else if (state == 5) {
+			types[calling] = type_undefined;
+			state = 0;
 			goto next_word;
 		}
+		if (register_count >= 6) { puts("bad fill reg"); abort(); }
+		ins[ins_count - 1].registers[register_count++] = calling;
+		goto next_word;
 
-		for (nat i = 0; i < name_count; i++) 
-			if (not strcmp(names[i], word)) { calling = i; goto found; }
-
-		calling = name_count;
-		names[name_count] = word;
-
-		nat r = 0, s = 1;
-		for (nat i = 0; i < strlen(word); i++) {
-			if (word[i] == '1') r += s;
-			else if (word[i] == '.') continue;
-			else if (word[i] != '0') goto create_label;
-			s <<= 1;
-		}
-
-		types[name_count] = type_immediate;
-		values[name_count] = r;
-		name_count++;
-		goto found;
-		
-	create_label:
-		types[name_count] = type_label;
-		values[name_count] = (nat) -1;
-		name_count++;
-
-	found: 	if (in_define) {
-			values[in_define] = values[calling];
-			types[in_define] = types[calling];
-			in_define = 0;
-			goto next_word;
-		}
-
-		nat n = calling;
-		const nat T = types[n];
-
-		if (T == type_keyword) n = values[n];
-
+	found_operation:;
+		const nat n = calling;
 		if (n == eoi) break;
 		else if (n == ignore) { if (ins_count) ins_count--; }
-		else if (n == loadfile) in_filename = 1;
-		else if (n == def) in_define = 1;
+		else if (n == loadfile) state = 1;
+		else if (n == def) state = 3;
+		else if (n == udf) state = 5;
 		else if (n >= nop and n < isa_count) {
-			
-			register_count = 0;
-			modifier_count = 0;
-			immediate_count = 0;
+			state = 0; register_count = 0; modifier_count = 0;
 			ins = realloc(ins, sizeof(struct instruction) * (ins_count + 1));
-			ins[ins_count++] = (struct instruction) {
-				.op = n,
-				.size = size8,
-				.length = n != emit ? 4 : 0,
-				.immediates = {0},
-				.label = 0,
-				.modifiers = {0},
-				.registers = {r31, r31, r31, r31, r31, r31},
-			};
-			if (n == stringliteral) { 
-				in_string = 1; 
-				ins[ins_count - 1].immediates[immediate_count++] = index + 1;
-			}
-
-		} else if (n >= size1 and n <= size8) {
-			if (not ins_count) { puts("bad fill size"); abort(); }
-			ins[ins_count - 1].size = n;
-
-		} else if (T == type_immediate) {
-			if (not ins_count or immediate_count >= 64) { puts("bad fill imm"); abort(); }
-			ins[ins_count - 1].immediates[immediate_count++] = values[n];
-			ins[ins_count - 1].immediate_count = immediate_count;
-			if (ins[ins_count - 1].op == emit) {
-				if (ins[ins_count - 1].size == size8) ins[ins_count - 1].length += 8;
-				if (ins[ins_count - 1].size == size4) ins[ins_count - 1].length += 4;
-				if (ins[ins_count - 1].size == size2) ins[ins_count - 1].length += 2;
-				if (ins[ins_count - 1].size == size1) ins[ins_count - 1].length += 1;
-			}
-
-		} else if (n >= r0 and n <= r31) {
-			if (register_count >= 6) { puts("bad fill reg"); abort(); }
-			ins[ins_count - 1].registers[register_count++] = n;
-
+			ins[ins_count++] = (struct instruction) { .op = n };
 		} else if (n < isa_count) {
 			if (modifier_count >= 6) { puts("bad fill mod"); abort(); }
 			ins[ins_count - 1].modifiers[modifier_count++] = n;
-
-		} else if (T == type_label)  {
-
-			if (not ins_count) { 
-				printf("error: unexpected label: "); puts(word);
-				abort();
-			}
-			if (ins[ins_count - 1].label) { 
-				puts("bad fill label"); 
-				abort(); 
-			}
-			ins[ins_count - 1].label = n;
-			if (ins[ins_count - 1].op == at) { values[n] = --ins_count; }
-
-		} else { 
-			puts("unknown symbol"); 
-			printf("n = %llu, calling = %llu, values[n] = %llu, types[n] = %llu\n", 
-				n, calling, values[n], types[n]
-			);
-			debug_dictionary(names, types, values, name_count);
-			abort(); 
-		}
-
+		} else { puts("AHHH"); abort(); }
 		next_word: word_length = 0;
 	}
-	if (in_string) abort();
-	if (in_define) abort();
-	if (in_filename) abort();
+	if (state) { puts("nonzero state at eoi"); abort(); } 
+
 	filestack_count--;
 	if (filestack_count) goto process_file;
 
 	debug_dictionary(names, types, values, name_count);
 	print_instructions(ins, ins_count, names);
 
+
+
+
+
+
+
+
+
+
+
+
+
+/*
 	uint8_t* my_bytes = NULL;
 	nat my_count = 0;
 
@@ -1210,6 +1128,10 @@ process_file:;
 	//system("otool -htvxVlL output_executable_new");
 	system("objdump -D output_executable_new");
 
+
+
+
+*/
 }
 
 
@@ -1475,6 +1397,52 @@ mov r16 1
 
 */
 	//exit(1);
+
+
+
+
+
+
+
+
+
+
+			/*puts("unknown symbol"); 
+			printf("n = %llu, calling = %llu, values[n] = %llu, types[n] = %llu\n", 
+				n, calling, values[n], types[n]
+			);
+			debug_dictionary(names, types, values, name_count);
+			abort(); */
+
+
+
+
+
+
+
+
+
+
+
+
+	//names[0] = "undefined";    types[0] = type_variable;
+	//names[1] = "stacksize";    types[1] = type_variable;
+	//names[2] = "stackpointer"; types[2] = type_variable;
+	//name_count += 3;
+
+
+
+/*
+
+
+else if (n >= size1 and n <= size8) {
+			if (not ins_count) { puts("bad fill size"); abort(); }
+			ins[ins_count - 1].size = n;
+		} 
+
+
+
+*/
 
 
 

@@ -1,0 +1,477 @@
+/*
+
+mov inv r2 
+nop nop nop
+
+
+
+eoi
+
+
+do loop
+mov r0 01
+at loop
+mov r0 0010011
+mov r16 1
+svc
+eoi
+
+
+commands for the editor:
+----------------------------
+
+copyb insert ./build
+copya insert ./run c.c
+
+do  ./output_executable_new
+do  /bin/zsh
+
+
+old commands:
+----------------------------
+do './run'string'
+mov r0 010101
+mov r16 1
+svc
+----------------------------
+copya insert ./run string "
+mov r0 010101
+mov r16 1
+svc
+"
+-------------------------
+do  ./output_executable_new
+do  /bin/zsh
+
+
+
+do loop
+mov r0 0010011
+mov r16 1
+at loop
+svc
+eoi
+
+becomes:
+
+output_executable_new:	file format mach-o arm64
+
+Disassembly of section __TEXT,__text:
+
+0000000100003ff0 <__text>:
+100003ff0: 03 00 00 14 	b	0x100003ffc <__text+0xc>
+100003ff4: 80 0c 80 d2 	mov	x0, #100
+100003ff8: 30 00 80 d2 	mov	x16, #1
+100003ffc: 01 00 00 d4 	svc	#0
+warning: ignoring label
+ins[i].label = 66
+i = 0
+target = 3
+file was removed.
+wrote 17184 bytes to file output_executable_new.
+
+
+written on 1202410196.164450 dwrr    
+an optimizing arm64 assembler that uses the 
+arm64 (or machine code) isa as the ir 
+for the optimization process.
+
+----------------------------------------
+
+
+
+1202410207.191257
+i finally got this code working!!
+
+totally overhauled the way i am handling the dictionary lol.. i think it should work well now, i think!!
+
+
+
+def hello 0001
+def bubbles hello
+
+mov r3 bubbles
+def myvar r5
+
+mov myvar hello
+
+
+
+which now generates the right instructions:
+
+
+	dictionary: (62 words)
+	    0  :              : keyword    --->  0
+	    1  :        size1 : keyword    --->  1
+	    
+		....etc...
+
+	   54  :           at : keyword    --->  54
+	   55  :          def : keyword    --->  55
+	   56  :      include : keyword    --->  56
+	   57  :          eoi : keyword    --->  57
+	   58  :        hello : immediate  --->  8
+	   59  :         0001 : immediate  --->  8
+	   60  :      bubbles : immediate  --->  8
+	   61  :        myvar : keyword    --->  23
+done printing dictionary.
+
+printing 2 instructions...
+ins { op=mov,.size=size8,.label= ,.immediate=8,.registers=[r3,  ,  ,  ,  ,  ] } .modifiers=[ ,  ,  ,  ,  ,  ] } 
+ins { op=mov,.size=size8,.label= ,.immediate=8,.registers=[r5,  ,  ,  ,  ,  ] } .modifiers=[ ,  ,  ,  ,  ,  ] } 
+[done]
+
+
+
+YAYYY it works lol. lets continue testing ittt
+
+
+
+this code also works:
+
+	def hello loop
+	at hello
+
+
+which generates the instructions:
+
+
+printing 1 instructions...
+ins { op=at,.size=size8,.label=hello,.immediate=0,.registers=[ ,  ,  ,  ,  ,  ] } .modifiers=[ ,  ,  ,  ,  ,  ] } 
+[done]
+
+
+
+heck, we can even do:
+
+def hello eoi
+hello
+mov r0 1001
+
+
+which generates no instructions, as it should!!! wow. thats literally so cool. i love that lol. YAYYY
+
+
+
+nice. so this macro system is the correct one i think lol. yayyy. cool beans 
+
+
+
+
+
+
+lets start code gen now!!!
+
+lets try this program, for testing:
+
+
+def systemexit 1
+def exitcode 1001
+
+mov r0 exitcode
+mov r16 systemexit
+svc
+
+
+which outputs:
+
+printing 3 instructions...
+ins { op=mov,.size=size8,.label= ,.immediate=9,.registers=[r0,  ,  ,  ,  ,  ] } .modifiers=[ ,  ,  ,  ,  ,  ] } 
+ins { op=mov,.size=size8,.label= ,.immediate=1,.registers=[r16,  ,  ,  ,  ,  ] } .modifiers=[ ,  ,  ,  ,  ,  ] } 
+ins { op=svc,.size=size8,.label= ,.immediate=0,.registers=[ ,  ,  ,  ,  ,  ] } .modifiers=[ ,  ,  ,  ,  ,  ] } 
+[done]
+
+
+
+
+gosh i love this so much!!!! this is going well lol. YAY
+
+
+lets do code gen now lol. i think we are ready lol. 
+
+
+
+
+
+
+
+
+
+
+
+
+
+1202410207.002512
+current state:
+
+		so i just realized why the imm    macro   system  
+
+		ie,    def hello 01      mov zero r0 hello
+
+
+			isnt working. 
+
+
+	its because 
+
+
+			we need to actually differentiate what the type of the elements in our dictionary is. 
+
+				like, the root of the difficulty is that we need to be able to represent a 64bit literal,
+
+									(i think...!?!?!)
+
+
+				buttt of course we don't have any way to tell apart an element in our dict that is a reference to another machinery, or a literal value of that value in the dict. 
+
+							so yeah, we need to distinguish these.  AT LEAST. 
+
+
+
+	buttt tbh theres probably a muchhh better way to do this whole   immediate thing altogether lol.   probablyyy involving making everything derived computationally and not even providing a way to write an immediate lol. 
+
+
+
+
+	tbh yeah. thats probably it lol.  nice okay. coool.  letst just rip out the imm system then lol. yay
+
+
+
+
+
+
+
+
+
+
+
+							CRAP  wait i just realized we can't rip out the literal system, because we would neeed 
+
+
+							virtual registers. 
+
+
+								like, of some sort. 
+
+												DANGGG
+
+
+				hmm i mean i guess we couldd just give a set of virtual registers too lollll like that coulddd worklol 
+
+					hmmm interesting 
+
+
+								i think i would probablyyy just want to just have literals though, i think instead of adding ct virtual registers. yeah probably.  
+
+
+
+	okay cool so we have to figure out this whole literal situation, i think lol. shouldnt be thatttt bad, but yeah we need to sort it out. 
+
+
+
+
+hmm maybe we make a dictionary entry for the literal!
+
+
+		i think we still need a flag set to tell that that entry is a literal though... hmmmm crap 
+
+
+									uhh
+
+
+
+				hmmmmm  just i don't think theres any way around this, we need to annotate the type basically, inside the symbol table 
+
+							at the very least, whether its a label, immediate, or regsiter/instruction.  
+
+
+				i think we need those at leastttt    
+						no other types other than those though lol. so yeah thats good i guess
+
+
+		hmmmm
+
+
+
+					i kinda wish the registers / instruction opcodes were seperate though hmmm idk 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+arm isa that will be supported:
+
+			adc(s) addxr(s) addi(s) addsr(s)  adr(p)   
+			andi(s)  andsr(s)  asrv
+			b  bl   b.cond(16 conds)   br   blr
+			bfm bic(s) 
+			cbnz   cbz   ccmni  ccmnr  cmpi   cmpr     cfinv cls clz 
+			csel csinc csinv csneg
+			eonsr eorsr eori  extr
+			ldp ldri ldrl ldrr 
+			ldrb ldrsb ldrh ldrsh ldrsw
+			lslv   madd msub
+			movk movn movz  nop
+			ornsr orri orrsr
+			rbit rev rev16 rev32
+			ret   rorv sbc(s)  sbfm 
+			sdiv smaddl smsubl smulh 
+			stp stri strr strbi strbr strhi strhr 
+			subxr(s) subi(s) subsr(s) 
+			svc    tbnz tbz    ubfm
+			udiv umaddl umsubl umulh
+
+
+
+our previous isa:
+
+
+	zero, incr, decr, set, add, sub, 
+	mul, muh, mhs, div_, dvs, rem, rms, 
+	si, sd, sds, and_, or_, eor, not_,
+	ld, st, sta, bca, sc, at, lf, def, udf, 
+	lt, ge, lts, ges, ne, eq, do_, 
+
+*/
+
+
+/*
+
+
+isa:
+
+	nop
+
+	svc
+
+
+	mov type=z(default)/k/n shift=00 imm16=00000..0  Rd=00000  sf=1(default)/0
+
+		mov [size8(default)/size4] [zero(default)/keep/inv]   Rd_bn    [imm16_bn default=0]
+		
+
+
+	csel incr=0 inv=0 Rn=00000 Rm=00000 Rd=00000 cond=0000 sf=1(default)/0
+
+
+		csel [size8(default)/size4] [incr] [inv]  [cond]   Rd_bn    Rm_bn   Rn_bn
+
+
+
+
+	lf file.txt
+
+	eoi
+
+
+
+
+	mov r16  101000 101011  010100110
+
+	
+
+
+
+
+commands for the editor:
+----------------------------
+
+
+copyb insert ./build
+copya do  /bin/zsh
+
+
+----------------------------
+
+do './run'string'
+mov r0 010101
+mov r16 1
+svc
+
+
+----------------------------
+
+copya insert ./run string "
+mov r0 010101
+mov r16 1
+svc
+"
+
+
+
+
+do  ./output_executable_new
+
+
+
+
+
+*/
+
+
+
+/*
+
+
+
+1202410207.192311
+this code works now too. yayyyyy
+
+
+
+def hello 100011100
+at loop
+        mov zero loop r0 11010
+	mov zero loop r0 hello
+
+
+
+def hello 100011100
+mov zero r0 hello
+
+
+
+movk shift16
+
+mov zero
+
+
+if zero false
+
+
+mov zero r0 1000101101
+mov keep r0 shift16 01010011
+mov keep r0 shift32 01010011
+mov keep r0 shift48 01010011
+
+
+
+	movz x0, #0x9821
+	movk x0, #0x9821, lsl #16
+	movk x0, #0x9821, lsl #32
+	movk x0, #0x9821, lsl #48
+
+
+*/
+
+
+
+
