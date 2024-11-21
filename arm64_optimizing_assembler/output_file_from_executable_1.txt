@@ -1,0 +1,174 @@
+arm64_optimizing_assembler/output_executable_new:
+Mach header
+      magic  cputype cpusubtype  caps    filetype ncmds sizeofcmds      flags
+MH_MAGIC_64    ARM64        ALL  0x00     EXECUTE    12        600   NOUNDEFS DYLDLINK TWOLEVEL PIE
+Load command 0
+      cmd LC_SEGMENT_64
+  cmdsize 72
+  segname __PAGEZERO
+   vmaddr 0x0000000000000000
+   vmsize 0x0000000100000000
+  fileoff 0
+ filesize 0
+  maxprot ---
+ initprot ---
+   nsects 0
+    flags (none)
+Load command 1
+      cmd LC_SEGMENT_64
+  cmdsize 152
+  segname __TEXT
+   vmaddr 0x0000000100000000
+   vmsize 0x0000000000004000
+  fileoff 0
+ filesize 16384
+  maxprot r-x
+ initprot r-x
+   nsects 1
+    flags (none)
+Section
+  sectname __text
+   segname __TEXT
+      addr 0x0000000100003f30
+      size 0x00000000000000d0
+    offset 16176
+     align 2^4 (16)
+    reloff 0
+    nreloc 0
+      type S_REGULAR
+attributes PURE_INSTRUCTIONS SOME_INSTRUCTIONS
+ reserved1 0
+ reserved2 0
+Load command 2
+      cmd LC_SEGMENT_64
+  cmdsize 72
+  segname __LINKEDIT
+   vmaddr 0x0000000100004000
+   vmsize 0x0000000000008000
+  fileoff 16384
+ filesize 19232
+  maxprot rw-
+ initprot rw-
+   nsects 0
+    flags (none)
+Load command 3
+     cmd LC_SYMTAB
+ cmdsize 24
+  symoff 0
+   nsyms 0
+  stroff 0
+ strsize 0
+Load command 4
+            cmd LC_DYSYMTAB
+        cmdsize 80
+      ilocalsym 0
+      nlocalsym 0
+     iextdefsym 0
+     nextdefsym 0
+      iundefsym 0
+      nundefsym 0
+         tocoff 0
+           ntoc 0
+      modtaboff 0
+        nmodtab 0
+   extrefsymoff 0
+    nextrefsyms 0
+ indirectsymoff 0
+  nindirectsyms 0
+      extreloff 0
+        nextrel 0
+      locreloff 0
+        nlocrel 0
+Load command 5
+          cmd LC_LOAD_DYLINKER
+      cmdsize 32
+         name /usr/lib/dyld (offset 12)
+Load command 6
+     cmd LC_UUID
+ cmdsize 24
+    uuid A7410000-F13A-D610-D9AC-B7602A0CB53A
+Load command 7
+      cmd LC_BUILD_VERSION
+  cmdsize 32
+ platform MACOS
+    minos 13.0
+      sdk 13.3
+   ntools 1
+     tool LD
+  version 857.1
+Load command 8
+      cmd LC_SOURCE_VERSION
+  cmdsize 16
+  version 0.0
+Load command 9
+       cmd LC_MAIN
+   cmdsize 24
+  entryoff 16176
+ stacksize 16385
+Load command 10
+          cmd LC_LOAD_DYLIB
+      cmdsize 56
+         name /usr/lib/libSystem.B.dylib (offset 24)
+   time stamp 0 Wed Dec 31 16:00:00 1969
+      current version 1319.100.3
+compatibility version 1.0.0
+Load command 11
+      cmd LC_CODE_SIGNATURE
+  cmdsize 16
+  dataoff 17184
+ datasize 18432
+	/usr/lib/libSystem.B.dylib (compatibility version 1.0.0, current version 1319.100.3)
+	time stamp 0 Wed Dec 31 16:00:00 1969
+(__TEXT,__text) section
+0000000100003f30	mov	x5, #0xffff
+0000000100003f34	movk	x5, #0x9c63, lsl #16
+0000000100003f38	movk	x5, #0x1556, lsl #32
+0000000100003f3c	movk	x5, #0xa00a, lsl #48
+0000000100003f40	mov	x3, #0x0
+0000000100003f44	tbnz	w3, #0x0, 0x100003f50
+0000000100003f48	tbnz	w3, #0x1, 0x100003f50
+0000000100003f4c	bl	0x100003f80
+0000000100003f50	tbnz	w5, #0x0, 0x100003f5c
+0000000100003f54	bl	0x100003f9c
+0000000100003f58	b	0x100003f60
+0000000100003f5c	bl	0x100003fb8
+0000000100003f60	add	x3, x3, #0x1
+0000000100003f64	add	x5, xzr, x5, lsr #1
+0000000100003f68	cmp	x3, #0x40
+0000000100003f6c	b.lo	0x100003f44
+0000000100003f70	bl	0x100003fd4
+0000000100003f74	mov	x0, #0x0
+0000000100003f78	mov	x16, #0x1
+0000000100003f7c	svc	#0
+0000000100003f80	mov	x0, #0x1
+0000000100003f84	adr	x1, #0x6e
+0000000100003f88	adr	x2, #0x6d
+0000000100003f8c	sub	x2, x2, x1
+0000000100003f90	mov	x16, #0x4
+0000000100003f94	svc	#0
+0000000100003f98	ret
+0000000100003f9c	mov	x0, #0x1
+0000000100003fa0	adr	x1, #0x50
+0000000100003fa4	adr	x2, #0x4d
+0000000100003fa8	sub	x2, x2, x1
+0000000100003fac	mov	x16, #0x4
+0000000100003fb0	svc	#0
+0000000100003fb4	ret
+0000000100003fb8	mov	x0, #0x1
+0000000100003fbc	adr	x1, #0x35
+0000000100003fc0	adr	x2, #0x32
+0000000100003fc4	sub	x2, x2, x1
+0000000100003fc8	mov	x16, #0x4
+0000000100003fcc	svc	#0
+0000000100003fd0	ret
+0000000100003fd4	mov	x0, #0x1
+0000000100003fd8	adr	x1, #0x1d
+0000000100003fdc	adr	x2, #0x1a
+0000000100003fe0	sub	x2, x2, x1
+0000000100003fe4	mov	x16, #0x4
+0000000100003fe8	svc	#0
+0000000100003fec	ret
+0000000100003ff0	.long	0x7c203130
+0000000100003ff4	udf	#0xa20
+0000000100003ff8	udf	#0x0
+0000000100003ffc	udf	#0x0

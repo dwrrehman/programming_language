@@ -12,30 +12,19 @@ test code:
 	mov hello 2      <----- error, hello is not defined.
 
 
-
-
 arm isa stuff to implement:
 
 	addxr(s)  addsr(s)   subxr(s)  subsr(s) 
-
-	
-	
 	bic(s) 
-
 	cls clz 
-
 	andi(s)  andsr(s)  
 	eonsr eorsr eori 
 	ornsr orri orrsr 
-
 	extr
-
 	ldp ldri ldrl ldrr 
 	ldrb ldrsb ldrh ldrsh ldrsw
 	stp stri strr strbi strbr strhi strhr 
-
 	rbit rev rev16 rev32
-
 	sbfm  ubfm
 	smulh  umulh
 
@@ -61,25 +50,15 @@ done:          (on same line means they are the same instruction!!!)
 	nop 
 	svc
 
-
-
 isa:
+	nop svc mov
+	csel do adc addi
+	sh br ccmp bfm
+	if cbz mul div tbz
 
-	nop
-	svc
-	mov
-	csel
-	do
-	adc
-	addi
-	sh
-	br
-	ccmp
-	if
-	cbz 
-	mul
-	div 
-	tbz
+	
+	emit
+	at def udf eoi include 
 */
 
 
@@ -193,8 +172,6 @@ static void get_input_string(char* string, nat max_length) {
 }
 
 
-
-
 /*
 
 
@@ -250,16 +227,14 @@ static void insert_u64(uint8_t** d, nat* c, uint64_t x) {
 #define PLATFORM_MACOS 		1
 
 
-*/
+*/ 
 enum word_types {
 	type_undefined,
-	type_operation,
 	type_variable,
 };
 
 static const char* type_spelling[] = {
 	"type_undefined",
-	"type_operation",
 	"type_variable",
 };
 
@@ -360,7 +335,7 @@ int main(int argc, const char** argv) {
 
 	// const nat min_stack_size = 16384 + 1;
 	// nat stack_size = min_stack_size;
-	char* given_output_filename = "output_executable_new";
+	// char* given_output_filename = "output_executable_new";
 
 	struct file filestack[4096] = {0};
 	nat filestack_count = 1;
@@ -395,16 +370,13 @@ int main(int argc, const char** argv) {
 		filestack[0].index = 0;
 	}
 
-
 process_file:;
 	nat 	word_length = 0, word_start = 0, calling = 0, state = 0,
 		register_count = 0, modifier_count = 0;
-
 	const nat starting_index = 	filestack[filestack_count - 1].index;
 	const nat text_length = 	filestack[filestack_count - 1].text_length;
 	char* text = 			filestack[filestack_count - 1].text;
 	const char* filename = 		filestack[filestack_count - 1].filename;
-
 	for (nat index = starting_index; index < text_length; index++) {
 		if (not isspace(text[index])) {
 			if (not word_length) word_start = index;
@@ -412,20 +384,43 @@ process_file:;
 			if (index + 1 < text_length) continue;
 		} else if (not word_length) continue;
 		char* word = strndup(text + word_start, word_length);
-
 		if (state == 1) {
 			state = 0;
+			names[name_count] = word;
+			types[name_count] = type_variable;
+			values[name_count++] = 0;
+			goto next_word;
+		} 
+		for (nat i = isa_count; i--;) 
+			if (not strcmp(ins_spelling[i], word)) { calling = i; goto found_operation; }
+		for (nat i = name_count; i--;) 
+			if (types[i] and not strcmp(names[i], word)) { calling = i; goto found_variable; }
+		printf("compiler: fatal error: unknown word found: %s\n", word);
+		abort();
+
+	found_variable:;
+		if (state == 2) {
+			types[calling] = type_undefined;
+			state = 0;
+			goto next_word;
+		}
+		if (register_count >= 6) { puts("bad fill reg"); abort(); }
+		ins[ins_count - 1].registers[register_count++] = calling;
+		goto next_word;
+
+	found_operation:;
+		const nat n = calling;
+		if (n == eoi) break;
+		else if (n == ignore) { if (ins_count) ins_count--; }
+		else if (n == loadfile) {
 			for (nat i = 0; i < included_file_count; i++) {
 				if (strcmp(included_files[i], word)) continue;
-				printf("warning: %s: file already included\n", word);
 				goto next_word;
 			}
 			included_files[included_file_count++] = word;
 			int file = open(word, O_RDONLY);
 			if (file < 0) { 
-				printf("fatal error: loadfile %s: open: %s\n", 
-					word, strerror(errno)
-				); 
+				printf("error: %s: open: %s\n", word, strerror(errno)); 
 				exit(1); 
 			}
 			const nat new_text_length = (nat) lseek(file, 0, SEEK_END);
@@ -439,46 +434,9 @@ process_file:;
 			filestack[filestack_count].text_length = new_text_length;
 			filestack[filestack_count++].index = 0;
 			goto process_file;
-
-		} else if (state == 2) {
-			state = 0;
-			given_output_filename = word;
-			goto next_word;
-
-		} else if (state == 3) {
-			state = 4;
-			names[name_count] = word;
-			types[name_count] = type_variable;
-			values[name_count++] = 0;
-			goto next_word;
-		} 
-		for (nat i = isa_count; i--;) 
-			if (not strcmp(ins_spelling[i], word)) { calling = i; goto found_operation; }
-		for (nat i = name_count; i--;) 
-			if (types[i] and not strcmp(names[i], word)) { calling = i; goto found_variable; }
-		printf("compiler: fatal error: unknown word found: %s\n", word);
-		abort();
-	found_variable:;
-		if (state == 4) {
-			values[name_count - 1] = calling;
-			state = 0;
-			goto next_word;
-		} else if (state == 5) {
-			types[calling] = type_undefined;
-			state = 0;
-			goto next_word;
 		}
-		if (register_count >= 6) { puts("bad fill reg"); abort(); }
-		ins[ins_count - 1].registers[register_count++] = calling;
-		goto next_word;
-
-	found_operation:;
-		const nat n = calling;
-		if (n == eoi) break;
-		else if (n == ignore) { if (ins_count) ins_count--; }
-		else if (n == loadfile) state = 1;
-		else if (n == def) state = 3;
-		else if (n == udf) state = 5;
+		else if (n == def) state = 1;
+		else if (n == udf) state = 2;
 		else if (n >= nop and n < isa_count) {
 			state = 0; register_count = 0; modifier_count = 0;
 			ins = realloc(ins, sizeof(struct instruction) * (ins_count + 1));
@@ -489,14 +447,12 @@ process_file:;
 		} else { puts("AHHH"); abort(); }
 		next_word: word_length = 0;
 	}
-	if (state) { puts("nonzero state at eoi"); abort(); } 
-
+	if (state) { puts("nonzero state at eoi"); abort(); }
 	filestack_count--;
 	if (filestack_count) goto process_file;
 
 	debug_dictionary(names, types, values, name_count);
 	print_instructions(ins, ins_count, names);
-
 
 
 

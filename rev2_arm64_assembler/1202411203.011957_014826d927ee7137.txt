@@ -1,0 +1,6 @@
+def 0
+
+
+def hello 
+mov hello 0
+
