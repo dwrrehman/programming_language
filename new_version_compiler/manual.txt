@@ -1,0 +1,172 @@
+manual for the programming language
+written on 1202411225.000721 by dwrr
+=====================================
+
+the entire instruction set for the language is only the following words:
+
+	zero incr decr 
+	set add sub mul div rem 
+	not and or eor si sd 
+	lt ge ne eq do
+	ld st sc sta bca 
+	at lf eoi
+
+a total of 28 words, currently. this document aims to go over how to use each one, and generally how the language semantics works. 
+
+first a reference list of the instruction semantics is given below.
+
+--------------------------------------------------------------------------------------
+
+primitive operations:
+
+	zero d		:	set the variable d to zero. 
+
+	incr d 		: 	increment the variable d by 1. 
+
+	decr d 		: 	decrement the variabe d by 1. 
+
+arithmetic operations:
+
+	set d r		:	set the variable d to the value currently given in variable r.
+
+	add d r		:	set the variable d to the value of d + r. 
+
+	sub d r		:	set the variable d to the value of d - r. 
+
+	mul d r		:	set the variable d to the value of d * r. 
+
+	div d r		:	set the variable d to the value of d / r. 
+
+	rem d r		:	set the variable d to the value of d modulo r. 
+
+bitwise operations:
+
+	not d		:	invert each bit in the variable d.
+
+	and d r		:	bitwise-and each bit in variable d and variable r, and store the result in d. 
+
+	or d r		:	bitwise-or each bit in variable d and variable r, and store the result in d. 
+
+	eor d r		:	bitwise-exclusive-or each bit in variable d and variable r, and store the result in d. 
+
+	si d r		:	shift up the value in variable d by r bits, and store the result in d. 
+
+	sd d r		:	shift down the value in variable d by r bits, and store the result in d. 
+
+branch operations:
+
+	lt r s l	:	compare variables r and s. if r is less than s, then control flow branches to label l. 
+
+	ge r s l	:	compare variables r and s. if r is not less than s, then control flow branches to label l. 
+
+	eq r s l	:	compare variables r and s. if r is equal to s, then control flow branches to label l. 
+
+	ne r s l	:	compare variables r and s. if r is not equal to s, then control flow branches to label l. 
+
+	do l 		:	control flow unconditionally branches to label l. 
+
+memory operations:
+
+	ld d a s	: 	load a sequence of bytes from memory, starting at memory address a, and store these bytes into variable d.
+				the number of bytes which are loaded is given by the compiletime known variable s,
+				which must be a power of two in the set {1, 2, 4, 8} and the value of s must be known at compiletime.
+
+	st a r s	: 	store a sequence of bytes into memory, starting at memory address a, using the bytes given in variable r.
+				the number of bytes which are loaded is given by the compiletime known variable s,
+				which must be a power of two in the set {1, 2, 4, 8} and the value of s must be known at compiletime.
+
+system call operation:
+
+	sc n a b c d e f	: 	perform the system call given by the system call number n. 
+					variable arguments a, b, c, d, e, and f are potentially given to 
+					the system call as inputs, however only a subset of these might be 
+					used depending on which system call is invoked. excess arguments (ones which 
+					are not neccessary according to the arity of the chosen system call) may be 
+					set to any value/variable, as they are simply ignored. 
+attribution operations:
+
+	sta r t		:	set the type of storage used by variable r, according to the type t. 
+				the value of t corresponds to a storage method, given by this table:
+
+						t = 0: r is compiletime-known only, no runtime storage
+						t = 1: r is stored in a runtime register, 
+						t = 2: r is stored in a runtime memory location on the stack, 
+						t = 3: r is stored in either register or memory, 
+							(ie, only guaranteed to be runtime known)
+
+	bca r b		:	set the number of modifiable bits allocated to the variable r. b must be non-negative.
+				the value of zero denotes that a variable is no longer modifiable. 
+
+language level operations:
+
+	at l		:	set the program position designated by label l to be the location of the next instruction. 
+
+	lf f		: 	load a file from the filesystem, given by path or filename f.
+
+	eoi		:	end of input. used to optionally designate the end of the compilers input. 
+				every character after an eoi is ignored by the compiler. not required, but sometimes useful. 
+
+--------------------------------------------------------------------------------------------------
+
+example usage of the language's instructions:
+
+
+
+primitive operation examples:
+
+-----------------
+	zero x
+	incr x incr x decr x           <---- after this line finishes, x now holds the value 1. 
+
+-----------------
+
+arithmetic operation examples:
+
+-----------------
+
+	set a 5
+	set b 4
+	add a b			<------ a now has the value 9
+
+-----------------
+
+	set a 2 set b 3 set c 5 set d 7
+
+	set x a sub x b mul x x
+	set y c sub y d mul y y
+
+	zero r add r x add r y div r 2
+
+-----------------
+
+bitwise operation example:
+
+-----------------
+
+	set a 
+
+
+
+
+
+-----------------
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

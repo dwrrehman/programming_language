@@ -1,0 +1,144 @@
+[first=1]: [0]: at word = this
+[first=1]: [5]: at word = is
+[first=1]: [8]: at word = a
+[first=1]: [10]: at word = comment
+[first=1]: [18]: at word = lol.
+[first=1]: [24]: at word = 1202411203.183738
+[first=1]: [43]: at word = dwrr
+[first=1]: [50]: at word = zero
+[first=0]: [55]: at word = 0
+[first=1]: [57]: at word = zero
+[first=0]: [62]: at word = 3
+[first=1]: [64]: at word = incr
+[first=0]: [69]: at word = 3
+[first=1]: [71]: at word = incr
+[first=0]: [76]: at word = 3
+[first=1]: [78]: at word = incr
+[first=0]: [83]: at word = 3
+[first=1]: [85]: at word = zero
+[first=0]: [90]: at word = i
+[first=1]: [92]: at word = zero
+[first=0]: [97]: at word = r
+[first=1]: [99]: at word = at
+[first=0]: [102]: at word = loop
+[first=1]: [108]: at word = add
+[first=0]: [112]: at word = r
+[first=0]: [114]: at word = i
+[first=1]: [116]: at word = incr
+[first=0]: [121]: at word = i
+[first=1]: [124]: at word = lt
+[first=0]: [127]: at word = i
+[first=0]: [129]: at word = 3
+[first=0]: [131]: at word = loop
+instructions: (11 count) 
+[  0]={.0=1    zero     .1=4    0        
+[  1]={.0=1    zero     .1=5    3        
+[  2]={.0=2    incr     .1=5    3        
+[  3]={.0=2    incr     .1=5    3        
+[  4]={.0=2    incr     .1=5    3        
+[  5]={.0=1    zero     .1=6    i        
+[  6]={.0=1    zero     .1=7    r        
+[  7]={.0=25   at       .1=8    loop     
+[  8]={.0=5    add      .1=7    r        .2=6    i        
+[  9]={.0=2    incr     .1=6    i        
+[ 10]={.0=16   lt       .1=6    i        .2=5    3        .3=8    loop     
+done
+
+dictionary: 9
+var #    0:   (nv)      
+var #    1:   _discardunused
+var #    2:   _process_stackpointer
+var #    3:   _process_stacksize
+var #    4:   0         
+var #    5:   3         
+var #    6:   i         
+var #    7:   r         
+var #    8:   loop      
+done
+finshed parsing!
+stage: constructing data flow DAG...
+generating DAG node for ins: { zero  1    4   statically_known = 0
+generated node #3 into block 0 (of 1): 
+inputs and outputs null for now
+generating DAG node for ins: { zero  1    5   statically_known = 0
+generated node #4 into block 0 (of 2): 
+inputs and outputs null for now
+generating DAG node for ins: { incr  2    5   statically_known = 0
+generated node #5 into block 0 (of 3): 
+inputs and outputs null for now
+generating DAG node for ins: { incr  2    5   statically_known = 0
+generated node #6 into block 0 (of 4): 
+inputs and outputs null for now
+generating DAG node for ins: { incr  2    5   statically_known = 0
+generated node #7 into block 0 (of 5): 
+inputs and outputs null for now
+generating DAG node for ins: { zero  1    6   statically_known = 0
+generated node #8 into block 0 (of 6): 
+inputs and outputs null for now
+generating DAG node for ins: { zero  1    7   statically_known = 0
+generated node #9 into block 0 (of 7): 
+inputs and outputs null for now
+generating DAG node for ins: { at  25    8   statically_known = 0
+generated node #10 into block 1 (of 1): 
+inputs and outputs null for now
+generating DAG node for ins: { add  5    7    6   statically_known = 0
+generated node #11 into block 1 (of 2): 
+inputs and outputs null for now
+generating DAG node for ins: { incr  2    6   statically_known = 0
+generated node #12 into block 1 (of 3): 
+inputs and outputs null for now
+generating DAG node for ins: { lt  16    6    5    8   statically_known = 0
+generated node #13 into block 1 (of 4): 
+inputs and outputs null for now
+done creating isa nodes... printing nodes:
+printing  13 nodes...
+[SK] node #0    : {.op= 0 ("_nullins_ ") .or= 0 ("0   ") .oc= 0 .ic= 0 .io={  |  } }
+[SK] node #1    : {.op= 0 ("_nullins_ ") .or= 3 ("3   ") .oc= 0 .ic= 0 .io={  |  } }
+[  ] node #2    : {.op= 1 ("zero      ") .or= 0 ("0   ") .oc= 0 .ic= 0 .io={  |  } }
+[  ] node #3    : {.op= 1 ("zero      ") .or= 0 ("0   ") .oc= 0 .ic= 0 .io={  |  } }
+[  ] node #4    : {.op= 2 ("incr      ") .or= 0 ("0   ") .oc= 0 .ic= 0 .io={  |  } }
+[  ] node #5    : {.op= 2 ("incr      ") .or= 0 ("0   ") .oc= 0 .ic= 0 .io={  |  } }
+[  ] node #6    : {.op= 2 ("incr      ") .or= 0 ("0   ") .oc= 0 .ic= 0 .io={  |  } }
+[  ] node #7    : {.op= 1 ("zero      ") .or= 0 ("0   ") .oc= 0 .ic= 0 .io={  |  } }
+[  ] node #8    : {.op= 1 ("zero      ") .or= 0 ("0   ") .oc= 0 .ic= 0 .io={  |  } }
+[  ] node #9    : {.op=25 ("at        ") .or= 0 ("0   ") .oc= 0 .ic= 0 .io={  |  } }
+[  ] node #10   : {.op= 5 ("add       ") .or= 0 ("0   ") .oc= 0 .ic= 0 .io={  |  } }
+[  ] node #11   : {.op= 2 ("incr      ") .or= 0 ("0   ") .oc= 0 .ic= 0 .io={  |  } }
+[  ] node #12   : {.op=16 ("lt        ") .or= 0 ("0   ") .oc= 0 .ic= 0 .io={  |  } }
+done
+done creating basic blocks... printing cfg/dag:
+blocks:
+block #  0: {.count = 7, .dag = {   2   3   4   5   6   7   8 }
+block #  1: {.count = 4, .dag = {   9  10  11  12 }
+block #  2: {.count = 0, .dag = { }
+[end of cfg]
+printing out cfg with node data: 
+block #    0:
+	node   2:     zero    0("   0")   0   0
+
+	node   3:     zero    0("   0")   0   0
+
+	node   4:     incr    0("   0")   0   0
+
+	node   5:     incr    0("   0")   0   0
+
+	node   6:     incr    0("   0")   0   0
+
+	node   7:     zero    0("   0")   0   0
+
+	node   8:     zero    0("   0")   0   0
+
+}
+block #    1:
+	node   9:       at    0("   0")   0   0
+
+	node  10:      add    0("   0")   0   0
+
+	node  11:     incr    0("   0")   0   0
+
+	node  12:       lt    0("   0")   0   0
+
+}
+block #    2:
+}
+[end of node cfg]

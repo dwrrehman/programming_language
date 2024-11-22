@@ -1,11 +1,12 @@
+this is a comment lol. 
+1202411203.183738  dwrr
+
+
 zero 0
-zero 1 incr 1
-zero 2 incr 2 incr 2
 zero 3 incr 3 incr 3 incr 3
-
-
+zero i zero r
 at loop
-	set r 1  add r 2  mul r 3
-lt r 3 loop
-
+	add r i incr i
+	lt i 3 loop
+zero r
 

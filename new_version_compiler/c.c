@@ -19,17 +19,23 @@ typedef uint64_t nat;
 
 enum language_isa {
 	nullins, 
-	zero, incr, decr, set, add, sub, mul, div_, rem, 
-	not_,and_, or_, eor, si, sd, lt, ge, ne, eq, 
-	ld, st, sta, bca, sc, at, lf, eoi,
+	zero, incr, decr, 
+	set, add, sub, mul, div_, rem, 
+	not_, and_, or_, eor, si, sd, 
+	lt, ge, ne, eq, do_, 
+	ld, st, sc, sta, bca, 
+	at, lf, eoi,
 	isa_count
 };
 
 static const char* ins_spelling[isa_count] = {
 	"_nullins_", 
-	"zero", "incr", "decr", "set", "add", "sub", "mul", "div", "rem", 
-	"not", "and", "or", "eor", "si", "sd", "lt", "ge", "ne", "eq", 
-	"ld", "st", "sta", "bca", "sc", "at", "lf", "eoi",
+	"zero", "incr", "decr", 
+	"set", "add", "sub", "mul", "div", "rem", 
+	"not", "and", "or", "eor", "si", "sd", 
+	"lt", "ge", "ne", "eq", "do", 
+	"ld", "st", "sc", "sta", "bca", 
+	"at", "lf", "eoi",
 };
 
 enum language_builtins {
@@ -92,12 +98,12 @@ static void print_nodes(struct node* nodes, nat node_count) {
 	for (nat n = 0; n < node_count; n++) {
 
 		printf("[%s] node #%-5llu: {"
-			".opcode=%2llu (\"\033[35;1m%-10s\033[0m\") "
-			".outreg=%2llu (\"\033[36;1m%-4llu\033[0m\") "
+			".op=%2llu (\"%-10s\") "
+			".or=%2llu (\"%-4llu\") "
 			".oc=%2llu "
 			".ic=%2llu "
 			".io={ ", 
-			nodes[n].statically_known ? "\033[32;1mSK\033[0m" : "  ", n, 
+			nodes[n].statically_known ? "SK" : "  ", n, 
 			nodes[n].op, ins_spelling[nodes[n].op],
 			nodes[n].output_reg, nodes[n].output_reg,
 			nodes[n].data_output_count,
@@ -133,12 +139,9 @@ static void print_basic_blocks(struct basic_block* blocks, nat block_count,
 	for (nat b = 0; b < block_count; b++) {
 		printf("block #%5llu:\n", b);
 		for (nat d = 0; d < blocks[b].dag_count; d++) {
-			printf("\tnode %3llu:   \033[32;1m%7s\033[0m  %3llu(\"%4llu\") %3llu %3llu\n\n", 
+			printf("\tnode %3llu:  %7s  %3llu\n\n", 
 				blocks[b].dag[d], ins_spelling[nodes[blocks[b].dag[d]].op], 
-				nodes[blocks[b].dag[d]].output_reg, 
-				nodes[blocks[b].dag[d]].output_reg, 
-				(nat) -1,//nodes[blocks[b].dag[d]].input0, 
-				(nat) -1//nodes[blocks[b].dag[d]].input1 
+				nodes[blocks[b].dag[d]].output_reg
 			);
 		}
 		puts("}");
@@ -174,8 +177,9 @@ static void debug_dictionary(char** names, nat name_count) {
 }
 
 int main(int argc, const char** argv) {
-
 	if (argc > 2) exit(puts("compiler: \033[31;1merror:\033[0m usage: ./run [file.s]"));
+
+	printf("isa_count = %u\n", isa_count);
 	
 	char* names[4096] = {0};
 	nat name_count = 0;
@@ -269,18 +273,13 @@ process_file:;
 	puts("finshed parsing!");
 
 
-	exit(1);
-
-
-
-
-
-
-/*
 	struct node nodes[4096] = {0}; 
 	nat node_count = 0;
-	nodes[node_count++] = (struct node) { .output_reg = 0, .statically_known = 1 };
-	nodes[node_count++] = (struct node) { .output_reg = var_stacksize, .statically_known = 1 };
+	nodes[node_count++] = (struct node) { 
+		.output_reg = 0, 
+		.statically_known = 1 
+	};
+
 
 	puts("stage: constructing data flow DAG...");
 
@@ -288,55 +287,25 @@ process_file:;
 	nat block_count = 0;
 	for (nat i = 0; i < ins_count; i++) {
 		const nat op = ins[i].args[0];
-		printf("generating DAG node for ins: { %s ", ins_spelling[op]);
-		for (nat a = 0; a < ins[i].count; a++) printf(" %llu   ", ins[i].args[a]);
-		// const nat output_reg = d;
-		const nat statically_known = 0; //(nodes[input0].statically_known and nodes[input1].statically_known);
-		printf("statically_known = %llu\n", statically_known);
-		if (ins[i].args[0] == at and blocks[block_count].dag_count) block_count++;
+		if (op == at and blocks[block_count].dag_count) block_count++;
 		struct basic_block* block = blocks + block_count;
 		block->dag = realloc(block->dag, sizeof(nat) * (block->dag_count + 1));
 		block->dag[block->dag_count++] = node_count;
+		nodes[node_count++] = (struct node) { .op = op };
 
-		nodes[node_count++] = (struct node) {
-			.data_outputs = NULL,
-			.data_output_count = 0,
-			.data_inputs = NULL,
-			.data_input_count = 0,
-			.op = ins[i].args[0],
-			.statically_known = statically_known,
-		};
-
-		printf("generated node #%llu into block %llu (of %llu): \n", 
-			node_count, block_count, block->dag_count);
-
-		puts("inputs and outputs null for now");
-
-		if (	ins[i].args[0] == lt or 
-			ins[i].args[0] == ge or 
-			ins[i].args[0] == ne or 
-			ins[i].args[0] == eq or
-			ins[i].args[0] == lts or 
-			ins[i].args[0] == ges
+		if (	ins[i].args[0] == lt or ins[i].args[0] == ge or 
+			ins[i].args[0] == ne or ins[i].args[0] == eq
 		) block_count++;
 	}
- 	block_count++;
+ 	if (blocks[block_count].dag_count) block_count++;
 	
-
 	puts("done creating isa nodes... printing nodes:");
 	print_nodes(nodes, node_count);
 
 	puts("done creating basic blocks... printing cfg/dag:");
 	print_basic_blocks(blocks, block_count, nodes);
 
-
-
 	exit(1);
-*/
-
-
-
-
 }
 
 
@@ -349,6 +318,73 @@ process_file:;
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+		//printf("generated node #%llu into block %llu (of %llu): \n", 
+		//	node_count, block_count, block->dag_count);
+		//puts("inputs and outputs null for now");
+		//printf("generating DAG node for ins: { %s ", ins_spelling[op]);
+		//for (nat a = 0; a < ins[i].count; a++) printf(" %llu   ", ins[i].args[a]);
+		//printf("statically_known = %llu\n", statically_known);
 
 
 
