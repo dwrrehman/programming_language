@@ -1,0 +1,2 @@
+zero hello
+incr hello

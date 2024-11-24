@@ -1,6 +1,28 @@
 // programming language compiler 
 // written on 2411203.160950 dwrr
 
+
+/*
+	state of the art: stages for the backend:
+
+
+		1. form the cfg blocks, each of which is an instruction. use the original instructions, and just make the cfg bigger i think lol.
+		2. connect up these cfg nodes (each, an ins) using the "at" and lt/do/ge/ne/eq instructions and their labels. this forms the cfg.
+		3. do SK analysis while doing the data flow / live-in/live-out analysis. 
+			3.1. walk the cfg (according to results from step 2), and find which instructions depend on the results of what other instructions. 
+			3.2. compute a list of instructions which are the inputs to this instruction, as well as which variables, are required to be alive over the life of this instruction ( uhhh ...?)
+
+			3.3. keep track of which instructions only have compiletime dependancies, via seeing if they are the output of system calls, 
+				as well as  if the sta instruction was used on them to cause them to be only be RT known. 
+
+
+
+		4. do CT/SK simplification of the CFG and instruction listing. ie, SK optimization. this happens often, and upfront. at this step. 
+
+
+
+*/
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -18,19 +40,17 @@
 typedef uint64_t nat;
 
 enum language_isa {
-	nullins, 
-	zero, incr, decr, 
-	set, add, sub, mul, div_, rem, 
-	not_, and_, or_, eor, si, sd, 
-	lt, ge, ne, eq, do_, 
-	ld, st, sc, sta, bca, 
+	nullins, zero, incr, decr,
+	set, add, sub, mul, div_, rem,
+	not_, and_, or_, eor, si, sd,
+	lt, ge, ne, eq, do_,
+	ld, st, sc, sta, bca,
 	at, lf, eoi,
 	isa_count
 };
 
 static const char* ins_spelling[isa_count] = {
-	"_nullins_", 
-	"zero", "incr", "decr", 
+	"", "zero", "incr", "decr", 
 	"set", "add", "sub", "mul", "div", "rem", 
 	"not", "and", "or", "eor", "si", "sd", 
 	"lt", "ge", "ne", "eq", "do", 
@@ -52,8 +72,14 @@ static const char* builtin_spelling[builtin_count] = {
 };
 
 struct instruction {
-	nat* args;
+	nat args[8];
 	nat count;
+	nat child[2];
+	nat inputs[3];
+	nat output;
+	nat sk;
+	nat* live_in;  // wip
+	nat* live_out; // wip
 };
 
 struct file {
@@ -63,90 +89,12 @@ struct file {
 	const char* filename;
 };
 
-struct node {
-	nat* data_outputs;
-	nat data_output_count;
-	nat* data_inputs;
-	nat data_input_count;
-	nat output_reg;
-	nat op;
-	nat statically_known;
-};
-
-struct basic_block {
-	nat* data_outputs;
-	nat data_output_count;
-	nat* data_inputs;
-	nat data_input_count;
-	nat* predecessors;
-	nat predecessor_count;
-	nat successor;
-	nat dag_count;
-	nat* dag;
-};
-
 static nat isa_arity(nat i) {
 	if (i == sc) return 7;
 	if (not i or i == eoi) return 0;
-	if (i == incr or i == decr or i == zero or i == not_ or i == lf or i == at) return 1;
+	if (i == incr or i == decr or i == zero or i == not_ or i == lf or i == at or i == do_) return 1;
 	if (i == lt or i == ge or i == ne or i == eq or i == ld or i == st) return 3;
 	return 2;
-}
-
-static void print_nodes(struct node* nodes, nat node_count) {
-	printf("printing %3llu nodes...\n", node_count);
-	for (nat n = 0; n < node_count; n++) {
-
-		printf("[%s] node #%-5llu: {"
-			".op=%2llu (\"%-10s\") "
-			".or=%2llu (\"%-4llu\") "
-			".oc=%2llu "
-			".ic=%2llu "
-			".io={ ", 
-			nodes[n].statically_known ? "SK" : "  ", n, 
-			nodes[n].op, ins_spelling[nodes[n].op],
-			nodes[n].output_reg, nodes[n].output_reg,
-			nodes[n].data_output_count,
-			nodes[n].data_input_count
-		);
-
-		for (nat j = 0; j < nodes[n].data_output_count; j++) {
-			printf("%llu ", nodes[n].data_outputs[j]);
-		}
-		printf(" | ");
-
-		for (nat j = 0; j < nodes[n].data_input_count; j++) {
-			printf("%llu ", nodes[n].data_inputs[j]);
-		}
-		puts(" } }");		
-	}
-	puts("done");
-}
-
-static void print_basic_blocks(struct basic_block* blocks, nat block_count, 
-			struct node* nodes
-) {
-	puts("blocks:");
-	for (nat b = 0; b < block_count; b++) {
-		printf("block #%3llu: {.count = %llu, .dag = { ", b, blocks[b].dag_count);
-		for (nat d = 0; d < blocks[b].dag_count; d++) 
-			printf("%3llu ", blocks[b].dag[d]);
-		puts("}");
-	}
-	puts("[end of cfg]");
-
-	puts("printing out cfg with node data: ");
-	for (nat b = 0; b < block_count; b++) {
-		printf("block #%5llu:\n", b);
-		for (nat d = 0; d < blocks[b].dag_count; d++) {
-			printf("\tnode %3llu:  %7s  %3llu\n\n", 
-				blocks[b].dag[d], ins_spelling[nodes[blocks[b].dag[d]].op], 
-				nodes[blocks[b].dag[d]].output_reg
-			);
-		}
-		puts("}");
-	}
-	puts("[end of node cfg]");
 }
 
 static void debug_instructions(
@@ -155,24 +103,25 @@ static void debug_instructions(
 ) {
 	printf("instructions: (%llu count) \n", ins_count);
 	for (nat i = 0; i < ins_count; i++) {
-		printf("[%3llu]={", i);
+		printf("[%3llu]=(%llu){", i, ins[i].count);
 		for (nat a = 0; a < ins[i].count; a++) {
 			const char* str = "";
-			if (a == 0) str = ins_spelling[ins[i].args[a]];
-			else str = names[ins[i].args[a]];
-			printf(".%llu=%-4lld %-7s  ", 
-				a, ins[i].args[a], str
-			);
+			if (a == 0) str = ins_spelling[ins[i].args[a]]; else str = names[ins[i].args[a]];
+			printf(".%llu=%-4llu %-7s  ", a, ins[i].args[a], str);
 		}
-		puts("");
+		for (nat a = 0; a < 4 - ins[i].count; a++) printf(".%u=%-4d %-7s  ", 0, 0, "");
+		printf("}, child={%llu, %llu} [%s] {%llu, %llu, %llu}-->[%llu] .. LO / LI\n", 
+			ins[i].child[0], ins[i].child[1], ins[i].sk ? "SK" : "  ",
+			ins[i].inputs[0], ins[i].inputs[1], ins[i].inputs[2], ins[i].output
+		);
 	}
 	puts("done\n");
 }
 
-static void debug_dictionary(char** names, nat name_count) {
+static void debug_dictionary(char** names, nat* locations, nat name_count) {
 	printf("dictionary: %llu\n", name_count);
-	for (nat i = 0; i < name_count; i++) 
-		printf("var #%5llu:   %-10s\n", i, names[i]);
+	for (nat i = 0; i < name_count; i++)
+		printf("var #%5llu:   %-25s   ---->    %llu\n", i, names[i], locations[i]);
 	puts("done");
 }
 
@@ -182,6 +131,7 @@ int main(int argc, const char** argv) {
 	printf("isa_count = %u\n", isa_count);
 	
 	char* names[4096] = {0};
+	nat locations[4096] = {0};
 	nat name_count = 0;
 	struct instruction* ins = NULL;
 	nat ins_count = 0;
@@ -200,11 +150,10 @@ int main(int argc, const char** argv) {
 	filestack[0].filename = argv[1];
 	filestack[0].text = text;
 	filestack[0].text_length = text_length;
-	filestack[0].index = 0;}
+	filestack[0].index = 0;
+	printf("file: (%llu chars)\n<<<%s>>>\n", text_length, text);}
 
-	for (nat i = 0; i < builtin_count; i++) {
-		names[name_count++] = strdup(builtin_spelling[i]);
-	}
+	for (nat i = 0; i < builtin_count; i++) names[name_count++] = strdup(builtin_spelling[i]);
 
 process_file:;
 	nat word_length = 0, word_start = 0, first = 1;
@@ -236,17 +185,17 @@ process_file:;
 			first = 0;
 		}
 		struct instruction* this = ins + ins_count - 1;
-		this->args = realloc(this->args, sizeof(nat) * (this->count + 1));
 		this->args[this->count++] = calling;
 		if (this->count != isa_arity(this->args[0]) + 1) goto next_word;
-		if (this->args[0] == lf) {
+		if (this->args[0] == at) {
+			locations[this->args[1]] = --ins_count;
+		} else if (this->args[0] == lf) {
 			ins_count--;
 			for (nat i = 0; i < included_file_count; i++) {
 				if (strcmp(included_files[i], word)) continue;
 				printf("warning: %s: file already included\n", word);
 				goto finish_instruction;
 			}
-
 			included_files[included_file_count++] = word;
 			int file = open(word, O_RDONLY);
 			if (file < 0) { puts(word); perror("open"); exit(1); }
@@ -269,41 +218,18 @@ process_file:;
 	if (filestack_count) goto process_file;
 
 	debug_instructions(ins, ins_count, names);
-	debug_dictionary(names, name_count);
+	debug_dictionary(names, locations, name_count);
 	puts("finshed parsing!");
 
-
-	struct node nodes[4096] = {0}; 
-	nat node_count = 0;
-	nodes[node_count++] = (struct node) { 
-		.output_reg = 0, 
-		.statically_known = 1 
-	};
-
-
-	puts("stage: constructing data flow DAG...");
-
-	struct basic_block blocks[4096] = {0};
-	nat block_count = 0;
 	for (nat i = 0; i < ins_count; i++) {
-		const nat op = ins[i].args[0];
-		if (op == at and blocks[block_count].dag_count) block_count++;
-		struct basic_block* block = blocks + block_count;
-		block->dag = realloc(block->dag, sizeof(nat) * (block->dag_count + 1));
-		block->dag[block->dag_count++] = node_count;
-		nodes[node_count++] = (struct node) { .op = op };
-
-		if (	ins[i].args[0] == lt or ins[i].args[0] == ge or 
-			ins[i].args[0] == ne or ins[i].args[0] == eq
-		) block_count++;
+		printf("looking at instruction: %llu\n", i);
+		if (ins[i].args[0] == do_) ins[i].child[0] = locations[ins[i].args[1]]; else ins[i].child[0] = i + 1;
+		if (ins[i].args[0] >= lt and ins[i].args[0] <= eq) ins[i].child[1] = locations[ins[i].args[3]];
 	}
- 	if (blocks[block_count].dag_count) block_count++;
-	
-	puts("done creating isa nodes... printing nodes:");
-	print_nodes(nodes, node_count);
 
-	puts("done creating basic blocks... printing cfg/dag:");
-	print_basic_blocks(blocks, block_count, nodes);
+	debug_instructions(ins, ins_count, names);
+	puts("finshed cfg!");
+
 
 	exit(1);
 }
@@ -564,6 +490,155 @@ process_file:;
 
 
 */
+
+
+
+
+
+/*
+
+	nat* data_outputs;
+	nat data_output_count;
+	nat* data_inputs;
+	nat data_input_count;
+	nat* predecessors;
+	nat predecessor_count;
+	nat successor;
+	nat dag_count;
+	nat* dag;
+
+
+
+
+
+static void print_nodes(struct node* nodes, nat node_count) {
+	printf("printing %3llu nodes...\n", node_count);
+	for (nat n = 0; n < node_count; n++) {
+
+		printf("[%s] node #%-5llu: {"
+			".op=%2llu (\"%-10s\") "
+			".or=%2llu (\"%-4llu\") "
+			".oc=%2llu "
+			".ic=%2llu "
+			".io={ ", 
+			nodes[n].statically_known ? "SK" : "  ", n, 
+			nodes[n].op, ins_spelling[nodes[n].op],
+			nodes[n].output_reg, nodes[n].output_reg,
+			nodes[n].data_output_count,
+			nodes[n].data_input_count
+		);
+
+		for (nat j = 0; j < nodes[n].data_output_count; j++) {
+			printf("%llu ", nodes[n].data_outputs[j]);
+		}
+		printf(" | ");
+
+		for (nat j = 0; j < nodes[n].data_input_count; j++) {
+			printf("%llu ", nodes[n].data_inputs[j]);
+		}
+		puts(" } }");		
+	}
+	puts("done");
+}
+
+static void print_basic_blocks(struct basic_block* blocks, nat block_count, 
+			struct node* nodes
+) {
+	puts("blocks:");
+	for (nat b = 0; b < block_count; b++) {
+		printf("block #%3llu: {.count = %llu, .dag = { ", b, blocks[b].dag_count);
+		for (nat d = 0; d < blocks[b].dag_count; d++) 
+			printf("%3llu ", blocks[b].dag[d]);
+		puts("}");
+	}
+	puts("[end of cfg]");
+
+	puts("printing out cfg with node data: ");
+	for (nat b = 0; b < block_count; b++) {
+		printf("block #%5llu:\n", b);
+		for (nat d = 0; d < blocks[b].dag_count; d++) {
+			printf("\tnode %3llu:  %7s  %3llu\n\n", 
+				blocks[b].dag[d], ins_spelling[nodes[blocks[b].dag[d]].op], 
+				nodes[blocks[b].dag[d]].output_reg
+			);
+		}
+		puts("}");
+	}
+	puts("[end of node cfg]");
+}
+
+
+
+
+*/
+
+
+
+		/*
+
+	nat args[3];
+	nat count;
+	nat child[2];
+	nat inputs[3];
+	nat output;
+	nat sk;
+	nat* live_in;  // wip
+	nat* live_out; // wip
+
+*/
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+/*
+	struct node nodes[4096] = {0}; 
+	nat node_count = 0;
+	nodes[node_count++] = (struct node) { 
+		.output_reg = 0, 
+		.statically_known = 1 
+	};
+
+
+	puts("stage: constructing data flow DAG...");
+
+	struct basic_block blocks[4096] = {0};
+	nat block_count = 0;
+	for (nat i = 0; i < ins_count; i++) {
+		const nat op = ins[i].args[0];
+		if (op == at and blocks[block_count].dag_count) block_count++;
+		struct basic_block* block = blocks + block_count;
+		block->dag = realloc(block->dag, sizeof(nat) * (block->dag_count + 1));
+		block->dag[block->dag_count++] = node_count;
+		nodes[node_count++] = (struct node) { .op = op };
+
+		if (	ins[i].args[0] == lt or ins[i].args[0] == ge or 
+			ins[i].args[0] == ne or ins[i].args[0] == eq
+		) block_count++;
+	}
+ 	if (blocks[block_count].dag_count) block_count++;
+	
+	puts("done creating isa nodes... printing nodes:");
+	print_nodes(nodes, node_count);
+
+	puts("done creating basic blocks... printing cfg/dag:");
+	print_basic_blocks(blocks, block_count, nodes);
+
+
+
+*/
+
+
 
 
 

@@ -10,3 +10,6 @@ at loop
 	lt i 3 loop
 zero r
 
+eoi
+
+zero 3
