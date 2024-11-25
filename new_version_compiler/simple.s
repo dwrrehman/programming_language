@@ -1,2 +1,2 @@
-zero hello
-incr hello
+ze hello
+in hello

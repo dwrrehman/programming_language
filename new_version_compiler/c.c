@@ -20,6 +20,15 @@
 		4. do CT/SK simplification of the CFG and instruction listing. ie, SK optimization. this happens often, and upfront. at this step. 
 
 
+full isa:
+
+	ze in
+	se ad su mu di re
+	no an or eo si sd
+	lt ge ne eq ld st
+	do sa sc at lf ei
+
+
 
 */
 
@@ -40,22 +49,20 @@
 typedef uint64_t nat;
 
 enum language_isa {
-	nullins, zero, incr, decr,
-	set, add, sub, mul, div_, rem,
-	not_, and_, or_, eor, si, sd,
-	lt, ge, ne, eq, do_,
-	ld, st, sc, sta, bca,
-	at, lf, eoi,
+	nullins, ze, in,
+	se, ad, su, mu, di, re,
+	no, an, or_,eo, si, sd,
+	lt, ge, ne, eq, ld, st,
+	do_,sa, sc, at, lf, ei,
 	isa_count
 };
 
 static const char* ins_spelling[isa_count] = {
-	"", "zero", "incr", "decr", 
-	"set", "add", "sub", "mul", "div", "rem", 
-	"not", "and", "or", "eor", "si", "sd", 
-	"lt", "ge", "ne", "eq", "do", 
-	"ld", "st", "sc", "sta", "bca", 
-	"at", "lf", "eoi",
+	"", "ze", "in",
+	"se", "ad", "su", "mu", "di", "re", 
+	"no", "an", "or", "eo", "si", "sd", 
+	"lt", "ge", "ne", "eq", "ld", "st", 
+	"do", "sa", "sc", "at", "lf", "ei",
 };
 
 enum language_builtins {
@@ -74,10 +81,18 @@ static const char* builtin_spelling[builtin_count] = {
 struct instruction {
 	nat args[8];
 	nat count;
-	nat child[2];
+
+// cfg:
+	nat gotos[2];
+	nat* pred;
+	nat pred_count;
+
+// dfg:
 	nat inputs[3];
 	nat output;
 	nat sk;
+
+// ra:
 	nat* live_in;  // wip
 	nat* live_out; // wip
 };
@@ -91,10 +106,27 @@ struct file {
 
 static nat isa_arity(nat i) {
 	if (i == sc) return 7;
-	if (not i or i == eoi) return 0;
-	if (i == incr or i == decr or i == zero or i == not_ or i == lf or i == at or i == do_) return 1;
+	if (not i or i == ei) return 0;
+	if (i == in or i == ze or i == no or i == lf or i == at or i == do_) return 1;
 	if (i == lt or i == ge or i == ne or i == eq or i == ld or i == st) return 3;
 	return 2;
+}
+
+
+static void debug_instruction(struct instruction this, char** names) {
+	printf("ins( (%llu){", this.count);
+	for (nat a = 0; a < this.count; a++) {
+		const char* str = "";
+		if (a == 0) str = ins_spelling[this.args[a]]; else str = names[this.args[a]];
+		printf(".%llu=%-4llu %-7s  ", a, this.args[a], str);
+	}
+	for (nat a = 0; a < 4 - this.count; a++) printf(".%u=%-4d %-7s  ", 0, 0, "");
+	printf("}, (%llu){ ", this.pred_count);
+	for (nat i = 0; i < this.pred_count; i++) printf("%llu ", this.pred[i]);
+	printf("}--->gotos={%llu, %llu}, [%s] {%llu, %llu, %llu}-->[%llu] .. LO / LI )\n", 
+		this.gotos[0], this.gotos[1], this.sk ? "SK" : "  ",
+		this.inputs[0], this.inputs[1], this.inputs[2], this.output
+	);
 }
 
 static void debug_instructions(
@@ -103,17 +135,8 @@ static void debug_instructions(
 ) {
 	printf("instructions: (%llu count) \n", ins_count);
 	for (nat i = 0; i < ins_count; i++) {
-		printf("[%3llu]=(%llu){", i, ins[i].count);
-		for (nat a = 0; a < ins[i].count; a++) {
-			const char* str = "";
-			if (a == 0) str = ins_spelling[ins[i].args[a]]; else str = names[ins[i].args[a]];
-			printf(".%llu=%-4llu %-7s  ", a, ins[i].args[a], str);
-		}
-		for (nat a = 0; a < 4 - ins[i].count; a++) printf(".%u=%-4d %-7s  ", 0, 0, "");
-		printf("}, child={%llu, %llu} [%s] {%llu, %llu, %llu}-->[%llu] .. LO / LI\n", 
-			ins[i].child[0], ins[i].child[1], ins[i].sk ? "SK" : "  ",
-			ins[i].inputs[0], ins[i].inputs[1], ins[i].inputs[2], ins[i].output
-		);
+		printf("[%3llu] = ", i);
+		debug_instruction(ins[i], names);
 	}
 	puts("done\n");
 }
@@ -124,6 +147,58 @@ static void debug_dictionary(char** names, nat* locations, nat name_count) {
 		printf("var #%5llu:   %-25s   ---->    %llu\n", i, names[i], locations[i]);
 	puts("done");
 }
+
+
+
+
+nat* visited; // stack of instruction indicies
+nat visited_count
+
+struct stackentry {
+	nat* defs;  // a name_count-sized array  of instruction indicies
+	nat side; // 0 or 1 	of branch side
+	nat visited_count; // the height of the visited stack at the time of the branch.
+};
+
+/*
+
+the fundemental intuition behind our approach is the following:
+
+
+	1. we need to start data flow analysis starting from instruction #0. 
+
+	2. we must traverse the entire cfg, and along an execution path, keeping track constantly  of what variables are alive, 
+			anddd if they areee alive, (defs[dict_index_for_variable] != -1) then we take note of the latest instruction which produces its latest value.
+
+	3. the idea here is that we are finding actual instruction indicies    for a given instruction, who is the producer of the latest value of a variable. thenn, when we see that a name is used again, we set the    .inputs[X] = <instruction index Y>   where X ranges in {0, 1, 2} depending on which argument of the instruction we are dealing with, and the instruction's arity, and Y ranges in LRS(ins_count), and corresponds to the most recent prior instruction ALONG THIS EXECUTION PATH in the cfg, which produces the latest value of this variable. Y is the ins index of this instruction which produces the latest value of this variable. 
+
+
+	4. in order to accomplish this, we treat the cfg like a binary tree. 
+
+	5. to traverse this tree, we need to have a treestack, of stackentry's.   we push a new entry onto this stack upon encountering a binary branch. (all branches are binary in this language!)
+
+	6. we also keep track of the side of the branch we went on, inside the stackentry,  as well as the current state of the def's mapping, at this point in the program. 
+	7. note: arguably we should have a full def's array, for every single instruction.. we might do that. idk. 
+	
+		7.5 in order to cope with that, we would push a new stack entry, on each instruction, 
+			instead of each branch. .side would be 0 for unconditional instructions. 
+
+	8. in order to deal with the fact that the cfg is not ACTUALLLY a binary tree, we keep track of a list of visited nodes, seperate from the treestack.
+
+	9. this visited node list  is a simple list of instruction indicies, in which every instruction we execute, we push the current index for this instruction to that list. when we push a new treestack entry, we also include the current size of the visited node list, in that stack entry. this helps us to revert the list of visited nodes to the right place, when we CHANGE SIDES of the branch. 
+
+
+	10. finally, we begin the backtracking process (ie, switching sides, or popping off the current TOS (top of stack)  when we reach an instruction which is either a CFG termination point, (sc ins, with 0 syscall number), or an instruction we have already encountered. 
+
+
+	11. 
+
+*/
+
+
+
+
+
 
 int main(int argc, const char** argv) {
 	if (argc > 2) exit(puts("compiler: \033[31;1merror:\033[0m usage: ./run [file.s]"));
@@ -156,7 +231,7 @@ int main(int argc, const char** argv) {
 	for (nat i = 0; i < builtin_count; i++) names[name_count++] = strdup(builtin_spelling[i]);
 
 process_file:;
-	nat word_length = 0, word_start = 0, first = 1;
+	nat word_length = 0, word_start = 0, first = 1, comment = 0;
 	const nat starting_index = 	filestack[filestack_count - 1].index;
 	const nat text_length = 	filestack[filestack_count - 1].text_length;
 	char* text = 			filestack[filestack_count - 1].text;
@@ -169,17 +244,21 @@ process_file:;
 			if (index + 1 < text_length) continue;
 		} else if (not word_length) continue;
 		char* word = strndup(text + word_start, word_length);
-		printf("[first=%llu]: [%llu]: at word = %s\n", first, word_start, word);
+		printf("[first=%llu,com=%llu]: [%llu]: at word = %s\n", first, comment, word_start, word);
+		if (comment) { if (not strcmp(word, ".")) comment = 0; goto next_word; }
 		char** list = first ? (char**) ins_spelling : (char**) names;
 		const nat count = first ? isa_count : name_count;
 		nat calling = 0;
 		for (; calling < count; calling++) 
 			if (not strcmp(list[calling], word)) goto found;
-		if (first) goto next_word;
+		if (first) { 
+			if (not strcmp(word, ".")) { comment = 1; goto next_word; }
+			else { printf("unknown word: %s\n", word); abort(); }
+		}
 		names[name_count++] = word;
 
 	found:	if (first) {
-			if (not strcmp(word, ins_spelling[eoi])) break;
+			if (not strcmp(word, ins_spelling[ei])) break;
 			ins = realloc(ins, sizeof(struct instruction) * (ins_count + 1));
 			ins[ins_count++] = (struct instruction) {0};
 			first = 0;
@@ -222,14 +301,85 @@ process_file:;
 	puts("finshed parsing!");
 
 	for (nat i = 0; i < ins_count; i++) {
-		printf("looking at instruction: %llu\n", i);
-		if (ins[i].args[0] == do_) ins[i].child[0] = locations[ins[i].args[1]]; else ins[i].child[0] = i + 1;
-		if (ins[i].args[0] >= lt and ins[i].args[0] <= eq) ins[i].child[1] = locations[ins[i].args[3]];
+		printf("finding cfg connections for: #%llu: ", i); debug_instruction(ins[i], names);
+
+		nat dest = ins[i].args[0] == do_ ? locations[ins[i].args[1]] : i + 1;
+		ins[i].gotos[0] = dest;
+		if (dest < ins_count) {
+			ins[dest].pred = realloc(ins[dest].pred, sizeof(nat) * (ins[dest].pred_count + 1));
+			ins[dest].pred[ins[dest].pred_count++] = i;
+		}
+
+		if (ins[i].args[0] >= lt and ins[i].args[0] <= eq) {
+			dest = locations[ins[i].args[3]];
+			ins[i].gotos[1] = dest;
+			if (dest < ins_count) {
+				ins[dest].pred = realloc(ins[dest].pred, sizeof(nat) * (ins[dest].pred_count + 1));
+				ins[dest].pred[ins[dest].pred_count++] = i;
+			}
+		}
+
+
+		const nat op = ins[i].args[0];
+
+		if (op == ze) {
+			ins[i].output = ins[i].args[1];
+			ins[i].sk = 1;
+		} else if (op == in) {
+			ins[i].output = ins[i].args[1];
+
+		} else if (op == se) {
+			ins[i].output = ins[i].args[1];
+		} else if (op == ad) {
+			ins[i].output = ins[i].args[1];
+		} else if (op == su) {
+			ins[i].output = ins[i].args[1];
+		} else if (op == mu) {
+			ins[i].output = ins[i].args[1];
+		} else if (op == di) {
+			ins[i].output = ins[i].args[1];
+		} else if (op == re) {
+			ins[i].output = ins[i].args[1];
+
+		} else if (op == no) {
+			ins[i].output = ins[i].args[1];
+		} else if (op == or_) {
+			ins[i].output = ins[i].args[1];
+		} else if (op == an) {
+			ins[i].output = ins[i].args[1];
+		} else if (op == eo) {
+			ins[i].output = ins[i].args[1];
+		} else if (op == si) {
+			ins[i].output = ins[i].args[1];
+		} else if (op == sd) {
+			ins[i].output = ins[i].args[1];
+
+		} else if (op == ld) {
+			ins[i].output = ins[i].args[1];
+		}
+	}
+
+
+	nat* defs = calloc(name_count, sizeof(nat));
+	memset(defs, 255, name_count * sizeof(nat));
+
+
+
+
+	for (nat pc = 0; pc < ins_count; ) {
+		printf("traversing ins #%llu:  ", pc); debug_instruction(ins[pc], names);
+		const nat op = ins[pc].args[0];
+		
+		if (op == in) {
+			ins[pc].sk = ins[pc].args[1];
+		}
+
+		pc = ins[pc].gotos[0];
+		sleep(1);
 	}
 
 	debug_instructions(ins, ins_count, names);
 	puts("finshed cfg!");
-
 
 	exit(1);
 }
