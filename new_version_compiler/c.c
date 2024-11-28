@@ -3,6 +3,11 @@
 
 
 /*
+
+
+
+
+
 	state of the art: stages for the backend:
 
 
@@ -22,14 +27,23 @@
 
 full isa:
 
-	ze in
-	se ad su mu di re
-	no an or eo si sd
+	zero incr
+	set add sub mul div rem
+	not and or eor si sd
 	lt ge ne eq ld st
-	do sa sc at lf ei
+	do sa sc at lf eoi
 
 
 
+	zero light
+	incr light
+
+	zero i 
+	at L incr i
+	lt i 5 L
+
+	
+		
 */
 
 #include <stdio.h>
@@ -49,20 +63,20 @@ full isa:
 typedef uint64_t nat;
 
 enum language_isa {
-	nullins, ze, in,
-	se, ad, su, mu, di, re,
-	no, an, or_,eo, si, sd,
+	nullins, zero, incr,
+	set, add, sub, mul, div_, rem,
+	not_, and_, or_, eor, si, sd,
 	lt, ge, ne, eq, ld, st,
-	do_,sa, sc, at, lf, ei,
+	do_, sba, sc, at, lf, eoi,
 	isa_count
 };
 
 static const char* ins_spelling[isa_count] = {
-	"", "ze", "in",
-	"se", "ad", "su", "mu", "di", "re", 
-	"no", "an", "or", "eo", "si", "sd", 
+	"", "zero", "incr",
+	"set", "add", "sub", "mul", "div", "rem", 
+	"not", "and", "or", "eor", "si", "sd", 
 	"lt", "ge", "ne", "eq", "ld", "st", 
-	"do", "sa", "sc", "at", "lf", "ei",
+	"do", "sba", "sc", "at", "lf", "eoi",
 };
 
 enum language_builtins {
@@ -106,8 +120,8 @@ struct file {
 
 static nat isa_arity(nat i) {
 	if (i == sc) return 7;
-	if (not i or i == ei) return 0;
-	if (i == in or i == ze or i == no or i == lf or i == at or i == do_) return 1;
+	if (not i or i == eoi) return 0;
+	if (i == incr or i == zero or i == not_ or i == lf or i == at or i == do_) return 1;
 	if (i == lt or i == ge or i == ne or i == eq or i == ld or i == st) return 3;
 	return 2;
 }
@@ -121,7 +135,7 @@ static void debug_instruction(struct instruction this, char** names) {
 		printf(".%llu=%-4llu %-7s  ", a, this.args[a], str);
 	}
 	for (nat a = 0; a < 4 - this.count; a++) printf(".%u=%-4d %-7s  ", 0, 0, "");
-	printf("}, (%llu){ ", this.pred_count);
+	printf("}, \n\t(%llu){ ", this.pred_count);
 	for (nat i = 0; i < this.pred_count; i++) printf("%llu ", this.pred[i]);
 	printf("}--->gotos={%llu, %llu}, [%s] {%llu, %llu, %llu}-->[%llu] .. LO / LI )\n", 
 		this.gotos[0], this.gotos[1], this.sk ? "SK" : "  ",
@@ -151,8 +165,18 @@ static void debug_dictionary(char** names, nat* locations, nat name_count) {
 
 
 
+
+struct stack_entry {
+	nat* defs;  // a name_count-sized array  of instruction indicies
+	nat side; // 0 or 1 	of branch side
+	nat visited_count; // the height of the visited stack at the time of the branch.
+};
+
+
+
+/*
 nat* visited; // stack of instruction indicies
-nat visited_count
+nat visited_count;
 
 struct stackentry {
 	nat* defs;  // a name_count-sized array  of instruction indicies
@@ -160,7 +184,6 @@ struct stackentry {
 	nat visited_count; // the height of the visited stack at the time of the branch.
 };
 
-/*
 
 the fundemental intuition behind our approach is the following:
 
@@ -197,6 +220,25 @@ the fundemental intuition behind our approach is the following:
 
 
 
+
+
+static void print_nats(nat* a, nat c) {
+	printf("(%llu){ ", c);
+	for (nat i = 0; i < c; i++) {
+		printf("%lld ", a[i]);
+	}
+	puts("}");
+}
+
+
+
+static void print_nats_indicies(nat* a, nat c) {
+	printf("(%llu){ ", c);
+	for (nat i = 0; i < c; i++) {
+		if (a[i] != (nat) -1) printf("%llu:%lld ", i, a[i]);
+	}
+	puts("}");
+}
 
 
 
@@ -258,7 +300,7 @@ process_file:;
 		names[name_count++] = word;
 
 	found:	if (first) {
-			if (not strcmp(word, ins_spelling[ei])) break;
+			if (not strcmp(word, ins_spelling[eoi])) break;
 			ins = realloc(ins, sizeof(struct instruction) * (ins_count + 1));
 			ins[ins_count++] = (struct instruction) {0};
 			first = 0;
@@ -319,65 +361,118 @@ process_file:;
 			}
 		}
 
-
 		const nat op = ins[i].args[0];
 
-		if (op == ze) {
+		if (op == zero) {
 			ins[i].output = ins[i].args[1];
 			ins[i].sk = 1;
-		} else if (op == in) {
-			ins[i].output = ins[i].args[1];
-
-		} else if (op == se) {
-			ins[i].output = ins[i].args[1];
-		} else if (op == ad) {
-			ins[i].output = ins[i].args[1];
-		} else if (op == su) {
-			ins[i].output = ins[i].args[1];
-		} else if (op == mu) {
-			ins[i].output = ins[i].args[1];
-		} else if (op == di) {
-			ins[i].output = ins[i].args[1];
-		} else if (op == re) {
-			ins[i].output = ins[i].args[1];
-
-		} else if (op == no) {
-			ins[i].output = ins[i].args[1];
-		} else if (op == or_) {
-			ins[i].output = ins[i].args[1];
-		} else if (op == an) {
-			ins[i].output = ins[i].args[1];
-		} else if (op == eo) {
-			ins[i].output = ins[i].args[1];
-		} else if (op == si) {
-			ins[i].output = ins[i].args[1];
-		} else if (op == sd) {
-			ins[i].output = ins[i].args[1];
-
-		} else if (op == ld) {
-			ins[i].output = ins[i].args[1];
-		}
+		} else ins[i].output = ins[i].args[1];
 	}
 
+
+	puts("\n\n\n\nstarting DFG formation pass...");
 
 	nat* defs = calloc(name_count, sizeof(nat));
 	memset(defs, 255, name_count * sizeof(nat));
 
+	nat* visited = NULL;
+	nat visited_count = 0;
+
+	struct stack_entry stack[4096] = {0};
+	nat stack_count = 0;
 
 
+	nat* starting_def = calloc(name_count, sizeof(nat));
+	memcpy(starting_def, defs, name_count * sizeof(nat)); 
+
+	stack[stack_count++] = (struct stack_entry) {.defs = starting_def};
 
 	for (nat pc = 0; pc < ins_count; ) {
 		printf("traversing ins #%llu:  ", pc); debug_instruction(ins[pc], names);
 		const nat op = ins[pc].args[0];
-		
-		if (op == in) {
-			ins[pc].sk = ins[pc].args[1];
+
+		printf("op def was: "); 
+		print_nats_indicies(defs, name_count);
+
+
+		if (op == zero) {
+			defs[ins[pc].args[1]] = pc;
+		}
+		if (op == set) {
+			defs[ins[pc].args[1]] = pc;
+		}
+		if (op == incr) {
+			defs[ins[pc].args[1]] = pc;
+		}
+		if (op == add) {
+			defs[ins[pc].args[1]] = pc;
+		}
+		if (op == sub) {
+			defs[ins[pc].args[1]] = pc;
 		}
 
+
+		printf("op def now: "); 
+		print_nats_indicies(defs, name_count);
+
+		printf("stack: (%llu) { \n", stack_count);
+		for (nat i = 0; i < stack_count; i++) {
+			printf("\t#%llu: entry(.side=%llu, .visited=%llu, .def={ ", i, stack[i].side, stack[i].visited_count);
+			for (nat n = 0; n < name_count; n++) {
+				if (stack[i].defs[n] != (nat) -1) printf("%llu:%llu ", n, stack[i].defs[n]);
+			}
+			printf("})\n");
+		}
+		puts("}");
+			
+		for (nat i = 0; i < visited_count; i++) {
+			if (visited[i] == pc) {
+				printf("@ %llu: found loopback point in CFG!\n", pc);
+				const struct stack_entry top = stack[--stack_count];
+				visited_count = top.visited_count;
+
+				printf("loopback defs was: "); 
+				print_nats_indicies(defs, name_count);
+
+				memcpy(defs, top.defs, name_count * sizeof(nat));
+
+				printf("loopback defs now: "); 
+				print_nats_indicies(defs, name_count);
+
+
+				if (not stack_count) goto done_traversal;
+				goto node_found;
+			}
+		}
+
+		printf("no loopback detected, pushing instruction...\n");
+
+		visited = realloc(visited, sizeof(nat) * (visited_count + 1));
+		visited[visited_count++] = pc;
+
+		stack[stack_count - 1].visited_count = visited_count;
+
+		puts("visited nodes: "); print_nats(visited, visited_count);
+
+		node_found:;
+
+		memcpy(stack[stack_count - 1].defs, defs, name_count * sizeof(nat));
+		
+		if (op >= lt and op <= eq) {
+			nat* copy = calloc(name_count, sizeof(nat));
+			memcpy(copy, defs, name_count * sizeof(nat)); 
+			stack[stack_count++] = (struct stack_entry) {.visited_count = visited_count, .defs = copy};
+		}
+
+		
+
 		pc = ins[pc].gotos[0];
-		sleep(1);
+		//sleep(1);
 	}
 
+done_traversal:
+
+	print_nats_indicies(defs, name_count);
 	debug_instructions(ins, ins_count, names);
 	puts("finshed cfg!");
 
@@ -385,7 +480,15 @@ process_file:;
 }
 
 
+/*
 
+
+if (op == incr) {
+			ins[pc].sk = ins[pc].args[1];
+		}
+
+
+*/
 
 
 
@@ -783,6 +886,41 @@ static void print_basic_blocks(struct basic_block* blocks, nat block_count,
 
 	puts("done creating basic blocks... printing cfg/dag:");
 	print_basic_blocks(blocks, block_count, nodes);
+
+
+
+
+
+
+
+
+
+##############################
+##.#.#...#.###.###...#########
+##.#.#.###.###.###.#.#########
+##...#...#.###.###.#.#########
+##.#.#.###.###.###.#.#########
+##.#.#...#...#...#...#########
+##############################
+##############################
+##############################
+##############################
+##############################
+##############################
+##############################
+##############################
+##############################
+##############################
+##############################
+##############################
+##############################
+##############################
+##############################
+##############################
+
+
+
+
 
 
 

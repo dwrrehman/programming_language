@@ -1,4 +1,5 @@
-ze x
+zero x
 at loop
-in x
+incr x
 do loop
+zero hello
