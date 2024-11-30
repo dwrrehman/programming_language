@@ -1,0 +1,214 @@
+isa_count = 27
+file: (109 chars)
+<<<zero 0
+zero 1 incr 1
+set r 0
+
+lt 0 1 if
+	at else set r 1 do done
+	at if set r 0 do done
+
+at done zero hello
+
+>>>
+[first=1,com=0]: [0]: at word = zero
+[first=0,com=0]: [5]: at word = 0
+[first=1,com=0]: [7]: at word = zero
+[first=0,com=0]: [12]: at word = 1
+[first=1,com=0]: [14]: at word = incr
+[first=0,com=0]: [19]: at word = 1
+[first=1,com=0]: [21]: at word = set
+[first=0,com=0]: [25]: at word = r
+[first=0,com=0]: [27]: at word = 0
+[first=1,com=0]: [30]: at word = lt
+[first=0,com=0]: [33]: at word = 0
+[first=0,com=0]: [35]: at word = 1
+[first=0,com=0]: [37]: at word = if
+[first=1,com=0]: [41]: at word = at
+[first=0,com=0]: [44]: at word = else
+[first=1,com=0]: [49]: at word = set
+[first=0,com=0]: [53]: at word = r
+[first=0,com=0]: [55]: at word = 1
+[first=1,com=0]: [57]: at word = do
+[first=0,com=0]: [60]: at word = done
+[first=1,com=0]: [66]: at word = at
+[first=0,com=0]: [69]: at word = if
+[first=1,com=0]: [72]: at word = set
+[first=0,com=0]: [76]: at word = r
+[first=0,com=0]: [78]: at word = 0
+[first=1,com=0]: [80]: at word = do
+[first=0,com=0]: [83]: at word = done
+[first=1,com=0]: [89]: at word = at
+[first=0,com=0]: [92]: at word = done
+[first=1,com=0]: [97]: at word = zero
+[first=0,com=0]: [102]: at word = hello
+instructions: (10 count) 
+[  0] = ins( (2){.0=1    zero     .1=4    0        .0=0             .0=0             }, 
+	(0){ }--->gotos={0, 0}, [  ] {0, 0, 0}-->[0] .. LO / LI )
+[  1] = ins( (2){.0=1    zero     .1=5    1        .0=0             .0=0             }, 
+	(0){ }--->gotos={0, 0}, [  ] {0, 0, 0}-->[0] .. LO / LI )
+[  2] = ins( (2){.0=2    incr     .1=5    1        .0=0             .0=0             }, 
+	(0){ }--->gotos={0, 0}, [  ] {0, 0, 0}-->[0] .. LO / LI )
+[  3] = ins( (3){.0=3    set      .1=6    r        .2=4    0        .0=0             }, 
+	(0){ }--->gotos={0, 0}, [  ] {0, 0, 0}-->[0] .. LO / LI )
+[  4] = ins( (4){.0=15   lt       .1=4    0        .2=5    1        .3=7    if       }, 
+	(0){ }--->gotos={0, 0}, [  ] {0, 0, 0}-->[0] .. LO / LI )
+[  5] = ins( (3){.0=3    set      .1=6    r        .2=5    1        .0=0             }, 
+	(0){ }--->gotos={0, 0}, [  ] {0, 0, 0}-->[0] .. LO / LI )
+[  6] = ins( (2){.0=21   do       .1=9    done     .0=0             .0=0             }, 
+	(0){ }--->gotos={0, 0}, [  ] {0, 0, 0}-->[0] .. LO / LI )
+[  7] = ins( (3){.0=3    set      .1=6    r        .2=4    0        .0=0             }, 
+	(0){ }--->gotos={0, 0}, [  ] {0, 0, 0}-->[0] .. LO / LI )
+[  8] = ins( (2){.0=21   do       .1=9    done     .0=0             .0=0             }, 
+	(0){ }--->gotos={0, 0}, [  ] {0, 0, 0}-->[0] .. LO / LI )
+[  9] = ins( (2){.0=1    zero     .1=10   hello    .0=0             .0=0             }, 
+	(0){ }--->gotos={0, 0}, [  ] {0, 0, 0}-->[0] .. LO / LI )
+done
+
+dictionary: 11
+var #    0:   (nv)                        ---->    0
+var #    1:   _discardunused              ---->    0
+var #    2:   _process_stackpointer       ---->    0
+var #    3:   _process_stacksize          ---->    0
+var #    4:   0                           ---->    0
+var #    5:   1                           ---->    0
+var #    6:   r                           ---->    0
+var #    7:   if                          ---->    7
+var #    8:   else                        ---->    5
+var #    9:   done                        ---->    9
+var #   10:   hello                       ---->    0
+done
+finshed parsing!
+finding cfg connections for: #0: ins( (2){.0=1    zero     .1=4    0        .0=0             .0=0             }, 
+	(0){ }--->gotos={0, 0}, [  ] {0, 0, 0}-->[0] .. LO / LI )
+finding cfg connections for: #1: ins( (2){.0=1    zero     .1=5    1        .0=0             .0=0             }, 
+	(1){ 0 }--->gotos={0, 0}, [  ] {0, 0, 0}-->[0] .. LO / LI )
+finding cfg connections for: #2: ins( (2){.0=2    incr     .1=5    1        .0=0             .0=0             }, 
+	(1){ 1 }--->gotos={0, 0}, [  ] {0, 0, 0}-->[0] .. LO / LI )
+finding cfg connections for: #3: ins( (3){.0=3    set      .1=6    r        .2=4    0        .0=0             }, 
+	(1){ 2 }--->gotos={0, 0}, [  ] {0, 0, 0}-->[0] .. LO / LI )
+finding cfg connections for: #4: ins( (4){.0=15   lt       .1=4    0        .2=5    1        .3=7    if       }, 
+	(1){ 3 }--->gotos={0, 0}, [  ] {0, 0, 0}-->[0] .. LO / LI )
+finding cfg connections for: #5: ins( (3){.0=3    set      .1=6    r        .2=5    1        .0=0             }, 
+	(1){ 4 }--->gotos={0, 0}, [  ] {0, 0, 0}-->[0] .. LO / LI )
+finding cfg connections for: #6: ins( (2){.0=21   do       .1=9    done     .0=0             .0=0             }, 
+	(1){ 5 }--->gotos={0, 0}, [  ] {0, 0, 0}-->[0] .. LO / LI )
+finding cfg connections for: #7: ins( (3){.0=3    set      .1=6    r        .2=4    0        .0=0             }, 
+	(1){ 4 }--->gotos={0, 0}, [  ] {0, 0, 0}-->[0] .. LO / LI )
+finding cfg connections for: #8: ins( (2){.0=21   do       .1=9    done     .0=0             .0=0             }, 
+	(1){ 7 }--->gotos={0, 0}, [  ] {0, 0, 0}-->[0] .. LO / LI )
+finding cfg connections for: #9: ins( (2){.0=1    zero     .1=10   hello    .0=0             .0=0             }, 
+	(2){ 6 8 }--->gotos={0, 0}, [  ] {0, 0, 0}-->[0] .. LO / LI )
+
+
+
+
+starting DFG formation pass...
+traversing ins #0:  ins( (2){.0=1    zero     .1=4    0        .0=0             .0=0             }, 
+	(0){ }--->gotos={1, 0}, [SK] {0, 0, 0}-->[4] .. LO / LI )
+op def was: (11){ }
+op def now: (11){ 4:0 }
+stack: (1) { 
+	#0: entry(.side=0, .visited=0, .def={ })
+}
+no loopback detected, pushing instruction...
+visited nodes: 
+(1){ 0 }
+traversing ins #1:  ins( (2){.0=1    zero     .1=5    1        .0=0             .0=0             }, 
+	(1){ 0 }--->gotos={2, 0}, [SK] {0, 0, 0}-->[5] .. LO / LI )
+op def was: (11){ 4:0 }
+op def now: (11){ 4:0 5:1 }
+stack: (1) { 
+	#0: entry(.side=0, .visited=1, .def={ 4:0 })
+}
+no loopback detected, pushing instruction...
+visited nodes: 
+(2){ 0 1 }
+traversing ins #2:  ins( (2){.0=2    incr     .1=5    1        .0=0             .0=0             }, 
+	(1){ 1 }--->gotos={3, 0}, [  ] {0, 0, 0}-->[5] .. LO / LI )
+op def was: (11){ 4:0 5:1 }
+op def now: (11){ 4:0 5:2 }
+stack: (1) { 
+	#0: entry(.side=0, .visited=2, .def={ 4:0 5:1 })
+}
+no loopback detected, pushing instruction...
+visited nodes: 
+(3){ 0 1 2 }
+traversing ins #3:  ins( (3){.0=3    set      .1=6    r        .2=4    0        .0=0             }, 
+	(1){ 2 }--->gotos={4, 0}, [  ] {0, 0, 0}-->[6] .. LO / LI )
+op def was: (11){ 4:0 5:2 }
+op def now: (11){ 4:0 5:2 6:3 }
+stack: (1) { 
+	#0: entry(.side=0, .visited=3, .def={ 4:0 5:2 })
+}
+no loopback detected, pushing instruction...
+visited nodes: 
+(4){ 0 1 2 3 }
+traversing ins #4:  ins( (4){.0=15   lt       .1=4    0        .2=5    1        .3=7    if       }, 
+	(1){ 3 }--->gotos={5, 7}, [  ] {0, 0, 0}-->[4] .. LO / LI )
+op def was: (11){ 4:0 5:2 6:3 }
+op def now: (11){ 4:0 5:2 6:3 }
+stack: (1) { 
+	#0: entry(.side=0, .visited=4, .def={ 4:0 5:2 6:3 })
+}
+no loopback detected, pushing instruction...
+visited nodes: 
+(5){ 0 1 2 3 4 }
+traversing ins #5:  ins( (3){.0=3    set      .1=6    r        .2=5    1        .0=0             }, 
+	(1){ 4 }--->gotos={6, 0}, [  ] {0, 0, 0}-->[6] .. LO / LI )
+op def was: (11){ 4:0 5:2 6:3 }
+op def now: (11){ 4:0 5:2 6:5 }
+stack: (2) { 
+	#0: entry(.side=0, .visited=5, .def={ 4:0 5:2 6:3 })
+	#1: entry(.side=0, .visited=5, .def={ 4:0 5:2 6:3 })
+}
+no loopback detected, pushing instruction...
+visited nodes: 
+(6){ 0 1 2 3 4 5 }
+traversing ins #6:  ins( (2){.0=21   do       .1=9    done     .0=0             .0=0             }, 
+	(1){ 5 }--->gotos={9, 0}, [  ] {0, 0, 0}-->[9] .. LO / LI )
+op def was: (11){ 4:0 5:2 6:5 }
+op def now: (11){ 4:0 5:2 6:5 }
+stack: (2) { 
+	#0: entry(.side=0, .visited=5, .def={ 4:0 5:2 6:3 })
+	#1: entry(.side=0, .visited=6, .def={ 4:0 5:2 6:5 })
+}
+no loopback detected, pushing instruction...
+visited nodes: 
+(7){ 0 1 2 3 4 5 6 }
+traversing ins #9:  ins( (2){.0=1    zero     .1=10   hello    .0=0             .0=0             }, 
+	(2){ 6 8 }--->gotos={10, 0}, [SK] {0, 0, 0}-->[10] .. LO / LI )
+op def was: (11){ 4:0 5:2 6:5 }
+op def now: (11){ 4:0 5:2 6:5 10:9 }
+stack: (2) { 
+	#0: entry(.side=0, .visited=5, .def={ 4:0 5:2 6:3 })
+	#1: entry(.side=0, .visited=7, .def={ 4:0 5:2 6:5 })
+}
+no loopback detected, pushing instruction...
+visited nodes: 
+(8){ 0 1 2 3 4 5 6 9 }
+(11){ 4:0 5:2 6:5 10:9 }
+instructions: (10 count) 
+[  0] = ins( (2){.0=1    zero     .1=4    0        .0=0             .0=0             }, 
+	(0){ }--->gotos={1, 0}, [SK] {0, 0, 0}-->[4] .. LO / LI )
+[  1] = ins( (2){.0=1    zero     .1=5    1        .0=0             .0=0             }, 
+	(1){ 0 }--->gotos={2, 0}, [SK] {0, 0, 0}-->[5] .. LO / LI )
+[  2] = ins( (2){.0=2    incr     .1=5    1        .0=0             .0=0             }, 
+	(1){ 1 }--->gotos={3, 0}, [  ] {0, 0, 0}-->[5] .. LO / LI )
+[  3] = ins( (3){.0=3    set      .1=6    r        .2=4    0        .0=0             }, 
+	(1){ 2 }--->gotos={4, 0}, [  ] {0, 0, 0}-->[6] .. LO / LI )
+[  4] = ins( (4){.0=15   lt       .1=4    0        .2=5    1        .3=7    if       }, 
+	(1){ 3 }--->gotos={5, 7}, [  ] {0, 0, 0}-->[4] .. LO / LI )
+[  5] = ins( (3){.0=3    set      .1=6    r        .2=5    1        .0=0             }, 
+	(1){ 4 }--->gotos={6, 0}, [  ] {0, 0, 0}-->[6] .. LO / LI )
+[  6] = ins( (2){.0=21   do       .1=9    done     .0=0             .0=0             }, 
+	(1){ 5 }--->gotos={9, 0}, [  ] {0, 0, 0}-->[9] .. LO / LI )
+[  7] = ins( (3){.0=3    set      .1=6    r        .2=4    0        .0=0             }, 
+	(1){ 4 }--->gotos={8, 0}, [  ] {0, 0, 0}-->[6] .. LO / LI )
+[  8] = ins( (2){.0=21   do       .1=9    done     .0=0             .0=0             }, 
+	(1){ 7 }--->gotos={9, 0}, [  ] {0, 0, 0}-->[9] .. LO / LI )
+[  9] = ins( (2){.0=1    zero     .1=10   hello    .0=0             .0=0             }, 
+	(2){ 6 8 }--->gotos={10, 0}, [SK] {0, 0, 0}-->[10] .. LO / LI )
+done
+
+finshed cfg!

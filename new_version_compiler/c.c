@@ -107,8 +107,11 @@ struct instruction {
 	nat sk;
 
 // ra:
-	nat* live_in;  // wip
-	nat* live_out; // wip
+	nat** live_in;  // wip
+	nat** live_out; // wip
+
+	nat live_in_count;
+	nat live_out_count;
 };
 
 struct file {
@@ -128,17 +131,18 @@ static nat isa_arity(nat i) {
 
 
 static void debug_instruction(struct instruction this, char** names) {
-	printf("ins( (%llu){", this.count);
+	printf("ins( \"");
 	for (nat a = 0; a < this.count; a++) {
 		const char* str = "";
 		if (a == 0) str = ins_spelling[this.args[a]]; else str = names[this.args[a]];
-		printf(".%llu=%-4llu %-7s  ", a, this.args[a], str);
+		printf(" %s ", str);
 	}
-	for (nat a = 0; a < 4 - this.count; a++) printf(".%u=%-4d %-7s  ", 0, 0, "");
-	printf("}, \n\t(%llu){ ", this.pred_count);
+
+	//for (nat a = 0; a < 4 - this.count; a++) printf(".%u=%-4d %-7s  ", 0, 0, "");     this.args[a], 
+	printf("\", %llu{", this.pred_count);
 	for (nat i = 0; i < this.pred_count; i++) printf("%llu ", this.pred[i]);
-	printf("}--->gotos={%llu, %llu}, [%s] {%llu, %llu, %llu}-->[%llu] .. LO / LI )\n", 
-		this.gotos[0], this.gotos[1], this.sk ? "SK" : "  ",
+	printf("}>{%llu,%llu},[%s],{%llu,%llu,%llu}>%llu)\n", 
+		this.gotos[0], this.gotos[1], this.sk ? "SK" : "",
 		this.inputs[0], this.inputs[1], this.inputs[2], this.output
 	);
 }
@@ -166,13 +170,6 @@ static void debug_dictionary(char** names, nat* locations, nat name_count) {
 
 
 
-struct stack_entry {
-	nat* defs;  // a name_count-sized array  of instruction indicies
-	nat side; // 0 or 1 	of branch side
-	nat visited_count; // the height of the visited stack at the time of the branch.
-};
-
-
 
 /*
 nat* visited; // stack of instruction indicies
@@ -182,6 +179,7 @@ struct stackentry {
 	nat* defs;  // a name_count-sized array  of instruction indicies
 	nat side; // 0 or 1 	of branch side
 	nat visited_count; // the height of the visited stack at the time of the branch.
+	nat pc;
 };
 
 
@@ -239,6 +237,70 @@ static void print_nats_indicies(nat* a, nat c) {
 	}
 	puts("}");
 }
+
+
+
+static void debug_nats_indicies(nat* a, nat c, char** names) {
+	printf("(%llu){ ", c);
+	for (nat i = 0; i < c; i++) {
+		if (a[i] != (nat) -1) printf(" %s:i%lld ", names[i], a[i]);
+	}
+	puts("}");
+}
+
+
+
+static void debug_instructions_live_arrays(
+	struct instruction* ins, 
+	nat ins_count, char** names, 
+	nat name_count
+) {
+	printf("instructions live arrays: (%llu count) \n", ins_count);
+	for (nat i = 0; i < ins_count; i++) {
+		printf("[%3llu] = ", i);
+		debug_instruction(ins[i], names);
+		for (nat l = 0; l < ins[i].live_in_count; l++) {
+			printf("\t\tlive_in[%llu]: ", l);
+			debug_nats_indicies(ins[i].live_in[l], name_count, names);
+		}
+
+		for (nat l = 0; l < ins[i].live_out_count; l++) {
+			printf("\t\tlive_out[%llu]: ", l);
+			debug_nats_indicies(ins[i].live_out[l], name_count, names);
+		}
+		puts("");
+	}
+	puts("done\n");
+}
+
+
+
+struct stack_entry {
+	nat* defs;  // a name_count-sized array  of instruction indicies
+	nat side; // 0 or 1 	of branch side
+	nat visited_count; // the height of the visited stack at the time of the branch.
+	nat pc;
+};
+
+
+static void print_stack(struct stack_entry* stack, nat stack_count, nat name_count) {
+
+	printf("stack: (%llu) { \n", stack_count);
+	for (nat i = 0; i < stack_count; i++) {
+		printf("\t#%llu: entry(.pc=%llu, .side=%llu, .visited=%llu, .def={ ", 
+			i, stack[i].pc, stack[i].side, stack[i].visited_count
+		);
+		for (nat n = 0; n < name_count; n++) {
+			if (stack[i].defs[n] != (nat) -1) 
+				printf("%llu:%llu ", n, stack[i].defs[n]);
+		}
+		printf("})\n");
+	}
+	puts("}");
+}
+
+
+
 
 
 
@@ -359,6 +421,8 @@ process_file:;
 				ins[dest].pred = realloc(ins[dest].pred, sizeof(nat) * (ins[dest].pred_count + 1));
 				ins[dest].pred[ins[dest].pred_count++] = i;
 			}
+
+			//canonicalize ge and ne as  lt and eq
 		}
 
 		const nat op = ins[i].args[0];
@@ -367,7 +431,24 @@ process_file:;
 			ins[i].output = ins[i].args[1];
 			ins[i].sk = 1;
 		} else ins[i].output = ins[i].args[1];
+
+
+		// we should try to make  "do LABEL"   not appear in the instruction stream, i think.  plz. plz. plz. 
+	
+		// also considering making it be built into every instruction as an implicit argument, possibly lol. hm. 
+			// i don't quitee like that approach either though. hmm.....
+
+
+
+
 	}
+
+
+
+
+
+
+
 
 
 	puts("\n\n\n\nstarting DFG formation pass...");
@@ -381,103 +462,140 @@ process_file:;
 	struct stack_entry stack[4096] = {0};
 	nat stack_count = 0;
 
-
 	nat* starting_def = calloc(name_count, sizeof(nat));
 	memcpy(starting_def, defs, name_count * sizeof(nat)); 
 
-	stack[stack_count++] = (struct stack_entry) {.defs = starting_def};
-
-	for (nat pc = 0; pc < ins_count; ) {
+	nat pc = 0;
+	do {
 		printf("traversing ins #%llu:  ", pc); debug_instruction(ins[pc], names);
 		const nat op = ins[pc].args[0];
 
-		printf("op def was: "); 
-		print_nats_indicies(defs, name_count);
-
-
-		if (op == zero) {
-			defs[ins[pc].args[1]] = pc;
-		}
-		if (op == set) {
-			defs[ins[pc].args[1]] = pc;
-		}
-		if (op == incr) {
-			defs[ins[pc].args[1]] = pc;
-		}
-		if (op == add) {
-			defs[ins[pc].args[1]] = pc;
-		}
-		if (op == sub) {
-			defs[ins[pc].args[1]] = pc;
-		}
-
-
-		printf("op def now: "); 
-		print_nats_indicies(defs, name_count);
-
-		printf("stack: (%llu) { \n", stack_count);
-		for (nat i = 0; i < stack_count; i++) {
-			printf("\t#%llu: entry(.side=%llu, .visited=%llu, .def={ ", i, stack[i].side, stack[i].visited_count);
-			for (nat n = 0; n < name_count; n++) {
-				if (stack[i].defs[n] != (nat) -1) printf("%llu:%llu ", n, stack[i].defs[n]);
-			}
-			printf("})\n");
-		}
-		puts("}");
+		puts("visited nodes: "); print_nats(visited, visited_count);
+		printf("at PC = %llu, checking if we have visited this node already...\n", pc);
 			
 		for (nat i = 0; i < visited_count; i++) {
 			if (visited[i] == pc) {
 				printf("@ %llu: found loopback point in CFG!\n", pc);
-				const struct stack_entry top = stack[--stack_count];
-				visited_count = top.visited_count;
-
-				printf("loopback defs was: "); 
-				print_nats_indicies(defs, name_count);
-
-				memcpy(defs, top.defs, name_count * sizeof(nat));
-
-				printf("loopback defs now: "); 
-				print_nats_indicies(defs, name_count);
-
-
-				if (not stack_count) goto done_traversal;
+					if (stack_count and stack[stack_count - 1].side == 0) {
+						puts("we need to try the other side of the branch!");
+						stack[stack_count - 1].side = 1;
+						pc = ins[stack[stack_count - 1].pc]
+						.gotos[stack[stack_count - 1].side];
+						visited_count = stack[stack_count - 1].visited_count;
+						memcpy(defs, stack[stack_count - 1].defs, name_count * sizeof(nat));
+					} else goto done_traversal;
 				goto node_found;
 			}
 		}
 
 		printf("no loopback detected, pushing instruction...\n");
-
 		visited = realloc(visited, sizeof(nat) * (visited_count + 1));
 		visited[visited_count++] = pc;
-
-		stack[stack_count - 1].visited_count = visited_count;
-
 		puts("visited nodes: "); print_nats(visited, visited_count);
-
 		node_found:;
 
-		memcpy(stack[stack_count - 1].defs, defs, name_count * sizeof(nat));
-		
+		nat* new = calloc(name_count, sizeof(nat));
+		memcpy(new, defs, name_count * sizeof(nat));
+		ins[pc].live_in = realloc(ins[pc].live_in, sizeof(nat*) * (ins[pc].live_in_count + 1));
+		ins[pc].live_in[ins[pc].live_in_count++] = new;
+
+		if (op == zero) { defs[ins[pc].args[1]] = pc; }
+		if (op == set)  { defs[ins[pc].args[1]] = pc; }
+		if (op == incr) { defs[ins[pc].args[1]] = pc; }
+		if (op == add)  { defs[ins[pc].args[1]] = pc; }
+		if (op == sub)  { defs[ins[pc].args[1]] = pc; }
+
+		printf("op def now: "); 
+		debug_nats_indicies(defs, name_count, names);
+
+		nat* new2 = calloc(name_count, sizeof(nat));
+		memcpy(new2, defs, name_count * sizeof(nat));
+		ins[pc].live_out = realloc(ins[pc].live_out, sizeof(nat*) * (ins[pc].live_out_count + 1));
+		ins[pc].live_out[ins[pc].live_out_count++] = new2;
+
 		if (op >= lt and op <= eq) {
 			nat* copy = calloc(name_count, sizeof(nat));
 			memcpy(copy, defs, name_count * sizeof(nat)); 
-			stack[stack_count++] = (struct stack_entry) {.visited_count = visited_count, .defs = copy};
+			stack[stack_count++] = (struct stack_entry) {.pc = pc, .visited_count = visited_count, .defs = copy};
 		}
 
-		
-
 		pc = ins[pc].gotos[0];
-		//sleep(1);
-	}
+
+		if (pc >= ins_count) {
+			if (stack_count and stack[stack_count - 1].side == 0) {
+				puts("we need to try the other side of the branch!");
+				stack[stack_count - 1].side = 1;
+				pc = ins[stack[stack_count - 1].pc]
+				.gotos[stack[stack_count - 1].side];
+				visited_count = stack[stack_count - 1].visited_count;
+				memcpy(defs, stack[stack_count - 1].defs, name_count * sizeof(nat));
+			} else break;
+		} 
+		
+		print_stack(stack, stack_count, name_count);
+		getchar();
+
+	} while (stack_count or pc < ins_count);
 
 done_traversal:
 
-	print_nats_indicies(defs, name_count);
+	debug_nats_indicies(defs, name_count, names);
 	debug_instructions(ins, ins_count, names);
 	puts("finshed cfg!");
 
+	debug_instructions_live_arrays(ins, ins_count, names, name_count);
+
 	exit(1);
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+//const struct stack_entry top = stack[--stack_count];
+						//visited_count = top.visited_count;
+
+
+
+
+
+//stack[stack_count++] = (struct stack_entry) {.defs = starting_def, .pc = 0};
+
+//stack[stack_count - 1].visited_count = visited_count;
+
+		//printf("op def was: "); 
+		//debug_nats_indicies(defs, name_count, names);
+
+
 
 
 /*
@@ -493,6 +611,7 @@ if (op == incr) {
 
 
 
+		// memcpy(stack[stack_count - 1].defs, defs, name_count * sizeof(nat));
 
 
 
@@ -502,6 +621,32 @@ if (op == incr) {
 
 
 
+				/*if (top.side == 0 and stack_count) {
+					puts("we need to try the other side of the branch!");
+					
+					stack[stack_count - 1].side = 1;
+					pc = ins[stack[stack_count - 1].pc]
+					.gotos[stack[stack_count - 1].side];
+					visited_count = stack[stack_count - 1].visited_count;
+					memcpy(defs, stack[stack_count - 1].defs, name_count * sizeof(nat));
+
+
+					abort();
+				}*/
+
+				//const struct stack_entry top = stack[--stack_count];
+				//visited_count = top.visited_count;
+
+				//printf("loopback defs was: "); 
+				//debug_nats_indicies(defs, name_count, names);
+
+				//memcpy(defs, top.defs, name_count * sizeof(nat));
+
+				//printf("loopback defs now: "); 
+				//debug_nats_indicies(defs, name_count, names);
+
+
+				//if (not stack_count) goto done_traversal;
 
 
 
