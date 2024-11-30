@@ -2,7 +2,53 @@
 // written on 2411203.160950 dwrr
 
 
+
+
+
 /*
+nat* visited; // stack of instruction indicies
+nat visited_count;
+
+struct stackentry {
+	nat* defs;  // a name_count-sized array  of instruction indicies
+	nat side; // 0 or 1 	of branch side
+	nat visited_count; // the height of the visited stack at the time of the branch.
+	nat pc;
+};
+
+
+the fundemental intuition behind our approach is the following:
+
+
+	1. we need to start data flow analysis starting from instruction #0. 
+
+	2. we must traverse the entire cfg, and along an execution path, keeping track constantly  of what variables are alive, 
+			anddd if they areee alive, (defs[dict_index_for_variable] != -1) then we take note of the latest instruction which produces its latest value.
+
+	3. the idea here is that we are finding actual instruction indicies    for a given instruction, who is the producer of the latest value of a variable. thenn, when we see that a name is used again, we set the    .inputs[X] = <instruction index Y>   where X ranges in {0, 1, 2} depending on which argument of the instruction we are dealing with, and the instruction's arity, and Y ranges in LRS(ins_count), and corresponds to the most recent prior instruction ALONG THIS EXECUTION PATH in the cfg, which produces the latest value of this variable. Y is the ins index of this instruction which produces the latest value of this variable. 
+
+
+	4. in order to accomplish this, we treat the cfg like a binary tree. 
+
+	5. to traverse this tree, we need to have a treestack, of stackentry's.   we push a new entry onto this stack upon encountering a binary branch. (all branches are binary in this language!)
+
+	6. we also keep track of the side of the branch we went on, inside the stackentry,  as well as the current state of the def's mapping, at this point in the program. 
+	7. note: arguably we should have a full def's array, for every single instruction.. we might do that. idk. 
+	
+		7.5 in order to cope with that, we would push a new stack entry, on each instruction, 
+			instead of each branch. .side would be 0 for unconditional instructions. 
+
+	8. in order to deal with the fact that the cfg is not ACTUALLLY a binary tree, we keep track of a list of visited nodes, seperate from the treestack.
+
+	9. this visited node list  is a simple list of instruction indicies, in which every instruction we execute, we push the current index for this instruction to that list. when we push a new treestack entry, we also include the current size of the visited node list, in that stack entry. this helps us to revert the list of visited nodes to the right place, when we CHANGE SIDES of the branch. 
+
+
+	10. finally, we begin the backtracking process (ie, switching sides, or popping off the current TOS (top of stack)  when we reach an instruction which is either a CFG termination point, (sc ins, with 0 syscall number), or an instruction we have already encountered. 
+
+
+	11. done?...
+
+
 
 
 
@@ -31,19 +77,9 @@ full isa:
 	set add sub mul div rem
 	not and or eor si sd
 	lt ge ne eq ld st
-	do sa sc at lf eoi
+	do sba sc at lf eoi
 
 
-
-	zero light
-	incr light
-
-	zero i 
-	at L incr i
-	lt i 5 L
-
-	
-		
 */
 
 #include <stdio.h>
@@ -92,24 +128,25 @@ static const char* builtin_spelling[builtin_count] = {
 	"_process_stacksize",
 };
 
+struct vec {
+	nat* data;
+	nat count;
+};
+
 struct instruction {
 	nat args[8];
 	nat count;
-
 // cfg:
 	nat gotos[2];
 	nat* pred;
 	nat pred_count;
-
 // dfg:
-	nat inputs[3];
+	struct vec inputs[3];
 	nat output;
 	nat sk;
-
 // ra:
-	nat** live_in;  // wip
-	nat** live_out; // wip
-
+	nat** live_in;
+	nat** live_out;
 	nat live_in_count;
 	nat live_out_count;
 };
@@ -166,60 +203,6 @@ static void debug_dictionary(char** names, nat* locations, nat name_count) {
 	puts("done");
 }
 
-
-
-
-
-
-/*
-nat* visited; // stack of instruction indicies
-nat visited_count;
-
-struct stackentry {
-	nat* defs;  // a name_count-sized array  of instruction indicies
-	nat side; // 0 or 1 	of branch side
-	nat visited_count; // the height of the visited stack at the time of the branch.
-	nat pc;
-};
-
-
-the fundemental intuition behind our approach is the following:
-
-
-	1. we need to start data flow analysis starting from instruction #0. 
-
-	2. we must traverse the entire cfg, and along an execution path, keeping track constantly  of what variables are alive, 
-			anddd if they areee alive, (defs[dict_index_for_variable] != -1) then we take note of the latest instruction which produces its latest value.
-
-	3. the idea here is that we are finding actual instruction indicies    for a given instruction, who is the producer of the latest value of a variable. thenn, when we see that a name is used again, we set the    .inputs[X] = <instruction index Y>   where X ranges in {0, 1, 2} depending on which argument of the instruction we are dealing with, and the instruction's arity, and Y ranges in LRS(ins_count), and corresponds to the most recent prior instruction ALONG THIS EXECUTION PATH in the cfg, which produces the latest value of this variable. Y is the ins index of this instruction which produces the latest value of this variable. 
-
-
-	4. in order to accomplish this, we treat the cfg like a binary tree. 
-
-	5. to traverse this tree, we need to have a treestack, of stackentry's.   we push a new entry onto this stack upon encountering a binary branch. (all branches are binary in this language!)
-
-	6. we also keep track of the side of the branch we went on, inside the stackentry,  as well as the current state of the def's mapping, at this point in the program. 
-	7. note: arguably we should have a full def's array, for every single instruction.. we might do that. idk. 
-	
-		7.5 in order to cope with that, we would push a new stack entry, on each instruction, 
-			instead of each branch. .side would be 0 for unconditional instructions. 
-
-	8. in order to deal with the fact that the cfg is not ACTUALLLY a binary tree, we keep track of a list of visited nodes, seperate from the treestack.
-
-	9. this visited node list  is a simple list of instruction indicies, in which every instruction we execute, we push the current index for this instruction to that list. when we push a new treestack entry, we also include the current size of the visited node list, in that stack entry. this helps us to revert the list of visited nodes to the right place, when we CHANGE SIDES of the branch. 
-
-
-	10. finally, we begin the backtracking process (ie, switching sides, or popping off the current TOS (top of stack)  when we reach an instruction which is either a CFG termination point, (sc ins, with 0 syscall number), or an instruction we have already encountered. 
-
-
-	11. 
-
-*/
-
-
-
-
-
 static void print_nats(nat* a, nat c) {
 	printf("(%llu){ ", c);
 	for (nat i = 0; i < c; i++) {
@@ -238,8 +221,6 @@ static void print_nats_indicies(nat* a, nat c) {
 	puts("}");
 }
 
-
-
 static void debug_nats_indicies(nat* a, nat c, char** names) {
 	printf("(%llu){ ", c);
 	for (nat i = 0; i < c; i++) {
@@ -247,8 +228,6 @@ static void debug_nats_indicies(nat* a, nat c, char** names) {
 	}
 	puts("}");
 }
-
-
 
 static void debug_instructions_live_arrays(
 	struct instruction* ins, 
@@ -282,7 +261,6 @@ struct stack_entry {
 	nat pc;
 };
 
-
 static void print_stack(struct stack_entry* stack, nat stack_count, nat name_count) {
 
 	printf("stack: (%llu) { \n", stack_count);
@@ -298,11 +276,6 @@ static void print_stack(struct stack_entry* stack, nat stack_count, nat name_cou
 	}
 	puts("}");
 }
-
-
-
-
-
 
 int main(int argc, const char** argv) {
 	if (argc > 2) exit(puts("compiler: \033[31;1merror:\033[0m usage: ./run [file.s]"));
@@ -422,7 +395,19 @@ process_file:;
 				ins[dest].pred[ins[dest].pred_count++] = i;
 			}
 
-			//canonicalize ge and ne as  lt and eq
+			if (ins[i].args[0] == ge) {
+				ins[i].args[0] = lt;
+				const nat t = ins[i].gotos[1];
+				ins[i].gotos[1] = ins[i].gotos[0];
+				ins[i].gotos[0] = t;
+			}
+
+			if (ins[i].args[0] == ne) {
+				ins[i].args[0] = eq;
+				const nat t = ins[i].gotos[1];
+				ins[i].gotos[1] = ins[i].gotos[0];
+				ins[i].gotos[0] = t;
+			}
 		}
 
 		const nat op = ins[i].args[0];
@@ -431,17 +416,17 @@ process_file:;
 			ins[i].output = ins[i].args[1];
 			ins[i].sk = 1;
 		} else ins[i].output = ins[i].args[1];
-
-
-		// we should try to make  "do LABEL"   not appear in the instruction stream, i think.  plz. plz. plz. 
-	
-		// also considering making it be built into every instruction as an implicit argument, possibly lol. hm. 
-			// i don't quitee like that approach either though. hmm.....
-
-
-
-
 	}
+
+
+
+
+
+	debug_instructions(ins, ins_count, names);
+	puts("finshed cfg!");
+	debug_instructions_live_arrays(ins, ins_count, names, name_count);
+
+
 
 
 
@@ -464,6 +449,30 @@ process_file:;
 
 	nat* starting_def = calloc(name_count, sizeof(nat));
 	memcpy(starting_def, defs, name_count * sizeof(nat)); 
+
+
+
+
+	/*
+
+
+
+
+		the main idea for how we have to set the .inputs is that 
+
+
+			we want to allow multiple flow of controls   to actually have technically different instrution indicies that represent those dependancies on different data elements, or rather different creations of those data elements in the cfg. 
+
+			make .inputs       a struct vec[3]   so that we can track an array of ins indicies,   per input to the instruction. thats the main idea. 
+
+
+
+			
+
+
+
+	*/
+
 
 	nat pc = 0;
 	do {
@@ -533,9 +542,14 @@ process_file:;
 		} 
 		
 		print_stack(stack, stack_count, name_count);
-		getchar();
+		//getchar();
 
 	} while (stack_count or pc < ins_count);
+
+
+
+
+
 
 done_traversal:
 
@@ -557,7 +571,9 @@ done_traversal:
 
 
 
-
+		// we should try to make  "do LABEL"   not appear in the instruction stream, i think.  plz. plz. plz. 
+		// also considering making it be built into every instruction as an implicit argument, possibly lol. hm. 
+		// i don't quitee like that approach either though. hmm.....
 
 
 
@@ -1068,6 +1084,14 @@ static void print_basic_blocks(struct basic_block* blocks, nat block_count,
 
 
 
+	zero light
+	incr light
+
+	zero i 
+	at L incr i
+	lt i 5 L
+
+	
 
 */
 

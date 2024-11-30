@@ -1,0 +1,442 @@
+isa_count = 27
+
+file: (99 chars)
+<<<
+
+
+zero 0
+zero 1 incr 1
+set r 0 
+at loop
+	lt r 1 if
+	set r 0 do done
+	at if set r 1
+	at done do loop
+
+
+
+
+
+
+
+>>>
+[first=1,com=0]: [0]: at word = zero
+[first=0,com=0]: [5]: at word = 0
+[first=1,com=0]: [7]: at word = zero
+[first=0,com=0]: [12]: at word = 1
+[first=1,com=0]: [14]: at word = incr
+[first=0,com=0]: [19]: at word = 1
+[first=1,com=0]: [21]: at word = set
+[first=0,com=0]: [25]: at word = r
+[first=0,com=0]: [27]: at word = 0
+[first=1,com=0]: [30]: at word = at
+[first=0,com=0]: [33]: at word = loop
+[first=1,com=0]: [39]: at word = lt
+[first=0,com=0]: [42]: at word = r
+[first=0,com=0]: [44]: at word = 1
+[first=0,com=0]: [46]: at word = if
+[first=1,com=0]: [50]: at word = set
+[first=0,com=0]: [54]: at word = r
+[first=0,com=0]: [56]: at word = 0
+[first=1,com=0]: [58]: at word = do
+[first=0,com=0]: [61]: at word = done
+[first=1,com=0]: [67]: at word = at
+[first=0,com=0]: [70]: at word = if
+[first=1,com=0]: [73]: at word = set
+[first=0,com=0]: [77]: at word = r
+[first=0,com=0]: [79]: at word = 1
+[first=1,com=0]: [82]: at word = at
+[first=0,com=0]: [85]: at word = done
+[first=1,com=0]: [90]: at word = do
+[first=0,com=0]: [93]: at word = loop
+instructions: (9 count) 
+[  0] = ins( " zero  0 ", 0{}>{0,0},[],{0,0,0}>0)
+[  1] = ins( " zero  1 ", 0{}>{0,0},[],{0,0,0}>0)
+[  2] = ins( " incr  1 ", 0{}>{0,0},[],{0,0,0}>0)
+[  3] = ins( " set  r  0 ", 0{}>{0,0},[],{0,0,0}>0)
+[  4] = ins( " lt  r  1  if ", 0{}>{0,0},[],{0,0,0}>0)
+[  5] = ins( " set  r  0 ", 0{}>{0,0},[],{0,0,0}>0)
+[  6] = ins( " do  done ", 0{}>{0,0},[],{0,0,0}>0)
+[  7] = ins( " set  r  1 ", 0{}>{0,0},[],{0,0,0}>0)
+[  8] = ins( " do  loop ", 0{}>{0,0},[],{0,0,0}>0)
+done
+
+dictionary: 10
+var #    0:   (nv)                        ---->    0
+var #    1:   _discardunused              ---->    0
+var #    2:   _process_stackpointer       ---->    0
+var #    3:   _process_stacksize          ---->    0
+var #    4:   0                           ---->    0
+var #    5:   1                           ---->    0
+var #    6:   r                           ---->    0
+var #    7:   loop                        ---->    4
+var #    8:   if                          ---->    7
+var #    9:   done                        ---->    8
+done
+finshed parsing!
+finding cfg connections for: #0: ins( " zero  0 ", 0{}>{0,0},[],{0,0,0}>0)
+finding cfg connections for: #1: ins( " zero  1 ", 1{0 }>{0,0},[],{0,0,0}>0)
+finding cfg connections for: #2: ins( " incr  1 ", 1{1 }>{0,0},[],{0,0,0}>0)
+finding cfg connections for: #3: ins( " set  r  0 ", 1{2 }>{0,0},[],{0,0,0}>0)
+finding cfg connections for: #4: ins( " lt  r  1  if ", 1{3 }>{0,0},[],{0,0,0}>0)
+finding cfg connections for: #5: ins( " set  r  0 ", 1{4 }>{0,0},[],{0,0,0}>0)
+finding cfg connections for: #6: ins( " do  done ", 1{5 }>{0,0},[],{0,0,0}>0)
+finding cfg connections for: #7: ins( " set  r  1 ", 1{4 }>{0,0},[],{0,0,0}>0)
+finding cfg connections for: #8: ins( " do  loop ", 2{6 7 }>{0,0},[],{0,0,0}>0)
+instructions: (9 count) 
+[  0] = ins( " zero  0 ", 0{}>{1,0},[SK],{0,0,0}>4)
+[  1] = ins( " zero  1 ", 1{0 }>{2,0},[SK],{0,0,0}>5)
+[  2] = ins( " incr  1 ", 1{1 }>{3,0},[],{0,0,0}>5)
+[  3] = ins( " set  r  0 ", 1{2 }>{4,0},[],{0,0,0}>6)
+[  4] = ins( " lt  r  1  if ", 2{3 8 }>{5,7},[],{0,0,0}>6)
+[  5] = ins( " set  r  0 ", 1{4 }>{6,0},[],{0,0,0}>6)
+[  6] = ins( " do  done ", 1{5 }>{8,0},[],{0,0,0}>9)
+[  7] = ins( " set  r  1 ", 1{4 }>{8,0},[],{0,0,0}>6)
+[  8] = ins( " do  loop ", 2{6 7 }>{4,0},[],{0,0,0}>7)
+done
+
+finshed cfg!
+instructions live arrays: (9 count) 
+[  0] = ins( " zero  0 ", 0{}>{1,0},[SK],{0,0,0}>4)
+
+[  1] = ins( " zero  1 ", 1{0 }>{2,0},[SK],{0,0,0}>5)
+
+[  2] = ins( " incr  1 ", 1{1 }>{3,0},[],{0,0,0}>5)
+
+[  3] = ins( " set  r  0 ", 1{2 }>{4,0},[],{0,0,0}>6)
+
+[  4] = ins( " lt  r  1  if ", 2{3 8 }>{5,7},[],{0,0,0}>6)
+
+[  5] = ins( " set  r  0 ", 1{4 }>{6,0},[],{0,0,0}>6)
+
+[  6] = ins( " do  done ", 1{5 }>{8,0},[],{0,0,0}>9)
+
+[  7] = ins( " set  r  1 ", 1{4 }>{8,0},[],{0,0,0}>6)
+
+[  8] = ins( " do  loop ", 2{6 7 }>{4,0},[],{0,0,0}>7)
+
+done
+
+
+
+
+
+starting DFG formation pass...
+traversing ins #0:  ins( " zero  0 ", 0isa_count = 27
+file: (99 chars)
+<<<zero 0
+zero 1 incr 1
+set r 0 
+at loop
+	lt r 1 if
+	set r 0 do done
+	at if set r 1
+	at done do loop
+
+>>>
+[first=1,com=0]: [0]: at word = zero
+[first=0,com=0]: [5]: at word = 0
+[first=1,com=0]: [7]: at word = zero
+[first=0,com=0]: [12]: at word = 1
+[first=1,com=0]: [14]: at word = incr
+[first=0,com=0]: [19]: at word = 1
+[first=1,com=0]: [21]: at word = set
+[first=0,com=0]: [25]: at word = r
+[first=0,com=0]: [27]: at word = 0
+[first=1,com=0]: [30]: at word = at
+[first=0,com=0]: [33]: at word = loop
+[first=1,com=0]: [39]: at word = lt
+[first=0,com=0]: [42]: at word = r
+[first=0,com=0]: [44]: at word = 1
+[first=0,com=0]: [46]: at word = if
+[first=1,com=0]: [50]: at word = set
+[first=0,com=0]: [54]: at word = r
+[first=0,com=0]: [56]: at word = 0
+[first=1,com=0]: [58]: at word = do
+[first=0,com=0]: [61]: at word = done
+[first=1,com=0]: [67]: at word = at
+[first=0,com=0]: [70]: at word = if
+[first=1,com=0]: [73]: at word = set
+[first=0,com=0]: [77]: at word = r
+[first=0,com=0]: [79]: at word = 1
+[first=1,com=0]: [82]: at word = at
+[first=0,com=0]: [85]: at word = done
+[first=1,com=0]: [90]: at word = do
+[first=0,com=0]: [93]: at word = loop
+instructions: (9 count) 
+[  0] = ins( " zero  0 ", 0{}>{0,0},[],{0,0,0}>0)
+[  1] = ins( " zero  1 ", 0{}>{0,0},[],{0,0,0}>0)
+[  2] = ins( " incr  1 ", 0{}>{0,0},[],{0,0,0}>0)
+[  3] = ins( " set  r  0 ", 0{}>{0,0},[],{0,0,0}>0)
+[  4] = ins( " lt  r  1  if ", 0{}>{0,0},[],{0,0,0}>0)
+[  5] = ins( " set  r  0 ", 0{}>{0,0},[],{0,0,0}>0)
+[  6] = ins( " do  done ", 0{}>{0,0},[],{0,0,0}>0)
+[  7] = ins( " set  r  1 ", 0{}>{0,0},[],{0,0,0}>0)
+[  8] = ins( " do  loop ", 0{}>{0,0},[],{0,0,0}>0)
+done
+
+dictionary: 10
+var #    0:   (nv)                        ---->    0
+var #    1:   _discardunused              ---->    0
+var #    2:   _process_stackpointer       ---->    0
+var #    3:   _process_stacksize          ---->    0
+var #    4:   0                           ---->    0
+var #    5:   1                           ---->    0
+var #    6:   r                           ---->    0
+var #    7:   loop                        ---->    4
+var #    8:   if                          ---->    7
+var #    9:   done                        ---->    8
+done
+finshed parsing!
+finding cfg connections for: #0: ins( " zero  0 ", 0{}>{0,0},[],{0,0,0}>0)
+finding cfg connections for: #1: ins( " zero  1 ", 1{0 }>{0,0},[],{0,0,0}>0)
+finding cfg connections for: #2: ins( " incr  1 ", 1{1 }>{0,0},[],{0,0,0}>0)
+finding cfg connections for: #3: ins( " set  r  0 ", 1{2 }>{0,0},[],{0,0,0}>0)
+finding cfg connections for: #4: ins( " lt  r  1  if ", 1{3 }>{0,0},[],{0,0,0}>0)
+finding cfg connections for: #5: ins( " set  r  0 ", 1{4 }>{0,0},[],{0,0,0}>0)
+finding cfg connections for: #6: ins( " do  done ", 1{5 }>{0,0},[],{0,0,0}>0)
+finding cfg connections for: #7: ins( " set  r  1 ", 1{4 }>{0,0},[],{0,0,0}>0)
+finding cfg connections for: #8: ins( " do  loop ", 2{6 7 }>{0,0},[],{0,0,0}>0)
+instructions: (9 count) 
+[  0] = ins( " zero  0 ", 0{}>{1,0},[SK],{0,0,0}>4)
+[  1] = ins( " zero  1 ", 1{0 }>{2,0},[SK],{0,0,0}>5)
+[  2] = ins( " incr  1 ", 1{1 }>{3,0},[],{0,0,0}>5)
+[  3] = ins( " set  r  0 ", 1{2 }>{4,0},[],{0,0,0}>6)
+[  4] = ins( " lt  r  1  if ", 2{3 8 }>{5,7},[],{0,0,0}>6)
+[  5] = ins( " set  r  0 ", 1{4 }>{6,0},[],{0,0,0}>6)
+[  6] = ins( " do  done ", 1{5 }>{8,0},[],{0,0,0}>9)
+[  7] = ins( " set  r  1 ", 1{4 }>{8,0},[],{0,0,0}>6)
+[  8] = ins( " do  loop ", 2{6 7 }>{4,0},[],{0,0,0}>7)
+done
+
+finshed cfg!
+instructions live arrays: (9 count) 
+[  0] = ins( " zero  0 ", 0{}>{1,0},[SK],{0,0,0}>4)
+
+[  1] = ins( " zero  1 ", 1{0 }>{2,0},[SK],{0,0,0}>5)
+
+[  2] = ins( " incr  1 ", 1{1 }>{3,0},[],{0,0,0}>5)
+
+[  3] = ins( " set  r  0 ", 1{2 }>{4,0},[],{0,0,0}>6)
+
+[  4] = ins( " lt  r  1  if ", 2{3 8 }>{5,7},[],{0,0,0}>6)
+
+[  5] = ins( " set  r  0 ", 1{4 }>{6,0},[],{0,0,0}>6)
+
+[  6] = ins( " do  done ", 1{5 }>{8,0},[],{0,0,0}>9)
+
+[  7] = ins( " set  r  1 ", 1{4 }>{8,0},[],{0,0,0}>6)
+
+[  8] = ins( " do  loop ", 2{6 7 }>{4,0},[],{0,0,0}>7)
+
+done
+
+
+
+
+
+starting DFG formation pass...
+traversing ins #0:  ins( " zero  0 ", 0{}>{1,0},[SK],{0,0,0}>4)
+visited nodes: 
+(0){ }
+at PC = 0, checking if we have visited this node already...
+no loopback detected, pushing instruction...
+visited nodes: 
+(1){ 0 }
+op def now: (10){  0:i0 }
+stack: (0) { 
+}
+traversing ins #1:  ins( " zero  1 ", 1{0 }>{2,0},[SK],{0,0,0}>5)
+visited nodes: 
+(1){ 0 }
+at PC = 1, checking if we have visited this node already...
+no loopback detected, pushing instruction...
+visited nodes: 
+(2){ 0 1 }
+op def now: (10){  0:i0  1:i1 }
+stack: (0) { 
+}
+traversing ins #2:  ins( " incr  1 ", 1{1 }>{3,0},[],{0,0,0}>5)
+visited nodes: 
+(2){ 0 1 }
+at PC = 2, checking if we have visited this node already...
+no loopback detected, pushing instruction...
+visited nodes: 
+(3){ 0 1 2 }
+op def now: (10){  0:i0  1:i2 }
+stack: (0) { 
+}
+traversing ins #3:  ins( " set  r  0 ", 1{2 }>{4,0},[],{0,0,0}>6)
+visited nodes: 
+(3){ 0 1 2 }
+at PC = 3, checking if we have visited this node already...
+no loopback detected, pushing instruction...
+visited nodes: 
+(4){ 0 1 2 3 }
+op def now: (10){  0:i0  1:i2  r:i3 }
+stack: (0) { 
+}
+traversing ins #4:  ins( " lt  r  1  if ", 2{3 8 }>{5,7},[],{0,0,0}>6)
+visited nodes: 
+(4){ 0 1 2 3 }
+at PC = 4, checking if we have visited this node already...
+no loopback detected, pushing instruction...
+visited nodes: 
+(5){ 0 1 2 3 4 }
+op def now: (10){  0:i0  1:i2  r:i3 }
+stack: (1) { 
+	#0: entry(.pc=4, .side=0, .visited=5, .def={ 4:0 5:2 6:3 })
+}
+traversing ins #5:  ins( " set  r  0 ", 1{4 }>{6,0},[],{0,0,0}>6)
+visited nodes: 
+(5){ 0 1 2 3 4 }
+at PC = 5, checking if we have visited this node already...
+no loopback detected, pushing instruction...
+visited nodes: 
+(6){ 0 1 2 3 4 5 }
+op def now: (10){  0:i0  1:i2  r:i5 }
+stack: (1) { 
+	#0: entry(.pc=4, .side=0, .visited=5, .def={ 4:0 5:2 6:3 })
+}
+traversing ins #6:  ins( " do  done ", 1{5 }>{8,0},[],{0,0,0}>9)
+visited nodes: 
+(6){ 0 1 2 3 4 5 }
+at PC = 6, checking if we have visited this node already...
+no loopback detected, pushing instruction...
+visited nodes: 
+(7){ 0 1 2 3 4 5 6 }
+op def now: (10){  0:i0  1:i2  r:i5 }
+stack: (1) { 
+	#0: entry(.pc=4, .side=0, .visited=5, .def={ 4:0 5:2 6:3 })
+}
+traversing ins #8:  ins( " do  loop ", 2{6 7 }>{4,0},[],{0,0,0}>7)
+visited nodes: 
+(7){ 0 1 2 3 4 5 6 }
+at PC = 8, checking if we have visited this node already...
+no loopback detected, pushing instruction...
+visited nodes: 
+(8){ 0 1 2 3 4 5 6 8 }
+op def now: (10){  0:i0  1:i2  r:i5 }
+stack: (1) { 
+	#0: entry(.pc=4, .side=0, .visited=5, .def={ 4:0 5:2 6:3 })
+}
+traversing ins #4:  ins( " lt  r  1  if ", 2{3 8 }>{5,7},[],{0,0,0}>6)
+visited nodes: 
+(8){ 0 1 2 3 4 5 6 8 }
+at PC = 4, checking if we have visited this node already...
+@ 4: found loopback point in CFG!
+we need to try the other side of the branch!
+op def now: (10){  0:i0  1:i2  r:i3 }
+stack: (2) { 
+	#0: entry(.pc=4, .side=1, .visited=5, .def={ 4:0 5:2 6:3 })
+	#1: entry(.pc=7, .side=0, .visited=5, .def={ 4:0 5:2 6:3 })
+}
+traversing ins #8:  ins( " do  loop ", 2{6 7 }>{4,0},[],{0,0,0}>7)
+visited nodes: 
+(5){ 0 1 2 3 4 }
+at PC = 8, checking if we have visited this node already...
+no loopback detected, pushing instruction...
+visited nodes: 
+(6){ 0 1 2 3 4 8 }
+op def now: (10){  0:i0  1:i2  r:i3 }
+stack: (2) { 
+	#0: entry(.pc=4, .side=1, .visited=5, .def={ 4:0 5:2 6:3 })
+	#1: entry(.pc=7, .side=0, .visited=5, .def={ 4:0 5:2 6:3 })
+}
+traversing ins #4:  ins( " lt  r  1  if ", 2{3 8 }>{5,7},[],{0,0,0}>6)
+visited nodes: 
+(6){ 0 1 2 3 4 8 }
+at PC = 4, checking if we have visited this node already...
+@ 4: found loopback point in CFG!
+we need to try the other side of the branch!
+op def now: (10){  0:i0  1:i2  r:i3 }
+stack: (3) { 
+	#0: entry(.pc=4, .side=1, .visited=5, .def={ 4:0 5:2 6:3 })
+	#1: entry(.pc=7, .side=1, .visited=5, .def={ 4:0 5:2 6:3 })
+	#2: entry(.pc=0, .side=0, .visited=5, .def={ 4:0 5:2 6:3 })
+}
+traversing ins #1:  ins( " zero  1 ", 1{0 }>{2,0},[SK],{0,0,0}>5)
+visited nodes: 
+(5){ 0 1 2 3 4 }
+at PC = 1, checking if we have visited this node already...
+@ 1: found loopback point in CFG!
+we need to try the other side of the branch!
+op def now: (10){  0:i0  1:i2  r:i3 }
+stack: (3) { 
+	#0: entry(.pc=4, .side=1, .visited=5, .def={ 4:0 5:2 6:3 })
+	#1: entry(.pc=7, .side=1, .visited=5, .def={ 4:0 5:2 6:3 })
+	#2: entry(.pc=0, .side=1, .visited=5, .def={ 4:0 5:2 6:3 })
+}
+traversing ins #1:  ins( " zero  1 ", 1{0 }>{2,0},[SK],{0,0,0}>5)
+visited nodes: 
+(5){ 0 1 2 3 4 }
+at PC = 1, checking if we have visited this node already...
+@ 1: found loopback point in CFG!
+(10){  0:i0  1:i2  r:i3 }
+instructions: (9 count) 
+[  0] = ins( " zero  0 ", 0{}>{1,0},[SK],{0,0,0}>4)
+[  1] = ins( " zero  1 ", 1{0 }>{2,0},[SK],{0,0,0}>5)
+[  2] = ins( " incr  1 ", 1{1 }>{3,0},[],{0,0,0}>5)
+[  3] = ins( " set  r  0 ", 1{2 }>{4,0},[],{0,0,0}>6)
+[  4] = ins( " lt  r  1  if ", 2{3 8 }>{5,7},[],{0,0,0}>6)
+[  5] = ins( " set  r  0 ", 1{4 }>{6,0},[],{0,0,0}>6)
+[  6] = ins( " do  done ", 1{5 }>{8,0},[],{0,0,0}>9)
+[  7] = ins( " set  r  1 ", 1{4 }>{8,0},[],{0,0,0}>6)
+[  8] = ins( " do  loop ", 2{6 7 }>{4,0},[],{0,0,0}>7)
+done
+
+finshed cfg!
+instructions live arrays: (9 count) 
+[  0] = ins( " zero  0 ", 0{}>{1,0},[SK],{0,0,0}>4)
+		live_in[0]: (10){ }
+		live_in[1]: (10){  0:i0  1:i2  r:i3 }
+		live_in[2]: (10){  0:i0  1:i2  r:i3 }
+		live_out[0]: (10){  0:i0 }
+		live_out[1]: (10){  0:i0  1:i2  r:i3 }
+		live_out[2]: (10){  0:i0  1:i2  r:i3 }
+
+[  1] = ins( " zero  1 ", 1{0 }>{2,0},[SK],{0,0,0}>5)
+		live_in[0]: (10){  0:i0 }
+		live_out[0]: (10){  0:i0  1:i1 }
+
+[  2] = ins( " incr  1 ", 1{1 }>{3,0},[],{0,0,0}>5)
+		live_in[0]: (10){  0:i0  1:i1 }
+		live_out[0]: (10){  0:i0  1:i2 }
+
+[  3] = ins( " set  r  0 ", 1{2 }>{4,0},[],{0,0,0}>6)
+		live_in[0]: (10){  0:i0  1:i2 }
+		live_out[0]: (10){  0:i0  1:i2  r:i3 }
+
+[  4] = ins( " lt  r  1  if ", 2{3 8 }>{5,7},[],{0,0,0}>6)
+		live_in[0]: (10){  0:i0  1:i2  r:i3 }
+		live_out[0]: (10){  0:i0  1:i2  r:i3 }
+
+[  5] = ins( " set  r  0 ", 1{4 }>{6,0},[],{0,0,0}>6)
+		live_in[0]: (10){  0:i0  1:i2  r:i3 }
+		live_out[0]: (10){  0:i0  1:i2  r:i5 }
+
+[  6] = ins( " do  done ", 1{5 }>{8,0},[],{0,0,0}>9)
+		live_in[0]: (10){  0:i0  1:i2  r:i5 }
+		live_out[0]: (10){  0:i0  1:i2  r:i5 }
+
+[  7] = ins( " set  r  1 ", 1{4 }>{8,0},[],{0,0,0}>6)
+		live_in[0]: (10){  0:i0  1:i2  r:i3 }
+		live_out[0]: (10){  0:i0  1:i2  r:i3 }
+
+[  8] = ins( " do  loop ", 2{6 7 }>{4,0},[],{0,0,0}>7)
+		live_in[0]: (10){  0:i0  1:i2  r:i5 }
+		live_in[1]: (10){  0:i0  1:i2  r:i3 }
+		live_out[0]: (10){  0:i0  1:i2  r:i5 }
+		live_out[1]: (10){  0:i0  1:i2  r:i3 }
+
+done
+
+
+
+
+
+
+
+
+
+
