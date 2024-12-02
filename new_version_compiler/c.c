@@ -141,8 +141,12 @@ struct instruction {
 	nat* pred;
 	nat pred_count;
 // dfg:
-	struct vec inputs[3];
+	nat* inputs[8];
+	nat input_count[8];
+	nat arity;
+
 	nat output;
+
 	nat sk;
 // ra:
 	nat** live_in;
@@ -166,7 +170,6 @@ static nat isa_arity(nat i) {
 	return 2;
 }
 
-
 static void debug_instruction(struct instruction this, char** names) {
 	printf("ins( \"");
 	for (nat a = 0; a < this.count; a++) {
@@ -178,10 +181,19 @@ static void debug_instruction(struct instruction this, char** names) {
 	//for (nat a = 0; a < 4 - this.count; a++) printf(".%u=%-4d %-7s  ", 0, 0, "");     this.args[a], 
 	printf("\", %llu{", this.pred_count);
 	for (nat i = 0; i < this.pred_count; i++) printf("%llu ", this.pred[i]);
-	printf("}>{%llu,%llu},[%s],{%llu,%llu,%llu}>%llu)\n", 
-		this.gotos[0], this.gotos[1], this.sk ? "SK" : "",
-		this.inputs[0], this.inputs[1], this.inputs[2], this.output
+	printf("}>{%llu,%llu},[%s], out=%llu, ", 
+		this.gotos[0], this.gotos[1], this.sk ? "SK" : "", this.output
 	);
+
+	puts("inputs: ");
+	for (nat a = 0; a < this.arity; a++) {
+		printf("\t#%llu: (%llu){ ", a, this.input_count[a]);
+		for (nat i = 0; i < this.input_count[a]; i++) {
+			printf("%llu, ", this.inputs[a][i]);
+		}
+		printf("}\n");
+	}
+	puts("");
 }
 
 static void debug_instructions(
@@ -210,8 +222,6 @@ static void print_nats(nat* a, nat c) {
 	}
 	puts("}");
 }
-
-
 
 static void print_nats_indicies(nat* a, nat c) {
 	printf("(%llu){ ", c);
@@ -252,8 +262,6 @@ static void debug_instructions_live_arrays(
 	puts("done\n");
 }
 
-
-
 struct stack_entry {
 	nat* defs;  // a name_count-sized array  of instruction indicies
 	nat side; // 0 or 1 	of branch side
@@ -278,7 +286,7 @@ static void print_stack(struct stack_entry* stack, nat stack_count, nat name_cou
 }
 
 int main(int argc, const char** argv) {
-	if (argc > 2) exit(puts("compiler: \033[31;1merror:\033[0m usage: ./run [file.s]"));
+	if (argc != 2) exit(puts("compiler: \033[31;1merror:\033[0m usage: ./run [file.s]"));
 
 	printf("isa_count = %u\n", isa_count);
 	
@@ -421,19 +429,9 @@ process_file:;
 
 
 
-
 	debug_instructions(ins, ins_count, names);
 	puts("finshed cfg!");
 	debug_instructions_live_arrays(ins, ins_count, names, name_count);
-
-
-
-
-
-
-
-
-
 
 
 	puts("\n\n\n\nstarting DFG formation pass...");
@@ -450,39 +448,121 @@ process_file:;
 	nat* starting_def = calloc(name_count, sizeof(nat));
 	memcpy(starting_def, defs, name_count * sizeof(nat)); 
 
-
-
-
-	/*
-
-
-
-
-		the main idea for how we have to set the .inputs is that 
-
-
-			we want to allow multiple flow of controls   to actually have technically different instrution indicies that represent those dependancies on different data elements, or rather different creations of those data elements in the cfg. 
-
-			make .inputs       a struct vec[3]   so that we can track an array of ins indicies,   per input to the instruction. thats the main idea. 
-
-
-
-			
-
-
-
-	*/
-
-
 	nat pc = 0;
 	do {
-		printf("traversing ins #%llu:  ", pc); debug_instruction(ins[pc], names);
+
 		const nat op = ins[pc].args[0];
 
-		puts("visited nodes: "); print_nats(visited, visited_count);
-		printf("at PC = %llu, checking if we have visited this node already...\n", pc);
-			
-		for (nat i = 0; i < visited_count; i++) {
+		if (op == zero) { 
+			defs[ins[pc].args[1]] = pc;
+			ins[pc].arity = 0;
+		}
+
+		else if (op == incr) { 
+			defs[ins[pc].args[1]] = pc; 
+			ins[pc].arity = 1;
+			ins[pc].inputs[0] = realloc(ins[pc].inputs[0], sizeof(nat) * (ins[pc].input_count[0] + 1));
+			ins[pc].inputs[0][ins[pc].input_count[0]++] = defs[ins[pc].args[1]];
+		}
+
+		else if (op == set)  { 
+			defs[ins[pc].args[1]] = pc; 
+			ins[pc].arity = 1;
+			ins[pc].inputs[0] = realloc(ins[pc].inputs[0], sizeof(nat) * (ins[pc].input_count[0] + 1));
+			ins[pc].inputs[0][ins[pc].input_count[0]++] = defs[ins[pc].args[2]];
+		}
+
+		else if (op == add or op == sub or op == mul or op == div_ or op == rem)  { 
+			defs[ins[pc].args[1]] = pc; 
+			ins[pc].arity = 2;
+			ins[pc].inputs[0] = realloc(ins[pc].inputs[0], sizeof(nat) * (ins[pc].input_count[0] + 1));
+			ins[pc].inputs[0][ins[pc].input_count[0]++] = defs[ins[pc].args[1]];
+			ins[pc].inputs[1] = realloc(ins[pc].inputs[1], sizeof(nat) * (ins[pc].input_count[1] + 1));
+			ins[pc].inputs[1][ins[pc].input_count[1]++] = defs[ins[pc].args[2]];
+		}
+
+		else if (op == do_) {
+			ins[pc].arity = 1;
+			//ins[pc].inputs[0] = realloc(ins[pc].inputs[0], sizeof(nat) * (ins[pc].input_count[0] + 1));
+			//ins[pc].inputs[0][ins[pc].input_count[0]++] = defs[ins[pc].args[1]];
+		}
+
+		else if (op == lt or op == eq) {
+			ins[pc].arity = 3;
+			ins[pc].inputs[0] = realloc(ins[pc].inputs[0], sizeof(nat) * (ins[pc].input_count[0] + 1));
+			ins[pc].inputs[0][ins[pc].input_count[0]++] = defs[ins[pc].args[1]];
+			ins[pc].inputs[1] = realloc(ins[pc].inputs[1], sizeof(nat) * (ins[pc].input_count[1] + 1));
+			ins[pc].inputs[1][ins[pc].input_count[1]++] = defs[ins[pc].args[2]];
+			//ins[pc].inputs[2] = realloc(ins[pc].inputs[2], sizeof(nat) * (ins[pc].input_count[2] + 1));
+			//ins[pc].inputs[2][ins[pc].input_count[2]++] = defs[ins[pc].args[3]];
+		}
+
+		else {
+			printf("error: found an unknown instruction %s, don't know how to fill in the def for it.\n", ins_spelling[op]);
+			abort();
+		}
+
+		printf("traversing ins #%llu:  ", pc); 
+		debug_instruction(ins[pc], names);
+		puts("visited nodes: "); 
+		print_nats(visited, visited_count);		
+		printf("op def now: "); 
+		debug_nats_indicies(defs, name_count, names);
+		print_stack(stack, stack_count, name_count);
+
+
+		pc = ins[pc].gotos[0];
+
+		getchar();
+		continue;
+
+	} while (1);   // stack_count or pc < ins_count
+
+
+
+//done_traversal:
+
+	debug_nats_indicies(defs, name_count, names);
+	debug_instructions(ins, ins_count, names);
+	puts("finshed cfg!");
+
+	debug_instructions_live_arrays(ins, ins_count, names, name_count);
+
+	exit(1);
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+		
+/*		for (nat i = 0; i < visited_count; i++) {
 			if (visited[i] == pc) {
 				printf("@ %llu: found loopback point in CFG!\n", pc);
 					if (stack_count and stack[stack_count - 1].side == 0) {
@@ -509,13 +589,14 @@ process_file:;
 		ins[pc].live_in[ins[pc].live_in_count++] = new;
 
 		if (op == zero) { defs[ins[pc].args[1]] = pc; }
-		if (op == set)  { defs[ins[pc].args[1]] = pc; }
-		if (op == incr) { defs[ins[pc].args[1]] = pc; }
-		if (op == add)  { defs[ins[pc].args[1]] = pc; }
-		if (op == sub)  { defs[ins[pc].args[1]] = pc; }
-
-		printf("op def now: "); 
-		debug_nats_indicies(defs, name_count, names);
+		else if (op == set)  { defs[ins[pc].args[1]] = pc; }
+		else if (op == incr) { defs[ins[pc].args[1]] = pc; }
+		else if (op == add)  { defs[ins[pc].args[1]] = pc; }
+		else if (op == sub)  { defs[ins[pc].args[1]] = pc; }
+		else {
+			puts("found an unknown instruction, don't know how to fill in the def for it.");
+			abort();
+		}
 
 		nat* new2 = calloc(name_count, sizeof(nat));
 		memcpy(new2, defs, name_count * sizeof(nat));
@@ -540,30 +621,54 @@ process_file:;
 				memcpy(defs, stack[stack_count - 1].defs, name_count * sizeof(nat));
 			} else break;
 		} 
-		
-		print_stack(stack, stack_count, name_count);
-		//getchar();
 
-	} while (stack_count or pc < ins_count);
+
+		*/
 
 
 
 
 
 
-done_traversal:
-
-	debug_nats_indicies(defs, name_count, names);
-	debug_instructions(ins, ins_count, names);
-	puts("finshed cfg!");
-
-	debug_instructions_live_arrays(ins, ins_count, names, name_count);
-
-	exit(1);
-}
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+	/*
+
+
+		the main idea for how we have to set the .inputs is that 
+
+
+			we want to allow multiple flow of controls   to actually have technically different instrution indicies that represent those dependancies on different data elements, or rather different creations of those data elements in the cfg. 
+
+			make .inputs       a struct vec[3]   so that we can track an array of ins indicies,   per input to the instruction. thats the main idea. 
+
+	*/
 
 
 
@@ -1094,6 +1199,9 @@ static void print_basic_blocks(struct basic_block* blocks, nat block_count,
 	
 
 */
+
+
+
 
 
 
