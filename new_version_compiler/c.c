@@ -392,6 +392,39 @@ process_file:;
 		}
 	}
 
+
+
+
+
+	// now walk the cfg backwards, starting from the cfg termination points, 
+	// using a stack to see other decisions you must consider, 
+	
+	// and all the while    you are actually constructing the RIG, while walking, keeping track of edges between rig nodes, by looking at the live in lists for each instruction you encounter along the execution path, if you see a pair of variables live at the same time, then you know that those vars must have an edge between them (they interfere) in the rig. 
+
+	// note, a variable is no longer live   before its definition,  (ie, after, becuase you are going backwards)
+
+	// and note, you never need to store the live in lists. they are implicitly constructed and discarded during this process, just to know the RIG. thats their whole point. 
+
+
+
+
+
+
+	// also, via this method, you can see if a variable is set but unused, ie, it has a defintion, but no use. basically, there will always be some instruction, where the value doesnt go anywhere. note, if a value is implicated in a system call, thats a use-sink. (depends on the system call, though...)
+
+	// you can also detect conditional initialization of variables, another type of warning! this is done in the process of tracing the possible definitions for a given variable, and seeing that on some execution paths, the variable is not set. 
+
+
+
+	// maybe we should be going forwards in this analysis though.. hmmmmmmmmm
+
+
+
+
+
+
+
+
 }
 
 
