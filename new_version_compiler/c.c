@@ -1,102 +1,5 @@
 // programming language compiler 
 // written on 2411203.160950 dwrr
-
-/*
-nat* visited; // stack of instruction indicies
-nat visited_count;
-
-struct stackentry {
-	nat* defs;  // a name_count-sized array  of instruction indicies
-	nat side; // 0 or 1 	of branch side
-	nat visited_count; // the height of the visited stack at the time of the branch.
-	nat pc;
-};
-
-
-the fundemental intuition behind our approach is the following:
-
-
-	1. we need to start data flow analysis starting from instruction #0. 
-
-	2. we must traverse the entire cfg, and along an execution path, keeping track constantly  of what variables are alive, 
-			anddd if they areee alive, (defs[dict_index_for_variable] != -1) then we take note of the latest instruction which produces its latest value.
-
-	3. the idea here is that we are finding actual instruction indicies    for a given instruction, who is the producer of the latest value of a variable. thenn, when we see that a name is used again, we set the    .inputs[X] = <instruction index Y>   where X ranges in {0, 1, 2} depending on which argument of the instruction we are dealing with, and the instruction's arity, and Y ranges in LRS(ins_count), and corresponds to the most recent prior instruction ALONG THIS EXECUTION PATH in the cfg, which produces the latest value of this variable. Y is the ins index of this instruction which produces the latest value of this variable. 
-
-
-	4. in order to accomplish this, we treat the cfg like a binary tree. 
-
-	5. to traverse this tree, we need to have a treestack, of stackentry's.   we push a new entry onto this stack upon encountering a binary branch. (all branches are binary in this language!)
-
-	6. we also keep track of the side of the branch we went on, inside the stackentry,  as well as the current state of the def's mapping, at this point in the program. 
-	7. note: arguably we should have a full def's array, for every single instruction.. we might do that. idk. 
-	
-		7.5 in order to cope with that, we would push a new stack entry, on each instruction, 
-			instead of each branch. .side would be 0 for unconditional instructions. 
-
-	8. in order to deal with the fact that the cfg is not ACTUALLLY a binary tree, we keep track of a list of visited nodes, seperate from the treestack.
-
-	9. this visited node list  is a simple list of instruction indicies, in which every instruction we execute, we push the current index for this instruction to that list. when we push a new treestack entry, we also include the current size of the visited node list, in that stack entry. this helps us to revert the list of visited nodes to the right place, when we CHANGE SIDES of the branch. 
-
-
-	10. finally, we begin the backtracking process (ie, switching sides, or popping off the current TOS (top of stack)  when we reach an instruction which is either a CFG termination point, (sc ins, with 0 syscall number), or an instruction we have already encountered. 
-
-
-	11. done?...
-
-
-
-
-	state of the art: stages for the backend:
-
-
-		1. form the cfg blocks, each of which is an instruction. use the original instructions, and just make the cfg bigger i think lol.
-		2. connect up these cfg nodes (each, an ins) using the "at" and lt/do/ge/ne/eq instructions and their labels. this forms the cfg.
-		3. do SK analysis while doing the data flow / live-in/live-out analysis. 
-			3.1. walk the cfg (according to results from step 2), and find which instructions depend on the results of what other instructions. 
-			3.2. compute a list of instructions which are the inputs to this instruction, as well as which variables, are required to be alive over the life of this instruction ( uhhh ...?)
-
-			3.3. keep track of which instructions only have compiletime dependancies, via seeing if they are the output of system calls, 
-				as well as  if the sta instruction was used on them to cause them to be only be RT known. 
-
-
-
-		4. do CT/SK simplification of the CFG and instruction listing. ie, SK optimization. this happens often, and upfront. at this step. 
-
-
-full isa:
-
-	zero incr
-	set add sub mul div rem
-	not and or eor si sd
-	lt ge ne eq ld st
-	do sba sc at lf eoi
-
-
-
-
-
-the data we need to generate: 
-
-
-	nat* pred;
-	nat pred_count;
-// dfg:
-	nat* inputs[8];
-	nat input_count[8];
-	nat arity;
-
-	nat output;
-
-	nat sk;
-// ra:
-	nat** live_in;
-	nat** live_out;
-	nat live_in_count;
-	nat live_out_count;
-
-*/
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -110,7 +13,6 @@ the data we need to generate:
 #include <sys/mman.h>
 #include <sys/types.h>
 #include <sys/stat.h>
-
 typedef uint64_t nat;
 
 enum language_isa {
@@ -141,11 +43,6 @@ static const char* builtin_spelling[builtin_count] = {
 	"_discardunused", 
 	"_process_stackpointer", 
 	"_process_stacksize",
-};
-
-struct vec {
-	nat* data;
-	nat count;
 };
 
 struct instruction {
@@ -267,8 +164,6 @@ static nat compute_ins_gotos(nat* side, struct instruction* ins, nat ins_count, 
 
 static nat* compute_ins_pred(nat* pred_count, struct instruction* ins, nat ins_count, nat this) {
 	
-
-
 	if (ins[this].args[0] != at) {
 		if (not this or ins[this - 1].args[0] == do_) {
 			*pred_count = 0;
@@ -302,6 +197,50 @@ static nat* compute_ins_pred(nat* pred_count, struct instruction* ins, nat ins_c
 	*pred_count = count; 
 	return result;
 }
+
+
+static bool is_halt(struct instruction* ins, nat ins_count, nat this) {
+	if (this == ins_count - 1) return false;
+	const nat op = ins[this].args[0];	
+	if (op != at) return false;
+	const nat op2 = ins[this + 1].args[0];
+	if (op2 != do_) return false;
+	const nat label = ins[this].args[1];
+	const nat label2 = ins[this + 1].args[1];	
+	return label == label2;
+}
+
+
+
+
+
+
+
+
+/*
+
+
+static nat* compute_ins_live_in(nat* live_count, struct instruction* ins, nat ins_count, nat this) {
+
+	nat pc = this;
+
+	while (pc or stack_count) {
+
+		
+	}
+
+
+}
+
+
+
+*/
+
+
+
+
+
+
 
 int main(int argc, const char** argv) {
 	if (argc != 2) exit(puts("compiler: \033[31;1merror:\033[0m usage: ./run [file.s]"));
@@ -403,7 +342,7 @@ process_file:;
 
 	puts("computing CFG...");
 	for (nat i = 0; i < ins_count; i++) {
-		nat true_side = -1;
+		nat true_side = (nat) -1;
 		const nat false_side = compute_ins_gotos(&true_side, ins, ins_count, i);
 
 		printf("[%llu]: ", i);
@@ -437,11 +376,21 @@ process_file:;
 		if (i and not pred_count) {
 			printf("error: instruction is unreachable\n");
 			print_instruction_index(ins, ins_count, names, i, "unreachable");
-			abort();
+			//abort();
 		}
 	}
 
 
+
+	for (nat i = 0; i < ins_count; i++) {
+		const bool h = is_halt(ins, ins_count, i);
+
+		if (h) {
+			printf("info: instruction is a halt instruction\n");
+			print_instruction_index(ins, ins_count, names, i, "treating as CFG termination point");
+			//abort();
+		}
+	}
 
 }
 
@@ -464,6 +413,165 @@ process_file:;
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+/*struct vec {
+	nat* data;
+	nat count;
+};*/
+
+
+/*
+nat* visited; // stack of instruction indicies
+nat visited_count;
+
+struct stackentry {
+	nat* defs;  // a name_count-sized array  of instruction indicies
+	nat side; // 0 or 1 	of branch side
+	nat visited_count; // the height of the visited stack at the time of the branch.
+	nat pc;
+};
+
+
+the fundemental intuition behind our approach is the following:
+
+
+	1. we need to start data flow analysis starting from instruction #0. 
+
+	2. we must traverse the entire cfg, and along an execution path, keeping track constantly  of what variables are alive, 
+			anddd if they areee alive, (defs[dict_index_for_variable] != -1) then we take note of the latest instruction which produces its latest value.
+
+	3. the idea here is that we are finding actual instruction indicies    for a given instruction, who is the producer of the latest value of a variable. thenn, when we see that a name is used again, we set the    .inputs[X] = <instruction index Y>   where X ranges in {0, 1, 2} depending on which argument of the instruction we are dealing with, and the instruction's arity, and Y ranges in LRS(ins_count), and corresponds to the most recent prior instruction ALONG THIS EXECUTION PATH in the cfg, which produces the latest value of this variable. Y is the ins index of this instruction which produces the latest value of this variable. 
+
+
+	4. in order to accomplish this, we treat the cfg like a binary tree. 
+
+	5. to traverse this tree, we need to have a treestack, of stackentry's.   we push a new entry onto this stack upon encountering a binary branch. (all branches are binary in this language!)
+
+	6. we also keep track of the side of the branch we went on, inside the stackentry,  as well as the current state of the def's mapping, at this point in the program. 
+	7. note: arguably we should have a full def's array, for every single instruction.. we might do that. idk. 
+	
+		7.5 in order to cope with that, we would push a new stack entry, on each instruction, 
+			instead of each branch. .side would be 0 for unconditional instructions. 
+
+	8. in order to deal with the fact that the cfg is not ACTUALLLY a binary tree, we keep track of a list of visited nodes, seperate from the treestack.
+
+	9. this visited node list  is a simple list of instruction indicies, in which every instruction we execute, we push the current index for this instruction to that list. when we push a new treestack entry, we also include the current size of the visited node list, in that stack entry. this helps us to revert the list of visited nodes to the right place, when we CHANGE SIDES of the branch. 
+
+
+	10. finally, we begin the backtracking process (ie, switching sides, or popping off the current TOS (top of stack)  when we reach an instruction which is either a CFG termination point, (sc ins, with 0 syscall number), or an instruction we have already encountered. 
+
+
+	11. done?...
+
+
+
+
+	state of the art: stages for the backend:
+
+
+		1. form the cfg blocks, each of which is an instruction. use the original instructions, and just make the cfg bigger i think lol.
+		2. connect up these cfg nodes (each, an ins) using the "at" and lt/do/ge/ne/eq instructions and their labels. this forms the cfg.
+		3. do SK analysis while doing the data flow / live-in/live-out analysis. 
+			3.1. walk the cfg (according to results from step 2), and find which instructions depend on the results of what other instructions. 
+			3.2. compute a list of instructions which are the inputs to this instruction, as well as which variables, are required to be alive over the life of this instruction ( uhhh ...?)
+
+			3.3. keep track of which instructions only have compiletime dependancies, via seeing if they are the output of system calls, 
+				as well as  if the sta instruction was used on them to cause them to be only be RT known. 
+
+
+
+		4. do CT/SK simplification of the CFG and instruction listing. ie, SK optimization. this happens often, and upfront. at this step. 
+
+
+full isa:
+
+	zero incr
+	set add sub mul div rem
+	not and or eor si sd
+	lt ge ne eq ld st
+	do sba sc at lf eoi
+
+
+
+
+
+the data we need to generate: 
+
+
+	nat* pred;
+	nat pred_count;
+// dfg:
+	nat* inputs[8];
+	nat input_count[8];
+	nat arity;
+
+	nat output;
+
+	nat sk;
+// ra:
+	nat** live_in;
+	nat** live_out;
+	nat live_in_count;
+	nat live_out_count;
+
+*/
 
 
 
