@@ -1,5 +1,22 @@
+
+
+// TODO: 1202412312.030917
+// please figure out   system calls,   knowing their sysnumber arg at ct. 
+// use that to know cfg termination poitns, instead of the "at done do done" mech we put it.
+// and also use sc's to know the data flow effects (inputs and outputs)  of sc's  so taht we can detect unused variables better!
+// from there, i think we are going to walk the cfg backwards, starting from the sc termination points,
+// and then we are going to keep track of the live variables, our "liveset" array,
+// and then we'll be actively forming the RIG on the fly while walking the cfg, based on this live set. 
+// if the live set ever becomes 32 elements long, we know that we cannot do RA.
+// note, sc's are the sink of usages. its critical we know these final usages of data in the program, to work backwards from!
+ 
+
+
+
+
 // programming language compiler 
 // written on 2411203.160950 dwrr
+// progress on 1202412312.030502
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
