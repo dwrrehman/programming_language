@@ -1,10 +1,6 @@
 // programming language compiler 
 // written on 2411203.160950 dwrr
 
-
-
-
-
 /*
 nat* visited; // stack of instruction indicies
 nat visited_count;
@@ -47,9 +43,6 @@ the fundemental intuition behind our approach is the following:
 
 
 	11. done?...
-
-
-
 
 
 
@@ -450,6 +443,7 @@ process_file:;
 
 	nat pc = 0;
 	do {
+		if (pc >= ins_count) { puts("found last instruction!"); break; } 
 
 		const nat op = ins[pc].args[0];
 
@@ -510,9 +504,7 @@ process_file:;
 		debug_nats_indicies(defs, name_count, names);
 		print_stack(stack, stack_count, name_count);
 
-
 		pc = ins[pc].gotos[0];
-
 		getchar();
 		continue;
 
@@ -538,7 +530,93 @@ process_file:;
 
 
 
+/*
 
+
+1202412102.034016
+	hi!
+	i am trying to get the algortihm for data analysis in place currently, its going well. 
+
+		lets review what we want this pass to produce:
+			we want to make each instruction have a poiter to other instructions which produce the latest value of the variable being used as a given input. this might be several instructions, depending on where control flow happen to take us.  
+
+				so yeah, we want to form these connections first, i think. 
+
+
+						OR RATHERRRR
+
+
+
+								we want to make a function which can DERIVEEEEEE these relationships, on the fly, so that we don't even need to store them basically lol. 
+
+				so yeah. thats the most important part, i think!   lets do that instead. 
+
+
+	make it computational, not stored in memory merely. 
+
+
+
+
+
+
+
+
+also, 
+
+
+	we are deciding on how to do functin call machinery, and i think itll be the following:
+
+
+
+
+			. start of the the main code . 
+
+
+				set variable 4
+
+				set function_arg variable
+				set lr 0
+				do function 
+			at call0
+				
+		
+				add variable 5
+
+				set function_arg variable
+				set lr 1
+				do function 
+			at call1
+
+				. system exit here . 
+		
+		at function
+			mul function_arg 2
+			set function_ret function_arg
+			
+			eq lr 0 call0
+			eq lr 1 call1
+			. etc . 
+
+
+
+
+
+
+not quite happy with it, but we'll see if we can improve it or not lol 
+
+
+
+
+
+
+
+
+
+
+
+
+
+*/
 
 
 
