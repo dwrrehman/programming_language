@@ -9,9 +9,14 @@
 // and then we'll be actively forming the RIG on the fly while walking the cfg, based on this live set. 
 // if the live set ever becomes 32 elements long, we know that we cannot do RA.
 // note, sc's are the sink of usages. its critical we know these final usages of data in the program, to work backwards from!
+
  
+// 1. constant propogation / CT evaulation     ---->   compute_argument_value();
 
-
+// 2. system call identification / inputs/outputs  ---> compute_system_call_type();
+// 3. cfg termination point identification   ---> compute_sc_is_halt();
+// 4. liveness data flow analysis, cfg traversal algorithm backwards using pred constructing RIG ---> compute_RIG();
+// 5. register allocation. ----> allocate_registers(RIG);
 
 
 // programming language compiler 
@@ -117,10 +122,10 @@ static void print_instruction_index(
 }
 
 
-static void debug_dictionary(char** names, nat* locations, nat name_count) {
+static void debug_dictionary(char** names, nat name_count) {
 	printf("dictionary: %llu\n", name_count);
 	for (nat i = 0; i < name_count; i++)
-		printf("var #%5llu:   %-25s   ---->    %llu\n", i, names[i], locations[i]);
+		printf("var #%5llu:   %-25s   ---->    %llu\n", i, names[i], 0LLU);
 	puts("done");
 }
 
@@ -215,58 +220,82 @@ static nat* compute_ins_pred(nat* pred_count, struct instruction* ins, nat ins_c
 	return result;
 }
 
+static bool compute_argument_value(
+	nat* out_value, struct instruction* ins, nat ins_count, 
+	nat this, nat arg, char** names, nat name_count
+) {
+	bool* ctk = calloc(name_count, sizeof(bool));
+	nat* values = calloc(name_count, sizeof(nat));	
+	bool* visited = calloc(ins_count, sizeof(bool));
+	nat* stack = calloc(ins_count, sizeof(nat));
+	nat stack_count = 0;
 
-static bool is_halt(struct instruction* ins, nat ins_count, nat this) {
-	if (this == ins_count - 1) return false;
-	const nat op = ins[this].args[0];	
-	if (op != at) return false;
-	const nat op2 = ins[this + 1].args[0];
-	if (op2 != do_) return false;
-	const nat label = ins[this].args[1];
-	const nat label2 = ins[this + 1].args[1];	
-	return label == label2;
-}
+	stack[stack_count++] = 0;
 
+	while (stack_count) {
+		const nat top = stack[--stack_count];
+		//printf("visiting ins #%llu\n", top);
+		//print_instruction_index(ins, ins_count, names, top, "here");
+		visited[top] = true;
 
+		if (top == this) {
+			const nat n = ins[this].args[arg];
+			*out_value = values[n];
+			return ctk[n];
+		}
 
+		const nat op = ins[top].args[0];
 
+		if (op == zero) {
+			const nat arg1 = ins[top].args[1];
+			ctk[arg1] = true;
+			values[arg1] = 0;
+			//printf("executing CT zero...\n");
 
+		} else if (op == incr) {
+			const nat arg1 = ins[top].args[1];
+			if (ctk[arg1]) {
+				values[arg1]++;
+				//printf("executing CT incr...\n");
+			}
 
+		} else if (op == add) {
+			const nat arg1 = ins[top].args[1];
+			const nat arg2 = ins[top].args[2];
+			if (ctk[arg1] and ctk[arg2]) {
+				values[arg1] += values[arg2];
+				//printf("executing CT add...\n");
+			}				
 
+		} else if (op == set) {
+			const nat arg1 = ins[top].args[1];
+			const nat arg2 = ins[top].args[2];
+			if (ctk[arg2]) {
+				ctk[arg1] = true; 
+				values[arg1] = values[arg2]; 
+				//printf("executing CT set...\n");
+			}
 
-/*
+		} else if (op == at) {
+			const nat arg1 = ins[top].args[1];
+			ctk[arg1] = true;
+			values[arg1] = top;
+			//printf("executing CT at...\n");
+		}
 
-
-static nat* compute_ins_live_in(nat* live_count, struct instruction* ins, nat ins_count, nat this) {
-
-	nat pc = this;
-
-	while (pc or stack_count) {
-
-		
+		nat true_side = (nat) -1;
+		const nat false_side = compute_ins_gotos(&true_side, ins, ins_count, top);
+		if (false_side < ins_count and not visited[false_side]) stack[stack_count++] = false_side;
+		if ( true_side < ins_count and not visited[true_side])  stack[stack_count++] = true_side;
 	}
-
-
+	return false;
 }
-
-
-
-*/
-
-
-
-
-
-
 
 int main(int argc, const char** argv) {
 	if (argc != 2) exit(puts("compiler: \033[31;1merror:\033[0m usage: ./run [file.s]"));
 	printf("isa_count = %u\n", isa_count);
 	
 	char* names[4096] = {0};
-
-	nat locations[4096] = {0}; // DELETE ME     THIS IS NOT NECCESSARY ANYMORE
-
 	nat name_count = 0;
 	struct instruction* ins = NULL;
 	nat ins_count = 0;
@@ -354,7 +383,7 @@ process_file:;
 	filestack_count--;
 	if (filestack_count) goto process_file;
 
-	debug_dictionary(names, locations, name_count);
+	debug_dictionary(names, name_count);
 	debug_instructions(ins, ins_count, names);
 
 	puts("computing CFG...");
@@ -384,8 +413,6 @@ process_file:;
 	}
 	puts("done");
 
-
-
 	for (nat i = 0; i < ins_count; i++) {
 		nat pred_count = 0;		
 		nat* pred = compute_ins_pred(&pred_count, ins, ins_count, i);
@@ -397,51 +424,24 @@ process_file:;
 		}
 	}
 
-
+	// constant propogation:
 
 	for (nat i = 0; i < ins_count; i++) {
-		const bool h = is_halt(ins, ins_count, i);
 
-		if (h) {
-			printf("info: instruction is a halt instruction\n");
-			print_instruction_index(ins, ins_count, names, i, "treating as CFG termination point");
-			//abort();
+		const nat op = ins[i].args[0];
+		printf("%llu:  \t .op = %s : ", i, ins_spelling[op]);
+
+		for (nat a = 0; a < isa_arity(op); a++) {
+			nat value = (nat) -1;
+			bool ct = compute_argument_value(&value, ins, ins_count, i, a + 1, names, name_count);
+
+			printf(".%llu={arg=\"%s\", ct:[%s], .val=%lld}  ",
+				a, names[ins[i].args[a + 1]], 
+				ct ? "CT" : "RT", value
+			);
 		}
+		puts("");		
 	}
-
-
-
-
-
-	// now walk the cfg backwards, starting from the cfg termination points, 
-	// using a stack to see other decisions you must consider, 
-	
-	// and all the while    you are actually constructing the RIG, while walking, keeping track of edges between rig nodes, by looking at the live in lists for each instruction you encounter along the execution path, if you see a pair of variables live at the same time, then you know that those vars must have an edge between them (they interfere) in the rig. 
-
-	// note, a variable is no longer live   before its definition,  (ie, after, becuase you are going backwards)
-
-	// and note, you never need to store the live in lists. they are implicitly constructed and discarded during this process, just to know the RIG. thats their whole point. 
-
-
-
-
-
-
-	// also, via this method, you can see if a variable is set but unused, ie, it has a defintion, but no use. basically, there will always be some instruction, where the value doesnt go anywhere. note, if a value is implicated in a system call, thats a use-sink. (depends on the system call, though...)
-
-	// you can also detect conditional initialization of variables, another type of warning! this is done in the process of tracing the possible definitions for a given variable, and seeing that on some execution paths, the variable is not set. 
-
-
-
-	// maybe we should be going forwards in this analysis though.. hmmmmmmmmm
-
-
-
-
-
-
-
-
 }
 
 
@@ -472,6 +472,119 @@ process_file:;
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+/*
+
+
+static nat* compute_ins_live_in(nat* live_count, struct instruction* ins, nat ins_count, nat this) {
+
+	nat pc = this;
+
+	while (pc or stack_count) {
+
+		
+	}
+
+
+}
+
+
+*/
+
+
+
+
+
+
+
+
+
+
+
+
+/*
+
+static bool is_halt(struct instruction* ins, nat ins_count, nat this) {
+	if (this == ins_count - 1) return false;
+	const nat op = ins[this].args[0];	
+	if (op != at) return false;
+	const nat op2 = ins[this + 1].args[0];
+	if (op2 != do_) return false;
+	const nat label = ins[this].args[1];
+	const nat label2 = ins[this + 1].args[1];	
+	return label == label2;
+}
+
+
+
+	for (nat i = 0; i < ins_count; i++) {
+		const bool h = is_halt(ins, ins_count, i);
+
+		if (h) {
+			printf("info: instruction is a halt instruction\n");
+			print_instruction_index(ins, ins_count, names, i, "treating as CFG termination point");
+			//abort();
+		}
+	}
+*/
+
+
+
+// do this      wayyyy later plz:
+
+
+
+
+
+	// now walk the cfg backwards, starting from the cfg termination points, 
+	// using a stack to see other decisions you must consider, 
+	
+	// and all the while    you are actually constructing the RIG, while walking, keeping track of edges between rig nodes, by looking at the live in lists for each instruction you encounter along the execution path, if you see a pair of variables live at the same time, then you know that those vars must have an edge between them (they interfere) in the rig. 
+
+	// note, a variable is no longer live   before its definition,  (ie, after, becuase you are going backwards)
+
+	// and note, you never need to store the live in lists. they are implicitly constructed and discarded during this process, just to know the RIG. thats their whole point. 
+
+
+
+
+
+
+	// also, via this method, you can see if a variable is set but unused, ie, it has a defintion, but no use. basically, there will always be some instruction, where the value doesnt go anywhere. note, if a value is implicated in a system call, thats a use-sink. (depends on the system call, though...)
+
+	// you can also detect conditional initialization of variables, another type of warning! this is done in the process of tracing the possible definitions for a given variable, and seeing that on some execution paths, the variable is not set. 
+
+
+
+	// maybe we should be going forwards in this analysis though.. hmmmmmmmmm
 
 
 
@@ -620,6 +733,41 @@ the data we need to generate:
 	nat** live_out;
 	nat live_in_count;
 	nat live_out_count;
+
+
+
+
+
+
+
+
+static bool compute_argument_value(nat* value, struct instruction* ins, nat ins_count, nat this, nat arg, char** names) {
+
+	bool* visited = calloc(ins_count, sizeof(bool));
+	nat* stack = calloc(ins_count, sizeof(nat));
+	nat stack_count = 0;
+	stack[stack_count++] = 0;
+
+	while (stack_count) {
+		const nat top = stack[--stack_count];
+
+		if (not visited[top]) {
+			printf("visiting ins #%llu\n", top);
+			print_instruction_index(ins, ins_count, names, top, "here");
+			visited[top] = true;
+		}
+
+		nat true_side = (nat) -1;
+		const nat false_side = compute_ins_gotos(&true_side, ins, ins_count, top);
+		if (not visited[false_side]) stack[stack_count++] = false_side;
+		if (true_side != (nat) -1 and not visited[true_side]) stack[stack_count++] = true_side;
+	}
+
+	return false;
+}
+
+
+
 
 */
 
