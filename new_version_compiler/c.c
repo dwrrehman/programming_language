@@ -1,27 +1,8 @@
-
-
-// TODO: 1202412312.030917
-// please figure out   system calls,   knowing their sysnumber arg at ct. 
-// use that to know cfg termination poitns, instead of the "at done do done" mech we put it.
-// and also use sc's to know the data flow effects (inputs and outputs)  of sc's  so taht we can detect unused variables better!
-// from there, i think we are going to walk the cfg backwards, starting from the sc termination points,
-// and then we are going to keep track of the live variables, our "liveset" array,
-// and then we'll be actively forming the RIG on the fly while walking the cfg, based on this live set. 
-// if the live set ever becomes 32 elements long, we know that we cannot do RA.
-// note, sc's are the sink of usages. its critical we know these final usages of data in the program, to work backwards from!
-
- 
-//  X   1. constant propogation / CT evaulation     ---->   compute_argument_value();
-
-// 2. system call identification / inputs/outputs  ---> compute_system_call_type();
-// 3. cfg termination point identification   ---> compute_sc_is_halt();
-// 4. liveness data flow analysis, cfg traversal algorithm backwards using pred constructing RIG ---> compute_RIG();
-// 5. register allocation. ----> allocate_registers(RIG);
-
-
 // programming language compiler 
 // written on 2411203.160950 dwrr
 // progress on 1202412312.030502
+// progress on 1202412312.221307
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -42,7 +23,7 @@ enum language_isa {
 	set, add, sub, mul, div_, rem,
 	not_, and_, or_, eor, si, sd,
 	lt, ge, ne, eq, ld, st,
-	do_, sba, sc, at, lf, eoi,
+	do_, bc, sc, at, lf, eoi,
 	isa_count
 };
 
@@ -51,7 +32,7 @@ static const char* ins_spelling[isa_count] = {
 	"set", "add", "sub", "mul", "div", "rem", 
 	"not", "and", "or", "eor", "si", "sd", 
 	"lt", "ge", "ne", "eq", "ld", "st", 
-	"do", "sba", "sc", "at", "lf", "eoi",
+	"do", "bc", "sc", "at", "lf", "eoi",
 };
 
 enum language_builtins {
@@ -98,6 +79,24 @@ static nat isa_arity(nat i) {
 	if (i == incr or i == zero or i == not_ or i == lf or i == at or i == do_) return 1;
 	if (i == lt or i == ge or i == ne or i == eq or i == ld or i == st) return 3;
 	return 2;
+}
+
+static nat get_call_input_count(nat n) {
+	if (n == system_exit) return 1;
+	if (n == system_read) return 3;
+	if (n == system_write) return 3;
+	if (n == system_close) return 1;
+	if (n == system_open) return 3;
+	abort();
+}
+
+static nat get_call_output_count(nat n) {
+	if (n == system_exit) return 0;
+	if (n == system_read) return 1;
+	if (n == system_write) return 1;
+	if (n == system_close) return 1;
+	if (n == system_open) return 2;
+	abort();
 }
 
 static void debug_instruction(struct instruction this, char** names) {
@@ -196,101 +195,180 @@ static nat compute_ins_gotos(nat* side, struct instruction* ins, nat ins_count, 
 	} else return this + 1;
 }
 
-
-static nat* compute_ins_pred(nat* pred_count, struct instruction* ins, nat ins_count, nat this) {
-	
-	if (ins[this].args[0] != at) {
-		if (not this or ins[this - 1].args[0] == do_) {
-			*pred_count = 0;
-			return NULL;
-		}
-		*pred_count = 1;
-		nat* result = malloc(sizeof(nat));
-		result[0] = this - 1;
-		return result;
-	} 
-	
-	nat* result = NULL;
-	nat count = 0;
-	const nat label = ins[this].args[1];
-
-	if (this and ((ins[this - 1].args[0] == do_ and ins[this - 1].args[1] == label) or ins[this - 1].args[0] != do_)) {
-		(*pred_count)++;
-		result = malloc(sizeof(nat));
-		result[count++] = this - 1;			
-	}
-
-	for (nat i = 0; i < ins_count; i++) {
-		const nat op = ins[i].args[0];
-		if ((is_branch(op) and ins[i].args[3] == label or 
-			 op == do_ and ins[i].args[1] == label) and 
-			(i != this - 1)) {
-			result = realloc(result, sizeof(nat) * (count + 1));
-			result[count++] = i;
-		}
-	}
-	*pred_count = count; 
-	return result;
-}
-
-static bool compute_argument_value(
-	nat* out_value, struct instruction* ins, nat ins_count, 
-	nat this, nat arg, char** names, nat name_count
+static void compute_all(
+	struct instruction* ins, nat ins_count, 
+	char** names, nat name_count
 ) {
 	bool* ctk = calloc(name_count, sizeof(bool));
 	nat* values = calloc(name_count, sizeof(nat));	
 	bool* visited = calloc(ins_count, sizeof(bool));
 	nat* stack = calloc(ins_count, sizeof(nat));
 	nat stack_count = 0;
+	nat* list = calloc(8 * ins_count, sizeof(nat));
+	nat list_count = 0;
 
 	stack[stack_count++] = 0;
 
+	const nat write_access = (nat) (1LLU << 63LLU);
+
 	while (stack_count) {
 		const nat top = stack[--stack_count];
-		//printf("visiting ins #%llu\n", top);
-		//print_instruction_index(ins, ins_count, names, top, "here");
+		printf("visiting ins #%llu\n", top);
+		print_instruction_index(ins, ins_count, names, top, "here");
 		visited[top] = true;
-
-		if (top == this) {
-			const nat n = ins[this].args[arg];
-			*out_value = values[n];
-			return ctk[n];
-		}
 
 		const nat op = ins[top].args[0], arg1 = ins[top].args[1], arg2 = ins[top].args[2];
 
 		if (op == zero) {
 			ctk[arg1] = true;
 			values[arg1] = 0;
+
+			list[list_count++] = write_access | arg1;
+
 		} else if (op == set) {
 			if (ctk[arg2]) {
 				ctk[arg1] = true; 
 				values[arg1] = values[arg2]; 
 			}
+
+			list[list_count++] = arg2;
+			list[list_count++] = write_access | arg1;
+
+
+		} else if (op == ld) { // todo: do these.
+			// 1. enforce that the loadsize is CT.
+			abort();
+		} else if (op == st) {
+			// 1. enforce that the loadsize is CT.
+			abort();
+		} else if (op == bc) {
+			// 1. enforce that the bit_count is CT.
+			abort();
+
+		} else if (op == eq) {
+
+			list[list_count++] = arg1;
+			list[list_count++] = arg2;
+		
+			if (not ctk[arg1] or not ctk[arg2]) goto skip_br;
+			const bool condition = values[arg1] == values[arg2];
+			nat true_side = (nat) -1;
+			const nat false_side = compute_ins_gotos(&true_side, ins, ins_count, top);
+			if (not condition) {
+				if (false_side < ins_count and not visited[false_side]) 
+					stack[stack_count++] = false_side;
+			} else {
+				if ( true_side < ins_count and not visited[true_side])  
+					stack[stack_count++] = true_side;
+			}
+			continue;
+			skip_br:;
+
 		} else if (op == incr) {
 			if (ctk[arg1]) values[arg1]++;
+			list[list_count++] = arg1;
+			list[list_count++] = write_access | arg1;			
+
 		} else if (op == not_) {
 			if (ctk[arg1]) values[arg1] = ~values[arg1];
+			list[list_count++] = arg1;
+			list[list_count++] = write_access | arg1;
+
 		} else if (op == add) {
 			if (ctk[arg1] and ctk[arg2]) values[arg1] += values[arg2];
+
+			list[list_count++] = arg1;
+			list[list_count++] = arg2;
+			list[list_count++] = write_access | arg1;
+
 		} else if (op == sub) {
 			if (ctk[arg1] and ctk[arg2]) values[arg1] -= values[arg2];
+
+			list[list_count++] = arg1;
+			list[list_count++] = arg2;
+			list[list_count++] = write_access | arg1;
+
 		} else if (op == mul) {
 			if (ctk[arg1] and ctk[arg2]) values[arg1] *= values[arg2];
+
+			list[list_count++] = arg1;
+			list[list_count++] = arg2;
+			list[list_count++] = write_access | arg1;
+
 		} else if (op == div_) {
 			if (ctk[arg1] and ctk[arg2]) values[arg1] /= values[arg2];
+
+			list[list_count++] = arg1;
+			list[list_count++] = arg2;
+			list[list_count++] = write_access | arg1;
+
 		} else if (op == rem) {
 			if (ctk[arg1] and ctk[arg2]) values[arg1] %= values[arg2];
+
+			list[list_count++] = arg1;
+			list[list_count++] = arg2;
+			list[list_count++] = write_access | arg1;
+
 		} else if (op == and_) {
 			if (ctk[arg1] and ctk[arg2]) values[arg1] &= values[arg2];
+
+			list[list_count++] = arg1;
+			list[list_count++] = arg2;
+			list[list_count++] = write_access | arg1;
+
 		} else if (op == or_) {
 			if (ctk[arg1] and ctk[arg2]) values[arg1] |= values[arg2];
+
+			list[list_count++] = arg1;
+			list[list_count++] = arg2;
+			list[list_count++] = write_access | arg1;
+
 		} else if (op == eor) {
 			if (ctk[arg1] and ctk[arg2]) values[arg1] ^= values[arg2];
+
+			list[list_count++] = arg1;
+			list[list_count++] = arg2;
+			list[list_count++] = write_access | arg1;
+
 		} else if (op == si) {
 			if (ctk[arg1] and ctk[arg2]) values[arg1] <<= values[arg2];
+
+			list[list_count++] = arg1;
+			list[list_count++] = arg2;
+			list[list_count++] = write_access | arg1;
+
 		} else if (op == sd) {
 			if (ctk[arg1] and ctk[arg2]) values[arg1] >>= values[arg2];
+
+			list[list_count++] = arg1;
+			list[list_count++] = arg2;
+			list[list_count++] = write_access | arg1;
+
+
+
+		} else if (op == sc) {
+			if (not ctk[arg1]) { 
+				puts("error: all system calls must be compile time known."); 
+				abort(); 
+			}
+
+			const nat n = values[arg1];
+			const nat input_count = get_call_input_count(n);
+			const nat output_count = get_call_output_count(n);
+
+			for (nat i = 0; i < input_count; i++) 
+				list[list_count++] = ins[top].args[2 + i];
+		
+			for (nat i = 0; i < output_count; i++) {
+				list[list_count++] = write_access | ins[top].args[2 + i];
+				ctk[ins[top].args[2 + i]] = false;
+			}
+
+			if (n == system_exit) {
+				printf("warning: reached cfg termination point\n");
+				print_instruction_index(ins, ins_count, names, top, "CFG termination point here");
+				continue;
+			}
 		}
 
 		nat true_side = (nat) -1;
@@ -298,19 +376,50 @@ static bool compute_argument_value(
 		if (false_side < ins_count and not visited[false_side]) stack[stack_count++] = false_side;
 		if ( true_side < ins_count and not visited[true_side])  stack[stack_count++] = true_side;
 	}
-	return false;
+
+
+	for (nat i = 0; i < ins_count; i++) {
+		if (not visited[i]) {
+			printf("warning: instruction is unreachable\n");
+			print_instruction_index(ins, ins_count, names, i, "unreachable");
+			puts("");
+		}
+	}
+
+	printf("found list: (%llu count)\n", list_count);
+	for (nat i = 0; i < list_count; i++) {
+		nat variable_index = (~(1LLU << 63LLU)) & list[i];
+		const char* type = (list[i] >> 63) ? "write" : "read";
+		printf("%6llu : %6s of %6s\n", i, type, names[variable_index]);
+	}
+	puts("ready for forming register interference graph yay");
+
+
+	bool* alive = calloc(name_count, sizeof(bool));
+
+	for (nat i = list_count; i--;) {
+		nat variable_index = (~(1LLU << 63LLU)) & list[i];
+		const char* type = (list[i] >> 63) ? "write" : "read";
+		printf("%6llu : %6s of %6s\n", i, type, names[variable_index]);
+
+		const bool is_write = !!(list[i] >> 63);
+
+		if (is_write) {			
+			alive[variable_index] = 0;
+		} else {
+			alive[variable_index] = 1;			
+		}
+		
+		printf("alive = { ");
+		for (nat n = 0; n < name_count; n++) {
+			if (alive[n]) printf("%s  ", names[n]);
+		} 
+		printf(" }\n");
+		getchar();
+	}
+
 }
 
-static bool compute_ins_is_halt(
-	struct instruction* ins, nat ins_count, 
-	nat this, char** names, nat name_count
-) {
-	const nat op = ins[this].args[0];
-	if (op != sc) return false;
-	nat value = (nat) -1;
-	bool ct = compute_argument_value(&value, ins, ins_count, this, 1, names, name_count);
-	return ct and value == system_exit;
-}
 
 int main(int argc, const char** argv) {
 	if (argc != 2) exit(puts("compiler: \033[31;1merror:\033[0m usage: ./run [file.s]"));
@@ -356,7 +465,7 @@ process_file:;
 		char* word = strndup(text + word_start, word_length);
 		printf("[first=%llu,com=%llu]: [%llu]: at word = %s\n", first, comment, word_start, word);
 		if (comment) { if (not strcmp(word, ".")) comment = 0; goto next_word; }
-		char** list = first ? (char**) ins_spelling : (char**) names;
+		const char*const*const list = first ? ins_spelling : (const char*const*const) names;
 		const nat count = first ? isa_count : name_count;
 		nat calling = 0;
 		for (; calling < count; calling++) 
@@ -418,64 +527,7 @@ process_file:;
 	}
 	puts("done");
 
-	puts("computing precedents of CFG...");
-	for (nat i = 0; i < ins_count; i++) {
-
-		nat pred_count = 0;		
-		nat* pred = compute_ins_pred(&pred_count, ins, ins_count, i);
-
-		printf("[%llu]: ", i);
-		debug_instruction(ins[i], names);
-		printf(" --- pred = { ");
-		for (nat a = 0; a < pred_count; a++) {
-			printf("%llu ", pred[a]);
-		}
-		puts("}");
-	}
-	puts("done");
-
-	for (nat i = 0; i < ins_count; i++) {
-		nat pred_count = 0;		
-		nat* pred = compute_ins_pred(&pred_count, ins, ins_count, i);
-
-		if (i and not pred_count) {
-			printf("error: instruction is unreachable\n");
-			print_instruction_index(ins, ins_count, names, i, "unreachable");
-			//abort();
-		}
-	}
-
-	// constant propogation:
-
-	for (nat i = 0; i < ins_count; i++) {
-
-		const nat op = ins[i].args[0];
-		printf("%llu:  \t .op = %s : ", i, ins_spelling[op]);
-
-		for (nat a = 0; a < isa_arity(op); a++) {
-			nat value = (nat) -1;
-			bool ct = compute_argument_value(&value, ins, ins_count, i, a + 1, names, name_count);
-
-			printf(".%llu={arg=\"%s\", ct:[%s], .val=%lld}  ",
-				a, names[ins[i].args[a + 1]], 
-				ct ? "CT" : "RT", value
-			);
-		}
-		puts("");		
-	}
-
-	for (nat i = 0; i < ins_count; i++) {
-		bool h = compute_ins_is_halt(ins, ins_count, i, names, name_count);
-		if (h) {
-			printf("error: found halt instruction\n");
-			print_instruction_index(ins, ins_count, names, i, "treating as cfg termination point");
-		}
-	}
-
-
-
-
-
+	compute_all(ins, ins_count, names, name_count);
 
 
 }
@@ -513,6 +565,312 @@ process_file:;
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+// TODO: 1202412312.030917
+// please figure out   system calls,   knowing their sysnumber arg at ct. 
+// use that to know cfg termination poitns, instead of the "at done do done" mech we put it.
+// and also use sc's to know the data flow effects (inputs and outputs)  of sc's  so taht we can detect unused variables better!
+// from there, i think we are going to walk the cfg backwards, starting from the sc termination points,
+// and then we are going to keep track of the live variables, our "liveset" array,
+// and then we'll be actively forming the RIG on the fly while walking the cfg, based on this live set. 
+// if the live set ever becomes 32 elements long, we know that we cannot do RA.
+// note, sc's are the sink of usages. its critical we know these final usages of data in the program, to work backwards from!
+
+ 
+//  X   1. constant propogation / CT evaulation     ---->   compute_argument_value();
+
+// -->  2. system call identification / inputs/outputs  ---> compute_system_call_type();
+
+// 3. cfg termination point identification   ---> compute_sc_is_halt();
+// 4. liveness data flow analysis, cfg traversal algorithm backwards using pred constructing RIG ---> compute_RIG();
+// 5. register allocation. ----> allocate_registers(RIG);
+
+
+
+
+/*
+
+ we should not execute at  ct    branches which are compiletime known  to never execute on one of their sides.
+ we shouldnt even neccessarily warn the user about this.   unless they ask? lolollll
+
+ note:   all ct variable, and ct known instructions  (basically speaking)         should not appear in the exucetable. EVER.
+ ie,
+
+	    they don't have any affect on RA!!!    ct variables    don't take up any room!!! thats the cool part. 
+
+	    note this!!! this is improtant. 
+
+
+
+
+
+ to properly test this system,  (and not have the compiler optimize away and eval the whole program lol) 
+
+	  we NEEDDD to introduce   the        sba ins!             
+
+					                    sba  0/1/2/3  bit_count 
+
+
+	lets do that now! 
+
+
+
+
+
+
+todo:
+
+	- introduce sba    into const prop
+	- introduce loads and stores into const prop
+	- make ct branches actually happen! of course, there will always be the property that we never execute/visit a node we have already visited though. thats the thing. but, we should only visit branches which actually are executable, and ct known to possibly happen lol. shouldnt be that bad. lets start with eq/ne branches. 
+	- we need to print out all  the sc argument sizes for inputs/outputs. make that a pass to test out the sc identification and arity deduction lol. 
+
+
+
+
+*/
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+/*static bool compute_ins_is_halt(
+	struct instruction* ins, nat ins_count, 
+	nat this, char** names, nat name_count
+) {
+	const nat op = ins[this].args[0];
+	if (op != sc) return false;
+	nat value = (nat) -1;
+	bool ct = compute_argument_value(&value, ins, ins_count, this, 1, names, name_count);
+	return ct and value == system_exit;
+}*/
+
+/*static nat* compute_ins_pred(
+	nat* pred_count, 
+	struct instruction* ins, nat ins_count, 
+	nat this, char** names, nat name_count
+) {	
+	if (ins[this].args[0] != at) {
+		if (not this or ins[this - 1].args[0] == do_ or 
+			compute_ins_is_halt(ins, ins_count, this - 1, names, name_count)
+		) {
+			*pred_count = 0;
+			return NULL;
+		}
+		*pred_count = 1;
+		nat* result = malloc(sizeof(nat));
+		result[0] = this - 1;
+		return result;
+	} 
+	
+	nat* result = NULL;
+	nat count = 0;
+	const nat label = ins[this].args[1];
+
+	if (this and 
+		((ins[this - 1].args[0] == do_ and ins[this - 1].args[1] == label) 
+		or (ins[this - 1].args[0] != do_ and 
+		not compute_ins_is_halt(ins, ins_count, this - 1, names, name_count)))
+	) {
+		(*pred_count)++;
+		result = malloc(sizeof(nat));
+		result[count++] = this - 1;			
+	}
+
+	for (nat i = 0; i < ins_count; i++) {
+		const nat op = ins[i].args[0];
+		if (((is_branch(op) and ins[i].args[3] == label) or 
+			 op == do_ and ins[i].args[1] == label) and 
+			(i != this - 1)) {
+			result = realloc(result, sizeof(nat) * (count + 1));
+			result[count++] = i;
+		}
+	}
+	*pred_count = count; 
+	return result;
+}
+*/
+
+
+
+
+
+
+
+
+
+		/*if (top == this) {
+			const nat n = ins[this].args[arg];
+			*out_value = values[n];
+			return ctk[n];
+		}*/
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+/*	puts("computing precedents of CFG...");
+	for (nat i = 0; i < ins_count; i++) {
+
+		nat pred_count = 0;		
+		nat* pred = compute_ins_pred(&pred_count, ins, ins_count, i, names, name_count);
+
+		printf("[%llu]: ", i);
+		debug_instruction(ins[i], names);
+		printf(" --- pred = { ");
+		for (nat a = 0; a < pred_count; a++) {
+			printf("%llu ", pred[a]);
+		}
+		puts("}");
+	}
+	puts("done");
+
+	for (nat i = 0; i < ins_count; i++) {
+		nat pred_count = 0;		
+		compute_ins_pred(&pred_count, ins, ins_count, i, names, name_count);
+
+		if (i and not pred_count) {
+			printf("error: instruction is unreachable\n");
+			print_instruction_index(ins, ins_count, names, i, "unreachable");
+			//abort();
+		}
+	}
+
+	// constant propogation:
+
+	for (nat i = 0; i < ins_count; i++) {
+
+		const nat op = ins[i].args[0];
+		printf("%llu:  \t .op = %s : ", i, ins_spelling[op]);
+
+		for (nat a = 0; a < isa_arity(op); a++) {
+			nat value = (nat) -1;
+			bool ct = compute_argument_value(&value, ins, ins_count, i, a + 1, names, name_count);
+
+			printf(".%llu={arg=\"%s\", ct:[%s], .val=%lld}  ",
+				a, names[ins[i].args[a + 1]], 
+				ct ? "CT" : "RT", value
+			);
+		}
+		puts("");		
+	}
+
+	for (nat i = 0; i < ins_count; i++) {
+		bool h = compute_ins_is_halt(ins, ins_count, i, names, name_count);
+		if (h) {
+			printf("error: found halt instruction\n");
+			print_instruction_index(ins, ins_count, names, i, "treating as cfg termination point");
+		}
+	}
+
+
+	*/
+
+
+
+
+
+
+
+
+
+
+
+/*
+
+			// 1. enforce storage_type and bit_count to be compiletime known.
+			// 2. the register first arg   is only required to be CT known if   
+					storage_type is CT and storage_type == 0, 
+			// 3. modify a variable to be runtime known always, if storage_type is nonzero.
+				
+				type == 0 : compiletime known  (neither register, nor memory storage)
+				type == 1 : must be a register variable
+				type == 2 : must be a memory variable
+				type == 3 : must be runtime known.
+
+					we could typothetically simplify this to be only 
+
+
+					type == 0 : CT 
+					type == 1 : RT, register 
+
+
+
+						why not?...      why do we care about using memory or not lol. like.. that just seems odd to me. hmm. 
+
+
+						in which case, we can actually simplify this to just include the bit count, and then have bit count of 0 to be compiletime known. that makes a million times more sense.    yeah, lets do that lol.  
+
+
+
+
+			*/
 
 
 
