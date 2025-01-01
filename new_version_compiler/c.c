@@ -11,7 +11,7 @@
 // note, sc's are the sink of usages. its critical we know these final usages of data in the program, to work backwards from!
 
  
-// 1. constant propogation / CT evaulation     ---->   compute_argument_value();
+//  X   1. constant propogation / CT evaulation     ---->   compute_argument_value();
 
 // 2. system call identification / inputs/outputs  ---> compute_system_call_type();
 // 3. cfg termination point identification   ---> compute_sc_is_halt();
@@ -65,6 +65,19 @@ static const char* builtin_spelling[builtin_count] = {
 	"_discardunused", 
 	"_process_stackpointer", 
 	"_process_stacksize",
+};
+
+enum language_systemcalls {
+	system_exit,
+	system_read, system_write, 
+	system_open, system_close,
+	systemcall_count
+};
+
+static const char* systemcall_spelling[systemcall_count] = {
+	"system_exit",
+	"system_read", "system_write", 
+	"system_open", "system_close",
 };
 
 struct instruction {
@@ -244,43 +257,40 @@ static bool compute_argument_value(
 			return ctk[n];
 		}
 
-		const nat op = ins[top].args[0];
+		const nat op = ins[top].args[0], arg1 = ins[top].args[1], arg2 = ins[top].args[2];
 
 		if (op == zero) {
-			const nat arg1 = ins[top].args[1];
 			ctk[arg1] = true;
 			values[arg1] = 0;
-			//printf("executing CT zero...\n");
-
-		} else if (op == incr) {
-			const nat arg1 = ins[top].args[1];
-			if (ctk[arg1]) {
-				values[arg1]++;
-				//printf("executing CT incr...\n");
-			}
-
-		} else if (op == add) {
-			const nat arg1 = ins[top].args[1];
-			const nat arg2 = ins[top].args[2];
-			if (ctk[arg1] and ctk[arg2]) {
-				values[arg1] += values[arg2];
-				//printf("executing CT add...\n");
-			}				
-
 		} else if (op == set) {
-			const nat arg1 = ins[top].args[1];
-			const nat arg2 = ins[top].args[2];
 			if (ctk[arg2]) {
 				ctk[arg1] = true; 
 				values[arg1] = values[arg2]; 
-				//printf("executing CT set...\n");
 			}
-
-		} else if (op == at) {
-			const nat arg1 = ins[top].args[1];
-			ctk[arg1] = true;
-			values[arg1] = top;
-			//printf("executing CT at...\n");
+		} else if (op == incr) {
+			if (ctk[arg1]) values[arg1]++;
+		} else if (op == not_) {
+			if (ctk[arg1]) values[arg1] = ~values[arg1];
+		} else if (op == add) {
+			if (ctk[arg1] and ctk[arg2]) values[arg1] += values[arg2];
+		} else if (op == sub) {
+			if (ctk[arg1] and ctk[arg2]) values[arg1] -= values[arg2];
+		} else if (op == mul) {
+			if (ctk[arg1] and ctk[arg2]) values[arg1] *= values[arg2];
+		} else if (op == div_) {
+			if (ctk[arg1] and ctk[arg2]) values[arg1] /= values[arg2];
+		} else if (op == rem) {
+			if (ctk[arg1] and ctk[arg2]) values[arg1] %= values[arg2];
+		} else if (op == and_) {
+			if (ctk[arg1] and ctk[arg2]) values[arg1] &= values[arg2];
+		} else if (op == or_) {
+			if (ctk[arg1] and ctk[arg2]) values[arg1] |= values[arg2];
+		} else if (op == eor) {
+			if (ctk[arg1] and ctk[arg2]) values[arg1] ^= values[arg2];
+		} else if (op == si) {
+			if (ctk[arg1] and ctk[arg2]) values[arg1] <<= values[arg2];
+		} else if (op == sd) {
+			if (ctk[arg1] and ctk[arg2]) values[arg1] >>= values[arg2];
 		}
 
 		nat true_side = (nat) -1;
@@ -289,6 +299,17 @@ static bool compute_argument_value(
 		if ( true_side < ins_count and not visited[true_side])  stack[stack_count++] = true_side;
 	}
 	return false;
+}
+
+static bool compute_ins_is_halt(
+	struct instruction* ins, nat ins_count, 
+	nat this, char** names, nat name_count
+) {
+	const nat op = ins[this].args[0];
+	if (op != sc) return false;
+	nat value = (nat) -1;
+	bool ct = compute_argument_value(&value, ins, ins_count, this, 1, names, name_count);
+	return ct and value == system_exit;
 }
 
 int main(int argc, const char** argv) {
@@ -442,6 +463,21 @@ process_file:;
 		}
 		puts("");		
 	}
+
+	for (nat i = 0; i < ins_count; i++) {
+		bool h = compute_ins_is_halt(ins, ins_count, i, names, name_count);
+		if (h) {
+			printf("error: found halt instruction\n");
+			print_instruction_index(ins, ins_count, names, i, "treating as cfg termination point");
+		}
+	}
+
+
+
+
+
+
+
 }
 
 
