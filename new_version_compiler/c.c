@@ -19,31 +19,30 @@
 typedef uint64_t nat;
 
 enum language_isa {
-	nullins, zero, incr,
-	set, add, sub, mul, div_, rem,
-	not_, and_, or_, eor, si, sd,
+	zero, incr, decr, not_, 
+	set, add, sub, mul, div_,
+	and_, or_, eor, si, sd,
 	lt, ge, ne, eq, ld, st,
-	do_, bc, sc, at, lf, eoi,
+	do_, sc, at, sz, lf, eoi,
 	isa_count
 };
 
 static const char* ins_spelling[isa_count] = {
-	"", "zero", "incr",
-	"set", "add", "sub", "mul", "div", "rem", 
-	"not", "and", "or", "eor", "si", "sd", 
+	"zero", "incr", "decr", "not", 
+	"set", "add", "sub", "mul", "div", 
+	"and", "or", "eor", "si", "sd", 
 	"lt", "ge", "ne", "eq", "ld", "st", 
-	"do", "bc", "sc", "at", "lf", "eoi",
+	"do", "sc", "at", "sz", "lf", "eoi",
 };
 
 enum language_builtins {
-	undefined_var, stackpointer, stacksize,
+	stacksize, stackpointer,
 	builtin_count
 };
 
 static const char* builtin_spelling[builtin_count] = {
-	"_undefined", 
-	"_process_stackpointer", 
-	"_process_stacksize",
+	"_stacksize",
+	"_stackpointer", 
 };
 
 enum language_systemcalls {
@@ -131,7 +130,6 @@ static void print_instruction_index(
 	puts("");
 }
 
-
 static void debug_dictionary(char** names, nat name_count) {
 	printf("dictionary: %llu\n", name_count);
 	for (nat i = 0; i < name_count; i++)
@@ -193,9 +191,7 @@ static nat compute_ins_gotos(nat* side, struct instruction* ins, nat ins_count, 
 	} else return this + 1;
 }
 
-
 static const nat write_access = (nat) (1LLU << 63LLU);
-
 
 static void compute_all(
 	struct instruction* ins, nat ins_count, 
@@ -234,8 +230,7 @@ static void compute_all(
 
 		if (op == zero) {
 			//ctk[arg1] = true;
-			values[arg1] = 0;
-
+			values[arg1] = 0; 
 			if (not ctk[arg1]) list[list_count++] = write_access | arg1;
 
 		} else if (op == set) {
@@ -251,11 +246,12 @@ static void compute_all(
 		} else if (op == ld) { // todo: do these.
 			// 1. enforce that the loadsize is CT.
 			abort();
+
 		} else if (op == st) {
 			// 1. enforce that the loadsize is CT.
 			abort();
 
-		} else if (op == bc) {
+		} else if (op == sz) {
 			if (not ctk[arg2]) { puts("error: bit count instruction arg2 must be ct."); abort(); }
 			if (values[arg2]) {
 				bit_counts[arg1] = values[arg2];
