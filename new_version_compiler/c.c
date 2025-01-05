@@ -19,20 +19,18 @@
 typedef uint64_t nat;
 
 enum language_isa {
-	zero, incr, decr, not_, 
-	set, add, sub, mul, div_,
-	and_, or_, eor, si, sd,
-	lt, ge, ne, eq, ld, st,
-	do_, sc, at, sz, lf, eoi,
+	zero, incr, decr, not_, do_, at, ct, lf, 
+	set, add, sub, mul, div_, and_, or_, eor, si, sd, rt, 
+	lt, ge, ne, eq, ld, st, 
+	sc, eoi,
 	isa_count
 };
 
 static const char* ins_spelling[isa_count] = {
-	"zero", "incr", "decr", "not", 
-	"set", "add", "sub", "mul", "div", 
-	"and", "or", "eor", "si", "sd", 
+	"zero", "incr", "decr", "not", "do", "at", "ct", "lf",
+	"set", "add", "sub", "mul", "div", "and", "or", "eor", "si", "sd", "rt",
 	"lt", "ge", "ne", "eq", "ld", "st", 
-	"do", "sc", "at", "sz", "lf", "eoi",
+	"sc", "eoi"
 };
 
 enum language_builtins {
@@ -72,10 +70,11 @@ struct file {
 
 static nat isa_arity(nat i) {
 	if (i == sc) return 7;
-	if (not i or i == eoi) return 0;
-	if (i == incr or i == zero or i == not_ or i == lf or i == at or i == do_) return 1;
-	if (i == lt or i == ge or i == ne or i == eq or i == ld or i == st) return 3;
-	return 2;
+	if (i == eoi) return 0;
+	if (i >= zero and i <= lf) return 1;
+	if (i >= set  and i <= rt) return 2;
+	if (i >= lt   and i <= st) return 3;
+	abort();
 }
 
 static nat get_call_input_count(nat n) {
@@ -191,6 +190,88 @@ static nat compute_ins_gotos(nat* side, struct instruction* ins, nat ins_count, 
 	} else return this + 1;
 }
 
+
+enum arm64_ins_set {
+
+	addsr, addsr_k0,
+
+
+
+	
+	arm_isa_count,
+};
+
+
+
+
+
+
+/*
+ins sel patterns:	
+
+
+	
+	addsr {                 d = n + (m << k)
+
+		set d m
+		si d k
+		add d n
+		
+		where k is ct, d, n and m are rt.
+			k <= 63		
+	}
+
+
+
+
+
+	addsr (k = 0) {
+
+		set d m
+		add d n
+		
+		where d, n and m are rt. (k = 0)
+	}
+
+
+
+
+
+
+
+		if (	top >= head and 
+			top + 2 < ins_count and 
+			ins[top + 0].args[0] == set and 
+			ins[top + 1].args[0] == si and
+			ins[top + 2].args[0] == add and
+			
+			ins[top + 0].args[1] == ins[top + 1].args[1] and
+			ins[top + 1].args[1] == ins[top + 2].args[1] and
+			ctk[ins[top + 1].args[2]]
+		) {
+			mi[mi_count++] = top;
+			mi[mi_count++] = addsr;
+			head += 3;
+		}
+
+
+		if (	top + 1 < ins_count and 
+			ins[top + 0].args[0] == set and 
+			ins[top + 1].args[0] == add and
+			ins[top + 0].args[1] == ins[top + 1].args[1]
+		) {
+			mi[mi_count++] = top;
+			mi[mi_count++] = addsr_k0;
+			head += 2;
+		}
+
+
+*/
+
+
+
+
+
 static const nat write_access = (nat) (1LLU << 63LLU);
 
 static void compute_all(
@@ -208,7 +289,7 @@ static void compute_all(
 	stack[stack_count++] = 0; *ctk = 1;
 
 	while (stack_count) {
-	
+		
 		printf("stack: %llu { \n", stack_count);
 		for (nat i = 0; i < stack_count; i++) {
 			printf("stack[%llu] = %llu\n", i, stack[i]);
@@ -220,49 +301,43 @@ static void compute_all(
 			if (ctk[i]) printf("%s ", names[i]);
 		}
 		puts("}");
-
+		
 		const nat top = stack[--stack_count];
 		printf("visiting ins #%llu\n", top);
 		print_instruction_index(ins, ins_count, names, top, "here");
+		debug_instruction(ins[top], names);
+		puts("");
 		visited[top]++;
 
 		const nat op = ins[top].args[0], arg1 = ins[top].args[1], arg2 = ins[top].args[2];
 
 		if (op == zero) {
-			//ctk[arg1] = true;
 			values[arg1] = 0; 
 			if (not ctk[arg1]) list[list_count++] = write_access | arg1;
 
 		} else if (op == set) {
-			if (ctk[arg2]) {
-				//ctk[arg1] = true; 
-				values[arg1] = values[arg2]; 
-			}
-
+			if (ctk[arg2]) values[arg1] = values[arg2]; 
 			if (not ctk[arg2]) list[list_count++] = arg2;
 			if (not ctk[arg1]) list[list_count++] = write_access | arg1;
-
 
 		} else if (op == ld) { // todo: do these.
 			// 1. enforce that the loadsize is CT.
 			abort();
-
 		} else if (op == st) {
 			// 1. enforce that the loadsize is CT.
 			abort();
 
-		} else if (op == sz) {
-			if (not ctk[arg2]) { puts("error: bit count instruction arg2 must be ct."); abort(); }
-			if (values[arg2]) {
-				bit_counts[arg1] = values[arg2];
-			} else {
-				ctk[arg1] = 1;
-			}
+		} else if (op == ct) {
+			ctk[arg1] = 1;
+
+		} else if (op == rt) {
+			if (not ctk[arg2]) { puts("error: rt instruction arg2 (bit count) must be ct."); abort(); }
+			bit_counts[arg1] = values[arg2];
+			ctk[arg1] = 0;
 
 		} else if (is_branch(op)) {
 			if (not ctk[arg1]) list[list_count++] = arg1;
-			if (not ctk[arg2]) list[list_count++] = arg2;
-		
+			if (not ctk[arg2]) list[list_count++] = arg2;		
 			if (not ctk[arg1] or not ctk[arg2]) goto skip_br;
 
 			bool condition = 0;
@@ -278,7 +353,7 @@ static void compute_all(
 			} else {
 				if ( true_side < ins_count) stack[stack_count++] = true_side;
 			}
-			continue;
+			goto done;
 			skip_br:;
 
 		} else if (op == incr) {
@@ -306,9 +381,6 @@ static void compute_all(
 			goto push_binary_args;
 		} else if (op == div_) {
 			if (ctk[arg1] and ctk[arg2]) values[arg1] /= values[arg2];
-			goto push_binary_args;
-		} else if (op == rem) {
-			if (ctk[arg1] and ctk[arg2]) values[arg1] %= values[arg2];
 			goto push_binary_args;
 		} else if (op == and_) {
 			if (ctk[arg1] and ctk[arg2]) values[arg1] &= values[arg2];
@@ -357,13 +429,34 @@ static void compute_all(
 			}
 		}
 
-		nat true_side = (nat) -1;
-		const nat false_side = compute_ins_gotos(&true_side, ins, ins_count, top);
-		if (false_side < ins_count and visited[false_side] < 1) stack[stack_count++] = false_side;
-		if ( true_side < ins_count and visited[true_side] < 1)  stack[stack_count++] = true_side;
+		if (is_branch(op)) {
+			nat true_side = (nat) -1;
+			const nat false_side = compute_ins_gotos(&true_side, ins, ins_count, top);
+			if ( true_side < ins_count and visited[true_side] < 1)  stack[stack_count++] = true_side;
+			if (false_side < ins_count and visited[false_side] < 1) stack[stack_count++] = false_side;
+		} else {
+			nat true_side = (nat) -1;
+			const nat false_side = compute_ins_gotos(&true_side, ins, ins_count, top);
+			if ( true_side < ins_count) stack[stack_count++] = true_side;
+			if (false_side < ins_count) stack[stack_count++] = false_side;
+		}
+		done:;
+		
+
+		if (visited[top] == 1) {
+
+			puts("found this instruction for the first time!!! : ");
+			debug_instruction(ins[top], names);
+			puts("");
+
+
+
+			
+			
+		}
+
+		getchar();
 	}
-
-
 
 
 // unreachable analysis:
@@ -375,11 +468,6 @@ static void compute_all(
 			puts("");
 		}
 	}
-
-
-
-
-
 
 
 // print ct data:
