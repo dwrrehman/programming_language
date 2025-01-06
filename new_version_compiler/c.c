@@ -193,13 +193,39 @@ static nat compute_ins_gotos(nat* side, struct instruction* ins, nat ins_count, 
 
 enum arm64_ins_set {
 
-	addsr, addsr_k0,
+	addsr, addsr_k0,        //TODO: add more 
 
-
-
-	
 	arm_isa_count,
 };
+
+
+enum immediate_forms_of_instructions {
+	null_imm_unused = isa_count,
+
+	set_imm,    // set r c
+	add_imm,    // add r c	
+	sub_imm,    // sub r c
+	mul_imm,    // mul r c              // TODO: add more
+	lt_imm,     // lt r c label
+	ne_imm,     // ne r c label
+	ge_imm,     // ge r c label
+	eq_imm,     // eq r c label
+
+};
+
+
+
+struct instruction mi[4096] = {0};  // arg[0] is in "enum arm64_ins_set". args are in order of assembly format.
+nat mi_count = 0;
+
+
+
+
+
+
+ n n n n uncompilable n n n 
+
+
 
 
 
@@ -207,9 +233,83 @@ enum arm64_ins_set {
 
 
 /*
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+// TODO: recognize these three patterns:
+
+
+ins sel   for      csinc     (conditional select increment)
+
+
+RT COMPARISON:
+
+ne X Y false
+set d n
+do done
+at false
+set d m incr d
+at done
+
+
+USING CONSTANTS IN COMPARISON:
+
+ne X 3 false
+set d n
+do done
+at false
+set d m incr d
+at done
+
+
+NEGATING CONDITON:
+
+eq X 3 false
+set d m incr d
+do done
+at false
+set d n
+at done
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 ins sel patterns:	
-
-
 	
 	addsr {                 d = n + (m << k)
 
@@ -220,9 +320,6 @@ ins sel patterns:
 		where k is ct, d, n and m are rt.
 			k <= 63		
 	}
-
-
-
 
 
 	addsr (k = 0) {
@@ -285,8 +382,11 @@ static void compute_all(
 	nat* stack = calloc(2 * ins_count, sizeof(nat));
 	nat stack_count = 0;
 	nat* list = calloc(8 * ins_count, sizeof(nat));
-	nat list_count = 0;
-	stack[stack_count++] = 0; *ctk = 1;
+
+	nat list_count = 0, state =  0, dest = 0, source1 = 0, source2 = 0, immediate = 0;
+
+	stack[stack_count++] = 0; 
+	ctk[stacksize] = 1;
 
 	while (stack_count) {
 		
@@ -442,21 +542,63 @@ static void compute_all(
 		}
 		done:;
 		
-
 		if (visited[top] == 1) {
 
 			puts("found this instruction for the first time!!! : ");
 			debug_instruction(ins[top], names);
 			puts("");
-
-
-
 			
+
+			if (state == 0) {
+			retry:
+				state = 0;
+				dest = 0; source1 = 0; source2 = 0; immediate = 0;
+
+				// set d m
+				if (op == set and not ctk[arg1] and not ctk[arg2]) { state = 1; dest = arg1; source2 = arg2; } 
+
+				else {}
+
+			} else if (state == 1) {
+
+				// si d k
+				      if (op == si and arg1 == dest and not ctk[arg1] and ctk[arg2]) { state = 2; immediate = values[arg2]; }
+				else if (op == add and arg1 == dest and not ctk[arg1] and not ctk[arg2]) { immediate = 0; goto generate_addsr; }
+				else goto retry;
+
+			} else if (state == 2) {
+
+				// add d n
+				if (op == add and arg1 == dest and not ctk[arg1] and not ctk[arg2]) { 
+				generate_addsr:
+					source1 = arg2;
+
+					printf("FOUND ARM64 MACHINE CODE INSTRUCTION:\n");
+					printf("ADD_SR   dest=%llu(%s), source1=%llu(%s), source2=%llu(%s) << immediate=%llu\n",
+							dest, names[dest], 
+							source1, names[source1], 
+							source2, names[source2], 
+							immediate
+					);				
+					state = 0; 
+				} 
+
+				else goto retry;
+
+			} else if (state == 3) {
+
+				goto retry;
+			}
 			
 		}
-
-		getchar();
 	}
+
+
+
+
+
+
+
 
 
 // unreachable analysis:
