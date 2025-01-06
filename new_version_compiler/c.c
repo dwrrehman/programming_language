@@ -3,6 +3,252 @@
 // progress on 1202412312.030502
 // progress on 1202412312.221307
 
+
+//struct instruction mi[4096] = {0};  // arg[0] is in "enum arm64_ins_set". args are in order of assembly format.
+//nat mi_count = 0;
+
+
+/*
+
+TODO:
+		CURRENT STATE OF INS SEL:
+
+
+	--->   redo where we are doing the pattern recognition to be in a seperate pass.
+
+		instead of doing it in ct-eval stage, 
+
+
+
+
+		1. generate a new list of ONLYYY RT instructions, 
+
+						 (some of which the opcodes will 
+						change to be elements in the  
+							 "enum immediate_forms_instructions"!!!)
+			{
+	
+				note, simply move pass (i++)   rt instructions, one generated. don't follow their execution.
+					you only do this for compiletime branches. treat rt branches like  single nop instructions. 
+			}
+		FINE NOTE:
+
+			if you encounter, a "do",  follow it, as its CT known. however, 
+			just don't generate any RT instruction you've already visited before.
+			this way, we will ignore unreachable rt code, 
+			as well as avoid overtraversing the rt cfg.   NICEEEE YAYYYY
+
+
+
+
+		2. then loop over this list, and doing pattern recognition on it. here, i don't think we should take into account the control flow of the RT instructions at all, so far.    
+			this should generate a list of machine instructions,     the "mi" array above.  this ds uses the existing    "struct instruction"
+
+
+		3. print out the generated machine instructions, and rt ins listing.
+
+			then, you should start the process of looking at the reads and writes over those machine instructions. 
+
+			this is when we start the process of register allocation. only here.  once the mi's have been generated in this mi[] list.
+			
+		
+			3.1. we generate the list of reads and writes   based on the instruction semantics, 
+					(note: we are doing it based on the mi instructions, in case a variable gets reduced away during ins sel.  very important. 
+
+
+			3.2. then we go backwards through the reads and writes, generating the live-in lists, 
+				keeping track of which variables are found in the same list, 
+				and thus constructing the RIG from this information
+
+
+			3.3.   we then use the RIG to do actual graph coloring based register allocation    ON THE     MI's. 
+
+
+		4. generate machine code. we have everything we need now lol. op codes, and register numbers.    
+			this step should be easy, as its already written lol.
+			 
+		5. done!!!! yayyyy
+
+
+// TODO: recognize these three patterns:
+
+ins sel   for      csinc     (conditional select increment)
+
+RT COMPARISON:
+
+ne X Y false
+set d n
+do done
+at false
+set d m incr d
+at done
+
+
+USING CONSTANTS IN COMPARISON:
+
+ne X 3 false
+set d n
+do done
+at false
+set d m incr d
+at done
+
+
+NEGATING CONDITON:
+
+eq X 3 false
+set d m incr d
+do done
+at false
+set d n
+at done
+
+
+	struct instruction mi[4096] = {0};  // arg[0] is in "enum arm64_ins_set". args are in order of assembly format.
+	nat mi_count = 0;
+
+ins sel patterns:	
+	
+	addsr {                 d = n + (m << k)
+
+		set d m
+		si d k
+		add d n
+		
+		where k is ct, d, n and m are rt.
+			k <= 63		
+	}
+
+	addsr (k = 0) {
+
+		set d m
+		add d n
+		
+		where d, n and m are rt. (k = 0)
+	}
+
+
+		if (	top >= head and 
+			top + 2 < ins_count and 
+			ins[top + 0].args[0] == set and 
+			ins[top + 1].args[0] == si and
+			ins[top + 2].args[0] == add and
+			
+			ins[top + 0].args[1] == ins[top + 1].args[1] and
+			ins[top + 1].args[1] == ins[top + 2].args[1] and
+			ctk[ins[top + 1].args[2]]
+		) {
+			mi[mi_count++] = top;
+			mi[mi_count++] = addsr;
+			head += 3;
+		}
+
+
+		if (	top + 1 < ins_count and 
+			ins[top + 0].args[0] == set and 
+			ins[top + 1].args[0] == add and
+			ins[top + 0].args[1] == ins[top + 1].args[1]
+		) {
+			mi[mi_count++] = top;
+			mi[mi_count++] = addsr_k0;
+			head += 2;
+		}
+
+
+*/
+
+
+
+
+
+
+
+
+
+
+/*
+
+
+
+
+
+
+use this code later:
+
+
+
+		if (visited[top] == 1) {
+
+			puts("found this instruction for the first time!!! : ");
+			debug_instruction(ins[top], names);
+			puts("");
+			
+
+			if (state == 0) {
+			retry:
+				state = 0;
+				dest = 0; source1 = 0; source2 = 0; immediate = 0;
+
+				// set d m
+				if (op == set and not ctk[arg1] and not ctk[arg2]) { state = 1; dest = arg1; source2 = arg2; } 
+
+				else {}
+
+			} else if (state == 1) {
+
+				// si d k
+				      if (op == si and arg1 == dest and not ctk[arg1] and ctk[arg2]) { state = 2; immediate = values[arg2]; }
+				else if (op == add and arg1 == dest and not ctk[arg1] and not ctk[arg2]) { immediate = 0; goto generate_addsr; }
+				else goto retry;
+
+			} else if (state == 2) {
+
+				// add d n
+				if (op == add and arg1 == dest and not ctk[arg1] and not ctk[arg2]) { 
+				generate_addsr:
+					source1 = arg2;
+
+					printf("FOUND ARM64 MACHINE CODE INSTRUCTION:\n");
+					printf("ADD_SR   dest=%llu(%s), source1=%llu(%s), source2=%llu(%s) << immediate=%llu\n",
+							dest, names[dest], 
+							source1, names[source1], 
+							source2, names[source2], 
+							immediate
+					);				
+					state = 0; 
+				} 
+
+				else goto retry;
+
+			} else if (state == 3) {
+
+				goto retry;
+			}
+			
+		}
+
+
+
+
+*/
+
+
+		/*if (is_branch(op)) {
+			nat true_side = (nat) -1;
+			const nat false_side = compute_ins_gotos(&true_side, ins, ins_count, top);
+			if ( true_side < ins_count and visited[true_side] < 1)  stack[stack_count++] = true_side;
+			if (false_side < ins_count and visited[false_side] < 1) stack[stack_count++] = false_side;
+		} else {
+			nat true_side = (nat) -1;
+			const nat false_side = compute_ins_gotos(&true_side, ins, ins_count, top);
+			if ( true_side < ins_count) stack[stack_count++] = true_side;
+			if (false_side < ins_count) stack[stack_count++] = false_side;
+		}*/
+
+
+
+
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -55,6 +301,55 @@ static const char* systemcall_spelling[systemcall_count] = {
 	"system_read", "system_write", 
 	"system_open", "system_close",
 };
+
+enum arm64_ins_set {
+	addsr, addsr_k0,        //TODO: add more 
+	arm_isa_count,
+};
+
+enum immediate_forms_of_instructions {
+	null_imm_unused = isa_count,
+
+	set_imm,    // set r c
+	add_imm,    // add r c	
+	sub_imm,  
+	mul_imm,   
+	div_imm,
+	and_imm,
+	or_imm, 
+	eor_imm, 
+	si_imm, 
+	sd_imm, 	
+	lt_imm,     // lt r c label
+	ne_imm,     // ne r c label
+	ge_imm,     // ge r c label
+	eq_imm,     // eq r c label
+};
+
+
+
+
+
+static const char* ins_imm_spelling[] = {
+	"null_imm_unused",
+	"set_imm",
+	"add_imm", 
+	"sub_imm",  
+	"mul_imm",   
+	"div_imm",
+	"and_imm",
+	"or_imm", 
+	"eor_imm", 
+	"si_imm", 
+	"sd_imm", 	
+	"lt_imm", 
+	"ne_imm", 
+	"ge_imm",  
+	"eq_imm", 
+};
+
+
+static const nat write_access = (nat) (1LLU << 63LLU);
 
 struct instruction {
 	nat args[8];
@@ -190,273 +485,39 @@ static nat compute_ins_gotos(nat* side, struct instruction* ins, nat ins_count, 
 	} else return this + 1;
 }
 
-
-enum arm64_ins_set {
-
-	addsr, addsr_k0,        //TODO: add more 
-
-	arm_isa_count,
-};
-
-
-enum immediate_forms_of_instructions {
-	null_imm_unused = isa_count,
-
-	set_imm,    // set r c
-	add_imm,    // add r c	
-	sub_imm,    // sub r c
-	mul_imm,    // mul r c              // TODO: add more
-	lt_imm,     // lt r c label
-	ne_imm,     // ne r c label
-	ge_imm,     // ge r c label
-	eq_imm,     // eq r c label
-
-};
-
-
-
-struct instruction mi[4096] = {0};  // arg[0] is in "enum arm64_ins_set". args are in order of assembly format.
-nat mi_count = 0;
-
-
-
-
-
-
- n n n n uncompilable n n n 
-
-
-
-
-
-
-
-
-/*
-
-TODO:
-		CURRENT STATE OF INS SEL:
-
-
-	--->   redo where we are doing the pattern recognition to be in a seperate pass.
-
-		instead of doing it in ct-eval stage, 
-
-
-
-
-		1. generate a new list of ONLYYY RT instructions, 
-
-						 (some of which the opcodes will 
-						change to be elements in the  
-							 "enum immediate_forms_instructions"!!!)
-			{
-	
-				note, simply move pass (i++)   rt instructions, one generated. don't follow their execution.
-					you only do this for compiletime branches. treat rt branches like  single nop instructions. 
-			}
-		FINE NOTE:
-
-			if you encounter, a "do",  follow it, as its CT known. however, 
-			just don't generate any RT instruction you've already visited before.
-			this way, we will ignore unreachable rt code, 
-			as well as avoid overtraversing the rt cfg.   NICEEEE YAYYYY
-
-
-
-
-		2. then loop over this list, and doing pattern recognition on it. here, i don't think we should take into account the control flow of the RT instructions at all, so far.    
-			this should generate a list of machine instructions,     the "mi" array above.  this ds uses the existing    "struct instruction"
-
-
-		3. print out the generated machine instructions, and rt ins listing.
-
-			then, you should start the process of looking at the reads and writes over those machine instructions. 
-
-			this is when we start the process of register allocation. only here.  once the mi's have been generated in this mi[] list.
-			
-		
-			3.1. we generate the list of reads and writes   based on the instruction semantics, 
-					(note: we are doing it based on the mi instructions, in case a variable gets reduced away during ins sel.  very important. 
-
-
-			3.2. then we go backwards through the reads and writes, generating the live-in lists, 
-				keeping track of which variables are found in the same list, 
-				and thus constructing the RIG from this information
-
-
-			3.3.   we then use the RIG to do actual graph coloring based register allocation    ON THE     MI's. 
-
-
-
-
-
-		4. generate machine code. we have everything we need now lol. op codes, and register numbers.    
-			this step should be easy, as its already written lol.
-
-
-
-			 
-		5. done!!!! yayyyy
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-// TODO: recognize these three patterns:
-
-
-ins sel   for      csinc     (conditional select increment)
-
-
-RT COMPARISON:
-
-ne X Y false
-set d n
-do done
-at false
-set d m incr d
-at done
-
-
-USING CONSTANTS IN COMPARISON:
-
-ne X 3 false
-set d n
-do done
-at false
-set d m incr d
-at done
-
-
-NEGATING CONDITON:
-
-eq X 3 false
-set d m incr d
-do done
-at false
-set d n
-at done
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-ins sel patterns:	
-	
-	addsr {                 d = n + (m << k)
-
-		set d m
-		si d k
-		add d n
-		
-		where k is ct, d, n and m are rt.
-			k <= 63		
-	}
-
-
-	addsr (k = 0) {
-
-		set d m
-		add d n
-		
-		where d, n and m are rt. (k = 0)
-	}
-
-
-
-
-
-
-
-		if (	top >= head and 
-			top + 2 < ins_count and 
-			ins[top + 0].args[0] == set and 
-			ins[top + 1].args[0] == si and
-			ins[top + 2].args[0] == add and
-			
-			ins[top + 0].args[1] == ins[top + 1].args[1] and
-			ins[top + 1].args[1] == ins[top + 2].args[1] and
-			ctk[ins[top + 1].args[2]]
-		) {
-			mi[mi_count++] = top;
-			mi[mi_count++] = addsr;
-			head += 3;
-		}
-
-
-		if (	top + 1 < ins_count and 
-			ins[top + 0].args[0] == set and 
-			ins[top + 1].args[0] == add and
-			ins[top + 0].args[1] == ins[top + 1].args[1]
-		) {
-			mi[mi_count++] = top;
-			mi[mi_count++] = addsr_k0;
-			head += 2;
-		}
-
-
-*/
-
-
-
-
-
-static const nat write_access = (nat) (1LLU << 63LLU);
-
 static void compute_all(
 	struct instruction* ins, nat ins_count, 
 	char** names, nat name_count
 ) {
+	struct instruction rt_ins[4096] = {0};
+	nat rt_count = 0;
+
+
 	bool* ctk = calloc(name_count, sizeof(bool));
 	nat* values = calloc(name_count, sizeof(nat));	
 	nat* bit_counts = calloc(name_count, sizeof(nat));	
 	uint8_t* visited = calloc(ins_count, 1);
-	nat* stack = calloc(2 * ins_count, sizeof(nat));
-	nat stack_count = 0;
+	//nat* stack = calloc(2 * ins_count, sizeof(nat));
+	//nat stack_count = 0;
 	nat* list = calloc(8 * ins_count, sizeof(nat));
 
-	nat list_count = 0, state =  0, dest = 0, source1 = 0, source2 = 0, immediate = 0;
+	nat list_count = 0;        // state =  0, dest = 0, source1 = 0, source2 = 0, immediate = 0;
 
-	stack[stack_count++] = 0; 
+	//stack[stack_count++] = 0; 
+
+	nat top = 0;
 	ctk[stacksize] = 1;
 
-	while (stack_count) {
+	//struct instruction mi[4096] = {0}; 
+	//nat mi_count = 0;
+
+	while (top < ins_count) {
 		
-		printf("stack: %llu { \n", stack_count);
+		/*printf("stack: %llu { \n", stack_count);
 		for (nat i = 0; i < stack_count; i++) {
 			printf("stack[%llu] = %llu\n", i, stack[i]);
 		}
-		puts("}");
+		puts("}");*/
 
 		printf("ctk: { ");
 		for (nat i = 0; i < name_count; i++) {
@@ -464,23 +525,33 @@ static void compute_all(
 		}
 		puts("}");
 		
-		const nat top = stack[--stack_count];
+		//const nat top = stack[--stack_count];
 		printf("visiting ins #%llu\n", top);
 		print_instruction_index(ins, ins_count, names, top, "here");
-		debug_instruction(ins[top], names);
+		//debug_instruction(ins[top], names);
 		puts("");
+
 		visited[top]++;
 
 		const nat op = ins[top].args[0], arg1 = ins[top].args[1], arg2 = ins[top].args[2];
 
-		if (op == zero) {
+	
+
+		if (op == at) {
+
+
+			if (
+
+		} else if (op == zero) {
 			values[arg1] = 0; 
-			if (not ctk[arg1]) list[list_count++] = write_access | arg1;
+			//if (not ctk[arg1]) list[list_count++] = write_access | arg1;
+			if (not ctk[arg1]) rt_ins[rt_count++] = ins[top];
 
 		} else if (op == set) {
 			if (ctk[arg2]) values[arg1] = values[arg2]; 
-			if (not ctk[arg2]) list[list_count++] = arg2;
-			if (not ctk[arg1]) list[list_count++] = write_access | arg1;
+			//if (not ctk[arg2]) list[list_count++] = arg2;
+			//if (not ctk[arg1]) list[list_count++] = write_access | arg1;
+			goto push_rt;
 
 		} else if (op == ld) { // todo: do these.
 			// 1. enforce that the loadsize is CT.
@@ -498,8 +569,8 @@ static void compute_all(
 			ctk[arg1] = 0;
 
 		} else if (is_branch(op)) {
-			if (not ctk[arg1]) list[list_count++] = arg1;
-			if (not ctk[arg2]) list[list_count++] = arg2;		
+			//if (not ctk[arg1]) list[list_count++] = arg1;
+			//if (not ctk[arg2]) list[list_count++] = arg2;		
 			if (not ctk[arg1] or not ctk[arg2]) goto skip_br;
 
 			bool condition = 0;
@@ -511,54 +582,166 @@ static void compute_all(
 			nat true_side = (nat) -1;
 			const nat false_side = compute_ins_gotos(&true_side, ins, ins_count, top);
 			if (not condition) {
-				if (false_side < ins_count) stack[stack_count++] = false_side;
+				if (false_side < ins_count) top = false_side;
 			} else {
-				if ( true_side < ins_count) stack[stack_count++] = true_side;
+				if ( true_side < ins_count) top = true_side; // stack[stack_count++]
 			}
 			goto done;
 			skip_br:;
 
+
+		} else if (op == do_) {
+
+
+
+
+
+
+		ERROR ERROR ERRORRRRRRR
+
+
+
+
+
+
+
+
+
+
+	/*
+
+		PROBLEM:
+
+
+				we are like     partiallyyyy following control flow right now, via ct/do branches
+
+				and so 
+
+
+					it could be the case that some code that we skipped over, is actually 
+
+						accessible      but we won't generate it     despite the fact that we should be generating it 
+
+
+
+
+						we will skip over it,  because we are no longer looking at the  labels of rt branches.
+
+								we either, need to be doing this, 
+
+
+								orrrr we need to stick purelyyy to source ordering, ie,   top++.
+
+
+
+							we can't mix and match these... partially like this lol 
+
+
+								we need to be doing    full control flow graph analysisss  if we are to try to do that. 
+
+
+									sooo..... yeah..
+
+
+					
+
+
+							honestly, i feel like we should just focus on generating the right code, and then having the    compute_goto's function form the resultant collapsed CFG..     i feel like thatsss what we are looking for here....  to have compute_goto's   actually      just    be able to represetn the new cfg for us.   not needddd any particular statement to be  in a particular order. 
+
+						we need to be relying on the    logicallll connections,    not the source ordering. 
+
+
+						this is key. 
+
+
+
+
+mhm
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+			rt_ins[rt_count++] = ins[top]; // DO WE GENERATE THIS!?!?!
+
+
+			nat true_side = (nat) -1;
+			const nat false_side = compute_ins_gotos(&true_side, ins, ins_count, top);
+			if (false_side < ins_count) top = false_side;
+			goto done;			
+
 		} else if (op == incr) {
 			if (ctk[arg1]) values[arg1]++;
-			if (not ctk[arg1]) list[list_count++] = arg1;
-			if (not ctk[arg1]) list[list_count++] = write_access | arg1;			
+			//if (not ctk[arg1]) list[list_count++] = arg1;
+			//if (not ctk[arg1]) list[list_count++] = write_access | arg1;
+			if (not ctk[arg1]) rt_ins[rt_count++] = ins[top];
 
 		} else if (op == not_) {
 			if (ctk[arg1]) values[arg1] = ~values[arg1];
-			if (not ctk[arg1]) list[list_count++] = arg1;
-			if (not ctk[arg1]) list[list_count++] = write_access | arg1;
+			//if (not ctk[arg1]) list[list_count++] = arg1;
+			//if (not ctk[arg1]) list[list_count++] = write_access | arg1;
+			if (not ctk[arg1]) rt_ins[rt_count++] = ins[top];
+
 
 		} else if (op == add) {
 			if (ctk[arg1] and ctk[arg2]) values[arg1] += values[arg2];
-		push_binary_args:
-			if (not ctk[arg1]) list[list_count++] = arg1;
-			if (not ctk[arg2]) list[list_count++] = arg2;
-			if (not ctk[arg1]) list[list_count++] = write_access | arg1;
-
+		push_rt:;
+			//if (not ctk[arg1]) list[list_count++] = arg1;
+			//if (not ctk[arg2]) list[list_count++] = arg2;
+			//if (not ctk[arg1]) list[list_count++] = write_access | arg1;
+			if (not ctk[arg1]) {
+				rt_ins[rt_count++] = ins[top];
+				if (ctk[arg2]) {
+					rt_ins[rt_count - 1].args[2] = values[arg2];
+					if (op == set) rt_ins[rt_count - 1].args[0] = set_imm;
+					if (op == add) rt_ins[rt_count - 1].args[0] = add_imm;
+					if (op == sub) rt_ins[rt_count - 1].args[0] = sub_imm;
+					if (op == mul) rt_ins[rt_count - 1].args[0] = mul_imm;
+					if (op == div_) rt_ins[rt_count - 1].args[0] = div_imm;
+					if (op == and_)rt_ins[rt_count - 1].args[0] = and_imm;
+					if (op == or_) rt_ins[rt_count - 1].args[0] = or_imm;
+					if (op == eor) rt_ins[rt_count - 1].args[0] = eor_imm;
+					if (op == si)  rt_ins[rt_count - 1].args[0] = si_imm;
+					if (op == sd)  rt_ins[rt_count - 1].args[0] = sd_imm;
+				}
+			}			
+				
 		} else if (op == sub) {
 			if (ctk[arg1] and ctk[arg2]) values[arg1] -= values[arg2];
-			goto push_binary_args;
+			goto push_rt;
 		} else if (op == mul) {
 			if (ctk[arg1] and ctk[arg2]) values[arg1] *= values[arg2];
-			goto push_binary_args;
+			goto push_rt;
 		} else if (op == div_) {
 			if (ctk[arg1] and ctk[arg2]) values[arg1] /= values[arg2];
-			goto push_binary_args;
+			goto push_rt;
 		} else if (op == and_) {
 			if (ctk[arg1] and ctk[arg2]) values[arg1] &= values[arg2];
-			goto push_binary_args;
+			goto push_rt;
 		} else if (op == or_) {
 			if (ctk[arg1] and ctk[arg2]) values[arg1] |= values[arg2];
-			goto push_binary_args;
+			goto push_rt;
 		} else if (op == eor) {
 			if (ctk[arg1] and ctk[arg2]) values[arg1] ^= values[arg2];
-			goto push_binary_args;
+			goto push_rt;
 		} else if (op == si) {
 			if (ctk[arg1] and ctk[arg2]) values[arg1] <<= values[arg2];
-			goto push_binary_args;
+			goto push_rt;
 		} else if (op == sd) {
 			if (ctk[arg1] and ctk[arg2]) values[arg1] >>= values[arg2];
-			goto push_binary_args;
+			goto push_rt;
 
 		} else if (op == sc) {
 			if (not ctk[arg1]) { 
@@ -572,12 +755,12 @@ static void compute_all(
 
 			for (nat i = 0; i < input_count; i++) {
 				if (ctk[ins[top].args[2 + i]]) { puts("system call ct rt in"); abort(); }
-				list[list_count++] = ins[top].args[2 + i];
+				//list[list_count++] = ins[top].args[2 + i];
 			}
 
 			for (nat i = 0; i < output_count; i++) {
 				if (ctk[ins[top].args[2 + i]]) { puts("system call ct rt out"); abort(); }
-				list[list_count++] = write_access | ins[top].args[2 + i];
+				//list[list_count++] = write_access | ins[top].args[2 + i];
 				ctk[ins[top].args[2 + i]] = false;
 			}
 
@@ -589,71 +772,14 @@ static void compute_all(
 				printf("info: found %s system call!\n", systemcall_spelling[n]);
 				print_instruction_index(ins, ins_count, names, top, systemcall_spelling[n]);
 			}
-		}
 
-		if (is_branch(op)) {
-			nat true_side = (nat) -1;
-			const nat false_side = compute_ins_gotos(&true_side, ins, ins_count, top);
-			if ( true_side < ins_count and visited[true_side] < 1)  stack[stack_count++] = true_side;
-			if (false_side < ins_count and visited[false_side] < 1) stack[stack_count++] = false_side;
-		} else {
-			nat true_side = (nat) -1;
-			const nat false_side = compute_ins_gotos(&true_side, ins, ins_count, top);
-			if ( true_side < ins_count) stack[stack_count++] = true_side;
-			if (false_side < ins_count) stack[stack_count++] = false_side;
+			rt_ins[rt_count++] = ins[top];
 		}
+		top++;		
 		done:;
-		
-		if (visited[top] == 1) {
-
-			puts("found this instruction for the first time!!! : ");
-			debug_instruction(ins[top], names);
-			puts("");
-			
-
-			if (state == 0) {
-			retry:
-				state = 0;
-				dest = 0; source1 = 0; source2 = 0; immediate = 0;
-
-				// set d m
-				if (op == set and not ctk[arg1] and not ctk[arg2]) { state = 1; dest = arg1; source2 = arg2; } 
-
-				else {}
-
-			} else if (state == 1) {
-
-				// si d k
-				      if (op == si and arg1 == dest and not ctk[arg1] and ctk[arg2]) { state = 2; immediate = values[arg2]; }
-				else if (op == add and arg1 == dest and not ctk[arg1] and not ctk[arg2]) { immediate = 0; goto generate_addsr; }
-				else goto retry;
-
-			} else if (state == 2) {
-
-				// add d n
-				if (op == add and arg1 == dest and not ctk[arg1] and not ctk[arg2]) { 
-				generate_addsr:
-					source1 = arg2;
-
-					printf("FOUND ARM64 MACHINE CODE INSTRUCTION:\n");
-					printf("ADD_SR   dest=%llu(%s), source1=%llu(%s), source2=%llu(%s) << immediate=%llu\n",
-							dest, names[dest], 
-							source1, names[source1], 
-							source2, names[source2], 
-							immediate
-					);				
-					state = 0; 
-				} 
-
-				else goto retry;
-
-			} else if (state == 3) {
-
-				goto retry;
-			}
-			
-		}
 	}
+
+
 
 
 
@@ -672,6 +798,45 @@ static void compute_all(
 			puts("");
 		}
 	}
+
+
+
+
+
+
+
+
+
+
+// print rt ins :
+
+	printf("found rt instruction sequence {\n");
+	for (nat i = 0; i < rt_count; i++) {
+
+
+		const char* op_name = rt_ins[i].args[0] < isa_count ? 
+			ins_spelling[rt_ins[i].args[0]] : 
+			ins_imm_spelling[rt_ins[i].args[0] - isa_count];
+		
+		printf("\trt[%llu] = { %llu(%s) %llu(%s) %llu %llu %llu %llu %llu %llu } \n",
+			i,  
+			rt_ins[i].args[0], op_name,
+			rt_ins[i].args[1], names[rt_ins[i].args[1]],
+			rt_ins[i].args[2],
+			rt_ins[i].args[3],
+			rt_ins[i].args[4],
+			rt_ins[i].args[5],
+			rt_ins[i].args[6],
+			rt_ins[i].args[7]			
+		);
+	}
+	puts("}");
+
+
+
+
+
+
 
 
 // print ct data:
