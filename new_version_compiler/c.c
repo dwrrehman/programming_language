@@ -234,8 +234,70 @@ nat mi_count = 0;
 
 /*
 
+TODO:
+		CURRENT STATE OF INS SEL:
 
 
+	--->   redo where we are doing the pattern recognition to be in a seperate pass.
+
+		instead of doing it in ct-eval stage, 
+
+
+
+
+		1. generate a new list of ONLYYY RT instructions, 
+
+						 (some of which the opcodes will 
+						change to be elements in the  
+							 "enum immediate_forms_instructions"!!!)
+			{
+	
+				note, simply move pass (i++)   rt instructions, one generated. don't follow their execution.
+					you only do this for compiletime branches. treat rt branches like  single nop instructions. 
+			}
+		FINE NOTE:
+
+			if you encounter, a "do",  follow it, as its CT known. however, 
+			just don't generate any RT instruction you've already visited before.
+			this way, we will ignore unreachable rt code, 
+			as well as avoid overtraversing the rt cfg.   NICEEEE YAYYYY
+
+
+
+
+		2. then loop over this list, and doing pattern recognition on it. here, i don't think we should take into account the control flow of the RT instructions at all, so far.    
+			this should generate a list of machine instructions,     the "mi" array above.  this ds uses the existing    "struct instruction"
+
+
+		3. print out the generated machine instructions, and rt ins listing.
+
+			then, you should start the process of looking at the reads and writes over those machine instructions. 
+
+			this is when we start the process of register allocation. only here.  once the mi's have been generated in this mi[] list.
+			
+		
+			3.1. we generate the list of reads and writes   based on the instruction semantics, 
+					(note: we are doing it based on the mi instructions, in case a variable gets reduced away during ins sel.  very important. 
+
+
+			3.2. then we go backwards through the reads and writes, generating the live-in lists, 
+				keeping track of which variables are found in the same list, 
+				and thus constructing the RIG from this information
+
+
+			3.3.   we then use the RIG to do actual graph coloring based register allocation    ON THE     MI's. 
+
+
+
+
+
+		4. generate machine code. we have everything we need now lol. op codes, and register numbers.    
+			this step should be easy, as its already written lol.
+
+
+
+			 
+		5. done!!!! yayyyy
 
 
 
