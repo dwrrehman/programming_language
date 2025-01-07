@@ -10,6 +10,12 @@ zero d zero n zero m
 ct k zero k
 incr k
 
+
+sc 0  0 0 0   0 0 0 
+
+
+
+
 set n k
 set d m
 si d k

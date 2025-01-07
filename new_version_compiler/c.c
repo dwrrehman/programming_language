@@ -4,23 +4,14 @@
 // progress on 1202412312.221307
 
 
+
+/*
+
 //struct instruction mi[4096] = {0};  // arg[0] is in "enum arm64_ins_set". args are in order of assembly format.
 //nat mi_count = 0;
 
 
 
-		//ERROR ERROR ERRORRRRRRR
-
-
-
-
-
-
-
-
-
-
-	/*
 		1202501061.175212
 		PROBLEM:
 
@@ -72,20 +63,10 @@ mhm
 
 
 
-
-
-
-
-
 	// i think we do generate it actually!!!
 
 
 	// because we are trying to keep the RT structure in tact, and so we should reduce everything away, until we can easily reduce away the (RT) do itself   in a seperate pass!! cool, okay that makes sense lol. 
-
-
-
-
-
 
 
 
@@ -241,22 +222,6 @@ ins sel patterns:
 		}
 
 
-*/
-
-
-
-
-
-
-
-
-
-
-/*
-
-
-
-
 
 
 use this code later:
@@ -330,10 +295,77 @@ use this code later:
 
 
 
-*/
 
 
 
+
+			//if (not ctk[arg1]) list[list_count++] = arg1;
+			//if (not ctk[arg1]) list[list_count++] = write_access | arg1;
+
+	//nat top = 0;
+
+	//struct instruction rt_ins[4096] = {0};
+	//nat rt_count = 0;
+	//struct instruction mi[4096] = {0}; 
+	//nat mi_count = 0;
+
+        // state =  0, dest = 0, source1 = 0, source2 = 0, immediate = 0;
+
+// top < ins_count
+
+			//if (not ctk[arg1]) list[list_count++] = write_access | arg1;
+
+
+			//if (not ctk[arg2]) list[list_count++] = arg2;
+			//if (not ctk[arg1]) list[list_count++] = write_access | arg1;
+
+
+			//if (not ctk[arg1]) list[list_count++] = arg1;
+			//if (not ctk[arg2]) list[list_count++] = arg2;
+
+			//if (not ctk[arg1]) list[list_count++] = arg1;
+			//if (not ctk[arg1]) list[list_count++] = write_access | arg1;
+
+
+			//if (not ctk[arg1]) list[list_count++] = arg1;
+			//if (not ctk[arg2]) list[list_count++] = arg2;
+			//if (not ctk[arg1]) list[list_count++] = write_access | arg1;
+
+			//rt_ins[rt_count++] = ins[top];
+		//top++;		
+
+	 
+	printf("found modified  ins instruction sequence {\n");
+	for (nat i = 0; i < ins_count; i++) {
+		const char* op_name = rt_ins[i].args[0] < isa_count ? 
+			ins_spelling[rt_ins[i].args[0]] : 
+			ins_imm_spelling[rt_ins[i].args[0] - isa_count];		
+		printf("\trt[%llu] = { %llu(%s) %llu(%s) %llu %llu %llu %llu %llu %llu } \n",
+			i,  
+			rt_ins[i].args[0], op_name,
+			rt_ins[i].args[1], names[rt_ins[i].args[1]],
+			rt_ins[i].args[2],
+			rt_ins[i].args[3],
+			rt_ins[i].args[4],
+			rt_ins[i].args[5],
+			rt_ins[i].args[6],
+			rt_ins[i].args[7]			
+		);
+	}
+
+
+
+	*/
+
+/*if (ctk[arg1] and ctk[arg2]) {
+				if (condition) {
+					ins[top].count = 2;
+					ins[top].args[0] = do_;
+					ins[top].args[1] = ins[top].args[3];
+				} else {
+					ins[top].count = 0;
+				}
+			}*/  
 
 
 #include <stdio.h>
@@ -415,10 +447,6 @@ enum immediate_forms_of_instructions {
 	eq_imm,     // eq r c label
 };
 
-
-
-
-
 static const char* ins_imm_spelling[] = {
 	"null_imm_unused",
 	"set_imm",
@@ -436,7 +464,6 @@ static const char* ins_imm_spelling[] = {
 	"ge_imm",  
 	"eq_imm", 
 };
-
 
 static const nat write_access = (nat) (1LLU << 63LLU);
 
@@ -480,10 +507,12 @@ static nat get_call_output_count(nat n) {
 }
 
 static void debug_instruction(struct instruction this, char** names) {
-	for (nat a = 0; a < this.count; a++) {
-		const char* str = "";
-		if (a == 0) str = ins_spelling[this.args[a]]; else str = names[this.args[a]];
-		printf(" %s ", str);
+	const nat is_imm = this.args[0] >= isa_count;
+	if (is_imm) printf(" %s ", ins_imm_spelling[this.args[0] - isa_count]);
+	else printf(" %s ", ins_spelling[this.args[0]]);
+	for (nat a = 1; a < this.count; a++) {
+		if (a == 2 and is_imm) printf(" IMM=%llu ", this.args[a]);
+		else printf(" %s ", names[this.args[a]]);
 	}
 }
 
@@ -493,6 +522,7 @@ static void debug_instructions(
 ) {
 	printf("instructions: (%llu count) \n", ins_count);
 	for (nat i = 0; i < ins_count; i++) {
+		if (not ins[i].count) continue;
 		printf("[%3llu] = ins(\" ", i);
 		debug_instruction(ins[i], names); puts("\")");
 	}
@@ -506,6 +536,7 @@ static void print_instruction_index(
 ) {
 	printf("(%llu instructions)\n", ins_count);
 	for (nat i = 0; i < ins_count; i++) {
+		if (not ins[i].count) continue;
 		printf("%5llu:\t", i);
 		debug_instruction(ins[i], names);
 		if (i == this) printf("   <---- %s\n", note); else puts("");
@@ -572,268 +603,6 @@ static nat compute_ins_gotos(nat* side, struct instruction* ins, nat ins_count, 
 		abort();
 
 	} else return this + 1;
-}
-
-static void compute_all(
-	struct instruction* ins, nat ins_count, 
-	char** names, nat name_count
-) {
-	//struct instruction rt_ins[4096] = {0};
-	//nat rt_count = 0;
-	//struct instruction mi[4096] = {0}; 
-	//nat mi_count = 0;
-
-	bool* ctk = calloc(name_count, sizeof(bool));
-	nat* values = calloc(name_count, sizeof(nat));	
-	nat* bit_counts = calloc(name_count, sizeof(nat));	
-	uint8_t* visited = calloc(ins_count, 1);
-	nat* stack = calloc(2 * ins_count, sizeof(nat));
-	nat stack_count = 0;
-	nat* list = calloc(8 * ins_count, sizeof(nat));
-	nat list_count = 0;        // state =  0, dest = 0, source1 = 0, source2 = 0, immediate = 0;
-	stack[stack_count++] = 0; 
-	//nat top = 0;
-	const struct instruction nop = {0};
-	
-	ctk[stacksize] = 1;
-	while (stack_count) { // top < ins_count
-		printf("stack: %llu { \n", stack_count);
-		for (nat i = 0; i < stack_count; i++) {
-			printf("stack[%llu] = %llu\n", i, stack[i]);
-		}
-		puts("}");
-		printf("ctk: { ");
-		for (nat i = 0; i < name_count; i++) {
-			if (ctk[i]) printf("%s ", names[i]);
-		}
-		puts("}");		
-		const nat top = stack[--stack_count];
-		printf("visiting ins #%llu\n", top);
-		print_instruction_index(ins, ins_count, names, top, "here");
-		debug_instruction(ins[top], names); puts("");
-		getchar();
-		visited[top]++;
-		const nat op = ins[top].args[0], arg1 = ins[top].args[1], arg2 = ins[top].args[2];
-		if (op == zero) {
-			values[arg1] = 0; 
-			//if (not ctk[arg1]) list[list_count++] = write_access | arg1;
-			if (ctk[arg1]) ins[top].args[0] = 0;
-		} else if (op == set) {
-			if (ctk[arg2]) values[arg1] = values[arg2]; 
-			//if (not ctk[arg2]) list[list_count++] = arg2;
-			//if (not ctk[arg1]) list[list_count++] = write_access | arg1;
-			goto push_rt;
-		} else if (op == ld) { abort();
-		} else if (op == st) { abort();
-		} else if (op == ct) { ctk[arg1] = 1;
-		} else if (op == rt) {
-			if (not ctk[arg2]) { puts("error: rt instruction arg2 (bit count) must be ct."); abort(); }
-			bit_counts[arg1] = values[arg2];
-			ctk[arg1] = 0;
-		} else if (is_branch(op)) {
-			//if (not ctk[arg1]) list[list_count++] = arg1;
-			//if (not ctk[arg2]) list[list_count++] = arg2;
-			if (not ctk[arg1] or not ctk[arg2]) goto generate_rt_branch;
-			bool condition = 0;
-			if (op == eq and values[arg1] == values[arg2]) condition = 1;
-			if (op == ne and values[arg1] != values[arg2]) condition = 1;
-			if (op == lt and values[arg1] <  values[arg2]) condition = 1;
-			if (op == ge and values[arg1] >= values[arg2]) condition = 1;
-
-			if (ctk[arg1] and ctk[arg2]) {
-				if (condition) {
-					ins[top].count = 2;
-					ins[top].args[0] = do_;
-					ins[top].args[1] = ins[top].args[3];
-				} else {
-					ins[top] = nop;
-				}
-			}
-			nat true_side = (nat) -1;
-			const nat false_side = compute_ins_gotos(&true_side, ins, ins_count, top);
-			if (not condition) {
-				if (false_side < ins_count) stack[stack_count++] = false_side;
-			} else {
-				if ( true_side < ins_count) stack[stack_count++] = true_side;
-			}
-			goto done;
-			generate_rt_branch:;
-		} else if (op == do_) {
-			nat true_side = (nat) -1;
-			const nat false_side = compute_ins_gotos(&true_side, ins, ins_count, top);
-			if (false_side < ins_count) stack[stack_count++] = false_side;
-			goto done;
-		} else if (op == incr) {
-			if (ctk[arg1]) values[arg1]++;
-			//if (not ctk[arg1]) list[list_count++] = arg1;
-			//if (not ctk[arg1]) list[list_count++] = write_access | arg1;
-			if (not ctk[arg1]) rt_ins[rt_count++] = ins[top];
-		} else if (op == not_) {
-			if (ctk[arg1]) values[arg1] = ~values[arg1];
-			//if (not ctk[arg1]) list[list_count++] = arg1;
-			//if (not ctk[arg1]) list[list_count++] = write_access | arg1;
-			if (ctk[arg1]) ins[top] = nop;
-		} else if (op == add) {
-			if (ctk[arg1] and ctk[arg2]) values[arg1] += values[arg2];
-		push_rt:;
-			//if (not ctk[arg1]) list[list_count++] = arg1;
-			//if (not ctk[arg2]) list[list_count++] = arg2;
-			//if (not ctk[arg1]) list[list_count++] = write_access | arg1;
-			if (not ctk[arg1]) {
-				if (ctk[arg2]) {
-					ins[top].args[2] = values[arg2];
-					if (op == set) ins[top].args[0] = set_imm;
-					if (op == add) ins[top].args[0] = add_imm;
-					if (op == sub) ins[top].args[0] = sub_imm;
-					if (op == mul) ins[top].args[0] = mul_imm;
-					if (op == div_)ins[top].args[0] = div_imm;
-					if (op == and_)ins[top].args[0] = and_imm;
-					if (op == or_) ins[top].args[0] = or_imm;
-					if (op == eor) ins[top].args[0] = eor_imm;
-					if (op == si)  ins[top].args[0] = si_imm;
-					if (op == sd)  ins[top].args[0] = sd_imm;
-				}
-			}
-		} else if (op == sub) {
-			if (ctk[arg1] and ctk[arg2]) values[arg1] -= values[arg2];
-			goto push_rt;
-		} else if (op == mul) {
-			if (ctk[arg1] and ctk[arg2]) values[arg1] *= values[arg2];
-			goto push_rt;
-		} else if (op == div_) {
-			if (ctk[arg1] and ctk[arg2]) values[arg1] /= values[arg2];
-			goto push_rt;
-		} else if (op == and_) {
-			if (ctk[arg1] and ctk[arg2]) values[arg1] &= values[arg2];
-			goto push_rt;
-		} else if (op == or_) {
-			if (ctk[arg1] and ctk[arg2]) values[arg1] |= values[arg2];
-			goto push_rt;
-		} else if (op == eor) {
-			if (ctk[arg1] and ctk[arg2]) values[arg1] ^= values[arg2];
-			goto push_rt;
-		} else if (op == si) {
-			if (ctk[arg1] and ctk[arg2]) values[arg1] <<= values[arg2];
-			goto push_rt;
-		} else if (op == sd) {
-			if (ctk[arg1] and ctk[arg2]) values[arg1] >>= values[arg2];
-			goto push_rt;
-		} else if (op == sc) {
-			if (not ctk[arg1]) { 
-				puts("error: all system calls must be compile time known."); 
-				abort(); 
-			}
-			const nat n = values[arg1];
-			const nat input_count = get_call_input_count(n);
-			const nat output_count = get_call_output_count(n);
-			for (nat i = 0; i < input_count; i++) {
-				if (ctk[ins[top].args[2 + i]]) { puts("system call ct rt in"); abort(); }
-				//list[list_count++] = ins[top].args[2 + i];
-			}
-			for (nat i = 0; i < output_count; i++) {
-				if (ctk[ins[top].args[2 + i]]) { puts("system call ct rt out"); abort(); }
-				//list[list_count++] = write_access | ins[top].args[2 + i];
-				ctk[ins[top].args[2 + i]] = false;
-			}
-			if (n == system_exit) {
-				printf("warning: reached cfg termination point\n");
-				print_instruction_index(ins, ins_count, names, top, "CFG termination point here");
-				continue;
-			} else {
-				printf("info: found %s system call!\n", systemcall_spelling[n]);
-				print_instruction_index(ins, ins_count, names, top, systemcall_spelling[n]);
-			}
-			//rt_ins[rt_count++] = ins[top];
-		}
-		//top++;		
-		if (is_branch(op)) {
-			nat true_side = (nat) -1;
-			const nat false_side = compute_ins_gotos(&true_side, ins, ins_count, top);
-			if ( true_side < ins_count and visited[true_side] < 1)  stack[stack_count++] = true_side;
-			if (false_side < ins_count and visited[false_side] < 1) stack[stack_count++] = false_side;
-		} else {
-			nat true_side = (nat) -1;
-			const nat false_side = compute_ins_gotos(&true_side, ins, ins_count, top);
-			if ( true_side < ins_count) stack[stack_count++] = true_side;
-			if (false_side < ins_count) stack[stack_count++] = false_side;
-		}
-		done:;
-	}
-
-	printf("performing unreachable analysis...\n");
-	for (nat i = 0; i < ins_count; i++) {
-		if (not visited[i]) {
-			printf("warning: instruction is unreachable\n");
-			print_instruction_index(ins, ins_count, names, i, "unreachable");
-			puts("");
-		}
-	}
-
-	
-
-
-
-
-	printf("found rt instruction sequence {\n");
-	for (nat i = 0; i < rt_count; i++) {
-		const char* op_name = rt_ins[i].args[0] < isa_count ? 
-			ins_spelling[rt_ins[i].args[0]] : 
-			ins_imm_spelling[rt_ins[i].args[0] - isa_count];		
-		printf("\trt[%llu] = { %llu(%s) %llu(%s) %llu %llu %llu %llu %llu %llu } \n",
-			i,  
-			rt_ins[i].args[0], op_name,
-			rt_ins[i].args[1], names[rt_ins[i].args[1]],
-			rt_ins[i].args[2],
-			rt_ins[i].args[3],
-			rt_ins[i].args[4],
-			rt_ins[i].args[5],
-			rt_ins[i].args[6],
-			rt_ins[i].args[7]			
-		);
-	}
-	puts("}");
-	printf("found compiletime values of variables: {\n");
-	for (nat i = 0; i < name_count; i++) {
-		if (not ctk[i]) continue;
-		printf("\tvalues[%s] = %llu\n", names[i], values[i]);
-	}
-	puts("}");
-	printf("found list: (%llu count)\n", list_count);
-	for (nat i = 0; i < list_count; i++) {
-		nat variable_index = (~(1LLU << 63LLU)) & list[i];
-		const char* type = (list[i] >> 63) ? "write" : "read";
-		printf("%6llu : %6s of %6s\n", i, type, names[variable_index]);
-	}
-	puts("done");
-
-
-
-
-
-
-	bool* alive = calloc(name_count, sizeof(bool));
-
-	for (nat i = list_count; i--;) {
-		nat variable_index = (~(1LLU << 63LLU)) & list[i];
-		const char* type = (list[i] >> 63) ? "write" : "read";
-		printf("%6llu : %6s of %6s\n", i, type, names[variable_index]);
-
-		const bool is_write = !!(list[i] >> 63);
-
-		if (is_write) {			
-			alive[variable_index] = 0;
-		} else {
-			alive[variable_index] = 1;			
-		}
-		
-		printf("alive = { ");
-		for (nat n = 0; n < name_count; n++) {
-			if (alive[n]) printf("%s  ", names[n]);
-		} 
-		printf(" }\n");
-		//getchar();
-	}
-
 }
 
 
@@ -932,6 +701,7 @@ process_file:;
 	debug_dictionary(names, name_count);
 	debug_instructions(ins, ins_count, names);
 
+
 	puts("computing CFG...");
 	for (nat i = 0; i < ins_count; i++) {
 		nat true_side = (nat) -1;
@@ -943,9 +713,308 @@ process_file:;
 	}
 	puts("done");
 
-	compute_all(ins, ins_count, names, name_count);
 
 
+	bool* ctk = calloc(name_count, sizeof(bool));
+	nat* values = calloc(name_count, sizeof(nat));	
+	nat* bit_counts = calloc(name_count, sizeof(nat));	
+	uint8_t* visited = calloc(ins_count, 1);
+	nat* stack = calloc(2 * ins_count, sizeof(nat));
+	nat stack_count = 0;
+	nat* list = calloc(8 * ins_count, sizeof(nat));
+	nat list_count = 0;
+	stack[stack_count++] = 0; 
+	//const struct instruction nop = {0};	
+	ctk[stacksize] = 1;
+
+
+	struct instruction rt_ins[4096] = {0};
+	nat rt_count = 0;
+
+
+	while (stack_count) { 
+		printf("stack: %llu { \n", stack_count);
+		for (nat i = 0; i < stack_count; i++) {
+			printf("stack[%llu] = %llu\n", i, stack[i]);
+		}
+		puts("}");
+
+		printf("visited: { ");
+		for (nat i = 0; i < ins_count; i++) {
+			printf("%hhu ", visited[i]);
+		}
+		puts("}");
+
+		printf("ctk: { ");
+		for (nat i = 0; i < name_count; i++) {
+			if (ctk[i]) printf("%s ", names[i]);
+		}
+		puts("}");
+
+		printf("CT values of variables: {\n");
+		for (nat i = 0; i < name_count; i++) {
+			if (not ctk[i]) continue;
+			printf("\tvalues[%s] = %llu\n", names[i], values[i]);
+		}
+		puts("}");
+
+		const nat top = stack[--stack_count];
+		printf("visiting ins #%llu\n", top);
+		print_instruction_index(ins, ins_count, names, top, "here");
+		debug_instruction(ins[top], names); puts("");
+		getchar();
+		visited[top]++;
+		const nat op = ins[top].args[0], arg1 = ins[top].args[1], arg2 = ins[top].args[2];
+		if (op == ld) { abort();
+		} else if (op == st) { abort();
+		} else if (op == ct) { ctk[arg1] = 1; ins[top].count = 0;
+		} else if (op == rt) {
+			if (not ctk[arg2]) { puts("error: rt instruction arg2 (bit count) must be ct."); abort(); }
+			bit_counts[arg1] = values[arg2];
+			ctk[arg1] = 0;
+			ins[top].count = 0;
+		} else if (is_branch(op)) {
+			if (not ctk[arg1] or not ctk[arg2]) goto generate_rt_branch;
+			bool condition = 0;
+			if (op == eq and values[arg1] == values[arg2]) condition = 1;
+			if (op == ne and values[arg1] != values[arg2]) condition = 1;
+			if (op == lt and values[arg1] <  values[arg2]) condition = 1;
+			if (op == ge and values[arg1] >= values[arg2]) condition = 1;
+
+			rt_ins[rt_count++] = ins[top];      //TODO
+
+
+				ERROR ERROR ERROR       we are in the middle of making this pass   generate   rt_ins    never edit main instruction sequence, ins. 
+
+					this is because we want to avoid generating    the at loop's,  and also  get the immediate to be different for each add_imm that we generate. we can't do that since we are overwriting the original instruction, which we used for execution lol. i think. sometihng like that. basically we need to do the rt_ins lol. its a must. don't worry about unreachable instructions, we won't generate them anyways, becuase we are traversing the graph in order to know the right instructions to output. i think. CRAP 
+
+
+							BUT WHAT ABOUT THE FACT THAT 
+
+
+
+
+									WE WONT BE GENERATING THE INSTRUCTIONS IN THE CORRECT ORDERRRR CRAPPPP
+
+
+
+									DUE TO IMPLICIT IP++'s    NOT LINING UPPPP
+
+
+
+				BECAUSE OF OUR GRAPH TRAVERSAL ORDERINGGGG   CRAPPPPPP
+
+
+
+
+
+
+
+
+
+uh oh lol 
+
+
+uhh
+
+
+
+
+
+hmm
+
+
+
+
+
+			nat true_side = (nat) -1;
+			const nat false_side = compute_ins_gotos(&true_side, ins, ins_count, top);
+			if (not condition) {
+				if (false_side < ins_count) stack[stack_count++] = false_side;
+			} else {
+				if ( true_side < ins_count) stack[stack_count++] = true_side;
+			}
+			goto next_instruction;
+			generate_rt_branch:;
+		} else if (op == do_) {
+			nat true_side = (nat) -1;
+			const nat false_side = compute_ins_gotos(&true_side, ins, ins_count, top);
+			if (false_side < ins_count) stack[stack_count++] = false_side;
+			goto next_instruction;
+		} else if (op == zero) {
+			if (ctk[arg1]) { values[arg1] = 0; ins[top].count = 0; }
+		} else if (op == incr) {
+			if (ctk[arg1]) { values[arg1]++; ins[top].count = 0; }
+		} else if (op == not_) {
+			if (ctk[arg1]) { values[arg1] = ~values[arg1]; ins[top].count = 0; }
+		} else if (op == add) {
+			if (ctk[arg1] and ctk[arg2]) values[arg1] += values[arg2];
+		push_rt:;
+			if (not ctk[arg1]) {
+				if (ctk[arg2]) {
+					ins[top].args[2] = values[arg2];
+					if (op == set) ins[top].args[0] = set_imm;
+					if (op == add) ins[top].args[0] = add_imm;
+					if (op == sub) ins[top].args[0] = sub_imm;
+					if (op == mul) ins[top].args[0] = mul_imm;
+					if (op == div_)ins[top].args[0] = div_imm;
+					if (op == and_)ins[top].args[0] = and_imm;
+					if (op == or_) ins[top].args[0] = or_imm;
+					if (op == eor) ins[top].args[0] = eor_imm;
+					if (op == si)  ins[top].args[0] = si_imm;
+					if (op == sd)  ins[top].args[0] = sd_imm;
+				}
+			} else {
+				if (ctk[arg2]) {
+					ins[top].count = 0;
+				} else {
+					puts("error: compiletime destination must have compiletime source."); abort();
+				}
+			}
+		} else if (op == set) {
+			if (ctk[arg2]) values[arg1] = values[arg2];
+			goto push_rt;
+		} else if (op == sub) {
+			if (ctk[arg1] and ctk[arg2]) values[arg1] -= values[arg2];
+			goto push_rt;
+		} else if (op == mul) {
+			if (ctk[arg1] and ctk[arg2]) values[arg1] *= values[arg2];
+			goto push_rt;
+		} else if (op == div_) {
+			if (ctk[arg1] and ctk[arg2]) values[arg1] /= values[arg2];
+			goto push_rt;
+		} else if (op == and_) {
+			if (ctk[arg1] and ctk[arg2]) values[arg1] &= values[arg2];
+			goto push_rt;
+		} else if (op == or_) {
+			if (ctk[arg1] and ctk[arg2]) values[arg1] |= values[arg2];
+			goto push_rt;
+		} else if (op == eor) {
+			if (ctk[arg1] and ctk[arg2]) values[arg1] ^= values[arg2];
+			goto push_rt;
+		} else if (op == si) {
+			if (ctk[arg1] and ctk[arg2]) values[arg1] <<= values[arg2];
+			goto push_rt;
+		} else if (op == sd) {
+			if (ctk[arg1] and ctk[arg2]) values[arg1] >>= values[arg2];
+			goto push_rt;
+		} else if (op == sc) {
+			if (not ctk[arg1]) { 
+				puts("error: all system calls must be compile time known."); 
+				abort(); 
+			}
+			const nat n = values[arg1];
+			//const nat input_count = get_call_input_count(n);
+			const nat output_count = get_call_output_count(n);
+			//for (nat i = 0; i < input_count; i++) {
+			//	//if (ctk[ins[top].args[2 + i]]) { puts("system call ct rt in"); abort(); }
+			//	//list[list_count++] = ins[top].args[2 + i];
+			//}
+			for (nat i = 0; i < output_count; i++) {
+				if (ctk[ins[top].args[2 + i]]) { puts("system call ct rt out"); abort(); }
+				//list[list_count++] = write_access | ins[top].args[2 + i];
+				ctk[ins[top].args[2 + i]] = false;
+			}
+
+			rt_ins[rt_count++] = ins[top];
+
+			if (n == system_exit) {
+				printf("warning: reached cfg termination point\n");
+				print_instruction_index(ins, ins_count, names, top, "CFG termination point here");
+				goto next_instruction;
+
+			} else {
+				printf("info: found %s system call!\n", systemcall_spelling[n]);
+				print_instruction_index(ins, ins_count, names, top, systemcall_spelling[n]);
+			}
+		}
+
+		nat true_side = (nat) -1;
+		const nat false_side = compute_ins_gotos(&true_side, ins, ins_count, top);
+		if (is_branch(op)) {
+			if ( true_side < ins_count and visited[true_side] < 1)  stack[stack_count++] = true_side;
+			if (false_side < ins_count and visited[false_side] < 1) stack[stack_count++] = false_side;
+		} else {
+			if (false_side < ins_count) stack[stack_count++] = false_side;
+		}
+		next_instruction:;
+	}
+
+
+
+	printf("performing unreachable analysis...\n");
+	for (nat i = 0; i < rt_count; i++) {
+
+		//const nat op = rt_ins[i].args[0], arg1 = rt_ins[i].args[1], arg2 = rt_ins[i].args[2];
+
+		/*if (not visited[i]) {
+			printf("warning: instruction is unreachable\n");
+			print_instruction_index(ins, ins_count, names, i, "unreachable");
+			puts("");
+			ins[i].count = 0;
+		}*/
+
+		/*if (ctk[arg1] and op != sc) {
+			ins[i].count = 0;
+		}*/
+	}
+
+
+	puts("ins:");
+	debug_instructions(ins, ins_count, names);
+
+	puts("rt_ins:");
+	debug_instructions(rt_ins, rt_count, names);
+
+
+
+
+
+
+
+
+	puts("}");
+	printf("found compiletime values of variables: {\n");
+	for (nat i = 0; i < name_count; i++) {
+		if (not ctk[i]) continue;
+		printf("\tvalues[%s] = %llu\n", names[i], values[i]);
+	}
+	puts("}");
+	printf("found list: (%llu count)\n", list_count);
+	for (nat i = 0; i < list_count; i++) {
+		nat variable_index = (~(1LLU << 63LLU)) & list[i];
+		const char* type = (list[i] >> 63) ? "write" : "read";
+		printf("%6llu : %6s of %6s\n", i, type, names[variable_index]);
+	}
+	puts("done");
+
+
+
+	bool* alive = calloc(name_count, sizeof(bool));
+
+	for (nat i = list_count; i--;) {
+		nat variable_index = (~(1LLU << 63LLU)) & list[i];
+		const char* type = (list[i] >> 63) ? "write" : "read";
+		printf("%6llu : %6s of %6s\n", i, type, names[variable_index]);
+
+		const bool is_write = !!(list[i] >> 63);
+
+		if (is_write) {			
+			alive[variable_index] = 0;
+		} else {
+			alive[variable_index] = 1;			
+		}
+		
+		printf("alive = { ");
+		for (nat n = 0; n < name_count; n++) {
+			if (alive[n]) printf("%s  ", names[n]);
+		} 
+		printf(" }\n");
+		//getchar();
+	}
+
+	puts("compiled.");
+	exit(0);
 }
 
 
