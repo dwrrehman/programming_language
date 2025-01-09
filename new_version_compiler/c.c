@@ -7,6 +7,58 @@
 
 /*
 
+
+1202501083.223152
+
+
+instructions that exist from the users/programmers point of view:
+
+	zero incr decr not ld st
+	set add sub mul div and or eor si sd 
+	lt ge ne eq do at sc ct rt lf eoi
+	
+
+
+instructions that are used in the internal representation of the program: (after stage0, parsing)
+
+	zero incr decr not ld st lt eq sc
+	set add sub mul div and or eor si sd	
+
+
+
+furthermore, after stage1, ct-eval / unrolling / rt-generation   we have this set instead:
+
+	set add sub mul div lt eq sc
+	not and or eor si sd ld st  
+
+
+
+						(technically i think     "not" coulddd be done using    eor -1 x
+
+								buttt we don't have negative numbers yet, kinda.. soooo... also this requires knowing the bit width!! which we technicallyyyyy speaking would have at this point lol. interesting haha.)
+
+the idea here is that we can represent an   "incr"    as  adding a compiletime known (or computed!)  value 1   to a given runtime register.  and the value 0, with a set, for "zero", and sub and a value 1, for decr. so yeah. 
+
+	
+
+
+
+
+
+
+
+struct instruction {
+	nat address;
+	nat op;
+	nat gotos[2];
+	nat arguments[7];
+};
+
+
+
+
+
+
 1202501083.161719
 
 so yeah, the current plan is definitely to:
@@ -646,8 +698,16 @@ static const char* ins_imm_spelling[] = {
 
 static const nat write_access = (nat) (1LLU << 63LLU);
 
+//struct instruction {
+//	nat args[9];   // sc n  0 0 0   0 0 0  l
+//};
+
+
 struct instruction {
-	nat args[9];   // sc n  0 0 0   0 0 0  l
+	nat address;
+	nat op;
+	nat gotos[2];
+	nat args[7];
 };
 
 struct file {
@@ -686,25 +746,18 @@ static nat get_call_output_count(nat n) {
 
 static void debug_instruction(struct instruction this, char** names) {
 
-	const nat op = this.args[0];
+	const nat op = this.op;
+	const nat address = this.address;
 
-	if (not op) {
-		printf("(null instruction): %llu %llu %llu %llu %llu %llu %llu %llu\n",
-			this.args[1], this.args[2], this.args[3], 
-			this.args[4], this.args[5], this.args[6], 
-			this.args[7], this.args[8]
-		);
-		
-	} else if (
+	if (
 		op == zero or 
 		op == incr or 
 		op == decr or 
-		op == not_ or 
-		op == ct
+		op == not_
 	) {
 		const char* name = ins_spelling[op];
-		printf(" %s %llu   ---> %llu\n",
-			this.args[1], this.args[2]
+		printf("#%llu: %s %s   ---> %llu\n",
+			address, name, names[this.args[0]], this.gotos[0]
 		);
 
 	} else if (
@@ -717,16 +770,17 @@ static void debug_instruction(struct instruction this, char** names) {
 		op == or_ or
 		op == eor or
 		op == si or
-		op == sd or
-		op == rt
+		op == sd
 	) {
 		const char* name = ins_spelling[op];
-		printf(" %s %llu %llu   ---> %llu\n",
-			this.args[1], this.args[2], this.args[3]
+		printf("#%llu: %s %s %s   ---> %llu\n",
+			address, name, 
+			names[this.args[0]], names[this.args[1]], 
+			this.gotos[0]
 		);
 
 	} else {
-		printf(" ...UNKNOWN INSTRUCTION...\n");
+		printf(" [ERROR: UNKNOWN INSTRUCTION]: op=%llu, address=%llu, gotos={%llu,%llu}...\n", op, address, this.gotos[0], this.gotos[1]);
 	}
 }
 
@@ -827,10 +881,13 @@ int main(int argc, const char** argv) {
 	
 	char* names[4096] = {0};
 	nat name_count = 0;
+
 	struct instruction* ins = NULL;
 	nat ins_count = 0;
+
 	struct file filestack[4096] = {0};
 	nat filestack_count = 1;
+
 	const char* included_files[4096] = {0};
 	nat included_file_count = 0;
 
@@ -850,7 +907,9 @@ int main(int argc, const char** argv) {
 	for (nat i = 0; i < builtin_count; i++) names[name_count++] = strdup(builtin_spelling[i]);
 
 process_file:;
-	nat word_length = 0, word_start = 0, first = 1, comment = 0;
+
+	nat word_length = 0, word_start = 0, first = 1, comment = 0, arg_count = 0;
+
 	const nat starting_index = 	filestack[filestack_count - 1].index;
 	const nat text_length = 	filestack[filestack_count - 1].text_length;
 	char* text = 			filestack[filestack_count - 1].text;
@@ -862,30 +921,49 @@ process_file:;
 			word_length++; 
 			if (index + 1 < text_length) continue;
 		} else if (not word_length) continue;
+
 		char* word = strndup(text + word_start, word_length);
-		printf("[first=%llu,com=%llu]: [%llu]: at word = %s\n", first, comment, word_start, word);
+
+		printf("%s:%llu: [first=%llu,comment=%llu]: %llu: looking at \"%s\"\n", 
+			filename, index, first, comment, word_start, word
+		);
+
 		if (comment) { if (not strcmp(word, ".")) comment = 0; goto next_word; }
-		const char*const*const list = first ? ins_spelling : (const char*const*const) names;
+
+		const char * const * const list = first ? ins_spelling : (const char * const * const) names;
 		const nat count = first ? isa_count : name_count;
 		nat calling = 0;
 		for (; calling < count; calling++) 
 			if (not strcmp(list[calling], word)) goto found;
+
 		if (first) { 
 			if (not strcmp(word, ".")) { comment = 1; goto next_word; }
-			else { printf("unknown word: %s\n", word); abort(); }
+			else { printf("%s:%llu: error: undefined operation: %s\n", filename, index, word); abort(); }
 		}
-		names[name_count++] = word;
+		if (	ins[ins_count - 1].op == ct or
+			ins[ins_count - 1].op == rt or
+			ins[ins_count - 1].op == zero or
+			ins[ins_count - 1].op == set 
+		) names[name_count++] = word;
+		else { printf("%s:%llu: error: undefined variable: \"%s\"\n", filename, index, word); abort(); }
 
 	found:	if (first) {
-			if (not strcmp(word, ins_spelling[eoi])) break;
+			
+			if (calling == eoi) break;
+			if (previously_do) {
+				printf("%s:%llu: warning: unreachable instruction\n", filename, index, word);
+				//abort();
+			}
+			
+			if (calling == do_) previously_do = 1;
+			if (calling == at) previously_do = 0;
 			ins = realloc(ins, sizeof(struct instruction) * (ins_count + 1));
-			ins[ins_count++] = (struct instruction) {0};
+			ins[ins_count++] = (struct instruction) {.address = ADDRESS, .op = calling};
 			first = 0;
-		}
-		struct instruction* this = ins + ins_count - 1;
-		this->args[this->count++] = calling;
-		if (this->count != isa_arity(this->args[0]) + 1) goto next_word;
-		if (this->args[0] == lf) {
+		} else ins[ins_count - 1].args[arg_count++] = calling;
+
+		if (arg_count != isa_arity(ins[ins_count - 1].op)) goto next_word;
+		if (ins[ins_count - 1].op == lf) {
 			ins_count--;
 			for (nat i = 0; i < included_file_count; i++) {
 				if (strcmp(included_files[i], word)) continue;
@@ -913,8 +991,6 @@ process_file:;
 	filestack_count--;
 	if (filestack_count) goto process_file;
 
-
-
 	for (nat i = 0; i < ins_count; i++) {
 		if (ins[i].args[0] == do_) aborT();
 		if (ins[i].args[0] == at) aborT();
@@ -923,7 +999,6 @@ process_file:;
 		if (ins[i].args[0] == ct) aborT();
 		if (ins[i].args[0] == rt) aborT();
 	}
-
 
 	debug_dictionary(names, name_count);
 	debug_instructions(ins, ins_count, names);
