@@ -7,6 +7,166 @@
 
 /*
 
+1202501083.161719
+
+so yeah, the current plan is definitely to:
+
+
+	1. form the   numeric (index based)   cfg   ds,    while parsing/lexing, 
+
+	2. not have ANYYYYY labels in the code, after parsing is finished. only ins indexes.
+
+	3. not have ANYYYYY implicit ip++'s present in the code. ie, all instructions could be reordered in any way, and the codes meaning wouldnt change AT ALL.
+
+	4. we need to generate a new    rt_ins     array    as the output of   stage1 ct eval.  
+
+		the only instructions we generate are ones which are     containing a rt destination, or    rtk cond br.
+
+	5. 
+
+
+
+
+
+
+1202501083.161205
+OH MY GOSH    THE LABEL HAS TO BE PART OF THE INSTRUCTIONNNN
+
+	and thennnn
+
+			the goto's for an instruction     are always       label names!!!!    not instruction indexes lol 
+		(at least, this would kindaaa solve it lol.  while still allowing things to be editable easily lol 
+
+			)
+
+
+	idkkk hmm
+
+
+	i mean we could just as easily   just allow for the   cfg connections to be numbers instead of labels  ie,        ins indexes  
+
+		i feel like thats just better lol 
+
+
+		hmmm  but yeah then when we see a label, we neeeedddd to like.. interpret it    as      NOT   a variable.   very important, actually that it isnt one. 
+
+
+		we need to replace it with  like...       the instruction index, instead.   veryyyyyyy important lol. so yeah.. cool.  interesting. 
+
+
+
+
+
+
+
+
+
+basicallyyyy we are trying to NOTTTTT rely on the source ordering lolll
+
+LIKE      AT ALLLLLL       ONLYYYYYYYY execution for things.   ONLY.    thats the only way we traverse the code that the user gave.   is via   execution.  ONLY.
+
+
+
+
+
+
+
+
+
+
+
+1202501083.021325
+
+
+		i figured out the main issue that we are having with    contradiction between  doing source ordering and execution ordering, 
+
+
+
+				the root of the problem     is just  that 
+
+
+
+					1. we need to do execution ordering, 
+
+					2. we need to delete the   compute_gotos() function.   we NEEDDD to be notttt using    "at label"  in the representation of the programs cfg,   we need to actually have hardcoded instruction indexes,   for the    .true  and .false  sides of every single instruction.  (for unconditional ones, this will just have the .false side.)  but yeah, each instruction has its   sides    indexes     hardcoded.  when we edit the controlflow, we'll just have to adjust things. its just the way it has to be. alternatively, if you don't want that,   you could generate a million different  do and at instructions lol, for every single implicit "ip++"... buttttt 
+
+
+							basically what we are tryinggggg to accomplish here  is  to have    some sort of.. invariant  to whereeeee basic blocks are actually placed in the instruction sequence, so thattttt we arent at all sensitive to where those blocks end up in the sequence,
+
+								because of course,   when traversing a graph  via execution, and using a stack to traverse rt branches, 
+
+									we might actually not put    those generated instructions at the right spot. 
+
+
+
+					oh, also, we are generating a new list of instructions,   each time we want to edit things. 
+
+
+						ie, unreachable analysis   actually just   generates a new list of    reachable  (rt_ins)    instructions,
+
+
+						and ct unrolling    alsooo just generates a new set of instructions,    etc etc.
+
+
+
+		now
+
+
+			to allow for the instruction sequence to be mutable, 
+
+
+				i'm actually not  totally against    inserting a crap ton of         do label      at label    instructions lol... 
+
+
+
+	like 
+			its not the best... 
+
+				but i mean  it could work lol. 
+
+
+
+
+
+
+			to make it so that reordering    where that block of instructions goes,     never changes anything. 
+
+
+
+
+	its a bit verbose, but it could work lol. 
+
+hmm
+
+
+
+
+
+
+
+
+
+so yeah thats the current plan lol 
+
+
+
+yay
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 //struct instruction mi[4096] = {0};  // arg[0] is in "enum arm64_ins_set". args are in order of assembly format.
 //nat mi_count = 0;
 
@@ -355,9 +515,8 @@ use this code later:
 
 
 
-	*/
-
-/*if (ctk[arg1] and ctk[arg2]) {
+	
+			if (ctk[arg1] and ctk[arg2]) {
 				if (condition) {
 					ins[top].count = 2;
 					ins[top].args[0] = do_;
@@ -365,7 +524,23 @@ use this code later:
 				} else {
 					ins[top].count = 0;
 				}
-			}*/  
+			}
+
+
+
+
+
+
+
+	const nat is_imm = this.args[0] >= isa_count;
+	if (is_imm) printf(" %s ", ins_imm_spelling[this.args[0] - isa_count]);
+	else printf(" %s ", ins_spelling[this.args[0]]);
+	for (nat a = 1; a < this.count; a++) {
+		if (a == 2 and is_imm) printf(" IMM=%llu ", this.args[a]);
+		else printf(" %s ", names[this.args[a]]);
+	}
+
+*/
 
 
 #include <stdio.h>
@@ -385,19 +560,23 @@ typedef uint64_t nat;
 
 enum language_isa {
 	null_ins, 
-	zero, incr, decr, not_, do_, at, ct, lf, 
-	set, add, sub, mul, div_, and_, or_, eor, si, sd, rt, 
-	lt, ge, ne, eq, ld, st, 
-	sc, eoi,
+	zero, incr, decr, not_, 
+	do_, at, ct, lf, 
+	set, add, sub, mul, div_, 
+	and_, or_, eor, si, sd, rt, 
+	lt, ge, ne, eq, 
+	ld, st, sc, eoi,
 	isa_count
 };
 
 static const char* ins_spelling[isa_count] = {
 	"__NULL_INSTRUCTION__",
-	"zero", "incr", "decr", "not", "do", "at", "ct", "lf",
-	"set", "add", "sub", "mul", "div", "and", "or", "eor", "si", "sd", "rt",
-	"lt", "ge", "ne", "eq", "ld", "st", 
-	"sc", "eoi"
+	"zero", "incr", "decr", "not", 
+	"do", "at", "ct", "lf",
+	"set", "add", "sub", "mul", "div", 
+	"and", "or", "eor", "si", "sd", "rt",
+	"lt", "ge", "ne", "eq", 
+	"ld", "st", "sc", "eoi"
 };
 
 enum language_builtins {
@@ -468,8 +647,7 @@ static const char* ins_imm_spelling[] = {
 static const nat write_access = (nat) (1LLU << 63LLU);
 
 struct instruction {
-	nat args[8];
-	nat count;
+	nat args[9];   // sc n  0 0 0   0 0 0  l
 };
 
 struct file {
@@ -507,14 +685,51 @@ static nat get_call_output_count(nat n) {
 }
 
 static void debug_instruction(struct instruction this, char** names) {
-	const nat is_imm = this.args[0] >= isa_count;
-	if (is_imm) printf(" %s ", ins_imm_spelling[this.args[0] - isa_count]);
-	else printf(" %s ", ins_spelling[this.args[0]]);
-	for (nat a = 1; a < this.count; a++) {
-		if (a == 2 and is_imm) printf(" IMM=%llu ", this.args[a]);
-		else printf(" %s ", names[this.args[a]]);
+
+	const nat op = this.args[0];
+
+	if (not op) {
+		printf("(null instruction): %llu %llu %llu %llu %llu %llu %llu %llu\n",
+			this.args[1], this.args[2], this.args[3], 
+			this.args[4], this.args[5], this.args[6], 
+			this.args[7], this.args[8]
+		);
+		
+	} else if (
+		op == zero or 
+		op == incr or 
+		op == decr or 
+		op == not_ or 
+		op == ct
+	) {
+		const char* name = ins_spelling[op];
+		printf(" %s %llu   ---> %llu\n",
+			this.args[1], this.args[2]
+		);
+
+	} else if (
+		op == set or 
+		op == add or 
+		op == sub or 
+		op == mul or 
+		op == div_ or
+		op == and_ or 
+		op == or_ or
+		op == eor or
+		op == si or
+		op == sd or
+		op == rt
+	) {
+		const char* name = ins_spelling[op];
+		printf(" %s %llu %llu   ---> %llu\n",
+			this.args[1], this.args[2], this.args[3]
+		);
+
+	} else {
+		printf(" ...UNKNOWN INSTRUCTION...\n");
 	}
 }
+
 
 static void debug_instructions(
 	struct instruction* ins, 
@@ -522,7 +737,7 @@ static void debug_instructions(
 ) {
 	printf("instructions: (%llu count) \n", ins_count);
 	for (nat i = 0; i < ins_count; i++) {
-		if (not ins[i].count) continue;
+		//if (not ins[i].count) continue;
 		printf("[%3llu] = ins(\" ", i);
 		debug_instruction(ins[i], names); puts("\")");
 	}
@@ -536,7 +751,7 @@ static void print_instruction_index(
 ) {
 	printf("(%llu instructions)\n", ins_count);
 	for (nat i = 0; i < ins_count; i++) {
-		if (not ins[i].count) continue;
+		//if (not ins[i].count) continue;
 		printf("%5llu:\t", i);
 		debug_instruction(ins[i], names);
 		if (i == this) printf("   <---- %s\n", note); else puts("");
@@ -697,6 +912,18 @@ process_file:;
 	}
 	filestack_count--;
 	if (filestack_count) goto process_file;
+
+
+
+	for (nat i = 0; i < ins_count; i++) {
+		if (ins[i].args[0] == do_) aborT();
+		if (ins[i].args[0] == at) aborT();
+		if (ins[i].args[0] == lf) aborT();
+		if (ins[i].args[0] == eoi) aborT();
+		if (ins[i].args[0] == ct) aborT();
+		if (ins[i].args[0] == rt) aborT();
+	}
+
 
 	debug_dictionary(names, name_count);
 	debug_instructions(ins, ins_count, names);
