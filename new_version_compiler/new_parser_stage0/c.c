@@ -11,10 +11,8 @@ enum {
 	zero, incr, decr, 
 	not_, and_, or_, eor, si, sd,
 	set, add, sub, mul, div_, 
-	lt, eq, ld, st, sc,
-	
+	lt, eq, ld, st, sc,	
 	do_, at, lf, ge, ne, ct, rt,
-
 	isa_count
 };
 
@@ -33,12 +31,12 @@ struct instruction {
 	nat args[7];
 };
 
-static void print_index(const char* text, nat text_length, nat index) {
-	printf("@%llu: ", index); 
+static void print_index(const char* text, nat text_length, nat begin, nat end) {
+	printf("\n\t@%llu..%llu: ", begin, end); 
 	for (nat i = 0; i < text_length; i++) {
-		if (i == index) printf("[");
+		if (i == begin) printf("\033[32;1m[");
 		putchar(text[i]);
-		if (i == index) printf("]");
+		if (i == end) printf("]\033[0m");
 	}
 	puts("\n");
 }
@@ -94,7 +92,7 @@ int main(int argc, const char** argv) {
 	puts("");
 
 
-
+	const char* filename = "file.s";
 
 	for (nat index = 0; index < text_length; index++) {
 		if (not isspace(text[index])) {
@@ -115,15 +113,25 @@ int main(int argc, const char** argv) {
 				if (not strcmp(word, ins_spelling[state])) {
 					if (state == at) unreachable = 0;
 					else if (unreachable) {
-						printf("filename:%llu: warning: unreachable instruction\n", index);
-						print_index(text, text_length, index);
+						printf("%s:%llu:%llu: warning: unreachable instruction\n", 
+							filename, word_start, index
+						);
+						print_index(text, text_length, word_start, index);
 					}
 					goto next_word; 
 				}
 			}
-			printf("filename:%llu: error: undefined operation \"%s\"\n", index, word); 
-			print_index(text, text_length, index);
+
+			print_error: 
+			printf("%s:%llu:%llu: error: undefined %s \"%s\"\n", 
+				filename, word_start, index, 
+				state == isa_count ? "operation" : "variable", 
+				word
+			); 
+			print_index(text, text_length, word_start, index);
 			abort();
+
+
 		} else {
 			const nat saved_name_count = name_count;
 			nat variable = 0;
@@ -172,23 +180,19 @@ int main(int argc, const char** argv) {
 				ins[ins_count++] = new;
 
 			} else if (state == incr or state == decr or state == not_) {
-				if (variable == saved_name_count) { 
-					error_var: printf("filename:%llu: error: undefined variable \"%s\"\n", index, word); 
-					print_index(text, text_length, index);
-					abort();
-				}
+				if (variable == saved_name_count) goto print_error;
 				goto push_ins;
 			} else if (	state == add or state == sub or 
 					state == mul or state == div_ or 
 					state == and_ or state == or_ or 
 					state == eor or state == si or state == sd) {
-				if (arg_count < 2 and variable == saved_name_count) goto error_var;
+				if (arg_count < 2 and variable == saved_name_count) goto print_error;
 				if (arg_count == 2) goto push_ins;
 			} else if (state == lt or state == eq or state == ge or state == ne) {
-				if (arg_count < 3 and variable == saved_name_count) goto error_var;
+				if (arg_count < 3 and variable == saved_name_count) goto print_error;
 				if (arg_count == 3) goto push_ins;
 			} else if (state == sc) {
-				if (arg_count < 7 and variable == saved_name_count) goto error_var;
+				if (arg_count < 7 and variable == saved_name_count) goto print_error;
 				if (arg_count == 7) goto push_ins;
 			} else {
 				printf("error: parsing state unimplemented: %llu: %s\n", state, ins_spelling[state]);
