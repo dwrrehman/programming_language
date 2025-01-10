@@ -3,7 +3,7 @@ a compiler for a programming language
 written by dwrr on 202407217.003650
 updated on 1202501046.114848
 
-this language is designed to be a simple and easy to learn common subset between multiple risc-like isa's, in such a way to allow for the maximum possible performance without requiring the user to write register numbers or write particular isa op codes. rather, the isa of the language is made to facilitate building those constructs (target specific op-codes, and register numbers) emergently, as well as allow for more powerful optimization on the input program.
+this language is designed to be a simple and easy to learn common subset between multiple risc-like isa's, in such a way to allow for the maximum possible performance without requiring the user to write register numbers or write particular isa op codes. rather, the isa of the language is made to facilitate building those constructs (target specific op-codes, and register numbers) emergently via a highly general instruction selection and register allocation pass, as well as generally speaking allow for more powerful optimization on the input program.
 
 some notes about the language's syntax and design:
 
