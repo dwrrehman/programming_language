@@ -443,8 +443,7 @@ int main(int argc, const char** argv) {
 
 		getchar();
 
-		visited[top]++;
-
+		visited[top] = 1;
 
 		struct instruction new = ins[top];
 
@@ -483,7 +482,7 @@ int main(int argc, const char** argv) {
 			}
 
 		push_rt_ins:;
-			if (visited[top] == 1) {
+			if ((1)) { // visited[top] == 
 
 				//if (rt_ins[previous_top]) 
 				
@@ -493,6 +492,11 @@ int main(int argc, const char** argv) {
 					rt_ins[HERE].gotos[0] = rt_count;
 
 				rt_ins[rt_count++] = new;
+			} else {
+
+				printf("we are here again!!!\n");
+				getchar();
+
 			}
 
 		} else if (op == zero) {
@@ -626,23 +630,83 @@ int main(int argc, const char** argv) {
 				printf("info: found %s system call!\n", systemcall_spelling[n]);
 				print_instruction_index(ins, ins_count, names, name_count, top, systemcall_spelling[n]);
 			}
-			goto push_rt_ins;
+
+
+			//goto push_rt_ins;
+			abort(); // we need to be generating a seperate intsruction for each system call.
+			// this gets rid of the ct n param entirely, so that we don't need any ct var refs in the rt ins seq.
+			// each syscall will have its own  rt ins.  with a specific arity, in and out. 
+
+
+
 		} else {
 			puts("internal error: unknown operation: execution not specified");
 			abort();
 		}
 
-		if (op == lt or op == eq) {
-			if (gt0 < ins_count and visited[gt0] < 1) stack[stack_count++] = gt0;
-			if (gt1 < ins_count and visited[gt1] < 1) stack[stack_count++] = gt1;
-		} else {
-			if (gt0 < ins_count) stack[stack_count++] = gt0;
-		}
+		if ((op == lt or op == eq) and gt1 < ins_count and not visited[gt1]) 
+			stack[stack_count++] = gt1;
+
+		if (gt0 < ins_count and not visited[gt0]) 
+			stack[stack_count++] = gt0;
 
 		next_instruction:;
-
-		//previous_top = top;
 	}
+
+
+
+/*
+
+
+	1202501116.214153
+
+	basically the root of the problem here is that     we need to skip the line    when we are ct executing stuff. ie, when we traverse a compiletime known execution edge, we need to actually 
+
+
+				like    NOTTTT use the graph traversal (GT) machinery  ie the whole stack machinery stuff 
+					we need to like   just go to that instruction directly, and start executing it.  not using the stack for any of it. 
+
+
+
+					in fact, i think we'd only ever use the stack for rt branches, right???
+				i think so.  i think thats literally the only time we push to the stack.. woww..
+
+
+
+					okay so basically we need to   revise the GT machinery 
+
+						to make it only stack push  sides and also   only on rt brs 
+					we'll just write our own GT stuff i think 
+
+
+					shouldnt be that harddddd i think lol 
+
+		hmm interestinggg
+
+
+
+
+but yeah thats the root of the problem, i think. 
+
+
+
+yay
+
+
+
+						
+*/
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -695,6 +759,17 @@ int main(int argc, const char** argv) {
 
 
 
+
+/*
+
+			bool in0 = false;
+			bool in1 = false;
+			for (nat i = 0; i < stack_count; i++) {
+				if (stack[i] == gt0) in0 = true;
+				if (stack[i] == gt1) in1 = true;
+			}
+
+*/
 
 
 

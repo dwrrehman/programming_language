@@ -15,3 +15,4 @@ at loop
 	ge i limit done
 	incr i do loop
 at done
+zero i
