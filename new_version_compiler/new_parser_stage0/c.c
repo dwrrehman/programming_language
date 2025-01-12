@@ -35,6 +35,7 @@ enum {
 	si_imm, 
 	sd_imm, 	
 	lt_imm, 
+	gt_imm, 
 	eq_imm,  
 };
 
@@ -363,18 +364,24 @@ int main(int argc, const char** argv) {
 				}
 				ins[ins_count++] = new;
 
+			} else if (state == set) {				
+				if (arg_count == 2) goto push_ins;
+
 			} else if (state == incr or state == decr or state == not_) {
 				if (variable == saved_name_count) goto print_error;
 				goto push_ins;
+
 			} else if (	state == add or state == sub or 
 					state == mul or state == div_ or 
 					state == and_ or state == or_ or 
 					state == eor or state == si or state == sd) {
 				if (arg_count < 2 and variable == saved_name_count) goto print_error;
 				if (arg_count == 2) goto push_ins;
+
 			} else if (state == lt or state == eq or state == ge or state == ne) {
 				if (arg_count < 3 and variable == saved_name_count) goto print_error;
 				if (arg_count == 3) goto push_ins;
+
 			} else if (state == sc) {
 				if (arg_count < 7 and variable == saved_name_count) goto print_error;
 				if (arg_count == 7) goto push_ins;
@@ -398,7 +405,6 @@ int main(int argc, const char** argv) {
 	print_dictionary(names, ctk, values, locations, bit_count, name_count);
 	print_instructions(ins, ins_count, names, name_count);
 
-
 	uint8_t* visited = calloc(ins_count, 1);
 	nat* stack = calloc(2 * ins_count, sizeof(nat));
 	nat stack_count = 0;
@@ -409,14 +415,38 @@ int main(int argc, const char** argv) {
 
 	while (stack_count) { 
 
+		printf("stack: %llu { \n", stack_count);
+		for (nat i = 0; i < stack_count; i++) {
+			printf("stack[%llu] = %llu\n", i, stack[i]);
+		}
+		puts("}");
+
+		printf("visited: { ");
+		for (nat i = 0; i < ins_count; i++) {
+			printf("%hhu ", visited[i]);
+		}
+		puts("}");
+
+		printf("found compiletime values of variables: {\n");
+		for (nat i = 0; i < name_count; i++) {
+			if (not ctk[i]) continue;
+			printf("\tvalues[%s] = %llu\n", names[i], values[i]);
+		}
+		puts("}");
+
 		const nat top = stack[--stack_count];
 
 		print_instruction_index(ins, ins_count, names, name_count, top, "here");
 		printf("visiting ins #%llu\n", top);
-		print_instruction(ins[top], names, name_count);
+		print_instruction(ins[top], names, name_count); puts("");
+		print_instructions(rt_ins, rt_count, names, name_count);
+
 		getchar();
 
 		visited[top]++;
+
+
+		struct instruction new = ins[top];
 
 		const nat 
 			op = ins[top].op,
@@ -435,54 +465,74 @@ int main(int argc, const char** argv) {
 			} else {
 				if (gt1 < ins_count) stack[stack_count++] = gt1;
 			}
-
 			goto next_instruction;
 			generate_rt_branch:;
-			struct instruction new = ins[top];
 
-			if (ctk[arg0] ^ ctk[arg1] and new.op == lt) new.op = lt_imm;
-			if (ctk[arg0] ^ ctk[arg1] and new.op == eq) new.op = eq_imm;
+			if (not ctk[arg0] and not ctk[arg1]) { }
+			else if (ctk[arg0]) {
+				nat t = new.args[0]; 
+				new.args[0] = new.args[1]; 
+				new.args[1] = t;
+				if (op == lt) new.op = gt_imm; 
+				else new.op = eq_imm;
+				new.args[1] = values[new.args[1]];
+			} else {
+				if (op == lt) new.op = lt_imm; 
+				else new.op = eq_imm;
+				new.args[1] = values[new.args[1]];
+			}
 
-			rt_ins[rt_count++] = new;
+		push_rt_ins:;
+			if (visited[top] == 1) {
+
+				//if (rt_ins[previous_top]) 
+				
+				nat HERE = rt_count - 1;
+
+				if (rt_count) 
+					rt_ins[HERE].gotos[0] = rt_count;
+
+				rt_ins[rt_count++] = new;
+			}
 
 		} else if (op == zero) {
 			if (ctk[arg0]) { values[arg0] = 0; }
 			else {
-				struct instruction new = ins[top];
 				new.op = set_imm;
 				new.args[1] = 0;
-				rt_ins[rt_count++] = new;
+				goto push_rt_ins;
 			}
 
 		} else if (op == incr) {
 			if (ctk[arg0]) { values[arg0]++; }
 			else {
-				struct instruction new = ins[top];
 				new.op = add_imm;
 				new.args[1] = 1;
-				rt_ins[rt_count++] = new;
+				goto push_rt_ins;
+			}
+
+		} else if (op == decr) {
+			if (ctk[arg0]) { values[arg0]--; }
+			else {
+				new.op = sub_imm;
+				new.args[1] = 1;
+				goto push_rt_ins;
 			}
 
 		} else if (op == not_) {
 			if (ctk[arg0]) { values[arg0] = ~values[arg0]; }
 			else {
-				struct instruction new = ins[top];
 				new.op = eor_imm;
 				new.args[1] = (nat) -1;
-				rt_ins[rt_count++] = new;
+				goto push_rt_ins;
 			}
 
 		} else if (op == add) {
 			if (ctk[arg0] and ctk[arg1]) values[arg0] += values[arg1];
 		push_rt:;
 			if (not ctk[arg0]) {
-
-				struct instruction new = ins[top];
-
 				if (ctk[arg1]) {
-
 					new.args[1] = values[arg1];
-
 					if (op == set) new.op = set_imm;
 					if (op == add) new.op = add_imm;
 					if (op == sub) new.op = sub_imm;
@@ -495,8 +545,8 @@ int main(int argc, const char** argv) {
 					if (op == sd)  new.op = sd_imm;
 
 				} else {
-					puts("error: both arguments are runtime."); 
-					abort();
+					//puts("error: both arguments are runtime."); 
+					//abort();
 				}
 
 				if (new.op == set and arg0 == arg1) { }
@@ -510,7 +560,8 @@ int main(int argc, const char** argv) {
 				else if (new.op == eor_imm and values[arg1] == 0) { }
 				else if (new.op == si_imm and values[arg1] == 0) { }
 				else if (new.op == sd_imm and values[arg1] == 0) { }
-				else rt_ins[rt_count++] = new;
+				else goto push_rt_ins;
+
 
 
 			} else {
@@ -566,8 +617,6 @@ int main(int argc, const char** argv) {
 				//list[list_count++] = write_access | ins[top].args[1 + i];
 			}
 
-			rt_ins[rt_count++] = ins[top];
-
 			if (n == system_exit) {
 				printf("warning: reached cfg termination point\n");
 				print_instruction_index(ins, ins_count, names, name_count, top, "CFG termination point here");
@@ -577,6 +626,10 @@ int main(int argc, const char** argv) {
 				printf("info: found %s system call!\n", systemcall_spelling[n]);
 				print_instruction_index(ins, ins_count, names, name_count, top, systemcall_spelling[n]);
 			}
+			goto push_rt_ins;
+		} else {
+			puts("internal error: unknown operation: execution not specified");
+			abort();
 		}
 
 		if (op == lt or op == eq) {
@@ -585,7 +638,10 @@ int main(int argc, const char** argv) {
 		} else {
 			if (gt0 < ins_count) stack[stack_count++] = gt0;
 		}
+
 		next_instruction:;
+
+		//previous_top = top;
 	}
 
 
@@ -1129,7 +1185,59 @@ struct instruction {
 	0,
 	1, 1, 1, 3, 3, 1, 2
 };
+
+
+
+			if (ctk[arg0]) { // we therefore know arg1 is   NOT ctk. 
+
+
+				if (new.op == lt) {
+
+				} else {
+
+				}
+
+
+			} else {
+				if (ctk[arg1]) {
+
+					if (new.op == lt) {
+
+					} else {
+
+					}
+				} else { // we know that both are ct. generate the branch, normally. 
+					if (new.op == lt) {
+
+					} else {
+
+					}
+
+				}
+			}
+
+
+
 */
+
+
+
+
+			/*if (ctk[arg0] ^ ctk[arg1] and new.op == eq) new.op = eq_imm;
+
+
+			if (not ctk[arg0] and ctk[arg1] and new.op == lt) new.op = lt_imm;
+			if (ctk[arg0] and not ctk[arg1] and new.op == lt) { 
+				new.op = gt_imm; nat t = new.args[0]; 
+				new.args[0] = new.args[1]; new.args[1] = t;
+			} 
+
+			//if (ctk[arg
+
+			rt_ins[rt_count++] = new;
+*/
+
+
 
 
 

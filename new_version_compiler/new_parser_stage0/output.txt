@@ -1,0 +1,218 @@
+parsing this text: (143) 
+ct limit zero limit
+
+incr limit 
+incr limit 
+incr limit 
+incr limit 
+incr limit 
+
+
+
+
+zero i 
+
+at loop
+	ge i limit done
+	incr i do loop
+at done
+
+
+filename:2: info: looking at "ct" @ 0
+filename:8: info: looking at "limit" @ 3
+filename:13: info: looking at "zero" @ 9
+filename:19: info: looking at "limit" @ 14
+filename:25: info: looking at "incr" @ 21
+filename:31: info: looking at "limit" @ 26
+filename:37: info: looking at "incr" @ 33
+filename:43: info: looking at "limit" @ 38
+filename:49: info: looking at "incr" @ 45
+filename:55: info: looking at "limit" @ 50
+filename:61: info: looking at "incr" @ 57
+filename:67: info: looking at "limit" @ 62
+filename:73: info: looking at "incr" @ 69
+filename:79: info: looking at "limit" @ 74
+filename:89: info: looking at "zero" @ 85
+filename:91: info: looking at "i" @ 90
+filename:96: info: looking at "at" @ 94
+filename:101: info: looking at "loop" @ 97
+filename:105: info: looking at "ge" @ 103
+filename:107: info: looking at "i" @ 106
+filename:113: info: looking at "limit" @ 108
+filename:118: info: looking at "done" @ 114
+filename:124: info: looking at "incr" @ 120
+filename:126: info: looking at "i" @ 125
+filename:129: info: looking at "do" @ 127
+filename:134: info: looking at "loop" @ 130
+filename:137: info: looking at "at" @ 135
+filename:142: info: looking at "done" @ 138
+found dictionary: { 
+
+	0: name = "limit", ctk = 1, value = 0, location = 0, bit_count = 0
+	1: name = "i", ctk = 0, value = 0, location = 0, bit_count = 0
+	2: name = "loop", ctk = 0, value = 0, location = 7, bit_count = 0
+	3: name = "done", ctk = 0, value = 0, location = 9, bit_count = 0
+}
+found instructions: { 
+
+	#0: zero {0(limit) -1() -1() -1()} : {.f=#1 .t=#0}
+	#1: incr {0(limit) -1() -1() -1()} : {.f=#2 .t=#0}
+	#2: incr {0(limit) -1() -1() -1()} : {.f=#3 .t=#0}
+	#3: incr {0(limit) -1() -1() -1()} : {.f=#4 .t=#0}
+	#4: incr {0(limit) -1() -1() -1()} : {.f=#5 .t=#0}
+	#5: incr {0(limit) -1() -1() -1()} : {.f=#6 .t=#0}
+	#6: zero {1(i) -1() -1() -1()} : {.f=#7 .t=#0}
+	#7: lt {1(i) 0(limit) 3(done) -1()} : {.f=#9 .t=#8}
+	#8: incr {1(i) -1() -1() -1()} : {.f=#7 .t=#0}
+}
+here: at index: 0: { 
+
+	#0: zero {0(limit) -1() -1() -1()} : {.f=#1 .t=#0}  <------ here
+	#1: incr {0(limit) -1() -1() -1()} : {.f=#2 .t=#0}
+	#2: incr {0(limit) -1() -1() -1()} : {.f=#3 .t=#0}
+	#3: incr {0(limit) -1() -1() -1()} : {.f=#4 .t=#0}
+	#4: incr {0(limit) -1() -1() -1()} : {.f=#5 .t=#0}
+	#5: incr {0(limit) -1() -1() -1()} : {.f=#6 .t=#0}
+	#6: zero {1(i) -1() -1() -1()} : {.f=#7 .t=#0}
+	#7: lt {1(i) 0(limit) 3(done) -1()} : {.f=#9 .t=#8}
+	#8: incr {1(i) -1() -1() -1()} : {.f=#7 .t=#0}
+}
+visiting ins #0
+zero {0(limit) -1() -1() -1()} : {.f=#1 .t=#0}
+here: at index: 1: { 
+
+	#0: zero {0(limit) -1() -1() -1()} : {.f=#1 .t=#0}
+	#1: incr {0(limit) -1() -1() -1()} : {.f=#2 .t=#0}  <------ here
+	#2: incr {0(limit) -1() -1() -1()} : {.f=#3 .t=#0}
+	#3: incr {0(limit) -1() -1() -1()} : {.f=#4 .t=#0}
+	#4: incr {0(limit) -1() -1() -1()} : {.f=#5 .t=#0}
+	#5: incr {0(limit) -1() -1() -1()} : {.f=#6 .t=#0}
+	#6: zero {1(i) -1() -1() -1()} : {.f=#7 .t=#0}
+	#7: lt {1(i) 0(limit) 3(done) -1()} : {.f=#9 .t=#8}
+	#8: incr {1(i) -1() -1() -1()} : {.f=#7 .t=#0}
+}
+visiting ins #1
+incr {0(limit) -1() -1() -1()} : {.f=#2 .t=#0}
+here: at index: 2: { 
+
+	#0: zero {0(limit) -1() -1() -1()} : {.f=#1 .t=#0}
+	#1: incr {0(limit) -1() -1() -1()} : {.f=#2 .t=#0}
+	#2: incr {0(limit) -1() -1() -1()} : {.f=#3 .t=#0}  <------ here
+	#3: incr {0(limit) -1() -1() -1()} : {.f=#4 .t=#0}
+	#4: incr {0(limit) -1() -1() -1()} : {.f=#5 .t=#0}
+	#5: incr {0(limit) -1() -1() -1()} : {.f=#6 .t=#0}
+	#6: zero {1(i) -1() -1() -1()} : {.f=#7 .t=#0}
+	#7: lt {1(i) 0(limit) 3(done) -1()} : {.f=#9 .t=#8}
+	#8: incr {1(i) -1() -1() -1()} : {.f=#7 .t=#0}
+}
+visiting ins #2
+incr {0(limit) -1() -1() -1()} : {.f=#3 .t=#0}
+here: at index: 3: { 
+
+	#0: zero {0(limit) -1() -1() -1()} : {.f=#1 .t=#0}
+	#1: incr {0(limit) -1() -1() -1()} : {.f=#2 .t=#0}
+	#2: incr {0(limit) -1() -1() -1()} : {.f=#3 .t=#0}
+	#3: incr {0(limit) -1() -1() -1()} : {.f=#4 .t=#0}  <------ here
+	#4: incr {0(limit) -1() -1() -1()} : {.f=#5 .t=#0}
+	#5: incr {0(limit) -1() -1() -1()} : {.f=#6 .t=#0}
+	#6: zero {1(i) -1() -1() -1()} : {.f=#7 .t=#0}
+	#7: lt {1(i) 0(limit) 3(done) -1()} : {.f=#9 .t=#8}
+	#8: incr {1(i) -1() -1() -1()} : {.f=#7 .t=#0}
+}
+visiting ins #3
+incr {0(limit) -1() -1() -1()} : {.f=#4 .t=#0}
+here: at index: 4: { 
+
+	#0: zero {0(limit) -1() -1() -1()} : {.f=#1 .t=#0}
+	#1: incr {0(limit) -1() -1() -1()} : {.f=#2 .t=#0}
+	#2: incr {0(limit) -1() -1() -1()} : {.f=#3 .t=#0}
+	#3: incr {0(limit) -1() -1() -1()} : {.f=#4 .t=#0}
+	#4: incr {0(limit) -1() -1() -1()} : {.f=#5 .t=#0}  <------ here
+	#5: incr {0(limit) -1() -1() -1()} : {.f=#6 .t=#0}
+	#6: zero {1(i) -1() -1() -1()} : {.f=#7 .t=#0}
+	#7: lt {1(i) 0(limit) 3(done) -1()} : {.f=#9 .t=#8}
+	#8: incr {1(i) -1() -1() -1()} : {.f=#7 .t=#0}
+}
+visiting ins #4
+incr {0(limit) -1() -1() -1()} : {.f=#5 .t=#0}
+here: at index: 5: { 
+
+	#0: zero {0(limit) -1() -1() -1()} : {.f=#1 .t=#0}
+	#1: incr {0(limit) -1() -1() -1()} : {.f=#2 .t=#0}
+	#2: incr {0(limit) -1() -1() -1()} : {.f=#3 .t=#0}
+	#3: incr {0(limit) -1() -1() -1()} : {.f=#4 .t=#0}
+	#4: incr {0(limit) -1() -1() -1()} : {.f=#5 .t=#0}
+	#5: incr {0(limit) -1() -1() -1()} : {.f=#6 .t=#0}  <------ here
+	#6: zero {1(i) -1() -1() -1()} : {.f=#7 .t=#0}
+	#7: lt {1(i) 0(limit) 3(done) -1()} : {.f=#9 .t=#8}
+	#8: incr {1(i) -1() -1() -1()} : {.f=#7 .t=#0}
+}
+visiting ins #5
+incr {0(limit) -1() -1() -1()} : {.f=#6 .t=#0}
+here: at index: 6: { 
+
+	#0: zero {0(limit) -1() -1() -1()} : {.f=#1 .t=#0}
+	#1: incr {0(limit) -1() -1() -1()} : {.f=#2 .t=#0}
+	#2: incr {0(limit) -1() -1() -1()} : {.f=#3 .t=#0}
+	#3: incr {0(limit) -1() -1() -1()} : {.f=#4 .t=#0}
+	#4: incr {0(limit) -1() -1() -1()} : {.f=#5 .t=#0}
+	#5: incr {0(limit) -1() -1() -1()} : {.f=#6 .t=#0}
+	#6: zero {1(i) -1() -1() -1()} : {.f=#7 .t=#0}  <------ here
+	#7: lt {1(i) 0(limit) 3(done) -1()} : {.f=#9 .t=#8}
+	#8: incr {1(i) -1() -1() -1()} : {.f=#7 .t=#0}
+}
+visiting ins #6
+zero {1(i) -1() -1() -1()} : {.f=#7 .t=#0}
+here: at index: 7: { 
+
+	#0: zero {0(limit) -1() -1() -1()} : {.f=#1 .t=#0}
+	#1: incr {0(limit) -1() -1() -1()} : {.f=#2 .t=#0}
+	#2: incr {0(limit) -1() -1() -1()} : {.f=#3 .t=#0}
+	#3: incr {0(limit) -1() -1() -1()} : {.f=#4 .t=#0}
+	#4: incr {0(limit) -1() -1() -1()} : {.f=#5 .t=#0}
+	#5: incr {0(limit) -1() -1() -1()} : {.f=#6 .t=#0}
+	#6: zero {1(i) -1() -1() -1()} : {.f=#7 .t=#0}
+	#7: lt {1(i) 0(limit) 3(done) -1()} : {.f=#9 .t=#8}  <------ here
+	#8: incr {1(i) -1() -1() -1()} : {.f=#7 .t=#0}
+}
+visiting ins #7
+lt {1(i) 0(limit) 3(done) -1()} : {.f=#9 .t=#8}
+here: at index: 8: { 
+
+	#0: zero {0(limit) -1() -1() -1()} : {.f=#1 .t=#0}
+	#1: incr {0(limit) -1() -1() -1()} : {.f=#2 .t=#0}
+	#2: incr {0(limit) -1() -1() -1()} : {.f=#3 .t=#0}
+	#3: incr {0(limit) -1() -1() -1()} : {.f=#4 .t=#0}
+	#4: incr {0(limit) -1() -1() -1()} : {.f=#5 .t=#0}
+	#5: incr {0(limit) -1() -1() -1()} : {.f=#6 .t=#0}
+	#6: zero {1(i) -1() -1() -1()} : {.f=#7 .t=#0}
+	#7: lt {1(i) 0(limit) 3(done) -1()} : {.f=#9 .t=#8}
+	#8: incr {1(i) -1() -1() -1()} : {.f=#7 .t=#0}  <------ here
+}
+visiting ins #8
+incr {1(i) -1() -1() -1()} : {.f=#7 .t=#0}
+here: at index: 7: { 
+
+	#0: zero {0(limit) -1() -1() -1()} : {.f=#1 .t=#0}
+	#1: incr {0(limit) -1() -1() -1()} : {.f=#2 .t=#0}
+	#2: incr {0(limit) -1() -1() -1()} : {.f=#3 .t=#0}
+	#3: incr {0(limit) -1() -1() -1()} : {.f=#4 .t=#0}
+	#4: incr {0(limit) -1() -1() -1()} : {.f=#5 .t=#0}
+	#5: incr {0(limit) -1() -1() -1()} : {.f=#6 .t=#0}
+	#6: zero {1(i) -1() -1() -1()} : {.f=#7 .t=#0}
+	#7: lt {1(i) 0(limit) 3(done) -1()} : {.f=#9 .t=#8}  <------ here
+	#8: incr {1(i) -1() -1() -1()} : {.f=#7 .t=#0}
+}
+visiting ins #7
+lt {1(i) 0(limit) 3(done) -1()} : {.f=#9 .t=#8}
+found compiletime values of variables: {
+	values[limit] = 5
+}
+found rt instruction listing after CT-eval:
+found instructions: { 
+
+	#0: set_imm {1(i) 0(limit) -1() -1()} : {.f=#7 .t=#0}
+	#1: lt_imm {1(i) 5() 3(done) -1()} : {.f=#9 .t=#8}
+	#2: add_imm {1(i) 1(i) -1() -1()} : {.f=#7 .t=#0}
+}
+compiled.
