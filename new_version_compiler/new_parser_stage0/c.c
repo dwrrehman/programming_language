@@ -49,6 +49,7 @@ static const char* ins_spelling[] = {
 
 struct instruction {
 	nat op;
+	nat ct;
 	nat gotos[2];
 	nat args[7];
 };
@@ -128,8 +129,8 @@ static void print_dictionary(char** names, nat* ctk, nat* values, nat* locations
 }
 
 static void print_instruction(struct instruction this, char** names, nat name_count) {
-	printf("%s {%lld(%s) %lld(%s) %lld(%s) %lld(%s)} : {.f=#%lld .t=#%lld}", 
-		ins_spelling[this.op], 
+	printf("[.ct=%llu]  %s {%lld(%s) %lld(%s) %lld(%s) %lld(%s)} : {.f=#%lld .t=#%lld}", 
+		this.ct, ins_spelling[this.op], 
 		this.args[0], this.args[0] < name_count ? names[this.args[0]] : "",
 		this.args[1], this.args[1] < name_count ? names[this.args[1]] : "",
 		this.args[2], this.args[2] < name_count ? names[this.args[2]] : "",
@@ -144,7 +145,7 @@ static void print_instructions(
 ) {
 	puts("found instructions: { \n");
 	for (nat i = 0; i < ins_count; i++) {
-		printf("\t#%llu: ", i);
+		printf("\t#%04llu: ", i);
 		print_instruction(ins[i], names, name_count);
 		puts("");
 	}
@@ -158,7 +159,7 @@ static void print_instruction_index(
 ) {
 	printf("%s: at index: %llu: { \n\n", message, here);
 	for (nat i = 0; i < ins_count; i++) {
-		printf("\t#%llu: ", i);
+		printf("\t#%04llu: ", i);
 		print_instruction(ins[i], names, name_count);
 		if (i == here)  printf("  <------ %s\n", message); else puts("");
 	}
@@ -173,7 +174,7 @@ int main(int argc, const char** argv) {
 	struct instruction ins[4096] = {0};
 	nat ins_count = 0;
 	char* names[4096] = {0};
-	nat ctk[4096] = {0};          //ctk[stacksize] = 1;
+	nat ctk[4096] = {0};
 	nat bit_count[4096] = {0};
 	nat values[4096] = {0};
 	nat name_count = 0;
@@ -275,6 +276,7 @@ int main(int argc, const char** argv) {
 				if (unreachable) goto next_word;
 				struct instruction new = {
 					.op = op,
+					.ct = 0,
 					.gotos = {ins_count + 1, variable | is_label},
 				};
 				memcpy(new.args, args, sizeof args);
@@ -330,18 +332,217 @@ int main(int argc, const char** argv) {
 
 
 
+	nat* stack = calloc(ins_count, sizeof(nat));
+	nat stack_count = 0;
+	stack[stack_count++] = 0; 
 
 
-	struct stack_entry* stack = calloc(2 * ins_count, sizeof(struct stack_entry));
 	uint8_t* visited = calloc(ins_count + 1, 1);
 
 	while (stack_count) {
 
+		printf("stack: %llu { \n", stack_count);
+		for (nat i = 0; i < stack_count; i++) {
+			printf("stack[%llu] =  %llu\n", 
+				i, stack[i]
+			);
+		}
+		puts("}");
 
+		printf("ct values: {\n");
+		for (nat i = 0; i < name_count; i++) {
+			if (not ctk[i]) continue;
+			printf("\tvalues[%s] = %llu\n", names[i], values[i]);
+		}
+		puts("}");
 
+		const nat pc = stack[--stack_count];
 
+		print_instruction_index(ins, ins_count, names, name_count, pc, "PC");
+		printf("executing pc #%llu\n", pc);
+		print_instruction(ins[pc], names, name_count); puts("");
+		getchar();
 
+		visited[pc] = 1;
+		const nat op = ins[pc].op;
+		const nat arg0 = ins[pc].args[0];
+		const nat arg1 = ins[pc].args[1];
+
+		if (op == lt or op == eq) {
+			if (ctk[arg0] and ctk[arg1]) {
+				nat condition = 0;
+				if (op == eq and values[arg0] == values[arg1]) condition = 1;
+				if (op == lt and values[arg0] <  values[arg1]) condition = 1;
+				ins[pc].ct = 1;
+				if (ins[pc].gotos[condition] < ins_count) stack[stack_count++] = ins[pc].gotos[condition];
+				continue;
+
+			}
+
+			if (ctk[arg0]) {
+				nat t = ins[pc].args[0]; 
+				ins[pc].args[0] = ins[pc].args[1]; 
+				ins[pc].args[1] = t;
+				if (op == lt) ins[pc].op = gt_imm;
+				else ins[pc].op = eq_imm;
+				ins[pc].args[1] = values[ins[pc].args[1]];
+
+			} else if (ctk[arg1]) {
+				if (op == lt) ins[pc].op = lt_imm;
+				else ins[pc].op = eq_imm;
+				ins[pc].args[1] = values[ins[pc].args[1]];
+			}
+			if (ins[pc].gotos[0] < ins_count and not visited[ins[pc].gotos[0]]) stack[stack_count++] = ins[pc].gotos[0];
+			if (ins[pc].gotos[1] < ins_count and not visited[ins[pc].gotos[1]]) stack[stack_count++] = ins[pc].gotos[1];
+			continue;
+
+		} else if (op == zero) { if (ctk[arg0]) { values[arg0] = 0; ins[pc].ct = 1; } else { ins[pc].op = set_imm; ins[pc].args[1] = 0; }
+		} else if (op == incr) { if (ctk[arg0]) { values[arg0]++; ins[pc].ct = 1; } else { ins[pc].op = add_imm; ins[pc].args[1] = 1; }
+		} else if (op == decr) { if (ctk[arg0]) { values[arg0]--; ins[pc].ct = 1; } else { ins[pc].op = sub_imm; ins[pc].args[1] = 1; }
+		} else if (op == not_) { if (ctk[arg0]) { values[arg0] = ~values[arg0]; ins[pc].ct = 1; } else { ins[pc].op = eor_imm; ins[pc].args[1] = (nat) -1; }
+		} else {
+			if (ctk[arg0] and ctk[arg1]) {
+				ins[pc].ct = 1; 
+				     if (op == set) values[arg0] = values[arg1];
+				else if (op == add) values[arg0] += values[arg1];
+				else if (op == sub) values[arg0] -= values[arg1];
+				else if (op == mul) values[arg0] *= values[arg1];
+				else if (op == div_)values[arg0] /= values[arg1];
+				else if (op == and_)values[arg0] &= values[arg1];
+				else if (op == or_) values[arg0] |= values[arg1];
+				else if (op == eor) values[arg0] ^= values[arg1];
+				else if (op == si)  values[arg0] <<= values[arg1];
+				else if (op == sd)  values[arg0] >>= values[arg1];
+				else {
+					puts("internal error: unknown operation: execution not specified");
+					printf("op = %llu, op = %s\n", op, ins_spelling[op]);
+					abort();
+				}
+				goto next_ins;
+			}
+			if (not ctk[arg0] and not ctk[arg1]) goto next_ins;
+			if (    ctk[arg0] and not ctk[arg1]) {
+				puts("error: ct destination must have ct source."); 
+				abort();
+			}
+			ins[pc].args[1] = values[arg1];
+			if (op == set) ins[pc].op = set_imm;
+			if (op == add) ins[pc].op = add_imm;
+			if (op == sub) ins[pc].op = sub_imm;
+			if (op == mul) ins[pc].op = mul_imm;
+			if (op == div_)ins[pc].op = div_imm;
+			if (op == and_)ins[pc].op = and_imm;
+			if (op == or_) ins[pc].op = or_imm;
+			if (op == eor) ins[pc].op = eor_imm;
+			if (op == si)  ins[pc].op = si_imm;
+			if (op == sd)  ins[pc].op = sd_imm;
+			if (	ins[pc].op ==  set and arg0 == arg1 or
+				ins[pc].op ==  or_ and arg0 == arg1 or 
+				ins[pc].op == and_ and arg0 == arg1 or 
+				ins[pc].op == add_imm and values[arg1] == 0 or 
+				ins[pc].op == sub_imm and values[arg1] == 0 or 
+				ins[pc].op == mul_imm and values[arg1] == 1 or 
+				ins[pc].op == div_imm and values[arg1] == 1 or 
+				ins[pc].op ==  or_imm and values[arg1] == 0 or
+				ins[pc].op == eor_imm and values[arg1] == 0 or
+				ins[pc].op ==  si_imm and values[arg1] == 0 or
+				ins[pc].op ==  sd_imm and values[arg1] == 0) ins[pc].ct = 1;
+		} 
+		next_ins: if (ins[pc].gotos[0] < ins_count) stack[stack_count++] = ins[pc].gotos[0];
 	}
+
+	for (nat i = 0; i < ins_count; i++) {
+		if (not visited[i]) ins[i].ct = 1;
+	}
+
+
+	printf("found compiletime values of variables: {\n");
+	for (nat i = 0; i < name_count; i++) {
+		if (not ctk[i]) continue;
+		printf("\tvalues[%s] = %llu\n", names[i], values[i]);
+	}
+	puts("}");
+
+	print_dictionary(names, ctk, values, locations, bit_count, name_count);
+	print_instructions(ins, ins_count, names, name_count);
+
+	puts("compiled.");
+	exit(0);
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 /*
@@ -353,7 +554,6 @@ struct stack_entry {
 };
 
 
-*/
 
 	uint8_t* visited = calloc(ins_count + 1, 1);
 	nat stack_count = 0;
@@ -618,7 +818,7 @@ struct stack_entry {
 
 
 
-
+*/
 
 
 
