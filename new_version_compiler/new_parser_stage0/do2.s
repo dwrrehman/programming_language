@@ -18,7 +18,7 @@ at loop
 	lt i limit loop
 
 incr ci 
-lt ci 4 loop
+lt ci 4 cloop
 
 
 
