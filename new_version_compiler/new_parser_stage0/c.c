@@ -506,41 +506,15 @@ int main(int argc, const char** argv) {
 	}
 	puts("}");
 
+
+
 	print_dictionary(names, ctk, values, locations, bit_count, name_count);
 	print_instructions(ins, ins_count, names, name_count);
 
-	getchar();
-
-
-
-
-
-
-
-	/*
-
-		addsr:  d  = n + (m << k);
-
-			set d m
-			si_imm d #k
-			add d n
-
-
-
-	*/
-
-
-
-
-
-
-	struct instruction mi[4096] = {0};  // arg[0] is in "enum arm64_ins_set". args are in order of assembly format.
+	struct instruction mi[4096] = {0};
 	nat mi_count = 0;
-
 	memset(visited, 0, sizeof(nat) * (ins_count + 1));
 	stack[stack_count++] = 0;
-
-	nat state = 0, dest = 0, source0 = 0, source1 = 0, immediate = 0;
 
 	while (stack_count) {
 
@@ -552,7 +526,7 @@ int main(int argc, const char** argv) {
 		}
 		puts("}");
 
-		const nat pc = stack[--stack_count];
+		nat pc = stack[--stack_count];
 
 		print_instruction_index(ins, ins_count, names, name_count, pc, "PC");
 		printf("executing pc #%llu\n", pc);
@@ -561,64 +535,132 @@ int main(int argc, const char** argv) {
 
 		visited[pc] = 1;
 
+		if (ins[pc].ct) goto done_with_instruction;
+
+	//  set d m  si_imm d k  add d n
+		{const nat op0 = ins[pc].op;
+		const nat dest0 = ins[pc].args[0];
+		const nat source0 = ins[pc].args[1];
+		const nat gt0 = ins[pc].gotos[0];
+		if (op0 != set) goto next0;
+
+		const nat op1 = ins[gt0].op;
+		const nat dest1 = ins[gt0].args[0];
+		const nat source1 = ins[gt0].args[1];
+		const nat gt1 = ins[gt0].gotos[0];
+		if (op1 != si_imm or dest1 != dest0) goto next0;
+
+		const nat op2 = ins[gt1].op;
+		const nat dest2 = ins[gt1].args[0];
+		const nat source2 = ins[gt1].args[1];
+		if (op2 != add or dest2 != dest0) goto next0;
+
+		const nat d = dest0;
+		const nat n = source2;
+		const nat m = source0;
+		const nat k = source1;					
+		printf("FOUND ARM64 MACHINE CODE INSTRUCTION:\n");
+		printf("ADD_SR   "
+			"d=%llu(%s), "
+			"n=%llu(%s), "
+			"m=%llu(%s) << "
+			"k=%llu\n",
+			d, names[d], 
+			n, names[n], 
+			m, names[m], 
+			k
+		);
+		struct instruction new = {0};
+		new.op = addsr;
+		new.args[0] = d;
+		new.args[1] = n;
+		new.args[2] = m;
+		new.args[3] = k;
+		mi[mi_count++] = new;
+		pc = gt1; } next0:;
+
+
+
+
+
+
+
+	// set d m  add d n
+		{const nat op0 = ins[pc].op;
+		const nat dest0 = ins[pc].args[0];
+		const nat source0 = ins[pc].args[1];
+		const nat gt0 = ins[pc].gotos[0];
+		if (op0 != set) goto next1;
+
+		const nat op1 = ins[gt0].op;
+		const nat dest1 = ins[gt0].args[0];
+		const nat source1 = ins[gt0].args[1];
+		if (op1 != add or dest1 != dest0) goto next1;
+
+		const nat d = dest0;
+		const nat n = source1;
+		const nat m = source0;
+		const nat k = 0;
+		printf("FOUND ARM64 MACHINE CODE INSTRUCTION:\n");
+		printf("ADD_SR   "
+			"d=%llu(%s), "
+			"n=%llu(%s), "
+			"m=%llu(%s) << "
+			"k=%llu\n",
+			d, names[d], 
+			n, names[n], 
+			m, names[m], 
+			k
+		);
+		struct instruction new = {0};
+		new.op = addsr;
+		new.args[0] = d;
+		new.args[1] = n;
+		new.args[2] = m;
+		new.args[3] = k;
+		mi[mi_count++] = new;
+		pc = gt0; } next1:;
+
+
+
+	// set_imm d k
+		{const nat op0 = ins[pc].op;
+		const nat dest0 = ins[pc].args[0];
+		const nat source0 = ins[pc].args[1];
+		if (op0 != set_imm) goto next2;
+
+		const nat d = dest0;
+		const nat k = 0;
+		printf("FOUND ARM64 MACHINE CODE INSTRUCTION:\n");
+		printf("MOVZ   "
+			"d=%llu(%s), "
+			"k=%llu\n",
+			d, names[d], 
+			k
+		);
+		struct instruction new = {0};
+		new.op = movz;
+		new.args[0] = d;
+		new.args[1] = k;
+		mi[mi_count++] = new; } next2:;
+
+
+
+
+		done_with_instruction:;
 		const nat op = ins[pc].op;
-		const nat arg0 = ins[pc].args[0];
-		const nat arg1 = ins[pc].args[1];		
-			
-		if (state == 0) {
-		retry:
-			state = 0; 
-
-			dest = 0; source0 = 0; source1 = 0; immediate = 0;
-
-			if (op == set) { state = 1; dest = arg0; source1 = arg1; }
-			else {}
-
-		} else if (state == 1) {
-			     if (op == si_imm and arg0 == dest) { state = 2; immediate = arg1; }
-			else if (op == add and arg0 == dest) { immediate = 0; goto generate_addsr; }
-			else goto retry;
-
-		} else if (state == 2) {
-
-			if (op == add and arg0 == dest) { 
-			generate_addsr:
-				source0 = arg1;
-	
-				printf("FOUND ARM64 MACHINE CODE INSTRUCTION:\n");
-				printf("ADD_SR   dest=%llu(%s), source1=%llu(%s), source2=%llu(%s) << immediate=%llu\n",
-					dest, names[dest], 
-					source0, names[source0], 
-					source1, names[source1], 
-					immediate
-				);
-				struct instruction new = {0};
-				new.op = addsr;
-				new.args[0] = source0;
-				new.args[1] = source1;
-				new.args[2] = immediate;
-				mi[mi_count++] = new;
-
-				state = 0; 
-			}
-			else goto retry;
-
-		} else if (state == 3) {
-
-			goto retry;
-		}
-
+		const nat gt0 = ins[pc].gotos[0];
+		const nat gt1 = ins[pc].gotos[1];
 		if (op == lt or op == eq or op == lt_imm or op == gt_imm or op == eq_imm) 
-		if (ins[pc].gotos[1] < ins_count and not visited[ins[pc].gotos[1]]) stack[stack_count++] = ins[pc].gotos[1];
-		if (ins[pc].gotos[0] < ins_count and not visited[ins[pc].gotos[0]]) stack[stack_count++] = ins[pc].gotos[0];
+		if (gt1 < ins_count and not visited[gt1]) stack[stack_count++] = gt1;
+		if (gt0 < ins_count and not visited[gt0]) stack[stack_count++] = gt0;
 	}
 
 
 
 
-
-
-
+	print_dictionary(names, ctk, values, locations, bit_count, name_count);
+	print_instructions(ins, ins_count, names, name_count);
 
 	puts("found these machine instructions:");
 	for (nat i = 0; i < mi_count; i++) {
@@ -632,26 +674,6 @@ int main(int argc, const char** argv) {
 
 	puts("stopped after ins sel.");
 	exit(1);
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 
@@ -706,6 +728,232 @@ int main(int argc, const char** argv) {
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+	/*
+
+		addsr:  d  = n + (m << k);
+
+			set d m
+			si_imm d #k
+			add d n
+
+	//nat state = 0, dest = 0, source0 = 0, source1 = 0, immediate = 0;
+
+
+	*/
+
+
+
+
+
+
+
+
+/*
+
+
+
+
+
+		if (state == 0) {
+		retry:
+			state = 0; 
+
+			dest = 0; source0 = 0; source1 = 0; immediate = 0;
+
+			if (op == set) { state = 1; dest = arg0; source1 = arg1; }
+			else {}
+
+		} else if (state == 1) {
+			     if (op == si_imm and arg0 == dest) { state = 2; immediate = arg1; }
+			else if (op == add and arg0 == dest) { immediate = 0; goto generate_addsr; }
+			else goto retry;
+
+		} else if (state == 2) {
+
+			if (op == add and arg0 == dest) { 
+			generate_addsr:
+				source0 = arg1;
+	
+				printf("FOUND ARM64 MACHINE CODE INSTRUCTION:\n");
+				printf("ADD_SR   dest=%llu(%s), source1=%llu(%s), source2=%llu(%s) << immediate=%llu\n",
+					dest, names[dest], 
+					source0, names[source0], 
+					source1, names[source1], 
+					immediate
+				);
+				struct instruction new = {0};
+				new.op = addsr;
+				new.args[0] = source0;
+				new.args[1] = source1;
+				new.args[2] = immediate;
+				mi[mi_count++] = new;
+
+				state = 0; 
+			}
+			else goto retry;
+
+		} else if (state == 3) {
+
+			goto retry;
+		}
+
+
+
+*/
 
 
 
