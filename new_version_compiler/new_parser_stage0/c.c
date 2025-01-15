@@ -328,22 +328,46 @@ int main(int argc, const char** argv) {
 	print_instructions(ins, ins_count, names, name_count);
 
 
+
+
+
+
+	struct stack_entry* stack = calloc(2 * ins_count, sizeof(struct stack_entry));
+	uint8_t* visited = calloc(ins_count + 1, 1);
+
+	while (stack_count) {
+
+
+
+
+
+	}
+
+
+/*
+
+
 struct stack_entry {
 	nat side;
 	nat index;
 };
 
-	uint8_t* visited = calloc(ins_count, 1);
-	struct stack_entry* stack = calloc(2 * ins_count, sizeof(struct stack_entry));
+
+*/
+
+	uint8_t* visited = calloc(ins_count + 1, 1);
 	nat stack_count = 0;
 	//stack[stack_count++] = 0; 
 	struct instruction rt_ins[4096] = {0};
 	nat rt_count = 0;
+
+
+	struct stack_entry* stack = calloc(2 * ins_count, sizeof(struct stack_entry));
 	nat pc = 0;
 	while (stack_count or pc < ins_count) { 
 
 		if (pc >= ins_count) {
-			if (stack[stack_count - 1].side == 0) {
+			if (stack[stack_count - 1].side == 0 and not visited[ins[pc].gotos[1]]) {
 				puts("PC AT END: trying other side of the TOS branch!");
 				getchar();
 				stack[stack_count - 1].side = 1;
@@ -355,7 +379,8 @@ struct stack_entry {
 				stack_count--;
 				if (not stack_count) {
 					puts("PC AT END: unknown code state????");
-					abort();
+					puts("breakinggggggg");
+					break;
 				} else {
 					puts("PC AT END: setting pc to be a new value...");
 					getchar();
@@ -386,6 +411,8 @@ struct stack_entry {
 		print_instructions(rt_ins, rt_count, names, name_count);
 		getchar();
 
+		visited[pc] = 1;
+
 		struct instruction new = ins[pc];
 		const nat 
 			op = new.op,
@@ -406,20 +433,18 @@ struct stack_entry {
 					pc = ins[pc].gotos[1];
 				}
 
-			} else {
-
-			if (not stack_count or stack[stack_count - 1].index != pc) {
+			} else if (not stack_count or stack[stack_count - 1].index != pc) {
 
 				stack[stack_count++] =
 				(struct stack_entry) {
 					.side = 0,
 					.index = pc
 				};			
-				pc = ins[pc].gotos[0];
+				if (not visited[ins[pc].gotos[0]]) pc = ins[pc].gotos[0];
+				else stack[stack_count - 1].side++;
 
 				puts("pushed new stack element!!");
 				getchar();
-
 
 				if (not ctk[arg0] and not ctk[arg1]) { }
 				else if (ctk[arg0]) {
@@ -439,10 +464,11 @@ struct stack_entry {
 				nat HERE = rt_count - 1;
 				if (rt_count) rt_ins[HERE].gotos[0] = rt_count;
 				rt_ins[rt_count++] = new;
+				printf("JUST PUSHED NEW ELEMENT!!!\n");
+				getchar();
 			
 
-
-			} else if (stack[stack_count - 1].side == 0) {
+			} else if (stack[stack_count - 1].side == 0 and not visited[ins[pc].gotos[1]]) {
 				puts("trying other side of the TOS branch!");
 				getchar();
 				stack[stack_count - 1].side = 1;
@@ -463,13 +489,13 @@ struct stack_entry {
 				}
 			}
 
-			}
-
 		} else {
+			if (pc == ins_count) {
+				continue;
+			}
 
 			printf("following .false=%llu side of ins...\n", ins[pc].gotos[0]);
 			pc = ins[pc].gotos[0];
-
 
 		if (op == zero) {
 			if (ctk[arg0]) { values[arg0] = 0; }
@@ -568,10 +594,11 @@ struct stack_entry {
 
 		} else {
 			puts("internal error: unknown operation: execution not specified");
+			printf("op = %llu, op = %s\n", op, ins_spelling[op]);
 			abort();
 		}
 
-			//rt_ins[rt_count++] = new;
+
 		}
 	}
 
