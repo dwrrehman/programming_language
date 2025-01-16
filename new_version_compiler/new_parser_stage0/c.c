@@ -174,6 +174,39 @@ static void print_instruction_index(
 	puts("}");
 }
 
+
+static void print_stack(nat* stack, nat stack_count) {
+	printf("stack: %llu { \n", stack_count);
+	for (nat i = 0; i < stack_count; i++) {
+		printf("stack[%llu] =  %llu\n", 
+			i, stack[i]
+		);
+	}
+	puts("}");
+}
+
+static void print_ct_values(char** names, nat name_count, nat* ctk, nat* values) {
+	printf("ct values: {\n");
+	for (nat i = 0; i < name_count; i++) {
+		if (not ctk[i]) continue;
+		printf("\tvalues[%s] = %llu\n", names[i], values[i]);
+	}
+	puts("}");
+}
+
+static void print_machine_instructions(struct instruction* mi, nat mi_count) {
+	printf("printing machine instructions: (%llu)\n", mi_count);
+	for (nat i = 0; i < mi_count; i++) {
+		printf("#%llu: MACHINE INSTRUCTION:  "
+			" %s  :  %llu %llu %llu %llu %llu \n",
+			i, mi_spelling[mi[i].op],
+			mi[i].args[0], mi[i].args[1],
+			mi[i].args[2], mi[i].args[3], 
+			mi[i].args[4]
+		);
+	}
+}
+
 static const nat is_label = 1LLU << 63LLU;
 static const nat write_access = 1LLU << 63LLU;
 
@@ -181,14 +214,14 @@ int main(int argc, const char** argv) {
 
 	struct instruction ins[4096] = {0};
 	nat ins_count = 0;
+
 	char* names[4096] = {0};
+	nat name_count = 0;
+
 	nat ctk[4096] = {0};
 	nat bit_count[4096] = {0};
 	nat values[4096] = {0};
-	nat name_count = 0;
 	nat locations[4096] = {0};
-	nat args[7] = {0};
-
 
 	if (argc == 1) exit(puts("usage error"));
 
@@ -214,7 +247,11 @@ int main(int argc, const char** argv) {
 		state = 0,
 		arg_count = 0;
 
-	for (nat index = 0; index < text_length; index++) {
+	nat args[7] = {0};
+
+	const nat starting_index = 0;
+
+	for (nat index = starting_index; index < text_length; index++) {
 		if (not isspace(text[index])) {
 			if (not word_length) word_start = index;
 			word_length++; 
@@ -325,8 +362,7 @@ int main(int argc, const char** argv) {
 			}
 		}	
 		next_word: word_length = 0;
-	}
-	}
+	}}
 
 	for (nat i = 0; i < ins_count; i++) {
 		if (ins[i].gotos[0] & is_label) {
@@ -356,6 +392,8 @@ int main(int argc, const char** argv) {
 
 
 
+
+
 	nat* stack = calloc(ins_count, sizeof(nat));
 	nat stack_count = 0;
 	stack[stack_count++] = 0; 
@@ -363,28 +401,12 @@ int main(int argc, const char** argv) {
 	nat* visited = calloc(ins_count + 1, sizeof(nat));
 
 	while (stack_count) {
-
-		printf("stack: %llu { \n", stack_count);
-		for (nat i = 0; i < stack_count; i++) {
-			printf("stack[%llu] =  %llu\n", 
-				i, stack[i]
-			);
-		}
-		puts("}");
-
-		printf("ct values: {\n");
-		for (nat i = 0; i < name_count; i++) {
-			if (not ctk[i]) continue;
-			printf("\tvalues[%s] = %llu\n", names[i], values[i]);
-		}
-		puts("}");
-
+		print_stack(stack, stack_count);
 		const nat pc = stack[--stack_count];
-
+		print_ct_values(names, name_count, ctk, values);
 		print_instruction_index(ins, ins_count, names, name_count, pc, "PC");
 		printf("executing pc #%llu\n", pc);
 		print_instruction(ins[pc], names, name_count); puts("");
-		//getchar();
 
 		visited[pc] = 1;
 		const nat op = ins[pc].op;
@@ -397,7 +419,8 @@ int main(int argc, const char** argv) {
 				if (op == eq and values[arg0] == values[arg1]) condition = 1;
 				if (op == lt and values[arg0] <  values[arg1]) condition = 1;
 				ins[pc].ct = 1;
-				if (ins[pc].gotos[condition] < ins_count) stack[stack_count++] = ins[pc].gotos[condition];
+				if (ins[pc].gotos[condition] < ins_count) 
+					stack[stack_count++] = ins[pc].gotos[condition];
 				continue;
 
 			}
@@ -415,8 +438,13 @@ int main(int argc, const char** argv) {
 				else ins[pc].op = eq_imm;
 				ins[pc].args[1] = values[ins[pc].args[1]];
 			}
-			if (ins[pc].gotos[0] < ins_count and not visited[ins[pc].gotos[0]]) stack[stack_count++] = ins[pc].gotos[0];
-			if (ins[pc].gotos[1] < ins_count and not visited[ins[pc].gotos[1]]) stack[stack_count++] = ins[pc].gotos[1];
+			if (ins[pc].gotos[0] < ins_count and 
+				not visited[ins[pc].gotos[0]]) 
+				stack[stack_count++] = ins[pc].gotos[0];
+			if (ins[pc].gotos[1] < ins_count and 
+				not visited[ins[pc].gotos[1]]) 
+				stack[stack_count++] = ins[pc].gotos[1];
+
 			continue;
 
 		} else if (op == sc) {
@@ -431,19 +459,56 @@ int main(int argc, const char** argv) {
 			}
 			if (n == system_exit) {
 				printf("warning: reached cfg termination point\n");
-				print_instruction_index(ins, ins_count, names, name_count, pc, "CFG termination point here");
+				print_instruction_index(
+					ins, ins_count, 
+					names, name_count, 
+					pc, "CFG termination point here"
+				);
 				goto skip_next;
 			} else {
-				printf("info: found %s system call!\n", systemcall_spelling[n]);
-				print_instruction_index(ins, ins_count, names, name_count, pc, systemcall_spelling[n]);
+				printf("info: found %s sc!\n", systemcall_spelling[n]);
+				print_instruction_index(
+					ins, ins_count, 
+					names, name_count, 
+					pc, systemcall_spelling[n]
+				);
 			}
 
 			ins[pc].args[0] = values[arg0];
 
-		} else if (op == zero) { if (ctk[arg0]) { values[arg0] = 0; ins[pc].ct = 1; } else { ins[pc].op = set_imm; ins[pc].args[1] = 0; }
-		} else if (op == incr) { if (ctk[arg0]) { values[arg0]++; ins[pc].ct = 1; } else { ins[pc].op = add_imm; ins[pc].args[1] = 1; }
-		} else if (op == decr) { if (ctk[arg0]) { values[arg0]--; ins[pc].ct = 1; } else { ins[pc].op = sub_imm; ins[pc].args[1] = 1; }
-		} else if (op == not_) { if (ctk[arg0]) { values[arg0] = ~values[arg0]; ins[pc].ct = 1; } else { ins[pc].op = eor_imm; ins[pc].args[1] = (nat) -1; }
+		} else if (op == zero) { 
+			if (ctk[arg0]) { 
+				values[arg0] = 0; 
+				ins[pc].ct = 1; 
+			} else { 
+				ins[pc].op = set_imm; 
+				ins[pc].args[1] = 0; 
+			}
+
+		} else if (op == incr) { 
+			if (ctk[arg0]) { 
+				values[arg0]++; 
+				ins[pc].ct = 1; 
+			} else { 
+				ins[pc].op = add_imm; 
+				ins[pc].args[1] = 1; 
+			}
+		} else if (op == decr) { 
+			if (ctk[arg0]) { 
+				values[arg0]--; 
+				ins[pc].ct = 1; 
+			} else { 
+				ins[pc].op = sub_imm; 
+				ins[pc].args[1] = 1; 
+			}
+		} else if (op == not_) { 
+			if (ctk[arg0]) { 
+				values[arg0] = ~values[arg0]; 
+				ins[pc].ct = 1; 
+			} else { 
+				ins[pc].op = eor_imm; 
+				ins[pc].args[1] = (nat) -1; 
+			}
 		} else {
 			if (ctk[arg0] and ctk[arg1]) {
 				ins[pc].ct = 1; 
@@ -458,7 +523,7 @@ int main(int argc, const char** argv) {
 				else if (op == si)  values[arg0] <<= values[arg1];
 				else if (op == sd)  values[arg0] >>= values[arg1];
 				else {
-					puts("internal error: unknown operation: execution not specified");
+					puts("internal error: op execution not specified");
 					printf("op = %llu, op = %s\n", op, ins_spelling[op]);
 					abort();
 				}
@@ -492,24 +557,20 @@ int main(int argc, const char** argv) {
 				ins[pc].op ==  si_imm and values[arg1] == 0 or
 				ins[pc].op ==  sd_imm and values[arg1] == 0) ins[pc].ct = 1;
 		} 
-		next_ins: if (ins[pc].gotos[0] < ins_count) stack[stack_count++] = ins[pc].gotos[0]; skip_next:;
+		next_ins: if (ins[pc].gotos[0] < ins_count) 
+			stack[stack_count++] = ins[pc].gotos[0]; skip_next:;
 	}
 
 	for (nat i = 0; i < ins_count; i++) {
 		if (not visited[i]) ins[i].ct = 2;
 	}
 
-	printf("found compiletime values of variables: {\n");
-	for (nat i = 0; i < name_count; i++) {
-		if (not ctk[i]) continue;
-		printf("\tvalues[%s] = %llu\n", names[i], values[i]);
-	}
-	puts("}");
-
-
-
+	print_ct_values(names, name_count, ctk, values);
 	print_dictionary(names, ctk, values, locations, bit_count, name_count);
 	print_instructions(ins, ins_count, names, name_count);
+
+
+
 
 	struct instruction mi[4096] = {0};
 	nat mi_count = 0;
@@ -518,16 +579,8 @@ int main(int argc, const char** argv) {
 
 	while (stack_count) {
 
-		printf("stack: %llu { \n", stack_count);
-		for (nat i = 0; i < stack_count; i++) {
-			printf("stack[%llu] =  %llu\n", 
-				i, stack[i]
-			);
-		}
-		puts("}");
-
+		print_stack(stack, stack_count);
 		nat pc = stack[--stack_count];
-
 		print_instruction_index(ins, ins_count, names, name_count, pc, "PC");
 		printf("executing pc #%llu\n", pc);
 		print_instruction(ins[pc], names, name_count); puts("");
@@ -555,6 +608,87 @@ int main(int argc, const char** argv) {
 		const nat source2 = ins[gt1].args[1];
 		if (op2 != add or dest2 != dest0) goto next0;
 
+
+		// todo: 
+		ERROR ERROR 
+		
+
+
+
+
+
+/*
+		// some additional checks: 
+		// we need to make sure that the only instruction which goes to any of these later instructions after the first one,   are   only part of the pattern too. 
+		// ie, we shouldnt let any   "at" statements happen in the middle here lol. 
+		//
+
+
+		alsooo i think theres  like a completely different way that we need to be doing our instruction selection.. 
+
+			we need to take into account the actual data flow-   and just require control flow to be correct as well,  (ie, a straight line of executionnnn..)
+
+
+			ie, we need some function to like, find the next instruction which has the right control flow, and alsoooo doesnt have data hazards in the way. thats the key. we'll follow the control flow, if see a branch, we abort (as thats lets say always a hazard!)
+
+				and then if we find a hazard instruction (colliding data usage), then we know that we can't do this pattern. so yeah. we need to be doing that. 
+
+
+
+			alsoooo... theres a bigger problem...
+
+							i think uhh
+
+
+
+					i think we need to schedule   the ir instructions, 
+
+
+								(ie, form a linearizing sequence for thsi control flow graph. ie, doing like.. basic block ordering...)
+
+
+
+							beforeeeee doing instruction selection. 
+
+
+
+
+
+					because like, some of these... uhhh   "implicit do"    statements will actually have to end up being   actuallll machine instructions. because of course, the cpu that we target itself has those instructions, because it uses implicit ip++'s. so yeah. we need to be representing that, and literallyyyyy scheduling these instructions, in some ordering. 
+
+
+						like, its just required. we just need that. 
+
+
+
+					so yeah. i think i am going to look into how to like.. order basic blocks the best lol. 
+
+
+				basically, the goal is to have blocks bleed into each other as much as posssible. thats the goal. 
+
+				but like sometimes, you can't do that though. 
+
+
+			hm
+				so yeah. idk. we'll see how things go lol. 
+
+
+
+*/
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 		const nat d = dest0;
 		const nat n = source2;
 		const nat m = source0;
@@ -578,8 +712,6 @@ int main(int argc, const char** argv) {
 		new.args[3] = k;
 		mi[mi_count++] = new;
 		pc = gt1; } next0:;
-
-
 
 
 
@@ -621,8 +753,6 @@ int main(int argc, const char** argv) {
 		mi[mi_count++] = new;
 		pc = gt0; } next1:;
 
-
-
 	// set_imm d k
 		{const nat op0 = ins[pc].op;
 		const nat dest0 = ins[pc].args[0];
@@ -630,7 +760,7 @@ int main(int argc, const char** argv) {
 		if (op0 != set_imm) goto next2;
 
 		const nat d = dest0;
-		const nat k = 0;
+		const nat k = source0;
 		printf("FOUND ARM64 MACHINE CODE INSTRUCTION:\n");
 		printf("MOVZ   "
 			"d=%llu(%s), "
@@ -644,9 +774,6 @@ int main(int argc, const char** argv) {
 		new.args[1] = k;
 		mi[mi_count++] = new; } next2:;
 
-
-
-
 		done_with_instruction:;
 		const nat op = ins[pc].op;
 		const nat gt0 = ins[pc].gotos[0];
@@ -656,26 +783,12 @@ int main(int argc, const char** argv) {
 		if (gt0 < ins_count and not visited[gt0]) stack[stack_count++] = gt0;
 	}
 
-
-
-
 	print_dictionary(names, ctk, values, locations, bit_count, name_count);
 	print_instructions(ins, ins_count, names, name_count);
-
-	puts("found these machine instructions:");
-	for (nat i = 0; i < mi_count; i++) {
-		printf("#%llu: MACHINE INSTRUCTION:   %s  :  %llu %llu %llu %llu %llu \n",
-			i, mi_spelling[mi[i].op],
-			mi[i].args[0], mi[i].args[1], 
-			mi[i].args[2], mi[i].args[3], 
-			mi[i].args[4]
-		);
-	}
-
+	print_machine_instructions(mi, mi_count);
 	puts("stopped after ins sel.");
+
 	exit(1);
-
-
 
 
 
