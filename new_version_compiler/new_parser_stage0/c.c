@@ -94,7 +94,7 @@ struct file {
 	if (i >= set  and i <= rt) return 2;
 	if (i >= lt   and i <= st) return 3;
 	abort();
-}*/
+}
 
 static nat get_call_input_count(nat n) {
 	if (n == system_exit) return 1;
@@ -103,7 +103,7 @@ static nat get_call_input_count(nat n) {
 	if (n == system_close) return 1;
 	if (n == system_open) return 3;
 	abort();
-}
+}*/
 
 static nat get_call_output_count(nat n) {
 	if (n == system_exit) return 0;
@@ -208,7 +208,7 @@ static void print_machine_instructions(struct instruction* mi, nat mi_count) {
 }
 
 static const nat is_label = 1LLU << 63LLU;
-static const nat write_access = 1LLU << 63LLU;
+//static const nat write_access = 1LLU << 63LLU;
 
 int main(int argc, const char** argv) {
 
@@ -222,6 +222,7 @@ int main(int argc, const char** argv) {
 	nat bit_count[4096] = {0};
 	nat values[4096] = {0};
 	nat locations[4096] = {0};
+	memset(locations, 255, sizeof locations);
 
 	if (argc == 1) exit(puts("usage error"));
 
@@ -257,14 +258,13 @@ int main(int argc, const char** argv) {
 			word_length++; 
 			if (index + 1 < text_length) continue;
 		} else if (not word_length) continue;
-
 		char* word = strndup(text + word_start, word_length);
-
-		printf("filename:%llu: info: looking at \"%s\" @ %llu\n", index, word, word_start);
+		printf("filename:%llu: info: looking at \"%s\" @ %llu\n", 
+			index, word, word_start
+		);
 
 		if (not state) {
 			arg_count = 0;
-			memset(args, 255, sizeof args);//optional
 			if (not strcmp(word, "eoi")) break;
 			for (; state < isa_count; state++) {
 				if (not strcmp(word, ins_spelling[state])) {
@@ -297,10 +297,17 @@ int main(int argc, const char** argv) {
 			args[arg_count++] = variable;
 
 			if (state == do_) {
-				state = 0;
+
 				if (unreachable) goto next_word;
-				ins[ins_count - 1].gotos[0] = variable | is_label;
-				unreachable = 1;
+				unreachable = 1; state = 0;
+				struct instruction new = {
+					.op = eq,
+					.ct = 1,
+					.args = {0, 0, variable},
+					.gotos = {0, variable | is_label},
+				};
+				ins[ins_count++] = new;
+				
 								
 			} else if (state == at) {
 				state = 0;
@@ -324,7 +331,11 @@ int main(int argc, const char** argv) {
 				struct instruction new = {
 					.op = op,
 					.ct = 0,
-					.gotos = {ins_count + 1, variable | is_label},
+					.gotos = {ins_count + 1, 
+						op == lt or op == ge or 
+						op == ne or op == eq ? 
+						variable | is_label : 0
+					},
 				};
 				memcpy(new.args, args, sizeof args);
 				if (op == ge or op == ne) { 
@@ -364,33 +375,34 @@ int main(int argc, const char** argv) {
 		next_word: word_length = 0;
 	}}
 
+
+	puts("after parsing");
+	print_instructions(ins, ins_count, names, name_count);
+	//getchar();
+
 	for (nat i = 0; i < ins_count; i++) {
 		if (ins[i].gotos[0] & is_label) {
 			ins[i].gotos[0]	= locations[ins[i].gotos[0] & ~is_label];
 		}
+
 		if (ins[i].gotos[1] & is_label) {
 			ins[i].gotos[1]	= locations[ins[i].gotos[1] & ~is_label];
-		}
+		} 
 	}
 
-	print_dictionary(names, ctk, values, locations, bit_count, name_count);
+	puts("after doing stage 1.5");
 	print_instructions(ins, ins_count, names, name_count);
+	//getchar();
 
-
-
-
-
-
-
-	// here is where optimization is done!!!!
-
-	// including: simplifying the ct execution, as well as the rt execution. both. 
-	// eliminating memory variables, extraneous register variables, etc. 
-	// simplifying control flow. you know that kind of stuff.
-
-
-
-
+	for (nat i = 0; i < ins_count; i++) {
+		const nat op = ins[i].op;
+		if (op == lt or op == eq) {} else ins[i].gotos[1] = (nat) -1;
+	}
+	
+	print_dictionary(names, ctk, values, locations, bit_count, name_count);
+	puts("current ins listing after parsing..");
+	print_instructions(ins, ins_count, names, name_count);
+	//getchar();
 
 
 
@@ -408,21 +420,47 @@ int main(int argc, const char** argv) {
 		printf("executing pc #%llu\n", pc);
 		print_instruction(ins[pc], names, name_count); puts("");
 
+		//getchar();
+
 		visited[pc] = 1;
 		const nat op = ins[pc].op;
 		const nat arg0 = ins[pc].args[0];
 		const nat arg1 = ins[pc].args[1];
 
 		if (op == lt or op == eq) {
-			if (ctk[arg0] and ctk[arg1]) {
+
+			if (ins[pc].gotos[0] == ins[pc].gotos[1]) {
+				ins[pc].ct = 3;
+				ins[pc].op = eq;
+				ins[pc].args[0] = 0;
+				ins[pc].args[1] = 0;
+				ins[pc].gotos[0] = (nat) -1;
+				if (ins[pc].gotos[1] < ins_count) 
+					stack[stack_count++] = ins[pc].gotos[1];
+				continue;
+
+			} else if (ins[pc].args[0] == ins[pc].args[1]) {
+
+				const nat condition = op == eq;
+				ins[pc].ct = (condition << 1) | 1;
+				ins[pc].op = eq;
+				ins[pc].args[0] = 0;
+				ins[pc].args[1] = 0;
+				ins[pc].gotos[1] = ins[pc].gotos[condition];
+				ins[pc].gotos[0] = (nat) -1;
+				if (ins[pc].gotos[1] < ins_count) 
+					stack[stack_count++] = ins[pc].gotos[1];
+				continue;
+
+
+			} else if (ctk[arg0] and ctk[arg1]) {
 				nat condition = 0;
 				if (op == eq and values[arg0] == values[arg1]) condition = 1;
 				if (op == lt and values[arg0] <  values[arg1]) condition = 1;
-				ins[pc].ct = 1;
+				ins[pc].ct = (condition << 1) | 1;
 				if (ins[pc].gotos[condition] < ins_count) 
 					stack[stack_count++] = ins[pc].gotos[condition];
 				continue;
-
 			}
 
 			if (ctk[arg0]) {
@@ -464,6 +502,8 @@ int main(int argc, const char** argv) {
 					names, name_count, 
 					pc, "CFG termination point here"
 				);
+				ins[pc].gotos[0] = (nat) -1;
+				ins[pc].gotos[1] = (nat) -1;
 				goto skip_next;
 			} else {
 				printf("info: found %s sc!\n", systemcall_spelling[n]);
@@ -562,12 +602,97 @@ int main(int argc, const char** argv) {
 	}
 
 	for (nat i = 0; i < ins_count; i++) {
-		if (not visited[i]) ins[i].ct = 2;
+		if (not visited[i]) ins[i].ct = 4;
 	}
 
 	print_ct_values(names, name_count, ctk, values);
 	print_dictionary(names, ctk, values, locations, bit_count, name_count);
 	print_instructions(ins, ins_count, names, name_count);
+
+
+	nat pred_count[4096] = {0};
+
+	for (nat n = 0; n < name_count; n++) {
+		if (locations[n] != (nat) -1) {			
+			printf("FOUND LABEL %s: WITH LOCATION: %llu\n", 
+				names[n], locations[n]
+			);
+			const nat this = locations[n];
+			nat found_count = 0;
+			for (nat i = 0; i < ins_count; i++) {
+				if (ins[i].gotos[0] == this) found_count++;
+				if (ins[i].gotos[1] == this) found_count++;
+			}
+			printf(" ---> this label had %llu goto occurences "
+				"of instructions which went to this location.\n",
+				found_count
+			);
+			pred_count[n] = found_count;
+		}
+	}
+
+
+	for (nat i = 0; i < ins_count; i++) {
+
+		if (ins[i].op != eq or ins[i].args[0] != ins[i].args[1]) continue;
+
+		puts("FOUND A DO INSTRUCTION!!!!");
+
+		if (pred_count[ins[i].args[2]] >= 2) {
+
+			puts("warning: this do statement will be generated in actual machine code");
+
+			print_instruction_index(
+				ins, ins_count, 
+				names, name_count, 
+				i, "GENERATED IN MACHINE CODE."
+			);
+		} else {
+
+			printf("warning: this do statement will be optimized away, "
+				"as it only has %llu pred.\n", pred_count[ins[i].args[2]]
+			);
+
+			print_instruction_index(
+				ins, ins_count, 
+				names, name_count, 
+				i, "IGNORED, OPTIMIZED AWAY."
+			);
+
+		}
+		getchar();
+	}
+
+
+	print_ct_values(names, name_count, ctk, values);
+	print_dictionary(names, ctk, values, locations, bit_count, name_count);
+	print_instructions(ins, ins_count, names, name_count);
+
+
+
+
+
+
+
+
+
+	exit(0);
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -610,83 +735,9 @@ int main(int argc, const char** argv) {
 
 
 		// todo: 
-		ERROR ERROR 
-		
-
-
-
-
-
-/*
-		// some additional checks: 
-		// we need to make sure that the only instruction which goes to any of these later instructions after the first one,   are   only part of the pattern too. 
-		// ie, we shouldnt let any   "at" statements happen in the middle here lol. 
-		//
-
-
-		alsooo i think theres  like a completely different way that we need to be doing our instruction selection.. 
-
-			we need to take into account the actual data flow-   and just require control flow to be correct as well,  (ie, a straight line of executionnnn..)
-
-
-			ie, we need some function to like, find the next instruction which has the right control flow, and alsoooo doesnt have data hazards in the way. thats the key. we'll follow the control flow, if see a branch, we abort (as thats lets say always a hazard!)
-
-				and then if we find a hazard instruction (colliding data usage), then we know that we can't do this pattern. so yeah. we need to be doing that. 
-
-
-
-			alsoooo... theres a bigger problem...
-
-							i think uhh
-
-
-
-					i think we need to schedule   the ir instructions, 
-
-
-								(ie, form a linearizing sequence for thsi control flow graph. ie, doing like.. basic block ordering...)
-
-
-
-							beforeeeee doing instruction selection. 
-
-
-
-
-
-					because like, some of these... uhhh   "implicit do"    statements will actually have to end up being   actuallll machine instructions. because of course, the cpu that we target itself has those instructions, because it uses implicit ip++'s. so yeah. we need to be representing that, and literallyyyyy scheduling these instructions, in some ordering. 
-
-
-						like, its just required. we just need that. 
-
-
-
-					so yeah. i think i am going to look into how to like.. order basic blocks the best lol. 
-
-
-				basically, the goal is to have blocks bleed into each other as much as posssible. thats the goal. 
-
-				but like sometimes, you can't do that though. 
-
-
-			hm
-				so yeah. idk. we'll see how things go lol. 
-
-
-
-*/
-
-
-
-
-
-
-
-
-
-
-
-
+		//ERROR ERROR 
+		puts("we were in the middle of doing ins sel...");
+		abort();
 
 
 		const nat d = dest0;
@@ -793,7 +844,6 @@ int main(int argc, const char** argv) {
 
 
 
-
 	nat* list = calloc(8 * ins_count, sizeof(nat));
 	nat list_count = 0;
 
@@ -859,6 +909,113 @@ int main(int argc, const char** argv) {
 
 
 
+
+
+
+	// serialize the cfg into instructions which use ip++?.. so that we can discover which goto's must reside. because then, obviously, if thats the case, we need to not allow instruction selection around that instruction. we need to treat it like an end, basically, if there are instructions after it. we are still going to represent this in the cfg as just .goto of some non ip++ thing, but we will actually note down the fact that this non-ip++ goto cannot be gotten rid of, because there are other people which go to the same place. so yeah. i think that should work. lets try to implement this lol. 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+/*
+		// some additional checks: 
+		// we need to make sure that the only instruction which goes to any of these later instructions after the first one,   are   only part of the pattern too. 
+		// ie, we shouldnt let any   "at" statements happen in the middle here lol. 
+		//
+
+
+		alsooo i think theres  like a completely different way that we need to be doing our instruction selection.. 
+
+			we need to take into account the actual data flow-   and just require control flow to be correct as well,  (ie, a straight line of executionnnn..)
+
+
+			ie, we need some function to like, find the next instruction which has the right control flow, and alsoooo doesnt have data hazards in the way. thats the key. we'll follow the control flow, if see a branch, we abort (as thats lets say always a hazard!)
+
+				and then if we find a hazard instruction (colliding data usage), then we know that we can't do this pattern. so yeah. we need to be doing that. 
+
+
+
+			alsoooo... theres a bigger problem...
+
+							i think uhh
+
+
+
+					i think we need to schedule   the ir instructions, 
+
+
+								(ie, form a linearizing sequence for thsi control flow graph. ie, doing like.. basic block ordering...)
+
+
+
+							beforeeeee doing instruction selection. 
+
+
+
+
+
+					because like, some of these... uhhh   "implicit do"    statements will actually have to end up being   actuallll machine instructions. because of course, the cpu that we target itself has those instructions, because it uses implicit ip++'s. so yeah. we need to be representing that, and literallyyyyy scheduling these instructions, in some ordering. 
+
+
+						like, its just required. we just need that. 
+
+
+
+					so yeah. i think i am going to look into how to like.. order basic blocks the best lol. 
+
+
+				basically, the goal is to have blocks bleed into each other as much as posssible. thats the goal. 
+
+				but like sometimes, you can't do that though. 
+
+
+			hm
+				so yeah. idk. we'll see how things go lol. 
+
+
+
+*/
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+	// here is where optimization is done!!!!
+
+	// including: simplifying the ct execution, as well as the rt execution. both. 
+	// eliminating memory variables, extraneous register variables, etc. 
+	// simplifying control flow. you know that kind of stuff.
 
 
 
@@ -2821,6 +2978,17 @@ struct instruction {
 			rt_ins[rt_count++] = new;
 */
 
+
+
+
+
+
+				//state = 0;
+				//if (unreachable) goto next_word;
+				// this is not correct. 
+				//ins[ins_count - 1].gotos[0] = variable | is_label;
+				// nop do label  at skip nop  at label do label2
+				//   the above code breaks this method. 
 
 
 

@@ -1,0 +1,462 @@
+parsing this text: (145) 
+zero n
+incr n
+incr n
+incr n
+do label
+
+decr n 
+not n
+
+at done
+zero n 
+zero n
+ct 0 zero 0
+sc 0 n n n n n n 
+
+
+at label
+add n n 
+eor n n 
+do done
+
+
+
+
+filename:4: info: looking at "zero" @ 0
+filename:6: info: looking at "n" @ 5
+filename:11: info: looking at "incr" @ 7
+filename:13: info: looking at "n" @ 12
+filename:18: info: looking at "incr" @ 14
+filename:20: info: looking at "n" @ 19
+filename:25: info: looking at "incr" @ 21
+filename:27: info: looking at "n" @ 26
+filename:30: info: looking at "do" @ 28
+filename:36: info: looking at "label" @ 31
+filename:42: info: looking at "decr" @ 38
+simple1.s:38:42: warning: unreachable instruction
+
+	@38..42: zero n
+incr n
+incr n
+incr n
+do label
+
+[32;1m[decr ][0mn 
+not n
+
+at done
+zero n 
+zero n
+ct 0 zero 0
+sc 0 n n n n n n 
+
+
+at label
+add n n 
+eor n n 
+do done
+
+
+
+
+filename:44: info: looking at "n" @ 43
+filename:49: info: looking at "not" @ 46
+simple1.s:46:49: warning: unreachable instruction
+
+	@46..49: zero n
+incr n
+incr n
+incr n
+do label
+
+decr n 
+[32;1m[not ][0mn
+
+at done
+zero n 
+zero n
+ct 0 zero 0
+sc 0 n n n n n n 
+
+
+at label
+add n n 
+eor n n 
+do done
+
+
+
+
+filename:51: info: looking at "n" @ 50
+filename:55: info: looking at "at" @ 53
+filename:60: info: looking at "done" @ 56
+filename:65: info: looking at "zero" @ 61
+filename:67: info: looking at "n" @ 66
+filename:73: info: looking at "zero" @ 69
+filename:75: info: looking at "n" @ 74
+filename:78: info: looking at "ct" @ 76
+filename:80: info: looking at "0" @ 79
+filename:85: info: looking at "zero" @ 81
+filename:87: info: looking at "0" @ 86
+filename:90: info: looking at "sc" @ 88
+filename:92: info: looking at "0" @ 91
+filename:94: info: looking at "n" @ 93
+filename:96: info: looking at "n" @ 95
+filename:98: info: looking at "n" @ 97
+filename:100: info: looking at "n" @ 99
+filename:102: info: looking at "n" @ 101
+filename:104: info: looking at "n" @ 103
+filename:110: info: looking at "at" @ 108
+filename:116: info: looking at "label" @ 111
+filename:120: info: looking at "add" @ 117
+filename:122: info: looking at "n" @ 121
+filename:124: info: looking at "n" @ 123
+filename:129: info: looking at "eor" @ 126
+filename:131: info: looking at "n" @ 130
+filename:133: info: looking at "n" @ 132
+filename:137: info: looking at "do" @ 135
+filename:142: info: looking at "done" @ 138
+found dictionary: { 
+
+	0: name = "n", ctk = 0, value = 0, location = 18446744073709551615, bit_count = 0
+	1: name = "label", ctk = 0, value = 0, location = 9, bit_count = 0
+	2: name = "done", ctk = 0, value = 0, location = 5, bit_count = 0
+	3: name = "0", ctk = 1, value = 0, location = 18446744073709551615, bit_count = 0
+}
+found instructions: { 
+
+	#0000: [.ct=0]  zero {0(n) 0(n) 0(n) 0(n)} : {.f=#1 .t=#-1}
+	#0001: [.ct=0]  incr {0(n) 0(n) 0(n) 0(n)} : {.f=#2 .t=#-1}
+	#0002: [.ct=0]  incr {0(n) 0(n) 0(n) 0(n)} : {.f=#3 .t=#-1}
+	#0003: [.ct=0]  incr {0(n) 0(n) 0(n) 0(n)} : {.f=#4 .t=#-1}
+	#0004: [.ct=1]  eq {0(n) 0(n) 0(n) 0(n)} : {.f=#9223372036854775807 .t=#9}
+	#0005: [.ct=0]  zero {0(n) 0(n) 0(n) 0(n)} : {.f=#6 .t=#-1}
+	#0006: [.ct=0]  zero {0(n) 0(n) 0(n) 0(n)} : {.f=#7 .t=#-1}
+	#0007: [.ct=0]  zero {3(0) 0(n) 0(n) 0(n)} : {.f=#8 .t=#-1}
+	#0008: [.ct=0]  sc {3(0) 0(n) 0(n) 0(n)} : {.f=#9 .t=#-1}
+	#0009: [.ct=0]  add {0(n) 0(n) 0(n) 0(n)} : {.f=#10 .t=#-1}
+	#0010: [.ct=0]  eor {0(n) 0(n) 0(n) 0(n)} : {.f=#11 .t=#-1}
+	#0011: [.ct=1]  eq {0(n) 0(n) 0(n) 0(n)} : {.f=#9223372036854775807 .t=#5}
+}
+stack: 1 { 
+stack[0] =  0
+}
+ct values: {
+	values[0] = 0
+}
+PC: at index: 0: { 
+
+	#0000: [.ct=0]  zero {0(n) 0(n) 0(n) 0(n)} : {.f=#1 .t=#-1}  <------ PC
+	#0001: [.ct=0]  incr {0(n) 0(n) 0(n) 0(n)} : {.f=#2 .t=#-1}
+	#0002: [.ct=0]  incr {0(n) 0(n) 0(n) 0(n)} : {.f=#3 .t=#-1}
+	#0003: [.ct=0]  incr {0(n) 0(n) 0(n) 0(n)} : {.f=#4 .t=#-1}
+	#0004: [.ct=1]  eq {0(n) 0(n) 0(n) 0(n)} : {.f=#9223372036854775807 .t=#9}
+	#0005: [.ct=0]  zero {0(n) 0(n) 0(n) 0(n)} : {.f=#6 .t=#-1}
+	#0006: [.ct=0]  zero {0(n) 0(n) 0(n) 0(n)} : {.f=#7 .t=#-1}
+	#0007: [.ct=0]  zero {3(0) 0(n) 0(n) 0(n)} : {.f=#8 .t=#-1}
+	#0008: [.ct=0]  sc {3(0) 0(n) 0(n) 0(n)} : {.f=#9 .t=#-1}
+	#0009: [.ct=0]  add {0(n) 0(n) 0(n) 0(n)} : {.f=#10 .t=#-1}
+	#0010: [.ct=0]  eor {0(n) 0(n) 0(n) 0(n)} : {.f=#11 .t=#-1}
+	#0011: [.ct=1]  eq {0(n) 0(n) 0(n) 0(n)} : {.f=#9223372036854775807 .t=#5}
+}
+executing pc #0
+[.ct=0]  zero {0(n) 0(n) 0(n) 0(n)} : {.f=#1 .t=#-1}
+stack: 1 { 
+stack[0] =  1
+}
+ct values: {
+	values[0] = 0
+}
+PC: at index: 1: { 
+
+	#0000: [.ct=0]  set_imm {0(n) 0(n) 0(n) 0(n)} : {.f=#1 .t=#-1}
+	#0001: [.ct=0]  incr {0(n) 0(n) 0(n) 0(n)} : {.f=#2 .t=#-1}  <------ PC
+	#0002: [.ct=0]  incr {0(n) 0(n) 0(n) 0(n)} : {.f=#3 .t=#-1}
+	#0003: [.ct=0]  incr {0(n) 0(n) 0(n) 0(n)} : {.f=#4 .t=#-1}
+	#0004: [.ct=1]  eq {0(n) 0(n) 0(n) 0(n)} : {.f=#9223372036854775807 .t=#9}
+	#0005: [.ct=0]  zero {0(n) 0(n) 0(n) 0(n)} : {.f=#6 .t=#-1}
+	#0006: [.ct=0]  zero {0(n) 0(n) 0(n) 0(n)} : {.f=#7 .t=#-1}
+	#0007: [.ct=0]  zero {3(0) 0(n) 0(n) 0(n)} : {.f=#8 .t=#-1}
+	#0008: [.ct=0]  sc {3(0) 0(n) 0(n) 0(n)} : {.f=#9 .t=#-1}
+	#0009: [.ct=0]  add {0(n) 0(n) 0(n) 0(n)} : {.f=#10 .t=#-1}
+	#0010: [.ct=0]  eor {0(n) 0(n) 0(n) 0(n)} : {.f=#11 .t=#-1}
+	#0011: [.ct=1]  eq {0(n) 0(n) 0(n) 0(n)} : {.f=#9223372036854775807 .t=#5}
+}
+executing pc #1
+[.ct=0]  incr {0(n) 0(n) 0(n) 0(n)} : {.f=#2 .t=#-1}
+stack: 1 { 
+stack[0] =  2
+}
+ct values: {
+	values[0] = 0
+}
+PC: at index: 2: { 
+
+	#0000: [.ct=0]  set_imm {0(n) 0(n) 0(n) 0(n)} : {.f=#1 .t=#-1}
+	#0001: [.ct=0]  add_imm {0(n) 1(label) 0(n) 0(n)} : {.f=#2 .t=#-1}
+	#0002: [.ct=0]  incr {0(n) 0(n) 0(n) 0(n)} : {.f=#3 .t=#-1}  <------ PC
+	#0003: [.ct=0]  incr {0(n) 0(n) 0(n) 0(n)} : {.f=#4 .t=#-1}
+	#0004: [.ct=1]  eq {0(n) 0(n) 0(n) 0(n)} : {.f=#9223372036854775807 .t=#9}
+	#0005: [.ct=0]  zero {0(n) 0(n) 0(n) 0(n)} : {.f=#6 .t=#-1}
+	#0006: [.ct=0]  zero {0(n) 0(n) 0(n) 0(n)} : {.f=#7 .t=#-1}
+	#0007: [.ct=0]  zero {3(0) 0(n) 0(n) 0(n)} : {.f=#8 .t=#-1}
+	#0008: [.ct=0]  sc {3(0) 0(n) 0(n) 0(n)} : {.f=#9 .t=#-1}
+	#0009: [.ct=0]  add {0(n) 0(n) 0(n) 0(n)} : {.f=#10 .t=#-1}
+	#0010: [.ct=0]  eor {0(n) 0(n) 0(n) 0(n)} : {.f=#11 .t=#-1}
+	#0011: [.ct=1]  eq {0(n) 0(n) 0(n) 0(n)} : {.f=#9223372036854775807 .t=#5}
+}
+executing pc #2
+[.ct=0]  incr {0(n) 0(n) 0(n) 0(n)} : {.f=#3 .t=#-1}
+stack: 1 { 
+stack[0] =  3
+}
+ct values: {
+	values[0] = 0
+}
+PC: at index: 3: { 
+
+	#0000: [.ct=0]  set_imm {0(n) 0(n) 0(n) 0(n)} : {.f=#1 .t=#-1}
+	#0001: [.ct=0]  add_imm {0(n) 1(label) 0(n) 0(n)} : {.f=#2 .t=#-1}
+	#0002: [.ct=0]  add_imm {0(n) 1(label) 0(n) 0(n)} : {.f=#3 .t=#-1}
+	#0003: [.ct=0]  incr {0(n) 0(n) 0(n) 0(n)} : {.f=#4 .t=#-1}  <------ PC
+	#0004: [.ct=1]  eq {0(n) 0(n) 0(n) 0(n)} : {.f=#9223372036854775807 .t=#9}
+	#0005: [.ct=0]  zero {0(n) 0(n) 0(n) 0(n)} : {.f=#6 .t=#-1}
+	#0006: [.ct=0]  zero {0(n) 0(n) 0(n) 0(n)} : {.f=#7 .t=#-1}
+	#0007: [.ct=0]  zero {3(0) 0(n) 0(n) 0(n)} : {.f=#8 .t=#-1}
+	#0008: [.ct=0]  sc {3(0) 0(n) 0(n) 0(n)} : {.f=#9 .t=#-1}
+	#0009: [.ct=0]  add {0(n) 0(n) 0(n) 0(n)} : {.f=#10 .t=#-1}
+	#0010: [.ct=0]  eor {0(n) 0(n) 0(n) 0(n)} : {.f=#11 .t=#-1}
+	#0011: [.ct=1]  eq {0(n) 0(n) 0(n) 0(n)} : {.f=#9223372036854775807 .t=#5}
+}
+executing pc #3
+[.ct=0]  incr {0(n) 0(n) 0(n) 0(n)} : {.f=#4 .t=#-1}
+stack: 1 { 
+stack[0] =  4
+}
+ct values: {
+	values[0] = 0
+}
+PC: at index: 4: { 
+
+	#0000: [.ct=0]  set_imm {0(n) 0(n) 0(n) 0(n)} : {.f=#1 .t=#-1}
+	#0001: [.ct=0]  add_imm {0(n) 1(label) 0(n) 0(n)} : {.f=#2 .t=#-1}
+	#0002: [.ct=0]  add_imm {0(n) 1(label) 0(n) 0(n)} : {.f=#3 .t=#-1}
+	#0003: [.ct=0]  add_imm {0(n) 1(label) 0(n) 0(n)} : {.f=#4 .t=#-1}
+	#0004: [.ct=1]  eq {0(n) 0(n) 0(n) 0(n)} : {.f=#9223372036854775807 .t=#9}  <------ PC
+	#0005: [.ct=0]  zero {0(n) 0(n) 0(n) 0(n)} : {.f=#6 .t=#-1}
+	#0006: [.ct=0]  zero {0(n) 0(n) 0(n) 0(n)} : {.f=#7 .t=#-1}
+	#0007: [.ct=0]  zero {3(0) 0(n) 0(n) 0(n)} : {.f=#8 .t=#-1}
+	#0008: [.ct=0]  sc {3(0) 0(n) 0(n) 0(n)} : {.f=#9 .t=#-1}
+	#0009: [.ct=0]  add {0(n) 0(n) 0(n) 0(n)} : {.f=#10 .t=#-1}
+	#0010: [.ct=0]  eor {0(n) 0(n) 0(n) 0(n)} : {.f=#11 .t=#-1}
+	#0011: [.ct=1]  eq {0(n) 0(n) 0(n) 0(n)} : {.f=#9223372036854775807 .t=#5}
+}
+executing pc #4
+[.ct=1]  eq {0(n) 0(n) 0(n) 0(n)} : {.f=#9223372036854775807 .t=#9}
+stack: 1 { 
+stack[0] =  9
+}
+ct values: {
+	values[0] = 0
+}
+PC: at index: 9: { 
+
+	#0000: [.ct=0]  set_imm {0(n) 0(n) 0(n) 0(n)} : {.f=#1 .t=#-1}
+	#0001: [.ct=0]  add_imm {0(n) 1(label) 0(n) 0(n)} : {.f=#2 .t=#-1}
+	#0002: [.ct=0]  add_imm {0(n) 1(label) 0(n) 0(n)} : {.f=#3 .t=#-1}
+	#0003: [.ct=0]  add_imm {0(n) 1(label) 0(n) 0(n)} : {.f=#4 .t=#-1}
+	#0004: [.ct=3]  eq {0(n) 0(n) 0(n) 0(n)} : {.f=#-1 .t=#9}
+	#0005: [.ct=0]  zero {0(n) 0(n) 0(n) 0(n)} : {.f=#6 .t=#-1}
+	#0006: [.ct=0]  zero {0(n) 0(n) 0(n) 0(n)} : {.f=#7 .t=#-1}
+	#0007: [.ct=0]  zero {3(0) 0(n) 0(n) 0(n)} : {.f=#8 .t=#-1}
+	#0008: [.ct=0]  sc {3(0) 0(n) 0(n) 0(n)} : {.f=#9 .t=#-1}
+	#0009: [.ct=0]  add {0(n) 0(n) 0(n) 0(n)} : {.f=#10 .t=#-1}  <------ PC
+	#0010: [.ct=0]  eor {0(n) 0(n) 0(n) 0(n)} : {.f=#11 .t=#-1}
+	#0011: [.ct=1]  eq {0(n) 0(n) 0(n) 0(n)} : {.f=#9223372036854775807 .t=#5}
+}
+executing pc #9
+[.ct=0]  add {0(n) 0(n) 0(n) 0(n)} : {.f=#10 .t=#-1}
+stack: 1 { 
+stack[0] =  10
+}
+ct values: {
+	values[0] = 0
+}
+PC: at index: 10: { 
+
+	#0000: [.ct=0]  set_imm {0(n) 0(n) 0(n) 0(n)} : {.f=#1 .t=#-1}
+	#0001: [.ct=0]  add_imm {0(n) 1(label) 0(n) 0(n)} : {.f=#2 .t=#-1}
+	#0002: [.ct=0]  add_imm {0(n) 1(label) 0(n) 0(n)} : {.f=#3 .t=#-1}
+	#0003: [.ct=0]  add_imm {0(n) 1(label) 0(n) 0(n)} : {.f=#4 .t=#-1}
+	#0004: [.ct=3]  eq {0(n) 0(n) 0(n) 0(n)} : {.f=#-1 .t=#9}
+	#0005: [.ct=0]  zero {0(n) 0(n) 0(n) 0(n)} : {.f=#6 .t=#-1}
+	#0006: [.ct=0]  zero {0(n) 0(n) 0(n) 0(n)} : {.f=#7 .t=#-1}
+	#0007: [.ct=0]  zero {3(0) 0(n) 0(n) 0(n)} : {.f=#8 .t=#-1}
+	#0008: [.ct=0]  sc {3(0) 0(n) 0(n) 0(n)} : {.f=#9 .t=#-1}
+	#0009: [.ct=0]  add {0(n) 0(n) 0(n) 0(n)} : {.f=#10 .t=#-1}
+	#0010: [.ct=0]  eor {0(n) 0(n) 0(n) 0(n)} : {.f=#11 .t=#-1}  <------ PC
+	#0011: [.ct=1]  eq {0(n) 0(n) 0(n) 0(n)} : {.f=#9223372036854775807 .t=#5}
+}
+executing pc #10
+[.ct=0]  eor {0(n) 0(n) 0(n) 0(n)} : {.f=#11 .t=#-1}
+stack: 1 { 
+stack[0] =  11
+}
+ct values: {
+	values[0] = 0
+}
+PC: at index: 11: { 
+
+	#0000: [.ct=0]  set_imm {0(n) 0(n) 0(n) 0(n)} : {.f=#1 .t=#-1}
+	#0001: [.ct=0]  add_imm {0(n) 1(label) 0(n) 0(n)} : {.f=#2 .t=#-1}
+	#0002: [.ct=0]  add_imm {0(n) 1(label) 0(n) 0(n)} : {.f=#3 .t=#-1}
+	#0003: [.ct=0]  add_imm {0(n) 1(label) 0(n) 0(n)} : {.f=#4 .t=#-1}
+	#0004: [.ct=3]  eq {0(n) 0(n) 0(n) 0(n)} : {.f=#-1 .t=#9}
+	#0005: [.ct=0]  zero {0(n) 0(n) 0(n) 0(n)} : {.f=#6 .t=#-1}
+	#0006: [.ct=0]  zero {0(n) 0(n) 0(n) 0(n)} : {.f=#7 .t=#-1}
+	#0007: [.ct=0]  zero {3(0) 0(n) 0(n) 0(n)} : {.f=#8 .t=#-1}
+	#0008: [.ct=0]  sc {3(0) 0(n) 0(n) 0(n)} : {.f=#9 .t=#-1}
+	#0009: [.ct=0]  add {0(n) 0(n) 0(n) 0(n)} : {.f=#10 .t=#-1}
+	#0010: [.ct=0]  eor {0(n) 0(n) 0(n) 0(n)} : {.f=#11 .t=#-1}
+	#0011: [.ct=1]  eq {0(n) 0(n) 0(n) 0(n)} : {.f=#9223372036854775807 .t=#5}  <------ PC
+}
+executing pc #11
+[.ct=1]  eq {0(n) 0(n) 0(n) 0(n)} : {.f=#9223372036854775807 .t=#5}
+stack: 1 { 
+stack[0] =  5
+}
+ct values: {
+	values[0] = 0
+}
+PC: at index: 5: { 
+
+	#0000: [.ct=0]  set_imm {0(n) 0(n) 0(n) 0(n)} : {.f=#1 .t=#-1}
+	#0001: [.ct=0]  add_imm {0(n) 1(label) 0(n) 0(n)} : {.f=#2 .t=#-1}
+	#0002: [.ct=0]  add_imm {0(n) 1(label) 0(n) 0(n)} : {.f=#3 .t=#-1}
+	#0003: [.ct=0]  add_imm {0(n) 1(label) 0(n) 0(n)} : {.f=#4 .t=#-1}
+	#0004: [.ct=3]  eq {0(n) 0(n) 0(n) 0(n)} : {.f=#-1 .t=#9}
+	#0005: [.ct=0]  zero {0(n) 0(n) 0(n) 0(n)} : {.f=#6 .t=#-1}  <------ PC
+	#0006: [.ct=0]  zero {0(n) 0(n) 0(n) 0(n)} : {.f=#7 .t=#-1}
+	#0007: [.ct=0]  zero {3(0) 0(n) 0(n) 0(n)} : {.f=#8 .t=#-1}
+	#0008: [.ct=0]  sc {3(0) 0(n) 0(n) 0(n)} : {.f=#9 .t=#-1}
+	#0009: [.ct=0]  add {0(n) 0(n) 0(n) 0(n)} : {.f=#10 .t=#-1}
+	#0010: [.ct=0]  eor {0(n) 0(n) 0(n) 0(n)} : {.f=#11 .t=#-1}
+	#0011: [.ct=3]  eq {0(n) 0(n) 0(n) 0(n)} : {.f=#-1 .t=#5}
+}
+executing pc #5
+[.ct=0]  zero {0(n) 0(n) 0(n) 0(n)} : {.f=#6 .t=#-1}
+stack: 1 { 
+stack[0] =  6
+}
+ct values: {
+	values[0] = 0
+}
+PC: at index: 6: { 
+
+	#0000: [.ct=0]  set_imm {0(n) 0(n) 0(n) 0(n)} : {.f=#1 .t=#-1}
+	#0001: [.ct=0]  add_imm {0(n) 1(label) 0(n) 0(n)} : {.f=#2 .t=#-1}
+	#0002: [.ct=0]  add_imm {0(n) 1(label) 0(n) 0(n)} : {.f=#3 .t=#-1}
+	#0003: [.ct=0]  add_imm {0(n) 1(label) 0(n) 0(n)} : {.f=#4 .t=#-1}
+	#0004: [.ct=3]  eq {0(n) 0(n) 0(n) 0(n)} : {.f=#-1 .t=#9}
+	#0005: [.ct=0]  set_imm {0(n) 0(n) 0(n) 0(n)} : {.f=#6 .t=#-1}
+	#0006: [.ct=0]  zero {0(n) 0(n) 0(n) 0(n)} : {.f=#7 .t=#-1}  <------ PC
+	#0007: [.ct=0]  zero {3(0) 0(n) 0(n) 0(n)} : {.f=#8 .t=#-1}
+	#0008: [.ct=0]  sc {3(0) 0(n) 0(n) 0(n)} : {.f=#9 .t=#-1}
+	#0009: [.ct=0]  add {0(n) 0(n) 0(n) 0(n)} : {.f=#10 .t=#-1}
+	#0010: [.ct=0]  eor {0(n) 0(n) 0(n) 0(n)} : {.f=#11 .t=#-1}
+	#0011: [.ct=3]  eq {0(n) 0(n) 0(n) 0(n)} : {.f=#-1 .t=#5}
+}
+executing pc #6
+[.ct=0]  zero {0(n) 0(n) 0(n) 0(n)} : {.f=#7 .t=#-1}
+stack: 1 { 
+stack[0] =  7
+}
+ct values: {
+	values[0] = 0
+}
+PC: at index: 7: { 
+
+	#0000: [.ct=0]  set_imm {0(n) 0(n) 0(n) 0(n)} : {.f=#1 .t=#-1}
+	#0001: [.ct=0]  add_imm {0(n) 1(label) 0(n) 0(n)} : {.f=#2 .t=#-1}
+	#0002: [.ct=0]  add_imm {0(n) 1(label) 0(n) 0(n)} : {.f=#3 .t=#-1}
+	#0003: [.ct=0]  add_imm {0(n) 1(label) 0(n) 0(n)} : {.f=#4 .t=#-1}
+	#0004: [.ct=3]  eq {0(n) 0(n) 0(n) 0(n)} : {.f=#-1 .t=#9}
+	#0005: [.ct=0]  set_imm {0(n) 0(n) 0(n) 0(n)} : {.f=#6 .t=#-1}
+	#0006: [.ct=0]  set_imm {0(n) 0(n) 0(n) 0(n)} : {.f=#7 .t=#-1}
+	#0007: [.ct=0]  zero {3(0) 0(n) 0(n) 0(n)} : {.f=#8 .t=#-1}  <------ PC
+	#0008: [.ct=0]  sc {3(0) 0(n) 0(n) 0(n)} : {.f=#9 .t=#-1}
+	#0009: [.ct=0]  add {0(n) 0(n) 0(n) 0(n)} : {.f=#10 .t=#-1}
+	#0010: [.ct=0]  eor {0(n) 0(n) 0(n) 0(n)} : {.f=#11 .t=#-1}
+	#0011: [.ct=3]  eq {0(n) 0(n) 0(n) 0(n)} : {.f=#-1 .t=#5}
+}
+executing pc #7
+[.ct=0]  zero {3(0) 0(n) 0(n) 0(n)} : {.f=#8 .t=#-1}
+stack: 1 { 
+stack[0] =  8
+}
+ct values: {
+	values[0] = 0
+}
+PC: at index: 8: { 
+
+	#0000: [.ct=0]  set_imm {0(n) 0(n) 0(n) 0(n)} : {.f=#1 .t=#-1}
+	#0001: [.ct=0]  add_imm {0(n) 1(label) 0(n) 0(n)} : {.f=#2 .t=#-1}
+	#0002: [.ct=0]  add_imm {0(n) 1(label) 0(n) 0(n)} : {.f=#3 .t=#-1}
+	#0003: [.ct=0]  add_imm {0(n) 1(label) 0(n) 0(n)} : {.f=#4 .t=#-1}
+	#0004: [.ct=3]  eq {0(n) 0(n) 0(n) 0(n)} : {.f=#-1 .t=#9}
+	#0005: [.ct=0]  set_imm {0(n) 0(n) 0(n) 0(n)} : {.f=#6 .t=#-1}
+	#0006: [.ct=0]  set_imm {0(n) 0(n) 0(n) 0(n)} : {.f=#7 .t=#-1}
+	#0007: [.ct=1]  zero {3(0) 0(n) 0(n) 0(n)} : {.f=#8 .t=#-1}
+	#0008: [.ct=0]  sc {3(0) 0(n) 0(n) 0(n)} : {.f=#9 .t=#-1}  <------ PC
+	#0009: [.ct=0]  add {0(n) 0(n) 0(n) 0(n)} : {.f=#10 .t=#-1}
+	#0010: [.ct=0]  eor {0(n) 0(n) 0(n) 0(n)} : {.f=#11 .t=#-1}
+	#0011: [.ct=3]  eq {0(n) 0(n) 0(n) 0(n)} : {.f=#-1 .t=#5}
+}
+executing pc #8
+[.ct=0]  sc {3(0) 0(n) 0(n) 0(n)} : {.f=#9 .t=#-1}
+warning: reached cfg termination point
+CFG termination point here: at index: 8: { 
+
+	#0000: [.ct=0]  set_imm {0(n) 0(n) 0(n) 0(n)} : {.f=#1 .t=#-1}
+	#0001: [.ct=0]  add_imm {0(n) 1(label) 0(n) 0(n)} : {.f=#2 .t=#-1}
+	#0002: [.ct=0]  add_imm {0(n) 1(label) 0(n) 0(n)} : {.f=#3 .t=#-1}
+	#0003: [.ct=0]  add_imm {0(n) 1(label) 0(n) 0(n)} : {.f=#4 .t=#-1}
+	#0004: [.ct=3]  eq {0(n) 0(n) 0(n) 0(n)} : {.f=#-1 .t=#9}
+	#0005: [.ct=0]  set_imm {0(n) 0(n) 0(n) 0(n)} : {.f=#6 .t=#-1}
+	#0006: [.ct=0]  set_imm {0(n) 0(n) 0(n) 0(n)} : {.f=#7 .t=#-1}
+	#0007: [.ct=1]  zero {3(0) 0(n) 0(n) 0(n)} : {.f=#8 .t=#-1}
+	#0008: [.ct=0]  sc {3(0) 0(n) 0(n) 0(n)} : {.f=#9 .t=#-1}  <------ CFG termination point here
+	#0009: [.ct=0]  add {0(n) 0(n) 0(n) 0(n)} : {.f=#10 .t=#-1}
+	#0010: [.ct=0]  eor {0(n) 0(n) 0(n) 0(n)} : {.f=#11 .t=#-1}
+	#0011: [.ct=3]  eq {0(n) 0(n) 0(n) 0(n)} : {.f=#-1 .t=#5}
+}
+ct values: {
+	values[0] = 0
+}
+found dictionary: { 
+
+	0: name = "n", ctk = 0, value = 0, location = 18446744073709551615, bit_count = 0
+	1: name = "label", ctk = 0, value = 0, location = 9, bit_count = 0
+	2: name = "done", ctk = 0, value = 0, location = 5, bit_count = 0
+	3: name = "0", ctk = 1, value = 0, location = 18446744073709551615, bit_count = 0
+}
+found instructions: { 
+
+	#0000: [.ct=0]  set_imm {0(n) 0(n) 0(n) 0(n)} : {.f=#1 .t=#-1}
+	#0001: [.ct=0]  add_imm {0(n) 1(label) 0(n) 0(n)} : {.f=#2 .t=#-1}
+	#0002: [.ct=0]  add_imm {0(n) 1(label) 0(n) 0(n)} : {.f=#3 .t=#-1}
+	#0003: [.ct=0]  add_imm {0(n) 1(label) 0(n) 0(n)} : {.f=#4 .t=#-1}
+	#0004: [.ct=3]  eq {0(n) 0(n) 0(n) 0(n)} : {.f=#-1 .t=#9}
+	#0005: [.ct=0]  set_imm {0(n) 0(n) 0(n) 0(n)} : {.f=#6 .t=#-1}
+	#0006: [.ct=0]  set_imm {0(n) 0(n) 0(n) 0(n)} : {.f=#7 .t=#-1}
+	#0007: [.ct=1]  zero {3(0) 0(n) 0(n) 0(n)} : {.f=#8 .t=#-1}
+	#0008: [.ct=0]  sc {3(0) 0(n) 0(n) 0(n)} : {.f=#-1 .t=#-1}
+	#0009: [.ct=0]  add {0(n) 0(n) 0(n) 0(n)} : {.f=#10 .t=#-1}
+	#0010: [.ct=0]  eor {0(n) 0(n) 0(n) 0(n)} : {.f=#11 .t=#-1}
+	#0011: [.ct=3]  eq {0(n) 0(n) 0(n) 0(n)} : {.f=#-1 .t=#5}
+}
+FOUND LABEL label: WITH LOCATION: 9
+ ---> this label had 1 goto occurencesof instructions which went to this location.
+FOUND LABEL done: WITH LOCATION: 5
+ ---> this label had 1 goto occurencesof instructions which went to this location.
