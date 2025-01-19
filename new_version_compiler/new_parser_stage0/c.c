@@ -602,7 +602,10 @@ int main(int argc, const char** argv) {
 	}
 
 	for (nat i = 0; i < ins_count; i++) {
-		if (not visited[i]) ins[i].ct = 4;
+		if (not visited[i]) {
+			ins[i].op = 0;
+			ins[i].ct = 4;
+		}
 	}
 
 	print_ct_values(names, name_count, ctk, values);
@@ -647,6 +650,8 @@ int main(int argc, const char** argv) {
 				names, name_count, 
 				i, "GENERATED IN MACHINE CODE."
 			);
+
+			ins[i].ct |= 8;
 		} else {
 
 			printf("warning: this do statement will be optimized away, "
@@ -663,14 +668,9 @@ int main(int argc, const char** argv) {
 		getchar();
 	}
 
-
 	print_ct_values(names, name_count, ctk, values);
 	print_dictionary(names, ctk, values, locations, bit_count, name_count);
 	print_instructions(ins, ins_count, names, name_count);
-
-
-
-
 
 
 
