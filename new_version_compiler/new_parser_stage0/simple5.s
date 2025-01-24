@@ -17,6 +17,8 @@ at loop
 
 
 
+not i 
+
 do skip
 
 ct 1 zero 1

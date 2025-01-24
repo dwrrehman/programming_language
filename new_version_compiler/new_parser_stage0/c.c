@@ -127,7 +127,9 @@ static void print_index(const char* text, nat text_length, nat begin, nat end) {
 static void print_dictionary(char** names, nat* active, nat* definition, nat* ctk, nat* values, nat* locations, nat* bit_count, nat name_count) {
 	puts("found dictionary: { \n");
 	for (nat i = 0; i < name_count; i++) {
-		printf("\t%llu: name = \"%s\", active = %llu, def = %llu, ctk = %llu, value = %llu, location = %lld, bit_count = %llu\n",
+		printf("\t%3llu: name = \"%-10s\", active = %3llu, "
+			"def = %3llu, ctk = %3llu, value = %3llu, "
+			"location = %3lld, bit_count = %3llu\n",
 			i, names[i], active[i], definition[i], ctk[i], 
 			values[i], locations[i], 
 			bit_count[i]
@@ -149,7 +151,7 @@ static const bool use_color = 1;
 static void print_instruction(struct instruction this, char** names, nat name_count) {
 
 	if (use_color) {
-		if (this.ct & ct_is_unreachable) printf("\033[38;5;237m");
+		if (this.ct & ct_is_unreachable) printf("\033[38;5;239m");
 		else if (this.ct & ct_is_compiletime) printf("\033[38;5;101m");
 	}
 
@@ -242,6 +244,13 @@ static void print_machine_instructions(struct instruction* mi, nat mi_count) {
 
 static const nat is_label = 1LLU << 63LLU;
 //static const nat write_access = 1LLU << 63LLU;
+
+
+
+
+
+
+
 
 
 
@@ -643,50 +652,11 @@ int main(int argc, const char** argv) {
 			stack[stack_count++] = ins[pc].gotos[0]; skip_next:;
 	}
 
-	for (nat i = 0; i < ins_count; i++) {
-		if (not visited[i]) {
-			//ins[i].op = 0;
-			ins[i].ct = 4;
-		}
-	}
-
-
+	for (nat i = 0; i < ins_count; i++) if (not visited[i]) ins[i].ct = 4;
 
 	print_ct_values(names, name_count, ctk, values);
 	print_dictionary(names, active, definition, ctk, values, locations, bit_count, name_count);
 	print_instructions(ins, ins_count, names, name_count);
-
-
-
-
-	for (nat i = 0; i < ins_count; i++) {
-
-		if ((ins[i].ct & ct_is_unreachable) or (ins[i].ct & ct_is_compiletime)) continue;
-
-		for (nat a = 0; a < (ins[i].op == sc ? 7 : 2); a++) {
-
-			if (ins[i].op >= isa_count and a == 1) continue;
-
-			const nat n = ins[i].args[a];
-
-			if (locations[n] == (nat) -1 and (ins[definition[n]].ct & ct_is_unreachable)) {
-
-				printf("warning: in argument %llu, variable \"%s\" used with unreachable initialization\n", a, names[n]);
-				print_instruction_index(
-					ins, ins_count, 
-					names, name_count, 
-					i, "initialization will never be executed"
-				);
-				getchar();			
-			}
-
-		}
-	}
-
-
-
-
-
 
 	nat pred_count[4096] = {0};
 
@@ -698,16 +668,20 @@ int main(int argc, const char** argv) {
 			const nat this = locations[n];
 			nat found_count = 0;
 			for (nat i = 0; i < ins_count; i++) {
-				if (ins[i].gotos[0] == this and not (ins[i].ct & ct_is_unreachable)) { found_count++;print_instruction_index(
+				if (ins[i].gotos[0] == this and not (ins[i].ct & ct_is_unreachable)) { 
+					found_count++;
+				/*print_instruction_index(
 				ins, ins_count, 
 				names, name_count, 
 				i, "occurence"
-			); getchar(); }
-				if (ins[i].gotos[1] == this and not (ins[i].ct & ct_is_unreachable)) { found_count++;print_instruction_index(
+			); getchar(); */ }
+				if (ins[i].gotos[1] == this and not (ins[i].ct & ct_is_unreachable)) { 
+					found_count++;
+				/*print_instruction_index(
 				ins, ins_count, 
 				names, name_count, 
 				i, "occurence"
-			); getchar(); }
+			); getchar(); */}
 			}
 			printf(" ---> this label had %llu goto occurences "
 				"of instructions which went to this location.\n",
@@ -717,36 +691,26 @@ int main(int argc, const char** argv) {
 		}
 	}
 
-
 	for (nat i = 0; i < ins_count; i++) {
-
 		if (ins[i].op != eq or ins[i].args[0] != ins[i].args[1]) continue;
-
 		puts("FOUND A DO INSTRUCTION!!!!");
-
 		if (pred_count[ins[i].args[2]] >= 2) {
-
 			puts("warning: this do statement will be generated in actual machine code");
-
 			print_instruction_index(
 				ins, ins_count, 
 				names, name_count, 
 				i, "GENERATED IN MACHINE CODE."
 			);
-
 			ins[i].ct |= 8;
 		} else {
-
 			printf("warning: this do statement will be optimized away, "
 				"as it only has %llu pred.\n", pred_count[ins[i].args[2]]
 			);
-
 			print_instruction_index(
 				ins, ins_count, 
 				names, name_count, 
 				i, "IGNORED, OPTIMIZED AWAY."
 			);
-
 		}
 		getchar();
 	}
@@ -756,29 +720,161 @@ int main(int argc, const char** argv) {
 	print_instructions(ins, ins_count, names, name_count);
 
 	puts("starting ins sel..");
-
-
-
-
-
 	struct instruction mi[4096] = {0};
 	nat mi_count = 0;
+	nat selected[4096] = {0};
+
 
 	for (nat i = 0; i < ins_count; i++) {
-		puts("INS SEL");
+
+		{const nat ct = ins[i].ct;
+		const nat op = ins[i].op;
+		const bool unreachable = ct & ct_is_unreachable;
+		const bool compiletime = ct & ct_is_compiletime;
+		const bool generated_do = ct & ct_is_generated_do;
+		const bool is_branch = (op == lt or op == eq or op == gt_imm or op == lt_imm or op == eq_imm);
+
+		if (unreachable or compiletime and (not is_branch or is_branch and not generated_do)) continue;}
+
+		print_instruction_index(ins, ins_count, names, name_count, i, "SELECTION ORIGIN");
+		printf("selecting from i #%llu\n", i);
+		print_instruction(ins[i], names, name_count); puts("");
+		getchar();
+
+		nat pc = i;
+
+		while (pc < ins_count) {
+			const nat ct = ins[pc].ct;
+			const nat op = ins[pc].op;
+			const bool compiletime = ct & ct_is_compiletime;
+			const bool generated_do = ct & ct_is_generated_do;
+			const bool is_branch = (op == lt or op == eq or op == gt_imm or op == lt_imm or op == eq_imm);
+
+			if (not compiletime and is_branch) { printf("FOUND RT BRANCH @ %llu\n", pc); break; }
+			if (compiletime and generated_do) { printf("FOUND MACHINE DO @ %llu\n", pc); break; }
+
+			if (not compiletime or generated_do) {	
+				print_instruction_index(ins, ins_count, names, name_count, pc, "FOLLOWING");
+				printf("following pc #%llu\n", pc);
+				print_instruction(ins[pc], names, name_count); puts("");
+				getchar();
+			}
+
+			if (compiletime and is_branch) pc = ins[pc].gotos[(ins[pc].ct >> 1) & 1];
+			else pc = ins[pc].gotos[0];
+		}
+		printf("SELECTION: FOUND A PC OF: %llu\n", pc); getchar();
 	}
-
-	
-
-
 
 	print_dictionary(names, active, definition, ctk, values, locations, bit_count, name_count);
 	print_instructions(ins, ins_count, names, name_count);
 	print_machine_instructions(mi, mi_count);
 	puts("stopped after ins sel.");
-
+	//puts(text);
 	exit(0);
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+/*		if (compiletime and not is_branch) {
+			pc = ins[i].gotos[0]; continue;
+
+		} else if (compiletime and is_branch and not generated_do) {
+			pc = ins[i].gotos[(ins[i].ct >> 1) & 1]; continue;
+		}
+
+
+
+
+
+		if (unreachable) {
+			puts("hit an unrechable instruction!?!");
+			getchar();
+		}
+	
+
+
+
+
+
+
+
+	for (nat i = 0; i < ins_count; i++) {
+		if ((ins[i].ct & ct_is_unreachable) or (ins[i].ct & ct_is_compiletime)) continue;
+		for (nat a = 0; a < (ins[i].op == sc ? 7 : 2); a++) {
+			if (ins[i].op >= isa_count and a == 1) continue;
+			const nat n = ins[i].args[a];
+			if (locations[n] == (nat) -1 and (ins[definition[n]].ct & ct_is_unreachable)) {
+				printf("warning: in argument %llu, variable \"%s\" used with unreachable initialization\n", a, names[n]);
+				print_instruction_index(
+					ins, ins_count, 
+					names, name_count, 
+					i, "initialization will never be executed"
+				);
+				getchar();			
+			}
+		}
+	}
+
+		^ this pass is not quite sound, because of ct-br conditional initialization. 
+*/
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -971,6 +1067,8 @@ int main(int argc, const char** argv) {
 	}
 
 	puts("compiled.");
+
+	puts(text);
 	exit(0);
 }
 
