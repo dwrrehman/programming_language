@@ -124,11 +124,11 @@ static void print_index(const char* text, nat text_length, nat begin, nat end) {
 	puts("\n");
 }
 
-static void print_dictionary(char** names, nat* ctk, nat* values, nat* locations, nat* bit_count, nat name_count) {
+static void print_dictionary(char** names, nat* active, nat* definition, nat* ctk, nat* values, nat* locations, nat* bit_count, nat name_count) {
 	puts("found dictionary: { \n");
 	for (nat i = 0; i < name_count; i++) {
-		printf("\t%llu: name = \"%s\", ctk = %llu, value = %llu, location = %llu, bit_count = %llu\n",
-			i, names[i], ctk[i], 
+		printf("\t%llu: name = \"%s\", active = %llu, def = %llu, ctk = %llu, value = %llu, location = %lld, bit_count = %llu\n",
+			i, names[i], active[i], definition[i], ctk[i], 
 			values[i], locations[i], 
 			bit_count[i]
 		);
@@ -136,15 +136,48 @@ static void print_dictionary(char** names, nat* ctk, nat* values, nat* locations
 	puts("}");
 }
 
+
+static const nat ct_is_generated_do = 8;
+static const nat ct_is_unreachable = 4;
+static const nat ct_is_ctbranch_side = 2;
+static const nat ct_is_compiletime = 1;
+
+
+
+static const bool use_color = 1;
+
 static void print_instruction(struct instruction this, char** names, nat name_count) {
-	printf("[.ct=%llu]  %s {%lld(%s) %lld(%s) %lld(%s) %lld(%s)} : {.f=#%lld .t=#%lld}", 
-		this.ct, ins_spelling[this.op], 
-		this.args[0], this.args[0] < name_count ? names[this.args[0]] : "",
-		this.args[1], this.args[1] < name_count ? names[this.args[1]] : "",
-		this.args[2], this.args[2] < name_count ? names[this.args[2]] : "",
-		this.args[3], this.args[3] < name_count ? names[this.args[3]] : "",
-		this.gotos[0], this.gotos[1]
+
+	if (use_color) {
+		if (this.ct & ct_is_unreachable) printf("\033[38;5;237m");
+		else if (this.ct & ct_is_compiletime) printf("\033[38;5;101m");
+	}
+
+	printf("[.ct=%llx]", this.ct);
+	printf("  %8s { ", ins_spelling[this.op]);
+
+	for (nat a = 0; a < 3; a++) {
+		if (this.args[a] < 256) printf("%3llu", this.args[a]); 
+		else printf("0x%016llx", this.args[a]);
+		printf("('%6s') ", this.args[a] < name_count ? names[this.args[a]] : "");
+	}
+
+	printf("} : {.f=#%lld .t=#%lld} "
+		" %s"
+		" %s"
+		" {ct_side=%u}"
+		" %s",
+		this.gotos[0], this.gotos[1],
+		!!(this.ct & ct_is_generated_do) ? "[machine-do]" : "", 
+		!!(this.ct & ct_is_unreachable) ? "[unreachable]" : "",
+		!!(this.ct & ct_is_ctbranch_side), 
+		!!(this.ct & ct_is_compiletime) ? "[compiletime]" : ""
 	);
+
+	if (use_color) {
+		if (this.ct & ct_is_unreachable) printf("\033[0m");
+		else if (this.ct & ct_is_compiletime) printf("\033[0m");
+	}
 }
 
 static void print_instructions(
@@ -189,7 +222,7 @@ static void print_ct_values(char** names, nat name_count, nat* ctk, nat* values)
 	printf("ct values: {\n");
 	for (nat i = 0; i < name_count; i++) {
 		if (not ctk[i]) continue;
-		printf("\tvalues[%s] = %llu\n", names[i], values[i]);
+		printf("\tvalues[%s] = 0x%016llx\n", names[i], values[i]);
 	}
 	puts("}");
 }
@@ -210,13 +243,17 @@ static void print_machine_instructions(struct instruction* mi, nat mi_count) {
 static const nat is_label = 1LLU << 63LLU;
 //static const nat write_access = 1LLU << 63LLU;
 
+
+
 int main(int argc, const char** argv) {
 
 	struct instruction ins[4096] = {0};
 	nat ins_count = 0;
 
 	char* names[4096] = {0};
+	nat active[4096] = {0};
 	nat name_count = 0;
+	nat definition[4096] = {0};
 
 	nat ctk[4096] = {0};
 	nat bit_count[4096] = {0};
@@ -269,12 +306,12 @@ int main(int argc, const char** argv) {
 			for (; state < isa_count; state++) {
 				if (not strcmp(word, ins_spelling[state])) {
 					if (state == at) unreachable = 0;
-					else if (unreachable) {
-						printf("%s:%llu:%llu: warning: unreachable instruction\n", 
+					//else if (unreachable) {
+						/*printf("%s:%llu:%llu: warning: unreachable instruction\n", 
 							filename, word_start, index
 						);
-						print_index(text, text_length, word_start, index);
-					}
+						print_index(text, text_length, word_start, index);*/
+					//}
 					goto next_word; 
 				}
 			}
@@ -289,20 +326,21 @@ int main(int argc, const char** argv) {
 		} else {
 			const nat saved_name_count = name_count;
 			nat variable = 0;
-			for (; variable < name_count; variable++) 
-				if (not strcmp(word, names[variable])) goto found;
+			for (; variable < name_count; variable++) {
+				if (not strcmp(word, names[variable]) and active[variable]) goto found;
+			}
 
-			names[name_count++] = word;
+			names[name_count++] = word; 
+			active[name_count - 1] = 1;
+			definition[name_count - 1] = ins_count;
 		found:
 			args[arg_count++] = variable;
 
 			if (state == do_) {
-
-				if (unreachable) goto next_word;
 				unreachable = 1; state = 0;
 				struct instruction new = {
 					.op = eq,
-					.ct = 1,
+					.ct = unreachable ? 5 : 1,
 					.args = {0, 0, variable},
 					.gotos = {0, variable | is_label},
 				};
@@ -315,22 +353,20 @@ int main(int argc, const char** argv) {
 
 			} else if (state == ct) {
 				state = 0;
-				if (unreachable) goto next_word;
 				ctk[variable] = 1;
 
 			} else if (state == rt) {
 				if (arg_count < 2) goto next_word;
 				state = 0;
-				if (unreachable) goto next_word;
 				ctk[args[0]] = 0;
 				bit_count[args[0]] = variable;
 
 			} else if (state == zero) {
 				push_ins:; nat op = state; state = 0;
-				if (unreachable) goto next_word;
+				
 				struct instruction new = {
 					.op = op,
-					.ct = 0,
+					.ct = unreachable ? 4 : 0,
 					.gotos = {ins_count + 1, 
 						op == lt or op == ge or 
 						op == ne or op == eq ? 
@@ -399,7 +435,7 @@ int main(int argc, const char** argv) {
 		if (op == lt or op == eq) {} else ins[i].gotos[1] = (nat) -1;
 	}
 	
-	print_dictionary(names, ctk, values, locations, bit_count, name_count);
+	print_dictionary(names, active, definition, ctk, values, locations, bit_count, name_count);
 	puts("current ins listing after parsing..");
 	print_instructions(ins, ins_count, names, name_count);
 	//getchar();
@@ -430,7 +466,7 @@ int main(int argc, const char** argv) {
 		if (op == lt or op == eq) {
 
 			if (ins[pc].gotos[0] == ins[pc].gotos[1]) {
-				ins[pc].ct = 3;
+				ins[pc].ct = (1 << 1) | 1;
 				ins[pc].op = eq;
 				ins[pc].args[0] = 0;
 				ins[pc].args[1] = 0;
@@ -502,6 +538,7 @@ int main(int argc, const char** argv) {
 					names, name_count, 
 					pc, "CFG termination point here"
 				);
+				getchar();
 				ins[pc].gotos[0] = (nat) -1;
 				ins[pc].gotos[1] = (nat) -1;
 				goto skip_next;
@@ -569,7 +606,12 @@ int main(int argc, const char** argv) {
 				}
 				goto next_ins;
 			}
-			if (not ctk[arg0] and not ctk[arg1]) goto next_ins;
+
+			//printf("arg0 = 0x%016llx\n", arg0);
+			//printf("arg1 = 0x%016llx\n", arg1);
+			//fflush(stdout);
+
+			if (op >= isa_count or not ctk[arg0] and not ctk[arg1]) goto next_ins;
 			if (    ctk[arg0] and not ctk[arg1]) {
 				puts("error: ct destination must have ct source."); 
 				abort();
@@ -603,14 +645,47 @@ int main(int argc, const char** argv) {
 
 	for (nat i = 0; i < ins_count; i++) {
 		if (not visited[i]) {
-			ins[i].op = 0;
+			//ins[i].op = 0;
 			ins[i].ct = 4;
 		}
 	}
 
+
+
 	print_ct_values(names, name_count, ctk, values);
-	print_dictionary(names, ctk, values, locations, bit_count, name_count);
+	print_dictionary(names, active, definition, ctk, values, locations, bit_count, name_count);
 	print_instructions(ins, ins_count, names, name_count);
+
+
+
+
+	for (nat i = 0; i < ins_count; i++) {
+
+		if ((ins[i].ct & ct_is_unreachable) or (ins[i].ct & ct_is_compiletime)) continue;
+
+		for (nat a = 0; a < (ins[i].op == sc ? 7 : 2); a++) {
+
+			if (ins[i].op >= isa_count and a == 1) continue;
+
+			const nat n = ins[i].args[a];
+
+			if (locations[n] == (nat) -1 and (ins[definition[n]].ct & ct_is_unreachable)) {
+
+				printf("warning: in argument %llu, variable \"%s\" used with unreachable initialization\n", a, names[n]);
+				print_instruction_index(
+					ins, ins_count, 
+					names, name_count, 
+					i, "initialization will never be executed"
+				);
+				getchar();			
+			}
+
+		}
+	}
+
+
+
+
 
 
 	nat pred_count[4096] = {0};
@@ -623,8 +698,16 @@ int main(int argc, const char** argv) {
 			const nat this = locations[n];
 			nat found_count = 0;
 			for (nat i = 0; i < ins_count; i++) {
-				if (ins[i].gotos[0] == this) found_count++;
-				if (ins[i].gotos[1] == this) found_count++;
+				if (ins[i].gotos[0] == this and not (ins[i].ct & ct_is_unreachable)) { found_count++;print_instruction_index(
+				ins, ins_count, 
+				names, name_count, 
+				i, "occurence"
+			); getchar(); }
+				if (ins[i].gotos[1] == this and not (ins[i].ct & ct_is_unreachable)) { found_count++;print_instruction_index(
+				ins, ins_count, 
+				names, name_count, 
+				i, "occurence"
+			); getchar(); }
 			}
 			printf(" ---> this label had %llu goto occurences "
 				"of instructions which went to this location.\n",
@@ -669,32 +752,39 @@ int main(int argc, const char** argv) {
 	}
 
 	print_ct_values(names, name_count, ctk, values);
-	print_dictionary(names, ctk, values, locations, bit_count, name_count);
+	print_dictionary(names, active, definition, ctk, values, locations, bit_count, name_count);
 	print_instructions(ins, ins_count, names, name_count);
 
+	puts("starting ins sel..");
 
 
 
+
+
+	struct instruction mi[4096] = {0};
+	nat mi_count = 0;
+
+	for (nat i = 0; i < ins_count; i++) {
+		puts("INS SEL");
+	}
+
+	
+
+
+
+	print_dictionary(names, active, definition, ctk, values, locations, bit_count, name_count);
+	print_instructions(ins, ins_count, names, name_count);
+	print_machine_instructions(mi, mi_count);
+	puts("stopped after ins sel.");
 
 	exit(0);
+}
 
 
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
+/*
 
 
 	struct instruction mi[4096] = {0};
@@ -834,7 +924,7 @@ int main(int argc, const char** argv) {
 		if (gt0 < ins_count and not visited[gt0]) stack[stack_count++] = gt0;
 	}
 
-	print_dictionary(names, ctk, values, locations, bit_count, name_count);
+	print_dictionary(names, active, definition, ctk, values, locations, bit_count, name_count);
 	print_instructions(ins, ins_count, names, name_count);
 	print_machine_instructions(mi, mi_count);
 	puts("stopped after ins sel.");
@@ -890,7 +980,7 @@ int main(int argc, const char** argv) {
 
 
 
-
+*/
 
 
 
