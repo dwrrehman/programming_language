@@ -144,8 +144,6 @@ static const nat ct_is_unreachable = 4;
 static const nat ct_is_ctbranch_side = 2;
 static const nat ct_is_compiletime = 1;
 
-
-
 static const bool use_color = 1;
 
 static void print_instruction(struct instruction this, char** names, nat name_count) {
@@ -209,7 +207,6 @@ static void print_instruction_index(
 	puts("}");
 }
 
-
 static void print_stack(nat* stack, nat stack_count) {
 	printf("stack: %llu { \n", stack_count);
 	for (nat i = 0; i < stack_count; i++) {
@@ -245,15 +242,6 @@ static void print_machine_instructions(struct instruction* mi, nat mi_count) {
 static const nat is_label = 1LLU << 63LLU;
 //static const nat write_access = 1LLU << 63LLU;
 
-
-
-
-
-
-
-
-
-
 int main(int argc, const char** argv) {
 
 	struct instruction ins[4096] = {0};
@@ -287,7 +275,6 @@ int main(int argc, const char** argv) {
 	puts(text);
 	puts("");
 
-
 	{nat 	word_length = 0, 
 		word_start = 0,
 		unreachable = 0,
@@ -295,7 +282,6 @@ int main(int argc, const char** argv) {
 		arg_count = 0;
 
 	nat args[7] = {0};
-
 	const nat starting_index = 0;
 
 	for (nat index = starting_index; index < text_length; index++) {
@@ -354,7 +340,6 @@ int main(int argc, const char** argv) {
 					.gotos = {0, variable | is_label},
 				};
 				ins[ins_count++] = new;
-				
 								
 			} else if (state == at) {
 				state = 0;
