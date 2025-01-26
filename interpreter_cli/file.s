@@ -1,6 +1,6 @@
 zero  ___1202501245.211208__written_by_dwrr____
-zero  a_prime_number_which_counts_the_number_of_
-zero  primes_less_than_a_given_number_"max_number".
+zero  a_prime_number_program_which_counts_the_number_
+zero  of_primes_less_than_a_given_number_"maxnumber".
 zero  also..._yes,_i_havent_implemented_comments_yet,
 zero  so_this_method_of_commenting_will_suffice_LOL
 
@@ -25,8 +25,7 @@ set 1000 100 mul 1000 100
 
 do main
 
-at remainder
-	zero ___this_function_computes_x_%_d___
+at remainder                      zero ___this_function_computes_x_%_d___
 	set x arg0  set d arg1
 
 	set r x 
@@ -49,9 +48,8 @@ at loop
 	set j 2
 	at inner
 		ge j i prime
-		set arg0 i  set arg1 j
-		do remainder at return
-		eq r 0 composite
+		set arg0 i  set arg1 j  do remainder at return
+		eq result 0 composite
 		incr j do inner
 
 	at prime  incr count  sc 9 i _ _ _ _ _ 
