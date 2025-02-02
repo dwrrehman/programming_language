@@ -1,3 +1,5 @@
+// a new parser and ct system written on 1202502016.131044 dwrr
+
 // 1202501116.181306 new parser   dwrr
 
 // things to layer on to the front end still: 
@@ -20,6 +22,7 @@ after that:
 	- code gen: generate the mi into machine code lol
 		- work on the msp430 backend!
 
+
 */
 
 
@@ -39,8 +42,7 @@ enum {
 	zero, incr, decr, 
 	not_, and_, or_, eor, si, sd,
 	set, add, sub, mul, div_,
-	lt, eq, ld, st, sc,
-	do_, at, lf, ge, ne, ct, rt,
+	lt, eq, ld, st, sc, do_, at, lf, ge, ne,
 	isa_count,
 	set_imm,  add_imm,  sub_imm,
 	mul_imm,  div_imm,
@@ -55,8 +57,7 @@ static const char* ins_spelling[] = {
 	"not", "and", "or", "eor", "si", "sd",
 	"set", "add", "sub", "mul", "div", 
 	"lt", "eq", "ld", "st", "sc",
-	"do", "at", "lf", "ge", "ne", "ct", "rt",
-
+	"do", "at", "lf", "ge", "ne",
 	"__ISA_COUNT__ins_unused__",
 	"set_imm", "add_imm", "sub_imm",
 	"mul_imm", "div_imm",
@@ -67,7 +68,6 @@ static const char* ins_spelling[] = {
 
 struct instruction {
 	nat op;
-	nat ct;
 	nat gotos[2];
 	nat args[7];
 };
@@ -77,12 +77,6 @@ enum language_systemcalls {
 	system_read, system_write, 
 	system_open, system_close,
 	systemcall_count
-};
-
-static const char* systemcall_spelling[systemcall_count] = {
-	"system_exit",
-	"system_read", "system_write", 
-	"system_open", "system_close",
 };
 
 enum arm64_ins_set {
@@ -131,32 +125,16 @@ struct file {
 	const char* filename;
 };
 
-/*static nat isa_arity(nat i) {
-	if (i == sc) return 7;
-	if (i == eoi) return 0;
-	if (i >= zero and i <= lf) return 1;
-	if (i >= set  and i <= rt) return 2;
-	if (i >= lt   and i <= st) return 3;
-	abort();
-}
+static const nat is_label = 1LLU << 63LLU;
 
-static nat get_call_input_count(nat n) {
-	if (n == system_exit) return 1;
-	if (n == system_read) return 3;
-	if (n == system_write) return 3;
-	if (n == system_close) return 1;
-	if (n == system_open) return 3;
-	abort();
-}*/
-
-static nat get_call_output_count(nat n) {
+/*static nat get_call_output_count(nat n) {
 	if (n == system_exit) return 0;
 	if (n == system_read) return 2;
 	if (n == system_write) return 2;
 	if (n == system_close) return 1;
 	if (n == system_open) return 2;
 	abort();
-}
+}*/
 
 static void print_index(const char* text, nat text_length, nat begin, nat end) {
 	printf("\n\t@%llu..%llu: ", begin, end); 
@@ -168,36 +146,24 @@ static void print_index(const char* text, nat text_length, nat begin, nat end) {
 	puts("\n");
 }
 
-static void print_dictionary(char** names, nat* active, nat* definition, nat* ctk, nat* values, nat* locations, nat* bit_count, nat name_count) {
+static void print_dictionary(char** names, nat* locations, nat name_count) {
 	puts("found dictionary: { \n");
 	for (nat i = 0; i < name_count; i++) {
-		printf("\t%3llu: name = \"%-10s\", active = %3llu, "
-			"def = %3llu, ctk = %3llu, value = %3llu, "
-			"location = %3lld, bit_count = %3llu\n",
-			i, names[i], active[i], definition[i], ctk[i], 
-			values[i], locations[i], 
-			bit_count[i]
+		printf("\t%3llu: name = \"%-10s\", location = %3lld, \n", 
+			i, names[i], locations[i]
 		);
 	}
 	puts("}");
 }
 
-
-static const nat ct_is_generated_do = 8;
-static const nat ct_is_unreachable = 4;
-static const nat ct_is_ctbranch_side = 2;
-static const nat ct_is_compiletime = 1;
-
-static const bool use_color = 1;
-
 static void print_instruction(struct instruction this, char** names, nat name_count) {
 
-	if (use_color) {
+/*	if (use_color) {
 		if (this.ct & ct_is_unreachable) printf("\033[38;5;239m");
 		else if (this.ct & ct_is_compiletime) printf("\033[38;5;101m");
-	}
+	}*/
 
-	printf("[.ct=%llx]", this.ct);
+	//printf("[.ct=%llx]", this.ct);
 	printf("  %8s { ", ins_spelling[this.op]);
 
 	for (nat a = 0; a < 3; a++) {
@@ -206,29 +172,26 @@ static void print_instruction(struct instruction this, char** names, nat name_co
 		printf("('%6s') ", this.args[a] < name_count ? names[this.args[a]] : "");
 	}
 
-	printf("} : {.f=#%lld .t=#%lld} "
-		" %s"
-		" %s"
-		" {ct_side=%u}"
-		" %s",
-		this.gotos[0], this.gotos[1],
-		!!(this.ct & ct_is_generated_do) ? "[machine-do]" : "", 
-		!!(this.ct & ct_is_unreachable) ? "[unreachable]" : "",
-		!!(this.ct & ct_is_ctbranch_side), 
-		!!(this.ct & ct_is_compiletime) ? "[compiletime]" : ""
-	);
 
-	if (use_color) {
-		if (this.ct & ct_is_unreachable) printf("\033[0m");
-		else if (this.ct & ct_is_compiletime) printf("\033[0m");
-	}
+	printf("} : {.f=#");
+	if (this.gotos[0] == ~is_label) {} 
+	else if (this.gotos[0] < 256) printf("%3llu", this.gotos[0]); 
+	else printf("0x%016llx", this.gotos[0]);
+
+	printf(", .t=#");
+	if (this.gotos[1] == ~is_label) {} 
+	else if (this.gotos[1] < 256) printf("%3llu", this.gotos[1]); 
+	else printf("0x%016llx", this.gotos[1]);
+
+	printf("}");
+
 }
 
 static void print_instructions(
 	struct instruction* ins, nat ins_count, 
 	char** names, nat name_count
 ) {
-	puts("found instructions: { \n");
+	puts("found instructions: {");
 	for (nat i = 0; i < ins_count; i++) {
 		printf("\t#%04llu: ", i);
 		print_instruction(ins[i], names, name_count);
@@ -237,26 +200,16 @@ static void print_instructions(
 	puts("}");
 }
 
-static void print_instruction_index(
+/*static void print_instruction_index(
 	struct instruction* ins, nat ins_count, 
 	char** names, nat name_count,
 	nat here, const char* message
 ) {
-	printf("%s: at index: %llu: { \n\n", message, here);
+	printf("%s: at index: %llu: { \n", message, here);
 	for (nat i = 0; i < ins_count; i++) {
 		printf("\t#%04llu: ", i);
 		print_instruction(ins[i], names, name_count);
 		if (i == here)  printf("  <------ %s\n", message); else puts("");
-	}
-	puts("}");
-}
-
-static void print_stack(nat* stack, nat stack_count) {
-	printf("stack: %llu { \n", stack_count);
-	for (nat i = 0; i < stack_count; i++) {
-		printf("stack[%llu] =  %llu\n", 
-			i, stack[i]
-		);
 	}
 	puts("}");
 }
@@ -266,6 +219,19 @@ static void print_ct_values(char** names, nat name_count, nat* ctk, nat* values)
 	for (nat i = 0; i < name_count; i++) {
 		if (not ctk[i]) continue;
 		printf("\tvalues[%s] = 0x%016llx\n", names[i], values[i]);
+	}
+	puts("}");
+}*/
+
+
+
+
+static void print_stack(nat* stack, nat stack_count) {
+	printf("stack: %llu { \n", stack_count);
+	for (nat i = 0; i < stack_count; i++) {
+		printf("stack[%llu] =  %llu\n", 
+			i, stack[i]
+		);
 	}
 	puts("}");
 }
@@ -283,11 +249,8 @@ static void print_machine_instructions(struct instruction* mi, nat mi_count) {
 	}
 }
 
-static const nat is_label = 1LLU << 63LLU;
-//static const nat write_access = 1LLU << 63LLU;
 
-
-static nat locate_data_instruction(
+/*static nat locate_data_instruction(
 	nat expected_op, nat expected_arg0, nat expected_arg1,
 	bool use_arg0, bool use_arg1,
 	nat starting_from,
@@ -355,25 +318,73 @@ static nat locate_data_instruction(
 	return (nat) -1;
 }
 
+} else if (op == zero) { new.op = set_imm; new.args[1] = 0;
+} else if (op == incr) { new.op = add_imm; new.args[1] = 1;
+} else if (op == decr) { new.op = sub_imm; new.args[1] = 1;
+} else if (op == not_) { new.op = eor_imm; new.args[1] = (nat) -1; }
+
+*/
+
+
+
+static void print_instructions_ct_values_index(
+	struct instruction* ins, const nat ins_count,
+	char** names, const nat name_count, nat* locations,
+	nat* execution_state_ctk, nat* execution_state_values,
+	nat pc, const char* message
+) {
+	printf("@%lld: %s: (%llu instructions)\n", pc, message, ins_count);
+	for (nat i = 0; i < ins_count; i++) {
+
+
+		bool found = false;
+		for (nat l = 0; l < name_count; l++) {
+			if (i == locations[l]) { printf("LABEL{%s}: ", names[l]); found = true; } 
+		}
+		if (found) puts("");
+		printf("\t#%04llu: ", i);
+		print_instruction(ins[i], names, name_count);
+
+		nat* values = execution_state_values + name_count * i;
+		nat* ctk = execution_state_ctk + name_count * i;
+
+		printf(" -- ct { ");
+		for (nat n = 0; n < name_count; n++) {
+			if (not ctk[n]) continue;
+			printf("%s:%lld ", names[n], values[n]);
+		}
+		printf("}  ");
+
+		if (i == pc) printf("    <--- %s\n", message); else puts("");
+	}
+	puts("[done]");
+}
+
+
+static nat* compute_predecessors(struct instruction* ins, const nat ins_count, const nat pc, nat* pred_count) {
+	nat* result = NULL;
+	nat count = 0;
+	for (nat i = 0; i < ins_count; i++) {
+		if (ins[i].gotos[0] == pc or ins[i].gotos[1] == pc) {
+			result = realloc(result, sizeof(nat) * (count + 1));	
+			result[count++] = i;
+		}
+	}
+	*pred_count = count;
+	return result;
+}
+
 
 int main(int argc, const char** argv) {
 
 	struct instruction ins[4096] = {0};
 	nat ins_count = 0;
-
 	char* names[4096] = {0};
-	nat active[4096] = {0};
 	nat name_count = 0;
-	nat definition[4096] = {0};
-
-	nat ctk[4096] = {0};
-	nat bit_count[4096] = {0};
-	nat values[4096] = {0};
 	nat locations[4096] = {0};
 	memset(locations, 255, sizeof locations);
 
 	if (argc == 1) exit(puts("usage error"));
-
 	const char* filename = argv[1];
 	char* text = NULL;
 	nat text_length = 0;
@@ -391,7 +402,6 @@ int main(int argc, const char** argv) {
 
 	{nat 	word_length = 0, 
 		word_start = 0,
-		unreachable = 0,
 		state = 0,
 		arg_count = 0;
 
@@ -404,28 +414,18 @@ int main(int argc, const char** argv) {
 			word_length++; 
 			if (index + 1 < text_length) continue;
 		} else if (not word_length) continue;
+
 		char* word = strndup(text + word_start, word_length);
-		printf("filename:%llu: info: looking at \"%s\" @ %llu\n", 
-			index, word, word_start
-		);
+		printf("file:%llu: at \"%s\" @ %llu\n", index, word, word_start);
 
 		if (not state) {
 			arg_count = 0;
 			if (not strcmp(word, "eoi")) break;
 			for (; state < isa_count; state++) {
-				if (not strcmp(word, ins_spelling[state])) {
-					if (state == at) unreachable = 0;
-					//else if (unreachable) {
-						/*printf("%s:%llu:%llu: warning: unreachable instruction\n", 
-							filename, word_start, index
-						);
-						print_index(text, text_length, word_start, index);*/
-					//}
-					goto next_word; 
-				}
+				if (not strcmp(word, ins_spelling[state])) goto next_word;
 			}
-			print_error: 
-			printf("%s:%llu:%llu: error: undefined %s \"%s\"\n", 
+			print_error:
+			printf("%s:%llu:%llu: error: undefined %s \"%s\"\n",
 				filename, word_start, index, 
 				state == isa_count ? "operation" : "variable", word
 			); 
@@ -433,23 +433,18 @@ int main(int argc, const char** argv) {
 			abort();
 
 		} else {
-			const nat saved_name_count = name_count;
+			const nat last = name_count;
 			nat variable = 0;
 			for (; variable < name_count; variable++) {
-				if (not strcmp(word, names[variable]) and active[variable]) goto found;
+				if (not strcmp(word, names[variable])) goto variable_name_found;
 			}
-
 			names[name_count++] = word; 
-			active[name_count - 1] = 1;
-			definition[name_count - 1] = ins_count;
-		found:
+		variable_name_found:
 			args[arg_count++] = variable;
-
 			if (state == do_) {
-				unreachable = 1; state = 0;
+				state = 0;
 				struct instruction new = {
 					.op = eq,
-					.ct = unreachable ? 5 : 1,
 					.args = {0, 0, variable},
 					.gotos = {0, variable | is_label},
 				};
@@ -459,29 +454,19 @@ int main(int argc, const char** argv) {
 				state = 0;
 				locations[variable] = ins_count;
 
-			} else if (state == ct) {
-				state = 0;
-				ctk[variable] = 1;
-
-			} else if (state == rt) {
-				if (arg_count < 2) goto next_word;
-				state = 0;
-				ctk[args[0]] = 0;
-				bit_count[args[0]] = variable;
-
 			} else if (state == zero) {
 				push_ins:; nat op = state; state = 0;
 				
 				struct instruction new = {
 					.op = op,
-					.ct = unreachable ? 4 : 0,
 					.gotos = {ins_count + 1, 
 						op == lt or op == ge or 
 						op == ne or op == eq ? 
-						variable | is_label : 0
+						variable | is_label : (nat) ~is_label
 					},
 				};
 				memcpy(new.args, args, sizeof args);
+
 				if (op == ge or op == ne) { 
 					new.gotos[0] = new.gotos[1]; 
 					new.gotos[1] = ins_count + 1;
@@ -494,58 +479,209 @@ int main(int argc, const char** argv) {
 				if (arg_count == 2) goto push_ins;
 
 			} else if (state == incr or state == decr or state == not_) {
-				if (variable == saved_name_count) goto print_error;
+				if (variable == last) goto print_error;
 				goto push_ins;
 
 			} else if (	state == add or state == sub or 
 					state == mul or state == div_ or 
 					state == and_ or state == or_ or 
 					state == eor or state == si or state == sd) {
-				if (arg_count < 2 and variable == saved_name_count) goto print_error;
+				if (arg_count < 2 and variable == last) goto print_error;
 				if (arg_count == 2) goto push_ins;
 
+			} else if (state == ld or state == st) {
+				if (arg_count < 3 and variable == last) goto print_error;
+				if (arg_count == 3) goto push_ins;
+
 			} else if (state == lt or state == eq or state == ge or state == ne) {
-				if (arg_count < 3 and variable == saved_name_count) goto print_error;
+				if (arg_count < 3 and variable == last) goto print_error;
 				if (arg_count == 3) goto push_ins;
 
 			} else if (state == sc) {
-				if (arg_count < 7 and variable == saved_name_count) goto print_error;
+				if (arg_count < 7 and variable == last) goto print_error;
 				if (arg_count == 7) goto push_ins;
 			} else {
-				printf("error: parsing state unimplemented: %llu: %s\n", state, ins_spelling[state]);
+				printf("error: parsing: %llu: %s\n", state, ins_spelling[state]);
 				abort();
 			}
 		}	
 		next_word: word_length = 0;
 	}}
 
-	puts("after parsing");
-	print_instructions(ins, ins_count, names, name_count);
-	getchar();
-
 	for (nat i = 0; i < ins_count; i++) {
 		if (ins[i].gotos[0] & is_label) {
 			ins[i].gotos[0]	= locations[ins[i].gotos[0] & ~is_label];
 		}
-
 		if (ins[i].gotos[1] & is_label) {
 			ins[i].gotos[1]	= locations[ins[i].gotos[1] & ~is_label];
-		} 
+		}
 	}
 
-	puts("after doing stage 1.5");
+	puts("-------------- completed --------------");	
+	print_dictionary(names, locations, name_count);
 	print_instructions(ins, ins_count, names, name_count);
 	getchar();
 
-	for (nat i = 0; i < ins_count; i++) {
-		const nat op = ins[i].op;
-		if (op == lt or op == eq) {} else ins[i].gotos[1] = (nat) -1;
+	nat* stack = calloc(ins_count, sizeof(nat));
+	nat stack_count = 0;
+	stack[stack_count++] = 0; 
+	nat* visited = calloc(ins_count + 1, sizeof(nat));
+	nat* execution_state_values = calloc(ins_count * name_count, sizeof(nat));
+	nat* execution_state_ctk = calloc(ins_count * name_count, sizeof(nat));
+
+	memset(execution_state_values, 0xA5, sizeof(nat) * ins_count * name_count); // debug
+	nat previous_pc = (nat) -1;
+
+	while (stack_count) {
+
+		print_stack(stack, stack_count);
+
+		const nat pc = stack[--stack_count];
+		nat* values = execution_state_values + name_count * pc;
+		nat* ctk = execution_state_ctk + name_count * pc;
+
+		if (not pc) goto process;
+
+		nat pred_count = 0;
+		nat* preds = compute_predecessors(ins, ins_count, pc, &pred_count);
+
+		for (nat n = 0; n < name_count; n++) {
+			for (nat i = 0; i < pred_count; i++) {
+				if (not visited[preds[i]]) continue;
+				if (not execution_state_ctk[name_count * preds[i] + n]) goto one_rtk;
+			}
+			nat spot = 0;
+			for (; spot < pred_count; spot++) {
+				if (not visited[preds[spot]]) continue;
+				if (preds[spot] == previous_pc) goto pred_found;
+			}
+			puts("fatal error: could not find previous_pc in predecessor list.");
+			abort();
+		pred_found:;
+			printf("selecting pred[%llu] == previous_pc, which was %llu\n", spot, previous_pc);
+			if (not execution_state_ctk[name_count * previous_pc + n]) abort();
+			ctk[n] = 1;
+			values[n] = execution_state_values[name_count * previous_pc + n];			
+			goto next_name;
+		one_rtk:;
+			ctk[n] = 0;
+			values[n] = 0x999999999;
+			next_name:;
+		}
+
+		process:;
+		visited[pc]++;
+
+		const nat op = ins[pc].op;
+		const nat arg0 = ins[pc].args[0];
+		const nat arg1 = ins[pc].args[1];
+
+		if (op == lt or op == eq) {
+			if (not ctk[arg0] or not ctk[arg1]) {
+
+				if (ins[pc].gotos[0] < ins_count and 
+					visited[ins[pc].gotos[0]] < 1) 
+					stack[stack_count++] = ins[pc].gotos[0];
+				if (ins[pc].gotos[1] < ins_count and 
+					visited[ins[pc].gotos[1]] < 1) 
+					stack[stack_count++] = ins[pc].gotos[1];
+			} else {
+				nat condition = 0;
+				if (op == eq and values[arg0] == values[arg1]) condition = 1;
+				if (op == lt and values[arg0] <  values[arg1]) condition = 1;
+				if (ins[pc].gotos[condition] < ins_count) stack[stack_count++] = ins[pc].gotos[condition];
+			}
+			goto next_instruction;
+		}
+		
+		if (op == 0) abort();
+		else if (op == zero) { ctk[arg0] = 1; values[arg0] = 0; }
+		else if (op == incr) { if (ctk[arg0]) values[arg0]++; } 
+		else {
+			puts("idk..?");
+		}
+		
+		if (ins[pc].gotos[0] < ins_count) 
+			stack[stack_count++] = ins[pc].gotos[0];
+
+	next_instruction:;
+		previous_pc = pc;
+		print_instructions_ct_values_index(
+			ins, ins_count, 
+			names, name_count, locations, 
+			execution_state_ctk, execution_state_values,
+			pc, "PC"
+		);
+		getchar();
 	}
-	
-	print_dictionary(names, active, definition, ctk, values, locations, bit_count, name_count);
-	puts("current ins listing after parsing..");
-	print_instructions(ins, ins_count, names, name_count);
-	getchar();
+
+	print_instructions_ct_values_index(
+		ins, ins_count, 
+		names, name_count, locations, 
+		execution_state_ctk, execution_state_values, 
+		(nat) -1, ""
+	);
+
+	exit(1);
+
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+		//print_ct_values(names, name_count, ctk, values);
+		//print_instruction_index(ins, ins_count, names, name_count, pc, "PC");
+
+
+	/*
+		printf("executing pc #%llu    :    ", pc);
+		print_instruction(ins[pc], names, name_count); puts("");
+
+
+
+
 
 
 	nat* stack = calloc(ins_count, sizeof(nat));
@@ -553,6 +689,9 @@ int main(int argc, const char** argv) {
 	stack[stack_count++] = 0; 
 
 	nat* visited = calloc(ins_count + 1, sizeof(nat));
+
+
+
 
 	while (stack_count) {
 		print_stack(stack, stack_count);
@@ -762,6 +901,42 @@ int main(int argc, const char** argv) {
 
 
 
+	*/
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 /*
 	nat pred_count[4096] = {0};
@@ -955,9 +1130,7 @@ int main(int argc, const char** argv) {
 
 
 
-
 	*/
-}
 
 
 
@@ -1002,7 +1175,12 @@ int main(int argc, const char** argv) {
 
 
 
-
+					//else if (unreachable) {
+						/*printf("%s:%llu:%llu: warning: unreachable instruction\n", 
+							filename, word_start, index
+						);
+						print_index(text, text_length, word_start, index);*/
+					//}
 
 
 
@@ -1052,11 +1230,21 @@ int main(int argc, const char** argv) {
 
 
 
+/*
 
 
+			} else if (state == ct) {
+				state = 0;
+				ctk[variable] = 1;
+
+			} else if (state == rt) {
+				if (arg_count < 2) goto next_word;
+				state = 0;
+				ctk[args[0]] = 0;
+				bit_count[args[0]] = variable;
 
 
-
+*/
 
 
 
@@ -3432,6 +3620,137 @@ struct instruction {
 				// nop do label  at skip nop  at label do label2
 				//   the above code breaks this method. 
 
+
+
+
+
+
+
+
+/*static nat isa_arity(nat i) {
+	if (i == sc) return 7;
+	if (i == eoi) return 0;
+	if (i >= zero and i <= lf) return 1;
+	if (i >= set  and i <= rt) return 2;
+	if (i >= lt   and i <= st) return 3;
+	abort();
+}
+
+static nat get_call_input_count(nat n) {
+	if (n == system_exit) return 1;
+	if (n == system_read) return 3;
+	if (n == system_write) return 3;
+	if (n == system_close) return 1;
+	if (n == system_open) return 3;
+	abort();
+}*/
+
+
+
+
+
+/*
+
+
+		" %s"
+		" %s"
+		//" {ct_side=%u}"
+		" %s",
+		this.gotos[0], this.gotos[1],
+		"",//!!(this.ct & ct_is_generated_do) ? "[machine-do]" : "", 
+		"",//!!(this.ct & ct_is_unreachable) ? "[unreachable]" : "",
+		//0,//!!(this.ct & ct_is_ctbranch_side), 
+		""//!!(this.ct & ct_is_compiletime) ? "[compiletime]" : ""
+	);
+
+
+
+	if (use_color) {
+		if (this.ct & ct_is_unreachable) printf("\033[0m");
+		else if (this.ct & ct_is_compiletime) printf("\033[0m");
+	}*/
+
+
+
+
+/*
+
+//printf("PRED UNIDENT: c=%u, a=%u, b=%u\n", c, a, b);
+				//getchar();		
+if (pred_ctk[n] and ctk[n]) {
+						puts("found both CTK!!!! unknown merge method");
+						abort();
+
+
+
+					}
+
+static const char* systemcall_spelling[systemcall_count] = {
+	"system_exit",
+	"system_read", "system_write", 
+	"system_open", "system_close",
+};
+
+
+*/
+
+
+		//printf("info:   --> pred_count = %llu\n", pred_count);
+/*printf("FOUND PREDECESSOR!!!! (%llu total so far)\n", pred_count);
+			print_instruction_index(ins, ins_count, names, name_count, i, "predecessor of pc");
+			print_instruction_index(ins, ins_count, names, name_count, pc, "PC");
+			printf("DONE WITH PREDECESSOR\n");
+			printf("COMPARING NAME VALUE CTK LISTS:\n");
+			nat* pred_values = execution_state_values + name_count * i;
+			nat* pred_ctk = execution_state_ctk + name_count * i;	
+
+
+			for (nat n = 0; n < name_count; n++) {
+				printf("%llu:   {PC: CTK[%llu],VALUES[%llu]}    |   {pred: CTK[%llu],VALUES[%llu]} \n",
+					n,               ctk[n],values[n],          pred_ctk[n], pred_values[n]
+				);
+					if (not pred_ctk[n]) {
+
+						// then we know that at least one of the predecessors of PC transfers RT known data about this variable.
+						// if this is the case, we must assume that now, at this point, names[n] is RT here as well. 
+
+						ctk[n] = 0;
+						values[n] = 0x999999999999;
+					}
+				}
+				puts("done comparing these two pred and pc lists.");
+				getchar();
+			}
+			*/
+
+
+
+
+
+		// 1. find list of pred of this instruction.
+		
+		// 2. synthesize the ctk/value listing for each other path. if both ctk, but mismatching values,
+		//    then call it not rtk.
+
+		// 3. ????
+		
+		//nat** CRAZY_ctk = calloc(2 * name_count, sizeof(nat*));
+		//nat** CRAZY_values = calloc(2 * name_count, sizeof(nat*));
+
+
+
+		/*for (nat i = 0; i < pred_count; i++) {
+			print_instructions_ct_values_index(
+				ins, ins_count, 
+				names, name_count, locations, 
+				execution_state_ctk, execution_state_values,
+				preds[i], "PREDECESSOR"
+			);
+		}*/
+
+
+
+//EOI
 
 
 
