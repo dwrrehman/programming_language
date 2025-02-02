@@ -79,6 +79,12 @@ enum language_systemcalls {
 	systemcall_count
 };
 
+static const char* systemcall_spelling[systemcall_count] = {
+	"system_exit",
+	"system_read", "system_write", 
+	"system_open", "system_close",
+};
+
 enum arm64_ins_set {
 	addsr_lsl, 
 	addsr_lsr,
@@ -127,14 +133,14 @@ struct file {
 
 static const nat is_label = 1LLU << 63LLU;
 
-/*static nat get_call_output_count(nat n) {
+static nat get_call_output_count(nat n) {
 	if (n == system_exit) return 0;
 	if (n == system_read) return 2;
 	if (n == system_write) return 2;
 	if (n == system_close) return 1;
 	if (n == system_open) return 2;
 	abort();
-}*/
+}
 
 static void print_index(const char* text, nat text_length, nat begin, nat end) {
 	printf("\n\t@%llu..%llu: ", begin, end); 
@@ -597,8 +603,57 @@ int main(int argc, const char** argv) {
 		if (op == 0) abort();
 		else if (op == zero) { ctk[arg0] = 1; values[arg0] = 0; }
 		else if (op == incr) { if (ctk[arg0]) values[arg0]++; } 
-		else {
-			puts("idk..?");
+		else if (op == sc) {
+
+			if (not ctk[arg0]) { 
+				puts("error: all system calls must be compile time known."); 
+				abort(); 
+			}
+			const nat n = values[arg0];
+			const nat output_count = get_call_output_count(n);
+			for (nat i = 0; i < output_count; i++) {
+				const nat this = ins[pc].args[1 + i];
+				ctk[this] = 0;
+				values[this] = 0x999999999999333;
+			}
+			if (n == system_exit) {
+				printf("warning: reached cfg termination point\n");
+				print_instructions_ct_values_index(
+					ins, ins_count, 
+					names, name_count, locations, 
+					execution_state_ctk, execution_state_values,
+					pc, "CFG termination point here"
+				);
+				getchar();
+				ins[pc].gotos[0] = (nat) -1;
+				ins[pc].gotos[1] = (nat) -1;
+				goto next_instruction;
+
+			} else if (n == system_write) {			
+				printf("warning: system_write syscall encountered\n");
+				print_instructions_ct_values_index(
+					ins, ins_count, 
+					names, name_count, locations, 
+					execution_state_ctk, execution_state_values,
+					pc, "system_write"
+				);
+				getchar();
+
+			} else {
+				printf("info: found %s sc!\n", systemcall_spelling[n]);
+				printf("ERROR: unknown syscall encountered\n");
+				print_instructions_ct_values_index(
+					ins, ins_count, 
+					names, name_count, locations, 
+					execution_state_ctk, execution_state_values,
+					pc, "??????"
+				);
+				getchar();
+			}
+
+		} else {
+			puts("FATAL_ERROR: unknown operation encountered, aborting.."); 
+			abort();
 		}
 		
 		if (ins[pc].gotos[0] < ins_count) 
