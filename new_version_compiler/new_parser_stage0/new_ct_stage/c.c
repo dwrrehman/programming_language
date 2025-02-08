@@ -1,30 +1,5 @@
 // a new parser and ct system written on 1202502016.131044 dwrr
-
 // 1202501116.181306 new parser   dwrr
-
-// things to layer on to the front end still: 
-//   - including of multiple files
-//   - comments
-
-/*
-
-things in the compiler to do:
-	
-	- ct-eval : recognize when a variable is compiletime known, automatically,
-			by looking at the predeccessors, and keeping track of a variable/ctkness at each point in the program, and going back and looking at previous decisions, because of loops! push a new branch node to the branch stack, when we encounter a br, and check the decision that was made on all ctkness of all variables. store the values and ctk array on the branch stack. i think this is required. 
-
-
-after that:
-
-	- ins sel : add more patterns, for arm64
-
-	- RA : find the lifetime of variables   and the reads and writes to variables, in the mi listing!
-	- code gen: generate the mi into machine code lol
-		- work on the msp430 backend!
-
-
-*/
-
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -88,40 +63,32 @@ static const char* systemcall_spelling[systemcall_count] = {
 enum arm64_ins_set {
 	addsr_lsl, 
 	addsr_lsr,
-
 	subsr_lsl, 
 	subsr_lsr,
-
 	andsr_lsl, 
 	andsr_lsr,
-
 	orrsr_lsl, 
 	orrsr_lsr,
-
 	eorsr_lsl, 
-	eorsr_lsr,
-	
+	eorsr_lsr,	
 	movz,
+	addi,
 	arm_isa_count,
 };
 
 static const char* mi_spelling[arm_isa_count] = {
 	"addsr_lsl", 
 	"addsr_lsr",
-
 	"subsr_lsl", 
 	"subsr_lsr",
-
 	"andsr_lsl", 
 	"andsr_lsr",
-
 	"orrsr_lsl", 
 	"orrsr_lsr",
-
 	"eorsr_lsl", 
-	"eorsr_lsr",
-	
+	"eorsr_lsr",	
 	"movz",
+	"addi",
 };
 
 struct file {
@@ -163,34 +130,22 @@ static void print_dictionary(char** names, nat* locations, nat name_count) {
 }
 
 static void print_instruction(struct instruction this, char** names, nat name_count) {
-
-/*	if (use_color) {
-		if (this.ct & ct_is_unreachable) printf("\033[38;5;239m");
-		else if (this.ct & ct_is_compiletime) printf("\033[38;5;101m");
-	}*/
-
-	//printf("[.ct=%llx]", this.ct);
 	printf("  %8s { ", ins_spelling[this.op]);
-
 	for (nat a = 0; a < 3; a++) {
 		if (this.args[a] < 256) printf("%3llu", this.args[a]); 
 		else printf("0x%016llx", this.args[a]);
 		printf("('%6s') ", this.args[a] < name_count ? names[this.args[a]] : "");
 	}
 
-
 	printf("} : {.f=#");
-	if (this.gotos[0] == ~is_label) {} 
+	if (this.gotos[0] == ~is_label or this.gotos[0] == (nat) -1) {} 
 	else if (this.gotos[0] < 256) printf("%3llu", this.gotos[0]); 
 	else printf("0x%016llx", this.gotos[0]);
-
 	printf(", .t=#");
-	if (this.gotos[1] == ~is_label) {} 
+	if (this.gotos[1] == ~is_label or this.gotos[1] == (nat) -1) {} 
 	else if (this.gotos[1] < 256) printf("%3llu", this.gotos[1]); 
 	else printf("0x%016llx", this.gotos[1]);
-
 	printf("}");
-
 }
 
 static void print_instructions(
@@ -205,32 +160,6 @@ static void print_instructions(
 	}
 	puts("}");
 }
-
-/*static void print_instruction_index(
-	struct instruction* ins, nat ins_count, 
-	char** names, nat name_count,
-	nat here, const char* message
-) {
-	printf("%s: at index: %llu: { \n", message, here);
-	for (nat i = 0; i < ins_count; i++) {
-		printf("\t#%04llu: ", i);
-		print_instruction(ins[i], names, name_count);
-		if (i == here)  printf("  <------ %s\n", message); else puts("");
-	}
-	puts("}");
-}
-
-static void print_ct_values(char** names, nat name_count, nat* ctk, nat* values) {
-	printf("ct values: {\n");
-	for (nat i = 0; i < name_count; i++) {
-		if (not ctk[i]) continue;
-		printf("\tvalues[%s] = 0x%016llx\n", names[i], values[i]);
-	}
-	puts("}");
-}*/
-
-
-
 
 static void print_stack(nat* stack, nat stack_count) {
 	printf("stack: %llu { \n", stack_count);
@@ -255,8 +184,21 @@ static void print_machine_instructions(struct instruction* mi, nat mi_count) {
 	}
 }
 
+static void print_instruction_index(
+	struct instruction* ins, nat ins_count, 
+	char** names, nat name_count,
+	nat here, const char* message
+) {
+	printf("%s: at index: %llu: { \n", message, here);
+	for (nat i = 0; i < ins_count; i++) {
+		printf("\t#%04llu: ", i);
+		print_instruction(ins[i], names, name_count);
+		if (i == here)  printf("  <------ %s\n", message); else puts("");
+	}
+	puts("}");
+}
 
-/*static nat locate_data_instruction(
+static nat locate_data_instruction(
 	nat expected_op, nat expected_arg0, nat expected_arg1,
 	bool use_arg0, bool use_arg1,
 	nat starting_from,
@@ -266,19 +208,23 @@ static void print_machine_instructions(struct instruction* mi, nat mi_count) {
 	nat pc = starting_from;
 
 	while (pc < ins_count) {
-		const nat ct = ins[pc].ct;
+		//const nat ct = ins[pc].ct;
 		const nat op = ins[pc].op;
 		const nat arg0 = ins[pc].args[0];
 		const nat arg1 = ins[pc].args[1];
 
-		const bool compiletime = ct & ct_is_compiletime;
-		const bool generated_do = ct & ct_is_generated_do;
+		//const bool compiletime = ct & ct_is_compiletime;
+		//const bool generated_do = ct & ct_is_generated_do;
 		const bool is_branch = (op == lt or op == eq or op == gt_imm or op == lt_imm or op == eq_imm);
 
-		if (not compiletime and is_branch) { printf("FOUND RT BRANCH @ %llu\n", pc); getchar(); break; }
-		if (compiletime and generated_do) { printf("FOUND MACHINE DO @ %llu\n", pc); getchar(); break; }
 
-		if (not compiletime) {	
+		if (is_branch) { printf("FOUND RT BRANCH @ %llu\n", pc); getchar(); break; }
+
+
+		//if (compiletime and generated_do) { printf("FOUND MACHINE DO @ %llu\n", pc); getchar(); break; }
+
+		//if (not compiletime) 
+
 			print_instruction_index(ins, ins_count, names, name_count, pc, "FOLLOWING");
 			printf("following pc #%llu\n", pc);
 			print_instruction(ins[pc], names, name_count); puts("");
@@ -314,24 +260,11 @@ static void print_machine_instructions(struct instruction* mi, nat mi_count) {
 					break;
 				}
 			}
-		}
-		if (compiletime and is_branch) pc = ins[pc].gotos[(ins[pc].ct >> 1) & 1];
-		else pc = ins[pc].gotos[0];
+		pc = ins[pc].gotos[0];
 	}
-
 	printf("SELECTION: FOUND A PC OF: %llu\n", pc); getchar();
-
 	return (nat) -1;
 }
-
-} else if (op == zero) { new.op = set_imm; new.args[1] = 0;
-} else if (op == incr) { new.op = add_imm; new.args[1] = 1;
-} else if (op == decr) { new.op = sub_imm; new.args[1] = 1;
-} else if (op == not_) { new.op = eor_imm; new.args[1] = (nat) -1; }
-
-*/
-
-
 
 static void print_instructions_ct_values_index(
 	struct instruction* ins, const nat ins_count,
@@ -341,8 +274,6 @@ static void print_instructions_ct_values_index(
 ) {
 	printf("@%lld: %s: (%llu instructions)\n", pc, message, ins_count);
 	for (nat i = 0; i < ins_count; i++) {
-
-
 		bool found = false;
 		for (nat l = 0; l < name_count; l++) {
 			if (i == locations[l]) { printf("LABEL{%s}: ", names[l]); found = true; } 
@@ -350,22 +281,18 @@ static void print_instructions_ct_values_index(
 		if (found) puts("");
 		printf("\t#%04llu: ", i);
 		print_instruction(ins[i], names, name_count);
-
 		nat* values = execution_state_values + name_count * i;
 		nat* ctk = execution_state_ctk + name_count * i;
-
 		printf(" -- ct { ");
 		for (nat n = 0; n < name_count; n++) {
 			if (not ctk[n]) continue;
 			printf("%s:%lld ", names[n], values[n]);
 		}
 		printf("}  ");
-
 		if (i == pc) printf("    <--- %s\n", message); else puts("");
 	}
-	puts("[done]");
+	printf("done printing index \"%s\"\n", message);
 }
-
 
 static nat* compute_predecessors(struct instruction* ins, const nat ins_count, const nat pc, nat* pred_count) {
 	nat* result = NULL;
@@ -380,9 +307,18 @@ static nat* compute_predecessors(struct instruction* ins, const nat ins_count, c
 	return result;
 }
 
+static void print_ct_values(char** names, nat name_count, nat* ctk, nat* values) {
+	printf("ct values: {\n");
+	for (nat i = 0; i < name_count; i++) {
+		if (not ctk[i]) continue;
+		printf("\tvalues[%s] = 0x%016llx\n", names[i], values[i]);
+	}
+	puts("}");
+}
+
+
 
 int main(int argc, const char** argv) {
-
 	struct instruction ins[4096] = {0};
 	nat ins_count = 0;
 	char* names[4096] = {0};
@@ -523,34 +459,479 @@ int main(int argc, const char** argv) {
 		}
 	}
 
-	puts("-------------- completed --------------");	
+
 	print_dictionary(names, locations, name_count);
 	print_instructions(ins, ins_count, names, name_count);
 	getchar();
 
+
+
+
+
+
+
+
+	//print_ct_values(names, name_count, ctk, values);
+	print_dictionary(names, locations, name_count);
+	print_instructions(ins, ins_count, names, name_count);
+
+	puts("starting ins sel..");
+	struct instruction mi[4096] = {0};
+	nat mi_count = 0;
+	nat selected[4096] = {0};
+
+
+	for (nat i = 0; i < ins_count; i++) {
+
+		if (selected[i]) {
+			printf("warning: [ins_index = %llu]: skipping instruction, it was already part of a pattern.\n", i);
+			continue;
+		}
+
+
+		const nat op = ins[i].op;
+		const nat arg0 = ins[i].args[0];
+		const nat arg1 = ins[i].args[1];
+
+		/*{const nat ct = ins[i].ct;
+		const bool unreachable = ct & ct_is_unreachable;
+		const bool compiletime = ct & ct_is_compiletime;
+		const bool generated_do = ct & ct_is_generated_do;
+		const bool is_branch = (op == lt or op == eq or op == gt_imm or op == lt_imm or op == eq_imm);
+
+		if (unreachable or compiletime and (not is_branch or is_branch and not generated_do)) continue;}
+		*/
+
+		print_instruction_index(ins, ins_count, names, name_count, i, "SELECTION ORIGIN");
+		printf("selecting from i #%llu\n", i);
+		print_instruction(ins[i], names, name_count); puts("");
+		getchar();
+
+
+		/*if (op == set) {
+			const nat b = locate_data_instruction(si_imm, arg0, 0, 1, 0, i + 1, ins, ins_count, names, name_count);
+			printf("b = %lld\n", b);
+			if (b == (nat) -1) goto next0;
+		
+			const nat c = locate_data_instruction(add, arg0, 0, 1, 0, b + 1, ins, ins_count, names, name_count);
+			printf("c = %lld\n", c);
+			if (c == (nat) -1) goto next0;
+			
+			const nat d = arg0;
+			const nat n = ins[c].args[1];
+			const nat m = ins[i].args[1];
+			const nat k = ins[b].args[1];
+			printf("FOUND ARM64 MACHINE CODE INSTRUCTION:\n");
+			printf("ADD_SR   "
+				"d=%llu(%s), "
+				"n=%llu(%s), "
+				"m=%llu(%s) << "
+				"k=%llu\n",
+				d, names[d], 
+				n, names[n], 
+				m, names[m], 
+				k
+			);
+			struct instruction new = {0};
+			new.op = addsr_lsl;
+			new.args[0] = d;
+			new.args[1] = n;
+			new.args[2] = m;
+			new.args[3] = k;
+			mi[mi_count++] = new;
+
+			selected[i] = 1;
+			selected[b] = 1;
+			selected[c] = 1;
+		}
+		next0:;
+
+		if (op == set_imm) {
+
+			const nat d = arg0;
+			const nat k = arg1;
+			printf("FOUND ARM64 MACHINE CODE INSTRUCTION:\n");
+			printf("MOVZ   "
+				"d=%llu(%s), "
+				"k=%llu\n",
+				d, names[d], 
+				k
+			);
+			struct instruction new = {0};
+			new.op = movz;
+			new.args[0] = d;
+			new.args[1] = k;
+			mi[mi_count++] = new;
+
+			selected[i] = 1;
+		}*/
+
+
+/*
+
+
+
+
+
+
+
+
+movz	setimm x k 
+addsr	set d m siimm d k add d n 
+lslv	set d m si d n
+madd	set d m mul d n add d a
+
+msub	set s m mul s n set d a sub d s
+eori	set d n eorimm d k
+eorsr	set d m siimm d k eor d n
+eonsr	set d m siimm d k not d eor d n
+
+addi	set d n addimm d k
+andi	set d n andimm d k
+orrsr	set d m siimm d k or d n
+orri	set d n orimm d k
+
+ornsr	set d m siimm d k not d or d n
+subsr	set s m siimm s k set d n sub d s
+subi	set d n subimm d k
+udiv	set d n div d m
+
+
+
+
+
+
+
+--------------------------- ARM64 INS SEL PATTERNS -----------------------------
+
+movz	setimm x k 
+
+lslv	set d m si d n
+lsrv	set d m si d n
+
+udiv	set d n div d m
+
+madd	set d m mul d n add d a
+msub	set s m mul s n set d a sub d s
+
+
+
+addsr	set d m siimm d k add d n 
+subsr	set s m siimm s k set d n sub d s
+
+andsr	set d m siimm d k and d n
+
+orrsr	set d m siimm d k or d n
+ornsr	set d m siimm d k not d or d n
+
+eorsr	set d m siimm d k eor d n
+eonsr	set d m siimm d k not d eor d n
+
+
+
+addi	set d n addimm d k
+
+subi	set d n subimm d k
+
+andi	set d n andimm d k
+
+orri	set d n orimm d k
+
+eori	set d n eorimm d k
+
+
+
+--------------------------- END OF ARM64 INS SEL PATTERNS -----------------------------
+
+
+
+
+
+
+
+
+
+movz . setimm x k
+
+addsrlsl . set d m siimm d k add d n 
+addsrlsr . set d m sdimm d k add d n
+
+eorsrlsl . set d m siimm d k eor d n 
+eorsrlsr . set d m sdimm d k eor d n 
+eonsrlsl . set d m siimm d k not d eor d n
+eonsrlsr . set d m sdimm d k not d eor d n
+
+orrsrlsl . set d m siimm d k or d n 
+orrsrlsr . set d m sdimm d k or d n 
+ornsrlsl . set d m siimm d k not d or d n
+ornsrlsr . set d m sdimm d k not d or d n
+
+
+
+
+lslv . set d m si d n
+
+madd . set d m mul d n add d a 
+msub . set s m mul s n set d a sub d s
+
+addi . set d n addimm d k
+andi . set d n andimm d k 
+orri . set d n orimm d k
+eori . set d n eorimm d k
+
+
+
+*/
+
+
+
+
+		if () {
+
+
+		} else if () {
+		} else if () {
+		} else if () {
+		} else if () {
+		} else if () {
+		} else if () {
+
+
+		else if (op == zero) {
+			const nat d = arg0;
+			const nat k = 0;
+			printf("FOUND ARM64 MACHINE CODE INSTRUCTION:\n");
+			printf("MOVZ   "
+				"d=%llu(%s), "
+				"k=%llu\n",
+				d, names[d], 
+				k
+			);
+			struct instruction new = {0};
+			new.op = movz;
+			new.args[0] = d;
+			new.args[1] = k;
+			mi[mi_count++] = new;
+
+			selected[i] = 1;
+
+		} else if (op == incr) {
+
+			const nat d = arg0;
+			const nat n = d;
+			const nat k = 1;
+
+			printf("FOUND ARM64 MACHINE CODE INSTRUCTION:\n");
+			printf("ADDI   "
+				"d=%llu(%s), "
+				"n=%llu(%s), "
+				"k=%llu\n",
+				d, names[d], 
+				n, names[n], 
+				k
+			);
+			struct instruction new = {0};
+			new.op = addi;
+			new.args[0] = d;
+			new.args[1] = n;
+			new.args[2] = k;
+			mi[mi_count++] = new;
+
+			selected[i] = 1;
+
+
+		} else if () {
+
+
+
+		}
+	}
+
+
+	for (nat i = 0; i < ins_count; i++) {
+
+		const nat op = ins[i].op;
+		//const nat arg0 = ins[i].args[0];
+		//const nat arg1 = ins[i].args[1];
+/*		const nat ct = ins[i].ct;
+		const bool unreachable = ct & ct_is_unreachable;
+		const bool compiletime = ct & ct_is_compiletime;
+		const bool generated_do = ct & ct_is_generated_do;
+		const bool is_branch = (op == lt or op == eq or op == gt_imm or op == lt_imm or op == eq_imm);
+
+		if (unreachable or compiletime and (not is_branch or is_branch and not generated_do)) continue;}
+*/
+
+
+		if (not selected[i]) {
+			puts("error: instruction was not able to be processed by instruction selection: internal error");
+			puts("not selected instruction: ");
+			print_instruction_index(
+				ins, ins_count, 
+				names, name_count, 
+				i, "this instruction failed to be lowered during instruction selection."
+			); getchar();
+		}
+	}
+
+	print_dictionary(names, locations, name_count);
+	print_instructions(ins, ins_count, names, name_count);
+	print_machine_instructions(mi, mi_count);
+	puts("stopped after ins sel.");
+	exit(0);
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+		//}
+		//if (is_branch) pc = ins[pc].gotos[(ins[pc] >> 1) & 1];
+		//else 
+
+
+
+
+// things to layer on to the front end still: 
+//   - including of multiple files
+//   - comments
+
+/*
+
+things in the compiler to do:
+	
+	- ct-eval : recognize when a variable is compiletime known, automatically,
+			by looking at the predeccessors, and keeping track of a variable/ctkness at each point in the program, and going back and looking at previous decisions, because of loops! push a new branch node to the branch stack, when we encounter a br, and check the decision that was made on all ctkness of all variables. store the values and ctk array on the branch stack. i think this is required. 
+
+
+after that:
+
+
+	- ins sel : add more patterns, for arm64
+	- ins sel :    recognize control flow patterns:   implement  csel!!!!!!
+
+
+	- RA : find the lifetime of variables   and the reads and writes to variables, in the mi listing!
+	- code gen: generate the mi into machine code lol
+		- work on the msp430 backend!
+
+*/
+
+
+
+
+
+/*
+
+} else if (op == zero) { new.op = set_imm; new.args[1] = 0;
+} else if (op == incr) { new.op = add_imm; new.args[1] = 1;
+} else if (op == decr) { new.op = sub_imm; new.args[1] = 1;
+} else if (op == not_) { new.op = eor_imm; new.args[1] = (nat) -1; }
+
+*/
+
+
+
+/*	
+				compiletime / runtime identification pass:
+
+-------------apca-------------apca-------------apca-------------apca-------------apca-------------apca-------------apca
+
+
+nat previous_pc = (nat) -1, stack_count = 1;
 	nat* stack = calloc(ins_count, sizeof(nat));
-	nat stack_count = 0;
-	stack[stack_count++] = 0; 
 	nat* visited = calloc(ins_count + 1, sizeof(nat));
 	nat* execution_state_values = calloc(ins_count * name_count, sizeof(nat));
 	nat* execution_state_ctk = calloc(ins_count * name_count, sizeof(nat));
-
 	memset(execution_state_values, 0xA5, sizeof(nat) * ins_count * name_count); // debug
-	nat previous_pc = (nat) -1;
 
 	while (stack_count) {
 
 		print_stack(stack, stack_count);
-
 		const nat pc = stack[--stack_count];
 		nat* values = execution_state_values + name_count * pc;
 		nat* ctk = execution_state_ctk + name_count * pc;
-
 		if (not pc) goto process;
 
 		nat pred_count = 0;
 		nat* preds = compute_predecessors(ins, ins_count, pc, &pred_count);
-
 		for (nat n = 0; n < name_count; n++) {
 			for (nat i = 0; i < pred_count; i++) {
 				if (not visited[preds[i]]) continue;
@@ -562,6 +943,11 @@ int main(int argc, const char** argv) {
 				if (preds[spot] == previous_pc) goto pred_found;
 			}
 			puts("fatal error: could not find previous_pc in predecessor list.");
+			printf("previous_pc = %llu  :  { ", previous_pc);
+			for (nat i = 0; i < pred_count; i++) {
+				printf("%llu ", preds[i]);
+			} 
+			puts(" }");
 			abort();
 		pred_found:;
 			printf("selecting pred[%llu] == previous_pc, which was %llu\n", spot, previous_pc);
@@ -574,7 +960,6 @@ int main(int argc, const char** argv) {
 			values[n] = 0x999999999;
 			next_name:;
 		}
-
 		process:;
 		visited[pc]++;
 
@@ -586,10 +971,10 @@ int main(int argc, const char** argv) {
 			if (not ctk[arg0] or not ctk[arg1]) {
 
 				if (ins[pc].gotos[0] < ins_count and 
-					visited[ins[pc].gotos[0]] < 1) 
+					visited[ins[pc].gotos[0]] < 2) 
 					stack[stack_count++] = ins[pc].gotos[0];
 				if (ins[pc].gotos[1] < ins_count and 
-					visited[ins[pc].gotos[1]] < 1) 
+					visited[ins[pc].gotos[1]] < 2) 
 					stack[stack_count++] = ins[pc].gotos[1];
 			} else {
 				nat condition = 0;
@@ -603,6 +988,15 @@ int main(int argc, const char** argv) {
 		if (op == 0) abort();
 		else if (op == zero) { ctk[arg0] = 1; values[arg0] = 0; }
 		else if (op == incr) { if (ctk[arg0]) values[arg0]++; } 
+		else if (op == add) { 
+			if (ctk[arg0] and ctk[arg1]) values[arg0] += values[arg1]; 
+			else if (not ctk[arg0] and not ctk[arg1]) {}
+			else if (not ctk[arg0]) {  set add_imm op code }
+			else {
+				puts("i think this is the point where we make the dest CT now, instead of RT.");
+				abort();
+			}
+		} 
 		else if (op == sc) {
 
 			if (not ctk[arg0]) { 
@@ -650,7 +1044,6 @@ int main(int argc, const char** argv) {
 				);
 				getchar();
 			}
-
 		} else {
 			puts("FATAL_ERROR: unknown operation encountered, aborting.."); 
 			abort();
@@ -670,6 +1063,7 @@ int main(int argc, const char** argv) {
 		getchar();
 	}
 
+
 	print_instructions_ct_values_index(
 		ins, ins_count, 
 		names, name_count, locations, 
@@ -677,21 +1071,10 @@ int main(int argc, const char** argv) {
 		(nat) -1, ""
 	);
 
-	exit(1);
 
-}
+-------------apca-------------apca-------------apca-------------apca-------------apca-------------apca-------------apca
 
-
-
-
-
-
-
-
-
-
-
-
+	*/
 
 
 
@@ -3802,6 +4185,39 @@ static const char* systemcall_spelling[systemcall_count] = {
 				preds[i], "PREDECESSOR"
 			);
 		}*/
+
+/*static void print_instruction_index(
+	struct instruction* ins, nat ins_count, 
+	char** names, nat name_count,
+	nat here, const char* message
+) {
+	printf("%s: at index: %llu: { \n", message, here);
+	for (nat i = 0; i < ins_count; i++) {
+		printf("\t#%04llu: ", i);
+		print_instruction(ins[i], names, name_count);
+		if (i == here)  printf("  <------ %s\n", message); else puts("");
+	}
+	puts("}");
+}
+
+static void print_ct_values(char** names, nat name_count, nat* ctk, nat* values) {
+	printf("ct values: {\n");
+	for (nat i = 0; i < name_count; i++) {
+		if (not ctk[i]) continue;
+		printf("\tvalues[%s] = 0x%016llx\n", names[i], values[i]);
+	}
+	puts("}");
+}*/
+/*	if (use_color) {
+		if (this.ct & ct_is_unreachable) printf("\033[38;5;239m");
+		else if (this.ct & ct_is_compiletime) printf("\033[38;5;101m");
+	}*/
+
+	//printf("[.ct=%llx]", this.ct);
+
+
+
+
 
 
 
