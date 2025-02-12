@@ -1,5 +1,55 @@
+/*
+
+targets applications: 
+---------------------------------------------
+	- embedded risc low power devices, 
+	- modern high performance risc machines in data centers
+
+
+target ISAs:
+---------------------------------------------
+	- ARM64
+	- ARM32
+	- RISC-V 64
+	- RISC-V 32
+	- MSP430
+
+
+performance advantages over C / LLVM:
+---------------------------------------------
+
+	- full program ins-level optimizations (no basic blocks)
+
+	- no SSA representation: stateful optimizations
+
+
+	- conservative memory aliasing semantics
+
+	- no implicit memory allocations, register level semantics instead
+
+	- no unneccessary ABI requirements on functions, no link-time optimization
+
+	- no unneccessary overhead: no abstractions present
+	  which don't easily map onto hardware instructions 
+
+
+	- bit-width for variables providing more use of registers
+
+	- more powerful compiletime evaluation semantics
+	
+	- vectorization primitives in the language 
+
+
+
+
+
+
+*/
+
 // a new parser and ct system written on 1202502016.131044 dwrr
 // 1202501116.181306 new parser   dwrr
+
+
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -14,10 +64,12 @@ typedef uint64_t nat;
 
 enum {
 	nullins, 
-	zero, incr, decr, 
-	not_, and_, or_, eor, si, sd,
-	set, add, sub, mul, div_,
-	lt, eq, ld, st, sc, do_, at, lf, ge, ne,
+	
+	set, add, sub, mul, div_, 
+	and_, or_, eor, si, sd,
+	lt, eq, ge, ne, do_, at, 
+	ld, st, sc, rt, lf, eoi,
+
 	isa_count,
 	set_imm,  add_imm,  sub_imm,
 	mul_imm,  div_imm,
@@ -28,11 +80,12 @@ enum {
 
 static const char* ins_spelling[] = {
 	"__ERROR_null_ins_unused__", 
-	"zero", "incr", "decr", 
-	"not", "and", "or", "eor", "si", "sd",
+	
 	"set", "add", "sub", "mul", "div", 
-	"lt", "eq", "ld", "st", "sc",
-	"do", "at", "lf", "ge", "ne",
+	"and", "or", "eor", "si", "sd",
+	"lt", "eq", "ge", "ne", "do", "at", 
+	"ld", "st", "sc", "rt", "lf", "eoi",
+
 	"__ISA_COUNT__ins_unused__",
 	"set_imm", "add_imm", "sub_imm",
 	"mul_imm", "div_imm",
@@ -152,8 +205,6 @@ static void print_instruction(struct instruction this, char** names, nat name_co
 	printf("}");
 }
 
-
-
 static void print_machine_instruction(struct instruction this, char** names, nat name_count) {
 	printf("  %8s { ", mi_spelling[this.op]);
 	for (nat a = 0; a < 5; a++) {
@@ -172,7 +223,6 @@ static void print_machine_instruction(struct instruction this, char** names, nat
 	else printf("0x%016llx", this.gotos[1]);
 	printf("}");
 }
-
 
 static void print_instructions(
 	struct instruction* ins, nat ins_count, 
@@ -280,10 +330,10 @@ static nat* compute_predecessors(struct instruction* ins, const nat ins_count, c
 	return result;
 }
 
-static void print_ct_values(char** names, nat name_count, nat* ctk, nat* values) {
+static void print_ct_values(char** names, nat name_count, nat* is_runtime, nat* values) {
 	printf("ct values: {\n");
 	for (nat i = 0; i < name_count; i++) {
-		if (not ctk[i]) continue;
+		if (is_runtime[i]) continue;
 		printf("\tvalues[%s] = 0x%016llx\n", names[i], values[i]);
 	}
 	puts("}");
@@ -346,11 +396,13 @@ static nat locate_data_instruction(
 }
 
 int main(int argc, const char** argv) {
+
 	struct instruction ins[4096] = {0};
 	nat ins_count = 0;
 	char* names[4096] = {0};
 	nat name_count = 0;
 	nat locations[4096] = {0};
+	nat is_runtime[4096] = {0};
 	memset(locations, 255, sizeof locations);
 
 	if (argc == 1) exit(puts("usage error"));
@@ -402,12 +454,22 @@ int main(int argc, const char** argv) {
 			abort();
 
 		} else {
-			const nat last = name_count;
+			//const nat last = name_count;
 			nat variable = 0;
 			for (; variable < name_count; variable++) {
 				if (not strcmp(word, names[variable])) goto variable_name_found;
 			}
+
+			const bool valid_op = 
+				state == lt or 
+				state == eq or 
+				state == ge or 
+				state == ne or 
+				state == eor or 
+				state == set;
+
 			names[name_count++] = word; 
+
 		variable_name_found:
 			args[arg_count++] = variable;
 			if (state == do_) {
@@ -423,7 +485,11 @@ int main(int argc, const char** argv) {
 				state = 0;
 				locations[variable] = ins_count;
 
-			} else if (state == zero) {
+			} else if (state == rt) {
+				state = 0;
+				is_runtime[variable] = 1;
+								
+			} else if (state == set and arg_count == 2) {
 				push_ins:; nat op = state; state = 0;
 				
 				struct instruction new = {
@@ -444,12 +510,9 @@ int main(int argc, const char** argv) {
 				}
 				ins[ins_count++] = new;
 
-			} else if (state == set) {
-				if (arg_count == 2) goto push_ins;
-
-			} else if (state == incr or state == decr or state == not_) {
+			/*} else if (state == incr or state == decr or state == not_) {
 				if (variable == last) goto print_error;
-				goto push_ins;
+				goto push_ins;*/
 
 			} else if (	state == add or state == sub or 
 					state == mul or state == div_ or 
@@ -459,7 +522,7 @@ int main(int argc, const char** argv) {
 				if (arg_count == 2) goto push_ins;
 
 			} else if (state == ld or state == st) {
-				if (arg_count < 3 and variable == last) goto print_error;
+				//if (arg_count < 3 and variable == last) goto print_error;
 				if (arg_count == 3) goto push_ins;
 
 			} else if (state == lt or state == eq or state == ge or state == ne) {
@@ -489,6 +552,439 @@ int main(int argc, const char** argv) {
 	print_dictionary(names, locations, name_count);
 	print_instructions(ins, ins_count, names, name_count);
 	getchar();
+
+	nat stack_count = 1;
+	nat* stack = calloc(ins_count, sizeof(nat));
+	nat* visited = calloc(ins_count + 1, sizeof(nat));
+	nat values[4096] = {0};
+	nat ignore[4096] = {0};
+
+	while (stack_count) {
+		print_stack(stack, stack_count);
+		const nat pc = stack[--stack_count];
+
+		print_ct_values(names, name_count, is_runtime, values);
+		print_instruction_index(ins, ins_count, names, name_count, pc, "PC");
+		printf("executing pc #%llu\n", pc);
+		print_instruction(ins[pc], names, name_count); puts("");
+		getchar();
+
+		visited[pc] = 1;
+		const nat op = ins[pc].op;
+
+		const nat arg0 = ins[pc].args[0];
+		const nat arg1 = ins[pc].args[1];
+		const nat goto0 = ins[pc].gotos[0];
+		const nat goto1 = ins[pc].gotos[1];
+		const nat ct0 = not is_runtime[arg0];
+		const nat ct1 = not is_runtime[arg1];
+		const nat rt0 = is_runtime[arg0];
+		const nat rt1 = is_runtime[arg1];
+		const nat val0 = values[arg0];
+		const nat val1 = values[arg0];
+		
+		if (op == lt or op == eq) {
+			if (ct0 and ct1) {
+				nat c = 0;
+				if (op == eq and val0 == val1 or op == lt and val0 < val1) c = 1;
+				if (ins[pc].gotos[c] < ins_count) stack[stack_count++] = ins[pc].gotos[c];
+				continue;
+
+			} else if (ct0 or ct1) {
+				if (ct0) ins[pc].args[0] = ins[pc].args[1];
+				ins[pc].args[1] = val0;
+				ins[pc].op = op == lt ? gt_imm : eq_imm;
+			}
+
+			if (goto0 < ins_count and not visited[goto0]) stack[stack_count++] = goto0;
+			if (goto1 < ins_count and not visited[goto1]) stack[stack_count++] = goto1;
+			continue;
+		
+
+		} else if (op == sc) {
+			if (not rt0) { 
+				puts("error: all system calls must be compile time known."); 
+				abort();
+			}
+
+			const nat n = val0;
+			const nat output_count = get_call_output_count(n);
+			for (nat i = 0; i < output_count; i++) {
+				if (not is_runtime[ins[pc].args[1 + i]]) { puts("system call ct rt out"); abort(); }
+			}
+
+			if (n == system_exit) {
+				printf("warning: reached cfg termination point\n");
+				print_instruction_index(
+					ins, ins_count, 
+					names, name_count, 
+					pc, "CFG termination point here"
+				);
+				getchar();
+				ins[pc].gotos[0] = (nat) -1;
+				ins[pc].gotos[1] = (nat) -1;
+				continue;
+			} else {
+				printf("info: found %s sc!\n", systemcall_spelling[n]);
+				print_instruction_index(
+					ins, ins_count, 
+					names, name_count, 
+					pc, systemcall_spelling[n]
+				);
+			}
+			ins[pc].args[0] = values[arg0];
+			continue;
+
+		} else if (op >= isa_count or rt0 and rt1) goto next_ins;
+		else if (ct0 and ct1) {
+			ignore[pc] = 1;
+			     if (op == set) values[arg0] = val1;
+			else if (op == add) values[arg0] += val1;
+			else if (op == sub) values[arg0] -= val1;
+			else if (op == mul) values[arg0] *= val1;
+			else if (op == div_)values[arg0] /= val1;
+			else if (op == and_)values[arg0] &= val1;
+			else if (op == or_) values[arg0] |= val1;
+			else if (op == eor) values[arg0] ^= val1;
+			else if (op == si)  values[arg0] <<= val1;
+			else if (op == sd)  values[arg0] >>= val1;
+			else {
+				puts("internal error: op execution not specified");
+				printf("op = %llu, op = %s\n", op, ins_spelling[op]);
+				abort();
+			}
+			next_ins: if (goto0 < ins_count) stack[stack_count++] = goto0;
+			continue;
+
+		} else if (op >= isa_count or rt0 and rt1) goto next_ins;
+			if (ct0 and rt1) { puts("error: ct destination must have ct source."); abort(); }
+
+			ins[pc].args[1] = val1;
+			if (op == set) ins[pc].op = set_imm;
+			if (op == add) ins[pc].op = add_imm;
+			if (op == sub) ins[pc].op = sub_imm;
+			if (op == mul) ins[pc].op = mul_imm;
+			if (op == div_)ins[pc].op = div_imm;
+			if (op == and_)ins[pc].op = and_imm;
+			if (op == or_) ins[pc].op = or_imm;
+			if (op == eor) ins[pc].op = eor_imm;
+			if (op == si)  ins[pc].op = si_imm;
+			if (op == sd)  ins[pc].op = sd_imm;
+
+			if (	ins[pc].op ==  set and arg0 == arg1 or
+				ins[pc].op ==  or_ and arg0 == arg1 or 
+				ins[pc].op == and_ and arg0 == arg1 or 
+				ins[pc].op == add_imm and values[arg1] == 0 or 
+				ins[pc].op == sub_imm and values[arg1] == 0 or 
+				ins[pc].op == mul_imm and values[arg1] == 1 or 
+				ins[pc].op == div_imm and values[arg1] == 1 or 
+				ins[pc].op ==  or_imm and values[arg1] == 0 or
+				ins[pc].op == eor_imm and values[arg1] == 0 or
+				ins[pc].op ==  si_imm and values[arg1] == 0 or
+				ins[pc].op ==  sd_imm and values[arg1] == 0) ignore[pc] = 1;
+		} 
+		if (goto0 < ins_count) stack[stack_count++] = goto0;
+	}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+			//printf("arg0 = 0x%016llx\n", arg0);
+			//printf("arg1 = 0x%016llx\n", arg1);
+			//fflush(stdout);
+
+
+
+
+
+	/*
+
+		//print_ct_values(names, name_count, ctk, values);
+		//print_instruction_index(ins, ins_count, names, name_count, pc, "PC");
+
+
+		printf("executing pc #%llu    :    ", pc);
+		print_instruction(ins[pc], names, name_count); puts("");
+
+
+	nat* stack = calloc(ins_count, sizeof(nat));
+	nat stack_count = 0;
+	stack[stack_count++] = 0; 
+
+	nat* visited = calloc(ins_count + 1, sizeof(nat));
+
+
+	*/
+
+
+
+
+
+	while (stack_count) {
+		print_stack(stack, stack_count);
+		const nat pc = stack[--stack_count];
+		print_ct_values(names, name_count, ctk, values);
+		print_instruction_index(ins, ins_count, names, name_count, pc, "PC");
+		printf("executing pc #%llu\n", pc);
+		print_instruction(ins[pc], names, name_count); puts("");
+
+		getchar();
+
+		visited[pc] = 1;
+		const nat op = ins[pc].op;
+		const nat arg0 = ins[pc].args[0];
+		const nat arg1 = ins[pc].args[1];
+
+		if (op == lt or op == eq) {
+
+			if (ins[pc].gotos[0] == ins[pc].gotos[1]) {
+				ins[pc].ct = (1 << 1) | 1;
+				ins[pc].op = eq;
+				ins[pc].args[0] = 0;
+				ins[pc].args[1] = 0;
+				ins[pc].gotos[0] = (nat) -1;
+				if (ins[pc].gotos[1] < ins_count) 
+					stack[stack_count++] = ins[pc].gotos[1];
+				continue;
+
+			} else if (ins[pc].args[0] == ins[pc].args[1]) {
+
+				const nat condition = op == eq;
+				ins[pc].ct = (condition << 1) | 1;
+				ins[pc].op = eq;
+				ins[pc].args[0] = 0;
+				ins[pc].args[1] = 0;
+				ins[pc].gotos[1] = ins[pc].gotos[condition];
+				ins[pc].gotos[0] = (nat) -1;
+				if (ins[pc].gotos[1] < ins_count) 
+					stack[stack_count++] = ins[pc].gotos[1];
+				continue;
+
+
+			} else if (ctk[arg0] and ctk[arg1]) {
+				nat condition = 0;
+				if (op == eq and values[arg0] == values[arg1]) condition = 1;
+				if (op == lt and values[arg0] <  values[arg1]) condition = 1;
+				ins[pc].ct = (condition << 1) | 1;
+				if (ins[pc].gotos[condition] < ins_count) 
+					stack[stack_count++] = ins[pc].gotos[condition];
+				continue;
+			}
+
+			if (ctk[arg0]) {
+				nat t = ins[pc].args[0]; 
+				ins[pc].args[0] = ins[pc].args[1]; 
+				ins[pc].args[1] = t;
+				if (op == lt) ins[pc].op = gt_imm;
+				else ins[pc].op = eq_imm;
+				ins[pc].args[1] = values[ins[pc].args[1]];
+
+			} else if (ctk[arg1]) {
+				if (op == lt) ins[pc].op = lt_imm;
+				else ins[pc].op = eq_imm;
+				ins[pc].args[1] = values[ins[pc].args[1]];
+			}
+			if (ins[pc].gotos[0] < ins_count and 
+				not visited[ins[pc].gotos[0]]) 
+				stack[stack_count++] = ins[pc].gotos[0];
+			if (ins[pc].gotos[1] < ins_count and 
+				not visited[ins[pc].gotos[1]]) 
+				stack[stack_count++] = ins[pc].gotos[1];
+
+			continue;
+
+		} else if (op == sc) {
+			if (not ctk[arg0]) { 
+				puts("error: all system calls must be compile time known."); 
+				abort(); 
+			}
+			const nat n = values[arg0];
+			const nat output_count = get_call_output_count(n);
+			for (nat i = 0; i < output_count; i++) {
+				if (ctk[ins[pc].args[1 + i]]) { puts("system call ct rt out"); abort(); }
+			}
+			if (n == system_exit) {
+				printf("warning: reached cfg termination point\n");
+				print_instruction_index(
+					ins, ins_count, 
+					names, name_count, 
+					pc, "CFG termination point here"
+				);
+				getchar();
+				ins[pc].gotos[0] = (nat) -1;
+				ins[pc].gotos[1] = (nat) -1;
+				goto skip_next;
+			} else {
+				printf("info: found %s sc!\n", systemcall_spelling[n]);
+				print_instruction_index(
+					ins, ins_count, 
+					names, name_count, 
+					pc, systemcall_spelling[n]
+				);
+			}
+
+			ins[pc].args[0] = values[arg0];
+
+		} else if (op == zero) { 
+			if (ctk[arg0]) { 
+				values[arg0] = 0; 
+				ins[pc].ct = 1; 
+			} else { 
+				ins[pc].op = set_imm; 
+				ins[pc].args[1] = 0; 
+			}
+
+		} else if (op == incr) { 
+			if (ctk[arg0]) { 
+				values[arg0]++; 
+				ins[pc].ct = 1; 
+			} else { 
+				ins[pc].op = add_imm; 
+				ins[pc].args[1] = 1; 
+			}
+		} else if (op == decr) { 
+			if (ctk[arg0]) { 
+				values[arg0]--; 
+				ins[pc].ct = 1; 
+			} else { 
+				ins[pc].op = sub_imm; 
+				ins[pc].args[1] = 1; 
+			}
+		} else if (op == not_) { 
+			if (ctk[arg0]) { 
+				values[arg0] = ~values[arg0]; 
+				ins[pc].ct = 1; 
+			} else { 
+				ins[pc].op = eor_imm; 
+				ins[pc].args[1] = (nat) -1; 
+			}
+		} else {
+			if (ctk[arg0] and ctk[arg1]) {
+				ins[pc].ct = 1; 
+				     if (op == set) values[arg0] = values[arg1];
+				else if (op == add) values[arg0] += values[arg1];
+				else if (op == sub) values[arg0] -= values[arg1];
+				else if (op == mul) values[arg0] *= values[arg1];
+				else if (op == div_)values[arg0] /= values[arg1];
+				else if (op == and_)values[arg0] &= values[arg1];
+				else if (op == or_) values[arg0] |= values[arg1];
+				else if (op == eor) values[arg0] ^= values[arg1];
+				else if (op == si)  values[arg0] <<= values[arg1];
+				else if (op == sd)  values[arg0] >>= values[arg1];
+				else {
+					puts("internal error: op execution not specified");
+					printf("op = %llu, op = %s\n", op, ins_spelling[op]);
+					abort();
+				}
+				goto next_ins;
+			}
+
+			//printf("arg0 = 0x%016llx\n", arg0);
+			//printf("arg1 = 0x%016llx\n", arg1);
+			//fflush(stdout);
+
+			if (op >= isa_count or not ctk[arg0] and not ctk[arg1]) goto next_ins;
+			if (    ctk[arg0] and not ctk[arg1]) {
+				puts("error: ct destination must have ct source."); 
+				abort();
+			}
+			ins[pc].args[1] = values[arg1];
+			if (op == set) ins[pc].op = set_imm;
+			if (op == add) ins[pc].op = add_imm;
+			if (op == sub) ins[pc].op = sub_imm;
+			if (op == mul) ins[pc].op = mul_imm;
+			if (op == div_)ins[pc].op = div_imm;
+			if (op == and_)ins[pc].op = and_imm;
+			if (op == or_) ins[pc].op = or_imm;
+			if (op == eor) ins[pc].op = eor_imm;
+			if (op == si)  ins[pc].op = si_imm;
+			if (op == sd)  ins[pc].op = sd_imm;
+			if (	ins[pc].op ==  set and arg0 == arg1 or
+				ins[pc].op ==  or_ and arg0 == arg1 or 
+				ins[pc].op == and_ and arg0 == arg1 or 
+				ins[pc].op == add_imm and values[arg1] == 0 or 
+				ins[pc].op == sub_imm and values[arg1] == 0 or 
+				ins[pc].op == mul_imm and values[arg1] == 1 or 
+				ins[pc].op == div_imm and values[arg1] == 1 or 
+				ins[pc].op ==  or_imm and values[arg1] == 0 or
+				ins[pc].op == eor_imm and values[arg1] == 0 or
+				ins[pc].op ==  si_imm and values[arg1] == 0 or
+				ins[pc].op ==  sd_imm and values[arg1] == 0) ins[pc].ct = 1;
+		} 
+		next_ins: if (ins[pc].gotos[0] < ins_count) 
+			stack[stack_count++] = ins[pc].gotos[0]; skip_next:;
+	}
+
+	for (nat i = 0; i < ins_count; i++) if (not visited[i]) ins[i].ct = 4;
+
+	print_ct_values(names, name_count, ctk, values);
+	print_dictionary(names, active, definition, ctk, values, locations, bit_count, name_count);
+	print_instructions(ins, ins_count, names, name_count);
+
+	getchar();
+
+
+	exit(1);
+
+
+
+	*/
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 	puts("starting ins sel..");
 	struct instruction mi[4096] = {0};
@@ -1031,7 +1527,7 @@ after that:
 -------------apca-------------apca-------------apca-------------apca-------------apca-------------apca-------------apca
 
 
-nat previous_pc = (nat) -1, stack_count = 1;
+	nat previous_pc = (nat) -1, stack_count = 1;
 	nat* stack = calloc(ins_count, sizeof(nat));
 	nat* visited = calloc(ins_count + 1, sizeof(nat));
 	nat* execution_state_values = calloc(ins_count * name_count, sizeof(nat));
