@@ -403,6 +403,7 @@ int main(int argc, const char** argv) {
 	nat name_count = 0;
 	nat locations[4096] = {0};
 	nat is_runtime[4096] = {0};
+	nat bit_count[4096] = {0};
 	memset(locations, 255, sizeof locations);
 
 	if (argc == 1) exit(puts("usage error"));
@@ -445,7 +446,7 @@ int main(int argc, const char** argv) {
 			for (; state < isa_count; state++) {
 				if (not strcmp(word, ins_spelling[state])) goto next_word;
 			}
-			print_error:
+			//print_error:
 			printf("%s:%llu:%llu: error: undefined %s \"%s\"\n",
 				filename, word_start, index, 
 				state == isa_count ? "operation" : "variable", word
@@ -454,19 +455,22 @@ int main(int argc, const char** argv) {
 			abort();
 
 		} else {
-			//const nat last = name_count;
 			nat variable = 0;
 			for (; variable < name_count; variable++) {
 				if (not strcmp(word, names[variable])) goto variable_name_found;
 			}
 
-			const bool valid_op = 
+/*			const bool valid_op = 
 				state == lt or 
 				state == eq or 
 				state == ge or 
 				state == ne or 
 				state == eor or 
 				state == set;
+
+			if (true) goto print_error;
+
+*/
 
 			names[name_count++] = word; 
 
@@ -484,14 +488,31 @@ int main(int argc, const char** argv) {
 			} else if (state == at) {
 				state = 0;
 				locations[variable] = ins_count;
+				goto next_word;
 
-			} else if (state == rt) {
+			} else if (state == rt and arg_count == 2) {
 				state = 0;
-				is_runtime[variable] = 1;
-								
-			} else if (state == set and arg_count == 2) {
-				push_ins:; nat op = state; state = 0;
-				
+				is_runtime[args[0]] = 1;
+				bit_count[args[0]] = args[1];
+				goto next_word;
+
+			} else if (((state == lt or state == eq or 
+				state == ge or state == ne or 
+				state == ld or state == st) and 
+				arg_count == 3)
+				or
+
+				((state == add or state == sub or 
+				state == mul or state == div_ or 
+				state == and_ or state == or_ or 
+				state == eor or state == set or
+				state == si or state == sd) and 
+				arg_count == 2) 
+				or
+
+				(state == sc and arg_count == 7)
+			) {
+				const nat op = state;
 				struct instruction new = {
 					.op = op,
 					.gotos = {ins_count + 1, 
@@ -501,7 +522,6 @@ int main(int argc, const char** argv) {
 					},
 				};
 				memcpy(new.args, args, sizeof args);
-
 				if (op == ge or op == ne) { 
 					new.gotos[0] = new.gotos[1]; 
 					new.gotos[1] = ins_count + 1;
@@ -509,32 +529,7 @@ int main(int argc, const char** argv) {
 					if (op == ne) new.op = eq;
 				}
 				ins[ins_count++] = new;
-
-			/*} else if (state == incr or state == decr or state == not_) {
-				if (variable == last) goto print_error;
-				goto push_ins;*/
-
-			} else if (	state == add or state == sub or 
-					state == mul or state == div_ or 
-					state == and_ or state == or_ or 
-					state == eor or state == si or state == sd) {
-				if (arg_count < 2 and variable == last) goto print_error;
-				if (arg_count == 2) goto push_ins;
-
-			} else if (state == ld or state == st) {
-				//if (arg_count < 3 and variable == last) goto print_error;
-				if (arg_count == 3) goto push_ins;
-
-			} else if (state == lt or state == eq or state == ge or state == ne) {
-				if (arg_count < 3 and variable == last) goto print_error;
-				if (arg_count == 3) goto push_ins;
-
-			} else if (state == sc) {
-				if (arg_count < 7 and variable == last) goto print_error;
-				if (arg_count == 7) goto push_ins;
-			} else {
-				printf("error: parsing: %llu: %s\n", state, ins_spelling[state]);
-				abort();
+				state = 0;
 			}
 		}	
 		next_word: word_length = 0;
@@ -557,6 +552,7 @@ int main(int argc, const char** argv) {
 	nat* stack = calloc(ins_count, sizeof(nat));
 	nat* visited = calloc(ins_count + 1, sizeof(nat));
 	nat values[4096] = {0};
+	memset(values, 255, sizeof values);
 	nat ignore[4096] = {0};
 
 	while (stack_count) {
@@ -567,7 +563,7 @@ int main(int argc, const char** argv) {
 		print_instruction_index(ins, ins_count, names, name_count, pc, "PC");
 		printf("executing pc #%llu\n", pc);
 		print_instruction(ins[pc], names, name_count); puts("");
-		getchar();
+		//getchar();
 
 		visited[pc] = 1;
 		const nat op = ins[pc].op;
@@ -581,7 +577,7 @@ int main(int argc, const char** argv) {
 		const nat rt0 = is_runtime[arg0];
 		const nat rt1 = is_runtime[arg1];
 		const nat val0 = values[arg0];
-		const nat val1 = values[arg0];
+		const nat val1 = values[arg1];
 		
 		if (op == lt or op == eq) {
 			if (ct0 and ct1) {
@@ -602,7 +598,7 @@ int main(int argc, const char** argv) {
 		
 
 		} else if (op == sc) {
-			if (not rt0) { 
+			if (rt0) { 
 				puts("error: all system calls must be compile time known."); 
 				abort();
 			}
@@ -612,6 +608,8 @@ int main(int argc, const char** argv) {
 			for (nat i = 0; i < output_count; i++) {
 				if (not is_runtime[ins[pc].args[1 + i]]) { puts("system call ct rt out"); abort(); }
 			}
+
+			ins[pc].args[0] = values[arg0];
 
 			if (n == system_exit) {
 				printf("warning: reached cfg termination point\n");
@@ -632,10 +630,11 @@ int main(int argc, const char** argv) {
 					pc, systemcall_spelling[n]
 				);
 			}
-			ins[pc].args[0] = values[arg0];
+			if (goto0 < ins_count) stack[stack_count++] = goto0;			
 			continue;
 
 		} else if (op >= isa_count or rt0 and rt1) goto next_ins;
+		else if (ct0 and rt1) { puts("error: ct destination must have ct source."); abort(); }
 		else if (ct0 and ct1) {
 			ignore[pc] = 1;
 			     if (op == set) values[arg0] = val1;
@@ -655,36 +654,313 @@ int main(int argc, const char** argv) {
 			}
 			next_ins: if (goto0 < ins_count) stack[stack_count++] = goto0;
 			continue;
+		}
 
-		} else if (op >= isa_count or rt0 and rt1) goto next_ins;
-			if (ct0 and rt1) { puts("error: ct destination must have ct source."); abort(); }
+		ins[pc].args[1] = val1;
+		if (op == set) ins[pc].op = set_imm;
+		if (op == add) ins[pc].op = add_imm;
+		if (op == sub) ins[pc].op = sub_imm;
+		if (op == mul) ins[pc].op = mul_imm;
+		if (op == div_)ins[pc].op = div_imm;
+		if (op == and_)ins[pc].op = and_imm;
+		if (op == or_) ins[pc].op = or_imm;
+		if (op == eor) ins[pc].op = eor_imm;
+		if (op == si)  ins[pc].op = si_imm;
+		if (op == sd)  ins[pc].op = sd_imm;
 
-			ins[pc].args[1] = val1;
-			if (op == set) ins[pc].op = set_imm;
-			if (op == add) ins[pc].op = add_imm;
-			if (op == sub) ins[pc].op = sub_imm;
-			if (op == mul) ins[pc].op = mul_imm;
-			if (op == div_)ins[pc].op = div_imm;
-			if (op == and_)ins[pc].op = and_imm;
-			if (op == or_) ins[pc].op = or_imm;
-			if (op == eor) ins[pc].op = eor_imm;
-			if (op == si)  ins[pc].op = si_imm;
-			if (op == sd)  ins[pc].op = sd_imm;
+		if (	ins[pc].op ==  set and arg0 == arg1 or
+			ins[pc].op ==  or_ and arg0 == arg1 or 
+			ins[pc].op == and_ and arg0 == arg1 or 
+			ins[pc].op == add_imm and values[arg1] == 0 or 
+			ins[pc].op == sub_imm and values[arg1] == 0 or 
+			ins[pc].op == mul_imm and values[arg1] == 1 or 
+			ins[pc].op == div_imm and values[arg1] == 1 or 
+			ins[pc].op ==  or_imm and values[arg1] == 0 or
+			ins[pc].op == eor_imm and values[arg1] == 0 or
+			ins[pc].op ==  si_imm and values[arg1] == 0 or
+			ins[pc].op ==  sd_imm and values[arg1] == 0) 
+			ignore[pc] = 1;
 
-			if (	ins[pc].op ==  set and arg0 == arg1 or
-				ins[pc].op ==  or_ and arg0 == arg1 or 
-				ins[pc].op == and_ and arg0 == arg1 or 
-				ins[pc].op == add_imm and values[arg1] == 0 or 
-				ins[pc].op == sub_imm and values[arg1] == 0 or 
-				ins[pc].op == mul_imm and values[arg1] == 1 or 
-				ins[pc].op == div_imm and values[arg1] == 1 or 
-				ins[pc].op ==  or_imm and values[arg1] == 0 or
-				ins[pc].op == eor_imm and values[arg1] == 0 or
-				ins[pc].op ==  si_imm and values[arg1] == 0 or
-				ins[pc].op ==  sd_imm and values[arg1] == 0) ignore[pc] = 1;
-		} 
 		if (goto0 < ins_count) stack[stack_count++] = goto0;
 	}
+
+
+	for (nat i = 0; i < ins_count; i++) if (not visited[i]) ignore[i] = 1;
+
+	print_ct_values(names, name_count, is_runtime, values);
+	print_dictionary(names, locations, name_count);
+	print_instructions(ins, ins_count, names, name_count);
+
+	printf("not ignore: { \n");
+	for (nat i = 0; i < ins_count; i++) {
+		if (not ignore[i]) {
+			printf("\t%llu : ", i);
+			print_instruction(ins[i], names, name_count); puts("");
+		}
+	}
+	printf("}\n");
+
+	printf("is_runtime variables: { ");
+	for (nat i = 0; i < name_count; i++) if (is_runtime[i]) printf("%s ", names[i]);
+	printf("}\n");
+
+	getchar();
+
+	puts("starting ins sel..");
+	struct instruction mi[4096] = {0};
+	nat mi_count = 0;
+	nat selected[4096] = {0};
+
+	for (nat i = 0; i < ins_count; i++) {
+
+		if (ignore[i]) continue;
+
+		if (selected[i]) {
+			printf("warning: [ins_index = %llu]: skipping instruction, it was already part of a pattern.\n", i);
+			continue;
+		}
+
+		const nat op = ins[i].op;
+		const nat arg0 = ins[i].args[0];
+		const nat arg1 = ins[i].args[1];
+
+		print_instruction_index(ins, ins_count, names, name_count, i, "SELECTION ORIGIN");
+		printf("selecting from i #%llu\n", i);
+		print_instruction(ins[i], names, name_count); puts("");
+		//getchar();
+
+		/*if (op == set) {
+			const nat b = locate_data_instruction(si_imm, arg0, 0, 1, 0, i + 1, ins, ins_count, names, name_count);
+			printf("b = %lld\n", b);
+			if (b == (nat) -1) goto next0;
+		
+			const nat c = locate_data_instruction(add, arg0, 0, 1, 0, b + 1, ins, ins_count, names, name_count);
+			printf("c = %lld\n", c);
+			if (c == (nat) -1) goto next0;
+			
+			const nat d = arg0;
+			const nat n = ins[c].args[1];
+			const nat m = ins[i].args[1];
+			const nat k = ins[b].args[1];
+			printf("FOUND ARM64 MACHINE CODE INSTRUCTION:\n");
+			printf("ADD_SR   "
+				"d=%llu(%s), "
+				"n=%llu(%s), "
+				"m=%llu(%s) << "
+				"k=%llu\n",
+				d, names[d], 
+				n, names[n], 
+				m, names[m], 
+				k
+			);
+			struct instruction new = {0};
+			new.op = addsr_lsl;
+			new.args[0] = d;
+			new.args[1] = n;
+			new.args[2] = m;
+			new.args[3] = k;
+			mi[mi_count++] = new;
+
+			selected[i] = 1;
+			selected[b] = 1;
+			selected[c] = 1;
+		}
+		next0:;
+
+		if (op == set_imm) {
+
+			const nat d = arg0;
+			const nat k = arg1;
+			printf("FOUND ARM64 MACHINE CODE INSTRUCTION:\n");
+			printf("MOVZ   "
+				"d=%llu(%s), "
+				"k=%llu\n",
+				d, names[d], 
+				k
+			);
+			struct instruction new = {0};
+			new.op = movz;
+			new.args[0] = d;
+			new.args[1] = k;
+			mi[mi_count++] = new;
+
+			selected[i] = 1;
+		}*/
+
+		if (op == set) { // msub
+
+			const nat i1 = locate_data_instruction(mul, arg0, 0, 1, 0, i + 1, ins, ins_count, names, name_count);
+			printf("i1 = %lld\n", i1);
+			if (i1 == (nat) -1) goto next2;
+
+			const nat i2 = locate_data_instruction(set, 0, 0, 0, 0, i1 + 1, ins, ins_count, names, name_count); 
+								// TODO: BUG:   s must be != to d.
+			printf("i2 = %lld\n", i2);
+			if (i2 == (nat) -1) goto next2;
+
+			const nat i3 = locate_data_instruction(sub, ins[i2].args[0], arg0, 1, 1, i2 + 1, ins, ins_count, names, name_count);
+			printf("i3 = %lld\n", i3);
+			if (i3 == (nat) -1) goto next2;
+			
+			const nat d = ins[i2].args[0];
+			const nat a = ins[i2].args[1];
+			const nat m = arg1;
+			const nat n = ins[i1].args[1];
+
+			printf("FOUND ARM64 MACHINE CODE INSTRUCTION:\n");
+			printf("MSUB   "
+				"d=%llu(%s), "
+				"a=%llu(%s) - "
+				"m=%llu(%s) * "
+				"n=%llu(%s)\n",
+				d, names[d], 
+				a, names[a], 
+				m, names[m], 
+				n, names[n]
+			);
+			struct instruction new = {0};
+			new.op = msub;
+			new.args[0] = d;
+			new.args[1] = n;
+			new.args[2] = m;
+			new.args[3] = a;
+			mi[mi_count++] = new;
+
+			selected[i] = 1;
+			selected[i1] = 1;
+			selected[i2] = 1;
+			selected[i3] = 1;
+			goto finish_mi_instruction;
+		} 
+		next2: 
+		if (op == set) {
+
+			const nat b = locate_data_instruction(mul, arg0, 0, 1, 0, i + 1, ins, ins_count, names, name_count);
+			printf("b = %lld\n", b);
+			if (b == (nat) -1) goto next3;
+		
+			const nat c = locate_data_instruction(add, arg0, 0, 1, 0, b + 1, ins, ins_count, names, name_count);
+			printf("c = %lld\n", c);
+			if (c == (nat) -1) goto next3;
+			
+			const nat d = arg0;
+			const nat m = arg1;
+			const nat n = ins[b].args[1];
+			const nat a = ins[c].args[1];
+			printf("FOUND ARM64 MACHINE CODE INSTRUCTION:\n");
+			printf("MADD   "
+				"d=%llu(%s), "
+				"n=%llu(%s) * "
+				"m=%llu(%s) + "
+				"a=%llu(%s)\n",
+				d, names[d], 
+				n, names[n], 
+				m, names[m], 
+				a, names[a]
+			);
+			struct instruction new = {0};
+			new.op = madd;
+			new.args[0] = d;
+			new.args[1] = n;
+			new.args[2] = m;
+			new.args[3] = a;
+			mi[mi_count++] = new;
+
+			selected[i] = 1;
+			selected[b] = 1;
+			selected[c] = 1;
+			goto finish_mi_instruction;
+		} 
+
+		next3:
+
+		if (op == set_imm) {
+			const nat d = arg0;
+			const nat k = arg1;
+			printf("FOUND ARM64 MACHINE CODE INSTRUCTION:\n");
+			printf("MOVZ   "
+				"d=%llu(%s), "
+				"k=%llu\n",
+				d, names[d], 
+				k
+			);
+			struct instruction new = {0};
+			new.op = movz;
+			new.args[0] = d;
+			new.args[1] = k;
+			mi[mi_count++] = new;
+
+			selected[i] = 1;
+			goto finish_mi_instruction;
+		} 
+		//next4:
+		if (op == add_imm) {
+			const nat d = arg0;
+			const nat n = d;
+			const nat k = arg1;
+
+			printf("FOUND ARM64 MACHINE CODE INSTRUCTION:\n");
+			printf("ADDI   "
+				"d=%llu(%s), "
+				"n=%llu(%s), "
+				"k=%llu\n",
+				d, names[d], 
+				n, names[n], 
+				k
+			);
+			struct instruction new = {0};
+			new.op = addi;
+			new.args[0] = d;
+			new.args[1] = n;
+			new.args[2] = k;
+			mi[mi_count++] = new;
+
+			selected[i] = 1;
+			goto finish_mi_instruction;
+		}
+
+
+	finish_mi_instruction:;
+		getchar();
+
+	}
+
+	print_machine_instructions(mi, mi_count, names, name_count);
+
+	for (nat i = 0; i < ins_count; i++) {
+		if (ignore[i]) continue;
+		if (not selected[i]) {
+			puts("error: instruction was not able to be processed by instruction selection: internal error");
+			puts("not selected instruction: ");
+			print_instruction_index(
+				ins, ins_count, 
+				names, name_count, 
+				i, "this instruction failed to be lowered during instruction selection."
+			); abort();
+		}
+	}
+
+	print_dictionary(names, locations, name_count);
+	print_instructions(ins, ins_count, names, name_count);
+	print_machine_instructions(mi, mi_count, names, name_count);
+	puts("stopped after ins sel.");
+	exit(0);
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -708,6 +984,9 @@ int main(int argc, const char** argv) {
 
 
 
+			/*} else if (state == incr or state == decr or state == not_) {
+				if (variable == last) goto print_error;
+				goto push_ins;*/
 
 
 	/*
@@ -727,8 +1006,6 @@ int main(int argc, const char** argv) {
 	nat* visited = calloc(ins_count + 1, sizeof(nat));
 
 
-	*/
-
 
 
 
@@ -736,7 +1013,7 @@ int main(int argc, const char** argv) {
 	while (stack_count) {
 		print_stack(stack, stack_count);
 		const nat pc = stack[--stack_count];
-		print_ct_values(names, name_count, ctk, values);
+		print_ct_values(names, name_count, is_runtime, values);
 		print_instruction_index(ins, ins_count, names, name_count, pc, "PC");
 		printf("executing pc #%llu\n", pc);
 		print_instruction(ins[pc], names, name_count); puts("");
@@ -942,294 +1219,6 @@ int main(int argc, const char** argv) {
 
 
 	*/
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-	puts("starting ins sel..");
-	struct instruction mi[4096] = {0};
-	nat mi_count = 0;
-	nat selected[4096] = {0};
-
-	for (nat i = 0; i < ins_count; i++) {
-
-		if (selected[i]) {
-			printf("warning: [ins_index = %llu]: skipping instruction, it was already part of a pattern.\n", i);
-			continue;
-		}
-
-		const nat op = ins[i].op;
-		const nat arg0 = ins[i].args[0];
-		const nat arg1 = ins[i].args[1];
-
-		print_instruction_index(ins, ins_count, names, name_count, i, "SELECTION ORIGIN");
-		printf("selecting from i #%llu\n", i);
-		print_instruction(ins[i], names, name_count); puts("");
-		//getchar();
-
-		/*if (op == set) {
-			const nat b = locate_data_instruction(si_imm, arg0, 0, 1, 0, i + 1, ins, ins_count, names, name_count);
-			printf("b = %lld\n", b);
-			if (b == (nat) -1) goto next0;
-		
-			const nat c = locate_data_instruction(add, arg0, 0, 1, 0, b + 1, ins, ins_count, names, name_count);
-			printf("c = %lld\n", c);
-			if (c == (nat) -1) goto next0;
-			
-			const nat d = arg0;
-			const nat n = ins[c].args[1];
-			const nat m = ins[i].args[1];
-			const nat k = ins[b].args[1];
-			printf("FOUND ARM64 MACHINE CODE INSTRUCTION:\n");
-			printf("ADD_SR   "
-				"d=%llu(%s), "
-				"n=%llu(%s), "
-				"m=%llu(%s) << "
-				"k=%llu\n",
-				d, names[d], 
-				n, names[n], 
-				m, names[m], 
-				k
-			);
-			struct instruction new = {0};
-			new.op = addsr_lsl;
-			new.args[0] = d;
-			new.args[1] = n;
-			new.args[2] = m;
-			new.args[3] = k;
-			mi[mi_count++] = new;
-
-			selected[i] = 1;
-			selected[b] = 1;
-			selected[c] = 1;
-		}
-		next0:;
-
-		if (op == set_imm) {
-
-			const nat d = arg0;
-			const nat k = arg1;
-			printf("FOUND ARM64 MACHINE CODE INSTRUCTION:\n");
-			printf("MOVZ   "
-				"d=%llu(%s), "
-				"k=%llu\n",
-				d, names[d], 
-				k
-			);
-			struct instruction new = {0};
-			new.op = movz;
-			new.args[0] = d;
-			new.args[1] = k;
-			mi[mi_count++] = new;
-
-			selected[i] = 1;
-		}*/
-
-		if (op == set) { // msub
-
-			const nat i1 = locate_data_instruction(mul, arg0, 0, 1, 0, i + 1, ins, ins_count, names, name_count);
-			printf("i1 = %lld\n", i1);
-			if (i1 == (nat) -1) goto next2;
-
-			const nat i2 = locate_data_instruction(set, 0, 0, 0, 0, i1 + 1, ins, ins_count, names, name_count); 
-								// TODO: BUG:   s must be != to d.
-			printf("i2 = %lld\n", i2);
-			if (i2 == (nat) -1) goto next2;
-
-			const nat i3 = locate_data_instruction(sub, ins[i2].args[0], arg0, 1, 1, i2 + 1, ins, ins_count, names, name_count);
-			printf("i3 = %lld\n", i3);
-			if (i3 == (nat) -1) goto next2;
-			
-			const nat d = ins[i2].args[0];
-			const nat a = ins[i2].args[1];
-			const nat m = arg1;
-			const nat n = ins[i1].args[1];
-
-			printf("FOUND ARM64 MACHINE CODE INSTRUCTION:\n");
-			printf("MSUB   "
-				"d=%llu(%s), "
-				"a=%llu(%s) - "
-				"m=%llu(%s) * "
-				"n=%llu(%s)\n",
-				d, names[d], 
-				a, names[a], 
-				m, names[m], 
-				n, names[n]
-			);
-			struct instruction new = {0};
-			new.op = msub;
-			new.args[0] = d;
-			new.args[1] = n;
-			new.args[2] = m;
-			new.args[3] = a;
-			mi[mi_count++] = new;
-
-			selected[i] = 1;
-			selected[i1] = 1;
-			selected[i2] = 1;
-			selected[i3] = 1;
-			goto finish_mi_instruction;
-		} 
-		next2: 
-		if (op == set) {
-
-			const nat b = locate_data_instruction(mul, arg0, 0, 1, 0, i + 1, ins, ins_count, names, name_count);
-			printf("b = %lld\n", b);
-			if (b == (nat) -1) goto next3;
-		
-			const nat c = locate_data_instruction(add, arg0, 0, 1, 0, b + 1, ins, ins_count, names, name_count);
-			printf("c = %lld\n", c);
-			if (c == (nat) -1) goto next3;
-			
-			const nat d = arg0;
-			const nat m = arg1;
-			const nat n = ins[b].args[1];
-			const nat a = ins[c].args[1];
-			printf("FOUND ARM64 MACHINE CODE INSTRUCTION:\n");
-			printf("MADD   "
-				"d=%llu(%s), "
-				"n=%llu(%s) * "
-				"m=%llu(%s) + "
-				"a=%llu(%s)\n",
-				d, names[d], 
-				n, names[n], 
-				m, names[m], 
-				a, names[a]
-			);
-			struct instruction new = {0};
-			new.op = madd;
-			new.args[0] = d;
-			new.args[1] = n;
-			new.args[2] = m;
-			new.args[3] = a;
-			mi[mi_count++] = new;
-
-			selected[i] = 1;
-			selected[b] = 1;
-			selected[c] = 1;
-			goto finish_mi_instruction;
-		} 
-
-		next3:
-
-		if (op == zero) {
-			const nat d = arg0;
-			const nat k = 0;
-			printf("FOUND ARM64 MACHINE CODE INSTRUCTION:\n");
-			printf("MOVZ   "
-				"d=%llu(%s), "
-				"k=%llu\n",
-				d, names[d], 
-				k
-			);
-			struct instruction new = {0};
-			new.op = movz;
-			new.args[0] = d;
-			new.args[1] = k;
-			mi[mi_count++] = new;
-
-			selected[i] = 1;
-			goto finish_mi_instruction;
-		} 
-		//next4:
-		if (op == incr) {
-			const nat d = arg0;
-			const nat n = d;
-			const nat k = 1;
-
-			printf("FOUND ARM64 MACHINE CODE INSTRUCTION:\n");
-			printf("ADDI   "
-				"d=%llu(%s), "
-				"n=%llu(%s), "
-				"k=%llu\n",
-				d, names[d], 
-				n, names[n], 
-				k
-			);
-			struct instruction new = {0};
-			new.op = addi;
-			new.args[0] = d;
-			new.args[1] = n;
-			new.args[2] = k;
-			mi[mi_count++] = new;
-
-			selected[i] = 1;
-			goto finish_mi_instruction;
-		}
-
-
-	finish_mi_instruction:;
-		getchar();
-
-	}
-
-	print_machine_instructions(mi, mi_count, names, name_count);
-
-	for (nat i = 0; i < ins_count; i++) {
-		//const nat op = ins[i].op;
-		if (not selected[i]) {
-			puts("error: instruction was not able to be processed by instruction selection: internal error");
-			puts("not selected instruction: ");
-			print_instruction_index(
-				ins, ins_count, 
-				names, name_count, 
-				i, "this instruction failed to be lowered during instruction selection."
-			); abort();
-		}
-	}
-
-	print_dictionary(names, locations, name_count);
-	print_instructions(ins, ins_count, names, name_count);
-	print_machine_instructions(mi, mi_count, names, name_count);
-	puts("stopped after ins sel.");
-	exit(0);
-}
-
-
-
-
-
-
 
 
 
