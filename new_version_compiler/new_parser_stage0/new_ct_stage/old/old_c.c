@@ -408,101 +408,7 @@ static nat locate_data_instruction(
 	return (nat) -1;
 }
 
-
-
-
-
-
-
-
-
-
-
-
-/*
-
-
-
-	if (argc != 2) exit(puts("compiler: \033[31;1merror:\033[0m usage: ./run [file.s]"));
-	printf("isa_count = %u\n", isa_count);
-	
-	char* names[4096] = {0};
-	nat name_count = 0;
-
-	struct instruction* ins = NULL;
-	nat ins_count = 0;
-
-	struct file filestack[4096] = {0};
-	nat filestack_count = 1;
-
-	const char* included_files[4096] = {0};
-	nat included_file_count = 0;
-
-	{int file = open(argv[1], O_RDONLY);
-	if (file < 0) { puts(argv[1]); perror("open"); exit(1); }
-	const nat text_length = (nat) lseek(file, 0, SEEK_END);
-	lseek(file, 0, SEEK_SET);
-	char* text = calloc(text_length + 1, 1);
-	read(file, text, text_length);
-	close(file);
-	filestack[0].filename = argv[1];
-	filestack[0].text = text;
-	filestack[0].text_length = text_length;
-	filestack[0].index = 0;
-	printf("file: (%llu chars)\n<<<%s>>>\n", text_length, text);}
-
-	for (nat i = 0; i < builtin_count; i++) names[name_count++] = strdup(builtin_spelling[i]);
-
-process_file:;
-
-	nat word_length = 0, word_start = 0, first = 1, comment = 0, arg_count = 0;
-
-	const nat starting_index = 	filestack[filestack_count - 1].index;
-	const nat text_length = 	filestack[filestack_count - 1].text_length;
-	char* text = 			filestack[filestack_count - 1].text;
-	const char* filename = 		filestack[filestack_count - 1].filename;
-
-	for (nat index = starting_index; index < text_length; index++) {
-
-
-
-
-		if (arg_count != isa_arity(ins[ins_count - 1].op)) goto next_word;
-		if (ins[ins_count - 1].op == lf) {
-			ins_count--;
-			for (nat i = 0; i < included_file_count; i++) {
-				if (strcmp(included_files[i], word)) continue;
-				printf("warning: %s: file already included\n", word);
-				goto finish_instruction;
-			}
-			included_files[included_file_count++] = word;
-			int file = open(word, O_RDONLY);
-			if (file < 0) { puts(word); perror("open"); exit(1); }
-			const nat new_text_length = (nat) lseek(file, 0, SEEK_END);
-			lseek(file, 0, SEEK_SET);
-			char* new_text = calloc(new_text_length + 1, 1);
-			read(file, new_text, new_text_length);
-			close(file);
-			filestack[filestack_count - 1].index = index;
-			filestack[filestack_count].filename = word;
-			filestack[filestack_count].text = new_text;
-			filestack[filestack_count].text_length = new_text_length;
-			filestack[filestack_count++].index = 0;
-			goto process_file;
-		} 
-		finish_instruction: first = 1;
-		next_word: word_length = 0;
-	}
-	filestack_count--;
-	if (filestack_count) goto process_file;
-
-*/
-
-
-
 int main(int argc, const char** argv) {
-
-	if (argc != 2) exit(puts("compiler: \033[31;1merror:\033[0m usage: ./run [file.s]"));
 
 	struct instruction ins[4096] = {0};
 	nat ins_count = 0;
@@ -513,37 +419,11 @@ int main(int argc, const char** argv) {
 	nat bit_count[4096] = {0};
 	memset(locations, 255, sizeof locations);
 
-	//const char* filename = argv[1];
-	//char* text = NULL;
-	//nat text_length = 0;
-
-
-
-	struct file filestack[4096] = {0};
-	nat filestack_count = 1;
-
-	const char* included_files[4096] = {0};
-	nat included_file_count = 0;
-
+	if (argc == 1) exit(puts("usage error"));
+	const char* filename = argv[1];
+	char* text = NULL;
+	nat text_length = 0;
 {
-	int file = open(argv[1], O_RDONLY);
-	if (file < 0) { puts(argv[1]); perror("open"); exit(1); }
-	const nat text_length = (nat) lseek(file, 0, SEEK_END);
-	lseek(file, 0, SEEK_SET);
-	char* text = calloc(text_length + 1, 1);
-	read(file, text, text_length);
-	close(file);
-	filestack[0].filename = argv[1];
-	filestack[0].text = text;
-	filestack[0].text_length = text_length;
-	filestack[0].index = 0;
-	printf("file: (%llu chars)\n<<<%s>>>\n", text_length, text);
-}
-
-
-
-
-/*{
 	int f = open(filename, O_RDONLY);
 	text_length = (nat) lseek(f, 0, SEEK_END);
 	text = calloc(text_length + 1, 1);
@@ -551,17 +431,9 @@ int main(int argc, const char** argv) {
 	read(f, text, text_length);
 	close(f);
 }
-
-
 	printf("parsing this text: (%llu) \n", text_length);
 	puts(text);
 	puts("");
-
-*/
-
-
-
-process_file:;
 
 	{nat 	word_length = 0, 
 		word_start = 0,
@@ -569,11 +441,7 @@ process_file:;
 		arg_count = 0;
 
 	nat args[7] = {0};
-
-	const nat starting_index = 	filestack[filestack_count - 1].index;
-	const nat text_length = 	filestack[filestack_count - 1].text_length;
-	char* text = 			filestack[filestack_count - 1].text;
-	const char* filename = 		filestack[filestack_count - 1].filename;
+	const nat starting_index = 0;
 
 	for (nat index = starting_index; index < text_length; index++) {
 		if (not isspace(text[index])) {
@@ -606,7 +474,6 @@ process_file:;
 			}
 
 			bool valid = 0;
-			if (state == lf) valid = 1;
 			if (state == lt and arg_count == 2) valid = 1;
 			if (state == eq and arg_count == 2) valid = 1;
 			if (state == ge and arg_count == 2) valid = 1;
@@ -621,31 +488,7 @@ process_file:;
 
 		variable_name_found:
 			args[arg_count++] = variable;
-
-			if (state == lf) {
-
-				for (nat i = 0; i < included_file_count; i++) {
-					if (strcmp(included_files[i], word)) continue;
-					printf("warning: %s: file already included\n", word);
-					goto next_word;
-				}
-				included_files[included_file_count++] = word;
-				int file = open(word, O_RDONLY);
-				if (file < 0) { puts(word); perror("open"); exit(1); }
-				const nat new_text_length = (nat) lseek(file, 0, SEEK_END);
-				lseek(file, 0, SEEK_SET);
-				char* new_text = calloc(new_text_length + 1, 1);
-				read(file, new_text, new_text_length);
-				close(file);
-				filestack[filestack_count - 1].index = index;
-				filestack[filestack_count].filename = word;
-				filestack[filestack_count].text = new_text;
-				filestack[filestack_count].text_length = new_text_length;
-				filestack[filestack_count++].index = 0;
-				name_count--;
-				goto process_file;
-
-			} else if (state == do_) {
+			if (state == do_) {
 				state = 0;
 				struct instruction new = {
 					.op = eq,
@@ -653,7 +496,7 @@ process_file:;
 					.gotos = {0, variable | is_label},
 				};
 				ins[ins_count++] = new;
-		
+								
 			} else if (state == at) {
 				state = 0;
 				locations[variable] = ins_count;
@@ -702,12 +545,7 @@ process_file:;
 			}
 		}	
 		next_word: word_length = 0;
-	}
-
-	filestack_count--;
-	if (filestack_count) goto process_file;
-	}
-
+	}}
 
 	for (nat i = 0; i < ins_count; i++) {
 		if (ins[i].gotos[0] & is_label) {
@@ -961,7 +799,6 @@ process_file:;
 			selected[i] = 1;
 			selected[b] = 1;
 			selected[c] = 1;
-			goto finish_mi_instruction;
 		}
 		next1:
 		if (op == set) { // msub
