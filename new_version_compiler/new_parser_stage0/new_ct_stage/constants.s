@@ -13,8 +13,15 @@ set 8 7 add 8 1
 set 9 8 add 9 1
 set 10 9 add 10 1
 
-set _ 0
+set 16 8 si 16 1
+set 32 16 si 32 1
+set 64 32 si 64 1
+set 128 64 si 128 1
+set 256 128 si 256 1
+set 512 256 si 512 1
+set 1024 512 si 1024 1
 
+set _ 0
 
 eoi
 

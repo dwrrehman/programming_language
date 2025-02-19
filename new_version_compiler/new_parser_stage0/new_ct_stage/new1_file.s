@@ -10,7 +10,7 @@ at loop
 
 rt x 8
 set x sum
-sc 0 sum _ _ _ _ _ 
+sc 0 x _ _ _ _ _ 
 
 
 eoi

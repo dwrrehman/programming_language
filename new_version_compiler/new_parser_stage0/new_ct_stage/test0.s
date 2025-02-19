@@ -6,16 +6,20 @@ rt z 3
 
 
 set z 5
-
 set y 2
-
 set x y
 si x 9
 add x z
 
-
-
 eoi
+
+
+
+
+
+
+
+
 
 
 
@@ -74,6 +78,13 @@ lt n s label
 
 
 so what i am seeing is that 
+
+
+
+
+
+
+
 
 
 
