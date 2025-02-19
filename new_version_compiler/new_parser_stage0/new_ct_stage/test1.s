@@ -17,12 +17,12 @@ mul product z
 set remaining x
 sub remaining product
 
-	. computes   x - y * z   . 
+set remaining x
+si remaining 1
+sub remaining y
 
-
-
-si product 1
-
+set d x
+div d y
 
 
 eoi

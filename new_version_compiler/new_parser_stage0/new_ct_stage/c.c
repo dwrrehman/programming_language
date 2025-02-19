@@ -130,7 +130,9 @@ enum arm64_ins_set {
 	eorsrlsl, eorsrlsr,
 	eonsrlsl, eonsrlsr,
 	movz, addi, subi, andi, orri, eori, 
-	madd, msub, udiv, lslv, lsrv,
+	madd, msub, udiv, lslv, lsrv, 
+	adds, subs, ands,
+	csel, cbz, cbnz, 
 	svc,
 	arm_isa_count,
 };
@@ -144,7 +146,9 @@ static const char* mi_spelling[arm_isa_count] = {
 	"eorsrlsl", "eorsrlsr",
 	"eonsrlsl", "eonsrlsr",
 	"movz", "addi", "subi", "andi", "orri", "eori", 
-	"madd", "msub", "udiv", "lslv", "lsrv",
+	"madd", "msub", "udiv", "lslv", "lsrv", 
+	"adds", "subs", "ands",
+	"csel", "cbz", "cbnz", 
 	"svc",
 };
 
@@ -279,7 +283,25 @@ static void print_instruction_index(
 	puts("}");
 }
 
-static void print_instructions_ct_values_index(
+static void print_instruction_index_selected(
+	struct instruction* ins, nat ins_count, 
+	char** names, nat name_count, nat* ignore,
+	nat here, const char* message, nat* selected
+) {
+	printf("%s: at index: %llu: { \n", message, here);
+	for (nat i = 0; i < ins_count; i++) {
+		if (ignore[i]) printf("\033[38;5;239m");
+		printf("%c\t#%04llu: ", selected[i] ? 'S' : ' ', i);
+		print_instruction(ins[i], names, name_count);
+		if (i == here)  printf("  <------ %s\n", message); else puts("");
+		if (ignore[i]) printf("\033[0m");
+	}
+	puts("}");
+}
+
+
+
+/*static void print_instructions_ct_values_index(
 	struct instruction* ins, const nat ins_count,
 	char** names, const nat name_count, nat* locations,
 	nat* execution_state_ctk, nat* execution_state_values,
@@ -305,12 +327,13 @@ static void print_instructions_ct_values_index(
 		if (i == pc) printf("    <--- %s\n", message); else puts("");
 	}
 	printf("done printing index \"%s\"\n", message);
-}
+}*/
 
-static nat* compute_predecessors(struct instruction* ins, const nat ins_count, const nat pc, nat* pred_count) {
+static nat* compute_predecessors(struct instruction* ins, const nat ins_count, const nat pc, nat* pred_count, nat* ignore) {
 	nat* result = NULL;
 	nat count = 0;
 	for (nat i = 0; i < ins_count; i++) {
+		if (ignore[i]) continue;
 		if (ins[i].gotos[0] == pc or ins[i].gotos[1] == pc) {
 			result = realloc(result, sizeof(nat) * (count + 1));	
 			result[count++] = i;
@@ -340,26 +363,27 @@ static nat use_count(struct instruction* ins, const nat ins_count, nat this) {
 	return count; 
 }
 
-static nat locate_data_instruction(
+static nat locate_instruction(
 	nat expected_op, nat expected_arg0, nat expected_arg1,
-	nat use_arg0, nat use_arg1,
-	nat starting_from,
+	nat use_arg0, nat use_arg1, nat starting_from,
 	struct instruction* ins, const nat ins_count,
 	char** names, nat name_count, nat* ignore
 ) {
 	nat pc = starting_from;
-
 	while (pc < ins_count) {
 		if (ignore[pc]) { puts("locate data instruction . ignore pc encountered . abort"); abort(); } 
 		const nat op = ins[pc].op;
 		const nat arg0 = ins[pc].args[0];
 		const nat arg1 = ins[pc].args[1];
 		const bool is_branch = (op == lt or op == eq or op == gt_imm or op == lt_imm or op == eq_imm);
-		if (is_branch) break;
-		if (	op == expected_op and 
+		nat pred_count = 0;
+		compute_predecessors(ins, ins_count, pc, &pred_count, ignore);
+		if (	pred_count == 1 and 
+			op == expected_op and 
 			(not use_arg0 or expected_arg0 == arg0) and 
 			(not use_arg1 or expected_arg1 == arg1)
-		) return pc;
+		) return pc; 
+		if (is_branch) break;
 		if (use_arg0 and arg1 == expected_arg0) break;
 		if (use_arg1 and arg0 == expected_arg1) break;
 		pc = ins[pc].gotos[0];
@@ -442,107 +466,104 @@ process_file:;
 			print_index(text, text_length, word_start, index);
 			abort();
 
-		} else {
-			nat variable = 0;
-			for (; variable < name_count; variable++) {
-				if (not strcmp(word, names[variable])) goto variable_name_found;
+		} 
+		nat variable = 0;
+		for (; variable < name_count; variable++) {
+			if (not strcmp(word, names[variable])) goto variable_name_found;
+		}
+
+		bool valid = 0;
+		if (state == lf) valid = 1;
+		if (state == lt and arg_count == 2) valid = 1;
+		if (state == eq and arg_count == 2) valid = 1;
+		if (state == ge and arg_count == 2) valid = 1;
+		if (state == ne and arg_count == 2) valid = 1;
+		if (state == rt and arg_count == 0) valid = 1;
+		if (state == at and arg_count == 0) valid = 1;
+		if (state == do_ and arg_count == 0) valid = 1;
+		if (state == eor and arg_count == 0) valid = 1;
+		if (state == set and arg_count == 0) valid = 1;
+		if (not valid) goto print_error;
+		names[name_count++] = word; 
+
+	variable_name_found:
+		args[arg_count++] = variable;
+
+		if (state == lf) {
+			for (nat i = 0; i < included_file_count; i++) {
+				if (strcmp(included_files[i], word)) continue;
+				printf("warning: %s: file already included\n", word);
+				goto next_word;
 			}
+			included_files[included_file_count++] = word;
+			int file = open(word, O_RDONLY);
+			if (file < 0) { puts(word); perror("open"); exit(1); }
+			const nat new_text_length = (nat) lseek(file, 0, SEEK_END);
+			lseek(file, 0, SEEK_SET);
+			char* new_text = calloc(new_text_length + 1, 1);
+			read(file, new_text, new_text_length);
+			close(file);
+			filestack[filestack_count - 1].index = index;
+			filestack[filestack_count].filename = word;
+			filestack[filestack_count].text = new_text;
+			filestack[filestack_count].text_length = new_text_length;
+			filestack[filestack_count++].index = 0;
+			name_count--;
+			goto process_file;
 
-			bool valid = 0;
-			if (state == lf) valid = 1;
-			if (state == lt and arg_count == 2) valid = 1;
-			if (state == eq and arg_count == 2) valid = 1;
-			if (state == ge and arg_count == 2) valid = 1;
-			if (state == ne and arg_count == 2) valid = 1;
-			if (state == rt and arg_count == 0) valid = 1;
-			if (state == at and arg_count == 0) valid = 1;
-			if (state == do_ and arg_count == 0) valid = 1;
-			if (state == eor and arg_count == 0) valid = 1;
-			if (state == set and arg_count == 0) valid = 1;
-			if (not valid) goto print_error;
-			names[name_count++] = word; 
-
-		variable_name_found:
-			args[arg_count++] = variable;
-
-			if (state == lf) {
-
-				for (nat i = 0; i < included_file_count; i++) {
-					if (strcmp(included_files[i], word)) continue;
-					printf("warning: %s: file already included\n", word);
-					goto next_word;
-				}
-				included_files[included_file_count++] = word;
-				int file = open(word, O_RDONLY);
-				if (file < 0) { puts(word); perror("open"); exit(1); }
-				const nat new_text_length = (nat) lseek(file, 0, SEEK_END);
-				lseek(file, 0, SEEK_SET);
-				char* new_text = calloc(new_text_length + 1, 1);
-				read(file, new_text, new_text_length);
-				close(file);
-				filestack[filestack_count - 1].index = index;
-				filestack[filestack_count].filename = word;
-				filestack[filestack_count].text = new_text;
-				filestack[filestack_count].text_length = new_text_length;
-				filestack[filestack_count++].index = 0;
-				name_count--;
-				goto process_file;
-
-			} else if (state == do_) {
-				state = 0;
-				struct instruction new = {
-					.op = eq,
-					.args = {0, 0, variable},
-					.gotos = {0, variable | is_label},
-				};
-				ins[ins_count++] = new;
+		} else if (state == do_) {
+			state = 0;
+			struct instruction new = {
+				.op = eq,
+				.args = {0, 0, variable},
+				.gotos = {0, variable | is_label},
+			};
+			ins[ins_count++] = new;
 		
-			} else if (state == at) {
-				state = 0;
-				locations[variable] = ins_count;
-				goto next_word;
-
+		} else if (state == at) {
+			state = 0;
+			locations[variable] = ins_count;
+			goto next_word;
 			} else if (state == rt and arg_count == 2) {
-				state = 0;
-				is_runtime[args[0]] = 1;
-				bit_count[args[0]] = args[1];
-				goto next_word;
+			state = 0;
+			is_runtime[args[0]] = 1;
+			bit_count[args[0]] = args[1];
+			goto next_word;
 
-			} else if (((state == lt or state == eq or 
-				state == ge or state == ne or 
-				state == ld or state == st) and 
-				arg_count == 3)
-				or
+		} else if (((state == lt or state == eq or 
+			state == ge or state == ne or 
+			state == ld or state == st) and 
+			arg_count == 3)
+			or
 
-				((state == add or state == sub or 
-				state == mul or state == div_ or 
-				state == and_ or state == or_ or 
-				state == eor or state == set or
-				state == si or state == sd) and 
-				arg_count == 2) 
-				or
+			((state == add or state == sub or 
+			state == mul or state == div_ or 
+			state == and_ or state == or_ or 
+			state == eor or state == set or
+			state == si or state == sd) and 
+			arg_count == 2) 
+			or
 
-				(state == sc and arg_count == 7)
-			) {
-				const nat op = state;
-				struct instruction new = {
-					.op = op,
-					.gotos = {ins_count + 1, 
-						op == lt or op == ge or 
-						op == ne or op == eq ? 
-						variable | is_label : (nat) ~is_label
-					},
-				};
-				memcpy(new.args, args, sizeof args);
-				if (op == ge or op == ne) { 
-					new.gotos[0] = new.gotos[1]; 
-					new.gotos[1] = ins_count + 1;
-					if (op == ge) new.op = lt;
-					if (op == ne) new.op = eq;
-				}
-				ins[ins_count++] = new;
-				state = 0;
+			(state == sc and arg_count == 7)
+		) {
+			const nat op = state;
+			struct instruction new = {
+				.op = op,
+				.gotos = {ins_count + 1, 
+					op == lt or op == ge or 
+					op == ne or op == eq ? 
+					variable | is_label : (nat) ~is_label
+				},
+			};
+			memcpy(new.args, args, sizeof args);
+			if (op == ge or op == ne) { 
+				new.gotos[0] = new.gotos[1]; 
+				new.gotos[1] = ins_count + 1;
+				if (op == ge) new.op = lt;
+				if (op == ne) new.op = eq;
 			}
+			ins[ins_count++] = new;
+			state = 0;
 		}	
 		next_word: word_length = 0;
 	}
@@ -768,49 +789,82 @@ process_file:;
 		const nat arg0 = ins[i].args[0];
 		const nat arg1 = ins[i].args[1];
 
-		print_instruction_index(ins, ins_count, names, name_count, ignore, i, "SELECTION ORIGIN");
+		print_instruction_index_selected(ins, ins_count, names, name_count, ignore, i, "SELECTION ORIGIN", selected);
 		printf("selecting from i #%llu\n", i);
 		print_instruction(ins[i], names, name_count); puts("");
 		//getchar();
 
-		if (op == set) {
-			const nat b = locate_data_instruction(si_imm, arg0, 0, 1, 0, i + 1, ins, ins_count, names, name_count, ignore);
-			if (b == (nat) -1) goto addsrlsl_bail;		
-			const nat c = locate_data_instruction(add, arg0, 0, 1, 0, b + 1, ins, ins_count, names, name_count, ignore);
-			if (c == (nat) -1) goto addsrlsl_bail;
-			struct instruction new = { .op = addsrlsl };"			new.args[0] = arg0;
-			new.args[1] = ins[c].args[1];
-			new.args[2] = arg1;
-			new.args[3] = ins[b].args[1];
-			mi[mi_count++] = new;
-			selected[i] = 1; selected[b] = 1; selected[c] = 1;
-			goto finish_mi_instruction;
-		} addsrlsl_bail:
 
 
-		if (op == set) {
-			const nat b = locate_data_instruction(si_imm, arg0, 0, 1, 0, i + 1, ins, ins_count, names, name_count, ignore);
-			if (b == (nat) -1) goto subsrlsl_bail;
-			const nat c = locate_data_instruction(sub, arg0, 0, 1, 0, b + 1, ins, ins_count, names, name_count, ignore);
-			if (c == (nat) -1) goto subsrlsl_bail;
-			struct instruction new = { .op = subsrlsl };
-			new.args[0] = arg0;
-			new.args[1] = ins[c].args[1];
-			new.args[2] = arg1;
-			new.args[3] = ins[b].args[1];
+		if (op == set) { 
+
+			const nat i1 = locate_instruction(si_imm, arg0, 0, 1, 0, i + 1, ins, ins_count, names, name_count, ignore);
+			if (i1 == (nat) -1) goto csel_bail;
+
+			const nat i2 = locate_instruction(set, 0, 0, 0, 0, i1 + 1, ins, ins_count, names, name_count, ignore); 
+			if (i2 == (nat) -1) goto csel_bail;
+
+			const nat i3 = locate_instruction(lt, 0, arg0, 0, 1, i2 + 1, ins, ins_count, names, name_count, ignore);
+			if (i3 == (nat) -1) goto csel_bail;
+
+			if (use_count(ins, ins_count, arg0) != 3) goto csel_bail;
+
+			if (
+				(ins[i3].gotos[1] == i3 + 1 and ins[i3].gotos[0] == i3 + 2) or 
+				(ins[i3].gotos[0] == i3 + 1 and ins[i3].gotos[1] == i3 + 2) 
+			) {
+				
+			} else  goto csel_bail;
+
+
+			
+			
+			struct instruction new = { .op = subs };
+			new.args[0] = 0;
+			new.args[1] = 0;
+			new.args[2] = 0;
+			new.args[3] = 0;
 			mi[mi_count++] = new;
-			selected[i] = 1; selected[b] = 1; selected[c] = 1;
+			selected[i] = 1; selected[i1] = 1; selected[i2] = 1; selected[i3] = 1;
 			goto finish_mi_instruction;
-		} subsrlsl_bail:
+		} csel_bail:
+
+
+
+
+
+
+
+/*
+
+	set s b
+	si_imm s k
+	set x z
+	ge a s skip
+		set x y
+	at skip
+
+
+
+becomes:
+
+
+	subs XZR, a, b << k
+	csel x, y, z, lt
+
+
+
+*/
+
 
 
 
 		if (op == set) { 
-			const nat i1 = locate_data_instruction(mul, arg0, 0, 1, 0, i + 1, ins, ins_count, names, name_count, ignore);
+			const nat i1 = locate_instruction(mul, arg0, 0, 1, 0, i + 1, ins, ins_count, names, name_count, ignore);
 			if (i1 == (nat) -1) goto msub_bail;
-			const nat i2 = locate_data_instruction(set, 0, 0, 0, 0, i1 + 1, ins, ins_count, names, name_count, ignore); // TODO: BUG:   s must be != to d.
+			const nat i2 = locate_instruction(set, 0, 0, 0, 0, i1 + 1, ins, ins_count, names, name_count, ignore); // TODO: BUG:   s must be != to d.
 			if (i2 == (nat) -1) goto msub_bail;
-			const nat i3 = locate_data_instruction(sub, ins[i2].args[0], arg0, 1, 1, i2 + 1, ins, ins_count, names, name_count, ignore);
+			const nat i3 = locate_instruction(sub, ins[i2].args[0], arg0, 1, 1, i2 + 1, ins, ins_count, names, name_count, ignore);
 			if (i3 == (nat) -1) goto msub_bail;
 			if (use_count(ins, ins_count, arg0) != 3) goto msub_bail;
 			
@@ -824,11 +878,10 @@ process_file:;
 			goto finish_mi_instruction;
 		} msub_bail:
 
-
 		if (op == set) {
-			const nat b = locate_data_instruction(mul, arg0, 0, 1, 0, i + 1, ins, ins_count, names, name_count, ignore);
+			const nat b = locate_instruction(mul, arg0, 0, 1, 0, i + 1, ins, ins_count, names, name_count, ignore);
 			if (b == (nat) -1) goto madd_bail;		
-			const nat c = locate_data_instruction(add, arg0, 0, 1, 0, b + 1, ins, ins_count, names, name_count, ignore);
+			const nat c = locate_instruction(add, arg0, 0, 1, 0, b + 1, ins, ins_count, names, name_count, ignore);
 			if (c == (nat) -1) goto madd_bail;
 						
 			struct instruction new = {.op = madd};
@@ -841,9 +894,68 @@ process_file:;
 			goto finish_mi_instruction;
 		} madd_bail:
 
+		if (op == set) {
+			const nat b = locate_instruction(si_imm, arg0, 0, 1, 0, i + 1, ins, ins_count, names, name_count, ignore);
+			if (b == (nat) -1) goto addsrlsl_bail;		
+			const nat c = locate_instruction(add, arg0, 0, 1, 0, b + 1, ins, ins_count, names, name_count, ignore);
+			if (c == (nat) -1) goto addsrlsl_bail;
+			struct instruction new = { .op = addsrlsl };
+			new.args[0] = arg0;
+			new.args[1] = ins[c].args[1];
+			new.args[2] = arg1;
+			new.args[3] = ins[b].args[1];
+			mi[mi_count++] = new;
+			selected[i] = 1; selected[b] = 1; selected[c] = 1;
+			goto finish_mi_instruction;
+		} addsrlsl_bail:
 
 		if (op == set) {
-			const nat b = locate_data_instruction(div_, arg0, 0, 1, 0, i + 1, ins, ins_count, names, name_count, ignore);
+			const nat b = locate_instruction(si_imm, arg0, 0, 1, 0, i + 1, ins, ins_count, names, name_count, ignore);
+			if (b == (nat) -1) goto subsrlsl_bail;
+			const nat c = locate_instruction(sub, arg0, 0, 1, 0, b + 1, ins, ins_count, names, name_count, ignore);
+			if (c == (nat) -1) goto subsrlsl_bail;
+			struct instruction new = { .op = subsrlsl };
+			new.args[0] = arg0;
+			new.args[1] = ins[c].args[1];
+			new.args[2] = arg1;
+			new.args[3] = ins[b].args[1];
+			mi[mi_count++] = new;
+			selected[i] = 1; selected[b] = 1; selected[c] = 1;
+			goto finish_mi_instruction;
+		} subsrlsl_bail:
+
+		if (op == set) {
+			const nat b = locate_instruction(si_imm, arg0, 0, 1, 0, i + 1, ins, ins_count, names, name_count, ignore);
+			if (b == (nat) -1) goto orrsrlsl_bail;
+			const nat c = locate_instruction(or_, arg0, 0, 1, 0, b + 1, ins, ins_count, names, name_count, ignore);
+			if (c == (nat) -1) goto orrsrlsl_bail;
+			struct instruction new = { .op = orrsrlsl };
+			new.args[0] = arg0;
+			new.args[1] = ins[c].args[1];
+			new.args[2] = arg1;
+			new.args[3] = ins[b].args[1];
+			mi[mi_count++] = new;
+			selected[i] = 1; selected[b] = 1; selected[c] = 1;
+			goto finish_mi_instruction;
+		} orrsrlsl_bail:
+
+		if (op == set) {
+			const nat b = locate_instruction(si_imm, arg0, 0, 1, 0, i + 1, ins, ins_count, names, name_count, ignore);
+			if (b == (nat) -1) goto eorsrlsl_bail;
+			const nat c = locate_instruction(eor, arg0, 0, 1, 0, b + 1, ins, ins_count, names, name_count, ignore);
+			if (c == (nat) -1) goto eorsrlsl_bail;
+			struct instruction new = { .op = eorsrlsl };
+			new.args[0] = arg0;
+			new.args[1] = ins[c].args[1];
+			new.args[2] = arg1;
+			new.args[3] = ins[b].args[1];
+			mi[mi_count++] = new;
+			selected[i] = 1; selected[b] = 1; selected[c] = 1;
+			goto finish_mi_instruction;
+		} eorsrlsl_bail:
+
+		if (op == set) {
+			const nat b = locate_instruction(div_, arg0, 0, 1, 0, i + 1, ins, ins_count, names, name_count, ignore);
 			if (b == (nat) -1) goto udiv_bail;
 			struct instruction new = { .op = udiv };
 			new.args[0] = arg0;
@@ -854,9 +966,8 @@ process_file:;
 			goto finish_mi_instruction;
 		} udiv_bail:
 
-
 		if (op == set) {
-			const nat b = locate_data_instruction(si, arg0, 0, 1, 0, i + 1, ins, ins_count, names, name_count, ignore);
+			const nat b = locate_instruction(si, arg0, 0, 1, 0, i + 1, ins, ins_count, names, name_count, ignore);
 			if (b == (nat) -1) goto lslv_bail;
 			struct instruction new = { .op = lslv };
 			new.args[0] = arg0;
@@ -867,9 +978,8 @@ process_file:;
 			goto finish_mi_instruction;
 		} lslv_bail:
 
-
 		if (op == set) {
-			const nat b = locate_data_instruction(add_imm, arg0, 0, 1, 0, i + 1, ins, ins_count, names, name_count, ignore);
+			const nat b = locate_instruction(add_imm, arg0, 0, 1, 0, i + 1, ins, ins_count, names, name_count, ignore);
 			if (b == (nat) -1) goto addi_bail;
 			struct instruction new = { .op = addi };
 			new.args[0] = arg0;
@@ -880,10 +990,8 @@ process_file:;
 			goto finish_mi_instruction;
 		} addi_bail:
 
-
-
 		if (op == set) {
-			const nat b = locate_data_instruction(sub_imm, arg0, 0, 1, 0, i + 1, ins, ins_count, names, name_count, ignore);
+			const nat b = locate_instruction(sub_imm, arg0, 0, 1, 0, i + 1, ins, ins_count, names, name_count, ignore);
 			if (b == (nat) -1) goto subi_bail;
 			struct instruction new = { .op = subi };
 			new.args[0] = arg0;
@@ -894,10 +1002,31 @@ process_file:;
 			goto finish_mi_instruction;
 		} subi_bail:
 
+		if (op == eq_imm and arg1 == 0) {
 
-
-
-		if (op == set_imm) {
+			struct instruction new = { .op = cbnz };
+			new.args[0] = arg0;
+			if (ins[i].gotos[0] != i + 1) {
+				new.op = cbz;
+				new.args[1] = ins[i].gotos[1];
+			} else {
+				new.args[1] = ins[i].gotos[0];
+			}
+			mi[mi_count++] = new;
+			selected[i] = 1;
+			goto finish_mi_instruction;
+		} 
+		else if (op == set) {
+			struct instruction new = { .op = orrsrlsl };
+			new.args[0] = arg0;
+			new.args[1] = 0;
+			new.args[2] = arg1;			
+			new.args[3] = 0;
+			mi[mi_count++] = new;
+			selected[i] = 1;
+			goto finish_mi_instruction;
+		}
+		else if (op == set_imm) {
 			struct instruction new = { .op = movz };
 			new.args[0] = arg0;
 			new.args[1] = arg1;
@@ -951,16 +1080,15 @@ process_file:;
 			goto finish_mi_instruction;
 		}
 		else if (op == sc) {
-			printf("FOUND ARM64 MACHINE CODE INSTRUCTION:\n");
-			printf("SVC #0\n");
-			struct instruction new = {0};
-			new.op = svc;
+			struct instruction new = { .op = svc };
 			mi[mi_count++] = new;
 			selected[i] = 1;
 			goto finish_mi_instruction;
 		}
 
 	finish_mi_instruction:;
+		puts("so far:");
+		print_machine_instructions(mi, mi_count, names, name_count);
 		getchar();
 	}
 
@@ -1002,6 +1130,104 @@ process_file:;
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+		/*else {
+			print_instruction(ins[pc], names, name_count); printf("   : mismatch :   %u   %u(%s != %s)  %u %u \n", 
+				pred_count == 1,
+				op == expected_op, ins_spelling[op], ins_spelling[expected_op],
+				not use_arg0 or expected_arg0 == arg0,
+				not use_arg1 or expected_arg1 == arg1
+			);
+		}*/
 
 
 
@@ -2521,11 +2747,11 @@ after that:
 
 
 		if (op == set) {
-			const nat b = locate_data_instruction(si_imm, arg0, 0, 1, 0, i + 1, ins, ins_count, names, name_count);
+			const nat b = locate_instruction(si_imm, arg0, 0, 1, 0, i + 1, ins, ins_count, names, name_count);
 			printf("b = %lld\n", b);
 			if (b == (nat) -1) goto next0;
 		
-			const nat c = locate_data_instruction(add, arg0, 0, 1, 0, b + 1, ins, ins_count, names, name_count);
+			const nat c = locate_instruction(add, arg0, 0, 1, 0, b + 1, ins, ins_count, names, name_count);
 			printf("c = %lld\n", c);
 			if (c == (nat) -1) goto next0;
 			
