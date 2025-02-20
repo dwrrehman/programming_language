@@ -33,18 +33,17 @@ some notes about the language's syntax and design:
 
 	10. all built-in operations (which are listed below) are spelt in lowercase, however the language is case sensitive. nocase or occassionally snake_case is the preferred style for names.
 
-
 this language chooses to use branches as opposed to for/while/if statements, as the latter can be constructed emergently at user lvel from just branches, and branches are the more general construct which is simpler and more general.
 
 the language chooses to have variables represent hardware registers, as the programmer should be in charge of all memory use and allocation. the compiler will not write a load or store on the programmers behalf, by design, as these instructions are the most expensive by far in modern machines. 
 
-the language chooses to expose the system call instruction directly, as all external physical effects of a program ultimately boil down to just system calls on modern operating systems (only linux, WSL and macos will be supported, windows is not intended to be supported ever) and thus to give the maximum control, performance, and flexibiltiy, a system call interface is given which is roughly portable across the various targets. 
+the language chooses to expose the system call instruction directly, as all external physical effects of a program ultimately boil down to just system calls on modern operating systems (only linux, WSL and macos will be supported, windows is not intended to be supported ever) and thus to give the maximum control, performance, and flexibiltiy, a system call interface is given which is roughly portable across the various targets. unfortunately MacOS does not make the system call interface stable, but this will be manually delt with as problems arise. 
 
 this language targets risc-v (32 bit and 64 bit) arm (32 bit and 64 bit).  additionally, possibly x86-64 in the future, however this is not a priority, as x86/x64 is considered legacy. the first two archs and their two subtypes are the main priorities in the language. an msp430 backend and interpreter will also be written for my own use cases.
 
 the language's compiler stages are as follows: first parsing/lexing/CFG-formation is done in a single pass, then compiletime evaluation occurs, then instruction selection, then register allocation, and finally machine code generation. this compiler only generates MacOS Mach-O position-independent executables currently, and does not depend on the assembler or linker of the system. use of external libraries in user code is not supported currently, but is planned to be eventually.
 
-the language chooses to use the two operand form of all arithmetic and logical operations, for example, "add d s " as opposed to "add d r s", including providing "set" as a seperate instruction, as "add d s" and "set d s" are more fundamental and primitive than the composite instruction found on most risc-like isa's, "add d r s". 
+the language chooses to use the two operand form of all arithmetic and logical operations, for example, "add d s " as opposed to "add d r s", including providing "set" as a seperate instruction, as "add d s" and "set d s" are simpler and more fundamental and primitive than the composite instruction found on most risc-like isa's, "add d r s". forming these composite instructions is done reliably and easily via the instructions selection stage.
 
 the language's choice for which instructions should and should not be in the language was determined based on the following set of competing constraints: first, the instruction must be useful, ie occur very often in real code, and is useful in solving real problems. second, the instruction most correspond very easily/directly to an instruction (or maybe two instructions) in all targets. third, it should either be directly useful for creating runtime computation, or if its a compiletime directive only, it must be extremely helpful for assisting in runtime optimizations. fourth, the interface to the instruction must be as simple and minimalist as possible. 
 
@@ -54,17 +53,11 @@ there are only a couple exceptions to this reasoning: the "eoi" instruction is u
 
 the isa of the language is the following:
 
-	zero x  : set to zero the register x.
-	incr x  : increment x by 1.
-	decr x  : decrement x by 1.
-	not x   : bitwise invert all bits in x.
-
 	set x y : assign the value y into the variable x, ie set x to have value y.
 	add x y : set x to be x + y.
 	sub x y : set x to be x - y.
 	mul x y : set x to be x * y.
 	div x y : set x to be x / y.
-
 	and x y : set x to the bitwise AND of x and y.
 	or x y  : set x to the bitwise OR of x and y.
 	eor x y : set x to the bitwise XOR (exclusive OR) of x and y.
@@ -80,13 +73,11 @@ the isa of the language is the following:
 	ne x y l : compare x and y, if x is not equal to y, branch to label l. if not, then ignore this instruction.
 	do l     : branch unconditionally to label l.
 	at l     : attribute the label l to represent the position of the next instruction after this instruction. 
-
 	sc n a b c d e f : perform system call with language syscall number n, giving up to 6 arguments, a through f.	
-	bit x b : require x to be known at runtime, and set the bit width of the values stored in x to be at most b bits.
+
+	rt x b : require x to be known at runtime, and set the bit width of the values stored in x to be at most b bits.
 	lf f   : load a file with filename f, and include its source in replace of this instruction. 
 	eoi    : end of input, causes parsing to stop. all text past this point is ignored. this instruction is optional.
-
-	ct x   : require x to be known at compiletime.
 
 
 examples of code in the language:
@@ -96,10 +87,10 @@ examples of code in the language:
 	. a simple for loop: .
 
 	lf foundation
-	zero i 
+	set i 0
 	at loop
 		print i
-		incr i
+		add i 1
 		lt i 5 loop
 
 
@@ -122,4 +113,12 @@ ultimately, this language is just meant for my own use, however it might be the 
 thanks for reading!
 
 dwrr
+
+
+
+
+
+
+
+
 

@@ -4,14 +4,12 @@ written on 1202411225.000721 by dwrr
 
 the entire instruction set for the language is only the following words:
 
-	zero incr decr not
 	set add sub mul div
 	and or eor si sd 
 	lt ge ne eq do at
-	ld st sc
-	ct rt lf eoi
+	ld st sc rt lf eoi
 
-a total of 27 words, currently. 
+a total of 22 words, currently. 
 
 this document aims to go over how to use each one, and generally how the language semantics works. 
 
@@ -24,13 +22,7 @@ first a reference list of the instruction semantics is given below.
 
 --------------------------------------------------------------------------------------
 
-arithmetic operations:
-
-	zero d		:	set the variable d to zero. 
-
-	incr d 		: 	increment the variable d by 1. 
-
-	decr d 		: 	decrement the variabe d by 1. 
+arithmetic and bitwise operations:
 
 	set d r		:	set the variable d to the value currently given in variable r.
 
@@ -41,11 +33,6 @@ arithmetic operations:
 	mul d r		:	set the variable d to the value of d * r. 
 
 	div d r		:	set the variable d to the value of d / r. 
-
-
-bitwise operations:
-
-	not d		:	invert each bit in the variable d.
 
 	and d r		:	bitwise-and each bit in variable d and variable r, and store the result in d. 
 
@@ -92,12 +79,7 @@ system call operation:
 					set to any value/variable, as they are simply ignored. 
 attribution operations:
 
-
-	ct r 		: 	mark the register r as being compiletime known. no runtime instructions will be generated for 
-				uses of this register, and all computation relating to it will be evaulated at compiletime.
-
-	rt r b		:	set the number of bits allocated to the variable r. b must be non-negative.
-				the value of zero denotes that a variable is no longer modifiable. 
+	rt r b		:	set the number of bits allocated to the register variable r. b is unsigned, and compiletime known.
 
 language level operations:
 
@@ -123,21 +105,13 @@ example usage of the language's instructions:
 
 
 
-primitive operation examples:
-
------------------
-	zero x
-	incr x incr x decr x           <---- after this line finishes, x now holds the value 1. 
-
------------------
-
 arithmetic operation examples:
 
 -----------------
 
 	set a 5
 	set b 4
-	add a b			<------ a now has the value 9
+	add a b			. a now has the value 9 . 
 
 -----------------
 
@@ -146,7 +120,7 @@ arithmetic operation examples:
 	set x a sub x b mul x x
 	set y c sub y d mul y y
 
-	zero r add r x add r y div r 2
+	set r 0 add r x add r y div r 2
 
 -----------------
 
@@ -154,20 +128,13 @@ bitwise operation example:
 
 -----------------
 
-	set a 
+	set b 3
+	set a 7
 
-
-
-
+	and a b  
+	si a 1        . a has the value 6 now. .
 
 -----------------
-
-
-
-
-
-
-
 
 
 

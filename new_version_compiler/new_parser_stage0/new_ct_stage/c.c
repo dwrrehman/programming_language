@@ -216,6 +216,7 @@ static void print_instruction(struct instruction this, char** names, nat name_co
 static void print_machine_instruction(struct instruction this, char** names, nat name_count) {
 	printf("  %13s { ", mi_spelling[this.op]);
 	for (nat a = 0; a < 5; a++) {
+		if (this.op == csel and a == 3) { printf("        #{%s}   ", ins_spelling[this.args[a]]); continue; }
 		if (this.args[a] < 256) printf("%3llu", this.args[a]); 
 		else printf("0x%016llx", this.args[a]);
 		printf("('%8s') ", this.args[a] < name_count ? names[this.args[a]] : "");
@@ -396,7 +397,6 @@ static nat locate_instruction(
 }
 
 int main(int argc, const char** argv) {
-
 	if (argc != 2) exit(puts("compiler: \033[31;1merror:\033[0m usage: ./run [file.s]"));
 
 	struct instruction ins[4096] = {0};
@@ -434,7 +434,6 @@ process_file:;
 		state = 0,
 		comment = 0,
 		arg_count = 0;
-
 	nat args[7] = {0};
 
 	const nat starting_index = 	filestack[filestack_count - 1].index;
@@ -798,50 +797,73 @@ process_file:;
 		//getchar();
 
 		if (op == set) { 
-
 			const nat i1 = locate_instruction(si_imm, arg0, 0, 1, 0, i + 1, ins, ins_count, names, name_count, ignore);
-			if (i1 == (nat) -1) goto csel_bail;
-
+			if (i1 == (nat) -1) goto csellt_bail;
 			const nat i2 = locate_instruction(set, 0, 0, 0, 0, i1 + 1, ins, ins_count, names, name_count, ignore); 
-			if (i2 == (nat) -1) goto csel_bail;
-
+			if (i2 == (nat) -1) goto csellt_bail;
 			const nat i3 = locate_instruction(lt, 0, arg0, 0, 1, i2 + 1, ins, ins_count, names, name_count, ignore);
-			if (i3 == (nat) -1) goto csel_bail;
-
-			if (use_count(ins, ins_count, arg0) != 3) goto csel_bail;
-
-			if (
-				(ins[i3].gotos[1] == i3 + 1 and ins[i3].gotos[0] == i3 + 2) or 
-				(ins[i3].gotos[0] == i3 + 1 and ins[i3].gotos[1] == i3 + 2) 
-			) {				
-			} else goto csel_bail;
-
-			if (ins[i3 + 1].op == set and ins[i3 + 1].args[0] == ins[i2].args[0]) {
-			} else goto csel_bail;
+			if (i3 == (nat) -1) goto csellt_bail;
+			if (use_count(ins, ins_count, arg0) != 3) goto csellt_bail;
+			if (not ((ins[i3].gotos[1] == i3 + 1 and ins[i3].gotos[0] == i3 + 2) or 
+				 (ins[i3].gotos[0] == i3 + 1 and ins[i3].gotos[1] == i3 + 2))
+			) goto csellt_bail;
+			if (not (ins[i3 + 1].op == set and ins[i3 + 1].args[0] == ins[i2].args[0])) goto csellt_bail;
 			
 			struct instruction new = { .op = subssrlsl };
 			new.args[0] = 0;
 			new.args[1] = ins[i3].args[0];
-			new.args[2] = ins[i3].args[1];
+			new.args[2] = arg1;
 			new.args[3] = ins[i1].args[1];
 			mi[mi_count++] = new;
-
 			struct instruction new2 = { .op = csel };
 			new2.args[0] = ins[i2].args[0];
 			new2.args[1] = ins[i3 + 1].args[1];
 			new2.args[2] = ins[i2].args[1];
-			new2.args[3] = lt;
+			new2.args[3] = ins[i3].gotos[0] == i3 + 1 ? lt : ge;
 			mi[mi_count++] = new2;
-
 			selected[i] = 1; 
 			selected[i1] = 1; 
 			selected[i2] = 1; 
 			selected[i3] = 1; 
 			selected[i3 + 1] = 1;
-
 			goto finish_mi_instruction;
-		} csel_bail:
+		} csellt_bail:
 
+
+
+
+		if (op == set) { 
+			const nat i1 = locate_instruction(si_imm, arg0, 0, 1, 0, i + 1, ins, ins_count, names, name_count, ignore);
+			if (i1 == (nat) -1) goto cseleq_bail;
+			const nat i2 = locate_instruction(set, 0, 0, 0, 0, i1 + 1, ins, ins_count, names, name_count, ignore); 
+			if (i2 == (nat) -1) goto cseleq_bail;
+			const nat i3 = locate_instruction(eq, 0, arg0, 0, 1, i2 + 1, ins, ins_count, names, name_count, ignore);
+			if (i3 == (nat) -1) goto cseleq_bail;
+			if (use_count(ins, ins_count, arg0) != 3) goto cseleq_bail;
+			if (not ((ins[i3].gotos[1] == i3 + 1 and ins[i3].gotos[0] == i3 + 2) or 
+				 (ins[i3].gotos[0] == i3 + 1 and ins[i3].gotos[1] == i3 + 2))
+			) goto cseleq_bail;
+			if (not (ins[i3 + 1].op == set and ins[i3 + 1].args[0] == ins[i2].args[0])) goto cseleq_bail;
+			
+			struct instruction new = { .op = subssrlsl };
+			new.args[0] = 0;
+			new.args[1] = ins[i3].args[0];
+			new.args[2] = arg1;
+			new.args[3] = ins[i1].args[1];
+			mi[mi_count++] = new;
+			struct instruction new2 = { .op = csel };
+			new2.args[0] = ins[i2].args[0];
+			new2.args[1] = ins[i3 + 1].args[1];
+			new2.args[2] = ins[i2].args[1];
+			new2.args[3] = ins[i3].gotos[0] == i3 + 1 ? eq : ne;
+			mi[mi_count++] = new2;
+			selected[i] = 1; 
+			selected[i1] = 1; 
+			selected[i2] = 1; 
+			selected[i3] = 1; 
+			selected[i3 + 1] = 1;
+			goto finish_mi_instruction;
+		} cseleq_bail:
 
 
 
