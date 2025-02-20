@@ -131,7 +131,9 @@ enum arm64_ins_set {
 	eonsrlsl, eonsrlsr,
 	movz, addi, subi, andi, orri, eori, 
 	madd, msub, udiv, lslv, lsrv, 
-	adds, subs, ands,
+	addssrlsl, addssrlsr,
+	subssrlsl, subssrlsr,
+	andssrlsl, andssrlsr,
 	csel, cbz, cbnz, 
 	svc,
 	arm_isa_count,
@@ -147,7 +149,9 @@ static const char* mi_spelling[arm_isa_count] = {
 	"eonsrlsl", "eonsrlsr",
 	"movz", "addi", "subi", "andi", "orri", "eori", 
 	"madd", "msub", "udiv", "lslv", "lsrv", 
-	"adds", "subs", "ands",
+	"addssrlsl", "addssrlsr",
+	"subssrlsl", "subssrlsr",
+	"andssrlsl", "andssrlsr",
 	"csel", "cbz", "cbnz", 
 	"svc",
 };
@@ -210,7 +214,7 @@ static void print_instruction(struct instruction this, char** names, nat name_co
 }
 
 static void print_machine_instruction(struct instruction this, char** names, nat name_count) {
-	printf("  %8s { ", mi_spelling[this.op]);
+	printf("  %13s { ", mi_spelling[this.op]);
 	for (nat a = 0; a < 5; a++) {
 		if (this.args[a] < 256) printf("%3llu", this.args[a]); 
 		else printf("0x%016llx", this.args[a]);
@@ -425,7 +429,6 @@ int main(int argc, const char** argv) {
 }
 
 process_file:;
-
 	{nat 	word_length = 0, 
 		word_start = 0,
 		state = 0,
@@ -794,8 +797,6 @@ process_file:;
 		print_instruction(ins[i], names, name_count); puts("");
 		//getchar();
 
-
-
 		if (op == set) { 
 
 			const nat i1 = locate_instruction(si_imm, arg0, 0, 1, 0, i + 1, ins, ins_count, names, name_count, ignore);
@@ -812,20 +813,32 @@ process_file:;
 			if (
 				(ins[i3].gotos[1] == i3 + 1 and ins[i3].gotos[0] == i3 + 2) or 
 				(ins[i3].gotos[0] == i3 + 1 and ins[i3].gotos[1] == i3 + 2) 
-			) {
-				
-			} else  goto csel_bail;
+			) {				
+			} else goto csel_bail;
 
-
+			if (ins[i3 + 1].op == set and ins[i3 + 1].args[0] == ins[i2].args[0]) {
+			} else goto csel_bail;
 			
-			
-			struct instruction new = { .op = subs };
+			struct instruction new = { .op = subssrlsl };
 			new.args[0] = 0;
-			new.args[1] = 0;
-			new.args[2] = 0;
-			new.args[3] = 0;
+			new.args[1] = ins[i3].args[0];
+			new.args[2] = ins[i3].args[1];
+			new.args[3] = ins[i1].args[1];
 			mi[mi_count++] = new;
-			selected[i] = 1; selected[i1] = 1; selected[i2] = 1; selected[i3] = 1;
+
+			struct instruction new2 = { .op = csel };
+			new2.args[0] = ins[i2].args[0];
+			new2.args[1] = ins[i3 + 1].args[1];
+			new2.args[2] = ins[i2].args[1];
+			new2.args[3] = lt;
+			mi[mi_count++] = new2;
+
+			selected[i] = 1; 
+			selected[i1] = 1; 
+			selected[i2] = 1; 
+			selected[i3] = 1; 
+			selected[i3 + 1] = 1;
+
 			goto finish_mi_instruction;
 		} csel_bail:
 
@@ -845,9 +858,7 @@ process_file:;
 	at skip
 
 
-
 becomes:
-
 
 	subs XZR, a, b << k
 	csel x, y, z, lt

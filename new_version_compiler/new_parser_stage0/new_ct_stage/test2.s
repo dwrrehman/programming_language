@@ -10,8 +10,10 @@ set y 6
 set a 1
 set b 2
 
+set c b
+si c 1
 set result x
-ge a b skip 
+ge a c skip 
 	set result y
 at skip
 
