@@ -13,6 +13,10 @@ set 8 7 add 8 1
 set 9 8 add 9 1
 set 10 9 add 10 1
 
+set 25 5 mul 25 5
+set 50 25 si 50 1
+set 100 50 si 100 1
+
 set 16 8 si 16 1
 set 32 16 si 32 1
 set 64 32 si 64 1
@@ -23,7 +27,19 @@ set 1024 512 si 1024 1
 
 set _ 0
 
+set false 0
+set true 1
+
+set system_exit 0
+set system_read 1
+set system_write 2
+set system_open 3
+set system_close 4
+
+
 eoi
+
+
 
 this file is just a file to hold basic constants
 this will be in the standard library probably. 

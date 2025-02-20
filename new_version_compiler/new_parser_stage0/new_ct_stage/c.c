@@ -218,7 +218,7 @@ static void print_machine_instruction(struct instruction this, char** names, nat
 	for (nat a = 0; a < 5; a++) {
 		if (this.op == csel and a == 3) { printf("        #{%s}   ", ins_spelling[this.args[a]]); continue; }
 		if (this.args[a] < 256) printf("%3llu", this.args[a]); 
-		else printf("0x%016llx", this.args[a]);
+		else printf("0x%016llx[%llu]", this.args[a], this.args[a]);
 		printf("('%8s') ", this.args[a] < name_count ? names[this.args[a]] : "");
 	}
 
@@ -590,13 +590,13 @@ process_file:;
 	print_instructions(ins, ins_count, names, name_count, ignore);
 
 	while (stack_count) {
-		print_stack(stack, stack_count);
+		//print_stack(stack, stack_count);
 		const nat pc = stack[--stack_count];
 
-		print_ct_values(names, name_count, is_runtime, values);
-		print_instruction_index(ins, ins_count, names, name_count, ignore, pc, "PC");
-		printf("executing pc #%llu\n", pc);
-		print_instruction(ins[pc], names, name_count); puts("");
+		//print_ct_values(names, name_count, is_runtime, values);
+		//print_instruction_index(ins, ins_count, names, name_count, ignore, pc, "PC");
+		//printf("executing pc #%llu\n", pc);
+		//print_instruction(ins[pc], names, name_count); puts("");
 		//getchar();
 
 		visited[pc] = 1;
@@ -616,6 +616,7 @@ process_file:;
 		if (op == lt or op == eq) {
 			if (ct0 and ct1) {
 				nat c = 0;
+				ignore[pc] = 1;
 				if (op == eq and val0 == val1 or op == lt and val0 < val1) c = 1;
 				if (ins[pc].gotos[c] < ins_count) stack[stack_count++] = ins[pc].gotos[c];
 				continue;
@@ -637,6 +638,7 @@ process_file:;
 			}
 
 			const nat n = val0;
+			if (n == 9) goto do_debug_system_call;
 			const nat output_count = get_call_output_count(n);
 			for (nat i = 0; i < output_count; i++) {
 				if (not is_runtime[ins[pc].args[1 + i]]) { puts("system call ct rt out"); abort(); }
@@ -654,6 +656,9 @@ process_file:;
 				ins[pc].gotos[0] = (nat) -1;
 				ins[pc].gotos[1] = (nat) -1;
 				continue;
+
+			} else if (n == 9) {
+				do_debug_system_call: printf("DEBUG: %llu\n", val1); ignore[pc] = 1;
 			} else {
 				printf("info: found %s sc!\n", systemcall_spelling[n]);
 				print_instruction_index(
@@ -730,7 +735,7 @@ process_file:;
 
 	for (nat i = 0; i < ins_count; i++) if (not visited[i]) ignore[i] = 1;
 
-	for (nat pc = 0; pc < ins_count; pc++) {
+	/*for (nat pc = 0; pc < ins_count; pc++) {
 		const nat op = ins[pc].op;
 		const nat arg0 = ins[pc].args[0];
 		const nat arg1 = ins[pc].args[1];		
@@ -752,7 +757,7 @@ process_file:;
 		const nat arg0 = ins[pc].args[0];
 		const nat arg1 = ins[pc].args[1];
 		if (op == eq and not arg0 and not arg1 and ins[pc].gotos[1] == pc + 1) ignore[pc] = 1;
-	}
+	}*/
 
 	print_ct_values(names, name_count, is_runtime, values);
 	print_dictionary(names, locations, name_count);
