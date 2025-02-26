@@ -1,19 +1,16 @@
 /*
 
-targets applications: 
----------------------------------------------
-	- embedded risc low power devices, 
-	- modern high performance risc machines in data centers
+1202502252.005724
 
+	just writing some goals of the language for me:
 
 target ISAs:
 ---------------------------------------------
 	- ARM64
 	- ARM32
-	- RISC-V 64
-	- RISC-V 32
+	- RV64
+	- RV32
 	- MSP430
-
 
 performance advantages over C / LLVM:
 ---------------------------------------------
@@ -21,7 +18,6 @@ performance advantages over C / LLVM:
 	- full program ins-level optimizations (no basic blocks)
 
 	- no SSA representation: stateful optimizations
-
 
 	- conservative memory aliasing semantics
 
@@ -32,16 +28,11 @@ performance advantages over C / LLVM:
 	- no unneccessary overhead: no abstractions present
 	  which don't easily map onto hardware instructions 
 
-
 	- bit-width for variables providing more use of registers
 
 	- more powerful compiletime evaluation semantics
 	
 	- vectorization primitives in the language 
-
-
-
-
 
 
 */
@@ -134,7 +125,8 @@ enum arm64_ins_set {
 	addssrlsl, addssrlsr,
 	subssrlsl, subssrlsr,
 	andssrlsl, andssrlsr,
-	csel, cbz, cbnz, 
+	addsi, subsi, andsi,
+	csel, cbz, cbnz, bcond,
 	svc,
 	arm_isa_count,
 };
@@ -152,7 +144,8 @@ static const char* mi_spelling[arm_isa_count] = {
 	"addssrlsl", "addssrlsr",
 	"subssrlsl", "subssrlsr",
 	"andssrlsl", "andssrlsr",
-	"csel", "cbz", "cbnz", 
+	"addsi", "subsi", "andsi",
+	"csel", "cbz", "cbnz", "bcond",
 	"svc",
 };
 
@@ -516,8 +509,8 @@ process_file:;
 		} else if (state == do_) {
 			state = 0;
 			struct instruction new = {
-				.op = eq,
-				.args = {0, 0, variable},
+				.op = do_,
+				.args = {variable},
 				.gotos = {0, variable | is_label},
 			};
 			ins[ins_count++] = new;
@@ -606,12 +599,12 @@ process_file:;
 		const nat arg1 = ins[pc].args[1];
 		const nat goto0 = ins[pc].gotos[0];
 		const nat goto1 = ins[pc].gotos[1];
-		const nat ct0 = not is_runtime[arg0];
-		const nat ct1 = not is_runtime[arg1];
-		const nat rt0 = is_runtime[arg0];
-		const nat rt1 = is_runtime[arg1];
-		const nat val0 = values[arg0];
-		const nat val1 = values[arg1];
+		const nat rt0 = arg0 < name_count ? is_runtime[arg0] : 0;
+		const nat rt1 = arg1 < name_count ? is_runtime[arg1] : 0;
+		const nat ct0 = not rt0;
+		const nat ct1 = not rt1;
+		const nat val0 = arg0 < name_count ? values[arg0] : 0;
+		const nat val1 = arg1 < name_count ? values[arg1] : 0;
 		
 		if (op == lt or op == eq) {
 			if (ct0 and ct1) {
@@ -735,30 +728,6 @@ process_file:;
 
 	for (nat i = 0; i < ins_count; i++) if (not visited[i]) ignore[i] = 1;
 
-	/*for (nat pc = 0; pc < ins_count; pc++) {
-		const nat op = ins[pc].op;
-		const nat arg0 = ins[pc].args[0];
-		const nat arg1 = ins[pc].args[1];		
-		if ((op == lt or op == eq) and not is_runtime[arg0] and not is_runtime[arg1]) {
-			const bool condition = op == lt
-				? (values[arg0] < values[arg1])
-				: (values[arg0] == values[arg1]);
-			const nat g = ins[pc].gotos[condition];
-			ins[pc].op = eq;
-			ins[pc].gotos[0] = (nat) -1;
-			ins[pc].gotos[1] = g;
-			ins[pc].args[0] = 0;
-			ins[pc].args[1] = 0;
-		}
-	}
-
-	for (nat pc = 0; pc < ins_count; pc++) {
-		const nat op = ins[pc].op;
-		const nat arg0 = ins[pc].args[0];
-		const nat arg1 = ins[pc].args[1];
-		if (op == eq and not arg0 and not arg1 and ins[pc].gotos[1] == pc + 1) ignore[pc] = 1;
-	}*/
-
 	print_ct_values(names, name_count, is_runtime, values);
 	print_dictionary(names, locations, name_count);
 	print_instructions(ins, ins_count, names, name_count, ignore);
@@ -788,7 +757,7 @@ process_file:;
 		if (ignore[i]) continue;
 
 		if (selected[i]) {
-			printf("warning: [ins_index = %llu]: skipping instruction, it was already part of a pattern.\n", i);
+			printf("warning: [i = %llu]: skipping, part of a pattern.\n", i);
 			continue;
 		}
 
@@ -834,9 +803,6 @@ process_file:;
 			goto finish_mi_instruction;
 		} csellt_bail:
 
-
-
-
 		if (op == set) { 
 			const nat i1 = locate_instruction(si_imm, arg0, 0, 1, 0, i + 1, ins, ins_count, names, name_count, ignore);
 			if (i1 == (nat) -1) goto cseleq_bail;
@@ -869,33 +835,6 @@ process_file:;
 			selected[i3 + 1] = 1;
 			goto finish_mi_instruction;
 		} cseleq_bail:
-
-
-
-
-
-
-/*
-
-	set s b
-	si_imm s k
-	set x z
-	ge a s skip
-		set x y
-	at skip
-
-
-becomes:
-
-	subs XZR, a, b << k
-	csel x, y, z, lt
-
-
-
-*/
-
-
-
 
 		if (op == set) { 
 			const nat i1 = locate_instruction(mul, arg0, 0, 1, 0, i + 1, ins, ins_count, names, name_count, ignore);
@@ -1005,7 +944,8 @@ becomes:
 		} udiv_bail:
 
 		if (op == set) {
-			const nat b = locate_instruction(si, arg0, 0, 1, 0, i + 1, ins, ins_count, names, name_count, ignore);
+			const nat b = locate_instruction(si, arg0, 0, 1, 0, i + 1, 
+					ins, ins_count, names, name_count, ignore);
 			if (b == (nat) -1) goto lslv_bail;
 			struct instruction new = { .op = lslv };
 			new.args[0] = arg0;
@@ -1017,7 +957,8 @@ becomes:
 		} lslv_bail:
 
 		if (op == set) {
-			const nat b = locate_instruction(add_imm, arg0, 0, 1, 0, i + 1, ins, ins_count, names, name_count, ignore);
+			const nat b = locate_instruction(add_imm, arg0, 0, 1, 0, i + 1, 
+					ins, ins_count, names, name_count, ignore);
 			if (b == (nat) -1) goto addi_bail;
 			struct instruction new = { .op = addi };
 			new.args[0] = arg0;
@@ -1029,7 +970,8 @@ becomes:
 		} addi_bail:
 
 		if (op == set) {
-			const nat b = locate_instruction(sub_imm, arg0, 0, 1, 0, i + 1, ins, ins_count, names, name_count, ignore);
+			const nat b = locate_instruction(sub_imm, arg0, 0, 1, 0, i + 1, 
+					ins, ins_count, names, name_count, ignore);
 			if (b == (nat) -1) goto subi_bail;
 			struct instruction new = { .op = subi };
 			new.args[0] = arg0;
@@ -1040,8 +982,46 @@ becomes:
 			goto finish_mi_instruction;
 		} subi_bail:
 
-		if (op == eq_imm and arg1 == 0) {
+		if (op == set) {
+			const nat b = locate_instruction(eor_imm, arg0, 0, 1, 0, i + 1, 
+					ins, ins_count, names, name_count, ignore);
+			if (b == (nat) -1) goto eori_bail;
+			struct instruction new = { .op = eori };
+			new.args[0] = arg0;
+			new.args[1] = arg1;
+			new.args[2] = ins[b].args[1];
+			mi[mi_count++] = new;
+			selected[i] = 1; selected[b] = 1;
+			goto finish_mi_instruction;
+		} eori_bail:
 
+		if (op == set) {
+			const nat b = locate_instruction(or_imm, arg0, 0, 1, 0, i + 1, 
+					ins, ins_count, names, name_count, ignore);
+			if (b == (nat) -1) goto orri_bail;
+			struct instruction new = { .op = orri };
+			new.args[0] = arg0;
+			new.args[1] = arg1;
+			new.args[2] = ins[b].args[1];
+			mi[mi_count++] = new;
+			selected[i] = 1; selected[b] = 1;
+			goto finish_mi_instruction;
+		} orri_bail:
+
+		if (op == set) {
+			const nat b = locate_instruction(and_imm, arg0, 0, 1, 0, i + 1, 
+					ins, ins_count, names, name_count, ignore);
+			if (b == (nat) -1) goto andi_bail;
+			struct instruction new = { .op = andi };
+			new.args[0] = arg0;
+			new.args[1] = arg1;
+			new.args[2] = ins[b].args[1];
+			mi[mi_count++] = new;
+			selected[i] = 1; selected[b] = 1;
+			goto finish_mi_instruction;
+		} andi_bail:
+
+		if (op == eq_imm and arg1 == 0) {
 			struct instruction new = { .op = cbnz };
 			new.args[0] = arg0;
 			if (ins[i].gotos[0] != i + 1) {
@@ -1053,6 +1033,7 @@ becomes:
 			mi[mi_count++] = new;
 			selected[i] = 1;
 			goto finish_mi_instruction;
+
 		} 
 		else if (op == set) {
 			struct instruction new = { .op = orrsrlsl };
@@ -1064,6 +1045,7 @@ becomes:
 			selected[i] = 1;
 			goto finish_mi_instruction;
 		}
+
 		else if (op == set_imm) {
 			struct instruction new = { .op = movz };
 			new.args[0] = arg0;
@@ -1071,58 +1053,103 @@ becomes:
 			mi[mi_count++] = new;
 			selected[i] = 1;
 			goto finish_mi_instruction;
-		} 
-		else if (op == si) {
-			struct instruction new = { .op = lslv };
-			new.args[0] = arg0;
+		}
+
+		if (op == lt) {			
+			struct instruction new = { .op = subssrlsl };
+			new.args[0] = 0;
 			new.args[1] = arg0;
 			new.args[2] = arg1;
+			new.args[3] = 0;
 			mi[mi_count++] = new;
-			selected[i] = 1;
+			struct instruction new2 = { .op = bcond };
+			new2.args[0] = lt;
+			new2.args[1] = (nat) -1;
+			mi[mi_count++] = new2;
+			selected[i] = 1; 
 			goto finish_mi_instruction;
-		} 
-		else if (op == sd) {
-			struct instruction new = { .op = lsrv };
-			new.args[0] = arg0;
+		}
+
+		if (op == eq) {			
+			struct instruction new = { .op = andssrlsl };
+			new.args[0] = 0;
 			new.args[1] = arg0;
 			new.args[2] = arg1;
+			new.args[3] = 0;
 			mi[mi_count++] = new;
-			selected[i] = 1;
+			struct instruction new2 = { .op = bcond };
+			new2.args[0] = eq;
+			new2.args[1] = (nat) -1;
+			mi[mi_count++] = new2;
+			selected[i] = 1; 
 			goto finish_mi_instruction;
-		} 
-		else if (op == div_) {
-			struct instruction new = { .op = udiv };
-			new.args[0] = arg0;
+		}
+
+		if (op == lt_imm) {			
+			struct instruction new = { .op = subsi };
+			new.args[0] = 0;
 			new.args[1] = arg0;
 			new.args[2] = arg1;
+			new.args[3] = 0;
 			mi[mi_count++] = new;
-			selected[i] = 1;
+			struct instruction new2 = { .op = bcond };
+			new2.args[0] = lt;
+			new2.args[1] = (nat) -1;
+			mi[mi_count++] = new2;
+			selected[i] = 1; 
 			goto finish_mi_instruction;
-		} 
-		else if (op == add_imm) {			
-			struct instruction new = { .op = addi };
+		}
+
+		if (op == eq_imm) {			
+			struct instruction new = { .op = andsi };
+			new.args[0] = 0;
+			new.args[1] = arg0;
+			new.args[2] = arg1;
+			new.args[3] = 0;
+			mi[mi_count++] = new;
+			struct instruction new2 = { .op = bcond };
+			new2.args[0] = eq;
+			new2.args[1] = (nat) -1;
+			mi[mi_count++] = new2;
+			selected[i] = 1; 
+			goto finish_mi_instruction;
+		}
+
+		else {
+			nat n = (nat) -1;
+			if (false) {}
+			else if (op == add) n = addsrlsl;
+			else if (op == sub) n = subsrlsl;
+			else if (op == and_)n = andsrlsl;
+			else if (op == or_) n = orrsrlsl;
+			else if (op == eor) n = eorsrlsl;
+			else if (op == si)  n = lslv;
+			else if (op == sd)  n = lsrv;
+			else if (op == div_)n = udiv;
+			else if (op == add_imm) n = addi;
+			else if (op == sub_imm) n = subi;
+			else if (op == and_imm) n = andi;
+			else if (op == or_imm)  n = orri;
+			else if (op == eor_imm) n = eori;
+			else  { puts("ins sel error"); abort(); }
+
+			struct instruction new = { .op = n };
 			new.args[0] = arg0;
 			new.args[1] = arg0;
 			new.args[2] = arg1;
+			new.args[3] = 0;
 			mi[mi_count++] = new;
 			selected[i] = 1;
 			goto finish_mi_instruction;
 		}
-		else if (op == sub_imm) {			
-			struct instruction new = { .op = subi };
-			new.args[0] = arg0;
-			new.args[1] = arg0;
-			new.args[2] = arg1;
-			mi[mi_count++] = new;
-			selected[i] = 1;
-			goto finish_mi_instruction;
-		}
-		else if (op == sc) {
+
+		/*else if (op == sc) {
 			struct instruction new = { .op = svc };
 			mi[mi_count++] = new;
 			selected[i] = 1;
 			goto finish_mi_instruction;
-		}
+		}*/
+
 
 	finish_mi_instruction:;
 		puts("so far:");
@@ -1130,17 +1157,15 @@ becomes:
 		getchar();
 	}
 
-	print_machine_instructions(mi, mi_count, names, name_count);
-
 	for (nat i = 0; i < ins_count; i++) {
 		if (ignore[i]) continue;
 		if (not selected[i]) {
-			puts("error: instruction was not able to be processed by instruction selection: internal error");
+			puts("error: instruction unprocessed by ins sel: internal error");
 			puts("not selected instruction: ");
 			print_instruction_index(
 				ins, ins_count, 
 				names, name_count, ignore,
-				i, "this instruction failed to be lowered during instruction selection."
+				i, "this failed to be lowered during ins sel."
 			); abort();
 		}
 	}
@@ -1248,6 +1273,88 @@ becomes:
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+/*
+
+	set s b
+	si_imm s k
+	set x z
+	ge a s skip
+		set x y
+	at skip
+
+
+becomes:
+
+	subs XZR, a, b << k
+	csel x, y, z, lt
+
+
+
+*/
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+	/*for (nat pc = 0; pc < ins_count; pc++) {
+		const nat op = ins[pc].op;
+		const nat arg0 = ins[pc].args[0];
+		const nat arg1 = ins[pc].args[1];		
+		if ((op == lt or op == eq) and not is_runtime[arg0] and not is_runtime[arg1]) {
+			const bool condition = op == lt
+				? (values[arg0] < values[arg1])
+				: (values[arg0] == values[arg1]);
+			const nat g = ins[pc].gotos[condition];
+			ins[pc].op = eq;
+			ins[pc].gotos[0] = (nat) -1;
+			ins[pc].gotos[1] = g;
+			ins[pc].args[0] = 0;
+			ins[pc].args[1] = 0;
+		}
+	}
+
+	for (nat pc = 0; pc < ins_count; pc++) {
+		const nat op = ins[pc].op;
+		const nat arg0 = ins[pc].args[0];
+		const nat arg1 = ins[pc].args[1];
+		if (op == eq and not arg0 and not arg1 and ins[pc].gotos[1] == pc + 1) ignore[pc] = 1;
+	}*/
 
 
 

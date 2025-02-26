@@ -37,6 +37,12 @@ set system_open 3
 set system_close 4
 
 
+
+set byte 8
+set nat 64
+
+
+
 eoi
 
 
