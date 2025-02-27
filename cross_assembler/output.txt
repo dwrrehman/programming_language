@@ -1,0 +1,332 @@
+file: (53 chars)
+<<<def1 create x obs x ret
+create bubbles
+create beans
+
+>>>
+
+
+
+
+
+file:4: at "def1" @ 0
+found dictionary: { 
+
+	  0: name = "__ERROR_null_ins_unused__", location =   0, value =   0 
+	  1: name = "def0      ", location =   1, value =   0 
+	  2: name = "def1      ", location =   2, value =   0 
+	  3: name = "def2      ", location =   3, value =   0 
+	  4: name = "def3      ", location =   4, value =   0 
+	  5: name = "def4      ", location =   5, value =   0 
+	  6: name = "def5      ", location =   6, value =   0 
+	  7: name = "def6      ", location =   7, value =   0 
+	  8: name = "def7      ", location =   8, value =   0 
+	  9: name = "ret       ", location =   0, value =   0 
+	 10: name = "obs       ", location =   1, value =   0 
+	 11: name = "lf        ", location =   1, value =   1 
+}
+found dictionary: { 
+
+}
+found instructions: {
+}
+
+
+
+
+
+file:11: at "create" @ 5
+found dictionary: { 
+
+	  0: name = "__ERROR_null_ins_unused__", location =   0, value =   0 
+	  1: name = "def0      ", location =   1, value =   0 
+	  2: name = "def1      ", location =   2, value =   0 
+	  3: name = "def2      ", location =   3, value =   0 
+	  4: name = "def3      ", location =   4, value =   0 
+	  5: name = "def4      ", location =   5, value =   0 
+	  6: name = "def5      ", location =   6, value =   0 
+	  7: name = "def6      ", location =   7, value =   0 
+	  8: name = "def7      ", location =   8, value =   0 
+	  9: name = "ret       ", location =   0, value =   0 
+	 10: name = "obs       ", location =   1, value =   0 
+	 11: name = "lf        ", location =   1, value =   1 
+}
+found dictionary: { 
+
+}
+found instructions: {
+}
+
+
+
+
+
+file:13: at "x" @ 12
+found dictionary: { 
+
+	  0: name = "__ERROR_null_ins_unused__", location =   0, value =   0 
+	  1: name = "def0      ", location =   1, value =   0 
+	  2: name = "def1      ", location =   2, value =   0 
+	  3: name = "def2      ", location =   3, value =   0 
+	  4: name = "def3      ", location =   4, value =   0 
+	  5: name = "def4      ", location =   5, value =   0 
+	  6: name = "def5      ", location =   6, value =   0 
+	  7: name = "def6      ", location =   7, value =   0 
+	  8: name = "def7      ", location =   8, value =   0 
+	  9: name = "ret       ", location =   0, value =   0 
+	 10: name = "obs       ", location =   1, value =   0 
+	 11: name = "lf        ", location =   1, value =   1 
+	 12: name = "create    ", location =   1, value =   0 
+}
+found dictionary: { 
+
+}
+found instructions: {
+}
+generating a general instruction...
+
+
+
+
+
+file:17: at "obs" @ 14
+found dictionary: { 
+
+	  0: name = "__ERROR_null_ins_unused__", location =   0, value =   0 
+	  1: name = "def0      ", location =   1, value =   0 
+	  2: name = "def1      ", location =   2, value =   0 
+	  3: name = "def2      ", location =   3, value =   0 
+	  4: name = "def3      ", location =   4, value =   0 
+	  5: name = "def4      ", location =   5, value =   0 
+	  6: name = "def5      ", location =   6, value =   0 
+	  7: name = "def6      ", location =   7, value =   0 
+	  8: name = "def7      ", location =   8, value =   0 
+	  9: name = "ret       ", location =   0, value =   0 
+	 10: name = "obs       ", location =   1, value =   0 
+	 11: name = "lf        ", location =   1, value =   1 
+	 12: name = "create    ", location =   1, value =   0 
+}
+found dictionary: { 
+
+	  0: name = "x         ", location =   0, value =   0 
+}
+found instructions: {
+	#0000:       def1 {  12('       ')   0('      x')  -1('       ')  -1('       ')  -1('       ')  -1('       ')  -1('       ')   0('      x') }
+}
+
+
+
+
+
+file:19: at "x" @ 18
+found dictionary: { 
+
+	  0: name = "__ERROR_null_ins_unused__", location =   0, value =   0 
+	  1: name = "def0      ", location =   1, value =   0 
+	  2: name = "def1      ", location =   2, value =   0 
+	  3: name = "def2      ", location =   3, value =   0 
+	  4: name = "def3      ", location =   4, value =   0 
+	  5: name = "def4      ", location =   5, value =   0 
+	  6: name = "def5      ", location =   6, value =   0 
+	  7: name = "def6      ", location =   7, value =   0 
+	  8: name = "def7      ", location =   8, value =   0 
+	  9: name = "ret       ", location =   0, value =   0 
+	 10: name = "obs       ", location =   1, value =   0 
+	 11: name = "lf        ", location =   1, value =   1 
+	 12: name = "create    ", location =   1, value =   0 
+}
+found dictionary: { 
+
+	  0: name = "x         ", location =   0, value =   0 
+}
+found instructions: {
+	#0000:       def1 {  12('       ')   0('      x')  -1('       ')  -1('       ')  -1('       ')  -1('       ')  -1('       ')   0('      x') }
+}
+calling OBS!
+def location = 0
+calling = 12
+aritn of calling = 1
+
+
+
+
+
+file:23: at "ret" @ 20
+found dictionary: { 
+
+	  0: name = "__ERROR_null_ins_unused__", location =   0, value =   0 
+	  1: name = "def0      ", location =   1, value =   0 
+	  2: name = "def1      ", location =   2, value =   0 
+	  3: name = "def2      ", location =   3, value =   0 
+	  4: name = "def3      ", location =   4, value =   0 
+	  5: name = "def4      ", location =   5, value =   0 
+	  6: name = "def5      ", location =   6, value =   0 
+	  7: name = "def6      ", location =   7, value =   0 
+	  8: name = "def7      ", location =   8, value =   0 
+	  9: name = "ret       ", location =   0, value =   0 
+	 10: name = "obs       ", location =   1, value =   0 
+	 11: name = "lf        ", location =   1, value =   1 
+	 12: name = "create    ", location =   1, value =   1 
+}
+found dictionary: { 
+
+	  0: name = "x         ", location =   0, value =   0 
+}
+found instructions: {
+	#0000:       def1 {  12('       ')   0('      x')  -1('       ')  -1('       ')  -1('       ')  -1('       ')  -1('       ')   0('      x') }
+}
+generating a general instruction...
+
+
+
+
+
+file:30: at "create" @ 24
+found dictionary: { 
+
+	  0: name = "__ERROR_null_ins_unused__", location =   0, value =   0 
+	  1: name = "def0      ", location =   1, value =   0 
+	  2: name = "def1      ", location =   2, value =   0 
+	  3: name = "def2      ", location =   3, value =   0 
+	  4: name = "def3      ", location =   4, value =   0 
+	  5: name = "def4      ", location =   5, value =   0 
+	  6: name = "def5      ", location =   6, value =   0 
+	  7: name = "def6      ", location =   7, value =   0 
+	  8: name = "def7      ", location =   8, value =   0 
+	  9: name = "ret       ", location =   0, value =   0 
+	 10: name = "obs       ", location =   1, value =   0 
+	 11: name = "lf        ", location =   1, value =   1 
+	 12: name = "create    ", location =   1, value =   1 
+}
+found dictionary: { 
+
+	  0: name = "x         ", location =   0, value =   0 
+}
+found instructions: {
+	#0000:       def1 {  12('       ')   0('      x')  -1('       ')  -1('       ')  -1('       ')  -1('       ')  -1('       ')   0('      x') }
+	#0001:        ret {   0('      x')  -1('       ')  -1('       ')  -1('       ')  -1('       ')  -1('       ')  -1('       ')   0('      x') }
+}
+
+
+
+
+
+file:38: at "bubbles" @ 31
+found dictionary: { 
+
+	  0: name = "__ERROR_null_ins_unused__", location =   0, value =   0 
+	  1: name = "def0      ", location =   1, value =   0 
+	  2: name = "def1      ", location =   2, value =   0 
+	  3: name = "def2      ", location =   3, value =   0 
+	  4: name = "def3      ", location =   4, value =   0 
+	  5: name = "def4      ", location =   5, value =   0 
+	  6: name = "def5      ", location =   6, value =   0 
+	  7: name = "def6      ", location =   7, value =   0 
+	  8: name = "def7      ", location =   8, value =   0 
+	  9: name = "ret       ", location =   0, value =   0 
+	 10: name = "obs       ", location =   1, value =   0 
+	 11: name = "lf        ", location =   1, value =   1 
+	 12: name = "create    ", location =   1, value =   1 
+}
+found dictionary: { 
+
+	  0: name = "x         ", location =   0, value =   0 
+}
+found instructions: {
+	#0000:       def1 {  12('       ')   0('      x')  -1('       ')  -1('       ')  -1('       ')  -1('       ')  -1('       ')   0('      x') }
+	#0001:        ret {   0('      x')  -1('       ')  -1('       ')  -1('       ')  -1('       ')  -1('       ')  -1('       ')   0('      x') }
+}
+generating a general instruction...
+
+
+
+
+
+file:45: at "create" @ 39
+found dictionary: { 
+
+	  0: name = "__ERROR_null_ins_unused__", location =   0, value =   0 
+	  1: name = "def0      ", location =   1, value =   0 
+	  2: name = "def1      ", location =   2, value =   0 
+	  3: name = "def2      ", location =   3, value =   0 
+	  4: name = "def3      ", location =   4, value =   0 
+	  5: name = "def4      ", location =   5, value =   0 
+	  6: name = "def5      ", location =   6, value =   0 
+	  7: name = "def6      ", location =   7, value =   0 
+	  8: name = "def7      ", location =   8, value =   0 
+	  9: name = "ret       ", location =   0, value =   0 
+	 10: name = "obs       ", location =   1, value =   0 
+	 11: name = "lf        ", location =   1, value =   1 
+	 12: name = "create    ", location =   1, value =   1 
+}
+found dictionary: { 
+
+	  0: name = "x         ", location =   0, value =   0 
+	  1: name = "bubbles   ", location =   0, value =   0 
+}
+found instructions: {
+	#0000:       def1 {  12('       ')   0('      x')  -1('       ')  -1('       ')  -1('       ')  -1('       ')  -1('       ')   0('      x') }
+	#0001:        ret {   0('      x')  -1('       ')  -1('       ')  -1('       ')  -1('       ')  -1('       ')  -1('       ')   0('      x') }
+	#0002:     create {   1('bubbles')  -1('       ')  -1('       ')  -1('       ')  -1('       ')  -1('       ')  -1('       ')   0('      x') }
+}
+
+
+
+
+
+file:51: at "beans" @ 46
+found dictionary: { 
+
+	  0: name = "__ERROR_null_ins_unused__", location =   0, value =   0 
+	  1: name = "def0      ", location =   1, value =   0 
+	  2: name = "def1      ", location =   2, value =   0 
+	  3: name = "def2      ", location =   3, value =   0 
+	  4: name = "def3      ", location =   4, value =   0 
+	  5: name = "def4      ", location =   5, value =   0 
+	  6: name = "def5      ", location =   6, value =   0 
+	  7: name = "def6      ", location =   7, value =   0 
+	  8: name = "def7      ", location =   8, value =   0 
+	  9: name = "ret       ", location =   0, value =   0 
+	 10: name = "obs       ", location =   1, value =   0 
+	 11: name = "lf        ", location =   1, value =   1 
+	 12: name = "create    ", location =   1, value =   1 
+}
+found dictionary: { 
+
+	  0: name = "x         ", location =   0, value =   0 
+	  1: name = "bubbles   ", location =   0, value =   0 
+}
+found instructions: {
+	#0000:       def1 {  12('       ')   0('      x')  -1('       ')  -1('       ')  -1('       ')  -1('       ')  -1('       ')   0('      x') }
+	#0001:        ret {   0('      x')  -1('       ')  -1('       ')  -1('       ')  -1('       ')  -1('       ')  -1('       ')   0('      x') }
+	#0002:     create {   1('bubbles')  -1('       ')  -1('       ')  -1('       ')  -1('       ')  -1('       ')  -1('       ')   0('      x') }
+}
+generating a general instruction...
+found dictionary: { 
+
+	  0: name = "__ERROR_null_ins_unused__", location =   0, value =   0 
+	  1: name = "def0      ", location =   1, value =   0 
+	  2: name = "def1      ", location =   2, value =   0 
+	  3: name = "def2      ", location =   3, value =   0 
+	  4: name = "def3      ", location =   4, value =   0 
+	  5: name = "def4      ", location =   5, value =   0 
+	  6: name = "def5      ", location =   6, value =   0 
+	  7: name = "def6      ", location =   7, value =   0 
+	  8: name = "def7      ", location =   8, value =   0 
+	  9: name = "ret       ", location =   0, value =   0 
+	 10: name = "obs       ", location =   1, value =   0 
+	 11: name = "lf        ", location =   1, value =   1 
+	 12: name = "create    ", location =   1, value =   1 
+}
+found dictionary: { 
+
+	  0: name = "x         ", location =   0, value =   0 
+	  1: name = "bubbles   ", location =   0, value =   0 
+	  2: name = "beans     ", location =   0, value =   0 
+}
+found instructions: {
+	#0000:       def1 {  12('       ')   0('      x')  -1('       ')  -1('       ')  -1('       ')  -1('       ')  -1('       ')   0('      x') }
+	#0001:        ret {   0('      x')  -1('       ')  -1('       ')  -1('       ')  -1('       ')  -1('       ')  -1('       ')   0('      x') }
+	#0002:     create {   1('bubbles')  -1('       ')  -1('       ')  -1('       ')  -1('       ')  -1('       ')  -1('       ')   0('      x') }
+	#0003:     create {   2('  beans')  -1('       ')  -1('       ')  -1('       ')  -1('       ')  -1('       ')  -1('       ')   0('      x') }
+}
