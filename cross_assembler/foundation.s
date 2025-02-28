@@ -82,9 +82,30 @@ set 100000 10000 mul 100000 10
 set 1000000 100000 mul 1000000 10
 
 
+set true 1
+set false 0
+
+set nat 64
+set byte 8
+
+set compiletime_only 0
+set arm64_arch 1
+set arm32_arch 2
+set rv64_arch 3
+set rv32_arch 4
+
+
 
 eoi
 
+
+
+
+
+
+
+
+	enum all_architectures { no_arch, arm64_arch, arm32_arch, rv64_arch, rv32_arch };
 
 
 

@@ -41,6 +41,8 @@ enum compiletime_language_isa {
 	ld, st, 
 
 	ctdebug,
+
+	ct_isa_count
 };
 
 struct instruction {
@@ -48,7 +50,7 @@ struct instruction {
 	nat args[8];
 };
 
-enum arm64_ins_set {
+/*enum arm64_ins_set {
 	addsrlsl, addsrlsr,
 	subsrlsl, subsrlsr,
 	andsrlsl, andsrlsr,
@@ -84,6 +86,10 @@ static const char* mi_spelling[arm_isa_count] = {
 	"csel", "cbz", "cbnz", "bcond",
 	"svc",
 };
+
+*/
+
+
 
 struct file {
 	nat index;
@@ -172,6 +178,33 @@ static void print_instruction_index(
 	}
 	puts("}");
 }
+
+
+
+enum {
+	nop = ct_isa_count, 
+
+	svc, return_, 
+
+	addrlsl,
+
+
+
+
+
+	arm64_isa_count,
+};
+
+
+
+static nat is_runtime_arg(nat op, nat arg) {
+
+	if (op == addrlsl and arg == 3) return 0;
+
+	return 1;
+}
+
+
 
 int main(int argc, const char** argv) {
 	if (argc != 2) exit(puts("compiler: \033[31;1merror:\033[0m usage: ./run [file.s]"));
@@ -345,6 +378,7 @@ process_file:;
 		} 
 		next_word: word_length = 0;
 	}
+	if (comment) { puts("error: unterminated comment"); abort(); }
 	filestack_count--;
 	if (filestack_count) goto process_file;
 	}
@@ -366,6 +400,7 @@ process_file:;
 	nat values[4096] = {0};
 	nat bit_count[4096] = {0};
 	nat register_constraint[4096] = {0};
+	memset(register_constraint, 255, sizeof register_constraint);
 
 	enum all_architectures { no_arch, arm64_arch, arm32_arch, rv64_arch, rv32_arch };
 	nat target_architecture = no_arch;
@@ -375,6 +410,14 @@ process_file:;
 	nat if_seen[8 * 4096] = {0};
 	nat replace_with[8 * 4096] = {0};
 	nat replacement_count[4096] = {0};
+
+
+	struct instruction rt_ins[4096] = {0};
+	nat rt_ins_count = 0;
+
+
+
+
 
 	nat pc = 0;
 	while (pc < ins_count) {
@@ -465,6 +508,8 @@ process_file:;
 			if (target_architecture == no_arch) {
 				// treat it like a macro function call!
 
+			call_macro:
+
 				for (nat r = 0; r < arity[op]; r++) {
 					if_seen[8 * stack_count + r] = ins[definitions[op]].args[1 + r];
 					replace_with[8 * stack_count + r] = ins[pc].args[r];
@@ -476,10 +521,23 @@ process_file:;
 				//puts("calling macro...");
 				goto next_instruction;
 
-			} else { // generate runtime instruction!
+			} else if (target_architecture) {
 
+				if (op >= arm64_isa_count) goto call_macro;
 
-			}
+				struct instruction new = { .op = op };
+				memcpy(new.args, args, sizeof args);
+
+				for (nat i = 0; i < arity[op]; i++) 
+					if (not is_runtime_arg(op, i)) 
+						new.args[i] = values[args[i]]; 
+					else if (bit_count[args[i]] == 0 and ((observable[op] >> i) & 1) ) 
+						bit_count[args[i]] = 64;
+
+				rt_ins[rt_ins_count++] = new;
+
+			} else { puts("unknown arch so far..."); abort(); }
+
 			//puts("unknown execution for instruction");
 			//printf("op = %llu (\"%s\")\n", op, operations[op]);
 			//abort();
@@ -490,10 +548,8 @@ process_file:;
 		pc++;
 	}
 	
-
-	exit(0);
-
 	puts("finished executing CT instruction");
+	
 	print_dictionary(operations, arity, observable, operation_defined_in_scope, operation_count);
 	print_dictionary(variables, locations, values, variable_defined_in_scope, variable_count);
 	print_instruction_index(ins, ins_count, variables, operations, arity, variable_count, operation_count, ignore, ins_count, ""); 
@@ -501,7 +557,72 @@ process_file:;
 
 	printf("[INFO]: assembling for target_arch = %llu\n", target_architecture);
 
+	print_instructions(rt_ins, rt_ins_count, variables, operations, arity, variable_count, operation_count, ignore);
+
+
+	for (nat i = 0; i < variable_count; i++) {
+		if (register_constraint[i] != (nat) -1) 
+			printf("\t RA CONSTRAINT: %s has register index r[%llu].\n", variables[i], register_constraint[i]);
+	}
+
+	for (nat i = 0; i < variable_count; i++) {
+		if (bit_count[i]) 
+			printf("\t BC CONSTRAINT: %s is %llu bits wide.\n", variables[i], bit_count[i]);
+	}
+
+
+
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 

@@ -6,7 +6,7 @@
 
 lf foundation.s
 
-set n 100    . set this to some number! . 
+set n 10000    . set this to some number! . 
 set i 2 
 set count 0
 
