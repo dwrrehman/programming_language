@@ -10,30 +10,12 @@
 #include <stdbool.h>
 #include <ctype.h>
 typedef uint64_t nat;
-/*
-
-
-def1 create x obs x 
-	ret
-create a
-create b
-
-
-def4 csel x y z cond
-	obs x
-	...body....
-	ret
-
-
-*/
 
 enum core_language_isa {
 	nullins,
 	def0, def1, def2, def3, 
 	def4, def5, def6, def7, 
-	ret, obs, lf,
-	isa_count,
-
+	ret, obs, lf, isa_count,
 };
 
 static const char* ins_spelling[] = {
@@ -46,7 +28,7 @@ static const char* ins_spelling[] = {
 
 enum compiletime_language_isa {
 
-	settarget = isa_count,
+	settarget = isa_count, rt, ri, 
 
 	zero, incr, decr, not_, 
 
@@ -54,9 +36,11 @@ enum compiletime_language_isa {
 
 	and_, or_, eor, si, sd, 
 
-	lt, eq, ge, ne, do_, 
+	lt, ge, eq, ne, do_, at, 
 
-	at, ld, st,
+	ld, st, 
+
+	ctdebug,
 };
 
 struct instruction {
@@ -108,6 +92,20 @@ struct file {
 	const char* filename;
 };
 
+static void print_stack(nat* stack, nat* replacement_count, nat* if_seen, nat* replace_with, nat stack_count) {
+	printf("stack: %llu { \n", stack_count);
+	for (nat i = 0; i < stack_count; i++) {
+		printf("stack[%llu] =  { pc = %llu , replacement_count=%llu, { ", 
+			i, stack[i], replacement_count[i]
+		);
+		for (nat r = 0; r < replacement_count[i]; r++) {
+			printf("(%llu:%llu) ", if_seen[8 * i + r], replace_with[8 * i + r]);
+		}
+		puts(" } ");
+	}
+	puts("}");
+}
+
 static void print_index(const char* text, nat text_length, nat begin, nat end) {
 	printf("\n\t@%llu..%llu: ", begin, end); 
 	for (nat i = 0; i < text_length; i++) {
@@ -141,127 +139,7 @@ static void print_instruction(struct instruction this, char** names, char** oper
 		else printf("('%7s') ", this.args[a] < name_count ? names[this.args[a]] : "");
 	}
 	printf("}");
-
-
-
-/*	printf("} : {.f=#");
-	if (this.gotos[0] == ~is_label or this.gotos[0] == (nat) -1) {} 
-	else if (this.gotos[0] < 256) printf("%3llu", this.gotos[0]); 
-	else printf("0x%016llx", this.gotos[0]);
-	printf(", .t=#");
-	if (this.gotos[1] == ~is_label or this.gotos[1] == (nat) -1) {} 
-	else if (this.gotos[1] < 256) printf("%3llu", this.gotos[1]); 
-	else printf("0x%016llx", this.gotos[1]);
-	printf("}");
-*/
-
 }
-
-
-
-
-/*
-
-static void print_ct_values(char** names, nat name_count, nat* is_runtime, nat* values) {
-	printf("ct values: {\n");
-	for (nat i = 0; i < name_count; i++) {
-		if (is_runtime[i]) continue;
-		printf("\tvalues[%s] = 0x%016llx\n", names[i], values[i]);
-	}
-	puts("}");
-}
-
-static void print_machine_instruction(struct instruction this, char** names, nat name_count) {
-	printf("  %13s { ", mi_spelling[this.op]);
-	for (nat a = 0; a < 5; a++) {
-		if (this.op == csel and a == 3) { printf("        #{%s}   ", ins_spelling[this.args[a]]); continue; }
-		if (this.args[a] < 256) printf("%3llu", this.args[a]); 
-		else printf("0x%016llx[%llu]", this.args[a], this.args[a]);
-		printf("('%8s') ", this.args[a] < name_count ? names[this.args[a]] : "");
-	}
-
-	printf("}");
-
-
-	printf("} : {.f=#");
-	if (this.gotos[0] == ~is_label or this.gotos[0] == (nat) -1) {} 
-	else if (this.gotos[0] < 256) printf("%3llu", this.gotos[0]); 
-	else printf("0x%016llx", this.gotos[0]);
-	printf(", .t=#");
-	if (this.gotos[1] == ~is_label or this.gotos[1] == (nat) -1) {} 
-	else if (this.gotos[1] < 256) printf("%3llu", this.gotos[1]); 
-	else printf("0x%016llx", this.gotos[1]);
-	printf("}");
-
-}
-
-
-static void print_stack(nat* stack, nat stack_count) {
-	printf("stack: %llu { \n", stack_count);
-	for (nat i = 0; i < stack_count; i++) {
-		printf("stack[%llu] =  %llu\n", 
-			i, stack[i]
-		);
-	}
-	puts("}");
-}
-
-static void print_machine_instructions(
-	struct instruction* ins, nat ins_count, 
-	char** names, nat name_count
-) {
-	printf("MACHINE INSTRUCTIONS: (%llu count) {\n", ins_count);
-	for (nat i = 0; i < ins_count; i++) {
-		printf("\t#%04llu: ", i);
-		print_machine_instruction(ins[i], names, name_count);
-		puts("");
-	}
-	puts("}");
-}
-
-static void print_instruction_index(
-	struct instruction* ins, nat ins_count, 
-	char** names, char** operations, nat* arity, nat name_count, nat operation_count, nat* ignore,
-	nat here, const char* message
-) {
-	printf("%s: at index: %llu: { \n", message, here);
-	for (nat i = 0; i < ins_count; i++) {
-		if (ignore[i]) printf("\033[38;5;239m");
-		printf("\t#%04llu: ", i);
-		print_instruction(ins[i], names, operations, arity, name_count);
-
-		if (i == here)  printf("  <------ %s\n", message); else puts("");
-		if (ignore[i]) printf("\033[0m");
-	}
-	puts("}");
-}
-
-static void print_instruction_index_selected(
-	struct instruction* ins, nat ins_count, 
-	char** names, nat name_count, nat* ignore,
-	nat here, const char* message, nat* selected
-) {
-	printf("%s: at index: %llu: { \n", message, here);
-	for (nat i = 0; i < ins_count; i++) {
-		if (ignore[i]) printf("\033[38;5;239m");
-		printf("%c\t#%04llu: ", selected[i] ? 'S' : ' ', i);
-		print_instruction(ins[i], names, operations, name_count);
-		if (i == here)  printf("  <------ %s\n", message); else puts("");
-		if (ignore[i]) printf("\033[0m");
-	}
-	puts("}");
-}
-
-static void print_ct_values(char** names, nat name_count, nat* is_runtime, nat* values) {
-	printf("ct values: {\n");
-	for (nat i = 0; i < name_count; i++) {
-		if (is_runtime[i]) continue;
-		printf("\tvalues[%s] = 0x%016llx\n", names[i], values[i]);
-	}
-	puts("}");
-}
-*/
-
 
 static void print_instructions(
 	struct instruction* ins, nat ins_count, 
@@ -279,16 +157,6 @@ static void print_instructions(
 	puts("}");
 }
 
-static void print_stack(nat* stack, nat stack_count) {
-	printf("stack: %llu { \n", stack_count);
-	for (nat i = 0; i < stack_count; i++) {
-		printf("stack[%llu] =  %llu\n", 
-			i, stack[i]
-		);
-	}
-	puts("}");
-}
-
 static void print_instruction_index(
 	struct instruction* ins, nat ins_count, 
 	char** names, char** operations, nat* arity, nat name_count, nat operation_count, nat* ignore,
@@ -298,14 +166,12 @@ static void print_instruction_index(
 	for (nat i = 0; i < ins_count; i++) {
 		if (ignore[i]) printf("\033[38;5;239m");
 		printf("\t#%04llu: ", i);
-		//print_instruction(ins[i], names, operations, arity, name_count);
 		print_instruction(ins[i], names, operations, arity, name_count, operation_count);
 		if (i == here)  printf("  <------ %s\n", message); else puts("");
 		if (ignore[i]) printf("\033[0m");
 	}
 	puts("}");
 }
-
 
 int main(int argc, const char** argv) {
 	if (argc != 2) exit(puts("compiler: \033[31;1merror:\033[0m usage: ./run [file.s]"));
@@ -366,11 +232,11 @@ process_file:;
 		puts("\n\n\n\n");
 		char* word = strndup(text + word_start, word_length);
 		printf("file:%llu: at \"%s\" @ %llu\n", index, word, word_start);
-		nat ignore[4096] = {0};
-		print_stack(scopes, scope_count);
-		print_dictionary(operations, arity, observable, operation_defined_in_scope, operation_count);
-		print_dictionary(variables, locations, locations, variable_defined_in_scope, variable_count);
-		print_instructions(ins, ins_count, variables, operations, arity, variable_count, operation_count, ignore);
+		//nat ignore[4096] = {0};
+		//print_stack(scopes, scope_count);
+		//print_dictionary(operations, arity, observable, operation_defined_in_scope, operation_count);
+		//print_dictionary(variables, locations, locations, variable_defined_in_scope, variable_count);
+		//print_instructions(ins, ins_count, variables, operations, arity, variable_count, operation_count, ignore);
 		//getchar();
 
 		if (not strcmp(word, ".") and not comment) { comment = 1; goto next_word; }
@@ -490,7 +356,7 @@ process_file:;
 
 	puts("finished parsing. beginning CT execution...");
 
-	getchar();
+	//getchar();
 
 	nat definitions[4096] = {0};
 
@@ -498,39 +364,57 @@ process_file:;
 	nat stack_count = 0;
 	nat def_stack_count = 0;
 	nat values[4096] = {0};
+	nat bit_count[4096] = {0};
+	nat register_constraint[4096] = {0};
 
 	enum all_architectures { no_arch, arm64_arch, arm32_arch, rv64_arch, rv32_arch };
 	nat target_architecture = no_arch;
 
+	for (nat i = 0; i < ins_count; i++) if (ins[i].op == at) locations[ins[i].args[0]] = i;
+
+	nat if_seen[8 * 4096] = {0};
+	nat replace_with[8 * 4096] = {0};
+	nat replacement_count[4096] = {0};
+
 	nat pc = 0;
 	while (pc < ins_count) {
+		//printf("executing this instruction: [pc = %llu] : ", pc);
+		//print_dictionary(operations, arity, observable, operation_defined_in_scope, operation_count);
+		//print_instruction_index(ins, ins_count, variables, operations, arity, variable_count, operation_count, ignore, pc, "PC"); puts("");
+		//print_dictionary(variables, locations, values, variable_defined_in_scope, variable_count);
+		//print_dictionary(variables + (variable_count - 10), locations + (variable_count - 10), values + (variable_count - 10), variable_defined_in_scope + (variable_count - 10), 10);
+	
+		//print_stack(stack, replacement_count, if_seen, replace_with, stack_count);
 		const nat op = ins[pc].op;
-		const nat arg0 = ins[pc].args[0];
-		if (op == at)  { printf("PRE-executing AT"); locations[arg0] = pc; }
-		pc++;
-	}
+		//printf("op = %llu (\"%s\")\n", op, operations[op]);
 
-	pc = 0;
-	while (pc < ins_count) {
+		nat args[8] = {0};
+		memcpy(args, ins[pc].args, sizeof args);
 
-		printf("executing this instruction: [pc = %llu] : ", pc);
-		print_dictionary(operations, arity, observable, operation_defined_in_scope, operation_count);
-		print_dictionary(variables, locations, values, variable_defined_in_scope, variable_count);
-		print_instruction_index(ins, ins_count, variables, operations, arity, variable_count, operation_count, ignore, pc, "PC"); puts("");
+		if (stack_count) {
+			for (nat a = 0; a < arity[op]; a++) {
+				for (nat r = 0; r < replacement_count[stack_count - 1]; r++) {
+					if (args[a] == if_seen[ 8 * (stack_count - 1) + r]) {
+						/*printf("WARNING: performed argument replacement: found %llu(%s), replaced with %llu(%s).\n",
+							args[a], variables[args[a]], 
+							replace_with[8 * (stack_count - 1) + r],
+							variables[replace_with[8 * (stack_count - 1) + r]]);*/
+						args[a] = replace_with[8 * (stack_count - 1) + r];
+						
+					}
+				}
+			}
+		}
 
-		const nat op = ins[pc].op;
-		printf("op = %llu (\"%s\")\n", op, operations[op]);
-		
-
-		const nat arg0 = ins[pc].args[0];
-		const nat arg1 = ins[pc].args[1];
-		const nat arg2 = ins[pc].args[2];
+		const nat arg0 = args[0];
+		const nat arg1 = args[1];
+		const nat arg2 = args[2];
 
 		if (op >= def0 and op <= def7) {
-			puts("found def!");
+			//puts("found def!");
 			const nat n = ins[pc].args[0];
 
-			printf("ins[pc].args[0] = %llu\n", n);
+			//printf("ins[pc].args[0] = %llu\n", n);
 
 			definitions[n] = pc;
 			def_stack_count++;
@@ -541,54 +425,73 @@ process_file:;
 			if (def_stack_count) { def_stack_count--; goto next_instruction; }
 			if (not stack_count) abort();
 			pc = stack[--stack_count];
-			puts("returning..");
-			abort();
+			//puts("returning...");
+			goto next_instruction;
 
 		} else if (def_stack_count) goto next_instruction;
 
-		if (op == settarget) {
-			printf("executing SET TARGET");
-			target_architecture = values[arg0];
-		} 
-
-		else if (op == zero) { printf("executing ZERO"); values[arg0] = 0; } 
-		else if (op == incr) { printf("executing INCR"); values[arg0]++; }
-		else if (op == decr) { printf("executing DECR"); values[arg0]--; }
-		else if (op == not_) { printf("executing NOT"); values[arg0] = ~values[arg0]; } 
-
-		else if (op == set)  { printf("executing SET"); values[arg0] = values[arg1]; }
-		else if (op == add)  { printf("executing ADD"); values[arg0] += values[arg1]; }
-		else if (op == sub)  { printf("executing SUB"); values[arg0] -= values[arg1]; }
-		else if (op == mul)  { printf("executing MUL"); values[arg0] -= values[arg1]; }
-		else if (op == div_)  { printf("executing DIV"); values[arg0] /= values[arg1]; }
-		else if (op == rem)  { printf("executing REM"); values[arg0] %= values[arg1]; }
-
-		else if (op == and_)  { printf("executing AND"); values[arg0] &= values[arg1]; }
-		else if (op == or_)  { printf("executing OR"); values[arg0] |= values[arg1]; }
-		else if (op == eor)  { printf("executing EOR"); values[arg0] ^= values[arg1]; }
-		else if (op == si)  { printf("executing SI"); values[arg0] <<= values[arg1]; }
-		else if (op == sd)  { printf("executing SD"); values[arg0] >>= values[arg1]; }
-
+		if (op == settarget) target_architecture = values[arg0];
+		else if (op == rt) bit_count[arg0] = values[arg1];
+		else if (op == ri) register_constraint[arg0] = values[arg1];
+		else if (op == zero) values[arg0] = 0;
+		else if (op == incr) values[arg0]++;
+		else if (op == decr) values[arg0]--;
+		else if (op == not_) values[arg0] = ~values[arg0]; 
+		else if (op == set)  values[arg0] = values[arg1];
+		else if (op == add)  values[arg0] += values[arg1];
+		else if (op == sub)  values[arg0] -= values[arg1];
+		else if (op == mul)  values[arg0] *= values[arg1];
+		else if (op == div_) values[arg0] /= values[arg1];
+		else if (op == rem)  values[arg0] %= values[arg1];
+		else if (op == and_) values[arg0] &= values[arg1];
+		else if (op == or_)  values[arg0] |= values[arg1];
+		else if (op == eor)  values[arg0] ^= values[arg1];
+		else if (op == si)   values[arg0] <<= values[arg1];
+		else if (op == sd)   values[arg0] >>= values[arg1];
 		else if (op == ld)  { printf("executing LD"); values[arg0] = values[arg1]; abort(); }
 		else if (op == st)  { printf("executing ST"); values[arg0] = values[arg1]; abort(); }
 
-		else if (op == at)  { printf("executing AT"); locations[arg0] = pc; }
-		else if (op == do_)  { printf("executing DO"); pc = locations[arg0]; }
-		else if (op == lt)  { printf("executing LT"); if (values[arg0] < values[arg1]) pc = locations[arg2]; }
-		else if (op == ge)  { printf("executing GE"); if (values[arg0] >= values[arg1]) pc = locations[arg2]; }
-		else if (op == eq)  { printf("executing EQ"); if (values[arg0] == values[arg1]) pc = locations[arg2]; }
-		else if (op == ne)  { printf("executing NE"); if (values[arg0] != values[arg1]) pc = locations[arg2]; }
+		else if (op == at) locations[arg0] = pc;
+		else if (op == do_) pc = locations[arg0];
+		else if (op == lt) { if (values[arg0]  < values[arg1]) pc = locations[arg2]; }
+		else if (op == ge) { if (values[arg0] >= values[arg1]) pc = locations[arg2]; }
+		else if (op == eq) { if (values[arg0] == values[arg1]) pc = locations[arg2]; }
+		else if (op == ne) { if (values[arg0] != values[arg1]) pc = locations[arg2]; }
+
+		else if (op == ctdebug)  { printf("ctdebug: %llu\n", values[arg0]); } //getchar();
 
 		else {
-			puts("unknown execution for instruction");
-			printf("op = %llu (\"%s\")\n", op, operations[op]);
-			abort();
+
+			if (target_architecture == no_arch) {
+				// treat it like a macro function call!
+
+				for (nat r = 0; r < arity[op]; r++) {
+					if_seen[8 * stack_count + r] = ins[definitions[op]].args[1 + r];
+					replace_with[8 * stack_count + r] = ins[pc].args[r];
+				}
+
+				replacement_count[stack_count] = arity[op];
+				stack[stack_count++] = pc;
+				pc = definitions[op];
+				//puts("calling macro...");
+				goto next_instruction;
+
+			} else { // generate runtime instruction!
+
+
+			}
+			//puts("unknown execution for instruction");
+			//printf("op = %llu (\"%s\")\n", op, operations[op]);
+			//abort();
 		}
 
 	next_instruction:
-		getchar();
+		//getchar();
 		pc++;
 	}
+	
+
+	exit(0);
 
 	puts("finished executing CT instruction");
 	print_dictionary(operations, arity, observable, operation_defined_in_scope, operation_count);
@@ -646,6 +549,118 @@ process_file:;
 
 
 
+/*	printf("} : {.f=#");
+	if (this.gotos[0] == ~is_label or this.gotos[0] == (nat) -1) {} 
+	else if (this.gotos[0] < 256) printf("%3llu", this.gotos[0]); 
+	else printf("0x%016llx", this.gotos[0]);
+	printf(", .t=#");
+	if (this.gotos[1] == ~is_label or this.gotos[1] == (nat) -1) {} 
+	else if (this.gotos[1] < 256) printf("%3llu", this.gotos[1]); 
+	else printf("0x%016llx", this.gotos[1]);
+	printf("}");
+*/
+
+/*
+
+static void print_ct_values(char** names, nat name_count, nat* is_runtime, nat* values) {
+	printf("ct values: {\n");
+	for (nat i = 0; i < name_count; i++) {
+		if (is_runtime[i]) continue;
+		printf("\tvalues[%s] = 0x%016llx\n", names[i], values[i]);
+	}
+	puts("}");
+}
+
+static void print_machine_instruction(struct instruction this, char** names, nat name_count) {
+	printf("  %13s { ", mi_spelling[this.op]);
+	for (nat a = 0; a < 5; a++) {
+		if (this.op == csel and a == 3) { printf("        #{%s}   ", ins_spelling[this.args[a]]); continue; }
+		if (this.args[a] < 256) printf("%3llu", this.args[a]); 
+		else printf("0x%016llx[%llu]", this.args[a], this.args[a]);
+		printf("('%8s') ", this.args[a] < name_count ? names[this.args[a]] : "");
+	}
+
+	printf("}");
+
+
+	printf("} : {.f=#");
+	if (this.gotos[0] == ~is_label or this.gotos[0] == (nat) -1) {} 
+	else if (this.gotos[0] < 256) printf("%3llu", this.gotos[0]); 
+	else printf("0x%016llx", this.gotos[0]);
+	printf(", .t=#");
+	if (this.gotos[1] == ~is_label or this.gotos[1] == (nat) -1) {} 
+	else if (this.gotos[1] < 256) printf("%3llu", this.gotos[1]); 
+	else printf("0x%016llx", this.gotos[1]);
+	printf("}");
+
+}
+
+
+static void print_stack(nat* stack, nat stack_count) {
+	printf("stack: %llu { \n", stack_count);
+	for (nat i = 0; i < stack_count; i++) {
+		printf("stack[%llu] =  %llu\n", 
+			i, stack[i]
+		);
+	}
+	puts("}");
+}
+
+static void print_machine_instructions(
+	struct instruction* ins, nat ins_count, 
+	char** names, nat name_count
+) {
+	printf("MACHINE INSTRUCTIONS: (%llu count) {\n", ins_count);
+	for (nat i = 0; i < ins_count; i++) {
+		printf("\t#%04llu: ", i);
+		print_machine_instruction(ins[i], names, name_count);
+		puts("");
+	}
+	puts("}");
+}
+
+static void print_instruction_index(
+	struct instruction* ins, nat ins_count, 
+	char** names, char** operations, nat* arity, nat name_count, nat operation_count, nat* ignore,
+	nat here, const char* message
+) {
+	printf("%s: at index: %llu: { \n", message, here);
+	for (nat i = 0; i < ins_count; i++) {
+		if (ignore[i]) printf("\033[38;5;239m");
+		printf("\t#%04llu: ", i);
+		print_instruction(ins[i], names, operations, arity, name_count);
+
+		if (i == here)  printf("  <------ %s\n", message); else puts("");
+		if (ignore[i]) printf("\033[0m");
+	}
+	puts("}");
+}
+
+static void print_instruction_index_selected(
+	struct instruction* ins, nat ins_count, 
+	char** names, nat name_count, nat* ignore,
+	nat here, const char* message, nat* selected
+) {
+	printf("%s: at index: %llu: { \n", message, here);
+	for (nat i = 0; i < ins_count; i++) {
+		if (ignore[i]) printf("\033[38;5;239m");
+		printf("%c\t#%04llu: ", selected[i] ? 'S' : ' ', i);
+		print_instruction(ins[i], names, operations, name_count);
+		if (i == here)  printf("  <------ %s\n", message); else puts("");
+		if (ignore[i]) printf("\033[0m");
+	}
+	puts("}");
+}
+
+static void print_ct_values(char** names, nat name_count, nat* is_runtime, nat* values) {
+	printf("ct values: {\n");
+	for (nat i = 0; i < name_count; i++) {
+		if (is_runtime[i]) continue;
+		printf("\tvalues[%s] = 0x%016llx\n", names[i], values[i]);
+	}
+	puts("}");
+}
+*/
 
 
 
@@ -656,6 +671,22 @@ process_file:;
 
 
 
+/*
+
+
+def1 create x obs x 
+	ret
+create a
+create b
+
+
+def4 csel x y z cond
+	obs x
+	...body....
+	ret
+
+
+*/
 
 
 
