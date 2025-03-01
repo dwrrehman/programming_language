@@ -1,0 +1,494 @@
+. this file defines the machine instructions for the arm 64-bit architecture. .
+lf foundation.s
+settarget arm64_arch
+set _target_architecture arm64_arch
+
+ri zr 31
+ri stackpointer 31
+ri linkregister 30
+
+def0 nop ret
+def0 svc ret
+def5 mov d k sh op sf obs d ret
+def5 bfm d n k op sf obs d ret
+def6 adc d n m s sf sb obs d ret
+def8 addx d n m opt i3 s sf sb obs d ret
+def5 addi d n i12 s sf sb obs d ret
+def8 addr d n m sh i6 s sf sb obs d ret
+def3 adr d a p obs d ret
+def5 shv d n m op sf obs d ret
+def4 clz d n sf op obs d ret
+def4 rev d n sf op obs d ret
+def2 jmp a l ret
+def2 bc cond a ret
+def3 br n l r ret
+def4 cbz n a sf iv ret
+def4 tbz n b a iv ret
+def6 ccmpi n i5 cond nzcv sf iv ret
+def6 ccmpr n m cond nzcv sf iv ret
+def7 csel d n m cond ic iv sf obs d ret
+def5 ori d n k sf op obs d ret
+def8 orr d n m sh i6 iv sf op obs d ret
+def5 extr d n m i7 sf obs d ret
+def3 ldrl d a sz obs d ret
+def7 memp d t n i7 l a sz ret
+def6 memia d n i9 l eo sz ret
+def5 memi d n i12 l sz ret
+def6 memr d n m opt l sz ret
+def6 madd d n m a sf sb obs d ret
+def6 maddl d n m a u sb obs d ret
+def5 divr d n m u sf obs d ret
+
+eoi
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+	nop = ct_isa_count, 
+	svc, mov, bfm,
+	adc, addx, addi, addr, adr, 
+	shv, clz, rev, jmp, bc, br, 
+	cbz, tbz, ccmpi, ccmpr, csel, 
+	ori, orr, extr, ldrl, 
+	memp, memia, memi, memr, 
+	madd, maddl, divr, 
+	arm64_isa_count,
+
+
+
+
+def6 adc d n m s sf sb obs d ret
+def8 addx d n m option imm3 s sf sb obs d ret
+def6 addi d n imm12 s sf sb obs d ret
+def8 addr d n m shift imm6 s sf sb obs d ret
+def3 adr d label p obs d ret
+
+
+
+nop svc mov bfm
+adc addx addi addr adr 
+shv clz rev jmp bc br 
+cbz tbz ccmpi ccmpr csel 
+ori orr extr ldrl 
+memp memia memi memr 
+madd maddl divr 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+=====================
+
+
+rt stackpointer 64  ri stackpointer 31
+rt linkregister 64  ri linkregister 30
+rt zr 64            ri zr 31
+
+def3 adc  d n m  obs d ret
+def3 adcs d n m  obs d ret
+
+def5 addx d n m option imm3  obs d ret
+def3 addi d n k  obs d ret
+def5 addr d n m shift k  obs d ret
+def5 addxs d n m option imm3  obs d ret
+def3 addis d n k  obs d ret
+def5 addrs d n m shift k  obs d ret
+
+def2 adr  d label  obs d ret
+def2 adrp d label  obs d ret
+
+def3 andi d n k  obs d ret
+def5 andr d n m shift k  obs d ret
+def3 andis d n k  obs d ret
+def5 andrs d n m shift k  obs d ret
+
+def3 asrv d n m  obs d ret
+def1 jmp l  obs l ret
+def2 bc cond l  obs l ret
+
+def3 bfm d n k  obs d ret
+def4 bicr d n m k  obs d ret
+def4 bicrs d n m k  obs d ret
+
+def1 jmpl l  obs l ret
+def1 brl r  ret
+def1 br r  ret
+def2 cbnz r l obs l ret
+def2 cbz  r l obs l ret
+
+def4 ccmni n k cond nzcv  ret
+def4 ccmnr n m cond nzcv  ret
+def4 ccmpi n k cond nzcv  ret
+def4 ccmpr n m cond nzcv  ret
+
+def2 clz d n  obs d ret
+def2 cls d n  obs d ret
+def4 csel  d n m cond  obs d ret
+def4 csinc d n m cond  obs d ret
+def4 csinv d n m cond  obs d ret
+def4 csneg d n m cond  obs d ret
+
+def5 eonr d n m shift k  obs d ret
+def3 eori d n k  obs d ret
+def5 eorr d n m shift k  obs d ret
+def4 extr d n m k  obs d ret
+
+def5 ldnp d t n k size  obs d obs t ret
+def5 ldp  d t n k size  obs d obs t ret
+def5 ldpe d t n k size  obs d obs t ret
+def5 ldpo d t n k size  obs d obs t ret
+def4 ldri  d n k size  obs d ret
+def4 ldrie d n k size  obs d ret
+def4 ldrio d n k size  obs d ret
+def3 ldrl d l size  obs d obs l ret
+def5 ldrr d n m option size  obs d ret
+def4 ldur d n k size   obs d ret
+
+def3 lslv d n m  obs d ret
+def3 lsrv d n m  obs d ret
+def4 madd d n m a  obs d ret
+def4 msub d n m a  obs d ret
+
+def2 movk d k  obs d ret
+def2 movz d k  obs d ret
+def2 movn d k  obs d ret
+def0 nop ret
+
+def5 ornr d n m shift k  obs d ret
+def3 ori d n k  obs d ret
+def5 orr d n m shift k  obs d ret
+
+def2 rbit d n  obs d ret
+def0 return ret
+def2 rev d n  obs d ret
+def3 rorv d n m  obs d ret
+
+def3 sbc  d n m   obs d ret
+def3 sbcs d n m   obs d ret
+
+def3 sbfm d n k   obs d ret
+def3 sdiv d n m   obs d ret
+def4 smaddl d n m a  obs d ret
+def4 smsubl d n m a  obs d ret
+def3 smulh d n m  obs d ret
+
+def5 stnp d t n k size  ret
+def5 stp  d t n k size  ret
+def5 stpe d t n k size  ret
+def5 stpo d t n k size  ret
+def4 stri  d n k size  ret
+def4 strie d n k size  ret
+def4 strio d n k size  ret
+def5 strr d n m option size  ret
+def4 stur d n k size   ret
+
+def5 subx d n m option imm3  obs d ret
+def3 subi d n k  obs d ret
+def5 subr d n m shift k  obs d ret
+def5 subxs d n m option imm3  obs d ret
+def3 subis d n k  obs d ret
+def5 subrs d n m shift k  obs d ret
+
+def0 svc ret
+def3 tbnz r b l  obs l ret
+def3 tbz  r b l  obs l ret
+
+def3 ubfm d n k  obs d ret
+def3 udiv d n m  obs d ret
+def4 umaddl d n m a  obs d ret
+def4 umsubl d n m a  obs d ret
+def3 umulh d n m  obs d ret
+
+eoi
+=====================
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ri zr 31
+ri stackpointer 31
+ri linkregister 30
+
+
+---------------------------------------
+
+def3 adc  d n m  obs d ret           adc
+def3 adcs d n m  obs d ret
+def3 sbc  d n m   obs d ret
+def3 sbcs d n m   obs d ret
+
+---------------------------------------
+
+def5 addx d n m option imm3  obs d ret     addx addi addr
+def3 addi d n k  obs d ret
+def5 addr d n m shift k  obs d ret
+
+def5 addxs d n m option imm3  obs d ret
+def3 addis d n k  obs d ret
+def5 addrs d n m shift k  obs d ret
+
+def5 subx d n m option imm3  obs d ret
+def3 subi d n k  obs d ret
+def5 subr d n m shift k  obs d ret
+
+def5 subxs d n m option imm3  obs d ret
+def3 subis d n k  obs d ret
+def5 subrs d n m shift k  obs d ret
+
+---------------------------------------
+
+def2 adr  d label  obs d ret   adr
+def2 adrp d label  obs d ret
+
+---------------------------------------
+
+def3 asrv d n m  obs d ret     shv
+def3 lslv d n m  obs d ret
+def3 lsrv d n m  obs d ret
+def3 rorv d n m  obs d ret
+
+---------------------------------------
+
+def4 bicr d n m k  obs d ret     bicr
+def4 bicrs d n m k  obs d ret
+
+---------------------------------------
+
+def2 clz d n  obs d ret         clz
+def2 cls d n  obs d ret
+
+---------------------------------------
+
+def2 rbit d n obs d ret        rbit
+
+---------------------------------------
+
+def2 rev d n  obs d ret     rev
+
+---------------------------------------
+
+def1 jmp l  obs l ret           jmp
+def1 jmpl l  obs l ret
+---------------------------------------
+
+def2 bc cond l  obs l ret           bc
+
+---------------------------------------
+
+def1 brl r  ret        br
+def1 br r  ret
+def0 return ret
+
+---------------------------------------
+
+def2 cbnz r l obs l ret    cbz
+def2 cbz  r l obs l ret
+---------------------------------------
+
+def3 tbnz r b l  obs l ret     tbz
+def3 tbz  r b l  obs l ret
+
+---------------------------------------
+
+def4 ccmni n k cond nzcv  ret     ccmpi  ccmpr
+def4 ccmnr n m cond nzcv  ret
+def4 ccmpi n k cond nzcv  ret
+def4 ccmpr n m cond nzcv  ret
+
+---------------------------------------
+
+
+def4 csel  d n m cond  obs d ret      csel
+def4 csinc d n m cond  obs d ret
+def4 csinv d n m cond  obs d ret
+def4 csneg d n m cond  obs d ret
+
+---------------------------------------
+
+def3 andi d n k  obs d ret            andi andr
+def5 andr d n m shift k  obs d ret
+def3 andis d n k  obs d ret
+def5 andrs d n m shift k  obs d ret
+
+---------------------------------------
+
+def5 ornr d n m shift k  obs d ret     ori orr
+def3 ori d n k  obs d ret
+def5 orr d n m shift k  obs d ret
+
+---------------------------------------
+
+def5 eonr d n m shift k  obs d ret     eori eorr
+def3 eori d n k  obs d ret
+def5 eorr d n m shift k  obs d ret
+
+---------------------------------------
+
+def4 extr d n m k  obs d ret        extr
+
+---------------------------------------
+
+def3 ldrl d l size  obs d obs l ret        ldrl
+
+---------------------------------------
+
+def5 ldnp d t n k size  obs d obs t ret     memnp   memp   memi     memr   memur  
+
+def5 ldp  d t n k size  obs d obs t ret
+def5 ldpe d t n k size  obs d obs t ret
+def5 ldpo d t n k size  obs d obs t ret
+
+def4 ldri  d n k size  obs d ret
+def4 ldrie d n k size  obs d ret
+def4 ldrio d n k size  obs d ret
+
+def5 ldrr d n m option size  obs d ret
+def4 ldur d n k size   obs d ret
+
+
+def5 stnp d t n k size  ret
+def5 stp  d t n k size  ret
+def5 stpe d t n k size  ret
+def5 stpo d t n k size  ret
+
+def4 stri  d n k size  ret
+def4 strie d n k size  ret
+def4 strio d n k size  ret
+
+def5 strr d n m option size  ret
+def4 stur d n k size   ret
+
+---------------------------------------
+
+def4 madd d n m a  obs d ret      madd
+def4 msub d n m a  obs d ret
+
+---------------------------------------
+
+def4 umaddl d n m a  obs d ret    maddl  
+def4 smaddl d n m a  obs d ret
+def4 umsubl d n m a  obs d ret
+def4 smsubl d n m a  obs d ret
+
+---------------------------------------
+
+def3 smulh d n m  obs d ret      mulh
+def3 umulh d n m  obs d ret
+
+---------------------------------------
+
+def3 udiv d n m  obs d ret     divr
+def3 sdiv d n m  obs d ret
+
+---------------------------------------
+
+def3 bfm d n k  obs d ret       bfm
+def3 ubfm d n k  obs d ret
+def3 sbfm d n k  obs d ret
+
+---------------------------------------
+
+
+def2 movk d k  obs d ret     mov
+def2 movz d k  obs d ret
+def2 movn d k  obs d ret
+
+---------------------------------------
+
+def0 nop ret      nop
+---------------------------------------
+
+def0 svc ret    svc
+---------------------------------------
+
+
+
+
+
+
+
+
+
+---------------------------
+
+nop svc return
+
+mov
+adc
+addx addi addr
+adr
+
+====================================================
+
+
+
+
+ori	sf [0 1] [1 0 0 1 0 0] N is ir rn rd
+andi	sf [0 0] [1 0 0 1 0 0] N is ir rn rd
+eori	sf [1 0] [1 0 0 1 0 0] N is ir rn rd
+
+ornr	sf [0 1] [0 1 0 1 0] [shift] [N=1] Rm i6 Rn Rd
+bicr	sf [0 0] [0 1 0 1 0] [shift] [N=1] Rm i6 Rn Rd
+eonr	sf [1 0] [0 1 0 1 0] [shift] [N=1] Rm i6 Rn Rd
+
+orr	sf [0 1] [0 1 0 1 0] [shift] [N=0] Rm i6 Rn Rd
+andr	sf [0 0] [0 1 0 1 0] [shift] [N=0] Rm i6 Rn Rd
+eorr	sf [1 0] [0 1 0 1 0] [shift] [N=0] Rm i6 Rn Rd
+
+
+
+
+
+
+ubfm	sf [1 0] [1 0 0 1 1 0] N is ir Rn Rd
+sbfm	sf [0 0] [1 0 0 1 1 0] N is ir Rn Rd
+
+bfm	sf [0 1] [1 0 0 1 1 0] N is ir Rn Rd
+
+
+
+

@@ -11,85 +11,59 @@
 #include <ctype.h>
 typedef uint64_t nat;
 
+#define max_arg_count 16
+
 enum core_language_isa {
 	nullins,
-	def0, def1, def2, def3, 
+	def, def0, def1, def2, def3, 
 	def4, def5, def6, def7, 
+	def8, def9,
 	ret, obs, lf, isa_count,
 };
 
 static const char* ins_spelling[] = {
 	"__ERROR_null_ins_unused__",
-	"def0", "def1", "def2", "def3", 
+	"def", "def0", "def1", "def2", "def3", 
 	"def4", "def5", "def6", "def7",
+	"def8", "def9", 
 	"ret", "obs", "lf",
 	"__ISA_COUNT__ins_unused__",
 };
 
+static const nat builtin_arity[] = {
+	0, 
+	2, 1, 2, 3, 4, 
+	5, 6, 7, 8, 
+	9, 10, 
+	0, 1, 1
+};
+
 enum compiletime_language_isa {
-
-	settarget = isa_count, rt, ri, 
-
+	settarget = isa_count, ri, 
 	zero, incr, decr, not_, 
-
 	set, add, sub, mul, div_, rem, 
-
 	and_, or_, eor, si, sd, 
-
 	lt, ge, eq, ne, do_, at, 
-
-	ld, st, 
-
-	ctdebug,
-
+	ld, st, ctdebug,
 	ct_isa_count
+};
+
+enum arm64_instruction_set {
+	nop = ct_isa_count, 
+	svc, mov, bfm,
+	adc, addx, addi, addr, adr, 
+	shv, clz, rev, jmp, bc, br, 
+	cbz, tbz, ccmpi, ccmpr, csel, 
+	ori, orr, extr, ldrl, 
+	memp, memia, memi, memr, 
+	madd, maddl, divr, 
+	arm64_isa_count,
 };
 
 struct instruction {
 	nat op;
-	nat args[8];
+	nat args[max_arg_count];
 };
-
-/*enum arm64_ins_set {
-	addsrlsl, addsrlsr,
-	subsrlsl, subsrlsr,
-	andsrlsl, andsrlsr,
-	orrsrlsl, orrsrlsr,
-	ornsrlsl, ornsrlsr,
-	eorsrlsl, eorsrlsr,
-	eonsrlsl, eonsrlsr,
-	movz, addi, subi, andi, orri, eori, 
-	madd, msub, udiv, lslv, lsrv, 
-	addssrlsl, addssrlsr,
-	subssrlsl, subssrlsr,
-	andssrlsl, andssrlsr,
-	addsi, subsi, andsi,
-	csel, cbz, cbnz, bcond,
-	svc,
-	arm_isa_count,
-};
-
-static const char* mi_spelling[arm_isa_count] = {
-	"addsrlsl", "addsrlsr",
-	"subsrlsl", "subsrlsr",
-	"andsrlsl", "andsrlsr",
-	"orrsrlsl", "orrsrlsr",
-	"ornsrlsl", "ornsrlsr",
-	"eorsrlsl", "eorsrlsr",
-	"eonsrlsl", "eonsrlsr",
-	"movz", "addi", "subi", "andi", "orri", "eori", 
-	"madd", "msub", "udiv", "lslv", "lsrv", 
-	"addssrlsl", "addssrlsr",
-	"subssrlsl", "subssrlsr",
-	"andssrlsl", "andssrlsr",
-	"addsi", "subsi", "andsi",
-	"csel", "cbz", "cbnz", "bcond",
-	"svc",
-};
-
-*/
-
-
 
 struct file {
 	nat index;
@@ -98,6 +72,11 @@ struct file {
 	const char* filename;
 };
 
+static nat is_runtime_arg(nat op, nat arg) {
+	abort();
+	return 1;
+}
+
 static void print_stack(nat* stack, nat* replacement_count, nat* if_seen, nat* replace_with, nat stack_count) {
 	printf("stack: %llu { \n", stack_count);
 	for (nat i = 0; i < stack_count; i++) {
@@ -105,7 +84,7 @@ static void print_stack(nat* stack, nat* replacement_count, nat* if_seen, nat* r
 			i, stack[i], replacement_count[i]
 		);
 		for (nat r = 0; r < replacement_count[i]; r++) {
-			printf("(%llu:%llu) ", if_seen[8 * i + r], replace_with[8 * i + r]);
+			printf("(%llu:%llu) ", if_seen[max_arg_count * i + r], replace_with[max_arg_count * i + r]);
 		}
 		puts(" } ");
 	}
@@ -137,9 +116,8 @@ static void print_instruction(struct instruction this, char** names, char** oper
 	for (nat a = 0; a < arity[this.op]; a++) { 
 		if (this.args[a] < 256) printf("%3llu", this.args[a]); 
 		else if (this.args[a] == (nat) -1) printf("%3lld", this.args[a]);
-		else printf("0x%016llx", this.args[a]);
-		
-		if (a == 0 and this.op >= def0 and this.op <= def7) {
+		else printf("0x%016llx", this.args[a]);		
+		if (a == 0 and this.op >= def0 and this.op < ret) {
 			printf("(\"%7s\") ", this.args[a] < operation_count ? operations[this.args[a]] : "");			
 		}
 		else printf("('%7s') ", this.args[a] < name_count ? names[this.args[a]] : "");
@@ -179,33 +157,6 @@ static void print_instruction_index(
 	puts("}");
 }
 
-
-
-enum {
-	nop = ct_isa_count, 
-
-	svc, return_, 
-
-	addrlsl,
-
-
-
-
-
-	arm64_isa_count,
-};
-
-
-
-static nat is_runtime_arg(nat op, nat arg) {
-
-	if (op == addrlsl and arg == 3) return 0;
-
-	return 1;
-}
-
-
-
 int main(int argc, const char** argv) {
 	if (argc != 2) exit(puts("compiler: \033[31;1merror:\033[0m usage: ./run [file.s]"));
 	struct instruction ins[4096] = {0};
@@ -213,7 +164,8 @@ int main(int argc, const char** argv) {
 	nat scope_count = 1;
 	nat scopes[4096] = {0};
 	char* operations[4096] = {0};
-	nat arity[4096] = {0, 1, 2, 3, 4, 5, 6, 7, 8, 0, 1, 1};
+	nat arity[4096] = {0};
+	memcpy(arity, builtin_arity, sizeof builtin_arity);
 	nat observable[4096] = {0};
 	nat operation_defined_in_scope[4096] = {0};
 	nat operation_count = isa_count;
@@ -248,7 +200,8 @@ process_file:;
 		comment = 0,
 		def_location = (nat) -1,
 		arg_count = 0;
-	nat args[7] = {0};
+
+	nat args[16] = {0};
 	const nat starting_index = 	filestack[filestack_count - 1].index;
 	const nat text_length = 	filestack[filestack_count - 1].text_length;
 	char* text = 			filestack[filestack_count - 1].text;
@@ -298,7 +251,7 @@ process_file:;
 			abort();
 		}
 		variable = variable_count;		
-		if (state >= def0 and state <= def7) {
+		if (state >= def0 and state < ret) {
 			if (arg_count) goto define_name;
 			variable = operation_count;
 			operations[operation_count] = word;
@@ -371,7 +324,7 @@ process_file:;
 			//puts("generating a general instruction...");
 			struct instruction new = { .op = op };
 			memcpy(new.args, args, sizeof args);
-			if (op >= def0 and op <= def7) def_location = ins_count;
+			if (op >= def0 and op < ret) def_location = ins_count;
 			ins[ins_count++] = new;
 			memset(args, 255, sizeof args);
 			if (op == ret) scope_count--;
@@ -398,7 +351,7 @@ process_file:;
 	nat stack_count = 0;
 	nat def_stack_count = 0;
 	nat values[4096] = {0};
-	nat bit_count[4096] = {0};
+	//nat bit_count[4096] = {0};
 	nat register_constraint[4096] = {0};
 	memset(register_constraint, 255, sizeof register_constraint);
 
@@ -407,17 +360,12 @@ process_file:;
 
 	for (nat i = 0; i < ins_count; i++) if (ins[i].op == at) locations[ins[i].args[0]] = i;
 
-	nat if_seen[8 * 4096] = {0};
-	nat replace_with[8 * 4096] = {0};
+	nat if_seen[max_arg_count * 4096] = {0};
+	nat replace_with[max_arg_count * 4096] = {0};
 	nat replacement_count[4096] = {0};
-
 
 	struct instruction rt_ins[4096] = {0};
 	nat rt_ins_count = 0;
-
-
-
-
 
 	nat pc = 0;
 	while (pc < ins_count) {
@@ -431,39 +379,33 @@ process_file:;
 		const nat op = ins[pc].op;
 		//printf("op = %llu (\"%s\")\n", op, operations[op]);
 
-		nat args[8] = {0};
+		nat args[max_arg_count] = {0};
 		memcpy(args, ins[pc].args, sizeof args);
 
-		if (stack_count) {
-			for (nat a = 0; a < arity[op]; a++) {
-				for (nat r = 0; r < replacement_count[stack_count - 1]; r++) {
-					if (args[a] == if_seen[ 8 * (stack_count - 1) + r]) {
-						/*printf("WARNING: performed argument replacement: found %llu(%s), replaced with %llu(%s).\n",
-							args[a], variables[args[a]], 
-							replace_with[8 * (stack_count - 1) + r],
-							variables[replace_with[8 * (stack_count - 1) + r]]);*/
-						args[a] = replace_with[8 * (stack_count - 1) + r];
-						
-					}
-				}
+		if (not stack_count) goto skip_replacement;
+		for (nat a = 0; a < arity[op]; a++) {
+			for (nat r = 0; r < replacement_count[stack_count - 1]; r++) {
+				if (args[a] != if_seen[ max_arg_count * (stack_count - 1) + r]) continue;
+				/*printf("WARNING: performed argument replacement: found %llu(%s), replaced with %llu(%s).\n",
+					args[a], variables[args[a]], 
+					replace_with[max_arg_count * (stack_count - 1) + r],
+					variables[replace_with[max_arg_count * (stack_count - 1) + r]]);*/
+				args[a] = replace_with[max_arg_count * (stack_count - 1) + r];
 			}
 		}
-
+	
+		skip_replacement:; 
 		const nat arg0 = args[0];
 		const nat arg1 = args[1];
 		const nat arg2 = args[2];
 
-		if (op >= def0 and op <= def7) {
+		if (op >= def0 and op < ret) {
 			//puts("found def!");
 			const nat n = ins[pc].args[0];
-
 			//printf("ins[pc].args[0] = %llu\n", n);
-
 			definitions[n] = pc;
 			def_stack_count++;
-
 			goto next_instruction;
-
 		} else if (op == ret) {
 			if (def_stack_count) { def_stack_count--; goto next_instruction; }
 			if (not stack_count) abort();
@@ -474,7 +416,7 @@ process_file:;
 		} else if (def_stack_count) goto next_instruction;
 
 		if (op == settarget) target_architecture = values[arg0];
-		else if (op == rt) bit_count[arg0] = values[arg1];
+		//else if (op == rt) bit_count[arg0] = values[arg1];
 		else if (op == ri) register_constraint[arg0] = values[arg1];
 		else if (op == zero) values[arg0] = 0;
 		else if (op == incr) values[arg0]++;
@@ -493,85 +435,63 @@ process_file:;
 		else if (op == sd)   values[arg0] >>= values[arg1];
 		else if (op == ld)  { printf("executing LD"); values[arg0] = values[arg1]; abort(); }
 		else if (op == st)  { printf("executing ST"); values[arg0] = values[arg1]; abort(); }
-
 		else if (op == at) locations[arg0] = pc;
 		else if (op == do_) pc = locations[arg0];
 		else if (op == lt) { if (values[arg0]  < values[arg1]) pc = locations[arg2]; }
 		else if (op == ge) { if (values[arg0] >= values[arg1]) pc = locations[arg2]; }
 		else if (op == eq) { if (values[arg0] == values[arg1]) pc = locations[arg2]; }
 		else if (op == ne) { if (values[arg0] != values[arg1]) pc = locations[arg2]; }
-
 		else if (op == ctdebug)  { printf("ctdebug: %llu\n", values[arg0]); } //getchar();
-
 		else {
-
 			if (target_architecture == no_arch) {
 				// treat it like a macro function call!
-
 			call_macro:
-
 				for (nat r = 0; r < arity[op]; r++) {
-					if_seen[8 * stack_count + r] = ins[definitions[op]].args[1 + r];
-					replace_with[8 * stack_count + r] = ins[pc].args[r];
+					if_seen[max_arg_count * stack_count + r] = ins[definitions[op]].args[1 + r];
+					replace_with[max_arg_count * stack_count + r] = ins[pc].args[r];
 				}
-
 				replacement_count[stack_count] = arity[op];
 				stack[stack_count++] = pc;
 				pc = definitions[op];
 				//puts("calling macro...");
 				goto next_instruction;
-
 			} else if (target_architecture) {
-
 				if (op >= arm64_isa_count) goto call_macro;
-
 				struct instruction new = { .op = op };
 				memcpy(new.args, args, sizeof args);
-
 				for (nat i = 0; i < arity[op]; i++) 
 					if (not is_runtime_arg(op, i)) 
 						new.args[i] = values[args[i]]; 
-					else if (bit_count[args[i]] == 0 and ((observable[op] >> i) & 1) ) 
-						bit_count[args[i]] = 64;
-
+					//else if (((observable[op] >> i) & 1) ) 
+					//	bit_count[args[i]] = 64;
 				rt_ins[rt_ins_count++] = new;
-
 			} else { puts("unknown arch so far..."); abort(); }
-
 			//puts("unknown execution for instruction");
 			//printf("op = %llu (\"%s\")\n", op, operations[op]);
 			//abort();
 		}
-
 	next_instruction:
 		//getchar();
 		pc++;
 	}
 	
-	puts("finished executing CT instruction");
-	
+	puts("finished executing CT instruction");	
 	print_dictionary(operations, arity, observable, operation_defined_in_scope, operation_count);
 	print_dictionary(variables, locations, values, variable_defined_in_scope, variable_count);
 	print_instruction_index(ins, ins_count, variables, operations, arity, variable_count, operation_count, ignore, ins_count, ""); 
 	puts("");
-
 	printf("[INFO]: assembling for target_arch = %llu\n", target_architecture);
-
 	print_instructions(rt_ins, rt_ins_count, variables, operations, arity, variable_count, operation_count, ignore);
-
 
 	for (nat i = 0; i < variable_count; i++) {
 		if (register_constraint[i] != (nat) -1) 
 			printf("\t RA CONSTRAINT: %s has register index r[%llu].\n", variables[i], register_constraint[i]);
 	}
 
-	for (nat i = 0; i < variable_count; i++) {
+	/*for (nat i = 0; i < variable_count; i++) {
 		if (bit_count[i]) 
 			printf("\t BC CONSTRAINT: %s is %llu bits wide.\n", variables[i], bit_count[i]);
-	}
-
-
-
+	}*/
 }
 
 
@@ -636,6 +556,121 @@ process_file:;
 
 
 
+// previous list of arm64 machine instructions:
+
+//	addx, addi, addr, adr,
+
+
+
+/*	adcs,
+	addx, addi, addr, addxs, addis, addrs, 
+	adr, adrp,
+	andi, andr, andis, andrs,
+	asrv, jmp, bc, 
+	bfm, bicr, bicrs,
+	jmpl, brl, br, cbnz, cbz, 
+	ccmni, ccmnr, ccmpi, ccmpr, 
+	clz, cls, csel, csinc, csinv, csneg, 
+	eonr, eori, eorr, extr, 
+	ldnp, ldp, ldpe, ldpo, 
+	ldri, ldrie, ldrio, ldrl, ldrr, ldur, 
+	lslv, lsrv, madd, msub, 
+	movk, movz, movn, nop,
+	ornr, ori, orr, 
+	rbit, return_, rev, rorv, 
+	sbc, sbcs, 
+	sbfm, sdiv, smaddl, smsubl, smulh, 
+	stnp, stp, stpe, stpo,
+	stri, strie, strio, strr, stur, 
+	subx, subi, subr, subxs, subis, subrs,
+	svc, tbnz, tbz, 
+	ubfm, udiv, umaddl, umsubl, umulh,
+*/
+
+
+
+/*
+
+
+	if ((op == ccmni or op == ccmpi) and (arg == 1 or arg == 2 or arg == 3)) return 0;
+
+
+	if ((	op == ccmnr or 
+		op == ccmpr or
+		op == ldri or
+		op == ldrie or
+		op == ldrio or
+		op == ldur or
+		op == stri or
+		op == strie or
+		op == strio or
+		op == stur or
+		op == 
+	) and (arg == 2 or arg == 3)) return 0;
+
+
+	if ((	op == addx or op == addr or op == addxs or op == addrs or 
+		op == andr or op == andrs or 
+		op == eonr or op == eorr or 
+		op == ldnp or op == ldp or op == ldpe or op == ldpo or op == ldrr or
+		op == ornr or op == orr or
+		op == stnp or op == stp or op == stpe or op == stpo or op == strr or
+		op == subx or op == subr or op == subxs or op == subrs or 
+		
+	) and (arg == 3 or arg == 4)) return 0;
+
+
+	if ((	op == bc or
+		op == 
+	) and (arg == 0 or arg == 1)) return 0;
+
+	if ((	op == ldrl or
+		op == 
+	) and (arg == 1 or arg == 2)) return 0;
+
+
+
+	if ((	op == bicr or 
+		op == bicrs or
+		op == csel or 
+		op == csinc or
+		op == csinv or
+		op == csneg or
+		op == extr or 
+		op == 
+	) and arg == 3) return 0;
+
+
+	if ((	op == addi or 
+		op == addis or
+		op == andi or 
+		op == andis or 
+		op == bfm or
+		op == eori or
+		op == ori or
+		op == sbfm or
+		op == 
+	) and arg == 2) return 0;
+
+
+	if ((	op == adr or 
+		op == adrp or
+		op == cbnz or 
+		op == cbz or
+		op == movk or
+		op == movz or
+		op == movn or
+		op == 
+	) and arg == 1) return 0;
+
+
+	if ((	op == jmp or
+		op == jmpl or
+		op == 
+	) and arg == 0) return 0;
+
+
+*/
 
 
 
@@ -652,12 +687,44 @@ process_file:;
 
 
 
+/*enum arm64_ins_set {
+	addsrlsl, addsrlsr,
+	subsrlsl, subsrlsr,
+	andsrlsl, andsrlsr,
+	orrsrlsl, orrsrlsr,
+	ornsrlsl, ornsrlsr,
+	eorsrlsl, eorsrlsr,
+	eonsrlsl, eonsrlsr,
+	movz, addi, subi, andi, orri, eori, 
+	madd, msub, udiv, lslv, lsrv, 
+	addssrlsl, addssrlsr,
+	subssrlsl, subssrlsr,
+	andssrlsl, andssrlsr,
+	addsi, subsi, andsi,
+	csel, cbz, cbnz, bcond,
+	svc,
+	arm_isa_count,
+};
 
+static const char* mi_spelling[arm_isa_count] = {
+	"addsrlsl", "addsrlsr",
+	"subsrlsl", "subsrlsr",
+	"andsrlsl", "andsrlsr",
+	"orrsrlsl", "orrsrlsr",
+	"ornsrlsl", "ornsrlsr",
+	"eorsrlsl", "eorsrlsr",
+	"eonsrlsl", "eonsrlsr",
+	"movz", "addi", "subi", "andi", "orri", "eori", 
+	"madd", "msub", "udiv", "lslv", "lsrv", 
+	"addssrlsl", "addssrlsr",
+	"subssrlsl", "subssrlsr",
+	"andssrlsl", "andssrlsr",
+	"addsi", "subsi", "andsi",
+	"csel", "cbz", "cbnz", "bcond",
+	"svc",
+};
 
-
-
-
-
+*/
 
 
 
