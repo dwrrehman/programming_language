@@ -1,5 +1,52 @@
 lf arm64.s
 
+. a simple runtime exit program for arm64  
+  written on 1202502285.185510 dwrr 
+.
+
+
+
+svc
+
+
+
+eoi
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+eoi
+
+lf arm64.s
+
 . a simple runtime exit program for arm64  written on 1202502285.030850 dwrr .
 
 rt m nat 

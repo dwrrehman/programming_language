@@ -60,6 +60,17 @@ enum arm64_instruction_set {
 	arm64_isa_count,
 };
 
+static const nat arm64_rt_arity[arm64_isa_count - ct_isa_count] = {
+	0, 
+	0, 1, 2,
+	3, 3, 2, 3, 1, 
+	3, 2, 2, 0, 0, 1, 
+	1, 1, 1, 2, 3, 
+	2, 3, 3, 1, 
+	3, 2, 2, 3, 
+	4, 4, 3, 
+};
+
 struct instruction {
 	nat op;
 	nat args[max_arg_count];
@@ -73,8 +84,17 @@ struct file {
 };
 
 static nat is_runtime_arg(nat op, nat arg) {
-	abort();
-	return 1;
+	if (op < ct_isa_count) { 
+		printf("error: is_runtime_arg: op < ct_isa_count: op=%llu\n", op); 
+		abort(); 
+	}
+
+	if (op >= arm64_isa_count) {
+		printf("error: is_runtime_arg: op >= arm64_isa_count: op=%llu\n", op); 
+		abort(); 
+	}
+
+	return arg >= arm64_rt_arity[op - ct_isa_count];
 }
 
 static void print_stack(nat* stack, nat* replacement_count, nat* if_seen, nat* replace_with, nat stack_count) {
@@ -250,7 +270,8 @@ process_file:;
 			print_index(text, text_length, word_start, index);
 			abort();
 		}
-		variable = variable_count;		
+		variable = variable_count;
+		if (state == def and arg_count == 0) goto define_name;
 		if (state >= def0 and state < ret) {
 			if (arg_count) goto define_name;
 			variable = operation_count;
@@ -269,14 +290,13 @@ process_file:;
 				goto variable_name_found;
 			}			
 		}
-		if ((observable[state] >> arg_count) & 1) {} else goto print_error;
+		if (not ((observable[state] >> arg_count) & 1)) goto print_error;
 	define_name:
 		variable_defined_in_scope[variable_count] = scopes[scope_count - 1];
 		variables[variable_count++] = word; 
 	variable_name_found:
 		args[arg_count++] = variable;
 		if (arg_count < arity[state]) goto next_word;
-
 	process_op:;
 		const nat op = state; state = 0;
 
@@ -319,7 +339,7 @@ process_file:;
 					printf("info: FOUND OBSERVABLE!!\n");//getchar();
 				} else printf("error: mismatch in finding observable!!\n");//getchar();
 			}
-			//getchar();						
+			//getchar();
 		} else {
 			//puts("generating a general instruction...");
 			struct instruction new = { .op = op };
@@ -342,11 +362,9 @@ process_file:;
 	print_instructions(ins, ins_count, variables, operations, arity, variable_count, operation_count, ignore);
 
 	puts("finished parsing. beginning CT execution...");
-
 	//getchar();
 
 	nat definitions[4096] = {0};
-
 	nat stack[4096] = {0};
 	nat stack_count = 0;
 	nat def_stack_count = 0;
@@ -354,16 +372,16 @@ process_file:;
 	//nat bit_count[4096] = {0};
 	nat register_constraint[4096] = {0};
 	memset(register_constraint, 255, sizeof register_constraint);
-
 	enum all_architectures { no_arch, arm64_arch, arm32_arch, rv64_arch, rv32_arch };
 	nat target_architecture = no_arch;
-
 	for (nat i = 0; i < ins_count; i++) if (ins[i].op == at) locations[ins[i].args[0]] = i;
 
 	nat if_seen[max_arg_count * 4096] = {0};
 	nat replace_with[max_arg_count * 4096] = {0};
 	nat replacement_count[4096] = {0};
-
+	nat global_if_seen[4096] = {0};
+	nat global_replace_with[4096] = {0};
+	nat global_replacement_count = 0;
 	struct instruction rt_ins[4096] = {0};
 	nat rt_ins_count = 0;
 
@@ -381,6 +399,17 @@ process_file:;
 
 		nat args[max_arg_count] = {0};
 		memcpy(args, ins[pc].args, sizeof args);
+		
+		for (nat a = 0; a < arity[op]; a++) {
+			for (nat r = 0; r < global_replacement_count; r++) {
+				if (args[a] != global_if_seen[r]) continue;
+				printf("WARNING: performed global_replacement: found %llu(%s), replaced with %llu(%s).\n",
+					args[a], variables[args[a]], 
+					global_replace_with[r],
+					variables[global_replace_with[r]]);			getchar();
+				args[a] = global_replace_with[r];
+			}
+		}
 
 		if (not stack_count) goto skip_replacement;
 		for (nat a = 0; a < arity[op]; a++) {
@@ -408,14 +437,25 @@ process_file:;
 			goto next_instruction;
 		} else if (op == ret) {
 			if (def_stack_count) { def_stack_count--; goto next_instruction; }
-			if (not stack_count) abort();
+			if (not stack_count) { puts("NOT STACK COUNT IN RET"); abort(); }
 			pc = stack[--stack_count];
 			//puts("returning...");
 			goto next_instruction;
 
 		} else if (def_stack_count) goto next_instruction;
 
-		if (op == settarget) target_architecture = values[arg0];
+		if (op == def) {
+			printf("executing a def statement... adding a "
+				"replacement of [if_seen=%llu:%s, replace_with=%llu:%s]\n", 
+				arg0, variables[arg0], arg1, variables[arg1]
+			);
+
+			global_if_seen[global_replacement_count] = arg0;
+			global_replace_with[global_replacement_count++] = arg1;
+			//abort();
+			getchar();
+		}
+		else if (op == settarget) target_architecture = values[arg0];
 		//else if (op == rt) bit_count[arg0] = values[arg1];
 		else if (op == ri) register_constraint[arg0] = values[arg1];
 		else if (op == zero) values[arg0] = 0;
@@ -441,7 +481,7 @@ process_file:;
 		else if (op == ge) { if (values[arg0] >= values[arg1]) pc = locations[arg2]; }
 		else if (op == eq) { if (values[arg0] == values[arg1]) pc = locations[arg2]; }
 		else if (op == ne) { if (values[arg0] != values[arg1]) pc = locations[arg2]; }
-		else if (op == ctdebug)  { printf("ctdebug: %llu\n", values[arg0]); } //getchar();
+		else if (op == ctdebug)  { printf("ctdebug: %llu\n", values[arg0]); getchar(); } 
 		else {
 			if (target_architecture == no_arch) {
 				// treat it like a macro function call!

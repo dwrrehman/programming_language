@@ -5,7 +5,8 @@
 . 
 
 def1 settarget x ret
-def2 ri x n obs x ret
+def2 rt x n obs x ret
+def2 ri x n ret
 
 def1 zero x obs x ret
 def1 incr x ret
@@ -80,8 +81,6 @@ set 10000 1000 mul 10000 10
 set 100000 10000 mul 100000 10
 set 1000000 100000 mul 1000000 10
 
-set 31 32 decr 31
-set 30 31 decr 30
 
 set true 1
 set false 0
@@ -95,8 +94,32 @@ set arm32_arch 2
 set rv64_arch 3
 set rv32_arch 4
 
+
+
 eoi
 
 
 
+
+
+
+
+
+	enum all_architectures { no_arch, arm64_arch, arm32_arch, rv64_arch, rv32_arch };
+
+
+
+
+
+	settarget = isa_count,
+
+	zero, incr, decr, not_, 
+
+	set, add, sub, mul, div_, rem, 
+
+	and_, or_, eor, si, sd, 
+
+	lt, eq, ge, ne, do_, 
+
+	at, ld, st,
 
