@@ -1,3 +1,18 @@
+
+
+// instead of using values[]        we need to have  each macro call     (ie, each call frame)    have its own local values array. 
+
+	like, stack variables   for a rt function. 
+
+
+this will allow us to define local labels, which are truly local, allowing for local control flow generation. (which is a first class use case of course.)
+
+
+
+
+
+
+
 // cross ct-macro assembler
 // 1202502263.200223 dwrr
 #include <stdio.h>
@@ -12,6 +27,8 @@
 typedef uint64_t nat;
 
 #define max_arg_count 16
+
+enum all_architectures { no_arch, arm64_arch, arm32_arch, rv64_arch, rv32_arch };
 
 enum core_language_isa {
 	nullins,
@@ -49,8 +66,7 @@ enum compiletime_language_isa {
 };
 
 enum arm64_instruction_set {
-	nop = ct_isa_count, 
-	svc, mov, bfm,
+	nop = ct_isa_count, svc, mov, bfm,
 	adc, addx, addi, addr, adr, 
 	shv, clz, rev, jmp, bc, br, 
 	cbz, tbz, ccmpi, ccmpr, csel, 
@@ -61,8 +77,7 @@ enum arm64_instruction_set {
 };
 
 static const nat arm64_rt_arity[arm64_isa_count - ct_isa_count] = {
-	0, 
-	0, 1, 2,
+	0, 0, 1, 2,
 	3, 3, 2, 3, 1, 
 	3, 2, 2, 0, 0, 1, 
 	1, 1, 1, 2, 3, 
@@ -94,7 +109,7 @@ static nat is_runtime_arg(nat op, nat arg) {
 		abort(); 
 	}
 
-	return arg >= arm64_rt_arity[op - ct_isa_count];
+	return arg < arm64_rt_arity[op - ct_isa_count];
 }
 
 static void print_stack(nat* stack, nat* replacement_count, nat* if_seen, nat* replace_with, nat stack_count) {
@@ -190,7 +205,6 @@ int main(int argc, const char** argv) {
 	nat operation_defined_in_scope[4096] = {0};
 	nat operation_count = isa_count;
 	char* variables[4096] = {0};
-	nat locations[4096] = {0};
 	nat variable_count = 0;
 	nat variable_defined_in_scope[4096] = {0};
 	struct file filestack[4096] = {0};
@@ -358,32 +372,31 @@ process_file:;
 
 	nat ignore[4096] = {0};
 	print_dictionary(operations, arity, observable, operation_defined_in_scope, operation_count);
-	print_dictionary(variables, locations, locations, variable_defined_in_scope, variable_count);
+	print_dictionary(variables, variable_defined_in_scope, variable_defined_in_scope, variable_defined_in_scope, variable_count);
 	print_instructions(ins, ins_count, variables, operations, arity, variable_count, operation_count, ignore);
 
 	puts("finished parsing. beginning CT execution...");
 	//getchar();
 
+	nat locations[4096] = {0}; memset(locations, 255, sizeof locations);
+	nat values[4096] = {0};
 	nat definitions[4096] = {0};
 	nat stack[4096] = {0};
 	nat stack_count = 0;
 	nat def_stack_count = 0;
-	nat values[4096] = {0};
-	//nat bit_count[4096] = {0};
-	nat register_constraint[4096] = {0};
-	memset(register_constraint, 255, sizeof register_constraint);
-	enum all_architectures { no_arch, arm64_arch, arm32_arch, rv64_arch, rv32_arch };
+	nat register_constraint[4096] = {0}; memset(register_constraint, 255, sizeof register_constraint);
 	nat target_architecture = no_arch;
-	for (nat i = 0; i < ins_count; i++) if (ins[i].op == at) locations[ins[i].args[0]] = i;
-
 	nat if_seen[max_arg_count * 4096] = {0};
 	nat replace_with[max_arg_count * 4096] = {0};
 	nat replacement_count[4096] = {0};
 	nat global_if_seen[4096] = {0};
 	nat global_replace_with[4096] = {0};
 	nat global_replacement_count = 0;
+
 	struct instruction rt_ins[4096] = {0};
 	nat rt_ins_count = 0;
+
+	for (nat i = 0; i < ins_count; i++) if (ins[i].op == at) locations[ins[i].args[0]] = i;
 
 	nat pc = 0;
 	while (pc < ins_count) {
@@ -406,7 +419,7 @@ process_file:;
 				printf("WARNING: performed global_replacement: found %llu(%s), replaced with %llu(%s).\n",
 					args[a], variables[args[a]], 
 					global_replace_with[r],
-					variables[global_replace_with[r]]);			getchar();
+					variables[global_replace_with[r]]);//getchar();
 				args[a] = global_replace_with[r];
 			}
 		}
@@ -453,7 +466,7 @@ process_file:;
 			global_if_seen[global_replacement_count] = arg0;
 			global_replace_with[global_replacement_count++] = arg1;
 			//abort();
-			getchar();
+			//getchar();
 		}
 		else if (op == settarget) target_architecture = values[arg0];
 		//else if (op == rt) bit_count[arg0] = values[arg1];
@@ -481,7 +494,7 @@ process_file:;
 		else if (op == ge) { if (values[arg0] >= values[arg1]) pc = locations[arg2]; }
 		else if (op == eq) { if (values[arg0] == values[arg1]) pc = locations[arg2]; }
 		else if (op == ne) { if (values[arg0] != values[arg1]) pc = locations[arg2]; }
-		else if (op == ctdebug)  { printf("ctdebug: %llu\n", values[arg0]); getchar(); } 
+		else if (op == ctdebug)  { printf("ctdebug: %llu\n", values[arg0]); }//getchar(); } 
 		else {
 			if (target_architecture == no_arch) {
 				// treat it like a macro function call!
@@ -1419,13 +1432,7 @@ static nat get_call_output_count(nat n) {
 	printf("is_runtime variables: { ");
 	for (nat i = 0; i < name_count; i++) if (is_runtime[i]) printf("%s ", names[i]);
 	printf("}\n");
-
-	getchar();
-
-
-
-
-
+	//getchar();
 
 	puts("starting ins sel..");
 	struct instruction mi[4096] = {0};

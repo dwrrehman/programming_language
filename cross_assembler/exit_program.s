@@ -4,13 +4,22 @@ lf arm64.s
   written on 1202502285.185510 dwrr 
 .
 
+def0 run 
+	ri n 16 
+	mov n 10 0 0 0
+	br n 0 0 
+	svc 
+	ret 
+
+run
+. br n 0 0 . 
 
 
-svc
+at loop
+	nop svc
+	bc 0 loop
 
-
-
-eoi
+	eoi
 
 
 
