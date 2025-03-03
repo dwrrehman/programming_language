@@ -4,6 +4,8 @@
 	written on 1202502285.010908 dwrr
 . 
 
+def  ___  ___
+
 def1 settarget x ret
 def2 ri x n obs x ret
 
@@ -35,7 +37,12 @@ def1 at l obs l ret
 def3 ld dest address size ret
 def3 st address source size ret
 
-def1 print x ret
+def1 print x ret     . temporary . 
+
+
+
+
+
 
 zero 0
 set 1 0 incr 1
@@ -91,4 +98,7 @@ set rv64_arch 3
 set rv32_arch 4
 
 eoi
+
+
+
 
