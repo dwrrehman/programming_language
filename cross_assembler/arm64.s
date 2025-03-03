@@ -22,7 +22,7 @@ def6 addi d n i12 s sf sb obs d ret
 
 def8 addr d n m sh i6 s sf sb obs d ret
 
-def3 adr d a p obs d ret
+def3 adr d a p obs d obs a ret
 
 def5 shv d n m op sf obs d ret
 
@@ -30,15 +30,15 @@ def4 clz d n sf op obs d ret
 
 def4 rev d n sf op obs d ret
 
-def2 jmp a l ret
+def2 jmp l a obs a ret
 
-def2 bc cond a ret
+def2 bc cond a obs a ret
 
 def3 br n l r ret
 
-def4 cbz n a sf iv ret
+def4 cbz n a sf iv obs a ret
 
-def4 tbz n b a iv ret
+def4 tbz n b a iv obs a ret
 
 def6 ccmpi n i5 cond nzcv sf iv ret
 
@@ -54,7 +54,7 @@ def5 extr d n m i7 sf obs d ret
 
 def3 ldrl d a sz obs d ret
 
-def7 memp d t n i7 l a sz ret
+def7 memp d t n i7 l e sz ret
 
 def6 memia d n i9 l eo sz ret
 

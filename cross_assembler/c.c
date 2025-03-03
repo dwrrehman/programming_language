@@ -1,18 +1,3 @@
-
-
-// instead of using values[]        we need to have  each macro call     (ie, each call frame)    have its own local values array. 
-
-	like, stack variables   for a rt function. 
-
-
-this will allow us to define local labels, which are truly local, allowing for local control flow generation. (which is a first class use case of course.)
-
-
-
-
-
-
-
 // cross ct-macro assembler
 // 1202502263.200223 dwrr
 #include <stdio.h>
@@ -26,25 +11,41 @@ this will allow us to define local labels, which are truly local, allowing for l
 #include <ctype.h>
 typedef uint64_t nat;
 
+// instead of using values[]        we need to have  each macro call     (ie, each call frame)    have its own local values array. 
+//	like, stack variables   for a rt function. 
+// this will allow us to define local labels, which are truly local, allowing for local control flow generation. (which is a first class use case of course.)
+
 #define max_arg_count 16
 
 enum all_architectures { no_arch, arm64_arch, arm32_arch, rv64_arch, rv32_arch };
 
 enum core_language_isa {
 	nullins,
-	def, def0, def1, def2, def3, 
+//	def, 
+	def0, def1, def2, def3, 
 	def4, def5, def6, def7, 
 	def8, def9,
-	ret, obs, lf, isa_count,
+	ret, obs, lf, 
+isa_count,
+	settarget = isa_count, ri, 
+	zero, incr, decr, not_, 
+	set, add, sub, mul, div_, rem, 
+	and_, or_, eor, si, sd, 
+	lt, ge, eq, ne, do_, at, 
+	ld, st, ctdebug,
+	ct_isa_count
+
 };
 
-static const char* ins_spelling[] = {
-	"__ERROR_null_ins_unused__",
-	"def", "def0", "def1", "def2", "def3", 
+static const char* ins_spelling[isa_count] = {
+	"--", 
+
+//"def",            TODO: 				should we have "def"...... hmmmmmmm
+
+	"def0", "def1", "def2", "def3", 
 	"def4", "def5", "def6", "def7",
 	"def8", "def9", 
 	"ret", "obs", "lf",
-	"__ISA_COUNT__ins_unused__",
 };
 
 static const nat builtin_arity[] = {
@@ -53,16 +54,6 @@ static const nat builtin_arity[] = {
 	5, 6, 7, 8, 
 	9, 10, 
 	0, 1, 1
-};
-
-enum compiletime_language_isa {
-	settarget = isa_count, ri, 
-	zero, incr, decr, not_, 
-	set, add, sub, mul, div_, rem, 
-	and_, or_, eor, si, sd, 
-	lt, ge, eq, ne, do_, at, 
-	ld, st, ctdebug,
-	ct_isa_count
 };
 
 enum arm64_instruction_set {
@@ -112,18 +103,24 @@ static nat is_runtime_arg(nat op, nat arg) {
 	return arg < arm64_rt_arity[op - ct_isa_count];
 }
 
-static void print_stack(nat* stack, nat* replacement_count, nat* if_seen, nat* replace_with, nat stack_count) {
-	printf("stack: %llu { \n", stack_count);
-	for (nat i = 0; i < stack_count; i++) {
-		printf("stack[%llu] =  { pc = %llu , replacement_count=%llu, { ", 
-			i, stack[i], replacement_count[i]
-		);
-		for (nat r = 0; r < replacement_count[i]; r++) {
-			printf("(%llu:%llu) ", if_seen[max_arg_count * i + r], replace_with[max_arg_count * i + r]);
-		}
-		puts(" } ");
+static nat is_label_arg(nat op, nat arg) {
+	if (op < ct_isa_count) { 
+		printf("error: is_runtime_arg: op < ct_isa_count: op=%llu\n", op); 
+		abort(); 
 	}
-	puts("}");
+
+	if (op >= arm64_isa_count) {
+		printf("error: is_runtime_arg: op >= arm64_isa_count: op=%llu\n", op); 
+		abort(); 
+	}
+
+	if (op == jmp  and arg == 1) return 1;
+	if (op == bc   and arg == 1) return 1;
+	if (op == cbz  and arg == 1) return 1;
+	if (op == adr  and arg == 1) return 1;
+	if (op == ldrl and arg == 1) return 1;
+	if (op == tbz  and arg == 2) return 1;
+	return 0;
 }
 
 static void print_index(const char* text, nat text_length, nat begin, nat end) {
@@ -136,11 +133,15 @@ static void print_index(const char* text, nat text_length, nat begin, nat end) {
 	puts("\n");
 }
 
-static void print_dictionary(char** names, nat* locations, nat* values, nat* defined, nat name_count) {
-	puts("found dictionary: { \n");
-	for (nat i = 0; i < name_count; i++) {
-		printf("\t%3llu: name = \"%-10s\", location = %3lld, value = %3lld, defined = %3lld\n", 
-			i, names[i], locations[i], values[i], defined[i]
+static void print_dictionary(char** names, nat* array1, nat* array2, nat* array3, nat count, bool mode) {
+
+	printf(" %s dictionary (%llu entries) {\n", mode ? "operation" : "variable", count);
+	for (nat i = 0; i < count; i++) {
+		printf("\t%3llu: \"%-10s\", %s = %3lld, %s = %3lld, %s = %3lld\n", 
+			i, names[i], 
+			mode ? "arity" : "value", array1[i], 
+			mode ? "observable" : "location", array2[i], 
+			mode ? "operation_defined_in" : "variable_defined_in", array3[i]
 		);
 	}
 	puts("}");
@@ -162,57 +163,179 @@ static void print_instruction(struct instruction this, char** names, char** oper
 
 static void print_instructions(
 	struct instruction* ins, nat ins_count, 
-	char** names, char** operations, nat* arity, nat name_count, nat operation_count,
-	nat* ignore
+	char** names, char** operations, nat* arity, nat name_count, nat operation_count
 ) {
 	puts("found instructions: {");
 	for (nat i = 0; i < ins_count; i++) {
-		if (ignore[i]) printf("\033[38;5;239m");
+		if ((0)) printf("\033[38;5;239m");
 		printf("\t#%04llu: ", i);
 		print_instruction(ins[i], names, operations, arity, name_count, operation_count);
 		puts("");
-		if (ignore[i]) printf("\033[0m");
+		if ((0)) printf("\033[0m");
 	}
 	puts("}");
 }
 
 static void print_instruction_index(
 	struct instruction* ins, nat ins_count, 
-	char** names, char** operations, nat* arity, nat name_count, nat operation_count, nat* ignore,
+	char** names, char** operations, nat* arity, 
+	nat name_count, nat operation_count, 
 	nat here, const char* message
 ) {
 	printf("%s: at index: %llu: { \n", message, here);
 	for (nat i = 0; i < ins_count; i++) {
-		if (ignore[i]) printf("\033[38;5;239m");
+		if ((0)) printf("\033[38;5;239m");
 		printf("\t#%04llu: ", i);
 		print_instruction(ins[i], names, operations, arity, name_count, operation_count);
 		if (i == here)  printf("  <------ %s\n", message); else puts("");
-		if (ignore[i]) printf("\033[0m");
+		if ((0)) printf("\033[0m");
 	}
 	puts("}");
 }
 
+
+/*
+
+
+
+	nat if_seen[max_arg_count * 4096] = {0};
+	nat replace_with[max_arg_count * 4096] = {0};
+	nat replacement_count[4096] = {0};
+
+
+
+
+						//printf("%s vs %s : operation name mismatch\n", 
+						//	word, operations[state]
+						//); 
+						continue; 
+					}
+					//printf("comparing scopes: operation_defined_in_scope"
+					//	"[state](%llu) ==? scopes[i](%llu)\n", 
+					//	operation_defined_in_scope[state], 
+					//	scopes[i]
+					//);
+					//if (operation_defined_in_scope[state] != scopes[i]) { 
+					//	//puts("scope mismatch"); 
+					//	continue; 
+					//}
+					//puts("SUCESSFUL OPERATION RECOGNIZED");
+
+				//printf("searching for operations in scope i=%llu: #%llu..\n", i, scopes[i]);
+
+
+
+
+			//printf("searching for operations in scope i=%llu: #%llu..\n", i, scopes[i]);
+			for (variable = 0; variable < variable_count; variable++) {
+
+		for (nat i = op_stack_count; i--;) {
+			op = op_stack[i];
+			if (not strcmp(word, operations[op])) goto process_op;
+		}
+		op = (nat) -1;
+
+
+			printf("%s vs %s : variable name mismatch\n", 
+					word, variables[variable]); 
+					continue; 
+				}
+				if (variable_defined_in_scope[variable] != scopes[i]) { 
+					puts("scope mismatch"); 
+					continue; 
+				} 
+				puts("SUCESSFUL VARIABLE RECOGNIZED");
+				goto variable_name_found;
+			}			
+
+variable_defined_in_scope[variable_count] = scopes[scope_count - 1];
+
+
+	nat variable_defined_in_scope[4096] = {0};
+
+	nat operation_defined_in_scope[4096] = {0};
+
+	nat variable_inactive[4096] = {0};
+
+	nat operation_inactive[4096] = {0};
+
+
+
+			//puts("calling OBS!");
+			//printf("def_location = %llu\n", def_location);
+			//printf("ins[def_location].op = %llu (\"%s\")\n", ins[def_location].op, operations[ins[def_location].op]);
+
+			const nat calling = operation_count - 1;
+
+			//printf("calling = %llu\n", calling);
+			//printf("arity[calling] = %llu\n", arity[calling]);
+
+			for (nat i = 0; i < arity[calling]; i++) {
+				printf("trying argument #%llu / %llu... comparing .args[%llu]:%llu and obs:%llu\n", 
+					i, arity[calling], i + 1, ins[def_location].args[i + 1], variable
+				);
+				getchar();
+				if (ins[def_location].args[i + 1] == variable) {
+					observable[calling] |= 1 << i;
+					//printf("info: FOUND OBSERVABLE!!\n");//getchar();
+				} //else printf("error: mismatch in finding observable!!\n");//getchar();
+			}
+
+*/
+
+
+
+			/*
+
+obs imple:
+
+
+			const nat calling = operation_count - 1;
+			for (nat i = 0; i < arity[calling]; i++) 
+				if (ins[(((((0)))))].args[i + 1] == var) observable[calling] |= 1 << i;
+
+
+*/
+
+		//print_dictionary(operations, arity, observable, operation_defined_in_scope, operation_count, 1);
+		//print_dictionary(variables, values, locations, variable_defined_in_scope, variable_count, 0);
+		//print_instructions(ins, ins_count, variables, operations, arity, variable_count, operation_count);
+
+
+
 int main(int argc, const char** argv) {
+
 	if (argc != 2) exit(puts("compiler: \033[31;1merror:\033[0m usage: ./run [file.s]"));
+
 	struct instruction ins[4096] = {0};
 	nat ins_count = 0;
-	nat scope_count = 1;
-	nat scopes[4096] = {0};
-	char* operations[4096] = {0};
-	nat arity[4096] = {0};
-	memcpy(arity, builtin_arity, sizeof builtin_arity);
-	nat observable[4096] = {0};
-	nat operation_defined_in_scope[4096] = {0};
 	nat operation_count = isa_count;
-	char* variables[4096] = {0};
+	char* operations[4096] = {0};
+	nat arity[4096] = {0}; 
+	nat observable[4096] = {0};
 	nat variable_count = 0;
-	nat variable_defined_in_scope[4096] = {0};
-	struct file filestack[4096] = {0};
-	nat filestack_count = 1;
+	char* variables[4096] = {0};
+	nat values[4096] = {0}; 
+	nat locations[4096] = {0}; 
+	nat ra_constraint[4096] = {0}; 
+	nat arch = no_arch;
+	nat op_stack_count = 0;
+	nat op_stack[4096] = {0};
+	nat var_stack_count = 0;
+	nat var_stack[4096] = {0};
+	nat ret_stack_count = 0;
+	nat ret_stack[4096] = {0};
 	const char* included_files[4096] = {0};
 	nat included_file_count = 0;
+	struct file filestack[4096] = {0};
+	nat filestack_count = 1;
+
 	for (nat i = 0; i < isa_count; i++) operations[i] = strdup(ins_spelling[i]);
 	observable[lf] = 1;
+	memcpy(arity, builtin_arity, sizeof builtin_arity);
+	memset(values, 0xA5, sizeof values);
+	memset(locations, 255, sizeof locations);
+	memset(ra_constraint, 255, sizeof ra_constraint);
 {
 	int file = open(argv[1], O_RDONLY);
 	if (file < 0) { puts(argv[1]); perror("open"); exit(1); }
@@ -228,93 +351,86 @@ int main(int argc, const char** argv) {
 	printf("file: (%llu chars)\n<<<%s>>>\n", text_length, text);
 }
 process_file:;
-	{nat 	word_length = 0, 
-		word_start = 0,
-		state = 0,
-		comment = 0,
-		def_location = (nat) -1,
-		arg_count = 0;
-
-	nat args[16] = {0};
+	{
+	
 	const nat starting_index = 	filestack[filestack_count - 1].index;
 	const nat text_length = 	filestack[filestack_count - 1].text_length;
 	char* text = 			filestack[filestack_count - 1].text;
 	const char* filename = 		filestack[filestack_count - 1].filename;
-	nat variable = 0;
-	memset(args, 255, sizeof args);
 
-	for (nat index = starting_index; index < text_length; index++) {
-		if (not isspace(text[index])) {
-			if (not word_length) word_start = index;
+	nat word_length = 0, word_start = 0;
+	nat comment = 0, arg_count = 0;
+	nat var = 0, op = 0;
+	nat args[16] = {0}; memset(args, 255, sizeof args);
+
+	for (nat pc = starting_index; pc < text_length; pc++) {
+		if (not isspace(text[pc])) {
+			if (not word_length) word_start = pc;
 			word_length++; 
-			if (index + 1 < text_length) continue;
+			if (pc + 1 < text_length) continue;
 		} else if (not word_length) continue;
 		puts("\n\n\n\n");
 		char* word = strndup(text + word_start, word_length);
-		printf("file:%llu: at \"%s\" @ %llu\n", index, word, word_start);
-		//nat ignore[4096] = {0};
-		//print_stack(scopes, scope_count);
-		//print_dictionary(operations, arity, observable, operation_defined_in_scope, operation_count);
-		//print_dictionary(variables, locations, locations, variable_defined_in_scope, variable_count);
-		//print_instructions(ins, ins_count, variables, operations, arity, variable_count, operation_count, ignore);
-		//getchar();
+		printf("file:pc=%llu: at \"%s\" @ %llu\n", pc, word, word_start);
+		print_index(text, text_length, word_start, pc);
+		getchar();
 
 		if (not strcmp(word, ".") and not comment) { comment = 1; goto next_word; }
 		if (comment) { if (not strcmp(word, ".")) { comment = 0; goto next_word; } else goto next_word; }
-		if (not state) {
-			arg_count = 0;
+
+		if (not op) {
 			if (not strcmp(word, "eoi")) break;
-			for (nat i = scope_count; i--;) {
-				printf("searching for operations in scope i=%llu: #%llu..\n", i, scopes[i]);
-				for (state = 0; state < operation_count; state++) {
-					if (strcmp(word, operations[state])) { printf("%s vs %s : operation name mismatch\n", word, operations[state]); continue; }
-					printf("comparing scopes: operation_defined_in_scope[state](%llu) ==? scopes[i](%llu)\n", operation_defined_in_scope[state], scopes[i]);
-					if (operation_defined_in_scope[state] != scopes[i]) { puts("scope mismatch"); continue; }					
-					puts("SUCESSFUL OPERATION RECOGNIZED");
-					if (not arity[state]) goto process_op;
-					goto next_word;
-				}
+			for (nat i = op_stack_count; i--;) {
+				op = op_stack[i];
+				if (not strcmp(word, operations[op])) goto process_op;
 			}
-			puts("COULD NOT FIND OPERATION!!!");
-			print_error:
-			printf("%s:%llu:%llu: error: undefined %s \"%s\"\n",
-				filename, word_start, index, 
-				state == operation_count ? "operation" : "variable", word
+			op = (nat) -1;
+			print_error: printf("%s:%llu:%llu: error: undefined %s \"%s\"\n",
+				filename, word_start, pc, 
+				op == (nat) -1 ? "operation" : "variable", word
 			); 
-			print_index(text, text_length, word_start, index);
+			print_index(text, text_length, word_start, pc);
 			abort();
 		}
-		variable = variable_count;
-		if (state == def and arg_count == 0) goto define_name;
-		if (state >= def0 and state < ret) {
+		if (op >= def0 and op < ret) {
 			if (arg_count) goto define_name;
-			variable = operation_count;
+			var = operation_count;
 			operations[operation_count] = word;
-			operation_defined_in_scope[operation_count] = scopes[scope_count - 1];
-			scopes[scope_count++] = operation_count;
-			arity[operation_count++] = state - def0;
+			arity[operation_count++] = op - def0;
 			goto variable_name_found;
 		}
-		for (nat i = scope_count; i--;) {
-			printf("searching for operations in scope i=%llu: #%llu..\n", i, scopes[i]);
-			for (variable = 0; variable < variable_count; variable++) {
-				if (strcmp(word, variables[variable])) { printf("%s vs %s : variable name mismatch\n", word, variables[variable]); continue; }
-				if (variable_defined_in_scope[variable] != scopes[i]) { puts("scope mismatch"); continue; } 
-				puts("SUCESSFUL VARIABLE RECOGNIZED");
-				goto variable_name_found;
-			}			
+		var = variable_count;
+		for (nat i = var_stack_count; i--;) {
+			var = var_stack[i];
+			if (not strcmp(word, variables[var])) goto variable_name_found;					
 		}
-		if (not ((observable[state] >> arg_count) & 1)) goto print_error;
-	define_name:
-		variable_defined_in_scope[variable_count] = scopes[scope_count - 1];
-		variables[variable_count++] = word; 
-	variable_name_found:
-		args[arg_count++] = variable;
-		if (arg_count < arity[state]) goto next_word;
-	process_op:;
-		const nat op = state; state = 0;
+		if (not ((observable[op] >> arg_count) & 1)) goto print_error;
 
-		if (op == lf) {
+		define_name: variables[variable_count++] = word; 
+		variable_name_found: args[arg_count++] = var;
+		process_op: if (arg_count < arity[op]) goto next_word;
+
+		const nat arg0 = args[0];
+		const nat arg1 = args[1];
+		const nat arg2 = args[2];		
+
+		if (op >= def0 and op < ret) {
+
+			puts("executing a ct function definition!");
+			abort();
+
+		} else if (op == ret) {
+
+			puts("exiting ct function definition, or returning from ct function call.");
+			abort();
+
+		} else if (op == obs) { 
+
+			puts("obs unimpl"); 
+			abort(); 
+
+
+		} else if (op == lf) {
 			for (nat i = 0; i < included_file_count; i++) {
 				if (strcmp(included_files[i], word)) continue;
 				printf("warning: %s: file already included\n", word);
@@ -328,41 +444,59 @@ process_file:;
 			char* new_text = calloc(new_text_length + 1, 1);
 			read(file, new_text, new_text_length);
 			close(file);
-			filestack[filestack_count - 1].index = index;
+			filestack[filestack_count - 1].index = pc;
 			filestack[filestack_count].filename = word;
 			filestack[filestack_count].text = new_text;
 			filestack[filestack_count].text_length = new_text_length;
 			filestack[filestack_count++].index = 0;
 			variable_count--;
 			goto process_file;
-		} else if (op == obs) {
-			puts("calling OBS!");
-			printf("def_location = %llu\n", def_location);
-			printf("ins[def_location].op = %llu (\"%s\")\n", ins[def_location].op, operations[ins[def_location].op]);
-			const nat calling = operation_count - 1;
-			printf("calling = %llu\n", calling);
-			printf("arity[calling] = %llu\n", arity[calling]);
-			//getchar();
-			for (nat i = 0; i < arity[calling]; i++) {
-				printf("trying argument #%llu / %llu... comparing .args[%llu]:%llu and obs:%llu\n", 
-					i, arity[calling], i + 1, ins[def_location].args[i + 1], variable
-				);
-				//getchar();
-				if (ins[def_location].args[i + 1] == variable) {
-					observable[calling] |= 1 << i;
-					printf("info: FOUND OBSERVABLE!!\n");//getchar();
-				} else printf("error: mismatch in finding observable!!\n");//getchar();
-			}
-			//getchar();
-		} else {
-			//puts("generating a general instruction...");
+		}
+
+		else if (op == settarget) arch = values[arg0];
+		else if (op == ri) ra_constraint[arg0] = values[arg1];
+		else if (op == zero) values[arg0] = 0;
+		else if (op == incr) values[arg0]++;
+		else if (op == decr) values[arg0]--;
+		else if (op == not_) values[arg0] = ~values[arg0]; 
+		else if (op == set)  values[arg0] = values[arg1];
+		else if (op == add)  values[arg0] += values[arg1];
+		else if (op == sub)  values[arg0] -= values[arg1];
+		else if (op == mul)  values[arg0] *= values[arg1];
+		else if (op == div_) values[arg0] /= values[arg1];
+		else if (op == rem)  values[arg0] %= values[arg1];
+		else if (op == and_) values[arg0] &= values[arg1];
+		else if (op == or_)  values[arg0] |= values[arg1];
+		else if (op == eor)  values[arg0] ^= values[arg1];
+		else if (op == si)   values[arg0] <<= values[arg1];
+		else if (op == sd)   values[arg0] >>= values[arg1];
+		else if (op == ld)  { printf("executing LD"); values[arg0] = values[arg1]; abort(); }
+		else if (op == st)  { printf("executing ST"); values[arg0] = values[arg1]; abort(); }
+		else if (op == at) locations[arg0] = pc;
+		else if (op == do_) pc = locations[arg0];
+		else if (op == lt) { if (values[arg0]  < values[arg1]) pc = locations[arg2]; }
+		else if (op == ge) { if (values[arg0] >= values[arg1]) pc = locations[arg2]; }
+		else if (op == eq) { if (values[arg0] == values[arg1]) pc = locations[arg2]; }
+		else if (op == ne) { if (values[arg0] != values[arg1]) pc = locations[arg2]; }
+		else if (op == ctdebug) { printf("ctdebug: %llu\n", values[arg0]); }//getchar(); } 
+
+		else if (arch == no_arch) {
+		call_macro:
+			;
+
+
+		} else if (arch == arm64_arch) {
+			if (op >= arm64_isa_count) goto call_macro;
+			
+			puts("generating rt instruction...");
 			struct instruction new = { .op = op };
 			memcpy(new.args, args, sizeof args);
-			if (op >= def0 and op < ret) def_location = ins_count;
 			ins[ins_count++] = new;
-			memset(args, 255, sizeof args);
-			if (op == ret) scope_count--;
-		} 
+
+		} else { puts("error: unknown arch"); abort(); }
+
+		memset(args, 255, sizeof args); 
+		arg_count = 0; op = 0;
 		next_word: word_length = 0;
 	}
 	if (comment) { puts("error: unterminated comment"); abort(); }
@@ -370,16 +504,53 @@ process_file:;
 	if (filestack_count) goto process_file;
 	}
 
-	nat ignore[4096] = {0};
-	print_dictionary(operations, arity, observable, operation_defined_in_scope, operation_count);
-	print_dictionary(variables, variable_defined_in_scope, variable_defined_in_scope, variable_defined_in_scope, variable_count);
-	print_instructions(ins, ins_count, variables, operations, arity, variable_count, operation_count, ignore);
+	//print_dictionary(operations, arity, observable, operation_defined_in_scope, operation_count, 1);
+	//print_dictionary(variables, values, locations, variable_defined_in_scope, variable_count, 0);
+	//print_instructions(ins, ins_count, variables, operations, arity, variable_count, operation_count);
 
-	puts("finished parsing. beginning CT execution...");
-	//getchar();
+	puts("finished ct-parsing. ");
+}
 
-	nat locations[4096] = {0}; memset(locations, 255, sizeof locations);
-	nat values[4096] = {0};
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+	//nat def_stack_count = 0;
+
+	//nat global_if_seen[4096] = {0};
+	//nat global_replace_with[4096] = {0};
+	//nat global_replacement_count = 0;
+
+	//struct instruction rt_ins[4096] = {0};
+	//nat rt_ins_count = 0;
+
+/*
+
+	//nat locations[4096] = {0}; memset(locations, 255, sizeof locations);
+	//nat values[4096] = {0};
 	nat definitions[4096] = {0};
 	nat stack[4096] = {0};
 	nat stack_count = 0;
@@ -397,6 +568,13 @@ process_file:;
 	nat rt_ins_count = 0;
 
 	for (nat i = 0; i < ins_count; i++) if (ins[i].op == at) locations[ins[i].args[0]] = i;
+
+
+
+
+
+
+	//nat in_current_function = 0;
 
 	nat pc = 0;
 	while (pc < ins_count) {
@@ -428,10 +606,10 @@ process_file:;
 		for (nat a = 0; a < arity[op]; a++) {
 			for (nat r = 0; r < replacement_count[stack_count - 1]; r++) {
 				if (args[a] != if_seen[ max_arg_count * (stack_count - 1) + r]) continue;
-				/*printf("WARNING: performed argument replacement: found %llu(%s), replaced with %llu(%s).\n",
+				printf("WARNING: performed argument replacement: found %llu(%s), replaced with %llu(%s).\n",
 					args[a], variables[args[a]], 
 					replace_with[max_arg_count * (stack_count - 1) + r],
-					variables[replace_with[max_arg_count * (stack_count - 1) + r]]);*/
+					variables[replace_with[max_arg_count * (stack_count - 1) + r]]);
 				args[a] = replace_with[max_arg_count * (stack_count - 1) + r];
 			}
 		}
@@ -503,6 +681,7 @@ process_file:;
 					if_seen[max_arg_count * stack_count + r] = ins[definitions[op]].args[1 + r];
 					replace_with[max_arg_count * stack_count + r] = ins[pc].args[r];
 				}
+				
 				replacement_count[stack_count] = arity[op];
 				stack[stack_count++] = pc;
 				pc = definitions[op];
@@ -529,8 +708,8 @@ process_file:;
 	}
 	
 	puts("finished executing CT instruction");	
-	print_dictionary(operations, arity, observable, operation_defined_in_scope, operation_count);
-	print_dictionary(variables, locations, values, variable_defined_in_scope, variable_count);
+	print_dictionary(operations, arity, observable, operation_defined_in_scope, operation_count, 1);
+	print_dictionary(variables, locations, values, variable_defined_in_scope, variable_count, 0);
 	print_instruction_index(ins, ins_count, variables, operations, arity, variable_count, operation_count, ignore, ins_count, ""); 
 	puts("");
 	printf("[INFO]: assembling for target_arch = %llu\n", target_architecture);
@@ -541,13 +720,42 @@ process_file:;
 			printf("\t RA CONSTRAINT: %s has register index r[%llu].\n", variables[i], register_constraint[i]);
 	}
 
-	/*for (nat i = 0; i < variable_count; i++) {
-		if (bit_count[i]) 
-			printf("\t BC CONSTRAINT: %s is %llu bits wide.\n", variables[i], bit_count[i]);
-	}*/
 }
 
 
+*/
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+/*
+
+
+	for (nat i = 0; i < variable_count; i++) {
+		if (bit_count[i]) 
+			printf("\t BC CONSTRAINT: %s is %llu bits wide.\n", variables[i], bit_count[i]);
+	}
+
+*/
 
 
 
@@ -579,31 +787,19 @@ process_file:;
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+/*static void print_stack(nat* stack, nat* replacement_count, nat* if_seen, nat* replace_with, nat stack_count) {
+	printf("stack: %llu { \n", stack_count);
+	for (nat i = 0; i < stack_count; i++) {
+		printf("stack[%llu] =  { pc = %llu , replacement_count=%llu, { ", 
+			i, stack[i], replacement_count[i]
+		);
+		for (nat r = 0; r < replacement_count[i]; r++) {
+			printf("(%llu:%llu) ", if_seen[max_arg_count * i + r], replace_with[max_arg_count * i + r]);
+		}
+		puts(" } ");
+	}
+	puts("}");
+}*/
 
 
 
