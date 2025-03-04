@@ -4,7 +4,8 @@
 	written on 1202502285.010908 dwrr
 . 
 
-def1 settarget x ret
+def0 halt ret
+def1 setarch x ret
 def2 ri x n obs x ret
 
 def1 zero x obs x ret

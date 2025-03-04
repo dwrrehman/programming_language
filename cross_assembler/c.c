@@ -1,4 +1,4 @@
-// cross ct-macro assembler
+// cross-arch macro assembler
 // 1202502263.200223 dwrr
 #include <stdio.h>
 #include <stdlib.h>
@@ -20,7 +20,7 @@ enum core_language_isa {
 	def8, def9,
 	ret, obs, lf, 
 isa_count,
-	settarget = isa_count, ri, 
+	halt = isa_count, setarch, ri,
 	zero, incr, decr, not_, 
 	set, add, sub, mul, div_, rem, 
 	and_, or_, eor, si, sd, 
@@ -178,7 +178,7 @@ static void print_variables(
 static void print_instruction(struct instruction this, char** names, char** operations, nat* arity, nat name_count, nat operation_count) {
 	printf("  %10s { ", operations[this.op]);
 	for (nat a = 0; a < arity[this.op]; a++) { 
-		if (this.args[a] < 256) printf("%3llu", this.args[a]); 
+		if (this.args[a] < 512) printf("%3llu", this.args[a]); 
 		else if (this.args[a] == (nat) -1) printf("%3lld", this.args[a]);
 		else printf("0x%016llx", this.args[a]);		
 		if (a == 0 and this.op >= def0 and this.op < ret) {
@@ -205,30 +205,68 @@ static void print_instructions(
 }
 
 
+static void print_nats(nat* array, nat count) {
+	printf("(%llu) { ", count);
+	for (nat i = 0; i < count; i++) {
+		printf("%llu ", array[i]);
+	}
+	puts("}");
+}
+
+
+
+
+static nat* get_preds(
+
+	nat* out_pred_count,
+	nat pc, 
+
+	struct instruction* ins, 
+	nat ins_count,
+
+	nat* goto0,
+	nat* goto1
+) {
+
+	nat count = 0;
+	nat* preds = calloc(ins_count, sizeof(nat));
+	for (nat i = 0; i < ins_count; i++) {
+		if (goto0[i] == pc) preds[count++] = i;
+		if (goto1[i] == pc) preds[count++] = i;
+	}
+	*out_pred_count = count;
+	return preds;
+}
+
+
+
 
 int main(int argc, const char** argv) {
 
 	if (argc != 2) exit(puts("compiler: \033[31;1merror:\033[0m usage: ./run [file.s]"));
 
+	nat arch = no_arch;
 	struct instruction ins[4096] = {0};
 	nat ins_count = 0;
-	nat operation_count = isa_count;
-	char* operations[4096] = {0};
-	nat definitions[4096] = {0};
-	nat parameters[max_arg_count * 4096] = {0};
-	nat arity[4096] = {0}; 
-	nat observable[4096] = {0};
-	nat variable_count = 0;
-	char* variables[4096] = {0};
-	nat values[4096] = {0}; 
-	nat locations[4096] = {0}; 
 	nat rt_locations[4096] = {0}; 
 	nat ra_constraint[4096] = {0}; 
-	nat arch = no_arch;
-	nat op_stack_count = 0;
+	nat variable_count = 0;
+	char* variables[4096] = {0};
+	nat operation_count = isa_count;
+	char* operations[4096] = {0};
+	nat arity[4096] = {0}; 
+
+	nat op_stack_count = 0; // make these local/hidden soon
 	nat op_stack[4096] = {0};
 	nat var_stack_count = 0;
 	nat var_stack[4096] = {0};
+	nat values[4096] = {0}; 
+	nat locations[4096] = {0}; 
+	nat observable[4096] = {0};
+	nat parameters[max_arg_count * 4096] = {0};
+
+{
+	nat definitions[4096] = {0};
 	nat ret_stack_count = 0;
 	nat ret_stack[4096] = {0};
 	nat def_stack_count = 0;
@@ -263,7 +301,7 @@ int main(int argc, const char** argv) {
 	//printf("file: (%llu chars)\n<<<%s>>>\n", text_length, text);
 }
 process_file:;
-	{	
+		
 	const nat starting_index = 	filestack[filestack_count - 1].index;
 	const nat text_length = 	filestack[filestack_count - 1].text_length;
 	char* text = 			filestack[filestack_count - 1].text;
@@ -377,7 +415,8 @@ process_file:;
 		}
 		else if (op == at) { rt_locations[arg0] = ins_count; locations[arg0] = pc; if (skipping and skipping == arg0) skipping = 0; } 
 		else if (skipping) goto finish_op;
-		else if (op == settarget) arch = values[arg0];
+		else if (op == halt) goto push_rt_ins; 
+		else if (op == setarch) arch = values[arg0];
 		else if (op == ri) ra_constraint[arg0] = values[arg1];
 		else if (op == zero) values[arg0] = 0;
 		else if (op == incr) values[arg0]++;
@@ -422,10 +461,11 @@ process_file:;
 
 		} else if (arch == arm64_arch) {
 			if (op >= arm64_isa_count) goto call_macro;
-			struct instruction new = { .op = op };
+			push_rt_ins:; struct instruction new = { .op = op };
 			memcpy(new.args, args, sizeof args);
 			for (nat a = 0; a < arity[op]; a++) 
-				if (not is_runtime_arg(op, a) and not is_label_arg(op, a)) 
+				if (	not is_runtime_arg(op, a) and 
+					not is_label_arg(op, a)) 
 					new.args[a] = values[args[a]];
 			ins[ins_count++] = new;
 
@@ -437,25 +477,133 @@ process_file:;
 	}
 	if (comment) { puts("error: unterminated comment"); abort(); }
 	filestack_count--;
-	if (filestack_count) goto process_file;
-	}
+	if (filestack_count) goto process_file; }
 
-	print_variables(var_stack, var_stack_count, variables, values, locations, rt_locations, ra_constraint, variable_count, 10);
-	print_operations(op_stack, op_stack_count, operations, arity, parameters, observable, operation_count, variables, 4);
+	print_variables(var_stack, var_stack_count, variables, values, locations, rt_locations, ra_constraint, variable_count, 15);
+	print_operations(op_stack, op_stack_count, operations, arity, parameters, observable, operation_count, variables, 5);
 	print_instructions(ins, ins_count, variables, operations, arity, variable_count, operation_count);
 	puts("finished ct-parsing.");
-	exit(0);
+
+	printf("[INFO]: assembling for target_arch = %llu\n", arch);
+	for (nat i = 0; i < variable_count; i++) {
+		if (ra_constraint[i] != (nat) -1) 
+			printf("\t RA CONSTRAINT: %s has register index r[%llu].\n", variables[i], ra_constraint[i]);
+	}
+
+	// begin register allocation here!!!!
+	// [DONE] step 0. form the control flow graph which represents the machine code instructions.
+	// step 1. form liveness analysis
+	// step 2. form register interference graph
+	// step 3. use graph coloring algorithm to find an ordering in the rig. 
+	// step 4. done! now generate machine code. 
+
+	
+	// step 1: liveness analysis. 
+
+	// we first need to start at the last instruction, and work our way backwards through the control flow graph, 
+	// slowly setting the live in and live out of particular instructions, based on which registers are input registers, and which are output registers. 
+	// for every program, point, we have a boolean of whether or not it is live at that point. 
+	// we continue following the control flow graph backwards, until nothing changes on an iteration, or we have traversed all nodes, i think. 
+	
+
+	// we first have to start by tracing through the control flow graph   in the backwards order. we can use the standard DFS traversal algortihm for this, but we use predecessors instead of .goto's (successors)  for our child pointers lol. 
+
+	// lets first walk through the cfg backwards, starting from the last instruction.
 
 
 
+	nat stack_count = 0;
+	nat stack[4096] = {0};
+
+	for (nat i = 0; i < ins_count; i++) {
+		if (ins[i].op == halt) { stack[stack_count++] = i; }
+	}
+
+	
+	print_nats(stack, stack_count);
+
+	nat goto0[4096] = {0};
 
 
+	nat goto1[4096] = {0};
+
+	for (nat i = 0; i < ins_count; i++) {
 
 
+		const nat op = ins[i].op;
+		const nat arg1 = ins[i].args[1];
+
+		if (op == jmp) {
+			goto0[i] = (nat) -1;
+			goto1[i] = rt_locations[arg1];
+
+		} else if (op == br) {
+			goto0[i] = (nat) -1;
+			goto1[i] = (nat) -1;
+
+		} else if (op == halt) {
+			goto0[i] = (nat) -1;
+			goto1[i] = (nat) -1;
+
+		} else if (op == bc) {
+			goto0[i] = i + 1;
+			goto1[i] = rt_locations[arg1];
+
+		} else if (op == cbz) {
+			goto0[i] = i + 1;
+			goto1[i] = rt_locations[arg1];
+
+		} else if (op == tbz) {
+			goto0[i] = i + 1;
+			goto1[i] = rt_locations[arg1];
+
+		} else {
+			goto0[i] = i + 1;
+			goto1[i] = (nat) -1;
+		}
+	}
+
+	puts("printing control flow graph:");
+	for (nat i = 0; i < ins_count; i++) {
+		printf("[%3llu]: %8s --> { f=%3lld, t=%3lld }\n", i, operations[ins[i].op], goto0[i], goto1[i]);
+	}
+	puts("[done]");
+
+
+	printf("finding preds..\n");
+
+	for (nat i = 0; i < ins_count; i++) {
+		nat pred_count = 0;
+		nat* preds = get_preds(&pred_count, i, ins, ins_count, goto0, goto1);
+		printf("[pc=%llu]: %8s  --> ", i, operations[ins[i].op]);
+		//print_instruction(ins[i], variables, operations, arity, variable_count, operation_count);
+		printf(" : preds ");
+		print_nats(preds, pred_count);
+	}
+
+	puts("done");	
+	abort();
+
+
+	/*
+
+	while (stack_count) {
+		const nat pc = stack[--stack_count];
+		printf("currently at TOP = %llu\n", pc);
+		const nat op = ins[pc].op;
+
+		nat args[max_arg_count];
+		memcpy(args, ins[pc].args, sizeof args);
+		
+		nat pred_count = 0;
+		nat* preds = get_preds(&pred_count, pc, ins, ins_count, rt_locations);	
+
+		abort();
+	}
+	*/
 
 
 }
-	
 
 
 
@@ -516,6 +664,13 @@ process_file:;
 
 
 
+
+
+	// thought:        please make it so that we generate    "at <label>" instructions   as runtime instructions     so that we don't rely on absolute position of a given instruction in the sequence, but rather, we can form the control flow graph that is invariant to how things move around! this is important, i think. 
+
+
+
+	// 
 
 
 

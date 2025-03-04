@@ -8,15 +8,14 @@ def0 gen
 	svc
 	bc 1 loop
 	ret
-
-
-
+gen
+gen
+ri q 3
 set i 0 at inner 
 print i incr i 
 bc 1 skip mov q i 0 0 0 at skip 
 lt i 4 inner
-
-
+halt eoi
 
 
 
