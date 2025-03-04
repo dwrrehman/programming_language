@@ -10,13 +10,7 @@
 #include <stdbool.h>
 #include <ctype.h>
 typedef uint64_t nat;
-
-// instead of using values[]        we need to have  each macro call     (ie, each call frame)    have its own local values array. 
-//	like, stack variables   for a rt function. 
-// this will allow us to define local labels, which are truly local, allowing for local control flow generation. (which is a first class use case of course.)
-
 #define max_arg_count 16
-
 enum all_architectures { no_arch, arm64_arch, arm32_arch, rv64_arch, rv32_arch };
 
 enum core_language_isa {
@@ -125,8 +119,548 @@ static void print_index(const char* text, nat text_length, nat begin, nat end) {
 		putchar(text[i]);
 		if (i == end) printf("]\033[0m");
 	}
+	
+	printf("\033[0m");
 	puts("\n");
 }
+
+static void print_operations(
+	nat* op_stack, nat op_stack_count, 
+	char** operations, nat* arity, 
+	nat* parameters, nat* observable, 
+	nat operation_count, char** variables
+) {
+	nat start = 0;
+	if (operation_count >= 5) start = operation_count - 5;
+	puts("operation dictionary: ");
+	for (nat i = start; i < operation_count; i++) {
+		bool found = 0;
+		for (nat j = 0; j < op_stack_count; j++) {
+			if (op_stack[j] == i) { found = 1; break; }
+		}
+		printf(" %c [%llu]  \"%s\" : <%llu>(", not found ? 'U' : ' ', i, operations[i], arity[i]);
+		for (nat a = 0; a < arity[i]; a++) {
+			nat arg = parameters[max_arg_count * i + a];
+			printf("  {(%llu):%s%s}", 
+				arg, variables[arg], 
+				((observable[i] >> a) & 1) ? ":OBS" : ""
+			);
+		}
+		printf(")\n");
+	}
+	puts(".");
+}
+
+static void print_variables(
+	nat* var_stack, nat var_stack_count, 
+	char** variables, nat* values, 
+	nat* locations, nat* ra_constraint, 
+	nat variable_count
+) {
+	puts("variable dictionary: ");
+
+	nat start = 0;
+	if (variable_count >= 5) start = variable_count - 5;
+	for (nat i = start; i < variable_count; i++) {
+		bool found = 0;
+		for (nat j = 0; j < var_stack_count; j++) {
+			if (var_stack[j] == i) { found = 1; break; }
+		}
+		printf(" %c [%llu]  \"%s\" : value=%llu, location=%llu, rac=%llu\n", 
+			not found ? 'U' : ' ', i, variables[i], values[i], locations[i], ra_constraint[i]
+		);
+	}
+	puts(".");
+}
+
+int main(int argc, const char** argv) {
+
+	if (argc != 2) exit(puts("compiler: \033[31;1merror:\033[0m usage: ./run [file.s]"));
+
+	struct instruction ins[4096] = {0};
+	nat ins_count = 0;
+	nat operation_count = isa_count;
+	char* operations[4096] = {0};
+	nat definitions[4096] = {0};
+	nat parameters[max_arg_count * 4096] = {0};
+	nat arity[4096] = {0}; 
+	nat observable[4096] = {0};
+	nat variable_count = 0;
+	char* variables[4096] = {0};
+	nat values[4096] = {0}; 
+	nat locations[4096] = {0}; 
+	nat ra_constraint[4096] = {0}; 
+	nat arch = no_arch;
+
+	nat op_stack_count = 0;
+	nat op_stack[4096] = {0};
+
+	nat var_stack_count = 0;
+	nat var_stack[4096] = {0};
+
+	nat ret_stack_count = 0;
+	nat ret_stack[4096] = {0};
+
+	nat def_stack_count = 0;
+	nat def_stack[4096] = {0};
+
+	const char* included_files[4096] = {0};
+	nat included_file_count = 0;
+	struct file filestack[4096] = {0};
+	nat filestack_count = 1;
+
+	for (nat i = 0; i < isa_count; i++) op_stack[op_stack_count++] = i;
+	for (nat i = 0; i < isa_count; i++) operations[i] = strdup(ins_spelling[i]);
+
+	observable[lf] = 1;
+	memcpy(arity, builtin_arity, sizeof builtin_arity);
+	memset(values, 0xA5, sizeof values);
+	memset(locations, 255, sizeof locations);
+	memset(ra_constraint, 255, sizeof ra_constraint);
+
+{
+	int file = open(argv[1], O_RDONLY);
+	if (file < 0) { puts(argv[1]); perror("open"); exit(1); }
+	const nat text_length = (nat) lseek(file, 0, SEEK_END);
+	lseek(file, 0, SEEK_SET);
+	char* text = calloc(text_length + 1, 1);
+	read(file, text, text_length);
+	close(file);
+	filestack[0].filename = argv[1];
+	filestack[0].text = text;
+	filestack[0].text_length = text_length;
+	filestack[0].index = 0;
+	//printf("file: (%llu chars)\n<<<%s>>>\n", text_length, text);
+}
+process_file:;
+	{
+	
+	const nat starting_index = 	filestack[filestack_count - 1].index;
+	const nat text_length = 	filestack[filestack_count - 1].text_length;
+	char* text = 			filestack[filestack_count - 1].text;
+	const char* filename = 		filestack[filestack_count - 1].filename;
+
+	nat word_length = 0, word_start = 0;
+	nat comment = 0, arg_count = 0, skipping = 0;
+	nat var = 0, op = 0;
+
+	nat args[max_arg_count] = {0}; memset(args, 255, sizeof args);
+
+	for (nat pc = starting_index; pc < text_length; pc++) {
+		if (not isspace(text[pc])) {
+			if (not word_length) word_start = pc;
+			word_length++; 
+			if (pc + 1 < text_length) continue;
+		} else if (not word_length) continue;
+		//puts("\n\n\n\n");
+		char* word = strndup(text + word_start, word_length);
+
+
+			nat temp_args[max_arg_count];
+			memcpy(temp_args, args, sizeof args);
+			const nat temp_arg_count = arg_count;
+			const nat temp_op = op;
+
+
+		if (not strcmp(word, ".") and not comment) { comment = 1; goto next_word; }
+		if (comment) { if (not strcmp(word, ".")) { comment = 0; goto next_word; } else goto next_word; }
+
+		if (not op) {
+			arg_count = 0; 
+			if (not strcmp(word, "eoi")) break;
+			for (nat i = op_stack_count; i--;) {
+				op = op_stack[i];
+				if (not strcmp(word, operations[op])) goto process_op;
+			}
+			op = (nat) -1;
+			print_error: printf("%s:%llu:%llu: error: undefined %s \"%s\"\n",
+				filename, word_start, pc, 
+				op == (nat) -1 ? "operation" : "variable", word
+			); 
+			print_index(text, text_length, word_start, pc);
+			abort();
+		}
+		if (op >= def0 and op < ret) {
+			//puts("IN THE MIDDLE OF A DEF");
+			if (arg_count) { 
+				//puts("ARG COUNT IS NONZERO, PUSHING PARAM NAME"); 
+				goto define_name; 
+			} 
+			//puts("STILL HERE, PUSHING MACRO NAME INSTEAD");
+			var = operation_count;
+			//printf("var is now = %llu (oc)\n", var);
+			op_stack[op_stack_count++] = operation_count;
+			operations[operation_count] = word;
+			arity[operation_count++] = op - def0;
+
+			def_stack[def_stack_count++] = op_stack_count;
+			def_stack[def_stack_count++] = var_stack_count;
+
+			//puts("pushing argument now...");
+			goto push_argument;
+		}
+		for (nat i = var_stack_count; i--;) {
+			var = var_stack[i];
+			if (not strcmp(word, variables[var])) goto push_argument;					
+		}
+		if (not ((observable[op] >> arg_count) & 1)) goto print_error;
+
+	define_name:
+		//printf("[arg_count=%llu]: variable_count is currently = %llu\n", arg_count, variable_count);
+		//getchar();
+		var = variable_count;
+		var_stack[var_stack_count++] = variable_count; 
+		variables[variable_count++] = word; 
+
+	push_argument: 
+		args[arg_count++] = var;
+		//printf("[arg_count=%llu]: info: pushed argument var=%llu\n", arg_count, var);
+		//getchar();
+
+	process_op: 
+		if (arg_count < arity[op]) goto next_word;
+
+		const nat arg0 = args[0];
+		const nat arg1 = args[1];
+		const nat arg2 = args[2];		
+
+		if (op >= def0 and op < ret) {
+			for (nat a = 0; a < arity[arg0]; a++) parameters[max_arg_count * arg0 + a] = args[a + 1];
+			definitions[arg0] = pc;
+
+		} else if (op == ret) {
+			if (def_stack_count) { 
+				puts("executing RET: finishing ct-function definition body.."); 
+
+				var_stack_count = def_stack[--def_stack_count];
+				op_stack_count = def_stack[--def_stack_count];
+
+				goto finish_op; 
+			}
+
+			//puts("FINISHED MACRO: RETURNING NOW.... "); 
+			//getchar();
+
+			var_stack_count = ret_stack[--ret_stack_count];
+			op_stack_count = ret_stack[--ret_stack_count];
+			pc = ret_stack[--ret_stack_count];
+
+			//printf("[ret_stack_count=%llu]: popped top 3 entries into vars: {pc%llu, opc=%llu, varc=%llu} on the ret stack.\n", 
+			//	ret_stack_count, pc, op_stack_count, var_stack_count
+			//);
+			//getchar();
+			//puts("exiting ct function definition, or returning from ct function call.");
+			//getchar(); //abort();
+
+
+		} else if (op == obs) { 
+
+			const nat this = operation_count - 1;
+			//printf("recently defined op = %llu\n", this); //getchar();
+
+			for (nat a = 0; a < arity[this]; a++) {
+				if (parameters[max_arg_count * this + a] == arg0) {
+					//puts("found a match in the parameter list!!!");
+					observable[this] |= (1 << a);
+					goto found_it;
+				}
+			}
+			puts("fatal error: could not find a match.");
+			abort(); 
+			found_it:;
+
+		} else if (def_stack_count) goto finish_op;
+
+		else if (op == lf) {
+			for (nat i = 0; i < included_file_count; i++) {
+				if (strcmp(included_files[i], word)) continue;
+				printf("warning: %s: file already included\n", word);
+				goto next_word;
+			}
+			included_files[included_file_count++] = word;
+			int file = open(word, O_RDONLY);
+			if (file < 0) { puts(word); perror("open"); exit(1); }
+			const nat new_text_length = (nat) lseek(file, 0, SEEK_END);
+			lseek(file, 0, SEEK_SET);
+			char* new_text = calloc(new_text_length + 1, 1);
+			read(file, new_text, new_text_length);
+			close(file);
+			filestack[filestack_count - 1].index = pc;
+			filestack[filestack_count].filename = word;
+			filestack[filestack_count].text = new_text;
+			filestack[filestack_count].text_length = new_text_length;
+			filestack[filestack_count++].index = 0;
+			variable_count--;
+			goto process_file;
+		}
+		else if (op == at) { locations[arg0] = pc; if (skipping and skipping == arg0) skipping = 0; } 
+		else if (skipping) goto finish_op;
+		else if (op == settarget) arch = values[arg0];
+		else if (op == ri) ra_constraint[arg0] = values[arg1];
+		else if (op == zero) values[arg0] = 0;
+		else if (op == incr) values[arg0]++;
+		else if (op == decr) values[arg0]--;
+		else if (op == not_) values[arg0] = ~values[arg0]; 
+		else if (op == set)  values[arg0] = values[arg1];
+		else if (op == add)  values[arg0] += values[arg1];
+		else if (op == sub)  values[arg0] -= values[arg1];
+		else if (op == mul)  values[arg0] *= values[arg1];
+		else if (op == div_) values[arg0] /= values[arg1];
+		else if (op == rem)  values[arg0] %= values[arg1];
+		else if (op == and_) values[arg0] &= values[arg1];
+		else if (op == or_)  values[arg0] |= values[arg1];
+		else if (op == eor)  values[arg0] ^= values[arg1];
+		else if (op == si)   values[arg0] <<= values[arg1];
+		else if (op == sd)   values[arg0] >>= values[arg1];
+		else if (op == ld)  { printf("executing LD"); values[arg0] = values[arg1]; abort(); }
+		else if (op == st)  { printf("executing ST"); values[arg0] = values[arg1]; abort(); }
+		else if (op == do_) { if (locations[arg0] == (nat) -1) skipping = arg0; else pc = locations[arg0]; } 
+		else if (op == lt) { 
+			if (values[arg0] < values[arg1]) { 
+				perform_jump: if (locations[arg2] == (nat) -1) 
+					skipping = arg2; 
+				else pc = locations[arg2]; 
+			} 
+		} else if (op == ge) { if (values[arg0] >= values[arg1]) goto perform_jump; }
+		else if (op == eq) { if (values[arg0] == values[arg1]) goto perform_jump; }
+		else if (op == ne) { if (values[arg0] != values[arg1]) goto perform_jump; }
+		else if (op == ctdebug) { printf("ctdebug: %llu\n", values[arg0]); }//getchar(); } 
+
+		else if (arch == no_arch) {
+		call_macro:
+
+			//puts("calling macro.... unimplemented!"); 
+
+			ret_stack[ret_stack_count++] = pc;
+			ret_stack[ret_stack_count++] = op_stack_count;
+			ret_stack[ret_stack_count++] = var_stack_count;
+
+			for (nat a = 0; a < arity[op]; a++) {
+				if_seen[max_arg_count * arg_stack_count + a] = parameters[max_arg_count * op + a];
+				replace_with[max_arg_count * arg_stack_count + a] = args[a];
+			}
+			arg_stack_count++;
+
+
+			//printf("[ret_stack_count=%llu]: pushed {%llu, %llu, %llu} on the ret stack.\n", 
+			//	ret_stack_count, pc, op_stack_count, var_stack_count
+			//);
+
+			pc = definitions[op];
+
+			puts("adding arguments to scope, to allow for subsitution!");
+			for (nat a = 0; a < arity[op]; a++) {	
+				printf("adding paraemeter variable with index %llu into the local scope dictionary...\n", parameters[max_arg_count * op + a]);
+				var_stack[var_stack_count++] = parameters[max_arg_count * op + a];
+			}
+			
+			getchar();
+
+			//abort();
+
+		} else if (arch == arm64_arch) {
+			if (op >= arm64_isa_count) goto call_macro;
+			
+			puts("generating rt instruction...");
+			struct instruction new = { .op = op };
+			memcpy(new.args, args, sizeof args);
+			ins[ins_count++] = new;
+			abort();
+
+		} else { puts("error: unknown arch"); abort(); }
+
+		finish_op: 
+			memset(args, 255, sizeof args); 
+			arg_count = 0; 
+			op = 0;
+
+		next_word: 
+
+
+		if (filestack_count == 1) {
+			puts("\n\n\n\n");
+			print_variables(var_stack, var_stack_count, variables, values, locations, ra_constraint, variable_count);
+			print_operations(op_stack, op_stack_count, operations, arity, parameters, observable, operation_count, variables);
+			print_index(text, text_length, word_start, pc);
+
+			
+			printf("[pc=%llu][com=%llu][def=%llu][skip=%llu]: w=\"%s\" w_st=%llu\n", 
+				pc, comment, def_stack_count, skipping, word, word_start
+			);
+			printf("var = %llu, op = %llu, args = { %llu %llu %llu %llu }, arg_count = %llu\n", 
+				var, temp_op, 
+				temp_args[0], temp_args[1], 
+				temp_args[2], temp_args[3], 
+				temp_arg_count 
+			);
+			getchar();
+		}
+
+
+
+		word_length = 0;
+	}
+	if (comment) { puts("error: unterminated comment"); abort(); }
+	filestack_count--;
+	if (filestack_count) goto process_file;
+	}
+	//puts("finished ct-parsing. ");
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+			//abort();
+			//puts("executing defN: creating a ct function definition!");
+			//getchar();
+			//printf("arg0 = %llu\n", arg0);
+			//printf("arity[arg0] = %llu\n", arity[arg0]);
+			//printf("args[] = (){ ");
+			//for (nat i = 0; i < arg_count; i++) {
+			//	printf("%llu ", args[i]);
+			//}
+			//puts("}");
+			//getchar();
+
+			//getchar(); getchar(); 
+			//print_operations(op_stack, op_stack_count, operations, arity, 
+			//parameters, observable, operation_count, variables);
+			//getchar();
+
+
 
 /*static void print_dictionary(char** names, nat* array1, nat* array2, nat* array3, nat count, bool mode) {
 
@@ -189,474 +723,11 @@ static void print_instructions(
 }*/
 
 
-static void print_operations(
-	nat* op_stack, nat op_stack_count, 
-	char** operations, nat* arity, 
-	nat* parameters, nat* observable, 
-	nat operation_count, char** variables
-) {
-	puts("operation dictionary: ");
-	for (nat i = 0; i < operation_count; i++) {
-		bool found = 0;
-		for (nat j = 0; j < op_stack_count; j++) {
-			if (op_stack[j] == i) { found = 1; break; }
-		}
-		printf(" %c [%llu]  \"%s\" : <%llu>(", not found ? 'U' : ' ', i, operations[i], arity[i]);
-		for (nat a = 0; a < arity[i]; a++) {
-			nat arg = parameters[max_arg_count * i + a];
-			printf("  {(%llu):%s%s}", 
-				arg, variables[arg], 
-				((observable[i] >> a) & 1) ? ":OBS" : ""
-			);
-		}
-		printf(")\n");
-	}
-	puts(".");
-}
 
 
-static void print_variables(
-	nat* var_stack, nat var_stack_count, 
-	char** variables, nat* values, 
-	nat* locations, nat* ra_constraint, 
-	nat variable_count
-) {
-	puts("variable dictionary: ");	
-	for (nat i = 0; i < variable_count; i++) {	
-		bool found = 0;
-		for (nat j = 0; j < var_stack_count; j++) {
-			if (var_stack[j] == i) { found = 1; break; }
-		}
-		printf(" %c [%llu]  \"%s\" : value=%llu, location=%llu, rac=%llu\n", 
-			not found ? 'U' : ' ', i, variables[i], values[i], locations[i], ra_constraint[i]
-		);
-	}
-	puts(".");
-}
-
-int main(int argc, const char** argv) {
-
-	if (argc != 2) exit(puts("compiler: \033[31;1merror:\033[0m usage: ./run [file.s]"));
-
-	struct instruction ins[4096] = {0};
-	nat ins_count = 0;
-	nat operation_count = isa_count;
-	char* operations[4096] = {0};
-	nat parameters[max_arg_count * 4096] = {0};
-	nat arity[4096] = {0}; 
-	nat observable[4096] = {0};
-	nat variable_count = 0;
-	char* variables[4096] = {0};
-	nat values[4096] = {0}; 
-	nat locations[4096] = {0}; 
-	nat ra_constraint[4096] = {0}; 
-	nat arch = no_arch;
-	nat op_stack_count = 0;
-	nat op_stack[4096] = {0};
-	nat var_stack_count = 0;
-	nat var_stack[4096] = {0};
-	nat ret_stack_count = 0;
-	nat ret_stack[4096] = {0};
-	const char* included_files[4096] = {0};
-	nat included_file_count = 0;
-	struct file filestack[4096] = {0};
-	nat filestack_count = 1;
-
-	for (nat i = 0; i < isa_count; i++) op_stack[op_stack_count++] = i;
-	for (nat i = 0; i < isa_count; i++) operations[i] = strdup(ins_spelling[i]);
-
-	observable[lf] = 1;
-	memcpy(arity, builtin_arity, sizeof builtin_arity);
-	memset(values, 0xA5, sizeof values);
-	memset(locations, 255, sizeof locations);
-	memset(ra_constraint, 255, sizeof ra_constraint);
-
-{
-	int file = open(argv[1], O_RDONLY);
-	if (file < 0) { puts(argv[1]); perror("open"); exit(1); }
-	const nat text_length = (nat) lseek(file, 0, SEEK_END);
-	lseek(file, 0, SEEK_SET);
-	char* text = calloc(text_length + 1, 1);
-	read(file, text, text_length);
-	close(file);
-	filestack[0].filename = argv[1];
-	filestack[0].text = text;
-	filestack[0].text_length = text_length;
-	filestack[0].index = 0;
-	printf("file: (%llu chars)\n<<<%s>>>\n", text_length, text);
-}
-process_file:;
-	{
-	
-	const nat starting_index = 	filestack[filestack_count - 1].index;
-	const nat text_length = 	filestack[filestack_count - 1].text_length;
-	char* text = 			filestack[filestack_count - 1].text;
-	const char* filename = 		filestack[filestack_count - 1].filename;
-
-	nat word_length = 0, word_start = 0;
-	nat comment = 0, arg_count = 0, skipping = 0;
-	nat var = 0, op = 0;
-
-	nat nesting = 0;
-
-	nat args[max_arg_count] = {0}; memset(args, 255, sizeof args);
-
-	for (nat pc = starting_index; pc < text_length; pc++) {
-		if (not isspace(text[pc])) {
-			if (not word_length) word_start = pc;
-			word_length++; 
-			if (pc + 1 < text_length) continue;
-		} else if (not word_length) continue;
-		//puts("\n\n\n\n");
-		char* word = strndup(text + word_start, word_length);
-		//printf("file:[pc=%llu][comment=%llu][nesting=%llu][skipping=%llu]: at \"%s\" @ %llu\n", pc, comment, nesting, skipping, word, word_start);
-		//print_variables(var_stack, var_stack_count, variables, values, locations, ra_constraint, variable_count);
-		//print_operations(op_stack, op_stack_count, operations, arity, parameters, observable, operation_count, variables);
-
-		//print_index(text, text_length, word_start, pc);
-		//getchar();
-
-		if (not strcmp(word, ".") and not comment) { comment = 1; goto next_word; }
-		if (comment) { if (not strcmp(word, ".")) { comment = 0; goto next_word; } else goto next_word; }
-
-		if (not op) {
-			arg_count = 0; 
-			if (not strcmp(word, "eoi")) break;
-			for (nat i = op_stack_count; i--;) {
-				op = op_stack[i];
-				if (not strcmp(word, operations[op])) goto process_op;
-			}
-			op = (nat) -1;
-			print_error: printf("%s:%llu:%llu: error: undefined %s \"%s\"\n",
-				filename, word_start, pc, 
-				op == (nat) -1 ? "operation" : "variable", word
-			); 
-			print_index(text, text_length, word_start, pc);
-			abort();
-		}
-		if (op >= def0 and op < ret) {
-			//puts("IN THE MIDDLE OF A DEF");
-			if (arg_count) { 
-				//puts("ARG COUNT IS NONZERO, PUSHING PARAM NAME"); 
-				goto define_name; 
-			} 
-			//puts("STILL HERE, PUSHING MACRO NAME INSTEAD");
-			var = operation_count;
-			//printf("var is now = %llu (oc)\n", var);
-			op_stack[op_stack_count++] = operation_count;
-			operations[operation_count] = word;
-			arity[operation_count++] = op - def0;
-
-			//puts("pushing argument now...");
-
-			goto push_argument;
-		}
-		for (nat i = var_stack_count; i--;) {
-			var = var_stack[i];
-			if (not strcmp(word, variables[var])) goto push_argument;					
-		}
-		if (not ((observable[op] >> arg_count) & 1)) goto print_error;
-
-	define_name:
-		//printf("[arg_count=%llu]: variable_count is currently = %llu\n", arg_count, variable_count);
-		//getchar();
-		var = variable_count;
-		var_stack[var_stack_count++] = variable_count; 
-		variables[variable_count++] = word; 
-
-	push_argument: 
-		args[arg_count++] = var;
-		//printf("[arg_count=%llu]: info: pushed argument var=%llu\n", arg_count, var);
-		//getchar();
-
-	process_op: 
-		if (arg_count < arity[op]) goto next_word;
-
-		const nat arg0 = args[0];
-		const nat arg1 = args[1];
-		const nat arg2 = args[2];		
-
-		if (op >= def0 and op < ret) {
-
-			//puts("executing defN: creating a ct function definition!");
-
-			nesting++;
-
-			//getchar();
-			//printf("arg0 = %llu\n", arg0);
-			//printf("arity[arg0] = %llu\n", arity[arg0]);
-
-			//printf("args[] = (){ ");
-			//for (nat i = 0; i < arg_count; i++) {
-			//	printf("%llu ", args[i]);
-			//}
-			//puts("}");
-
-			//getchar();
-
-			for (nat a = 0; a < arity[arg0]; a++) {
-				parameters[max_arg_count * arg0 + a] = args[a + 1];
-			}
-
-			//abort();
-
-			//getchar(); getchar(); 
-			//print_operations(op_stack, op_stack_count, operations, arity, 
-			//parameters, observable, operation_count, variables);
-			//getchar();
-
-		} else if (op == ret) {
-
-			if (nesting) { 
-				//puts("executing RET: finishing ct-function definition body.."); 
-				nesting--; 
-				goto finish_op; 
-			}
-
-			puts("exiting ct function definition, or returning from ct function call.");
-			abort();
-
-		} else if (op == obs) { 
-
-			const nat this = operation_count - 1;
-			//printf("recently defined op = %llu\n", this); //getchar();
-
-			for (nat a = 0; a < arity[this]; a++) {
-				if (parameters[max_arg_count * this + a] == arg0) {
-					//puts("found a match in the parameter list!!!");
-					observable[this] |= (1 << a);
-					goto found_it;
-				}
-			}
-			puts("fatal error: could not find a match.");
-			abort(); 
-			found_it:;
-
-		} else if (nesting) goto finish_op;
-
-		else if (op == lf) {
-			for (nat i = 0; i < included_file_count; i++) {
-				if (strcmp(included_files[i], word)) continue;
-				printf("warning: %s: file already included\n", word);
-				goto next_word;
-			}
-			included_files[included_file_count++] = word;
-			int file = open(word, O_RDONLY);
-			if (file < 0) { puts(word); perror("open"); exit(1); }
-			const nat new_text_length = (nat) lseek(file, 0, SEEK_END);
-			lseek(file, 0, SEEK_SET);
-			char* new_text = calloc(new_text_length + 1, 1);
-			read(file, new_text, new_text_length);
-			close(file);
-			filestack[filestack_count - 1].index = pc;
-			filestack[filestack_count].filename = word;
-			filestack[filestack_count].text = new_text;
-			filestack[filestack_count].text_length = new_text_length;
-			filestack[filestack_count++].index = 0;
-			variable_count--;
-			goto process_file;
-		}
-		else if (op == at) { locations[arg0] = pc; if (skipping and skipping == arg0) skipping = 0; } 
-		else if (skipping) goto finish_op;
-		else if (op == settarget) arch = values[arg0];
-		else if (op == ri) ra_constraint[arg0] = values[arg1];
-		else if (op == zero) values[arg0] = 0;
-		else if (op == incr) values[arg0]++;
-		else if (op == decr) values[arg0]--;
-		else if (op == not_) values[arg0] = ~values[arg0]; 
-		else if (op == set)  values[arg0] = values[arg1];
-		else if (op == add)  values[arg0] += values[arg1];
-		else if (op == sub)  values[arg0] -= values[arg1];
-		else if (op == mul)  values[arg0] *= values[arg1];
-		else if (op == div_) values[arg0] /= values[arg1];
-		else if (op == rem)  values[arg0] %= values[arg1];
-		else if (op == and_) values[arg0] &= values[arg1];
-		else if (op == or_)  values[arg0] |= values[arg1];
-		else if (op == eor)  values[arg0] ^= values[arg1];
-		else if (op == si)   values[arg0] <<= values[arg1];
-		else if (op == sd)   values[arg0] >>= values[arg1];
-		else if (op == ld)  { printf("executing LD"); values[arg0] = values[arg1]; abort(); }
-		else if (op == st)  { printf("executing ST"); values[arg0] = values[arg1]; abort(); }
-		else if (op == do_) { if (locations[arg0] == (nat) -1) skipping = arg0; else pc = locations[arg0]; } 
-		else if (op == lt) { if (values[arg0]  < values[arg1]) { if (locations[arg2] == (nat) -1) skipping = arg2; else pc = locations[arg2]; } }
-		else if (op == ge) { if (values[arg0] >= values[arg1]) { if (locations[arg2] == (nat) -1) skipping = arg2; else pc = locations[arg2]; } }
-		else if (op == eq) { if (values[arg0] == values[arg1]) { if (locations[arg2] == (nat) -1) skipping = arg2; else pc = locations[arg2]; } }
-		else if (op == ne) { if (values[arg0] != values[arg1]) { if (locations[arg2] == (nat) -1) skipping = arg2; else pc = locations[arg2]; } }
-		else if (op == ctdebug) { printf("ctdebug: %llu\n", values[arg0]); }//getchar(); } 
-
-		else if (arch == no_arch) {
-
-		call_macro:
-			puts("calling macro.... unimplemented!"); 
-			abort();
-
-		} else if (arch == arm64_arch) {
-			if (op >= arm64_isa_count) goto call_macro;
-			
-			puts("generating rt instruction...");
-			struct instruction new = { .op = op };
-			memcpy(new.args, args, sizeof args);
-			ins[ins_count++] = new;
-			abort();
-
-		} else { puts("error: unknown arch"); abort(); }
-
-		finish_op: 
-			memset(args, 255, sizeof args); 
-			arg_count = 0; 
-			op = 0;
-
-		next_word: word_length = 0;
-	}
-	if (comment) { puts("error: unterminated comment"); abort(); }
-	filestack_count--;
-	if (filestack_count) goto process_file;
-	}
-	puts("finished ct-parsing. ");
-}
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+// instead of using values[]        we need to have  each macro call     (ie, each call frame)    have its own local values array. 
+//	like, stack variables   for a rt function. 
+// this will allow us to define local labels, which are truly local, allowing for local control flow generation. (which is a first class use case of course.)
 
 
 
