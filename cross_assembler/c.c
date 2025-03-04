@@ -204,6 +204,10 @@ int main(int argc, const char** argv) {
 	nat def_stack_count = 0;
 	nat def_stack[4096] = {0};
 
+	nat if_seen[max_arg_count * 4096] = {0};
+	nat replace_with[max_arg_count * 4096] = {0};
+	nat arg_stack_count = 0;
+	
 	const char* included_files[4096] = {0};
 	nat included_file_count = 0;
 	struct file filestack[4096] = {0};
@@ -255,12 +259,10 @@ process_file:;
 		//puts("\n\n\n\n");
 		char* word = strndup(text + word_start, word_length);
 
-
-			nat temp_args[max_arg_count];
-			memcpy(temp_args, args, sizeof args);
-			const nat temp_arg_count = arg_count;
-			const nat temp_op = op;
-
+		//nat temp_args[max_arg_count];
+		//memcpy(temp_args, args, sizeof args);
+		//const nat temp_arg_count = arg_count;
+		//const nat temp_op = op;
 
 		if (not strcmp(word, ".") and not comment) { comment = 1; goto next_word; }
 		if (comment) { if (not strcmp(word, ".")) { comment = 0; goto next_word; } else goto next_word; }
@@ -320,9 +322,23 @@ process_file:;
 	process_op: 
 		if (arg_count < arity[op]) goto next_word;
 
+		if (arg_stack_count) {
+			for (nat a = 0; a < arg_count; a++) {
+				const nat r = max_arg_count * (arg_stack_count - 1) + a;
+				if (if_seen[r] == args[a]) {
+					//printf("WARNING: performed global_replacement: found %llu(%s), replaced with %llu(%s).\n",
+					//	args[a], variables[args[a]], 
+					//	replace_with[r], variables[replace_with[r]]
+					//); 
+					//getchar();
+					args[a] = replace_with[r];
+				}
+			}
+		}
+
 		const nat arg0 = args[0];
 		const nat arg1 = args[1];
-		const nat arg2 = args[2];		
+		const nat arg2 = args[2];
 
 		if (op >= def0 and op < ret) {
 			for (nat a = 0; a < arity[arg0]; a++) parameters[max_arg_count * arg0 + a] = args[a + 1];
@@ -330,7 +346,7 @@ process_file:;
 
 		} else if (op == ret) {
 			if (def_stack_count) { 
-				puts("executing RET: finishing ct-function definition body.."); 
+				//puts("executing RET: finishing ct-function definition body.."); 
 
 				var_stack_count = def_stack[--def_stack_count];
 				op_stack_count = def_stack[--def_stack_count];
@@ -435,11 +451,13 @@ process_file:;
 			ret_stack[ret_stack_count++] = op_stack_count;
 			ret_stack[ret_stack_count++] = var_stack_count;
 
+
 			for (nat a = 0; a < arity[op]; a++) {
 				if_seen[max_arg_count * arg_stack_count + a] = parameters[max_arg_count * op + a];
 				replace_with[max_arg_count * arg_stack_count + a] = args[a];
 			}
 			arg_stack_count++;
+
 
 
 			//printf("[ret_stack_count=%llu]: pushed {%llu, %llu, %llu} on the ret stack.\n", 
@@ -448,13 +466,13 @@ process_file:;
 
 			pc = definitions[op];
 
-			puts("adding arguments to scope, to allow for subsitution!");
+			//puts("adding arguments to scope, to allow for subsitution!");
 			for (nat a = 0; a < arity[op]; a++) {	
-				printf("adding paraemeter variable with index %llu into the local scope dictionary...\n", parameters[max_arg_count * op + a]);
+				//printf("adding paraemeter variable with index %llu into the local scope dictionary...\n", parameters[max_arg_count * op + a]);
 				var_stack[var_stack_count++] = parameters[max_arg_count * op + a];
 			}
 			
-			getchar();
+			//getchar();
 
 			//abort();
 
@@ -477,7 +495,7 @@ process_file:;
 		next_word: 
 
 
-		if (filestack_count == 1) {
+		/*if (filestack_count == 1) {
 			puts("\n\n\n\n");
 			print_variables(var_stack, var_stack_count, variables, values, locations, ra_constraint, variable_count);
 			print_operations(op_stack, op_stack_count, operations, arity, parameters, observable, operation_count, variables);
@@ -493,10 +511,8 @@ process_file:;
 				temp_args[2], temp_args[3], 
 				temp_arg_count 
 			);
-			getchar();
-		}
-
-
+			//getchar();
+		}*/
 
 		word_length = 0;
 	}
