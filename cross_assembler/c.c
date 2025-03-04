@@ -128,10 +128,11 @@ static void print_operations(
 	nat* op_stack, nat op_stack_count, 
 	char** operations, nat* arity, 
 	nat* parameters, nat* observable, 
-	nat operation_count, char** variables
+	nat operation_count, char** variables,
+	nat max_count
 ) {
 	nat start = 0;
-	if (operation_count >= 5) start = operation_count - 5;
+	if (operation_count >= max_count) start = operation_count - max_count;
 	puts("operation dictionary: ");
 	for (nat i = start; i < operation_count; i++) {
 		bool found = 0;
@@ -141,7 +142,7 @@ static void print_operations(
 		printf(" %c [%llu]  \"%s\" : <%llu>(", not found ? 'U' : ' ', i, operations[i], arity[i]);
 		for (nat a = 0; a < arity[i]; a++) {
 			nat arg = parameters[max_arg_count * i + a];
-			printf("  {(%llu):%s%s}", 
+			printf("  {(%lld):%s%s}", 
 				arg, variables[arg], 
 				((observable[i] >> a) & 1) ? ":OBS" : ""
 			);
@@ -154,24 +155,56 @@ static void print_operations(
 static void print_variables(
 	nat* var_stack, nat var_stack_count, 
 	char** variables, nat* values, 
-	nat* locations, nat* ra_constraint, 
-	nat variable_count
+	nat* locations, nat* rt_locations, nat* ra_constraint, 
+	nat variable_count, nat max_count
 ) {
 	puts("variable dictionary: ");
 
 	nat start = 0;
-	if (variable_count >= 5) start = variable_count - 5;
+	if (variable_count >= max_count) start = variable_count - max_count;
 	for (nat i = start; i < variable_count; i++) {
 		bool found = 0;
 		for (nat j = 0; j < var_stack_count; j++) {
 			if (var_stack[j] == i) { found = 1; break; }
 		}
-		printf(" %c [%llu]  \"%s\" : value=%llu, location=%llu, rac=%llu\n", 
-			not found ? 'U' : ' ', i, variables[i], values[i], locations[i], ra_constraint[i]
+		printf(" %c [%llu]  \"%s\" : value=%lld, location=%lld, rt_location=%lld, rac=%lld\n", 
+			not found ? 'U' : ' ', i, variables[i], values[i], locations[i], rt_locations[i], ra_constraint[i]
 		);
 	}
 	puts(".");
 }
+
+
+static void print_instruction(struct instruction this, char** names, char** operations, nat* arity, nat name_count, nat operation_count) {
+	printf("  %10s { ", operations[this.op]);
+	for (nat a = 0; a < arity[this.op]; a++) { 
+		if (this.args[a] < 256) printf("%3llu", this.args[a]); 
+		else if (this.args[a] == (nat) -1) printf("%3lld", this.args[a]);
+		else printf("0x%016llx", this.args[a]);		
+		if (a == 0 and this.op >= def0 and this.op < ret) {
+			printf("(\"%7s\") ", this.args[a] < operation_count ? operations[this.args[a]] : "");			
+		}
+		else printf("('%7s') ", this.args[a] < name_count ? names[this.args[a]] : "");
+	}
+	printf("}");
+}
+
+static void print_instructions(
+	struct instruction* ins, nat ins_count, 
+	char** names, char** operations, nat* arity, nat name_count, nat operation_count
+) {
+	puts("found instructions: {");
+	for (nat i = 0; i < ins_count; i++) {
+		if ((0)) printf("\033[38;5;239m");
+		printf("\t#%04llu: ", i);
+		print_instruction(ins[i], names, operations, arity, name_count, operation_count);
+		puts("");
+		if ((0)) printf("\033[0m");
+	}
+	puts("}");
+}
+
+
 
 int main(int argc, const char** argv) {
 
@@ -189,6 +222,7 @@ int main(int argc, const char** argv) {
 	char* variables[4096] = {0};
 	nat values[4096] = {0}; 
 	nat locations[4096] = {0}; 
+	nat rt_locations[4096] = {0}; 
 	nat ra_constraint[4096] = {0}; 
 	nat arch = no_arch;
 	nat op_stack_count = 0;
@@ -212,6 +246,7 @@ int main(int argc, const char** argv) {
 	memcpy(arity, builtin_arity, sizeof builtin_arity);
 	memset(values, 0xA5, sizeof values);
 	memset(locations, 255, sizeof locations);
+	memset(rt_locations, 255, sizeof rt_locations);
 	memset(ra_constraint, 255, sizeof ra_constraint);
 {
 	int file = open(argv[1], O_RDONLY);
@@ -292,7 +327,8 @@ process_file:;
 		const nat arg1 = args[1];
 		const nat arg2 = args[2];
 		if (op >= def0 and op < ret) {
-			for (nat a = 0; a < arity[arg0]; a++) parameters[max_arg_count * arg0 + a] = args[a + 1];
+			for (nat a = 0; a < arity[arg0]; a++) 
+				parameters[max_arg_count * arg0 + a] = args[a + 1];
 			definitions[arg0] = pc;
 
 		} else if (op == ret) {
@@ -339,7 +375,7 @@ process_file:;
 			variable_count--;
 			goto process_file;
 		}
-		else if (op == at) { locations[arg0] = pc; if (skipping and skipping == arg0) skipping = 0; } 
+		else if (op == at) { rt_locations[arg0] = ins_count; locations[arg0] = pc; if (skipping and skipping == arg0) skipping = 0; } 
 		else if (skipping) goto finish_op;
 		else if (op == settarget) arch = values[arg0];
 		else if (op == ri) ra_constraint[arg0] = values[arg1];
@@ -385,12 +421,13 @@ process_file:;
 			pc = definitions[op];
 
 		} else if (arch == arm64_arch) {
-			if (op >= arm64_isa_count) goto call_macro;			
-			puts("generating rt instruction...");
+			if (op >= arm64_isa_count) goto call_macro;
 			struct instruction new = { .op = op };
 			memcpy(new.args, args, sizeof args);
+			for (nat a = 0; a < arity[op]; a++) 
+				if (not is_runtime_arg(op, a) and not is_label_arg(op, a)) 
+					new.args[a] = values[args[a]];
 			ins[ins_count++] = new;
-			abort();
 
 		} else { puts("error: unknown arch"); abort(); }
 		finish_op: 
@@ -402,16 +439,23 @@ process_file:;
 	filestack_count--;
 	if (filestack_count) goto process_file;
 	}
+
+	print_variables(var_stack, var_stack_count, variables, values, locations, rt_locations, ra_constraint, variable_count, 10);
+	print_operations(op_stack, op_stack_count, operations, arity, parameters, observable, operation_count, variables, 4);
+	print_instructions(ins, ins_count, variables, operations, arity, variable_count, operation_count);
 	puts("finished ct-parsing.");
+	exit(0);
 
 
 
-	//print_machine_instructions();
+
+
+
 
 
 
 }
-
+	
 
 
 
