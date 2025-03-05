@@ -1,3 +1,86 @@
+// do we include register allocation?
+
+
+	// yes        but not in the way you think.. 
+
+	//     we make it so that    if you define-on-use a variable     without a compiletime value, 
+
+				(note: all variables are CT. yes, i mean this.   ALL VARAIBLES ARE CT. there are ONLY EVER CONSTANTS, NO RUNTIME VARIABLES)
+
+				(the CT value of a "runtime variable" is actually its rt hw reg index.)
+
+		when you define on use a variable,  we simply assign its rt hw reg index (RHRI) value        to be -1  or   some crazy specific value, like 0xA5A5A5A5A5A5A5A5A5 etc idk,
+
+		and then, when we see that THIS particular RHRI is being used   as the register index for a given mi, we perform register allocation, to fix this up. 
+
+		now, we don't need "ri x n"  anymore.  we just use set. ie,    set   myvar 14        allocates myvar to physical register 14,  if we use myvar in the correct spot in a given arm64 mi. 
+
+
+		so, yeah, we don't need  ri  anymore,  anddd we don't have any distinction between   rt variables, and ct variables!   we doooo however, have a notion of what spots in a given ct or rt instruction are LABELS or not. because we choose a different value based on this distinction of labelness vs ct-variable-ness.   (of course, if it wasnt for this, then labels would BE just ct variables as well lol. )
+
+
+		so yeah,     RA         truly            i mean this      truly                is just      like         type inference  in other compilers,  
+
+				its an automatic     system that kicks in, when the assembler sees that a given CT-variable was not given a value,   BUTTT it was used in a rt mi. 
+
+				when this happens, we DONTT trigger an error, but rather, assume that the user wanted the assembler to determine the register index. 
+
+									ie,                RA. 
+
+
+
+
+
+	this is why and how and exactly when  RA will kick in,    and be useful.   
+
+
+	if you always define the values of your variables,   (ct, mind you!)       then you never need this code path        in the assembler to ever kick in, becuase when it sees that a given instruction has everythng it needs, it just generates it. no RA required. 
+
+
+	we will actually start with this case, and treat  the case of    ACTUALLY HAVING TO DO   RA          as a special case. that we can handle seperately. (albeit, its quite computationally expensive to support this small little ommision, but whatever, we'll do it lol. )
+
+
+	so yeah! thats how this works. wow. cool. 
+
+
+
+
+	oh!
+	note:
+			we will actually be doing    data-flow-analysis   like we currently are      REGARDLESSSSS of whether all registers are allocated or some are or none are 
+
+
+			we do data flow analysis, just as part of the middle stage of the assembler, before emmiting the binary code. 
+
+
+
+hopefully this makes sense.
+
+this is the optimal solution. 
+
+
+
+
+
+REMEMBER THESE FACTS:
+
+	1. ALL variables EVER are CT constants. 
+
+	2. RA is a special case, where the user doesnt give the value for a define-on-use variable.
+
+	3. the data flow analysis (which happenssss to be useful for RA)  is done regardless.    REGARDLESS.  of the register indexs (or lackthereof) used. 
+
+	4. the compiler does not distinguish between rt and ct inputs.   it only distinguishes between   
+				CT inputs, and labels,     becasue of the fact that every ct-variable is both a label and a data ct-variable. 
+
+	5. that is all.   please reread all 5 of these bullet points, and memorize them lol 
+
+
+
+
+
+
+
 // cross-arch macro assembler
 // 1202502263.200223 dwrr
 #include <stdio.h>
@@ -479,8 +562,8 @@ process_file:;
 	filestack_count--;
 	if (filestack_count) goto process_file; }
 
-	print_variables(var_stack, var_stack_count, variables, values, locations, rt_locations, ra_constraint, variable_count, 15);
-	print_operations(op_stack, op_stack_count, operations, arity, parameters, observable, operation_count, variables, 5);
+	print_variables(var_stack, var_stack_count, variables, values, locations, rt_locations, ra_constraint, variable_count, -1);
+	print_operations(op_stack, op_stack_count, operations, arity, parameters, observable, operation_count, variables, -1);
 	print_instructions(ins, ins_count, variables, operations, arity, variable_count, operation_count);
 	puts("finished ct-parsing.");
 
@@ -511,52 +594,30 @@ process_file:;
 	// lets first walk through the cfg backwards, starting from the last instruction.
 
 
-
-	nat stack_count = 0;
-	nat stack[4096] = {0};
-
-	for (nat i = 0; i < ins_count; i++) {
-		if (ins[i].op == halt) { stack[stack_count++] = i; }
-	}
-
-	
-	print_nats(stack, stack_count);
-
 	nat goto0[4096] = {0};
-
-
 	nat goto1[4096] = {0};
 
 	for (nat i = 0; i < ins_count; i++) {
-
-
 		const nat op = ins[i].op;
 		const nat arg1 = ins[i].args[1];
-
 		if (op == jmp) {
 			goto0[i] = (nat) -1;
 			goto1[i] = rt_locations[arg1];
-
 		} else if (op == br) {
 			goto0[i] = (nat) -1;
 			goto1[i] = (nat) -1;
-
 		} else if (op == halt) {
 			goto0[i] = (nat) -1;
 			goto1[i] = (nat) -1;
-
 		} else if (op == bc) {
 			goto0[i] = i + 1;
 			goto1[i] = rt_locations[arg1];
-
 		} else if (op == cbz) {
 			goto0[i] = i + 1;
 			goto1[i] = rt_locations[arg1];
-
 		} else if (op == tbz) {
 			goto0[i] = i + 1;
 			goto1[i] = rt_locations[arg1];
-
 		} else {
 			goto0[i] = i + 1;
 			goto1[i] = (nat) -1;
@@ -569,9 +630,7 @@ process_file:;
 	}
 	puts("[done]");
 
-
 	printf("finding preds..\n");
-
 	for (nat i = 0; i < ins_count; i++) {
 		nat pred_count = 0;
 		nat* preds = get_preds(&pred_count, i, ins, ins_count, goto0, goto1);
@@ -582,25 +641,107 @@ process_file:;
 	}
 
 	puts("done");	
-	abort();
 
+	nat stack_count = 0;
+	nat stack[4096] = {0};
 
-	/*
+	for (nat i = 0; i < ins_count; i++) 
+		if (ins[i].op == halt) stack[stack_count++] = i; 
+
+	puts("starting stack for backwards traversal:");
+	print_nats(stack, stack_count);
+
+	if (strcmp(variables[96], "zr") { puts("zr not found, aborting."); abort(); }
+	if (strcmp(variables[96], "stackpointer") { puts("sp not found, aborting."); abort(); }
+	if (strcmp(variables[96], "linkregister") { puts("lr not found, aborting."); abort(); }
+	
+	nat visited[4096] = {0};
+
+	nat* live_in = calloc(ins_count * 64 * variable_count, sizeof(nat));
 
 	while (stack_count) {
+
 		const nat pc = stack[--stack_count];
 		printf("currently at TOP = %llu\n", pc);
-		const nat op = ins[pc].op;
 
+		visited[pc] = 1;
+
+		const nat op = ins[pc].op;
 		nat args[max_arg_count];
 		memcpy(args, ins[pc].args, sizeof args);
 		
 		nat pred_count = 0;
-		nat* preds = get_preds(&pred_count, pc, ins, ins_count, rt_locations);	
+		nat* preds = get_preds(&pred_count, pc, ins, ins_count, goto0, goto1);	
 
-		abort();
+		if (op == mov) {
+			if (not args[2] and not args[3] and not args[4]) {
+
+				// args[0] bits(0:15) are overwritten
+
+				puts("doing liveness analysis on movz instruction...");
+				abort();
+
+			} else { puts("other mov unimplemented"); abort(); }
+		} else if (op == nop) {// nothing
+		} else if (op == svc) {// nothing
+
+		} else if (op == bfm) {
+				// args[0] is overwritten			
+		} else if (op == adc) {
+				// args[0] is overwritten
+		} else if (op == addx) {
+		} else if (op == addi) {
+		} else if (op == addr) {
+		} else if (op == adr) {
+		} else if (op == shv) {
+		} else if (op == clz) {
+		} else if (op == rev) {
+		} else if (op == jmp) { // nothing, unless we are linking
+		} else if (op == bc) {//nothing
+		} else if (op == br) {
+			// reads arg0,   writes the link register if we are linking 
+		} else if (op == cbz) {
+			// reads arg0
+		} else if (op == tbz) {
+			// reads arg0
+
+		} else if (op == ccmpi) {
+			// reads arg0
+		} else if (op == ccmpr) {
+			// reads arg0 and arg1
+
+		} else if (op == csel) {
+		} else if (op == ori) {
+		} else if (op == orr) {
+
+		} else if (op == extr) {
+		} else if (op == ldrl) {
+
+		} else if (op == memp) {
+		} else if (op == memia) {
+		} else if (op == memi) {
+		} else if (op == memr) {
+		} else if (op == madd) {
+		} else if (op == maddl) {
+	
+		} else if (op == halt) { // do nothing 
+
+		} else if (op == divr) {
+
+			puts("doing data flow analysis on divr ins");
+			abort();
+
+
+		} else { printf("unknown arm64 op code %s\n", operations[op]); abort(); }
+
+
+		for (nat i = 0; i < pred_count; i++) {
+			if (not visited[preds[i]]) stack[stack_count++] = preds[i];
+		}
 	}
-	*/
+
+	
+
 
 
 }
