@@ -6,7 +6,6 @@
 
 def0 halt ret
 def1 setarch x ret
-def2 ri x n obs x ret
 
 def1 zero x obs x ret
 def1 incr x ret

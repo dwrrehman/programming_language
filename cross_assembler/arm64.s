@@ -3,9 +3,9 @@ lf foundation.s
 setarch arm64_arch
 set _target_architecture arm64_arch
 
-ri zr 31
-ri stackpointer 31
-ri linkregister 30
+set reg.zr 31
+set reg.sp 31
+set reg.lr 30
 
 def0 nop ret
 def0 svc ret
