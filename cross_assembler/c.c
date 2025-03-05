@@ -1,90 +1,19 @@
-/*
-
-// do we include register allocation?
-
-
-	// yes        but not in the way you think.. 
-
-	//     we make it so that    if you define-on-use a variable     without a compiletime value, 
-
-				(note: all variables are CT. yes, i mean this.   ALL VARAIBLES ARE CT. there are ONLY EVER CONSTANTS, NO RUNTIME VARIABLES)
-
-				(the CT value of a "runtime variable" is actually its rt hw reg index.)
-
-		when you define on use a variable,  we simply assign its rt hw reg index (RHRI) value        to be -1  or   some crazy specific value, like 0xA5A5A5A5A5A5A5A5A5 etc idk,
-
-		and then, when we see that THIS particular RHRI is being used   as the register index for a given mi, we perform register allocation, to fix this up. 
-
-		now, we don't need "ri x n"  anymore.  we just use set. ie,    set   myvar 14        allocates myvar to physical register 14,  if we use myvar in the correct spot in a given arm64 mi. 
-
-
-		so, yeah, we don't need  ri  anymore,  anddd we don't have any distinction between   rt variables, and ct variables!   we doooo however, have a notion of what spots in a given ct or rt instruction are LABELS or not. because we choose a different value based on this distinction of labelness vs ct-variable-ness.   (of course, if it wasnt for this, then labels would BE just ct variables as well lol. )
-
-
-		so yeah,     RA         truly            i mean this      truly                is just      like         type inference  in other compilers,  
-
-				its an automatic     system that kicks in, when the assembler sees that a given CT-variable was not given a value,   BUTTT it was used in a rt mi. 
-
-				when this happens, we DONTT trigger an error, but rather, assume that the user wanted the assembler to determine the register index. 
-
-									ie,                RA. 
-
-
-
-
-
-	this is why and how and exactly when  RA will kick in,    and be useful.   
-
-
-	if you always define the values of your variables,   (ct, mind you!)       then you never need this code path        in the assembler to ever kick in, becuase when it sees that a given instruction has everythng it needs, it just generates it. no RA required. 
-
-
-	we will actually start with this case, and treat  the case of    ACTUALLY HAVING TO DO   RA          as a special case. that we can handle seperately. (albeit, its quite computationally expensive to support this small little ommision, but whatever, we'll do it lol. )
-
-
-	so yeah! thats how this works. wow. cool. 
-
-
-
-
-	oh!
-	note:
-			we will actually be doing    data-flow-analysis   like we currently are      REGARDLESSSSS of whether all registers are allocated or some are or none are 
-
-
-			we do data flow analysis, just as part of the middle stage of the assembler, before emmiting the binary code. 
-
-
-
-hopefully this makes sense.
-
-this is the optimal solution. 
-
-
-
-
-
-REMEMBER THESE FACTS:
-
-	1. ALL variables EVER are CT constants. 
-
-	2. RA is a special case, where the user doesnt give the value for a define-on-use variable.
-
-	3. the data flow analysis (which happenssss to be useful for RA)  is done regardless.    REGARDLESS.  of the register indexs (or lackthereof) used. 
-
-	4. the compiler does not distinguish between rt and ct inputs.   it only distinguishes between   
-				CT inputs, and labels,     becasue of the fact that every ct-variable is both a label and a data ct-variable. 
-
-	5. that is all.   please reread all 5 of these bullet points, and memorize them lol 
-
-
-
-
-
-*/
-
 // cross-arch macro assembler
 // 1202502263.200223 dwrr
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <stdint.h>
+#include <stdbool.h>
+#include <iso646.h>
+#include <fcntl.h>
+#include <unistd.h>
+#include <ctype.h>
+#include <termios.h>
+#include <sys/mman.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -258,8 +187,11 @@ static void print_variables(
 	puts(".");
 }
 
-
-static void print_instruction(struct instruction this, char** names, char** operations, nat* arity, nat name_count, nat operation_count) {
+static void print_instruction(
+	struct instruction this, char** names, 
+	char** operations, nat* arity, 
+	nat name_count, nat operation_count
+) {
 	printf("  %10s { ", operations[this.op]);
 	for (nat a = 0; a < arity[this.op]; a++) { 
 		if (this.args[a] < 512) printf("%llu", this.args[a]); 
@@ -290,7 +222,7 @@ static void print_instructions(
 }
 
 
-static void print_nats(nat* array, nat count) {
+/*static void print_nats(nat* array, nat count) {
 	printf("(%llu) { ", count);
 	for (nat i = 0; i < count; i++) {
 		printf("%llu ", array[i]);
@@ -298,21 +230,13 @@ static void print_nats(nat* array, nat count) {
 	puts("}");
 }
 
-
-
-
 static nat* get_preds(
-
-	nat* out_pred_count,
-	nat pc, 
-
-	struct instruction* ins, 
+	nat* out_pred_count, nat pc, 
+	del struct instruction* ins, 
 	nat ins_count,
-
 	nat* goto0,
 	nat* goto1
 ) {
-
 	nat count = 0;
 	nat* preds = calloc(ins_count, sizeof(nat));
 	for (nat i = 0; i < ins_count; i++) {
@@ -322,6 +246,739 @@ static nat* get_preds(
 	*out_pred_count = count;
 	return preds;
 }
+*/
+
+
+
+
+
+static void insert_byte(uint8_t** output_data, nat* output_data_count, uint8_t x) {
+	*output_data = realloc(*output_data, *output_data_count + 1);
+	(*output_data)[(*output_data_count)++] = x;
+}
+
+static void insert_bytes(uint8_t** d, nat* c, char* s, nat len) {
+	for (nat i = 0; i < len; i++) insert_byte(d, c, (uint8_t) s[i]);
+}
+
+static void insert_u16(uint8_t** d, nat* c, uint16_t x) {
+	insert_byte(d, c, (x >> 0) & 0xFF);
+	insert_byte(d, c, (x >> 8) & 0xFF);
+}
+
+static void insert_u32(uint8_t** d, nat* c, uint32_t x) {
+	insert_u16(d, c, (x >> 0) & 0xFFFF);
+	insert_u16(d, c, (x >> 16) & 0xFFFF);
+}
+
+static void insert_u64(uint8_t** d, nat* c, uint64_t x) {
+	insert_u32(d, c, (x >> 0) & 0xFFFFFFFF);
+	insert_u32(d, c, (x >> 32) & 0xFFFFFFFF);
+}
+
+#define MH_MAGIC_64             0xfeedfacf
+#define MH_EXECUTE              2
+#define	MH_NOUNDEFS		1
+#define	MH_PIE			0x200000
+#define MH_DYLDLINK 		0x4
+#define MH_TWOLEVEL		0x80
+#define	LC_SEGMENT_64		0x19
+#define LC_DYSYMTAB		0xb
+#define LC_SYMTAB		0x2
+#define LC_LOAD_DYLINKER	0xe
+#define LC_LOAD_DYLIB		0xc
+#define LC_REQ_DYLD		0x80000000
+#define LC_MAIN			(0x28 | LC_REQ_DYLD)
+#define LC_BUILD_VERSION 	0x32
+#define LC_SOURCE_VERSION 	0x2A
+#define LC_UUID            	0x1B
+#define S_ATTR_PURE_INSTRUCTIONS 0x80000000
+#define S_ATTR_SOME_INSTRUCTIONS 0x00000400
+#define CPU_SUBTYPE_ARM64_ALL   0
+#define CPU_TYPE_ARM            12
+#define CPU_ARCH_ABI64          0x01000000 
+#define VM_PROT_READ       	1
+#define VM_PROT_WRITE   	2
+#define VM_PROT_EXECUTE 	4
+#define TOOL_LD			3
+#define PLATFORM_MACOS 		1
+
+
+
+
+/*static nat calculate_offset(struct instruction* ins, nat here, nat target) {
+	nat offset = 0;
+	if (target > here) 
+		for (nat i = here; i < target; i++) offset += ins[i].length;
+	else  
+		for (nat i = target; i < here; i++) offset -= ins[i].length;
+	return offset;
+}*/
+
+
+
+
+
+
+
+
+
+/*
+	uint8_t* my_bytes = NULL;
+	nat my_count = 0;
+
+	for (nat i = 0; i < ins_count; i++) {
+		const nat op = ins[i].op;
+		const nat imm0 = ins[i].immediates[0];
+		const nat imm1 = ins[i].immediates[1];
+		const uint32_t Im0 = (uint32_t) imm0;
+		const uint32_t Im1 = (uint32_t) imm1;
+		const uint32_t sf = ins[i].size == size8;
+		const uint32_t Rd = (uint32_t) (ins[i].registers[0] - r0);
+		const uint32_t Rn = (uint32_t) (ins[i].registers[1] - r0);
+		const uint32_t Rm = (uint32_t) (ins[i].registers[2] - r0);
+		const uint32_t Ra = (uint32_t) (ins[i].registers[3] - r0);
+
+		if (op == emit) {
+			if (ins[i].size == size8) {
+				for (nat t = 0; t < ins[i].immediate_count; t++) 
+					insert_u64(&my_bytes, &my_count, (uint64_t) ins[i].immediates[t]); 
+			} else if (ins[i].size == size4) {
+				for (nat t = 0; t < ins[i].immediate_count; t++) 
+					insert_u32(&my_bytes, &my_count, (uint32_t) ins[i].immediates[t]); 
+			} else if (ins[i].size == size2) { 
+				for (nat t = 0; t < ins[i].immediate_count; t++) 
+					insert_u16(&my_bytes, &my_count, (uint16_t) ins[i].immediates[t]); 
+			} else if (ins[i].size == size1) { 
+				for (nat t = 0; t < ins[i].immediate_count; t++) 
+					insert_byte(&my_bytes, &my_count, (uint8_t) ins[i].immediates[t]); 
+			}
+
+		} else if (op == stringliteral) {
+			for (nat t = imm0; t < imm1; t++) {
+				//printf("emitting: %c (%d)\n", text[t], text[t]);
+				insert_byte(&my_bytes, &my_count, (uint8_t) text[t]);
+			}
+			//abort();
+		}
+
+		else if (op == nop) insert_u32(&my_bytes, &my_count, 0xD503201F);
+		else if (op == svc) insert_u32(&my_bytes, &my_count, 0xD4000001);
+
+		else if (op == br) {
+			uint32_t l = 0;
+			for (nat m = 0; m < 6; m++) {
+				const nat k = ins[i].modifiers[m];
+				if (k == link_) l = 1;
+				if (k == return_) l = 2;
+			}
+
+			const uint32_t to_emit = 
+				(0x6BU << 25U) | 
+				(l << 21U) | 
+				(0x1FU << 16U) | 
+				(Rd << 5U);
+
+			insert_u32(&my_bytes, &my_count, to_emit);
+		}		
+
+		else if (op == adc) {
+
+			uint32_t op1 = 0xD0, op2 = 0, o1 = 0, s = 0;
+			for (nat m = 0; m < 6; m++) {
+				const nat k = ins[i].modifiers[m];
+				if (k == flags) s = 1;
+				if (k == inv) o1 = 1;
+			}
+
+			const uint32_t to_emit = 
+				(sf << 31U) | 
+				(o1 << 30U) | 
+				(s << 29U) | 
+				(op1 << 21U) | 
+				(Rm << 16U) | 
+				(op2 << 10U) |
+				(Rn << 5U) | 
+				(Rd);
+
+			insert_u32(&my_bytes, &my_count, to_emit);
+		}
+
+		else if (op == sh_) {
+
+			uint32_t op1 = 0xD6, op2 = 8, o1 = 0, s = 0;
+			for (nat m = 0; m < 6; m++) {
+				const nat k = ins[i].modifiers[m];
+				if (k == up) 		op2 = 8;
+				if (k == down) 		op2 = 9;
+				if (k == signed_) 	op2 = 10;
+				if (k == rotate) 	op2 = 11;
+			}
+
+			const uint32_t to_emit = 
+				(sf << 31U) | 
+				(o1 << 30U) | 
+				(s << 29U) | 
+				(op1 << 21U) | 
+				(Rm << 16U) | 
+				(op2 << 10U) |
+				(Rn << 5U) | 
+				(Rd);
+
+			insert_u32(&my_bytes, &my_count, to_emit);
+		}
+
+		else if (op == if_) {
+			const uint32_t cond = parse_condition(ins[i].modifiers);
+			const nat target = values[ins[i].label];
+			const nat count = calculate_offset(ins, i, target);
+			const uint32_t offset = 0x7ffff & (count >> 2);
+
+			const uint32_t to_emit = 
+				(0x54U << 24U) | 
+				(offset << 5U) | 
+				(cond);
+
+			insert_u32(&my_bytes, &my_count, to_emit);
+		}
+
+		else if (op == adr) {
+
+			uint32_t o1 = 0;
+			for (nat m = 0; m < 6; m++) {
+				const nat k = ins[i].modifiers[m];
+				if (k == page) o1 = 1;
+			}
+
+			const nat target = values[ins[i].label];
+			nat count = calculate_offset(ins, i, target);
+			if (o1) count /= 4096;
+			const uint32_t offset = 0x1fffff & count;
+			const uint32_t lo = offset & 3, hi = offset >> 2;
+
+			const uint32_t to_emit = 
+				(o1 << 31U) | 
+				(lo << 29U) |
+				(0x10U << 24U) | 
+				(hi << 5U) | 
+				(Rd);
+
+			insert_u32(&my_bytes, &my_count, to_emit);
+		}
+
+		else if (op == cbz) {
+
+			uint32_t o1 = 0;
+			for (nat m = 0; m < 6; m++) {
+				const nat k = ins[i].modifiers[m];
+				if (k == not_) o1 = 1;
+			}
+
+			const nat target = values[ins[i].label];
+			const nat count = calculate_offset(ins, i, target);
+			const uint32_t offset = 0x7ffff & (count >> 2);
+
+			const uint32_t to_emit = 
+				(sf << 31U) | 
+				(0x1AU << 25U) | 
+				(o1 << 24U) |
+				(offset << 5U) | 
+				(Rd);
+
+			insert_u32(&my_bytes, &my_count, to_emit);
+		}
+
+		else if (op == tbz) {
+			if (imm0 >= (1 << 6)) { puts("bad literal"); abort(); } 
+
+			const uint32_t b40 = Im0 & 0x1F;
+			const uint32_t b5 = Im0 >> 5;
+
+			uint32_t o1 = 0;
+			for (nat m = 0; m < 6; m++) {
+				const nat k = ins[i].modifiers[m];
+				if (k == not_) o1 = 1;
+			}
+
+			const nat target = values[ins[i].label];
+			const nat count = calculate_offset(ins, i, target);
+			const uint32_t offset = 0x3fff & (count >> 2);
+
+			const uint32_t to_emit = 
+				(b5 << 31U) | 
+				(0x1BU << 25U) | 
+				(o1 << 24U) |
+				(b40 << 19U) |
+				(offset << 5U) | 
+				(Rd);
+
+			insert_u32(&my_bytes, &my_count, to_emit);
+		}
+
+		else if (op == ccmp) {
+
+			uint32_t o1 = 0, r = 0;
+			for (nat m = 0; m < 6; m++) {
+				const nat k = ins[i].modifiers[m];
+				if (k == inv) o1 = 1;
+				if (k == regimm) r = 1;
+			}
+
+			const uint32_t cond = parse_condition(ins[i].modifiers);
+
+			const uint32_t to_emit = 
+				(sf << 31U) | 
+				(o1 << 30U) | 
+				(0x1D2 << 21U) | 
+				(Rn << 16U) | 
+				(cond << 12U) |
+				(r << 11U) | 
+				(Rd << 5U) | 
+				(Rm & 0xF); 
+			insert_u32(&my_bytes, &my_count, to_emit);
+		}
+
+
+		else if (op == addi) {
+			if (imm0 >= (1 << 12)) { puts("bad literal"); abort(); } 
+
+			uint32_t o1 = 0, s = 0, sh = 0;
+			for (nat m = 0; m < 6; m++) {
+				const nat k = ins[i].modifiers[m];
+				if (k == flags) 	s = 1;
+				if (k == inv) 		o1 = 1;
+				if (k == shift12) 	sh = 1;
+			}
+			const uint32_t to_emit = 
+				(sf << 31U) | 
+				(o1 << 30U) | 
+				(s << 29U) | 
+				(0x22 << 23U) | 
+				(sh << 22U) |
+				(Im0 << 10U) |
+				(Rn << 5U) | 
+				(Rd);
+			insert_u32(&my_bytes, &my_count, to_emit);
+		}
+
+		else if (op == add) {
+			if (imm0 >= (sf ? 64 : 32)) { puts("bad literal"); abort(); } 
+
+			uint32_t o1 = 0, s = 0, sh = 0;
+			for (nat m = 0; m < 6; m++) {
+				const nat k = ins[i].modifiers[m];
+				if (k == flags) 	s = 1;
+				if (k == inv) 		o1 = 1;
+				if (k == up)		sh = 0;
+				if (k == down) 		sh = 1;
+				if (k == signed_) 	sh = 2;
+			}
+			const uint32_t to_emit = 
+				(sf << 31U) | 
+				(o1 << 30U) | 
+				(s << 29U) | 
+				(0xB << 24U) | 
+				(sh << 22U) | 
+				(Rm << 16U) |
+				(Im0 << 10U) | 
+				(Rn << 5U) | 
+				(Rd);
+
+			insert_u32(&my_bytes, &my_count, to_emit);
+		}
+
+		else if (op == do_) {
+			uint32_t l = 0;
+			for (nat m = 0; m < 6; m++) {
+				const nat k = ins[i].modifiers[m];
+				if (k == link_) l = 1;
+			}
+
+			const nat target = values[ins[i].label];
+			const nat count = calculate_offset(ins, i, target);
+			const uint32_t offset = 0x3ffffff & (count >> 2);
+
+			const uint32_t to_emit = 
+				(l << 31U) | 
+				(0x5U << 26U) | 
+				(offset);
+
+			insert_u32(&my_bytes, &my_count, to_emit);
+		}
+
+		else if (op == mov) {
+			if (imm0 >= (1 << 16)) { puts("bad literal"); abort(); } 
+
+			uint32_t opc = 2, shift = 0;
+			for (nat m = 0; m < 6; m++) {
+				const nat k = ins[i].modifiers[m];
+				if (k == keep) 		opc = 3;
+				if (k == inv) 		opc = 0;
+				if (k == shift16) 	shift = 1;
+				if (k == shift32) 	shift = 2;
+				if (k == shift48) 	shift = 3;
+			}
+			const uint32_t to_emit = 
+				(sf << 31U) | 
+				(opc << 29U) | 
+				(0x25U << 23U) | 
+				(shift << 21U) | 
+				(Im0 << 5U) | 
+				(Rd);
+
+			insert_u32(&my_bytes, &my_count, to_emit);
+		} 
+
+		else if (op == bfm) {
+
+			const uint32_t bit_count = Im0;
+			const uint32_t position = Im1;
+			const uint32_t max = (sf ? 64 : 32);
+
+			if (not bit_count) { puts("bad field bit count"); abort(); }
+			if (not position) { puts("???? bfm position zero??"); abort(); }
+			if (position + bit_count > max or position >= max) {
+				puts("bfm: bit field outside register width");
+				abort();
+			}
+
+			uint32_t opc = 1, msb = 0;
+			for (nat m = 0; m < 6; m++) {
+				const nat k = ins[i].modifiers[m];
+				if (k == signed_) 	opc = 0;
+				if (k == unsigned_) 	opc = 2;
+				if (k == not_) 		msb = 1;
+			}
+
+			const uint32_t N = sf;
+			uint32_t imms = 0, immr = 0;
+			if (not msb) {
+				imms = position + bit_count - 1;
+				immr = position;
+			} else {
+				imms = bit_count - 1;
+				immr = max - position;
+			}
+
+			const uint32_t to_emit = 
+				(sf << 31U) | 
+				(opc << 29U) | 	
+				(0x26U << 23U) | 
+				(N << 22U) | 
+				(immr << 16U) |
+				(imms << 10U) |
+				(Rn << 5U) | 
+				(Rd);
+
+			insert_u32(&my_bytes, &my_count, to_emit);
+		} 
+
+		else if (op == csel) {
+
+			uint32_t o1 = 2, o2 = 0;
+			for (nat m = 0; m < 6; m++) {
+				const nat k = ins[i].modifiers[m];
+				if (k == incr) 		o2 = 1;
+				if (k == inv) 		o1 = 1;
+			}
+
+			const uint32_t cond = parse_condition(ins[i].modifiers);
+
+			const uint32_t to_emit = 
+				(sf << 31U) | 
+				(o1 << 30U) | 
+				(0xD4 << 21U) | 
+				(Rm << 16U) | 
+				(cond << 12U) | 
+				(o2 << 10U) | 
+				(Rn << 5U) | 
+				(Rd);
+
+			insert_u32(&my_bytes, &my_count, to_emit);
+		} 
+
+		else if (op == mul) {
+
+			uint32_t o0 = 0, o1 = 0;
+			for (nat m = 0; m < 6; m++) {
+				const nat k = ins[i].modifiers[m];
+				if (k == inv) 		o0 = 1;
+				if (k == signed_) 	o1 = 1;
+				if (k == unsigned_) 	o1 = 5;
+			}
+
+			const uint32_t to_emit = 
+				(sf << 31U) | 
+				(0x1B << 24U) | 
+				(o1 << 21U) |
+				(Rm << 16U) |
+				(o0 << 15U) | 
+				(Ra << 10U) | 
+				(Rn << 5U) | 
+				(Rd);
+
+			insert_u32(&my_bytes, &my_count, to_emit);
+		}
+
+		else if (op == div_) {
+
+			uint32_t op1 = 0xD6, s = 0;
+			for (nat m = 0; m < 6; m++) {
+				const nat k = ins[i].modifiers[m];
+				if (k == unsigned_) s = 0;
+				if (k == signed_) s = 1;
+			}
+
+			const uint32_t to_emit = 
+				(sf << 31U) | 
+				(op1 << 21U) | 
+				(Rm << 16U) | 
+				(1 << 11U) |
+				(s << 10U) |
+				(Rn << 5U) | 
+				(Rd);
+
+			insert_u32(&my_bytes, &my_count, to_emit);
+		}
+	}
+	while (my_count % 16) insert_byte(&my_bytes, &my_count, 0);
+
+
+
+	uint8_t* data = NULL;
+	nat count = 0;	
+
+	insert_u32(&data, &count, MH_MAGIC_64);
+	insert_u32(&data, &count, CPU_TYPE_ARM | (int)CPU_ARCH_ABI64);
+	insert_u32(&data, &count, CPU_SUBTYPE_ARM64_ALL);
+	insert_u32(&data, &count, MH_EXECUTE);
+	insert_u32(&data, &count, 11);
+	insert_u32(&data, &count, 72 + (72 + 80) + 72 + 24 + 80 + 32 + 24 + 32 + 16 + 24 +  (24 + 32) ); 
+	insert_u32(&data, &count, MH_NOUNDEFS | MH_PIE | MH_DYLDLINK | MH_TWOLEVEL);
+	insert_u32(&data, &count, 0);
+//
+	insert_u32(&data, &count, LC_SEGMENT_64);
+	insert_u32(&data, &count, 72);
+	insert_bytes(&data, &count, (char[]){
+		'_', '_', 'P', 'A', 'G', 'E', 'Z', 'E', 
+		'R', 'O',  0,   0,   0,   0,   0,   0
+	}, 16);
+	insert_u64(&data, &count, 0);
+	insert_u64(&data, &count, 0x0000000100000000);
+	insert_u64(&data, &count, 0);
+	insert_u64(&data, &count, 0);
+	insert_u32(&data, &count, 0);
+	insert_u32(&data, &count, 0);
+	insert_u32(&data, &count, 0);
+	insert_u32(&data, &count, 0);
+//
+	insert_u32(&data, &count, LC_SEGMENT_64);
+	insert_u32(&data, &count, 72 + 80);
+	insert_bytes(&data, &count, (char[]){
+		'_', '_', 'T', 'E', 'X', 'T',  0,   0, 
+		 0,   0,   0,   0,   0,   0,   0,   0
+	}, 16);
+	insert_u64(&data, &count, 0x0000000100000000);
+	insert_u64(&data, &count, 0x0000000000004000);
+	insert_u64(&data, &count, 0);
+	insert_u64(&data, &count, 16384);
+	insert_u32(&data, &count, VM_PROT_READ | VM_PROT_EXECUTE);
+	insert_u32(&data, &count, VM_PROT_READ | VM_PROT_EXECUTE);
+	insert_u32(&data, &count, 1);
+	insert_u32(&data, &count, 0);
+//
+	insert_bytes(&data, &count, (char[]){
+		'_', '_', 't', 'e', 'x', 't',  0,   0, 
+		 0,   0,   0,   0,   0,   0,   0,   0
+	}, 16);
+	insert_bytes(&data, &count, (char[]){
+		'_', '_', 'T', 'E', 'X', 'T',  0,   0, 
+		 0,   0,   0,   0,   0,   0,   0,   0
+	}, 16);
+
+	insert_u64(&data, &count, 0x0000000100000000 + 16384 - my_count);
+	insert_u64(&data, &count, my_count); 
+	insert_u32(&data, &count, 16384 - (uint32_t) my_count);
+	insert_u32(&data, &count, 4); 
+	insert_u32(&data, &count, 0);
+	insert_u32(&data, &count, 0); 
+	insert_u32(&data, &count, S_ATTR_PURE_INSTRUCTIONS | S_ATTR_SOME_INSTRUCTIONS);
+	insert_u32(&data, &count, 0); 
+	insert_u32(&data, &count, 0); 
+	insert_u32(&data, &count, 0); 
+//
+	insert_u32(&data, &count, LC_SEGMENT_64);
+	insert_u32(&data, &count, 72);
+	insert_bytes(&data, &count, (char[]){
+		'_', '_', 'L', 'I', 'N', 'K', 'E', 'D', 
+		'I', 'T',  0,   0,   0,   0,   0,   0
+	}, 16);
+	insert_u64(&data, &count, 0x0000000100004000);
+	insert_u64(&data, &count, 0x0000000000004000);
+	insert_u64(&data, &count, 16384);
+	insert_u64(&data, &count, 800);
+	insert_u32(&data, &count, VM_PROT_READ | VM_PROT_WRITE);
+	insert_u32(&data, &count, VM_PROT_READ | VM_PROT_WRITE);
+	insert_u32(&data, &count, 0);
+	insert_u32(&data, &count, 0);
+//
+	insert_u32(&data, &count, LC_SYMTAB);
+	insert_u32(&data, &count, 24); 
+	insert_u32(&data, &count, 0);
+	insert_u32(&data, &count, 0);
+	insert_u32(&data, &count, 0);
+	insert_u32(&data, &count, 0);
+//
+	insert_u32(&data, &count, LC_DYSYMTAB);
+	insert_u32(&data, &count, 80); 
+	insert_u32(&data, &count, 0);
+	insert_u32(&data, &count, 0);
+	insert_u32(&data, &count, 0);
+	insert_u32(&data, &count, 0);
+	insert_u32(&data, &count, 0);
+	insert_u32(&data, &count, 0);
+	insert_u32(&data, &count, 0);
+	insert_u32(&data, &count, 0);
+	insert_u32(&data, &count, 0);
+	insert_u32(&data, &count, 0);
+	insert_u32(&data, &count, 0);
+	insert_u32(&data, &count, 0);
+	insert_u32(&data, &count, 0);
+	insert_u32(&data, &count, 0);
+	insert_u32(&data, &count, 0);
+	insert_u32(&data, &count, 0);
+	insert_u32(&data, &count, 0);
+	insert_u32(&data, &count, 0);
+//
+	insert_u32(&data, &count, LC_LOAD_DYLINKER);
+	insert_u32(&data, &count, 32);
+	insert_u32(&data, &count, 12);
+	insert_bytes(&data, &count, (char[]){
+		'/', 'u', 's', 'r', '/', 'l', 'i', 'b', 
+		'/', 'd', 'y',  'l', 'd',  0,   0,   0
+	}, 16);
+	insert_u32(&data, &count, 0);
+//
+	insert_u32(&data, &count, LC_UUID);
+	insert_u32(&data, &count, 24); 
+	insert_u32(&data, &count, (uint32_t) rand());
+	insert_u32(&data, &count, (uint32_t) rand());
+	insert_u32(&data, &count, (uint32_t) rand());
+	insert_u32(&data, &count, (uint32_t) rand());
+//
+	insert_u32(&data, &count, LC_BUILD_VERSION);
+	insert_u32(&data, &count, 32);
+	insert_u32(&data, &count, PLATFORM_MACOS);
+	insert_u32(&data, &count, 13 << 16);
+	insert_u32(&data, &count, (13 << 16) | (3 << 8));
+	insert_u32(&data, &count, 1);
+	insert_u32(&data, &count, TOOL_LD);
+	insert_u32(&data, &count, (857 << 16) | (1 << 8));
+//
+	insert_u32(&data, &count, LC_SOURCE_VERSION);
+	insert_u32(&data, &count, 16);
+	insert_u64(&data, &count, 0);
+//
+	insert_u32(&data, &count, LC_MAIN);
+	insert_u32(&data, &count, 24);
+	insert_u64(&data, &count, 16384 - my_count);
+	insert_u64(&data, &count, stack_size); // put stack size here
+//
+	insert_u32(&data, &count, LC_LOAD_DYLIB);
+	insert_u32(&data, &count, 24 + 32);
+	insert_u32(&data, &count, 24);
+	insert_u32(&data, &count, 0);
+	insert_u32(&data, &count, (1319 << 16) | (100 << 8) | 3);
+	insert_u32(&data, &count, 1 << 16);
+	insert_bytes(&data, &count, (char[]){
+		'/', 'u', 's', 'r', '/', 'l', 'i', 'b', 
+		'/', 'l', 'i', 'b', 'S', 'y', 's', 't',
+		'e', 'm', '.', 'B', '.', 'd', 'y', 'l', 
+		'i', 'b',  0,   0,   0,   0,   0,   0
+	}, 32);
+
+	while (count < 16384 - my_count) insert_byte(&data, &count, 0);
+	for (nat i = 0; i < my_count; i++) insert_byte(&data, &count, my_bytes[i]);
+	for (nat i = 0; i < 800; i++) insert_byte(&data, &count, 0);
+
+//	puts("");
+//	puts("bytes: ");
+//	for (nat i = 0; i < count; i++) {
+//		if (i % 32 == 0) puts("");
+//		if (data[i]) printf("\033[32;1m");
+//		printf("%02hhx ", data[i]);
+//		if (data[i]) printf("\033[0m");
+//	}
+//	puts("");
+
+	//puts("preparing for writing out the data.");
+
+	const bool overwrite_executable_always = true;
+
+	if (not access("output_executable_new", F_OK)) {
+		//printf("file exists. do you wish to remove the previous one? ");
+		//fflush(stdout);
+		if (overwrite_executable_always or getchar() == 'y') {
+			puts("file was removed.");
+			int r = remove("output_executable_new");
+			if (r < 0) { perror("remove"); exit(1); }
+		} else {
+			puts("not removed");
+		}
+	}
+	int file = open("output_executable_new", O_WRONLY | O_CREAT | O_EXCL, 0777);
+	if (file < 0) { perror("could not create executable file"); exit(1); }
+	int r = fchmod(file, 0777);
+	if (r < 0) { perror("could not make the output file executable"); exit(1); }
+
+	write(file, data, count);
+	close(file);
+	printf("wrote %llu bytes to file %s.\n", count, "output_executable_new");
+	system("codesign -s - output_executable_new");
+
+
+// debugging:
+
+	//system("otool -htvxVlL output_executable_new");
+	system("objdump -D output_executable_new");
+
+}
+
+*/
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -659,7 +1316,11 @@ process_file:;
 	puts("finished ct-parsing.");
 	printf("[INFO]: assembling for target_arch = %llu\n", arch);
 
-	exit(0);
+
+
+
+	
+
 
 
 
@@ -840,6 +1501,90 @@ process_file:;
 
 
 
+/*
+
+// do we include register allocation?
+
+
+	// yes        but not in the way you think.. 
+
+	//     we make it so that    if you define-on-use a variable     without a compiletime value, 
+
+				(note: all variables are CT. yes, i mean this.   ALL VARAIBLES ARE CT. there are ONLY EVER CONSTANTS, NO RUNTIME VARIABLES)
+
+				(the CT value of a "runtime variable" is actually its rt hw reg index.)
+
+		when you define on use a variable,  we simply assign its rt hw reg index (RHRI) value        to be -1  or   some crazy specific value, like 0xA5A5A5A5A5A5A5A5A5 etc idk,
+
+		and then, when we see that THIS particular RHRI is being used   as the register index for a given mi, we perform register allocation, to fix this up. 
+
+		now, we don't need "ri x n"  anymore.  we just use set. ie,    set   myvar 14        allocates myvar to physical register 14,  if we use myvar in the correct spot in a given arm64 mi. 
+
+
+		so, yeah, we don't need  ri  anymore,  anddd we don't have any distinction between   rt variables, and ct variables!   we doooo however, have a notion of what spots in a given ct or rt instruction are LABELS or not. because we choose a different value based on this distinction of labelness vs ct-variable-ness.   (of course, if it wasnt for this, then labels would BE just ct variables as well lol. )
+
+
+		so yeah,     RA         truly            i mean this      truly                is just      like         type inference  in other compilers,  
+
+				its an automatic     system that kicks in, when the assembler sees that a given CT-variable was not given a value,   BUTTT it was used in a rt mi. 
+
+				when this happens, we DONTT trigger an error, but rather, assume that the user wanted the assembler to determine the register index. 
+
+									ie,                RA. 
+
+
+
+
+
+	this is why and how and exactly when  RA will kick in,    and be useful.   
+
+
+	if you always define the values of your variables,   (ct, mind you!)       then you never need this code path        in the assembler to ever kick in, becuase when it sees that a given instruction has everythng it needs, it just generates it. no RA required. 
+
+
+	we will actually start with this case, and treat  the case of    ACTUALLY HAVING TO DO   RA          as a special case. that we can handle seperately. (albeit, its quite computationally expensive to support this small little ommision, but whatever, we'll do it lol. )
+
+
+	so yeah! thats how this works. wow. cool. 
+
+
+
+
+	oh!
+	note:
+			we will actually be doing    data-flow-analysis   like we currently are      REGARDLESSSSS of whether all registers are allocated or some are or none are 
+
+
+			we do data flow analysis, just as part of the middle stage of the assembler, before emmiting the binary code. 
+
+
+
+hopefully this makes sense.
+
+this is the optimal solution. 
+
+
+
+
+
+REMEMBER THESE FACTS:
+
+	1. ALL variables EVER are CT constants. 
+
+	2. RA is a special case, where the user doesnt give the value for a define-on-use variable.
+
+	3. the data flow analysis (which happenssss to be useful for RA)  is done regardless.    REGARDLESS.  of the register indexs (or lackthereof) used. 
+
+	4. the compiler does not distinguish between rt and ct inputs.   it only distinguishes between   
+				CT inputs, and labels,     becasue of the fact that every ct-variable is both a label and a data ct-variable. 
+
+	5. that is all.   please reread all 5 of these bullet points, and memorize them lol 
+
+
+
+
+
+*/
 
 
 
