@@ -39,7 +39,7 @@ isa_count,
 	set, add, sub, mul, div_, rem, 
 	and_, or_, eor, si, sd, 
 	lt, ge, eq, ne, do_, at, 
-	ld, st, ctdebug,
+	ld, st, ctdebug, emit, 
 	ct_isa_count
 };
 
@@ -70,16 +70,6 @@ enum arm64_instruction_set {
 	arm64_isa_count,
 };
 
-/*static const nat arm64_rt_arity[arm64_isa_count - ct_isa_count] = {
-	0, 0, 1, 2,
-	3, 3, 2, 3, 1, 
-	3, 2, 2, 0, 0, 1, 
-	1, 1, 1, 2, 3, 
-	2, 3, 3, 1, 
-	3, 2, 2, 3, 
-	4, 4, 3, 
-};*/
-
 struct instruction {
 	nat op;
 	nat args[max_arg_count];
@@ -91,20 +81,6 @@ struct file {
 	char* text;
 	const char* filename;
 };
-
-/*static nat is_runtime_arg(nat op, nat arg) {
-	if (op < ct_isa_count) { 
-		printf("error: is_runtime_arg: op < ct_isa_count: op=%llu\n", op); 
-		abort(); 
-	}
-
-	if (op >= arm64_isa_count) {
-		printf("error: is_runtime_arg: op >= arm64_isa_count: op=%llu\n", op); 
-		abort(); 
-	}
-
-	return arg < arm64_rt_arity[op - ct_isa_count];
-}*/
 
 static nat is_label_arg(nat op, nat arg) {
 	if (op < ct_isa_count) { 
@@ -196,11 +172,7 @@ static void print_instruction(
 	for (nat a = 0; a < arity[this.op]; a++) { 
 		if (this.args[a] < 512) printf("%llu", this.args[a]); 
 		else if (this.args[a] == (nat) -1) printf("%lld", this.args[a]);
-		else printf("0x%016llx", this.args[a]);		
-		/*if (a == 0 and this.op >= def0 and this.op < ret) {
-			printf("(\"%7s\") ", this.args[a] < operation_count ? operations[this.args[a]] : "");			
-		}
-		else printf("'%s' ", this.args[a] < name_count ? names[this.args[a]] : "");*/
+		else printf("0x%016llx", this.args[a]);
 		printf(" ");
 	}
 	printf("}");
@@ -248,13 +220,13 @@ static nat* get_preds(
 }
 */
 
-
-
-
-
 static void insert_byte(uint8_t** output_data, nat* output_data_count, uint8_t x) {
 	*output_data = realloc(*output_data, *output_data_count + 1);
 	(*output_data)[(*output_data_count)++] = x;
+}
+
+static void insert_u8(uint8_t** d, nat* c, uint8_t x) {
+	insert_byte(d, c, x);
 }
 
 static void insert_bytes(uint8_t** d, nat* c, char* s, nat len) {
@@ -741,252 +713,16 @@ static void insert_u64(uint8_t** d, nat* c, uint64_t x) {
 			insert_u32(&my_bytes, &my_count, to_emit);
 		}
 	}
-	while (my_count % 16) insert_byte(&my_bytes, &my_count, 0);
-
-
-
-	uint8_t* data = NULL;
-	nat count = 0;	
-
-	insert_u32(&data, &count, MH_MAGIC_64);
-	insert_u32(&data, &count, CPU_TYPE_ARM | (int)CPU_ARCH_ABI64);
-	insert_u32(&data, &count, CPU_SUBTYPE_ARM64_ALL);
-	insert_u32(&data, &count, MH_EXECUTE);
-	insert_u32(&data, &count, 11);
-	insert_u32(&data, &count, 72 + (72 + 80) + 72 + 24 + 80 + 32 + 24 + 32 + 16 + 24 +  (24 + 32) ); 
-	insert_u32(&data, &count, MH_NOUNDEFS | MH_PIE | MH_DYLDLINK | MH_TWOLEVEL);
-	insert_u32(&data, &count, 0);
-//
-	insert_u32(&data, &count, LC_SEGMENT_64);
-	insert_u32(&data, &count, 72);
-	insert_bytes(&data, &count, (char[]){
-		'_', '_', 'P', 'A', 'G', 'E', 'Z', 'E', 
-		'R', 'O',  0,   0,   0,   0,   0,   0
-	}, 16);
-	insert_u64(&data, &count, 0);
-	insert_u64(&data, &count, 0x0000000100000000);
-	insert_u64(&data, &count, 0);
-	insert_u64(&data, &count, 0);
-	insert_u32(&data, &count, 0);
-	insert_u32(&data, &count, 0);
-	insert_u32(&data, &count, 0);
-	insert_u32(&data, &count, 0);
-//
-	insert_u32(&data, &count, LC_SEGMENT_64);
-	insert_u32(&data, &count, 72 + 80);
-	insert_bytes(&data, &count, (char[]){
-		'_', '_', 'T', 'E', 'X', 'T',  0,   0, 
-		 0,   0,   0,   0,   0,   0,   0,   0
-	}, 16);
-	insert_u64(&data, &count, 0x0000000100000000);
-	insert_u64(&data, &count, 0x0000000000004000);
-	insert_u64(&data, &count, 0);
-	insert_u64(&data, &count, 16384);
-	insert_u32(&data, &count, VM_PROT_READ | VM_PROT_EXECUTE);
-	insert_u32(&data, &count, VM_PROT_READ | VM_PROT_EXECUTE);
-	insert_u32(&data, &count, 1);
-	insert_u32(&data, &count, 0);
-//
-	insert_bytes(&data, &count, (char[]){
-		'_', '_', 't', 'e', 'x', 't',  0,   0, 
-		 0,   0,   0,   0,   0,   0,   0,   0
-	}, 16);
-	insert_bytes(&data, &count, (char[]){
-		'_', '_', 'T', 'E', 'X', 'T',  0,   0, 
-		 0,   0,   0,   0,   0,   0,   0,   0
-	}, 16);
-
-	insert_u64(&data, &count, 0x0000000100000000 + 16384 - my_count);
-	insert_u64(&data, &count, my_count); 
-	insert_u32(&data, &count, 16384 - (uint32_t) my_count);
-	insert_u32(&data, &count, 4); 
-	insert_u32(&data, &count, 0);
-	insert_u32(&data, &count, 0); 
-	insert_u32(&data, &count, S_ATTR_PURE_INSTRUCTIONS | S_ATTR_SOME_INSTRUCTIONS);
-	insert_u32(&data, &count, 0); 
-	insert_u32(&data, &count, 0); 
-	insert_u32(&data, &count, 0); 
-//
-	insert_u32(&data, &count, LC_SEGMENT_64);
-	insert_u32(&data, &count, 72);
-	insert_bytes(&data, &count, (char[]){
-		'_', '_', 'L', 'I', 'N', 'K', 'E', 'D', 
-		'I', 'T',  0,   0,   0,   0,   0,   0
-	}, 16);
-	insert_u64(&data, &count, 0x0000000100004000);
-	insert_u64(&data, &count, 0x0000000000004000);
-	insert_u64(&data, &count, 16384);
-	insert_u64(&data, &count, 800);
-	insert_u32(&data, &count, VM_PROT_READ | VM_PROT_WRITE);
-	insert_u32(&data, &count, VM_PROT_READ | VM_PROT_WRITE);
-	insert_u32(&data, &count, 0);
-	insert_u32(&data, &count, 0);
-//
-	insert_u32(&data, &count, LC_SYMTAB);
-	insert_u32(&data, &count, 24); 
-	insert_u32(&data, &count, 0);
-	insert_u32(&data, &count, 0);
-	insert_u32(&data, &count, 0);
-	insert_u32(&data, &count, 0);
-//
-	insert_u32(&data, &count, LC_DYSYMTAB);
-	insert_u32(&data, &count, 80); 
-	insert_u32(&data, &count, 0);
-	insert_u32(&data, &count, 0);
-	insert_u32(&data, &count, 0);
-	insert_u32(&data, &count, 0);
-	insert_u32(&data, &count, 0);
-	insert_u32(&data, &count, 0);
-	insert_u32(&data, &count, 0);
-	insert_u32(&data, &count, 0);
-	insert_u32(&data, &count, 0);
-	insert_u32(&data, &count, 0);
-	insert_u32(&data, &count, 0);
-	insert_u32(&data, &count, 0);
-	insert_u32(&data, &count, 0);
-	insert_u32(&data, &count, 0);
-	insert_u32(&data, &count, 0);
-	insert_u32(&data, &count, 0);
-	insert_u32(&data, &count, 0);
-	insert_u32(&data, &count, 0);
-//
-	insert_u32(&data, &count, LC_LOAD_DYLINKER);
-	insert_u32(&data, &count, 32);
-	insert_u32(&data, &count, 12);
-	insert_bytes(&data, &count, (char[]){
-		'/', 'u', 's', 'r', '/', 'l', 'i', 'b', 
-		'/', 'd', 'y',  'l', 'd',  0,   0,   0
-	}, 16);
-	insert_u32(&data, &count, 0);
-//
-	insert_u32(&data, &count, LC_UUID);
-	insert_u32(&data, &count, 24); 
-	insert_u32(&data, &count, (uint32_t) rand());
-	insert_u32(&data, &count, (uint32_t) rand());
-	insert_u32(&data, &count, (uint32_t) rand());
-	insert_u32(&data, &count, (uint32_t) rand());
-//
-	insert_u32(&data, &count, LC_BUILD_VERSION);
-	insert_u32(&data, &count, 32);
-	insert_u32(&data, &count, PLATFORM_MACOS);
-	insert_u32(&data, &count, 13 << 16);
-	insert_u32(&data, &count, (13 << 16) | (3 << 8));
-	insert_u32(&data, &count, 1);
-	insert_u32(&data, &count, TOOL_LD);
-	insert_u32(&data, &count, (857 << 16) | (1 << 8));
-//
-	insert_u32(&data, &count, LC_SOURCE_VERSION);
-	insert_u32(&data, &count, 16);
-	insert_u64(&data, &count, 0);
-//
-	insert_u32(&data, &count, LC_MAIN);
-	insert_u32(&data, &count, 24);
-	insert_u64(&data, &count, 16384 - my_count);
-	insert_u64(&data, &count, stack_size); // put stack size here
-//
-	insert_u32(&data, &count, LC_LOAD_DYLIB);
-	insert_u32(&data, &count, 24 + 32);
-	insert_u32(&data, &count, 24);
-	insert_u32(&data, &count, 0);
-	insert_u32(&data, &count, (1319 << 16) | (100 << 8) | 3);
-	insert_u32(&data, &count, 1 << 16);
-	insert_bytes(&data, &count, (char[]){
-		'/', 'u', 's', 'r', '/', 'l', 'i', 'b', 
-		'/', 'l', 'i', 'b', 'S', 'y', 's', 't',
-		'e', 'm', '.', 'B', '.', 'd', 'y', 'l', 
-		'i', 'b',  0,   0,   0,   0,   0,   0
-	}, 32);
-
-	while (count < 16384 - my_count) insert_byte(&data, &count, 0);
-	for (nat i = 0; i < my_count; i++) insert_byte(&data, &count, my_bytes[i]);
-	for (nat i = 0; i < 800; i++) insert_byte(&data, &count, 0);
-
-//	puts("");
-//	puts("bytes: ");
-//	for (nat i = 0; i < count; i++) {
-//		if (i % 32 == 0) puts("");
-//		if (data[i]) printf("\033[32;1m");
-//		printf("%02hhx ", data[i]);
-//		if (data[i]) printf("\033[0m");
-//	}
-//	puts("");
-
-	//puts("preparing for writing out the data.");
-
-	const bool overwrite_executable_always = true;
-
-	if (not access("output_executable_new", F_OK)) {
-		//printf("file exists. do you wish to remove the previous one? ");
-		//fflush(stdout);
-		if (overwrite_executable_always or getchar() == 'y') {
-			puts("file was removed.");
-			int r = remove("output_executable_new");
-			if (r < 0) { perror("remove"); exit(1); }
-		} else {
-			puts("not removed");
-		}
-	}
-	int file = open("output_executable_new", O_WRONLY | O_CREAT | O_EXCL, 0777);
-	if (file < 0) { perror("could not create executable file"); exit(1); }
-	int r = fchmod(file, 0777);
-	if (r < 0) { perror("could not make the output file executable"); exit(1); }
-
-	write(file, data, count);
-	close(file);
-	printf("wrote %llu bytes to file %s.\n", count, "output_executable_new");
-	system("codesign -s - output_executable_new");
-
-
-// debugging:
-
-	//system("otool -htvxVlL output_executable_new");
-	system("objdump -D output_executable_new");
-
-}
 
 */
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 int main(int argc, const char** argv) {
 
 	if (argc != 2) exit(puts("compiler: \033[31;1merror:\033[0m usage: ./run [file.s]"));
 
+	const nat min_stack_size = 16384 + 1;
+	nat stack_size = min_stack_size;
 
 	nat arch = no_arch;
 	struct instruction ins[4096] = {0};
@@ -1006,7 +742,7 @@ int main(int argc, const char** argv) {
 	nat locations[4096] = {0}; 
 	nat observable[4096] = {0};
 	nat parameters[max_arg_count * 4096] = {0};
-	nat register_index = 0x4000000000000000;
+	nat register_index = 1LLU << 62LLU;
 	nat definitions[4096] = {0};
 	nat ret_stack_count = 0;
 	nat ret_stack[4096] = {0};
@@ -1250,7 +986,8 @@ process_file:;
 		else if (op == ctdebug) { 
 			printf("ctdebug: %llu\n", values[arg0]); 
 		}
-
+	
+		else if (op == emit) goto push_rt_ins;
 		else if (arch == no_arch) {
 		call_macro:
 			ret_stack[ret_stack_count++] = pc;
@@ -1309,22 +1046,327 @@ process_file:;
 	);
 
 	}// end of scope
-
-
-
-
 	puts("finished ct-parsing.");
 	printf("[INFO]: assembling for target_arch = %llu\n", arch);
 
+	// RA happens here!
 
 
 
-	
+	typedef uint32_t u32;
 
+	uint8_t* my_bytes = NULL;
+	nat my_count = 0;
 
+	for (nat i = 0; i < ins_count; i++) {
 
+		const nat op = ins[i].op;
+		const u32 a0 = (u32) ins[i].args[0];
+		const u32 a1 = (u32) ins[i].args[1];
+		const u32 a2 = (u32) ins[i].args[2];
+		const u32 a3 = (u32) ins[i].args[3];
+		const u32 a4 = (u32) ins[i].args[4];
+		const u32 a5 = (u32) ins[i].args[5];
+		//const u32 a6 = (u32) ins[i].args[6];
+		//const u32 a7 = (u32) ins[i].args[7];
 
+		if (op == emit) {
+			if (a0 == 8) insert_u64(&my_bytes, &my_count, (uint64_t) a1);
+			if (a0 == 4) insert_u32(&my_bytes, &my_count, (uint32_t) a1);
+			if (a0 == 2) insert_u16(&my_bytes, &my_count, (uint16_t) a1);
+			if (a0 == 1) insert_u8 (&my_bytes, &my_count, (uint8_t) a1);
+		}
+		else if (op == nop) insert_u32(&my_bytes, &my_count, 0xD503201F);
+		else if (op == svc) insert_u32(&my_bytes, &my_count, 0xD4000001);
+		else if (op == br) {
+			uint32_t l = 0;
+			if (a1) l = 1;
+			if (a2) l = 2;			
+			const uint32_t to_emit = 
+				(0x6BU << 25U) | 
+				(l << 21U) | 
+				(0x1FU << 16U) | 
+				(a0 << 5U);
+
+			insert_u32(&my_bytes, &my_count, to_emit);
+		}		
+		else if (op == adc) {
+
+			const uint32_t to_emit = 
+				(a4 << 31U) | 
+				(a5 << 30U) | 
+				(a3 << 29U) | 
+				(0xD0 << 21U) | 
+				(a2 << 16U) | 
+				(0 << 19U) |
+				(a1 << 5U) | 
+				(a0);
+
+			insert_u32(&my_bytes, &my_count, to_emit);
+		}
+
+		else if (op == shv) {
+			uint32_t op2 = 8;
+			if (a3 == 0) op2 = 8;
+			if (a3 == 1) op2 = 9;
+			if (a3 == 2) op2 = 10;
+			if (a3 == 3) op2 = 11;
+			const uint32_t to_emit = 
+				(a4 << 31U) | 
+				(0 << 30U) | 
+				(0 << 29U) | 
+				(0xD6 << 21U) | 
+				(a2 << 16U) | 
+				(op2 << 10U) |
+				(a1 << 5U) | 
+				(a0);
+			insert_u32(&my_bytes, &my_count, to_emit);
+		}
+
+		else if (op == mov) {
+			const uint32_t to_emit = 
+				(a4 << 31U) | 
+				(a3 << 29U) | 
+				(0x25U << 23U) | 
+				(a2 << 21U) | 
+				(a1 << 5U) | 
+				(a0);
+			insert_u32(&my_bytes, &my_count, to_emit);
+		} 
+
+		else if (op == halt) {}
+
+		else {
+			printf("error: unknown mi op=\"%s\"\n", operations[op]);
+			abort();
+		}
+	}
+
+	while (my_count % 16) insert_byte(&my_bytes, &my_count, 0);
+
+	uint8_t* data = NULL;
+	nat count = 0;	
+
+	insert_u32(&data, &count, MH_MAGIC_64);
+	insert_u32(&data, &count, CPU_TYPE_ARM | (int)CPU_ARCH_ABI64);
+	insert_u32(&data, &count, CPU_SUBTYPE_ARM64_ALL);
+	insert_u32(&data, &count, MH_EXECUTE);
+	insert_u32(&data, &count, 11);
+	insert_u32(&data, &count, 72 + (72 + 80) + 72 + 24 + 80 + 32 + 24 + 32 + 16 + 24 +  (24 + 32) ); 
+	insert_u32(&data, &count, MH_NOUNDEFS | MH_PIE | MH_DYLDLINK | MH_TWOLEVEL);
+	insert_u32(&data, &count, 0);
+
+	insert_u32(&data, &count, LC_SEGMENT_64);
+	insert_u32(&data, &count, 72);
+	insert_bytes(&data, &count, (char[]){
+		'_', '_', 'P', 'A', 'G', 'E', 'Z', 'E', 
+		'R', 'O',  0,   0,   0,   0,   0,   0
+	}, 16);
+	insert_u64(&data, &count, 0);
+	insert_u64(&data, &count, 0x0000000100000000);
+	insert_u64(&data, &count, 0);
+	insert_u64(&data, &count, 0);
+	insert_u32(&data, &count, 0);
+	insert_u32(&data, &count, 0);
+	insert_u32(&data, &count, 0);
+	insert_u32(&data, &count, 0);
+
+	insert_u32(&data, &count, LC_SEGMENT_64);
+	insert_u32(&data, &count, 72 + 80);
+	insert_bytes(&data, &count, (char[]){
+		'_', '_', 'T', 'E', 'X', 'T',  0,   0, 
+		 0,   0,   0,   0,   0,   0,   0,   0
+	}, 16);
+	insert_u64(&data, &count, 0x0000000100000000);
+	insert_u64(&data, &count, 0x0000000000004000);
+	insert_u64(&data, &count, 0);
+	insert_u64(&data, &count, 16384);
+	insert_u32(&data, &count, VM_PROT_READ | VM_PROT_EXECUTE);
+	insert_u32(&data, &count, VM_PROT_READ | VM_PROT_EXECUTE);
+	insert_u32(&data, &count, 1);
+	insert_u32(&data, &count, 0);
+
+	insert_bytes(&data, &count, (char[]){
+		'_', '_', 't', 'e', 'x', 't',  0,   0, 
+		 0,   0,   0,   0,   0,   0,   0,   0
+	}, 16);
+	insert_bytes(&data, &count, (char[]){
+		'_', '_', 'T', 'E', 'X', 'T',  0,   0, 
+		 0,   0,   0,   0,   0,   0,   0,   0
+	}, 16);
+
+	insert_u64(&data, &count, 0x0000000100000000 + 16384 - my_count);
+	insert_u64(&data, &count, my_count); 
+	insert_u32(&data, &count, 16384 - (uint32_t) my_count);
+	insert_u32(&data, &count, 4); 
+	insert_u32(&data, &count, 0);
+	insert_u32(&data, &count, 0); 
+	insert_u32(&data, &count, S_ATTR_PURE_INSTRUCTIONS | S_ATTR_SOME_INSTRUCTIONS);
+	insert_u32(&data, &count, 0); 
+	insert_u32(&data, &count, 0); 
+	insert_u32(&data, &count, 0); 
+
+	insert_u32(&data, &count, LC_SEGMENT_64);
+	insert_u32(&data, &count, 72);
+	insert_bytes(&data, &count, (char[]){
+		'_', '_', 'L', 'I', 'N', 'K', 'E', 'D', 
+		'I', 'T',  0,   0,   0,   0,   0,   0
+	}, 16);
+	insert_u64(&data, &count, 0x0000000100004000);
+	insert_u64(&data, &count, 0x0000000000004000);
+	insert_u64(&data, &count, 16384);
+	insert_u64(&data, &count, 800);
+	insert_u32(&data, &count, VM_PROT_READ | VM_PROT_WRITE);
+	insert_u32(&data, &count, VM_PROT_READ | VM_PROT_WRITE);
+	insert_u32(&data, &count, 0);
+	insert_u32(&data, &count, 0);
+
+	insert_u32(&data, &count, LC_SYMTAB);
+	insert_u32(&data, &count, 24); 
+	insert_u32(&data, &count, 0);
+	insert_u32(&data, &count, 0);
+	insert_u32(&data, &count, 0);
+	insert_u32(&data, &count, 0);
+
+	insert_u32(&data, &count, LC_DYSYMTAB);
+	insert_u32(&data, &count, 80); 
+	insert_u32(&data, &count, 0);
+	insert_u32(&data, &count, 0);
+	insert_u32(&data, &count, 0);
+	insert_u32(&data, &count, 0);
+	insert_u32(&data, &count, 0);
+	insert_u32(&data, &count, 0);
+	insert_u32(&data, &count, 0);
+	insert_u32(&data, &count, 0);
+	insert_u32(&data, &count, 0);
+	insert_u32(&data, &count, 0);
+	insert_u32(&data, &count, 0);
+	insert_u32(&data, &count, 0);
+	insert_u32(&data, &count, 0);
+	insert_u32(&data, &count, 0);
+	insert_u32(&data, &count, 0);
+	insert_u32(&data, &count, 0);
+	insert_u32(&data, &count, 0);
+	insert_u32(&data, &count, 0);
+
+	insert_u32(&data, &count, LC_LOAD_DYLINKER);
+	insert_u32(&data, &count, 32);
+	insert_u32(&data, &count, 12);
+	insert_bytes(&data, &count, (char[]){
+		'/', 'u', 's', 'r', '/', 'l', 'i', 'b', 
+		'/', 'd', 'y',  'l', 'd',  0,   0,   0
+	}, 16);
+	insert_u32(&data, &count, 0);
+
+	insert_u32(&data, &count, LC_UUID);
+	insert_u32(&data, &count, 24); 
+	insert_u32(&data, &count, (uint32_t) rand());
+	insert_u32(&data, &count, (uint32_t) rand());
+	insert_u32(&data, &count, (uint32_t) rand());
+	insert_u32(&data, &count, (uint32_t) rand());
+
+	insert_u32(&data, &count, LC_BUILD_VERSION);
+	insert_u32(&data, &count, 32);
+	insert_u32(&data, &count, PLATFORM_MACOS);
+	insert_u32(&data, &count, 13 << 16);
+	insert_u32(&data, &count, (13 << 16) | (3 << 8));
+	insert_u32(&data, &count, 1);
+	insert_u32(&data, &count, TOOL_LD);
+	insert_u32(&data, &count, (857 << 16) | (1 << 8));
+
+	insert_u32(&data, &count, LC_SOURCE_VERSION);
+	insert_u32(&data, &count, 16);
+	insert_u64(&data, &count, 0);
+
+	insert_u32(&data, &count, LC_MAIN);
+	insert_u32(&data, &count, 24);
+	insert_u64(&data, &count, 16384 - my_count);
+	insert_u64(&data, &count, stack_size); // put stack size here
+
+	insert_u32(&data, &count, LC_LOAD_DYLIB);
+	insert_u32(&data, &count, 24 + 32);
+	insert_u32(&data, &count, 24);
+	insert_u32(&data, &count, 0);
+	insert_u32(&data, &count, (1319 << 16) | (100 << 8) | 3);
+	insert_u32(&data, &count, 1 << 16);
+	insert_bytes(&data, &count, (char[]){
+		'/', 'u', 's', 'r', '/', 'l', 'i', 'b', 
+		'/', 'l', 'i', 'b', 'S', 'y', 's', 't',
+		'e', 'm', '.', 'B', '.', 'd', 'y', 'l', 
+		'i', 'b',  0,   0,   0,   0,   0,   0
+	}, 32);
+
+	while (count < 16384 - my_count) insert_byte(&data, &count, 0);
+	for (nat i = 0; i < my_count; i++) insert_byte(&data, &count, my_bytes[i]);
+	for (nat i = 0; i < 800; i++) insert_byte(&data, &count, 0);
+
+	puts("");
+	puts("bytes: ");
+	for (nat i = 0; i < count; i++) {
+		if (i % 32 == 0) puts("");
+		if (data[i]) printf("\033[32;1m");
+		printf("%02hhx ", data[i]);
+		if (data[i]) printf("\033[0m");
+	}
+	puts("");
+
+	puts("preparing for writing out the data.");
+
+	const bool overwrite_executable_always = true;
+
+	if (not access("output_executable_new", F_OK)) {
+		printf("file exists. do you wish to remove the previous one? ");
+		fflush(stdout);
+		if (overwrite_executable_always or getchar() == 'y') {
+			puts("file was removed.");
+			int r = remove("output_executable_new");
+			if (r < 0) { perror("remove"); exit(1); }
+		} else {
+			puts("not removed");
+		}
+	}
+	int file = open("output_executable_new", O_WRONLY | O_CREAT | O_EXCL, 0777);
+	if (file < 0) { perror("could not create executable file"); exit(1); }
+	int r = fchmod(file, 0777);
+	if (r < 0) { perror("could not make the output file executable"); exit(1); }
+
+	write(file, data, count);
+	close(file);
+	printf("wrote %llu bytes to file %s.\n", count, "output_executable_new");
+	system("codesign -s - output_executable_new");
+
+	system("otool -htvxVlL output_executable_new");
+	system("objdump -D output_executable_new");
+	puts("finished generating executabe bytes.");
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -1584,17 +1626,223 @@ REMEMBER THESE FACTS:
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+	while (my_count % 16) insert_byte(&my_bytes, &my_count, 0);
+
+
+
+	uint8_t* data = NULL;
+	nat count = 0;	
+
+	insert_u32(&data, &count, MH_MAGIC_64);
+	insert_u32(&data, &count, CPU_TYPE_ARM | (int)CPU_ARCH_ABI64);
+	insert_u32(&data, &count, CPU_SUBTYPE_ARM64_ALL);
+	insert_u32(&data, &count, MH_EXECUTE);
+	insert_u32(&data, &count, 11);
+	insert_u32(&data, &count, 72 + (72 + 80) + 72 + 24 + 80 + 32 + 24 + 32 + 16 + 24 +  (24 + 32) ); 
+	insert_u32(&data, &count, MH_NOUNDEFS | MH_PIE | MH_DYLDLINK | MH_TWOLEVEL);
+	insert_u32(&data, &count, 0);
+//
+	insert_u32(&data, &count, LC_SEGMENT_64);
+	insert_u32(&data, &count, 72);
+	insert_bytes(&data, &count, (char[]){
+		'_', '_', 'P', 'A', 'G', 'E', 'Z', 'E', 
+		'R', 'O',  0,   0,   0,   0,   0,   0
+	}, 16);
+	insert_u64(&data, &count, 0);
+	insert_u64(&data, &count, 0x0000000100000000);
+	insert_u64(&data, &count, 0);
+	insert_u64(&data, &count, 0);
+	insert_u32(&data, &count, 0);
+	insert_u32(&data, &count, 0);
+	insert_u32(&data, &count, 0);
+	insert_u32(&data, &count, 0);
+//
+	insert_u32(&data, &count, LC_SEGMENT_64);
+	insert_u32(&data, &count, 72 + 80);
+	insert_bytes(&data, &count, (char[]){
+		'_', '_', 'T', 'E', 'X', 'T',  0,   0, 
+		 0,   0,   0,   0,   0,   0,   0,   0
+	}, 16);
+	insert_u64(&data, &count, 0x0000000100000000);
+	insert_u64(&data, &count, 0x0000000000004000);
+	insert_u64(&data, &count, 0);
+	insert_u64(&data, &count, 16384);
+	insert_u32(&data, &count, VM_PROT_READ | VM_PROT_EXECUTE);
+	insert_u32(&data, &count, VM_PROT_READ | VM_PROT_EXECUTE);
+	insert_u32(&data, &count, 1);
+	insert_u32(&data, &count, 0);
+//
+	insert_bytes(&data, &count, (char[]){
+		'_', '_', 't', 'e', 'x', 't',  0,   0, 
+		 0,   0,   0,   0,   0,   0,   0,   0
+	}, 16);
+	insert_bytes(&data, &count, (char[]){
+		'_', '_', 'T', 'E', 'X', 'T',  0,   0, 
+		 0,   0,   0,   0,   0,   0,   0,   0
+	}, 16);
+
+	insert_u64(&data, &count, 0x0000000100000000 + 16384 - my_count);
+	insert_u64(&data, &count, my_count); 
+	insert_u32(&data, &count, 16384 - (uint32_t) my_count);
+	insert_u32(&data, &count, 4); 
+	insert_u32(&data, &count, 0);
+	insert_u32(&data, &count, 0); 
+	insert_u32(&data, &count, S_ATTR_PURE_INSTRUCTIONS | S_ATTR_SOME_INSTRUCTIONS);
+	insert_u32(&data, &count, 0); 
+	insert_u32(&data, &count, 0); 
+	insert_u32(&data, &count, 0); 
+//
+	insert_u32(&data, &count, LC_SEGMENT_64);
+	insert_u32(&data, &count, 72);
+	insert_bytes(&data, &count, (char[]){
+		'_', '_', 'L', 'I', 'N', 'K', 'E', 'D', 
+		'I', 'T',  0,   0,   0,   0,   0,   0
+	}, 16);
+	insert_u64(&data, &count, 0x0000000100004000);
+	insert_u64(&data, &count, 0x0000000000004000);
+	insert_u64(&data, &count, 16384);
+	insert_u64(&data, &count, 800);
+	insert_u32(&data, &count, VM_PROT_READ | VM_PROT_WRITE);
+	insert_u32(&data, &count, VM_PROT_READ | VM_PROT_WRITE);
+	insert_u32(&data, &count, 0);
+	insert_u32(&data, &count, 0);
+//
+	insert_u32(&data, &count, LC_SYMTAB);
+	insert_u32(&data, &count, 24); 
+	insert_u32(&data, &count, 0);
+	insert_u32(&data, &count, 0);
+	insert_u32(&data, &count, 0);
+	insert_u32(&data, &count, 0);
+//
+	insert_u32(&data, &count, LC_DYSYMTAB);
+	insert_u32(&data, &count, 80); 
+	insert_u32(&data, &count, 0);
+	insert_u32(&data, &count, 0);
+	insert_u32(&data, &count, 0);
+	insert_u32(&data, &count, 0);
+	insert_u32(&data, &count, 0);
+	insert_u32(&data, &count, 0);
+	insert_u32(&data, &count, 0);
+	insert_u32(&data, &count, 0);
+	insert_u32(&data, &count, 0);
+	insert_u32(&data, &count, 0);
+	insert_u32(&data, &count, 0);
+	insert_u32(&data, &count, 0);
+	insert_u32(&data, &count, 0);
+	insert_u32(&data, &count, 0);
+	insert_u32(&data, &count, 0);
+	insert_u32(&data, &count, 0);
+	insert_u32(&data, &count, 0);
+	insert_u32(&data, &count, 0);
+//
+	insert_u32(&data, &count, LC_LOAD_DYLINKER);
+	insert_u32(&data, &count, 32);
+	insert_u32(&data, &count, 12);
+	insert_bytes(&data, &count, (char[]){
+		'/', 'u', 's', 'r', '/', 'l', 'i', 'b', 
+		'/', 'd', 'y',  'l', 'd',  0,   0,   0
+	}, 16);
+	insert_u32(&data, &count, 0);
+//
+	insert_u32(&data, &count, LC_UUID);
+	insert_u32(&data, &count, 24); 
+	insert_u32(&data, &count, (uint32_t) rand());
+	insert_u32(&data, &count, (uint32_t) rand());
+	insert_u32(&data, &count, (uint32_t) rand());
+	insert_u32(&data, &count, (uint32_t) rand());
+//
+	insert_u32(&data, &count, LC_BUILD_VERSION);
+	insert_u32(&data, &count, 32);
+	insert_u32(&data, &count, PLATFORM_MACOS);
+	insert_u32(&data, &count, 13 << 16);
+	insert_u32(&data, &count, (13 << 16) | (3 << 8));
+	insert_u32(&data, &count, 1);
+	insert_u32(&data, &count, TOOL_LD);
+	insert_u32(&data, &count, (857 << 16) | (1 << 8));
+//
+	insert_u32(&data, &count, LC_SOURCE_VERSION);
+	insert_u32(&data, &count, 16);
+	insert_u64(&data, &count, 0);
+//
+	insert_u32(&data, &count, LC_MAIN);
+	insert_u32(&data, &count, 24);
+	insert_u64(&data, &count, 16384 - my_count);
+	insert_u64(&data, &count, stack_size); // put stack size here
+//
+	insert_u32(&data, &count, LC_LOAD_DYLIB);
+	insert_u32(&data, &count, 24 + 32);
+	insert_u32(&data, &count, 24);
+	insert_u32(&data, &count, 0);
+	insert_u32(&data, &count, (1319 << 16) | (100 << 8) | 3);
+	insert_u32(&data, &count, 1 << 16);
+	insert_bytes(&data, &count, (char[]){
+		'/', 'u', 's', 'r', '/', 'l', 'i', 'b', 
+		'/', 'l', 'i', 'b', 'S', 'y', 's', 't',
+		'e', 'm', '.', 'B', '.', 'd', 'y', 'l', 
+		'i', 'b',  0,   0,   0,   0,   0,   0
+	}, 32);
+
+	while (count < 16384 - my_count) insert_byte(&data, &count, 0);
+	for (nat i = 0; i < my_count; i++) insert_byte(&data, &count, my_bytes[i]);
+	for (nat i = 0; i < 800; i++) insert_byte(&data, &count, 0);
+
+//	puts("");
+//	puts("bytes: ");
+//	for (nat i = 0; i < count; i++) {
+//		if (i % 32 == 0) puts("");
+//		if (data[i]) printf("\033[32;1m");
+//		printf("%02hhx ", data[i]);
+//		if (data[i]) printf("\033[0m");
+//	}
+//	puts("");
+
+	//puts("preparing for writing out the data.");
+
+	const bool overwrite_executable_always = true;
+
+	if (not access("output_executable_new", F_OK)) {
+		//printf("file exists. do you wish to remove the previous one? ");
+		//fflush(stdout);
+		if (overwrite_executable_always or getchar() == 'y') {
+			puts("file was removed.");
+			int r = remove("output_executable_new");
+			if (r < 0) { perror("remove"); exit(1); }
+		} else {
+			puts("not removed");
+		}
+	}
+	int file = open("output_executable_new", O_WRONLY | O_CREAT | O_EXCL, 0777);
+	if (file < 0) { perror("could not create executable file"); exit(1); }
+	int r = fchmod(file, 0777);
+	if (r < 0) { perror("could not make the output file executable"); exit(1); }
+
+	write(file, data, count);
+	close(file);
+	printf("wrote %llu bytes to file %s.\n", count, "output_executable_new");
+	system("codesign -s - output_executable_new");
+
+
+// debugging:
+
+	//system("otool -htvxVlL output_executable_new");
+	system("objdump -D output_executable_new");
+
+}
+
 */
-
-
-
-
-
-
-
-
-
-
 
 
 
@@ -1666,12 +1914,37 @@ REMEMBER THESE FACTS:
 
 
 
+/*if (a == 0 and this.op >= def0 and this.op < ret) {
+			printf("(\"%7s\") ", this.args[a] < operation_count ? operations[this.args[a]] : "");			
+		}
+		else printf("'%s' ", this.args[a] < name_count ? names[this.args[a]] : "");*/
+
+
+/*static const nat arm64_rt_arity[arm64_isa_count - ct_isa_count] = {
+	0, 0, 1, 2,
+	3, 3, 2, 3, 1, 
+	3, 2, 2, 0, 0, 1, 
+	1, 1, 1, 2, 3, 
+	2, 3, 3, 1, 
+	3, 2, 2, 3, 
+	4, 4, 3, 
+};*/
 
 
 
+/*static nat is_runtime_arg(nat op, nat arg) {
+	if (op < ct_isa_count) { 
+		printf("error: is_runtime_arg: op < ct_isa_count: op=%llu\n", op); 
+		abort(); 
+	}
 
+	if (op >= arm64_isa_count) {
+		printf("error: is_runtime_arg: op >= arm64_isa_count: op=%llu\n", op); 
+		abort(); 
+	}
 
-
+	return arg < arm64_rt_arity[op - ct_isa_count];
+}*/
 
 
 

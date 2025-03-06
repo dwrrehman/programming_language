@@ -1,7 +1,59 @@
-a compiler for a programming language
+a cross-assembler i wrote for fun
 ---------------------------------------
-written by dwrr on 202407217.003650
+written on 1202407217.003650 by dwrr
 updated on 1202501046.114848
+updated on 1202503053.151203
+
+this is a cross-assembler for the arm64, arm32, rv64, rv32, and msp430 architectures, which i wrote for my own use in programming projects requiring maximum control over resources and performance. 
+
+this cross-assembler has both a fully-hygenic macro system and a powerful turing-complete compiletime system which allow for complete control over how the machine instructions are translated into the final executable, and these features also allow for much improved readability of code. 
+
+additionally, unlike many assemblers, this assembler has opt-in optional automatic register allocation, allowing for better debugability when code is not sensitive to the registers used.
+
+the selection of the target architecture can be done programmatically at compiletime through the compiletime execution system, and arbitrary static data can also be generated into the executable to allow for better performance.
+
+the primary goal of this language is to allow for maximum control and performance on the intended target architectures- portability of code across targets is not a design goal. additionally, the language was designed to be minimalist in syntax and semantics, in so much as it does not affect performance at all. because of this, many simplifying design decisions were made, such as treating registers, compiletime-known variables, labels, and immediates/constants all as the exact same entity- just a compile-time data-register value, interpreted in a particular way by an instruction.
+
+despite the langauge's focus on low-level control, and minimalism, due to the macro and compiletime system source code in written for this assembler can still be quite readable, and easily writable. for example, it is possible to write while loops, for loops, and if statements via macros defined in the standard library, which translate down to efficient sequences of machine code instructions. 
+
+
+
+some notes about the assembler's syntax and design:
+
+	0. the language is purely word-based (similar to forth ish)
+
+	1. each operation/directive is always of a fixed arity and in prefix form: the operation name comes before a predefined finite number of operands.
+
+	2. all operands and op-codes are seperated by whitespace.
+
+	3. there is no delimiter neccessary between instructions, due to the fixed arity of each instruction. thus multiple instructions per line are easily permitted.
+
+	4. whitespace is completely ignored, except for the purposes of delimiting words. 
+
+	5. any operation name is itself a valid operand identifier, as operations and operands live in different symbol tables.
+
+	6. any symbols (including unicode) can be used within operation or operand names. 
+
+	7. all operands are treated as either compiletime-known data variables or labels.
+
+	8. all operations are treated as either macros, or macro-creation machinery.
+
+
+	
+ultimately, this language is just meant for my own use, however it might be the case that others could find it useful or interesting possibily. 
+
+thanks for reading!
+
+dwrr
+
+
+
+
+
+
+TRASH/OLD:
+---------------------------------
+
 
 this language is designed to be a simple and easy to learn common subset between multiple risc-like isa's, in such a way to allow for the maximum possible performance on all target isa's without requiring the user to write register numbers or write particular isa op codes. 
 

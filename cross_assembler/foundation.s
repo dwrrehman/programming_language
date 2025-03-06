@@ -34,8 +34,8 @@ def1 at l obs l ret
 
 def3 ld dest address size ret
 def3 st address source size ret
-
 def1 print x ret
+def2 emit n x ret
 
 zero 0
 set 1 0 incr 1
