@@ -14,15 +14,6 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <errno.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <iso646.h>
-#include <stdint.h>
-#include <fcntl.h>
-#include <unistd.h>
-#include <stdbool.h>
-#include <ctype.h>
 typedef uint64_t nat;
 #define max_arg_count 16
 enum all_architectures { no_arch, arm64_arch, arm32_arch, rv64_arch, rv32_arch };
@@ -63,10 +54,9 @@ enum arm64_instruction_set {
 	nop = ct_isa_count, svc, mov, bfm,
 	adc, addx, addi, addr, adr, 
 	shv, clz, rev, jmp, bc, br, 
-	cbz, tbz, ccmpi, ccmpr, csel, 
+	cbz, tbz, ccmp, csel, 
 	ori, orr, extr, ldrl, 
-	memp, memia, memi, memr, 
-	madd, maddl, divr, 
+	memp, memia, memi, memr, madd, divr, 
 	arm64_isa_count,
 };
 
@@ -274,24 +264,6 @@ static void insert_u64(uint8_t** d, nat* c, uint64_t x) {
 #define VM_PROT_EXECUTE 	4
 #define TOOL_LD			3
 #define PLATFORM_MACOS 		1
-
-
-
-
-/*static nat calculate_offset(struct instruction* ins, nat here, nat target) {
-	nat offset = 0;
-	if (target > here) 
-		for (nat i = here; i < target; i++) offset += ins[i].length;
-	else  
-		for (nat i = target; i < here; i++) offset -= ins[i].length;
-	return offset;
-}*/
-
-
-
-
-
-
 
 
 
@@ -717,6 +689,14 @@ static void insert_u64(uint8_t** d, nat* c, uint64_t x) {
 */
 
 
+static nat calculate_offset(nat* length, nat here, nat target) {
+	nat offset = 0;
+	if (target > here) for (nat i = here; i < target; i++) offset += length[i];
+	else  		   for (nat i = target; i < here; i++) offset -= length[i];
+	return offset;
+}
+
+
 int main(int argc, const char** argv) {
 
 	if (argc != 2) exit(puts("compiler: \033[31;1merror:\033[0m usage: ./run [file.s]"));
@@ -1051,7 +1031,10 @@ process_file:;
 
 	// RA happens here!
 
-
+	nat* lengths = calloc(ins_count, sizeof(nat));
+	for (nat i = 0; i < ins_count; i++) {
+		lengths[i] = ins[i].op == emit ? ins[i].args[0] : 4;
+	}
 
 	typedef uint32_t u32;
 
@@ -1067,8 +1050,8 @@ process_file:;
 		const u32 a3 = (u32) ins[i].args[3];
 		const u32 a4 = (u32) ins[i].args[4];
 		const u32 a5 = (u32) ins[i].args[5];
-		//const u32 a6 = (u32) ins[i].args[6];
-		//const u32 a7 = (u32) ins[i].args[7];
+		const u32 a6 = (u32) ins[i].args[6];
+		const u32 a7 = (u32) ins[i].args[7];
 
 		if (op == emit) {
 			if (a0 == 8) insert_u64(&my_bytes, &my_count, (uint64_t) a1);
@@ -1133,6 +1116,188 @@ process_file:;
 				(a0);
 			insert_u32(&my_bytes, &my_count, to_emit);
 		} 
+
+		else if (op == bc) {
+			const uint32_t offset = 0x7ffff & (calculate_offset(lengths, i, rt_locations[a1]) >> 2);
+			const uint32_t to_emit = 
+				(0x54U << 24U) | 
+				(offset << 5U) | 
+				(a0);
+			insert_u32(&my_bytes, &my_count, to_emit);
+		}
+
+		else if (op == adr) {
+
+			uint32_t o1 = a2;
+			nat count = calculate_offset(lengths, i, rt_locations[a1]);
+			if (a2) count /= 4096;
+			const uint32_t offset = 0x1fffff & count;
+			const uint32_t lo = offset & 3, hi = offset >> 2;
+			const uint32_t to_emit = 
+				(o1 << 31U) | 
+				(lo << 29U) |
+				(0x10U << 24U) | 
+				(hi << 5U) | 
+				(a0);
+			insert_u32(&my_bytes, &my_count, to_emit);
+		}
+
+		else if (op == cbz) {
+			const uint32_t offset = 0x7ffff & (calculate_offset(lengths, i, rt_locations[a1]) >> 2);
+			const uint32_t to_emit = 
+				(a2 << 31U) | 
+				(0x1AU << 25U) | 
+				(a3 << 24U) |
+				(offset << 5U) | 
+				(a0);
+			insert_u32(&my_bytes, &my_count, to_emit);
+		}
+
+		else if (op == tbz) {
+			const uint32_t b40 = a1 & 0x1F;
+			const uint32_t b5 = a1 >> 5;
+			const uint32_t offset = 0x3fff & (calculate_offset(lengths, i, rt_locations[a2]) >> 2);
+			const uint32_t to_emit = 
+				(b5 << 31U) | 
+				(0x1BU << 25U) | 
+				(a3 << 24U) |
+				(b40 << 19U) |
+				(offset << 5U) | 
+				(a0);
+			insert_u32(&my_bytes, &my_count, to_emit);
+		}
+
+		else if (op == ccmp) {
+			const uint32_t to_emit = 
+				(a4 << 31U) | 
+				(a5 << 30U) | 
+				(0x1D2 << 21U) | 
+				(a1 << 16U) | 
+				(a2 << 12U) |
+				(a6 << 11U) | 
+				(a0 << 5U) | 
+				(a3 & 0xF); 
+			insert_u32(&my_bytes, &my_count, to_emit);
+		}
+
+		else if (op == addi) {
+			const uint32_t to_emit = 
+				(a5 << 31U) | 
+				(a6 << 30U) | 
+				(a4 << 29U) | 
+				(0x22 << 23U) | 
+				(a3 << 22U) |
+				(a2 << 10U) |
+				(a1 << 5U) | 
+				(a0);
+			insert_u32(&my_bytes, &my_count, to_emit);
+		}
+		else if (op == addr) {
+			const uint32_t to_emit = 
+				(a6 << 31U) | 
+				(a7 << 30U) | 
+				(a5 << 29U) | 
+				(0xB << 24U) | 
+				(a3 << 22U) | 
+				(a2 << 16U) |
+				(a4 << 10U) | 
+				(a1 << 5U) | 
+				(a0);
+			insert_u32(&my_bytes, &my_count, to_emit);
+		}
+
+		else if (op == divr) {
+			const uint32_t to_emit = 
+				(a4 << 31U) |
+				(0xD6 << 21U) |
+				(a2 << 16U) |
+				(1 << 11U) |
+				(a3 << 10U) |
+				(a1 << 5U) |
+				(a0);
+			insert_u32(&my_bytes, &my_count, to_emit);	
+		}
+
+
+
+
+
+	/*	else if (op == bfm) {
+
+			const uint32_t bit_count = Im0;
+			const uint32_t position = Im1;
+			const uint32_t max = (sf ? 64 : 32);
+			
+			uint32_t opc = 1, msb = 0;
+			for (nat m = 0; m < 6; m++) {
+				const nat k = ins[i].modifiers[m];
+				if (k == signed_) 	opc = 0;
+				if (k == unsigned_) 	opc = 2;
+				if (k == not_) 		msb = 1;
+			}
+
+			const uint32_t N = sf;
+			uint32_t imms = 0, immr = 0;
+			if (not msb) {
+				imms = position + bit_count - 1;
+				immr = position;
+			} else {
+				imms = bit_count - 1;
+				immr = max - position;
+			}
+
+			const uint32_t to_emit = 
+				(sf << 31U) | 
+				(opc << 29U) | 	
+				(0x26U << 23U) | 
+				(N << 22U) | 
+				(immr << 16U) |
+				(imms << 10U) |
+				(Rn << 5U) | 
+				(Rd);
+
+			insert_u32(&my_bytes, &my_count, to_emit);
+		} 
+
+		*/
+
+
+		else if (op == csel) {
+			const uint32_t to_emit = 
+				(a6 << 31U) | 
+				(a5 << 30U) | 
+				(0xD4 << 21U) | 
+				(a2 << 16U) | 
+				(a3 << 12U) | 
+				(a4 << 10U) | 
+				(a1 << 5U) | 
+				(a0);
+			insert_u32(&my_bytes, &my_count, to_emit);
+		} 
+
+		else if (op == madd) {
+			const uint32_t to_emit = 
+				(a6 << 31U) |
+				(0x1B << 24U) | 
+				(a5 << 23U) |
+				(a4 << 21U) |
+				(a2 << 16U) |
+				(a7 << 15U) | 
+				(a3 << 10U) | 
+				(a1 << 5U) | 
+				(a0);
+			insert_u32(&my_bytes, &my_count, to_emit);
+		}
+
+
+		else if (op == jmp) {
+			const uint32_t offset = 0x3ffffff & (calculate_offset(lengths, i, rt_locations[a1]) >> 2);
+			const uint32_t to_emit = 
+				(a0 << 31U) | 
+				(0x5U << 26U) | 
+				(offset);
+			insert_u32(&my_bytes, &my_count, to_emit);
+		}
 
 		else if (op == halt) {}
 
