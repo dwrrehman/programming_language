@@ -72,9 +72,41 @@ set mov_shift_32 2
 set mov_shift_48 3
 
 
+
+
+
+
+
+def1 ctdebug x   ctprint x ctabort ret
+
+def2 storenat address data
+	def x set x data  def i set i 0  def a set a address
+	def loop at loop
+		set k i  mul k 8  sd x k
+		set b x  and b 255
+		st a b  incr a		
+		incr i  lt i 8 loop
+	ret
+
+def2 loadnat data address
+	def x set x 0  def i set i 0  def a set a address
+	def loop at loop
+		ld b a  incr a 
+		set k i  mul k 8  
+		si b k  or x b
+		incr i  lt i 8 loop
+	set data x
+	ret
+
+def2 movz d k
+	mov d k mov_shift_none mov_type_zero width64
+	ret
+
+def1 exit code
+	movz syscallnumber systemexit
+	movz arg0 code
+	svc halt ret
+
+
 eoi
-
-
-
-
 

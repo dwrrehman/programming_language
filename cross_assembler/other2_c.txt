@@ -23,7 +23,7 @@ enum all_architectures { no_arch, arm64_arch, arm32_arch, rv64_arch, rv32_arch }
 
 enum core_language_isa {
 	nullins,
-	def, def0, def1, def2, def3, 
+	def0, def1, def2, def3, 
 	def4, def5, def6, def7, 
 	def8, def9,
 	ret, obs, lf, 
@@ -33,13 +33,13 @@ isa_count,
 	set, add, sub, mul, div_, rem, 
 	and_, or_, eor, si, sd, 
 	lt, ge, eq, ne, do_, at, 
-	la, lb, lc, ld, st, sta, stb, ctdebug, ctabort,
+	la, lb, lc, ld, st, ctdebug,  
 	ct_isa_count
 };
 
 static const char* ins_spelling[isa_count] = {
 	"--", 
-	"def", "def0", "def1", "def2", "def3", 
+	"def0", "def1", "def2", "def3", 
 	"def4", "def5", "def6", "def7",
 	"def8", "def9", 
 	"ret", "obs", "lf",
@@ -47,7 +47,7 @@ static const char* ins_spelling[isa_count] = {
 
 static const nat builtin_arity[] = {
 	0, 
-	1, 1, 2, 3, 4, 
+	1, 2, 3, 4, 
 	5, 6, 7, 8, 
 	9, 10, 
 	0, 1, 1
@@ -352,7 +352,7 @@ process_file:;
 	nat var = 0, op = 0;
 	nat args[max_arg_count] = {0}; 
 
-	uint8_t* memory = calloc(compiletime_memory_size, 1);
+	uint8_t* memory = malloc(compiletime_memory_size);
 
 	for (nat pc = starting_index; pc < text_length; pc++) {
 
@@ -431,7 +431,6 @@ process_file:;
 			print_index(text, text_length, word_start, pc);
 			abort();
 		}
-		if (op == def) goto define_name;
 		if (op >= def0 and op < ret) {
 			if (arg_count) goto define_name; 
 			var = operation_count;
@@ -483,11 +482,7 @@ process_file:;
 		const nat arg0 = args[0];
 		const nat arg1 = args[1];
 		const nat arg2 = args[2];
-
-		if (op == def) {
-			// do nothing.
-
-		} else if (op >= def0 and op < ret) {
+		if (op >= def0 and op < ret) {
 			for (nat a = 0; a < arity[arg0]; a++) {
 				const nat r = max_arg_count * arg0 + a;
 				parameters[r] = args[a + 1];
@@ -569,21 +564,7 @@ process_file:;
 		else if (op == lb)   values[arg0] = rt_locations[arg1];
 		else if (op == lc)   values[arg0] = (nat) text[values[arg1]];
 		else if (op == ld)   values[arg0] = (nat) memory[values[arg1]];
-		else if (op == sta)  {}//locations[arg0] = values[arg1];
-		else if (op == stb)  {}//rt_locations[arg0] = values[arg1];
-		else if (op == st)   { memory[values[arg0]] = (uint8_t) values[arg1]; 
-
-	/*puts("");
-	puts("memory: ");
-	for (nat i = 0; i < 1024; i++) {
-		if (i % 32 == 0) puts("");
-		if (memory[i]) printf("\033[32;1m");
-		printf("%02hhx ", memory[i]);
-		if (memory[i]) printf("\033[0m");
-	}
-	puts("");*/
-
-		} 
+		else if (op == st)   memory[values[arg0]] = (uint8_t) values[arg1];
 		else if (op == do_) { 
 			if (locations[arg0] == (nat) -1) 
 				skipping = arg0; 
@@ -612,13 +593,14 @@ process_file:;
 				goto perform_jump; 
 		}
 
-		else if (op == ctdebug) printf("ctdebug: %llu (0x%016llx)\n", values[arg0], values[arg0]); 
-		else if (op == ctabort) abort();
+		else if (op == ctdebug) { 
+			printf("ctdebug: %llu\n", values[arg0]); 
+		}
 	
 		else if (op == emit) goto push_rt_ins;
 		else if (arch == no_arch) {
 		call_macro:	
-			//puts("CALLING MACRO!!");
+			puts("CALLING MACRO!!");
 			ret_stack[ret_stack_count++] = pc;
 			ret_stack[ret_stack_count++] = op_stack_count;
 			ret_stack[ret_stack_count++] = var_stack_count;

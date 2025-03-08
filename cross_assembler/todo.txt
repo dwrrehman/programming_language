@@ -1,0 +1,35 @@
+todo for the assembler
+1202503075.203338 dwrr
+--------------------------------------------------
+
+
+
+	- make "def" not be an instruction that defines something, but rather, attributes a  macro argument  such that it works like obs, but instead, of being optionally defined, it is actaully forcefully defined. 
+	- and then, we have    
+
+
+			def0 mymacro x y z
+				def x            . this argument, (if defined already,  that previous refereence is ignored, and a new one is generated)
+							is defined into the outter scope, newly. guaranteed. . 
+
+				obs y            . this argument will be defined into the outter scope if it does not exist already, 
+							but if one exists, the previous reference will just be used. (debatebly useful... hmmm)
+
+
+						. z has not been attributed at all, and thus means that it actually 
+							MUST be defined prior to entering the function body. .
+
+				. body using x y and z here . 
+
+				ret
+
+
+
+	- add the msp430 backend
+
+	- test the hello world program on arm64
+
+	- get string tables working, and working with strings 
+
+
+

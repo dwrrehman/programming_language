@@ -33,13 +33,17 @@ def3 ne x y l obs l ret
 def1 do l obs l ret
 def1 at l obs l ret
 
-def2 lc dest address ret
-def2 ld dest address ret
+def2 la dest address obs dest ret
+def2 lb dest address obs dest ret
+def2 lc dest address obs dest ret
+def2 ld dest address obs dest ret
+
 def2 st address source ret
+def2 sta address source ret
+def2 stb address source ret
 
-def1 print x ret
-
-
+def1 ctprint x ret
+def0 ctabort ret
 
 
 
@@ -97,5 +101,36 @@ set rv64_arch 3
 set rv32_arch 4
 
 
+
+
+set 42 4
+mul 42 10
+add 42 2
+
+set 255 256  decr 255
+
+set syscallnumber 16
+set arg0 0
+set arg1 1
+set arg2 2
+
+set systemexit 1
+set systemfork 2
+
+set systemread 3
+set systemwrite 4
+
+set systemopen 5
+set systemclose 6
+
+set stdout 1
+set stdin 0
+
+set 24 25 decr 24
+
+
 eoi
+
+
+
 
