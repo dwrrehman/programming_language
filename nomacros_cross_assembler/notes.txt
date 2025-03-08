@@ -1,0 +1,53 @@
+notes:
+1202503075.222219 dwrr
+
+
+	- we need to some how have a arithemteic way of going through the labels.  ie, 
+
+		we need to essentiallyyyy expose the   ct dictionary  (ie, the whole dictionary) 
+
+			at compiletime,  and be able to iterate through it programmatically. 
+
+
+					additionally,   i feel like we should be able to   construct the notion of macros computationally  using the ct instructions!
+
+
+
+	- we should also generate a list of ct/rt instructions,   ie, don't execute them in parsing. this allows for  eoi to happen reliably, 
+
+		and also to seperate out strings from ct execution, which should help lol.
+
+		note: i want to actually execute    ct and rt "at label"'s though? hmmm idk... 
+						we'll see 
+
+
+
+	- this rewrite will make things less string based,  (ct execution, specifically) 
+
+		and also will make things more obvious how they translate:   critically just relying on  CT execution to do everything we want to do lol. 
+
+
+
+	-  we should actually merge the notion of locations v.s. rt_locations.   those should be one idea. 
+
+				possiblyyyyyy even merge the idea of  values and locations.   not sure on that one though. hmmm
+
+
+
+					i feel like we literally never use the fact that   we can have the same label as variable name honestly.. we just don't.. hmmm
+
+
+
+
+			so yeah we'll probably rip that feature out honestly lollll
+
+
+
+
+	- 
+
+
+
+
+
+
