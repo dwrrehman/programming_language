@@ -6,6 +6,7 @@
 
 def0 halt ret
 def1 setarch x ret
+def2 emit n x ret
 
 def1 zero x obs x ret
 def1 incr x ret
@@ -32,10 +33,15 @@ def3 ne x y l obs l ret
 def1 do l obs l ret
 def1 at l obs l ret
 
-def3 ld dest address size ret
-def3 st address source size ret
+def2 lc dest address ret
+def2 ld dest address ret
+def2 st address source ret
+
 def1 print x ret
-def2 emit n x ret
+
+
+
+
 
 zero 0
 set 1 0 incr 1
@@ -89,6 +95,7 @@ set arm64_arch 1
 set arm32_arch 2
 set rv64_arch 3
 set rv32_arch 4
+
 
 eoi
 

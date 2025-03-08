@@ -28,12 +28,12 @@ enum core_language_isa {
 	def8, def9,
 	ret, obs, lf, 
 isa_count,
-	halt = isa_count, setarch, emit, 
+	halt = isa_count, setarch,
 	zero, incr, decr, not_, 
 	set, add, sub, mul, div_, rem, 
 	and_, or_, eor, si, sd, 
 	lt, ge, eq, ne, do_, at, 
-	lc, ld, st, ctdebug,  
+	lc, ld, st, ctdebug, emit, 
 	ct_isa_count
 };
 
@@ -76,7 +76,6 @@ struct file {
 };
 
 static nat is_label_arg(nat op, nat arg) {
-	if (op == emit) return 0;
 	if (op < ct_isa_count) { 
 		printf("error: is_runtime_arg: op < ct_isa_count: op=%llu\n", op); 
 		abort(); 
@@ -188,17 +187,13 @@ static void print_instructions(
 }
 
 
-static void print_nats(nat* array, nat count) {
+/*static void print_nats(nat* array, nat count) {
 	printf("(%llu) { ", count);
 	for (nat i = 0; i < count; i++) {
 		printf("%llu ", array[i]);
 	}
 	puts("}");
 }
-
-
-
-/*
 
 static nat* get_preds(
 	nat* out_pred_count, nat pc, 
@@ -313,7 +308,6 @@ int main(int argc, const char** argv) {
 	nat def_stack[4096] = {0};
 	nat if_seen[max_arg_count * 4096] = {0};
 	nat replace_with[max_arg_count * 4096] = {0};
-	nat if_seen_arity[4096] = {0};
 	nat arg_stack_count = 0;	
 
 	const char* included_files[4096] = {0};
@@ -363,41 +357,6 @@ process_file:;
 		} else if (not word_length) continue;
 
 		char* word = strndup(text + word_start, word_length);
-
-
-	/*print_variables(
-		var_stack, var_stack_count, 
-		variables, values, 
-		locations, rt_locations, 
-		variable_count, (nat) 20
-	);
-
-	print_operations(
-		op_stack, op_stack_count, 
-		operations, arity, parameters, 
-		observable, operation_count, 
-		variables, (nat) 10
-	);
-
-	print_instructions(
-		ins, ins_count, 
-		variables, operations, 
-		arity, variable_count, 
-		operation_count
-	);
-
-
-		if (arg_stack_count) {
-			printf("printing arg stack...\n");
-			for (nat i = 0; i < arg_stack_count; i++) {	
-				printf("if_seen[%llu] = ", i); print_nats(if_seen + i * max_arg_count, if_seen_arity[i]);
-				printf("replace_with[%llu] = ", i); print_nats(replace_with + i * max_arg_count, if_seen_arity[i]);
-				puts("");
-			}
-			puts("done");
-			getchar();
-		}*/
-
 
 		if (not strcmp(word, ".") and not comment) { 
 			comment = 1; goto next_word; 
@@ -455,28 +414,15 @@ process_file:;
 		rt_locations[variable_count] = (nat) -1;
 		variables[variable_count++] = word; 
 		push_argument: args[arg_count++] = var;
-
 		process_op: if (arg_count < arity[op]) goto next_word;
 
 		if (arg_stack_count) {
-			//puts("replacing arguments...");
-			//printf("arg_count = %llu\n", arg_count);
 			for (nat a = 0; a < arg_count; a++) {
-				const nat top = (arg_stack_count - 1);
-				for (nat e = 0; e < if_seen_arity[top]; e++) {
-					const nat r = max_arg_count * top + e;	
-					//printf("comparing %llu and %llu...\n", if_seen[r], args[a]);
-					if (if_seen[r] == args[a]) {
-						//printf("note: replacing %llu in args with %llu\n", args[a], replace_with[r]); getchar();
-						args[a] = replace_with[r];
-					} //else { puts("mismatch!"); getchar(); }
-				}
+				const nat k = (arg_stack_count - 1);
+				const nat r = max_arg_count * k + a;
+				if (if_seen[r] == args[a]) 
+					args[a] = replace_with[r];
 			}
-			//puts("[done]");
-
-			//printf("op = %s, arg_count = %llu\n", operations[op], arg_count);
-			//print_nats(args, arg_count); puts("");
-			//getchar();
 		}
 
 		const nat arg0 = args[0];
@@ -498,7 +444,6 @@ process_file:;
 			var_stack_count = ret_stack[--ret_stack_count];
 			op_stack_count = ret_stack[--ret_stack_count];
 			pc = ret_stack[--ret_stack_count];
-			arg_stack_count--;
 
 		} else if (op == obs) { 
 			const nat this = operation_count - 1;
@@ -543,7 +488,6 @@ process_file:;
 		} 
 		else if (skipping) goto finish_op;
 		else if (op == halt) goto push_rt_ins; 
-		else if (op == emit) goto push_rt_ins; 
 		else if (op == setarch) arch = values[arg0];
 		else if (op == zero) values[arg0] = 0;
 		else if (op == incr) values[arg0]++;
@@ -597,8 +541,7 @@ process_file:;
 	
 		else if (op == emit) goto push_rt_ins;
 		else if (arch == no_arch) {
-		call_macro:	
-			puts("CALLING MACRO!!");
+		call_macro:
 			ret_stack[ret_stack_count++] = pc;
 			ret_stack[ret_stack_count++] = op_stack_count;
 			ret_stack[ret_stack_count++] = var_stack_count;
@@ -609,10 +552,8 @@ process_file:;
 				var_stack[var_stack_count++] = r;
 				if_seen[t] = r;
 				replace_with[t] = args[a];
-				//printf(" pushing to the arg stack: { if_seen = %llu, replace_with = %llu }\n", if_seen[t], replace_with[t]); 
-				//getchar();
 			}
-			if_seen_arity[arg_stack_count++] = arity[op];
+			arg_stack_count++;
 			pc = definitions[op];
 
 		} else if (arch == arm64_arch) {
@@ -631,11 +572,7 @@ process_file:;
 			arg_count = 0; op = 0;
 		next_word: word_length = 0;
 	}
-
-	if (skipping) { puts("error: undefined CT label was jumped to"); abort(); }
 	if (comment) { puts("error: unterminated comment"); abort(); }
-	if (def_stack_count) { puts("error: unterminated macro definition"); abort(); }
-
 	filestack_count--;
 	if (filestack_count) goto process_file; 
 	
@@ -664,10 +601,8 @@ process_file:;
 	puts("finished ct-parsing.");
 	printf("[INFO]: assembling for target_arch = %llu\n", arch);
 
-	if (not ins_count) { puts("note: empty executable: nothing to generate."); } 
-
 	// [RA happens here!]
- 
+
 	nat* lengths = calloc(ins_count, sizeof(nat));
 	for (nat i = 0; i < ins_count; i++) {
 		lengths[i] = ins[i].op == emit ? ins[i].args[0] : 4;
@@ -944,19 +879,6 @@ process_file:;
 		}
 	}
 
-
-	/*puts("");
-	puts("my bytes: ");
-	for (nat i = 0; i < my_count; i++) {
-		if (i % 32 == 0) puts("");
-		if (my_bytes[i]) printf("\033[32;1m");
-		printf("%02hhx ", my_bytes[i]);
-		if (my_bytes[i]) printf("\033[0m");
-	}
-	puts("");*/
-
-
-
 	while (my_count % 16) insert_byte(&my_bytes, &my_count, 0);
 
 	uint8_t* data = NULL;
@@ -1089,7 +1011,7 @@ process_file:;
 	for (nat i = 0; i < my_count; i++) insert_byte(&data, &count, my_bytes[i]);
 	for (nat i = 0; i < 800; i++) insert_byte(&data, &count, 0);
 
-	/*puts("");
+	puts("");
 	puts("bytes: ");
 	for (nat i = 0; i < count; i++) {
 		if (i % 32 == 0) puts("");
@@ -1097,15 +1019,15 @@ process_file:;
 		printf("%02hhx ", data[i]);
 		if (data[i]) printf("\033[0m");
 	}
-	puts("");*/
+	puts("");
 
-	//puts("preparing for writing out the data.");
+	puts("preparing for writing out the data.");
 
 	const bool overwrite_executable_always = true;
 
 	if (not access("output_executable_new", F_OK)) {
-		//printf("file exists. do you wish to remove the previous one? ");
-		//fflush(stdout);
+		printf("file exists. do you wish to remove the previous one? ");
+		fflush(stdout);
 		if (overwrite_executable_always or getchar() == 'y') {
 			puts("file was removed.");
 			int r = remove("output_executable_new");
@@ -1124,7 +1046,7 @@ process_file:;
 	printf("wrote %llu bytes to file %s.\n", count, "output_executable_new");
 	system("codesign -s - output_executable_new");
 
-	//system("otool -htvxVlL output_executable_new");
+	system("otool -htvxVlL output_executable_new");
 	system("objdump -D output_executable_new");
 	puts("finished generating executabe bytes.");
 }

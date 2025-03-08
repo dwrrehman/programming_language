@@ -60,9 +60,16 @@ set is_signed_less_or_equal 13
 set cond_always 14
 set cond_never 15
 
+set width64 1
+set width32 0
 
-
-
+set mov_type_zero 2
+set mov_type_neg 0
+set mov_type_keep 3
+set mov_shift_none 0
+set mov_shift_16 1
+set mov_shift_32 2
+set mov_shift_48 3
 
 
 eoi
