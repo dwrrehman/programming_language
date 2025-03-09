@@ -120,19 +120,11 @@ static void print_instruction(struct instruction this) {
 }
 
 static void print_instructions(struct instruction* ins, nat ins_count) {
-	puts("instructions: {");
-	for (nat i = 0; i < ins_count; i++) {		
+	printf("instructions: (%llu count) {\n", ins_count);
+	for (nat i = 0; i < ins_count; i++) {
 		printf("\t#%04llu: ", i);
 		print_instruction(ins[i]);
 		puts("");
-	}
-	puts("}");
-}
-
-static void print_nats(nat* array, nat count) {
-	printf("(%llu) { ", count);
-	for (nat i = 0; i < count; i++) {
-		printf("%llu ", array[i]);
 	}
 	puts("}");
 }
@@ -147,6 +139,16 @@ static void print_index(const char* text, nat text_length, nat begin, nat end) {
 	
 	printf("\033[0m");
 	puts("\n");
+}
+
+/*
+
+static void print_nats(nat* array, nat count) {
+	printf("(%llu) { ", count);
+	for (nat i = 0; i < count; i++) {
+		printf("%llu ", array[i]);
+	}
+	puts("}");
 }
 
 static void insert_byte(uint8_t** output_data, nat* output_data_count, uint8_t x) {
@@ -211,11 +213,13 @@ static nat calculate_offset(nat* length, nat here, nat target) {
 	return offset;
 }
 
+*/
+
 int main(int argc, const char** argv) {
 	if (argc != 2) exit(puts("compiler: \033[31;1merror:\033[0m usage: ./run [file.s]"));
 
-	const nat min_stack_size = 16384 + 1;
-	nat stack_size = min_stack_size;
+	//const nat min_stack_size = 16384 + 1;
+	//nat stack_size = min_stack_size;
 
 	struct instruction ins[max_instruction_count] = {0};
 	nat ins_count = 0;
@@ -231,7 +235,6 @@ int main(int argc, const char** argv) {
 	nat included_file_count = 0;
 	struct file filestack[4096] = {0};
 	nat filestack_count = 1;
-
 {
 	int file = open(argv[1], O_RDONLY);
 	if (file < 0) { puts(argv[1]); perror("open"); exit(1); }
@@ -251,23 +254,19 @@ process_file:;
 	const nat text_length = filestack[filestack_count - 1].text_length;
 	char* text = filestack[filestack_count - 1].text;
 	const char* filename = filestack[filestack_count - 1].filename;
-
 	nat word_length = 0, word_start = 0, skip = 0, arg_count = 0;
 	nat args[max_arg_count] = {0}; 
 
 	for (nat var = 0, op = 0, pc = starting_index; pc < text_length; pc++) {
-
 		if (not isspace(text[pc])) {
 			if (not word_length) word_start = pc;
 			word_length++; 
 			if (pc + 1 < text_length) continue;
 		} else if (not word_length) continue;
-
 		char* word = strndup(text + word_start, word_length);
-
-		print_dictionary(variables, values, undefined, 10);
-		print_instructions(ins, ins_count);
-	
+		//printf("[pc=%llu][skip=%llu]: w=\"%s\" w_st=%llu\n", pc, skip, word, word_start);
+		//print_dictionary(variables, values, undefined, 10);
+		//print_instructions(ins, ins_count);
 		if (not strcmp(word, ".") and not skip) { 
 			skip = 1; goto next_word; 
 		} else if (skip) { 
@@ -285,18 +284,18 @@ process_file:;
 			); 
 			print_index(text, text_length, word_start, pc);
 			abort();
-		} else if (op == df) goto define_name;
-		for (var = *values; var-- > 1;) {
+		} else if (op == lf or op == df) goto define_name;
+		for (var = *values + 1; var-- > 1;) {
 			if (not undefined[var] and not strcmp(word, variables[var]))
 				goto push_argument;
 		} goto print_error;
-		define_name: var = *values;
-		values[*values] = register_index++;
-		variables[(*values)++] = word;
+		define_name: var = *values + 1;
+		values[var] = register_index++;
+		variables[var] = word; ++*values;
 		push_argument: args[arg_count++] = var;
 		process_op: if (arg_count < arity[op]) goto next_word;
 		if (op == df) { }
-		if (op == udf) undefined[args[0]] = 1;
+		else if (op == udf) undefined[args[0]] = 1;
 		else if (op == lf) {
 			for (nat i = 0; i < included_file_count; i++) {
 				if (strcmp(included_files[i], word)) continue;
@@ -318,6 +317,7 @@ process_file:;
 			filestack[filestack_count++].index = 0;
 			--*values; goto process_file;
 		} else if (op < isa_count) {
+			if (not op) { puts(" error"); abort(); }
 			struct instruction new = { .op = op };
 			memcpy(new.args, args, sizeof args);
 			ins[ins_count++] = new;
@@ -337,7 +337,7 @@ process_file:;
 		else if (op >= halt) rt++;
 	}
 
-	for (nat pc = 0; pc < isa_count; pc++){
+	for (nat pc = 0; pc < ins_count; pc++){
 
 		const nat op = ins[pc].op;
 		const nat arg0 = ins[pc].args[0];
@@ -371,6 +371,7 @@ process_file:;
 		else if (op == ctdebug) printf("debug: %llu (0x%016llx)\n", values[arg0], values[arg0]);
 		else if (op == ctabort) abort();
 		else {
+			//if (op == 0) { puts("internal error"); abort(); }
 			struct instruction new = { .op = op };
 			memcpy(new.args, ins[pc].args, sizeof new.args);
 			for (nat i = 0; i < arity[op]; i++) new.args[i] = values[new.args[i]];
@@ -378,23 +379,24 @@ process_file:;
 		}
 	}
 
-	print_dictionary(variables, values, undefined, 100000);
-	print_instructions(ins, ins_count);
+	print_dictionary(variables, values, undefined, 6);
+	print_instructions(rt_ins, rt_ins_count);
 
 	nat target_arch = values[1];
 	printf("[target_arch = %llu]\n", target_arch);
 
 	if (target_arch != arm64_arch) { puts("unsupported arch"); abort(); }
 
-
 	exit(0);
-
 
 }
 
-/*
 
- 
+
+
+
+
+/*
 	nat* lengths = calloc(ins_count, sizeof(nat));
 	for (nat i = 0; i < ins_count; i++) {
 		lengths[i] = ins[i].op == emit ? ins[i].args[0] : 4;
