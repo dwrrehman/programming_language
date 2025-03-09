@@ -1,5 +1,9 @@
 lf foundation.s
 
+set _targetarchitecture arm64_arch
+
+ctdebug _targetarchitecture
+
 ctdebug 32
 ctdebug 4
 ctdebug 2

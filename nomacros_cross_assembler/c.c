@@ -30,7 +30,7 @@ enum core_language_isa {
 	set, add, sub, mul, div_, rem,
 	and_, or_, eor, si, sd,
 	lt, ge, eq, ne, do_, at, cat, 
-	lc, ld, st, ctdebug, ctabort,
+	lc, ld, st, ctdebug, ctabort, ctpause,
 
 	halt, emit, nop, svc, mov, bfm,
 	adc, addx, addi, addr, adr, 
@@ -50,7 +50,7 @@ static const char* operations[isa_count] = {
 	"set", "add", "sub", "mul", "div", "rem", 
 	"and", "or", "eor", "si", "sd", 
 	"lt", "ge", "eq", "ne", "do", "at", "cat", 
-	"lc", "ld", "st", "ctdebug", "ctabort",
+	"lc", "ld", "st", "ctprint", "ctabort", "ctpause", 
 	
 	"halt", "emit", "nop", "svc", "mov", "bfm",
 	"adc", "addx", "addi", "addr", "adr", 
@@ -68,7 +68,7 @@ static const nat arity[isa_count] = {
 	2, 2, 2, 2, 2, 2, 
 	2, 2, 2, 2, 2, 
 	3, 3, 3, 3, 1, 1, 1, 
-	2, 2, 2, 1, 0,
+	2, 2, 2, 1, 0, 0,
 	
 	0, 2, 0, 0, 5, 5, 
 	6, 8, 7, 8, 3,
@@ -131,7 +131,14 @@ static void print_instructions(struct instruction* ins, nat ins_count) {
 
 static void print_index(const char* text, nat text_length, nat begin, nat end) {
 	printf("\n\t@%llu..%llu: ", begin, end); 
-	for (nat i = 0; i < text_length; i++) {
+
+	while (end and isspace(text[end])) end--;
+
+	const nat max_width = 100;
+	nat start_at = begin < max_width ? 0 : begin - max_width;
+	nat end_at = end + max_width >= text_length ? text_length : end + max_width;
+
+	for (nat i = start_at; i < end_at; i++) {
 		if (i == begin) printf("\033[32;1m[");
 		putchar(text[i]);
 		if (i == end) printf("]\033[0m");
@@ -140,8 +147,6 @@ static void print_index(const char* text, nat text_length, nat begin, nat end) {
 	printf("\033[0m");
 	puts("\n");
 }
-
-/*
 
 static void print_nats(nat* array, nat count) {
 	printf("(%llu) { ", count);
@@ -213,13 +218,11 @@ static nat calculate_offset(nat* length, nat here, nat target) {
 	return offset;
 }
 
-*/
-
 int main(int argc, const char** argv) {
 	if (argc != 2) exit(puts("compiler: \033[31;1merror:\033[0m usage: ./run [file.s]"));
 
-	//const nat min_stack_size = 16384 + 1;
-	//nat stack_size = min_stack_size;
+	const nat min_stack_size = 16384 + 1;
+	nat stack_size = min_stack_size;
 
 	struct instruction ins[max_instruction_count] = {0};
 	nat ins_count = 0;
@@ -329,7 +332,7 @@ process_file:;
 	filestack_count--;
 	if (filestack_count) goto process_file; 
 
-	for (nat rt = 0, pc = 0; pc < isa_count; pc++){
+	for (nat rt = 0, pc = 0; pc < ins_count; pc++) {
 		const nat op = ins[pc].op;
 		const nat arg0 = ins[pc].args[0];
 		if (op == cat) values[arg0] = pc;
@@ -337,12 +340,18 @@ process_file:;
 		else if (op >= halt) rt++;
 	}
 
-	for (nat pc = 0; pc < ins_count; pc++){
+	for (nat pc = 0; pc < ins_count; pc++) {
 
 		const nat op = ins[pc].op;
 		const nat arg0 = ins[pc].args[0];
 		const nat arg1 = ins[pc].args[1];
 		const nat arg2 = ins[pc].args[2];
+
+		/*printf("[pc = %llu]: executing (%llu){ %s : %s %s %s }\n", 
+			pc, arity[op],
+			operations[op], variables[arg0], 
+			variables[arg1], variables[arg2]
+		); getchar();*/
 
 		     if (op == zero) values[arg0] = 0;
 		else if (op == incr) values[arg0]++;
@@ -370,8 +379,9 @@ process_file:;
 		else if (op == ne) { if (values[arg0] != values[arg1]) pc = values[arg2]; }
 		else if (op == ctdebug) printf("debug: %llu (0x%016llx)\n", values[arg0], values[arg0]);
 		else if (op == ctabort) abort();
+		else if (op == ctpause) getchar();
 		else {
-			//if (op == 0) { puts("internal error"); abort(); }
+			if (op == 0) { puts("internal error"); abort(); }
 			struct instruction new = { .op = op };
 			memcpy(new.args, ins[pc].args, sizeof new.args);
 			for (nat i = 0; i < arity[op]; i++) new.args[i] = values[new.args[i]];
@@ -385,18 +395,12 @@ process_file:;
 	nat target_arch = values[1];
 	printf("[target_arch = %llu]\n", target_arch);
 
+	if (not target_arch) exit(0);
+
 	if (target_arch != arm64_arch) { puts("unsupported arch"); abort(); }
 
-	exit(0);
-
-}
 
 
-
-
-
-
-/*
 	nat* lengths = calloc(ins_count, sizeof(nat));
 	for (nat i = 0; i < ins_count; i++) {
 		lengths[i] = ins[i].op == emit ? ins[i].args[0] : 4;
@@ -407,17 +411,17 @@ process_file:;
 	uint8_t* my_bytes = NULL;
 	nat my_count = 0;
 
-	for (nat i = 0; i < ins_count; i++) {
+	for (nat i = 0; i < rt_ins_count; i++) {
 
-		const nat op = ins[i].op;
-		const u32 a0 = (u32) ins[i].args[0];
-		const u32 a1 = (u32) ins[i].args[1];
-		const u32 a2 = (u32) ins[i].args[2];
-		const u32 a3 = (u32) ins[i].args[3];
-		const u32 a4 = (u32) ins[i].args[4];
-		const u32 a5 = (u32) ins[i].args[5];
-		const u32 a6 = (u32) ins[i].args[6];
-		const u32 a7 = (u32) ins[i].args[7];
+		const nat op = rt_ins[i].op;
+		const u32 a0 = (u32) rt_ins[i].args[0];
+		const u32 a1 = (u32) rt_ins[i].args[1];
+		const u32 a2 = (u32) rt_ins[i].args[2];
+		const u32 a3 = (u32) rt_ins[i].args[3];
+		const u32 a4 = (u32) rt_ins[i].args[4];
+		const u32 a5 = (u32) rt_ins[i].args[5];
+		const u32 a6 = (u32) rt_ins[i].args[6];
+		const u32 a7 = (u32) rt_ins[i].args[7];
 
 		if (op == emit) {
 			if (a0 == 8) insert_u64(&my_bytes, &my_count, (uint64_t) a1);
@@ -484,7 +488,7 @@ process_file:;
 		} 
 
 		else if (op == bc) {
-			const uint32_t offset = 0x7ffff & (calculate_offset(lengths, i, rt_locations[a1]) >> 2);
+			const uint32_t offset = 0x7ffff & (calculate_offset(lengths, i, a1) >> 2);
 			const uint32_t to_emit = 
 				(0x54U << 24U) | 
 				(offset << 5U) | 
@@ -495,7 +499,7 @@ process_file:;
 		else if (op == adr) {
 
 			uint32_t o1 = a2;
-			nat count = calculate_offset(lengths, i, rt_locations[a1]);
+			nat count = calculate_offset(lengths, i, a1);
 			if (a2) count /= 4096;
 			const uint32_t offset = 0x1fffff & count;
 			const uint32_t lo = offset & 3, hi = offset >> 2;
@@ -509,7 +513,7 @@ process_file:;
 		}
 
 		else if (op == cbz) {
-			const uint32_t offset = 0x7ffff & (calculate_offset(lengths, i, rt_locations[a1]) >> 2);
+			const uint32_t offset = 0x7ffff & (calculate_offset(lengths, i, a1) >> 2);
 			const uint32_t to_emit = 
 				(a2 << 31U) | 
 				(0x1AU << 25U) | 
@@ -522,7 +526,7 @@ process_file:;
 		else if (op == tbz) {
 			const uint32_t b40 = a1 & 0x1F;
 			const uint32_t b5 = a1 >> 5;
-			const uint32_t offset = 0x3fff & (calculate_offset(lengths, i, rt_locations[a2]) >> 2);
+			const uint32_t offset = 0x3fff & (calculate_offset(lengths, i, a2) >> 2);
 			const uint32_t to_emit = 
 				(b5 << 31U) | 
 				(0x1BU << 25U) | 
@@ -613,7 +617,7 @@ process_file:;
 
 
 		else if (op == jmp) {
-			const uint32_t offset = 0x3ffffff & (calculate_offset(lengths, i, rt_locations[a1]) >> 2);
+			const uint32_t offset = 0x3ffffff & (calculate_offset(lengths, i, a1) >> 2);
 			const uint32_t to_emit = 
 				(a0 << 31U) | 
 				(0x5U << 26U) | 
@@ -624,7 +628,7 @@ process_file:;
 
 
 
-//
+/*
 		else if (op == bfm) {
 
 			const uint32_t bit_count = Im0;
@@ -661,7 +665,7 @@ process_file:;
 
 			insert_u32(&my_bytes, &my_count, to_emit);
 		} 
-//
+*/
 
 		else if (op == halt) {}
 
@@ -681,7 +685,6 @@ process_file:;
 		if (my_bytes[i]) printf("\033[0m");
 	}
 	puts("");
-
 
 
 	while (my_count % 16) insert_byte(&my_bytes, &my_count, 0);
@@ -856,9 +859,6 @@ process_file:;
 	puts("finished generating executabe bytes.");
 }
 
-
-
-*/
 
 
 
