@@ -129,6 +129,21 @@ static void print_instructions(struct instruction* ins, nat ins_count) {
 	puts("}");
 }
 
+static void print_instruction_window_around(nat this, struct instruction* ins, nat ins_count, char** variables) {
+	printf("\033[H\033[2J");
+	const int64_t window_width = 8;
+	const int64_t pc = (int64_t) this;
+	for (int64_t i = -window_width; i < window_width; i++) {
+		const int64_t here = pc + i;
+		if (here < 0 or here >= (int64_t) ins_count) { puts(""); continue; }
+		printf(" %5llu |   %s  ", here, operations[ins[here].op]);
+		for (nat a = 0; a < arity[ins[here].op]; a++) {
+			printf(" %s", variables[ins[here].args[a]]);
+		}
+		if (not i) puts("   <------ pc"); else puts("");
+	}
+}
+
 static void print_index(const char* text, nat text_length, nat begin, nat end) {
 	printf("\n\t@%llu..%llu: ", begin, end); 
 
@@ -332,7 +347,13 @@ process_file:;
 	filestack_count--;
 	if (filestack_count) goto process_file; 
 
+	for (nat pc = 0; pc < ins_count; pc++) 
+		if (ins[pc].op == cat) values[ins[pc].args[0]] = pc;
+
 	nat reset_values[max_variable_count] = {0};
+	memcpy(reset_values, values, sizeof reset_values);
+	
+	const nat debug = 0;
 
 	for (nat pass = 0; pass < 2; pass++) {
 
@@ -348,11 +369,16 @@ process_file:;
 			const nat arg1 = ins[pc].args[1];
 			const nat arg2 = ins[pc].args[2];
 
-			/*printf("[pc = %llu]: executing (%llu){ %s : %s %s %s }\n", 
-				pc, arity[op],
-				operations[op], variables[arg0], 
-				variables[arg1], variables[arg2]
-			); getchar();*/
+			if (debug and pass == 1 and pc >= 300) {
+				print_instruction_window_around(pc, ins, ins_count, variables);
+				printf("\n[pass %llu][pc = %llu]: executing (%llu){ %s : %s %s %s }\n\n\n", 
+					pass, pc, arity[op],
+					operations[op], variables[arg0], 
+					variables[arg1], variables[arg2]
+				); 
+				print_dictionary(variables, values, undefined, 12);
+				getchar();
+			}
 
 			     if (op == zero) values[arg0] = 0;
 			else if (op == incr) values[arg0]++;
@@ -371,14 +397,14 @@ process_file:;
 			else if (op == sd)   values[arg0] >>= values[arg1];
 			else if (op == ld)   values[arg0] = values[values[arg1]];
 			else if (op == st)   values[values[arg0]] = values[arg1];
-			else if (op == cat)  { values[arg0] = pc; reset_values[arg0] = pc; }
+			else if (op == cat)  values[arg0] = pc; 
 			else if (op == at)   { values[arg0] = rt_ins_count; reset_values[arg0] = rt_ins_count; }
 			else if (op == do_)  pc = values[arg0]; 
 			else if (op == lt) { if (values[arg0]  < values[arg1]) pc = values[arg2]; }
 			else if (op == ge) { if (values[arg0] >= values[arg1]) pc = values[arg2]; }
 			else if (op == eq) { if (values[arg0] == values[arg1]) pc = values[arg2]; }
 			else if (op == ne) { if (values[arg0] != values[arg1]) pc = values[arg2]; }
-			else if (op == ctdebug) printf("debug: %llu (0x%016llx)\n", values[arg0], values[arg0]);
+			else if (op == ctdebug) { if (pass == 1) printf("debug: %llu (0x%016llx)\n", values[arg0], values[arg0]); }
 			else if (op == ctabort) { if (pass == 1) abort(); }
 			else if (op == ctpause) { if (pass == 1) getchar(); }
 			else {
@@ -398,9 +424,7 @@ process_file:;
 	printf("[target_arch = %llu]\n", target_arch);
 
 	if (not target_arch) exit(0);
-
 	if (target_arch != arm64_arch) { puts("unsupported arch"); abort(); }
-
 
 
 	nat* lengths = calloc(ins_count, sizeof(nat));
@@ -554,8 +578,8 @@ process_file:;
 
 		else if (op == addi) {
 			const uint32_t to_emit = 
-				(a5 << 31U) | 
-				(a6 << 30U) | 
+				(a6 << 31U) | 
+				(a5 << 30U) | 
 				(a4 << 29U) | 
 				(0x22 << 23U) | 
 				(a3 << 22U) |

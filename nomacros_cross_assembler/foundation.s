@@ -33,6 +33,9 @@ df 1024 set 1024 1 si 1024 10
 df 2048 set 2048 1 si 2048 11
 df 4096 set 4096 1 si 4096 12
 
+
+df 30 set 30 3 mul 30 10
+df 31 set 31 30 incr 31
 df 42 set 42 10 si 42 2 add 42 2
 df 65 set 65 64 incr 65
 df 33 set 33 32 incr 33
@@ -196,6 +199,30 @@ df system_open 	set system_open 5
 df system_close set system_close 6
 
 
+. useful register indexes .
+df linkregister set linkregister 30
+df stackpointer set stackpointer 31
+df zeroregister set zeroregister 31
 
 
+. branch conditions .
+df is_equal set is_equal 0
+df is_not_equal set is_not_equal 1
+df is_unsigned_higher_or_same set is_unsigned_higher_or_same 2
+df is_unsigned_greater_or_equal set is_unsigned_greater_or_equal 2
+df is_unsigned_lower set is_unsigned_lower 3
+df is_unsigned_less set is_unsigned_less 3
+df is_minus set is_minus 4
+df is_negative set is_negative 4
+df is_nonnegative set is_nonnegative 5
+df has_overflow_set set has_overflow_set 6
+df has_overflow_clear set has_overflow_clear 7
+df is_unsigned_greater set is_unsigned_greater 8
+df is_unsigned_lower_or_same set is_unsigned_lower_or_same 9
+df is_signed_greater_or_equal set is_signed_greater_or_equal 10
+df is_signed_less set is_signed_less 11
+df is_signed_greater set is_signed_greater 12
+df is_signed_less_or_equal set is_signed_less_or_equal 13
+df cond_always set cond_always 14
+df cond_never set cond_never 15
 
