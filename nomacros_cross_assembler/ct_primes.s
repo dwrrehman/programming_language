@@ -16,7 +16,6 @@ df loop cat loop
 		df r set r i rem r j 
 		df composite eq r 0 composite
 		incr j do inner
-
 	cat prime incr count ctprint i emit 8 i
 	cat composite incr i lt i n loop
 

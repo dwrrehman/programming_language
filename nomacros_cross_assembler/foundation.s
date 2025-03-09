@@ -33,6 +33,9 @@ df 1024 set 1024 1 si 1024 10
 df 2048 set 2048 1 si 2048 11
 df 4096 set 4096 1 si 4096 12
 
+df 42 set 42 10 si 42 2 add 42 2
+
+
 df no_arch set no_arch 0
 df arm64_arch set arm64_arch 1
 df arm32_arch set arm32_arch 2
@@ -46,12 +49,33 @@ df rv32_arch set rv32_arch 4
 df width64 set width64 1
 df width32 set width32 0
 
+
 . arm64 mov instruction .
+
 df type_zero set type_zero 2
 df type_neg set type_neg 0
 df type_keep set type_keep 3
 
+df shift_none set shift_none 0
+df shift_16 set shift_16 1
+df shift_32 set shift_32 2
+df shift_48 set shift_48 3
 
 
 
+
+. svc : system calls on macos .
+
+df syscallnumber set syscallnumber 16
+df syscallarg0 set syscallarg0 0
+df syscallarg1 set syscallarg1 1
+df syscallarg2 set syscallarg2 2
+df syscallarg3 set syscallarg3 3
+
+df system_exit 	set system_exit 1
+df system_fork 	set system_fork 2
+df system_read 	set system_read 3
+df system_write set system_write 4
+df system_open 	set system_open 5
+df system_close set system_close 6
 
