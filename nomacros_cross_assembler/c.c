@@ -332,60 +332,62 @@ process_file:;
 	filestack_count--;
 	if (filestack_count) goto process_file; 
 
-	for (nat rt = 0, pc = 0; pc < ins_count; pc++) {
-		const nat op = ins[pc].op;
-		const nat arg0 = ins[pc].args[0];
-		if (op == cat) values[arg0] = pc;
-		else if (op == at) values[arg0] = rt;
-		else if (op >= halt) rt++;
-	}
+	nat reset_values[max_variable_count] = {0};
 
-	for (nat pc = 0; pc < ins_count; pc++) {
+	for (nat pass = 0; pass < 2; pass++) {
 
-		const nat op = ins[pc].op;
-		const nat arg0 = ins[pc].args[0];
-		const nat arg1 = ins[pc].args[1];
-		const nat arg2 = ins[pc].args[2];
+		if (pass == 1) {
+			memcpy(values, reset_values, sizeof values);
+			rt_ins_count = 0;
+		}
 
-		/*printf("[pc = %llu]: executing (%llu){ %s : %s %s %s }\n", 
-			pc, arity[op],
-			operations[op], variables[arg0], 
-			variables[arg1], variables[arg2]
-		); getchar();*/
+		for (nat pc = 0; pc < ins_count; pc++) {
 
-		     if (op == zero) values[arg0] = 0;
-		else if (op == incr) values[arg0]++;
-		else if (op == decr) values[arg0]--;
-		else if (op == not_) values[arg0] = ~values[arg0]; 
-		else if (op == set)  values[arg0] = values[arg1];
-		else if (op == add)  values[arg0] += values[arg1];
-		else if (op == sub)  values[arg0] -= values[arg1];
-		else if (op == mul)  values[arg0] *= values[arg1];
-		else if (op == div_) values[arg0] /= values[arg1];
-		else if (op == rem)  values[arg0] %= values[arg1];
-		else if (op == and_) values[arg0] &= values[arg1];
-		else if (op == or_)  values[arg0] |= values[arg1];
-		else if (op == eor)  values[arg0] ^= values[arg1];
-		else if (op == si)   values[arg0] <<= values[arg1];
-		else if (op == sd)   values[arg0] >>= values[arg1];
-		else if (op == ld)   values[arg0] = values[values[arg1]];
-		else if (op == st)   values[values[arg0]] = values[arg1];
-		else if (op == cat)  values[arg0] = pc;
-		else if (op == at)   values[arg0] = rt_ins_count;
-		else if (op == do_)  pc = values[arg0]; 
-		else if (op == lt) { if (values[arg0]  < values[arg1]) pc = values[arg2]; }
-		else if (op == ge) { if (values[arg0] >= values[arg1]) pc = values[arg2]; }
-		else if (op == eq) { if (values[arg0] == values[arg1]) pc = values[arg2]; }
-		else if (op == ne) { if (values[arg0] != values[arg1]) pc = values[arg2]; }
-		else if (op == ctdebug) printf("debug: %llu (0x%016llx)\n", values[arg0], values[arg0]);
-		else if (op == ctabort) abort();
-		else if (op == ctpause) getchar();
-		else {
-			if (op == 0) { puts("internal error"); abort(); }
-			struct instruction new = { .op = op };
-			memcpy(new.args, ins[pc].args, sizeof new.args);
-			for (nat i = 0; i < arity[op]; i++) new.args[i] = values[new.args[i]];
-			rt_ins[rt_ins_count++] = new;
+			const nat op = ins[pc].op;
+			const nat arg0 = ins[pc].args[0];
+			const nat arg1 = ins[pc].args[1];
+			const nat arg2 = ins[pc].args[2];
+
+			/*printf("[pc = %llu]: executing (%llu){ %s : %s %s %s }\n", 
+				pc, arity[op],
+				operations[op], variables[arg0], 
+				variables[arg1], variables[arg2]
+			); getchar();*/
+
+			     if (op == zero) values[arg0] = 0;
+			else if (op == incr) values[arg0]++;
+			else if (op == decr) values[arg0]--;
+			else if (op == not_) values[arg0] = ~values[arg0]; 
+			else if (op == set)  values[arg0] = values[arg1];
+			else if (op == add)  values[arg0] += values[arg1];
+			else if (op == sub)  values[arg0] -= values[arg1];
+			else if (op == mul)  values[arg0] *= values[arg1];
+			else if (op == div_) values[arg0] /= values[arg1];
+			else if (op == rem)  values[arg0] %= values[arg1];
+			else if (op == and_) values[arg0] &= values[arg1];
+			else if (op == or_)  values[arg0] |= values[arg1];
+			else if (op == eor)  values[arg0] ^= values[arg1];
+			else if (op == si)   values[arg0] <<= values[arg1];
+			else if (op == sd)   values[arg0] >>= values[arg1];
+			else if (op == ld)   values[arg0] = values[values[arg1]];
+			else if (op == st)   values[values[arg0]] = values[arg1];
+			else if (op == cat)  { values[arg0] = pc; reset_values[arg0] = pc; }
+			else if (op == at)   { values[arg0] = rt_ins_count; reset_values[arg0] = rt_ins_count; }
+			else if (op == do_)  pc = values[arg0]; 
+			else if (op == lt) { if (values[arg0]  < values[arg1]) pc = values[arg2]; }
+			else if (op == ge) { if (values[arg0] >= values[arg1]) pc = values[arg2]; }
+			else if (op == eq) { if (values[arg0] == values[arg1]) pc = values[arg2]; }
+			else if (op == ne) { if (values[arg0] != values[arg1]) pc = values[arg2]; }
+			else if (op == ctdebug) printf("debug: %llu (0x%016llx)\n", values[arg0], values[arg0]);
+			else if (op == ctabort) { if (pass == 1) abort(); }
+			else if (op == ctpause) { if (pass == 1) getchar(); }
+			else {
+				if (op == 0) { puts("internal error"); abort(); }
+				struct instruction new = { .op = op };
+				memcpy(new.args, ins[pc].args, sizeof new.args);
+				for (nat i = 0; i < arity[op]; i++) new.args[i] = values[new.args[i]];
+				rt_ins[rt_ins_count++] = new;
+			}
 		}
 	}
 
@@ -856,7 +858,8 @@ process_file:;
 
 	//system("otool -htvxVlL output_executable_new");
 	system("objdump -D output_executable_new");
-	puts("finished generating executabe bytes.");
+
+	printf("info: generated executable: %s\n", "output_executable_new");
 }
 
 
@@ -973,6 +976,15 @@ process_file:;
 
 
 
+
+/*	for (nat rt = 0, pc = 0; pc < ins_count; pc++) {
+		const nat op = ins[pc].op;
+		const nat arg0 = ins[pc].args[0];
+		if (op == cat) values[arg0] = pc;
+		else if (op == at) values[arg0] = rt;
+		else if (op >= halt) rt++;
+	}
+*/
 
 
 
