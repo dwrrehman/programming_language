@@ -15,15 +15,19 @@ df function cat function df arg0
 		incr i
 		lt i n loop
 	udf n udf i udf loop
+	ctpause
 	incr lr do lr
 cat skip
 
-set arg0 10 
+set arg0 7
 cat lr do function
 
 set arg0 4
 cat lr do function
 
-ctabort
+set arg0 3
+cat lr do function
+
+
 
 

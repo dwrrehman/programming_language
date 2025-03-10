@@ -3,8 +3,9 @@
   written on 1202503086.033529 by dwrr
 .
 
-df _targetarchitecture
-zero _targetarchitecture
+df _targetarchitecture zero _targetarchitecture
+df _outputformat zero _outputformat
+df _shouldoverwrite zero _shouldoverwrite
 
 df 0 zero 0
 df 1 set 1 0 incr 1
@@ -33,7 +34,7 @@ df 1024 set 1024 1 si 1024 10
 df 2048 set 2048 1 si 2048 11
 df 4096 set 4096 1 si 4096 12
 
-
+df 63 set 63 64 decr 63
 df 30 set 30 3 mul 30 10
 df 31 set 31 30 incr 31
 df 42 set 42 10 si 42 2 add 42 2
@@ -225,4 +226,61 @@ df is_signed_greater set is_signed_greater 12
 df is_signed_less_or_equal set is_signed_less_or_equal 13
 df cond_always set cond_always 14
 df cond_never set cond_never 15
+
+
+df with_register set with_register 0
+df with_immediate set with_immediate 1
+
+df is_zero set is_zero 0
+df is_nonzero set is_nonzero 1
+
+df type_byteoffset set type_byteoffset 0
+df type_pageoffset set type_pageoffset 1
+
+df isreturn set isreturn 1
+df isnotreturn set isnotreturn 0
+df nolink set nolink 0
+df jumplink set jumplink 1
+
+df shift_increase set shift_increase 0
+df shift_decrease set shift_decrease 1
+df shift_signed_decrease set shift_signed_decrease 2
+df rotate_decrease set rotate_decrease 3
+
+df positive set positive 0
+df positive set positive 0
+df subtract set subtract 1
+
+df noflags  set noflags  0
+df setflags set setflags 1
+
+df shift_12 set shift_12 1
+
+df cmp_negative set cmp_negative 0
+df cmp_positive set cmp_positive 1
+
+
+df extend_uxtb set extend_uxtb 0
+df extend_uxth set extend_uxth 1
+df extend_uxtw set extend_uxtw 2
+df extend_uxtx set extend_uxtx 3 df addx_sp_lsl set addx_sp_lsl 3
+df extend_sxtb set extend_sxtb 4
+df extend_sxth set extend_sxth 5
+df extend_sxtw set extend_sxtw 6
+df extend_sxtx set extend_sxtx 7
+
+df csel_incr set csel_incr 1
+df csel_not set csel_not 1
+df csel_set set csel_set 0
+
+df maddl_unsigned set maddl_unsigned 1
+df maddl_signed set maddl_signed 0
+df type_maddl set type_maddl 1
+df type_madd set type_madd 0
+
+
+
+
+
+
 

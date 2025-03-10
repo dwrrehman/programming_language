@@ -21,7 +21,7 @@ typedef uint64_t nat;
 #define max_instruction_count (1 << 15)
 #define max_arg_count 8
 
-enum all_architectures { no_arch, arm64_arch, arm32_arch, rv64_arch, rv32_arch };
+enum all_architectures { no_arch, arm64_arch, arm32_arch, rv64_arch, rv32_arch, msp430, };
 enum core_language_isa {
 	nullins,
 
@@ -267,6 +267,8 @@ int main(int argc, const char** argv) {
 	filestack[0].index = 0;
 }
 
+	const char* output_filename = "";
+
 process_file:;		
 	const nat starting_index = filestack[filestack_count - 1].index;
 	const nat text_length = filestack[filestack_count - 1].text_length;
@@ -301,6 +303,12 @@ process_file:;
 				op == isa_count ? "operation" : "variable", word
 			); 
 			print_index(text, text_length, word_start, pc);
+			if (op != isa_count) 
+				printf(
+					"calling operation: "
+					"%s (arity %llu)\n", 
+					operations[op], arity[op]
+				);
 			abort();
 		} else if (op == lf or op == df) goto define_name;
 		for (var = *values + 1; var-- > 1;) {
@@ -420,12 +428,14 @@ process_file:;
 	print_dictionary(variables, values, undefined, 6);
 	print_instructions(rt_ins, rt_ins_count);
 
-	nat target_arch = values[1];
+	const nat target_arch = values[1];
+	const nat output_format = values[2];
+	const nat should_overwrite = values[3];
+
 	printf("[target_arch = %llu]\n", target_arch);
 
 	if (not target_arch) exit(0);
 	if (target_arch != arm64_arch) { puts("unsupported arch"); abort(); }
-
 
 	nat* lengths = calloc(ins_count, sizeof(nat));
 	for (nat i = 0; i < ins_count; i++) {
@@ -457,7 +467,7 @@ process_file:;
 		}
 		else if (op == nop) insert_u32(&my_bytes, &my_count, 0xD503201F);
 		else if (op == svc) insert_u32(&my_bytes, &my_count, 0xD4000001);
-		else if (op == br) {
+		else if (op == br) { // 
 			uint32_t l = 0;
 			if (a1) l = 1;
 			if (a2) l = 2;			
@@ -469,11 +479,11 @@ process_file:;
 
 			insert_u32(&my_bytes, &my_count, to_emit);
 		}		
-		else if (op == adc) {
+		else if (op == adc) { // 
 
 			const uint32_t to_emit = 
-				(a4 << 31U) | 
-				(a5 << 30U) | 
+				(a5 << 31U) | 
+				(a4 << 30U) | 
 				(a3 << 29U) | 
 				(0xD0 << 21U) | 
 				(a2 << 16U) | 
@@ -541,9 +551,9 @@ process_file:;
 		else if (op == cbz) {
 			const uint32_t offset = 0x7ffff & (calculate_offset(lengths, i, a1) >> 2);
 			const uint32_t to_emit = 
-				(a2 << 31U) | 
+				(a3 << 31U) | 
 				(0x1AU << 25U) | 
-				(a3 << 24U) |
+				(a2 << 24U) |
 				(offset << 5U) | 
 				(a0);
 			insert_u32(&my_bytes, &my_count, to_emit);
@@ -565,14 +575,14 @@ process_file:;
 
 		else if (op == ccmp) {
 			const uint32_t to_emit = 
-				(a4 << 31U) | 
-				(a5 << 30U) | 
+				(a6 << 31U) | 
+				(a4 << 30U) | 
 				(0x1D2 << 21U) | 
-				(a1 << 16U) | 
-				(a2 << 12U) |
-				(a6 << 11U) | 
-				(a0 << 5U) | 
-				(a3 & 0xF); 
+				(a3 << 16U) | 
+				(a0 << 12U) |
+				(a2 << 11U) | 
+				(a1 << 5U) | 
+				(a5); 
 			insert_u32(&my_bytes, &my_count, to_emit);
 		}
 
@@ -590,12 +600,26 @@ process_file:;
 		}
 		else if (op == addr) {
 			const uint32_t to_emit = 
-				(a6 << 31U) | 
-				(a7 << 30U) | 
+				(a7 << 31U) | 
+				(a6 << 30U) | 
 				(a5 << 29U) | 
 				(0xB << 24U) | 
 				(a3 << 22U) | 
 				(a2 << 16U) |
+				(a4 << 10U) | 
+				(a1 << 5U) | 
+				(a0);
+			insert_u32(&my_bytes, &my_count, to_emit);
+		}
+
+		else if (op == addx) {
+			const uint32_t to_emit = 
+				(a7 << 31U) | 
+				(a6 << 30U) | 
+				(a5 << 29U) | 
+				(0x59 << 21U) |
+				(a2 << 16U) |
+				(a3 << 13U) | 
 				(a4 << 10U) | 
 				(a1 << 5U) | 
 				(a0);
@@ -629,18 +653,17 @@ process_file:;
 
 		else if (op == madd) {
 			const uint32_t to_emit = 
-				(a6 << 31U) |
+				(a7 << 31U) |
 				(0x1B << 24U) | 
 				(a5 << 23U) |
 				(a4 << 21U) |
 				(a2 << 16U) |
-				(a7 << 15U) | 
+				(a6 << 15U) | 
 				(a3 << 10U) | 
 				(a1 << 5U) | 
 				(a0);
 			insert_u32(&my_bytes, &my_count, to_emit);
 		}
-
 
 		else if (op == jmp) {
 			const uint32_t offset = 0x3ffffff & (calculate_offset(lengths, i, a1) >> 2);
@@ -979,6 +1002,344 @@ process_file:;
 
 
 
+
+
+
+
+
+
+
+/*
+	--------------------------------------------------------------------------------------- 
+
+		this is the msp430 assembler code that we will work into this assembler soon.
+
+	--------------------------------------------------------------------------------------- 
+/
+	an assembler for the msp430 arch. 
+	used for programming msp430frxxxx 
+	chips that i have.
+	written on 1202409043.013935 by dwrr.
+/
+
+#include <stdio.h>
+#include <string.h>
+#include <fcntl.h>
+#include <unistd.h>
+#include <stdlib.h>
+#include <stdint.h>
+#include <ctype.h>
+#include <iso646.h>
+#include <time.h>
+#include <sys/time.h>
+
+typedef uint64_t nat;
+typedef uint32_t u32;
+typedef uint16_t u16;
+typedef uint8_t byte;
+
+struct section {
+	byte* data;
+	nat length;
+	nat address;
+};
+
+struct instruction {
+	nat opcode;
+	nat type;
+
+	nat dest_reg;
+	nat source_reg;
+
+	nat dest_mode;
+	nat source_mode;
+
+	nat dest_imm;
+	nat source_imm;
+};
+
+enum language_instructions {
+	undefined_ins,
+	eof, setoutputname, def, 
+	section_start, literal_byte, literal_word,
+	mov, add, addc, sub, subc, cmp, dadd, bit, bic, bis, xor_, and_, branch, at, 
+	pc, sp, sr, cg, r4, r5, r6, r7, r8, r9, r10, r11, r12, r13, r14, r15, 
+	r16, r17, r18, r19, r20, r21, r22, r23, r24, r25, r26, r27, r28, r29, r30, r31,
+	size_word, size_byte, size_address, 
+	nonzero, zero, nocarry, carry, negative, greaterequal, less, always,
+	direct, indexed, indirect, autoincr,
+	isa_count
+};
+
+static const char* spelling[isa_count] = {
+	"__[undefined]__",
+	"eof", "setoutputname", "def", 
+	"section", "literalbyte", "literalword", 
+	"mov", "add", "addc", "sub", "subc", "cmp", "dadd", "bit", "bic", "bis", "xor", "and", "branch", "at", 
+	"pc", "sp", "sr", "cg", "r4", "r5", "r6", "r7", "r8", "r9", "r10", "r11", "r12", "r13", "r14", "r15", 
+	"r16", "r17", "r18", "r19", "r20", "r21", "r22", "r23", "r24", "r25", "r26", "r27", "r28", "r29", "r30", "r31",
+	"word", "byte", "address", 
+	"nonzero", "zero", "nocarry", "carry", "negative", "greaterequal", "less", "always",
+	"direct", "index", "deref", "incr",
+};
+
+static void debug_sections(struct section* sections, const nat section_count) {
+	printf("printing %llu sections: \n", section_count);
+	for (nat s = 0; s < section_count; s++) {
+		printf("section #%llu: .address = 0x%04llx, .length = %llu :: ", s, sections[s].address, sections[s].length);
+		for (nat n = 0; n < sections[s].length; n++) {
+			if (n % 16 == 0) printf("\n\t");
+			printf("[%02hhx] ", sections[s].data[n]);
+		}
+		puts("[end of section]");
+	}
+	puts("[done]");
+}
+
+static void print_instructions(struct instruction* ins, nat ins_count) {
+	puts("printing instructions");
+	for (nat i = 0; i < ins_count; i++) {
+		printf("%llu: { .opcode = %s : .dest=%llu, .src=%llu     .destm=%llu, .srcm=%llu     .desti=%llu, .srci=%llu  }\n", 
+			i, spelling[ins[i].opcode], 
+			ins[i].dest_reg, ins[i].source_reg, 
+			ins[i].dest_mode, ins[i].source_mode, 
+			ins[i].dest_imm, ins[i].source_imm
+		);
+	}
+	puts("done");
+}
+
+static void write_string(const char* directory, char* w_string, nat w_length, nat should_set_output_name) {
+        char name[4096] = {0};
+        srand((unsigned)time(0)); rand();
+        char datetime[32] = {0};
+        struct timeval t = {0};
+        gettimeofday(&t, NULL);
+        struct tm* tm = localtime(&t.tv_sec);
+        strftime(datetime, 32, "1%Y%m%d%u.%H%M%S", tm);
+        snprintf(name, sizeof name, "%s%s_%08x%08x.txt", directory, datetime, rand(), rand());
+        int flags = O_WRONLY | O_TRUNC | O_CREAT | (should_set_output_name ? 0 : O_EXCL);
+        mode_t permission = S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH;
+        int file = open(should_set_output_name ? "output_machine_code.txt" : name, flags, permission);
+        if (file < 0) { perror("save: open file"); puts(name); getchar(); }
+        write(file, w_string, w_length);
+        close(file);
+	printf("write_string: successfully wrote out %llu bytes to file %s.\n", 
+		w_length, should_set_output_name ? "output_machine_code.txt" : name
+	);
+}
+
+int main(int argc, const char** argv) {
+	if (argc <= 1) return puts("usage: ./assemble <file.s>");
+	const char* filename = argv[1];
+	int file = open(filename, O_RDONLY);
+	if (file < 0) { perror("open"); printf("error: could not open: %s\n", filename); exit(1); }
+	const nat text_length = (nat) lseek(file, 0, SEEK_END);
+	lseek(file, 0, SEEK_SET);
+	char* text = calloc(text_length + 1, 1);
+	read(file, text, text_length);
+	close(file);
+
+	puts("printing the text: ");
+	printf("text %p @ %llu chars...\n", (void*) text, text_length);
+
+	puts("file contents:");
+	puts("------------------------");
+	puts(text);
+	puts("------------------------");
+
+	struct instruction ins[4096] = {0};
+	nat ins_count = 0;
+	nat word_length = 0, word_start = 0, arg = 0, ignoring = 0, should_set_output_name = 0;
+
+	for (nat index = 0; index < text_length; index++) {
+		if (not isspace(text[index])) {
+			if (not word_length) word_start = index;
+			word_length++;
+			if (index + 1 < text_length) continue;
+		} else if (not word_length) continue;
+		char* word = strndup(text + word_start, word_length);
+		printf("start: %llu, count: %llu  |   word = %s\n", word_start, word_length, word);
+		if (not strcmp(word, "comment")) {
+			ignoring = not ignoring;
+			if (not ignoring) goto next;
+		} 
+		if (ignoring) goto next;
+		nat n = 0;
+		for (nat i = 0; i < isa_count; i++) {
+			if (not strcmp(word, spelling[i])) { n = i; goto found; }
+		}
+
+		if (*word == '0' or *word == '1') {
+			nat r = 0; 
+			nat s = 1;
+			for (nat i = 0; i < word_length; i++) {
+				if (word[i] == '0') s <<= 1;
+				else if (word[i] == '1') { r += s; s <<= 1; }
+				else if (word[i] == '_') {}
+				else goto binary_error;
+			}
+
+			printf("info: found binary constant literal = %08llx\n", r);
+			if (not ins_count) { puts("usage error"); abort(); }
+			if (arg < 2) ins[ins_count - 1].dest_imm = r;
+			else ins[ins_count - 1].source_imm = r;
+			goto next;
+		binary_error:
+			puts("binary number error");
+			puts("error: unknown binary number encountered");
+			printf("index = %llu\n", index);
+			puts(word);
+			abort();
+		}
+		puts("error: unknown word encountered!!...");
+		printf("index = %llu\n", index);
+		puts(word);
+		abort();
+	found:
+		if (n == eof) { puts("found eof"); break; }
+		else if (n == setoutputname) should_set_output_name = 1;
+		else if (n >= section_start and n <= at) {
+			ins[ins_count++] = (struct instruction) {.opcode = n};
+			arg = 0;
+
+		} else if (n >= pc and n <= r31) {
+			const nat r = n - pc;
+			if (not ins_count) { puts("usage error"); abort(); }
+			if (arg == 0) ins[ins_count - 1].dest_reg = r;
+			else if (arg == 1) ins[ins_count - 1].source_reg = r;
+			else { puts("usage error"); abort(); }
+			arg++;
+
+		} else if (n >= direct and n <= autoincr) {
+			const nat r = n - direct;
+			if (not ins_count) { puts("usage error"); abort(); }
+			if (arg < 2) ins[ins_count - 1].dest_mode = r;
+			else ins[ins_count - 1].source_mode = r;
+
+		} else if (n >= size_word and n <= always) {
+			if (not ins_count) { puts("usage error"); abort(); }
+			ins[ins_count - 1].type = n;
+
+		} else {
+			puts("error: unimpl ins");
+			puts(word);
+			abort();	
+		}
+	next:	word_length = 0;
+	}
+
+	print_instructions(ins, ins_count);
+	struct section sections[128] = {0};
+	nat section_count = 0;
+	nat labels[32] = {0};
+
+	for (nat pass = 0; pass < 2; pass++) {
+		if (pass) {
+			for (nat s = 0; s < section_count; s++) 
+				free(sections[s].data);
+			section_count = 0;
+		}
+	for (nat i = 0; i < ins_count; i++) {
+		printf("ins: %llu: \n", i);
+		struct instruction this = ins[i];
+		const nat op = this.opcode;
+		const nat type = this.type;
+		struct section* section = sections + section_count - 1;
+
+		if (op == section_start) {
+			printf("new section starts at: 0x%08llx\n", this.dest_imm);
+			sections[section_count++] = (struct section) { .data = calloc(65536, 1), .address = this.dest_imm, .length = 0 };
+
+		} else if (op == literal_byte) {
+			section->data[section->length++] = (this.dest_imm) & 0xFF;
+
+		} else if (op == literal_word) {
+			const u16 word = (u16) this.dest_imm;
+			section->data[section->length++] = (word >> 0) & 0xFF;
+			section->data[section->length++] = (word >> 8) & 0xFF;
+
+		} else if (op >= mov and op <= and_) {
+
+			if (not section_count) { puts("error: no section given for instruction"); abort(); }
+			printf("generating double operand instruction : %s\n", spelling[op]);
+
+			if (type == size_address) abort();
+			if (this.dest_reg >= 16) abort();
+			if (this.source_reg >= 16) abort();
+			if (this.dest_mode >= 2) abort();
+			if (this.source_mode >= 4) abort();
+
+			u16 word = (u16) (
+				((op - mov + 4) << 12) | 
+				(this.source_reg << 8) | 
+				(this.dest_mode << 7) | 
+				((nat)(type == size_byte) << 6) | 
+				(this.source_mode << 4) | 
+				(this.dest_reg)
+			);
+
+			section->data[section->length++] = (word >> 0) & 0xFF;
+			section->data[section->length++] = (word >> 8) & 0xFF;
+			printf("generating word = 0x%04hx\n", word);
+
+			if (
+				(this.source_mode == 1 and this.source_reg != 2 and this.source_reg != 3) or
+				(this.source_mode == 3 and not this.source_reg)
+			) {
+				word = (u16) this.source_imm;
+				section->data[section->length++] = (word >> 0) & 0xFF;
+				section->data[section->length++] = (word >> 8) & 0xFF;
+				printf("generating source imm word = 0x%04hx\n", word);
+			}
+
+			if (this.dest_mode == 1) {
+				word = (u16) this.dest_imm;
+				section->data[section->length++] = (word >> 0) & 0xFF;
+				section->data[section->length++] = (word >> 8) & 0xFF;
+				printf("generating dest imm word = 0x%04hx\n", word);
+			}
+
+		} else if (op == branch) {
+
+			printf("generating branch...\n");
+			const nat offset = ((labels[this.dest_reg] - (section->length + 2)) / 2);
+			if ((int) offset <= -500 or (int) offset >= 500) { printf("error: offset too large in branch: %lld\n", offset); abort(); }
+			const u16 word = (u16) ((0x1 << 13) | ((type - nonzero) << 10) | (offset & 0x3FF));
+			section->data[section->length++] = (word >> 0) & 0xFF;
+			section->data[section->length++] = (word >> 8) & 0xFF;
+
+		} else if (op == at) {
+			puts("executing at directive...");
+			labels[this.dest_reg] = section->length;
+		} else {
+			printf("unknown instruction to generate: op = %s\n", spelling[op]);
+			getchar();
+		}
+	}
+	}
+
+	char out[4096] = {0};
+	int len = 0;
+	debug_sections(sections, section_count);
+
+	for (nat s = 0; s < section_count; s++) {
+		len += snprintf(out + len, sizeof out, "@%04llx", sections[s].address);
+		for (nat n = 0; n < sections[s].length; n++) {
+			if (n % 16 == 0) len += snprintf(out + len, sizeof out, "\n");
+			len += snprintf(out + len, sizeof out, "%02hhX ", sections[s].data[n]);
+		}
+		len += snprintf(out + len, sizeof out, "\n");
+	}
+	len += snprintf(out + len, sizeof out, "q\n");
+	printf("about to write out: \n-------------------\n<<<%.*s>>>\n----------------\n", len, out);
+	printf("write out machine code to file? (y/n) ");
+	fflush(stdout);
+	write_string("./", out, (nat) len, should_set_output_name);
+}
+
+
+*/
 
 
 
