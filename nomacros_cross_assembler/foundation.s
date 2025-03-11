@@ -43,6 +43,9 @@ df 33 set 33 32 incr 33
 df 48 set 48 12 si 48 2
 df 97 set 97 32 add 97 65
 
+df false set false 0
+df true set true 1
+
 df space set space 32
 df newline set newline 10
 df tab set tab 9
@@ -148,19 +151,29 @@ df '}' set '}' '|' incr '}'
 df '~' set '~' '}' incr '~'
 
 
+. _targetarchitecture: supported architectures . 
+df no_arch 	set no_arch 0
+df arm64_arch 	set arm64_arch 1
+df arm32_arch 	set arm32_arch 2
+df rv64_arch 	set rv64_arch 3
+df rv32_arch 	set rv32_arch 4
+df msp430_arch 	set msp430_arch 5
 
 
+. _outputformat: supported output formats . 
+df debug_output_only 	set debug_output_only 0
+df macho_executable 	set macho_executable 1
+df elf_executable 	set elf_executable 2
+df ti_txt_executable 	set ti_txt_executable 3
 
-df no_arch set no_arch 0
-df arm64_arch set arm64_arch 1
-df arm32_arch set arm32_arch 2
-df rv64_arch set rv64_arch 3
-df rv32_arch set rv32_arch 4
 
-
-df stderr set stderr 2
-df stdout set stdout 1
+. file descriptors used in system calls .
 df stdin set stdin 0
+df stdout set stdout 1
+df stderr set stderr 2
+
+
+
 
 
 
@@ -168,7 +181,6 @@ df stdin set stdin 0
 
 df width64 set width64 1
 df width32 set width32 0
-
 
 . arm64 mov instruction .
 

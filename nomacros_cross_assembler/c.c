@@ -12,16 +12,32 @@
 #include <ctype.h>
 #include <termios.h>
 #include <sys/mman.h>
+#include <stdio.h>
+#include <string.h>
+#include <fcntl.h>
+#include <unistd.h>
+#include <stdlib.h>
+#include <stdint.h>
+#include <ctype.h>
+#include <iso646.h>
+#include <time.h>
+#include <sys/time.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <errno.h>
+
 typedef uint64_t nat;
+typedef uint32_t u32;
+typedef uint16_t u16;
+typedef uint8_t byte;
 
 #define max_variable_count (1 << 15)
 #define max_instruction_count (1 << 15)
 #define max_arg_count 8
 
-enum all_architectures { no_arch, arm64_arch, arm32_arch, rv64_arch, rv32_arch, msp430, };
+enum all_architectures { no_arch, arm64_arch, arm32_arch, rv64_arch, rv32_arch, msp430_arch, };
+enum all_output_formats { debug_output_only, macho_executable, elf_executable, ti_txt_executable };
+
 enum core_language_isa {
 	nullins,
 
@@ -39,6 +55,8 @@ enum core_language_isa {
 	ori, orr, extr, ldrl, 
 	memp, memia, memi, memr, 
 	madd, divr,
+
+	section_start, general4, branch4,
 
 	isa_count
 };
@@ -58,7 +76,9 @@ static const char* operations[isa_count] = {
 	"cbz", "tbz", "ccmp", "csel", 
 	"bwi", "bwr", "extr", "ldrl", 
 	"memp", "memia", "memi", "memr", 
-	"madd", "divr",		
+	"madd", "divr",
+
+	"section", "gen4", "br4",
 };
 
 static const nat arity[isa_count] = {
@@ -77,6 +97,8 @@ static const nat arity[isa_count] = {
 	5, 8, 5, 3, 
 	7, 6, 5, 6, 
 	8, 5, 
+
+	1, 8, 2,
 };
 
 struct instruction {
@@ -233,6 +255,26 @@ static nat calculate_offset(nat* length, nat here, nat target) {
 	return offset;
 }
 
+static void write_string(const char* directory, char* w_string, nat w_length, nat should_set_output_name) {
+        char name[4096] = {0};
+        srand((unsigned)time(0)); rand();
+        char datetime[32] = {0};
+        struct timeval t = {0};
+        gettimeofday(&t, NULL);
+        struct tm* tm = localtime(&t.tv_sec);
+        strftime(datetime, 32, "1%Y%m%d%u.%H%M%S", tm);
+        snprintf(name, sizeof name, "%s%s_%08x%08x.txt", directory, datetime, rand(), rand());
+        int flags = O_WRONLY | O_TRUNC | O_CREAT | (should_set_output_name ? 0 : O_EXCL);
+        mode_t permission = S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH;
+        int file = open(should_set_output_name ? "output_machine_code.txt" : name, flags, permission);
+        if (file < 0) { perror("save: open file"); puts(name); getchar(); }
+        write(file, w_string, w_length);
+        close(file);
+	printf("write_string: successfully wrote out %llu bytes to file %s.\n", 
+		w_length, should_set_output_name ? "output_machine_code.txt" : name
+	);
+}
+
 int main(int argc, const char** argv) {
 	if (argc != 2) exit(puts("compiler: \033[31;1merror:\033[0m usage: ./run [file.s]"));
 
@@ -267,7 +309,10 @@ int main(int argc, const char** argv) {
 	filestack[0].index = 0;
 }
 
-	const char* output_filename = "";
+
+	const char* output_filename = "output_executable_new";
+
+
 
 process_file:;		
 	const nat starting_index = filestack[filestack_count - 1].index;
@@ -432,20 +477,162 @@ process_file:;
 	const nat output_format = values[2];
 	const nat should_overwrite = values[3];
 
-	printf("[target_arch = %llu]\n", target_arch);
+	printf("info: assemblying for [target = %llu, output = %llu (%s)]\n", 
+		target_arch, output_format, 
+		should_overwrite ? "overwrite" : "non-destructive"
+	);
 
 	if (not target_arch) exit(0);
-	if (target_arch != arm64_arch) { puts("unsupported arch"); abort(); }
+
+	uint8_t* my_bytes = NULL;
+	nat my_count = 0;
+
+#define max_section_count 128
+	nat section_count = 0;
+	nat section_starts[max_section_count] = {0};
+
+if (target_arch == msp430_arch) {
+
+	nat* lengths = calloc(ins_count, sizeof(nat));
+	for (nat i = 0; i < ins_count; i++) {
+
+		const nat op = rt_ins[i].op;
+		const u32 a0 = (u32) rt_ins[i].args[0];
+		const u32 a1 = (u32) rt_ins[i].args[1];
+		const u32 a4 = (u32) rt_ins[i].args[4];
+		const u32 a5 = (u32) rt_ins[i].args[5];
+
+		nat len = 0;
+		     if (op == emit and a0 == 1) len = 1;
+		else if (op == emit and a0 == 2) len = 2;
+		else if (op == emit and a0 == 4) len = 4;
+		else if (op == emit and a0 == 8) len = 8;
+		else if (op == branch4) len = 2;
+		else if (op == general4) {
+			len = 2;
+			if ((a4 == 1 and (a5 != 2 and a5 != 3)) 
+				or (a4 == 3 and not a5)) len += 2;						
+			if (a1 == 1) len += 2;
+		}
+		lengths[i] = len;
+	}
+
+	for (nat i = 0; i < rt_ins_count; i++) {
+
+		const nat op = rt_ins[i].op;
+		const u16 a0 = (u16) rt_ins[i].args[0];
+		const u16 a1 = (u16) rt_ins[i].args[1];
+		const u16 a2 = (u16) rt_ins[i].args[2];
+		const u16 a3 = (u16) rt_ins[i].args[3];
+		const u16 a4 = (u16) rt_ins[i].args[4];
+		const u16 a5 = (u16) rt_ins[i].args[5];
+		const u16 a6 = (u16) rt_ins[i].args[6];
+		const u16 a7 = (u16) rt_ins[i].args[7];
+
+		if (op == section_start) section_starts[section_count++] = my_count;
+		else if (op == emit) {
+			if (a0 == 8) insert_u64(&my_bytes, &my_count, (nat) a1);
+			if (a0 == 4) insert_u32(&my_bytes, &my_count, (u32) a1);
+			if (a0 == 2) insert_u16(&my_bytes, &my_count, (u16) a1);
+			if (a0 == 1) insert_u8 (&my_bytes, &my_count, (byte) a1);
+		}
+		else if (op == branch4) {
+			const u16 offset = 0x3FF & (calculate_offset(lengths, i, a1) >> 1);
+			const u16 word = (u16) ((1U << 13U) | (u16)(a0 << 10U) | (offset));
+			insert_u16(&my_bytes, &my_count, word);
+		}
+		else if (op == general4) {  // gen4  op(0)  dm(1) dr(2) di(3)  sm(4) sr(5) si(6)   size(7)
+			u16 word = (u16) (
+				(a0 << 12U) | (a5 << 8U) | (a1 << 7U) | 
+				(a7 << 6U) | (a4 << 4U) | (a2)
+			);
+			insert_u16(&my_bytes, &my_count, word);
+
+			if ((a4 == 1 and (a5 != 2 and a5 != 3)) 
+				or (a4 == 3 and not a5)) insert_u16(&my_bytes, &my_count, a6);
+						
+			if (a1 == 1) insert_u16(&my_bytes, &my_count, a3);
+		}
+				
+		else if (op == halt) {}
+		else {
+			printf("error: unknown mi op=\"%s\"\n", operations[op]);
+			abort();
+		}
+	}	
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+/*
+		else if (op >= mov and op <= and_) {
+
+			u16 word = (u16) (
+				((op - mov + 4) << 12) | 
+				(this.source_reg << 8) | 
+				(this.dest_mode << 7) | 
+				((nat)(type == size_byte) << 6) | 
+				(this.source_mode << 4) | 
+				(this.dest_reg)
+			);
+
+			section->data[section->length++] = (word >> 0) & 0xFF;
+			section->data[section->length++] = (word >> 8) & 0xFF;
+			printf("generating word = 0x%04hx\n", word);
+
+			if (
+				(this.source_mode == 1 and this.source_reg != 2 and this.source_reg != 3) or
+				(this.source_mode == 3 and not this.source_reg)
+			) {
+				word = (u16) this.source_imm;
+				section->data[section->length++] = (word >> 0) & 0xFF;
+				section->data[section->length++] = (word >> 8) & 0xFF;
+				printf("generating source imm word = 0x%04hx\n", word);
+			}
+
+			if (this.dest_mode == 1) {
+				word = (u16) this.dest_imm;
+				section->data[section->length++] = (word >> 0) & 0xFF;
+				section->data[section->length++] = (word >> 8) & 0xFF;
+				printf("generating dest imm word = 0x%04hx\n", word);
+			}
+
+		} 
+
+*/
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+	
+} else if (target_arch == arm64_arch) {
 
 	nat* lengths = calloc(ins_count, sizeof(nat));
 	for (nat i = 0; i < ins_count; i++) {
 		lengths[i] = ins[i].op == emit ? ins[i].args[0] : 4;
 	}
-
-	typedef uint32_t u32;
-
-	uint8_t* my_bytes = NULL;
-	nat my_count = 0;
 
 	for (nat i = 0; i < rt_ins_count; i++) {
 
@@ -472,28 +659,17 @@ process_file:;
 			if (a1) l = 1;
 			if (a2) l = 2;			
 			const uint32_t to_emit = 
-				(0x6BU << 25U) | 
-				(l << 21U) | 
-				(0x1FU << 16U) | 
-				(a0 << 5U);
-
+				(0x6BU << 25U) | (l << 21U) | 
+				(0x1FU << 16U) | (a0 << 5U);
 			insert_u32(&my_bytes, &my_count, to_emit);
 		}		
 		else if (op == adc) { // 
-
 			const uint32_t to_emit = 
-				(a5 << 31U) | 
-				(a4 << 30U) | 
-				(a3 << 29U) | 
-				(0xD0 << 21U) | 
-				(a2 << 16U) | 
-				(0 << 19U) |
-				(a1 << 5U) | 
-				(a0);
-
+				(a5 << 31U) | (a4 << 30U) | (a3 << 29U) | 
+				(0xD0 << 21U) | (a2 << 16U) | (0 << 19U) |
+				(a1 << 5U) | (a0);
 			insert_u32(&my_bytes, &my_count, to_emit);
 		}
-
 		else if (op == shv) {
 			uint32_t op2 = 8;
 			if (a3 == 0) op2 = 8;
@@ -501,181 +677,105 @@ process_file:;
 			if (a3 == 2) op2 = 10;
 			if (a3 == 3) op2 = 11;
 			const uint32_t to_emit = 
-				(a4 << 31U) | 
-				(0 << 30U) | 
-				(0 << 29U) | 
-				(0xD6 << 21U) | 
-				(a2 << 16U) | 
-				(op2 << 10U) |
-				(a1 << 5U) | 
-				(a0);
+				(a4 << 31U) | (0 << 30U) | 
+				(0 << 29U) | (0xD6 << 21U) | 
+				(a2 << 16U) | (op2 << 10U) |
+				(a1 << 5U) | (a0);
 			insert_u32(&my_bytes, &my_count, to_emit);
 		}
-
 		else if (op == mov) {
 			const uint32_t to_emit = 
-				(a4 << 31U) | 
-				(a3 << 29U) | 
-				(0x25U << 23U) | 
-				(a2 << 21U) | 
-				(a1 << 5U) | 
-				(a0);
+				(a4 << 31U) | (a3 << 29U) | (0x25U << 23U) | 
+				(a2 << 21U) | (a1 << 5U) | (a0);
 			insert_u32(&my_bytes, &my_count, to_emit);
 		} 
-
 		else if (op == bc) {
 			const uint32_t offset = 0x7ffff & (calculate_offset(lengths, i, a1) >> 2);
 			const uint32_t to_emit = 
-				(0x54U << 24U) | 
-				(offset << 5U) | 
-				(a0);
+				(0x54U << 24U) | (offset << 5U) | (a0);
 			insert_u32(&my_bytes, &my_count, to_emit);
 		}
-
 		else if (op == adr) {
-
 			uint32_t o1 = a2;
 			nat count = calculate_offset(lengths, i, a1);
 			if (a2) count /= 4096;
 			const uint32_t offset = 0x1fffff & count;
 			const uint32_t lo = offset & 3, hi = offset >> 2;
 			const uint32_t to_emit = 
-				(o1 << 31U) | 
-				(lo << 29U) |
-				(0x10U << 24U) | 
-				(hi << 5U) | 
-				(a0);
+				(o1 << 31U) | (lo << 29U) | (0x10U << 24U) | 
+				(hi << 5U) | (a0);
 			insert_u32(&my_bytes, &my_count, to_emit);
 		}
-
 		else if (op == cbz) {
 			const uint32_t offset = 0x7ffff & (calculate_offset(lengths, i, a1) >> 2);
 			const uint32_t to_emit = 
-				(a3 << 31U) | 
-				(0x1AU << 25U) | 
-				(a2 << 24U) |
-				(offset << 5U) | 
-				(a0);
+				(a3 << 31U) | (0x1AU << 25U) | 
+				(a2 << 24U) | (offset << 5U) | (a0);
 			insert_u32(&my_bytes, &my_count, to_emit);
 		}
-
 		else if (op == tbz) {
 			const uint32_t b40 = a1 & 0x1F;
 			const uint32_t b5 = a1 >> 5;
 			const uint32_t offset = 0x3fff & (calculate_offset(lengths, i, a2) >> 2);
 			const uint32_t to_emit = 
-				(b5 << 31U) | 
-				(0x1BU << 25U) | 
-				(a3 << 24U) |
-				(b40 << 19U) |
-				(offset << 5U) | 
-				(a0);
+				(b5 << 31U) | (0x1BU << 25U) | (a3 << 24U) |
+				(b40 << 19U) |(offset << 5U) | (a0);
 			insert_u32(&my_bytes, &my_count, to_emit);
 		}
-
 		else if (op == ccmp) {
 			const uint32_t to_emit = 
-				(a6 << 31U) | 
-				(a4 << 30U) | 
-				(0x1D2 << 21U) | 
-				(a3 << 16U) | 
-				(a0 << 12U) |
-				(a2 << 11U) | 
-				(a1 << 5U) | 
-				(a5); 
+				(a6 << 31U) | (a4 << 30U) | (0x1D2 << 21U) | 
+				(a3 << 16U) | (a0 << 12U) | (a2 << 11U) | 
+				(a1 << 5U) | (a5); 
 			insert_u32(&my_bytes, &my_count, to_emit);
 		}
-
 		else if (op == addi) {
 			const uint32_t to_emit = 
-				(a6 << 31U) | 
-				(a5 << 30U) | 
-				(a4 << 29U) | 
-				(0x22 << 23U) | 
-				(a3 << 22U) |
-				(a2 << 10U) |
-				(a1 << 5U) | 
-				(a0);
+				(a6 << 31U) | (a5 << 30U) | (a4 << 29U) | 
+				(0x22 << 23U) | (a3 << 22U) | (a2 << 10U) |
+				(a1 << 5U) | (a0);
 			insert_u32(&my_bytes, &my_count, to_emit);
 		}
 		else if (op == addr) {
 			const uint32_t to_emit = 
-				(a7 << 31U) | 
-				(a6 << 30U) | 
-				(a5 << 29U) | 
-				(0xB << 24U) | 
-				(a3 << 22U) | 
-				(a2 << 16U) |
-				(a4 << 10U) | 
-				(a1 << 5U) | 
-				(a0);
+				(a7 << 31U) | (a6 << 30U) | (a5 << 29U) | 
+				(0xB << 24U) | (a3 << 22U) | (a2 << 16U) |
+				(a4 << 10U) | (a1 << 5U) | (a0);
 			insert_u32(&my_bytes, &my_count, to_emit);
 		}
-
 		else if (op == addx) {
 			const uint32_t to_emit = 
-				(a7 << 31U) | 
-				(a6 << 30U) | 
-				(a5 << 29U) | 
-				(0x59 << 21U) |
-				(a2 << 16U) |
-				(a3 << 13U) | 
-				(a4 << 10U) | 
-				(a1 << 5U) | 
-				(a0);
+				(a7 << 31U) | (a6 << 30U) | (a5 << 29U) | 
+				(0x59 << 21U) | (a2 << 16U) | (a3 << 13U) | 
+				(a4 << 10U) | (a1 << 5U) | (a0);
 			insert_u32(&my_bytes, &my_count, to_emit);
 		}
-
 		else if (op == divr) {
 			const uint32_t to_emit = 
-				(a4 << 31U) |
-				(0xD6 << 21U) |
-				(a2 << 16U) |
-				(1 << 11U) |
-				(a3 << 10U) |
-				(a1 << 5U) |
-				(a0);
+				(a4 << 31U) | (0xD6 << 21U) | (a2 << 16U) |
+				(1 << 11U) | (a3 << 10U) | (a1 << 5U) | (a0);
 			insert_u32(&my_bytes, &my_count, to_emit);	
 		}
-
 		else if (op == csel) {
 			const uint32_t to_emit = 
-				(a6 << 31U) | 
-				(a5 << 30U) | 
-				(0xD4 << 21U) | 
-				(a2 << 16U) | 
-				(a3 << 12U) | 
-				(a4 << 10U) | 
-				(a1 << 5U) | 
-				(a0);
+				(a6 << 31U) | (a5 << 30U) | (0xD4 << 21U) | 
+				(a2 << 16U) | (a3 << 12U) | 
+				(a4 << 10U) | (a1 << 5U) | (a0);
 			insert_u32(&my_bytes, &my_count, to_emit);
 		} 
-
 		else if (op == madd) {
 			const uint32_t to_emit = 
-				(a7 << 31U) |
-				(0x1B << 24U) | 
-				(a5 << 23U) |
-				(a4 << 21U) |
-				(a2 << 16U) |
-				(a6 << 15U) | 
-				(a3 << 10U) | 
-				(a1 << 5U) | 
-				(a0);
+				(a7 << 31U) | (0x1B << 24U) | 
+				(a5 << 23U) | (a4 << 21U) |
+				(a2 << 16U) | (a6 << 15U) | 
+				(a3 << 10U) | (a1 << 5U) | (a0);
 			insert_u32(&my_bytes, &my_count, to_emit);
 		}
-
 		else if (op == jmp) {
 			const uint32_t offset = 0x3ffffff & (calculate_offset(lengths, i, a1) >> 2);
-			const uint32_t to_emit = 
-				(a0 << 31U) | 
-				(0x5U << 26U) | 
-				(offset);
+			const uint32_t to_emit = (a0 << 31U) | (0x5U << 26U) | (offset);
 			insert_u32(&my_bytes, &my_count, to_emit);
 		}
-
-
-
 
 /*
 		else if (op == bfm) {
@@ -711,11 +811,9 @@ process_file:;
 				(imms << 10U) |
 				(Rn << 5U) | 
 				(Rd);
-
 			insert_u32(&my_bytes, &my_count, to_emit);
 		} 
 */
-
 		else if (op == halt) {}
 
 		else {
@@ -723,10 +821,17 @@ process_file:;
 			abort();
 		}
 	}
+} else {
+	printf("unknown target architecture: %llu\n", target_arch);
+	abort();
+}
 
 
-	puts("");
-	puts("my bytes: ");
+
+
+if (output_format == debug_output_only) {
+
+	puts("debugging executable bytes:\n");
 	for (nat i = 0; i < my_count; i++) {
 		if (i % 32 == 0) puts("");
 		if (my_bytes[i]) printf("\033[32;1m");
@@ -734,7 +839,31 @@ process_file:;
 		if (my_bytes[i]) printf("\033[0m");
 	}
 	puts("");
+	exit(0);
 
+} else if (output_format == ti_txt_executable) {
+
+/*	char out[4096] = {0};
+	int len = 0;
+	debug_sections(sections, section_count);
+
+	for (nat s = 0; s < section_count; s++) {
+		len += snprintf(out + len, sizeof out, "@%04llx", sections[s].address);
+		for (nat n = 0; n < sections[s].length; n++) {
+			if (n % 16 == 0) len += snprintf(out + len, sizeof out, "\n");
+			len += snprintf(out + len, sizeof out, "%02hhX ", sections[s].data[n]);
+		}
+		len += snprintf(out + len, sizeof out, "\n");
+	}
+	len += snprintf(out + len, sizeof out, "q\n");
+	printf("about to write out: \n-------------------\n<<<%.*s>>>\n----------------\n", len, out);
+	printf("write out machine code to file? (y/n) ");
+	fflush(stdout);
+	write_string("./", out, (nat) len, should_set_output_name);
+*/
+
+
+} else if (output_format == macho_executable) {
 
 	while (my_count % 16) insert_byte(&my_bytes, &my_count, 0);
 
@@ -878,35 +1007,42 @@ process_file:;
 	}
 	puts("");
 
-	//puts("preparing for writing out the data.");
-
-	const bool overwrite_executable_always = true;
-
-	if (not access("output_executable_new", F_OK)) {
-		//printf("file exists. do you wish to remove the previous one? ");
-		//fflush(stdout);
-		if (overwrite_executable_always or getchar() == 'y') {
+	if (not access(output_filename, F_OK) and not should_overwrite) {
+		printf("file exists. do you wish to remove the previous one? (y/n) ");
+		fflush(stdout);
+		if (getchar() == 'y') {
 			puts("file was removed.");
 			int r = remove("output_executable_new");
 			if (r < 0) { perror("remove"); exit(1); }
 		} else {
-			puts("not removed");
+			puts("not removed, compilation aborted.");
 		}
 	}
-	int file = open("output_executable_new", O_WRONLY | O_CREAT | O_EXCL, 0777);
+
+	int file = open(output_filename, O_WRONLY | O_CREAT | O_EXCL, 0777);
 	if (file < 0) { perror("could not create executable file"); exit(1); }
 	int r = fchmod(file, 0777);
 	if (r < 0) { perror("could not make the output file executable"); exit(1); }
-
 	write(file, data, count);
 	close(file);
-	printf("wrote %llu bytes to file %s.\n", count, "output_executable_new");
-	system("codesign -s - output_executable_new");
+	printf("mach-o: wrote %llu bytes to file %s.\n", count, output_filename);
 
-	//system("otool -htvxVlL output_executable_new");
-	system("objdump -D output_executable_new");
+	char codesign_string[4096] = {0};
+	snprintf(codesign_string, sizeof codesign_string, "codesign -s - %s", output_filename);
+	system(codesign_string);
 
-	printf("info: generated executable: %s\n", "output_executable_new");
+	// debugging:
+	snprintf(codesign_string, sizeof codesign_string, "otool -htvxVlL %s", output_filename);
+	system(codesign_string);
+	snprintf(codesign_string, sizeof codesign_string, "objdump -D %s", output_filename);
+	system(codesign_string);
+
+} else {
+	printf("unknown target architecture: %llu\n", target_arch);
+	abort();
+}
+
+	printf("info: successsfully generated executable: %s\n", output_filename);
 }
 
 
@@ -944,6 +1080,13 @@ process_file:;
 
 
 
+
+//	pc, sp, sr, cg, r4, r5, r6, r7, r8, r9, r10, r11, r12, r13, r14, r15, 
+//	r16, r17, r18, r19, r20, r21, r22, r23, r24, r25, r26, r27, r28, r29, r30, r31,
+//	size_word, size_byte, size_address, 
+//	nonzero, zero, nocarry, carry, negative, greaterequal, less, always,
+//	direct, indexed, indirect, autoincr,
+//	isa_count
 
 
 
@@ -1229,10 +1372,12 @@ int main(int argc, const char** argv) {
 	next:	word_length = 0;
 	}
 
+
 	print_instructions(ins, ins_count);
 	struct section sections[128] = {0};
 	nat section_count = 0;
 	nat labels[32] = {0};
+
 
 	for (nat pass = 0; pass < 2; pass++) {
 		if (pass) {
@@ -1240,6 +1385,8 @@ int main(int argc, const char** argv) {
 				free(sections[s].data);
 			section_count = 0;
 		}
+
+
 	for (nat i = 0; i < ins_count; i++) {
 		printf("ins: %llu: \n", i);
 		struct instruction this = ins[i];
@@ -1317,6 +1464,7 @@ int main(int argc, const char** argv) {
 			getchar();
 		}
 	}
+
 	}
 
 	char out[4096] = {0};
