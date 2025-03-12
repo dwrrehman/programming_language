@@ -2,7 +2,6 @@ lf foundation.s
 
 set _targetarchitecture msp430_arch 
 set _outputformat ti_txt_executable
-set _shouldoverwrite true
 
 df nonzero set nonzero 0
 

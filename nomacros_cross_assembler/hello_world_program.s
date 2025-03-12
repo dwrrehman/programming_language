@@ -4,6 +4,8 @@
 lf foundation.s
 
 set _targetarchitecture arm64_arch
+set _outputformat macho_executable
+set _shouldoverwrite true
 
 mov syscallarg0 stdout shift_none type_zero width64
 df begin adr syscallarg1 begin 0

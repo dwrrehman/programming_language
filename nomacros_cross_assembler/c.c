@@ -255,7 +255,7 @@ static nat calculate_offset(nat* length, nat here, nat target) {
 	return offset;
 }
 
-static void write_string(const char* directory, char* w_string, nat w_length, nat should_set_output_name) {
+/*static void write_string(const char* filename, char* w_string, nat w_length) {
         char name[4096] = {0};
         srand((unsigned)time(0)); rand();
         char datetime[32] = {0};
@@ -274,6 +274,7 @@ static void write_string(const char* directory, char* w_string, nat w_length, na
 		w_length, should_set_output_name ? "output_machine_code.txt" : name
 	);
 }
+*/
 
 int main(int argc, const char** argv) {
 	if (argc != 2) exit(puts("compiler: \033[31;1merror:\033[0m usage: ./run [file.s]"));
@@ -490,6 +491,7 @@ process_file:;
 #define max_section_count 128
 	nat section_count = 0;
 	nat section_starts[max_section_count] = {0};
+	nat section_addresses[max_section_count] = {0};
 
 if (target_arch == msp430_arch) {
 
@@ -503,7 +505,8 @@ if (target_arch == msp430_arch) {
 		const u32 a5 = (u32) rt_ins[i].args[5];
 
 		nat len = 0;
-		     if (op == emit and a0 == 1) len = 1;
+		if (op == section_start) len = 0;
+		else if (op == emit and a0 == 1) len = 1;
 		else if (op == emit and a0 == 2) len = 2;
 		else if (op == emit and a0 == 4) len = 4;
 		else if (op == emit and a0 == 8) len = 8;
@@ -529,7 +532,10 @@ if (target_arch == msp430_arch) {
 		const u16 a6 = (u16) rt_ins[i].args[6];
 		const u16 a7 = (u16) rt_ins[i].args[7];
 
-		if (op == section_start) section_starts[section_count++] = my_count;
+		if (op == section_start) {
+			section_addresses[section_count] = a0;
+			section_starts[section_count++] = my_count;
+		}
 		else if (op == emit) {
 			if (a0 == 8) insert_u64(&my_bytes, &my_count, (nat) a1);
 			if (a0 == 4) insert_u32(&my_bytes, &my_count, (u32) a1);
@@ -843,24 +849,46 @@ if (output_format == debug_output_only) {
 
 } else if (output_format == ti_txt_executable) {
 
-/*	char out[4096] = {0};
-	int len = 0;
-	debug_sections(sections, section_count);
+	char out[4096] = {0};
+	nat len = 0, this_section = 0, section_byte_count = 0;
 
-	for (nat s = 0; s < section_count; s++) {
-		len += snprintf(out + len, sizeof out, "@%04llx", sections[s].address);
-		for (nat n = 0; n < sections[s].length; n++) {
-			if (n % 16 == 0) len += snprintf(out + len, sizeof out, "\n");
-			len += snprintf(out + len, sizeof out, "%02hhX ", sections[s].data[n]);
+	print_nats(section_starts, section_count);
+	print_nats(section_addresses, section_count);
+
+	for (nat i = 0; i < my_count; i++) {
+		if (this_section < section_count and i == section_starts[this_section]) {
+			if (this_section) len += (nat) snprintf(out + len, sizeof out, "\n");
+			len += (nat) snprintf(out + len, sizeof out, "@%04llx", section_addresses[this_section]);
+			this_section++; section_byte_count = 0;
 		}
-		len += snprintf(out + len, sizeof out, "\n");
+		if (section_byte_count % 16 == 0) len += (nat) snprintf(out + len, sizeof out, "\n");
+		len += (nat) snprintf(out + len, sizeof out, "%02hhX ", my_bytes[i]);
+		section_byte_count++;
 	}
-	len += snprintf(out + len, sizeof out, "q\n");
-	printf("about to write out: \n-------------------\n<<<%.*s>>>\n----------------\n", len, out);
-	printf("write out machine code to file? (y/n) ");
+
+	len += (nat) snprintf(out + len, sizeof out, "\nq\n");
+
+	printf("about to write out: \n-------------------\n<<<%.*s>>>\n----------------\n", (int) len, out);
+	printf("writing out ti txt executable...\n");
 	fflush(stdout);
-	write_string("./", out, (nat) len, should_set_output_name);
-*/
+
+	if (not access(output_filename, F_OK)) {
+		printf("file exists. do you wish to remove the previous one? (y/n) ");
+		fflush(stdout);
+		if (should_overwrite or getchar() == 'y') {
+			printf("file %s was removed.\n", output_filename);
+			int r = remove(output_filename);
+			if (r < 0) { perror("remove"); exit(1); }
+		} else {
+			puts("not removed, compilation aborted.");
+		}
+	}
+
+	int file = open(output_filename, O_WRONLY | O_CREAT | O_EXCL, 0777);
+	if (file < 0) { perror("open: could not create executable file"); exit(1); }
+	write(file, out, len);
+	close(file);
+	printf("ti-txt: wrote %llu bytes to file %s.\n", len, output_filename);
 
 
 } else if (output_format == macho_executable) {
@@ -1007,12 +1035,12 @@ if (output_format == debug_output_only) {
 	}
 	puts("");
 
-	if (not access(output_filename, F_OK) and not should_overwrite) {
+	if (not access(output_filename, F_OK)) {
 		printf("file exists. do you wish to remove the previous one? (y/n) ");
 		fflush(stdout);
-		if (getchar() == 'y') {
-			puts("file was removed.");
-			int r = remove("output_executable_new");
+		if (should_overwrite or getchar() == 'y') {
+			printf("file %s was removed.\n", output_filename);
+			int r = remove(output_filename);
 			if (r < 0) { perror("remove"); exit(1); }
 		} else {
 			puts("not removed, compilation aborted.");
