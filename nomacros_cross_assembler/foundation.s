@@ -290,9 +290,8 @@ df maddl_signed set maddl_signed 0
 df type_maddl set type_maddl 1
 df type_madd set type_madd 0
 
-
-
-
-
+df bfm_signed_zero set bfm_signed_zero 0
+df bfm_keep set bfm_keep 1
+df bfm_unsigned_zero set bfm_unsigned_zero 2
 
 

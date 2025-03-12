@@ -11,19 +11,11 @@
 #include <unistd.h>
 #include <ctype.h>
 #include <termios.h>
-#include <sys/mman.h>
-#include <stdio.h>
-#include <string.h>
-#include <fcntl.h>
-#include <unistd.h>
-#include <stdlib.h>
-#include <stdint.h>
-#include <ctype.h>
-#include <iso646.h>
 #include <time.h>
 #include <sys/time.h>
 #include <sys/types.h>
 #include <sys/stat.h>
+#include <sys/mman.h>
 #include <errno.h>
 
 typedef uint64_t nat;
@@ -33,7 +25,7 @@ typedef uint8_t byte;
 
 #define max_variable_count (1 << 15)
 #define max_instruction_count (1 << 15)
-#define max_arg_count 8
+#define max_arg_count 16
 
 enum all_architectures { no_arch, arm64_arch, arm32_arch, rv64_arch, rv32_arch, msp430_arch, };
 enum all_output_formats { debug_output_only, macho_executable, elf_executable, ti_txt_executable };
@@ -90,12 +82,12 @@ static const nat arity[isa_count] = {
 	3, 3, 3, 3, 1, 1, 1, 
 	2, 2, 2, 1, 0, 0,
 	
-	0, 2, 0, 0, 5, 5, 
+	0, 2, 0, 0, 5, 7, 
 	6, 8, 7, 8, 3,
 	5, 4, 4, 2, 2, 3, 
 	4, 4, 7, 7, 
 	5, 8, 5, 3, 
-	7, 6, 5, 6, 
+	7, 6, 5, 7,
 	8, 5, 
 
 	1, 8, 2,
@@ -547,7 +539,8 @@ if (target_arch == msp430_arch) {
 			const u16 word = (u16) ((1U << 13U) | (u16)(a0 << 10U) | (offset));
 			insert_u16(&my_bytes, &my_count, word);
 		}
-		else if (op == general4) {  // gen4  op(0)  dm(1) dr(2) di(3)  sm(4) sr(5) si(6)   size(7)
+		else if (op == general4) {  
+			// gen4  op(0)  dm(1) dr(2) di(3)  sm(4) sr(5) si(6)   size(7)
 			u16 word = (u16) (
 				(a0 << 12U) | (a5 << 8U) | (a1 << 7U) | 
 				(a7 << 6U) | (a4 << 4U) | (a2)
@@ -566,71 +559,6 @@ if (target_arch == msp430_arch) {
 			abort();
 		}
 	}	
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-/*
-		else if (op >= mov and op <= and_) {
-
-			u16 word = (u16) (
-				((op - mov + 4) << 12) | 
-				(this.source_reg << 8) | 
-				(this.dest_mode << 7) | 
-				((nat)(type == size_byte) << 6) | 
-				(this.source_mode << 4) | 
-				(this.dest_reg)
-			);
-
-			section->data[section->length++] = (word >> 0) & 0xFF;
-			section->data[section->length++] = (word >> 8) & 0xFF;
-			printf("generating word = 0x%04hx\n", word);
-
-			if (
-				(this.source_mode == 1 and this.source_reg != 2 and this.source_reg != 3) or
-				(this.source_mode == 3 and not this.source_reg)
-			) {
-				word = (u16) this.source_imm;
-				section->data[section->length++] = (word >> 0) & 0xFF;
-				section->data[section->length++] = (word >> 8) & 0xFF;
-				printf("generating source imm word = 0x%04hx\n", word);
-			}
-
-			if (this.dest_mode == 1) {
-				word = (u16) this.dest_imm;
-				section->data[section->length++] = (word >> 0) & 0xFF;
-				section->data[section->length++] = (word >> 8) & 0xFF;
-				printf("generating dest imm word = 0x%04hx\n", word);
-			}
-
-		} 
-
-*/
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 	
 } else if (target_arch == arm64_arch) {
@@ -661,9 +589,7 @@ if (target_arch == msp430_arch) {
 		else if (op == nop) insert_u32(&my_bytes, &my_count, 0xD503201F);
 		else if (op == svc) insert_u32(&my_bytes, &my_count, 0xD4000001);
 		else if (op == br) { // 
-			uint32_t l = 0;
-			if (a1) l = 1;
-			if (a2) l = 2;			
+			uint32_t l = a2?2:a1?1:0;
 			const uint32_t to_emit = 
 				(0x6BU << 25U) | (l << 21U) | 
 				(0x1FU << 16U) | (a0 << 5U);
@@ -765,63 +691,112 @@ if (target_arch == msp430_arch) {
 		else if (op == csel) {
 			const uint32_t to_emit = 
 				(a6 << 31U) | (a5 << 30U) | (0xD4 << 21U) | 
-				(a2 << 16U) | (a3 << 12U) | 
-				(a4 << 10U) | (a1 << 5U) | (a0);
+				(a2 << 16U) | (a3 << 12U) | (a4 << 10U) | (a1 << 5U) | (a0);
 			insert_u32(&my_bytes, &my_count, to_emit);
 		} 
 		else if (op == madd) {
 			const uint32_t to_emit = 
-				(a7 << 31U) | (0x1B << 24U) | 
-				(a5 << 23U) | (a4 << 21U) |
-				(a2 << 16U) | (a6 << 15U) | 
+				(a7 << 31U) | (0x1B << 24U) | (a5 << 23U) | 
+				(a4 << 21U) | (a2 << 16U) | (a6 << 15U) | 
 				(a3 << 10U) | (a1 << 5U) | (a0);
 			insert_u32(&my_bytes, &my_count, to_emit);
 		}
+		else if (op == bfm) {
+			u32 imms = 0, immr = 0;
+			if (not a2) { imms = a3 + a4 - 1; immr = a3; } 
+			else { imms = a4 - 1; immr = (a6 ? 64 : 32) - a3; }
+			const uint32_t to_emit = (a6 << 31U) | (a5 << 29U) | 	
+				(0x26U << 23U) | (a6 << 22U) | (immr << 16U) |
+				(imms << 10U) | (a1 << 5U) | (a0);
+			insert_u32(&my_bytes, &my_count, to_emit);
+		}
+
+		else if (op == memi) { 
+			const u32 dsize = a4, size = a5;
+			u32 opc = 0;
+			
+			if (a0) {
+				const u32 is_signed = a0 == 2;
+				if (size == 3 and dsize == 1) opc = 1;
+				else if (size == 2 and is_signed) opc = 2;
+				else if (size == 2 and dsize == 0) opc = 1;
+				else if (size == 1 and not is_signed) opc = 1;
+				else if (size == 1 and is_signed and dsize == 0) opc = 3;
+				else if (size == 1 and is_signed and dsize == 1) opc = 2;
+				else if (size == 0 and not is_signed) opc = 1;
+				else if (size == 0 and is_signed and dsize == 0) opc = 3;
+				else if (size == 0 and is_signed and dsize == 1) opc = 2;
+				else { puts("bad ldri args"); abort(); }
+			}
+			const u32 to_emit = 
+				(size << 30U) | (0x39 << 24U) | (opc << 22U) |
+				(a3 << 10U) | (a2 << 5U) | (a1);
+			insert_u32(&my_bytes, &my_count, to_emit);
+		}
+		else if (op == memr) {
+			
+			const u32 S = (a4 >> 2) & 1, option = a4 & 3;
+			const u32 dsize = a5, size = a6;
+
+			u32 opt = 0;
+			if (option == 0) opt = 2;
+			else if (option == 1) opt = 3;
+			else if (option == 2) opt = 6;
+			else if (option == 3) opt = 7;
+			else abort();
+				
+			u32 opc = 0;			
+			if (a0) {
+				const u32 is_signed = a0 == 2;
+				if (size == 3 and dsize == 1) opc = 1;
+				else if (size == 2 and is_signed) opc = 2;
+				else if (size == 2 and dsize == 0) opc = 1;
+				else if (size == 1 and not is_signed) opc = 1;
+				else if (size == 1 and is_signed and dsize == 0) opc = 3;
+				else if (size == 1 and is_signed and dsize == 1) opc = 2;
+				else if (size == 0 and not is_signed) opc = 1;
+				else if (size == 0 and is_signed and dsize == 0) opc = 3;
+				else if (size == 0 and is_signed and dsize == 1) opc = 2;
+				else { puts("bad ldrr args"); abort(); }
+			}
+			const u32 to_emit = 
+				(size << 30U) | (0x38 << 24U) | (opc << 22U) |
+				(1 << 21U) | (a3 << 16U) | (opt << 13U) |
+				(S << 12U) | (2 << 10U) | (a2 << 5U) | (a1);
+			insert_u32(&my_bytes, &my_count, to_emit);
+		}
+
+		else if (op == memp) {
+			const uint32_t to_emit = 
+				(a1 << 30U) | (0x14 << 25U) | (a6 << 23U) | (a0 << 22U) | 
+				(a5 << 15U) | (a3 << 10U) | (a4 << 5U) | (a2);
+			insert_u32(&my_bytes, &my_count, to_emit);
+		}
+
+
+
+
+
+
+
+		else if (op == memia) {/////
+			const uint32_t to_emit = 
+				(a7 << 31U) | (0x1B << 24U) | (a5 << 23U) | 
+				(a4 << 21U) | (a2 << 16U) | (a6 << 15U) | 
+				(a3 << 10U) | (a1 << 5U) | (a0);
+			insert_u32(&my_bytes, &my_count, to_emit);
+		}
+
+
+
+
+
 		else if (op == jmp) {
 			const uint32_t offset = 0x3ffffff & (calculate_offset(lengths, i, a1) >> 2);
 			const uint32_t to_emit = (a0 << 31U) | (0x5U << 26U) | (offset);
 			insert_u32(&my_bytes, &my_count, to_emit);
 		}
-
-/*
-		else if (op == bfm) {
-
-			const uint32_t bit_count = Im0;
-			const uint32_t position = Im1;
-			const uint32_t max = (sf ? 64 : 32);
-			
-			uint32_t opc = 1, msb = 0;
-			for (nat m = 0; m < 6; m++) {
-				const nat k = ins[i].modifiers[m];
-				if (k == signed_) 	opc = 0;
-				if (k == unsigned_) 	opc = 2;
-				if (k == not_) 		msb = 1;
-			}
-
-			const uint32_t N = sf;
-			uint32_t imms = 0, immr = 0;
-			if (not msb) {
-				imms = position + bit_count - 1;
-				immr = position;
-			} else {
-				imms = bit_count - 1;
-				immr = max - position;
-			}
-
-			const uint32_t to_emit = 
-				(sf << 31U) | 
-				(opc << 29U) | 	
-				(0x26U << 23U) | 
-				(N << 22U) | 
-				(immr << 16U) |
-				(imms << 10U) |
-				(Rn << 5U) | 
-				(Rd);
-			insert_u32(&my_bytes, &my_count, to_emit);
-		} 
-*/
 		else if (op == halt) {}
-
 		else {
 			printf("error: unknown mi op=\"%s\"\n", operations[op]);
 			abort();
@@ -1092,7 +1067,15 @@ if (output_format == debug_output_only) {
 
 
 
+/////   memp L(0) type_size(1) d(2) t(3) n(4) imm7(5)
 
+
+ // memi LS(0) d(1) n(2) imm12(3) dsize(4) nsize(5)			
+ //   (store = 0, load = 1, load_signed = 2)
+
+
+ //   memr LS(0) Rd(1) Rn(2) Rm(3) option(4) dsize(5) nsize(6) 
+ //      (store = 0, load = 1, load_signed = 2)
 
 
 
@@ -1139,6 +1122,21 @@ if (output_format == debug_output_only) {
 
 
 
+			// nsize == 0  -->  8-bit
+			// nsize == 1  -->  16-bit
+			// nsize == 2  -->  32-bit
+			// nsize == 3  -->  64-bit
+			// dsize == 0 --> 32-bit
+			// dsize == 1 --> 64-bit
+
+/*			64<--s8 64/32<--u8 32<--s8
+
+			64<--s16 64/32<--u16 32<--s16
+
+			64/32<--u32 64<--s32
+
+			64<--64
+*/
 
 
 
@@ -1151,6 +1149,54 @@ if (output_format == debug_output_only) {
 
 
 
+
+
+
+
+
+
+
+
+ //   bfm d n dir pos count type width      (keep = 1, unsigned_zero = 2, signed_zero = 0)
+
+
+
+/*
+		else if (op >= mov and op <= and_) {
+
+			u16 word = (u16) (
+				((op - mov + 4) << 12) | 
+				(this.source_reg << 8) | 
+				(this.dest_mode << 7) | 
+				((nat)(type == size_byte) << 6) | 
+				(this.source_mode << 4) | 
+				(this.dest_reg)
+			);
+
+			section->data[section->length++] = (word >> 0) & 0xFF;
+			section->data[section->length++] = (word >> 8) & 0xFF;
+			printf("generating word = 0x%04hx\n", word);
+
+			if (
+				(this.source_mode == 1 and this.source_reg != 2 and this.source_reg != 3) or
+				(this.source_mode == 3 and not this.source_reg)
+			) {
+				word = (u16) this.source_imm;
+				section->data[section->length++] = (word >> 0) & 0xFF;
+				section->data[section->length++] = (word >> 8) & 0xFF;
+				printf("generating source imm word = 0x%04hx\n", word);
+			}
+
+			if (this.dest_mode == 1) {
+				word = (u16) this.dest_imm;
+				section->data[section->length++] = (word >> 0) & 0xFF;
+				section->data[section->length++] = (word >> 8) & 0xFF;
+				printf("generating dest imm word = 0x%04hx\n", word);
+			}
+
+		} 
+
+*/
 
 
 
