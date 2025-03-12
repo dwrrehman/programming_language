@@ -1,11 +1,10 @@
-lf foundation.s
-set _targetarchitecture no_arch
-
 . a program to print out all the primes at compiletime.
   testing out the compiletime simpler cteval system.
 .
+lf foundation.s
+set _targetarchitecture no_arch
 
-df n set n 32
+df n set n 1024
 df i set i 2
 df count zero count
 
@@ -21,6 +20,4 @@ df loop cat loop
 
 ctprint count 
 eoi
-
-
 

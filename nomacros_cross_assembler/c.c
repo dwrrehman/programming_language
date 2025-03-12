@@ -1,5 +1,4 @@
-// cross-arch macro assembler
-// 1202502263.200223 dwrr
+// cross-arch macro assembler, 1202502263.200223 dwrr
 // removed macros and simplified labels on 1202503086.020218
 #include <stdio.h>
 #include <stdlib.h>
@@ -17,22 +16,18 @@
 #include <sys/stat.h>
 #include <sys/mman.h>
 #include <errno.h>
-
 typedef uint64_t nat;
 typedef uint32_t u32;
 typedef uint16_t u16;
 typedef uint8_t byte;
-
-#define max_variable_count (1 << 15)
-#define max_instruction_count (1 << 15)
+#define max_variable_count (1 << 14)
+#define max_instruction_count (1 << 14)
 #define max_arg_count 16
 
 enum all_architectures { no_arch, arm64_arch, arm32_arch, rv64_arch, rv32_arch, msp430_arch, };
 enum all_output_formats { debug_output_only, macho_executable, elf_executable, ti_txt_executable };
-
 enum core_language_isa {
 	nullins,
-
 	df, udf, lf,
 	zero, incr, decr, not_,
 	set, add, sub, mul, div_, rem,
@@ -66,7 +61,7 @@ static const char* operations[isa_count] = {
 	"adc", "addx", "addi", "addr", "adr", 
 	"shv", "clz", "rev", "jmp", "bc", "br", 
 	"cbz", "tbz", "ccmp", "csel", 
-	"bwi", "bwr", "extr", "ldrl", 
+	"ori", "orr", "extr", "ldrl", 
 	"memp", "memia", "memi", "memr", 
 	"madd", "divr",
 
@@ -87,7 +82,7 @@ static const nat arity[isa_count] = {
 	5, 4, 4, 2, 2, 3, 
 	4, 4, 7, 7, 
 	5, 8, 5, 3, 
-	7, 6, 5, 7,
+	7, 6, 5, 6,
 	8, 5, 
 
 	1, 8, 2,
@@ -247,32 +242,12 @@ static nat calculate_offset(nat* length, nat here, nat target) {
 	return offset;
 }
 
-/*static void write_string(const char* filename, char* w_string, nat w_length) {
-        char name[4096] = {0};
-        srand((unsigned)time(0)); rand();
-        char datetime[32] = {0};
-        struct timeval t = {0};
-        gettimeofday(&t, NULL);
-        struct tm* tm = localtime(&t.tv_sec);
-        strftime(datetime, 32, "1%Y%m%d%u.%H%M%S", tm);
-        snprintf(name, sizeof name, "%s%s_%08x%08x.txt", directory, datetime, rand(), rand());
-        int flags = O_WRONLY | O_TRUNC | O_CREAT | (should_set_output_name ? 0 : O_EXCL);
-        mode_t permission = S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH;
-        int file = open(should_set_output_name ? "output_machine_code.txt" : name, flags, permission);
-        if (file < 0) { perror("save: open file"); puts(name); getchar(); }
-        write(file, w_string, w_length);
-        close(file);
-	printf("write_string: successfully wrote out %llu bytes to file %s.\n", 
-		w_length, should_set_output_name ? "output_machine_code.txt" : name
-	);
-}
-*/
-
 int main(int argc, const char** argv) {
 	if (argc != 2) exit(puts("compiler: \033[31;1merror:\033[0m usage: ./run [file.s]"));
 
 	const nat min_stack_size = 16384 + 1;
 	nat stack_size = min_stack_size;
+	const char* output_filename = "output_executable_new";
 
 	struct instruction ins[max_instruction_count] = {0};
 	nat ins_count = 0;
@@ -301,11 +276,6 @@ int main(int argc, const char** argv) {
 	filestack[0].text_length = text_length;
 	filestack[0].index = 0;
 }
-
-
-	const char* output_filename = "output_executable_new";
-
-
 
 process_file:;		
 	const nat starting_index = filestack[filestack_count - 1].index;
@@ -489,7 +459,6 @@ if (target_arch == msp430_arch) {
 
 	nat* lengths = calloc(ins_count, sizeof(nat));
 	for (nat i = 0; i < ins_count; i++) {
-
 		const nat op = rt_ins[i].op;
 		const u32 a0 = (u32) rt_ins[i].args[0];
 		const u32 a1 = (u32) rt_ins[i].args[1];
@@ -513,7 +482,6 @@ if (target_arch == msp430_arch) {
 	}
 
 	for (nat i = 0; i < rt_ins_count; i++) {
-
 		const nat op = rt_ins[i].op;
 		const u16 a0 = (u16) rt_ins[i].args[0];
 		const u16 a1 = (u16) rt_ins[i].args[1];
@@ -551,15 +519,13 @@ if (target_arch == msp430_arch) {
 				or (a4 == 3 and not a5)) insert_u16(&my_bytes, &my_count, a6);
 						
 			if (a1 == 1) insert_u16(&my_bytes, &my_count, a3);
-		}
-				
+		}				
 		else if (op == halt) {}
 		else {
 			printf("error: unknown mi op=\"%s\"\n", operations[op]);
 			abort();
 		}
 	}	
-
 	
 } else if (target_arch == arm64_arch) {
 
@@ -569,7 +535,6 @@ if (target_arch == msp430_arch) {
 	}
 
 	for (nat i = 0; i < rt_ins_count; i++) {
-
 		const nat op = rt_ins[i].op;
 		const u32 a0 = (u32) rt_ins[i].args[0];
 		const u32 a1 = (u32) rt_ins[i].args[1];
@@ -594,15 +559,13 @@ if (target_arch == msp430_arch) {
 				(0x6BU << 25U) | (l << 21U) | 
 				(0x1FU << 16U) | (a0 << 5U);
 			insert_u32(&my_bytes, &my_count, to_emit);
-		}		
-		else if (op == adc) { // 
+		} else if (op == adc) { // 
 			const uint32_t to_emit = 
 				(a5 << 31U) | (a4 << 30U) | (a3 << 29U) | 
 				(0xD0 << 21U) | (a2 << 16U) | (0 << 19U) |
 				(a1 << 5U) | (a0);
 			insert_u32(&my_bytes, &my_count, to_emit);
-		}
-		else if (op == shv) {
+		} else if (op == shv) {
 			uint32_t op2 = 8;
 			if (a3 == 0) op2 = 8;
 			if (a3 == 1) op2 = 9;
@@ -614,20 +577,21 @@ if (target_arch == msp430_arch) {
 				(a2 << 16U) | (op2 << 10U) |
 				(a1 << 5U) | (a0);
 			insert_u32(&my_bytes, &my_count, to_emit);
-		}
-		else if (op == mov) {
+		} else if (op == mov) {
 			const uint32_t to_emit = 
 				(a4 << 31U) | (a3 << 29U) | (0x25U << 23U) | 
 				(a2 << 21U) | (a1 << 5U) | (a0);
 			insert_u32(&my_bytes, &my_count, to_emit);
-		} 
-		else if (op == bc) {
+		} else if (op == bc) {
 			const uint32_t offset = 0x7ffff & (calculate_offset(lengths, i, a1) >> 2);
 			const uint32_t to_emit = 
 				(0x54U << 24U) | (offset << 5U) | (a0);
 			insert_u32(&my_bytes, &my_count, to_emit);
-		}
-		else if (op == adr) {
+		} else if (op == jmp) {
+			const uint32_t offset = 0x3ffffff & (calculate_offset(lengths, i, a1) >> 2);
+			const uint32_t to_emit = (a0 << 31U) | (0x5U << 26U) | (offset);
+			insert_u32(&my_bytes, &my_count, to_emit);
+		} else if (op == adr) {
 			uint32_t o1 = a2;
 			nat count = calculate_offset(lengths, i, a1);
 			if (a2) count /= 4096;
@@ -637,15 +601,13 @@ if (target_arch == msp430_arch) {
 				(o1 << 31U) | (lo << 29U) | (0x10U << 24U) | 
 				(hi << 5U) | (a0);
 			insert_u32(&my_bytes, &my_count, to_emit);
-		}
-		else if (op == cbz) {
+		} else if (op == cbz) {
 			const uint32_t offset = 0x7ffff & (calculate_offset(lengths, i, a1) >> 2);
 			const uint32_t to_emit = 
 				(a3 << 31U) | (0x1AU << 25U) | 
 				(a2 << 24U) | (offset << 5U) | (a0);
 			insert_u32(&my_bytes, &my_count, to_emit);
-		}
-		else if (op == tbz) {
+		} else if (op == tbz) {
 			const uint32_t b40 = a1 & 0x1F;
 			const uint32_t b5 = a1 >> 5;
 			const uint32_t offset = 0x3fff & (calculate_offset(lengths, i, a2) >> 2);
@@ -653,55 +615,47 @@ if (target_arch == msp430_arch) {
 				(b5 << 31U) | (0x1BU << 25U) | (a3 << 24U) |
 				(b40 << 19U) |(offset << 5U) | (a0);
 			insert_u32(&my_bytes, &my_count, to_emit);
-		}
-		else if (op == ccmp) {
+		} else if (op == ccmp) {
 			const uint32_t to_emit = 
 				(a6 << 31U) | (a4 << 30U) | (0x1D2 << 21U) | 
 				(a3 << 16U) | (a0 << 12U) | (a2 << 11U) | 
 				(a1 << 5U) | (a5); 
 			insert_u32(&my_bytes, &my_count, to_emit);
-		}
-		else if (op == addi) {
+		} else if (op == addi) {
 			const uint32_t to_emit = 
 				(a6 << 31U) | (a5 << 30U) | (a4 << 29U) | 
 				(0x22 << 23U) | (a3 << 22U) | (a2 << 10U) |
 				(a1 << 5U) | (a0);
 			insert_u32(&my_bytes, &my_count, to_emit);
-		}
-		else if (op == addr) {
+		} else if (op == addr) {
 			const uint32_t to_emit = 
 				(a7 << 31U) | (a6 << 30U) | (a5 << 29U) | 
 				(0xB << 24U) | (a3 << 22U) | (a2 << 16U) |
 				(a4 << 10U) | (a1 << 5U) | (a0);
 			insert_u32(&my_bytes, &my_count, to_emit);
-		}
-		else if (op == addx) {
+		} else if (op == addx) {
 			const uint32_t to_emit = 
 				(a7 << 31U) | (a6 << 30U) | (a5 << 29U) | 
 				(0x59 << 21U) | (a2 << 16U) | (a3 << 13U) | 
 				(a4 << 10U) | (a1 << 5U) | (a0);
 			insert_u32(&my_bytes, &my_count, to_emit);
-		}
-		else if (op == divr) {
+		} else if (op == divr) {
 			const uint32_t to_emit = 
 				(a4 << 31U) | (0xD6 << 21U) | (a2 << 16U) |
 				(1 << 11U) | (a3 << 10U) | (a1 << 5U) | (a0);
 			insert_u32(&my_bytes, &my_count, to_emit);	
-		}
-		else if (op == csel) {
+		} else if (op == csel) {
 			const uint32_t to_emit = 
 				(a6 << 31U) | (a5 << 30U) | (0xD4 << 21U) | 
 				(a2 << 16U) | (a3 << 12U) | (a4 << 10U) | (a1 << 5U) | (a0);
 			insert_u32(&my_bytes, &my_count, to_emit);
-		} 
-		else if (op == madd) {
+		} else if (op == madd) {
 			const uint32_t to_emit = 
 				(a7 << 31U) | (0x1B << 24U) | (a5 << 23U) | 
 				(a4 << 21U) | (a2 << 16U) | (a6 << 15U) | 
 				(a3 << 10U) | (a1 << 5U) | (a0);
 			insert_u32(&my_bytes, &my_count, to_emit);
-		}
-		else if (op == bfm) {
+		} else if (op == bfm) {
 			u32 imms = 0, immr = 0;
 			if (not a2) { imms = a3 + a4 - 1; immr = a3; } 
 			else { imms = a4 - 1; immr = (a6 ? 64 : 32) - a3; }
@@ -709,93 +663,92 @@ if (target_arch == msp430_arch) {
 				(0x26U << 23U) | (a6 << 22U) | (immr << 16U) |
 				(imms << 10U) | (a1 << 5U) | (a0);
 			insert_u32(&my_bytes, &my_count, to_emit);
-		}
 
-		else if (op == memi) { 
-			const u32 dsize = a4, size = a5;
+		} else if (op == ori) {
+
+
+			puts("TODO: please implemented the ori instruction: "
+				"this is the last instruction we need to implement "
+				"and then we are done with iplemementing the arm64 backend!"
+			);
+
+			abort();
+
+
+
+		} else if (op == orr) {
+			const uint32_t to_emit = 
+				(a7 << 31U) | (a0 << 29U) | (10 << 24U) | 
+				(a4 << 22U) | (a6 << 21U) | (a3 << 16U) | 
+				(a5 << 10U) | (a2 << 5U) | (a1);
+			insert_u32(&my_bytes, &my_count, to_emit);
+
+		} else if (op == memp) {
+			const uint32_t to_emit = 
+				(a1 << 30U) | (0x14 << 25U) | (a6 << 23U) | (a0 << 22U) | 
+				(a5 << 15U) | (a3 << 10U) | (a4 << 5U) | (a2);
+			insert_u32(&my_bytes, &my_count, to_emit);
+		} else if (op == memi) {
+			const u32 is_load = (a0 >> 2) & 1;
+			const u32 is_signed = (a0 >> 1) & 1;
+			const u32 is_64_dest = (a0 >> 0) & 1;
 			u32 opc = 0;
-			
-			if (a0) {
-				const u32 is_signed = a0 == 2;
-				if (size == 3 and dsize == 1) opc = 1;
-				else if (size == 2 and is_signed) opc = 2;
-				else if (size == 2 and dsize == 0) opc = 1;
-				else if (size == 1 and not is_signed) opc = 1;
-				else if (size == 1 and is_signed and dsize == 0) opc = 3;
-				else if (size == 1 and is_signed and dsize == 1) opc = 2;
-				else if (size == 0 and not is_signed) opc = 1;
-				else if (size == 0 and is_signed and dsize == 0) opc = 3;
-				else if (size == 0 and is_signed and dsize == 1) opc = 2;
-				else { puts("bad ldri args"); abort(); }
-			}
+			if (not is_load) opc = 0;
+			else if (a4 == 3) opc = 1;
+			else if (a4 == 2 and is_signed) opc = 2;
+			else if (a4 == 2 and not is_signed) opc = 1;
+			else if (not is_signed) opc = 1;
+			else if (not is_64_dest) opc = 3; 
+			else opc = 2;
 			const u32 to_emit = 
-				(size << 30U) | (0x39 << 24U) | (opc << 22U) |
+				(a4 << 30U) | (0x39 << 24U) | (opc << 22U) |
 				(a3 << 10U) | (a2 << 5U) | (a1);
 			insert_u32(&my_bytes, &my_count, to_emit);
-		}
-		else if (op == memr) {
-			
+		} else if (op == memia) { 			
+			const u32 is_load = (a0 >> 2) & 1;
+			const u32 is_signed = (a0 >> 1) & 1;
+			const u32 is_64_dest = (a0 >> 0) & 1;
+			u32 opc = 0;
+			if (not is_load) opc = 0;
+			else if (a4 == 3) opc = 1;
+			else if (a4 == 2 and is_signed) opc = 2;
+			else if (a4 == 2 and not is_signed) opc = 1;
+			else if (not is_signed) opc = 1;
+			else if (not is_64_dest) opc = 3; 
+			else opc = 2;
+			const u32 to_emit = 
+				(a4 << 30U) | (0x38 << 24U) | (opc << 22U) | (a3 << 12U) | 
+				(a5 << 11U) | (1 << 10U) | (a2 << 5U) | (a1);
+			insert_u32(&my_bytes, &my_count, to_emit);
+		} else if (op == memr) { 
 			const u32 S = (a4 >> 2) & 1, option = a4 & 3;
-			const u32 dsize = a5, size = a6;
-
 			u32 opt = 0;
 			if (option == 0) opt = 2;
 			else if (option == 1) opt = 3;
 			else if (option == 2) opt = 6;
 			else if (option == 3) opt = 7;
-			else abort();
-				
-			u32 opc = 0;			
-			if (a0) {
-				const u32 is_signed = a0 == 2;
-				if (size == 3 and dsize == 1) opc = 1;
-				else if (size == 2 and is_signed) opc = 2;
-				else if (size == 2 and dsize == 0) opc = 1;
-				else if (size == 1 and not is_signed) opc = 1;
-				else if (size == 1 and is_signed and dsize == 0) opc = 3;
-				else if (size == 1 and is_signed and dsize == 1) opc = 2;
-				else if (size == 0 and not is_signed) opc = 1;
-				else if (size == 0 and is_signed and dsize == 0) opc = 3;
-				else if (size == 0 and is_signed and dsize == 1) opc = 2;
-				else { puts("bad ldrr args"); abort(); }
-			}
+			else abort();				
+			const u32 is_load = (a0 >> 2) & 1;
+			const u32 is_signed = (a0 >> 1) & 1;
+			const u32 is_64_dest = (a0 >> 0) & 1;
+			u32 opc = 0;
+			if (not is_load) opc = 0;
+			else if (a5 == 3) opc = 1;
+			else if (a5 == 2 and is_signed) opc = 2;
+			else if (a5 == 2 and not is_signed) opc = 1;
+			else if (not is_signed) opc = 1;
+			else if (not is_64_dest) opc = 3; 
+			else opc = 2;
 			const u32 to_emit = 
-				(size << 30U) | (0x38 << 24U) | (opc << 22U) |
+				(a5 << 30U) | (0x38 << 24U) | (opc << 22U) |
 				(1 << 21U) | (a3 << 16U) | (opt << 13U) |
 				(S << 12U) | (2 << 10U) | (a2 << 5U) | (a1);
 			insert_u32(&my_bytes, &my_count, to_emit);
-		}
-
-		else if (op == memp) {
-			const uint32_t to_emit = 
-				(a1 << 30U) | (0x14 << 25U) | (a6 << 23U) | (a0 << 22U) | 
-				(a5 << 15U) | (a3 << 10U) | (a4 << 5U) | (a2);
-			insert_u32(&my_bytes, &my_count, to_emit);
-		}
-
-
-
-
-
-
-
-		else if (op == memia) {/////
-			const uint32_t to_emit = 
-				(a7 << 31U) | (0x1B << 24U) | (a5 << 23U) | 
-				(a4 << 21U) | (a2 << 16U) | (a6 << 15U) | 
-				(a3 << 10U) | (a1 << 5U) | (a0);
-			insert_u32(&my_bytes, &my_count, to_emit);
-		}
-
-
-
-
-
-		else if (op == jmp) {
-			const uint32_t offset = 0x3ffffff & (calculate_offset(lengths, i, a1) >> 2);
-			const uint32_t to_emit = (a0 << 31U) | (0x5U << 26U) | (offset);
-			insert_u32(&my_bytes, &my_count, to_emit);
-		}
+		} 
+		else if (op == clz) { puts("clz is unimplemented currently, lol"); abort(); }
+		else if (op == rev) { puts("rev is unimplemented currently, lol"); abort(); }
+		else if (op == extr) { puts("extr is unimplemented currently, lol"); abort(); }
+		else if (op == ldrl) { puts("ldrl is unimplemented currently, lol"); abort(); }
 		else if (op == halt) {}
 		else {
 			printf("error: unknown mi op=\"%s\"\n", operations[op]);
@@ -807,8 +760,7 @@ if (target_arch == msp430_arch) {
 	abort();
 }
 
-
-
+	puts("info: machine code assembled. generating output file...");
 
 if (output_format == debug_output_only) {
 
@@ -1058,6 +1010,19 @@ if (output_format == debug_output_only) {
 
 
 
+/*
+
+how the load and store instructions work:
+
+		memi type d n imm12 size
+		memr type d n m opt size
+		memia type d n imm9 size mode
+		memp L type_size d t n imm7		
+
+bwr
+		bwr opc d n m sh imm6 n sf
+
+*/
 
 
 
@@ -1066,6 +1031,190 @@ if (output_format == debug_output_only) {
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+/*static void write_string(const char* filename, char* w_string, nat w_length) {
+        char name[4096] = {0};
+        srand((unsigned)time(0)); rand();
+        char datetime[32] = {0};
+        struct timeval t = {0};
+        gettimeofday(&t, NULL);
+        struct tm* tm = localtime(&t.tv_sec);
+        strftime(datetime, 32, "1%Y%m%d%u.%H%M%S", tm);
+        snprintf(name, sizeof name, "%s%s_%08x%08x.txt", directory, datetime, rand(), rand());
+        int flags = O_WRONLY | O_TRUNC | O_CREAT | (should_set_output_name ? 0 : O_EXCL);
+        mode_t permission = S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH;
+        int file = open(should_set_output_name ? "output_machine_code.txt" : name, flags, permission);
+        if (file < 0) { perror("save: open file"); puts(name); getchar(); }
+        write(file, w_string, w_length);
+        close(file);
+	printf("write_string: successfully wrote out %llu bytes to file %s.\n", 
+		w_length, should_set_output_name ? "output_machine_code.txt" : name
+	);
+}
+*/
+
+
+/*		
+
+		LS == 0    ---> store32
+		LS == 1    ---> store64
+
+		LS == 2    ---> load_signed_32
+		LS == 2    ---> load_signed_64
+		LS == 2    ---> load_signed_32
+		LS == 2    ---> load_signed_32
+		LS == 2    ---> load_signed_32
+		LS == 2    ---> load_signed_32
+		LS == 2    ---> load_signed_32
+		LS == 2    ---> load_signed_32
+		LS == 2    ---> load_signed_32
+
+
+*/
+
+
+
+///// memia LS(0) d(1) n(2) imm9(3) dsize(4) nsize(5) mode(6)
 
 /////   memp L(0) type_size(1) d(2) t(3) n(4) imm7(5)
 
