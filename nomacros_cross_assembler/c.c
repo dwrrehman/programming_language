@@ -817,6 +817,10 @@ if (output_format == debug_output_only) {
 	close(file);
 	printf("ti-txt: wrote %llu bytes to file %s.\n", len, output_filename);
 
+	char debug_string[4096] = {0};
+	snprintf(debug_string, sizeof debug_string, "../../led_display/embedded_assembler/msp430_disassembler/run %s", output_filename);
+	system(debug_string);
+
 
 } else if (output_format == macho_executable) {
 
