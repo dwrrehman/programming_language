@@ -236,6 +236,9 @@ static void insert_u64(uint8_t** d, nat* c, uint64_t x) {
 #define PLATFORM_MACOS 		1
 
 static nat calculate_offset(nat* length, nat here, nat target) {
+
+	printf("here = %llu\ntarget = %llu\n", here, target);
+
 	nat offset = 0;
 	if (target > here) for (nat i = here; i < target; i++) offset += length[i];
 	else  		   for (nat i = target; i < here; i++) offset -= length[i];
@@ -457,8 +460,8 @@ process_file:;
 
 if (target_arch == msp430_arch) {
 
-	nat* lengths = calloc(ins_count, sizeof(nat));
-	for (nat i = 0; i < ins_count; i++) {
+	nat* lengths = calloc(rt_ins_count, sizeof(nat));
+	for (nat i = 0; i < rt_ins_count; i++) {
 		const nat op = rt_ins[i].op;
 		const u32 a0 = (u32) rt_ins[i].args[0];
 		const u32 a1 = (u32) rt_ins[i].args[1];
@@ -480,6 +483,8 @@ if (target_arch == msp430_arch) {
 		}
 		lengths[i] = len;
 	}
+
+	print_nats(lengths, rt_ins_count);
 
 	for (nat i = 0; i < rt_ins_count; i++) {
 		const nat op = rt_ins[i].op;
@@ -503,7 +508,7 @@ if (target_arch == msp430_arch) {
 			if (a0 == 1) insert_u8 (&my_bytes, &my_count, (byte) a1);
 		}
 		else if (op == branch4) {
-			const u16 offset = 0x3FF & (calculate_offset(lengths, i, a1) >> 1);
+			const u16 offset = 0x3FF & ((calculate_offset(lengths, i + 1, a1) >> 1));
 			const u16 word = (u16) ((1U << 13U) | (u16)(a0 << 10U) | (offset));
 			insert_u16(&my_bytes, &my_count, word);
 		}
@@ -529,8 +534,8 @@ if (target_arch == msp430_arch) {
 	
 } else if (target_arch == arm64_arch) {
 
-	nat* lengths = calloc(ins_count, sizeof(nat));
-	for (nat i = 0; i < ins_count; i++) {
+	nat* lengths = calloc(rt_ins_count, sizeof(nat));
+	for (nat i = 0; i < rt_ins_count; i++) {
 		lengths[i] = ins[i].op == emit ? ins[i].args[0] : 4;
 	}
 
@@ -776,7 +781,7 @@ if (output_format == debug_output_only) {
 
 } else if (output_format == ti_txt_executable) {
 
-	char out[4096] = {0};
+	char out[14000] = {0};
 	nat len = 0, this_section = 0, section_byte_count = 0;
 
 	print_nats(section_starts, section_count);

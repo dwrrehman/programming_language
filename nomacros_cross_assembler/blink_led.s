@@ -36,6 +36,10 @@ df 1FFFh set 1FFFh 2000h decr 1FFFh
 df 3000h set 3000h 03h si 3000h 12
 df 2FFFh set 2FFFh 3000h decr 2FFFh
 
+df 4000h set 4000h 04h si 4000h 12
+df 3FFFh set 3FFFh 4000h decr 3FFFh
+
+
 df C400h set C400h 0Ch si C400h 4 or C400h 04h si C400h 8
 df FFFFh set FFFFh 1 si FFFFh 16 decr FFFFh
 df 1800h set 1800h 01h si 1800h 4 or 1800h 08h si 1800h 8
@@ -286,6 +290,23 @@ si x 4 or x 08h
 si x 4 or x 00h 
 df 5A80h set 5A80h x udf x
 
+
+df x  set x 00h 
+si x 4 or x 03h 
+si x 4 or x 0Fh 
+si x 4 or x 0Fh 
+df 03FFh set 03FFh x udf x
+
+
+df 0400h set 0400h 03FFh incr 0400h
+
+df x  set x 0Ah 
+si x 4 or x 05h 
+si x 4 or x 00h 
+si x 4 or x 00h 
+df A500h set A500h x udf x
+
+
 df ret
 df skip_macros 
 do skip_macros
@@ -305,25 +326,43 @@ section fram_start
 	gen4 msp_bis  fixed_mode fixed_reg port2_p2dir  imm_mode imm_reg  bit6     size_byte
 	gen4 msp_bis  fixed_mode fixed_reg port2_p2out  imm_mode imm_reg  bit6     size_byte
 	gen4 msp_bic  fixed_mode fixed_reg pmm_pm5ctl0  literal_mode constant_1 0  size_word
-
+	gen4 msp_mov  fixed_mode fixed_reg pmm_pmmctl0  imm_mode imm_reg  A500h  size_word
 
 df main at main	
-	gen4 msp_xor  fixed_mode fixed_reg port2_p2out  imm_mode imm_reg  bit6     size_byte
 
+	gen4 msp_bis  fixed_mode fixed_reg port2_p2out  imm_mode imm_reg  bit6     size_byte
+
+	df delay_time set delay_time FFFFh
 	df iterator set iterator 4
-	gen4 msp_mov  reg_mode iterator 0  imm_mode imm_reg FFFFh size_word
+	gen4 msp_mov  reg_mode iterator 0  imm_mode imm_reg delay_time size_word
+	df loop at loop gen4 msp_sub  reg_mode iterator 0  literal_mode constant_1 0 size_word	
+	br4 condjnz loop 
+	udf loop udf iterator udf delay_time
 
-df loop at loop
-	cat ret do msp_nop
-	cat ret do msp_nop
-	cat ret do msp_nop
-	cat ret do msp_nop
 
-	gen4 msp_sub  reg_mode iterator 0  literal_mode constant_1 0 size_word	
-	br4 condjnz loop
+	gen4 msp_bic  fixed_mode fixed_reg port2_p2out  imm_mode imm_reg  bit6     size_byte
+
+
+	df delay_time2 set delay_time2 7
+	df iterator2 set iterator2 5
+	gen4 msp_mov  reg_mode iterator2 0  imm_mode imm_reg delay_time2 size_word
+	df loop2 at loop2 
+
+	df delay_time set delay_time FFFFh
+	df iterator set iterator 4
+	gen4 msp_mov  reg_mode iterator 0  imm_mode imm_reg delay_time size_word
+	df loop at loop gen4 msp_sub  reg_mode iterator 0  literal_mode constant_1 0 size_word	
+	br4 condjnz loop 
+	udf loop udf iterator udf delay_time
+
+	gen4 msp_sub  reg_mode iterator2 0  literal_mode constant_1 0 size_word	
+	br4 condjnz loop2 
+	udf loop2 udf iterator2 udf delay_time2
 
 	br4 condjmp main
 	cat ret do msp_nop
+
+
 
 
 section reset_vector
@@ -338,6 +377,104 @@ eoi
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+.	gen4 msp_bis  fixed_mode fixed_reg port2_p2out  imm_mode imm_reg  bit6     size_byte
+
+	df i set i 0
+	df nops cat nops
+	cat ret do msp_nop
+	incr i lt i 256 nops 
+	udf nops udf i 
+
+	gen4 msp_bic  fixed_mode fixed_reg port2_p2out  imm_mode imm_reg  bit6     size_byte
+
+	df i set i 0
+	df nops cat nops
+	cat ret do msp_nop
+	incr i lt i 256 nops 
+	udf nops udf i 
+
+	gen4 msp_bis  fixed_mode fixed_reg port2_p2out  imm_mode imm_reg  bit6     size_byte
+
+
+	df delay_time set delay_time 0Fh
+	df iterator set iterator 4
+	gen4 msp_mov  reg_mode iterator 0  imm_mode imm_reg delay_time size_word
+df loop at loop
+	gen4 msp_sub  reg_mode iterator 0  literal_mode constant_1 0 size_word	
+	br4 condjnz loop 
+	udf loop udf iterator udf delay_time
+
+
+	gen4 msp_bic  fixed_mode fixed_reg port2_p2out  imm_mode imm_reg  bit6     size_byte
+.
+
+
+
+
+
+.	df delay_time set delay_time 0Fh
+
+	gen4 msp_bic  fixed_mode fixed_reg port2_p2out  imm_mode imm_reg  bit6     size_byte
+
+	df iterator set iterator 4
+	gen4 msp_mov  reg_mode iterator 0  imm_mode imm_reg delay_time size_word
+
+df loop at loop
+	gen4 msp_sub  reg_mode iterator 0  literal_mode constant_1 0 size_word	
+	br4 condjnz loop 
+udf loop
+
+
+
+
+
+	df delay_time set delay_time 0FFFh
+
+	gen4 msp_bis  fixed_mode fixed_reg port2_p2out  imm_mode imm_reg  bit6     size_byte
+
+	df iterator set iterator 4
+	gen4 msp_mov  reg_mode iterator 0  imm_mode imm_reg delay_time size_word
+
+df loop at loop
+	gen4 msp_sub  reg_mode iterator 0  literal_mode constant_1 0 size_word	
+	br4 condjnz loop
+udf loop
+
+
+.
 
 
 
