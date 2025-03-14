@@ -315,11 +315,179 @@ df msp_nop cat msp_nop
 	gen4 msp_mov  reg_mode 15 0  reg_mode 15 0 size_word
 	incr ret do ret
 
+
+df delay cat delay
+
+	df delay_time2 	set delay_time2 1
+
+	df delay_time 	set delay_time FFFFh 
+
+	div delay_time 2 
+
+
+	df iterator2 df iterator set iterator2 5
+	gen4 msp_mov  reg_mode iterator2 0  imm_mode imm_reg delay_time2 size_word
+	df loop2 at loop2 
+		df iterator set iterator 4
+		gen4 msp_mov  reg_mode iterator 0  imm_mode imm_reg delay_time size_word
+		df loop at loop 
+			gen4 msp_sub  reg_mode iterator 0  literal_mode constant_1 0 size_word	
+			br4 condjnz loop 
+		udf loop udf iterator udf delay_time
+		gen4 msp_sub  reg_mode iterator2 0  literal_mode constant_1 0 size_word	
+		br4 condjnz loop2 
+	udf loop2 udf iterator2 udf delay_time2
+	incr ret do ret
+
+df arg0
+df set_p2_pin cat set_p2_pin
+	df pin set pin arg0
+	gen4 msp_bis  fixed_mode fixed_reg port2_p2out  imm_mode imm_reg  pin     size_byte
+	udf pin
+	incr ret do ret
+
+df reset_p2_pin cat reset_p2_pin
+	df pin set pin arg0
+	gen4 msp_bic  fixed_mode fixed_reg port2_p2out  imm_mode imm_reg  pin     size_byte
+	udf pin
+	incr ret do ret
+
 cat skip_macros
+
+
+df 127 set 127 128 decr 127
 
 
 . ------------------- start of the actual code ----------------- . 
 
+. port 2 pins / bits . 
+
+df srclk set srclk bit0
+df rclk set rclk bit1
+df srclr set srclr bit2
+df oe set oe bit3
+df ser set ser bit4
+
+
+section fram_start
+	gen4 msp_mov  reg_mode sp 0   imm_mode imm_reg  stack_start  size_word
+	gen4 msp_mov  fixed_mode fixed_reg wdt_wdtctl   imm_mode imm_reg  5A80h  size_word
+
+	gen4 msp_bis  fixed_mode fixed_reg port2_p2dir  imm_mode imm_reg  127     size_byte
+	gen4 msp_bis  fixed_mode fixed_reg port2_p2out  imm_mode imm_reg  127     size_byte
+	gen4 msp_bic  fixed_mode fixed_reg pmm_pm5ctl0  literal_mode constant_1 0  size_word
+	gen4 msp_mov  fixed_mode fixed_reg pmm_pmmctl0  imm_mode imm_reg  A500h  size_word
+
+
+	set arg0 oe cat ret do reset_p2_pin
+	set arg0 srclr cat ret do set_p2_pin
+	set arg0 ser cat ret do reset_p2_pin
+	set arg0 rclk cat ret do reset_p2_pin
+	set arg0 srclk cat ret do reset_p2_pin
+
+
+	set arg0 srclr cat ret do reset_p2_pin
+	cat ret do delay
+	set arg0 srclr cat ret do set_p2_pin
+
+
+	df value set value 6
+	df addend set addend 7
+
+	gen4 msp_xor reg_mode value 0   reg_mode value 0  size_word
+	gen4 msp_mov reg_mode addend 0   imm_mode imm_reg 13  size_word
+
+
+df main at main	
+	
+	set arg0 ser cat ret do reset_p2_pin
+	gen4 msp_add reg_mode value 0 reg_mode addend 0 size_word
+	gen4 msp_bit reg_mode value 0 imm_mode imm_reg 4 size_word
+	df skip_set br4 condjz skip_set
+		set arg0 ser cat ret do set_p2_pin
+	at skip_set
+
+	set arg0 srclk cat ret do set_p2_pin
+	set arg0 rclk cat ret do set_p2_pin
+
+	cat ret do delay
+
+	set arg0 srclk cat ret do reset_p2_pin
+	set arg0 rclk cat ret do reset_p2_pin
+
+	cat ret do delay
+
+	br4 condjmp main
+	cat ret do msp_nop
+
+
+section reset_vector
+	emit nat16 fram_start
+
+eoi
+
+-------------------------------------------------------------
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+. 
 
 section fram_start
 	gen4 msp_mov  reg_mode sp 0   imm_mode imm_reg  stack_start  size_word
@@ -340,9 +508,7 @@ df main at main
 	br4 condjnz loop 
 	udf loop udf iterator udf delay_time
 
-
 	gen4 msp_bic  fixed_mode fixed_reg port2_p2out  imm_mode imm_reg  bit6     size_byte
-
 
 	df delay_time2 set delay_time2 7
 	df iterator2 set iterator2 5
@@ -369,12 +535,7 @@ df main at main
 section reset_vector
 	emit nat16 fram_start
 
-eoi
-
--------------------------------------------------------------
-
-
-
+.
 
 
 
