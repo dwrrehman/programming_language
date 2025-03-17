@@ -505,6 +505,7 @@ if (target_arch == msp430_arch) {
 
 		nat len = 0;
 		if (op == section_start) len = 0;
+		else if (op == halt) len = 0;
 		else if (op == emit and a0 == 1) len = 1;
 		else if (op == emit and a0 == 2) len = 2;
 		else if (op == emit and a0 == 4) len = 4;
@@ -571,6 +572,7 @@ if (target_arch == msp430_arch) {
 
 	nat* lengths = calloc(rt_ins_count, sizeof(nat));
 	for (nat i = 0; i < rt_ins_count; i++) {
+		if (rt_ins[i].op == halt) continue;
 		lengths[i] = rt_ins[i].op == emit ? rt_ins[i].args[0] : 4;
 	}
 
@@ -720,7 +722,6 @@ if (target_arch == msp430_arch) {
 			);
 
 			abort();
-
 
 
 		} else if (op == orr) {

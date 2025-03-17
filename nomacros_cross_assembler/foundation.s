@@ -216,6 +216,7 @@ df system_close set system_close 6
 df linkregister set linkregister 30
 df stackpointer set stackpointer 31
 df zeroregister set zeroregister 31
+df discard set discard 31
 
 
 . branch conditions .
@@ -243,8 +244,8 @@ df cond_never set cond_never 15
 df with_register set with_register 0
 df with_immediate set with_immediate 1
 
-df is_zero set is_zero 0
-df is_nonzero set is_nonzero 1
+df is_zero set is_zero 0           . valid with cond arguments .
+df is_nonzero set is_nonzero 1     . valid with cond arguments .
 
 df type_byteoffset set type_byteoffset 0
 df type_pageoffset set type_pageoffset 1
@@ -293,5 +294,37 @@ df type_madd set type_madd 0
 df bfm_signed_zero set bfm_signed_zero 0
 df bfm_keep set bfm_keep 1
 df bfm_unsigned_zero set bfm_unsigned_zero 2
+
+
+df regular_second set regular_second 0
+df invert_second set invert_second 1
+df bitwise_and set bitwise_and 0
+df bitwise_or set bitwise_or 1
+df bitwise_eor set bitwise_eor 2
+
+
+
+df store set store 0
+df load_width32 set load_width32 4
+df load_width64 set load_width64 5
+df load_signed_width32 set load_signed_width32 6
+df load_signed_width64 set load_signed_width64 7
+
+df 1_byte set 1_byte 0
+df 2_bytes set 2_bytes 1
+df 4_bytes set 4_bytes 2
+df 8_bytes set 8_bytes 3
+
+df zero_extend_second32 set zero_extend_second32 0
+df use_second64 set use_second64 1
+df sign_extend_second32 set sign_extend_second32 2
+df sign_extend_second64 set sign_extend_second64 3
+df scale_then_zero_extend_second32 set scale_then_zero_extend_second32 4
+df scale_second64 set scale_second64 5
+df scale_then_sign_extend_second32 set scale_then_sign_extend_second32 6
+df scale_then_sign_extend_second64 set scale_then_sign_extend_second64 7
+
+
+
 
 

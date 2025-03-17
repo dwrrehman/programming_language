@@ -206,15 +206,165 @@ nop
 
 
 
+df bitwise_and set bitwise_and 0
+df bitwise_or set bitwise_or 1
+df bitwise_eor set bitwise_eor 2
+
+. df shift_increase set shift_increase 0
+df shift_decrease set shift_decrease 1
+df shift_signed_decrease set shift_signed_decrease 2
+df rotate_decrease set rotate_decrease 3
+.
+
+nop
+orr  bitwise_or d n m   0 0 regular_second width64 
+orr  bitwise_and d n m   0 0 regular_second width64
+orr  bitwise_eor d n m   0 0 regular_second width64
+nop
+orr  bitwise_or d n m   0 0 invert_second width64 
+orr  bitwise_and d n m   0 0 invert_second width64
+orr  bitwise_eor d n m   0 0 invert_second width64
+nop
+df shift_amount set shift_amount 3
+df 62 set 62 63 decr 62
+orr  bitwise_or  d n m   shift_increase shift_amount invert_second width64 
+orr  bitwise_and d n m   shift_decrease shift_amount invert_second width64
+orr  bitwise_eor d n m   shift_signed_decrease shift_amount invert_second width64
+orr  bitwise_eor d n m   rotate_decrease shift_amount invert_second width64
+nop
+orr  bitwise_or d n m   shift_increase 0 regular_second width64
+orr  bitwise_or d n m   shift_increase 1 regular_second width64
+orr  bitwise_or d n m   shift_increase 2 regular_second width64
+orr  bitwise_or d n m   shift_increase 3 regular_second width64
+orr  bitwise_or d n m   shift_increase 4 regular_second width64
+orr  bitwise_or d n m   shift_increase 5 regular_second width64
+orr  bitwise_or d n m   shift_increase 62 regular_second width64
+orr  bitwise_or d n m   shift_increase 63 regular_second width64
+nop
+
+. memi type d n imm12 size . 
+nop
+
+memi  store         d n 128   1_byte
+memi  load_width32  d n 128   1_byte
+. memi  load_width64  d n 128   1_byte .        . same as the line above. . 
+memi  load_signed_width32  d n 128   1_byte
+memi  load_signed_width64  d n 128   1_byte
+
+nop
+
+memi  store         d n 128   2_bytes
+memi  load_width32  d n 128   2_bytes
+. memi  load_width64  d n 128   2_bytes .       . same as the line above. . 
+memi  load_signed_width32  d n 128   2_bytes
+memi  load_signed_width64  d n 128   2_bytes
+
+nop
+
+memi  store         d n 128   4_bytes
+memi  load_width32  d n 128   4_bytes
+. memi  load_width64  d n 128   4_bytes .         . same as the line above. . 
+. memi  load_signed_width32  d n 128   4_bytes .     . invalid combination. . 
+memi  load_signed_width64  d n 128   4_bytes
+
+nop
+
+memi  store         d n 128   8_bytes
+. memi  load_width32  d n 128   8_bytes .      . invalid combination . 
+memi  load_width64  d n 128   8_bytes
+. memi  load_signed_width32  d n 128   8_bytes .       . invalid combination . 
+. memi  load_signed_width64  d n 128   8_bytes .       . invalid combination . 
+
+nop
+
+
+. memr type d n m opt size . 
+nop
+memr   load_width64 d n m   zero_extend_second32   8_bytes
+memr   load_width64 d n m   use_second64   8_bytes
+memr   load_width64 d n m   sign_extend_second32   8_bytes
+memr   load_width64 d n m   sign_extend_second64   8_bytes
+memr   load_width64 d n m   scale_then_zero_extend_second32   8_bytes
+memr   load_width64 d n m   scale_second64   8_bytes
+memr   load_width64 d n m   scale_then_sign_extend_second32   8_bytes
+memr   load_width64 d n m   scale_then_sign_extend_second64   8_bytes
+nop
+
+memr   load_signed_width32 d n m   zero_extend_second32   2_bytes
+memr   load_signed_width32 d n m   use_second64   2_bytes
+memr   load_signed_width32 d n m   sign_extend_second32   2_bytes
+memr   load_signed_width32 d n m   sign_extend_second64   2_bytes
+memr   load_signed_width32 d n m   scale_then_zero_extend_second32  2_bytes
+memr   load_signed_width32 d n m   scale_second64   2_bytes
+memr   load_signed_width32 d n m   scale_then_sign_extend_second32   2_bytes
+memr   load_signed_width32 d n m   scale_then_sign_extend_second64   2_bytes
+nop
+
+
+df pre_advance set pre_advance 1
+df post_advance set post_advance 0
+
+. memia type d n imm9 size mode .
+memia   load_width64 d n 128  8_bytes  pre_advance
+memia   load_width64 d n 128  8_bytes  post_advance
+
+memia   load_width64 d n 128  4_bytes  pre_advance
+memia   load_width64 d n 128  4_bytes  post_advance
+
+memia   load_width64 d n 128  2_bytes  pre_advance
+memia   load_width64 d n 128  2_bytes  post_advance
+
+memia   load_width64 d n 128  1_byte  pre_advance
+memia   load_width64 d n 128  1_byte  post_advance
+
+memia   load_signed_width64 d n 128  1_byte  pre_advance
+memia   load_signed_width64 d n 128  1_byte  post_advance
+
+nop
+
+
+df store_pair set store_pair 0
+df load_pair set load_pair 1
+
+df pair_width32 set pair_width32 0
+df pair_width64 set pair_width64 2
+
+df nontemporal_pair set nontemporal_pair 0
+df post_advance_pair set post_advance_pair 1
+df offset_pair set offset_pair 2
+df pre_advance_pair set pre_advance_pair 3
 
 
 
+. memp   L type_size   d t n imm7  mode .
 
+df k set k 10
 
+nop
 
+memp   store_pair 0 d n m  k 0
+memp   load_pair 0 d n m  k 0
+. memp load_pair 1 d n m  k 0 .     . invalid . 
+memp   load_pair 2 d n m  k 0
+. memp   load_pair 3 d n m  k 0 .    . invalid . 
 
+nop
 
+memp   store_pair pair_width32 d n m  k 0
+memp   store_pair pair_width64 d n m  k 0
+memp   load_pair pair_width32 d n m  k 0
+memp   load_pair pair_width64 d n m  k 0
 
+nop
+
+memp   load_pair pair_width64 d n m  k  nontemporal_pair
+memp   load_pair pair_width64 d n m  k  post_advance_pair
+memp   load_pair pair_width64 d n m  k  offset_pair
+memp   load_pair pair_width64 d n m  k  pre_advance_pair
+
+nop
+
+nop
 
 
 at label
@@ -223,6 +373,131 @@ nop
 halt
 
 eoi
+
+
+
+
+
+
+
+
+
+
+
+		memi type d n imm12 size
+		memr type d n m opt size
+		memia type d n imm9 size mode
+		memp L type_size d t n imm7		
+
+
+
+
+
+
+
+
+STP X0, X1, [SP, #-16]!               <---------- PRE-ADVANCE
+----------------------	
+
+	- stores at address (SP - 16), and then 
+
+	- SP = SP - 16
+
+in other words, 
+
+	- SP = SP - 16, and then after this completes,
+
+	- it stores at address (SP).
+
+
+	
+
+
+
+LDP X0, X1, [SP], #16                     <---------- POST-ADVANCE
+----------------------	
+	- loads from address (SP), and then after the transfer is performed, 
+
+	- SP = SP + 16.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
