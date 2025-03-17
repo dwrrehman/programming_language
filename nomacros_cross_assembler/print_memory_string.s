@@ -1,83 +1,32 @@
-. printing a register value in arm64 
-1202503167.225302 dwrr . 
+. first working hello world program, written on 1202503097.051605 dwrr .
+. (strings arent implemented yet, so i just emitted the characters individually lollll) .
 
 lf foundation.s
 set _targetarchitecture arm64_arch
 set _outputformat macho_executable
 set _shouldoverwrite true
 
-
-df buffer_size set buffer_size 16
-df allocation set allocation 16 mul allocation buffer_size
-
-addi stackpointer stackpointer allocation shift_none noflags subtract width64    udf allocation  udf buffer_size
+addi stackpointer stackpointer 16 shift_none noflags subtract width64
 
 df address set address 10
-addi address stackpointer 0 shift_none noflags positive width64
+df data set data 11
 
-df string_begin
-df string_length
+df 65 set 65 64 add 65 1
+df 66 set 66 64 add 66 2
+df 67 set 67 64 add 67 3
+df x set x 66 si x 8 add x 65
+df {66-65} set {66-65} x udf x
+df x set x 10 si x 8 add x 67
+df {10-67} set {10-67} x udf x
 
-df string_literal set string_literal 12
-adr string_literal string_begin type_byteoffset
-
-df i set i 5
-mov i string_length shift_none type_zero width64
-df loop at loop
-	addi i i 1 shift_none setflags subtract width64
-	df temp set temp 6 
-	memr load_width64 temp string_literal i use_second64 1_byte
-	memr store temp address i use_second64 1_byte udf temp
-	bc is_nonzero loop udf loop udf i
-
-df register_data set register_data 13
-addi register_data address string_length shift_none noflags positive width64
-
-df i set i 5
-mov i 64 shift_none type_zero width64
-
-df 20 set 20 16 add 20 5
-df 21 set 21 16 add 21 6
-df 22 set 22 16 add 22 7
-
-df target set target 20
-
-mov target 4096 shift_none type_zero width64
-mov target 4096 shift_16 type_keep width64
-mov target 4096 shift_32 type_keep width64
-mov target 4096 shift_48 type_keep width64
-
-df mask set mask 21
-mov mask 1 shift_none type_zero width64
-
-df digit set digit 6 
-mov digit '0' shift_none type_zero width64
-
-df 17 set 17 16 incr 17
-
-df loop at loop
-	addi i i 1 shift_none setflags subtract width64
-	orr bitwise_and_setflags zeroregister target mask shift_increase shift_none regular_second width64
-	csel 17 digit digit is_zero csel_incr csel_set width64
-	memr store 17 register_data i use_second64 1_byte 
-	addr mask zeroregister mask shift_increase 1 noflags positive width64
-	cbz i loop is_nonzero width64
-udf loop  udf i  
-
-udf digit
-udf mask
-udf target
-
-df final set final 6 
-mov final newline shift_none type_zero width64	
-memi store final register_data 64 1_byte 
-udf final
-
-df total_string_length set total_string_length string_length  add total_string_length 65
+addi address stackpointer 8 shift_none noflags positive width64
+mov data {66-65} shift_none type_zero width64
+mov data {10-67} shift_16 type_keep width64
+memi store data address 0 8_bytes
 
 mov syscallarg0 stdout shift_none type_zero width64
 orr bitwise_or syscallarg1 address zeroregister shift_increase shift_none regular_second width64
-mov syscallarg2 total_string_length shift_none type_zero width64
+mov syscallarg2 4 shift_none type_zero width64
 mov syscallnumber system_write shift_none type_zero width64
 svc
 
@@ -85,10 +34,6 @@ mov syscallnumber system_exit shift_none type_zero width64
 mov syscallarg0 42 shift_none type_zero width64
 svc
 halt
-
-at string_begin string "debugging binary value for register = " 
-df end at end set string_length end udf end 
-sub string_length string_begin
 
 eoi
 
@@ -101,44 +46,6 @@ eoi
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-. df 65 set 65 64 add 65 1
-df 66 set 66 64 add 66 2
-df 67 set 67 64 add 67 3
-df x set x 66 si x 8 add x 65
-df {66-65} set {66-65} x udf x
-df x set x 10 si x 8 add x 67
-df {10-67} set {10-67} x udf x . 
-
-. mov data {66-65} shift_none type_zero width64
-mov data {10-67} shift_16 type_keep width64 . 
-
-. memi store data address 0 4_bytes .
 
 
 

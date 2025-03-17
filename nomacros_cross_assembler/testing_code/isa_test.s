@@ -206,9 +206,7 @@ nop
 
 
 
-df bitwise_and set bitwise_and 0
-df bitwise_or set bitwise_or 1
-df bitwise_eor set bitwise_eor 2
+
 
 . df shift_increase set shift_increase 0
 df shift_decrease set shift_decrease 1
@@ -220,10 +218,12 @@ nop
 orr  bitwise_or d n m   0 0 regular_second width64 
 orr  bitwise_and d n m   0 0 regular_second width64
 orr  bitwise_eor d n m   0 0 regular_second width64
+orr  bitwise_and_setflags d n m   0 0 regular_second width64
 nop
 orr  bitwise_or d n m   0 0 invert_second width64 
 orr  bitwise_and d n m   0 0 invert_second width64
 orr  bitwise_eor d n m   0 0 invert_second width64
+orr  bitwise_and_setflags d n m   0 0 invert_second width64
 nop
 df shift_amount set shift_amount 3
 df 62 set 62 63 decr 62
@@ -301,9 +301,6 @@ memr   load_signed_width32 d n m   scale_then_sign_extend_second64   2_bytes
 nop
 
 
-df pre_advance set pre_advance 1
-df post_advance set post_advance 0
-
 . memia type d n imm9 size mode .
 memia   load_width64 d n 128  8_bytes  pre_advance
 memia   load_width64 d n 128  8_bytes  post_advance
@@ -321,19 +318,6 @@ memia   load_signed_width64 d n 128  1_byte  pre_advance
 memia   load_signed_width64 d n 128  1_byte  post_advance
 
 nop
-
-
-df store_pair set store_pair 0
-df load_pair set load_pair 1
-
-df pair_width32 set pair_width32 0
-df pair_width64 set pair_width64 2
-
-df nontemporal_pair set nontemporal_pair 0
-df post_advance_pair set post_advance_pair 1
-df offset_pair set offset_pair 2
-df pre_advance_pair set pre_advance_pair 3
-
 
 
 . memp   L type_size   d t n imm7  mode .

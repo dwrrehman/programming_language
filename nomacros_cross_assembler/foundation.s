@@ -295,14 +295,14 @@ df bfm_signed_zero set bfm_signed_zero 0
 df bfm_keep set bfm_keep 1
 df bfm_unsigned_zero set bfm_unsigned_zero 2
 
-
 df regular_second set regular_second 0
 df invert_second set invert_second 1
+
+
 df bitwise_and set bitwise_and 0
 df bitwise_or set bitwise_or 1
 df bitwise_eor set bitwise_eor 2
-
-
+df bitwise_and_setflags set bitwise_and_setflags 3
 
 df store set store 0
 df load_width32 set load_width32 4
@@ -323,6 +323,19 @@ df scale_then_zero_extend_second32 set scale_then_zero_extend_second32 4
 df scale_second64 set scale_second64 5
 df scale_then_sign_extend_second32 set scale_then_sign_extend_second32 6
 df scale_then_sign_extend_second64 set scale_then_sign_extend_second64 7
+
+df store_pair set store_pair 0
+df load_pair set load_pair 1
+df pair_width32 set pair_width32 0
+df pair_width64 set pair_width64 2
+df nontemporal_pair set nontemporal_pair 0
+df post_advance_pair set post_advance_pair 1
+df offset_pair set offset_pair 2
+df pre_advance_pair set pre_advance_pair 3
+
+df pre_advance set pre_advance 1
+df post_advance set post_advance 0
+
 
 
 
