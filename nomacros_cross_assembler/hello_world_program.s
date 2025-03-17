@@ -7,10 +7,21 @@ set _targetarchitecture arm64_arch
 set _outputformat macho_executable
 set _shouldoverwrite true
 
+df begin
+df length
+
+df begin2
+df length2
+
 mov syscallarg0 stdout shift_none type_zero width64
-df begin adr syscallarg1 begin 0
-df end df length set length end sub length begin
+adr syscallarg1 begin 0
 mov syscallarg2 length shift_none type_zero width64
+mov syscallnumber system_write shift_none type_zero width64
+svc
+
+mov syscallarg0 stdout shift_none type_zero width64
+adr syscallarg1 begin2 0
+mov syscallarg2 length2 shift_none type_zero width64
 mov syscallnumber system_write shift_none type_zero width64
 svc
 
@@ -18,64 +29,64 @@ mov syscallnumber system_exit shift_none type_zero width64
 mov syscallarg0 42 shift_none type_zero width64
 svc
 
-at begin
+at begin 
+string "hello there from space! 
+this is my cool string lol." emit 1 newline
+df end at end set length end udf end 
+sub length begin
 
-emit 1 'H'
-emit 1 'e'
-emit 1 'l'
-emit 1 'l'
-emit 1 'o'
-emit 1 space
-emit 1 't'
-emit 1 'h'
-emit 1 'e'
-emit 1 'r'
-emit 1 'e'
-emit 1 '!'
-emit 1 newline
-emit 1 'T'
-emit 1 'h'
-emit 1 'i'
-emit 1 's'
-emit 1 space
-emit 1 'i'
-emit 1 's'
-emit 1 space
-emit 1 'm'
-emit 1 'y'
-emit 1 space
-emit 1 'f'
-emit 1 'i'
-emit 1 'r'
-emit 1 's'
-emit 1 't'
-emit 1 space
+at begin2
+string "...hello there! this is my second string lol 
+this is even cooler! lol." emit 1 newline
+df end at end set length2 end udf end
+sub length2 begin2
 
-emit 1 'h'
-emit 1 'e'
-emit 1 'l'
-emit 1 'l'
-emit 1 'o'
-emit 1 space
 
-emit 1 'w'
-emit 1 'o'
-emit 1 'r'
-emit 1 'l'
-emit 1 'd'
-emit 1 space
 
-emit 1 'p'
-emit 1 'r'
-emit 1 'o'
-emit 1 'g'
-emit 1 'r'
-emit 1 'a'
-emit 1 'm'
-emit 1 '.'
-emit 1 newline
 
-at end
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+eoi 
+
+
+llo there from space! 
+this is my cool string lol.
+
+
+...hello there! this is my second string lol 
+this is even cooler! lol.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 

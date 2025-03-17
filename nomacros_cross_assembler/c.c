@@ -28,14 +28,15 @@ enum all_architectures { no_arch, arm64_arch, arm32_arch, rv64_arch, rv32_arch, 
 enum all_output_formats { debug_output_only, macho_executable, elf_executable, ti_txt_executable };
 enum core_language_isa {
 	nullins,
-	df, udf, lf,
+	df, udf, lf, 
 	zero, incr, decr, not_,
 	set, add, sub, mul, div_, rem,
 	and_, or_, eor, si, sd,
 	lt, ge, eq, ne, do_, at, cat, 
 	lc, ld, st, ctdebug, ctabort, ctpause,
 
-	halt, emit, nop, svc, mov, bfm,
+	halt, emit, stringliteral, 
+	nop, svc, mov, bfm,
 	adc, addx, addi, addr, adr, 
 	shv, clz, rev, jmp, bc, br, 
 	cbz, tbz, ccmp, csel, 
@@ -57,7 +58,8 @@ static const char* operations[isa_count] = {
 	"lt", "ge", "eq", "ne", "do", "at", "cat", 
 	"lc", "ld", "st", "ctprint", "ctabort", "ctpause", 
 	
-	"halt", "emit", "nop", "svc", "mov", "bfm",
+	"halt", "emit", "string",
+	"nop", "svc", "mov", "bfm",
 	"adc", "addx", "addi", "addr", "adr", 
 	"shv", "clz", "rev", "jmp", "bc", "br", 
 	"cbz", "tbz", "ccmp", "csel", 
@@ -77,7 +79,8 @@ static const nat arity[isa_count] = {
 	3, 3, 3, 3, 1, 1, 1, 
 	2, 2, 2, 1, 0, 0,
 	
-	0, 2, 0, 0, 5, 7, 
+	0, 2, 0, 
+	0, 0, 5, 7, 
 	6, 8, 7, 8, 3,
 	5, 4, 4, 2, 2, 3, 
 	4, 4, 7, 7, 
@@ -266,6 +269,8 @@ int main(int argc, const char** argv) {
 	nat included_file_count = 0;
 	struct file filestack[4096] = {0};
 	nat filestack_count = 1;
+	char* string_list[4096] = {0};
+	nat string_list_count = 0;
 {
 	int file = open(argv[1], O_RDONLY);
 	if (file < 0) { puts(argv[1]); perror("open"); exit(1); }
@@ -285,18 +290,39 @@ process_file:;
 	const nat text_length = filestack[filestack_count - 1].text_length;
 	char* text = filestack[filestack_count - 1].text;
 	const char* filename = filestack[filestack_count - 1].filename;
-	nat word_length = 0, word_start = 0, skip = 0, arg_count = 0;
+	nat word_length = 0, word_start = 0, skip = 0, in_string = 0, arg_count = 0;
 	nat args[max_arg_count] = {0}; 
 
 	for (nat var = 0, op = 0, pc = starting_index; pc < text_length; pc++) {
+
+		if (in_string) {
+			op = 0; in_string = 0;
+			while (isspace(text[pc])) pc++; 
+			const char delim = text[pc];
+			nat string_at = ++pc, string_length = 0;
+			while (text[pc] != delim) { pc++; string_length++; }
+
+			/*for (nat i = 0; i < string_length; i++) {
+				struct instruction new = { .op = emit };
+				new.args[0] = 1; new.args[1] = (nat) text[string_at + i];
+				ins[ins_count++] = new;
+			}*/
+
+			string_list[string_list_count++] = strndup(text + string_at, string_length);
+			struct instruction new = { .op = stringliteral };
+			new.args[0] = string_length; 
+			new.args[1] = string_list_count - 1;
+			ins[ins_count++] = new;
+			goto next_word;
+		}
 		if (not isspace(text[pc])) {
 			if (not word_length) word_start = pc;
 			word_length++; 
 			if (pc + 1 < text_length) continue;
 		} else if (not word_length) continue;
 		char* word = strndup(text + word_start, word_length);
-		//printf("[pc=%llu][skip=%llu]: w=\"%s\" w_st=%llu\n", pc, skip, word, word_start);
-		//print_dictionary(variables, values, undefined, 10);
+		printf("[pc=%llu][skip=%llu]: w=\"%s\" w_st=%llu\n", pc, skip, word, word_start);
+		print_dictionary(variables, values, undefined, 10);
 		//print_instructions(ins, ins_count);
 		if (not strcmp(word, ".") and not skip) { 
 			skip = 1; goto next_word; 
@@ -330,8 +356,10 @@ process_file:;
 		values[var] = register_index++;
 		variables[var] = word; ++*values;
 		push_argument: args[arg_count++] = var;
-		process_op: if (arg_count < arity[op]) goto next_word;
-		if (op == df) { }
+		process_op: 
+		if (op == stringliteral) { in_string = 1; goto next_word; } 
+		else if (arg_count < arity[op]) goto next_word;
+		else if (op == df) { }
 		else if (op == udf) undefined[args[0]] = 1;
 		else if (op == lf) {
 			for (nat i = 0; i < included_file_count; i++) {
@@ -369,15 +397,15 @@ process_file:;
 	for (nat pc = 0; pc < ins_count; pc++) 
 		if (ins[pc].op == cat) values[ins[pc].args[0]] = pc;
 
-	nat reset_values[max_variable_count] = {0};
-	memcpy(reset_values, values, sizeof reset_values);
+	//nat reset_values[max_variable_count] = {0};
+	//memcpy(reset_values, values, sizeof reset_values);
 	
 	const nat debug = 0;
 
 	for (nat pass = 0; pass < 2; pass++) {
 
 		if (pass == 1) {
-			memcpy(values, reset_values, sizeof values);
+			//memcpy(values, reset_values, sizeof values);
 			rt_ins_count = 0;
 		}
 
@@ -388,7 +416,7 @@ process_file:;
 			const nat arg1 = ins[pc].args[1];
 			const nat arg2 = ins[pc].args[2];
 
-			if (debug and pass == 1 and pc >= 300) {
+			if (debug and pc >= 350) {
 				print_instruction_window_around(pc, ins, ins_count, variables);
 				printf("\n[pass %llu][pc = %llu]: executing (%llu){ %s : %s %s %s }\n\n\n", 
 					pass, pc, arity[op],
@@ -417,7 +445,7 @@ process_file:;
 			else if (op == ld)   values[arg0] = values[values[arg1]];
 			else if (op == st)   values[values[arg0]] = values[arg1];
 			else if (op == cat)  values[arg0] = pc; 
-			else if (op == at)   { values[arg0] = rt_ins_count; reset_values[arg0] = rt_ins_count; }
+			else if (op == at)   { values[arg0] = rt_ins_count; } //reset_values[arg0] = rt_ins_count; }
 			else if (op == do_)  pc = values[arg0]; 
 			else if (op == lt) { if (values[arg0]  < values[arg1]) pc = values[arg2]; }
 			else if (op == ge) { if (values[arg0] >= values[arg1]) pc = values[arg2]; }
@@ -426,6 +454,13 @@ process_file:;
 			else if (op == ctdebug) { if (pass == 1) printf("debug: %llu (0x%016llx)\n", values[arg0], values[arg0]); }
 			else if (op == ctabort) { if (pass == 1) abort(); }
 			else if (op == ctpause) { if (pass == 1) getchar(); }
+			else if (op == stringliteral) {
+				for (nat i = 0; i < arg0; i++) {
+					struct instruction new = { .op = emit };
+					new.args[0] = 1; new.args[1] = (nat) string_list[arg1][i];
+					rt_ins[rt_ins_count++] = new;
+				}
+			}
 			else {
 				if (op == 0) { puts("internal error"); abort(); }
 				struct instruction new = { .op = op };
@@ -536,8 +571,10 @@ if (target_arch == msp430_arch) {
 
 	nat* lengths = calloc(rt_ins_count, sizeof(nat));
 	for (nat i = 0; i < rt_ins_count; i++) {
-		lengths[i] = ins[i].op == emit ? ins[i].args[0] : 4;
+		lengths[i] = rt_ins[i].op == emit ? rt_ins[i].args[0] : 4;
 	}
+
+	print_nats(lengths, rt_ins_count);
 
 	for (nat i = 0; i < rt_ins_count; i++) {
 		const nat op = rt_ins[i].op;
@@ -596,16 +633,21 @@ if (target_arch == msp430_arch) {
 			const uint32_t offset = 0x3ffffff & (calculate_offset(lengths, i, a1) >> 2);
 			const uint32_t to_emit = (a0 << 31U) | (0x5U << 26U) | (offset);
 			insert_u32(&my_bytes, &my_count, to_emit);
-		} else if (op == adr) {
+
+
+		} else if (op == adr) {   ///bug in adr:   note: arm64    starts counting from the fist byte of the adr,   44 vs 32.
 			uint32_t o1 = a2;
 			nat count = calculate_offset(lengths, i, a1);
 			if (a2) count /= 4096;
 			const uint32_t offset = 0x1fffff & count;
 			const uint32_t lo = offset & 3, hi = offset >> 2;
 			const uint32_t to_emit = 
-				(o1 << 31U) | (lo << 29U) | (0x10U << 24U) | 
+				(o1 << 31U) | (lo << 29U) | (0x10U << 24U) |
 				(hi << 5U) | (a0);
 			insert_u32(&my_bytes, &my_count, to_emit);
+
+
+
 		} else if (op == cbz) {
 			const uint32_t offset = 0x7ffff & (calculate_offset(lengths, i, a1) >> 2);
 			const uint32_t to_emit = 
@@ -1008,6 +1050,120 @@ if (output_format == debug_output_only) {
 
 	printf("info: successsfully generated executable: %s\n", output_filename);
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
