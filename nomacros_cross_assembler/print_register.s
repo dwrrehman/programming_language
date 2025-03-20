@@ -1,7 +1,21 @@
-. printing a register value in arm64 
-1202503167.225302 dwrr . 
+. 
+printing a register value in arm64 
+1202503167.225302 dwrr 
+finished on 1202503171.000025 
+
+example output:
+
+	debugging binary value for register = 0000000000000000000000000000000101101101100101111011010000110000
+
+yay
+
+
+. 
+
+
 
 lf foundation.s
+
 set _targetarchitecture arm64_arch
 set _outputformat macho_executable
 set _shouldoverwrite true
@@ -15,8 +29,7 @@ addi stackpointer stackpointer allocation shift_none noflags subtract width64   
 df address set address 10
 addi address stackpointer 0 shift_none noflags positive width64
 
-df string_begin
-df string_length
+df string_begin df string_length
 
 df string_literal set string_literal 12
 adr string_literal string_begin type_byteoffset
@@ -36,24 +49,21 @@ addi register_data address string_length shift_none noflags positive width64
 df i set i 5
 mov i 64 shift_none type_zero width64
 
-df 20 set 20 16 add 20 5
-df 21 set 21 16 add 21 6
-df 22 set 22 16 add 22 7
-
 df target set target 20
-
-mov target 4096 shift_none type_zero width64
+. mov target 4096 shift_none type_zero width64
 mov target 4096 shift_16 type_keep width64
 mov target 4096 shift_32 type_keep width64
 mov target 4096 shift_48 type_keep width64
+.
 
-df mask set mask 21
-mov mask 1 shift_none type_zero width64
 
-df digit set digit 6 
-mov digit '0' shift_none type_zero width64
+. choose your register you want to debug: . 
+addi target stackpointer 0 shift_none noflags positive width64
+. orr bitwise_or target linkregister zeroregister shift_increase shift_none regular_second width64 . 
 
-df 17 set 17 16 incr 17
+
+df mask set mask 21  mov mask 1 shift_none type_zero width64
+df digit set digit 6  mov digit '0' shift_none type_zero width64
 
 df loop at loop
 	addi i i 1 shift_none setflags subtract width64
@@ -63,10 +73,7 @@ df loop at loop
 	addr mask zeroregister mask shift_increase 1 noflags positive width64
 	cbz i loop is_nonzero width64
 udf loop  udf i  
-
-udf digit
-udf mask
-udf target
+udf digit udf mask udf target
 
 df final set final 6 
 mov final newline shift_none type_zero width64	
@@ -86,7 +93,10 @@ mov syscallarg0 42 shift_none type_zero width64
 svc
 halt
 
-at string_begin string "debugging binary value for register = " 
+at string_begin 
+
+	string     "debugging binary value for register = " 
+
 df end at end set string_length end udf end 
 sub string_length string_begin
 
