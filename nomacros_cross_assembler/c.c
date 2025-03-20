@@ -71,13 +71,18 @@ enum all_architectures { no_arch, arm64_arch, arm32_arch, rv64_arch, rv32_arch, 
 enum all_output_formats { debug_output_only, macho_executable, elf_executable, ti_txt_executable };
 enum core_language_isa {
 	nullins,
-	df, udf, lf, 
+	df, udf, lf,
+
 	df0, df1, df2, df3,
+	df4, df5, df6, df7,
+	df8, df9, df10, df11,
+	df12, df13, df14, df15,
+
 	zero, incr, decr, not_, bn, 
 	set, add, sub, mul, div_, rem,
-	and_, or_, eor, si, sd,
-	lt, ge, eq, ne, do_, at, cat, 
-	lc, ld, st, ctdebug, ctabort, ctpause,
+	and_, or_, eor, si, sd, ld, at, cat, 
+	ro, st, lt, ge, eq, ne, do_, 
+	ctdebug, ctabort, ctpause,
 
 	halt, emit, stringliteral, 
 	nop, svc, mov, bfm,
@@ -96,12 +101,17 @@ enum core_language_isa {
 static const char* operations[isa_count] = {
 	"--",
 	"df", "udf", "lf",
-	"df0", "df1", "df2", "df3", 
+
+	"df0", "df1", "df2", "df3",
+	"df4", "df5", "df6", "df7",
+	"df8", "df9", "df10", "df11",
+	"df12", "df13", "df14", "df15",
+
 	"zero", "incr", "decr", "not", "bn", 
-	"set", "add", "sub", "mul", "div", "rem", 
-	"and", "or", "eor", "si", "sd", 
-	"lt", "ge", "eq", "ne", "do", "at", "cat", 
-	"lc", "ld", "st", "ctprint", "ctabort", "ctpause", 
+	"set", "add", "sub", "mul", "div", "rem",
+	"and", "or", "eor", "si", "sd", "ld", "at", "cat", 
+	"ro", "st", "lt", "ge", "eq", "ne", "do", 
+	"ctdebug", "ctabort", "ctpause",
 	
 	"halt", "emit", "string",
 	"nop", "svc", "mov", "bfm",
@@ -117,13 +127,18 @@ static const char* operations[isa_count] = {
 
 static const nat arity[isa_count] = {
 	0,
-	1, 1, 1, 
+	1, 1, 1,
+
 	1, 1, 1, 1,
+	1, 1, 1, 1,
+	1, 1, 1, 1,
+	1, 1, 1, 1,
+
 	1, 1, 1, 1, 2, 
-	2, 2, 2, 2, 2, 2, 
-	2, 2, 2, 2, 2, 
-	3, 3, 3, 3, 1, 1, 1, 
-	2, 2, 2, 1, 0, 0,
+	2, 2, 2, 2, 2, 2,
+	2, 2, 2, 2, 2, 2, 1, 1, 
+	1, 2, 3, 3, 3, 3, 1, 
+	1, 0, 0,
 	
 	0, 2, 0, 
 	0, 0, 5, 7, 
@@ -151,15 +166,16 @@ struct file {
 
 static void print_dictionary(
 	char** variables, nat* values, 
-	nat* undefined, nat max_count
+	nat* is_readonly, nat* undefined, nat max_count
 ) {
 	puts("variables: ");
 	const nat count = values[0];
 	nat start = 0;
 	if (count >= max_count) start = count - max_count;
 	for (nat i = start; i < count; i++) {
-		printf(" %c [%llu]  \"%s\" = 0x%016llx\n", 
-			undefined[i + 1] ? 'U' : ' ', i + 1, 
+		printf(" %c  %c [%llu]  \"%s\" = 0x%016llx\n", 
+			undefined[i + 1] ? 'U' : ' ', 
+			is_readonly[i + 1] ? 'R' : ' ', i + 1, 
 			variables[i + 1], values[i + 1]
 		);
 	}
@@ -232,9 +248,9 @@ static void print_nats(nat* array, nat count) {
 }
 
 static void print_binary(nat x) {
-	for (nat i = 0; i < 64; i++) {
+	for (nat i = 0; i < 64 and x; i++) {
 		if (not (i % 8) and i) putchar(' ');
-		putchar((x & (1LLU << i)) ? '1' : '0');
+		putchar((x & 1) + '0'); x >>= 1;
 	}
 	puts("");
 }
@@ -323,6 +339,7 @@ int main(int argc, const char** argv) {
 	nat macro_label[max_macro_count] = {0};
 
 	char* variables[max_variable_count] = {0};
+	nat is_readonly[max_variable_count] = {0};
 	nat values[max_variable_count] = {0};
 	nat undefined[max_variable_count] = {0};
 	nat register_index = 1LLU << 62LLU;
@@ -419,7 +436,7 @@ process_file:;
 			var = r;
 			goto push_argument;
 		}
-		else if (op >= df0 and op <= df3) goto define_name;
+		else if (op >= df0 and op <= df15) goto define_name;
 		else if (op == lf or op == df) goto define_name;
 		for (var = *values + 1; var-- > 1;) {
 			if (not undefined[var] and not strcmp(word, variables[var]))
@@ -444,7 +461,7 @@ process_file:;
 		else if (op == stringliteral) { in_string = 1; goto next_word; } 
 		else if (arg_count < arity[op]) goto next_word;
 		else if (op == df) {}
-		else if (op >= df0 and op <= df3) {
+		else if (op >= df0 and op <= df15) {
 			macro_label[macro_count] = var;
 			macro_arity[macro_count] = op - df0;
 			macros[macro_count++] = word;
@@ -487,8 +504,8 @@ process_file:;
 
 	const nat debug = 0;
 
-	//print_dictionary(variables, values, undefined, -1);
-	//print_instructions(ins, ins_count);
+	print_dictionary(variables, values, is_readonly, undefined, (nat) -1);
+	print_instructions(ins, ins_count);
 
 	for (nat pass = 0; pass < 2; pass++) {
 		if (pass == 1) rt_ins_count = 0;
@@ -507,11 +524,17 @@ process_file:;
 					operations[op], variables[arg0], 
 					variables[arg1], variables[arg2]
 				); 
-				print_dictionary(variables, values, undefined, 12);
+				print_dictionary(variables, values, is_readonly, undefined, 12);
 				getchar();
 			}
-
-			     if (op == zero) values[arg0] = 0;
+			if (op <= ro and is_readonly[arg0] and pass == 1) {
+				printf("error: cannot modify read-only variable \"%s\"\n", variables[arg0]);
+				print_instruction_window_around(pc, ins, ins_count, variables);
+				printf("error: cannot modify read-only variable \"%s\"\n", variables[arg0]);
+				abort();
+			} 
+			else if (op == ro) { if (pass == 1) is_readonly[arg0] = 1; } 
+			else if (op == zero) values[arg0] = 0;
 			else if (op == incr) values[arg0]++;
 			else if (op == decr) values[arg0]--;
 			else if (op == not_) values[arg0] = ~values[arg0]; 
@@ -545,8 +568,7 @@ process_file:;
 					new.args[0] = 1; new.args[1] = (nat) string_list[arg1][i];
 					rt_ins[rt_ins_count++] = new;
 				}
-			}
-			else {
+			} else {
 				if (op == 0) { puts("internal error"); abort(); }
 				struct instruction new = { .op = op };
 				memcpy(new.args, ins[pc].args, sizeof new.args);
@@ -556,8 +578,8 @@ process_file:;
 		}
 	}
 
-	//print_dictionary(variables, values, undefined, -1);
-	//print_instructions(rt_ins, rt_ins_count);
+	print_dictionary(variables, values, is_readonly, undefined, (nat) -1);
+	print_instructions(rt_ins, rt_ins_count);
 
 	const nat target_arch = values[1];
 	const nat output_format = values[2];
