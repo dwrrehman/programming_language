@@ -4,13 +4,236 @@ printing a register value in arm64
 finished on 1202503171.000025 
 
 example output:
-
 	debugging binary value for register = 0000000000000000000000000000000101101101100101111011010000110000
-
 yay
+. 
+
+
+
+lf foundation.s
+
+
+df skip do skip 
+
+df2 movr cat movr
+	df destination set destination arg0
+	df source set source arg1
+	df ret set ret lr
+	orr bitwise_or destination source zeroregister shift_increase shift_none regular_second width64
+	udf destination udf source
+	incr ret set lr ret udf ret do lr
+
+df3 memcopy cat memcopy
+	df destination set destination arg0
+	df source set source arg1
+	df length set length arg2
+	df ret set ret lr
+
+	df i set i 101 movz i length
+	df loop at loop
+		addi i i 1 shift_none setflags subtract width64
+		memr load_width64 011 source i use_second64 1_byte
+		memr store 011 destination i use_second64 1_byte
+		bc is_nonzero loop 
+	udf loop udf i udf destination udf source udf length
+	incr ret set lr ret udf ret do lr
+
+
+
+. this function is proof of WHY we need register allocation. . 
+
+df1 print cat print
+
+df target set target arg0
+df ret set ret lr
+
+df buffer_size bn buffer_size 00001
+df allocation set allocation 00001 
+mul allocation buffer_size udf buffer_size
+
+addi stackpointer stackpointer allocation shift_none noflags subtract width64
+
+df address set address syscallarg1
+df string_literal set string_literal 0011
+
+df string_begin df string_length
+addi address stackpointer 0 shift_none noflags positive width64
+adr string_literal string_begin type_byteoffset
+memcopy address string_literal string_length 	
+	. uh oh... the above call uses registers 9 and 6!!!  we need RA. we need it. this proves we need it. . 
+udf string_literal
+
+df mask set mask 10101 movz mask 1
+df digit set digit 011 movz digit '0'
+df bits set bits 1011
+addi bits address string_length shift_none noflags positive width64
+
+df i set i 101 movz i 0000001
+df loop at loop
+
+	addi i i 1 shift_none setflags subtract width64
+
+	orr bitwise_and_setflags zeroregister target mask 
+		shift_increase shift_none regular_second width64
+	csel 10001 digit digit is_zero csel_incr csel_set width64
+
+
+. 	new approach to this loop:
+
+	use this instruction sequence:
+		memia bits i, i++   post incr
+		subis zr i limit
+		bc unsigned_less ..
+. 
+	
+
+	memr store 10001 bits i use_second64 1_byte
+	addr mask zeroregister mask shift_increase 1 noflags positive width64 . si_imm x 1 . 
+	cbz i loop is_nonzero width64  udf loop udf i
+udf digit udf mask udf target
+
+df final set final 011 movz final newline
+memi store final bits 0000001 1_byte  udf final udf bits
+
+df total_string_length 
+set total_string_length string_length
+add total_string_length 0000001 
+incr total_string_length
+
+mov syscallarg0 stdout shift_none type_zero width64
+mov syscallarg2 total_string_length shift_none type_zero width64
+mov syscallnumber system_write shift_none type_zero width64
+svc
+udf total_string_length
+udf address
+addi stackpointer stackpointer allocation shift_none noflags positive width64
+
+incr ret set lr ret udf ret do lr
+
+cat skip udf skip
+
+
+set _targetarchitecture arm64_arch
+set _outputformat macho_executable
+set _shouldoverwrite true
 
 
 . 
+df target set target 00101
+movz target 11011
+mov  target 10111 shift_16 type_keep width64
+mov  target 10101 shift_32 type_keep width64
+mov  target 11101 shift_48 type_keep width64
+print target
+.
+
+
+print linkregister
+
+exit 0011
+
+
+
+at string_begin   string  "debugging binary value for register = "
+df end at end set string_length end udf end 
+sub string_length string_begin
+
+eoi
+
+
+
+
+
+
+
+
+
+
+
+
+
+. choose your register you want to debug: . 
+. addi target stackpointer 0 shift_none noflags positive width64 . 
+. movr target linkregister . 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+. choose your register you want to debug: . 
+addi target stackpointer 0 shift_none noflags positive width64
+. orr bitwise_or target linkregister zeroregister shift_increase shift_none regular_second width64 . 
+
+
+df mask set mask 21  mov mask 1 shift_none type_zero width64
+df digit set digit 6  mov digit '0' shift_none type_zero width64
+
+df loop at loop
+	addi i i 1 shift_none setflags subtract width64
+	orr bitwise_and_setflags zeroregister target mask shift_increase shift_none regular_second width64
+	csel 17 digit digit is_zero csel_incr csel_set width64
+	memr store 17 register_data i use_second64 1_byte 
+	addr mask zeroregister mask shift_increase 1 noflags positive width64
+	cbz i loop is_nonzero width64
+udf loop  udf i  
+udf digit udf mask udf target
+
+df final set final 6 
+mov final newline shift_none type_zero width64	
+memi store final register_data 64 1_byte 
+udf final
+
+df total_string_length set total_string_length string_length  add total_string_length 65
+
+mov syscallarg0 stdout shift_none type_zero width64
+orr bitwise_or syscallarg1 address zeroregister shift_increase shift_none regular_second width64
+mov syscallarg2 total_string_length shift_none type_zero width64
+mov syscallnumber system_write shift_none type_zero width64
+svc
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -88,15 +311,10 @@ mov syscallarg2 total_string_length shift_none type_zero width64
 mov syscallnumber system_write shift_none type_zero width64
 svc
 
-mov syscallnumber system_exit shift_none type_zero width64
-mov syscallarg0 42 shift_none type_zero width64
-svc
-halt
+exit 1001
 
-at string_begin 
 
-	string     "debugging binary value for register = " 
-
+at string_begin   string  "debugging binary value for register = "
 df end at end set string_length end udf end 
 sub string_length string_begin
 
