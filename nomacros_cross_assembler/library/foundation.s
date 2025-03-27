@@ -13,8 +13,6 @@ df  arg4 df  arg5 df  arg6 df  arg7
 df  arg8 df  arg9 df arg10 df arg11
 df arg12 df arg13 df arg14 df arg15
 
-
-
 df 0 bn 0 0
 df 1 bn 1 1
 df 01 bn 01 01
@@ -50,8 +48,15 @@ df 11111 bn 11111 11111
 df 000001 bn 000001 000001
 df 0000001 bn 0000001 0000001
 df 00000001 bn 00000001 00000001
+df 000000001 bn 000000001 000000001
+df 0000000001 bn 0000000001 0000000001
+df 00000000001 bn 00000000001 00000000001
+df 000000000001 bn 000000000001 000000000001
+df 0000000000001 bn 0000000000001 0000000000001
+df 00000000000001 bn 00000000000001 00000000000001
 
-
+df 1111_111 	bn 1111_111 1111_111
+df 1111_1111 	bn 1111_1111 1111_1111
 
 
 df false bn false 0
@@ -359,14 +364,108 @@ df post_advance bn post_advance 0
 
 
 
+
+. msp430 arch details and constants . 
+. ---------------------------------- . 
+
+df pc set pc 0
+df sp set sp 1
+df sr set sr 01
+df cg set cg 11
+df r4 set r4 001
+df r5 set r5 101
+df r6 set r6 011
+df r7 set r7 111
+df r8 set r8 0001
+df r9 set r9 1001
+df r10 set r10 0101
+df r11 set r11 1101
+df r12 set r12 0011
+df r13 set r13 1011
+df r14 set r14 0111
+df r15 set r15 1111
+
+df msp_mov set msp_mov 001
+df msp_add set msp_add 101
+df msp_addc set msp_addc 011
+df msp_sub set msp_sub 111
+df msp_subc set msp_subc 0001
+df msp_cmp set msp_cmp 1001
+df msp_dadd set msp_dadd 0101
+df msp_bit set msp_bit 1101
+df msp_bic set msp_bic 0011
+df msp_bis set msp_bis 1011
+df msp_xor set msp_xor 0111
+df msp_and set msp_and 1111
+
+df condjnz set condjnz 0
+df condjz set condjz 1
+df condjnc set condjnc 01
+df condjc set condjc 11
+df condjn set condjn 001
+df condjge set condjge 101
+df condjl set condjl 011
+df condjmp set condjmp 111
+
+df size_byte set size_byte 1
+df size_word set size_word 0
+
+df bit0 bn bit0 10000000
+df bit1 bn bit1 01000000
+df bit2 bn bit2 00100000
+df bit3 bn bit3 00010000
+df bit4 bn bit4 00001000
+df bit5 bn bit5 00000100
+df bit6 bn bit6 00000010
+df bit7 bn bit7 00000001
+
+df reg_mode   set reg_mode 0
+df index_mode set index_mode 1
+df deref_mode set deref_mode 01
+df incr_mode  set incr_mode 11
+
+df imm_mode set imm_mode incr_mode
+df imm_reg set imm_reg pc
+
+df literal_mode set literal_mode index_mode
+df constant_1 set constant_1 cg
+
+df fixed_reg set fixed_reg sr
+df fixed_mode set fixed_mode index_mode
+
+df nat8 set nat8 1
+df nat16 set nat16 01
+
+
+
+
+
+
+
+
 . useful macros! : arm64 . 
 
+
+
 df skip do skip
+
 
 df2 movz cat movz
 	df ret set ret lr
 	mov arg0 arg1 shift_none type_zero width64
 	incr ret set lr ret udf ret do lr
+
+
+df2 movr cat movr
+	df destination set destination arg0
+	df source set source arg1
+	df ret set ret lr
+
+	orr bitwise_or destination source zeroregister shift_increase shift_none regular_second width64
+
+	udf destination udf source
+	incr ret set lr ret udf ret do lr
+
 
 df1 exit cat exit
 	df ret set ret lr
@@ -380,15 +479,19 @@ df1 exit cat exit
 	udf exitcode
 	incr ret set lr ret udf ret do lr
 
+
+
+
 df3 writestring cat writestring
 
-	df ret set ret lr
 	df fd set fd arg0
 	df string_address set string_address arg1
 	df string_length set string_length arg2
 
+	df ret set ret lr
+
 	movz syscallarg0 fd
-	adr syscallarg1 string_address type_byteoffset
+	adr  syscallarg1 string_address type_byteoffset
 	movz syscallarg2 string_length
 	movz syscallnumber system_write
 	svc
@@ -396,11 +499,142 @@ df3 writestring cat writestring
 	udf fd 
 	udf string_address
 	udf string_length
+
 	incr ret set lr ret udf ret do lr
+
+
+
+
+df5 memcopy cat memcopy
+	df destination set destination arg0
+	df source set source arg1
+	df length set length arg2
+	df temp0 set temp0 arg3
+	df temp1 set temp1 arg4
+
+	df ret set ret lr
+
+	df i 
+	set i temp0 
+	movz i length
+
+	df loop at loop
+		addi i i 1 shift_none setflags subtract width64
+		memr load_width64 temp1 source i use_second64 1_byte
+		memr store temp1 destination i use_second64 1_byte
+		bc is_nonzero loop 
+
+	udf loop  udf i 
+	udf destination  udf source  udf length 
+	udf temp0  udf temp1
+
+	incr ret set lr ret udf ret do lr
+
+
+
+
+
+df8 print cat print
+
+	df string_begin set string_begin arg0
+	df string_length set string_length arg1
+	df target set target arg2
+	df temp0 set temp0 arg3
+	df temp1 set temp1 arg4
+	df temp2 set temp2 arg5
+	df temp3 set temp3 arg6
+	df temp4 set temp4 arg7
+
+	df ret set ret lr
+
+	df buffer_size bn buffer_size 00001
+	df allocation set allocation 00001 
+	mul allocation buffer_size udf buffer_size
+
+	addi stackpointer stackpointer allocation shift_none noflags subtract width64
+
+	df address set address syscallarg1
+	df string_literal set string_literal temp0
+
+	addi address stackpointer 0 shift_none noflags positive width64
+	adr string_literal string_begin type_byteoffset
+
+	memcopy address string_literal string_length temp1 temp2   udf string_literal
+
+	df mask  set mask temp0 
+	df digit set digit temp1 
+	df bits  set bits temp2
+	df i     set i temp3
+
+	movz mask 1
+	movz digit '0'
+	movz i 0
+
+	addi bits address string_length shift_none noflags positive width64
+
+	df loop at loop
+
+		orr bitwise_and_setflags zeroregister target mask 
+			shift_increase shift_none regular_second width64
+		csel temp4 digit digit is_zero csel_incr csel_set width64
+
+		memr store temp4 bits i use_second64 1_byte
+
+		addi i i 1 shift_none noflags positive width64 
+		addr mask zeroregister mask shift_increase 1 noflags positive width64
+
+		addi zeroregister i 0000001 shift_none setflags subtract width64
+		bc is_unsigned_less loop    
+
+	udf loop 
+	udf i udf digit udf mask
+
+	df final set final temp4 
+	
+	movz final newline
+	memi store final bits 0000001 1_byte  
+
+	udf final udf bits
+
+	df total_string_length 
+	set total_string_length string_length
+	add total_string_length 0000001 
+	incr total_string_length
+
+	movz syscallarg0 stdout
+	movz syscallarg2 total_string_length   udf total_string_length
+	movz syscallnumber system_write
+	svc
+
+	udf address
+
+	addi stackpointer stackpointer allocation shift_none noflags positive width64
+	udf allocation
+
+	udf string_begin  udf string_length
+	udf target udf temp0 udf temp1
+	udf temp2 udf temp3 udf temp4
+
+	incr ret set lr ret udf ret do lr
+
+
+
+
+
+
+
+
+
+
+
 
 cat skip udf skip
 
 eoi
+
+
+
+
 
 
 

@@ -6,7 +6,7 @@
   written on 1202503097.054017 dwrr 
 . 
 
-lf foundation.s
+lf library/foundation.s
 
 set _targetarchitecture arm64_arch
 set _outputformat macho_executable

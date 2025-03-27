@@ -1,0 +1,39 @@
+. printing the iterator 
+  of a loop in binary 
+  1202503274.051234 dwrr
+.
+
+lf library/foundation.s
+
+set _targetarchitecture arm64_arch
+set _outputformat macho_executable
+set _shouldoverwrite true
+
+df name df length
+
+df i set i 111 
+df limit bn limit 1
+mov i limit shift_16 type_zero width64
+
+df loop at loop
+	addi i i 1 shift_none noflags subtract width64
+	print name length i 0001 1001 0101 1101 0011
+	cbz i loop is_nonzero width64
+udf loop udf i 
+
+df greeting_begin df greeting_length
+writestring stdout greeting_begin greeting_length
+exit 0
+
+at name string  "i = "
+df end at end set length end udf end 
+sub length name
+udf name udf length
+
+at greeting_begin string  "[done looping!]" emit 1 newline
+df end at end set greeting_length end udf end 
+sub greeting_length greeting_begin
+udf greeting_begin udf greeting_length
+
+eoi
+

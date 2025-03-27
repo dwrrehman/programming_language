@@ -1,0 +1,2 @@
+#!/bin/zsh
+clang -Weverything c.c -Ofast -o run
