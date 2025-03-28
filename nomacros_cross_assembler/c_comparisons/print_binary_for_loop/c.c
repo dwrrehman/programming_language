@@ -5,7 +5,7 @@
 static void printbinary(const char* s, uint64_t n) {
 	printf("%s", s);
 	for (uint64_t i = 0; i < 64; i++) {
-		printf("%c", '0' + (char) ((n >> i) & 1));
+		putchar('0' + (char) ((n >> i) & 1));
 	}
 	puts("");
 }

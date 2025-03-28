@@ -1,0 +1,164 @@
+what clang generated for the prime number program with -Ofast
+------------------------------------------------------------------
+1202503274.155123
+
+this runs 1 second faster than our program!
+but whyyyy?
+
+
+
+----------------------------------------------------------------
+
+	mov	x8, #0
+	mov	x0, #0
+	mov	w9, #2
+	b	LBB0_3
+LBB0_1:                                 ;   in Loop: Header=BB0_3 Depth=1
+	add	x0, x0, #1
+LBB0_2:                                 ;   in Loop: Header=BB0_3 Depth=1
+	add	x9, x9, #1
+	add	x8, x8, #1
+	cmp	x9, #64, lsl #12                ; =262144
+	b.eq	LBB0_7
+LBB0_3:                                 ; =>This Loop Header: Depth=1
+                                        ;     Child Loop BB0_5 Depth 2
+	cmp	x9, #3
+	b.lo	LBB0_1
+; %bb.4:                                ;   in Loop: Header=BB0_3 Depth=1
+	mov	x10, #0
+LBB0_5:                                 ;   Parent Loop BB0_3 Depth=1
+                                        ; =>  This Inner Loop Header: Depth=2
+	add	x11, x10, #2
+	udiv	x12, x9, x11
+	msub	x11, x12, x11, x9
+	cbz	x11, LBB0_2
+; %bb.6:                                ;   in Loop: Header=BB0_5 Depth=2
+	add	x10, x10, #1
+	cmp	x8, x10
+	b.ne	LBB0_5
+	b	LBB0_1
+LBB0_7:
+	...
+
+----------------------------------------------------------------
+
+
+
+
+
+
+
+
+
+
+
+
+
+----------------------------------------------------------------
+
+	j : x10
+
+	i : x8 (0 based)
+	i : x9 (2 based)
+
+	count : x0    ???
+
+
+
+	mov	x8, #0
+	mov	x0, #0
+	mov	w9, #2
+	b	check_if_i_is_2
+
+prime: 
+	add	x0, x0, #1
+
+check_if_done: 
+	add	x9, x9, #1
+	add	x8, x8, #1
+	cmp	x9, #64, lsl #12
+	b.eq	done
+
+check_if_i_is_2:
+	cmp	x9, #3
+	b.lo	prime
+
+	mov	x10, #0       ;  set j = 0;
+
+inner:
+	add	x11, x10, #2       ;  <--- inefficient?
+	udiv	x12, x9, x11
+	msub	x11, x12, x11, x9
+	cbz	x11, check_if_done
+
+	add	x10, x10, #1      ;   incr j
+
+	cmp	x8, x10           ;   if (j != i) goto inner
+	b.ne	inner
+
+	b	prime
+
+
+done:
+	...
+
+----------------------------------------------------------------
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+----------------------------------------------------------------
+
+	mov	i, #0
+	mov	count, #0
+	mov	w9, #2
+	b	init
+
+prime:
+	add	count, count, #1
+
+composite:
+	add	x9, x9, #1
+	add	i, i, #1
+	cmp	x9, #64, lsl #12
+	b.eq	done
+init:
+	cmp	x9, #3
+	b.lo	prime
+
+	mov	j, #0
+inner:
+	add	x11, j, #2
+	udiv	x12, x9, x11
+	msub	x11, x12, x11, x9
+	cbz	x11, composite
+
+	add	j, j, #1
+	cmp	i, j
+	b.ne	inner
+
+	b	prime
+done:
+	...
+
+----------------------------------------------------------------
+
+
+
+
+
+
+
+

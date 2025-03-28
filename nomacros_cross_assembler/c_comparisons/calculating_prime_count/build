@@ -1,0 +1,7 @@
+#!/bin/zsh
+
+clang -Weverything c.c -Ofast -o run
+clang -Weverything -S -Ofast c.c -o asm.s
+
+clang -Weverything c.c -Os -o run_small
+clang -Weverything -S -Os c.c -o asm_small.s

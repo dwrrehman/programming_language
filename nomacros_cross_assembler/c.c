@@ -452,10 +452,10 @@ process_file:;
 			const nat m = (nat) ((uint32_t) op);
 			if (arg_count < macro_arity[m]) goto next_word;
 			for (nat i = 0; i < arg_count; i++) {
-				struct instruction new = { .op = set, .args[0] = i + 5, .args[1] = args[i] };
+				struct instruction new = { .op = set, .args[0] = i + 6, .args[1] = args[i] };
 				ins[ins_count++] = new;
 			}
-			struct instruction new0 = { .op = cat, .args[0] = 4 }; ins[ins_count++] = new0;
+			struct instruction new0 = { .op = cat, .args[0] = 5 }; ins[ins_count++] = new0;
 			struct instruction new1 = { .op = do_, .args[0] = macro_label[m] }; ins[ins_count++] = new1;
 		} 		
 		else if (op == stringliteral) { in_string = 1; goto next_word; } 
@@ -502,8 +502,6 @@ process_file:;
 	for (nat pc = 0; pc < ins_count; pc++) 
 		if (ins[pc].op == cat) values[ins[pc].args[0]] = pc;
 
-	const nat debug = 0;
-
 	print_dictionary(variables, values, is_readonly, undefined, (nat) -1);
 	print_instructions(ins, ins_count);
 
@@ -517,7 +515,7 @@ process_file:;
 			const nat arg1 = ins[pc].args[1];
 			const nat arg2 = ins[pc].args[2];
 
-			if (debug) {
+			if (values[4] == 1 and pass == 1) {
 				print_instruction_window_around(pc, ins, ins_count, variables);
 				printf("\n[pass %llu][pc = %llu]: executing (%llu){ %s : %s %s %s }\n\n\n", 
 					pass, pc, arity[op],

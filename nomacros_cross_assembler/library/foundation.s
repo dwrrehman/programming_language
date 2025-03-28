@@ -6,6 +6,7 @@
 df _targetarchitecture zero _targetarchitecture
 df _outputformat zero _outputformat
 df _shouldoverwrite zero _shouldoverwrite
+df _debugexecution zero _debugexecution
 
 df lr 
 df  arg0 df  arg1 df  arg2 df  arg3
@@ -302,6 +303,9 @@ df extend_sxtx bn extend_sxtx 111
 df csel_incr bn csel_incr 1
 df csel_not bn csel_not 1
 df csel_set bn csel_set 0
+
+df divr_unsigned set divr_unsigned 0
+df divr_signed set divr_signed 1
 
 df maddl_unsigned bn maddl_unsigned 1
 df maddl_signed bn maddl_signed 0
