@@ -1,5 +1,5 @@
 . trying to count prime numbers faster than c code
-  1202503274.051234 dwrr
+  1202503311.112643 dwrr
 .
 
 lf library/foundation.s
