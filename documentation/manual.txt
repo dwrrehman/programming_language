@@ -1,28 +1,130 @@
 manual for the programming language
+=====================================
 written on 1202411225.000721 by dwrr
+rewritten on 1202503311.161057
 =====================================
 
-the entire instruction set for the language is only the following words:
-
-	set add sub mul div
-	and or eor si sd 
-	lt ge ne eq do at
-	ld st sc rt lf eoi
-
-a total of 22 words, currently. 
-
-this document aims to go over how to use each one, and generally how the language semantics works. 
+this document aims to go over how to use the language which is used by the macro cross-assembler!
 
 
+the language has 3 major systems:
+
+	1. the variable/operation symbol control machinery, including macros, and loading of mulitple files
+	2. the compiletime execution system
+	3. the runtime system  (one of arm32, arm64, rv32, rv64, or msp430).
+
+each of these will be discussed in detail. 
 
 
 
+--------------------- OVERVIEW OF SEMANTICS ----------------------------------
 
-first a reference list of the instruction semantics is given below.
+the langauge uses compile-time (CT) execution to allow for the construction of constants and arbitrary data, computationally through the CT instructions.
 
---------------------------------------------------------------------------------------
+these compile-time constants are the basis for
+
+	1. various options/arguments for all runtime instructions
+	2. all compile-time and run-time (RT) labels
+	3. the storage location of runtime variables  (through being interpretted as register indexes, by RT instructions).
+
+from the perspective of the of the CT system, these entities are variables, as they can be changed via other CT instructions. however, from the perspective of the RT system, they are constants, as once CT evaluation/execution is complete, these constants do not change at all.
+
+all instructions, RT and CT, are fixed arity, and take only some number of CT constants/variables as entities as arguments, defined individually for each instruction. for runtime instructions, each of these arguments has a maximum bit width which the argument's binary value must conform to. 
+
+
+ 
+
+
+
+
+
+
+implementation detail:  all compiletime code is executed twice, once to attain the initial values for variables, and then again to run the code using these values as the starting values for execution. this solves several problems relating to labels, and complex CT data dependancies.
+
+
+
+
+
+--------------------- end of section ----------------------------------
+
+
+
+
+
+
+
+
+
+
+-------------------------------------
+dictionary details:
+-------------------------------------
+
+the operation dictionary is currently not user accessible. (?)
+
+additionally, particular entries in the dictionary mean certain things, for the first 6 entries in the dictionary. 
+
+
+	the first entry [0] in variable dictionary:
+
+		the number of entries in the variable dictionary. 
+
+
+	the first entry [1] in variable dictionary:
+
+		the target architecture/ISA which the runtime instructions are a part of. 
+
+
+	the first entry [2] in variable dictionary:
+
+		the output format used by the assembler to generate the resultant executable/object. 
+
+
+	the first entry [3] in variable dictionary:
+
+		a boolean of whether the assembler is allowed to remove the output file if such file already exists.
+
+
+	the first entry [4] in variable dictionary:
+
+		a boolean of whether the assembler should step through and debug the compiletime execution.
+		debugging starts from the moment this debug flag is set. 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+				TODO:   write out the full implementation along side each CT instruction!
+
+
+
+a reference list of the instruction semantics is given below.
+
+
+---------------------- COMPILE-TIME SYSTEM ISA ----------------------------------------------------------------
 
 arithmetic and bitwise operations:
+
+
+	bn d n		: 	interpret the word n as a little-endian binary literal, and load that binary literal into variable d. 
 
 	set d r		:	set the variable d to the value currently given in variable r.
 
@@ -46,56 +148,157 @@ arithmetic and bitwise operations:
 
 branch operations:
 
-	lt r s l	:	compare variables r and s. if r is less than s, then control flow branches to label l. 
+	lt r s l	:	compare variables r and s. if r is less than s, then control flow branches to variable l. 
 
-	ge r s l	:	compare variables r and s. if r is not less than s, then control flow branches to label l. 
+	ge r s l	:	compare variables r and s. if r is not less than s, then control flow branches to variable l. 
 
-	eq r s l	:	compare variables r and s. if r is equal to s, then control flow branches to label l. 
+	eq r s l	:	compare variables r and s. if r is equal to s, then control flow branches to variable l. 
 
-	ne r s l	:	compare variables r and s. if r is not equal to s, then control flow branches to label l. 
+	ne r s l	:	compare variables r and s. if r is not equal to s, then control flow branches to variable l. 
 
-	do l 		:	control flow unconditionally branches to label l. 
+	do l 		:	control flow unconditionally branches to variable l. 
 
-	at l		:	set the program position designated by label l to be the location of the next instruction. 
+	cat l		:	set the program position designated by variable l to be the location of the next runtime or compiletime instruction.
 
+	at l		:	set the program position designated by variable l to be the location of the next runtime instruction.
 
 memory operations:
 
-	ld d a s	: 	load a sequence of bytes from memory, starting at memory address a, and store these bytes into variable d.
-				the number of bytes which are loaded is given by the compiletime known variable s,
-				which must be a power of two in the set {1, 2, 4, 8} and the value of s must be known at compiletime.
+	ld d a		: 	load an arbitrary dictionary/memory 64-bit entry at index a, into variable d. 
 
-	st a r s	: 	store a sequence of bytes into memory, starting at memory address a, using the bytes given in variable r.
-				the number of bytes which are loaded is given by the compiletime known variable s,
-				which must be a power of two in the set {1, 2, 4, 8} and the value of s must be known at compiletime.
+	st a r		: 	store an the 64-bit value in varible r into an arbitrary dictionary/memory 64-bit entry at index a.
 
-system call operation:
+macro utilities:
 
-	sc n a b c d e f	: 	perform the system call given by the system call number n. 
-					variable arguments a, b, c, d, e, and f are potentially given to 
-					the system call as inputs, however only a subset of these might be 
-					used depending on which system call is invoked. excess arguments (ones which 
-					are not neccessary according to the arity of the chosen system call) may be 
-					set to any value/variable, as they are simply ignored. 
-attribution operations:
+	df0 x 		: 	define the variable x, and define a new macro operation, taking zero arguments. 
 
-	rt r b		:	set the number of bits allocated to the register variable r. b is unsigned, and compiletime known.
+	df1 x 		: 	define the variable x, and define a new macro operation, taking zero arguments. 
+
+	df2 x 		: 	define the variable x, and define a new macro operation, taking two arguments. 
+
+	<...> x		:	...etc...
+
+	df15 x 		: 	define the variable x, and define a new macro operation, taking 15 arguments. 
 
 language level operations:
 
+	ro x		:  	make the variable x now immutable, from this point onward. not usable within a macro body's context.
+
+	df x 		: 	define the compile-time variable x. this definition now has highest priority over other existing definitions of x, 
+				if there were more than one defintion already present. 
+
+	udf x 		: 	undefine the most recent definition of the compile-time variable x.
+
 	lf f		: 	load a file from the filesystem, given by path or filename f.
+
+
+	string x	:	create a string literal, and replace this CT instruction with a series of RT "emit" instructions 
+				which emit the bytes for the given string literal in sequence. the first character encountered
+				in x is the delimiter for the string. x can contain spaces, as x is defined to be from 
+				the first non whitespace character, until this same character is encountered again. 
+
 
 	eoi		:	end of input. used to optionally designate the end of the compilers input. 
 				every character after an eoi is ignored by the compiler. not required, but sometimes useful. 
 
 
 
+todo: unfinished
+
+
+---------------------- end of section ----------------------------------------------------------------
 
 
 
 
 
 
+
+
+now we will go into how to use the RT instructions within the arm64 subset of the language. 
+
+
+---------------------- ARM 64-BIT ISA ----------------------------------------------------------------
+
+
+	jmp link:1 label:64	: 	todo, write this
+					typical argument values: 
+						link : set to nolink(0) or jmplink(1).
+						label : a compiletime variable which has been given a value via an "at" instruction.
+
+
+	bc cond:4 label:64 	: 	todo, write this
+
+
+	csel d:5 n:5 m:5 cond:4 ic:1 iv:1 	: 	todo, write this
+
+
+
+todo: unfinished
+
+---------------------- end of section ----------------------------------------------------------------
+
+
+
+
+
+
+now we will go into how to use the instructions within the msp430 subset of the language. 
+
+---------------------- MSP430 ISA ----------------------------------------------------------------
+
+
+	section a  	 	: 	todo, write this
+
+
+	gen4 a b c d e f g 	: 	todo, write this
+
+
+	br4 a b c  	 	: 	todo, write this
+
+
+
+todo: unfinished
+
+
+---------------------- end of section ----------------------------------------------------------------
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+[end of the document]
+
+eoi
+
+
+
+
+old: 
 
 
 

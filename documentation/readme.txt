@@ -1,21 +1,20 @@
-a cross-assembler i wrote for fun
+a macro cross-assembler i wrote for fun and for my own use
 ---------------------------------------
 written on 1202407217.003650 by dwrr
 updated on 1202501046.114848
 updated on 1202503053.151203
 
-this is a cross-assembler for the arm64, arm32, rv64, rv32, and msp430 architectures, which i wrote for my own use in programming projects requiring maximum control over resources and performance. 
+this is a cross-assembler for the arm64, arm32, rv64, rv32, and msp430 architectures, which i wrote for my own use in programming projects requiring maximum control over resources and performance. currently only msp430 and arm64 backends are finished so far. 
 
 this cross-assembler has both a fully-hygenic macro system and a powerful turing-complete compiletime system which allow for complete control over how the machine instructions are translated into the final executable, and these features also allow for much improved readability of code. 
 
-additionally, unlike many assemblers, this assembler has opt-in optional automatic register allocation, allowing for better debugability when code is not sensitive to the registers used.
+additionally, unlike many assemblers, this assembler is planned to have opt-in optional automatic register allocation, allowing for better debugability when code is not sensitive to the registers used.
 
 the selection of the target architecture can be done programmatically at compiletime through the compiletime execution system, and arbitrary static data can also be generated into the executable to allow for better performance.
 
 the primary goal of this language is to allow for maximum control and performance on the intended target architectures- portability of code across targets is not a design goal. additionally, the language was designed to be minimalist in syntax and semantics, in so much as it does not affect performance at all. because of this, many simplifying design decisions were made, such as treating registers, compiletime-known variables, labels, and immediates/constants all as the exact same entity- just a compile-time data-register value, interpreted in a particular way by an instruction.
 
-despite the langauge's focus on low-level control, and minimalism, due to the macro and compiletime system source code in written for this assembler can still be quite readable, and easily writable. for example, it is possible to write while loops, for loops, and if statements via macros defined in the standard library, which translate down to efficient sequences of machine code instructions. 
-
+despite the langauge's focus on low-level control, and minimalism, due to the macro and compiletime system source code in written for this assembler can still be quite readable, and easily writable. for example, it is in theory possible to write macros to be able to write and use while loops, for loops, and if statements via the generality of the macro system , which could translate down to efficient sequences of machine code instructions. this is unimplemented currently. 
 
 
 some notes about the assembler's syntax and design:
@@ -38,13 +37,28 @@ some notes about the assembler's syntax and design:
 
 	8. all operations are treated as either macros, or macro-creation machinery.
 
-
 	
 ultimately, this language is just meant for my own use, however it might be the case that others could find it useful or interesting possibily. 
 
 thanks for reading!
 
 dwrr
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 

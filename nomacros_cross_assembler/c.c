@@ -312,9 +312,6 @@ static void insert_u64(uint8_t** d, nat* c, uint64_t x) {
 #define PLATFORM_MACOS 		1
 
 static nat calculate_offset(nat* length, nat here, nat target) {
-
-	printf("here = %llu\ntarget = %llu\n", here, target);
-
 	nat offset = 0;
 	if (target > here) for (nat i = here; i < target; i++) offset += length[i];
 	else  		   for (nat i = target; i < here; i++) offset -= length[i];
@@ -395,6 +392,7 @@ process_file:;
 		} else if (not word_length) continue;
 
 		char* word = strndup(text + word_start, word_length);
+
 		//printf("[pc=%llu][skip=%llu]: w=\"%s\" w_st=%llu\n", pc, skip, word, word_start);
 		//print_dictionary(variables, values, undefined, -1);
 		//print_instructions(ins, ins_count);
@@ -419,8 +417,7 @@ process_file:;
 			); 
 			print_index(text, text_length, word_start, pc);
 			if (op != isa_count) 
-				printf(
-					"calling operation: "
+				printf( "calling operation: "
 					"%s (arity %llu)\n", 
 					operations[op], arity[op]
 				);
@@ -430,8 +427,12 @@ process_file:;
 			nat s = 1, r = 0;
 			for (nat i = 0; i < strlen(word); i++) {
 				if (word[i] == '0') s <<= 1;
-				if (word[i] == '1') { r += s; s <<= 1; } 
-				if (word[i] == '_') continue;
+				else if (word[i] == '1') { r += s; s <<= 1; } 
+				else if (word[i] == '_') continue;
+				else { 
+					puts("error: could not parse binary literal: "); 
+					goto print_error; 
+				}
 			}
 			var = r;
 			goto push_argument;
@@ -441,7 +442,9 @@ process_file:;
 		for (var = *values + 1; var-- > 1;) {
 			if (not undefined[var] and not strcmp(word, variables[var]))
 				goto push_argument;
-		} goto print_error;
+		} 
+		goto print_error;
+
 		define_name: var = *values + 1;
 		values[var] = register_index++;
 		variables[var] = word; ++*values;
@@ -452,11 +455,17 @@ process_file:;
 			const nat m = (nat) ((uint32_t) op);
 			if (arg_count < macro_arity[m]) goto next_word;
 			for (nat i = 0; i < arg_count; i++) {
-				struct instruction new = { .op = set, .args[0] = i + 6, .args[1] = args[i] };
+				struct instruction new = { 
+					.op = set, 
+					.args[0] = i + 6, 
+					.args[1] = args[i] 
+				};
 				ins[ins_count++] = new;
 			}
-			struct instruction new0 = { .op = cat, .args[0] = 5 }; ins[ins_count++] = new0;
-			struct instruction new1 = { .op = do_, .args[0] = macro_label[m] }; ins[ins_count++] = new1;
+			struct instruction new0 = { .op = cat, .args[0] = 5 }; 
+			struct instruction new1 = { .op = do_, .args[0] = macro_label[m] }; 
+			ins[ins_count++] = new0;
+			ins[ins_count++] = new1;
 		} 		
 		else if (op == stringliteral) { in_string = 1; goto next_word; } 
 		else if (arg_count < arity[op]) goto next_word;
@@ -486,12 +495,15 @@ process_file:;
 			filestack[filestack_count].text_length = new_text_length;
 			filestack[filestack_count++].index = 0;
 			--*values; goto process_file;
+
 		} else if (op < isa_count) {
 			if (not op) { puts(" error"); abort(); }
 			struct instruction new = { .op = op };
 			memcpy(new.args, args, sizeof args);
 			ins[ins_count++] = new;
+
 		} else { puts("fatal error: internal error, unknown operation parsed"); abort(); }
+
 		arg_count = 0; op = 0;
 		next_word: word_length = 0;
 	}
