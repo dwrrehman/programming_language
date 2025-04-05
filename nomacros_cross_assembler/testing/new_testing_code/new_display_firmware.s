@@ -14,7 +14,7 @@ df skip do skip
 df0 delay cat delay
 	df delay_time2 	set delay_time2 1
 	df delay_time 	bn delay_time 1111_1111_1111_1111 
-	div delay_time 000001
+	div delay_time 001
 
 	df iterator2 df iterator set iterator2 r5
 	gen4 msp_mov  reg_mode iterator2 0  imm_mode imm_reg delay_time2 size_word
