@@ -1,209 +1,18 @@
-// 1202504045.155147 a compiler / assembler for a simpler version of the language. 
-
-
-/*
-	NOTE:
-
-		THE REASON WHYYYYY        having runtime variables simply be   ct regindex  constants      
-
-								doesnt work 
-
-
-
-	the reason for why that doesnt work        is that 
-
-
-				when you say                    add  x  blah
-
-
-				now, you don't know what that meanssss
-
-
-						if x is a runtime regindex constant    then we know  that we want to do a   runtime add   with blah
-
-
-						if x is a compiltime  general purp;ose constant   then we know we want to do a  ct_add   at tompiletime. 
-
-
-
-
-								BUTTTT      A GEN PURPOSE CT CONSTANT   AND A RT REGINDEX CONSTNAT  LOOK AND FEEL COMPLETELY IDENTICAL TO THE COMPILER
-
-								THE ARE THE SAME THINGSS
-
-
-
-						AND SO   we don't know which       rt_add    or ct_add     to gneerate.   when we see "add x blah"
-
-
-
-
-
-						thatsssssssss why we need to pick.   either or.    XOR.   we need either to have regindexes be rt constants
-
-
-						orrrrrr we have seperate rt and ct variables,   with ct being constatns, and rt being variables. 
-
-										...and then we just provide a    register-constraint  instruction
-
-										to assign a  regindex to a rt variable.   simple as that. 
-
-
-
-							WE CANT HAVE BOTH.   
-
-
-
-
-
-
-
-
-
-
-				honestly, the reality is...   using actual   regindexes      verbatim     ie, raw   hardware registers 
-
-
-
-						is actually rather rare.  
-
-
-
-									like,   on all archs  and all targets, anad all intended usecases. 
-
-
-
-
-
-
-							EXCEPTTTTTT for system calls.   that uses them like crazy. 
-
-
-
-
-		now, interestingly   we are not going to actually expose the system call insturction   with   argumentssssss i think??
-
-
-
-		maybee..
-
-
-			hmm actually maybe we have to?       because otherwise our code will have different     hardware register indexes for each target/arch
-
-				so i think we needddd        the sc  instruction      which takes 7 arguments?... hmmm
-
-
-
-
-						hmmmm idk.... 
-
-
-
-
-
-
-
-
-
-
-
-	make comments only allowed   between instructions!
-	also, make them use "(" and ")", 
-
-			....ie, the moment you see a "(", start skipping until a ")".
-
-							(this is a comment!)	( so is this )     ()   
-
-
-
-	labels are simply ct variables! but they are defined in a weird way, defined on use, for "at", and "ne", "lt", "ge" etc. 
-
-		ne a b skip
-
-			(...code here...)
-
-		at skip udf skip
-
-
-
-
-
-	version 2: ideal rt code in this language    for adding two numbers, into a particular hardware register!
-
-
-		rt c 1111          (register 15)               (c is defined here, and 
-
-		set c 101
-		add c 001
-
-
-
-
-
-	version 2: ideal rt code in this language    for adding two numbers
-
-		init c 101 
-		add c 001
-
-
-	version 2: ideal ct code in this lauguage    for adding two numbers
-
-		ct c 101 
-		add c 001
-
-		ro c
-
-
-	version 1: ideal rt code in this language    for adding two numbers
-
-		def a 5
-		def b 4
-		def c a
-		add c b
-
-
-	version 1: ideal ct code in this lauguage    for adding two numbers
-
-		bn a 01
-		bn b 11
-		ct c a 
-		add c b
-
-
-	examples of rt and ct code:
-
-
-		ct y 001		<----   this defines and initializes a compiletime register, 
-						with a binary literal, or another compiletime value.
-		
-		def x y			<---- this defines a runtime register, 
-					      initializing it at runtime with a runtime or compiletime value. 
-
-		add x 1     	        <---- this is a runtime incr statement. (this syntax applies both to compiletime and runtime instructions.)
-
-		mul x y			<---- this is a runtime multiply_immediate statement, because y is compiletime known. 
-		set x y			<---- this is a set_immediate runtime instruction. 
-
-		set y 0			<---- this is a compiletime zero statement. 
-
-
-	
-
-	immediates are assumed to be only given if a given variable used in an instruction is not defined!
-
-	this way this does not conflict with other variable names, at all. 
-
-		additionally, binary literals are only assumed to be valid if they contain only zeros and ones, and maybe underscores too lol. 
-
-
-
-	so yeah!
-
-
-
-
+// 1202504045.155147 a compiler / assembler for a simpler version of the language.
+
+/* 
+	32 instructions:
+
+	eoi halt ct ud do at
+	lf ro set add sub 
+	mul div rem and or 
+	eor si sd ri bc ld 
+	st lt ge ne eq sc
 
 */
+
+
+
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -236,71 +45,56 @@ enum all_output_formats { debug_output_only, macho_executable, elf_executable, t
 enum core_language_isa {
 	nullins,
 
-	df, udf, lf,
+	eoi, halt, ct, ud, do_, at, lf, ro,
+	set, add, sub, mul, div_, rem, 
+	and_, or_, eor, si, sd, ri, bc,
+	ld, st, lt, ge, ne, eq,
+	sc,
+	
 
-	zero, incr, decr, not_, bn, 
-	set, add, sub, mul, div_, rem,
-	and_, or_, eor, si, sd, ld, at, cat, 
-	ro, st, lt, ge, eq, ne, do_, 
-	ctdebug, ctabort, ctpause,
+	a6_nop, a6_svc, a6_mov, a6_bfm,
+	a6_adc, a6_addx, a6_addi, a6_addr, a6_adr, 
+	a6_shv, a6_clz, a6_rev, a6_jmp, a6_bc, a6_br, 
+	a6_cbz, a6_tbz, a6_ccmp, a6_csel, 
+	a6_ori, a6_orr, a6_extr, a6_ldrl, 
+	a6_memp, a6_memia, a6_memi, a6_memr, 
+	a6_madd, a6_divr, 
 
-	halt, emit, stringliteral, 
-	nop, svc, mov, bfm,
-	adc, addx, addi, addr, adr, 
-	shv, clz, rev, jmp, bc, br, 
-	cbz, tbz, ccmp, csel, 
-	ori, orr, extr, ldrl, 
-	memp, memia, memi, memr, 
-	madd, divr,
-
-	section_start, general4, branch4,
+	m4_section, m4_gen, m4_br,
 
 	isa_count
 };
 
 static const char* operations[isa_count] = {
-	"--",
-	"df", "udf", "lf",
+	"nullins",
 
-	"df0", "df1", "df2", "df3",
-	"df4", "df5", "df6", "df7",
-	"df8", "df9", "df10", "df11",
-	"df12", "df13", "df14", "df15",
+	"eoi", "halt", "ct", "ud", "do", "at", "lf", "ro",
+	"set", "add", "sub", "mul", "div", "rem", 
+	"and", "or", "eor", "si", "sd", "ri", "bc",
+	"ld", "st", "lt", "ge", "ne", "eq",
+	"sc", 
 
-	"zero", "incr", "decr", "not", "bn", 
-	"set", "add", "sub", "mul", "div", "rem",
-	"and", "or", "eor", "si", "sd", "ld", "at", "cat", 
-	"ro", "st", "lt", "ge", "eq", "ne", "do", 
-	"ctdebug", "ctabort", "ctpause",
-	
-	"halt", "emit", "string",
-	"nop", "svc", "mov", "bfm",
-	"adc", "addx", "addi", "addr", "adr", 
-	"shv", "clz", "rev", "jmp", "bc", "br", 
-	"cbz", "tbz", "ccmp", "csel", 
-	"ori", "orr", "extr", "ldrl", 
-	"memp", "memia", "memi", "memr", 
-	"madd", "divr",
+	"a6_nop", "a6_svc", "a6_mov", "a6_bfm",
+	"a6_adc", "a6_addx", "a6_addi", "a6_addr", "a6_adr", 
+	"a6_shv", "a6_clz", "a6_rev", "a6_jmp", "a6_bc", "a6_br", 
+	"a6_cbz", "a6_tbz", "a6_ccmp", "a6_csel", 
+	"a6_ori", "a6_orr", "a6_extr", "a6_ldrl", 
+	"a6_memp", "a6_memia", "a6_memi", "a6_memr", 
+	"a6_madd", "a6_divr", 
 
-	"section", "gen4", "br4",
+	"m4_section", "m4_gen", "m4_br",
 };
 
 static const nat arity[isa_count] = {
 	0,
-	1, 1, 1,
 
-	1, 1, 1, 1,
-	1, 1, 1, 1,
-	1, 1, 1, 1,
-	1, 1, 1, 1,
-
-	1, 1, 1, 1, 2, 
-	2, 2, 2, 2, 2, 2,
-	2, 2, 2, 2, 2, 2, 1, 1, 
-	1, 2, 3, 3, 3, 3, 1, 
-	1, 0, 0,
+	0, 0, 0, 0, 1, 1, 1, 1,
+	2, 2, 2, 2, 2, 2, 
+	2, 2, 2, 2, 2, 2, 2, 
+	3, 3, 3, 3, 3, 3, 
+	7, 
 	
-	0, 2, 0, 
+	
 	0, 0, 5, 7, 
 	6, 8, 7, 8, 3,
 	5, 4, 4, 2, 2, 3, 
@@ -308,13 +102,14 @@ static const nat arity[isa_count] = {
 	5, 8, 5, 3, 
 	7, 6, 5, 6,
 	8, 5, 
-
 	1, 8, 2,
 };
 
 struct instruction {
 	nat op;
-	nat args[max_arg_count];
+	nat ct;
+	nat imm;
+	nat args[16];
 };
 
 struct file {
@@ -324,10 +119,10 @@ struct file {
 	const char* filename;
 };
 
-char* load_file(const char* filename, nat* text_length) {
+static char* load_file(const char* filename, nat* text_length) {
 	int file = open(filename, O_RDONLY);
 	if (file < 0) { 
-		printf("error: could not open '%s': %s\n", filename, sterror(errno)); 
+		printf("error: could not open '%s': %s\n", filename, strerror(errno)); 
 		exit(1);
 	}
 	*text_length = (nat) lseek(file, 0, SEEK_END);
@@ -339,57 +134,82 @@ char* load_file(const char* filename, nat* text_length) {
 }
 
 static void print_dictionary(
-	char** variables, nat* values, 
-	nat* is_readonly, nat* undefined, nat max_count
+	char** variables, 
+	nat* is_undefined,
+	nat* is_readonly,
+	nat* values, 
+	nat var_count
 ) {
-	puts("variables: ");
-	const nat count = values[0];
-	nat start = 0;
-	if (count >= max_count) start = count - max_count;
-	for (nat i = start; i < count; i++) {
+	puts("variable dictionary: ");
+	for (nat i = 0; i < var_count; i++) {
 		printf(" %c  %c [%llu]  \"%s\" = 0x%016llx\n", 
-			undefined[i + 1] ? 'U' : ' ', 
-			is_readonly[i + 1] ? 'R' : ' ', i + 1, 
-			variables[i + 1], values[i + 1]
+			is_undefined[i] ? 'U' : ' ', 
+			is_readonly[i] ? 'R' : ' ', i + 1, 
+			variables[i], values[i]
 		);
 	}
 	puts("[end]");
 }
 
-static void print_instruction(struct instruction this) {
-	printf("  %10s { ", operations[this.op]);
-	for (nat a = 0; a < arity[this.op]; a++) { 
-		if (this.args[a] < 512) printf("%llu", this.args[a]); 
-		else if (this.args[a] == (nat) -1) printf("%lld", this.args[a]);
-		else printf("0x%016llx", this.args[a]);
+static void print_instruction(
+	struct instruction this, 
+	char** variables
+) {
+
+	printf("  %s  %10s { ", 
+		this.ct ? "CT" : "  ", 
+		operations[this.op]
+	);
+
+	for (nat a = 0; a < arity[this.op]; a++) {
+		if (this.imm & (1 << a))
+			printf("#%llu", this.args[a]);
+		else
+			printf("%s", variables[this.args[a]]);
 		printf(" ");
 	}
+
 	printf("}");
 }
 
-static void print_instructions(struct instruction* ins, nat ins_count) {
+
+static void print_instructions(
+	struct instruction* ins, 
+	nat ins_count,
+	char** variables
+) {
 	printf("instructions: (%llu count) {\n", ins_count);
 	for (nat i = 0; i < ins_count; i++) {
 		printf("\t#%04llu: ", i);
-		print_instruction(ins[i]);
+		print_instruction(ins[i], variables);
 		puts("");
 	}
 	puts("}");
 }
 
-static void print_instruction_window_around(nat this, struct instruction* ins, nat ins_count, char** variables) {
+
+static void print_instruction_window_around(
+	nat this, 
+	struct instruction* ins, 
+	nat ins_count, 
+	char** variables
+) {
+
 	printf("\033[H\033[2J");
 	const int64_t window_width = 8;
 	const int64_t pc = (int64_t) this;
+
 	for (int64_t i = -window_width; i < window_width; i++) {
+
 		const int64_t here = pc + i;
-		if (here < 0 or here >= (int64_t) ins_count) { puts(""); continue; }
-		printf(" %5llu |   %s  ", here, operations[ins[here].op]);
-		for (nat a = 0; a < arity[ins[here].op]; a++) {
-			if (ins[here].op == bn and a == 1) 
-				printf(" #%llx", ins[here].args[a]);
-			else printf(" %s", variables[ins[here].args[a]]);
-		}
+
+		if (	here < 0 or 
+			here >= (int64_t) ins_count
+		) { puts(""); continue; }
+
+		printf(" %5llu |    ", here);
+		print_instruction(ins[here], variables);
+
 		if (not i) puts("   <------ pc"); else puts("");
 	}
 }
@@ -400,8 +220,16 @@ static void print_index(const char* text, nat text_length, nat begin, nat end) {
 	while (end and isspace(text[end])) end--;
 
 	const nat max_width = 100;
-	nat start_at = begin < max_width ? 0 : begin - max_width;
-	nat end_at = end + max_width >= text_length ? text_length : end + max_width;
+
+	nat start_at = 
+		begin < max_width 
+		? 0 
+		: begin - max_width;
+
+	nat end_at = 
+		end + max_width >= text_length 
+		? text_length 
+		: end + max_width;
 
 	for (nat i = start_at; i < end_at; i++) {
 		if (i == begin) printf("\033[32;1m[");
@@ -413,6 +241,9 @@ static void print_index(const char* text, nat text_length, nat begin, nat end) {
 	puts("\n");
 }
 
+/*
+
+
 static void print_nats(nat* array, nat count) {
 	printf("(%llu) { ", count);
 	for (nat i = 0; i < count; i++) {
@@ -423,15 +254,17 @@ static void print_nats(nat* array, nat count) {
 
 static void print_binary(nat x) {
 	for (nat i = 0; i < 64 and x; i++) {
-		if (not (i % 8) and i) putchar(' ');
+		if (not (i % 8) and i) putchar('.');
 		putchar((x & 1) + '0'); x >>= 1;
 	}
 	puts("");
 }
 
-
-
-static void insert_byte(uint8_t** output_data, nat* output_data_count, uint8_t x) {
+static void insert_byte(
+	uint8_t** output_data, 
+	nat* output_data_count, 
+	uint8_t x
+) {
 	*output_data = realloc(*output_data, *output_data_count + 1);
 	(*output_data)[(*output_data_count)++] = x;
 }
@@ -458,6 +291,7 @@ static void insert_u64(uint8_t** d, nat* c, uint64_t x) {
 	insert_u32(d, c, (x >> 0) & 0xFFFFFFFF);
 	insert_u32(d, c, (x >> 32) & 0xFFFFFFFF);
 }
+
 
 #define MH_MAGIC_64             0xfeedfacf
 #define MH_EXECUTE              2
@@ -488,17 +322,30 @@ static void insert_u64(uint8_t** d, nat* c, uint64_t x) {
 
 static nat calculate_offset(nat* length, nat here, nat target) {
 	nat offset = 0;
-	if (target > here) for (nat i = here; i < target; i++) offset += length[i];
-	else  		   for (nat i = target; i < here; i++) offset -= length[i];
+	if (target > here) {
+		for (nat i = here; i < target; i++) 
+			offset += length[i];
+	} else {
+		for (nat i = target; i < here; i++) 
+			offset -= length[i];
+	}
 	return offset;
 }
 
+*/
 
 
 
 
-int main(void) {
-	if (argc != 2) exit(puts("compiler: \033[31;1merror:\033[0m usage: ./run [file.s]"));
+
+
+
+
+int main(int argc, const char** argv) {
+
+	if (argc != 2) 
+		exit(puts("compiler: \033[31;1merror:\033[0m usage: ./run [file.s]"));
+
 
 	const nat min_stack_size = 16384 + 1;
 	nat stack_size = min_stack_size;
@@ -508,8 +355,10 @@ int main(void) {
 	nat ins_count = 0;
 
 	char* variables[max_variable_count] = {0};
+	nat is_undefined[max_variable_count] = {0};
+	nat is_readonly[max_variable_count] = {0};
 	nat values[max_variable_count] = {0};
-	nat variable_count = 0;
+	nat var_count = 0;
 
 	const char* included_files[4096] = {0};
 	nat included_file_count = 0;
@@ -531,13 +380,17 @@ int main(void) {
 
 process_file:;
 
-	const nat starting_index = files[files_count - 1].index;
-	const nat text_length = files[files_count - 1].text_length;
-	char* text = files[files_count - 1].text;
-	const char* filename = files[files_count - 1].filename;
+	const nat starting_index = files[file_count - 1].index;
+	const nat text_length = files[file_count - 1].text_length;
+	char* text = files[file_count - 1].text;
+	const char* filename = files[file_count - 1].filename;
 
-	nat word_length = 0, word_start = 0, arg_count = 0;
-	nat args[4] = {0}; 
+	nat 
+		word_length = 0, word_start = 0, 
+		arg_count = 0, last_used = 0, 
+		is_compiletime = 0, is_immediate = 0;
+
+	nat args[16] = {0};
 
 	for (nat var = 0, op = 0, pc = starting_index; pc < text_length; pc++) {
 
@@ -549,20 +402,49 @@ process_file:;
 
 		char* word = strndup(text + word_start, word_length);
 
-		printf("[pc=%llu][skip=%llu]: w=\"%s\" w_st=%llu\n", pc, skip, word, word_start);
-		print_dictionary(variables, values, variable_count);
-		print_instructions(ins, ins_count);
+		printf("[pc=%llu]:"
+			" w=\"%s\" w_st=%llu\n", 
+			pc, word, word_start
+		);
+
+		print_dictionary(
+			variables, is_undefined, 
+			is_readonly, values, 
+			var_count
+		);
+
+		print_instructions(ins, ins_count, variables);
 
 		if (not op) {
+			if (*word == '(') { 				
+				nat i = word_start + 1, comment = 1;
+				while (comment and i < text_length) {
+					printf("skipping over: '%c'  "
+						"(comment = %llu)\n", 
+						text[i], comment
+					);
+					if (text[i] == '(') comment++;
+					if (text[i] == ')') comment--;
+					i++;
+				}
+				if (comment) goto print_error;
+				pc = i;
+				goto next_word; 
+			}
+
+
 			if (not strcmp(word, "eoi")) break;
+
 			for (op = 0; op < isa_count; op++) 
 				if (not strcmp(word, operations[op])) goto process_op;
+
 			print_error: 
 			printf("%s:%llu:%llu:"
 				" error: undefined %s \"%s\"\n",
 				filename, word_start, pc, 
 				op == isa_count ? "operation" : "variable", word
 			); 
+
 			print_index(text, text_length, word_start, pc);
 			if (op != isa_count) 
 				printf( "note: calling operation: "
@@ -570,45 +452,60 @@ process_file:;
 					operations[op], arity[op]
 				);
 			abort();
-		} 
-		else if (op == lf or op == df) goto define_name;
-		for (var = *values + 1; var-- > 1;) {
-			if (not undefined[var] and not strcmp(word, variables[var]))
+		}
+		else if (op == lf) goto define_name;
+		for (var = var_count; var--;) {
+			if (not is_undefined[var] and 
+			    not strcmp(word, variables[var])) {
+				last_used = var;
 				goto push_argument;
-		} 
-		goto print_error;
-
-		define_name: var = *values + 1;
-		values[var] = register_index++;
-		variables[var] = word; ++*values;
-		push_argument: args[arg_count++] = var;
-		process_op: 
-
-		if (op & (1LLU << 62LLU)) {
-			const nat m = (nat) ((uint32_t) op);
-			if (arg_count < macro_arity[m]) goto next_word;
-			for (nat i = 0; i < arg_count; i++) {
-				struct instruction new = { 
-					.op = set, 
-					.args[0] = i + 6, 
-					.args[1] = args[i] 
-				};
-				ins[ins_count++] = new;
 			}
-			struct instruction new0 = { .op = cat, .args[0] = 5 }; 
-			struct instruction new1 = { .op = do_, .args[0] = macro_label[m] }; 
-			ins[ins_count++] = new0;
-			ins[ins_count++] = new1;
-		} 		
-		else if (op == stringliteral) { in_string = 1; goto next_word; } 
-		else if (arg_count < arity[op]) goto next_word;
-		else if (op == df) {}
-		else if (op >= df0 and op <= df15) {
-			macro_label[macro_count] = var;
-			macro_arity[macro_count] = op - df0;
-			macros[macro_count++] = word;
-		} else if (op == udf) undefined[args[0]] = 1;
+		} 
 
+		if (	op == set and arg_count == 0 or 
+			op == ri  and arg_count == 0 or 
+			op == bc  and arg_count == 0 or 
+
+			op == do_ or op == at or
+
+			(op == lt or
+			 op == ge or 
+			 op == ne or 
+			 op == eq) and arg_count == 2
+		) {
+			// do nothing
+
+		} else { // treat as a binary literal:
+
+			nat r = 0, s = 1;
+
+			for (nat i = 0; i < strlen(word); i++) {
+
+				if (word[i] == '0') s <<= 1;
+				else if (word[i] == '1') { r += s; s <<= 1; }
+				else if (word[i] == '_') continue;
+				else goto print_error;
+			}
+			is_immediate |= 1 << arg_count;
+			var = r;
+			goto push_argument;
+		}
+
+	define_name:
+		var = var_count;
+		values[var] = 0;
+		variables[var] = word; 
+		var_count++;
+
+	push_argument: 
+		args[arg_count++] = var;
+
+	process_op: 
+
+		if (arg_count < arity[op]) goto next_word;
+
+		else if (op == ud) is_undefined[last_used] = 1;
+		else if (op == ct) is_compiletime = 1;
 		else if (op == lf) {
 
 			for (nat i = 0; i < included_file_count; i++) {
@@ -618,38 +515,129 @@ process_file:;
 			}
 			included_files[included_file_count++] = word;
 
-			nat new_text_length = 0;
-			char* new_text = load_file(word, &new_text_length);
+			nat len = 0;
+			char* string = load_file(word, &len);
 
-			filestack[filestack_count - 1].index = pc;
-			filestack[filestack_count].filename = word;
-			filestack[filestack_count].text = new_text;
-			filestack[filestack_count].text_length = new_text_length;
-			filestack[filestack_count++].index = 0;
-			variable_count--; 
+			files[file_count - 1].index = pc;
+			files[file_count].filename = word;
+			files[file_count].text = string;
+			files[file_count].text_length = len;
+			files[file_count++].index = 0;
+
+			var_count--; 
+
 			goto process_file;
 
-		} else if (op < isa_count) {
-			if (not op) { puts(" error"); abort(); }
-			struct instruction new = { .op = op };
+
+
+		} else {
+
+			if (not op) { puts("null operation parsed???"); abort(); }
+
+			struct instruction new = { 
+				.op = op,
+				.ct = is_compiletime,
+				.imm = is_immediate,
+			};
+
+			is_compiletime = 0;
+			is_immediate = 0;
+
 			memcpy(new.args, args, sizeof args);
+
 			ins[ins_count++] = new;
-
-		} else { puts("internal error: parsing unknown operation"); abort(); }
-
+		}
 		arg_count = 0; op = 0;
-
 		next_word: word_length = 0;
 	}
-	if (comment) { puts("error: unterminated comment"); abort(); }
 	file_count--;
 	if (file_count) goto process_file; 
 
-	print_dictionary(variables, values, variable_count);
-	print_instructions(ins, ins_count);
+
+	print_dictionary(
+		variables, 
+		is_undefined, 
+		is_readonly, 
+		values, 
+		var_count
+	);
+
+	print_instructions(ins, ins_count, variables);
+
 	puts("done!");
+
+
 	exit(0);
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+// printf("0x%016llx", this.args[a]);
+// printf("%lld", this.args[a]);
+
+
+
+// bc, ri, set,   can define variables
+// ud 		  can undefine them
+/*
+		if (comment) {
+			if (word[strlen(word) - 1] == ')') { 
+				comment = 0; continue; 
+			}
+			continue;
+		}
+
+
+*/
+
+
+
+
 
 
 
