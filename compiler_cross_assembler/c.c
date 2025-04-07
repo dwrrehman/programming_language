@@ -1,18 +1,14 @@
 // 1202504045.155147 a compiler / assembler for a simpler version of the language.
 
 /* 
-	32 instructions:
+	26 instructions:
 
-	eoi halt ct ud do at
-	lf ro set add sub 
-	mul div rem and or 
-	eor si sd ri bc ld 
-	st lt ge ne eq sc
+	halt ct ud do at lf 
+	set add sub mul div rem 
+	and or eor si sd ri 
+	bc ld st lt ge ne eq sc
 
 */
-
-
-
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -45,7 +41,7 @@ enum all_output_formats { debug_output_only, macho_executable, elf_executable, t
 enum core_language_isa {
 	nullins,
 
-	eoi, halt, ct, ud, do_, at, lf, ro,
+	halt, ct, ud, do_, at, lf,
 	set, add, sub, mul, div_, rem, 
 	and_, or_, eor, si, sd, ri, bc,
 	ld, st, lt, ge, ne, eq,
@@ -68,7 +64,7 @@ enum core_language_isa {
 static const char* operations[isa_count] = {
 	"nullins",
 
-	"eoi", "halt", "ct", "ud", "do", "at", "lf", "ro",
+	"halt", "ct", "ud", "do", "at", "lf",
 	"set", "add", "sub", "mul", "div", "rem", 
 	"and", "or", "eor", "si", "sd", "ri", "bc",
 	"ld", "st", "lt", "ge", "ne", "eq",
@@ -88,7 +84,7 @@ static const char* operations[isa_count] = {
 static const nat arity[isa_count] = {
 	0,
 
-	0, 0, 0, 0, 1, 1, 1, 1,
+	0, 0, 0, 1, 1, 1,
 	2, 2, 2, 2, 2, 2, 
 	2, 2, 2, 2, 2, 2, 2, 
 	3, 3, 3, 3, 3, 3, 
@@ -136,7 +132,7 @@ static char* load_file(const char* filename, nat* text_length) {
 static void print_dictionary(
 	char** variables, 
 	nat* is_undefined,
-	nat* is_readonly,
+	nat* is_compiletime,
 	nat* values, 
 	nat var_count
 ) {
@@ -144,7 +140,7 @@ static void print_dictionary(
 	for (nat i = 0; i < var_count; i++) {
 		printf(" %c  %c [%llu]  \"%s\" = 0x%016llx\n", 
 			is_undefined[i] ? 'U' : ' ', 
-			is_readonly[i] ? 'R' : ' ', i + 1, 
+			is_compiletime[i] ? 'C' : ' ', i + 1, 
 			variables[i], values[i]
 		);
 	}
@@ -156,7 +152,7 @@ static void print_instruction(
 	char** variables
 ) {
 
-	printf("  %s  %10s { ", 
+	printf("  %s  %4s { ", 
 		this.ct ? "CT" : "  ", 
 		operations[this.op]
 	);
@@ -172,7 +168,6 @@ static void print_instruction(
 	printf("}");
 }
 
-
 static void print_instructions(
 	struct instruction* ins, 
 	nat ins_count,
@@ -186,7 +181,6 @@ static void print_instructions(
 	}
 	puts("}");
 }
-
 
 static void print_instruction_window_around(
 	nat this, 
@@ -241,6 +235,19 @@ static void print_index(const char* text, nat text_length, nat begin, nat end) {
 	puts("\n");
 }
 
+
+static void print_binary(nat x) {
+	if (not x) { puts("0"); return; }
+
+	for (nat i = 0; i < 64 and x; i++) {
+		if (not (i % 8) and i) putchar('.');
+		putchar((x & 1) + '0'); x >>= 1;
+	}
+	puts("");
+}
+
+
+
 /*
 
 
@@ -250,14 +257,6 @@ static void print_nats(nat* array, nat count) {
 		printf("%llu ", array[i]);
 	}
 	puts("}");
-}
-
-static void print_binary(nat x) {
-	for (nat i = 0; i < 64 and x; i++) {
-		if (not (i % 8) and i) putchar('.');
-		putchar((x & 1) + '0'); x >>= 1;
-	}
-	puts("");
 }
 
 static void insert_byte(
@@ -356,7 +355,7 @@ int main(int argc, const char** argv) {
 
 	char* variables[max_variable_count] = {0};
 	nat is_undefined[max_variable_count] = {0};
-	nat is_readonly[max_variable_count] = {0};
+	nat is_compiletime[max_variable_count] = {0};
 	nat values[max_variable_count] = {0};
 	nat var_count = 0;
 
@@ -388,7 +387,7 @@ process_file:;
 	nat 
 		word_length = 0, word_start = 0, 
 		arg_count = 0, last_used = 0, 
-		is_compiletime = 0, is_immediate = 0;
+		is_ct_ins = 0, is_immediate = 0;
 
 	nat args[16] = {0};
 
@@ -409,7 +408,7 @@ process_file:;
 
 		print_dictionary(
 			variables, is_undefined, 
-			is_readonly, values, 
+			is_compiletime, values, 
 			var_count
 		);
 
@@ -432,9 +431,6 @@ process_file:;
 				goto next_word; 
 			}
 
-
-			if (not strcmp(word, "eoi")) break;
-
 			for (op = 0; op < isa_count; op++) 
 				if (not strcmp(word, operations[op])) goto process_op;
 
@@ -444,7 +440,7 @@ process_file:;
 				filename, word_start, pc, 
 				op == isa_count ? "operation" : "variable", word
 			); 
-
+ 
 			print_index(text, text_length, word_start, pc);
 			if (op != isa_count) 
 				printf( "note: calling operation: "
@@ -463,6 +459,7 @@ process_file:;
 		} 
 
 		if (	op == set and arg_count == 0 or 
+			op == ld  and arg_count == 0 or 
 			op == ri  and arg_count == 0 or 
 			op == bc  and arg_count == 0 or 
 
@@ -472,15 +469,11 @@ process_file:;
 			 op == ge or 
 			 op == ne or 
 			 op == eq) and arg_count == 2
-		) {
-			// do nothing
+		) {} 
 
-		} else { // treat as a binary literal:
-
+		else {
 			nat r = 0, s = 1;
-
 			for (nat i = 0; i < strlen(word); i++) {
-
 				if (word[i] == '0') s <<= 1;
 				else if (word[i] == '1') { r += s; s <<= 1; }
 				else if (word[i] == '_') continue;
@@ -505,7 +498,7 @@ process_file:;
 		if (arg_count < arity[op]) goto next_word;
 
 		else if (op == ud) is_undefined[last_used] = 1;
-		else if (op == ct) is_compiletime = 1;
+		else if (op == ct) is_ct_ins = 1;
 		else if (op == lf) {
 
 			for (nat i = 0; i < included_file_count; i++) {
@@ -525,22 +518,21 @@ process_file:;
 			files[file_count++].index = 0;
 
 			var_count--; 
-
 			goto process_file;
-
-
 
 		} else {
 
+			if (is_ct_ins and op == halt) break;
+
 			if (not op) { puts("null operation parsed???"); abort(); }
 
-			struct instruction new = { 
+			struct instruction new = {
 				.op = op,
-				.ct = is_compiletime,
+				.ct = is_ct_ins,
 				.imm = is_immediate,
 			};
 
-			is_compiletime = 0;
+			is_ct_ins = 0;
 			is_immediate = 0;
 
 			memcpy(new.args, args, sizeof args);
@@ -553,20 +545,248 @@ process_file:;
 	file_count--;
 	if (file_count) goto process_file; 
 
+	for (nat i = 0; i < ins_count; i++) {
+		if (ins[i].op == at) {
+			values[ins[i].args[0]] = i;
+		}
+	}
 
 	print_dictionary(
 		variables, 
-		is_undefined, 
-		is_readonly, 
-		values, 
+		is_undefined,
+		is_compiletime, 
+		values,
 		var_count
 	);
 
 	print_instructions(ins, ins_count, variables);
 
+	struct instruction rt_ins[4096] = {0};
+	nat rt_count = 0;
+
+	nat register_constraint[4096] = {0};
+	nat bit_width[4096] = {0};
+
+
+	byte memory[65536] = {0};
+
+
+	nat pc = 0;
+	while (pc < ins_count) {
+
+		if (values[0]) {
+			print_instruction_window_around(
+				pc, ins, ins_count, variables
+			);
+			print_dictionary(variables, is_undefined, 
+				is_compiletime, values, var_count
+			);
+			getchar();
+		}
+
+
+		const nat op = ins[pc].op;
+		nat ct = ins[pc].ct;
+		const nat imm = ins[pc].imm;
+
+		const nat a0 = ins[pc].args[0];
+		const nat a1 = ins[pc].args[1];
+		const nat a2 = ins[pc].args[2];
+
+		const nat ct0 = (imm & 1) ? 1 : is_compiletime[a0];
+		const nat ct1 = (imm & 2) ? 1 : is_compiletime[a1];
+		const nat ct2 = (imm & 4) ? 1 : is_compiletime[a2];
+		
+		const nat val0 = (imm & 1) ? a0 : values[a0];
+		const nat val1 = (imm & 2) ? a1 : values[a1];
+		const nat val2 = (imm & 4) ? a2 : values[a2];
+
+		if (op == halt) {
+			rt_ins[rt_count++] = ins[pc];
+
+		} else if (op == at) {
+			values[a0] = pc;
+
+		} else if (op == do_) {
+			if (ct) { pc = values[a0]; continue; }
+			else rt_ins[rt_count++] = ins[pc];
+			
+		} else if (
+			op == lt or op == ge or
+			op == ne or op == eq
+		) {
+			if (ct0 and ct1) ct = 1;
+			if (ct) {
+				bool cond = 0;
+				if (op == lt)      cond = val0 < val1;
+				else if (op == ge) cond = val0 >= val1;
+				else if (op == eq) cond = val0 == val1;
+				else if (op == ne) cond = val0 != val1;
+				if (cond) { pc = values[a2]; continue; }
+
+			} else rt_ins[rt_count++] = ins[pc];
+			
+
+		} else if (
+			op == set or op == add or 
+			op == sub or op == mul or 
+			op == div_ or op == rem or
+			op == and_ or op == or_ or
+			op == eor or op == si or op == sd
+		) {
+			if (ct0 and ct1) ct = 1;
+			else if (ct0) goto ct_error;
+			if (ct) {
+				if (op == set) is_compiletime[a0] = 1;
+				const nat s = val1;
+
+				if (op == set)       values[a0] = s;
+				else if (op == add)  values[a0] += s;
+				else if (op == sub)  values[a0] -= s;
+				else if (op == mul)  values[a0] *= s;
+				else if (op == div_) values[a0] /= s;
+				else if (op == rem)  values[a0] %= s;
+				else if (op == and_) values[a0] &= s;
+				else if (op == or_)  values[a0] |= s;
+				else if (op == eor)  values[a0] ^= s;
+				else if (op == si)   values[a0] <<= s;
+				else if (op == sd)   values[a0] >>= s;
+				
+			} else rt_ins[rt_count++] = ins[pc];
+
+
+		} else if (op == ld) {
+			if (not ct2) goto ct_error;
+
+
+
+			values[a0] = 0;
+			for (nat i = 0; i < val2; i++)
+				values[a0] |= (nat) ((nat) memory[val1 + i] << (8LLU * i));
+
+
+
+			/*if (val2 == 1) {
+				values[a0] = 0;
+				values[a0] |= (nat) (memory[val1 + 0] << (8 * 0));
+
+			} else if (val2 == 2) {
+				values[a0] = 0;
+				values[a0] |= (nat) (memory[val1 + 0] << (8 * 0));
+				values[a0] |= (nat) (memory[val1 + 1] << (8 * 1));
+
+			} else if (val2 == 4) {
+				values[a0] = 0;
+				values[a0] |= (nat) (memory[val1 + 0] << (8 * 0));
+				values[a0] |= (nat) (memory[val1 + 1] << (8 * 1));
+				values[a0] |= (nat) (memory[val1 + 2] << (8 * 2));
+				values[a0] |= (nat) (memory[val1 + 3] << (8 * 3));
+
+			} else if (val2 == 8) {
+				values[a0] = 0;
+				values[a0] |= (nat) ((nat) memory[val1 + 0] << (8LLU * 0LLU));
+				values[a0] |= (nat) ((nat) memory[val1 + 1] << (8LLU * 1LLU));
+				values[a0] |= (nat) ((nat) memory[val1 + 2] << (8LLU * 2LLU));
+				values[a0] |= (nat) ((nat) memory[val1 + 3] << (8LLU * 3LLU));
+				values[a0] |= (nat) ((nat) memory[val1 + 4] << (8LLU * 4LLU));
+				values[a0] |= (nat) ((nat) memory[val1 + 5] << (8LLU * 5LLU));
+				values[a0] |= (nat) ((nat) memory[val1 + 6] << (8LLU * 6LLU));
+				values[a0] |= (nat) ((nat) memory[val1 + 7] << (8LLU * 7LLU));
+			}*/
+
+
+		} else if (op == st) {
+			if (not ct2) goto ct_error;
+
+			for (nat i = 0; i < val2; i++) 
+				memory[val0 + i] = (val1 >> (8 * i)) & 0xFF;
+
+
+
+			/*if (val2 == 1) {
+				memory[val0 + 0] = (val1 >> (8 * 0)) & 0xFF;
+
+			} else if (val2 == 2) {
+				memory[val0 + 0] = (val1 >> (8 * 0)) & 0xFF;
+				memory[val0 + 1] = (val1 >> (8 * 1)) & 0xFF;
+
+			} else if (val2 == 4) {
+				memory[val0 + 0] = (val1 >> (8 * 0)) & 0xFF;
+				memory[val0 + 1] = (val1 >> (8 * 1)) & 0xFF;
+				memory[val0 + 2] = (val1 >> (8 * 2)) & 0xFF;
+				memory[val0 + 3] = (val1 >> (8 * 3)) & 0xFF;
+
+			} else if (val2 == 8) {
+				memory[val0 + 0] = (val1 >> (8 * 0)) & 0xFF;
+				memory[val0 + 1] = (val1 >> (8 * 1)) & 0xFF;
+				memory[val0 + 2] = (val1 >> (8 * 2)) & 0xFF;
+				memory[val0 + 3] = (val1 >> (8 * 3)) & 0xFF;
+				memory[val0 + 4] = (val1 >> (8 * 4)) & 0xFF;
+				memory[val0 + 5] = (val1 >> (8 * 5)) & 0xFF;
+				memory[val0 + 6] = (val1 >> (8 * 6)) & 0xFF;
+				memory[val0 + 7] = (val1 >> (8 * 7)) & 0xFF;
+			}*/
+
+
+		} else if (op == ri) {
+			if (ct0) goto ct_error;
+			register_constraint[a0] = val0;
+
+		} else if (op == bc) {
+			if (ct0) goto ct_error;
+			bit_width[a0] = val0;
+
+		} else if (op == sc) {
+
+			if (ct) {
+				const nat n = val0;
+				const nat x0 = val1;
+
+				if (n == 0) { 
+					print_binary(x0); 
+					fflush(stdout); 
+					if (*values) getchar(); 
+
+				} else if (n == 1) { 
+					printf("[CTPAUSE]"); 
+					fflush(stdout); 
+					getchar(); 
+
+				} else if (n == 2) {
+					printf("debugging memory state\n");
+					for (nat i = 0; i < 1024; i++) {
+						if (i % 16 == 0) puts("");
+						if (memory[i]) printf("\033[32;1m");
+						printf(" %02hhx ", memory[i]);
+						if (memory[i]) printf("\033[0m");
+					} 
+					puts("[done]");	
+					fflush(stdout);
+					if (*values) getchar();
+				}
+				else goto ct_error;
+
+			} else rt_ins[rt_count++] = ins[pc];
+
+
+		} else goto ct_error;
+		pc++;	
+		continue;
+	ct_error: 
+		puts("error: unknown ct exec semantics"); 
+		abort();
+	}
+
+
+
+	print_dictionary(
+		variables, is_undefined,
+		is_compiletime, values, var_count
+	);
+
+	print_instructions(rt_ins, rt_count, variables);
+
 	puts("done!");
-
-
 	exit(0);
 }
 
@@ -579,6 +799,123 @@ process_file:;
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+/*
+
+		} else if (op == set) {
+
+			if (ct0 and ct1) ct = 1;                  // set ct ct    (ct set)
+			else if (ct0) goto ct_error;              // set ct RT    (invalid!)
+			else if (ct1) {}                     	  // set RT ct    (set_imm)
+			else {}					  // set RT RT    (rt set)
+
+			if (ct) values[a0] = values[a1];
+			else rt_ins[rt_count++] = ins[pc];
+
+
+*/
+
+
+
+
+
+
+
+
+
+
+
+/*
+
+		} else if (op == add) {
+
+			if (ct0 and ct1) ct = 1;                  // add ct ct    (ct add)
+			else if (ct0) goto ct_error;              // add ct RT    (invalid!)
+			else if (ct1) {}                     	  // add RT ct    (add_imm)
+			else {}					  // add RT RT    (rt add)
+
+			if (ct) values[a0] += values[a1];
+			else rt_ins[rt_count++] = ins[pc];
+
+
+*/
 
 
 

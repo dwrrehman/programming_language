@@ -147,8 +147,35 @@ ld st lt ge ne eq
 
 
 
+current isa:
 
 
+	eoi halt ct ud do at
+	lf ro set add sub 
+	mul div rem and or 
+	eor si sd ri bc ld 
+	st lt ge ne eq sc
+
+
+
+0 args: (4)
+	ct ud halt eoi
+
+1 arg: (8)
+	do at lf ro
+	
+2 args: (13)
+	set add sub mul div rem 
+	and or eor si sd
+	ri bc
+
+3 args: (6)
+
+	ld st 
+	lt ge ne eq
+
+7 args: (1)
+	sc
 
 
 
