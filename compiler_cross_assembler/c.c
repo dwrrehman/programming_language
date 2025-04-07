@@ -106,6 +106,7 @@ struct instruction {
 	nat ct;
 	nat imm;
 	nat args[16];
+	nat gotos[2];
 };
 
 struct file {
@@ -152,20 +153,26 @@ static void print_instruction(
 	char** variables
 ) {
 
-	printf("  %s  %4s { ", 
-		this.ct ? "CT" : "  ", 
+	printf(" %s %4s  ", 
+		this.ct ? "ct" : "  ", 
 		operations[this.op]
 	);
 
 	for (nat a = 0; a < arity[this.op]; a++) {
 		if (this.imm & (1 << a))
-			printf("#%llu", this.args[a]);
+			printf("%-9llu", this.args[a]);
 		else
-			printf("%s", variables[this.args[a]]);
+			printf("%-9s", variables[this.args[a]]);
+		printf(" ");
+	}
+	
+	for (nat a = arity[this.op]; a < 7; a++) {
+		if (this.imm & (1 << a)) printf("         ");
+		else printf("         ");
 		printf(" ");
 	}
 
-	printf("}");
+	printf("[.0 = %4lld, .1 = %4lld]", this.gotos[0], this.gotos[1]);
 }
 
 static void print_instructions(
@@ -186,25 +193,21 @@ static void print_instruction_window_around(
 	nat this, 
 	struct instruction* ins, 
 	nat ins_count, 
-	char** variables
+	char** variables,
+	nat* visited
 ) {
-
 	printf("\033[H\033[2J");
-	const int64_t window_width = 8;
+	const int64_t window_width = 12;
 	const int64_t pc = (int64_t) this;
-
 	for (int64_t i = -window_width; i < window_width; i++) {
-
+		if (not i) printf("\033[48;5;238m");
 		const int64_t here = pc + i;
-
 		if (	here < 0 or 
 			here >= (int64_t) ins_count
-		) { puts(""); continue; }
-
-		printf(" %5llu |    ", here);
+		) { puts("\033[0m"); continue; }
+		printf("  %s%4llu │ ", visited[here] and i ? "\033[32;1m•\033[0m" : " ", here);
 		print_instruction(ins[here], variables);
-
-		if (not i) puts("   <------ pc"); else puts("");
+		puts("\033[0m");
 	}
 }
 
@@ -235,7 +238,6 @@ static void print_index(const char* text, nat text_length, nat begin, nat end) {
 	puts("\n");
 }
 
-
 static void print_binary(nat x) {
 	if (not x) { puts("0"); return; }
 
@@ -246,11 +248,6 @@ static void print_binary(nat x) {
 	puts("");
 }
 
-
-
-/*
-
-
 static void print_nats(nat* array, nat count) {
 	printf("(%llu) { ", count);
 	for (nat i = 0; i < count; i++) {
@@ -258,6 +255,10 @@ static void print_nats(nat* array, nat count) {
 	}
 	puts("}");
 }
+
+
+
+/*
 
 static void insert_byte(
 	uint8_t** output_data, 
@@ -332,12 +333,6 @@ static nat calculate_offset(nat* length, nat here, nat target) {
 }
 
 */
-
-
-
-
-
-
 
 
 int main(int argc, const char** argv) {
@@ -546,8 +541,20 @@ process_file:;
 	if (file_count) goto process_file; 
 
 	for (nat i = 0; i < ins_count; i++) {
-		if (ins[i].op == at) {
-			values[ins[i].args[0]] = i;
+		if (ins[i].op == at) values[ins[i].args[0]] = i;		
+	}
+
+	for (nat i = 0; i < ins_count; i++) {
+		const nat op = ins[i].op;		
+		if (op == lt or op == ge or op == ne or op == eq) {
+			ins[i].gotos[0] = i + 1;
+			ins[i].gotos[1] = values[ins[i].args[2]];
+		} else if (op == do_) {
+			ins[i].gotos[0] = values[ins[i].args[0]];
+			ins[i].gotos[1] = (nat) -1;
+		} else {
+			ins[i].gotos[0] = i + 1;
+			ins[i].gotos[1] = (nat) -1;
 		}
 	}
 
@@ -561,22 +568,23 @@ process_file:;
 
 	print_instructions(ins, ins_count, variables);
 
-	struct instruction rt_ins[4096] = {0};
-	nat rt_count = 0;
-
 	nat register_constraint[4096] = {0};
 	nat bit_width[4096] = {0};
-
-
 	byte memory[65536] = {0};
+	nat stack[4096] = {0};
+	nat stack_count = 1;
 
+	nat visited[4096] = {0};
 
-	nat pc = 0;
-	while (pc < ins_count) {
+	while (stack_count) {
 
-		if (values[0]) {
+		const nat pc = stack[--stack_count];
+
+		visited[pc] = 1;
+
+		if (values[0] or true) {
 			print_instruction_window_around(
-				pc, ins, ins_count, variables
+				pc, ins, ins_count, variables, visited
 			);
 			print_dictionary(variables, is_undefined, 
 				is_compiletime, values, var_count
@@ -584,10 +592,49 @@ process_file:;
 			getchar();
 		}
 
+		const nat op = ins[pc].op;
+		const nat gt0 = ins[pc].gotos[0];
+		const nat gt1 = ins[pc].gotos[1];
+		
+		if (op == lt or op == ge or op == ne or op == eq) {
+			if (not visited[gt0]) stack[stack_count++] = gt0;
+			if (not visited[gt1]) stack[stack_count++] = gt1;
+		} else {			
+			if (not visited[gt0]) stack[stack_count++] = gt0;
+		}
+	}
+
+	print_dictionary(
+		variables, is_undefined,
+		is_compiletime, values, var_count
+	);
+
+	print_instructions(ins, ins_count, variables);
+	print_nats(visited, ins_count);
+
+	exit(1);
+
+/*	while (stack_count) {
+
+		//const nat pc = stack[--stack_count];
+		nat pc =0 ;
+
+		if (values[0]) {
+			print_instruction_window_around(
+				pc, ins, ins_count, variables, visited
+			);
+			print_dictionary(variables, is_undefined, 
+				is_compiletime, values, var_count
+			);
+			getchar();
+		}
 
 		const nat op = ins[pc].op;
 		nat ct = ins[pc].ct;
 		const nat imm = ins[pc].imm;
+
+		const nat gt0 = ins[pc].gotos[0];
+		const nat gt1 = ins[pc].gotos[1];
 
 		const nat a0 = ins[pc].args[0];
 		const nat a1 = ins[pc].args[1];
@@ -602,14 +649,12 @@ process_file:;
 		const nat val2 = (imm & 4) ? a2 : values[a2];
 
 		if (op == halt) {
-			rt_ins[rt_count++] = ins[pc];
 
 		} else if (op == at) {
 			values[a0] = pc;
 
 		} else if (op == do_) {
 			if (ct) { pc = values[a0]; continue; }
-			else rt_ins[rt_count++] = ins[pc];
 			
 		} else if (
 			op == lt or op == ge or
@@ -624,7 +669,7 @@ process_file:;
 				else if (op == ne) cond = val0 != val1;
 				if (cond) { pc = values[a2]; continue; }
 
-			} else rt_ins[rt_count++] = ins[pc];
+			}
 			
 
 		} else if (
@@ -650,83 +695,19 @@ process_file:;
 				else if (op == or_)  values[a0] |= s;
 				else if (op == eor)  values[a0] ^= s;
 				else if (op == si)   values[a0] <<= s;
-				else if (op == sd)   values[a0] >>= s;
-				
-			} else rt_ins[rt_count++] = ins[pc];
-
+				else if (op == sd)   values[a0] >>= s;				
+			}
 
 		} else if (op == ld) {
 			if (not ct2) goto ct_error;
-
-
-
 			values[a0] = 0;
 			for (nat i = 0; i < val2; i++)
 				values[a0] |= (nat) ((nat) memory[val1 + i] << (8LLU * i));
 
-
-
-			/*if (val2 == 1) {
-				values[a0] = 0;
-				values[a0] |= (nat) (memory[val1 + 0] << (8 * 0));
-
-			} else if (val2 == 2) {
-				values[a0] = 0;
-				values[a0] |= (nat) (memory[val1 + 0] << (8 * 0));
-				values[a0] |= (nat) (memory[val1 + 1] << (8 * 1));
-
-			} else if (val2 == 4) {
-				values[a0] = 0;
-				values[a0] |= (nat) (memory[val1 + 0] << (8 * 0));
-				values[a0] |= (nat) (memory[val1 + 1] << (8 * 1));
-				values[a0] |= (nat) (memory[val1 + 2] << (8 * 2));
-				values[a0] |= (nat) (memory[val1 + 3] << (8 * 3));
-
-			} else if (val2 == 8) {
-				values[a0] = 0;
-				values[a0] |= (nat) ((nat) memory[val1 + 0] << (8LLU * 0LLU));
-				values[a0] |= (nat) ((nat) memory[val1 + 1] << (8LLU * 1LLU));
-				values[a0] |= (nat) ((nat) memory[val1 + 2] << (8LLU * 2LLU));
-				values[a0] |= (nat) ((nat) memory[val1 + 3] << (8LLU * 3LLU));
-				values[a0] |= (nat) ((nat) memory[val1 + 4] << (8LLU * 4LLU));
-				values[a0] |= (nat) ((nat) memory[val1 + 5] << (8LLU * 5LLU));
-				values[a0] |= (nat) ((nat) memory[val1 + 6] << (8LLU * 6LLU));
-				values[a0] |= (nat) ((nat) memory[val1 + 7] << (8LLU * 7LLU));
-			}*/
-
-
 		} else if (op == st) {
 			if (not ct2) goto ct_error;
-
 			for (nat i = 0; i < val2; i++) 
 				memory[val0 + i] = (val1 >> (8 * i)) & 0xFF;
-
-
-
-			/*if (val2 == 1) {
-				memory[val0 + 0] = (val1 >> (8 * 0)) & 0xFF;
-
-			} else if (val2 == 2) {
-				memory[val0 + 0] = (val1 >> (8 * 0)) & 0xFF;
-				memory[val0 + 1] = (val1 >> (8 * 1)) & 0xFF;
-
-			} else if (val2 == 4) {
-				memory[val0 + 0] = (val1 >> (8 * 0)) & 0xFF;
-				memory[val0 + 1] = (val1 >> (8 * 1)) & 0xFF;
-				memory[val0 + 2] = (val1 >> (8 * 2)) & 0xFF;
-				memory[val0 + 3] = (val1 >> (8 * 3)) & 0xFF;
-
-			} else if (val2 == 8) {
-				memory[val0 + 0] = (val1 >> (8 * 0)) & 0xFF;
-				memory[val0 + 1] = (val1 >> (8 * 1)) & 0xFF;
-				memory[val0 + 2] = (val1 >> (8 * 2)) & 0xFF;
-				memory[val0 + 3] = (val1 >> (8 * 3)) & 0xFF;
-				memory[val0 + 4] = (val1 >> (8 * 4)) & 0xFF;
-				memory[val0 + 5] = (val1 >> (8 * 5)) & 0xFF;
-				memory[val0 + 6] = (val1 >> (8 * 6)) & 0xFF;
-				memory[val0 + 7] = (val1 >> (8 * 7)) & 0xFF;
-			}*/
-
 
 		} else if (op == ri) {
 			if (ct0) goto ct_error;
@@ -763,28 +744,46 @@ process_file:;
 					puts("[done]");	
 					fflush(stdout);
 					if (*values) getchar();
-				}
-				else goto ct_error;
 
-			} else rt_ins[rt_count++] = ins[pc];
-
-
+				} else goto ct_error;
+			}
 		} else goto ct_error;
+
+		
+
+
 		pc++;	
 		continue;
-	ct_error: 
-		puts("error: unknown ct exec semantics"); 
+
+		ct_error: puts("error: unknown ct exec semantics"); 
 		abort();
 	}
-
-
 
 	print_dictionary(
 		variables, is_undefined,
 		is_compiletime, values, var_count
 	);
 
-	print_instructions(rt_ins, rt_count, variables);
+	print_instructions(ins, ins_count, variables);
+
+	// here, we need to form the control flow graph over these rt instructions, and do data flow analysis.  
+
+
+
+
+
+	// then we can do instruction selection. 
+
+	// then register allocation, 
+
+
+
+	// ...		and then special case stuff like  bit widths, register constraints, strings, and other stuff like that lol.
+
+
+
+*/
+
 
 	puts("done!");
 	exit(0);
@@ -972,6 +971,70 @@ process_file:;
 
 */
 
+
+
+
+
+
+
+
+
+
+
+
+
+			/*if (val2 == 1) {
+				values[a0] = 0;
+				values[a0] |= (nat) (memory[val1 + 0] << (8 * 0));
+
+			} else if (val2 == 2) {
+				values[a0] = 0;
+				values[a0] |= (nat) (memory[val1 + 0] << (8 * 0));
+				values[a0] |= (nat) (memory[val1 + 1] << (8 * 1));
+
+			} else if (val2 == 4) {
+				values[a0] = 0;
+				values[a0] |= (nat) (memory[val1 + 0] << (8 * 0));
+				values[a0] |= (nat) (memory[val1 + 1] << (8 * 1));
+				values[a0] |= (nat) (memory[val1 + 2] << (8 * 2));
+				values[a0] |= (nat) (memory[val1 + 3] << (8 * 3));
+
+			} else if (val2 == 8) {
+				values[a0] = 0;
+				values[a0] |= (nat) ((nat) memory[val1 + 0] << (8LLU * 0LLU));
+				values[a0] |= (nat) ((nat) memory[val1 + 1] << (8LLU * 1LLU));
+				values[a0] |= (nat) ((nat) memory[val1 + 2] << (8LLU * 2LLU));
+				values[a0] |= (nat) ((nat) memory[val1 + 3] << (8LLU * 3LLU));
+				values[a0] |= (nat) ((nat) memory[val1 + 4] << (8LLU * 4LLU));
+				values[a0] |= (nat) ((nat) memory[val1 + 5] << (8LLU * 5LLU));
+				values[a0] |= (nat) ((nat) memory[val1 + 6] << (8LLU * 6LLU));
+				values[a0] |= (nat) ((nat) memory[val1 + 7] << (8LLU * 7LLU));
+			}*/
+
+
+			/*if (val2 == 1) {
+				memory[val0 + 0] = (val1 >> (8 * 0)) & 0xFF;
+
+			} else if (val2 == 2) {
+				memory[val0 + 0] = (val1 >> (8 * 0)) & 0xFF;
+				memory[val0 + 1] = (val1 >> (8 * 1)) & 0xFF;
+
+			} else if (val2 == 4) {
+				memory[val0 + 0] = (val1 >> (8 * 0)) & 0xFF;
+				memory[val0 + 1] = (val1 >> (8 * 1)) & 0xFF;
+				memory[val0 + 2] = (val1 >> (8 * 2)) & 0xFF;
+				memory[val0 + 3] = (val1 >> (8 * 3)) & 0xFF;
+
+			} else if (val2 == 8) {
+				memory[val0 + 0] = (val1 >> (8 * 0)) & 0xFF;
+				memory[val0 + 1] = (val1 >> (8 * 1)) & 0xFF;
+				memory[val0 + 2] = (val1 >> (8 * 2)) & 0xFF;
+				memory[val0 + 3] = (val1 >> (8 * 3)) & 0xFF;
+				memory[val0 + 4] = (val1 >> (8 * 4)) & 0xFF;
+				memory[val0 + 5] = (val1 >> (8 * 5)) & 0xFF;
+				memory[val0 + 6] = (val1 >> (8 * 6)) & 0xFF;
+				memory[val0 + 7] = (val1 >> (8 * 7)) & 0xFF;
+			}*/
 
 
 
