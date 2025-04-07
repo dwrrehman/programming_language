@@ -25,6 +25,12 @@ add x 1
 
 sc 0 x   0 0 0 0 0 
 
+a6_nop
+a6_nop
+a6_nop
+a6_nop
+a6_nop
+
 halt
 
 

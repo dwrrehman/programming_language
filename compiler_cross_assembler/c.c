@@ -119,7 +119,9 @@ struct file {
 static char* load_file(const char* filename, nat* text_length) {
 	int file = open(filename, O_RDONLY);
 	if (file < 0) { 
-		printf("error: could not open '%s': %s\n", filename, strerror(errno)); 
+		printf("compiler: \033[31;1merror:\033[0m could not open '%s': %s\n", 
+			filename, strerror(errno)
+		); 
 		exit(1);
 	}
 	*text_length = (nat) lseek(file, 0, SEEK_END);
@@ -153,14 +155,14 @@ static void print_instruction(
 	char** variables
 ) {
 
-	printf(" %s %4s  ", 
+	printf(" %s %8s  ", 
 		this.ct ? "ct" : "  ", 
 		operations[this.op]
 	);
 
 	for (nat a = 0; a < arity[this.op]; a++) {
 		if (this.imm & (1 << a))
-			printf("%-9llu", this.args[a]);
+			printf("#%-8llu", this.args[a]);
 		else
 			printf("%-9s", variables[this.args[a]]);
 		printf(" ");
@@ -172,7 +174,7 @@ static void print_instruction(
 		printf(" ");
 	}
 
-	printf("[.0 = %4lld, .1 = %4lld]", this.gotos[0], this.gotos[1]);
+	printf("[.0 = %-4lld .1 = %-4lld]", this.gotos[0], this.gotos[1]);
 }
 
 static void print_instructions(
@@ -182,7 +184,7 @@ static void print_instructions(
 ) {
 	printf("instructions: (%llu count) {\n", ins_count);
 	for (nat i = 0; i < ins_count; i++) {
-		printf("\t#%04llu: ", i);
+		printf("\t%4llu: ", i);
 		print_instruction(ins[i], variables);
 		puts("");
 	}
@@ -205,7 +207,12 @@ static void print_instruction_window_around(
 		if (	here < 0 or 
 			here >= (int64_t) ins_count
 		) { puts("\033[0m"); continue; }
-		printf("  %s%4llu │ ", visited[here] and i ? "\033[32;1m•\033[0m" : " ", here);
+		printf("  %s%4llu │ ", 
+			visited[here] and i 
+				? "\033[32;1m•\033[0m" 
+				: " ", 
+			here
+		);
 		print_instruction(ins[here], variables);
 		puts("\033[0m");
 	}
@@ -292,7 +299,6 @@ static void insert_u64(uint8_t** d, nat* c, uint64_t x) {
 	insert_u32(d, c, (x >> 32) & 0xFFFFFFFF);
 }
 
-
 #define MH_MAGIC_64             0xfeedfacf
 #define MH_EXECUTE              2
 #define	MH_NOUNDEFS		1
@@ -334,12 +340,10 @@ static nat calculate_offset(nat* length, nat here, nat target) {
 
 */
 
-
 int main(int argc, const char** argv) {
 
 	if (argc != 2) 
 		exit(puts("compiler: \033[31;1merror:\033[0m usage: ./run [file.s]"));
-
 
 	const nat min_stack_size = 16384 + 1;
 	nat stack_size = min_stack_size;
@@ -373,17 +377,14 @@ int main(int argc, const char** argv) {
 	}
 
 process_file:;
-
 	const nat starting_index = files[file_count - 1].index;
 	const nat text_length = files[file_count - 1].text_length;
 	char* text = files[file_count - 1].text;
 	const char* filename = files[file_count - 1].filename;
 
-	nat 
-		word_length = 0, word_start = 0, 
+	nat 	word_length = 0, word_start = 0, 
 		arg_count = 0, last_used = 0, 
 		is_ct_ins = 0, is_immediate = 0;
-
 	nat args[16] = {0};
 
 	for (nat var = 0, op = 0, pc = starting_index; pc < text_length; pc++) {
@@ -453,7 +454,8 @@ process_file:;
 			}
 		} 
 
-		if (	op == set and arg_count == 0 or 
+		if (not(
+			op == set and arg_count == 0 or 
 			op == ld  and arg_count == 0 or 
 			op == ri  and arg_count == 0 or 
 			op == bc  and arg_count == 0 or 
@@ -464,9 +466,7 @@ process_file:;
 			 op == ge or 
 			 op == ne or 
 			 op == eq) and arg_count == 2
-		) {} 
-
-		else {
+		)) {
 			nat r = 0, s = 1;
 			for (nat i = 0; i < strlen(word); i++) {
 				if (word[i] == '0') s <<= 1;
@@ -565,7 +565,6 @@ process_file:;
 		values,
 		var_count
 	);
-
 	print_instructions(ins, ins_count, variables);
 
 	nat register_constraint[4096] = {0};
@@ -611,8 +610,65 @@ process_file:;
 
 	print_instructions(ins, ins_count, variables);
 	print_nats(visited, ins_count);
+	puts("done!");
 
-	exit(1);
+	exit(0);
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 /*	while (stack_count) {
 
@@ -783,36 +839,6 @@ process_file:;
 
 
 */
-
-
-	puts("done!");
-	exit(0);
-}
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 
