@@ -3,10 +3,10 @@
 /* 
 	26 instructions:
 
-	halt ct ud do at lf 
-	set add sub mul div rem 
-	and or eor si sd ri 
-	bc ld st lt ge ne eq sc
+6	halt ct ud do at lf
+6	set add sub mul div rem
+7	and or eor si sd ri bc
+7	ld st lt ge ne eq sc
 
 */
 
@@ -156,7 +156,7 @@ static void print_instruction(
 ) {
 
 	printf(" %s %8s  ", 
-		this.ct ? "ct" : "  ", 
+		this.ct ? "\033[38;5;101mct" : "  ", 
 		operations[this.op]
 	);
 
@@ -174,7 +174,10 @@ static void print_instruction(
 		printf(" ");
 	}
 
-	printf("[.0 = %-4lld .1 = %-4lld]", this.gotos[0], this.gotos[1]);
+	if (this.gotos[0] != (nat) -1) printf(" .0 = %-4lld", this.gotos[0]); else printf("          ");
+	if (this.gotos[1] != (nat) -1) printf(" .1 = %-4lld", this.gotos[1]); else printf("          ");
+
+	if (this.ct) printf("\033[0m");
 }
 
 static void print_instructions(
@@ -262,7 +265,6 @@ static void print_nats(nat* array, nat count) {
 	}
 	puts("}");
 }
-
 
 
 /*
@@ -361,8 +363,8 @@ int main(int argc, const char** argv) {
 	const char* included_files[4096] = {0};
 	nat included_file_count = 0;
 
-	char* string_list[4096] = {0};
-	nat string_list_count = 0;
+	//char* string_list[4096] = {0};
+	//nat string_list_count = 0;
 
 	struct file files[4096] = {0};
 	nat file_count = 1;
@@ -489,9 +491,7 @@ process_file:;
 		args[arg_count++] = var;
 
 	process_op: 
-
 		if (arg_count < arity[op]) goto next_word;
-
 		else if (op == ud) is_undefined[last_used] = 1;
 		else if (op == ct) is_ct_ins = 1;
 		else if (op == lf) {
@@ -516,22 +516,16 @@ process_file:;
 			goto process_file;
 
 		} else {
-
 			if (is_ct_ins and op == halt) break;
-
 			if (not op) { puts("null operation parsed???"); abort(); }
-
 			struct instruction new = {
 				.op = op,
 				.ct = is_ct_ins,
 				.imm = is_immediate,
 			};
-
 			is_ct_ins = 0;
 			is_immediate = 0;
-
 			memcpy(new.args, args, sizeof args);
-
 			ins[ins_count++] = new;
 		}
 		arg_count = 0; op = 0;
@@ -541,7 +535,11 @@ process_file:;
 	if (file_count) goto process_file; 
 
 	for (nat i = 0; i < ins_count; i++) {
-		if (ins[i].op == at) values[ins[i].args[0]] = i;		
+		if (ins[i].op == at) { 
+			values[ins[i].args[0]] = i;
+			is_compiletime[ins[i].args[0]] = 1;
+			ins[i].ct = 1;
+		}
 	}
 
 	for (nat i = 0; i < ins_count; i++) {
@@ -558,6 +556,7 @@ process_file:;
 		}
 	}
 
+
 	print_dictionary(
 		variables, 
 		is_undefined,
@@ -566,41 +565,181 @@ process_file:;
 		var_count
 	);
 	print_instructions(ins, ins_count, variables);
+	getchar();
 
 	nat register_constraint[4096] = {0};
 	nat bit_width[4096] = {0};
 	byte memory[65536] = {0};
 	nat stack[4096] = {0};
 	nat stack_count = 1;
-
 	nat visited[4096] = {0};
 
+
 	while (stack_count) {
+		nat pc = stack[--stack_count];
 
-		const nat pc = stack[--stack_count];
-
+	execute_ins:
+		if (pc >= ins_count and not stack_count) break;
 		visited[pc] = 1;
 
-		if (values[0] or true) {
+		if (*values) {
 			print_instruction_window_around(
 				pc, ins, ins_count, variables, visited
 			);
 			print_dictionary(variables, is_undefined, 
 				is_compiletime, values, var_count
 			);
+
+			printf("stack: "); print_nats(stack, stack_count);
+			printf("[PC = %llu]\n", pc);
 			getchar();
 		}
 
 		const nat op = ins[pc].op;
+		nat ct = ins[pc].ct;
+		const nat imm = ins[pc].imm;
 		const nat gt0 = ins[pc].gotos[0];
 		const nat gt1 = ins[pc].gotos[1];
+		const nat a0 = ins[pc].args[0];
+		const nat a1 = ins[pc].args[1];
+		const nat a2 = ins[pc].args[2];
+
+		const nat ct0 = (imm & 1) ? 1 : is_compiletime[a0];
+		const nat ct1 = (imm & 2) ? 1 : is_compiletime[a1];
+		const nat ct2 = (imm & 4) ? 1 : is_compiletime[a2];		
+		const nat val0 = (imm & 1) ? a0 : values[a0];
+		const nat val1 = (imm & 2) ? a1 : values[a1];
+		const nat val2 = (imm & 4) ? a2 : values[a2];
+
+		if (op == halt) {}
+
+		else if (op == at) { values[a0] = pc; pc++; goto execute_ins; } 
+		else if (op == do_) { if (ct) { pc = values[a0]; goto execute_ins; } }
+
+		else if (
+			op == lt or op == ge or
+			op == ne or op == eq
+		) {
+			if (ct0 and ct1) ct = 1;
+			if (ct) {
+				ins[pc].ct = 1; 
+				bool cond = 0;
+				if (op == lt)      cond = val0 < val1;
+				else if (op == ge) cond = val0 >= val1;
+				else if (op == eq) cond = val0 == val1;
+				else if (op == ne) cond = val0 != val1;
+				if (cond) pc = values[a2]; else pc++;				
+				goto execute_ins;
+			}
+
+		} else if (
+			op == set or op == add or 
+			op == sub or op == mul or 
+			op == div_ or op == rem or
+			op == and_ or op == or_ or
+			op == eor or op == si or op == sd
+		) {
+
+			if (ct0 and ct1) ct = 1;
+			else if (ct0) goto ct_error;
+			if (ct) {
+				ins[pc].ct = 1;
+				if (op == set) is_compiletime[a0] = 1;
+				const nat s = val1;
+				if (op == set)       values[a0] = s;
+				else if (op == add)  values[a0] += s;
+				else if (op == sub)  values[a0] -= s;
+				else if (op == mul)  values[a0] *= s;
+				else if (op == div_) values[a0] /= s;
+				else if (op == rem)  values[a0] %= s;
+				else if (op == and_) values[a0] &= s;
+				else if (op == or_)  values[a0] |= s;
+				else if (op == eor)  values[a0] ^= s;
+				else if (op == si)   values[a0] <<= s;
+				else if (op == sd)   values[a0] >>= s;
+				pc++; goto execute_ins;
+			}
+
+		} else if (op == ld) {
+			if (not ct2) goto ct_error;
+			if (ct) {
+				values[a0] = 0;
+				for (nat i = 0; i < val2; i++) values[a0] |= (nat) ((nat) memory[val1 + i] << (8LLU * i));
+				pc++; goto execute_ins;
+			}
+
+		} else if (op == st) {
+			if (not ct2) goto ct_error;
+			if (ct) {
+				for (nat i = 0; i < val2; i++) memory[val0 + i] = (val1 >> (8 * i)) & 0xFF;
+				pc++; goto execute_ins;
+			}
+
+
+		} else if (op == ri) {
+			if (ct0) goto ct_error;
+			ins[pc].ct = 1; 
+			register_constraint[a0] = val0;
+			pc++; goto execute_ins;
+
+		} else if (op == bc) {
+			if (ct0) goto ct_error;
+			ins[pc].ct = 1; 
+			bit_width[a0] = val0;
+			pc++; goto execute_ins;
+
+		} else if (op == sc) {			
+			if (ct) {
+				const nat n = val0;
+				const nat x0 = val1;
+
+				if (n == 0) { 
+					print_binary(x0); 
+					fflush(stdout); 
+					if (*values) getchar(); 
+
+				} else if (n == 1) { 
+					printf("[CTPAUSE]"); 
+					fflush(stdout); 
+					getchar(); 
+
+				} else if (n == 2) {
+					printf("debugging memory state\n");
+					for (nat i = 0; i < 1024; i++) {
+						if (i % 16 == 0) puts("");
+						if (memory[i]) printf("\033[32;1m");
+						printf(" %02hhx ", memory[i]);
+						if (memory[i]) printf("\033[0m");
+					} 
+					puts("[done]");	
+					fflush(stdout);
+					if (*values) getchar();
+
+				} else goto ct_error;
+
+				pc++; goto execute_ins;
+			}
+
+		} else if (op >= a6_nop and op <= m4_br) {
+
+			printf("found an RT intrisic!\n");
 		
+		} else {
+			printf("ERROR: unknown instsruction executing/analyzing...\n");
+			abort();
+		}
+
 		if (op == lt or op == ge or op == ne or op == eq) {
 			if (not visited[gt0]) stack[stack_count++] = gt0;
 			if (not visited[gt1]) stack[stack_count++] = gt1;
-		} else {			
+		} else if (op != halt) {
 			if (not visited[gt0]) stack[stack_count++] = gt0;
 		}
+		continue;
+
+	ct_error: 
+		puts("error: unknown ct exec semantics"); 
+		abort();
 	}
 
 	print_dictionary(
@@ -608,9 +747,20 @@ process_file:;
 		is_compiletime, values, var_count
 	);
 
+
+
+
 	print_instructions(ins, ins_count, variables);
 	print_nats(visited, ins_count);
 	puts("done!");
+
+
+
+
+
+
+
+
 
 	exit(0);
 }
@@ -633,12 +783,18 @@ process_file:;
 
 
 
+/*
+
+else if (
+			op == set or op == add or 
+			op == sub or op == mul or 
+			op == div_ or op == rem or
+			op == and_ or op == or_ or
+			op == eor or op == si or op == sd
+		) 
 
 
-
-
-
-
+*/
 
 
 

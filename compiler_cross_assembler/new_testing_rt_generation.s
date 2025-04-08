@@ -11,7 +11,6 @@ ct set limit 0001
 set count 00000001
 
 at loop
-	halt
 	add i 1
 	lt i limit loop
 
@@ -21,6 +20,8 @@ add x y
 set y 0
 set x 0
 
+
+halt
 
 
 set i 0
@@ -33,7 +34,8 @@ at ct_loop
 
 	add i 1 lt i 101 ct_loop
 
-halt
+
+ct halt
 
 
 

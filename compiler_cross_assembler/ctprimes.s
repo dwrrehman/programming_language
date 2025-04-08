@@ -6,7 +6,7 @@ written by dwrr on 1202504067.015642
 ct set debug 0
 
 ct set count 0
-ct set n 0000101    (this is a compile-time set)
+ct set n 0101    (this is a compile-time set)
 ct set i 0 
 
 at loop
@@ -35,14 +35,8 @@ sd finaldata 1
 ct sc 0 finaldata   0 0 0 0 0 
 halt
 
-
-st 101 1111000101100110 01
-
-ld my_value 101 01
-
+ct st 101 1111000101100110 01
+ct ld my_value 101 01
 ct sc 01  0 0 0 0 0 0 
-
-
 set debug 0
-
 ct halt
