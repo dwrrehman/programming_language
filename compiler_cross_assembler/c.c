@@ -1,12 +1,60 @@
 // 1202504045.155147 a compiler / assembler for a simpler version of the language.
 
 /* 
-	26 instructions:
+	25 instructions:
 
-6	halt ct ud do at lf
-6	set add sub mul div rem
-7	and or eor si sd ri bc
-7	ld st lt ge ne eq sc
+	halt do   at   lf   set 
+	add  sub  mul  div  rem 
+	and  or   eor  si   sd 
+	ri   bc   ld   st   lt 
+	ge   ne   eq   la   sc
+
+
+
+notes:
+
+
+	1. we are still midding "udf" functionality. 
+
+
+	2. bc <varname> 0 is used to define a ct variable.                 <------- DELETE THISSSS
+			....although, usually this can be deduced i think?... 
+
+				via constant propagation. basically. yeah. and TRUE ct analysis. 
+
+
+		this ct attribution method should only be required when we are dealing with loops / control flow, 
+
+				and we want to force  the compiler to execute something rt at compiletime anyways lol. 
+
+	
+	3. "do label" is always runtime. 
+
+		(the user never writes this like this, if they wanted a ct label instead lol.)
+
+			...if you want a CT unconditional branch, use "eq 0 0 label" instead. 
+
+
+
+	4. ri, bc, set, ld, at, la, do, lt, eq, ge, ne   all can define-on-use some of their arguments. 
+
+				la(1) at(0) do(0) lt(2) ge(2) ne(2) eq(2)    are all related to labels. so these stay. 
+
+				set(0) ld(0) la(0)    these are about defining a value, via an assignment. so these stay. 
+
+
+
+		butttt	i'm debating on removing       ri   and bc   from that list though lol... 
+
+									technically not neccessary to be here... hmmm
+
+
+
+	5. 
+
+
+				
+
 
 */
 
@@ -41,13 +89,13 @@ enum all_output_formats { debug_output_only, macho_executable, elf_executable, t
 enum core_language_isa {
 	nullins,
 
-	halt, ct, ud, do_, at, lf,
+	halt, 
+	do_, at, lf,
 	set, add, sub, mul, div_, rem, 
 	and_, or_, eor, si, sd, ri, bc,
-	ld, st, lt, ge, ne, eq,
+	ld, st, lt, ge, ne, eq, la, 
 	sc,
 	
-
 	a6_nop, a6_svc, a6_mov, a6_bfm,
 	a6_adc, a6_addx, a6_addi, a6_addr, a6_adr, 
 	a6_shv, a6_clz, a6_rev, a6_jmp, a6_bc, a6_br, 
@@ -64,10 +112,11 @@ enum core_language_isa {
 static const char* operations[isa_count] = {
 	"nullins",
 
-	"halt", "ct", "ud", "do", "at", "lf",
+	"halt", 
+	"do", "at", "lf",
 	"set", "add", "sub", "mul", "div", "rem", 
 	"and", "or", "eor", "si", "sd", "ri", "bc",
-	"ld", "st", "lt", "ge", "ne", "eq",
+	"ld", "st", "lt", "ge", "ne", "eq", "la", 
 	"sc", 
 
 	"a6_nop", "a6_svc", "a6_mov", "a6_bfm",
@@ -84,13 +133,12 @@ static const char* operations[isa_count] = {
 static const nat arity[isa_count] = {
 	0,
 
-	0, 0, 0, 1, 1, 1,
+	0, 1, 1, 1,
 	2, 2, 2, 2, 2, 2, 
 	2, 2, 2, 2, 2, 2, 2, 
-	3, 3, 3, 3, 3, 3, 
+	3, 3, 3, 3, 3, 3, 3,
 	7, 
-	
-	
+		
 	0, 0, 5, 7, 
 	6, 8, 7, 8, 3,
 	5, 4, 4, 2, 2, 3, 
@@ -266,7 +314,6 @@ static void print_nats(nat* array, nat count) {
 	puts("}");
 }
 
-
 /*
 
 static void insert_byte(
@@ -356,6 +403,7 @@ int main(int argc, const char** argv) {
 
 	char* variables[max_variable_count] = {0};
 	nat is_undefined[max_variable_count] = {0};
+	nat is_label[max_variable_count] = {0};
 	nat is_compiletime[max_variable_count] = {0};
 	nat values[max_variable_count] = {0};
 	nat var_count = 0;
@@ -456,13 +504,15 @@ process_file:;
 			}
 		} 
 
-		if (not(
-			op == set and arg_count == 0 or 
-			op == ld  and arg_count == 0 or 
-			op == ri  and arg_count == 0 or 
-			op == bc  and arg_count == 0 or 
+		if (not(  
+			op == set and arg_count == 0 or
+			op == ld  and arg_count == 0 or
+			op == ri  and arg_count == 0 or
+			op == bc  and arg_count == 0 or
 
-			op == do_ or op == at or
+			op == do_ or
+			op == at  or
+			op == la  or
 
 			(op == lt or
 			 op == ge or 
@@ -537,7 +587,7 @@ process_file:;
 	for (nat i = 0; i < ins_count; i++) {
 		if (ins[i].op == at) { 
 			values[ins[i].args[0]] = i;
-			is_compiletime[ins[i].args[0]] = 1;
+			is_label[ins[i].args[0]] = 1;
 			ins[i].ct = 1;
 		}
 	}
@@ -586,7 +636,7 @@ process_file:;
 			print_instruction_window_around(
 				pc, ins, ins_count, variables, visited
 			);
-			print_dictionary(variables, is_undefined, 
+			print_dictionary(variables, is_undefined,
 				is_compiletime, values, var_count
 			);
 
@@ -606,15 +656,21 @@ process_file:;
 
 		const nat ct0 = (imm & 1) ? 1 : is_compiletime[a0];
 		const nat ct1 = (imm & 2) ? 1 : is_compiletime[a1];
-		const nat ct2 = (imm & 4) ? 1 : is_compiletime[a2];		
+		const nat ct2 = (imm & 4) ? 1 : is_compiletime[a2];
 		const nat val0 = (imm & 1) ? a0 : values[a0];
 		const nat val1 = (imm & 2) ? a1 : values[a1];
 		const nat val2 = (imm & 4) ? a2 : values[a2];
 
 		if (op == halt) {}
-
 		else if (op == at) { values[a0] = pc; pc++; goto execute_ins; } 
 		else if (op == do_) { if (ct) { pc = values[a0]; goto execute_ins; } }
+
+		else if (op == la) {
+
+			puts("executing an LA!!");
+
+			abort();
+		}
 
 		else if (
 			op == lt or op == ge or
@@ -622,14 +678,22 @@ process_file:;
 		) {
 			if (ct0 and ct1) ct = 1;
 			if (ct) {
-				ins[pc].ct = 1; 
+				ins[pc].ct = 1;
 				bool cond = 0;
 				if (op == lt)      cond = val0 < val1;
 				else if (op == ge) cond = val0 >= val1;
 				else if (op == eq) cond = val0 == val1;
 				else if (op == ne) cond = val0 != val1;
-				if (cond) pc = values[a2]; else pc++;				
+				if (cond) pc = values[a2]; else pc++;
 				goto execute_ins;
+			} else {
+				if (ct0) {
+					ins[pc].args[0] = val0;
+					ins[pc].imm |= 1;
+				} if (ct1) {					
+					ins[pc].args[1] = val1;
+					ins[pc].imm |= 2;
+				}
 			}
 
 		} else if (
@@ -639,33 +703,49 @@ process_file:;
 			op == and_ or op == or_ or
 			op == eor or op == si or op == sd
 		) {
-
 			if (ct0 and ct1) ct = 1;
 			else if (ct0) goto ct_error;
 			if (ct) {
 				ins[pc].ct = 1;
-				if (op == set) is_compiletime[a0] = 1;
-				const nat s = val1;
-				if (op == set)       values[a0] = s;
-				else if (op == add)  values[a0] += s;
-				else if (op == sub)  values[a0] -= s;
-				else if (op == mul)  values[a0] *= s;
-				else if (op == div_) values[a0] /= s;
-				else if (op == rem)  values[a0] %= s;
-				else if (op == and_) values[a0] &= s;
-				else if (op == or_)  values[a0] |= s;
-				else if (op == eor)  values[a0] ^= s;
-				else if (op == si)   values[a0] <<= s;
-				else if (op == sd)   values[a0] >>= s;
+				if (op == set) {     values[a0]  = val1; is_compiletime[a0] = 1; }
+				else if (op == add)  values[a0] += val1;
+				else if (op == sub)  values[a0] -= val1;
+				else if (op == mul)  values[a0] *= val1;
+				else if (op == div_) values[a0] /= val1;
+				else if (op == rem)  values[a0] %= val1;
+				else if (op == and_) values[a0] &= val1;
+				else if (op == or_)  values[a0] |= val1;
+				else if (op == eor)  values[a0] ^= val1;
+				else if (op == si)   values[a0] <<= val1;
+				else if (op == sd)   values[a0] >>= val1;
 				pc++; goto execute_ins;
+			} else {
+				if (ct1) {
+					ins[pc].args[1] = val1;
+					ins[pc].imm |= 2;
+				}
 			}
 
 		} else if (op == ld) {
 			if (not ct2) goto ct_error;
+			else if (ct0 and ct1) ct = 1;
+			else if (ct0) goto ct_error;
+
 			if (ct) {
+				ins[pc].ct = 1;
+				is_compiletime[a0] = 1;
 				values[a0] = 0;
-				for (nat i = 0; i < val2; i++) values[a0] |= (nat) ((nat) memory[val1 + i] << (8LLU * i));
+				for (nat i = 0; i < val2; i++) 
+					values[a0] |= (nat) ((nat) memory[val1 + i] << (8LLU * i));
 				pc++; goto execute_ins;
+			} else {
+				if (ct1) {
+					ins[pc].args[1] = val1;
+					ins[pc].imm |= 2;
+				} if (ct2) {
+					ins[pc].args[2] = val2;
+					ins[pc].imm |= 4;
+				}
 			}
 
 		} else if (op == st) {
@@ -673,8 +753,18 @@ process_file:;
 			if (ct) {
 				for (nat i = 0; i < val2; i++) memory[val0 + i] = (val1 >> (8 * i)) & 0xFF;
 				pc++; goto execute_ins;
+			} else {
+				if (ct0) {
+					ins[pc].args[0] = val0;
+					ins[pc].imm |= 1;
+				} if (ct1) {
+					ins[pc].args[1] = val1;
+					ins[pc].imm |= 2;
+				} if (ct2) {
+					ins[pc].args[2] = val2;
+					ins[pc].imm |= 4;
+				}
 			}
-
 
 		} else if (op == ri) {
 			if (ct0) goto ct_error;
@@ -683,9 +773,10 @@ process_file:;
 			pc++; goto execute_ins;
 
 		} else if (op == bc) {
-			if (ct0) goto ct_error;
-			ins[pc].ct = 1; 
-			bit_width[a0] = val0;
+			if (not ct1 or ct0) goto ct_error;
+			ins[pc].ct = 1;
+			bit_width[a0] = val1;
+			if (not val1) is_label[a0] = 1;
 			pc++; goto execute_ins;
 
 		} else if (op == sc) {			
@@ -718,12 +809,17 @@ process_file:;
 				} else goto ct_error;
 
 				pc++; goto execute_ins;
+			} else {
+				for (nat i = 0; i < 7; i++) {
+					if (not (imm & (1 << i)) and is_compiletime[ins[pc].args[i]]) {
+						ins[pc].args[i] = values[ins[pc].args[i]];
+						ins[pc].imm |= (1 << i);
+					}
+				}
 			}
 
 		} else if (op >= a6_nop and op <= m4_br) {
-
-			printf("found an RT intrisic!\n");
-		
+			printf("found an RT intrisic!\n");		
 		} else {
 			printf("ERROR: unknown instsruction executing/analyzing...\n");
 			abort();
@@ -746,22 +842,31 @@ process_file:;
 		variables, is_undefined,
 		is_compiletime, values, var_count
 	);
-
-
-
-
 	print_instructions(ins, ins_count, variables);
 	print_nats(visited, ins_count);
+	struct instruction machine_instructions[4096] = {0};
+	nat machine_instruction_count = 0;
+	puts("starting instruction selection now.....");
+
+
+	for (nat pc = 0; pc < ins_count; pc++) {
+
+		const nat op = ins[pc].op;
+		const nat ct = ins[pc].ct;
+		//const nat imm = ins[pc].imm;
+		//const nat gt0 = ins[pc].gotos[0];
+		//const nat gt1 = ins[pc].gotos[1];
+		//const nat a0 = ins[pc].args[0];
+		//const nat a1 = ins[pc].args[1];
+		//const nat a2 = ins[pc].args[2];
+
+		if (ct) { puts("skipping over CT instruction...\n"); continue; }
+
+		if (op == set) {
+
+		}		
+	}
 	puts("done!");
-
-
-
-
-
-
-
-
-
 	exit(0);
 }
 
@@ -777,6 +882,293 @@ process_file:;
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+/*
+
+
+else {
+				if (ct1) {
+					ins[pc].args[1] = val1;
+					ins[pc].imm |= 2;
+				}
+			}
+
+
+else {
+				if (ct1) {
+					ins[pc].args[1] = val1;
+					ins[pc].imm |= 2;
+				} if (ct2) {
+					ins[pc].args[2] = val2;
+					ins[pc].imm |= 4;
+				}
+			}
+
+
+else {
+				if (ct1) {
+					ins[pc].args[1] = val1;
+					ins[pc].imm |= 2;
+				} if (ct0) {
+					ins[pc].args[0] = val0;
+					ins[pc].imm |= 1;
+				} if (ct2) {
+					ins[pc].args[2] = val2;
+					ins[pc].imm |= 4;
+				}
+			}
+
+
+
+else {
+				for (nat i = 0; i < 7; i++) {
+					if (not (imm & (1 << i)) and is_compiletime[ins[pc].args[i]]) {
+						ins[pc].args[i] = values[ins[pc].args[i]];
+						ins[pc].imm |= (1 << i);
+					}
+				}
+			}
+
+
+
+else {
+				if (ct1) {					
+					ins[pc].args[1] = val1;
+					ins[pc].imm |= 2;
+				} if (ct0) {
+					ins[pc].args[0] = val0;
+					ins[pc].imm |= 1;
+				}
+			}
+
+
+
+
+*/
+
+
+// TODO:  WE NEED TO STORE THE IMMEDIATE INTO THE RT_INSTRUCTION!!!
+
+				//       setting the   imm  bit  accordingly!!    ie, its as if we gave a binary literal. 
+				// 					but we do this on every single argument.
+
+				
+				// we don't need to change the op code, i think...?  hmmmm
+
+/*
+
+1202504082.012807 dwrr
+
+ins sel thoughts:
+
+
+
+	basic approach to ins sel:
+
+		. don't deal with branches at all yet, just deal with straight line code!
+
+		. wea re basicallyy forming SSA representation, just without any of the control flow horribleness of ssa. only data flow alone. 
+
+		. make the representation keep track of the data dependancies. if there is 
+			a use later on of a temporary, this aborts the pattern technically speaking. 
+
+		. we need to be keeping track of a tree/dag representation of the entire  feed forward  controlflownless program. 
+			we then do tree/dag pattern matching on this monolithic dag.
+
+			note, due to the ssa-like nature of this representation, there is no reusing or resetting of any variables. single assigement, 
+				ie, data does not neccessary live in any registers. rather it lives in the abstract, as a value result from a particular operation. 
+				this represetnation also allows for easier time finding common subexpression elimintation. 
+
+							note: this rep is only good when theres no control flow. very important to note that. 
+
+								ssa is not good when control flow is involved, which it always will be in practice. lol 
+
+		. operations which are commutitive, ie, ins which can be exchanged will always be put into a sorted caonicalized order. 
+			not sure how.. but this neeeds to happen.. i think we should probably have some "sequence" modifier, which states that certain operations can and cannot happen in sequence or not..?
+
+					oh wait no!! ssa means we don't need to take into account sequence at all, because the data dependancy actually represents that completel for us. there is no notion of seuqence of things, when dealing with this ssa like respresentation. nice!!!  its just dag connections. data dependancies impose the minimal ordering over the ins listing. NICEEEE
+
+
+
+
+
+		. in fact, in the process of forming the ssa rep, using a sort of "global value numbering",   we can actually preform a value numbering, which keeps track of.. essentially like a hash value for every possible computation, and if two registers have the same hash value, ie, are redundant expressions, then we can merge them. 
+
+			i'll probably leave this out though, because common sub expression elimination isnt really a super important optimization really. so yeah. 
+
+	
+		. note: the ssa used here really doesnt actually have virtual registers, rather, we can just make some way of referencing points in a tree/dag.
+			which i think will end up looking like some notion of registers i think lol. but yeah. they are technically speaking distinct. 
+
+
+
+		. note, for optimization, we use our stateful language/ir,   but for ins sel, we use this   ssa-like  rep.
+
+			the idea is, we need to find an abstract data representation which showcases what computation has been done on a given variable, 
+				but without actaully having any notion of order/sequence, and no notion of registers, and statefulness, as this is also not relevant to ins sel. 
+						ssa is truly the best rep for ins sel      but cruddy for every other aspect of compilers lolll
+
+							so yeah 
+
+
+
+						oh, and actualy we can't even actually just use ssa in ins sel because it doesnt deal with control flow lollll
+
+					so yeah
+
+
+						cool yay
+
+			oh wait! constant propagation alsoooo is easy once we have this ssa like rep! wow niceee
+
+
+				
+
+
+	
+	in fact we can do a lot of optimization from this type of appoach i think!
+
+		OH WOW
+
+
+			wait two things
+
+
+
+				1. use loads        ld     and   st         to get trulyyyy rtk variables to play with during tetisng for ins sel and const prop
+
+				2.  treat adds     as         k ary       adds      ie,   with k inputs       not     NOTTTTT    two inputs.      k!!!
+
+			
+
+
+		for 1, the idea is  loads from memory are volatile/rtk, (for now lol) and thus   will force rt data to not collapse via const prop.
+
+		for 2,  the idea is we don't want to inhibit  the merging of commutitive adds together,  
+
+			howeverrrr we shouldd actually probably seperate out    ct adds from rt adds? hmmm not sure.... they are quite different... hmmm
+
+		
+
+
+
+
+		wait!   turns out i think this dag ssa rep needs to be computatoinally defined!    ie, not stored. 
+
+
+
+				it should be sometithng we computeeee and thats it   we only ever store the ins   the actual ir ins    notttt the ssa dag itself
+
+
+
+					and then, we just need some way of making the compiler generate like... a data state, which represetns the tree!!!
+
+
+						i feel like that genuinely could be on the right track!!!1
+
+
+						its like a hash. or something. 
+
+					like, something which basically has the     hmm      the full semantics     of a ssa-like   dag           all in a single number. 
+
+
+						then we just need to check for this number in the ins sel! pattern recognition is as simple as that, then 
+
+					if we can generate this       "ssa" number    that represents the dag lol
+
+
+									hmmmmm interestingggg wowwww
+
+
+
+
+					like, i feel like, it critically relies   firstttt   on making every single data variable, and data point in the program have its own number 
+
+						and thennnn  we make every single operation have its own number too 
+
+						and then we just use those nmubers to    transform a given prior input number     in various ways   to get a new number 
+
+						like????
+
+
+									i feel like this is actually the way!?!?!
+
+
+
+		we need to nail down the ins sel number formation though. thats the key. 
+
+			we need to turn a dag into a single number.  or like.. a sequence of bits lol. hmmm
+
+
+			and for that, we need to know how many possible data points in the program there are. 
+
+			so maybe we should start there? lol.. hmmm
+
+
+
+
+	hmmm.. i kinda want it to not.. use the constants to affect the number though.. idk.. hmmmmm
+	
+			although i mean it does make sense to do that though lol.. 
+
+	i just.. i feel like we need to abstract ovre the actual immediates use kinda   at least a little bit 
+		although that does definitely influence instruction selection lol... because like, some patterns are actualy specific to particular constants.. thats the thing.. hmmmm
+
+
+
+	intterestingggggggg hmmm
+
+
+
+
+
+
+					
+
+
+
+
+
+
+
+
+
+
+
+
+*/
 
 
 
