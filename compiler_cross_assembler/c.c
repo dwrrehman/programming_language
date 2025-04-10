@@ -2,6 +2,8 @@
 
 /* 
 
+current:
+
 	24 instructions:
 
 	halt sc   do   at   lf   rt
@@ -10,6 +12,9 @@
 	ld   st   lt   ge   ne   eq
 
 
+
+
+old:
 	25 instructions:
 
 	halt do   at   lf   set 
@@ -56,8 +61,6 @@ notes:
 		butttt	i'm debating on removing       ri   and bc   from that list though lol... 
 
 									technically not neccessary to be here... hmmm
-
-
 
 	5. 
 
@@ -188,16 +191,13 @@ static char* load_file(const char* filename, nat* text_length) {
 static void print_dictionary(
 	char** variables, 
 	nat* is_undefined,
-	nat* is_compiletime,
-	nat* values, 
 	nat var_count
 ) {
 	puts("variable dictionary: ");
 	for (nat i = 0; i < var_count; i++) {
-		printf(" %c  %c [%llu]  \"%s\" = 0x%016llx\n", 
+		printf("     %c [%llu]  \"%s\"\n",  // 0x%016llx
 			is_undefined[i] ? 'U' : ' ', 
-			is_compiletime[i] ? 'C' : ' ', i + 1, 
-			variables[i], values[i]
+			i, variables[i]
 		);
 	}
 	puts("[end]");
@@ -394,24 +394,49 @@ static nat calculate_offset(nat* length, nat here, nat target) {
 
 */
 
+
+
+
+static nat* compute_predecessors(
+	struct instruction* ins, 
+	nat ins_count, nat pc, 
+	nat* pred_count
+) {
+	nat* result = NULL;
+	nat count = 0;
+	for (nat i = 0; i < ins_count; i++) {
+		if (ins[i].gotos[0] == pc or ins[i].gotos[1] == pc) {
+			result = realloc(result, sizeof(nat) * (count + 1));	
+			result[count++] = i;
+		}
+	}
+	*pred_count = count;
+	return result;
+}
+
+
+
+
 int main(int argc, const char** argv) {
 
 	if (argc != 2) 
 		exit(puts("compiler: \033[31;1merror:\033[0m usage: ./run [file.s]"));
 
-	const nat min_stack_size = 16384 + 1;
-	nat stack_size = min_stack_size;
-	const char* output_filename = "output_executable_new";
+	//const nat min_stack_size = 16384 + 1;
+	//nat stack_size = min_stack_size;
+	//const char* output_filename = "output_executable_new";
 
 	struct instruction ins[max_instruction_count] = {0};
 	nat ins_count = 0;
 
 	char* variables[max_variable_count] = {0};
 	nat is_undefined[max_variable_count] = {0};
-	nat is_label[max_variable_count] = {0};
-	nat is_runtime[max_variable_count] = {0};
-	nat is_compiletime[max_variable_count] = {0};
-	nat values[max_variable_count] = {0};
+	nat locations[max_variable_count] = {0};
+
+	//nat is_runtime[max_variable_count] = {0};
+	//nat is_compiletime[max_variable_count] = {0};
+	//nat values[max_variable_count] = {0};
+
 	nat var_count = 0;
 
 	const char* included_files[4096] = {0};
@@ -458,11 +483,7 @@ process_file:;
 			pc, word, word_start
 		);
 
-		print_dictionary(
-			variables, is_undefined, 
-			is_compiletime, values, 
-			var_count
-		);
+		print_dictionary(variables, is_undefined, var_count);
 
 		print_instructions(ins, ins_count, variables);
 
@@ -514,15 +535,10 @@ process_file:;
 			op == set and arg_count == 0 or
 			op == ld  and arg_count == 0 or
 			op == rt  and arg_count == 0 or
-
-			op == do_ or
-			op == at  or 
-			op == la  or 
-
-			(op == lt or
-			 op == ge or 
-			 op == ne or 
-			 op == eq) and arg_count == 2
+			op == do_ or op == at or op == la or 
+			(op == lt or op == ge or 
+	 		 op == ne or op == eq) 
+			and arg_count == 2
 		)) {
 			nat r = 0, s = 1;
 			for (nat i = 0; i < strlen(word); i++) {
@@ -538,7 +554,6 @@ process_file:;
 
 	define_name:
 		var = var_count;
-		values[var] = 0;
 		variables[var] = word; 
 		var_count++;
 
@@ -558,24 +573,18 @@ process_file:;
 
 			nat len = 0;
 			char* string = load_file(word, &len);
-
 			files[file_count - 1].index = pc;
 			files[file_count].filename = word;
 			files[file_count].text = string;
 			files[file_count].text_length = len;
 			files[file_count++].index = 0;
-
-			var_count--; 
+			var_count--;
 			goto process_file;
 
 		} else {
-			if (not op) { puts("null operation parsed???"); abort(); }
-			struct instruction new = {
-				.op = op,
-				.imm = is_immediate,
-			};
-			is_immediate = 0;
+			struct instruction new = { .op = op, .imm = is_immediate };
 			memcpy(new.args, args, sizeof args);
+			is_immediate = 0;
 			ins[ins_count++] = new;
 		}
 		arg_count = 0; op = 0;
@@ -585,45 +594,350 @@ process_file:;
 	if (file_count) goto process_file; 
 
 	for (nat i = 0; i < ins_count; i++) {
-		if (ins[i].op == at) values[ins[i].args[0]] = i;
+		if (ins[i].op == at) locations[ins[i].args[0]] = i;
 	}
 
 	for (nat i = 0; i < ins_count; i++) {
 		const nat op = ins[i].op;		
 		if (op == lt or op == ge or op == ne or op == eq) {
 			ins[i].gotos[0] = i + 1;
-			ins[i].gotos[1] = values[ins[i].args[2]];
+			ins[i].gotos[1] = locations[ins[i].args[2]];
+
 		} else if (op == do_) {
-			ins[i].gotos[0] = values[ins[i].args[0]];
+			ins[i].gotos[0] = locations[ins[i].args[0]];
 			ins[i].gotos[1] = (nat) -1;
+
+		} else if (op == halt) {
+			ins[i].gotos[0] = (nat) -1;
+			ins[i].gotos[1] = (nat) -1;
+
 		} else {
 			ins[i].gotos[0] = i + 1;
 			ins[i].gotos[1] = (nat) -1;
 		}
 	}
 
-
-	print_dictionary(
-		variables, 
-		is_undefined,
-		is_compiletime, 
-		values,
-		var_count
-	);
-
+	print_dictionary(variables, is_undefined, var_count);
 	print_instructions(ins, ins_count, variables);
 	getchar();
 
-	nat register_constraint[4096] = {0};
-	nat bit_width[4096] = {0};
-	byte memory[65536] = {0};
+
+	nat* type = calloc(ins_count * var_count, sizeof(nat));  // is_compiletime[...]
+	nat* value = calloc(ins_count * var_count, sizeof(nat));  // values[...]
+
 	nat stack[4096] = {0};
 	nat stack_count = 1;
+
 	nat visited[4096] = {0};
 
+	while (stack_count) {
+		nat pc = stack[--stack_count];
 
-	for (nat i = 0; i < var_count; i++) is_compiletime[i] = 1;
 
+		print_instruction_window_around(pc, ins, ins_count, variables, visited);
+		print_dictionary(variables, is_undefined, var_count);
+		puts("types and values");
+		puts("------------------------------------------");
+		printf("     ");
+		for (nat j = 0; j < var_count; j++) {
+			printf("%3lld ", j);
+		}
+		puts("\n------------------------------------------");
+		for (nat i = 0; i < ins_count; i++) {
+			printf("%3llu: ", i);
+			for (nat j = 0; j < var_count; j++) {
+				if (type[i * var_count + j])
+					printf("%3lld ", value[i * var_count + j]);
+				else 	printf("    ");
+			}
+			puts("");
+		}
+		puts("------------------------------------------");
+
+		printf("stack: "); print_nats(stack, stack_count);
+		printf("[PC = %llu]\n", pc);
+
+		nat pred_count = 0;
+		nat* preds = compute_predecessors(ins, ins_count, pc, &pred_count);
+		puts("predecessors: ");
+		print_nats(preds, pred_count);
+		getchar();
+
+		visited[pc]++;
+
+		const nat op = ins[pc].op;
+		const nat imm = ins[pc].imm;
+		const nat gt0 = ins[pc].gotos[0];
+		const nat gt1 = ins[pc].gotos[1];
+		const nat a0 = ins[pc].args[0];
+		const nat a1 = ins[pc].args[1];
+		const nat a2 = ins[pc].args[2];
+		const nat i1 = !!(imm & 2);
+		const nat i2 = !!(imm & 4);
+
+
+		for (nat e = 0; e < var_count; e++) {
+
+		const nat this_var = e;  // for now. this would be a for loop over the variables in general. 
+
+		nat future_type = 0; // assume its runtime known.
+		nat future_value = 0;
+
+		for (nat iterator_p = 0; iterator_p < pred_count; iterator_p++) {
+
+			const nat pred = preds[iterator_p];
+
+			if (not visited[pred]) { puts("skipping over unexecuted predecessor..."); getchar(); continue; }
+			const nat t = type[pred * var_count + this_var];
+			const nat v = value[pred * var_count + this_var];
+
+			printf("%llu: observed {type=%llu,value=%llu} pair for predecessor = %llu\n", this_var, t, v, pred);
+			getchar();
+
+			if (t == 0) { future_type = 0; break; } 
+			
+			printf("found a compiletime known value == %llu\n", v);
+
+			/// at this point, we could in theory do partial-constant-propgation-analysis, if we wanted to.
+			/// we would simply keep track of the set of possible values from the preds, instead of just one ctk value.
+
+			if (not future_type) { future_type = 1; future_value = v; }
+			else if (future_value == v) { puts("ctk value match"); getchar(); }
+			else { puts("ctk value mis-match"); getchar(); future_value = 0; future_type = 0; break; }
+		}
+
+
+		printf("----- AFTER PREDCESSOR CT ANALYSIS: ----\n");
+		printf("analayzed %llu predecessors,\n", pred_count);
+		printf("future_type = %llu\n", future_type);
+		printf("future_value = %llu\n", future_value);
+		getchar();
+
+		printf("about to assign {ins=%llu:var=%llu} = [type=%llu,value=%llu]\n", pc, this_var, future_type, future_value);
+		puts("continue?");
+		getchar();
+
+		type[pc * var_count + this_var] = future_type;
+		value[pc * var_count + this_var] = future_value;
+
+		} // for e 
+
+		const nat ct0 = type[pc * var_count + a0];
+		const nat ct1 = type[pc * var_count + a1];
+		const nat ct2 = type[pc * var_count + a2];
+		const nat val0 = value[pc * var_count + a0];
+		const nat val1 = value[pc * var_count + a1];
+		const nat val2 = value[pc * var_count + a2];
+		const nat v1 = i1 ? a1 : val1;
+		const nat v2 = i2 ? a2 : val2;
+
+		nat out_t = ct0, out_v = val0;
+
+		if (op == set and i1) { out_t = 1; out_v = a1; }
+		else if (op == set and not i1) { out_t = ct1; out_v = val1; }
+
+		else if (op >= add and op <= sd) { 
+			if (not i1) out_t = ct0 and ct1; 
+			     if (op == add)  out_v += v1;
+			else if (op == sub)  out_v -= v1;
+			else if (op == mul)  out_v *= v1;
+			else if (op == div_) out_v /= v1;
+			else if (op == rem)  out_v %= v1;
+			else if (op == and_) out_v &= v1;
+			else if (op == or_)  out_v |= v1;
+			else if (op == eor)  out_v ^= v1;
+			else if (op == si)   out_v <<= v1;
+			else if (op == sd)   out_v >>= v1;
+
+
+		} else if (op == lt) {
+
+			puts("WARNING: EXECUTING A LESS THAN INSTRUCTION WITHOUT AN IMPLEMENTATION!!!");
+			puts("note this!!!"); getchar();
+
+		} else {
+			puts("WARNING: EXECUTING AN UNKNOWN INSTRUCTION WITHOUT AN IMPLEMENTATION!!!");
+			puts(operations[op]);
+			puts("note this!!!"); getchar();
+			
+		}
+
+		type[pc * var_count + a0] = out_t;
+		value[pc * var_count + a0] = out_v;
+		
+		if (gt0 < ins_count and visited[gt0] < 3) stack[stack_count++] = gt0;
+		if (gt1 < ins_count and visited[gt1] < 3) stack[stack_count++] = gt1;
+	}
+
+	print_nats(visited, ins_count);
+	puts("done!");
+	exit(0);
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+		/*	r += r;     { 0 }
+			r += c;     { 0 }
+			c += r;     { 0 }
+			c += c;     { 1, c+c }
+		*/
+
+/*
+
+
+
+----------------------------------------------------------------------------------------------------------------------
+
+	visted[I] == 0       : means that this statement never executes.  takes priority over other data. 
+
+----------------------------------------------------------------------------------------------------------------------
+
+	visted[I] != 0 and 
+	type[I * var_count + V] == 0  : means that the variable V is runtime known before the statement I exectues.
+
+----------------------------------------------------------------------------------------------------------------------
+
+	visted[I] != 0 and 
+	type[I * var_count + V] != 0 and
+	value[I * var_count + V] == K   : means that the variable V is compiletime known, 
+							and has value K at this point.	
+
+----------------------------------------------------------------------------------------------------------------------
+
+
+
+*/
+
+
+
+
+
+
+
+
+
+
+
+
+/*
+------------------------------------------------------------------------------------------
+	FACTS:
+------------------------------------------------------------------------------------------
+
+	1. if there is at least one pred which has a runtime-only known value for the variabel X, 
+		then we must assume X is runtime-only known. 
+
+	2. if there are NO preds which have a runtime-only attribute on X,  
+		then we can and must assume X is compiletime known. 
+
+	3. if there are NO preds with RTK, AND all preds have CTK attribute on X, 
+		BUTTT   the values are not all the same, on all preds,
+			THENNNN we know that, either:
+
+			[
+				3.1. there is compiletime looping happening here, if the conditions involved in this control flow
+					are CTK as well, 
+	
+				3.2. or, if there conditions are not CTK, (ie, they are RTK only) then we know that 
+
+					we must PROMOTE X   (technically "demote" lolll)    
+						from CTK (with multi-value)   to RTK. (completely unknown value)
+
+						note: if we really want to try-hard   then we can keep track of the possible 
+						CTK values that a variable could have. this doesnt work with loops at all though. note that. 	
+
+			]
+
+
+	4. if a given pred is not executed at all,  it does not have a say in the voting process. 
+			it can be ignored, as if it isnt even a pred at all. 
+
+*/
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+/*
+	nat register_constraint[4096] = {0};
+	nat bit_width[4096] = {0};
+
+
+
+	byte memory[65536] = {0};
+
+
+
+	struct instruction machine_instructions[4096] = {0};
+	nat machine_instruction_count = 0;
+	puts("starting instruction selection now.....");
+
+*/
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+/*
+
+	//for (nat i = 0; i < var_count; i++) is_compiletime[i] = 1;
 
 	while (stack_count) {
 		nat pc = stack[--stack_count];
@@ -633,14 +947,8 @@ process_file:;
 		visited[pc] = 1;
 
 		if (*values or true) {
-			print_instruction_window_around(
-				pc, ins, ins_count, variables, visited
-			);
-			print_dictionary(
-				variables, is_undefined,
-				is_compiletime, values, var_count
-			);
-
+			print_instruction_window_around(pc, ins, ins_count, variables, visited);
+			print_dictionary(variables, is_undefined, var_count);
 			printf("stack: "); print_nats(stack, stack_count);
 			printf("[PC = %llu]\n", pc);
 			getchar();
@@ -787,7 +1095,7 @@ process_file:;
 }
 
 
-
+*/
 
 
 
