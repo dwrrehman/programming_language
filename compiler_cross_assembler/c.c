@@ -2,6 +2,48 @@
 
 /* 
 
+isa:
+	halt sc do at lf rt set 
+	add sub mul div rem
+	and or eor si sd la 
+	ld st lt ge ne eq
+
+
+meaning/usage of each instruction:
+----------------------------------------
+
+	halt : termination point in the control flow graph. control flow does not continue past this instruction. 
+	sc : system call, target specific, and triggers a context switch on targets with an operating system, to perform a specialized task. 
+	do k : unconditional graph to label k. 
+	at k : attribute label k to this position in the code. k is used as the destination of branches, or with the source of an la instruction.
+	lf f : load file f from the filesystem, and include its parsed contents here.
+	rt x y : force the variable x to be runtime known. 
+		if y > 0, this sets the number of bits allocated to x, and 
+		if y == 0, x is forced to be runtime known, with no further constraints, and
+		if y < 0, this denotes the hardware register x should be allocated in. 
+	set x y : assignment to destination register x, using the value present in source y.
+	add x y : assigns the value x + y to the destination register x.
+	sub x y : assigns the value x - y to the destination register x.
+	mul x y : assigns the value x * y to the destination register x.
+	div x y : assigns the value x / y to the destination register x.
+	rem x y : assigns the value x modulo y to the destination register x.
+	and x y : assigns the value x bitwise-AND y to the destination register x.
+	or x y : assigns the value x bitwise-OR y to the destination register x.
+	eor x y : assigns the value x bitwise-XOR y to the destination register x.
+	si x y : shifts the bits in x up by y bits. 
+	sd x y : shifts the bits in x down by y bits. (always an unsigned shift)
+	la x k : loads a program-counter relative address given by a label k into a destination register x.
+	ld x y z : load z bytes from memory address y into destination register x. 
+	st x y z : store z bytes from the soruce register y into the memory at address x.
+	lt x y k : if x is less than y, control flow branches to label k. 
+	ge x y k : if x is not less than y, control flow branches to label k. 
+	ne x y k : if x is not equal to y, control flow branches to label k. 
+	eq x y k : if x is equal to y, control flow branches to label k. 
+	
+
+
+
+
 current:
 
 	24 instructions:
@@ -621,18 +663,23 @@ process_file:;
 	print_instructions(ins, ins_count, variables);
 	getchar();
 
+	// 0 means runtime/unknown
+	// 1 means compiletime
+	// 2 means label (pc relative)
 
 	nat* type = calloc(ins_count * var_count, sizeof(nat));  // is_compiletime[...]
 	nat* value = calloc(ins_count * var_count, sizeof(nat));  // values[...]
-
 	nat stack[4096] = {0};
 	nat stack_count = 1;
-
 	nat visited[4096] = {0};
+	nat last_pc = (nat) -1;
+
+	nat is_runtime[4096] = {0};
 
 	while (stack_count) {
 		nat pc = stack[--stack_count];
-
+	execute_ins:
+		if (pc >= ins_count) continue;
 
 		print_instruction_window_around(pc, ins, ins_count, variables, visited);
 		print_dictionary(variables, is_undefined, var_count);
@@ -656,7 +703,7 @@ process_file:;
 
 		printf("stack: "); print_nats(stack, stack_count);
 		printf("[PC = %llu]\n", pc);
-
+		printf("[note: last_pc = %llu]\n", last_pc);
 		nat pred_count = 0;
 		nat* preds = compute_predecessors(ins, ins_count, pc, &pred_count);
 		puts("predecessors: ");
@@ -672,9 +719,9 @@ process_file:;
 		const nat a0 = ins[pc].args[0];
 		const nat a1 = ins[pc].args[1];
 		const nat a2 = ins[pc].args[2];
+		const nat i0 = !!(imm & 1);
 		const nat i1 = !!(imm & 2);
 		const nat i2 = !!(imm & 4);
-
 
 		for (nat e = 0; e < var_count; e++) {
 
@@ -682,62 +729,115 @@ process_file:;
 
 		nat future_type = 0; // assume its runtime known.
 		nat future_value = 0;
+	
+		nat mismatch = 0;
 
 		for (nat iterator_p = 0; iterator_p < pred_count; iterator_p++) {
 
 			const nat pred = preds[iterator_p];
 
-			if (not visited[pred]) { puts("skipping over unexecuted predecessor..."); getchar(); continue; }
+			if (not visited[pred]) { 
+				//puts("skipping over unexecuted predecessor..."); 
+				//getchar(); 
+				continue;
+			}
 			const nat t = type[pred * var_count + this_var];
 			const nat v = value[pred * var_count + this_var];
-
-			printf("%llu: observed {type=%llu,value=%llu} pair for predecessor = %llu\n", this_var, t, v, pred);
-			getchar();
+	
+			/*printf("%llu: observed {type=%llu,value=%llu} pair "
+				"for predecessor = %llu\n", 
+				this_var, t, v, pred
+			);
+			getchar();*/
 
 			if (t == 0) { future_type = 0; break; } 
 			
-			printf("found a compiletime known value == %llu\n", v);
+			//printf("found a compiletime known value == %llu\n", v);
 
 			/// at this point, we could in theory do partial-constant-propgation-analysis, if we wanted to.
 			/// we would simply keep track of the set of possible values from the preds, instead of just one ctk value.
 
-			if (not future_type) { future_type = 1; future_value = v; }
-			else if (future_value == v) { puts("ctk value match"); getchar(); }
-			else { puts("ctk value mis-match"); getchar(); future_value = 0; future_type = 0; break; }
+			if (not future_type) { 
+				future_type = 1; 
+				future_value = v; 
+
+			} else if (future_value == v) { 
+
+				//puts("ctk value match"); getchar(); 
+
+			} else {
+				//puts("ctk value mis-match"); getchar(); 
+
+				mismatch = 1; 
+			}
 		}
 
+		if (mismatch and future_type) {
 
-		printf("----- AFTER PREDCESSOR CT ANALYSIS: ----\n");
-		printf("analayzed %llu predecessors,\n", pred_count);
-		printf("future_type = %llu\n", future_type);
-		printf("future_value = %llu\n", future_value);
-		getchar();
+			nat found = 0;
+			for (nat i = 0; i < pred_count; i++) {
+				if (preds[i] == last_pc) { found = 1; break; }
+			}
+			if (not found) { puts("last_pc was not a predecessor... aborting."); abort(); }
+			if (last_pc == (nat) -1) abort();
 
-		printf("about to assign {ins=%llu:var=%llu} = [type=%llu,value=%llu]\n", pc, this_var, future_type, future_value);
-		puts("continue?");
-		getchar();
+			//puts("MISMATCH OCCURED!!!! we will prefer which values came from last_pc!!!");
+
+			const nat pred = last_pc;
+
+			if (not visited[pred]) { 
+				//puts("skipping over last_pc predecessor..."); 
+				//getchar(); 
+				continue; 
+			}
+			const nat t = type[pred * var_count + this_var];
+			const nat v = value[pred * var_count + this_var];
+
+			//puts("WAIT!!! LAST_PC == PRED!!!!");
+			//puts("does this mean control came from last_pc??...");
+			//puts("we should probably prefer the value state from this pred over the others....");
+			//printf("setting future type and value to t%llu and v%llu, and breaking!\n", t, v);
+			//getchar();
+
+			future_type = t;
+			future_value = v;
+		}
+
+		//printf("----- AFTER PREDCESSOR CT ANALYSIS: ----\n");
+		//printf("analayzed %llu predecessors,\n", pred_count);
+		//printf("future_type = %llu\n", future_type);
+		//printf("future_value = %llu\n", future_value);
+		//getchar();
+
+		//printf("about to assign {ins=%llu:var=%llu} = [type=%llu,value=%llu]\n", 
+		//		pc, this_var, future_type, future_value);			
+		//puts("continue?");
+		//getchar();
 
 		type[pc * var_count + this_var] = future_type;
 		value[pc * var_count + this_var] = future_value;
 
 		} // for e 
 
-		const nat ct0 = type[pc * var_count + a0];
-		const nat ct1 = type[pc * var_count + a1];
-		const nat ct2 = type[pc * var_count + a2];
-		const nat val0 = value[pc * var_count + a0];
-		const nat val1 = value[pc * var_count + a1];
-		const nat val2 = value[pc * var_count + a2];
-		const nat v1 = i1 ? a1 : val1;
-		const nat v2 = i2 ? a2 : val2;
+		const nat ct0 = i0 ? 1 : type[pc * var_count + a0];
+		const nat ct1 = i1 ? 1 : type[pc * var_count + a1];
+		const nat ct2 = i2 ? 1 : type[pc * var_count + a2];
+		const nat v0 = i0 ? a0 : value[pc * var_count + a0];
+		const nat v1 = i1 ? a1 : value[pc * var_count + a1];
+		const nat v2 = i2 ? a2 : value[pc * var_count + a2];
 
-		nat out_t = ct0, out_v = val0;
+		nat out_t = ct0, out_v = v0;
+		last_pc = pc;
 
-		if (op == set and i1) { out_t = 1; out_v = a1; }
-		else if (op == set and not i1) { out_t = ct1; out_v = val1; }
-
+		if (op == halt) {
+			//puts("executing a halt statement..."); getchar();
+			continue;
+		}
+		else if (op == at) { } 
+		else if (op == do_) { pc = gt0; goto execute_ins; } 		
+		else if (op == set) { if (not is_runtime[a0]) { out_t = ct1; out_v = v1; } }
 		else if (op >= add and op <= sd) { 
-			if (not i1) out_t = ct0 and ct1; 
+			if (not i1) out_t = ct0 and ct1;
 			     if (op == add)  out_v += v1;
 			else if (op == sub)  out_v -= v1;
 			else if (op == mul)  out_v *= v1;
@@ -749,31 +849,82 @@ process_file:;
 			else if (op == si)   out_v <<= v1;
 			else if (op == sd)   out_v >>= v1;
 
+		} else if (op == ld) {
+			puts("executing a LD instruction!");
+			getchar();
+			out_t = 0;
+			abort();
 
-		} else if (op == lt) {
+		} else if (op == la) {
+			puts("executing a LA instruction!");
+			puts("unimplemented");
+			abort();
+			
+		} else if (op == lt or op == ge or op == ne or op == eq) {
+			if (not ct0 or not ct1) {
+				//puts("EXECUTING A RUNTIME-KNOWN BRANCH"); getchar();
 
-			puts("WARNING: EXECUTING A LESS THAN INSTRUCTION WITHOUT AN IMPLEMENTATION!!!");
-			puts("note this!!!"); getchar();
+				last_pc = (nat) -1; // ????    uhhhh     whyy lol 
+
+				if (gt0 < ins_count and visited[gt0] < 2) stack[stack_count++] = gt0;
+				if (gt1 < ins_count and visited[gt1] < 2) stack[stack_count++] = gt1;
+				continue;
+			} else {
+				//puts("EXECUTING A COMPILETIME-KNOWN BRANCH"); getchar();
+				bool cond = 0;
+				     if (op == lt) cond = v0  < v1;
+				else if (op == ge) cond = v0 >= v1;
+				else if (op == eq) cond = v0 == v1;
+				else if (op == ne) cond = v0 != v1;
+				pc = cond ? gt1 : gt0; goto execute_ins;
+			}
+
+		} else if (op == rt) {			
+			//puts("executing an RT statement!"); getchar();
+			if (not ct1) { puts("error: source argument to RT must be compiletime known."); abort(); }
+
+			printf("note: storing: RT x (%lld)\n", v1);
+			if ((int64_t) v1 < 0) { puts("STORING REGSITER INDEX"); }
+			else { puts("STORING BIT COUNT"); }
+			getchar();
+
+			is_runtime[a0] = 1;
+			out_t = 0;
 
 		} else {
 			puts("WARNING: EXECUTING AN UNKNOWN INSTRUCTION WITHOUT AN IMPLEMENTATION!!!");
 			puts(operations[op]);
 			puts("note this!!!"); getchar();
-			
+			abort();
 		}
 
 		type[pc * var_count + a0] = out_t;
 		value[pc * var_count + a0] = out_v;
-
-
-
-		// see note 1:  we need to change these. 
-		
-		if (gt0 < ins_count and visited[gt0] < 3) stack[stack_count++] = gt0; // specialize this per ins. 
-		if (gt1 < ins_count and visited[gt1] < 3) stack[stack_count++] = gt1;
-
+		pc++; goto execute_ins;
 	}
 
+
+	print_instruction_window_around(0, ins, ins_count, variables, visited);
+	print_instructions(ins, ins_count, variables);
+	print_dictionary(variables, is_undefined, var_count);
+	puts("types and values");
+	puts("------------------------------------------");
+	printf("     ");
+	for (nat j = 0; j < var_count; j++) {
+		printf("%3lld ", j);
+	}
+	puts("\n------------------------------------------");
+	for (nat i = 0; i < ins_count; i++) {
+		printf("%3llu: ", i);
+		for (nat j = 0; j < var_count; j++) {
+			if (type[i * var_count + j])
+				printf("%3lld ", value[i * var_count + j]);
+			else 	printf("    ");
+		}
+		puts("");
+	}
+	puts("------------------------------------------");
+	printf("stack: "); print_nats(stack, stack_count);
 	print_nats(visited, ins_count);
 	puts("done!");
 	exit(0);
