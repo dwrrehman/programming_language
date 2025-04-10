@@ -764,9 +764,14 @@ process_file:;
 
 		type[pc * var_count + a0] = out_t;
 		value[pc * var_count + a0] = out_v;
+
+
+
+		// see note 1:  we need to change these. 
 		
-		if (gt0 < ins_count and visited[gt0] < 3) stack[stack_count++] = gt0;
+		if (gt0 < ins_count and visited[gt0] < 3) stack[stack_count++] = gt0; // specialize this per ins. 
 		if (gt1 < ins_count and visited[gt1] < 3) stack[stack_count++] = gt1;
+
 	}
 
 	print_nats(visited, ins_count);
@@ -783,6 +788,42 @@ process_file:;
 
 
 
+// current state: 1202504104.000033
+
+/*
+
+	we were just about to add the notion of control flow into this const prop!
+
+	the way we are giong to do this is:
+
+			we are going to tell the cfg node we are going to    how we got there. whether it was a result of a ct or rt decision. 
+
+
+				(note: going via an implicit ip++ is ctk cf)
+
+			and then, the cool part is that we select either   a given  var state   types/values  array    from a given pred
+
+												or select another, 
+
+
+					based on which pred we came from!!!
+
+
+							ifffffff our  ct/rt    bit decision  is       ct 
+
+
+							then we use this   came-from-pred   information  
+								to help select the   type/values   array  we want to use, for our prior values, to update what we think the state of the variables is. 
+
+
+
+
+
+
+	this is how we are goign to add cf to the const prop alg.
+
+
+*/
 
 
 
@@ -796,6 +837,82 @@ process_file:;
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+/*
+		if (gt0 < ins_count and visited[gt0] < 3) stack[stack_count++] = gt0; // specialize this per ins. 
+		if (gt1 < ins_count and visited[gt1] < 3) stack[stack_count++] = gt1;
+
+
+		///  THESEEEE (the above lines) AREEEE THE CONTROL FLOW hAPPENIONG. 
+
+			we need to push    ALSO      to the stack.       a bit     of whether we pushed this because of a rt decsion, (ie, pushing both gt0 and gt1 , because we didnt know which would really happen)
+
+					orrrr          because of a ct decision, where only pushed one branch side,  say, gt1, or something, 
+
+
+										because we KNOWWW control flow will traverse to that side based on the conditin! 
+
+					and so, 
+
+						when we pop,  at the top of the while (stack_count) loop,  we pop the rt/ct decision bit 
+
+								as well 
+
+
+						and based on this, we know whether or not we came here   from a    ct control flow edge!!
+
+
+									THIS IS CRUCIAL PRIOR INFORMATION.
+
+
+				
+
+		now, the problem, is, i don't really know how to synthesize this with other information lol...  like,  to propgate this rt bit further down into the instruction stream... hmmm 
+
+	i don't know that yet lol 
+
+
+	bu tyeah we are getting closerrr
+
+
+yayy
+
+
+*/
 
 
 
