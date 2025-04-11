@@ -1,5 +1,1114 @@
 // 1202504045.155147 a compiler / assembler for a simpler version of the language.
 
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <stdint.h>
+#include <stdbool.h>
+#include <iso646.h>
+#include <fcntl.h>
+#include <unistd.h>
+#include <ctype.h>
+#include <termios.h>
+#include <time.h>
+#include <sys/time.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <sys/mman.h>
+#include <errno.h>
+
+typedef uint64_t nat;
+typedef uint32_t u32;
+typedef uint16_t u16;
+typedef uint8_t byte;
+
+#define max_variable_count (1 << 14)
+#define max_instruction_count (1 << 14)
+#define max_arg_count (14)
+
+enum all_architectures { no_arch, arm64_arch, arm32_arch, rv64_arch, rv32_arch, msp430_arch, };
+enum all_output_formats { debug_output_only, macho_executable, elf_executable, ti_txt_executable };
+
+enum core_language_isa {
+	nullins,
+
+	halt, sc, do_, at, lf,
+	set, add, sub, mul, div_, rem, 
+	and_, or_, eor, si, sd, la, rt,
+	ld, st, lt, ge, ne, eq,
+	
+	a6_nop, a6_svc, a6_mov, a6_bfm,
+	a6_adc, a6_addx, a6_addi, a6_addr, a6_adr, 
+	a6_shv, a6_clz, a6_rev, a6_jmp, a6_bc, a6_br, 
+	a6_cbz, a6_tbz, a6_ccmp, a6_csel, 
+	a6_ori, a6_orr, a6_extr, a6_ldrl, 
+	a6_memp, a6_memia, a6_memi, a6_memr, 
+	a6_madd, a6_divr, 
+
+	m4_section, m4_gen, m4_br,
+
+	isa_count
+};
+
+static const char* operations[isa_count] = {
+	"nullins",
+
+	"halt", "sc", "do", "at", "lf",
+	"set", "add", "sub", "mul", "div", "rem", 
+	"and", "or", "eor", "si", "sd", "la", "rt", 
+	"ld", "st", "lt", "ge", "ne", "eq",
+
+	"a6_nop", "a6_svc", "a6_mov", "a6_bfm",
+	"a6_adc", "a6_addx", "a6_addi", "a6_addr", "a6_adr", 
+	"a6_shv", "a6_clz", "a6_rev", "a6_jmp", "a6_bc", "a6_br", 
+	"a6_cbz", "a6_tbz", "a6_ccmp", "a6_csel", 
+	"a6_ori", "a6_orr", "a6_extr", "a6_ldrl", 
+	"a6_memp", "a6_memia", "a6_memi", "a6_memr", 
+	"a6_madd", "a6_divr", 
+
+	"m4_section", "m4_gen", "m4_br",
+};
+
+static const nat arity[isa_count] = {
+	0,
+
+	0, 0, 
+	1, 1, 1,
+	2, 2, 2, 2, 2, 2, 
+	2, 2, 2, 2, 2, 2, 2,
+	3, 3, 3, 3, 3, 3, 
+		
+	0, 0, 5, 7, 
+	6, 8, 7, 8, 3,
+	5, 4, 4, 2, 2, 3, 
+	4, 4, 7, 7, 
+	5, 8, 5, 3, 
+	7, 6, 5, 6,
+	8, 5, 
+	1, 8, 2,
+};
+
+struct instruction {
+	nat op;
+	nat imm;
+	nat args[max_arg_count];
+};
+
+struct file {
+	nat index;
+	nat text_length;
+	char* text;
+	const char* filename;
+};
+
+static char* load_file(const char* filename, nat* text_length) {
+	int file = open(filename, O_RDONLY);
+	if (file < 0) { 
+		printf("compiler: \033[31;1merror:\033[0m could not open '%s': %s\n", 
+			filename, strerror(errno)
+		); 
+		exit(1);
+	}
+	*text_length = (nat) lseek(file, 0, SEEK_END);
+	lseek(file, 0, SEEK_SET);
+	char* text = calloc(*text_length + 1, 1);
+	read(file, text, *text_length);
+	close(file);
+	return text;
+}
+
+static void print_dictionary(
+	char** variables, 
+	nat* is_undefined,
+	nat var_count
+) {
+	puts("variable dictionary: ");
+	for (nat i = 0; i < var_count; i++) {
+		printf("     %c [%llu]  \"%s\"\n",  // 0x%016llx
+			is_undefined[i] ? 'U' : ' ', 
+			i, variables[i]
+		);
+	}
+	puts("[end]");
+}
+
+		//(false) ? "\033[38;5;101mct" : "  ", 
+	//if (this.gotos[0] != (nat) -1) printf(" .0 = %-4lld", this.gotos[0]); else printf("          ");
+	//if (this.gotos[1] != (nat) -1) printf(" .1 = %-4lld", this.gotos[1]); else printf("          ");
+	//if ((false)) printf("\033[0m");
+/*	for (nat a = arity[this.op]; a < 7; a++) {
+		if (this.imm & (1 << a)) printf("         ");
+		else printf("         ");
+		printf(" ");
+	}
+*/
+
+static void print_instruction(
+	struct instruction this, 
+	char** variables, nat var_count
+) {
+	int max_name_width = 0;
+	for (nat i = 0; i < var_count; i++) {
+		if (max_name_width < (int) strlen(variables[i])) {
+			max_name_width = (int) strlen(variables[i]);
+		}
+	}
+
+	printf(" %4s  ", operations[this.op]);
+	/*int left_to_print = max_name_width - (int) strlen(operations[this.op]);
+	if (left_to_print < 0) left_to_print = 0;
+	for (int i = 0; i < left_to_print; i++) putchar(' ');
+	putchar(' '); }*/
+
+	for (nat a = 0; a < arity[this.op]; a++) {
+
+		char string[4096] = {0};
+		if (this.imm & (1 << a)) snprintf(string, sizeof string, "%llu", this.args[a]);
+		else snprintf(string, sizeof string, "%s", variables[this.args[a]]);
+
+		printf("%s", string);
+		int left_to_print = max_name_width - (int) strlen(string);
+		if (left_to_print < 0) left_to_print = 0;
+		for (int i = 0; i < left_to_print; i++) putchar(' ');
+		putchar(' ');
+	}	
+}
+
+static void print_instructions(
+	struct instruction* ins, 
+	nat ins_count,
+	char** variables, nat var_count,
+	bool should_number_them
+) {
+	printf("instructions: (%llu count) {\n", ins_count);
+	for (nat i = 0; i < ins_count; i++) {
+		if (ins[i].op != at) putchar(9); else putchar(10);
+		if (should_number_them) printf("%4llu: ", i);
+		print_instruction(ins[i], variables, var_count);
+		puts("");
+	}
+	puts("}");
+}
+
+static void print_instruction_window_around(
+	nat this, 
+	struct instruction* ins, 
+	nat ins_count, 
+	char** variables, 
+	nat var_count,
+	nat* visited
+) {
+	nat row_count = 0;
+	printf("\033[H\033[2J");
+	const int64_t window_width = 12;
+	const int64_t pc = (int64_t) this;
+	for (int64_t i = -window_width; i < window_width; i++) {
+
+		const int64_t here = pc + i;
+
+		if (ins[here].op == at) { putchar(10); row_count++; }
+
+		if (not i) printf("\033[48;5;238m");
+
+		if (	here < 0 or 
+			here >= (int64_t) ins_count
+		) { puts("\033[0m"); row_count++; continue; }
+
+		printf("  %s%4llu │ ", 
+			not i and visited[here] ? 
+			"\033[32;1m•\033[0m\033[48;5;238m"
+			: (visited[here] ? "\033[32;1m•\033[0m" : " "), 
+			here
+		);
+		if (not i and visited[here]) printf("\033[48;5;238m");
+
+		if (ins[here].op != at) putchar(9);
+		print_instruction(ins[here], variables, var_count);
+		puts("\033[0m");
+		row_count++; 
+	}
+	while (row_count < 2 * window_width + 6) { row_count++; putchar(10); } 
+}
+
+static void print_index(const char* text, nat text_length, nat begin, nat end) {
+	printf("\n\t@%llu..%llu: ", begin, end); 
+
+	while (end and isspace(text[end])) end--;
+
+	const nat max_width = 100;
+
+	nat start_at = 
+		begin < max_width 
+		? 0 
+		: begin - max_width;
+
+	nat end_at = 
+		end + max_width >= text_length 
+		? text_length 
+		: end + max_width;
+
+	for (nat i = start_at; i < end_at; i++) {
+		if (i == begin) printf("\033[32;1m[");
+		putchar(text[i]);
+		if (i == end) printf("]\033[0m");
+	}
+	
+	printf("\033[0m");
+	puts("\n");
+}
+
+static void print_binary(nat x) {
+	if (not x) { puts("0"); return; }
+
+	for (nat i = 0; i < 64 and x; i++) {
+		if (not (i % 8) and i) putchar('.');
+		putchar((x & 1) + '0'); x >>= 1;
+	}
+	puts("");
+}
+
+static void print_nats(nat* array, nat count) {
+	printf("(%llu) { ", count);
+	for (nat i = 0; i < count; i++) {
+		printf("%llu ", array[i]);
+	}
+	printf("}");
+}
+
+/*
+
+static void insert_byte(
+	uint8_t** output_data, 
+	nat* output_data_count, 
+	uint8_t x
+) {
+	*output_data = realloc(*output_data, *output_data_count + 1);
+	(*output_data)[(*output_data_count)++] = x;
+}
+
+static void insert_u8(uint8_t** d, nat* c, uint8_t x) {
+	insert_byte(d, c, x);
+}
+
+static void insert_bytes(uint8_t** d, nat* c, char* s, nat len) {
+	for (nat i = 0; i < len; i++) insert_byte(d, c, (uint8_t) s[i]);
+}
+
+static void insert_u16(uint8_t** d, nat* c, uint16_t x) {
+	insert_byte(d, c, (x >> 0) & 0xFF);
+	insert_byte(d, c, (x >> 8) & 0xFF);
+}
+
+static void insert_u32(uint8_t** d, nat* c, uint32_t x) {
+	insert_u16(d, c, (x >> 0) & 0xFFFF);
+	insert_u16(d, c, (x >> 16) & 0xFFFF);
+}
+
+static void insert_u64(uint8_t** d, nat* c, uint64_t x) {
+	insert_u32(d, c, (x >> 0) & 0xFFFFFFFF);
+	insert_u32(d, c, (x >> 32) & 0xFFFFFFFF);
+}
+
+#define MH_MAGIC_64             0xfeedfacf
+#define MH_EXECUTE              2
+#define	MH_NOUNDEFS		1
+#define	MH_PIE			0x200000
+#define MH_DYLDLINK 		0x4
+#define MH_TWOLEVEL		0x80
+#define	LC_SEGMENT_64		0x19
+#define LC_DYSYMTAB		0xb
+#define LC_SYMTAB		0x2
+#define LC_LOAD_DYLINKER	0xe
+#define LC_LOAD_DYLIB		0xc
+#define LC_REQ_DYLD		0x80000000
+#define LC_MAIN			(0x28 | LC_REQ_DYLD)
+#define LC_BUILD_VERSION 	0x32
+#define LC_SOURCE_VERSION 	0x2A
+#define LC_UUID            	0x1B
+#define S_ATTR_PURE_INSTRUCTIONS 0x80000000
+#define S_ATTR_SOME_INSTRUCTIONS 0x00000400
+#define CPU_SUBTYPE_ARM64_ALL   0
+#define CPU_TYPE_ARM            12
+#define CPU_ARCH_ABI64          0x01000000 
+#define VM_PROT_READ       	1
+#define VM_PROT_WRITE   	2
+#define VM_PROT_EXECUTE 	4
+#define TOOL_LD			3
+#define PLATFORM_MACOS 		1
+
+static nat calculate_offset(nat* length, nat here, nat target) {
+	nat offset = 0;
+	if (target > here) {
+		for (nat i = here; i < target; i++) 
+			offset += length[i];
+	} else {
+		for (nat i = target; i < here; i++) 
+			offset -= length[i];
+	}
+	return offset;
+}
+
+*/
+
+
+static nat* compute_predecessors(
+	struct instruction* ins, 
+	nat ins_count, nat pc, 
+	nat* pred_count
+) {
+	nat* gotos = calloc(2 * ins_count, sizeof(nat)); 
+	nat locations[4096] = {0}; // var_count sized
+
+	for (nat i = 0; i < ins_count; i++) {
+		if (ins[i].op == at) 
+			locations[ins[i].args[0]] = i;
+	}
+
+	for (nat i = 0; i < ins_count; i++) {
+		const nat op = ins[i].op;
+		if (op == lt or op == ge or op == ne or op == eq) {
+			gotos[2 * i + 0] = i + 1;
+			gotos[2 * i + 1] = locations[ins[i].args[2]];
+
+		} else if (op == do_) {
+			gotos[2 * i + 0] = locations[ins[i].args[0]];
+			gotos[2 * i + 1] = (nat) -1;
+
+		} else if (op == halt) {
+			gotos[2 * i + 0] = (nat) -1;
+			gotos[2 * i + 1] = (nat) -1;
+
+		} else {
+			gotos[2 * i + 0] = i + 1;
+			gotos[2 * i + 1] = (nat) -1;
+		}
+	}
+
+	nat* result = NULL;
+	nat count = 0;
+	for (nat i = 0; i < ins_count; i++) {
+		if (gotos[2 * i + 0] == pc or gotos[2 * i + 1] == pc) {
+			result = realloc(result, sizeof(nat) * (count + 1));	
+			result[count++] = i;
+		}
+	}
+
+	free(gotos);
+	*pred_count = count;
+	return result;
+}
+
+
+static nat* compute_successors(
+	struct instruction* ins, 
+	nat ins_count, nat pc
+) {
+	nat* gotos = calloc(2 * ins_count, sizeof(nat)); 
+	nat locations[4096] = {0}; // var_count sized
+
+	for (nat i = 0; i < ins_count; i++) {
+		if (ins[i].op == at) 
+			locations[ins[i].args[0]] = i;
+	}
+
+	for (nat i = 0; i < ins_count; i++) {
+		const nat op = ins[i].op;
+		if (op == lt or op == ge or op == ne or op == eq) {
+			gotos[2 * i + 0] = i + 1;
+			gotos[2 * i + 1] = locations[ins[i].args[2]];
+
+		} else if (op == do_) {
+			gotos[2 * i + 0] = locations[ins[i].args[0]];
+			gotos[2 * i + 1] = (nat) -1;
+
+		} else if (op == halt) {
+			gotos[2 * i + 0] = (nat) -1;
+			gotos[2 * i + 1] = (nat) -1;
+
+		} else {
+			gotos[2 * i + 0] = i + 1;
+			gotos[2 * i + 1] = (nat) -1;
+		}
+	}
+
+	nat* result = calloc(2, sizeof(nat));
+	result[0] = gotos[2 * pc + 0];
+	result[1] = gotos[2 * pc + 1];
+	free(gotos);
+	return result;
+}
+
+
+int main(int argc, const char** argv) {
+
+	if (argc != 2) 
+		exit(puts("compiler: \033[31;1merror:\033[0m usage: ./run [file.s]"));
+
+	//const nat min_stack_size = 16384 + 1;
+	//nat stack_size = min_stack_size;
+	//const char* output_filename = "output_executable_new";
+
+	struct instruction ins[max_instruction_count] = {0};
+	nat ins_count = 0;
+
+	char* variables[max_variable_count] = {0};
+	nat is_undefined[max_variable_count] = {0};
+	nat var_count = 0;
+
+	const char* included_files[4096] = {0};
+	nat included_file_count = 0;
+	struct file files[4096] = {0};
+	nat file_count = 1;
+
+	{ 
+	nat text_length = 0;
+	char* text = load_file(argv[1], &text_length);
+	files[0].filename = argv[1];
+	files[0].text = text;
+	files[0].text_length = text_length;
+	files[0].index = 0;
+	}
+
+process_file:;
+	const nat starting_index = files[file_count - 1].index;
+	const nat text_length = files[file_count - 1].text_length;
+	char* text = files[file_count - 1].text;
+	const char* filename = files[file_count - 1].filename;
+
+	nat 	word_length = 0, word_start = 0, 
+		arg_count = 0, is_immediate = 0;
+
+	nat args[max_arg_count] = {0};
+
+	for (nat var = 0, op = 0, pc = starting_index; pc < text_length; pc++) {
+
+		if (not isspace(text[pc])) {
+			if (not word_length) word_start = pc;
+			word_length++; 
+			if (pc + 1 < text_length) continue;
+		} else if (not word_length) continue;
+
+		char* word = strndup(text + word_start, word_length);
+
+		if (not op) {
+			if (*word == '(') { 				
+				nat i = word_start + 1, comment = 1;
+				while (comment and i < text_length) {
+					//printf("skipping over: '%c'  "
+					//	"(comment = %llu)\n", 
+					//	text[i], comment
+					//);
+					if (text[i] == '(') comment++;
+					if (text[i] == ')') comment--;
+					i++;
+				}
+				if (comment) goto print_error;
+				pc = i;
+				goto next_word; 
+			}
+
+			for (op = 0; op < isa_count; op++) 
+				if (not strcmp(word, operations[op])) goto process_op;
+
+			print_error: 
+			printf("%s:%llu:%llu:"
+				" error: undefined %s \"%s\"\n",
+				filename, word_start, pc, 
+				op == isa_count ? "operation" : "variable", word
+			); 
+ 
+			print_index(text, text_length, word_start, pc);
+			if (op != isa_count) 
+				printf( "note: calling operation: "
+					"%s (arity %llu)\n", 
+					operations[op], arity[op]
+				);
+			abort();
+		}
+		else if (op == lf) goto define_name;
+		for (var = var_count; var--;) {
+			if (not is_undefined[var] and 
+			    not strcmp(word, variables[var])) {
+				//last_used = var;
+				goto push_argument;
+			}
+		} 
+
+		if (not(  
+			op == set and arg_count == 0 or
+			op == ld  and arg_count == 0 or
+			op == rt  and arg_count == 0 or
+			op == do_ or op == at or op == la or 
+			(op == lt or op == ge or 
+	 		 op == ne or op == eq) 
+			and arg_count == 2
+		)) {
+			nat r = 0, s = 1;
+			for (nat i = 0; i < strlen(word); i++) {
+				if (word[i] == '0') s <<= 1;
+				else if (word[i] == '1') { r += s; s <<= 1; }
+				else if (word[i] == '_') continue;
+				else goto print_error;
+			}
+			is_immediate |= 1 << arg_count;
+			var = r;
+			goto push_argument;
+		}
+
+	define_name:
+		var = var_count;
+		variables[var] = word; 
+		var_count++;
+
+	push_argument: 
+		args[arg_count++] = var;
+
+	process_op: 
+		if (arg_count < arity[op]) goto next_word;
+		//else if (op == ud) is_undefined[last_used] = 1;
+		else if (op == lf) {
+			for (nat i = 0; i < included_file_count; i++) {
+				if (strcmp(included_files[i], word)) continue;
+				printf("warning: %s: already included\n", word);
+				goto next_word;
+			}
+			included_files[included_file_count++] = word;
+			nat len = 0;
+			char* string = load_file(word, &len);
+			files[file_count - 1].index = pc;
+			files[file_count].filename = word;
+			files[file_count].text = string;
+			files[file_count].text_length = len;
+			files[file_count++].index = 0;
+			var_count--;
+			goto process_file;
+
+		} else {
+			struct instruction new = { .op = op, .imm = is_immediate };
+			memcpy(new.args, args, sizeof args);
+			is_immediate = 0;
+			ins[ins_count++] = new;
+		}
+		arg_count = 0; op = 0;
+		next_word: word_length = 0;
+	}
+	file_count--;
+	if (file_count) goto process_file; 
+
+	print_dictionary(variables, is_undefined, var_count);
+	print_instructions(ins, ins_count, variables, var_count, 0);
+	getchar();
+
+	nat* type = calloc(ins_count * var_count, sizeof(nat));  // is_compiletime[...]
+	nat* value = calloc(ins_count * var_count, sizeof(nat));  // values[...]
+
+	nat stack[4096] = {0};
+	nat stack_count = 1;
+	nat visited[4096] = {0};
+	nat last_pc = (nat) -1;
+	nat is_runtime[4096] = {0};
+
+	//const nat label_bit = 1LLU << 63LLU;
+
+	//byte memory[65536] = {0};
+
+
+	const nat debug_ct_eval = 1;
+
+
+
+
+	while (stack_count) {
+		nat pc = stack[--stack_count];
+	execute_ins:
+		if (pc >= ins_count) continue;
+		nat pred_count = 0;
+		nat* preds = compute_predecessors(ins, ins_count, pc, &pred_count);
+		nat* gotos = compute_successors(ins, ins_count, pc);
+
+		if (debug_ct_eval) {
+
+		print_instruction_window_around(pc, ins, ins_count, variables, var_count, visited);
+		print_dictionary(variables, is_undefined, var_count);
+		printf("     ");
+		for (nat j = 0; j < var_count; j++) {
+			printf("%3lld ", j);
+		}
+		puts("\n-------------------------------------------------");
+		for (nat i = 0; i < ins_count; i++) {
+			printf("%3llu: ", i);
+			for (nat j = 0; j < var_count; j++) {
+				if (type[i * var_count + j])
+					printf("%3lld ", value[i * var_count + j]);
+				else 	printf("\033[90m%3llx\033[0m ", value[i * var_count + j]);
+			}
+			puts("");
+		}
+		puts("-------------------------------------------------");
+
+		printf("[PC = %llu, last_PC = %llu], pred:", pc, last_pc);
+		print_nats(preds, pred_count); putchar(32);
+		printf("stack: "); 
+		print_nats(stack, stack_count); 
+		putchar(10);
+		getchar();
+		}
+
+		visited[pc]++;
+
+		const nat op = ins[pc].op;
+		const nat imm = ins[pc].imm;
+		const nat gt0 = gotos[0];
+		const nat gt1 = gotos[1];
+		const nat a0 = 0 < arity[op] ? ins[pc].args[0] : 0;
+		const nat a1 = 1 < arity[op] ? ins[pc].args[1] : 0;
+		const nat a2 = 2 < arity[op] ? ins[pc].args[2] : 0;
+		const nat i0 = !!(imm & 1);
+		const nat i1 = !!(imm & 2);
+		const nat i2 = !!(imm & 4);
+
+		for (nat e = 0; e < var_count; e++) {
+
+		const nat this_var = e;  // for now. this would be a for loop over the variables in general. 
+		nat future_type = 0; // assume its runtime known.
+		nat future_value = 0;
+		nat mismatch = 0;
+
+		for (nat iterator_p = 0; iterator_p < pred_count; iterator_p++) {
+
+			const nat pred = preds[iterator_p];
+
+			if (not visited[pred]) { 
+				continue;
+			}
+			const nat t = type[pred * var_count + this_var];
+			const nat v = value[pred * var_count + this_var];	
+			if (t == 0) { future_type = 0; future_value = v; break; } 
+			
+			if (not future_type) { 
+				future_type = 1; 
+				future_value = v; 
+			} else if (future_value == v) { 
+			} else {
+				mismatch = 1; 
+			}
+		}
+
+		if (mismatch and future_type) {
+
+			nat found = 0;
+			for (nat i = 0; i < pred_count; i++) {
+				if (preds[i] == last_pc) { found = 1; break; }
+			}
+			if (not found) { puts("last_pc was not a predecessor... aborting."); abort(); }
+			if (last_pc == (nat) -1) abort();
+
+			const nat pred = last_pc;
+
+			if (not visited[pred]) { 
+				continue; 
+			}
+			const nat t = type[pred * var_count + this_var];
+			const nat v = value[pred * var_count + this_var];
+			future_type = t;
+			future_value = v;
+		}
+
+		type[pc * var_count + this_var] = future_type;
+		value[pc * var_count + this_var] = future_value;
+
+		} // for e 
+
+		//printf("pc = %llu, a0 = %llu, a1 = %llu, a1 = %llu\n", pc, a0, a1, a2); fflush(stdout);
+		const nat ct0 = i0 or type[pc * var_count + a0];
+		const nat ct1 = i1 or type[pc * var_count + a1];
+		const nat ct2 = i2 or type[pc * var_count + a2];
+		const nat v0 = i0 ? a0 : value[pc * var_count + a0];
+		const nat v1 = i1 ? a1 : value[pc * var_count + a1];
+		//const nat v2 = i2 ? a2 : value[pc * var_count + a2];
+
+		nat out_t = ct0, out_v = v0;
+		last_pc = pc;
+
+		if (op == halt) {
+			//puts("executing a halt statement..."); getchar();
+			continue;
+		}
+
+		else if (op == at) { }
+		else if (op == do_) { pc = gt0; goto execute_ins; } 		
+		else if (op == set) { if (not is_runtime[a0]) { out_t = ct1; out_v = v1; } }
+		else if (op >= add and op <= sd) { 
+			if (not i1) out_t = ct0 and ct1;
+			     if (op == add)  out_v += v1;
+			else if (op == sub)  out_v -= v1;
+			else if (op == mul)  out_v *= v1;
+			else if (op == div_) out_v /= v1;
+			else if (op == rem)  out_v %= v1;
+			else if (op == and_) out_v &= v1;
+			else if (op == or_)  out_v |= v1;
+			else if (op == eor)  out_v ^= v1;
+			else if (op == si)   out_v <<= v1;
+			else if (op == sd)   out_v >>= v1;
+
+
+		} else if (op == st) {	
+			if (not ct2) { puts("error: size of store must be ctk."); abort(); }
+
+			//puts("executing a ST instruction!"); getchar();
+
+
+		} else if (op == ld) {
+			if (not ct2) { puts("error: size of load must be ctk."); abort(); }
+
+			out_t = 0;
+
+		} else if (op == la) {
+			//puts("executing a LA instruction!"); getchar();
+			out_t = 0;
+			out_v = 0;
+			//out_v = label_bit | 8 * locations[a1];
+						
+		} else if (op == lt or op == ge or op == ne or op == eq) {
+			if (not ct0 or not ct1) {
+				//puts("EXECUTING A RUNTIME-KNOWN BRANCH"); getchar();
+
+				last_pc = (nat) -1; // ????    uhhhh     whyy lol 
+
+				if (gt0 < ins_count and visited[gt0] < 2) stack[stack_count++] = gt0;
+				if (gt1 < ins_count and visited[gt1] < 2) stack[stack_count++] = gt1;
+				continue;
+			} else {
+				//puts("EXECUTING A COMPILETIME-KNOWN BRANCH"); getchar();
+				bool cond = 0;
+				     if (op == lt) cond = v0  < v1;
+				else if (op == ge) cond = v0 >= v1;
+				else if (op == eq) cond = v0 == v1;
+				else if (op == ne) cond = v0 != v1;
+				pc = cond ? gt1 : gt0; goto execute_ins;
+			}
+
+		} else if (op == rt) {
+			//puts("executing an RT statement!"); getchar();
+			if (not ct1) { puts("error: source argument to RT must be compiletime known."); abort(); }
+
+			printf("note: storing: RT x (%lld)\n", v1);
+			if ((int64_t) v1 < 0) { puts("STORING REGSITER INDEX"); }
+			else { puts("STORING BIT COUNT"); }
+			getchar();
+
+			is_runtime[a0] = 1;
+			out_t = 0;
+
+		} else {
+			puts("WARNING: EXECUTING AN UNKNOWN INSTRUCTION WITHOUT AN IMPLEMENTATION!!!");
+			puts(operations[op]);
+			puts("note this!!!"); getchar();
+			abort();
+		}
+
+		type[pc * var_count + a0] = out_t;
+		value[pc * var_count + a0] = out_v;
+		pc++; goto execute_ins;
+	}
+
+
+
+	print_instruction_window_around(0, ins, ins_count, variables, var_count, visited);
+	print_instructions(ins, ins_count, variables, var_count, 0);
+	print_dictionary(variables, is_undefined, var_count);
+	puts("types and values");
+	puts("------------------------------------------");
+	printf("     ");
+	for (nat j = 0; j < var_count; j++) {
+		printf("%3lld ", j);
+	}
+	puts("\n------------------------------------------");
+	for (nat i = 0; i < ins_count; i++) {
+		printf("%3llu: ", i);
+		for (nat j = 0; j < var_count; j++) {
+			if (type[i * var_count + j])
+				printf("%3lld ", value[i * var_count + j]);
+			else 	printf("\033[90m%3llx\033[0m ", value[i * var_count + j]);
+		}
+		puts("");
+	}
+	puts("------------------------------------------");
+	printf("stack: "); print_nats(stack, stack_count);
+	print_nats(visited, ins_count);
+
+
+
+	puts("starting instruction selection!");
+	puts("using instruction listing:");
+
+	for (nat i = 0; i < ins_count; i++) {
+
+		//print_instruction_window_around(i, ins, ins_count, variables, var_count, visited);
+		//getchar();
+
+		const nat op = ins[i].op;
+		const nat imm = ins[i].imm;
+		
+		nat ignore = 1;
+
+		if (	op == halt or op == sc or op == do_ or 
+			op == la or op == ld or op == st
+		) ignore = 0;
+
+		puts("looking at: "); 
+		print_instruction(ins[i], variables, var_count); puts("");
+		
+		for (nat a = 0; a < arity[op]; a++) {
+
+			if (op == at and a == 0) continue;
+			if (op == do_ and a == 0) continue;
+			if (op == lt and a == 2) continue;
+			if (op == ge and a == 2) continue;
+			if (op == ne and a == 2) continue;
+			if (op == eq and a == 2) continue;
+			if (op == la and a == 1) continue; 
+						
+			// TODO: work this out:     are la's CT OR NOT!?!?!?!    .....they arent. lol. i think. 
+
+			if (((imm >> a) & 1)) {
+
+				printf("found a compiletime immediate : %llu\n", 
+					ins[i].args[a]
+				);
+
+			} else if (type[i * var_count + ins[i].args[a]]) {
+				
+				printf("found a compiletime variable "
+					"as argument  :  %s = {type = %llu, value = %llu}\n",
+					variables[ins[i].args[a]], 
+					type[i * var_count + ins[i].args[a]],
+					value[i * var_count + ins[i].args[a]]
+				);
+
+			} else {
+				puts("found a runtime argument!");	
+				printf("found variable "
+					":  %s = {type = %llu, value = %llu}\n",
+					variables[ins[i].args[a]], 
+					type[i * var_count + ins[i].args[a]],
+					value[i * var_count + ins[i].args[a]]
+				);
+				ignore = 0; break;
+			}
+		}
+
+		if (ignore or op == at or op == rt or not visited[i]) {
+			puts("ignoring instruction...\n");
+			visited[i] = 0;
+		} else {
+			puts("found real RT isntruction!"); putchar('\t');
+			print_instruction(ins[i], variables, var_count); puts("");
+		}
+
+		getchar();
+	}
+
+
+	for (nat i = 0; i < ins_count; i++) {
+		if (not visited[i]) continue;
+		print_instruction_window_around(i, ins, ins_count, variables, var_count, visited);
+		getchar();
+	}
+
+	puts("[done]");
+
+	exit(0);
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+	/*printf("debugging memory state\n");
+	for (nat i = 0; i < 1024; i++) {
+		if (i % 16 == 0) puts("");
+		if (memory[i]) printf("\033[32;1m");
+		printf(" %02hhx ", memory[i]);
+		if (memory[i]) printf("\033[0m");
+	} 
+	puts("\n[done]");*/
+
+
+
+		/*printf("debugging memory state\n");
+		for (nat i = 0; i < 1024; i++) {
+			nat empty = 1;
+			for (nat e = 0; e < 16; e++) { if (memory[i * 16 + e]) empty = 0; }
+			if (empty) continue;
+
+			printf("%08llx : ", i * 16);
+			for (nat e = 0; e < 16; e++) {
+				if (memory[i * 16 + e]) printf("\033[32;1m");
+				printf(" %02hhx ", memory[i * 16 + e]);
+				if (memory[i * 16 + e]) printf("\033[0m");
+			}
+			puts("");
+		} 
+		puts("[done]");*/
+
+
+		//printf("----- AFTER PREDCESSOR CT ANALYSIS: ----\n");
+		//printf("analayzed %llu predecessors,\n", pred_count);
+		//printf("future_type = %llu\n", future_type);
+		//printf("future_value = %llu\n", future_value);
+		//getchar();
+
+		//printf("about to assign {ins=%llu:var=%llu} = [type=%llu,value=%llu]\n", 
+		//		pc, this_var, future_type, future_value);			
+		//puts("continue?");
+		//getchar();
+
+
+
+
+/*if (not ct0 and (label_bit & v0)) {
+				//puts("STORING TO THE .TEXT SECTION OF THE EXECUTABLE!!!!"); getchar();
+
+				if (not ct1) {
+					puts("FATAL ERROR: the data being stored to the .text section of the executable "
+						"is not compiletime-known, and thus this store is impossible to perform."
+					);
+					abort();
+				}
+
+				const nat address = v0 ^ label_bit;
+
+				//printf("address = %llu, data = %llu, size = %llu\n", address, v1, v2); getchar();
+
+				for (nat i = 0; i < v2; i++) memory[address + i] = (v1 >> (8 * i)) & 0xFF;
+
+			} else {
+				puts("found a runtime store!");
+				//getchar();
+			}*/
+
+
+			//printf("found a compiletime known value == %llu\n", v);
+
+
+			//printf("%llu: observed {type=%llu,value=%llu} pair "
+			//	"for predecessor = %llu\n", 
+			//	this_var, t, v, pred
+			//);
+			//getchar();
+
+			/// at this point, we could in theory do partial-constant-propgation-analysis, if we wanted to.
+			/// we would simply keep track of the set of possible values from the preds, instead of just one ctk value.
+			//puts("MISMATCH OCCURED!!!! we will prefer which values came from last_pc!!!");
+			//puts("WAIT!!! LAST_PC == PRED!!!!");
+			//puts("does this mean control came from last_pc??...");
+			//puts("we should probably prefer the value state from this pred over the others....");
+			//printf("setting future type and value to t%llu and v%llu, and breaking!\n", t, v);
+			//getchar();
+
+
+
+
+
+
+
+
+			//puts("executing a LD instruction!"); getchar();
+
+			/*if (not ct1 and (label_bit & v1)) {
+				//puts("(CT or RT) LOADING FROM THE .TEXT SECTION OF THE EXECUTABLE!?!!?!?"); getchar();
+			}*/
+
+
+
+
+		/*printf("[pc=%llu]:"
+			" w=\"%s\" w_st=%llu\n", 
+			pc, word, word_start
+		);
+		print_dictionary(variables, is_undefined, var_count);
+		print_instructions(ins, ins_count, variables, 1);
+		*/
+
+
+
+
+
+
 /* 
 
 
@@ -162,1078 +1271,6 @@ x	3. "do label" is always runtime.
 
 
 */
-
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <stdint.h>
-#include <stdbool.h>
-#include <iso646.h>
-#include <fcntl.h>
-#include <unistd.h>
-#include <ctype.h>
-#include <termios.h>
-#include <time.h>
-#include <sys/time.h>
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <sys/mman.h>
-#include <errno.h>
-
-typedef uint64_t nat;
-typedef uint32_t u32;
-typedef uint16_t u16;
-typedef uint8_t byte;
-
-#define max_variable_count (1 << 14)
-#define max_instruction_count (1 << 14)
-
-enum all_architectures { no_arch, arm64_arch, arm32_arch, rv64_arch, rv32_arch, msp430_arch, };
-enum all_output_formats { debug_output_only, macho_executable, elf_executable, ti_txt_executable };
-
-enum core_language_isa {
-	nullins,
-
-	halt, sc, do_, at, lf,
-	set, add, sub, mul, div_, rem, 
-	and_, or_, eor, si, sd, la, rt,
-	ld, st, lt, ge, ne, eq,
-	
-	a6_nop, a6_svc, a6_mov, a6_bfm,
-	a6_adc, a6_addx, a6_addi, a6_addr, a6_adr, 
-	a6_shv, a6_clz, a6_rev, a6_jmp, a6_bc, a6_br, 
-	a6_cbz, a6_tbz, a6_ccmp, a6_csel, 
-	a6_ori, a6_orr, a6_extr, a6_ldrl, 
-	a6_memp, a6_memia, a6_memi, a6_memr, 
-	a6_madd, a6_divr, 
-
-	m4_section, m4_gen, m4_br,
-
-	isa_count
-};
-
-static const char* operations[isa_count] = {
-	"nullins",
-
-	"halt", "sc", "do", "at", "lf",
-	"set", "add", "sub", "mul", "div", "rem", 
-	"and", "or", "eor", "si", "sd", "la", "rt", 
-	"ld", "st", "lt", "ge", "ne", "eq",
-
-	"a6_nop", "a6_svc", "a6_mov", "a6_bfm",
-	"a6_adc", "a6_addx", "a6_addi", "a6_addr", "a6_adr", 
-	"a6_shv", "a6_clz", "a6_rev", "a6_jmp", "a6_bc", "a6_br", 
-	"a6_cbz", "a6_tbz", "a6_ccmp", "a6_csel", 
-	"a6_ori", "a6_orr", "a6_extr", "a6_ldrl", 
-	"a6_memp", "a6_memia", "a6_memi", "a6_memr", 
-	"a6_madd", "a6_divr", 
-
-	"m4_section", "m4_gen", "m4_br",
-};
-
-static const nat arity[isa_count] = {
-	0,
-
-	0, 0, 
-	1, 1, 1,
-	2, 2, 2, 2, 2, 2, 
-	2, 2, 2, 2, 2, 2, 2,
-	3, 3, 3, 3, 3, 3, 
-		
-	0, 0, 5, 7, 
-	6, 8, 7, 8, 3,
-	5, 4, 4, 2, 2, 3, 
-	4, 4, 7, 7, 
-	5, 8, 5, 3, 
-	7, 6, 5, 6,
-	8, 5, 
-	1, 8, 2,
-};
-
-struct instruction {
-	nat op;
-	//nat ct; // unused
-	nat imm;
-	nat args[16];
-	nat gotos[2];
-};
-
-struct file {
-	nat index;
-	nat text_length;
-	char* text;
-	const char* filename;
-};
-
-static char* load_file(const char* filename, nat* text_length) {
-	int file = open(filename, O_RDONLY);
-	if (file < 0) { 
-		printf("compiler: \033[31;1merror:\033[0m could not open '%s': %s\n", 
-			filename, strerror(errno)
-		); 
-		exit(1);
-	}
-	*text_length = (nat) lseek(file, 0, SEEK_END);
-	lseek(file, 0, SEEK_SET);
-	char* text = calloc(*text_length + 1, 1);
-	read(file, text, *text_length);
-	close(file);
-	return text;
-}
-
-static void print_dictionary(
-	char** variables, 
-	nat* is_undefined,
-	nat var_count
-) {
-	puts("variable dictionary: ");
-	for (nat i = 0; i < var_count; i++) {
-		printf("     %c [%llu]  \"%s\"\n",  // 0x%016llx
-			is_undefined[i] ? 'U' : ' ', 
-			i, variables[i]
-		);
-	}
-	puts("[end]");
-}
-
-static void print_instruction(
-	struct instruction this, 
-	char** variables
-) {
-
-	printf(" %s %8s  ", 
-		(false) ? "\033[38;5;101mct" : "  ", 
-		operations[this.op]
-	);
-
-	for (nat a = 0; a < arity[this.op]; a++) {
-		if (this.imm & (1 << a))
-			printf("#%-8llu", this.args[a]);
-		else
-			printf("%-9s", variables[this.args[a]]);
-		printf(" ");
-	}
-	
-	for (nat a = arity[this.op]; a < 7; a++) {
-		if (this.imm & (1 << a)) printf("         ");
-		else printf("         ");
-		printf(" ");
-	}
-
-	if (this.gotos[0] != (nat) -1) printf(" .0 = %-4lld", this.gotos[0]); else printf("          ");
-	if (this.gotos[1] != (nat) -1) printf(" .1 = %-4lld", this.gotos[1]); else printf("          ");
-
-	if ((false)) printf("\033[0m");
-}
-
-static void print_instructions(
-	struct instruction* ins, 
-	nat ins_count,
-	char** variables
-) {
-	printf("instructions: (%llu count) {\n", ins_count);
-	for (nat i = 0; i < ins_count; i++) {
-		printf("\t%4llu: ", i);
-		print_instruction(ins[i], variables);
-		puts("");
-	}
-	puts("}");
-}
-
-static void print_instruction_window_around(
-	nat this, 
-	struct instruction* ins, 
-	nat ins_count, 
-	char** variables,
-	nat* visited
-) {
-	printf("\033[H\033[2J");
-	const int64_t window_width = 12;
-	const int64_t pc = (int64_t) this;
-	for (int64_t i = -window_width; i < window_width; i++) {
-		if (not i) printf("\033[48;5;238m");
-		const int64_t here = pc + i;
-		if (	here < 0 or 
-			here >= (int64_t) ins_count
-		) { puts("\033[0m"); continue; }
-		printf("  %s%4llu │ ", 
-			visited[here] and i 
-				? "\033[32;1m•\033[0m" 
-				: " ", 
-			here
-		);
-		print_instruction(ins[here], variables);
-		puts("\033[0m");
-	}
-}
-
-static void print_index(const char* text, nat text_length, nat begin, nat end) {
-	printf("\n\t@%llu..%llu: ", begin, end); 
-
-	while (end and isspace(text[end])) end--;
-
-	const nat max_width = 100;
-
-	nat start_at = 
-		begin < max_width 
-		? 0 
-		: begin - max_width;
-
-	nat end_at = 
-		end + max_width >= text_length 
-		? text_length 
-		: end + max_width;
-
-	for (nat i = start_at; i < end_at; i++) {
-		if (i == begin) printf("\033[32;1m[");
-		putchar(text[i]);
-		if (i == end) printf("]\033[0m");
-	}
-	
-	printf("\033[0m");
-	puts("\n");
-}
-
-static void print_binary(nat x) {
-	if (not x) { puts("0"); return; }
-
-	for (nat i = 0; i < 64 and x; i++) {
-		if (not (i % 8) and i) putchar('.');
-		putchar((x & 1) + '0'); x >>= 1;
-	}
-	puts("");
-}
-
-static void print_nats(nat* array, nat count) {
-	printf("(%llu) { ", count);
-	for (nat i = 0; i < count; i++) {
-		printf("%llu ", array[i]);
-	}
-	puts("}");
-}
-
-/*
-
-static void insert_byte(
-	uint8_t** output_data, 
-	nat* output_data_count, 
-	uint8_t x
-) {
-	*output_data = realloc(*output_data, *output_data_count + 1);
-	(*output_data)[(*output_data_count)++] = x;
-}
-
-static void insert_u8(uint8_t** d, nat* c, uint8_t x) {
-	insert_byte(d, c, x);
-}
-
-static void insert_bytes(uint8_t** d, nat* c, char* s, nat len) {
-	for (nat i = 0; i < len; i++) insert_byte(d, c, (uint8_t) s[i]);
-}
-
-static void insert_u16(uint8_t** d, nat* c, uint16_t x) {
-	insert_byte(d, c, (x >> 0) & 0xFF);
-	insert_byte(d, c, (x >> 8) & 0xFF);
-}
-
-static void insert_u32(uint8_t** d, nat* c, uint32_t x) {
-	insert_u16(d, c, (x >> 0) & 0xFFFF);
-	insert_u16(d, c, (x >> 16) & 0xFFFF);
-}
-
-static void insert_u64(uint8_t** d, nat* c, uint64_t x) {
-	insert_u32(d, c, (x >> 0) & 0xFFFFFFFF);
-	insert_u32(d, c, (x >> 32) & 0xFFFFFFFF);
-}
-
-#define MH_MAGIC_64             0xfeedfacf
-#define MH_EXECUTE              2
-#define	MH_NOUNDEFS		1
-#define	MH_PIE			0x200000
-#define MH_DYLDLINK 		0x4
-#define MH_TWOLEVEL		0x80
-#define	LC_SEGMENT_64		0x19
-#define LC_DYSYMTAB		0xb
-#define LC_SYMTAB		0x2
-#define LC_LOAD_DYLINKER	0xe
-#define LC_LOAD_DYLIB		0xc
-#define LC_REQ_DYLD		0x80000000
-#define LC_MAIN			(0x28 | LC_REQ_DYLD)
-#define LC_BUILD_VERSION 	0x32
-#define LC_SOURCE_VERSION 	0x2A
-#define LC_UUID            	0x1B
-#define S_ATTR_PURE_INSTRUCTIONS 0x80000000
-#define S_ATTR_SOME_INSTRUCTIONS 0x00000400
-#define CPU_SUBTYPE_ARM64_ALL   0
-#define CPU_TYPE_ARM            12
-#define CPU_ARCH_ABI64          0x01000000 
-#define VM_PROT_READ       	1
-#define VM_PROT_WRITE   	2
-#define VM_PROT_EXECUTE 	4
-#define TOOL_LD			3
-#define PLATFORM_MACOS 		1
-
-static nat calculate_offset(nat* length, nat here, nat target) {
-	nat offset = 0;
-	if (target > here) {
-		for (nat i = here; i < target; i++) 
-			offset += length[i];
-	} else {
-		for (nat i = target; i < here; i++) 
-			offset -= length[i];
-	}
-	return offset;
-}
-
-*/
-
-
-
-
-static nat* compute_predecessors(
-	struct instruction* ins, 
-	nat ins_count, nat pc, 
-	nat* pred_count
-) {
-	nat* result = NULL;
-	nat count = 0;
-	for (nat i = 0; i < ins_count; i++) {
-		if (ins[i].gotos[0] == pc or ins[i].gotos[1] == pc) {
-			result = realloc(result, sizeof(nat) * (count + 1));	
-			result[count++] = i;
-		}
-	}
-	*pred_count = count;
-	return result;
-}
-
-int main(int argc, const char** argv) {
-
-	if (argc != 2) 
-		exit(puts("compiler: \033[31;1merror:\033[0m usage: ./run [file.s]"));
-
-	//const nat min_stack_size = 16384 + 1;
-	//nat stack_size = min_stack_size;
-	//const char* output_filename = "output_executable_new";
-
-	struct instruction ins[max_instruction_count] = {0};
-	nat ins_count = 0;
-
-	char* variables[max_variable_count] = {0};
-	nat is_undefined[max_variable_count] = {0};
-	nat locations[max_variable_count] = {0};
-
-	//nat is_runtime[max_variable_count] = {0};
-	//nat is_compiletime[max_variable_count] = {0};
-	//nat values[max_variable_count] = {0};
-
-	nat var_count = 0;
-
-	const char* included_files[4096] = {0};
-	nat included_file_count = 0;
-
-	//char* string_list[4096] = {0};
-	//nat string_list_count = 0;
-
-	struct file files[4096] = {0};
-	nat file_count = 1;
-
-	{ 
-	nat text_length = 0;
-	char* text = load_file(argv[1], &text_length);
-	files[0].filename = argv[1];
-	files[0].text = text;
-	files[0].text_length = text_length;
-	files[0].index = 0;
-	}
-
-process_file:;
-	const nat starting_index = files[file_count - 1].index;
-	const nat text_length = files[file_count - 1].text_length;
-	char* text = files[file_count - 1].text;
-	const char* filename = files[file_count - 1].filename;
-
-	nat 	word_length = 0, word_start = 0, 
-		arg_count = 0, is_immediate = 0;
-
-	nat args[16] = {0};
-
-	for (nat var = 0, op = 0, pc = starting_index; pc < text_length; pc++) {
-
-		if (not isspace(text[pc])) {
-			if (not word_length) word_start = pc;
-			word_length++; 
-			if (pc + 1 < text_length) continue;
-		} else if (not word_length) continue;
-
-		char* word = strndup(text + word_start, word_length);
-
-		printf("[pc=%llu]:"
-			" w=\"%s\" w_st=%llu\n", 
-			pc, word, word_start
-		);
-
-		print_dictionary(variables, is_undefined, var_count);
-		print_instructions(ins, ins_count, variables);
-
-		if (not op) {
-			if (*word == '(') { 				
-				nat i = word_start + 1, comment = 1;
-				while (comment and i < text_length) {
-					printf("skipping over: '%c'  "
-						"(comment = %llu)\n", 
-						text[i], comment
-					);
-					if (text[i] == '(') comment++;
-					if (text[i] == ')') comment--;
-					i++;
-				}
-				if (comment) goto print_error;
-				pc = i;
-				goto next_word; 
-			}
-
-			for (op = 0; op < isa_count; op++) 
-				if (not strcmp(word, operations[op])) goto process_op;
-
-			print_error: 
-			printf("%s:%llu:%llu:"
-				" error: undefined %s \"%s\"\n",
-				filename, word_start, pc, 
-				op == isa_count ? "operation" : "variable", word
-			); 
- 
-			print_index(text, text_length, word_start, pc);
-			if (op != isa_count) 
-				printf( "note: calling operation: "
-					"%s (arity %llu)\n", 
-					operations[op], arity[op]
-				);
-			abort();
-		}
-		else if (op == lf) goto define_name;
-		for (var = var_count; var--;) {
-			if (not is_undefined[var] and 
-			    not strcmp(word, variables[var])) {
-				//last_used = var;
-				goto push_argument;
-			}
-		} 
-
-		if (not(  
-			op == set and arg_count == 0 or
-			op == ld  and arg_count == 0 or
-			op == rt  and arg_count == 0 or
-			op == do_ or op == at or op == la or 
-			(op == lt or op == ge or 
-	 		 op == ne or op == eq) 
-			and arg_count == 2
-		)) {
-			nat r = 0, s = 1;
-			for (nat i = 0; i < strlen(word); i++) {
-				if (word[i] == '0') s <<= 1;
-				else if (word[i] == '1') { r += s; s <<= 1; }
-				else if (word[i] == '_') continue;
-				else goto print_error;
-			}
-			is_immediate |= 1 << arg_count;
-			var = r;
-			goto push_argument;
-		}
-
-	define_name:
-		var = var_count;
-		variables[var] = word; 
-		var_count++;
-
-	push_argument: 
-		args[arg_count++] = var;
-
-	process_op: 
-		if (arg_count < arity[op]) goto next_word;
-		//else if (op == ud) is_undefined[last_used] = 1;
-		else if (op == lf) {
-			for (nat i = 0; i < included_file_count; i++) {
-				if (strcmp(included_files[i], word)) continue;
-				printf("warning: %s: already included\n", word);
-				goto next_word;
-			}
-			included_files[included_file_count++] = word;
-
-			nat len = 0;
-			char* string = load_file(word, &len);
-			files[file_count - 1].index = pc;
-			files[file_count].filename = word;
-			files[file_count].text = string;
-			files[file_count].text_length = len;
-			files[file_count++].index = 0;
-			var_count--;
-			goto process_file;
-
-		} else {
-			struct instruction new = { .op = op, .imm = is_immediate };
-			memcpy(new.args, args, sizeof args);
-			is_immediate = 0;
-			ins[ins_count++] = new;
-		}
-		arg_count = 0; op = 0;
-		next_word: word_length = 0;
-	}
-	file_count--;
-	if (file_count) goto process_file; 
-
-	for (nat i = 0; i < ins_count; i++) {
-		if (ins[i].op == at) locations[ins[i].args[0]] = i;
-	}
-
-	for (nat i = 0; i < ins_count; i++) {
-		const nat op = ins[i].op;		
-		if (op == lt or op == ge or op == ne or op == eq) {
-			ins[i].gotos[0] = i + 1;
-			ins[i].gotos[1] = locations[ins[i].args[2]];
-
-		} else if (op == do_) {
-			ins[i].gotos[0] = locations[ins[i].args[0]];
-			ins[i].gotos[1] = (nat) -1;
-
-		} else if (op == halt) {
-			ins[i].gotos[0] = (nat) -1;
-			ins[i].gotos[1] = (nat) -1;
-
-		} else {
-			ins[i].gotos[0] = i + 1;
-			ins[i].gotos[1] = (nat) -1;
-		}
-	}
-
-	print_dictionary(variables, is_undefined, var_count);
-	print_instructions(ins, ins_count, variables);
-	getchar();
-
-	nat* type = calloc(ins_count * var_count, sizeof(nat));  // is_compiletime[...]
-	nat* value = calloc(ins_count * var_count, sizeof(nat));  // values[...]
-
-	nat stack[4096] = {0};
-	nat stack_count = 1;
-	nat visited[4096] = {0};
-	nat last_pc = (nat) -1;
-	nat is_runtime[4096] = {0};
-	const nat label_bit = 1LLU << 63LLU;
-
-	byte memory[65536] = {0};
-
-	const nat debug_ct_eval = 0;
-
-	while (stack_count) {
-		nat pc = stack[--stack_count];
-	execute_ins:
-		if (pc >= ins_count) continue;
-
-		nat pred_count = 0;
-		nat* preds = compute_predecessors(ins, ins_count, pc, &pred_count);
-
-		if (debug_ct_eval) {
-
-		print_instruction_window_around(pc, ins, ins_count, variables, visited);
-		print_dictionary(variables, is_undefined, var_count);
-		puts("types and values");
-		puts("------------------------------------------");
-		printf("     ");
-		for (nat j = 0; j < var_count; j++) {
-			printf("%3lld ", j);
-		}
-		puts("\n------------------------------------------");
-		for (nat i = 0; i < ins_count; i++) {
-			printf("%3llu: ", i);
-			for (nat j = 0; j < var_count; j++) {
-				if (type[i * var_count + j])
-					printf("%3lld ", value[i * var_count + j]);
-				else 	printf("\033[90m%3llx\033[0m ", value[i * var_count + j]);
-			}
-			puts("");
-		}
-		puts("------------------------------------------");
-
-		printf("stack: "); print_nats(stack, stack_count);
-		printf("[PC = %llu]\n", pc);
-		printf("[note: last_pc = %llu]\n", last_pc);
-		puts("predecessors: ");
-		print_nats(preds, pred_count);
-		printf("debugging memory state\n");
-		for (nat i = 0; i < 1024; i++) {
-			nat empty = 1;
-			for (nat e = 0; e < 16; e++) { if (memory[i * 16 + e]) empty = 0; }
-			if (empty) continue;
-
-			printf("%08llx : ", i * 16);
-			for (nat e = 0; e < 16; e++) {
-				if (memory[i * 16 + e]) printf("\033[32;1m");
-				printf(" %02hhx ", memory[i * 16 + e]);
-				if (memory[i * 16 + e]) printf("\033[0m");
-			}
-			puts("");
-		} 
-		puts("[done]");
-
-		getchar();
-		//fflush(stdout); 
-		//usleep(10000);
-
-		}
-
-		visited[pc]++;
-
-		const nat op = ins[pc].op;
-		const nat imm = ins[pc].imm;
-		const nat gt0 = ins[pc].gotos[0];
-		const nat gt1 = ins[pc].gotos[1];
-		const nat a0 = 0 < arity[op] ? ins[pc].args[0] : 0;
-		const nat a1 = 1 < arity[op] ? ins[pc].args[1] : 0;
-		const nat a2 = 2 < arity[op] ? ins[pc].args[2] : 0;
-		const nat i0 = !!(imm & 1);
-		const nat i1 = !!(imm & 2);
-		const nat i2 = !!(imm & 4);
-
-		for (nat e = 0; e < var_count; e++) {
-
-		const nat this_var = e;  // for now. this would be a for loop over the variables in general. 
-		nat future_type = 0; // assume its runtime known.
-		nat future_value = 0;
-		nat mismatch = 0;
-
-		for (nat iterator_p = 0; iterator_p < pred_count; iterator_p++) {
-
-			const nat pred = preds[iterator_p];
-
-			if (not visited[pred]) { 
-				//puts("skipping over unexecuted predecessor..."); 
-				//getchar(); 
-				continue;
-			}
-			const nat t = type[pred * var_count + this_var];
-			const nat v = value[pred * var_count + this_var];
-	
-			/*printf("%llu: observed {type=%llu,value=%llu} pair "
-				"for predecessor = %llu\n", 
-				this_var, t, v, pred
-			);
-			getchar();*/
-
-			if (t == 0) { future_type = 0; future_value = v; break; } 
-			
-			//printf("found a compiletime known value == %llu\n", v);
-
-			/// at this point, we could in theory do partial-constant-propgation-analysis, if we wanted to.
-			/// we would simply keep track of the set of possible values from the preds, instead of just one ctk value.
-
-			if (not future_type) { 
-				future_type = 1; 
-				future_value = v; 
-
-			} else if (future_value == v) { 
-
-				//puts("ctk value match"); getchar(); 
-
-			} else {
-				//puts("ctk value mis-match"); getchar(); 
-
-				mismatch = 1; 
-			}
-		}
-
-		if (mismatch and future_type) {
-
-			nat found = 0;
-			for (nat i = 0; i < pred_count; i++) {
-				if (preds[i] == last_pc) { found = 1; break; }
-			}
-			if (not found) { puts("last_pc was not a predecessor... aborting."); abort(); }
-			if (last_pc == (nat) -1) abort();
-
-			//puts("MISMATCH OCCURED!!!! we will prefer which values came from last_pc!!!");
-
-			const nat pred = last_pc;
-
-			if (not visited[pred]) { 
-				//puts("skipping over last_pc predecessor..."); 
-				//getchar(); 
-				continue; 
-			}
-			const nat t = type[pred * var_count + this_var];
-			const nat v = value[pred * var_count + this_var];
-
-			//puts("WAIT!!! LAST_PC == PRED!!!!");
-			//puts("does this mean control came from last_pc??...");
-			//puts("we should probably prefer the value state from this pred over the others....");
-			//printf("setting future type and value to t%llu and v%llu, and breaking!\n", t, v);
-			//getchar();
-
-			future_type = t;
-			future_value = v;
-		}
-
-		//printf("----- AFTER PREDCESSOR CT ANALYSIS: ----\n");
-		//printf("analayzed %llu predecessors,\n", pred_count);
-		//printf("future_type = %llu\n", future_type);
-		//printf("future_value = %llu\n", future_value);
-		//getchar();
-
-		//printf("about to assign {ins=%llu:var=%llu} = [type=%llu,value=%llu]\n", 
-		//		pc, this_var, future_type, future_value);			
-		//puts("continue?");
-		//getchar();
-
-		type[pc * var_count + this_var] = future_type;
-		value[pc * var_count + this_var] = future_value;
-
-		} // for e 
-
-		printf("pc = %llu, a0 = %llu, a1 = %llu, a1 = %llu\n", pc, a0, a1, a2); fflush(stdout);
-		const nat ct0 = i0 or type[pc * var_count + a0];
-		const nat ct1 = i1 or type[pc * var_count + a1];
-		const nat ct2 = i2 or type[pc * var_count + a2];
-		const nat v0 = i0 ? a0 : value[pc * var_count + a0];
-		const nat v1 = i1 ? a1 : value[pc * var_count + a1];
-		const nat v2 = i2 ? a2 : value[pc * var_count + a2];
-
-		nat out_t = ct0, out_v = v0;
-		last_pc = pc;
-
-		if (op == halt) {
-			//puts("executing a halt statement..."); getchar();
-			continue;
-		}
-
-		else if (op == at) { }
-		else if (op == do_) { pc = gt0; goto execute_ins; } 		
-		else if (op == set) { if (not is_runtime[a0]) { out_t = ct1; out_v = v1; } }
-		else if (op >= add and op <= sd) { 
-			if (not i1) out_t = ct0 and ct1;
-			     if (op == add)  out_v += v1;
-			else if (op == sub)  out_v -= v1;
-			else if (op == mul)  out_v *= v1;
-			else if (op == div_) out_v /= v1;
-			else if (op == rem)  out_v %= v1;
-			else if (op == and_) out_v &= v1;
-			else if (op == or_)  out_v |= v1;
-			else if (op == eor)  out_v ^= v1;
-			else if (op == si)   out_v <<= v1;
-			else if (op == sd)   out_v >>= v1;
-
-
-		} else if (op == st) {	
-			if (not ct2) { puts("error: size of store must be ctk."); abort(); }
-
-			//puts("executing a ST instruction!"); getchar();
-
-			if (not ct0 and (label_bit & v0)) {
-				//puts("STORING TO THE .TEXT SECTION OF THE EXECUTABLE!!!!"); getchar();
-
-				if (not ct1) {
-					puts("FATAL ERROR: the data being stored to the .text section of the executable "
-						"is not compiletime-known, and thus this store is impossible to perform."
-					);
-					abort();
-				}
-
-				const nat address = v0 ^ label_bit;
-
-				//printf("address = %llu, data = %llu, size = %llu\n", address, v1, v2); getchar();
-
-				for (nat i = 0; i < v2; i++) memory[address + i] = (v1 >> (8 * i)) & 0xFF;
-
-			} else {
-				puts("found a runtime store!");
-				//getchar();
-			}
-
-		} else if (op == ld) {
-			if (not ct2) { puts("error: size of load must be ctk."); abort(); }
-
-			//puts("executing a LD instruction!"); getchar();
-
-			if (not ct1 and (label_bit & v1)) {
-				//puts("(CT or RT) LOADING FROM THE .TEXT SECTION OF THE EXECUTABLE!?!!?!?"); getchar();
-			}
-			out_t = 0;
-
-
-		} else if (op == la) {
-			//puts("executing a LA instruction!"); getchar();
-			out_t = 0;
-			out_v = label_bit | 8 * locations[a1];
-						
-
-		} else if (op == lt or op == ge or op == ne or op == eq) {
-			if (not ct0 or not ct1) {
-				//puts("EXECUTING A RUNTIME-KNOWN BRANCH"); getchar();
-
-				last_pc = (nat) -1; // ????    uhhhh     whyy lol 
-
-				if (gt0 < ins_count and visited[gt0] < 2) stack[stack_count++] = gt0;
-				if (gt1 < ins_count and visited[gt1] < 2) stack[stack_count++] = gt1;
-				continue;
-			} else {
-				//puts("EXECUTING A COMPILETIME-KNOWN BRANCH"); getchar();
-				bool cond = 0;
-				     if (op == lt) cond = v0  < v1;
-				else if (op == ge) cond = v0 >= v1;
-				else if (op == eq) cond = v0 == v1;
-				else if (op == ne) cond = v0 != v1;
-				pc = cond ? gt1 : gt0; goto execute_ins;
-			}
-
-
-
-		} else if (op == rt) {
-			//puts("executing an RT statement!"); getchar();
-			if (not ct1) { puts("error: source argument to RT must be compiletime known."); abort(); }
-
-			printf("note: storing: RT x (%lld)\n", v1);
-			if ((int64_t) v1 < 0) { puts("STORING REGSITER INDEX"); }
-			else { puts("STORING BIT COUNT"); }
-			getchar();
-
-			is_runtime[a0] = 1;
-			out_t = 0;
-
-		} else {
-			puts("WARNING: EXECUTING AN UNKNOWN INSTRUCTION WITHOUT AN IMPLEMENTATION!!!");
-			puts(operations[op]);
-			puts("note this!!!"); getchar();
-			abort();
-		}
-
-		type[pc * var_count + a0] = out_t;
-		value[pc * var_count + a0] = out_v;
-		pc++; goto execute_ins;
-	}
-
-
-	print_instruction_window_around(0, ins, ins_count, variables, visited);
-	print_instructions(ins, ins_count, variables);
-	print_dictionary(variables, is_undefined, var_count);
-	puts("types and values");
-	puts("------------------------------------------");
-	printf("     ");
-	for (nat j = 0; j < var_count; j++) {
-		printf("%3lld ", j);
-	}
-	puts("\n------------------------------------------");
-	for (nat i = 0; i < ins_count; i++) {
-		printf("%3llu: ", i);
-		for (nat j = 0; j < var_count; j++) {
-			if (type[i * var_count + j])
-				printf("%3lld ", value[i * var_count + j]);
-			else 	printf("\033[90m%3llx\033[0m ", value[i * var_count + j]);
-		}
-		puts("");
-	}
-	puts("------------------------------------------");
-	printf("stack: "); print_nats(stack, stack_count);
-	print_nats(visited, ins_count);
-
-	printf("debugging memory state\n");
-	for (nat i = 0; i < 1024; i++) {
-		if (i % 16 == 0) puts("");
-		if (memory[i]) printf("\033[32;1m");
-		printf(" %02hhx ", memory[i]);
-		if (memory[i]) printf("\033[0m");
-	} 
-	puts("\n[done]");
-
-
-
-
-
-
-
-
-
-
-
-
-	puts("starting instruction selection!");
-	puts("using instruction listing:");
-
-	for (nat i = 0; i < ins_count; i++) {
-
-		const nat op = ins[i].op;
-		const nat imm = ins[i].imm;
-		
-		nat ignore = 1;
-
-		if (op == sc) ignore = 0;
-
-
-		puts("looking at: "); 
-		print_instruction(ins[i], variables); puts("");
-
-		
-		for (nat a = 0; a < arity[op]; a++) {
-
-			if (op == at and a == 0) continue;
-			if (op == do_ and a == 0) continue;
-
-			if (op == lt and a == 2) continue;
-			if (op == ge and a == 2) continue;
-			if (op == ne and a == 2) continue;
-			if (op == eq and a == 2) continue;
-
-			if (op == la and a == 1) continue; 
-
-
-						
-
-
-	
-// TODO: work this out:     are la's CT OR NOT!?!?!?!
-
-
-
-
-
-			if (((imm >> a) & 1)) {
-
-				printf("found a compiletime immediate : %llu\n", 
-					ins[i].args[a]
-				);
-
-			} else if (type[i * var_count + ins[i].args[a]]) {
-				
-				printf("found a compiletime variable "
-					"as argument  :  %s = {type = %llu, value = %llu}\n",
-					variables[ins[i].args[a]], 
-					type[i * var_count + ins[i].args[a]],
-					value[i * var_count + ins[i].args[a]]
-				);
-
-			} else {
-				puts("found a runtime argument!");	
-				printf("found variable "
-					":  %s = {type = %llu, value = %llu}\n",
-					variables[ins[i].args[a]], 
-					type[i * var_count + ins[i].args[a]],
-					value[i * var_count + ins[i].args[a]]
-				);
-				ignore = 0; break;
-			}
-		}
-
-		if (ignore or op == at or op == rt) {
-			puts("ignoring instruction...\n");
-		} else {
-			puts("found real RT isntruction!"); putchar('\t');
-			print_instruction(ins[i], variables); puts("");
-		}
-
-		getchar();
-	}
-
-	puts("[done]");
-
-
-	exit(0);
-}
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 

@@ -4,7 +4,7 @@ and stores the first several primes
 into compiletime memory!
 written on 1202504104.152442 by dwrr)
 
-set n 0000001 
+set n 00001
 set i 0 
 set count 0
 
