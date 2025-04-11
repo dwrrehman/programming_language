@@ -2,7 +2,34 @@
 
 /* 
 
+
+	new todo: 1202504115.002432
+---------------------------------------------------
+
+
+
+		. figure out how to add back in    the   udf   and eoi    functionality...?
+
+
+		. we should remove the entire    label-based stores are ct   thingy??? 
+
+
+		. and just make ld and st ALWAYS runtime. always. 
+			i think we actually do still need the notion of label based computations, though. 
+			because computating an offset is quite useful actually. 
+			its just.. i don't think that storing to a label should be allowed? idk. at least, it shouldnt neccessarily be done at compiletime. it should just trigger a segementation fault instead, or be valid if we are on msp430 and using FRAM lol. 
+
+		. to get ct loads and stores, lets just leave that feature out for now? hmmmm
+
+
+		
+
+
+
+
+
 	missing features still:
+---------------------------------------------------
 
 		. we need some way of allocating some read-only bytes in the executable!      eg,         allocate 4        to allocate 4 bytes
 
@@ -21,10 +48,22 @@
 
 
 isa:
-	halt sc do at lf rt set 
-	add sub mul div rem
-	and or eor si sd la 
-	ld st lt ge ne eq
+	halt sc 
+
+	do at lf 
+
+	set add sub mul div rem
+
+	and or eor si sd 
+
+	la rt
+
+	ld st 
+
+	lt ge ne eq
+
+
+
 
 
 meaning/usage of each instruction:
@@ -60,8 +99,6 @@ meaning/usage of each instruction:
 	
 
 
-
-
 current:
 
 	24 instructions:
@@ -91,7 +128,7 @@ notes:
 	1. we are still midding "udf" functionality. 
 
 
-	2. bc <varname> 0 is used to define a ct variable.                 <------- DELETE THISSSS
+x	2. bc <varname> 0 is used to define a ct variable.                 <------- DELETE THISSSS
 			....although, usually this can be deduced i think?... 
 
 				via constant propagation. basically. yeah. and TRUE ct analysis. 
@@ -102,7 +139,7 @@ notes:
 				and we want to force  the compiler to execute something rt at compiletime anyways lol. 
 
 	
-	3. "do label" is always runtime. 
+x	3. "do label" is always runtime. 
 
 		(the user never writes this like this, if they wanted a ct label instead lol.)
 
@@ -121,10 +158,6 @@ notes:
 		butttt	i'm debating on removing       ri   and bc   from that list though lol... 
 
 									technically not neccessary to be here... hmmm
-
-	5. 
-
-
 				
 
 
@@ -219,7 +252,7 @@ static const nat arity[isa_count] = {
 
 struct instruction {
 	nat op;
-	nat ct; // unused
+	//nat ct; // unused
 	nat imm;
 	nat args[16];
 	nat gotos[2];
@@ -269,7 +302,7 @@ static void print_instruction(
 ) {
 
 	printf(" %s %8s  ", 
-		this.ct ? "\033[38;5;101mct" : "  ", 
+		(false) ? "\033[38;5;101mct" : "  ", 
 		operations[this.op]
 	);
 
@@ -290,7 +323,7 @@ static void print_instruction(
 	if (this.gotos[0] != (nat) -1) printf(" .0 = %-4lld", this.gotos[0]); else printf("          ");
 	if (this.gotos[1] != (nat) -1) printf(" .1 = %-4lld", this.gotos[1]); else printf("          ");
 
-	if (this.ct) printf("\033[0m");
+	if ((false)) printf("\033[0m");
 }
 
 static void print_instructions(
@@ -689,10 +722,17 @@ process_file:;
 
 	byte memory[65536] = {0};
 
+	const nat debug_ct_eval = 0;
+
 	while (stack_count) {
 		nat pc = stack[--stack_count];
 	execute_ins:
 		if (pc >= ins_count) continue;
+
+		nat pred_count = 0;
+		nat* preds = compute_predecessors(ins, ins_count, pc, &pred_count);
+
+		if (debug_ct_eval) {
 
 		print_instruction_window_around(pc, ins, ins_count, variables, visited);
 		print_dictionary(variables, is_undefined, var_count);
@@ -717,11 +757,29 @@ process_file:;
 		printf("stack: "); print_nats(stack, stack_count);
 		printf("[PC = %llu]\n", pc);
 		printf("[note: last_pc = %llu]\n", last_pc);
-		nat pred_count = 0;
-		nat* preds = compute_predecessors(ins, ins_count, pc, &pred_count);
 		puts("predecessors: ");
 		print_nats(preds, pred_count);
+		printf("debugging memory state\n");
+		for (nat i = 0; i < 1024; i++) {
+			nat empty = 1;
+			for (nat e = 0; e < 16; e++) { if (memory[i * 16 + e]) empty = 0; }
+			if (empty) continue;
+
+			printf("%08llx : ", i * 16);
+			for (nat e = 0; e < 16; e++) {
+				if (memory[i * 16 + e]) printf("\033[32;1m");
+				printf(" %02hhx ", memory[i * 16 + e]);
+				if (memory[i * 16 + e]) printf("\033[0m");
+			}
+			puts("");
+		} 
+		puts("[done]");
+
 		getchar();
+		//fflush(stdout); 
+		//usleep(10000);
+
+		}
 
 		visited[pc]++;
 
@@ -866,10 +924,10 @@ process_file:;
 		} else if (op == st) {	
 			if (not ct2) { puts("error: size of store must be ctk."); abort(); }
 
-			puts("executing a ST instruction!"); getchar();
+			//puts("executing a ST instruction!"); getchar();
 
 			if (not ct0 and (label_bit & v0)) {
-				puts("STORING TO THE .TEXT SECTION OF THE EXECUTABLE!!!!"); getchar();
+				//puts("STORING TO THE .TEXT SECTION OF THE EXECUTABLE!!!!"); getchar();
 
 				if (not ct1) {
 					puts("FATAL ERROR: the data being stored to the .text section of the executable "
@@ -879,29 +937,31 @@ process_file:;
 				}
 
 				const nat address = v0 ^ label_bit;
+
+				//printf("address = %llu, data = %llu, size = %llu\n", address, v1, v2); getchar();
+
 				for (nat i = 0; i < v2; i++) memory[address + i] = (v1 >> (8 * i)) & 0xFF;
 
 			} else {
 				puts("found a runtime store!");
-				getchar();
+				//getchar();
 			}
 
 		} else if (op == ld) {
 			if (not ct2) { puts("error: size of load must be ctk."); abort(); }
 
-			puts("executing a LD instruction!"); getchar();
+			//puts("executing a LD instruction!"); getchar();
 
 			if (not ct1 and (label_bit & v1)) {
-				puts("(CT or RT) LOADING FROM THE .TEXT SECTION OF THE EXECUTABLE!?!!?!?");
-				getchar();
+				//puts("(CT or RT) LOADING FROM THE .TEXT SECTION OF THE EXECUTABLE!?!!?!?"); getchar();
 			}
 			out_t = 0;
 
 
 		} else if (op == la) {
-			puts("executing a LA instruction!"); getchar();
+			//puts("executing a LA instruction!"); getchar();
 			out_t = 0;
-			out_v = label_bit | 4 * locations[a1];
+			out_v = label_bit | 8 * locations[a1];
 						
 
 		} else if (op == lt or op == ge or op == ne or op == eq) {
@@ -980,9 +1040,201 @@ process_file:;
 		printf(" %02hhx ", memory[i]);
 		if (memory[i]) printf("\033[0m");
 	} 
+	puts("\n[done]");
+
+
+
+
+
+
+
+
+
+
+
+
+	puts("starting instruction selection!");
+	puts("using instruction listing:");
+
+	for (nat i = 0; i < ins_count; i++) {
+
+		const nat op = ins[i].op;
+		const nat imm = ins[i].imm;
+		
+		nat ignore = 1;
+
+		if (op == sc) ignore = 0;
+
+
+		puts("looking at: "); 
+		print_instruction(ins[i], variables); puts("");
+
+		
+		for (nat a = 0; a < arity[op]; a++) {
+
+			if (op == at and a == 0) continue;
+			if (op == do_ and a == 0) continue;
+
+			if (op == lt and a == 2) continue;
+			if (op == ge and a == 2) continue;
+			if (op == ne and a == 2) continue;
+			if (op == eq and a == 2) continue;
+
+			if (op == la and a == 1) continue; 
+
+
+						
+
+
+	
+// TODO: work this out:     are la's CT OR NOT!?!?!?!
+
+
+
+
+
+			if (((imm >> a) & 1)) {
+
+				printf("found a compiletime immediate : %llu\n", 
+					ins[i].args[a]
+				);
+
+			} else if (type[i * var_count + ins[i].args[a]]) {
+				
+				printf("found a compiletime variable "
+					"as argument  :  %s = {type = %llu, value = %llu}\n",
+					variables[ins[i].args[a]], 
+					type[i * var_count + ins[i].args[a]],
+					value[i * var_count + ins[i].args[a]]
+				);
+
+			} else {
+				puts("found a runtime argument!");	
+				printf("found variable "
+					":  %s = {type = %llu, value = %llu}\n",
+					variables[ins[i].args[a]], 
+					type[i * var_count + ins[i].args[a]],
+					value[i * var_count + ins[i].args[a]]
+				);
+				ignore = 0; break;
+			}
+		}
+
+		if (ignore or op == at or op == rt) {
+			puts("ignoring instruction...\n");
+		} else {
+			puts("found real RT isntruction!"); putchar('\t');
+			print_instruction(ins[i], variables); puts("");
+		}
+
+		getchar();
+	}
+
 	puts("[done]");
+
+
 	exit(0);
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
