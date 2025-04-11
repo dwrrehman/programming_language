@@ -2,6 +2,24 @@
 
 /* 
 
+	missing features still:
+
+		. we need some way of allocating some read-only bytes in the executable!      eg,         allocate 4        to allocate 4 bytes
+
+		. we then need to find some way of making  loads  compiletime executed.   
+			becuase currently they are only ever runtime. 
+
+		. we need to find some way of seperating out the index space   of the various labels and the memory regions they represent. 
+			because currently they all share the exact same memory array. and this isnt quite sound to do, i think... 
+				we should be doing bounds checks on all loads and stores to the executable, 
+				to make sure they that they lie within the allocated region.  this should be pretty easy. 
+
+
+		. 
+
+
+
+
 isa:
 	halt sc do at lf rt set 
 	add sub mul div rem
@@ -456,9 +474,6 @@ static nat* compute_predecessors(
 	return result;
 }
 
-
-
-
 int main(int argc, const char** argv) {
 
 	if (argc != 2) 
@@ -526,7 +541,6 @@ process_file:;
 		);
 
 		print_dictionary(variables, is_undefined, var_count);
-
 		print_instructions(ins, ins_count, variables);
 
 		if (not op) {
@@ -663,18 +677,17 @@ process_file:;
 	print_instructions(ins, ins_count, variables);
 	getchar();
 
-	// 0 means runtime/unknown
-	// 1 means compiletime
-	// 2 means label (pc relative)
-
 	nat* type = calloc(ins_count * var_count, sizeof(nat));  // is_compiletime[...]
 	nat* value = calloc(ins_count * var_count, sizeof(nat));  // values[...]
+
 	nat stack[4096] = {0};
 	nat stack_count = 1;
 	nat visited[4096] = {0};
 	nat last_pc = (nat) -1;
-
 	nat is_runtime[4096] = {0};
+	const nat label_bit = 1LLU << 63LLU;
+
+	byte memory[65536] = {0};
 
 	while (stack_count) {
 		nat pc = stack[--stack_count];
@@ -695,7 +708,7 @@ process_file:;
 			for (nat j = 0; j < var_count; j++) {
 				if (type[i * var_count + j])
 					printf("%3lld ", value[i * var_count + j]);
-				else 	printf("    ");
+				else 	printf("\033[90m%3llx\033[0m ", value[i * var_count + j]);
 			}
 			puts("");
 		}
@@ -716,9 +729,9 @@ process_file:;
 		const nat imm = ins[pc].imm;
 		const nat gt0 = ins[pc].gotos[0];
 		const nat gt1 = ins[pc].gotos[1];
-		const nat a0 = ins[pc].args[0];
-		const nat a1 = ins[pc].args[1];
-		const nat a2 = ins[pc].args[2];
+		const nat a0 = 0 < arity[op] ? ins[pc].args[0] : 0;
+		const nat a1 = 1 < arity[op] ? ins[pc].args[1] : 0;
+		const nat a2 = 2 < arity[op] ? ins[pc].args[2] : 0;
 		const nat i0 = !!(imm & 1);
 		const nat i1 = !!(imm & 2);
 		const nat i2 = !!(imm & 4);
@@ -726,10 +739,8 @@ process_file:;
 		for (nat e = 0; e < var_count; e++) {
 
 		const nat this_var = e;  // for now. this would be a for loop over the variables in general. 
-
 		nat future_type = 0; // assume its runtime known.
 		nat future_value = 0;
-	
 		nat mismatch = 0;
 
 		for (nat iterator_p = 0; iterator_p < pred_count; iterator_p++) {
@@ -750,7 +761,7 @@ process_file:;
 			);
 			getchar();*/
 
-			if (t == 0) { future_type = 0; break; } 
+			if (t == 0) { future_type = 0; future_value = v; break; } 
 			
 			//printf("found a compiletime known value == %llu\n", v);
 
@@ -819,9 +830,10 @@ process_file:;
 
 		} // for e 
 
-		const nat ct0 = i0 ? 1 : type[pc * var_count + a0];
-		const nat ct1 = i1 ? 1 : type[pc * var_count + a1];
-		const nat ct2 = i2 ? 1 : type[pc * var_count + a2];
+		printf("pc = %llu, a0 = %llu, a1 = %llu, a1 = %llu\n", pc, a0, a1, a2); fflush(stdout);
+		const nat ct0 = i0 or type[pc * var_count + a0];
+		const nat ct1 = i1 or type[pc * var_count + a1];
+		const nat ct2 = i2 or type[pc * var_count + a2];
 		const nat v0 = i0 ? a0 : value[pc * var_count + a0];
 		const nat v1 = i1 ? a1 : value[pc * var_count + a1];
 		const nat v2 = i2 ? a2 : value[pc * var_count + a2];
@@ -833,7 +845,8 @@ process_file:;
 			//puts("executing a halt statement..."); getchar();
 			continue;
 		}
-		else if (op == at) { } 
+
+		else if (op == at) { }
 		else if (op == do_) { pc = gt0; goto execute_ins; } 		
 		else if (op == set) { if (not is_runtime[a0]) { out_t = ct1; out_v = v1; } }
 		else if (op >= add and op <= sd) { 
@@ -849,17 +862,48 @@ process_file:;
 			else if (op == si)   out_v <<= v1;
 			else if (op == sd)   out_v >>= v1;
 
+
+		} else if (op == st) {	
+			if (not ct2) { puts("error: size of store must be ctk."); abort(); }
+
+			puts("executing a ST instruction!"); getchar();
+
+			if (not ct0 and (label_bit & v0)) {
+				puts("STORING TO THE .TEXT SECTION OF THE EXECUTABLE!!!!"); getchar();
+
+				if (not ct1) {
+					puts("FATAL ERROR: the data being stored to the .text section of the executable "
+						"is not compiletime-known, and thus this store is impossible to perform."
+					);
+					abort();
+				}
+
+				const nat address = v0 ^ label_bit;
+				for (nat i = 0; i < v2; i++) memory[address + i] = (v1 >> (8 * i)) & 0xFF;
+
+			} else {
+				puts("found a runtime store!");
+				getchar();
+			}
+
 		} else if (op == ld) {
-			puts("executing a LD instruction!");
-			getchar();
+			if (not ct2) { puts("error: size of load must be ctk."); abort(); }
+
+			puts("executing a LD instruction!"); getchar();
+
+			if (not ct1 and (label_bit & v1)) {
+				puts("(CT or RT) LOADING FROM THE .TEXT SECTION OF THE EXECUTABLE!?!!?!?");
+				getchar();
+			}
 			out_t = 0;
-			abort();
+
 
 		} else if (op == la) {
-			puts("executing a LA instruction!");
-			puts("unimplemented");
-			abort();
-			
+			puts("executing a LA instruction!"); getchar();
+			out_t = 0;
+			out_v = label_bit | 4 * locations[a1];
+						
+
 		} else if (op == lt or op == ge or op == ne or op == eq) {
 			if (not ct0 or not ct1) {
 				//puts("EXECUTING A RUNTIME-KNOWN BRANCH"); getchar();
@@ -879,7 +923,9 @@ process_file:;
 				pc = cond ? gt1 : gt0; goto execute_ins;
 			}
 
-		} else if (op == rt) {			
+
+
+		} else if (op == rt) {
 			//puts("executing an RT statement!"); getchar();
 			if (not ct1) { puts("error: source argument to RT must be compiletime known."); abort(); }
 
@@ -919,14 +965,22 @@ process_file:;
 		for (nat j = 0; j < var_count; j++) {
 			if (type[i * var_count + j])
 				printf("%3lld ", value[i * var_count + j]);
-			else 	printf("    ");
+			else 	printf("\033[90m%3llx\033[0m ", value[i * var_count + j]);
 		}
 		puts("");
 	}
 	puts("------------------------------------------");
 	printf("stack: "); print_nats(stack, stack_count);
 	print_nats(visited, ins_count);
-	puts("done!");
+
+	printf("debugging memory state\n");
+	for (nat i = 0; i < 1024; i++) {
+		if (i % 16 == 0) puts("");
+		if (memory[i]) printf("\033[32;1m");
+		printf(" %02hhx ", memory[i]);
+		if (memory[i]) printf("\033[0m");
+	} 
+	puts("[done]");
 	exit(0);
 }
 
