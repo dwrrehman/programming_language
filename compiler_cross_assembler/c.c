@@ -132,17 +132,6 @@ static void print_dictionary(
 	puts("[end]");
 }
 
-		//(false) ? "\033[38;5;101mct" : "  ", 
-	//if (this.gotos[0] != (nat) -1) printf(" .0 = %-4lld", this.gotos[0]); else printf("          ");
-	//if (this.gotos[1] != (nat) -1) printf(" .1 = %-4lld", this.gotos[1]); else printf("          ");
-	//if ((false)) printf("\033[0m");
-/*	for (nat a = arity[this.op]; a < 7; a++) {
-		if (this.imm & (1 << a)) printf("         ");
-		else printf("         ");
-		printf(" ");
-	}
-*/
-
 static void print_instruction(
 	struct instruction this, 
 	char** variables, nat var_count
@@ -608,9 +597,6 @@ process_file:;
 	nat last_pc = (nat) -1;
 	nat is_runtime[4096] = {0};
 
-	//const nat label_bit = 1LLU << 63LLU;
-
-	//byte memory[65536] = {0};
 
 
 	const nat debug_ct_eval = 1;
@@ -618,8 +604,15 @@ process_file:;
 
 
 
+
+
+
+
+
+
 	while (stack_count) {
 		nat pc = stack[--stack_count];
+
 	execute_ins:
 		if (pc >= ins_count) continue;
 		nat pred_count = 0;
@@ -700,7 +693,15 @@ process_file:;
 			for (nat i = 0; i < pred_count; i++) {
 				if (preds[i] == last_pc) { found = 1; break; }
 			}
-			if (not found) { puts("last_pc was not a predecessor... aborting."); abort(); }
+			if (not found) { 
+				printf("for variable %llu:\"%s\", in instruction: ", this_var, variables[this_var]); 
+				print_instruction(ins[pc], variables, var_count); putchar(10);
+				printf("fatal error: in value mismatch: last_pc was not a predecessor"
+					" (last_pc = %llu, lastpc not found in predecessors)... aborting.\n", 
+					last_pc
+				); 
+				abort(); 
+			}
 			if (last_pc == (nat) -1) abort();
 
 			const nat pred = last_pc;
@@ -751,35 +752,24 @@ process_file:;
 			else if (op == si)   out_v <<= v1;
 			else if (op == sd)   out_v >>= v1;
 
-
 		} else if (op == st) {	
 			if (not ct2) { puts("error: size of store must be ctk."); abort(); }
 
-			//puts("executing a ST instruction!"); getchar();
-
-
 		} else if (op == ld) {
 			if (not ct2) { puts("error: size of load must be ctk."); abort(); }
-
 			out_t = 0;
 
 		} else if (op == la) {
-			//puts("executing a LA instruction!"); getchar();
 			out_t = 0;
 			out_v = 0;
-			//out_v = label_bit | 8 * locations[a1];
 						
 		} else if (op == lt or op == ge or op == ne or op == eq) {
 			if (not ct0 or not ct1) {
-				//puts("EXECUTING A RUNTIME-KNOWN BRANCH"); getchar();
-
-				last_pc = (nat) -1; // ????    uhhhh     whyy lol 
-
+				last_pc = (nat) -1;
 				if (gt0 < ins_count and visited[gt0] < 2) stack[stack_count++] = gt0;
 				if (gt1 < ins_count and visited[gt1] < 2) stack[stack_count++] = gt1;
 				continue;
 			} else {
-				//puts("EXECUTING A COMPILETIME-KNOWN BRANCH"); getchar();
 				bool cond = 0;
 				     if (op == lt) cond = v0  < v1;
 				else if (op == ge) cond = v0 >= v1;
@@ -789,7 +779,6 @@ process_file:;
 			}
 
 		} else if (op == rt) {
-			//puts("executing an RT statement!"); getchar();
 			if (not ct1) { puts("error: source argument to RT must be compiletime known."); abort(); }
 
 			printf("note: storing: RT x (%lld)\n", v1);
@@ -811,7 +800,6 @@ process_file:;
 		value[pc * var_count + a0] = out_v;
 		pc++; goto execute_ins;
 	}
-
 
 
 	print_instruction_window_around(0, ins, ins_count, variables, var_count, visited);
@@ -839,8 +827,6 @@ process_file:;
 
 
 
-	puts("starting instruction selection!");
-	puts("using instruction listing:");
 
 	for (nat i = 0; i < ins_count; i++) {
 
@@ -852,14 +838,20 @@ process_file:;
 		
 		nat ignore = 1;
 
-		if (	op == halt or op == sc or op == do_ or 
-			op == la or op == ld or op == st
+		if (	op == halt or 
+			op == sc or 
+			op == do_ or 
+			op == at or 
+			op == rt or 
+			op == la or 
+			op == ld or 
+			op == st
 		) ignore = 0;
 
 		puts("looking at: "); 
 		print_instruction(ins[i], variables, var_count); puts("");
 		
-		for (nat a = 0; a < arity[op]; a++) {
+		if (ignore) for (nat a = 0; a < arity[op]; a++) {
 
 			if (op == at and a == 0) continue;
 			if (op == do_ and a == 0) continue;
@@ -898,16 +890,98 @@ process_file:;
 			}
 		}
 
-		if (ignore or op == at or op == rt or not visited[i]) {
+		if (ignore or not visited[i]) {
 			puts("ignoring instruction...\n");
-			visited[i] = 0;
+
+			if (op == lt or op == ge or op == ne or op == eq) {
+				const nat v0 = (imm & 1) ? ins[i].args[0] : value[i * var_count + ins[i].args[0]];
+				const nat v1 = (imm & 2) ? ins[i].args[1] : value[i * var_count + ins[i].args[1]];
+				bool cond = 0;
+				     if (op == lt) cond = v0  < v1;
+				else if (op == ge) cond = v0 >= v1;
+				else if (op == eq) cond = v0 == v1;
+				else if (op == ne) cond = v0 != v1;
+				if (cond) { ins[i].op = do_; ins[i].args[0] = ins[i].args[2]; }
+				else visited[i] = 0;
+
+			} else visited[i] = 0;
+
 		} else {
 			puts("found real RT isntruction!"); putchar('\t');
 			print_instruction(ins[i], variables, var_count); puts("");
+
+			if ((op >= set and op <= sd) or op == rt) {
+				const nat ct1 = (imm & 2) or type[i * var_count + ins[i].args[1]];
+				const nat v1 = (imm & 2) ? ins[i].args[1] : value[i * var_count + ins[i].args[1]];
+
+				if (ct1 and not (imm & 2)) {
+					puts("found an instruction which has a ct argument!");
+					ins[i].args[1] = v1;
+					ins[i].imm |= 2;
+				}
+
+				if (ins[i].imm & 2) {
+					const nat c = ins[i].args[1];
+					if (	(op == add or op == sub or
+						 op == si or op == sd or
+						 op == eor or op == or_)
+						and not c or 
+						(op == mul or op == div_)
+						and c == 1	
+					) visited[i] = 0;
+				}
+
+			} else if (op == ld or op == st) {
+				puts("we still need to embed the immediates into the load and store instructions.");
+				abort();	
+
+			} else if (op == lt or op == ge or op == ne or op == eq) {
+				puts("we still need to embed the immediates into the conditioal branch instructions.");
+
+				const nat ct0 = (imm & 1) or type[i * var_count + ins[i].args[0]];
+				const nat ct1 = (imm & 2) or type[i * var_count + ins[i].args[1]];
+				const nat v0 = (imm & 1) ? ins[i].args[0] : value[i * var_count + ins[i].args[0]];
+				const nat v1 = (imm & 2) ? ins[i].args[1] : value[i * var_count + ins[i].args[1]];
+
+				if (ct0 and not (imm & 1)) {
+					ins[i].args[0] = v0;
+					ins[i].imm |= 1;
+
+				} else if (ct1 and not (imm & 2)) {
+					ins[i].args[1] = v1;
+					ins[i].imm |= 2;
+				}
+			}
 		}
 
-		getchar();
+		//getchar();
 	}
+
+
+
+//////////////////opt////////////////
+
+	// optimizations left to perform:
+	/*
+
+		- copy propagation / simplification of dataflow
+
+		- control flow simplification, eliminate chained jumps
+
+		- simplify conditions?...
+
+
+		-   TODO: look up some more lol.
+
+	*/
+	for (nat i = 0; i < ins_count; i++) {
+		if (not visited[i]) continue;
+		const nat op = ins[i].op;
+
+		// lets try to simplify things now?
+	}
+
+//////////////////////////////////
 
 
 	for (nat i = 0; i < ins_count; i++) {
@@ -916,7 +990,20 @@ process_file:;
 		getchar();
 	}
 
+	nat final_ins_count = 0;
+	for (nat i = 0; i < ins_count; i++) {
+		const nat op = ins[i].op;
+		if (not visited[i] and op != at and op != rt) continue;
+		ins[final_ins_count++] = ins[i];
+	}
+	ins_count = final_ins_count;
+
+	memset(visited, 0, sizeof visited);
+
+	print_dictionary(variables, is_undefined, var_count);
+	print_instructions(ins, ins_count, variables, var_count, 0);
 	puts("[done]");
+	getchar();
 
 	exit(0);
 }
@@ -993,6 +1080,76 @@ process_file:;
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+	//const nat label_bit = 1LLU << 63LLU;
+
+	//byte memory[65536] = {0};
+
+
+
+
+
+
+		//(false) ? "\033[38;5;101mct" : "  ", 
+	//if (this.gotos[0] != (nat) -1) printf(" .0 = %-4lld", this.gotos[0]); else printf("          ");
+	//if (this.gotos[1] != (nat) -1) printf(" .1 = %-4lld", this.gotos[1]); else printf("          ");
+	//if ((false)) printf("\033[0m");
+/*	for (nat a = arity[this.op]; a < 7; a++) {
+		if (this.imm & (1 << a)) printf("         ");
+		else printf("         ");
+		printf(" ");
+	}
+*/
 
 
 
