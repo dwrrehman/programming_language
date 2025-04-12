@@ -1155,8 +1155,25 @@ x	1. add opt    mul_imm ---> si_imm
 
 
 
+/*
 
 
+
+
+main idea behind solution for instruction selection:
+----------------------------------------------------------
+
+it all revolves around the notion of computational equivalence. there are only so many ways to write the IR sequences that equate to doing an arm64 "addsr" instruction, and thus, we can dig deeper and look at exactly what transformations would cause two given patterns to be different. turns out, for this example, only additive commutativity (exchanging the order of the arguments to an add) and also inserting extraneous copies/moves, can make two IR patterns distinct, yet still have both functionally still perform an addsr. and addsr is not a special case, almost all the instruction on arm64 have this property, that there are only a finite and specific set of transformations which can occur on the IR pattern to transform it into a functionally equivalent but distinct IR pattern.
+
+so now, to start off with, we must first take the radically simplifying approach of simply expecting a certain predefined pattern (or maybe a few patterns) of IR instructions which we know efficiently represent an addsr. this is what i have coded up so far. it uses locate data instruction to find a particular IR instruction thats part of the pattern, and requires arguments, and some relative sequence constraints to be satisfied to classify as a match.
+
+then, second, we now solve the inevitable problems which arises of this simple pattern-matching approach being too brittle and restrictive (ie, we may accidentally not classify some IR data flow performing an addsr, as an addsr, resulting in slower, less efficient code). the way that we solve this problem is by tackling one by one the possible ways that IR patterns can be functionally equivalent, but distinct. for addsr (and most other data instructions), these include commutativity of operands, and adding extraneous copies/assignments. to solve the first issue, we simply expect two patterns, one where the operands are in one order, and one where they are the other alternative order. secondly, to solve the second problem of assignments, we simply run a copy propagation optimization pass over the IR prior to instruction selection! this will make all instructions sequences have the minimal number of copies/moves, which means there is much less (possibly ZERO) possibility for a valid "addsr" pattern of IR instructions to be different from the one we are expecting, yet still validly perform the semantics for an addsr!!!
+
+thats the key idea. its leveraging the fact that there are a finite number of ways that two computations can be equivalent, in this context, and thus we can enumerate and resolve/restrict all methods of causing those equivalences, and thus the end result is that a simplistic pattern-matching approach can work extremely well and reliably recognize the IR data flow semantics required for generating a given machine instruction, WITHOUT EVER forming a tree of IR instructions, or DAG of IR instructions!!! isnt that so cool????
+
+
+
+*/
 
 
 
