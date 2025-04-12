@@ -427,6 +427,48 @@ static nat* compute_successors(
 	return result;
 }
 
+static nat locate_instruction(
+	nat expected_op,
+	nat expected_arg0,
+	nat expected_arg1,
+	nat use_arg0,
+	nat use_arg1,
+	nat starting_from,
+	struct instruction* ins, nat ins_count,
+	char** variables, nat variables_count
+) {
+	nat pc = starting_from;
+
+	while (pc < ins_count) {
+
+		const nat op = ins[pc].op;
+
+		const nat arg0 = ins[pc].args[0];
+		const nat arg1 = ins[pc].args[1];
+
+		const bool is_branch = op == lt or op == ge or op == ne or op == eq;
+
+		nat pred_count = 0;
+		compute_predecessors(ins, ins_count, pc, &pred_count);
+		nat* gotos = compute_successors(ins, ins_count, pc);
+
+		if (	pred_count == 1 and 
+			op == expected_op and 
+			(not use_arg0 or expected_arg0 == arg0) and 
+			(not use_arg1 or expected_arg1 == arg1)
+		) return pc; 
+
+		if (is_branch or pred_count > 2) break;
+		if (use_arg0 and arg1 == expected_arg0) break;
+		if (use_arg1 and arg0 == expected_arg1) break;
+
+		pc = gotos[0];
+	}
+	return (nat) -1;
+}
+
+
+
 
 int main(int argc, const char** argv) {
 
@@ -585,10 +627,6 @@ process_file:;
 	getchar();
 
 
-
-
-
-
 	nat* type = calloc(ins_count * var_count, sizeof(nat));  // is_compiletime[...]
 	nat* value = calloc(ins_count * var_count, sizeof(nat));  // values[...]
 
@@ -597,18 +635,6 @@ process_file:;
 	nat visited[4096] = {0};
 	nat last_pc = (nat) -1;
 	nat is_runtime[4096] = {0};
-
-
-
-
-
-
-
-	const nat debug_ct_eval = 0;
-
-
-
-
 
 	while (stack_count) {
 		nat pc = stack[--stack_count];
@@ -619,7 +645,7 @@ process_file:;
 		nat* preds = compute_predecessors(ins, ins_count, pc, &pred_count);
 		nat* gotos = compute_successors(ins, ins_count, pc);
 
-		if (debug_ct_eval) {
+		if ((0)) {
 
 		print_instruction_window_around(pc, ins, ins_count, variables, var_count, visited);
 		print_dictionary(variables, is_undefined, var_count);
@@ -838,14 +864,10 @@ process_file:;
 		
 		nat ignore = 1;
 
-		if (	op == halt or 
-			op == sc or 
-			op == do_ or 
-			op == at or 
-			op == rt or 
-			op == la or 
-			op == ld or 
-			op == st
+		if (	op == halt or op == sc or 
+			op == do_  or op == at or 
+			op == rt   or op == la or 
+			op == ld   or op == st
 		) ignore = 0;
 
 		puts("looking at: "); 
@@ -929,6 +951,29 @@ process_file:;
 						(op == mul or op == div_)
 						and c == 1	
 					) visited[i] = 0;
+
+					for (nat sh = 0; sh < 64; sh++) {
+						if (op == mul and c == (1LLU << sh)) {
+							ins[i].op = si;
+							ins[i].args[1] = sh;
+							break;
+
+						} else if (op == div_ and c == (1LLU << sh)) {
+							ins[i].op = sd;
+							ins[i].args[1] = sh;
+							break;
+						} 
+					}
+
+				} else {
+					if (ins[i].args[0] == ins[i].args[1]) {
+						if (op == set or op == and_ or op == or_) visited[i] = 0;
+						else if (op == eor or op == sub) {
+							ins[i].op = set;
+							ins[i].imm |= 2;
+							ins[i].args[1] = 0;
+						}
+					}
 				}
 
 			} else if (op == ld or op == st) {
@@ -959,6 +1004,12 @@ process_file:;
 
 
 
+
+
+
+
+
+
 //////////////////opt////////////////
 /* 	optimizations left to perform:
 
@@ -968,7 +1019,28 @@ process_file:;
 
 		-   TODO: look up some more lol.
 
+
+
+opt     future passes!
+1202504115.221656
+notes to me:
+----------
+
+x	1. add opt    mul_imm ---> si_imm 
+
+
+	2. add opt   copy prop
+
+
+	3. add opt   commutitive/accumulative math consolidation   eg, 
+						add x 01    add x 001   becomes    add x 011
+
+
+	4. add opt   jump control flow simplification :   jumps to labels, right after the jump, 
 	
+	5. sink common logic into basic blocks, deduplicating code
+
+
 	for (nat i = 0; i < ins_count; i++) {
 		if (not visited[i]) continue;
 		const nat op = ins[i].op;
@@ -977,6 +1049,8 @@ process_file:;
 	}
 */
 //////////////////////////////////
+
+
 
 
 
@@ -999,25 +1073,82 @@ process_file:;
 
 
 
-	puts("starting instruction selection now!");
 
 
+
+	
+	struct instruction mi[4096] = {0};
+	nat mi_count = 0;
+
+	nat selected[4096] = {0};
+
+
+
+	puts("ins sel: starting instruction selection now!");
 
 	for (nat i = 0; i < ins_count; i++) {
 
-
-		print_instruction_window_around(i, ins, ins_count, variables, var_count, visited);
+		print_instruction_window_around(i, ins, ins_count, variables, var_count, selected);
 		getchar();
 
-		
+		if (selected[i]) {
+			printf("warning: [i = %llu]: skipping, part of a pattern.\n", i); 
+			getchar();
+			continue;
+		}
 
 		const nat op = ins[i].op;
 		const nat imm = ins[i].imm;
+		const nat arg0 = ins[i].args[0];
+		const nat arg1 = ins[i].args[1]; 
+
+		if (op == set) {
+			const nat b = locate_instruction(si_imm, arg0, 0, 1, 0, i + 1, ins, ins_count, variables, variable_count);
+			if (b == (nat) -1) goto addsrlsl_bail;
+			const nat c = locate_instruction(add, arg0, 0, 1, 0, b + 1, ins, ins_count, variables, variable_count);
+			if (c == (nat) -1) goto addsrlsl_bail;
+			struct instruction new = { .op = addsr };
+			new.args[0] = arg0;
+			new.args[1] = ins[c].args[1];
+			new.args[2] = arg1;
+			new.args[3] = ins[b].args[1];
+			new.args[4] = 0;
+			mi[mi_count++] = new;
+			selected[i] = 1; selected[b] = 1; selected[c] = 1;
+			goto finish_mi_instruction;
+		} addsrlsl_bail:
+
+		
+	finish_mi_instruction:;
+		puts("so far:");
+		print_machine_instructions(mi, mi_count, names, name_count);
+		getchar();
 
 	}
 
-	puts("finished instruction selection!");
 
+	puts("preliminary:");
+	print_instructions(mi, mi_count, variables, variable_count);
+
+	for (nat i = 0; i < ins_count; i++) {
+		if (not selected[i]) {
+			puts("error: instruction unprocessed by ins sel: internal error");
+			puts("not selected instruction");
+			/* print_instruction_index(
+				ins, ins_count,
+				names, name_count, ignore,
+				i, "this failed to be lowered during ins sel."
+			); */
+			abort();
+		}
+	}
+
+
+
+
+	print_dictionary(variables, variable_count);
+	print_instructions(mi, mi_count, variables, variable_count);
+	puts("finished instruction selection!");
 	exit(0);
 }
 
@@ -1251,6 +1382,33 @@ process_file:;
 
 
 
+/*
+
+
+
+
+
+if (op == set) {
+			const nat b = locate_instruction(si_imm, arg0, 0, 1, 0, i + 1, ins, ins_count, variables, variable_count);
+			if (b == (nat) -1) goto subsrlsl_bail;
+			const nat c = locate_instruction(sub, arg0, 0, 1, 0, b + 1, ins, ins_count, variables, variable_count);
+			if (c == (nat) -1) goto subsrlsl_bail;
+			struct instruction new = { .op = addr };
+			new.args[0] = arg0;
+			new.args[1] = ins[c].args[1];
+			new.args[2] = arg1;
+			new.args[3] = ins[b].args[1];
+			new.args[4] = 1;
+			mi[mi_count++] = new;
+			selected[i] = 1; selected[b] = 1; selected[c] = 1;
+			goto finish_mi_instruction;
+		} subsrlsl_bail:
+
+
+
+
+
+*/
 
 
 
@@ -1259,7 +1417,14 @@ process_file:;
 
 
 
+		// sub x x  -->  set x 0
+		// eor x x  -->  set x 0
 
+		// div x x  -->  set x 1      ???
+
+		// and x x  nop
+		// or  x x  nop
+		// set x x  nop
 
 
 

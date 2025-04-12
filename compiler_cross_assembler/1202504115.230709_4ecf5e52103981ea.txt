@@ -1,0 +1,24 @@
+(testing out mul's turned into si's. 
+1202504115.230718 dwrr)
+set 13 1011
+set 8 0001
+set c 0000_01
+rt var 0
+set var 13
+mul var c
+div var 8
+halt
+
+
+
+
+
+
+
+
+
+
+
+
+
+
