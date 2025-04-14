@@ -51,7 +51,7 @@ enum core_language_isa {
 };
 
 static const char* operations[isa_count] = {
-	"nullins",
+	"___nullins____",
 
 	"halt", "sc", "do", "at", "lf",
 	"set", "add", "sub", "mul", "div", "rem", 
@@ -152,7 +152,7 @@ static void print_instruction(
 	for (nat a = 0; a < arity[this.op]; a++) {
 
 		char string[4096] = {0};
-		if (this.imm & (1 << a)) snprintf(string, sizeof string, "%llu", this.args[a]);
+		if (this.imm & (1 << a)) snprintf(string, sizeof string, "#%llu", this.args[a]);
 		else snprintf(string, sizeof string, "%s", variables[this.args[a]]);
 
 		printf("%s", string);
@@ -185,10 +185,12 @@ static void print_instruction_window_around(
 	nat ins_count, 
 	char** variables, 
 	nat var_count,
-	nat* visited
+	nat* visited,
+	const bool should_just_print,
+	const char* message
 ) {
 	nat row_count = 0;
-	printf("\033[H\033[2J");
+	if (not should_just_print) printf("\033[H\033[2J");
 	const int64_t window_width = 12;
 	const int64_t pc = (int64_t) this;
 	for (int64_t i = -window_width; i < window_width; i++) {
@@ -201,7 +203,10 @@ static void print_instruction_window_around(
 
 		if (	here < 0 or 
 			here >= (int64_t) ins_count
-		) { puts("\033[0m"); row_count++; continue; }
+		) { 
+			if (not should_just_print) puts("\033[0m"); 
+			row_count++; continue; 
+		}
 
 		printf("  %s%4llu │ ", 
 			not i and visited[here] ? 
@@ -213,10 +218,14 @@ static void print_instruction_window_around(
 
 		if (ins[here].op != at) putchar(9);
 		print_instruction(ins[here], variables, var_count);
+		if (should_just_print and not i) printf("    \033[0m   <----- \033[31;1m%s\033[0m", message);
 		puts("\033[0m");
 		row_count++; 
 	}
-	while (row_count < 2 * window_width + 6) { row_count++; putchar(10); } 
+
+	if (not should_just_print) {
+		while (row_count < 2 * window_width + 6) { row_count++; putchar(10); } 
+	}
 }
 
 static void print_index(const char* text, nat text_length, nat begin, nat end) {
@@ -377,7 +386,7 @@ static nat* compute_predecessors(
 	nat count = 0;
 	for (nat i = 0; i < ins_count; i++) {
 		if (gotos[2 * i + 0] == pc or gotos[2 * i + 1] == pc) {
-			result = realloc(result, sizeof(nat) * (count + 1));	
+			result = realloc(result, sizeof(nat) * (count + 1));
 			result[count++] = i;
 		}
 	}
@@ -427,40 +436,60 @@ static nat* compute_successors(
 	return result;
 }
 
+
+
+
+struct expected_instruction {
+	nat op;
+	nat imm;
+	nat use;
+	nat args[max_arg_count];	
+};
+
 static nat locate_instruction(
-	nat expected_op,
-	nat expected_arg0,
-	nat expected_arg1,
-	nat use_arg0,
-	nat use_arg1,
+	struct expected_instruction expected,
 	nat starting_from,
-	struct instruction* ins, nat ins_count,
-	char** variables, nat variables_count
+	struct instruction* ins, nat ins_count
 ) {
 	nat pc = starting_from;
 
 	while (pc < ins_count) {
 
-		const nat op = ins[pc].op;
-
-		const nat arg0 = ins[pc].args[0];
-		const nat arg1 = ins[pc].args[1];
-
-		const bool is_branch = op == lt or op == ge or op == ne or op == eq;
-
 		nat pred_count = 0;
 		compute_predecessors(ins, ins_count, pc, &pred_count);
 		nat* gotos = compute_successors(ins, ins_count, pc);
 
-		if (	pred_count == 1 and 
-			op == expected_op and 
-			(not use_arg0 or expected_arg0 == arg0) and 
-			(not use_arg1 or expected_arg1 == arg1)
-		) return pc; 
+		if (pred_count >= 2) break;
 
-		if (is_branch or pred_count > 2) break;
-		if (use_arg0 and arg1 == expected_arg0) break;
-		if (use_arg1 and arg0 == expected_arg1) break;
+		const nat op = ins[pc].op;
+		const nat imm = ins[pc].imm;
+		const nat arg0 = ins[pc].args[0];
+		const nat arg1 = ins[pc].args[1];
+		const nat arg2 = ins[pc].args[2];
+
+		const bool is_branch = op == lt or op == ge or op == ne or op == eq;
+
+		const bool use_arg0 = !!(expected.use & 1);
+		const bool use_arg1 = !!(expected.use & 2);
+		const bool use_arg2 = !!(expected.use & 4);
+
+		const bool arg0_matches = expected.args[0] == arg0;
+		const bool arg1_matches = expected.args[1] == arg1;
+		const bool arg2_matches = expected.args[2] == arg2;
+
+		const bool valid_arg0 = not use_arg0 or arg0_matches;
+		const bool valid_arg1 = not use_arg1 or arg1_matches;
+		const bool valid_arg2 = not use_arg2 or arg2_matches;
+		
+		if (	op == expected.op and 
+			imm == expected.imm and 
+			valid_arg0 and 
+			valid_arg1 and 
+			valid_arg2) return pc; 
+
+		if (is_branch) break;
+		if (use_arg0 and arg1 == expected.args[0]) break;
+		if (use_arg1 and arg0 == expected.args[1]) break;
 
 		pc = gotos[0];
 	}
@@ -468,6 +497,25 @@ static nat locate_instruction(
 }
 
 
+/*static void print_machine_instruction(struct instruction this, char** names, nat name_count) {
+	printf("  %13s { ", mi_spelling[this.op]);
+	for (nat a = 0; a < 5; a++) {
+		if (this.op == csel and a == 3) { printf("        #{%s}   ", ins_spelling[this.args[a]]); continue; }
+		if (this.args[a] < 256) printf("%3llu", this.args[a]); 
+		else printf("0x%016llx[%llu]", this.args[a], this.args[a]);
+		printf("('%8s') ", this.args[a] < name_count ? names[this.args[a]] : "");
+	}
+
+	printf("} : {.f=#");
+	if (this.gotos[0] == ~is_label or this.gotos[0] == (nat) -1) {} 
+	else if (this.gotos[0] < 256) printf("%3llu", this.gotos[0]); 
+	else printf("0x%016llx", this.gotos[0]);
+	printf(", .t=#");
+	if (this.gotos[1] == ~is_label or this.gotos[1] == (nat) -1) {} 
+	else if (this.gotos[1] < 256) printf("%3llu", this.gotos[1]); 
+	else printf("0x%016llx", this.gotos[1]);
+	printf("}");
+}*/
 
 
 int main(int argc, const char** argv) {
@@ -627,6 +675,9 @@ process_file:;
 	getchar();
 
 
+
+
+
 	nat* type = calloc(ins_count * var_count, sizeof(nat));  // is_compiletime[...]
 	nat* value = calloc(ins_count * var_count, sizeof(nat));  // values[...]
 
@@ -645,9 +696,9 @@ process_file:;
 		nat* preds = compute_predecessors(ins, ins_count, pc, &pred_count);
 		nat* gotos = compute_successors(ins, ins_count, pc);
 
-		if ((0)) {
+		if ((1)) {
 
-		print_instruction_window_around(pc, ins, ins_count, variables, var_count, visited);
+		print_instruction_window_around(pc, ins, ins_count, variables, var_count, visited, 0, "");
 		print_dictionary(variables, is_undefined, var_count);
 		printf("     ");
 		for (nat j = 0; j < var_count; j++) {
@@ -688,8 +739,8 @@ process_file:;
 
 		for (nat e = 0; e < var_count; e++) {
 
-		const nat this_var = e;  // for now. this would be a for loop over the variables in general. 
-		nat future_type = 0; // assume its runtime known.
+		const nat this_var = e; 
+		nat future_type = 0;
 		nat future_value = 0;
 		nat mismatch = 0;
 
@@ -697,9 +748,8 @@ process_file:;
 
 			const nat pred = preds[iterator_p];
 
-			if (not visited[pred]) { 
-				continue;
-			}
+			if (not visited[pred]) continue;
+
 			const nat t = type[pred * var_count + this_var];
 			const nat v = value[pred * var_count + this_var];	
 			if (t == 0) { future_type = 0; future_value = v; break; } 
@@ -707,10 +757,7 @@ process_file:;
 			if (not future_type) { 
 				future_type = 1; 
 				future_value = v; 
-			} else if (future_value == v) { 
-			} else {
-				mismatch = 1; 
-			}
+			} else if (future_value != v) mismatch = 1; 
 		}
 
 		if (mismatch and future_type) {
@@ -719,7 +766,8 @@ process_file:;
 			for (nat i = 0; i < pred_count; i++) {
 				if (preds[i] == last_pc) { found = 1; break; }
 			}
-			if (not found) { 
+
+			if (not found) {
 				printf("for variable %llu:\"%s\", in instruction: ", this_var, variables[this_var]); 
 				print_instruction(ins[pc], variables, var_count); putchar(10);
 				printf("fatal error: in value mismatch: last_pc was not a predecessor"
@@ -731,10 +779,8 @@ process_file:;
 			if (last_pc == (nat) -1) abort();
 
 			const nat pred = last_pc;
+			if (not visited[pred]) continue; 
 
-			if (not visited[pred]) { 
-				continue; 
-			}
 			const nat t = type[pred * var_count + this_var];
 			const nat v = value[pred * var_count + this_var];
 			future_type = t;
@@ -828,7 +874,7 @@ process_file:;
 	}
 
 
-	print_instruction_window_around(0, ins, ins_count, variables, var_count, visited);
+	print_instruction_window_around(0, ins, ins_count, variables, var_count, visited, 0, "");
 	print_instructions(ins, ins_count, variables, var_count, 0);
 	print_dictionary(variables, is_undefined, var_count);
 	puts("types and values");
@@ -856,7 +902,7 @@ process_file:;
 
 	for (nat i = 0; i < ins_count; i++) {
 
-		//print_instruction_window_around(i, ins, ins_count, variables, var_count, visited);
+		//print_instruction_window_around(i, ins, ins_count, variables, var_count, visited, 0, "");
 		//getchar();
 
 		const nat op = ins[i].op;
@@ -981,7 +1027,7 @@ process_file:;
 				abort();	
 
 			} else if (op == lt or op == ge or op == ne or op == eq) {
-				puts("we still need to embed the immediates into the conditioal branch instructions.");
+				//puts("we still need to embed the immediates into the conditioal branch instructions.");
 
 				const nat ct0 = (imm & 1) or type[i * var_count + ins[i].args[0]];
 				const nat ct1 = (imm & 2) or type[i * var_count + ins[i].args[1]];
@@ -1071,24 +1117,16 @@ x	1. add opt    mul_imm ---> si_imm
 
 
 
-
-
-
-
-
 	
 	struct instruction mi[4096] = {0};
 	nat mi_count = 0;
-
 	nat selected[4096] = {0};
-
-
 
 	puts("ins sel: starting instruction selection now!");
 
 	for (nat i = 0; i < ins_count; i++) {
 
-		print_instruction_window_around(i, ins, ins_count, variables, var_count, selected);
+		print_instruction_window_around(i, ins, ins_count, variables, var_count, selected, 0, "");
 		getchar();
 
 		if (selected[i]) {
@@ -1098,64 +1136,153 @@ x	1. add opt    mul_imm ---> si_imm
 		}
 
 		const nat op = ins[i].op;
-		const nat imm = ins[i].imm;
 		const nat arg0 = ins[i].args[0];
 		const nat arg1 = ins[i].args[1]; 
 
 		if (op == set) {
-			const nat b = locate_instruction(si_imm, arg0, 0, 1, 0, i + 1, ins, ins_count, variables, variable_count);
+			const nat b = locate_instruction(
+				(struct expected_instruction){ .op = si, .imm = 2, .use = 1, .args[0] = arg0 },
+				i + 1, ins, ins_count
+			);
 			if (b == (nat) -1) goto addsrlsl_bail;
-			const nat c = locate_instruction(add, arg0, 0, 1, 0, b + 1, ins, ins_count, variables, variable_count);
+
+			const nat c = locate_instruction(
+				(struct expected_instruction){ .op = add, .use = 1, .args[0] = arg0 },
+				b + 1, ins, ins_count
+			);
 			if (c == (nat) -1) goto addsrlsl_bail;
-			struct instruction new = { .op = addsr };
-			new.args[0] = arg0;
-			new.args[1] = ins[c].args[1];
-			new.args[2] = arg1;
-			new.args[3] = ins[b].args[1];
-			new.args[4] = 0;
+
+			struct instruction new = { .op = a6_addr, .imm = 0xf8 };
+			new.args[0] = arg0; 		// d
+			new.args[1] = ins[c].args[1]; 	// n
+			new.args[2] = arg1; 		// m 
+			new.args[3] = ins[b].args[1]; 	// k
+			new.args[4] = 0; //???sb?
+			new.args[5] = 0; // ????sf???
 			mi[mi_count++] = new;
 			selected[i] = 1; selected[b] = 1; selected[c] = 1;
 			goto finish_mi_instruction;
 		} addsrlsl_bail:
 
 		
-	finish_mi_instruction:;
+	finish_mi_instruction:
 		puts("so far:");
-		print_machine_instructions(mi, mi_count, names, name_count);
+		print_instructions(mi, mi_count, variables, var_count, 0);
 		getchar();
 
 	}
 
 
+
 	puts("preliminary:");
-	print_instructions(mi, mi_count, variables, variable_count);
+	print_dictionary(variables, is_undefined, var_count);
+	print_instructions(mi, mi_count, variables, var_count, 0);
 
 	for (nat i = 0; i < ins_count; i++) {
 		if (not selected[i]) {
+
 			puts("error: instruction unprocessed by ins sel: internal error");
-			puts("not selected instruction");
-			/* print_instruction_index(
-				ins, ins_count,
-				names, name_count, ignore,
-				i, "this failed to be lowered during ins sel."
-			); */
+			puts("error: this instruction failed to be lowered:\n");
+			print_instruction_window_around(i, ins, ins_count, variables, var_count, selected, 1, "not selected instruction!");
+			puts("");
 			abort();
 		}
 	}
 
-
-
-
-	print_dictionary(variables, variable_count);
-	print_instructions(mi, mi_count, variables, variable_count);
+	print_dictionary(variables, is_undefined, var_count);
+	print_instructions(mi, mi_count, variables, var_count, 0);
 	puts("finished instruction selection!");
-	exit(0);
+
 }
 
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 /*
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -1170,6 +1297,43 @@ so now, to start off with, we must first take the radically simplifying approach
 then, second, we now solve the inevitable problems which arises of this simple pattern-matching approach being too brittle and restrictive (ie, we may accidentally not classify some IR data flow performing an addsr, as an addsr, resulting in slower, less efficient code). the way that we solve this problem is by tackling one by one the possible ways that IR patterns can be functionally equivalent, but distinct. for addsr (and most other data instructions), these include commutativity of operands, and adding extraneous copies/assignments. to solve the first issue, we simply expect two patterns, one where the operands are in one order, and one where they are the other alternative order. secondly, to solve the second problem of assignments, we simply run a copy propagation optimization pass over the IR prior to instruction selection! this will make all instructions sequences have the minimal number of copies/moves, which means there is much less (possibly ZERO) possibility for a valid "addsr" pattern of IR instructions to be different from the one we are expecting, yet still validly perform the semantics for an addsr!!!
 
 thats the key idea. its leveraging the fact that there are a finite number of ways that two computations can be equivalent, in this context, and thus we can enumerate and resolve/restrict all methods of causing those equivalences, and thus the end result is that a simplistic pattern-matching approach can work extremely well and reliably recognize the IR data flow semantics required for generating a given machine instruction, WITHOUT EVER forming a tree of IR instructions, or DAG of IR instructions!!! isnt that so cool????
+
+
+
+
+
+arm64:
+	addsr_lsl   d, n, (m LSL #k)
+
+
+
+lang isa:
+
+	
+
+
+	set d m
+
+	si_imm d k
+
+	add d n
+
+
+
+
+
+
+
+
+
+	set s m 
+	
+	si_imm s k
+
+	set d n
+
+	add d s
+
 
 
 

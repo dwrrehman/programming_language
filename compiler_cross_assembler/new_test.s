@@ -11,14 +11,14 @@ set output 0
 
 lt count 001 skip
 	add output 1
+
 at skip
+	mul count 0
+	sub output count
 
-mul count 0
-sub output count
-
-at loop
+(at loop)
 	add output width
-	lt output 0101 loop
+	lt output 0101 skip
 
 si output count
 
