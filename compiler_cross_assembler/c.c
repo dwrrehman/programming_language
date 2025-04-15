@@ -268,7 +268,7 @@ static void print_binary(nat x) {
 static void print_nats(nat* array, nat count) {
 	printf("(%llu) { ", count);
 	for (nat i = 0; i < count; i++) {
-		printf("%llu ", array[i]);
+		printf("%lld ", array[i]);
 	}
 	printf("}");
 }
@@ -675,9 +675,6 @@ process_file:;
 	getchar();
 
 
-
-
-
 	nat* type = calloc(ins_count * var_count, sizeof(nat));  // is_compiletime[...]
 	nat* value = calloc(ins_count * var_count, sizeof(nat));  // values[...]
 
@@ -685,7 +682,14 @@ process_file:;
 	nat stack_count = 1;
 	nat visited[4096] = {0};
 	nat last_pc = (nat) -1;
+
+	nat bit_count[4096] = {0};
+	nat register_index[4096] = {0};
 	nat is_runtime[4096] = {0};
+
+	memset(bit_count, 0xff, sizeof bit_count);
+	memset(register_index, 0xff, sizeof register_index);
+
 
 	while (stack_count) {
 		nat pc = stack[--stack_count];
@@ -774,7 +778,9 @@ process_file:;
 					" (last_pc = %llu, lastpc not found in predecessors)... aborting.\n", 
 					last_pc
 				); 
-				abort(); 
+				getchar();
+				future_type = 0;
+				goto done_with_mismatch;
 			}
 			if (last_pc == (nat) -1) abort();
 
@@ -785,6 +791,7 @@ process_file:;
 			const nat v = value[pred * var_count + this_var];
 			future_type = t;
 			future_value = v;
+			done_with_mismatch:;
 		}
 
 		type[pc * var_count + this_var] = future_type;
@@ -809,6 +816,7 @@ process_file:;
 		}
 
 		else if (op == at) { }
+		else if (op == sc) { }
 		else if (op == do_) { pc = gt0; goto execute_ins; } 		
 		else if (op == set) { if (not is_runtime[a0]) { out_t = ct1; out_v = v1; } }
 		else if (op >= add and op <= sd) { 
@@ -854,9 +862,9 @@ process_file:;
 			if (not ct1) { puts("error: source argument to RT must be compiletime known."); abort(); }
 
 			printf("note: storing: RT x (%lld)\n", v1);
-			if ((int64_t) v1 < 0) { puts("STORING REGSITER INDEX"); }
-			else { puts("STORING BIT COUNT"); }
-			//getchar();
+			if ((int64_t) v1 < 0) { puts("STORING REGSITER INDEX"); register_index[a0]  = -v1; }
+			else { puts("STORING BIT COUNT"); bit_count[a0]  = v1; }
+			getchar();
 
 			is_runtime[a0] = 1;
 			out_t = 0;
@@ -898,8 +906,6 @@ process_file:;
 	print_nats(visited, ins_count);
 
 
-
-
 	for (nat i = 0; i < ins_count; i++) {
 
 		//print_instruction_window_around(i, ins, ins_count, variables, var_count, visited, 0, "");
@@ -911,16 +917,15 @@ process_file:;
 		nat ignore = 1;
 
 		if (	op == halt or op == sc or 
-			op == do_  or op == at or 
-			op == rt   or op == la or 
+			op == do_  or op == at or op == la or 
 			op == ld   or op == st
 		) ignore = 0;
 
-		puts("looking at: "); 
-		print_instruction(ins[i], variables, var_count); puts("");
+		//puts("looking at: "); 
+		//print_instruction(ins[i], variables, var_count); puts("");
 		
-		if (ignore) for (nat a = 0; a < arity[op]; a++) {
-
+		if (ignore and op != rt) 
+		for (nat a = 0; a < arity[op]; a++) {
 			if (op == at and a == 0) continue;
 			if (op == do_ and a == 0) continue;
 			if (op == lt and a == 2) continue;
@@ -929,37 +934,36 @@ process_file:;
 			if (op == eq and a == 2) continue;
 			if (op == la and a == 1) continue; 
 						
-			// TODO: work this out:     are la's CT OR NOT!?!?!?!    .....they arent. lol. i think. 
+				// TODO: work this out:     are la's CT OR NOT!?!?!?!    .....they arent. lol. i think. 
 
 			if (((imm >> a) & 1)) {
 
-				printf("found a compiletime immediate : %llu\n", 
+				/*printf("found a compiletime immediate : %llu\n", 
 					ins[i].args[a]
-				);
+				);*/
 
 			} else if (type[i * var_count + ins[i].args[a]]) {
 				
-				printf("found a compiletime variable "
+				/*printf("found a compiletime variable "
 					"as argument  :  %s = {type = %llu, value = %llu}\n",
 					variables[ins[i].args[a]], 
 					type[i * var_count + ins[i].args[a]],
 					value[i * var_count + ins[i].args[a]]
-				);
+				);*/
 
 			} else {
-				puts("found a runtime argument!");	
+				/*puts("found a runtime argument!");	
 				printf("found variable "
 					":  %s = {type = %llu, value = %llu}\n",
 					variables[ins[i].args[a]], 
 					type[i * var_count + ins[i].args[a]],
 					value[i * var_count + ins[i].args[a]]
-				);
+				);*/
 				ignore = 0; break;
 			}
 		}
 
 		if (ignore or not visited[i]) {
-			puts("ignoring instruction...\n");
 
 			if (op == lt or op == ge or op == ne or op == eq) {
 				const nat v0 = (imm & 1) ? ins[i].args[0] : value[i * var_count + ins[i].args[0]];
@@ -975,15 +979,15 @@ process_file:;
 			} else visited[i] = 0;
 
 		} else {
-			puts("found real RT isntruction!"); putchar('\t');
-			print_instruction(ins[i], variables, var_count); puts("");
+			//puts("found real RT isntruction!"); putchar('\t');
+			//print_instruction(ins[i], variables, var_count); puts("");
 
 			if ((op >= set and op <= sd) or op == rt) {
 				const nat ct1 = (imm & 2) or type[i * var_count + ins[i].args[1]];
 				const nat v1 = (imm & 2) ? ins[i].args[1] : value[i * var_count + ins[i].args[1]];
 
 				if (ct1 and not (imm & 2)) {
-					puts("found an instruction which has a ct argument!");
+					//puts("found an instruction which has a ct argument!");
 					ins[i].args[1] = v1;
 					ins[i].imm |= 2;
 				}
@@ -1050,6 +1054,14 @@ process_file:;
 
 
 
+	nat final_ins_count = 0;
+	for (nat i = 0; i < ins_count; i++) {
+		const nat op = ins[i].op;
+		if (not visited[i] and op != at) continue;
+		ins[final_ins_count++] = ins[i];
+	}
+	ins_count = final_ins_count;
+	memset(visited, 0, sizeof visited);
 
 
 
@@ -1064,7 +1076,6 @@ process_file:;
 		- simplify conditions?...
 
 		-   TODO: look up some more lol.
-
 
 
 opt     future passes!
@@ -1098,20 +1109,181 @@ x	1. add opt    mul_imm ---> si_imm
 
 
 
+	
+	// todo opt:
+
+	//  . simplify control flow! 
+
+	//  . simplify labels
+
+	//  . copy propagation! 
+
+	//  . loop invariant code motion
+
+	//  . 
 
 
 
-	nat final_ins_count = 0;
+
+	// copy prop: 
+
+	/*
+
+		the basic idea:
+
+			you just do the ct-eval algortihm/stage  that we already coded up ,  but instead of storing ctk/rtk ness  
+
+			you store   if a variable is currently the result of an assignment. ie, the computation currently performed is simply   that which is given by another variable!
+				ie,      you have seen          set x y           and x has never been used with any other instruction since seeing that set!
+
+
+				then, when you see the set, you store   a 1 in the type    (saying it is actually the result of an assignment, and a candidate for copy prop, 
+
+						and then, for the value, you set it to the variable reference y !!!!!      
+
+
+						but note, you coulddd actuallyyyy have 
+
+
+
+
+
+		ANDD!!!
+
+			the control flow merging abilities of the ct-eval stage   ARE RELEVANT  HERE        FOR COPY PROP!!! 
+
+				ITS THE SAME PROBLEMMMM     we are tracing data flow throughhhh RT loopss!!!!
+
+				if a set  is given in the same way    coming from two different pred's     then we can literally just keep the fact that x is represented by y!!!
+					butttt if we see DIFFERENTTTT   "value[]"'s for x    coming from different preds,   then we know we must keep x, 
+
+						and we cannot actually replace THIS INSTRUCTIONSS use of x. with y. 
+
+
+
+		now, 
+	note, 
+			we never actually delete the      set x y      !!!!
+
+
+		we just    attempt   to make it pointless lol. 
+
+			and then, later on, if we have literally managed to remove all uses of x,   and successfullyyyy replace them with y, 
+
+
+					then we know!   that the set is not used, because now,    we are actually setting a variable to a value, and never using it, 
+
+
+							ie,   dead store   elmination!   this is a trivial optimization to do! niceeee
+
+
+
+								that happens afterwards. after we finish the whole     "while(stack_count)"   stage of the this copy prop algorithm! 
+
+	so yeah 
+
+
+	thats how copy prop works! 
+
+
+
+
+
+
+
+
+
+
+
+
+
+wait. 
+
+
+
+	no 
+					instead, 
+							lets just merge   copy prop,    and ct-eval. 
+
+
+
+
+							 		THEY     ARE      THE SAME   ALGORITHMMM
+
+
+
+					its just we need to add more arrays to the matrix   type/value thingy 
+
+						like, we need to add   equiv_var[]        and then also    is_copy[]
+
+
+							we can just do the merge logic   in with the ct-eval's merge logic! shouldnt be that hard lol
+
+
+
+		
+
+		honesty, the crazy part is that.. 
+
+			i feel like    theres a more general form of this to, 
+
+
+				which doesnt just deal with  variables being equivalent, or equal, at a certain poitn, 
+
+						but actually represents arbitrary computatinal semantic information on the variables... 
+
+				like, i feel like we can genuinely generalize this algortihm,   from ct-eval   amid   copy-prop   to finally 
+
+
+							a more generallll   opmimization  pass
+
+
+
+
+			one which, in theory could even do     common sub expression elimination?? hmmm 
+									ie, when the comptuaion on a variable is equivlaent to another one kinda
+
+
+							hmmmmm
+
+
+	i'll thinkk about it 
+
+
+
+i'm quite certain about merging  copy prop and ct-eval though
+
+
+that feels like a no brainer nowww
+
+
+
+
+
+	*/
+
 	for (nat i = 0; i < ins_count; i++) {
+		if (not visited[i]) continue;
 		const nat op = ins[i].op;
-		if (not visited[i] and op != at and op != rt) continue;
-		ins[final_ins_count++] = ins[i];
+
+
+		
+
+
+
 	}
-	ins_count = final_ins_count;
-	memset(visited, 0, sizeof visited);
+
+
+
+
 	print_dictionary(variables, is_undefined, var_count);
 	print_instructions(ins, ins_count, variables, var_count, 0);
 	puts("[done]");
+
+	print_nats(is_runtime, var_count); puts("");
+	print_nats(bit_count, var_count); puts("");
+	print_nats(register_index, var_count); puts("");
+
 	getchar();
 
 
@@ -1136,8 +1308,12 @@ x	1. add opt    mul_imm ---> si_imm
 		}
 
 		const nat op = ins[i].op;
+		const nat imm = ins[i].imm;
 		const nat arg0 = ins[i].args[0];
 		const nat arg1 = ins[i].args[1]; 
+
+		if (op == halt) { mi[mi_count++] = ins[i]; selected[i] = 1; continue; }
+		if (op == at) { mi[mi_count++] = ins[i]; selected[i] = 1; continue; }
 
 		if (op == set) {
 			const nat b = locate_instruction(
@@ -1163,6 +1339,109 @@ x	1. add opt    mul_imm ---> si_imm
 			selected[i] = 1; selected[b] = 1; selected[c] = 1;
 			goto finish_mi_instruction;
 		} addsrlsl_bail:
+
+
+
+/*
+	a6_nop, a6_svc, a6_mov, a6_bfm,
+	a6_adc, a6_addx, a6_addi, a6_addr, a6_adr, 
+	a6_shv, a6_clz, a6_rev, a6_jmp, a6_bc, a6_br, 
+	a6_cbz, a6_tbz, a6_ccmp, a6_csel, 
+	a6_ori, a6_orr, a6_extr, a6_ldrl, 
+	a6_memp, a6_memia, a6_memi, a6_memr, 
+	a6_madd, a6_divr, 
+*/
+
+
+		if (op == set and not imm) {
+			struct instruction new = { .op = a6_orr };
+			new.args[0] = arg0;
+			new.args[1] = 0;
+			new.args[2] = arg1;			
+			new.args[3] = 0;
+			mi[mi_count++] = new;
+			selected[i] = 1;
+			goto finish_mi_instruction;
+		}
+
+		else if (op == set and imm) {
+			struct instruction new = { .op = a6_mov, .imm = 0xfe };
+			new.args[0] = arg0;
+			new.args[1] = arg1;
+			new.args[2] = 0;
+			new.args[3] = 0;
+			new.args[4] = 0;
+			mi[mi_count++] = new;
+			selected[i] = 1;
+			goto finish_mi_instruction;
+		}
+
+		if (op == lt and not imm) {
+			struct instruction new = { .op = a6_addr };
+			new.args[0] = 0;
+			new.args[1] = arg0;
+			new.args[2] = arg1;
+			new.args[3] = 0;
+			mi[mi_count++] = new;
+			struct instruction new2 = { .op = a6_bc };
+			new2.args[0] = lt;
+			new2.args[1] = (nat) -1;
+			mi[mi_count++] = new2;
+			selected[i] = 1; 
+			goto finish_mi_instruction;
+		}
+
+		if (op == eq and not imm) {
+			struct instruction new = { .op = a6_orr };
+			new.args[0] = 0;
+			new.args[1] = arg0;
+			new.args[2] = arg1;
+			new.args[3] = 0;
+			mi[mi_count++] = new;
+			struct instruction new2 = { .op = a6_bc };
+			new2.args[0] = eq;
+			new2.args[1] = (nat) -1;
+			mi[mi_count++] = new2;
+			selected[i] = 1; 
+			goto finish_mi_instruction;
+		}
+
+		if (op == lt and imm) {			
+			struct instruction new = { .op = a6_addi };
+			new.args[0] = 0;
+			new.args[1] = arg0;
+			new.args[2] = arg1;
+			new.args[3] = 0;
+			mi[mi_count++] = new;
+			struct instruction new2 = { .op = a6_bc };
+			new2.args[0] = lt;
+			new2.args[1] = (nat) -1;
+			mi[mi_count++] = new2;
+			selected[i] = 1; 
+			goto finish_mi_instruction;
+		}
+
+		if (op == eq and imm) {
+			struct instruction new = { .op = a6_ori };
+			new.args[0] = 0;
+			new.args[1] = arg0;
+			new.args[2] = arg1;
+			new.args[3] = 0;
+			mi[mi_count++] = new;
+			struct instruction new2 = { .op = a6_bc };
+			new2.args[0] = eq;
+			new2.args[1] = (nat) -1;
+			mi[mi_count++] = new2;
+			selected[i] = 1; 
+			goto finish_mi_instruction;
+		}
+
+		if (op == sc) {
+			struct instruction new = { .op = a6_svc };
+			mi[mi_count++] = new;
+			selected[i] = 1;
+			goto finish_mi_instruction;
+		}
 
 		
 	finish_mi_instruction:
