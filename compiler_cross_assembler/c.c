@@ -1,4 +1,35 @@
 // 1202504045.155147 a compiler / assembler for a simpler version of the language.
+/*
+
+	halt : termination point in the control flow graph. control flow does not continue past this instruction. 
+	sc : system call, target specific, and triggers a context switch on targets with an operating system, to perform a specialized task. 
+	do k : unconditional graph to label k. 
+	at k : attribute label k to this position in the code. k is used as the destination of branches, or with the source of an la instruction.
+	lf f : load file f from the filesystem, and include its parsed contents here.
+	rt x y : force the variable x to be runtime known. 
+		if y > 0, this sets the number of bits allocated to x, and 
+		if y == 0, x is forced to be runtime known, with no further constraints, and
+		if y < 0, this denotes the hardware register x should be allocated in. 
+	set x y : assignment to destination register x, using the value present in source y.
+	add x y : assigns the value x + y to the destination register x.
+	sub x y : assigns the value x - y to the destination register x.
+	mul x y : assigns the value x * y to the destination register x.
+	div x y : assigns the value x / y to the destination register x.
+	rem x y : assigns the value x modulo y to the destination register x.
+	and x y : assigns the value x bitwise-AND y to the destination register x.
+	or x y : assigns the value x bitwise-OR y to the destination register x.
+	eor x y : assigns the value x bitwise-XOR y to the destination register x.
+	si x y : shifts the bits in x up by y bits. 
+	sd x y : shifts the bits in x down by y bits. (always an unsigned shift)
+	la x k : loads a program-counter relative address given by a label k into a destination register x.
+	ld x y z : load z bytes from memory address y into destination register x. 
+	st x y z : store z bytes from the soruce register y into the memory at address x.
+	lt x y k : if x is less than y, control flow branches to label k. 
+	ge x y k : if x is not less than y, control flow branches to label k. 
+	ne x y k : if x is not equal to y, control flow branches to label k. 
+	eq x y k : if x is equal to y, control flow branches to label k. 
+	
+*/
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -46,6 +77,7 @@ enum core_language_isa {
 	a6_madd, a6_divr, 
 
 	m4_section, m4_gen, m4_br,
+	r5_r, r5_i, r5_s, r5_b, r5_u, r5_j, 
 
 	isa_count
 };
@@ -67,6 +99,8 @@ static const char* operations[isa_count] = {
 	"a6_madd", "a6_divr", 
 
 	"m4_section", "m4_gen", "m4_br",
+	"r5_r", "r5_i", "r5_s", "r5_b", "r5_u", "r5_j", 
+
 };
 
 static const nat arity[isa_count] = {
@@ -85,7 +119,9 @@ static const nat arity[isa_count] = {
 	5, 8, 5, 3, 
 	7, 6, 5, 6,
 	8, 5, 
+
 	1, 8, 2,
+	6, 5, 6, 5, 3, 3, 	
 };
 
 struct instruction {
@@ -674,12 +710,14 @@ process_file:;
 	print_instructions(ins, ins_count, variables, var_count, 0);
 	getchar();
 
-
-	nat* type = calloc(ins_count * var_count, sizeof(nat));  // is_compiletime[...]
-	nat* value = calloc(ins_count * var_count, sizeof(nat));  // values[...]
+	nat* type = calloc(ins_count * var_count, sizeof(nat));
+	nat* value = calloc(ins_count * var_count, sizeof(nat)); 
+	nat* is_copy = calloc(ins_count * var_count, sizeof(nat)); 
+	nat* copy_of = calloc(ins_count * var_count, sizeof(nat));  
+	nat* copy_type = calloc(ins_count * var_count, sizeof(nat));  
 
 	nat stack[4096] = {0};
-	nat stack_count = 1;
+	nat stack_count = 2;
 	nat visited[4096] = {0};
 	nat last_pc = (nat) -1;
 
@@ -710,11 +748,19 @@ process_file:;
 		}
 		puts("\n-------------------------------------------------");
 		for (nat i = 0; i < ins_count; i++) {
-			printf("%3llu: ", i);
+			printf("ct %3llu: ", i);
 			for (nat j = 0; j < var_count; j++) {
 				if (type[i * var_count + j])
 					printf("%3lld ", value[i * var_count + j]);
 				else 	printf("\033[90m%3llx\033[0m ", value[i * var_count + j]);
+			}
+			putchar(9);
+
+			printf("cp %3llu: ", i);
+			for (nat j = 0; j < var_count; j++) {
+				if (is_copy[i * var_count + j])
+					printf("%3lld(%llu) ", copy_of[i * var_count + j], copy_type[i * var_count + j]);
+				else 	printf("\033[90m%3llx(%llu)\033[0m ", copy_of[i * var_count + j], copy_type[i * var_count + j]);
 			}
 			puts("");
 		}
@@ -744,27 +790,66 @@ process_file:;
 		for (nat e = 0; e < var_count; e++) {
 
 		const nat this_var = e; 
+
 		nat future_type = 0;
 		nat future_value = 0;
-		nat mismatch = 0;
+		nat value_mismatch = 0;
+
+		puts("");
+
+		printf("CT: VARIABLE: %10s   ", variables[this_var]);
+
+		
 
 		for (nat iterator_p = 0; iterator_p < pred_count; iterator_p++) {
-
 			const nat pred = preds[iterator_p];
-
 			if (not visited[pred]) continue;
-
 			const nat t = type[pred * var_count + this_var];
-			const nat v = value[pred * var_count + this_var];	
-			if (t == 0) { future_type = 0; future_value = v; break; } 
-			
+			const nat v = value[pred * var_count + this_var];			
+			if (t == 0) { future_type = 0; future_value = v; break; }			
 			if (not future_type) { 
 				future_type = 1; 
 				future_value = v; 
-			} else if (future_value != v) mismatch = 1; 
+			} else if (future_value != v) value_mismatch = 1; 
 		}
 
-		if (mismatch and future_type) {
+		printf("RESULTS  ");
+		printf("	type = %llu   ", future_type);
+		printf("	value = %llu   ", future_value);
+		printf("	mismatch = %llu  ", value_mismatch);
+		puts("");
+
+		nat future_is_copy = 0;
+		nat future_copy_ref = 0;
+		nat future_copy_type = 0;
+		nat copy_ref_mismatch = 0;
+
+		printf("CP: VARIABLE: %10s   ", variables[this_var]);
+
+		for (nat iterator_p = 0; iterator_p < pred_count; iterator_p++) {
+			const nat pred = preds[iterator_p];
+			if (not visited[pred]) continue;
+			const nat t = is_copy[pred * var_count + this_var];
+			const nat v = copy_of[pred * var_count + this_var];
+			const nat ct = copy_type[pred * var_count + this_var];
+			if (t == 0) { future_is_copy = 0; future_value = 0; break; }
+			if (not future_is_copy) { 
+				future_is_copy = 1; 
+				future_copy_ref = v;
+				future_copy_type = ct;
+			} else if (future_copy_ref != v or future_copy_type != ct) copy_ref_mismatch = 1; 
+		}
+
+		printf("RESULTS  ");
+		printf("	is_copy = %llu   ", future_is_copy);
+		printf("	copy_ref = %llu   ", future_copy_ref);
+		printf("	copy_type = %llu   ", future_copy_type);
+		printf("	mismatch = %llu", copy_ref_mismatch);
+		puts("");
+		
+
+		if (value_mismatch and future_type) {
+			printf("value MISMATCH!\n");
 
 			nat found = 0;
 			for (nat i = 0; i < pred_count; i++) {
@@ -797,7 +882,48 @@ process_file:;
 		type[pc * var_count + this_var] = future_type;
 		value[pc * var_count + this_var] = future_value;
 
+
+
+		if (copy_ref_mismatch) {
+
+			printf("copy_ref MISMATCH!\n");
+			abort();
+
+			nat found = 0;
+			for (nat i = 0; i < pred_count; i++) {
+				if (preds[i] == last_pc) { found = 1; break; }
+			}
+
+			if ((true) or found) {
+				printf("for variable %llu:\"%s\", in instruction: ", this_var, variables[this_var]); 
+				print_instruction(ins[pc], variables, var_count); putchar(10);
+				printf("fatal error: in value mismatch: last_pc was not a predecessor"
+					" (last_pc = %llu, lastpc not found in predecessors)... aborting.\n", 
+					last_pc
+				);
+				abort();
+			} 
+
+			if (last_pc == (nat) -1) abort();
+
+			/*const nat pred = last_pc;
+			if (not visited[pred]) continue; 
+			const nat t = type[pred * var_count + this_var];
+			const nat v = value[pred * var_count + this_var];
+			future_type = t;
+			future_value = v;
+			done_with_copy_mismatch:;*/
+		}
+
+
+		is_copy[pc * var_count + this_var] = future_is_copy;
+		copy_of[pc * var_count + this_var] = future_copy_ref;
+		copy_type[pc * var_count + this_var] = future_copy_type;
+
 		} // for e 
+
+		fflush(stdout);
+		getchar();
 
 		//printf("pc = %llu, a0 = %llu, a1 = %llu, a1 = %llu\n", pc, a0, a1, a2); fflush(stdout);
 		const nat ct0 = i0 or type[pc * var_count + a0];
@@ -805,20 +931,40 @@ process_file:;
 		const nat ct2 = i2 or type[pc * var_count + a2];
 		const nat v0 = i0 ? a0 : value[pc * var_count + a0];
 		const nat v1 = i1 ? a1 : value[pc * var_count + a1];
-		//const nat v2 = i2 ? a2 : value[pc * var_count + a2];
+		const nat v2 = i2 ? a2 : value[pc * var_count + a2];
+
+		const nat a0_is_copy = is_copy[pc * var_count + a0];
+		const nat a1_is_copy = is_copy[pc * var_count + a1];
+		const nat a0_copy_ref = copy_of[pc * var_count + a0];
+		const nat a1_copy_ref = copy_of[pc * var_count + a1];
+		const nat a0_copy_type = copy_type[pc * var_count + a0];
+		const nat a1_copy_type = copy_type[pc * var_count + a1];
 
 		nat out_t = ct0, out_v = v0;
+
+		nat 	out_is_copy = a0_is_copy, 
+			out_copy_ref = a0_copy_ref, 
+			out_copy_type = a0_copy_type
+		;
 		last_pc = pc;
 
-		if (op == halt) {
-			//puts("executing a halt statement..."); getchar();
-			continue;
-		}
-
+		if (op == halt) continue;
 		else if (op == at) { }
 		else if (op == sc) { }
 		else if (op == do_) { pc = gt0; goto execute_ins; } 		
-		else if (op == set) { if (not is_runtime[a0]) { out_t = ct1; out_v = v1; } }
+		else if (op == set) {
+			if (not is_runtime[a0]) {
+				out_t = ct1; out_v = v1;
+			}
+			out_is_copy = 1;
+			if (is_copy[pc * var_count + a1]) {
+				out_copy_ref = copy_of[pc * var_count + a1];
+				out_copy_type = copy_type[pc * var_count + a1];
+			} else { 
+				out_copy_ref = a1;
+				out_copy_type = i1;
+			}
+		}
 		else if (op >= add and op <= sd) { 
 			if (not i1) out_t = ct0 and ct1;
 			     if (op == add)  out_v += v1;
@@ -831,17 +977,21 @@ process_file:;
 			else if (op == eor)  out_v ^= v1;
 			else if (op == si)   out_v <<= v1;
 			else if (op == sd)   out_v >>= v1;
-
+			out_is_copy = 0;
+			
 		} else if (op == st) {	
 			if (not ct2) { puts("error: size of store must be ctk."); abort(); }
+			out_is_copy = 0;
 
 		} else if (op == ld) {
 			if (not ct2) { puts("error: size of load must be ctk."); abort(); }
 			out_t = 0;
+			out_is_copy = 0;
 
 		} else if (op == la) {
 			out_t = 0;
 			out_v = 0;
+			out_is_copy = 0;
 						
 		} else if (op == lt or op == ge or op == ne or op == eq) {
 			if (not ct0 or not ct1) {
@@ -876,40 +1026,79 @@ process_file:;
 			abort();
 		}
 
+
+		printf("FINISHED EXECUTING INSTRUCTION!: publishing: ");
+		printf("type=%llu, value=%llu, is_copy=%llu, copy_of=%llu, copy_type=%llu\n", 
+			out_t, out_v, out_is_copy, out_copy_ref, out_copy_type
+		);
+		getchar();
+
+
+
 		type[pc * var_count + a0] = out_t;
 		value[pc * var_count + a0] = out_v;
+		is_copy[pc * var_count + a0] = out_is_copy;
+		copy_of[pc * var_count + a0] = out_copy_ref;
+		copy_type[pc * var_count + a0] = out_copy_type;
+
 		pc++; goto execute_ins;
 	}
 
 
+	puts("...done executing code. visited: ");
+	print_nats(visited, ins_count);
+	puts("");
+	getchar();
+
 	print_instruction_window_around(0, ins, ins_count, variables, var_count, visited, 0, "");
-	print_instructions(ins, ins_count, variables, var_count, 0);
+	print_instructions(ins, ins_count, variables, var_count, 1);
 	print_dictionary(variables, is_undefined, var_count);
-	puts("types and values");
-	puts("------------------------------------------");
 	printf("     ");
 	for (nat j = 0; j < var_count; j++) {
 		printf("%3lld ", j);
 	}
-	puts("\n------------------------------------------");
+	puts("\n-------------------------------------------------");
 	for (nat i = 0; i < ins_count; i++) {
-		printf("%3llu: ", i);
+		printf("ct %3llu: ", i);
 		for (nat j = 0; j < var_count; j++) {
 			if (type[i * var_count + j])
 				printf("%3lld ", value[i * var_count + j]);
 			else 	printf("\033[90m%3llx\033[0m ", value[i * var_count + j]);
 		}
+		putchar(9);
+		printf("cp %3llu: ", i);
+		for (nat j = 0; j < var_count; j++) {
+			if (is_copy[i * var_count + j])
+				printf("%3lld(%llu) ", copy_of[i * var_count + j], copy_type[i * var_count + j]);
+			else 	printf("\033[90m%3llx(%llu)\033[0m ", copy_of[i * var_count + j], copy_type[i * var_count + j]);
+		}
 		puts("");
 	}
-	puts("------------------------------------------");
-	printf("stack: "); print_nats(stack, stack_count);
-	print_nats(visited, ins_count);
+	puts("-------------------------------------------------");
+
+	printf("[PC = %llu, last_PC = %llu], pred:", 0, 0);
+	putchar(32);
+	printf("stack: "); 
+	print_nats(stack, stack_count); 
+	putchar(10);
+
+
+	puts("...beginning to simplify instructions now!");
+	getchar();
+
+
+
+
+	// --------------------------------------------------------------------------------------
+	// once we finish with copy prop and it works well, we should do ins sel for msp430!!!
+	// --------------------------------------------------------------------------------------
+
 
 
 	for (nat i = 0; i < ins_count; i++) {
 
-		//print_instruction_window_around(i, ins, ins_count, variables, var_count, visited, 0, "");
-		//getchar();
+		print_instruction_window_around(i, ins, ins_count, variables, var_count, visited, 1, "on this ins");
+		getchar();
 
 		const nat op = ins[i].op;
 		const nat imm = ins[i].imm;
@@ -938,27 +1127,27 @@ process_file:;
 
 			if (((imm >> a) & 1)) {
 
-				/*printf("found a compiletime immediate : %llu\n", 
+				printf("found a compiletime immediate : %llu\n", 
 					ins[i].args[a]
-				);*/
+				);
 
 			} else if (type[i * var_count + ins[i].args[a]]) {
 				
-				/*printf("found a compiletime variable "
+				printf("found a compiletime variable "
 					"as argument  :  %s = {type = %llu, value = %llu}\n",
 					variables[ins[i].args[a]], 
 					type[i * var_count + ins[i].args[a]],
 					value[i * var_count + ins[i].args[a]]
-				);*/
+				);
 
 			} else {
-				/*puts("found a runtime argument!");	
+				puts("found a runtime argument!");	
 				printf("found variable "
 					":  %s = {type = %llu, value = %llu}\n",
 					variables[ins[i].args[a]], 
 					type[i * var_count + ins[i].args[a]],
 					value[i * var_count + ins[i].args[a]]
-				);*/
+				);
 				ignore = 0; break;
 			}
 		}
@@ -976,12 +1165,12 @@ process_file:;
 				if (cond) { ins[i].op = do_; ins[i].args[0] = ins[i].args[2]; }
 				else visited[i] = 0;
 
-			} else visited[i] = 0;
+			} else { puts("NOTE: found a compiletime-known instruction! deleting this instruction."); getchar(); visited[i] = 0; } 
 
 		} else {
-			//puts("found real RT isntruction!"); putchar('\t');
-			//print_instruction(ins[i], variables, var_count); puts("");
-
+			puts("found real RT isntruction!"); putchar('\t');
+			print_instruction(ins[i], variables, var_count); puts("");
+			
 			if ((op >= set and op <= sd) or op == rt) {
 				const nat ct1 = (imm & 2) or type[i * var_count + ins[i].args[1]];
 				const nat v1 = (imm & 2) ? ins[i].args[1] : value[i * var_count + ins[i].args[1]];
@@ -1000,7 +1189,7 @@ process_file:;
 						and not c or 
 						(op == mul or op == div_)
 						and c == 1	
-					) visited[i] = 0;
+					) { puts("found a NOP! deleting this instruction."); getchar(); visited[i] = 0; } 
 
 					for (nat sh = 0; sh < 64; sh++) {
 						if (op == mul and c == (1LLU << sh)) {
@@ -1017,13 +1206,35 @@ process_file:;
 
 				} else {
 					if (ins[i].args[0] == ins[i].args[1]) {
-						if (op == set or op == and_ or op == or_) visited[i] = 0;
+						if (op == set or op == and_ or op == or_) { 
+							puts("found a rt NOP! deleting this instruction."); 
+							getchar(); visited[i] = 0; }
 						else if (op == eor or op == sub) {
 							ins[i].op = set;
 							ins[i].imm |= 2;
 							ins[i].args[1] = 0;
 						}
 					}
+				}
+
+				if (is_copy[i * var_count + ins[i].args[1]]) { 
+
+					printf("note: inlining copy reference: a1=%llu imm=%llu copy_of=%llu, copy_type=%llu, i=%llu...\n", 
+						ins[i].args[1], ins[i].imm, 
+						copy_of[i * var_count + ins[i].args[1]], 
+						copy_type[i * var_count + ins[i].args[1]],
+						i
+					);
+
+					puts("original:");
+					print_instruction(ins[i], variables, var_count); puts("");
+					getchar();
+
+					if (copy_type[i * var_count + ins[i].args[1]]) ins[i].imm |= 2;
+					ins[i].args[1] = copy_of[i * var_count + ins[i].args[1]];
+
+					puts("modified form:"); print_instruction(ins[i], variables, var_count); puts("");
+					getchar();
 				}
 
 			} else if (op == ld or op == st) {
@@ -1049,8 +1260,12 @@ process_file:;
 			}
 		}
 
-		//getchar();
+		getchar();
 	}
+
+
+
+	// todo:  DEAD STORE ELIMINATION!!   remove the set statements which don't do anything now. 
 
 
 
@@ -1062,7 +1277,6 @@ process_file:;
 	}
 	ins_count = final_ins_count;
 	memset(visited, 0, sizeof visited);
-
 
 
 
@@ -3775,7 +3989,7 @@ yayy
 
 		if (op == halt) {}
 		else if (op == sc) {}
-		else if (op >= a6_nop and op <= m4_br) {}
+		else if (op >= a6_nop and op < isa_count) { }
 
 		else if (op == at) { values[a0] = pc; pc++; goto execute_ins; } 
 		else if (op == do_) { pc = values[a0]; goto execute_ins; }
