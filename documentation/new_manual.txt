@@ -19,7 +19,6 @@ ISA listing (24 instructions):
 
 
 
-
 --------------------------------------------------------------------------
 	meaning/usage of each instruction:
 --------------------------------------------------------------------------
@@ -146,6 +145,63 @@ at loop
 
 
 -------------------------------------------
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+sc do at lf rt 
+set add sub mul div  
+and or eor si sd la
+lt ge ne eq ld st 
+
+(deleted the halt instruction)
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
