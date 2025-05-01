@@ -1,0 +1,182 @@
+Current state of the compiler project:
+___________________________________________
+
+
+Introduction:
+------------------
+
+This project is an optimizing cross-compiler for the RISC-like instruction set architectures (ISA's) ARM32, ARM64, RISC-V32, RISC-V64, and MSP430. This project Targets both embedded (bare metal) and non-embedded devices of these architectures. The input language used which is compiled to machine code by this compiler is low-level in nature, in that the language uses branch instructions for control flow and uses a load-store architecture model for memory, similar to assembly. 
+
+However, the language differs substantially from assembly in that variables are stored in virtual registers (hardware registers, prior to register allocation), use of hardware machine instructions is optional, and many optimizations are performed on the input code prior to binary code generation. 
+
+Appendix A gives the full instruction set definition and semantics for the language.
+
+The primary objective/focus of this language and the compiler is on runtime performance. The compiler aims to efficiently use the CPU's resources (including memory, registers, hardware instructions, and execution time), as well as perform optimizations on the code in the compiler's intermediate representation format. Perfect portability of code between the supported architectures is not a priority, especially as it comes at a cost to performance. 
+
+It should also be noted that the focus on RISC-like ISA's (and thus the exclusion of x86 and x86-64 as a performance target) was a conscious decision to facilitate improved optimizations and provide a simple unified programming model which maps efficiently to all performance targets. Additionally, RISC-like ISA's are the dominant form of ISA used in both embedded devices, and high-performance computing, due to better power efficiency and heat generation, and use of these RISC-like ISA's seems to be increasing as time progresses. 
+
+Particularly novel aspects of the language and its semantics include the direct access to CPU registers (technically, virtual registers), direct access to any machine instruction on any supported target ISA, as well as as a novel algorithm for improved sparse conditional constant propagation, resulting in stronger compile-time evaluation/execution semantics than most other languages. With a few exceptions, generally any code which can be executed at compile-time, will be, unless specifically forced to be executed at runtime by the programmer via an explicit annotation. 
+
+Current State:
+------------------
+
+Several major stages have been already completed in the compiler's development. Of these, include the entire front-end, intermediate control flow and data flow representation, important optimizations such as compile-time partial evaluation, copy propagation, and dead code elimination, as well as the late stages of the compiler involved in the generation of the final machine code and binary file. 
+
+For a complete list of the current progress and active areas of development in the compiler, below is a list of all stages and planned features in the compiler, along with which have been completed ("C"), which are currently in development ("D"), and which are currently in the planning stages ("P"). 
+
+
+	[C]	1. Lexing
+	[C]	2. Parsing
+	[C]	3. Control flow graph and data flow graph representation
+	
+	[C]	4. Constant propgation/folding
+	[C]	5. Compile-time partial evaluation and execution
+	[C]	6. Runtime copy propagation
+	[C]	7. Dead code elimination
+	[C]	8. Operation strength reduction
+	
+	[D]	9. Algebraic simplification
+	[D]	10. Loop unrolling
+	[D]	11. Jump threading
+	[P]	12. Dead store elimination
+	[P]	13. Common subexpression elimination
+	[P]	14. Loop-invariant code motion
+
+	[D]	15. Instruction selection
+	[P]	16. Instruction scheduling
+	[P]	17. Register allocation (using graph coloring)
+	
+	[C]	18. Machine code generation for RISC-V32
+	[C]	19. Machine code generation for RISC-V64
+	[C]	20. Machine code generation for ARM64
+	[P]	21. Machine code generation for ARM32
+	[C]	22. Machine code generation for MSP430
+
+	[C]	23. Mach-O executable  generation
+	[C]	24. Mach-O object file generation
+	[P]	25. ELF executable  generation
+	[P]	26. ELF object file generation
+	[C]	27. MSP TI executable generation
+		
+
+Although continued development on the compiler's source will be required to complete all of these planned features, the "minimum viable product" for the compiler (ie, minimum set of features for the project to still attain its goal) can be given by only the following features:
+
+
+	[C]	1. Lexing
+	[C]	2. Parsing
+	[C]	3. Control flow graph and data flow graph representation
+	
+	[C]	4. Constant propgation/folding
+	[C]	5. Compile-time partial evaluation and execution
+	[C]	6. Runtime copy propagation
+	[C]	7. Dead code elimination
+	[C]	8. Operation strength reduction	
+	[D]	9. loop unrolling
+	[D]	10. Jump threading
+	[P]	11. Common subexpression elimination
+
+	[D]	12. Instruction selection
+	[P]	13. Register allocation (using graph coloring)
+	
+	[C]	14. Machine code generation for RISC-V32
+	[C]	15. Machine code generation for RISC-V64
+	[C]	16. Machine code generation for ARM64
+	[P]	17. Machine code generation for ARM32
+	[C]	18. Machine code generation for MSP430
+
+	[C]	19. Mach-O executable  generation
+	[C]	20. Mach-O object file generation
+	[C]	21. MSP TI executable generation
+
+
+The above list of features omits several less critical optimizations, as well as omits instruction scheduling and the ELF executable/object generation. This should allow the project to complete in a more timely manner, if neccessary, as there are only a handful of remaining features neccessary to implement. 
+
+
+
+
+
+
+
+Appendix A:
+----------------------
+
+
+The compiler's language definition is given by the following: 
+
+
+Math and bitwise operations:
+
+	set x y : assignment to destination register x, using the value present in source y.
+		if the name x is not defined, then x is defined as a result of this instruction.
+		if x is defined, the existing definition of variable x is used.
+
+	add x y : assigns the value x + y to the destination register x.
+
+	sub x y : assigns the value x - y to the destination register x.
+
+	mul x y : assigns the value x * y to the destination register x.
+
+	div x y : assigns the value x / y to the destination register x.
+
+	rem x y : assigns the value x modulo y to the destination register x.
+
+	and x y : assigns the value x bitwise-and y to the destination register x.
+
+	or x y : assigns the value x bitwise-or y to the destination register x.
+
+	eor x y : assigns the value x bitwise-xor y to the destination register x.
+
+	si x y : shifts the bits in x up by y bits. 
+
+	sd x y : shifts the bits in x down by y bits. (always an unsigned shift)
+
+
+
+Memory operations:
+
+	la x k : loads a program-counter relative address given by a label k into a destination register x.
+
+	ld x y z : load z bytes from memory address y into destination register x. 
+
+	st x y z : store z bytes from the soruce register y into the memory at address x.
+
+
+Control flow:
+
+	halt : termination point in the control flow graph. control flow does not continue past this instruction. 
+
+	do k : unconditional branch to label k. 
+
+	at k : attribute label k to this position in the code. k should be used as the destination of branches, 
+		or as the source of an la instruction.
+
+	lt x y k : if x is less than y, control flow branches to label k. 
+
+	ge x y k : if x is not less than y, control flow branches to label k. 
+
+	ne x y k : if x is not equal to y, control flow branches to label k. 
+
+	eq x y k : if x is equal to y, control flow branches to label k. 
+
+	sc : system call, target specific, and triggers a context switch on targets with an 
+		operating system, to perform a specialized task. 
+
+
+Language specific:
+
+	
+	lf f : load file f from the filesystem, and include its parsed contents here.
+		f denotes a relative path from the directory the compiler invocation is executed. 
+		...unfortunately, due to the word-based nature of the language, f cannot contain spaces.
+
+	rt x y : force the variable x to be runtime known. 
+		if y > 0, this sets the number of bits allocated to x, and 
+		if y == 0, x is forced to be runtime known, with no further constraints, and
+		if y < 0, this denotes the hardware register x should be allocated in. 
+
+
+
+
+[End of document]
+
+

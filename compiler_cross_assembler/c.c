@@ -1,6 +1,112 @@
 // 1202504045.155147 a compiler / assembler for a simpler version of the language.
 /*
 
+
+
+
+
+
+
+
+
+
+------------------------------------------------------------------------------------------------------------------------
+current state 1202504196.234547
+------------------------------------------------------------------------------------------------------------------------
+
+	we should flush out the assembler outputting of machine instructions 
+	first, and then work on the optimizations! so we can use the language
+	to code up the display firmware!! 
+
+
+	we are currently on loop unrolling, and trying to fit that into the 
+	ct-eval stage, and also combine several other optimizations with it. 
+	these all should in theory be able to be done at the same time. 
+
+	also, we want to try to make the data stored in the value/type matrix 
+	sparse, so that we are only storing changes. this will compress a tonn
+	better, and make it so that we can store instruction operand chnages
+	across ct execution. 
+
+	another way to do loop unrolling is to generate a new ins list
+	as a result of execution, but this has problems because of 
+	the rt graph traversal machinery going over things twice. 
+
+------------------------------------------------------------------------------------------------------------------------
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+--------------------------------------------------------
+we are currently doing these optimizations:
+--------------------------------------------------------
+
+	- copy propagation
+	- FULL constant propgation/folding (with control flow)
+	- dead code elimination
+	- pointless goto's
+	- no-operation elimination
+
+
+
+--------------------------------------------------------
+remaining optimizations to perform:
+--------------------------------------------------------
+
+	- algebraic simplification     [ medium ]
+
+	- jump threading cf simplification     [ medium ]
+
+	- common subexpression elimination   [ hard ] 
+
+	- dead store elimination   [ easy ]
+	- unused variable     [ easy ]
+	- set but not used     [ easy ]
+
+
+
+
+***	- loop unrolling.......
+
+		wait, CRAP..  hmmm
+
+
+
+
+
+--------------------------------------------------------
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 	halt : termination point in the control flow graph. control flow does not continue past this instruction. 
 	sc : system call, target specific, and triggers a context switch on targets with an operating system, to perform a specialized task. 
 	do k : unconditional graph to label k. 
@@ -28,7 +134,379 @@
 	ge x y k : if x is not less than y, control flow branches to label k. 
 	ne x y k : if x is not equal to y, control flow branches to label k. 
 	eq x y k : if x is equal to y, control flow branches to label k. 
+
+	udf0 : undefine source0 register variable used by previous instruction
+	udf1 : undefine source1 register variable used by previous instruction
+	udf2 : undefine source2 register variable used by previous instruction
+
+
+
+static const char* type_string[] = {
+	"(none):", 
+	"\033[1;31merror:\033[0m", 
+	"\033[1;35mwarning:\033[0m", 
+	"\033[1;36minfo:\033[0m", 
+	"\033[1;32mdata:\033[0m", 
+	"\033[1;33mdebug:\033[0m"
+};
+
+
+
+
+static void dump_hex(uint8_t* memory, nat count) {
+	printf("dumping bytes: (%llu)\n", count);
+	for (nat i = 0; i < count; i++) {
+		if (not (i % 16)) printf("\n\t");
+		if (not (i % 4)) printf(" ");
+		printf("%02hhx(%c) ", memory[i], memory[i] >= 32 ? memory[i] : ' ');
+	}
+	puts("");
+}
+
+
+static void check(nat value, nat limit, nat a, struct instruction this) {
+	if (value >= limit) {
+		puts("check error");
+		snprintf(reason, sizeof reason, "check: value %llu >= limit %llu check did not succeed for instruction", value, limit);
+		print_message(error, reason, this.source[a + 1]);
+		exit(1);
+	}
+}
+
+static void check_offset(__attribute__((unused)) nat value, __attribute__((unused)) nat limit, __attribute__((unused)) nat arg, struct instruction this) {
+	if ((0)) {
+		puts("check_offset error");
+		print_message(error, "sorry bad logic or something", this.source[0]);
+		exit(1);
+	}
+}
+
+static void r_type(nat* a, nat o, nat f, nat g, struct instruction this) {
+	check(a[0], 32, 0, this);
+	check(a[1], 32, 1, this);
+	check(a[2], 32, 2, this);
+	emitw( (g << 25U) | (a[2] << 20U) | (a[1] << 15U) | (f << 12U) | (a[0] << 7U) | o);
+}
+
+static void i_type(nat* a, nat o, nat f, struct instruction this) { 
+	check(a[0], 32, 0, this);
+	check(a[1], 32, 1, this);
+	check(a[2], 1 << 12, 2, this);
+	emitw( (a[2] << 20U) | (a[1] << 15U) | (f << 12U) | (a[0] << 7U) | o);
+}
+
+static void s_type(nat* a, nat o, nat f, struct instruction this) {
+	check(a[0], 32, 0, this);
+	check(a[1], 32, 1, this);
+	check(a[2], 1 << 12, 2, this);
+	emitw( ((a[0] >> 5U) << 25U) | (a[2] << 20U) | (a[1] << 15U) | (f << 12U) | ((a[0] & 0x1F) << 7U) | o);
+}
+
+static void u_type(nat* a, nat o, struct instruction this) { 
+	check(a[0], 32, 0, this);
+	check(a[1], 1 << 20, 1, this);
+	emitw( (a[1] << 12U) | (a[0] << 7U) | o);
+}
+
+static nat ins_size(nat op) {
+
+	if (architecture == arm64) {
+		if (
+			op == lt or  op == ge or 
+			op == ne or  op == eq or
+			op == slt
+		) return 8; 
+		return 4;
+	} else {
+		puts("that target is not supported yet...");
+		abort();
+	}
+}
+
+
+static nat calculate_offset(nat here, nat label, struct instruction this) {
+	printf("calculate_offset: called using here=%llu, label=%llu...\n", here, label);
+	nat offset = 0;
+	if (label < here) {
+		printf("backwards branch...\n");
+		for (nat i = label; i < here; i++) {
+			if (i >= ins_count) {
+				print_message(error, "invalid label given to a branching instruction", 
+						this.source[0]);
+				exit(1);
+			}
+			offset -= ins_size(ins[i].args[0]);
+		}
+	} else {
+		printf("forwards branch...\n");
+		for (nat i = here; i < label; i++) {
+			if (i >= ins_count) {
+				print_message(error, "invalid label given to a branching instruction", 
+						this.source[0]);
+				exit(1);
+			}
+			offset += ins_size(ins[i].args[0]);
+		}
+	}
+	printf("output: found an offset of %llu bytes.\n", offset);
+	return offset;
+}
+
+static void j_type(nat here, nat* a, nat o, struct instruction this) {
 	
+	const nat e = calculate_offset(here, a[1], this);
+
+	check(a[0], 32, 0, this);
+	check_offset(e, 1 << 0, 1, this);
+
+	const nat imm19_12 = (e & 0x000FF000);
+	const nat imm11    = (e & 0x00000800) << 9;
+	const nat imm10_1  = (e & 0x000007FE) << 20;
+	const nat imm20    = (e & 0x00100000) << 11;
+	const nat imm = imm20 | imm10_1 | imm11 | imm19_12;
+	emitw( (imm << 12U) | (a[0] << 7U) | o);
+}
+
+static void generate_riscv_machine_code(void) {
+	abort();
+
+	
+	for (nat i = 0; i < ins_count; i++) {
+
+		struct instruction this = ins[i];
+		nat op = this.args[0];
+		nat* a = this.args + 1;
+
+		if (op == ec)   emitw(0x00000073);
+
+		else if (op == add)     r_type(a, 0x33, 0x0, 0x00, this);
+		else if (op == sub)     r_type(a, 0x33, 0x0, 0x20, this);
+		else if (op == slt)     r_type(a, 0x33, 0x3, 0x00, this);
+		
+		
+	
+		else if (op == and_)    r_type(a, 0x33, 0x7, 0x00, this);
+		else if (op == or_)     r_type(a, 0x33, 0x6, 0x00, this);
+		else if (op == eor)     r_type(a, 0x33, 0x4, 0x00, this);
+		else if (op == sl)      r_type(a, 0x33, 0x1, 0x00, this);
+		else if (op == sr)      r_type(a, 0x33, 0x5, 0x00, this);
+		
+		
+		
+
+		else if (op == sl and is_signed)     r_type(a, 0x33, 0x2, 0x00, this);
+		else if (op == sr and is_signed)     r_type(a, 0x33, 0x5, 0x20, this);
+
+		else if (op == lb)     i_type(a, 0x03, 0x0, this);
+		else if (op == lh)     i_type(a, 0x03, 0x1, this);
+		else if (op == lw)     i_type(a, 0x03, 0x2, this);
+		else if (op == ld)     i_type(a, 0x03, 0x3, this);
+
+		//else if (op == addi)    i_type(a, 0x13, 0x0, this);
+		//else if (op == sltis)   i_type(a, 0x13, 0x2, this);
+		//else if (op == slti)    i_type(a, 0x13, 0x3, this);
+		//else if (op == eori)    i_type(a, 0x13, 0x4, this);
+		//else if (op == iori)    i_type(a, 0x13, 0x6, this);
+		//else if (op == andi)    i_type(a, 0x13, 0x7, this);
+		//else if (op == slli)    i_type(a, 0x13, 0x1, this);
+		//else if (op == srli)    i_type(a, 0x13, 0x5, this);
+		//else if (op == srai)    i_type(a, 0x13, 0x5, this);
+
+		else if (op == cr)    i_type(a, 0x67, 0x0, this);
+
+		else if (op == sb)      s_type(a, 0x23, 0x0, this);
+		else if (op == sh)      s_type(a, 0x23, 0x1, this);
+		else if (op == sw)      s_type(a, 0x23, 0x2, this);
+		else if (op == sd)      s_type(a, 0x23, 0x3, this);
+
+		// else if (op == lui)  u_type(a, 0x37, this);
+		// else if (op == lpa)   u_type(a, 0x17, this);
+
+		else if (op == cl)     j_type(i, a, 0x6F, this);
+
+		else {
+			snprintf(reason, sizeof reason, "riscv: unknown runtime instruction: \"%s\" (%llu)\n", spelling[op], op);
+			print_message(error, reason, this.start[0], this.count[0]);
+			exit(1);
+		}
+	}
+	
+}
+
+
+
+#define CPU_SUBTYPE_ARM64_ALL 0
+#define CPU_TYPE_ARM  12
+#define CPU_ARCH_ABI64  0x01000000 
+#define MH_MAGIC_64 0xfeedfacf
+#define MH_SUBSECTIONS_VIA_SYMBOLS 0x2000
+#define S_ATTR_PURE_INSTRUCTIONS 0x80000000
+#define	N_SECT 0xe
+#define	N_EXT 0x01
+#define	LC_SYMTAB 0x2
+#define	MH_OBJECT 0x1
+#define REFERENCE_FLAG_DEFINED 2
+#define VM_PROT_READ    0x01
+#define VM_PROT_EXECUTE 0x04
+#define	MH_NOUNDEFS	0x1
+#define	LC_SEGMENT_64	0x19
+
+struct nlist_64 {
+    union { uint32_t  n_strx; } n_un;
+    uint8_t n_type;
+    uint8_t n_sect; 
+    uint16_t n_desc; 
+    uint64_t n_value;  
+};
+
+struct mach_header_64 {
+	uint32_t	magic;
+	int32_t		cputype;
+	int32_t		cpusubtype;
+	uint32_t	filetype;
+	uint32_t	ncmds;
+	uint32_t	sizeofcmds;
+	uint32_t	flags;
+	uint32_t	reserved;
+};
+
+struct segment_command_64 {
+	uint32_t	cmd;
+	uint32_t	cmdsize;
+	char		segname[16];
+	uint64_t	vmaddr;
+	uint64_t	vmsize;
+	uint64_t	fileoff;
+	uint64_t	filesize;
+	int32_t		maxprot;
+	int32_t		initprot;
+	uint32_t	nsects;
+	uint32_t	flags;
+};
+
+struct section_64 {
+	char		sectname[16];
+	char		segname[16];
+	uint64_t	addr;
+	uint64_t	size;
+	uint32_t	offset;
+	uint32_t	align;
+	uint32_t	reloff;
+	uint32_t	nreloc;
+	uint32_t	flags;
+	uint32_t	reserved1;
+	uint32_t	reserved2;
+	uint32_t	reserved3;
+};
+
+struct symtab_command {
+	uint32_t	cmd;
+	uint32_t	cmdsize;
+	uint32_t	symoff;
+	uint32_t	nsyms;
+	uint32_t	stroff;
+	uint32_t	strsize;
+};
+
+
+static void make_macho_object_file(void) {
+
+	struct mach_header_64 header = {0};
+	header.magic = MH_MAGIC_64;
+	header.cputype = (int)CPU_TYPE_ARM | (int)CPU_ARCH_ABI64;
+	header.cpusubtype = (int) CPU_SUBTYPE_ARM64_ALL;
+	header.filetype = MH_OBJECT;
+	header.ncmds = 2;
+	header.sizeofcmds = 0;
+	header.flags = MH_NOUNDEFS | MH_SUBSECTIONS_VIA_SYMBOLS;
+
+	header.sizeofcmds = 	sizeof(struct segment_command_64) + 
+				sizeof(struct section_64) + 
+				sizeof(struct symtab_command);
+
+	struct segment_command_64 segment = {0};
+	strncpy(segment.segname, "__TEXT", 16);
+	segment.cmd = LC_SEGMENT_64;
+	segment.cmdsize = sizeof(struct segment_command_64) + sizeof(struct section_64);
+	segment.maxprot =  (VM_PROT_READ | VM_PROT_EXECUTE);
+	segment.initprot = (VM_PROT_READ | VM_PROT_EXECUTE);
+	segment.nsects = 1;
+	segment.vmaddr = 0;
+	segment.vmsize = byte_count;
+	segment.filesize = byte_count;
+
+	segment.fileoff = 	sizeof(struct mach_header_64) + 
+				sizeof(struct segment_command_64) + 
+				sizeof(struct section_64) + 
+				sizeof(struct symtab_command);
+
+	struct section_64 section = {0};
+	strncpy(section.sectname, "__text", 16);
+	strncpy(section.segname, "__TEXT", 16);
+	section.addr = 0;
+	section.size = byte_count;	
+	section.align = 3;
+	section.reloff = 0;
+	section.nreloc = 0;
+	section.flags = S_ATTR_PURE_INSTRUCTIONS | S_ATTR_PURE_INSTRUCTIONS;
+
+	section.offset = 	sizeof(struct mach_header_64) + 
+				sizeof(struct segment_command_64) + 
+				sizeof(struct section_64) + 
+				sizeof(struct symtab_command);
+
+	const char strings[] = "\0_start\0";
+
+	struct symtab_command table  = {0};
+	table.cmd = LC_SYMTAB;
+	table.cmdsize = sizeof(struct symtab_command);
+	table.strsize = sizeof(strings);
+	table.nsyms = 1;
+	table.stroff = 0;
+	
+	table.symoff = (uint32_t) (
+				sizeof(struct mach_header_64) +
+				sizeof(struct segment_command_64) + 
+				sizeof(struct section_64) + 
+				sizeof(struct symtab_command) + 
+				byte_count
+			);
+
+	table.stroff = table.symoff + sizeof(struct nlist_64);
+
+	struct nlist_64 symbols[] = {
+	        (struct nlist_64) {
+	            .n_un.n_strx = 1,
+	            .n_type = N_SECT | N_EXT,
+	            .n_sect = 1,
+	            .n_desc = REFERENCE_FLAG_DEFINED,
+	            .n_value = 0x0000000000,
+	        }
+	};
+
+	if (preserve_existing_object and not access(object_filename, F_OK)) {
+		puts("asm: object_file: file exists"); 
+		puts(object_filename);
+		exit(1);
+	}
+
+	const int flags = O_WRONLY | O_CREAT | O_TRUNC | (preserve_existing_object ? O_EXCL : 0);
+	const mode_t mode = S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH;
+	const int file = open(object_filename, flags, mode);
+	if (file < 0) { perror("obj:open"); exit(1); }
+
+	write(file, &header, sizeof(struct mach_header_64));
+	write(file, &segment, sizeof (struct segment_command_64));
+	write(file, &section, sizeof(struct section_64));
+	write(file, &table, sizeof table);
+	write(file, bytes, byte_count);
+	write(file, symbols, sizeof(struct nlist_64));
+	write(file, strings, sizeof strings);
+	close(file);
+}
+
+
+
 */
 
 #include <stdio.h>
@@ -55,7 +533,7 @@ typedef uint8_t byte;
 
 #define max_variable_count (1 << 14)
 #define max_instruction_count (1 << 14)
-#define max_arg_count (14)
+#define max_arg_count 14
 
 enum all_architectures { no_arch, arm64_arch, arm32_arch, rv64_arch, rv32_arch, msp430_arch, };
 enum all_output_formats { debug_output_only, macho_executable, elf_executable, ti_txt_executable };
@@ -63,7 +541,7 @@ enum all_output_formats { debug_output_only, macho_executable, elf_executable, t
 enum core_language_isa {
 	nullins,
 
-	halt, sc, do_, at, lf,
+	halt, sc, ud, do_, at, lf,
 	set, add, sub, mul, div_, rem, 
 	and_, or_, eor, si, sd, la, rt,
 	ld, st, lt, ge, ne, eq,
@@ -85,7 +563,7 @@ enum core_language_isa {
 static const char* operations[isa_count] = {
 	"___nullins____",
 
-	"halt", "sc", "do", "at", "lf",
+	"halt", "sc", "ud", "do", "at", "lf",
 	"set", "add", "sub", "mul", "div", "rem", 
 	"and", "or", "eor", "si", "sd", "la", "rt", 
 	"ld", "st", "lt", "ge", "ne", "eq",
@@ -106,8 +584,7 @@ static const char* operations[isa_count] = {
 static const nat arity[isa_count] = {
 	0,
 
-	0, 0, 
-	1, 1, 1,
+	0, 0, 0, 1, 1, 1,
 	2, 2, 2, 2, 2, 2, 
 	2, 2, 2, 2, 2, 2, 2,
 	3, 3, 3, 3, 3, 3, 
@@ -121,7 +598,7 @@ static const nat arity[isa_count] = {
 	8, 5, 
 
 	1, 8, 2,
-	6, 5, 6, 5, 3, 3, 	
+	6, 5, 6, 5, 3, 3,
 };
 
 struct instruction {
@@ -568,7 +1045,8 @@ process_file:;
 	const char* filename = files[file_count - 1].filename;
 
 	nat 	word_length = 0, word_start = 0, 
-		arg_count = 0, is_immediate = 0;
+		arg_count = 0, is_immediate = 0,
+		last_used = 0;
 
 	nat args[max_arg_count] = {0};
 
@@ -617,7 +1095,7 @@ process_file:;
 		for (var = var_count; var--;) {
 			if (not is_undefined[var] and 
 			    not strcmp(word, variables[var])) {
-				//last_used = var;
+				last_used = var;
 				goto push_argument;
 			}
 		} 
@@ -653,7 +1131,7 @@ process_file:;
 
 	process_op: 
 		if (arg_count < arity[op]) goto next_word;
-		//else if (op == ud) is_undefined[last_used] = 1;
+		else if (op == ud) is_undefined[last_used] = 1;
 		else if (op == lf) {
 			for (nat i = 0; i < included_file_count; i++) {
 				if (strcmp(included_files[i], word)) continue;
@@ -706,6 +1184,9 @@ process_file:;
 	nat register_index[4096] = {0};
 	nat is_runtime[4096] = {0};
 
+	struct instruction rt_ins[4096] = {0};
+	nat rt_count = 0;
+
 	memset(bit_count, 0xff, sizeof bit_count);
 	memset(register_index, 0xff, sizeof register_index);
 
@@ -719,7 +1200,7 @@ process_file:;
 		nat* preds = compute_predecessors(ins, ins_count, pc, &pred_count);
 		nat* gotos = compute_successors(ins, ins_count, pc);
 
-		if ((1)) {
+		if ((0)) goto skip_printing;
 
 		print_instruction_window_around(pc, ins, ins_count, variables, var_count, visited, 0, "");
 		print_dictionary(variables, is_undefined, var_count);
@@ -756,12 +1237,15 @@ process_file:;
 		puts("-------------------------------------------------");
 
 		printf("[PC = %llu, last_PC = %llu], pred:", pc, last_pc);
+
 		print_nats(preds, pred_count); putchar(32);
+
 		printf("stack: "); 
 		print_nats(stack, stack_count); 
 		putchar(10);
 		getchar();
-		}
+
+		skip_printing:;
 
 		visited[pc]++;
 
@@ -779,7 +1263,6 @@ process_file:;
 		for (nat e = 0; e < var_count; e++) {
 
 		const nat this_var = e; 
-
 		nat future_type = 0;
 		nat future_value = 0;
 		nat value_mismatch = 0;
@@ -1068,8 +1551,9 @@ process_file:;
 				out_copy_type = i1;
 			}
 		}
-		else if (op >= add and op <= sd) { 
+		else if (op >= add and op <= sd) {
 			if (not i1) out_t = ct0 and ct1;
+
 			     if (op == add)  out_v += v1;
 			else if (op == sub)  out_v -= v1;
 			else if (op == mul)  out_v *= v1;
@@ -1229,11 +1713,17 @@ process_file:;
 	getchar();
 
 
-
 	for (nat i = 0; i < ins_count; i++) {
 
-		print_instruction_window_around(i, ins, ins_count, variables, var_count, visited, 1, "on this ins");
+		//print_instruction_window_around(i, ins, ins_count, variables, var_count, visited, 1, "PRUNING CTK INS: on this ins");
+		//getchar();
+
+
+		print_instruction_window_around(i, ins, ins_count, variables, var_count, visited, 0, "");
+		print_dictionary(variables, is_undefined, var_count);
+		puts("-----------PRUNING CTK INS:---------------");
 		getchar();
+
 
 		const nat op = ins[i].op;
 		const nat imm = ins[i].imm;
@@ -1352,7 +1842,7 @@ process_file:;
 					}
 				}
 
-				if (is_copy[i * var_count + ins[i].args[1]]) { 
+				if (not (ins[i].imm & 2) and is_copy[i * var_count + ins[i].args[1]]) { 
 
 					printf("note: inlining copy reference: a1=%llu imm=%llu copy_of=%llu, copy_type=%llu, i=%llu...\n", 
 						ins[i].args[1], ins[i].imm, 
@@ -1399,7 +1889,6 @@ process_file:;
 	}
 
 
-
 	puts("");
 	puts(" ---------------------------------- ON REMATERIALIZATION NOW ------------------------------");
 	puts("");
@@ -1410,7 +1899,11 @@ process_file:;
 
 		if (not visited[pc]) continue;
 
-		print_instruction_window_around(pc, ins, ins_count, variables, var_count, visited, 1, "on this ins");
+		//print_instruction_window_around(pc, ins, ins_count, variables, var_count, visited, 1, "REMAT: on this ins");
+
+		print_instruction_window_around(pc, ins, ins_count, variables, var_count, visited, 0, "");
+		print_dictionary(variables, is_undefined, var_count);
+		puts("-----------REMAT:---------------");
 		getchar();
 
 		const nat op = ins[pc].op;
@@ -1435,14 +1928,14 @@ process_file:;
 				printf("	ct_ness = %llu   ", t);
 				printf("	ct_value = %llu   ", v);
 				printf("	value_mismatch = %llu  ", 0LLU);
-				puts(""); getchar();
+				puts("");
 				if (t == 1) { 
-					printf("note: found CTK predecessor, with value %llu... setting def to setimm ctkv\n", v); 					
+					printf("note: found CTK predecessor, with value %llu... setting def to setimm ctkv\n", v); 
 					if (not type[pc * var_count + e]) { 
 
 						const nat setimm_defined_on = def[pred * var_count + this_var];
 						printf("setimm_defined_on = %llu\n", setimm_defined_on);
-						const nat ctk_value = 0;
+						//const nat ctk_value = 0;
 						puts("on one of the pred exec paths, the variable was compiletime, "
 						"but on this instruction, it is now RTK, but not via a set..");
 						puts("this means that we need to materialize the variable:");
@@ -1463,7 +1956,7 @@ process_file:;
 				}
 			}
 			puts("done with var");
-			getchar();
+			//getchar();
 		}
 		puts("[done]");
 		getchar();
@@ -1472,6 +1965,125 @@ process_file:;
 
 
 
+	{ nat final_ins_count = 0;
+
+	for (nat i = 0; i < ins_count; i++) {
+		//const nat op = ins[i].op;
+		if (not visited[i]) continue;
+		ins[final_ins_count++] = ins[i];
+	}
+
+	ins_count = final_ins_count;
+
+	memset(visited, 255, sizeof visited);
+	}
+
+
+
+
+	for (nat pc = 0; pc < ins_count; pc++) {
+
+		if (not visited[pc]) continue;
+
+		//print_instruction_window_around(pc, ins, ins_count, variables, var_count, visited, 1, "CF SIMPLIFY: on this ins");
+
+
+		print_instruction_window_around(pc, ins, ins_count, variables, var_count, visited, 0, "");
+		print_dictionary(variables, is_undefined, var_count);
+		puts("-----------CF SIMPLIFY:---------------");
+		getchar();
+
+		const nat op = ins[pc].op;
+
+		nat pred_count = 0;
+		nat* preds = compute_predecessors(ins, ins_count, pc, &pred_count);
+		nat* gotos = compute_successors(ins, ins_count, pc);
+
+		if (pred_count < 2 and op == at) { visited[pc] = 0; continue; } else { puts("KEEPING AT INSTRUCTION!!!");  getchar(); }
+
+		if (op == do_) {
+			nat count = 0;
+			compute_predecessors(ins, ins_count, gotos[0], &count);
+			if (count < 2 and gotos[0] == pc + 1) {
+				visited[pc] = 0; continue;
+			}
+		}
+
+		puts("[done]");
+		getchar();
+	}
+
+
+
+
+
+/*
+
+	for (nat pc = 0; pc < ins_count; pc++) {
+
+		if (not visited[pc]) continue;
+		
+		const nat op = ins[pc].op;
+		const nat imm = ins[pc].imm;
+
+		if ((op == add or op == sub) and imm) {
+
+			if (pc + 1 < ins_count and 
+				(ins[pc + 1].op == add or 
+				 ins[pc + 1].op == sub) 
+				and ins[pc + 1].imm and 
+				ins[pc + 1].args[0] == ins[pc].args[0]
+			) {
+
+				const nat second_op = ins[pc + 1].op;
+
+				visited[pc + 1] = 0;
+
+				const nat a = ins[pc + 0].args[1];
+				const nat b = ins[pc + 1].args[1];
+
+				printf("note: combining addi instructions!\n");
+				printf("a = %llu, b = %llu\n", a, b);
+
+				if ((0)) {}
+				else if (op == sub and second_op == sub) ins[pc].args[1] = a + b;
+				else if (op == add and second_op == add) ins[pc].args[1] = a + b;
+
+				else if (op == add and second_op == sub) { 
+
+					if (a < b) { 
+						ins[pc].op = sub; 
+						ins[pc].args[1] = b - a; 
+
+					} else if (a > b) { 
+						ins[pc].op = sub; 
+						ins[pc].args[1] = a - b;
+					} else {
+						visited[pc] = 0;
+					}
+
+				} else if (op == sub and second_op == add) { 
+
+					if (a < b) { 
+						ins[pc].op = add; 
+						ins[pc].args[1] = b - a; 
+
+					} else if (a > b) {
+						ins[pc].op = sub; 
+						ins[pc].args[1] = a - b;
+					} else {
+						visited[pc] = 0;
+					}
+
+				else { abort(); }
+			}
+
+		}
+
+	}
+
+
+	*/
 
 
 
@@ -1482,9 +2094,18 @@ process_file:;
 
 
 
+	{ nat final_ins_count = 0;
 
+	for (nat i = 0; i < ins_count; i++) {
+		//const nat op = ins[i].op;
+		if (not visited[i]) continue;
+		ins[final_ins_count++] = ins[i];
+	}
 
+	ins_count = final_ins_count;
 
+	memset(visited, 255, sizeof visited);
+	}
 
 
 	// next opt: 
@@ -1510,21 +2131,6 @@ current state: 1202504163.024837
 
 ------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 */
-
-
-
-
-
-
-
-	nat final_ins_count = 0;
-	for (nat i = 0; i < ins_count; i++) {
-		const nat op = ins[i].op;
-		if (not visited[i] and op != at) continue;
-		ins[final_ins_count++] = ins[i];
-	}
-	ins_count = final_ins_count;
-	memset(visited, 0, sizeof visited);
 
 
 
@@ -1746,6 +2352,679 @@ current state: 1202504163.024837
 	print_dictionary(variables, is_undefined, var_count);
 	print_instructions(mi, mi_count, variables, var_count, 0);
 	puts("finished instruction selection!");
+
+
+
+
+
+
+
+
+
+
+
+/*
+
+
+// ---------------------------------- machine code generation ---------------------------------
+
+
+	const nat target_arch = values[1];
+	const nat output_format = values[2];
+	const nat should_overwrite = values[3];
+
+	printf("info: assemblying for [target = %llu, output = %llu (%s)]\n", 
+		target_arch, output_format, 
+		should_overwrite ? "overwrite" : "non-destructive"
+	);
+
+	if (not target_arch) exit(0);
+
+	uint8_t* my_bytes = NULL;
+	nat my_count = 0;
+
+
+
+
+#define max_section_count 128
+	nat section_count = 0;
+	nat section_starts[max_section_count] = {0};
+	nat section_addresses[max_section_count] = {0};
+
+
+
+
+if (target_arch == riscv32_arch) {
+
+
+	nat* lengths = calloc(rt_ins_count, sizeof(nat));
+	for (nat i = 0; i < rt_ins_count; i++) {
+		if (rt_ins[i].op == halt) continue;
+		lengths[i] = rt_ins[i].op == emit ? rt_ins[i].args[0] : 4;
+	}
+
+	print_nats(lengths, rt_ins_count);
+
+
+
+	for (nat i = 0; i < rt_ins_count; i++) {
+		const nat op = rt_ins[i].op;
+		const u16 a0 = (u16) rt_ins[i].args[0];
+		const u16 a1 = (u16) rt_ins[i].args[1];
+		const u16 a2 = (u16) rt_ins[i].args[2];
+		const u16 a3 = (u16) rt_ins[i].args[3];
+		const u16 a4 = (u16) rt_ins[i].args[4];
+		const u16 a5 = (u16) rt_ins[i].args[5];
+		const u16 a6 = (u16) rt_ins[i].args[6];
+		const u16 a7 = (u16) rt_ins[i].args[7];
+
+	
+		if (op == emit) {
+			if (a0 == 8) insert_u64(&my_bytes, &my_count, (nat) a1);
+			if (a0 == 4) insert_u32(&my_bytes, &my_count, (u32) a1);
+			if (a0 == 2) insert_u16(&my_bytes, &my_count, (u16) a1);
+			if (a0 == 1) insert_u8 (&my_bytes, &my_count, (byte) a1);
+		}
+
+		else if (op == r5_i) {
+			//const u16 offset = 0x3FF & ((calculate_offset(lengths, i + 1, a1) >> 1));
+			//const u16 word = (u16) ((1U << 13U) | (u16)(a0 << 10U) | (offset));
+			//insert_u16(&my_bytes, &my_count, word);			
+		}
+
+		else if (op == r5_r) {
+
+		}
+
+		else if (op == r5_r) {
+
+		}
+
+		else if (op == r5_r) {
+
+		}
+
+		else if (op == r5_b) {  
+
+			// gen4  op(0)  dm(1) dr(2) di(3)  sm(4) sr(5) si(6)   size(7)
+			//u16 word = (u16) (
+			//	(a0 << 12U) | (a5 << 8U) | (a1 << 7U) |
+			//	(a7 << 6U) | (a4 << 4U) | (a2)
+			//);
+			//insert_u16(&my_bytes, &my_count, word);
+			//if ((a4 == 1 and (a5 != 2 and a5 != 3)) 
+			//	or (a4 == 3 and not a5)) insert_u16(&my_bytes, &my_count, a6);
+			//if (a1 == 1) insert_u16(&my_bytes, &my_count, a3);
+		}
+		else if (op == halt) {}
+		else {
+			printf("error: unknown mi op=\"%s\"\n", operations[op]);
+			abort();
+		}
+	}	
+
+
+
+
+
+
+} else if (target_arch == msp430_arch) {
+
+	nat* lengths = calloc(rt_ins_count, sizeof(nat));
+	for (nat i = 0; i < rt_ins_count; i++) {
+		const nat op = rt_ins[i].op;
+		const u32 a0 = (u32) rt_ins[i].args[0];
+		const u32 a1 = (u32) rt_ins[i].args[1];
+		const u32 a4 = (u32) rt_ins[i].args[4];
+		const u32 a5 = (u32) rt_ins[i].args[5];
+
+		nat len = 0;
+		if (op == section_start) len = 0;
+		else if (op == halt) len = 0;
+		else if (op == emit and a0 == 1) len = 1;
+		else if (op == emit and a0 == 2) len = 2;
+		else if (op == emit and a0 == 4) len = 4;
+		else if (op == emit and a0 == 8) len = 8;
+		else if (op == branch4) len = 2;
+		else if (op == general4) {
+			len = 2;
+			if ((a4 == 1 and (a5 != 2 and a5 != 3)) 
+				or (a4 == 3 and not a5)) len += 2;						
+			if (a1 == 1) len += 2;
+		}
+		lengths[i] = len;
+	}
+
+	print_nats(lengths, rt_ins_count);
+
+	for (nat i = 0; i < rt_ins_count; i++) {
+		const nat op = rt_ins[i].op;
+		const u16 a0 = (u16) rt_ins[i].args[0];
+		const u16 a1 = (u16) rt_ins[i].args[1];
+		const u16 a2 = (u16) rt_ins[i].args[2];
+		const u16 a3 = (u16) rt_ins[i].args[3];
+		const u16 a4 = (u16) rt_ins[i].args[4];
+		const u16 a5 = (u16) rt_ins[i].args[5];
+		const u16 a6 = (u16) rt_ins[i].args[6];
+		const u16 a7 = (u16) rt_ins[i].args[7];
+
+		if (op == section_start) {
+			section_addresses[section_count] = a0;
+			section_starts[section_count++] = my_count;
+		}
+		else if (op == emit) {
+			if (a0 == 8) insert_u64(&my_bytes, &my_count, (nat) a1);
+			if (a0 == 4) insert_u32(&my_bytes, &my_count, (u32) a1);
+			if (a0 == 2) insert_u16(&my_bytes, &my_count, (u16) a1);
+			if (a0 == 1) insert_u8 (&my_bytes, &my_count, (byte) a1);
+		}
+		else if (op == branch4) {
+			const u16 offset = 0x3FF & ((calculate_offset(lengths, i + 1, a1) >> 1));
+			const u16 word = (u16) ((1U << 13U) | (u16)(a0 << 10U) | (offset));
+			insert_u16(&my_bytes, &my_count, word);
+		}
+		else if (op == general4) {  
+			// gen4  op(0)  dm(1) dr(2) di(3)  sm(4) sr(5) si(6)   size(7)
+			u16 word = (u16) (
+				(a0 << 12U) | (a5 << 8U) | (a1 << 7U) | 
+				(a7 << 6U) | (a4 << 4U) | (a2)
+			);
+			insert_u16(&my_bytes, &my_count, word);
+
+			if ((a4 == 1 and (a5 != 2 and a5 != 3)) 
+				or (a4 == 3 and not a5)) insert_u16(&my_bytes, &my_count, a6);
+						
+			if (a1 == 1) insert_u16(&my_bytes, &my_count, a3);
+		}				
+		else if (op == halt) {}
+		else {
+			printf("error: unknown mi op=\"%s\"\n", operations[op]);
+			abort();
+		}
+	}	
+	
+} else if (target_arch == arm64_arch) {
+
+	nat* lengths = calloc(rt_ins_count, sizeof(nat));
+	for (nat i = 0; i < rt_ins_count; i++) {
+		if (rt_ins[i].op == halt) continue;
+		lengths[i] = rt_ins[i].op == emit ? rt_ins[i].args[0] : 4;
+	}
+
+	print_nats(lengths, rt_ins_count);
+
+	for (nat i = 0; i < rt_ins_count; i++) {
+		const nat op = rt_ins[i].op;
+		const u32 a0 = (u32) rt_ins[i].args[0];
+		const u32 a1 = (u32) rt_ins[i].args[1];
+		const u32 a2 = (u32) rt_ins[i].args[2];
+		const u32 a3 = (u32) rt_ins[i].args[3];
+		const u32 a4 = (u32) rt_ins[i].args[4];
+		const u32 a5 = (u32) rt_ins[i].args[5];
+		const u32 a6 = (u32) rt_ins[i].args[6];
+		const u32 a7 = (u32) rt_ins[i].args[7];
+
+		if (op == emit) {
+			if (a0 == 8) insert_u64(&my_bytes, &my_count, (uint64_t) a1);
+			if (a0 == 4) insert_u32(&my_bytes, &my_count, (uint32_t) a1);
+			if (a0 == 2) insert_u16(&my_bytes, &my_count, (uint16_t) a1);
+			if (a0 == 1) insert_u8 (&my_bytes, &my_count, (uint8_t) a1);
+		}
+		else if (op == nop) insert_u32(&my_bytes, &my_count, 0xD503201F);
+		else if (op == svc) insert_u32(&my_bytes, &my_count, 0xD4000001);
+		else if (op == br) { // 
+			uint32_t l = a2?2:a1?1:0;
+			const uint32_t to_emit = 
+				(0x6BU << 25U) | (l << 21U) | 
+				(0x1FU << 16U) | (a0 << 5U);
+			insert_u32(&my_bytes, &my_count, to_emit);
+		} else if (op == adc) { // 
+			const uint32_t to_emit = 
+				(a5 << 31U) | (a4 << 30U) | (a3 << 29U) | 
+				(0xD0 << 21U) | (a2 << 16U) | (0 << 19U) |
+				(a1 << 5U) | (a0);
+			insert_u32(&my_bytes, &my_count, to_emit);
+		} else if (op == shv) {
+			uint32_t op2 = 8;
+			if (a3 == 0) op2 = 8;
+			if (a3 == 1) op2 = 9;
+			if (a3 == 2) op2 = 10;
+			if (a3 == 3) op2 = 11;
+			const uint32_t to_emit = 
+				(a4 << 31U) | (0 << 30U) | 
+				(0 << 29U) | (0xD6 << 21U) | 
+				(a2 << 16U) | (op2 << 10U) |
+				(a1 << 5U) | (a0);
+			insert_u32(&my_bytes, &my_count, to_emit);
+		} else if (op == mov) {
+			const uint32_t to_emit = 
+				(a4 << 31U) | (a3 << 29U) | (0x25U << 23U) | 
+				(a2 << 21U) | (a1 << 5U) | (a0);
+			insert_u32(&my_bytes, &my_count, to_emit);
+		} else if (op == bc) {
+			const uint32_t offset = 0x7ffff & (calculate_offset(lengths, i, a1) >> 2);
+			const uint32_t to_emit = 
+				(0x54U << 24U) | (offset << 5U) | (a0);
+			insert_u32(&my_bytes, &my_count, to_emit);
+		} else if (op == jmp) {
+			const uint32_t offset = 0x3ffffff & (calculate_offset(lengths, i, a1) >> 2);
+			const uint32_t to_emit = (a0 << 31U) | (0x5U << 26U) | (offset);
+			insert_u32(&my_bytes, &my_count, to_emit);
+		} else if (op == adr) {
+			uint32_t o1 = a2;
+			nat count = calculate_offset(lengths, i, a1);
+			if (a2) count /= 4096;
+			const uint32_t offset = 0x1fffff & count;
+			const uint32_t lo = offset & 3, hi = offset >> 2;
+			const uint32_t to_emit = 
+				(o1 << 31U) | (lo << 29U) | (0x10U << 24U) |
+				(hi << 5U) | (a0);
+			insert_u32(&my_bytes, &my_count, to_emit);
+
+		} else if (op == cbz) {
+			const uint32_t offset = 0x7ffff & (calculate_offset(lengths, i, a1) >> 2);
+			const uint32_t to_emit = 
+				(a3 << 31U) | (0x1AU << 25U) | 
+				(a2 << 24U) | (offset << 5U) | (a0);
+			insert_u32(&my_bytes, &my_count, to_emit);
+		} else if (op == tbz) {
+			const uint32_t b40 = a1 & 0x1F;
+			const uint32_t b5 = a1 >> 5;
+			const uint32_t offset = 0x3fff & (calculate_offset(lengths, i, a2) >> 2);
+			const uint32_t to_emit = 
+				(b5 << 31U) | (0x1BU << 25U) | (a3 << 24U) |
+				(b40 << 19U) |(offset << 5U) | (a0);
+			insert_u32(&my_bytes, &my_count, to_emit);
+		} else if (op == ccmp) {
+			const uint32_t to_emit = 
+				(a6 << 31U) | (a4 << 30U) | (0x1D2 << 21U) | 
+				(a3 << 16U) | (a0 << 12U) | (a2 << 11U) | 
+				(a1 << 5U) | (a5); 
+			insert_u32(&my_bytes, &my_count, to_emit);
+		} else if (op == addi) {
+			const uint32_t to_emit = 
+				(a6 << 31U) | (a5 << 30U) | (a4 << 29U) | 
+				(0x22 << 23U) | (a3 << 22U) | (a2 << 10U) |
+				(a1 << 5U) | (a0);
+			insert_u32(&my_bytes, &my_count, to_emit);
+		} else if (op == addr) {
+			const uint32_t to_emit = 
+				(a7 << 31U) | (a6 << 30U) | (a5 << 29U) | 
+				(0xB << 24U) | (a3 << 22U) | (a2 << 16U) |
+				(a4 << 10U) | (a1 << 5U) | (a0);
+			insert_u32(&my_bytes, &my_count, to_emit);
+		} else if (op == addx) {
+			const uint32_t to_emit = 
+				(a7 << 31U) | (a6 << 30U) | (a5 << 29U) | 
+				(0x59 << 21U) | (a2 << 16U) | (a3 << 13U) | 
+				(a4 << 10U) | (a1 << 5U) | (a0);
+			insert_u32(&my_bytes, &my_count, to_emit);
+		} else if (op == divr) {
+			const uint32_t to_emit = 
+				(a4 << 31U) | (0xD6 << 21U) | (a2 << 16U) |
+				(1 << 11U) | (a3 << 10U) | (a1 << 5U) | (a0);
+			insert_u32(&my_bytes, &my_count, to_emit);	
+		} else if (op == csel) {
+			const uint32_t to_emit = 
+				(a6 << 31U) | (a5 << 30U) | (0xD4 << 21U) | 
+				(a2 << 16U) | (a3 << 12U) | (a4 << 10U) | (a1 << 5U) | (a0);
+			insert_u32(&my_bytes, &my_count, to_emit);
+		} else if (op == madd) {
+			const uint32_t to_emit = 
+				(a7 << 31U) | (0x1B << 24U) | (a5 << 23U) | 
+				(a4 << 21U) | (a2 << 16U) | (a6 << 15U) | 
+				(a3 << 10U) | (a1 << 5U) | (a0);
+			insert_u32(&my_bytes, &my_count, to_emit);
+		} else if (op == bfm) {
+			u32 imms = 0, immr = 0;
+			if (not a2) { imms = a3 + a4 - 1; immr = a3; } 
+			else { imms = a4 - 1; immr = (a6 ? 64 : 32) - a3; }
+			const uint32_t to_emit = (a6 << 31U) | (a5 << 29U) | 	
+				(0x26U << 23U) | (a6 << 22U) | (immr << 16U) |
+				(imms << 10U) | (a1 << 5U) | (a0);
+			insert_u32(&my_bytes, &my_count, to_emit);
+
+		} else if (op == ori) {
+
+
+			puts("TODO: please implemented the ori instruction: "
+				"this is the last instruction we need to implement "
+				"and then we are done with iplemementing the arm64 backend!"
+			);
+
+			abort();
+
+
+		} else if (op == orr) {
+			const uint32_t to_emit = 
+				(a7 << 31U) | (a0 << 29U) | (10 << 24U) | 
+				(a4 << 22U) | (a6 << 21U) | (a3 << 16U) | 
+				(a5 << 10U) | (a2 << 5U) | (a1);
+			insert_u32(&my_bytes, &my_count, to_emit);
+
+		} else if (op == memp) {
+			const uint32_t to_emit = 
+				(a1 << 30U) | (0x14 << 25U) | (a6 << 23U) | (a0 << 22U) | 
+				(a5 << 15U) | (a3 << 10U) | (a4 << 5U) | (a2);
+			insert_u32(&my_bytes, &my_count, to_emit);
+		} else if (op == memi) {
+			const u32 is_load = (a0 >> 2) & 1;
+			const u32 is_signed = (a0 >> 1) & 1;
+			const u32 is_64_dest = (a0 >> 0) & 1;
+			u32 opc = 0;
+			if (not is_load) opc = 0;
+			else if (a4 == 3) opc = 1;
+			else if (a4 == 2 and is_signed) opc = 2;
+			else if (a4 == 2 and not is_signed) opc = 1;
+			else if (not is_signed) opc = 1;
+			else if (not is_64_dest) opc = 3; 
+			else opc = 2;
+			const u32 to_emit = 
+				(a4 << 30U) | (0x39 << 24U) | (opc << 22U) |
+				(a3 << 10U) | (a2 << 5U) | (a1);
+			insert_u32(&my_bytes, &my_count, to_emit);
+		} else if (op == memia) { 			
+			const u32 is_load = (a0 >> 2) & 1;
+			const u32 is_signed = (a0 >> 1) & 1;
+			const u32 is_64_dest = (a0 >> 0) & 1;
+			u32 opc = 0;
+			if (not is_load) opc = 0;
+			else if (a4 == 3) opc = 1;
+			else if (a4 == 2 and is_signed) opc = 2;
+			else if (a4 == 2 and not is_signed) opc = 1;
+			else if (not is_signed) opc = 1;
+			else if (not is_64_dest) opc = 3; 
+			else opc = 2;
+			const u32 to_emit = 
+				(a4 << 30U) | (0x38 << 24U) | (opc << 22U) | (a3 << 12U) | 
+				(a5 << 11U) | (1 << 10U) | (a2 << 5U) | (a1);
+			insert_u32(&my_bytes, &my_count, to_emit);
+		} else if (op == memr) { 
+			const u32 S = (a4 >> 2) & 1, option = a4 & 3;
+			u32 opt = 0;
+			if (option == 0) opt = 2;
+			else if (option == 1) opt = 3;
+			else if (option == 2) opt = 6;
+			else if (option == 3) opt = 7;
+			else abort();				
+			const u32 is_load = (a0 >> 2) & 1;
+			const u32 is_signed = (a0 >> 1) & 1;
+			const u32 is_64_dest = (a0 >> 0) & 1;
+			u32 opc = 0;
+			if (not is_load) opc = 0;
+			else if (a5 == 3) opc = 1;
+			else if (a5 == 2 and is_signed) opc = 2;
+			else if (a5 == 2 and not is_signed) opc = 1;
+			else if (not is_signed) opc = 1;
+			else if (not is_64_dest) opc = 3; 
+			else opc = 2;
+			const u32 to_emit = 
+				(a5 << 30U) | (0x38 << 24U) | (opc << 22U) |
+				(1 << 21U) | (a3 << 16U) | (opt << 13U) |
+				(S << 12U) | (2 << 10U) | (a2 << 5U) | (a1);
+			insert_u32(&my_bytes, &my_count, to_emit);
+		} 
+		else if (op == clz) { puts("clz is unimplemented currently, lol"); abort(); }
+		else if (op == rev) { puts("rev is unimplemented currently, lol"); abort(); }
+		else if (op == extr) { puts("extr is unimplemented currently, lol"); abort(); }
+		else if (op == ldrl) { puts("ldrl is unimplemented currently, lol"); abort(); }
+		else if (op == halt) {}
+		else {
+			printf("error: unknown mi op=\"%s\"\n", operations[op]);
+			abort();
+		}
+	}
+} else {
+	printf("unknown target architecture: %llu\n", target_arch);
+	abort();
+}
+
+	puts("info: machine code assembled. generating output file...");
+
+if (output_format == debug_output_only) {
+
+	puts("debugging executable bytes:\n");
+	for (nat i = 0; i < my_count; i++) {
+		if (i % 32 == 0) puts("");
+		if (my_bytes[i]) printf("\033[32;1m");
+		printf("%02hhx ", my_bytes[i]);
+		if (my_bytes[i]) printf("\033[0m");
+	}
+	puts("");
+	exit(0);
+
+} else if (output_format == ti_txt_executable) {
+
+	char out[14000] = {0};
+	nat len = 0, this_section = 0, section_byte_count = 0;
+
+	print_nats(section_starts, section_count);
+	print_nats(section_addresses, section_count);
+
+	for (nat i = 0; i < my_count; i++) {
+		if (this_section < section_count and i == section_starts[this_section]) {
+			if (this_section) len += (nat) snprintf(out + len, sizeof out, "\n");
+			len += (nat) snprintf(out + len, sizeof out, "@%04llx", section_addresses[this_section]);
+			this_section++; section_byte_count = 0;
+		}
+		if (section_byte_count % 16 == 0) len += (nat) snprintf(out + len, sizeof out, "\n");
+		len += (nat) snprintf(out + len, sizeof out, "%02hhX ", my_bytes[i]);
+		section_byte_count++;
+	}
+
+	len += (nat) snprintf(out + len, sizeof out, "\nq\n");
+
+	printf("about to write out: \n-------------------\n<<<%.*s>>>\n----------------\n", (int) len, out);
+	printf("writing out ti txt executable...\n");
+	fflush(stdout);
+
+	if (not access(output_filename, F_OK)) {
+		printf("file exists. do you wish to remove the previous one? (y/n) ");
+		fflush(stdout);
+		if (should_overwrite or getchar() == 'y') {
+			printf("file %s was removed.\n", output_filename);
+			int r = remove(output_filename);
+			if (r < 0) { perror("remove"); exit(1); }
+		} else {
+			puts("not removed, compilation aborted.");
+		}
+	}
+
+	int file = open(output_filename, O_WRONLY | O_CREAT | O_EXCL, 0777);
+	if (file < 0) { perror("open: could not create executable file"); exit(1); }
+	write(file, out, len);
+	close(file);
+	printf("ti-txt: wrote %llu bytes to file %s.\n", len, output_filename);
+
+	char debug_string[4096] = {0};
+	snprintf(debug_string, sizeof debug_string, "../../led_display/embedded_assembler/msp430_disassembler/run %s", output_filename);
+	system(debug_string);
+
+
+} else if (output_format == macho_executable) {
+
+	while (my_count % 16) insert_byte(&my_bytes, &my_count, 0);
+
+	uint8_t* data = NULL;
+	nat count = 0;	
+
+	insert_u32(&data, &count, MH_MAGIC_64);
+	insert_u32(&data, &count, CPU_TYPE_ARM | (int)CPU_ARCH_ABI64);
+	insert_u32(&data, &count, CPU_SUBTYPE_ARM64_ALL);
+	insert_u32(&data, &count, MH_EXECUTE);
+	insert_u32(&data, &count, 11);
+	insert_u32(&data, &count, 72 + (72 + 80) + 72 + 24 + 80 + 32 + 24 + 32 + 16 + 24 +  (24 + 32) ); 
+	insert_u32(&data, &count, MH_NOUNDEFS | MH_PIE | MH_DYLDLINK | MH_TWOLEVEL);
+	insert_u32(&data, &count, 0);
+
+	insert_u32(&data, &count, LC_SEGMENT_64);
+	insert_u32(&data, &count, 72);
+	insert_bytes(&data, &count, (char[]){
+		'_', '_', 'P', 'A', 'G', 'E', 'Z', 'E', 
+		'R', 'O',  0,   0,   0,   0,   0,   0
+	}, 16);
+	insert_u64(&data, &count, 0);
+	insert_u64(&data, &count, 0x0000000100000000);
+	insert_u64(&data, &count, 0);
+	insert_u64(&data, &count, 0);
+	for (nat _ = 0; _ < 4; _++)  insert_u32(&data, &count, 0);
+
+	insert_u32(&data, &count, LC_SEGMENT_64);
+	insert_u32(&data, &count, 72 + 80);
+	insert_bytes(&data, &count, (char[]){
+		'_', '_', 'T', 'E', 'X', 'T',  0,   0, 
+		 0,   0,   0,   0,   0,   0,   0,   0
+	}, 16);
+	insert_u64(&data, &count, 0x0000000100000000);
+	insert_u64(&data, &count, 0x0000000000004000);
+	insert_u64(&data, &count, 0);
+	insert_u64(&data, &count, 16384);
+	insert_u32(&data, &count, VM_PROT_READ | VM_PROT_EXECUTE);
+	insert_u32(&data, &count, VM_PROT_READ | VM_PROT_EXECUTE);
+	insert_u32(&data, &count, 1);
+	insert_u32(&data, &count, 0);
+
+	insert_bytes(&data, &count, (char[]){
+		'_', '_', 't', 'e', 'x', 't',  0,   0, 
+		 0,   0,   0,   0,   0,   0,   0,   0
+	}, 16);
+	insert_bytes(&data, &count, (char[]){
+		'_', '_', 'T', 'E', 'X', 'T',  0,   0, 
+		 0,   0,   0,   0,   0,   0,   0,   0
+	}, 16);
+
+	insert_u64(&data, &count, 0x0000000100000000 + 16384 - my_count);
+	insert_u64(&data, &count, my_count); 
+	insert_u32(&data, &count, 16384 - (uint32_t) my_count);
+	insert_u32(&data, &count, 4); 
+	insert_u32(&data, &count, 0);
+	insert_u32(&data, &count, 0); 
+	insert_u32(&data, &count, S_ATTR_PURE_INSTRUCTIONS | S_ATTR_SOME_INSTRUCTIONS);
+	for (nat _ = 0; _ < 3; _++)  insert_u32(&data, &count, 0);
+
+	insert_u32(&data, &count, LC_SEGMENT_64);
+	insert_u32(&data, &count, 72);
+	insert_bytes(&data, &count, (char[]){
+		'_', '_', 'L', 'I', 'N', 'K', 'E', 'D', 
+		'I', 'T',  0,   0,   0,   0,   0,   0
+	}, 16);
+	insert_u64(&data, &count, 0x0000000100004000);
+	insert_u64(&data, &count, 0x0000000000004000);
+	insert_u64(&data, &count, 16384);
+	insert_u64(&data, &count, 800);
+	insert_u32(&data, &count, VM_PROT_READ | VM_PROT_WRITE);
+	insert_u32(&data, &count, VM_PROT_READ | VM_PROT_WRITE);
+	for (nat _ = 0; _ < 2; _++)  insert_u32(&data, &count, 0);
+
+	insert_u32(&data, &count, LC_SYMTAB);
+	insert_u32(&data, &count, 24); 
+	for (nat _ = 0; _ < 4; _++) insert_u32(&data, &count, 0);
+
+	insert_u32(&data, &count, LC_DYSYMTAB);
+	insert_u32(&data, &count, 80); 
+	for (nat _ = 0; _ < 18; _++)  insert_u32(&data, &count, 0);
+
+	insert_u32(&data, &count, LC_LOAD_DYLINKER);
+	insert_u32(&data, &count, 32);
+	insert_u32(&data, &count, 12);
+	insert_bytes(&data, &count, (char[]){
+		'/', 'u', 's', 'r', '/', 'l', 'i', 'b', 
+		'/', 'd', 'y',  'l', 'd',  0,   0,   0
+	}, 16);
+	insert_u32(&data, &count, 0);
+
+	insert_u32(&data, &count, LC_UUID);
+	insert_u32(&data, &count, 24); 
+	insert_u32(&data, &count, (uint32_t) rand());
+	insert_u32(&data, &count, (uint32_t) rand());
+	insert_u32(&data, &count, (uint32_t) rand());
+	insert_u32(&data, &count, (uint32_t) rand());
+
+	insert_u32(&data, &count, LC_BUILD_VERSION);
+	insert_u32(&data, &count, 32);
+	insert_u32(&data, &count, PLATFORM_MACOS);
+	insert_u32(&data, &count, 13 << 16);
+	insert_u32(&data, &count, (13 << 16) | (3 << 8));
+	insert_u32(&data, &count, 1);
+	insert_u32(&data, &count, TOOL_LD);
+	insert_u32(&data, &count, (857 << 16) | (1 << 8));
+
+	insert_u32(&data, &count, LC_SOURCE_VERSION);
+	insert_u32(&data, &count, 16);
+	insert_u64(&data, &count, 0);
+
+	insert_u32(&data, &count, LC_MAIN);
+	insert_u32(&data, &count, 24);
+	insert_u64(&data, &count, 16384 - my_count);
+	insert_u64(&data, &count, stack_size); // put stack size here
+
+	insert_u32(&data, &count, LC_LOAD_DYLIB);
+	insert_u32(&data, &count, 24 + 32);
+	insert_u32(&data, &count, 24);
+	insert_u32(&data, &count, 0);
+	insert_u32(&data, &count, (1319 << 16) | (100 << 8) | 3);
+	insert_u32(&data, &count, 1 << 16);
+	insert_bytes(&data, &count, (char[]){
+		'/', 'u', 's', 'r', '/', 'l', 'i', 'b', 
+		'/', 'l', 'i', 'b', 'S', 'y', 's', 't',
+		'e', 'm', '.', 'B', '.', 'd', 'y', 'l', 
+		'i', 'b',  0,   0,   0,   0,   0,   0
+	}, 32);
+
+	while (count < 16384 - my_count) insert_byte(&data, &count, 0);
+	for (nat i = 0; i < my_count; i++) insert_byte(&data, &count, my_bytes[i]);
+	for (nat i = 0; i < 800; i++) insert_byte(&data, &count, 0);
+
+	puts("");
+	puts("bytes: ");
+	for (nat i = 0; i < count; i++) {
+		if (i % 32 == 0) puts("");
+		if (data[i]) printf("\033[32;1m");
+		printf("%02hhx ", data[i]);
+		if (data[i]) printf("\033[0m");
+	}
+	puts("");
+
+	if (not access(output_filename, F_OK)) {
+		printf("file exists. do you wish to remove the previous one? (y/n) ");
+		fflush(stdout);
+		if (should_overwrite or getchar() == 'y') {
+			printf("file %s was removed.\n", output_filename);
+			int r = remove(output_filename);
+			if (r < 0) { perror("remove"); exit(1); }
+		} else {
+			puts("not removed, compilation aborted.");
+		}
+	}
+
+	int file = open(output_filename, O_WRONLY | O_CREAT | O_EXCL, 0777);
+	if (file < 0) { perror("could not create executable file"); exit(1); }
+	int r = fchmod(file, 0777);
+	if (r < 0) { perror("could not make the output file executable"); exit(1); }
+	write(file, data, count);
+	close(file);
+	printf("mach-o: wrote %llu bytes to file %s.\n", count, output_filename);
+
+	char codesign_string[4096] = {0};
+	snprintf(codesign_string, sizeof codesign_string, "codesign -s - %s", output_filename);
+	system(codesign_string);
+
+	// debugging:
+	snprintf(codesign_string, sizeof codesign_string, "otool -htvxVlL %s", output_filename);
+	system(codesign_string);
+	snprintf(codesign_string, sizeof codesign_string, "objdump -D %s", output_filename);
+	system(codesign_string);
+
+} else {
+	printf("unknown target architecture: %llu\n", target_arch);
+	abort();
+}
+
+	printf("info: successsfully generated executable: %s\n", output_filename);
+}
+
+*/
+
 
 }
 
