@@ -1,0 +1,213 @@
+1202504303.220011:
+
+i am trying to figure out the ct eval stage in the compiler,  which i thought was completely done, but actually, i think we definitely have some additional things to add to the algorithm, to account for loop unrolling! 
+
+
+basically, we need to allow for the compiler to realize compiletime trip counts of loops,   that reduce to just straight line code! 
+
+
+		
+
+
+
+	basically, i've thought it over a bunch, and only one solution  actually feels like it has any chance at working at all. which is insane.. 
+
+
+	basically,  the solution is to      store            a triple        a bunch of triples         each triple is of the form:
+
+
+			{ I : V : T }
+
+
+
+						each triple is a point in      space   time      and graph space  (ie, ins index)
+
+
+
+
+		where I is the instruction index (pc value)
+
+			V is the variable that is being edited, with a new value!
+
+
+		and 	T   is the timestep (instruction index, in execution!)     that it was modified
+
+
+	essentially, we are tracing the actual edits happening to variables down to literally       when in execution did it happen 
+
+
+
+			and the problem is,  if an edit is truly runtime known,   then we technically don't know when this occurs?  i thinkkk 
+
+
+
+
+
+	hmmmmm
+
+
+
+
+	
+
+
+	but yeah generally speaking this solution feels like it should be like  A LOTTT better than the previous matrix based approach, 
+
+
+
+		because to account for time       (T)        we would need a 3D matrix,  where one axis, T,   would be aribtrarilyyyy large 
+
+
+		soooo yeah thats bad
+
+
+	basically i am completly stripping down the sparse matrix,       down to just the elements that change 
+
+
+
+	and then i just need to... interpret this   diff log   properly lol
+
+
+i feel like thats genuinely the only way 
+
+
+hm
+
+
+
+
+so yeah 
+				interestingg
+
+
+
+
+
+
+
+
+the problem, is i feel like this still doesnt quiteeee make sense though. idk... hmmm       like i    just don't even know how i would generate or walk this data structure in the first place, thats the hard part lollll 
+hmm
+
+
+i'll have to think on it more. i'm pretty sure this is the only working solution though. recording exactly what variable had what value at what time, at what instruction. 
+
+
+		(obviously, because we execute a given instruction  possibly mulitple times, 
+		and thus, its important for us to use the instruction index,   AND the time index 
+
+				and obviously we need to know what varible changed, and what its new value is lol
+
+
+	oh so i guess its a quad        not a triple 
+
+
+
+
+		so        I  V  T  v 
+
+
+
+
+
+
+	where   little v            is the value    of the variable    big  V 
+
+
+
+
+	so yeah 
+
+
+							at time T        at instruction   I 
+
+
+
+
+	so yeah! niceeee
+
+
+
+
+okay this is kindaaaaaa making some sense 
+
+
+
+i think this encoding works because every instruction only ever modifies one variable at a time lol. hmmm i think thats why this workssss
+
+
+
+okay cool 
+
+
+yay 
+
+i guess this makes sense 
+
+i'll have to think on it moreeee
+
+
+
+and work through a particular piece of code with this data structure in mind, to form what would be the algorithm to USE this data structure. so yeah. yay.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

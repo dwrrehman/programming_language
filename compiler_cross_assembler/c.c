@@ -1161,12 +1161,39 @@ process_file:;
 	file_count--;
 	if (file_count) goto process_file; 
 
-
 	ins[ins_count++].op = halt;
 
 	print_dictionary(variables, is_undefined, var_count);
 	print_instructions(ins, ins_count, variables, var_count, 0);
 	getchar();
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 	nat* def = calloc(ins_count * var_count, sizeof(nat));      memset(def, 255, sizeof(nat) * var_count * ins_count); 
 	nat* type = calloc(ins_count * var_count, sizeof(nat));
@@ -1183,9 +1210,6 @@ process_file:;
 	nat bit_count[4096] = {0};
 	nat register_index[4096] = {0};
 	nat is_runtime[4096] = {0};
-
-	struct instruction rt_ins[4096] = {0};
-	nat rt_count = 0;
 
 	memset(bit_count, 0xff, sizeof bit_count);
 	memset(register_index, 0xff, sizeof register_index);
@@ -1235,11 +1259,8 @@ process_file:;
 			puts("");
 		}
 		puts("-------------------------------------------------");
-
 		printf("[PC = %llu, last_PC = %llu], pred:", pc, last_pc);
-
 		print_nats(preds, pred_count); putchar(32);
-
 		printf("stack: "); 
 		print_nats(stack, stack_count); 
 		putchar(10);
@@ -1266,10 +1287,6 @@ process_file:;
 		nat future_type = 0;
 		nat future_value = 0;
 		nat value_mismatch = 0;
-
-		puts("");
-
-		//printf("CT: VARIABLE: %10s   ", variables[this_var]);
 		
 		bool at_least_one_pred = 0;
 		for (nat iterator_p = 0; iterator_p < pred_count; iterator_p++) {
@@ -1277,78 +1294,26 @@ process_file:;
 			if (not visited[pred]) continue;
 
 			if (ins[pred].op == lt or ins[pred].op == ge or ins[pred].op == ne or ins[pred].op == eq) {
-				if (
-					 (not (ins[pred].imm & 1) and not type[pred * var_count + ins[pred].args[0]]) or 
+				if (	 (not (ins[pred].imm & 1) and not type[pred * var_count + ins[pred].args[0]]) or 
 					 (not (ins[pred].imm & 2) and not type[pred * var_count + ins[pred].args[1]])
-				 ) {
-					//puts("found a runtime branch as a predecessor!");
-					//puts("within the branch, the condition contains RTK variables: ");
-					//if (not (ins[pred].imm & 1) and not type[pred * var_count + ins[pred].args[0]]) printf("%s was runtime known.\n", variables[ins[pred].args[0]]);
-					//if (not (ins[pred].imm & 2) and not type[pred * var_count + ins[pred].args[1]]) printf("%s was runtime known.\n", variables[ins[pred].args[1]]);
-					//puts("thus, the branch is rtk, and we will mark the boolean as such.");
-					//getchar();
-					at_least_one_pred = 1;
-				}
+				) at_least_one_pred = 1;
 			}
 
 			const nat t = type[pred * var_count + this_var];
 			const nat v = value[pred * var_count + this_var];
-
-			if (t == 0) { 
-				future_type = 0; 
-				future_value = v; 
-				// puts("err, found a rtk value on this pred!"); 
-				//printf("assigned: ft=%llu, fv=%llu\n", future_type, future_value); 
-				break; 
-			}
-
-			if (not future_type) { 
-				//puts("found a first pred, with ctk!");
-				future_type = 1; 
-				future_value = v; 
-			} else if (future_value != v) { 
-				value_mismatch = 1; 
-				//puts("mismatch ctk value!"); 
-			} 
+			if (t == 0) { future_type = 0; future_value = v; break; }
+			if (not future_type) { future_type = 1; future_value = v; } 
+			else if (future_value != v) { value_mismatch = 1; } 
 		}
-
-		
-		//printf("RESULTS  ");
-		//printf("	is_ct = %llu   ", future_type);
-		//printf("	ct_value = %llu   ", future_value);
-		//printf("	value_mismatch = %llu  ", value_mismatch);
-		//puts("");
 
 		if (at_least_one_pred and value_mismatch) {
-
-			if (pc < ins_count and last_pc != (nat) -1) { printf("last_pc = %llu\n", last_pc); puts("invalid internal state"); abort(); } 
-
-			//puts("[mismatch]: ABORTING: warning: found at least one runtime branch! ");
-			//puts("thus, we know that any value_mismatches on CTK variables, must be made RTK instead. ");
-			//puts("we must now look for value_mismatches in CTK variables!");
+			if (pc < ins_count and last_pc != (nat) -1) { printf("last_pc = %llu\n", last_pc); puts("invalid internal state"); abort(); }
 			future_type = 0;
-			//puts("marked this variable as runtime known.");
-			
-	
 		} else if (at_least_one_pred) {
-
 			if (pc < ins_count and last_pc != (nat) -1) { printf("last_pc = %llu\n", last_pc); puts("invalid internal state"); abort(); } 
-
-			//puts("[no mismatch / consistent]: CONTINUING: warning: found at least one runtime branch! ");
-			//puts("thus, we know that any value_mismatches on CTK variables, must be made RTK instead. ");
-			//puts("we must now look for value_mismatches in CTK variables!");
-			//getchar();
-
-			//puts("do we abort...? uhhhh"); abort();
 		}
 
-
-		//puts("checking for CTK value mismatch without runtime component...\n");
-
-
 		if (value_mismatch and future_type) {
-
-			printf("value MISMATCH!\n"); getchar();
 			
 			nat found = 0;
 			for (nat i = 0; i < pred_count; i++) {
@@ -1365,46 +1330,25 @@ process_file:;
 				getchar();
 				future_type = 0;
 				abort();
-
 				goto done_with_mismatch;
 			}
-
 			if (last_pc == (nat) -1) { puts("error: valuemismatch: last_pc == -1"); abort(); }
-
 			const nat pred = last_pc;
 			if (not visited[pred]) continue; 
-
 			const nat t = type[pred * var_count + this_var];
 			const nat v = value[pred * var_count + this_var];
-
 			future_type = t;
 			future_value = v;
-
 			done_with_mismatch:;
 		}
 
-
-
-
-		//puts("note: on sythesizing of preds, we found this.  publishing the values:");
-		//printf("info:    future_type = %llu, future_value = %llu\n", future_type, future_value);
-
 		type[pc * var_count + this_var] = future_type;
 		value[pc * var_count + this_var] = future_value;
-
-
-
-
-
-
-
 
 		nat future_is_copy = 0;
 		nat future_copy_ref = 0;
 		nat future_copy_type = 0;
 		nat copy_ref_mismatch = 0;
-
-		//printf("CP: VARIABLE: %10s   ", variables[this_var]);
 
 		for (nat iterator_p = 0; iterator_p < pred_count; iterator_p++) {
 			const nat pred = preds[iterator_p];
@@ -1420,24 +1364,14 @@ process_file:;
 			} else if (future_copy_ref != v or future_copy_type != ct) copy_ref_mismatch = 1; 
 		}
 
-		//printf("RESULTS  ");
-		//printf("	is_copy = %llu   ", future_is_copy);
-		//printf("	copy_ref = %llu   ", future_copy_ref);
-		//printf("	copy_type = %llu   ", future_copy_type);
-		//printf("	mismatch = %llu", copy_ref_mismatch);
-		//puts("");
-		
 
 		if (copy_ref_mismatch) {
-
 			printf("copy_ref MISMATCH!\n");
 			abort();
-
 			/*nat found = 0;
 			for (nat i = 0; i < pred_count; i++) {
 				if (preds[i] == last_pc) { found = 1; break; }
 			}
-
 			if ((true) or found) {
 				printf("for variable %llu:\"%s\", in instruction: ", this_var, variables[this_var]); 
 				print_instruction(ins[pc], variables, var_count); putchar(10);
@@ -1447,9 +1381,7 @@ process_file:;
 				);
 				abort();
 			} 
-
 			//if (last_pc == (nat) -1) abort();
-
 			const nat pred = last_pc;
 			if (not visited[pred]) continue; 
 			const nat t = type[pred * var_count + this_var];
@@ -1459,55 +1391,24 @@ process_file:;
 			done_with_copy_mismatch:;*/
 		}
 
-
-		//puts("publishing the copy data:");
-		//printf("info:    future_is_copy = %llu, future_copy_ref = %llu, future_copy_type = %llu\n", future_is_copy, future_copy_ref, future_copy_type);
-
 		is_copy[pc * var_count + this_var] = future_is_copy;
 		copy_of[pc * var_count + this_var] = future_copy_ref;
 		copy_type[pc * var_count + this_var] = future_copy_type;
 
-
-
-
-
-
-
-
-
-
 		nat future_def = (nat) -1;
-
-		//printf("DEF: VARIABLE: %10s   ", variables[this_var]);
 
 		for (nat iterator_p = 0; iterator_p < pred_count; iterator_p++) {
 			const nat pred = preds[iterator_p];
 			if (not visited[pred]) continue;
-
 			const nat d = def[pred * var_count + this_var];
-
 			if (future_def == (nat) -1) future_def = d;
-			else if (future_def == d) { 
-				//puts("found a coherent definition!"); getchar(); 
-			}
+			else if (future_def == d) { }
 			else { puts("fatal error: mismatch in definition index: "
 				"unable to track location of defintion for this variable... aborting..."); abort(); }
 		}
 
-		//printf("RESULTS  ");
-		//printf("	def = %llu   ", future_def);
-		//puts("");
-		
-		//if (future_def == (nat) -1) { puts("future_def == -1"); abort(); }
-
 		def[pc * var_count + this_var] = future_def;
-
 		} // for e 
-
-		//fflush(stdout);
-		//getchar();
-
-		//printf("pc = %llu, a0 = %llu, a1 = %llu, a1 = %llu\n", pc, a0, a1, a2); fflush(stdout);
 
 		const nat a0_def = def[pc * var_count + a0];
 
@@ -1582,45 +1483,21 @@ process_file:;
 						
 		} else if (op == lt or op == ge or op == ne or op == eq) {
 			if (not ct0 or not ct1) {
-
-				//puts("encountered a RTK branch...\n"); getchar();
-
 				last_pc = (nat) -1;
-
 				if (gt0 < ins_count and visited[gt0] < 2) { 
-					//puts("pushed false side!"); 
 					stack[stack_count++] = gt0; 
 				}
-				else { 
-					//puts("failed to push false side!");
-					//printf("gt0 < ins_count = %u\n", gt0 < ins_count);
-					//printf("visited[gt0] < 2 = %u\n", visited[gt0] < 2);
-					//getchar();
-				}
-
 				if (gt1 < ins_count and visited[gt1] < 2) { 
-					//puts("pushed true side!"); 
 					stack[stack_count++] = gt1; 
-				} 
-				else { 
-					//puts("failed to push true side!");
-					//printf("gt1 < ins_count = %u\n", gt1 < ins_count);
-					//printf("visited[gt1] < 2 = %u\n", visited[gt1] < 2);
-					//getchar();
 				}
-
 				printf("executing top of stack...\n"); getchar();
 				continue;
 			} else {
-				//puts("encountered a compiletime static branch! executing\n"); getchar();
-
 				bool cond = 0;
 				     if (op == lt) cond = v0  < v1;
 				else if (op == ge) cond = v0 >= v1;
 				else if (op == eq) cond = v0 == v1;
 				else if (op == ne) cond = v0 != v1;
-
-				//printf("info: taking %s side of CTK branch!\n", cond ? "true" : "false"); getchar();
 				pc = cond ? gt1 : gt0; goto execute_ins;
 			}
 
@@ -1642,22 +1519,12 @@ process_file:;
 			abort();
 		}
 
-
-		//printf("[pc = %llu] FINISHED EXECUTING INSTRUCTION!: publishing: ", pc);
-		//printf("type=%llu, value=%llu, is_copy=%llu, copy_of=%llu, copy_type=%llu\n", 
-		//	out_t, out_v, out_is_copy, out_copy_ref, out_copy_type
-		//);
-		//getchar();
-
-
 		def[pc * var_count + a0] = out_def;
-
 		type[pc * var_count + a0] = out_t;
 		value[pc * var_count + a0] = out_v;
 		is_copy[pc * var_count + a0] = out_is_copy;
 		copy_of[pc * var_count + a0] = out_copy_ref;
 		copy_type[pc * var_count + a0] = out_copy_type;
-
 		pc++; goto execute_ins;
 	}
 
@@ -1708,7 +1575,6 @@ process_file:;
 	print_nats(stack, stack_count); 
 	putchar(10);
 
-
 	puts("...beginning to simplify instructions now!");
 	getchar();
 
@@ -1748,31 +1614,30 @@ process_file:;
 			if (op == eq and a == 2) continue;
 			if (op == la and a == 1) continue; 
 						
-				// TODO: work this out:     are la's CT OR NOT!?!?!?!    .....they arent. lol. i think. 
 
 			if (((imm >> a) & 1)) {
 
-				printf("found a compiletime immediate : %llu\n", 
+				/*printf("found a compiletime immediate : %llu\n", 
 					ins[i].args[a]
-				);
+				);*/
 
 			} else if (type[i * var_count + ins[i].args[a]]) {
 				
-				printf("found a compiletime variable "
+				/*printf("found a compiletime variable "
 					"as argument  :  %s = {type = %llu, value = %llu}\n",
 					variables[ins[i].args[a]], 
 					type[i * var_count + ins[i].args[a]],
 					value[i * var_count + ins[i].args[a]]
-				);
+				);*/
 
 			} else {
-				puts("found a runtime argument!");	
+				/*puts("found a runtime argument!");	
 				printf("found variable "
 					":  %s = {type = %llu, value = %llu}\n",
 					variables[ins[i].args[a]], 
 					type[i * var_count + ins[i].args[a]],
 					value[i * var_count + ins[i].args[a]]
-				);
+				);*/
 				ignore = 0; break;
 			}
 		}
@@ -1966,27 +1831,25 @@ process_file:;
 
 
 	{ nat final_ins_count = 0;
-
 	for (nat i = 0; i < ins_count; i++) {
 		//const nat op = ins[i].op;
 		if (not visited[i]) continue;
 		ins[final_ins_count++] = ins[i];
 	}
-
 	ins_count = final_ins_count;
+	memset(visited, 255, sizeof visited); }
 
-	memset(visited, 255, sizeof visited);
-	}
+
+
+
+
 
 
 
 
 	for (nat pc = 0; pc < ins_count; pc++) {
-
 		if (not visited[pc]) continue;
-
 		//print_instruction_window_around(pc, ins, ins_count, variables, var_count, visited, 1, "CF SIMPLIFY: on this ins");
-
 
 		print_instruction_window_around(pc, ins, ins_count, variables, var_count, visited, 0, "");
 		print_dictionary(variables, is_undefined, var_count);
@@ -2017,7 +1880,14 @@ process_file:;
 
 
 
-/*
+
+
+
+
+
+
+/*           // first attempt at algebraic simplification: 
+
 
 	for (nat pc = 0; pc < ins_count; pc++) {
 
@@ -2108,46 +1978,20 @@ process_file:;
 	}
 
 
-	// next opt: 
-
-	// todo:  "DEAD STORE ELIMINATION"!!   remove the set statements which don't do anything now. 
-	// go through each set statement, and look at the number of downstream uses of that set actaully happened!  
-	// for this, we need to trace which active value for a set is currently being used lol.
-/*
-------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-current state: 1202504163.024837
-
-
-		// to materialize the variable,  we are just going to utilize the fact that    all ctk variables have a   set_imm statement that defines them, somewhere prior to this instruction. we will simply keep track of where this instruction lives, for each compiletime variable, during CT-EVAl. 
-
-		// to keep track of this, we just simply reassign it when we do a "set", but not when we do a "add/sub/si" etc etc. 
-
-		// then,  in this code, here, we will read that value, (called "definition_at") and then we will overwrite this instruction with the REAL value we expect. hypothetically, it should be a statement along the execution path of the CTK pred which caused this in the first place, and thus we don't need to add/insert any new instructions. we are just using the existing one. 
-
-		// oh also, we need to remember to set the visted[pc] = 1;  for that instruction lol.  to turn it to be runtime known lol. yay. 
-
-
-
-
-------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-*/
-
-
-
-	
-	// todo opt:
-	//  . simplify control flow! 
-	//  . simplify labels
-	//  . copy propagation! 
-	//  . loop invariant code motion
-
-
 	for (nat i = 0; i < ins_count; i++) {
 		if (not visited[i]) continue;
 		//const nat op = ins[i].op;
 
 
 	}
+
+
+
+
+
+
+
+
 
 
 
@@ -2166,9 +2010,36 @@ current state: 1202504163.024837
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 	// --------------------------------------------------------------------------------------
 	// once we finish with copy prop and it works well, we should do ins sel for msp430!!!
 	// --------------------------------------------------------------------------------------
+/*
+	a6_nop, a6_svc, a6_mov, a6_bfm,
+	a6_adc, a6_addx, a6_addi, a6_addr, a6_adr, 
+	a6_shv, a6_clz, a6_rev, a6_jmp, a6_bc, a6_br, 
+	a6_cbz, a6_tbz, a6_ccmp, a6_csel, 
+	a6_ori, a6_orr, a6_extr, a6_ldrl, 
+	a6_memp, a6_memia, a6_memi, a6_memr, 
+	a6_madd, a6_divr, 
+*/
 
 	
 	struct instruction mi[4096] = {0};
@@ -2220,19 +2091,6 @@ current state: 1202504163.024837
 			selected[i] = 1; selected[b] = 1; selected[c] = 1;
 			goto finish_mi_instruction;
 		} addsrlsl_bail:
-
-
-
-/*
-	a6_nop, a6_svc, a6_mov, a6_bfm,
-	a6_adc, a6_addx, a6_addi, a6_addr, a6_adr, 
-	a6_shv, a6_clz, a6_rev, a6_jmp, a6_bc, a6_br, 
-	a6_cbz, a6_tbz, a6_ccmp, a6_csel, 
-	a6_ori, a6_orr, a6_extr, a6_ldrl, 
-	a6_memp, a6_memia, a6_memi, a6_memr, 
-	a6_madd, a6_divr, 
-*/
-
 
 		if (op == set and not imm) {
 			struct instruction new = { .op = a6_orr, .imm = 0xff };
@@ -3193,6 +3051,204 @@ if (output_format == debug_output_only) {
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+		//printf("RESULTS  ");
+		//printf("	is_copy = %llu   ", future_is_copy);
+		//printf("	copy_ref = %llu   ", future_copy_ref);
+		//printf("	copy_type = %llu   ", future_copy_type);
+		//printf("	mismatch = %llu", copy_ref_mismatch);
+		//puts("");
+		
+		//printf("CP: VARIABLE: %10s   ", variables[this_var]);
+
+		//puts("note: on sythesizing of preds, we found this.  publishing the values:");
+		//printf("info:    future_type = %llu, future_value = %llu\n", future_type, future_value);
+
+		//puts("checking for CTK value mismatch without runtime component...\n");
+
+
+
+
+		//puts("");
+		//printf("CT: VARIABLE: %10s   ", variables[this_var]);
+
+
+
+
+
+//puts("found a runtime branch as a predecessor!");
+					//puts("within the branch, the condition contains RTK variables: ");
+					//if (not (ins[pred].imm & 1) and not type[pred * var_count + ins[pred].args[0]]) printf("%s was runtime known.\n", variables[ins[pred].args[0]]);
+					//if (not (ins[pred].imm & 2) and not type[pred * var_count + ins[pred].args[1]]) printf("%s was runtime known.\n", variables[ins[pred].args[1]]);
+					//puts("thus, the branch is rtk, and we will mark the boolean as such.");
+					//getchar();
+
+
+// puts("err, found a rtk value on this pred!"); 
+				//printf("assigned: ft=%llu, fv=%llu\n", future_type, future_value); 
+
+
+
+
+
+		//printf("RESULTS  ");
+		//printf("	is_ct = %llu   ", future_type);
+		//printf("	ct_value = %llu   ", future_value);
+		//printf("	value_mismatch = %llu  ", value_mismatch);
+		//puts("");
+
+
+
+//puts("[no mismatch / consistent]: CONTINUING: warning: found at least one runtime branch! ");
+			//puts("thus, we know that any value_mismatches on CTK variables, must be made RTK instead. ");
+			//puts("we must now look for value_mismatches in CTK variables!");
+			//getchar();
+
+			//puts("do we abort...? uhhhh"); abort();
+
+
+
+
+//puts("[mismatch]: ABORTING: warning: found at least one runtime branch! ");
+			//puts("thus, we know that any value_mismatches on CTK variables, must be made RTK instead. ");
+			//puts("we must now look for value_mismatches in CTK variables!");
+
+
+//puts("marked this variable as runtime known.");
+
+			//printf("value MISMATCH!\n"); getchar();
+
+
+
+		//puts("publishing the copy data:");
+		//printf("info:    future_is_copy = %llu, future_copy_ref = %llu, future_copy_type = %llu\n", future_is_copy, future_copy_ref, future_copy_type);
+
+
+
+		//fflush(stdout);
+		//getchar();
+		//printf("DEF: VARIABLE: %10s   ", variables[this_var]);
+
+		//printf("RESULTS  ");
+		//printf("	def = %llu   ", future_def);
+		//puts("");
+		
+		//if (future_def == (nat) -1) { puts("future_def == -1"); abort(); }
+
+
+		//printf("pc = %llu, a0 = %llu, a1 = %llu, a1 = %llu\n", pc, a0, a1, a2); fflush(stdout);
+
+
+
+
+
+
+		//printf("[pc = %llu] FINISHED EXECUTING INSTRUCTION!: publishing: ", pc);
+		//printf("type=%llu, value=%llu, is_copy=%llu, copy_of=%llu, copy_type=%llu\n", 
+		//	out_t, out_v, out_is_copy, out_copy_ref, out_copy_type
+		//);
+		//getchar();
+
+
+//puts("failed to push false side!");
+					//printf("gt0 < ins_count = %u\n", gt0 < ins_count);
+					//printf("visited[gt0] < 2 = %u\n", visited[gt0] < 2);
+					//getchar();
+
+
+
+
+//puts("failed to push true side!");
+					//printf("gt1 < ins_count = %u\n", gt1 < ins_count);
+					//printf("visited[gt1] < 2 = %u\n", visited[gt1] < 2);
+					//getchar();
+
+
+				//printf("info: taking %s side of CTK branch!\n", cond ? "true" : "false"); getchar();
+
+				// TODO: work this out:     are la's CT OR NOT!?!?!?!    .....they arent. lol. i think. 
+
+
+
+
+
+
+
+
+
+
+	// next opt: 
+
+	// todo:  "DEAD STORE ELIMINATION"!!   remove the set statements which don't do anything now. 
+	// go through each set statement, and look at the number of downstream uses of that set actaully happened!  
+	// for this, we need to trace which active value for a set is currently being used lol.
+/*
+------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+current state: 1202504163.024837
+
+
+		// to materialize the variable,  we are just going to utilize the fact that    all ctk variables have a   set_imm statement that defines them, somewhere prior to this instruction. we will simply keep track of where this instruction lives, for each compiletime variable, during CT-EVAl. 
+
+		// to keep track of this, we just simply reassign it when we do a "set", but not when we do a "add/sub/si" etc etc. 
+
+		// then,  in this code, here, we will read that value, (called "definition_at") and then we will overwrite this instruction with the REAL value we expect. hypothetically, it should be a statement along the execution path of the CTK pred which caused this in the first place, and thus we don't need to add/insert any new instructions. we are just using the existing one. 
+
+		// oh also, we need to remember to set the visted[pc] = 1;  for that instruction lol.  to turn it to be runtime known lol. yay. 
+
+
+
+
+------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+*/
+
+
+
+	
+	// todo opt:
+	//  . simplify control flow! 
+	//  . simplify labels
+	//  . copy propagation! 
+	//  . loop invariant code motion
 
 
 
