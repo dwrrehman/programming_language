@@ -1,0 +1,204 @@
+i think i figured out how i am going to do ct eval and loop unrolling!!!!
+  its so simple!!!!
+
+
+
+we will NOT be doing L U    in CTE 
+
+
+	(LU = loop unrolling) 
+
+	(CTE = compiletime evaulation/execution) 
+
+
+instead, we will actually be    doing LU later      and   CTE    is ONLYYY subtractive, 
+
+	it NEVERRR   adds  instructions.  to the ins seq, 
+
+
+
+
+rather,      CTE will just   notice that    a  CT ins   is used in a CT   LOOP!!! 
+
+
+		and then it will only ever remove that CT loop  if it contains  NO RT INS!!!
+
+
+	wowww
+
+niceee
+
+
+we could even do this loop detection in CTE!    doesnt even need to be a seperate stage!
+
+
+
+
+
+but yeah
+
+
+
+
+the philosphy that i settled on, to make me happy with CTE     and not have to change the algortihm at all, actually,   thus keeping time axis on the time axis instead of both on time and space 
+
+
+	i settled on  making CTE    ONLY SUBTRACTIVE
+
+
+		ie,    CTE can only remove insturctions. 
+
+
+				never add them. 
+
+
+
+
+
+
+
+very very very crucial that it works like thissss
+
+
+
+
+
+
+
+
+the main idea for how we are going to make the CTE pass      NOTTTT get rid of CT loops around RT instructions, 
+
+	really just comes down to loops.  thats the only case we arent handling, acutally.
+
+
+
+		we just need to make sure that a given ct operation we might want to remove,   
+
+
+						isnt part of a ct loop which contains an RT statement. 
+
+
+
+						like, it really is that easy, actaully! 
+
+
+
+
+
+
+
+	hmm    so yeah 
+
+interesting lol 
+
+
+
+
+i guess i'll start putting back all the CTE code     and then    trying to figure out a solution which keeps in the ct loop code 
+
+
+
+lol
+
+	i had ripped it out    cuz i wasnt quite happy with how things were sitting 
+
+			and like, the new implemenation of the CTE pass was so different and had so many not great properties, and loop unrolling seemed like such a weird problem to motivate that kind of solution for it lol
+
+			that yeah, i just decided to start removin stuff until i was happy with things, and i was just left with the parsing and lexing stage lol 
+
+
+
+soooo yeah lol 
+
+
+time to put things back   
+
+luckily i just commented it all out, and put it in the trash lol, i never delete anything obviously 
+
+
+
+
+so yeah 
+
+
+
+
+
+
+
+
+coool 
+
+
+wish me luck in figuring out how to make the compiler   simply NOT delete the ct loop     around a given RT instruction lol 
+
+like, in theory it really shouldnt be that bad!   like, its pretty simple in my head- 
+
+	its just really coming down to      identification of loops   in the control flow graph,
+
+
+			and then also identification of    if that loop is compiletime-known lol
+
+
+			like, that should be easy, hypothetiallyyyy 
+
+
+	hm
+
+we'll see lol 
+
+
+
+
+
+
+i'll try coding it all up now i think 
+
+
+lets see how it goesss
+
+
+right now is 1202505025.011528
+dwrr
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
