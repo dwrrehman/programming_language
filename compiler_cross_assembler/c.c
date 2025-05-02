@@ -93,6 +93,7 @@ static const nat arity[isa_count] = {
 struct instruction {
 	nat op;
 	nat imm;
+	nat visited;
 	nat args[max_arg_count];
 };
 
@@ -102,6 +103,21 @@ struct file {
 	char* text;
 	const char* filename;
 };
+
+static struct instruction ins[max_instruction_count] = {0};
+static nat ins_count = 0;
+
+static char* variables[max_variable_count] = {0};
+static nat is_undefined[max_variable_count] = {0};
+static nat var_count = 0;
+
+static void print_nats(nat* array, nat count) {
+	printf("(%llu) { ", count);
+	for (nat i = 0; i < count; i++) {
+		printf("%lld ", array[i]);
+	}
+	printf("}");
+}
 
 static char* load_file(const char* filename, nat* text_length) {
 	int file = open(filename, O_RDONLY);
@@ -119,11 +135,7 @@ static char* load_file(const char* filename, nat* text_length) {
 	return text;
 }
 
-static void print_dictionary(
-	char** variables, 
-	nat* is_undefined,
-	nat var_count
-) {
+static void print_dictionary(void) {
 	puts("variable dictionary: ");
 	for (nat i = 0; i < var_count; i++) {
 		printf("     %c [%llu]  \"%s\"\n",  // 0x%016llx
@@ -134,10 +146,8 @@ static void print_dictionary(
 	puts("[end]");
 }
 
-static void print_instruction(
-	struct instruction this, 
-	char** variables, nat var_count
-) {
+static void print_instruction(struct instruction this) {
+
 	int max_name_width = 0;
 	for (nat i = 0; i < var_count; i++) {
 		if (max_name_width < (int) strlen(variables[i])) {
@@ -165,29 +175,20 @@ static void print_instruction(
 	}	
 }
 
-static void print_instructions(
-	struct instruction* ins, 
-	nat ins_count,
-	char** variables, nat var_count,
-	bool should_number_them
-) {
+static void print_instructions(const bool should_number_them) {
+
 	printf("instructions: (%llu count) {\n", ins_count);
 	for (nat i = 0; i < ins_count; i++) {
 		if (ins[i].op != at) putchar(9); else putchar(10);
 		if (should_number_them) printf("%4llu: ", i);
-		print_instruction(ins[i], variables, var_count);
+		print_instruction(ins[i]);
 		puts("");
 	}
 	puts("}");
 }
 
 static void print_instruction_window_around(
-	nat this, 
-	struct instruction* ins, 
-	nat ins_count, 
-	char** variables, 
-	nat var_count,
-	nat* visited,
+	nat this,
 	const bool should_just_print,
 	const char* message
 ) {
@@ -199,7 +200,8 @@ static void print_instruction_window_around(
 
 		const int64_t here = pc + i;
 
-		if (ins[here].op == at) { putchar(10); row_count++; }
+		if (here >= 0 and here < (int64_t) ins_count and 
+			ins[here].op == at) { putchar(10); row_count++; }
 
 		if (not i) printf("\033[48;5;238m");
 
@@ -211,15 +213,15 @@ static void print_instruction_window_around(
 		}
 
 		printf("  %s%4llu │ ", 
-			not i and visited[here] ? 
+			not i and ins[here].visited ? 
 			"\033[32;1m•\033[0m\033[48;5;238m"
-			: (visited[here] ? "\033[32;1m•\033[0m" : " "), 
+			: (ins[here].visited ? "\033[32;1m•\033[0m" : " "), 
 			here
 		);
-		if (not i and visited[here]) printf("\033[48;5;238m");
+		if (not i and ins[here].visited) printf("\033[48;5;238m");
 
 		if (ins[here].op != at) putchar(9);
-		print_instruction(ins[here], variables, var_count);
+		print_instruction(ins[here]);
 		if (should_just_print and not i) printf("    \033[0m   <----- \033[31;1m%s\033[0m", message);
 		puts("\033[0m");
 		row_count++; 
@@ -257,11 +259,7 @@ static void print_index(const char* text, nat text_length, nat begin, nat end) {
 	puts("\n");
 }
 
-static nat* compute_predecessors(
-	struct instruction* ins, 
-	nat ins_count, nat pc, 
-	nat* pred_count
-) {
+static nat* compute_predecessors(nat pc, nat* pred_count) {
 	nat* gotos = calloc(2 * ins_count, sizeof(nat)); 
 	nat locations[4096] = {0}; // var_count sized
 
@@ -305,10 +303,8 @@ static nat* compute_predecessors(
 }
 
 
-static nat* compute_successors(
-	struct instruction* ins, 
-	nat ins_count, nat pc
-) {
+static nat* compute_successors(nat pc) {
+
 	nat* gotos = calloc(2 * ins_count, sizeof(nat)); 
 	nat locations[4096] = {0}; // var_count sized
 
@@ -352,18 +348,16 @@ struct expected_instruction {
 	nat args[max_arg_count];	
 };
 
-static nat locate_instruction(
-	struct expected_instruction expected,
-	nat starting_from,
-	struct instruction* ins, nat ins_count
-) {
+
+static nat locate_instruction(struct expected_instruction expected, nat starting_from) {
+
 	nat pc = starting_from;
 
 	while (pc < ins_count) {
 
 		nat pred_count = 0;
-		compute_predecessors(ins, ins_count, pc, &pred_count);
-		nat* gotos = compute_successors(ins, ins_count, pc);
+		compute_predecessors(pc, &pred_count);
+		nat* gotos = compute_successors(pc);
 
 		if (pred_count >= 2) break;
 
@@ -402,6 +396,70 @@ static nat locate_instruction(
 	return (nat) -1;
 }
 
+static void debug_cte(
+	nat pc, nat last_pc,
+	nat* preds, nat pred_count,
+	nat* stack, nat stack_count,
+	nat* def,
+	nat* value, nat* type, 
+	nat* copy_of, nat* copy_type,
+	nat* is_copy
+) {
+
+	print_instruction_window_around(pc, 0, "");
+	print_dictionary();
+
+	printf("        ");
+	for (nat j = 0; j < var_count; j++) 
+		printf("%3lld ", j);
+	puts("\n-------------------------------------------------");
+	for (nat i = 0; i < ins_count; i++) {
+		printf("ct %3llu: ", i);
+		for (nat j = 0; j < var_count; j++) {
+			if (type[i * var_count + j])
+				printf("%3lld ", 
+					value[i * var_count + j]);
+			else 	printf("\033[90m%3llx\033[0m ", 
+					value[i * var_count + j]);
+		}
+		putchar(9);
+
+		printf("cp %3llu: ", i);
+		for (nat j = 0; j < var_count; j++) {
+			if (is_copy[i * var_count + j])
+				printf("%3lld(%llu) ", 
+					copy_of[i * var_count + j], 
+					copy_type[i * var_count + j]
+				);
+			else 	printf("\033[90m%3llx(%llu)\033[0m ", 
+					copy_of[i * var_count + j], 
+					copy_type[i * var_count + j]
+				);
+		}
+		putchar(9);
+
+		printf("def %3llu: ", i);
+		for (nat j = 0; j < var_count; j++) {
+			if (def[i * var_count + j] != (nat) -1)
+				printf("%3lld ", 
+					def[i * var_count + j]
+				);
+			else 	printf("\033[90m%3lld\033[0m ", 
+					def[i * var_count + j]
+				);
+		}
+		puts("");
+	}
+	puts("-------------------------------------------------");
+	printf("[PC = %llu, last_PC = %llu], pred:", pc, last_pc);
+	print_nats(preds, pred_count); putchar(32);
+	printf("stack: "); 
+	print_nats(stack, stack_count); 
+	putchar(10);
+	getchar();
+}
+
+
 
 int main(int argc, const char** argv) {
 
@@ -411,13 +469,6 @@ int main(int argc, const char** argv) {
 	//const nat min_stack_size = 16384 + 1;
 	//nat stack_size = min_stack_size;
 	//const char* output_filename = "output_executable_new";
-
-	struct instruction ins[max_instruction_count] = {0};
-	nat ins_count = 0;
-
-	char* variables[max_variable_count] = {0};
-	nat is_undefined[max_variable_count] = {0};
-	nat var_count = 0;
 
 	const char* included_files[4096] = {0};
 	nat included_file_count = 0;
@@ -558,16 +609,325 @@ process_file:;
 
 	ins[ins_count++].op = halt;
 
-	print_dictionary(variables, is_undefined, var_count);
-	print_instructions(ins, ins_count, variables, var_count, 0);
+	print_dictionary();
+	print_instructions(false);
 	getchar();
 
 
+	nat* def = calloc(ins_count * var_count, sizeof(nat));
+	nat* type = calloc(ins_count * var_count, sizeof(nat));
+	nat* value = calloc(ins_count * var_count, sizeof(nat));
+	nat* is_copy = calloc(ins_count * var_count, sizeof(nat));
+	nat* copy_of = calloc(ins_count * var_count, sizeof(nat));
+	nat* copy_type = calloc(ins_count * var_count, sizeof(nat));
+	nat stack[4096] = {0};
+	nat stack_count = 1;
+	nat last_pc = (nat) -1;
+	nat bit_count[4096] = {0};
+	nat register_index[4096] = {0};
+	nat is_runtime[4096] = {0};
+
+	memset(def, 255, sizeof(nat) * var_count * ins_count);
+	memset(bit_count, 255, sizeof bit_count);
+	memset(register_index, 255, sizeof register_index);
 
 
+	while (stack_count) {
+		nat pc = stack[--stack_count];
+
+	execute_ins:
+		if (pc >= ins_count) continue;
+
+		nat pred_count = 0;
+		nat* preds = compute_predecessors(pc, &pred_count);
+		nat* gotos = compute_successors(pc);
+
+		debug_cte(pc, last_pc, preds, pred_count, stack, stack_count, def, value, type, copy_of, copy_type, is_copy);
+
+		ins[pc].visited++;
+
+		const nat op = ins[pc].op;
+		const nat imm = ins[pc].imm;
+		const nat gt0 = gotos[0];
+		const nat gt1 = gotos[1];
+		const nat a0 = 0 < arity[op] ? ins[pc].args[0] : 0;
+		const nat a1 = 1 < arity[op] ? ins[pc].args[1] : 0;
+		const nat a2 = 2 < arity[op] ? ins[pc].args[2] : 0;
+		const nat i0 = !!(imm & 1);
+		const nat i1 = !!(imm & 2);
+		const nat i2 = !!(imm & 4);
+
+		for (nat e = 0; e < var_count; e++) {
+
+			const nat this_var = e; 
+
+			nat future_type = 0;
+			nat future_value = 0;
+			nat value_mismatch = 0;
+		
+			bool at_least_one_pred = 0;
+			for (nat iterator_p = 0; iterator_p < pred_count; iterator_p++) {
+				const nat pred = preds[iterator_p];
+				if (not ins[pred].visited) continue;
+	
+				if (
+					ins[pred].op == lt or 
+					ins[pred].op == ge or 
+					ins[pred].op == ne or 
+					ins[pred].op == eq
+				) {
+					if (
+					(not (ins[pred].imm & 1) and 
+					 not type[pred * var_count + ins[pred].args[0]]) or 
+					 (not (ins[pred].imm & 2) and 
+					 not type[pred * var_count + ins[pred].args[1]])
+					) at_least_one_pred = 1;
+				}
+
+				const nat t = type[pred * var_count + this_var];
+				const nat v = value[pred * var_count + this_var];
+				if (t == 0) { future_type = 0; future_value = v; break; }
+				if (not future_type) { future_type = 1; future_value = v; } 
+				else if (future_value != v) { value_mismatch = 1; } 
+			}
+
+			if (at_least_one_pred and value_mismatch) {
+
+				if (pc < ins_count and last_pc != (nat) -1) { 
+					printf("last_pc = %llu\n", last_pc); 
+					puts("invalid internal state"); 
+					abort(); 
+				}
+				future_type = 0;
+
+			} else if (at_least_one_pred) {
+				if (pc < ins_count and last_pc != (nat) -1) { 
+					printf("last_pc = %llu\n", last_pc); 
+					puts("invalid internal state"); 
+					abort(); 
+				} 
+			}
+
+			if (value_mismatch and future_type) {
+			
+				nat found = 0;
+				for (nat i = 0; i < pred_count; i++) {
+					if (preds[i] == last_pc) { found = 1; break; }
+				}
+
+				if (not found) {
+					printf("for variable %llu:\"%s\", in instruction: ", this_var, variables[this_var]); 
+					print_instruction(ins[pc]); putchar(10);
+					printf("fatal error: in value mismatch: last_pc was not a predecessor"
+						" (last_pc = %llu, lastpc not found in predecessors)... aborting.\n", 
+						last_pc
+					); 
+					getchar();
+					future_type = 0;
+					abort();
+					goto done_with_mismatch;
+				}
+				if (last_pc == (nat) -1) { puts("error: valuemismatch: last_pc == -1"); abort(); }
+				const nat pred = last_pc;
+				if (not ins[pred].visited) continue; 
+				const nat t = type[pred * var_count + this_var];
+				const nat v = value[pred * var_count + this_var];
+				future_type = t;
+				future_value = v;
+				done_with_mismatch:;
+			}
+	
+			type[pc * var_count + this_var] = future_type;
+			value[pc * var_count + this_var] = future_value;
+	
+			nat future_is_copy = 0;
+			nat future_copy_ref = 0;
+			nat future_copy_type = 0;
+			nat copy_ref_mismatch = 0;
+	
+			for (nat iterator_p = 0; iterator_p < pred_count; iterator_p++) {
+				const nat pred = preds[iterator_p];
+				if (not ins[pred].visited) continue;
+				const nat t = is_copy[pred * var_count + this_var];
+				const nat v = copy_of[pred * var_count + this_var];
+				const nat ct = copy_type[pred * var_count + this_var];
+				if (t == 0) { future_is_copy = 0; future_copy_ref = 0; future_copy_type = 0; break; }
+				if (not future_is_copy) { 
+					future_is_copy = 1; 
+					future_copy_ref = v;
+					future_copy_type = ct;
+				} else if (future_copy_ref != v or future_copy_type != ct) copy_ref_mismatch = 1; 
+			}
+	
+	
+			if (copy_ref_mismatch) {
+				printf("copy_ref MISMATCH!\n");
+				abort();
+		
+				nat found = 0;
+				for (nat i = 0; i < pred_count; i++) {
+					if (preds[i] == last_pc) { found = 1; break; }
+				}
+				if ((true) or found) {
+					printf("for variable %llu:\"%s\", in instruction: ", this_var, variables[this_var]); 
+					print_instruction(ins[pc]); putchar(10);
+					printf("fatal error: in value mismatch: last_pc was not a predecessor"
+						" (last_pc = %llu, lastpc not found in predecessors)... aborting.\n", 
+						last_pc
+					);
+					abort();
+				} 
+				if (last_pc == (nat) -1) abort();
+				const nat pred = last_pc;
+				if (not ins[pred].visited) continue; 
+				const nat t = type[pred * var_count + this_var];
+				const nat v = value[pred * var_count + this_var];
+				future_type = t;
+				future_value = v;
+				//done_with_copy_mismatch:;
+			}
+	
+			is_copy[pc * var_count + this_var] = future_is_copy;
+			copy_of[pc * var_count + this_var] = future_copy_ref;
+			copy_type[pc * var_count + this_var] = future_copy_type;
+	
+			nat future_def = (nat) -1;
+	
+			for (nat iterator_p = 0; iterator_p < pred_count; iterator_p++) {
+				const nat pred = preds[iterator_p];
+				if (not ins[pred].visited) continue;
+				const nat d = def[pred * var_count + this_var];
+				if (future_def == (nat) -1) future_def = d;
+				else if (future_def != d) {
+					puts("fatal error: mismatch in definition index: "
+					"unable to track location of defintion "
+					"for this variable... aborting..."); 
+					abort(); 
+				}
+			}
+	
+			def[pc * var_count + this_var] = future_def;
+
+		} // for e 
 
 
+		const nat a0_def = def[pc * var_count + a0];
+		const nat ct0 = i0 or type[pc * var_count + a0];
+		const nat ct1 = i1 or type[pc * var_count + a1];
+		const nat ct2 = i2 or type[pc * var_count + a2];
+		const nat v0 = i0 ? a0 : value[pc * var_count + a0];
+		const nat v1 = i1 ? a1 : value[pc * var_count + a1];
+		//const nat v2 = i2 ? a2 : value[pc * var_count + a2];
 
+		const nat a0_is_copy = is_copy[pc * var_count + a0];
+		//const nat a1_is_copy = is_copy[pc * var_count + a1];
+		const nat a0_copy_ref = copy_of[pc * var_count + a0];
+		//const nat a1_copy_ref = copy_of[pc * var_count + a1];
+		const nat a0_copy_type = copy_type[pc * var_count + a0];
+		//const nat a1_copy_type = copy_type[pc * var_count + a1];
+
+		nat out_t = ct0, out_v = v0;
+
+		nat 	out_is_copy = a0_is_copy, out_def = a0_def,
+			out_copy_ref = a0_copy_ref, 
+			out_copy_type = a0_copy_type;
+
+		last_pc = pc;
+
+		if (op == halt) { last_pc = (nat) -1; continue; }
+		else if (op == at) { }
+		else if (op == sc) { }
+		else if (op == do_) { pc = gt0; goto execute_ins; }
+		else if (op == set) {
+			if (not is_runtime[a0]) {
+				out_t = ct1; out_v = v1;
+			}
+			out_def = pc;
+			out_is_copy = 1;
+			if (not i1 and is_copy[pc * var_count + a1]) {
+				out_copy_ref = copy_of[pc * var_count + a1];
+				out_copy_type = copy_type[pc * var_count + a1];
+			} else { 
+				out_copy_ref = a1;
+				out_copy_type = i1;
+			}
+		}
+		else if (op >= add and op <= sd) {
+			if (not i1) out_t = ct0 and ct1;
+
+			     if (op == add)  out_v += v1;
+			else if (op == sub)  out_v -= v1;
+			else if (op == mul)  out_v *= v1;
+			else if (op == div_) out_v /= v1;
+			else if (op == rem)  out_v %= v1;
+			else if (op == and_) out_v &= v1;
+			else if (op == or_)  out_v |= v1;
+			else if (op == eor)  out_v ^= v1;
+			else if (op == si)   out_v <<= v1;
+			else if (op == sd)   out_v >>= v1;
+			out_is_copy = 0;
+			
+		} else if (op == st) {	
+			if (not ct2) { puts("error: size of store must be ctk."); abort(); }
+			out_is_copy = 0;
+
+		} else if (op == ld) {
+			if (not ct2) { puts("error: size of load must be ctk."); abort(); }
+			out_t = 0;
+			out_is_copy = 0;
+
+		} else if (op == la) {
+			out_t = 0;
+			out_v = 0;
+			out_is_copy = 0;
+						
+		} else if (op == lt or op == ge or op == ne or op == eq) {
+			if (not ct0 or not ct1) {
+				last_pc = (nat) -1;
+				if (gt0 < ins_count and ins[gt0].visited < 2) { 
+					stack[stack_count++] = gt0; 
+				}
+				if (gt1 < ins_count and ins[gt1].visited < 2) { 
+					stack[stack_count++] = gt1; 
+				}
+				continue;
+			} else {
+				bool cond = 0;
+				     if (op == lt) cond = v0  < v1;
+				else if (op == ge) cond = v0 >= v1;
+				else if (op == eq) cond = v0 == v1;
+				else if (op == ne) cond = v0 != v1;
+				pc = cond ? gt1 : gt0; goto execute_ins;
+			}
+
+		} else if (op == rt) {
+			if (not ct1) { puts("error: source argument to RT must be compiletime known."); abort(); }
+
+			printf("note: storing: RT x (%lld)\n", v1);
+			if ((int64_t) v1 < 0) { puts("STORING REGSITER INDEX"); register_index[a0]  = -v1; }
+			else { puts("STORING BIT COUNT"); bit_count[a0]  = v1; }
+			getchar();
+
+			is_runtime[a0] = 1;
+			out_t = 0;
+
+		} else {
+			puts("WARNING: EXECUTING AN UNKNOWN INSTRUCTION WITHOUT AN IMPLEMENTATION!!!");
+			puts(operations[op]); 
+			abort();
+		}
+
+		def[pc * var_count + a0] = out_def;
+		type[pc * var_count + a0] = out_t;
+		value[pc * var_count + a0] = out_v;
+		is_copy[pc * var_count + a0] = out_is_copy;
+		copy_of[pc * var_count + a0] = out_copy_ref;
+		copy_type[pc * var_count + a0] = out_copy_type;
+		pc++; goto execute_ins;
+	}
+
+	puts("[CTE stage finished]");
+	debug_cte(0, last_pc, NULL, 0, stack, stack_count, def, value, type, copy_of, copy_type, is_copy);
 
 }
 
