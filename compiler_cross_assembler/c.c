@@ -108,6 +108,9 @@ static struct instruction ins[max_instruction_count] = {0};
 static nat ins_count = 0;
 
 static char* variables[max_variable_count] = {0};
+static nat bit_count[max_variable_count] = {0};
+static nat register_index[max_variable_count] = {0};
+static nat is_runtime[max_variable_count] = {0};
 static nat is_undefined[max_variable_count] = {0};
 static nat var_count = 0;
 
@@ -138,9 +141,11 @@ static char* load_file(const char* filename, nat* text_length) {
 static void print_dictionary(void) {
 	puts("variable dictionary: ");
 	for (nat i = 0; i < var_count; i++) {
-		printf("     %c [%llu]  \"%s\"\n",  // 0x%016llx
+		printf("   %c  %c [%llu]  \"%10s\"  :   { bc=%5lld, ri=%5lld }\n",
+			is_runtime[i] ? 'R' : ' ', 
 			is_undefined[i] ? 'U' : ' ', 
-			i, variables[i]
+			i, variables[i], 
+			bit_count[i], register_index[i]
 		);
 	}
 	puts("[end]");
@@ -406,7 +411,7 @@ static void debug_cte(
 	nat* is_copy
 ) {
 
-	print_instruction_window_around(pc, 0, "");
+	print_instruction_window_around(pc, 0, "PC");
 	print_dictionary();
 
 	printf("        ");
@@ -419,7 +424,7 @@ static void debug_cte(
 			if (type[i * var_count + j])
 				printf("%3lld ", 
 					value[i * var_count + j]);
-			else 	printf("\033[90m%3llx\033[0m ", 
+			else 	printf("\033[90m%3lld\033[0m ", 
 					value[i * var_count + j]);
 		}
 		putchar(9);
@@ -431,7 +436,7 @@ static void debug_cte(
 					copy_of[i * var_count + j], 
 					copy_type[i * var_count + j]
 				);
-			else 	printf("\033[90m%3llx(%llu)\033[0m ", 
+			else 	printf("\033[90m%3lld(%llu)\033[0m ", 
 					copy_of[i * var_count + j], 
 					copy_type[i * var_count + j]
 				);
@@ -440,7 +445,7 @@ static void debug_cte(
 
 		printf("def %3llu: ", i);
 		for (nat j = 0; j < var_count; j++) {
-			if (def[i * var_count + j] != (nat) -1)
+			if ((int64_t) def[i * var_count + j] >= 0)
 				printf("%3lld ", 
 					def[i * var_count + j]
 				);
@@ -623,14 +628,12 @@ process_file:;
 	nat stack[4096] = {0};
 	nat stack_count = 1;
 	nat last_pc = (nat) -1;
-	nat bit_count[4096] = {0};
-	nat register_index[4096] = {0};
-	nat is_runtime[4096] = {0};
 
 	memset(def, 255, sizeof(nat) * var_count * ins_count);
 	memset(bit_count, 255, sizeof bit_count);
 	memset(register_index, 255, sizeof register_index);
 
+	//for (nat i = 0; i < var_count; i++) type[i] = 1;
 
 	while (stack_count) {
 		nat pc = stack[--stack_count];
@@ -661,9 +664,10 @@ process_file:;
 
 			const nat this_var = e; 
 
-			nat future_type = 0;
+			nat future_type = 1;
 			nat future_value = 0;
 			nat value_mismatch = 0;
+			nat future_value_was_set = 0;
 		
 			bool at_least_one_pred = 0;
 
@@ -687,8 +691,8 @@ process_file:;
 
 				const nat t = type[pred * var_count + this_var];
 				const nat v = value[pred * var_count + this_var];
-				if (t == 0) { future_type = 0; future_value = v; break; }
-				if (not future_type) { future_type = 1; future_value = v; } 
+				if (t == 0) { future_type = 0; future_value = 0; break; }
+				if (not future_value_was_set) { future_type = 1; future_value = v; future_value_was_set = 1; } 
 				else if (future_value != v) { value_mismatch = 1; } 
 			}
 
@@ -699,6 +703,7 @@ process_file:;
 					puts("invalid internal state"); 
 					abort(); 
 				}
+				printf("at_least_one_pred and value_mismatch\n"); getchar();
 				future_type = 0;
 
 			} else if (at_least_one_pred) {
@@ -739,8 +744,8 @@ process_file:;
 			}
 
 
-			const nat this_dest_type = type[pc * var_count + ins[pc].args[0]];
-			const nat this_source_type = type[pc * var_count + ins[pc].args[1]];
+			const nat this_dest_type = (ins[pc].imm & 1) or type[pc * var_count + ins[pc].args[0]];
+			const nat this_source_type = (ins[pc].imm & 2) or type[pc * var_count + ins[pc].args[1]];
 
 			if (ins[pc].visited < 2) goto skip;
 			if (not type[pc * var_count + this_var]) goto skip;
@@ -757,9 +762,12 @@ process_file:;
 			printf("fatal error: in CTK value changed   "
 				"during a RT instruction (?): promoting variable to RTK.\n"
 			);
-
 			printf("promoting this variable (\"%s\") to RTK.\n", variables[this_var]);
+
 			future_type = 0;
+
+			getchar();
+
 			skip:;
 
 
@@ -821,21 +829,49 @@ process_file:;
 			copy_of[pc * var_count + this_var] = future_copy_ref;
 			copy_type[pc * var_count + this_var] = future_copy_type;
 	
-			nat future_def = (nat) -1;
-	
+			nat future_def = (nat) -5;
+
+			//printf("[processing variable    this_var = %s   ]\n", variables[this_var]);
+
+			nat match = 0;
+
 			for (nat iterator_p = 0; iterator_p < pred_count; iterator_p++) {
+
 				const nat pred = preds[iterator_p];
 				if (not ins[pred].visited) continue;
+
 				const nat d = def[pred * var_count + this_var];
-				if (future_def == (nat) -1) future_def = d;
+
+				if (d == (nat) -1) { 
+					//printf("[pred = %llu]: breaking on first pred that had no def!\n", pred); 
+					future_def = (nat) -1; 
+					break; 
+				} 
+
+				if (future_def == (nat) -5) { 
+					//printf("found a FIRST PRED! inited to d=%lld...\n", d);   
+					future_def = d; 
+				}
+
 				else if (future_def != d) {
+
 					puts("fatal error: mismatch in definition index: "
-					"unable to track location of defintion "
-					"for this variable... aborting..."); 
+						"unable to track location of defintion "
+						"for this variable... aborting..."); 
+
+					printf("future_def = %lld, d = %llu\n", future_def, d);
+					printf("pred = %llu\n", pred);
+					printf("this_var = %llu\n", this_var);
 					abort(); 
+				} else {
+					match = 1;
+					//printf("future def match! (future_def(\"%lld\") == d(\"%lld\"))\n", future_def, d); 
 				}
 			}
-	
+			if (future_def == (nat) -5) future_def = (nat) -1;	
+
+			//printf("future_def = %lld\n", future_def);
+			
 			def[pc * var_count + this_var] = future_def;
 
 		} // for e 
@@ -1195,6 +1231,11 @@ process_file:;
 					printf("note: found CTK predecessor, with value %llu... setting def to setimm ctkv\n", v); 
 					if (not type[pc * var_count + this_var]) {
 
+						printf("NOTE: predcondition fired on true! not type[pc * var_count + this_var]\n");
+						printf("\tpc = %llu\n", pc);
+						printf("\tthis_var = %llu\n", this_var);
+						printf("\ttype[pc * var_count + this_var] = %llu\n", type[pc * var_count + this_var]);
+
 						const nat setimm_defined_on = def[pred * var_count + this_var];
 						printf("setimm_defined_on = %llu\n", setimm_defined_on);
 						//const nat ctk_value = 0;
@@ -1208,6 +1249,7 @@ process_file:;
 						if (this_def.op != set) abort();
 
 						ins[setimm_defined_on].args[1] = v;
+						ins[setimm_defined_on].imm |= 2;
 						printf("reassigned the initial value for ctk setimm def at ins[%llu] to value #%llu\n", 
 							setimm_defined_on, v
 						); 
@@ -1241,7 +1283,7 @@ process_file:;
 	ins_count = final_ins_count; }
 
 
-
+/*
 	for (nat pc = 0; pc < ins_count; pc++) {
 		if (not ins[pc].visited) continue;
 		//print_instruction_window_around(pc, 1, "CF SIMPLIFY: on this ins");
@@ -1261,7 +1303,7 @@ process_file:;
 			ins[pc].visited = 0; 
 			continue; 
 		} else { 
-			puts("keeping at instruction!!!");  
+			puts("keeping instruction!!!");  
 			getchar(); 
 		}
 
@@ -1275,6 +1317,16 @@ process_file:;
 		puts("[done]");
 		getchar();
 	}
+
+
+	{ nat final_ins_count = 0;
+	for (nat i = 0; i < ins_count; i++) {
+		if (not ins[i].visited) continue;
+		ins[final_ins_count++] = ins[i];
+	}
+	ins_count = final_ins_count; }
+
+*/
 
 
 	puts("final optimized instruction listing:");
