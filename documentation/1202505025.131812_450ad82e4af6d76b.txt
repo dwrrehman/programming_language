@@ -1,0 +1,328 @@
+1202505025.132834
+
+oh my gosh i think i figured out how to do cte  without lu      to detect lu but not do it!!
+
+its all about 
+
+
+		the values of      ct variables at a rt instruction??
+
+
+
+wait crap this doesnt workkk becuase what if the rt isntruction doesnt depend on the iterator though... hmmmm crapppp 
+
+
+
+
+hmmmmmm
+
+
+
+so closeeee
+
+
+ie, i'm imagining this code:
+
+	rt r 0 set i 0
+	at loop
+		add r 101
+		add i 1 lt i 0011 loop
+
+
+
+
+
+the equivalent C code roughly would be:
+
+	volatile int r = 0;
+	for (int i = 0; i < 12; i++) {
+		r += 5;
+	}
+
+
+
+which, yeah is roughly comparable in term sof readability lol   
+
+
+
+
+but yeah, 
+
+	here, you can see that 
+
+		basically we don't care about i at all          instead we are adding the same kinda value to  r   
+
+		(lets say that the  add r 101   was more complicated than just an add lol... )
+
+
+
+
+
+		but yeah, like,   here, we don't care about  i  at all       at the   add r 101  instruction 
+
+
+		instead, its acutally the trip count that is ctk 
+
+
+
+
+and we are trying to do that runtime statement a certain number of times. 
+so we can't just use i havin different values at the time of a rt statement?
+
+		OR WAIT 
+			WHAT IF WE CANNNNN
+
+ 
+
+
+
+	rt r 0 set i 0
+	at loop
+		add r 101
+		add i 1 lt i 0011 loop
+
+
+
+OH MY GOSH
+	okay yes 
+
+			so consider this:
+
+
+				if we know that  a given variable is runtime known at a given instruction, 
+
+
+				and we know that    that variable is modified as part of this instruction, 
+
+
+							(the rtk one,  the destination, i mean)
+
+
+
+				then,
+
+					if we see that a variable is changing acrosssss    instances    of this instruction, 
+
+
+
+						THENNNN
+
+
+							we knowwww that      the variable which is changing  
+
+
+
+
+									MUST BE     RTK
+
+
+
+
+
+	i think??
+
+
+		i feel like that actually MIGHTTT work   oh my goshhh
+
+
+
+thats literally geniusss
+
+
+
+
+we'll have to see if that actually works 
+
+
+
+but yeah the basic idea is that 
+
+	if we see a ctk variable chnaging over time,   the assumption    the   basis   for   that  is loops, obviously, 
+	that would never happen except for when youre in a ct loop! 
+
+
+
+and thus, 
+			if we see that   CTK changeeeee    happening at a    RTK instruction, which modifies an RTK variable, 
+
+				THENNNN we know that the changeeeee of that variable should be "promoted" to RTK 
+
+
+						well, really, demoted really lol        but yeah 
+
+
+
+
+
+
+	AMAZINGGGG
+
+
+
+OH MY GOSHHHH     that simplifies so much!!!!!   we can just use local rules stilll!!!!!!
+
+
+
+			we don't need to do like   any sort of loop analysis 
+
+
+
+			we are just leveraging the way that        loops CAUSEEEEE    CTK changes over time!!!!
+
+
+
+
+
+	absolutely brilliant!!
+	wowww
+
+
+
+					ie, you see the instruction once 
+
+			and it has one value 
+
+						and then you see it again 
+
+
+
+						and it has a different value 
+
+
+
+
+
+
+
+			thats what i mean by   CTK changes over time 
+
+
+	its not that the      "add i 1"  statement is at fault lol 
+
+		thats wouldnt trigger anything special lol 
+
+
+
+
+
+	but really, its about the fact that
+
+		
+
+
+
+			we saw the       RTK     add r 101   instruction once 
+				when i had the value 0
+
+
+
+				and then   we saw it AGAINNNN    but now with   i having the value 1 
+
+
+				and so the only POSSIBLEEEEEE thing that we could ever conclude 
+
+
+						is that we actually this variable     i 
+
+
+						is actually part of a    ctk loop of some sort 
+
+						because how else would be able to execute the same instruction multiple times, but with i having a different value!?!?!?!?!?
+
+
+
+
+
+									like, thats literally the only explanationnnn
+
+
+
+			wowwww
+
+							and so, 
+
+
+
+
+						when we see that just by noting that   difference in  value 
+
+
+							of a ctk variable,   (which we would detect, at the merge, or like, the recombination of predecessor information before arriving at this rtk instructioin 
+
+								)
+
+
+
+							like, we would detect that this ct variable now has a different value than the previous time we saw it 
+
+
+
+							(note    a ctk variable can easily change from   rtk to ctk+val
+							
+
+								but it cannot change from     ctk+val1  to ctk+val0
+
+
+							)
+
+						
+
+						and so, if we see that the variable has a different value now,  on the secondddd time we are seeing this instruction, 
+
+							YETTTT we know that the instruction which we are looking at 
+
+									NEEDDDS TO BE EXECUTED AT RUNTIMEEE
+
+
+
+									(from our point of view, based on the current value of the destination variable at this point)
+
+
+							THENNNNN   we know to actually  promote i to runtime known!
+
+
+
+
+						and THENNNNN thatttttttt will trigger the loop to not be deleted, of course! 
+
+
+
+
+
+
+
+
+
+
+	wow
+
+
+	this is beautiful 
+
+
+	oh my gosh 
+
+
+
+
+
+
+
+
+this is literally beautifulllll
+
+
+
+
+	
+
+
+
+
+
+
+
+
+
+
+
