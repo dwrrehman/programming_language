@@ -1,7 +1,8 @@
 (a prime number counting program 
- that executes at compiletime! 
+ that executes at runtime! 
  written on 1202504104.152442 by dwrr)
 
+rt n 0
 set n 0001
 
 set i 0
