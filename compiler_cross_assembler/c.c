@@ -969,6 +969,23 @@ process_file:;
 
 
 
+										so the rtk instructoin is below is, but   at the      at ins   we need to already know that the variable is rtk. hmmmm. 
+
+
+												even though we didnt change anythingggg   or use the variable in an rtk ins yet
+
+													ANDDD we reached this statement via  ctk cf.. 
+
+
+
+
+
+												is this even possible???
+
+
+
+
+
 
 
 
