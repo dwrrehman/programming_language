@@ -24,8 +24,7 @@ set a0 11 at lr do mymacro
 
 set a0 01 at lr do mymacro
 
-
-
+set a0 0 at lr do mymacro
 
 
 halt
