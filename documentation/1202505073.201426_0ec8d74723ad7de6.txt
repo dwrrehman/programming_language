@@ -1,0 +1,621 @@
+1202505073.201257 
+
+i think i may have figured out how we are going to solve the bug actually!!!
+
+
+it all has to do with the stack!!!
+
+
+		and detecting when we have merged runtime control flow!!!!
+
+
+
+
+okay so 
+
+	basically
+
+
+			imagine this 
+
+
+
+
+
+				when we see a runtime branch, we are all on the same page that 
+
+				we always push    two elements to the stack 
+
+							one of which  we process immedaiately, 
+
+								the other of which, we process later lol 
+
+
+
+
+
+			and so,   we essentially do a depth first search through the possible runtime branches in the program!
+
+
+						using the stack.  so yeah.  that makes sense, 
+
+	now 
+	
+
+	
+				the cool part   is that 
+
+
+
+
+
+						if we actaully have a   READ of a variabe   after a runtime control flow merge 
+
+
+							then now we don't know the value of the variable
+
+
+
+
+				and we can detect the control flow merge, i thinkkk becuase of the fact that 
+
+
+
+
+
+			at the time of doing the   RT branch, whatever the state of the stack is, 
+
+				then thatsssss what we expect to be also the case   at the merge of the RT CF
+
+
+
+
+
+
+
+			hmm
+
+
+
+
+
+		so yeah 
+			in theory we could like     make our context     be   compiletime known  again  after that merge happens?? hmmm
+
+
+
+
+
+	its interestinggg
+
+
+i dunno... 
+
+
+	it kinda feels like we need to completely redo how we are actually   traversing through the program.. hmmmm
+
+
+		at least, it feels like   the way we are doing ct execution, is odd... hmmmmm
+
+
+
+
+
+
+
+
+here is the code that we have been working with, of course:
+
+the code that triggered this whole problem
+
+
+
+
+(testing rt cf merging on a variable definition 1202505047.212712 dwrr)
+
+rt a 0
+
+lt a 001 else 
+
+	set X 11
+
+do done at else 
+
+	set X 101
+
+at done
+
+add a X
+
+
+
+
+
+
+
+
+
+
+rt a 0
+lt a 001 else
+	set X 11
+do done at else
+	set X 101
+at done
+add a X
+
+
+
+
+
+
+
+i do know for a fact that          rematerialization actually needs to happen, i think? hmmmm      yeah 
+
+	becuase like, just becuase a variable is a constant, doesnt mean that
+
+		the set statement is uselessssss
+
+
+				the set statement might be required 
+
+					if we then use the variable in a runtime like way lol 
+
+hmmmmm
+
+
+
+
+
+
+gosh 
+
+		literally 
+
+
+		like the more i think about this, the more i just want to make all variables compiletime known unless otherwise specifieddddd
+
+		hmmmmmmmm
+
+
+
+
+
+	gosh 
+
+	it just feels so incredibly complexxxx
+
+
+
+
+
+but i know we have to work through this, i think because of      copy propagationnnnn    thats a super important optimiztaion to get right 
+
+
+	and it takes the exactttt same form as the compiletime analysis reallyyyy     so yeah it makes sense to work through the compiletime analysis then lol
+
+
+
+
+hmm
+
+
+	so yeah 
+
+
+its interestinggg
+
+
+
+
+
+
+
+
+
+
+
+
+
+orrr we could make things runtime known, unless otherwise specified??  hmm i mean maybe that would be easier idk... hmmmm
+
+
+
+		its interestinggg
+
+
+
+
+
+
+
+
+
+hmmm
+
+
+
+
+
+
+
+like, the thing is,  i feel very certain about mostttt of the local rules that we have come up with in the cte stage, 
+
+
+		including:
+
+			1. if a variable has all compiletime known predecessors of the same value, 
+					we simply transfer that value over, 
+
+						(ie,  all ctk -> ctk)
+
+			2. if a variable has at least one runtime known predecessor,
+					we make the value at this instruction   rtk. 
+
+						(ie,  at least one rtk -> rtk)
+
+
+			3. if we see a variables value changed since we last saw this instruction, 
+					and this instruction is guaranteed to be executed at runtime, 
+					then we know to promote the ctk variable that changed to rtk. 
+
+						(ie, "banning loop unrolling!")
+
+
+			4. if we see mulitple different ctk values on our predecessors, 
+
+					then we merge them in the following way:
+
+
+					4.1. if we can find a CTK path from each predecessor to the beginning of the program, then we know this merge point is happening at compiletime, and thus we can merge the values by taking the last_pc predecessors's value, thus resolving the value mismatch. 
+
+					4.2  if, for at least one predecessor, we are not able to find a completely CTK path back to the start of the program, then we know that we cannot merge the values here, based on the predecessors. we know that we must instead promote this variable to rtk instead,   instead of using the ctk values we were given. 
+
+
+
+
+
+
+
+
+
+
+
+
+
+	WOW!!
+		wait!
+
+
+
+			i think we just outlined the solution to this problem!!! :O
+
+
+
+
+			wow that was kinda easy lol 
+
+		i dunno if this solution actually works in general    but its worth a shot!!!!
+
+
+
+
+	its all about just   trying to find a   fully CTK known path  back to the start of the program lol 
+
+			ie, the first instruction   ie, pc = 0   !!!!
+
+
+	if we can make it allll the way back to the begining of the program, just using CTK branches/CF 
+
+		then we know that this    data flow and   control flow   merge point      isnt RTK 
+
+			its CTK! 
+
+
+		NICEEE
+
+
+okay 
+
+
+
+
+
+
+this coulddddd work 
+
+
+
+
+
+i'm not reallyyyy 100 percent sure if its like     a fully general solution, but we'll just try it out and see if it ever fails LOLLL
+
+
+
+should be quite interestinggg
+
+
+
+yayyyy
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+note!
+
+
+	the code to be able to      compute if a path is fully CTK allll the way back to  ins #0
+
+
+		is simply:
+
+			follow predeccessors,  doing a depth first var-ary tree/graph search, 
+				ignoring nodes you have already visited,     and keep searching until:
+
+
+				1. you arrive at a runtime known branch (of which, the fact you used a predecessor to get here, means that this path is not ctk anymore lol, if you were to continue going backwards)
+
+						(when you find this, you just discard it, and continue popping off the stack, checking pred's. if the stack count is now empty, you return "FAILURE: NO CTK PATH to INS #0 FOUND.".)
+
+
+
+
+				2. you find the instruction with index 0,  ie, the start of the program. (note: this instruction has no predecessors)
+
+
+					(if this happens, you return "SUCCESS: FOUND CTK PATH TO INS 0.")
+
+
+
+
+
+
+	so yeah! 
+
+	simple as thatttttt
+
+
+	it shouldnt be that bad at all to do this path searching thing lol 
+
+
+
+	its quite the operation that we need to do lol... every single time a value changes in the program........ 
+
+
+		hmmmm
+
+
+
+	yeahhhhhhhhhh
+
+				this way of running a program at compiletime   is    hugelyyy inefficient lolll 
+
+				but its okay lol         thats not really that improtant 
+
+
+		and like, i'm sure that it could be sped up probably lol   if i were to optimize the compiler a bit more lol 
+
+				and lets say, cache as much information as possible lollll 
+			but yeah anywaysss
+
+
+
+		
+
+
+
+
+
+i think we have a solution to this problem honestly!   lets try coding it uppppp 
+
+
+
+gosh this is going to be fun lollll
+
+
+
+
+
+
+WAIT
+
+	CRAP
+		hold on 
+
+
+
+
+it doesnt handle something.... 
+
+
+something very importantttt
+
+
+very very very very impotrant
+
+
+
+
+
+we don't want to be looking for instruction 0!!!!
+
+
+		we want to be looking for the DEFFFFF     the FIRST CTK VALUE    DEF
+			for the variable that changed lol. 
+
+
+
+			THATSSSS what we are trying to find right now.    when we are looking backwards like this lol. 
+
+
+
+
+	so yeah! 
+		NICEEEEE
+					so for example, 
+
+
+
+
+
+
+	in this code, 
+
+	we would walk backwards   starting from the "at done"   (the CTK data/control flow merge point!)
+	and we could walk backwards until we find the set?... no wait... we can't do thatttt though... hmmm
+		we need to do it from the start of the executable, reallyyyyy hmmmmmm crapppppp
+
+
+
+		rt a 0
+		lt a 10 else 
+			set x 1
+		do done at else 
+			set x 0
+		at done		
+		add a x
+
+	
+
+
+becuase like, what i'm seeing is that, we could in theory do this:
+
+
+
+
+
+	
+	rt a 0 
+	lt a 10 else 
+		set sum 0
+		set i 0
+		at loop
+			add sum i
+			add i 1
+			lt i 0101 loop
+		sub a count
+	at else 						
+
+
+
+
+
+
+	see!?!?!?!
+
+			see how we are like   conditionally doing this     compiletime known  looppp
+
+			
+					on a    runtime known context,    but all uses of this   count variable  
+						for example,   at the   "sub a count"
+
+							instruction,        are actually CTK!!!
+
+
+		like,      count is totally statically known! 
+
+	hmmm
+
+
+
+
+
+
+
+
+
+
+soooo thatssssss why we need to actually    trace   the uses     or  data merges    only locallyyyyy  
+
+			back to the definitions,   
+		
+
+
+	ie, we cant go back to   instruction 0 lol
+
+hmm
+
+
+becuase in this example, if we tried to see if we have a compiletime known value starting from instruction 0,  then we'd seee that we don't lol 
+
+		yet we totally do lol 
+
+
+
+
+hmm wait!!!
+
+	OH MY GOSHHH
+
+
+
+	THATS SO COOLLL
+
+
+wait 
+
+
+
+
+
+		see how   in our if statement exapmle, we had:
+
+
+
+
+
+
+
+
+		rt a 0
+		lt a 10 else
+			set x 1
+		do done at else
+			set x 0
+		at done
+		add a x
+
+
+
+	
+see how,  if we were to actually trace backwards from this instruction, we'd actually see twoooo definitions?  
+
+
+hmm
+
+		does that play into this at all???
+hmmmmm
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

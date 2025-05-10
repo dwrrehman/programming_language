@@ -1,0 +1,330 @@
+flushing out the execution semantics of the ct/rt part of the language:
+---------------------------
+
+
+the fact is, this code must be executed at compiletime:
+
+
+	set x 101
+	set y 001
+
+	add x y 
+
+	sc 1 x 0 0 0 0 0              <----- lets say this is a sc to print x. 
+
+						x should be inlined to be a constant here. 
+
+
+
+
+
+
+
+
+	ie, constant propation ISSSS ct eval. 
+
+
+
+
+
+
+
+however, theres one difference.  
+
+we neeedddd to execute loops. 
+
+and this is not usually something that is done for constant prop. 
+
+
+
+anyways, i'll come back to this. this is the hardest part of this whole thing.  but we'll get there. 
+
+
+first, lets identify when things would be FORCEDDD to be runtime known. 
+
+
+
+
+
+
+
+currently, its going to be simply variables which were given an "ri" or "bc" treatment, and loads.
+
+
+ie, 
+
+	ri x 0001                x now lives in hardware register 8, and is guaranteed to be runtime known. 
+
+
+	bc x 000001		x is now 32 bits wide, and is guaranteed to be runtime known. 
+
+
+
+
+also, note, i'm thinking of merging these two instructions... into one instruction which gives both the register number, and the bit count. then, you just give negative one if you don't want to set either of them. 
+
+but if you give negative one for both, then we know that the variable is runtime known, but neither information was specified lol. 
+
+
+so yeah. 
+
+
+i kinda wish we could just use 0's for both... but that doesnt work for the register index though... hmmmm soo yeah idk. 
+
+we'll probably collapse these two instructions honestly though. lol that just makes sense to do. 
+
+
+
+so we have:
+
+
+
+	rt x b r 
+
+
+
+and then if you give:
+
+	b == 0 :      x is compiletime known
+
+	b == 2^64 :   x is runtime known
+
+	b < 2^64 :    x is  now at runtime and b bits wide.
+
+	r < 2^64 :    x now lives in register r
+
+	r == 2^64 :   x lives in some hardware register
+
+
+
+
+
+
+cool! i like that lol. thats fairly easy still 
+
+
+
+
+
+
+
+
+
+
+
+
+
+okay so now, 
+
+	we are going to try to flush out the execution semantics, given that loads and "rt" instructions are the only way of getting some runtime known values lol.... 
+
+
+
+hmmm wait though.. 
+
+
+i feel like we need to model system calls returning values though... hmmmm
+
+idk.... 
+its interesting
+
+
+
+actually....   to be honest 
+
+
+a completely different    perhaps    even better way of doing system calls, 
+
+
+	is just to expose the system call instruction directly! 
+
+
+
+ie, 
+
+	to just have 
+
+				sc             take zero arguments!
+
+	and then you are expected to put the registers where you need to put them! 
+
+		ie, in like, hardware registers lol 
+
+
+			and the usage might look something like 
+
+
+
+		standard library defs: (specific to macos-arm64)
+
+				rt sc_arg0 64 0
+				rt sc_arg1 64 1
+				rt sc_arg2 64 2
+
+				rt sc_number 64 16
+
+				set system_exit 1
+				set system_fork 2
+				set system_read 3
+				set system_write 4
+
+
+		user level code:
+
+			set sc_arg0 stdout 
+			la sc_arg1 string_begin
+			set sc_arg2 string_length
+			set sc_number system_write 
+			sc 
+
+			
+
+
+
+	pretty cool right??
+
+
+	the way this works is that 
+
+
+		now, the  rt instruction  ACTUALLY DOESSS allow the inputs and outputs of system calls to actually be runtime known! 
+
+
+				even though we don't even actually need to like   have each system call memorized lollll 
+
+
+
+
+				now, the downside of this, is that the compiler now has to be aware of which values in these dedicated registers  are... "alive"  at the time of the sc. 
+
+						thats the only way its going to be able to figure out the true dependancies of the sc lol. 
+						but yeah, its totally stil possible i think!!
+
+
+
+
+
+niceee
+
+
+
+		to be honest i don't know why we didnt go with this approach to begin with lol... its quite simplifying and beautiful honestlyy lol 
+
+
+
+
+hmm
+
+
+interesting
+
+
+
+anywaysss
+
+
+i'll make that change to the language nowww
+
+
+
+from this point on though,   we should just be able to model    rt    and loads      as the thing that causes variables to be runtime known. 
+
+
+		and then, from there, we just need to keep track of data dependancies lol. hmmmm. and yeah. thats the hard part lol. 
+
+			but we'll get thereeee
+
+
+
+lets make this sc and rt change to the languageeee
+
+yay
+
+
+
+
+1202504093.175928
+
+yayyy its going well so farrrr
+
+about to test out ct loops and how the compiler deals with ct and rt branches... its gunna be interestingggg
+
+
+
+actually!!!
+
+
+i just realizeddd
+
+
+i think we need to make the compiler assume that everything is compiletime unknown proven otherwise???
+
+
+	i think thats the stance it actually need to takeeee
+
+
+interestinggg
+
+
+basically it makes it so that instructions are always eagerly evaluated
+
+
+	but then  like, we rely on the user   giving     "rt x 0"     to make something runtime known!!
+
+
+	interestingggg wowwww
+
+
+hmm
+
+
+okay
+
+
+this could workkkk
+
+
+
+oh! and then also, you can set the regsiter indexes, by setting bit 63 in the bitcount you give lol. its kinda a weird aspect of this, thaht simplified the "rt" instruction lol 
+
+
+
+so for example, 
+
+
+	rt syscall_arg1 1000_0000__0000_0000__0000_0000__0000_0000__0000_0000__0000_0000__0000_0000__0000_0001
+
+		(the above instruction makes the syscall_arg1 variable have a hardware register index 1 lollll...)
+
+
+	rt syscall_arg1 1
+
+		(the above instruction makes arg1 instead be one bit wide, in some hardware register lol.)
+
+
+
+			(you can call rt multiple times for a given variable, to supply both of these info's if you need to!
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

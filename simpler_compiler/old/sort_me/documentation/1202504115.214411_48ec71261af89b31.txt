@@ -1,0 +1,1243 @@
+further ideas for instructions selection!
+---------------------------------------------
+1202504115.213137
+
+
+
+	i think i realized a bit more about instruction selection, which should help to simplify it!
+
+
+			i havent quiteeee realized the solution to the control flow aspect of it
+
+
+				butttt i think i do have a new idea that could help simplify things thoughhh
+
+
+
+
+			basically, the idea is to actually    FIRSTTTTTTTT do     copy-propgatation!!!
+
+
+			ie, 
+
+
+
+				the purpose of copy progagation, is  in part,     to minimize the number of registers used, 
+
+
+					to the point of actually being able to reliably and simply look for a very predefined instruction selection pattern of language isa instructions for a given hardware instruction! 
+		we don't have to consider all possible permutationsss of possible ways we could form that instruction!
+
+
+
+	because really all that will amount to,   is possibly exchanging the operands, 
+
+			or doing extraneous copies!!!
+
+			like, if we really be real here, thats all thats happening in those other versions lol 
+
+
+
+			exchanging operations which are commutitive 
+
+
+
+
+			and inserting copies/set's   where they arent neccessary. 
+
+
+
+
+
+
+	thats really all you  CAN do   to modify a particular   DAG pattern, to make it something else    (and then, we are scared! that we won't recognize this new pattern, even though its functionally equivalent to the old one)
+
+
+	
+
+
+
+
+
+like, 
+
+
+		if we just do   a canonicalization of the instructions ordering 
+
+		
+
+		andddd do copy-propagation, 
+
+
+
+
+
+								thennn!?!?!?!?
+
+
+
+
+						like, that litrally solves both of those issues lol
+
+
+
+
+
+			
+
+			no crazy dag-based ins sel implementation neccessary lol... 
+
+
+
+	soooo uhhh
+
+
+
+
+	yeah 
+
+
+
+				we can litrallyyyy just use the implementation that we derived, 
+
+
+
+
+
+in fact, 
+
+
+
+	this has a huge advantage now, 
+
+
+	we have a strong guarantee      of what pattern of given lang isa  ins   will result in a given mi!
+
+
+			ie, we can now give the user    a particular pattern, and say,   
+
+
+
+			yes,   if you want this MI     to be generated, 
+
+
+					you need to write code   in thissssss pattern.
+
+
+
+				simple as that! 
+
+
+
+
+
+			its actually shockingly simple  of a solution, and shockingly powerfullll of one tooo 
+
+
+
+			it just 
+
+
+
+
+
+
+
+
+
+		it critically 
+
+
+
+		and i mean     criticallyyyyy      relies    on the notion of    canonicalization. 
+
+
+
+
+
+				exchanging commutitive opertions,   to always appear in a very certain form. 
+
+
+
+
+			
+
+
+	now, 
+
+
+
+
+			arguably,  we don't even needddd to actually require this canon stage, 
+
+
+	rather, we can just    have  TWO patterns    be the valid pattersn   that generate this instruction lol. 
+
+
+
+	like, theres only two ways to form an add loll               b + a          or  a + b 
+
+
+
+
+		and so 
+				yeah we can just write out both of those patterns in the compiler lol.  its not that bad. 
+
+
+
+
+	okay!!
+
+
+wow
+
+
+
+so
+	
+
+
+
+			oh my gosh 
+
+
+
+
+
+
+... 
+
+
+
+							did this solution just inadvertently  
+
+
+
+						solve the control flow problem??????
+
+
+
+
+
+
+
+
+		because like now,  
+
+
+
+
+
+	i feel like its kind of at the tip of our tongue nowww
+
+
+
+
+
+			like, 
+
+
+
+
+
+
+just to reiterate our previous way of doing instruction selection, 
+
+
+		(which i am goingt o mostlyyyy mirror,   
+
+
+		but change in the ways of:
+
+
+		1. i am going to write out both possible commutiive cases for every pattern. (ie, for adds, theres two possible patterns, and we will wirte out both of these patterns, in the compilers source. ie, expecting either one of them   to validly translate  into a addsr_lsl)
+
+
+		2. i am going to requireeee   that   copy prop   actually happens.  
+
+			this is  a neccesary piece of functionality   for our approach to ins sel  
+
+				to actually work!   its critical.      i think. 
+
+
+
+
+
+		3. i am going to ditch the way i was doing csel and ccmp back then. i have a new idea for how to tackle these lol. 
+
+
+
+
+
+but yeah, lets just add the code into this tb      for   our previous ins sel  
+
+	because that will be very very very relevant right now 
+
+
+
+
+because most of the imlpementation, and approach is the same.    apart from the differences, 1, 2, and 3,  which i laid out above. 
+
+
+
+heres the previous ins sel implementation, unfinished, of course. but we got pretty far lol 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+			
+
+
+	for (nat i = 0; i < ins_count; i++) {
+
+		if (ignore[i]) continue;
+
+		if (selected[i]) {
+			printf("warning: [i = %llu]: skipping, part of a pattern.\n", i);
+			continue;
+		}
+
+		const nat op = ins[i].op;
+		const nat arg0 = ins[i].args[0];
+		const nat arg1 = ins[i].args[1];
+
+		print_instruction_index_selected(ins, ins_count, names, name_count, ignore, i, "SELECTION ORIGIN", selected);
+		printf("selecting from i #%llu\n", i);
+		print_instruction(ins[i], names, name_count); puts("");
+		//getchar();
+
+		if (op == set) { 
+			const nat i1 = locate_instruction(si_imm, arg0, 0, 1, 0, i + 1, ins, ins_count, names, name_count, ignore);
+			if (i1 == (nat) -1) goto csellt_bail;
+			const nat i2 = locate_instruction(set, 0, 0, 0, 0, i1 + 1, ins, ins_count, names, name_count, ignore); 
+			if (i2 == (nat) -1) goto csellt_bail;
+			const nat i3 = locate_instruction(lt, 0, arg0, 0, 1, i2 + 1, ins, ins_count, names, name_count, ignore);
+			if (i3 == (nat) -1) goto csellt_bail;
+			if (use_count(ins, ins_count, arg0) != 3) goto csellt_bail;
+			if (not ((ins[i3].gotos[1] == i3 + 1 and ins[i3].gotos[0] == i3 + 2) or 
+				 (ins[i3].gotos[0] == i3 + 1 and ins[i3].gotos[1] == i3 + 2))
+			) goto csellt_bail;
+			if (not (ins[i3 + 1].op == set and ins[i3 + 1].args[0] == ins[i2].args[0])) goto csellt_bail;
+			
+			struct instruction new = { .op = subssrlsl };
+			new.args[0] = 0;
+			new.args[1] = ins[i3].args[0];
+			new.args[2] = arg1;
+			new.args[3] = ins[i1].args[1];
+			mi[mi_count++] = new;
+			struct instruction new2 = { .op = csel };
+			new2.args[0] = ins[i2].args[0];
+			new2.args[1] = ins[i3 + 1].args[1];
+			new2.args[2] = ins[i2].args[1];
+			new2.args[3] = ins[i3].gotos[0] == i3 + 1 ? lt : ge;
+			mi[mi_count++] = new2;
+			selected[i] = 1; 
+			selected[i1] = 1; 
+			selected[i2] = 1; 
+			selected[i3] = 1; 
+			selected[i3 + 1] = 1;
+			goto finish_mi_instruction;
+		} csellt_bail:
+
+		if (op == set) { 
+			const nat i1 = locate_instruction(si_imm, arg0, 0, 1, 0, i + 1, ins, ins_count, names, name_count, ignore);
+			if (i1 == (nat) -1) goto cseleq_bail;
+			const nat i2 = locate_instruction(set, 0, 0, 0, 0, i1 + 1, ins, ins_count, names, name_count, ignore); 
+			if (i2 == (nat) -1) goto cseleq_bail;
+			const nat i3 = locate_instruction(eq, 0, arg0, 0, 1, i2 + 1, ins, ins_count, names, name_count, ignore);
+			if (i3 == (nat) -1) goto cseleq_bail;
+			if (use_count(ins, ins_count, arg0) != 3) goto cseleq_bail;
+			if (not ((ins[i3].gotos[1] == i3 + 1 and ins[i3].gotos[0] == i3 + 2) or 
+				 (ins[i3].gotos[0] == i3 + 1 and ins[i3].gotos[1] == i3 + 2))
+			) goto cseleq_bail;
+			if (not (ins[i3 + 1].op == set and ins[i3 + 1].args[0] == ins[i2].args[0])) goto cseleq_bail;
+			
+			struct instruction new = { .op = subssrlsl };
+			new.args[0] = 0;
+			new.args[1] = ins[i3].args[0];
+			new.args[2] = arg1;
+			new.args[3] = ins[i1].args[1];
+			mi[mi_count++] = new;
+			struct instruction new2 = { .op = csel };
+			new2.args[0] = ins[i2].args[0];
+			new2.args[1] = ins[i3 + 1].args[1];
+			new2.args[2] = ins[i2].args[1];
+			new2.args[3] = ins[i3].gotos[0] == i3 + 1 ? eq : ne;
+			mi[mi_count++] = new2;
+			selected[i] = 1; 
+			selected[i1] = 1; 
+			selected[i2] = 1; 
+			selected[i3] = 1; 
+			selected[i3 + 1] = 1;
+			goto finish_mi_instruction;
+		} cseleq_bail:
+
+		if (op == set) { 
+			const nat i1 = locate_instruction(mul, arg0, 0, 1, 0, i + 1, ins, ins_count, names, name_count, ignore);
+			if (i1 == (nat) -1) goto msub_bail;
+			const nat i2 = locate_instruction(set, 0, 0, 0, 0, i1 + 1, ins, ins_count, names, name_count, ignore); // TODO: BUG:   s must be != to d.
+			if (i2 == (nat) -1) goto msub_bail;
+			const nat i3 = locate_instruction(sub, ins[i2].args[0], arg0, 1, 1, i2 + 1, ins, ins_count, names, name_count, ignore);
+			if (i3 == (nat) -1) goto msub_bail;
+			if (use_count(ins, ins_count, arg0) != 3) goto msub_bail;
+			
+			struct instruction new = { .op = msub };
+			new.args[0] = ins[i2].args[0];
+			new.args[1] = ins[i1].args[1];
+			new.args[2] = arg1;
+			new.args[3] = ins[i2].args[1];
+			mi[mi_count++] = new;
+			selected[i] = 1; selected[i1] = 1; selected[i2] = 1; selected[i3] = 1;
+			goto finish_mi_instruction;
+		} msub_bail:
+
+		if (op == set) {
+			const nat b = locate_instruction(mul, arg0, 0, 1, 0, i + 1, ins, ins_count, names, name_count, ignore);
+			if (b == (nat) -1) goto madd_bail;		
+			const nat c = locate_instruction(add, arg0, 0, 1, 0, b + 1, ins, ins_count, names, name_count, ignore);
+			if (c == (nat) -1) goto madd_bail;
+						
+			struct instruction new = {.op = madd};
+			new.args[0] = arg0;
+			new.args[1] = ins[b].args[1];
+			new.args[2] = arg1;
+			new.args[3] = ins[c].args[1];
+			mi[mi_count++] = new;
+			selected[i] = 1; selected[b] = 1; selected[c] = 1;
+			goto finish_mi_instruction;
+		} madd_bail:
+
+		if (op == set) {
+			const nat b = locate_instruction(si_imm, arg0, 0, 1, 0, i + 1, ins, ins_count, names, name_count, ignore);
+			if (b == (nat) -1) goto addsrlsl_bail;		
+			const nat c = locate_instruction(add, arg0, 0, 1, 0, b + 1, ins, ins_count, names, name_count, ignore);
+			if (c == (nat) -1) goto addsrlsl_bail;
+			struct instruction new = { .op = addsrlsl };
+			new.args[0] = arg0;
+			new.args[1] = ins[c].args[1];
+			new.args[2] = arg1;
+			new.args[3] = ins[b].args[1];
+			mi[mi_count++] = new;
+			selected[i] = 1; selected[b] = 1; selected[c] = 1;
+			goto finish_mi_instruction;
+		} addsrlsl_bail:
+
+		if (op == set) {
+			const nat b = locate_instruction(si_imm, arg0, 0, 1, 0, i + 1, ins, ins_count, names, name_count, ignore);
+			if (b == (nat) -1) goto subsrlsl_bail;
+			const nat c = locate_instruction(sub, arg0, 0, 1, 0, b + 1, ins, ins_count, names, name_count, ignore);
+			if (c == (nat) -1) goto subsrlsl_bail;
+			struct instruction new = { .op = subsrlsl };
+			new.args[0] = arg0;
+			new.args[1] = ins[c].args[1];
+			new.args[2] = arg1;
+			new.args[3] = ins[b].args[1];
+			mi[mi_count++] = new;
+			selected[i] = 1; selected[b] = 1; selected[c] = 1;
+			goto finish_mi_instruction;
+		} subsrlsl_bail:
+
+		if (op == set) {
+			const nat b = locate_instruction(si_imm, arg0, 0, 1, 0, i + 1, ins, ins_count, names, name_count, ignore);
+			if (b == (nat) -1) goto orrsrlsl_bail;
+			const nat c = locate_instruction(or_, arg0, 0, 1, 0, b + 1, ins, ins_count, names, name_count, ignore);
+			if (c == (nat) -1) goto orrsrlsl_bail;
+			struct instruction new = { .op = orrsrlsl };
+			new.args[0] = arg0;
+			new.args[1] = ins[c].args[1];
+			new.args[2] = arg1;
+			new.args[3] = ins[b].args[1];
+			mi[mi_count++] = new;
+			selected[i] = 1; selected[b] = 1; selected[c] = 1;
+			goto finish_mi_instruction;
+		} orrsrlsl_bail:
+
+		if (op == set) {
+			const nat b = locate_instruction(si_imm, arg0, 0, 1, 0, i + 1, ins, ins_count, names, name_count, ignore);
+			if (b == (nat) -1) goto eorsrlsl_bail;
+			const nat c = locate_instruction(eor, arg0, 0, 1, 0, b + 1, ins, ins_count, names, name_count, ignore);
+			if (c == (nat) -1) goto eorsrlsl_bail;
+			struct instruction new = { .op = eorsrlsl };
+			new.args[0] = arg0;
+			new.args[1] = ins[c].args[1];
+			new.args[2] = arg1;
+			new.args[3] = ins[b].args[1];
+			mi[mi_count++] = new;
+			selected[i] = 1; selected[b] = 1; selected[c] = 1;
+			goto finish_mi_instruction;
+		} eorsrlsl_bail:
+
+		if (op == set) {
+			const nat b = locate_instruction(div_, arg0, 0, 1, 0, i + 1, ins, ins_count, names, name_count, ignore);
+			if (b == (nat) -1) goto udiv_bail;
+			struct instruction new = { .op = udiv };
+			new.args[0] = arg0;
+			new.args[1] = arg1;
+			new.args[2] = ins[b].args[1];
+			mi[mi_count++] = new;
+			selected[i] = 1; selected[b] = 1;
+			goto finish_mi_instruction;
+		} udiv_bail:
+
+		if (op == set) {
+			const nat b = locate_instruction(si, arg0, 0, 1, 0, i + 1, 
+					ins, ins_count, names, name_count, ignore);
+			if (b == (nat) -1) goto lslv_bail;
+			struct instruction new = { .op = lslv };
+			new.args[0] = arg0;
+			new.args[1] = arg1;
+			new.args[2] = ins[b].args[1];
+			mi[mi_count++] = new;
+			selected[i] = 1; selected[b] = 1;
+			goto finish_mi_instruction;
+		} lslv_bail:
+
+		if (op == set) {
+			const nat b = locate_instruction(add_imm, arg0, 0, 1, 0, i + 1, 
+					ins, ins_count, names, name_count, ignore);
+			if (b == (nat) -1) goto addi_bail;
+			struct instruction new = { .op = addi };
+			new.args[0] = arg0;
+			new.args[1] = arg1;
+			new.args[2] = ins[b].args[1];
+			mi[mi_count++] = new;
+			selected[i] = 1; selected[b] = 1;
+			goto finish_mi_instruction;
+		} addi_bail:
+
+		if (op == set) {
+			const nat b = locate_instruction(sub_imm, arg0, 0, 1, 0, i + 1, 
+					ins, ins_count, names, name_count, ignore);
+			if (b == (nat) -1) goto subi_bail;
+			struct instruction new = { .op = subi };
+			new.args[0] = arg0;
+			new.args[1] = arg1;
+			new.args[2] = ins[b].args[1];
+			mi[mi_count++] = new;
+			selected[i] = 1; selected[b] = 1;
+			goto finish_mi_instruction;
+		} subi_bail:
+
+		if (op == set) {
+			const nat b = locate_instruction(eor_imm, arg0, 0, 1, 0, i + 1, 
+					ins, ins_count, names, name_count, ignore);
+			if (b == (nat) -1) goto eori_bail;
+			struct instruction new = { .op = eori };
+			new.args[0] = arg0;
+			new.args[1] = arg1;
+			new.args[2] = ins[b].args[1];
+			mi[mi_count++] = new;
+			selected[i] = 1; selected[b] = 1;
+			goto finish_mi_instruction;
+		} eori_bail:
+
+		if (op == set) {
+			const nat b = locate_instruction(or_imm, arg0, 0, 1, 0, i + 1, 
+					ins, ins_count, names, name_count, ignore);
+			if (b == (nat) -1) goto orri_bail;
+			struct instruction new = { .op = orri };
+			new.args[0] = arg0;
+			new.args[1] = arg1;
+			new.args[2] = ins[b].args[1];
+			mi[mi_count++] = new;
+			selected[i] = 1; selected[b] = 1;
+			goto finish_mi_instruction;
+		} orri_bail:
+
+		if (op == set) {
+			const nat b = locate_instruction(and_imm, arg0, 0, 1, 0, i + 1, 
+					ins, ins_count, names, name_count, ignore);
+			if (b == (nat) -1) goto andi_bail;
+			struct instruction new = { .op = andi };
+			new.args[0] = arg0;
+			new.args[1] = arg1;
+			new.args[2] = ins[b].args[1];
+			mi[mi_count++] = new;
+			selected[i] = 1; selected[b] = 1;
+			goto finish_mi_instruction;
+		} andi_bail:
+
+		if (op == eq_imm and arg1 == 0) {
+			struct instruction new = { .op = cbnz };
+			new.args[0] = arg0;
+			if (ins[i].gotos[0] != i + 1) {
+				new.op = cbz;
+				new.args[1] = ins[i].gotos[1];
+			} else {
+				new.args[1] = ins[i].gotos[0];
+			}
+			mi[mi_count++] = new;
+			selected[i] = 1;
+			goto finish_mi_instruction;
+
+		} 
+		else if (op == set) {
+			struct instruction new = { .op = orrsrlsl };
+			new.args[0] = arg0;
+			new.args[1] = 0;
+			new.args[2] = arg1;			
+			new.args[3] = 0;
+			mi[mi_count++] = new;
+			selected[i] = 1;
+			goto finish_mi_instruction;
+		}
+
+		else if (op == set_imm) {
+			struct instruction new = { .op = movz };
+			new.args[0] = arg0;
+			new.args[1] = arg1;
+			mi[mi_count++] = new;
+			selected[i] = 1;
+			goto finish_mi_instruction;
+		}
+
+		if (op == lt) {			
+			struct instruction new = { .op = subssrlsl };
+			new.args[0] = 0;
+			new.args[1] = arg0;
+			new.args[2] = arg1;
+			new.args[3] = 0;
+			mi[mi_count++] = new;
+			struct instruction new2 = { .op = bcond };
+			new2.args[0] = lt;
+			new2.args[1] = (nat) -1;
+			mi[mi_count++] = new2;
+			selected[i] = 1; 
+			goto finish_mi_instruction;
+		}
+
+		if (op == eq) {			
+			struct instruction new = { .op = andssrlsl };
+			new.args[0] = 0;
+			new.args[1] = arg0;
+			new.args[2] = arg1;
+			new.args[3] = 0;
+			mi[mi_count++] = new;
+			struct instruction new2 = { .op = bcond };
+			new2.args[0] = eq;
+			new2.args[1] = (nat) -1;
+			mi[mi_count++] = new2;
+			selected[i] = 1; 
+			goto finish_mi_instruction;
+		}
+
+		if (op == lt_imm) {			
+			struct instruction new = { .op = subsi };
+			new.args[0] = 0;
+			new.args[1] = arg0;
+			new.args[2] = arg1;
+			new.args[3] = 0;
+			mi[mi_count++] = new;
+			struct instruction new2 = { .op = bcond };
+			new2.args[0] = lt;
+			new2.args[1] = (nat) -1;
+			mi[mi_count++] = new2;
+			selected[i] = 1; 
+			goto finish_mi_instruction;
+		}
+
+		if (op == eq_imm) {			
+			struct instruction new = { .op = andsi };
+			new.args[0] = 0;
+			new.args[1] = arg0;
+			new.args[2] = arg1;
+			new.args[3] = 0;
+			mi[mi_count++] = new;
+			struct instruction new2 = { .op = bcond };
+			new2.args[0] = eq;
+			new2.args[1] = (nat) -1;
+			mi[mi_count++] = new2;
+			selected[i] = 1; 
+			goto finish_mi_instruction;
+		}
+
+		else {
+			nat n = (nat) -1;
+			if (false) {}
+			else if (op == add) n = addsrlsl;
+			else if (op == sub) n = subsrlsl;
+			else if (op == and_)n = andsrlsl;
+			else if (op == or_) n = orrsrlsl;
+			else if (op == eor) n = eorsrlsl;
+			else if (op == si)  n = lslv;
+			else if (op == sd)  n = lsrv;
+			else if (op == div_)n = udiv;
+			else if (op == add_imm) n = addi;
+			else if (op == sub_imm) n = subi;
+			else if (op == and_imm) n = andi;
+			else if (op == or_imm)  n = orri;
+			else if (op == eor_imm) n = eori;
+			else  { puts("ins sel error"); abort(); }
+
+			struct instruction new = { .op = n };
+			new.args[0] = arg0;
+			new.args[1] = arg0;
+			new.args[2] = arg1;
+			new.args[3] = 0;
+			mi[mi_count++] = new;
+			selected[i] = 1;
+			goto finish_mi_instruction;
+		}
+
+		/*else if (op == sc) {
+			struct instruction new = { .op = svc };
+			mi[mi_count++] = new;
+			selected[i] = 1;
+			goto finish_mi_instruction;
+		}*/
+
+
+	finish_mi_instruction:;
+		puts("so far:");
+		print_machine_instructions(mi, mi_count, names, name_count);
+		getchar();
+	}
+
+	for (nat i = 0; i < ins_count; i++) {
+		if (ignore[i]) continue;
+		if (not selected[i]) {
+			puts("error: instruction unprocessed by ins sel: internal error");
+			puts("not selected instruction: ");
+			print_instruction_index(
+				ins, ins_count, 
+				names, name_count, ignore,
+				i, "this failed to be lowered during ins sel."
+			); abort();
+		}
+	}
+
+
+
+
+
+
+
+and then , the implmentation of the    "locate_instruction" function,    is the following:
+
+
+
+
+
+static nat locate_instruction(
+	nat expected_op, nat expected_arg0, nat expected_arg1,
+	nat use_arg0, nat use_arg1, nat starting_from,
+	struct instruction* ins, const nat ins_count,
+	char** names, nat name_count, nat* ignore
+) {
+	nat pc = starting_from;
+	while (pc < ins_count) {
+		if (ignore[pc]) { puts("locate data instruction . ignore pc encountered . abort"); abort(); } 
+		const nat op = ins[pc].op;
+		const nat arg0 = ins[pc].args[0];
+		const nat arg1 = ins[pc].args[1];
+		const bool is_branch = (op == lt or op == eq or op == gt_imm or op == lt_imm or op == eq_imm);
+		nat pred_count = 0;
+		compute_predecessors(ins, ins_count, pc, &pred_count, ignore);
+		if (	pred_count == 1 and 
+			op == expected_op and 
+			(not use_arg0 or expected_arg0 == arg0) and 
+			(not use_arg1 or expected_arg1 == arg1)
+		) return pc; 
+		if (is_branch) break;
+		if (use_arg0 and arg1 == expected_arg0) break;
+		if (use_arg1 and arg0 == expected_arg1) break;
+		pc = ins[pc].gotos[0];
+	}
+	return (nat) -1;
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+	so yeah!     the amazing part about this way of doign instruction selection, 
+
+
+			(which, by the way, i still think is quite amazing and beautiful and genius in how it works)
+
+
+
+
+
+
+
+					(and thats why i am going to use it in this version of the compiler!!!)
+
+
+
+
+			
+
+
+
+
+
+		the amazing part about it, is that it actually represented and followed the data flow happening in the compiler, 
+
+				(EVEN TAKING INTO ACCOUNT   DATA FLOW HAPPENING THROUGH  CONTROL FLOW!!!)
+				(ie tracing the data flow through the control flow graph!!!)
+
+
+
+			butttt it actually computed this data flow information           ONLYYYY  AS IT WAS NECCESSARY
+
+
+
+
+					to locate an element in a pattern! 
+
+
+
+
+			like, its     its amazing lol 
+
+
+
+
+
+		and then, basically, we could acutally specify the   RELATIVE ORDER OF THESE INS WHICH ARE PART OF THE PATTERN
+
+				AND YET
+
+
+
+
+
+						NOT ENFORCE   ANY OTHER ORDERINGGGG   over the instructions!!!
+
+
+
+
+
+
+
+			like, we could specify EXACTLY the ordering that we wanted, 
+
+
+				AND NOTHING ELSE. 
+
+
+
+	it is truly amzing, actually 
+
+
+
+
+
+and so i want to use that here lol
+
+
+
+
+this implementation   is SO CLOSE         to being perfect lol 
+
+
+
+
+
+its just 
+
+	its missing 
+
+
+				1. commutive pattern cases, (genuinely exchangable data DAG nodes, 
+					which result in a slightly different pattern!)
+
+
+				2. copy prop, which helps to make the code FORCED TO BE INTO ONEEEE OF THESE TWO POSSIBLE PATTERNS
+
+				3. we still need to figure out  patterns with control flow      PROPERTLY. 
+					the way i did it before    kinda was horrible, i think. lol. 
+
+				
+
+
+
+	so yeah! really clear picture of whats happen now. 
+
+
+
+		i think honestly for the msot part, we can just drop in    the   locate_instruction  function 
+
+
+		and start coding up the various patterns lol 
+
+
+
+
+
+	orrr
+
+
+
+
+
+				arguably we need to solve optimization first????
+
+	uh
+			maybe 
+
+
+
+
+
+
+		hm
+							i mean, we don't NEEDDDD to lol 
+
+
+			its just 
+
+				its going to be a critical component       of this  eventuallyyyy lollll 
+
+
+
+		hmm
+	idk 
+
+
+
+
+	i mean    i'll look into it 
+
+
+
+	but 
+			i think we just focus on ins sel for now,   and assume theuser gives optimal copy assigements and use of variables. 
+
+					ie, the minimal one.    and if ins sel fails to generate optimal code  given that optimal use of copies/sets,  then thats a bug lol 
+
+
+				but if it could be fixed just by fixing the copies/set statements,   then we don't have a bug neccessarily lol 
+
+
+
+
+
+
+anywaysss
+
+
+
+yayy
+
+
+
+cool
+
+
+this gets the ball rolling lol 
+
+
+
+
+heck, even for branches   actually, this entire algortihm is actually pretty decent and works well lol. 
+
+
+	its just 
+
+
+
+
+					for       csel         this doesnt work (at least, this alg as is   doesnt quite i think) 
+
+
+
+				and for              ccmp       this doesnt work lol 
+
+
+
+				but imean, we can look into that too lol 
+
+
+
+
+
+
+
+
+
+
+
+so yeah!
+
+
+
+
+
+
+
+
+
+i'm pretty sure that
+	this is closer though. its simpler, its more efficient, its just     its better lol 
+	and makes a lot of sense, why this solution   would be   sufficient, in an ideal situation. 
+		(ie, assuming  opt  gets everything else figured out lol)
+
+
+		
+
+
+						because like, its really important to seperate out concerns here, 
+
+
+
+					we don't wnat to be solving    copy prop      DURINGGGG  ins sel lolllll 
+
+
+							thats two hard problems    instead of one lol 
+
+
+						lets keep it justttttttt about ins sel,  and then do  copy prop   BEFORE HAND
+										SEPERATELYYY  
+
+									getting that out of the way  firstttttttttt
+
+
+					thats the key idea. 
+
+
+
+
+
+
+			simplify the problem, by compartmentalizing the things that can be seperated out from each other. 
+
+
+						...we just need to make sure that they cannnn be seperated from each other lol 
+
+
+
+					but i think they can in this case,   because like, 
+
+
+
+						there are only so many ways to create a pattern  using a   set,    add, and si...
+
+
+
+						like,    and all the other possible "infinite" variations  are really just leveraging various extraneous copies that could be preformed. 
+
+							like, you arent goning to somehow see a   multiply 
+
+								and use that in your computation lol 
+
+
+
+
+		well, 
+			actually,
+
+				the optimized will firsttt translate all multiplies of a power of two     into shifts, 
+
+
+				and thennnn it does copy prop,   (or maybe does both simultanously lollll)
+
+
+
+				and thennnn         we do ins sel   and expect to see a          si       instead of mul  
+
+
+
+					so yeah. 
+
+
+				like,     the code idea is 
+
+
+
+						patterns that translate to   addsr_lsl     
+
+								ONLYYYYY EVER HAVE        SET's   ADD's    and  SI_IMM's 
+
+
+		
+						like, thats just a thing lol 
+
+
+
+				ANDDD
+				we don't even need to consider       SI's  instead of SI_IMM's    
+
+
+					because we ALREADY DID CT EVALLLLL
+
+							thats done lol 
+
+
+
+
+				theres no more that can be performed, hypotheticallyyy
+				because like, all that is left   is just    imediates    and runtime registers, 
+
+
+
+						and like,   i think technicallyyyy we could fold constants together, 
+
+
+							such as like,   if we do      add x 01   then   add add x 001
+
+							that would turn into     add  x 011
+
+
+
+						but like, thats not so much as constant propagation, or folding, 
+
+
+							as much as like... just doing arithemtic operations??
+
+
+								but yeah that does alsooo need to happen lol.. 
+										shouldnt be that hard to do though, i think. 
+
+			yay
+
+
+
+
+
+so now, 
+
+
+
+
+
+
+
+		lets look at the locate_data instruction again more, becasue like, we basically just 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+static nat locate_instruction(
+	nat expected_op, nat expected_arg0, nat expected_arg1,
+	nat use_arg0, nat use_arg1, nat starting_from,
+	struct instruction* ins, const nat ins_count,
+	char** names, nat name_count, nat* ignore
+) {
+	nat pc = starting_from;
+	while (pc < ins_count) {
+		if (ignore[pc]) { puts("locate data instruction . ignore pc encountered . abort"); abort(); } 
+		const nat op = ins[pc].op;
+		const nat arg0 = ins[pc].args[0];
+		const nat arg1 = ins[pc].args[1];
+		const bool is_branch = (op == lt or op == eq or op == gt_imm or op == lt_imm or op == eq_imm);
+		nat pred_count = 0;
+		compute_predecessors(ins, ins_count, pc, &pred_count, ignore);
+		if (	pred_count == 1 and 
+			op == expected_op and 
+			(not use_arg0 or expected_arg0 == arg0) and 
+			(not use_arg1 or expected_arg1 == arg1)
+		) return pc; 
+		if (is_branch) break;
+		if (use_arg0 and arg1 == expected_arg0) break;
+		if (use_arg1 and arg0 == expected_arg1) break;
+		pc = ins[pc].gotos[0];
+	}
+	return (nat) -1;
+}
+
+
+
+
+
+
+i want to be inside this function
+i want to becomeeee this function lol 
+
+
+
+
+
+
+
+oh wait theres a bug in it!!!!!
+
+
+	we should be   a if-break statement        if (pred_count > 1) break
+
+		after the   if-break    "if (is_branch) break;"    one
+
+
+
+	so yeah! 
+
+that litte edit is important to note lol 
+but anywayas
+
+
+ignoring thattt
+
+
+
+
+
+
+
+NOTE!!!!
+
+
+
+
+in this function, we just follow DO's    we don't follow branches, 
+
+
+	because the idea is,    we will be recognizing control flow     via some other way 
+
+
+		and so    a branch would cause the data flow graph   to break   apart in some weird way  
+			that would cancel thepattern, 
+
+
+			and thus,    when we see a branch we just abort,   and     break   and return -1 
+
+
+
+
+
+
+
+
+
+
+
+

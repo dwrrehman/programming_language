@@ -1,0 +1,158 @@
+=============================================================================================
+	    manual for the language isa
+	written on 1202504104.145628 by dwrr 
+=============================================================================================
+
+
+--------------------------------------
+ISA listing (24 instructions):
+--------------------------------------
+
+	nonary: halt sc 
+
+	unary:	do at lf 
+
+	binary: rt set add sub mul   div rem and or eor   si sd la
+
+	ternary: ld st lt ge ne eq
+
+
+
+
+
+--------------------------------------------------------------------------
+	meaning/usage of each instruction:
+--------------------------------------------------------------------------
+
+	a description of the semantics of each instruction is given below!
+
+
+
+----------------------------------------------------------------------------------------------------
+math and bitwise operations:
+----------------------------------------------------------------------------------------------------
+
+	set x y : assignment to destination register x, using the value present in source y.
+		if the name x is not defined, then x is defined as a result of this instruction.
+		if x is defined, the existing definition of variable x is used.
+
+	add x y : assigns the value x + y to the destination register x.
+
+	sub x y : assigns the value x - y to the destination register x.
+
+	mul x y : assigns the value x * y to the destination register x.
+
+	div x y : assigns the value x / y to the destination register x.
+
+	rem x y : assigns the value x modulo y to the destination register x.
+
+	and x y : assigns the value x bitwise-and y to the destination register x.
+
+	or x y : assigns the value x bitwise-or y to the destination register x.
+
+	eor x y : assigns the value x bitwise-xor y to the destination register x.
+
+	si x y : shifts the bits in x up by y bits. 
+
+	sd x y : shifts the bits in x down by y bits. (always an unsigned shift)
+
+
+
+----------------------------------------------------------------------------------------------------
+memory operations:
+----------------------------------------------------------------------------------------------------
+
+	la x k : loads a program-counter relative address given by a label k into a destination register x.
+
+	ld x y z : load z bytes from memory address y into destination register x. 
+
+	st x y z : store z bytes from the soruce register y into the memory at address x.
+
+
+----------------------------------------------------------------------------------------------------
+control flow:
+----------------------------------------------------------------------------------------------------
+
+	halt : termination point in the control flow graph. control flow does not continue past this instruction. 
+
+	do k : unconditional branch to label k. 
+
+	at k : attribute label k to this position in the code. k should be used as the destination of branches, 
+		or as the source of an la instruction.
+
+	lt x y k : if x is less than y, control flow branches to label k. 
+
+	ge x y k : if x is not less than y, control flow branches to label k. 
+
+	ne x y k : if x is not equal to y, control flow branches to label k. 
+
+	eq x y k : if x is equal to y, control flow branches to label k. 
+
+	sc : system call, target specific, and triggers a context switch on targets with an 
+		operating system, to perform a specialized task. 
+
+
+
+----------------------------------------------------------------------------------------------------
+other:
+----------------------------------------------------------------------------------------------------
+
+	
+	lf f : load file f from the filesystem, and include its parsed contents here.
+		f denotes a relative path from the directory the compiler invocation is executed. 
+		...unfortunately, due to the word-based nature of the language, f cannot contain spaces.
+
+	rt x y : force the variable x to be runtime known. 
+		if y > 0, this sets the number of bits allocated to x, and 
+		if y == 0, x is forced to be runtime known, with no further constraints, and
+		if y < 0, this denotes the hardware register x should be allocated in. 
+
+
+
+----------------------------------------------------------------------------------------------------
+
+
+
+
+
+-----------------------------------------
+	examples:
+-----------------------------------------
+
+
+(this is a simple loop from 0 to 9, executed at compiletime)
+
+set count 0101
+set i 0
+
+at loop
+	add i 1
+	lt i count loop
+
+
+------------------------------------------
+
+
+(this is a simple loop from 0 to 9 at runtime)
+
+set count 0101
+
+rt i 001
+set i 0
+
+at loop
+	add i 1
+	lt i count loop
+
+
+-------------------------------------------
+
+
+
+
+
+
+
+
+
+

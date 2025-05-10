@@ -1,0 +1,218 @@
+notes on the design of the programming language  -  merging the compiler and assembler 
+
+/*
+	NOTE:
+
+		THE REASON WHYYYYY        having runtime variables simply be   ct regindex  constants      
+
+								doesnt work 
+
+
+
+	the reason for why that doesnt work        is that 
+
+
+				when you say                    add  x  blah
+
+
+				now, you don't know what that meanssss
+
+
+						if x is a runtime regindex constant    then we know  that we want to do a   runtime add   with blah
+
+
+						if x is a compiltime  general purp;ose constant   then we know we want to do a  ct_add   at tompiletime. 
+
+
+
+
+								BUTTTT      A GEN PURPOSE CT CONSTANT   AND A RT REGINDEX CONSTNAT  LOOK AND FEEL COMPLETELY IDENTICAL TO THE COMPILER
+
+								THE ARE THE SAME THINGSS
+
+
+
+						AND SO   we don't know which       rt_add    or ct_add     to gneerate.   when we see "add x blah"
+
+
+
+
+
+						thatsssssssss why we need to pick.   either or.    XOR.   we need either to have regindexes be rt constants
+
+
+						orrrrrr we have seperate rt and ct variables,   with ct being constatns, and rt being variables. 
+
+										...and then we just provide a    register-constraint  instruction
+
+										to assign a  regindex to a rt variable.   simple as that. 
+
+
+
+							WE CANT HAVE BOTH.   
+
+
+
+
+
+
+
+
+
+
+				honestly, the reality is...   using actual   regindexes      verbatim     ie, raw   hardware registers 
+
+
+
+						is actually rather rare.  
+
+
+
+									like,   on all archs  and all targets, anad all intended usecases. 
+
+
+
+
+
+
+							EXCEPTTTTTT for system calls.   that uses them like crazy. 
+
+
+
+
+		now, interestingly   we are not going to actually expose the system call insturction   with   argumentssssss i think??
+
+
+
+		maybee..
+
+
+			hmm actually maybe we have to?       because otherwise our code will have different     hardware register indexes for each target/arch
+
+				so i think we needddd        the sc  instruction      which takes 7 arguments?... hmmm
+
+
+
+
+						hmmmm idk.... 
+
+
+
+
+
+
+
+
+
+
+
+	make comments only allowed   between instructions!
+	also, make them use "(" and ")", 
+
+			....ie, the moment you see a "(", start skipping until a ")".
+
+							(this is a comment!)	( so is this )     ()   
+
+
+
+	labels are simply ct variables! but they are defined in a weird way, defined on use, for "at", and "ne", "lt", "ge" etc. 
+
+		ne a b skip
+
+			(...code here...)
+
+		at skip udf skip
+
+
+
+
+
+	version 2: ideal rt code in this language    for adding two numbers, into a particular hardware register!
+
+
+		rt c 1111          (register 15)               (c is defined here, and 
+
+		set c 101
+		add c 001
+
+
+
+
+
+	version 2: ideal rt code in this language    for adding two numbers
+
+		init c 101 
+		add c 001
+
+
+	version 2: ideal ct code in this lauguage    for adding two numbers
+
+		ct c 101 
+		add c 001
+
+		ro c
+
+
+	version 1: ideal rt code in this language    for adding two numbers
+
+		def a 5
+		def b 4
+		def c a
+		add c b
+
+
+	version 1: ideal ct code in this lauguage    for adding two numbers
+
+		bn a 01
+		bn b 11
+		ct c a 
+		add c b
+
+
+	examples of rt and ct code:
+
+
+		ct y 001		<----   this defines and initializes a compiletime register, 
+						with a binary literal, or another compiletime value.
+		
+		def x y			<---- this defines a runtime register, 
+					      initializing it at runtime with a runtime or compiletime value. 
+
+		add x 1     	        <---- this is a runtime incr statement. (this syntax applies both to compiletime and runtime instructions.)
+
+		mul x y			<---- this is a runtime multiply_immediate statement, because y is compiletime known. 
+		set x y			<---- this is a set_immediate runtime instruction. 
+
+		set y 0			<---- this is a compiletime zero statement. 
+
+
+	
+
+	immediates are assumed to be only given if a given variable used in an instruction is not defined!
+
+	this way this does not conflict with other variable names, at all. 
+
+		additionally, binary literals are only assumed to be valid if they contain only zeros and ones, and maybe underscores too lol. 
+
+
+
+	so yeah!
+
+
+
+
+
+*/
+
+
+
+
+
+
+
+
+
+
+
+
+

@@ -1,0 +1,23 @@
+opt     future passes!
+1202504115.221656
+
+notes to me:
+----------
+
+	1. add opt    mul_imm ---> si_imm 
+
+	2. add opt   copy prop
+
+	3. add opt   commutitive/accumulative math consolidation   eg, 
+						add x 01    add x 001   becomes    add x 011
+
+	4. add opt   jump control flow simplification :   jumps to labels, right after the jump, 
+	
+	5. sink common logic into basic blocks, deduplicating code
+
+	6. 
+
+
+
+
+

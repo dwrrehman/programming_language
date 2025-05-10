@@ -1,4 +1,5 @@
 // 1202504045.155147 a compiler / assembler for a simpler version of the language.
+// 1202505106.125751 revised to be much simpler and have a simpler translation process.
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -15,47 +16,15 @@
 #include <sys/stat.h>
 #include <sys/mman.h>
 #include <errno.h>
-
 typedef uint64_t nat;
 typedef uint32_t u32;
 typedef uint16_t u16;
 typedef uint8_t byte;
-
 #define max_variable_count (1 << 14)
 #define max_instruction_count (1 << 14)
 #define max_arg_count 14
-
 enum all_architectures { no_arch, arm64_arch, arm32_arch, rv64_arch, rv32_arch, msp430_arch, };
-enum all_output_formats { debug_output_only, macho_executable, elf_executable, ti_txt_executable };
-
-
-// ins 0: lets make a builtin operation called "architecture" which you give a nat which is one of the elements of the    enum all_architectures  
-
-// ins 1:  and another one for "outputformat", which, yeah, same for enum all_output_formats     
-
-// ins 2:  and then finally, a "compilerflags"  or     "compileroptions"   register  which allows you to toggle various bits, 
-//     to programmaitically conditionally set the debug flag, or shouldoverwriteoutput flag, etc. 
-/*    the bits will be:  
-
-		bit 0: debug compile-time execution, 
-		bit 1: debug machine code output in addition to executable,  
-		bit 2: toggle if compiler should overwrite output file if it exists (0 = not overwritten)
-		bit 3: compiler will add in address sanitization code! (by default, a "release" fully optimized executable is generated, no debugging help. 
-
-		bit 4: ...etc etc etc    other bits that do useful things, that you don't always want all the time lol
-		bit 5: ..... etc
-
-
-
-actually maybe we should make these compiletime known variables at the start of the symbol table?... hmmm... yeah probably actuallyyyyy
-interestingg  we don't need seperate instructions for them lol. i don't think so, at least. hmmmmm
-
-that way, we can use  the    or   instruction    to set the bits in the compileroptions register!
-
-*/
-
-
-enum core_language_isa {
+enum all_output_formats { debug_output_only, macho_executable, elf_executable, ti_txt_executable };enum core_language_isa {
 	nullins,
 
 	halt, sc, ud, def, do_, at, lf, 
@@ -70,22 +39,17 @@ enum core_language_isa {
 	a6_ori, a6_orr, a6_extr, a6_ldrl, 
 	a6_memp, a6_memia, a6_memi, a6_memr, 
 	a6_madd, a6_divr, 
-
 	m4_sect, m4_op, m4_br,
-
 	r5_r, r5_i, r5_s, r5_b, r5_u, r5_j, 
-
 	isa_count
 };
 
 static const char* operations[isa_count] = {
 	"___nullins____",
-
 	"halt", "sc", "ud", "def", "do", "at", "lf",
 	"set", "add", "sub", "mul", "div", "rem", 
 	"and", "or", "eor", "si", "sd", "la", "rt", 
 	"ld", "st", "lt", "ge", "ne", "eq",
-
 	"a6_nop", "a6_svc", "a6_mov", "a6_bfm",
 	"a6_adc", "a6_addx", "a6_addi", "a6_addr", "a6_adr", 
 	"a6_shv", "a6_clz", "a6_rev", "a6_jmp", "a6_bc", "a6_br", 
@@ -93,14 +57,12 @@ static const char* operations[isa_count] = {
 	"a6_ori", "a6_orr", "a6_extr", "a6_ldrl", 
 	"a6_memp", "a6_memia", "a6_memi", "a6_memr", 
 	"a6_madd", "a6_divr", 
-
 	"m4_sect", "m4_op", "m4_br",
 	"r5_r", "r5_i", "r5_s", "r5_b", "r5_u", "r5_j", 
 };
 
 static const nat arity[isa_count] = {
 	0,
-
 	0, 0, 0, 1, 1, 1, 1,
 	2, 2, 2, 2, 2, 2, 
 	2, 2, 2, 2, 2, 2, 2,
@@ -113,7 +75,6 @@ static const nat arity[isa_count] = {
 	5, 8, 5, 3, 
 	7, 6, 5, 6,
 	8, 5, 
-
 	1, 8, 2,
 	6, 5, 6, 5, 3, 3,
 };
@@ -122,6 +83,7 @@ struct instruction {
 	nat op;
 	nat imm;
 	nat visited;
+	nat ct;
 	nat args[max_arg_count];
 };
 
@@ -138,6 +100,7 @@ static nat ins_count = 0;
 static char* variables[max_variable_count] = {0};
 static nat bit_count[max_variable_count] = {0};
 static nat register_index[max_variable_count] = {0};
+static nat values[max_variable_count] = {0};
 static nat is_runtime[max_variable_count] = {0};
 static nat is_undefined[max_variable_count] = {0};
 static nat var_count = 0;
@@ -169,17 +132,20 @@ static char* load_file(const char* filename, nat* text_length) {
 static void print_dictionary(void) {
 	puts("variable dictionary: ");
 	for (nat i = 0; i < var_count; i++) {
-		printf("   %c  %c [%llu]  \"%10s\"  :   { bc=%5lld, ri=%5lld }\n",
+		printf("   %c  %c [%llu]  \"%10s\"  :   { bc=%5lld, ri=%5lld }  :   0x%016llx\n",
 			is_runtime[i] ? 'R' : ' ', 
 			is_undefined[i] ? 'U' : ' ', 
 			i, variables[i], 
-			bit_count[i], register_index[i]
+			bit_count[i], register_index[i], 
+			values[i]
 		);
 	}
 	puts("[end]");
 }
 
 static void print_instruction(struct instruction this) {
+
+	if (this.ct) printf("\033[33m");
 
 	int max_name_width = 0;
 	for (nat i = 0; i < var_count; i++) {
@@ -188,7 +154,7 @@ static void print_instruction(struct instruction this) {
 		}
 	}
 
-	printf(" %4s  ", operations[this.op]);
+	printf("%s%s ", this.ct ? "ct " : "", operations[this.op]);
 	/*int left_to_print = max_name_width - (int) strlen(operations[this.op]);
 	if (left_to_print < 0) left_to_print = 0;
 	for (int i = 0; i < left_to_print; i++) putchar(' ');
@@ -205,7 +171,10 @@ static void print_instruction(struct instruction this) {
 		if (left_to_print < 0) left_to_print = 0;
 		for (int i = 0; i < left_to_print; i++) putchar(' ');
 		putchar(' ');
-	}	
+	}
+
+	if (this.ct) printf("\033[0m");
+
 }
 
 static void print_instructions(const bool should_number_them) {
@@ -381,9 +350,6 @@ struct expected_instruction {
 	nat args[max_arg_count];	
 };
 
-
-/*
-
 static nat locate_instruction(struct expected_instruction expected, nat starting_from) {
 
 	nat pc = starting_from;
@@ -431,10 +397,8 @@ static nat locate_instruction(struct expected_instruction expected, nat starting
 	return (nat) -1;
 }
 
-*/
 
-
-static void debug_cte(
+/*static void debug_cte(
 	nat pc, nat last_pc,
 	nat* preds, nat pred_count,
 	nat* stack, nat stack_count,
@@ -495,9 +459,9 @@ static void debug_cte(
 	print_nats(stack, stack_count); 
 	putchar(10);
 }
+*/
 
 
-/*
 
 static void push_mi(
 	struct instruction** mi, 
@@ -522,9 +486,6 @@ static void push_mi(
 
 	(*mi)[(*mi_count)++] = new;
 }
-
-*/
-
 
 static void dump_hex(uint8_t* memory, nat count) {
 	printf("dumping bytes: (%llu)\n", count);
@@ -557,7 +518,6 @@ static void print_binary(nat x) {
 	}
 	puts("");
 }
-
 
 */
 
@@ -627,7 +587,6 @@ static void insert_u64(uint8_t** d, nat* c, uint64_t x) {
 #define VM_PROT_EXECUTE 	4
 #define TOOL_LD			3
 #define PLATFORM_MACOS 		1
-
 
 static nat calculate_offset(nat* length, nat here, nat target) {
 	nat offset = 0;
@@ -776,10 +735,16 @@ process_file:;
 			files[file_count++].index = 0;
 			var_count--;
 			goto process_file;
-
 		} else {
 			struct instruction new = { .op = op, .imm = is_immediate };
-			memcpy(new.args, args, sizeof args);
+			memcpy(new.args, args, sizeof args);			
+			if (op == rt) is_runtime[args[0]] = 1;
+			nat ct = 1;
+			for (nat i = 0; i < arity[op]; i++) {
+				if (is_immediate & (1 << i)) continue;
+				if (is_runtime[args[i]]) ct = 0;
+			}
+			if (not ((op >= a6_nop and op <= isa_count) or op == halt or op == sc)) new.ct = ct;
 			is_immediate = 0;
 			ins[ins_count++] = new;
 		}
@@ -791,36 +756,475 @@ process_file:;
 
 	if (ins_count and ins[ins_count - 1].op != halt) ins[ins_count++].op = halt;
 
+	nat* memory = calloc(65536, sizeof(nat));
+
+	for (nat pc = 0; pc < ins_count; pc++) {
+		const nat op = ins[pc].op;
+		if (op == at) values[ins[pc].args[0]] = pc;		
+	}
+
 	print_dictionary();
-	print_instructions(false);
+	print_instructions(0);
 	getchar();
 
-	nat* def = calloc(ins_count * var_count, sizeof(nat));
-	nat* type = calloc(ins_count * var_count, sizeof(nat));
-	nat* value = calloc(ins_count * var_count, sizeof(nat));
-	nat* is_copy = calloc(ins_count * var_count, sizeof(nat));
-	nat* copy_of = calloc(ins_count * var_count, sizeof(nat));
-	nat* copy_type = calloc(ins_count * var_count, sizeof(nat));
+	struct instruction rt_ins[4096] = {0};
+	nat rt_ins_count = 0;
+
+
+	for (nat pc = 0; pc < ins_count; pc++) {
+
+		const nat op = ins[pc].op;
+		const nat imm = ins[pc].imm;
+		const nat ct = ins[pc].ct;
+		const nat arg0 = ins[pc].args[0];
+		const nat arg1 = ins[pc].args[1];
+		const nat arg2 = ins[pc].args[2];
+		const nat i0 = !!(imm & 1);
+		const nat i1 = !!(imm & 2);
+		const nat val0 = not i0 ? values[arg0] : arg0;
+		const nat val1 = not i1 ? values[arg1] : arg1;
+
+		print_instruction_window_around(pc, 0, "");
+		print_dictionary();
+		puts("rt instructions: ");
+		for (nat i = 0; i < rt_ins_count; i++) {
+			putchar(9); print_instruction(rt_ins[i]); puts("");
+		}
+		puts("done");
+		getchar();
+
+		if (not ct) {
+			struct instruction new = { .op = op };
+			memcpy(new.args, ins[pc].args, sizeof new.args);
+			new.imm = ins[pc].imm;
+			for (nat i = 0; i < arity[op]; i++) {
+				if (op == at and i == 0) continue;
+				if(op == do_ and i == 0) continue;
+				if (op == lt and i == 2) continue;
+				if (op == ge and i == 2) continue;
+				if (op == ne and i == 2) continue;
+				if (op == eq and i == 2) continue;
+				if (op == la and i == 1) continue;
+				if (not ((new.imm >> i) & 1) and not is_runtime[new.args[i]]) {
+					new.args[i] = values[new.args[i]];
+					new.imm |= 1 << i;
+				}
+			}
+			rt_ins[rt_ins_count++] = new;
+			continue;
+		}
+
+		else if (op == at)   values[arg0] = pc;
+		else if (op == set)  values[arg0]  = val1;
+		else if (op == add)  values[arg0] += val1;
+		else if (op == sub)  values[arg0] -= val1;
+		else if (op == mul)  values[arg0] *= val1;
+		else if (op == div_) values[arg0] /= val1;
+		else if (op == rem)  values[arg0] %= val1;
+		else if (op == and_) values[arg0] &= val1;
+		else if (op == or_)  values[arg0] |= val1;
+		else if (op == eor)  values[arg0] ^= val1;
+		else if (op == si)   values[arg0] <<= val1;
+		else if (op == sd)   values[arg0] >>= val1;
+		else if (op == ld)   values[arg0] = memory[val1];
+		else if (op == st)   memory[val0] = val1;
+		else if (op == do_)  pc = values[arg0];
+		else if (op == lt) { if (val0  < val1) pc = values[arg2]; }
+		else if (op == ge) { if (val0 >= val1) pc = values[arg2]; }
+		else if (op == eq) { if (val0 == val1) pc = values[arg2]; }
+		else if (op == ne) { if (val0 != val1) pc = values[arg2]; }
+		else abort();
+	}
+
+	print_instruction_window_around(0, 1, "");
+	print_dictionary();
+
+	puts("rt instructions: ");
+	for (nat i = 0; i < rt_ins_count; i++) {
+		putchar(9); print_instruction(rt_ins[i]); puts("");
+	}
+	puts("done");
+
+	exit(0); 
+
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+/*
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+			struct instruction new = { .op = op };
+			memcpy(new.args, ins[pc].args, sizeof new.args);
+			new.imm = ins[pc].imm;
+			for (nat i = 0; i < arity[op]; i++) {
+
+				if (op == at and i == 0) continue;
+				if(op == do_ and i == 0) continue;
+				if (op == lt and i == 2) continue;
+				if (op == ge and i == 2) continue;
+				if (op == ne and i == 2) continue;
+				if (op == eq and i == 2) continue;
+				if (op == la and i == 1) continue;
+				
+				if (not ((new.imm >> i) & 1) and not is_runtime[new.args[i]]) {
+					new.args[i] = values[new.args[i]];
+					new.imm |= 1 << i;
+				}
+			}
+			rt_ins[rt_ins_count++] = new;
+			continue;
+
+
+
+
+			else if (op == stringliteral) {
+				for (nat i = 0; i < arg0; i++) {
+					struct instruction new = { .op = emit };
+					new.args[0] = 1; new.args[1] = (nat) string_list[arg1][i];
+					rt_ins[rt_ins_count++] = new;
+				}}
+
+
+
+
+
+
+
+	
 	nat stack[4096] = {0};
 	nat stack_count = 1;
-	nat last_pc = (nat) -1;
 
-	memset(def, 255, sizeof(nat) * var_count * ins_count);
 	memset(bit_count, 255, sizeof bit_count);
 	memset(register_index, 255, sizeof register_index);
 
 	while (stack_count) {
 		nat pc = stack[--stack_count];
 
-	execute_ins:
 		if (pc >= ins_count) continue;
 
 		nat pred_count = 0;
 		nat* preds = compute_predecessors(pc, &pred_count);
 		nat* gotos = compute_successors(pc);
-
-		debug_cte(pc, last_pc, preds, pred_count, stack, stack_count, def, value, type, copy_of, copy_type, is_copy);
-		getchar();
 
 		ins[pc].visited++;
 
@@ -835,407 +1239,7 @@ process_file:;
 		const nat i1 = !!(imm & 2);
 		const nat i2 = !!(imm & 4);
 
-		for (nat e = 0; e < var_count; e++) {
-
-			const nat this_var = e; 
-
-			//printf("on variable: [%s]: \n", variables[this_var]); getchar();
-
-			nat future_type = 1;
-			nat future_value = 0;
-			nat value_mismatch = 0;
-			nat future_value_was_set = 0;
-		
-			bool at_least_one_pred = 0;
-
-			for (nat iterator_p = 0; iterator_p < pred_count; iterator_p++) {
-
-				const nat pred = preds[iterator_p];
-				if (not ins[pred].visited) continue;
-	
-				if (
-					ins[pred].op == lt or 
-					ins[pred].op == ge or 
-					ins[pred].op == ne or 
-					ins[pred].op == eq
-				) {
-					if (
-					(not (ins[pred].imm & 1) and not type[pred * var_count + ins[pred].args[0]]) or 
-					(not (ins[pred].imm & 2) and not type[pred * var_count + ins[pred].args[1]])
-					) { 
-						puts("CAME HERE FROM A RT BRANCH ON AT LEAST ONE PRED!!!\n"); 
-						getchar(); 
-						at_least_one_pred = 1; 
-					} 
-				}
-
-				const nat t = type[pred * var_count + this_var];
-				const nat v = value[pred * var_count + this_var];
-				if (t == 0) { 
-					//puts("encountered a predecessor with runtime known value"); getchar(); 
-					future_type = 0; future_value = 0; break; }
-				if (not future_value_was_set) { future_type = 1; future_value = v; future_value_was_set = 1; } 
-				else if (future_value != v) { value_mismatch = 1; } 
-			}
-
-			if (at_least_one_pred and value_mismatch) {
-
-				if (pc < ins_count and last_pc != (nat) -1) { 
-					printf("last_pc = %llu\n", last_pc); 
-					puts("invalid internal state"); 
-					abort(); 
-				}
-				printf("at_least_one_pred and value_mismatch\n"); 
-				getchar();
-				future_type = 0;
-
-			} else if (at_least_one_pred) {
-				if (pc < ins_count and last_pc != (nat) -1) { 
-					printf("last_pc = %llu\n", last_pc); 
-					puts("invalid internal state"); 
-					abort(); 
-				} 
-			}
-
-			if (value_mismatch and future_type) {
-
-				puts("ct: found a value mismatch!"); getchar(); 
-			
-				nat found = 0;
-				for (nat i = 0; i < pred_count; i++) {
-					if (preds[i] == last_pc) { found = 1; break; }
-				}
-
-				if (not found) {
-					printf("for variable %llu:\"%s\", in instruction: ", this_var, variables[this_var]); 
-					print_instruction(ins[pc]); putchar(10);
-					printf("fatal error: in value mismatch: last_pc was not a predecessor"
-						" (last_pc = %llu, lastpc not found in predecessors)... aborting.\n", 
-						last_pc
-					); 
-					getchar();
-					future_type = 0;
-					abort();
-					goto done_with_mismatch;
-				}
-				if (last_pc == (nat) -1) { puts("error: valuemismatch: last_pc == -1"); abort(); }
-				const nat pred = last_pc;
-				if (not ins[pred].visited) { puts("mismatch internal error"); abort(); }
-				const nat t = type[pred * var_count + this_var];
-				const nat v = value[pred * var_count + this_var];
-				future_type = t;
-				future_value = v;
-				done_with_mismatch:;
-			}
-
-			const nat this_dest_type = (ins[pc].imm & 1) or type[pc * var_count + ins[pc].args[0]];
-			const nat this_source_type = (ins[pc].imm & 2) or type[pc * var_count + ins[pc].args[1]];
-
-			puts("notes:");
-			printf("	op == at   :   %u\n", op == at);
-			printf("	at_least_one_pred   :   %u\n", at_least_one_pred); getchar();
-
-			if (ins[pc].visited < 2) goto skip;
-			if (not type[pc * var_count + this_var]) goto skip;
-			if (not future_type) goto skip;
-			if (value[pc * var_count + this_var] == future_value) goto skip;
-			if (ins[pc].op == do_) goto skip;
-
-
-
-			if (ins[pc].op == at) goto skip;   
-
-				// we need to make it so that the second time we see a variable with 
-				// a different value when coming from rtk cf  we make the variable rtk. 
-				//     ie, promoting it to rtk. 
-
-				// to do this, we need to      make the at instruction    the thing which receives the merging control flow    and thus diferenting values on the predecessors, 
-
-					 		we need to make itttt the thing which causes i to be rtk.
-
-
-								we can't wait until we see a rtk instruction, right?... 
-
-
-
-								the problem is... in our example.   we reach   done   only via ctk cf.... hmmmm
-
-
-
-
-										so the rtk instructoin is below is, but   at the      at ins   we need to already know that the variable is rtk. hmmmm. 
-
-
-												even though we didnt change anythingggg   or use the variable in an rtk ins yet
-
-													ANDDD we reached this statement via  ctk cf.. 
-
-
-
-
-
-												is this even possible???
-
-
-
-
-
-
-
-
-			if ((ins[pc].op >= set or ins[pc].op <= sd) and this_dest_type) goto skip;
-			if ((ins[pc].op >= lt or ins[pc].op <= eq) and this_dest_type and this_source_type) goto skip;
-
-			printf("for variable %llu:\"%s\", in instruction: ", this_var, variables[this_var]); 
-			print_instruction(ins[pc]); putchar(10);
-			printf("fatal error: in CTK value changed   "
-				"during a RT instruction (?): promoting variable to RTK.\n"
-			);
-			printf("promoting this variable (\"%s\") to RTK.\n", variables[this_var]);
-			getchar();
-			future_type = 0;
-			skip:;
-
-
-			type[pc * var_count + this_var] = future_type;
-			value[pc * var_count + this_var] = future_value;
-	
-			nat future_is_copy = 0;
-			nat future_copy_ref = 0;
-			nat future_copy_type = 0;
-			nat copy_ref_mismatch = 0;
-	
-			for (nat iterator_p = 0; iterator_p < pred_count; iterator_p++) {
-				const nat pred = preds[iterator_p];
-				if (not ins[pred].visited) continue;
-				const nat t = is_copy[pred * var_count + this_var];
-				const nat v = copy_of[pred * var_count + this_var];
-				const nat ct = copy_type[pred * var_count + this_var];
-				if (t == 0) { 
-					//puts("encountered a noncopy pred!"); getchar(); 
-					future_is_copy = 0; future_copy_ref = 0; future_copy_type = 0; break; }
-				if (not future_is_copy) { 
-					//puts("encountered copy first pred!"); getchar(); 
-					future_is_copy = 1; 
-					future_copy_ref = v;
-					future_copy_type = ct;
-				} else if (future_copy_ref != v or future_copy_type != ct) { 
-					//puts("encountered a mismatching copy for nonfirst pred!"); 
-					getchar(); 
-					copy_ref_mismatch = 1;
-				} else {
-					//puts("encountered a matching copy for nonfirst pred!"); 
-					//getchar(); 
-				}
-			}
-
-			
-	
-			if (copy_ref_mismatch) {
-				puts("found a copy ref mismatch!");
-				getchar();
-		
-				nat found = 0;
-				for (nat i = 0; i < pred_count; i++) {
-					if (preds[i] == last_pc) { found = 1; break; }
-				}
-				if (not found) {
-
-					printf("for variable %llu:\"%s\", in instruction: ", this_var, variables[this_var]); 
-					print_instruction(ins[pc]); putchar(10);
-					printf("fatal error: in copy ref mismatch: last_pc was not a predecessor"
-						" (last_pc = %llu, lastpc not found in predecessors)... aborting.\n", 
-						last_pc
-					);
-
-					getchar();
-
-					//future_is_copy = 0;
-					//future 					
-
-					abort(); //goto done_with_copy_mismatch;
-
-
-
-				} else {
-					puts("found last_pc in preds!");
-					printf("last_pc = %llu\n", last_pc);
-					getchar();
-				}
-
-				if (last_pc == (nat) -1) abort();
-				const nat pred = last_pc;
-				if (not ins[pred].visited) { puts("mismatch internal error"); abort(); }
-				future_is_copy = is_copy[pred * var_count + this_var];
-				future_copy_ref = copy_of[pred * var_count + this_var];
-				future_copy_type = copy_type[pred * var_count + this_var];
-				done_with_copy_mismatch:;
-			}
-
-			//printf("found merged copy:  is:%llu, ref:%llu, type=%llu\n", future_is_copy, future_copy_ref, future_copy_type); getchar();
-
-			const nat this_dest_type2 = (ins[pc].imm & 1) or type[pc * var_count + ins[pc].args[0]];
-			const nat this_source_type2 = (ins[pc].imm & 2) or type[pc * var_count + ins[pc].args[1]];
-
-			if (ins[pc].visited < 2) goto skip2;
-			if (not is_copy[pc * var_count + this_var]) goto skip2;
-			if (not future_is_copy) goto skip2;
-
-			if (	copy_type[pc * var_count + this_var] == future_copy_type and
-				copy_of[pc * var_count + this_var] == future_copy_ref)
-				goto skip2;
-
-			//if ((ins[pc].op >= set or ins[pc].op <= sd) and this_dest_type2) goto skip2;
-			//if ((ins[pc].op >= lt or ins[pc].op <= eq) and this_dest_type2 and this_source_type2) goto skip2;
-
-			printf("for variable %llu:\"%s\", in instruction: ", this_var, variables[this_var]); 
-			print_instruction(ins[pc]); putchar(10);
-			printf("fatal error: in copyref changed   "
-				"during a RT instruction (?): promoting variable to noncopy.\n"
-			);
-			printf("promoting this variable (\"%s\") to noncopy.\n", variables[this_var]);
-			getchar();
-
-			const nat cc = copy_type[pc * var_count + this_var];
-			if (cc == future_copy_type) {
-				printf("obliterating copy data.\n"); getchar();
-				future_is_copy = 0;
-				future_copy_ref = 0;
-				future_copy_type = 0;
-			} else {
-				printf("NOT obliterating copy data.\n"); getchar();
-				//future_is_copy = 1;
-				//future_copy_ref = future_copy_ref;
-				//future_copy_type = 0;
-			}
-			skip2:;
-
-
-	
-			is_copy[pc * var_count + this_var] = future_is_copy;
-			copy_of[pc * var_count + this_var] = future_copy_ref;
-			copy_type[pc * var_count + this_var] = future_copy_type;
-	
-			nat future_def = (nat) -5;
-
-			//printf("[processing variable    this_var = %s   ]\n", variables[this_var]);
-
-			nat definition_mismatch = 0;
-
-			for (nat iterator_p = 0; iterator_p < pred_count; iterator_p++) {
-
-				const nat pred = preds[iterator_p];
-				if (not ins[pred].visited) continue;
-
-				const nat d = def[pred * var_count + this_var];
-
-				if (d == (nat) -1) { 
-					//printf("[pred = %llu]: breaking on first pred that had no def!\n", pred); 
-					future_def = (nat) -1; 
-					break; 
-				} 
-
-				if (future_def == (nat) -5) { 
-					//printf("found a FIRST PRED! inited to d=%lld...\n", d);   
-					future_def = d; 
-				}
-
-				else if (future_def != d) {
-
-					puts("fatal error: mismatch in definition index: "
-						"unable to track location of defintion "
-						"for this variable... aborting..."); 
-
-					printf("future_def = %lld, d = %llu\n", future_def, d);
-					printf("pred = %llu\n", pred);
-					printf("this_var = %llu\n", this_var);
-					definition_mismatch = 1; break;
-
-				} else {
-					//match = 1;
-					//printf("future def match! (future_def(\"%lld\") == d(\"%lld\"))\n", future_def, d); 
-				}
-			}
-			if (future_def == (nat) -5) future_def = (nat) -1;
-
-			if (definition_mismatch) {
-
-				puts("definition mismatch!");
-				getchar();
-		
-				nat found = 0;
-				for (nat i = 0; i < pred_count; i++) {
-					if (preds[i] == last_pc) { found = 1; break; }
-				}
-
-				if (not found) {
-					printf("for variable %llu:\"%s\", in instruction: ", this_var, variables[this_var]); 
-					print_instruction(ins[pc]); putchar(10);
-					printf("fatal error: in copy ref mismatch: last_pc was not a predecessor"
-						" (last_pc = %llu, lastpc not found in predecessors)... aborting.\n", 
-						last_pc
-					);
-					abort();
-				} 
-
-				if (last_pc == (nat) -1) abort();
-				const nat pred = last_pc;
-				if (not ins[pred].visited) { puts("mismatch internal error"); abort(); }
-				future_def = def[pred * var_count + this_var];
-			}
-
-			//printf("future_def = %lld\n", future_def);
-
-
-			if (ins[pc].visited < 2) goto skip3;
-			if (def[pc * var_count + this_var] == -1) goto skip3;
-			if (future_def == -1) goto skip3;
-			if (def[pc * var_count + this_var] == future_def) goto skip3;
-			//if (ins[pc].op == do_) goto skip3;
-			//if (ins[pc].op == at) goto skip3;
-			//if ((ins[pc].op >= set or ins[pc].op <= sd) and this_dest_type) goto skip3;
-			//if ((ins[pc].op >= lt or ins[pc].op <= eq) and this_dest_type and this_source_type) goto skip3;
-
-			printf("for variable %llu:\"%s\", in instruction: ", this_var, variables[this_var]); 
-			print_instruction(ins[pc]); putchar(10);
-			printf("fatal error: in definition changed   "
-				"during a RT instruction (?): promoting variable to no-def.\n"
-			);
-			printf("promoting this variable (\"%s\") to no-def.\n", variables[this_var]);
-			getchar();
-			future_def = -1;
-			skip3:;
-
-			def[pc * var_count + this_var] = future_def;
-
-		} // for e 
-
-		const nat a0_def = a0 < var_count ? def[pc * var_count + a0] : (nat) -1;
-		const nat ct0 = i0 or type[pc * var_count + a0];
-		const nat ct1 = i1 or type[pc * var_count + a1];
-		const nat ct2 = i2 or type[pc * var_count + a2];
-		const nat v0 = i0 ? a0 : value[pc * var_count + a0];
-		const nat v1 = i1 ? a1 : value[pc * var_count + a1];
-		//const nat v2 = i2 ? a2 : value[pc * var_count + a2];
-
-		const nat a0_is_copy = a0 < var_count ? is_copy[pc * var_count + a0] : 0;
-		//const nat a1_is_copy = a1 < var_count ? is_copy[pc * var_count + a1] : 0;
-
-		const nat a0_copy_ref = a0 < var_count ? copy_of[pc * var_count + a0] : 0;
-		//const nat a1_copy_ref = a1 < var_count ? copy_of[pc * var_count + a1] : 0;
-
-		const nat a0_copy_type = a0 < var_count ? copy_type[pc * var_count + a0] : 0;
-		//const nat a1_copy_type = a1 < var_count ? copy_type[pc * var_count + a1] : 0;
-
-		nat out_t = ct0, out_v = v0;
-
-		nat 	out_is_copy = a0_is_copy, out_def = a0_def,
-			out_copy_ref = a0_copy_ref, 
-			out_copy_type = a0_copy_type;
-
-		last_pc = pc;
-
-		if (op == halt) { last_pc = (nat) -1; continue; }
+		if (op == halt) continue; 
 		else if (op == at) { }
 		else if (op == sc) { }
 		else if (op == do_) { pc = gt0; goto execute_ins; }
@@ -1314,32 +1318,12 @@ process_file:;
 			puts(operations[op]); 
 			abort();
 		}
-
-		if (op < a6_nop) {
-			def[pc * var_count + a0] = out_def;
-			type[pc * var_count + a0] = out_t;
-			value[pc * var_count + a0] = out_v;
-			is_copy[pc * var_count + a0] = out_is_copy;
-			copy_of[pc * var_count + a0] = out_copy_ref;
-			copy_type[pc * var_count + a0] = out_copy_type;
-		}
 		pc++; goto execute_ins;
 
 	} // while stack count 
 
 
-	puts("[CTE stage finished]");
-	debug_cte(0, last_pc, NULL, 0, stack, stack_count, def, value, type, copy_of, copy_type, is_copy);
-
-	getchar();
-
-
-	puts("pruning ctk instructions...");
-
 	for (nat i = 0; i < ins_count; i++) {
-
-		//print_instruction_window_around(i, 1, "CTK PRUNING AT");
-		//getchar();
 
 		print_instruction_window_around(i, 0, "");
 		print_dictionary();
@@ -1517,106 +1501,6 @@ process_file:;
 	}
 
 
-	puts("");
-	puts(" ---------------------------------- ON REMATERIALIZATION NOW ------------------------------");
-	puts("");
-
-	// rematerialization: 
-
-	for (nat pc = 0; pc < ins_count; pc++) {
-
-		if (not ins[pc].visited) continue;
-
-		//print_instruction_window_around(pc, 1, "REMAT: on this ins");
-
-		print_instruction_window_around(pc, 0, "");
-		print_dictionary();
-		puts("-----------REMAT:---------------");
-		getchar();
-
-		const nat op = ins[pc].op;
-		//const nat imm = ins[pc].imm;
-
-		if (op == set) { puts("skipping all sets...\n"); continue; }
-
-		nat pred_count = 0;
-		nat* preds = compute_predecessors(pc, &pred_count);
-		//nat* gotos = compute_successors(pc);
-		
-		for (nat e = 0; e < var_count; e++) {
-			const nat this_var = e;
-			printf("[ON VARIABLE %s]\n", variables[this_var]);
-
-			for (nat iterator_p = 0; iterator_p < pred_count; iterator_p++) {
-				const nat pred = preds[iterator_p];
-				const nat t = type[pred * var_count + this_var];
-				const nat v = value[pred * var_count + this_var];
-
-				print_instruction(ins[pc]); putchar(9); printf("  variable = \"%s\"\n", variables[this_var]);
-	
-				printf("\t[pred#%llu / %llu]: RESULTS pred %llu  ", iterator_p, pred_count, pred);
-				printf("	ct_ness = %llu   ", t);
-				printf("	ct_value = %llu   ", v);
-				printf("	value_mismatch = %llu  ", 0LLU);
-				puts("");
-				if (t == 1) { 
-					printf("note: found CTK predecessor, with value %llu... setting def to setimm ctkv\n", v); 
-					if (not type[pc * var_count + this_var]) {
-
-						printf("NOTE: predcondition fired on true! not type[pc * var_count + this_var]\n");
-						printf("\tpc = %llu\n", pc);
-						printf("\tthis_var = %llu\n", this_var);
-						printf("\ttype[pc * var_count + this_var] = %llu\n", type[pc * var_count + this_var]);
-
-						const nat setimm_defined_on = def[pred * var_count + this_var];
-						printf("setimm_defined_on = %lld\n", setimm_defined_on);
-
-						if (setimm_defined_on == -1) {
-							printf("was about to remateralize the variable %s on "
-								"execution path pred #%llu, but did not find a "
-								"setimm definition that would allow for this to happen. "
-								"aborting rematerialization for this variable.\n", 
-								variables[this_var], pred
-							);
-							break;
-						}
-						//const nat ctk_value = 0;
-						puts("on one of the pred exec paths, the variable was compiletime, "
-						"but on this instruction, it is now RTK, but not via a set..");
-						puts("this means that we need to materialize the variable:");
-						puts(variables[this_var]);
-						
-						ins[setimm_defined_on].visited = 1;
-						struct instruction this_def = ins[setimm_defined_on];
-						if (this_def.op != set) abort();
-
-						ins[setimm_defined_on].args[1] = v;
-						ins[setimm_defined_on].imm |= 2;
-						printf("reassigned the initial value for ctk setimm def at ins[%llu] to value #%llu\n", 
-							setimm_defined_on, v
-						); 
-						puts("was:"); 
-						print_instruction(this_def); 
-						puts("");
-						puts("now is:"); 
-						print_instruction(ins[setimm_defined_on]); 
-						puts("");
-						getchar();
-					} else {
-						printf("not type[pc * var_count + this_var]  is false\n");
-						getchar();
-					}
-				}
-			}
-
-			puts("[var]\n");
-			getchar();
-		}
-		puts("[ins]\n");
-		getchar();
-	}
-
-
 
 redo_cfs:
 
@@ -1664,10 +1548,8 @@ redo_cfs:
 		}
 
 		if (op == at and pred_count == 1) {
-
 			puts("we need to inline this block!");
 			abort();
-
 		}
 	}
 
@@ -1701,8 +1583,6 @@ redo_cfs:
 
 
 
-
-/*
 	struct instruction* new_ins = calloc(ins_count, sizeof(struct instruction));
 	nat new_ins_count = 0;
 
@@ -1748,18 +1628,14 @@ redo_cfs:
 
 	}
 
-*/
 
 
-	/*{ nat final_ins_count = 0;
+	{ nat final_ins_count = 0;
 	for (nat i = 0; i < ins_count; i++) {
 		if (not ins[i].visited) continue;
 		ins[final_ins_count++] = ins[i];
 	}
-	ins_count = final_ins_count; }*/
-
-
-
+	ins_count = final_ins_count; }
 
 
 
@@ -1768,13 +1644,7 @@ redo_cfs:
 	print_instructions(false);
 	puts("[done with opt phase]");
 
-
-
 	exit(0);
-
-
-
-
 
 
 // ------------------------------------------------- backend ------------------------------------------------------------
@@ -1796,28 +1666,16 @@ redo_cfs:
 
 	if (not target_arch) exit(0);
 
-
-
-
 	struct instruction mi[4096] = {0};
 	nat mi_count = 0;
 
-	for (nat i = 0; i < ins_count; i++) {
+	for (nat i = 0; i < ins_count; i++)
 		ins[i].visited = 0;
-	}
 
 	if (target_arch == rv32_arch) 	goto rv32_instruction_selection;
 	if (target_arch == msp430_arch) 	goto msp430_instruction_selection;
 	if (target_arch == arm64_arch) 	goto arm64_instruction_selection;
 	puts("instruction selection: error: unknown target"); abort();
-
-
-
-
-
-
-
-
 
 
 rv32_instruction_selection:;
@@ -1917,7 +1775,7 @@ arm64_instruction_selection:;
 
 	puts("arm64: instruction selection starting...");
 
-	/*for (nat i = 0; i < ins_count; i++) {
+	for (nat i = 0; i < ins_count; i++) {
 
 		print_instruction_window_around(i, 0, "");
 		getchar();
@@ -2057,7 +1915,7 @@ arm64_instruction_selection:;
 		print_instructions(mi, mi_count, variables, var_count, 0);
 		getchar();
 
-	}*/
+	}
 
 
 finish_instruction_selection:;
@@ -2138,14 +1996,13 @@ finish_instruction_selection:;
 	nat my_count = 0;
 
 
-/*
 
 #define max_section_count 128
 	nat section_count = 0;
 	nat section_starts[max_section_count] = {0};
 	nat section_addresses[max_section_count] = {0};
 
-*/
+
 
 
 
@@ -2247,7 +2104,7 @@ finished_generation:;
 }
 
 
-
+*/
 
 
 
