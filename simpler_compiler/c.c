@@ -32,10 +32,10 @@ enum all_output_formats { debug_output_only, macho_executable, macho_object, elf
 enum core_language_isa {
 	nullins,
 
-	halt, sc, ud, def, do_, at, lf, 
+	halt, sc, sl, ud, def, do_, at, lf, 
 	set, add, sub, mul, div_, rem, 
 	and_, or_, eor, si, sd, la, rt,
-	ld, st, lt, ge, ne, eq,
+	ld, st, lt, ge, ne, eq, 
 	
 	a6_nop, a6_svc, a6_mov, a6_bfm,
 	a6_adc, a6_addx, a6_addi, a6_addr, a6_adr, 
@@ -51,7 +51,7 @@ enum core_language_isa {
 
 static const char* operations[isa_count] = {
 	"___nullins____",
-	"halt", "sc", "ud", "def", "do", "at", "lf",
+	"halt", "sc", "sl", "ud", "def", "do", "at", "lf",
 	"set", "add", "sub", "mul", "div", "rem", 
 	"and", "or", "eor", "si", "sd", "la", "rt", 
 	"ld", "st", "lt", "ge", "ne", "eq",
@@ -68,7 +68,7 @@ static const char* operations[isa_count] = {
 
 static const nat arity[isa_count] = {
 	0,
-	0, 0, 0, 1, 1, 1, 1,
+	0, 0, 0, 1, 1, 1, 1, 1,
 	2, 2, 2, 2, 2, 2, 
 	2, 2, 2, 2, 2, 2, 2,
 	3, 3, 3, 3, 3, 3, 
@@ -106,8 +106,8 @@ static char* variables[max_variable_count] = {0};
 static nat bit_count[max_variable_count] = {0};
 static nat register_index[max_variable_count] = {0};
 static nat values[max_variable_count] = {0};
-static nat is_runtime[max_variable_count] = {0};
-static nat is_undefined[max_variable_count] = {0};
+static byte is_runtime[max_variable_count] = {0};
+static byte is_undefined[max_variable_count] = {0};
 static nat var_count = 0;
 
 static void print_nats(nat* array, nat count) {
@@ -573,9 +573,11 @@ int main(int argc, const char** argv) {
 
 	const char* included_files[4096] = {0};
 	nat included_file_count = 0;
+	char* string_list[4096] = {0};
+	nat string_list_count = 0;
 	struct file files[4096] = {0};
 	nat file_count = 1;
-
+	
 	{ 
 	nat text_length = 0;
 	char* text = load_file(argv[1], &text_length);
@@ -591,13 +593,29 @@ process_file:;
 	char* text = files[file_count - 1].text;
 	const char* filename = files[file_count - 1].filename;
 
-	nat 	word_length = 0, word_start = 0, 
-		arg_count = 0, is_immediate = 0,
-		last_used = 0;
+	nat 	word_length = 0, word_start = 0, in_string = 0,
+		arg_count = 0, is_immediate = 0; 
 
 	nat args[max_arg_count] = {0};
 
 	for (nat var = 0, op = 0, pc = starting_index; pc < text_length; pc++) {
+
+
+
+		if (in_string) {
+			op = 0; in_string = 0;
+			while (isspace(text[pc])) pc++; 
+			const char delim = text[pc];
+			nat string_at = ++pc, string_length = 0;
+			while (text[pc] != delim) { pc++; string_length++; }
+			string_list[string_list_count++] = strndup(text + string_at, string_length);
+			struct instruction new = { .op = sl };
+			new.args[0] = string_length;
+			new.args[1] = string_list_count - 1;
+			ins[ins_count++] = new;
+			goto next_word;
+		}
+
 
 		if (not isspace(text[pc])) {
 			if (not word_length) word_start = pc;
@@ -642,7 +660,6 @@ process_file:;
 		for (var = var_count; var--;) {
 			if (not is_undefined[var] and 
 			    not strcmp(word, variables[var])) {
-				last_used = var;
 				goto push_argument;
 			}
 		} 
@@ -677,8 +694,10 @@ process_file:;
 		args[arg_count++] = var;
 
 	process_op: 
-		if (arg_count < arity[op]) goto next_word;
-		else if (op == ud) is_undefined[last_used] = 1;
+
+		if (op == sl) { in_string = 1; goto next_word; } 
+		else if (arg_count < arity[op]) goto next_word;
+		else if (op == ud) is_undefined[args[0]] = 1;		
 		else if (op == lf) {
 			for (nat i = 0; i < included_file_count; i++) {
 				if (strcmp(included_files[i], word)) continue;
@@ -715,24 +734,22 @@ process_file:;
 	file_count--;
 	if (file_count) goto process_file; 
 
-	if (ins_count and ins[ins_count - 1].op != halt) ins[ins_count++].op = halt;
-
-	nat* memory = calloc(65536, sizeof(nat));
+	if (ins_count and ins[ins_count - 1].op != halt) ins[ins_count++].op = halt;	
 
 	for (nat pc = 0; pc < ins_count; pc++) {
 		const nat op = ins[pc].op;
-		if (op == at) { values[ins[pc].args[0]] = pc; ins[pc].ct = 0; }
+		if (op == at) values[ins[pc].args[0]] = pc;
 	}
+
+
+	/*
 
 	print_dictionary();
 	print_instructions(0);
 	puts("parsing finished.");
 	getchar();
 
-
-
-
-
+	*/
 
 
 	struct instruction rt_ins[4096] = {0};
@@ -742,32 +759,41 @@ process_file:;
 	memset(register_index, 255, sizeof register_index);
 
 	const nat is_hardware_register = 1LLU << 63LLU;
+	uint8_t* memory = calloc(65536, sizeof(nat));
+
+	nat latest_string = 0;
+	bool debug_cte = 0;
 
 	for (nat pc = 0; pc < ins_count; pc++) {
 
 		const nat op = ins[pc].op;
 		const nat imm = ins[pc].imm;
 		const nat ct = ins[pc].ct;
+
 		const nat arg0 = ins[pc].args[0];
 		const nat arg1 = ins[pc].args[1];
 		const nat arg2 = ins[pc].args[2];
+
 		const nat i0 = !!(imm & 1);
 		const nat i1 = !!(imm & 2);
+		const nat i2 = !!(imm & 4);
+
 		const nat val0 = not i0 ? values[arg0] : arg0;
 		const nat val1 = not i1 ? values[arg1] : arg1;
+		const nat val2 = not i2 ? values[arg2] : arg2;
 
-		print_instruction_window_around(pc, 0, "");
-		print_dictionary();
-		puts("rt instructions: ");
-		for (nat i = 0; i < rt_ins_count; i++) {
-			putchar(9); print_instruction(rt_ins[i]); puts("");
+		if (debug_cte) {
+			print_instruction_window_around(pc, 0, "");
+			print_dictionary();
+			puts("rt instructions: ");
+			for (nat i = 0; i < rt_ins_count; i++) {
+				putchar(9); print_instruction(rt_ins[i]); puts("");
+			}
+			puts("done");
+			getchar();
 		}
-		puts("done");
-		//getchar();
 
-		if (op == at)   values[arg0] = pc;
-
-		if (not ct) {
+		if (not ct and op != rt) {
 			struct instruction new = { .op = op };
 			memcpy(new.args, ins[pc].args, sizeof new.args);
 			new.imm = ins[pc].imm;
@@ -788,6 +814,8 @@ process_file:;
 			continue;
 		}
 
+		else if (op == sl)   latest_string = arg1;
+		else if (op == at)   values[arg0] = pc;
 		else if (op == set)  values[arg0]  = val1;
 		else if (op == add)  values[arg0] += val1;
 		else if (op == sub)  values[arg0] -= val1;
@@ -799,20 +827,40 @@ process_file:;
 		else if (op == eor)  values[arg0] ^= val1;
 		else if (op == si)   values[arg0] <<= val1;
 		else if (op == sd)   values[arg0] >>= val1;
-		else if (op == ld)   values[arg0] = memory[val1];
-		else if (op == st)   memory[val0] = val1;
-		else if (op == do_)  pc = values[arg0];
+
+		else if (op == ld) {
+			if (is_runtime[arg0]) { puts("error"); abort(); }
+			values[arg0] = 0;
+			for (nat i = 0; i < val2; i++) 
+				values[arg0] |= (nat) ((nat) memory[val1 + i] << (8LLU * i));
+
+		} else if (op == st) {
+			if (is_runtime[arg0]) { puts("error"); abort(); }
+			for (nat i = 0; i < val2; i++) 
+				memory[val0 + i] = (val1 >> (8 * i)) & 0xFF;
+
+		} else if (op == do_)  pc = values[arg0];
 		else if (op == lt) { if (val0  < val1) pc = values[arg2]; }
 		else if (op == ge) { if (val0 >= val1) pc = values[arg2]; }
 		else if (op == eq) { if (val0 == val1) pc = values[arg2]; }
 		else if (op == ne) { if (val0 != val1) pc = values[arg2]; }
 		else if (op == rt) {
-			if (val1 & is_hardware_register) 
+			if (val1 & is_hardware_register) {
 				register_index[arg0] = val1 ^ is_hardware_register; 
-			else 
+			} else {
 				bit_count[arg0] = val1;
+				if (((0))) {}
+				else if (val1 == 1024 + 1) exit(0);
+				else if (val1 == 1024 + 2) values[0] = (nat) getchar();
+				else if (val1 == 1024 + 3) putchar((int) values[0]);
+				else if (val1 == 1024 + 4) printf("0x%016llx\n", values[0]);
+				else if (val1 == 1024 + 5) printf("%llu\n", values[0]);
+				else if (val1 == 1024 + 6) abort();
+				else if (val1 == 1024 + 7) debug_cte = not debug_cte;
+				else if (val1 == 1024 + 8) printf("%s", string_list[latest_string]);
+			}
 		}
-		else abort();
+		else { puts("CTE: fatal internal error: unknown instruction executed...\n"); abort(); } 
 	}
 
 	memcpy(ins, rt_ins, ins_count * sizeof(struct instruction));
@@ -823,10 +871,6 @@ process_file:;
 	print_instructions(0);
 	puts("CTE finished.");
 	getchar();
-
-
-
-
 
 
 
@@ -2874,6 +2918,8 @@ generate_ti_txt_executable:;
 
 /*
 
+		//else if (op == ld)   values[arg0] = memory[val1];
+		//else if (op == st)   memory[val0] = val1;
 
 if (op == emit) {
 			if (a0 == 8) insert_u64(&my_bytes, &my_count, (uint64_t) a1);
