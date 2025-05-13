@@ -158,7 +158,7 @@ static void print_instruction(struct instruction this) {
 		}
 	}
 
-	printf("  %s%4s    ", this.ct ? "ct " : "", operations[this.op]);
+	printf("  %4s    ", operations[this.op]);
 	/*int left_to_print = max_name_width - (int) strlen(operations[this.op]);
 	if (left_to_print < 0) left_to_print = 0;
 	for (int i = 0; i < left_to_print; i++) putchar(' ');
@@ -471,8 +471,6 @@ static void insert_byte(
 	(*output_data)[(*output_data_count)++] = x;
 }
 
-
-
 static void insert_u8(uint8_t** d, nat* c, uint8_t x) {
 	insert_byte(d, c, x);
 }
@@ -480,8 +478,6 @@ static void insert_u8(uint8_t** d, nat* c, uint8_t x) {
 static void insert_bytes(uint8_t** d, nat* c, char* s, nat len) {
 	for (nat i = 0; i < len; i++) insert_byte(d, c, (uint8_t) s[i]);
 }
-
-
 
 static void insert_u16(uint8_t** d, nat* c, uint16_t x) {
 	insert_byte(d, c, (x >> 0) & 0xFF);
@@ -492,8 +488,6 @@ static void insert_u32(uint8_t** d, nat* c, uint32_t x) {
 	insert_u16(d, c, (x >> 0) & 0xFFFF);
 	insert_u16(d, c, (x >> 16) & 0xFFFF);
 }
-
-
 
 static void insert_u64(uint8_t** d, nat* c, uint64_t x) {
 	insert_u32(d, c, (x >> 0) & 0xFFFFFFFF);
@@ -568,7 +562,10 @@ int main(int argc, const char** argv) {
 
 	if (argc != 2) exit(puts("compiler: \033[31;1merror:\033[0m usage: ./run [file.s]"));
 	
-	const nat min_stack_size = 16384 + 1;    // give warning if stack size is less than min, and target is arm64.    stack size should be zero for msp430, always. 
+	const nat min_stack_size = 16384 + 1;    
+
+		// if (arch == msp430 and stack_size) { puts("error: nonzero stack size for msp430"); abort();
+		// if (arch == arm64 and stack_size < min_stack_size) puts("warning: stack size is less than the minimum stack size for this target"); }
 
 	nat target_arch = arm64_arch;
 	nat output_format = macho_object;
@@ -737,7 +734,7 @@ process_file:;
 	file_count--;
 	if (file_count) goto process_file; 
 
-	if (ins_count and ins[ins_count - 1].op != halt) ins[ins_count++].op = halt;	
+//	if (ins_count and ins[ins_count - 1].op != halt) ins[ins_count++].op = halt;	
 
 	for (nat pc = 0; pc < ins_count; pc++) {
 		const nat op = ins[pc].op;
@@ -858,15 +855,18 @@ process_file:;
 				register_index[arg0] = val1 ^ is_hardware_register; 
 			} else {
 				bit_count[arg0] = val1;
-				if (((0))) {}
-				else if (val1 == 1024 + 1) exit(0);
+				const nat data = values[0];
+				     if (val1 == 1024 + 1) exit(0);
 				else if (val1 == 1024 + 2) values[0] = (nat) getchar();
-				else if (val1 == 1024 + 3) putchar((int) values[0]);
-				else if (val1 == 1024 + 4) printf("0x%016llx\n", values[0]);
-				else if (val1 == 1024 + 5) printf("%llu\n", values[0]);
+				else if (val1 == 1024 + 3) putchar((int) data);
+				else if (val1 == 1024 + 4) printf("0x%016llx\n", data);
+				else if (val1 == 1024 + 5) printf("%llu\n", data);
 				else if (val1 == 1024 + 6) abort();
 				else if (val1 == 1024 + 7) debug_cte = not debug_cte;
 				else if (val1 == 1024 + 8) printf("%s", string_list[latest_string]);
+				else if (val1 == 1024 + 9) target_arch = data;
+				else if (val1 == 1024 + 10) output_format = data;
+				else if (val1 == 1024 + 11) should_overwrite = not should_overwrite;
 			}
 		}
 		else { puts("CTE: fatal internal error: unknown instruction executed...\n"); abort(); } 
@@ -875,18 +875,13 @@ process_file:;
 	memcpy(ins, rt_ins, ins_count * sizeof(struct instruction));
 	ins_count = rt_ins_count;
 
-
 	print_dictionary();
 	print_instructions(0);
 	puts("CTE finished.");
 	getchar();
 
 
-
-
-
-
-	
+	bool seen_halt = 0;
 	for (nat i = 0; i < ins_count; i++) {
 
 		print_instruction_window_around(i, 0, "");
@@ -900,16 +895,19 @@ process_file:;
 		const nat arg0 = ins[i].args[0];
 		const nat arg1 = ins[i].args[1];
 
-		ins[i].ct = 1;
+		ins[i].ct = 0;
+		if (op == halt) seen_halt = 1;
+		else if (op == at) seen_halt = 0;
+		else if (seen_halt) ins[i].ct = 1;
 
-		if (op >= set and op <= sd and i1) {
+		else if (op >= set and op <= sd and i1) {
 			if (	(op == add or op == sub or
 				 op == si or op == sd or
 				 op == eor or op == or_)
 				and not arg1 or 
 				(op == mul or op == div_)
 				and arg1 == 1
-			) ins[i].ct = 0; 
+			) ins[i].ct = 1; 
 
 			else if (op == and_ and not arg1) 
 				ins[i].op = set;
@@ -927,7 +925,7 @@ process_file:;
 			}
 
 		} else if (op >= set and op <= sd and arg0 == arg1) {
-			if (op == set or op == and_ or op == or_) ins[i].ct = 0;
+			if (op == set or op == and_ or op == or_) ins[i].ct = 1;
 			else if (op == eor or op == sub) {
 				ins[i].op = set;
 				ins[i].imm |= 2;
@@ -945,7 +943,7 @@ process_file:;
 
 	{ nat final_ins_count = 0;
 	for (nat i = 0; i < ins_count; i++) {
-		if (not ins[i].ct) continue;
+		if (ins[i].ct) continue;
 		ins[final_ins_count++] = ins[i];
 	}
 	ins_count = final_ins_count; }
@@ -955,13 +953,8 @@ process_file:;
 	puts("OPT1 finished.");
 	getchar();
 
-
-
-
 	// TODO: copy_prop:    we need to be tracing not only rt variables through copies,  
 	//                     but also runtime immediate set statements. ie,    set x 5 set y x  (y is 5!)
-
-
 
 	const nat not_a_copy = (nat) -1;
 	memset(values, 255, sizeof values);
@@ -975,12 +968,13 @@ process_file:;
 
 		print_instruction_window_around(pc, 0, "");
 		print_dictionary();
+		puts("----------- COPY PROP --------------");
 		getchar();
 		
-		if (op == at or op == do_ or op == lt or op == ge or op == ne or op == eq) {
+		if (op == halt or op == at or op == do_ or op == lt or op == ge or op == ne or op == eq) {
 			memset(values, 255, sizeof values);
 
-		} else if (op == set) { 
+		} else if (op == set) {
 			if (i1) continue;
 			if (values[arg1] != not_a_copy) ins[pc].args[1] = values[arg1];
 			values[arg0] = ins[pc].args[1];
@@ -989,9 +983,8 @@ process_file:;
 			if (i1) continue;
 			if (values[arg1] != not_a_copy) ins[pc].args[1] = values[arg1];
 			values[arg0] = not_a_copy;
-		}
 
-		else { puts("CP: fatal internal error: unknown instruction executed...\n"); abort(); } 
+		} else { puts("CP: fatal internal error: unknown instruction executed...\n"); abort(); } 
 	}
 
 
@@ -999,6 +992,42 @@ process_file:;
 
 
 
+
+
+	//// HERE:       CURRENT STATE:              1202505121.211911    we need to do this:
+
+
+	/*
+
+			we need to bring in the previous way we were doing  CTE   and CP    AT THIS POINT! 
+
+
+			the goal here, is to KEEPPP the existing amazing CTE stage listed above, 
+
+			ANDDD to put in  an  RT-var  specific     CTE stage,  which doesnt do execution  AT ALL!!!
+
+
+			ie, we seperate out the actual RUNNING of code, vs just propgation of constants!
+
+
+				AMAZING!!      see, the cool part is that   running of the program (ie, the values changing over the course of the program, 
+
+								is not applicable to   CP!!      ANDDD not applicable  to CTK/RTK analysis   ie constant prop/folding
+
+									becuase of the fact that we are trying to find a stable representation, which doesnt evolve over time! 
+
+
+									and so the problem becomes MUCHHH more easier, becuase now we won't run into the same problem that we were having before!   AMAZINGGG
+
+
+utterly geniusss
+
+YAYYYY
+
+
+
+
+	*/
 
 
 
