@@ -31,12 +31,11 @@ enum all_output_formats { debug_output_only, macho_executable, macho_object, elf
 
 enum core_language_isa {
 	nullins,
-
 	halt, sc, sl, ud, def, do_, at, lf, 
 	set, add, sub, mul, div_, rem, 
 	and_, or_, eor, si, sd, la, rt,
 	ld, st, lt, ge, ne, eq, 
-	
+
 	a6_nop, a6_svc, a6_mov, a6_bfm,
 	a6_adc, a6_addx, a6_addi, a6_addr, a6_adr, 
 	a6_shv, a6_clz, a6_rev, a6_jmp, a6_bc, a6_br, 
@@ -55,6 +54,7 @@ static const char* operations[isa_count] = {
 	"set", "add", "sub", "mul", "div", "rem", 
 	"and", "or", "eor", "si", "sd", "la", "rt", 
 	"ld", "st", "lt", "ge", "ne", "eq",
+
 	"a6_nop", "a6_svc", "a6_mov", "a6_bfm",
 	"a6_adc", "a6_addx", "a6_addi", "a6_addr", "a6_adr", 
 	"a6_shv", "a6_clz", "a6_rev", "a6_jmp", "a6_bc", "a6_br", 
@@ -87,7 +87,6 @@ static const nat arity[isa_count] = {
 struct instruction {
 	nat op;
 	nat imm;
-	nat visited;
 	nat ct;
 	nat args[max_arg_count];
 };
@@ -221,12 +220,12 @@ static void print_instruction_window_around(
 		}
 
 		printf("  %s%4llu │ ", 
-			not i and ins[here].visited ? 
+			not i and ins[here].ct ? 
 			"\033[32;1m•\033[0m\033[48;5;238m"
-			: (ins[here].visited ? "\033[32;1m•\033[0m" : " "), 
+			: (ins[here].ct ? "\033[32;1m•\033[0m" : " "), 
 			here
 		);
-		if (not i and ins[here].visited) printf("\033[48;5;238m");
+		if (not i and ins[here].ct) printf("\033[48;5;238m");
 
 		if (ins[here].op != at) putchar(9);
 		print_instruction(ins[here]);
@@ -541,7 +540,10 @@ static nat calculate_offset(nat* length, nat here, nat target) {
 	if (target > here) {
 		for (nat i = here; i < target; i++) {
 			if (i >= ins_count) {
-				printf("fatal error: calculate_offset(lengths, %lld, %lld): [ins_count = %llu]: tried to index %lld into lengths, aborting..\n", here, target, ins_count, i);
+				printf("fatal error: calculate_offset(lengths, %lld, %lld): "
+					"[ins_count = %llu]: tried to index %lld into lengths, "
+					"aborting..\n", here, target, ins_count, i
+				);
 				abort();			
 			}
 			offset += length[i];
@@ -549,7 +551,10 @@ static nat calculate_offset(nat* length, nat here, nat target) {
 	} else {
 		for (nat i = target; i < here; i++) {
 			if (i >= ins_count) {
-				printf("fatal error: calculate_offset(lengths, %lld, %lld): [ins_count = %llu]:  tried to index %lld into lengths, aborting..\n", here, target, ins_count, i);
+				printf("fatal error: calculate_offset(lengths, %lld, %lld): "
+					"[ins_count = %llu]:  tried to index %lld into lengths, "
+					"aborting..\n", here, target, ins_count, i
+				);
 				abort();			
 			}		
 			offset -= length[i];
@@ -599,8 +604,6 @@ process_file:;
 	nat args[max_arg_count] = {0};
 
 	for (nat var = 0, op = 0, pc = starting_index; pc < text_length; pc++) {
-
-
 
 		if (in_string) {
 			op = 0; in_string = 0;
@@ -752,6 +755,12 @@ process_file:;
 	*/
 
 
+
+
+
+
+
+
 	struct instruction rt_ins[4096] = {0};
 	nat rt_ins_count = 0;
 
@@ -877,16 +886,12 @@ process_file:;
 
 
 
-
-
-
-
 	
 	for (nat i = 0; i < ins_count; i++) {
 
 		print_instruction_window_around(i, 0, "");
 		print_dictionary();
-		puts("-----------OPT 1---------------");
+		puts("-----------OPT: CTK PRUNING---------------");
 		getchar();
 
 		const nat op = ins[i].op;
@@ -895,7 +900,7 @@ process_file:;
 		const nat arg0 = ins[i].args[0];
 		const nat arg1 = ins[i].args[1];
 
-		ins[i].visited = 1;
+		ins[i].ct = 1;
 
 		if (op >= set and op <= sd and i1) {
 			if (	(op == add or op == sub or
@@ -904,7 +909,7 @@ process_file:;
 				and not arg1 or 
 				(op == mul or op == div_)
 				and arg1 == 1
-			) ins[i].visited = 0; 
+			) ins[i].ct = 0; 
 
 			else if (op == and_ and not arg1) 
 				ins[i].op = set;
@@ -922,7 +927,7 @@ process_file:;
 			}
 
 		} else if (op >= set and op <= sd and arg0 == arg1) {
-			if (op == set or op == and_ or op == or_) ins[i].visited = 0;
+			if (op == set or op == and_ or op == or_) ins[i].ct = 0;
 			else if (op == eor or op == sub) {
 				ins[i].op = set;
 				ins[i].imm |= 2;
@@ -930,7 +935,7 @@ process_file:;
 			}
 
 		} else if ((op == lt or op == ge or op == ne or op == eq) and arg0 == arg1 and not imm) {
-			if (op == lt or op == ne) ins[i].visited = 0;
+			if (op == lt or op == ne) ins[i].ct = 0;
 			else if (op == eq or op == ge) {
 				ins[i].op = do_;
 				ins[i].args[0] = ins[i].args[2];
@@ -940,7 +945,7 @@ process_file:;
 
 	{ nat final_ins_count = 0;
 	for (nat i = 0; i < ins_count; i++) {
-		if (not ins[i].visited) continue;
+		if (not ins[i].ct) continue;
 		ins[final_ins_count++] = ins[i];
 	}
 	ins_count = final_ins_count; }
@@ -953,6 +958,41 @@ process_file:;
 
 
 
+	// TODO: copy_prop:    we need to be tracing not only rt variables through copies,  
+	//                     but also runtime immediate set statements. ie,    set x 5 set y x  (y is 5!)
+
+
+
+	const nat not_a_copy = (nat) -1;
+	memset(values, 255, sizeof values);
+
+	for (nat pc = 0; pc < ins_count; pc++) {
+		const nat op = ins[pc].op;
+		const nat imm = ins[pc].imm;
+		const nat arg0 = ins[pc].args[0];
+		const nat arg1 = ins[pc].args[1];
+		const nat i1 = !!(imm & 2);
+
+		print_instruction_window_around(pc, 0, "");
+		print_dictionary();
+		getchar();
+		
+		if (op == at or op == do_ or op == lt or op == ge or op == ne or op == eq) {
+			memset(values, 255, sizeof values);
+
+		} else if (op == set) { 
+			if (i1) continue;
+			if (values[arg1] != not_a_copy) ins[pc].args[1] = values[arg1];
+			values[arg0] = ins[pc].args[1];
+
+		} else if (op >= add and op <= sd) {
+			if (i1) continue;
+			if (values[arg1] != not_a_copy) ins[pc].args[1] = values[arg1];
+			values[arg0] = not_a_copy;
+		}
+
+		else { puts("CP: fatal internal error: unknown instruction executed...\n"); abort(); } 
+	}
 
 
 
@@ -980,7 +1020,7 @@ process_file:;
 	nat mi_count = 0;
 
 	for (nat i = 0; i < ins_count; i++)
-		ins[i].visited = 0;
+		ins[i].ct = 0;
 
 	if (target_arch == rv32_arch) 	goto rv32_instruction_selection;
 	if (target_arch == msp430_arch) goto msp430_instruction_selection;
@@ -1001,7 +1041,7 @@ rv32_instruction_selection:;
 		puts("[RISC-V ins sel]");
 		getchar();
 
-		if (ins[i].visited) {
+		if (ins[i].ct) {
 			printf("warning: [i = %llu]: skipping, part of a pattern.\n", i); 
 			getchar();
 			continue;
@@ -1021,7 +1061,7 @@ rv32_instruction_selection:;
 			op == r5_j or 
 			op == at or 
 			op == halt
-		) { ins[i].visited = 1; mi[mi_count++] = ins[i]; continue; }
+		) { ins[i].ct = 1; mi[mi_count++] = ins[i]; continue; }
 
 		if (op == set and not imm) { // addi d n 0 
 			struct instruction new = { .op = r5_i, .imm = 0x15 };
@@ -1031,7 +1071,7 @@ rv32_instruction_selection:;
 			new.args[3] = arg1;
 			new.args[4] = 0;
 			mi[mi_count++] = new;
-			ins[i].visited = 1;
+			ins[i].ct = 1;
 			continue;
 		} 
 
@@ -1043,7 +1083,7 @@ rv32_instruction_selection:;
 			new.args[3] = 0;
 			new.args[4] = arg1;
 			mi[mi_count++] = new;
-			ins[i].visited = 1;
+			ins[i].ct = 1;
 			continue;
 		}
 
@@ -1055,7 +1095,7 @@ rv32_instruction_selection:;
 			new.args[3] = arg0;
 			new.args[4] = arg1;
 			mi[mi_count++] = new;
-			ins[i].visited = 1;
+			ins[i].ct = 1;
 			continue;
 		}
 
@@ -1068,12 +1108,12 @@ rv32_instruction_selection:;
 			new.args[4] = arg1;
 			new.args[5] = 0;
 			mi[mi_count++] = new;
-			ins[i].visited = 1;
+			ins[i].ct = 1;
 			continue;
 		}
 
 		if (op == lt and imm) {     // addi NEW zr IMM    blt x NEW label
-			//ins[i].visited = 1;
+			//ins[i].ct = 1;
 			//continue;			
 		} 
 	}
@@ -1106,7 +1146,7 @@ arm64_instruction_selection:;
 		puts("[ARM64 ins sel]");
 		getchar();
 
-		if (ins[i].visited) {
+		if (ins[i].ct) {
 			printf("warning: [i = %llu]: skipping, part of a pattern.\n", i); 
 			getchar();
 			continue;
@@ -1120,7 +1160,7 @@ arm64_instruction_selection:;
 
 		if (op == halt or op == at or (op >= a6_nop and op <= a6_divr)) { 
 			mi[mi_count++] = ins[i]; 
-			ins[i].visited = 1; 
+			ins[i].ct = 1; 
 			continue;
 		}
 
@@ -1145,7 +1185,7 @@ arm64_instruction_selection:;
 			new.args[4] = 0; //???sb?
 			new.args[5] = 0; // ????sf???
 			mi[mi_count++] = new;
-			ins[i].visited = 1; ins[b].visited = 1; ins[c].visited = 1;
+			ins[i].ct = 1; ins[b].ct = 1; ins[c].ct = 1;
 			continue;
 		} addsrlsl_bail:
 
@@ -1156,7 +1196,7 @@ arm64_instruction_selection:;
 			new.args[2] = arg1;			
 			new.args[3] = 0;
 			mi[mi_count++] = new;
-			ins[i].visited = 1;
+			ins[i].ct = 1;
 			continue;
 		}
 
@@ -1168,7 +1208,7 @@ arm64_instruction_selection:;
 			new.args[3] = 0;
 			new.args[4] = 0;
 			mi[mi_count++] = new;
-			ins[i].visited = 1;
+			ins[i].ct = 1;
 			continue;
 		}
 
@@ -1183,7 +1223,7 @@ arm64_instruction_selection:;
 			new2.args[0] = lt;
 			new2.args[1] = (nat) -1;
 			mi[mi_count++] = new2;
-			ins[i].visited = 1; 
+			ins[i].ct = 1; 
 			continue;
 		}
 
@@ -1198,7 +1238,7 @@ arm64_instruction_selection:;
 			new2.args[0] = eq;
 			new2.args[1] = (nat) -1;
 			mi[mi_count++] = new2;
-			ins[i].visited = 1; 
+			ins[i].ct = 1; 
 			continue;
  		}
 
@@ -1213,7 +1253,7 @@ arm64_instruction_selection:;
 			new2.args[0] = lt;
 			new2.args[1] = (nat) -1;
 			mi[mi_count++] = new2;
-			ins[i].visited = 1; 
+			ins[i].ct = 1; 
 
 			puts("we need to detrmine the the label still!");
 			abort();
@@ -1231,14 +1271,14 @@ arm64_instruction_selection:;
 			new2.args[0] = eq;
 			new2.args[1] = (nat) -1;
 			mi[mi_count++] = new2;
-			ins[i].visited = 1; 
+			ins[i].ct = 1; 
 			continue;
 		}
 
 		if (op == sc) {
 			struct instruction new = { .op = a6_svc, .imm = 0xff };
 			mi[mi_count++] = new;
-			ins[i].visited = 1;
+			ins[i].ct = 1;
 			continue;
 		}
 	}
@@ -1248,7 +1288,7 @@ arm64_instruction_selection:;
 finish_instruction_selection:;
 
 	for (nat i = 0; i < ins_count; i++) {
-		if (not ins[i].visited) {
+		if (not ins[i].ct) {
 			puts("error: instruction unprocessed by ins sel: internal error");
 			puts("error: this instruction failed to be lowered:\n");
 			print_instruction_window_around(i, 1, "not selected instruction!");
@@ -1260,8 +1300,6 @@ finish_instruction_selection:;
 	
 	for (nat i = 0; i < mi_count; i++) ins[i] = mi[i];
 	ins_count = mi_count;
-
-
 
 	puts("finished instruction selection!");
 	printf("info: final machine code: for target = %llu\n", target_arch);
@@ -4951,7 +4989,7 @@ if (output_format == debug_output_only) {
 
 redo_cfs:
 	for (nat pc = 0; pc < ins_count; pc++) {
-		if (not ins[pc].visited) continue;
+		if (not ins[pc].ct) continue;
 
 		//print_instruction_window_around(pc, 1, "CF SIMPLIFY: on this ins");
 		print_instruction_window_around(pc, 0, "");
@@ -4967,11 +5005,11 @@ redo_cfs:
 
 		nat visited_pred_count = 0;
 		for (nat i = 0; i < pred_count; i++) 
-			if (ins[preds[i]].visited) visited_pred_count++;
+			if (ins[preds[i]].ct) visited_pred_count++;
 		
 		if (not pc) visited_pred_count++;
 		if (not visited_pred_count) { 
-			ins[pc].visited = 0; 
+			ins[pc].ct = 0; 
 			goto redo_cfs; 
 		}
 
@@ -4979,8 +5017,8 @@ redo_cfs:
 			nat count = 0;
 			compute_predecessors(gotos[0], &count);
 			if (gotos[0] == pc + 1) { 
-				ins[pc].visited = 0; 
-				if (count < 2) ins[pc + 1].visited = 0; 
+				ins[pc].ct = 0; 
+				if (count < 2) ins[pc + 1].ct = 0; 
 				goto redo_cfs; 
 			}
 		}
@@ -4998,21 +5036,22 @@ redo_cfs:
 		if (op == la) label_use_count[ins[i].args[1]]++;
 		if (op == lt or op == ge or op == ne or op == eq) label_use_count[ins[i].args[2]]++;
 	}
+
 	for (nat i = 0; i < ins_count; i++) {
 		const nat op = ins[i].op;
-		if (op == at and not label_use_count[ins[i].args[0]]) ins[i].visited = 0;
+		if (op == at and not label_use_count[ins[i].args[0]]) ins[i].ct = 0;
 	}
 
 	{ nat final_ins_count = 0;
 	for (nat i = 0; i < ins_count; i++) {
-		if (not ins[i].visited) continue;
+		if (not ins[i].ct) continue;
 		ins[final_ins_count++] = ins[i];
 	}
 	ins_count = final_ins_count; }
 
 
 	for (nat i = 0; i < ins_count; i++) {
-		ins[i].visited = 0;
+		ins[i].ct = 0;
 	}
 
 
@@ -5097,7 +5136,7 @@ redo_cfs:
 		nat* preds = compute_predecessors(pc, &pred_count);
 		nat* gotos = compute_successors(pc);
 
-		ins[pc].visited++;
+		ins[pc].ct++;
 
 		const nat op = ins[pc].op;
 		const nat imm = ins[pc].imm;
