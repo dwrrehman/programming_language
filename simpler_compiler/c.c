@@ -87,7 +87,7 @@ static const nat arity[isa_count] = {
 struct instruction {
 	nat op;
 	nat imm;
-	nat ct;
+	nat state;
 	nat args[max_arg_count];
 };
 
@@ -149,7 +149,7 @@ static void print_dictionary(void) {
 
 static void print_instruction(struct instruction this) {
 
-	if (this.ct) printf("\033[33m");
+	//if (this.ct) printf("\033[33m");
 
 	int max_name_width = 0;
 	for (nat i = 0; i < var_count; i++) {
@@ -177,7 +177,7 @@ static void print_instruction(struct instruction this) {
 		putchar(' ');
 	}
 
-	if (this.ct) printf("\033[0m");
+	//if (this.ct) printf("\033[0m");
 
 }
 
@@ -220,12 +220,12 @@ static void print_instruction_window_around(
 		}
 
 		printf("  %s%4llu │ ", 
-			not i and ins[here].ct ? 
+			not i and ins[here].state ? 
 			"\033[32;1m•\033[0m\033[48;5;238m"
-			: (ins[here].ct ? "\033[32;1m•\033[0m" : " "), 
+			: (ins[here].state ? "\033[32;1m•\033[0m" : " "), 
 			here
 		);
-		if (not i and ins[here].ct) printf("\033[48;5;238m");
+		if (not i and ins[here].state) printf("\033[48;5;238m");
 
 		if (ins[here].op != at) putchar(9);
 		print_instruction(ins[here]);
@@ -558,14 +558,60 @@ static nat calculate_offset(nat* length, nat here, nat target) {
 }
 
 
+
+
+
+static void debug_data_flow_state(
+	nat pc,
+	nat* preds, nat pred_count,
+	nat* stack, nat stack_count,
+	nat* value, nat* type, 
+	nat* is_copy, nat* copy_of
+) {
+
+	print_instruction_window_around(pc, 0, "PC");
+	print_dictionary();
+
+	printf("        ");
+	for (nat j = 0; j < var_count; j++) 
+		printf("%3lld ", j);
+	puts("\n-------------------------------------------------");
+	for (nat i = 0; i < ins_count; i++) {
+		printf("ct %3llu: ", i);
+		for (nat j = 0; j < var_count; j++) {
+			if (not type[i * var_count + j]) printf("\033[90m");
+			printf("%3lld ", value[i * var_count + j]);
+			if (not type[i * var_count + j]) printf("\033[0m");
+		}
+		putchar(9);
+
+		printf("cp %3llu: ", i);
+		for (nat j = 0; j < var_count; j++) {
+			if (not is_copy[i * var_count + j]) printf("\033[90m");
+			printf("%3lld ", copy_of[i * var_count + j]);
+			if (not is_copy[i * var_count + j]) printf("\033[0m");
+		}
+		putchar(10);
+	}
+	puts("-------------------------------------------------");
+	printf("[PC = %llu], pred:", pc);
+	print_nats(preds, pred_count); putchar(32);
+	printf("stack: "); 
+	print_nats(stack, stack_count); 
+	putchar(10);
+}
+
+
+
 int main(int argc, const char** argv) {
 
 	if (argc != 2) exit(puts("compiler: \033[31;1merror:\033[0m usage: ./run [file.s]"));
 	
 	const nat min_stack_size = 16384 + 1;    
 
-		// if (arch == msp430 and stack_size) { puts("error: nonzero stack size for msp430"); abort();
-		// if (arch == arm64 and stack_size < min_stack_size) puts("warning: stack size is less than the minimum stack size for this target"); }
+	// if (arch == msp430 and stack_size) { puts("error: nonzero stack size for msp430"); abort(); }
+	// if (arch == arm64 and stack_size < min_stack_size) {
+	//           puts("warning: stack size is less than the minimum stack size for this target"); }
 
 	nat target_arch = arm64_arch;
 	nat output_format = macho_object;
@@ -722,7 +768,7 @@ process_file:;
 				if (is_immediate & (1 << i)) continue;
 				if (is_runtime[args[i]]) ct = 0;
 			}
-			if (not ((op >= a6_nop and op <= isa_count) or op == halt or op == sc)) new.ct = ct;
+			if (not ((op >= a6_nop and op <= isa_count) or op == halt or op == sc)) new.state = ct;
 			if (op == rt) { is_runtime[args[0]] = 1; ct = 1; }
 			if ((op == ld or op == st) and not is_runtime[args[2]]) goto print_error;
 			is_immediate = 0;
@@ -768,13 +814,13 @@ process_file:;
 	uint8_t* memory = calloc(65536, sizeof(nat));
 
 	nat latest_string = 0;
-	bool debug_cte = 0;
+	bool should_debug_cte = 0;
 
 	for (nat pc = 0; pc < ins_count; pc++) {
 
 		const nat op = ins[pc].op;
 		const nat imm = ins[pc].imm;
-		const nat ct = ins[pc].ct;
+		const nat ct = ins[pc].state;
 
 		const nat arg0 = ins[pc].args[0];
 		const nat arg1 = ins[pc].args[1];
@@ -788,7 +834,7 @@ process_file:;
 		const nat val1 = not i1 ? values[arg1] : arg1;
 		const nat val2 = not i2 ? values[arg2] : arg2;
 
-		if (debug_cte) {
+		if (should_debug_cte) {
 			print_instruction_window_around(pc, 0, "");
 			print_dictionary();
 			puts("rt instructions: ");
@@ -862,7 +908,7 @@ process_file:;
 				else if (val1 == 1024 + 4) printf("0x%016llx\n", data);
 				else if (val1 == 1024 + 5) printf("%llu\n", data);
 				else if (val1 == 1024 + 6) abort();
-				else if (val1 == 1024 + 7) debug_cte = not debug_cte;
+				else if (val1 == 1024 + 7) should_debug_cte = not should_debug_cte;
 				else if (val1 == 1024 + 8) printf("%s", string_list[latest_string]);
 				else if (val1 == 1024 + 9) target_arch = data;
 				else if (val1 == 1024 + 10) output_format = data;
@@ -881,7 +927,11 @@ process_file:;
 	getchar();
 
 
-	bool seen_halt = 0;
+
+
+
+
+	
 	for (nat i = 0; i < ins_count; i++) {
 
 		print_instruction_window_around(i, 0, "");
@@ -895,19 +945,16 @@ process_file:;
 		const nat arg0 = ins[i].args[0];
 		const nat arg1 = ins[i].args[1];
 
-		ins[i].ct = 0;
-		if (op == halt) seen_halt = 1;
-		else if (op == at) seen_halt = 0;
-		else if (seen_halt) ins[i].ct = 1;
+		ins[i].state = 1;
 
-		else if (op >= set and op <= sd and i1) {
+		if (op >= set and op <= sd and i1) {
 			if (	(op == add or op == sub or
 				 op == si or op == sd or
 				 op == eor or op == or_)
 				and not arg1 or 
 				(op == mul or op == div_)
 				and arg1 == 1
-			) ins[i].ct = 1; 
+			) ins[i].state = 0; 
 
 			else if (op == and_ and not arg1) 
 				ins[i].op = set;
@@ -925,7 +972,7 @@ process_file:;
 			}
 
 		} else if (op >= set and op <= sd and arg0 == arg1) {
-			if (op == set or op == and_ or op == or_) ins[i].ct = 1;
+			if (op == set or op == and_ or op == or_) ins[i].state = 0;
 			else if (op == eor or op == sub) {
 				ins[i].op = set;
 				ins[i].imm |= 2;
@@ -933,7 +980,7 @@ process_file:;
 			}
 
 		} else if ((op == lt or op == ge or op == ne or op == eq) and arg0 == arg1 and not imm) {
-			if (op == lt or op == ne) ins[i].ct = 0;
+			if (op == lt or op == ne) ins[i].state = 0;
 			else if (op == eq or op == ge) {
 				ins[i].op = do_;
 				ins[i].args[0] = ins[i].args[2];
@@ -943,7 +990,7 @@ process_file:;
 
 	{ nat final_ins_count = 0;
 	for (nat i = 0; i < ins_count; i++) {
-		if (ins[i].ct) continue;
+		if (not ins[i].state) continue;
 		ins[final_ins_count++] = ins[i];
 	}
 	ins_count = final_ins_count; }
@@ -953,81 +1000,409 @@ process_file:;
 	puts("OPT1 finished.");
 	getchar();
 
-	// TODO: copy_prop:    we need to be tracing not only rt variables through copies,  
-	//                     but also runtime immediate set statements. ie,    set x 5 set y x  (y is 5!)
 
-	const nat not_a_copy = (nat) -1;
-	memset(values, 255, sizeof values);
 
-	for (nat pc = 0; pc < ins_count; pc++) {
+
+
+
+
+
+
+
+
+
+
+	
+	
+
+
+
+
+
+
+	nat* type = calloc(ins_count * var_count, sizeof(nat));
+	nat* value = calloc(ins_count * var_count, sizeof(nat));
+	nat* is_copy = calloc(ins_count * var_count, sizeof(nat));
+	nat* copy_of = calloc(ins_count * var_count, sizeof(nat));
+
+	nat stack[4096] = {0};
+	nat stack_count = 1;
+
+	for (nat i = 0; i < ins_count; i++)  ins[i].state = 0;
+
+	while (stack_count) {
+		nat pc = stack[--stack_count];
+
+		nat pred_count = 0;
+		nat* preds = compute_predecessors(pc, &pred_count);
+		nat* gotos = compute_successors(pc);
+
+		debug_data_flow_state(pc, preds, pred_count, stack, stack_count, value, type, is_copy, copy_of);
+		getchar();
+
+		ins[pc].state++;
+
 		const nat op = ins[pc].op;
 		const nat imm = ins[pc].imm;
-		const nat arg0 = ins[pc].args[0];
-		const nat arg1 = ins[pc].args[1];
+		const nat gt0 = gotos[0];
+		const nat gt1 = gotos[1];
+		const nat a0 = ins[pc].args[0];
+		const nat a1 = ins[pc].args[1];
+		const nat i0 = !!(imm & 1);
 		const nat i1 = !!(imm & 2);
+		const nat i2 = !!(imm & 4);
 
-		print_instruction_window_around(pc, 0, "");
-		print_dictionary();
-		puts("----------- COPY PROP --------------");
-		getchar();
+		for (nat var = 0; var < var_count; var++) {
+
+			nat future_type = 0;
+			nat future_value = 0;
+			nat future_is_copy = 0;
+			nat future_copy_of = 0;
+
+			nat first_ct = 1;
+			nat first_cp = 1;
 		
-		if (op == halt or op == at or op == do_ or op == lt or op == ge or op == ne or op == eq) {
-			memset(values, 255, sizeof values);
+			for (nat iterator_p = 0; iterator_p < pred_count; iterator_p++) {
+				const nat pred = preds[iterator_p];
+				if (not ins[pred].state) continue;
 
-		} else if (op == set) {
-			if (i1) continue;
-			if (values[arg1] != not_a_copy) ins[pc].args[1] = values[arg1];
-			values[arg0] = ins[pc].args[1];
+				const nat ct_t = type[pred * var_count + var];
+				const nat ct_v = value[pred * var_count + var];
+				const nat cp_t = is_copy[pred * var_count + var];
+				const nat cp_v = copy_of[pred * var_count + var];
 
-		} else if (op >= add and op <= sd) {
-			if (i1) continue;
-			if (values[arg1] != not_a_copy) ins[pc].args[1] = values[arg1];
-			values[arg0] = not_a_copy;
+				if (ct_t == 0) future_type = 0;
+				else if (first_ct) { 
+					future_type = 1;
+					future_value = ct_v; 
+					first_ct = 0;
+				} else if (future_value != ct_v) 
+					future_type = 0;
 
-		} else { puts("CP: fatal internal error: unknown instruction executed...\n"); abort(); } 
+				if (cp_t == 0) future_is_copy = 0;
+				else if (first_cp) { 
+					future_is_copy = 1; 
+					future_copy_of = cp_v; 
+					first_cp = 0;
+				} else if (future_copy_of != cp_v) 
+					future_is_copy = 0;				
+			}
+
+			type[pc * var_count + var] = future_type;
+			value[pc * var_count + var] = future_value;
+			is_copy[pc * var_count + var] = future_is_copy;
+			copy_of[pc * var_count + var] = future_copy_of;	
+		}
+
+
+		const nat ct0 = 0 < arity[op] ? (i0 or type[pc * var_count + a0]) : 0;
+		const nat ct1 = 1 < arity[op] ? (i1 or type[pc * var_count + a1]) : 0;
+		const nat v0 = i0 ? a0 : value[pc * var_count + a0];
+		const nat v1 = i1 ? a1 : value[pc * var_count + a1];
+		const nat a0_is_copy = is_copy[pc * var_count + a0];
+		const nat a0_copy_ref = copy_of[pc * var_count + a0];
+
+		nat out_t = ct0, out_v = v0;
+		nat out_is_copy = a0_is_copy, out_copy_ref = a0_copy_ref;
+
+		if (op == halt) continue;
+		else if (op == at) { }
+		else if (op == sc) { }
+		else if (op == do_) { }
+		else if (op == set) {
+			out_t = ct1; out_v = v1;
+			if (not i1) {
+				out_is_copy = 1;
+				out_copy_ref = is_copy[pc * var_count + a1] ? copy_of[pc * var_count + a1] : a1;
+			}
+		}
+
+		else if (op >= add and op <= sd) {
+			if (not i1) out_t = ct0 and ct1;
+
+			     if (op == add)  out_v += v1;
+			else if (op == sub)  out_v -= v1;
+			else if (op == mul)  out_v *= v1;
+			else if (op == div_) out_v /= v1;
+			else if (op == rem)  out_v %= v1;
+			else if (op == and_) out_v &= v1;
+			else if (op == or_)  out_v |= v1;
+			else if (op == eor)  out_v ^= v1;
+			else if (op == si)   out_v <<= v1;
+			else if (op == sd)   out_v >>= v1;
+
+			out_is_copy = 0;
+			
+		} else if (op == st) {	
+			if (not i2) { puts("error: size of store must be ctk."); abort(); }
+			out_is_copy = 0;
+
+		} else if (op == ld) {
+			if (not i2) { puts("error: size of load must be ctk."); abort(); }
+			out_t = 0;
+			out_is_copy = 0;
+
+		} else if (op == la) {
+			out_t = 0;
+			out_v = 0;
+			out_is_copy = 0;
+						
+		} else if (op == lt or op == ge or op == ne or op == eq) {
+			if (not ct0 or not ct1) {
+				if (gt0 < ins_count and ins[gt0].state < 2) stack[stack_count++] = gt0;
+				if (gt1 < ins_count and ins[gt1].state < 2) stack[stack_count++] = gt1; 
+				continue;
+			} else {
+				bool cond = 0;
+				     if (op == lt) cond = v0  < v1;
+				else if (op == ge) cond = v0 >= v1;
+				else if (op == eq) cond = v0 == v1;
+				else if (op == ne) cond = v0 != v1;
+
+				const nat target = cond ? gt1 : gt0;
+				if (target < ins_count and ins[target].state < 2) 
+					stack[stack_count++] = target; 
+			}
+
+		} else {
+			puts("WARNING: EXECUTING AN UNKNOWN INSTRUCTION WITHOUT AN IMPLEMENTATION!!!");
+			puts(operations[op]);
+			abort();
+		}
+
+		type[pc * var_count + a0] = out_t;
+		value[pc * var_count + a0] = out_v;
+		is_copy[pc * var_count + a0] = out_is_copy;
+		copy_of[pc * var_count + a0] = out_copy_ref;
+		if (gt0 < ins_count and ins[gt0].state < 2) stack[stack_count++] = gt0; 
+	}
+
+	debug_data_flow_state(0, NULL, 0, stack, stack_count, value, type, is_copy, copy_of);
+	puts("data flow: [FINAL VALUES]");
+	getchar();
+	
+	print_dictionary();
+	print_instructions(0);
+	puts("OPT2 finished.");
+	getchar();
+
+
+
+
+
+
+	puts("pruning ctk instructions...");
+
+	for (nat i = 0; i < ins_count; i++) {
+
+		//if (not ins[i].state) ins[i].op = 0;
+
+		print_instruction_window_around(i, 0, "");
+		print_dictionary();
+		puts("-----------PRUNING CTK INS:---------------");
+		getchar();
+
+		const nat op = ins[i].op;
+		const nat imm = ins[i].imm;
+		
+		nat keep = 0;
+
+		if (ins[i].state and  
+			(
+			op == halt 	or op == sc or 
+			op == set 	or op == do_  
+			or op == at 	or op == la or 
+			op == ld 	or op == st
+			)
+		) keep = 1;
+
+		if (not keep and ins[i].state) 
+		for (nat a = 0; a < arity[op]; a++) {
+
+			if (op == at and a == 0) continue;
+			if (op == do_ and a == 0) continue;
+			if (op == lt and a == 2) continue;
+			if (op == ge and a == 2) continue;
+			if (op == ne and a == 2) continue;
+			if (op == eq and a == 2) continue;
+			if (op == la and a == 1) continue; 
+						
+			if (((imm >> a) & 1)) {
+				printf("found a compiletime immediate : %llu\n", 
+					ins[i].args[a]
+				);
+
+			} else if (type[i * var_count + ins[i].args[a]]) {
+				
+				printf("found a compiletime variable "
+					"as argument  :  %s = {type = %llu, value = %llu}\n",
+					variables[ins[i].args[a]], 
+					type[i * var_count + ins[i].args[a]],
+					value[i * var_count + ins[i].args[a]]
+				);
+
+			} else {
+				puts("found a runtime argument!");
+				printf("found variable "
+					":  %s = {type = %llu, value = %llu}\n",
+					variables[ins[i].args[a]], 
+					type[i * var_count + ins[i].args[a]],
+					value[i * var_count + ins[i].args[a]]
+				);
+				keep = 1; break;
+			}
+		}
+
+		if (not keep or not ins[i].state) {
+			if (op == lt or op == ge or op == ne or op == eq) {
+				const nat v0 = (imm & 1) ? ins[i].args[0] : value[i * var_count + ins[i].args[0]];
+				const nat v1 = (imm & 2) ? ins[i].args[1] : value[i * var_count + ins[i].args[1]];
+				bool cond = 0;
+				     if (op == lt) cond = v0  < v1;
+				else if (op == ge) cond = v0 >= v1;
+				else if (op == eq) cond = v0 == v1;
+				else if (op == ne) cond = v0 != v1;
+				if (cond) { ins[i].op = do_; ins[i].args[0] = ins[i].args[2]; }
+				else ins[i].state = 0;
+
+			} else { 
+				puts("NOTE: found a compiletime-known instruction! deleting this instruction."); 
+				getchar();
+				ins[i].state = 0; 
+			} 
+			continue;
+		}
+
+		puts("found real RT isntruction!"); 
+		putchar('\t');
+		print_instruction(ins[i]); 
+		puts("");
+		getchar();
+
+		if (op >= set and op <= sd) {
+			const nat ct1 = (imm & 2) or type[i * var_count + ins[i].args[1]];
+			const nat v1 = (imm & 2) ? ins[i].args[1] : value[i * var_count + ins[i].args[1]];
+
+			if (ct1 and not (imm & 2)) {
+				puts("inlining compiletime argument...\n"); getchar();
+				ins[i].args[1] = v1;
+				ins[i].imm |= 2;
+			}
+
+			if (ins[i].imm & 2) {
+				const nat c = ins[i].args[1];
+				if (	(op == add or op == sub or
+					 op == si or op == sd or
+					 op == eor or op == or_)
+					and not c or 
+					(op == mul or op == div_)
+					and c == 1	
+				) ins[i].state = 0; 
+				else if (op == and_ and not c) ins[i].op = set;
+
+				for (nat sh = 0; sh < 64; sh++) {
+					if (op == mul and c == (1LLU << sh)) {
+						ins[i].op = si;
+						ins[i].args[1] = sh;
+						break;
+					} else if (op == div_ and c == (1LLU << sh)) {
+						ins[i].op = sd;
+						ins[i].args[1] = sh;
+						break;
+					} 
+				}
+
+			} else if (ins[i].args[0] == ins[i].args[1]) {
+				if (op == set or op == and_ or op == or_) { 
+					puts("found a rt NOP! deleting this instruction."); 
+					ins[i].state = 0; }
+				else if (op == eor or op == sub) {
+					ins[i].op = set;
+					ins[i].imm |= 2;
+					ins[i].args[1] = 0;
+				}
+			}
+
+			if (not (ins[i].imm & 2) and is_copy[i * var_count + ins[i].args[1]]) {
+
+				printf("note: inlining copy reference: a1=%llu imm=%llu copy_of=%llu, i=%llu...\n", 
+					ins[i].args[1], ins[i].imm, 
+					copy_of[i * var_count + ins[i].args[1]],
+					i
+				);
+
+				puts("original:");
+				print_instruction(ins[i]); puts("");
+
+				ins[i].args[1] = copy_of[i * var_count + ins[i].args[1]];
+
+				puts("modified form:"); 
+				print_instruction(ins[i]); 
+				puts("");
+				getchar();
+			}
+
+		} else if (op == ld or op == st) {
+			puts("we still need to embed the immediates into the load and store instructions.");
+			abort();
+
+
+		} else if (op == lt or op == ge or op == ne or op == eq) {
+			const nat ct0 = (imm & 1) or type[i * var_count + ins[i].args[0]];
+			const nat ct1 = (imm & 2) or type[i * var_count + ins[i].args[1]];
+			const nat v0 = (imm & 1) ? ins[i].args[0] : value[i * var_count + ins[i].args[0]];
+			const nat v1 = (imm & 2) ? ins[i].args[1] : value[i * var_count + ins[i].args[1]];
+
+			if (ct0 and not (imm & 1)) {
+				ins[i].args[0] = v0;
+				ins[i].imm |= 1;
+
+			} else if (ct1 and not (imm & 2)) {
+				ins[i].args[1] = v1;
+				ins[i].imm |= 2;
+			}
+
+			if (not ins[i].imm and ins[i].args[0] == ins[i].args[1]) {
+				if (op == lt or op == ne) ins[i].state = 0; 
+				else if (op == eq or op == ge) {
+					ins[i].op = do_;
+					ins[i].args[0] = ins[i].args[2];
+				}
+			}
+		}
 	}
 
 
+	{ nat final_ins_count = 0;
+	for (nat i = 0; i < ins_count; i++) {
+		if (not ins[i].state) continue;
+		ins[final_ins_count++] = ins[i];
+	}
+	ins_count = final_ins_count; }
+
+
+	print_dictionary();
+	print_instructions(0);
+	puts("CTK PRUNING finished.");
+	getchar();
 
 
 
 
 
 
-	//// HERE:       CURRENT STATE:              1202505121.211911    we need to do this:
-
-
-	/*
-
-			we need to bring in the previous way we were doing  CTE   and CP    AT THIS POINT! 
-
-
-			the goal here, is to KEEPPP the existing amazing CTE stage listed above, 
-
-			ANDDD to put in  an  RT-var  specific     CTE stage,  which doesnt do execution  AT ALL!!!
-
-
-			ie, we seperate out the actual RUNNING of code, vs just propgation of constants!
-
-
-				AMAZING!!      see, the cool part is that   running of the program (ie, the values changing over the course of the program, 
-
-								is not applicable to   CP!!      ANDDD not applicable  to CTK/RTK analysis   ie constant prop/folding
-
-									becuase of the fact that we are trying to find a stable representation, which doesnt evolve over time! 
-
-
-									and so the problem becomes MUCHHH more easier, becuase now we won't run into the same problem that we were having before!   AMAZINGGG
-
-
-utterly geniusss
-
-YAYYYY
 
 
 
 
-	*/
+
+
+
+
+
+	puts("info: stopping pipeline before instruction selection.");
+	exit(1);
+
 
 
 
@@ -1049,7 +1424,7 @@ YAYYYY
 	nat mi_count = 0;
 
 	for (nat i = 0; i < ins_count; i++)
-		ins[i].ct = 0;
+		ins[i].state = 0;
 
 	if (target_arch == rv32_arch) 	goto rv32_instruction_selection;
 	if (target_arch == msp430_arch) goto msp430_instruction_selection;
@@ -1070,7 +1445,7 @@ rv32_instruction_selection:;
 		puts("[RISC-V ins sel]");
 		getchar();
 
-		if (ins[i].ct) {
+		if (ins[i].state) {
 			printf("warning: [i = %llu]: skipping, part of a pattern.\n", i); 
 			getchar();
 			continue;
@@ -1090,7 +1465,7 @@ rv32_instruction_selection:;
 			op == r5_j or 
 			op == at or 
 			op == halt
-		) { ins[i].ct = 1; mi[mi_count++] = ins[i]; continue; }
+		) { ins[i].state = 1; mi[mi_count++] = ins[i]; continue; }
 
 		if (op == set and not imm) { // addi d n 0 
 			struct instruction new = { .op = r5_i, .imm = 0x15 };
@@ -1100,7 +1475,7 @@ rv32_instruction_selection:;
 			new.args[3] = arg1;
 			new.args[4] = 0;
 			mi[mi_count++] = new;
-			ins[i].ct = 1;
+			ins[i].state = 1;
 			continue;
 		} 
 
@@ -1112,7 +1487,7 @@ rv32_instruction_selection:;
 			new.args[3] = 0;
 			new.args[4] = arg1;
 			mi[mi_count++] = new;
-			ins[i].ct = 1;
+			ins[i].state = 1;
 			continue;
 		}
 
@@ -1124,7 +1499,7 @@ rv32_instruction_selection:;
 			new.args[3] = arg0;
 			new.args[4] = arg1;
 			mi[mi_count++] = new;
-			ins[i].ct = 1;
+			ins[i].state = 1;
 			continue;
 		}
 
@@ -1137,12 +1512,12 @@ rv32_instruction_selection:;
 			new.args[4] = arg1;
 			new.args[5] = 0;
 			mi[mi_count++] = new;
-			ins[i].ct = 1;
+			ins[i].state = 1;
 			continue;
 		}
 
 		if (op == lt and imm) {     // addi NEW zr IMM    blt x NEW label
-			//ins[i].ct = 1;
+			//ins[i].state = 1;
 			//continue;			
 		} 
 	}
@@ -1175,7 +1550,7 @@ arm64_instruction_selection:;
 		puts("[ARM64 ins sel]");
 		getchar();
 
-		if (ins[i].ct) {
+		if (ins[i].state) {
 			printf("warning: [i = %llu]: skipping, part of a pattern.\n", i); 
 			getchar();
 			continue;
@@ -1189,7 +1564,7 @@ arm64_instruction_selection:;
 
 		if (op == halt or op == at or (op >= a6_nop and op <= a6_divr)) { 
 			mi[mi_count++] = ins[i]; 
-			ins[i].ct = 1; 
+			ins[i].state = 1; 
 			continue;
 		}
 
@@ -1214,7 +1589,7 @@ arm64_instruction_selection:;
 			new.args[4] = 0; //???sb?
 			new.args[5] = 0; // ????sf???
 			mi[mi_count++] = new;
-			ins[i].ct = 1; ins[b].ct = 1; ins[c].ct = 1;
+			ins[i].state = 1; ins[b].state = 1; ins[c].state = 1;
 			continue;
 		} addsrlsl_bail:
 
@@ -1225,7 +1600,7 @@ arm64_instruction_selection:;
 			new.args[2] = arg1;			
 			new.args[3] = 0;
 			mi[mi_count++] = new;
-			ins[i].ct = 1;
+			ins[i].state = 1;
 			continue;
 		}
 
@@ -1237,7 +1612,7 @@ arm64_instruction_selection:;
 			new.args[3] = 0;
 			new.args[4] = 0;
 			mi[mi_count++] = new;
-			ins[i].ct = 1;
+			ins[i].state = 1;
 			continue;
 		}
 
@@ -1252,7 +1627,7 @@ arm64_instruction_selection:;
 			new2.args[0] = lt;
 			new2.args[1] = (nat) -1;
 			mi[mi_count++] = new2;
-			ins[i].ct = 1; 
+			ins[i].state = 1; 
 			continue;
 		}
 
@@ -1267,7 +1642,7 @@ arm64_instruction_selection:;
 			new2.args[0] = eq;
 			new2.args[1] = (nat) -1;
 			mi[mi_count++] = new2;
-			ins[i].ct = 1; 
+			ins[i].state = 1; 
 			continue;
  		}
 
@@ -1282,11 +1657,10 @@ arm64_instruction_selection:;
 			new2.args[0] = lt;
 			new2.args[1] = (nat) -1;
 			mi[mi_count++] = new2;
-			ins[i].ct = 1; 
+			ins[i].state = 1; 
 
-			puts("we need to detrmine the the label still!");
+			puts("ins sel: unimplemented: we need to detrmine the the label still!");
 			abort();
-			continue;
 		}
 
 		if (op == eq and imm) {
@@ -1300,14 +1674,14 @@ arm64_instruction_selection:;
 			new2.args[0] = eq;
 			new2.args[1] = (nat) -1;
 			mi[mi_count++] = new2;
-			ins[i].ct = 1; 
+			ins[i].state = 1; 
 			continue;
 		}
 
 		if (op == sc) {
 			struct instruction new = { .op = a6_svc, .imm = 0xff };
 			mi[mi_count++] = new;
-			ins[i].ct = 1;
+			ins[i].state = 1;
 			continue;
 		}
 	}
@@ -1317,7 +1691,7 @@ arm64_instruction_selection:;
 finish_instruction_selection:;
 
 	for (nat i = 0; i < ins_count; i++) {
-		if (not ins[i].ct) {
+		if (not ins[i].state) {
 			puts("error: instruction unprocessed by ins sel: internal error");
 			puts("error: this instruction failed to be lowered:\n");
 			print_instruction_window_around(i, 1, "not selected instruction!");
@@ -2586,6 +2960,86 @@ generate_ti_txt_executable:;
 
 
 
+
+
+
+/*
+
+	// TODO: copy_prop:    we need to be tracing not only rt variables through copies,  
+	//                     but also runtime immediate set statements. ie,    set x 5 set y x  (y is 5!)
+
+	const nat not_a_copy = (nat) -1;
+	memset(values, 255, sizeof values);
+
+	for (nat pc = 0; pc < ins_count; pc++) {
+		const nat op = ins[pc].op;
+		const nat imm = ins[pc].imm;
+		const nat arg0 = ins[pc].args[0];
+		const nat arg1 = ins[pc].args[1];
+		const nat i1 = !!(imm & 2);
+
+		print_instruction_window_around(pc, 0, "");
+		print_dictionary();
+		puts("----------- COPY PROP --------------");
+		getchar();
+		
+		if (op == halt or op == at or op == do_ or op == lt or op == ge or op == ne or op == eq) {
+			memset(values, 255, sizeof values);
+
+		} else if (op == set) {
+			if (i1) continue;
+			if (values[arg1] != not_a_copy) ins[pc].args[1] = values[arg1];
+			values[arg0] = ins[pc].args[1];
+
+		} else if (op >= add and op <= sd) {
+			if (i1) continue;
+			if (values[arg1] != not_a_copy) ins[pc].args[1] = values[arg1];
+			values[arg0] = not_a_copy;
+
+		} else { puts("CP: fatal internal error: unknown instruction executed...\n"); abort(); } 
+	}
+
+
+
+
+*/
+
+
+
+	//// HERE:       CURRENT STATE:              1202505121.211911    we need to do this:
+
+
+	/*
+
+			we need to bring in the previous way we were doing  CTE   and CP    AT THIS POINT! 
+
+
+			the goal here, is to KEEPPP the existing amazing CTE stage listed above, 
+
+			ANDDD to put in  an  RT-var  specific     CTE stage,  which doesnt do execution  AT ALL!!!
+
+
+			ie, we seperate out the actual RUNNING of code, vs just propgation of constants!
+
+
+				AMAZING!!      see, the cool part is that   running of the program (ie, the values changing over the course of the program, 
+
+								is not applicable to   CP!!      ANDDD not applicable  to CTK/RTK analysis   ie constant prop/folding
+
+									becuase of the fact that we are trying to find a stable representation, which doesnt evolve over time! 
+
+
+									and so the problem becomes MUCHHH more easier, becuase now we won't run into the same problem that we were having before!   AMAZINGGG
+
+
+utterly geniusss
+
+YAYYYY
+
+
+
+
+	*/
 
 
 
