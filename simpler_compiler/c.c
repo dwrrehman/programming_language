@@ -31,9 +31,9 @@ enum all_output_formats { debug_output_only, macho_executable, macho_object, elf
 
 enum core_language_isa {
 	nullins,
-	halt, sc, sl, ud, def, do_, at, lf, 
+	halt, sc, sl, ud, def, do_, at, lf,
 	set, add, sub, mul, div_, rem, 
-	and_, or_, eor, si, sd, la, rt,
+	and_, or_, eor, si, sd, la, rt, emit, 
 	ld, st, lt, ge, ne, eq, 
 
 	a6_nop, a6_svc, a6_mov, a6_bfm,
@@ -50,9 +50,9 @@ enum core_language_isa {
 
 static const char* operations[isa_count] = {
 	"___nullins____",
-	"halt", "sc", "sl", "ud", "def", "do", "at", "lf",
+	"halt", "sc", "sl", "ud", "def", "do", "at", "lf",  // todo:   make       rt x 0      make x compiletime known. (0 bits wide!) default will be runtime, deduced bitwidth..
 	"set", "add", "sub", "mul", "div", "rem", 
-	"and", "or", "eor", "si", "sd", "la", "rt", 
+	"and", "or", "eor", "si", "sd", "la", "rt", "emit", 
 	"ld", "st", "lt", "ge", "ne", "eq",
 
 	"a6_nop", "a6_svc", "a6_mov", "a6_bfm",
@@ -68,9 +68,9 @@ static const char* operations[isa_count] = {
 
 static const nat arity[isa_count] = {
 	0,
-	0, 0, 0, 1, 1, 1, 1, 1,
+	0, 0, 2, 1, 1, 1, 1, 1,
 	2, 2, 2, 2, 2, 2, 
-	2, 2, 2, 2, 2, 2, 2,
+	2, 2, 2, 2, 2, 2, 2, 2, 
 	3, 3, 3, 3, 3, 3, 
 		
 	0, 0, 5, 7, 
@@ -81,7 +81,7 @@ static const nat arity[isa_count] = {
 	7, 6, 5, 6,
 	8, 5, 
 	1, 8, 2,
-	6, 5, 6, 5, 3, 3,
+	6, 5, 5, 5, 3, 3,
 };
 
 struct instruction {
@@ -601,9 +601,43 @@ static void debug_data_flow_state(
 	putchar(10);
 }
 
-
-
 int main(int argc, const char** argv) {
+
+
+
+/* notes i realized whlie reading the risc-v spec:
+
+
+	we will use ins sel patterns   of   la's:
+
+
+			when the programmer says 
+
+				la x label 
+				ld data x size_u32
+
+
+			that will actually translate into a pattern NOTTT involving an ADDI. 
+
+
+			instead, it will translate to:       
+
+
+				auipc x label[31:20]
+				ldw data (x + label[19:0])          (the risc-v load includes an addi.)
+
+
+			thus, only an auipc corresponds to an la in source. 
+
+				it depends whats afterrrr the la.   thats why we need multiple 
+								ins-sel patterns detecting la in various patterns.
+
+
+		
+*/
+
+
+
 
 	if (argc != 2) exit(puts("compiler: \033[31;1merror:\033[0m usage: ./run [file.s]"));
 	
@@ -613,8 +647,9 @@ int main(int argc, const char** argv) {
 	// if (arch == arm64 and stack_size < min_stack_size) {
 	//           puts("warning: stack size is less than the minimum stack size for this target"); }
 
-	nat target_arch = arm64_arch;
-	nat output_format = macho_object;
+	nat target_arch = rv32_arch;
+	nat output_format = hex_txt_executable;
+
 	nat should_overwrite = true;
 	nat stack_size = min_stack_size;
 	const char* output_filename = "output_file_from_compiler";
@@ -655,7 +690,7 @@ process_file:;
 			nat string_at = ++pc, string_length = 0;
 			while (text[pc] != delim) { pc++; string_length++; }
 			string_list[string_list_count++] = strndup(text + string_at, string_length);
-			struct instruction new = { .op = sl };
+			struct instruction new = { .op = sl, .imm = 0xff };
 			new.args[0] = string_length;
 			new.args[1] = string_list_count - 1;
 			ins[ins_count++] = new;
@@ -800,11 +835,7 @@ process_file:;
 
 
 
-
-
-
-
-	struct instruction rt_ins[4096] = {0};
+	{ struct instruction rt_ins[4096] = {0};
 	nat rt_ins_count = 0;
 
 	memset(bit_count, 255, sizeof bit_count);
@@ -913,18 +944,19 @@ process_file:;
 				else if (val1 == 1024 + 9) target_arch = data;
 				else if (val1 == 1024 + 10) output_format = data;
 				else if (val1 == 1024 + 11) should_overwrite = not should_overwrite;
+				else if (val1 == 1024 + 12) values[0] = strlen(string_list[data]);
 			}
 		}
 		else { puts("CTE: fatal internal error: unknown instruction executed...\n"); abort(); } 
 	}
 
 	memcpy(ins, rt_ins, ins_count * sizeof(struct instruction));
-	ins_count = rt_ins_count;
+	ins_count = rt_ins_count;    }
 
 	print_dictionary();
 	print_instructions(0);
 	puts("CTE finished.");
-	getchar();
+	//getchar();
 
 
 
@@ -937,7 +969,7 @@ process_file:;
 		print_instruction_window_around(i, 0, "");
 		print_dictionary();
 		puts("-----------OPT: CTK PRUNING---------------");
-		getchar();
+		//getchar();
 
 		const nat op = ins[i].op;
 		const nat imm = ins[i].imm;
@@ -998,7 +1030,7 @@ process_file:;
 	print_dictionary();
 	print_instructions(0);
 	puts("OPT1 finished.");
-	getchar();
+	//getchar();
 
 
 
@@ -1038,7 +1070,7 @@ process_file:;
 		nat* gotos = compute_successors(pc);
 
 		debug_data_flow_state(pc, preds, pred_count, stack, stack_count, value, type, is_copy, copy_of);
-		getchar();
+		//getchar();
 
 		ins[pc].state++;
 
@@ -1108,6 +1140,7 @@ process_file:;
 		if (op == halt) continue;
 		else if (op == at) { }
 		else if (op == sc) { }
+		else if (op == sl) { } 
 		else if (op == do_) { }
 		else if (op == set) {
 			out_t = ct1; out_v = v1;
@@ -1162,7 +1195,7 @@ process_file:;
 				const nat target = cond ? gt1 : gt0;
 				if (target < ins_count and ins[target].state < 2) 
 					stack[stack_count++] = target; 
-			}
+			}		
 
 		} else {
 			puts("WARNING: EXECUTING AN UNKNOWN INSTRUCTION WITHOUT AN IMPLEMENTATION!!!");
@@ -1179,12 +1212,12 @@ process_file:;
 
 	debug_data_flow_state(0, NULL, 0, stack, stack_count, value, type, is_copy, copy_of);
 	puts("data flow: [FINAL VALUES]");
-	getchar();
+	//getchar();
 	
 	print_dictionary();
 	print_instructions(0);
 	puts("OPT2 finished.");
-	getchar();
+	//getchar();
 
 
 
@@ -1200,7 +1233,7 @@ process_file:;
 		print_instruction_window_around(i, 0, "");
 		print_dictionary();
 		puts("-----------PRUNING CTK INS:---------------");
-		getchar();
+		//getchar();
 
 		const nat op = ins[i].op;
 		const nat imm = ins[i].imm;
@@ -1267,7 +1300,7 @@ process_file:;
 
 			} else { 
 				puts("NOTE: found a compiletime-known instruction! deleting this instruction."); 
-				getchar();
+				//getchar();
 				ins[i].state = 0; 
 			} 
 			continue;
@@ -1277,14 +1310,14 @@ process_file:;
 		putchar('\t');
 		print_instruction(ins[i]); 
 		puts("");
-		getchar();
+		//getchar();
 
 		if (op >= set and op <= sd) {
 			const nat ct1 = (imm & 2) or type[i * var_count + ins[i].args[1]];
 			const nat v1 = (imm & 2) ? ins[i].args[1] : value[i * var_count + ins[i].args[1]];
 
 			if (ct1 and not (imm & 2)) {
-				puts("inlining compiletime argument...\n"); getchar();
+				puts("inlining compiletime argument...\n"); //getchar();
 				ins[i].args[1] = v1;
 				ins[i].imm |= 2;
 			}
@@ -1400,8 +1433,8 @@ process_file:;
 
 
 
-	puts("info: stopping pipeline before instruction selection.");
-	exit(1);
+	//puts("info: stopping pipeline before instruction selection.");
+	//exit(1);
 
 
 
@@ -1464,8 +1497,62 @@ rv32_instruction_selection:;
 			op == r5_u or 
 			op == r5_j or 
 			op == at or 
+			op == emit or
 			op == halt
 		) { ins[i].state = 1; mi[mi_count++] = ins[i]; continue; }
+
+		if (op == sc) {			
+			struct instruction new = { .op = r5_i, .imm = 0xff };
+			new.args[0] = 0x73;
+			new.args[1] = 0;
+			new.args[2] = 0;
+			new.args[3] = 0;
+			new.args[4] = 0;
+			mi[mi_count++] = new;
+			ins[i].state = 1;
+			continue;
+		}
+
+		if (op == la) {
+
+			/*
+
+
+
+struct instruction new = { .op = la, .imm = 0x5 }; // not r5_u, like you would think!!! we expose the auipc and addi at the end, after we determined the pc-rel offset. THIS IS REQUIRED!!!!!!
+			new.args[0] = 0x17;
+			new.args[1] = arg0;
+			new.args[2] = arg1; // we need to determine how we are going to refer to a label here..... probably via name. which means we need to generate "at" statements too, in ins sel. 
+			mi[mi_count++] = new;
+			ins[i].state = 1;
+			continue;
+
+
+			alternatively, we can just generate the   AUIPC / ADDI  pair   and then just know that they always come in pairs, always lol. this is a bit risky though. to help distinguish this, i think we should like, set an additioal bit outside the argument list, just so we know that the compiler generated these ourselves. and they werent from the user. lets do that. 
+
+			
+			*/
+
+
+			struct instruction new = { .op = r5_u, .imm = 0x5 };
+			new.args[0] = 0x17;
+			new.args[1] = arg0;
+			new.args[2] = arg1;
+			new.args[3] = 0x42;
+			mi[mi_count++] = new;
+
+			new = (struct instruction) { .op = r5_i, .imm = 0x15 };
+			new.args[0] = 0x13;
+			new.args[1] = arg0;
+			new.args[2] = 0;
+			new.args[3] = arg0;
+			new.args[4] = arg1;
+			new.args[5] = 0x42;
+			mi[mi_count++] = new;
+
+			ins[i].state = 1;
+			continue;
+		}
 
 		if (op == set and not imm) { // addi d n 0 
 			struct instruction new = { .op = r5_i, .imm = 0x15 };
@@ -1562,7 +1649,7 @@ arm64_instruction_selection:;
 		const nat arg1 = ins[i].args[1]; 
 
 
-		if (op == halt or op == at or (op >= a6_nop and op <= a6_divr)) { 
+		if (op == halt or op == at or op == emit or (op >= a6_nop and op <= a6_divr)) { 
 			mi[mi_count++] = ins[i]; 
 			ins[i].state = 1; 
 			continue;
@@ -1812,6 +1899,59 @@ finish_instruction_selection:;
 
 rv32_generate_machine_code:
 
+
+
+
+
+
+/*
+	r_type: 	
+		a0: opcode(0-6)  
+		a1: rd(7-11)   
+		a2: funct3(12-14)
+		a3: rs1(15-19)
+		a4: rs2(20-24)
+		a5: funct7(25-31)
+
+	i_type: 
+		a0: opcode(0-6)
+		a1: rd(7-11)
+		a2: funct3(12-14)
+		a3: rs1(15-19)
+		a4: imm_11_0(20-31)
+
+	s_type: 	
+		a0: opcode(0-6)  
+		a1: imm_4_0(7-11)
+		a2: funct3(12-14)
+		a3: rs1(15-19)
+		a4: rs2(20-24)
+		a5: imm_5_11(25-31)
+
+	b_type: 
+		a0: opcode(0-6)
+		a1: imm_4_1_11(7-11)
+		a2: funct3(12-14)
+		a3: rs1(15-19)
+		a4: rs2(20-24)
+		a5: imm_12_10_5(25-31)
+
+	u_type: 	
+		a0: opcode(0-6)
+		a1: rd(7-11)
+		a2: imm_31_12(12-31)
+
+	j_type: 	
+		a0: opcode(0-6)
+		a1: rd(7-11)
+		a2: imm_20_10_1_11_19_12(12-31)
+		
+*/
+
+
+
+
+
 	for (nat i = 0; i < ins_count; i++) {
 
 		print_instruction_window_around(i, 0, "");
@@ -1831,7 +1971,21 @@ rv32_generate_machine_code:
 		if (op == at or op == halt) { 	
 			// do nothing
 
+
+		} else if (op == emit) {
+			if (a0 == 8) insert_u64(&my_bytes, &my_count, (uint64_t) ins[i].args[1]);
+			if (a0 == 4) insert_u32(&my_bytes, &my_count, (uint32_t) a1);
+			if (a0 == 2) insert_u16(&my_bytes, &my_count, (uint16_t) a1);
+			if (a0 == 1) insert_u8 (&my_bytes, &my_count, (uint8_t) a1);
+
 		} else if (op == r5_i) {
+
+
+			// if the ins has 0x42 after the arg list, and d == n, and k is 0, 
+			// then this is NOP generated by us. delete it then. 
+			//      (refuse to generate the machine code for it!)
+
+
 			const u32 word = 
 				(a4 << 20U) | 
 				(a3 << 15U) | 
@@ -1841,6 +1995,7 @@ rv32_generate_machine_code:
 			insert_u32(&my_bytes, &my_count, word);
 
 		} else if (op == r5_r) {
+
 			const u32 word = 
 				(a5 << 25U) | 
 				(a4 << 20U) | 
@@ -1852,16 +2007,30 @@ rv32_generate_machine_code:
 
 		} else if (op == r5_s) {
 
+			const u32 word = 
+				(((a1 >> 5) & 0x3f) << 25U) | 
+				(a4 << 20U) | 
+				(a3 << 15U) | 
+				(a2 << 12U) | 
+				((a1 & 0x1f) <<  7U) | 
+				(a0 << 0U) ;
+			insert_u32(&my_bytes, &my_count, word);
 
-		} else if (op == r5_b) {
+		} else if (op == r5_u) {
 
-		} else if (op == r5_b) {
+			// we need to call  "calculate_offset()"  here, to get the immediate. 
+			//     we can't just use a2 directly. 
+			//     
+
+			const u32 word = 
+				(a2 << 12U) | 
+				(a1 <<  7U) | 
+				(a0 <<  0U) ;
+			insert_u32(&my_bytes, &my_count, word);
 
 
-		} else if (op == r5_b) {
+		} else 
 
-
-		} else if (op == r5_b) {
 
 		} else {
 			printf("could not generate machine code for instruction: %llu\n", op);
@@ -1875,19 +2044,18 @@ rv32_generate_machine_code:
 
 msp430_generate_machine_code:;
 
-	{nat* lengths = calloc(rt_ins_count, sizeof(nat));
-	for (nat i = 0; i < rt_ins_count; i++) {
-		const nat op = rt_ins[i].op;
-		//const u32 a0 = (u32) rt_ins[i].args[0];
-		const u32 a1 = (u32) rt_ins[i].args[1];
-		const u32 a4 = (u32) rt_ins[i].args[4];
-		const u32 a5 = (u32) rt_ins[i].args[5];
+	{nat* lengths = calloc(ins_count, sizeof(nat));
+	for (nat i = 0; i < ins_count; i++) {
+		const nat op = ins[i].op;
+		const u32 a0 = (u32) ins[i].args[0];
+		const u32 a1 = (u32) ins[i].args[1];
+		const u32 a4 = (u32) ins[i].args[4];
+		const u32 a5 = (u32) ins[i].args[5];
 
 		nat len = 0;
 		if (op == m4_sect) len = 0;
-
 		else if (op == halt) len = 0;
-
+		else if (op == emit) len = a0;
 		else if (op == m4_br) len = 2;
 		else if (op == m4_op) {
 			len = 2;
@@ -1898,30 +2066,35 @@ msp430_generate_machine_code:;
 		lengths[i] = len;
 	}
 
-	for (nat i = 0; i < rt_ins_count; i++) {
-
+	for (nat i = 0; i < ins_count; i++) {
 
 		print_instruction_window_around(i, 0, "");
 		puts("");
 		dump_hex(my_bytes, my_count);
 		getchar();
 
-
-		const nat op = rt_ins[i].op;
-		const u16 a0 = (u16) rt_ins[i].args[0];
-		const u16 a1 = (u16) rt_ins[i].args[1];
-		const u16 a2 = (u16) rt_ins[i].args[2];
-		const u16 a3 = (u16) rt_ins[i].args[3];
-		const u16 a4 = (u16) rt_ins[i].args[4];
-		const u16 a5 = (u16) rt_ins[i].args[5];
-		const u16 a6 = (u16) rt_ins[i].args[6];
-		const u16 a7 = (u16) rt_ins[i].args[7];
+		const nat op = ins[i].op;
+		const u16 a0 = (u16) ins[i].args[0];
+		const u16 a1 = (u16) ins[i].args[1];
+		const u16 a2 = (u16) ins[i].args[2];
+		const u16 a3 = (u16) ins[i].args[3];
+		const u16 a4 = (u16) ins[i].args[4];
+		const u16 a5 = (u16) ins[i].args[5];
+		const u16 a6 = (u16) ins[i].args[6];
+		const u16 a7 = (u16) ins[i].args[7];
 
 		if (op == m4_sect) {
 			section_addresses[section_count] = a0;
 			section_starts[section_count++] = my_count;
+
+
+		} else if (op == emit) {
+			if (a0 == 8) insert_u64(&my_bytes, &my_count, (uint64_t) ins[i].args[1]);
+			if (a0 == 4) insert_u32(&my_bytes, &my_count, (uint32_t) a1);
+			if (a0 == 2) insert_u16(&my_bytes, &my_count, (uint16_t) a1);
+			if (a0 == 1) insert_u8 (&my_bytes, &my_count, (uint8_t) a1);
 		}
-		
+
 		else if (op == m4_br) {
 			const u16 offset = 0x3FF & ((calculate_offset(lengths, i + 1, a1) >> 1));
 			const u16 word = (u16) ((1U << 13U) | (u16)(a0 << 10U) | (offset));
@@ -1957,8 +2130,7 @@ arm64_generate_machine_code:;
 	nat* lengths = calloc(ins_count, sizeof(nat));
 	for (nat i = 0; i < ins_count; i++) {
 		if (ins[i].op == halt) continue;
-
-		lengths[i] = 4; // rt_ins[i].op == emit ? rt_ins[i].args[0]
+		lengths[i] = ins[i].op == emit ? ins[i].args[0] : 4;
 	}
 
 
@@ -1986,6 +2158,13 @@ arm64_generate_machine_code:;
 
 		if (op == at) {}
 		else if (op == halt) {}
+
+		else if (op == emit) {
+			if (a0 == 8) insert_u64(&my_bytes, &my_count, (uint64_t) ins[i].args[1]);
+			if (a0 == 4) insert_u32(&my_bytes, &my_count, (uint32_t) a1);
+			if (a0 == 2) insert_u16(&my_bytes, &my_count, (uint16_t) a1);
+			if (a0 == 1) insert_u8 (&my_bytes, &my_count, (uint8_t) a1);
+		}
 
 		else if (op == a6_clz) { puts("clz is unimplemented currently, lol"); abort(); }
 		else if (op == a6_rev) { puts("rev is unimplemented currently, lol"); abort(); }
@@ -2221,14 +2400,6 @@ finished_generation:;
 
 	puts("final_bytes:");
 	dump_hex(my_bytes, my_count);
-
-
-
-
-
-
-
-
 
 
 
@@ -2659,18 +2830,43 @@ generate_ti_txt_executable:;
 	system(debug_string);
 
 
-
-
-
-
-
-
-
-
-
-		
-
 } // main 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
