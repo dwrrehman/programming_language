@@ -1,5 +1,66 @@
 // 1202504045.155147 a compiler / assembler for a simpler version of the language.
 // 1202505106.125751 revised to be much simpler and have a simpler translation process.
+
+
+
+/*
+
+
+
+struct instruction new = { .op = la, .imm = 0x5 }; // not r5_u, like you would think!!! we expose the auipc and addi at the end, after we determined the pc-rel offset. THIS IS REQUIRED!!!!!!
+			new.args[0] = 0x17;
+			new.args[1] = arg0;
+			new.args[2] = arg1; // we need to determine how we are going to refer to a label here..... probably via name. which means we need to generate "at" statements too, in ins sel. 
+			mi[mi_count++] = new;
+			ins[i].state = 1;
+			continue;
+
+
+			alternatively, we can just generate the   AUIPC / ADDI  pair   and then just know that they always come in pairs, always lol. this is a bit risky though. to help distinguish this, i think we should like, set an additioal bit outside the argument list, just so we know that the compiler generated these ourselves. and they werent from the user. lets do that. 
+
+			
+			*/
+
+
+/* notes i realized whlie reading the risc-v spec:
+
+
+	we will use ins sel patterns   of   la's:
+
+
+			when the programmer says 
+
+				la x label 
+				ld data x size_u32
+
+
+			that will actually translate into a pattern NOTTT involving an ADDI. 
+
+
+			instead, it will translate to:       
+
+
+				auipc x label[31:20]
+				ldw data (x + label[19:0])          (the risc-v load includes an addi.)
+
+
+			thus, only an auipc corresponds to an la in source. 
+
+				it depends whats afterrrr the la.   thats why we need multiple 
+								ins-sel patterns detecting la in various patterns.
+
+
+		
+*/
+
+
+
+
+
+
+
+
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -24,7 +85,7 @@ typedef uint8_t byte;
 
 #define max_variable_count (1 << 14)
 #define max_instruction_count (1 << 14)
-#define max_arg_count 14
+#define max_arg_count 12
 
 enum all_architectures { no_arch, arm64_arch, arm32_arch, rv64_arch, rv32_arch, msp430_arch, };
 enum all_output_formats { debug_output_only, macho_executable, macho_object, elf_executable, elf_object, ti_txt_executable, hex_array_txt_executable, };
@@ -416,7 +477,7 @@ static nat locate_instruction(struct expected_instruction expected, nat starting
 }
 
 
-static void push_mi(
+/*static void push_mi(
 	struct instruction** mi, 
 	nat* mi_count, 
 
@@ -441,7 +502,10 @@ static void push_mi(
 	new.args[7] = arg7;
 
 	(*mi)[(*mi_count)++] = new;
-}
+}*/
+
+
+
 
 static void dump_hex(uint8_t* memory, nat count) {
 	printf("dumping bytes: (%llu)\n", count);
@@ -619,69 +683,9 @@ static void debug_data_flow_state(
 
 int main(int argc, const char** argv) {
 
-
-
-/*
-
-
-
-struct instruction new = { .op = la, .imm = 0x5 }; // not r5_u, like you would think!!! we expose the auipc and addi at the end, after we determined the pc-rel offset. THIS IS REQUIRED!!!!!!
-			new.args[0] = 0x17;
-			new.args[1] = arg0;
-			new.args[2] = arg1; // we need to determine how we are going to refer to a label here..... probably via name. which means we need to generate "at" statements too, in ins sel. 
-			mi[mi_count++] = new;
-			ins[i].state = 1;
-			continue;
-
-
-			alternatively, we can just generate the   AUIPC / ADDI  pair   and then just know that they always come in pairs, always lol. this is a bit risky though. to help distinguish this, i think we should like, set an additioal bit outside the argument list, just so we know that the compiler generated these ourselves. and they werent from the user. lets do that. 
-
-			
-			*/
-
-
-/* notes i realized whlie reading the risc-v spec:
-
-
-	we will use ins sel patterns   of   la's:
-
-
-			when the programmer says 
-
-				la x label 
-				ld data x size_u32
-
-
-			that will actually translate into a pattern NOTTT involving an ADDI. 
-
-
-			instead, it will translate to:       
-
-
-				auipc x label[31:20]
-				ldw data (x + label[19:0])          (the risc-v load includes an addi.)
-
-
-			thus, only an auipc corresponds to an la in source. 
-
-				it depends whats afterrrr the la.   thats why we need multiple 
-								ins-sel patterns detecting la in various patterns.
-
-
-		
-*/
-
-
-
-
 	if (argc != 2) exit(puts("compiler: \033[31;1merror:\033[0m usage: ./run [file.s]"));
 	
-	const nat min_stack_size = 16384 + 1;    
-
-	// if (arch == msp430 and stack_size) { puts("error: nonzero stack size for msp430"); abort(); }
-	// if (arch == arm64 and stack_size < min_stack_size) {
-	//           puts("warning: stack size is less than the minimum stack size for this target"); }
-
+	const nat min_stack_size = 16384 + 1;
 	nat target_arch = no_arch;
 	nat output_format = debug_output_only;
 	nat should_overwrite = false;
@@ -846,7 +850,11 @@ process_file:;
 			else if (op == halt) ct = 0;
 			else if (op == system_) ct = 0;
 			else if (op == register_) { is_runtime[args[0]] = 1; ct = 1; } 
-			else if ((op == ld or op == st) and not is_constant[args[2]]) goto print_error;
+			else if ((op == ld or op == st) and 
+				not is_constant[args[2]]) goto print_error;
+			else if (op == compiler and 
+				(not is_constant[args[0]] or 
+				not is_constant[args[1]])) goto print_error;
 			is_immediate = 0;
 			new.state = ct;
 			ins[ins_count++] = new;
@@ -980,6 +988,7 @@ process_file:;
 			else if (n == 9) output_format = data;
 			else if (n == 10) should_overwrite = data;
 			else if (n == 11) values[arg1] = strlen(string_list[data]);
+			else if (n == 12) stack_size = data;
 			else { puts("error: unknown compiler CT system call"); abort(); } 
 		}
 		else { puts("CTE: fatal internal error: unknown instruction executed...\n"); abort(); } 
@@ -992,7 +1001,17 @@ process_file:;
 	print_instructions(0);
 	puts("CTE finished.");
 	getchar();
-	
+
+
+
+
+	if (target_arch == msp430_arch and stack_size) { 
+		puts("fatal error: nonzero stack size for msp430 is not permitted"); 
+		abort();
+
+	} else if (target_arch == arm64_arch and stack_size < min_stack_size) {
+		puts("warning: stack size less than the minimum size for arm64");
+	}
 
 
 	for (nat i = 0; i < ins_count; i++) {
@@ -1062,24 +1081,6 @@ process_file:;
 	print_instructions(0);
 	puts("OPT1 finished.");
 	getchar();
-
-
-
-
-
-
-
-
-
-
-
-
-
-	
-	
-
-
-
 
 
 
@@ -1465,18 +1466,51 @@ process_file:;
 
 
 
+	if (target_arch == rv32_arch or target_arch == rv64_arch) {
 
+		puts("replacing branch immediates with branch register, on rv32...");
 
+		for (nat i = 0; i < ins_count; i++) {
+			const nat op = ins[i].op;
+			const nat imm = ins[i].imm;
+			const nat i0 = !!(imm & 1);
+			const nat i1 = !!(imm & 2);
+			//const nat a0 = ins[i].args[0];
+			const nat a1 = ins[i].args[1];
 
+			if (not (op == lt or op == ge or op == ne or op == eq)) continue;
 
+			if (i0) {
+				puts("lol");
+				abort();
 
+			} else if (i1 and a1) {
 
+				const nat n = a1;
+				
+				is_runtime[var_count] = 1;
+				variables[var_count] = strdup("MY_NEW"); //strdup(generate_new_variable_name());
+				var_count++;
 
-	//puts("info: stopping pipeline before instruction selection.");
-	//exit(1);
+				memmove(ins + i + 1, ins + i, sizeof(struct instruction) * (ins_count - i));
+				ins[i] = (struct instruction) { set, 0x2, 0, { var_count - 1, n } };
+				ins_count++;
 
+				ins[i + 1].args[1] = var_count - 1;
+				ins[i + 1].imm = 0;
 
+				puts("rv32 replace br imm: info: inserted a set statement!");
+				getchar();
+				i++;
+			}
+		}
+	}
+	
 
+	print_dictionary();
+	print_instructions(0);
+	puts("CTK PRUNING finished.");
+	getchar();
 
 
 
@@ -1511,6 +1545,8 @@ rv32_instruction_selection:;
 
 	puts("rv32: instruction selection starting...");
 
+	{ struct instruction new = {0};
+
 	for (nat i = 0; i < ins_count; i++) {
 
 		print_instruction_window_around(i, 0, "");
@@ -1530,104 +1566,65 @@ rv32_instruction_selection:;
 		const nat arg1 = ins[i].args[1]; 
 
 		if (	
-			op == r5_i or 
-			op == r5_r or 
-			op == r5_s or 
-			op == r5_b or 
-			op == r5_u or 
-			op == r5_j or 
-			op == at or 
-			op == emit or
-			op == halt
-		) { ins[i].state = 1; mi[mi_count++] = ins[i]; continue; }
-
-		if (op == system_) {			
-			push_mi(&mi, &mi_count, r5_i, 0xff,   0x73,    0,0,0,0,0,0,0);
-			ins[i].state = 1;
-			continue;
+			op == r5_i or op == r5_r or 
+			op == r5_s or op == r5_b or 
+			op == r5_u or op == r5_j or 
+			op == at or op == emit or op == halt
+		) { 
+			new = ins[i]; 
+			goto push_single_mi; 
 		}
 
-		if (op == la) {
-
-			push_mi(&mi, &mi_count, r5_u, 0x5,    0x17, arg0, arg1, 0x42,   0,0,0,0);
-			push_mi(&mi, &mi_count, r5_i, 0x15,   0x13, arg0, 0, arg0, arg1, 0x42,    0,0);
-
-			/*struct instruction new = { .op = r5_u, .imm = 0x5 };
-			new.args[0] = 0x17;
-			new.args[1] = arg0;
-			new.args[2] = arg1;
-			new.args[3] = 0x42;
-			mi[mi_count++] = new;
-
-			new = (struct instruction) { .op = r5_i, .imm = 0x15 };
-			new.args[0] = 0x13;
-			new.args[1] = arg0;
-			new.args[2] = 0;
-			new.args[3] = arg0;
-			new.args[4] = arg1;
-			new.args[5] = 0x42;
-			mi[mi_count++] = new;*/
-
-			ins[i].state = 1;
-			continue;
+		else if (op == system_) {
+			new = (struct instruction) { r5_i, 0xff, 0,  { 0x73,0,0,0, 0,0,0,0 } };
+			goto push_single_mi;
 		}
 
-		if (op == set and not imm) { // addi d n 0 
-			struct instruction new = { .op = r5_i, .imm = 0x15 };
-			new.args[0] = 0x13;
-			new.args[1] = arg0;
-			new.args[2] = 0;
-			new.args[3] = arg1;
-			new.args[4] = 0;
+		else if (op == la) {
+			new = (struct instruction) { r5_u, 0x5, 0,  { 0x17, arg0, arg1, 0x42,  0,0,0,0 } };
 			mi[mi_count++] = new;
-			ins[i].state = 1;
-			continue;
+			new = (struct instruction) { r5_i, 0x15, 0, { 0x13, arg0, 0, arg0, arg1, 0x42, 0,0 } };
+			goto push_single_mi;
+		}
+		else if (op == set and not imm) { // addi d n 0 
+			new = (struct instruction) { r5_i, 0x15, 0,   { 0x13, arg0, 0, arg1, 0, 0,0,0 } };
+			goto push_single_mi;
 		} 
-
-		if (op == set and imm) { // addi d zr k
-			struct instruction new = { .op = r5_i, .imm = 0x1D };
-			new.args[0] = 0x13;
-			new.args[1] = arg0;
-			new.args[2] = 0;
-			new.args[3] = 0;
-			new.args[4] = arg1;
-			mi[mi_count++] = new;
-			ins[i].state = 1;
-			continue;
+		else if (op == set and imm) { // addi d zr k
+			new = (struct instruction) { r5_i, 0x1D, 0,   { 0x13, arg0, 0, 0, arg1, 0,0,0 } };
+			goto push_single_mi;
 		}
-
-		if (op == add and imm) { // addi d d k
-			struct instruction new = { .op = r5_i, .imm = 0x15 };
-			new.args[0] = 0x13;
-			new.args[1] = arg0;
-			new.args[2] = 0;
-			new.args[3] = arg0;
-			new.args[4] = arg1;
-			mi[mi_count++] = new;
-			ins[i].state = 1;
-			continue;
+		else if (op == add and imm) { // addi d d k
+			new = (struct instruction) { r5_i, 0x15, 0,   { 0x13, arg0, 0, arg0, arg1,0,  0,0 } };
+			goto push_single_mi;
 		}
-
-		if (op == add and not imm) { // addr d d n
-			struct instruction new = { .op = r5_r, .imm = 0x25 };
-			new.args[0] = 0x33;
-			new.args[1] = arg0;
-			new.args[2] = 0;
-			new.args[3] = arg0;
-			new.args[4] = arg1;
-			new.args[5] = 0;
-			mi[mi_count++] = new;
-			ins[i].state = 1;
-			continue;
+		else if (op == add and not imm) { // addr d d n
+			new = (struct instruction) { r5_r, 0x25, 0,   { 0x33, arg0, 0, arg0, arg1,0,  0,0 } };
+			goto push_single_mi;
 		}
-
-		if (op == lt and imm) {     // addi NEW zr IMM    blt x NEW label
-			//ins[i].state = 1;
-			//continue;			
+		else if (op == lt) {
+			if (imm) { 
+				puts("rv32 ins sel: internal error: no branch immediates should be possible."); 
+				abort();
+			}
+			new = (struct instruction) { r5_b, 0x15, 0, { 0x13, arg0, 0, arg0, arg1, 0x42, 0,0 } }; // TODO
+			goto push_single_mi;
 		} 
-	}
+		else {
+			puts("error: unknown instruction selection pattern");
+			abort();
+		}
+
+push_single_mi:
+		mi[mi_count++] = new;
+		ins[i].state = 1;
+	}}
+
 
 	goto finish_instruction_selection;
+
+
+
 
 
 
