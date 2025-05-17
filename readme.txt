@@ -1,13 +1,13 @@
-a compiler for a programming language
+a (currently unnamed) compiler for a (currently unnamed) programming language
 written on 1202504115.035207 by dwrr
 new version of the language made on 1202505154.163659 by dwrr
 =======================================
 
-this is an optimizing compiler for a low-level programming language that i am making for fun and for my own use. the language is word-based, statement-based, and is closely modelled off of the hardware RISC-like ISA's which it chooses to target, which include RISC-V (32 and 64 bit), ARM (32 and 64 bit), and the MSP430 ISA. 
+this is an optimizing compiler for a low-level programming language that i am making for fun and for my own use. the language is word-based, statement-based, and is closely modelled off of the hardware RISC-like ISA's which it chooses to target, which include: RISC-V (32 and 64 bit), ARM (32 and 64 bit), and the MSP430 ISA. 
 
-there are less than 32 builtin operators in the language (excluding the machine instructions), which take 0, 1, 2, or 3 arguments. all operators are prefix, and fixed arity. 
+there are less than 32 built-in operators/instructions in the language (excluding the machine instructions), which take 0, 1, 2, or 3 arguments. all operators are prefix, and fixed arity. 
 
-a description of the builtin operations and the semantics of each instruction is given below:
+a description of the built-in instructions and the semantics of each instruction is given below:
 
 language ISA:
 ----------------
@@ -238,7 +238,7 @@ note that these are subject to change! some examples may be out of date, as the 
 
 
 
-------------------------------------------
+------------------[EXAMPLE 1]------------------------
 
 (a simple test of the const prop alg 
 written on 1202504093.232238 dwrr)
@@ -260,7 +260,7 @@ halt    	  (note, the use of halt is optional/implied, when at the end of the fi
 
 
 
-------------------------------------------
+--------------------[EXAMPLE 2]----------------------
 
 (this is a simple loop from 0 to 9, executed at runtime)
 (these parenthetical thingies are comments, by the way)
@@ -273,7 +273,7 @@ at loop
 	lt i count loop
 
 
-------------------------------------------
+--------------------[EXAMPLE 3]----------------------
 
 
 (this is a simple loop from 0 to 9 at compiletime)
@@ -290,7 +290,7 @@ at loop
 	lt i count loop
 
 
--------------------------------------------
+-------------------[EXAMPLE 4]------------------------
 
 (a prime number counting program 
  that executes at runtime! 
@@ -317,12 +317,52 @@ at composite
 
 halt
 
--------------------------------------------------
+----------------------[EXAMPLE 5]---------------------------
 
+
+(testing out functions in the language (aka compiletime macros lol) 1202505106.141237)
+
+			(also yes, you can nest comments!)
+
+
+runtime sum 0 set sum 0
+
+constant lr  set lr 0
+
+constant a0  set a0 0
+
+constant skip
+do skip
+
+constant mymacro 
+at mymacro                (this is effectively a compiletime function body!)
+	a6_nop
+	add sum a0
+	system
+	
+	add lr 1 do lr         (this is effectively a compiletime function return!  ...note we are incrementing a compiletime label.)
+
+at skip
+
+
+set a0 101 at lr do mymacro       (these are effectively compiletime function calls!   note we are reattributing a compiletime label.)
+
+set a0 11 at lr do mymacro        (here, we pass in 3 for argument 0.)
+
+set a0 01 at lr do mymacro        (and here, we pass in 2 for argument 0 instead)
+
+set a0 0 at lr do mymacro           (etc)
+
+halt
+
+
+
+
+---------------------[EXAMPLE 6]-----------------------
 
 
 (
-	core standard library for the language: foundation.s
+	core standard library for the language:     "library/foundation.s"
 	written on 1202505165.132635 by dwrr.
 )
 
@@ -375,7 +415,7 @@ constant false set false 0
 (end of standard library code) 
 
 
--------------------------------------------------
+----------------------[EXAMPLE 7]---------------------------
 
 
 (the first hello world program for the language, 
@@ -412,7 +452,7 @@ string "hello, world!
 
 
 
--------------------------------------------------
+-----------------------[EXAMPLE 8]--------------------------
 
 (a simple test of the ctsc system:  
 	a compiletime hello world program 
@@ -435,6 +475,58 @@ string "hello world
 
 
 -------------------------------------------------
+
+
+
+
+additional reminder that the language is made specifically and primarily for my own use cases, and thus is not tailored for anyone else, nor is it meant to be used by others. 
+
+as such, pull requests or feature suggestions will most likely be rejected, (unless it really knocks my socks off, then i might consider it, but it would have to be something huge that i missed.)
+
+
+however, i do hope you find the project interesting, or possibly learn something or find inspiration from it!
+
+
+thanks for reading!
+
+dwrr
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
