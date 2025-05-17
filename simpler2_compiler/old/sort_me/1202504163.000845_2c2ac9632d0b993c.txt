@@ -1,0 +1,299 @@
+oh my gosh!!!
+1202504152.235837:
+
+i found the solution to the control flow merge point example problem   in ct eval!!!
+
+
+its so simple 
+
+
+its basically 
+
+
+
+you take the input pred set      and find if  i is CTK     from all preds, 
+
+
+		buttttt it is used in a RTK way  in thiss instruction 
+
+
+	the key things is that 
+
+
+	because we did a    i N loop
+
+
+
+			our   merge point detection logic in the CT eval   stage 
+				(seing that at least one RT pred with a value mismatch  comes to    at loop )
+
+
+				will hopefullyyyy cuase    i      to be RTK   at the point of the loop, 
+
+
+
+
+	but then, 
+
+
+		whenever we see that an instruction   in this case        the     at loop 
+
+
+
+
+		has all preds which have a ct value,    but which is   rtk  at the time of the   at  ins 
+
+
+				thennn we materialize the varibale   generating    all the set's that are neccessary   right before the at 
+
+
+
+	this also works for the following code
+
+
+
+
+
+	rt N 0           (simple data flow example, showing how an initially CTK variable becomes RTK through RT data flow operations/instructions!)
+	set i 5
+	add i N
+
+
+
+
+
+
+			here, see how     in the    add  i N   instruction          i is RTK here, 
+
+
+					buttt   in all preds (one pred)   we have a ctk v of i 
+
+
+
+					thus, we need to materialize  i     at the piont of the add.   ie, we will actually eagerly evaulate   i       at the set 
+					but then    regenerate the set    at the add. 
+
+
+
+
+
+
+	thats the idea 
+
+
+
+its to regenerate the appropriate set statements lol 
+
+
+
+this allows for arbitrary comptiletime evaulation to occur,   reducing down compiletime data down to just a simple set statement lol. its ppretty amazing!!!
+
+
+
+
+
+but yeah, just to really spell out the loop example i was looking at earlier,   we have the fololwing code 
+
+
+
+
+rt N 0          (a more complex example, showing how the merge point of RT CF only using CTK operations can result 
+			in the merge point having a CTK var be RTK at that point, due to the RT CF. )
+set i 0
+at loop 
+	add i 1
+	lt i N loop
+
+
+
+
+
+here, we see that 
+
+
+	at the "at loop" ("merge point")
+
+
+		we have a connection/merging of    one edge which is  CTK CF 
+
+
+			implicit ip++   from    "set i 0"   to   "at loop"  
+
+
+
+		and then we have another edge   which is           RTK CF 
+
+
+
+
+			which originated from the   lt i N loop            a branch which uses RTK variables in its condition is of course,  RTK CF.  ("runtime-known control flow")
+
+
+
+			and thus, we know that      at the merge point, 
+
+
+
+				we know that both CT and RT control flow is happening. 
+
+
+
+
+
+
+			if we see that at LEASTTT one     predecessor ("pred")    is runtime known,  
+
+
+
+					thennnnn
+
+
+						IFFFFFF    AND ONLY IF               we are processing a  CTK variable,  at this merge point, 
+
+
+
+
+							ANDDDDD     WE SEE A   VALUE_MISMATCH   event    of the prior values of this ctk var  coming from these preds 
+
+
+
+
+							THENNNNN
+
+
+
+
+
+							we know that the variable must be  actually         RTK!!!   at the merge. 
+
+
+
+
+
+
+								thats the key idea. 
+
+
+
+
+
+			thennnnnn,
+
+			all thats left to wrap up the entire problem and give a perfect complete solution  and be done with everything    and solve it completely 
+
+
+
+
+						is to just  
+
+
+
+										recognize that we need to   materialize         the variable  i          before  the  "at loop"  ins. 
+
+
+
+					
+
+
+			and we do that, just using the simple mechanism we already laid out for the "set i 5 add i N" example lol 
+
+
+
+
+										the materialization   (and thus generation of multiple set statements prior to a given RT ins)
+
+											happens when we see a variable is compiletime known on a predecessors, but is RTK at the RT ins itself.
+											here, we know taht we need to generate the set statement to materialize the variable to be RT known now. 
+
+
+
+
+
+
+				like, its that simple!
+
+
+
+
+
+wow
+
+
+
+
+
+
+i have literally been trying to solve this problem for like 
+
+
+		idk, months lol 
+
+
+
+
+
+
+and i finally solved it 
+
+oh my goshhhhhh lol 
+
+
+
+
+
+the amazingggg part  is 
+
+	i literally havent seen this algortihm   like       anywhere lol 
+
+
+
+			like i don't even know of any algortihm online  at all which does full runtime/compiletime analysis  on the code 
+
+
+	like thats
+		thast a hugeeee optimization lol 
+
+
+
+	and we are literally doing itttt
+
+
+
+
+
+
+
+gosh i love this so muchhh
+
+
+yayyyyyyy
+
+
+
+so yaeh 
+
+
+
+i think thats the full solution   it kindaaaa sorta ish    works in my head lol 
+
+
+like   its still rather blurry, but it might workkkkkk
+
+
+
+
+
+
+
+		
+
+
+
+wowwww
+
+
+
+i love this!!!
+
+
+

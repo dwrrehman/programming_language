@@ -1,0 +1,9 @@
+(testing out overloading binary literals as variable names in the language 1202504126.230516
+)
+
+set 01 01    (set x 2)
+add 01 01    (add x x)
+add 01 01    (add x x)
+
+
+

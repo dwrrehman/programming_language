@@ -1,0 +1,95 @@
+new version of the language 1202505154.163659 dwrr
+-------------------------------------------------------
+
+
+language isa:
+----------
+
+	runtime x	: make x runtime known. 
+	constant x	: make x compiletime known
+	register x r	: make x stored in hardware register r. x is rtk. 
+	bitcount x b	: make x stored in at least b bits.
+
+	compiler a b	: compiler system call a with argument b. 
+	system 		: system call instruction
+
+	emit x y	: emit x bytes from the constant y to the executable at this position. 
+	string s	: emit string data from s to the final executable at this position.
+	file f		: load file f contents. 
+	del x		: remove x from the symbol table. 
+
+	set x y		: assignment to x the value in y. 
+	add x y		: assign x + y into x. 
+	sub x y		: assign x - y into x. 
+	mul x y		: assign x * y into x. 
+	div x y		: assign x / y into x. 
+	rem x y		: assign x mod y into x. 
+	and x y		: assign x bitwise-and y into x. 
+	or x y		: assign x bitwise-or y into x. 
+	eor x y		: assign x bitwise-xor y into x. 
+	si x y		: shift x up by y bits, and store the result into x.
+	sd x y		: shift x down by y bits, and store the result into x.
+
+	ld x y z	: load z bytes from memory address y into register x. 
+	st x y z	: store z bytes from register y at memory address y.
+	la x l		: load the pc-rel address of label l into register x. 
+
+	lt x y l	: if x is less than y, branch to label l. 
+	ge x y l	: if x is not less than y, branch to label l. 
+	ne x y l	: if x is not equal to than y, branch to label l. 
+	eq x y l	: if x is equal to y, branch to label l. 
+	do l		: unconditionally branch to label l. 
+	at l		: attribute label l at this position. 
+	halt		: termination of control flow here. 
+
+
+
+there would also be all machine instructions/encodings accessible, for all targets, in addition to the language isa. 
+
+
+
+
+
+
+
+
+ct system call interface:
+-------------------------------
+for this instruction, 
+
+	compiler a b 		: compiletime system call interface to the compiler
+
+the parameters a and b do various useful functions:
+
+
+	if a == 0     ctsc_set_debug    debug = b
+	if a == 1     ctsc_exit     exit(b)
+	if a == 2     ctsc_putchar   putchar(b)
+	if a == 3     ctsc_getchar  b = getchar()
+	if a == 4     ctsc_abort    abort()
+	if a == 5     ctsc_length    string length calculation for string b, length stored in b
+	if a == 6     ctsc_print      print string with string-index b
+	if a == 7     ctsc_printd     print the value currently in compiletime variable b, in decimal
+	if a == 8     ctsc_printh     print the value currently in compiletime variable b, in hex 
+	if a == 9     ctsc_target   target = b
+	if a == 10    ctsc_get_target   b = target
+	if a == 11    ctsc_output_format   output_format = b
+	if a == 12    ctsc_output_name   output_name = string with index b
+	if a == 13    ctsc_overwrite   should_overwrite = b
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

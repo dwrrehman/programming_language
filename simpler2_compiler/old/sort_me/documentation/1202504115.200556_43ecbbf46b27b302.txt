@@ -1,0 +1,799 @@
+1202504115.200512
+
+OMG 
+i think i have the general idea for instruction selection
+
+
+
+
+
+
+the main idea is to   literally compute a number for every computation, like the following method:
+
+
+		we first assign a number to each operation!
+
+
+			then, for each    (two address) operation       we take   'var_count'  and   multipy it by one of the operand's variable indicies?, 
+
+
+				and then we    add the other variable  index too 
+
+
+
+
+
+		and then multiply that by var_count squared, maybe,   
+				and multiply by    the   'add' operation  index   (ie, the number that corresponds to the 'add' instruction, all instructions have an operation index) 
+							????
+
+
+
+		hmm
+
+
+
+
+so its like 
+
+
+
+						for a given ins,              eg,    "add a b"
+
+
+				i think the resultant computatioal number that represents it 
+
+						would be      (just looking at the variables alone!) 
+
+									var_count * a + b    
+
+	or more accurately: 
+
+
+			var_count (because lrs(b) = var_count)    *   a  +   b
+
+
+
+and so bringing in the operation index,   for add  (say its 5, lets say)   add = 5      and then   let o = add;
+	
+
+			var_count * var_count * o   +   var_count * a    +   b
+
+
+
+
+		where 
+
+			o is   add (5) 
+
+		and  	a  is a's variable index
+
+		and  	b  is b's variable index
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+		WWOWOWOWw
+
+
+
+
+	now we get a single number     that represents  
+
+
+			the computation done.
+
+
+
+			
+	....arguably we don't need to do this.. ???    lol
+
+
+	but i mean this is kinda symbolic/metaphorical     for a new way of thinkingggg      (for me at least)
+
+
+
+	so 
+	yeah
+
+
+
+					basically nowwww we just need to compare these numbers with each other
+
+
+
+						which , lets call them    "comp numbers"  
+
+
+
+
+
+					comp numbers     represent the computation done 
+
+
+
+
+
+			"comp number" = "computational numbers"
+
+
+
+
+
+	ie computaional decscription numbers
+
+
+
+
+	and so 
+
+
+
+
+
+			
+
+
+
+
+so what does this buy ussssss???
+
+
+		what does this get us??? that we couldnt get in some other way?
+
+
+
+
+
+wellll 
+	
+
+
+			basically, when we are looking for a pattern, 
+
+
+	say, for example: 
+
+
+
+
+
+						set d m
+
+						si d k
+
+						add d n
+
+
+
+
+
+		...eg, a typical arm64 addsr_lsl   instruction!
+
+
+
+
+
+	and so 
+
+
+
+
+					the way we actuallyyy recognize thissss
+
+
+
+
+	is that 
+
+
+
+			we actually don't        DONTTTT look for     the "set"           the "si"     the "add" 
+
+
+
+					like that at all
+
+
+
+	because like, WHO KNOWSSS WHAT KIND OF VARIABLES WE ARE USINGGGG
+
+
+
+							NO ONE KNOWSSS
+
+
+
+
+
+
+
+
+like, 
+
+
+			instead, what if we did this instead!!!
+	
+
+
+
+
+
+		set z m   si m k 
+
+
+		set d n
+
+		add d z
+
+
+
+
+
+	SEE HOW THIS IS THE SAME       BUT COMPLETLYYY DIFFERENTTTT
+
+
+											but it sohuld still 
+
+
+											stillll translate to   an addsr_lsl!!!
+
+
+
+
+
+
+
+
+			here, we switched the    arguments to the add    now n is first,  
+
+				and then m is second
+
+
+
+
+
+and furthermore   
+
+
+				z holds the shifted value     and so we use that 
+
+
+
+
+
+		even though we could have collapsed the register usage quite a  bit here
+
+
+
+
+
+
+
+
+	and so, to combat this 
+
+
+		
+
+	
+
+			basically 
+
+
+
+
+
+
+
+				THAT IS WHYYYY we have this notion of     comp numbers!!!
+
+
+
+
+
+		the comp numbers actually tell you    what computation    is currently being storeddd in a variable!
+
+
+
+
+
+			
+	CRAP
+
+
+
+
+
+
+	NO
+
+			BAD
+
+
+							our definition of comp numbers sucks 
+
+
+	we need 
+	something else lo l
+
+
+
+
+	it can't use       variable namess
+
+					ie,         a      and b 
+
+
+
+	we need  SOEMETHING ELSEEEE
+
+
+
+					something which says        
+
+
+						1. whether a merge of control flow derived data  happened
+								(in this case,  the value is undefined kinda)
+
+						2. alsoooo weneed to know the prior compuational/operation historyyy 
+							of the comuation done on a variable,
+								we DONT GIVE A CRAP    ABOUT WHICH VARIABLES WERE USED
+
+
+
+
+						we only care      about    what comptuationnnnn 
+
+
+							ie, the DAG      and the operations used at each node in the dag)							
+
+		so
+					i think you get what i'm saying now
+
+
+
+		we need to form     a   dag,   and then   turn it into     a number 
+
+
+
+			
+	or 
+	really 
+			i guess 
+					we just need to form a dag lol 
+
+
+			and then reset when control flow happens???
+
+		hm
+
+
+
+	yeah the dag part is the first part though. i know that. 
+
+
+
+
+	OH!
+
+	but its not just a simple dag thoughhhh
+
+
+
+
+			when we do a set, 
+				we actaully don't represent that in the dag!!!
+
+
+
+
+				i thinkkkk 
+
+
+
+
+		rather, that just causes a collapse of the dag! 
+
+
+
+
+
+okay 
+	so 
+	example 
+
+
+
+
+		set z m   si m k 
+
+		set d n
+
+		add d z
+
+
+
+here, our dag would look as fololws:
+
+				the data in variables m and k  is used  (k is ctk lol)
+
+						so its really just  m  lol 
+
+
+
+			note, when starting out dag construction, we use variable names   / references   as the root truth. the bottom most level in the dag. it is what all things are derived from. 
+
+got it?
+
+
+
+		set z m   si m k 
+
+		set d n
+
+		add d z
+
+
+
+	so, we start out with  
+
+
+			m       (and also k, but k is ctk lol)
+		
+	
+
+
+		set z m   si m k 
+		set d n
+		add d z
+
+	then, we try to rename m to z,  which is not represented in the dag     at all. completly useless, and irrelevant. 
+			not used at all. we can ignore this.
+
+
+		then we do the shift. 
+
+			in the dag  now      we add a new node!        the si_imm  node !!!!!!
+
+			and it looks at the m value, 
+
+			and produces a new value          (kinda, ssa-style lol)
+
+
+			now, whenever we see m, we assume that its going to refer  and use  this new   DAG node! 
+
+				simple as that.   there is always some DAG node reference  into  the current DAG 
+
+						which is the most     up to date   version    or  like,   thingy 
+							that corresponds to that vairable. 
+
+						which dag node you use, changes, as you edit particular vairbales!
+
+						does that make sense???? that needs to make sense. 
+
+
+		lemme expalain further 
+
+
+
+
+
+
+					picture the dag,   
+
+
+
+--------------------------------------------------------------------------
+
+			dn0:		m (as is)
+			
+
+			dn1:	      si(dn0, #k)        (shift-increase operation, taking as arguments, 
+								the dag node #0, and the immediate/constant k.)
+	
+			dn2:           etc
+
+--------------------------------------------------------------------------
+	
+
+
+
+					(dn stands for dag node!!!)
+
+
+
+				
+
+--------------------------------------------------------------------------
+	array of variables: [       d    n     m     etc    ] 
+----------------------------------------------------------------------
+	array of dns state: [     dn5   dn10  dn1   ...   ]
+
+the above array of variables  is a double array   one to store the names of the variables, 
+		and the other   to store the current dn which is referred to     iffff that variable name were to be used 
+						or like, a  use of that variable were to be encountered in the global instruction stream 
+
+
+
+
+			ie, the second array here,   called dns,
+
+				is mutable. and changes.      we keep building up the dag  
+
+				slowlyyy but surely     editing   what dag node is referred to   by a given variable name 
+
+
+
+
+				trying to make some sort of effort   to keep the current data state  in mind 
+					of what computaion has been done on a given variable. 
+
+
+
+			and we represent this total computaion in the dag, 
+
+			and we represent any given variables compuation   in the dag,   as a  refererence  or like, arrow going between  the variable name,   and the exact dag node that corresponds to its computation that has been done so far 
+
+
+
+						(ie, the dns variable is the arrow)
+
+
+
+	so yeah 
+
+
+
+
+
+THAT 
+
+	IS  
+
+			HOW
+					INSTRUCTION 
+
+							SELECTION
+
+
+		
+									MUST 
+
+
+										WORK
+
+
+
+
+
+
+
+
+			....
+
+
+
+
+
+
+
+
+
+...i think? 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+							am i wrong in this???
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+		am i compteely off base here lol 
+
+
+
+
+
+
+
+
+
+OH!!
+note 
+
+
+set's  don't change anything. 
+
+	they don't actually update   pretty much anything    in this whole process 
+
+
+
+	a given set statement 
+
+		does  essentially nothing   except for  chnaging maybeeeee what dag node is refred to by a given variable name!
+
+
+
+			ie,    the dns    array      will change. 
+
+
+			sure, 
+		maybe 
+	
+
+
+						but 
+								the DAG.        THE TOTAL COMPUTATION PERFORMEDDDDDDD
+
+
+
+
+							that will not chnage. 
+
+
+					never.    as a result of a set. 
+
+
+
+
+
+now, 
+
+
+THERE IS ONEEEEEE TINYYY LITTLE EXCEPTIONNNN
+
+
+
+
+
+
+
+
+					control flow. 
+
+
+
+
+
+
+
+thats the only part about this    that i havent quiteeeeee figured out lol 
+
+
+
+	i'm close 
+
+	but 
+			yeah  its still unknown        how we would model control flow            at all 
+
+
+
+				using dags
+
+
+
+
+
+			.... 
+						and this    dns   + dag     kind of arrangement. 
+
+
+
+
+	like, it just seems 
+
+	almostttt hopless 
+	to try to represent control flow in this compuation represetnation 
+
+
+
+
+
+
+like literallyyyy
+
+
+
+what even 
+
+
+
+
+how do we do thatttt
+
+
+
+
+
+
+hmmmmmm
+
+
+	i guess i'll think about that moreee
+
+
+thats defintely gunna have to simmer a bit more lollll 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

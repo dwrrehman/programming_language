@@ -1,0 +1,214 @@
+notes on the new design of the language:
+-----------------------------------------
+1202504067.000016
+
+facts:
+
+	- we will use the fact that if a given name is not recognized, it is treated as a binary literal. AND ONLY IN THIS CASE IS IT. 
+
+	- we will allow names to be defined on use, for labels, and for the set operation. 
+
+	- all names are deduced to be runtime known, except for labels. 
+
+
+	- we will simply annotate a ct variable, by simply setting a bit with an instruction. the "ct" insrtuction prepares the next instruction to be compiletime known. 
+
+	- ct takes no arguments. 
+	- it just affects the next ins. 
+
+
+	- ud takes no arguments. undefining something is as simple as putting ud after the last use. 
+
+
+	- labels are just ct variables. 
+
+
+	- 
+
+
+
+
+
+
+
+example code:
+-------------------------------------------------------
+
+branching:
+
+
+	do skip       <--- skip is ctk here. 
+
+
+		(code here)    <-------- comments use parens. 
+
+	at skip 
+
+	ud          <------ undefine takes no arguments. 
+				it uses the last used name. 
+
+------------------------------------------------------------
+
+compiletime code: (best possible scenario, that we got!!!!)
+
+
+	ct
+	set x 0
+
+	ct 
+	set y 001
+
+	add x y        <------ happens at compiletime, 
+				because x and y are defined using 
+				a compiletime operation.
+
+			
+
+------------------------------------------------------------
+
+runtime code: (best possible scenario, that we got!!!!)
+
+
+
+	set x 0 
+	set y 0
+
+	add x y        <----- happens at runtime! 
+
+
+------------------------------------------------------------
+
+	
+
+
+
+
+
+
+final instruction set:        31 instructions. 
+-------------------------------------------------------------
+
+
+0 args: (4)
+	ct ud halt eoi
+
+
+1 arg: (8)
+	zero incr decr not
+	do at lf ro
+	
+2 args: (13)
+	set add sub mul div rem 
+	and or eor si sd
+	ri bc
+
+3 args: (6)
+
+	ld st 
+	lt ge ne eq
+
+
+
+
+
+
+
+	31 instructions!!!
+
+
+
+
+
+full isa:
+--------------------
+
+
+
+eoi halt ct ud
+zero incr decr not do at lf ro
+set add sub mul div rem and or eor si sd ri bc
+ld st lt ge ne eq
+
+
+
+
+
+
+eoi halt ct ud zero 
+incr decr not do at 
+lf ro set add sub 
+mul div rem and or 
+eor si sd ri bc 
+ld st lt ge ne eq
+
+
+
+
+
+
+
+current isa:
+
+
+	eoi halt ct ud do at
+	lf ro set add sub 
+	mul div rem and or 
+	eor si sd ri bc ld 
+	st lt ge ne eq sc
+
+
+
+0 args: (4)
+	ct ud halt eoi
+
+1 arg: (8)
+	do at lf ro
+	
+2 args: (13)
+	set add sub mul div rem 
+	and or eor si sd
+	ri bc
+
+3 args: (6)
+
+	ld st 
+	lt ge ne eq
+
+7 args: (1)
+	sc
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
