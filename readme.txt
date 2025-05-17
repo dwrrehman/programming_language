@@ -1,19 +1,472 @@
 a compiler for a programming language
 written on 1202504115.035207 by dwrr
+new version of the language made on 1202505154.163659 by dwrr
 =======================================
 
-this is an optimizing compiler for a programming language that i am making for fun and for my own use. the language is word-based, statement-based, and is closely modelled off of the hardware RISC-like ISA's which it chooses to target, which include RISC-V (32 and 64 bit), ARM (32 and 64 bit), and the MSP430 ISA. 
+this is an optimizing compiler for a low-level programming language that i am making for fun and for my own use. the language is word-based, statement-based, and is closely modelled off of the hardware RISC-like ISA's which it chooses to target, which include RISC-V (32 and 64 bit), ARM (32 and 64 bit), and the MSP430 ISA. 
 
-there are only 24 builtin operators in the language, which 0, 1, 2, or 3 arguments. all operators are prefix, and fixed arity. 
+there are less than 32 builtin operators in the language (excluding the machine instructions), which take 0, 1, 2, or 3 arguments. all operators are prefix, and fixed arity. 
 
-the builtin operations of the language are the following:
+a description of the builtin operations and the semantics of each instruction is given below:
 
- 	halt sc do at lf set add sub mul div rem 
-	and or eor si sd rt la ld st lt ge ne eq
+language ISA:
+----------------
 
-thats it! 
 
-a description of the semantics of each instruction is given below:
+
+language-specific instructions:
+----------------------------------
+	runtime x	: make x runtime known. 
+	constant x	: make x compiletime known
+	register x r	: make x stored in hardware register r. x is rtk. 
+	bitcount x b	: make x stored in at least b bits.
+
+	compiler a b	: compiler system call a with argument b. 
+	system 		: system call instruction
+
+	emit x y	: emit x bytes from the CT constant y to the executable at this position. 
+	string s	: emit string data from s to the final executable at this position.
+	file f		: load file f contents. 
+	del x		: remove x from the symbol table. 
+
+
+arithmetic operations:
+------------------
+	set x y		: assignment to destination register x, using the value present in source y.
+				if the name x is not defined, then x is defined as a result of this instruction.
+				if x is defined, the existing definition of variable x is used.
+
+	add x y		: assigns the value x + y to the destination register x.
+	sub x y		: assigns the value x - y to the destination register x.
+	mul x y		: assigns the value x * y to the destination register x.
+	div x y		: assigns the value x / y to the destination register x.
+	rem x y		: assigns the value x mod y to the destination register x.
+
+bitwise operations:
+------------------
+	and x y		: assigns the value x bitwise-and y to the destination register x.
+	or x y		: assigns the value x bitwise-or y to the destination register x.
+	eor x y		: assigns the value x bitwise-eor y to the destination register x.
+	si x y		: shift x up by y bits, and store the result into destination register x.
+	sd x y		: shift x down by y bits, and store the result into destination register x.
+
+
+memory-related operations:
+------------------
+	ld x y z	: load z bytes from memory address y into destination register x. 
+	st x y z	: store z bytes from register y into destination memory at memory address y.
+	la x l		: load the PC-relative address of label l into destination register x. 
+
+
+control flow:
+------------------
+	lt x y l	: if x is less than y, branch to label l. 
+	ge x y l	: if x is not less than y, branch to label l. 
+	ne x y l	: if x is not equal to than y, branch to label l. 
+	eq x y l	: if x is equal to y, branch to label l. 
+	do l		: unconditionally branch to label l. 
+	at l		: attribute label l at this position. 
+	halt		: termination of control flow here. 
+
+
+
+there is also the following machine instructions/encodings which are accessible for all targets, in addition to the above language. here are the machine instructions. they are abstracted from typical assembly, as only the core unique machine-code encodings are provided. it is expected that the compile-time evaulation system and macros will be used to make using these encodings more friendly for programming in assembly in this language. this also should not be required in most circumstances, and providing only the encodings make decode logic in the compiler simpler, and requires fewer instructions in the language as a whole. 
+
+here are the 3 target hardware ISA's and their machine instructions:
+-----------------------------------------------------------------------
+
+ARM64:
+	a6_nop 	: no operation
+	a6_svc 	: system call (supervisor call)
+	a6_mov 	: set register with 16 bit immediate source
+	a6_bfm 	: bit field move instruction
+	a6_adc 	: add/subtract with carry 
+	a6_addx : add/subtract with optionally sign/zero-extended register source 
+	a6_addi : add/subtract with immediate source
+	a6_addr : add/subtract with optionally shifted register source
+	a6_adr 	: load address of a PC-relative label into a register
+	a6_shv 	: variable-shift left or right of a register
+	a6_clz 	: count leading zeros of regsiter
+	a6_rev 	: reverse bits of register
+	a6_jmp 	: unconditional jump to label (with optional link)
+	a6_bc 	: conditional branch to label based on flags 
+	a6_br 	: branch to register value (with optional link)
+	a6_cbz 	: compare and branch if register is nonzero or zero
+	a6_tbz 	: test bit in register and branch to label if set
+	a6_ccmp : conditional compare instruction
+	a6_csel : conditional select / increment / invert / negate instruction
+	a6_ori 	: bitwise or/and/xor with immediate
+	a6_orr 	: bitwise or/and/xor with shifted register
+	a6_extr : extract instruction (?)
+	a6_ldrl : load register data with from label PC-relative address
+	a6_memp : load/store memory to/from pair of registers
+	a6_memia : load/store memory to/from register with post/pre increment addressing mode
+	a6_memi : load/store memory to/from register with address plus unsigned immediate offset
+	a6_memr : load/store memory to/from register with address plus register offset
+	a6_madd : multiply-accumulate / multiply-subtract instruction
+	a6_divr : divide register with register instruction
+
+MSP430:
+	m4_sect : create new section in executable, and set physical memory address of this section
+	m4_op : arithmetic and bitwise operation instruction, with destination and source addressing modes 
+	m4_br : branch on condition to label instruction
+
+
+RISC-V
+	r5_r : register-register integer operation instruction format
+ 	r5_i : register-immediate integer operation insrtuction format
+	r5_s : store operation instruction format
+	r5_b : compare and branch with register-register condition to label instruction format
+	r5_u : large immediate (possibly PC-relative) load into register instruction format
+	r5_j : unconditionally jump to label instruction format
+
+
+
+
+ct system call interface:
+-------------------------------
+consider:
+
+	compiler a b 		: compiletime system call interface to the compiler
+
+
+for this "compiler" instruction, the inputs "a" and "b" to it are quite nuanced, and control various important settings in the compiler, including which target is being targeted. 
+
+the parameters a and b do various useful functions:
+
+	if a == 0     ctsc_set_debug    debug = b
+	if a == 1     ctsc_exit     exit(b)
+	if a == 2     ctsc_putchar   putchar(b)
+	if a == 3     ctsc_getchar  b = getchar()
+	if a == 4     ctsc_abort    abort()
+	if a == 5     ctsc_length    string length calculation for string b, length stored in b
+	if a == 6     ctsc_print      print string with string-index b
+	if a == 7     ctsc_printd     print the value currently in compiletime variable b, in decimal
+	if a == 8     ctsc_printh     print the value currently in compiletime variable b, in hex 
+	if a == 9     ctsc_target   target = b
+	if a == 10    ctsc_get_target   b = target
+	if a == 11    ctsc_output_format   output_format = b
+	if a == 12    ctsc_output_name   output_name = string with index b
+	if a == 13    ctsc_overwrite   should_overwrite = b
+
+
+examples of the compiler compile-time interface in action are given in the examples section. 
+
+
+
+
+the "why" behind the language:
+----------------------------------
+
+in my particular use cases, i have two use cases which i think really shaped the language, and its goals. the first is that i want to run code in my language on these MSP430 microcontrollers which have only 512 bytes of SRAM, meaning that code needs to be incredibly memory and time efficient. not a single instruction can be wasted, as this could cause the program to not function at all, potentially.
+
+My second use case is different: i am making an extremely high performance system running on an ARM64 machine, and in this setting, performance and efficiency are absolutely paramount. having the low level control to be able to guarantee performance and efficiency at the language level is highly advantageous in this scenario, as it very much does make the difference between finding the solution in a week, or never finding the solution for years.
+
+so these are the use cases i had in mind. thus the programming experience i am aiming to create is based around low-level control, and efficiency. additionally, it helps to minimize the complexity of the language as much as possible, to make the compiler itself as simple as possible, which allows better reasoning about the translation process itself. further making it easier to get a working solution in resource constrained environments.
+
+the trade-offs which i am consciously making revolve around user-friendliness, vs expert-friendliness / fine control. the language strives to give fine control over things when its advantageous to performance, and thus, the language loses much in user-friendliness, and ease of use, most of the time. additionally, terseness is lost as well in some ways, as even small tasks take many instructions to complete. luckily, however, the standard library might try to help this problem slightly, by providing solutions to common problems encountered in programming.
+
+the paradigms which are promoted in this language include only: imperative programming, and procedural programming. all other programming paradigms, including functional programming, and object oriented programming, are seen as completely antithetical to the goal and use cases of the language, and thus are highly, highly discouraged.
+
+the intended feel of this language is to feel like you are as close to the metal as you can be, while still programming in a way where you are able to specify intent better, (ie, not always using the machine instructions directly!) and where you are able to dynamically change how low level you are, based on what you want to do. in some places, you choose to use machine instructions, in other places, you choose to use the more abstract language, which expresses intent better.
+
+the long term aspirations of this language are to replace C for heavily resource constrained, performance-critical applications, specifically when the hardware target is either MSP430, RISC-V, or ARM. for these applications, this language hopes to do a better job at attaining peak performance than C code. :)
+
+
+
+
+
+some further notes about the language:
+-------------------------------------------
+
+a goal is for the language ISA instructions and patterns of them are used to construct all hardware instructions used in the target ISAs, via instruction selection and register allocation. in cases where this is not feasible, direct access to both hardware registers, and machine instructions is provided. 
+
+an extended form of constant propagation/folding is used in the compiler after parsing to allow for fully turing-complete compile-time execution, and thus the generation of arbitrary data for use during runtime, allowing for further optimizations not possible in languages such as C. additionally, the notion of macros (compiletime function calls) can be constructed at user level from this compiletime evaluation system. 
+
+there is currently no built-in mechanism for allowing the user to define their own functions, or macro-operations, and this is not planned to be implemented currently. rather, a macro-like mechanism is emergently acheived via the existing operations such as "at", "do", "set", etc. 
+
+a graph coloring approach for register allocation is planned to be used. currently unimplemented, as instruction selection is currently in progress. 
+
+there is no notion of functions, structs, classes (or any other typical high-level abstraction) in this language, as these are not neccessary, and hinder optimizations. 
+
+comments are denoted with parenthesis, and are character based, not word based, and are only allowed between valid instructions. additionally, comments can nest within each other. eg, (something (like this) or that.)
+
+this language also allows the user to define the name of a variable as anything they want. the names of the operations are valid variable names, and any ascii or unicode character can be used in names, except for whitespace (tab, newline, and spaces), which is used for delimiting words. parenthesis are also valid within names, as they only denote comments between valid instructions. 
+
+if a given variable name is not defined, and not at a label argument position, or the destination of an instruction which is capable of defining a new variable, then the word is attempted to be interpretted as a little-endian binary literal. little endian, here, means that the least significant bit is first, and the most significant bit is at found at the end of the word. trailing zeros are ignored. 
+
+little-endian binary literals are the only form of immediates/constants present in this language. the digit seperator '_' is allowed in binary literals as well, in addition to the digits '0' and '1'. little endian binary was chosen, as it is more fundamental than big endian binary compuationally speaking, as there is no "bit-reversing" that needs to be done in the mathematics/code describing the representation. binary is used instead of decimal, as math and programming is much easier done in binary, once you get used to it, and comfortable with it. binary arithmetic exposes several patterns in numbers which are inaccessible to programmers using decimal or hexadecimal only. also, friendly reminder that our computers literally run on binary, in virtually all respects. 
+
+respelling of constants in decimal form is possible, as all digits are valid within identifiers. if a variable is defined which only comprises of 0's and 1's, then this references to this identifier are preferred instead of treating it like the equivalent binary literal. binary literals not valid as the register destination for an instruction. 
+
+if a number cannot be parsed as a binary literal, an "undefined variable" parsing error is displayed/returned. 
+
+additionally, there is delimiter neccessary between instructions besides whitespace, and mulitple instructions can appear on the same line, as long as there is some whitespace between them. 
+
+
+as for data types and type systems: this language actually does not have a notion of any data types- except for floats or integers of various bit widths. no type checking is performed, and it is assumed the programmer needs to be correct these bugs manually. however, the compiler does do an runtime value analysis on the code as part of its translation process and thus type errors might be able to surface here to help the programmer catch them. the "bitcount" instruction can be thought of as providing a "type" to an existing variable, but it is not said what information could be stored in that number of bits (besides possibly whether it is a float or integer data).
+
+the system call instruction will use the fact that the standard library defines numerous useful constants containing the appropriate system call numbers and register indexes used by the platforms system calls, thus we don't need to make an abstract system call interface because the user will just include a library file which defines correct values to be able to use the "system" instruction.
+
+
+
+notes about the compiler's development process:
+-----------------------------------------------------
+
+the source code for the compiler is currently a bit over 2,000 lines of code so far, and is expected to grow slightly as more optimization passes are implemented, and instruction selection and register allocation is flushed out further. this source code is located in a single C file, "c.c". most of the code, including parsing, lexing, optimization passes, instruction selection, register allocation, and machine code generation and output generation is all done in the main() function, with minimal use of functions. 
+
+using multiple files besides "c.c", or using widespread use of functions across the code base for readability is not planned or desired, as it significantly increases the friction at which changes can be made to the compiler, and significantly decreases the oppurtunities for new algorithms and common patterns to be discovered in the source code while implementing things. 
+
+also, if the C source code is "unreadable" to you, this is, technically speaking, a "skill issue" on your part. i reccomend improving your programming skills until it is readable for you. 
+
+
+a notable difference is also that the compiler does not use SSA form, or the notion of basic blocks. rather, all data flow analysis and optimization passes take into account the full global data/control flow, and all control flow and data flow analysis and optimizations are done globally on the entire program. 
+
+the language itself is also the the same language as the intermediate representation (IR) for the compiler, allowing the programmer to control the final executable to an even higher degree, for maximum performance. 
+
+
+
+
+
+-----------------------------------------
+	code examples:
+-----------------------------------------
+
+some examples of code in this language are given below, to illustrate how the language is used in practice!
+
+note that these are subject to change! some examples may be out of date, as the language goes through several revisions over time. 
+
+
+
+------------------------------------------
+
+(a simple test of the const prop alg 
+written on 1202504093.232238 dwrr)
+
+set x 101         (x has the value 5 after this line.)
+set y 001	  (y has the value 4 after this line.)
+
+register z 0011   (variable z is forced to be stored in the hardware register "x12" assuming this exists for the target.)
+
+add x y     	  (x now holds the value 9.)
+
+set z x           (z now contains the value 9, and this store to this 
+		   register cannot be elided/eliminated by the compiler.)
+
+halt    	  (note, the use of halt is optional/implied, when at the end of the file.)
+
+
+
+
+
+
+------------------------------------------
+
+(this is a simple loop from 0 to 9, executed at runtime)
+(these parenthetical thingies are comments, by the way)
+
+set count 0101
+set i 0
+at loop
+	(your code here!)
+	add i 1
+	lt i count loop
+
+
+------------------------------------------
+
+
+(this is a simple loop from 0 to 9 at compiletime)
+
+constant count    (<---- only difference is these three lines, to make this loop happen at compiletime.)
+constant i 
+constant loop
+
+set count 0101      (the value 10 in little endian binary)
+set i 0
+at loop
+	(your code here!)
+	add i 1
+	lt i count loop
+
+
+-------------------------------------------
+
+(a prime number counting program 
+ that executes at runtime! 
+ written on 1202504104.153543 by dwrr)
+
+constant prime 
+constant composite 
+constant n set n 00001    (the value 16 in little endian binary)
+constant i set i 0
+constant count set count 0
+
+constant loop at loop
+	constant j set j 01
+	constant inner at inner
+		ge j i prime
+		constant r set r i rem r j eq r 0 composite
+		add j 1 do inner
+at prime
+	add count 1
+
+at composite
+	add i 1
+	lt i n loop
+
+halt
+
+-------------------------------------------------
+
+
+
+(
+	core standard library for the language: foundation.s
+	written on 1202505165.132635 by dwrr.
+)
+
+(rv32 system call abi)
+
+register rv_sc_arg0 0101
+register rv_sc_arg1 1101
+register rv_sc_arg2 0011
+register rv_sc_number 10001
+
+(specific to the rv32 virtual machine running in my website: )
+
+constant rv_system_exit   set rv_system_exit   1
+constant rv_system_read   set rv_system_read   01
+constant rv_system_write  set rv_system_write  11 
+
+(compiler interface)
+
+constant ctsc_abort 		set ctsc_abort 0
+constant ctsc_exit 		set ctsc_exit 1
+constant ctsc_getchar 		set ctsc_getchar 01
+constant ctsc_putchar 		set ctsc_putchar 11
+constant ctsc_printhex 		set ctsc_printhex 001
+constant ctsc_printdec 		set ctsc_printdec 101
+constant ctsc_set_debug 	set ctsc_set_debug 011
+constant ctsc_print 		set ctsc_print 111
+constant ctsc_set_target 	set ctsc_set_target 0001
+constant ctsc_set_format 	set ctsc_set_format 1001
+constant ctsc_overwrite 	set ctsc_overwrite 0101
+constant ctsc_get_length 	set ctsc_get_length 1101
+
+constant no_arch 	set no_arch 0
+constant arm64_arch 	set arm64_arch 1
+constant arm32_arch 	set arm32_arch 01
+constant rv64_arch 	set rv64_arch 11
+constant rv32_arch 	set rv32_arch 001
+constant msp430_arch 	set msp430_arch 101
+
+constant debug_output_only 	set debug_output_only 0
+constant macho_executable 	set macho_executable 1
+constant macho_object 		set macho_object 01
+constant elf_executable 	set elf_executable 11
+constant elf_object 		set elf_object 001
+constant ti_txt_executable 	set ti_txt_executable 101
+constant hex_array_txt_executable  set hex_array_txt_executable 011
+
+constant true set true 1
+constant false set false 0
+
+(end of standard library code) 
+
+
+-------------------------------------------------
+
+
+(the first hello world program for the language, 
+running in the risc-v virtual machine!
+written on 1202505165.132734 by dwrr )
+
+file library/foundation.s        (includes the standard library file for the language. still a work in progress)
+
+
+compiler ctsc_set_target rv32_arch                     (these lines set the target architecture, and output format)
+compiler ctsc_set_format hex_array_txt_executable         (and whether the output file is allowed to be overwritten, if it exists.)
+compiler ctsc_overwrite true
+
+set rv_sc_arg0 1
+la rv_sc_arg1 string
+constant l set l 0
+compiler ctsc_get_length l 
+set rv_sc_arg2 l 
+del l         				(here,  we remove l from the current scope, to keep it from being used elsewhere)
+set rv_sc_number rv_system_write
+system
+
+set rv_sc_arg0 0011
+set rv_sc_number rv_system_exit
+system halt
+
+at string
+string "hello, world!
+"                         ( <----- note, you can have newlines in strings! they are multiline, 
+					and there are no escaped characters. additionally,
+					you can use any character to delimit strings, 
+					use of the character double quote specifically was not required.)
+
+
+
+
+-------------------------------------------------
+
+(a simple test of the ctsc system:  
+	a compiletime hello world program 
+	written on 1202505176.034945 by dwrr
+)
+
+
+constant ctsc_print    (defined as in foundation.s)
+set ctsc_print 111       (the value 7)
+
+
+compiler ctsc_print 0     (calling the compiletime system call interface for printing a string at compiletime)
+
+
+halt                  (this instruction is not technically speaking required lol)
+
+
+string "hello world
+"
+
+
+-------------------------------------------------
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+TRASH:
+-------------------------------------------------------
+
+
+
+
+OLD instruction set description:
+
+
+
 
 	set x y : assignment to destination register x, using the value present in source y.
 		if the name x is not defined, then x is defined as a result of this instruction.
@@ -49,114 +502,6 @@ a description of the semantics of each instruction is given below:
 	lf f : load file f from the filesystem, and include its parsed contents here.
 		f denotes a relative path from the directory the compiler invocation is executed. 
 		...due to the strict word-based nature of the language, f cannot contain spaces.
-
-
-
-some further notes:
-------------------------
-
-these instructions and patterns of them are used to construct all hardware instructions used in the target ISAs, via instruction selection and register allocation. 
-
-an extended form of constant propagation/folding is used in the compiler after parsing to allow for fully turing-complete compile-time execution, and thus the generation of arbitrary data for use during runtime, allowing for further optimizations not possible in languages such as C. 
-
-a graph coloring approach for register allocation is planned to be used. currently unimplemented, as instruction selection is currently in progress. 
-
-the compiler does not use SSA form, or the notion of basic blocks, rather, the above builtin-operation listing/ISA is also the intermediate representation (IR) for the compiler, and all control flow and data flow analysis and optimizations are done globally on the entire program. 
-
-there is no notion of functions, structs, classes (or any other typical high-level abstraction) in this language, as these are not neccessary, and hinder optimizations. 
-
-comments are denoted with parenthesis, and are character based, not word based, and are only allowed between valid instructions. additionally, comments can nest within each other. eg, (something (like this) or that.)
-
-this language also allows the user to define the name of a variable as anything they want. the names of the operations are valid variable names, and any ascii or unicode character can be used in names, except for whitespace (tab, newline, and spaces), which is used for delimiting words. parenthesis are also valid within names, as they only denote comments between valid instructions. 
-
-there is currently no mechanism for allowing the user to define their own macro-operations, and this is not planned to be implemented currently. rather, a macro-like mechanism is emergently acheived via the existing operations such as "at", "do", "set", etc. 
-
-if a given variable name is not defined, and not at a label argument position, or the destination of an instruction which is capable of defining a new variable, then the word is attempted to be interpretted as a little-endian binary literal. little endian, here, means that the least significant bit is first, and the most significant bit is at found at the end of the word. trailing zeros are ignored. 
-
-little-endian binary literals are the only form of immediates/constants present in this language. the digit seperator '_' is allowed in binary literals as well, in addition to the digits '0' and '1'. 
-
-respelling of constants in decimal form is possible, as all digits are valid within identifiers. if a variable is defined which only comprises of 0's and 1's, then this references to this identifier are preferred instead of treating it like the equivalent binary literal. binary literals not valid as the register destination for an instruction. 
-
-if a number cannot be parsed as a binary literal, an "undefined variable" parsing error is displayed/returned. 
-
-additionally, there is delimiter neccessary between instructions besides whitespace, and mulitple instructions can appear on the same line, as long as there is some whitespace between them. 
-
-
-
------------------------------------------
-	code examples:
------------------------------------------
-
-some examples of code in this language are given below, to illustrate how the language is used in practice!
-
-
-
-------------------------------------------
-
-(a simple test of the const prop alg 
-written on 1202504093.232238 dwrr)
-
-set x 101         (x has the value 5 after this line.)
-set y 001	  (y has the value 4 after this line.)
-add x y     	  (x now holds the value 9.)
-halt    	  (note, the use of halt is optional, when at the end of the file.)
-
-------------------------------------------
-
-(this is a simple loop from 0 to 9, executed at compiletime)
-(these parenthetical thingies are comments, by the way)
-
-set count 0101
-set i 0
-
-at loop
-	(your code here!)
-	add i 1
-	lt i count loop
-
-
-------------------------------------------
-
-(this is a simple loop from 0 to 9 at runtime)
-
-set count 0101
-rt i 001   (<---- only difference neccessary, to make this loop happen at runtime.)
-set i 0
-
-at loop
-	add i 1
-	lt i count loop
-
--------------------------------------------
-
-(a prime number counting program 
- that executes at runtime! 
- written on 1202504104.153543 by dwrr)
-
-rt i 0  rt j 0  rt count 0   (remove this line, 
-		to make this code execute at compiletime instead!)
-
-set n 00001
-set i 0
-set count 0
-
-at loop
-	set j 01
-	at inner
-		ge j i prime
-		set r i rem r j eq r 0 composite
-		add j 1 do inner
-at prime
-	add count 1
-
-at composite
-	add i 1
-	lt i n loop
-
-halt
-
--------------------------------------------
-
 
 
 
