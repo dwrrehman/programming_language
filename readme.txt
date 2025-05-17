@@ -164,13 +164,15 @@ My second use case is different: i am making an extremely high performance syste
 
 so these are the use cases i had in mind. thus the programming experience i am aiming to create is based around low-level control, and efficiency. additionally, it helps to minimize the complexity of the language as much as possible, to make the compiler itself as simple as possible, which allows better reasoning about the translation process itself. further making it easier to get a working solution in resource constrained environments.
 
-the trade-offs which i am consciously making revolve around user-friendliness, vs expert-friendliness / fine control. the language strives to give fine control over things when its advantageous to performance, and thus, the language loses much in user-friendliness, and ease of use, most of the time. additionally, terseness is lost as well in some ways, as even small tasks take many instructions to complete. luckily, however, the standard library might try to help this problem slightly, by providing solutions to common problems encountered in programming.
+the trade-offs which i am consciously making revolve around user-friendliness, vs expert-friendliness / fine control. the language strives to give fine control over things when its advantageous to performance, and thus, the language loses much in user-friendliness, and ease of use, most of the time. additionally, terseness is lost as well in some ways, as even small tasks take many instructions to complete. luckily, however, the standard library might try to help this problem slightly, by providing solutions to common problems encountered in programming. 
+
+portability is also not a true goal of this language: for example, spill code will never be generated, as if register allocation fails to fit all variables into registers, a compiler error is generated, and the programmer must fix this by manually allocating stack memory for some memory variables, or some how compressing their use of registers until things fit into the register file, and RA can succeed. ergonomics are seen as something only given when it does not come at the expense of performance.
 
 the paradigms which are promoted in this language include only: imperative programming, and procedural programming. all other programming paradigms, including functional programming, and object oriented programming, are seen as completely antithetical to the goal and use cases of the language, and thus are highly, highly discouraged.
 
 the intended feel of this language is to feel like you are as close to the metal as you can be, while still programming in a way where you are able to specify intent better, (ie, not always using the machine instructions directly!) and where you are able to dynamically change how low level you are, based on what you want to do. in some places, you choose to use machine instructions, in other places, you choose to use the more abstract language, which expresses intent better.
 
-the long term aspirations of this language are to replace C for heavily resource constrained, performance-critical applications, specifically when the hardware target is either MSP430, RISC-V, or ARM. for these applications, this language hopes to do a better job at attaining peak performance than C code. :)
+the long term aspirations of this language are to replace my using of C for heavily resource constrained, performance-critical applications, specifically when the hardware target is either MSP430, RISC-V, or ARM. for these applications, this language hopes to do a better job at attaining peak performance than C code. :)
 
 
 
@@ -185,9 +187,9 @@ an extended form of constant propagation/folding is used in the compiler after p
 
 there is currently no built-in mechanism for allowing the user to define their own functions, or macro-operations, and this is not planned to be implemented currently. rather, a macro-like mechanism is emergently acheived via the existing operations such as "at", "do", "set", etc. 
 
-a graph coloring approach for register allocation is planned to be used. currently unimplemented, as instruction selection is currently in progress. 
+a graph coloring approach for register allocation is planned to be used. currently unimplemented, as instruction selection is currently in progress. as stated, spill code, and automatic stack memory management will not take place, ever. if register allocation (RA) fails to allocate variables into the registers, an error is generated, and the programmer must fix this error by manually managing stack memory or storing variables in memory somehow, or compressing the data variables into registers better. 
 
-there is no notion of functions, structs, classes (or any other typical high-level abstraction) in this language, as these are not neccessary, and hinder optimizations. 
+also, there is no notion of functions, structs, classes (or any other typical high-level abstraction) in this language, as these are not neccessary, and hinder optimizations. 
 
 comments are denoted with parenthesis, and are character based, not word based, and are only allowed between valid instructions. additionally, comments can nest within each other. eg, (something (like this) or that.)
 
@@ -293,7 +295,9 @@ at loop
 -------------------[EXAMPLE 4]------------------------
 
 (a prime number counting program 
- that executes at runtime! 
+
+	 that executes   at compile-time!!!
+
  written on 1202504104.153543 by dwrr)
 
 constant prime 
@@ -320,7 +324,7 @@ halt
 ----------------------[EXAMPLE 5]---------------------------
 
 
-(testing out functions in the language (aka compiletime macros lol) 1202505106.141237)
+(testing out macros/functions in the language (aka compiletime macros/function calls lol) 1202505106.141237)
 
 			(also yes, you can nest comments!)
 
@@ -481,7 +485,7 @@ string "hello world
 
 additional reminder that the language is made specifically and primarily for my own use cases, and thus is not tailored for anyone else, nor is it meant to be used by others. 
 
-as such, pull requests or feature suggestions will most likely be rejected, (unless it really knocks my socks off, then i might consider it, but it would have to be something huge that i missed.)
+as such, pull requests or feature suggestions will most likely be rejected, (unless it really knocks my socks off, then i might consider it, but it would have to be something huge that i missed, lol..)
 
 
 however, i do hope you find the project interesting, or possibly learn something or find inspiration from it!
