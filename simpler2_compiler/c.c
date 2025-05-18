@@ -206,6 +206,27 @@ static char* load_file(const char* filename, nat* text_length) {
 	return text;
 }
 
+static nat read_single_char_from_stdin(void) {
+	struct termios terminal = {0};
+	tcgetattr(0, &terminal);
+	struct termios copy = terminal; 
+	copy.c_cc[VMIN] = 1; 
+	copy.c_cc[VTIME] = 0;
+	copy.c_lflag &= ~((size_t) ECHO | ICANON);
+	tcsetattr(0, TCSANOW, &copy);
+
+	char c = 0;
+	ssize_t n = read(0, &c, 1);
+	if (n <= 0) { 
+		puts("compiler: fatal error: input/output error: "); 
+		perror("read"); 
+		abort(); 
+	}
+
+	tcsetattr(0, TCSANOW, &terminal);	
+	return (nat) c;
+}
+
 static void print_dictionary(void) {
 	puts("variable dictionary: ");
 	for (nat i = 0; i < var_count; i++) {
@@ -527,20 +548,14 @@ static void dump_hex(uint8_t* memory, nat count) {
 	puts("\n");
 }
 
-/*
-
 static void print_binary(nat x) {
-	if (not x) { puts("0"); return; }
+	if (not x) { printf("0"); return; }
 
 	for (nat i = 0; i < 64 and x; i++) {
-		if (not (i % 8) and i) putchar('.');
+		if (not (i % 8) and i) putchar('_');
 		putchar((x & 1) + '0'); x >>= 1;
 	}
-	puts("");
 }
-
-*/
-
 
 static void insert_byte(
 	uint8_t** output_data, 
@@ -846,15 +861,16 @@ process_file:;
 				ct = 0;
 			}
 
+			const nat a0_is_ct = (is_immediate & 1) or is_constant[args[0]];
+			const nat a1_is_ct = (is_immediate & 2) or is_constant[args[1]];
+			const nat a2_is_ct = (is_immediate & 4) or is_constant[args[2]];
+
 			if (op >= a6_nop and op <= isa_count) ct = 0;
 			else if (op == halt) ct = 0;
 			else if (op == system_) ct = 0;
 			else if (op == register_) { is_runtime[args[0]] = 1; ct = 1; } 
-			else if ((op == ld or op == st) and 
-				not is_constant[args[2]]) goto print_error;
-			else if (op == compiler and 
-				(not is_constant[args[0]] or 
-				not is_constant[args[1]])) goto print_error;
+			else if ((op == ld or op == st) and not a2_is_ct) goto print_error;
+			else if (op == compiler and not (a0_is_ct and a1_is_ct)) goto print_error;
 			is_immediate = 0;
 			new.state = ct;
 			ins[ins_count++] = new;
@@ -871,16 +887,11 @@ process_file:;
 		const nat op = ins[pc].op;
 		if (op == at) values[ins[pc].args[0]] = pc;
 	}
-	
-	
-	print_dictionary();
+		
+	/*print_dictionary();
 	print_instructions(0);
 	puts("parsing finished.");
-	getchar();
-
-
-
-
+	getchar();*/
 
 	{ struct instruction rt_ins[4096] = {0};
 	nat rt_ins_count = 0;
@@ -888,7 +899,6 @@ process_file:;
 	memset(bit_count, 255, sizeof bit_count);
 	memset(register_index, 255, sizeof register_index);
 
-	//const nat is_hardware_register = 1LLU << 63LLU;
 	uint8_t* memory = calloc(65536, sizeof(nat));
 
 	bool should_debug_cte = 0;
@@ -978,12 +988,12 @@ process_file:;
 			const nat data = val1, n = val0;
 			if (n == 0) abort();
 			else if (n == 1) exit(0);
-			else if (n == 2) values[arg1] = (nat) getchar();
-			else if (n == 3) putchar((int) data);
-			else if (n == 4) printf("0x%016llx\n", data);
-			else if (n == 5) printf("%llu\n", data);
+			else if (n == 2) values[arg1] = read_single_char_from_stdin();
+			else if (n == 3) { putchar((int) data); fflush(stdout); }
+			else if (n == 4) { print_binary(data); fflush(stdout); }
+			else if (n == 5) { printf("%llu", data); fflush(stdout); }
 			else if (n == 6) should_debug_cte = data;
-			else if (n == 7) printf("%s", string_list[data]);
+			else if (n == 7) { printf("%s", string_list[data]); fflush(stdout); }
 			else if (n == 8) target_arch = data;
 			else if (n == 9) output_format = data;
 			else if (n == 10) should_overwrite = data;

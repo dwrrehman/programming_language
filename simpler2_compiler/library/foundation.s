@@ -26,7 +26,7 @@ constant ctsc_abort 		set ctsc_abort 0
 constant ctsc_exit 		set ctsc_exit 1
 constant ctsc_getchar 		set ctsc_getchar 01
 constant ctsc_putchar 		set ctsc_putchar 11
-constant ctsc_printhex 		set ctsc_printhex 001
+constant ctsc_printbin 		set ctsc_printbin 001
 constant ctsc_printdec 		set ctsc_printdec 101
 constant ctsc_set_debug 	set ctsc_set_debug 011
 constant ctsc_print 		set ctsc_print 111
