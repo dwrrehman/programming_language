@@ -40,8 +40,8 @@ struct instruction new = { .op = la, .imm = 0x5 }; // not r5_u, like you would t
 			instead, it will translate to:       
 
 
-				auipc x label[31:20]
-				ldw data (x + label[19:0])          (the risc-v load includes an addi.)
+				auipc x label[31:12]
+				ldw data (x + label[11:0])          (the risc-v load includes an addi.)
 
 
 			thus, only an auipc corresponds to an la in source. 
@@ -751,7 +751,6 @@ process_file:;
 			goto next_word;
 		}
 
-
 		if (not isspace(text[pc])) {
 			if (not word_length) word_start = pc;
 			word_length++; 
@@ -761,7 +760,7 @@ process_file:;
 		char* word = strndup(text + word_start, word_length);
 
 		if (not op) {
-			if (*word == '(') { 				
+			if (*word == '(') {
 				nat i = word_start + 1, comment = 1;
 				while (comment and i < text_length) {
 					if (text[i] == '(') comment++;
@@ -770,7 +769,7 @@ process_file:;
 				}
 				if (comment) goto print_error;
 				pc = i;
-				goto next_word; 
+				goto next_word;
 			}
 
 			for (op = 0; op < isa_count; op++) 
@@ -800,12 +799,12 @@ process_file:;
 		} 
 
 		if (not(  
-			(op == lt or op == ge or op == ne or op == eq) and arg_count == 2 or 
-			(op == set or op == ld or op == register_) and arg_count == 0 or 
+			(op == lt or op == ge or op == ne or op == eq) and arg_count == 2 or
+			(op == set or op == ld or op == register_) and arg_count == 0 or
 			op == runtime or
-			op == constant or 
-			op == do_ or 
-			op == at or 
+			op == constant or
+			op == do_ or
+			op == at or
 			op == la
 		)) {
 			nat r = 0, s = 1;
@@ -1005,7 +1004,7 @@ process_file:;
 	}
 
 	memcpy(ins, rt_ins, ins_count * sizeof(struct instruction));
-	ins_count = rt_ins_count;    }
+	ins_count = rt_ins_count;   }
 
 	print_dictionary();
 	print_instructions(0);
@@ -1159,7 +1158,7 @@ process_file:;
 					future_copy_of = cp_v; 
 					first_cp = 0;
 				} else if (future_copy_of != cp_v) 
-					future_is_copy = 0;				
+					future_is_copy = 0;
 			}
 
 			type[pc * var_count + var] = future_type;
@@ -1245,6 +1244,7 @@ process_file:;
 				const nat target = cond ? gt1 : gt0;
 				if (target < ins_count and ins[target].state < 2) 
 					stack[stack_count++] = target; 
+				continue;
 			}		
 
 		} else {
@@ -2389,7 +2389,7 @@ arm64_generate_machine_code:;
 			else if (option == 1) opt = 3;
 			else if (option == 2) opt = 6;
 			else if (option == 3) opt = 7;
-			else abort();				
+			else abort();
 			const u32 is_load = (a0 >> 2) & 1;
 			const u32 is_signed = (a0 >> 1) & 1;
 			const u32 is_64_dest = (a0 >> 0) & 1;
@@ -2880,8 +2880,17 @@ generate_ti_txt_executable:;
 	snprintf(debug_string, sizeof debug_string, "../../led_display/embedded_assembler/msp430_disassembler/run %s", output_filename);
 	system(debug_string);
 
+
+
+
+
 finished_outputting: 
+
 	exit(0);
+
+
+
+
 } // main 
 
 

@@ -1,6 +1,6 @@
-(
-	a 2048 game written in this language, 
-	made to test out the usability of the compiletime system for larger programs. 
+(1202505187.021240 dwrr
+ a pulsing text effect, 
+ to test out the languages usability
 )
 
 file library/foundation.s

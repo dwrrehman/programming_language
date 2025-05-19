@@ -9,11 +9,14 @@ compiler ctsc_overwrite true
 
 
 register i 1
+register limit 01 
+
 set i 0
+set limit 101
 
 at loop
 	add i 1
-	lt i 101 loop
+	lt i limit loop
 
 set rv_sc_arg0 1001
 set rv_sc_number rv_system_exit
