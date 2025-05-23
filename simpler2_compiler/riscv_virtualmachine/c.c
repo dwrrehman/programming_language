@@ -129,6 +129,9 @@ int main(int argc, const char** argv) {
 		u32 Rs1 = (word >> 15) & 0x1F;
 		u32 Rs2 = (word >> 20) & 0x1F;
 		u32 imm12 = (word >> 20) & 0xFFF;
+
+		u32 f7 = (word >> 25) & 0x3F;
+
 		if (((imm12 >> 11) & 0x1) == 1) imm12 |= 0xFFFFF000;
 		u32 U_imm20 = word & 0xFFFFF000;
 
@@ -307,6 +310,8 @@ int main(int argc, const char** argv) {
 		} else if (op == 0x33) { // ADD / SUB / SLL / SLT / SLTU / XOR / SRL / SRA / OR / AND
 
 
+			if (f7 == 0 or bit30) { 
+
 			if (fn == 0 && bit30 == 0) { // ADD
 				if (debug) printf("ADD  x%u  x%u  x%u\n", Rd, Rs1, Rs2);
 				registers[Rd] = registers[Rs1] + registers[Rs2];
@@ -346,6 +351,43 @@ int main(int argc, const char** argv) {
 			} else if (fn == 7) { // AND
 				if (debug) printf("AND  x%u  x%u  x%u\n", Rd, Rs1, Rs2);
 				registers[Rd] = registers[Rs1] & registers[Rs2];
+			}
+
+			} else {
+
+				if (fn == 0) { // MUL
+					if (debug) printf("MUL  x%u  x%u  x%u\n", Rd, Rs1, Rs2);
+					registers[Rd] = registers[Rs1] * registers[Rs2];
+
+				} else if (fn == 1) { // MULH
+					if (debug) printf("MULH  x%u  x%u  x%u\n", Rd, Rs1, Rs2);
+					registers[Rd] = registers[Rs1] * registers[Rs2];
+
+				} else if (fn == 2) { // MULHSU
+					if (debug) printf("MULHSU  x%u  x%u  x%u\n", Rd, Rs1, Rs2);
+					registers[Rd] = registers[Rs1] * registers[Rs2];
+
+				} else if (fn == 3) { // MULHU
+					if (debug) printf("MULHU  x%u  x%u  x%u\n", Rd, Rs1, Rs2);
+					registers[Rd] = registers[Rs1] * registers[Rs2];
+
+				} else if (fn == 4) { // DIV
+					if (debug) printf("DIV  x%u  x%u  x%u\n", Rd, Rs1, Rs2);
+					registers[Rd] = registers[Rs1] / registers[Rs2];
+
+				} else if (fn == 5) { // DIVU
+					if (debug) printf("DIVU  x%u  x%u  x%u\n", Rd, Rs1, Rs2);
+					registers[Rd] = registers[Rs1] / registers[Rs2];
+
+				} else if (fn == 6) { // REM
+					if (debug) printf("REM  x%u  x%u  x%u\n", Rd, Rs1, Rs2);
+					registers[Rd] = registers[Rs1] % registers[Rs2];
+
+				} else if (fn == 7) { // REMU
+					if (debug) printf("REMU  x%u  x%u  x%u\n", Rd, Rs1, Rs2);
+					registers[Rd] = registers[Rs1] % registers[Rs2];
+				}
+
 			}
 			pc += 4;
 

@@ -72,6 +72,133 @@ struct instruction new = { .op = la, .imm = 0x5 }; // not r5_u, like you would t
 
 
 
+		// todo:   we need to be doing this for the risc-v machine instructions,
+		//          ...not the language isa instructions. 
+
+		//						crap lol 
+
+		/*
+		else if (op == set) {
+			alive[pc * var_count + a0] = 0;
+			if (not i1) alive[pc * var_count + a1] = 1;
+
+		} else if (op >= add and op <= sd) {
+			if (not i1) alive[pc * var_count + a1] = 1;
+			
+		} else if (op == st) {
+			if (not i0) alive[pc * var_count + a0] = 1;
+			if (not i1) alive[pc * var_count + a1] = 1;
+
+		} else if (op == ld) {
+			alive[pc * var_count + a0] = 0;
+			if (not i1) alive[pc * var_count + a1] = 1;
+
+		} else if (op == la) {
+			alive[pc * var_count + a0] = 0;
+			if (not i1) alive[pc * var_count + a1] = 1;			
+
+		} else if (op == lt or op == ge or op == ne or op == eq) {
+
+			if (not i0) alive[pc * var_count + a0] = 1;
+			if (not i1) alive[pc * var_count + a1] = 1;			
+
+		} */
+
+
+
+
+
+
+
+
+
+	/*
+
+
+	// 	our previous RA implementation, which just uses the user's register attributes:
+
+
+	for (nat i = 0; i < mi_count; i++) {
+
+		print_instruction_window_around(i, 0, "");
+		puts("[doing something like RA]");
+		//getchar();
+
+		const nat op = ins[i].op;
+		const nat imm = ins[i].imm;
+	
+		for (nat a = 0; a < arity[op]; a++) {
+
+			if (op == at and a == 0) continue;
+			if(op == do_ and a == 0) continue;
+			if (op == lt and a == 2) continue;
+			if (op == ge and a == 2) continue;
+			if (op == ne and a == 2) continue;
+			if (op == eq and a == 2) continue;
+			if (op == la and a == 1) continue;
+
+			const nat this_arg = ins[i].args[a];
+
+			if (imm & (1 << a)) {
+				printf("on argument: [a = %llu]: is_immediate!  (immediate value is %llu)\n", a, this_arg);
+			} else if (not is_label[this_arg]) {
+				
+				printf("on argument: [a = %llu]: NOT is_immediate and NOT label!  (variable = %s) \n", 
+					a, variables[this_arg]
+				);
+
+				puts("filling in the register index we found for this operation!");
+
+				if (register_index[this_arg] == (nat) -1) {
+					printf("FATAL ERROR: no hardware register index was "
+						"not found for variable %s in the below instruction. "
+						"aborting...\n", variables[this_arg]
+					);
+					print_instruction(ins[i]); puts(""); 
+					abort();
+				}
+				ins[i].args[a] = register_index[this_arg];
+				ins[i].imm |= 1LLU << a;
+
+				printf("info: filled in register_index %llu for variable %s into this instruction. ", 
+					ins[i].args[a], variables[this_arg]
+				);				
+			}
+		}
+		puts("hello");
+	}
+
+	puts("[done with RA");
+
+	printf("info: final machine code: for target = %llu\n", target_arch);
+	print_instructions(1);
+
+	*/
+
+
+/*
+riscv branches: (spelt using little endian binary):
+	beq 000
+	bne 100
+	blt 001
+	bge 101
+	bltu 011
+	bgeu 111
+*/
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -111,7 +238,7 @@ enum core_language_isa {
 	nullins,
 
 	system_, compiler, emit, string, file, del, 
-	runtime, constant, register_, bitcount,
+	constant, register_, bitcount,
 	set, add, sub, mul, div_, rem, 
 	and_, or_, eor, si, sd, la, ld, st, 
 	lt, ge, ne, eq, do_, at, halt, 
@@ -134,7 +261,7 @@ static const char* operations[isa_count] = {
 	"___nullins____",
 
 	"system", "compiler", "emit", "string", "file", "del", 
-	"rt", "ct", "register", "bitcount",
+	"ct", "register", "bitcount",
 	"set", "add", "sub", "mul", "div", "rem", 
 	"and", "or", "eor", "si", "sd", "la", "ld", "st", 
 	"lt", "ge", "ne", "eq", "do", "at", "halt", 
@@ -156,7 +283,7 @@ static const nat arity[isa_count] = {
 	0,
 
 	0, 2, 2, 2, 1, 1, 
-	1, 1, 2, 2,
+	1, 2, 2,
 	2, 2, 2, 2, 2, 2, 
 	2, 2, 2, 2, 2, 2, 3, 3, 
 	3, 3, 3, 3, 1, 1, 0, 
@@ -197,7 +324,6 @@ static nat register_index[max_variable_count] = {0};
 static nat values[max_variable_count] = {0};
 static byte is_constant[max_variable_count] = {0};
 static byte is_label[max_variable_count] = {0};
-static byte is_runtime[max_variable_count] = {0};
 static byte is_undefined[max_variable_count] = {0};
 static nat var_count = 0;
 
@@ -251,7 +377,7 @@ static void print_dictionary(const nat should_print_ct) {
 	for (nat i = 0; i < var_count; i++) {
 		if (should_print_ct or (not is_constant[i] and not is_label[i])) 
 		printf("   %c %c %c %c [%5llu]  \"%20s\"  :   { bc=%5lld, ri=%5lld }  :   0x%016llx\n",
-			is_runtime[i] ? 'R' : ' ', 
+			' ', 
 			is_label[i] ? 'L' : ' ', 
 			is_constant[i] ? 'C' : ' ', 
 			is_undefined[i] ? 'U' : ' ', 
@@ -981,7 +1107,6 @@ process_file:;
 		if (not(  
 			(op == lt or op == ge or op == ne or op == eq) and arg_count == 2 or
 			(op == set or op == ld or op == register_) and arg_count == 0 or
-			op == runtime or
 			op == constant or
 			op == do_ or
 			op == at or
@@ -1011,7 +1136,6 @@ process_file:;
 		if (op == string) { in_string = 1; goto next_word; } 
 		else if (arg_count < arity[op]) goto next_word;
 		else if (op == del) 		is_undefined[args[0]] = 1;
-		else if (op == runtime) 	is_runtime[args[0]] = 1;
 		else if (op == constant) 	is_constant[args[0]] = 1;
 		else if (op == file) {
 			for (nat i = 0; i < included_file_count; i++) {
@@ -1051,7 +1175,7 @@ process_file:;
 			if (op >= a6_nop and op <= isa_count) ct = 0;
 			else if (op == halt) ct = 0;
 			else if (op == system_) ct = 0;
-			else if (op == register_) { is_runtime[args[0]] = 1; ct = 1; } 
+			else if (op == register_) ct = 1; 
 			else if ((op == ld or op == st) and not a2_is_ct) goto print_error;
 			else if (op == compiler and not (a0_is_ct and a1_is_ct)) goto print_error;
 			is_immediate = 0;
@@ -1157,13 +1281,11 @@ process_file:;
 		else if (op == sd)   values[arg0] >>= val1;
 
 		else if (op == ld) {
-			if (is_runtime[arg0]) { puts("error"); abort(); }
 			values[arg0] = 0;
 			for (nat i = 0; i < val2; i++) 
 				values[arg0] |= (nat) ((nat) memory[val1 + i] << (8LLU * i));
 
 		} else if (op == st) {
-			if (is_runtime[arg0]) { puts("error"); abort(); }
 			for (nat i = 0; i < val2; i++) 
 				memory[val0 + i] = (val1 >> (8 * i)) & 0xFF;
 
@@ -1374,7 +1496,7 @@ process_file:;
 		else if (op == emit) { } 
 		else if (op == do_) { }
 		else if (op == set) {
-			out_t = ct1; out_v = v1;
+			if (register_index[a0] == (nat) -1) { out_t = ct1; out_v = v1; }
 			if (not i1) {
 				out_is_copy = 1;
 				out_copy_ref = is_copy[pc * var_count + a1] ? copy_of[pc * var_count + a1] : a1;
@@ -1451,7 +1573,7 @@ process_file:;
 	
 	print_instructions(0);
 	puts("OPT2 finished.");
-	// getchar();
+	getchar();
 
 
 
@@ -1606,7 +1728,7 @@ process_file:;
 				puts("modified form:"); 
 				print_instruction(ins[i]); 
 				puts("");
-				getchar();
+				//getchar();
 			}
 
 		} else if (op == ld or op == st) {
@@ -1649,11 +1771,7 @@ process_file:;
 
 	print_instructions(0);
 	puts("CTK PRUNING finished.");
-	// getchar();
-
-
-
-
+	getchar();
 
 
 
@@ -1678,9 +1796,8 @@ process_file:;
 
 			} else if (i1 and a1) {
 
-				const nat n = a1;
+				const nat n = a1;				
 				
-				is_runtime[var_count] = 1;
 				variables[var_count] = strdup("MY_NEW"); //strdup(generate_new_variable_name());
 				var_count++;
 
@@ -1692,7 +1809,7 @@ process_file:;
 				ins[i + 1].imm = 0;
 
 				puts("rv32 replace br imm: info: inserted a set statement!");
-				getchar();
+				//getchar();
 				i++;
 			}
 		}
@@ -1700,11 +1817,8 @@ process_file:;
 	
 
 	print_instructions(0);
-	puts("CTK PRUNING finished.");
-	// getchar();
-
-
-
+	puts("non imm branches for riscv done.");
+	getchar();
 
 
 
@@ -1730,8 +1844,6 @@ process_file:;
 	puts("instruction selection: error: unknown target"); abort();
 
 
-
-
 rv32_instruction_selection:;
 
 	puts("rv32: instruction selection starting...");
@@ -1746,7 +1858,7 @@ rv32_instruction_selection:;
 
 		if (ins[i].state) {
 			printf("warning: [i = %llu]: skipping, part of a pattern.\n", i); 
-			getchar();
+			//getchar();
 			continue;
 		}
 
@@ -1777,7 +1889,7 @@ rv32_instruction_selection:;
 			printf("generating an LA on riscv. dest was %llu, "
 				"label index was: %llu\n", arg0, arg1
 			);
-			getchar();
+			//getchar();
 
 			new = (struct instruction) { r5_u, 0x5, 0,  { 0x17, arg0, arg1, 0x42,  0,0,0,0 } };
 			mi[mi_count++] = new;
@@ -1797,9 +1909,25 @@ rv32_instruction_selection:;
 			goto push_single_mi;
 		}
 		else if (op == add and not imm) { // addr d d n
-			new = (struct instruction) { r5_r, 0x25, 0,   { 0x33, arg0, 0, arg0, arg1,0,  0,0 } };
+			new = (struct instruction) { r5_r, 0x25, 0,   { 0x33, arg0, 0, arg0, arg1, 0,  0,0 } };
 			goto push_single_mi;
+		} 
+
+		else if (op == mul and not imm) { // mul d d n
+			new = (struct instruction) { r5_r, 0x25, 0,   { 0x33, arg0, 0x0, arg0, arg1, 1,  0,0 } };
+			goto push_single_mi;			
 		}
+
+		else if (op == div_ and not imm) { // divu d d n
+			new = (struct instruction) { r5_r, 0x25, 0,   { 0x33, arg0, 0x5, arg0, arg1, 1,  0,0 } };
+			goto push_single_mi;			
+		}
+		else if (op == rem and not imm) { // remu d d n
+			new = (struct instruction) { r5_r, 0x25, 0,   { 0x33, arg0, 0x7, arg0, arg1, 1,  0,0 } };
+			goto push_single_mi;			
+		}
+
+
 		else if (op == lt) { // bltu x y l 
 			if (imm) { 
 				puts("rv32 ins sel: internal error: no branch immediates should be possible."); 
@@ -1807,7 +1935,32 @@ rv32_instruction_selection:;
 			}
 			new = (struct instruction) { r5_b, 0x3, 0, {  0x63, 0x6, arg0, arg1, arg2,   0,0,0 } };
 			goto push_single_mi;
+
+		} 
+		else if (op == ge) { // bgeu x y l
+			if (imm) { 
+				puts("rv32 ins sel: internal error: no branch immediates should be possible."); 
+				abort();
+			}
+			new = (struct instruction) { r5_b, 0x3, 0, {  0x63, 0x7, arg0, arg1, arg2,   0,0,0 } };
+			goto push_single_mi;
 		}
+		else if (op == ne) { // bne x y l
+			if (imm) { 
+				puts("rv32 ins sel: internal error: no branch immediates should be possible."); 
+				abort();
+			}
+			new = (struct instruction) { r5_b, 0x3, 0, {  0x63, 0x1, arg0, arg1, arg2,   0,0,0 } };
+			goto push_single_mi;
+		}
+		else if (op == eq) { // beq x y l
+			if (imm) { 
+				puts("rv32 ins sel: internal error: no branch immediates should be possible."); 
+				abort();
+			}
+			new = (struct instruction) { r5_b, 0x3, 0, {  0x63, 0x0, arg0, arg1, arg2,   0,0,0 } };
+			goto push_single_mi;
+		} 
 
 		else {
 			puts("error: unknown instruction selection pattern");
@@ -1819,20 +1972,7 @@ push_single_mi:
 		ins[i].state = 1;
 	}}
 
-
 	goto finish_instruction_selection;
-
-
-
-/*
-riscv branches: (spelt using little endian binary):
-	beq 000
-	bne 100
-	blt 001
-	bge 101
-	bltu 011
-	bgeu 111
-*/
 
 
 
@@ -1856,11 +1996,11 @@ arm64_instruction_selection:;
 
 		print_instruction_window_around(i, 0, "");
 		puts("[ARM64 ins sel]");
-		getchar();
+		//getchar();
 
 		if (ins[i].state) {
 			printf("warning: [i = %llu]: skipping, part of a pattern.\n", i); 
-			getchar();
+			//getchar();
 			continue;
 		}
 
@@ -2004,7 +2144,7 @@ finish_instruction_selection:;
 			puts("error: this instruction failed to be lowered:\n");
 			print_instruction_window_around(i, 1, "not selected instruction!");
 			puts("");
-			getchar(); //abort();
+			abort();
 		}
 	}
 
@@ -2013,48 +2153,23 @@ finish_instruction_selection:;
 	ins_count = mi_count;
 
 	puts("finished instruction selection!");
-	printf("info: final machine code: for target = %llu\n", target_arch);
+	printf("info: preliminary machine code prior to RA: for target = %llu\n", target_arch);
 	print_instructions(1);
-
-
-
-
-
-
-
-
-
-
+	getchar();
 
 
 
 	puts("RA: starting register allocation!");
 
 
-
-
-
 // the alive[] values      represent   the aliveness                    BEFORE    the instruction executes.  
 
-
-
-
-
 	// this is because we are going backwards. after the cf merge (going backwards) the alive[] val represents after instruction, but then after we update the information, we actually make the alive values represent BEFORE the instruction executes. which is exactly what we need to know when looking at our successors's alive val states. 
-
-
-
-
-
 
 	const nat hardware_register_count = 31; 
 	// target dependent, we'll configure this automatically per target!!
 
-
-
-
 	nat allocation[max_variable_count] = {0};
-
 
 	{ nat* alive = calloc(ins_count * var_count, sizeof(nat)); 
 			// once this pass completes, these values represent b:BEFORE; the instruction executes. 
@@ -2133,7 +2248,7 @@ finish_instruction_selection:;
 			if (not i1) alive[pc * var_count + a1] = 0;
 		}
 		else {
-			puts("WARNING: EXECUTING AN UNKNOWN INSTRUCTION WITHOUT AN IMPLEMENTATION!!!");
+			puts("liveness: error: processing an unknown instruction without an implementation!!!");
 			puts(operations[op]);
 			abort();
 		}
@@ -2144,8 +2259,8 @@ finish_instruction_selection:;
 		}
 	}
 	print_instructions(0);
-	puts("RA1 finished.");
-	getchar();
+	puts("liveness analysis finished.");
+	//getchar();
 
 	nat* needs_ra = calloc(var_count, sizeof(nat));
 
@@ -2198,8 +2313,6 @@ finish_instruction_selection:;
 		}
 	}
 	
-
-
 	nat node_selected[max_variable_count] = {0};
 	stack_count = 0;
 
@@ -2245,7 +2358,6 @@ finish_instruction_selection:;
 	puts("[ordering done]");
 
 	nat* occupied = calloc(hardware_register_count, sizeof(nat));
-
 	memset(allocation, 255, sizeof(nat) * var_count);
 	for (nat i = 0; i < var_count; i++) {
 		if (register_index[i] == (nat) -1) continue;
@@ -2258,16 +2370,11 @@ finish_instruction_selection:;
 	printf("occupied: "); print_nats(occupied, hardware_register_count); puts("");
 	
 	for (nat s = stack_count; s--;) {
-
 		const nat var = stack[s];
 		node_selected[var] = 0;
-
 		printf("[s=%llu]: trying to allocate %s\n", s, variables[var]);
-
 		if (allocation[var] != (nat) -1) continue;
-
 		memset(occupied, 0, sizeof(nat) * hardware_register_count);
-
 		for (nat e = 0; e < rig_count; e++) {
 			const nat a = rig[2 * e + 0];
 			const nat b = rig[2 * e + 1];
@@ -2275,32 +2382,22 @@ finish_instruction_selection:;
 			     if (a == var) occupied[allocation[b]] = 1;
 			else if (b == var) occupied[allocation[a]] = 1;
 		}
-
 		
 		printf("current occupied: "); print_nats(occupied, hardware_register_count); puts("");
-
 		for (nat i = 0; i < hardware_register_count; i++) {
 			if (not occupied[i]) {
 				allocation[var] = i;
 				goto allocation_found;
 			}
 		}
-
 		puts("internal error in RA: could not find a HW reg.");
 		abort();
 		allocation_found:;
 	}
 
-
-
-
-
-
 	for (nat e = 0; e < rig_count; e++) {
-
 		const nat a = rig[2 * e + 0];
 		const nat b = rig[2 * e + 1];
-
 		if (allocation[a] == allocation[b]) {
 			printf("compiler: register allocation: error: "
 				"unresolved register interference between variables %s and %s\n",
@@ -2312,7 +2409,6 @@ finish_instruction_selection:;
 
 	for (nat i = 0; i < var_count; i++) {
 		if (not needs_ra[i] and allocation[i] == (nat) -1) continue;
-
 		allocation[i] += 1;  
 		// this line is specific to risc-v! 
 		// we'd translate the RI's back to hardware RI space. 
@@ -2322,53 +2418,48 @@ finish_instruction_selection:;
 	puts("RA: FINAL REGISTER ALLOCATION:");
 	for (nat i = 0; i < var_count; i++) {
 		if (not needs_ra[i] and allocation[i] == (nat) -1) continue;
-
 		printf("    . %s (%llu) is stored in hardware register x[%lld]\n", variables[i], i, allocation[i]);
 	}
-
 	puts("\n[done with graph coloring in RA]");
-
 	}
 
-
-
-
-
-	puts("filling in RA assignments into the machine code...");
+		
 
 	for (nat i = 0; i < ins_count; i++) {
+		ins[i].state = 0;
+	}
 
+	puts("filling in RA assignments into the machine code...");
+	for (nat i = 0; i < ins_count; i++) {
 		print_instruction_window_around(i, 0, "");
 		puts("[doing something like RA]");
-		getchar();
+		//getchar();
 
 		const nat op = ins[i].op;
 		const nat imm = ins[i].imm;
 	
 		for (nat a = 0; a < arity[op]; a++) {
-
 			if (op == at and a == 0) continue;
-
 			const nat this_arg = ins[i].args[a];
 
 			if (imm & (1 << a)) {
 				printf("on argument: [a = %llu]: is_immediate!  (immediate value is %llu)\n", a, this_arg);
-
-			} else if (not is_label[this_arg]) {
-				
+			} else if (not is_label[this_arg]) {				
 				printf("on argument: [a = %llu]: NOT is_immediate and NOT label!  (variable = %s) \n", 
 					a, variables[this_arg]
 				);
 
 				puts("filling in the register index we found for this operation!");
-
 				if (allocation[this_arg] == (nat) -1) {
 					printf("FATAL ERROR: no hardware register index was "
 						"not found for variable %s in the below instruction. "
 						"aborting...\n", variables[this_arg]
 					);
 					print_instruction(ins[i]); puts(""); 
-					abort();
+					puts("skipping this instruction, instead of aborting...");
+					getchar();
+					ins[i].state = 1;
+					//abort();
 				}
 
 				ins[i].args[a] = allocation[this_arg];
@@ -2381,152 +2472,22 @@ finish_instruction_selection:;
 		}
 	}
 
+	{ nat final_ins_count = 0;
+	for (nat i = 0; i < ins_count; i++) {
+		if (ins[i].state) continue;
+		ins[final_ins_count++] = ins[i];
+	}
+	ins_count = final_ins_count; } 
+
+	print_instructions(0);
+	puts("RA DEAD-STORE PRUNING finished.");
+	getchar();
 	puts("[done with RA");
+
+
 	printf("info: finished final machine code for target = %llu\n", target_arch);
 	print_instructions(1);
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-		// todo:   we need to be doing this for the risc-v machine instructions,
-		//          ...not the language isa instructions. 
-
-		//						crap lol 
-
-		/*
-		else if (op == set) {
-			alive[pc * var_count + a0] = 0;
-			if (not i1) alive[pc * var_count + a1] = 1;
-
-		} else if (op >= add and op <= sd) {
-			if (not i1) alive[pc * var_count + a1] = 1;
-			
-		} else if (op == st) {
-			if (not i0) alive[pc * var_count + a0] = 1;
-			if (not i1) alive[pc * var_count + a1] = 1;
-
-		} else if (op == ld) {
-			alive[pc * var_count + a0] = 0;
-			if (not i1) alive[pc * var_count + a1] = 1;
-
-		} else if (op == la) {
-			alive[pc * var_count + a0] = 0;
-			if (not i1) alive[pc * var_count + a1] = 1;			
-
-		} else if (op == lt or op == ge or op == ne or op == eq) {
-
-			if (not i0) alive[pc * var_count + a0] = 1;
-			if (not i1) alive[pc * var_count + a1] = 1;			
-
-		} */
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-	/*
-
-
-	// 	our previous RA implementation, which just uses the user's register attributes:
-
-
-	for (nat i = 0; i < mi_count; i++) {
-
-		print_instruction_window_around(i, 0, "");
-		puts("[doing something like RA]");
-		getchar();
-
-		const nat op = ins[i].op;
-		const nat imm = ins[i].imm;
-	
-		for (nat a = 0; a < arity[op]; a++) {
-
-			if (op == at and a == 0) continue;
-			if(op == do_ and a == 0) continue;
-			if (op == lt and a == 2) continue;
-			if (op == ge and a == 2) continue;
-			if (op == ne and a == 2) continue;
-			if (op == eq and a == 2) continue;
-			if (op == la and a == 1) continue;
-
-			const nat this_arg = ins[i].args[a];
-
-			if (imm & (1 << a)) {
-				printf("on argument: [a = %llu]: is_immediate!  (immediate value is %llu)\n", a, this_arg);
-			} else if (not is_label[this_arg]) {
-				
-				printf("on argument: [a = %llu]: NOT is_immediate and NOT label!  (variable = %s) \n", 
-					a, variables[this_arg]
-				);
-
-				puts("filling in the register index we found for this operation!");
-
-				if (register_index[this_arg] == (nat) -1) {
-					printf("FATAL ERROR: no hardware register index was "
-						"not found for variable %s in the below instruction. "
-						"aborting...\n", variables[this_arg]
-					);
-					print_instruction(ins[i]); puts(""); 
-					abort();
-				}
-				ins[i].args[a] = register_index[this_arg];
-				ins[i].imm |= 1LLU << a;
-
-				printf("info: filled in register_index %llu for variable %s into this instruction. ", 
-					ins[i].args[a], variables[this_arg]
-				);				
-			}
-		}
-		puts("hello");
-	}
-
-	puts("[done with RA");
-
-	printf("info: final machine code: for target = %llu\n", target_arch);
-	print_instructions(1);
-
-	*/
-
-
-
-
-
-
-
-
-
-
+	getchar();
 
 
 
@@ -2603,19 +2564,15 @@ rv32_generate_machine_code:;
 	j_type: 	
 		a0: opcode(0-6)
 		a1: rd(7-11)
-		a2: imm_20_10_1_11_19_12(12-31)
-		
+		a2: imm_20_10_1_11_19_12(12-31)		
 */
-
-
 
 	for (nat i = 0; i < ins_count; i++) {
 
 		print_instruction_window_around(i, 0, "");
 		puts("");
 		dump_hex(my_bytes, my_count);
-		getchar();
-
+		//getchar();
 
 		const nat op = ins[i].op;
 		const u32 a0 = (u32) ins[i].args[0];
@@ -2638,20 +2595,11 @@ rv32_generate_machine_code:;
 
 		} else if (op == r5_i) {
 
-
-			// if the ins has 0x42 after the arg list, and d == n, and k is 0, 
-			// then this is NOP generated by us. delete it then. 
-			//      (refuse to generate the machine code for it!)
-
 			u32 k = a4; 
 			if (a5 == 0x42) {
 				printf("info: found a compiler generated r5_i!!\n");
-
-				puts("this means we should nottt use the k as k. instead, we will compute the low bits of the offset.");
-
 				const nat n = compute_label_location(a4);
 				const u32 im = calculate_offset(lengths, i - 1, n) & 0x00000FFF; // new value of k
-
 				k = im;
 			} else k = a4;
 
@@ -2718,7 +2666,7 @@ rv32_generate_machine_code:;
 			printf("im = "); print_binary(im); puts("");
 			printf("lo = "); print_binary(lo); puts("");
 			printf("hi = "); print_binary(hi); puts("");
-			getchar();
+			//getchar();
 
 			const u32 word =
 				(hi << 25U) |
@@ -2734,9 +2682,7 @@ rv32_generate_machine_code:;
 			abort();
 		}
 	}} 
-
 	goto finished_generation;
-
 
 msp430_generate_machine_code:;
 
@@ -2767,7 +2713,7 @@ msp430_generate_machine_code:;
 		print_instruction_window_around(i, 0, "");
 		puts("");
 		dump_hex(my_bytes, my_count);
-		getchar();
+		//getchar();
 
 		const nat op = ins[i].op;
 		const u16 a0 = (u16) ins[i].args[0];
@@ -2829,9 +2775,7 @@ arm64_generate_machine_code:;
 		lengths[i] = ins[i].op == emit ? ins[i].args[0] : 4;
 	}
 
-
 	print_nats(lengths, ins_count); puts("");
-
 
 	for (nat i = 0; i < ins_count; i++) {
 
@@ -2839,7 +2783,7 @@ arm64_generate_machine_code:;
 		print_instruction_window_around(i, 0, "");
 		puts("");
 		dump_hex(my_bytes, my_count);
-		getchar();
+		//getchar();
 
 		const nat op = ins[i].op;
 		const u32 a0 = (u32) ins[i].args[0];
@@ -3091,13 +3035,9 @@ arm64_generate_machine_code:;
 
 
 finished_generation:;
-
 	puts("done: byte generation successful.");
-
 	puts("final_bytes:");
 	dump_hex(my_bytes, my_count);
-
-
 	printf("info: generating output file with format #%llu...\n", output_format);
 
 	if (output_format == debug_output_only) goto print_debug_output_only;

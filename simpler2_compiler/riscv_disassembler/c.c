@@ -104,6 +104,9 @@ int main(int argc, const char** argv) {
 		u32 Rs1 = (word >> 15) & 0x1F;
 		u32 Rs2 = (word >> 20) & 0x1F;
 		u32 imm12 = (word >> 20) & 0xFFF;
+
+		u32 f7 = (word >> 25) & 0x3F;
+
 		if (((imm12 >> 11) & 0x1) == 1) imm12 |= 0xFFFFF000;
 		u32 U_imm20 = word & 0xFFFFF000;
 
@@ -205,28 +208,60 @@ int main(int argc, const char** argv) {
 				printf("andi  x%u  x%u  #0x%08x\n", Rd, Rs1, imm12);
 			}
 
-		} else if (op == 0x33) { // ADD / SUB / SLL / SLT / SLTU / XOR / SRL / SRA / OR / AND
+		} else if (op == 0x33) { // ADD / SUB / SLL / SLT / SLTU / XOR / SRL / SRA / OR / AND     MUL / DIV / REM
 
-			if (fn == 0 && bit30 == 0) { // ADD
-				printf("add  x%u  x%u  x%u\n", Rd, Rs1, Rs2);
-			} else if (fn == 0 && bit30 == 1) { // SUB
-				printf("sub  x%u  x%u  x%u\n", Rd, Rs1, Rs2);
-			} else if (fn == 1) { // SLL
-				printf("sll  x%u  x%u  x%u\n", Rd, Rs1, Rs2);
-			} else if (fn == 2) { // SLT
-				printf("slt  x%u  x%u  x%u\n", Rd, Rs1, Rs2);
-			} else if (fn == 3) { // SLTU
-				printf("sltu  x%u  x%u  x%u\n", Rd, Rs1, Rs2);
-			} else if (fn == 4) { // XOR
-				printf("xor  x%u  x%u  x%u\n", Rd, Rs1, Rs2);
-			} else if (fn == 5 && bit30 == 0) { // SRL 
-				printf("srl  x%u  x%u  x%u\n", Rd, Rs1, Rs2);
-			} else if (fn == 5 && bit30 == 1) { // SRA
-				printf("sra  x%u  x%u  x%u\n", Rd, Rs1, Rs2);
-			} else if (fn == 6) { // OR
-				printf("or  x%u  x%u  x%u\n", Rd, Rs1, Rs2);
-			} else if (fn == 7) { // AND
-				printf("and  x%u  x%u  x%u\n", Rd, Rs1, Rs2);
+			if (f7 == 0 or bit30) {
+
+				if (fn == 0 && bit30 == 0) { // ADD
+					printf("add  x%u  x%u  x%u\n", Rd, Rs1, Rs2);
+				} else if (fn == 0 && bit30 == 1) { // SUB
+					printf("sub  x%u  x%u  x%u\n", Rd, Rs1, Rs2);
+				} else if (fn == 1) { // SLL
+					printf("sll  x%u  x%u  x%u\n", Rd, Rs1, Rs2);
+				} else if (fn == 2) { // SLT
+					printf("slt  x%u  x%u  x%u\n", Rd, Rs1, Rs2);
+				} else if (fn == 3) { // SLTU
+					printf("sltu  x%u  x%u  x%u\n", Rd, Rs1, Rs2);
+				} else if (fn == 4) { // XOR
+					printf("xor  x%u  x%u  x%u\n", Rd, Rs1, Rs2);
+				} else if (fn == 5 && bit30 == 0) { // SRL 
+					printf("srl  x%u  x%u  x%u\n", Rd, Rs1, Rs2);
+				} else if (fn == 5 && bit30 == 1) { // SRA
+					printf("sra  x%u  x%u  x%u\n", Rd, Rs1, Rs2);
+				} else if (fn == 6) { // OR
+					printf("or  x%u  x%u  x%u\n", Rd, Rs1, Rs2);
+				} else if (fn == 7) { // AND
+					printf("and  x%u  x%u  x%u\n", Rd, Rs1, Rs2);
+				}
+	
+			} else {
+
+				if (fn == 0) { // MUL
+					printf("mul  x%u  x%u  x%u\n", Rd, Rs1, Rs2);
+
+				} else if (fn == 1) { // MULH
+					printf("mulh  x%u  x%u  x%u\n", Rd, Rs1, Rs2);
+
+				} else if (fn == 2) { // MULHSU
+					printf("mulhsu  x%u  x%u  x%u\n", Rd, Rs1, Rs2);
+
+				} else if (fn == 3) { // MULHU
+					printf("mulhu  x%u  x%u  x%u\n", Rd, Rs1, Rs2);
+
+
+				} else if (fn == 4) { // DIV
+					printf("div  x%u  x%u  x%u\n", Rd, Rs1, Rs2);
+
+				} else if (fn == 5) { // DIVU
+					printf("divu  x%u  x%u  x%u\n", Rd, Rs1, Rs2);
+
+
+				} else if (fn == 6) { // REM
+					printf("rem  x%u  x%u  x%u\n", Rd, Rs1, Rs2);
+
+				} else if (fn == 7) { // REMU
+					printf("remu  x%u  x%u  x%u\n", Rd, Rs1, Rs2);
+				}
 			}
 
 		} else if (op == 0x1F) { // FENCE / FENCE.I
