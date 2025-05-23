@@ -1173,9 +1173,8 @@ process_file:;
 			const nat a2_is_ct = (is_immediate & 4) or is_constant[args[2]];
 
 			if (op >= a6_nop and op <= isa_count) ct = 0;
-			else if (op == halt) ct = 0;
-			else if (op == system_) ct = 0;
-			else if (op == register_) ct = 1; 
+			else if (op == halt or op == system_ or op == emit) ct = 0;
+			else if (op == register_) ct = 1;
 			else if ((op == ld or op == st) and not a2_is_ct) goto print_error;
 			else if (op == compiler and not (a0_is_ct and a1_is_ct)) goto print_error;
 			is_immediate = 0;
@@ -1313,7 +1312,7 @@ process_file:;
 			else if (n == 12) stack_size = data;
 			else { puts("error: unknown compiler CT system call"); abort(); } 
 		}
-		else { puts("CTE: fatal internal error: unknown instruction executed...\n"); abort(); } 
+		else { printf("CTE: fatal internal error: unknown instruction executed: %s...\n", operations[op]); abort(); } 
 	}
 
 	memcpy(ins, rt_ins, ins_count * sizeof(struct instruction));
@@ -1850,24 +1849,37 @@ rv32_instruction_selection:;
 
 	{ struct instruction new = {0};
 
+
+	const nat unrecognized = (nat) -1;
+
 	for (nat i = 0; i < ins_count; i++) {
 
 		print_instruction_window_around(i, 0, "");
+		puts("machine instructions:");
+		for (nat e = 0; e < mi_count; e++) {
+			printf("%llu: ", e); 
+			print_instruction(mi[e]); 
+			puts("");
+		}
+		puts("[mi done]");
 		puts("[RISC-V ins sel]");
-		//getchar();
+		getchar();
 
 		if (ins[i].state) {
-			printf("warning: [i = %llu]: skipping, part of a pattern.\n", i); 
-			//getchar();
+			printf("warning: [i = %llu]: skipping, part of a pattern.\n", i);
+			getchar(); 
 			continue;
 		}
 
 		const nat op = ins[i].op;
 		const nat imm = ins[i].imm;
-
 		const nat arg0 = ins[i].args[0];
 		const nat arg1 = ins[i].args[1]; 
 		const nat arg2 = ins[i].args[2]; 
+		const nat i0 = !!(imm & 1);
+		const nat i1 = !!(imm & 2);
+		//const nat i2 = !!(imm & 4);
+
 
 		if (	
 			op == r5_i or op == r5_r or 
@@ -1879,27 +1891,139 @@ rv32_instruction_selection:;
 			goto push_single_mi; 
 		}
 
-		else if (op == system_) {
+	
+
+
+
+
+
+
+
+
+current state:  1202505235.133756
+
+
+
+		set s r
+		addi s k
+		ld d s 64
+
+
+		set s r
+		addi s k
+		ld d s 64
+
+
+				question:  what about 
+
+
+					addi s k
+					ld d s 64                   ie, it modifies the source?   
+								how do we represent this remantics?...
+
+
+
+		
+
+
+			if (op == add and not imm) {
+				const nat j = locate_instruction(
+					(struct expected_instruction) {
+						.op = op_A[this],
+						.use = 1,
+						.args[0] = arg0
+					}, i + 1
+				);
+				if (j == unrecognized) goto skip_set_r;
+				new = (struct instruction) { 
+					r5_r, 0x25, 0,   
+					{ 0x33, arg0, op_B1[this], arg1, ins[j].args[1], op_B2[this],    0,0 } 
+				};
+				ins[j].state = 1; 
+				goto push_single_mi;
+				skip_set_r:;
+			} 
+
+
+
+
+
+
+		//   set d m  OP_A d n   -->   OP_B d n m
+		{
+		nat op_A [] = {add,  sub,  mul,  div_, rem,  and_,  or_,  eor,  si,   sd,  };
+		nat op_B1[] = {0,    0,    0,    5,    7,    7,     6,    4,    1,    5,   };
+		nat op_B2[] = {0,    0x20, 1,    1,    1,    0,     0,    0,    0,    0,   };
+
+		for (nat this = 0; this < 10; this++) {
+			if (op == set and not imm) {
+				const nat j = locate_instruction(
+					(struct expected_instruction) {
+						.op = op_A[this],
+						.use = 1,
+						.args[0] = arg0
+					}, i + 1
+				);
+				if (j == unrecognized) goto skip_set_r;
+				new = (struct instruction) { 
+					r5_r, 0x25, 0,   
+					{ 0x33, arg0, op_B1[this], arg1, ins[j].args[1], op_B2[this],    0,0 } 
+				};
+				ins[j].state = 1; 
+				goto push_single_mi;
+				skip_set_r:;
+			} 
+		}}
+
+		//   OP_A d n   -->   OP_B d d n
+		{
+		nat op_A [] = {add,  sub,  mul,  div_, rem,  and_,  or_,  eor,  si,   sd,  };
+		nat op_B1[] = {0,    0,    0,    5,    7,    7,     6,    4,    1,    5,   };
+		nat op_B2[] = {0,    0x20, 1,    1,    1,    0,     0,    0,    0,    0,   };
+
+		for (nat this = 0; this < 10; this++) {
+			if (op == op_A[this] and not imm) {
+				new = (struct instruction) { 
+					r5_r, 0x25, 0,   
+					{ 0x33, arg0, op_B1[this], arg0, arg1, op_B2[this],    0,0 } 
+				};
+				goto push_single_mi;
+			} 
+		}}
+
+
+		{
+		nat op_A [] = { lt, ge, ne, eq, };
+		nat op_B1[] = { 6,  7,  1,  0,  };
+
+		for (nat this = 0; this < 4; this++) {
+			if (op == op_A[this] and i1 and not arg1) {
+				new = (struct instruction) { r5_b, 0xB, 0,  { 0x63, op_B1[this], arg0, 0, arg2,   0,0,0 } };
+				goto push_single_mi;
+			}
+			if (op == op_A[this] and i0 and not arg0) {
+				new = (struct instruction) { r5_b, 0x7, 0,  { 0x63, op_B1[this], 0, arg1, arg2,   0,0,0 } };
+				goto push_single_mi;
+			}
+			if (op == op_A[this]) {
+				if (imm) {
+					puts("rv32 ins sel: internal error: no branch immediates should be possible."); 
+					abort();
+				}
+				new = (struct instruction) { r5_b, 0x3, 0, {  0x63, op_B1[this], arg0, arg1, arg2,   0,0,0 } };
+				goto push_single_mi;	
+			} 
+		}}
+
+		if (op == system_) {
 			new = (struct instruction) { r5_i, 0xff, 0,  { 0x73,0,0,0, 0,0,0,0 } };
 			goto push_single_mi;
 		}
 
-		else if (op == la) {
-
-			printf("generating an LA on riscv. dest was %llu, "
-				"label index was: %llu\n", arg0, arg1
-			);
-			//getchar();
-
-			new = (struct instruction) { r5_u, 0x5, 0,  { 0x17, arg0, arg1, 0x42,  0,0,0,0 } };
-			mi[mi_count++] = new;
-			new = (struct instruction) { r5_i, 0x15, 0, { 0x13, arg0, 0, arg0, arg1, 0x42, 0,0 } };
-			goto push_single_mi;
-		}
 		else if (op == set and not imm) { // addi d n 0 
 			new = (struct instruction) { r5_i, 0x15, 0,   { 0x13, arg0, 0, arg1, 0, 0,0,0 } };
 			goto push_single_mi;
-		} 
+		}
 		else if (op == set and imm) { // addi d zr k
 			new = (struct instruction) { r5_i, 0x1D, 0,   { 0x13, arg0, 0, 0, arg1, 0,0,0 } };
 			goto push_single_mi;
@@ -1908,66 +2032,22 @@ rv32_instruction_selection:;
 			new = (struct instruction) { r5_i, 0x15, 0,   { 0x13, arg0, 0, arg0, arg1,0,  0,0 } };
 			goto push_single_mi;
 		}
-		else if (op == add and not imm) { // addr d d n
-			new = (struct instruction) { r5_r, 0x25, 0,   { 0x33, arg0, 0, arg0, arg1, 0,  0,0 } };
-			goto push_single_mi;
-		} 
-
-		else if (op == mul and not imm) { // mul d d n
-			new = (struct instruction) { r5_r, 0x25, 0,   { 0x33, arg0, 0x0, arg0, arg1, 1,  0,0 } };
-			goto push_single_mi;			
-		}
-
-		else if (op == div_ and not imm) { // divu d d n
-			new = (struct instruction) { r5_r, 0x25, 0,   { 0x33, arg0, 0x5, arg0, arg1, 1,  0,0 } };
-			goto push_single_mi;			
-		}
-		else if (op == rem and not imm) { // remu d d n
-			new = (struct instruction) { r5_r, 0x25, 0,   { 0x33, arg0, 0x7, arg0, arg1, 1,  0,0 } };
-			goto push_single_mi;			
-		}
-
-
-		else if (op == lt) { // bltu x y l 
-			if (imm) { 
-				puts("rv32 ins sel: internal error: no branch immediates should be possible."); 
-				abort();
-			}
-			new = (struct instruction) { r5_b, 0x3, 0, {  0x63, 0x6, arg0, arg1, arg2,   0,0,0 } };
-			goto push_single_mi;
-
-		} 
-		else if (op == ge) { // bgeu x y l
-			if (imm) { 
-				puts("rv32 ins sel: internal error: no branch immediates should be possible."); 
-				abort();
-			}
-			new = (struct instruction) { r5_b, 0x3, 0, {  0x63, 0x7, arg0, arg1, arg2,   0,0,0 } };
+		else if (op == sub and imm) { // addi d d -k
+			nat k = (-arg1) & 0xFFF;
+			new = (struct instruction) { r5_i, 0x15, 0,   { 0x13, arg0, 0, arg0, k, 0,  0,0 } };
 			goto push_single_mi;
 		}
-		else if (op == ne) { // bne x y l
-			if (imm) { 
-				puts("rv32 ins sel: internal error: no branch immediates should be possible."); 
-				abort();
-			}
-			new = (struct instruction) { r5_b, 0x3, 0, {  0x63, 0x1, arg0, arg1, arg2,   0,0,0 } };
+		else if (op == la) {
+			new = (struct instruction) { r5_u, 0x5, 0,  { 0x17, arg0, arg1, 0x42,  0,0,0,0 } };
+			mi[mi_count++] = new;
+			new = (struct instruction) { r5_i, 0x15, 0, { 0x13, arg0, 0, arg0, arg1, 0x42, 0,0 } };
 			goto push_single_mi;
 		}
-		else if (op == eq) { // beq x y l
-			if (imm) { 
-				puts("rv32 ins sel: internal error: no branch immediates should be possible."); 
-				abort();
-			}
-			new = (struct instruction) { r5_b, 0x3, 0, {  0x63, 0x0, arg0, arg1, arg2,   0,0,0 } };
-			goto push_single_mi;
-		} 
+			
+		puts("error: unknown instruction selection pattern");
+		abort();
 
-		else {
-			puts("error: unknown instruction selection pattern");
-			abort();
-		}
-
-push_single_mi:
+	push_single_mi:
 		mi[mi_count++] = new;
 		ins[i].state = 1;
 	}}
