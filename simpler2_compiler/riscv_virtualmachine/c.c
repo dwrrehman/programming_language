@@ -18,6 +18,8 @@
 #include <sys/mman.h>
 #include <errno.h>
 
+bool debug = 0;
+
 typedef uint64_t nat;
 typedef uint32_t u32;
 typedef uint16_t u16;
@@ -109,10 +111,16 @@ int main(int argc, const char** argv) {
 	u32 pc = 0; 
 	while (pc < instruction_count) {
 
-		u32 word = memory[pc + 0] | (memory[pc + 1] << 8) | (memory[pc + 2] << 16) | (memory[pc + 3] << 24);
-		printf("\n 0x%08x:   %02x %02x %02x %02x   ", pc, 
+		u32 word = 
+			((u32) memory[pc + 0U] <<  0U) | 
+			((u32) memory[pc + 1U] <<  8U) | 
+			((u32) memory[pc + 2U] << 16U) | 
+			((u32) memory[pc + 3U] << 24U) ;
+
+
+		if (debug) printf("\n 0x%08x:   %02x %02x %02x %02x   ", pc, 
 			memory[pc + 0], memory[pc + 1], memory[pc + 2], memory[pc + 3]
-		); fflush(stdout);
+		); if (debug) fflush(stdout);
 
 		u32 op = word & 0x7F;
 		u32 bit30 = (word >> 30) & 1;
@@ -129,12 +137,12 @@ int main(int argc, const char** argv) {
 		//u32 save_pc = pc;
 
 		if (op == 0x37) { // LUI
-			printf("LUI  x%u  #0x%08x\n", Rd, U_imm20); 
+			if (debug) printf("LUI  x%u  #0x%08x\n", Rd, U_imm20); 
 			registers[Rd] = U_imm20;
 			pc += 4;
 			
 		} else if (op == 0x17) { // AUIPC
-			printf("AUIPC  x%u  #0x%08x\n", Rd, U_imm20); 
+			if (debug) printf("AUIPC  x%u  #0x%08x\n", Rd, U_imm20); 
 			registers[Rd] = U_imm20 + pc;
 			pc += 4;
 			
@@ -146,14 +154,14 @@ int main(int argc, const char** argv) {
 			u32 imm = (imm20 << 20) | (imm19_12 << 12) | (imm11 << 11) | (imm10_1 << 1);
 			if (imm20 == 1) imm |= 0xFFE00000;
 
-			printf("JAL  x%u  #0x%08x\n", Rd, imm); 
+			if (debug) printf("JAL  x%u  #0x%08x\n", Rd, imm); 
 
 			registers[Rd] = pc + 4;
 			pc += imm;
 			
 		} else if (op == 0x67) { // JALR
 
-			printf("JALR  x%u  x%u  #0x%08x\n", Rd, Rs1, imm12);
+			if (debug) printf("JALR  x%u  x%u  #0x%08x\n", Rd, Rs1, imm12);
 
 			u32 target = registers[Rs1] + imm12;
 			target &= 0xFFFFFFFE;
@@ -169,45 +177,45 @@ int main(int argc, const char** argv) {
 			if (limm12 == 1) imm |= 0xFFFFE000;
 			
 			if (fn == 0) { // BEQ
-				printf("BEQ  x%u  x%u  #0x%08x\n", Rs1, Rs2, imm);
-				if (registers[Rs1] == registers[Rs2]) pc += imm;
+				if (debug) printf("BEQ  x%u  x%u  #0x%08x\n", Rs1, Rs2, imm);
+				if (registers[Rs1] == registers[Rs2]) pc += imm; else pc += 4;
 
 			} else if (fn == 1) { // BNE
-				printf("BNE  x%u  x%u  #0x%08x\n", Rs1, Rs2, imm);
-				if (registers[Rs1] != registers[Rs2]) pc += imm;
+				if (debug) printf("BNE  x%u  x%u  #0x%08x\n", Rs1, Rs2, imm);
+				if (registers[Rs1] != registers[Rs2]) pc += imm; else pc += 4;
 
 			} else if (fn == 4) { // BLT
-				printf("BLT  x%u  x%u  #0x%08x\n", Rs1, Rs2, imm);   // bug: make these signed checks. 
-				if (registers[Rs1] < registers[Rs2]) pc += imm;
+				if (debug) printf("BLT  x%u  x%u  #0x%08x\n", Rs1, Rs2, imm);   // bug: make these signed checks. 
+				if (registers[Rs1] < registers[Rs2]) pc += imm; else pc += 4;
 
 			} else if (fn == 5) { // BGE
-				printf("BGE  x%u  x%u  #0x%08x\n", Rs1, Rs2, imm);   // bug: make these signed checks. 
-				if (registers[Rs1] >= registers[Rs2]) pc += imm;
+				if (debug) printf("BGE  x%u  x%u  #0x%08x\n", Rs1, Rs2, imm);   // bug: make these signed checks. 
+				if (registers[Rs1] >= registers[Rs2]) pc += imm; else pc += 4;
 
 			} else if (fn == 6) { // BLTU
-				printf("BLTU  x%u  x%u  #0x%08x\n", Rs1, Rs2, imm);
-				if (registers[Rs1] < registers[Rs2]) pc += imm;
+				if (debug) printf("BLTU  x%u  x%u  #0x%08x\n", Rs1, Rs2, imm);
+				if (registers[Rs1] < registers[Rs2]) pc += imm; else pc += 4;
 
 			} else if (fn == 7) { // BGEU
-				printf("BGEU  x%u  x%u  #0x%08x\n", Rs1, Rs2, imm);
-				if (registers[Rs1] >= registers[Rs2]) pc += imm;
+				if (debug) printf("BGEU  x%u  x%u  #0x%08x\n", Rs1, Rs2, imm);
+				if (registers[Rs1] >= registers[Rs2]) pc += imm; else pc += 4;
 			}
 			
 		} else if (op == 0x03) { // LB / LH / LW / LBU / LHU
 
 			if (fn == 0) { // LB
-				printf("LB  x%u  x%u  #0x%08x\n", Rd, Rs1, imm12);
+				if (debug) printf("LB  x%u  x%u  #0x%08x\n", Rd, Rs1, imm12);
 				registers[Rd] = 0;
 				registers[Rd] |= (memory[registers[Rs1] + imm12 + 0] << 0);      // make this sign extend the destination.
 
 			} else if (fn == 1) { // LH
-				printf("LH  x%u  x%u  #0x%08x\n", Rd, Rs1, imm12);
+				if (debug) printf("LH  x%u  x%u  #0x%08x\n", Rd, Rs1, imm12);
 				registers[Rd] = 0;
 				registers[Rd] |= (memory[registers[Rs1] + imm12 + 0] << 0U);     // make this sign extend the destination.
 				registers[Rd] |= (memory[registers[Rs1] + imm12 + 1] << 8U);
 	
 			} else if (fn == 2) { // LW
-				printf("LW  x%u  x%u  #0x%08x\n", Rd, Rs1, imm12);
+				if (debug) printf("LW  x%u  x%u  #0x%08x\n", Rd, Rs1, imm12);
 				registers[Rd] = 0;
 				registers[Rd] |= (memory[registers[Rs1] + imm12 + 0] << 0U);
 				registers[Rd] |= (memory[registers[Rs1] + imm12 + 1] << 8U);
@@ -215,12 +223,12 @@ int main(int argc, const char** argv) {
 				registers[Rd] |= (memory[registers[Rs1] + imm12 + 3] << 24U);
 
 			} else if (fn == 4) { // LBU 
-				printf("LBU  x%u  x%u  #0x%08x\n", Rd, Rs1, imm12);
+				if (debug) printf("LBU  x%u  x%u  #0x%08x\n", Rd, Rs1, imm12);
 				registers[Rd] = 0;
 				registers[Rd] |= (memory[registers[Rs1] + imm12 + 0] << 0U);
 
 			} else if (fn == 5) { // LHU
-				printf("LHU  x%u  x%u  #0x%08x\n", Rd, Rs1, imm12);
+				if (debug) printf("LHU  x%u  x%u  #0x%08x\n", Rd, Rs1, imm12);
 				registers[Rd] = 0;
 				registers[Rd] |= (memory[registers[Rs1] + imm12 + 0] << 0U);
 				registers[Rd] |= (memory[registers[Rs1] + imm12 + 1] << 8U);	
@@ -233,17 +241,17 @@ int main(int argc, const char** argv) {
 			u32 imm = 0; // TODO: determine this immediate for the r5_s encoding. 
 
 			if (fn == 0) {
-				printf("SB  x%u  #0x%08x  x%u\n", Rs1, imm, Rs2);
+				if (debug) printf("SB  x%u  #0x%08x  x%u\n", Rs1, imm, Rs2);
 
 				memory[registers[Rs1] + imm + 0] = (registers[Rs2] >> 0U) & 0xFF;
 
 			} else if (fn == 1) {
-				printf("SH  x%u  #0x%08x  x%u\n", Rs1, imm, Rs2);
+				if (debug) printf("SH  x%u  #0x%08x  x%u\n", Rs1, imm, Rs2);
 				memory[registers[Rs1] + imm + 0] = (registers[Rs2] >> 0U) & 0xFF;
 				memory[registers[Rs1] + imm + 1] = (registers[Rs2] >> 8U) & 0xFF;
 
 			} else if (fn == 2) {
-				printf("SW  x%u  #0x%08x  x%u\n", Rs1, imm, Rs2);
+				if (debug) printf("SW  x%u  #0x%08x  x%u\n", Rs1, imm, Rs2);
 				memory[registers[Rs1] + imm + 0] = (registers[Rs2] >> 0U) & 0xFF;
 				memory[registers[Rs1] + imm + 1] = (registers[Rs2] >> 8U) & 0xFF;
 				memory[registers[Rs1] + imm + 2] = (registers[Rs2] >> 16U) & 0xFF;
@@ -256,39 +264,39 @@ int main(int argc, const char** argv) {
 		} else if (op == 0x13) { // ADDI / SLTI / SLTIU / XORI / ORI / ANDI / SLLI / SRLI / SRAI
 
 			if (fn == 0) { // ADDI
-				printf("ADDI  x%u  x%u  #0x%08x\n", Rd, Rs1, imm12);
+				if (debug) printf("ADDI  x%u  x%u  #0x%08x\n", Rd, Rs1, imm12);
 				registers[Rd] = registers[Rs1] + imm12;
 
 			} else if (fn == 1) { // SLLI
-				printf("SLLI  x%u  x%u  #0x%08x\n", Rd, Rs1, imm12);
+				if (debug) printf("SLLI  x%u  x%u  #0x%08x\n", Rd, Rs1, imm12);
 				registers[Rd] = registers[Rs1] << imm12;
 
 			} else if (fn == 2) { // SLTI
-				printf("SLTI  x%u  x%u  #0x%08x\n", Rd, Rs1, imm12);
+				if (debug) printf("SLTI  x%u  x%u  #0x%08x\n", Rd, Rs1, imm12);
 				registers[Rd] = registers[Rs1] < imm12;        // bug: make this check a signed-less-than. 
 
 			} else if (fn == 3) { // SLTIU
-				printf("SLTIU  x%u  x%u  #0x%08x\n", Rd, Rs1, imm12);
+				if (debug) printf("SLTIU  x%u  x%u  #0x%08x\n", Rd, Rs1, imm12);
 				registers[Rd] = registers[Rs1] < imm12;
 
 			} else if (fn == 4) { // XORI
-				printf("XORI  x%u  x%u  #0x%08x\n", Rd, Rs1, imm12);
+				if (debug) printf("XORI  x%u  x%u  #0x%08x\n", Rd, Rs1, imm12);
 				registers[Rd] = registers[Rs1] ^ imm12;
 
 			} else if (fn == 5 && bit30 == 0) { // SRLI
-				printf("SRLI  x%u  x%u  #0x%08x\n", Rd, Rs1, imm12);
+				if (debug) printf("SRLI  x%u  x%u  #0x%08x\n", Rd, Rs1, imm12);
 				registers[Rd] = registers[Rs1] >> (imm12 & 0x1F);
 
 			} else if (fn == 5 && bit30 == 1) { // SRAI
-				printf("SRAI  x%u  x%u  #0x%08x\n", Rd, Rs1, imm12);
+				if (debug) printf("SRAI  x%u  x%u  #0x%08x\n", Rd, Rs1, imm12);
 				registers[Rd] = registers[Rs1] >> (imm12 & 0x1F);    // bug: make this do an actual arithmetic shift right. 
 
 			} else if (fn == 6) { // ORI
-				printf("ORI  x%u  x%u  #0x%08x\n", Rd, Rs1, imm12);
+				if (debug) printf("ORI  x%u  x%u  #0x%08x\n", Rd, Rs1, imm12);
 				registers[Rd] = registers[Rs1] | imm12;
 
 			} else if (fn == 7) { // ANDI
-				printf("ANDI  x%u  x%u  #0x%08x\n", Rd, Rs1, imm12);
+				if (debug) printf("ANDI  x%u  x%u  #0x%08x\n", Rd, Rs1, imm12);
 				registers[Rd] = registers[Rs1] & imm12;
 			}
 
@@ -300,50 +308,50 @@ int main(int argc, const char** argv) {
 
 
 			if (fn == 0 && bit30 == 0) { // ADD
-				printf("ADD  x%u  x%u  x%u\n", Rd, Rs1, Rs2);
+				if (debug) printf("ADD  x%u  x%u  x%u\n", Rd, Rs1, Rs2);
 				registers[Rd] = registers[Rs1] + registers[Rs2];
 
 			} else if (fn == 0 && bit30 == 1) { // SUB
-				printf("SUB  x%u  x%u  x%u\n", Rd, Rs1, Rs2);
+				if (debug) printf("SUB  x%u  x%u  x%u\n", Rd, Rs1, Rs2);
 				registers[Rd] = registers[Rs1] - registers[Rs2];
 
 			} else if (fn == 1) { // SLL
-				printf("SLL  x%u  x%u  x%u\n", Rd, Rs1, Rs2);
+				if (debug) printf("SLL  x%u  x%u  x%u\n", Rd, Rs1, Rs2);
 				registers[Rd] = registers[Rs1] << registers[Rs2];
 
 			} else if (fn == 2) { // SLT
-				printf("SLT  x%u  x%u  x%u\n", Rd, Rs1, Rs2);
+				if (debug) printf("SLT  x%u  x%u  x%u\n", Rd, Rs1, Rs2);
 				registers[Rd] = registers[Rs1] < registers[Rs2];        // bug: make this check a signed-less-than. 
 
 			} else if (fn == 3) { // SLTU
-				printf("SLTU  x%u  x%u  x%u\n", Rd, Rs1, Rs2);
+				if (debug) printf("SLTU  x%u  x%u  x%u\n", Rd, Rs1, Rs2);
 				registers[Rd] = registers[Rs1] < registers[Rs2];
 
 			} else if (fn == 4) { // XOR
-				printf("XOR  x%u  x%u  x%u\n", Rd, Rs1, Rs2);
+				if (debug) printf("XOR  x%u  x%u  x%u\n", Rd, Rs1, Rs2);
 				registers[Rd] = registers[Rs1] ^ registers[Rs2];
 
 			} else if (fn == 5 && bit30 == 0) { // SRL 
-				printf("SRL  x%u  x%u  x%u\n", Rd, Rs1, Rs2);
+				if (debug) printf("SRL  x%u  x%u  x%u\n", Rd, Rs1, Rs2);
 				registers[Rd] = registers[Rs1] >> registers[Rs2];
 
 			} else if (fn == 5 && bit30 == 1) { // SRA
-				printf("SRA  x%u  x%u  x%u\n", Rd, Rs1, Rs2);
+				if (debug) printf("SRA  x%u  x%u  x%u\n", Rd, Rs1, Rs2);
 				registers[Rd] = registers[Rs1] >> registers[Rs2];       // bug: make this an actual arithmetic shift right. 
 
 			} else if (fn == 6) { // OR
-				printf("OR  x%u  x%u  x%u\n", Rd, Rs1, Rs2);
+				if (debug) printf("OR  x%u  x%u  x%u\n", Rd, Rs1, Rs2);
 				registers[Rd] = registers[Rs1] | registers[Rs2];
 
 			} else if (fn == 7) { // AND
-				printf("AND  x%u  x%u  x%u\n", Rd, Rs1, Rs2);
+				if (debug) printf("AND  x%u  x%u  x%u\n", Rd, Rs1, Rs2);
 				registers[Rd] = registers[Rs1] & registers[Rs2];
 			}
 			pc += 4;
 
 
 		} else if (op == 0x1F) { // FENCE / FENCE.I
-			printf("FENCE / FENCE.I ...\n");
+			if (debug) printf("FENCE / FENCE.I ...\n");
 			printf("\nerror: illegal instruction opcode: 0x%u\n", op);
 			pc += 4;
 
@@ -351,11 +359,11 @@ int main(int argc, const char** argv) {
 		} else if (op == 0x73) { // ECALL / EBREAK / CSRRW / CSRRW / CSRRS / CSRRC / CSRRWI / CSRRSI / CSRRCI
 
 			if (op == word) {
-				printf("ECALL\n");
+				if (debug) printf("ECALL\n");
 				if (ecall(registers, memory)) return 0; 
 
 			} else {
-				printf("EBREAK / CSRxx ...\n");
+				if (debug) printf("EBREAK / CSRxx ...\n");
 				printf("\nerror: illegal instruction opcode: 0x%u\n", op);
 			}
 			pc += 4;
@@ -366,6 +374,9 @@ int main(int argc, const char** argv) {
 		}
 
 		//pc = save_pc + 4;
+
+		if (debug) { printf("\n[pc now %llu]\n", pc); getchar(); } 
+
 	}
 
 	puts("\n[process exited]");

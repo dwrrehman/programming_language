@@ -87,7 +87,12 @@ int main(int argc, const char** argv) {
 	
 	for (u32 pc = 0; pc < count; pc += 4) {
 
-		u32 word = memory[pc + 0] | (memory[pc + 1] << 8) | (memory[pc + 2] << 16) | (memory[pc + 3] << 24);
+		u32 word = 
+			((u32) memory[pc + 0U] <<  0U) | 
+			((u32) memory[pc + 1U] <<  8U) | 
+			((u32) memory[pc + 2U] << 16U) | 
+			((u32) memory[pc + 3U] << 24U) ;
+
 		printf(" 0x%08x:   %02x %02x %02x %02x   ", pc, 
 			memory[pc + 0], memory[pc + 1], memory[pc + 2], memory[pc + 3]
 		); fflush(stdout);

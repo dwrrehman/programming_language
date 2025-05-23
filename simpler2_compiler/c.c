@@ -9,6 +9,9 @@
 	adding more instructions to the msp430 backend:
 
 
+
+1202505224.204759
+	actually i ended up doing regsiter allocation instead LOLL
 	
 
 		
@@ -193,6 +196,7 @@ static nat bit_count[max_variable_count] = {0};
 static nat register_index[max_variable_count] = {0};
 static nat values[max_variable_count] = {0};
 static byte is_constant[max_variable_count] = {0};
+static byte is_label[max_variable_count] = {0};
 static byte is_runtime[max_variable_count] = {0};
 static byte is_undefined[max_variable_count] = {0};
 static nat var_count = 0;
@@ -245,9 +249,10 @@ static nat read_single_char_from_stdin(void) {
 static void print_dictionary(const nat should_print_ct) {
 	puts("variable dictionary: ");
 	for (nat i = 0; i < var_count; i++) {
-		if (should_print_ct or not is_constant[i]) 
-		printf("   %c %c %c [%5llu]  \"%20s\"  :   { bc=%5lld, ri=%5lld }  :   0x%016llx\n",
+		if (should_print_ct or (not is_constant[i] and not is_label[i])) 
+		printf("   %c %c %c %c [%5llu]  \"%20s\"  :   { bc=%5lld, ri=%5lld }  :   0x%016llx\n",
 			is_runtime[i] ? 'R' : ' ', 
+			is_label[i] ? 'L' : ' ', 
 			is_constant[i] ? 'C' : ' ', 
 			is_undefined[i] ? 'U' : ' ', 
 			i, variables[i], 
@@ -467,11 +472,6 @@ static nat compute_label_location(nat label) {
 	return locations[label];
 }
 
-
-
-
-
-
 static nat* compute_riscv_successors(nat pc) {
 	nat* gotos = calloc(2 * ins_count, sizeof(nat)); 
 	nat locations[4096] = {0}; // var_count sized
@@ -505,10 +505,6 @@ static nat* compute_riscv_successors(nat pc) {
 	free(gotos);
 	return result;
 }
-
-
-
-
 
 
 static nat* compute_riscv_predecessors(nat pc, nat* pred_count) {
@@ -552,16 +548,7 @@ static nat* compute_riscv_predecessors(nat pc, nat* pred_count) {
 	return result;
 }
 
-
-
-
-
-
-
-
-
-/*
-	r_type: 	
+/*	r_type: 	
 		a0: opcode(0-6) 
 		a1: rd(7-11)   
 		a2: funct3(12-14)
@@ -603,27 +590,6 @@ static nat* compute_riscv_predecessors(nat pc, nat* pred_count) {
 		a2: imm_20_10_1_11_19_12(12-31)
 		
 */
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 struct expected_instruction {
@@ -836,9 +802,6 @@ static nat calculate_offset(nat* length, nat here, nat target) {
 }
 
 
-
-
-
 static void debug_data_flow_state(
 	nat pc,
 	nat* preds, nat pred_count,
@@ -881,10 +844,6 @@ static void debug_data_flow_state(
 }
 
 
-
-
-
-
 static void debug_liveness(
 	nat pc,
 	nat* preds, nat pred_count,
@@ -915,8 +874,6 @@ static void debug_liveness(
 	printf(", stack: "); 
 	print_nats(stack, stack_count); putchar(10);
 }
-
-
 
 
 int main(int argc, const char** argv) {
@@ -1074,6 +1031,10 @@ process_file:;
 			goto process_file;
 
 		} else {
+			if (op == do_ or op == at) is_label[args[0]] = 1;
+			if (op == la) is_label[args[1]] = 1;
+			if (op == lt or op == ge or op == ne or op == eq) is_label[args[2]] = 1;
+
 			struct instruction new = { .op = op, .imm = is_immediate };
 			memcpy(new.args, args, sizeof args);
 			nat ct = 1;
@@ -1110,10 +1071,10 @@ process_file:;
 		if (op == at) values[ins[pc].args[0]] = pc;
 	}
 		
-	/*print_dictionary();
+	print_dictionary(1);
 	print_instructions(0);
 	puts("parsing finished.");
-	getchar();*/
+	getchar();
 
 	{ struct instruction rt_ins[4096] = {0};
 	nat rt_ins_count = 0;
@@ -1839,12 +1800,12 @@ rv32_instruction_selection:;
 			new = (struct instruction) { r5_r, 0x25, 0,   { 0x33, arg0, 0, arg0, arg1,0,  0,0 } };
 			goto push_single_mi;
 		}
-		else if (op == lt) {
+		else if (op == lt) { // bltu x y l 
 			if (imm) { 
 				puts("rv32 ins sel: internal error: no branch immediates should be possible."); 
 				abort();
 			}
-			new = (struct instruction) { r5_b, 0x3, 0, {  0x33, 0x4, arg0, arg1, arg2,   0,0,0 } };
+			new = (struct instruction) { r5_b, 0x3, 0, {  0x63, 0x6, arg0, arg1, arg2,   0,0,0 } };
 			goto push_single_mi;
 		}
 
@@ -2083,6 +2044,18 @@ finish_instruction_selection:;
 
 
 
+
+
+
+	const nat hardware_register_count = 31; 
+	// target dependent, we'll configure this automatically per target!!
+
+
+
+
+	nat allocation[max_variable_count] = {0};
+
+
 	{ nat* alive = calloc(ins_count * var_count, sizeof(nat)); 
 			// once this pass completes, these values represent b:BEFORE; the instruction executes. 
 
@@ -2109,7 +2082,7 @@ finish_instruction_selection:;
 		printf("executing: [pc = %llu]: ", pc); 
 		print_instruction(ins[pc]);
 		puts("");
-		getchar();
+		//getchar();
 
 		ins[pc].state++;
 
@@ -2127,7 +2100,7 @@ finish_instruction_selection:;
 		const nat i2 = !!(imm & (1 << 2));
 		const nat i3 = !!(imm & (1 << 3));
 		const nat i4 = !!(imm & (1 << 4));
-		const nat i5 = !!(imm & (1 << 5));
+		//const nat i5 = !!(imm & (1 << 5));
 
 		for (nat var = 0; var < var_count; var++) {
 			nat future_alive = 0;		
@@ -2143,11 +2116,11 @@ finish_instruction_selection:;
 		else if (op == at) {}
 		else if (op == emit) {}
 
-		else if (op == r5_r) { // addr D A A 
+		else if (op == r5_r) { // addr D A A
 			if (not i1) alive[pc * var_count + a1] = 0;
 			if (not i3) alive[pc * var_count + a3] = 1;
 			if (not i4) alive[pc * var_count + a4] = 1;
-		} 
+		}
 		else if (op == r5_i) { // addi D A
 			if (not i1) alive[pc * var_count + a1] = 0;
 			if (not i3) alive[pc * var_count + a3] = 1;
@@ -2174,14 +2147,22 @@ finish_instruction_selection:;
 	puts("RA1 finished.");
 	getchar();
 
+	nat* needs_ra = calloc(var_count, sizeof(nat));
+
+	for (nat i = 0; i < ins_count; i++) {
+		for (nat j = 0; j < var_count; j++) {
+			if (alive[i * var_count + j]) needs_ra[j] = 1;
+		}
+	}
 
 	nat rig[4096] = {0};
 	nat rig_count = 0;
+
 	puts("RA: constructing register interference graph...");
+
 	for (nat pc = 0 ; pc < ins_count; pc++) {
 		for (nat i = 0; i < var_count; i++) {
 			for (nat j = 0; j < i; j++) {
-				if (i == j) continue;
 				if (not alive[pc * var_count + i]) continue;
 				if (not alive[pc * var_count + j]) continue;
 				rig[2 * rig_count + 0] = i;
@@ -2191,7 +2172,13 @@ finish_instruction_selection:;
 		}
 	}
 
+	puts("registers which need RA performed on them (or already have a register index!)");
+	for (nat i = 0; i < var_count; i++) {
+		if (not needs_ra[i]) continue;
+		printf("  . register %s (%llu)\n", variables[i], i);
+	}
 	puts("\n");
+
 	printf("constructed the following RIG: (%llu interferences)\n", rig_count);
 	for (nat i = 0; i < rig_count; i++) {
 		const nat first = rig[2 * i + 0];
@@ -2201,6 +2188,7 @@ finish_instruction_selection:;
 			variables[second], second
 		);
 	}
+
 	puts("\n\nadditionally, we know that: \n");
 	for (nat i = 0; i < var_count; i++) {
 		if (register_index[i] != (nat) -1) {
@@ -2209,15 +2197,193 @@ finish_instruction_selection:;
 			);
 		}
 	}
+	
 
-	puts("\n[done with RA]");
+
+	nat node_selected[max_variable_count] = {0};
+	stack_count = 0;
+
+	while (1) {		
+		for (nat i = 0; i < var_count; i++) {
+			if (not needs_ra[i]) continue; 
+			if (not node_selected[i]) goto find_virtual_register; 
+		}
+		puts("RA: pushed all nodes!");
+		break;
+
+	find_virtual_register:
+		for (nat var = 0; var < var_count; var++) {
+			if (not needs_ra[var] or node_selected[var]) continue;
+
+			nat neighbor_count = 0;
+			for (nat e = 0; e < rig_count; e++) {
+				const nat a = rig[2 * e + 0];
+				const nat b = rig[2 * e + 1];
+				if (node_selected[a] or node_selected[b]) continue;
+				if (a == var or b == var) neighbor_count++;
+			}
+			if (neighbor_count < hardware_register_count) {
+				stack[stack_count++] = var;
+				node_selected[var] = 1;
+				goto next_iteration;
+			}
+
+		}
+
+		printf("compiler: register allocation: error: failed to allocate "
+			"variables to %llu hardware registers.\n", hardware_register_count
+		);
+		abort();
+
+		next_iteration:;
+	}
+
+	puts("created the following ordering on the virtual registers: ");
+	for (nat i = 0; i < stack_count; i++) {
+		printf("%5llu: %s (%llu) \n", i, variables[stack[i]], stack[i]);
+	}
+	puts("[ordering done]");
+
+	nat* occupied = calloc(hardware_register_count, sizeof(nat));
+
+	memset(allocation, 255, sizeof(nat) * var_count);
+	for (nat i = 0; i < var_count; i++) {
+		if (register_index[i] == (nat) -1) continue;
+
+		allocation[i] = register_index[i] - 1;
+		// this line: this translation is specific to risc-v. 
+		// (zero register is unused, and non-allocatable.)
+	}
+
+	printf("occupied: "); print_nats(occupied, hardware_register_count); puts("");
+	
+	for (nat s = stack_count; s--;) {
+
+		const nat var = stack[s];
+		node_selected[var] = 0;
+
+		printf("[s=%llu]: trying to allocate %s\n", s, variables[var]);
+
+		if (allocation[var] != (nat) -1) continue;
+
+		memset(occupied, 0, sizeof(nat) * hardware_register_count);
+
+		for (nat e = 0; e < rig_count; e++) {
+			const nat a = rig[2 * e + 0];
+			const nat b = rig[2 * e + 1];
+			if (node_selected[a] or node_selected[b]) continue;
+			     if (a == var) occupied[allocation[b]] = 1;
+			else if (b == var) occupied[allocation[a]] = 1;
+		}
+
+		
+		printf("current occupied: "); print_nats(occupied, hardware_register_count); puts("");
+
+		for (nat i = 0; i < hardware_register_count; i++) {
+			if (not occupied[i]) {
+				allocation[var] = i;
+				goto allocation_found;
+			}
+		}
+
+		puts("internal error in RA: could not find a HW reg.");
+		abort();
+		allocation_found:;
+	}
 
 
-	exit(0); 
+
+
+
+
+	for (nat e = 0; e < rig_count; e++) {
+
+		const nat a = rig[2 * e + 0];
+		const nat b = rig[2 * e + 1];
+
+		if (allocation[a] == allocation[b]) {
+			printf("compiler: register allocation: error: "
+				"unresolved register interference between variables %s and %s\n",
+				variables[a], variables[b]
+			);
+			abort();
+		}
+	} 
+
+	for (nat i = 0; i < var_count; i++) {
+		if (not needs_ra[i] and allocation[i] == (nat) -1) continue;
+
+		allocation[i] += 1;  
+		// this line is specific to risc-v! 
+		// we'd translate the RI's back to hardware RI space. 
+
+	}
+
+	puts("RA: FINAL REGISTER ALLOCATION:");
+	for (nat i = 0; i < var_count; i++) {
+		if (not needs_ra[i] and allocation[i] == (nat) -1) continue;
+
+		printf("    . %s (%llu) is stored in hardware register x[%lld]\n", variables[i], i, allocation[i]);
+	}
+
+	puts("\n[done with graph coloring in RA]");
 
 	}
 
 
+
+
+
+	puts("filling in RA assignments into the machine code...");
+
+	for (nat i = 0; i < ins_count; i++) {
+
+		print_instruction_window_around(i, 0, "");
+		puts("[doing something like RA]");
+		getchar();
+
+		const nat op = ins[i].op;
+		const nat imm = ins[i].imm;
+	
+		for (nat a = 0; a < arity[op]; a++) {
+
+			if (op == at and a == 0) continue;
+
+			const nat this_arg = ins[i].args[a];
+
+			if (imm & (1 << a)) {
+				printf("on argument: [a = %llu]: is_immediate!  (immediate value is %llu)\n", a, this_arg);
+
+			} else if (not is_label[this_arg]) {
+				
+				printf("on argument: [a = %llu]: NOT is_immediate and NOT label!  (variable = %s) \n", 
+					a, variables[this_arg]
+				);
+
+				puts("filling in the register index we found for this operation!");
+
+				if (allocation[this_arg] == (nat) -1) {
+					printf("FATAL ERROR: no hardware register index was "
+						"not found for variable %s in the below instruction. "
+						"aborting...\n", variables[this_arg]
+					);
+					print_instruction(ins[i]); puts(""); 
+					abort();
+				}
+
+				ins[i].args[a] = allocation[this_arg];
+				ins[i].imm |= 1LLU << a;
+
+				printf("info: filled in register index %llu for variable %s into this instruction. ", 
+					ins[i].args[a], variables[this_arg]
+				);				
+			}
+		}
+	}
+
+	puts("[done with RA");
+	printf("info: finished final machine code for target = %llu\n", target_arch);
+	print_instructions(1);
 
 
 
@@ -2318,9 +2484,12 @@ finish_instruction_selection:;
 
 			if (imm & (1 << a)) {
 				printf("on argument: [a = %llu]: is_immediate!  (immediate value is %llu)\n", a, this_arg);
-			} else {
+			} else if (not is_label[this_arg]) {
 				
-				printf("on argument: [a = %llu]: NOT is_immediate!  (variable = %s) \n", a, variables[this_arg]);
+				printf("on argument: [a = %llu]: NOT is_immediate and NOT label!  (variable = %s) \n", 
+					a, variables[this_arg]
+				);
+
 				puts("filling in the register index we found for this operation!");
 
 				if (register_index[this_arg] == (nat) -1) {
@@ -2492,7 +2661,9 @@ rv32_generate_machine_code:;
 				(a2 << 12U) | 
 				(a1 <<  7U) | 
 				(a0 <<  0U) ;
-			insert_u32(&my_bytes, &my_count, word);
+
+			if (not k and a5 == 0x42) {}
+			else insert_u32(&my_bytes, &my_count, word);
 
 		} else if (op == r5_r) {
 
@@ -2529,12 +2700,32 @@ rv32_generate_machine_code:;
 
 		} else if (op == r5_b) {
 
-			abort();
-			const nat n = compute_label_location(a2);
-			const u32 im = calculate_offset(lengths, i, n) & 0xFFFFF000;
+			const nat n = compute_label_location(a4);
+			const u32 im = (u32) calculate_offset(lengths, i, n) & 0x1FFF;
+
+			printf("decimal: im = %d\n", im | ((im & (1 << 12)) ? 0xFFFFE000 : 0));
+			printf("decimal: "); print_binary(im | ((im & (1 << 12)) ? 0xFFFFE000 : 0)); puts("");
+
+			const u32 bit4_1  = (im >> 1) & 0xF;
+			const u32 bit10_5 = (im >> 5) & 0x3F;
+			const u32 bit11   = (im >> 11) & 0x1;
+			const u32 bit12   = (im >> 12) & 0x1;
+			const u32 lo = (bit4_1 << 1) | bit11;
+			const u32 hi = (bit12 << 6) | bit10_5;
+	
+			printf("b_type:  im = 0x%08x, lo = 0x%08x, hi = 0x%08x\n", im, lo, hi);
+
+			printf("im = "); print_binary(im); puts("");
+			printf("lo = "); print_binary(lo); puts("");
+			printf("hi = "); print_binary(hi); puts("");
+			getchar();
+
 			const u32 word =
-				(im <<  0U) |
-				(a1 <<  7U) |
+				(hi << 25U) |
+				(a3 << 20U) |
+				(a2 << 15U) |
+				(a1 << 12U) |
+				(lo <<  7U) |
 				(a0 <<  0U) ;
 			insert_u32(&my_bytes, &my_count, word);
 
@@ -3364,15 +3555,9 @@ generate_ti_txt_executable:;
 	system(debug_string);
 
 
-
-
-
 finished_outputting: 
 
 	exit(0);
-
-
-
 
 } // main 
 
