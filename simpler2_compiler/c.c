@@ -5,6 +5,16 @@
 
 /*
 
+1202505224.160953
+	adding more instructions to the msp430 backend:
+
+
+	
+
+		
+
+
+
 
 
 struct instruction new = { .op = la, .imm = 0x5 }; // not r5_u, like you would think!!! we expose the auipc and addi at the end, after we determined the pc-rel offset. THIS IS REQUIRED!!!!!!
@@ -50,6 +60,10 @@ struct instruction new = { .op = la, .imm = 0x5 }; // not r5_u, like you would t
 								ins-sel patterns detecting la in various patterns.
 
 
+	//halt, sc, sl, ud, def, do_, at, lf,
+	//set, add, sub, mul, div_, rem, 
+	//and_, or_, eor, si, sd, la, rt, emit, 
+	//ld, st, lt, ge, ne, eq, 
 		
 */
 
@@ -90,11 +104,6 @@ typedef uint8_t byte;
 enum all_architectures { no_arch, arm64_arch, arm32_arch, rv64_arch, rv32_arch, msp430_arch, };
 enum all_output_formats { debug_output_only, macho_executable, macho_object, elf_executable, elf_object, ti_txt_executable, hex_array_txt_executable, };
 
-	//halt, sc, sl, ud, def, do_, at, lf,
-	//set, add, sub, mul, div_, rem, 
-	//and_, or_, eor, si, sd, la, rt, emit, 
-	//ld, st, lt, ge, ne, eq, 
-
 enum core_language_isa {
 	nullins,
 
@@ -111,7 +120,9 @@ enum core_language_isa {
 	a6_ori, a6_orr, a6_extr, a6_ldrl, 
 	a6_memp, a6_memia, a6_memi, a6_memr, 
 	a6_madd, a6_divr, 
+
 	m4_sect, m4_op, m4_br,
+
 	r5_r, r5_i, r5_s, r5_b, r5_u, r5_j, 
 	isa_count
 };
@@ -120,7 +131,7 @@ static const char* operations[isa_count] = {
 	"___nullins____",
 
 	"system", "compiler", "emit", "string", "file", "del", 
-	"runtime", "constant", "register", "bitcount",
+	"rt", "ct", "register", "bitcount",
 	"set", "add", "sub", "mul", "div", "rem", 
 	"and", "or", "eor", "si", "sd", "la", "ld", "st", 
 	"lt", "ge", "ne", "eq", "do", "at", "halt", 
@@ -132,7 +143,9 @@ static const char* operations[isa_count] = {
 	"a6_ori", "a6_orr", "a6_extr", "a6_ldrl", 
 	"a6_memp", "a6_memia", "a6_memi", "a6_memr", 
 	"a6_madd", "a6_divr", 
+
 	"m4_sect", "m4_op", "m4_br",
+
 	"r5_r", "r5_i", "r5_s", "r5_b", "r5_u", "r5_j", 
 };
 
@@ -152,7 +165,9 @@ static const nat arity[isa_count] = {
 	5, 8, 5, 3, 
 	7, 6, 5, 6,
 	8, 5, 
+
 	1, 8, 2,
+
 	6, 5, 5, 5, 3, 3,
 };
 
@@ -227,9 +242,10 @@ static nat read_single_char_from_stdin(void) {
 	return (nat) c;
 }
 
-static void print_dictionary(void) {
+static void print_dictionary(const nat should_print_ct) {
 	puts("variable dictionary: ");
 	for (nat i = 0; i < var_count; i++) {
+		if (should_print_ct or not is_constant[i]) 
 		printf("   %c %c %c [%5llu]  \"%20s\"  :   { bc=%5lld, ri=%5lld }  :   0x%016llx\n",
 			is_runtime[i] ? 'R' : ' ', 
 			is_constant[i] ? 'C' : ' ', 
@@ -361,7 +377,46 @@ static void print_index(const char* text, nat text_length, nat begin, nat end) {
 	puts("\n");
 }
 
+
+static nat* compute_successors(nat pc) {
+
+	nat* gotos = calloc(2 * ins_count, sizeof(nat)); 
+	nat locations[4096] = {0}; // var_count sized
+
+	for (nat i = 0; i < ins_count; i++) {
+		if (ins[i].op == at) 
+			locations[ins[i].args[0]] = i;
+	}
+
+	for (nat i = 0; i < ins_count; i++) {
+		const nat op = ins[i].op;
+		if (op == lt or op == ge or op == ne or op == eq) {
+			gotos[2 * i + 0] = i + 1;
+			gotos[2 * i + 1] = locations[ins[i].args[2]];
+
+		} else if (op == do_) {
+			gotos[2 * i + 0] = locations[ins[i].args[0]];
+			gotos[2 * i + 1] = (nat) -1;
+
+		} else if (op == halt) {
+			gotos[2 * i + 0] = (nat) -1;
+			gotos[2 * i + 1] = (nat) -1;
+
+		} else {
+			gotos[2 * i + 0] = i + 1;
+			gotos[2 * i + 1] = (nat) -1;
+		}
+	}
+
+	nat* result = calloc(2, sizeof(nat));
+	if (pc < ins_count) result[0] = gotos[2 * pc + 0];
+	if (pc < ins_count) result[1] = gotos[2 * pc + 1];
+	free(gotos);
+	return result;
+}
+
 static nat* compute_predecessors(nat pc, nat* pred_count) {
+
 	nat* gotos = calloc(2 * ins_count, sizeof(nat)); 
 	nat locations[4096] = {0}; // var_count sized
 
@@ -404,35 +459,44 @@ static nat* compute_predecessors(nat pc, nat* pred_count) {
 	return result;
 }
 
+static nat compute_label_location(nat label) {
+	nat locations[4096] = {0}; // var_count sized
+	for (nat i = 0; i < ins_count; i++) {
+		if (ins[i].op == at) locations[ins[i].args[0]] = i;
+	}
+	return locations[label];
+}
 
-static nat* compute_successors(nat pc) {
 
+
+
+
+
+static nat* compute_riscv_successors(nat pc) {
 	nat* gotos = calloc(2 * ins_count, sizeof(nat)); 
 	nat locations[4096] = {0}; // var_count sized
-
 	for (nat i = 0; i < ins_count; i++) {
-		if (ins[i].op == at) 
-			locations[ins[i].args[0]] = i;
+		if (ins[i].op == at) locations[ins[i].args[0]] = i;
 	}
-
 	for (nat i = 0; i < ins_count; i++) {
 		const nat op = ins[i].op;
-		if (op == lt or op == ge or op == ne or op == eq) {
-			gotos[2 * i + 0] = i + 1;
-			gotos[2 * i + 1] = locations[ins[i].args[2]];
-
-		} else if (op == do_) {
-			gotos[2 * i + 0] = locations[ins[i].args[0]];
-			gotos[2 * i + 1] = (nat) -1;
-
-		} else if (op == halt) {
+		if (op == halt) {
 			gotos[2 * i + 0] = (nat) -1;
 			gotos[2 * i + 1] = (nat) -1;
-
-		} else {
+		} else if (op == r5_b) {
+			gotos[2 * i + 0] = i + 1;
+			gotos[2 * i + 1] = locations[ins[i].args[2]];
+		} else if (op == r5_j) {
+			gotos[2 * i + 0] = locations[ins[i].args[0]];
+			gotos[2 * i + 1] = (nat) -1;
+		} else if (op == r5_i or op == r5_u or op == r5_s or op == r5_r or op == at or op == emit) {
 			gotos[2 * i + 0] = i + 1;
 			gotos[2 * i + 1] = (nat) -1;
-		}
+		} else {
+			puts("error: compute_riscv_successors(): found a non RV MI...\n");
+			print_instruction(ins[i]);
+			abort();
+		} 
 	}
 
 	nat* result = calloc(2, sizeof(nat));
@@ -441,6 +505,125 @@ static nat* compute_successors(nat pc) {
 	free(gotos);
 	return result;
 }
+
+
+
+
+
+
+static nat* compute_riscv_predecessors(nat pc, nat* pred_count) {
+	nat* gotos = calloc(2 * ins_count, sizeof(nat)); 
+	nat locations[4096] = {0}; // var_count sized
+	for (nat i = 0; i < ins_count; i++) {
+		if (ins[i].op == at) locations[ins[i].args[0]] = i;
+	}
+	for (nat i = 0; i < ins_count; i++) {
+		const nat op = ins[i].op;
+		if (op == halt) {
+			gotos[2 * i + 0] = (nat) -1;
+			gotos[2 * i + 1] = (nat) -1;
+		} else if (op == r5_b) {
+			gotos[2 * i + 0] = i + 1;
+			gotos[2 * i + 1] = locations[ins[i].args[2]];
+		} else if (op == r5_j) {
+			gotos[2 * i + 0] = locations[ins[i].args[0]];
+			gotos[2 * i + 1] = (nat) -1;
+		} else if (op == r5_i or op == r5_u or op == r5_s or op == r5_r or op == at or op == emit) {
+			gotos[2 * i + 0] = i + 1;
+			gotos[2 * i + 1] = (nat) -1;
+		} else {
+			puts("error: compute_riscv_successors(): found a non RV MI...\n");
+			print_instruction(ins[i]);
+			abort();
+		} 
+	}
+
+	nat* result = NULL;
+	nat count = 0;
+	for (nat i = 0; i < ins_count; i++) {
+		if (gotos[2 * i + 0] == pc or gotos[2 * i + 1] == pc) {
+			result = realloc(result, sizeof(nat) * (count + 1));
+			result[count++] = i;
+		}
+	}
+
+	free(gotos);
+	*pred_count = count;
+	return result;
+}
+
+
+
+
+
+
+
+
+
+/*
+	r_type: 	
+		a0: opcode(0-6) 
+		a1: rd(7-11)   
+		a2: funct3(12-14)
+		a3: rs1(15-19)
+		a4: rs2(20-24)
+		a5: funct7(25-31)
+
+	i_type: 
+		a0: opcode(0-6)
+		a1: rd(7-11)
+		a2: funct3(12-14)
+		a3: rs1(15-19)
+		a4: imm_11_0(20-31)
+
+	s_type: 	
+		a0: opcode(0-6)  
+		a1: imm_4_0(7-11)
+		a2: funct3(12-14)
+		a3: rs1(15-19)
+		a4: rs2(20-24)
+		a5: imm_5_11(25-31)
+
+	b_type: 
+		a0: opcode(0-6)
+		a1: imm_4_1_11(7-11)
+		a2: funct3(12-14)
+		a3: rs1(15-19)
+		a4: rs2(20-24)
+		a5: imm_12_10_5(25-31)
+
+	u_type: 	
+		a0: opcode(0-6)
+		a1: rd(7-11)
+		a2: imm_31_12(12-31)
+
+	j_type: 	
+		a0: opcode(0-6)
+		a1: rd(7-11)
+		a2: imm_20_10_1_11_19_12(12-31)
+		
+*/
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 struct expected_instruction {
@@ -665,15 +848,15 @@ static void debug_data_flow_state(
 ) {
 
 	print_instruction_window_around(pc, 0, "PC");
-	print_dictionary();
+	print_dictionary(0);
 
 	printf("        ");
-	for (nat j = 0; j < var_count; j++) 
-		printf("%3lld ", j);
+	for (nat j = 0; j < var_count; j++) { if (is_constant[j]) continue; printf("%3lld ", j); }
 	puts("\n-------------------------------------------------");
 	for (nat i = 0; i < ins_count; i++) {
 		printf("ct %3llu: ", i);
 		for (nat j = 0; j < var_count; j++) {
+			if (is_constant[j]) continue; 
 			if (not type[i * var_count + j]) printf("\033[90m");
 			printf("%3lld ", value[i * var_count + j]);
 			if (not type[i * var_count + j]) printf("\033[0m");
@@ -682,6 +865,7 @@ static void debug_data_flow_state(
 
 		printf("cp %3llu: ", i);
 		for (nat j = 0; j < var_count; j++) {
+			if (is_constant[j]) continue; 
 			if (not is_copy[i * var_count + j]) printf("\033[90m");
 			printf("%3lld ", copy_of[i * var_count + j]);
 			if (not is_copy[i * var_count + j]) printf("\033[0m");
@@ -695,6 +879,45 @@ static void debug_data_flow_state(
 	print_nats(stack, stack_count); 
 	putchar(10);
 }
+
+
+
+
+
+
+static void debug_liveness(
+	nat pc,
+	nat* preds, nat pred_count,
+	nat* gotos, nat goto_count,
+	nat* stack, nat stack_count,
+	nat* alive
+) {
+	print_instruction_window_around(pc, 0, "PC");
+	print_dictionary(0);
+	printf("    ");
+	for (nat j = 0; j < var_count; j++) { if (is_constant[j]) continue; printf("%2lld ", j); } 
+	puts("\n-------------------------------------------------");
+	for (nat i = 0; i < ins_count; i++) {
+		printf("%2llu: ", i);
+		for (nat j = 0; j < var_count; j++) {
+			if (is_constant[j]) continue; 
+			if (not alive[i * var_count + j]) printf("\033[90m");
+			printf("%2lld ", alive[i * var_count + j]);
+			if (not alive[i * var_count + j]) printf("\033[0m");
+		}
+		putchar(10);
+	}
+	puts("-------------------------------------------------");
+	printf("[PC = %llu], pred:", pc);
+	print_nats(preds, pred_count); putchar(32);
+	printf(", goto:");
+	print_nats(gotos, goto_count); putchar(32);
+	printf(", stack: "); 
+	print_nats(stack, stack_count); putchar(10);
+}
+
+
+
 
 int main(int argc, const char** argv) {
 
@@ -828,7 +1051,6 @@ process_file:;
 		args[arg_count++] = var;
 
 	process_op: 
-
 		if (op == string) { in_string = 1; goto next_word; } 
 		else if (arg_count < arity[op]) goto next_word;
 		else if (op == del) 		is_undefined[args[0]] = 1;
@@ -850,6 +1072,7 @@ process_file:;
 			files[file_count++].index = 0;
 			var_count--;
 			goto process_file;
+
 		} else {
 			struct instruction new = { .op = op, .imm = is_immediate };
 			memcpy(new.args, args, sizeof args);
@@ -922,7 +1145,7 @@ process_file:;
 
 		if (should_debug_cte) {
 			print_instruction_window_around(pc, 0, "");
-			print_dictionary();
+			print_dictionary(1);
 			puts("rt instructions: ");
 			for (nat i = 0; i < rt_ins_count; i++) {
 				putchar(9); print_instruction(rt_ins[i]); puts("");
@@ -931,7 +1154,16 @@ process_file:;
 			getchar();
 		}
 
-		if (not ct) {
+
+		if (op == string) {
+			for (nat s = 0; s < arg0; s++) { // for string length; 
+				struct instruction new = { .op = emit, .imm = 3 };
+				new.args[0] = 1;
+				new.args[1] = (nat) string_list[arg1][s];
+				rt_ins[rt_ins_count++] = new;
+			}
+		}
+		else if (not ct) {
 			struct instruction new = { .op = op };
 			memcpy(new.args, ins[pc].args, sizeof new.args);
 			new.imm = ins[pc].imm;
@@ -949,10 +1181,8 @@ process_file:;
 				}
 			}
 			rt_ins[rt_ins_count++] = new;
-			continue;
 		}
-
-		else if (op == at)   values[arg0] = pc;
+		else if (op == at)   values[arg0]  = pc;
 		else if (op == set)  values[arg0]  = val1;
 		else if (op == add)  values[arg0] += val1;
 		else if (op == sub)  values[arg0] -= val1;
@@ -1006,12 +1236,9 @@ process_file:;
 	memcpy(ins, rt_ins, ins_count * sizeof(struct instruction));
 	ins_count = rt_ins_count;   }
 
-	print_dictionary();
+	print_dictionary(1);
 	print_instructions(0);
 	puts("CTE finished.");
-	getchar();
-
-
 
 
 	if (target_arch == msp430_arch and stack_size) { 
@@ -1026,7 +1253,6 @@ process_file:;
 	for (nat i = 0; i < ins_count; i++) {
 
 		print_instruction_window_around(i, 0, "");
-		print_dictionary();
 		puts("-----------OPT: CTK PRUNING---------------");
 		//getchar();
 
@@ -1086,14 +1312,10 @@ process_file:;
 	}
 	ins_count = final_ins_count; }
 
-	print_dictionary();
 	print_instructions(0);
 	puts("OPT1 finished.");
-	getchar();
 
-
-
-	nat* type = calloc(ins_count * var_count, sizeof(nat));
+	{ nat* type = calloc(ins_count * var_count, sizeof(nat));
 	nat* value = calloc(ins_count * var_count, sizeof(nat));
 	nat* is_copy = calloc(ins_count * var_count, sizeof(nat));
 	nat* copy_of = calloc(ins_count * var_count, sizeof(nat));
@@ -1111,7 +1333,7 @@ process_file:;
 		nat* gotos = compute_successors(pc);
 
 		debug_data_flow_state(pc, preds, pred_count, stack, stack_count, value, type, is_copy, copy_of);
-		getchar();
+		// getchar();
 
 		ins[pc].state++;
 
@@ -1123,7 +1345,6 @@ process_file:;
 		const nat a1 = ins[pc].args[1];
 		const nat i0 = !!(imm & 1);
 		const nat i1 = !!(imm & 2);
-		const nat i2 = !!(imm & 4);
 
 		for (nat var = 0; var < var_count; var++) {
 
@@ -1189,7 +1410,7 @@ process_file:;
 		if (op == halt) continue;
 		else if (op == at) { }
 		else if (op == system_) { }
-		else if (op == string) { } 
+		else if (op == emit) { } 
 		else if (op == do_) { }
 		else if (op == set) {
 			out_t = ct1; out_v = v1;
@@ -1200,7 +1421,7 @@ process_file:;
 		}
 
 		else if (op >= add and op <= sd) {
-			if (not i1) out_t = ct0 and ct1;
+			out_t = ct0 and ct1;
 
 			     if (op == add)  out_v += v1;
 			else if (op == sub)  out_v -= v1;
@@ -1215,12 +1436,9 @@ process_file:;
 
 			out_is_copy = 0;
 			
-		} else if (op == st) {	
-			if (not i2) { puts("error: size of store must be ctk."); abort(); }
-			out_is_copy = 0;
+		} else if (op == st) {
 
 		} else if (op == ld) {
-			if (not i2) { puts("error: size of load must be ctk."); abort(); }
 			out_t = 0;
 			out_is_copy = 0;
 
@@ -1228,7 +1446,7 @@ process_file:;
 			out_t = 0;
 			out_v = 0;
 			out_is_copy = 0;
-						
+
 		} else if (op == lt or op == ge or op == ne or op == eq) {
 			if (not ct0 or not ct1) {
 				if (gt0 < ins_count and ins[gt0].state < 2) stack[stack_count++] = gt0;
@@ -1258,16 +1476,21 @@ process_file:;
 		is_copy[pc * var_count + a0] = out_is_copy;
 		copy_of[pc * var_count + a0] = out_copy_ref;
 		if (gt0 < ins_count and ins[gt0].state < 2) stack[stack_count++] = gt0; 
+
+		if (op == la) {
+			const nat label = compute_label_location(a1);
+			if (label < ins_count and ins[label].state < 2) stack[stack_count++] = label; 
+			continue;
+		}
 	}
 
 	debug_data_flow_state(0, NULL, 0, stack, stack_count, value, type, is_copy, copy_of);
 	puts("data flow: [FINAL VALUES]");
-	getchar();
+	// getchar();
 	
-	print_dictionary();
 	print_instructions(0);
 	puts("OPT2 finished.");
-	getchar();
+	// getchar();
 
 
 
@@ -1281,9 +1504,8 @@ process_file:;
 		//if (not ins[i].state) ins[i].op = 0;
 
 		print_instruction_window_around(i, 0, "");
-		print_dictionary();
 		puts("-----------PRUNING CTK INS:---------------");
-		getchar();
+		// getchar();
 
 		const nat op = ins[i].op;
 		const nat imm = ins[i].imm;
@@ -1293,9 +1515,10 @@ process_file:;
 		if (ins[i].state and  
 			(
 			op == halt 	or op == system_ or 
-			op == set 	or op == do_  
-			or op == at 	or op == la or 
-			op == ld 	or op == st
+			op == set 	or op == do_ or
+			op == at 	or op == la or 
+			op == ld 	or op == st or
+			op == emit
 			)
 		) keep = 1;
 
@@ -1461,13 +1684,11 @@ process_file:;
 		if (not ins[i].state) continue;
 		ins[final_ins_count++] = ins[i];
 	}
-	ins_count = final_ins_count; }
+	ins_count = final_ins_count; } } 
 
-
-	print_dictionary();
 	print_instructions(0);
 	puts("CTK PRUNING finished.");
-	getchar();
+	// getchar();
 
 
 
@@ -1517,10 +1738,9 @@ process_file:;
 	}
 	
 
-	print_dictionary();
 	print_instructions(0);
 	puts("CTK PRUNING finished.");
-	getchar();
+	// getchar();
 
 
 
@@ -1560,9 +1780,8 @@ rv32_instruction_selection:;
 	for (nat i = 0; i < ins_count; i++) {
 
 		print_instruction_window_around(i, 0, "");
-		print_dictionary();
 		puts("[RISC-V ins sel]");
-		getchar();
+		//getchar();
 
 		if (ins[i].state) {
 			printf("warning: [i = %llu]: skipping, part of a pattern.\n", i); 
@@ -1572,8 +1791,10 @@ rv32_instruction_selection:;
 
 		const nat op = ins[i].op;
 		const nat imm = ins[i].imm;
+
 		const nat arg0 = ins[i].args[0];
 		const nat arg1 = ins[i].args[1]; 
+		const nat arg2 = ins[i].args[2]; 
 
 		if (	
 			op == r5_i or op == r5_r or 
@@ -1591,6 +1812,12 @@ rv32_instruction_selection:;
 		}
 
 		else if (op == la) {
+
+			printf("generating an LA on riscv. dest was %llu, "
+				"label index was: %llu\n", arg0, arg1
+			);
+			getchar();
+
 			new = (struct instruction) { r5_u, 0x5, 0,  { 0x17, arg0, arg1, 0x42,  0,0,0,0 } };
 			mi[mi_count++] = new;
 			new = (struct instruction) { r5_i, 0x15, 0, { 0x13, arg0, 0, arg0, arg1, 0x42, 0,0 } };
@@ -1617,9 +1844,10 @@ rv32_instruction_selection:;
 				puts("rv32 ins sel: internal error: no branch immediates should be possible."); 
 				abort();
 			}
-			new = (struct instruction) { r5_b, 0x15, 0, { 0x13, arg0, 0, arg0, arg1, 0x42, 0,0 } }; // TODO
+			new = (struct instruction) { r5_b, 0x3, 0, {  0x33, 0x4, arg0, arg1, arg2,   0,0,0 } };
 			goto push_single_mi;
-		} 
+		}
+
 		else {
 			puts("error: unknown instruction selection pattern");
 			abort();
@@ -1635,6 +1863,15 @@ push_single_mi:
 
 
 
+/*
+riscv branches: (spelt using little endian binary):
+	beq 000
+	bne 100
+	blt 001
+	bge 101
+	bltu 011
+	bgeu 111
+*/
 
 
 
@@ -1657,7 +1894,6 @@ arm64_instruction_selection:;
 	for (nat i = 0; i < ins_count; i++) {
 
 		print_instruction_window_around(i, 0, "");
-		print_dictionary();
 		puts("[ARM64 ins sel]");
 		getchar();
 
@@ -1831,15 +2067,237 @@ finish_instruction_selection:;
 
 
 
+	puts("RA: starting register allocation!");
 
 
 
-	puts("starting register allocation!");
+
+
+// the alive[] values      represent   the aliveness                    BEFORE    the instruction executes.  
+
+
+
+
+
+	// this is because we are going backwards. after the cf merge (going backwards) the alive[] val represents after instruction, but then after we update the information, we actually make the alive values represent BEFORE the instruction executes. which is exactly what we need to know when looking at our successors's alive val states. 
+
+
+
+	{ nat* alive = calloc(ins_count * var_count, sizeof(nat)); 
+			// once this pass completes, these values represent b:BEFORE; the instruction executes. 
+
+	nat stack[4096] = {0};
+	nat stack_count = 0;	
+	for (nat i = 0; i < ins_count; i++) 
+		if (ins[i].op == halt) stack[stack_count++] = i;
+
+	for (nat i = 0; i < ins_count; i++)  ins[i].state = 0;
+
+	while (stack_count) {
+
+		nat pc = stack[--stack_count];
+
+		nat pred_count = 0;
+		nat* preds = compute_riscv_predecessors(pc, &pred_count);
+
+		nat goto_count = 0;
+		nat* gotos = compute_riscv_successors(pc);
+		if (gotos[0] != (nat) -1) goto_count++;
+		if (gotos[1] != (nat) -1) goto_count++;
+
+		debug_liveness(pc, preds, pred_count, gotos, goto_count, stack, stack_count, alive);
+		printf("executing: [pc = %llu]: ", pc); 
+		print_instruction(ins[pc]);
+		puts("");
+		getchar();
+
+		ins[pc].state++;
+
+		const nat op = ins[pc].op;
+		const nat imm = ins[pc].imm;
+
+		//const nat a0 = ins[pc].args[0];
+		const nat a1 = ins[pc].args[1];
+		const nat a2 = ins[pc].args[2];
+		const nat a3 = ins[pc].args[3];
+		const nat a4 = ins[pc].args[4];
+		
+		//const nat i0 = !!(imm & (1 << 0));
+		const nat i1 = !!(imm & (1 << 1));
+		const nat i2 = !!(imm & (1 << 2));
+		const nat i3 = !!(imm & (1 << 3));
+		const nat i4 = !!(imm & (1 << 4));
+		const nat i5 = !!(imm & (1 << 5));
+
+		for (nat var = 0; var < var_count; var++) {
+			nat future_alive = 0;		
+			for (nat i = 0; i < goto_count; i++) {
+				const nat gt = gotos[i];
+				if (not ins[gt].state) continue;
+				if (alive[gt * var_count + var]) future_alive = 1;
+			}
+			alive[pc * var_count + var] = future_alive;
+		}
+
+		if (op == halt) {}
+		else if (op == at) {}
+		else if (op == emit) {}
+
+		else if (op == r5_r) { // addr D A A 
+			if (not i1) alive[pc * var_count + a1] = 0;
+			if (not i3) alive[pc * var_count + a3] = 1;
+			if (not i4) alive[pc * var_count + a4] = 1;
+		} 
+		else if (op == r5_i) { // addi D A
+			if (not i1) alive[pc * var_count + a1] = 0;
+			if (not i3) alive[pc * var_count + a3] = 1;
+		}
+		else if (op == r5_s or op == r5_b) { // BLT X Y   or // STW A A
+			if (not i2) alive[pc * var_count + a2] = 1;
+			if (not i3) alive[pc * var_count + a3] = 1;
+		}
+		else if (op == r5_u or op == r5_j) { // JAL D   or  // LUI D
+			if (not i1) alive[pc * var_count + a1] = 0;
+		}
+		else {
+			puts("WARNING: EXECUTING AN UNKNOWN INSTRUCTION WITHOUT AN IMPLEMENTATION!!!");
+			puts(operations[op]);
+			abort();
+		}
+
+		for (nat i = 0; i < pred_count; i++) {
+			if (preds[i] < ins_count and ins[preds[i]].state < 2) 
+				stack[stack_count++] = preds[i]; 
+		}
+	}
+	print_instructions(0);
+	puts("RA1 finished.");
+	getchar();
+
+
+	nat rig[4096] = {0};
+	nat rig_count = 0;
+	puts("RA: constructing register interference graph...");
+	for (nat pc = 0 ; pc < ins_count; pc++) {
+		for (nat i = 0; i < var_count; i++) {
+			for (nat j = 0; j < i; j++) {
+				if (i == j) continue;
+				if (not alive[pc * var_count + i]) continue;
+				if (not alive[pc * var_count + j]) continue;
+				rig[2 * rig_count + 0] = i;
+				rig[2 * rig_count + 1] = j;
+				rig_count++;
+			}
+		}
+	}
+
+	puts("\n");
+	printf("constructed the following RIG: (%llu interferences)\n", rig_count);
+	for (nat i = 0; i < rig_count; i++) {
+		const nat first = rig[2 * i + 0];
+		const nat second = rig[2 * i + 1];
+		printf("    . register %s (%llu) interferes with %s (%llu).\n", 
+			variables[first], first, 
+			variables[second], second
+		);
+	}
+	puts("\n\nadditionally, we know that: \n");
+	for (nat i = 0; i < var_count; i++) {
+		if (register_index[i] != (nat) -1) {
+			printf("   .  %s (%llu) must be stored in hardware register %llu.\n", 
+				variables[i], i, register_index[i]
+			);
+		}
+	}
+
+	puts("\n[done with RA]");
+
+
+	exit(0); 
+
+	}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+		// todo:   we need to be doing this for the risc-v machine instructions,
+		//          ...not the language isa instructions. 
+
+		//						crap lol 
+
+		/*
+		else if (op == set) {
+			alive[pc * var_count + a0] = 0;
+			if (not i1) alive[pc * var_count + a1] = 1;
+
+		} else if (op >= add and op <= sd) {
+			if (not i1) alive[pc * var_count + a1] = 1;
+			
+		} else if (op == st) {
+			if (not i0) alive[pc * var_count + a0] = 1;
+			if (not i1) alive[pc * var_count + a1] = 1;
+
+		} else if (op == ld) {
+			alive[pc * var_count + a0] = 0;
+			if (not i1) alive[pc * var_count + a1] = 1;
+
+		} else if (op == la) {
+			alive[pc * var_count + a0] = 0;
+			if (not i1) alive[pc * var_count + a1] = 1;			
+
+		} else if (op == lt or op == ge or op == ne or op == eq) {
+
+			if (not i0) alive[pc * var_count + a0] = 1;
+			if (not i1) alive[pc * var_count + a1] = 1;			
+
+		} */
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+	/*
+
+
+	// 	our previous RA implementation, which just uses the user's register attributes:
+
 
 	for (nat i = 0; i < mi_count; i++) {
 
 		print_instruction_window_around(i, 0, "");
-		print_dictionary();
 		puts("[doing something like RA]");
 		getchar();
 
@@ -1887,10 +2345,9 @@ finish_instruction_selection:;
 	puts("[done with RA");
 
 	printf("info: final machine code: for target = %llu\n", target_arch);
-	print_dictionary();
 	print_instructions(1);
 
-
+	*/
 
 
 
@@ -1922,11 +2379,19 @@ finish_instruction_selection:;
 	puts("unknown target"); abort();
 
 
-rv32_generate_machine_code:
+rv32_generate_machine_code:;
 
 
+	{ nat* lengths = calloc(ins_count, sizeof(nat));
+	for (nat i = 0; i < ins_count; i++) {
+		const nat op = ins[i].op;
+		if (op == halt or op == at) continue;
+		nat k = 4;
+		if (op == emit) k = ins[i].args[0];
+		lengths[i] = k;
+	}
 
-
+	print_nats(lengths, ins_count); puts("");
 
 
 /*
@@ -1975,8 +2440,6 @@ rv32_generate_machine_code:
 
 
 
-
-
 	for (nat i = 0; i < ins_count; i++) {
 
 		print_instruction_window_around(i, 0, "");
@@ -2003,6 +2466,7 @@ rv32_generate_machine_code:
 			if (a0 == 2) insert_u16(&my_bytes, &my_count, (uint16_t) a1);
 			if (a0 == 1) insert_u8 (&my_bytes, &my_count, (uint8_t) a1);
 
+
 		} else if (op == r5_i) {
 
 
@@ -2010,9 +2474,20 @@ rv32_generate_machine_code:
 			// then this is NOP generated by us. delete it then. 
 			//      (refuse to generate the machine code for it!)
 
+			u32 k = a4; 
+			if (a5 == 0x42) {
+				printf("info: found a compiler generated r5_i!!\n");
+
+				puts("this means we should nottt use the k as k. instead, we will compute the low bits of the offset.");
+
+				const nat n = compute_label_location(a4);
+				const u32 im = calculate_offset(lengths, i - 1, n) & 0x00000FFF; // new value of k
+
+				k = im;
+			} else k = a4;
 
 			const u32 word = 
-				(a4 << 20U) | 
+				(k  << 20U) | 
 				(a3 << 15U) | 
 				(a2 << 12U) | 
 				(a1 <<  7U) | 
@@ -2043,25 +2518,33 @@ rv32_generate_machine_code:
 
 		} else if (op == r5_u) {
 
-			// we need to call  "calculate_offset()"  here, to get the immediate. 
-			//     we can't just use a2 directly. 
-			//     
-
-			const u32 word = 
-				(a2 << 12U) | 
-				(a1 <<  7U) | 
+			const nat n = compute_label_location(a2);
+			const u32 im = calculate_offset(lengths, i, n) & 0xFFFFF000;
+			const u32 word =
+				(im <<  0U) |
+				(a1 <<  7U) |
 				(a0 <<  0U) ;
 			insert_u32(&my_bytes, &my_count, word);
 
+
+		} else if (op == r5_b) {
+
+			abort();
+			const nat n = compute_label_location(a2);
+			const u32 im = calculate_offset(lengths, i, n) & 0xFFFFF000;
+			const u32 word =
+				(im <<  0U) |
+				(a1 <<  7U) |
+				(a0 <<  0U) ;
+			insert_u32(&my_bytes, &my_count, word);
 
 		} else {
 			printf("could not generate machine code for instruction: %llu\n", op);
 			abort();
 		}
-	}
+	}} 
 
 	goto finished_generation;
-
 
 
 msp430_generate_machine_code:;
@@ -2490,7 +2973,7 @@ generate_hex_array_output:;
 
 	{ char debug_string[4096] = {0};
 	snprintf(debug_string, sizeof debug_string, 
-		"/Users/dwrr/root/projects/riscv_disassembler/run execute %s", 
+		"./riscv_disassembler/run print %s", 
 		output_filename
 	);
 	system(debug_string); } } 
@@ -3220,6 +3703,218 @@ finished_outputting:
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 /*
 
 	// TODO: copy_prop:    we need to be tracing not only rt variables through copies,  
@@ -3236,7 +3931,7 @@ finished_outputting:
 		const nat i1 = !!(imm & 2);
 
 		print_instruction_window_around(pc, 0, "");
-		print_dictionary();
+		print_dictionary(0);
 		puts("----------- COPY PROP --------------");
 		getchar();
 		
@@ -3719,7 +4414,7 @@ static void debug_cte(
 ) {
 
 	print_instruction_window_around(pc, 0, "PC");
-	print_dictionary();
+	print_dictionary(0);
 
 	printf("        ");
 	for (nat j = 0; j < var_count; j++) 
