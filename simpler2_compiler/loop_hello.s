@@ -19,7 +19,7 @@ at loop
 	system
 
 	add iterator 1
-	lt iterator 000101 loop
+	lt iterator 101 loop
 
 
 set rv_sc_arg0 0011

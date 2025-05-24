@@ -1252,8 +1252,8 @@ process_file:;
 			memcpy(new.args, ins[pc].args, sizeof new.args);
 			new.imm = ins[pc].imm;
 			for (nat i = 0; i < arity[op]; i++) {
-				if (op == at and i == 0) continue;
-				if(op == do_ and i == 0) continue;
+				if (op == at  and i == 0) continue;
+				if (op == do_ and i == 0) continue;
 				if (op == lt and i == 2) continue;
 				if (op == ge and i == 2) continue;
 				if (op == ne and i == 2) continue;
@@ -1336,7 +1336,7 @@ process_file:;
 
 		print_instruction_window_around(i, 0, "");
 		puts("-----------OPT: CTK PRUNING---------------");
-		//getchar();
+		getchar();
 
 		const nat op = ins[i].op;
 		const nat imm = ins[i].imm;
@@ -1397,6 +1397,129 @@ process_file:;
 	print_instructions(0);
 	puts("OPT1 finished.");
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+/*
+
+
+copy propagation has a bug:
+
+  •   7 │ 	   set    rv_sc_arg0               0x1                      
+  •   8 │ 	    la    rv_sc_arg1               string                   
+  •   9 │ 	   set    rv_sc_arg2               0xa                      
+  •  10 │ 	   set    rv_sc_number             0x3                      
+  •  11 │ 	  system    
+  •  12 │ 	   set    input_length             rv_sc_arg0               <---- def
+  •  13 │ 	   set    rv_sc_arg0               0x1                      <---- modification to copy
+  •  14 │ 	    la    rv_sc_arg1               inputarea                
+  •  15 │ 	   set    rv_sc_arg2               input_length             <---- propagation fail!
+  •  16 │ 	   set    rv_sc_number             0x3                      
+  •  17 │ 	  system    
+  •  18 │ 	   set    rv_sc_arg0               0x1                      
+  •  19 │ 	    la    rv_sc_arg1               newline                  
+  •  20 │ 	   set    rv_sc_arg2               0x1                      
+  •  21 │ 	   set    rv_sc_number             0x3                      
+  •  22 │ 	  system    
+
+
+
+
+
+
+-----------PRUNING CTK INS:---------------
+
+found real RT isntruction!
+	   set    rv_sc_arg2               input_length             
+note: inlining copy reference: a1=42 imm=0 copy_of=0, i=15...
+original:
+   set    rv_sc_arg2               input_length             
+modified form:
+   set    rv_sc_arg2               rv_sc_arg0               
+was this right to do?...
+
+
+
+
+
+
+the fix to the bug is the following:
+
+
+	when we see a given variable "X"    is modified   
+		as a result of an insrtuction we are on (ie, changed, in any way!)
+
+
+
+
+		then we need to loop over all variables,
+
+			and then look for which are currently known to be a copy of another variable. 
+
+			if, for a given is_copy[] variable, "G"
+
+				if we see that G's   copy_of[] variable index,      IS the edited/modfied variable X   
+
+						then we need to   set   is_copy[]   for that variable G
+
+		then, we will have set is_copy[] = 0   for several variables, maybe   becuase we saw that that variable's value no longer reflects the up to date version of that copy_of[]'s variable's value!!!
+
+
+
+	this is a case    within copy prop   that we arent currently handling, and we need to handle it. 
+
+
+		its pretty simple,  the critcal thing is that we need to do this if we see that the variable X   
+
+			"changed"  in some way 
+
+
+			the ways it could change   is being the destination of   add, sub, mul, div, rem, si, sd, and, or, eor, la, ld,   
+
+				and also               set  
+
+
+			those instructions are capable of changing their destinations. so yeah! nice. 
+
+
+
+we need to implement this. 
+
+written   as of 1202505235.203820
+
+
+
+
+
+
+
+*/
+
+
+
+
+
+
+
+
+
+
+
+
+
 	{ nat* type = calloc(ins_count * var_count, sizeof(nat));
 	nat* value = calloc(ins_count * var_count, sizeof(nat));
 	nat* is_copy = calloc(ins_count * var_count, sizeof(nat));
@@ -1415,7 +1538,7 @@ process_file:;
 		nat* gotos = compute_successors(pc);
 
 		debug_data_flow_state(pc, preds, pred_count, stack, stack_count, value, type, is_copy, copy_of);
-		// getchar();
+		getchar();
 
 		ins[pc].state++;
 
@@ -1491,7 +1614,37 @@ process_file:;
 
 		if (op == halt) continue;
 		else if (op == at) { }
-		else if (op == system_) { }
+		else if (op == system_) {
+
+			/* nat n = (nat) -1;
+			for (nat i = 0; i < var_count; i++) {
+				if (register_index[i] == 17 and // generalize this! 
+				// system_call_number_register(target) and 
+				type[pc * var_count + i]) {
+					n = value[pc * var_count + i]; 
+					break;
+				}
+			}
+			
+			if (n == (nat) -1) {
+				for (nat r = 10; r < 16; r++)
+				for (nat i = 0; i < var_count; i++)
+				if (register_index[i] == r)
+				type[pc * var_count + i] = 0;
+
+			} else if (n == 2) {
+				for (nat i = 0; i < var_count; i++)
+				if (register_index[i] == 10) // arg0 on riscv, outparam of   k = read();
+							// todo, errno should also be returned as an outparam!
+				type[pc * var_count + i] = 0;
+
+			} else if (n == 3) {
+				for (nat i = 0; i < var_count; i++)
+				if (register_index[i] == 10) // arg0 on riscv, outparam of   k = read(); ...(+ errno?)
+				type[pc * var_count + i] = 0;
+			}*/
+
+		}
 		else if (op == emit) { } 
 		else if (op == do_) { }
 		else if (op == set) {
@@ -1587,7 +1740,7 @@ process_file:;
 
 		print_instruction_window_around(i, 0, "");
 		puts("-----------PRUNING CTK INS:---------------");
-		// getchar();
+		getchar();
 
 		const nat op = ins[i].op;
 		const nat imm = ins[i].imm;
@@ -1604,7 +1757,7 @@ process_file:;
 			)
 		) keep = 1;
 
-		if (not keep and ins[i].state) 
+		if (not keep and ins[i].state)
 		for (nat a = 0; a < arity[op]; a++) {
 
 			if (op == at and a == 0) continue;
@@ -1619,6 +1772,14 @@ process_file:;
 				printf("found a compiletime immediate : %llu\n", 
 					ins[i].args[a]
 				);
+
+			} else if (register_index[ins[i].args[a]] != (nat) -1) {
+
+				printf("warning: found a register index variable "
+					"as argument  :  %s\n",
+					variables[ins[i].args[a]]
+				); getchar(); abort();
+
 
 			} else if (type[i * var_count + ins[i].args[a]]) {
 				
@@ -1727,7 +1888,8 @@ process_file:;
 				puts("modified form:"); 
 				print_instruction(ins[i]); 
 				puts("");
-				//getchar();
+				puts("was this right to do?...");
+				getchar();
 			}
 
 		} else if (op == ld or op == st) {
@@ -1900,6 +2062,9 @@ rv32_instruction_selection:;
 
 
 
+/*
+
+
 current state:  1202505235.133756
 
 
@@ -1920,7 +2085,6 @@ current state:  1202505235.133756
 					addi s k
 					ld d s 64                   ie, it modifies the source?   
 								how do we represent this remantics?...
-
 
 
 		
@@ -1945,7 +2109,7 @@ current state:  1202505235.133756
 			} 
 
 
-
+		*/
 
 
 
