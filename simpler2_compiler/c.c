@@ -1,215 +1,13 @@
 // 1202504045.155147 a compiler / assembler for a simpler version of the language.
 // 1202505106.125751 revised to be much simpler and have a simpler translation process.
-
-
-
-/*
-
-1202505224.160953
-	adding more instructions to the msp430 backend:
-
-
-
-1202505224.204759
-	actually i ended up doing regsiter allocation instead LOLL
-	
-
-		
-
-
-
-
-
-struct instruction new = { .op = la, .imm = 0x5 }; // not r5_u, like you would think!!! we expose the auipc and addi at the end, after we determined the pc-rel offset. THIS IS REQUIRED!!!!!!
-			new.args[0] = 0x17;
-			new.args[1] = arg0;
-			new.args[2] = arg1; // we need to determine how we are going to refer to a label here..... probably via name. which means we need to generate "at" statements too, in ins sel. 
-			mi[mi_count++] = new;
-			ins[i].state = 1;
-			continue;
-
-
-			alternatively, we can just generate the   AUIPC / ADDI  pair   and then just know that they always come in pairs, always lol. this is a bit risky though. to help distinguish this, i think we should like, set an additioal bit outside the argument list, just so we know that the compiler generated these ourselves. and they werent from the user. lets do that. 
-
-			
-			*/
-
-
-/* notes i realized whlie reading the risc-v spec:
-
-
-	we will use ins sel patterns   of   la's:
-
-
-			when the programmer says 
-
-				la x label 
-				ld data x size_u32
-
-
-			that will actually translate into a pattern NOTTT involving an ADDI. 
-
-
-			instead, it will translate to:       
-
-
-				auipc x label[31:12]
-				ldw data (x + label[11:0])          (the risc-v load includes an addi.)
-
-
-			thus, only an auipc corresponds to an la in source. 
-
-				it depends whats afterrrr the la.   thats why we need multiple 
-								ins-sel patterns detecting la in various patterns.
-
-
-	//halt, sc, sl, ud, def, do_, at, lf,
-	//set, add, sub, mul, div_, rem, 
-	//and_, or_, eor, si, sd, la, rt, emit, 
-	//ld, st, lt, ge, ne, eq, 
-		
-*/
-
-
-
-		// todo:   we need to be doing this for the risc-v machine instructions,
-		//          ...not the language isa instructions. 
-
-		//						crap lol 
-
-		/*
-		else if (op == set) {
-			alive[pc * var_count + a0] = 0;
-			if (not i1) alive[pc * var_count + a1] = 1;
-
-		} else if (op >= add and op <= sd) {
-			if (not i1) alive[pc * var_count + a1] = 1;
-			
-		} else if (op == st) {
-			if (not i0) alive[pc * var_count + a0] = 1;
-			if (not i1) alive[pc * var_count + a1] = 1;
-
-		} else if (op == ld) {
-			alive[pc * var_count + a0] = 0;
-			if (not i1) alive[pc * var_count + a1] = 1;
-
-		} else if (op == la) {
-			alive[pc * var_count + a0] = 0;
-			if (not i1) alive[pc * var_count + a1] = 1;			
-
-		} else if (op == lt or op == ge or op == ne or op == eq) {
-
-			if (not i0) alive[pc * var_count + a0] = 1;
-			if (not i1) alive[pc * var_count + a1] = 1;			
-
-		} */
-
-
-
-
-
-
-
-
-
-	/*
-
-
-	// 	our previous RA implementation, which just uses the user's register attributes:
-
-
-	for (nat i = 0; i < mi_count; i++) {
-
-		print_instruction_window_around(i, 0, "");
-		puts("[doing something like RA]");
-		//getchar();
-
-		const nat op = ins[i].op;
-		const nat imm = ins[i].imm;
-	
-		for (nat a = 0; a < arity[op]; a++) {
-
-			if (op == at and a == 0) continue;
-			if(op == do_ and a == 0) continue;
-			if (op == lt and a == 2) continue;
-			if (op == ge and a == 2) continue;
-			if (op == ne and a == 2) continue;
-			if (op == eq and a == 2) continue;
-			if (op == la and a == 1) continue;
-
-			const nat this_arg = ins[i].args[a];
-
-			if (imm & (1 << a)) {
-				printf("on argument: [a = %llu]: is_immediate!  (immediate value is %llu)\n", a, this_arg);
-			} else if (not is_label[this_arg]) {
-				
-				printf("on argument: [a = %llu]: NOT is_immediate and NOT label!  (variable = %s) \n", 
-					a, variables[this_arg]
-				);
-
-				puts("filling in the register index we found for this operation!");
-
-				if (register_index[this_arg] == (nat) -1) {
-					printf("FATAL ERROR: no hardware register index was "
-						"not found for variable %s in the below instruction. "
-						"aborting...\n", variables[this_arg]
-					);
-					print_instruction(ins[i]); puts(""); 
-					abort();
-				}
-				ins[i].args[a] = register_index[this_arg];
-				ins[i].imm |= 1LLU << a;
-
-				printf("info: filled in register_index %llu for variable %s into this instruction. ", 
-					ins[i].args[a], variables[this_arg]
-				);				
-			}
-		}
-		puts("hello");
-	}
-
-	puts("[done with RA");
-
-	printf("info: final machine code: for target = %llu\n", target_arch);
-	print_instructions(1);
-
-	*/
-
-
-/*
-riscv branches: (spelt using little endian binary):
-	beq 000
-	bne 100
-	blt 001
-	bge 101
-	bltu 011
-	bgeu 111
-*/
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+// 1202505294.204607 revised the ct system! 
 
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <stdint.h>
 #include <stdbool.h>
+#include <stdnoreturn.h>
 #include <iso646.h>
 #include <fcntl.h>
 #include <unistd.h>
@@ -244,7 +42,7 @@ enum all_output_formats {
 enum core_language_isa {
 	nullins,
 
-	ct, rt, system_, emit, string, 
+	ct, rt, system_, emit, string,
 	file, del, register_, bits,
 	set, add, sub, mul, div_, rem, 
 	and_, or_, eor, si, sd, la, 
@@ -267,11 +65,11 @@ enum core_language_isa {
 static const char* operations[isa_count] = {
 	"___nullins____",
 
-	"system", "compiler", "emit", "string", "file", "del", 
-	"ct", "register", "bitcount",
+	"ct", "rt", "system", "emit", "string", 
+	"file", "del", "register", "bits",
 	"set", "add", "sub", "mul", "div", "rem", 
-	"and", "or", "eor", "si", "sd", "la", "ld", "st", 
-	"lt", "ge", "ne", "eq", "do", "at", "halt", 
+	"and", "or", "eor", "si", "sd", "la", 
+	"ld", "st", "lt", "ge", "ne", "eq", "do", "at", "halt", 
 
 	"a6_nop", "a6_svc", "a6_mov", "a6_bfm",
 	"a6_adc", "a6_addx", "a6_addi", "a6_addr", "a6_adr", 
@@ -289,11 +87,11 @@ static const char* operations[isa_count] = {
 static const nat arity[isa_count] = {
 	0,
 
-	0, 2, 2, 2, 1, 1, 
-	1, 2, 2,
+	0, 0, 0, 2, 2, 
+	1, 1, 2, 2,
 	2, 2, 2, 2, 2, 2, 
-	2, 2, 2, 2, 2, 2, 3, 3, 
-	3, 3, 3, 3, 1, 1, 0, 
+	2, 2, 2, 2, 2, 2, 
+	3, 3, 3, 3, 3, 3, 1, 1, 0,
 			
 	0, 0, 5, 7, 
 	6, 8, 7, 8, 3,
@@ -779,37 +577,6 @@ static nat locate_instruction(struct expected_instruction expected, nat starting
 	return (nat) -1;
 }
 
-
-/*static void push_mi(
-	struct instruction** mi, 
-	nat* mi_count, 
-
-	nat op, nat imm, 
-	
-	nat arg0, nat arg1, nat arg2, 
-	nat arg3, nat arg4, nat arg5,
-	nat arg6, nat arg7
-) {
-	struct instruction new = { 
-		.op = op, 
-		.imm = imm 
-	};
-
-	new.args[0] = arg0;
-	new.args[1] = arg1;
-	new.args[2] = arg2;
-	new.args[3] = arg3;
-	new.args[4] = arg4;
-	new.args[5] = arg5;
-	new.args[6] = arg6;
-	new.args[7] = arg7;
-
-	(*mi)[(*mi_count)++] = new;
-}*/
-
-
-
-
 static void dump_hex(uint8_t* memory, nat count) {
 	printf("dumping bytes: (%llu)\n", count);
 	for (nat i = 0; i < count; i++) {
@@ -904,7 +671,6 @@ static void insert_u64(uint8_t** d, nat* c, uint64_t x) {
 #define	N_EXT 			0x01
 #define	MH_OBJECT 		0x1
 #define REFERENCE_FLAG_DEFINED 	2
-
 
 static nat calculate_offset(nat* length, nat here, nat target) {
 	nat offset = 0;
@@ -1009,75 +775,26 @@ static void debug_liveness(
 }
 
 
+//printf( "note: calling operation: "
+//	"%s (arity %llu)\n", 
+//	operations[op], arity[op]
+//);
+
+
+noreturn static void print_error(
+	const char* message, 
+	const char* filename, 
+	char* text, nat text_length, 
+	nat begin, nat end
+) {
+	printf("%s:%llu:%llu: error: %s\n", filename, begin, end, message);  
+	print_index(text, text_length, begin, end);
+	abort();
+}
+
 int main(int argc, const char** argv) {
 
-
-/*	todo: we need to actually make the ct system work like this:
-
-		instead of attributing whether a variable is compiletime or not, 
-
-		we instead attribute whether an instruction is compiletime or not, 
-
-		and if a variable is defined in a rt or ct context, and this bit setting is defined using the 
-
-		"rt" and "ct" instructions.   by default, the context is set to "rt". 
-
-		saying "rt" alone (no args) changes this bit to runtime code,
-
-		saying "ct" alone (no args) changes this bit to compile time code.
-
-		this allows for code to be more seemlessly transfered between runtime and compiletime,
-		and also for the compiletime system call    "compiler" interface to simply be "system" itself,
-			but where you execute this instruction within a runtime context lol.
-
-		for example, you might see something like:
-
-					ct system ctsc_set_target rv32_arch
-					rt (some other instructions here)
-
-
-
-		the problem with this of course, is that     "system" takes zero arguments......
-
-
-		so i think we do need to have some builtin CT registers, or like, something..
-
-			ORRRRR   we could just use the   register   instruction to actually make certain variables forced to be in particular COMPILETIME "compiler-hardware" registers!!!
-
-
-				thatttt could work. nice. wow lol. thats awesome!!
-
-instead of the large existing isa:
-
-
-	system_, compiler, emit, string, file, del, 
-	constant, register_, bitcount,
-	set, add, sub, mul, div_, rem, 
-	and_, or_, eor, si, sd, la, ld, st, 
-	lt, ge, ne, eq, do_, at, halt, 
-
-
-we could have:     (30 instructions total!)
-
-	ct, rt, system, emit, string, 
-	file, del, register, bits,
-	set, add, sub, mul, div, rem, 
-	and, or, eor, si, sd, la, 
-	ld, st, lt, ge, ne, eq, do, at, halt, 
-
-
-this simplifies a tonnn of the language's ct/rt semantics. 
-		
-
-
-
-*/
-
-
-
-
-
-	if (argc != 2) exit(puts("compiler: \033[31;1merror:\033[0m usage: ./run [file.s]"));
+	if (argc != 2) exit(puts("compiler: error: usage: ./run [file.s]"));
 	
 	const nat min_stack_size = 16384 + 1;
 	nat target_arch = no_arch;
@@ -1094,15 +811,14 @@ this simplifies a tonnn of the language's ct/rt semantics.
 	struct file files[4096] = {0};
 	nat file_count = 1;
 	
-	{ 
+{ {
 	nat text_length = 0;
 	char* text = load_file(argv[1], &text_length);
 	files[0].filename = argv[1];
 	files[0].text = text;
 	files[0].text_length = text_length;
 	files[0].index = 0;
-	}
-
+}
 process_file:;
 	const nat starting_index = files[file_count - 1].index;
 	const nat text_length = files[file_count - 1].text_length;
@@ -1110,7 +826,7 @@ process_file:;
 	const char* filename = files[file_count - 1].filename;
 
 	nat 	word_length = 0, word_start = 0, in_string = 0,
-		arg_count = 0, is_immediate = 0; 
+		arg_count = 0, is_immediate = 0, is_compiletime = 0;
 
 	nat args[max_arg_count] = {0};
 
@@ -1123,7 +839,7 @@ process_file:;
 			nat string_at = ++pc, string_length = 0;
 			while (text[pc] != delim) { pc++; string_length++; }
 			string_list[string_list_count++] = strndup(text + string_at, string_length);
-			struct instruction new = { .op = string, .imm = 0xff };
+			struct instruction new = { .op = string, .imm = 0xff, .state = is_compiletime };
 			new.args[0] = string_length;
 			new.args[1] = string_list_count - 1;
 			ins[ins_count++] = new;
@@ -1146,7 +862,11 @@ process_file:;
 					if (text[i] == ')') comment--;
 					i++;
 				}
-				if (comment) goto print_error;
+				if (comment) print_error(
+					"unterminated comment",
+					filename, text, text_length, 
+					word_start, pc);
+
 				pc = i;
 				goto next_word;
 			}
@@ -1154,20 +874,11 @@ process_file:;
 			for (op = 0; op < isa_count; op++) 
 				if (not strcmp(word, operations[op])) goto process_op;
 
-			print_error: 
-			printf("%s:%llu:%llu:"
-				" error: undefined %s \"%s\"\n",
-				filename, word_start, pc, 
-				op == isa_count ? "operation" : "variable", word
-			); 
- 
-			print_index(text, text_length, word_start, pc);
-			if (op != isa_count) 
-				printf( "note: calling operation: "
-					"%s (arity %llu)\n", 
-					operations[op], arity[op]
-				);
-			abort();
+			print_error(
+				"nonexistent operation",
+				filename, text, text_length,
+				word_start, pc
+			);
 		}
 		else if (op == file) goto define_name;
 		for (var = var_count; var--;) {
@@ -1180,17 +891,18 @@ process_file:;
 		if (not(  
 			(op == lt or op == ge or op == ne or op == eq) and arg_count == 2 or
 			(op == set or op == ld or op == register_) and arg_count == 0 or
-			op == constant or
-			op == do_ or
-			op == at or
-			op == la
+			op == do_ or op == at or op == la
 		)) {
 			nat r = 0, s = 1;
 			for (nat i = 0; i < strlen(word); i++) {
 				if (word[i] == '0') s <<= 1;
 				else if (word[i] == '1') { r += s; s <<= 1; }
 				else if (word[i] == '_') continue;
-				else goto print_error;
+				else print_error(
+					"undefined variable",
+					filename, text, text_length,
+					word_start, pc
+				);
 			}
 			is_immediate |= 1 << arg_count;
 			var = r;
@@ -1208,12 +920,19 @@ process_file:;
 	process_op: 
 		if (op == string) { in_string = 1; goto next_word; } 
 		else if (arg_count < arity[op]) goto next_word;
-		else if (op == del) 		is_undefined[args[0]] = 1;
-		else if (op == constant) 	is_constant[args[0]] = 1;
-		else if (op == file) {
+		else if (op == ct) is_compiletime = 1;
+		else if (op == rt) is_compiletime = 0;
+		else if (op == del) {
+			if (is_immediate) 
+				print_error(
+					"expected defined variable, found binary literal",
+					filename, text, text_length, 
+					word_start, pc
+				);
+			is_undefined[args[0]] = 1;
+		} else if (op == file) {
 			for (nat i = 0; i < included_file_count; i++) {
 				if (strcmp(included_files[i], word)) continue;
-				printf("warning: %s: already included\n", word);
 				goto next_word;
 			}
 			included_files[included_file_count++] = word;
@@ -1228,80 +947,91 @@ process_file:;
 			goto process_file;
 
 		} else {
-			if (op == do_ or op == at) is_label[args[0]] = 1;
-			if (op == la) is_label[args[1]] = 1;
-			if (op == lt or op == ge or op == ne or op == eq) is_label[args[2]] = 1;
+			if (op >= a6_nop and op < isa_count and is_compiletime) 
+				print_error(
+					"machine instruction cannot execute at compiletime",
+					filename, text, text_length,
+					word_start, pc
+				);
 
-			struct instruction new = { .op = op, .imm = is_immediate };
-			memcpy(new.args, args, sizeof args);
-			nat ct = 1;
-			for (nat i = 0; i < arity[op]; i++) {
-				if (is_immediate & (1 << i)) continue;
-				if (is_constant[args[i]]) continue;
-				ct = 0;
+			if (op == do_ or op == at) { 
+				if (is_immediate & 1) { 
+				error_label_immediate: 
+					print_error(
+						"expected label argument, found binary literal",
+						filename, text, text_length,
+						word_start, pc
+					); 
+				} else is_label[args[0]] = 1; 
+			}
+			if (op == la) { 
+				if (is_immediate & 2) goto error_label_immediate; else is_label[args[1]] = 1;
+			}
+			if (op == lt or op == ge or op == ne or op == eq) {
+				if (is_immediate & 4) goto error_label_immediate; else is_label[args[2]] = 1;
+			}
+			if ((op >= set and op <= ld) or op == register_ or op == bits) {
+				if (is_immediate & 1) 
+					print_error(
+						"expected destination variable, found binary literal",
+						filename, text, text_length,
+						word_start, pc
+					); 
 			}
 
-			const nat a0_is_ct = (is_immediate & 1) or is_constant[args[0]];
-			const nat a1_is_ct = (is_immediate & 2) or is_constant[args[1]];
-			const nat a2_is_ct = (is_immediate & 4) or is_constant[args[2]];
-
-			if (op >= a6_nop and op < isa_count) ct = 0;
-			else if (op == halt or op == system_ or op == emit) ct = 0;
-			else if (op == register_) ct = 1;
-			else if (op == st) ct = 0;
-
-			if ((op == ld or op == st) and not a2_is_ct) goto print_error;
-			if (op == compiler and not (a0_is_ct and a1_is_ct)) goto print_error;
-
+			struct instruction new = { 
+				.op = op, 
+				.imm = is_immediate,
+				.state = is_compiletime,
+			};
+			memcpy(new.args, args, sizeof args);
 			is_immediate = 0;
-			new.state = ct;
 			ins[ins_count++] = new;
 		}
 		arg_count = 0; op = 0;
 		next_word: word_length = 0;
 	}
 	file_count--;
-	if (file_count) goto process_file; 
+	if (file_count) goto process_file; }
 
-	if (not ins_count or ins[ins_count - 1].op != halt) ins[ins_count++].op = halt;	
+	if (not ins_count or ins[ins_count - 1].op != halt) 
+		ins[ins_count++] = (struct instruction) { .op = halt, .imm = 0, .state = 0 };
 
 	for (nat pc = 0; pc < ins_count; pc++) {
 		const nat op = ins[pc].op;
 		if (op == at) values[ins[pc].args[0]] = pc;
 	}
 		
-	/*print_dictionary(1);
+	print_dictionary(1);
 	print_instructions(0);
 	puts("parsing finished.");
-	getchar();*/
+	getchar();
 
 	{ struct instruction rt_ins[4096] = {0};
 	nat rt_ins_count = 0;
 
 	memset(bit_count, 255, sizeof bit_count);
 	memset(register_index, 255, sizeof register_index);
-
 	uint8_t* memory = calloc(65536, sizeof(nat));
-
 	bool should_debug_cte = 0;
 
 	for (nat pc = 0; pc < ins_count; pc++) {
 
-		const nat op = ins[pc].op;
-		const nat imm = ins[pc].imm;
-		const nat ct = ins[pc].state;
+		nat op = ins[pc].op;
+		nat imm = ins[pc].imm;
+		nat is_compiletime = ins[pc].state;
 
-		const nat arg0 = ins[pc].args[0];
-		const nat arg1 = ins[pc].args[1];
-		const nat arg2 = ins[pc].args[2];
+		nat arg0 = ins[pc].args[0];
+		nat arg1 = ins[pc].args[1];
+		nat arg2 = ins[pc].args[2];
 
-		const nat i0 = !!(imm & 1);
-		const nat i1 = !!(imm & 2);
-		const nat i2 = !!(imm & 4);
+		nat i0 = !!(imm & 1);
+		nat i1 = !!(imm & 2);
+		nat i2 = !!(imm & 4);
 
-		const nat val0 = not i0 ? values[arg0] : arg0;
-		const nat val1 = not i1 ? values[arg1] : arg1;
-		const nat val2 = not i2 ? values[arg2] : arg2;
+		nat val0 = not i0 ? values[arg0] : arg0;
+		nat val1 = not i1 ? values[arg1] : arg1;
+		nat val2 = not i2 ? values[arg2] : arg2;
 
 		if (should_debug_cte) {
 			print_instruction_window_around(pc, 0, "");
@@ -1315,7 +1045,7 @@ process_file:;
 		}
 
 
-		if (op == string) {
+		if (op == string and not is_compiletime) {
 			for (nat s = 0; s < arg0; s++) { // for string length; 
 				struct instruction new = { .op = emit, .imm = 3 };
 				new.args[0] = 1;
@@ -1323,25 +1053,63 @@ process_file:;
 				rt_ins[rt_ins_count++] = new;
 			}
 		}
-		else if (not ct) {
+
+		else if (op == register_) register_index[arg0] = val1;
+		else if (op == bits)  bit_count[arg0] = val1;
+
+		else if (not is_compiletime) {
 			struct instruction new = { .op = op };
 			memcpy(new.args, ins[pc].args, sizeof new.args);
 			new.imm = ins[pc].imm;
 			for (nat i = 0; i < arity[op]; i++) {
-				if (op == at  and i == 0) continue;
-				if (op == do_ and i == 0) continue;
-				if (op == lt and i == 2) continue;
-				if (op == ge and i == 2) continue;
-				if (op == ne and i == 2) continue;
-				if (op == eq and i == 2) continue;
-				if (op == la and i == 1) continue;
+				if (is_label[new.args[i]]) continue;
 				if (not ((new.imm >> i) & 1) and is_constant[new.args[i]]) {
 					new.args[i] = values[new.args[i]];
 					new.imm |= 1 << i;
 				}
 			}
-			rt_ins[rt_ins_count++] = new;
+
+			imm = new.imm;
+			i1 = !!(imm & 2);
+			arg0 = new.args[0];
+			arg1 = new.args[1];
+			bool keep = 1; 
+
+			if (op >= set and op <= sd and i1) {
+				if (	(op == add or op == sub or op == si or op == sd or
+					 op == eor or op == or_) and not arg1 or 
+					(op == mul or op == div_) and arg1 == 1
+				) keep = 0; 
+
+				else if (op == and_ and not arg1) new.op = set;
+
+				for (nat sh = 0; sh < 64; sh++) {
+					if (op == mul and arg1 == (1LLU << sh)) {
+						new.op = si; new.args[1] = sh; break;
+					} else if (op == div_ and arg1 == (1LLU << sh)) {
+						new.op = sd; new.args[1] = sh; break;
+					} else if (op == rem and arg1 == (1LLU << sh)) {
+						new.op = and_; new.args[1]--; break;
+					}
+				}
+
+			} else if (op >= set and op <= sd and arg0 == arg1) {
+				if (op == set or op == and_ or op == or_) keep = 0;
+				else if (op == eor or op == sub) {
+					new.op = set; new.imm |= 2; new.args[1] = 0;
+				}
+	
+			} else if ((op == lt or op == ge or op == ne or 
+				   op == eq) and arg0 == arg1 and not imm) {
+				if (op == lt or op == ne) keep = 0;
+				else if (op == eq or op == ge) {
+					new.op = do_; new.args[0] = new.args[2];
+				}
+			}
+			if (keep) rt_ins[rt_ins_count++] = new;
+
 		}
+
 		else if (op == at)   values[arg0]  = pc;
 		else if (op == set)  values[arg0]  = val1;
 		else if (op == add)  values[arg0] += val1;
@@ -1369,13 +1137,17 @@ process_file:;
 		else if (op == ge) { if (val0 >= val1) pc = values[arg2]; }
 		else if (op == eq) { if (val0 == val1) pc = values[arg2]; }
 		else if (op == ne) { if (val0 != val1) pc = values[arg2]; }
-		else if (op == register_) register_index[arg0] = val1;
-		else if (op == bitcount)  bit_count[arg0] = val1;
-		else if (op == compiler) {
-			const nat data = val1, n = val0;
+		else if (op == system_) {
+			nat n = 0, output = 0;
+			for (nat i = 0; i < var_count; i++) {
+				if (register_index[i] == 0) output = i;
+				if (register_index[i] == 1) n = values[i];
+			}
+			const nat data = values[output];
+
 			if (n == 0) abort();
 			else if (n == 1) exit(0);
-			else if (n == 2) values[arg1] = read_single_char_from_stdin();
+			else if (n == 2) values[output] = read_single_char_from_stdin();
 			else if (n == 3) { putchar((int) data); fflush(stdout); }
 			else if (n == 4) { print_binary(data); fflush(stdout); }
 			else if (n == 5) { printf("%llu", data); fflush(stdout); }
@@ -1384,20 +1156,21 @@ process_file:;
 			else if (n == 8) target_arch = data;
 			else if (n == 9) output_format = data;
 			else if (n == 10) should_overwrite = data;
-			else if (n == 11) values[arg1] = strlen(string_list[data]);
+			else if (n == 11) values[output] = strlen(string_list[data]);
 			else if (n == 12) stack_size = data;
+			else if (n == 13) values[output] = target_arch;
 			else { puts("error: unknown compiler CT system call"); abort(); } 
-		}
-		else { printf("CTE: fatal internal error: unknown instruction executed: %s...\n", operations[op]); abort(); } 
+		} else { 
+			printf("CTE: fatal internal error: "
+				"unknown instruction executed: %s...\n", 
+				operations[op]
+			); 
+			abort(); 
+		} 
 	}
 
 	memcpy(ins, rt_ins, ins_count * sizeof(struct instruction));
 	ins_count = rt_ins_count;   }
-
-	print_dictionary(1);
-	print_instructions(0);
-	puts("CTE finished.");
-
 
 	if (target_arch == msp430_arch and stack_size) { 
 		puts("fatal error: nonzero stack size for msp430 is not permitted"); 
@@ -1407,86 +1180,9 @@ process_file:;
 		puts("warning: stack size less than the minimum size for arm64");
 	}
 
-
-	for (nat i = 0; i < ins_count; i++) {
-
-		print_instruction_window_around(i, 0, "");
-		puts("-----------OPT: CTK PRUNING---------------");
-		getchar();
-
-		const nat op = ins[i].op;
-		const nat imm = ins[i].imm;
-		const nat i1 = !!(imm & 2);
-		const nat arg0 = ins[i].args[0];
-		const nat arg1 = ins[i].args[1];
-
-		ins[i].state = 1;
-
-		if (op >= set and op <= sd and i1) {
-			if (	(op == add or op == sub or
-				 op == si or op == sd or
-				 op == eor or op == or_)
-				and not arg1 or 
-				(op == mul or op == div_)
-				and arg1 == 1
-			) ins[i].state = 0; 
-
-			else if (op == and_ and not arg1) 
-				ins[i].op = set;
-
-			for (nat sh = 0; sh < 64; sh++) {
-				if (op == mul and arg1 == (1LLU << sh)) {
-					ins[i].op = si;
-					ins[i].args[1] = sh;
-					break;
-				} else if (op == div_ and arg1 == (1LLU << sh)) {
-					ins[i].op = sd;
-					ins[i].args[1] = sh;
-					break;
-				} 
-			}
-
-		} else if (op >= set and op <= sd and arg0 == arg1) {
-			if (op == set or op == and_ or op == or_) ins[i].state = 0;
-			else if (op == eor or op == sub) {
-				ins[i].op = set;
-				ins[i].imm |= 2;
-				ins[i].args[1] = 0;
-			}
-
-		} else if ((op == lt or op == ge or op == ne or op == eq) and arg0 == arg1 and not imm) {
-			if (op == lt or op == ne) ins[i].state = 0;
-			else if (op == eq or op == ge) {
-				ins[i].op = do_;
-				ins[i].args[0] = ins[i].args[2];
-			}
-		}
-	}
-
-	{ nat final_ins_count = 0;
-	for (nat i = 0; i < ins_count; i++) {
-		if (not ins[i].state) continue;
-		ins[final_ins_count++] = ins[i];
-	}
-	ins_count = final_ins_count; }
-
+	print_dictionary(1);
 	print_instructions(0);
-	puts("OPT1 finished.");
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+	puts("CT-PRUNED-EXECUTION finished.");
 
 
 /*
@@ -1549,9 +1245,9 @@ the fix to the bug is the following:
 
 				if we see that G's   copy_of[] variable index,      IS the edited/modfied variable X   
 
-						then we need to   set   is_copy[]   for that variable G
+						then we need to   set   is_copy[]   for that variable G   to 0!
 
-		then, we will have set is_copy[] = 0   for several variables, maybe   becuase we saw that that variable's value no longer reflects the up to date version of that copy_of[]'s variable's value!!!
+		ie, we will have set is_copy[] = 0   for several variables, maybe   becuase we saw that that variable's value no longer reflects the up to date version of that copy_of[]'s variable's value!!!
 
 
 
@@ -1577,21 +1273,7 @@ we need to implement this.
 written   as of 1202505235.203820
 
 
-
-
-
-
-
 */
-
-
-
-
-
-
-
-
-
 
 
 
@@ -1793,6 +1475,14 @@ written   as of 1202505235.203820
 			if (label < ins_count and ins[label].state < 2) stack[stack_count++] = label; 
 			continue;
 		}
+
+		if (op >= set and op <= ld) {
+			for (nat i = 0; i < var_count; i++) {
+				if (is_copy[pc * var_count + i] and 
+				    copy_of[pc * var_count + i] == a0) 
+					is_copy[pc * var_count + i] = 0;
+			}
+		}
 	}
 
 	debug_data_flow_state(0, NULL, 0, stack, stack_count, value, type, is_copy, copy_of);
@@ -1802,11 +1492,6 @@ written   as of 1202505235.203820
 	print_instructions(0);
 	puts("OPT2 finished.");
 	getchar();
-
-
-
-
-
 
 	puts("pruning ctk instructions...");
 
@@ -1936,16 +1621,6 @@ written   as of 1202505235.203820
 						break;
 					} 
 				}
-
-			} else if (ins[i].args[0] == ins[i].args[1]) {
-				if (op == set or op == and_ or op == or_) { 
-					puts("found a rt NOP! deleting this instruction."); 
-					ins[i].state = 0; }
-				else if (op == eor or op == sub) {
-					ins[i].op = set;
-					ins[i].imm |= 2;
-					ins[i].args[1] = 0;
-				}
 			}
 
 			if (not (ins[i].imm & 2) and is_copy[i * var_count + ins[i].args[1]]) {
@@ -1964,9 +1639,19 @@ written   as of 1202505235.203820
 				puts("modified form:"); 
 				print_instruction(ins[i]); 
 				puts("");
-				puts("was this right to do?...");
-				getchar();
 			}
+
+			if (ins[i].args[0] == ins[i].args[1]) {
+				if (op == set or op == and_ or op == or_) { 
+					puts("found a rt NOP! deleting this instruction."); 
+					ins[i].state = 0; }
+				else if (op == eor or op == sub) {
+					ins[i].op = set;
+					ins[i].imm |= 2;
+					ins[i].args[1] = 0;
+				}
+			}
+
 
 		} else if (op == ld or op == st) {
 			puts("we still need to embed the immediates into the load and store instructions.");
@@ -1998,7 +1683,6 @@ written   as of 1202505235.203820
 		}
 	}
 
-
 	{ nat final_ins_count = 0;
 	for (nat i = 0; i < ins_count; i++) {
 		if (not ins[i].state) continue;
@@ -2010,11 +1694,7 @@ written   as of 1202505235.203820
 	puts("CTK PRUNING finished.");
 	getchar();
 
-
-
-
 	if (target_arch == rv32_arch or target_arch == rv64_arch) {
-
 		puts("replacing branch immediates with branch register, on rv32...");
 
 		for (nat i = 0; i < ins_count; i++) {
@@ -2022,18 +1702,17 @@ written   as of 1202505235.203820
 			const nat imm = ins[i].imm;
 			const nat i0 = !!(imm & 1);
 			const nat i1 = !!(imm & 2);
-			//const nat a0 = ins[i].args[0];
+			const nat a0 = ins[i].args[0];
 			const nat a1 = ins[i].args[1];
 
 			if (not (op == lt or op == ge or op == ne or op == eq)) continue;
-
-			if (i0) {
-				puts("lol");
-				abort();
-
-			} else if (i1 and a1) {
-
-				const nat n = a1;				
+			if ((i0 and a0) or (i1 and a1)) {
+				if (i0) {
+					nat t = a0;
+					ins[i].args[0] = ins[i].args[1];
+					ins[i].args[1] = t;
+				}
+				const nat n = ins[i].args[1];
 				
 				variables[var_count] = strdup("MY_NEW"); //strdup(generate_new_variable_name());
 				var_count++;
@@ -2052,13 +1731,9 @@ written   as of 1202505235.203820
 		}
 	}
 	
-
 	print_instructions(0);
 	puts("non imm branches for riscv done.");
 	getchar();
-
-
-
 
 
 	printf("info: compiling for [target_architecture = %llu, output_format = %llu (%s)]\n", 
@@ -2082,12 +1757,8 @@ written   as of 1202505235.203820
 
 
 rv32_instruction_selection:;
-
 	puts("rv32: instruction selection starting...");
-
 	{ struct instruction new = {0};
-
-
 	const nat unrecognized = (nat) -1;
 
 	for (nat i = 0; i < ins_count; i++) {
@@ -2118,7 +1789,6 @@ rv32_instruction_selection:;
 		const nat i1 = !!(imm & 2);
 		//const nat i2 = !!(imm & 4);
 
-
 		if (	
 			op == r5_i or op == r5_r or 
 			op == r5_s or op == r5_b or 
@@ -2130,11 +1800,6 @@ rv32_instruction_selection:;
 		}
 
 	
-
-
-
-
-
 
 
 
@@ -2160,7 +1825,7 @@ current state:  1202505235.133756
 
 					addi s k
 					ld d s 64                   ie, it modifies the source?   
-								how do we represent this remantics?...
+								how do we represent this semantics?...
 
 
 		
@@ -2467,7 +2132,6 @@ finish_instruction_selection:;
 			abort();
 		}
 	}
-
 	
 	for (nat i = 0; i < mi_count; i++) ins[i] = mi[i];
 	ins_count = mi_count;
@@ -2477,10 +2141,7 @@ finish_instruction_selection:;
 	print_instructions(1);
 	getchar();
 
-
-
 	puts("RA: starting register allocation!");
-
 
 // the alive[] values      represent   the aliveness                    BEFORE    the instruction executes.  
 
@@ -2580,7 +2241,6 @@ finish_instruction_selection:;
 	}
 	print_instructions(0);
 	puts("liveness analysis finished.");
-	//getchar();
 
 	nat* needs_ra = calloc(var_count, sizeof(nat));
 
@@ -2742,9 +2402,7 @@ finish_instruction_selection:;
 	}
 	puts("\n[done with graph coloring in RA]");
 	}
-
 		
-
 	for (nat i = 0; i < ins_count; i++) {
 		ins[i].state = 0;
 	}
@@ -2752,7 +2410,7 @@ finish_instruction_selection:;
 	puts("filling in RA assignments into the machine code...");
 	for (nat i = 0; i < ins_count; i++) {
 		print_instruction_window_around(i, 0, "");
-		puts("[doing something like RA]");
+		puts("[RA: filling in allocation scheme, [dead store elmination]]");
 		//getchar();
 
 		const nat op = ins[i].op;
@@ -2804,13 +2462,9 @@ finish_instruction_selection:;
 	getchar();
 	puts("[done with RA");
 
-
 	printf("info: finished final machine code for target = %llu\n", target_arch);
 	print_instructions(1);
 	getchar();
-
-
-
 
 	puts("generating final machine code binary...");
 
@@ -2828,9 +2482,7 @@ finish_instruction_selection:;
 	if (target_arch == msp430_arch) goto msp430_generate_machine_code;
 	puts("unknown target"); abort();
 
-
 rv32_generate_machine_code:;
-
 
 	{ nat* lengths = calloc(ins_count, sizeof(nat));
 	for (nat i = 0; i < ins_count; i++) {
@@ -3082,9 +2734,7 @@ msp430_generate_machine_code:;
 		}
 	}}
 
-
 	goto finished_generation;
-
 
 
 arm64_generate_machine_code:;
@@ -3098,7 +2748,6 @@ arm64_generate_machine_code:;
 	print_nats(lengths, ins_count); puts("");
 
 	for (nat i = 0; i < ins_count; i++) {
-
 
 		print_instruction_window_around(i, 0, "");
 		puts("");
@@ -3344,9 +2993,7 @@ arm64_generate_machine_code:;
 				(1 << 21U) | (a3 << 16U) | (opt << 13U) |
 				(S << 12U) | (2 << 10U) | (a2 << 5U) | (a1);
 			insert_u32(&my_bytes, &my_count, to_emit);
-
 		}
-
 		else {
 			printf("error: unknown mi op=\"%s\"\n", operations[op]);
 			abort();
@@ -3370,7 +3017,6 @@ finished_generation:;
 	if (output_format == elf_object) abort();
 	puts("unknown target"); abort();
 
-
 print_debug_output_only:;
 
 	printf("debug: executable bytes: (%llu bytes)\n", my_count);
@@ -3381,14 +3027,11 @@ print_debug_output_only:;
 		if (my_bytes[i]) printf("\033[0m");
 	}
 	puts("");
-
 	goto finished_outputting;
-
 	
 generate_hex_array_output:;
 
-	{
-	nat len = 0;
+	{ nat len = 0;
 	char out[14000] = {0};
 
 	len += (nat) snprintf(out + len, sizeof out, "// executable autogenerated by my compiler\n");
@@ -3424,7 +3067,7 @@ generate_hex_array_output:;
 
 	{ char debug_string[4096] = {0};
 	snprintf(debug_string, sizeof debug_string, 
-		"./riscv_disassembler/run print %s", 
+		"./useful/riscv_disassembler/run print %s", 
 		output_filename
 	);
 	system(debug_string); } } 
@@ -3606,7 +3249,6 @@ generate_macho_executable:;
 	system(codesign_string);
 
 	printf("info: successsfully generated executable: %s\n", output_filename); } 
-
 	goto finished_outputting;
 
 generate_macho_object:;
@@ -3763,13 +3405,12 @@ struct symtab_command {
 	close(file); } 
 
 	printf("info: success: generated object file: %s\n", output_filename);
-
 	goto finished_outputting;
 
 
 generate_ti_txt_executable:;
 
-	char out[14000] = {0};
+	{ char out[14000] = {0};
 	nat len = 0, this_section = 0, section_byte_count = 0;
 
 	print_nats(section_starts, section_count);
@@ -3812,8 +3453,7 @@ generate_ti_txt_executable:;
 
 	char debug_string[4096] = {0};
 	snprintf(debug_string, sizeof debug_string, "../../led_display/embedded_assembler/msp430_disassembler/run %s", output_filename);
-	system(debug_string);
-
+	system(debug_string); }
 
 	goto finished_outputting;
 
@@ -3854,17 +3494,13 @@ generate_uf2_executable:;
 	//  or just make the dissassembler able to read in  a UF2 file directly, and dissassemble it. 
 
 	// 		(probably this option, actually. lol. shouldnt be that hard.?)
-
 	
-
-	
-	
-}
+	}
 
 
 finished_outputting: 
-
 	exit(0);
+
 
 } // main 
 
@@ -4266,6 +3902,291 @@ finished_outputting:
 
 
 
+
+
+
+
+/*	1202505294.204718 todo: we need to actually make the ct system work like this:
+
+		instead of attributing whether a variable is compiletime or not, 
+
+		we instead attribute whether an instruction is compiletime or not, 
+
+		and if a variable is defined in a rt or ct context, and this bit setting is defined using the 
+
+		"rt" and "ct" instructions.   by default, the context is set to "rt". 
+
+		saying "rt" alone (no args) changes this bit to runtime code,
+
+		saying "ct" alone (no args) changes this bit to compile time code.
+
+		this allows for code to be more seemlessly transfered between runtime and compiletime,
+		and also for the compiletime system call    "compiler" interface to simply be "system" itself,
+			but where you execute this instruction within a runtime context lol.
+
+		for example, you might see something like:
+
+					ct system ctsc_set_target rv32_arch
+					rt (some other instructions here)
+
+
+
+		the problem with this of course, is that     "system" takes zero arguments......
+
+
+		so i think we do need to have some builtin CT registers, or like, something..
+
+			ORRRRR   we could just use the   register   instruction to actually make certain variables forced to be in particular COMPILETIME "compiler-hardware" registers!!!
+
+
+				thatttt could work. nice. wow lol. thats awesome!!
+
+instead of the large existing isa:
+
+
+	system_, compiler, emit, string, file, del, 
+	constant, register_, bitcount,
+	set, add, sub, mul, div_, rem, 
+	and_, or_, eor, si, sd, la, ld, st, 
+	lt, ge, ne, eq, do_, at, halt, 
+
+
+we could have:     (30 instructions total!)
+
+	ct, rt, system, emit, string, 
+	file, del, register, bits,
+	set, add, sub, mul, div, rem, 
+	and, or, eor, si, sd, la, 
+	ld, st, lt, ge, ne, eq, do, at, halt, 
+
+
+this simplifies a tonnn of the language's ct/rt semantics. 
+		
+
+
+
+*/
+
+
+
+
+
+
+
+
+
+
+/*
+
+1202505224.160953
+	adding more instructions to the msp430 backend:
+
+
+
+1202505224.204759
+	actually i ended up doing regsiter allocation instead LOLL
+	
+
+		
+
+
+
+
+
+struct instruction new = { .op = la, .imm = 0x5 }; // not r5_u, like you would think!!! we expose the auipc and addi at the end, after we determined the pc-rel offset. THIS IS REQUIRED!!!!!!
+			new.args[0] = 0x17;
+			new.args[1] = arg0;
+			new.args[2] = arg1; // we need to determine how we are going to refer to a label here..... probably via name. which means we need to generate "at" statements too, in ins sel. 
+			mi[mi_count++] = new;
+			ins[i].state = 1;
+			continue;
+
+
+			alternatively, we can just generate the   AUIPC / ADDI  pair   and then just know that they always come in pairs, always lol. this is a bit risky though. to help distinguish this, i think we should like, set an additioal bit outside the argument list, just so we know that the compiler generated these ourselves. and they werent from the user. lets do that. 
+
+			
+			*/
+
+
+/* notes i realized whlie reading the risc-v spec:
+
+
+	we will use ins sel patterns   of   la's:
+
+
+			when the programmer says 
+
+				la x label 
+				ld data x size_u32
+
+
+			that will actually translate into a pattern NOTTT involving an ADDI. 
+
+
+			instead, it will translate to:       
+
+
+				auipc x label[31:12]
+				ldw data (x + label[11:0])          (the risc-v load includes an addi.)
+
+
+			thus, only an auipc corresponds to an la in source. 
+
+				it depends whats afterrrr the la.   thats why we need multiple 
+								ins-sel patterns detecting la in various patterns.
+
+
+	//halt, sc, sl, ud, def, do_, at, lf,
+	//set, add, sub, mul, div_, rem, 
+	//and_, or_, eor, si, sd, la, rt, emit, 
+	//ld, st, lt, ge, ne, eq, 
+		
+*/
+
+
+
+		// todo:   we need to be doing this for the risc-v machine instructions,
+		//          ...not the language isa instructions. 
+
+		//						crap lol 
+
+		/*
+		else if (op == set) {
+			alive[pc * var_count + a0] = 0;
+			if (not i1) alive[pc * var_count + a1] = 1;
+
+		} else if (op >= add and op <= sd) {
+			if (not i1) alive[pc * var_count + a1] = 1;
+			
+		} else if (op == st) {
+			if (not i0) alive[pc * var_count + a0] = 1;
+			if (not i1) alive[pc * var_count + a1] = 1;
+
+		} else if (op == ld) {
+			alive[pc * var_count + a0] = 0;
+			if (not i1) alive[pc * var_count + a1] = 1;
+
+		} else if (op == la) {
+			alive[pc * var_count + a0] = 0;
+			if (not i1) alive[pc * var_count + a1] = 1;			
+
+		} else if (op == lt or op == ge or op == ne or op == eq) {
+
+			if (not i0) alive[pc * var_count + a0] = 1;
+			if (not i1) alive[pc * var_count + a1] = 1;			
+
+		} */
+
+
+
+
+
+
+
+
+
+	/*
+
+
+	// 	our previous RA implementation, which just uses the user's register attributes:
+
+
+	for (nat i = 0; i < mi_count; i++) {
+
+		print_instruction_window_around(i, 0, "");
+		puts("[doing something like RA]");
+		//getchar();
+
+		const nat op = ins[i].op;
+		const nat imm = ins[i].imm;
+	
+		for (nat a = 0; a < arity[op]; a++) {
+
+			if (op == at and a == 0) continue;
+			if(op == do_ and a == 0) continue;
+			if (op == lt and a == 2) continue;
+			if (op == ge and a == 2) continue;
+			if (op == ne and a == 2) continue;
+			if (op == eq and a == 2) continue;
+			if (op == la and a == 1) continue;
+
+			const nat this_arg = ins[i].args[a];
+
+			if (imm & (1 << a)) {
+				printf("on argument: [a = %llu]: is_immediate!  (immediate value is %llu)\n", a, this_arg);
+			} else if (not is_label[this_arg]) {
+				
+				printf("on argument: [a = %llu]: NOT is_immediate and NOT label!  (variable = %s) \n", 
+					a, variables[this_arg]
+				);
+
+				puts("filling in the register index we found for this operation!");
+
+				if (register_index[this_arg] == (nat) -1) {
+					printf("FATAL ERROR: no hardware register index was "
+						"not found for variable %s in the below instruction. "
+						"aborting...\n", variables[this_arg]
+					);
+					print_instruction(ins[i]); puts(""); 
+					abort();
+				}
+				ins[i].args[a] = register_index[this_arg];
+				ins[i].imm |= 1LLU << a;
+
+				printf("info: filled in register_index %llu for variable %s into this instruction. ", 
+					ins[i].args[a], variables[this_arg]
+				);				
+			}
+		}
+		puts("hello");
+	}
+
+	puts("[done with RA");
+
+	printf("info: final machine code: for target = %llu\n", target_arch);
+	print_instructions(1);
+
+	*/
+
+
+/*
+riscv branches: (spelt using little endian binary):
+	beq 000
+	bne 100
+	blt 001
+	bge 101
+	bltu 011
+	bgeu 111
+*/
+
+
+
+/*static void push_mi(
+	struct instruction** mi, 
+	nat* mi_count, 
+
+	nat op, nat imm, 
+	
+	nat arg0, nat arg1, nat arg2, 
+	nat arg3, nat arg4, nat arg5,
+	nat arg6, nat arg7
+) {
+	struct instruction new = { 
+		.op = op, 
+		.imm = imm 
+	};
+
+	new.args[0] = arg0;
+	new.args[1] = arg1;
+	new.args[2] = arg2;
+	new.args[3] = arg3;
+	new.args[4] = arg4;
+	new.args[5] = arg5;
+	new.args[6] = arg6;
+	new.args[7] = arg7;
+
+	(*mi)[(*mi_count)++] = new;
+}*/
 
 
 
