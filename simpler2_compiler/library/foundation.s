@@ -48,16 +48,20 @@ ct rv32_arch 	set rv32_arch 001
 ct msp430_arch 	set msp430_arch 101
 
 ct debug_output_only 	set debug_output_only 0
+
 ct macho_executable 	set macho_executable 1
-ct macho_object 		set macho_object 01
+ct macho_object 	set macho_object 01
+
 ct elf_executable 	set elf_executable 11
 ct elf_object 		set elf_object 001
+
 ct ti_txt_executable 	set ti_txt_executable 101
-ct hex_array_txt_executable  set hex_array_txt_executable 011
+ct uf2_executable 	set uf2_executable 011
+
+ct hex_array_txt_executable  set hex_array_txt_executable 111
 
 ct true set true 1
 ct false set false 0
-
 
 
 (end of standard library code) 

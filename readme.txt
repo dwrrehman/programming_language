@@ -16,8 +16,7 @@ language ISA:
 
 language-specific instructions:
 ----------------------------------
-	runtime x	: make x runtime known. 
-	constant x	: make x compiletime known
+	ct x	: make x compiletime known
 	register x r	: make x stored in hardware register r. x is rtk. 
 	bitcount x b	: make x stored in at least b bits.
 
@@ -181,15 +180,19 @@ the long term aspirations of this language are to replace my using of C for heav
 some further notes about the language:
 -------------------------------------------
 
-a goal is for the language ISA instructions and patterns of them are used to construct all hardware instructions used in the target ISAs, via instruction selection and register allocation. in cases where this is not feasible, direct access to both hardware registers, and machine instructions is provided. 
+a goal of this language is generally speaking to use the language ISA instructions (and various patterns of them) to construct all useful hardware instructions/registers present in the target machine ISAs, via instruction selection and register allocation. in cases where this is not feasible, direct access to both hardware registers, and machine instructions is provided. 
 
-an extended form of constant propagation/folding is used in the compiler after parsing to allow for fully turing-complete compile-time execution, and thus the generation of arbitrary data for use during runtime, allowing for further optimizations not possible in languages such as C. additionally, the notion of macros (compiletime function calls) can be constructed at user level from this compiletime evaluation system. 
+needless to say, there is no notion of structs, generics, classes in this language, (or any other typical high-level abstraction found in most languages), as these are not neccessary for programming, and generally hinder optimizations, and also in a lot of cases, hinder programming as well.
 
-there is currently no built-in mechanism for allowing the user to define their own functions, or macro-operations, and this is not planned to be implemented currently. rather, a macro-like mechanism is emergently acheived via the existing operations such as "at", "do", "set", etc. 
+a compiletime execution system is used in the compiler after parsing to allow for fully turing-complete compile-time execution, and thus the generation of arbitrary data and runtime instructions for use during the runtime program, allowing for further optimizations not possible in languages such as C. after this step is performed, a constant propagation/folding optimization stage (akin to SCCP in SSA compilers) is also performed as well, on the generated runtime program which resulted from the first compiletime execution stage. 
 
-a graph coloring approach for register allocation is planned to be used. currently unimplemented, as instruction selection is currently in progress. as stated, spill code, and automatic stack memory management will not take place, ever. if register allocation (RA) fails to allocate variables into the registers, an error is generated, and the programmer must fix this error by manually managing stack memory or storing variables in memory somehow, or compressing the data variables into registers better. 
+the first CT execution stage is quite powerful, allowing for a derived feature of compiletime macros (implemented as effectively compiletime function calls) to be constructed at user level from this compiletime execution system. 
 
-also, there is no notion of functions, structs, classes (or any other typical high-level abstraction) in this language, as these are not neccessary, and hinder optimizations. 
+currently, there is no built-in mechanism for allowing the user to define their own functions, or macro operations, and this is not planned to be implemented, at least for now. rather, the user can use the macro-like mechanism that is emergently acheived via the existing builtin language operations such as "at", "do", "set", etc., where these are executed at compiletime.
+
+a graph coloring approach for register allocation is currently used. as stated, spill code, and automatic stack memory management will not take place, ever, by design. if register allocation (RA) fails to allocate all the program's variables into the hardware registers, an error is generated, and the programmer must fix this error by manually managing stack memory or storing variables in memory somehow, or somehow compressing the data variables into registers better. 
+
+instruction scheduling is currently not implemented, however, when it is implemented, minimizing register pressure will always be a paramount goal of the scheduler, unless there are available registers for use.
 
 comments are denoted with parenthesis, and are character based, not word based, and are only allowed between valid instructions. additionally, comments can nest within each other. eg, (something (like this) or that.)
 

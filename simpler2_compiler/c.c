@@ -232,16 +232,23 @@ typedef uint8_t byte;
 #define max_arg_count 12
 
 enum all_architectures { no_arch, arm64_arch, arm32_arch, rv64_arch, rv32_arch, msp430_arch, };
-enum all_output_formats { debug_output_only, macho_executable, macho_object, elf_executable, elf_object, ti_txt_executable, hex_array_txt_executable, };
+enum all_output_formats { 
+	debug_output_only, 
+	macho_executable, macho_object, 
+	elf_executable, elf_object, 
+	ti_txt_executable, 
+	uf2_executable, 
+	hex_array_txt_executable, 
+};
 
 enum core_language_isa {
 	nullins,
 
-	system_, compiler, emit, string, file, del, 
-	constant, register_, bitcount,
+	ct, rt, system_, emit, string, 
+	file, del, register_, bits,
 	set, add, sub, mul, div_, rem, 
-	and_, or_, eor, si, sd, la, ld, st, 
-	lt, ge, ne, eq, do_, at, halt, 
+	and_, or_, eor, si, sd, la, 
+	ld, st, lt, ge, ne, eq, do_, at, halt, 
 	
 	a6_nop, a6_svc, a6_mov, a6_bfm,
 	a6_adc, a6_addx, a6_addi, a6_addr, a6_adr, 
@@ -1004,6 +1011,72 @@ static void debug_liveness(
 
 int main(int argc, const char** argv) {
 
+
+/*	todo: we need to actually make the ct system work like this:
+
+		instead of attributing whether a variable is compiletime or not, 
+
+		we instead attribute whether an instruction is compiletime or not, 
+
+		and if a variable is defined in a rt or ct context, and this bit setting is defined using the 
+
+		"rt" and "ct" instructions.   by default, the context is set to "rt". 
+
+		saying "rt" alone (no args) changes this bit to runtime code,
+
+		saying "ct" alone (no args) changes this bit to compile time code.
+
+		this allows for code to be more seemlessly transfered between runtime and compiletime,
+		and also for the compiletime system call    "compiler" interface to simply be "system" itself,
+			but where you execute this instruction within a runtime context lol.
+
+		for example, you might see something like:
+
+					ct system ctsc_set_target rv32_arch
+					rt (some other instructions here)
+
+
+
+		the problem with this of course, is that     "system" takes zero arguments......
+
+
+		so i think we do need to have some builtin CT registers, or like, something..
+
+			ORRRRR   we could just use the   register   instruction to actually make certain variables forced to be in particular COMPILETIME "compiler-hardware" registers!!!
+
+
+				thatttt could work. nice. wow lol. thats awesome!!
+
+instead of the large existing isa:
+
+
+	system_, compiler, emit, string, file, del, 
+	constant, register_, bitcount,
+	set, add, sub, mul, div_, rem, 
+	and_, or_, eor, si, sd, la, ld, st, 
+	lt, ge, ne, eq, do_, at, halt, 
+
+
+we could have:     (30 instructions total!)
+
+	ct, rt, system, emit, string, 
+	file, del, register, bits,
+	set, add, sub, mul, div, rem, 
+	and, or, eor, si, sd, la, 
+	ld, st, lt, ge, ne, eq, do, at, halt, 
+
+
+this simplifies a tonnn of the language's ct/rt semantics. 
+		
+
+
+
+*/
+
+
+
+
+
 	if (argc != 2) exit(puts("compiler: \033[31;1merror:\033[0m usage: ./run [file.s]"));
 	
 	const nat min_stack_size = 16384 + 1;
@@ -1172,11 +1245,14 @@ process_file:;
 			const nat a1_is_ct = (is_immediate & 2) or is_constant[args[1]];
 			const nat a2_is_ct = (is_immediate & 4) or is_constant[args[2]];
 
-			if (op >= a6_nop and op <= isa_count) ct = 0;
+			if (op >= a6_nop and op < isa_count) ct = 0;
 			else if (op == halt or op == system_ or op == emit) ct = 0;
 			else if (op == register_) ct = 1;
-			else if ((op == ld or op == st) and not a2_is_ct) goto print_error;
-			else if (op == compiler and not (a0_is_ct and a1_is_ct)) goto print_error;
+			else if (op == st) ct = 0;
+
+			if ((op == ld or op == st) and not a2_is_ct) goto print_error;
+			if (op == compiler and not (a0_is_ct and a1_is_ct)) goto print_error;
+
 			is_immediate = 0;
 			new.state = ct;
 			ins[ins_count++] = new;
@@ -1194,10 +1270,10 @@ process_file:;
 		if (op == at) values[ins[pc].args[0]] = pc;
 	}
 		
-	print_dictionary(1);
+	/*print_dictionary(1);
 	print_instructions(0);
 	puts("parsing finished.");
-	getchar();
+	getchar();*/
 
 	{ struct instruction rt_ins[4096] = {0};
 	nat rt_ins_count = 0;
@@ -3287,11 +3363,11 @@ finished_generation:;
 	if (output_format == debug_output_only) goto print_debug_output_only;
 	if (output_format == hex_array_txt_executable) goto generate_hex_array_output;
 	if (output_format == ti_txt_executable) goto generate_ti_txt_executable;
+	if (output_format == uf2_executable) goto generate_uf2_executable;
 	if (output_format == macho_executable) goto generate_macho_executable;
 	if (output_format == macho_object) goto generate_macho_object;
 	if (output_format == elf_executable) abort();
 	if (output_format == elf_object) abort();
-	
 	puts("unknown target"); abort();
 
 
@@ -3357,7 +3433,7 @@ generate_hex_array_output:;
 
 generate_macho_executable:;
 
-	while (my_count % 16) insert_byte(&my_bytes, &my_count, 0);
+	{while (my_count % 16) insert_byte(&my_bytes, &my_count, 0);
 
 	uint8_t* data = NULL;
 	nat count = 0;	
@@ -3529,7 +3605,7 @@ generate_macho_executable:;
 	snprintf(codesign_string, sizeof codesign_string, "objdump -D %s", output_filename);
 	system(codesign_string);
 
-	printf("info: successsfully generated executable: %s\n", output_filename);
+	printf("info: successsfully generated executable: %s\n", output_filename); } 
 
 	goto finished_outputting;
 
@@ -3737,6 +3813,53 @@ generate_ti_txt_executable:;
 	char debug_string[4096] = {0};
 	snprintf(debug_string, sizeof debug_string, "../../led_display/embedded_assembler/msp430_disassembler/run %s", output_filename);
 	system(debug_string);
+
+
+	goto finished_outputting;
+
+generate_uf2_executable:;
+
+	{ const nat starting_address = 0x00000000;    // user sets this using the "section_address k" instruction. 
+
+	while (my_count % 256) 
+		insert_byte(&my_bytes, &my_count, 0); 		// pad to 256 byte chunks
+
+	const nat block_count = my_count / 256;
+
+	uint8_t* data = NULL;
+	nat count = 0;	
+	nat current_offset = 0;
+	for (nat block = 0; block < block_count; block++) {
+		insert_u32(&data, &count, 0x0A324655);
+		insert_u32(&data, &count, 0x9E5D5157);
+		insert_u32(&data, &count, 0);
+		insert_u32(&data, &count, (uint32_t) (starting_address + current_offset)); 
+		insert_u32(&data, &count, 256); 
+		insert_u32(&data, &count, (uint32_t) block); 
+		insert_u32(&data, &count, (uint32_t) block_count); 
+		insert_u32(&data, &count, 0); 
+		for (nat i = 0; i < 256; i++) 
+			insert_byte(&data, &count, my_bytes[current_offset + i]);
+		for (nat i = 0; i < 476 - 256; i++) insert_byte(&data, &count, 0);
+		insert_u32(&data, &count, 0x0AB16F30);
+		current_offset += 256;
+	}
+
+	dump_hex(data, count);	
+	puts("generating uf2 output file...");
+
+	// next step:   write these blocks to   a new file  with filename       "output_from_compiler.uf2"
+
+	// and also generate a "hex array" version of the output of these bytes, so that we can see the dissassembly,
+	//  or just make the dissassembler able to read in  a UF2 file directly, and dissassemble it. 
+
+	// 		(probably this option, actually. lol. shouldnt be that hard.?)
+
+	
+
+	
+	
+}
 
 
 finished_outputting: 
