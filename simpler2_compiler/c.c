@@ -36,7 +36,7 @@ enum all_output_formats {
 	elf_executable, elf_object, 
 	ti_txt_executable, 
 	uf2_executable, 
-	hex_array_txt_executable, 
+	hex_array_output, 
 };
 
 enum core_language_isa {
@@ -1014,6 +1014,7 @@ process_file:;
 	memset(register_index, 255, sizeof register_index);
 	uint8_t* memory = calloc(65536, sizeof(nat));
 	bool should_debug_cte = 0;
+	const nat compiletime_register_flag = (nat) (1LLU << 63LLU);
 
 	for (nat pc = 0; pc < ins_count; pc++) {
 
@@ -1054,7 +1055,7 @@ process_file:;
 			}
 		}
 
-		else if (op == register_) register_index[arg0] = val1;
+		else if (op == register_) register_index[arg0] = val1 | (is_compiletime * compiletime_register_flag);
 		else if (op == bits)  bit_count[arg0] = val1;
 
 		else if (not is_compiletime) {
@@ -1140,8 +1141,8 @@ process_file:;
 		else if (op == system_) {
 			nat n = 0, output = 0;
 			for (nat i = 0; i < var_count; i++) {
-				if (register_index[i] == 0) output = i;
-				if (register_index[i] == 1) n = values[i];
+				if (register_index[i] == (0 | compiletime_register_flag)) output = i;
+				if (register_index[i] == (1 | compiletime_register_flag)) n = values[i];
 			}
 			const nat data = values[output];
 
@@ -3008,7 +3009,7 @@ finished_generation:;
 	printf("info: generating output file with format #%llu...\n", output_format);
 
 	if (output_format == debug_output_only) goto print_debug_output_only;
-	if (output_format == hex_array_txt_executable) goto generate_hex_array_output;
+	if (output_format == hex_array_output) goto generate_hex_array_output;
 	if (output_format == ti_txt_executable) goto generate_ti_txt_executable;
 	if (output_format == uf2_executable) goto generate_uf2_executable;
 	if (output_format == macho_executable) goto generate_macho_executable;
