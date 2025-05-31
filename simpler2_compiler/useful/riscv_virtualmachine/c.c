@@ -71,8 +71,8 @@ static int ecall(u32* registers, byte* memory) {
 	const u32 a2 = registers[12];
 
 	if (n == 1) exit(a0);
-	else if (n == 2) read(a0, memory + a1, a2);
-	else if (n == 3) write(a0, memory + a1, a2);
+	else if (n == 2) { registers[10] = read(a0, memory + a1, a2); registers[11] = errno; } 
+	else if (n == 3) { registers[10] = write(a0, memory + a1, a2); registers[11] = errno; } 
 	else { puts("error: unknown system call"); abort(); } 
 
 	return 0;

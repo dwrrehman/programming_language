@@ -825,8 +825,8 @@ process_file:;
 	char* text = files[file_count - 1].text;
 	const char* filename = files[file_count - 1].filename;
 
-	nat 	word_length = 0, word_start = 0, in_string = 0,
-		arg_count = 0, is_immediate = 0, is_compiletime = 0;
+	nat word_length = 0, word_start = 0, arg_count = 0, is_immediate = 0;
+	byte is_compiletime = 0, in_string = 0;
 
 	nat args[max_arg_count] = {0};
 
@@ -912,6 +912,7 @@ process_file:;
 	define_name:
 		var = var_count;
 		variables[var] = word; 
+		is_constant[var] = is_compiletime;
 		var_count++;
 
 	push_argument: 
@@ -1059,9 +1060,8 @@ process_file:;
 		else if (op == bits)  bit_count[arg0] = val1;
 
 		else if (not is_compiletime) {
-			struct instruction new = { .op = op };
+			struct instruction new = { .op = op, .imm = imm };
 			memcpy(new.args, ins[pc].args, sizeof new.args);
-			new.imm = ins[pc].imm;
 			for (nat i = 0; i < arity[op]; i++) {
 				if (is_label[new.args[i]]) continue;
 				if (not ((new.imm >> i) & 1) and is_constant[new.args[i]]) {
@@ -1141,25 +1141,45 @@ process_file:;
 		else if (op == system_) {
 			nat n = 0, output = 0;
 			for (nat i = 0; i < var_count; i++) {
-				if (register_index[i] == (0 | compiletime_register_flag)) output = i;
-				if (register_index[i] == (1 | compiletime_register_flag)) n = values[i];
+				if (register_index[i] == (0 | compiletime_register_flag)) n = values[i];
+				if (register_index[i] == (1 | compiletime_register_flag)) output = i;
 			}
 			const nat data = values[output];
 
-			if (n == 0) abort();
-			else if (n == 1) exit(0);
-			else if (n == 2) values[output] = read_single_char_from_stdin();
-			else if (n == 3) { putchar((int) data); fflush(stdout); }
-			else if (n == 4) { print_binary(data); fflush(stdout); }
-			else if (n == 5) { printf("%llu", data); fflush(stdout); }
-			else if (n == 6) should_debug_cte = data;
-			else if (n == 7) { printf("%s", string_list[data]); fflush(stdout); }
-			else if (n == 8) target_arch = data;
-			else if (n == 9) output_format = data;
-			else if (n == 10) should_overwrite = data;
-			else if (n == 11) values[output] = strlen(string_list[data]);
-			else if (n == 12) stack_size = data;
-			else if (n == 13) values[output] = target_arch;
+enum compiler_system_calls { 
+	compiler_abort, compiler_exit, 
+	compiler_getchar, compiler_putchar, 
+	compiler_printbin, compiler_printdec, 
+	compiler_setdebug, compiler_print, 
+	compiler_target, compiler_format, 
+	compiler_overwrite, compiler_getlength, 
+	compiler_gettarget, compiler_getformat, 
+	compiler_stacksize, compiler_getstacksize,
+};
+
+			if (n == compiler_abort) abort();
+			else if (n == compiler_exit) exit(0);
+
+			else if (n == compiler_getchar) values[output] = read_single_char_from_stdin();
+			else if (n == compiler_putchar) { putchar((int) data); fflush(stdout); }
+
+			else if (n == compiler_printbin) { print_binary(data); fflush(stdout); }
+			else if (n == compiler_printdec) { printf("%llu", data); fflush(stdout); }
+
+			else if (n == compiler_setdebug) should_debug_cte = data;
+			else if (n == compiler_print) { printf("%s", string_list[data]); fflush(stdout); }
+
+			else if (n == compiler_target) target_arch = data;
+			else if (n == compiler_format) output_format = data;
+
+			else if (n == compiler_overwrite) should_overwrite = data;
+			else if (n == compiler_getlength) values[output] = strlen(string_list[data]);
+			
+			else if (n == compiler_gettarget) values[output] = target_arch;
+			else if (n == compiler_getformat) values[output] = output_format;
+
+			else if (n == compiler_stacksize) stack_size = data;
+			else if (n == compiler_getstacksize) values[output] = stack_size;
 			else { puts("error: unknown compiler CT system call"); abort(); } 
 		} else { 
 			printf("CTE: fatal internal error: "
@@ -1185,100 +1205,6 @@ process_file:;
 	print_instructions(0);
 	puts("CT-PRUNED-EXECUTION finished.");
 
-
-/*
-
-
-copy propagation has a bug:
-
-  •   7 │ 	   set    rv_sc_arg0               0x1                      
-  •   8 │ 	    la    rv_sc_arg1               string                   
-  •   9 │ 	   set    rv_sc_arg2               0xa                      
-  •  10 │ 	   set    rv_sc_number             0x3                      
-  •  11 │ 	  system    
-  •  12 │ 	   set    input_length             rv_sc_arg0               <---- def
-  •  13 │ 	   set    rv_sc_arg0               0x1                      <---- modification to copy
-  •  14 │ 	    la    rv_sc_arg1               inputarea                
-  •  15 │ 	   set    rv_sc_arg2               input_length             <---- propagation fail!
-  •  16 │ 	   set    rv_sc_number             0x3                      
-  •  17 │ 	  system    
-  •  18 │ 	   set    rv_sc_arg0               0x1                      
-  •  19 │ 	    la    rv_sc_arg1               newline                  
-  •  20 │ 	   set    rv_sc_arg2               0x1                      
-  •  21 │ 	   set    rv_sc_number             0x3                      
-  •  22 │ 	  system    
-
-
-
-
-
-
------------PRUNING CTK INS:---------------
-
-found real RT isntruction!
-	   set    rv_sc_arg2               input_length             
-note: inlining copy reference: a1=42 imm=0 copy_of=0, i=15...
-original:
-   set    rv_sc_arg2               input_length             
-modified form:
-   set    rv_sc_arg2               rv_sc_arg0               
-was this right to do?...
-
-
-
-
-
-
-the fix to the bug is the following:
-
-
-	when we see a given variable "X"    is modified   
-		as a result of an insrtuction we are on (ie, changed, in any way!)
-
-
-
-
-		then we need to loop over all variables,
-
-			and then look for which are currently known to be a copy of another variable. 
-
-			if, for a given is_copy[] variable, "G"
-
-				if we see that G's   copy_of[] variable index,      IS the edited/modfied variable X   
-
-						then we need to   set   is_copy[]   for that variable G   to 0!
-
-		ie, we will have set is_copy[] = 0   for several variables, maybe   becuase we saw that that variable's value no longer reflects the up to date version of that copy_of[]'s variable's value!!!
-
-
-
-	this is a case    within copy prop   that we arent currently handling, and we need to handle it. 
-
-
-		its pretty simple,  the critcal thing is that we need to do this if we see that the variable X   
-
-			"changed"  in some way 
-
-
-			the ways it could change   is being the destination of   add, sub, mul, div, rem, si, sd, and, or, eor, la, ld,   
-
-				and also               set  
-
-
-			those instructions are capable of changing their destinations. so yeah! nice. 
-
-
-
-we need to implement this. 
-
-written   as of 1202505235.203820
-
-
-*/
-
-
-
-
 	{ nat* type = calloc(ins_count * var_count, sizeof(nat));
 	nat* value = calloc(ins_count * var_count, sizeof(nat));
 	nat* is_copy = calloc(ins_count * var_count, sizeof(nat));
@@ -1297,7 +1223,7 @@ written   as of 1202505235.203820
 		nat* gotos = compute_successors(pc);
 
 		debug_data_flow_state(pc, preds, pred_count, stack, stack_count, value, type, is_copy, copy_of);
-		getchar();
+		//getchar();
 
 		ins[pc].state++;
 
@@ -2142,25 +2068,26 @@ finish_instruction_selection:;
 	print_instructions(1);
 	getchar();
 
-	puts("RA: starting register allocation!");
+	puts("RA: starting register allocation!");           
 
-// the alive[] values      represent   the aliveness                    BEFORE    the instruction executes.  
 
-	// this is because we are going backwards. after the cf merge (going backwards) the alive[] val represents after instruction, but then after we update the information, we actually make the alive values represent BEFORE the instruction executes. which is exactly what we need to know when looking at our successors's alive val states. 
+
+
+
+
+				// BUG IN RA:   we need to be looking at the number of "disjoint live ranges" for a variable. and treating those as seperate variables!!!!
+
+
+
+
 
 	const nat hardware_register_count = 31; 
-	// target dependent, we'll configure this automatically per target!!
-
 	nat allocation[max_variable_count] = {0};
-
 	{ nat* alive = calloc(ins_count * var_count, sizeof(nat)); 
-			// once this pass completes, these values represent b:BEFORE; the instruction executes. 
-
 	nat stack[4096] = {0};
 	nat stack_count = 0;	
 	for (nat i = 0; i < ins_count; i++) 
 		if (ins[i].op == halt) stack[stack_count++] = i;
-
 	for (nat i = 0; i < ins_count; i++)  ins[i].state = 0;
 
 	while (stack_count) {
@@ -3478,7 +3405,7 @@ generate_uf2_executable:;
 		insert_u32(&data, &count, 256); 
 		insert_u32(&data, &count, (uint32_t) block); 
 		insert_u32(&data, &count, (uint32_t) block_count); 
-		insert_u32(&data, &count, 0); 
+		insert_u32(&data, &count, 0xE48BFF5A); // rp2350-riscv family ID. 
 		for (nat i = 0; i < 256; i++) 
 			insert_byte(&data, &count, my_bytes[current_offset + i]);
 		for (nat i = 0; i < 476 - 256; i++) insert_byte(&data, &count, 0);
@@ -3883,6 +3810,13 @@ finished_outputting:
 
 
 
+	// the alive[] values      represent   the aliveness                    BEFORE    the instruction executes.  
+	// this is because we are going backwards. 
+	// after the cf merge (going backwards) the alive[] val represents after instruction, 
+	// but then after we update the information, we actually make the alive values represent BEFORE the 
+	// instruction executes. which is exactly what we need to know when looking at our successors's alive val states. 
+	// target dependent, we'll configure this automatically per target!!
+	// once this pass completes, these values represent b:BEFORE; the instruction executes. 
 
 
 
@@ -3894,6 +3828,99 @@ finished_outputting:
 
 
 
+
+
+
+
+
+/*
+
+copy propagation has a bug:
+
+  •   7 │ 	   set    rv_sc_arg0               0x1                      
+  •   8 │ 	    la    rv_sc_arg1               string                   
+  •   9 │ 	   set    rv_sc_arg2               0xa                      
+  •  10 │ 	   set    rv_sc_number             0x3                      
+  •  11 │ 	  system    
+  •  12 │ 	   set    input_length             rv_sc_arg0               <---- def
+  •  13 │ 	   set    rv_sc_arg0               0x1                      <---- modification to copy
+  •  14 │ 	    la    rv_sc_arg1               inputarea                
+  •  15 │ 	   set    rv_sc_arg2               input_length             <---- propagation fail!
+  •  16 │ 	   set    rv_sc_number             0x3                      
+  •  17 │ 	  system    
+  •  18 │ 	   set    rv_sc_arg0               0x1                      
+  •  19 │ 	    la    rv_sc_arg1               newline                  
+  •  20 │ 	   set    rv_sc_arg2               0x1                      
+  •  21 │ 	   set    rv_sc_number             0x3                      
+  •  22 │ 	  system    
+
+
+
+
+
+
+-----------PRUNING CTK INS:---------------
+
+found real RT isntruction!
+	   set    rv_sc_arg2               input_length             
+note: inlining copy reference: a1=42 imm=0 copy_of=0, i=15...
+original:
+   set    rv_sc_arg2               input_length             
+modified form:
+   set    rv_sc_arg2               rv_sc_arg0               
+was this right to do?...
+
+
+
+
+
+
+the fix to the bug is the following:
+
+
+	when we see a given variable "X"    is modified   
+		as a result of an insrtuction we are on (ie, changed, in any way!)
+
+
+
+
+		then we need to loop over all variables,
+
+			and then look for which are currently known to be a copy of another variable. 
+
+			if, for a given is_copy[] variable, "G"
+
+				if we see that G's   copy_of[] variable index,      IS the edited/modfied variable X   
+
+						then we need to   set   is_copy[]   for that variable G   to 0!
+
+		ie, we will have set is_copy[] = 0   for several variables, maybe   becuase we saw that that variable's value no longer reflects the up to date version of that copy_of[]'s variable's value!!!
+
+
+
+	this is a case    within copy prop   that we arent currently handling, and we need to handle it. 
+
+
+		its pretty simple,  the critcal thing is that we need to do this if we see that the variable X   
+
+			"changed"  in some way 
+
+
+			the ways it could change   is being the destination of   add, sub, mul, div, rem, si, sd, and, or, eor, la, ld,   
+
+				and also               set  
+
+
+			those instructions are capable of changing their destinations. so yeah! nice. 
+
+
+
+we need to implement this. 
+
+written   as of 1202505235.203820
+
+
+*/
 
 
 

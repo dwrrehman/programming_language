@@ -14,20 +14,30 @@ set stdin  0
 set stdout 1
 set stderr 01
 
-(compiletime system call interface)
+(compiletime system call interface : call numbers)
 set x 0 set compiler_abort x
 add x 1 set compiler_exit x
 add x 1 set compiler_getchar x 
 add x 1 set compiler_putchar x
 add x 1 set compiler_printbin x
 add x 1 set compiler_printdec x
-add x 1 set compiler_set_debug x
+add x 1 set compiler_setdebug x
 add x 1 set compiler_print x
 add x 1 set compiler_target x
 add x 1 set compiler_format x
 add x 1 set compiler_overwrite x
-add x 1 set compiler_get_length x
-add x 1 set compiler_get_target x
+add x 1 set compiler_getlength x
+add x 1 set compiler_gettarget x
+add x 1 set compiler_getformat x
+add x 1 set compiler_stacksize x
+add x 1 set compiler_getstacksize x
+
+(compiletime system call interface : argument registers)
+register ctsc_number 0
+register ctsc_arg0 1
+register ctsc_arg1 01
+register ctsc_arg2 11
+
 
 (valid arguments to ctsc compiler_target)
 set x 0 set no_arch x
@@ -48,7 +58,7 @@ add x 1 set uf2_executable x
 add x 1 set hex_array_output x
 
 (specific to the rv32 virtual machine running in my website)
-set x 0 set rv_system_exit x
+set x 1 set rv_system_exit x
 add x 1 set rv_system_read x
 add x 1 set rv_system_write x
 
