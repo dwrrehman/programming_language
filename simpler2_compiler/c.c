@@ -774,13 +774,6 @@ static void debug_liveness(
 	print_nats(stack, stack_count); putchar(10);
 }
 
-
-//printf( "note: calling operation: "
-//	"%s (arity %llu)\n", 
-//	operations[op], arity[op]
-//);
-
-
 noreturn static void print_error(
 	const char* message, 
 	const char* filename, 
@@ -1691,7 +1684,7 @@ rv32_instruction_selection:;
 	for (nat i = 0; i < ins_count; i++) {
 
 		print_instruction_window_around(i, 0, "");
-		puts("machine instructions:");
+		puts("rv32 machine instructions:");
 		for (nat e = 0; e < mi_count; e++) {
 			printf("%llu: ", e); 
 			print_instruction(mi[e]); 
@@ -1891,10 +1884,112 @@ current state:  1202505235.133756
 
 msp430_instruction_selection:
 
-	// do stuff for msp430 here lol
+	puts("msp430: instruction selection starting...");
+	{ struct instruction new = {0};
+	const nat unrecognized = (nat) -1;
+
+	for (nat i = 0; i < ins_count; i++) {
+
+		print_instruction_window_around(i, 0, "");
+		puts("msp430 machine instructions:");
+		for (nat e = 0; e < mi_count; e++) {
+			printf("%llu: ", e); 
+			print_instruction(mi[e]); 
+			puts("");
+		}
+		puts("[mi done]");
+		puts("[MSP430 ins sel]");
+		getchar();
+
+		if (ins[i].state) {
+			printf("warning: [i = %llu]: skipping, part of a pattern.\n", i);
+			getchar(); 
+			continue;
+		}
+
+		const nat op = ins[i].op;
+		const nat imm = ins[i].imm;
+		const nat arg0 = ins[i].args[0];
+		const nat arg1 = ins[i].args[1]; 
+		const nat arg2 = ins[i].args[2]; 
+		const nat i0 = !!(imm & 1);
+		const nat i1 = !!(imm & 2);
+		const nat i2 = !!(imm & 4);
+
+		if (	
+			op == m4_op or op == m4_sect or op == m4_br or
+			op == at or op == emit or op == halt
+		) { 
+			new = ins[i]; 
+			goto push_single_mi; 
+		}
+
+	
+		/*
+		//   set d m  OP_A d n   -->   OP_B d n m
+		{
+		nat op_A [] = {add,  sub,  mul,  div_, rem,  and_,  or_,  eor,  si,   sd,  };
+		nat op_B1[] = {0,    0,    0,    5,    7,    7,     6,    4,    1,    5,   };
+		nat op_B2[] = {0,    0x20, 1,    1,    1,    0,     0,    0,    0,    0,   };
+
+		for (nat this = 0; this < 10; this++) {
+			if (op == set and not imm) {
+				const nat j = locate_instruction(
+					(struct expected_instruction) {
+						.op = op_A[this],
+						.use = 1,
+						.args[0] = arg0
+					}, i + 1
+				);
+				if (j == unrecognized) goto skip_set_r;
+				new = (struct instruction) { 
+					r5_r, 0x25, 0,   
+					{ 0x33, arg0, op_B1[this], arg1, ins[j].args[1], op_B2[this],    0,0 } 
+				};
+				ins[j].state = 1; 
+				goto push_single_mi;
+				skip_set_r:;
+			} 
+		}}*/
+
+
+
+
+
+
+		else if (op == set and not imm) { // addi d n 0 
+			new = (struct instruction) { r5_i, 0x15, 0,   { 0x13, arg0, 0, arg1, 0, 0,0,0 } };
+			goto push_single_mi;
+		}
+		else if (op == set and imm) { // addi d zr k
+			new = (struct instruction) { r5_i, 0x1D, 0,   { 0x13, arg0, 0, 0, arg1, 0,0,0 } };
+			goto push_single_mi;
+		}
+		else if (op == add and imm) { // addi d d k
+			new = (struct instruction) { r5_i, 0x15, 0,   { 0x13, arg0, 0, arg0, arg1,0,  0,0 } };
+			goto push_single_mi;
+		}
+		else if (op == sub and imm) { // addi d d -k
+			nat k = (-arg1) & 0xFFF;
+			new = (struct instruction) { r5_i, 0x15, 0,   { 0x13, arg0, 0, arg0, k, 0,  0,0 } };
+			goto push_single_mi;
+		}
+		else if (op == la) {
+			new = (struct instruction) { r5_u, 0x5, 0,  { 0x17, arg0, arg1, 0x42,  0,0,0,0 } };
+			mi[mi_count++] = new;
+			new = (struct instruction) { r5_i, 0x15, 0, { 0x13, arg0, 0, arg0, arg1, 0x42, 0,0 } };
+			goto push_single_mi;
+		}
+			
+		puts("error: unknown instruction selection pattern");
+		abort();
+
+	push_single_mi:
+		mi[mi_count++] = new;
+		ins[i].state = 1;
+	}}
 
 	goto finish_instruction_selection;
-
 
 
 
@@ -3826,6 +3921,11 @@ finished_outputting:
 
 
 
+
+//printf( "note: calling operation: "
+//	"%s (arity %llu)\n", 
+//	operations[op], arity[op]
+//);
 
 
 

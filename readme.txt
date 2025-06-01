@@ -12,17 +12,13 @@ a description of the built-in instructions and the semantics of each instruction
 language ISA:
 ----------------
 
-
-
 language-specific instructions:
 ----------------------------------
-	ct x	: make x compiletime known
-	register x r	: make x stored in hardware register r. x is rtk. 
-	bitcount x b	: make x stored in at least b bits.
-
-	compiler a b	: compiler system call a with argument b. 
-	system 		: system call instruction
-
+	rt		: make all instructions and variables from here onwards execute at runtime.
+	ct		: make all instructions and variables from here onwards execute at compile-time.
+	system 		: runtime or compile-time system call instruction. 
+	register x r	: make x stored in the specific runtime/compile-time register with register-index r.
+	bits x b	: make x stored in at least b bits.
 	emit x y	: emit x bytes from the CT constant y to the executable at this position. 
 	string s	: emit string data from s to the final executable at this position.
 	file f		: load file f contents. 
@@ -206,10 +202,9 @@ respelling of constants in decimal form is possible, as all digits are valid wit
 
 if a number cannot be parsed as a binary literal, an "undefined variable" parsing error is displayed/returned. 
 
-additionally, there is delimiter neccessary between instructions besides whitespace, and mulitple instructions can appear on the same line, as long as there is some whitespace between them. 
+additionally, there is no delimiter neccessary between instructions besides whitespace. furthermore, it is completely valid for mulitple instructions to appear on the same line, as long as there is some whitespace between them. this is often used to group instructions to make written code more compact or readable, as each instruction is usually quite short. 
 
-
-as for data types and type systems: this language actually does not have a notion of any data types- except for floats or integers of various bit widths. no type checking is performed, and it is assumed the programmer needs to be correct these bugs manually. however, the compiler does do an runtime value analysis on the code as part of its translation process and thus type errors might be able to surface here to help the programmer catch them. the "bitcount" instruction can be thought of as providing a "type" to an existing variable, but it is not said what information could be stored in that number of bits (besides possibly whether it is a float or integer data).
+as for data types and type systems: this language actually does not have a notion of any data types- except for floats or integers of various bit widths. no type checking is performed, and it is assumed the programmer needs to correct these bugs manually. however, the compiler will do a runtime value bit-width analysis on the code as part of its translation process and thus type errors might be able to surface here to help the programmer catch them. the "bits" instruction can be thought of as providing a "type" to an existing variable, but it is not said what information could be stored in that number of bits (besides possibly whether it is a float or integer data).
 
 the system call instruction will use the fact that the standard library defines numerous useful constants containing the appropriate system call numbers and register indexes used by the platforms system calls, thus we don't need to make an abstract system call interface because the user will just include a library file which defines correct values to be able to use the "system" instruction.
 
@@ -225,9 +220,11 @@ using multiple files besides "c.c", or using widespread use of functions across 
 also, if the C source code is "unreadable" to you, this is, technically speaking, a "skill issue" on your part. i reccomend improving your programming skills until it is readable for you. 
 
 
-a notable difference is also that the compiler does not use SSA form, or the notion of basic blocks. rather, all data flow analysis and optimization passes take into account the full global data/control flow, and all control flow and data flow analysis and optimizations are done globally on the entire program. 
+a notable difference is also that the compiler does not use SSA form, or the notion of basic blocks. rather, all data flow analysis and optimization passes take into account the full global data/control flow, and all control flow and data flow analysis and optimizations are done in a completely stateful (ie, tracing knowledge forwards or backwards through the control-flow-graph (CFG) and data-flow-graph (DFG), statefully) and global (taking into account the entire program's CFG and DFG) manner on the entire program. 
 
-the language itself is also the the same language as the intermediate representation (IR) for the compiler, allowing the programmer to control the final executable to an even higher degree, for maximum performance. 
+finally, the language itself can be thought of as the same language as the intermediate representation (IR) for the compiler, as the CFG and DFG representation internally is represented in the exact same manner as the users code: using "at" instructions, conditional branches ("lt", "eq", etc) using label names, and operations like "set", "add", etc. this homogeneity between the internal and external (user-facing) representation allows the programmer to have a deeper understanding of how the compiler is interpretting the code, and potentially control the final executable to an even higher degree, for maximum performance. 
+
+this homogeneity also serves to keep the implementation of the compiler itself, simple and straight forward, as the control flow and data flow is never stored or created in data explicitly. rather, it is computationally derived from scratch when needed, allowing for the program in this internal representation to be changed easily and simply, during the process of optimization. 
 
 
 
