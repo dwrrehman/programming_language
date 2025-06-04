@@ -1,3 +1,152 @@
+1202506032.225454 sorting out instruction selection   relating to address modes in msp430:
+------------------
+
+
+
+
+
+1202506032.231946
+i think to start out, becuase msp430 addressing modes are so complex, 
+i think it makes sense to instead use assembly to program the display's shift registers,
+and then while thats going and working,   we'll work more on the ins sel for msp.
+
+
+
+
+
+
+instruction selection:
+-----------------------------
+
+	lets take the example of the index mode:
+
+	because the destination is only writeonly   with a "msp_mov",    (other times it appears as the frist source operand!)
+		we thus know that we will always want   TWO loads    if both destnation and source are "index_mode".
+
+
+	thus, the general form, (ignoring "msp_mov" instructions) would be:
+
+
+
+	for MI:
+
+		m4_op  msp_add    index_mode reg_D offset_K    index_mode reg_S offset_L  size_word         (ignoring byte operations for now!)
+
+
+
+
+	the lang isa pattern would be:
+
+		set A reg_S                   (omit if A is reg_S, via copy prop)
+		add A offset_L                (omit if L is 0, via ctk prune)
+		ld T0 A
+
+		set B reg_D
+		add B offset_K               (omit if K is 0, via ctk prune)
+		ld T1 B
+
+		add T1 T0
+
+		st B T1
+
+
+
+	where:
+		offset_L and offset_K are both immediates,
+		and reg_D and reg_S are both variables, 
+		and A, B, T0 and T1 are both internal temporary variables. 
+
+
+
+
+					
+
+	so yeah, its pretty complex. 
+
+	the critical thing which we are missing here, is defining a notion of    if a given variable is currently the sum  of two other variables lol. 
+
+		we need to know that. in a sense, similar to copy prop information. (a variabl being a copy of another one)
+
+	in this case, we want to know if a given variable is a sum of other things.  either, an immediate and variable, etc. 
+	
+		...actually, in this case, i think       the       reg + imm      sum  specificallyyyyy  is what we are after, becuase  
+
+		
+
+
+
+
+addressing modes:
+------------------
+
+	set reg_mode 0
+	set index_mode 1
+	set deref_mode 01
+	set incr_mode 11
+
+
+within the following instruction:
+
+	 gen4  op(0)  dm(1) dr(2) di(3)  sm(4) sr(5) si(6)   size(7)
+
+
+
+
+it should be noted:
+
+	"dm" can only be either  reg_mode   or index_mode. (1 bit)
+
+	"sm" can be anything:  reg_mode, index_mode, deref_mode	 (2 bits)
+
+
+
+
+
+
+
+
+
+
+
+
+general form:   [the "m4_op" encoding]:
+------------------------------------------
+
+
+
+	 gen4  op(0)  dm(1) dr(2) di(3)  sm(4) sr(5) si(6)   size(7)
+
+
+
+
+bit counts:
+ 	op : 4 bits
+ 	dm : 1 bit
+ 	sm : 2 bits
+ 	dr,sr : 4 bits
+ 	di,si : 16 bits, only required with particular modes
+ 	size : 1 bit
+
+
+-----------------
+ example:
+	  m4_op  msp_mov reg_mode r6 0   reg_mode r7  0      size_word
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 msp430 isa listing:
 ------------------------
 

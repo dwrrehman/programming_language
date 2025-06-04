@@ -38,6 +38,16 @@ enum all_output_formats {
 	uf2_executable, 
 	hex_array_output, 
 };
+enum compiler_system_calls { 
+	compiler_abort, compiler_exit, 
+	compiler_getchar, compiler_putchar, 
+	compiler_printbin, compiler_printdec, 
+	compiler_setdebug, compiler_print, 
+	compiler_target, compiler_format, 
+	compiler_overwrite, compiler_getlength, 
+	compiler_gettarget, compiler_getformat, 
+	compiler_stacksize, compiler_getstacksize,
+};
 
 enum core_language_isa {
 	nullins,
@@ -1139,17 +1149,6 @@ process_file:;
 			}
 			const nat data = values[output];
 
-enum compiler_system_calls { 
-	compiler_abort, compiler_exit, 
-	compiler_getchar, compiler_putchar, 
-	compiler_printbin, compiler_printdec, 
-	compiler_setdebug, compiler_print, 
-	compiler_target, compiler_format, 
-	compiler_overwrite, compiler_getlength, 
-	compiler_gettarget, compiler_getformat, 
-	compiler_stacksize, compiler_getstacksize,
-};
-
 			if (n == compiler_abort) abort();
 			else if (n == compiler_exit) exit(0);
 
@@ -1716,7 +1715,7 @@ rv32_instruction_selection:;
 			op == at or op == emit or op == halt
 		) { 
 			new = ins[i]; 
-			goto push_single_mi; 
+			goto r5_push_single_mi; 
 		}
 
 	
@@ -1765,7 +1764,7 @@ current state:  1202505235.133756
 					{ 0x33, arg0, op_B1[this], arg1, ins[j].args[1], op_B2[this],    0,0 } 
 				};
 				ins[j].state = 1; 
-				goto push_single_mi;
+				goto r5_push_single_mi;
 				skip_set_r:;
 			} 
 
@@ -1795,7 +1794,7 @@ current state:  1202505235.133756
 					{ 0x33, arg0, op_B1[this], arg1, ins[j].args[1], op_B2[this],    0,0 } 
 				};
 				ins[j].state = 1; 
-				goto push_single_mi;
+				goto r5_push_single_mi;
 				skip_set_r:;
 			} 
 		}}
@@ -1812,7 +1811,7 @@ current state:  1202505235.133756
 					r5_r, 0x25, 0,   
 					{ 0x33, arg0, op_B1[this], arg0, arg1, op_B2[this],    0,0 } 
 				};
-				goto push_single_mi;
+				goto r5_push_single_mi;
 			} 
 		}}
 
@@ -1824,11 +1823,11 @@ current state:  1202505235.133756
 		for (nat this = 0; this < 4; this++) {
 			if (op == op_A[this] and i1 and not arg1) {
 				new = (struct instruction) { r5_b, 0xB, 0,  { 0x63, op_B1[this], arg0, 0, arg2,   0,0,0 } };
-				goto push_single_mi;
+				goto r5_push_single_mi;
 			}
 			if (op == op_A[this] and i0 and not arg0) {
 				new = (struct instruction) { r5_b, 0x7, 0,  { 0x63, op_B1[this], 0, arg1, arg2,   0,0,0 } };
-				goto push_single_mi;
+				goto r5_push_single_mi;
 			}
 			if (op == op_A[this]) {
 				if (imm) {
@@ -1836,43 +1835,43 @@ current state:  1202505235.133756
 					abort();
 				}
 				new = (struct instruction) { r5_b, 0x3, 0, {  0x63, op_B1[this], arg0, arg1, arg2,   0,0,0 } };
-				goto push_single_mi;	
+				goto r5_push_single_mi;	
 			} 
 		}}
 
 		if (op == system_) {
 			new = (struct instruction) { r5_i, 0xff, 0,  { 0x73,0,0,0, 0,0,0,0 } };
-			goto push_single_mi;
+			goto r5_push_single_mi;
 		}
 
 		else if (op == set and not imm) { // addi d n 0 
 			new = (struct instruction) { r5_i, 0x15, 0,   { 0x13, arg0, 0, arg1, 0, 0,0,0 } };
-			goto push_single_mi;
+			goto r5_push_single_mi;
 		}
 		else if (op == set and imm) { // addi d zr k
 			new = (struct instruction) { r5_i, 0x1D, 0,   { 0x13, arg0, 0, 0, arg1, 0,0,0 } };
-			goto push_single_mi;
+			goto r5_push_single_mi;
 		}
 		else if (op == add and imm) { // addi d d k
 			new = (struct instruction) { r5_i, 0x15, 0,   { 0x13, arg0, 0, arg0, arg1,0,  0,0 } };
-			goto push_single_mi;
+			goto r5_push_single_mi;
 		}
 		else if (op == sub and imm) { // addi d d -k
 			nat k = (-arg1) & 0xFFF;
 			new = (struct instruction) { r5_i, 0x15, 0,   { 0x13, arg0, 0, arg0, k, 0,  0,0 } };
-			goto push_single_mi;
+			goto r5_push_single_mi;
 		}
 		else if (op == la) {
 			new = (struct instruction) { r5_u, 0x5, 0,  { 0x17, arg0, arg1, 0x42,  0,0,0,0 } };
 			mi[mi_count++] = new;
 			new = (struct instruction) { r5_i, 0x15, 0, { 0x13, arg0, 0, arg0, arg1, 0x42, 0,0 } };
-			goto push_single_mi;
+			goto r5_push_single_mi;
 		}
 			
 		puts("error: unknown instruction selection pattern");
 		abort();
 
-	push_single_mi:
+	r5_push_single_mi:
 		mi[mi_count++] = new;
 		ins[i].state = 1;
 	}}
@@ -1881,12 +1880,80 @@ current state:  1202505235.133756
 
 
 
-
 msp430_instruction_selection:
 
 	puts("msp430: instruction selection starting...");
 	{ struct instruction new = {0};
 	const nat unrecognized = (nat) -1;
+
+	const nat msp_mov = 4;
+	const nat msp_add = 5;
+	const nat msp_addc = 6;
+	const nat msp_sub = 7;
+	const nat msp_subc = 8;
+	const nat msp_cmp = 9;
+	const nat msp_dadd = 10;
+	const nat msp_bit = 11;
+	const nat msp_bic = 12;
+	const nat msp_bis = 13;
+	const nat msp_xor = 14;
+	const nat msp_and = = 15;
+
+	const nat reg_mode = 0;
+	const nat index_mode = 1;
+	const nat deref_mode = 2;
+ 	const nat incr_mode = 3;
+
+
+
+
+/* 
+
+
+set pc 0
+set sp 1
+set sr 01
+set cg 11
+set r4 001
+...
+set r15 1111
+
+
+set condjnz 0
+set condjz 1
+set condjnc 01
+set condjc 11
+set condjn 001
+set condjge 101
+set condjl 011
+set condjmp 111
+
+set size_byte 1
+set size_word 0
+
+set reg_mode 0
+set index_mode 1
+set deref_mode 01
+set incr_mode 11
+
+set imm_mode incr_mode
+set imm_reg pc
+
+set literal_mode index_mode
+set constant_1 cg
+
+set fixed_reg sr
+set fixed_mode index_mode
+
+
+set nat8 1
+set nat16 01
+
+*/
+
+	// gen4  op(0)  dm(1) dr(2) di(3)  sm(4) sr(5) si(6)   size(7)
+	// eg:
+	//  m4_op  msp_mov reg_mode r6 0   reg_mode r7  0      size_word
 
 	for (nat i = 0; i < ins_count; i++) {
 
@@ -1911,17 +1978,17 @@ msp430_instruction_selection:
 		const nat imm = ins[i].imm;
 		const nat arg0 = ins[i].args[0];
 		const nat arg1 = ins[i].args[1]; 
-		const nat arg2 = ins[i].args[2]; 
-		const nat i0 = !!(imm & 1);
-		const nat i1 = !!(imm & 2);
-		const nat i2 = !!(imm & 4);
+		//const nat arg2 = ins[i].args[2]; 
+		//const nat i0 = !!(imm & 1);
+		//const nat i1 = !!(imm & 2);
+		//const nat i2 = !!(imm & 4);
 
 		if (	
 			op == m4_op or op == m4_sect or op == m4_br or
 			op == at or op == emit or op == halt
 		) { 
 			new = ins[i]; 
-			goto push_single_mi; 
+			goto msp430_push_single_mi; 
 		}
 
 	
@@ -1947,50 +2014,52 @@ msp430_instruction_selection:
 					{ 0x33, arg0, op_B1[this], arg1, ins[j].args[1], op_B2[this],    0,0 } 
 				};
 				ins[j].state = 1; 
-				goto push_single_mi;
+				goto msp430_push_single_mi;
 				skip_set_r:;
 			} 
 		}}*/
 
 
 
-
-
-
-		else if (op == set and not imm) { // addi d n 0 
-			new = (struct instruction) { r5_i, 0x15, 0,   { 0x13, arg0, 0, arg1, 0, 0,0,0 } };
-			goto push_single_mi;
+		if (op == set and not imm) { // addi d n 0
+			new = (struct instruction) {
+				m4_op, 0xFFFFF, 0, { msp_mov,
+					reg_mode, arg0, 0
+					reg_mode, arg1, 0,
+					size_word
+				}
+			};
+			goto msp430_push_single_mi;
 		}
 		else if (op == set and imm) { // addi d zr k
 			new = (struct instruction) { r5_i, 0x1D, 0,   { 0x13, arg0, 0, 0, arg1, 0,0,0 } };
-			goto push_single_mi;
+			goto msp430_push_single_mi;
 		}
 		else if (op == add and imm) { // addi d d k
 			new = (struct instruction) { r5_i, 0x15, 0,   { 0x13, arg0, 0, arg0, arg1,0,  0,0 } };
-			goto push_single_mi;
+			goto msp430_push_single_mi;
 		}
 		else if (op == sub and imm) { // addi d d -k
 			nat k = (-arg1) & 0xFFF;
 			new = (struct instruction) { r5_i, 0x15, 0,   { 0x13, arg0, 0, arg0, k, 0,  0,0 } };
-			goto push_single_mi;
+			goto msp430_push_single_mi;
 		}
 		else if (op == la) {
 			new = (struct instruction) { r5_u, 0x5, 0,  { 0x17, arg0, arg1, 0x42,  0,0,0,0 } };
 			mi[mi_count++] = new;
 			new = (struct instruction) { r5_i, 0x15, 0, { 0x13, arg0, 0, arg0, arg1, 0x42, 0,0 } };
-			goto push_single_mi;
+			goto msp430_push_single_mi;
 		}
 			
 		puts("error: unknown instruction selection pattern");
 		abort();
 
-	push_single_mi:
+	msp430_push_single_mi:
 		mi[mi_count++] = new;
 		ins[i].state = 1;
 	}}
 
 	goto finish_instruction_selection;
-
 
 
 
@@ -2739,6 +2808,14 @@ msp430_generate_machine_code:;
 		}
 		else if (op == m4_op) {  
 			// gen4  op(0)  dm(1) dr(2) di(3)  sm(4) sr(5) si(6)   size(7)
+
+			// 	op : 4 bits
+			// 	dm : 1 bit
+			// 	sm : 2 bits
+			// 	dr,sr : 4 bits
+			// 	di,si : 16 bits, only required with particular modes
+			// 	size : 1 bit
+
 			u16 word = (u16) (
 				(a0 << 12U) | (a5 << 8U) | (a1 << 7U) | 
 				(a7 << 6U) | (a4 << 4U) | (a2)
