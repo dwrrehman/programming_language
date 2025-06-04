@@ -61,17 +61,97 @@ add x 1 set hex_array_output x
 set x 1 set rv_system_exit x
 add x 1 set rv_system_read x
 add x 1 set rv_system_write x
-
 del x
-rt
 
+rt
 (rv32 system call abi)
 register rv_sc_arg0 0101
 register rv_sc_arg1 1101
 register rv_sc_arg2 0011
 register rv_sc_number 10001
+ct
+
+
+
+(--------------------- msp430 -------------------)
+
+rt
+(msp430 register indexes)
+register pc 0
+register sp 1
+register sr 01
+register cg 11
+register r4 001
+register r5 101
+register r6 011
+register r7 111
+register r8 0001
+register r9 1001
+register r10 0101
+register r11 1101
+register r12 0011
+register r13 1011
+register r14 0111
+register r15 1111
+ct
+
+(m4_op: op codes)
+set msp_mov 001
+set msp_add 101
+set msp_addc 011
+set msp_sub 111
+set msp_subc 0001
+set msp_cmp 1001
+set msp_dadd 0101
+set msp_bit 1101
+set msp_bic 0011
+set msp_bis 1011
+set msp_xor 0111
+set msp_and 1111
+
+(m4_br: branch conditions)
+set condjnz 0
+set condjz 1
+set condjnc 01
+set condjc 11
+set condjn 001
+set condjge 101
+set condjl 011
+set condjmp 111
+
+(m4_op: size parameter)
+set size_byte 1
+set size_word 0
+
+(m4_op: addressing modes)
+set reg_mode 0
+set index_mode 1
+set deref_mode 01
+set incr_mode 11
+
+(specific addressing modes)
+set imm_mode incr_mode
+set imm_reg pc
+set literal_mode index_mode
+set constant_1 cg
+set fixed_reg sr
+set fixed_mode index_mode
+set nat8 1
+set nat16 01
+
+(msp430 bit position constants)
+set bit0 10000000
+set bit1 01000000
+set bit2 00100000
+set bit3 00010000
+set bit4 00001000
+set bit5 00000100
+set bit6 00000010
+set bit7 00000001
 
 (end of standard library code)
+
+
 
 
 
