@@ -76,7 +76,7 @@ ct
 (--------------------- msp430 -------------------)
 
 rt
-(msp430 register indexes)
+(msp430 registers)
 register pc 0
 register sp 1
 register sr 01
@@ -94,6 +94,24 @@ register r13 1011
 register r14 0111
 register r15 1111
 ct
+
+(msp430 register index constants)
+set pc 0
+set sp 1
+set sr 01
+set cg 11
+set r4 001
+set r5 101
+set r6 011
+set r7 111
+set r8 0001
+set r9 1001
+set r10 0101
+set r11 1101
+set r12 0011
+set r13 1011
+set r14 0111
+set r15 1111
 
 (m4_op: op codes)
 set msp_mov 001

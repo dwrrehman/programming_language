@@ -413,10 +413,6 @@ static nat compute_label_location(nat label) {
 	return locations[label];
 }
 
-
-
-
-
 static nat* compute_riscv_successors(nat pc) {
 	nat* gotos = calloc(2 * ins_count, sizeof(nat)); 
 	nat locations[4096] = {0}; // var_count sized
@@ -491,16 +487,6 @@ static nat* compute_riscv_predecessors(nat pc, nat* pred_count) {
 	*pred_count = count;
 	return result;
 }
-
-
-
-
-
-
-
-
-
-
 
 
 static nat* compute_msp430_successors(nat pc) {
@@ -584,15 +570,6 @@ static nat* compute_msp430_predecessors(nat pc, nat* pred_count) {
 	*pred_count = count;
 	return result;
 }
-
-
-
-
-
-
-
-
-
 
 
 struct expected_instruction {
@@ -753,6 +730,7 @@ static nat calculate_offset(nat* length, nat here, nat target) {
 					"[ins_count = %llu]: tried to index %lld into lengths, "
 					"aborting..\n", here, target, ins_count, i
 				);
+				print_nats(length, ins_count);
 				abort();			
 			}
 			offset += length[i];
@@ -764,6 +742,7 @@ static nat calculate_offset(nat* length, nat here, nat target) {
 					"[ins_count = %llu]:  tried to index %lld into lengths, "
 					"aborting..\n", here, target, ins_count, i
 				);
+				print_nats(length, ins_count);
 				abort();			
 			}		
 			offset -= length[i];
@@ -1441,16 +1420,18 @@ process_file:;
 				continue;
 			}		
 
-		} else {
+		} else if (not (op >= a6_nop and op < isa_count)) {
 			puts("WARNING: EXECUTING AN UNKNOWN INSTRUCTION WITHOUT AN IMPLEMENTATION!!!");
 			puts(operations[op]);
 			abort();
 		}
 
-		if (pc < ins_count and a0 < var_count) type[pc * var_count + a0] = out_t;
-		if (pc < ins_count and a0 < var_count) value[pc * var_count + a0] = out_v;
-		if (pc < ins_count and a0 < var_count) is_copy[pc * var_count + a0] = out_is_copy;
-		if (pc < ins_count and a0 < var_count) copy_of[pc * var_count + a0] = out_copy_ref;
+		if (pc < ins_count and a0 < var_count) {
+			type[pc * var_count + a0] = out_t;
+			value[pc * var_count + a0] = out_v;
+			is_copy[pc * var_count + a0] = out_is_copy;
+			copy_of[pc * var_count + a0] = out_copy_ref;
+		}
 		if (gt0 < ins_count and ins[gt0].state < 2) stack[stack_count++] = gt0; 
 
 		if (op == la) {
@@ -1783,9 +1764,6 @@ rv32_instruction_selection:;
 		}
 
 	
-
-
-
 /*
 
 
@@ -2005,7 +1983,6 @@ set constant_1 cg
 
 set fixed_reg sr
 set fixed_mode index_mode
-
 
 set nat8 1
 set nat16 01
@@ -2301,13 +2278,6 @@ finish_instruction_selection:;
 
 
 
-
-
-
-
-
-
-
 				// BUG IN RA:   we need to be looking at the number of "disjoint live ranges" for a variable. and treating those as seperate variables!!!!
 
 
@@ -2316,21 +2286,17 @@ finish_instruction_selection:;
 
 
 
-	//...also we need to make a    msp430 version of liveness analysis.  and thats required.....
 
 
 
+	nat hardware_register_count = 0; 
+	if (target_arch == rv32_arch) hardware_register_count = 31;
+	else if (target_arch == msp430_arch) hardware_register_count = 12;
+	else {
+		puts("cannot perform RA for this target, unimplemented.");
+		abort();
+	}
 
-
-
-
-
-
-
-
-
-
-	const nat hardware_register_count = 31; 
 	nat allocation[max_variable_count] = {0};
 	{ nat* alive = calloc(ins_count * var_count, sizeof(nat)); 
 	nat stack[4096] = {0};
@@ -2352,10 +2318,6 @@ finish_instruction_selection:;
 		} else if (target_arch == msp430_arch) {
 			preds = compute_msp430_predecessors(pc, &pred_count);
 			gotos = compute_msp430_successors(pc);
-		} else {
-			puts("register allocation: liveness analysis compute_predecessor() "
-				"and compute_successor() have not been implmented for this target yet.");
-			abort();
 		}
 
 		if (gotos[0] != (nat) -1) goto_count++;
@@ -2400,7 +2362,7 @@ finish_instruction_selection:;
 		else if (op == at) {}
 		else if (op == emit) {}
 
-		if (target_arch == rv32_arch) {
+		else if (target_arch == rv32_arch) {
 			if (op == r5_r) { // addr D A A
 				if (not i1) alive[pc * var_count + a1] = 0;
 				if (not i3) alive[pc * var_count + a3] = 1;
@@ -2420,8 +2382,15 @@ finish_instruction_selection:;
 			if (op == m4_op) { 
 				if (not i2) alive[pc * var_count + a2] = not (a0 == msp_mov and a1 == reg_mode);
 				if (not i5) alive[pc * var_count + a5] = 1;
+
+			} else if (op == m4_br) {
+				// nothing.
+
+			} else if (op == m4_sect) {
+				// nothing.
+
 			} else goto unknown_liveness_error;
-		} else goto unknown_liveness_error;
+		}
 
 		for (nat i = 0; i < pred_count; i++) {
 			if (preds[i] < ins_count and ins[preds[i]].state < 2) 
@@ -2922,7 +2891,19 @@ msp430_generate_machine_code:;
 		const u16 a6 = (u16) ins[i].args[6];
 		const u16 a7 = (u16) ins[i].args[7];
 
-		if (op == m4_sect) {
+
+		if (op == at or op == halt) { 	
+			// do nothing
+
+
+		} else if (op == emit) {
+			if (a0 == 8) insert_u64(&my_bytes, &my_count, (uint64_t) ins[i].args[1]);
+			if (a0 == 4) insert_u32(&my_bytes, &my_count, (uint32_t) a1);
+			if (a0 == 2) insert_u16(&my_bytes, &my_count, (uint16_t) a1);
+			if (a0 == 1) insert_u8 (&my_bytes, &my_count, (uint8_t) a1);
+
+
+		} else if (op == m4_sect) {
 			section_addresses[section_count] = a0;
 			section_starts[section_count++] = my_count;
 
@@ -2935,7 +2916,8 @@ msp430_generate_machine_code:;
 		}
 
 		else if (op == m4_br) { // br4 cond:[3 bits] label:[pc-rel offset]
-			const u16 offset = 0x3FF & ((calculate_offset(lengths, i + 1, a1) >> 1));
+			const nat n = compute_label_location(a1);
+			const u16 offset = 0x3FF & ((calculate_offset(lengths, i + 1, n) >> 1));
 			const u16 word = (u16) ((1U << 13U) | (u16)(a0 << 10U) | (offset));
 			insert_u16(&my_bytes, &my_count, word);
 		}

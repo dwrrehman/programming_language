@@ -16,7 +16,7 @@ elif [ "" = "$1" ]; then
 
 
 elif [ "flash" = "$1" ]; then 	
-	cp -f output_executable_new ../../led_display/MSP_Flasher/output_machine_code.txt
+	cp -f output_file_from_compiler ../../led_display/MSP_Flasher/output_machine_code.txt
 	cd ../../led_display/MSP_Flasher/
 	cat output_machine_code.txt
 	./Program\ MSP430\ \(example\).sh output_machine_code.txt 

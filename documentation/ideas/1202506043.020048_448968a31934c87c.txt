@@ -1,0 +1,137 @@
+1202506043.015914 i think i am going to add macros to the language! 
+
+but i want to do it in a very minimalist and simple way that doesnt increase too much complexity in the parser. 
+
+	only the parser should have to deal with this, i think. so yeah. 
+
+
+	oh also, macros should not actaully affect the symbol table at all, i think? hmmmm
+
+
+or maybe they do???
+
+
+
+
+hmmm yeah i think they should. and then we will just       ALSOOO      have the "del" instruction.   okay. 
+
+
+cool so yeah thats going to be complicated lol 
+
+
+
+
+
+basically how they will work will be this:
+
+
+
+
+def operation_name   
+	ar x
+	ar y
+	ar z
+
+	(...macro body using x, y, and z here...)
+
+	ret
+
+
+
+and then the call site would look like:
+
+	
+	operation_name a b c
+
+
+
+
+simple as possible, basically 
+
+
+	but the semnatics will be that
+
+
+	a, b, and c can be either runtime or compiletime variables. or immediates, or labels. 
+
+
+
+	there are no types for the arguments, the argument type error would happen when we go to generate the instructions, i think. probably. 
+
+
+
+
+	i'm pretty sure that we are going to implement this by jumping around in the file, probably. not sure though. lol. hmmm
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+looking closer at this, we see that:
+
+
+
+
+def operation_name          <------ unary instruction, takes an undefined operation symbol, always. doesnt define the operation symbol  until we encounter the ret. 
+
+	ar x			<-------- unary instruction, takes undefined name of the parameter to the macro.
+	ar y
+	ar z
+
+	(...macro body using x, y, and z here...)
+
+	ret 			<-------- nonary instruction, signals the end of the macro body.   the macro itself is fully lexically scoped. 
+
+
+
+
+
+
+
+	
+	operation_name a b c
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
