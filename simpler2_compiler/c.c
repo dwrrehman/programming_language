@@ -978,7 +978,10 @@ process_file:;
 		} else if (op == file) {
 			for (nat i = 0; i < included_file_count; i++) {
 				if (strcmp(included_files[i], word)) continue;
-				goto next_word;
+				print_error("file has already been included", 
+					filename, text, text_length, 
+					word_start, pc
+				);
 			}
 			included_files[included_file_count++] = word;
 			nat len = 0;
@@ -1050,7 +1053,7 @@ process_file:;
 	print_dictionary(1);
 	print_instructions(0);
 	puts("parsing finished.");
-	getchar();
+	//getchar();
 
 	{ struct instruction rt_ins[4096] = {0};
 	nat rt_ins_count = 0;
@@ -1455,7 +1458,7 @@ process_file:;
 	
 	print_instructions(0);
 	puts("OPT2 finished.");
-	getchar();
+	//getchar();
 
 	puts("pruning ctk instructions...");
 
@@ -1465,7 +1468,7 @@ process_file:;
 
 		print_instruction_window_around(i, 0, "");
 		puts("-----------PRUNING CTK INS:---------------");
-		getchar();
+		//getchar();
 
 		const nat op = ins[i].op;
 		const nat imm = ins[i].imm;
@@ -1503,7 +1506,7 @@ process_file:;
 				printf("warning: found a register index variable "
 					"as argument  :  %s\n",
 					variables[ins[i].args[a]]
-				); getchar(); abort();
+				); abort();
 
 
 			} else if (type[i * var_count + ins[i].args[a]]) {
@@ -1656,7 +1659,7 @@ process_file:;
 
 	print_instructions(0);
 	puts("CTK PRUNING finished.");
-	getchar();
+	//getchar();
 
 	if (target_arch == rv32_arch or target_arch == rv64_arch) {
 		puts("replacing branch immediates with branch register, on rv32...");
@@ -1697,7 +1700,7 @@ process_file:;
 	
 	print_instructions(0);
 	puts("non imm branches for riscv done.");
-	getchar();
+	//getchar();
 
 
 	printf("info: compiling for [target_architecture = %llu, output_format = %llu (%s)]\n", 
@@ -1736,7 +1739,7 @@ rv32_instruction_selection:;
 		}
 		puts("[mi done]");
 		puts("[RISC-V ins sel]");
-		getchar();
+		//getchar();
 
 		if (ins[i].state) {
 			printf("warning: [i = %llu]: skipping, part of a pattern.\n", i);
@@ -2004,7 +2007,7 @@ set nat16 01
 		}
 		puts("[mi done]");
 		puts("[MSP430 ins sel]");
-		getchar();
+		//getchar();
 
 		if (ins[i].state) {
 			printf("warning: [i = %llu]: skipping, part of a pattern.\n", i);
@@ -2268,7 +2271,7 @@ finish_instruction_selection:;
 	puts("finished instruction selection!");
 	printf("info: preliminary machine code prior to RA: for target = %llu\n", target_arch);
 	print_instructions(1);
-	getchar();
+	//getchar();
 
 	puts("RA: starting register allocation!");           
 
@@ -2653,12 +2656,12 @@ set r15 1111	: general purpose, allocatable
 
 	print_instructions(0);
 	puts("RA DEAD-STORE PRUNING finished.");
-	getchar();
+	//getchar();
 	puts("[done with RA");
 
 	printf("info: finished final machine code for target = %llu\n", target_arch);
 	print_instructions(1);
-	getchar();
+	//getchar();
 
 	puts("generating final machine code binary...");
 
@@ -4711,7 +4714,7 @@ riscv branches: (spelt using little endian binary):
 		print_instruction_window_around(pc, 0, "");
 		print_dictionary(0);
 		puts("----------- COPY PROP --------------");
-		getchar();
+		//getchar();
 		
 		if (op == halt or op == at or op == do_ or op == lt or op == ge or op == ne or op == eq) {
 			memset(values, 255, sizeof values);

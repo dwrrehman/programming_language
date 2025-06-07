@@ -77,22 +77,22 @@ ct
 
 rt
 (msp430 registers)
-register pc 0
-register sp 1
-register sr 01
-register cg 11
-register r4 001
-register r5 101
-register r6 011
-register r7 111
-register r8 0001
-register r9 1001
-register r10 0101
-register r11 1101
-register r12 0011
-register r13 1011
-register r14 0111
-register r15 1111
+register pc_reg 0
+register sp_reg 1
+register sr_reg 01
+register cg_reg 11
+register r4_reg 001
+register r5_reg 101
+register r6_reg 011
+register r7_reg 111
+register r8_reg 0001
+register r9_reg 1001
+register r10_reg 0101
+register r11_reg 1101
+register r12_reg 0011
+register r13_reg 1011
+register r14_reg 0111
+register r15_reg 1111
 ct
 
 (msp430 register index constants)
