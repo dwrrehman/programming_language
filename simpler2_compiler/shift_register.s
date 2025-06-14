@@ -10,19 +10,8 @@ shift register interface:
 	1.1 : serial clock   (falling edge, 1->0 triggers data latch read)
 	1.2 : serial data  (no interrupt capability)
 
-
-
-
-
-
 86 / 512 bytes consumed so far...
-
-
-
-
 )
-
-
 
 file library/foundation.s ct
 set ctsc_number compiler_target set ctsc_arg0 msp430_arch system
@@ -83,7 +72,7 @@ m4_sect flash_interrupt_vector
 	m4_op msp_xor  fixed_mode fixed_reg p2out    imm_mode imm_reg 1111_1111   size_byte
 	m4_op msp_xor  fixed_mode fixed_reg p1out    imm_mode imm_reg 0001_1111   size_byte
 
-	m4_op msp_bic  fixed_mode fixed_reg p1ifg    imm_mode imm_reg 11 size_byte	
+	m4_op msp_bic  fixed_mode fixed_reg p1ifg    imm_mode imm_reg 11 size_byte
 	
 	emit nat16 0000_0000_1100_1000   (the "reti" instruction, 0x1300)
 	m4_op msp_mov reg_mode r4 0  reg_mode r4 0  size_word
@@ -208,6 +197,37 @@ at delay_loop
 	m4_op msp_sub reg_mode r6 0  literal_mode constant_1 0 size_word
 	m4_br condjnz inner del inner
 )
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 

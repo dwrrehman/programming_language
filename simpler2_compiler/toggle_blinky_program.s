@@ -27,23 +27,38 @@ set p2sel 0111_0100
 rt m4_sect start_of_flash
 	m4_op msp_mov  reg_mode sp 0   imm_mode imm_reg start_of_stack   size_word
 	m4_op msp_mov  fixed_mode fixed_reg wdtctl   imm_mode imm_reg 0000_0001_0101_1010   size_word
-ct 	set led1 bit6 set led2 bit7 set bits led1 or bits led2
+ct 	set led1 bit6 set led3 bit5 set led2 bit7 set bits led1 or bits led2 or bits led3
 rt	m4_op msp_mov  fixed_mode fixed_reg p2dir    imm_mode imm_reg bits   size_byte
 	m4_op msp_mov  fixed_mode fixed_reg p2out    imm_mode imm_reg bits   size_byte
 	m4_op msp_mov  fixed_mode fixed_reg p2sel    imm_mode imm_reg 0      size_byte
 at loop
 	m4_op msp_bis  fixed_mode fixed_reg p2out    imm_mode imm_reg led1   size_byte
 	m4_op msp_bic  fixed_mode fixed_reg p2out    imm_mode imm_reg led2   size_byte	
-	m4_op msp_mov  reg_mode r4 0   imm_mode imm_reg 1111_1111_1111_1111   size_word
+	m4_op msp_bic  fixed_mode fixed_reg p2out    imm_mode imm_reg led3   size_byte	
+
+	m4_op msp_mov  reg_mode r4 0   imm_mode imm_reg 1111_1111_1111_1110   size_word
 at delay_loop
 	m4_op msp_sub reg_mode r4 0  literal_mode constant_1 0 size_word
 	m4_br condjnz delay_loop del delay_loop
+
 	m4_op msp_bic  fixed_mode fixed_reg p2out    imm_mode imm_reg led1   size_byte
-	m4_op msp_bis  fixed_mode fixed_reg p2out    imm_mode imm_reg led2   size_byte
-	m4_op msp_mov  reg_mode r4 0   imm_mode imm_reg 1111_1111_1111_1111   size_word
+	m4_op msp_bis  fixed_mode fixed_reg p2out    imm_mode imm_reg led2   size_byte	
+	m4_op msp_bic  fixed_mode fixed_reg p2out    imm_mode imm_reg led3   size_byte	
+
+	m4_op msp_mov  reg_mode r4 0   imm_mode imm_reg 1111_1111_1111_1110   size_word
 at delay_loop
 	m4_op msp_sub reg_mode r4 0  literal_mode constant_1 0 size_word
 	m4_br condjnz delay_loop del delay_loop
+
+	m4_op msp_bic  fixed_mode fixed_reg p2out    imm_mode imm_reg led1   size_byte
+	m4_op msp_bic  fixed_mode fixed_reg p2out    imm_mode imm_reg led2   size_byte	
+	m4_op msp_bis  fixed_mode fixed_reg p2out    imm_mode imm_reg led3   size_byte
+
+	m4_op msp_mov  reg_mode r4 0   imm_mode imm_reg 1111_1111_1111_1110   size_word
+at delay_loop
+	m4_op msp_sub reg_mode r4 0  literal_mode constant_1 0 size_word
+	m4_br condjnz delay_loop del delay_loop
+
 	m4_br condjmp loop
 	m4_op msp_mov reg_mode r4 0  reg_mode r4 0  size_word
 m4_sect reset_vector
