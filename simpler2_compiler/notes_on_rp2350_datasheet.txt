@@ -1,0 +1,258 @@
+planning out the firmware pico 2 W
+-----------------------------------------
+
+
+chapter 2:
+-----------
+
+	low 12 bits are zero, bits 12 and 13 tell the mode:
+
+
+		addr + 0x0000     :  normal read and write access
+	
+		addr + 0x1000     :  atomic toggle using XOR
+	
+		addr + 0x2000     :  atomic bitmask set on write
+	
+		addr + 0x3000     :  atomic bitmask clear on write
+	
+
+	address map:
+
+		ROM  :  0x 0000 0000
+
+		XIP  :  0x 1000 0000
+
+		SRAM :  0x 2000 0000
+
+		APB PERI  :  0x 4000 0000
+
+		AHB PERI  :  0x 5000 0000
+
+		SIO  :  0x D000 0000
+
+
+	
+	SRAM:
+		sram_base   0x2000 0000
+
+		sram_end    0x2008 2000
+
+
+
+
+
+	APB peripherals:
+
+
+		clocks_base   		0x4001 0000
+
+		psm_base   		0x4001 8000
+
+
+		resets_base   		0x4002 0000
+
+		io_bank0_base   	0x4002 8000
+
+
+		pads_bank0_base   	0x4003 8000
+
+		powman_base  		0x4010 0000
+
+
+
+
+
+
+
+
+
+
+
+chapter 3.1:  SIO:
+-----------------------
+
+
+
+	to do list:
+
+		1. set the function select   to function   5      for all gpio pins we want to control  (5 == SIO)
+
+		2. set GPIO_OE [gpio] = 1    to allow for driving via GPIO_OUT
+
+		3. set GPIO_OUT[gpio] = data    (use the set, clear, and xor aliases! in the address)
+
+
+
+(SIO register start at SIO_BASE = 0xd0000000)
+
+
+	GPIO_IN 	: 0x004
+
+	GPIO_OUT 	: 0x010
+
+	GPIO_OUT_SET 	: 0x018
+
+	GPIO_OUT_CLR 	: 0x020
+
+	GPIO_OUT_XOR 	: 0x028
+
+	GPIO_OE 	: 0x030
+
+
+
+
+
+chapter 3.8: Hazard 3 processor details:
+------------------------
+
+
+	risc-v instruction set:      RV32IMAC +   Zba, Zbb, Zbs, Zcb,    Xh3power,  
+
+
+
+
+
+
+
+other notes:
+-----------------------
+PADS_BANK0_IO:
+-----------------------
+
+	for each gpio, 
+		we need to:
+
+
+			GPIO0 register:   (for example)  
+
+
+				1. clear the ISO bit (bit 8)   to release pad isolation
+
+				2. set IE (input enable) (bit 6)  to allow inputs
+
+				3. set DRIVE (output drive strength) (bits 5 and 4)   set to 0x3 (12 mA drive strength!)
+
+				4. we can also change the slew rate if we want to. schmid-trigger input is enabled by default. 
+
+
+
+
+
+
+RESETS:
+----------------
+
+software must deactivate the reset on  a given subsystem component   to use it   in software, first. 
+
+
+here are the regsiters we need: 
+
+	offset from   RESETS_BASE = 0x4002000
+
+
+		RESET :   0x00        each bit in this register is a subsystem that can be reset.  you need to clear these bits for each component!
+
+
+
+			bit 9 : PADS_BANK0
+
+
+			bit 6 : IO_BANK0
+
+			
+
+
+
+CLOCKS:
+----------------
+
+	ROSC is enabled and running already   by default,  at 11MHz.           
+
+
+			if we want to run at 150MHz, we need to increase the speed of the ROSC using the following registers (or use and enable and configure the PLLs?)
+
+				(find these registers in the next section!)
+
+ 
+
+
+
+	the WAKE_EN and SLEEP_EN  registers    reset to all 1's  which means that    we don't have to use these unless we want to clock gate/enable   
+
+														for lets say   in a low power firmware design. 
+
+
+
+
+ROSC:
+--------------
+we don't need to do anything now, related to ROSC.  
+
+	only when we want to go faster, do we need to touch this system. 
+
+
+
+
+
+	here are the registers for the ROSC subsystem:
+
+		(ROSC_BASE =    0x400e 8000   ) 
+
+
+	
+			CTRL : 0x00
+
+				FREQ_RANGE   :   (bits 11 through 0)    	we'll set this to "HIGH" (0xfa7, but you need to set it to 
+											0xfa4 then to 0xfa5 then to 0xfa7.)
+
+
+			FREQA : 0x04
+
+			FREQB : 0x08
+				these control the "drive strlength"  and decreases the delay of each stage. we will increasingly set each bit here, until we are at the max drive strength of 3 for each of our stages that we are using for our HIGH setting. (ie, stages 0 through 3, corresponds to HIGH).
+
+
+
+			DORMANT : 0x10     : write of a specific value to this register will stop the oscilator, causing us to go into dormant mode. 
+
+
+			DIV : 0x14  :   default is 32,    we can set it to 0, or 1, or at most 128.   (or is the default 8? doesnt matter lol.)
+
+
+			COUNT : 0x24  : useful for delay loops lol 
+
+
+
+	
+
+
+
+	
+
+
+
+chapter 9: GPIO:
+------------------------------
+
+
+
+	
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

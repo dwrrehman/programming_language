@@ -1,0 +1,71 @@
+planning out the firmware pico 2 W
+-----------------------------------------
+
+
+chapter 2:
+-----------
+
+	low 12 bits are zero, bits 12 and 13 tell the mode:
+
+
+		addr + 0x0000     :  normal read and write access
+	
+		addr + 0x1000     :  atomic toggle using XOR
+	
+		addr + 0x2000     :  atomic bitmask set on write
+	
+		addr + 0x3000     :  atomic bitmask clear on write
+	
+
+	address map:
+
+		ROM  :  0x 0000 0000
+
+		XIP  :  0x 1000 0000
+
+		SRAM :  0x 2000 0000
+
+		APB PERI  :  0x 4000 0000
+
+		AHB PERI  :  0x 5000 0000
+
+		SIO  :  0x D000 0000
+
+
+	
+	SRAM:
+		sram_base   0x2000 0000
+
+		sram_end    0x2008 2000
+
+
+	APB peripherals:
+
+
+		clocks_base   		0x4001 0000
+
+		psm_base   		0x4001 8000
+
+
+		resets_base   		0x4002 0000
+
+		io_bank0_base   	0x4002 8000
+
+
+		pads_bank0_base   	0x4003 8000
+
+
+		resets_base   0x4002 0000
+
+		resets_base   0x4002 0000
+
+		resets_base   0x4002 0000
+
+
+
+
+
+
+
+
+

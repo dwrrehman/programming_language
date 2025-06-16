@@ -3753,7 +3753,7 @@ generate_ti_txt_executable:;
 
 generate_uf2_executable:;
 
-	{ const nat starting_address = 0x00000000;    // user sets this using the "section_address k" instruction. 
+	{ const nat starting_address = 0x20000000;    // user sets this using the "section_address k" instruction. 
 
 	while (my_count % 256) 
 		insert_byte(&my_bytes, &my_count, 0); 		// pad to 256 byte chunks
