@@ -74,7 +74,7 @@ chapter 3.1:  SIO:
 
 
 
-	to do list:
+	to do list: 
 
 		1. set the function select   to function   5      for all gpio pins we want to control  (5 == SIO)
 
@@ -305,13 +305,14 @@ iter of things to do in sequence:
 	
 		1.2. take pads_bank0 out of reset (RESET)
 
+
 	2. set gpio settings
 
 		2.1 set function select (CTRL.FSEL)
 		
 		2.2. set output enable (OE)
 
-		2.3. set input enable  (CTRL.IE)
+		2.3. set input enable  (SIO.IE)
 
 		2.4. set drive strength   (CTRL.DRIVE)
 

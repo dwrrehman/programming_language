@@ -1510,6 +1510,8 @@ process_file:;
 		
 		nat keep = 0;
 
+		if (op == emit) { keep = 1; ins[i].state = 1; } 
+
 		if (ins[i].state and  
 			(
 			op == halt 	or op == system_ or 
@@ -1542,7 +1544,7 @@ process_file:;
 				printf("warning: found a register index variable "
 					"as argument  :  %s\n",
 					variables[ins[i].args[a]]
-				); abort();
+				); keep = 1; break;
 
 
 			} else if (type[i * var_count + ins[i].args[a]]) {
@@ -1566,7 +1568,7 @@ process_file:;
 			}
 		}
 
-		if (not keep or not ins[i].state) {
+		if ((not keep or not ins[i].state) and op != emit) {
 			if (op == lt or op == ge or op == ne or op == eq) {
 				const nat v0 = (imm & 1) ? ins[i].args[0] : value[i * var_count + ins[i].args[0]];
 				const nat v1 = (imm & 2) ? ins[i].args[1] : value[i * var_count + ins[i].args[1]];
@@ -3786,19 +3788,21 @@ generate_uf2_executable:;
 
 	printf("info: starting UF2 file at address: %08llx\n", starting_address);
 
-	while (my_count % 256) 
+	while (my_count % 256)
 		insert_byte(&my_bytes, &my_count, 0); 		// pad to 256 byte chunks
+
 
 	const nat block_count = my_count / 256;
 
 	uint8_t* data = NULL;
 	nat count = 0;	
 	nat current_offset = 0;
+
 	for (nat block = 0; block < block_count; block++) {
 		insert_u32(&data, &count, 0x0A324655);
 		insert_u32(&data, &count, 0x9E5D5157);
-		insert_u32(&data, &count, 0);
-		insert_u32(&data, &count, (uint32_t) (starting_address + current_offset)); 
+		insert_u32(&data, &count, 0x00002000);
+		insert_u32(&data, &count, (uint32_t) (starting_address + current_offset));
 		insert_u32(&data, &count, 256); 
 		insert_u32(&data, &count, (uint32_t) block); 
 		insert_u32(&data, &count, (uint32_t) block_count); 
@@ -3825,7 +3829,7 @@ generate_uf2_executable:;
 		}
 	}
 
-	{ int file = open(output_filename, O_WRONLY | O_CREAT | O_EXCL, 0777);
+	{ int file = open(output_filename, O_WRONLY | O_CREAT | O_EXCL, 0666);
 	if (file < 0) { perror("open: could not create executable file"); exit(1); }
 	write(file, data, count);
 	close(file); }
