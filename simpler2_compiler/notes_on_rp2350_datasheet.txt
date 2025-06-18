@@ -235,9 +235,119 @@ we don't need to do anything now, related to ROSC.
 chapter 9: GPIO:
 ------------------------------
 
+on power up ,   the io's reset to the following state:
+
+	. output buffer is high impedance
+
+	. input buffer is disabled
+
+	. pulled low
+
+	. isolation latches are set  as on 
+
+	. pad output disable bit is clear, 
+
+	. the function select bits are set to 0, ie, NULL. 
+					(thus making the output high impedance)
+
+
+
+
+
+
+applications must enable GPIO0.IE = 1       and    GPIO0.ISO = 0     before using ditital io.  
+
+
+clear the isolation bit    last   when everything is set up.
+
+
+
+
+
+registers for the gpio subsystem:
+------------------------
+
+
+		(IO_BANK0_BASE =    0x4002 8000)
+
+	
+		GPIO0_STATUS : 	offset   0x000
+
+		GPIO0_CTRL : 	offset   0x004
+
+
+		GPIO1_STATUS : 	offset   0x008
+
+		GPIO1_CTRL : 	offset   0x00c
+
+
+			....etc...
+
+
 
 
 	
+
+
+
+
+
+
+
+
+iter of things to do in sequence:
+
+	0. mark section as put in SRAM.  (section ram_start)
+
+	1. take things out of reset
+	
+		1.1. take io_bank0 out of reset (RESET)
+	
+		1.2. take pads_bank0 out of reset (RESET)
+
+	2. set gpio settings
+
+		2.1 set function select (CTRL.FSEL)
+		
+		2.2. set output enable (OE)
+
+		2.3. set input enable  (CTRL.IE)
+
+		2.4. set drive strength   (CTRL.DRIVE)
+
+		2.5. set output pin state data (OUT)
+
+
+	3. clear iso latch bit  (CTRL.ISO)
+
+	4. infinite loop   (at loop do loop)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 

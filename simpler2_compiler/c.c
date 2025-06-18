@@ -2,6 +2,11 @@
 // 1202505106.125751 revised to be much simpler and have a simpler translation process.
 // 1202505294.204607 revised the ct system! 
 
+
+// TODO:   make it so that if you do      at 010010011101     that is a section instruction. we don't need a dedicated section instruction...??...
+
+
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -53,7 +58,7 @@ enum core_language_isa {
 	nullins,
 
 	ct, rt, system_, emit, string,
-	file, del, register_, bits,
+	file, del, register_, bits, section,
 	set, add, sub, mul, div_, rem, 
 	and_, or_, eor, si, sd, la, 
 	ld, st, lt, ge, ne, eq, do_, at, halt, 
@@ -66,8 +71,7 @@ enum core_language_isa {
 	a6_memp, a6_memia, a6_memi, a6_memr, 
 	a6_madd, a6_divr, 
 
-	m4_sect, m4_op, m4_br,
-
+	m4_op, m4_br,
 	r5_r, r5_i, r5_s, r5_b, r5_u, r5_j, 
 	isa_count
 };
@@ -76,7 +80,7 @@ static const char* operations[isa_count] = {
 	"___nullins____",
 
 	"ct", "rt", "system", "emit", "string", 
-	"file", "del", "register", "bits",
+	"file", "del", "register", "bits", "section",
 	"set", "add", "sub", "mul", "div", "rem", 
 	"and", "or", "eor", "si", "sd", "la", 
 	"ld", "st", "lt", "ge", "ne", "eq", "do", "at", "halt", 
@@ -89,7 +93,7 @@ static const char* operations[isa_count] = {
 	"a6_memp", "a6_memia", "a6_memi", "a6_memr", 
 	"a6_madd", "a6_divr", 
 
-	"m4_sect", "m4_op", "m4_br",
+	"m4_op", "m4_br",
 
 	"r5_r", "r5_i", "r5_s", "r5_b", "r5_u", "r5_j", 
 };
@@ -98,7 +102,7 @@ static const nat arity[isa_count] = {
 	0,
 
 	0, 0, 0, 2, 2, 
-	1, 1, 2, 2,
+	1, 1, 2, 2, 1,
 	2, 2, 2, 2, 2, 2, 
 	2, 2, 2, 2, 2, 2, 
 	3, 3, 3, 3, 3, 3, 1, 1, 0,
@@ -111,7 +115,7 @@ static const nat arity[isa_count] = {
 	7, 6, 5, 6,
 	8, 5, 
 
-	1, 8, 2,
+	18, 2,
 
 	6, 5, 5, 5, 3, 3,
 };
@@ -430,7 +434,16 @@ static nat* compute_riscv_successors(nat pc) {
 		} else if (op == r5_j) {
 			gotos[2 * i + 0] = locations[ins[i].args[0]];
 			gotos[2 * i + 1] = (nat) -1;
-		} else if (op == r5_i or op == r5_u or op == r5_s or op == r5_r or op == at or op == emit) {
+
+		} else if (	op == r5_i or 
+				op == r5_u or 
+				op == r5_s or 
+				op == r5_r or 
+
+				op == at or 
+				op == section or 
+				op == emit
+		) {
 			gotos[2 * i + 0] = i + 1;
 			gotos[2 * i + 1] = (nat) -1;
 		} else {
@@ -464,7 +477,15 @@ static nat* compute_riscv_predecessors(nat pc, nat* pred_count) {
 		} else if (op == r5_j) {
 			gotos[2 * i + 0] = locations[ins[i].args[0]];
 			gotos[2 * i + 1] = (nat) -1;
-		} else if (op == r5_i or op == r5_u or op == r5_s or op == r5_r or op == at or op == emit) {
+		} else if (	op == r5_i or 
+				op == r5_u or 
+				op == r5_s or 
+				op == r5_r or 
+
+				op == at or 
+				op == section or 
+				op == emit
+		) {
 			gotos[2 * i + 0] = i + 1;
 			gotos[2 * i + 1] = (nat) -1;
 		} else {
@@ -509,7 +530,7 @@ static nat* compute_msp430_successors(nat pc) {
 			gotos[2 * i + 0] = locations[ins[i].args[0]];
 			gotos[2 * i + 1] = (nat) -1;
 
-		} else if (op == m4_sect or op == m4_op or op == at or op == emit) {
+		} else if (op == section or op == m4_op or op == at or op == emit) {
 			gotos[2 * i + 0] = i + 1;
 			gotos[2 * i + 1] = (nat) -1;
 
@@ -547,7 +568,7 @@ static nat* compute_msp430_predecessors(nat pc, nat* pred_count) {
 			gotos[2 * i + 0] = locations[ins[i].args[0]];
 			gotos[2 * i + 1] = (nat) -1;
 
-		} else if (op == m4_sect or op == m4_op or op == at or op == emit) {
+		} else if (op == section or op == m4_op or op == at or op == emit) {
 			gotos[2 * i + 0] = i + 1;
 			gotos[2 * i + 1] = (nat) -1;
 
@@ -1349,7 +1370,7 @@ process_file:;
 
 		if (op == halt) continue;
 		else if (op == at) { }
-		else if (op == m4_sect) { } 
+		else if (op == section) { } 
 		
 		else if (op == system_) {
 
@@ -1494,6 +1515,7 @@ process_file:;
 			op == halt 	or op == system_ or 
 			op == set 	or op == do_ or
 			op == at 	or op == la or 
+			op == section   or
 			op == ld 	or op == st or
 			op == emit	or op >= a6_nop
 			)
@@ -1774,7 +1796,7 @@ rv32_instruction_selection:;
 			op == r5_i or op == r5_r or 
 			op == r5_s or op == r5_b or 
 			op == r5_u or op == r5_j or 
-			op == at or op == emit or op == halt
+			op == at or op == emit or op == section or op == halt
 		) { 
 			new = ins[i]; 
 			goto r5_push_single_mi; 
@@ -1921,6 +1943,7 @@ current state:  1202505235.133756
 			const nat U12 = arg1 & 0xfff;
 
 			new = (struct instruction) { r5_u, 0x5, 0,  { 0x37, arg0, U20,  0,0,0,0,0 } };
+			if (not U12) goto r5_push_single_mi;			
 			mi[mi_count++] = new;
 			new = (struct instruction) { r5_i, 0x15, 0,   { 0x13, arg0, 0, arg0, U12, 0,0,0 } };
 			goto r5_push_single_mi;
@@ -2059,7 +2082,7 @@ set nat16 01
 		//const nat i2 = !!(imm & 4);
 
 		if (	
-			op == m4_op or op == m4_sect or op == m4_br or
+			op == m4_op or op == section or op == m4_br or
 			op == at or op == emit or op == halt
 		) { 
 			new = ins[i]; 
@@ -2161,7 +2184,9 @@ arm64_instruction_selection:;
 		const nat arg1 = ins[i].args[1]; 
 
 
-		if (op == halt or op == at or op == emit or (op >= a6_nop and op <= a6_divr)) { 
+		if (op == halt or op == section or op == at or op == emit or 
+			(op >= a6_nop and op <= a6_divr)
+		) { 
 			mi[mi_count++] = ins[i]; 
 			ins[i].state = 1; 
 			continue;
@@ -2398,6 +2423,7 @@ finish_instruction_selection:;
 		if (op == halt) {}
 		else if (op == at) {}
 		else if (op == emit) {}
+		else if (op == section) {}
 
 		else if (target_arch == rv32_arch) {
 			if (op == r5_r) { // addr D A A
@@ -2421,9 +2447,6 @@ finish_instruction_selection:;
 				if (not i5) alive[pc * var_count + a5] = 1;
 
 			} else if (op == m4_br) {
-				// nothing.
-
-			} else if (op == m4_sect) {
 				// nothing.
 
 			} else goto unknown_liveness_error;
@@ -2718,7 +2741,7 @@ rv32_generate_machine_code:;
 	{ nat* lengths = calloc(ins_count, sizeof(nat));
 	for (nat i = 0; i < ins_count; i++) {
 		const nat op = ins[i].op;
-		if (op == halt or op == at) continue;
+		if (op == halt or op == at or op == section) continue;
 		nat k = 4;
 		if (op == emit) k = ins[i].args[0];
 		lengths[i] = k;
@@ -2788,12 +2811,15 @@ rv32_generate_machine_code:;
 		if (op == at or op == halt) { 	
 			// do nothing
 
-
 		} else if (op == emit) {
 			if (a0 == 8) insert_u64(&my_bytes, &my_count, (uint64_t) ins[i].args[1]);
 			if (a0 == 4) insert_u32(&my_bytes, &my_count, (uint32_t) a1);
 			if (a0 == 2) insert_u16(&my_bytes, &my_count, (uint16_t) a1);
 			if (a0 == 1) insert_u8 (&my_bytes, &my_count, (uint8_t) a1);
+
+		} else if (op == section) {
+			section_addresses[section_count] = a0;
+			section_starts[section_count++] = my_count;
 
 
 		} else if (op == r5_i) {
@@ -2913,7 +2939,7 @@ dissasm version:
 			printf("j_type:  offset = 0x%08x\n", offset);
 
 			printf("offset = "); print_binary(offset); puts("");
-			getchar();
+			//getchar();
 
 			const u32 word =
 				(offset) |
@@ -2940,7 +2966,7 @@ msp430_generate_machine_code:;
 		const u32 a5 = (u32) ins[i].args[5];
 
 		nat len = 0;
-		if (op == m4_sect) len = 0;
+		if (op == section) len = 0;
 		else if (op == halt) len = 0;
 		else if (op == emit) len = a0;
 		else if (op == m4_br) len = 2;
@@ -2981,20 +3007,12 @@ msp430_generate_machine_code:;
 			if (a0 == 2) insert_u16(&my_bytes, &my_count, (uint16_t) a1);
 			if (a0 == 1) insert_u8 (&my_bytes, &my_count, (uint8_t) a1);
 
-
-		} else if (op == m4_sect) {
+		} else if (op == section) {
 			section_addresses[section_count] = a0;
 			section_starts[section_count++] = my_count;
 
 
-		} else if (op == emit) {
-			if (a0 == 8) insert_u64(&my_bytes, &my_count, (uint64_t) ins[i].args[1]);
-			if (a0 == 4) insert_u32(&my_bytes, &my_count, (uint32_t) a1);
-			if (a0 == 2) insert_u16(&my_bytes, &my_count, (uint16_t) a1);
-			if (a0 == 1) insert_u8 (&my_bytes, &my_count, (uint8_t) a1);
-		}
-
-		else if (op == m4_br) { // br4 cond:[3 bits] label:[pc-rel offset]
+		} else if (op == m4_br) { // br4 cond:[3 bits] label:[pc-rel offset]
 			const nat n = compute_label_location(a1);
 			const u16 offset = 0x3FF & ((calculate_offset(lengths, i + 1, n) >> 1));
 			const u16 word = (u16) ((1U << 13U) | (u16)(a0 << 10U) | (offset));
@@ -3058,7 +3076,6 @@ arm64_generate_machine_code:;
 		const u32 a6 = (u32) ins[i].args[6];
 		const u32 a7 = (u32) ins[i].args[7];
 
-
 		if (op == at) {}
 		else if (op == halt) {}
 
@@ -3067,9 +3084,12 @@ arm64_generate_machine_code:;
 			if (a0 == 4) insert_u32(&my_bytes, &my_count, (uint32_t) a1);
 			if (a0 == 2) insert_u16(&my_bytes, &my_count, (uint16_t) a1);
 			if (a0 == 1) insert_u8 (&my_bytes, &my_count, (uint8_t) a1);
-		}
 
-		else if (op == a6_clz) { puts("clz is unimplemented currently, lol"); abort(); }
+		} else if (op == section) {
+			section_addresses[section_count] = a0;
+			section_starts[section_count++] = my_count;
+
+		} else if (op == a6_clz) { puts("clz is unimplemented currently, lol"); abort(); }
 		else if (op == a6_rev) { puts("rev is unimplemented currently, lol"); abort(); }
 		else if (op == a6_extr) { puts("extr is unimplemented currently, lol"); abort(); }
 		else if (op == a6_ldrl) { puts("ldrl is unimplemented currently, lol"); abort(); }
@@ -3753,7 +3773,18 @@ generate_ti_txt_executable:;
 
 generate_uf2_executable:;
 
-	{ const nat starting_address = 0x20000000;    // user sets this using the "section_address k" instruction. 
+	{
+
+	printf("section_starts: "); print_nats(section_starts, section_count); puts("");
+	printf("section_addresses: "); print_nats(section_addresses, section_count); puts("");
+
+	const nat starting_address = section_addresses[0];    // user sets this using the "section 0101010011" instruction. 
+
+						// all other sections are ignored except for the first one, for uf2 files. 
+
+
+
+	printf("info: starting UF2 file at address: %08llx\n", starting_address);
 
 	while (my_count % 256) 
 		insert_byte(&my_bytes, &my_count, 0); 		// pad to 256 byte chunks

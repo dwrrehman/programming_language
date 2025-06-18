@@ -233,9 +233,7 @@ if (not executing) {
 
 
 		} else if (op == 0x23) { // SB / SH / SW
-
-			u32 imm = 0; // TODO: determine this immediate for the r5_s encoding. 
-			printf("[error: unimplemented]");
+			u32 imm = Rd | (f7 << 5U); 
 			if (fn == 0) {
 				printf("sb  x%u  #0x%08x  x%u\n", Rs1, imm, Rs2);
 			} else if (fn == 1) {
