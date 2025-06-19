@@ -39,6 +39,9 @@ add x 0001 set compiler_should_overwrite x
 add x 0001 set compiler_stack_size x
 add x 0001 set compiler_ctsc_number x
 add x 0001 set compiler_ctsc_arg0 x
+add x 0001 set compiler_ctsc_arg1 x
+add x 0001 set compiler_ctsc_arg2 x
+add x 0001 set compiler_ctsc_arg3 x
 
 (valid arguments to ctsc compiler_target)
 set x 0 set no_arch x

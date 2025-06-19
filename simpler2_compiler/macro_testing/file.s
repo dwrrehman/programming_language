@@ -1,4 +1,4 @@
-(a file to test out the ref and deref instructions in the language!
+(a file to test out the ref and rep instructions in the language!
 i'm part way through implmenting macros, in a very extensible and 
 flexible way, that is also quite simple to implement! yay!
 written on 1202506194.011847 by dwrr)
@@ -19,9 +19,18 @@ ref hello x
 ref bubbles y
 ref var constant
 
-deref hello  deref bubbles  deref var   r5_i r5_addi_op1 hello r5_addi_op2 bubbles var
-deref hello deref bubbles  set hello bubbles 
-deref hello deref var  add hello var
+rep hello 
+rep bubbles  
+rep var 
+	r5_i r5_addi_op1 hello r5_addi_op2 bubbles var
+
+rep hello 
+rep bubbles  
+	set hello bubbles 
+
+rep hello 
+rep var  
+	add hello var
 
 halt
 

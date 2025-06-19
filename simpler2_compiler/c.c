@@ -47,6 +47,9 @@ enum memory_mapped_ctsc_offsets {
 	stack_size_memory_address,
 	ctsc_number_memory_address,
 	ctsc_arg0_memory_address,
+	ctsc_arg1_memory_address,
+	ctsc_arg2_memory_address,
+	ctsc_arg3_memory_address,
 };
 
 enum compiler_system_calls { 
@@ -60,7 +63,7 @@ enum core_language_isa {
 	nullins,
 
 	ct, rt, system_, emit, string,
-	file, del, register_, bits, section, deref, ref, 
+	file, del, register_, bits, section, rep, ref, 
 	set, add, sub, mul, div_, rem, 
 	and_, or_, eor, si, sd, la, 
 	ld, st, lt, ge, ne, eq, do_, at, halt, 
@@ -82,7 +85,7 @@ static const char* operations[isa_count] = {
 	"___nullins____",
 
 	"ct", "rt", "system", "emit", "string", 
-	"file", "del", "register", "bits", "section", "deref", "ref", 
+	"file", "del", "register", "bits", "section", "rep", "ref", 
 	"set", "add", "sub", "mul", "div", "rem", 
 	"and", "or", "eor", "si", "sd", "la", 
 	"ld", "st", "lt", "ge", "ne", "eq", "do", "at", "halt", 
@@ -134,6 +137,11 @@ struct file {
 	nat text_length;
 	char* text;
 	const char* filename;
+	byte ct;
+
+	uint8_t  unused0;
+	uint16_t unused1;
+	uint32_t unused2;
 };
 
 static struct instruction ins[max_instruction_count] = {0};
@@ -892,15 +900,18 @@ int main(int argc, const char** argv) {
 	files[0].text = text;
 	files[0].text_length = text_length;
 	files[0].index = 0;
+	files[0].ct = 0;
 }
+
 process_file:;
+	byte is_compiletime = files[file_count - 1].ct;
 	const nat starting_index = files[file_count - 1].index;
 	const nat text_length = files[file_count - 1].text_length;
 	char* text = files[file_count - 1].text;
 	const char* filename = files[file_count - 1].filename;
 
 	nat word_length = 0, word_start = 0, arg_count = 0, is_immediate = 0;
-	byte is_compiletime = 0, in_string = 0;
+	byte in_string = 0;
 
 	nat args[max_arg_count] = {0};
 
@@ -1017,9 +1028,10 @@ process_file:;
 			nat len = 0;
 			char* string = load_file(word, &len);
 			files[file_count - 1].index = pc;
+			files[file_count - 1].ct = is_compiletime;
 			files[file_count].filename = word;
 			files[file_count].text = string;
-			files[file_count].text_length = len;
+			files[file_count].text_length = len;			
 			files[file_count++].index = 0;
 			var_count--;
 			goto process_file;
@@ -1144,8 +1156,8 @@ process_file:;
 				rt_ins[rt_ins_count++] = new;
 			}
 
-		} else if (op == deref) {
-			nat here = pc; while (here < ins_count and ins[here].op == deref) here++;
+		} else if (op == rep) {
+			nat here = pc; while (here < ins_count and ins[here].op == rep) here++;
 			if (here < ins_count) for (nat a = 0; a < arity[ins[here].op]; a++) 
 				if (ins[here].args[a] == arg0) ins[here].args[a] = values[arg0];
 		}
@@ -1206,6 +1218,7 @@ process_file:;
 
 		}
 
+		else if (op == halt) break;
 		else if (op == at)   values[arg0]  = pc;
 		else if (op == set)  values[arg0]  = val1;
 		else if (op == add)  values[arg0] += val1;
