@@ -151,6 +151,7 @@ static char* variables[max_variable_count] = {0};
 static nat bit_count[max_variable_count] = {0};
 static nat register_index[max_variable_count] = {0};
 static nat values[max_variable_count] = {0};
+static nat replace[max_variable_count] = {0};
 static byte is_constant[max_variable_count] = {0};
 static byte is_label[max_variable_count] = {0};
 static byte is_undefined[max_variable_count] = {0};
@@ -201,13 +202,15 @@ static nat read_single_char_from_stdin(void) {
 	return (nat) c;
 }
 
-static void print_dictionary(const nat should_print_ct) {
+static void print_dictionary(nat should_print_ct) {
 	puts("variable dictionary: ");
 	for (nat i = 0; i < var_count; i++) {
+		should_print_ct = ((var_count - i) < 20);
 		if (should_print_ct or (not is_constant[i] and not is_label[i])) 
-		printf("   %c %c %c %c [%5llu]  \"%20s\"  :   { bc=%5lld, ri=%5lld }  :   0x%016llx\n",
+		printf("   %c %c %c %c %c [%5llu]  \"%20s\"  :   { bc=%5lld, ri=%5lld }  :   0x%016llx\n",
 			' ', 
 			is_label[i] ? 'L' : ' ', 
+			replace[i] ? 'R' : ' ', 
 			is_constant[i] ? 'C' : ' ', 
 			is_undefined[i] ? 'U' : ' ', 
 			i, variables[i], 
@@ -238,7 +241,7 @@ static void print_instruction(struct instruction this) {
 	for (nat a = 0; a < arity[this.op]; a++) {
 
 		char string[4096] = {0};
-		if (this.imm & (1 << a)) snprintf(string, sizeof string, "0x%llx", this.args[a]);
+		if (this.imm & (1 << a)) snprintf(string, sizeof string, "0x%llx(%llu)", this.args[a], this.args[a]);
 		else snprintf(string, sizeof string, "%s", variables[this.args[a]]);
 
 		printf("%s", string);
@@ -1075,6 +1078,7 @@ process_file:;
 				.state = is_compiletime,
 			};
 			memcpy(new.args, args, sizeof args);
+			if (op == ref) is_constant[new.args[0]] = is_constant[new.args[1]];
 			is_immediate = 0;
 			memset(args, 0, sizeof args);
 			ins[ins_count++] = new;
@@ -1113,7 +1117,7 @@ process_file:;
 
 		if (*memory) {
 			print_instruction_window_around(pc, 0, "");
-			//print_dictionary(1);
+			print_dictionary(0);
 			puts("rt instructions: ");
 			for (nat i = 0; i < rt_ins_count; i++) {
 				putchar(9); print_instruction(rt_ins[i]); puts("");
@@ -1126,27 +1130,23 @@ process_file:;
 		nat arg1 = ins[pc].args[1];
 		nat arg2 = ins[pc].args[2];
 
+		if (op != rep and is_compiletime) {
+			if (replace[arg0] and not ((imm >> 0) & 1)) arg0 = values[arg0];
+			if (replace[arg1] and not ((imm >> 1) & 1)) arg1 = values[arg1];
+			if (replace[arg2] and not ((imm >> 2) & 1)) arg2 = values[arg2];
+			memset(replace, 0, sizeof replace);
+		}
+
 		nat i0 = !!(imm & 1);
 		nat i1 = !!(imm & 2);
 		nat i2 = !!(imm & 4);
 
-		//printf("for your information, the immediate bits are : %llu: { %llu  %llu  %llu }\n", imm, i0, i1, i2);
-		//printf("for your information, the arg vals : op=%llu: { %llu  %llu  %llu }\n", op, arg0, arg1, arg2);
-
 		const nat N = max_variable_count;
 		nat val0 = 0, val1 = 0, val2 = 0;
 
-		if (i0 or arg0 < N) 
-			val0 = not i0 ? values[arg0] : arg0;
-		else { /*printf("0 uh oh! ...something is going wrong.. :(\n"); */ abort(); }
-
-		if (i1 or arg1 < N) { 
-			val1 = not i1 ? values[arg1] : arg1;
-		} else { /*printf("1 uh oh! ...something is going wrong.. tried to index %llu into %llu-sized array. the immediate value is currently %llu. we are on instruction %s. \n", arg1, N, imm, operations[op]); */ abort(); }
-
-		if (i2 or arg2 < N) 
-			val2 = not i2 ? values[arg2] : arg2;
-		else { /*printf("2 uh oh! ...something is going wrong.. :(\n"); */abort(); }
+		if (i0 or arg0 < N) val0 = not i0 ? values[arg0] : arg0;
+		if (i1 or arg1 < N) val1 = not i1 ? values[arg1] : arg1;
+		if (i2 or arg2 < N) val2 = not i2 ? values[arg2] : arg2;
 
 		if (op == string and not is_compiletime) {
 			for (nat s = 0; s < arg0; s++) { // for string length; 
@@ -1155,23 +1155,33 @@ process_file:;
 				new.args[1] = (nat) string_list[arg1][s];
 				rt_ins[rt_ins_count++] = new;
 			}
-
-		} else if (op == rep) {
-			nat here = pc; while (here < ins_count and ins[here].op == rep) here++;
-			if (here < ins_count) for (nat a = 0; a < arity[ins[here].op]; a++) 
-				if (ins[here].args[a] == arg0) ins[here].args[a] = values[arg0];
-		}
-
-		else if (op == ref)   		values[arg0] = arg1;
-		else if (op == bits)		bit_count[arg0] = val1;
-		else if (op == register_) 	register_index[arg0] = val1;
+		} 
+		else if (op == rep) 	replace[arg0] = 1;
+		else if (op == ref) 	values[arg0] = arg1; 
+		else if (op == bits)	bit_count[arg0] = val1;
+		else if (op == register_) register_index[arg0] = val1;
 
 		else if (not is_compiletime) {
 			struct instruction new = { .op = op, .imm = imm };
 			memcpy(new.args, ins[pc].args, sizeof new.args);
+
 			for (nat i = 0; i < arity[op]; i++) {
-				if ((((new.imm >> i) & 1) == 0) and is_label[new.args[i]]) continue;
-				if (not ((new.imm >> i) & 1) and is_constant[new.args[i]]) {
+
+				const nat is_real = ((new.imm >> i) & 1) == 0;
+
+				printf("is_real = %llu\n", is_real);
+				printf("new.args[i] = %llu\n", new.args[i]);
+				printf("replace[new.args[i]] = %llu\n", replace[new.args[i]]);
+
+				if (replace[new.args[i]] and is_real) {
+					printf("info: replacing....\n"); getchar();
+					new.args[i] = values[new.args[i]];
+				}
+
+				if (is_real and is_label[new.args[i]]) continue;
+
+				if (is_real and is_constant[new.args[i]]) {
+					printf("inserting value into ins...\n"); getchar();
 					new.args[i] = values[new.args[i]];
 					new.imm |= 1 << i;
 				}
@@ -1215,7 +1225,7 @@ process_file:;
 				}
 			}
 			if (keep) rt_ins[rt_ins_count++] = new;
-
+			memset(replace, 0, sizeof replace);
 		}
 
 		else if (op == halt) break;
@@ -3890,6 +3900,36 @@ finished_outputting:
 
 
 
+
+
+
+
+
+
+
+
+
+
+		/* 	previous rep implmentation: 
+
+			nat here = pc; while (here < ins_count and ins[here].op == rep) here++;
+			if (here < ins_count) for (nat a = 0; a < arity[ins[here].op]; a++) 
+				if (ins[here].args[a] == arg0) ins[here].args[a] = values[arg0];
+		
+
+
+
+
+
+		//printf("for your information, the immediate bits are : %llu: { %llu  %llu  %llu }\n", imm, i0, i1, i2);
+		//printf("for your information, the arg vals : op=%llu: { %llu  %llu  %llu }\n", op, arg0, arg1, arg2);
+
+
+else { printf("0 uh oh! ...something is going wrong.. :(\n");  abort(); }
+} else { printf("1 uh oh! ...something is going wrong.. tried to index %llu into %llu-sized array. the immediate value is currently %llu. we are on instruction %s. \n", arg1, N, imm, operations[op]);  abort(); }
+		else { printf("2 uh oh! ...something is going wrong.. :(\n"); abort(); }
+
+*/
 
 
 
