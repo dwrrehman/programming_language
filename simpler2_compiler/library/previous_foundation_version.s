@@ -14,12 +14,6 @@ set stdin  0
 set stdout 1
 set stderr 01
 
-(unsigned integer sizes)
-set byte 	1
-set nat16 	01
-set nat32 	001
-set nat 	0001
-
 (compiletime system call interface : call numbers)
 set x 0 set compiler_abort x
 add x 1 set compiler_exit x
@@ -29,16 +23,21 @@ add x 1 set compiler_printbin x
 add x 1 set compiler_printdec x
 add x 1 set compiler_setdebug x
 add x 1 set compiler_print x
+add x 1 set compiler_target x
+add x 1 set compiler_format x
+add x 1 set compiler_overwrite x
 add x 1 set compiler_getlength x
+add x 1 set compiler_gettarget x
+add x 1 set compiler_getformat x
+add x 1 set compiler_stacksize x
+add x 1 set compiler_getstacksize x
 
-(memory mapped ctsc address)
-set x 0    set compiler_should_debug_cte x
-add x 0001 set compiler_target x
-add x 0001 set compiler_format x 
-add x 0001 set compiler_should_overwrite x
-add x 0001 set compiler_stack_size x
-add x 0001 set compiler_ctsc_number x
-add x 0001 set compiler_ctsc_arg0 x
+(compiletime system call interface : argument registers)
+register ctsc_number 0
+register ctsc_arg0 1
+register ctsc_arg1 01
+register ctsc_arg2 11
+
 
 (valid arguments to ctsc compiler_target)
 set x 0 set no_arch x
@@ -64,14 +63,19 @@ add x 1 set rv_system_read x
 add x 1 set rv_system_write x
 del x
 
+rt
 (rv32 system call abi)
 register rv_sc_arg0 0101
 register rv_sc_arg1 1101
 register rv_sc_arg2 0011
 register rv_sc_number 10001
+ct
+
+
 
 (--------------------- msp430 -------------------)
 
+rt
 (msp430 registers)
 register pc_reg 0
 register sp_reg 1
@@ -89,6 +93,7 @@ register r12_reg 0011
 register r13_reg 1011
 register r14_reg 0111
 register r15_reg 1111
+ct
 
 (msp430 register index constants)
 set pc 0
@@ -149,6 +154,8 @@ set literal_mode index_mode
 set constant_1 cg
 set fixed_reg sr
 set fixed_mode index_mode
+set nat8 1
+set nat16 01
 
 (msp430 bit position constants)
 set bit0 10000000
@@ -160,32 +167,7 @@ set bit5 00000100
 set bit6 00000010
 set bit7 00000001
 
-
-
-
-
-(risc-v op codes)
-
-set r5_addi_op1 	1100100
-set r5_addi_op2		000
-set r5_sw_op1 		1100010
-set r5_sw_op2 		010
-
-
-
-
-(risc-v registers)
-
-set r5_zr 0
-set r5_ra 1
-
-
-
-
 (end of standard library code)
-
-
-
 
 
 
