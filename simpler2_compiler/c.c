@@ -26,9 +26,10 @@ typedef uint32_t u32;
 typedef uint16_t u16;
 typedef uint8_t byte;
 
-#define max_variable_count (1 << 14)
-#define max_instruction_count (1 << 14)
-#define max_arg_count 12
+#define max_variable_count 	(1 << 14)
+#define max_macro_count 	(1 << 14)
+#define max_instruction_count 	(1 << 14)
+#define max_arg_count 		16
 
 enum all_architectures { no_arch, arm64_arch, arm32_arch, rv64_arch, rv32_arch, msp430_arch, };
 enum all_output_formats { 
@@ -62,8 +63,8 @@ enum compiler_system_calls {
 enum core_language_isa {
 	nullins,
 
-	ct, rt, system_, emit, string, operation, 
-	file, del, register_, bits, section, rep, ref, 
+	ct, rt, system_, emit, string, operation, ar, 
+	file, del, register_, bits, section,
 	set, add, sub, mul, div_, rem, 
 	and_, or_, eor, si, sd, la, 
 	ld, st, lt, ge, ne, eq, do_, at, halt, 
@@ -84,8 +85,8 @@ enum core_language_isa {
 static const char* operations[isa_count] = {
 	"___nullins____",
 
-	"ct", "rt", "system", "emit", "string", "operation", 
-	"file", "del", "register", "bits", "section", "rep", "ref", 
+	"ct", "rt", "system", "emit", "string", "operation", "ar", 
+	"file", "del", "register", "bits", "section", 
 	"set", "add", "sub", "mul", "div", "rem", 
 	"and", "or", "eor", "si", "sd", "la", 
 	"ld", "st", "lt", "ge", "ne", "eq", "do", "at", "halt", 
@@ -106,8 +107,8 @@ static const char* operations[isa_count] = {
 static const nat arity[isa_count] = {
 	0,
 
-	0, 0, 0, 2, 2, 2, 
-	1, 1, 2, 2, 1, 1, 2, 
+	0, 0, 0, 2, 2, 2, 1, 
+	1, 1, 2, 2, 1, 
 	2, 2, 2, 2, 2, 2, 
 	2, 2, 2, 2, 2, 2, 
 	3, 3, 3, 3, 3, 3, 1, 1, 0,
@@ -878,7 +879,6 @@ static nat load_nat_from_memory(uint8_t* memory, const nat address) {
 
 
 int main(int argc, const char** argv) {
-
 	if (argc != 2) exit(puts("compiler: error: usage: ./run [file.s]"));
 	
 	const nat min_stack_size = 16384 + 1;
@@ -890,17 +890,12 @@ int main(int argc, const char** argv) {
 	const char* output_filename = "output_file_from_compiler";
 
 	char* string_list[4096] = {0};
-	nat string_list_count = 0;
-	
-{ 
+	nat string_list_count = 0;	
 
-	struct file files[4096] = {0};
+{ 	struct file files[4096] = {0};
 	nat file_count = 1;
-
 	const char* included_files[4096] = {0};
 	nat included_file_count = 0;
-
-#define max_macro_count 1024
 	char* macros[max_macro_count] = {0};
 	nat macro_arity[max_macro_count] = {0};
 	nat macro_label[max_macro_count] = {0};
@@ -967,23 +962,11 @@ process_file:;
 				goto next_word;
 			}
 
-			// look at possible macros that this could be
-			// if you can't parse it as a macro, then check the isa listing.
-
-			for (nat m = 0; m < macro_count; m++) {
-				if (not strcmp(word, macros[m])) { 
-					op = isa_count + m; goto process_op; 
-				}
-			}
-
+			for (nat m = 0; m < macro_count; m++) 
+				if (not strcmp(word, macros[m])) { op = isa_count + m; goto process_op; }
+			
 			for (op = 0; op < isa_count; op++) 
 				if (not strcmp(word, operations[op])) goto process_op;
-
-
-
-			for (nat m = 0; m < macro_count; m++) {
-				printf("macro %llu : %s : %llu\n", m, macros[m], macro_arity[m]);
-			}
 
 			print_error(
 				"nonexistent operation",
@@ -999,7 +982,7 @@ process_file:;
 
 		if (not(  
 			(op == lt or op == ge or op == ne or op == eq) and arg_count == 2 or
-			(op == set or op == ld or op == ref or op == register_ or op == operation) and arg_count == 0 or
+			(op == set or op == ld or op == register_ or op == operation) and arg_count == 0 or
 			op == do_ or op == at or op == la
 		)) {
 			nat r = 0, s = 1;
@@ -1034,24 +1017,12 @@ process_file:;
 		else if (op == ct) is_compiletime = 1;
 		else if (op == rt) is_compiletime = 0;
 		else if (op == operation) {
-
-			if ((is_immediate & 2) == 0) 
+			if (is_immediate != 2) 
 				print_error(
-					"user-defined operation arity must be an immediate",
+					"invalid argument type to operation instruction",
 					filename, text, text_length, 
 					word_start, pc
 				);
-
-			else if (is_immediate & 1)
-				print_error(
-					"expected user-defined operation name",
-					filename, text, text_length, 
-					word_start, pc
-				);
-
-			//char* macro_name = variables[var_count - 1];
-			//const nat this_macro_arity = args[1];
-			//printf("debug info: defining macro called %s with arity %llu\n", macro_name, this_macro_arity);
 
 			macro_arity[macro_count] = args[1];
 			macro_label[macro_count] = args[0];
@@ -1086,65 +1057,27 @@ process_file:;
 			goto process_file;
 
 		} else if (op >= isa_count) {
-
-			printf("generating a call to %llu:%llu: macro %s (arity %llu) (label %llu(%s)) with arguments: {  ", 
-					op, op - isa_count, macros[op - isa_count], macro_arity[op - isa_count], macro_label[op - isa_count], variables[macro_label[op - isa_count]]
-			);
-			for (nat a = 0; a < arg_count; a++) {
-				printf("%llu ", args[a]);
-			}
-			printf(" }\n");
-
-			variables[var_count++] = strdup("__COMPILER_DEFINED_AFTER"); 
-			const nat after = var_count - 1; is_constant[after] = 1;
+			variables[var_count++] = strdup("__return"); 
+			const nat after = var_count - 1; 
+			is_constant[after] = 1;
 			ins[ins_count++] = (struct instruction) {
 				 .op = st, .imm = 7, .state = 1, 
 				.args = { 8 * ctsc_number_memory_address, after, 8} 
 			}; 
 			for (nat a = 0; a < arg_count; a++) {
 				const nat is_binary_literal = (is_immediate >> a) & 1LLU;
-				const nat is_runtime = not is_constant[args[a]];
-				const nat should_store_value = is_binary_literal or is_runtime;
+				const nat should_store_value = is_binary_literal or not is_constant[args[a]];
 				const nat immediate = 5LLU | (should_store_value << 1LLU);
-				ins[ins_count++] = (struct instruction) { 
-					.op = st, .state = 1, 
-					.imm = immediate, 
+				ins[ins_count++] = (struct instruction) {
+					.op = st, .state = 1, .imm = immediate, 
 					.args = { 8 * (ctsc_arg0_memory_address + a), args[a], 8 } 
 				};
 			} 
-			ins[ins_count++] = (struct instruction) { .op = do_, .state = 1, .args = { macro_label[op - isa_count] } }; 
-			ins[ins_count++] = (struct instruction) { .op = at, .state = 1, .args = { after } }; 
+			ins[ins_count++] = (struct instruction) { .op = do_, .state = 1, .args = { macro_label[op - isa_count] } };
+			ins[ins_count++] = (struct instruction) { .op = at, .state = 1, .args = { after } };
 			is_undefined[after] = 1;
 			memset(args, 0, sizeof args);
-			is_immediate = 0;			
-
-
-
-
-/*
-
-ct 
-
-def after
-
-st compiler_ctsc_number #&after nat 
-st compiler_ctsc_arg0   #&u nat 
-st compiler_ctsc_arg1   #&u nat 
-do my_macro 
-at after
-
-del after
-
-*/
-
-
-
-
-
-
-
-
-			
+			is_immediate = 0;
 
 		} else {
 			if (((op >= a6_nop and op < isa_count) or op == section or op == emit) and is_compiletime) 
@@ -1185,7 +1118,6 @@ del after
 				.state = is_compiletime,
 			};
 			memcpy(new.args, args, sizeof args);
-			//if (op == ref) is_constant[new.args[0]] = is_constant[new.args[1]];
 			is_immediate = 0;
 			memset(args, 0, sizeof args);
 			ins[ins_count++] = new;
@@ -1236,21 +1168,19 @@ del after
 		nat arg0 = ins[pc].args[0];
 		nat arg1 = ins[pc].args[1];
 		nat arg2 = ins[pc].args[2];
-
-		if (op != rep and is_compiletime) {
-			if (replace[arg0] and not ((imm >> 0) & 1)) arg0 = values[arg0];
-			if (replace[arg1] and not ((imm >> 1) & 1)) arg1 = values[arg1];
-			if (replace[arg2] and not ((imm >> 2) & 1)) arg2 = values[arg2];
-			memset(replace, 0, sizeof replace);
-		}
-
 		nat i0 = !!(imm & 1);
 		nat i1 = !!(imm & 2);
 		nat i2 = !!(imm & 4);
 
+		if (op != ar and is_compiletime) {
+			if (not i0 and replace[arg0]) arg0 = values[arg0];
+			if (not i1 and replace[arg1]) arg1 = values[arg1];
+			if (not i2 and replace[arg2]) arg2 = values[arg2];
+			memset(replace, 0, sizeof replace);
+		}
+
 		const nat N = max_variable_count;
 		nat val0 = 0, val1 = 0, val2 = 0;
-
 		if (i0 or arg0 < N) val0 = not i0 ? values[arg0] : arg0;
 		if (i1 or arg1 < N) val1 = not i1 ? values[arg1] : arg1;
 		if (i2 or arg2 < N) val2 = not i2 ? values[arg2] : arg2;
@@ -1263,37 +1193,23 @@ del after
 				rt_ins[rt_ins_count++] = new;
 			}
 		} 
-		else if (op == rep) 	replace[arg0] = 1;
-		else if (op == ref) 	values[arg0] = arg1; 
-		else if (op == bits)	bit_count[arg0] = val1;
-		else if (op == register_) register_index[arg0] = val1;
+		else if (op == ar) 		replace[arg0] = 1;
+		else if (op == bits)		bit_count[arg0] = val1;
+		else if (op == register_) 	register_index[arg0] = val1;
 
 		else if (not is_compiletime) {
 			struct instruction new = { .op = op, .imm = imm };
 			memcpy(new.args, ins[pc].args, sizeof new.args);
-
 			for (nat i = 0; i < arity[op]; i++) {
-
-				const nat is_real = ((new.imm >> i) & 1) == 0;
-
-				printf("is_real = %llu\n", is_real);
-				printf("new.args[i] = %llu\n", new.args[i]);
-				printf("replace[new.args[i]] = %llu\n", replace[new.args[i]]);
-
-				if (replace[new.args[i]] and is_real) {
-					printf("info: replacing....\n"); getchar();
-					new.args[i] = values[new.args[i]];
-				}
-
+				const nat is_real = not ((new.imm >> i) & 1);
+				if (is_real and replace[new.args[i]]) new.args[i] = values[new.args[i]];
 				if (is_real and is_label[new.args[i]]) continue;
-
 				if (is_real and is_constant[new.args[i]]) {
-					printf("inserting value into ins...\n"); getchar();
 					new.args[i] = values[new.args[i]];
 					new.imm |= 1 << i;
 				}
 			}
-
+			memset(replace, 0, sizeof replace);
 			imm = new.imm;
 			i1 = !!(imm & 2);
 			arg0 = new.args[0];
@@ -1332,7 +1248,6 @@ del after
 				}
 			}
 			if (keep) rt_ins[rt_ins_count++] = new;
-			memset(replace, 0, sizeof replace);
 		}
 
 		else if (op == halt) break;
@@ -4008,6 +3923,209 @@ finished_outputting:
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+/*
+				//printf("is_real = %llu\n", is_real);
+				//printf("new.args[i] = %llu\n", new.args[i]);
+				//printf("replace[new.args[i]] = %llu\n", replace[new.args[i]]);
+
+
+			printf("generating a call to %llu:%llu: macro %s (arity %llu) (label %llu(%s)) with arguments: {  ", 
+					op, op - isa_count, macros[op - isa_count], macro_arity[op - isa_count], macro_label[op - isa_count], variables[macro_label[op - isa_count]]
+			);
+			for (nat a = 0; a < arg_count; a++) {
+				printf("%llu ", args[a]);
+			}
+			printf(" }\n");
+
+
+
+
+ct 
+
+def after
+
+st compiler_ctsc_number #&after nat 
+st compiler_ctsc_arg0   #&u nat 
+st compiler_ctsc_arg1   #&u nat 
+do my_macro 
+at after
+
+del after
+
+*/
 
 
 

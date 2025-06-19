@@ -42,6 +42,11 @@ add x 0001 set compiler_ctsc_arg0 x
 add x 0001 set compiler_ctsc_arg1 x
 add x 0001 set compiler_ctsc_arg2 x
 add x 0001 set compiler_ctsc_arg3 x
+add x 0001 set compiler_ctsc_arg4 x
+add x 0001 set compiler_ctsc_arg5 x
+add x 0001 set compiler_ctsc_arg6 x
+add x 0001 set compiler_ctsc_arg7 x
+add x 0001 set compiler_memory_base x
 
 (valid arguments to ctsc compiler_target)
 set x 0 set no_arch x
