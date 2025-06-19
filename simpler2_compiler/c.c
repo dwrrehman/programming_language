@@ -62,7 +62,7 @@ enum compiler_system_calls {
 enum core_language_isa {
 	nullins,
 
-	ct, rt, system_, emit, string,
+	ct, rt, system_, emit, string, operation, 
 	file, del, register_, bits, section, rep, ref, 
 	set, add, sub, mul, div_, rem, 
 	and_, or_, eor, si, sd, la, 
@@ -84,7 +84,7 @@ enum core_language_isa {
 static const char* operations[isa_count] = {
 	"___nullins____",
 
-	"ct", "rt", "system", "emit", "string", 
+	"ct", "rt", "system", "emit", "string", "operation", 
 	"file", "del", "register", "bits", "section", "rep", "ref", 
 	"set", "add", "sub", "mul", "div", "rem", 
 	"and", "or", "eor", "si", "sd", "la", 
@@ -106,7 +106,7 @@ static const char* operations[isa_count] = {
 static const nat arity[isa_count] = {
 	0,
 
-	0, 0, 0, 2, 2, 
+	0, 0, 0, 2, 2, 2, 
 	1, 1, 2, 2, 1, 1, 2, 
 	2, 2, 2, 2, 2, 2, 
 	2, 2, 2, 2, 2, 2, 
@@ -889,22 +889,30 @@ int main(int argc, const char** argv) {
 	nat stack_size = min_stack_size;
 	const char* output_filename = "output_file_from_compiler";
 
-	const char* included_files[4096] = {0};
-	nat included_file_count = 0;
 	char* string_list[4096] = {0};
 	nat string_list_count = 0;
+	
+{ 
+
 	struct file files[4096] = {0};
 	nat file_count = 1;
-	
-{ {
-	nat text_length = 0;
+
+	const char* included_files[4096] = {0};
+	nat included_file_count = 0;
+
+#define max_macro_count 1024
+	char* macros[max_macro_count] = {0};
+	nat macro_arity[max_macro_count] = {0};
+	nat macro_label[max_macro_count] = {0};
+	nat macro_count = 0;
+
+	{ nat text_length = 0;
 	char* text = load_file(argv[1], &text_length);
 	files[0].filename = argv[1];
 	files[0].text = text;
 	files[0].text_length = text_length;
 	files[0].index = 0;
-	files[0].ct = 0;
-}
+	files[0].ct = 0; }
 
 process_file:;
 	byte is_compiletime = files[file_count - 1].ct;
@@ -959,8 +967,23 @@ process_file:;
 				goto next_word;
 			}
 
+			// look at possible macros that this could be
+			// if you can't parse it as a macro, then check the isa listing.
+
+			for (nat m = 0; m < macro_count; m++) {
+				if (not strcmp(word, macros[m])) { 
+					op = isa_count + m; goto process_op; 
+				}
+			}
+
 			for (op = 0; op < isa_count; op++) 
 				if (not strcmp(word, operations[op])) goto process_op;
+
+
+
+			for (nat m = 0; m < macro_count; m++) {
+				printf("macro %llu : %s : %llu\n", m, macros[m], macro_arity[m]);
+			}
 
 			print_error(
 				"nonexistent operation",
@@ -971,14 +994,12 @@ process_file:;
 		else if (op == file) goto define_name;
 		for (var = var_count; var--;) {
 			if (not is_undefined[var] and 
-			    not strcmp(word, variables[var])) {
-				goto push_argument;
-			}
+			    not strcmp(word, variables[var])) goto push_argument;
 		} 
 
 		if (not(  
 			(op == lt or op == ge or op == ne or op == eq) and arg_count == 2 or
-			(op == set or op == ld or op == ref or op == register_) and arg_count == 0 or
+			(op == set or op == ld or op == ref or op == register_ or op == operation) and arg_count == 0 or
 			op == do_ or op == at or op == la
 		)) {
 			nat r = 0, s = 1;
@@ -1008,10 +1029,35 @@ process_file:;
 
 	process_op: 
 		if (op == string) { in_string = 1; goto next_word; } 
-		else if (arg_count < arity[op]) goto next_word;
+		else if (op >= isa_count and arg_count < macro_arity[op - isa_count]) goto next_word;
+		else if (op < isa_count and arg_count < arity[op]) goto next_word;
 		else if (op == ct) is_compiletime = 1;
 		else if (op == rt) is_compiletime = 0;
-		else if (op == del) {
+		else if (op == operation) {
+
+			if ((is_immediate & 2) == 0) 
+				print_error(
+					"user-defined operation arity must be an immediate",
+					filename, text, text_length, 
+					word_start, pc
+				);
+
+			else if (is_immediate & 1)
+				print_error(
+					"expected user-defined operation name",
+					filename, text, text_length, 
+					word_start, pc
+				);
+
+			//char* macro_name = variables[var_count - 1];
+			//const nat this_macro_arity = args[1];
+			//printf("debug info: defining macro called %s with arity %llu\n", macro_name, this_macro_arity);
+
+			macro_arity[macro_count] = args[1];
+			macro_label[macro_count] = args[0];
+			macros[macro_count++] = variables[args[0]];
+
+		} else if (op == del) {
 			if (is_immediate) 
 				print_error(
 					"expected defined variable, found binary literal",
@@ -1038,6 +1084,67 @@ process_file:;
 			files[file_count++].index = 0;
 			var_count--;
 			goto process_file;
+
+		} else if (op >= isa_count) {
+
+			printf("generating a call to %llu:%llu: macro %s (arity %llu) (label %llu(%s)) with arguments: {  ", 
+					op, op - isa_count, macros[op - isa_count], macro_arity[op - isa_count], macro_label[op - isa_count], variables[macro_label[op - isa_count]]
+			);
+			for (nat a = 0; a < arg_count; a++) {
+				printf("%llu ", args[a]);
+			}
+			printf(" }\n");
+
+			variables[var_count++] = strdup("__COMPILER_DEFINED_AFTER"); 
+			const nat after = var_count - 1; is_constant[after] = 1;
+			ins[ins_count++] = (struct instruction) {
+				 .op = st, .imm = 7, .state = 1, 
+				.args = { 8 * ctsc_number_memory_address, after, 8} 
+			}; 
+			for (nat a = 0; a < arg_count; a++) {
+				const nat is_binary_literal = (is_immediate >> a) & 1LLU;
+				const nat is_runtime = not is_constant[args[a]];
+				const nat should_store_value = is_binary_literal or is_runtime;
+				const nat immediate = 5LLU | (should_store_value << 1LLU);
+				ins[ins_count++] = (struct instruction) { 
+					.op = st, .state = 1, 
+					.imm = immediate, 
+					.args = { 8 * (ctsc_arg0_memory_address + a), args[a], 8 } 
+				};
+			} 
+			ins[ins_count++] = (struct instruction) { .op = do_, .state = 1, .args = { macro_label[op - isa_count] } }; 
+			ins[ins_count++] = (struct instruction) { .op = at, .state = 1, .args = { after } }; 
+			is_undefined[after] = 1;
+			memset(args, 0, sizeof args);
+			is_immediate = 0;			
+
+
+
+
+/*
+
+ct 
+
+def after
+
+st compiler_ctsc_number #&after nat 
+st compiler_ctsc_arg0   #&u nat 
+st compiler_ctsc_arg1   #&u nat 
+do my_macro 
+at after
+
+del after
+
+*/
+
+
+
+
+
+
+
+
+			
 
 		} else {
 			if (((op >= a6_nop and op < isa_count) or op == section or op == emit) and is_compiletime) 
@@ -1078,7 +1185,7 @@ process_file:;
 				.state = is_compiletime,
 			};
 			memcpy(new.args, args, sizeof args);
-			if (op == ref) is_constant[new.args[0]] = is_constant[new.args[1]];
+			//if (op == ref) is_constant[new.args[0]] = is_constant[new.args[1]];
 			is_immediate = 0;
 			memset(args, 0, sizeof args);
 			ins[ins_count++] = new;
