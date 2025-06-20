@@ -14,11 +14,9 @@ operation add_numbers 11 at add_numbers ct
 	ld ra compiler_ctsc_number nat
 	ld x compiler_ctsc_arg0 nat
 	ld y compiler_ctsc_arg1 nat
-	ld c compiler_ctsc_arg2 nat rt
-	dr x dr y add x y 
-	dr x add x c
-	dr ra ct do ra 
-	del x del y del c del ra
+	ld c compiler_ctsc_arg2 nat
+	rt dr x dr y add x y dr x add x c
+	ct do ra del ra del x del y del c
 	
 at macros
 del macros
@@ -30,6 +28,7 @@ register a 1 set a 101
 register b 01 set b 011
 
 add_numbers a b my_constant
+add_numbers b a 001 
 
 halt
 

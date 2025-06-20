@@ -1057,13 +1057,6 @@ process_file:;
 			goto process_file;
 
 		} else if (op >= isa_count) {
-			variables[var_count++] = strdup("__return"); 
-			const nat after = var_count - 1; 
-			is_constant[after] = 1;
-			ins[ins_count++] = (struct instruction) {
-				 .op = st, .imm = 7, .state = 1, 
-				.args = { 8 * ctsc_number_memory_address, after, 8} 
-			}; 
 			for (nat a = 0; a < arg_count; a++) {
 				const nat is_binary_literal = (is_immediate >> a) & 1LLU;
 				const nat should_store_value = is_binary_literal or not is_constant[args[a]];
@@ -1072,10 +1065,12 @@ process_file:;
 					.op = st, .state = 1, .imm = immediate, 
 					.args = { 8 * (ctsc_arg0_memory_address + a), args[a], 8 } 
 				};
-			} 
+			}
+			ins[ins_count] = (struct instruction) {
+				 .op = st, .imm = 7, .state = 1,
+				.args = { 8 * ctsc_number_memory_address, ins_count + 1, 8} 
+			}; ins_count++;
 			ins[ins_count++] = (struct instruction) { .op = do_, .state = 1, .args = { macro_label[op - isa_count] } };
-			ins[ins_count++] = (struct instruction) { .op = at, .state = 1, .args = { after } };
-			is_undefined[after] = 1;
 			memset(args, 0, sizeof args);
 			is_immediate = 0;
 

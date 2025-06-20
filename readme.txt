@@ -150,21 +150,18 @@ actually expands out to the following pattern, after parsing:
 	st compiler_ctsc_arg1   #(arg1) 0001
 	(...etc for each argument, arg0 through argN...)
 	
-	ct st compiler_ctsc_number #(return) 0001
-
-	do macro_name_here
-	at return 
-	del return
+	ct st compiler_ctsc_number return 0001      (the pc value for label return is stored as a CT literal into memory)
+	do macro_name
+	at return del return
 
 
-in other words, the dictionary index of the given arguments for the macro call are stored in particular locations in compiletime memory, using compiletime store instructions ("st"), along with a reference to the link register / return address, which in this case is the local variable named "return". 
+in other words, the dictionary index of the given arguments for the macro call are stored in particular locations in compiletime memory, using compiletime store instructions ("st"), along with a value of the return address, which in this case is the local variable named "return". this return address value is used to branch back after the macro call has finished, similar to actual runtime function calls in assembly. 
 
 the macro body then is responsible for loading these values out of compiletime memory, and processing the arguments properly, and after doing the body of the macro, it must jump to the return address. the "dr" instructions is used to dictionary-dereference the references which were stored into compiletime memory, when these parameters are used in other instructions. see the below macro example for details.
 
 note, however, if the macro wishes to take as input compiletime values, a dictionary reference to these values is not created. instead, the compiletime value itself is stored into compiletime memory. the macro, then, is responsible for interpretting given loaded arguments as either compiletime values or dictionary references. all runtime variables are stored as dictionary indexes, and all CT variables/values are stored as CT values. binary literals are considered CT values and thus, they are also stored as CT values into CT memory)
 
 example macro body:
-
 
 	operation add_numbers 11 
 	at add_numbers 
@@ -174,7 +171,7 @@ example macro body:
 		ld c compiler_ctsc_arg2 nat 
 		rt dr x dr y add x y 
 		dr x add x c
-		dr ra ct do ra 
+		ct do ra 
 		del x del y del c del ra
 	
 
@@ -182,9 +179,7 @@ here, in this example we generate two add instructions, one taking two runtime v
 
 upon seeing another compiletime-executed or runtime-executed instruction (ie, something which is NOT a "ct", "rt", "file", "del", "dr", or "operation" instruction) the currently replacable variables will be dictionary-dereferenced before the instruction executes, thus using the variable whose dictionary entry is referred to by CT value of x (and y).
 
-
-
-
+note, also that the value of the return address is a compiletime constant, just like any other label, denoting the instruction index after the synthesized "do macro_name" CT call/jump instruction. writing "ct do <return address ct-register>" is required to jump back to the caller, specifically right after the macro call itself. 
 
 
 
