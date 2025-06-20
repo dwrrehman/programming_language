@@ -31,14 +31,15 @@ typedef uint8_t byte;
 #define max_instruction_count 	(1 << 14)
 #define max_arg_count 		16
 
-enum all_architectures { no_arch, arm64_arch, arm32_arch, rv64_arch, rv32_arch, msp430_arch, };
-enum all_output_formats { 
-	debug_output_only, 
-	macho_executable, macho_object, 
-	elf_executable, elf_object, 
-	ti_txt_executable, 
-	uf2_executable, 
-	hex_array_output, 
+enum all_architectures { no_arch, arm64_arch, arm32_arch, rv64_arch, rv32_arch, msp430_arch, c_arch, };
+enum all_output_formats {
+	debug_output_only,
+	macho_executable, macho_object,
+	elf_executable, elf_object,
+	ti_txt_executable,
+	uf2_executable,
+	hex_array_output,
+	c_source_output,
 };
 enum memory_mapped_ctsc_offsets {
 	debug_memory_address,
@@ -294,7 +295,8 @@ static void print_instruction_window_around(
 			row_count++; continue; 
 		}
 
-		printf("  %s%4llu │ ", 
+		printf("%4llu  %s%4llu │ ", 
+			ins[here].state, 
 			not i and ins[here].state ? 
 			"\033[32;1m•\033[0m\033[48;5;238m"
 			: (ins[here].state ? "\033[32;1m•\033[0m" : " "), 
@@ -887,7 +889,7 @@ int main(int argc, const char** argv) {
 	nat should_overwrite = false;
 
 	nat stack_size = min_stack_size;
-	const char* output_filename = "output_file_from_compiler";
+	const char* output_filename = "output_file_from_compiler.c";
 
 	char* string_list[4096] = {0};
 	nat string_list_count = 0;	
@@ -1134,7 +1136,7 @@ process_file:;
 	print_dictionary(1);
 	print_instructions(0);
 	puts("parsing finished.");
-	//getchar();
+	getchar();
 
 	{ struct instruction rt_ins[4096] = {0};
 	nat rt_ins_count = 0;
@@ -1321,8 +1323,34 @@ process_file:;
 	nat* is_copy = calloc(ins_count * var_count, sizeof(nat));
 	nat* copy_of = calloc(ins_count * var_count, sizeof(nat));
 
+
+	const nat traversal_count = 10;       // this doesnt fix it either... 
+
+	abort(); 			
+
+
+
+				// currently a huge bug in the CTE2 optimization stage:
+
+
+				// the CTE2 pass is caling particular variables compiletime known when it shouldnt, as it isnt seeing the right control flow merge points with different data values at the right time, 
+				//  in the prime number written for the c arch and output format,    the variable j is being deleted, deduced to be 0 CTK. this is wrong, obviously, because it should be seeing the merge of CF and different CTK values of j (0 vs 1) at "inner", and thus keeping j. this isnt happening, and thus is a huge bug lol. 
+
+
+
+
+						// oh also, RA needs an overhaul kinda, we arent handling   RA constraints right i think,   and we also need to split up variable live ranges into seperate disjoint ranges when possible. 
+
+				
+
+
+
+
+
+
+
 	nat stack[4096] = {0};
-	nat stack_count = 1;
+	nat stack_count = traversal_count;
 
 	for (nat i = 0; i < ins_count; i++)  ins[i].state = 0;
 
@@ -1333,10 +1361,10 @@ process_file:;
 		nat* preds = compute_predecessors(pc, &pred_count);
 		nat* gotos = compute_successors(pc);
 
-		debug_data_flow_state(pc, preds, pred_count, stack, stack_count, value, type, is_copy, copy_of);
-		//getchar();
-
 		ins[pc].state++;
+
+		debug_data_flow_state(pc, preds, pred_count, stack, stack_count, value, type, is_copy, copy_of);
+		getchar();
 
 		const nat op = ins[pc].op;
 		const nat imm = ins[pc].imm;
@@ -1410,39 +1438,8 @@ process_file:;
 
 		if (op == halt) continue;
 		else if (op == at) { }
-		else if (op == section) { } 
-		
-		else if (op == system_) {
-
-			/* nat n = (nat) -1;
-			for (nat i = 0; i < var_count; i++) {
-				if (register_index[i] == 17 and // generalize this! 
-				// system_call_number_register(target) and 
-				type[pc * var_count + i]) {
-					n = value[pc * var_count + i]; 
-					break;
-				}
-			}
-			
-			if (n == (nat) -1) {
-				for (nat r = 10; r < 16; r++)
-				for (nat i = 0; i < var_count; i++)
-				if (register_index[i] == r)
-				type[pc * var_count + i] = 0;
-
-			} else if (n == 2) {
-				for (nat i = 0; i < var_count; i++)
-				if (register_index[i] == 10) // arg0 on riscv, outparam of   k = read();
-							// todo, errno should also be returned as an outparam!
-				type[pc * var_count + i] = 0;
-
-			} else if (n == 3) {
-				for (nat i = 0; i < var_count; i++)
-				if (register_index[i] == 10) // arg0 on riscv, outparam of   k = read(); ...(+ errno?)
-				type[pc * var_count + i] = 0;
-			}*/
-
-		}
+		else if (op == section) { } 		
+		else if (op == system_) { }
 		else if (op == emit) { } 
 		else if (op == do_) { }
 		else if (op == set) {
@@ -1482,8 +1479,8 @@ process_file:;
 
 		} else if (op == lt or op == ge or op == ne or op == eq) {
 			if (not ct0 or not ct1) {
-				if (gt0 < ins_count and ins[gt0].state < 2) stack[stack_count++] = gt0;
-				if (gt1 < ins_count and ins[gt1].state < 2) stack[stack_count++] = gt1; 
+				if (gt0 < ins_count and ins[gt0].state < traversal_count) stack[stack_count++] = gt0;
+				if (gt1 < ins_count and ins[gt1].state < traversal_count) stack[stack_count++] = gt1; 
 				continue;
 			} else {
 				bool cond = 0;
@@ -1493,7 +1490,7 @@ process_file:;
 				else if (op == ne) cond = v0 != v1;
 
 				const nat target = cond ? gt1 : gt0;
-				if (target < ins_count and ins[target].state < 2) 
+				if (target < ins_count and ins[target].state < traversal_count) 
 					stack[stack_count++] = target; 
 				continue;
 			}		
@@ -1510,11 +1507,11 @@ process_file:;
 			is_copy[pc * var_count + a0] = out_is_copy;
 			copy_of[pc * var_count + a0] = out_copy_ref;
 		}
-		if (gt0 < ins_count and ins[gt0].state < 2) stack[stack_count++] = gt0; 
+		if (gt0 < ins_count and ins[gt0].state < traversal_count) stack[stack_count++] = gt0; 
 
 		if (op == la) {
 			const nat label = compute_label_location(a1);
-			if (label < ins_count and ins[label].state < 2) stack[stack_count++] = label; 
+			if (label < ins_count and ins[label].state < traversal_count) stack[stack_count++] = label; 
 			continue;
 		}
 
@@ -1529,11 +1526,11 @@ process_file:;
 
 	debug_data_flow_state(0, NULL, 0, stack, stack_count, value, type, is_copy, copy_of);
 	puts("data flow: [FINAL VALUES]");
-	// getchar();
+	getchar();
 	
 	print_instructions(0);
 	puts("OPT2 finished.");
-	//getchar();
+	getchar();
 
 	puts("pruning ctk instructions...");
 
@@ -1543,7 +1540,7 @@ process_file:;
 
 		print_instruction_window_around(i, 0, "");
 		puts("-----------PRUNING CTK INS:---------------");
-		//getchar();
+		getchar();
 
 		const nat op = ins[i].op;
 		const nat imm = ins[i].imm;
@@ -1632,7 +1629,7 @@ process_file:;
 		putchar('\t');
 		print_instruction(ins[i]); 
 		puts("");
-		//getchar();
+		getchar();
 
 		if (op >= set and op <= sd) {
 			const nat ct1 = (imm & 2) or type[i * var_count + ins[i].args[1]];
@@ -1798,6 +1795,7 @@ process_file:;
 	if (target_arch == rv64_arch) 	goto rv32_instruction_selection;
 	if (target_arch == msp430_arch) goto msp430_instruction_selection;
 	if (target_arch == arm64_arch) 	goto arm64_instruction_selection;
+	if (target_arch == c_arch) 	goto c_instruction_selection;
 	puts("instruction selection: error: unknown target"); abort();
 
 
@@ -2351,6 +2349,34 @@ arm64_instruction_selection:;
 			continue;
 		}
 	}
+	goto finish_instruction_selection;
+
+
+c_instruction_selection:;
+	puts("c: instruction selection starting...");
+	{ struct instruction new = {0};
+	for (nat i = 0; i < ins_count; i++) {
+		print_instruction_window_around(i, 0, "");
+		puts("C machine instructions:");
+		for (nat e = 0; e < mi_count; e++) {
+			printf("%llu: ", e); 
+			print_instruction(mi[e]); puts("");
+		}
+		puts("[mi done]\n[C ins sel]"); 
+		getchar();
+		if (ins[i].state) {
+			printf("warning: [i = %llu]: skipping, part of a pattern.\n", i);
+			getchar(); continue;
+		}
+		const nat op = ins[i].op;
+		if (op < a6_nop) { new = ins[i]; goto c_push_single_mi; } 
+		puts("error: unknown instruction selection pattern");
+		abort();
+	c_push_single_mi:
+		mi[mi_count++] = new;
+		ins[i].state = 1;
+	}}
+	goto finish_instruction_selection;
 
 
 
@@ -2377,18 +2403,7 @@ finish_instruction_selection:;
 	puts("RA: starting register allocation!");           
 
 
-
-
-
-
-
-				// BUG IN RA:   we need to be looking at the number of "disjoint live ranges" for a variable. and treating those as seperate variables!!!!
-
-
-
-
-
-
+		// BUG IN RA:   we need to be looking at the number of "disjoint live ranges" for a variable. and treating those as seperate variables!!!!
 
 
 
@@ -2396,6 +2411,7 @@ finish_instruction_selection:;
 	nat hardware_register_count = 0; 
 	if (target_arch == rv32_arch) hardware_register_count = 31;
 	else if (target_arch == msp430_arch) hardware_register_count = 12;
+	else if (target_arch == c_arch) hardware_register_count = 4096;
 	else {
 		puts("cannot perform RA for this target, unimplemented.");
 		abort();
@@ -2422,6 +2438,10 @@ finish_instruction_selection:;
 		} else if (target_arch == msp430_arch) {
 			preds = compute_msp430_predecessors(pc, &pred_count);
 			gotos = compute_msp430_successors(pc);
+
+		} else if (target_arch == c_arch) {
+			preds = compute_predecessors(pc, &pred_count);
+			gotos = compute_successors(pc);
 		}
 
 		if (gotos[0] != (nat) -1) goto_count++;
@@ -2431,7 +2451,7 @@ finish_instruction_selection:;
 		printf("executing: [pc = %llu]: ", pc); 
 		print_instruction(ins[pc]);
 		puts("");
-		//getchar();
+		getchar();
 
 		ins[pc].state++;
 
@@ -2445,7 +2465,7 @@ finish_instruction_selection:;
 		const nat a4 = ins[pc].args[4];
 		const nat a5 = ins[pc].args[5];
 		
-		//const nat i0 = !!(imm & (1 << 0));
+		const nat i0 = !!(imm & (1 << 0));
 		const nat i1 = !!(imm & (1 << 1));
 		const nat i2 = !!(imm & (1 << 2));
 		const nat i3 = !!(imm & (1 << 3));
@@ -2492,6 +2512,24 @@ finish_instruction_selection:;
 				// nothing.
 
 			} else goto unknown_liveness_error;
+
+		} else if (target_arch == c_arch) {
+			if (op == set or op == ld or op == la) {
+				if (not i0) alive[pc * var_count + a0] = 0;
+				if (not i1) alive[pc * var_count + a1] = 1;
+
+			} else if ((op >= add and op <= sd) or op == st or (op >= lt and op <= eq)) {
+				if (not i0) alive[pc * var_count + a0] = 1;
+				if (not i1) alive[pc * var_count + a1] = 1;
+
+			} else if (op == system_) { // system calls and liveness is a bit icky right now... :((((
+				for (nat e = 0; e < var_count; e++) {
+					if (register_index[e] < 8) alive[pc * var_count + e] = 1;    // temporary fix... todo:  fix me properly lollllll
+				}
+			} else if (op == do_) {
+				// do nothing
+
+			} else goto unknown_liveness_error;
 		}
 
 		for (nat i = 0; i < pred_count; i++) {
@@ -2525,10 +2563,17 @@ finish_instruction_selection:;
 		for (nat i = 0; i < var_count; i++) {
 			for (nat j = 0; j < i; j++) {
 				if (not alive[pc * var_count + i]) continue;
-				if (not alive[pc * var_count + j]) continue;
+				if (not alive[pc * var_count + j]) continue;				
 				rig[2 * rig_count + 0] = i;
 				rig[2 * rig_count + 1] = j;
 				rig_count++;
+
+				for (nat r = 0; r < rig_count - 1; r++) {
+					const nat first = rig[2 * r + 0];
+					const nat second = rig[2 * r + 1];
+					if (first == i and second == j) { rig_count--; break; }
+					if (first == j and second == i) { rig_count--; break; }
+				}
 			}
 		}
 	}
@@ -2607,34 +2652,12 @@ finish_instruction_selection:;
 	memset(allocation, 255, sizeof(nat) * var_count);
 	for (nat i = 0; i < var_count; i++) {
 		if (register_index[i] == (nat) -1) continue;
-
 		if (target_arch == rv32_arch) {
 			allocation[i] = register_index[i] - 1;
-			// this line: this translation is specific to risc-v. 
-			// (zero register is unused, and non-allocatable.)
 		} else if (target_arch == msp430_arch) {
 			allocation[i] = register_index[i] - 4;
-	/*
-msp430 registers are the following:
-
-set pc 0	: unallocatable: special purpose: program counter
-set sp 1	: unallocatable: special purpose: stack pointer  (ie, edited via the push and pop instructions..)
-set sr 01	: unallocatable: special purpose: status register
-set cg 11	: unallocatable: special purpose: constant generater 2
-
-set r4 001	: general purpose, allocatable
-set r5 101	: general purpose, allocatable
-set r6 011	: general purpose, allocatable
-set r7 111	: general purpose, allocatable
-set r8 0001	: general purpose, allocatable
-set r9 1001	: general purpose, allocatable
-set r10 0101	: general purpose, allocatable
-set r11 1101	: general purpose, allocatable
-set r12 0011	: general purpose, allocatable
-set r13 1011	: general purpose, allocatable
-set r14 0111	: general purpose, allocatable
-set r15 1111	: general purpose, allocatable
-	*/
+		} else if (target_arch == c_arch) {
+			allocation[i] = register_index[i];
 		} else abort();
 	}
 
@@ -2646,6 +2669,14 @@ set r15 1111	: general purpose, allocatable
 		printf("[s=%llu]: trying to allocate %s\n", s, variables[var]);
 		if (allocation[var] != (nat) -1) continue;
 		memset(occupied, 0, sizeof(nat) * hardware_register_count);
+
+		for (nat i = 0; i < var_count; i++) {     
+
+			// TODO: this is just a weird hack.. does this work at all!?!?
+
+			if (allocation[i] != (nat) -1) occupied[allocation[i]] = 1;
+		}
+
 		for (nat e = 0; e < rig_count; e++) {
 			const nat a = rig[2 * e + 0];
 			const nat b = rig[2 * e + 1];
@@ -2682,13 +2713,11 @@ set r15 1111	: general purpose, allocatable
 		if (not needs_ra[i] and allocation[i] == (nat) -1) continue;
 		if (target_arch == rv32_arch) {
 			allocation[i] += 1;
-			// this line is specific to risc-v! 
-			// we'd translate the RI's back to hardware RI space. 
-
 		} else if (target_arch == msp430_arch) {
-			allocation[i] += 4; // translate language RI space back into msp430 register RI space. 
+			allocation[i] += 4;
+		} else if (target_arch == c_arch) {
+			//allocation[i] += 0;
 		} else abort();
-
 	}
 
 	puts("RA: FINAL REGISTER ALLOCATION:");
@@ -2737,9 +2766,11 @@ set r15 1111	: general purpose, allocatable
 				}
 
 				ins[i].args[a] = allocation[this_arg];
-				ins[i].imm |= 1LLU << a;
 
-				printf("info: filled in register index %llu for variable %s into this instruction. ", 
+				if (target_arch != c_arch) 
+					ins[i].imm |= 1LLU << a;
+
+				printf("info: filled in register index %lld for variable %s into this instruction. ", 
 					ins[i].args[a], variables[this_arg]
 				);				
 			}
@@ -2776,6 +2807,7 @@ set r15 1111	: general purpose, allocatable
 	if (target_arch == rv64_arch) goto rv32_generate_machine_code;
 	if (target_arch == arm64_arch) goto arm64_generate_machine_code;
 	if (target_arch == msp430_arch) goto msp430_generate_machine_code;
+	if (target_arch == c_arch) goto c_generate_source_code;
 	puts("unknown target"); abort();
 
 rv32_generate_machine_code:;
@@ -3355,6 +3387,200 @@ arm64_generate_machine_code:;
 			abort();
 		}
 	}
+	goto finished_generation;
+
+c_generate_source_code:;
+
+	{ const char* header = 
+	"// c source file auto-generated by my compiler.\n"
+	"#include <stdlib.h>\n"
+	"#include <unistd.h>\n"
+	"#include <fcntl.h>\n"
+	"#include <sys/mman.h>\n"
+	"#include <stdio.h>\n"
+	"#include <errno.h>\n"
+	"#include <stdint.h>\n"
+	"\n"
+	"static uint64_t x[4096];\n"
+	"\n"
+	"static void ecall(void) {\n"
+	"\tif (x[0] == 0) printf(\"debug: hello: %llu\\n\", x[1]);\n"
+	"\telse if (x[0] == 1) exit((int) x[1]);\n"
+	"\telse if (x[0] == 2) { x[1] = (uint64_t) read((int) x[1], (void*) x[2], (size_t) x[3]); x[2] = (uint64_t) errno; }\n"
+	"\telse if (x[0] == 3) { x[1] = (uint64_t) write((int) x[1], (void*) x[2], (size_t) x[3]); x[2] = (uint64_t) errno; }\n"
+	"\telse if (x[0] == 4) { x[1] = (uint64_t) open((const char*) x[1], (int) x[2], (mode_t) x[3]); x[2] = (uint64_t) errno; }\n"
+	"\telse if (x[0] == 5) { x[1] = (uint64_t) close((int) x[1]); x[2] = (uint64_t) errno; }\n"
+	"\telse if (x[0] == 6) { x[1] = (uint64_t) (void*) mmap((void*) x[1], (size_t) x[2], (int) x[3],"
+				" (int) x[4], (int) x[5], (off_t) x[6]); x[2] = (uint64_t) errno; }\n"
+	"\telse if (x[0] == 7) { x[1] = (uint64_t) munmap((void*) x[1], (size_t) x[2]); x[2] = (uint64_t) errno; }\n"
+	"\telse abort();\n"
+	"}\n"
+	"int main(void) {\n"
+	"\tx[0] = 0;\n"
+	"\tecall();\n"
+	;
+
+	const char* footer = 
+		"}\n// (end of file)\n\n"
+	;
+
+	{ char str[4096] = {0};
+	const nat len = (nat) snprintf(str, sizeof str, "%s", header);
+	insert_bytes(&my_bytes, &my_count, str, len); } 
+
+	for (nat i = 0; i < ins_count; i++) {
+
+		print_instruction_window_around(i, 0, "");
+		puts("");
+		printf("C source code: \n<<<%.*s>>>\n", (int) my_count, (char*) my_bytes);
+		getchar();
+
+		const nat op = ins[i].op;
+		const nat imm = ins[i].imm;
+		const nat a0 = ins[i].args[0];
+		const nat a1 = ins[i].args[1];
+		const nat a2 = ins[i].args[2];
+
+		if (op == halt or op == section) {}
+
+		else if (op == system_) {
+			char str[4096] = {0};
+			const nat len = (nat) snprintf(str, sizeof str, "\tecall();\n");
+			insert_bytes(&my_bytes, &my_count, str, len);
+
+		} else if (op == emit) {
+			abort();
+			if (a0 == 8) insert_u64(&my_bytes, &my_count, (uint64_t) ins[i].args[1]);
+			if (a0 == 4) insert_u32(&my_bytes, &my_count, (uint32_t) a1);
+			if (a0 == 2) insert_u16(&my_bytes, &my_count, (uint16_t) a1);
+			if (a0 == 1) insert_u8 (&my_bytes, &my_count, (uint8_t) a1);
+
+		} else if (op == at) {
+			char str[4096] = {0};
+			const nat len = (nat) snprintf(str, sizeof str, "_%llu:\n", a0);
+			insert_bytes(&my_bytes, &my_count, str, len);
+
+		} else if (op == do_) {
+			char str[4096] = {0};
+			const nat len = (nat) snprintf(str, sizeof str, "\tgoto _%llu;\n", a0);
+			insert_bytes(&my_bytes, &my_count, str, len);
+
+		} else if (op == set) {
+			char str[4096] = {0}; nat len = 0;
+			if (imm) len = (nat) snprintf(str, sizeof str, "\tx[%llu] = %llu;\n", a0, a1);
+			else len = (nat) snprintf(str, sizeof str, "\tx[%llu] = x[%llu];\n", a0, a1);
+			insert_bytes(&my_bytes, &my_count, str, len);
+
+		} else if (op == add) {
+			char str[4096] = {0}; nat len = 0;
+			if (imm) len = (nat) snprintf(str, sizeof str, "\tx[%llu] += %llu;\n", a0, a1);
+			else len = (nat) snprintf(str, sizeof str, "\tx[%llu] += x[%llu];\n", a0, a1);
+			insert_bytes(&my_bytes, &my_count, str, len);
+
+		} else if (op == sub) {
+			char str[4096] = {0}; nat len = 0;
+			if (imm) len = (nat) snprintf(str, sizeof str, "\tx[%llu] -= %llu;\n", a0, a1);
+			else len = (nat) snprintf(str, sizeof str, "\tx[%llu] -= x[%llu];\n", a0, a1);
+			insert_bytes(&my_bytes, &my_count, str, len);
+
+		} else if (op == mul) {
+			char str[4096] = {0}; nat len = 0;
+			if (imm) len = (nat) snprintf(str, sizeof str, "\tx[%llu] *= %llu;\n", a0, a1);
+			else len = (nat) snprintf(str, sizeof str, "\tx[%llu] *= x[%llu];\n", a0, a1);
+			insert_bytes(&my_bytes, &my_count, str, len);
+
+		} else if (op == div_) {
+			char str[4096] = {0}; nat len = 0;
+			if (imm) len = (nat) snprintf(str, sizeof str, "\tx[%llu] /= %llu;\n", a0, a1);
+			else len = (nat) snprintf(str, sizeof str, "\tx[%llu] /= x[%llu];\n", a0, a1);
+			insert_bytes(&my_bytes, &my_count, str, len);
+
+		} else if (op == and_) {
+			char str[4096] = {0}; nat len = 0;
+			if (imm) len = (nat) snprintf(str, sizeof str, "\tx[%llu] &= %llu;\n", a0, a1);
+			else len = (nat) snprintf(str, sizeof str, "\tx[%llu] &= x[%llu];\n", a0, a1);
+			insert_bytes(&my_bytes, &my_count, str, len);
+
+		} else if (op == or_) {
+			char str[4096] = {0}; nat len = 0;
+			if (imm) len = (nat) snprintf(str, sizeof str, "\tx[%llu] |= %llu;\n", a0, a1);
+			else len = (nat) snprintf(str, sizeof str, "\tx[%llu] |= x[%llu];\n", a0, a1);
+			insert_bytes(&my_bytes, &my_count, str, len);
+
+		} else if (op == eor) {
+			char str[4096] = {0}; nat len = 0;
+			if (imm) len = (nat) snprintf(str, sizeof str, "\tx[%llu] ^= %llu;\n", a0, a1);
+			else len = (nat) snprintf(str, sizeof str, "\tx[%llu] ^= x[%llu];\n", a0, a1);
+			insert_bytes(&my_bytes, &my_count, str, len);
+
+		} else if (op == si) {
+			char str[4096] = {0}; nat len = 0;
+			if (imm) len = (nat) snprintf(str, sizeof str, "\tx[%llu] <<= %llu;\n", a0, a1);
+			else len = (nat) snprintf(str, sizeof str, "\tx[%llu] <<= x[%llu];\n", a0, a1);
+			insert_bytes(&my_bytes, &my_count, str, len);
+
+		} else if (op == sd) {
+			char str[4096] = {0}; nat len = 0;
+			if (imm) len = (nat) snprintf(str, sizeof str, "\tx[%llu] >>= %llu;\n", a0, a1);
+			else len = (nat) snprintf(str, sizeof str, "\tx[%llu] >>= x[%llu];\n", a0, a1);
+			insert_bytes(&my_bytes, &my_count, str, len);
+
+
+		} else if (op == st) {
+			
+			abort();
+
+
+		} else if (op == ld) {
+
+			abort();
+
+
+		} else if (op == la) {
+
+			abort();
+
+
+
+		} else if (op == lt) {
+			char str[4096] = {0}; nat len = 0;
+			if (imm & 1) len = (nat) snprintf(str, sizeof str, "\tif (%llu < x[%llu]) goto _%llu;\n", a0, a1, a2);
+			else if (imm & 2) len = (nat) snprintf(str, sizeof str, "\tif (x[%llu] < %llu) goto _%llu;\n", a0, a1, a2);
+			else len = (nat) snprintf(str, sizeof str, "\tif (x[%llu] < x[%llu]) goto _%llu;\n", a0, a1, a2);
+			insert_bytes(&my_bytes, &my_count, str, len);
+
+		} else if (op == ge) {
+			char str[4096] = {0}; nat len = 0;
+			if (imm & 1) len = (nat) snprintf(str, sizeof str, "\tif (%llu >= x[%llu]) goto _%llu;\n", a0, a1, a2);
+			else if (imm & 2) len = (nat) snprintf(str, sizeof str, "\tif (x[%llu] >=  %llu) goto _%llu;\n", a0, a1, a2);
+			else len = (nat) snprintf(str, sizeof str, "\tif (x[%llu] >= x[%llu]) goto _%llu;\n", a0, a1, a2);
+			insert_bytes(&my_bytes, &my_count, str, len);
+
+		} else if (op == ne) {
+			char str[4096] = {0}; nat len = 0;
+			if (imm & 1) len = (nat) snprintf(str, sizeof str, "\tif (%llu != x[%llu]) goto _%llu;\n", a0, a1, a2);
+			else if (imm & 2) len = (nat) snprintf(str, sizeof str, "\tif (x[%llu] != %llu) goto _%llu;\n", a0, a1, a2);
+			else len = (nat) snprintf(str, sizeof str, "\tif (x[%llu] != x[%llu]) goto _%llu;\n", a0, a1, a2);
+			insert_bytes(&my_bytes, &my_count, str, len);
+
+		} else if (op == eq) {
+			char str[4096] = {0}; nat len = 0;
+			if (imm & 1) len = (nat) snprintf(str, sizeof str, "\tif (%llu == x[%llu]) goto _%llu;\n", a0, a1, a2);
+			else if (imm & 2) len = (nat) snprintf(str, sizeof str, "\tif (x[%llu] ==  %llu) goto _%llu;\n", a0, a1, a2);
+			else len = (nat) snprintf(str, sizeof str, "\tif (x[%llu] == x[%llu]) goto _%llu;\n", a0, a1, a2);
+			insert_bytes(&my_bytes, &my_count, str, len);
+
+		} else {
+			printf("error: unknown C machine instruction op=\"%s\"\n", operations[op]);
+			abort();
+		}
+	}
+	char str[4096] = {0};
+	const nat len = (nat) snprintf(str, sizeof str, "%s", footer);
+	insert_bytes(&my_bytes, &my_count, str, len); }
+
+	goto finished_generation;
+
 
 
 finished_generation:;
@@ -3365,6 +3591,7 @@ finished_generation:;
 
 	if (output_format == debug_output_only) goto print_debug_output_only;
 	if (output_format == hex_array_output) goto generate_hex_array_output;
+	if (output_format == c_source_output) goto generate_c_source_output;
 	if (output_format == ti_txt_executable) goto generate_ti_txt_executable;
 	if (output_format == uf2_executable) goto generate_uf2_executable;
 	if (output_format == macho_executable) goto generate_macho_executable;
@@ -3383,6 +3610,47 @@ print_debug_output_only:;
 		if (my_bytes[i]) printf("\033[0m");
 	}
 	puts("");
+	goto finished_outputting;
+
+
+
+generate_c_source_output:;
+
+	{
+	char* out = malloc(my_count);
+	memcpy(out, my_bytes, my_count);
+	nat len = my_count;
+
+	printf("about to write out: \n-------------------\n<<<%.*s>>>\n----------------\n", (int) len, out);
+	printf("writing c source code file...\n");
+	fflush(stdout);
+
+	if (not access(output_filename, F_OK)) {
+		printf("file exists. do you wish to remove the previous one? (y/n) ");
+		fflush(stdout);
+		if (should_overwrite or getchar() == 'y') {
+			printf("file %s was removed.\n", output_filename);
+			int r = remove(output_filename);
+			if (r < 0) { perror("remove"); exit(1); }
+		} else {
+			puts("not removed, compilation aborted.");
+		}
+	}
+
+	{ int file = open(output_filename, O_WRONLY | O_CREAT | O_EXCL, 0666);
+	if (file < 0) { perror("open: could not create executable file"); exit(1); }
+	write(file, out, len);
+	close(file); }
+
+	printf("c source output: wrote %llu bytes to file %s.\n", len, output_filename);
+
+	{ char debug_string[4096] = {0};
+	snprintf(debug_string, sizeof debug_string, 
+		"clang -Weverything -Wno-poison-system-directories -O3 %s",
+		output_filename
+	);
+	system(debug_string); } } 
+
 	goto finished_outputting;
 	
 generate_hex_array_output:;
@@ -3414,7 +3682,7 @@ generate_hex_array_output:;
 		}
 	}
 
-	{ int file = open(output_filename, O_WRONLY | O_CREAT | O_EXCL, 0777);
+	{ int file = open(output_filename, O_WRONLY | O_CREAT | O_EXCL, 0666);
 	if (file < 0) { perror("open: could not create executable file"); exit(1); }
 	write(file, out, len);
 	close(file); }
@@ -4071,6 +4339,70 @@ finished_outputting:
 
 
 
+
+
+
+
+
+			/* nat n = (nat) -1;
+			for (nat i = 0; i < var_count; i++) {
+				if (register_index[i] == 17 and // generalize this! 
+				// system_call_number_register(target) and 
+				type[pc * var_count + i]) {
+					n = value[pc * var_count + i]; 
+					break;
+				}
+			}
+			
+			if (n == (nat) -1) {
+				for (nat r = 10; r < 16; r++)
+				for (nat i = 0; i < var_count; i++)
+				if (register_index[i] == r)
+				type[pc * var_count + i] = 0;
+
+			} else if (n == 2) {
+				for (nat i = 0; i < var_count; i++)
+				if (register_index[i] == 10) // arg0 on riscv, outparam of   k = read();
+							// todo, errno should also be returned as an outparam!
+				type[pc * var_count + i] = 0;
+
+			} else if (n == 3) {
+				for (nat i = 0; i < var_count; i++)
+				if (register_index[i] == 10) // arg0 on riscv, outparam of   k = read(); ...(+ errno?)
+				type[pc * var_count + i] = 0;
+			}*/
+
+
+
+
+
+
+
+
+
+
+
+	/*
+msp430 registers are the following:
+
+set pc 0	: unallocatable: special purpose: program counter
+set sp 1	: unallocatable: special purpose: stack pointer  (ie, edited via the push and pop instructions..)
+set sr 01	: unallocatable: special purpose: status register
+set cg 11	: unallocatable: special purpose: constant generater 2
+
+set r4 001	: general purpose, allocatable
+set r5 101	: general purpose, allocatable
+set r6 011	: general purpose, allocatable
+set r7 111	: general purpose, allocatable
+set r8 0001	: general purpose, allocatable
+set r9 1001	: general purpose, allocatable
+set r10 0101	: general purpose, allocatable
+set r11 1101	: general purpose, allocatable
+set r12 0011	: general purpose, allocatable
+set r13 1011	: general purpose, allocatable
+set r14 0111	: general purpose, allocatable
+set r15 1111	: general purpose, allocatable
+	*/
 
 
 

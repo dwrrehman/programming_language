@@ -55,6 +55,7 @@ add x 1 set arm32_arch x
 add x 1 set rv64_arch x
 add x 1 set rv32_arch x
 add x 1 set msp430_arch x
+add x 1 set c_arch x
 
 (valid arguments to ctsc compiler_format)
 set x 0 set debug_output_only x
@@ -65,6 +66,7 @@ add x 1 set elf_object x
 add x 1 set ti_txt_executable x
 add x 1 set uf2_executable x
 add x 1 set hex_array_output x
+add x 1 set c_source_output x
 
 (specific to the rv32 virtual machine running in my website)
 set x 1 set rv_system_exit x
@@ -72,15 +74,16 @@ add x 1 set rv_system_read x
 add x 1 set rv_system_write x
 del x
 
-(rv32 system call abi)
+((rv32 system call abi)
 register rv_sc_arg0 0101
 register rv_sc_arg1 1101
 register rv_sc_arg2 0011
 register rv_sc_number 10001
+)
 
 (--------------------- msp430 -------------------)
 
-(msp430 registers)
+((msp430 registers)
 register pc_reg 0
 register sp_reg 1
 register sr_reg 01
@@ -97,6 +100,7 @@ register r12_reg 0011
 register r13_reg 1011
 register r14_reg 0111
 register r15_reg 1111
+)
 
 (msp430 register index constants)
 set pc 0
@@ -167,9 +171,6 @@ set bit4 00001000
 set bit5 00000100
 set bit6 00000010
 set bit7 00000001
-
-
-
 
 
 (risc-v op codes)
