@@ -63,7 +63,7 @@ enum compiler_system_calls {
 enum core_language_isa {
 	nullins,
 
-	ct, rt, system_, emit, string, operation, ar, 
+	ct, rt, system_, emit, string, operation, dr, 
 	file, del, register_, bits, section,
 	set, add, sub, mul, div_, rem, 
 	and_, or_, eor, si, sd, la, 
@@ -85,7 +85,7 @@ enum core_language_isa {
 static const char* operations[isa_count] = {
 	"___nullins____",
 
-	"ct", "rt", "system", "emit", "string", "operation", "ar", 
+	"ct", "rt", "system", "emit", "string", "operation", "dr", 
 	"file", "del", "register", "bits", "section", 
 	"set", "add", "sub", "mul", "div", "rem", 
 	"and", "or", "eor", "si", "sd", "la", 
@@ -1172,7 +1172,7 @@ process_file:;
 		nat i1 = !!(imm & 2);
 		nat i2 = !!(imm & 4);
 
-		if (op != ar and is_compiletime) {
+		if (op != dr and is_compiletime) {
 			if (not i0 and replace[arg0]) arg0 = values[arg0];
 			if (not i1 and replace[arg1]) arg1 = values[arg1];
 			if (not i2 and replace[arg2]) arg2 = values[arg2];
@@ -1193,7 +1193,7 @@ process_file:;
 				rt_ins[rt_ins_count++] = new;
 			}
 		} 
-		else if (op == ar) 		replace[arg0] = 1;
+		else if (op == dr) 		replace[arg0] = 1;
 		else if (op == bits)		bit_count[arg0] = val1;
 		else if (op == register_) 	register_index[arg0] = val1;
 

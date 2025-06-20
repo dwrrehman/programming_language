@@ -15,9 +15,9 @@ operation add_numbers 11 at add_numbers ct
 	ld x compiler_ctsc_arg0 nat
 	ld y compiler_ctsc_arg1 nat
 	ld c compiler_ctsc_arg2 nat rt
-	ar x ar y add x y 
-	ar x add x c
-	ar ra ct do ra 
+	dr x dr y add x y 
+	dr x add x c
+	dr ra ct do ra 
 	del x del y del c del ra
 	
 at macros
