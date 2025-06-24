@@ -1,4 +1,4 @@
- (testing out the generation of the 
+(testing out the generation of the 
 risc-v uf2 file for programming the pico 2 W.
 written 1202505272.173200 by dwrr)
 

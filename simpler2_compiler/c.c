@@ -3,6 +3,18 @@
 // 1202505294.204607 revised the ct system!
 // 1202506194.015825 added macro-arg references and macros! also added ct memory mapped io, and changed ctsc interface
 
+
+// current bugs: 1202506227.185435
+// ------------------------------------
+//  1. RA doesnt do disjoint live ranges.
+//  2. RA needs to handle user-given RI constraints correctly.
+//  3. CTE2 is marking certain variables as CTK when they shouldnt be.
+
+
+
+
+
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -1326,7 +1338,7 @@ process_file:;
 
 	const nat traversal_count = 10;       // this doesnt fix it either... 
 
-	abort(); 			
+	//abort(); 			
 
 
 
@@ -1983,7 +1995,7 @@ current state:  1202505235.133756
 			const nat U12 = arg1 & 0xfff;
 
 			new = (struct instruction) { r5_u, 0x5, 0,  { 0x37, arg0, U20,  0,0,0,0,0 } };
-			if (not U12) goto r5_push_single_mi;			
+			if (not U12) goto r5_push_single_mi;
 			mi[mi_count++] = new;
 			new = (struct instruction) { r5_i, 0x15, 0,   { 0x13, arg0, 0, arg0, U12, 0,0,0 } };
 			goto r5_push_single_mi;
@@ -2631,7 +2643,6 @@ finish_instruction_selection:;
 				node_selected[var] = 1;
 				goto next_iteration;
 			}
-
 		}
 
 		printf("compiler: register allocation: error: failed to allocate "

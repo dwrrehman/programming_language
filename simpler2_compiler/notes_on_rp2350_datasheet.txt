@@ -167,7 +167,7 @@ here are the regsiters we need:
 CLOCKS:
 ----------------
 
-	ROSC is enabled and running already   by default,  at 11MHz.           
+	ROSC is enabled and running already   by default,  at 11MHz.  
 
 
 			if we want to run at 150MHz, we need to increase the speed of the ROSC using the following registers (or use and enable and configure the PLLs?)

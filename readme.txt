@@ -5,7 +5,7 @@ new version of the language made on 1202505154.163659 by dwrr
 
 this is an optimizing compiler for a low-level programming language that i am making for fun and for my own use. the language is word-based, statement-based, and is closely modelled off of the hardware RISC-like ISA's which it chooses to target, which include: RISC-V (32 and 64 bit), ARM (32 and 64 bit), and the MSP430 ISA. 
 
-there are less than 32 built-in operators/instructions in the language (excluding the machine instructions), which take 0, 1, 2, or 3 arguments. all operators are prefix, and fixed arity. 
+there are less than 35 built-in operators/instructions in the language (excluding the machine instructions), which take 0, 1, 2, or 3 arguments. all operators are prefix, and fixed arity. 
 
 a description of the built-in instructions and the semantics of each instruction is given below:
 
@@ -61,14 +61,14 @@ bitwise operations:
 memory-related operations:
 ------------------
 	ld x y z	: load z bytes from memory address y into destination register x. 
-	st x y z	: store z bytes from register y into destination memory at memory address y.
+	st x y z	: store z bytes from register y into destination memory at memory address x.
 	la x l		: load the PC-relative address of label l into destination register x. 
 
 
 control flow:
 ------------------
 	lt x y l	: if x is less than y, branch to label l. 
-	ge x y l	: if x is not less than y, branch to label l. 
+	ge x y l	: if x is not less than y, (ie, x is greater than or equal to y) branch to label l. 
 	ne x y l	: if x is not equal to than y, branch to label l. 
 	eq x y l	: if x is equal to y, branch to label l. 
 	do l		: unconditionally branch to label l. 
@@ -80,7 +80,7 @@ control flow:
 
 
 
-there is also the following machine instructions/encodings which are accessible for all targets, in addition to the above language. here are the machine instructions. they are abstracted from typical assembly, as only the core unique machine-code encodings are provided. it is expected that the compile-time evaulation system and macros will be used to make using these encodings more friendly for programming in assembly in this language. this also should not be required in most circumstances, and providing only the encodings make decode logic in the compiler simpler, and requires fewer instructions in the language as a whole. 
+there is also the following machine instructions/encodings which are accessible for all targets, in addition to the above language. here are the machine instructions. they are abstracted from typical assembly, as only the core unique machine-code encodings are provided. it is expected that the compile-time evaulation system and macros will be used to make using these encodings more friendly for programming in assembly in this language. this also should not be required in most circumstances, and providing only the encodings makes decode logic in the compiler simpler, and requires fewer instructions in the language as a whole. 
 
 here are the 3 target hardware ISA's and their machine instructions:
 -----------------------------------------------------------------------
@@ -165,11 +165,11 @@ example macro body:
 
 	operation add_numbers 11 
 	at add_numbers 
-		ct ld ra compiler_ctsc_number nat
-		ld x compiler_ctsc_arg0 nat
-		ld y compiler_ctsc_arg1 nat
-		ld c compiler_ctsc_arg2 nat 
-		rt dr x dr y add x y 
+		ct ld ra compiler_ctsc_number 0001
+		ld x compiler_ctsc_arg0 0001
+		ld y compiler_ctsc_arg1 0001
+		ld c compiler_ctsc_arg2 0001 
+		rt dr x dr y add x y
 		dr x add x c
 		ct do ra 
 		del x del y del c del ra
