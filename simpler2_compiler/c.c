@@ -4,11 +4,26 @@
 // 1202506194.015825 added macro-arg references and macros! also added ct memory mapped io, and changed ctsc interface
 
 
+
+
+// todo: add  the "obs" instruction to the langauge,   to the parser   to the macro machinery,  
+//   which allows you to specify a particular argument index  that is   define on use,   ie, force defined.      it targets the latest defined macro always. 
+
+//        example:         obs 11           make   args[3]  for this macro   be define on use.    (or force define...?)    hmmm
+
+
+
+
+
+
 // current bugs: 1202506227.185435
 // ------------------------------------
 //  1. RA doesnt do disjoint live ranges.
-//  2. RA needs to handle user-given RI constraints correctly.
-//  3. CTE2 is marking certain variables as CTK when they shouldnt be.
+
+
+// done:
+//  x 2. RA needs to handle user-given RI constraints correctly.
+//  x 3. CTE2 is marking certain variables as CTK when they shouldnt be.
 
 
 // 1202506253.014249 i am going to try to get this language operational for using arm64! should be fun lol. 
@@ -3450,7 +3465,7 @@ c_generate_source_code:;
 	"static uint64_t x[4096];\n"
 	"\n"
 	"static void ecall(void) {\n"
-	"\tif (x[0] == 0) printf(\"debug: hello: %llu\\n\", x[1]);\n"
+	"\tif (x[0] == 0) printf(\"debug: hello: %llu (0x%llx)\\n\", x[1], x[1]);\n"
 	"\telse if (x[0] == 1) exit((int) x[1]);\n"
 	"\telse if (x[0] == 2) { x[1] = (uint64_t) read((int) x[1], (void*) x[2], (size_t) x[3]); x[2] = (uint64_t) errno; }\n"
 	"\telse if (x[0] == 3) { x[1] = (uint64_t) write((int) x[1], (void*) x[2], (size_t) x[3]); x[2] = (uint64_t) errno; }\n"
@@ -3514,79 +3529,94 @@ c_generate_source_code:;
 
 		} else if (op == set) {
 			char str[4096] = {0}; nat len = 0;
-			if (imm) len = (nat) snprintf(str, sizeof str, "\tx[%llu] = %llu;\n", a0, a1);
+			if (imm) len = (nat) snprintf(str, sizeof str, "\tx[%llu] = 0x%llx;\n", a0, a1);
 			else len = (nat) snprintf(str, sizeof str, "\tx[%llu] = x[%llu];\n", a0, a1);
 			insert_bytes(&my_bytes, &my_count, str, len);
 
 		} else if (op == add) {
 			char str[4096] = {0}; nat len = 0;
-			if (imm) len = (nat) snprintf(str, sizeof str, "\tx[%llu] += %llu;\n", a0, a1);
+			if (imm) len = (nat) snprintf(str, sizeof str, "\tx[%llu] += 0x%llx;\n", a0, a1);
 			else len = (nat) snprintf(str, sizeof str, "\tx[%llu] += x[%llu];\n", a0, a1);
 			insert_bytes(&my_bytes, &my_count, str, len);
 
 		} else if (op == sub) {
 			char str[4096] = {0}; nat len = 0;
-			if (imm) len = (nat) snprintf(str, sizeof str, "\tx[%llu] -= %llu;\n", a0, a1);
+			if (imm) len = (nat) snprintf(str, sizeof str, "\tx[%llu] -= 0x%llx;\n", a0, a1);
 			else len = (nat) snprintf(str, sizeof str, "\tx[%llu] -= x[%llu];\n", a0, a1);
 			insert_bytes(&my_bytes, &my_count, str, len);
 
 		} else if (op == mul) {
 			char str[4096] = {0}; nat len = 0;
-			if (imm) len = (nat) snprintf(str, sizeof str, "\tx[%llu] *= %llu;\n", a0, a1);
+			if (imm) len = (nat) snprintf(str, sizeof str, "\tx[%llu] *= 0x%llx;\n", a0, a1);
 			else len = (nat) snprintf(str, sizeof str, "\tx[%llu] *= x[%llu];\n", a0, a1);
 			insert_bytes(&my_bytes, &my_count, str, len);
 
 		} else if (op == div_) {
 			char str[4096] = {0}; nat len = 0;
-			if (imm) len = (nat) snprintf(str, sizeof str, "\tx[%llu] /= %llu;\n", a0, a1);
+			if (imm) len = (nat) snprintf(str, sizeof str, "\tx[%llu] /= 0x%llx;\n", a0, a1);
 			else len = (nat) snprintf(str, sizeof str, "\tx[%llu] /= x[%llu];\n", a0, a1);
 			insert_bytes(&my_bytes, &my_count, str, len);
 
 		} else if (op == rem) {
 			char str[4096] = {0}; nat len = 0;
-			if (imm) len = (nat) snprintf(str, sizeof str, "\tx[%llu] %%= %llu;\n", a0, a1);
+			if (imm) len = (nat) snprintf(str, sizeof str, "\tx[%llu] %%= 0x%llx;\n", a0, a1);
 			else len = (nat) snprintf(str, sizeof str, "\tx[%llu] %%= x[%llu];\n", a0, a1);
 			insert_bytes(&my_bytes, &my_count, str, len);
 
 		} else if (op == and_) {
 			char str[4096] = {0}; nat len = 0;
-			if (imm) len = (nat) snprintf(str, sizeof str, "\tx[%llu] &= %llu;\n", a0, a1);
+			if (imm) len = (nat) snprintf(str, sizeof str, "\tx[%llu] &= 0x%llx;\n", a0, a1);
 			else len = (nat) snprintf(str, sizeof str, "\tx[%llu] &= x[%llu];\n", a0, a1);
 			insert_bytes(&my_bytes, &my_count, str, len);
 
 		} else if (op == or_) {
 			char str[4096] = {0}; nat len = 0;
-			if (imm) len = (nat) snprintf(str, sizeof str, "\tx[%llu] |= %llu;\n", a0, a1);
+			if (imm) len = (nat) snprintf(str, sizeof str, "\tx[%llu] |= 0x%llx;\n", a0, a1);
 			else len = (nat) snprintf(str, sizeof str, "\tx[%llu] |= x[%llu];\n", a0, a1);
 			insert_bytes(&my_bytes, &my_count, str, len);
 
 		} else if (op == eor) {
 			char str[4096] = {0}; nat len = 0;
-			if (imm) len = (nat) snprintf(str, sizeof str, "\tx[%llu] ^= %llu;\n", a0, a1);
+			if (imm) len = (nat) snprintf(str, sizeof str, "\tx[%llu] ^= 0x%llx;\n", a0, a1);
 			else len = (nat) snprintf(str, sizeof str, "\tx[%llu] ^= x[%llu];\n", a0, a1);
 			insert_bytes(&my_bytes, &my_count, str, len);
 
 		} else if (op == si) {
 			char str[4096] = {0}; nat len = 0;
-			if (imm) len = (nat) snprintf(str, sizeof str, "\tx[%llu] <<= %llu;\n", a0, a1);
+			if (imm) len = (nat) snprintf(str, sizeof str, "\tx[%llu] <<= 0x%llx;\n", a0, a1);
 			else len = (nat) snprintf(str, sizeof str, "\tx[%llu] <<= x[%llu];\n", a0, a1);
 			insert_bytes(&my_bytes, &my_count, str, len);
 
 		} else if (op == sd) {
 			char str[4096] = {0}; nat len = 0;
-			if (imm) len = (nat) snprintf(str, sizeof str, "\tx[%llu] >>= %llu;\n", a0, a1);
+			if (imm) len = (nat) snprintf(str, sizeof str, "\tx[%llu] >>= 0x%llx;\n", a0, a1);
 			else len = (nat) snprintf(str, sizeof str, "\tx[%llu] >>= x[%llu];\n", a0, a1);
 			insert_bytes(&my_bytes, &my_count, str, len);
 
 
 		} else if (op == st) {
 			
-			abort();
+			if (a2 == 8) {
+				char str[4096] = {0}; nat len = 0;
+				if (imm) { puts("error: cannot store to an immediate address in c\n"); abort(); }
+				else len = (nat) snprintf(str, sizeof str, "\t*(uint64_t*)(x[%llu]) = x[%llu];\n", a0, a1);
+				insert_bytes(&my_bytes, &my_count, str, len);
+
+			} else abort();
+
 
 
 		} else if (op == ld) {
 
-			abort();
+			if (a2 == 8) {
+				char str[4096] = {0}; nat len = 0;
+				if (imm) { puts("error: cannot load from an immediate address in c\n"); abort(); }
+				else len = (nat) snprintf(str, sizeof str, "\tx[%llu] = *(uint64_t*)(x[%llu]);\n", a0, a1);
+				insert_bytes(&my_bytes, &my_count, str, len);
+
+			} else abort();
+
+
 
 
 		} else if (op == la) {
@@ -3597,29 +3627,29 @@ c_generate_source_code:;
 
 		} else if (op == lt) {
 			char str[4096] = {0}; nat len = 0;
-			if (imm & 1) len = (nat) snprintf(str, sizeof str, "\tif (%llu < x[%llu]) goto _%llu;\n", a0, a1, a2);
-			else if (imm & 2) len = (nat) snprintf(str, sizeof str, "\tif (x[%llu] < %llu) goto _%llu;\n", a0, a1, a2);
+			if (imm & 1) len = (nat) snprintf(str, sizeof str, "\tif (0x%llx < x[%llu]) goto _%llu;\n", a0, a1, a2);
+			else if (imm & 2) len = (nat) snprintf(str, sizeof str, "\tif (x[%llu] < 0x%llx) goto _%llu;\n", a0, a1, a2);
 			else len = (nat) snprintf(str, sizeof str, "\tif (x[%llu] < x[%llu]) goto _%llu;\n", a0, a1, a2);
 			insert_bytes(&my_bytes, &my_count, str, len);
 
 		} else if (op == ge) {
 			char str[4096] = {0}; nat len = 0;
-			if (imm & 1) len = (nat) snprintf(str, sizeof str, "\tif (%llu >= x[%llu]) goto _%llu;\n", a0, a1, a2);
-			else if (imm & 2) len = (nat) snprintf(str, sizeof str, "\tif (x[%llu] >=  %llu) goto _%llu;\n", a0, a1, a2);
+			if (imm & 1) len = (nat) snprintf(str, sizeof str, "\tif (0x%llx >= x[%llu]) goto _%llu;\n", a0, a1, a2);
+			else if (imm & 2) len = (nat) snprintf(str, sizeof str, "\tif (x[%llu] >= 0x%llx) goto _%llu;\n", a0, a1, a2);
 			else len = (nat) snprintf(str, sizeof str, "\tif (x[%llu] >= x[%llu]) goto _%llu;\n", a0, a1, a2);
 			insert_bytes(&my_bytes, &my_count, str, len);
 
 		} else if (op == ne) {
 			char str[4096] = {0}; nat len = 0;
-			if (imm & 1) len = (nat) snprintf(str, sizeof str, "\tif (%llu != x[%llu]) goto _%llu;\n", a0, a1, a2);
-			else if (imm & 2) len = (nat) snprintf(str, sizeof str, "\tif (x[%llu] != %llu) goto _%llu;\n", a0, a1, a2);
+			if (imm & 1) len = (nat) snprintf(str, sizeof str, "\tif (0x%llx != x[%llu]) goto _%llu;\n", a0, a1, a2);
+			else if (imm & 2) len = (nat) snprintf(str, sizeof str, "\tif (x[%llu] != 0x%llx) goto _%llu;\n", a0, a1, a2);
 			else len = (nat) snprintf(str, sizeof str, "\tif (x[%llu] != x[%llu]) goto _%llu;\n", a0, a1, a2);
 			insert_bytes(&my_bytes, &my_count, str, len);
 
 		} else if (op == eq) {
 			char str[4096] = {0}; nat len = 0;
-			if (imm & 1) len = (nat) snprintf(str, sizeof str, "\tif (%llu == x[%llu]) goto _%llu;\n", a0, a1, a2);
-			else if (imm & 2) len = (nat) snprintf(str, sizeof str, "\tif (x[%llu] ==  %llu) goto _%llu;\n", a0, a1, a2);
+			if (imm & 1) len = (nat) snprintf(str, sizeof str, "\tif (0x%llx == x[%llu]) goto _%llu;\n", a0, a1, a2);
+			else if (imm & 2) len = (nat) snprintf(str, sizeof str, "\tif (x[%llu] == 0x%llx) goto _%llu;\n", a0, a1, a2);
 			else len = (nat) snprintf(str, sizeof str, "\tif (x[%llu] == x[%llu]) goto _%llu;\n", a0, a1, a2);
 			insert_bytes(&my_bytes, &my_count, str, len);
 

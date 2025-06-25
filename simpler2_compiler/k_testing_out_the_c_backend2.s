@@ -62,7 +62,7 @@ printi 0
 
 
 
-ct set total 0000_0000_1 rt
+ct set total 0000_0000_0000_0000_1 rt
 
 set i 0
 set count 0

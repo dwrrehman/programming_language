@@ -10,7 +10,7 @@
 static uint64_t x[4096];
 
 static void ecall(void) {
-	if (x[0] == 0) printf("debug: hello: %llu\n", x[1]);
+	if (x[0] == 0) printf("debug: hello: %llu (0x%llx)\n", x[1], x[1]);
 	else if (x[0] == 1) exit((int) x[1]);
 	else if (x[0] == 2) { x[1] = (uint64_t) read((int) x[1], (void*) x[2], (size_t) x[3]); x[2] = (uint64_t) errno; }
 	else if (x[0] == 3) { x[1] = (uint64_t) write((int) x[1], (void*) x[2], (size_t) x[3]); x[2] = (uint64_t) errno; }
@@ -23,30 +23,20 @@ static void ecall(void) {
 int main(void) {
 	x[0] = 0;
 	ecall();
-	x[3] = 0;
-	x[2] = 0;
-_133:
-	x[1] = 2;
-_135:
-	if (x[1] >= x[3]) goto _136;
-	x[0] = x[3];
-	x[0] %= x[1];
-	if (x[0] ==  0) goto _138;
-	x[1] += 1;
-	goto _135;
-_136:
-	x[0] = 0;
-	x[1] = x[3];
+	x[0] = 0x6;
+	x[1] = 0x0;
+	x[2] = 0x1000;
+	x[3] = 0x3;
+	x[4] = 0x1002;
+	x[5] = 0xffffffffffffffff;
+	x[6] = 0x0;
 	ecall();
-	x[2] += 1;
-_138:
-	x[3] += 1;
-	if (x[3] < 256) goto _133;
-	x[0] = 0;
-	x[1] = x[2];
+	x[0] = 0x1;
+	x[0] = 0x0;
+	x[1] = 0x0;
 	ecall();
-	x[0] = 1;
-	x[1] = 12;
+	x[0] = 0x1;
+	x[1] = 0xc;
 	ecall();
 }
 // (end of file)
