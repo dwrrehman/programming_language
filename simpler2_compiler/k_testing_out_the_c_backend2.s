@@ -5,7 +5,7 @@ file library/foundation.s ct
 st compiler_target c_arch nat
 st compiler_format c_source_output nat
 st compiler_should_overwrite true nat
-st compiler_should_debug_cte true nat
+(st compiler_should_debug_cte true nat)
 
 set c_system_debug 0
 set c_system_exit 1
@@ -64,10 +64,10 @@ printi 0
 
 ct set total 0000_0000_1 rt
 
-set i 0 
+set i 0
 set count 0
 at loop
-	set j 0
+	set j 01
 at inner
 	ge j i prime
 	set r i rem r j eq r 0 composite

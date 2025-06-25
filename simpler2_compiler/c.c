@@ -11,8 +11,7 @@
 //  3. CTE2 is marking certain variables as CTK when they shouldnt be.
 
 
-
-
+// 1202506253.014249 i am going to try to get this language operational for using arm64! should be fun lol. 
 
 
 #include <stdio.h>
@@ -812,15 +811,15 @@ static void debug_data_flow_state(
 	print_instruction_window_around(pc, 0, "PC");
 	print_dictionary(0);
 
-	printf("        ");
-	for (nat j = 0; j < var_count; j++) { if (is_constant[j]) continue; printf("%3lld ", j); }
-	puts("\n-------------------------------------------------");
+	printf("        "); for (nat j = 0; j < var_count; j++) { if (is_constant[j]) continue; printf("%10s(%04llu) ", variables[j], j); } puts("");
+	printf("-----------"); for (nat j = 0; j < var_count; j++) { if (is_constant[j]) continue; printf("-----------------"); } puts("");
+	
 	for (nat i = 0; i < ins_count; i++) {
 		printf("ct %3llu: ", i);
 		for (nat j = 0; j < var_count; j++) {
 			if (is_constant[j]) continue; 
 			if (not type[i * var_count + j]) printf("\033[90m");
-			printf("%3lld ", value[i * var_count + j]);
+			printf("%10s %4llu  ", "", value[i * var_count + j]);
 			if (not type[i * var_count + j]) printf("\033[0m");
 		}
 		putchar(9);
@@ -852,15 +851,15 @@ static void debug_liveness(
 ) {
 	print_instruction_window_around(pc, 0, "PC");
 	print_dictionary(0);
-	printf("    ");
-	for (nat j = 0; j < var_count; j++) { if (is_constant[j]) continue; printf("%2lld ", j); } 
-	puts("\n-------------------------------------------------");
+	printf("    "); for (nat j = 0; j < var_count; j++) { if (is_constant[j]) continue; printf("%10s(%04llu) ", variables[j], j); } puts("");
+	printf("----"); for (nat j = 0; j < var_count; j++) { if (is_constant[j]) continue; printf("-----------------"); } puts("");
+
 	for (nat i = 0; i < ins_count; i++) {
 		printf("%2llu: ", i);
 		for (nat j = 0; j < var_count; j++) {
 			if (is_constant[j]) continue; 
 			if (not alive[i * var_count + j]) printf("\033[90m");
-			printf("%2lld ", alive[i * var_count + j]);
+			printf("%10s %4llu  ", "", alive[i * var_count + j]);
 			if (not alive[i * var_count + j]) printf("\033[0m");
 		}
 		putchar(10);
@@ -1336,7 +1335,10 @@ process_file:;
 	nat* copy_of = calloc(ins_count * var_count, sizeof(nat));
 
 
-	const nat traversal_count = 10;       // this doesnt fix it either... 
+	const nat traversal_count = 2;       // this doesnt fix it either... 
+
+
+
 
 	//abort(); 			
 
@@ -1519,7 +1521,8 @@ process_file:;
 			is_copy[pc * var_count + a0] = out_is_copy;
 			copy_of[pc * var_count + a0] = out_copy_ref;
 		}
-		if (gt0 < ins_count and ins[gt0].state < traversal_count) stack[stack_count++] = gt0; 
+		//if (gt0 < ins_count and ins[gt0].state < traversal_count) stack[stack_count++] = gt0; 
+		if (gt0 < ins_count) stack[stack_count++] = gt0; 
 
 		if (op == la) {
 			const nat label = compute_label_location(a1);
@@ -2038,7 +2041,7 @@ msp430_instruction_selection:
 
 	puts("msp430: instruction selection starting...");
 	{ struct instruction new = {0};
-	const nat unrecognized = (nat) -1;
+	//const nat unrecognized = (nat) -1;
 
 	const nat msp_mov = 4;
 /*	const nat msp_add = 5;
@@ -2536,8 +2539,9 @@ finish_instruction_selection:;
 
 			} else if (op == system_) { // system calls and liveness is a bit icky right now... :((((
 				for (nat e = 0; e < var_count; e++) {
-					if (register_index[e] < 8) alive[pc * var_count + e] = 1;    // temporary fix... todo:  fix me properly lollllll
+					if (register_index[e] < 8) alive[pc * var_count + e] = 1;
 				}
+
 			} else if (op == do_) {
 				// do nothing
 
@@ -2557,6 +2561,20 @@ finish_instruction_selection:;
 	}
 	print_instructions(0);
 	puts("liveness analysis finished.");
+
+
+
+	for (nat e = 0; e < var_count; e++) {
+		if (alive[e]) {
+			printf("error: variable %s was alive at the first statement of the program, which means it was never defined.\n", variables[e]);
+
+			printf("warning: variable %s is used while uninitialized in the program\n", variables[e]);
+			puts("instead, of keeping this var, we will delete it from the program...");
+			for (nat pc = 0; pc < ins_count; pc++) alive[pc * var_count + e] = 0;
+			printf("removed variable %s from the program.\n", variables[e]);
+		}
+	}
+
 
 	nat* needs_ra = calloc(var_count, sizeof(nat));
 
@@ -2627,6 +2645,14 @@ finish_instruction_selection:;
 		puts("RA: pushed all nodes!");
 		break;
 
+
+
+	//we need to make it so that we pick the already allocated vars last!????
+	// please do this lol
+
+
+
+
 	find_virtual_register:
 		for (nat var = 0; var < var_count; var++) {
 			if (not needs_ra[var] or node_selected[var]) continue;
@@ -2672,7 +2698,7 @@ finish_instruction_selection:;
 		} else abort();
 	}
 
-	printf("occupied: "); print_nats(occupied, hardware_register_count); puts("");
+	printf("occupied: "); print_nats(occupied, 10); puts("");
 	
 	for (nat s = stack_count; s--;) {
 		const nat var = stack[s];
@@ -2681,12 +2707,10 @@ finish_instruction_selection:;
 		if (allocation[var] != (nat) -1) continue;
 		memset(occupied, 0, sizeof(nat) * hardware_register_count);
 
-		for (nat i = 0; i < var_count; i++) {     
-
+		/*for (nat i = 0; i < var_count; i++) {     
 			// TODO: this is just a weird hack.. does this work at all!?!?
-
 			if (allocation[i] != (nat) -1) occupied[allocation[i]] = 1;
-		}
+		}*/
 
 		for (nat e = 0; e < rig_count; e++) {
 			const nat a = rig[2 * e + 0];
@@ -2696,7 +2720,17 @@ finish_instruction_selection:;
 			else if (b == var) occupied[allocation[a]] = 1;
 		}
 		
-		printf("current occupied: "); print_nats(occupied, hardware_register_count); puts("");
+		printf("current occupied: "); print_nats(occupied, 10); puts("");
+
+		puts("info: current allocation scheme:");
+		for (nat i = 0; i < var_count; i++) {
+			if (not needs_ra[i] and allocation[i] == (nat) -1) continue;
+			printf("    . %s (%llu) is stored in hardware register x[%lld]\n", variables[i], i, allocation[i]);
+		}
+		puts("\n[continue?]");
+		getchar();
+	
+
 		for (nat i = 0; i < hardware_register_count; i++) {
 			if (not occupied[i]) {
 				allocation[var] = i;
@@ -2737,6 +2771,7 @@ finish_instruction_selection:;
 		printf("    . %s (%llu) is stored in hardware register x[%lld]\n", variables[i], i, allocation[i]);
 	}
 	puts("\n[done with graph coloring in RA]");
+	getchar();
 	}
 		
 	for (nat i = 0; i < ins_count; i++) {
@@ -2747,7 +2782,7 @@ finish_instruction_selection:;
 	for (nat i = 0; i < ins_count; i++) {
 		print_instruction_window_around(i, 0, "");
 		puts("[RA: filling in allocation scheme, [dead store elmination]]");
-		//getchar();
+		getchar();
 
 		const nat op = ins[i].op;
 		const nat imm = ins[i].imm;
@@ -3460,6 +3495,7 @@ c_generate_source_code:;
 			insert_bytes(&my_bytes, &my_count, str, len);
 
 		} else if (op == emit) {
+			puts("how would i even implement the emit instruction in c....");
 			abort();
 			if (a0 == 8) insert_u64(&my_bytes, &my_count, (uint64_t) ins[i].args[1]);
 			if (a0 == 4) insert_u32(&my_bytes, &my_count, (uint32_t) a1);
@@ -3504,6 +3540,12 @@ c_generate_source_code:;
 			char str[4096] = {0}; nat len = 0;
 			if (imm) len = (nat) snprintf(str, sizeof str, "\tx[%llu] /= %llu;\n", a0, a1);
 			else len = (nat) snprintf(str, sizeof str, "\tx[%llu] /= x[%llu];\n", a0, a1);
+			insert_bytes(&my_bytes, &my_count, str, len);
+
+		} else if (op == rem) {
+			char str[4096] = {0}; nat len = 0;
+			if (imm) len = (nat) snprintf(str, sizeof str, "\tx[%llu] %%= %llu;\n", a0, a1);
+			else len = (nat) snprintf(str, sizeof str, "\tx[%llu] %%= x[%llu];\n", a0, a1);
 			insert_bytes(&my_bytes, &my_count, str, len);
 
 		} else if (op == and_) {
