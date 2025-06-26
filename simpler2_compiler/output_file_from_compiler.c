@@ -20,26 +20,28 @@ static void ecall(void) {
 	else if (x[0] == 7) { x[1] = (uint64_t) munmap((void*) x[1], (size_t) x[2]); x[2] = (uint64_t) errno; }
 	else abort();
 }
+
+static uint8_t d[13] = {
+	0x68, 0x65, 0x6c, 0x6c, 0x6f, 0x20, 0x77, 0x6f,
+	0x72, 0x6c, 0x64, 0x21, 0x0a, 
+};
+
 int main(void) {
-	x[0] = 0x6;
-	x[1] = 0x0;
-	x[2] = 0x1000;
-	x[3] = 0x3;
-	x[4] = 0x1002;
-	x[5] = 0xffffffffffffffff;
-	x[6] = 0x0;
-	ecall();
-	x[7] = x[1];
-	*(uint64_t*)(x[7]) = 0x5;
+	x[2] = ((uint64_t)(void*)d) + 0x0;
 	x[0] = 0x0;
-	x[1] = x[7];
+	x[1] = x[2];
 	ecall();
-	x[1] = *(uint64_t*)(x[7]);
+	x[1] = (uint64_t) (*(uint8_t*)(x[2]));
 	x[0] = 0x0;
+	ecall();
+	x[0] = 0x3;
+	x[1] = 0x1;
+	x[3] = 0xd;
 	ecall();
 	x[0] = 0x1;
 	x[1] = 0x0;
 	ecall();
+_157:;
 }
 // (end of file)
 

@@ -27,7 +27,6 @@ add x 1 set compiler_getchar x
 add x 1 set compiler_putchar x
 add x 1 set compiler_printbin x
 add x 1 set compiler_printdec x
-add x 1 set compiler_setdebug x
 add x 1 set compiler_print x
 add x 1 set compiler_getlength x
 

@@ -84,18 +84,29 @@ enum memory_mapped_ctsc_offsets {
 	format_memory_address,
 	overwrite_memory_address,
 	stack_size_memory_address,
+
 	ctsc_number_memory_address,
 	ctsc_arg0_memory_address,
 	ctsc_arg1_memory_address,
 	ctsc_arg2_memory_address,
 	ctsc_arg3_memory_address,
+	ctsc_arg4_memory_address,
+	ctsc_arg5_memory_address,
+	ctsc_arg6_memory_address,
+	ctsc_arg7_memory_address,
+
 };
 
 enum compiler_system_calls { 
-	compiler_abort, compiler_exit, 
-	compiler_getchar, compiler_putchar, 
-	compiler_printbin, compiler_printdec, 
-	compiler_print, compiler_getlength, 
+	compiler_abort, 
+	compiler_exit, 
+	compiler_getchar, 	
+	compiler_putchar, 
+
+	compiler_printbin, 
+	compiler_printdec, 
+	compiler_print, 
+	compiler_getlength, 
 };
 
 enum core_language_isa {
@@ -1321,18 +1332,24 @@ process_file:;
 		else if (op == eq) { if (val0 == val1) pc = values[arg2]; }
 		else if (op == ne) { if (val0 != val1) pc = values[arg2]; }
 		else if (op == system_) {
+
 			nat n = 0;   for (nat i = 0; i < 8; i++)   n |= (nat) ((nat) memory[8 * ctsc_number_memory_address + i] << (8LLU * i));
 			nat arg = 0; for (nat i = 0; i < 8; i++) arg |= (nat) ((nat) memory[8 * ctsc_arg0_memory_address + i] << (8LLU * i));
-			const nat data = values[arg];
+			
+			const nat data = arg;
+			nat output = 0;
 			if (n == compiler_abort) abort();
 			else if (n == compiler_exit) exit(0);
-			else if (n == compiler_getchar) values[arg] = read_single_char_from_stdin();
+			else if (n == compiler_getchar) output = read_single_char_from_stdin();
 			else if (n == compiler_putchar) { putchar((int) data); fflush(stdout); }
 			else if (n == compiler_printbin) { print_binary(data); fflush(stdout); }
 			else if (n == compiler_printdec) { printf("%llu", data); fflush(stdout); }
 			else if (n == compiler_print) { printf("%s", string_list[data]); fflush(stdout); }
-			else if (n == compiler_getlength) values[arg] = strlen(string_list[data]);
-			else { puts("error: unknown compiler CT system call"); abort(); } 						
+			else if (n == compiler_getlength) output = strlen(string_list[data]);
+			else { printf("error: unknown compiler CT system call: 0x%llx\n", n); abort(); } 
+
+			for (nat i = 0; i < 8; i++) memory[8 * ctsc_arg0_memory_address + i] = (output >> (8 * i)) & 0xFF;
+
 		} else { 
 			printf("CTE: fatal internal error: "
 				"unknown instruction executed: %s...\n", 
@@ -1744,16 +1761,56 @@ process_file:;
 			}
 
 
-		} else if (op == ld or op == st) {
+		} else if (op == ld) {
 
 			const nat ct1 = (imm & 2) or type[i * var_count + ins[i].args[1]];
 			const nat v1 = (imm & 2) ? ins[i].args[1] : value[i * var_count + ins[i].args[1]];
 
+			const nat ct2 = (imm & 4) or type[i * var_count + ins[i].args[2]];
+			const nat v2 = (imm & 4) ? ins[i].args[2] : value[i * var_count + ins[i].args[2]];
+
 			if (ct1 and not (imm & 2)) {
-				puts("inlining compiletime ld/st argument...\n"); getchar(); abort();
+				puts("inlining compiletime ld argument...\n"); 
 				ins[i].args[1] = v1;
 				ins[i].imm |= 2;
 			}
+
+			if (ct2 and not (imm & 4)) {
+				puts("inlining compiletime st argument 2 ...\n"); 
+				ins[i].args[2] = v2;
+				ins[i].imm |= 4;
+			}
+
+		} else if (op == st) {
+
+			const nat ct0 = (imm & 1) or type[i * var_count + ins[i].args[0]];
+			const nat v0 = (imm & 1) ? ins[i].args[0] : value[i * var_count + ins[i].args[0]];
+
+			const nat ct1 = (imm & 2) or type[i * var_count + ins[i].args[1]];
+			const nat v1 = (imm & 2) ? ins[i].args[1] : value[i * var_count + ins[i].args[1]];
+
+			const nat ct2 = (imm & 4) or type[i * var_count + ins[i].args[2]];
+			const nat v2 = (imm & 4) ? ins[i].args[2] : value[i * var_count + ins[i].args[2]];
+
+			if (ct0 and not (imm & 1)) {
+				puts("inlining compiletime st argument 0 ...\n"); 
+				ins[i].args[0] = v0;
+				ins[i].imm |= 1;
+			}
+
+			if (ct1 and not (imm & 2)) {
+				puts("inlining compiletime st argument 1 ...\n"); 
+				ins[i].args[1] = v1;
+				ins[i].imm |= 2;
+			}
+
+			if (ct2 and not (imm & 4)) {
+				puts("inlining compiletime st argument 2 ...\n"); 
+				ins[i].args[2] = v2;
+				ins[i].imm |= 4;
+			}
+
+
 
 		} else if (op == lt or op == ge or op == ne or op == eq) {
 			const nat ct0 = (imm & 1) or type[i * var_count + ins[i].args[0]];
@@ -3537,9 +3594,9 @@ c_generate_source_code:;
 				" (int) x[4], (int) x[5], (off_t) x[6]); x[2] = (uint64_t) errno; }\n"
 	"\telse if (x[0] == 7) { x[1] = (uint64_t) munmap((void*) x[1], (size_t) x[2]); x[2] = (uint64_t) errno; }\n"
 	"\telse abort();\n"
-	"}\n"
-	"int main(void) {\n"
-	;
+	"}\n\n";
+
+
 
 	const char* footer = 
 		"}\n// (end of file)\n\n"
@@ -3548,6 +3605,70 @@ c_generate_source_code:;
 	{ char str[4096] = {0};
 	const nat len = (nat) snprintf(str, sizeof str, "%s", header);
 	insert_bytes(&my_bytes, &my_count, str, len); } 
+
+
+	nat* label_data_locations = calloc(var_count, sizeof(nat));
+
+	uint8_t data_bytes[64000] = {0};
+	nat data_byte_count = 0;
+
+	for (nat i = 0; i < ins_count; i++) {
+
+		print_instruction_window_around(i, 0, "");
+		puts("");
+		dump_hex(data_bytes, data_byte_count);
+		getchar();
+
+		const nat op = ins[i].op;
+		const nat a0 = ins[i].args[0];
+		const nat a1 = ins[i].args[1];
+
+		if (op == at) {
+			label_data_locations[a0] = data_byte_count;
+
+		} else if (op == emit) {
+			if (a0 == 8) {
+				data_bytes[data_byte_count++] = (a1 >> 0) & 0xff;
+				data_bytes[data_byte_count++] = (a1 >> 8) & 0xff;
+				data_bytes[data_byte_count++] = (a1 >> 16) & 0xff;
+				data_bytes[data_byte_count++] = (a1 >> 24) & 0xff;
+				data_bytes[data_byte_count++] = (a1 >> 32) & 0xff;
+				data_bytes[data_byte_count++] = (a1 >> 40) & 0xff;
+				data_bytes[data_byte_count++] = (a1 >> 48) & 0xff;
+				data_bytes[data_byte_count++] = (a1 >> 56) & 0xff;
+			}
+
+			if (a0 == 4) {
+				data_bytes[data_byte_count++] = (a1 >> 0) & 0xff;
+				data_bytes[data_byte_count++] = (a1 >> 8) & 0xff;
+				data_bytes[data_byte_count++] = (a1 >> 16) & 0xff;
+				data_bytes[data_byte_count++] = (a1 >> 24) & 0xff;
+
+			}
+
+			if (a0 == 2) {
+				data_bytes[data_byte_count++] = (a1 >> 0) & 0xff;
+				data_bytes[data_byte_count++] = (a1 >> 8) & 0xff;
+			}
+
+			if (a0 == 1) data_bytes[data_byte_count++] = (a1 >> 0) & 0xff;;
+		}
+	}
+
+	{ char str[4096] = {0};
+	const nat len = (nat) snprintf(str, sizeof str, "static uint8_t d[%llu] = {\n\t", data_byte_count);
+	insert_bytes(&my_bytes, &my_count, str, len); } 
+
+	for (nat i = 0; i < data_byte_count; i++) {
+		char str[4096] = {0};
+		const nat len = (nat) snprintf(str, sizeof str, "0x%02x,%s", data_bytes[i], i % 8 == 7 ? "\n\t" : " ");
+		insert_bytes(&my_bytes, &my_count, str, len);
+	}
+	
+	{ char str[4096] = {0};
+	const nat len = (nat) snprintf(str, sizeof str, "\n};\n\nint main(void) {\n");
+	insert_bytes(&my_bytes, &my_count, str, len); } 
+
 
 	for (nat i = 0; i < ins_count; i++) {
 
@@ -3569,17 +3690,11 @@ c_generate_source_code:;
 			const nat len = (nat) snprintf(str, sizeof str, "\tecall();\n");
 			insert_bytes(&my_bytes, &my_count, str, len);
 
-		} else if (op == emit) {
-			puts("how would i even implement the emit instruction in c....");
-			abort();
-			if (a0 == 8) insert_u64(&my_bytes, &my_count, (uint64_t) ins[i].args[1]);
-			if (a0 == 4) insert_u32(&my_bytes, &my_count, (uint32_t) a1);
-			if (a0 == 2) insert_u16(&my_bytes, &my_count, (uint16_t) a1);
-			if (a0 == 1) insert_u8 (&my_bytes, &my_count, (uint8_t) a1);
+		} else if (op == emit) {}
 
-		} else if (op == at) {
+		else if (op == at) {
 			char str[4096] = {0};
-			const nat len = (nat) snprintf(str, sizeof str, "_%llu:\n", a0);
+			const nat len = (nat) snprintf(str, sizeof str, "_%llu:;\n", a0);
 			insert_bytes(&my_bytes, &my_count, str, len);
 
 		} else if (op == do_) {
@@ -3666,6 +3781,27 @@ c_generate_source_code:;
 				else len = (nat) snprintf(str, sizeof str, "\t*(uint64_t*)(x[%llu]) = x[%llu];\n", a0, a1);
 				insert_bytes(&my_bytes, &my_count, str, len);
 
+			} else if (a2 == 1) {
+				char str[4096] = {0}; nat len = 0;
+				if (imm & 1) { puts("error: cannot store to an immediate address in c\n"); abort(); }
+				else if (imm) len = (nat) snprintf(str, sizeof str, "\t*(uint8_t*)(x[%llu]) = (uint8_t) 0x%llx;\n", a0, a1);
+				else len = (nat) snprintf(str, sizeof str, "\t*(uint8_t*)(x[%llu]) = (uint8_t) x[%llu];\n", a0, a1);
+				insert_bytes(&my_bytes, &my_count, str, len);
+
+			} else if (a2 == 2) {
+				char str[4096] = {0}; nat len = 0;
+				if (imm & 1) { puts("error: cannot store to an immediate address in c\n"); abort(); }
+				else if (imm) len = (nat) snprintf(str, sizeof str, "\t*(uint16_t*)(x[%llu]) = (uint16_t) 0x%llx;\n", a0, a1);
+				else len = (nat) snprintf(str, sizeof str, "\t*(uint16_t*)(x[%llu]) = (uint16_t) x[%llu];\n", a0, a1);
+				insert_bytes(&my_bytes, &my_count, str, len);
+
+			} else if (a2 == 4) {
+				char str[4096] = {0}; nat len = 0;
+				if (imm & 1) { puts("error: cannot store to an immediate address in c\n"); abort(); }
+				else if (imm) len = (nat) snprintf(str, sizeof str, "\t*(uint32_t*)(x[%llu]) = (uint32_t) 0x%llx;\n", a0, a1);
+				else len = (nat) snprintf(str, sizeof str, "\t*(uint32_t*)(x[%llu]) = (uint32_t) x[%llu];\n", a0, a1);
+				insert_bytes(&my_bytes, &my_count, str, len);
+
 			} else { puts("unimplemented"); abort(); } 
 
 
@@ -3677,20 +3813,31 @@ c_generate_source_code:;
 				else len = (nat) snprintf(str, sizeof str, "\tx[%llu] = *(uint64_t*)(x[%llu]);\n", a0, a1);
 				insert_bytes(&my_bytes, &my_count, str, len);
 
+			} else if (a2 == 1) {
+				char str[4096] = {0}; nat len = 0;
+				if (imm & 3) { puts("error: cannot load from an immediate address in c\n"); abort(); }
+				else len = (nat) snprintf(str, sizeof str, "\tx[%llu] = (uint64_t) (*(uint8_t*)(x[%llu]));\n", a0, a1);
+				insert_bytes(&my_bytes, &my_count, str, len);
+
+			} else if (a2 == 2) {
+				char str[4096] = {0}; nat len = 0;
+				if (imm & 3) { puts("error: cannot load from an immediate address in c\n"); abort(); }
+				else len = (nat) snprintf(str, sizeof str, "\tx[%llu] = (uint64_t) (*(uint16_t*)(x[%llu]));\n", a0, a1);
+				insert_bytes(&my_bytes, &my_count, str, len);
+
+			} else if (a2 == 4) {
+				char str[4096] = {0}; nat len = 0;
+				if (imm & 3) { puts("error: cannot load from an immediate address in c\n"); abort(); }
+				else len = (nat) snprintf(str, sizeof str, "\tx[%llu] = (uint64_t) (*(uint32_t*)(x[%llu]));\n", a0, a1);
+				insert_bytes(&my_bytes, &my_count, str, len);
+
 			} else { puts("unimplemented"); abort(); } 
 
 
-
-
-
-
-
 		} else if (op == la) {
-
-			abort();
-
-
-
+			char str[4096] = {0}; nat len = 0;
+			len = (nat) snprintf(str, sizeof str, "\tx[%llu] = ((uint64_t)(void*)d) + 0x%llx;\n", a0, label_data_locations[a1]);
+			insert_bytes(&my_bytes, &my_count, str, len);
 
 
 		} else if (op == lt) {
