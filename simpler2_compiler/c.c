@@ -5,20 +5,31 @@
 
 
 
-
 // todo: add  the "obs" instruction to the langauge,   to the parser   to the macro machinery,  
 //   which allows you to specify a particular argument index  that is   define on use,   ie, force defined.      it targets the latest defined macro always. 
-
 //        example:         obs 11           make   args[3]  for this macro   be define on use.    (or force define...?)    hmmm
-
-
-
-
 
 
 // current bugs: 1202506227.185435
 // ------------------------------------
-//  1. RA doesnt do disjoint live ranges.
+
+//  0. we need to allow for arbitrary constants or runtime variables to be passed into macros. it shouldnt specialize the arg type. 
+//  0.0. we should just be able to detect what type was stored into memory. for that, i think we will store into   ctsc_auxilary_register     or maybe arg0 or something
+//               a 64 bit bitvector telling us whether the variables are ct or rt.    thus, there would be 64 arguments maximum.. hmmmmmm crapppppppp hmmmmmm
+//							i mean, thats probably plenty lol. yeah. probably. 64 is definitely plenty. 
+
+
+//  1. RA doesnt do disjoint live ranges. we need to do this. 
+
+//  4. add obs instruction to allow macros to define arguments. 
+
+//  5. add more isel for arm64. 
+
+//  x 6. test load and store instructions for c backend. add various sizes of ld and st sizes. 
+
+
+
+
 
 
 // done:
@@ -251,7 +262,7 @@ static void print_dictionary(nat should_print_ct) {
 
 static void print_instruction(struct instruction this) {
 
-	//if (this.ct) printf("\033[33m");
+	//if (this.state) printf("\033[33m");
 
 	int max_name_width = 0;
 	for (nat i = 0; i < var_count; i++) {
@@ -279,7 +290,7 @@ static void print_instruction(struct instruction this) {
 		putchar(' ');
 	}
 
-	//if (this.ct) printf("\033[0m");
+	//if (this.state) printf("\033[0m");
 
 }
 
@@ -1135,6 +1146,14 @@ process_file:;
 					); 
 			}
 
+			if ((op == ld or op == st) and not (is_immediate & 4) and not is_constant[args[2]]) {
+				print_error(
+					"expected compiletime-known variable or binary literal as load/store width",
+					filename, text, text_length,
+					word_start, pc
+				); 
+			}
+
 			struct instruction new = { 
 				.op = op, 
 				.imm = is_immediate,
@@ -1359,8 +1378,8 @@ process_file:;
 
 
 
-				// currently a huge bug in the CTE2 optimization stage:
-
+				// solved:
+ 				// currently a huge bug in the CTE2 optimization stage:
 
 				// the CTE2 pass is caling particular variables compiletime known when it shouldnt, as it isnt seeing the right control flow merge points with different data values at the right time, 
 				//  in the prime number written for the c arch and output format,    the variable j is being deleted, deduced to be 0 CTK. this is wrong, obviously, because it should be seeing the merge of CF and different CTK values of j (0 vs 1) at "inner", and thus keeping j. this isnt happening, and thus is a huge bug lol. 
@@ -1368,7 +1387,7 @@ process_file:;
 
 
 
-						// oh also, RA needs an overhaul kinda, we arent handling   RA constraints right i think,   and we also need to split up variable live ranges into seperate disjoint ranges when possible. 
+						// solved: oh also, RA needs an overhaul kinda, we arent handling   RA constraints right i think,   and we also need to split up variable live ranges into seperate disjoint ranges when possible. 
 
 				
 
@@ -1467,7 +1486,7 @@ process_file:;
 
 		if (op == halt) continue;
 		else if (op == at) { }
-		else if (op == section) { } 		
+		else if (op == section) { }
 		else if (op == system_) { }
 		else if (op == emit) { } 
 		else if (op == do_) { }
@@ -1666,7 +1685,7 @@ process_file:;
 			const nat v1 = (imm & 2) ? ins[i].args[1] : value[i * var_count + ins[i].args[1]];
 
 			if (ct1 and not (imm & 2)) {
-				puts("inlining compiletime argument...\n"); //getchar();
+				puts("inlining compiletime argument...\n"); //getchar(); //abort();
 				ins[i].args[1] = v1;
 				ins[i].imm |= 2;
 			}
@@ -1726,9 +1745,15 @@ process_file:;
 
 
 		} else if (op == ld or op == st) {
-			puts("we still need to embed the immediates into the load and store instructions.");
-			abort();
 
+			const nat ct1 = (imm & 2) or type[i * var_count + ins[i].args[1]];
+			const nat v1 = (imm & 2) ? ins[i].args[1] : value[i * var_count + ins[i].args[1]];
+
+			if (ct1 and not (imm & 2)) {
+				puts("inlining compiletime ld/st argument...\n"); getchar(); abort();
+				ins[i].args[1] = v1;
+				ins[i].imm |= 2;
+			}
 
 		} else if (op == lt or op == ge or op == ne or op == eq) {
 			const nat ct0 = (imm & 1) or type[i * var_count + ins[i].args[0]];
@@ -2719,6 +2744,16 @@ finish_instruction_selection:;
 		const nat var = stack[s];
 		node_selected[var] = 0;
 		printf("[s=%llu]: trying to allocate %s\n", s, variables[var]);
+
+		puts("info: current allocation scheme:");
+		for (nat i = 0; i < var_count; i++) {
+			if (not needs_ra[i] and allocation[i] == (nat) -1) continue;
+			printf("    . %s (%llu) is stored in hardware register x[%lld]\n", variables[i], i, allocation[i]);
+		}
+		puts("\n[continue?]");
+		getchar();
+
+
 		if (allocation[var] != (nat) -1) continue;
 		memset(occupied, 0, sizeof(nat) * hardware_register_count);
 
@@ -2737,17 +2772,44 @@ finish_instruction_selection:;
 		
 		printf("current occupied: "); print_nats(occupied, 10); puts("");
 
-		puts("info: current allocation scheme:");
-		for (nat i = 0; i < var_count; i++) {
-			if (not needs_ra[i] and allocation[i] == (nat) -1) continue;
-			printf("    . %s (%llu) is stored in hardware register x[%lld]\n", variables[i], i, allocation[i]);
-		}
-		puts("\n[continue?]");
-		getchar();
-	
+
+
+
+
+		// BUG:   we need to prioritize picking the same register as a hardware reg  used in a    set
+
+
+		//	   such that we actaully      elide the       set        instruction    because its a set to itself.        set x[1] x[1]  would get deleted!
+		//        but this only happens      IFFF we pick the right register for the variable. hmmmm. 
+
+
 
 		for (nat i = 0; i < hardware_register_count; i++) {
-			if (not occupied[i]) {
+
+			nat interference_count = 0;
+			for (nat e = 0; e < var_count; e++) {
+				if (allocation[e] == (nat) -1) continue;
+				for (nat r = 0; r < rig_count; r++) {
+					const nat a = rig[2 * r + 0];
+					const nat b = rig[2 * r + 1];
+					if (((a == var and b == e) or (a == e and b == var)) and i == allocation[e]) {
+						printf("we cannot pick register [%llu] for variable %s, "
+							"because there is a RIG conflict between %s and %s, "
+							"and %s must live in regsiter %llu.\n",
+
+							i, variables[var], 
+							variables[a], variables[b], 
+							variables[e], allocation[e]
+						);
+						interference_count++;
+						//abort();
+					}
+				}
+			}
+
+
+
+			if (not occupied[i] and interference_count == 0) {
 				allocation[var] = i;
 				goto allocation_found;
 			}
@@ -2833,7 +2895,7 @@ finish_instruction_selection:;
 
 				printf("info: filled in register index %lld for variable %s into this instruction. ", 
 					ins[i].args[a], variables[this_arg]
-				);				
+				);
 			}
 		}
 	}
@@ -3477,8 +3539,6 @@ c_generate_source_code:;
 	"\telse abort();\n"
 	"}\n"
 	"int main(void) {\n"
-	"\tx[0] = 0;\n"
-	"\tecall();\n"
 	;
 
 	const char* footer = 
@@ -3528,6 +3588,9 @@ c_generate_source_code:;
 			insert_bytes(&my_bytes, &my_count, str, len);
 
 		} else if (op == set) {
+
+			if (a0 == a1 and not imm) continue;
+
 			char str[4096] = {0}; nat len = 0;
 			if (imm) len = (nat) snprintf(str, sizeof str, "\tx[%llu] = 0x%llx;\n", a0, a1);
 			else len = (nat) snprintf(str, sizeof str, "\tx[%llu] = x[%llu];\n", a0, a1);
@@ -3598,23 +3661,26 @@ c_generate_source_code:;
 			
 			if (a2 == 8) {
 				char str[4096] = {0}; nat len = 0;
-				if (imm) { puts("error: cannot store to an immediate address in c\n"); abort(); }
+				if (imm & 1) { puts("error: cannot store to an immediate address in c\n"); abort(); }
+				else if (imm) len = (nat) snprintf(str, sizeof str, "\t*(uint64_t*)(x[%llu]) = 0x%llx;\n", a0, a1);
 				else len = (nat) snprintf(str, sizeof str, "\t*(uint64_t*)(x[%llu]) = x[%llu];\n", a0, a1);
 				insert_bytes(&my_bytes, &my_count, str, len);
 
-			} else abort();
-
+			} else { puts("unimplemented"); abort(); } 
 
 
 		} else if (op == ld) {
 
 			if (a2 == 8) {
 				char str[4096] = {0}; nat len = 0;
-				if (imm) { puts("error: cannot load from an immediate address in c\n"); abort(); }
+				if (imm & 3) { puts("error: cannot load from an immediate address in c\n"); abort(); }
 				else len = (nat) snprintf(str, sizeof str, "\tx[%llu] = *(uint64_t*)(x[%llu]);\n", a0, a1);
 				insert_bytes(&my_bytes, &my_count, str, len);
 
-			} else abort();
+			} else { puts("unimplemented"); abort(); } 
+
+
+
 
 
 
@@ -3622,6 +3688,8 @@ c_generate_source_code:;
 		} else if (op == la) {
 
 			abort();
+
+
 
 
 

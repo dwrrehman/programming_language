@@ -21,6 +21,8 @@ static void ecall(void) {
 	else abort();
 }
 int main(void) {
+	x[0] = 0;
+	ecall();
 	x[0] = 0x6;
 	x[1] = 0x0;
 	x[2] = 0x1000;
@@ -29,16 +31,12 @@ int main(void) {
 	x[5] = 0xffffffffffffffff;
 	x[6] = 0x0;
 	ecall();
-	x[7] = x[1];
-	*(uint64_t*)(x[7]) = 0x5;
+	x[0] = 0x1;
 	x[0] = 0x0;
-	x[1] = x[7];
-	ecall();
-	x[1] = *(uint64_t*)(x[7]);
-	x[0] = 0x0;
+	x[1] = 0x0;
 	ecall();
 	x[0] = 0x1;
-	x[1] = 0x0;
+	x[1] = 0xc;
 	ecall();
 }
 // (end of file)

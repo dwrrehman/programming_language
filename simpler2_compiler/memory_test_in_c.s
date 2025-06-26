@@ -71,19 +71,6 @@ operation page 1 at page ct
 	rt
 	set c_sc_call_number c_system_mmap
 
-
-			      (^------------ heres the bug:  
-
-					we need to be doing CTE stage 2   on the machine instructions, (roughly) for tracking what system calls we would execute. 
-
-					this is critical, as we need to know if the system calls output something. 
-
-					that is the only way for the compiler to NOT do const prop wrongly then. 
-
-				)
-
-
-
 	set c_sc_arg0 0
 	set c_sc_arg1 page_size
 	set c_sc_arg2 permissions
@@ -99,13 +86,43 @@ operation page 1 at page ct
 	del type del page_size 
 	del permissions
 
-
 at skip del skip
 
-set p 0 
-page p
-print p
-exit 0011
+
+
+
+rt set p p page p
+ct set a 101
+rt st p a nat  print p
+ld x p nat  print x
+exit 0
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -147,6 +164,17 @@ MAP_FAILED = 0xffffffffffffffff
 
 
 
+
+
+			      (^------------ heres the bug:  pointing to use of arg0 after a syscall    
+
+					we need to be doing CTE stage 2   on the machine instructions, (roughly) for tracking what system calls we would execute. 
+
+					this is critical, as we need to know if the system calls output something. 
+
+					that is the only way for the compiler to NOT do const prop wrongly then. 
+
+				)
 
 
 
