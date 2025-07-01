@@ -1,0 +1,177 @@
+notes on getting the low power sleepmodes to work on the pico 2W!
+---------------
+
+
+
+
+POWMAN:
+--------------
+
+	powman_base = ???????????????
+
+
+
+we need to configure   TIME.ALARM_ENAB = 0   (which is the default, at reset)
+			
+
+		then we need to set     alarm_15through0      ... alarm_48through63    
+
+
+			to set the timer value, it counts down i think 
+
+
+
+		then we need to enable the elarm with alarm enab = 1
+
+			then do a    __wfi   insrtuction,  but for riscv (see next section)
+
+
+
+
+	but, prior to setting this up       we need to   actaully request the low power mode   
+
+
+			using the   STATE.REQ   bitfield    we need to set it to   the bits for  P1.4 
+
+				which i think will be:   
+
+
+
+
+				STATE :  offset  0x38   
+
+							password protected.   must write top 16 bits   0x5AFE
+
+
+							write  0011     to bits 7 through 4
+
+
+							1 means powered down   0 means powered up
+
+							the bit ordering is:   SRAM1, SRAM0, XIP cache, SW core.
+
+
+				
+
+
+
+
+
+PROCESSOR STUFF
+--------------
+
+	we are going to use the risc-v hazard3 processor's    custom extension:  Xh3power  
+
+			which allows us to put the processor into a   "wfi"   low power state 
+
+				which then triggers the powman to transisition us to P1.4. 
+
+
+
+				h3.block      is the new instruction that is useful for us					
+
+					it is actually encoded as:
+
+
+								slt x0 x0 x0
+
+
+							ie, a nop      but a special one lol 
+
+
+
+						
+
+
+
+
+
+
+
+after  we wake up   from the timer, 
+	(ie, i think after the wfi?   hmm not sure...)
+
+
+
+
+we need to reconfigure the    ISO bit   for every gpio.    ie,  undo the isolation latches. they arent automatically reset again lol. 
+
+
+
+
+
+
+
+
+
+now, 
+
+	the interesting thing,  is taht       the    swcore  is actually    RESET   completely  and starts up from scratch, i think,
+
+	
+
+		the only way for us to know about the fact that   we came out of a low power state,  is 
+
+
+			LAST_SWCORE_PWRUP    register   (offset 0xa0) 
+
+
+
+				the value 6 in this register (RO)     means   alarm_pwrup
+
+
+							which is what we will use 
+
+
+
+
+								to wake us up from a p1.4   state 
+
+
+
+			
+
+
+
+
+
+
+	additioally,  this means we need to have a switch on the whole program,   based on this regsiter value,  at the beginning of our program, 
+
+
+		ie, its the first thing we do.   basically 
+
+
+	secondly,   we actually neeeeeddd to store any state we care about   in   SRAM
+
+
+			prior to        going to sleep,       as everything except for SRAM   (or the scratch registers, technically)
+
+							are completely wiped.    the peripheral register state is done/reset
+
+
+										the cpu registers are also reset, 
+
+
+
+		so yeah.   that includes the program counter. 
+
+
+
+
+	we need to store everything we care about, in SRAM.   sooooo yeah lol.   interesting. 
+
+
+
+						
+
+
+
+
+
+
+
+
+
+
+ 

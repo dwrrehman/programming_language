@@ -146,11 +146,12 @@ calling a macro, for example the following call:
 actually expands out to the following pattern, after parsing:
 
 
+	ct
 	st compiler_ctsc_arg0   #(arg0) 0001          (where "#(x)"  denotes the location of the dictionary entry for variable x.)
 	st compiler_ctsc_arg1   #(arg1) 0001
 	(...etc for each argument, arg0 through argN...)
 	
-	ct st compiler_ctsc_number return 0001      (the pc value for label return is stored as a CT literal into memory)
+	st compiler_ctsc_number return 0001      (the pc value for label return is stored as a CT literal into memory)
 	do macro_name
 	at return del return
 

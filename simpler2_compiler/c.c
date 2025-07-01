@@ -4,14 +4,9 @@
 // 1202506194.015825 added macro-arg references and macros! also added ct memory mapped io, and changed ctsc interface
 
 
-
 // todo: add  the "obs" instruction to the langauge,   to the parser   to the macro machinery,  
 //   which allows you to specify a particular argument index  that is   define on use,   ie, force defined.      it targets the latest defined macro always. 
 //        example:         obs 11           make   args[3]  for this macro   be define on use.    (or force define...?)    hmmm
-
-
-// current bugs: 1202506227.185435
-// ------------------------------------
 
 //  0. we need to allow for arbitrary constants or runtime variables to be passed into macros. it shouldnt specialize the arg type. 
 //  0.0. we should just be able to detect what type was stored into memory. for that, i think we will store into   ctsc_auxilary_register     or maybe arg0 or something
@@ -19,11 +14,34 @@
 //							i mean, thats probably plenty lol. yeah. probably. 64 is definitely plenty. 
 
 
+
+
+// current bugs: 1202506227.185435
+// ------------------------------------
+
+//  0. allow for arbitrary variables to be passed into macros as by-ref or by-value variables.
+//		we should be able to annotate the reference-ness for each argument to a macro!
+//		(runtime variables are passed by reference by default, and ct are passed by value by default. 
+
 //  1. RA doesnt do disjoint live ranges. we need to do this. 
 
 //  4. add obs instruction to allow macros to define arguments. 
 
 //  5. add more isel for arm64. 
+
+
+
+
+
+
+
+
+// done:
+// _____________________
+
+//  x 2. RA needs to handle user-given RI constraints correctly.
+
+//  x 3. CTE2 is marking certain variables as CTK when they shouldnt be.
 
 //  x 6. test load and store instructions for c backend. add various sizes of ld and st sizes. 
 
@@ -32,9 +50,16 @@
 
 
 
-// done:
-//  x 2. RA needs to handle user-given RI constraints correctly.
-//  x 3. CTE2 is marking certain variables as CTK when they shouldnt be.
+
+		//
+		// BUG IN RA:   
+		//	we need to be looking at the 
+		//	number of "disjoint live ranges" for a variable. 
+		//	and treating those as seperate variables!!!!
+		//
+
+
+
 
 
 // 1202506253.014249 i am going to try to get this language operational for using arm64! should be fun lol. 
@@ -937,7 +962,6 @@ int main(int argc, const char** argv) {
 	nat should_overwrite = false;
 
 	nat stack_size = min_stack_size;
-	const char* output_filename = "output_file_from_compiler.c";
 
 	char* string_list[4096] = {0};
 	nat string_list_count = 0;	
@@ -1192,7 +1216,7 @@ process_file:;
 	print_dictionary(1);
 	print_instructions(0);
 	puts("parsing finished.");
-	getchar();
+	//getchar();
 
 	{ struct instruction rt_ins[4096] = {0};
 	nat rt_ins_count = 0;
@@ -1380,40 +1404,18 @@ process_file:;
 	print_instructions(0);
 	puts("CT-PRUNED-EXECUTION finished.");
 
+	const char* output_filename = "output_file_from_compiler";
+	if (output_format == uf2_executable) output_filename = "output_file_from_compiler.uf2";
+	if (output_format == c_source_output) output_filename = "output_file_from_compiler.c";
+
+
+
 	{ nat* type = calloc(ins_count * var_count, sizeof(nat));
 	nat* value = calloc(ins_count * var_count, sizeof(nat));
 	nat* is_copy = calloc(ins_count * var_count, sizeof(nat));
 	nat* copy_of = calloc(ins_count * var_count, sizeof(nat));
 
-
-	const nat traversal_count = 2;       // this doesnt fix it either... 
-
-
-
-
-	//abort(); 			
-
-
-
-				// solved:
- 				// currently a huge bug in the CTE2 optimization stage:
-
-				// the CTE2 pass is caling particular variables compiletime known when it shouldnt, as it isnt seeing the right control flow merge points with different data values at the right time, 
-				//  in the prime number written for the c arch and output format,    the variable j is being deleted, deduced to be 0 CTK. this is wrong, obviously, because it should be seeing the merge of CF and different CTK values of j (0 vs 1) at "inner", and thus keeping j. this isnt happening, and thus is a huge bug lol. 
-
-
-
-
-						// solved: oh also, RA needs an overhaul kinda, we arent handling   RA constraints right i think,   and we also need to split up variable live ranges into seperate disjoint ranges when possible. 
-
-				
-
-
-
-
-
-
-
+	const nat traversal_count = 2; 
 	nat stack[4096] = {0};
 	nat stack_count = traversal_count;
 
@@ -1429,7 +1431,7 @@ process_file:;
 		ins[pc].state++;
 
 		debug_data_flow_state(pc, preds, pred_count, stack, stack_count, value, type, is_copy, copy_of);
-		getchar();
+		//getchar();
 
 		const nat op = ins[pc].op;
 		const nat imm = ins[pc].imm;
@@ -1592,11 +1594,11 @@ process_file:;
 
 	debug_data_flow_state(0, NULL, 0, stack, stack_count, value, type, is_copy, copy_of);
 	puts("data flow: [FINAL VALUES]");
-	getchar();
+	//getchar();
 	
 	print_instructions(0);
 	puts("OPT2 finished.");
-	getchar();
+	//getchar();
 
 	puts("pruning ctk instructions...");
 
@@ -1606,7 +1608,7 @@ process_file:;
 
 		print_instruction_window_around(i, 0, "");
 		puts("-----------PRUNING CTK INS:---------------");
-		getchar();
+		//getchar();
 
 		const nat op = ins[i].op;
 		const nat imm = ins[i].imm;
@@ -1695,7 +1697,7 @@ process_file:;
 		putchar('\t');
 		print_instruction(ins[i]); 
 		puts("");
-		getchar();
+		//getchar();
 
 		if (op >= set and op <= sd) {
 			const nat ct1 = (imm & 2) or type[i * var_count + ins[i].args[1]];
@@ -1848,47 +1850,77 @@ process_file:;
 	puts("CTK PRUNING finished.");
 	//getchar();
 
-	if (target_arch == rv32_arch or target_arch == rv64_arch) {
-		puts("replacing branch immediates with branch register, on rv32...");
 
-		for (nat i = 0; i < ins_count; i++) {
-			const nat op = ins[i].op;
-			const nat imm = ins[i].imm;
-			const nat i0 = !!(imm & 1);
-			const nat i1 = !!(imm & 2);
-			const nat a0 = ins[i].args[0];
-			const nat a1 = ins[i].args[1];
+	if (not (target_arch == rv32_arch or target_arch == rv64_arch)) goto skip_branch_imm_replace;
 
-			if (not (op == lt or op == ge or op == ne or op == eq)) continue;
-			if ((i0 and a0) or (i1 and a1)) {
-				if (i0) {
-					nat t = a0;
-					ins[i].args[0] = ins[i].args[1];
-					ins[i].args[1] = t;
-				}
-				const nat n = ins[i].args[1];
-				
-				variables[var_count] = strdup("MY_NEW"); //strdup(generate_new_variable_name());
+	puts("replacing branch and store immediates with branch and store register instructions, for rv32...");
+
+	for (nat i = 0; i < ins_count; i++) {
+		const nat op = ins[i].op;
+		const nat imm = ins[i].imm;
+		const nat i0 = !!(imm & 1);
+		const nat i1 = !!(imm & 2);
+		const nat a0 = ins[i].args[0];
+		const nat a1 = ins[i].args[1];
+
+		if (not (op == lt or op == ge or op == ne or op == eq or op == st)) continue;
+		if (op == lt or op == ge or op == ne or op == eq) {
+		if ((i0 and a0) or (i1 and a1)) {
+			if (i0) {
+				nat t = a0;
+				ins[i].args[0] = ins[i].args[1];
+				ins[i].args[1] = t;
+			}
+
+			const nat n = ins[i].args[1];
+			variables[var_count] = strdup("NEW");
+			var_count++;
+			memmove(ins + i + 1, ins + i, sizeof(struct instruction) * (ins_count - i));
+			ins[i] = (struct instruction) { set, 0x2, 0, { var_count - 1, n } };
+			ins_count++;
+			ins[i + 1].args[1] = var_count - 1;
+			ins[i + 1].imm = 0;
+			puts("rv32 replace br imm: info: inserted a set statement!");
+			//getchar();
+			i++;
+		}
+		} else if (op == st) {
+
+			if (i0) {
+				const nat n = ins[i].args[0];
+				variables[var_count] = strdup("NEW");
 				var_count++;
-
 				memmove(ins + i + 1, ins + i, sizeof(struct instruction) * (ins_count - i));
 				ins[i] = (struct instruction) { set, 0x2, 0, { var_count - 1, n } };
 				ins_count++;
-
+				ins[i + 1].args[0] = var_count - 1;
+				ins[i + 1].imm &= (nat) ~1;
+				puts("rv32 replace st address imm: info: inserted a set statement!");
+				//getchar();
+				i++;
+			}
+			
+			if (i1) {
+				const nat n = ins[i].args[1];
+				variables[var_count] = strdup("NEW");
+				var_count++;
+				memmove(ins + i + 1, ins + i, sizeof(struct instruction) * (ins_count - i));
+				ins[i] = (struct instruction) { set, 0x2, 0, { var_count - 1, n } };
+				ins_count++;
 				ins[i + 1].args[1] = var_count - 1;
-				ins[i + 1].imm = 0;
-
-				puts("rv32 replace br imm: info: inserted a set statement!");
+				ins[i + 1].imm &= (nat) ~2;
+				puts("rv32 replace st data imm: info: inserted a set statement!");
 				//getchar();
 				i++;
 			}
 		}
 	}
-	
 	print_instructions(0);
 	puts("non imm branches for riscv done.");
 	//getchar();
 
+skip_branch_imm_replace:;
+	
 
 	printf("info: compiling for [target_architecture = %llu, output_format = %llu (%s)]\n", 
 		target_arch, output_format, 
@@ -1931,7 +1963,7 @@ rv32_instruction_selection:;
 
 		if (ins[i].state) {
 			printf("warning: [i = %llu]: skipping, part of a pattern.\n", i);
-			getchar(); 
+			//getchar(); 
 			continue;
 		}
 
@@ -2077,6 +2109,28 @@ current state:  1202505235.133756
 			goto r5_push_single_mi;
 		}
 
+		else if (op == st) {
+			if (imm & 3) { puts("store immediates are not supported yet lol"); abort(); } 
+			const nat size = arg2; 
+
+			if (size == 1) {
+				new = (struct instruction) { r5_s, 0xf3, 0,   { 0x23, 0x000, arg0, arg1, 0x00000, 0,0,0 } };
+
+			} else if (size == 2) {
+				new = (struct instruction) { r5_s, 0xf3, 0,   { 0x23, 0x001, arg0, arg1, 0x00000, 0,0,0 } };
+
+			} else if (size == 4) {
+				new = (struct instruction) { r5_s, 0xf3, 0,   { 0x23, 0x010, arg0, arg1, 0x00000, 0,0,0 } };
+
+			} else {
+				puts("unknown size for store instruction on risc-v"); abort();
+			}
+
+			goto r5_push_single_mi;
+		}
+
+
+
 
 		else if (op == set and not imm) { // set d n -> addi d n 0 
 			new = (struct instruction) { r5_i, 0x15, 0,   { 0x13, arg0, 0, arg1, 0, 0,0,0 } };
@@ -2220,7 +2274,7 @@ set nat16 01
 
 		if (ins[i].state) {
 			printf("warning: [i = %llu]: skipping, part of a pattern.\n", i);
-			getchar(); 
+			//getchar(); 
 			continue;
 		}
 
@@ -2475,10 +2529,11 @@ c_instruction_selection:;
 			print_instruction(mi[e]); puts("");
 		}
 		puts("[mi done]\n[C ins sel]"); 
-		getchar();
+		//getchar();
 		if (ins[i].state) {
 			printf("warning: [i = %llu]: skipping, part of a pattern.\n", i);
-			getchar(); continue;
+			//getchar(); 
+			continue;
 		}
 		const nat op = ins[i].op;
 		if (op < a6_nop) { new = ins[i]; goto c_push_single_mi; } 
@@ -2512,13 +2567,31 @@ finish_instruction_selection:;
 	print_instructions(1);
 	//getchar();
 
-	puts("RA: starting register allocation!");           
-
-
-		// BUG IN RA:   we need to be looking at the number of "disjoint live ranges" for a variable. and treating those as seperate variables!!!!
 
 
 
+
+
+
+	// the general idea behind live ranges, is to    NOT give an allocation for each variable,  but rather, for each variable, at each instruction.
+	//  or, really, just for each live range, which starts at a particular instruction, and has a length, and has a variable which its associated with. 
+	// so, we are just going to have a list of range-start's   for each variable which needs allocation performed 
+	// we are going to create a seperate list  (seperate from the dictionary)  which we are going to keep track of the variables which we want to perform register allocation on.. 
+
+	// its a super set of var_count, thus we cannot use var_count. 
+
+	// so, instead, we are going to try to store a new realloc'd   dedicated list   which includes the    ins-start index,  and the ins-end index, denoting the extend of the liverange.
+
+	// we are going to alsoooo include the actual variable  that we are going to use along that path. that live range should include both a set/def and also several uses! so yeah. super important.  yay. we need to see these both, in order to push a new variable to the   "to_allocate[]" array lol. so yeah. 
+
+
+
+
+
+
+
+
+	puts("RA: starting register allocation!");
 
 	nat hardware_register_count = 0; 
 	if (target_arch == rv32_arch) hardware_register_count = 31;
@@ -2563,7 +2636,7 @@ finish_instruction_selection:;
 		printf("executing: [pc = %llu]: ", pc); 
 		print_instruction(ins[pc]);
 		puts("");
-		getchar();
+		//getchar();
 
 		ins[pc].state++;
 
@@ -2808,7 +2881,7 @@ finish_instruction_selection:;
 			printf("    . %s (%llu) is stored in hardware register x[%lld]\n", variables[i], i, allocation[i]);
 		}
 		puts("\n[continue?]");
-		getchar();
+		//getchar();
 
 
 		if (allocation[var] != (nat) -1) continue;
@@ -2905,7 +2978,7 @@ finish_instruction_selection:;
 		printf("    . %s (%llu) is stored in hardware register x[%lld]\n", variables[i], i, allocation[i]);
 	}
 	puts("\n[done with graph coloring in RA]");
-	getchar();
+	//getchar();
 	}
 		
 	for (nat i = 0; i < ins_count; i++) {
@@ -2916,7 +2989,7 @@ finish_instruction_selection:;
 	for (nat i = 0; i < ins_count; i++) {
 		print_instruction_window_around(i, 0, "");
 		puts("[RA: filling in allocation scheme, [dead store elmination]]");
-		getchar();
+		//getchar();
 
 		const nat op = ins[i].op;
 		const nat imm = ins[i].imm;
@@ -2940,7 +3013,7 @@ finish_instruction_selection:;
 					);
 					print_instruction(ins[i]); puts(""); 
 					puts("skipping this instruction, instead of aborting...");
-					getchar();
+					//getchar();
 					ins[i].state = 1;
 					//abort();
 				}
@@ -3110,11 +3183,11 @@ rv32_generate_machine_code:;
 		} else if (op == r5_s) {
 
 			const u32 word = 
-				(((a1 >> 5) & 0x3f) << 25U) | 
-				(a4 << 20U) | 
-				(a3 << 15U) | 
-				(a2 << 12U) | 
-				((a1 & 0x1f) <<  7U) | 
+				(((a4 >> 5) & 0x3f) << 25U) | 
+				(a3 << 20U) | 
+				(a2 << 15U) | 
+				(a1 << 12U) | 
+				((a4 & 0x1f) <<  7U) | 
 				(a0 << 0U) ;
 			insert_u32(&my_bytes, &my_count, word);
 
@@ -3617,7 +3690,7 @@ c_generate_source_code:;
 		print_instruction_window_around(i, 0, "");
 		puts("");
 		dump_hex(data_bytes, data_byte_count);
-		getchar();
+		//getchar();
 
 		const nat op = ins[i].op;
 		const nat a0 = ins[i].args[0];
@@ -3675,7 +3748,7 @@ c_generate_source_code:;
 		print_instruction_window_around(i, 0, "");
 		puts("");
 		printf("C source code: \n<<<%.*s>>>\n", (int) my_count, (char*) my_bytes);
-		getchar();
+		//getchar();
 
 		const nat op = ins[i].op;
 		const nat imm = ins[i].imm;
@@ -4629,6 +4702,25 @@ finished_outputting:
 
 
 
+
+
+
+
+
+
+	//abort(); 			
+				// solved:
+ 				// currently a huge bug in the CTE2 optimization stage:
+
+				// the CTE2 pass is caling particular variables compiletime known when it shouldnt, as it isnt seeing the right control flow merge points with different data values at the right time, 
+				//  in the prime number written for the c arch and output format,    the variable j is being deleted, deduced to be 0 CTK. this is wrong, obviously, because it should be seeing the merge of CF and different CTK values of j (0 vs 1) at "inner", and thus keeping j. this isnt happening, and thus is a huge bug lol. 
+
+
+
+
+						// solved: oh also, RA needs an overhaul kinda, we arent handling   RA constraints right i think,   and we also need to split up variable live ranges into seperate disjoint ranges when possible. 
+
+				
 
 
 

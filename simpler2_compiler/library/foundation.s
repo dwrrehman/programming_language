@@ -67,18 +67,6 @@ add x 1 set uf2_executable x
 add x 1 set hex_array_output x
 add x 1 set c_source_output x
 
-(specific to the rv32 virtual machine running in my website)
-set x 1 set rv_system_exit x
-add x 1 set rv_system_read x
-add x 1 set rv_system_write x
-del x
-
-((rv32 system call abi)
-register rv_sc_arg0 0101
-register rv_sc_arg1 1101
-register rv_sc_arg2 0011
-register rv_sc_number 10001
-)
 
 (--------------------- msp430 -------------------)
 
@@ -189,8 +177,31 @@ set r5_ra 1
 
 
 
+(rv32 system call abi)
+
+rt register rv_sc_arg0 0101
+register rv_sc_arg1 1101
+register rv_sc_arg2 0011
+register rv_sc_number 10001 ct
+
+
+(specific to the rv32 virtual machine running in my website)
+
+set x 1 set rv_system_exit x
+add x 1 set rv_system_read x
+add x 1 set rv_system_write x
+del x
+
+
+
+
+
 
 (end of standard library code)
+
+
+
+
 
 
 

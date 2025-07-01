@@ -23,7 +23,7 @@ typedef uint32_t u32;
 typedef uint16_t u16;
 typedef uint8_t byte;
 
-static bool debug = 1;
+static bool debug = 0;
 
 static char* load_file(const char* filename, nat* text_length) {
 	int file = open(filename, O_RDONLY);
