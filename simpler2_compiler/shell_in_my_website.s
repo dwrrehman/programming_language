@@ -69,43 +69,33 @@ operation write 01 at write ct
 
 
 
-
 at skip del skip
 
-
 set newline 0101
-
 rt 
-
-set s s  (these sohuldnt be required... we need to implement obs args in the macro system.. lol)
+set s s  (these shouldn't be required... we need to implement "obs" args in the macro system.. lol)
 set t t
 set n n 
 set input input
-
-ct set input_size 00001 rt
-
+ct 
+	set input_size 0000001
+	set exchanges 0001 
+rt
 set i 0 
 at loop
 	write_string s 0
 	read n input input_size
 	write_string t 1
-	la p input add p n st p newline 1 add n 1	
+	la p input add p n 
+	st p newline 1 add n 1	
 	write input n
-
-	(set rv_sc_number rv_system_write
-	set rv_sc_arg0 1
-	la rv_sc_arg1 input
-	set rv_sc_arg2 n
-	system)
-
-
 	add i 1 
-	lt i 00011 loop del loop del i
+	lt i exchanges loop del loop del i
 
 exit 011
 
 at s string "say something: "
-at t string "nice, you said: "
+at t string "thanks for sharing, you said: "
 at input ct set i 0 at l rt emit 1 0 ct 
 add i 1 lt i input_size l del l del i
 
@@ -125,6 +115,9 @@ add i 1 lt i input_size l del l del i
 
 
 
-
-
+	(set rv_sc_number rv_system_write
+	set rv_sc_arg0 1
+	la rv_sc_arg1 input
+	set rv_sc_arg2 n
+	system)
 
