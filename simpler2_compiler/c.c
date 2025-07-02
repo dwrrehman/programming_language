@@ -4,16 +4,6 @@
 // 1202506194.015825 added macro-arg references and macros! also added ct memory mapped io, and changed ctsc interface
 
 
-// todo: add  the "obs" instruction to the langauge,   to the parser   to the macro machinery,  
-//   which allows you to specify a particular argument index  that is   define on use,   ie, force defined.      it targets the latest defined macro always. 
-//        example:         obs 11           make   args[3]  for this macro   be define on use.    (or force define...?)    hmmm
-
-//  0. we need to allow for arbitrary constants or runtime variables to be passed into macros. it shouldnt specialize the arg type. 
-//  0.0. we should just be able to detect what type was stored into memory. for that, i think we will store into   ctsc_auxilary_register     or maybe arg0 or something
-//               a 64 bit bitvector telling us whether the variables are ct or rt.    thus, there would be 64 arguments maximum.. hmmmmmm crapppppppp hmmmmmm
-//							i mean, thats probably plenty lol. yeah. probably. 64 is definitely plenty. 
-
-
 
 
 // current bugs: 1202506227.185435
@@ -28,6 +18,555 @@
 //  4. add obs instruction to allow macros to define arguments. 
 
 //  5. add more isel for arm64. 
+
+
+
+
+
+
+/*
+
+notes on defining variables:
+-------------------------------
+
+	the semantics in the compiler/language for defining varaibles will always be "define-on-use",
+
+		ie, if you see that you are trying to use a vairable that isnt defined, it will just define it, 
+
+				iffffff and only if one of the few things are the following:
+
+
+					1. you are using a    set   ld   or la    operation   (ie, particular language builtins)
+
+					2. you using a macro which has that particular argument  marked as "obs"
+
+								ie, observable, meaning it has define on use semantics. 
+									observable also implies   reference   as well. 
+
+					3. it is a label argument position in a builtin such as:
+							at, do, lt, eq, ne, ge,  la
+
+
+		so yeah, unless its one of those casese,
+			then the arguments to macros or any operation   for that matter 
+
+			must be predefined. the variable must exist already lol
+
+
+
+a side effect of this is that   now variables arent able to shadow each other.... 
+
+		but i think i'll just be okay with that    becuase     shadowing isnt the greatest thing anywaysss
+
+		so yeah 
+
+
+
+cool 
+
+
+
+
+
+so, to mark an argument as define on use in the macro system, we'll use this:
+
+
+	obs <binaryliteral>
+
+
+and that will make argument N  observable    (ie, have define on use semantics, and also be a reference variable) 
+
+	where N is the binary literal
+
+
+
+we never have to attribute      by-value    semantics for a variable argument, because thats the default    for CT vars. 
+	and RT vars cannottt everrrrr be by-value     because thats physically impossible for CT macro machinery to do that  lol
+
+
+	so we just need to attribute     reference semanticss
+
+
+		and the idea is that     you would never reallyyyy want to take something by reference,  
+
+							yet       NOTTT have it be observable?.. hmmmm crapppp
+
+
+
+		yeah technically those are orthogonal kinda?
+
+
+			taking something by reference    and making something observable 
+
+
+
+		you could want:
+
+
+			CT by value
+			CT by reference
+			CT by reference and observable
+
+			RT by reference
+			RT by reference and observable
+
+
+
+hmmm okay
+
+	wellll if thatssss the case 
+
+	hmmm
+
+okay
+
+	
+	well
+		so the other thing is that 
+
+
+	the user should be able to pass in either a RT or CT variable  at a given argument position, 
+		and the macro should be able to introspect whether it is CT or RT lol. 
+		
+
+
+	buttt, the thing is, 
+
+		observability is    a contract set up front   by the macro callll
+		its not something that can be changed
+
+	so we needddd to have a way of attributing obs   on an arg 
+
+
+	buttt we dontttt need to attribute ct/rt ness     on an arg 
+
+	interestinggg
+
+
+	what about    reference ness?
+
+
+	wellll   for    RT vars  its set in stone 
+
+	but for CT vars, its not... 
+		we could pass in references    or nottt
+
+
+	interestinggg
+
+
+
+	welll okay hold on 
+
+	what if    we just made     two ct memory variables   as implicit inputs  to the macros
+
+
+
+		where
+
+			all ct var values    are passed    by reference 
+
+				(ie, macro like semantics)
+
+			all rt var's   are passed      by reference
+
+
+	
+			BUTTTT
+
+				if you pass in a binary literal to a position, 
+
+				then you can   be notified of thatttt happening   for that argument
+
+
+				by simply checking the   is_binaryliteral     field    in a particular memory array location!
+
+
+			so
+
+				we   ALWAYSSS will take everything by  REFERENCE
+
+						ie, you     b:cannot;    take a CT variable   by VALUE!!!!!!!
+
+				but then 	
+
+
+					if you pass in a binary literal   (ie, an r-value)      then you will be notified of that, 
+
+							so that the macro itself     can either   error,  or   do something, idk lol
+
+							you can process the fact that you received a binary literal for something which you werent thinking of it being a binary literal lollll
+
+								so yeah     cool yayy
+
+
+
+							its almost as simple as    just storing the  macro call's   .imm field 
+
+								into memory... 
+
+									is it LITERALLYYY that simple?     lol
+											wow
+
+
+
+							okay cool lol 
+
+
+
+
+								yay
+
+
+							and then obviously we also need to attribute whether a given variable is compiletime known or not lol
+
+								so yeah 
+
+								coooooooool
+
+
+
+
+							we need to tell that information to the macro body lol
+
+
+								orrrrr we couldddd just have a way of looking it upppp programaticallyyyy
+
+											oh my goshhh
+
+									wait yeah that could work 
+
+						its just a way of    getting a compiletime value    during CTE1   of whether a vairable is compiletime or runtimeeee
+
+
+								oh  my actual goshh
+
+
+
+						YESS
+
+
+						now we don't even need any of thisss oh my goshhh
+
+							at least i think???
+
+
+							hmmm
+
+
+							wait no that doesnt work  because we need to     crappp
+
+
+							no 
+									the callllllll  code needs to store information about what the original thingies were... 
+
+
+									OH WAIT IT DOESNT       YES WE CAN DO THISSS YAYYY
+
+
+									we just need to know if a binary literalllll was passed in
+
+
+											cooooolll
+
+
+
+										okay
+
+									thats easy lol
+
+									i don't know how to do the binary literal part  that well,
+
+
+								the problem is, it limits the number of binary literal arguments we can pass in to a call    to merely   64 lol
+
+									hmmm    i mean          lol     i think thats fine though 
+
+
+									and its only affecting binary literals too 
+
+
+									soooo  yeah i think we are fine lolllll
+
+
+
+
+									 							
+									basically because we'll be storing a   nat   uint64_t 
+
+										into CT memory lol     for the .imm field lol
+
+
+										YAYY
+
+
+						cool this is so simple oh my gosh
+
+
+
+
+	and then  all we'll need to add   (other than this binlit ctm semantics)
+
+
+		is the    obs <N>    instruction  
+
+
+		which allows you to mark a macro's Nth argument   as     define-on-use 
+
+			ie, observable 
+
+
+			and thus 
+
+				we can take labels as arguments,  we can define variables into the outter scope, 
+				and just generally speaking    yeah   things will work well
+
+					YAYYYY
+
+
+		
+
+	so the valid argument semantics combinations are thus only:
+
+
+
+		CT binary literal	-  by value 
+
+		CT variable 		- by reference
+
+		CT variable		- by reference, and observable
+
+		RT variable 		- by reference
+
+		RT variable		- by reference, and observable
+
+
+
+	and then we'll add an instruction to also ask if a given variable is CT or RT,  i think as well, right?
+		we need that too?
+
+		ie, 
+
+
+		we'll add:
+				obs b        :  b is a binary literal denoting the argument position which is define-on-use
+				ctk d s      :  if s is compiletime known,  d will be set to 1, else 0. 
+
+
+
+now, we could even    make it so that 
+
+	wehn you pass a binary literal into a macro, 
+
+		a temporary CT variable    with that binary literal value 
+
+			is created 
+
+			and that THATTT variable is passed in 
+
+
+			i don't reallyyyyy like that tho lol
+
+		idk
+
+		hmm
+
+
+
+	yeah probably not lol
+
+	its okay
+
+
+	we'll just pass in the binary literals themselves lol
+
+
+
+
+so yeah
+
+
+cool 
+
+
+		oh also i want to make it so that       when you say     dr x      it deferences it   for all instructions that use x, 
+
+			ie, its impossible to   use  x   and dr x     simulatneously   you need to choose lol
+
+			well i mean i guess you could use  x prior to the  dr x  setting lol
+				so yeah  cool that works i guess lol
+
+
+				but 
+
+				yeah   dr should be persistent  across instructions, so you don't need to say it constantly for every instruction lollll
+
+				cool 
+
+	yay
+
+
+
+
+
+
+
+
+
+also i want to change up how we get string lengths!
+
+
+
+i think we should add a   length   instruction honestly.. hmmm idk.. 
+
+
+but the idea would be that
+
+
+	we pass in the label which is associated with the string 
+
+
+	and upon saying   string "blah"         we will actually note the most recently defined symbol 
+
+		which will be associated with this string loll
+
+			so yeah
+
+
+					(needs to be a label too!)
+
+
+		that way we never have to deal with string indexes 
+
+
+		cool
+
+
+
+
+
+so in total, the changes are:
+
+	1. add   obs N   instruction      (....make this builtin  to the  operation instruction?  (ie, taking a bit field?))
+
+	2. add   ctk d s  instruction     (...make this a compiletime system call?... hmmmm)
+
+	3. make   dr x    persistent   (never clear  the replace[]  array values!)     --> rename this to "deref x"
+
+	4. make  string s   attribute the most recently defined label   associated with this string. 
+
+	5. add a   length s   instruction   to pass in the label  which the string is associated with
+
+	6. add a   CT memory location   is_immediate   bit field   one bit for each argument 
+			which is populated for each macro call   by the compiler, when generating the call. 	
+
+	7. 
+
+
+
+
+
+
+nope actually, we are going to revise this to simply:            (note, we arent adding any new instructions!!! niceeee)
+
+
+	1. keep the compiler system call  getlength, 
+			but make it do logic to look up the referenced string 
+			via the label's dictionary index. thatsss what we need to do.
+
+
+			in userland, we'll have the following macro in the standard library:
+
+
+
+
+
+				operation stringlength 01 1     (the 1 here means that arg0 is obs! niceeee)
+				at stringlength ct
+
+						(no binary literals are valid to give to this macro!)
+
+					ld ra compiler_ctsc_number nat
+					ld result compiler_ctsc_arg0 nat  deref result   (this is persistent!)
+					ld label compiler_ctsc_arg1 nat
+					
+					st compiler_ctsc_number compiler_get_length nat
+
+					st compiler_ctsc_arg0 label nat
+						(label is a dictionary index here, 
+						not the variable itself)
+
+					system   
+						(arg0 will now be populated with the length associated 
+						with the string associated with the label that 
+						was passed into the macro's arg0!)
+
+					ld result compiler_ctsc_arg0 nat
+
+					do ra 
+					del ra del label
+
+
+
+
+
+	2. make   the existing instruction   string s   attribute which label it was defined under!
+			we'll use this information  in the   getlength    system call. 
+
+
+	3. add a compiler system call  iscompiletime    (don't add  the     "ctk d s"    instruction!)
+
+
+	4. add a new argument to the "operation" instruction!  a new binary literal 
+		which is a bit field  per operation, telling if it is observable. 
+
+
+	5. add a new compiletime memory location which is populated on macro calls by the compiler. 
+
+
+	6. change the semantics of   dr x    to make replace[]  values persistent.   set but never reset. 
+
+
+
+(my todo)
+
+
+
+i think thats it actually!!!
+
+niceeee
+
+YAYYY
+
+lets do thisss
+
+
+
+
+
+*/
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+// todo: add  the "obs" instruction to the langauge,   to the parser   to the macro machinery,  
+//   which allows you to specify a particular argument index  that is   define on use,   ie, force defined.      it targets the latest defined macro always. 
+//        example:         obs 11           make   args[3]  for this macro   be define on use.    (or force define...?)    hmmm
+
+//  0. we need to allow for arbitrary constants or runtime variables to be passed into macros. it shouldnt specialize the arg type. 
+//  0.0. we should just be able to detect what type was stored into memory. for that, i think we will store into   ctsc_auxilary_register     or maybe arg0 or something
+//               a 64 bit bitvector telling us whether the variables are ct or rt.    thus, there would be 64 arguments maximum.. hmmmmmm crapppppppp hmmmmmm
+//							i mean, thats probably plenty lol. yeah. probably. 64 is definitely plenty. 
 
 
 
@@ -63,6 +602,32 @@
 
 
 // 1202506253.014249 i am going to try to get this language operational for using arm64! should be fun lol. 
+
+
+
+
+
+
+/*	
+
+
+
+nat output = 0;
+			if (n == compiler_abort) abort();
+			else if (n == compiler_exit) exit(arg0);
+			else if (n == compiler_read) { output = read(arg0, arg1, arg2); }
+			else if (n == compiler_write) { output = read(arg0, arg1, arg2); }
+			else { printf("error: unknown compiler CT system call: 0x%llx\n", n); abort(); } 
+
+
+//const nat should_store_value = (is_immediate >> a) & 1LLU;
+				//const nat immediate = 5LLU | (should_store_value << 1LLU);
+
+*/
+
+
+
+
 
 
 #include <stdio.h>
@@ -103,42 +668,40 @@ enum all_output_formats {
 	hex_array_output,
 	c_source_output,
 };
-enum memory_mapped_ctsc_offsets {
-	debug_memory_address,
-	target_memory_address,
-	format_memory_address,
-	overwrite_memory_address,
-	stack_size_memory_address,
-
-	ctsc_number_memory_address,
-	ctsc_arg0_memory_address,
-	ctsc_arg1_memory_address,
-	ctsc_arg2_memory_address,
-	ctsc_arg3_memory_address,
-	ctsc_arg4_memory_address,
-	ctsc_arg5_memory_address,
-	ctsc_arg6_memory_address,
-	ctsc_arg7_memory_address,
+enum memory_mapped_addresses {
+	compiler_should_debug,
+	compiler_target,
+	compiler_format,
+	compiler_should_overwrite,
+	compiler_stack_size,
+	compiler_get_length,
+	compiler_is_compiletime,
+	compiler_arg0,
+	compiler_arg1,
+	compiler_arg2,
+	compiler_arg3,
+	compiler_arg4,
+	compiler_arg5,
+	compiler_arg6,
+	compiler_arg7,
+	compiler_base,
 
 };
 
-enum compiler_system_calls { 
-	compiler_abort, 
-	compiler_exit, 
-	compiler_getchar, 	
-	compiler_putchar, 
-
-	compiler_printbin, 
-	compiler_printdec, 
-	compiler_print, 
-	compiler_getlength, 
+enum language_system_calls {
+	compiler_system_debug,
+	compiler_system_exit,
+	compiler_system_read,
+	compiler_system_write,
+	compiler_system_open,
+	compiler_system_close,
 };
 
 enum core_language_isa {
 	nullins,
 
-	ct, rt, system_, emit, string, operation, dr, 
-	file, del, register_, bits, section,
+	ct, rt, system_, emit, string, operation, deref, 
+	file, del, register_, bits, address_,
 	set, add, sub, mul, div_, rem, 
 	and_, or_, eor, si, sd, la, 
 	ld, st, lt, ge, ne, eq, do_, at, halt, 
@@ -159,8 +722,8 @@ enum core_language_isa {
 static const char* operations[isa_count] = {
 	"___nullins____",
 
-	"ct", "rt", "system", "emit", "string", "operation", "dr", 
-	"file", "del", "register", "bits", "section", 
+	"ct", "rt", "system", "emit", "string", "operation", "deref", 
+	"file", "del", "register", "bits", "address", 
 	"set", "add", "sub", "mul", "div", "rem", 
 	"and", "or", "eor", "si", "sd", "la", 
 	"ld", "st", "lt", "ge", "ne", "eq", "do", "at", "halt", 
@@ -181,7 +744,7 @@ static const char* operations[isa_count] = {
 static const nat arity[isa_count] = {
 	0,
 
-	0, 0, 0, 2, 2, 2, 1, 
+	0, 0, 0, 2, 2, 3, 1, 
 	1, 1, 2, 2, 1, 
 	2, 2, 2, 2, 2, 2, 
 	2, 2, 2, 2, 2, 2, 
@@ -256,7 +819,7 @@ static char* load_file(const char* filename, nat* text_length) {
 	return text;
 }
 
-static nat read_single_char_from_stdin(void) {
+/*static nat read_single_char_from_stdin(void) {
 	struct termios terminal = {0};
 	tcgetattr(0, &terminal);
 	struct termios copy = terminal; 
@@ -275,14 +838,14 @@ static nat read_single_char_from_stdin(void) {
 
 	tcsetattr(0, TCSANOW, &terminal);	
 	return (nat) c;
-}
+}*/
 
 static void print_dictionary(nat should_print_ct) {
 	puts("variable dictionary: ");
 	for (nat i = 0; i < var_count; i++) {
 		should_print_ct = ((var_count - i) < 20);
 		if (should_print_ct or (not is_constant[i] and not is_label[i])) 
-		printf("   %c %c %c %c %c [%5llu]  \"%20s\"  :   { bc=%5lld, ri=%5lld }  :   0x%016llx\n",
+		printf("   %c %c %c %c %c [%5llu]  \"%20s\"  :   { bc=%5lld, ri=%5lld }  :   0x%016llx (%llu decimal)\n",
 			' ', 
 			is_label[i] ? 'L' : ' ', 
 			replace[i] ? 'R' : ' ', 
@@ -290,7 +853,7 @@ static void print_dictionary(nat should_print_ct) {
 			is_undefined[i] ? 'U' : ' ', 
 			i, variables[i], 
 			bit_count[i], register_index[i], 
-			values[i]
+			values[i], values[i]
 		);
 	}
 	puts("[end]");
@@ -530,7 +1093,7 @@ static nat* compute_riscv_successors(nat pc) {
 				op == r5_r or 
 
 				op == at or 
-				op == section or 
+				op == address_ or 
 				op == emit
 		) {
 			gotos[2 * i + 0] = i + 1;
@@ -572,7 +1135,7 @@ static nat* compute_riscv_predecessors(nat pc, nat* pred_count) {
 				op == r5_r or 
 
 				op == at or 
-				op == section or 
+				op == address_ or 
 				op == emit
 		) {
 			gotos[2 * i + 0] = i + 1;
@@ -619,7 +1182,7 @@ static nat* compute_msp430_successors(nat pc) {
 			gotos[2 * i + 0] = locations[ins[i].args[0]];
 			gotos[2 * i + 1] = (nat) -1;
 
-		} else if (op == section or op == m4_op or op == at or op == emit) {
+		} else if (op == address_ or op == m4_op or op == at or op == emit) {
 			gotos[2 * i + 0] = i + 1;
 			gotos[2 * i + 1] = (nat) -1;
 
@@ -657,7 +1220,7 @@ static nat* compute_msp430_predecessors(nat pc, nat* pred_count) {
 			gotos[2 * i + 0] = locations[ins[i].args[0]];
 			gotos[2 * i + 1] = (nat) -1;
 
-		} else if (op == section or op == m4_op or op == at or op == emit) {
+		} else if (op == address_ or op == m4_op or op == at or op == emit) {
 			gotos[2 * i + 0] = i + 1;
 			gotos[2 * i + 1] = (nat) -1;
 
@@ -951,7 +1514,10 @@ static nat load_nat_from_memory(uint8_t* memory, const nat address) {
 	for (nat i = 0; i < 8; i++)  x |= (nat) ((nat) memory[8 * address + i] << (8LLU * i));
 	return x;
 }
-
+static void store_nat_to_memory(uint8_t* memory, const nat address, const nat data) {
+	for (nat i = 0; i < 8; i++) 
+		memory[8 * address + i] = (data >> (8 * i)) & 0xFF;
+}
 
 int main(int argc, const char** argv) {
 	if (argc != 2) exit(puts("compiler: error: usage: ./run [file.s]"));
@@ -964,6 +1530,7 @@ int main(int argc, const char** argv) {
 	nat stack_size = min_stack_size;
 
 	char* string_list[4096] = {0};
+	nat string_label[4096] = {0};
 	nat string_list_count = 0;	
 
 { 	struct file files[4096] = {0};
@@ -973,6 +1540,7 @@ int main(int argc, const char** argv) {
 	char* macros[max_macro_count] = {0};
 	nat macro_arity[max_macro_count] = {0};
 	nat macro_label[max_macro_count] = {0};
+	nat macro_obs[max_macro_count] = {0};
 	nat macro_count = 0;
 
 	{ nat text_length = 0;
@@ -1003,6 +1571,9 @@ process_file:;
 			const char delim = text[pc];
 			nat string_at = ++pc, string_length = 0;
 			while (text[pc] != delim) { pc++; string_length++; }
+			nat k = (nat) -1;
+			if (ins_count and ins[ins_count - 1].op == at) k = ins[ins_count - 1].args[0];
+			string_label[string_list_count] = k;
 			string_list[string_list_count++] = strndup(text + string_at, string_length);
 			struct instruction new = { .op = string, .imm = 0xff, .state = is_compiletime };
 			new.args[0] = string_length;
@@ -1053,28 +1624,27 @@ process_file:;
 			if (not is_undefined[var] and 
 			    not strcmp(word, variables[var])) goto push_argument;
 		} 
-
-		if (not(  
-			(op == lt or op == ge or op == ne or op == eq) and arg_count == 2 or
+		if (	(op == lt or op == ge or op == ne or op == eq) and arg_count == 2 or
 			(op == set or op == ld or op == register_ or op == operation) and arg_count == 0 or
 			op == do_ or op == at or op == la
-		)) {
-			nat r = 0, s = 1;
-			for (nat i = 0; i < strlen(word); i++) {
-				if (word[i] == '0') s <<= 1;
-				else if (word[i] == '1') { r += s; s <<= 1; }
-				else if (word[i] == '_') continue;
-				else print_error(
-					"undefined variable",
-					filename, text, text_length,
-					word_start, pc
-				);
-			}
-			is_immediate |= 1 << arg_count;
-			var = r;
-			goto push_argument;
-		}
+		) goto define_name;
+		if (op >= isa_count and ((macro_obs[op - isa_count] >> arg_count) & 1)) goto define_name;
 
+		nat r = 0, s = 1;
+		for (nat i = 0; i < strlen(word); i++) {
+			if (word[i] == '0') s <<= 1;
+			else if (word[i] == '1') { r += s; s <<= 1; }
+			else if (word[i] == '_') continue;
+			else print_error(
+				"undefined variable",
+				filename, text, text_length,
+				word_start, pc
+			);
+		}
+		is_immediate |= 1 << arg_count;
+		var = r;
+		goto push_argument;
+	
 	define_name:
 		var = var_count;
 		variables[var] = word; 
@@ -1091,13 +1661,15 @@ process_file:;
 		else if (op == ct) is_compiletime = 1;
 		else if (op == rt) is_compiletime = 0;
 		else if (op == operation) {
-			if (is_immediate != 2) 
+			if (is_immediate != 6) 
 				print_error(
 					"invalid argument type to operation instruction",
 					filename, text, text_length, 
 					word_start, pc
 				);
 
+
+			macro_obs[macro_count] = args[2];
 			macro_arity[macro_count] = args[1];
 			macro_label[macro_count] = args[0];
 			macros[macro_count++] = variables[args[0]];
@@ -1132,24 +1704,28 @@ process_file:;
 
 		} else if (op >= isa_count) {
 			for (nat a = 0; a < arg_count; a++) {
-				const nat is_binary_literal = (is_immediate >> a) & 1LLU;
-				const nat should_store_value = is_binary_literal or not is_constant[args[a]];
-				const nat immediate = 5LLU | (should_store_value << 1LLU);
 				ins[ins_count++] = (struct instruction) {
-					.op = st, .state = 1, .imm = immediate, 
-					.args = { 8 * (ctsc_arg0_memory_address + a), args[a], 8 } 
+					.op = st, .state = 1, .imm = 7, 
+					.args = { 8 * (compiler_arg2 + a), args[a], 8 } 
 				};
 			}
+			ins[ins_count++] = (struct instruction) {
+				 .op = st, .imm = 7, .state = 1,
+				.args = { 8 * compiler_arg1, (is_immediate << 1LLU) | is_compiletime, 8} 
+			};
 			ins[ins_count] = (struct instruction) {
 				 .op = st, .imm = 7, .state = 1,
-				.args = { 8 * ctsc_number_memory_address, ins_count + 1, 8} 
+				.args = { 8 * compiler_arg0, ins_count + 1, 8} 
 			}; ins_count++;
-			ins[ins_count++] = (struct instruction) { .op = do_, .state = 1, .args = { macro_label[op - isa_count] } };
+			ins[ins_count++] = (struct instruction) { 
+				.op = do_, .state = 1, 
+				.args = { macro_label[op - isa_count] } 
+			};
 			memset(args, 0, sizeof args);
 			is_immediate = 0;
 
 		} else {
-			if (((op >= a6_nop and op < isa_count) or op == section or op == emit) and is_compiletime) 
+			if (((op >= a6_nop and op < isa_count) or op == address_ or op == emit) and is_compiletime) 
 				print_error(
 					"instruction cannot execute at compiletime",
 					filename, text, text_length,
@@ -1234,6 +1810,15 @@ process_file:;
 		if (*memory) {
 			print_instruction_window_around(pc, 0, "");
 			print_dictionary(0);
+			dump_hex(memory, 128);
+
+			printf("strings: (%llu count) : \n", string_list_count);
+			for (nat i = 0; i < string_list_count; i++) {
+				printf("#%llu string: .string = %p .length = %llu, .label = %llu, \n", 
+					i, (void*) string_list[i], (nat) strlen(string_list[i]), string_label[i]
+				);
+			}
+
 			puts("rt instructions: ");
 			for (nat i = 0; i < rt_ins_count; i++) {
 				putchar(9); print_instruction(rt_ins[i]); puts("");
@@ -1249,11 +1834,10 @@ process_file:;
 		nat i1 = !!(imm & 2);
 		nat i2 = !!(imm & 4);
 
-		if (op != dr and is_compiletime) {
-			if (not i0 and replace[arg0]) arg0 = values[arg0];
-			if (not i1 and replace[arg1]) arg1 = values[arg1];
-			if (not i2 and replace[arg2]) arg2 = values[arg2];
-			memset(replace, 0, sizeof replace);
+		if (is_compiletime) {
+			if (not i0) while (replace[arg0]) arg0 = values[arg0];
+			if (not i1) while (replace[arg1]) arg1 = values[arg1];
+			if (not i2) while (replace[arg2]) arg2 = values[arg2];
 		}
 
 		const nat N = max_variable_count;
@@ -1263,14 +1847,14 @@ process_file:;
 		if (i2 or arg2 < N) val2 = not i2 ? values[arg2] : arg2;
 
 		if (op == string and not is_compiletime) {
-			for (nat s = 0; s < arg0; s++) { // for string length; 
+			for (nat s = 0; s < arg0; s++) {
 				struct instruction new = { .op = emit, .imm = 3 };
 				new.args[0] = 1;
 				new.args[1] = (nat) string_list[arg1][s];
 				rt_ins[rt_ins_count++] = new;
 			}
 		} 
-		else if (op == dr) 		replace[arg0] = 1;
+		else if (op == deref) 		replace[arg0] = 1;
 		else if (op == bits)		bit_count[arg0] = val1;
 		else if (op == register_) 	register_index[arg0] = val1;
 
@@ -1278,15 +1862,14 @@ process_file:;
 			struct instruction new = { .op = op, .imm = imm };
 			memcpy(new.args, ins[pc].args, sizeof new.args);
 			for (nat i = 0; i < arity[op]; i++) {
-				const nat is_real = not ((new.imm >> i) & 1);
-				if (is_real and replace[new.args[i]]) new.args[i] = values[new.args[i]];
-				if (is_real and is_label[new.args[i]]) continue;
-				if (is_real and is_constant[new.args[i]]) {
+				const nat not_literal = not ((new.imm >> i) & 1);
+				if (not_literal) { while (replace[new.args[i]]) new.args[i] = values[new.args[i]]; }
+				if (not_literal and is_label[new.args[i]]) continue;
+				if (not_literal and is_constant[new.args[i]]) {
 					new.args[i] = values[new.args[i]];
 					new.imm |= 1 << i;
 				}
 			}
-			memset(replace, 0, sizeof replace);
 			imm = new.imm;
 			i1 = !!(imm & 2);
 			arg0 = new.args[0];
@@ -1350,29 +1933,56 @@ process_file:;
 			for (nat i = 0; i < val2; i++) 
 				memory[val0 + i] = (val1 >> (8 * i)) & 0xFF;
 
+			if (val0 == 8 * compiler_get_length) {
+				for (nat i = 0; i < string_list_count; i++) {
+					if (string_label[i] != val1) continue;
+					store_nat_to_memory(
+						memory, compiler_arg0,
+						strlen(string_list[i])
+					);
+				}
+			} else if (val0 == 8 * compiler_is_compiletime) {
+				store_nat_to_memory(
+					memory, compiler_arg0, 
+					is_constant[val1]
+				);
+			}
+
 		} else if (op == do_)  pc = values[arg0];
 		else if (op == lt) { if (val0  < val1) pc = values[arg2]; }
 		else if (op == ge) { if (val0 >= val1) pc = values[arg2]; }
 		else if (op == eq) { if (val0 == val1) pc = values[arg2]; }
 		else if (op == ne) { if (val0 != val1) pc = values[arg2]; }
+
 		else if (op == system_) {
 
-			nat n = 0;   for (nat i = 0; i < 8; i++)   n |= (nat) ((nat) memory[8 * ctsc_number_memory_address + i] << (8LLU * i));
-			nat arg = 0; for (nat i = 0; i < 8; i++) arg |= (nat) ((nat) memory[8 * ctsc_arg0_memory_address + i] << (8LLU * i));
-			
-			const nat data = arg;
-			nat output = 0;
-			if (n == compiler_abort) abort();
-			else if (n == compiler_exit) exit(0);
-			else if (n == compiler_getchar) output = read_single_char_from_stdin();
-			else if (n == compiler_putchar) { putchar((int) data); fflush(stdout); }
-			else if (n == compiler_printbin) { print_binary(data); fflush(stdout); }
-			else if (n == compiler_printdec) { printf("%llu", data); fflush(stdout); }
-			else if (n == compiler_print) { printf("%s", string_list[data]); fflush(stdout); }
-			else if (n == compiler_getlength) output = strlen(string_list[data]);
-			else { printf("error: unknown compiler CT system call: 0x%llx\n", n); abort(); } 
+			nat x0 = load_nat_from_memory(memory, compiler_arg0);
+			nat x1 = load_nat_from_memory(memory, compiler_arg1);
+			nat x2 = load_nat_from_memory(memory, compiler_arg2);
+			nat x3 = load_nat_from_memory(memory, compiler_arg3);
+			//nat x4 = load_nat_from_memory(memory, compiler_arg4);
+			//nat x5 = load_nat_from_memory(memory, compiler_arg5);
+			//nat x6 = load_nat_from_memory(memory, compiler_arg6);
+			//nat x7 = load_nat_from_memory(memory, compiler_arg7);
 
-			for (nat i = 0; i < 8; i++) memory[8 * ctsc_arg0_memory_address + i] = (output >> (8 * i)) & 0xFF;
+			if (x0 == compiler_system_debug) printf("debug: %llu (0x%llx)\n", x1, x1);
+			else if (x0 == compiler_system_exit) exit((int) x1);
+			else if (x0 == compiler_system_read) { 
+				x1 = (nat) read((int) x1, (void*) x2, (size_t) x3); 
+			} else if (x0 == compiler_system_write) { 
+				x1 = (nat) write((int) x1, (void*) x2, (size_t) x3); 
+			} else if (x0 == compiler_system_open) { 
+				x1 = (nat) open((const char*) x1, (int) x2, (mode_t) x3); 
+			} else if (x0 == compiler_system_close) { 
+				x1 = (nat) close((int) x1); 
+			} else { 
+				printf("compiler: error: unknown system call number %llu\n", x0); 
+				abort(); 
+			} 
+			x2 = (nat) errno; 
+
+			store_nat_to_memory(memory, compiler_arg1, x1);
+			store_nat_to_memory(memory, compiler_arg2, x2);
 
 		} else { 
 			printf("CTE: fatal internal error: "
@@ -1380,16 +1990,16 @@ process_file:;
 				operations[op]
 			); 
 			abort(); 
-		} 
+		}
 	}
 
 	memcpy(ins, rt_ins, ins_count * sizeof(struct instruction));
 	ins_count = rt_ins_count; 
 
-	target_arch = load_nat_from_memory(memory, target_memory_address);
-	output_format = load_nat_from_memory(memory, format_memory_address);
-	should_overwrite = load_nat_from_memory(memory, overwrite_memory_address);
-	stack_size = load_nat_from_memory(memory, stack_size_memory_address);
+	target_arch = load_nat_from_memory(memory, compiler_target);
+	output_format = load_nat_from_memory(memory, compiler_format);
+	should_overwrite = load_nat_from_memory(memory, compiler_should_overwrite);
+	stack_size = load_nat_from_memory(memory, compiler_stack_size);
 	}
 
 	if (target_arch == msp430_arch and stack_size) { 
@@ -1505,7 +2115,7 @@ process_file:;
 
 		if (op == halt) continue;
 		else if (op == at) { }
-		else if (op == section) { }
+		else if (op == address_) { }
 		else if (op == system_) { }
 		else if (op == emit) { } 
 		else if (op == do_) { }
@@ -1622,7 +2232,7 @@ process_file:;
 			op == halt 	or op == system_ or 
 			op == set 	or op == do_ or
 			op == at 	or op == la or 
-			op == section   or
+			op == address_   or
 			op == ld 	or op == st or
 			op == emit	or op >= a6_nop
 			)
@@ -1980,7 +2590,7 @@ rv32_instruction_selection:;
 			op == r5_i or op == r5_r or 
 			op == r5_s or op == r5_b or 
 			op == r5_u or op == r5_j or 
-			op == at or op == emit or op == section or op == halt
+			op == at or op == emit or op == address_ or op == halt
 		) { 
 			new = ins[i]; 
 			goto r5_push_single_mi; 
@@ -2288,7 +2898,7 @@ set nat16 01
 		//const nat i2 = !!(imm & 4);
 
 		if (	
-			op == m4_op or op == section or op == m4_br or
+			op == m4_op or op == address_ or op == m4_br or
 			op == at or op == emit or op == halt
 		) { 
 			new = ins[i]; 
@@ -2390,7 +3000,7 @@ arm64_instruction_selection:;
 		const nat arg1 = ins[i].args[1]; 
 
 
-		if (op == halt or op == section or op == at or op == emit or 
+		if (op == halt or op == address_ or op == at or op == emit or 
 			(op >= a6_nop and op <= a6_divr)
 		) { 
 			mi[mi_count++] = ins[i]; 
@@ -2670,7 +3280,7 @@ finish_instruction_selection:;
 		if (op == halt) {}
 		else if (op == at) {}
 		else if (op == emit) {}
-		else if (op == section) {}
+		else if (op == address_) {}
 
 		else if (target_arch == rv32_arch) {
 			if (op == r5_r) { // addr D A A
@@ -3068,7 +3678,7 @@ rv32_generate_machine_code:;
 	{ nat* lengths = calloc(ins_count, sizeof(nat));
 	for (nat i = 0; i < ins_count; i++) {
 		const nat op = ins[i].op;
-		if (op == halt or op == at or op == section) continue;
+		if (op == halt or op == at or op == address_) continue;
 		nat k = 4;
 		if (op == emit) k = ins[i].args[0];
 		lengths[i] = k;
@@ -3144,7 +3754,7 @@ rv32_generate_machine_code:;
 			if (a0 == 2) insert_u16(&my_bytes, &my_count, (uint16_t) a1);
 			if (a0 == 1) insert_u8 (&my_bytes, &my_count, (uint8_t) a1);
 
-		} else if (op == section) {
+		} else if (op == address_) {
 			section_addresses[section_count] = a0;
 			section_starts[section_count++] = my_count;
 
@@ -3293,7 +3903,7 @@ msp430_generate_machine_code:;
 		const u32 a5 = (u32) ins[i].args[5];
 
 		nat len = 0;
-		if (op == section) len = 0;
+		if (op == address_) len = 0;
 		else if (op == halt) len = 0;
 		else if (op == emit) len = a0;
 		else if (op == m4_br) len = 2;
@@ -3334,7 +3944,7 @@ msp430_generate_machine_code:;
 			if (a0 == 2) insert_u16(&my_bytes, &my_count, (uint16_t) a1);
 			if (a0 == 1) insert_u8 (&my_bytes, &my_count, (uint8_t) a1);
 
-		} else if (op == section) {
+		} else if (op == address_) {
 			section_addresses[section_count] = a0;
 			section_starts[section_count++] = my_count;
 
@@ -3412,7 +4022,7 @@ arm64_generate_machine_code:;
 			if (a0 == 2) insert_u16(&my_bytes, &my_count, (uint16_t) a1);
 			if (a0 == 1) insert_u8 (&my_bytes, &my_count, (uint8_t) a1);
 
-		} else if (op == section) {
+		} else if (op == address_) {
 			section_addresses[section_count] = a0;
 			section_starts[section_count++] = my_count;
 
@@ -3756,7 +4366,7 @@ c_generate_source_code:;
 		const nat a1 = ins[i].args[1];
 		const nat a2 = ins[i].args[2];
 
-		if (op == halt or op == section) {}
+		if (op == halt or op == address_) {}
 
 		else if (op == system_) {
 			char str[4096] = {0};
@@ -4017,7 +4627,7 @@ generate_c_source_output:;
 
 	{ char debug_string[4096] = {0};
 	snprintf(debug_string, sizeof debug_string, 
-		"clang -Weverything -Wno-poison-system-directories -O3 %s",
+		"clang -Weverything -Wno-unused-label -Wno-poison-system-directories -O3 %s",
 		output_filename
 	);
 	system(debug_string); } } 

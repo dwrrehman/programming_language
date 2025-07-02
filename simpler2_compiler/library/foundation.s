@@ -5,6 +5,9 @@
 
 ct 
 
+(numbers)
+set -1 0 sub -1 1
+
 (booleans)
 set false 0
 set true 1
@@ -20,32 +23,31 @@ set nat16 	01
 set nat32 	001
 set nat 	0001
 
-(compiletime system call interface : call numbers)
-set x 0 set compiler_abort x
-add x 1 set compiler_exit x
-add x 1 set compiler_getchar x 
-add x 1 set compiler_putchar x
-add x 1 set compiler_printbin x
-add x 1 set compiler_printdec x
-add x 1 set compiler_print x
-add x 1 set compiler_getlength x
-
 (memory mapped ctsc address)
-set x 0    set compiler_should_debug_cte x
+set x 0000 set compiler_should_debug x
 add x 0001 set compiler_target x
 add x 0001 set compiler_format x 
 add x 0001 set compiler_should_overwrite x
 add x 0001 set compiler_stack_size x
-add x 0001 set compiler_ctsc_number x
-add x 0001 set compiler_ctsc_arg0 x
-add x 0001 set compiler_ctsc_arg1 x
-add x 0001 set compiler_ctsc_arg2 x
-add x 0001 set compiler_ctsc_arg3 x
-add x 0001 set compiler_ctsc_arg4 x
-add x 0001 set compiler_ctsc_arg5 x
-add x 0001 set compiler_ctsc_arg6 x
-add x 0001 set compiler_ctsc_arg7 x
-add x 0001 set compiler_memory_base x
+add x 0001 set compiler_get_length x
+add x 0001 set compiler_is_compiletime x
+add x 0001 set compiler_arg0 x
+add x 0001 set compiler_arg1 x
+add x 0001 set compiler_arg2 x
+add x 0001 set compiler_arg3 x
+add x 0001 set compiler_arg4 x
+add x 0001 set compiler_arg5 x
+add x 0001 set compiler_arg6 x
+add x 0001 set compiler_arg7 x
+add x 0001 set compiler_base x
+
+(compiletime system call interface : call numbers)
+set x 0 set compiler_system_debug x
+add x 1 set compiler_system_exit x
+add x 1 set compiler_system_read x 
+add x 1 set compiler_system_write x
+add x 1 set compiler_system_open x
+add x 1 set compiler_system_close x
 
 (valid arguments to ctsc compiler_target)
 set x 0 set no_arch x
@@ -64,8 +66,62 @@ add x 1 set elf_executable x
 add x 1 set elf_object x
 add x 1 set ti_txt_executable x
 add x 1 set uf2_executable x
-add x 1 set hex_array_output x
-add x 1 set c_source_output x
+add x 1 set hex_array x
+add x 1 set c_source x
+
+
+
+
+
+(---------------- c backend -------------------)
+
+
+
+(system calls suppported by the c backend) 
+
+set x 0 set c_system_debug x
+add x 1 set c_system_exit x
+add x 1 set c_system_read x
+add x 1 set c_system_write x
+add x 1 set c_system_open x
+add x 1 set c_system_close x
+add x 1 set c_system_mmap x
+add x 1 set c_system_munmap x
+
+
+(constants for the mmap system call interface: )
+
+set prot_read 1
+set prot_write 01
+set map_private 01
+set map_anonymous 0000_0000_0000_1
+set map_failed -1
+
+
+rt 
+register c_system_number 0
+register c_system_arg0 1
+register c_system_arg1 01
+register c_system_arg2 11
+register c_system_arg3 001
+register c_system_arg4 101
+register c_system_arg5 011 
+register c_system_arg6 111 
+ct
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 (--------------------- msp430 -------------------)
@@ -160,25 +216,27 @@ set bit6 00000010
 set bit7 00000001
 
 
-(risc-v op codes)
 
+
+
+
+
+
+
+( ---------------- risc-v -----------------)
+
+(risc-v op codes)
 set r5_addi_op1 	1100100
 set r5_addi_op2		000
 set r5_sw_op1 		1100010
 set r5_sw_op2 		010
 
-
-
-
 (risc-v registers)
-
 set r5_zr 0
 set r5_ra 1
 
 
-
 (rv32 system call abi)
-
 rt register rv_sc_arg0 0101
 register rv_sc_arg1 1101
 register rv_sc_arg2 0011
@@ -186,15 +244,16 @@ register rv_sc_number 10001 ct
 
 
 (specific to the rv32 virtual machine running in my website)
-
 set x 1 set rv_system_exit x
 add x 1 set rv_system_read x
 add x 1 set rv_system_write x
+
+
+
+
+
+
 del x
-
-
-
-
 
 
 (end of standard library code)
