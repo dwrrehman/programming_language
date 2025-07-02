@@ -14,9 +14,9 @@ language ISA:
 
 	ct rt set add sub mul div rem
 	and or eor si sd la ld st
-	lt ge ne eq do at dr del
+	lt ge ne eq do at del deref
 	emit bits file halt string
-	system section operation register
+	system address operation register
 
 
 language-specific instructions:
@@ -34,8 +34,8 @@ language-specific instructions:
 
 macro-specific instructions:
 ----------------------------------
-	dr x 		: dictionary-dereference all occurences of x in the next non-dr instruction.
-	operation x b   : create a new macro represented by label x. defines the macro to take b arguments, and b must be a binary literal.
+	deref x 		: dictionary-dereference all occurences of x in all following instructions.
+	operation x b k   : create a new macro represented by label x. defines the macro to take b arguments, and b must be a binary literal. k is a bit field denoting if variables are define on use (1) or not (0). lsb is arg0.
 
 arithmetic operations:
 ------------------
