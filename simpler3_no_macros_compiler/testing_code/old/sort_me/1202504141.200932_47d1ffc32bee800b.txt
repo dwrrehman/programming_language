@@ -1,0 +1,12 @@
+set N 00001
+rt n 0 set n N
+
+set i 0
+at loop
+	add i 1
+	lt i n loop 
+
+set i N
+set r i
+sc
+halt

@@ -1,0 +1,71 @@
+(1202505025.000444 dwrr
+revising the language a ton, 
+to try to simplify its 
+semantics and stages.)
+
+
+rt r 0
+
+set i 0
+set n 101
+
+at l
+	add r 11
+	add i 1
+	lt i n l
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+(	halt sc do at lf
+	rt set add sub mul div rem
+	and or eor si sd
+	la ld st
+	lt ge ne eq
+)
+
+
+
+
+
+
+
