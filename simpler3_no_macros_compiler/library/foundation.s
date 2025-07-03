@@ -23,14 +23,20 @@ set nat16 	01
 set nat32 	001
 set nat 	0001
 
+
+
 (memory mapped ctsc address)
-set x 0000 set compiler_should_debug x
+set x 0000 set compiler_return_address x
 add x 0001 set compiler_target x
 add x 0001 set compiler_format x 
+
 add x 0001 set compiler_should_overwrite x
+add x 0001 set compiler_should_debug x
+
 add x 0001 set compiler_stack_size x
 add x 0001 set compiler_get_length x
 add x 0001 set compiler_is_compiletime x
+
 add x 0001 set compiler_arg0 x
 add x 0001 set compiler_arg1 x
 add x 0001 set compiler_arg2 x
@@ -39,7 +45,10 @@ add x 0001 set compiler_arg4 x
 add x 0001 set compiler_arg5 x
 add x 0001 set compiler_arg6 x
 add x 0001 set compiler_arg7 x
+
 add x 0001 set compiler_base x
+
+
 
 (compiletime system call interface : call numbers)
 set x 0 set compiler_system_debug x
@@ -59,7 +68,7 @@ add x 1 set msp430_arch x
 add x 1 set c_arch x
 
 (valid arguments to ctsc compiler_format)
-set x 0 set debug_output_only x
+set x 0 set no_output x
 add x 1 set macho_executable x
 add x 1 set macho_object x
 add x 1 set elf_executable x

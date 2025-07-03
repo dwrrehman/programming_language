@@ -5,6 +5,24 @@
 
 
 
+// new optimization:  add on   to    copy prop:
+// ..............................................................................
+//
+//   make rt la's function like   rt set statements.    when you see:
+//
+//       la x label
+//       set y x
+//
+//
+//    that should translate simply to:
+//
+//       la y label
+// 
+
+
+
+
+
 
 // current bugs: 1202506227.185435
 // ------------------------------------
@@ -19,6 +37,58 @@
 
 //  5. add more isel for arm64. 
 
+
+
+
+
+
+
+
+
+
+
+/*
+	r_type: 	
+		a0: opcode(0-6)  
+		a1: rd(7-11)   
+		a2: funct3(12-14)
+		a3: rs1(15-19)
+		a4: rs2(20-24)
+		a5: funct7(25-31)
+
+	i_type: 
+		a0: opcode(0-6)
+		a1: rd(7-11)
+		a2: funct3(12-14)
+		a3: rs1(15-19)
+		a4: imm_11_0(20-31)
+
+	s_type: 	
+		a0: opcode(0-6)  
+		a1: imm_4_0(7-11)
+		a2: funct3(12-14)
+		a3: rs1(15-19)
+		a4: rs2(20-24)
+		a5: imm_5_11(25-31)
+
+	b_type: 
+		a0: opcode(0-6)
+		a1: imm_4_1_11(7-11)
+		a2: funct3(12-14)
+		a3: rs1(15-19)
+		a4: rs2(20-24)
+		a5: imm_12_10_5(25-31)
+
+	u_type: 	
+		a0: opcode(0-6)
+		a1: rd(7-11)
+		a2: imm_31_12(12-31)
+
+	j_type: 	
+		a0: opcode(0-6)
+		a1: rd(7-11)
+		a2: imm_20_10_1_11_19_12(12-31)
+*/
 
 
 
@@ -627,6 +697,49 @@ nat output = 0;
 
 
 
+/*static nat read_single_char_from_stdin(void) {
+	struct termios terminal = {0};
+	tcgetattr(0, &terminal);
+	struct termios copy = terminal; 
+	copy.c_cc[VMIN] = 1; 
+	copy.c_cc[VTIME] = 0;
+	copy.c_lflag &= ~((size_t) ECHO | ICANON);
+	tcsetattr(0, TCSANOW, &copy);
+
+	char c = 0;
+	ssize_t n = read(0, &c, 1);
+	if (n <= 0) { 
+		puts("compiler: fatal error: input/output error: "); 
+		perror("read"); 
+		abort(); 
+	}
+
+	tcsetattr(0, TCSANOW, &terminal);	
+	return (nat) c;
+}*/
+
+
+
+	/*int left_to_print = max_name_width - (int) strlen(operations[this.op]);
+	if (left_to_print < 0) left_to_print = 0;
+	for (int i = 0; i < left_to_print; i++) putchar(' ');
+	putchar(' '); }*/
+
+
+			/*if (val0 == 8 * compiler_get_length) {
+				for (nat i = 0; i < string_list_count; i++) {
+					if (string_label[i] != val1) continue;
+					store_nat_to_memory(
+						memory, compiler_arg0,
+						strlen(string_list[i])
+					);
+				}
+			} else if (val0 == 8 * compiler_is_compiletime) {
+				store_nat_to_memory(
+					memory, compiler_arg0, 
+					is_constant[val1]
+				);
+			}*/
 
 
 
@@ -654,28 +767,31 @@ typedef uint16_t u16;
 typedef uint8_t byte;
 
 #define max_variable_count 	(1 << 14)
-#define max_macro_count 	(1 << 14)
 #define max_instruction_count 	(1 << 14)
 #define max_arg_count 		16
 
 enum all_architectures { no_arch, arm64_arch, arm32_arch, rv64_arch, rv32_arch, msp430_arch, c_arch, };
 enum all_output_formats {
-	debug_output_only,
+	no_output,
 	macho_executable, macho_object,
 	elf_executable, elf_object,
 	ti_txt_executable,
 	uf2_executable,
-	hex_array_output,
-	c_source_output,
+	hex_array,
+	c_source,
 };
 enum memory_mapped_addresses {
-	compiler_should_debug,
+	compiler_return_address,
 	compiler_target,
 	compiler_format,
+
 	compiler_should_overwrite,
+	compiler_should_debug,
 	compiler_stack_size,
+
 	compiler_get_length,
 	compiler_is_compiletime,
+
 	compiler_arg0,
 	compiler_arg1,
 	compiler_arg2,
@@ -684,8 +800,8 @@ enum memory_mapped_addresses {
 	compiler_arg5,
 	compiler_arg6,
 	compiler_arg7,
-	compiler_base,
 
+	compiler_base,
 };
 
 enum language_system_calls {
@@ -700,7 +816,7 @@ enum language_system_calls {
 enum core_language_isa {
 	nullins,
 
-	ct, rt, system_, emit, string, operation, deref, 
+	ct, rt, system_, emit, string, 
 	file, del, register_, bits, address_,
 	set, add, sub, mul, div_, rem, 
 	and_, or_, eor, si, sd, la, 
@@ -722,7 +838,7 @@ enum core_language_isa {
 static const char* operations[isa_count] = {
 	"___nullins____",
 
-	"ct", "rt", "system", "emit", "string", "operation", "deref", 
+	"ct", "rt", "system", "emit", "string",
 	"file", "del", "register", "bits", "address", 
 	"set", "add", "sub", "mul", "div", "rem", 
 	"and", "or", "eor", "si", "sd", "la", 
@@ -744,7 +860,7 @@ static const char* operations[isa_count] = {
 static const nat arity[isa_count] = {
 	0,
 
-	0, 0, 0, 2, 2, 3, 1, 
+	0, 0, 0, 2, 2, 
 	1, 1, 2, 2, 1, 
 	2, 2, 2, 2, 2, 2, 
 	2, 2, 2, 2, 2, 2, 
@@ -781,6 +897,14 @@ struct file {
 	uint16_t unused1;
 	uint32_t unused2;
 };
+
+struct expected_instruction {
+	nat op;
+	nat imm;
+	nat use;
+	nat args[max_arg_count];	
+};
+
 
 static struct instruction ins[max_instruction_count] = {0};
 static nat ins_count = 0;
@@ -819,27 +943,6 @@ static char* load_file(const char* filename, nat* text_length) {
 	return text;
 }
 
-/*static nat read_single_char_from_stdin(void) {
-	struct termios terminal = {0};
-	tcgetattr(0, &terminal);
-	struct termios copy = terminal; 
-	copy.c_cc[VMIN] = 1; 
-	copy.c_cc[VTIME] = 0;
-	copy.c_lflag &= ~((size_t) ECHO | ICANON);
-	tcsetattr(0, TCSANOW, &copy);
-
-	char c = 0;
-	ssize_t n = read(0, &c, 1);
-	if (n <= 0) { 
-		puts("compiler: fatal error: input/output error: "); 
-		perror("read"); 
-		abort(); 
-	}
-
-	tcsetattr(0, TCSANOW, &terminal);	
-	return (nat) c;
-}*/
-
 static void print_dictionary(nat should_print_ct) {
 	puts("variable dictionary: ");
 	for (nat i = 0; i < var_count; i++) {
@@ -871,10 +974,6 @@ static void print_instruction(struct instruction this) {
 	}
 
 	printf("  %4s    ", operations[this.op]);
-	/*int left_to_print = max_name_width - (int) strlen(operations[this.op]);
-	if (left_to_print < 0) left_to_print = 0;
-	for (int i = 0; i < left_to_print; i++) putchar(' ');
-	putchar(' '); }*/
 
 	for (nat a = 0; a < arity[this.op]; a++) {
 
@@ -954,27 +1053,20 @@ static void print_instruction_window_around(
 
 static void print_index(const char* text, nat text_length, nat begin, nat end) {
 	printf("\n\t@%llu..%llu: ", begin, end); 
-
 	while (end and isspace(text[end])) end--;
-
 	const nat max_width = 100;
-
 	nat start_at = 
-		begin < max_width 
-		? 0 
-		: begin - max_width;
+		begin < max_width ? 0 : begin - max_width;
 
 	nat end_at = 
 		end + max_width >= text_length 
-		? text_length 
-		: end + max_width;
+		? text_length : end + max_width;
 
 	for (nat i = start_at; i < end_at; i++) {
 		if (i == begin) printf("\033[32;1m[");
 		putchar(text[i]);
 		if (i == end) printf("]\033[0m");
-	}
-	
+	}	
 	printf("\033[0m");
 	puts("\n");
 }
@@ -1243,14 +1335,6 @@ static nat* compute_msp430_predecessors(nat pc, nat* pred_count) {
 	*pred_count = count;
 	return result;
 }
-
-
-struct expected_instruction {
-	nat op;
-	nat imm;
-	nat use;
-	nat args[max_arg_count];	
-};
 
 static nat locate_instruction(struct expected_instruction expected, nat starting_from) {
 
@@ -1524,10 +1608,10 @@ int main(int argc, const char** argv) {
 	
 	const nat min_stack_size = 16384 + 1;
 	nat target_arch = no_arch;
-	nat output_format = debug_output_only;
+	nat output_format = no_output;
 	nat should_overwrite = false;
-
 	nat stack_size = min_stack_size;
+	memset(values, 255, sizeof values);
 
 	char* string_list[4096] = {0};
 	nat string_label[4096] = {0};
@@ -1537,11 +1621,6 @@ int main(int argc, const char** argv) {
 	nat file_count = 1;
 	const char* included_files[4096] = {0};
 	nat included_file_count = 0;
-	char* macros[max_macro_count] = {0};
-	nat macro_arity[max_macro_count] = {0};
-	nat macro_label[max_macro_count] = {0};
-	nat macro_obs[max_macro_count] = {0};
-	nat macro_count = 0;
 
 	{ nat text_length = 0;
 	char* text = load_file(argv[1], &text_length);
@@ -1561,7 +1640,7 @@ process_file:;
 	nat word_length = 0, word_start = 0, arg_count = 0, is_immediate = 0;
 	byte in_string = 0;
 
-	nat args[max_arg_count] = {0};
+	nat args[max_arg_count] = {0}; 
 
 	for (nat var = 0, op = 0, pc = starting_index; pc < text_length; pc++) {
 
@@ -1571,9 +1650,10 @@ process_file:;
 			const char delim = text[pc];
 			nat string_at = ++pc, string_length = 0;
 			while (text[pc] != delim) { pc++; string_length++; }
-			nat k = (nat) -1;
-			if (ins_count and ins[ins_count - 1].op == at) k = ins[ins_count - 1].args[0];
-			string_label[string_list_count] = k;
+			nat label = (nat) -1;
+			if (ins_count and ins[ins_count - 1].op == at) 
+				label = ins[ins_count - 1].args[0];
+			string_label[string_list_count] = label;
 			string_list[string_list_count++] = strndup(text + string_at, string_length);
 			struct instruction new = { .op = string, .imm = 0xff, .state = is_compiletime };
 			new.args[0] = string_length;
@@ -1606,17 +1686,13 @@ process_file:;
 				pc = i;
 				goto next_word;
 			}
-
-			for (nat m = 0; m < macro_count; m++) 
-				if (not strcmp(word, macros[m])) { op = isa_count + m; goto process_op; }
 			
 			for (op = 0; op < isa_count; op++) 
 				if (not strcmp(word, operations[op])) goto process_op;
 
 			print_error(
 				"nonexistent operation",
-				filename, text, text_length,
-				word_start, pc
+				filename, text, text_length, word_start, pc
 			);
 		}
 		else if (op == file) goto define_name;
@@ -1625,10 +1701,9 @@ process_file:;
 			    not strcmp(word, variables[var])) goto push_argument;
 		} 
 		if (	(op == lt or op == ge or op == ne or op == eq) and arg_count == 2 or
-			(op == set or op == ld or op == register_ or op == operation) and arg_count == 0 or
+			(op == set or op == ld or op == register_) and arg_count == 0 or
 			op == do_ or op == at or op == la
 		) goto define_name;
-		if (op >= isa_count and ((macro_obs[op - isa_count] >> arg_count) & 1)) goto define_name;
 
 		nat r = 0, s = 1;
 		for (nat i = 0; i < strlen(word); i++) {
@@ -1656,30 +1731,14 @@ process_file:;
 
 	process_op: 
 		if (op == string) { in_string = 1; goto next_word; } 
-		else if (op >= isa_count and arg_count < macro_arity[op - isa_count]) goto next_word;
 		else if (op < isa_count and arg_count < arity[op]) goto next_word;
 		else if (op == ct) is_compiletime = 1;
 		else if (op == rt) is_compiletime = 0;
-		else if (op == operation) {
-			if (is_immediate != 6) 
-				print_error(
-					"invalid argument type to operation instruction",
-					filename, text, text_length, 
-					word_start, pc
-				);
-
-
-			macro_obs[macro_count] = args[2];
-			macro_arity[macro_count] = args[1];
-			macro_label[macro_count] = args[0];
-			macros[macro_count++] = variables[args[0]];
-
-		} else if (op == del) {
+		else if (op == del) {
 			if (is_immediate) 
 				print_error(
 					"expected defined variable, found binary literal",
-					filename, text, text_length, 
-					word_start, pc
+					filename, text, text_length, word_start, pc
 				);
 			is_undefined[args[0]] = 1;
 		} else if (op == file) {
@@ -1701,44 +1760,18 @@ process_file:;
 			files[file_count++].index = 0;
 			var_count--;
 			goto process_file;
-
-		} else if (op >= isa_count) {
-			for (nat a = 0; a < arg_count; a++) {
-				ins[ins_count++] = (struct instruction) {
-					.op = st, .state = 1, .imm = 7, 
-					.args = { 8 * (compiler_arg2 + a), args[a], 8 } 
-				};
-			}
-			ins[ins_count++] = (struct instruction) {
-				 .op = st, .imm = 7, .state = 1,
-				.args = { 8 * compiler_arg1, (is_immediate << 1LLU) | is_compiletime, 8} 
-			};
-			ins[ins_count] = (struct instruction) {
-				 .op = st, .imm = 7, .state = 1,
-				.args = { 8 * compiler_arg0, ins_count + 1, 8} 
-			}; ins_count++;
-			ins[ins_count++] = (struct instruction) { 
-				.op = do_, .state = 1, 
-				.args = { macro_label[op - isa_count] } 
-			};
-			memset(args, 0, sizeof args);
-			is_immediate = 0;
-
 		} else {
-			if (((op >= a6_nop and op < isa_count) or op == address_ or op == emit) and is_compiletime) 
-				print_error(
-					"instruction cannot execute at compiletime",
-					filename, text, text_length,
-					word_start, pc
-				);
+
+			const nat has_ct_arg0 = (is_immediate & 1) or is_constant[args[0]];
+			const nat has_ct_arg1 = (is_immediate & 2) or is_constant[args[1]];
+			const nat has_ct_arg2 = (is_immediate & 4) or is_constant[args[2]];
 
 			if (op == do_ or op == at) { 
 				if (is_immediate & 1) { 
 				error_label_immediate: 
 					print_error(
 						"expected label argument, found binary literal",
-						filename, text, text_length,
-						word_start, pc
+						filename, text, text_length, word_start, pc
 					); 
 				} else is_label[args[0]] = 1; 
 			}
@@ -1752,23 +1785,57 @@ process_file:;
 				if (is_immediate & 1) 
 					print_error(
 						"expected destination variable, found binary literal",
-						filename, text, text_length,
-						word_start, pc
+						filename, text, text_length, word_start, pc
 					); 
 			}
 
-			if ((op == ld or op == st) and not (is_immediate & 4) and not is_constant[args[2]]) {
+			if ((op == ld or op == st) and not has_ct_arg2) {
 				print_error(
 					"expected compiletime-known variable or binary literal as load/store width",
-					filename, text, text_length,
-					word_start, pc
+					filename, text, text_length, word_start, pc
 				); 
 			}
 
+			nat is_ct = is_compiletime;
+			if (op == emit) is_ct = 0;
+			if (op == address_) is_ct = 0;
+			if (op == halt) is_ct = 0;
+			if (op >= a6_nop and op < isa_count) is_ct = 0;
+			if (op == bits) is_ct = 1;
+			if (op == register_) { is_ct = 1; is_constant[args[0]] = 0; } 
+			if (not is_ct and op == do_ and has_ct_arg0) is_ct = 1;
+			if (is_ct and op == do_ and not has_ct_arg0) is_ct = 0;
+			if (not is_ct and op == at and has_ct_arg0) is_ct = 1;
+			if (is_ct and op == at and not has_ct_arg0) is_ct = 0;
+
+			if (not is_ct and op >= lt and op <= eq and has_ct_arg0 and has_ct_arg1 and has_ct_arg2) is_ct = 1;
+			if (is_ct and op >= lt and op <= eq and not has_ct_arg2) is_ct = 0;
+			if (op >= lt and op <= eq and (not has_ct_arg0 or not has_ct_arg1) and has_ct_arg2)
+				print_error(
+					"compiletime branch instruction must have a compiletime-known condition",
+					filename, text, text_length, word_start, pc
+				);
+
+			if (not is_ct and (op >= set and op <= sd or op == ld) and has_ct_arg0 and has_ct_arg1) is_ct = 1;
+			if (is_ct and (op >= set and op <= sd or op == ld) and not has_ct_arg0) is_ct = 0;
+			if (op >= set and op <= sd and has_ct_arg0 and not has_ct_arg1) 
+				print_error(
+					"instruction cannot store to a compiletime destination with a runtime source",
+					filename, text, text_length, word_start, pc
+				);
+		
+			if (not is_ct and op == la and has_ct_arg0 and has_ct_arg1) is_ct = 1;
+			if (is_ct and op == la and not has_ct_arg0 and not has_ct_arg1) is_ct = 0;
+			if (op == la and has_ct_arg0 != has_ct_arg1) 
+				print_error(
+					"instruction requires destination and source to be both compiletime or both runtime",
+					filename, text, text_length, word_start, pc
+				);
+								
 			struct instruction new = { 
 				.op = op, 
 				.imm = is_immediate,
-				.state = is_compiletime,
+				.state = is_ct,
 			};
 			memcpy(new.args, args, sizeof args);
 			is_immediate = 0;
@@ -1788,7 +1855,7 @@ process_file:;
 		const nat op = ins[pc].op;
 		if (op == at) values[ins[pc].args[0]] = pc;
 	}
-		
+
 	print_dictionary(1);
 	print_instructions(0);
 	puts("parsing finished.");
@@ -1807,7 +1874,7 @@ process_file:;
 		nat imm = ins[pc].imm;
 		nat is_compiletime = ins[pc].state;
 
-		if (*memory) {
+		if (memory[compiler_should_debug]) {
 			print_instruction_window_around(pc, 0, "");
 			print_dictionary(0);
 			dump_hex(memory, 128);
@@ -1854,7 +1921,7 @@ process_file:;
 				rt_ins[rt_ins_count++] = new;
 			}
 		} 
-		else if (op == deref) 		replace[arg0] = 1;
+		//else if (op == deref) 		replace[arg0] = 1;
 		else if (op == bits)		bit_count[arg0] = val1;
 		else if (op == register_) 	register_index[arg0] = val1;
 
@@ -1933,37 +2000,19 @@ process_file:;
 			for (nat i = 0; i < val2; i++) 
 				memory[val0 + i] = (val1 >> (8 * i)) & 0xFF;
 
-			if (val0 == 8 * compiler_get_length) {
-				for (nat i = 0; i < string_list_count; i++) {
-					if (string_label[i] != val1) continue;
-					store_nat_to_memory(
-						memory, compiler_arg0,
-						strlen(string_list[i])
-					);
-				}
-			} else if (val0 == 8 * compiler_is_compiletime) {
-				store_nat_to_memory(
-					memory, compiler_arg0, 
-					is_constant[val1]
-				);
-			}
-
-		} else if (op == do_)  pc = values[arg0];
+		} else if (op == do_) {
+			store_nat_to_memory(memory, compiler_return_address, pc);
+			pc = values[arg0];
+		}
 		else if (op == lt) { if (val0  < val1) pc = values[arg2]; }
 		else if (op == ge) { if (val0 >= val1) pc = values[arg2]; }
 		else if (op == eq) { if (val0 == val1) pc = values[arg2]; }
 		else if (op == ne) { if (val0 != val1) pc = values[arg2]; }
-
 		else if (op == system_) {
-
 			nat x0 = load_nat_from_memory(memory, compiler_arg0);
 			nat x1 = load_nat_from_memory(memory, compiler_arg1);
 			nat x2 = load_nat_from_memory(memory, compiler_arg2);
 			nat x3 = load_nat_from_memory(memory, compiler_arg3);
-			//nat x4 = load_nat_from_memory(memory, compiler_arg4);
-			//nat x5 = load_nat_from_memory(memory, compiler_arg5);
-			//nat x6 = load_nat_from_memory(memory, compiler_arg6);
-			//nat x7 = load_nat_from_memory(memory, compiler_arg7);
 
 			if (x0 == compiler_system_debug) printf("debug: %llu (0x%llx)\n", x1, x1);
 			else if (x0 == compiler_system_exit) exit((int) x1);
@@ -1979,11 +2028,8 @@ process_file:;
 				printf("compiler: error: unknown system call number %llu\n", x0); 
 				abort(); 
 			} 
-			x2 = (nat) errno; 
-
 			store_nat_to_memory(memory, compiler_arg1, x1);
-			store_nat_to_memory(memory, compiler_arg2, x2);
-
+			store_nat_to_memory(memory, compiler_arg2, (nat) errno);
 		} else { 
 			printf("CTE: fatal internal error: "
 				"unknown instruction executed: %s...\n", 
@@ -1992,14 +2038,23 @@ process_file:;
 			abort(); 
 		}
 	}
-
 	memcpy(ins, rt_ins, ins_count * sizeof(struct instruction));
 	ins_count = rt_ins_count; 
-
 	target_arch = load_nat_from_memory(memory, compiler_target);
 	output_format = load_nat_from_memory(memory, compiler_format);
 	should_overwrite = load_nat_from_memory(memory, compiler_should_overwrite);
 	stack_size = load_nat_from_memory(memory, compiler_stack_size);
+	}
+
+
+	for (nat i = 0; i < ins_count; i++) {
+		const nat op = ins[i].op;
+		if ((op >= lt and op <= eq and values[ins[i].args[2]] == (nat) -1) or
+		    (op == do_ and values[ins[i].args[0]] == (nat) -1)) {
+			puts("error: label does not have a defined position");
+			print_instruction_window_around(i, 1, "this label is undefined");
+			abort();
+		}
 	}
 
 	if (target_arch == msp430_arch and stack_size) { 
@@ -2016,9 +2071,7 @@ process_file:;
 
 	const char* output_filename = "output_file_from_compiler";
 	if (output_format == uf2_executable) output_filename = "output_file_from_compiler.uf2";
-	if (output_format == c_source_output) output_filename = "output_file_from_compiler.c";
-
-
+	if (output_format == c_source) output_filename = "output_file_from_compiler.c";
 
 	{ nat* type = calloc(ins_count * var_count, sizeof(nat));
 	nat* value = calloc(ins_count * var_count, sizeof(nat));
@@ -2033,15 +2086,12 @@ process_file:;
 
 	while (stack_count) {
 		nat pc = stack[--stack_count];
-
 		nat pred_count = 0;
 		nat* preds = compute_predecessors(pc, &pred_count);
 		nat* gotos = compute_successors(pc);
-
 		ins[pc].state++;
 
-		debug_data_flow_state(pc, preds, pred_count, stack, stack_count, value, type, is_copy, copy_of);
-		//getchar();
+		debug_data_flow_state(pc, preds, pred_count, stack, stack_count, value, type, is_copy, copy_of);		//getchar();
 
 		const nat op = ins[pc].op;
 		const nat imm = ins[pc].imm;
@@ -3686,50 +3736,6 @@ rv32_generate_machine_code:;
 
 	print_nats(lengths, ins_count); puts("");
 
-
-/*
-	r_type: 	
-		a0: opcode(0-6)  
-		a1: rd(7-11)   
-		a2: funct3(12-14)
-		a3: rs1(15-19)
-		a4: rs2(20-24)
-		a5: funct7(25-31)
-
-	i_type: 
-		a0: opcode(0-6)
-		a1: rd(7-11)
-		a2: funct3(12-14)
-		a3: rs1(15-19)
-		a4: imm_11_0(20-31)
-
-	s_type: 	
-		a0: opcode(0-6)  
-		a1: imm_4_0(7-11)
-		a2: funct3(12-14)
-		a3: rs1(15-19)
-		a4: rs2(20-24)
-		a5: imm_5_11(25-31)
-
-	b_type: 
-		a0: opcode(0-6)
-		a1: imm_4_1_11(7-11)
-		a2: funct3(12-14)
-		a3: rs1(15-19)
-		a4: rs2(20-24)
-		a5: imm_12_10_5(25-31)
-
-	u_type: 	
-		a0: opcode(0-6)
-		a1: rd(7-11)
-		a2: imm_31_12(12-31)
-
-	j_type: 	
-		a0: opcode(0-6)
-		a1: rd(7-11)
-		a2: imm_20_10_1_11_19_12(12-31)
-*/
-
 	for (nat i = 0; i < ins_count; i++) {
 
 		print_instruction_window_around(i, 0, "");
@@ -4352,7 +4358,6 @@ c_generate_source_code:;
 	const nat len = (nat) snprintf(str, sizeof str, "\n};\n\nint main(void) {\n");
 	insert_bytes(&my_bytes, &my_count, str, len); } 
 
-
 	for (nat i = 0; i < ins_count; i++) {
 
 		print_instruction_window_around(i, 0, "");
@@ -4562,17 +4567,15 @@ c_generate_source_code:;
 
 	goto finished_generation;
 
-
-
 finished_generation:;
 	puts("done: byte generation successful.");
 	puts("final_bytes:");
 	dump_hex(my_bytes, my_count);
 	printf("info: generating output file with format #%llu...\n", output_format);
 
-	if (output_format == debug_output_only) goto print_debug_output_only;
-	if (output_format == hex_array_output) goto generate_hex_array_output;
-	if (output_format == c_source_output) goto generate_c_source_output;
+	if (output_format == no_output) goto print_debug_output;
+	if (output_format == hex_array) goto generate_hex_array_output;
+	if (output_format == c_source) goto generate_c_source_output;
 	if (output_format == ti_txt_executable) goto generate_ti_txt_executable;
 	if (output_format == uf2_executable) goto generate_uf2_executable;
 	if (output_format == macho_executable) goto generate_macho_executable;
@@ -4581,8 +4584,7 @@ finished_generation:;
 	if (output_format == elf_object) abort();
 	puts("unknown target"); abort();
 
-print_debug_output_only:;
-
+print_debug_output:;
 	printf("debug: executable bytes: (%llu bytes)\n", my_count);
 	for (nat i = 0; i < my_count; i++) {
 		if (i % 32 == 0) puts("");
