@@ -5,82 +5,82 @@ new version of the language made on 1202505154.163659 by dwrr
 
 this is an optimizing compiler for a low-level programming language that i am making for fun and for my own use. the language is word-based, statement-based, and is closely modelled off of the hardware RISC-like ISA's which it chooses to target, which include: RISC-V (32 and 64 bit), ARM (32 and 64 bit), and the MSP430 ISA. 
 
-there are only 31 built-in operators/instructions in the language (excluding the machine instructions), all of which take 0, 1, 2, or 3 arguments. also, all these operators are prefix, and fixed arity. 
+there are less than 35 built-in operators/instructions in the language (excluding the machine instructions), which take 0, 1, 2, or 3 arguments. all operators are prefix, and fixed arity. 
 
 a description of the built-in instructions and the semantics of each instruction is given below:
 
+language ISA:
+----------------
 
-full language ISA:
-----------------------
+	ct rt set add sub mul div rem
+	and or eor si sd la ld st
+	lt ge ne eq do at del deref
+	emit bits file halt string
+	system address operation register
 
-	ct rt set add sub mul div rem file str 
-	and or eor si sd la ld st do del adr 
-	lt ge ne eq at halt emit sc bits reg
 
 language-specific instructions:
 ----------------------------------
-	rt		: mark instructions and variables from here onwards to be runtime.
-	ct		: mark instructions and variables from here onwards to be compiletime.
+	rt		: make all instructions and variables from here onwards execute at runtime.
+	ct		: make all instructions and variables from here onwards execute at compile-time.
+	system 		: runtime or compile-time system call instruction. 
+	register x r	: make x stored in the specific runtime/compile-time register with register-index r.
+	bits x b	: make x stored in at least b bits.
+	emit x y	: emit x bytes from the CT constant y to the executable at this position. 
+	string s	: emit string data from s to the final executable at this position.
+	file f		: load file f contents. 
 	del x		: remove x from the symbol table. 
-	file f		: load the contents of the file at filepath f,
-			  and parse them fully before proceeding. 
-			  any edits to the symbol table are persistent/stateful.
-	reg x r		: make x stored in the runtime hardware register r. r is CTK.
-	bits x b	: make x stored in at least b bits. b is CTK. 
-			  note: ...currently this instruction are ignored, lol.
-	str s		: emit string data from s to the final executable at this position.
-			  is equivalent to a series of emit instructions.
+
+
+macro-specific instructions:
+----------------------------------
+	deref x 		: dictionary-dereference all occurences of x in all following instructions.
+	operation x b k   : create a new macro represented by label x. defines the macro to take b arguments, and b must be a binary literal. k is a bit field denoting if variables are define on use (1) or not (0). lsb is arg0.
 
 arithmetic operations:
 ------------------
-	set x y	: assignment to destination register x, using the value present in source y.
-		  if the name x is not defined, then x is defined as a result of this instruction.
-		  if x is defined, the existing definition of variable x is used.
+	set x y		: assignment to destination register x, using the value present in source y.
+				if the name x is not defined, then x is defined as a result of this instruction.
+				if x is defined, the existing definition of variable x is used.
 
-	add x y	: assigns the value x + y to the destination register x.
-	sub x y	: assigns the value x - y to the destination register x.
-	mul x y	: assigns the value x * y to the destination register x.
-	div x y	: assigns the value x / y to the destination register x.
-	rem x y	: assigns the value x mod y to the destination register x.
+	add x y		: assigns the value x + y to the destination register x.
+	sub x y		: assigns the value x - y to the destination register x.
+	mul x y		: assigns the value x * y to the destination register x.
+	div x y		: assigns the value x / y to the destination register x.
+	rem x y		: assigns the value x mod y to the destination register x.
 
 bitwise operations:
 ------------------
-	and x y	: assigns the value x bitwise-and y to the destination register x.
-	or x y	: assigns the value x bitwise-or y to the destination register x.
-	eor x y	: assigns the value x bitwise-eor y to the destination register x.
-	si x y	: shift x up by y bits, and store the result into destination register x.
-	sd x y	: shift x down by y bits, and store the result into destination register x.
+	and x y		: assigns the value x bitwise-and y to the destination register x.
+	or x y		: assigns the value x bitwise-or y to the destination register x.
+	eor x y		: assigns the value x bitwise-eor y to the destination register x.
+	si x y		: shift x up by y bits, and store the result into destination register x.
+	sd x y		: shift x down by y bits, and store the result into destination register x.
+
 
 memory-related operations:
 ------------------
-	ld x y z  : load z bytes from memory address y into destination register x. 
-	st x y z  : store z bytes from register y into destination memory at memory address x.
-	la x l	  : load the PC-relative address of label l into destination register x. 
-	emit x y  : emit x bytes from constant y to the executable at this position. 
-		    x and y are both compiletime-known (CTK).
-	adr x	  : puts the following instructions at hardware address x. x is CTK. 
-		    this instruction is only valid to use on embedded targets. 
+	ld x y z	: load z bytes from memory address y into destination register x. 
+	st x y z	: store z bytes from register y into destination memory at memory address x.
+	la x l		: load the PC-relative address of label l into destination register x. 
+
 
 control flow:
 ------------------
 	lt x y l	: if x is less than y, branch to label l. 
-	ge x y l	: if x is not less than y, (ie, x is greater than or 
-			  equal to y) branch to label l. 
+	ge x y l	: if x is not less than y, (ie, x is greater than or equal to y) branch to label l. 
 	ne x y l	: if x is not equal to than y, branch to label l. 
 	eq x y l	: if x is equal to y, branch to label l. 
 	do l		: unconditionally branch to label l. 
-			  when executed at compiletime, it also stores the 
-			  pc of this instruction to address 0 in compiletime memory.
 	at l		: attribute label l at this position. 
 	halt		: termination of control flow here. 
-	sc 		: system call instruction.
 
 
 
 
 
 
-there is also the following machine instructions/encodings which are accessible for all targets, in addition to the above language. here are the machine instructions. they are abstracted from typical assembly, as only the core unique machine-code encodings are provided. it is expected that the compile-time evaulation system will be used to make using these encodings more friendly for programming in assembly in this language. this also should not be required in most circumstances, and providing only the encodings makes decode logic in the compiler simpler, and requires fewer instructions in the language as a whole. 
+there is also the following machine instructions/encodings which are accessible for all targets, in addition to the above language. here are the machine instructions. they are abstracted from typical assembly, as only the core unique machine-code encodings are provided. it is expected that the compile-time evaulation system and macros will be used to make using these encodings more friendly for programming in assembly in this language. this also should not be required in most circumstances, and providing only the encodings makes decode logic in the compiler simpler, and requires fewer instructions in the language as a whole. 
 
 here are the 3 target hardware ISA's and their machine instructions:
 -----------------------------------------------------------------------
@@ -133,6 +133,57 @@ RISC-V
 
 
 
+
+note about calling macros:
+-----------------------
+
+calling a macro, for example the following call:
+
+
+	macro_name arg0 arg1 arg2 arg3 ... argN
+
+
+actually expands out to the following pattern, after parsing:
+
+
+	ct
+	st compiler_ctsc_arg0   #(arg0) 0001          (where "#(x)"  denotes the location of the dictionary entry for variable x.)
+	st compiler_ctsc_arg1   #(arg1) 0001
+	(...etc for each argument, arg0 through argN...)
+	
+	st compiler_ctsc_number return 0001      (the pc value for label return is stored as a CT literal into memory)
+	do macro_name
+	at return del return
+
+
+in other words, the dictionary index of the given arguments for the macro call are stored in particular locations in compiletime memory, using compiletime store instructions ("st"), along with a value of the return address, which in this case is the local variable named "return". this return address value is used to branch back after the macro call has finished, similar to actual runtime function calls in assembly. 
+
+the macro body then is responsible for loading these values out of compiletime memory, and processing the arguments properly, and after doing the body of the macro, it must jump to the return address. the "dr" instructions is used to dictionary-dereference the references which were stored into compiletime memory, when these parameters are used in other instructions. see the below macro example for details.
+
+note, however, if the macro wishes to take as input compiletime values, a dictionary reference to these values is not created. instead, the compiletime value itself is stored into compiletime memory. the macro, then, is responsible for interpretting given loaded arguments as either compiletime values or dictionary references. all runtime variables are stored as dictionary indexes, and all CT variables/values are stored as CT values. binary literals are considered CT values and thus, they are also stored as CT values into CT memory)
+
+example macro body:
+
+	operation add_numbers 11 
+	at add_numbers 
+		ct ld ra compiler_ctsc_number 0001
+		ld x compiler_ctsc_arg0 0001
+		ld y compiler_ctsc_arg1 0001
+		ld c compiler_ctsc_arg2 0001 
+		rt dr x dr y add x y
+		dr x add x c
+		ct do ra 
+		del x del y del c del ra
+	
+
+here, in this example we generate two add instructions, one taking two runtime variables, and another taking a runtime variable and a compiletime value. arg2 must be compiletime, and arg0 and arg1 must be runtime regsiters. the use of "dr x" (and "dr y") dictionary-dereferences these variables, in other words treats the CT value of x and y as indexes into the dictionary, and marks these variables as "replacable" in the next instruction. 
+
+upon seeing another compiletime-executed or runtime-executed instruction (ie, something which is NOT a "ct", "rt", "file", "del", "dr", or "operation" instruction) the currently replacable variables will be dictionary-dereferenced before the instruction executes, thus using the variable whose dictionary entry is referred to by CT value of x (and y).
+
+note, also that the value of the return address is a compiletime constant, just like any other label, denoting the instruction index after the synthesized "do macro_name" CT call/jump instruction. writing "ct do <return address ct-register>" is required to jump back to the caller, specifically right after the macro call itself. 
+
+
+
 the "why" behind the language:
 ----------------------------------
 
@@ -165,7 +216,7 @@ needless to say, there is no notion of structs, generics, classes in this langua
 
 a compiletime execution system is used in the compiler after parsing to allow for fully turing-complete compile-time execution, and thus the generation of arbitrary data and runtime instructions for use during the runtime program, allowing for further optimizations not possible in languages such as C. after this step is performed, a constant propagation/folding optimization stage (akin to SCCP in SSA compilers) is also performed as well, on the generated runtime program which resulted from the first compiletime execution stage. 
 
-the first CT execution stage is quite powerful, allowing for a derived feature of compiletime function calls, aka "macros" (implemented as effectively assembly=like function invocations) to be constructed at user level from this compiletime execution system. 
+the first CT execution stage is quite powerful, allowing for a derived feature of compiletime macros (implemented as effectively compiletime function calls) to be constructed at user level from this compiletime execution system. 
 
 currently, there is no built-in mechanism for allowing the user to define their own functions, or macro operations, and this is not planned to be implemented, at least for now. rather, the user can use the macro-like mechanism that is emergently acheived via the existing builtin language operations such as "at", "do", "set", etc., where these are executed at compiletime.
 
@@ -210,28 +261,6 @@ finally, the language itself can be thought of as the same language as the inter
 this homogeneity also serves to keep the implementation of the compiler itself, simple and straight forward, as the control flow and data flow is never stored or created in data explicitly. rather, it is computationally derived from scratch when needed, allowing for the program in this internal representation to be changed easily and simply, during the process of optimization. 
 
 
-...see the code examples section for what code in this language generally looks like!...
-
-
-
-
-final remarks:
-------------------------
-
-additional reminder that the language is made specifically and primarily for my own use cases, and thus is not tailored for anyone else. additionally, because the language is still largely in development and quite drastic changes could be made quite often, is it not currently meant to be used by anyone other than me at all. as such, pull requests or feature suggestions will most likely be rejected, (unless it really knocks my socks off, then i might consider it, but it would have to be something huge that i missed, lol..)
-
-however, that being said, i do plan to make the project publically usable by others for their own purposes, once the compiler and standard library are polished and stable enough to where i am happy with them. 
-
-regardless, i hope you find the project interesting, or possibly learn something or find inspiration from it. thanks for reading!
-
-dwrr
-
-
-
-
-
-
-
 
 
 
@@ -239,6 +268,15 @@ dwrr
 	code examples:
 -----------------------------------------
 
+	--- WARNING: all of these examples are horribly outdated. pretty much ignore them lol.  ----
+
+
+
+
+
+
+
+...
 
 some examples of code in this language are given below, to illustrate how the language is used in practice!
 
@@ -271,6 +309,7 @@ halt    	  (note, the use of halt is optional/implied, when at the end of the fi
 --------------------[EXAMPLE 2]----------------------
 
 (this is a simple loop from 0 to 9, executed at runtime)
+(these parenthetical thingies are comments, by the way)
 
 set count 0101
 set i 0
@@ -278,154 +317,6 @@ at loop
 	(your code here!)
 	add i 1
 	lt i count loop
-
-
-
-
-
-
-
-
-
-
-
-
--------------------- [EXAMPLE 3] --------------------
-
-
-(computing the number of primes less than a given number ("limit")
- at runtime, using the c backend! also testing out the macro system further.
- things are still a bit rough right now, but it works kinda lol. 
-written on 1202507023.214455 by dwrr)
-
-file library/foundation.s
-
-(...this would all be in the standard library...)
-rt 
-	set a0 a0  
-	set a1 a1	
-ct 
-	set c0 c0 
-	set c1 c1 
-do skip
-
-at c_backend
-	ld ra compiler_return_address nat
-	st compiler_target c_arch nat
-	st compiler_format c_source nat
-	st compiler_should_overwrite true nat
-	do ra del ra
-
-at exit
-	ld ra compiler_return_address nat
-	rt set c_system_number c_system_exit
-	set c_system_arg0 a0
-	sc halt ct 
-	do ra del ra
-
-at skip del skip
-set newline 0101
-(...until here...)
-
-
-
-
-(my code starts here!)
-
-do c_backend 
-set limit 0101
-rt set i 0 set count 0
-at loop
-	set j 01
-at inner 
-	ge j i prime
-	set r i rem r j 
-	eq r 0 composite
-	add j 1 do inner
-at prime
-	add count 1
-at composite
-	add i 1 lt i limit loop
-
-set a0 count 
-do exit 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-TRASH:
--------------------------------------------------------
-
-
-
-
-
-
-
-old code examples:
-
 
 
 --------------------[EXAMPLE 3]----------------------
@@ -632,6 +523,82 @@ string "hello world
 
 
 -------------------------------------------------
+
+
+
+
+additional reminder that the language is made specifically and primarily for my own use cases, and thus is not tailored for anyone else, nor is it meant to be used by others. 
+
+as such, pull requests or feature suggestions will most likely be rejected, (unless it really knocks my socks off, then i might consider it, but it would have to be something huge that i missed, lol..)
+
+
+however, i do hope you find the project interesting, or possibly learn something or find inspiration from it!
+
+
+thanks for reading!
+
+dwrr
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+TRASH:
+-------------------------------------------------------
 
 
 

@@ -26,8 +26,7 @@ at exit
 	ld ra compiler_return_address nat
 	rt set c_system_number c_system_exit
 	set c_system_arg0 0
-	system halt ct 
-	do ra del ra
+	sc halt ct do ra del ra
 
 at print
 	ld ra compiler_return_address nat
@@ -35,8 +34,7 @@ at print
 	set c_system_arg0 stdout
 	set c_system_arg1 a0
 	set c_system_arg2 c0
-	system ct
-	do ra del ra
+	sc ct do ra del ra
 
 
 at skip del skip
@@ -59,8 +57,7 @@ at loop
 	lt i 0101 loop
 do exit
 
-at mystring 
-string "hello" 
+at mystring str "hello" 
 emit 1 newline
 
 

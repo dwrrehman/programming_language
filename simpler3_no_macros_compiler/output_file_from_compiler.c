@@ -21,24 +21,30 @@ static void ecall(void) {
 	else abort();
 }
 
-static uint8_t d[6] = {
-	0x68, 0x65, 0x6c, 0x6c, 0x6f, 0x0a, 
+static uint8_t d[0] = {
+	
 };
 
 int main(void) {
-	x[4] = 0x0;
+	x[3] = 0x0;
+	x[2] = 0x0;
 _153:;
-	x[2] = ((uint64_t)(void*)d) + 0x0;
-	x[0] = 0x3;
-	x[1] = 0x1;
-	x[3] = 0x6;
-	ecall();
-	x[4] += 0x1;
-	if (x[4] < 0xa) goto _153;
+	x[1] = 0x2;
+_155:;
+	if (x[1] >= x[3]) goto _156;
+	x[0] = x[3];
+	x[0] %= x[1];
+	if (x[0] == 0x0) goto _158;
+	x[1] += 0x1;
+	goto _155;
+_156:;
+	x[2] += 0x1;
+_158:;
+	x[3] += 0x1;
+	if (x[3] < 0xa) goto _153;
 	x[0] = 0x1;
-	x[1] = 0x0;
+	x[1] = x[2];
 	ecall();
-_154:;
 }
 // (end of file)
 

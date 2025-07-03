@@ -3,6 +3,23 @@
 // 1202505294.204607 revised the ct system!
 // 1202506194.015825 added macro-arg references and macros! also added ct memory mapped io, and changed ctsc interface
 
+// 1202507034.001941 revised the spellings of a couple of long-named instructions:
+
+// ct rt or si sd la ld st lt ge ne eq do at sc 
+// set add sub mul div rem and eor adr reg del str
+// file halt emit bits
+
+
+//1202507023.232230
+//   NEW IDEA:     lets delete the       "la"   instruction entirely. 
+
+//		its technically not required,  if we just give a error on a label being at-less
+//				ie, it was never given a position! 
+// that recreates the same thing basically. easily. hmmmm
+// i'll think on it more. 
+
+
+
 
 
 // new optimization:  add on   to    copy prop:
@@ -21,6 +38,65 @@
 
 
 
+
+
+
+
+
+// 1202507023.232237
+// LICM  starting:
+
+/*
+
+	conditions for   seeing    loop invariant values:
+
+
+		for a given operation,     op d s r
+
+			d is LI   if  LI(s) and LI(r)
+
+				
+
+		LI(x) is the case for a variable if:
+			x is a constant, or
+			x was given its value(definition) via an instruction which is not contained in the control flow loop!, or
+			x was given its value via an operation  which is also LI. 
+				ie, its a transitive / recursive defintion kinda 
+
+
+
+
+
+	to do this, we'll track the transitive nature of this simply using our typical data flow anaysis pass machinery, i think, 
+
+
+		but then, we need some way of notating the fact that  a given statement is either inside or outside a given control flow graph loop. 
+
+		i think we should write a function which tries to find this, or some sort of dedicated algorithm to find out if a given statement is inside a loop or not. 
+		basically, we just need to fuzzily traverse the loop, and see if we eventually come across the instruction?.. hmmm i think so.. 
+
+
+	 i think finding which instructions are partttt of a given loop     is the first step actually 
+
+
+		even  thus    defining the notion of    a loop  in the first place 
+
+
+				in the compiler       thats important to do.   so yeah. lets do that first, actually. 
+
+
+
+
+
+
+		
+
+
+
+
+
+
+*/
 
 
 
@@ -816,8 +892,8 @@ enum language_system_calls {
 enum core_language_isa {
 	nullins,
 
-	ct, rt, system_, emit, string, 
-	file, del, register_, bits, address_,
+	ct, rt, sc, emit, str, 
+	file, del, reg, bits, adr,
 	set, add, sub, mul, div_, rem, 
 	and_, or_, eor, si, sd, la, 
 	ld, st, lt, ge, ne, eq, do_, at, halt, 
@@ -838,8 +914,8 @@ enum core_language_isa {
 static const char* operations[isa_count] = {
 	"___nullins____",
 
-	"ct", "rt", "system", "emit", "string",
-	"file", "del", "register", "bits", "address", 
+	"ct", "rt", "sc", "emit", "str",
+	"file", "del", "reg", "bits", "adr", 
 	"set", "add", "sub", "mul", "div", "rem", 
 	"and", "or", "eor", "si", "sd", "la", 
 	"ld", "st", "lt", "ge", "ne", "eq", "do", "at", "halt", 
@@ -979,7 +1055,8 @@ static void print_instruction(struct instruction this) {
 
 		char string[4096] = {0};
 		if (this.imm & (1 << a)) snprintf(string, sizeof string, "0x%llx(%llu)", this.args[a], this.args[a]);
-		else snprintf(string, sizeof string, "%s", variables[this.args[a]]);
+		else if (this.args[a] < var_count) snprintf(string, sizeof string, "%s", variables[this.args[a]]);
+		else snprintf(string, sizeof string, "(INTERNAL ERROR)");
 
 		printf("%s", string);
 		int left_to_print = max_name_width - (int) strlen(string);
@@ -1185,7 +1262,7 @@ static nat* compute_riscv_successors(nat pc) {
 				op == r5_r or 
 
 				op == at or 
-				op == address_ or 
+				op == adr or 
 				op == emit
 		) {
 			gotos[2 * i + 0] = i + 1;
@@ -1227,7 +1304,7 @@ static nat* compute_riscv_predecessors(nat pc, nat* pred_count) {
 				op == r5_r or 
 
 				op == at or 
-				op == address_ or 
+				op == adr or 
 				op == emit
 		) {
 			gotos[2 * i + 0] = i + 1;
@@ -1274,7 +1351,7 @@ static nat* compute_msp430_successors(nat pc) {
 			gotos[2 * i + 0] = locations[ins[i].args[0]];
 			gotos[2 * i + 1] = (nat) -1;
 
-		} else if (op == address_ or op == m4_op or op == at or op == emit) {
+		} else if (op == adr or op == m4_op or op == at or op == emit) {
 			gotos[2 * i + 0] = i + 1;
 			gotos[2 * i + 1] = (nat) -1;
 
@@ -1312,7 +1389,7 @@ static nat* compute_msp430_predecessors(nat pc, nat* pred_count) {
 			gotos[2 * i + 0] = locations[ins[i].args[0]];
 			gotos[2 * i + 1] = (nat) -1;
 
-		} else if (op == address_ or op == m4_op or op == at or op == emit) {
+		} else if (op == adr or op == m4_op or op == at or op == emit) {
 			gotos[2 * i + 0] = i + 1;
 			gotos[2 * i + 1] = (nat) -1;
 
@@ -1655,7 +1732,7 @@ process_file:;
 				label = ins[ins_count - 1].args[0];
 			string_label[string_list_count] = label;
 			string_list[string_list_count++] = strndup(text + string_at, string_length);
-			struct instruction new = { .op = string, .imm = 0xff, .state = is_compiletime };
+			struct instruction new = { .op = str, .imm = 0xff, .state = is_compiletime };
 			new.args[0] = string_length;
 			new.args[1] = string_list_count - 1;
 			ins[ins_count++] = new;
@@ -1701,7 +1778,7 @@ process_file:;
 			    not strcmp(word, variables[var])) goto push_argument;
 		} 
 		if (	(op == lt or op == ge or op == ne or op == eq) and arg_count == 2 or
-			(op == set or op == ld or op == register_) and arg_count == 0 or
+			(op == set or op == ld or op == reg) and arg_count == 0 or
 			op == do_ or op == at or op == la
 		) goto define_name;
 
@@ -1730,7 +1807,7 @@ process_file:;
 		args[arg_count++] = var;
 
 	process_op: 
-		if (op == string) { in_string = 1; goto next_word; } 
+		if (op == str) { in_string = 1; goto next_word; } 
 		else if (op < isa_count and arg_count < arity[op]) goto next_word;
 		else if (op == ct) is_compiletime = 1;
 		else if (op == rt) is_compiletime = 0;
@@ -1781,7 +1858,7 @@ process_file:;
 			if (op == lt or op == ge or op == ne or op == eq) {
 				if (is_immediate & 4) goto error_label_immediate; else is_label[args[2]] = 1;
 			}
-			if ((op >= set and op <= ld) or op == register_ or op == bits) {
+			if ((op >= set and op <= ld) or op == reg or op == bits) {
 				if (is_immediate & 1) 
 					print_error(
 						"expected destination variable, found binary literal",
@@ -1798,11 +1875,11 @@ process_file:;
 
 			nat is_ct = is_compiletime;
 			if (op == emit) is_ct = 0;
-			if (op == address_) is_ct = 0;
+			if (op == adr) is_ct = 0;
 			if (op == halt) is_ct = 0;
 			if (op >= a6_nop and op < isa_count) is_ct = 0;
 			if (op == bits) is_ct = 1;
-			if (op == register_) { is_ct = 1; is_constant[args[0]] = 0; } 
+			if (op == reg) { is_ct = 1; is_constant[args[0]] = 0; } 
 			if (not is_ct and op == do_ and has_ct_arg0) is_ct = 1;
 			if (is_ct and op == do_ and not has_ct_arg0) is_ct = 0;
 			if (not is_ct and op == at and has_ct_arg0) is_ct = 1;
@@ -1913,7 +1990,7 @@ process_file:;
 		if (i1 or arg1 < N) val1 = not i1 ? values[arg1] : arg1;
 		if (i2 or arg2 < N) val2 = not i2 ? values[arg2] : arg2;
 
-		if (op == string and not is_compiletime) {
+		if (op == str and not is_compiletime) {
 			for (nat s = 0; s < arg0; s++) {
 				struct instruction new = { .op = emit, .imm = 3 };
 				new.args[0] = 1;
@@ -1921,9 +1998,8 @@ process_file:;
 				rt_ins[rt_ins_count++] = new;
 			}
 		} 
-		//else if (op == deref) 		replace[arg0] = 1;
-		else if (op == bits)		bit_count[arg0] = val1;
-		else if (op == register_) 	register_index[arg0] = val1;
+		else if (op == bits) bit_count[arg0] = val1;
+		else if (op == reg) register_index[arg0] = val1;
 
 		else if (not is_compiletime) {
 			struct instruction new = { .op = op, .imm = imm };
@@ -2008,7 +2084,7 @@ process_file:;
 		else if (op == ge) { if (val0 >= val1) pc = values[arg2]; }
 		else if (op == eq) { if (val0 == val1) pc = values[arg2]; }
 		else if (op == ne) { if (val0 != val1) pc = values[arg2]; }
-		else if (op == system_) {
+		else if (op == sc) {
 			nat x0 = load_nat_from_memory(memory, compiler_arg0);
 			nat x1 = load_nat_from_memory(memory, compiler_arg1);
 			nat x2 = load_nat_from_memory(memory, compiler_arg2);
@@ -2166,8 +2242,8 @@ process_file:;
 
 		if (op == halt) continue;
 		else if (op == at) { }
-		else if (op == address_) { }
-		else if (op == system_) { }
+		else if (op == adr) { }
+		else if (op == sc) { }
 		else if (op == emit) { } 
 		else if (op == do_) { }
 		else if (op == set) {
@@ -2280,10 +2356,10 @@ process_file:;
 
 		if (ins[i].state and  
 			(
-			op == halt 	or op == system_ or 
+			op == halt 	or op == sc or 
 			op == set 	or op == do_ or
 			op == at 	or op == la or 
-			op == address_   or
+			op == adr   or
 			op == ld 	or op == st or
 			op == emit	or op >= a6_nop
 			)
@@ -2641,7 +2717,7 @@ rv32_instruction_selection:;
 			op == r5_i or op == r5_r or 
 			op == r5_s or op == r5_b or 
 			op == r5_u or op == r5_j or 
-			op == at or op == emit or op == address_ or op == halt
+			op == at or op == emit or op == adr or op == halt
 		) { 
 			new = ins[i]; 
 			goto r5_push_single_mi; 
@@ -2765,7 +2841,7 @@ current state:  1202505235.133756
 			} 
 		}}
 
-		if (op == system_) {
+		if (op == sc) {
 			new = (struct instruction) { r5_i, 0xff, 0,  { 0x73,0,0,0, 0,0,0,0 } };
 			goto r5_push_single_mi;
 		}
@@ -2949,7 +3025,7 @@ set nat16 01
 		//const nat i2 = !!(imm & 4);
 
 		if (	
-			op == m4_op or op == address_ or op == m4_br or
+			op == m4_op or op == adr or op == m4_br or
 			op == at or op == emit or op == halt
 		) { 
 			new = ins[i]; 
@@ -3051,7 +3127,7 @@ arm64_instruction_selection:;
 		const nat arg1 = ins[i].args[1]; 
 
 
-		if (op == halt or op == address_ or op == at or op == emit or 
+		if (op == halt or op == adr or op == at or op == emit or 
 			(op >= a6_nop and op <= a6_divr)
 		) { 
 			mi[mi_count++] = ins[i]; 
@@ -3169,7 +3245,7 @@ arm64_instruction_selection:;
 			continue;
 		}
 
-		if (op == system_) {
+		if (op == sc) {
 			struct instruction new = { .op = a6_svc, .imm = 0xff };
 			mi[mi_count++] = new;
 			ins[i].state = 1;
@@ -3331,7 +3407,7 @@ finish_instruction_selection:;
 		if (op == halt) {}
 		else if (op == at) {}
 		else if (op == emit) {}
-		else if (op == address_) {}
+		else if (op == adr) {}
 
 		else if (target_arch == rv32_arch) {
 			if (op == r5_r) { // addr D A A
@@ -3368,7 +3444,7 @@ finish_instruction_selection:;
 				if (not i0) alive[pc * var_count + a0] = 1;
 				if (not i1) alive[pc * var_count + a1] = 1;
 
-			} else if (op == system_) { // system calls and liveness is a bit icky right now... :((((
+			} else if (op == sc) { // system calls and liveness is a bit icky right now... :((((
 				for (nat e = 0; e < var_count; e++) {
 					if (register_index[e] < 8) alive[pc * var_count + e] = 1;
 				}
@@ -3729,7 +3805,7 @@ rv32_generate_machine_code:;
 	{ nat* lengths = calloc(ins_count, sizeof(nat));
 	for (nat i = 0; i < ins_count; i++) {
 		const nat op = ins[i].op;
-		if (op == halt or op == at or op == address_) continue;
+		if (op == halt or op == at or op == adr) continue;
 		nat k = 4;
 		if (op == emit) k = ins[i].args[0];
 		lengths[i] = k;
@@ -3761,7 +3837,7 @@ rv32_generate_machine_code:;
 			if (a0 == 2) insert_u16(&my_bytes, &my_count, (uint16_t) a1);
 			if (a0 == 1) insert_u8 (&my_bytes, &my_count, (uint8_t) a1);
 
-		} else if (op == address_) {
+		} else if (op == adr) {
 			section_addresses[section_count] = a0;
 			section_starts[section_count++] = my_count;
 
@@ -3910,7 +3986,7 @@ msp430_generate_machine_code:;
 		const u32 a5 = (u32) ins[i].args[5];
 
 		nat len = 0;
-		if (op == address_) len = 0;
+		if (op == adr) len = 0;
 		else if (op == halt) len = 0;
 		else if (op == emit) len = a0;
 		else if (op == m4_br) len = 2;
@@ -3951,7 +4027,7 @@ msp430_generate_machine_code:;
 			if (a0 == 2) insert_u16(&my_bytes, &my_count, (uint16_t) a1);
 			if (a0 == 1) insert_u8 (&my_bytes, &my_count, (uint8_t) a1);
 
-		} else if (op == address_) {
+		} else if (op == adr) {
 			section_addresses[section_count] = a0;
 			section_starts[section_count++] = my_count;
 
@@ -4029,7 +4105,7 @@ arm64_generate_machine_code:;
 			if (a0 == 2) insert_u16(&my_bytes, &my_count, (uint16_t) a1);
 			if (a0 == 1) insert_u8 (&my_bytes, &my_count, (uint8_t) a1);
 
-		} else if (op == address_) {
+		} else if (op == adr) {
 			section_addresses[section_count] = a0;
 			section_starts[section_count++] = my_count;
 
@@ -4372,9 +4448,9 @@ c_generate_source_code:;
 		const nat a1 = ins[i].args[1];
 		const nat a2 = ins[i].args[2];
 
-		if (op == halt or op == address_) {}
+		if (op == halt or op == adr) {}
 
-		else if (op == system_) {
+		else if (op == sc) {
 			char str[4096] = {0};
 			const nat len = (nat) snprintf(str, sizeof str, "\tecall();\n");
 			insert_bytes(&my_bytes, &my_count, str, len);

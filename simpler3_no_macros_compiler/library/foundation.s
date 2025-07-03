@@ -108,14 +108,14 @@ set map_failed -1
 
 
 rt 
-register c_system_number 0
-register c_system_arg0 1
-register c_system_arg1 01
-register c_system_arg2 11
-register c_system_arg3 001
-register c_system_arg4 101
-register c_system_arg5 011 
-register c_system_arg6 111 
+reg c_system_number 0
+reg c_system_arg0 1
+reg c_system_arg1 01
+reg c_system_arg2 11
+reg c_system_arg3 001
+reg c_system_arg4 101
+reg c_system_arg5 011 
+reg c_system_arg6 111 
 ct
 
 
@@ -136,22 +136,22 @@ ct
 (--------------------- msp430 -------------------)
 
 ((msp430 registers)
-register pc_reg 0
-register sp_reg 1
-register sr_reg 01
-register cg_reg 11
-register r4_reg 001
-register r5_reg 101
-register r6_reg 011
-register r7_reg 111
-register r8_reg 0001
-register r9_reg 1001
-register r10_reg 0101
-register r11_reg 1101
-register r12_reg 0011
-register r13_reg 1011
-register r14_reg 0111
-register r15_reg 1111
+reg pc_reg 0
+reg sp_reg 1
+reg sr_reg 01
+reg cg_reg 11
+reg r4_reg 001
+reg r5_reg 101
+reg r6_reg 011
+reg r7_reg 111
+reg r8_reg 0001
+reg r9_reg 1001
+reg r10_reg 0101
+reg r11_reg 1101
+reg r12_reg 0011
+reg r13_reg 1011
+reg r14_reg 0111
+reg r15_reg 1111
 )
 
 (msp430 register index constants)
@@ -246,10 +246,10 @@ set r5_ra 1
 
 
 (rv32 system call abi)
-rt register rv_sc_arg0 0101
-register rv_sc_arg1 1101
-register rv_sc_arg2 0011
-register rv_sc_number 10001 ct
+reg rv_sc_arg0 0101
+reg rv_sc_arg1 1101
+reg rv_sc_arg2 0011
+reg rv_sc_number 10001 ct
 
 
 (specific to the rv32 virtual machine running in my website)
