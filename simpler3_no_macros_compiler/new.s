@@ -52,7 +52,7 @@ do c_backend rt
 
 set i 0
 at loop
-	la a0 string 
+	la a0 mystring 
 	set c0 011
 	do print
 	add i 1

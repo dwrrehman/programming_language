@@ -2050,6 +2050,7 @@ process_file:;
 	for (nat i = 0; i < ins_count; i++) {
 		const nat op = ins[i].op;
 		if ((op >= lt and op <= eq and values[ins[i].args[2]] == (nat) -1) or
+		    (op == la and values[ins[i].args[1]] == (nat) -1) or
 		    (op == do_ and values[ins[i].args[0]] == (nat) -1)) {
 			puts("error: label does not have a defined position");
 			print_instruction_window_around(i, 1, "this label is undefined");
