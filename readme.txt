@@ -5,17 +5,18 @@ new version of the language made on 1202505154.163659 by dwrr
 
 this is an optimizing compiler for a low-level programming language that i am making for fun and for my own use. the language is word-based, statement-based, and is closely modelled off of the hardware RISC-like ISA's which it chooses to target, which include: RISC-V (32 and 64 bit), ARM (32 and 64 bit), and the MSP430 ISA. 
 
-there are only 31 built-in operators/instructions in the language (excluding the machine instructions), all of which take 0, 1, 2, or 3 arguments. also, all these operators are prefix, and fixed arity. 
+there are only 30 built-in operators/instructions in the language (excluding the machine instructions), all of which take 0, 1, 2, or 3 arguments. also, all these operators are prefix, and fixed arity. 
 
 a description of the built-in instructions and the semantics of each instruction is given below:
 
 
 full language ISA:
 ----------------------
+	
+	set add sub mul div rem and or eor si sd str reg bits 
+	ld st adr emit lt ge ne eq at do sc halt ct rt file del 
+	
 
-	ct rt set add sub mul div rem file str 
-	and or eor si sd la ld st do del adr 
-	lt ge ne eq at halt emit sc bits reg
 
 language-specific instructions:
 ----------------------------------
@@ -55,7 +56,6 @@ memory-related operations:
 ------------------
 	ld x y z  : load z bytes from memory address y into destination register x. 
 	st x y z  : store z bytes from register y into destination memory at memory address x.
-	la x l	  : load the PC-relative address of label l into destination register x. 
 	emit x y  : emit x bytes from constant y to the executable at this position. 
 		    x and y are both compiletime-known (CTK).
 	adr x	  : puts the following instructions at hardware address x. x is CTK. 
@@ -419,6 +419,9 @@ TRASH:
 -------------------------------------------------------
 
 
+
+
+	la x l	  : load the PC-relative address of label l into destination register x. 
 
 
 
