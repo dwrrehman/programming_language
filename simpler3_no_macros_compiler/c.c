@@ -23,6 +23,8 @@ typedef uint32_t u32;
 typedef uint16_t u16;
 typedef uint8_t byte;
 
+static nat debug = 1;
+
 #define max_variable_count 	(1 << 14)
 #define max_instruction_count 	(1 << 14)
 #define max_arg_count 		16
@@ -70,15 +72,19 @@ enum language_system_calls {
 	compiler_system_close,
 };
 
+
+// set add sub mul div rem and or eor si sd str reg bits
+// ld st adr emit lt ge ne eq at do sc halt ct rt file del
+
+
 enum core_language_isa {
 	nullins,
 
-	ct, rt, sc, emit, str, 
-	file, del, reg, bits, adr,
 	set, add, sub, mul, div_, rem, 
-	and_, or_, eor, si, sd, 
-	ld, st, lt, ge, ne, eq, do_, at, halt, 
-	
+	and_, or_, eor, si, sd, str, reg, bits,
+	ld, st, adr, emit, lt, ge, ne, eq, 
+	at, do_, sc, halt, ct, rt, file, del,
+
 	a6_nop, a6_svc, a6_mov, a6_bfm,
 	a6_adc, a6_addx, a6_addi, a6_addr, a6_adr, 
 	a6_shv, a6_clz, a6_rev, a6_jmp, a6_bc, a6_br, 
@@ -95,11 +101,10 @@ enum core_language_isa {
 static const char* operations[isa_count] = {
 	"___nullins____",
 
-	"ct", "rt", "sc", "emit", "str",
-	"file", "del", "reg", "bits", "adr", 
 	"set", "add", "sub", "mul", "div", "rem", 
-	"and", "or", "eor", "si", "sd", 
-	"ld", "st", "lt", "ge", "ne", "eq", "do", "at", "halt", 
+	"and", "or", "eor", "si", "sd", "str", "reg", "bits",
+	"ld", "st", "adr", "emit", "lt", "ge", "ne", "eq", 
+	"at", "do", "sc", "halt", "ct", "rt", "file", "del",
 
 	"a6_nop", "a6_svc", "a6_mov", "a6_bfm",
 	"a6_adc", "a6_addx", "a6_addi", "a6_addr", "a6_adr", 
@@ -117,11 +122,11 @@ static const char* operations[isa_count] = {
 static const nat arity[isa_count] = {
 	0,
 
-	0, 0, 0, 2, 2, 
-	1, 1, 2, 2, 1, 
 	2, 2, 2, 2, 2, 2, 
-	2, 2, 2, 2, 2, 
-	3, 3, 3, 3, 3, 3, 1, 1, 0,
+	2, 2, 2, 2, 2, 0, 2, 2,
+	3, 3, 1, 2, 3, 3, 3, 3, 
+	1, 1, 0, 0, 0, 0, 1, 1,
+	
 			
 	0, 0, 5, 7, 
 	6, 8, 7, 8, 3,
@@ -131,7 +136,7 @@ static const nat arity[isa_count] = {
 	7, 6, 5, 6,
 	8, 5, 
 
-	18, 2,
+	8, 2,
 
 	6, 5, 5, 5, 3, 3,
 };
@@ -773,16 +778,18 @@ static void debug_data_flow_state(
 	nat* is_copy, nat* copy_of
 ) {
 
+	const nat amount = 9;
+
 	print_instruction_window_around(pc, 0, "PC");
 	print_dictionary(0);
 
-	printf("        "); for (nat j = 0; j < var_count; j++) { if (is_constant[j]) continue; printf("%10s(%04llu) ", variables[j], j); } puts("");
-	printf("-----------"); for (nat j = 0; j < var_count; j++) { if (is_constant[j]) continue; printf("-----------------"); } puts("");
+	printf("        "); for (nat j = 0; j < var_count; j++) { if (is_constant[j] or (var_count - j >= amount)) continue; printf("%10s(%04llu) ", variables[j], j); } puts("");
+	printf("-----------"); for (nat j = 0; j < var_count; j++) { if (is_constant[j] or (var_count - j >= amount)) continue; printf("-----------------"); } puts("");
 	
 	for (nat i = 0; i < ins_count; i++) {
 		printf("ct %3llu: ", i);
 		for (nat j = 0; j < var_count; j++) {
-			if (is_constant[j]) continue; 
+			if (is_constant[j] or (var_count - j >= amount)) continue; 
 			if (not type[i * var_count + j]) printf("\033[90m");
 			printf("%10s %4llu  ", "", value[i * var_count + j]);
 			if (not type[i * var_count + j]) printf("\033[0m");
@@ -791,12 +798,26 @@ static void debug_data_flow_state(
 
 		printf("cp %3llu: ", i);
 		for (nat j = 0; j < var_count; j++) {
-			if (is_constant[j]) continue; 
+			if (is_constant[j] or (var_count - j >= amount)) continue; 
 			if (not is_copy[i * var_count + j]) printf("\033[90m");
 			printf("%3lld ", copy_of[i * var_count + j]);
 			if (not is_copy[i * var_count + j]) printf("\033[0m");
 		}
+
+
+		print_instruction(ins[i]);
+		
+		if (i == pc) { 
+			putchar(32); 
+			print_nats(preds, pred_count); 
+			putchar(32); 
+			printf("\033[32;1m     <------- PC\033[0m"); } 
 		putchar(10);
+		printf("\033[38;5;235m");
+		for (nat _ = 0; _ < 350; _++) printf("-");
+		printf("\033[0m");
+		putchar(10);
+
 	}
 	puts("-------------------------------------------------");
 	printf("[PC = %llu], pred:", pc);
@@ -814,19 +835,124 @@ static void debug_liveness(
 	nat* stack, nat stack_count,
 	nat* alive
 ) {
+
+
+/*
+
+n	c_system_number(0063) 
+n	c_system_arg0(0064) 
+n	c_system_arg1(0065)
+
+	c_system_arg2(0066) 
+	c_system_arg3(0067) 
+	c_system_arg4(0068) 
+	c_system_arg5(0069) 
+	c_system_arg6(0070) 
+	rv_sc_arg0(0133) 
+	rv_sc_arg1(0134) 
+	rv_sc_arg2(0135) 
+	rv_sc_number(0136)
+
+n	a0(0140)
+	a1(0141)  
+n	data(0164)      
+n	bit(0166)       
+n	i(0172)       
+n	j(0174)      
+n	r(0177)  
+
+
+63
+64
+65
+140
+141
+164
+166
+172
+174
+177
+
+*/
+
+
 	print_instruction_window_around(pc, 0, "PC");
-	print_dictionary(0);
-	printf("    "); for (nat j = 0; j < var_count; j++) { if (is_constant[j]) continue; printf("%10s(%04llu) ", variables[j], j); } puts("");
-	printf("----"); for (nat j = 0; j < var_count; j++) { if (is_constant[j]) continue; printf("-----------------"); } puts("");
+	//print_dictionary(0);
+	printf("    "); for (nat j = 0; j < var_count; j++) { if (is_constant[j] or is_label[j] or (
+
+j != 63 and
+j != 64 and
+j != 65 and
+j != 140 and
+j != 141 and
+j != 164 and
+j != 166 and
+j != 172 and
+j != 174 and
+j != 177
+
+)
+
+) continue; printf("%20s(%04llu) ", variables[j], j); } puts("");
+	printf("----"); for (nat j = 0; j < var_count; j++) { if (is_constant[j] or is_label[j]
+or (
+
+j != 63 and
+j != 64 and
+j != 65 and
+j != 140 and
+j != 141 and
+j != 164 and
+j != 166 and
+j != 172 and
+j != 174 and
+j != 177
+
+)
+
+) continue; printf("-----------------"); } puts("");
 
 	for (nat i = 0; i < ins_count; i++) {
 		printf("%2llu: ", i);
 		for (nat j = 0; j < var_count; j++) {
-			if (is_constant[j]) continue; 
-			if (not alive[i * var_count + j]) printf("\033[90m");
-			printf("%10s %4llu  ", "", alive[i * var_count + j]);
+			if (is_constant[j] or is_label[j]
+
+
+or (
+
+j != 63 and
+j != 64 and
+j != 65 and
+j != 140 and
+j != 141 and
+j != 164 and
+j != 166 and
+j != 172 and
+j != 174 and
+j != 177
+
+)
+
+) continue; 
+			if (not alive[i * var_count + j]) printf("\033[38;5;235m");
+			printf("%20s %4llu  ", "", alive[i * var_count + j]);
 			if (not alive[i * var_count + j]) printf("\033[0m");
 		}
+
+
+
+		print_instruction(ins[i]);
+		
+		if (i == pc) { 
+			putchar(32); 
+			print_nats(gotos, goto_count); 
+			print_nats(preds, pred_count); 
+			putchar(32); 
+			printf("\033[32;1m     <------- PC\033[0m"); } 
+		putchar(10);
+		printf("\033[38;5;235m");
+		for (nat _ = 0; _ < 350; _++) printf("-");
+		printf("\033[0m");
 		putchar(10);
 	}
 	puts("-------------------------------------------------");
@@ -1120,10 +1246,26 @@ process_file:;
 		if (op == at) values[ins[pc].args[0]] = pc;
 	}
 
-	print_dictionary(1);
-	print_instructions(0);
-	puts("parsing finished.");
-	getchar();
+
+	for (nat i = 0; i < ins_count; i++) {
+		const nat op = ins[i].op;
+		const nat a0 = ins[i].args[0];
+		const nat a1 = ins[i].args[1];
+		const nat is_ct = ins[i].state;
+		if (not is_ct and op == set and not is_constant[a0] and is_constant[a1] and is_label[a1]) {
+			puts("error: cannot load a compiletime label into a runtime variable.");
+			print_instruction_window_around(i, 1, "RT destination, CT source label");
+			abort();
+		}
+	}
+
+
+	if (debug) {
+		print_dictionary(1);
+		print_instructions(0);
+		puts("parsing finished.");
+		getchar();
+	}
 
 	{ struct instruction rt_ins[4096] = {0};
 	nat rt_ins_count = 0;
@@ -1329,9 +1471,12 @@ process_file:;
 		puts("warning: stack size less than the minimum size for arm64");
 	}
 
-	print_dictionary(1);
-	print_instructions(0);
-	puts("CT-PRUNED-EXECUTION finished.");
+	if (debug) {
+		print_dictionary(1);
+		print_instructions(0);
+		puts("CT-PRUNED-EXECUTION finished.");
+		getchar();
+	}
 
 	const char* output_filename = "output_file_from_compiler";
 	if (output_format == uf2_executable) output_filename = "output_file_from_compiler.uf2";
@@ -1354,8 +1499,15 @@ process_file:;
 		nat* preds = compute_predecessors(pc, &pred_count);
 		nat* gotos = compute_successors(pc);
 		ins[pc].state++;
-
-		debug_data_flow_state(pc, preds, pred_count, stack, stack_count, value, type, is_copy, copy_of);		//getchar();
+		
+		if (debug) {
+			debug_data_flow_state(
+				pc, preds, pred_count,
+				stack, stack_count, value,
+				type, is_copy, copy_of
+			);
+			getchar();
+		}
 
 		const nat op = ins[pc].op;
 		const nat imm = ins[pc].imm;
@@ -1375,25 +1527,42 @@ process_file:;
 
 			nat first_ct = 1;
 			nat first_cp = 1;
+
+			const nat dd = 0;//debug and pc == 4 and var == 169;      // temporary
+
 		
 			for (nat iterator_p = 0; iterator_p < pred_count; iterator_p++) {
 				const nat pred = preds[iterator_p];
-				if (not ins[pred].state) continue;
+
+				if (not ins[pred].state) { 
+					if (dd) { 
+						printf("skipping predecessor, as its was never executed (pred = %llu)\n", pred); 
+						getchar();
+					}
+					continue; 
+				} 
 
 				const nat ct_t = type[pred * var_count + var];
 				const nat ct_v = value[pred * var_count + var];
 				const nat cp_t = is_copy[pred * var_count + var];
 				const nat cp_v = copy_of[pred * var_count + var];
+	
+				if (dd) { printf("info: [pred=%llu]: ct_t = %llu, ct_v = %llu\n", pred, ct_t, ct_v); getchar(); } 
 
-				if (ct_t == 0) future_type = 0;
+				if (ct_t == 0) { if (dd) { puts("future set to 0! (rt!)"); getchar(); }  future_type = 0; first_ct = 0; } 
 				else if (first_ct) { 
+					if (dd) { puts("first! future set to 1! (ct!)"); getchar(); } 
 					future_type = 1;
 					future_value = ct_v; 
 					first_ct = 0;
-				} else if (future_value != ct_v) 
-					future_type = 0;
 
-				if (cp_t == 0) future_is_copy = 0;
+				} else if (future_value != ct_v) { 
+					if (dd) { puts("value mismatch! (rt)"); getchar(); } 
+					future_type = 0;
+				}
+
+
+				if (cp_t == 0) { future_is_copy = 0; first_cp = 0; } 
 				else if (first_cp) { 
 					future_is_copy = 1; 
 					future_copy_of = cp_v; 
@@ -1437,7 +1606,7 @@ process_file:;
 		else if (op == set and not i1 and is_label[a1]) {
 			out_t = 0;
 			out_v = 0;
-			out_is_copy = 0;
+			out_is_copy = 0; // FALSE! this is techniaclly a copy... FIX THISSS 
 		}
 
 		else if (op == set) {
@@ -1470,7 +1639,7 @@ process_file:;
 			out_t = 0;
 			out_is_copy = 0;
 
-		} else if (op == lt or op == ge or op == ne or op == eq) {
+		} else if (op >= lt and op <= eq) {
 			if (not ct0 or not ct1) {
 				if (gt0 < ins_count and ins[gt0].state < traversal_count) stack[stack_count++] = gt0;
 				if (gt1 < ins_count and ins[gt1].state < traversal_count) stack[stack_count++] = gt1; 
@@ -1503,11 +1672,11 @@ process_file:;
 		//if (gt0 < ins_count and ins[gt0].state < traversal_count) stack[stack_count++] = gt0; 
 		if (gt0 < ins_count) stack[stack_count++] = gt0; 
 
-		if (op == set and not i1 and is_label[a1]) {
+		/*if (op == set and not i1 and is_label[a1]) {
 			const nat label = compute_label_location(a1);
 			if (label < ins_count and ins[label].state < traversal_count) stack[stack_count++] = label; 
 			continue;
-		}
+		}*/
 
 		if (op >= set and op <= ld) {
 			for (nat i = 0; i < var_count; i++) {
@@ -1518,23 +1687,25 @@ process_file:;
 		}
 	}
 
-	debug_data_flow_state(0, NULL, 0, stack, stack_count, value, type, is_copy, copy_of);
-	puts("data flow: [FINAL VALUES]");
-	//getchar();
+	if (debug) {
+		debug_data_flow_state(0, NULL, 0, stack, stack_count, value, type, is_copy, copy_of);
+		puts("data flow: [FINAL VALUES]");
+		print_instructions(0);
+		puts("OPT2 finished.");
+		getchar();
+	}
 	
-	print_instructions(0);
-	puts("OPT2 finished.");
-	//getchar();
-
 	puts("pruning ctk instructions...");
 
 	for (nat i = 0; i < ins_count; i++) {
 
 		//if (not ins[i].state) ins[i].op = 0;
 
-		print_instruction_window_around(i, 0, "");
-		puts("-----------PRUNING CTK INS:---------------");
-		//getchar();
+		if (debug) {
+			print_instruction_window_around(i, 0, "");
+			puts("-----------PRUNING CTK INS:---------------");
+			getchar();
+		}
 
 		const nat op = ins[i].op;
 		const nat imm = ins[i].imm;
@@ -1542,6 +1713,7 @@ process_file:;
 		nat keep = 0;
 
 		if (op == emit) { keep = 1; ins[i].state = 1; } 
+		if (op == at) { keep = 1; ins[i].state = 1; } 
 
 		if (ins[i].state and  
 			(
@@ -1612,18 +1784,24 @@ process_file:;
 				else ins[i].state = 0;
 
 			} else { 
-				puts("NOTE: found a compiletime-known instruction! deleting this instruction."); 
-				//getchar();
+				if (debug) { 
+					puts("NOTE: found a compiletime-known instruction! "
+						"deleting this instruction."
+					);
+					getchar(); 
+				}
 				ins[i].state = 0; 
 			} 
 			continue;
 		}
 
-		puts("found real RT isntruction!"); 
-		putchar('\t');
-		print_instruction(ins[i]); 
-		puts("");
-		//getchar();
+		if (debug) {
+			puts("found real RT isntruction!"); 
+			putchar('\t');
+			print_instruction(ins[i]); 
+			puts("");
+			getchar();
+		}
 
 		if (op >= set and op <= sd) {
 			const nat ct1 = (imm & 2) or type[i * var_count + ins[i].args[1]];
@@ -1772,10 +1950,11 @@ process_file:;
 	}
 	ins_count = final_ins_count; } } 
 
-	print_instructions(0);
-	puts("CTK PRUNING finished.");
-	//getchar();
-
+	if (debug) {
+		print_instructions(0);
+		puts("CTK PRUNING finished.");
+		getchar();
+	}
 
 	if (not (target_arch == rv32_arch or target_arch == rv64_arch)) goto skip_branch_imm_replace;
 
@@ -1841,9 +2020,12 @@ process_file:;
 			}
 		}
 	}
-	print_instructions(0);
-	puts("non imm branches for riscv done.");
-	//getchar();
+
+	if (debug) {
+		print_instructions(0);
+		puts("non imm branches for riscv done.");
+		getchar();
+	}
 
 skip_branch_imm_replace:;
 	
@@ -1876,16 +2058,18 @@ rv32_instruction_selection:;
 
 	for (nat i = 0; i < ins_count; i++) {
 
-		print_instruction_window_around(i, 0, "");
-		puts("rv32 machine instructions:");
-		for (nat e = 0; e < mi_count; e++) {
-			printf("%llu: ", e); 
-			print_instruction(mi[e]); 
-			puts("");
+		if (debug) {
+			print_instruction_window_around(i, 0, "");
+			puts("rv32 machine instructions:");
+			for (nat e = 0; e < mi_count; e++) {
+				printf("%llu: ", e); 
+				print_instruction(mi[e]); 
+				puts("");
+			}
+			puts("[mi done]");
+			puts("[RISC-V ins sel]");
+			getchar();
 		}
-		puts("[mi done]");
-		puts("[RISC-V ins sel]");
-		//getchar();
 
 		if (ins[i].state) {
 			printf("warning: [i = %llu]: skipping, part of a pattern.\n", i);
@@ -2191,16 +2375,18 @@ set nat16 01
 
 	for (nat i = 0; i < ins_count; i++) {
 
-		print_instruction_window_around(i, 0, "");
-		puts("msp430 machine instructions:");
-		for (nat e = 0; e < mi_count; e++) {
-			printf("%llu: ", e); 
-			print_instruction(mi[e]); 
-			puts("");
+		if (debug) {
+			print_instruction_window_around(i, 0, "");
+			puts("msp430 machine instructions:");
+			for (nat e = 0; e < mi_count; e++) {
+				printf("%llu: ", e); 
+				print_instruction(mi[e]); 
+				puts("");
+			}
+			puts("[mi done]");
+			puts("[MSP430 ins sel]");
+			getchar();
 		}
-		puts("[mi done]");
-		puts("[MSP430 ins sel]");
-		//getchar();
 
 		if (ins[i].state) {
 			printf("warning: [i = %llu]: skipping, part of a pattern.\n", i);
@@ -2298,9 +2484,11 @@ arm64_instruction_selection:;
 
 	for (nat i = 0; i < ins_count; i++) {
 
-		print_instruction_window_around(i, 0, "");
-		puts("[ARM64 ins sel]");
-		//getchar();
+		if (debug) {
+			print_instruction_window_around(i, 0, "");
+			puts("[ARM64 ins sel]");
+			getchar();
+		}
 
 		if (ins[i].state) {
 			printf("warning: [i = %llu]: skipping, part of a pattern.\n", i); 
@@ -2446,14 +2634,17 @@ c_instruction_selection:;
 	puts("c: instruction selection starting...");
 	{ struct instruction new = {0};
 	for (nat i = 0; i < ins_count; i++) {
-		print_instruction_window_around(i, 0, "");
-		puts("C machine instructions:");
-		for (nat e = 0; e < mi_count; e++) {
-			printf("%llu: ", e); 
-			print_instruction(mi[e]); puts("");
+
+		if (debug) {
+			print_instruction_window_around(i, 0, "");
+			puts("C machine instructions:");
+			for (nat e = 0; e < mi_count; e++) {
+				printf("%llu: ", e); 
+				print_instruction(mi[e]); puts("");
+			}
+			puts("[mi done]\n[C ins sel]"); 
+			getchar();
 		}
-		puts("[mi done]\n[C ins sel]"); 
-		//getchar();
 		if (ins[i].state) {
 			printf("warning: [i = %llu]: skipping, part of a pattern.\n", i);
 			//getchar(); 
@@ -2486,12 +2677,12 @@ finish_instruction_selection:;
 	for (nat i = 0; i < mi_count; i++) ins[i] = mi[i];
 	ins_count = mi_count;
 
-	puts("finished instruction selection!");
-	printf("info: preliminary machine code prior to RA: for target = %llu\n", target_arch);
-	print_instructions(1);
-	//getchar();
-
-
+	if (debug) {
+		puts("finished instruction selection!");
+		printf("info: preliminary machine code prior to RA: for target = %llu\n", target_arch);
+		print_instructions(1);
+		getchar();
+	}
 
 
 
@@ -2511,13 +2702,36 @@ finish_instruction_selection:;
 
 
 
+	/*for (nat e = 0; e < var_count; e++) {
+		if (alive[e]) {
+			printf("error: variable %s was alive at the first statement of the program, which means it was never defined.\n", variables[e]);
+
+			printf("warning: variable %s is used while uninitialized in the program\n", variables[e]);
+			puts("instead, of keeping this var, we will delete it from the program...");
+			for (nat pc = 0; pc < ins_count; pc++) alive[pc * var_count + e] = 0;
+			printf("removed variable %s from the program.\n", variables[e]);
+		}
+	}*/
+
+
+	//nat* needs_ra = calloc(var_count, sizeof(nat));
+
+	/*for (nat i = 0; i < ins_count; i++) {
+		for (nat j = 0; j < var_count; j++) {
+			if (alive[i * var_count + j]) needs_ra[j] = 1;
+		}
+	}*/
+
+
+
+
 
 
 
 
 	puts("RA: starting register allocation!");
 
-	nat hardware_register_count = 0; 
+	nat hardware_register_count = 0;
 	if (target_arch == rv32_arch) hardware_register_count = 31;
 	else if (target_arch == msp430_arch) hardware_register_count = 12;
 	else if (target_arch == c_arch) hardware_register_count = 4096;
@@ -2526,7 +2740,12 @@ finish_instruction_selection:;
 		abort();
 	}
 
-	nat allocation[max_variable_count] = {0};
+
+
+
+
+
+
 	{ nat* alive = calloc(ins_count * var_count, sizeof(nat)); 
 	nat stack[4096] = {0};
 	nat stack_count = 0;	
@@ -2556,11 +2775,13 @@ finish_instruction_selection:;
 		if (gotos[0] != (nat) -1) goto_count++;
 		if (gotos[1] != (nat) -1) goto_count++;
 
-		debug_liveness(pc, preds, pred_count, gotos, goto_count, stack, stack_count, alive);
-		printf("executing: [pc = %llu]: ", pc); 
-		print_instruction(ins[pc]);
-		puts("");
-		//getchar();
+		if (debug) {
+			debug_liveness(pc, preds, pred_count, gotos, goto_count, stack, stack_count, alive);
+			printf("executing: [pc = %llu]: ", pc); 
+			print_instruction(ins[pc]);
+			puts("");
+			getchar();
+		}
 
 		ins[pc].state++;
 
@@ -2596,7 +2817,7 @@ finish_instruction_selection:;
 		else if (op == emit) {}
 		else if (op == adr) {}
 
-		else if (target_arch == rv32_arch) {
+		else if (target_arch == rv32_arch) {        // TODO:  handle system calls on riscv.... we arent handling that currently.
 			if (op == r5_r) { // addr D A A
 				if (not i1) alive[pc * var_count + a1] = 0;
 				if (not i3) alive[pc * var_count + a3] = 1;
@@ -2625,7 +2846,7 @@ finish_instruction_selection:;
 		} else if (target_arch == c_arch) {
 			if (op == set or op == ld) {
 				if (not i0) alive[pc * var_count + a0] = 0;
-				if (not i1) alive[pc * var_count + a1] = 1;
+				if (not i1 and not is_label[a1]) alive[pc * var_count + a1] = 1;
 
 			} else if ((op >= add and op <= sd) or op == st or (op >= lt and op <= eq)) {
 				if (not i0) alive[pc * var_count + a0] = 1;
@@ -2653,41 +2874,95 @@ finish_instruction_selection:;
 		puts(operations[op]);
 		abort();
 	}
-	print_instructions(0);
+
 	puts("liveness analysis finished.");
 
 
+	nat range_begin[4096] = {0};
+	nat range_end[4096] = {0};
+	nat range_var[4096] = {0};
+	nat range_count = 0;
 
-	for (nat e = 0; e < var_count; e++) {
-		if (alive[e]) {
-			printf("error: variable %s was alive at the first statement of the program, which means it was never defined.\n", variables[e]);
+	puts("now we have to form the live-range-node listing!");
 
-			printf("warning: variable %s is used while uninitialized in the program\n", variables[e]);
-			puts("instead, of keeping this var, we will delete it from the program...");
-			for (nat pc = 0; pc < ins_count; pc++) alive[pc * var_count + e] = 0;
-			printf("removed variable %s from the program.\n", variables[e]);
-		}
+	for (nat var = 0; var < var_count; var++) {
+		if (is_constant[var] or is_label[var]) continue; // optional...
+
+		nat pc = 0;
+		while (pc < ins_count and alive[pc * var_count + var]) pc++;
+		while (pc < ins_count and not alive[pc * var_count + var]) pc++;
+
+		while (pc < ins_count) {
+			printf("[begin]: live range var = %s: { ", variables[var]);
+			for (nat i = 0; i < ins_count; i++) {
+				if (i != pc) printf(" %llu ", alive[i * var_count + var]);
+				if (i == pc) printf(" [%llu] ", alive[i * var_count + var]);
+			}
+			puts("} ");
+			getchar();
+			nat begin = pc;
+
+			while (pc < ins_count and alive[pc * var_count + var]) pc++;
+
+			printf("[end]: live range var = %s: { ", variables[var]);
+			for (nat i = 0; i < ins_count; i++) {
+				if (i != pc) printf(" %llu ", alive[i * var_count + var]);
+				if (i == pc) printf(" [%llu] ", alive[i * var_count + var]);
+			}
+			puts("} ");
+			getchar();
+
+			range_begin[range_count] = begin;
+			range_end[range_count] = pc;
+			range_var[range_count++] = var;
+
+			while (pc < ins_count and not alive[pc * var_count + var]) pc++;
+		} 
+		printf("computed all live ranges for variable %s...\n", variables[var]);
+		getchar();
 	}
 
-
-	nat* needs_ra = calloc(var_count, sizeof(nat));
-
-	for (nat i = 0; i < ins_count; i++) {
-		for (nat j = 0; j < var_count; j++) {
-			if (alive[i * var_count + j]) needs_ra[j] = 1;
-		}
+	puts("RA: done with node generation, computed these nodes!:");
+	for (nat i = 0; i < range_count; i++) {
+		printf("range[%llu] = {.begin = %llu, .end = %llu, .var = %s(%llu) }\n", 
+			i, range_begin[i], range_end[i], variables[range_var[i]], range_var[i]
+		);
 	}
+	puts("all nodes computed.");
+
+	puts("live ranges which need RA performed on them (or already have a register index!)");
+	for (nat i = 0; i < range_count; i++) {
+		printf("#%llu:  var %s (%llu)   was live from {.begin= %llu, .end= %llu}    ", 
+			i, variables[range_var[i]], range_var[i], range_begin[i], range_end[i]
+		);
+		if (register_index[range_var[i]] != (nat) -1) {
+			printf("\t ----> must be stored in hardware register %llu\n", 
+				register_index[range_var[i]]
+			);
+		} else puts("");
+	}
+	puts("\n");
+
+
+
 
 	nat rig[4096] = {0};
 	nat rig_count = 0;
 
 	puts("RA: constructing register interference graph...");
 
+
+	//   we need to have the edges in the rig refer to nodes which we computed! 
+	// which means we need to find interferences and root those indexes 
+
 	for (nat pc = 0 ; pc < ins_count; pc++) {
-		for (nat i = 0; i < var_count; i++) {
+
+		for (nat i = 0; i < range_count; i++) {
 			for (nat j = 0; j < i; j++) {
-				if (not alive[pc * var_count + i]) continue;
-				if (not alive[pc * var_count + j]) continue;				
+
+				if (pc < range_begin[i] or pc >= range_end[i]) continue;
+				if (pc < range_begin[j] or pc >= range_end[j]) continue;
+
 				rig[2 * rig_count + 0] = i;
 				rig[2 * rig_count + 1] = j;
 				rig_count++;
@@ -2702,44 +2977,31 @@ finish_instruction_selection:;
 		}
 	}
 
-	puts("registers which need RA performed on them (or already have a register index!)");
-	for (nat i = 0; i < var_count; i++) {
-		if (not needs_ra[i]) continue;
-		printf("  . register %s (%llu)\n", variables[i], i);
-	}
-	puts("\n");
-
 	printf("constructed the following RIG: (%llu interferences)\n", rig_count);
 	for (nat i = 0; i < rig_count; i++) {
 		const nat first = rig[2 * i + 0];
 		const nat second = rig[2 * i + 1];
-		printf("    . register %s (%llu) interferes with %s (%llu).\n", 
-			variables[first], first, 
-			variables[second], second
+		printf("    . live-range %s{%llu,%llu} interferes with %s{%llu,%llu}.\n", 
+			variables[range_var[first]], range_begin[first], range_end[first],
+			variables[range_var[second]], range_begin[second], range_end[second]
 		);
 	}
 
-	puts("\n\nadditionally, we know that: \n");
-	for (nat i = 0; i < var_count; i++) {
-		if (register_index[i] != (nat) -1) {
-			printf("   .  %s (%llu) must be stored in hardware register %llu.\n", 
-				variables[i], i, register_index[i]
-			);
-		}
+	if (debug) {
+		puts("info: current state is the above input to RA!");
+		getchar();
 	}
-	
-	nat node_selected[max_variable_count] = {0};
+
+
+	nat* node_selected = calloc(range_count, sizeof(nat));
 	stack_count = 0;
 
-	while (1) {		
-		for (nat i = 0; i < var_count; i++) {
-			if (not needs_ra[i]) continue; 
+	while (1) {
+		for (nat i = 0; i < range_count; i++) {
 			if (not node_selected[i]) goto find_virtual_register; 
 		}
 		puts("RA: pushed all nodes!");
 		break;
-
-
 
 	//we need to make it so that we pick the already allocated vars last!????
 	// please do this lol
@@ -2748,8 +3010,8 @@ finish_instruction_selection:;
 
 
 	find_virtual_register:
-		for (nat var = 0; var < var_count; var++) {
-			if (not needs_ra[var] or node_selected[var]) continue;
+		for (nat var = 0; var < range_count; var++) {
+			if (node_selected[var]) continue;
 
 			nat neighbor_count = 0;
 			for (nat e = 0; e < rig_count; e++) {
@@ -2775,40 +3037,57 @@ finish_instruction_selection:;
 
 	puts("created the following ordering on the virtual registers: ");
 	for (nat i = 0; i < stack_count; i++) {
-		printf("%5llu: %s (%llu) \n", i, variables[stack[i]], stack[i]);
+		printf("%5llu: %s (range_var[stack[i]]=%llu), (stack[i]=%llu) \n", 
+			i, variables[range_var[stack[i]]], range_var[stack[i]], stack[i]
+		);
 	}
 	puts("[ordering done]");
 
 	nat* occupied = calloc(hardware_register_count, sizeof(nat));
-	memset(allocation, 255, sizeof(nat) * var_count);
-	for (nat i = 0; i < var_count; i++) {
-		if (register_index[i] == (nat) -1) continue;
+
+	nat* allocation = calloc(range_count, sizeof(nat));
+	memset(allocation, 255, sizeof(nat) * range_count);
+
+	for (nat i = 0; i < range_count; i++) {
+
+		if (register_index[range_var[i]] == (nat) -1) continue;
+
 		if (target_arch == rv32_arch) {
-			allocation[i] = register_index[i] - 1;
+			allocation[i] = register_index[range_var[i]] - 1;
+
 		} else if (target_arch == msp430_arch) {
-			allocation[i] = register_index[i] - 4;
+			allocation[i] = register_index[range_var[i]] - 4;
+
 		} else if (target_arch == c_arch) {
-			allocation[i] = register_index[i];
+			allocation[i] = register_index[range_var[i]];
+
 		} else abort();
 	}
 
 	printf("occupied: "); print_nats(occupied, 10); puts("");
 	
 	for (nat s = stack_count; s--;) {
-		const nat var = stack[s];
-		node_selected[var] = 0;
-		printf("[s=%llu]: trying to allocate %s\n", s, variables[var]);
+		const nat top = stack[s];
+		node_selected[top] = 0;
+		printf("[s=%llu]: trying to allocate live-range:  {%s:%llu,%llu}...\n", 
+			s, variables[range_var[top]], range_begin[top], range_end[top]
+		);
 
-		puts("info: current allocation scheme:");
-		for (nat i = 0; i < var_count; i++) {
-			if (not needs_ra[i] and allocation[i] == (nat) -1) continue;
-			printf("    . %s (%llu) is stored in hardware register x[%lld]\n", variables[i], i, allocation[i]);
+		if (debug) {
+			puts("info: current allocation scheme:");
+			for (nat i = 0; i < range_count; i++) {
+				if (allocation[i] == (nat) -1) continue;
+				printf("    . range[%llu]{%s,%llu,%llu} is stored in hardware register x[%lld]\n", 
+					i, variables[range_var[i]], range_begin[i], range_end[i], allocation[i]
+				);
+			}
+			puts("\n[continue?]");
+			getchar();
 		}
-		puts("\n[continue?]");
-		//getchar();
 
 
-		if (allocation[var] != (nat) -1) continue;
+		if (allocation[top] != (nat) -1) continue;
+
 		memset(occupied, 0, sizeof(nat) * hardware_register_count);
 
 		/*for (nat i = 0; i < var_count; i++) {     
@@ -2820,51 +3099,47 @@ finish_instruction_selection:;
 			const nat a = rig[2 * e + 0];
 			const nat b = rig[2 * e + 1];
 			if (node_selected[a] or node_selected[b]) continue;
-			     if (a == var) occupied[allocation[b]] = 1;
-			else if (b == var) occupied[allocation[a]] = 1;
+			     if (a == top) occupied[allocation[b]] = 1;
+			else if (b == top) occupied[allocation[a]] = 1;
 		}
 		
-		printf("current occupied: "); print_nats(occupied, 10); puts("");
-
+		if (debug) { printf("current occupied: "); print_nats(occupied, 10); puts(""); } 
 
 
 
 
 		// BUG:   we need to prioritize picking the same register as a hardware reg  used in a    set
-
-
 		//	   such that we actaully      elide the       set        instruction    because its a set to itself.        set x[1] x[1]  would get deleted!
 		//        but this only happens      IFFF we pick the right register for the variable. hmmmm. 
 
 
 
-		for (nat i = 0; i < hardware_register_count; i++) {
+
+
+		for (nat pick = 0; pick < hardware_register_count; pick++) {
 
 			nat interference_count = 0;
-			for (nat e = 0; e < var_count; e++) {
+			for (nat e = 0; e < range_count; e++) {
 				if (allocation[e] == (nat) -1) continue;
 				for (nat r = 0; r < rig_count; r++) {
 					const nat a = rig[2 * r + 0];
 					const nat b = rig[2 * r + 1];
-					if (((a == var and b == e) or (a == e and b == var)) and i == allocation[e]) {
+					if (((a == top and b == e) or (a == e and b == top)) and pick == allocation[e]) {
 						printf("we cannot pick register [%llu] for variable %s, "
 							"because there is a RIG conflict between %s and %s, "
 							"and %s must live in regsiter %llu.\n",
 
-							i, variables[var], 
+							pick, variables[range_var[top]], 
 							variables[a], variables[b], 
 							variables[e], allocation[e]
 						);
 						interference_count++;
-						//abort();
 					}
 				}
 			}
 
-
-
-			if (not occupied[i] and interference_count == 0) {
-				allocation[var] = i;
+			if (not occupied[pick] and interference_count == 0) {
+				allocation[top] = pick;
 				goto allocation_found;
 			}
 		}
@@ -2885,8 +3160,8 @@ finish_instruction_selection:;
 		}
 	} 
 
-	for (nat i = 0; i < var_count; i++) {
-		if (not needs_ra[i] and allocation[i] == (nat) -1) continue;
+	for (nat i = 0; i < range_count; i++) {
+		if (allocation[i] == (nat) -1) continue;
 		if (target_arch == rv32_arch) {
 			allocation[i] += 1;
 		} else if (target_arch == msp430_arch) {
@@ -2896,61 +3171,95 @@ finish_instruction_selection:;
 		} else abort();
 	}
 
-	puts("RA: FINAL REGISTER ALLOCATION:");
-	for (nat i = 0; i < var_count; i++) {
-		if (not needs_ra[i] and allocation[i] == (nat) -1) continue;
-		printf("    . %s (%llu) is stored in hardware register x[%lld]\n", variables[i], i, allocation[i]);
-	}
-	puts("\n[done with graph coloring in RA]");
-	//getchar();
+	if (debug) {
+		puts("RA: FINAL REGISTER ALLOCATION:");
+		for (nat i = 0; i < range_count; i++) {
+			if (allocation[i] == (nat) -1) continue;
+			printf("    . live-range %llu: {%s:%llu,%llu} is stored in hardware register x[%lld]\n", 
+				i, variables[range_var[i]], range_begin[i], range_end[i], allocation[i]
+			);
+		}
+		puts("\n[done with graph coloring in RA]");
+		getchar();
 	}
 		
-	for (nat i = 0; i < ins_count; i++) {
-		ins[i].state = 0;
-	}
+	for (nat i = 0; i < ins_count; i++) ins[i].state = 0;
 
 	puts("filling in RA assignments into the machine code...");
-	for (nat i = 0; i < ins_count; i++) {
-		print_instruction_window_around(i, 0, "");
-		puts("[RA: filling in allocation scheme, [dead store elmination]]");
-		//getchar();
 
-		const nat op = ins[i].op;
-		const nat imm = ins[i].imm;
+	for (nat pc = 0; pc < ins_count; pc++) {
+
+		if (debug) {
+			print_instruction_window_around(pc, 0, "");
+			puts("[RA: filling in allocation scheme, [dead store elmination]]");
+			getchar();
+		}
+
+		const nat op = ins[pc].op;
+		const nat imm = ins[pc].imm;
 	
 		for (nat a = 0; a < arity[op]; a++) {
 			if (op == at and a == 0) continue;
-			const nat this_arg = ins[i].args[a];
+			const nat var = ins[pc].args[a];
 
 			if (imm & (1 << a)) {
-				printf("on argument: [a = %llu]: is_immediate!  (immediate value is %llu)\n", a, this_arg);
-			} else if (not is_label[this_arg]) {				
-				printf("on argument: [a = %llu]: NOT is_immediate and NOT label!  (variable = %s) \n", 
-					a, variables[this_arg]
-				);
+				printf("on argument: [a = %llu]: is_immediate!  (immediate value is %llu)\n", a, var);
+				continue;
+			} 
 
-				puts("filling in the register index we found for this operation!");
-				if (allocation[this_arg] == (nat) -1) {
-					printf("FATAL ERROR: no hardware register index was "
-						"not found for variable %s in the below instruction. "
-						"aborting...\n", variables[this_arg]
-					);
-					print_instruction(ins[i]); puts(""); 
-					puts("skipping this instruction, instead of aborting...");
-					//getchar();
-					ins[i].state = 1;
-					//abort();
-				}
+			else if (is_label[var]) {
+				printf("on argument: [a = %llu]: is_label! \"%s\"\n", a, variables[var]);
+				continue;
+			} 
 
-				ins[i].args[a] = allocation[this_arg];
+			printf("on argument: [a = %llu]: NOT is_immediate and NOT label!  (variable = %s) \n", 
+				a, variables[var]
+			);
 
-				if (target_arch != c_arch) 
-					ins[i].imm |= 1LLU << a;
+			puts("filling in the register index we found for this operation!");
+			puts("finding associated live range for this variable...");
 
-				printf("info: filled in register index %lld for variable %s into this instruction. ", 
-					ins[i].args[a], variables[this_arg]
-				);
+			nat range = range_count; 
+
+			for (nat i = 0; i < range_count; i++) {
+				if (var != range_var[i]) continue;
+
+				if (pc < range_begin[i] - 1 or pc >= range_end[i]) continue;
+				range = i; break;
 			}
+
+
+			if (range == range_count) {
+				if (debug) {
+					puts("warning: this variable does not have an associated live range, "
+						"and thus this instruction has been deleted."
+					);
+					getchar();
+				}
+				ins[pc].state = 1;
+				continue;
+			}
+
+			if (allocation[range] == (nat) -1) {
+				if (debug) {
+					printf("warning: no hardware register index was "
+						"not found for variable %s in the below instruction. "
+						"deleting this insttruction via dead-store elimination.\n", 
+						variables[var]
+					);
+					printf("DELETED:   --->   "); print_instruction(ins[pc]); puts(""); 
+					getchar();
+				}
+				ins[pc].state = 1;
+				continue;
+			}
+
+			ins[pc].args[a] = allocation[range];
+			if (target_arch != c_arch) ins[pc].imm |= 1LLU << a;
+
+			printf("info: filled in register index %lld for variable %s into this instruction. ", 
+				allocation[range], variables[var]
+			);
 		}
 	}
 
@@ -2959,16 +3268,17 @@ finish_instruction_selection:;
 		if (ins[i].state) continue;
 		ins[final_ins_count++] = ins[i];
 	}
-	ins_count = final_ins_count; } 
+	ins_count = final_ins_count; } }
 
-	print_instructions(0);
-	puts("RA DEAD-STORE PRUNING finished.");
-	//getchar();
-	puts("[done with RA");
 
-	printf("info: finished final machine code for target = %llu\n", target_arch);
-	print_instructions(1);
-	//getchar();
+	if (debug) {
+		print_instructions(0);
+		puts("RA DEAD-STORE PRUNING finished.");
+		puts("[done with RA");
+		printf("info: finished final machine code for target = %llu\n", target_arch);
+		print_instructions(1);
+		getchar();
+	}
 
 	puts("generating final machine code binary...");
 
@@ -3002,10 +3312,12 @@ rv32_generate_machine_code:;
 
 	for (nat i = 0; i < ins_count; i++) {
 
-		print_instruction_window_around(i, 0, "");
-		puts("");
-		dump_hex(my_bytes, my_count);
-		//getchar();
+		if (debug) {
+			print_instruction_window_around(i, 0, "");
+			puts("");
+			dump_hex(my_bytes, my_count);
+			getchar();
+		}
 
 		const nat op = ins[i].op;
 		const u32 a0 = (u32) ins[i].args[0];
@@ -3188,10 +3500,12 @@ msp430_generate_machine_code:;
 
 	for (nat i = 0; i < ins_count; i++) {
 
-		print_instruction_window_around(i, 0, "");
-		puts("");
-		dump_hex(my_bytes, my_count);
-		//getchar();
+		if (debug) {
+			print_instruction_window_around(i, 0, "");
+			puts("");
+			dump_hex(my_bytes, my_count);
+			getchar();	
+		}
 
 		const nat op = ins[i].op;
 		const u16 a0 = (u16) ins[i].args[0];
@@ -3268,10 +3582,13 @@ arm64_generate_machine_code:;
 
 	for (nat i = 0; i < ins_count; i++) {
 
-		print_instruction_window_around(i, 0, "");
-		puts("");
-		dump_hex(my_bytes, my_count);
-		//getchar();
+
+		if (debug) {
+			print_instruction_window_around(i, 0, "");
+			puts("");
+			dump_hex(my_bytes, my_count);
+			getchar();
+		}
 
 		const nat op = ins[i].op;
 		const u32 a0 = (u32) ins[i].args[0];
@@ -3567,10 +3884,12 @@ c_generate_source_code:;
 
 	for (nat i = 0; i < ins_count; i++) {
 
-		print_instruction_window_around(i, 0, "");
-		puts("");
-		dump_hex(data_bytes, data_byte_count);
-		//getchar();
+		if (debug) {
+			print_instruction_window_around(i, 0, "");
+			puts("");
+			dump_hex(data_bytes, data_byte_count);
+			getchar();
+		}
 
 		const nat op = ins[i].op;
 		const nat a0 = ins[i].args[0];
@@ -3624,10 +3943,12 @@ c_generate_source_code:;
 
 	for (nat i = 0; i < ins_count; i++) {
 
-		print_instruction_window_around(i, 0, "");
-		puts("");
-		printf("C source code: \n<<<%.*s>>>\n", (int) my_count, (char*) my_bytes);
-		//getchar();
+		if (debug) {
+			print_instruction_window_around(i, 0, "");
+			puts("");
+			printf("C source code: \n<<<%.*s>>>\n", (int) my_count, (char*) my_bytes);
+			getchar();
+		}
 
 		const nat op = ins[i].op;
 		const nat imm = ins[i].imm;
