@@ -246,10 +246,10 @@ set r5_ra 1
 
 
 (rv32 system call abi)
-reg rv_sc_arg0 0101
-reg rv_sc_arg1 1101
-reg rv_sc_arg2 0011
-reg rv_sc_number 10001 ct
+reg rv_system_arg0 0101
+reg rv_system_arg1 1101
+reg rv_system_arg2 0011
+reg rv_system_number 10001 ct
 
 
 (specific to the rv32 virtual machine running in my website)

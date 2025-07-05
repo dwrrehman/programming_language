@@ -1,5 +1,5 @@
-(testing out printing binary numbers using the c backend! 
-written on 1202507034.203838 by dwrr)
+(testing out printing prime numbers in binary using the risc-v backend! 
+written on 1202507045.233538 by dwrr)
 
 file library/foundation.s
 
@@ -11,25 +11,25 @@ ct 	set c0 c0
 	set c1 c1 
 do skip
 
-at c_backend
+at rv_backend
 	ld ra compiler_return_address nat
-	st compiler_target c_arch nat
-	st compiler_format c_source nat
+	st compiler_target rv32_arch nat
+	st compiler_format hex_array nat
 	st compiler_should_overwrite true nat
 	do ra del ra
 
 at exit
 	ld ra compiler_return_address nat
-	rt set c_system_number c_system_exit
-	set c_system_arg0 0
+	rt set rv_system_number rv_system_exit
+	set rv_system_arg0 0
 	sc halt ct do ra del ra
 
 at print
 	ld ra compiler_return_address nat
-	rt set c_system_number c_system_write
-	set c_system_arg0 stdout
-	set c_system_arg1 a0
-	set c_system_arg2 c0
+	rt set rv_system_number rv_system_write
+	set rv_system_arg0 stdout
+	set rv_system_arg1 a0
+	set rv_system_arg2 c0
 	sc ct do ra del ra
 
 at skip del skip
@@ -51,14 +51,14 @@ do skip
 at print0 ct 
 	ld ra compiler_return_address nat
 	rt set a0 digitzero
-	set c0 1
+	set c0 01
 	do print
 	ct do ra del ra
 
 at print1 ct
 	ld ra compiler_return_address nat
 	rt set a0 digitone
-	set c0 1
+	set c0 011
 	do print
 	ct do ra del ra
 
@@ -88,12 +88,10 @@ at printbinary
 
 at footer
 	ld ra compiler_return_address nat
-	rt at digitzero str "0"
-	at digitone str "1"
+	rt at digitzero str "  "
+	at digitone str "▊▊"
 	at newline_char emit 1 newline
 	ct do ra del ra
-
-
 
 at skip del skip
 
@@ -110,7 +108,7 @@ at skip del skip
 
 
 
-do c_backend rt
+do rv_backend rt
 
 (set i 0
 at loop

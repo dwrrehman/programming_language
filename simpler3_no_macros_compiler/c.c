@@ -23,7 +23,7 @@ typedef uint32_t u32;
 typedef uint16_t u16;
 typedef uint8_t byte;
 
-static nat debug = 1;
+static nat debug = 0;
 
 #define max_variable_count 	(1 << 14)
 #define max_instruction_count 	(1 << 14)
@@ -423,21 +423,27 @@ static nat compute_label_location(nat label) {
 }
 
 static nat* compute_riscv_successors(nat pc) {
+
 	nat* gotos = calloc(2 * ins_count, sizeof(nat)); 
 	nat locations[4096] = {0}; // var_count sized
+
 	for (nat i = 0; i < ins_count; i++) {
 		if (ins[i].op == at) locations[ins[i].args[0]] = i;
 	}
+
 	for (nat i = 0; i < ins_count; i++) {
 		const nat op = ins[i].op;
+
 		if (op == halt) {
 			gotos[2 * i + 0] = (nat) -1;
 			gotos[2 * i + 1] = (nat) -1;
+
 		} else if (op == r5_b) {
 			gotos[2 * i + 0] = i + 1;
-			gotos[2 * i + 1] = locations[ins[i].args[2]];
+			gotos[2 * i + 1] = locations[ins[i].args[4]];
+
 		} else if (op == r5_j) {
-			gotos[2 * i + 0] = locations[ins[i].args[0]];
+			gotos[2 * i + 0] = locations[ins[i].args[2]];
 			gotos[2 * i + 1] = (nat) -1;
 
 		} else if (	op == r5_i or 
@@ -476,12 +482,15 @@ static nat* compute_riscv_predecessors(nat pc, nat* pred_count) {
 		if (op == halt) {
 			gotos[2 * i + 0] = (nat) -1;
 			gotos[2 * i + 1] = (nat) -1;
+
 		} else if (op == r5_b) {
 			gotos[2 * i + 0] = i + 1;
-			gotos[2 * i + 1] = locations[ins[i].args[2]];
+			gotos[2 * i + 1] = locations[ins[i].args[4]];
+
 		} else if (op == r5_j) {
-			gotos[2 * i + 0] = locations[ins[i].args[0]];
+			gotos[2 * i + 0] = locations[ins[i].args[2]];
 			gotos[2 * i + 1] = (nat) -1;
+
 		} else if (	op == r5_i or 
 				op == r5_u or 
 				op == r5_s or 
@@ -1623,8 +1632,8 @@ process_file:;
 			     if (op == add)  out_v += v1;
 			else if (op == sub)  out_v -= v1;
 			else if (op == mul)  out_v *= v1;
-			else if (op == div_) out_v /= v1;
-			else if (op == rem)  out_v %= v1;
+			else if (op == div_ and v1) out_v /= v1;
+			else if (op == rem and v1)  out_v %= v1;
 			else if (op == and_) out_v &= v1;
 			else if (op == or_)  out_v |= v1;
 			else if (op == eor)  out_v ^= v1;
@@ -2149,8 +2158,11 @@ current state:  1202505235.133756
 
 
 		//   set d m  OP_A d n   -->   OP_B d n m
+		//   set d m  OP_A d k   -->   OP_B d n k
+
 		{
 		nat op_A [] = {add,  sub,  mul,  div_, rem,  and_,  or_,  eor,  si,   sd,  };
+
 		nat op_B1[] = {0,    0,    0,    5,    7,    7,     6,    4,    1,    5,   };
 		nat op_B2[] = {0,    0x20, 1,    1,    1,    0,     0,    0,    0,    0,   };
 
@@ -2163,15 +2175,43 @@ current state:  1202505235.133756
 						.args[0] = arg0
 					}, i + 1
 				);
-				if (j == unrecognized) goto skip_set_r;
+				if (j == unrecognized) goto skip_set_r_r;
 				new = (struct instruction) { 
 					r5_r, 0x25, 0,   
 					{ 0x33, arg0, op_B1[this], arg1, ins[j].args[1], op_B2[this],    0,0 } 
 				};
 				ins[j].state = 1; 
 				goto r5_push_single_mi;
-				skip_set_r:;
+				skip_set_r_r:;
 			} 
+
+			if (op == set and not imm) {
+				const nat j = locate_instruction(
+					(struct expected_instruction) {
+						.op = op_A[this], .imm = 2,
+						.use = 1,
+						.args[0] = arg0
+					}, i + 1
+				);
+
+				if (j == unrecognized) goto skip_set_r_i;
+				if (ins[j].args[1] >= 2048) goto skip_set_r_i;
+				if (op == mul or op == div_ or op == rem) goto skip_set_r_i;
+
+				new = (struct instruction) { 
+					r5_i, 0x15, 0, {
+						0x13, 
+						arg0, 
+						op_B1[this], 
+						arg1, 
+						ins[j].args[1], 
+						0, 0
+					} 
+				};
+				ins[j].state = 1; 
+				goto r5_push_single_mi;
+				skip_set_r_i:;
+			}
 		}}
 
 		//   OP_A d n   -->   OP_B d d n
@@ -2187,7 +2227,26 @@ current state:  1202505235.133756
 					{ 0x33, arg0, op_B1[this], arg0, arg1, op_B2[this],    0,0 } 
 				};
 				goto r5_push_single_mi;
-			} 
+			}  
+
+			if (op == op_A[this] and imm) {
+
+				if (arg1 >= 2048) goto skip_op_r_i;
+				if (op == mul or op == div_ or op == rem) goto skip_op_r_i;
+
+				new = (struct instruction) { 
+					r5_i, 0x15, 0, {
+						0x13, 
+						arg0, 
+						op_B1[this], 
+						arg0, 
+						arg1, 
+						0, 0
+					} 
+				};
+				goto r5_push_single_mi;
+				skip_op_r_i:;
+			}
 		}}
 
 
@@ -2818,7 +2877,17 @@ finish_instruction_selection:;
 		else if (op == adr) {}
 
 		else if (target_arch == rv32_arch) {        // TODO:  handle system calls on riscv.... we arent handling that currently.
-			if (op == r5_r) { // addr D A A
+
+			if (	op == r5_i and a0 == 0x73 and 
+				a1 == 0x0 and a2 == 0x0 and 
+				a3 == 0x0 and a4 == 0x0
+			) {
+				for (nat e = 0; e < var_count; e++) {
+					if (register_index[e] >= 10 and register_index[e] <= 17) 
+						alive[pc * var_count + e] = 1;
+				}			
+
+			} else if (op == r5_r) { // addr D A A
 				if (not i1) alive[pc * var_count + a1] = 0;
 				if (not i3) alive[pc * var_count + a3] = 1;
 				if (not i4) alive[pc * var_count + a4] = 1;
@@ -2886,6 +2955,7 @@ finish_instruction_selection:;
 	puts("now we have to form the live-range-node listing!");
 
 	for (nat var = 0; var < var_count; var++) {
+
 		if (is_constant[var] or is_label[var]) continue; // optional...
 
 		nat pc = 0;
@@ -2893,24 +2963,27 @@ finish_instruction_selection:;
 		while (pc < ins_count and not alive[pc * var_count + var]) pc++;
 
 		while (pc < ins_count) {
+
+			if (debug) {
 			printf("[begin]: live range var = %s: { ", variables[var]);
 			for (nat i = 0; i < ins_count; i++) {
 				if (i != pc) printf(" %llu ", alive[i * var_count + var]);
 				if (i == pc) printf(" [%llu] ", alive[i * var_count + var]);
 			}
 			puts("} ");
-			getchar();
+			getchar(); } 
+
 			nat begin = pc;
 
 			while (pc < ins_count and alive[pc * var_count + var]) pc++;
 
-			printf("[end]: live range var = %s: { ", variables[var]);
+			if (debug) { printf("[end]: live range var = %s: { ", variables[var]);
 			for (nat i = 0; i < ins_count; i++) {
 				if (i != pc) printf(" %llu ", alive[i * var_count + var]);
 				if (i == pc) printf(" [%llu] ", alive[i * var_count + var]);
 			}
 			puts("} ");
-			getchar();
+			getchar(); }
 
 			range_begin[range_count] = begin;
 			range_end[range_count] = pc;
@@ -2918,9 +2991,11 @@ finish_instruction_selection:;
 
 			while (pc < ins_count and not alive[pc * var_count + var]) pc++;
 		} 
-		printf("computed all live ranges for variable %s...\n", variables[var]);
-		getchar();
+		if (debug) { printf("computed all live ranges for variable %s...\n", variables[var]);
+		getchar(); } 
 	}
+
+	if (debug) {
 
 	puts("RA: done with node generation, computed these nodes!:");
 	for (nat i = 0; i < range_count; i++) {
@@ -2943,6 +3018,7 @@ finish_instruction_selection:;
 	}
 	puts("\n");
 
+	}
 
 
 
@@ -2977,6 +3053,8 @@ finish_instruction_selection:;
 		}
 	}
 
+	if (debug) {
+
 	printf("constructed the following RIG: (%llu interferences)\n", rig_count);
 	for (nat i = 0; i < rig_count; i++) {
 		const nat first = rig[2 * i + 0];
@@ -2987,9 +3065,9 @@ finish_instruction_selection:;
 		);
 	}
 
-	if (debug) {
-		puts("info: current state is the above input to RA!");
-		getchar();
+	puts("info: current state is the above input to RA!");
+	getchar();
+
 	}
 
 
