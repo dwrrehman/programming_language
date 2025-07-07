@@ -1,5 +1,85 @@
 // a compiler for my programming language
 // written on 1202507034.195016 by dwrr
+
+
+
+
+/*
+1202507056.004138
+	todo: riscv isel:
+
+		. large immediates with operations
+		. stores and loads
+		. load label address
+
+		. divide by constant
+		. remaider/modulo by constant
+		. multiply by a constant
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+rv isel   
+current state:  1202505235.133756
+
+
+
+		set s r
+		addi s k
+		st d s 64
+
+
+		set s r
+		addi s k
+		ld d s 64
+
+
+				question:  what about 
+
+
+					addi s k
+					ld d s 64                   ie, it modifies the source?   
+								how do we represent this semantics?...
+
+
+		
+
+
+			if (op == add and not imm) {
+				const nat j = locate_instruction(
+					(struct expected_instruction) {
+						.op = op_A[this],
+						.use = 1,
+						.args[0] = arg0
+					}, i + 1
+				);
+				if (j == unrecognized) goto skip_set_r;
+				new = (struct instruction) { 
+					r5_r, 0x25, 0,   
+					{ 0x33, arg0, op_B1[this], arg1, ins[j].args[1], op_B2[this],    0,0 } 
+				};
+				ins[j].state = 1; 
+				goto r5_push_single_mi;
+				skip_set_r:;
+			} 
+
+
+*/
+
+
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -23,7 +103,7 @@ typedef uint32_t u32;
 typedef uint16_t u16;
 typedef uint8_t byte;
 
-static nat debug = 0;
+static nat debug = 1;
 
 #define max_variable_count 	(1 << 14)
 #define max_instruction_count 	(1 << 14)
@@ -778,7 +858,6 @@ static nat calculate_offset(nat* length, nat here, nat target) {
 	return offset;
 }
 
-
 static void debug_data_flow_state(
 	nat pc,
 	nat* preds, nat pred_count,
@@ -792,8 +871,18 @@ static void debug_data_flow_state(
 	print_instruction_window_around(pc, 0, "PC");
 	print_dictionary(0);
 
-	printf("        "); for (nat j = 0; j < var_count; j++) { if (is_constant[j] or (var_count - j >= amount)) continue; printf("%10s(%04llu) ", variables[j], j); } puts("");
-	printf("-----------"); for (nat j = 0; j < var_count; j++) { if (is_constant[j] or (var_count - j >= amount)) continue; printf("-----------------"); } puts("");
+	printf("        "); 
+	for (nat j = 0; j < var_count; j++) { 
+		if (is_constant[j] or (var_count - j >= amount)) continue; 
+		printf("%10s(%04llu) ", variables[j], j); 
+	}
+	puts("");
+	printf("-----------"); 
+	for (nat j = 0; j < var_count; j++) { 
+		if (is_constant[j] or (var_count - j >= amount)) continue; 
+		printf("-----------------"); 
+	} 
+	puts("");
 	
 	for (nat i = 0; i < ins_count; i++) {
 		printf("ct %3llu: ", i);
@@ -844,112 +933,28 @@ static void debug_liveness(
 	nat* stack, nat stack_count,
 	nat* alive
 ) {
-
-
-/*
-
-n	c_system_number(0063) 
-n	c_system_arg0(0064) 
-n	c_system_arg1(0065)
-
-	c_system_arg2(0066) 
-	c_system_arg3(0067) 
-	c_system_arg4(0068) 
-	c_system_arg5(0069) 
-	c_system_arg6(0070) 
-	rv_sc_arg0(0133) 
-	rv_sc_arg1(0134) 
-	rv_sc_arg2(0135) 
-	rv_sc_number(0136)
-
-n	a0(0140)
-	a1(0141)  
-n	data(0164)      
-n	bit(0166)       
-n	i(0172)       
-n	j(0174)      
-n	r(0177)  
-
-
-63
-64
-65
-140
-141
-164
-166
-172
-174
-177
-
-*/
-
-
 	print_instruction_window_around(pc, 0, "PC");
-	//print_dictionary(0);
-	printf("    "); for (nat j = 0; j < var_count; j++) { if (is_constant[j] or is_label[j] or (
-
-j != 63 and
-j != 64 and
-j != 65 and
-j != 140 and
-j != 141 and
-j != 164 and
-j != 166 and
-j != 172 and
-j != 174 and
-j != 177
-
-)
-
-) continue; printf("%20s(%04llu) ", variables[j], j); } puts("");
-	printf("----"); for (nat j = 0; j < var_count; j++) { if (is_constant[j] or is_label[j]
-or (
-
-j != 63 and
-j != 64 and
-j != 65 and
-j != 140 and
-j != 141 and
-j != 164 and
-j != 166 and
-j != 172 and
-j != 174 and
-j != 177
-
-)
-
-) continue; printf("-----------------"); } puts("");
+	printf("    "); 
+	for (nat j = 0; j < var_count; j++) { 
+		if (is_constant[j] or is_label[j]) continue; 
+		printf("%20s(%04llu) ", variables[j], j); 
+	} 
+	puts("");
+	printf("----"); 
+	for (nat j = 0; j < var_count; j++) { 
+		if (is_constant[j] or is_label[j]) continue; 
+		printf("-----------------"); 
+	} 
+	puts("");
 
 	for (nat i = 0; i < ins_count; i++) {
 		printf("%2llu: ", i);
 		for (nat j = 0; j < var_count; j++) {
-			if (is_constant[j] or is_label[j]
-
-
-or (
-
-j != 63 and
-j != 64 and
-j != 65 and
-j != 140 and
-j != 141 and
-j != 164 and
-j != 166 and
-j != 172 and
-j != 174 and
-j != 177
-
-)
-
-) continue; 
+			if (is_constant[j] or is_label[j]) continue; 
 			if (not alive[i * var_count + j]) printf("\033[38;5;235m");
 			printf("%20s %4llu  ", "", alive[i * var_count + j]);
 			if (not alive[i * var_count + j]) printf("\033[0m");
 		}
-
-
-
 		print_instruction(ins[i]);
 		
 		if (i == pc) { 
@@ -1174,9 +1179,7 @@ process_file:;
 					); 
 				} else is_label[args[0]] = 1; 
 			}
-			//if (op == la) { 
-			//if (is_immediate & 2) goto error_label_immediate; else is_label[args[1]] = 1;
-			//}
+			
 			if (op == lt or op == ge or op == ne or op == eq) {
 				if (is_immediate & 4) goto error_label_immediate; else is_label[args[2]] = 1;
 			}
@@ -1223,14 +1226,6 @@ process_file:;
 					filename, text, text_length, word_start, pc
 				);
 		
-			//if (not is_ct and op == la and has_ct_arg0 and has_ct_arg1) is_ct = 1;
-			//if (is_ct and op == la and not has_ct_arg0 and not has_ct_arg1) is_ct = 0;
-			//if (op == la and has_ct_arg0 != has_ct_arg1) 
-			//	print_error(
-			//		"instruction requires destination and source to be both compiletime or both runtime",
-			//		filename, text, text_length, word_start, pc
-			//	);
-								
 			struct instruction new = { 
 				.op = op, 
 				.imm = is_immediate,
@@ -1250,11 +1245,21 @@ process_file:;
 	if (not ins_count or ins[ins_count - 1].op != halt) 
 		ins[ins_count++] = (struct instruction) { .op = halt, .imm = 0, .state = 0 };
 
+
+	nat at_count[max_variable_count] = {0};
 	for (nat pc = 0; pc < ins_count; pc++) {
 		const nat op = ins[pc].op;
-		if (op == at) values[ins[pc].args[0]] = pc;
+		if (op == at) { values[ins[pc].args[0]] = pc; at_count[ins[pc].args[0]]++; }
 	}
-
+	for (nat pc = 0; pc < ins_count; pc++) {
+	for (nat a = 0; a < arity[ins[pc].op]; a++) {
+		const nat var = ins[pc].args[a];
+		if (is_label[var] and at_count[var] != 1) {
+			printf("error: label attribution error! expected exactly 1 label attribution for label %s", variables[var]); 
+			print_instruction_window_around(pc, 1, "this label argument does not have exactly one at");
+			abort();
+		}
+	}}
 
 	for (nat i = 0; i < ins_count; i++) {
 		const nat op = ins[i].op;
@@ -1316,11 +1321,7 @@ process_file:;
 		nat i1 = !!(imm & 2);
 		nat i2 = !!(imm & 4);
 
-		/*if (is_compiletime) {
-			if (not i0) while (replace[arg0]) arg0 = values[arg0];
-			if (not i1) while (replace[arg1]) arg1 = values[arg1];
-			if (not i2) while (replace[arg2]) arg2 = values[arg2];
-		}*/
+		
 
 		const nat N = max_variable_count;
 		nat val0 = 0, val1 = 0, val2 = 0;
@@ -1344,7 +1345,6 @@ process_file:;
 			memcpy(new.args, ins[pc].args, sizeof new.args);
 			for (nat i = 0; i < arity[op]; i++) {
 				const nat not_literal = not ((new.imm >> i) & 1);
-				//if (not_literal) { while (replace[new.args[i]]) new.args[i] = values[new.args[i]]; }
 				if (not_literal and is_label[new.args[i]]) continue;
 				if (not_literal and is_constant[new.args[i]]) {
 					new.args[i] = values[new.args[i]];
@@ -1464,7 +1464,7 @@ process_file:;
 	for (nat i = 0; i < ins_count; i++) {
 		const nat op = ins[i].op;
 		if ((op >= lt and op <= eq and values[ins[i].args[2]] == (nat) -1) or
-		    //(op == la and values[ins[i].args[1]] == (nat) -1) or
+		    
 		    (op == do_ and values[ins[i].args[0]] == (nat) -1)) {
 			puts("error: label does not have a defined position");
 			print_instruction_window_around(i, 1, "this label is undefined");
@@ -1612,12 +1612,6 @@ process_file:;
 		else if (op == emit) { } 
 		else if (op == do_) { }
 
-		else if (op == set and not i1 and is_label[a1]) {
-			out_t = 0;
-			out_v = 0;
-			out_is_copy = 0; // FALSE! this is techniaclly a copy... FIX THISSS 
-		}
-
 		else if (op == set) {
 			if (register_index[a0] == (nat) -1) { out_t = ct1; out_v = v1; }
 			if (not i1) {
@@ -1678,14 +1672,8 @@ process_file:;
 			is_copy[pc * var_count + a0] = out_is_copy;
 			copy_of[pc * var_count + a0] = out_copy_ref;
 		}
-		//if (gt0 < ins_count and ins[gt0].state < traversal_count) stack[stack_count++] = gt0; 
 		if (gt0 < ins_count) stack[stack_count++] = gt0; 
 
-		/*if (op == set and not i1 and is_label[a1]) {
-			const nat label = compute_label_location(a1);
-			if (label < ins_count and ins[label].state < traversal_count) stack[stack_count++] = label; 
-			continue;
-		}*/
 
 		if (op >= set and op <= ld) {
 			for (nat i = 0; i < var_count; i++) {
@@ -1738,13 +1726,6 @@ process_file:;
 		for (nat a = 0; a < arity[op]; a++) {
 
 			if (is_label[ins[i].args[a]]) continue;
-
-			/*if (op == at and a == 0) continue;
-			if (op == do_ and a == 0) continue;
-			if (op == lt and a == 2) continue;
-			if (op == ge and a == 2) continue;
-			if (op == ne and a == 2) continue;
-			if (op == eq and a == 2) continue;*/
 						
 			if (((imm >> a) & 1)) {
 				printf("found a compiletime immediate : %llu\n", 
@@ -1848,6 +1829,18 @@ process_file:;
 
 			if (not (ins[i].imm & 2) and is_copy[i * var_count + ins[i].args[1]]) {
 
+
+				if (is_label[copy_of[i * var_count + ins[i].args[1]]]) {
+
+					if (ins[i].op == set) {
+						printf("WARNING: inlining a label into a set!!\n");
+						getchar();
+						ins[i].args[1] = copy_of[i * var_count + ins[i].args[1]];
+					}
+
+				} else {
+				
+
 				printf("note: inlining copy reference: a1=%llu imm=%llu copy_of=%llu, i=%llu...\n", 
 					ins[i].args[1], ins[i].imm, 
 					copy_of[i * var_count + ins[i].args[1]],
@@ -1862,6 +1855,8 @@ process_file:;
 				puts("modified form:"); 
 				print_instruction(ins[i]); 
 				puts("");
+
+				}
 			}
 
 			if (ins[i].args[0] == ins[i].args[1]) {
@@ -2105,55 +2100,10 @@ rv32_instruction_selection:;
 			goto r5_push_single_mi; 
 		}
 
-	
-/*
-
-
-current state:  1202505235.133756
 
 
 
-		set s r
-		addi s k
-		ld d s 64
 
-
-		set s r
-		addi s k
-		ld d s 64
-
-
-				question:  what about 
-
-
-					addi s k
-					ld d s 64                   ie, it modifies the source?   
-								how do we represent this semantics?...
-
-
-		
-
-
-			if (op == add and not imm) {
-				const nat j = locate_instruction(
-					(struct expected_instruction) {
-						.op = op_A[this],
-						.use = 1,
-						.args[0] = arg0
-					}, i + 1
-				);
-				if (j == unrecognized) goto skip_set_r;
-				new = (struct instruction) { 
-					r5_r, 0x25, 0,   
-					{ 0x33, arg0, op_B1[this], arg1, ins[j].args[1], op_B2[this],    0,0 } 
-				};
-				ins[j].state = 1; 
-				goto r5_push_single_mi;
-				skip_set_r:;
-			} 
-
-
-		*/
 
 
 
@@ -2545,7 +2495,14 @@ arm64_instruction_selection:;
 
 		if (debug) {
 			print_instruction_window_around(i, 0, "");
-			puts("[ARM64 ins sel]");
+			puts("arm64 machine instructions:");
+			for (nat e = 0; e < mi_count; e++) {
+				printf("%llu: ", e); 
+				print_instruction(mi[e]); 
+				puts("");
+			}
+			puts("[mi done]");
+			puts("[arm64 ins sel]");
 			getchar();
 		}
 
@@ -2567,6 +2524,13 @@ arm64_instruction_selection:;
 			mi[mi_count++] = ins[i]; 
 			ins[i].state = 1; 
 			continue;
+		}
+
+
+		if (op == set and is_label[arg1]) {
+
+			puts("error unknown instruction selection pattern!");
+			abort();
 		}
 
 		if (op == set) {
@@ -2744,52 +2708,7 @@ finish_instruction_selection:;
 	}
 
 
-
-
-
-	// the general idea behind live ranges, is to    NOT give an allocation for each variable,  but rather, for each variable, at each instruction.
-	//  or, really, just for each live range, which starts at a particular instruction, and has a length, and has a variable which its associated with. 
-	// so, we are just going to have a list of range-start's   for each variable which needs allocation performed 
-	// we are going to create a seperate list  (seperate from the dictionary)  which we are going to keep track of the variables which we want to perform register allocation on.. 
-
-	// its a super set of var_count, thus we cannot use var_count. 
-
-	// so, instead, we are going to try to store a new realloc'd   dedicated list   which includes the    ins-start index,  and the ins-end index, denoting the extend of the liverange.
-
-	// we are going to alsoooo include the actual variable  that we are going to use along that path. that live range should include both a set/def and also several uses! so yeah. super important.  yay. we need to see these both, in order to push a new variable to the   "to_allocate[]" array lol. so yeah. 
-
-
-
-
-	/*for (nat e = 0; e < var_count; e++) {
-		if (alive[e]) {
-			printf("error: variable %s was alive at the first statement of the program, which means it was never defined.\n", variables[e]);
-
-			printf("warning: variable %s is used while uninitialized in the program\n", variables[e]);
-			puts("instead, of keeping this var, we will delete it from the program...");
-			for (nat pc = 0; pc < ins_count; pc++) alive[pc * var_count + e] = 0;
-			printf("removed variable %s from the program.\n", variables[e]);
-		}
-	}*/
-
-
-	//nat* needs_ra = calloc(var_count, sizeof(nat));
-
-	/*for (nat i = 0; i < ins_count; i++) {
-		for (nat j = 0; j < var_count; j++) {
-			if (alive[i * var_count + j]) needs_ra[j] = 1;
-		}
-	}*/
-
-
-
-
-
-
-
-
 	puts("RA: starting register allocation!");
-
 	nat hardware_register_count = 0;
 	if (target_arch == rv32_arch) hardware_register_count = 31;
 	else if (target_arch == msp430_arch) hardware_register_count = 12;
@@ -2798,12 +2717,6 @@ finish_instruction_selection:;
 		puts("cannot perform RA for this target, unimplemented.");
 		abort();
 	}
-
-
-
-
-
-
 
 	{ nat* alive = calloc(ins_count * var_count, sizeof(nat)); 
 	nat stack[4096] = {0};
@@ -2876,7 +2789,7 @@ finish_instruction_selection:;
 		else if (op == emit) {}
 		else if (op == adr) {}
 
-		else if (target_arch == rv32_arch) {        // TODO:  handle system calls on riscv.... we arent handling that currently.
+		else if (target_arch == rv32_arch) { 
 
 			if (	op == r5_i and a0 == 0x73 and 
 				a1 == 0x0 and a2 == 0x0 and 
@@ -3028,9 +2941,6 @@ finish_instruction_selection:;
 	puts("RA: constructing register interference graph...");
 
 
-	//   we need to have the edges in the rig refer to nodes which we computed! 
-	// which means we need to find interferences and root those indexes 
-
 	for (nat pc = 0 ; pc < ins_count; pc++) {
 
 		for (nat i = 0; i < range_count; i++) {
@@ -3080,12 +2990,6 @@ finish_instruction_selection:;
 		}
 		puts("RA: pushed all nodes!");
 		break;
-
-	//we need to make it so that we pick the already allocated vars last!????
-	// please do this lol
-
-
-
 
 	find_virtual_register:
 		for (nat var = 0; var < range_count; var++) {
@@ -3168,11 +3072,6 @@ finish_instruction_selection:;
 
 		memset(occupied, 0, sizeof(nat) * hardware_register_count);
 
-		/*for (nat i = 0; i < var_count; i++) {     
-			// TODO: this is just a weird hack.. does this work at all!?!?
-			if (allocation[i] != (nat) -1) occupied[allocation[i]] = 1;
-		}*/
-
 		for (nat e = 0; e < rig_count; e++) {
 			const nat a = rig[2 * e + 0];
 			const nat b = rig[2 * e + 1];
@@ -3185,11 +3084,9 @@ finish_instruction_selection:;
 
 
 
-
-		// BUG:   we need to prioritize picking the same register as a hardware reg  used in a    set
+		// TODO: BUG:   we need to prioritize picking the same register as a hardware reg  used in a    set
 		//	   such that we actaully      elide the       set        instruction    because its a set to itself.        set x[1] x[1]  would get deleted!
 		//        but this only happens      IFFF we pick the right register for the variable. hmmmm. 
-
 
 
 
@@ -3505,21 +3402,6 @@ rv32_generate_machine_code:;
 			insert_u32(&my_bytes, &my_count, word);
 
 		} else if (op == r5_j) {
-
-
-/*
-
-dissasm version:
-
-		u32 imm10_1 = (word >> 21) & 0x3FF;
-		u32 imm20 = (word >> 31) & 0x1;
-		u32 imm11 = (word >> 10) & 0x1;
-		u32 imm19_12 = (word >> 12) & 0xFF;
-		u32 imm = (imm20 << 20) | (imm19_12 << 12) | (imm11 << 11) | (imm10_1 << 1);
-		if (imm20 == 1) imm |= 0xFFE00000;
-
-*/
-
 
 			const nat n = compute_label_location(a2);
 			const u32 im = (u32) calculate_offset(lengths, i, n) & 0x1FFFFF;
@@ -4732,21 +4614,14 @@ generate_ti_txt_executable:;
 generate_uf2_executable:;
 
 	{
-
 	printf("section_starts: "); print_nats(section_starts, section_count); puts("");
 	printf("section_addresses: "); print_nats(section_addresses, section_count); puts("");
-
-	const nat starting_address = section_addresses[0];    // user sets this using the "section 0101010011" instruction. 
-
-						// all other sections are ignored except for the first one, for uf2 files. 
-
-
+	const nat starting_address = section_addresses[0]; 
 
 	printf("info: starting UF2 file at address: %08llx\n", starting_address);
 
 	while (my_count % 256)
 		insert_byte(&my_bytes, &my_count, 0); 		// pad to 256 byte chunks
-
 
 	const nat block_count = my_count / 256;
 
@@ -4949,6 +4824,97 @@ finished_outputting:
 
 
 
+// XXX
+
+
+
+
+
+
+   // user sets this using the "section 0101010011" instruction. 
+
+						// all other sections are ignored except for the first one, for uf2 files. 
+
+
+
+
+
+	//we need to make it so that we pick the already allocated vars last!????
+	// please do this lol
+
+	//   we need to have the edges in the rig refer to nodes which we computed! 
+	// which means we need to find interferences and root those indexes 
+
+//(op == la and values[ins[i].args[1]] == (nat) -1) or
+
+
+
+
+
+
+/*
+
+dissasm version:
+
+		u32 imm10_1 = (word >> 21) & 0x3FF;
+		u32 imm20 = (word >> 31) & 0x1;
+		u32 imm11 = (word >> 10) & 0x1;
+		u32 imm19_12 = (word >> 12) & 0xFF;
+		u32 imm = (imm20 << 20) | (imm19_12 << 12) | (imm11 << 11) | (imm10_1 << 1);
+		if (imm20 == 1) imm |= 0xFFE00000;
+
+*/
+
+
+
+
+
+
+
+
+	// the general idea behind live ranges, is to    NOT give an allocation for each variable,  but rather, for each variable, at each instruction.
+	//  or, really, just for each live range, which starts at a particular instruction, and has a length, and has a variable which its associated with. 
+	// so, we are just going to have a list of range-start's   for each variable which needs allocation performed 
+	// we are going to create a seperate list  (seperate from the dictionary)  which we are going to keep track of the variables which we want to perform register allocation on.. 
+
+	// its a super set of var_count, thus we cannot use var_count. 
+
+	// so, instead, we are going to try to store a new realloc'd   dedicated list   which includes the    ins-start index,  and the ins-end index, denoting the extend of the liverange.
+
+	// we are going to alsoooo include the actual variable  that we are going to use along that path. that live range should include both a set/def and also several uses! so yeah. super important.  yay. we need to see these both, in order to push a new variable to the   "to_allocate[]" array lol. so yeah. 
+
+
+
+
+	/*for (nat e = 0; e < var_count; e++) {
+		if (alive[e]) {
+			printf("error: variable %s was alive at the first statement of the program, which means it was never defined.\n", variables[e]);
+
+			printf("warning: variable %s is used while uninitialized in the program\n", variables[e]);
+			puts("instead, of keeping this var, we will delete it from the program...");
+			for (nat pc = 0; pc < ins_count; pc++) alive[pc * var_count + e] = 0;
+			printf("removed variable %s from the program.\n", variables[e]);
+		}
+	}*/
+
+
+	//nat* needs_ra = calloc(var_count, sizeof(nat));
+
+	/*for (nat i = 0; i < ins_count; i++) {
+		for (nat j = 0; j < var_count; j++) {
+			if (alive[i * var_count + j]) needs_ra[j] = 1;
+		}
+	}*/
+
+
+
+
+
+/*else if (op == set and not i1 and is_label[a1]) {
+			out_t = 0;
+			out_v = 0;
+			out_is_copy = 0; // FALSE! this is techniaclly a copy... FIX THISSS 
+		}*/
 
 
 
@@ -4960,58 +4926,7 @@ finished_outputting:
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-	//abort(); 			
-				// solved:
- 				// currently a huge bug in the CTE2 optimization stage:
-
-				// the CTE2 pass is caling particular variables compiletime known when it shouldnt, as it isnt seeing the right control flow merge points with different data values at the right time, 
-				//  in the prime number written for the c arch and output format,    the variable j is being deleted, deduced to be 0 CTK. this is wrong, obviously, because it should be seeing the merge of CF and different CTK values of j (0 vs 1) at "inner", and thus keeping j. this isnt happening, and thus is a huge bug lol. 
-
-
-
-
-						// solved: oh also, RA needs an overhaul kinda, we arent handling   RA constraints right i think,   and we also need to split up variable live ranges into seperate disjoint ranges when possible. 
-
-				
-
-
-
-
-
-
-
-
-
-
-
-
-
-			/* nat n = (nat) -1;
+/* nat n = (nat) -1;
 			for (nat i = 0; i < var_count; i++) {
 				if (register_index[i] == 17 and // generalize this! 
 				// system_call_number_register(target) and 
@@ -5038,6 +4953,146 @@ finished_outputting:
 				if (register_index[i] == 10) // arg0 on riscv, outparam of   k = read(); ...(+ errno?)
 				type[pc * var_count + i] = 0;
 			}*/
+
+
+
+
+
+/*for (nat i = 0; i < var_count; i++) {     
+			// TODO: this is just a weird hack.. does this work at all!?!?
+			if (allocation[i] != (nat) -1) occupied[allocation[i]] = 1;
+		}*/
+
+
+
+
+//if (not_literal) { while (replace[new.args[i]]) new.args[i] = values[new.args[i]]; }
+
+
+
+			//if (op == la) { 
+			//if (is_immediate & 2) goto error_label_immediate; else is_label[args[1]] = 1;
+			//}
+
+/*if (op == at and a == 0) continue;
+			if (op == do_ and a == 0) continue;
+			if (op == lt and a == 2) continue;
+			if (op == ge and a == 2) continue;
+			if (op == ne and a == 2) continue;
+			if (op == eq and a == 2) continue;*/
+
+
+
+/*if (is_compiletime) {
+			if (not i0) while (replace[arg0]) arg0 = values[arg0];
+			if (not i1) while (replace[arg1]) arg1 = values[arg1];
+			if (not i2) while (replace[arg2]) arg2 = values[arg2];
+		}*/
+
+
+
+		//if (gt0 < ins_count and ins[gt0].state < traversal_count) stack[stack_count++] = gt0; 
+
+		/*if (op == set and not i1 and is_label[a1]) {
+			const nat label = compute_label_location(a1);
+			if (label < ins_count and ins[label].state < traversal_count) stack[stack_count++] = label; 
+			continue;
+		}*/
+
+
+
+
+
+
+			//if (not is_ct and op == la and has_ct_arg0 and has_ct_arg1) is_ct = 1;
+			//if (is_ct and op == la and not has_ct_arg0 and not has_ct_arg1) is_ct = 0;
+			//if (op == la and has_ct_arg0 != has_ct_arg1) 
+			//	print_error(
+			//		"instruction requires destination and source to be both compiletime or both runtime",
+			//		filename, text, text_length, word_start, pc
+			//	);
+								
+
+
+
+
+
+
+
+
+/*
+
+n	c_system_number(0063) 
+n	c_system_arg0(0064) 
+n	c_system_arg1(0065)
+
+	c_system_arg2(0066) 
+	c_system_arg3(0067) 
+	c_system_arg4(0068) 
+	c_system_arg5(0069) 
+	c_system_arg6(0070) 
+	rv_sc_arg0(0133) 
+	rv_sc_arg1(0134) 
+	rv_sc_arg2(0135) 
+	rv_sc_number(0136)
+
+n	a0(0140)
+	a1(0141)  
+n	data(0164)      
+n	bit(0166)       
+n	i(0172)       
+n	j(0174)      
+n	r(0177)  
+
+
+63
+64
+65
+140
+141
+164
+166
+172
+174
+177
+
+*/
+
+
+
+
+
+
+
+
+
+
+
+	//abort(); 			
+				// solved:
+ 				// currently a huge bug in the CTE2 optimization stage:
+
+				// the CTE2 pass is caling particular variables compiletime known when it shouldnt, as it isnt seeing the right control flow merge points with different data values at the right time, 
+				//  in the prime number written for the c arch and output format,    the variable j is being deleted, deduced to be 0 CTK. this is wrong, obviously, because it should be seeing the merge of CF and different CTK values of j (0 vs 1) at "inner", and thus keeping j. this isnt happening, and thus is a huge bug lol. 
+
+
+						// solved: oh also, RA needs an overhaul kinda, we arent handling   RA constraints right i think,   and we also need to split up variable live ranges into seperate disjoint ranges when possible. 
+
+				
+
+
+
+
+
+
+
+
+
+
+
+
+
+			
 
 
 
