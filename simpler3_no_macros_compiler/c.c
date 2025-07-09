@@ -1254,8 +1254,20 @@ process_file:;
 	for (nat pc = 0; pc < ins_count; pc++) {
 	for (nat a = 0; a < arity[ins[pc].op]; a++) {
 		const nat var = ins[pc].args[a];
-		if (is_label[var] and at_count[var] != 1) {
-			printf("error: label attribution error! expected exactly 1 label attribution for label %s", variables[var]); 
+
+		if ((ins[pc].imm >> a) & 1) continue;
+
+		if (is_constant[var] and is_label[var] and at_count[var] != 1) {
+
+			printf("warning: unusual compiletime label attribution! expected exactly 1 label attribution for label %s, found %llu attributions.\n", variables[var], at_count[var]); 
+			print_instruction_window_around(pc, 1, "this label argument does not have exactly one at");
+			puts("warning: continuing anyways..");
+			getchar();
+			
+		} 
+
+		else if (is_label[var] and at_count[var] != 1) {
+			printf("error: label attribution error! expected exactly 1 label attribution for label %s, found %llu attributions.\n", variables[var], at_count[var]); 
 			print_instruction_window_around(pc, 1, "this label argument does not have exactly one at");
 			abort();
 		}
@@ -1263,10 +1275,13 @@ process_file:;
 
 	for (nat i = 0; i < ins_count; i++) {
 		const nat op = ins[i].op;
+		const nat imm = ins[i].imm;
 		const nat a0 = ins[i].args[0];
 		const nat a1 = ins[i].args[1];
 		const nat is_ct = ins[i].state;
-		if (not is_ct and op == set and not is_constant[a0] and is_constant[a1] and is_label[a1]) {
+		
+		if (not is_ct and op == set and not is_constant[a0] and 
+			((imm & 2) == 0) and is_constant[a1] and is_label[a1]) {
 			puts("error: cannot load a compiletime label into a runtime variable.");
 			print_instruction_window_around(i, 1, "RT destination, CT source label");
 			abort();
@@ -1339,6 +1354,13 @@ process_file:;
 		} 
 		else if (op == bits) bit_count[arg0] = val1;
 		else if (op == reg) register_index[arg0] = val1;
+
+
+		else if (op == gensym) {
+
+		}
+
+
 
 		else if (not is_compiletime) {
 			struct instruction new = { .op = op, .imm = imm };
@@ -2687,6 +2709,9 @@ c_instruction_selection:;
 
 finish_instruction_selection:;
 
+	puts("we just finished instruction selection!!!");
+	getchar();
+
 	for (nat i = 0; i < ins_count; i++) {
 		if (not ins[i].state) {
 			puts("error: instruction unprocessed by ins sel: internal error");
@@ -2696,6 +2721,12 @@ finish_instruction_selection:;
 			abort();
 		}
 	}
+
+
+
+	puts("we just verified instruction selection!!!");
+	getchar();
+
 	
 	for (nat i = 0; i < mi_count; i++) ins[i] = mi[i];
 	ins_count = mi_count;
@@ -2708,6 +2739,11 @@ finish_instruction_selection:;
 	}
 
 
+	puts("i just showed you instruction selection!!!");
+	getchar();
+
+
+
 	puts("RA: starting register allocation!");
 	nat hardware_register_count = 0;
 	if (target_arch == rv32_arch) hardware_register_count = 31;
@@ -2718,6 +2754,10 @@ finish_instruction_selection:;
 		abort();
 	}
 
+	puts("selected arch for RA liveness!!");
+	getchar();
+
+
 	{ nat* alive = calloc(ins_count * var_count, sizeof(nat)); 
 	nat stack[4096] = {0};
 	nat stack_count = 0;	
@@ -2725,7 +2765,22 @@ finish_instruction_selection:;
 		if (ins[i].op == halt) stack[stack_count++] = i;
 	for (nat i = 0; i < ins_count; i++)  ins[i].state = 0;
 
+
+	if (not stack_count) {
+		printf("error: no control flow graph terminations were found! this means that liveness cannot take place.\n");
+		puts("please resolve this.");
+		//abort();
+
+		puts("warning: instead, we are just going to push the last instruction index, with the assumption that the infinite loop is at the end of the program lol.");
+		getchar();
+
+
+		stack[stack_count++] = ins_count - 1;	
+	}
+
+
 	while (stack_count) {
+
 		nat pc = stack[--stack_count];
 
 		nat pred_count = 0;  nat* preds = NULL;
@@ -2808,7 +2863,7 @@ finish_instruction_selection:;
 				if (not i1) alive[pc * var_count + a1] = 0;
 				if (not i3) alive[pc * var_count + a3] = 1;
 			} else if (op == r5_s or op == r5_b) { // BLT X Y   or // STW A A
-				if (not i2) alive[pc * var_count + a2] = 1;
+				if (not i2) alive[pc * var_count + a2] = 1;   // 0x23  0x010  arg0 arg1 0x00000 0 0 0 
 				if (not i3) alive[pc * var_count + a3] = 1;
 			} else if (op == r5_u or op == r5_j) { // JAL D   or  // LUI D
 				if (not i1) alive[pc * var_count + a1] = 0;
