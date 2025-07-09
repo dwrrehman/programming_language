@@ -257,7 +257,7 @@ static nat register_index[max_variable_count] = {0};
 static nat values[max_variable_count] = {0};
 static byte is_constant[max_variable_count] = {0};
 static byte is_label[max_variable_count] = {0};
-static byte is_undefined[max_variable_count] = {0};
+static nat is_undefined[max_variable_count] = {0};
 static nat var_count = 0;
 
 static void print_nats(nat* array, nat count) {
@@ -1145,6 +1145,12 @@ process_file:;
 					filename, text, text_length, word_start, pc
 				);
 			is_undefined[args[0]] = 1;
+			if (is_label[args[0]] and not is_constant[args[0]]) {
+				struct instruction new = { .op = op, .state = 1 };
+				memcpy(new.args, args, sizeof args);
+				memset(args, 0, sizeof args);
+				ins[ins_count++] = new;
+			}
 		} else if (op == file) {
 			for (nat i = 0; i < included_file_count; i++) {
 				if (strcmp(included_files[i], word)) continue;
@@ -1299,6 +1305,7 @@ process_file:;
 	{ struct instruction rt_ins[4096] = {0};
 	nat rt_ins_count = 0;
 
+	memset(is_undefined, 0, sizeof is_undefined);
 	memset(bit_count, 255, sizeof bit_count);
 	memset(register_index, 255, sizeof register_index);
 	uint8_t* memory = calloc(65536, sizeof(nat));
@@ -1354,22 +1361,42 @@ process_file:;
 		} 
 		else if (op == bits) bit_count[arg0] = val1;
 		else if (op == reg) register_index[arg0] = val1;
-
-
-		else if (op == gensym) {
-
+		else if (op == del) {
+			printf("executed a del statement!! now, is_undefined[%s] = %llu\n", 
+				variables[arg0], is_undefined[arg0] + 1
+			);
+			is_undefined[arg0] = var_count;
+			char my_string[1000] = {0};
+			snprintf(my_string, sizeof my_string, "GENERATED_LABEL_%llu", var_count);
+			
+			variables[var_count] = strdup(my_string);
+			is_label[var_count] = 1;
+			is_constant[var_count] = 0;
+			is_undefined[var_count] = 0;
+			var_count++;
 		}
-
-
 
 		else if (not is_compiletime) {
 			struct instruction new = { .op = op, .imm = imm };
 			memcpy(new.args, ins[pc].args, sizeof new.args);
 			for (nat i = 0; i < arity[op]; i++) {
+				const nat this = new.args[i];
 				const nat not_literal = not ((new.imm >> i) & 1);
-				if (not_literal and is_label[new.args[i]]) continue;
-				if (not_literal and is_constant[new.args[i]]) {
-					new.args[i] = values[new.args[i]];
+				if (not_literal and is_label[this] and is_undefined[this]) {
+					print_instruction(new); 
+					print_dictionary(1); 
+					printf("REPLACE HAPPENED: replaced argument %s with %s...\n", 
+						variables[new.args[i]], variables[is_undefined[this]]
+					);
+
+					new.args[i] = is_undefined[this];
+					getchar();
+				}
+
+				if (not_literal and is_label[this]) continue;
+
+				if (not_literal and is_constant[this]) {
+					new.args[i] = values[this];
 					new.imm |= 1 << i;
 				}
 			}
@@ -1483,7 +1510,7 @@ process_file:;
 	}
 
 
-	for (nat i = 0; i < ins_count; i++) {
+	/*for (nat i = 0; i < ins_count; i++) {
 		const nat op = ins[i].op;
 		if ((op >= lt and op <= eq and values[ins[i].args[2]] == (nat) -1) or
 		    
@@ -1492,7 +1519,7 @@ process_file:;
 			print_instruction_window_around(i, 1, "this label is undefined");
 			abort();
 		}
-	}
+	}*/
 
 	if (target_arch == msp430_arch and stack_size) { 
 		puts("fatal error: nonzero stack size for msp430 is not permitted"); 

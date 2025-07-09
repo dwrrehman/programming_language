@@ -75,7 +75,7 @@ at setup_output
 	set c1 1 set c3 io_gpio1_ctrl do setif
 	set c1 01 set c3 io_gpio2_ctrl do setif
 	set c1 11 set c3 io_gpio3_ctrl do setif
-	ld control p nat
+ 	ld control p nat
 
 	set c1 0 set c3 pads_gpio0 do setif
 	set c1 1 set c3 pads_gpio1 do setif
@@ -94,27 +94,13 @@ at setup_output
 
 at delay
 	ld ra 0 nat
-
-	set count 0000_0000_0000_0000_0000_1
-
-	rt 
-
-	set i 0
-
-	at L	
-		lt i count done
-		add i 1 do L
-	at done
-
-	del count 
-	del i 
-	del L
-	del done
-
+	set count 0000_0000_0000_0000_0000_01
+	rt set i 0
+	at L ge i count done
+	add i 1 do L at done
+	del count del i del L del done
 	ct do ra 
 	del ra
-
-
 
 at skip_macros del skip_macros
 rt adr flash_start
@@ -145,7 +131,6 @@ at loop
 	set data 1
 	r5_s sw_op1 sw_op2 address data sio_gpio_out
 	do delay
-
 	set data 0
 	r5_s sw_op1 sw_op2 address data sio_gpio_out
 	do delay
@@ -179,6 +164,26 @@ do loop
 
 
 
+
+
+
+	( ^-----   1202507082.212023 we coulddd generate a cte executed   "del" instruction, as i think this might be the only valid solution to this problem without adding an instructin. del must be executed at compiletime. hmmmmm  crappp no we can't do thissss becuase  we often do    "do ra del ra"
+	and thus, we need some way of not requiring the del to be executed, but still knowing that the labels   L and done    are local... hmmmmmmm crapppp
+
+		i mean, hypothetically, we could just emit a del in cte space anyways, 
+
+			and that signals to us that   when we see a label, it means that its local?... hmmm that could work..... 
+	
+				the idea would be that  the first time we see the label, we
+ll use the original label value,   and then the second time we execute this macro, if we see we are trying to use a deleted thingy, 
+
+				and it was deleted as a result of previous execution, 
+				then thatttt triggers us to rewrite the variable reference to refer to a new variable entirely. hmmm 
+
+				yikes. this is very complicated.    but it might work though. interesting. 
+
+
+	)
 
 
 
