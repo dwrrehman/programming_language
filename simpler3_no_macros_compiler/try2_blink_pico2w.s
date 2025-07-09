@@ -94,11 +94,20 @@ at setup_output
 
 at delay
 	ld ra 0 nat
-	set count 0000_0000_0000_0000_0000_01
 	rt set i 0
-	at L ge i count done
+	at L ge i c0 done
 	add i 1 do L at done
-	del count del i del L del done
+	del i del L del done
+	ct do ra 
+	del ra
+
+
+at delayr
+	ld ra 0 nat
+	rt set i 0
+	at L ge i a0 done
+	add i 1 do L at done
+	del i del L del done
 	ct do ra 
 	del ra
 
@@ -128,12 +137,33 @@ set data 1
 r5_s sw_op1 sw_op2 address data sio_gpio_out
 
 at loop
-	set data 1
-	r5_s sw_op1 sw_op2 address data sio_gpio_out
-	do delay
-	set data 0
-	r5_s sw_op1 sw_op2 address data sio_gpio_out
-	do delay
+	set width 0000_0000_0000_0000_0000_01
+
+	reg step 1 
+	set step 0000_0000_0000_0000__0001
+
+	set i 0
+	at inner
+		set data 1
+		r5_s sw_op1 sw_op2 address data sio_gpio_out
+
+		set a0 i do delayr
+
+		set data 0
+		r5_s sw_op1 sw_op2 address data sio_gpio_out
+
+		set remaining width sub remaining i
+		set a0 remaining do delayr
+
+		add i step
+		lt i width inner
+
+
+					(currrent state 1202507082.215905   
+
+					the above code doesnt quite work yet, its supposed to be pwm'ing an LED lol
+
+					)
 do loop
 
 
@@ -147,6 +177,7 @@ do loop
 
 
 
+	(set c0 0000_0000_0000_0000_0000_01 do delay)
 
 
 

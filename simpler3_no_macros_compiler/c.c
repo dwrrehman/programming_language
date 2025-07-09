@@ -2349,6 +2349,7 @@ rv32_instruction_selection:;
 			goto r5_push_single_mi;
 		}
 		puts("error: unknown instruction selection pattern");
+		print_instruction_window_around(i, 1, "unknown isel pattern for this instruction");
 		abort();
 
 	r5_push_single_mi:
