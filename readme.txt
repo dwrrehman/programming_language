@@ -1,79 +1,125 @@
 a (currently unnamed) compiler for a (currently unnamed) programming language
 written on 1202504115.035207 by dwrr
-new version of the language made on 1202505154.163659 by dwrr
+new version of the language made on 1202505154.163659
+updated on 1202507104.022504
 =======================================
 
 this is an optimizing compiler for a low-level programming language that i am making for fun and for my own use. the language is word-based, statement-based, and is closely modelled off of the hardware RISC-like ISA's which it chooses to target, which include: RISC-V (32 and 64 bit), ARM (32 and 64 bit), and the MSP430 ISA. 
 
-there are only 30 built-in operators/instructions in the language (excluding the machine instructions), all of which take 0, 1, 2, or 3 arguments. also, all these operators are prefix, and fixed arity. 
+there are only 29 built-in operators/instructions in the language (excluding the machine instructions), all of which take 0, 1, 2, or 3 arguments. also, all these operators are prefix, and fixed arity. 
 
 a description of the built-in instructions and the semantics of each instruction is given below:
 
-
-full language ISA:
-----------------------
 	
-	set add sub mul div rem and or eor si sd str reg bits 
-	ld st adr emit lt ge ne eq at do sc halt ct rt file del 
+language ISA as of: 1202507104.003655
+---------------------------------------
+
+	set	add	sub	mul	div	rem		        (arithmetic instructions)
+
+	and	or	eor	si	sd			        (bitwise instructions)
+
+	ld	st	emit	str	adr			        (memory instructions)
+	
+	lt	ge	ne	eq	do	at	sc	halt    (control flow instructions)
+	
+	ct	rt	del	file	reg			        (language-specific instructions)
+
 	
 
+instruction set description:
+=======================================
 
-language-specific instructions:
-----------------------------------
-	rt		: mark instructions and variables from here onwards to be runtime.
-	ct		: mark instructions and variables from here onwards to be compiletime.
-	del x		: remove x from the symbol table. 
-	file f		: load the contents of the file at filepath f,
-			  and parse them fully before proceeding. 
-			  any edits to the symbol table are persistent/stateful.
-	reg x r		: make x stored in the runtime hardware register r. r is CTK.
-	bits x b	: make x stored in at least b bits. b is CTK. 
-			  note: ...currently this instruction are ignored, lol.
-	str s		: emit string data from s to the final executable at this position.
-			  is equivalent to a series of emit instructions.
 
-arithmetic operations:
-------------------
+arithmetic instructions:
+------------------------------------
+
 	set x y	: assignment to destination register x, using the value present in source y.
 		  if the name x is not defined, then x is defined as a result of this instruction.
 		  if x is defined, the existing definition of variable x is used.
 
 	add x y	: assigns the value x + y to the destination register x.
+
 	sub x y	: assigns the value x - y to the destination register x.
+
 	mul x y	: assigns the value x * y to the destination register x.
+
 	div x y	: assigns the value x / y to the destination register x.
+
 	rem x y	: assigns the value x mod y to the destination register x.
 
-bitwise operations:
-------------------
+
+bitwise instructions:
+------------------------------------
+
 	and x y	: assigns the value x bitwise-and y to the destination register x.
+
 	or x y	: assigns the value x bitwise-or y to the destination register x.
+
 	eor x y	: assigns the value x bitwise-eor y to the destination register x.
+
 	si x y	: shift x up by y bits, and store the result into destination register x.
+
 	sd x y	: shift x down by y bits, and store the result into destination register x.
 
+
 memory-related operations:
-------------------
-	ld x y z  : load z bytes from memory address y into destination register x. 
-	st x y z  : store z bytes from register y into destination memory at memory address x.
+------------------------------------
+
+	ld x y z  : load z bytes from source memory at memory address y into destination register x. 
+		    when executing at runtime, z can only be 1, 2, 4, or 8.
+		    this also declares x if x is not already defined.
+
+	st x y z  : store z bytes from source register y into destination memory at memory address x.
+		    when executing at runtime, z can only be 1, 2, 4, or 8.
+
 	emit x y  : emit x bytes from constant y to the executable at this position. 
-		    x and y are both compiletime-known (CTK).
+		    x and y must both be compiletime-known (CTK).
+
+	str s	  : emit string data from s to the final executable at this position.
+		    str is equivalent to a series of emit byte instructions after CT evaluation.
+
 	adr x	  : puts the following instructions at hardware address x. x is CTK. 
 		    this instruction is only valid to use on embedded targets. 
 
 control flow:
 ------------------
+
 	lt x y l	: if x is less than y, branch to label l. 
+
 	ge x y l	: if x is not less than y, (ie, x is greater than or 
 			  equal to y) branch to label l. 
+
 	ne x y l	: if x is not equal to than y, branch to label l. 
+
 	eq x y l	: if x is equal to y, branch to label l. 
+
 	do l		: unconditionally branch to label l. 
 			  when executed at compiletime, it also stores the 
 			  pc of this instruction to address 0 in compiletime memory.
+
 	at l		: attribute label l at this position. 
-	halt		: termination of control flow here. 
+
 	sc 		: system call instruction.
+
+	halt		: termination of control flow here. 
+
+
+language-specific instructions:
+------------------------------------
+
+	ct		: mark instructions and variables from here onwards to be compiletime.
+
+	rt		: mark instructions and variables from here onwards to be runtime.
+
+	del x		: remove x from the symbol table. 
+
+	file f		: load the contents of the file at filepath f,
+			  and parse them fully before proceeding. 
+			  any edits to the symbol table are persistent/stateful.
+
+	reg x r		: make x stored in the runtime hardware register r. r is CTK.
+			  this also declares x if x is not already defined.
+
 
 
 
@@ -235,6 +281,18 @@ dwrr
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
 -----------------------------------------
 	code examples:
 -----------------------------------------
@@ -355,7 +413,109 @@ do exit
 
 
 
+-------------------- [EXAMPLE 4] --------------------
 
+(testing out printing prime numbers in binary using the risc-v backend! 
+written on 1202507045.233538 by dwrr)
+
+file library/foundation.s
+
+(...this would all be in the standard library...)
+
+rt 	set a0 a0  
+	set a1 a1	
+ct 	set c0 c0 
+	set c1 c1 
+do skip
+
+at rv_backend
+	ld ra compiler_return_address nat
+	st compiler_target rv32_arch nat
+	st compiler_format hex_array nat
+	st compiler_should_overwrite true nat
+	do ra del ra
+
+at exit
+	ld ra compiler_return_address nat
+	rt set rv_system_number rv_system_exit
+	set rv_system_arg0 0
+	sc halt ct do ra del ra
+
+at print
+	ld ra compiler_return_address nat
+	rt set rv_system_number rv_system_write
+	set rv_system_arg0 stdout
+	set rv_system_arg1 a0
+	set rv_system_arg2 c0
+	sc ct do ra del ra
+
+at skip del skip
+
+set newline 0101
+(...until here...)
+
+(my code starts here!)
+
+do skip
+
+at print0 ct 
+	ld ra compiler_return_address nat
+	rt set a0 digitzero
+	set c0 01
+	do print
+	ct do ra del ra
+
+at print1 ct
+	ld ra compiler_return_address nat
+	rt set a0 digitone
+	set c0 01
+	do print
+	ct do ra del ra
+
+at print_newline ct
+	ld ra compiler_return_address nat
+	rt set a0 newline_char
+	set c0 1
+	do print
+	ct do ra del ra
+
+at printbinary
+	ld ra compiler_return_address nat	
+	rt set data a0 
+	at loopb set bit data and bit 1
+	eq bit 0 else do print1 do done 
+	at else do print0 at done
+	sd data 1 ne data 0 loopb
+	do print_newline
+	ct do ra del ra 
+	del loopb
+	del bit del data 
+	del done del else 
+	del print0 
+	del print1 
+	del print_newline
+
+at footer
+	ld ra compiler_return_address nat
+	rt at digitzero str "  "
+	at digitone str "##"
+	at newline_char emit 1 newline
+	ct do ra del ra
+
+at skip del skip
+
+do rv_backend rt
+
+ct set count 0000_0000_0000_0000__01 rt
+set i 0
+at loop set j 01
+at inner ge j i prime
+set r i rem r j eq r 0 composite
+add j 1 do inner
+at prime set a0 i do printbinary
+at composite add i 1 lt i count loop
+del i del loop del count
+do exit do footer
 
 
 
