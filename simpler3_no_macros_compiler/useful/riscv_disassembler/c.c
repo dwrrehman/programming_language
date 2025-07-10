@@ -183,7 +183,7 @@ if (not executing) {
 			u32 imm = (imm20 << 20U) | (imm19_12 << 12U) | (imm11 << 11U) | (imm10_1 << 1U);
 			if (imm20 == 1U) imm |= 0xFFE00000;
 
-			printf("jal  x%u  #0x%08x\n", Rd, imm); 
+			printf("jal  x%u  #0x%08x (@0x%08x)\n", Rd, imm, pc + imm); 
 			
 			
 		} else if (op == 0x67) { // JALR
@@ -203,17 +203,17 @@ if (not executing) {
 			if (limm12 == 1) imm |= 0xFFFFE000;
 			
 			if (fn == 0) { // BEQ
-				printf("beq  x%u  x%u  #0x%08x\n", Rs1, Rs2, imm);
+				printf("beq  x%u  x%u  #0x%08x (@0x%08x)\n", Rs1, Rs2, imm, pc + imm);
 			} else if (fn == 1) { // BNE
-				printf("bne  x%u  x%u  #0x%08x\n", Rs1, Rs2, imm);
+				printf("bne  x%u  x%u  #0x%08x (@0x%08x)\n", Rs1, Rs2, imm, pc + imm);
 			} else if (fn == 4) { // BLT
-				printf("blt  x%u  x%u  #0x%08x\n", Rs1, Rs2, imm);
+				printf("blt  x%u  x%u  #0x%08x (@0x%08x)\n", Rs1, Rs2, imm, pc + imm);
 			} else if (fn == 5) { // BGE
-				printf("bge  x%u  x%u  #0x%08x\n", Rs1, Rs2, imm);
+				printf("bge  x%u  x%u  #0x%08x (@0x%08x)\n", Rs1, Rs2, imm, pc + imm);
 			} else if (fn == 6) { // BLTU
-				printf("bltu  x%u  x%u  #0x%08x\n", Rs1, Rs2, imm);
+				printf("bltu  x%u  x%u  #0x%08x (@0x%08x)\n", Rs1, Rs2, imm, pc + imm);
 			} else if (fn == 7) { // BGEU
-				printf("bgeu  x%u  x%u  #0x%08x\n", Rs1, Rs2, imm);
+				printf("bgeu  x%u  x%u  #0x%08x (@0x%08x)\n", Rs1, Rs2, imm, pc + imm);
 			}
 			
 		} else if (op == 0x03) { // LB / LH / LW / LBU / LHU

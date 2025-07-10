@@ -1,0 +1,130 @@
+
+1202507093.183457 output from the compiler, disassembly using our riscv disassembler:
+
+
+ 0x00000000:   6f 00 80 01   jal  x0  #0x00000018 (@0x00000018)
+
+ 0x00000004:   d3 de ff ff   [illegal instruction opcode: 0x83]
+ 0x00000008:   42 01 01 11   [illegal instruction opcode: 0x66]
+ 0x0000000c:   ff 01 00 00   [illegal instruction opcode: 0x127]
+ 0x00000010:   00 00 00 00   [illegal instruction opcode: 0x0]
+ 0x00000014:   79 35 12 ab   [illegal instruction opcode: 0x121]
+
+ 0x00000018:   37 31 02 40   lui  x2  #0x40023000
+ 0x0000001c:   93 00 00 24   addi  x1  x0  #0x00000240
+ 0x00000020:   23 20 11 00   sw  x2  #0x00000000  x1
+ 0x00000024:   37 81 02 40   lui  x2  #0x40028000
+ 0x00000028:   93 00 50 00   addi  x1  x0  #0x00000005
+ 0x0000002c:   23 22 11 00   sw  x2  #0x00000004  x1
+ 0x00000030:   37 81 03 40   lui  x2  #0x40038000
+ 0x00000034:   93 00 20 07   addi  x1  x0  #0x00000072
+ 0x00000038:   23 22 11 00   sw  x2  #0x00000004  x1
+ 0x0000003c:   b7 02 00 d0   lui  x5  #0xd0000000
+ 0x00000040:   93 00 10 00   addi  x1  x0  #0x00000001
+ 0x00000044:   23 a8 12 02   sw  x5  #0x00000030  x1
+ 0x00000048:   93 00 10 00   addi  x1  x0  #0x00000001
+ 0x0000004c:   23 a8 12 00   sw  x5  #0x00000010  x1
+
+ 0x00000050:   b7 00 02 00   lui  x1  #0x00020000
+ 0x00000054:   37 01 14 00   lui  x2  #0x00140000
+ 0x00000058:   37 02 02 00   lui  x4  #0x00020000
+ 0x0000005c:   93 01 10 00   addi  x3  x0  #0x00000001
+ 0x00000060:   23 a8 32 00   sw  x5  #0x00000010  x3
+ 0x00000064:   13 03 02 00   addi  x6  x4  #0x00000000
+ 0x00000068:   93 01 00 00   addi  x3  x0  #0x00000000
+ 0x0000006c:   63 f6 61 00   bgeu  x3  x6  #0x0000000c (@0x00000078)
+ 0x00000070:   93 81 11 00   addi  x3  x3  #0x00000001
+ 0x00000074:   6f f0 9f ff   jal  x0  #0xfffffff8 (@0x0000006c)
+ 0x00000078:   93 01 00 00   addi  x3  x0  #0x00000000
+ 0x0000007c:   23 a8 32 00   sw  x5  #0x00000010  x3
+ 0x00000080:   93 02 00 00   addi  x5  x0  #0x00000000
+ 0x00000084:   b7 01 14 00   lui  x3  #0x00140000
+ 0x00000088:   63 f6 32 00   bgeu  x5  x3  #0x0000000c (@0x00000094)
+ 0x0000008c:   93 82 12 00   addi  x5  x5  #0x00000001
+ 0x00000090:   6f f0 5f ff   jal  x0  #0xfffffff4 (@0x00000084)
+ 0x00000094:   33 02 12 00   add  x4  x4  x1
+ 0x00000098:   e3 62 22 fc   bltu  x4  x2  #0xffffffc4 (@0x0000005c)
+ 0x0000009c:   13 01 00 00   addi  x2  x0  #0x00000000
+ 0x000000a0:   b7 00 20 00   lui  x1  #0x00200000
+ 0x000000a4:   63 76 11 00   bgeu  x2  x1  #0x0000000c (@0x000000b0)
+ 0x000000a8:   13 01 11 00   addi  x2  x2  #0x00000001
+ 0x000000ac:   6f f0 5f ff   jal  x0  #0xfffffff4 (@0x000000a0)
+ 0x000000b0:   6f f0 1f fa   jal  x0  #0xffffffa0 (@0x00000050)
+
+ 0x000000b4:   00 00 00 00   [illegal instruction opcode: 0x0]
+ 0x000000b8:   00 00 00 00   [illegal instruction opcode: 0x0]
+ 0x000000bc:   00 00 00 00   [illegal instruction opcode: 0x0]
+ 0x000000c0:   00 00 00 00   [illegal instruction opcode: 0x0]
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+1202507093.183445 my interpretation of it:
+------------------------------------------------
+
+
+ 0x00000050:   b7 00 02 00   set  x1  #0x00020000     (step)
+ 0x00000054:   37 01 14 00   set  x2  #0x00140000     (max_count)
+ 0x00000058:   37 02 02 00   set  x4  #0x00020000     (iterator)
+
+LED on
+ 0x0000005c:   93 01 10 00   set  x3  #1
+ 0x00000060:   23 a8 32 00   sw  x5  #0x00000010  x3
+
+delayr i
+ 0x00000064:   13 03 02 00   set   x6  x4
+ 0x00000068:   93 01 00 00   set   x3  #0
+ 0x0000006c:   63 f6 61 00   bgeu  x3  x6  #0x0000000c (@0x00000078)
+ 0x00000070:   93 81 11 00   addi  x3  #1
+ 0x00000074:   6f f0 9f ff   jal  x0  #0xfffffff8 (@0x0000006c)
+
+LED off
+ 0x00000078:   93 01 00 00   addi  x3  #0
+ 0x0000007c:   23 a8 32 00   sw  x5  #0x00000010  x3
+
+delay 5
+ 0x00000080:   93 02 00 00   addi  x5  #0
+ 0x00000084:   b7 01 14 00   lui  x3  #0x00140000
+ 0x00000088:   63 f6 32 00   bgeu  x5  x3  #0x0000000c (@0x00000094)
+ 0x0000008c:   93 82 12 00   addi  x5  #1
+ 0x00000090:   6f f0 5f ff   jal  x0  #0xfffffff4 (@0x00000084)
+
+ 0x00000094:   33 02 12 00   add  x4  x1
+ 0x00000098:   e3 62 22 fc   bltu  x4  x2  #0xffffffc4 (@0x0000005c)
+
+delay 10
+ 0x0000009c:   13 01 00 00   set  x2  #0
+ 0x000000a0:   b7 00 20 00   lui  x1  #0x00200000
+ 0x000000a4:   63 76 11 00   bgeu  x2  x1  #0x0000000c (@0x000000b0)
+ 0x000000a8:   13 01 11 00   addi  x2  #1
+ 0x000000ac:   6f f0 5f ff   jal  x0  #0xfffffff4 (@0x000000a0)
+
+ 0x000000b0:   6f f0 1f fa   jal  x0  #0xffffffa0 (@0x00000050)
+
+
+
+

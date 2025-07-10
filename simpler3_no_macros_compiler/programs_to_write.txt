@@ -1,0 +1,16 @@
+programs to write in our language
+1202507093.070610 by dwrr
+-------------------------------------
+
+	. an rpn calculator
+	. cat
+	. wc
+	. xxd
+
+	. a shell with autocomplete and an editor
+	. netcat
+	. an irc chat client
+	. the compiler itself
+	. 
+
+

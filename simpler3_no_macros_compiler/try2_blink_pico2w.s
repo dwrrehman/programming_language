@@ -82,7 +82,7 @@ at setup_output
 	set c1 01 set c3 pads_gpio2 do setif
 	set c1 11 set c3 pads_gpio3 do setif
 	ld pads p nat
-	del p	
+	del p
 	rt set address io_bank0_base
 	set data 101
 	r5_s sw_op1 sw_op2 address data control
@@ -92,24 +92,23 @@ at setup_output
 	del pads del control 
 	ct do ra del ra
 
+
 at delay
 	ld ra 0 nat
 	rt set i 0
 	at L ge i c0 done
 	add i 1 do L at done
 	del i del L del done
-	ct do ra 
-	del ra
+	ct do ra del ra
 
 
 at delayr
 	ld ra 0 nat
-	rt set i 0
-	at L ge i a0 done
-	add i 1 do L at done
-	del i del L del done
-	ct do ra 
-	del ra
+	rt set ii 0
+	at LL ge ii a0 donee
+	add ii 1 do LL at donee
+	del ii del LL del donee
+	ct do ra del ra
 
 at skip_macros del skip_macros
 rt adr flash_start
@@ -122,6 +121,11 @@ emit  001  1111_1111_1000_0000__0000_0000_0000_0000
 emit  001  0000_0000_0000_0000__0000_0000_0000_0000
 emit  001  1001_1110_1010_1100__0100_1000_1101_0101
 at skip del skip
+
+
+reg address 101
+reg address 011
+
 
 set address 	reset_clear
 set data 	0000_0010_01
@@ -137,37 +141,119 @@ set data 1
 r5_s sw_op1 sw_op2 address data sio_gpio_out
 
 at loop
-	set width 0000_0000_0000_0000_0000_01
+	ct 
+		set millisecond 		0000_0000_0000_1
+		set half_millisecond 		0000_000_1
 
-	reg step 1 
-	set step 0000_0000_0000_0000__0001
+		set 10_milliseconds millisecond 
+		mul 10_milliseconds 0101
 
-	set i 0
+		set 5_milliseconds millisecond 
+		mul 5_milliseconds 101
+
+		set 3_milliseconds millisecond 
+		mul 3_milliseconds 11
+	rt
+	reg increment 1   set increment half_millisecond
+	reg iterator_limit 01  set iterator_limit 10_milliseconds
+	reg iterator_limit2 111 set iterator_limit2 3_milliseconds
+	reg iterator 11
+
+	set iterator increment
 	at inner
 		set data 1
 		r5_s sw_op1 sw_op2 address data sio_gpio_out
-
-		set a0 i do delayr
-
+		reg i 001 set i iterator at d sub i 1 ne i 0 d del d del i
 		set data 0
 		r5_s sw_op1 sw_op2 address data sio_gpio_out
+		reg i 001 set i iterator_limit sub i iterator at d sub i 1 ne i 0 d del d del i
+		add iterator increment
+		lt iterator iterator_limit2 inner del inner
 
-		set remaining width sub remaining i
-		set a0 remaining do delayr
+	set iterator iterator_limit2
+	at inner
+		sub iterator increment
+		set data 1
+		r5_s sw_op1 sw_op2 address data sio_gpio_out
+		reg i 001 set i iterator at d sub i 1 ne i 0 d del d del i		
+		set data 0
+		r5_s sw_op1 sw_op2 address data sio_gpio_out
+		reg i 001 set i iterator_limit sub i iterator at d sub i 1 ne i 0 d del d del i
+		lt increment iterator inner del inner
 
-		add i step
-		lt i width inner
+	set data 0
+	r5_s sw_op1 sw_op2 address data sio_gpio_out
+	reg i 001 set i 0000_0000_0000_0000_0000_01 at d sub i 1 ne i 0 d del d del i
+do loop
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+	(set c0 0000_0000_0000_0000_0000_01
+	do delay)
+
+
+(lt iterator increment else sub iterator increment do if
+		at else set iterator 0 at if del if del else)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+		(set a0 iterator do delayr)
+		(set c0 millisecond do delay)
+		(set c0 _milliseconds do delay)
+
+
+
+
+
+
+
+
+
+		(set a0 i do delayr)
+
+
+		(set remaining width sub remaining i
+		set a0 remaining do delayr)
 
 					(currrent state 1202507082.215905   
 
 					the above code doesnt quite work yet, its supposed to be pwm'ing an LED lol
 
 					)
-do loop
-
-
-
 
 
 

@@ -1,9 +1,6 @@
 // a compiler for my programming language
 // written on 1202507034.195016 by dwrr
 
-
-
-
 /*
 1202507056.004138
 	todo: riscv isel:
@@ -15,20 +12,6 @@
 		. divide by constant
 		. remaider/modulo by constant
 		. multiply by a constant
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 rv isel   
@@ -54,31 +37,8 @@ current state:  1202505235.133756
 								how do we represent this semantics?...
 
 
-		
-
-
-			if (op == add and not imm) {
-				const nat j = locate_instruction(
-					(struct expected_instruction) {
-						.op = op_A[this],
-						.use = 1,
-						.args[0] = arg0
-					}, i + 1
-				);
-				if (j == unrecognized) goto skip_set_r;
-				new = (struct instruction) { 
-					r5_r, 0x25, 0,   
-					{ 0x33, arg0, op_B1[this], arg1, ins[j].args[1], op_B2[this],    0,0 } 
-				};
-				ins[j].state = 1; 
-				goto r5_push_single_mi;
-				skip_set_r:;
-			} 
-
 
 */
-
-
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -152,18 +112,36 @@ enum language_system_calls {
 	compiler_system_close,
 };
 
-
-// set add sub mul div rem and or eor si sd str reg bits
-// ld st adr emit lt ge ne eq at do sc halt ct rt file del
+/*
 
 
+language ISA as of: 1202507104.003655
+--------------------------------------------
+
+
+
+	set	add	sub	mul	div	rem	         <----- arithmetic
+
+	and	or	eor	si	sd		         <----- bitwise
+
+	lt	ge	ne	eq	do	sc	halt     <----- control flow
+	
+	ld	st	emit	str	at		         <----- memory
+	
+	ct	rt	reg	adr	file	del	         <----- language
+
+
+	
+
+
+*/
 enum core_language_isa {
 	nullins,
 
-	set, add, sub, mul, div_, rem, 
-	and_, or_, eor, si, sd, str, reg, bits,
-	ld, st, adr, emit, lt, ge, ne, eq, 
-	at, do_, sc, halt, ct, rt, file, del,
+	set, add, sub, mul, div_, rem,
+	and_, or_, eor, si, sd, ld, st, reg,
+	lt, ge, ne, eq, at, do_, sc, halt,
+	adr, emit, str, ct, rt, file, del,
 
 	a6_nop, a6_svc, a6_mov, a6_bfm,
 	a6_adc, a6_addx, a6_addi, a6_addr, a6_adr, 
@@ -181,10 +159,10 @@ enum core_language_isa {
 static const char* operations[isa_count] = {
 	"___nullins____",
 
-	"set", "add", "sub", "mul", "div", "rem", 
-	"and", "or", "eor", "si", "sd", "str", "reg", "bits",
-	"ld", "st", "adr", "emit", "lt", "ge", "ne", "eq", 
-	"at", "do", "sc", "halt", "ct", "rt", "file", "del",
+	"set", "add", "sub", "mul", "div", "rem",
+	"and", "or", "eor", "si", "sd", "ld", "st", "reg",
+	"lt", "ge", "ne", "eq", "at", "do", "sc", "halt",
+	"adr", "emit", "str", "ct", "rt", "file", "del",
 
 	"a6_nop", "a6_svc", "a6_mov", "a6_bfm",
 	"a6_adc", "a6_addx", "a6_addi", "a6_addr", "a6_adr", 
@@ -202,12 +180,11 @@ static const char* operations[isa_count] = {
 static const nat arity[isa_count] = {
 	0,
 
-	2, 2, 2, 2, 2, 2, 
-	2, 2, 2, 2, 2, 0, 2, 2,
-	3, 3, 1, 2, 3, 3, 3, 3, 
-	1, 1, 0, 0, 0, 0, 1, 1,
-	
-			
+	2, 2, 2, 2, 2, 2,
+	2, 2, 2, 2, 2, 3, 3, 2,
+	3, 3, 3, 3, 1, 1, 0, 0,
+	1, 2, 0, 0, 0, 1, 1,
+				
 	0, 0, 5, 7, 
 	6, 8, 7, 8, 3,
 	5, 4, 4, 2, 2, 3, 
@@ -252,7 +229,6 @@ static struct instruction ins[max_instruction_count] = {0};
 static nat ins_count = 0;
 
 static char* variables[max_variable_count] = {0};
-static nat bit_count[max_variable_count] = {0};
 static nat register_index[max_variable_count] = {0};
 static nat values[max_variable_count] = {0};
 static byte is_constant[max_variable_count] = {0};
@@ -289,13 +265,13 @@ static void print_dictionary(nat should_print_ct) {
 	for (nat i = 0; i < var_count; i++) {
 		should_print_ct = ((var_count - i) < 20);
 		if (should_print_ct or (not is_constant[i] and not is_label[i])) 
-		printf("   %c %c %c %c [%5llu]  \"%20s\"  :   { bc=%5lld, ri=%5lld }  :   0x%016llx (%llu decimal)\n",
+		printf("   %c %c %c %c [%5llu]  \"%20s\"  :   { ri=%5lld }  :   0x%016llx (%llu decimal)\n",
 			' ', 
 			is_label[i] ? 'L' : ' ', 
 			is_constant[i] ? 'C' : ' ', 
 			is_undefined[i] ? 'U' : ' ', 
 			i, variables[i], 
-			bit_count[i], register_index[i], 
+			register_index[i], 
 			values[i], values[i]
 		);
 	}
@@ -319,7 +295,7 @@ static void print_instruction(struct instruction this) {
 
 		char string[4096] = {0};
 		if (this.imm & (1 << a)) snprintf(string, sizeof string, "0x%llx(%llu)", this.args[a], this.args[a]);
-		else if (this.args[a] < var_count) snprintf(string, sizeof string, "%s", variables[this.args[a]]);
+		else if (this.args[a] < var_count) snprintf(string, sizeof string, "%s\033[38;5;235m(%llu)\033[0m", variables[this.args[a]], this.args[a]);
 		else snprintf(string, sizeof string, "(INTERNAL ERROR)");
 
 		printf("%s", string);
@@ -1189,7 +1165,7 @@ process_file:;
 			if (op == lt or op == ge or op == ne or op == eq) {
 				if (is_immediate & 4) goto error_label_immediate; else is_label[args[2]] = 1;
 			}
-			if ((op >= set and op <= ld) or op == reg or op == bits) {
+			if ((op >= set and op <= ld) or op == reg) {
 				if (is_immediate & 1) 
 					print_error(
 						"expected destination variable, found binary literal",
@@ -1209,7 +1185,6 @@ process_file:;
 			if (op == adr) is_ct = 0;
 			if (op == halt) is_ct = 0;
 			if (op >= a6_nop and op < isa_count) is_ct = 0;
-			if (op == bits) is_ct = 1;
 			if (op == reg) { is_ct = 1; is_constant[args[0]] = 0; } 
 			if (not is_ct and op == do_ and has_ct_arg0) is_ct = 1;
 			if (is_ct and op == do_ and not has_ct_arg0) is_ct = 0;
@@ -1306,7 +1281,6 @@ process_file:;
 	nat rt_ins_count = 0;
 
 	memset(is_undefined, 0, sizeof is_undefined);
-	memset(bit_count, 255, sizeof bit_count);
 	memset(register_index, 255, sizeof register_index);
 	uint8_t* memory = calloc(65536, sizeof(nat));
 
@@ -1359,7 +1333,6 @@ process_file:;
 				rt_ins[rt_ins_count++] = new;
 			}
 		} 
-		else if (op == bits) bit_count[arg0] = val1;
 		else if (op == reg) register_index[arg0] = val1;
 		else if (op == del) {
 			printf("executed a del statement!! now, is_undefined[%s] = %llu\n", 
@@ -2214,6 +2187,7 @@ rv32_instruction_selection:;
 		}}
 
 		//   OP_A d n   -->   OP_B d d n
+		//   OP_A d k   -->   OP_B d d k
 		{
 		nat op_A [] = {add,  sub,  mul,  div_, rem,  and_,  or_,  eor,  si,   sd,  };
 		nat op_B1[] = {0,    0,    0,    5,    7,    7,     6,    4,    1,    5,   };
@@ -2229,21 +2203,35 @@ rv32_instruction_selection:;
 			}  
 
 			if (op == op_A[this] and imm) {
-
 				if (arg1 >= 2048) goto skip_op_r_i;
-				if (op == mul or op == div_ or op == rem) goto skip_op_r_i;
+				else if (op == mul or op == div_ or op == rem) goto skip_op_r_i;
 
-				new = (struct instruction) { 
-					r5_i, 0x15, 0, {
-						0x13, 
-						arg0, 
-						op_B1[this], 
-						arg0, 
-						arg1, 
-						0, 0
-					} 
-				};
-				goto r5_push_single_mi;
+				else if (op == sub) {
+					new = (struct instruction) { 
+						r5_i, 0x15, 0, {
+							0x13, 
+							arg0, 
+							op_B1[this], 
+							arg0, 
+							(-arg1) & 0xfff, 
+							0, 0
+						} 
+					};
+					goto r5_push_single_mi;
+
+				} else { 
+					new = (struct instruction) { 
+						r5_i, 0x15, 0, {
+							0x13, 
+							arg0, 
+							op_B1[this], 
+							arg0, 
+							arg1, 
+							0, 0
+						} 
+					};
+					goto r5_push_single_mi;
+				}				
 				skip_op_r_i:;
 			}
 		}}
@@ -2537,9 +2525,25 @@ set nat16 01
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 arm64_instruction_selection:;
 
 	puts("arm64: instruction selection starting...");
+	{ struct instruction new = {0};
+	const nat unrecognized = (nat) -1;
 
 	for (nat i = 0; i < ins_count; i++) {
 
@@ -2579,128 +2583,100 @@ arm64_instruction_selection:;
 
 		if (op == set and is_label[arg1]) {
 
-			puts("error unknown instruction selection pattern!");
+			
+
+			puts("unimplemented: error unknown instruction selection pattern!");
 			abort();
+
+
 		}
 
 		if (op == set) {
 			const nat b = locate_instruction(
-				(struct expected_instruction){ .op = si, .imm = 2, .use = 1, .args[0] = arg0 },
-				i + 1
+				(struct expected_instruction){ 
+					.op = si, 
+					.imm = 2, 
+					.use = 1, 
+					.args[0] = arg0 
+				}, i + 1
 			);
-			if (b == (nat) -1) goto addsrlsl_bail;
+			if (b == unrecognized) goto addsrlsl_bail;
 
 			const nat c = locate_instruction(
-				(struct expected_instruction){ .op = add, .use = 1, .args[0] = arg0 },
-				b + 1
+				(struct expected_instruction) {
+					.op = add,
+					.use = 1,
+					.args[0] = arg0
+				}, b + 1
 			);
-			if (c == (nat) -1) goto addsrlsl_bail;
+			if (c == unrecognized) goto addsrlsl_bail;
 
-			struct instruction new = { .op = a6_addr, .imm = 0xf8 };
-			new.args[0] = arg0; 		// d
-			new.args[1] = ins[c].args[1]; 	// n
-			new.args[2] = arg1; 		// m 
-			new.args[3] = ins[b].args[1]; 	// k
-			new.args[4] = 0; //???sb?
-			new.args[5] = 0; // ????sf???
-			mi[mi_count++] = new;
-			ins[i].state = 1; ins[b].state = 1; ins[c].state = 1;
-			continue;
+			new = (struct instruction) { 
+				a6_addr, 0xf8, 0, {
+					arg0, ins[c].args[1], 
+					arg1, ins[b].args[1], 
+					0, 0
+				} 
+			};
+
+			ins[b].state = 1; 
+			ins[c].state = 1;
+			goto push_arm64_ins;
+
 		} addsrlsl_bail:
 
 		if (op == set and not imm) {
-			struct instruction new = { .op = a6_orr, .imm = 0xff };
-			new.args[0] = arg0;
-			new.args[1] = 0;
-			new.args[2] = arg1;			
-			new.args[3] = 0;
-			mi[mi_count++] = new;
-			ins[i].state = 1;
-			continue;
+			new = (struct instruction) { a6_orr, 0xff, 0, { arg0, 0, arg1, 0 } };
+			goto push_arm64_ins;
 		}
 
-		else if (op == set and imm) {
-			struct instruction new = { .op = a6_mov, .imm = 0xfe };
-			new.args[0] = arg0;
-			new.args[1] = arg1;
-			new.args[2] = 0;
-			new.args[3] = 0;
-			new.args[4] = 0;
-			mi[mi_count++] = new;
-			ins[i].state = 1;
-			continue;
+		else if (op == set and imm and arg1 < (1LLU << 16LLU)) {
+			new = (struct instruction) { a6_mov, 0xfe, 0, { arg0, arg1, 0, 0, 0 } };
+			goto push_arm64_ins;
 		}
 
 		if (op == lt and not imm) {
-			struct instruction new = { .op = a6_addr, .imm = 0xff };
-			new.args[0] = 0;
-			new.args[1] = arg0;
-			new.args[2] = arg1;
-			new.args[3] = 0;
+			new = (struct instruction) { .op = a6_addr, 0x00, 0, {0, arg0, arg1, 0} };
 			mi[mi_count++] = new;
-			struct instruction new2 = { .op = a6_bc, .imm = 0xff };
-			new2.args[0] = lt;
-			new2.args[1] = (nat) -1;
-			mi[mi_count++] = new2;
-			ins[i].state = 1; 
-			continue;
+			new = (struct instruction) { a6_bc, 0xff, 0, { lt, 0x0000000 } };
+			goto push_arm64_ins;
 		}
 
 		if (op == eq and not imm) {
-			struct instruction new = { .op = a6_orr, .imm = 0xff };
-			new.args[0] = 0;
-			new.args[1] = arg0;
-			new.args[2] = arg1;
-			new.args[3] = 0;
+			new = (struct instruction) { a6_orr, 0xff, 0, {0, arg0, arg1, 0 } };
 			mi[mi_count++] = new;
-			struct instruction new2 = { .op = a6_bc, .imm = 0xff };
-			new2.args[0] = eq;
-			new2.args[1] = (nat) -1;
-			mi[mi_count++] = new2;
-			ins[i].state = 1; 
-			continue;
+			new = (struct instruction) { a6_bc, 0xff, 0, { eq, 0x0000000 } };
+			goto push_arm64_ins;
  		}
 
 		if (op == lt and imm) {			
-			struct instruction new = { .op = a6_addi, .imm = 0xff };
-			new.args[0] = 0;
-			new.args[1] = arg0;
-			new.args[2] = arg1;
-			new.args[3] = 0;
+			new = (struct instruction) { .op = a6_addi, 0x00, 0, {0, arg0, arg1, 0} };
 			mi[mi_count++] = new;
-			struct instruction new2 = { .op = a6_bc, .imm = 0xff };
-			new2.args[0] = lt;
-			new2.args[1] = (nat) -1;
-			mi[mi_count++] = new2;
-			ins[i].state = 1; 
-
-			puts("ins sel: unimplemented: we need to detrmine the the label still!");
-			abort();
+			new = (struct instruction) { a6_bc, 0xff, 0, { eq, 0x0000000 } };
+			goto push_arm64_ins;
 		}
 
 		if (op == eq and imm) {
-			struct instruction new = { .op = a6_ori, .imm = 0xff };
-			new.args[0] = 0;
-			new.args[1] = arg0;
-			new.args[2] = arg1;
-			new.args[3] = 0;
+			new = (struct instruction) { a6_ori, 0x00, 0, {0, arg0, arg1, 0} };
 			mi[mi_count++] = new;
-			struct instruction new2 = { .op = a6_bc, .imm = 0xff };
-			new2.args[0] = eq;
-			new2.args[1] = (nat) -1;
-			mi[mi_count++] = new2;
-			ins[i].state = 1; 
-			continue;
+			new = (struct instruction) { a6_bc, 0xff, 0, { eq, 0x00000000 } };
+			goto push_arm64_ins;
 		}
 
 		if (op == sc) {
-			struct instruction new = { .op = a6_svc, .imm = 0xff };
-			mi[mi_count++] = new;
-			ins[i].state = 1;
-			continue;
+			new = (struct instruction) { a6_svc, 0, 0, {0,0,0,0, 0,0,0,0 } };
+			goto push_arm64_ins;
 		}
+		continue;
+	push_arm64_ins:;
+		mi[mi_count++] = new;
+		ins[i].state = 1;
+		continue;
 	}
+
+	} 
 	goto finish_instruction_selection;
+
 
 
 c_instruction_selection:;
@@ -2802,8 +2778,7 @@ finish_instruction_selection:;
 		puts("warning: instead, we are just going to push the last instruction index, with the assumption that the infinite loop is at the end of the program lol.");
 		getchar();
 
-
-		stack[stack_count++] = ins_count - 1;	
+		stack[stack_count++] = ins_count - 1;
 	}
 
 
@@ -3229,6 +3204,14 @@ finish_instruction_selection:;
 		} else abort();
 	}
 
+
+	///////////////////////	      temporary, for debugging!!!
+	//for (nat i = 0; i < range_count; i++) {
+	//	allocation[i] = i + 1;
+	//}
+	///////////////////////	
+
+
 	if (debug) {
 		puts("RA: FINAL REGISTER ALLOCATION:");
 		for (nat i = 0; i < range_count; i++) {
@@ -3240,7 +3223,11 @@ finish_instruction_selection:;
 		puts("\n[done with graph coloring in RA]");
 		getchar();
 	}
-		
+
+
+
+
+
 	for (nat i = 0; i < ins_count; i++) ins[i].state = 0;
 
 	puts("filling in RA assignments into the machine code...");
@@ -3693,14 +3680,13 @@ arm64_generate_machine_code:;
 
 		} else if (op == a6_mov) {
 			const uint32_t to_emit = 
-				(a4 << 31U) | (a3 << 29U) | (0x25U << 23U) | 
+				(a4 << 31U) | (a3 << 29U) | (0x25U << 23U) |
 				(a2 << 21U) | (a1 << 5U) | (a0);
 			insert_u32(&my_bytes, &my_count, to_emit);
 
 		} else if (op == a6_bc) {
 			const uint32_t offset = 0x7ffff & (calculate_offset(lengths, i, a1) >> 2);
-			const uint32_t to_emit = 
-				(0x54U << 24U) | (offset << 5U) | (a0);
+			const uint32_t to_emit = (0x54U << 24U) | (offset << 5U) | (a0);
 			insert_u32(&my_bytes, &my_count, to_emit);
 
 		} else if (op == a6_jmp) {
@@ -4728,7 +4714,6 @@ generate_uf2_executable:;
 		current_offset += 256;
 	}
 
-
 	printf("writing out uf2 executable...\n");
 
 	if (not access(output_filename, F_OK)) {
@@ -4901,10 +4886,28 @@ finished_outputting:
 
 
 
+/*
+
+			if (op == add and not imm) {
+				const nat j = locate_instruction(
+					(struct expected_instruction) {
+						.op = op_A[this],
+						.use = 1,
+						.args[0] = arg0
+					}, i + 1
+				);
+				if (j == unrecognized) goto skip_set_r;
+				new = (struct instruction) { 
+					r5_r, 0x25, 0,   
+					{ 0x33, arg0, op_B1[this], arg1, ins[j].args[1], op_B2[this],    0,0 } 
+				};
+				ins[j].state = 1; 
+				goto r5_push_single_mi;
+				skip_set_r:;
+			} 
 
 
-
-
+*/
 
 
 // XXX
