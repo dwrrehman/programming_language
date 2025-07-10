@@ -518,6 +518,454 @@ del i del loop del count
 do exit do footer
 
 
+-------------------- [EXAMPLE 5] --------------------
+
+(a program to pwm an LED on GPIO 0 using a 
+risc-v uf2 file outputted by the compiler,
+running on the pico 2 W.
+written 1202505272.173200 by dwrr)
+
+file library/foundation.s ct
+
+st compiler_target rv32_arch nat
+st compiler_format uf2_executable nat
+st compiler_should_overwrite true nat
+st compiler_stack_size 0 nat 
+
+(address atomic bitmasks) 
+set clear_on_write 	0000_0000_0000_11
+set set_on_write 	0000_0000_0000_01
+set toggle_on_write 	0000_0000_0000_1
+
+(memory map of rp2350)
+
+set flash_start 	0000_0000_0000_0000__0000_0000_0000_1000
+set ram_start 		0000_0000_0000_0000__0000_0000_0000_0100
+set powman_base		0000_0000_0000_0000__0000_1000_0000_0010
+set clocks_base		0000_0000_0000_0000__1000_0000_0000_0010
+set sio_base		0000_0000_0000_0000__0000_0000_0000_1011
+set reset_base 		0000_0000_0000_0000__0100_0000_0000_0010
+set io_bank0_base 	0000_0000_0000_0001__0100_0000_0000_0010
+set pads_bank0_base 	0000_0000_0000_0001__1100_0000_0000_0010
+
+(risc-v op codes)
+set addi_op1 	1100100
+set addi_op2	000
+set sw_op1 	1100010
+set sw_op2 	010
+
+set reset_clear reset_base 
+add reset_clear clear_on_write
+
+set io_gpio0_ctrl 001
+set io_gpio1_ctrl 0011
+set io_gpio2_ctrl 00101
+set io_gpio3_ctrl 00111
+
+set pads_gpio0 001
+set pads_gpio1 0001
+set pads_gpio2 0011
+set pads_gpio3 00001
+
+set sio_gpio_oe 	0000_11
+set sio_gpio_out 	0000_1
+set sio_gpio_in 	001
+
+rt set a0 a0
+set a1 a1
+set a2 a2
+set a3 a3
+
+ct set c0 c0
+set c1 c1
+set c2 c2
+set c3 c3
+
+do skip_macros
+
+at setif
+	ld ra 0 nat
+	set a c0 set b c1 
+	set c c2 set d c3
+	ne a b l st c d nat
+	at l del l del a del b  
+	del c del d do ra del ra 
+
+at setup_output
+	ld ra 0 nat
+	set p compiler_base set c2 p
+
+	set c1 0 set c3 io_gpio0_ctrl do setif
+	set c1 1 set c3 io_gpio1_ctrl do setif
+	set c1 01 set c3 io_gpio2_ctrl do setif
+	set c1 11 set c3 io_gpio3_ctrl do setif
+ 	ld control p nat
+
+	set c1 0 set c3 pads_gpio0 do setif
+	set c1 1 set c3 pads_gpio1 do setif
+	set c1 01 set c3 pads_gpio2 do setif
+	set c1 11 set c3 pads_gpio3 do setif
+	ld pads p nat
+	del p
+	rt set address io_bank0_base
+	set data 101
+	r5_s sw_op1 sw_op2 address data control
+	set address pads_bank0_base
+	set data 0_1_0_0_11_1_0_0
+	r5_s sw_op1 sw_op2 address data pads
+	del pads del control 
+	ct do ra del ra
+
+
+at delay
+	ld ra 0 nat
+	rt set i 0
+	at L ge i c0 done
+	add i 1 do L at done
+	del i del L del done
+	ct do ra del ra
+
+
+at delayr
+	ld ra 0 nat
+	rt set ii 0
+	at LL ge ii a0 donee
+	add ii 1 do LL at donee
+	del ii del LL del donee
+	ct do ra del ra
+
+at skip_macros del skip_macros
+rt adr flash_start
+
+do skip  
+(rp2350 image_def marker)
+emit  001  1100_1011_0111_1011__1111_1111_1111_1111
+emit  001  0100_0010_1000_0000__1000_0000_1000_1000
+emit  001  1111_1111_1000_0000__0000_0000_0000_0000
+emit  001  0000_0000_0000_0000__0000_0000_0000_0000
+emit  001  1001_1110_1010_1100__0100_1000_1101_0101
+at skip del skip
+
+reg address 101
+reg data 011
+
+set address 	reset_clear
+set data 	0000_0010_01
+r5_s sw_op1 sw_op2 address data 0
+
+set c0 0 do setup_output
+
+set address	sio_base
+set data 	1
+r5_s sw_op1 sw_op2 address data sio_gpio_oe
+
+set data 1
+r5_s sw_op1 sw_op2 address data sio_gpio_out
+
+at loop
+	ct 
+		set millisecond 		0000_0000_0000_1
+		set half_millisecond 		0000_000_1
+
+		set 10_milliseconds millisecond 
+		mul 10_milliseconds 0101
+
+		set 5_milliseconds millisecond 
+		mul 5_milliseconds 101
+
+		set 3_milliseconds millisecond 
+		mul 3_milliseconds 11
+	rt
+	reg increment 1   set increment half_millisecond
+	reg iterator_limit 01  set iterator_limit 10_milliseconds
+	reg iterator_limit2 111 set iterator_limit2 3_milliseconds
+	reg iterator 11
+
+	set iterator increment
+	at inner
+		set data 1
+		r5_s sw_op1 sw_op2 address data sio_gpio_out
+		reg i 001 set i iterator at d sub i 1 ne i 0 d del d del i
+		set data 0
+		r5_s sw_op1 sw_op2 address data sio_gpio_out
+		reg i 001 set i iterator_limit sub i iterator at d sub i 1 ne i 0 d del d del i
+		add iterator increment
+		lt iterator iterator_limit2 inner del inner
+
+	set iterator iterator_limit2
+	at inner
+		sub iterator increment
+		set data 1
+		r5_s sw_op1 sw_op2 address data sio_gpio_out
+		reg i 001 set i iterator at d sub i 1 ne i 0 d del d del i		
+		set data 0
+		r5_s sw_op1 sw_op2 address data sio_gpio_out
+		reg i 001 set i iterator_limit sub i iterator at d sub i 1 ne i 0 d del d del i
+		lt increment iterator inner del inner
+
+	set data 0
+	r5_s sw_op1 sw_op2 address data sio_gpio_out
+	reg i 001 set i 0000_0000_0000_0000_0000_01 at d sub i 1 ne i 0 d del d del i
+do loop
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+------------------------- reference code ------------------------
+
+
+for reference, here is the current standard library file, "foundation.s" which is used in some of the above examples:
+
+
+
+------------------------- foundation.s code ------------------------
+
+(
+	the core standard library for the language: foundation.s
+	written on 1202505294.221753 by dwrr.
+)
+
+ct 
+
+(numbers)
+set -1 0 sub -1 1
+
+(booleans)
+set false 0
+set true 1
+
+(unix file descriptors)
+set stdin  0
+set stdout 1
+set stderr 01
+
+(unsigned integer sizes)
+set byte 	1
+set nat16 	01
+set nat32 	001
+set nat 	0001
+
+(memory mapped ctsc address)
+set x 0000 set compiler_return_address x
+add x 0001 set compiler_target x
+add x 0001 set compiler_format x 
+
+add x 0001 set compiler_should_overwrite x
+add x 0001 set compiler_should_debug x
+
+add x 0001 set compiler_stack_size x
+add x 0001 set compiler_get_length x
+add x 0001 set compiler_is_compiletime x
+
+add x 0001 set compiler_arg0 x
+add x 0001 set compiler_arg1 x
+add x 0001 set compiler_arg2 x
+add x 0001 set compiler_arg3 x
+add x 0001 set compiler_arg4 x
+add x 0001 set compiler_arg5 x
+add x 0001 set compiler_arg6 x
+add x 0001 set compiler_arg7 x
+
+add x 0001 set compiler_base x
+
+(compiletime system call interface : call numbers)
+set x 0 set compiler_system_debug x
+add x 1 set compiler_system_exit x
+add x 1 set compiler_system_read x 
+add x 1 set compiler_system_write x
+add x 1 set compiler_system_open x
+add x 1 set compiler_system_close x
+
+(valid arguments to ctsc compiler_target)
+set x 0 set no_arch x
+add x 1 set arm64_arch x
+add x 1 set arm32_arch x
+add x 1 set rv64_arch x
+add x 1 set rv32_arch x
+add x 1 set msp430_arch x
+add x 1 set c_arch x
+
+(valid arguments to ctsc compiler_format)
+set x 0 set no_output x
+add x 1 set macho_executable x
+add x 1 set macho_object x
+add x 1 set elf_executable x
+add x 1 set elf_object x
+add x 1 set ti_txt_executable x
+add x 1 set uf2_executable x
+add x 1 set hex_array x
+add x 1 set c_source x
+
+(---------------- c backend -------------------)
+
+(system calls suppported by the c backend) 
+
+set x 0 set c_system_debug x
+add x 1 set c_system_exit x
+add x 1 set c_system_read x
+add x 1 set c_system_write x
+add x 1 set c_system_open x
+add x 1 set c_system_close x
+add x 1 set c_system_mmap x
+add x 1 set c_system_munmap x
+
+
+(constants for the mmap system call interface: )
+
+set prot_read 1
+set prot_write 01
+set map_private 01
+set map_anonymous 0000_0000_0000_1
+set map_failed -1
+
+rt 
+reg c_system_number 0
+reg c_system_arg0 1
+reg c_system_arg1 01
+reg c_system_arg2 11
+reg c_system_arg3 001
+reg c_system_arg4 101
+reg c_system_arg5 011 
+reg c_system_arg6 111 
+ct
+
+
+
+(--------------------- msp430 -------------------)
+
+((msp430 registers)
+reg pc_reg 0
+reg sp_reg 1
+reg sr_reg 01
+reg cg_reg 11
+reg r4_reg 001
+reg r5_reg 101
+reg r6_reg 011
+reg r7_reg 111
+reg r8_reg 0001
+reg r9_reg 1001
+reg r10_reg 0101
+reg r11_reg 1101
+reg r12_reg 0011
+reg r13_reg 1011
+reg r14_reg 0111
+reg r15_reg 1111
+)
+
+(msp430 register index constants)
+set pc 0
+set sp 1
+set sr 01
+set cg 11
+set r4 001
+set r5 101
+set r6 011
+set r7 111
+set r8 0001
+set r9 1001
+set r10 0101
+set r11 1101
+set r12 0011
+set r13 1011
+set r14 0111
+set r15 1111
+
+(m4_op: op codes)
+set msp_mov 001
+set msp_add 101
+set msp_addc 011
+set msp_sub 111
+set msp_subc 0001
+set msp_cmp 1001
+set msp_dadd 0101
+set msp_bit 1101
+set msp_bic 0011
+set msp_bis 1011
+set msp_xor 0111
+set msp_and 1111
+
+(m4_br: branch conditions)
+set condjnz 0
+set condjz 1
+set condjnc 01
+set condjc 11
+set condjn 001
+set condjge 101
+set condjl 011
+set condjmp 111
+
+(m4_op: size parameter)
+set size_byte 1
+set size_word 0
+
+(m4_op: addressing modes)
+set reg_mode 0
+set index_mode 1
+set deref_mode 01
+set incr_mode 11
+
+(specific addressing modes)
+set imm_mode incr_mode
+set imm_reg pc
+set literal_mode index_mode
+set constant_1 cg
+set fixed_reg sr
+set fixed_mode index_mode
+
+(msp430 bit position constants)
+set bit0 10000000
+set bit1 01000000
+set bit2 00100000
+set bit3 00010000
+set bit4 00001000
+set bit5 00000100
+set bit6 00000010
+set bit7 00000001
+
+
+( ---------------- risc-v -----------------)
+
+(risc-v op codes)
+set r5_addi_op1 	1100100
+set r5_addi_op2		000
+set r5_sw_op1 		1100010
+set r5_sw_op2 		010
+
+(risc-v registers)
+set r5_zr 0
+set r5_ra 1
+
+(rv32 system call abi)
+reg rv_system_arg0 0101
+reg rv_system_arg1 1101
+reg rv_system_arg2 0011
+reg rv_system_number 10001 ct
+
+(specific to the rv32 virtual machine running in my website)
+set x 1 set rv_system_exit x
+add x 1 set rv_system_read x
+add x 1 set rv_system_write x
+
+del x
+
+(end of standard library code)
+
+
+
+
+
+
 
 
 

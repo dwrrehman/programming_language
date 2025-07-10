@@ -1,6 +1,14 @@
-(testing out the generation of the 
+(a program to pwm an LED on GPIO 0 using a 
+risc-v uf2 file outputted by the compiler,
+running on the pico 2 W. 
+written on 1202507104.030034 by dwrr
+
+previously:
+
+ testing out the generation of the 
 risc-v uf2 file for programming the pico 2 W.
-written 1202505272.173200 by dwrr)
+written 1202505272.173200 by dwrr
+)
 
 file library/foundation.s ct
 st compiler_target rv32_arch nat
@@ -124,7 +132,7 @@ at skip del skip
 
 
 reg address 101
-reg address 011
+reg data 011
 
 
 set address 	reset_clear
