@@ -71,20 +71,13 @@ static int ecall(u32* registers, byte* memory) {
 	const u32 a2 = registers[12];
 
 	if (n == 0) { puts("system call number error: null system call (n == 0)"); abort(); } 
-	else if (n == 1) exit(a0);
-	else if (n == 2) { registers[10] = read(a0, memory + a1, a2); registers[11] = errno; } 
-	else if (n == 3) { registers[10] = write(a0, memory + a1, a2); registers[11] = errno; } 
-	else { printf("error: unknown system call: x[17] = %llx\n", n); abort(); } 
+	else if (n == 1) exit((int) a0);
+	else if (n == 2) { registers[10] = (u32) read((int) a0, (void*) (memory + a1), (size_t) a2); registers[11] = (u32) errno; } 
+	else if (n == 3) { registers[10] = (u32) write((int) a0, (void*) (memory + a1), (size_t) a2); registers[11] = (u32) errno; } 
+	else { printf("error: unknown system call: x[17] = %x\n", n); abort(); } 
 
 	return 0;
 }
-
-
-
-
-
-
-
 
 
 
@@ -96,18 +89,11 @@ int main(int argc, const char** argv) {
 
 	const bool executing = argv[1][0] == 'e';
 
-
-
 	nat text_length = 0;
 	char* text = load_file(argv[2], &text_length);
 
-
-
-
-	byte memory[4096] = {0};
+	byte memory[65536] = {0};
 	u32 count = 0;
-
-
 
 	if (	text[0] == 'U' and 
 		text[1] == 'F' and 
@@ -129,9 +115,6 @@ int main(int argc, const char** argv) {
 			}
 		}
 	}
-
-
-
 
 
 if (not executing) {
@@ -347,11 +330,8 @@ if (not executing) {
 
 } else { // not executing:
 
-
 	u32 registers[32] = {0};
-
-	const u32 instruction_count = count;
-			
+	const u32 instruction_count = count;			
 	registers[2] = instruction_count; // stack pointer, x2/sp.
 
 	u32 pc = 0; 
@@ -363,6 +343,24 @@ if (not executing) {
 			((u32) memory[pc + 2U] << 16U) | 
 			((u32) memory[pc + 3U] << 24U) ;
 
+		if (debug) {
+			printf("[REGISTERS]: \n");
+			for (u32 i = 0; i < 16; i++) {
+				printf("\tx%-3u: 0x%08x \t x%-3u: 0x%08x\n", 
+					i, registers[i], 16 + i, registers[16 + i]
+				);
+			}
+			puts("");
+
+			printf("[MEMORY]: \n");
+			for (u32 i = 0; i < count; i += 8) {
+				printf("0x%08x:  %02hhx %02hhx %02hhx %02hhx   %02hhx %02hhx %02hhx %02hhx\n", 
+					i, memory[i + 0], memory[i + 1], memory[i + 2], memory[i + 3], 
+					memory[i + 4], memory[i + 5], memory[i + 6], memory[i + 7]
+				);
+			}
+			puts("");			
+		}
 
 		if (debug) printf("\n 0x%08x:   %02x %02x %02x %02x   ", pc, 
 			memory[pc + 0], memory[pc + 1], memory[pc + 2], memory[pc + 3]
@@ -378,7 +376,7 @@ if (not executing) {
 
 		u32 f7 = (word >> 25) & 0x3F;
 
-		if (((imm12 >> 11) & 0x1) == 1) imm12 |= 0xFFFFF000;
+		if (((imm12 >> 11) & 1) == 1) imm12 |= 0xFFFFF000;
 		u32 U_imm20 = word & 0xFFFFF000;
 
 		registers[0] = 0;
@@ -452,35 +450,42 @@ if (not executing) {
 			
 		} else if (op == 0x03) { // LB / LH / LW / LBU / LHU
 
+
 			if (fn == 0) { // LB
 				if (debug) printf("LB  x%u  x%u  #0x%08x\n", Rd, Rs1, imm12);
-				registers[Rd] = 0;
-				registers[Rd] |= (memory[registers[Rs1] + imm12 + 0] << 0);      // make this sign extend the destination.
+
+				u32 x = (u32) (memory[registers[Rs1] + imm12 + 0] << 0); 
+				registers[Rd] = x;
 
 			} else if (fn == 1) { // LH
 				if (debug) printf("LH  x%u  x%u  #0x%08x\n", Rd, Rs1, imm12);
-				registers[Rd] = 0;
-				registers[Rd] |= (memory[registers[Rs1] + imm12 + 0] << 0U);     // make this sign extend the destination.
-				registers[Rd] |= (memory[registers[Rs1] + imm12 + 1] << 8U);
+
+				u32 x = 0;
+				x |= (u32) (memory[registers[Rs1] + imm12 + 0] << 0U);
+				x |= (u32) (memory[registers[Rs1] + imm12 + 1] << 8U);
+				registers[Rd] = x;
 	
 			} else if (fn == 2) { // LW
 				if (debug) printf("LW  x%u  x%u  #0x%08x\n", Rd, Rs1, imm12);
-				registers[Rd] = 0;
-				registers[Rd] |= (memory[registers[Rs1] + imm12 + 0] << 0U);
-				registers[Rd] |= (memory[registers[Rs1] + imm12 + 1] << 8U);
-				registers[Rd] |= (memory[registers[Rs1] + imm12 + 2] << 16U);
-				registers[Rd] |= (memory[registers[Rs1] + imm12 + 3] << 24U);
 
-			} else if (fn == 4) { // LBU 
+				u32 x = 0;
+				x |= (u32) (memory[registers[Rs1] + imm12 + 0] << 0U);
+				x |= (u32) (memory[registers[Rs1] + imm12 + 1] << 8U);
+				x |= (u32) (memory[registers[Rs1] + imm12 + 2] << 16U);
+				x |= (u32) (memory[registers[Rs1] + imm12 + 3] << 24U);
+				registers[Rd] = x;
+
+			} else if (fn == 4) { // LBU
 				if (debug) printf("LBU  x%u  x%u  #0x%08x\n", Rd, Rs1, imm12);
-				registers[Rd] = 0;
-				registers[Rd] |= (memory[registers[Rs1] + imm12 + 0] << 0U);
+				u32 x = (u32) (memory[registers[Rs1] + imm12 + 0] << 0U);
+				registers[Rd] = x;
 
 			} else if (fn == 5) { // LHU
 				if (debug) printf("LHU  x%u  x%u  #0x%08x\n", Rd, Rs1, imm12);
-				registers[Rd] = 0;
-				registers[Rd] |= (memory[registers[Rs1] + imm12 + 0] << 0U);
-				registers[Rd] |= (memory[registers[Rs1] + imm12 + 1] << 8U);	
+				u32 x = 0;
+				x |= (u32) (memory[registers[Rs1] + imm12 + 0] << 0U);
+				x |= (u32) (memory[registers[Rs1] + imm12 + 1] << 8U);
+				registers[Rd] = x;
 			} 
 			pc += 4;
 
@@ -663,7 +668,7 @@ if (not executing) {
 
 		//pc = save_pc + 4;
 
-		if (debug) { printf("\n[pc now %llu (0x%08llx)]\n", pc, pc); getchar(); } 
+		if (debug) { printf("\n[pc now %u (0x%08x)]\n", pc, pc); getchar(); } 
 	}
 
 	puts("\n[process exited]");
@@ -1044,7 +1049,7 @@ if (not executing) {
 
 		//pc = save_pc + 4;
 
-		if (debug) { printf("\n[pc now %llu]\n", pc); getchar(); } 
+		if (debug) { printf("\n[pc now %u]\n", pc); getchar(); } 
 
 	}
 

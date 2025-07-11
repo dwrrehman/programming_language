@@ -2333,9 +2333,6 @@ rv32_instruction_selection:;
 			goto r5_push_single_mi;
 		}
 
-
-
-
 		else if (op == set and not imm) { // set d n -> addi d n 0 
 			new = (struct instruction) { r5_i, 0x15, 0,   { 0x13, arg0, 0, arg1, 0, 0,0,0 } };
 			goto r5_push_single_mi;
@@ -2370,10 +2367,41 @@ rv32_instruction_selection:;
 			goto r5_push_single_mi;
 		}
 
-		else if (op == do_) {			
+
+
+		else if (op == ld and is_label[arg1]) {  // ld d l N ->   auipc d l[31:12] ;  lwu d d l[11:0]
+
+			nat n = 0;
+			     if (arg2 == 1) n = 4;
+			else if (arg2 == 2) n = 5;
+			else if (arg2 == 4) n = 6;
+			else if (arg2 == 8) n = 3;
+			else abort();
+
+			new = (struct instruction) { r5_u, 0x5, 0,  { 0x17, arg0, arg1, 0x42,  0,0,0,0 } };
+			mi[mi_count++] = new;
+
+			new = (struct instruction) { r5_i, 0x15, 0,   { 0x03, arg0, n, arg0, arg1,   0x42, 0,0 } };
+			goto r5_push_single_mi;
+		}
+
+		else if (op == ld) {
+			nat n = 0;
+			     if (arg2 == 1) n = 4;
+			else if (arg2 == 2) n = 5;
+			else if (arg2 == 4) n = 6;
+			else if (arg2 == 8) n = 3;
+			else abort();
+
+			new = (struct instruction) { r5_i, 0x15, 0,   { 0x03, arg0, n, arg1, 0x0000,  0,0,0 } };
+			goto r5_push_single_mi;
+		}
+
+		else if (op == do_) {
 			new = (struct instruction) { r5_j, 0x7, 0,  { 0x6f, 0, arg0, 0,0,0,0,0 } };
 			goto r5_push_single_mi;
 		}
+
 		puts("error: unknown instruction selection pattern");
 		print_instruction_window_around(i, 1, "unknown isel pattern for this instruction");
 		abort();
@@ -3263,9 +3291,6 @@ finish_instruction_selection:;
 	}
 
 
-
-
-
 	for (nat i = 0; i < ins_count; i++) ins[i].state = 0;
 
 	puts("filling in RA assignments into the machine code...");
@@ -3345,6 +3370,18 @@ finish_instruction_selection:;
 			);
 		}
 	}
+
+
+
+	// TODO: machine opt: 
+	// we have to do    ecall analysis, to see if a value contributes to ecalls, and then we can delete it, if it doesnt! 
+	// we are going to do this on the final machine code, though, because it exposes many other things lol. 
+	// 
+
+
+
+
+
 
 	{ nat final_ins_count = 0;
 	for (nat i = 0; i < ins_count; i++) {
@@ -3428,11 +3465,10 @@ rv32_generate_machine_code:;
 
 			u32 k = a4; 
 			if (a5 == 0x42) {
-				printf("info: found a compiler generated r5_i!!\n");
 				const nat n = compute_label_location(a4);
-				const u32 im = calculate_offset(lengths, i - 1, n) & 0x00000FFF; // new value of k
+				const u32 im = calculate_offset(lengths, i - 1, n) & 0x00000FFF;
 				k = im;
-			} else k = a4;
+			}
 
 			const u32 word = 
 				(k  << 20U) | 

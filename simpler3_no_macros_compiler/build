@@ -22,6 +22,9 @@ elif [ "flash" = "$1" ]; then
 	./Program\ MSP430\ \(example\).sh output_machine_code.txt 
 	cd -
 
+elif [ "deploy_to_site" = "$1" ]; then
+	cp output_file_from_compiler ../../my_website/dwrrehman.github.io/program.js
+
 elif [ "check" = "$1" ]; then 
 	clang -Weverything --analyze -Wno-declaration-after-statement -Wno-poison-system-directories c.c
 
