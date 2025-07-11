@@ -312,7 +312,8 @@ written on 1202504093.232238 dwrr)
 set x 101         (x has the value 5 after this line.)
 set y 001	  (y has the value 4 after this line.)
 
-register z 0011   (variable z is forced to be stored in the hardware register "x12" assuming this exists for the target.)
+reg z 0011        (variable z is forced to be stored in the hardware register 
+			"x12" assuming this exists for the target.)
 
 add x y     	  (x now holds the value 9.)
 
@@ -324,25 +325,17 @@ halt    	  (note, the use of halt is optional/implied, when at the end of the fi
 
 
 
-
-
 --------------------[EXAMPLE 2]----------------------
 
 (this is a simple loop from 0 to 9, executed at runtime)
 
 set count 0101
+
 set i 0
 at loop
 	(your code here!)
 	add i 1
 	lt i count loop
-
-
-
-
-
-
-
 
 
 

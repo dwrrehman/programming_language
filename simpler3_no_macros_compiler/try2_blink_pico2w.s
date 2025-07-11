@@ -98,6 +98,7 @@ at setup_output
 	set data 0_1_0_0_11_1_0_0
 	r5_s sw_op1 sw_op2 address data pads
 	del pads del control 
+	del address del data
 	ct do ra del ra
 
 
@@ -130,11 +131,6 @@ emit  001  0000_0000_0000_0000__0000_0000_0000_0000
 emit  001  1001_1110_1010_1100__0100_1000_1101_0101
 at skip del skip
 
-
-reg address 101
-reg data 011
-
-
 set address 	reset_clear
 set data 	0000_0010_01
 r5_s sw_op1 sw_op2 address data 0
@@ -162,19 +158,19 @@ at loop
 		set 3_milliseconds millisecond 
 		mul 3_milliseconds 11
 	rt
-	reg increment 1   set increment half_millisecond
-	reg iterator_limit 01  set iterator_limit 10_milliseconds
-	reg iterator_limit2 111 set iterator_limit2 3_milliseconds
-	reg iterator 11
+
+	set increment half_millisecond
+	set iterator_limit 10_milliseconds
+	set iterator_limit2 3_milliseconds
 
 	set iterator increment
 	at inner
 		set data 1
 		r5_s sw_op1 sw_op2 address data sio_gpio_out
-		reg i 001 set i iterator at d sub i 1 ne i 0 d del d del i
+		set i iterator at d sub i 1 ne i 0 d del d del i
 		set data 0
 		r5_s sw_op1 sw_op2 address data sio_gpio_out
-		reg i 001 set i iterator_limit sub i iterator at d sub i 1 ne i 0 d del d del i
+		set i iterator_limit sub i iterator at d sub i 1 ne i 0 d del d del i
 		add iterator increment
 		lt iterator iterator_limit2 inner del inner
 
@@ -183,15 +179,13 @@ at loop
 		sub iterator increment
 		set data 1
 		r5_s sw_op1 sw_op2 address data sio_gpio_out
-		reg i 001 set i iterator at d sub i 1 ne i 0 d del d del i		
+		set i iterator at d sub i 1 ne i 0 d del d del i
 		set data 0
 		r5_s sw_op1 sw_op2 address data sio_gpio_out
-		reg i 001 set i iterator_limit sub i iterator at d sub i 1 ne i 0 d del d del i
+		set i iterator_limit sub i iterator at d sub i 1 ne i 0 d del d del i
 		lt increment iterator inner del inner
 
-	set data 0
-	r5_s sw_op1 sw_op2 address data sio_gpio_out
-	reg i 001 set i 0000_0000_0000_0000_0000_01 at d sub i 1 ne i 0 d del d del i
+	set i 0000_0000_0000_0000_0000_01 at d sub i 1 ne i 0 d del d del i
 do loop
 
 

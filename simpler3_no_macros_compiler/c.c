@@ -38,6 +38,65 @@ current state:  1202505235.133756
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+		if (op == lt or op == ge) {
+
+			if ((not i0 or not a0) and (not i1 or not a1)) continue;
+
+			
+
+
+		} else if (op == ne or op == eq) {
+
+			if ((not i0 or not a0) and (not i1 or not a1)) continue;
+
+			if (i0) {
+				nat t = a0;
+				ins[i].args[0] = ins[i].args[1];
+				ins[i].args[1] = t;
+			}
+			const nat n = ins[i].args[1];
+			variables[var_count] = strdup("NEW");
+			var_count++;
+			memmove(ins + i + 1, ins + i, sizeof(struct instruction) * (ins_count - i));
+			ins[i] = (struct instruction) { set, 0x2, 0, { var_count - 1, n } };
+			ins_count++;
+			ins[i + 1].args[1] = var_count - 1;
+			ins[i + 1].imm = 0;
+			puts("rv32 replace br imm: info: inserted a set statement!");
+
+			i++;
+
+		} else if (op == st or ) {
+
+
+
+
 */
 
 #include <stdio.h>
@@ -63,7 +122,7 @@ typedef uint32_t u32;
 typedef uint16_t u16;
 typedef uint8_t byte;
 
-static nat debug = 1;
+static nat debug = 0;
 
 #define max_variable_count 	(1 << 14)
 #define max_instruction_count 	(1 << 14)
@@ -842,7 +901,7 @@ static void debug_data_flow_state(
 	nat* is_copy, nat* copy_of
 ) {
 
-	const nat amount = 9;
+	const nat amount = 20;
 
 	print_instruction_window_around(pc, 0, "PC");
 	print_dictionary(0);
@@ -1987,64 +2046,43 @@ process_file:;
 	puts("replacing branch and store immediates with branch and store register instructions, for rv32...");
 
 	for (nat i = 0; i < ins_count; i++) {
+
 		const nat op = ins[i].op;
 		const nat imm = ins[i].imm;
 		const nat i0 = !!(imm & 1);
 		const nat i1 = !!(imm & 2);
-		const nat a0 = ins[i].args[0];
-		const nat a1 = ins[i].args[1];
+		//const nat a0 = ins[i].args[0];
+		//const nat a1 = ins[i].args[1];
 
 		if (not (op == lt or op == ge or op == ne or op == eq or op == st)) continue;
-		if (op == lt or op == ge or op == ne or op == eq) {
-		if ((i0 and a0) or (i1 and a1)) {
-			if (i0) {
-				nat t = a0;
-				ins[i].args[0] = ins[i].args[1];
-				ins[i].args[1] = t;
-			}
 
+		if (i0) {
+			const nat n = ins[i].args[0];
+			if (not n and (op == lt or op == ge or op == ne or op == eq)) continue;
+			variables[var_count] = strdup("NEW");
+			var_count++;
+			memmove(ins + i + 1, ins + i, sizeof(struct instruction) * (ins_count - i));
+			ins[i] = (struct instruction) { set, 0x2, 0, { var_count - 1, n } };
+			ins_count++;
+			ins[i + 1].args[0] = var_count - 1;
+			ins[i + 1].imm &= (nat) ~1;
+			puts("rv32 replace st/lt arg0 imm: info: inserted a set statement!");
+			i++;
+		} 
+		
+		if (i1) {
 			const nat n = ins[i].args[1];
+			if (not n and (op == lt or op == ge or op == ne or op == eq)) continue;
 			variables[var_count] = strdup("NEW");
 			var_count++;
 			memmove(ins + i + 1, ins + i, sizeof(struct instruction) * (ins_count - i));
 			ins[i] = (struct instruction) { set, 0x2, 0, { var_count - 1, n } };
 			ins_count++;
 			ins[i + 1].args[1] = var_count - 1;
-			ins[i + 1].imm = 0;
-			puts("rv32 replace br imm: info: inserted a set statement!");
-			//getchar();
+			ins[i + 1].imm &= (nat) ~2;
+			puts("rv32 replace replace st/lt arg1 imm: info: inserted a set statement!");
 			i++;
-		}
-		} else if (op == st) {
-
-			if (i0) {
-				const nat n = ins[i].args[0];
-				variables[var_count] = strdup("NEW");
-				var_count++;
-				memmove(ins + i + 1, ins + i, sizeof(struct instruction) * (ins_count - i));
-				ins[i] = (struct instruction) { set, 0x2, 0, { var_count - 1, n } };
-				ins_count++;
-				ins[i + 1].args[0] = var_count - 1;
-				ins[i + 1].imm &= (nat) ~1;
-				puts("rv32 replace st address imm: info: inserted a set statement!");
-				//getchar();
-				i++;
-			}
-			
-			if (i1) {
-				const nat n = ins[i].args[1];
-				variables[var_count] = strdup("NEW");
-				var_count++;
-				memmove(ins + i + 1, ins + i, sizeof(struct instruction) * (ins_count - i));
-				ins[i] = (struct instruction) { set, 0x2, 0, { var_count - 1, n } };
-				ins_count++;
-				ins[i + 1].args[1] = var_count - 1;
-				ins[i + 1].imm &= (nat) ~2;
-				puts("rv32 replace st data imm: info: inserted a set statement!");
-				//getchar();
-				i++;
-			}
-		}
+		} 
 	}
 
 	if (debug) {
