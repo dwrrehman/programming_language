@@ -42,6 +42,21 @@ static char* load_file(const char* filename, nat* text_length) {
 }
 
 
+static u32 read_raw(int fd, void* p, size_t nn, u32* e) {
+	struct termios terminal = {0};
+	tcgetattr(0, &terminal);
+	struct termios copy = terminal; 
+	copy.c_cc[VMIN] = 1; 
+	copy.c_cc[VTIME] = 0;
+	copy.c_lflag &= ~((size_t) ECHO | ICANON);
+	tcsetattr(0, TCSANOW, &copy);
+	ssize_t n = read(fd, p, nn);
+	*e = (u32) errno;
+	tcsetattr(0, TCSANOW, &terminal);
+	return (u32) n;
+}
+
+
 
 static void dump_hex(byte* memory, nat count) {
 	printf("dumping bytes: (%llu)\n", count);
@@ -72,7 +87,11 @@ static int ecall(u32* registers, byte* memory) {
 
 	if (n == 0) { puts("system call number error: null system call (n == 0)"); abort(); } 
 	else if (n == 1) exit((int) a0);
-	else if (n == 2) { registers[10] = (u32) read((int) a0, (void*) (memory + a1), (size_t) a2); registers[11] = (u32) errno; } 
+
+	else if (n == 2) { registers[10] = read_raw((int) a0, (void*) (memory + a1), 
+					(size_t) a2, registers + 11); 
+			} 
+
 	else if (n == 3) { registers[10] = (u32) write((int) a0, (void*) (memory + a1), (size_t) a2); registers[11] = (u32) errno; } 
 	else { printf("error: unknown system call: x[17] = %x\n", n); abort(); } 
 
@@ -87,7 +106,9 @@ int main(int argc, const char** argv) {
 
 	if (argc != 3) exit(puts("usage error: ./run (print/execute) <file.hex>"));
 
-	const bool executing = argv[1][0] == 'e';
+	bool executing = argv[1][0] == 'e';
+	debug = argv[1][0] == 'd';
+	if (debug) executing = 1;
 
 	nat text_length = 0;
 	char* text = load_file(argv[2], &text_length);

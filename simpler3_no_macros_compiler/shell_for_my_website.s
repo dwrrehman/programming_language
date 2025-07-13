@@ -69,22 +69,83 @@ at skip_macros del skip_macros
 rt
 
 
-set a0 hello  set a1 011  do writestring
-do getc set c a0 
-set a0 c do putc
-set a0 nice  set a1 101  do writestring
-do exit
+set a0 welcome
+set a1 111
+do writestring
 
+
+at loop
+
+	do getc set c a0
+
+	ne c 1111_111 skip
+
+		set a0 delete
+		set a1 111
+		do writestring
+
+		do loop
+
+	at skip del skip
+
+	ct set 'q' 1000_111 rt
+
+	ne c 'q' skip
+		do done
+	at skip del skip
+
+	set a0 c do putc
+	do loop
+at done
+do exit
 
 at buffer set c0 000001 do allocate
 
-at hello str "hello
+at welcome str "hello!
 "
 
-at nice str "nice
+at delete str "delete
 "
 
 
 
 
- 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

@@ -3272,9 +3272,13 @@ finish_instruction_selection:;
 
 
 	///////////////////////	      temporary, for debugging!!!
-	//for (nat i = 0; i < range_count; i++) {
-	//	allocation[i] = i + 1;
-	//}
+	for (nat i = 0; i < range_count; i++) {
+		allocation[i] = i + 1;
+		if (i >= 32) { puts("could not overwrite RA data"); abort(); } 
+
+		if (register_index[range_var[i]] != (nat) -1) 
+			allocation[i] = register_index[range_var[i]];
+	}
 	///////////////////////	
 
 
