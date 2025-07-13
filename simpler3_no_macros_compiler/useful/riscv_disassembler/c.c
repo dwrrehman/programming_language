@@ -104,7 +104,7 @@ static int ecall(u32* registers, byte* memory) {
 
 int main(int argc, const char** argv) {
 
-	if (argc != 3) exit(puts("usage error: ./run (print/execute) <file.hex>"));
+	if (argc != 3) exit(puts("usage error: ./run (print/execute/debug) <file.hex>"));
 
 	bool executing = argv[1][0] == 'e';
 	debug = argv[1][0] == 'd';
@@ -233,7 +233,6 @@ if (not executing) {
 			} else if (fn == 5) { // LHU
 				printf("lhu  x%u  x%u  #0x%08x\n", Rd, Rs1, imm12);
 			} 
-			pc += 4;
 
 
 		} else if (op == 0x23) { // SB / SH / SW

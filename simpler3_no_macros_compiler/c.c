@@ -18,7 +18,6 @@ rv isel
 current state:  1202505235.133756
 
 
-
 		set s r
 		addi s k
 		st d s 64
@@ -122,7 +121,7 @@ typedef uint32_t u32;
 typedef uint16_t u16;
 typedef uint8_t byte;
 
-static nat debug = 0;
+static nat debug = 1;
 
 #define max_variable_count 	(1 << 14)
 #define max_instruction_count 	(1 << 14)
@@ -322,7 +321,7 @@ static char* load_file(const char* filename, nat* text_length) {
 static void print_dictionary(nat should_print_ct) {
 	puts("variable dictionary: ");
 	for (nat i = 0; i < var_count; i++) {
-		should_print_ct = ((var_count - i) < 20);
+		should_print_ct = ((var_count - i) < 10);
 		if (should_print_ct or (not is_constant[i] and not is_label[i])) 
 		printf("   %c %c %c %c [%5llu]  \"%20s\"  :   { ri=%5lld }  :   0x%016llx (%llu decimal)\n",
 			' ', 
@@ -769,13 +768,13 @@ static nat locate_instruction(struct expected_instruction expected, nat starting
 }
 
 static void dump_hex(uint8_t* memory, nat count) {
-	printf("dumping bytes: (%llu)\n", count);
+	/*printf("dumping bytes: (%llu)\n", count);
 	for (nat i = 0; i < count; i++) {
 		if (not (i % 16)) printf("\n\t");
 		if (not (i % 4)) printf(" ");
 		printf("%02hhx(%c) ", memory[i], memory[i] >= 32 ? memory[i] : ' ');
 	}
-	puts("");
+	puts("");*/
 
 	puts("second debug output:    debugging executable bytes:\n");
 	for (nat i = 0; i < count; i++) {
@@ -893,6 +892,44 @@ static nat calculate_offset(nat* length, nat here, nat target) {
 	return offset;
 }
 
+static bool is_valid(nat n) {
+
+	if (n >= 133 and n <= 136) return 1;
+	if (n == 140) return 1;
+	else if (n == 159) return 1;
+	else return 0;
+
+}
+
+
+/*
+variable dictionary: 
+           [   63]  "     c_system_number"  :   { ri=    0 }  :   0xffffffffffffffff (18446744073709551615 decimal)
+           [   64]  "       c_system_arg0"  :   { ri=    1 }  :   0xffffffffffffffff (18446744073709551615 decimal)
+           [   65]  "       c_system_arg1"  :   { ri=    2 }  :   0xffffffffffffffff (18446744073709551615 decimal)
+           [   66]  "       c_system_arg2"  :   { ri=    3 }  :   0xffffffffffffffff (18446744073709551615 decimal)
+           [   67]  "       c_system_arg3"  :   { ri=    4 }  :   0xffffffffffffffff (18446744073709551615 decimal)
+           [   68]  "       c_system_arg4"  :   { ri=    5 }  :   0xffffffffffffffff (18446744073709551615 decimal)
+           [   69]  "       c_system_arg5"  :   { ri=    6 }  :   0xffffffffffffffff (18446744073709551615 decimal)
+           [   70]  "       c_system_arg6"  :   { ri=    7 }  :   0xffffffffffffffff (18446744073709551615 decimal)
+           [  133]  "      rv_system_arg0"  :   { ri=   10 }  :   0xffffffffffffffff (18446744073709551615 decimal)
+           [  134]  "      rv_system_arg1"  :   { ri=   11 }  :   0xffffffffffffffff (18446744073709551615 decimal)
+           [  135]  "      rv_system_arg2"  :   { ri=   12 }  :   0xffffffffffffffff (18446744073709551615 decimal)
+           [  136]  "    rv_system_number"  :   { ri=   17 }  :   0xffffffffffffffff (18446744073709551615 decimal)
+           [  140]  "                  a0"  :   { ri=   -1 }  :   0xffffffffffffffff (18446744073709551615 decimal)
+           [  141]  "                  a1"  :   { ri=   -1 }  :   0xffffffffffffffff (18446744073709551615 decimal)
+     L C   [  157]  "                   l"  :   { ri=   -1 }  :   0x00000000000000ea (234 decimal)
+     L     [  158]  "                loop"  :   { ri=   -1 }  :   0x00000000000000f0 (240 decimal)
+           [  159]  "                   c"  :   { ri=   -1 }  :   0xffffffffffffffff (18446744073709551615 decimal)
+     L   U [  160]  "                skip"  :   { ri=   -1 }  :   0x00000000000000f5 (245 decimal)
+       C   [  161]  "                 'q'"  :   { ri=   -1 }  :   0x0000000000000071 (113 decimal)
+     L   U [  162]  "                skip"  :   { ri=   -1 }  :   0x00000000000000fa (250 decimal)
+     L     [  163]  "                done"  :   { ri=   -1 }  :   0x00000000000000ff (255 decimal)
+     L     [  164]  " GENERATED_LABEL_164"  :   { ri=   -1 }  :   0xffffffffffffffff (18446744073709551615 decimal)
+     L     [  165]  " GENERATED_LABEL_165"  :   { ri=   -1 }  :   0xffffffffffffffff (18446744073709551615 decimal)
+[end]
+*/
+
 static void debug_data_flow_state(
 	nat pc,
 	nat* preds, nat pred_count,
@@ -901,37 +938,37 @@ static void debug_data_flow_state(
 	nat* is_copy, nat* copy_of
 ) {
 
-	const nat amount = 20;
+	const nat amount = 60;
 
 	print_instruction_window_around(pc, 0, "PC");
-	print_dictionary(0);
+	//print_dictionary(0);
 
 	printf("        "); 
 	for (nat j = 0; j < var_count; j++) { 
-		if (is_constant[j] or (var_count - j >= amount)) continue; 
+		if (is_constant[j] or (var_count - j >= amount) or not is_valid(j)) continue; 
 		printf("%10s(%04llu) ", variables[j], j); 
 	}
 	puts("");
-	printf("-----------"); 
+	/*printf("-----------"); 
 	for (nat j = 0; j < var_count; j++) { 
-		if (is_constant[j] or (var_count - j >= amount)) continue; 
+		if (is_constant[j] or (var_count - j >= amount) or not is_valid(j)) continue; 
 		printf("-----------------"); 
 	} 
-	puts("");
+	puts("");*/
 	
 	for (nat i = 0; i < ins_count; i++) {
 		printf("ct %3llu: ", i);
 		for (nat j = 0; j < var_count; j++) {
-			if (is_constant[j] or (var_count - j >= amount)) continue; 
+			if (is_constant[j] or (var_count - j >= amount) or not is_valid(j)) continue; 
 			if (not type[i * var_count + j]) printf("\033[90m");
-			printf("%10s %4llu  ", "", value[i * var_count + j]);
+			printf("%4llu ", value[i * var_count + j]);
 			if (not type[i * var_count + j]) printf("\033[0m");
 		}
 		putchar(9);
 
 		printf("cp %3llu: ", i);
 		for (nat j = 0; j < var_count; j++) {
-			if (is_constant[j] or (var_count - j >= amount)) continue; 
+			if (is_constant[j] or (var_count - j >= amount) or not is_valid(j)) continue; 
 			if (not is_copy[i * var_count + j]) printf("\033[90m");
 			printf("%3lld ", copy_of[i * var_count + j]);
 			if (not is_copy[i * var_count + j]) printf("\033[0m");
@@ -946,10 +983,11 @@ static void debug_data_flow_state(
 			putchar(32); 
 			printf("\033[32;1m     <------- PC\033[0m"); } 
 		putchar(10);
-		printf("\033[38;5;235m");
-		for (nat _ = 0; _ < 350; _++) printf("-");
-		printf("\033[0m");
-		putchar(10);
+
+		//printf("\033[38;5;235m");
+		//for (nat _ = 0; _ < 350; _++) printf("-");
+		//printf("\033[0m");
+		//putchar(10);
 
 	}
 	puts("-------------------------------------------------");
@@ -961,6 +999,30 @@ static void debug_data_flow_state(
 }
 
 
+static bool is_valid2(nat n) {
+//	if (n == 167) return 1;
+//	if (n == 166) return 1;
+	if (n == 140) return 1;
+//	if (n == 141) return 1;
+//	if (n == 159) return 1;
+//	if (n == 133) return 1;
+//	if (n == 134) return 1;
+//	if (n == 135) return 1;
+//	if (n == 136) return 1;
+
+	return 0;
+}
+
+
+
+/*
+
+
+         c_system_number(0063)        c_system_arg0(0064)        c_system_arg1(0065)        c_system_arg2(0066)        c_system_arg3(0067)        c_system_arg4(0068)        c_system_arg5(0069)        c_system_arg6(0070)       rv_system_arg0(0133)       rv_system_arg1(0134)       rv_system_arg2(0135)     rv_system_number(0136)                   a0(0140)                   a1(0141)                    c(0159)                  NEW(0166)                  NEW(0167) 
+
+
+*/
+
 static void debug_liveness(
 	nat pc,
 	nat* preds, nat pred_count,
@@ -971,23 +1033,23 @@ static void debug_liveness(
 	print_instruction_window_around(pc, 0, "PC");
 	printf("    "); 
 	for (nat j = 0; j < var_count; j++) { 
-		if (is_constant[j] or is_label[j]) continue; 
+		if (is_constant[j] or is_label[j] or not is_valid2(j)) continue; 
 		printf("%20s(%04llu) ", variables[j], j); 
 	} 
 	puts("");
-	printf("----"); 
+	/*printf("----"); 
 	for (nat j = 0; j < var_count; j++) { 
 		if (is_constant[j] or is_label[j]) continue; 
 		printf("-----------------"); 
 	} 
-	puts("");
+	puts("");*/
 
 	for (nat i = 0; i < ins_count; i++) {
 		printf("%2llu: ", i);
 		for (nat j = 0; j < var_count; j++) {
-			if (is_constant[j] or is_label[j]) continue; 
+			if (is_constant[j] or is_label[j] or not is_valid2(j)) continue; 
 			if (not alive[i * var_count + j]) printf("\033[38;5;235m");
-			printf("%20s %4llu  ", "", alive[i * var_count + j]);
+			printf("%4llu  ", alive[i * var_count + j]);
 			if (not alive[i * var_count + j]) printf("\033[0m");
 		}
 		print_instruction(ins[i]);
@@ -999,10 +1061,10 @@ static void debug_liveness(
 			putchar(32); 
 			printf("\033[32;1m     <------- PC\033[0m"); } 
 		putchar(10);
-		printf("\033[38;5;235m");
+		/*printf("\033[38;5;235m");
 		for (nat _ = 0; _ < 350; _++) printf("-");
 		printf("\033[0m");
-		putchar(10);
+		putchar(10);*/
 	}
 	puts("-------------------------------------------------");
 	printf("[PC = %llu], pred:", pc);
@@ -1266,7 +1328,7 @@ process_file:;
 					filename, text, text_length, word_start, pc
 				);
 		
-			struct instruction new = { 
+			struct instruction new = {
 				.op = op, 
 				.imm = is_immediate,
 				.state = is_ct,
@@ -1328,7 +1390,6 @@ process_file:;
 		}
 	}
 
-
 	if (debug) {
 		print_dictionary(1);
 		print_instructions(0);
@@ -1349,23 +1410,23 @@ process_file:;
 		nat imm = ins[pc].imm;
 		nat is_compiletime = ins[pc].state;
 
-		if (memory[compiler_should_debug]) {
+		if (memory[8 * compiler_should_debug]) {
 			print_instruction_window_around(pc, 0, "");
-			print_dictionary(0);
-			dump_hex(memory, 128);
+			//print_dictionary(1);
+			//dump_hex(memory, 128);
 
-			printf("strings: (%llu count) : \n", string_list_count);
+			/*printf("strings: (%llu count) : \n", string_list_count);
 			for (nat i = 0; i < string_list_count; i++) {
 				printf("#%llu string: .string = %p .length = %llu, .label = %llu, \n", 
 					i, (void*) string_list[i], (nat) strlen(string_list[i]), string_label[i]
 				);
-			}
+			}*/
 
-			puts("rt instructions: ");
+			//puts("rt instructions: ");
 			for (nat i = 0; i < rt_ins_count; i++) {
 				putchar(9); print_instruction(rt_ins[i]); puts("");
 			}
-			puts("done");
+			//puts("done");
 			getchar();
 		}
 
@@ -1395,7 +1456,7 @@ process_file:;
 		else if (op == reg) register_index[arg0] = val1;
 		else if (op == del) {
 			printf("executed a del statement!! now, is_undefined[%s] = %llu\n", 
-				variables[arg0], is_undefined[arg0] + 1
+				variables[arg0], var_count
 			);
 			is_undefined[arg0] = var_count;
 			char my_string[1000] = {0};
@@ -1758,8 +1819,10 @@ process_file:;
 
 		if (op >= set and op <= ld) {
 			for (nat i = 0; i < var_count; i++) {
-				if (is_copy[pc * var_count + i] and 
-				    copy_of[pc * var_count + i] == a0) 
+				if (	is_copy[pc * var_count + i] and 
+					copy_of[pc * var_count + i] == a0 and 
+					i != a1
+				)
 					is_copy[pc * var_count + i] = 0;
 			}
 		}
@@ -1874,6 +1937,43 @@ process_file:;
 			getchar();
 		}
 
+
+
+		for (nat a = 0; a < arity[ins[i].op]; a++) {
+
+			if (a == 0 and (op >= set and op <= ld)) continue;
+
+			const nat this_arg = ins[i].args[a];
+			const nat is_ct = ((ins[i].imm >> a) & 1) or type[i * var_count + this_arg];
+
+			if (not is_ct and is_copy[i * var_count + this_arg]) {
+
+				const nat cp = copy_of[i * var_count + this_arg];
+
+				if (is_label[cp]) {
+					if (ins[i].op == set) {
+						printf("WARNING: inlining a label into a set!!\n");
+						getchar();
+						ins[i].args[a] = cp;
+					}
+				} else {				
+					printf("note: inlining copy reference: a1=%llu imm=%llu copy_of=%llu, i=%llu...\n", 
+						this_arg, ins[i].imm, 
+						cp,
+						i
+					);
+					puts("original:");
+					print_instruction(ins[i]); puts("");	
+					ins[i].args[a] = cp;
+					puts("modified form:"); 
+					print_instruction(ins[i]); 
+					puts("");
+					getchar();	
+				}
+			}
+		}
+
+
 		if (op >= set and op <= sd) {
 			const nat ct1 = (imm & 2) or type[i * var_count + ins[i].args[1]];
 			const nat v1 = (imm & 2) ? ins[i].args[1] : value[i * var_count + ins[i].args[1]];
@@ -1905,38 +2005,6 @@ process_file:;
 						ins[i].args[1] = sh;
 						break;
 					} 
-				}
-			}
-
-			if (not (ins[i].imm & 2) and is_copy[i * var_count + ins[i].args[1]]) {
-
-
-				if (is_label[copy_of[i * var_count + ins[i].args[1]]]) {
-
-					if (ins[i].op == set) {
-						printf("WARNING: inlining a label into a set!!\n");
-						getchar();
-						ins[i].args[1] = copy_of[i * var_count + ins[i].args[1]];
-					}
-
-				} else {
-				
-
-				printf("note: inlining copy reference: a1=%llu imm=%llu copy_of=%llu, i=%llu...\n", 
-					ins[i].args[1], ins[i].imm, 
-					copy_of[i * var_count + ins[i].args[1]],
-					i
-				);
-
-				puts("original:");
-				print_instruction(ins[i]); puts("");
-
-				ins[i].args[1] = copy_of[i * var_count + ins[i].args[1]];
-
-				puts("modified form:"); 
-				print_instruction(ins[i]); 
-				puts("");
-
 				}
 			}
 
@@ -2204,11 +2272,13 @@ rv32_instruction_selection:;
 					}, i + 1
 				);
 
+				if (op_A[this] == sub) { puts("we need to be handling the subi case better on rv32 isel... whoops lol"); abort(); } 
+
 				if (j == unrecognized) goto skip_set_r_i;
 				if (ins[j].args[1] >= 2048) goto skip_set_r_i;
 				if (op == mul or op == div_ or op == rem) goto skip_set_r_i;
 
-				new = (struct instruction) { 
+				new = (struct instruction) {
 					r5_i, 0x15, 0, {
 						0x13, 
 						arg0, 
@@ -2305,7 +2375,7 @@ rv32_instruction_selection:;
 
 		else if (op == set and not imm and is_label[arg1]) {   
 
-			// la d l ->   auipc d l[31:12] ;  addi d d l[11:0]
+			// set d l ->   auipc d l[31:12] ;  addi d d l[11:0]
 
 			new = (struct instruction) { r5_u, 0x5, 0,  { 0x17, arg0, arg1, 0x42,  0,0,0,0 } };
 			mi[mi_count++] = new;
@@ -2356,17 +2426,16 @@ rv32_instruction_selection:;
 			goto r5_push_single_mi;
 		}
 
-		else if (op == add and imm and arg1 < 2048) { // add d #k -> addi d d k
+		/*else if (op == add and imm and arg1 < 2048) { // add d #k -> addi d d k
 			new = (struct instruction) { r5_i, 0x15, 0,   { 0x13, arg0, 0, arg0, arg1,0,  0,0 } };
 			goto r5_push_single_mi;
-		}
+		}*/
 
-		else if (op == sub and imm) { // sub d #k -> addi d d -k
+		/*else if (op == sub and imm) { // sub d #k -> addi d d -k
 			nat k = (-arg1) & 0xFFF;
 			new = (struct instruction) { r5_i, 0x15, 0,   { 0x13, arg0, 0, arg0, k, 0,  0,0 } };
 			goto r5_push_single_mi;
-		}
-
+		}*/
 
 
 		else if (op == ld and is_label[arg1]) {  // ld d l N ->   auipc d l[31:12] ;  lwu d d l[11:0]
@@ -3272,13 +3341,13 @@ finish_instruction_selection:;
 
 
 	///////////////////////	      temporary, for debugging!!!
-	for (nat i = 0; i < range_count; i++) {
-		allocation[i] = i + 1;
-		if (i >= 32) { puts("could not overwrite RA data"); abort(); } 
-
-		if (register_index[range_var[i]] != (nat) -1) 
-			allocation[i] = register_index[range_var[i]];
-	}
+	//for (nat i = 0; i < range_count; i++) {
+	//	allocation[i] = i + 1;
+	//	if (i >= 30) { puts("could not overwrite RA data"); abort(); } 
+	//
+	//	if (register_index[range_var[i]] != (nat) -1) 
+	//		allocation[i] = register_index[range_var[i]];
+	//}
 	///////////////////////	
 
 
@@ -3383,7 +3452,7 @@ finish_instruction_selection:;
 	// 
 
 
-
+	//    volatile st   ==>   execute st    execute ld            (actually, we should do this analysis on the language isa instructions!! prior to isel) 
 
 
 
@@ -3972,8 +4041,6 @@ c_generate_source_code:;
 	"\telse if (x[0] == 7) { x[1] = (uint64_t) munmap((void*) x[1], (size_t) x[2]); x[2] = (uint64_t) errno; }\n"
 	"\telse abort();\n"
 	"}\n\n";
-
-
 
 	const char* footer = 
 		"}\n// (end of file)\n\n"

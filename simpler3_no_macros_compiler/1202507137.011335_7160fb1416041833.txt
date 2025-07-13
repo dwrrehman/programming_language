@@ -1,0 +1,201 @@
+
+
+
+
+
+ 0x00000000:   97 00 00 00   auipc  x1  #0x00000000
+ 0x00000004:   93 80 c0 0c   addi  x1  x1  #0x000000cc
+
+
+hello write 
+ 0x00000008:   93 08 30 00   addi  x17  x0  #0x00000003
+ 0x0000000c:   13 05 10 00   addi  x10  x0  #0x00000001
+ 0x00000010:   97 05 00 00   auipc  x11  #0x00000000
+ 0x00000014:   93 85 c5 0b   addi  x11  x11  #0x000000bc
+ 0x00000018:   13 06 70 00   addi  x12  x0  #0x00000007
+ 0x0000001c:   73 00 00 00   ecall
+
+
+at loop:
+
+getc
+ 0x00000020:   93 08 20 00   addi  x17  x0  #0x00000002
+ 0x00000024:   13 05 00 00   addi  x10  x0  #0x00000000
+ 0x00000028:   97 05 00 00   auipc  x11  #0x00000000
+ 0x0000002c:   93 85 45 08   addi  x11  x11  #0x00000084
+ 0x00000030:   13 06 10 00   addi  x12  x0  #0x00000001
+ 0x00000034:   73 00 00 00   ecall
+
+load c from memory
+ 0x00000038:   97 00 00 00   auipc  x1  #0x00000000
+ 0x0000003c:   83 c0 40 07   lbu  x1  x1  #0x00000074
+
+compare delete char
+ 0x00000044:   93 00 f0 07   addi  x1  x0  #0x0000007f
+ 0x00000048:   63 14 11 02   bne  x2  x1  #0x00000028 (@0x00000070)
+
+if is delete
+ 0x0000004c:   97 00 00 00   auipc  x1  #0x00000000
+ 0x00000050:   93 80 70 08   addi  x1  x1  #0x00000087
+ 0x00000054:   93 08 30 00   addi  x17  x0  #0x00000003
+ 0x00000058:   13 05 10 00   addi  x10  x0  #0x00000001
+ 0x0000005c:   97 05 00 00   auipc  x11  #0x00000000
+ 0x00000060:   93 85 75 07   addi  x11  x11  #0x00000077
+ 0x00000064:   13 06 70 00   addi  x12  x0  #0x00000007
+ 0x00000068:   73 00 00 00   ecall
+
+do loop
+ 0x0000006c:   6f f0 5f fb   jal  x0  #0xffffffb4 (@0x00000020)
+
+
+compare c with 'q'
+ 0x00000070:   93 00 10 07   addi  x1  x0  #0x00000071
+ 0x00000074:   63 14 11 00   bne  x2  x1  #0x00000008 (@0x0000007c)
+
+
+do done
+ 0x00000078:   6f 00 80 02   jal  x0  #0x00000028 (@0x000000a0)
+
+
+putc
+ 0x0000007c:   93 80 00 00   addi  x1  x1  #0x00000000      <------- we need this to be   addi x1 x2, or delete this ins.
+ 0x00000080:   93 08 30 00   addi  x17  x0  #0x00000003
+ 0x00000084:   13 05 10 00   addi  x10  x0  #0x00000001
+ 0x00000088:   97 05 00 00   auipc  x11  #0x00000000
+ 0x0000008c:   93 85 45 02   addi  x11  x11  #0x00000024
+ 0x00000090:   13 06 10 00   addi  x12  x0  #0x00000001
+ 0x00000094:   23 80 15 00   sb  x11  #0x00000000  x1  <----- if deleted above, we need to store x2 instead of x1.
+ 0x00000098:   73 00 00 00   ecall
+
+do loop
+ 0x0000009c:   6f f0 5f f8   jal  x0  #0xffffff84 (@0x00000020)
+
+
+at done:
+exit
+ 0x000000a0:   93 08 10 00   addi  x17  x0  #0x00000001
+ 0x000000a4:   13 05 00 00   addi  x10  x0  #0x00000000
+ 0x000000a8:   73 00 00 00   ecall
+
+
+ 0x000000ac:   00 00 00 00   [illegal instruction opcode: 0x0]
+ 0x000000b0:   00 00 00 00   [illegal instruction opcode: 0x0]
+ 0x000000b4:   00 00 00 00   [illegal instruction opcode: 0x0]
+ 0x000000b8:   00 00 00 00   [illegal instruction opcode: 0x0]
+ 0x000000bc:   00 00 00 00   [illegal instruction opcode: 0x0]
+ 0x000000c0:   00 00 00 00   [illegal instruction opcode: 0x0]
+ 0x000000c4:   00 00 00 00   [illegal instruction opcode: 0x0]
+ 0x000000c8:   00 00 00 00   [illegal instruction opcode: 0x0]
+
+ 0x000000cc:   68 65 6c 6c   [illegal instruction opcode: 0x104]
+ 0x000000d0:   6f 21 0a 64   jal  x2  #0x000a2640 (@0x000a2710)
+
+ 0x000000d4:   65 6c 65 74   [illegal instruction opcode: 0x101]
+ 0x000000d8:   65 0a 00 00   [illegal instruction opcode: 0x101]
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+1202507137.013017
+optimized control flow slightly:
+
+
+
+ 0x00000000:   97 00 00 00   auipc  x1  #0x00000000
+ 0x00000004:   93 80 80 0c   addi  x1  x1  #0x000000c8
+
+hello write
+ 0x00000008:   93 08 30 00   addi  x17  x0  #0x00000003
+ 0x0000000c:   13 05 10 00   addi  x10  x0  #0x00000001
+ 0x00000010:   97 05 00 00   auipc  x11  #0x00000000
+ 0x00000014:   93 85 85 0b   addi  x11  x11  #0x000000b8
+ 0x00000018:   13 06 70 00   addi  x12  x0  #0x00000007
+ 0x0000001c:   73 00 00 00   ecall
+
+read
+ 0x00000020:   93 08 20 00   addi  x17  x0  #0x00000002
+ 0x00000024:   13 05 00 00   addi  x10  x0  #0x00000000
+ 0x00000028:   97 05 00 00   auipc  x11  #0x00000000
+ 0x0000002c:   93 85 05 08   addi  x11  x11  #0x00000080
+ 0x00000030:   13 06 10 00   addi  x12  x0  #0x00000001
+ 0x00000034:   73 00 00 00   ecall
+
+ 0x00000038:   97 00 00 00   auipc  x1  #0x00000000
+ 0x0000003c:   83 c0 00 07   lbu  x1  x1  #0x00000070
+
+compare with delete
+ 0x00000044:   93 00 f0 07   addi  x1  x0  #0x0000007f
+ 0x00000048:   63 14 11 02   bne  x2  x1  #0x00000028 (@0x00000070)
+
+ 0x0000004c:   97 00 00 00   auipc  x1  #0x00000000
+ 0x00000050:   93 80 30 08   addi  x1  x1  #0x00000083
+ 0x00000054:   93 08 30 00   addi  x17  x0  #0x00000003
+ 0x00000058:   13 05 10 00   addi  x10  x0  #0x00000001
+ 0x0000005c:   97 05 00 00   auipc  x11  #0x00000000
+ 0x00000060:   93 85 35 07   addi  x11  x11  #0x00000073
+ 0x00000064:   13 06 70 00   addi  x12  x0  #0x00000007
+ 0x00000068:   73 00 00 00   ecall
+
+ 0x0000006c:   6f f0 5f fb   jal  x0  #0xffffffb4 (@0x00000020)
+
+
+
+
+ 0x00000070:   93 00 10 07   addi  x1  x0  #0x00000071
+
+ 0x00000074:   63 04 11 02   beq  x2  x1  #0x00000028 (@0x0000009c)
+
+ 0x00000078:   93 00 01 00   addi  x1  x2  #0x00000000
+ 0x0000007c:   93 08 30 00   addi  x17  x0  #0x00000003
+ 0x00000080:   13 05 10 00   addi  x10  x0  #0x00000001
+ 0x00000084:   97 05 00 00   auipc  x11  #0x00000000
+ 0x00000088:   93 85 45 02   addi  x11  x11  #0x00000024
+ 0x0000008c:   13 06 10 00   addi  x12  x0  #0x00000001
+ 0x00000090:   23 80 15 00   sb  x11  #0x00000000  x1
+ 0x00000094:   73 00 00 00   ecall
+
+ 0x00000098:   6f f0 9f f8   jal  x0  #0xffffff88 (@0x00000020)
+
+ 0x0000009c:   93 08 10 00   addi  x17  x0  #0x00000001
+ 0x000000a0:   13 05 00 00   addi  x10  x0  #0x00000000
+ 0x000000a4:   73 00 00 00   ecall
+
+ 0x000000a8:   00 00 00 00   [illegal instruction opcode: 0x0]
+ 0x000000ac:   00 00 00 00   [illegal instruction opcode: 0x0]
+ 0x000000b0:   00 00 00 00   [illegal instruction opcode: 0x0]
+ 0x000000b4:   00 00 00 00   [illegal instruction opcode: 0x0]
+ 0x000000b8:   00 00 00 00   [illegal instruction opcode: 0x0]
+ 0x000000bc:   00 00 00 00   [illegal instruction opcode: 0x0]
+ 0x000000c0:   00 00 00 00   [illegal instruction opcode: 0x0]
+ 0x000000c4:   00 00 00 00   [illegal instruction opcode: 0x0]
+ 0x000000c8:   68 65 6c 6c   [illegal instruction opcode: 0x104]
+ 0x000000cc:   6f 21 0a 64   jal  x2  #0x000a2640 (@0x000a270c)
+ 0x000000d0:   65 6c 65 74   [illegal instruction opcode: 0x101]
+ 0x000000d4:   65 0a 00 00   [illegal instruction opcode: 0x101]
+
+
+
+
+
+

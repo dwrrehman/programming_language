@@ -379,8 +379,6 @@ set newline 0101
 (...until here...)
 
 
-
-
 (my code starts here!)
 
 do c_backend 
@@ -444,7 +442,9 @@ at print
 
 at skip del skip
 
+
 set newline 0101
+
 (...until here...)
 
 (my code starts here!)
@@ -473,8 +473,8 @@ at print_newline ct
 	ct do ra del ra
 
 at printbinary
-	ld ra compiler_return_address nat	
-	rt set data a0 
+	ld ra compiler_return_address nat
+	rt set data a0
 	at loopb set bit data and bit 1
 	eq bit 0 else do print1 do done 
 	at else do print0 at done
@@ -599,6 +599,7 @@ at setup_output
 	set c1 01 set c3 pads_gpio2 do setif
 	set c1 11 set c3 pads_gpio3 do setif
 	ld pads p nat
+
 	del p
 	rt set address io_bank0_base
 	set data 101
@@ -630,7 +631,7 @@ at delayr
 at skip_macros del skip_macros
 rt adr flash_start
 
-do skip  
+do skip
 (rp2350 image_def marker)
 emit  001  1100_1011_0111_1011__1111_1111_1111_1111
 emit  001  0100_0010_1000_0000__1000_0000_1000_1000
@@ -690,7 +691,7 @@ at loop
 		sub iterator increment
 		set data 1
 		r5_s sw_op1 sw_op2 address data sio_gpio_out
-		reg i 001 set i iterator at d sub i 1 ne i 0 d del d del i		
+		reg i 001 set i iterator at d sub i 1 ne i 0 d del d del i
 		set data 0
 		r5_s sw_op1 sw_op2 address data sio_gpio_out
 		reg i 001 set i iterator_limit sub i iterator at d sub i 1 ne i 0 d del d del i

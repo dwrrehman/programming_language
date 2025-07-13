@@ -1,0 +1,56 @@
+
+
+set a0 0 set a1 0100101  set a2 100100101
+do my_function at call0
+
+set a0 1 set a1 0100101  set a2 100100101
+do my_function at call1
+
+(...)
+
+do exit
+
+
+
+at my_function
+
+	set lr a0
+	set data a1
+	set address a2
+
+	(...body...)
+
+	eq lr 0 call0
+	eq lr 1 call1
+	eq lr 2 call2
+	do call3
+	
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

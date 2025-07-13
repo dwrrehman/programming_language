@@ -21,56 +21,44 @@ static void ecall(void) {
 	else abort();
 }
 
-static uint8_t d[3] = {
-	0x30, 0x31, 0x0a, 
+static uint8_t d[12] = {
+	0x68, 0x65, 0x6c, 0x6c, 0x6f, 0x0a, 0x6f, 0x74,
+	0x68, 0x65, 0x72, 0x0a, 
 };
 
 int main(void) {
 	x[4] = 0x0;
-_173:;
-	x[1] = 0x2;
-_175:;
-	if (x[1] >= x[4]) goto _176;
-	x[0] = x[4];
-	x[0] %= x[1];
-	if (x[0] == 0x0) goto _178;
-	x[1] += 0x1;
-	goto _175;
-_176:;
-	x[5] = x[4];
-_165:;
-	x[0] = x[5];
-	x[0] &= 0x1;
-	if (x[0] == 0x0) goto _167;
-	x[2] = ((uint64_t)(void*)d) + 0x1;
+_156:;
 	x[0] = 0x3;
 	x[1] = 0x1;
-	x[3] = 0x1;
-	ecall();
-	goto _168;
-_167:;
 	x[2] = ((uint64_t)(void*)d) + 0x0;
-	x[0] = 0x3;
-	x[1] = 0x1;
-	x[3] = 0x1;
+	x[3] = 0x6;
 	ecall();
-_168:;
-	x[5] >>= 0x1;
-	if (x[5] != 0x0) goto _165;
-	x[2] = ((uint64_t)(void*)d) + 0x2;
-	x[0] = 0x3;
-	x[1] = 0x1;
-	x[3] = 0x1;
-	ecall();
-_178:;
 	x[4] += 0x1;
-	if (x[4] < 0x20000) goto _173;
+	if (x[4] < 0x3) goto _156;
+	x[4] = 0x0;
+_159:;
+	x[0] = 0x3;
+	x[1] = 0x1;
+	x[2] = ((uint64_t)(void*)d) + 0x6;
+	x[3] = 0x6;
+	ecall();
+	x[4] += 0x1;
+	if (x[4] < 0x5) goto _159;
+	x[4] = 0x0;
+_160:;
+	x[0] = 0x3;
+	x[1] = 0x1;
+	x[2] = ((uint64_t)(void*)d) + 0x0;
+	x[3] = 0x6;
+	ecall();
+	x[4] += 0x1;
+	if (x[4] < 0x2) goto _160;
 	x[0] = 0x1;
 	x[1] = 0x0;
 	ecall();
-_155:;
+_157:;
 _158:;
-_161:;
 }
 // (end of file)
 

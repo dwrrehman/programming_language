@@ -9,7 +9,7 @@ st compiler_format hex_array nat
 st compiler_should_overwrite true nat 
 
 
-(st compiler_should_debug true nat   (temporary))
+st compiler_should_debug true nat   (temporary)
 
 
 rt
