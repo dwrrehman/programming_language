@@ -29,10 +29,8 @@ set nat 	0001
 set x 0000 set compiler_return_address x
 add x 0001 set compiler_target x
 add x 0001 set compiler_format x 
-
 add x 0001 set compiler_should_overwrite x
 add x 0001 set compiler_should_debug x
-
 add x 0001 set compiler_stack_size x
 add x 0001 set compiler_get_length x
 add x 0001 set compiler_is_compiletime x
@@ -49,7 +47,6 @@ add x 0001 set compiler_arg7 x
 add x 0001 set compiler_base x
 
 
-
 (compiletime system call interface : call numbers)
 set x 0 set compiler_system_debug x
 add x 1 set compiler_system_exit x
@@ -57,6 +54,8 @@ add x 1 set compiler_system_read x
 add x 1 set compiler_system_write x
 add x 1 set compiler_system_open x
 add x 1 set compiler_system_close x
+add x 1 set compiler_system_mmap x
+add x 1 set compiler_system_munmap x
 
 (valid arguments to ctsc compiler_target)
 set x 0 set no_arch x

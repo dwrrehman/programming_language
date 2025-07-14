@@ -121,7 +121,7 @@ typedef uint32_t u32;
 typedef uint16_t u16;
 typedef uint8_t byte;
 
-static nat debug = 1;
+static nat debug = 0;
 
 #define max_variable_count 	(1 << 14)
 #define max_instruction_count 	(1 << 14)
@@ -141,11 +141,9 @@ enum memory_mapped_addresses {
 	compiler_return_address,
 	compiler_target,
 	compiler_format,
-
 	compiler_should_overwrite,
 	compiler_should_debug,
 	compiler_stack_size,
-
 	compiler_get_length,
 	compiler_is_compiletime,
 
@@ -168,6 +166,8 @@ enum language_system_calls {
 	compiler_system_write,
 	compiler_system_open,
 	compiler_system_close,
+	compiler_system_mmap,
+	compiler_system_munmap,
 };
 
 /*
@@ -1086,16 +1086,6 @@ noreturn static void print_error(
 	abort();
 }
 
-static nat load_nat_from_memory(uint8_t* memory, const nat address) {
-	nat x = 0; 
-	for (nat i = 0; i < 8; i++)  x |= (nat) ((nat) memory[8 * address + i] << (8LLU * i));
-	return x;
-}
-static void store_nat_to_memory(uint8_t* memory, const nat address, const nat data) {
-	for (nat i = 0; i < 8; i++) 
-		memory[8 * address + i] = (data >> (8 * i)) & 0xFF;
-}
-
 int main(int argc, const char** argv) {
 	if (argc != 2) exit(puts("compiler: error: usage: ./run [file.s]"));
 	
@@ -1361,11 +1351,12 @@ process_file:;
 
 		if (is_constant[var] and is_label[var] and at_count[var] != 1) {
 
-			printf("warning: unusual compiletime label attribution! expected exactly 1 label attribution for label %s, found %llu attributions.\n", variables[var], at_count[var]); 
+			/*printf("warning: unusual compiletime label attribution! expected exactly 1 label attribution for label %s, found %llu attributions.\n", variables[var], at_count[var]); 
 			print_instruction_window_around(pc, 1, "this label argument does not have exactly one at");
 			puts("warning: continuing anyways..");
-			getchar();
-			
+			getchar();*/
+
+			values[var] = (nat) -1;			
 		} 
 
 		else if (is_label[var] and at_count[var] != 1) {
@@ -1402,7 +1393,23 @@ process_file:;
 
 	memset(is_undefined, 0, sizeof is_undefined);
 	memset(register_index, 255, sizeof register_index);
-	uint8_t* memory = calloc(65536, sizeof(nat));
+	
+	void* bridge = mmap(
+		NULL,
+		4096,
+		PROT_READ | PROT_WRITE,
+		MAP_PRIVATE | MAP_ANONYMOUS,
+		-1,
+		0
+	);
+
+	if (bridge == (void*) -1) {
+		perror("mmap"); 
+		printf("errno = %u\n", errno); 
+		exit(1);
+	}
+
+	const nat bridge_limit = 8 * compiler_base;
 
 	for (nat pc = 0; pc < ins_count; pc++) {
 
@@ -1410,10 +1417,10 @@ process_file:;
 		nat imm = ins[pc].imm;
 		nat is_compiletime = ins[pc].state;
 
-		if (memory[8 * compiler_should_debug]) {
+		if (*(((nat*) bridge) + compiler_should_debug)) {
 			print_instruction_window_around(pc, 0, "");
-			//print_dictionary(1);
-			//dump_hex(memory, 128);
+			print_dictionary(1);
+			dump_hex((uint8_t*) bridge, 128);
 
 			/*printf("strings: (%llu count) : \n", string_list_count);
 			for (nat i = 0; i < string_list_count; i++) {
@@ -1436,14 +1443,25 @@ process_file:;
 		nat i0 = !!(imm & 1);
 		nat i1 = !!(imm & 2);
 		nat i2 = !!(imm & 4);
-
-		
-
+	
 		const nat N = max_variable_count;
 		nat val0 = 0, val1 = 0, val2 = 0;
 		if (i0 or arg0 < N) val0 = not i0 ? values[arg0] : arg0;
 		if (i1 or arg1 < N) val1 = not i1 ? values[arg1] : arg1;
 		if (i2 or arg2 < N) val2 = not i2 ? values[arg2] : arg2;
+
+		if (is_compiletime and op == do_ and val0 >= ins_count) {
+			printf("error: cannot jump to invalid address: 0x%016llx\n", val0);
+			print_instruction_window_around(pc, 1, "invalid address at compiletime jump");
+			abort();
+		}
+
+		if (is_compiletime and (op >= lt and op <= eq) and val2 >= ins_count) {
+			printf("error: cannot jump to invalid address: 0x%016llx\n", val2);
+			print_instruction_window_around(pc, 1, "invalid address at compiletime branch");
+			abort();
+		}
+
 
 		if (op == str and not is_compiletime) {
 			for (nat s = 0; s < arg0; s++) {
@@ -1452,9 +1470,11 @@ process_file:;
 				new.args[1] = (nat) string_list[arg1][s];
 				rt_ins[rt_ins_count++] = new;
 			}
-		} 
-		else if (op == reg) register_index[arg0] = val1;
-		else if (op == del) {
+
+		} else if (op == reg) { 
+			register_index[arg0] = val1;
+
+		} else if (op == del) {
 			printf("executed a del statement!! now, is_undefined[%s] = %llu\n", 
 				variables[arg0], var_count
 			);
@@ -1467,9 +1487,8 @@ process_file:;
 			is_constant[var_count] = 0;
 			is_undefined[var_count] = 0;
 			var_count++;
-		}
 
-		else if (not is_compiletime) {
+		} else if (not is_compiletime) {
 			struct instruction new = { .op = op, .imm = imm };
 			memcpy(new.args, ins[pc].args, sizeof new.args);
 			for (nat i = 0; i < arity[op]; i++) {
@@ -1547,45 +1566,90 @@ process_file:;
 		else if (op == si)   values[arg0] <<= val1;
 		else if (op == sd)   values[arg0] >>= val1;
 
-		else if (op == ld) {
-			values[arg0] = 0;
-			for (nat i = 0; i < val2; i++) 
-				values[arg0] |= (nat) ((nat) memory[val1 + i] << (8LLU * i));
+		else if (op == ld and val2 == 1) {
+			if (val1 < bridge_limit) val1 += (nat) bridge;
+			values[arg0] = (nat) * (uint8_t*) val1;
+		} else if (op == ld and val2 == 2) {
+			if (val1 < bridge_limit) val1 += (nat) bridge;
+			values[arg0] = (nat) * (uint16_t*) val1;
+		} else if (op == ld and val2 == 4) {
+			if (val1 < bridge_limit) val1 += (nat) bridge;
+			values[arg0] = (nat) * (uint32_t*) val1;
+		} else if (op == ld and val2 == 8) {
+			if (val1 < bridge_limit) val1 += (nat) bridge;
+			values[arg0] = (nat) * (uint64_t*) val1;
 
-		} else if (op == st) {
-			for (nat i = 0; i < val2; i++) 
-				memory[val0 + i] = (val1 >> (8 * i)) & 0xFF;
+		} else if (op == st and val2 == 1) {
+			if (val0 < bridge_limit) val0 += (nat) bridge;
+			* (uint8_t*) val0 = (uint8_t) val1;
+		} else if (op == st and val2 == 2) {
+			if (val0 < bridge_limit) val0 += (nat) bridge;
+			* (uint16_t*) val0 = (uint16_t) val1;
+		} else if (op == st and val2 == 4) {
+			if (val0 < bridge_limit) val0 += (nat) bridge;
+			* (uint32_t*) val0 = (uint32_t) val1;
+		} else if (op == st and val2 == 8) {
+			if (val0 < bridge_limit) val0 += (nat) bridge;
+			* (uint64_t*) val0 = (uint64_t) val1;
 
 		} else if (op == do_) {
-			store_nat_to_memory(memory, compiler_return_address, pc);
-			pc = values[arg0];
+			*(((nat*) bridge) + compiler_return_address) = pc;
+			pc = val0;
 		}
+
 		else if (op == lt) { if (val0  < val1) pc = values[arg2]; }
 		else if (op == ge) { if (val0 >= val1) pc = values[arg2]; }
 		else if (op == eq) { if (val0 == val1) pc = values[arg2]; }
 		else if (op == ne) { if (val0 != val1) pc = values[arg2]; }
 		else if (op == sc) {
-			nat x0 = load_nat_from_memory(memory, compiler_arg0);
-			nat x1 = load_nat_from_memory(memory, compiler_arg1);
-			nat x2 = load_nat_from_memory(memory, compiler_arg2);
-			nat x3 = load_nat_from_memory(memory, compiler_arg3);
 
-			if (x0 == compiler_system_debug) printf("debug: %llu (0x%llx)\n", x1, x1);
-			else if (x0 == compiler_system_exit) exit((int) x1);
-			else if (x0 == compiler_system_read) { 
-				x1 = (nat) read((int) x1, (void*) x2, (size_t) x3); 
+			nat x0 = *(((nat*) bridge) + compiler_arg0);
+			nat x1 = *(((nat*) bridge) + compiler_arg1);
+			nat x2 = *(((nat*) bridge) + compiler_arg2);
+			nat x3 = *(((nat*) bridge) + compiler_arg3);
+			nat x4 = *(((nat*) bridge) + compiler_arg4);
+			nat x5 = *(((nat*) bridge) + compiler_arg5);
+			nat x6 = *(((nat*) bridge) + compiler_arg6);
+
+			if (x0 == compiler_system_debug) {
+				printf("debug: %llu (0x%llx)\n", x1, x1);
+
+			} else if (x0 == compiler_system_exit) {
+				exit((int) x1);
+
+			} else if (x0 == compiler_system_read) {
+				x1 = (nat) read((int) x1, (void*) x2, (size_t) x3);
+
 			} else if (x0 == compiler_system_write) { 
 				x1 = (nat) write((int) x1, (void*) x2, (size_t) x3); 
+
 			} else if (x0 == compiler_system_open) { 
 				x1 = (nat) open((const char*) x1, (int) x2, (mode_t) x3); 
+
 			} else if (x0 == compiler_system_close) { 
 				x1 = (nat) close((int) x1); 
+
+			} else if (x0 == compiler_system_mmap) {
+				x1 = (uint64_t) (void*) mmap(
+					(void*) x1, 
+					(size_t) x2, 
+					(int) x3, (int) x4, 
+					(int) x5, (off_t) x6
+				);
+
+			} else if (x0 == compiler_system_munmap) {
+				x1 = (uint64_t) munmap(
+					(void*) x1, 
+					(size_t) x2
+				);
+
 			} else { 
 				printf("compiler: error: unknown system call number %llu\n", x0); 
 				abort(); 
 			} 
-			store_nat_to_memory(memory, compiler_arg1, x1);
-			store_nat_to_memory(memory, compiler_arg2, (nat) errno);
+
+			*(((nat*) bridge) + compiler_arg1) = x1;
+			*(((nat*) bridge) + compiler_arg2) = (nat) errno;
 		} else { 
 			printf("CTE: fatal internal error: "
 				"unknown instruction executed: %s...\n", 
@@ -1596,23 +1660,11 @@ process_file:;
 	}
 	memcpy(ins, rt_ins, ins_count * sizeof(struct instruction));
 	ins_count = rt_ins_count; 
-	target_arch = load_nat_from_memory(memory, compiler_target);
-	output_format = load_nat_from_memory(memory, compiler_format);
-	should_overwrite = load_nat_from_memory(memory, compiler_should_overwrite);
-	stack_size = load_nat_from_memory(memory, compiler_stack_size);
+	target_arch = *((nat*) bridge + compiler_target);
+	output_format = *((nat*) bridge + compiler_format);
+	should_overwrite = *((nat*) bridge + compiler_should_overwrite);
+	stack_size = *((nat*) bridge + compiler_stack_size);
 	}
-
-
-	/*for (nat i = 0; i < ins_count; i++) {
-		const nat op = ins[i].op;
-		if ((op >= lt and op <= eq and values[ins[i].args[2]] == (nat) -1) or
-		    
-		    (op == do_ and values[ins[i].args[0]] == (nat) -1)) {
-			puts("error: label does not have a defined position");
-			print_instruction_window_around(i, 1, "this label is undefined");
-			abort();
-		}
-	}*/
 
 	if (target_arch == msp430_arch and stack_size) { 
 		puts("fatal error: nonzero stack size for msp430 is not permitted"); 
@@ -5026,7 +5078,16 @@ finished_outputting:
 
 
 
-
+	/*for (nat i = 0; i < ins_count; i++) {
+		const nat op = ins[i].op;
+		if ((op >= lt and op <= eq and values[ins[i].args[2]] == (nat) -1) or
+		    
+		    (op == do_ and values[ins[i].args[0]] == (nat) -1)) {
+			puts("error: label does not have a defined position");
+			print_instruction_window_around(i, 1, "this label is undefined");
+			abort();
+		}
+	}*/
 
 
 
