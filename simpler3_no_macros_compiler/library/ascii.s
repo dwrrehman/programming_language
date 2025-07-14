@@ -6,6 +6,7 @@ ct
 set tab 1001
 set newline 0101
 set space 000001
+set escape space sub escape 101
 
 (aucawpoonseoonseooonseup)
 
@@ -21,6 +22,9 @@ set '6' '5' add '6' 1
 set '7' '6' add '7' 1
 set '8' '7' add '8' 1
 set '9' '8' add '9' 1
+
+set ':' '9' add ':' 1
+
 
 set 'A' 0000001 add 'A' 1
 set 'B' 'A' add 'B' 1
@@ -48,6 +52,10 @@ set 'W' 'V' add 'W' 1
 set 'X' 'W' add 'X' 1
 set 'Y' 'X' add 'Y' 1
 set 'Z' 'Y' add 'Z' 1
+
+set '[' 'Z' add '[' 1
+
+
 
 set 'a' 0000001 add 'a' 100001
 set 'b' 'a' add 'b' 1

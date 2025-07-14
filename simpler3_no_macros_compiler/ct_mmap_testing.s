@@ -1,26 +1,29 @@
-(this is a test of using the language just as an interpreted language, 
-to write a simple interactive shell program!
-written on 1202507141.042328 by dwrr)
+(
+	this is a test of using the language just as an interpreted language, 
+	in this file, i'm testing out the allocation and deallocation routines
+	defined in useful.s, which call mmap and munmap system calls at ct. 
+	written on 1202507141.042328 --> 1202507141.143013  
+	written by dwrr
+)
 
 ct 
+
 file library/foundation.s
 file library/ascii.s
+file library/useful.s
 
-st compiler_should_debug false nat
 st compiler_target no_arch nat
 st compiler_format no_output nat
 
-
-file library/useful.s
-
 set page_count 01
-
 set c0 page_count
 do ctallocatepages 
-set buffer c0 
+set buffer c0
+do ctdebug
 
-do ctprint
-
+do cthello
+set c0 ctsp do ctdebug 
+do ctbinary do ctnl
 
 set c0 buffer 
 set c1 page_count
@@ -47,6 +50,23 @@ set c0 0 do ctexit
 
 
 
+(do cthello
+
+at loop
+
+	set c0 101 do ctbinary do ctnl
+
+	do loop
+
+set c0 0 do ctexit)
+
+
+
+
+
+
+
+
 
 
 
@@ -54,6 +74,34 @@ set c0 0 do ctexit
 
 
 (
+
+
+
+
+(set page_count 01
+set c0 page_count
+do ctallocatepages 
+set buffer c0)
+
+do cthello
+
+set c0 ctsp 
+
+do ctprint 
+do ctbinary 
+do ctnl
+
+
+(set c0 buffer 
+set c1 page_count
+do ctdeallocatepages)
+
+set c0 0 do ctexit
+
+
+
+
+
 
 set p buffer
 st p 'H' byte add p 1
