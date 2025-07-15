@@ -1,0 +1,45 @@
+1202507152.032503
+
+i think theres definitely a flaw with how disjoint live ranges is working-
+
+	it needs to be taking into account variables liveness   or distinctness/disjointness      alongggg the flow of execution.. i think...
+
+
+
+
+write 
+ 0x00000000:   93 08 20 00   addi  x17  x0  #0x00000002
+ 0x00000004:   13 05 00 00   addi  x10  x0  #0x00000000
+ 0x00000008:   97 05 00 00   auipc  x11  #0x00000000
+ 0x0000000c:   93 85 c5 05   addi  x11  x11  #0x0000005c
+ 0x00000010:   13 06 10 00   addi  x12  x0  #0x00000001
+ 0x00000014:   73 00 00 00   ecall
+
+ 0x00000018:   17 01 00 00   auipc  x2  #0x00000000
+ 0x0000001c:   03 41 c1 04   lbu  x2  x2  #0x0000004c
+
+ 0x00000020:   93 00 f0 07   addi  x1  x0  #0x0000007f
+ 0x00000024:   63 14 11 00   bne  x2  x1  #0x00000008 (@0x0000002c)
+
+ 0x00000028:   6f f0 9f fd   jal  x0  #0xffffffd8 (@0x00000000)
+
+ 0x0000002c:   93 00 10 07   addi  x1  x0  #0x00000071
+ 0x00000030:   63 14 11 00   bne  x2  x1  #0x00000008 (@0x00000038)
+
+ 0x00000034:   6f 00 40 02   jal  x0  #0x00000024 (@0x00000058)
+
+
+ 0x00000038:   93 08 30 00   addi  x17  x0  #0x00000003
+ 0x0000003c:   13 05 10 00   addi  x10  x0  #0x00000001
+ 0x00000040:   97 05 00 00   auipc  x11  #0x00000000
+ 0x00000044:   93 85 45 02   addi  x11  x11  #0x00000024
+ 0x00000048:   13 06 10 00   addi  x12  x0  #0x00000001
+ 0x0000004c:   23 80 25 00   sb  x11  #0x00000000  x2
+ 0x00000050:   73 00 00 00   ecall
+
+
+ 0x00000054:   6f f0 df fa   jal  x0  #0xffffffac (@0x00000000)
+ 0x00000058:   93 08 10 00   addi  x17  x0  #0x00000001
+ 0x0000005c:   13 05 00 00   addi  x10  x0  #0x00000000
+ 0x00000060:   73 00 00 00   ecall
+ 0x00000064:   00 00 00 00   [illegal instruction opcode: 0x0]

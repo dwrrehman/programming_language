@@ -71,42 +71,34 @@ at skip_macros del skip_macros
 rt
 
 
-(set a0 welcome
-set a1 1
-do writestring)
+set a0 welcome
+set a1 011
+do writestring
 
 at loop
-
 	do getc set c a0 
-
 	ne c 1111_111 skip
-
-		(set a0 delete
+		set a0 delete
 		set a1 111
-		do writestring)
-
+		do writestring
 		do loop
-
 	at skip del skip
-
 	ct set 'q' 1000_111 rt
-
 	ne c 'q' skip
 		do done
 	at skip del skip
-
 	set a0 c  do putc
-
 	do loop
 at done
 do exit
 
-at buffer emit 1 0 (set c0 000001 do allocate)
+at buffer set c0 000001 do allocate
 
-(at welcome str "h")
+at welcome str "hello
+"
 
-(at delete str "delete
-")
+at delete str "delete
+"
 
 
 

@@ -121,7 +121,7 @@ typedef uint32_t u32;
 typedef uint16_t u16;
 typedef uint8_t byte;
 
-static nat debug = 0;
+static nat debug = 1;
 
 #define max_variable_count 	(1 << 14)
 #define max_instruction_count 	(1 << 14)
@@ -637,6 +637,110 @@ static nat* compute_riscv_predecessors(nat pc, nat* pred_count) {
 	return result;
 }
 
+/*
+
+
+
+
+enum core_language_isa {
+	nullins,
+
+
+
+
+
+
+C/U	a6_bc,      (U if a0 is 15 or 14)
+
+C	a6_cbz, 
+C	a6_tbz, 
+
+
+*/
+static nat* compute_arm64_successors(nat pc) {
+
+	nat* gotos = calloc(2 * ins_count, sizeof(nat)); 
+	nat locations[4096] = {0};
+
+	for (nat i = 0; i < ins_count; i++) {
+		if (ins[i].op == at) locations[ins[i].args[0]] = i;
+	}
+
+	for (nat i = 0; i < ins_count; i++) {
+		const nat op = ins[i].op;
+
+
+		if (op == halt) {
+			gotos[2 * i + 0] = (nat) -1;
+			gotos[2 * i + 1] = (nat) -1;
+
+		} else if (op == a6_cbz or op == a6_tbz or 
+			(op == a6_bc and ins[i].args[0] != 14 and ins[i].args[0] != 15)
+		) {
+			gotos[2 * i + 0] = i + 1;
+			gotos[2 * i + 1] = locations[ins[i].args[1]];
+
+		} else if ((op == a6_bc and (ins[i].args[0] == 14 or ins[i].args[0] == 15)) or 
+			op == a6_jmp
+		) {
+			gotos[2 * i + 0] = locations[ins[i].args[1]];
+			gotos[2 * i + 1] = (nat) -1;
+
+
+		} else if (	
+			op == at or
+			op == adr or
+			op == emit or
+
+			op == a6_nop or
+			op == a6_svc or
+			op == a6_mov or
+			op == a6_bfm or
+			op == a6_adc or
+			op == a6_addx or
+			op == a6_addi or
+			op == a6_addr or
+			op == a6_adr or
+			op == a6_shv or
+			op == a6_clz or
+			op == a6_rev or
+			op == a6_ccmp or
+			op == a6_csel or
+			op == a6_ori or
+			op == a6_orr or
+			op == a6_extr or
+			op == a6_ldrl or
+			op == a6_memp or
+			op == a6_memia or
+			op == a6_memi or
+			op == a6_memr or
+			op == a6_madd or
+			op == a6_divr
+		) {
+			gotos[2 * i + 0] = i + 1;
+			gotos[2 * i + 1] = (nat) -1;
+
+		} else {
+			puts("error: compute_arm64_successors(): found a non A6 MI...\n");
+			print_instruction(ins[i]);
+			abort();
+		} 
+	}
+
+	nat* result = calloc(2, sizeof(nat));
+	if (pc < ins_count) result[0] = gotos[2 * pc + 0];
+	if (pc < ins_count) result[1] = gotos[2 * pc + 1];
+	free(gotos);
+	return result;
+}
+
+
+
+static nat* compute_arm64_predecessors(nat pc, nat* pred_count) {
+
+
+	return NULL;
+}
 
 static nat* compute_msp430_successors(nat pc) {
 	nat* gotos = calloc(2 * ins_count, sizeof(nat)); 
@@ -892,43 +996,60 @@ static nat calculate_offset(nat* length, nat here, nat target) {
 	return offset;
 }
 
-static bool is_valid(nat n) {
-
-	if (n >= 133 and n <= 136) return 1;
-	if (n == 140) return 1;
-	else if (n == 159) return 1;
-	else return 0;
-
-}
 
 
 /*
-variable dictionary: 
-           [   63]  "     c_system_number"  :   { ri=    0 }  :   0xffffffffffffffff (18446744073709551615 decimal)
-           [   64]  "       c_system_arg0"  :   { ri=    1 }  :   0xffffffffffffffff (18446744073709551615 decimal)
-           [   65]  "       c_system_arg1"  :   { ri=    2 }  :   0xffffffffffffffff (18446744073709551615 decimal)
-           [   66]  "       c_system_arg2"  :   { ri=    3 }  :   0xffffffffffffffff (18446744073709551615 decimal)
-           [   67]  "       c_system_arg3"  :   { ri=    4 }  :   0xffffffffffffffff (18446744073709551615 decimal)
-           [   68]  "       c_system_arg4"  :   { ri=    5 }  :   0xffffffffffffffff (18446744073709551615 decimal)
-           [   69]  "       c_system_arg5"  :   { ri=    6 }  :   0xffffffffffffffff (18446744073709551615 decimal)
-           [   70]  "       c_system_arg6"  :   { ri=    7 }  :   0xffffffffffffffff (18446744073709551615 decimal)
-           [  133]  "      rv_system_arg0"  :   { ri=   10 }  :   0xffffffffffffffff (18446744073709551615 decimal)
-           [  134]  "      rv_system_arg1"  :   { ri=   11 }  :   0xffffffffffffffff (18446744073709551615 decimal)
-           [  135]  "      rv_system_arg2"  :   { ri=   12 }  :   0xffffffffffffffff (18446744073709551615 decimal)
-           [  136]  "    rv_system_number"  :   { ri=   17 }  :   0xffffffffffffffff (18446744073709551615 decimal)
-           [  140]  "                  a0"  :   { ri=   -1 }  :   0xffffffffffffffff (18446744073709551615 decimal)
-           [  141]  "                  a1"  :   { ri=   -1 }  :   0xffffffffffffffff (18446744073709551615 decimal)
-     L C   [  157]  "                   l"  :   { ri=   -1 }  :   0x00000000000000ea (234 decimal)
-     L     [  158]  "                loop"  :   { ri=   -1 }  :   0x00000000000000f0 (240 decimal)
-           [  159]  "                   c"  :   { ri=   -1 }  :   0xffffffffffffffff (18446744073709551615 decimal)
-     L   U [  160]  "                skip"  :   { ri=   -1 }  :   0x00000000000000f5 (245 decimal)
-       C   [  161]  "                 'q'"  :   { ri=   -1 }  :   0x0000000000000071 (113 decimal)
-     L   U [  162]  "                skip"  :   { ri=   -1 }  :   0x00000000000000fa (250 decimal)
-     L     [  163]  "                done"  :   { ri=   -1 }  :   0x00000000000000ff (255 decimal)
-     L     [  164]  " GENERATED_LABEL_164"  :   { ri=   -1 }  :   0xffffffffffffffff (18446744073709551615 decimal)
-     L     [  165]  " GENERATED_LABEL_165"  :   { ri=   -1 }  :   0xffffffffffffffff (18446744073709551615 decimal)
-[end]
+
+rv_system_arg0(0135) 
+rv_system_arg1(0136) 
+rv_system_arg2(0137) 
+rv_system_number(0138)         
+a0(0142)         
+a1(0143)     
+buffer(0151)       
+loop(0160)          
+c(0161)       
+skip(0162)       
+skip(0164)       
+done(0165) 
+GENERATED_LABEL_166(0166) 
+GENERATED_LABEL_167(0167) 
 */
+
+
+
+	/*printf("-----------"); 
+	for (nat j = 0; j < var_count; j++) { 
+		if (is_label[j] or is_constant[j] or not is_valid(j)) continue; 
+		printf("-----------------"); 
+	} 
+	puts("");*/
+
+
+
+/*
+
+c_system_number(0065) c_system_arg0(0066) c_system_arg1(0067) c_system_arg2(0068) c_system_arg3(0069) c_system_arg4(0070) c_system_arg5(0071) c_system_arg6(0072) 
+
+
+rv_system_arg0(0135) rv_system_arg1(0136) rv_system_arg2(0137) rv_system_number(0138)
+
+
+a0(0142)         a1(0143)          c(0161) 
+
+*/
+
+
+static bool is_valid(nat n) {
+	if (n == 135) return 1;
+	if (n == 136) return 1;
+	if (n == 137) return 1;
+	if (n == 138) return 1;
+
+	if (n == 142) return 1;
+	return 0;
+}
+
 
 static void debug_data_flow_state(
 	nat pc,
@@ -938,28 +1059,21 @@ static void debug_data_flow_state(
 	nat* is_copy, nat* copy_of
 ) {
 
-	const nat amount = 60;
-
 	print_instruction_window_around(pc, 0, "PC");
 	//print_dictionary(0);
 
 	printf("        "); 
 	for (nat j = 0; j < var_count; j++) { 
-		if (is_constant[j] or (var_count - j >= amount) or not is_valid(j)) continue; 
+		if (is_label[j] or is_constant[j] or not is_valid(j)) continue; 
 		printf("%10s(%04llu) ", variables[j], j); 
 	}
 	puts("");
-	/*printf("-----------"); 
-	for (nat j = 0; j < var_count; j++) { 
-		if (is_constant[j] or (var_count - j >= amount) or not is_valid(j)) continue; 
-		printf("-----------------"); 
-	} 
-	puts("");*/
+
 	
 	for (nat i = 0; i < ins_count; i++) {
 		printf("ct %3llu: ", i);
 		for (nat j = 0; j < var_count; j++) {
-			if (is_constant[j] or (var_count - j >= amount) or not is_valid(j)) continue; 
+			if (is_label[j] or is_constant[j] or not is_valid(j)) continue; 
 			if (not type[i * var_count + j]) printf("\033[90m");
 			printf("%4llu ", value[i * var_count + j]);
 			if (not type[i * var_count + j]) printf("\033[0m");
@@ -968,7 +1082,7 @@ static void debug_data_flow_state(
 
 		printf("cp %3llu: ", i);
 		for (nat j = 0; j < var_count; j++) {
-			if (is_constant[j] or (var_count - j >= amount) or not is_valid(j)) continue; 
+			if (is_label[j] or is_constant[j] or not is_valid(j)) continue; 
 			if (not is_copy[i * var_count + j]) printf("\033[90m");
 			printf("%3lld ", copy_of[i * var_count + j]);
 			if (not is_copy[i * var_count + j]) printf("\033[0m");
@@ -999,10 +1113,10 @@ static void debug_data_flow_state(
 }
 
 
-static bool is_valid2(nat n) {
+/*static bool is_valid2(nat n) {
 //	if (n == 167) return 1;
 //	if (n == 166) return 1;
-	if (n == 140) return 1;
+//	if (n == 140) return 1;
 //	if (n == 141) return 1;
 //	if (n == 159) return 1;
 //	if (n == 133) return 1;
@@ -1010,18 +1124,8 @@ static bool is_valid2(nat n) {
 //	if (n == 135) return 1;
 //	if (n == 136) return 1;
 
-	return 0;
-}
-
-
-
-/*
-
-
-         c_system_number(0063)        c_system_arg0(0064)        c_system_arg1(0065)        c_system_arg2(0066)        c_system_arg3(0067)        c_system_arg4(0068)        c_system_arg5(0069)        c_system_arg6(0070)       rv_system_arg0(0133)       rv_system_arg1(0134)       rv_system_arg2(0135)     rv_system_number(0136)                   a0(0140)                   a1(0141)                    c(0159)                  NEW(0166)                  NEW(0167) 
-
-
-*/
+	return 1;
+}*/
 
 static void debug_liveness(
 	nat pc,
@@ -1033,7 +1137,7 @@ static void debug_liveness(
 	print_instruction_window_around(pc, 0, "PC");
 	printf("    "); 
 	for (nat j = 0; j < var_count; j++) { 
-		if (is_constant[j] or is_label[j] or not is_valid2(j)) continue; 
+		if (is_constant[j] or is_label[j] or not is_valid(j)) continue; 
 		printf("%20s(%04llu) ", variables[j], j); 
 	} 
 	puts("");
@@ -1047,7 +1151,7 @@ static void debug_liveness(
 	for (nat i = 0; i < ins_count; i++) {
 		printf("%2llu: ", i);
 		for (nat j = 0; j < var_count; j++) {
-			if (is_constant[j] or is_label[j] or not is_valid2(j)) continue; 
+			if (is_constant[j] or is_label[j] or not is_valid(j)) continue; 
 			if (not alive[i * var_count + j]) printf("\033[38;5;235m");
 			printf("%4llu  ", alive[i * var_count + j]);
 			if (not alive[i * var_count + j]) printf("\033[0m");
@@ -2324,11 +2428,16 @@ rv32_instruction_selection:;
 					}, i + 1
 				);
 
-				if (op_A[this] == sub) { puts("we need to be handling the subi case better on rv32 isel... whoops lol"); abort(); } 
-
 				if (j == unrecognized) goto skip_set_r_i;
 				if (ins[j].args[1] >= 2048) goto skip_set_r_i;
 				if (op == mul or op == div_ or op == rem) goto skip_set_r_i;
+
+
+				if (op_A[this] == sub) { 
+					puts("we need to be handling the subi "
+					"case better on rv32 isel... whoops lol"); 
+					abort(); 
+				} 
 
 				new = (struct instruction) {
 					r5_i, 0x15, 0, {
@@ -2980,6 +3089,10 @@ finish_instruction_selection:;
 			preds = compute_riscv_predecessors(pc, &pred_count);
 			gotos = compute_riscv_successors(pc);
 
+		} else if (target_arch == arm64_arch) {
+			preds = compute_arm64_predecessors(pc, &pred_count);
+			gotos = compute_arm64_successors(pc);
+
 		} else if (target_arch == msp430_arch) {
 			preds = compute_msp430_predecessors(pc, &pred_count);
 			gotos = compute_msp430_successors(pc);
@@ -3020,11 +3133,11 @@ finish_instruction_selection:;
 		const nat i5 = !!(imm & (1 << 5));
 
 		for (nat var = 0; var < var_count; var++) {
-			nat future_alive = 0;		
+			nat future_alive = 0;
 			for (nat i = 0; i < goto_count; i++) {
 				const nat gt = gotos[i];
 				if (not ins[gt].state) continue;
-				if (alive[gt * var_count + var]) future_alive = 1;
+				if (alive[gt * var_count + var] == 1) future_alive = 1;
 			}
 			alive[pc * var_count + var] = future_alive;
 		}
@@ -3046,17 +3159,17 @@ finish_instruction_selection:;
 				}			
 
 			} else if (op == r5_r) { // addr D A A
-				if (not i1) alive[pc * var_count + a1] = 0;
+				if (not i1) alive[pc * var_count + a1] = 2;
 				if (not i3) alive[pc * var_count + a3] = 1;
 				if (not i4) alive[pc * var_count + a4] = 1;
 			} else if (op == r5_i) { // addi D A
-				if (not i1) alive[pc * var_count + a1] = 0;
+				if (not i1) alive[pc * var_count + a1] = 2;
 				if (not i3) alive[pc * var_count + a3] = 1;
 			} else if (op == r5_s or op == r5_b) { // BLT X Y   or // STW A A
 				if (not i2) alive[pc * var_count + a2] = 1;   // 0x23  0x010  arg0 arg1 0x00000 0 0 0 
 				if (not i3) alive[pc * var_count + a3] = 1;
 			} else if (op == r5_u or op == r5_j) { // JAL D   or  // LUI D
-				if (not i1) alive[pc * var_count + a1] = 0;
+				if (not i1) alive[pc * var_count + a1] = 2;
 			} else goto unknown_liveness_error;
 
 		} else if (target_arch == msp430_arch) {
@@ -3117,37 +3230,43 @@ finish_instruction_selection:;
 		if (is_constant[var] or is_label[var]) continue; // optional...
 
 		nat pc = 0;
-		while (pc < ins_count and alive[pc * var_count + var]) pc++;
-		while (pc < ins_count and not alive[pc * var_count + var]) pc++;
+		while (pc < ins_count and alive[pc * var_count + var] != 2) pc++;
+		while (pc < ins_count and alive[pc * var_count + var] == 2) pc++;
+
+		if (pc < ins_count and alive[pc * var_count + var] != 1) continue;
 
 		while (pc < ins_count) {
 
 			if (debug) {
-			printf("[begin]: live range var = %s: { ", variables[var]);
+			printf("[begin]: \tlive range var = %s: { ", variables[var]);
 			for (nat i = 0; i < ins_count; i++) {
-				if (i != pc) printf(" %llu ", alive[i * var_count + var]);
+				if (i != pc) printf("  %llu  ", alive[i * var_count + var]);
 				if (i == pc) printf(" [%llu] ", alive[i * var_count + var]);
 			}
 			puts("} ");
-			getchar(); } 
+			} 
 
 			nat begin = pc;
 
-			while (pc < ins_count and alive[pc * var_count + var]) pc++;
+			while (pc < ins_count and alive[pc * var_count + var] != 2) pc++; 
+			pc--;
+			while (pc and alive[pc * var_count + var] == 0) pc--; 
+			pc++;
 
-			if (debug) { printf("[end]: live range var = %s: { ", variables[var]);
+			if (debug) { printf("[  end]: \tlive range var = %s: { ", variables[var]);
 			for (nat i = 0; i < ins_count; i++) {
-				if (i != pc) printf(" %llu ", alive[i * var_count + var]);
+				if (i != pc) printf("  %llu  ", alive[i * var_count + var]);
 				if (i == pc) printf(" [%llu] ", alive[i * var_count + var]);
 			}
-			puts("} ");
+			puts("} \n");
 			getchar(); }
 
 			range_begin[range_count] = begin;
 			range_end[range_count] = pc;
 			range_var[range_count++] = var;
 
-			while (pc < ins_count and not alive[pc * var_count + var]) pc++;
+			while (pc < ins_count and alive[pc * var_count + var] != 2) pc++; 
+			while (pc < ins_count and alive[pc * var_count + var] == 2) pc++;
 		} 
 		if (debug) { printf("computed all live ranges for variable %s...\n", variables[var]);
 		getchar(); } 
@@ -5073,6 +5192,45 @@ finished_outputting:
 
 
 
+
+
+/*
+variable dictionary: 
+           [   63]  "     c_system_number"  :   { ri=    0 }  :   0xffffffffffffffff (18446744073709551615 decimal)
+           [   64]  "       c_system_arg0"  :   { ri=    1 }  :   0xffffffffffffffff (18446744073709551615 decimal)
+           [   65]  "       c_system_arg1"  :   { ri=    2 }  :   0xffffffffffffffff (18446744073709551615 decimal)
+           [   66]  "       c_system_arg2"  :   { ri=    3 }  :   0xffffffffffffffff (18446744073709551615 decimal)
+           [   67]  "       c_system_arg3"  :   { ri=    4 }  :   0xffffffffffffffff (18446744073709551615 decimal)
+           [   68]  "       c_system_arg4"  :   { ri=    5 }  :   0xffffffffffffffff (18446744073709551615 decimal)
+           [   69]  "       c_system_arg5"  :   { ri=    6 }  :   0xffffffffffffffff (18446744073709551615 decimal)
+           [   70]  "       c_system_arg6"  :   { ri=    7 }  :   0xffffffffffffffff (18446744073709551615 decimal)
+           [  133]  "      rv_system_arg0"  :   { ri=   10 }  :   0xffffffffffffffff (18446744073709551615 decimal)
+           [  134]  "      rv_system_arg1"  :   { ri=   11 }  :   0xffffffffffffffff (18446744073709551615 decimal)
+           [  135]  "      rv_system_arg2"  :   { ri=   12 }  :   0xffffffffffffffff (18446744073709551615 decimal)
+           [  136]  "    rv_system_number"  :   { ri=   17 }  :   0xffffffffffffffff (18446744073709551615 decimal)
+           [  140]  "                  a0"  :   { ri=   -1 }  :   0xffffffffffffffff (18446744073709551615 decimal)
+           [  141]  "                  a1"  :   { ri=   -1 }  :   0xffffffffffffffff (18446744073709551615 decimal)
+     L C   [  157]  "                   l"  :   { ri=   -1 }  :   0x00000000000000ea (234 decimal)
+     L     [  158]  "                loop"  :   { ri=   -1 }  :   0x00000000000000f0 (240 decimal)
+           [  159]  "                   c"  :   { ri=   -1 }  :   0xffffffffffffffff (18446744073709551615 decimal)
+     L   U [  160]  "                skip"  :   { ri=   -1 }  :   0x00000000000000f5 (245 decimal)
+       C   [  161]  "                 'q'"  :   { ri=   -1 }  :   0x0000000000000071 (113 decimal)
+     L   U [  162]  "                skip"  :   { ri=   -1 }  :   0x00000000000000fa (250 decimal)
+     L     [  163]  "                done"  :   { ri=   -1 }  :   0x00000000000000ff (255 decimal)
+     L     [  164]  " GENERATED_LABEL_164"  :   { ri=   -1 }  :   0xffffffffffffffff (18446744073709551615 decimal)
+     L     [  165]  " GENERATED_LABEL_165"  :   { ri=   -1 }  :   0xffffffffffffffff (18446744073709551615 decimal)
+[end]
+*/
+
+
+
+/*
+
+
+         c_system_number(0063)        c_system_arg0(0064)        c_system_arg1(0065)        c_system_arg2(0066)        c_system_arg3(0067)        c_system_arg4(0068)        c_system_arg5(0069)        c_system_arg6(0070)       rv_system_arg0(0133)       rv_system_arg1(0134)       rv_system_arg2(0135)     rv_system_number(0136)                   a0(0140)                   a1(0141)                    c(0159)                  NEW(0166)                  NEW(0167) 
+
+
+*/
 
 
 
