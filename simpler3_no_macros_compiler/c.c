@@ -1697,6 +1697,7 @@ process_file:;
 		} else if (op == st and val2 == 4) {
 			if (val0 < bridge_limit) val0 += (nat) bridge;
 			* (uint32_t*) val0 = (uint32_t) val1;
+
 		} else if (op == st and val2 == 8) {
 			if (val0 < bridge_limit) val0 += (nat) bridge;
 			* (uint64_t*) val0 = (uint64_t) val1;
@@ -3014,8 +3015,10 @@ c_instruction_selection:;
 
 finish_instruction_selection:;
 
-	puts("we just finished instruction selection!!!");
-	getchar();
+	if (debug) {
+		puts("we just finished instruction selection!!!");
+		getchar();
+	}
 
 	for (nat i = 0; i < ins_count; i++) {
 		if (not ins[i].state) {
@@ -3029,8 +3032,10 @@ finish_instruction_selection:;
 
 
 
-	puts("we just verified instruction selection!!!");
-	getchar();
+	if (debug) {
+		puts("we just verified instruction selection!!!");
+		getchar();
+	}
 
 	
 	for (nat i = 0; i < mi_count; i++) ins[i] = mi[i];
@@ -3044,8 +3049,10 @@ finish_instruction_selection:;
 	}
 
 
-	puts("i just showed you instruction selection!!!");
-	getchar();
+	if (debug) {
+		puts("i just showed you instruction selection!!!");
+		getchar();
+	}
 
 
 
@@ -3059,8 +3066,10 @@ finish_instruction_selection:;
 		abort();
 	}
 
-	puts("selected arch for RA liveness!!");
-	getchar();
+	if (debug) {
+		puts("selected arch for RA liveness!!");
+		getchar();
+	}
 
 
 	{ nat* alive = calloc(ins_count * var_count, sizeof(nat)); 
@@ -3072,12 +3081,12 @@ finish_instruction_selection:;
 
 
 	if (not stack_count) {
-		printf("error: no control flow graph terminations were found! this means that liveness cannot take place.\n");
-		puts("please resolve this.");
-		//abort();
+		if (debug) {
+			printf("error: no control flow graph terminations were found! this means that liveness cannot take place.\n");
 
-		puts("warning: instead, we are just going to push the last instruction index, with the assumption that the infinite loop is at the end of the program lol.");
+			puts("warning: instead, we are just going to push the last instruction index, with the assumption that the infinite loop is at the end of the program lol.");
 		getchar();
+		}
 
 		stack[stack_count++] = ins_count - 1;
 	}

@@ -7,7 +7,7 @@ notes on getting the low power sleepmodes to work on the pico 2W!
 POWMAN:
 --------------
 
-	powman_base = ???????????????
+	powman_base = 0x40100000
 
 
 
@@ -175,3 +175,353 @@ now,
 
 
  
+
+
+
+
+
+1202507163.183052
+
+heres the registers which we need to touch:
+
+all the ones we need are password protected,   so the upper 16 bits must be written with   0x5AFE
+
+
+	LE binary:      0111_1111_0101_1010
+
+				for the most significant 16 bits. 
+
+
+
+
+
+
+our registers:
+
+POWMAN_BASE = .... stated above
+
+
+
+	0x38 offset   :   STATE 
+
+
+	
+
+iter:   low-power program:
+------------------------------------------------------
+
+
+1. we need to first write to the STATE register, 
+
+2. then we need to configure the alarm:
+
+ the ALARM_TIME_15TO0-ALARM_TIME_63TO48 registers
+
+	which can we found at:   POWMAN_BASE +  (offset  )
+
+3. then we need to set the TIMER register's bits    .PWRUP_ON_ALARM  and .ALARM_ENAB   bits  simultaneouslyyy
+	upon doing this, the alarm will be live, and running
+
+4. then we need to issue the   wfi instruction to go to sleep 
+
+
+
+5. when we wake up , we will be at the beginning of our program, and thus we need to set up the gpio registers again, 
+
+	and then check:    The POWMAN_BASE + LAST_SWCORE_PWRUP ( 0xa0 )  register
+
+		if it has the value 6   then we know that    it was caused from a timer alarm triggering, 
+							ie, a wake up from deep sleep
+
+
+		and then    0 means chip reset. 
+
+			(irrelevant:  1 through 4 means  a gpio wake up. 
+
+
+	
+
+
+
+
+
+
+the plan is,   we are going to try to store the state of the LED into SRAM. 
+
+	and then we just complement the state in order to get the LED to blink properly lol 
+
+
+
+
+
+
+
+(these are all password protected)
+
+
+
+	TIMER = 0x88
+
+
+This field must only be written when POWMAN_ALARM_ENAB = 0
+
+
+	ALARM_TIME_15TO0  = 0x84     (16 bit value)
+		
+	ALARM_TIME_31TO16 = 0x80
+	
+	ALARM_TIME_47TO32 = 0x7c
+	
+	ALARM_TIME_63TO48 = 0x78
+	
+
+
+	
+
+password protected   up to and including :
+0x000000ac
+
+
+
+
+
+	
+
+
+
+
+...theres more:
+
+
+CRAP
+
+
+
+. the RUN bit   in TIMER
+
+
+. set POWMAN_LPOSC_FREQ*    this register
+ 	these have good defaults already i thinkk    so we dont' need to touch them lol 
+
+
+
+
+
+nope, these arent relevant, as we will just clear the timer before the alarm starts ticking:
+. set SET_TIME_63TO48   through  SET_TIME_15TO0     before starting the timer      ie RUN
+
+.     To clear the alarm status flag, write a 1 to the alarm status flag.
+		we need to write a 1    to the TIMER.ALARM bit   flag    to clear the alarm, on power up from the alarm.
+
+
+. To configure the alarm to trigger a power-up, set TIMER.PWRUP_ON_ALARM = 1 
+
+		"This feature is not available to Non-secure code."    uh oh lol 
+
+						hopefully not applicable to us lol 
+
+
+
+
+--->    section 12.10   AON timer     
+
+			outlines all the details about the alarm/aon-timer    which we are using to wake us up from deep sleep. 
+
+
+
+
+
+
+
+
+
+
+
+
+
+	
+
+
+for us, we only need to do the following:
+
+
+
+
+
+	
+
+
+
+
+
+
+	
+
+
+
+
+
+
+new iter:   low-power program:
+------------------------------------------------------
+
+
+
+------------------------------------------------------
+0. store any data you care about, (and don't wish to reconstruct from scratch on boot)
+   in somewhere in SRAM, prior
+------------------------------------------------------
+
+
+
+
+
+------------------------------------------------------
+1. we need to first write to the STATE register,    
+
+		0011  bits 7 through 4    to go into  P1.4
+------------------------------------------------------
+
+
+
+------------------------------------------------------
+2. then we need to configure the alarm:
+
+	 the ALARM_TIME_15TO0-ALARM_TIME_63TO48 registers : { 
+
+		ALARM_TIME_15TO0  = 0x84     (16 bit value)
+			
+		ALARM_TIME_31TO16 = 0x80
+		
+		ALARM_TIME_47TO32 = 0x7c
+		
+		ALARM_TIME_63TO48 = 0x78	
+	}
+
+	which can we found at:   POWMAN_BASE + (offset)
+------------------------------------------------------
+
+
+
+
+------------------------------------------------------
+3. then we need to set the POWMAN_BASE + TIMER(0x88) register's bits    .PWRUP_ON_ALARM  and .ALARM_ENAB   bits  simultaneouslyyy
+	upon doing this, the alarm will be live, and running
+------------------------------------------------------
+
+
+
+------------------------------------------------------
+4. then we need to issue the   wfi instruction to go to sleep 
+------------------------------------------------------
+
+
+
+			....
+
+		we will be sleeping now. 
+
+			....
+
+
+
+
+------------------------------------------------------
+5. when we wake up , we will be at the beginning of our program, 
+	and thus we need to set up the pins/gpio output registers again, 
+	and once everything is setup consistent with both program cases:  
+					(the lpm wakeup, and chip boot-up cases)
+
+
+
+	we will then check:    The POWMAN_BASE + LAST_SWCORE_PWRUP ( 0xa0 )  register
+
+
+		on value 6,
+			this means it was caused from a timer alarm triggering, 
+
+		on value 0, 
+			it means chip reset. 
+
+	we can now branch to seperate parts of the program, depending on this value,
+	and thus we can load the data we stored to SRAM, back into registers, 
+	and then we can continue where we left off. 
+
+
+
+------------------------------------------------------
+
+
+	
+
+
+
+
+
+
+additional notes:
+
+	TIMER value:
+
+		NONSEC_WRITE = 1
+
+		RUN = 0           (set to 1 once ready to start the timer)
+
+		CLEAR = 1         (set to 1 when you want to clear the timer, which we do, upon init.)
+
+
+		ALARM_ENAB = 0    (only set this to 1 when you are about to set RUN to 1.)
+
+		PWRUP_ON_ALARM = 1   
+
+
+		the rest of the bits we don't need to touch i think! 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

@@ -1,14 +1,6 @@
-(a program to pwm an LED on GPIO 0 using a 
-risc-v uf2 file outputted by the compiler,
-running on the pico 2 W. 
-written on 1202507104.030034 by dwrr
-
-previously:
-
- testing out the generation of the 
-risc-v uf2 file for programming the pico 2 W.
-written 1202505272.173200 by dwrr
-)
+( a low power program to blink an LED, 
+ and then use the low power sleep modes for delays
+written on 1202507163.175855 by dwrr )
 
 file library/foundation.s ct
 
@@ -17,15 +9,14 @@ st compiler_format uf2_executable nat
 st compiler_should_overwrite true nat
 st compiler_stack_size 0 nat 
 
-st compiler_should_debug true nat
 
 (address atomic bitmasks) 
 set clear_on_write 	0000_0000_0000_11
 set set_on_write 	0000_0000_0000_01
 set toggle_on_write 	0000_0000_0000_1
 
-(memory map of rp2350)
 
+(memory map of rp2350)
 set flash_start 	0000_0000_0000_0000__0000_0000_0000_1000
 set ram_start 		0000_0000_0000_0000__0000_0000_0000_0100
 set powman_base		0000_0000_0000_0000__0000_1000_0000_0010
@@ -35,28 +26,49 @@ set reset_base 		0000_0000_0000_0000__0100_0000_0000_0010
 set io_bank0_base 	0000_0000_0000_0001__0100_0000_0000_0010
 set pads_bank0_base 	0000_0000_0000_0001__1100_0000_0000_0010
 
+
+(powman registers:  ones for the alarm and low power mode configuration)
+set powman_password 	0000_0000_0000_0000___0111_1111_0101_1010
+set last_swcore_pwrup	0000_0101
+set powman_state 	0001_1100
+set powman_timer 	0001_0001
+set alarm_time_15to0  	0010_0001
+set alarm_time_31to16	0000_0001
+set alarm_time_47to32	0011_1110
+set alarm_time_63to48	0001_1110
+
 (risc-v op codes)
 set addi_op1 	1100100
 set addi_op2	000
 set sw_op1 	1100010
 set sw_op2 	010
+set slt_op1	1100110
+set slt_op2	010
 
+(useful thingy)
 set reset_clear reset_base 
 add reset_clear clear_on_write
 
-set io_gpio0_ctrl 001
-set io_gpio1_ctrl 0011
-set io_gpio2_ctrl 00101
-set io_gpio3_ctrl 00111
+(pad and gpio registers)
+set io_gpio0_ctrl  001
+set io_gpio1_ctrl  0011
+set io_gpio2_ctrl  0010_1
+set io_gpio3_ctrl  0011_1
+set io_gpio23_ctrl 0011_1101
 
-set pads_gpio0 001
-set pads_gpio1 0001
-set pads_gpio2 0011
-set pads_gpio3 00001
+set pads_gpio0  001
+set pads_gpio1  0001
+set pads_gpio2  0011
+set pads_gpio3  0000_1
+set pads_gpio23 0000_011
 
 set sio_gpio_oe 	0000_11
 set sio_gpio_out 	0000_1
 set sio_gpio_in 	001
+
+
+
+
 
 rt set a0 a0
 set a1 a1
@@ -68,6 +80,10 @@ set c1 c1
 set c2 c2
 set c3 c3
 
+
+
+
+
 do skip_macros
 
 at setif
@@ -75,7 +91,7 @@ at setif
 	set a c0 set b c1 
 	set c c2 set d c3
 	ne a b l st c d nat
-	at l del l del a del b 
+	at l del l del a del b  
 	del c del d do ra del ra 
 
 at setup_output
@@ -86,14 +102,15 @@ at setup_output
 	set c1 1 set c3 io_gpio1_ctrl do setif
 	set c1 01 set c3 io_gpio2_ctrl do setif
 	set c1 11 set c3 io_gpio3_ctrl do setif
+	set c1 11101 set c3 io_gpio23_ctrl do setif
  	ld control p nat
 
 	set c1 0 set c3 pads_gpio0 do setif
 	set c1 1 set c3 pads_gpio1 do setif
 	set c1 01 set c3 pads_gpio2 do setif
 	set c1 11 set c3 pads_gpio3 do setif
+	set c1 11101 set c3 pads_gpio23 do setif
 	ld pads p nat
-
 	del p
 	rt set address io_bank0_base
 	set data 101
@@ -104,6 +121,88 @@ at setup_output
 	del pads del control 
 	del address del data
 	ct do ra del ra
+
+at wfi
+	ld ra 0 nat
+	rt r5_r slt_op1 0 slt_op2 0 0 00000
+	ct do ra del ra
+
+at skip_macros del skip_macros
+
+
+
+
+
+
+
+rt adr flash_start
+
+do skip
+(rp2350 image_def marker)
+emit  001  1100_1011_0111_1011__1111_1111_1111_1111
+emit  001  0100_0010_1000_0000__1000_0000_1000_1000
+emit  001  1111_1111_1000_0000__0000_0000_0000_0000
+emit  001  0000_0000_0000_0000__0000_0000_0000_0000
+emit  001  1001_1110_1010_1100__0100_1000_1101_0101
+at skip del skip
+
+
+
+
+set address 	reset_clear
+set data 	0000_0010_01
+r5_s sw_op1 sw_op2 address data 0
+
+set c0 0 do setup_output
+set c0 11101 do setup_output
+
+set address	sio_base
+set data 	1000_0000__0000_0000__0000_0001__0000_0000
+r5_s sw_op1 sw_op2 address data sio_gpio_oe
+
+set data 1000_0000__0000_0000__0000_0000__0000_0000
+r5_s sw_op1 sw_op2 address data sio_gpio_out
+
+at loop
+	set data 1000_0000__0000_0000__0000_0000__0000_0000
+	r5_s sw_op1 sw_op2 address data sio_gpio_out
+	do wfi
+
+	set data 0000_0000__0000_0000__0000_0000__0000_0000
+	r5_s sw_op1 sw_op2 address data sio_gpio_out
+	do wfi
+
+ne 0 0 loop 
+do loop
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+(
+
 
 
 at delay
@@ -122,34 +221,17 @@ at delayr
 	add ii 1 do LL at donee
 	del ii del LL del donee
 	ct do ra del ra
+)
 
-at skip_macros del skip_macros
-rt adr flash_start
 
-do skip  
-(rp2350 image_def marker)
-emit  001  1100_1011_0111_1011__1111_1111_1111_1111
-emit  001  0100_0010_1000_0000__1000_0000_1000_1000
-emit  001  1111_1111_1000_0000__0000_0000_0000_0000
-emit  001  0000_0000_0000_0000__0000_0000_0000_0000
-emit  001  1001_1110_1010_1100__0100_1000_1101_0101
-at skip del skip
 
-set address 	reset_clear
-set data 	0000_0010_01
-r5_s sw_op1 sw_op2 address data 0
 
-set c0 0 do setup_output
 
-set address	sio_base
-set data 	1
-r5_s sw_op1 sw_op2 address data sio_gpio_oe
 
-set data 1
-r5_s sw_op1 sw_op2 address data sio_gpio_out
 
-at loop
-	ct 
+
+
+	(ct 
 		set millisecond 		0000_0000_0000_1
 		set half_millisecond 		0000_000_1
 
@@ -189,26 +271,7 @@ at loop
 		set i iterator_limit sub i iterator at d sub i 1 ne i 0 d del d del i
 		lt increment iterator inner del inner
 
-	set i 0000_0000_0000_0000_0000_01 at d sub i 1 ne i 0 d del d del i
-do loop
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+	set i 0000_0000_0000_0000_0000_01 at d sub i 1 ne i 0 d del d del i)
 
 
 
@@ -228,7 +291,19 @@ do loop
 
 
 
+(
 
+
+a program to pwm an LED on GPIO 0 using a 
+risc-v uf2 file outputted by the compiler,
+running on the pico 2 W. 
+written on 1202507104.030034 by dwrr
+
+previously:
+ testing out the generation of the 
+risc-v uf2 file for programming the pico 2 W.
+written 1202505272.173200 by dwrr
+)
 
 
 

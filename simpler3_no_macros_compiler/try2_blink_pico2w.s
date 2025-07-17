@@ -4,20 +4,16 @@ running on the pico 2 W.
 written on 1202507104.030034 by dwrr
 
 previously:
-
  testing out the generation of the 
 risc-v uf2 file for programming the pico 2 W.
 written 1202505272.173200 by dwrr
 )
 
 file library/foundation.s ct
-
 st compiler_target rv32_arch nat
 st compiler_format uf2_executable nat
 st compiler_should_overwrite true nat
 st compiler_stack_size 0 nat 
-
-st compiler_should_debug true nat
 
 (address atomic bitmasks) 
 set clear_on_write 	0000_0000_0000_11
@@ -75,7 +71,7 @@ at setif
 	set a c0 set b c1 
 	set c c2 set d c3
 	ne a b l st c d nat
-	at l del l del a del b 
+	at l del l del a del b  
 	del c del d do ra del ra 
 
 at setup_output
@@ -93,7 +89,6 @@ at setup_output
 	set c1 01 set c3 pads_gpio2 do setif
 	set c1 11 set c3 pads_gpio3 do setif
 	ld pads p nat
-
 	del p
 	rt set address io_bank0_base
 	set data 101
