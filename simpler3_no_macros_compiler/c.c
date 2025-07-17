@@ -282,7 +282,6 @@ struct expected_instruction {
 	nat args[max_arg_count];	
 };
 
-
 static struct instruction ins[max_instruction_count] = {0};
 static nat ins_count = 0;
 
