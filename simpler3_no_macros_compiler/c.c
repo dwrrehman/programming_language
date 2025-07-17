@@ -2030,21 +2030,15 @@ process_file:;
 
 		if (not keep and ins[i].state)
 		for (nat a = 0; a < arity[op]; a++) {
-
-			if (is_label[ins[i].args[a]]) continue;
 						
-			if (((imm >> a) & 1)) {
-				printf("found a compiletime immediate : %llu\n", 
-					ins[i].args[a]
-				);
+			if (((imm >> a) & 1)) continue;
+			if (is_label[ins[i].args[a]]) continue;
 
-			} else if (register_index[ins[i].args[a]] != (nat) -1) {
-
+			if (register_index[ins[i].args[a]] != (nat) -1) {
 				printf("warning: found a register index variable "
 					"as argument  :  %s\n",
 					variables[ins[i].args[a]]
 				); keep = 1; break;
-
 
 			} else if (type[i * var_count + ins[i].args[a]]) {
 				
@@ -3524,15 +3518,28 @@ finish_instruction_selection:;
 		} else abort();
 	}
 
-
+{	nat used[32] = {0};
 	///////////////////////	      temporary, for debugging!!!
-	//for (nat i = 0; i < range_count; i++) {
-	//	allocation[i] = i + 1;
-	//	if (i >= 30) { puts("could not overwrite RA data"); abort(); } 
-	//
-	//	if (register_index[range_var[i]] != (nat) -1) 
-	//		allocation[i] = register_index[range_var[i]];
-	//}
+	for (nat i = 0; i < range_count; i++) {
+		if (register_index[range_var[i]] != (nat) -1) {
+			allocation[i] = register_index[range_var[i]];
+			used[allocation[i]] = 1;
+		}
+	}
+
+	for (nat i = 0; i < range_count; i++) {
+		if (register_index[range_var[i]] == (nat) -1) {
+			for (nat e = 1; e < 32; e++) {
+				if (not used[e]) {
+					allocation[i] = e;
+					used[e] = 1;
+					goto next;
+				}
+			}
+		}
+		next:;
+	}
+}
 	///////////////////////	
 
 

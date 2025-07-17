@@ -1,3 +1,107 @@
+
+
+(
+
+
+
+
+
+new iter:   low-power program:
+------------------------------------------------------
+
+
+x
+------------------------------------------------------
+0. store any data you care about, (and don't wish to reconstruct from scratch on boot)
+   in somewhere in SRAM, prior
+------------------------------------------------------
+
+
+
+
+
+------------------------------------------------------
+1. we need to first write to the STATE register,    
+
+		0011  bits 7 through 4    to go into  P1.4
+------------------------------------------------------
+
+
+
+------------------------------------------------------
+2. then we need to configure the alarm:
+
+	 the ALARM_TIME_15TO0-ALARM_TIME_63TO48 registers : { 
+
+		ALARM_TIME_15TO0  = 0x84     (16 bit value)
+			
+		ALARM_TIME_31TO16 = 0x80
+		
+		ALARM_TIME_47TO32 = 0x7c
+		
+		ALARM_TIME_63TO48 = 0x78	
+	}
+
+	which can we found at:   POWMAN_BASE + (offset)
+------------------------------------------------------
+
+
+
+
+------------------------------------------------------
+3. then we need to set the POWMAN_BASE + TIMER(0x88) register's bits    .PWRUP_ON_ALARM  and .ALARM_ENAB   bits  simultaneouslyyy
+	upon doing this, the alarm will be live, and running
+------------------------------------------------------
+
+
+
+------------------------------------------------------
+4. then we need to issue the   wfi instruction to go to sleep 
+------------------------------------------------------
+
+
+
+			....
+
+		we will be sleeping now. 
+
+			....
+
+
+
+
+------------------------------------------------------
+5. when we wake up , we will be at the beginning of our program, 
+	and thus we need to set up the pins/gpio output registers again, 
+	and once everything is setup consistent with both program cases:  
+					(the lpm wakeup, and chip boot-up cases)
+
+
+
+	we will then check:    The POWMAN_BASE + LAST_SWCORE_PWRUP ( 0xa0 )  register
+
+
+		on value 6,
+			this means it was caused from a timer alarm triggering, 
+
+		on value 0, 
+			it means chip reset. 
+
+	we can now branch to seperate parts of the program, depending on this value,
+	and thus we can load the data we stored to SRAM, back into registers, 
+	and then we can continue where we left off. 
+
+
+
+------------------------------------------------------
+
+
+
+
+
+)
+
+
 ( a low power program to blink an LED, 
  and then use the low power sleep modes for delays
 written on 1202507163.175855 by dwrr )
@@ -18,13 +122,16 @@ set toggle_on_write 	0000_0000_0000_1
 
 (memory map of rp2350)
 set flash_start 	0000_0000_0000_0000__0000_0000_0000_1000
-set ram_start 		0000_0000_0000_0000__0000_0000_0000_0100
+set sram_start 		0000_0000_0000_0000__0000_0000_0000_0100
 set powman_base		0000_0000_0000_0000__0000_1000_0000_0010
 set clocks_base		0000_0000_0000_0000__1000_0000_0000_0010
 set sio_base		0000_0000_0000_0000__0000_0000_0000_1011
 set reset_base 		0000_0000_0000_0000__0100_0000_0000_0010
 set io_bank0_base 	0000_0000_0000_0001__0100_0000_0000_0010
 set pads_bank0_base 	0000_0000_0000_0001__1100_0000_0000_0010
+
+
+
 
 
 (powman registers:  ones for the alarm and low power mode configuration)
@@ -36,6 +143,9 @@ set alarm_time_15to0  	0010_0001
 set alarm_time_31to16	0000_0001
 set alarm_time_47to32	0011_1110
 set alarm_time_63to48	0001_1110
+
+
+
 
 (risc-v op codes)
 set addi_op1 	1100100
@@ -75,10 +185,22 @@ set a1 a1
 set a2 a2
 set a3 a3
 
+
+
+reg led_state 1
+reg data 01
+reg ram 11
+reg address 001
+
+
+
 ct set c0 c0
 set c1 c1
 set c2 c2
 set c3 c3
+
+
+
 
 
 
@@ -132,9 +254,6 @@ at skip_macros del skip_macros
 
 
 
-
-
-
 rt adr flash_start
 
 do skip
@@ -145,9 +264,6 @@ emit  001  1111_1111_1000_0000__0000_0000_0000_0000
 emit  001  0000_0000_0000_0000__0000_0000_0000_0000
 emit  001  1001_1110_1010_1100__0100_1000_1101_0101
 at skip del skip
-
-
-
 
 set address 	reset_clear
 set data 	0000_0010_01
@@ -160,22 +276,91 @@ set address	sio_base
 set data 	1000_0000__0000_0000__0000_0001__0000_0000
 r5_s sw_op1 sw_op2 address data sio_gpio_oe
 
-set data 1000_0000__0000_0000__0000_0000__0000_0000
+set data 0
 r5_s sw_op1 sw_op2 address data sio_gpio_out
 
-at loop
-	set data 1000_0000__0000_0000__0000_0000__0000_0000
+
+(this is where we would check the   lastpwrupcore   register to see what caused us to be here.
+   in the case of blinking an led, we don't need to though, luckily.)
+
+set ram sram_start
+set led_state 0
+
+(load led state from sram)
+r5_i 110000 led_state 010 ram 0
+
+eor led_state 1
+and led_state 1
+
+(set the led to this state!)
+r5_s sw_op1 sw_op2 address led_state sio_gpio_out
+
+(storing the led state to memory)
+r5_s sw_op1 sw_op2 ram led_state 0
+
+set address powman_base
+
+(request the new low power state P1.4, write password protected state register)
+ct set n 0000_0011_0000_0000 or n powman_password rt set data n
+r5_s sw_op1 sw_op2 address data powman_state
+
+(set initial the timer config, allow nonsecure writes)
+ct set n 1000_0100_1000_0000 or n powman_password rt set data n
+r5_s sw_op1 sw_op2 address data powman_timer
+
+(set the alarm duration of time, after which we will wake up  :   1024 milliseconds, about 1 second)
+(on reset, all the other alarm value registers are 0)
+ct set n 0000_0000_001 or n powman_password rt set data n
+r5_s sw_op1 sw_op2 address data alarm_time_15to0
+
+(start the alarm timer to wake up in that amount of time)
+ct set n 1110_1110_1000_0000 or n powman_password rt set data n
+r5_s sw_op1 sw_op2 address data powman_timer
+
+do wfi  (the processor's execution won't return after executing this)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+(	(set the led to this state!)
+	set data 1
 	r5_s sw_op1 sw_op2 address data sio_gpio_out
-	do wfi
-
-	set data 0000_0000__0000_0000__0000_0000__0000_0000
+	
+	set i 0000_0000_0000_0000_001 at d sub i 1 ne i 0 d del d del i
+	
+	(set the led to this state!)
+	set data 0
 	r5_s sw_op1 sw_op2 address data sio_gpio_out
-	do wfi
+	
+	set i 0000_0000_0000_0000_0001 at d sub i 1 ne i 0 d del d del i
 
-ne 0 0 loop 
-do loop
-
-
+)
 
 
 
@@ -183,6 +368,28 @@ do loop
 
 
 
+(ne led_state 0 setzero
+	set led_state 1
+do done at setzero del setzero
+	set led_state 0
+at done del done)
+
+
+(at loop
+
+	(set the led to this state!)
+	set data 1
+	r5_s sw_op1 sw_op2 address data sio_gpio_out
+	
+	set i 0000_0000_0000_0000_0000_01 at d sub i 1 ne i 0 d del d del i
+	
+	(set the led to this state!)
+	set data 0
+	r5_s sw_op1 sw_op2 address data sio_gpio_out
+	
+	set i 0000_0000_0000_0000_0000_01 at d sub i 1 ne i 0 d del d del i
+
+eq 0 0 loop)
 
 
 
@@ -193,6 +400,24 @@ do loop
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+(set data 0000_0000__0000_0000__0000_0000__0000_0000
+r5_s sw_op1 sw_op2 address data sio_gpio_out
+do wfi)
 
 
 

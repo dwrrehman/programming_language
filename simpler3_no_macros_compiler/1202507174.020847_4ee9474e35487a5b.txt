@@ -1,0 +1,85 @@
+
+ 0x00000000:   6f 00 80 01   jal  x0  #0x00000018 (@0x00000018)
+ 0x00000004:   d3 de ff ff   [illegal instruction opcode: 0x83]
+ 0x00000008:   42 01 01 11   [illegal instruction opcode: 0x66]
+ 0x0000000c:   ff 01 00 00   [illegal instruction opcode: 0x127]
+ 0x00000010:   00 00 00 00   [illegal instruction opcode: 0x0]
+ 0x00000014:   79 35 12 ab   [illegal instruction opcode: 0x121]
+
+
+take out of reset
+ 0x00000018:   37 31 02 40   lui  x2  #0x40023000
+ 0x0000001c:   93 00 00 24   addi  x1  x0  #0x00000240
+ 0x00000020:   23 20 11 00   sw  x2  #0x00000000  x1
+
+configure 0
+ 0x00000024:   37 81 02 40   lui  x2  #0x40028000
+ 0x00000028:   93 00 50 00   addi  x1  x0  #0x00000005
+ 0x0000002c:   23 22 11 00   sw  x2  #0x00000004  x1
+
+configure 0
+ 0x00000030:   37 81 03 40   lui  x2  #0x40038000
+ 0x00000034:   93 00 20 07   addi  x1  x0  #0x00000072
+ 0x00000038:   23 22 11 00   sw  x2  #0x00000004  x1
+
+
+configure 23
+ 0x0000003c:   37 81 02 40   lui  x2  #0x40028000
+ 0x00000040:   93 00 50 00   addi  x1  x0  #0x00000005
+ 0x00000044:   23 2e 11 0a   sw  x2  #0x000000bc  x1
+
+configure 23
+ 0x00000048:   37 81 03 40   lui  x2  #0x40038000
+ 0x0000004c:   93 00 20 07   addi  x1  x0  #0x00000072
+ 0x00000050:   23 20 11 06   sw  x2  #0x00000060  x1
+
+
+set 23 and 0 as outputs
+ 0x00000054:   b7 01 00 d0   lui  x3  #0xd0000000
+ 0x00000058:   b7 00 80 00   lui  x1  #0x00800000
+ 0x0000005c:   93 80 10 00   addi  x1  x1  #0x00000001
+ 0x00000060:   23 a8 11 02   sw  x3  #0x00000030  x1
+
+
+set all outputs to 0
+ 0x00000064:   93 00 00 00   addi  x1  x0  #0x00000000
+ 0x00000068:   23 a8 11 00   sw  x3  #0x00000010  x1
+
+
+load led state
+ 0x0000006c:   37 01 00 20   lui  x2  #0x20000000
+ 0x00000070:   83 20 01 00   lw  x1  x2  #0x00000000
+
+
+complement led state
+ 0x00000074:   93 c0 10 00   xori  x1  x1  #0x00000001
+
+
+store led state to gpio0
+ 0x00000078:   93 80 00 00   addi  x1  x1  #0x00000000
+ 0x0000007c:   23 a8 11 00   sw  x3  #0x00000010  x1
+
+store the new led state back into ram
+ 0x00000080:   23 20 11 00   sw  x2  #0x00000000  x1
+
+request low power state
+ 0x00000084:   37 01 10 40   lui  x2  #0x40100000
+ 0x00000088:   93 00 00 0c   addi  x1  x0  #0x000000c0
+ 0x0000008c:   23 2c 11 02   sw  x2  #0x00000038  x1
+
+configure timer register
+ 0x00000090:   93 00 10 12   addi  x1  x0  #0x00000121
+ 0x00000094:   23 24 11 08   sw  x2  #0x00000088  x1
+
+set alarm time
+ 0x00000098:   93 00 00 40   addi  x1  x0  #0x00000400
+ 0x0000009c:   23 22 11 08   sw  x2  #0x00000084  x1
+
+start alarm timer
+ 0x000000a0:   93 00 70 17   addi  x1  x0  #0x00000177
+ 0x000000a4:   23 24 11 08   sw  x2  #0x00000088  x1
+
+wfi
+ 0x000000a8:   33 20 00 00   slt  x0  x0  x0
+
+

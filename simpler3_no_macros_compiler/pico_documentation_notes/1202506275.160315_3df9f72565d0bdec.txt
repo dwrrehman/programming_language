@@ -106,7 +106,7 @@ we need to reconfigure the    ISO bit   for every gpio.    ie,  undo the isolati
 
 now, 
 
-	the interesting thing,  is taht       the    swcore  is actually    RESET   completely  and starts up from scratch, i think,
+	the interesting thing,  is that       the    sw-core  is actually    RESET   completely  and starts up from scratch, i think,
 
 	
 
