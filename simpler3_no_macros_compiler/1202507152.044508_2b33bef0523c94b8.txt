@@ -1,0 +1,257 @@
+
+ 0x00000000:   13 01 40 39   addi  x2  x0  #0x00000394
+
+ 0x00000004:   93 70 11 00   andi  x1  x2  #0x00000001
+ 0x00000008:   93 80 00 03   addi  x1  x1  #0x00000030
+
+ 0x0000000c:   93 08 30 00   addi  x17  x0  #0x00000003
+ 0x00000010:   13 05 10 00   addi  x10  x0  #0x00000001
+ 0x00000014:   97 05 00 00   auipc  x11  #0x00000000
+ 0x00000018:   93 85 05 06   addi  x11  x11  #0x00000060
+ 0x0000001c:   13 06 10 00   addi  x12  x0  #0x00000001
+ 0x00000020:   23 80 15 00   sb  x11  #0x00000000  x1
+ 0x00000024:   73 00 00 00   ecall
+
+ 0x00000028:   13 51 11 00   srli  x2  x2  #0x00000001
+ 0x0000002c:   e3 1c 01 fc   bne  x2  x0  #0xffffffd8 (@0x00000004)
+
+
+ 0x00000030:   93 08 30 00   addi  x17  x0  #0x00000003
+ 0x00000034:   13 05 10 00   addi  x10  x0  #0x00000001
+ 0x00000038:   97 05 00 00   auipc  x11  #0x00000000
+ 0x0000003c:   93 85 c5 03   addi  x11  x11  #0x0000003c
+ 0x00000040:   13 06 10 00   addi  x12  x0  #0x00000001
+ 0x00000044:   93 00 a0 00   addi  x1  x0  #0x0000000a
+ 0x00000048:   23 80 15 00   sb  x11  #0x00000000  x1
+ 0x0000004c:   73 00 00 00   ecall
+
+ 0x00000050:   93 08 30 00   addi  x17  x0  #0x00000003
+ 0x00000054:   13 05 10 00   addi  x10  x0  #0x00000001
+ 0x00000058:   97 05 00 00   auipc  x11  #0x00000000
+ 0x0000005c:   93 85 35 04   addi  x11  x11  #0x00000043
+ 0x00000060:   13 06 00 01   addi  x12  x0  #0x00000010
+ 0x00000064:   73 00 00 00   ecall
+
+ 0x00000068:   93 08 10 00   addi  x17  x0  #0x00000001
+ 0x0000006c:   13 05 00 00   addi  x10  x0  #0x00000000
+ 0x00000070:   73 00 00 00   ecall
+
+ 0x00000074:   00 00 00 00   [illegal instruction opcode: 0x0]
+ 0x00000078:   00 00 00 00   [illegal instruction opcode: 0x0]
+ 0x0000007c:   00 00 00 00   [illegal instruction opcode: 0x0]
+ 0x00000080:   00 00 00 00   [illegal instruction opcode: 0x0]
+ 0x00000084:   00 00 00 00   [illegal instruction opcode: 0x0]
+ 0x00000088:   00 00 00 00   [illegal instruction opcode: 0x0]
+ 0x0000008c:   00 00 00 00   [illegal instruction opcode: 0x0]
+ 0x00000090:   00 00 00 00   [illegal instruction opcode: 0x0]
+ 0x00000094:   68 65 6c 6c   [illegal instruction opcode: 0x104]
+ 0x00000098:   6f 21 0a 5b   jal  x2  #0x000a25b0 (@0x000a2648)
+ 0x0000009c:   70 72 6f 63   [illegal instruction opcode: 0x112]
+ 0x000000a0:   65 73 73 20   [illegal instruction opcode: 0x101]
+ 0x000000a4:   65 78 69 74   [illegal instruction opcode: 0x101]
+ 0x000000a8:   65 64 5d 64   [illegal instruction opcode: 0x101]
+ 0x000000ac:   65 6c 65 74   [illegal instruction opcode: 0x101]
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+insert ./build
+c.c:739:44: warning: unused parameter 'pc' [-Wunused-parameter]
+static nat* compute_arm64_predecessors(nat pc, nat* pred_count) {
+                                           ^
+c.c:739:53: warning: unused parameter 'pred_count' [-Wunused-parameter]
+static nat* compute_arm64_predecessors(nat pc, nat* pred_count) {
+                                                    ^
+2 warnings generated.
+
+insert ./run
+
+compiler: error: usage: ./run [file.s]
+
+1202507152.044508_2b33bef0523c94b8.txt
+a.out
+build
+c.c
+comments
+documentation_on_arm64
+example_programs
+library
+mmap_testing
+my_new_output_file.txt
+output_file_from_compiler
+output_file_from_compiler.c
+output_file_from_compiler.uf2
+output_testing
+pico_documentation_notes
+programs_to_write.txt
+run
+run.dSYM
+testing_code
+useful
+working_pulsing_led.uf2
+
+
+insert ls example_programs
+
+ct_interactive_shell_program.s
+ct_mmap_testing.s
+empty.s
+generate_loop_rv.s
+hello_world_on_arm64.s
+loop_at_ct.s
+new.s
+other.s
+other_file.s
+primes_c.s
+print_binary.s
+rv_print_binary.s
+shell_for_my_website.s
+testing_printbinary_at_ct.s
+try2_blink_pico2w.s
+
+
+
+
+
+insert ./run 
+
+
+
+/
+
+
+
+insert cat example_programs/new.s
+(trying out not using macro syntax in the language, 
+but instead just using the compiletime execution semantics as is. 
+lets see how it goes! written on 1202507023.185715 by dwrr)
+
+file library/foundation.s
+
+(...this would all be in the standard library...)
+
+rt 
+	set a0 a0  
+	set a1 a1	
+ct 
+	set c0 c0 
+	set c1 c1 
+
+do skip
+
+at c_backend
+	ld ra compiler_return_address nat
+	st compiler_target c_arch nat
+	st compiler_format c_source nat
+	st compiler_should_overwrite true nat
+	do ra del ra
+
+at exit
+	ld ra compiler_return_address nat
+	rt set c_system_number c_system_exit
+	set c_system_arg0 0
+	sc halt ct do ra del ra
+
+at print
+	ld ra compiler_return_address nat
+	rt set c_system_number c_system_write
+	set c_system_arg0 stdout
+	set c_system_arg1 a0
+	set c_system_arg2 c0
+	sc ct do ra del ra
+
+
+at skip del skip
+
+set newline 0101
+
+(...until here...)
+
+
+(my code starts here!)
+
+do c_backend rt
+
+set i 0
+at loop
+	set a0 mystring
+	set c0 011
+	do print
+	add i 1
+	lt i 0101 loop
+do exit
+
+at mystring str "hello" 
+emit 1 newline
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+insert ls example_programs
+ct_interactive_shell_program.s
+ct_mmap_testing.s
+empty.s
+generate_loop_rv.s
+hello_world_on_arm64.s
+loop_at_ct.s
+new.s
+other.s
+other_file.s
+primes_c.s
+print_binary.s
+rv_print_binary.s
+shell_for_my_website.s
+testing_printbinary_at_ct.s
+try2_blink_pico2w.s
+
+
+insert cp example_programs/ct_interactive_shell_program.s test.s
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

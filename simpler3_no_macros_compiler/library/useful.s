@@ -165,21 +165,15 @@ at cthello
 
 at ctbinary
 	ld ra 0 nat 
+	set n c0
 	do init_ctsp
 
-	set string ctsp 
+	set string ctsp
 	set p string
-	set n c0
 	at loop
-		eq n 0 done
 		set bit n and bit 1 add bit '0'
 		st p bit byte add p 1
-		sd n 1 del n
-		do loop del loop 
-	at done del done
-
-	(st p newline byte add p 1    (do we do this?...))
-
+		sd n 1 ne n 0 loop del loop del n
 	set length p sub length string del p
 
 	set c0 stdout

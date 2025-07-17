@@ -396,7 +396,7 @@ if (not executing) {
 
 		u32 f7 = (word >> 25) & 0x3F;
 
-		if (((imm12 >> 11) & 1) == 1) imm12 |= 0xFFFFF000;
+		if (((imm12 >> 11) & 0x1) == 1) imm12 |= 0xFFFFF000;
 		u32 U_imm20 = word & 0xFFFFF000;
 
 		registers[0] = 0;
@@ -470,7 +470,6 @@ if (not executing) {
 			
 		} else if (op == 0x03) { // LB / LH / LW / LBU / LHU
 
-
 			if (fn == 0) { // LB
 				if (debug) printf("LB  x%u  x%u  #0x%08x\n", Rd, Rs1, imm12);
 
@@ -485,7 +484,7 @@ if (not executing) {
 				x |= (u32) (memory[registers[Rs1] + imm12 + 1] << 8U);
 				registers[Rd] = x;
 	
-			} else if (fn == 2) { // LW
+			} else if (fn == 2 || fn == 6) { // LW
 				if (debug) printf("LW  x%u  x%u  #0x%08x\n", Rd, Rs1, imm12);
 
 				u32 x = 0;
@@ -512,11 +511,10 @@ if (not executing) {
 
 		} else if (op == 0x23) { // SB / SH / SW
 
-			u32 imm = 0; // TODO: determine this immediate for the r5_s encoding. 
+			u32 imm = Rd | (f7 << 5);
 
 			if (fn == 0) {
 				if (debug) printf("SB  x%u  #0x%08x  x%u\n", Rs1, imm, Rs2);
-
 				memory[registers[Rs1] + imm + 0] = (registers[Rs2] >> 0U) & 0xFF;
 
 			} else if (fn == 1) {

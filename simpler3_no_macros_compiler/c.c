@@ -121,7 +121,7 @@ typedef uint32_t u32;
 typedef uint16_t u16;
 typedef uint8_t byte;
 
-static nat debug = 1;
+static nat debug = 0;
 
 #define max_variable_count 	(1 << 14)
 #define max_instruction_count 	(1 << 14)
@@ -824,6 +824,8 @@ static nat* compute_msp430_predecessors(nat pc, nat* pred_count) {
 	return result;
 }
 
+//XXX
+
 static nat locate_instruction(struct expected_instruction expected, nat starting_from) {
 
 	nat pc = starting_from;
@@ -863,8 +865,11 @@ static nat locate_instruction(struct expected_instruction expected, nat starting
 			valid_arg2) return pc; 
 
 		if (is_branch) break;
+
+		if (use_arg0 and arg0 == expected.args[0]) break;
 		if (use_arg0 and arg1 == expected.args[0]) break;
 		if (use_arg1 and arg0 == expected.args[1]) break;
+		if (use_arg1 and arg1 == expected.args[1]) break;
 
 		pc = gotos[0];
 	}
@@ -2389,7 +2394,7 @@ rv32_instruction_selection:;
 
 
 
-
+		//XXX
 
 		//   set d m  OP_A d n   -->   OP_B d n m
 		//   set d m  OP_A d k   -->   OP_B d n k
