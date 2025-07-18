@@ -1,8 +1,5 @@
 // optimizing assembler, revision of the compiler 
 // written on 1202507174.162611 by dwrr
-
-// current state:  we are looking at the parser, and realized that we need   rtat?  maybeee????
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -45,25 +42,24 @@ enum all_output_formats {
 };
 enum memory_mapped_addresses {
 	compiler_return_address,
+	compiler_target,
 	compiler_format,
 	compiler_should_overwrite,
 	compiler_should_debug,
 	compiler_stack_size,
+
+	compiler_putc,
 };
 
 enum isa {
-noarch,
+	_null___, 
 	zero, incr, nor, si, sd,
 	set, add, sub, mul, div_,
 	ld, st, emit, sect,
 	at, do_, lt, eq, 
 	file, del, str, eoi, 
-riscv,
 	rr, ri, rs, rb, ru, rj,
-
-msp430,
 	mo, mb,
-arm64,
 	nop, svc, mov, bfm,
 	adc, addx, addi, addr, adr, 
 	shv, clz, rev, jmp, bc, br, 
@@ -71,22 +67,18 @@ arm64,
 	ori, orr, extr, ldrl, 
 	memp, memia, memi, memr, 
 	madd, divr, 
-
-isa_count
+	isa_count
 };
 
 static const char* operations[isa_count] = {
-"",
+	"",
 	"zero", "incr", "nor", "si", "sd",
 	"set", "add", "sub", "mul", "div",
 	"ld", "st", "emit", "adr", 
 	"at", "do", "lt", "eq", 
 	"file", "del", "str", "eoi", 
-"riscv",
 	"rr", "ri", "rs", "rb", "ru", "rj",
-"msp430",
 	"mo", "mb",
-"arm64",
 	"nop", "svc", "mov", "bfm",
 	"adc", "addx", "addi", "addr", "adr", 
 	"shv", "clz", "rev", "jmp", "bc", "br", 
@@ -97,17 +89,15 @@ static const char* operations[isa_count] = {
 };
 
 static const nat arity[isa_count] = {
-0,	1, 1, 2, 2, 2,
+	0,	
+	1, 1, 2, 2, 2,
 	2, 2, 2, 2, 2,
 	2, 2, 2, 1, 
 	1, 1, 3, 3, 
 	1, 1, 0,
-
-0,	6, 5, 5, 5, 3, 3,
-
-0,	8, 2,
-				
-0,	0, 0, 5, 7, 
+	6, 5, 5, 5, 3, 3,
+	8, 2,				
+	0, 0, 5, 7, 
 	6, 8, 7, 8, 3,
 	5, 4, 4, 2, 2, 3, 
 	4, 4, 7, 7, 
@@ -138,7 +128,7 @@ static nat rt_ins_count = 0;
 
 static char* variables[max_variable_count] = {0};
 static nat values[max_variable_count] = {0};
-static nat is_label[max_variable_count] = {0}; // if you do     at x     then x has is_label == 1.
+static nat types[max_variable_count] = {0};
 static nat is_undefined[max_variable_count] = {0};
 static nat var_count = 0;
 
@@ -161,10 +151,9 @@ static char* load_file(const char* filename, nat* text_length) {
 static void print_dictionary(void) {
 	puts("dictionary: ");
 	for (nat i = 0; i < var_count; i++) {
-		if (i % 4 == 0 and i < var_count - 1) puts("");
-		printf("[%5llu]:%c:%16s:%016llx(%lld)\t",
-			i, is_undefined[i] ? 'U' : ' ',
-			variables[i], values[i], values[i]
+		if (i % 4 == 0) puts("");
+		printf("[%5llu]:%llu:%24s:%016llx(%4lld)\t",
+			i, types[i], variables[i], values[i], values[i]
 		);
 	}
 	puts("");
@@ -172,11 +161,11 @@ static void print_dictionary(void) {
 
 static void print_instruction(struct instruction this) {
 	int max_name_width = 0;
-	for (nat i = 0; i < var_count; i++) {
+	/*for (nat i = 0; i < var_count; i++) {
 		if (max_name_width < (int) strlen(variables[i])) {
 			max_name_width = (int) strlen(variables[i]);
 		}
-	}
+	}*/
 	printf(" %4s  ", operations[this.op]);
 	for (nat a = 0; a < arity[this.op]; a++) {
 		char string[4096] = {0};
@@ -355,116 +344,52 @@ static void insert_u64(uint8_t** d, nat* c, uint64_t x) {
 
 
 
-/*
 
-1202507174.221709
-
-we need to sort out exactly how labels will work in this language. 
-
-	first, i feel like we should just get   compiletime arguments working perfectly, 
-
-	because really, the only difference between    labels   and pc rel offsets  
-
-			is the branch offset calculation, which we can just expose to the programmer, to allow them to use it in anyway they see fit! 
-
-
-	basically, you'll compute the appropriate pc-rel offset, 
-
-		ie, you pretty much have fullllll control over the actual data that is stored in that immediate possition, 
-
-			meaning that generation of the machine code doesnt even really need to deal or now about that logic. it can just emit each immediate argument  one by one    simply    
-			
-
-		and then user level code needs to handle the computations involved in taking a label, and turning it into a compiletime argument lol. 
-
-
-			and for that, we are going to use the fact that 
-
-
-				first of all,  we are      NOT     going to emit any   rt_at  statements. 
-
-				instead, we are going to consider  "at"      FULLYYYY CT. 
-
-										
-
-				ANDDD that even simplifies the mental model about the branches, because now, we can just consider the pc rel offsets    in actual instructions! not generated instructionssss
-
-
-
-						which 
-
-			hm
-
-				yeah i mean
-				actually wait is  this   a dumb idea to do lol 
-
-
-
-				because now  generated instructions don't work 
-
-
-			or like, i mean, branching over a sequence of generated instructions lolll 
-
-
-
-				ie, to calculate the branch offsets, we need to      firsttt generate the instructions??
-
-
-					CRAP
-
-
-
-
-
-	hmm 
-
-	okay nevermind uhh
-
-
-	hmmmmmm crapppp
-
-
-
-this just got wayyy harderrr than i thought it would be loll
-
-
-
-
-
-
-i feeelllllll like we mightttttt need the    rt_at   mechanism idk hmm
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-*/
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+static void print_instruction_window_around(
+	nat this,
+	const bool should_just_print,
+	const char* message
+) {
+	nat row_count = 0;
+	if (not should_just_print) printf("\033[H\033[2J");
+	const int64_t window_width = 8;
+	const int64_t pc = (int64_t) this;
+	for (int64_t i = -window_width; i < window_width; i++) {
+
+		const int64_t here = pc + i;
+
+		if (here >= 0 and here < (int64_t) ins_count and 
+			ins[here].op == at) { putchar(10); row_count++; }
+
+		if (not i) printf("\033[48;5;238m");
+
+		if (	here < 0 or 
+			here >= (int64_t) ins_count
+		) { 
+			puts("\033[0m"); 
+			row_count++; continue; 
+		}
+
+		printf("%4llu  %s%4llu │ ", 
+			ins[here].state, 
+			not i and ins[here].state ? 
+			"\033[32;1m•\033[0m\033[48;5;238m"
+			: (ins[here].state ? "\033[32;1m•\033[0m" : " "), 
+			here
+		);
+		if (not i and ins[here].state) printf("\033[48;5;238m");
+
+		if (ins[here].op != at) putchar(9);
+		print_instruction(ins[here]);
+		if (should_just_print and not i) printf("    \033[0m   <----- \033[31;1m%s\033[0m", message);
+		puts("\033[0m");
+		row_count++; 
+	}
+
+	if (not should_just_print) {
+		while (row_count < 2 * window_width + 6) { row_count++; putchar(10); } 
+	}
+}
 
 int main(int argc, const char** argv) {
 	if (argc != 2) exit(puts("error: exactly one source file must be specified."));
@@ -545,7 +470,7 @@ process_file:;
 			    not strcmp(word, variables[var])) goto push_argument;
 		} 
 		if (	(op == lt or op == eq) and arg_count == 2 or
-			(op == set or op == zero) and arg_count == 0 or
+			(op == set or op == zero or op == ld) and arg_count == 0 or
 			(op == do_ or op == at) and arg_count == 0
 		) goto define_name;
 
@@ -597,8 +522,11 @@ process_file:;
 			var_count--;
 			goto process_file;
 		} else {
-			if (op == at) values[*args] = ins_count;
+			if (op == at) { values[*args] = ins_count; types[*args] |= 1; } 
 			else if (op == del) is_undefined[*args] = 1;
+			else if (op == do_) types[*args] |= 3;
+			else if (op == lt or op == eq) types[args[2]] |= 3;
+
 			struct instruction new = { .op = op, .imm = is_immediate };
 			is_immediate = 0;
 			memcpy(new.args, args, sizeof args);
@@ -624,7 +552,8 @@ process_file:;
 	for (nat pc = 0; pc < ins_count; pc++) {
 		nat op = ins[pc].op, imm = ins[pc].imm;
 
-		if (memory[compiler_should_debug]) {
+		if (memory[compiler_should_debug]) {			
+			print_instruction_window_around(pc, 0, "");
 			print_dictionary(); puts("");
 			print_instruction(ins[pc]); puts("");
 			for (nat i = 0; i < rt_ins_count; i++) {
@@ -641,19 +570,22 @@ process_file:;
 		nat val2 = imm & 4 ? arg2 : values[arg2];
 
 		if (op == do_ and val0 >= ins_count) {
-			printf("error: [pc = %llu] cannot jump to invalid address: 0x%016llx\n", pc, val0);
+			printf("error: at pc %llu invalid jump address: 0x%016llx\n", pc, val0);
 			abort();
 		}
 		if (op >= lt and op <= eq and val2 >= ins_count) {
-			printf("error: [pc = %llu] cannot jump to invalid address: 0x%016llx\n", pc, val2);
+			printf("error: at pc %llu invalid jump address: 0x%016llx\n", pc, val2);
 			abort();
 		}
 
 		if (op == del) {
-			is_undefined[arg0] = var_count;	
-			variables[var_count] = strdup("_generated_");
-			is_undefined[var_count] = 0;
-			var_count++;
+			if (types[arg0] == 1) {
+				is_undefined[arg0] = var_count;	
+				variables[var_count] = strdup("_generated_");
+				is_undefined[var_count] = 0;
+				var_count++;
+			}
+
 		} else if (op == str) {
 			for (nat s = 0; s < arg0; s++) {
 				struct instruction new = { .op = emit, .imm = 3 };
@@ -662,13 +594,8 @@ process_file:;
 				rt_ins[rt_ins_count++] = new;
 			}
 
-		} else if (op == at) {
-			values[arg0] = pc;
-			if (is_undefined[arg0]) e = values[is_undefined[arg0]];
-			rt_ins[rt_ins_count++] = ins[pc];
-
 		} else if (op > eoi) {
-			struct instruction new = { .op = op };
+			struct instruction new = ins[pc];
 			for (nat a = 0; a < arity[op]; a++) {
 				nat e = ins[pc].args[a];
 				if (not ((imm >> a) & 1)) {
@@ -678,7 +605,14 @@ process_file:;
 				new.args[a] = e;
 			}
 			rt_ins[rt_ins_count++] = new;
+
+		} else if (op == at and types[arg0] != 3) {
+			if (is_undefined[arg0]) ins[pc].args[0] = values[is_undefined[arg0]];
+			rt_ins[rt_ins_count++] = ins[pc];
 		}
+		else if (op == zero) values[arg0] = 0;
+		else if (op == incr) values[arg0] += 1;
+		else if (op == at)   values[arg0]  = pc;
 		else if (op == set)  values[arg0]  = val1;
 		else if (op == add)  values[arg0] += val1;
 		else if (op == sub)  values[arg0] -= val1;
@@ -699,15 +633,19 @@ process_file:;
 			); 
 			abort(); 
 		}
+		if (op == st and val0 == compiler_putc) { char c = val1; write(1, &c, 1); } 
 	}
 
 	memcpy(ins, rt_ins, ins_count * sizeof(struct instruction));
 	ins_count = rt_ins_count; 
+	for (nat i = 0; i < ins_count; i++) ins[i].imm = (nat) -1;
 
 	target_arch = memory[compiler_target];
 	output_format = memory[compiler_format];
-	should_overwrite = memory[compiler_should_ovewrite];
+	should_overwrite = memory[compiler_should_overwrite];
 	stack_size = memory[compiler_stack_size]; }
+
+	if (target_arch == no_arch) exit(0);
 
 	if (target_arch == msp430_arch and stack_size) { 
 		puts("fatal error: nonzero stack size for msp430 is not permitted"); 
@@ -720,13 +658,17 @@ process_file:;
 	if (debug) {
 		print_dictionary();
 		print_instructions();
-		puts("CT-EXECUTION finished.");
+		puts("CTE finished.");
 	}
 
 	const char* output_filename = "output_file_from_compiler";
 	if (output_format == uf2_executable) output_filename = "output_file_from_compiler.uf2";
 	if (output_format == c_source) output_filename = "output_file_from_compiler.c";
 
+
+	print_dictionary();
+	print_instructions();
+	puts("CTE finished.");
 
 }
 
