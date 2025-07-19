@@ -132,11 +132,9 @@ static nat types[max_variable_count] = {0};
 static nat is_undefined[max_variable_count] = {0};
 static nat var_count = 0;
 
-
 static char* string_list[4096] = {0};
 static nat string_label[4096] = {0};
 static nat string_list_count = 0;
-
 
 static char* load_file(const char* filename, nat* text_length) {
 	int file = open(filename, O_RDONLY);

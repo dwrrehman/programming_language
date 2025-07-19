@@ -1,868 +1,202 @@
-a (currently unnamed) optimizing cross-assembler
-written on 1202507196.013059 by dwrr
+a (currently unnamed) compiler for a (currently unnamed) programming language
+written on 1202504115.035207 by dwrr
+new version of the language made on 1202505154.163659
+updated on 1202507104.022504
 =======================================
 
-this is an optimizing cross-assembler that i am making for fun and for my own use. the syntax is word-based, and features a powerful compile-time execution system, allowing for many optimizations to be written at user-level. the instruction set architectures which this assembler is able to target currently includes RISC-V 32 and 64 bit, ARM 64 bit, and the MSP430 ISA. supporting ARM 32 is planned, however not currently implemented. 
+this is an optimizing compiler for a low-level programming language that i am making for fun and for my own use. the language is word-based, statement-based, and is closely modelled off of the hardware RISC-like ISA's which it chooses to target, which include: RISC-V (32 and 64 bit), ARM (32 and 64 bit), and the MSP430 ISA. 
 
-in addition to the machine instructions for all supported targets, there are several "compile-time" instructions available for use by the user to perform arbitrary transformations on the output machine code programmatically. all of these compile-time instructions take 0, 1, 2, or 3 arguments. 
+there are only 29 built-in operators/instructions in the language (excluding the machine instructions), all of which take 0, 1, 2, or 3 arguments. also, all these operators are prefix, and fixed arity. 
 
-all instructions, both all compile-time and all machine instructions, are written in a word-based, prefix, fixed-arity notation, atypical of most assemblers, making resultant code quite uniform and readable. the instruction name is always written first, followed by a predefined number of arguments, all of which are known at compile-time, (ie, they are simply constant data, after compile-time execution is finished), and all of these arguments are of the same type: unsigned binary integers, of various bit widths.
+a description of the built-in instructions and the semantics of each instruction is given below:
 
-there are plans to support floating point arithmetic, however this is not currently implemented at all. additionally, several important instructions relating to memory atomic operations, in ARM64, and RISC-V are planned to be implemented eventually as well, but this isnt a major problem at the moment. finally, the entire ARM 32-bit backend/ISA is a major priority which i'll get to soon enough, hopefully. currently i just don't have a use for this ISA yet in my projects, however.
+	
+language ISA as of: 1202507104.003655
+---------------------------------------
 
+	set	add	sub	mul	div	rem		        (arithmetic instructions)
 
+	and	or	eor	si	sd			        (bitwise instructions)
 
+	ld	st	emit	str	adr			        (memory instructions)
+	
+	lt	ge	ne	eq	do	at	sc	halt    (control flow instructions)
+	
+	ct	rt	del	file	reg			        (language-specific instructions)
 
-[todo: talk about supported output formats, compiletime execution semantics, how labels work, little endian binary literals, and other cool stuff i'm forgetting to explain]
+	
 
-
-
-
-
-
-a list and description of all available instructions (both runtime and compiletime) and their semantics is given below:	
-
-
-instruction listing:
-----------------------------
-
-	zero incr 
-	nor nand si sd
-	set add sub mul div
-	ld st emit sect 
-	at do lt eq 
-	file del str eoi 
-
-	rr ri rs rb ru rj
-
-	mo mb
-
-	svc mov bfm	
-	adc addx addi addr adr 
-	shv clz rev jmp bc br 
-	cbz tbz ccmp csel 
-	ori orr extr ldrl 
-	memp memia memi memr 
-	madd divr
+instruction set description:
+=======================================
 
 
-
-------------------------------------
-instruction set overview:
+arithmetic instructions:
 ------------------------------------
 
-compiletime:
----------------
-	zero : set to zero
-	incr : increment by one
-	nor  : bitwise not-or
-	nand : bitwise not-and
-	si   : shift-increase / shift up
-	sd   : shift-decrease / shift down
-	set  : assignment / copy
-	add  : addition
-	sub  : subtraction
-	mul  : multiplication
-	div  : division
-	ld   : load from compiletime memory
-	st   : store to compiletime memory
-	emit : emit data to executable
-	sect : section address attribution
-	at   : label attribution
-	do   : unconditional jump / call
-	lt   : branch on less-than comparison
-	eq   : branch on equal comparison
-	file : parse contents of file from the file system
-	del  : delete variable from symbol table
-	str  : emit bytes for verbatim string literal
-	eoi  : end of input
+	set x y	: assignment to destination register x, using the value present in source y.
+		  if the name x is not defined, then x is defined as a result of this instruction.
+		  if x is defined, the existing definition of variable x is used.
 
-RISC-V:
----------------
-	rr : register-register integer operation instruction format
- 	ri : register-immediate integer operation instruction format
-	rs : store operation instruction format
-	rb : register compare and branch to label instruction format
-	ru : upper immediate load into register instruction format
-	rj : unconditionally jump to label instruction format
+	add x y	: assigns the value x + y to the destination register x.
+
+	sub x y	: assigns the value x - y to the destination register x.
+
+	mul x y	: assigns the value x * y to the destination register x.
+
+	div x y	: assigns the value x / y to the destination register x.
+
+	rem x y	: assigns the value x mod y to the destination register x.
+
+
+bitwise instructions:
+------------------------------------
+
+	and x y	: assigns the value x bitwise-and y to the destination register x.
+
+	or x y	: assigns the value x bitwise-or y to the destination register x.
+
+	eor x y	: assigns the value x bitwise-eor y to the destination register x.
+
+	si x y	: shift x up by y bits, and store the result into destination register x.
+
+	sd x y	: shift x down by y bits, and store the result into destination register x.
+
+
+memory-related operations:
+------------------------------------
+
+	ld x y z  : load z bytes from source memory at memory address y into destination register x. 
+		    when executing at runtime, z can only be 1, 2, 4, or 8.
+		    this also declares x if x is not already defined.
+
+	st x y z  : store z bytes from source register y into destination memory at memory address x.
+		    when executing at runtime, z can only be 1, 2, 4, or 8.
+
+	emit x y  : emit x bytes from constant y to the executable at this position. 
+		    x and y must both be compiletime-known (CTK).
+
+	str s	  : emit string data from s to the final executable at this position.
+		    str is equivalent to a series of emit byte instructions after CT evaluation.
+
+	adr x	  : puts the following instructions at hardware address x. x is CTK. 
+		    this instruction is only valid to use on embedded targets. 
+
+control flow:
+------------------
+
+	lt x y l	: if x is less than y, branch to label l. 
+
+	ge x y l	: if x is not less than y, (ie, x is greater than or 
+			  equal to y) branch to label l. 
+
+	ne x y l	: if x is not equal to than y, branch to label l. 
+
+	eq x y l	: if x is equal to y, branch to label l. 
+
+	do l		: unconditionally branch to label l. 
+			  when executed at compiletime, it also stores the 
+			  pc of this instruction to address 0 in compiletime memory.
+
+	at l		: attribute label l at this position. 
+
+	sc 		: system call instruction.
+
+	halt		: termination of control flow here. 
+
+
+language-specific instructions:
+------------------------------------
+
+	ct		: mark instructions and variables from here onwards to be compiletime.
+
+	rt		: mark instructions and variables from here onwards to be runtime.
+
+	del x		: remove x from the symbol table. 
+
+	file f		: load the contents of the file at filepath f,
+			  and parse them fully before proceeding. 
+			  any edits to the symbol table are persistent/stateful.
+
+	reg x r		: make x stored in the runtime hardware register r. r is CTK.
+			  this also declares x if x is not already defined.
+
+
+
+
+
+
+
+there is also the following machine instructions/encodings which are accessible for all targets, in addition to the above language. here are the machine instructions. they are abstracted from typical assembly, as only the core unique machine-code encodings are provided. it is expected that the compile-time evaulation system will be used to make using these encodings more friendly for programming in assembly in this language. this also should not be required in most circumstances, and providing only the encodings makes decode logic in the compiler simpler, and requires fewer instructions in the language as a whole. 
+
+here are the 3 target hardware ISA's and their machine instructions:
+-----------------------------------------------------------------------
+
+ARM64:
+	a6_nop 	: no operation
+	a6_svc 	: system call (supervisor call)
+	a6_mov 	: set register with 16 bit immediate source
+	a6_bfm 	: bit field move instruction
+	a6_adc 	: add/subtract with carry 
+	a6_addx : add/subtract with optionally sign/zero-extended register source 
+	a6_addi : add/subtract with immediate source
+	a6_addr : add/subtract with optionally shifted register source
+	a6_adr 	: load address of a PC-relative label into a register
+	a6_shv 	: variable-shift left or right of a register
+	a6_clz 	: count leading zeros of regsiter
+	a6_rev 	: reverse bits of register
+	a6_jmp 	: unconditional jump to label (with optional link)
+	a6_bc 	: conditional branch to label based on flags 
+	a6_br 	: branch to register value (with optional link)
+	a6_cbz 	: compare and branch if register is nonzero or zero
+	a6_tbz 	: test bit in register and branch to label if set
+	a6_ccmp : conditional compare instruction
+	a6_csel : conditional select / increment / invert / negate instruction
+	a6_ori 	: bitwise or/and/xor with immediate
+	a6_orr 	: bitwise or/and/xor with shifted register
+	a6_extr : extract instruction (?)
+	a6_ldrl : load register data with from label PC-relative address
+	a6_memp : load/store memory to/from pair of registers
+	a6_memia : load/store memory to/from register with post/pre increment addressing mode
+	a6_memi : load/store memory to/from register with address plus unsigned immediate offset
+	a6_memr : load/store memory to/from register with address plus register offset
+	a6_madd : multiply-accumulate / multiply-subtract instruction
+	a6_divr : divide register with register instruction
 
 MSP430:
----------------
-	mo : arithmetic and bitwise operation instruction format, 
-		with destination and source addressing modes 
-	mb : branch on condition to label instruction format
+	m4_sect : create new section in executable, and set physical memory address of this section
+	m4_op : arithmetic and bitwise operation instruction, with destination and source addressing modes 
+	m4_br : branch on condition to label instruction
 
-arm64:
----------------
-	svc 	: system call (supervisor call)
-	mov 	: set register with 16 bit immediate source
-	bfm 	: bit field move instruction
-	adc 	: add/subtract with carry 
-	addx 	: add/subtract with optionally sign/zero-extended register source 
-	addi 	: add/subtract with immediate source
-	addr 	: add/subtract with optionally shifted register source
-	adr 	: load address of a PC-relative label into a register
-	shv 	: variable-shift left or right of a register
-	clz 	: count leading zeros of regsiter
-	rev 	: reverse bits of register
-	jmp 	: unconditional jump to label (with optional link)
-	bc 	: conditional branch to label based on flags 
-	br 	: branch to register value (with optional link)
-	cbz 	: compare and branch if register is nonzero or zero
-	tbz 	: test bit in register and branch to label if set
-	ccmp 	: conditional compare instruction
-	csel 	: conditional select / increment / invert / negate instruction
-	ori 	: bitwise or/and/xor with immediate
-	orr 	: bitwise or/and/xor with shifted register
-	extr 	: extract instruction (?)
-	ldrl 	: load register data with from label PC-relative address
-	memp 	: load/store memory to/from pair of registers
-	memia 	: load/store memory to/from register with post/pre increment addressing mode
-	memi 	: load/store memory to/from register with address plus unsigned immediate offset
-	memr 	: load/store memory to/from register with address plus register offset
-	madd 	: multiply-accumulate / multiply-subtract instruction
-	divr 	: divide register with register instruction
 
+RISC-V
+	r5_r : register-register integer operation instruction format
+ 	r5_i : register-immediate integer operation insrtuction format
+	r5_s : store operation instruction format
+	r5_b : compare and branch with register-register condition to label instruction format
+	r5_u : large immediate (possibly PC-relative) load into register instruction format
+	r5_j : unconditionally jump to label instruction format
 
 
 
 
----------|---------|---------|---------|---------|---------|
+the "why" behind the language:
+----------------------------------
 
+in my particular use cases, i have two use cases which i think really shaped the language, and its goals. the first is that i want to run code in my language on these MSP430 microcontrollers which have only 512 bytes of SRAM, meaning that code needs to be incredibly memory and time efficient. not a single instruction can be wasted, as this could cause the program to not function at all, potentially.
 
+My second use case is different: i am making an extremely high performance system running on an ARM64 machine, and in this setting, performance and efficiency are absolutely paramount. having the low level control to be able to guarantee performance and efficiency at the language level is highly advantageous in this scenario, as it very much does make the difference between finding the solution in a week, or never finding the solution for years.
 
-more detailed descriptions and semantics:
------------------------------------------------------------
-a note on the legend for each instruction's documentation: 
-first the instruction name/mnemonic is given, followed by a list of whitespace seperated operands/arguments, each of the form:
+so these are the use cases i had in mind. thus the programming experience i am aiming to create is based around low-level control, and efficiency. additionally, it helps to minimize the complexity of the language as much as possible, to make the compiler itself as simple as possible, which allows better reasoning about the translation process itself. further making it easier to get a working solution in resource constrained environments.
 
-	A.B
+the trade-offs which i am consciously making revolve around user-friendliness, vs expert-friendliness / fine control. the language strives to give fine control over things when its advantageous to performance, and thus, the language loses much in user-friendliness, and ease of use, most of the time. additionally, terseness is lost as well in some ways, as even small tasks take many instructions to complete. luckily, however, the standard library might try to help this problem slightly, by providing solutions to common problems encountered in programming. 
 
-where:
-	A is the name of the argument position, refered to in the instruction's description.
-	B is the maximum number of bits allowed for this operand. 
+portability is also not a true goal of this language: for example, spill code will never be generated, as if register allocation fails to fit all variables into registers, a compiler error is generated, and the programmer must fix this by manually allocating stack memory for some memory variables, or some how compressing their use of registers until things fit into the register file, and RA can succeed. ergonomics are seen as something only given when it does not come at the expense of performance.
 
-for example, lets take the first instruction, "zero x.64". 
+the paradigms which are promoted in this language include only: imperative programming, and procedural programming. all other programming paradigms, including functional programming, and object oriented programming, are seen as completely antithetical to the goal and use cases of the language, and thus are highly, highly discouraged.
 
-for the first and only argument, A would be "x", and B would be 64. 
+the intended feel of this language is to feel like you are as close to the metal as you can be, while still programming in a way where you are able to specify intent better, (ie, not always using the machine instructions directly!) and where you are able to dynamically change how low level you are, based on what you want to do. in some places, you choose to use machine instructions, in other places, you choose to use the more abstract language, which expresses intent better.
 
-"zero x.64" denotes that it is named "zero", and takes a single operand/argument internally named "x", and all values (interpretted as a binary unsigned integer) which are passed into argument x for this instruction must be less than 2 to the 64, ie, they could be represented by a 64-bit binary unsigned integer.
-
-
-compiletime system:
------------------------------------------------------------
-
-
-
------------------------------------------------------------
-	zero x.64 
------------------------------------------------------------
-	set the variable x to 0. if the name x is not defined, 
-	then x is defined as a result of this instruction. 
-	if x is defined, the existing definition of variable 
-	x is used. 
-	always executes at compiletime.
-
-
------------------------------------------------------------
-	incr x.64
------------------------------------------------------------
-	increment the variable x by 1. 
-	always executes at compiletime.
-
-
------------------------------------------------------------
-	set x.64 y.64
------------------------------------------------------------
-	assignment to destination x, using the value 
-	present in source y. if the name x is not 
-	defined, then x is defined as a result of this 
-	instruction. if x is defined, the existing definition 
-	of variable x is used. 
-	always executes at compiletime.
-
-
------------------------------------------------------------
-	add x.64 y.64
------------------------------------------------------------
-	assigns the value x + y to the destination 
-	variable x. 
-	always executes at compiletime.
-
-
------------------------------------------------------------
-	sub x.64 y.64
------------------------------------------------------------
-	assigns the value x - y to the destination 
-	variable x. 
-	always executes at compiletime.
-
-
------------------------------------------------------------
-	mul x.64 y.64	
------------------------------------------------------------
-	assigns the value x * y to the destination 
-	variable x. 
-	always executes at compiletime.
-
-
------------------------------------------------------------
-	div x.64 y.64
------------------------------------------------------------
-	assigns the value x / y to the destination 
-	variable x. 
-	always executes at compiletime.
-
-
------------------------------------------------------------
-	nand x.64 y.64
------------------------------------------------------------
-	assigns the value x bitwise-nand y to the 
-	destination variable x. 
-	always executes at compiletime.
-
-
-
------------------------------------------------------------
-	nor x.64 y.64
------------------------------------------------------------
-	assigns the value x bitwise-nor y to the 
-	destination variable x. 
-	always executes at compiletime.
-
-
------------------------------------------------------------
-	si x.64 shift_amount.6
------------------------------------------------------------
-	shift x up by shift_amount bits, and store the 
-	result into destination variable x. 
-	"si x 1" should be equivalent to "mul x 2".
-	always executes at compiletime.
-
-
------------------------------------------------------------
-	sd x.64 shift_amount.6
------------------------------------------------------------
-	shift x down by shift_amount bits, and 
-	store the result into destination variable x. 
-	"sd x 1" should be equivalent to "div x 2". 
-	because all values ever are unsigned binary 
-	integers, this is not an arithemtic shift, 
-	but a logical shift.
-	always executes at compiletime.
-
-
------------------------------------------------------------
-	ld destination.64 address.64
------------------------------------------------------------
-	load 8 bytes from source compiletime memory 
-	at compiletime memory address "address" 
-	into destination variable "destination". 
-	this also declares x if x is not already defined. 
-	always executes at compiletime.
-
-
------------------------------------------------------------
-	st address.64 source.64
------------------------------------------------------------
-	store 8 bytes from source variable "source" 
-	into destination compiletime memory at 
-	compiletime memory address "address". 
-	always executes at compiletime.
-
-
------------------------------------------------------------
-	emit size.4 value.64
------------------------------------------------------------
-	emit "size" number of least-significant bytes 
-	from variable "value" to the executable as raw 
-	data, at this position in the instruction stream.
-	"value" can never be a value that is unable to be
-	represented by a (size * 8) bit unsigned integer.
-	always executes at compiletime.
-
-
-
------------------------------------------------------------
-	str (string)
------------------------------------------------------------
-	emit string data from s to the final executable 
-	at this position. str is equivalent to a series 
-	of emit byte instructions.
-	always executed at compiletime.
-
-	the format of the (string) parameter must 
-	be of the form:
-
-		ABA
-
-	where:
-		A is any printable ASCII character of 
-		  your choice, and	
-		B is an arbitrary sequence of 
-		  characters, not containing A.
-
-	typically A will be chosen to be a double 
-	quote character, thus calls to this look 
-	reasonably familiar:
-
-		str "your string here"
-
-
------------------------------------------------------------
-	sect x.64 
------------------------------------------------------------
-	puts the following instructions at hardware
-	address x. this instruction is only 
-	valid to use on embedded targets, or targets 
-	which don't have address layout randomization,
-	and where it makes sense to access particular 
-	runtime memory addresses.
-	always executes at compiletime.
-
-
------------------------------------------------------------
-	lt x.64 y.64 l.64
------------------------------------------------------------
-	if x is less than y, compiletime branch to label l. 
-	this is always an unsigned comparison. 
-	always executes at compiletime.
-
------------------------------------------------------------
-	eq x.64 y.64 l.64
------------------------------------------------------------
-	if x is equal to y, compiletime branch to label l. 
-	always executes at compiletime.
-
------------------------------------------------------------
-	do l.64
------------------------------------------------------------
-	unconditionally branch to label l. before the 
-	branch occurs, this instruction stores the 
-	instruction index of this instruction 
-	to address 0 in compiletime memory. 
-	address 0 is also known as the compiletime 
-	return address, or the link register sometimes.
-	this instruction always executes at compiletime.
-
------------------------------------------------------------
-	at l.64
------------------------------------------------------------
-	attribute label l at this position. to perform 
-	this, the instruction index of this instruction 
-	in the input instruction stream is loaded 
-	into the compiletime variable associated with l. 
-	always executes at compiletime. 
-
------------------------------------------------------------
-	del x
------------------------------------------------------------
-	remove x (which can be any defined variable) 
-	from the symbol table. executes at parse-time, 
-	(which happens before parse time execution)
-	and thus does not follow the compiletime 
-	execution flow of the program. 
-
------------------------------------------------------------
-	file (file path)
------------------------------------------------------------
-	load the contents of the file at filepath f, 
-	and parse them fully before proceeding.  
-	any edits to the symbol table are 
-	persistent/stateful. executes at parse-time, 
-	and does not follow the execution flow of 
-	the program. currently, the file path cannot
-	contain strings, this might be changed soon.
-	
-	example calls look like:
-
-		file library/directory/my_file_here.s
-
-	if the same file-path is included multiple times 
-	in the program, this results in an error. the user
-	should arrange the dependancies and use of 
-	"file" instructions to never include a file
-	multiple times.
-
-
-
-
-
-
-
-
------------------------------------------------------------
-rv32/rv64:
------------------------------------------------------------
-
-
-
-	...TODO: document all risc-v instructions!!!...
-
-
-
------------------------------------------------------------
-	rr
------------------------------------------------------------
-	undocumented so far
-
-
------------------------------------------------------------
-	ri
------------------------------------------------------------
-	undocumented so far
-
-
------------------------------------------------------------
-	rs
------------------------------------------------------------
-	undocumented so far
-
-
------------------------------------------------------------
-	rb
------------------------------------------------------------
-	undocumented so far
-
-
------------------------------------------------------------
-	ru
------------------------------------------------------------
-	undocumented so far
-
-
------------------------------------------------------------
-	rj
------------------------------------------------------------
-	undocumented so far
-
-
-
-
-
------------------------------------------------------------
-msp430:
------------------------------------------------------------
-
-	TODO: document all MSP430 instructions!!!
-
-
-
------------------------------------------------------------
-	mo
------------------------------------------------------------
-	undocumented so far
-
-
------------------------------------------------------------
-	mb
------------------------------------------------------------
-	undocumented so far
-
-
-
-
-
------------------------------------------------------------
-arm64:
------------------------------------------------------------
-
-
-
------------------------------------------------------------
-	a6_svc
------------------------------------------------------------
-	runtime system call instruction. 
-	takes no arguments.
-
-
------------------------------------------------------------
-	a6_mov  Rd.5  imm.16  shift_amount.2  
-		mov_type.2  is_64bit.1
------------------------------------------------------------
-
-
-		description: register immediate load.
-
-		shift_amount == 0 means no shift, 1 means shift up by 16 bits, 
-		2 means shift up by 32 bits, 3 means shift up by 64 bits. 
-
-		mov_type == 2 means movz, which zeros all bits except 
-		for the ones used by the already-shifted 16 bit immediate.
-
-		mov_type == 0 means movn, which does the same thing as movz, 
-		except for the result is inverted after doing the movz. 
-
-		mov_type == 3 means movk, which does the same thing as movz, 
-		except that it keeps all existing bits already present in the destination
-		besides the ones used by the shifted immediate.
-		
-
-	a6_adc   Rd.5  Rn.5  Rm.5  should_setflags.1  
-		should_subtract.1   is_64bit.1 : 
-
-		description: add two source registers with carry flag, 
-			and store into destination register.
-
-
-
--------------------------------------------------------------------------
-	a6_adr  Rd.5 label.21  is_page_addressed.1 :
--------------------------------------------------------------------------
-
-		description: load pc-rel address into register
-		
-
-
--------------------------------------------------------------------------
-	a6_addi   Rd.5  Rn.5  imm.12  should_imm_shift12.1  
-		should_setflags.1  should_subtract.1  is_64bit.1 : 
--------------------------------------------------------------------------
-	
-		description: add source register with immediate and 
-			store into destination register. 
-	
-		Rd/Rn == 31 means the stack pointer, instead of the zero register.
-
-
-
-
--------------------------------------------------------------------------
-	a6_addr    Rd.5  Rn.5  Rm.5  imm.6   shift_type.2   
-		should_setflags.1  should_subtract.1  is_64bit.1  : 
--------------------------------------------------------------------------
-		
-		description: add source register with optionally 
-			immediate-amount-shifted source register and 
-			store into destination register.
-
-		shift_type == 0 means logical left shift, 
-		shift_type == 1 means logical right shift, 
-		shift_type == 2 means arithmetic right shift.
-		
-
-
--------------------------------------------------------------------------
-	a6_jmp   should_link.1   label.26   : 
--------------------------------------------------------------------------
-
-		description unconditional branch to a pc-relative-offset label. 
-
-
-
-
--------------------------------------------------------------------------
-	a6_bc    cond.4   label.19   : 
--------------------------------------------------------------------------
-
-		description conditional branch based on the condition 
-			and flags register state to a pc-rel label.
-
-		cond == 15 means always false
-		cond == 14 means always true
-
-		cond == 0 means is equal (zero flag is set)
-		cond == 1 means is not equal (zero flag is set)
-
-		cond == 4 means is negative (negative flag is set)
-		cond == 5 means is non-negative (negative flag is clear)
-
-		cond == 6 means the overflow flag is set
-		cond == 7 means the overflow flag is clear
-		
-		cond == 11 means is signed less than
-		cond == 12 means is signed greater than
-		cond == 13 means is signed less than or equal
-		cond == 10 means is signed greater than or equal
-
-		cond == 3 means is unsigned less than (carry set)
-		cond == 8 means is unsigned greater than
-		cond == 9 means is unsigned less than or equal
-		cond == 2 means is unsigned greater than or equal (carry clear)
-
--------------------------------------------------------------------------
-
-
-	a6_shv  	... : not documented yet
-
-
-	a6_cbz  	... : not documented yet
-
-	a6_tbz  	... : not documented yet
-
-
-	a6_ori  	... : not documented yet
-
-	a6_orr  	... : not documented yet
-
-		
-
-	a6_memia  	... : not documented yet
-
-	a6_memi  	... : not documented yet
-
-	a6_memr  	... : not documented yet
-
-
-
-	a6_memp  	... : not documented yet
-
-	a6_madd  	... : not documented yet
-
-	a6_divr  	... : not documented yet
-
-
-
-	a6_csel  	... : not documented yet
-
-	a6_ldrl  	... : not documented yet
-
-	a6_clz  	... : not documented yet
-
-
-i'll do these later:
-
-	a6_extr  	... : not documented yet
-	a6_ccmp  	... : not documented yet
-	a6_br  		... : not documented yet
-	a6_rev  	... : not documented yet
-	a6_addx  	... : not documented yet
-	a6_bfm  	... : not documented yet
-
-
-
-
-
-final remarks:
-------------------------
-
-additional reminder that the assembler is made specifically and primarily for my own use cases, and thus is not tailored for anyone else. additionally, because the assembler is still largely in development and quite drastic changes could be made quite often, is it not currently meant to be used by anyone other than me at all. as such, pull requests or feature suggestions will most likely be rejected, (unless it really knocks my socks off, then i might consider it, but it would have to be something huge that i missed, lol..)
-
-however, that being said, i do plan to make the project publically usable by others for their own purposes, once the assembler and standard library are polished and stable enough to where i am happy with them. 
-regardless, i hope you find the project interesting, or possibly learn something or find inspiration from it. thanks for reading!
-
-dwrr
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
---------------------------------------------------------------------------------------------------
-everything from this point on is the trash, feel free to completely ignore it, as its completely irrelevant:
---------------------------------------------------------------------------------------------------
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+the long term aspirations of this language are to replace my using of C for heavily resource constrained, performance-critical applications, specifically when the hardware target is either MSP430, RISC-V, or ARM. for these applications, this language hopes to do a better job at attaining peak performance than C code. :)
 
 
 
@@ -884,6 +218,7 @@ currently, there is no built-in mechanism for allowing the user to define their 
 a graph coloring approach for register allocation is currently used. as stated, spill code, and automatic stack memory management will not take place, ever, by design. if register allocation (RA) fails to allocate all the program's variables into the hardware registers, an error is generated, and the programmer must fix this error by manually managing stack memory or storing variables in memory somehow, or somehow compressing the data variables into registers better. 
 
 instruction scheduling is currently not implemented, however, when it is implemented, minimizing register pressure will always be a paramount goal of the scheduler, unless there are available registers for use.
+
 comments are denoted with parenthesis, and are character based, not word based, and are only allowed between valid instructions. additionally, comments can nest within each other. eg, (something (like this) or that.)
 
 this language also allows the user to define the name of a variable as anything they want. the names of the operations are valid variable names, and any ascii or unicode character can be used in names, except for whitespace (tab, newline, and spaces), which is used for delimiting words. parenthesis are also valid within names, as they only denote comments between valid instructions. 
@@ -922,6 +257,36 @@ this homogeneity also serves to keep the implementation of the compiler itself, 
 
 
 ...see the code examples section for what code in this language generally looks like!...
+
+
+
+
+final remarks:
+------------------------
+
+additional reminder that the language is made specifically and primarily for my own use cases, and thus is not tailored for anyone else. additionally, because the language is still largely in development and quite drastic changes could be made quite often, is it not currently meant to be used by anyone other than me at all. as such, pull requests or feature suggestions will most likely be rejected, (unless it really knocks my socks off, then i might consider it, but it would have to be something huge that i missed, lol..)
+
+however, that being said, i do plan to make the project publically usable by others for their own purposes, once the compiler and standard library are polished and stable enough to where i am happy with them. 
+
+regardless, i hope you find the project interesting, or possibly learn something or find inspiration from it. thanks for reading!
+
+dwrr
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -1955,73 +1320,4 @@ examples of the compiler compile-time interface in action are given in the examp
 
 
 
-
-TRASH from the old readme:
-
-
-the "why" behind the language:
-----------------------------------
-
-in my particular use cases, i have two use cases which i think really shaped the language, and its goals. the first is that i want to run code in my language on these MSP430 microcontrollers which have only 512 bytes of SRAM, meaning that code needs to be incredibly memory and time efficient. not a single instruction can be wasted, as this could cause the program to not function at all, potentially.
-
-My second use case is different: i am making an extremely high performance system running on an ARM64 machine, and in this setting, performance and efficiency are absolutely paramount. having the low level control to be able to guarantee performance and efficiency at the language level is highly advantageous in this scenario, as it very much does make the difference between finding the solution in a week, or never finding the solution for years.
-
-so these are the use cases i had in mind. thus the programming experience i am aiming to create is based around low-level control, and efficiency. additionally, it helps to minimize the complexity of the language as much as possible, to make the compiler itself as simple as possible, which allows better reasoning about the translation process itself. further making it easier to get a working solution in resource constrained environments.
-
-the trade-offs which i am consciously making revolve around user-friendliness, vs expert-friendliness / fine control. the language strives to give fine control over things when its advantageous to performance, and thus, the language loses much in user-friendliness, and ease of use, most of the time. additionally, terseness is lost as well in some ways, as even small tasks take many instructions to complete. luckily, however, the standard library might try to help this problem slightly, by providing solutions to common problems encountered in programming. 
-
-portability is also not a true goal of this language: for example, spill code will never be generated, as if register allocation fails to fit all variables into registers, a compiler error is generated, and the programmer must fix this by manually allocating stack memory for some memory variables, or some how compressing their use of registers until things fit into the register file, and RA can succeed. ergonomics are seen as something only given when it does not come at the expense of performance.
-
-the paradigms which are promoted in this language include only: imperative programming, and procedural programming. all other programming paradigms, including functional programming, and object oriented programming, are seen as completely antithetical to the goal and use cases of the language, and thus are highly, highly discouraged.
-
-the intended feel of this language is to feel like you are as close to the metal as you can be, while still programming in a way where you are able to specify intent better, (ie, not always using the machine instructions directly!) and where you are able to dynamically change how low level you are, based on what you want to do. in some places, you choose to use machine instructions, in other places, you choose to use the more abstract language, which expresses intent better.
-
-the long term aspirations of this language are to replace my using of C for heavily resource constrained, performance-critical applications, specifically when the hardware target is either MSP430, RISC-V, or ARM. for these applications, this language hopes to do a better job at attaining peak performance than C code. :)
-
-
-
-
-arm64:
-
-	nop 	: no operation
-	svc 	: system call (supervisor call)
-	mov 	: set register with 16 bit immediate source
-	bfm 	: bit field move instruction
-	adc 	: add/subtract with carry 
-	addx 	: add/subtract with optionally sign/zero-extended register source 
-	addi 	: add/subtract with immediate source
-	addr 	: add/subtract with optionally shifted register source
-	adr 	: load address of a PC-relative label into a register
-	shv 	: variable-shift left or right of a register
-	clz 	: count leading zeros of regsiter
-	rev 	: reverse bits of register
-	jmp 	: unconditional jump to label (with optional link)
-	bc 	: conditional branch to label based on flags 
-	br 	: branch to register value (with optional link)
-	cbz 	: compare and branch if register is nonzero or zero
-	tbz 	: test bit in register and branch to label if set
-	ccmp 	: conditional compare instruction
-	csel 	: conditional select / increment / invert / negate instruction
-	ori 	: bitwise or/and/xor with immediate
-	orr 	: bitwise or/and/xor with shifted register
-	extr 	: extract instruction (?)
-	ldrl 	: load register data with from label PC-relative address
-	memp 	: load/store memory to/from pair of registers
-	memia 	: load/store memory to/from register with post/pre increment addressing mode
-	memi 	: load/store memory to/from register with address plus unsigned immediate offset
-	memr 	: load/store memory to/from register with address plus register offset
-	madd 	: multiply-accumulate / multiply-subtract instruction
-	divr 	: divide register with register instruction
-
-MSP430:
-	mo : arithmetic and bitwise operation instruction, with destination and source addressing modes 
-	mb : branch on condition to label instruction
-
-RISC-V
-	rr : register-register integer operation instruction format
- 	ri : register-immediate integer operation insrtuction format
-	rs : store operation instruction format
-	rb : compare and branch with register-register condition to label instruction format
-	ru : large immediate (possibly PC-relative) load into register instruction format
-	rj : unconditionally jump to label instruction format
 

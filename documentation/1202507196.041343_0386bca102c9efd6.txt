@@ -1,0 +1,10 @@
+1202507196.041352
+
+to address your musings, which i found incredibly interesting, i have written the following:
+Error handling: the assembler does thorough compiletime checking of all arguments, making sure that they are of the right bit width, and they are the right valid values for that given instruction, and if any invalid arguments are encountered, a very helpful descriptive error message including source file offsets, and a descriptive message is given, along with a snippet of the source code which violated the check. the erroneous substring of code is marked in red text within this snippet.
+
+Output format: this assembler supports ELF object files and executables, Mach-O object files and executables, outputting equivalent C code, outputting a hex-array of bytes, outputting a UF2 file, outputting the TI TXT executable format, as well as debugging the raw bytes in binary as well. more relevant and useful output formats used in embedded programming, and unix environments are planned to be implemented as well! i'll list this in the readme as well! :) thanks for the suggestion. 
+
+Optimization details: this is the one which i am most split on. to be honest, the plan initially was to have the assembler perform optimization passes on the machine code, after code generation finishes, optionally. however, the more i use the language, the more it feels like local optimizations using the compile-time execution system is really quite sufficient for 99.999% of use cases i would want optimization in, for example, strength reduction on operations like division. What are your thoughts on the decision to do optimization via dedicated passes in the assembler, or at user-level via compile-time execution? :)
+
+

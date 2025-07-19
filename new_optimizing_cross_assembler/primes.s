@@ -5,8 +5,6 @@ st compiler_target rv32_arch
 st compiler_format hex_array
 st compiler_should_overwrite true
 
-
-
 set c0 c0
 set c1 c1
 set c2 c2
@@ -140,21 +138,26 @@ do s str "
 set myvar 1
 
 
+
 set c0 myvar 
-set c1 101
-
+set c1 1100_1111
 do li
-do s str "
-	ri rv_imm rv_add myvar rv_sp 0
-" at s del s
-
-
-set c0 myvar
 set c1 01
 set c2 11
 set c3 001
-set printbinary_singleline false
 do printbinary
+
+
+set c0 myvar 
+set c1 0000_1111_0001_0111_1111_1
+do li
+set c1 01
+set c2 11
+set c3 001
+do printbinary
+
+
+
 do exit
 
 at newline_string emit 1 newline
