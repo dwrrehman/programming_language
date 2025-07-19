@@ -114,19 +114,85 @@ set bit5 00000100
 set bit6 00000010
 set bit7 00000001
 
-set r5_addi_op1 	1100100
-set r5_addi_op2		000
 
-set r5_sw_op1 		1100010
-set r5_sw_op2 		010
 
-set r5_zr 0
-set r5_ra 1
 
-set rv_system_number 	10001
+set rv_lui 		1110_110
+set rv_auipc 		1110_100
+
+set rv_jal		1111_011
+
+set rv_jalr_op1		1110_011
+set rv_jalr_op2		000
+
+set rv_branch		1100_011
+set rv_beq		000
+set rv_bne		100
+set rv_bltu		011
+set rv_bgeu		111
+set rv_blt		001
+set rv_bge		101
+
+set rv_load 		1100_010
+set rv_lb 		000
+set rv_lh 		100
+set rv_lw 		010
+set rv_ld 		110
+set rv_lbu 		001
+set rv_lhu 		101
+set rv_lwu 		011
+
+set rv_store 		1100_010
+set rv_sb 		000
+set rv_sh 		100
+set rv_sw 		010
+
+set rv_ecall 		1100_111
+set rv_imm 		1100_100
+set rv_signed		0000_010
+set rv_signedi		0000_0000_0010
+set rv_reg		1100_1100
+
+set rv_add		000
+set rv_sll		100
+set rv_slt		010
+set rv_sltu		110
+set rv_xor		001
+set rv_srl		101
+set rv_or		011
+set rv_and		111
+
+set rv_remu_op1		1100_110
+set rv_remu_op2		111
+set rv_remu_op3		1000000
+
+set rv_divu_op1		1100_110
+set rv_divu_op2		101
+set rv_divu_op3		1000000
+
+set rv_mul_op1		1100_110
+set rv_mul_op2		000
+set rv_mul_op3		1000000
+
+set rv_mulhu_op1	1100_110
+set rv_mulhu_op2	110
+set rv_mulhu_op3	1000000
+
+
+
+
+set rv_zr 0
+set rv_ra 1
+set rv_sp 01
+
 set rv_system_arg0 	0101
 set rv_system_arg1 	1101
 set rv_system_arg2 	0011
+set rv_system_arg3 	1011
+set rv_system_arg4 	0111
+set rv_system_arg5 	1111
+set rv_system_number 	10001
+
 
 set x 1 set rv_system_exit x
 incr x  set rv_system_read x
@@ -144,4 +210,26 @@ rest of the language, and the various targets.
   written by dwrr on 1202507185.024227
 
 
- 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

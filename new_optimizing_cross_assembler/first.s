@@ -1,9 +1,8 @@
 file library/core.s
 file library/ascii.s
 
-st compiler_target rv32_arch
-st compiler_format hex_array
-st compiler_should_overwrite true
+st compiler_target no_arch
+st compiler_format no_output
 
 set -2 -1 add -2 -1
 

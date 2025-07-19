@@ -2,16 +2,17 @@ file library/core.s
 
 st compiler_target rv32_arch
 st compiler_format hex_array
+st compiler_should_overwrite true
 
-set myvar 0
+set r5_ecall_op1 1100_111
 
-
-ri r5_addi_op1 r5_addi_op2 myvar myvar 00000
-ri r5_addi_op1 r5_addi_op2 myvar myvar 00000
-ri r5_addi_op1 r5_addi_op2 0 0 00000
-
+ri r5_addi_op1 r5_addi_op2 rv_system_number 0 rv_system_exit
+ri r5_addi_op1 r5_addi_op2 rv_system_arg0 0 0011
+ri r5_ecall_op1 0 0 0 0
 
 eoi
+
+
 
 current state:
 	we are trying to write a rv exit program currently
