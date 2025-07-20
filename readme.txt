@@ -4,7 +4,7 @@ written on 1202507196.013059 by dwrr
 
 this is an optimizing cross-assembler that i am making for fun and for my own use. the syntax is word-based, and features a powerful compile-time execution system, allowing for many optimizations to be written at user-level. the instruction set architectures which this assembler is able to target currently includes RISC-V 32 and 64 bit, ARM 64 bit, and the MSP430 ISA. supporting ARM 32 is planned, however not currently implemented. 
 
-in addition to the machine instructions for all supported targets, there are several "compile-time" instructions available for use by the user to perform arbitrary transformations on the output machine code programmatically. all of these compile-time instructions take 0, 1, 2, or 3 arguments. 
+in addition to the machine instructions for all supported targets, there are several "compile-time" instructions available for use by the user to perform arbitrary transformations on the output machine code programmatically. all of these compile-time instructions take 1, 2, or 3 arguments. 
 
 all instructions, both all compile-time and all machine instructions, are written in a word-based, prefix, fixed-arity notation, atypical of most assemblers, making resultant code quite uniform and readable. the instruction name is always written first, followed by a predefined number of arguments, all of which are known at compile-time, (ie, they are simply constant data, after compile-time execution is finished), and all of these arguments are of the same type: unsigned binary integers, of various bit widths.
 
@@ -14,7 +14,7 @@ there are plans to support floating point arithmetic, however this is not curren
 
 
 [todo: talk about supported output formats, compiletime execution semantics, how labels work, little endian binary literals, and other cool stuff i'm forgetting to explain]
-
+notes: one file on cli, seperators in binary literals, execution passing through a runtime label scope duplicates, 
 
 
 
@@ -26,11 +26,8 @@ a list and description of all available instructions (both runtime and compileti
 instruction listing:
 ----------------------------
 
-	zero incr 
-	nor nand si sd
-	set add sub mul div
-	ld st emit sect 
-	at do lt eq 
+	zero incr set add sub mul div
+	ld st emit sect at lt eq 
 	file del str eoi 
 
 	rr ri rs rb ru rj
@@ -55,10 +52,6 @@ compiletime:
 ---------------
 	zero : set to zero
 	incr : increment by one
-	nor  : bitwise not-or
-	nand : bitwise not-and
-	si   : shift-increase / shift up
-	sd   : shift-decrease / shift down
 	set  : assignment / copy
 	add  : addition
 	sub  : subtraction
@@ -69,7 +62,6 @@ compiletime:
 	emit : emit data to executable
 	sect : section address attribution
 	at   : label attribution
-	do   : unconditional jump / call
 	lt   : branch on less-than comparison
 	eq   : branch on equal comparison
 	file : parse contents of file from the file system
@@ -214,43 +206,6 @@ compiletime system:
 	always executes at compiletime.
 
 
------------------------------------------------------------
-	nand x.64 y.64
------------------------------------------------------------
-	assigns the value x bitwise-nand y to the 
-	destination variable x. 
-	always executes at compiletime.
-
-
-
------------------------------------------------------------
-	nor x.64 y.64
------------------------------------------------------------
-	assigns the value x bitwise-nor y to the 
-	destination variable x. 
-	always executes at compiletime.
-
-
------------------------------------------------------------
-	si x.64 shift_amount.6
------------------------------------------------------------
-	shift x up by shift_amount bits, and store the 
-	result into destination variable x. 
-	"si x 1" should be equivalent to "mul x 2".
-	always executes at compiletime.
-
-
------------------------------------------------------------
-	sd x.64 shift_amount.6
------------------------------------------------------------
-	shift x down by shift_amount bits, and 
-	store the result into destination variable x. 
-	"sd x 1" should be equivalent to "div x 2". 
-	because all values ever are unsigned binary 
-	integers, this is not an arithemtic shift, 
-	but a logical shift.
-	always executes at compiletime.
-
 
 -----------------------------------------------------------
 	ld destination.64 address.64
@@ -326,24 +281,26 @@ compiletime system:
 -----------------------------------------------------------
 	if x is less than y, compiletime branch to label l. 
 	this is always an unsigned comparison. 
+	before the branch occurs, this instruction 
+	stores the instruction index of this instruction 
+	to address 0 in compiletime memory. 
+	address 0 is also known as the compiletime 
+	return address, or the link register sometimes.
+	this instruction always executes at compiletime.
 	always executes at compiletime.
 
 -----------------------------------------------------------
 	eq x.64 y.64 l.64
 -----------------------------------------------------------
 	if x is equal to y, compiletime branch to label l. 
-	always executes at compiletime.
-
------------------------------------------------------------
-	do l.64
------------------------------------------------------------
-	unconditionally branch to label l. before the 
-	branch occurs, this instruction stores the 
-	instruction index of this instruction 
+	before the branch occurs, this instruction 
+	stores the instruction index of this instruction 
 	to address 0 in compiletime memory. 
 	address 0 is also known as the compiletime 
 	return address, or the link register sometimes.
 	this instruction always executes at compiletime.
+	always executes at compiletime.
+
 
 -----------------------------------------------------------
 	at l.64

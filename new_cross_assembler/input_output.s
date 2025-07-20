@@ -11,7 +11,7 @@ set c2 c2
 set c3 c3
 set c4 c4
 
-set printbinary_singleline 1
+set printbinary_singleline 0
 
 do macroskip
 
@@ -71,9 +71,63 @@ at exit
 	ld ra 0
 	ri rv_imm rv_add rv_system_number 0 rv_system_exit
 	ri rv_imm rv_add rv_system_arg0 0 0
-	ri rv_ecall 0 0 0 0 	
+	ri rv_ecall 0 0 0 0
 	do ra del ra
 
+
+
+
+
+
+
+	(1202507196.165657   current state:  we just realized that    we need to unify   rt labels    and ct values    beucaes we are unable to passs a reference to a runtime label into a ct argument, for a macro call.... big issue i think....)
+
+
+
+
+at writestring
+	ld ra 0
+	ri rv_imm rv_add rv_system_number 0 rv_system_write
+	ri rv_imm rv_add rv_system_arg0 0 stdout
+	ru rv_auipc rv_system_arg1 c0
+	ri rv_imm rv_add rv_system_arg1 rv_system_arg1 c0
+	ri rv_imm rv_add rv_system_arg0 0 c1
+	ri rv_ecall 0 0 0 0
+	do ra del ra
+
+
+at putc
+	ld ra 0
+	ri rv_imm rv_add rv_system_number 0 rv_system_write
+	ri rv_imm rv_add rv_system_arg0 0 stdout
+	ru rv_auipc rv_system_arg1 c0
+	ri rv_imm rv_add rv_system_arg1 rv_system_arg1 c0
+	ri rv_imm rv_add rv_system_arg0 0 1
+	rs rv_store rv_sb rv_system_arg1 c1 0
+	ri rv_ecall 0 0 0 0
+	do ra del ra
+
+at getc
+	ld ra 0
+	ri rv_imm rv_add rv_system_number 0 rv_system_read
+	ri rv_imm rv_add rv_system_arg0 0 stdin
+	ru rv_auipc rv_system_arg1 c0
+	ri rv_imm rv_add rv_system_arg1 rv_system_arg1 c0
+	ri rv_imm rv_add rv_system_arg2 0 1
+	ri rv_ecall 0 0 0 0
+	ri rv_load rv_lbu c1 rv_system_arg1 0
+	do ra del ra
+
+
+at nl
+	ld ra 0
+	ri rv_imm rv_add rv_system_number 0 rv_system_write
+	ri rv_imm rv_add rv_system_arg0 0 stdout
+	ru rv_auipc rv_system_arg1 newline_string
+	ri rv_imm rv_add rv_system_arg1 rv_system_arg1 newline_string
+	ri rv_imm rv_add rv_system_arg2 0 1
+	ri rv_ecall 0 0 0 0 
+	do ra del ra
 
 at li
 	ld ra 0
@@ -95,6 +149,11 @@ at li
 	del source
 	del a del b
 	do ra del ra
+
+
+
+
+
 
 at macroskip del macroskip
 
@@ -137,8 +196,6 @@ do s str "
 
 set myvar 1
 
-
-
 set c0 myvar 
 set c1 1100_1111
 do li
@@ -158,9 +215,38 @@ do printbinary
 
 
 
+set c 1
+
+at main
+
+	set c0 buffer
+	set c1 c
+	do getc
+
+	ri rv_imm rv_add 01 0 'q'
+	rb rv_branch rv_beq c 01 done
+	
+	ri rv_imm rv_add 01 0 0001
+	rb rv_branch rv_bne c 01 skip
+		set c0 delete
+		set c1 011
+		do writestring
+		rj rv_jal 0 mainloop
+	at skip del skip
+
+	set c0 buffer
+	set c1 c
+	do putc	
+	rj rv_jal 0 mainloop
+at done
+
 do exit
 
-at newline_string emit 1 newline
+at delete
+	str "delete"
+
+at newline_string 
+	emit 1 newline
 
 at buffer 
 	set i 0 at loop
