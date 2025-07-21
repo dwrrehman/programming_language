@@ -23,11 +23,15 @@ typedef uint32_t u32;
 typedef uint16_t u16;
 typedef uint8_t byte;
 
-static nat debug = 0;
+static nat debug = 1;
 
 #define max_variable_count 	(1 << 20)
 #define max_instruction_count 	(1 << 20)
 #define max_arg_count 		16
+
+static const nat     is_label = 0x8000000000000000;
+static const nat  is_ct_label = 0x4000000000000000;
+static const nat execute_mask = 0x3fffffffffffffff;
 
 enum all_architectures { no_arch, arm64_arch, arm32_arch, rv64_arch, rv32_arch, msp430_arch };
 
@@ -46,13 +50,14 @@ enum memory_mapped_addresses {
 	compiler_should_overwrite,
 	compiler_should_debug,
 	compiler_stack_size,
+	compiler_length,
 	compiler_putc,
 };
 
 enum isa {
 	_null___, 
 	zero, incr, set, add, sub, mul, div_, 
-	lt, eq, at, ld, st, emit, sect, 
+	ld, st, lt, eq, at, emit, sect, 
 	file, del, str, eoi, 
 	rr, ri, rs, rb, ru, rj,
 	mo, mb,
@@ -69,7 +74,7 @@ enum isa {
 static const char* operations[isa_count] = {
 	"",
 	"zero", "incr", "set", "add", "sub", "mul", "div", 
-	"lt", "eq", "at", "ld", "st", "emit", "sect", 
+	"ld", "st", "lt", "eq", "at", "emit", "sect", 
 	"file", "del", "str", "eoi",
 	"rr", "ri", "rs", "rb", "ru", "rj",
 	"mo", "mb",
@@ -85,7 +90,7 @@ static const char* operations[isa_count] = {
 static const nat arity[isa_count] = {
 	0,	
 	1, 1, 2, 2, 2, 2, 2,
-	3, 3, 1, 2, 2, 2, 1, 
+	2, 2, 3, 3, 1, 2, 1, 
 	1, 1, 0, 0, 
 	6, 5, 5, 5, 3, 3,
 	8, 2,
@@ -120,7 +125,6 @@ static nat rt_ins_count = 0;
 
 static char* variables[max_variable_count] = {0};
 static nat values[max_variable_count] = {0};
-static nat types[max_variable_count] = {0};
 static nat is_undefined[max_variable_count] = {0};
 static nat var_count = 0;
 
@@ -147,9 +151,9 @@ static char* load_file(const char* filename, nat* text_length) {
 static void print_dictionary(void) {
 	puts("dictionary: ");
 	for (nat i = 0; i < var_count; i++) {
-		if (i % 4 == 0) puts("");
-		printf("[0x%5llx/%5llu]:%llu:%llu:%24s:%016llx(%4lld)\t",
-			i, i, types[i], is_undefined[i], variables[i], values[i], values[i]
+		if (i % 2 == 0) puts("");
+		printf("[0x%5llx/%5lld]:%lld:%24s:%016llx(%4lld)\t",
+			i, i, is_undefined[i], variables[i], values[i], values[i]
 		);
 	}
 	puts("");
@@ -237,7 +241,10 @@ static nat compute_label_location(nat label) {
 	for (nat i = 0; i < ins_count; i++) {
 		if (ins[i].op == at and ins[i].args[0] == label) return i;
 	}
-	printf("error: could not compute label location for label: %s\n", variables[label]);
+	printf("error: could not compute label location for label: %s(0x%016llx)\n", 
+		label < var_count ? variables[label] : "(OUTSIDE VAR RANGE)", 
+		label
+	);
 	abort();
 }
 
@@ -384,6 +391,7 @@ static void print_instruction_window_around(
 	}
 }
 
+
 int main(int argc, const char** argv) {
 	if (argc != 2) exit(puts("error: exactly one source file must be specified."));
 	
@@ -441,20 +449,20 @@ process_file:;
 			word_length++; 
 			if (pc + 1 < text_length) continue;
 		} else if (not word_length) continue;
-
+ 
 		char* word = strndup(text + word_start, word_length);
 
-		if (not op) {			
+		if (not op) {
 			for (op = 0; op < isa_count; op++) 
 				if (not strcmp(word, operations[op])) goto process_op;
 
 			for (var = var_count; var--;) {
-				if (types[var] != 3) continue;
+				if (not (values[var] & is_ct_label)) continue;
 				if (not strcmp(word, variables[var])) {
 					ins[ins_count++] = (struct instruction) { 
-						.op = eq, 
-						.imm = 3, 
-						.args = { 0, 0, var } 
+						.op = eq,
+						.imm = 3,
+						.args = { 0, 0, var }
 					};
 					goto finish_operation;
 				}
@@ -481,29 +489,26 @@ process_file:;
 			else if (word[i] == '1') { r += s; s <<= 1; }
 			else if (word[i] == '_') continue;
 			else goto undefined_var;
-			
 		}
 		is_immediate |= 1 << arg_count;
 		var = r;
 		goto push_argument;
 
 	undefined_var:
-		if (op < eoi) print_error(
+		if (op < eoi and op != set and op != st) print_error(
 			"undefined variable",
 			filename, text, text_length,
 			word_start, pc
 		);
-		types[var_count] = 1;
 	define_name:
 		var = var_count;
-		variables[var] = word; 
-		values[var] = (nat) -1;
+		variables[var] = word;
 		var_count++;
 	push_argument: 
 		args[arg_count++] = var;
 	process_op:
-		if (op == eoi) break;		
-		if (op == str) { in_string = 1; goto next_word; } 
+		if (op == eoi) break;
+		if (op == str) { in_string = 1; goto next_word; }
 		else if (op < isa_count and arg_count < arity[op]) goto next_word;
 		else if (op == file) {
 			for (nat i = 0; i < included_file_count; i++) {
@@ -519,15 +524,14 @@ process_file:;
 			files[file_count - 1].index = pc;
 			files[file_count].filename = word;
 			files[file_count].text = string;
-			files[file_count].text_length = len;			
+			files[file_count].text_length = len;
 			files[file_count++].index = 0;
 			var_count--;
 			goto process_file;
 		} else {
-			if (op == at) { values[*args] = ins_count; types[*args] |= 1; } 
-			else if (op == del) is_undefined[*args] = 1;
-			else if (op == lt or op == eq) types[args[2]] |= 3;
-
+			if (op == del) is_undefined[*args] = 1;
+			else if (op == at) values[*args] |= is_label;
+			else if (op == lt or op == eq) values[args[2]] |= is_ct_label;
 			struct instruction new = { .op = op, .imm = is_immediate };
 			is_immediate = 0;
 			memcpy(new.args, args, sizeof args);
@@ -540,13 +544,20 @@ process_file:;
 	file_count--;
 	if (file_count) goto process_file; }
 
+	for (nat i = 0; i < ins_count; i++) {
+		const nat op = ins[i].op, e = ins[i].args[0];
+		if (op == at) values[e] = (values[e] & is_ct_label) ? i : e | is_label;
+	}
+	for (nat i = 0; i < var_count; i++) if (not values[i]) values[i] = execute_mask;
+		
 	if (debug) {
-		print_dictionary();
 		print_instructions();
+		print_dictionary();
 		puts("parsing finished.");
+		getchar();
 	}
 
-	memset(is_undefined, 0, sizeof(nat) * var_count);
+	memset(is_undefined, 255, sizeof(nat) * var_count);
 
 	{ nat memory[65536] = {0};
 
@@ -571,46 +582,44 @@ process_file:;
 		nat val1 = imm & 2 ? arg1 : values[arg1];
 		nat val2 = imm & 4 ? arg2 : values[arg2];
 
-		if (op >= lt and op <= eq and val2 >= ins_count) {
-			printf("error: at pc %llu invalid jump address: 0x%016llx\n", pc, val2);
-			print_instruction_window_around(pc, 1, "error");
-			abort();
+		if (op == lt or op == eq) {
+			val2 &= execute_mask;
+			if (val2 >= ins_count) {
+				printf("error: at pc %llu invalid jump address: 0x%016llx\n", pc, val2);
+				print_instruction_window_around(pc, 1, "error");
+				abort();
+			}
 		}
 
 		if (op == del) {
-			if (types[arg0] == 1) {
-				is_undefined[arg0] = var_count;	
-				variables[var_count] = strdup("_generated_");
-				types[var_count] = 1;
-				is_undefined[var_count] = 0;
-				var_count++;
-			}
+			is_undefined[arg0] = var_count;
+			is_undefined[var_count] = (nat) -1;
+			variables[var_count++] = strdup("_generated_");
 
 		} else if (op == str) {
-			for (nat s = 0; s < arg0; s++) {
-				struct instruction new = { .op = emit, .imm = 3 };
-				new.args[0] = 1;
-				new.args[1] = (nat) string_list[arg1][s];
-				rt_ins[rt_ins_count++] = new;
-			}
+			for (nat s = 0; s < arg0; s++)
+				rt_ins[rt_ins_count++] = (struct instruction) { 
+					.op = emit, .imm = 3,
+					.args = { 1, (nat) string_list[arg1][s] }
+				};
 
 		} else if (op > eoi or op == emit or op == sect) {
 			struct instruction new = ins[pc];
 			for (nat a = 0; a < arity[op]; a++) {
-				nat e = ins[pc].args[a];
-				nat t = types[e];
-				if (t == 3) abort();
-				if (not ((imm >> a) & 1)) {
-					if (is_undefined[e]) e = is_undefined[e];
-					if (t != 1) e = values[e];
-				}
-				new.args[a] = e | (0x8000000000000000 * t);
+
+				nat this = ins[pc].args[a];
+				if ((imm >> a) & 1) new.args[a] = this;
+				else new.args[a] = values[this];
+
+				//if (not (values[this] & is_label)) 
+				//else if (is_undefined[this] != (nat) -1) new.args[a] = is_undefined[this];
+				//else new.args[a] = values[this];
 			}
 			rt_ins[rt_ins_count++] = new;
 
-		} else if (op == at and (types[arg0] == 1 or is_undefined[arg0])) {
+		} else if (op == at and (val0 & is_label)) {
 			struct instruction new = ins[pc];
-			if (is_undefined[arg0]) new.args[0] = is_undefined[arg0];
+			if (is_undefined[arg0] != (nat) -1) new.args[0] = is_undefined[arg0];
 			rt_ins[rt_ins_count++] = new;
 		}
 		else if (op == zero) values[arg0] = 0;
@@ -623,7 +632,7 @@ process_file:;
 		else if (op == ld)   values[arg0] = memory[val1];
 		else if (op == st)   memory[val0] = val1;
 		else if (op == at)   values[arg0] = pc;
-		else if (op == lt) { if (val0 < val1) { *memory = pc; pc = val2; }  }
+		else if (op == lt) { if (val0  < val1) { *memory = pc; pc = val2; } }
 		else if (op == eq) { if (val0 == val1) { *memory = pc; pc = val2; } }
 		else { 
 			printf("CTE: fatal internal error: "
@@ -633,10 +642,19 @@ process_file:;
 			abort(); 
 		}
 		if (op == st and val0 == compiler_putc) { char c = (char) val1; write(1, &c, 1); } 
+		if (op == st and val0 == compiler_length) {
+			for (nat i = 0; i < string_list_count; i++) {
+				if (string_label[i] == (val1 ^ is_label)) { 
+					memory[compiler_length] = strlen(string_list[i]); 
+					goto found_string;
+				}
+			}
+			memory[compiler_length] = (nat) -1; found_string:;
+		}
 	}
 
-	memcpy(ins, rt_ins, ins_count * sizeof(struct instruction));
-	ins_count = rt_ins_count; 
+	memcpy(ins, rt_ins, rt_ins_count * sizeof(struct instruction));
+	ins_count = rt_ins_count;
 	for (nat i = 0; i < ins_count; i++) ins[i].imm = (nat) -1;
 
 	target_arch = memory[compiler_target];
@@ -671,7 +689,6 @@ process_file:;
 	print_instructions();
 	puts("CTE finished.");
 	puts("generating final machine code binary...");
-
 
 	uint8_t* my_bytes = NULL;
 	nat my_count = 0;
@@ -1828,6 +1845,96 @@ finished_outputting:
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+	/*for (nat i = 0; i < ins_count; i++) {
+		const nat op = ins[i].op;
+		if (op == lt or op == eq) values[ins[i].args[2]] &= execute_mask;
+	}	
+	for (nat i = 0; i < var_count; i++) if (values[i] & is_label) values[i] = i | is_label;
+	*/
+	
+
+
+
+/*
+
+if (	op == zero or op == incr or 
+				op == set or op == st or 
+				op == sect) is_constant[args[0]] = 1;
+			else if (op == emit or (op >= add and <= ld) {
+				is_constant[args[0]] = 1;
+				is_constant[args[1]] = 1;
+			} else if (op == lt or op == eq) {
+				is_constant[args[0]] = 1;
+				is_constant[args[1]] = 1;
+				is_constant[args[2]] = 1;
+			}
+
+
+
+
+
+*/
 
 
 

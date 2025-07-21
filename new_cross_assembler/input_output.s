@@ -13,7 +13,7 @@ set c4 c4
 
 set printbinary_singleline 0
 
-do macroskip
+eq 0 0 macroskip
 
 at printbinary
 	ld ra 0
@@ -54,7 +54,7 @@ at printbinary
 
 	del pointer 
 	del s
-	do ra del ra
+	eq 0 0 ra del ra
 
 at nl
 	ld ra 0
@@ -65,22 +65,19 @@ at nl
 	ri rv_imm rv_add rv_system_arg2 0 1
 	ri rv_ecall 0 0 0 0 
 
-	do ra del ra
+	eq 0 0 ra del ra
 
 at exit
 	ld ra 0
 	ri rv_imm rv_add rv_system_number 0 rv_system_exit
 	ri rv_imm rv_add rv_system_arg0 0 0
 	ri rv_ecall 0 0 0 0
-	do ra del ra
+	eq 0 0 ra del ra
 
 
 
 
 
-
-
-	(1202507196.165657   current state:  we just realized that    we need to unify   rt labels    and ct values    beucaes we are unable to passs a reference to a runtime label into a ct argument, for a macro call.... big issue i think....)
 
 
 
@@ -93,7 +90,7 @@ at writestring
 	ri rv_imm rv_add rv_system_arg1 rv_system_arg1 c0
 	ri rv_imm rv_add rv_system_arg0 0 c1
 	ri rv_ecall 0 0 0 0
-	do ra del ra
+	eq 0 0 ra del ra
 
 
 at putc
@@ -105,7 +102,7 @@ at putc
 	ri rv_imm rv_add rv_system_arg0 0 1
 	rs rv_store rv_sb rv_system_arg1 c1 0
 	ri rv_ecall 0 0 0 0
-	do ra del ra
+	eq 0 0 ra del ra
 
 at getc
 	ld ra 0
@@ -116,7 +113,7 @@ at getc
 	ri rv_imm rv_add rv_system_arg2 0 1
 	ri rv_ecall 0 0 0 0
 	ri rv_load rv_lbu c1 rv_system_arg1 0
-	do ra del ra
+	eq 0 0 ra del ra
 
 
 at nl
@@ -156,25 +153,6 @@ at li
 
 
 at macroskip del macroskip
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 
@@ -272,6 +250,15 @@ hopefully it goes well lolll
 just got the print binary at runtime   functionality working i think!! its quite involved lollll
 
 
+
+
+
+
+
+
+
+
+	(1202507196.165657   current state:  we just realized that    we need to unify   rt labels    and ct values    beucaes we are unable to passs a reference to a runtime label into a ct argument, for a macro call.... big issue i think....)
 
 
 

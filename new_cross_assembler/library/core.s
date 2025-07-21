@@ -19,6 +19,7 @@ incr x set compiler_format x
 incr x set compiler_should_overwrite x
 incr x set compiler_should_debug x
 incr x set compiler_stack_size x
+incr x set compiler_length x
 incr x set compiler_putc x
 
 zero x set no_arch x
