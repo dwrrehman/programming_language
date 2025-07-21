@@ -14,6 +14,13 @@ set c4 c4
 
 eq 0 0 macroskip
 
+
+at strlen
+	ld ra 0 lt 0 0 strlen
+	st compiler_length c0
+	ld c0 compiler_length
+	eq 0 0 ra del ra
+
 at exit
 	ld ra 0 lt 0 0 exit
 	ri rv_imm rv_add rv_system_number 0 rv_system_exit
@@ -32,10 +39,9 @@ at write
 	eq 0 0 ra del ra 
 
 at macroskip del macroskip
-st compiler_length string ld length compiler_length
-set c0 string
-set c1 length
-write exit
+
+set c0 string strlen
+set c1 c0 set c0 string write exit
 at string str
 
 "hello! this is my cool string!
@@ -47,7 +53,6 @@ length of this string lol.
 that will be fun probably.
 
 wish me luck on that! lol.
-
 
 oh, and also i'm going to try to 
 fix the other stuff in the assembler!

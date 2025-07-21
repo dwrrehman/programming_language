@@ -23,7 +23,7 @@ typedef uint32_t u32;
 typedef uint16_t u16;
 typedef uint8_t byte;
 
-static nat debug = 1;
+static nat debug = 0;
 
 #define max_variable_count 	(1 << 20)
 #define max_instruction_count 	(1 << 20)
