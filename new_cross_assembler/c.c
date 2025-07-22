@@ -257,7 +257,15 @@ static nat compute_label_location(nat label) {
 	abort();
 }
 
-static nat calculate_offset(nat* length, nat here, nat target) {
+static nat calculate_offset(nat* length, nat here, nat label) {
+
+	if (not (label & is_label)) { puts("error: calculate_offset(): was passed a nonlabel: "); printf("error: could not compute label location for label: %s(0x%016llx)\n", 
+		label < var_count ? variables[label] : "(OUTSIDE VAR RANGE)", 
+		label
+	); abort(); } 
+	
+	const nat target = compute_label_location(label & ~is_label);
+
 	nat offset = 0;
 	if (target > here) {
 		for (nat i = here; i < target; i++) {
@@ -410,10 +418,14 @@ int main(int argc, const char** argv) {
 	nat should_overwrite = false;
 	nat stack_size = min_stack_size;
 
+	bool should_check[192390] = {0}; // TODO: make this sized max_variable_count, global. 
+
 { 	struct file files[max_file_count] = {0};
 	nat file_count = 1;
 	const char* included_files[max_file_count] = {0};
 	nat included_file_count = 0;
+	
+	
 
 	{ nat text_length = 0;
 	char* text = load_file(argv[1], &text_length);
@@ -506,6 +518,7 @@ process_file:;
 				"undefined variable",
 				filename, text, text_length, word_start, pc
 			);
+		else should_check[var_count] = 1;
 	define_name:
 		var = var_count;
 		variables[var] = word;
@@ -560,6 +573,31 @@ process_file:;
 		print_dictionary();
 		puts("parsing finished.");
 		getchar();
+	}
+
+
+
+
+
+nat label_count[230942] = {0};
+
+	for (nat i = 0; i < ins_count; i++) {
+		if (ins[i].op == at) label_count[ins[i].args[0]]++;
+	}
+
+	for (nat i = 0; i < ins_count; i++) {
+		for (nat a = 0; a < arity[ins[i].op]; a++) {
+			const nat this = ins[i].args[a];
+			if (not ((ins[i].imm >> a) & 1) and should_check[this] and label_count[this] != 1) {
+				printf("error: instruction %s, argument #%llu, expected exactly one label attribution, "
+					"but found label count = %llu for variable %s\n", 
+					operations[ins[i].op], a, 
+					label_count[this], variables[this]
+				);
+				print_instruction_window_around(i, 1, "incorrect label attribution for this argument");
+				abort();
+			}
+		}
 	}
 
 	memset(is_undefined, 255, sizeof(nat) * var_count);
@@ -782,7 +820,7 @@ rv32_generate_machine_code:;
 				abort(); 
 			}
 
-			if (a4 >= (1LLU << 12LLU) and not (a4 & 0x8000000000000000)) { 
+			if (a4 >= (1LLU << 12LLU) and not (a4 & is_label)) { 
 				puts("risc-v: ri: arg4: invalid 12-bit immediate"); 
 				print_instruction_window_around(i, 1, "invalid argument 4"); 
 				abort(); 
@@ -790,9 +828,8 @@ rv32_generate_machine_code:;
 
 			nat k = a4;
 
-			if (k & 0x8000000000000000) {
-				const nat n = compute_label_location(k ^ 0x8000000000000000);
-				const nat im = calculate_offset(lengths, i - 1, n) & 0x00000FFF;
+			if (k & is_label) {
+				const nat im = calculate_offset(lengths, i - 1, k) & 0x00000FFF;
 				k = im;
 			}
 
@@ -803,7 +840,7 @@ rv32_generate_machine_code:;
 				(a2 <<  7U) | 
 				(a0 <<  0U) ;
 
-			if (not k and (a4 & 0x8000000000000000)) {}
+			if (not k and (a4 & is_label)) {}
 			else insert_u32(&my_bytes, &my_count, (u32) word);
 
 		} else if (op == rr) {	
@@ -829,16 +866,15 @@ rv32_generate_machine_code:;
 			if (a1 >= (1LLU << 3LLU)) { puts("error"); abort(); } 
 			if (a2 >= (1LLU << 5LLU)) { puts("error"); abort(); } 
 			if (a3 >= (1LLU << 5LLU)) { puts("error"); abort(); } 
-			if (a4 >= (1LLU << 12LLU) and not (a4 & 0x8000000000000000)) { 
+			if (a4 >= (1LLU << 12LLU) and not (a4 & is_label)) { 
 				puts("error"); abort(); 
 			} 
 
 			nat k = a4;
-			if (k & 0x8000000000000000) {
-				const nat n = compute_label_location(k ^ 0x8000000000000000);
-				const nat im = calculate_offset(lengths, i - 1, n) & 0x00000FFF;
+			if (k & is_label) {
+				const nat im = calculate_offset(lengths, i - 1, k) & 0xffff; // TODO: error???
 				k = im;
-			}
+			} puts("fix me"); abort(); 
 
 			const nat word = 
 				(((k >> 5) & 0x3f) << 25U) | 
@@ -853,15 +889,12 @@ rv32_generate_machine_code:;
 
 			if (a0 >= (1LLU << 7LLU)) { puts("error"); abort(); } 
 			if (a1 >= (1LLU << 5LLU)) { puts("error"); abort(); } 
-			if (a2 >= (1LLU << 20LLU) and not (a2 & 0x8000000000000000)) { 
+			if (a2 >= (1LLU << 20LLU) and not (a2 & is_label)) { 
 				puts("error"); abort(); 
 			} 
 			
 			nat im = (a2 << 12) & 0xFFFFF000;
-			if (a0 == 0x17) {
-				const nat n = compute_label_location(a2 ^ 0x8000000000000000);
-				im = calculate_offset(lengths, i, n) & 0xFFFFF000;
-			}
+			if (a0 == 0x17) im = calculate_offset(lengths, i, a2) & 0xFFFFF000;
 
 			const nat word =
 				(im) |
@@ -875,12 +908,11 @@ rv32_generate_machine_code:;
 			if (a1 >= (1LLU << 3LLU)) { puts("error"); abort(); } 
 			if (a2 >= (1LLU << 5LLU)) { puts("error"); abort(); } 
 			if (a3 >= (1LLU << 5LLU)) { puts("error"); abort(); } 
-			if (not (a4 & 0x8000000000000000)) { 
+			if (not (a4 & is_label)) { 
 				puts("error"); abort(); 
 			} 
-
-			nat n = compute_label_location(a4 ^ 0x8000000000000000);
-			nat im = (u32) calculate_offset(lengths, i, n);
+			
+			nat im = (u32) calculate_offset(lengths, i, a4);
 			if ((int32_t) im >= (1 << 12)) abort();
 			if ((int32_t) im < -(1 << 12)) abort();
 			im &= 0x1FFF;
@@ -905,12 +937,11 @@ rv32_generate_machine_code:;
 
 			if (a0 >= (1LLU << 7LLU)) { puts("error"); abort(); } 
 			if (a1 >= (1LLU << 5LLU)) { puts("error"); abort(); } 
-			if (not (a2 & 0x8000000000000000)) { 
+			if (not (a2 & is_label)) { 
 				puts("error"); abort(); 
 			}
 
-			nat n = compute_label_location(a2 ^ 0x8000000000000000);
-			nat im = (u32) calculate_offset(lengths, i, n);
+			nat im = (u32) calculate_offset(lengths, i, a2);
 
 			if ((int32_t) im >= (1 << 21)) abort();
 			if ((int32_t) im < -(1 << 21)) abort();
@@ -940,10 +971,10 @@ msp430_generate_machine_code:;
 	{nat* lengths = calloc(ins_count, sizeof(nat));
 	for (nat i = 0; i < ins_count; i++) {
 		const nat op = ins[i].op;
-		const u32 a0 = (u32) ins[i].args[0];
-		const u32 a1 = (u32) ins[i].args[1];
-		const u32 a4 = (u32) ins[i].args[4];
-		const u32 a5 = (u32) ins[i].args[5];
+		const nat a0 = ins[i].args[0];
+		const nat a1 = ins[i].args[1];
+		const nat a4 = ins[i].args[4];
+		const nat a5 = ins[i].args[5];
 
 		nat len = 0;
 		if (op == sect) len = 0;
@@ -968,14 +999,14 @@ msp430_generate_machine_code:;
 		}
 
 		const nat op = ins[i].op;
-		const u16 a0 = (u16) ins[i].args[0];
-		const u16 a1 = (u16) ins[i].args[1];
-		const u16 a2 = (u16) ins[i].args[2];
-		const u16 a3 = (u16) ins[i].args[3];
-		const u16 a4 = (u16) ins[i].args[4];
-		const u16 a5 = (u16) ins[i].args[5];
-		const u16 a6 = (u16) ins[i].args[6];
-		const u16 a7 = (u16) ins[i].args[7];
+		const nat a0 = ins[i].args[0];
+		const nat a1 = ins[i].args[1];
+		const nat a2 = ins[i].args[2];
+		const nat a3 = ins[i].args[3];
+		const nat a4 = ins[i].args[4];
+		const nat a5 = ins[i].args[5];
+		const nat a6 = ins[i].args[6];
+		const nat a7 = ins[i].args[7];
 
 
 		if (op == at) { 	
@@ -994,23 +1025,22 @@ msp430_generate_machine_code:;
 
 
 		} else if (op == mb) { 
-			const nat n = compute_label_location(a1 ^ 0x8000000000000000);
-			const u16 offset = 0x3FF & ((calculate_offset(lengths, i + 1, n) >> 1));
-			const u16 word = (u16) ((1U << 13U) | (u16)(a0 << 10U) | (offset));
-			insert_u16(&my_bytes, &my_count, word);
+			const nat offset = 0x3FF & ((calculate_offset(lengths, i + 1, a1) >> 1));
+			const nat word =  ((1LLU << 13LLU) | (a0 << 10LLU) | (offset));
+			insert_u16(&my_bytes, &my_count, (u16) word);
 		}
 		else if (op == mo) {  
 
-			u16 word = (u16) (
-				(a0 << 12U) | (a5 << 8U) | (a1 << 7U) | 
-				(a7 << 6U) | (a4 << 4U) | (a2)
+			nat word = (
+				(a0 << 12LLU) | (a5 << 8LLU) | (a1 << 7LLU) | 
+				(a7 << 6LLU) | (a4 << 4LLU) | (a2)
 			);
-			insert_u16(&my_bytes, &my_count, word);
+			insert_u16(&my_bytes, &my_count, (u16) word);
 
 			if ((a4 == 1 and (a5 != 2 and a5 != 3)) 
-				or (a4 == 3 and not a5)) insert_u16(&my_bytes, &my_count, a6);
+				or (a4 == 3 and not a5)) insert_u16(&my_bytes, &my_count, (u16) a6);
 						
-			if (a1 == 1) insert_u16(&my_bytes, &my_count, a3);
+			if (a1 == 1) insert_u16(&my_bytes, &my_count, (u16) a3);
 		} else {
 			printf("error: unknown mi op=\"%s\"\n", operations[op]);
 			abort();
@@ -1039,22 +1069,22 @@ arm64_generate_machine_code:;
 		}
 
 		const nat op = ins[i].op;
-		const u32 a0 = (u32) ins[i].args[0];
-		const u32 a1 = (u32) ins[i].args[1];
-		const u32 a2 = (u32) ins[i].args[2];
-		const u32 a3 = (u32) ins[i].args[3];
-		const u32 a4 = (u32) ins[i].args[4];
-		const u32 a5 = (u32) ins[i].args[5];
-		const u32 a6 = (u32) ins[i].args[6];
-		const u32 a7 = (u32) ins[i].args[7];
+		const nat a0 = ins[i].args[0];
+		const nat a1 = ins[i].args[1];
+		const nat a2 = ins[i].args[2];
+		const nat a3 = ins[i].args[3];
+		const nat a4 = ins[i].args[4];
+		const nat a5 = ins[i].args[5];
+		const nat a6 = ins[i].args[6];
+		const nat a7 = ins[i].args[7];
 
 		if (op == at) {}
 
 		else if (op == emit) {
-			if (a0 == 8) insert_u64(&my_bytes, &my_count, (uint64_t) ins[i].args[1]);
-			if (a0 == 4) insert_u32(&my_bytes, &my_count, (uint32_t) a1);
-			if (a0 == 2) insert_u16(&my_bytes, &my_count, (uint16_t) a1);
-			if (a0 == 1) insert_u8 (&my_bytes, &my_count, (uint8_t) a1);
+			if (a0 == 8) insert_u64(&my_bytes, &my_count, a1);
+			if (a0 == 4) insert_u32(&my_bytes, &my_count, (u32) a1);
+			if (a0 == 2) insert_u16(&my_bytes, &my_count, (u16) a1);
+			if (a0 == 1) insert_u8 (&my_bytes, &my_count, (byte) a1);
 
 		} else if (op == sect) {
 			section_addresses[section_count] = a0;
@@ -1069,18 +1099,18 @@ arm64_generate_machine_code:;
 		else if (op == svc) insert_u32(&my_bytes, &my_count, 0xD4000001);
 
 		else if (op == br) {
-			uint32_t l = a2?2:a1?1:0;
-			const uint32_t to_emit = 
+			nat l = a2 ? 2 : a1 ? 1 : 0;
+			const nat word = 
 				(0x6BU << 25U) | (l << 21U) | 
 				(0x1FU << 16U) | (a0 << 5U);
-			insert_u32(&my_bytes, &my_count, to_emit);
+			insert_u32(&my_bytes, &my_count, (u32) word);
 
 		} else if (op == adc) {
-			const uint32_t to_emit = 
+			const nat word = 
 				(a5 << 31U) | (a4 << 30U) | (a3 << 29U) | 
 				(0xD0 << 21U) | (a2 << 16U) | (0 << 19U) |
 				(a1 << 5U) | (a0);
-			insert_u32(&my_bytes, &my_count, to_emit);
+			insert_u32(&my_bytes, &my_count, (u32) word);
 
 		} else if (op == shv) {
 			uint32_t op2 = 8;
@@ -1088,111 +1118,111 @@ arm64_generate_machine_code:;
 			if (a3 == 1) op2 = 9;
 			if (a3 == 2) op2 = 10;
 			if (a3 == 3) op2 = 11;
-			const uint32_t to_emit = 
+			const nat word = 
 				(a4 << 31U) | (0 << 30U) | 
 				(0 << 29U) | (0xD6 << 21U) | 
 				(a2 << 16U) | (op2 << 10U) |
 				(a1 << 5U) | (a0);
-			insert_u32(&my_bytes, &my_count, to_emit);
+			insert_u32(&my_bytes, &my_count, (u32) word);
 
 		} else if (op == mov) {
-			const uint32_t to_emit = 
+			const nat word = 
 				(a4 << 31U) | (a3 << 29U) | (0x25U << 23U) |
 				(a2 << 21U) | (a1 << 5U) | (a0);
-			insert_u32(&my_bytes, &my_count, to_emit);
+			insert_u32(&my_bytes, &my_count, (u32) word);
 
 		} else if (op == bc) {
-			const uint32_t offset = 0x7ffff & (calculate_offset(lengths, i, a1) >> 2);
-			const uint32_t to_emit = (0x54U << 24U) | (offset << 5U) | (a0);
-			insert_u32(&my_bytes, &my_count, to_emit);
+			const nat offset = 0x7ffff & (calculate_offset(lengths, i, a1) >> 2);
+			const nat word = (0x54U << 24U) | (offset << 5U) | (a0);
+			insert_u32(&my_bytes, &my_count, (u32) word);
 
 		} else if (op == jmp) {
-			const uint32_t offset = 0x3ffffff & (calculate_offset(lengths, i, a1) >> 2);
-			const uint32_t to_emit = (a0 << 31U) | (0x5U << 26U) | (offset);
-			insert_u32(&my_bytes, &my_count, to_emit);
+			const nat offset = 0x3ffffff & (calculate_offset(lengths, i, a1) >> 2);
+			const nat word = (a0 << 31U) | (0x5U << 26U) | (offset);
+			insert_u32(&my_bytes, &my_count, (u32) word);
 
 		} else if (op == adr) {
-			uint32_t o1 = a2;
+			nat o1 = a2;
 			nat count = calculate_offset(lengths, i, a1);
 			if (a2) count /= 4096;
-			const uint32_t offset = 0x1fffff & count;
-			const uint32_t lo = offset & 3, hi = offset >> 2;
-			const uint32_t to_emit = 
+			const nat offset = 0x1fffff & count;
+			const nat lo = offset & 3, hi = offset >> 2;
+			const nat word = 
 				(o1 << 31U) | (lo << 29U) | (0x10U << 24U) |
 				(hi << 5U) | (a0);
-			insert_u32(&my_bytes, &my_count, to_emit);
+			insert_u32(&my_bytes, &my_count, (u32) word);
 
 		} else if (op == cbz) {
-			const uint32_t offset = 0x7ffff & (calculate_offset(lengths, i, a1) >> 2);
-			const uint32_t to_emit = 
+			const nat offset = 0x7ffff & (calculate_offset(lengths, i, a1) >> 2);
+			const nat word = 
 				(a3 << 31U) | (0x1AU << 25U) | 
 				(a2 << 24U) | (offset << 5U) | (a0);
-			insert_u32(&my_bytes, &my_count, to_emit);
+			insert_u32(&my_bytes, &my_count, (u32) word);
 
 		} else if (op == tbz) {
-			const uint32_t b40 = a1 & 0x1F;
-			const uint32_t b5 = a1 >> 5;
-			const uint32_t offset = 0x3fff & (calculate_offset(lengths, i, a2) >> 2);
-			const uint32_t to_emit = 
+			const nat b40 = a1 & 0x1F;
+			const nat b5 = a1 >> 5;
+			const nat offset = 0x3fff & (calculate_offset(lengths, i, a2) >> 2);
+			const nat word = 
 				(b5 << 31U) | (0x1BU << 25U) | (a3 << 24U) |
 				(b40 << 19U) |(offset << 5U) | (a0);
-			insert_u32(&my_bytes, &my_count, to_emit);
+			insert_u32(&my_bytes, &my_count, (u32) word);
 
 		} else if (op == ccmp) {
-			const uint32_t to_emit = 
+			const nat word = 
 				(a6 << 31U) | (a4 << 30U) | (0x1D2 << 21U) | 
 				(a3 << 16U) | (a0 << 12U) | (a2 << 11U) | 
 				(a1 << 5U) | (a5); 
-			insert_u32(&my_bytes, &my_count, to_emit);
+			insert_u32(&my_bytes, &my_count, (u32) word);
 
 		} else if (op == addi) {
-			const uint32_t to_emit = 
+			const nat word = 
 				(a6 << 31U) | (a5 << 30U) | (a4 << 29U) | 
 				(0x22 << 23U) | (a3 << 22U) | (a2 << 10U) |
 				(a1 << 5U) | (a0);
-			insert_u32(&my_bytes, &my_count, to_emit);
+			insert_u32(&my_bytes, &my_count, (u32) word);
 
 		} else if (op == addr) {
-			const uint32_t to_emit = 
+			const nat word = 
 				(a7 << 31U) | (a6 << 30U) | (a5 << 29U) | 
 				(0xB << 24U) | (a3 << 22U) | (a2 << 16U) |
 				(a4 << 10U) | (a1 << 5U) | (a0);
-			insert_u32(&my_bytes, &my_count, to_emit);
+			insert_u32(&my_bytes, &my_count, (u32) word);
 
 		} else if (op == addx) {
-			const uint32_t to_emit = 
+			const nat word = 
 				(a7 << 31U) | (a6 << 30U) | (a5 << 29U) | 
 				(0x59 << 21U) | (a2 << 16U) | (a3 << 13U) | 
 				(a4 << 10U) | (a1 << 5U) | (a0);
-			insert_u32(&my_bytes, &my_count, to_emit);
+			insert_u32(&my_bytes, &my_count, (u32) word);
 
 		} else if (op == divr) {
-			const uint32_t to_emit = 
+			const nat word = 
 				(a4 << 31U) | (0xD6 << 21U) | (a2 << 16U) |
 				(1 << 11U) | (a3 << 10U) | (a1 << 5U) | (a0);
-			insert_u32(&my_bytes, &my_count, to_emit);
+			insert_u32(&my_bytes, &my_count, (u32) word);
 
 		} else if (op == csel) {
-			const uint32_t to_emit = 
+			const nat word = 
 				(a6 << 31U) | (a5 << 30U) | (0xD4 << 21U) | 
 				(a2 << 16U) | (a3 << 12U) | (a4 << 10U) | (a1 << 5U) | (a0);
-			insert_u32(&my_bytes, &my_count, to_emit);
+			insert_u32(&my_bytes, &my_count, (u32) word);
 
 		} else if (op == madd) {
-			const uint32_t to_emit = 
+			const nat word = 
 				(a7 << 31U) | (0x1B << 24U) | (a5 << 23U) | 
 				(a4 << 21U) | (a2 << 16U) | (a6 << 15U) | 
 				(a3 << 10U) | (a1 << 5U) | (a0);
-			insert_u32(&my_bytes, &my_count, to_emit);
+			insert_u32(&my_bytes, &my_count, (u32) word);
 
 		} else if (op == bfm) {
-			u32 imms = 0, immr = 0;
+			nat imms = 0, immr = 0;
 			if (not a2) { imms = a3 + a4 - 1; immr = a3; } 
 			else { imms = a4 - 1; immr = (a6 ? 64 : 32) - a3; }
-			const uint32_t to_emit = (a6 << 31U) | (a5 << 29U) | 	
+			const nat word = (a6 << 31U) | (a5 << 29U) | 	
 				(0x26U << 23U) | (a6 << 22U) | (immr << 16U) |
 				(imms << 10U) | (a1 << 5U) | (a0);
-			insert_u32(&my_bytes, &my_count, to_emit);
+			insert_u32(&my_bytes, &my_count, (u32) word);
 
 		} else if (op == ori) { // TODO: implement this instruction
 
@@ -1204,23 +1234,23 @@ arm64_generate_machine_code:;
 			abort();
 
 		} else if (op == orr) {
-			const uint32_t to_emit = 
+			const nat word = 
 				(a7 << 31U) | (a0 << 29U) | (10 << 24U) | 
 				(a4 << 22U) | (a6 << 21U) | (a3 << 16U) | 
 				(a5 << 10U) | (a2 << 5U) | (a1);
-			insert_u32(&my_bytes, &my_count, to_emit);
+			insert_u32(&my_bytes, &my_count, (u32) word);
 
 		} else if (op == memp) {
-			const uint32_t to_emit = 
+			const nat word = 
 				(a1 << 30U) | (0x14 << 25U) | (a6 << 23U) | (a0 << 22U) | 
 				(a5 << 15U) | (a3 << 10U) | (a4 << 5U) | (a2);
-			insert_u32(&my_bytes, &my_count, to_emit);
+			insert_u32(&my_bytes, &my_count, (u32) word);
 
 		} else if (op == memi) {
-			const u32 is_load = (a0 >> 2) & 1;
-			const u32 is_signed = (a0 >> 1) & 1;
-			const u32 is_64_dest = (a0 >> 0) & 1;
-			u32 opc = 0;
+			const nat is_load = (a0 >> 2) & 1;
+			const nat is_signed = (a0 >> 1) & 1;
+			const nat is_64_dest = (a0 >> 0) & 1;
+			nat opc = 0;
 			if (not is_load) opc = 0;
 			else if (a4 == 3) opc = 1;
 			else if (a4 == 2 and is_signed) opc = 2;
@@ -1228,16 +1258,16 @@ arm64_generate_machine_code:;
 			else if (not is_signed) opc = 1;
 			else if (not is_64_dest) opc = 3; 
 			else opc = 2;
-			const u32 to_emit = 
+			const nat word = 
 				(a4 << 30U) | (0x39 << 24U) | (opc << 22U) |
 				(a3 << 10U) | (a2 << 5U) | (a1);
-			insert_u32(&my_bytes, &my_count, to_emit);
+			insert_u32(&my_bytes, &my_count, (u32) word);
 
 		} else if (op == memia) { 			
-			const u32 is_load = (a0 >> 2) & 1;
-			const u32 is_signed = (a0 >> 1) & 1;
-			const u32 is_64_dest = (a0 >> 0) & 1;
-			u32 opc = 0;
+			const nat is_load = (a0 >> 2) & 1;
+			const nat is_signed = (a0 >> 1) & 1;
+			const nat is_64_dest = (a0 >> 0) & 1;
+			nat opc = 0;
 			if (not is_load) opc = 0;
 			else if (a4 == 3) opc = 1;
 			else if (a4 == 2 and is_signed) opc = 2;
@@ -1245,23 +1275,23 @@ arm64_generate_machine_code:;
 			else if (not is_signed) opc = 1;
 			else if (not is_64_dest) opc = 3; 
 			else opc = 2;
-			const u32 to_emit = 
+			const nat word = 
 				(a4 << 30U) | (0x38 << 24U) | (opc << 22U) | (a3 << 12U) | 
 				(a5 << 11U) | (1 << 10U) | (a2 << 5U) | (a1);
-			insert_u32(&my_bytes, &my_count, to_emit);
+			insert_u32(&my_bytes, &my_count, (u32) word);
 
 		} else if (op == memr) { 
-			const u32 S = (a4 >> 2) & 1, option = a4 & 3;
-			u32 opt = 0;
+			const nat S = (a4 >> 2) & 1, option = a4 & 3;
+			nat opt = 0;
 			if (option == 0) opt = 2;
 			else if (option == 1) opt = 3;
 			else if (option == 2) opt = 6;
 			else if (option == 3) opt = 7;
 			else abort();
-			const u32 is_load = (a0 >> 2) & 1;
-			const u32 is_signed = (a0 >> 1) & 1;
-			const u32 is_64_dest = (a0 >> 0) & 1;
-			u32 opc = 0;
+			const nat is_load = (a0 >> 2) & 1;
+			const nat is_signed = (a0 >> 1) & 1;
+			const nat is_64_dest = (a0 >> 0) & 1;
+			nat opc = 0;
 			if (not is_load) opc = 0;
 			else if (a5 == 3) opc = 1;
 			else if (a5 == 2 and is_signed) opc = 2;
@@ -1269,11 +1299,11 @@ arm64_generate_machine_code:;
 			else if (not is_signed) opc = 1;
 			else if (not is_64_dest) opc = 3; 
 			else opc = 2;
-			const u32 to_emit = 
+			const nat word = 
 				(a5 << 30U) | (0x38 << 24U) | (opc << 22U) |
 				(1 << 21U) | (a3 << 16U) | (opt << 13U) |
 				(S << 12U) | (2 << 10U) | (a2 << 5U) | (a1);
-			insert_u32(&my_bytes, &my_count, to_emit);
+			insert_u32(&my_bytes, &my_count, (u32) word);
 		}
 		else {
 			printf("error: unknown mi op=\"%s\"\n", operations[op]);
