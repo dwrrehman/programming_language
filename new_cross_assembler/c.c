@@ -25,13 +25,17 @@ typedef uint8_t byte;
 
 static nat debug = 0;
 
-#define max_variable_count 	(1 << 20)
-#define max_instruction_count 	(1 << 20)
-#define max_arg_count 		16
+#define max_variable_count	(1 << 20)
+#define max_instruction_count	(1 << 20)
+#define max_memory_size		(1 << 16)
+#define max_string_count	(1 << 12)
+#define max_file_count		(1 << 12)
+#define max_section_count 	(1 << 7)
+#define max_arg_count		(1 << 3)
 
-static const nat     is_label = 0x8000000000000000;
-static const nat  is_ct_label = 0x4000000000000000;
-static const nat execute_mask = 0x3fffffffffffffff;
+static const nat is_label = 			0x8000000000000000;
+static const nat is_ct_label = 			0x4000000000000000;
+static const nat uninitialized_variable = 	0x03f3a5a53f3fa5a5;
 
 enum all_architectures { no_arch, arm64_arch, arm32_arch, rv64_arch, rv32_arch, msp430_arch };
 
@@ -128,9 +132,13 @@ static nat values[max_variable_count] = {0};
 static nat is_undefined[max_variable_count] = {0};
 static nat var_count = 0;
 
-static char* string_list[4096] = {0};
-static nat string_label[4096] = {0};
+static char* string_list[max_string_count] = {0};
+static nat string_label[max_string_count] = {0};
 static nat string_list_count = 0;
+
+static nat section_starts[max_section_count] = {0};
+static nat section_addresses[max_section_count] = {0};
+static nat section_count = 0;
 
 static char* load_file(const char* filename, nat* text_length) {
 	int file = open(filename, O_RDONLY);
@@ -401,9 +409,9 @@ int main(int argc, const char** argv) {
 	nat should_overwrite = false;
 	nat stack_size = min_stack_size;
 
-{ 	struct file files[4096] = {0};
+{ 	struct file files[max_file_count] = {0};
 	nat file_count = 1;
-	const char* included_files[4096] = {0};
+	const char* included_files[max_file_count] = {0};
 	nat included_file_count = 0;
 
 	{ nat text_length = 0;
@@ -460,14 +468,11 @@ process_file:;
 				if (not (values[var] & is_ct_label)) continue;
 				if (not strcmp(word, variables[var])) {
 					ins[ins_count++] = (struct instruction) { 
-						.op = eq,
-						.imm = 3,
-						.args = { 0, 0, var }
+						.op = eq, .imm = 3, .args = { 0, 0, var }
 					};
 					goto finish_operation;
 				}
 			}
-
 			print_error(
 				"nonexistent operation",
 				filename, text, text_length, word_start, pc
@@ -495,11 +500,11 @@ process_file:;
 		goto push_argument;
 
 	undefined_var:
-		if (op < eoi and op != set and op != st) print_error(
-			"undefined variable",
-			filename, text, text_length,
-			word_start, pc
-		);
+		if (op < eoi and op != set and op != st) 
+			print_error(
+				"undefined variable",
+				filename, text, text_length, word_start, pc
+			);
 	define_name:
 		var = var_count;
 		variables[var] = word;
@@ -514,8 +519,7 @@ process_file:;
 			for (nat i = 0; i < included_file_count; i++) {
 				if (strcmp(included_files[i], word)) continue;
 				print_error("file has already been included", 
-					filename, text, text_length, 
-					word_start, pc
+					filename, text, text_length, word_start, pc
 				);
 			}
 			included_files[included_file_count++] = word;
@@ -548,7 +552,7 @@ process_file:;
 		const nat op = ins[i].op, e = ins[i].args[0];
 		if (op == at) values[e] = (values[e] & is_ct_label) ? i : e | is_label;
 	}
-	for (nat i = 0; i < var_count; i++) if (not values[i]) values[i] = execute_mask;
+	for (nat i = 0; i < var_count; i++) if (not values[i]) values[i] = uninitialized_variable;
 		
 	if (debug) {
 		print_instructions();
@@ -559,7 +563,7 @@ process_file:;
 
 	memset(is_undefined, 255, sizeof(nat) * var_count);
 
-	{ nat memory[65536] = {0};
+	{ nat memory[max_memory_size] = {0};
 
 	for (nat pc = 0; pc < ins_count; pc++) {
 		nat op = ins[pc].op, imm = ins[pc].imm;
@@ -582,13 +586,10 @@ process_file:;
 		nat val1 = imm & 2 ? arg1 : values[arg1];
 		nat val2 = imm & 4 ? arg2 : values[arg2];
 
-		if (op == lt or op == eq) {
-			val2 &= execute_mask;
-			if (val2 >= ins_count) {
-				printf("error: at pc %llu invalid jump address: 0x%016llx\n", pc, val2);
-				print_instruction_window_around(pc, 1, "error");
-				abort();
-			}
+		if (op == lt or op == eq and val2 >= ins_count) {
+			printf("error: at pc %llu invalid jump address: 0x%016llx\n", pc, val2);
+			print_instruction_window_around(pc, 1, "error");
+			abort();
 		}
 
 		if (op == del) {
@@ -606,14 +607,9 @@ process_file:;
 		} else if (op > eoi or op == emit or op == sect) {
 			struct instruction new = ins[pc];
 			for (nat a = 0; a < arity[op]; a++) {
-
 				nat this = ins[pc].args[a];
 				if ((imm >> a) & 1) new.args[a] = this;
 				else new.args[a] = values[this];
-
-				//if (not (values[this] & is_label)) 
-				//else if (is_undefined[this] != (nat) -1) new.args[a] = is_undefined[this];
-				//else new.args[a] = values[this];
 			}
 			rt_ins[rt_ins_count++] = new;
 
@@ -692,11 +688,6 @@ process_file:;
 
 	uint8_t* my_bytes = NULL;
 	nat my_count = 0;
-
-#define max_section_count 128
-	nat section_count = 0;
-	nat section_starts[max_section_count] = {0};
-	nat section_addresses[max_section_count] = {0};
 
 	if (target_arch == rv32_arch) goto rv32_generate_machine_code;
 	if (target_arch == rv64_arch) goto rv32_generate_machine_code;
@@ -1001,21 +992,13 @@ msp430_generate_machine_code:;
 			section_starts[section_count++] = my_count;
 
 
-		} else if (op == mb) { // br4 cond:[3 bits] label:[pc-rel offset]
+		} else if (op == mb) { 
 			const nat n = compute_label_location(a1 ^ 0x8000000000000000);
 			const u16 offset = 0x3FF & ((calculate_offset(lengths, i + 1, n) >> 1));
 			const u16 word = (u16) ((1U << 13U) | (u16)(a0 << 10U) | (offset));
 			insert_u16(&my_bytes, &my_count, word);
 		}
 		else if (op == mo) {  
-			// gen4  op(0)  dm(1) dr(2) di(3)  sm(4) sr(5) si(6)   size(7)
-
-			// 	op : 4 bits
-			// 	dm : 1 bit
-			// 	sm : 2 bits
-			// 	dr,sr : 4 bits
-			// 	di,si : 16 bits, only required with particular modes
-			// 	size : 1 bit
 
 			u16 word = (u16) (
 				(a0 << 12U) | (a5 << 8U) | (a1 << 7U) | 
@@ -1035,7 +1018,6 @@ msp430_generate_machine_code:;
 
 	goto finished_generation;
 
-
 arm64_generate_machine_code:;
 
 	nat* lengths = calloc(ins_count, sizeof(nat));
@@ -1047,7 +1029,6 @@ arm64_generate_machine_code:;
 	print_nats(lengths, ins_count); puts("");
 
 	for (nat i = 0; i < ins_count; i++) {
-
 
 		if (debug) {
 			print_instruction_window_around(i, 0, "");
@@ -1212,7 +1193,7 @@ arm64_generate_machine_code:;
 				(imms << 10U) | (a1 << 5U) | (a0);
 			insert_u32(&my_bytes, &my_count, to_emit);
 
-		} else if (op == ori) {
+		} else if (op == ori) { // TODO: implement this instruction
 
 			puts("TODO: please implemented the ori instruction: "
 				"this is the last instruction we need to implement "
@@ -1329,8 +1310,8 @@ print_debug_output:;
 
 generate_hex_array_output:;
 
-	{ nat len = 0;
-	char out[14000] = {0};
+	{ nat len = 0; // TODO: rewrite this using insert_byte().
+	char out[max_output_size] = {0};
 
 	len += (nat) snprintf(out + len, sizeof out, "// executable autogenerated by my compiler\n");
 	len += (nat) snprintf(out + len, sizeof out, "export const executable = [\n\t");
@@ -1539,6 +1520,7 @@ generate_macho_executable:;
 	snprintf(codesign_string, sizeof codesign_string, "codesign -s - %s", output_filename);
 	system(codesign_string);
 
+
 	// debugging:
 	snprintf(codesign_string, sizeof codesign_string, "otool -htvxVlL %s", output_filename);
 	system(codesign_string);
@@ -1552,7 +1534,7 @@ generate_macho_object:;
 
 {  
 
-struct nlist_64 {
+struct nlist_64 {  // TODO: rewrite this to not use structs. 
     union { uint32_t  n_strx; } n_un;
     uint8_t n_type;
     uint8_t n_sect; 
@@ -1708,7 +1690,7 @@ struct symtab_command {
 
 generate_ti_txt_executable:;
 
-	{ char out[14000] = {0};
+	{ char out[max_output_size] = {0}; // TODO: rewrite this using insert_byte().
 	nat len = 0, this_section = 0, section_byte_count = 0;
 
 	print_nats(section_starts, section_count);
@@ -1905,6 +1887,9 @@ finished_outputting:
 
 
 
+				//if (not (values[this] & is_label)) 
+				//else if (is_undefined[this] != (nat) -1) new.args[a] = is_undefined[this];
+				//else new.args[a] = values[this];
 
 	/*for (nat i = 0; i < ins_count; i++) {
 		const nat op = ins[i].op;

@@ -1,28 +1,33 @@
-a (currently unnamed) optimizing cross-assembler
+a (currently unnamed) cross-assembler
 written on 1202507196.013059 by dwrr
 =======================================
 
-this is an optimizing cross-assembler that i am making for fun and for my own use. the syntax is word-based, and features a powerful compile-time execution system, allowing for many optimizations to be written at user-level. the instruction set architectures which this assembler is able to target currently includes RISC-V 32 and 64 bit, ARM 64 bit, and the MSP430 ISA. supporting ARM 32 is planned, however not currently implemented. 
+this is a cross-assembler that i am making for fun and for my own use. the instruction set architectures (ISA's) which this assembler is able to target currently includes RISC-V 32-bit and 64-bit (RV32IM/RV64IM), ARM 64-bit (Aarch64), and the MSP430 ISA. supporting ARM 32-bit is planned, however not currently implemented. this assembler supports the output file formats: Mach-O executables, Macho-O object files, UF2 files, hex array files, and TI TXT files. supporting ELF executables, and ELF object files is planned, however not currently implemented. 
 
-in addition to the machine instructions for all supported targets, there are several "compile-time" instructions available for use by the user to perform arbitrary transformations on the output machine code programmatically. all of these compile-time instructions take 1, 2, or 3 arguments. 
+in addition to the machine instructions for all supported targets, this assembler features a powerful turing-complete compile-time execution system. there are 18 compile-time instructions available for use to perform arbitrary transformations on the output machine code programmatically. they allow for many optimizations to be written at user-level, and the construction of macros at user-level. all of these compile-time instructions take 1, 2, or 3 arguments, and have a simple interface and semantics.
 
-all instructions, both all compile-time and all machine instructions, are written in a word-based, prefix, fixed-arity notation, atypical of most assemblers, making resultant code quite uniform and readable. the instruction name is always written first, followed by a predefined number of arguments, all of which are known at compile-time, (ie, they are simply constant data, after compile-time execution is finished), and all of these arguments are of the same type: unsigned binary integers, of various bit widths.
+all instructions (both compile-time and machine instructions) are written in a whitespace-delimited, word-based, prefix, fixed-arity, syntax using only alphanumeric characters-- somewhat atypical of most assemblers. whitespace is completely ignored, except for the purposes of separating neighboring words: at least one space (ASCII byte 32), newline (ASCII byte 10) or tab (ASCII byte 9) character must be present between two words for them to be considered different words. (the only exception to this is strings, see the "str" instruction description/semantics below.) finally, there is no delimiter between neighboring instructions except for at least one whitespace character that is neccessary to delimit the neighboring words.
 
-there are plans to support floating point arithmetic, however this is not currently implemented at all. additionally, several important instructions relating to memory atomic operations, in ARM64, and RISC-V are planned to be implemented eventually as well, but this isnt a major problem at the moment. finally, the entire ARM 32-bit backend/ISA is a major priority which i'll get to soon enough, hopefully. currently i just don't have a use for this ISA yet in my projects, however.
+prefix, meaning that the instruction name is always written first. fixed-arity, meaning that the instruction name is always followed by a predefined fixed number of arguments-- all of which are required and must be present. furthermore, the only values available in the assembler are compile-time integer variables and immediates. everything in the assembler of this form, including registers, labels, etc. after compile-time execution finishes, all of these compile-time integer variables reduce to constant integer immediates supplied to the arguments of machine instructions. all values in the assembler are known at compile-time-- there is no true runtime data.
+
+additionally, the only data type present in the entire assembler are natural numbers (also known as non-negative integers) expressed in little-endian binary, of various bit widths. all literals/immediates are written in little-endian binary as well (for example, "00011" is the immediate 24 in decimal-- the LSB is written first.). for better readability, underscores ("_") can appear anywhere in literals, and are ignored. the reason for preferring little-endian is that it is more fundamental at a computational level, as the bit indexing axis goes in the same direction as array indexing. hexadecimal or decimal literals are not supported, and are not planned to be supported ever. however, there are plans to eventually support floating point arithmetic-- this is not currently implemented. 
+
+additionally, several important instructions relating to memory atomic operations, in ARM64, and RISC-V are planned to be implemented eventually as well, but this isnt a major problem at the moment. finally, the entire ARM 32-bit backend/ISA is a major priority which i'll get to soon enough, hopefully. currently i just don't have a use for this ISA yet in my projects, however.
+
+the interface to the assembler's executable itself is simple: exactly one source file (usually with a ".s" extension, although this is not required) is given as the first and only command-line argument to the assembler. this file can include other source files using the "file" instruction (see description and semantics below), and all configuration data about how the output should be formed, and which target is selected is specified programmatically in the main source file (or other included source files) using compile-time instructions. 
 
 
 
 
-[todo: talk about supported output formats, compiletime execution semantics, how labels work, little endian binary literals, and other cool stuff i'm forgetting to explain]
-notes: one file on cli, seperators in binary literals, execution passing through a runtime label scope duplicates, 
+
+[todo: compiletime execution semantics, how labels work, and other cool stuff i'm forgetting to explain..?
+notes: execution passing through a runtime label scope duplicates]
 
 
 
 
 
 a list and description of all available instructions (both runtime and compiletime) and their semantics is given below:	
-
-
 instruction listing:
 ----------------------------
 
@@ -142,13 +147,13 @@ for the first and only argument, A would be "x", and B would be 64.
 
 
 compiletime system:
------------------------------------------------------------
+---------------------------------------------------------
 
 
 
------------------------------------------------------------
+---------------------------------------------------------
 	zero x.64 
------------------------------------------------------------
+---------------------------------------------------------
 	set the variable x to 0. if the name x is not defined, 
 	then x is defined as a result of this instruction. 
 	if x is defined, the existing definition of variable 
@@ -156,60 +161,61 @@ compiletime system:
 	always executes at compiletime.
 
 
------------------------------------------------------------
+---------------------------------------------------------
 	incr x.64
------------------------------------------------------------
+---------------------------------------------------------
 	increment the variable x by 1. 
 	always executes at compiletime.
 
 
------------------------------------------------------------
+---------------------------------------------------------
 	set x.64 y.64
------------------------------------------------------------
+---------------------------------------------------------
 	assignment to destination x, using the value 
 	present in source y. if the name x is not 
 	defined, then x is defined as a result of this 
-	instruction. if x is defined, the existing definition 
+	instruction. if x is defined, 
+	the existing definition 
 	of variable x is used. 
 	always executes at compiletime.
 
 
------------------------------------------------------------
+---------------------------------------------------------
 	add x.64 y.64
------------------------------------------------------------
+---------------------------------------------------------
 	assigns the value x + y to the destination 
 	variable x. 
 	always executes at compiletime.
 
 
------------------------------------------------------------
+---------------------------------------------------------
 	sub x.64 y.64
------------------------------------------------------------
+---------------------------------------------------------
 	assigns the value x - y to the destination 
 	variable x. 
 	always executes at compiletime.
 
 
------------------------------------------------------------
+---------------------------------------------------------
 	mul x.64 y.64	
------------------------------------------------------------
+---------------------------------------------------------
 	assigns the value x * y to the destination 
 	variable x. 
 	always executes at compiletime.
 
 
------------------------------------------------------------
+---------------------------------------------------------
 	div x.64 y.64
------------------------------------------------------------
+---------------------------------------------------------
 	assigns the value x / y to the destination 
 	variable x. 
 	always executes at compiletime.
 
 
 
------------------------------------------------------------
+---------------------------------------------------------
 	ld destination.64 address.64
------------------------------------------------------------
+---------------------------------------------------------
 	load 8 bytes from source compiletime memory 
 	at compiletime memory address "address" 
 	into destination variable "destination". 
@@ -217,18 +223,18 @@ compiletime system:
 	always executes at compiletime.
 
 
------------------------------------------------------------
+---------------------------------------------------------
 	st address.64 source.64
------------------------------------------------------------
+---------------------------------------------------------
 	store 8 bytes from source variable "source" 
 	into destination compiletime memory at 
 	compiletime memory address "address". 
 	always executes at compiletime.
 
 
------------------------------------------------------------
+---------------------------------------------------------
 	emit size.4 value.64
------------------------------------------------------------
+---------------------------------------------------------
 	emit "size" number of least-significant bytes 
 	from variable "value" to the executable as raw 
 	data, at this position in the instruction stream.
@@ -238,9 +244,9 @@ compiletime system:
 
 
 
------------------------------------------------------------
+---------------------------------------------------------
 	str (string)
------------------------------------------------------------
+---------------------------------------------------------
 	emit string data from s to the final executable 
 	at this position. str is equivalent to a series 
 	of emit byte instructions.
@@ -264,9 +270,9 @@ compiletime system:
 		str "your string here"
 
 
------------------------------------------------------------
+---------------------------------------------------------
 	sect x.64 
------------------------------------------------------------
+---------------------------------------------------------
 	puts the following instructions at hardware
 	address x. this instruction is only 
 	valid to use on embedded targets, or targets 
@@ -276,9 +282,9 @@ compiletime system:
 	always executes at compiletime.
 
 
------------------------------------------------------------
+---------------------------------------------------------
 	lt x.64 y.64 l.64
------------------------------------------------------------
+---------------------------------------------------------
 	if x is less than y, compiletime branch to label l. 
 	this is always an unsigned comparison. 
 	before the branch occurs, this instruction 
@@ -289,9 +295,9 @@ compiletime system:
 	this instruction always executes at compiletime.
 	always executes at compiletime.
 
------------------------------------------------------------
+---------------------------------------------------------
 	eq x.64 y.64 l.64
------------------------------------------------------------
+---------------------------------------------------------
 	if x is equal to y, compiletime branch to label l. 
 	before the branch occurs, this instruction 
 	stores the instruction index of this instruction 
@@ -302,27 +308,27 @@ compiletime system:
 	always executes at compiletime.
 
 
------------------------------------------------------------
+---------------------------------------------------------
 	at l.64
------------------------------------------------------------
+---------------------------------------------------------
 	attribute label l at this position. to perform 
 	this, the instruction index of this instruction 
 	in the input instruction stream is loaded 
 	into the compiletime variable associated with l. 
 	always executes at compiletime. 
 
------------------------------------------------------------
+---------------------------------------------------------
 	del x
------------------------------------------------------------
+---------------------------------------------------------
 	remove x (which can be any defined variable) 
 	from the symbol table. executes at parse-time, 
 	(which happens before parse time execution)
 	and thus does not follow the compiletime 
 	execution flow of the program. 
 
------------------------------------------------------------
+---------------------------------------------------------
 	file (file path)
------------------------------------------------------------
+---------------------------------------------------------
 	load the contents of the file at filepath f, 
 	and parse them fully before proceeding.  
 	any edits to the symbol table are 
@@ -345,12 +351,9 @@ compiletime system:
 
 
 
-
-
-
------------------------------------------------------------
+---------------------------------------------------------
 rv32/rv64:
------------------------------------------------------------
+---------------------------------------------------------
 
 
 
@@ -358,235 +361,269 @@ rv32/rv64:
 
 
 
------------------------------------------------------------
+---------------------------------------------------------
 	rr
------------------------------------------------------------
+---------------------------------------------------------
 	undocumented so far
 
 
------------------------------------------------------------
+---------------------------------------------------------
 	ri
------------------------------------------------------------
+---------------------------------------------------------
 	undocumented so far
 
 
------------------------------------------------------------
+---------------------------------------------------------
 	rs
------------------------------------------------------------
+---------------------------------------------------------
 	undocumented so far
 
 
------------------------------------------------------------
+---------------------------------------------------------
 	rb
------------------------------------------------------------
+---------------------------------------------------------
 	undocumented so far
 
 
------------------------------------------------------------
+---------------------------------------------------------
 	ru
------------------------------------------------------------
+---------------------------------------------------------
 	undocumented so far
 
 
------------------------------------------------------------
+---------------------------------------------------------
 	rj
------------------------------------------------------------
+---------------------------------------------------------
 	undocumented so far
 
 
 
 
 
------------------------------------------------------------
+---------------------------------------------------------
 msp430:
------------------------------------------------------------
+---------------------------------------------------------
 
 	TODO: document all MSP430 instructions!!!
 
 
 
------------------------------------------------------------
-	mo
------------------------------------------------------------
+---------------------------------------------------------
+	mo  opcode.4    destination_mode.1    
+		destination_register.4     
+		destination_immediate.16 
+		source_mode.2    source_register.4    
+		source_immediate.16     is_8bit.1
+---------------------------------------------------------
+
 	undocumented so far
 
 
------------------------------------------------------------
-	mb
------------------------------------------------------------
+---------------------------------------------------------
+	mb cond.3 label.11
+---------------------------------------------------------
 	undocumented so far
 
 
-
-
-
------------------------------------------------------------
+---------------------------------------------------------
 arm64:
------------------------------------------------------------
+---------------------------------------------------------
 
 
-
------------------------------------------------------------
+---------------------------------------------------------
 	a6_svc
------------------------------------------------------------
+---------------------------------------------------------
 	runtime system call instruction. 
-	takes no arguments.
 
 
------------------------------------------------------------
+---------------------------------------------------------
 	a6_mov  Rd.5  imm.16  shift_amount.2  
 		mov_type.2  is_64bit.1
------------------------------------------------------------
+---------------------------------------------------------
+	register immediate load.
+
+	shift_amount == 0 means no shift, 
+		1 means shift up by 16 bits, 
+	2 means shift up by 32 bits, 
+		3 means shift up by 64 bits. 
+
+	mov_type == 2 means movz, 
+	which zeros all bits except for the ones 
+	used by the already-shifted 16 bit immediate.
+
+	mov_type == 0 means movn, 
+	which does the same thing as movz, 
+	except for the result is inverted 
+	after doing the movz. 
+
+	mov_type == 3 means movk, which does 
+	the same thing as movz, except that it keeps 
+	all existing bits already present 
+	in the destination
+	besides the ones used by the shifted immediate.
 
 
-		description: register immediate load.
-
-		shift_amount == 0 means no shift, 1 means shift up by 16 bits, 
-		2 means shift up by 32 bits, 3 means shift up by 64 bits. 
-
-		mov_type == 2 means movz, which zeros all bits except 
-		for the ones used by the already-shifted 16 bit immediate.
-
-		mov_type == 0 means movn, which does the same thing as movz, 
-		except for the result is inverted after doing the movz. 
-
-		mov_type == 3 means movk, which does the same thing as movz, 
-		except that it keeps all existing bits already present in the destination
-		besides the ones used by the shifted immediate.
-		
-
+---------------------------------------------------------
 	a6_adc   Rd.5  Rn.5  Rm.5  should_setflags.1  
 		should_subtract.1   is_64bit.1 : 
+---------------------------------------------------------
+	add two source registers with carry flag, 
+		and store into destination register.
 
-		description: add two source registers with carry flag, 
-			and store into destination register.
 
-
-
--------------------------------------------------------------------------
+---------------------------------------------------------
 	a6_adr  Rd.5 label.21  is_page_addressed.1 :
--------------------------------------------------------------------------
+---------------------------------------------------------
+	load pc-rel address into register
 
-		description: load pc-rel address into register
 		
-
-
--------------------------------------------------------------------------
-	a6_addi   Rd.5  Rn.5  imm.12  should_imm_shift12.1  
-		should_setflags.1  should_subtract.1  is_64bit.1 : 
--------------------------------------------------------------------------
+---------------------------------------------------------
+	a6_addi   Rd.5  Rn.5  imm.12  
+		should_imm_shift12.1  should_setflags.1  
+		should_subtract.1  is_64bit.1 : 
+---------------------------------------------------------
+	add source register with immediate and 
+	store into destination register. 
 	
-		description: add source register with immediate and 
-			store into destination register. 
-	
-		Rd/Rn == 31 means the stack pointer, instead of the zero register.
+	Rd/Rn == 31 means the stack pointer, instead of 
+	the zero register.
 
 
+---------------------------------------------------------
+	a6_addr    Rd.5  Rn.5  Rm.5  imm.6   
+		shift_type.2  should_setflags.1  
+		should_subtract.1  is_64bit.1 
+---------------------------------------------------------
+	add source register with optionally 
+	immediate-amount-shifted source register and 
+	store into destination register.
 
-
--------------------------------------------------------------------------
-	a6_addr    Rd.5  Rn.5  Rm.5  imm.6   shift_type.2   
-		should_setflags.1  should_subtract.1  is_64bit.1  : 
--------------------------------------------------------------------------
-		
-		description: add source register with optionally 
-			immediate-amount-shifted source register and 
-			store into destination register.
-
-		shift_type == 0 means logical left shift, 
-		shift_type == 1 means logical right shift, 
-		shift_type == 2 means arithmetic right shift.
+	shift_type == 0 means logical left shift, 
+	shift_type == 1 means logical right shift, 
+	shift_type == 2 means arithmetic right shift.
 		
 
 
--------------------------------------------------------------------------
-	a6_jmp   should_link.1   label.26   : 
--------------------------------------------------------------------------
+---------------------------------------------------------
+	a6_jmp   should_link.1   label.26   
+---------------------------------------------------------
+	unconditional branch to a 
+	pc-relative-offset label. 
 
-		description unconditional branch to a pc-relative-offset label. 
+---------------------------------------------------------
+	a6_bc    cond.4   label.19  
+---------------------------------------------------------
 
+	conditional branch based on the condition 
+	and flags register state to a pc-rel label.
 
-
-
--------------------------------------------------------------------------
-	a6_bc    cond.4   label.19   : 
--------------------------------------------------------------------------
-
-		description conditional branch based on the condition 
-			and flags register state to a pc-rel label.
-
-		cond == 15 means always false
-		cond == 14 means always true
-
-		cond == 0 means is equal (zero flag is set)
-		cond == 1 means is not equal (zero flag is set)
-
-		cond == 4 means is negative (negative flag is set)
-		cond == 5 means is non-negative (negative flag is clear)
-
-		cond == 6 means the overflow flag is set
-		cond == 7 means the overflow flag is clear
-		
-		cond == 11 means is signed less than
-		cond == 12 means is signed greater than
-		cond == 13 means is signed less than or equal
-		cond == 10 means is signed greater than or equal
-
-		cond == 3 means is unsigned less than (carry set)
-		cond == 8 means is unsigned greater than
-		cond == 9 means is unsigned less than or equal
-		cond == 2 means is unsigned greater than or equal (carry clear)
-
--------------------------------------------------------------------------
+	cond == 15 means always false
+	cond == 14 means always true
+	cond == 0 means is equal (zero flag is set)
+	cond == 1 means is not equal (zero flag is set)
+	cond == 4 means is negative 
+		(negative flag is set)
+	cond == 5 means is non-negative 
+		(negative flag is clear)
+	cond == 6 means the overflow flag is set
+	cond == 7 means the overflow flag is clear		
+	cond == 11 means is signed less than
+	cond == 12 means is signed greater than
+	cond == 13 means is signed less than or equal
+	cond == 10 means is signed greater than or equal
+	cond == 3 means is unsigned less than (carry set)
+	cond == 8 means is unsigned greater than
+	cond == 9 means is unsigned less than or equal
+	cond == 2 means is unsigned greater 
+		than or equal (carry clear)
 
 
+
+---------------------------------------------------------
 	a6_shv  	... : not documented yet
+---------------------------------------------------------
 
 
+---------------------------------------------------------
 	a6_cbz  	... : not documented yet
+---------------------------------------------------------
 
+---------------------------------------------------------
 	a6_tbz  	... : not documented yet
+---------------------------------------------------------
 
 
+---------------------------------------------------------
 	a6_ori  	... : not documented yet
+---------------------------------------------------------
 
+---------------------------------------------------------
 	a6_orr  	... : not documented yet
+---------------------------------------------------------
 
 		
 
+---------------------------------------------------------
 	a6_memia  	... : not documented yet
+---------------------------------------------------------
 
+---------------------------------------------------------
 	a6_memi  	... : not documented yet
+---------------------------------------------------------
 
+---------------------------------------------------------
 	a6_memr  	... : not documented yet
+---------------------------------------------------------
 
 
 
+---------------------------------------------------------
 	a6_memp  	... : not documented yet
+---------------------------------------------------------
 
+---------------------------------------------------------
 	a6_madd  	... : not documented yet
+---------------------------------------------------------
 
+---------------------------------------------------------
 	a6_divr  	... : not documented yet
+---------------------------------------------------------
 
 
 
+---------------------------------------------------------
 	a6_csel  	... : not documented yet
+---------------------------------------------------------
 
+---------------------------------------------------------
 	a6_ldrl  	... : not documented yet
+---------------------------------------------------------
 
+---------------------------------------------------------
 	a6_clz  	... : not documented yet
+---------------------------------------------------------
 
 
 i'll do these later:
 
+---------------------------------------------------------
 	a6_extr  	... : not documented yet
+---------------------------------------------------------
+---------------------------------------------------------
 	a6_ccmp  	... : not documented yet
+---------------------------------------------------------
+---------------------------------------------------------
 	a6_br  		... : not documented yet
+---------------------------------------------------------
+---------------------------------------------------------
 	a6_rev  	... : not documented yet
+---------------------------------------------------------
+---------------------------------------------------------
 	a6_addx  	... : not documented yet
+---------------------------------------------------------
+---------------------------------------------------------
 	a6_bfm  	... : not documented yet
-
-
+---------------------------------------------------------
 
 
 

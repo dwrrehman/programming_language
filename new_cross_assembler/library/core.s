@@ -28,7 +28,6 @@ incr x set arm32_arch x
 incr x set rv64_arch x
 incr x set rv32_arch x
 incr x set msp430_arch x
-incr x set c_arch x
 
 zero x set no_output x
 incr x set macho_executable x
@@ -38,7 +37,6 @@ incr x set elf_object x
 incr x set ti_txt_executable x
 incr x set uf2_executable x
 incr x set hex_array x
-incr x set c_source x
 
 zero x set c_system_debug x
 incr x set c_system_exit x
