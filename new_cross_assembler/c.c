@@ -27,6 +27,7 @@ static nat debug = 0;
 
 #define max_variable_count	(1 << 20)
 #define max_instruction_count	(1 << 20)
+#define max_output_size		(1 << 16)
 #define max_memory_size		(1 << 16)
 #define max_string_count	(1 << 12)
 #define max_file_count		(1 << 12)
@@ -732,7 +733,7 @@ rv32_generate_machine_code:;
 		} else if (op == emit) {
 
 			if (a0 == 8) {
-				insert_u64(&my_bytes, &my_count, a1);
+				 insert_u64(&my_bytes, &my_count, a1);
 			}
 
 			else if (a0 == 4) {

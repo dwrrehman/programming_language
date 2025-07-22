@@ -4,19 +4,21 @@ written on 1202507196.013059 by dwrr
 
 this is a cross-assembler that i am making for fun and for my own use. the instruction set architectures (ISA's) which this assembler is able to target currently includes RISC-V 32-bit and 64-bit (RV32IM/RV64IM), ARM 64-bit (Aarch64), and the MSP430 ISA. supporting ARM 32-bit is planned, however not currently implemented. this assembler supports the output file formats: Mach-O executables, Macho-O object files, UF2 files, hex array files, and TI TXT files. supporting ELF executables, and ELF object files is planned, however not currently implemented. 
 
-in addition to the machine instructions for all supported targets, this assembler features a powerful turing-complete compile-time execution system. there are 18 compile-time instructions available for use to perform arbitrary transformations on the output machine code programmatically. they allow for many optimizations to be written at user-level, and the construction of macros at user-level. all of these compile-time instructions take 1, 2, or 3 arguments, and have a simple interface and semantics.
+in addition to the machine instructions for all supported targets, this assembler features a powerful turing-complete compile-time execution system. there are 18 compile-time instructions available for use to perform arbitrary transformations on the output machine code programmatically. they allow for many optimizations to be written at user-level, and the construction of macros at user-level. all of these compile-time instructions take 0, 1, 2, or 3 arguments, and have a simple interface and semantics.
 
 all instructions (both compile-time and machine instructions) are written in a whitespace-delimited, word-based, prefix, fixed-arity, syntax using only alphanumeric characters-- somewhat atypical of most assemblers. whitespace is completely ignored, except for the purposes of separating neighboring words: at least one space (ASCII byte 32), newline (ASCII byte 10) or tab (ASCII byte 9) character must be present between two words for them to be considered different words. (the only exception to this is strings, see the "str" instruction description/semantics below.) finally, there is no delimiter between neighboring instructions except for at least one whitespace character that is neccessary to delimit the neighboring words.
 
-prefix, meaning that the instruction name is always written first. fixed-arity, meaning that the instruction name is always followed by a predefined fixed number of arguments-- all of which are required and must be present. furthermore, the only values available in the assembler are compile-time integer variables and immediates. everything in the assembler of this form, including registers, labels, etc. after compile-time execution finishes, all of these compile-time integer variables reduce to constant integer immediates supplied to the arguments of machine instructions. all values in the assembler are known at compile-time-- there is no true runtime data.
+prefix, meaning that the instruction name is always written first. fixed-arity, meaning that the instruction name is always followed by a predefined fixed number of arguments-- all of which must be present. furthermore, the only values available in the assembler are compile-time integer variables and immediates. everything in the assembler is of this form, including registers, labels, etc. 
 
-additionally, the only data type present in the entire assembler are natural numbers (also known as non-negative integers) expressed in little-endian binary, of various bit widths. all literals/immediates are written in little-endian binary as well (for example, "00011" is the immediate 24 in decimal-- the LSB is written first.). for better readability, underscores ("_") can appear anywhere in literals, and are ignored. the reason for preferring little-endian is that it is more fundamental at a computational level, as the bit indexing axis goes in the same direction as array indexing. hexadecimal or decimal literals are not supported, and are not planned to be supported ever. however, there are plans to eventually support floating point arithmetic-- this is not currently implemented. 
+the way compile-time execution (CTE) works is that while the user's compile-time (CT) instructions are executed, any machine instruction (MI) that is encountered during execution is generated into a runtime instruction list, and these runtime instructions will subsequently be turned into the executable bytes after CTE. the arguments to the MI are the CT values of the variables or constants at the point of the MI being encountered during CTE. for example, if through execution of the CT program, the program's control flow ends up skipping over some MI's, those will not be generated into the final executable. this system allows for arbitrary construction / transformations on the runtime program using a turing complete CT program.
+
+additionally, the only data type present in the entire assembler are natural numbers (also known as non-negative integers) expressed in little-endian binary, of various bit widths. all literals/immediates are written in little-endian binary as well. (see section "reasoning for preferring little-endian binary", for more details). for better readability, underscores ("_") can appear anywhere in literals, and are ignored.  hexadecimal or decimal literals are not supported, and are not planned to be supported ever. however, there are plans to eventually support CT operations on signed integers, and floating point arithmetic / MI's-- this is not currently implemented. 
 
 additionally, several important instructions relating to memory atomic operations, in ARM64, and RISC-V are planned to be implemented eventually as well, but this isnt a major problem at the moment. finally, the entire ARM 32-bit backend/ISA is a major priority which i'll get to soon enough, hopefully. currently i just don't have a use for this ISA yet in my projects, however.
 
 the interface to the assembler's executable itself is simple: exactly one source file (usually with a ".s" extension, although this is not required) is given as the first and only command-line argument to the assembler. this file can include other source files using the "file" instruction (see description and semantics below), and all configuration data about how the output should be formed, and which target is selected is specified programmatically in the main source file (or other included source files) using compile-time instructions. 
 
-
+a list and description of all available instructions (both runtime and compiletime) and their semantics is given in the "instruction specifications" section. 
 
 
 
@@ -27,9 +29,57 @@ notes: execution passing through a runtime label scope duplicates]
 
 
 
-a list and description of all available instructions (both runtime and compiletime) and their semantics is given below:	
+
+-------------------------------------------------------------------------
+reasoning for preferring little-endian binary literals only:
+-------------------------------------------------------------------------
+
+as stated above, the only data type present in the entire assembler are natural numbers (also known as non-negative integers) expressed in little-endian binary, of various bit widths, and this includes literals/immediate values as well. to be clear, here is an example for the definition of little-endian binary. 
+
+for example, "00011" is the immediate 24 in decimal:
+
+	. the first bit, the least significant bit, is written first, and has index [0]. 
+	. the last bit, the MSB, has index [4]. 
+	
+	00011 is 24 because 
+
+		24 = 0 * 2^[0] + 0 * 2^[1] + 0 * 2^[2] + 1 * 2^[3] + 1 * 2^[4]
+		24 = 0 * 2^0 + 0 * 2^1 + 0 * 2^2 + 1 * 2^3 + 1 * 2^4
+		24 = 0 * 1 + 0 * 2 + 0 * 4 + 1 * 8 + 1 * 16
+		24 = 8 + 16
+		24 = 24
+	
+
+the reason for preferring a little-endian digit ordering is the following. 
+
+firstly, it is more fundamental at a computational level (as in, software working with little-endian binary numbers is simpler than big-endian), as the bit indexing axis goes in the same direction as array indexing. in the above example, notice how the order of the bit indexes ("[n]") is the same as the ordering for indexes in an array (where array[0] is always the first element). this turns out to be helpful for thinking about arithmetic and numbers when programming in practice, especially in binary. 
+
+secondly, at a hardware level, the bit representations for variable bit-width loads and stores nest properly, because of the fact that all N-bit (where N > 0) binary numbers have a bit [0] defined, and it is in the same place in memory for all N-bit binary numbers no matter what N is. similarly for N > 1, all N-bit (where N > 1) binary numbers have a bit [1] defined, and this bit is in the same place in memory for all of these binary numbers, no matter what N is. etc, for all values of N, and lower limits on N. the representations for binary numbers nest when represented as little-endian. this is also how hardware is simpler with little-endian representations, and why 99.99% of all modern hardware implementations use little-endian over big-endian.
+
+thirdly, all supported targets are little-endian machines: RISC-V is little-endian in its byte ordering as per the specification, and because shifts (e.g. "SLL") address bits little-endian-style (ie, accessing bit [0] uses SLL shift index 0), RISC-V is thus fully little endian. similar reasoning also applied for Aarch64, and MSP430 as well. 
+
+the reason why prefering binary over decimal is due to the fact that writing constants in binary exposes several things which hexadecimal and decimal obfuscate, such as: 
+
+	. binary allows for easier arithmetic and logical operations including, integer division, shifting, bitwise operations, 
+	. binary allows the values of hardware peripheral bit fields to be easily written and interpretted when doing embedded programming, and,
+	. binary is closer to the actual mental model for how bit-compacted data is stored internally, and thus allows for easier debugging. all modern computers are binary, and completely operate on binary internally. 
+
+furthermore, given the fact we should represent numbers using little-endian, using decimal would perhaps be even more confusing, and the benefits of little-endianness are really only useful when numbers are represented in binary. 
+
+
+
+
+
+
+
+------------------------------------------------------------------------------------
+			instruction specifications:
+------------------------------------------------------------------------------------
+
+a complete specification of all available instructions (both runtime and compiletime) and their semantics is given below.
+note, this section is still very much a work in progress, several instructions are not documented fully yet. WIP. 
+
 instruction listing:
-----------------------------
 
 	zero incr set add sub mul div
 	ld st emit sect at lt eq 
@@ -49,7 +99,6 @@ instruction listing:
 
 
 
-------------------------------------
 instruction set overview:
 ------------------------------------
 
@@ -149,6 +198,16 @@ for the first and only argument, A would be "x", and B would be 64.
 compiletime system:
 ---------------------------------------------------------
 
+
+---------------------------------------------------------
+	eoi
+---------------------------------------------------------
+	end of input. when this instruction is 
+	encountered, parsing stops, and the rest of
+	the file after this word is ignored. 
+	useful for commenting out code, writing larger
+	human-readable comments or documentation, etc.
+	always executes at parse-time only.
 
 
 ---------------------------------------------------------
@@ -849,7 +908,7 @@ everything from this point on is the trash, feel free to completely ignore it, a
 
 
 
-
+all arguments to both compile-time and machine instructions are of this form as well. after compile-time execution finishes, all compile-time integer variables reduce to constant integer immediates supplied to the arguments of machine instructions, and compile-time constants or variables which were not given to machine instruction arguments are discarded. all values in the assembler are known at compile-time-- there is no true runtime data.
 
 
 
