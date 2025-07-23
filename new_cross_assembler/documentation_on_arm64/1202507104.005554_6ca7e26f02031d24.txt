@@ -70,7 +70,10 @@ lets break down all of them, and how they work:
 		description: add source register with immediate and 
 			store into destination register. 
 	
-		Rd/Rn == 31 means the stack pointer, instead of the zero register.
+		if should_setflags is 0, and Rd == 31, then Rd is the stack pointer, instead of the zero register.
+		if should_setflags is 0, and Rn == 31, then Rn is the stack pointer, instead of the zero register.
+
+		if should_setflags is 1, and Rn == 31, then Rn is the stack pointer, instead of the zero register. 
 
 
 

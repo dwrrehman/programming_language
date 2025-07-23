@@ -474,6 +474,26 @@ process_file:;
 		char* word = strndup(text + word_start, word_length);
 
 		if (not op) {
+
+			if (*word == '(') {
+				nat i = word_start + 1, comment = 1;
+				while (comment and i < text_length) {
+					if (text[i] == '(') comment++;
+					if (text[i] == ')') comment--;
+					i++;
+				}
+				if (comment) print_error(
+					"unterminated comment",
+					filename, text, text_length, 
+					word_start, pc
+				);
+
+				pc = i;
+				goto next_word;
+			}
+
+
+
 			for (op = 0; op < isa_count; op++) 
 				if (not strcmp(word, operations[op])) goto process_op;
 
@@ -625,7 +645,7 @@ nat label_count[230942] = {0};
 		nat val1 = imm & 2 ? arg1 : values[arg1];
 		nat val2 = imm & 4 ? arg2 : values[arg2];
 
-		if (op == lt or op == eq and val2 >= ins_count) {
+		if ((op == lt or op == eq) and val2 >= ins_count) {
 			printf("error: at pc %llu invalid jump address: 0x%016llx\n", pc, val2);
 			print_instruction_window_around(pc, 1, "error");
 			abort();

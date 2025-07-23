@@ -4,22 +4,23 @@ file library/ascii.s
 st compiler_target no_arch
 st compiler_format no_output
 
-set c0 c0
-set c1 c1
-set c2 c2
+zero c0
+zero c1
+zero c2
 
 eq 0 0 skip_macros
 
 at hello 
 	ld ra 0
-	st compiler_putc 'H'
-	st compiler_putc 'E'
-	st compiler_putc 'L'
-	st compiler_putc 'L'
-	st compiler_putc 'O'
+	st compiler_putc 'h'
+	st compiler_putc 'e'
+	st compiler_putc 'l'
+	st compiler_putc 'l'
+	st compiler_putc 'o'
 	st compiler_putc '!'
 	st compiler_putc newline
 	eq 0 0 ra del ra
+	lt 0 0 hello
 
 
 at printbinary
@@ -38,12 +39,14 @@ at printbinary
 		lt 0 n loop  
 	del loop del n
 	eq 0 0 ra del ra
+	lt 0 0 printbinary
 
 
 at nl 
 	ld ra 0
 	st compiler_putc newline 
 	eq 0 0 ra del ra
+	lt 0 0 nl
 
 at mod
 	ld ra 0
@@ -53,6 +56,7 @@ at mod
 	set c0 k
 	del k del r del n del m del d
 	eq 0 0 ra del ra
+	lt 0 0 mod
 
 
 at not 
@@ -61,6 +65,101 @@ at not
 	set c0 r del r
 	eq 0 0 ra del ra 
 	lt 0 0 not
+
+
+
+at si
+	ld ra 0
+	set value c0	
+	set shift_amount c1
+
+	lt shift_amount 0000_001 valid
+		eq 0 0 -1 str "error: invalid shift amount to si" 
+	at valid del valid
+
+	set i 0
+	at loop
+		eq i shift_amount done 
+		mul value 01
+		incr i 
+		eq 0 0 loop 
+		del loop del i del shift_amount
+	at done del done
+
+	set c0 value del value 
+	eq 0 0 ra del ra
+	lt 0 0 si
+
+
+
+
+at sd
+	ld ra 0
+	set value c0	
+	set shift_amount c1
+
+	lt shift_amount 0000_001 valid
+		eq 0 0 -1 str "error: invalid shift amount to si" 
+	at valid del valid
+
+	set i 0
+	at loop
+		eq i shift_amount done 
+		div value 01
+		incr i 
+		eq 0 0 loop 
+		del loop del i del shift_amount
+	at done del done
+
+	set c0 value del value 
+	eq 0 0 ra del ra
+	lt 0 0 sd
+
+
+at and
+	ld ra 0 set a c0 set b c1
+	set c0 1 set c1 111_111 si set msb c0
+	zero i zero c
+	at loop
+		mul c 01
+		lt a msb s 
+		lt b msb s 
+			incr c 
+		at s del s
+		mul a 01 mul b 01 
+		incr i lt i 0000_001 loop del loop del i
+	del a del b del msb
+	set c0 c del c
+	eq 0 0 ra del ra lt 0 0 and
+
+
+
+
+at or
+	ld ra 0 set a c0 set b c1
+	set c0 1 set c1 111_111 si set msb c0
+	zero i zero c
+	at loop
+		add c c
+		lt a msb try_b
+			incr c 
+			eq 0 0 advance
+		at try_b 
+		lt b msb advance
+			incr c
+		at advance 
+		add a a 
+		add b b
+		incr i lt i 0000_001 loop 
+
+	del a del b del msb 
+	del advance del try_b 
+	del loop del i
+
+	set c0 c del c
+	eq 0 0 ra del ra lt 0 0 or
+
+
 
 
 
@@ -86,24 +185,58 @@ at composite
 	incr i lt i maxcount loop del loop del i del maxcount
 
 
-eq 0 0 hello
+
+(got comments and macro call syntax working! code is a lot more readable now lol) 
+
+
+hello
 
 
 set a 011010110101
 set b 100111100100
 
-set c0 a eq 0 0 printbinary eq 0 0 nl
-set c0 b eq 0 0 printbinary eq 0 0 nl
+set c0 a  printbinary nl
+set c0 b  printbinary nl
+
+zero i
+at loop
+	set c0 a set c1 i si set x c0 printbinary nl
+	incr i
+	lt i 00001 loop del loop del i
+
+
+set c0 x printbinary nl
+
+zero i
+at loop
+	set c0 x set c1 i sd printbinary nl
+	incr i
+	lt i 11111 loop del loop del i
 
 
 
-set c0 a 
+hello
 
-not printbinary nl
 
-set c0 b
+set c0 a printbinary nl
+set c0 b printbinary nl
 
-not printbinary nl
+set c0 a
+set c1 b
+and printbinary nl
+
+set c0 a
+set c1 b
+or printbinary nl
+
+
+(  not (not a or not b)  ==  a and b   )
+set c0 a not
+set c0 b not set c1 c0
+or not printbinary nl
+
+
+hello
 
 
 

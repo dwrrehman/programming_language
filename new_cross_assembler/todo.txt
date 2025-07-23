@@ -1,0 +1,96 @@
+todo 1202507233.025437
+----------------------
+
+	. make compiler_stack_size  have good defaults, default to zero, make nonzero for the targets that use it 
+
+	. rename compiler_* to just *?... or  specify_*    ?
+
+	. add all risc-v rv64  instructions
+
+	. write documetnation for all assembler-used   arm64 instructions
+
+	. add the rest of the msp430 instructions
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+plan for the construction of the standard library:
+-----------------------------------------------------
+
+	. begin to put together the standard library, 
+	. . make four distinct files:
+
+	. . . portable.s : macros for writing portable code across architectures
+			defines essentially a c like language for doing computation
+				and common system calls! this file actually deppends on a64.s, rv.s, and msp430.s
+				thats how we are going to do things. 
+
+	. . . a64.s : constants and system calls for arm64, macos. 
+			also provides macros specific to macos arm64 system calls. awrite aread, etc. 
+			also general purpose macros for arm64. load_imm, etc. 
+
+	. . . rv.s : risc-v constants and system calls, similar to a64, but for rv.
+
+	. . . msp430.s constants useful for msp430, again similar as the others
+	
+
+	. . the above 4 files are mutually exclusive, because also, portable.s includes all three. 
+			and obviously, you would never want to include two architecure specific ones lol. 
+			oh, and also, i'm pretty sure that     we are going to actually have it be so that 
+			you first include core.s, (which applies to all targets), then set the target, 
+			then the portable.s file loads the right file, and macros...?
+
+
+
+	. . additionally we'll also have, as a seperate system/library:  
+
+	. . . pico.s : constants and addresses useful for the pico
+
+	. . this file requires  rv.s  to be included only, portable.s cannot be. so yeah! cool 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
