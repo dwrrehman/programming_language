@@ -560,10 +560,12 @@ process_file:;
 		if (	op == set and arg_count == 1 or
 			op == st and arg_count == 1 or
 			op == rb and arg_count == 4
+
+			//op == ru and arg_count == 2
 			//op == rs and arg_count == 4 or
-			//op == ri and arg_count == 4 or
-			//op == ru and arg_count == 2 or
+			//op == ri and arg_count == 4 or	
 			//op == rj and arg_count == 2
+
 		) goto define_name;
 
 		print_error(
@@ -652,6 +654,12 @@ process_file:;
 
 	{ nat memory[max_memory_size] = {0};
 
+	nat fixup_count = 0;
+	nat fixup_var[4096] = {0};
+	nat fixup_arg[4096] = {0};
+	nat fixup_ins[4096] = {0};
+
+
 	for (nat pc = 0; pc < ins_count; pc++) {
 		nat op = ins[pc].op, imm = ins[pc].imm;
 
@@ -677,6 +685,13 @@ process_file:;
 			printf("error: at pc %llu invalid jump address: 0x%016llx\n", pc, val2);
 			print_instruction_window_around(pc, 1, "error");
 			abort();
+		}
+
+		if (op == at) for (nat i = 0; i < fixup_count; i++) {
+			if (fixup_var[i] == arg0) {
+				rt_ins[fixup_ins[i]].args[fixup_arg[i]] = total_byte_count;
+				fixup_var[i] = (nat) -1;
+			}
 		}
 
 		//if (op == del) {			
@@ -707,6 +722,15 @@ process_file:;
 							variables[this]
 						);
 						printf("uhh...not sure what to do here...?");
+						getchar();
+						
+						fixup_ins[fixup_count] = rt_ins_count;
+						fixup_arg[fixup_count] = a;
+						fixup_var[fixup_count++] = this;
+
+						printf("info: just pushed a new fixup: (fixupcount %llu) {.arg = %llu, .ins = %llu}\n", 
+							fixup_count, a, rt_ins_count
+						);
 						getchar();
 					}
 				}
