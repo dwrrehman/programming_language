@@ -1,0 +1,14 @@
+todo : 1202507174.163107 
+
+----------------------
+
+
+	. multi word variable names
+
+	. could the operator appear anywhere in the instruction?... 
+
+	. how do macros work?
+
+	. ct unconditional branches   just by saying the label,   dont have  "do". 
+
+	. 

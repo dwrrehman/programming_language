@@ -1,0 +1,65 @@
+typing out some thoughts i had about the new languages design
+
+202507174.080140:
+attributes of the new language design 
+. spaces in variables or at least in operators 
+. optimizing cross assembler 
+. everything is a ct value
+. a ct call and link or goto is done just by saying a ct labels name, which can have spaces 
+. internally, things are grouped by word sequences though. spaces and whitespace is still important, as running all the words into one word would be something else. the language is still word based, but now sequences of words are recognized, as one object. 
+. only a couple of built in words are valid. emit, at, incr, zero, lt, etc. basic ct computational primitives, nothing too crazy. 
+. conditional flag bit ct register implicitly read by the call and link instruction. ie, there's a link register and flags register at ct, and link is set before the branch, and flags is read before the branch to know whether to branch. we can thus implement less than branching or equal to branching, assuming we have a set less than instruction or subtract etc. well have exactly one control flow construct, the label said by itself. ie, all branches are conditional. 
+. i know i want binary literals, but also incr and zero, as i want to be able to not use numbers at all. both binary literals and incr and zero. 
+. i also want set, add, sub, mul, div, but no remainder. 
+. i also want si, sd, nor,  ( not sure about si/sd)
+. there's no halt, there's no ct system call, i think.  
+. i don't even think there's compiletime memory??? actually we need this to be tiring complete lol
+. ct isa:
+incr zero  set add sub mul div nor   at emit ld st
+
+. we basically just need a way of setting the story for a word!! a variable is a ct subroutine that takes zero arguments! 
+. set, add, etc, are just variables defined in the dictionary, that take a nonzero arity?! 
+. the reason why merging the symbol tables works for vars and ops is that the only type of user defined operations we have are conditional call and link. thus, labels are ct values, which are operations, which are variables. it must be the same table.
+. because we are merging the tables, we must or should prefer a post fix syntax now. the only advantage of prefix was separating out the vars and ops. 
+our postfix syntax won't use a stack though, i think..? or maybe a ct one?. no.. let's use a named argument passing style always. 
+. woah what if we just had a word or char to delimit instructions? then each one could be entirely free form where the operator goes? hmm interestinggg... 
+. we will just keep a list of variables or values that we encounter, and then when we encounter a variable which has had an arity attributed with it, we generate an instruction, ie, executing that operation! we could even ct execute at parse time probably lol. 
+. what if the logic and math operations outputted to the accumulator register implicitly? that way we just need to give sources? or i guess one source, really, because then all changing would happen on the acc?! 
+. ie, using implicit arch ct state as much as possible, but not using a stack though lol. as that is just forth, and would mean we would need the stack manipulation instructions, and things just get extremely nonobvious lol. 
+. or we could have do label (ie just label itself) be unconditional and then a branch simply adds two to the program counter to branch over a jump lol. that could work too! nice. ie, x y LT label goes to pc plus one if x is greater than or equal to y.
+. and really, we can actually just derive the condition from the carry bit, so the carry flag is just updated on all operations, and then we have a conditional instruction called "skip" or something which conditionally skips the next instruction if it's set lol. 
+ideally all operators take no arguments. 
+
+labels don't,
+incr and zero don't, 
+skip, (or whatever it's called) doesn't 
+
+now we just need a second source register, in addition to the accumulator, and we can go completely argumentless probably! 
+
+. saying "arity" after a given label being said, causes that label to turn into an op? 
+. we need to "at" a label somehow as well.
+
+. i feel like we need a fixed register file at compile time... probably. this allows for so much to happen. macros can now use particular registers as arguments! and saying a variable assigns to these locations?? hmm
+. ohh then at also takes no arguments, and just uses r0, the accumulator, as a label! and attributes it by setting its pc value lol. nice! okay. 
+
+. oh also i think we have to have the machine instructions actually, because we need to give  label arguments, not pc rel offsets... crappp
+. okay that abandons the argument less idea lolol
+. back to a list of named arguments i thinkkkk
+. prefix or postfix though?? 
+202507174.152001:
+. our machine instructions will be:
+ri, rj rb, rr, rs, ru, li, la, 
+mo, mb, 
+
+svc mov bfm adc addx addi addr adr shv clz rev jmp bc br cbz tbz ccmp csel ori orr ext ldrl memp  memia memi memr madd divr
+
+
+
+
+there will be encoding formats, and premade formats that are defined by each architecture. 
+
+in fact, we just need macro def syntax, and then we are done! 
+let's just make 3 separate enums, and have the dictionary index identify them. the extraneous aliases will be done using macros. 
+
+
+
