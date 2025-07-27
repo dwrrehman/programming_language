@@ -24,7 +24,7 @@ typedef uint32_t u32;
 typedef uint16_t u16;
 typedef uint8_t byte;
 
-static nat debug = 1;
+static nat debug = 0;
 
 #define max_variable_count	(1 << 20)
 #define max_instruction_count	(1 << 20)
@@ -34,13 +34,6 @@ static nat debug = 1;
 #define max_file_count		(1 << 12)
 #define max_section_count 	(1 << 7)
 #define max_arg_count		(1 << 3)
-
-//static const nat uninitialized_variable = 	(nat) -1;
-
-
-//static const nat is_label = 			0x8000000000000000;
-//static const nat is_ct_label = 			0x4000000000000000;
-
 
 enum all_architectures { no_arch, arm64_arch, arm32_arch, rv64_arch, rv32_arch, msp430_arch };
 
@@ -249,55 +242,6 @@ static void print_nats(nat* array, nat count) {
 	printf("}");
 }
 
-/*static nat compute_label_location(nat label) {
-	for (nat i = 0; i < ins_count; i++) {
-		if (ins[i].op == at and ins[i].args[0] == label) return i;
-	}
-	printf("error: could not compute label location for label: %s(0x%016llx)\n", 
-		label < var_count ? variables[label] : "(OUTSIDE VAR RANGE)", 
-		label
-	);
-	abort();
-}*/
-
-/*static nat calculate_offset(nat* length, nat here, nat label) {
-
-	if (not (label & is_label)) { puts("error: calculate_offset(): was passed a nonlabel: "); printf("error: could not compute label location for label: %s(0x%016llx)\n", 
-		label < var_count ? variables[label] : "(OUTSIDE VAR RANGE)", 
-		label
-	); abort(); } 
-	
-	const nat target = compute_label_location(label & ~is_label);
-
-	nat offset = 0;
-	if (target > here) {
-		for (nat i = here; i < target; i++) {
-			if (i >= ins_count) {
-				printf("fatal error: calculate_offset(lengths, %lld, %lld): "
-					"[ins_count = %llu]: tried to index %lld into lengths, "
-					"aborting..\n", here, target, ins_count, i
-				);
-				print_nats(length, ins_count);
-				abort();			
-			}
-			offset += length[i];
-		}
-	} else {
-		for (nat i = target; i < here; i++) {
-			if (i >= ins_count) {
-				printf("fatal error: calculate_offset(lengths, %lld, %lld): "
-					"[ins_count = %llu]:  tried to index %lld into lengths, "
-					"aborting..\n", here, target, ins_count, i
-				);
-				print_nats(length, ins_count);
-				abort();			
-			}		
-			offset -= length[i];
-		}
-	}
-	return offset;
-}*/
-
 static void insert_byte(
 	uint8_t** output_data, 
 	nat* output_data_count, 
@@ -418,9 +362,8 @@ static nat get_length(struct instruction new) {
 	const nat a4 = new.args[4];
 	const nat a5 = new.args[5];
 
-	nat length = 4;		
-	if ((0)) {}
-	else if (op == mo) {
+	nat length = 4;
+	if (op == mo) {
 		length = 2;
 		if ((a4 == 1 and (a5 != 2 and a5 != 3)) or (a4 == 3 and not a5)) length += 2;
 		if (a1 == 1) length += 2;
@@ -440,11 +383,6 @@ int main(int argc, const char** argv) {
 	nat output_format = no_output;
 	nat should_overwrite = false;
 	nat stack_size = min_stack_size;
-
-	//TODO: figure out a way to delete this variable lol.
-	//bool should_check[192390] = {0}; // TODO: make this sized max_variable_count, global. 
-
-	
 
 { 	struct file files[max_file_count] = {0};
 	nat file_count = 1;
@@ -498,7 +436,6 @@ process_file:;
 		char* word = strndup(text + word_start, word_length);
 
 		if (not op) {
-
 			if (*word == '(') {
 				nat i = word_start + 1, comment = 1;
 				while (comment and i < text_length) {
@@ -511,7 +448,6 @@ process_file:;
 					filename, text, text_length, 
 					word_start, pc
 				);
-
 				pc = i;
 				goto next_word;
 			}
@@ -553,19 +489,12 @@ process_file:;
 		is_immediate |= 1 << arg_count;
 		var = r;
 		goto push_argument;
-
 	undefined_var:
 		if (	op == set and arg_count == 1 or
 			op == st and arg_count == 1 or
-			op == rb and arg_count == 4
-
-			//op == ru and arg_count == 2
-			//op == rs and arg_count == 4 or
-			//op == ri and arg_count == 4 or	
-			//op == rj and arg_count == 2
-
+			op == rb and arg_count == 4 or
+			op == rj and arg_count == 2
 		) goto define_name;
-
 		print_error(
 			"undefined variable",
 			filename, text, text_length, word_start, pc
@@ -614,12 +543,6 @@ process_file:;
 	file_count--;
 	if (file_count) goto process_file; }
 
-	/*for (nat i = 0; i < ins_count; i++) {
-		const nat op = ins[i].op, e = ins[i].args[0];
-		if (op == at) values[e] = i;
-		//(values[e] & is_ct_label) ? i : e | is_label;
-	}*/
-			
 	if (debug) {
 		print_instructions();
 		print_dictionary();
@@ -627,32 +550,15 @@ process_file:;
 		getchar();
 	}
 
-	/*nat label_count[4096] = {0};
-	for (nat i = 0; i < ins_count; i++) {
-		if (ins[i].op == at) label_count[ins[i].args[0]]++;
-	}
-
-	for (nat i = 0; i < ins_count; i++) {
-		for (nat a = 0; a < arity[ins[i].op]; a++) {
-			const nat this = ins[i].args[a];
-			if (not ((ins[i].imm >> a) & 1) and label_count[this] != 1) {
-				printf("error: instruction %s, argument #%llu, expected exactly one label attribution, "
-					"but found label count = %llu for variable %s\n", 
-					operations[ins[i].op], a, 
-					label_count[this], variables[this]
-				);
-				print_instruction_window_around(i, 1, "incorrect label attribution for this argument");
-				abort();
-			}
-		}
-	}*/
-
 	{ nat memory[max_memory_size] = {0};
 	struct instruction* rt_ins = calloc(max_instruction_count, sizeof(struct instruction));
 	nat rt_ins_count = 0, total_byte_count = 0;
+
 	for (nat pass = 0; pass < 2; pass++) {
+
 	memory[compiler_pass] = pass;	
 	if (pass == 1) { rt_ins_count = 0; total_byte_count = 0; } 
+
 	for (nat pc = 0; pc < ins_count; pc++) {
 		nat op = ins[pc].op, imm = ins[pc].imm;
 
@@ -667,7 +573,6 @@ process_file:;
 			printf("\n\033[32;1m [ PASS = %llu ] \033[0m \n", pass);
 			getchar();
 		}
-
 		nat arg0 = ins[pc].args[0];
 		nat arg1 = ins[pc].args[1];
 		nat arg2 = ins[pc].args[2];
@@ -680,20 +585,7 @@ process_file:;
 			print_instruction_window_around(pc, 1, "error");
 			abort();
 		}
-
-		/*if (op == at) for (nat i = 0; i < fixup_count; i++) {
-			if (fixup_var[i] == arg0) {
-				rt_ins[fixup_ins[i]].args[fixup_arg[i]] = total_byte_count;
-				fixup_var[i] = (nat) -1;
-			}
-		}*/
-
-		//if (op == del) {			
-			//is_undefined[arg0] = var_count;
-			//is_undefined[var_count] = (nat) -1;
-			//variables[var_count++] = strdup("_generated_");
-			//abort();
-
+	
 		if (op == str) {
 			for (nat s = 0; s < arg0; s++) { 
 				rt_ins[rt_ins_count++] = (struct instruction) { 
@@ -708,37 +600,10 @@ process_file:;
 			for (nat a = 0; a < arity[op]; a++) {
 				nat this = ins[pc].args[a];
 				if ((imm >> a) & 1) new.args[a] = this;
-				else {
-					new.args[a] = values[this];
-					/*if (values[this] == (nat) -1) { 
-						printf("WARNING: FOUND A FORWARD BRANCH RUNTIME INSTRUCTION. "
-							"BRANCHING FORWARDS TO \"%s\"\n", 
-							variables[this]
-						);
-						printf("uhh...not sure what to do here...?");
-						abort();
-						
-						//fixup_ins[fixup_count] = rt_ins_count;
-						//fixup_arg[fixup_count] = a;
-						//fixup_var[fixup_count++] = this;
-
-						//printf("info: just pushed a new fixup: (fixupcount %llu) {.arg = %llu, .ins = %llu}\n", 
-							//fixup_count, a, rt_ins_count
-						//);
-						//getchar();
-					}*/
-				}
-				
+				else new.args[a] = values[this];				
 			}
 			rt_ins[rt_ins_count++] = new;
 			total_byte_count += get_length(new);
-
-
-		//} else if () {
-			//struct instruction new = ins[pc];
-			//if (is_undefined[arg0] != (nat) -1) new.args[0] = is_undefined[arg0];
-			//values[rt_label]
-
 		}		
 		else if (op == zero) values[arg0] = 0;
 		else if (op == incr) values[arg0] += 1;
@@ -759,7 +624,6 @@ process_file:;
 			); 
 			abort(); 
 		}
-
 		if (op == st and val0 == compiler_putc) { char c = (char) val1; write(1, &c, 1); } 
 		if (op == st and val0 == compiler_length) {
 			for (nat i = 0; i < string_list_count; i++) {
@@ -819,21 +683,6 @@ process_file:;
 	puts("unknown target architecture"); abort();
 
 rv32_generate_machine_code:;
-
-
-	{
-	/*nat* lengths = calloc(ins_count, sizeof(nat));
-	for (nat i = 0; i < ins_count; i++) {
-		const nat op = ins[i].op;
-
-		if (op == at) lengths[i] = 0;
-		else if (op == sect) lengths[i] = 0;
-		else if (op == emit) lengths[i] = ins[i].args[0];
-		else lengths[i] = 4;
-	}*/
-
-	//print_nats(lengths, ins_count); puts("");
-
 	for (nat i = 0; i < ins_count; i++) {
 
 		if (debug) {
@@ -851,15 +700,8 @@ rv32_generate_machine_code:;
 		const nat a4 = ins[i].args[4]; 
 		const nat a5 = ins[i].args[5]; 
 
-		if (op == at) { 	
-			// do nothing
-
-		} else if (op == emit) {
-
-			if (a0 == 8) {
-				 insert_u64(&my_bytes, &my_count, a1);
-			}
-
+		if (op == emit) {
+			if (a0 == 8) insert_u64(&my_bytes, &my_count, a1);
 			else if (a0 == 4) {
 				if (ins[i].args[1] >= (1LLU << 32LLU)) { puts("error: invalid emit u32 data argument"); abort(); }
 				insert_u32(&my_bytes, &my_count, (uint32_t) a1);
@@ -881,7 +723,6 @@ rv32_generate_machine_code:;
 			section_starts[section_count++] = my_count;
 
 		} else if (op == ri) {
-
 			if (a0 >= (1LLU << 7LLU)) { 
 				puts("risc-v: ri: arg0: invalid 7-bit major op code"); 
 				print_instruction_window_around(i, 1, "invalid argument 0"); 
@@ -910,14 +751,7 @@ rv32_generate_machine_code:;
 				puts("risc-v: ri: arg4: invalid 12-bit immediate"); 
 				print_instruction_window_around(i, 1, "invalid argument 4"); 
 				abort(); 
-			} 
-
-			//nat k = a4;
-
-			/*if (k & is_label) {
-				const nat im = calculate_offset(lengths, i - 1, k) & 0x00000FFF;
-				k = im;
-			}*/
+			}
 
 			const nat word = 
 				(a4  << 20U) | 
@@ -926,7 +760,6 @@ rv32_generate_machine_code:;
 				(a2 <<  7U) | 
 				(a0 <<  0U) ;
 
-			//if (not k and (a4 & is_label)) {} else 
 			insert_u32(&my_bytes, &my_count, (u32) word);
 
 		} else if (op == rr) {	
@@ -1044,7 +877,7 @@ rv32_generate_machine_code:;
 			printf("could not generate machine code for instruction: %llu\n", op);
 			abort();
 		}
-	}} 
+	}
 	goto finished_generation;
 
 msp430_generate_machine_code:;
@@ -1069,21 +902,27 @@ msp430_generate_machine_code:;
 		const nat a6 = ins[i].args[6];
 		const nat a7 = ins[i].args[7];
 
+		if (op == emit) {
+			if (a0 == 8) insert_u64(&my_bytes, &my_count, a1);
+			else if (a0 == 4) {
+				if (ins[i].args[1] >= (1LLU << 32LLU)) { puts("error: invalid emit u32 data argument"); abort(); }
+				insert_u32(&my_bytes, &my_count, (uint32_t) a1);
+			}
 
-		if (op == at) { 	
-			// do nothing
+			else if (a0 == 2) {
+				if (ins[i].args[1] >= (1LLU << 16LLU)) { puts("error: invalid emit u16 data argument"); abort(); }
+				insert_u16(&my_bytes, &my_count, (uint16_t) a1);
+			}
 
+			else if (a0 == 1) {
+				if (ins[i].args[1] >= (1LLU << 8LLU)) { puts("error: invalid emit u8 data argument"); abort(); }
+				insert_u8 (&my_bytes, &my_count, (uint8_t) a1);
 
-		} else if (op == emit) {
-			if (a0 == 8) insert_u64(&my_bytes, &my_count, (uint64_t) ins[i].args[1]);
-			if (a0 == 4) insert_u32(&my_bytes, &my_count, (uint32_t) a1);
-			if (a0 == 2) insert_u16(&my_bytes, &my_count, (uint16_t) a1);
-			if (a0 == 1) insert_u8 (&my_bytes, &my_count, (uint8_t) a1);
+			} else { puts("error: invalid emit size, must be 1, 2, 4, or 8."); abort(); } 
 
 		} else if (op == sect) {
 			section_addresses[section_count] = a0;
 			section_starts[section_count++] = my_count;
-
 
 		} else if (op == mb) { 
 			const nat offset = 0x3FF & a1;//((calculate_offset(lengths, i + 1, a1) >> 1));
@@ -1091,16 +930,13 @@ msp430_generate_machine_code:;
 			insert_u16(&my_bytes, &my_count, (u16) word);
 		}
 		else if (op == mo) {  
-
 			nat word = (
 				(a0 << 12LLU) | (a5 << 8LLU) | (a1 << 7LLU) | 
 				(a7 << 6LLU) | (a4 << 4LLU) | (a2)
 			);
 			insert_u16(&my_bytes, &my_count, (u16) word);
-
 			if ((a4 == 1 and (a5 != 2 and a5 != 3)) 
-				or (a4 == 3 and not a5)) insert_u16(&my_bytes, &my_count, (u16) a6);
-						
+				or (a4 == 3 and not a5)) insert_u16(&my_bytes, &my_count, (u16) a6);						
 			if (a1 == 1) insert_u16(&my_bytes, &my_count, (u16) a3);
 		} else {
 			printf("error: unknown mi op=\"%s\"\n", operations[op]);
@@ -1111,14 +947,6 @@ msp430_generate_machine_code:;
 	goto finished_generation;
 
 arm64_generate_machine_code:;
-
-	nat* lengths = calloc(ins_count, sizeof(nat));
-	for (nat i = 0; i < ins_count; i++) {
-		if (ins[i].op == at or ins[i].op == sect) continue;
-		lengths[i] = ins[i].op == emit ? ins[i].args[0] : 4;
-	}
-
-	print_nats(lengths, ins_count); puts("");
 
 	for (nat i = 0; i < ins_count; i++) {
 
@@ -1139,13 +967,23 @@ arm64_generate_machine_code:;
 		const nat a6 = ins[i].args[6];
 		const nat a7 = ins[i].args[7];
 
-		if (op == at) {}
-
-		else if (op == emit) {
+		if (op == emit) {
 			if (a0 == 8) insert_u64(&my_bytes, &my_count, a1);
-			if (a0 == 4) insert_u32(&my_bytes, &my_count, (u32) a1);
-			if (a0 == 2) insert_u16(&my_bytes, &my_count, (u16) a1);
-			if (a0 == 1) insert_u8 (&my_bytes, &my_count, (byte) a1);
+			else if (a0 == 4) {
+				if (ins[i].args[1] >= (1LLU << 32LLU)) { puts("error: invalid emit u32 data argument"); abort(); }
+				insert_u32(&my_bytes, &my_count, (uint32_t) a1);
+			}
+
+			else if (a0 == 2) {
+				if (ins[i].args[1] >= (1LLU << 16LLU)) { puts("error: invalid emit u16 data argument"); abort(); }
+				insert_u16(&my_bytes, &my_count, (uint16_t) a1);
+			}
+
+			else if (a0 == 1) {
+				if (ins[i].args[1] >= (1LLU << 8LLU)) { puts("error: invalid emit u8 data argument"); abort(); }
+				insert_u8 (&my_bytes, &my_count, (uint8_t) a1);
+
+			} else { puts("error: invalid emit size, must be 1, 2, 4, or 8."); abort(); } 
 
 		} else if (op == sect) {
 			section_addresses[section_count] = a0;
@@ -1193,18 +1031,18 @@ arm64_generate_machine_code:;
 			insert_u32(&my_bytes, &my_count, (u32) word);
 
 		} else if (op == bc) {
-			const nat offset = 0x7ffff & a1; //(calculate_offset(lengths, i, a1) >> 2);
+			const nat offset = 0x7ffff & a1;
 			const nat word = (0x54U << 24U) | (offset << 5U) | (a0);
 			insert_u32(&my_bytes, &my_count, (u32) word);
 
 		} else if (op == jmp) {
-			const nat offset = 0x3ffffff & a1; //(calculate_offset(lengths, i, a1) >> 2);
+			const nat offset = 0x3ffffff & a1;
 			const nat word = (a0 << 31U) | (0x5U << 26U) | (offset);
 			insert_u32(&my_bytes, &my_count, (u32) word);
 
 		} else if (op == adr) {
 			nat o1 = a2;
-			nat count = a1; //calculate_offset(lengths, i, a1);
+			nat count = a1;
 			if (a2) count /= 4096;
 			const nat offset = 0x1fffff & count;
 			const nat lo = offset & 3, hi = offset >> 2;
@@ -1214,7 +1052,7 @@ arm64_generate_machine_code:;
 			insert_u32(&my_bytes, &my_count, (u32) word);
 
 		} else if (op == cbz) {
-			const nat offset = 0x7ffff & a1; //(calculate_offset(lengths, i, a1) >> 2);
+			const nat offset = 0x7ffff & a1;
 			const nat word = 
 				(a3 << 31U) | (0x1AU << 25U) | 
 				(a2 << 24U) | (offset << 5U) | (a0);
@@ -1223,7 +1061,7 @@ arm64_generate_machine_code:;
 		} else if (op == tbz) {
 			const nat b40 = a1 & 0x1F;
 			const nat b5 = a1 >> 5;
-			const nat offset = 0x3fff & a2; //(calculate_offset(lengths, i, a2) >> 2);
+			const nat offset = 0x3fff & a2;
 			const nat word = 
 				(b5 << 31U) | (0x1BU << 25U) | (a3 << 24U) |
 				(b40 << 19U) |(offset << 5U) | (a0);
@@ -1373,6 +1211,8 @@ arm64_generate_machine_code:;
 	}
 
 finished_generation:;
+
+	char debug_string[4096] = {0};
 	puts("done: byte generation successful.");
 	puts("final_bytes:");
 	dump_hex(my_bytes, my_count);
@@ -1435,14 +1275,8 @@ generate_hex_array_output:;
 	close(file); }
 
 	printf("hex-txt: wrote %llu bytes to file %s.\n", len, output_filename);
-
-	{ char debug_string[4096] = {0};
-	snprintf(debug_string, sizeof debug_string, 
-		"./rv_dis/run print %s", 
-		output_filename
-	);
-	system(debug_string); } } 
-
+	snprintf(debug_string, sizeof debug_string, "./rv_dis/run print %s", output_filename);
+	system(debug_string); }
 	goto finished_outputting;
 
 generate_macho_executable:;
@@ -1822,27 +1656,18 @@ generate_ti_txt_executable:;
 	write(file, out, len);
 	close(file); }
 	printf("ti-txt: wrote %llu bytes to file %s.\n", len, output_filename);
-
-	char debug_string[4096] = {0};
 	snprintf(debug_string, sizeof debug_string, "../../led_display/embedded_assembler/msp430_disassembler/run %s", output_filename);
 	system(debug_string); }
-
 	goto finished_outputting;
 
 generate_uf2_executable:;
 
-	{
-	printf("section_starts: "); print_nats(section_starts, section_count); puts("");
+	{ printf("section_starts: "); print_nats(section_starts, section_count); puts("");
 	printf("section_addresses: "); print_nats(section_addresses, section_count); puts("");
 	const nat starting_address = section_addresses[0]; 
-
 	printf("info: starting UF2 file at address: %08llx\n", starting_address);
-
-	while (my_count % 256)
-		insert_byte(&my_bytes, &my_count, 0); 		// pad to 256 byte chunks
-
+	while (my_count % 256) insert_byte(&my_bytes, &my_count, 0);
 	const nat block_count = my_count / 256;
-
 	uint8_t* data = NULL;
 	nat count = 0;	
 	nat current_offset = 0;
@@ -1863,8 +1688,6 @@ generate_uf2_executable:;
 		current_offset += 256;
 	}
 
-	printf("writing out uf2 executable...\n");
-
 	if (not access(output_filename, F_OK)) {
 		printf("file exists. do you wish to remove the previous one? (y/n) ");
 		fflush(stdout);
@@ -1884,20 +1707,9 @@ generate_uf2_executable:;
 
 	dump_hex(data, count);
 	printf("uf2: wrote %llu bytes to file %s.\n", count, output_filename);	
-
-	{ char debug_string[4096] = {0};
-	snprintf(debug_string, sizeof debug_string, 
-		"./useful/riscv_disassembler/run print %s", 
-		output_filename
-	);
-	system(debug_string); }  
-
-	goto finished_outputting;
-	}
-
-finished_outputting: 
-	exit(0);
-
+	snprintf(debug_string, sizeof debug_string, "./rv_dis/run print %s", output_filename);
+	system(debug_string); }
+	finished_outputting: exit(0);
 } // main 
 
 
@@ -1926,6 +1738,948 @@ finished_outputting:
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+/*
+
+TRASH:
+---------------
+
+
+//static const nat uninitialized_variable = 	(nat) -1;
+//static const nat is_label = 			0x8000000000000000;
+//static const nat is_ct_label = 			0x4000000000000000;
+
+*/
+/*static nat compute_label_location(nat label) {
+	for (nat i = 0; i < ins_count; i++) {
+		if (ins[i].op == at and ins[i].args[0] == label) return i;
+	}
+	printf("error: could not compute label location for label: %s(0x%016llx)\n", 
+		label < var_count ? variables[label] : "(OUTSIDE VAR RANGE)", 
+		label
+	);
+	abort();
+}*/
+
+/*static nat calculate_offset(nat* length, nat here, nat label) {
+
+	if (not (label & is_label)) { puts("error: calculate_offset(): was passed a nonlabel: "); printf("error: could not compute label location for label: %s(0x%016llx)\n", 
+		label < var_count ? variables[label] : "(OUTSIDE VAR RANGE)", 
+		label
+	); abort(); } 
+	
+	const nat target = compute_label_location(label & ~is_label);
+
+	nat offset = 0;
+	if (target > here) {
+		for (nat i = here; i < target; i++) {
+			if (i >= ins_count) {
+				printf("fatal error: calculate_offset(lengths, %lld, %lld): "
+					"[ins_count = %llu]: tried to index %lld into lengths, "
+					"aborting..\n", here, target, ins_count, i
+				);
+				print_nats(length, ins_count);
+				abort();			
+			}
+			offset += length[i];
+		}
+	} else {
+		for (nat i = target; i < here; i++) {
+			if (i >= ins_count) {
+				printf("fatal error: calculate_offset(lengths, %lld, %lld): "
+					"[ins_count = %llu]:  tried to index %lld into lengths, "
+					"aborting..\n", here, target, ins_count, i
+				);
+				print_nats(length, ins_count);
+				abort();			
+			}		
+			offset -= length[i];
+		}
+	}
+	return offset;
+}*/
+
+
+
+			//op == ru and arg_count == 2
+			//op == rs and arg_count == 4 or
+			//op == ri and arg_count == 4
+
+	//TODO: figure out a way to delete this variable lol.
+	//bool should_check[192390] = {0}; // TODO: make this sized max_variable_count, global. 
+
+
+	/*for (nat i = 0; i < ins_count; i++) {
+		const nat op = ins[i].op, e = ins[i].args[0];
+		if (op == at) values[e] = i;
+		//(values[e] & is_ct_label) ? i : e | is_label;
+	}*/
+			
+
+	/*nat label_count[4096] = {0};
+	for (nat i = 0; i < ins_count; i++) {
+		if (ins[i].op == at) label_count[ins[i].args[0]]++;
+	}
+
+	for (nat i = 0; i < ins_count; i++) {
+		for (nat a = 0; a < arity[ins[i].op]; a++) {
+			const nat this = ins[i].args[a];
+			if (not ((ins[i].imm >> a) & 1) and label_count[this] != 1) {
+				printf("error: instruction %s, argument #%llu, expected exactly one label attribution, "
+					"but found label count = %llu for variable %s\n", 
+					operations[ins[i].op], a, 
+					label_count[this], variables[this]
+				);
+				print_instruction_window_around(i, 1, "incorrect label attribution for this argument");
+				abort();
+			}
+		}
+	}*/
+
+
+		/*if (op == at) for (nat i = 0; i < fixup_count; i++) {
+			if (fixup_var[i] == arg0) {
+				rt_ins[fixup_ins[i]].args[fixup_arg[i]] = total_byte_count;
+				fixup_var[i] = (nat) -1;
+			}
+		}*/
+
+		//if (op == del) {			
+			//is_undefined[arg0] = var_count;
+			//is_undefined[var_count] = (nat) -1;
+			//variables[var_count++] = strdup("_generated_");
+			//abort();
+
+
+
+
+
+
+/*if (values[this] == (nat) -1) { 
+						printf("WARNING: FOUND A FORWARD BRANCH RUNTIME INSTRUCTION. "
+							"BRANCHING FORWARDS TO \"%s\"\n", 
+							variables[this]
+						);
+						printf("uhh...not sure what to do here...?");
+						abort();
+						
+						//fixup_ins[fixup_count] = rt_ins_count;
+						//fixup_arg[fixup_count] = a;
+						//fixup_var[fixup_count++] = this;
+
+						//printf("info: just pushed a new fixup: (fixupcount %llu) {.arg = %llu, .ins = %llu}\n", 
+							//fixup_count, a, rt_ins_count
+						//);
+						//getchar();
+					}*/
+
+
+
+		//} else if () {
+			//struct instruction new = ins[pc];
+			//if (is_undefined[arg0] != (nat) -1) new.args[0] = is_undefined[arg0];
+			//values[rt_label]
+
+
+
+	/*nat* lengths = calloc(ins_count, sizeof(nat));
+	for (nat i = 0; i < ins_count; i++) {
+		const nat op = ins[i].op;
+
+		if (op == at) lengths[i] = 0;
+		else if (op == sect) lengths[i] = 0;
+		else if (op == emit) lengths[i] = ins[i].args[0];
+		else lengths[i] = 4;
+	}*/
+
+	//print_nats(lengths, ins_count); puts("");
+
+
+
+
+
+			//if (not k and (a4 & is_label)) {} else 
+
+
+//nat k = a4;
+
+			/*if (k & is_label) {
+				const nat im = calculate_offset(lengths, i - 1, k) & 0x00000FFF;
+				k = im;
+			}*/
+
+
+
+/*
+
+nat* lengths = calloc(ins_count, sizeof(nat));
+	for (nat i = 0; i < ins_count; i++) {
+		if (ins[i].op == at or ins[i].op == sect) continue;
+		lengths[i] = ins[i].op == emit ? ins[i].args[0] : 4;
+	}
+
+	print_nats(lengths, ins_count); puts("");
+*/
 
 
 

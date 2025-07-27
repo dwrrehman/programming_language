@@ -1,6 +1,8 @@
 (a new hello world with the new cross assembler label arch.
 1202507255.170159 by dwrr)
-st 001 1
+
+
+(st 001 1       <------- enables cte debug mode lol)
 
 zero x set _ra x
 incr x set target x
