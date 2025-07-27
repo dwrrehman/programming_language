@@ -42,15 +42,15 @@ ri r_imm r_add limit 0 101
 
 at loop
 
-set done -1  (only required if in a macro-like cte context lol)
-
 rb r_branch r_equal i limit done
 
 ri r_imm r_add r_number 0 r_write
 ri r_imm r_add r_arg0 0 1
 
+at pc set offset string sub offset pc del pc
 ru r_auipc r_arg1 0
-ri r_imm r_add r_arg1 r_arg1 001001
+ri r_imm r_add r_arg1 r_arg1 offset 
+del offset
 
 ri r_imm r_add r_arg2 0 011
 ri r_ecall 0 0 0 0

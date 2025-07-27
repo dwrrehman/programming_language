@@ -61,6 +61,7 @@ enum memory_mapped_addresses {
 	compiler_stack_size,
 	compiler_length,
 	compiler_putc,
+	compiler_pass,
 };
 
 enum isa {
@@ -128,9 +129,6 @@ struct file {
 
 static struct instruction ins[max_instruction_count] = {0};
 static nat ins_count = 0;
-
-static struct instruction rt_ins[max_instruction_count] = {0};
-static nat rt_ins_count = 0;
 
 static char* variables[max_variable_count] = {0};
 static nat values[max_variable_count] = {0};
@@ -649,21 +647,16 @@ process_file:;
 		}
 	}*/
 
-
-	nat total_byte_count = 0;
-
 	{ nat memory[max_memory_size] = {0};
-
-	nat fixup_count = 0;
-	nat fixup_var[4096] = {0};
-	nat fixup_arg[4096] = {0};
-	nat fixup_ins[4096] = {0};
-
-
+	struct instruction* rt_ins = calloc(max_instruction_count, sizeof(struct instruction));
+	nat rt_ins_count = 0, total_byte_count = 0;
+	for (nat pass = 0; pass < 2; pass++) {
+	memory[compiler_pass] = pass;	
+	if (pass == 1) { rt_ins_count = 0; total_byte_count = 0; } 
 	for (nat pc = 0; pc < ins_count; pc++) {
 		nat op = ins[pc].op, imm = ins[pc].imm;
 
-		if (memory[compiler_should_debug]) {			
+		if (memory[compiler_should_debug]) {
 			print_instruction_window_around(pc, 0, "");
 			print_dictionary(); puts("");
 			dump_hex((uint8_t*) memory, 128);
@@ -671,6 +664,7 @@ process_file:;
 			for (nat i = 0; i < rt_ins_count; i++) {
 				putchar(9); print_instruction(rt_ins[i]); puts("");
 			}
+			printf("\n\033[32;1m [ PASS = %llu ] \033[0m \n", pass);
 			getchar();
 		}
 
@@ -687,12 +681,12 @@ process_file:;
 			abort();
 		}
 
-		if (op == at) for (nat i = 0; i < fixup_count; i++) {
+		/*if (op == at) for (nat i = 0; i < fixup_count; i++) {
 			if (fixup_var[i] == arg0) {
 				rt_ins[fixup_ins[i]].args[fixup_arg[i]] = total_byte_count;
 				fixup_var[i] = (nat) -1;
 			}
-		}
+		}*/
 
 		//if (op == del) {			
 			//is_undefined[arg0] = var_count;
@@ -716,23 +710,23 @@ process_file:;
 				if ((imm >> a) & 1) new.args[a] = this;
 				else {
 					new.args[a] = values[this];
-					if (values[this] == (nat) -1) { 
+					/*if (values[this] == (nat) -1) { 
 						printf("WARNING: FOUND A FORWARD BRANCH RUNTIME INSTRUCTION. "
 							"BRANCHING FORWARDS TO \"%s\"\n", 
 							variables[this]
 						);
 						printf("uhh...not sure what to do here...?");
-						getchar();
+						abort();
 						
-						fixup_ins[fixup_count] = rt_ins_count;
-						fixup_arg[fixup_count] = a;
-						fixup_var[fixup_count++] = this;
+						//fixup_ins[fixup_count] = rt_ins_count;
+						//fixup_arg[fixup_count] = a;
+						//fixup_var[fixup_count++] = this;
 
-						printf("info: just pushed a new fixup: (fixupcount %llu) {.arg = %llu, .ins = %llu}\n", 
-							fixup_count, a, rt_ins_count
-						);
-						getchar();
-					}
+						//printf("info: just pushed a new fixup: (fixupcount %llu) {.arg = %llu, .ins = %llu}\n", 
+							//fixup_count, a, rt_ins_count
+						//);
+						//getchar();
+					}*/
 				}
 				
 			}
@@ -776,7 +770,7 @@ process_file:;
 			}
 			memory[compiler_length] = (nat) -1; found_string:;
 		}
-	}
+	}}
 
 	memcpy(ins, rt_ins, rt_ins_count * sizeof(struct instruction));
 	ins_count = rt_ins_count;
