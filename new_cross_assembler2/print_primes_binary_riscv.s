@@ -11,9 +11,7 @@ st overwrite 1
 set '0' 000011
 set newline 0101
 
-
 eq 0 0 main
-
 
 at enabledebug
 	ld ra 0
@@ -253,6 +251,13 @@ at printbinary
 	rr r_reg r_add r_arg2 p begin r_signed
 	ri r_ecall 0 0 0 0
 
+	del loop 
+	del p 
+	del bit 
+	del data 
+	del begin
+	del input
+
 	eq 0 0 ra del ra
 	lt 0 0 printbinary
 
@@ -265,8 +270,6 @@ set c0 c readchar
 set c0 string2 set c1 string2.length writestring
 set c0 buffer set c1 1 writestring
 set c0 string3 set c1 string3.length writestring
-
-
 set c0 c printbinary
 
 set myvariable c
@@ -275,15 +278,38 @@ ri r_imm r_add myvariable 0 myconstant
 set c0 myvariable printbinary
 del myvariable del myconstant del c
 
+(1202507277.233929 we are going to print binary primes now!! YAYY)
 
+set i 1
+set j 01
+set limit 11
+set r 001
+set count 101
+ri r_imm r_add limit 0 0000_0000_1
+ri r_imm r_add i 0 0
+ri r_imm r_add count 0 0
+at loop
+	ri r_imm r_add j 0 01
+	at inner
+		rb r_branch r_bgeu j i prime
+		rr r_remu_op1 r_remu_op2 r i j r_remu_op3
+		rb r_branch r_beq r 0 composite
+		ri r_imm r_add j j 1
+		rj r_jal 0 inner
+	at prime
+		set c0 i printbinary
+		ri r_imm r_add count count 1
+	at composite
+		ri r_imm r_add i i 1	
+		rb r_branch r_bltu i limit loop
 
-	(1202507277.233929 we are going to print binary primes now!! YAYY)
-
-	(.....code here.....)
-
-
+	
+set c0 string4 set c1 string4.length writestring
+set c0 count printbinary
 
 set c0 01 exit
+
+del i del j del limit del count del r del loop del inner del composite 
 
 at buffer 
 emit 0001 0
@@ -315,6 +341,12 @@ at string3 str
 "', and they pressed exactly one character!
 " set c0 string3 getstringlength
 set string3.length c0
+
+at string4 str 
+"---> there were exactly this many primes less than the limit: " 
+set c0 string4 getstringlength
+set string4.length c0
+
 
 eoi 
 

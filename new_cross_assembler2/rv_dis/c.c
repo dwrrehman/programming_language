@@ -383,14 +383,6 @@ if (not executing) {
 			((u32) memory[pc + 3U] << 24U) ;
 
 		if (debug) {
-			printf("[REGISTERS]: \n");
-			for (u32 i = 0; i < 16; i++) {
-				printf("\tx%-3u: 0x%08x \t x%-3u: 0x%08x\n", 
-					i, registers[i], 16 + i, registers[16 + i]
-				);
-			}
-			puts("");
-
 			printf("[MEMORY]: \n");
 			for (u32 i = 0; i < count; i += 8) {
 				printf("0x%08x:  %02hhx %02hhx %02hhx %02hhx   %02hhx %02hhx %02hhx %02hhx\n", 
@@ -398,7 +390,15 @@ if (not executing) {
 					memory[i + 4], memory[i + 5], memory[i + 6], memory[i + 7]
 				);
 			}
-			puts("");			
+			puts("");
+
+			printf("[REGISTERS]: \n");
+			for (u32 i = 0; i < 16; i++) {
+				printf("\tx%-3u: 0x%08x \t x%-3u: 0x%08x\n", 
+					i, registers[i], 16 + i, registers[16 + i]
+				);
+			}
+			puts("");
 		}
 
 		if (debug) printf("\n 0x%08x:   %02x %02x %02x %02x   ", pc, 

@@ -845,7 +845,7 @@ rv32_generate_machine_code:;
 			//if ((int32_t) im < -(1 << 12)) abort();
 			//im &= 0x1FFF;
 			nat im = (a4 - my_count) & 0x1fff;
-			if (a4 & 0x8000000000000000) im = a4;
+			//if (a4 & 0x8000000000000000) im = a4;
 
 			const nat bit4_1  = (im >> 1) & 0xF;
 			const nat bit10_5 = (im >> 5) & 0x3F;
@@ -867,10 +867,12 @@ rv32_generate_machine_code:;
 
 			if (a0 >= (1LLU << 7LLU)) { puts("error"); abort(); } 
 			if (a1 >= (1LLU << 5LLU)) { puts("error"); abort(); } 
-			if (a2 >= (1LLU << 21LLU)) { puts("error"); abort(); }
+			if (a2 >= (1LLU << 21LLU)) { puts("error"); abort(); } // TODO: this check is not right... it needs to be relative....
 
 			//nat im = (u32) calculate_offset(lengths, i, a2);
-			nat im = a2;
+			//nat im = a2 - i ;
+
+			nat im = (a2 - my_count) & 0x1fffff;
 
 			//if ((int32_t) im >= (1 << 21)) abort();
 			//if ((int32_t) im < -(1 << 21)) abort();
