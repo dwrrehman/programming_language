@@ -7,11 +7,17 @@ file library/core.s
 set '0' 000011
 set newline 0101
 
-
 eq 0 0 main
 
+at enabledebug
+	ld ra 0
+	ld b ctepass 
+	st ctedebug b 
+	del b
+	eq 0 0 ra del ra
+	lt 0 0 enabledebug
 
-at hello 
+at cthello 
 	ld ra 0
 	st ctputc 'h'
 	st ctputc 'e'
@@ -21,7 +27,7 @@ at hello
 	st ctputc '!'
 	st ctputc newline
 	eq 0 0 ra del ra
-	lt 0 0 hello
+	lt 0 0 cthello
 
 
 at printbinary
@@ -162,13 +168,63 @@ at la
 	set offset c1 
 	sub offset pc 
 	del pc
-	ru r_auipc c0 0    
-		 (todo: do the bitwise operations to extract the top 20 bits of the immediate too!!)
+	ru r_auipc c0 0
+
+(todo: do the bitwise operations to extract 
+the top 20 bits of the immediate too!!)
+
 	ri r_imm r_add c0 c0 offset 
 	del offset
 	eq 0 0 ra del ra
 	lt 0 0 la
 
+
+at exit
+	ld ra 0
+	ri r_imm r_add r_number 0 r_exit
+	ri r_imm r_add r_arg0 0 c0
+	ri r_ecall 0 0 0 0
+	eq 0 0 ra del ra 
+	lt 0 0 exit
+
+
+at readchar
+	ld ra 0
+	set out c0
+	ri r_imm r_add r_number 0 r_read
+	ri r_imm r_add r_arg0 0 stdin
+	set c0 r_arg1 set c1 buffer la
+	ri r_imm r_add r_arg2 0 1
+	ri r_ecall 0 0 0 0
+	ri r_load r_lw out r_arg1 0 
+	eq 0 0 ra del ra del out
+	lt 0 0 readchar
+
+at writestring
+	ld ra 0
+	set string c0
+	set length c1
+	ri r_imm r_add r_number 0 r_write
+	ri r_imm r_add r_arg0 0 stdout
+	set c0 r_arg1 set c1 string la
+	ri r_imm r_add r_arg2 0 length
+	ri r_ecall 0 0 0 0
+	eq 0 0 ra del ra 
+	del string del length
+	lt 0 0 writestring
+
+
+at getstringlength
+	ld ra 0
+	set begin c0
+	at here set c0 here sub c0 begin
+	del here del begin
+	eq 0 0 ra del ra
+	lt 0 0 getstringlength
+
+
+(this will cause a compiletime error!
+set c0 101 set c1 0000000001 si)
 
 at main 
 
@@ -176,15 +232,95 @@ st target r32_arch
 st format hex_array
 st overwrite 1
 
+set c0 longstring set c1 longstring.length writestring
+set c0 1 readchar
+set c0 string2 set c1 string2.length writestring
+set c0 buffer set c1 1 writestring
+set c0 string3 set c1 string3.length writestring
+
+set c0 01 exit
+
+at buffer 
+emit 0001 0
+emit 0001 0
+
+at longstring str 
+"this my really long and interesting string!
+i am going to print out a lot, all at runtime! 
+lets see how it goes lol. i think it should go
+pretty well, considering that we have strings
+setup in a way that makes things easy lol.
+
+hopefully this goes well! :)
+"
+set c0 longstring getstringlength 
+set longstring.length c0
+
+at string2 str 
+"the user pressed the character '"
+set c0 string2 getstringlength 
+set string2.length c0
+
+at string3 str 
+"', and it was one character!
+"
+set c0 string3 getstringlength
+set string3.length c0
 
 
-set c0 101 set c1 0000000001 si
+
+
+
+
+
+eoi 
+
+a program to test out how the risc-v backend works with the rv website vm, and basically making to get input and output working,
+to be able to have the user give a number to print out prime binary numbers less than that number lol. should be cool. 
+1202507277.222702
 
 
 
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+(
 set limit 1
 set i 01
 
@@ -208,31 +344,6 @@ ri r_imm r_add i i 1 del i
 rb r_branch r_equal 0 0 loop del loop
 
 at done del done
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-ri r_imm r_add r_number 0 r_exit
-ri r_imm r_add r_arg0 0 0011
-ri r_ecall 0 0 0 0
-
-at string
-str "hello
-"
-
-
-
-
-
+)
 
 

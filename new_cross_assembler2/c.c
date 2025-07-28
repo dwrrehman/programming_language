@@ -224,7 +224,8 @@ noreturn static void print_error(
 static void dump_hex(uint8_t* memory, nat count) {
 	puts("second debug output:    debugging executable bytes:\n");
 	for (nat i = 0; i < count; i++) {
-		if (i % 32 == 0) puts("");
+		if (i % 16 == 0) puts("");
+		if (i % 64 == 0) puts("");
 		if (i % 4 == 0) putchar(32);
 		if (memory[i]) printf("\033[32;1m");
 		printf("%02hhx ", memory[i]);
@@ -563,14 +564,38 @@ process_file:;
 
 		if (memory[compiler_should_debug]) {
 			print_instruction_window_around(pc, 0, "");
-			print_dictionary(); puts("");
-			dump_hex((uint8_t*) memory, 128);
-			print_instruction(ins[pc]); puts("");
-			for (nat i = 0; i < rt_ins_count; i++) {
-				putchar(9); print_instruction(rt_ins[i]); puts("");
+			printf("\033[32;1m [ PASS = %llu ] \033[0m \n", pass);			
+			read_loop: 
+			printf("[%llu]:ready: ", pass); fflush(stdout);
+			char input[256] = {0}; 
+			read(0, input, sizeof input);
+			if (not strcmp(input, "\n")) goto done_read_loop;
+			else if (not strcmp(input, ":this\n")) {
+				print_instruction(ins[pc]); puts("");
+			} else if (not strcmp(input, ":dictionary\n")) {
+				print_dictionary(); puts("");
+			} else if (not strcmp(input, ":list\n")) {
+				for (nat i = 0; i < rt_ins_count; i++) {
+					putchar(9); 
+					print_instruction(rt_ins[i]); 
+					puts("");
+				}
+			} else if (not strcmp(input, ":memory\n")) {
+				dump_hex((uint8_t*) memory, 256);
+			} else {
+				if (strlen(input)) input[strlen(input) - 1] = 0;
+				for (nat i = 0; i < var_count; i++) {
+					if (strcmp(variables[i], input)) continue;
+					printf("[0x%5llx/%5lld]:%lld:"
+						"%24s:%016llx(%4lld)\n",
+						i, i, is_undefined[i], 
+						variables[i], values[i], 
+						values[i]
+					);
+				}
 			}
-			printf("\n\033[32;1m [ PASS = %llu ] \033[0m \n", pass);
-			getchar();
+			goto read_loop; 
+			done_read_loop:;
 		}
 		nat arg0 = ins[pc].args[0];
 		nat arg1 = ins[pc].args[1];
