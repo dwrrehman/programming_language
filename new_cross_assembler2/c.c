@@ -52,9 +52,8 @@ enum memory_mapped_addresses {
 	compiler_should_overwrite,
 	compiler_should_debug,
 	compiler_stack_size,
-	compiler_length,
-	compiler_putc,
 	compiler_pass,
+	compiler_putc
 };
 
 enum isa {
@@ -456,7 +455,7 @@ process_file:;
 				if (not strcmp(word, operations[op])) goto process_op;
 
 			for (var = var_count; var--;) {
-				if (is_ct_label[var]) continue;
+				if (not is_ct_label[var]) continue;
 				if (not strcmp(word, variables[var])) {
 					ins[ins_count++] = (struct instruction) { 
 						.op = eq, .imm = 3, .args = { 0, 0, var }
@@ -516,7 +515,7 @@ process_file:;
 				if (strcmp(included_files[i], word)) continue;
 				print_error("file has already been included", 
 					filename, text, text_length, word_start, pc
-				);
+					);
 			}
 			included_files[included_file_count++] = word;
 			nat len = 0;
@@ -529,7 +528,7 @@ process_file:;
 			var_count--;
 			goto process_file;
 		} else {
-			if (op == at and is_ct_label[*args]) values[*args] = ins_count;
+			if (op == at) values[*args] = ins_count;
 			else if (op == lt or op == eq) is_ct_label[args[2]] = 1;
 			struct instruction new = { .op = op, .imm = is_immediate };
 			is_immediate = 0;
@@ -625,15 +624,6 @@ process_file:;
 			abort(); 
 		}
 		if (op == st and val0 == compiler_putc) { char c = (char) val1; write(1, &c, 1); } 
-		if (op == st and val0 == compiler_length) {
-			for (nat i = 0; i < string_list_count; i++) {
-				if (string_label[i] == val1) { 
-					memory[compiler_length] = strlen(string_list[i]); 
-					goto found_string;
-				}
-			}
-			memory[compiler_length] = (nat) -1; found_string:;
-		}
 	}}
 
 	memcpy(ins, rt_ins, rt_ins_count * sizeof(struct instruction));
@@ -2497,7 +2487,15 @@ generate_uf2_executable:;
 
 
 
-
+/*if (op == st and val0 == compiler_length) {
+			for (nat i = 0; i < string_list_count; i++) {
+				if (string_label[i] == val1) { 
+					memory[compiler_length] = strlen(string_list[i]); 
+					goto found_string;
+				}
+			}
+			memory[compiler_length] = (nat) -1; found_string:;
+		}*/
 
 /*
 
