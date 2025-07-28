@@ -4,10 +4,16 @@ written on 1202507277.191547 by dwrr)
 
 file library/core.s
 
+st target r32_arch
+st format hex_array
+st overwrite 1
+
 set '0' 000011
 set newline 0101
 
+
 eq 0 0 main
+
 
 at enabledebug
 	ld ra 0
@@ -30,14 +36,14 @@ at cthello
 	lt 0 0 cthello
 
 
-at printbinary
+at ctprintbinary
 	ld ra 0
 	set n c0
 	at loop
 		set bit n
 		set c0 bit
 		set c1 01
-		eq 0 0 mod
+		eq 0 0 rem
 		set bit c0
 		add bit '0'
 		st ctputc bit 
@@ -46,16 +52,16 @@ at printbinary
 		lt 0 n loop  
 	del loop del n
 	eq 0 0 ra del ra
-	lt 0 0 printbinary
+	lt 0 0 ctprintbinary
 
 
-at nl 
+at ctnl 
 	ld ra 0
 	st ctputc newline 
 	eq 0 0 ra del ra
-	lt 0 0 nl
+	lt 0 0 ctnl
 
-at mod
+at rem
 	ld ra 0
 	set n c0 set m c1
 	set d n div d m
@@ -63,8 +69,7 @@ at mod
 	set c0 k
 	del k del r del n del m del d
 	eq 0 0 ra del ra
-	lt 0 0 mod
-
+	lt 0 0 rem
 
 at not 
 	ld ra 0
@@ -72,7 +77,6 @@ at not
 	set c0 r del r
 	eq 0 0 ra del ra 
 	lt 0 0 not
-
 
 at si
 	ld ra 0
@@ -156,7 +160,6 @@ at or
 	del a del b del msb 
 	del advance del try_b 
 	del loop del i
-
 	set c0 c del c
 	eq 0 0 ra del ra 
 	lt 0 0 or
@@ -178,7 +181,6 @@ the top 20 bits of the immediate too!!)
 	eq 0 0 ra del ra
 	lt 0 0 la
 
-
 at exit
 	ld ra 0
 	ri r_imm r_add r_number 0 r_exit
@@ -191,13 +193,15 @@ at exit
 at readchar
 	ld ra 0
 	set out c0
+	set copy r_arg3
 	ri r_imm r_add r_number 0 r_read
 	ri r_imm r_add r_arg0 0 stdin
 	set c0 r_arg1 set c1 buffer la
+	ri r_imm r_add copy r_arg1 0 
 	ri r_imm r_add r_arg2 0 1
 	ri r_ecall 0 0 0 0
-	ri r_load r_lw out r_arg1 0 
-	eq 0 0 ra del ra del out
+	ri r_load r_lbu out copy 0
+	eq 0 0 ra del ra del out del copy
 	lt 0 0 readchar
 
 at writestring
@@ -213,7 +217,6 @@ at writestring
 	del string del length
 	lt 0 0 writestring
 
-
 at getstringlength
 	ld ra 0
 	set begin c0
@@ -222,29 +225,75 @@ at getstringlength
 	eq 0 0 ra del ra
 	lt 0 0 getstringlength
 
+at printbinary
+	ld ra 0
+	set input c0
+	set bit 	r_number
+	set data 	r_arg0
+	set begin 	r_arg1
+	set p 		r_arg2
+	
+	ri r_imm r_add data input 0
+	set c0 begin set c1 buffer la
+	ri r_imm r_add p begin 0
+	at loop
+		ri r_imm r_and bit data 1
+		ri r_imm r_add bit bit '0'
+		rs r_store r_sb p bit 0
+		ri r_imm r_add p p 1
+		ri r_imm r_srl data data 1
+		rb r_branch r_bne data 0 loop
 
-(this will cause a compiletime error!
-set c0 101 set c1 0000000001 si)
+	ri r_imm r_add bit 0 newline
+	rs r_store r_sb p bit 0
+	ri r_imm r_add p p 1
+
+	ri r_imm r_add r_number 0 r_write
+	ri r_imm r_add r_arg0 0 stdout
+	rr r_reg r_add r_arg2 p begin r_signed
+	ri r_ecall 0 0 0 0
+
+	eq 0 0 ra del ra
+	lt 0 0 printbinary
+
 
 at main 
 
-st target r32_arch
-st format hex_array
-st overwrite 1
-
+set c 1
 set c0 longstring set c1 longstring.length writestring
-set c0 1 readchar
+set c0 c readchar
 set c0 string2 set c1 string2.length writestring
 set c0 buffer set c1 1 writestring
 set c0 string3 set c1 string3.length writestring
+
+
+set c0 c printbinary
+
+set myvariable c
+set myconstant 0001_01
+ri r_imm r_add myvariable 0 myconstant
+set c0 myvariable printbinary
+del myvariable del myconstant del c
+
+
+
+	(1202507277.233929 we are going to print binary primes now!! YAYY)
+
+	(.....code here.....)
+
+
 
 set c0 01 exit
 
 at buffer 
 emit 0001 0
 emit 0001 0
+emit 0001 0
+emit 0001 0
+emit 0001 0
 
-at longstring str 
+at longstring 
+str 
 "this my really long and interesting string!
 i am going to print out a lot, all at runtime! 
 lets see how it goes lol. i think it should go
@@ -253,6 +302,7 @@ setup in a way that makes things easy lol.
 
 hopefully this goes well! :)
 "
+(str "hi lol")
 set c0 longstring getstringlength 
 set longstring.length c0
 
@@ -262,16 +312,9 @@ set c0 string2 getstringlength
 set string2.length c0
 
 at string3 str 
-"', and it was one character!
-"
-set c0 string3 getstringlength
+"', and they pressed exactly one character!
+" set c0 string3 getstringlength
 set string3.length c0
-
-
-
-
-
-
 
 eoi 
 
@@ -281,6 +324,7 @@ to be able to have the user give a number to print out prime binary numbers less
 
 
 
+yayyy, got printbinary working on 1202507277.233941 
 
 
 
@@ -312,6 +356,9 @@ to be able to have the user give a number to print out prime binary numbers less
 
 
 
+
+(this will cause a compiletime error!
+set c0 101 set c1 0000000001 si)
 
 
 

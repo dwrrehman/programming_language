@@ -237,7 +237,7 @@ if (not executing) {
 				printf("bltu  x%u  x%u  #0x%08x (@0x%08x)\n", Rs1, Rs2, imm, pc + imm);
 			} else if (fn == 7) { // BGEU
 				printf("bgeu  x%u  x%u  #0x%08x (@0x%08x)\n", Rs1, Rs2, imm, pc + imm);
-			}
+			} else { puts("unknown branch type"); abort(); }
 			
 		} else if (op == 0x03) { // LB / LH / LW / LBU / LHU
 
@@ -251,7 +251,7 @@ if (not executing) {
 				printf("lbu  x%u  x%u  #0x%08x\n", Rd, Rs1, imm12);
 			} else if (fn == 5) { // LHU
 				printf("lhu  x%u  x%u  #0x%08x\n", Rd, Rs1, imm12);
-			} 
+			} else { puts("unknown load type"); abort(); }
 
 
 		} else if (op == 0x23) { // SB / SH / SW
@@ -262,7 +262,7 @@ if (not executing) {
 				printf("sh  x%u  #0x%08x  x%u\n", Rs1, imm, Rs2);
 			} else if (fn == 2) {
 				printf("sw  x%u  #0x%08x  x%u\n", Rs1, imm, Rs2);
-			}
+			} else { puts("unknown store type"); abort(); }
 
 		} else if (op == 0x13) { // ADDI / SLTI / SLTIU / XORI / ORI / ANDI / SLLI / SRLI / SRAI
 
@@ -284,7 +284,7 @@ if (not executing) {
 				printf("ori  x%u  x%u  #0x%08x\n", Rd, Rs1, imm12);
 			} else if (fn == 7) { // ANDI
 				printf("andi  x%u  x%u  #0x%08x\n", Rd, Rs1, imm12);
-			}
+			} else { puts("unknown opi type"); abort(); }
 
 		} else if (op == 0x33) { // ADD / SUB / SLL / SLT / SLTU / XOR / SRL / SRA / OR / AND     MUL / DIV / REM
 
@@ -310,7 +310,7 @@ if (not executing) {
 					printf("or  x%u  x%u  x%u\n", Rd, Rs1, Rs2);
 				} else if (fn == 7) { // AND
 					printf("and  x%u  x%u  x%u\n", Rd, Rs1, Rs2);
-				}
+				} else { puts("unknown opr type"); abort(); }
 	
 			} else {
 
@@ -339,7 +339,7 @@ if (not executing) {
 
 				} else if (fn == 7) { // REMU
 					printf("remu  x%u  x%u  x%u\n", Rd, Rs1, Rs2);
-				}
+				} else { puts("unknown opm type"); abort(); }
 			}
 
 		} else if (op == 0x1F) { // FENCE / FENCE.I
@@ -355,7 +355,7 @@ if (not executing) {
 			} else {
 				printf("ebreak / csr_xx ...\n");
 				printf("\nerror: illegal instruction opcode: 0x%u\n", op);
-			}
+			} 
 
 		} else {
 			printf("[illegal instruction opcode: 0x%u]\n", op);

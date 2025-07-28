@@ -82,7 +82,7 @@ set r_bgeu		111
 set r_blt		001
 set r_bge		101
 
-set r_load 		1100_010
+set r_load 		1100_000
 set r_lb 		000
 set r_lh 		100
 set r_lw 		010
