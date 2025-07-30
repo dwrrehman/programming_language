@@ -1,9 +1,10 @@
 file library/core.s
+file library/useful.s
 
-st compiler_target rv32_arch
-st compiler_format uf2_executable
-st compiler_should_overwrite true
-st compiler_stack_size 0
+st target rv32_arch
+st format uf2_executable
+st overwrite true
+st stacksize 0
 
 (address atomic bitmasks) 
 set clear_on_write 	0000_0000_0000_11
@@ -19,7 +20,7 @@ set sio_base		0000_0000_0000_0000__0000_0000_0000_1011
 set reset_base 		0000_0000_0000_0000__0100_0000_0000_0010
 set io_bank0_base 	0000_0000_0000_0001__0100_0000_0000_0010
 set pads_bank0_base 	0000_0000_0000_0001__1100_0000_0000_0010
-
+set accessctrl_base	0000_0000_0000_0000__0110_0000_0000_0010
 
 (powman registers:  ones for the alarm and low power mode configuration)
 set powman_password 	0000_0000_0000_0000___0111_1111_0101_1010
@@ -30,6 +31,7 @@ set alarm_time_15to0  	0010_0001
 set alarm_time_31to16	0000_0001
 set alarm_time_47to32	0011_1110
 set alarm_time_63to48	0001_1110
+
 
 (useful thingy)
 set reset_clear reset_base 
@@ -55,34 +57,27 @@ set sio_gpio_in 	001
 
 
 
-
-
-
+(program register allocations)
 
 set led_state 	1
 set data 	01
 set ram 	11
 set address 	001
+set temp	101
 
-
-zero c0
-zero c1
-zero c2
-zero c3 
-
-do skip_macros
+eq 0 0 skip_macros
 
 at setif
 	ld ra 0 lt 0 0 setif
 	set a c0 set b c1 
 	set c c2 set d c3
-	ne a b l st c d
+	lt a b l lt b a l st c d
 	at l del l del a del b  
 	del c del d eq 0 0 ra del ra 
 
 at setup_output
 	ld ra 0
-	set p compiler_arg0 set c2 p
+	set p 00001 set c2 p
 
 	set c1 0 set c3 io_gpio0_ctrl setif
 	set c1 1 set c3 io_gpio1_ctrl setif
@@ -100,30 +95,23 @@ at setup_output
 
 	del p
 
+	set c0 address set c1 io_bank0_base li
+	set c0 data set c1 101 li
+	rs r_store r_sw address data control
 
-
-
-	(runtime code: translate this:
-
-	set address io_bank0_base   (these are load_immediates,  we need to write that macro.....)
-	set data 101                   (which means we need to write   and, or, not  ctmacros too lol)
-
-	rs rv_store rv_sw address data control
-
-	set address pads_bank0_base
-	set data 0_1_0_0_11_1_0_0
-
-	rs rv_store rv_sw address data pads
-
+	set c0 address set c1 pads_bank0_base li
+	set c0 data set c1 0_1_0_0_11_1_0_0 li
+	rs r_store r_sw address data pads
 
 	del pads del control 
-	del address del data
-	ct do ra del ra
+	eq 0 0 ra del ra
+	lt 0 0 setup_output	
 
 at processor_sleep
-	ld ra 0 lt 0 0 processor_sleep
-	rr rv_reg rv_slt 0 0 0 0
+	ld ra 0 
+	rr r_reg r_slt 0 0 0 0
 	eq 0 0 ra del ra
+	lt 0 0 processor_sleep
 
 
 at skip_macros del skip_macros
@@ -131,78 +119,423 @@ at skip_macros del skip_macros
 
 
 
-rt adr flash_start
 
-do skip
-(rp2350 image_def marker)
+
+
+
+sect flash_start
+
+rj r_jal 0 skip
+			(rp2350 image_def marker)
 emit  001  1100_1011_0111_1011__1111_1111_1111_1111
 emit  001  0100_0010_1000_0000__1000_0000_1000_1000
 emit  001  1111_1111_1000_0000__0000_0000_0000_0000
 emit  001  0000_0000_0000_0000__0000_0000_0000_0000
 emit  001  1001_1110_1010_1100__0100_1000_1101_0101
+
 at skip del skip
 
-set address 	reset_clear
-set data 	0000_0010_01
-rs rv_store rv_sw address data 0
 
-set c0 0 do setup_output
-set c0 11101 do setup_output
+set c0 address set c1 reset_clear li
+set c0 data set c1 0000_0010_01 li
+rs r_store r_sw address data 0
 
-set address	sio_base
-set data 	1000_0000__0000_0000__0000_0001__0000_0000
-rs rv_store rv_sw address data sio_gpio_oe
 
-set data 0
-rs rv_store rv_sw address data sio_gpio_out
+
+set sleep_en0 0010_1101
+set sleep_en1 0001_1101
+
+
+set c0 address set c1 clocks_base li
+set c0 data set c1 0 li
+rs r_store r_sw address data sleep_en0
+
+set c0 address set c1 clocks_base li
+set c0 data set c1 0000_1111_1111_1100__0000_0000_0000_0000 li
+rs r_store r_sw address data sleep_en1
+
+
+
+
+set c0 0 setup_output
+set c0 11101 setup_output
+
+
+set c0 address set c1 sio_base li
+set c0 data set c1 1000_0000__0000_0000__0000_0001__0000_0000 li
+rs r_store r_sw address data sio_gpio_oe
+
+set c0 data set c1 0 li
+rs r_store r_sw address data sio_gpio_out
+
+set c0 ram set c1 sram_start li
+
+set c0 address set c1 powman_base li
+
+ri r_load r_lw data address last_swcore_pwrup
+
+ri r_imm r_add temp 0 1
+rb r_branch r_bne data temp skip_boot
+
+	(initialize RAM led variable)
+	ri r_imm r_add led_state 0 0
+	rs r_store r_sw ram led_state 0
+
+	set c0 address set c1 sio_base li
+
+set j 00001
+set c0 j set c1 0001 li
+
+at times
+	(led on)
+	set c0 data set c1 1 li
+	rs r_store r_sw address data sio_gpio_out
+
+	(delay for a little bit)
+	set i temp
+	set c0 i set c1 0000_0000_0000_0000_0001 li
+	at l
+		ri r_imm r_add i i 1111_1111_1111
+		rb r_branch r_bne i 0 l
+	del l del i
+
+	(led off)
+	set c0 data set c1 0 li
+	rs r_store r_sw address data sio_gpio_out
+
+	(delay for a little bit)
+	set i temp
+	set c0 i set c1 0000_0000_0000_0000_0001 li
+	at l
+		ri r_imm r_add i i 1111_1111_1111
+		rb r_branch r_bne i 0 l
+	del l del i
+	
+	ri r_imm r_add j j 1111_1111_1111
+	rb r_branch r_bne j 0 times
+	
+at skip_boot del skip_boot
+
+
+
+
+ri r_load r_lw led_state ram 0
+ri r_imm r_xor led_state led_state 1
+ri r_imm r_and led_state led_state 1
+
+set c0 address set c1 sio_base li
+rs r_store r_sw address led_state sio_gpio_out
+rs r_store r_sw ram led_state 0
+
+
+
+set c0 address set c1 powman_base li
+
+
+	(set initial the timer config, allow nonsecure writes)
+
+set n 1000_0110_1000_0000 add n powman_password 
+set c0 data set c1 n li
+rs r_store r_sw address data powman_timer
+
+
+	(set the alarm duration of time, after which we will wake up  :   1000 milliseconds, == 1 second)
+	(on reset, all the other alarm value registers are 0)
+
+set n 0000_0000_001 add n powman_password 
+set c0 data set c1 n li
+rs r_store r_sw address data alarm_time_15to0
+
+
+	(start the alarm timer to wake up in that amount of time)
+
+set n 1110_1110_1000_0000 add n powman_password 
+
+set c0 data set c1 n li
+rs r_store r_sw address data powman_timer
+
+
+
+
+
+
+
+	(request the new low power state P1.4, write password protected state register)
+
+set n 0000_0011_0000_0000  add n powman_password
+set c0 data set c1 n li
+rs r_store r_sw address data powman_state
+
+processor_sleep
+
+
+
+
+(
+
+
+set c0 address set c1 sio_base li
+at ledloop
+	set c0 data set c1 1 li
+	rs r_store r_sw address data sio_gpio_out
+
+	set i ram
+	set c0 i set c1 0000_0000_0000_0000_0001 li
+	at l
+		ri r_imm r_add i i 1111_1111_1111
+		rb r_branch r_bne i 0 l
+	del l del i
+	
+	set c0 data set c1 0 li
+	rs r_store r_sw address data sio_gpio_out
+
+	set i ram
+	set c0 i set c1 0000_0000_0000_0000_0001 li
+	at l
+		ri r_imm r_add i i 1111_1111_1111
+		rb r_branch r_bne i 0 l
+	del l del i
+rj r_jal 0 ledloop
+
+)
+
+
+
+
+
+eoi
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+(    -------------- first attempt at low power sequence    sleep seq ----------------
+
+
+
+	(request the new low power state P1.4, write password protected state register)
+set n 0000_0011_0000_0000  add n powman_password 
+set c0 data set c1 n li
+rs r_store r_sw address data powman_state
+
+
+	(set initial the timer config, allow nonsecure writes)
+
+set n 1000_0100_1000_0000 add n powman_password 
+set c0 data set c1 n li
+rs r_store r_sw address data powman_timer
+
+
+	(set the alarm duration of time, after which we will wake up  :   1024 milliseconds, about 1 second)
+	(on reset, all the other alarm value registers are 0)
+
+set n 0000_0000_001 add n powman_password
+set c0 data set c1 n li
+rs r_store r_sw address data alarm_time_15to0
+
+
+	(start the alarm timer to wake up in that amount of time)
+
+set n 1110_1110_1000_0000 add n powman_password 
+
+set c0 data set c1 n li
+rs r_store r_sw address data powman_timer
+
+
+
+processor_sleep    (the processor's execution won't return after executing this)
+
+)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+(
+////////////////////////////////////////////
+1202507292.201314
+
+		bug: currently we are unable to 
+		access the powman registers at all.
+
+		figure out why this is happening!
+
+
+
+
+	(request the new low power state P1.4, write password protected state register)
+set n 0000_0011_0000_0000  add n powman_password 
+set c0 data set c1 n li
+rs r_store r_sw address data powman_state
+
+	
+
+		the above code causes us to processor-reset  
+		and thus we are obviously doing something wrong lol...
+
+
+
+////////////////////////////////////////////
+
+)
+
+
+
+
+
+
+
+
+
+
+
 
 
 (this is where we would check the   lastpwrupcore   register to see what caused us to be here.
    in the case of blinking an led, we don't need to though, luckily.)
 
 
-set ram sram_start
 
-set led_state 0
+
+
+(
+
+
+
+
+set c0 ram set c1 sram_start li
 
 (load led state from sram)
-ri rv_load led_state rv_lw ram 0
+ri r_load r_lw led_state ram 0
 
-eor led_state 1
-and led_state 1
+ri r_imm r_xor led_state led_state 1
+ri r_imm r_and led_state led_state 1
 
 (set the led to this state!)
-rs rv_store rv_sw address led_state sio_gpio_out
+rs r_store r_sw address led_state sio_gpio_out
 
 (storing the led state to memory)
-rs rv_store rv_sw ram led_state 0
+rs r_store r_sw ram led_state 0
 
-set address powman_base
+set c0 address set c1 powman_base li
 
-(request the new low power state P1.4, write password protected state register)
-ct set n 0000_0011_0000_0000 or n powman_password rt set data n
-rs rv_store rv_sw address data powman_state
+	(request the new low power state P1.4, write password protected state register)
 
-(set initial the timer config, allow nonsecure writes)
-ct set n 1000_0100_1000_0000 or n powman_password rt set data n
-rs rv_store rv_sw address data powman_timer
+set n 0000_0011_0000_0000  add n powman_password 
+set c0 data set c1 n li
+rs r_store r_sw address data powman_state
 
-(set the alarm duration of time, after which we will wake up  :   1024 milliseconds, about 1 second)
-(on reset, all the other alarm value registers are 0)
-ct set n 0000_0000_001 or n powman_password rt set data n
-rs rv_store rv_sw address data alarm_time_15to0
+	(set initial the timer config, allow nonsecure writes)
 
-(start the alarm timer to wake up in that amount of time)
-set n 1110_1110_1000_0000 
-or n powman_password 
+set n 1000_0100_1000_0000 add n powman_password 
+set c0 data set c1 n li
+rs r_store r_sw address data powman_timer
 
-rt set data n
-rs rv_store rv_sw address data powman_timer
+	(set the alarm duration of time, after which we will wake up  :   1024 milliseconds, about 1 second)
+	(on reset, all the other alarm value registers are 0)
+
+set n 0000_0000_001 add n powman_password
+set c0 data set c1 n li
+rs r_store r_sw address data alarm_time_15to0
+
+	(start the alarm timer to wake up in that amount of time)
+
+set n 1110_1110_1000_0000 add n powman_password 
+
+set c0 data set c1 n li
+rs r_store r_sw address data powman_timer
 
 processor_sleep    (the processor's execution won't return after executing this)
 
 
-eoi
+
+
+)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 

@@ -1,12 +1,40 @@
 (the main standard library file for the language, target independent.
 written on 1202507277.191648 by dwrr)
 
+set -1 0 sub -1 1
 
 set stdin 0
 set stdout 1
+set stderr 01
+
+set true 1
+set false 0
+
+(supported targets)
+
+zero x set no_arch x
+incr x set rv64_arch x
+incr x set rv32_arch x
+incr x set arm64_arch x
+incr x set arm32_arch x
+incr x set msp430_arch x
 
 
-zero x set _return_address x
+(supported formats)
+
+zero x set no_output x
+incr x set macho_executable x
+incr x set macho_object x
+incr x set elf_executable x
+incr x set elf_object x
+incr x set ti_txt_executable x
+incr x set uf2_executable x
+incr x set hex_array x
+
+
+(cte memory locations)
+
+zero x set _returnaddress x
 incr x set target x
 incr x set format x 
 incr x set overwrite x
@@ -14,57 +42,10 @@ incr x set ctedebug x
 incr x set stacksize x
 incr x set ctepass x
 incr x set ctputc x
-del x
-
-(supported targets)
-
-set r32_arch 001
-set hex_array 111
 
 
 
 (risc-v op codes)
-
-set r_auipc 		1110_100
-set r_ecall 		1100_111
-set r_imm 		1100_100
-set r_add		000
-
-set r_branch		1100_011
-set r_equal		000
-set r_less		011
-
-
-
-(risc-v sc abi)
-
-set r_arg0 	0101
-set r_arg1 	1101
-set r_arg2 	0011
-set r_arg3 	1011
-set r_arg4 	0111
-set r_arg5 	1111
-
-set r_number 	10001
-
-
-
-
-(system call numbers for my riscv vm website)
-
-set r_exit 1
-set r_read 01
-set r_write 11
-
-
-
-
-
-
-
-
-
-
 
 set r_lui 		1110_110
 set r_auipc 		1110_100
@@ -127,6 +108,37 @@ set r_mulhu_op1		1100_110
 set r_mulhu_op2		110
 set r_mulhu_op3		1000000
 
+
+
+
+
+
+
+(risc-v sc abi)
+
+set r_arg0 	0101
+set r_arg1 	1101
+set r_arg2 	0011
+set r_arg3 	1011
+set r_arg4 	0111
+set r_arg5 	1111
+
+set r_number 	10001
+
+
+(system call numbers for my riscv vm website)
+
+set r_exit 1
+set r_read 01
+set r_write 11
+
+
+
+
+
+
+
+del x
 eoi
 
 

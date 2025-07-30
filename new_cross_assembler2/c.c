@@ -35,12 +35,21 @@ static nat debug = 0;
 #define max_section_count 	(1 << 7)
 #define max_arg_count		(1 << 3)
 
-enum all_architectures { no_arch, arm64_arch, arm32_arch, rv64_arch, rv32_arch, msp430_arch };
+enum all_architectures { 
+	no_arch,
+	rv64_arch,
+	rv32_arch,
+	arm64_arch,
+	arm32_arch,
+	msp430_arch
+};
 
 enum all_output_formats {
 	no_output,
-	macho_executable, macho_object,
-	elf_executable, elf_object,
+	macho_executable, 
+	macho_object,
+	elf_executable, 
+	elf_object,
 	ti_txt_executable,
 	uf2_executable,
 	hex_array
@@ -606,6 +615,18 @@ process_file:;
 
 		if ((op == lt or op == eq) and val2 >= ins_count) {
 			printf("error: at pc %llu invalid jump address: 0x%016llx\n", pc, val2);
+			print_instruction_window_around(pc, 1, "error");
+			abort();
+		}
+
+		if (op == st and val0 >= max_memory_size) {
+			printf("error: at pc %llu invalid address given to store to compiletime memory: 0x%016llx\n", pc, val0);
+			print_instruction_window_around(pc, 1, "error");
+			abort();
+		}
+
+		if (op == ld and val1 >= max_memory_size) {
+			printf("error: at pc %llu invalid address given to load from compiletime memory: 0x%016llx\n", pc, val1);
 			print_instruction_window_around(pc, 1, "error");
 			abort();
 		}
