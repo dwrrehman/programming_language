@@ -1,0 +1,238 @@
+run:
+Mach header
+      magic  cputype cpusubtype  caps    filetype ncmds sizeofcmds      flags
+MH_MAGIC_64    ARM64        ALL  0x00     EXECUTE    17       1056   NOUNDEFS DYLDLINK TWOLEVEL PIE
+Load command 0
+      cmd LC_SEGMENT_64
+  cmdsize 72
+  segname __PAGEZERO
+   vmaddr 0x0000000000000000
+   vmsize 0x0000000100000000
+  fileoff 0
+ filesize 0
+  maxprot ---
+ initprot ---
+   nsects 0
+    flags (none)
+Load command 1
+      cmd LC_SEGMENT_64
+  cmdsize 392
+  segname __TEXT
+   vmaddr 0x0000000100000000
+   vmsize 0x0000000000004000
+  fileoff 0
+ filesize 16384
+  maxprot r-x
+ initprot r-x
+   nsects 4
+    flags (none)
+Section
+  sectname __text
+   segname __TEXT
+      addr 0x0000000100003f6c
+      size 0x0000000000000034
+    offset 16236
+     align 2^2 (4)
+    reloff 0
+    nreloc 0
+      type S_REGULAR
+attributes PURE_INSTRUCTIONS SOME_INSTRUCTIONS
+ reserved1 0
+ reserved2 0
+Section
+  sectname __stubs
+   segname __TEXT
+      addr 0x0000000100003fa0
+      size 0x000000000000000c
+    offset 16288
+     align 2^2 (4)
+    reloff 0
+    nreloc 0
+      type S_SYMBOL_STUBS
+attributes PURE_INSTRUCTIONS SOME_INSTRUCTIONS
+ reserved1 0 (index into indirect symbol table)
+ reserved2 12 (size of stubs)
+Section
+  sectname __cstring
+   segname __TEXT
+      addr 0x0000000100003fac
+      size 0x000000000000000b
+    offset 16300
+     align 2^0 (1)
+    reloff 0
+    nreloc 0
+      type S_CSTRING_LITERALS
+attributes (none)
+ reserved1 0
+ reserved2 0
+Section
+  sectname __unwind_info
+   segname __TEXT
+      addr 0x0000000100003fb8
+      size 0x0000000000000048
+    offset 16312
+     align 2^2 (4)
+    reloff 0
+    nreloc 0
+      type S_REGULAR
+attributes (none)
+ reserved1 0
+ reserved2 0
+Load command 2
+      cmd LC_SEGMENT_64
+  cmdsize 152
+  segname __DATA_CONST
+   vmaddr 0x0000000100004000
+   vmsize 0x0000000000004000
+  fileoff 16384
+ filesize 16384
+  maxprot rw-
+ initprot rw-
+   nsects 1
+    flags SG_READ_ONLY
+Section
+  sectname __got
+   segname __DATA_CONST
+      addr 0x0000000100004000
+      size 0x0000000000000008
+    offset 16384
+     align 2^3 (8)
+    reloff 0
+    nreloc 0
+      type S_NON_LAZY_SYMBOL_POINTERS
+attributes (none)
+ reserved1 1 (index into indirect symbol table)
+ reserved2 0
+Load command 3
+      cmd LC_SEGMENT_64
+  cmdsize 72
+  segname __LINKEDIT
+   vmaddr 0x0000000100008000
+   vmsize 0x0000000000004000
+  fileoff 32768
+ filesize 656
+  maxprot r--
+ initprot r--
+   nsects 0
+    flags (none)
+Load command 4
+      cmd LC_DYLD_CHAINED_FIXUPS
+  cmdsize 16
+  dataoff 32768
+ datasize 96
+Load command 5
+      cmd LC_DYLD_EXPORTS_TRIE
+  cmdsize 16
+  dataoff 32864
+ datasize 48
+Load command 6
+     cmd LC_SYMTAB
+ cmdsize 24
+  symoff 32920
+   nsyms 3
+  stroff 32976
+ strsize 40
+Load command 7
+            cmd LC_DYSYMTAB
+        cmdsize 80
+      ilocalsym 0
+      nlocalsym 0
+     iextdefsym 0
+     nextdefsym 2
+      iundefsym 2
+      nundefsym 1
+         tocoff 0
+           ntoc 0
+      modtaboff 0
+        nmodtab 0
+   extrefsymoff 0
+    nextrefsyms 0
+ indirectsymoff 32968
+  nindirectsyms 2
+      extreloff 0
+        nextrel 0
+      locreloff 0
+        nlocrel 0
+Load command 8
+          cmd LC_LOAD_DYLINKER
+      cmdsize 32
+         name /usr/lib/dyld (offset 12)
+Load command 9
+     cmd LC_UUID
+ cmdsize 24
+    uuid A4637257-80A1-3326-BD35-D1C809368482
+Load command 10
+      cmd LC_BUILD_VERSION
+  cmdsize 32
+ platform MACOS
+    minos 13.0
+      sdk 13.3
+   ntools 1
+     tool LD
+  version 857.1
+Load command 11
+      cmd LC_SOURCE_VERSION
+  cmdsize 16
+  version 0.0
+Load command 12
+       cmd LC_MAIN
+   cmdsize 24
+  entryoff 16236
+ stacksize 0
+Load command 13
+          cmd LC_LOAD_DYLIB
+      cmdsize 56
+         name /usr/lib/libSystem.B.dylib (offset 24)
+   time stamp 2 Wed Dec 31 16:00:02 1969
+      current version 1319.100.3
+compatibility version 1.0.0
+Load command 14
+      cmd LC_FUNCTION_STARTS
+  cmdsize 16
+  dataoff 32912
+ datasize 8
+Load command 15
+      cmd LC_DATA_IN_CODE
+  cmdsize 16
+  dataoff 32920
+ datasize 0
+Load command 16
+      cmd LC_CODE_SIGNATURE
+  cmdsize 16
+  dataoff 33024
+ datasize 400
+	/usr/lib/libSystem.B.dylib (compatibility version 1.0.0, current version 1319.100.3)
+	time stamp 2 Wed Dec 31 16:00:02 1969
+Table of contents (0 entries)
+module name      symbol name
+Module table (0 entries)
+Reference table (0 entries)
+Two-level namespace hints table (0 hints)
+index  isub  itoc
+Linker optimiztion hints (0 total bytes)
+Data in code table (0 entries)
+offset     length kind
+Indirect symbols for (__TEXT,__stubs) 1 entries
+address            index name
+0x0000000100003fa0     2 _dlsym
+Indirect symbols for (__DATA_CONST,__got) 1 entries
+address            index name
+0x0000000100004000     2 _dlsym
+dyld information:
+segment      section address     pointer            type   addend   dylib     symbol/vm address
+__DATA_CONST __got   0x100004000 0x8000000000000000 bind   0x0      libSystem _dlsym
+(__TEXT,__text) section
+_main:
+0000000100003f6c	a9bf7bfd	stp	x29, x30, [sp, #-0x10]!
+0000000100003f70	910003fd	mov	x29, sp
+0000000100003f74	100001c1	adr	x1, #0x38 ; literal pool for: "puts"
+0000000100003f78	d503201f	nop
+0000000100003f7c	92800020	mov	x0, #-0x2
+0000000100003f80	94000008	bl	0x100003fa0 ; symbol stub for: _dlsym
+0000000100003f84	aa0003e8	mov	x8, x0
+0000000100003f88	30000140	adr	x0, #0x29 ; literal pool for: "hello"
+0000000100003f8c	d503201f	nop
+0000000100003f90	d63f0100	blr	x8
+0000000100003f94	52800000	mov	w0, #0x0
+0000000100003f98	a8c17bfd	ldp	x29, x30, [sp], #0x10
+0000000100003f9c	d65f03c0	ret

@@ -500,9 +500,8 @@ process_file:;
 		goto push_argument;
 	undefined_var:
 		if (	op == set and arg_count == 1 or
-			op == st and arg_count == 1 or
-			op == rb and arg_count == 4 or
-			op == rj and arg_count == 2
+			op == st  and arg_count == 1 or
+			(op > eoi and op < isa_count)
 		) goto define_name;
 		print_error(
 			"undefined variable",
@@ -517,7 +516,7 @@ process_file:;
 		args[arg_count++] = var;
 	process_op:
 		if (op == eoi) break;
-		if (op == str) { in_string = 1; goto next_word; }		
+		if (op == str) { in_string = 1; goto next_word; }
 		else if (op < isa_count and arg_count < arity[op]) goto next_word;
 		else if (op == del) is_undefined[*args] = 1;
 		else if (op == file) {
@@ -565,7 +564,7 @@ process_file:;
 
 	for (nat pass = 0; pass < 2; pass++) {
 
-	memory[compiler_pass] = pass;	
+	memory[compiler_pass] = pass;
 	if (pass == 1) { rt_ins_count = 0; total_byte_count = 0; } 
 
 	for (nat pc = 0; pc < ins_count; pc++) {
@@ -645,7 +644,7 @@ process_file:;
 			for (nat a = 0; a < arity[op]; a++) {
 				nat this = ins[pc].args[a];
 				if ((imm >> a) & 1) new.args[a] = this;
-				else new.args[a] = values[this];				
+				else new.args[a] = values[this];
 			}
 			rt_ins[rt_ins_count++] = new;
 			total_byte_count += get_length(new);
@@ -1069,18 +1068,18 @@ arm64_generate_machine_code:;
 			insert_u32(&my_bytes, &my_count, (u32) word);
 
 		} else if (op == bc) {
-			const nat offset = 0x7ffff & a1;
+			const nat offset = 0x7ffff & (a1 - my_count);
 			const nat word = (0x54U << 24U) | (offset << 5U) | (a0);
 			insert_u32(&my_bytes, &my_count, (u32) word);
 
 		} else if (op == jmp) {
-			const nat offset = 0x3ffffff & a1;
+			const nat offset = 0x3ffffff & (a1 - my_count);
 			const nat word = (a0 << 31U) | (0x5U << 26U) | (offset);
 			insert_u32(&my_bytes, &my_count, (u32) word);
 
 		} else if (op == adr) {
 			nat o1 = a2;
-			nat count = a1;
+			nat count = a1 - my_count;
 			if (a2) count /= 4096;
 			const nat offset = 0x1fffff & count;
 			const nat lo = offset & 3, hi = offset >> 2;
@@ -1090,7 +1089,7 @@ arm64_generate_machine_code:;
 			insert_u32(&my_bytes, &my_count, (u32) word);
 
 		} else if (op == cbz) {
-			const nat offset = 0x7ffff & a1;
+			const nat offset = 0x7ffff & (a1 - my_count);
 			const nat word = 
 				(a3 << 31U) | (0x1AU << 25U) | 
 				(a2 << 24U) | (offset << 5U) | (a0);
@@ -1099,7 +1098,7 @@ arm64_generate_machine_code:;
 		} else if (op == tbz) {
 			const nat b40 = a1 & 0x1F;
 			const nat b5 = a1 >> 5;
-			const nat offset = 0x3fff & a2;
+			const nat offset = 0x3fff & (a2 - my_count);
 			const nat word = 
 				(b5 << 31U) | (0x1BU << 25U) | (a3 << 24U) |
 				(b40 << 19U) |(offset << 5U) | (a0);
@@ -1747,7 +1746,8 @@ generate_uf2_executable:;
 	printf("uf2: wrote %llu bytes to file %s.\n", count, output_filename);	
 	snprintf(debug_string, sizeof debug_string, "./rv_dis/run print %s", output_filename);
 	system(debug_string); }
-	finished_outputting: exit(0);
+finished_outputting: 
+	exit(0);
 } // main 
 
 

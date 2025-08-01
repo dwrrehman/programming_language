@@ -56,7 +56,6 @@ set sio_gpio_in 	001
 
 
 
-
 (program register allocations)
 
 set led_state 	1
@@ -119,10 +118,6 @@ at skip_macros del skip_macros
 
 
 
-
-
-
-
 sect flash_start
 
 rj r_jal 0 skip
@@ -141,10 +136,8 @@ set c0 data set c1 0000_0010_01 li
 rs r_store r_sw address data 0
 
 
-
-set sleep_en0 0010_1101
+(set sleep_en0 0010_1101
 set sleep_en1 0001_1101
-
 
 set c0 address set c1 clocks_base li
 set c0 data set c1 0 li
@@ -152,14 +145,13 @@ rs r_store r_sw address data sleep_en0
 
 set c0 address set c1 clocks_base li
 set c0 data set c1 0000_1111_1111_1100__0000_0000_0000_0000 li
-rs r_store r_sw address data sleep_en1
+rs r_store r_sw address data sleep_en1)
 
 
 
 
 set c0 0 setup_output
 set c0 11101 setup_output
-
 
 set c0 address set c1 sio_base li
 set c0 data set c1 1000_0000__0000_0000__0000_0001__0000_0000 li
@@ -169,29 +161,21 @@ set c0 data set c1 0 li
 rs r_store r_sw address data sio_gpio_out
 
 set c0 ram set c1 sram_start li
-
 set c0 address set c1 powman_base li
-
 ri r_load r_lw data address last_swcore_pwrup
-
 ri r_imm r_add temp 0 1
 rb r_branch r_bne data temp skip_boot
 
-	(initialize RAM led variable)
 	ri r_imm r_add led_state 0 0
 	rs r_store r_sw ram led_state 0
 
 	set c0 address set c1 sio_base li
-
-set j 00001
-set c0 j set c1 0001 li
-
-at times
-	(led on)
+	set j 00001
+	set c0 j set c1 0001 li
+	at times
 	set c0 data set c1 1 li
 	rs r_store r_sw address data sio_gpio_out
 
-	(delay for a little bit)
 	set i temp
 	set c0 i set c1 0000_0000_0000_0000_0001 li
 	at l
@@ -199,11 +183,9 @@ at times
 		rb r_branch r_bne i 0 l
 	del l del i
 
-	(led off)
 	set c0 data set c1 0 li
 	rs r_store r_sw address data sio_gpio_out
 
-	(delay for a little bit)
 	set i temp
 	set c0 i set c1 0000_0000_0000_0000_0001 li
 	at l
@@ -216,9 +198,6 @@ at times
 	
 at skip_boot del skip_boot
 
-
-
-
 ri r_load r_lw led_state ram 0
 ri r_imm r_xor led_state led_state 1
 ri r_imm r_and led_state led_state 1
@@ -227,13 +206,9 @@ set c0 address set c1 sio_base li
 rs r_store r_sw address led_state sio_gpio_out
 rs r_store r_sw ram led_state 0
 
-
-
 set c0 address set c1 powman_base li
 
-
 	(set initial the timer config, allow nonsecure writes)
-
 set n 1000_0110_1000_0000 add n powman_password 
 set c0 data set c1 n li
 rs r_store r_sw address data powman_timer
@@ -241,32 +216,52 @@ rs r_store r_sw address data powman_timer
 
 	(set the alarm duration of time, after which we will wake up  :   1000 milliseconds, == 1 second)
 	(on reset, all the other alarm value registers are 0)
-
 set n 0000_0000_001 add n powman_password 
 set c0 data set c1 n li
 rs r_store r_sw address data alarm_time_15to0
 
-
 	(start the alarm timer to wake up in that amount of time)
-
 set n 1110_1110_1000_0000 add n powman_password 
 
 set c0 data set c1 n li
 rs r_store r_sw address data powman_timer
 
-
-
-
-
-
-
 	(request the new low power state P1.4, write password protected state register)
-
 set n 0000_0011_0000_0000  add n powman_password
 set c0 data set c1 n li
 rs r_store r_sw address data powman_state
-
 processor_sleep
+
+
+
+eoi
+
+1202507292.234007  got this working!!! YAYYYYY
+it still consumes 0.68mA  ie  680 microamps, so we still have some additional work to do, 
+
+	but we are getting there :)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -303,7 +298,6 @@ rj r_jal 0 ledloop
 
 
 
-eoi
 
 
 

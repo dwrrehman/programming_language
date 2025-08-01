@@ -3,7 +3,7 @@ written on 1202507281.164255 by dwrr)
 
 file library/core.s
 
-st target r32_arch
+st target rv32_arch
 st format hex_array
 st overwrite 1
 
@@ -378,7 +378,7 @@ ri r_imm r_add newline_char 0 newline
 set c0 input set c1 inputbuffer la
 set c0 welcome set c1 welcome.length writestring
 at loop
-	set c0 prompt set c1 prompt.length writestring		
+	set c0 prompt set c1 prompt.length writestring
 	ri r_imm r_add p input 0
 	at read_loop
 		set c0 c readchar
@@ -387,7 +387,6 @@ at loop
 		ri r_imm r_add p p 1
 		rb r_branch r_bne c newline_char read_loop
 	rr r_reg r_add p p input r_signed
-
 
 	(now we need to check the string  using  "stringsequal"
 	 to see what command we got, and we need to process 

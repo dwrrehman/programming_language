@@ -13,7 +13,7 @@ eq 0 0 skip_all_routines
 at rv32_uf2
 	ld ra 0
 
-	st target r32_arch
+	st target rv32_arch
 	st format uf2_executable
 	st overwrite 1
 
@@ -24,7 +24,7 @@ at rv32_uf2
 at rv32_hex
 	ld ra 0
 
-	st target r32_arch
+	st target rv32_arch
 	st format hex_array
 	st overwrite 1
 

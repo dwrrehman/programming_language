@@ -3517,7 +3517,10 @@ finish_instruction_selection:;
 		} else abort();
 	}
 
-{	nat used[32] = {0};
+
+
+
+/*{	nat used[32] = {0};
 	///////////////////////	      temporary, for debugging!!!
 	for (nat i = 0; i < range_count; i++) {
 		if (register_index[range_var[i]] != (nat) -1) {
@@ -3538,8 +3541,12 @@ finish_instruction_selection:;
 		}
 		next:;
 	}
-}
+}*/
 	///////////////////////	
+
+
+
+
 
 
 	if (debug) {

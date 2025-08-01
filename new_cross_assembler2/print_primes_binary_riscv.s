@@ -4,7 +4,9 @@ written on 1202507277.191547 by dwrr)
 
 file library/core.s
 
-st target r32_arch
+
+
+st target rv32_arch
 st format hex_array
 st overwrite 1
 
@@ -263,6 +265,10 @@ at printbinary
 
 
 at main 
+
+
+(enabledebug)
+
 
 set c 1
 set c0 longstring set c1 longstring.length writestring
