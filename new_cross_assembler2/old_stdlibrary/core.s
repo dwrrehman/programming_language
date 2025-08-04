@@ -1,38 +1,48 @@
-zero false
-zero true incr true
-zero allones sub allones 1 set -1 allones
+(the main standard library file for the language, target independent.
+written on 1202507277.191648 by dwrr)
+
+set -1 0 sub -1 1
 
 set stdin 0
 set stdout 1
 set stderr 01
 
-zero target
+set true 1
+set false 0
+
+(supported targets)
 
 zero x set no_arch x
-incr x set riscv_arch x 
-incr x set msp430_arch x 
-incr x set arm64_arch x 
+incr x set rv64_arch x
+incr x set rv32_arch x
+incr x set arm64_arch x
+incr x set arm32_arch x
+incr x set msp430_arch x
+
+
+(supported formats)
 
 zero x set no_output x
-incr x set macho_executable x 
-incr x set macho_object x 
-incr x set elf_executable x 
-incr x set elf_object x 
-incr x set ti_txt_executable x 
-incr x set uf2_executable x 
-incr x set hex_array x 
-incr x set bin_output x
-
-zero x set return_address x
-incr x set set_output_format x 
-incr x set executable_stack_size x 
-incr x set uf2_family_id x 
-incr x set overwrite_output x 
-incr x set assembler_pass x 
-incr x set assembler_putc x 
+incr x set macho_executable x
+incr x set macho_object x
+incr x set elf_executable x
+incr x set elf_object x
+incr x set ti_txt_executable x
+incr x set uf2_executable x
+incr x set hex_array x
 
 
-del x
+(cte memory locations)
+
+zero x set _returnaddress x
+incr x set target x
+incr x set format x 
+incr x set overwrite x
+incr x set ctedebug x
+incr x set stacksize x
+incr x set ctepass x
+incr x set ctputc x
+
 
 
 (risc-v op codes)
@@ -101,7 +111,10 @@ set r_mulhu_op3		1000000
 
 
 
-(risc-v system call abi)
+
+
+
+(risc-v sc abi)
 
 set r_arg0 	0101
 set r_arg1 	1101
@@ -111,7 +124,6 @@ set r_arg4 	0111
 set r_arg5 	1111
 
 set r_number 	10001
-
 
 
 (system call numbers for my riscv vm website)
@@ -126,55 +138,8 @@ set r_write 11
 
 
 
-
-
-
-
-(arm64 machine instruction opcodes) 
-
-set mov_type_zero 01
-
-
-
-(arm64 hardware registers)
-
-set a6_zero_reg 11111
-set a6_link_reg 01111
-
-
-
-(system call abi for macos)
-
-set a6_number 00001
-set a6_arg0 0
-set a6_arg1 1
-set a6_arg2 01
-set a6_arg3 11
-
-
-(system call numbers for macos)
-
-set a6_exit 1
-set a6_fork 01
-set a6_read 11
-set a6_write 001
-
-
-
-
-
-
-eoi 
-------------------------------------------------------
-
-
-the core standard library for the assembler
-
-   written on 1202508037.200136 by dwrr
-
-
-
-
+del x
+eoi
 
 
 

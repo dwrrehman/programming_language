@@ -1,5 +1,4 @@
-(some useful routines for the standard library)
-
+(some useful routines that i use in code!)
 
 set '0' 000011
 set newline 0101
@@ -11,24 +10,86 @@ zero c6 zero c7
 
 eq 0 0 skip_all_routines
 
-at riscv_uf2
+at rv32_uf2
 	ld ra 0
 
-	set target riscv_arch
-	st set_output_format uf2_executable
+	st target rv32_arch
+	st format uf2_executable
 	st overwrite 1
 
-	eq 0 0 ra del ra lt 0 0 riscv_uf2
+	eq 0 0 ra del ra
+	lt 0 0 rv32_uf2
 
 
-at riscv_hex
+at rv32_hex
 	ld ra 0
 
-	set target riscv_arch
-	st set_output_format hex_array
+	st target rv32_arch
+	st format hex_array
 	st overwrite 1
 
-	eq 0 0 ra del ra lt 0 0 riscv_hex
+	eq 0 0 ra del ra
+	lt 0 0 rv32_hex
+
+
+
+ 
+at enabledebug
+	ld ra 0
+	ld b ctepass 
+	st ctedebug b 
+	del b
+	eq 0 0 ra del ra
+	lt 0 0 enabledebug
+
+
+at disabledebug
+	ld ra 0
+	st ctedebug 0
+	eq 0 0 ra del ra
+	lt 0 0 disabledebug
+
+
+
+
+at cthello 
+	ld ra 0
+	st ctputc 'h'
+	st ctputc 'e'
+	st ctputc 'l'
+	st ctputc 'l'
+	st ctputc 'o'
+	st ctputc '!'
+	st ctputc newline
+	eq 0 0 ra del ra
+	lt 0 0 cthello
+
+
+at ctprintbinary
+	ld ra 0
+	set n c0
+	at loop
+		set bit n
+		set c0 bit
+		set c1 01
+		eq 0 0 rem
+		set bit c0
+		add bit '0'
+		st ctputc bit 
+		del bit
+		div n 01
+		lt 0 n loop  
+	del loop del n
+	eq 0 0 ra del ra
+	lt 0 0 ctprintbinary
+
+
+
+at ctnl 
+	ld ra 0
+	st ctputc newline 
+	eq 0 0 ra del ra
+	lt 0 0 ctnl
 
 
 at rem
@@ -40,24 +101,6 @@ at rem
 	del k del r del n del m del d
 	eq 0 0 ra del ra
 	lt 0 0 rem
-
-at ctprint
-	ld ra 0
-	set n c0
-	at loop
-		set bit n 
-		set c0 bit set c1 01 rem set bit c0 
-		add bit '0'
-		st assembler_putc bit del bit
-		div n 01
-		lt 0 n loop  
-	del loop del n
-	eq 0 0 ra del ra lt 0 0 ctprintbinary
-
-at ctnl 
-	ld ra 0
-	st assembler_putc newline 
-	eq 0 0 ra del ra lt 0 0 ctnl
 
 at not 
 	ld ra 0
@@ -87,6 +130,7 @@ at si
 	set c0 value del value 
 	eq 0 0 ra del ra
 	lt 0 0 si
+
 
 at sd
 	ld ra 0
@@ -158,11 +202,6 @@ at or    (a = a | b    in 64 bits)
 
 at la
 	ld ra 0
-
-	eq target riscv_arch valid
-		eq 0 0 -1 str "error: la only supports riscv currently" 
-	at valid del valid
-	
 	at pc 
 	set offset c1 
 	sub offset pc 
@@ -179,13 +218,9 @@ the top 20 bits of the immediate too!!)
 
 
 
+
 at li
 	ld ra 0	
-
-	eq target riscv_arch valid
-		eq 0 0 -1 str "error: la only supports riscv currently" 
-	at valid del valid
-
 	set destination c0
 	set immediate c1
 	lt immediate 0000_0000_0000_0000_0000_0000_0000_0000_1 skip_abort
@@ -220,76 +255,15 @@ at li
 
 at exit
 	ld ra 0
-
-	eq target riscv_arch riscv_exit
-	eq target arm64_arch arm64_exit
-	eq 0 0 -1 str "error: exit system only supports riscv and arm64" 
-
-	at arm64_exit 
-	
-		mov a6_number a6_exit 0 mov_type_zero 1
-		mov a6_arg0 c0 0 mov_type_zero 1
-		svc
-
-	eq 0 0 return
-	at riscv_exit
-
-		ri r_imm r_add r_number 0 r_exit
-		ri r_imm r_add r_arg0 0 c0
-		ri r_ecall 0 0 0 0
-
-	at return
-	del riscv_exit del arm64_exit
+	ri r_imm r_add r_number 0 r_exit
+	ri r_imm r_add r_arg0 0 c0
+	ri r_ecall 0 0 0 0
 	eq 0 0 ra del ra 
 	lt 0 0 exit
 
 
-
-at writestring
-	ld ra 0
-
-	set string c0
-	set length c1
-
-	eq target riscv_arch riscv_writestring
-	eq target arm64_arch arm64_writestring
-
-	eq 0 0 -1 str "error: writestring only supports riscv and arm64"
-
-	at arm64_writestring
-
-		mov a6_number a6_write 0 mov_type_zero 1
-		mov a6_arg0 stdout 0 mov_type_zero 1
-		adr a6_arg1 string 0
-		mov a6_arg2 string.length 0 mov_type_zero 1
-		svc
-	
-	eq 0 0 return
-	at riscv_writestring
-
-		ri r_imm r_add r_number 0 r_write
-		ri r_imm r_add r_arg0 0 stdout
-		set c0 r_arg1 set c1 string la
-		ri r_imm r_add r_arg2 0 length
-		ri r_ecall 0 0 0 0
-	
-	at return
-
-	del riscv_writestring 
-	del arm64_writestring 
-	del string del length
-
-	eq 0 0 ra del ra  lt 0 0 writestring
-
-
-
 at readchar
 	ld ra 0
-
-	eq target riscv_arch valid
-		eq 0 0 -1 str "error: readchar only supports riscv currrently"
-	at valid del valid
-
 	set out c0
 	set copy r_arg3
 	ri r_imm r_add r_number 0 r_read
@@ -317,14 +291,22 @@ at writechar
 
 
 
+at writestring
+	ld ra 0
+	set string c0
+	set length c1
+	ri r_imm r_add r_number 0 r_write
+	ri r_imm r_add r_arg0 0 stdout
+	set c0 r_arg1 set c1 string la
+	ri r_imm r_add r_arg2 0 length
+	ri r_ecall 0 0 0 0
+	eq 0 0 ra del ra 
+	del string del length
+	lt 0 0 writestring
+
 
 at writebuffer 
 	ld ra 0
-
-	eq target riscv_arch valid
-		eq 0 0 -1 str "error: writebuffer only supports riscv currrently"
-	at valid del valid
-
 	set pointer_register c0
 	set length_register c1
 	ri r_imm r_add r_number 0 r_write
@@ -345,17 +327,8 @@ at getstringlength
 	lt 0 0 getstringlength
 
 
-
-
-at printbinary   (note: "buffer" must be present in the executable.)
+at printbinary   (note: buffer[64] must be present in the executable.)
 	ld ra 0
-
-
-	eq target riscv_arch valid
-		eq 0 0 -1 str "error: writebuffer only supports riscv currrently"
-	at valid del valid
-
-
 	set input c0
 	set bit 	r_number
 	set data 	r_arg0
@@ -396,11 +369,6 @@ at printbinary   (note: "buffer" must be present in the executable.)
 
 at readstring
 	ld ra 0
-
-	eq target riscv_arch valid
-		eq 0 0 -1 str "error: writebuffer only supports riscv currrently"
-	at valid del valid
-
 	set string c0
 	set length c1
 	ri r_imm r_add r_number 0 r_read
@@ -415,10 +383,8 @@ at readstring
 
 at stringsequal 
 	ld ra 0
-
-	eq 0 0 allones
+	eq 0 0 1111111111111111111111
 	str 'unimplemented'
-
 	eq 0 0 ra del ra
 
 
@@ -426,14 +392,14 @@ at skip_all_routines del skip_all_routines
 
 
 
-eoi
 
+eoi
 
 a set of utility routines which are useful
 for risc-v programs, and compiletime programs.
-originally written on 1202507292.174513 by dwrr 
+written on 1202507292.174513 by dwrr 
 
-rewritten and made more portable on 1202508037.203119 
+
 
 
 

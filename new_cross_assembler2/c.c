@@ -1,6 +1,6 @@
-// optimizing assembler, revision of the compiler 
-// written on 1202507174.162611 by dwrr
+// simpler cte assembler, written on 1202507174.162611 by dwrr
 // 1202507255.154607 rewritten to use pc-rel offset immediates instead of labels in rt ins.
+// unified target system on 1202508037.194442
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -18,7 +18,6 @@
 #include <sys/stat.h>
 #include <sys/mman.h>
 #include <errno.h>
-
 typedef uint64_t nat;
 typedef uint32_t u32;
 typedef uint16_t u16;
@@ -35,14 +34,7 @@ static nat debug = 0;
 #define max_section_count 	(1 << 7)
 #define max_arg_count		(1 << 3)
 
-enum all_architectures { 
-	no_arch,
-	rv64_arch,
-	rv32_arch,
-	arm64_arch,
-	arm32_arch,
-	msp430_arch
-};
+enum all_architectures { riscv_arch, arm64_arch, msp430_arch };
 
 enum all_output_formats {
 	no_output,
@@ -52,21 +44,21 @@ enum all_output_formats {
 	elf_object,
 	ti_txt_executable,
 	uf2_executable,
-	hex_array
+	hex_array,
+	bin_output,
 };
 enum memory_mapped_addresses {
-	compiler_return_address,
-	compiler_target,
-	compiler_format,
-	compiler_should_overwrite,
-	compiler_should_debug,
-	compiler_stack_size,
-	compiler_pass,
-	compiler_putc
+	return_address,
+	set_output_format,
+	executable_stack_size,
+	uf2_family_id,
+	overwrite_output,
+	assembler_pass,
+	assembler_putc
 };
 
 enum isa {
-	_null___, 
+	unused_ins,
 	zero, incr, set, add, sub, mul, div_, 
 	ld, st, lt, eq, at, emit, sect, 
 	file, del, str, eoi, 
@@ -99,7 +91,7 @@ static const char* operations[isa_count] = {
 };
 
 static const nat arity[isa_count] = {
-	0,	
+	0,
 	1, 1, 2, 2, 2, 2, 2,
 	2, 2, 3, 3, 1, 2, 1, 
 	1, 1, 0, 0, 
@@ -148,7 +140,7 @@ static nat section_count = 0;
 static char* load_file(const char* filename, nat* text_length) {
 	int file = open(filename, O_RDONLY);
 	if (file < 0) { 
-		printf("compiler: \033[31;1merror:\033[0m could not open '%s': %s\n", 
+		printf("assembler: \033[31;1merror:\033[0m could not open '%s': %s\n", 
 			filename, strerror(errno)
 		); 
 		exit(1);
@@ -384,14 +376,68 @@ static nat get_length(struct instruction new) {
 	return length;
 }
 
+static void cte_debugger(
+	nat pc, nat pass, 
+	nat rt_ins_count, 
+	struct instruction* rt_ins,
+	nat* memory
+) {
+
+	print_instruction_window_around(pc, 0, "");
+	printf("\033[32;1m [ PASS = %llu ] \033[0m \n", pass);
+
+read_loop: 
+	printf("[%llu]:ready: ", pass); 
+	fflush(stdout);
+
+	char input[256] = {0}; 
+	read(0, input, sizeof input);
+
+	if (not strcmp(input, "\n")) goto done;
+
+	else if (not strcmp(input, ":this\n")) {
+		print_instruction(ins[pc]); 
+		puts("");
+
+	} else if (not strcmp(input, ":dictionary\n")) {
+		print_dictionary(); 
+		puts("");
+
+	} else if (not strcmp(input, ":list\n")) {
+		for (nat i = 0; i < rt_ins_count; i++) {
+			putchar(9); 
+			print_instruction(rt_ins[i]); 
+			puts("");
+		}
+
+	} else if (not strcmp(input, ":memory\n")) {
+		dump_hex((uint8_t*) memory, 256);
+
+	} else {
+		if (strlen(input)) input[strlen(input) - 1] = 0;
+		for (nat i = 0; i < var_count; i++) {
+			if (strcmp(variables[i], input)) continue;
+			printf("[0x%5llx/%5lld]:%lld:"
+				"%24s:%016llx(%4lld)\n",
+				i, i, is_undefined[i], 
+				variables[i], values[i], 
+				values[i]
+			);
+		}
+	}
+	goto read_loop; 
+done:
+	return;
+}
+
 int main(int argc, const char** argv) {
-	if (argc != 2) exit(puts("error: exactly one source file must be specified."));
-	
+	if (argc != 2) exit(puts("error: exactly one source file must be specified."));	
 	const nat min_stack_size = 16384 + 1;
-	nat target_arch = no_arch;
+	nat target_arch = (nat) -1;
 	nat output_format = no_output;
 	nat should_overwrite = false;
 	nat stack_size = min_stack_size;
+	nat family_id = 0xE48BFF5A;
 
 { 	struct file files[max_file_count] = {0};
 	nat file_count = 1;
@@ -557,54 +603,16 @@ process_file:;
 		puts("parsing finished.");
 		getchar();
 	}
-
+	
 	{ nat memory[max_memory_size] = {0};
 	struct instruction* rt_ins = calloc(max_instruction_count, sizeof(struct instruction));
 	nat rt_ins_count = 0, total_byte_count = 0;
-
 	for (nat pass = 0; pass < 2; pass++) {
-
-	memory[compiler_pass] = pass;
+	memory[assembler_pass] = pass;
 	if (pass == 1) { rt_ins_count = 0; total_byte_count = 0; } 
-
 	for (nat pc = 0; pc < ins_count; pc++) {
 		nat op = ins[pc].op, imm = ins[pc].imm;
-
-		if (memory[compiler_should_debug]) {
-			print_instruction_window_around(pc, 0, "");
-			printf("\033[32;1m [ PASS = %llu ] \033[0m \n", pass);			
-			read_loop: 
-			printf("[%llu]:ready: ", pass); fflush(stdout);
-			char input[256] = {0}; 
-			read(0, input, sizeof input);
-			if (not strcmp(input, "\n")) goto done_read_loop;
-			else if (not strcmp(input, ":this\n")) {
-				print_instruction(ins[pc]); puts("");
-			} else if (not strcmp(input, ":dictionary\n")) {
-				print_dictionary(); puts("");
-			} else if (not strcmp(input, ":list\n")) {
-				for (nat i = 0; i < rt_ins_count; i++) {
-					putchar(9); 
-					print_instruction(rt_ins[i]); 
-					puts("");
-				}
-			} else if (not strcmp(input, ":memory\n")) {
-				dump_hex((uint8_t*) memory, 256);
-			} else {
-				if (strlen(input)) input[strlen(input) - 1] = 0;
-				for (nat i = 0; i < var_count; i++) {
-					if (strcmp(variables[i], input)) continue;
-					printf("[0x%5llx/%5lld]:%lld:"
-						"%24s:%016llx(%4lld)\n",
-						i, i, is_undefined[i], 
-						variables[i], values[i], 
-						values[i]
-					);
-				}
-			}
-			goto read_loop; 
-			done_read_loop:;
-		}
+		if (debug) cte_debugger(pc, pass, rt_ins_count, rt_ins, memory);
 		nat arg0 = ins[pc].args[0];
 		nat arg1 = ins[pc].args[1];
 		nat arg2 = ins[pc].args[2];
@@ -619,13 +627,19 @@ process_file:;
 		}
 
 		if (op == st and val0 >= max_memory_size) {
-			printf("error: at pc %llu invalid address given to store to compiletime memory: 0x%016llx\n", pc, val0);
+			printf("error: at pc %llu invalid address given to "
+				"store to compiletime memory: 0x%016llx\n", 
+				pc, val0
+			);
 			print_instruction_window_around(pc, 1, "error");
 			abort();
 		}
 
 		if (op == ld and val1 >= max_memory_size) {
-			printf("error: at pc %llu invalid address given to load from compiletime memory: 0x%016llx\n", pc, val1);
+			printf("error: at pc %llu invalid address given to "
+				"load from compiletime memory: 0x%016llx\n", 
+				pc, val1
+			);
 			print_instruction_window_around(pc, 1, "error");
 			abort();
 		}
@@ -668,31 +682,45 @@ process_file:;
 			); 
 			abort(); 
 		}
-		if (op == st and val0 == compiler_putc) { char c = (char) val1; write(1, &c, 1); } 
+		if (op == st and val0 == assembler_putc) { char c = (char) val1; write(1, &c, 1); } 
 	}}
 
 	memcpy(ins, rt_ins, rt_ins_count * sizeof(struct instruction));
 	ins_count = rt_ins_count;
 	for (nat i = 0; i < ins_count; i++) ins[i].imm = (nat) -1;
 
-	target_arch = memory[compiler_target];
-	output_format = memory[compiler_format];
-	should_overwrite = memory[compiler_should_overwrite];
-	stack_size = memory[compiler_stack_size]; }
+	output_format = memory[set_output_format];
+	family_id = memory[uf2_family_id];
+	should_overwrite = memory[overwrite_output];
+	stack_size = memory[executable_stack_size]; }
 
-	if (target_arch == no_arch and not ins_count) exit(0);
-	if (target_arch == no_arch and ins_count) {
-		puts("error: target architecture no_arch was specified, but encountered runtime instructions");
+	for (nat i = 0; i < ins_count; i++) {
+		const nat op = ins[i].op;
+		if (target_arch == (nat) -1) {
+			if (op >= rr and op <= rj) target_arch = riscv_arch;
+			else if (op >= mo and op <= mb) target_arch = msp430_arch;
+			else if (op >= nop and op <= divr) target_arch = arm64_arch;
+		} else {
+			if (op >= rr and op <= rj and target_arch != riscv_arch) goto mixed_target_error;
+			else if (op >= mo and op <= mb and target_arch != msp430_arch) goto mixed_target_error;
+			else if (op >= nop and op <= divr and target_arch != arm64_arch) goto mixed_target_error;
+		} 
+		continue;
+
+	mixed_target_error:
+		printf("error: mixed-target instruction encountered: "
+			"[target = %s]\n", 
+			target_arch == riscv_arch ? "riscv_arch" : 
+			target_arch == msp430_arch ? "msp430_arch" : 
+			target_arch == arm64_arch ? "arm64_arch" : "unknown"
+		); 
+		print_instruction_window_around(i, 1, "");
 		abort();
-	}
+	}	
 
-	if (target_arch == msp430_arch and stack_size) { 
-		puts("error: nonzero stack size for msp430 is not permitted"); 
-		abort();
-
-	} else if (target_arch == arm64_arch and stack_size < min_stack_size) {
+	if (not ins_count) exit(0);
+	if (target_arch == arm64_arch and stack_size < min_stack_size) 
 		puts("warning: stack size less than the minimum size for arm64");
-	}
 
 	if (debug) {
 		print_dictionary();
@@ -711,13 +739,12 @@ process_file:;
 	uint8_t* my_bytes = NULL;
 	nat my_count = 0;
 
-	if (target_arch == rv32_arch) goto rv32_generate_machine_code;
-	if (target_arch == rv64_arch) goto rv32_generate_machine_code;
+	if (target_arch == riscv_arch) goto riscv_generate_machine_code;
 	if (target_arch == arm64_arch) goto arm64_generate_machine_code;
 	if (target_arch == msp430_arch) goto msp430_generate_machine_code;
 	puts("unknown target architecture"); abort();
 
-rv32_generate_machine_code:;
+riscv_generate_machine_code:;
 	for (nat i = 0; i < ins_count; i++) {
 
 		if (debug) {
@@ -1699,25 +1726,22 @@ generate_ti_txt_executable:;
 
 generate_uf2_executable:;
 
-	{ printf("section_starts: "); print_nats(section_starts, section_count); puts("");
-	printf("section_addresses: "); print_nats(section_addresses, section_count); puts("");
-	const nat starting_address = section_addresses[0]; 
+	{ const nat starting_address = section_addresses[0];
 	printf("info: starting UF2 file at address: %08llx\n", starting_address);
 	while (my_count % 256) insert_byte(&my_bytes, &my_count, 0);
 	const nat block_count = my_count / 256;
-	uint8_t* data = NULL;
-	nat count = 0;	
-	nat current_offset = 0;
+	byte* data = NULL;
+	nat count = 0, current_offset = 0;
 
 	for (nat block = 0; block < block_count; block++) {
 		insert_u32(&data, &count, 0x0A324655);
 		insert_u32(&data, &count, 0x9E5D5157);
 		insert_u32(&data, &count, 0x00002000);
-		insert_u32(&data, &count, (uint32_t) (starting_address + current_offset));
+		insert_u32(&data, &count, (u32) (starting_address + current_offset));
 		insert_u32(&data, &count, 256); 
-		insert_u32(&data, &count, (uint32_t) block); 
-		insert_u32(&data, &count, (uint32_t) block_count); 
-		insert_u32(&data, &count, 0xE48BFF5A); // rp2350-riscv family ID. 
+		insert_u32(&data, &count, (u32) block); 
+		insert_u32(&data, &count, (u32) block_count); 
+		insert_u32(&data, &count, (u32) family_id); // rp2350-riscv family ID. 
 		for (nat i = 0; i < 256; i++) 
 			insert_byte(&data, &count, my_bytes[current_offset + i]);
 		for (nat i = 0; i < 476 - 256; i++) insert_byte(&data, &count, 0);
