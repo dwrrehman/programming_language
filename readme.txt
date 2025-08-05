@@ -411,7 +411,7 @@ compiletime system:
 
 
 ---------------------------------------------------------
-rv32/rv64:
+risc-v:
 ---------------------------------------------------------
 
 
@@ -421,37 +421,72 @@ rv32/rv64:
 
 
 ---------------------------------------------------------
-	rr
+	rr op.7 funct3.3 destination.5
+		source1.5 source2.5 funct7.7
+---------------------------------------------------------
+	
+	work in progress still!
+
+	register-register operation instruction.
+
+
+	if op == XXXXX and funct3 == XXX
+	and funct7 == 0, then destination
+	is loaded with source1 + source2.
+
+	if op == XXXXX and funct3 == XXX
+	and funct7 == XXXXXXX, then destination 
+	is loaded with source1 - source2.
+
+
+
+	if op == XXXXX and funct3 == XXX
+	and funct7 == XXXXXXX, then destination 
+	is loaded with source1 bitwise AND'd 
+	with source2.
+
+	if op == XXXXX and funct3 == XXX
+	and funct7 == XXXXXXX, then destination 
+	is loaded with source1 bitwise OR'd 
+	with source2.
+
+	if op == XXXXX and funct3 == XXX
+	and funct7 == XXXXXXX, then destination
+	is loaded with source1 bitwise
+	exclusive OR'd with source2.
+
+
+
+
+
+---------------------------------------------------------
+	ri op.7 funct.3 destination.5 
+		source1.5 immediate.12
 ---------------------------------------------------------
 	undocumented so far
 
 
 ---------------------------------------------------------
-	ri
+	rs op.7 funct.3 address.5 
+		source.5 immediate.12
 ---------------------------------------------------------
 	undocumented so far
 
 
 ---------------------------------------------------------
-	rs
+	rb op.7 condition.3 source1.5 source2.5 label.12
 ---------------------------------------------------------
 	undocumented so far
 
 
 ---------------------------------------------------------
-	rb
+	ru op.7 destination.5 immediate.20
 ---------------------------------------------------------
 	undocumented so far
 
 
 ---------------------------------------------------------
-	ru
----------------------------------------------------------
-	undocumented so far
-
-
----------------------------------------------------------
-	rj
+	rj op.7 destination.5 label.20
 ---------------------------------------------------------
 	undocumented so far
 

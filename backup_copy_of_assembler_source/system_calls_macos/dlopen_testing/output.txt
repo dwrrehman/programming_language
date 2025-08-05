@@ -1,0 +1,137 @@
+c.o:
+Mach header
+      magic  cputype cpusubtype  caps    filetype ncmds sizeofcmds      flags
+MH_MAGIC_64    ARM64        ALL  0x00      OBJECT     5        456 SUBSECTIONS_VIA_SYMBOLS
+Load command 0
+      cmd LC_SEGMENT_64
+  cmdsize 312
+  segname 
+   vmaddr 0x0000000000000000
+   vmsize 0x0000000000000060
+  fileoff 488
+ filesize 96
+  maxprot rwx
+ initprot rwx
+   nsects 3
+    flags (none)
+Section
+  sectname __text
+   segname __TEXT
+      addr 0x0000000000000000
+      size 0x0000000000000034
+    offset 488
+     align 2^2 (4)
+    reloff 584
+    nreloc 5
+      type S_REGULAR
+attributes PURE_INSTRUCTIONS SOME_INSTRUCTIONS
+ reserved1 0
+ reserved2 0
+Section
+  sectname __cstring
+   segname __TEXT
+      addr 0x0000000000000034
+      size 0x000000000000000b
+    offset 540
+     align 2^0 (1)
+    reloff 0
+    nreloc 0
+      type S_CSTRING_LITERALS
+attributes (none)
+ reserved1 0
+ reserved2 0
+Section
+  sectname __compact_unwind
+   segname __LD
+      addr 0x0000000000000040
+      size 0x0000000000000020
+    offset 552
+     align 2^3 (8)
+    reloff 624
+    nreloc 1
+      type S_REGULAR
+attributes DEBUG
+ reserved1 0
+ reserved2 0
+Load command 1
+      cmd LC_BUILD_VERSION
+  cmdsize 24
+ platform MACOS
+    minos 13.0
+      sdk 13.3
+   ntools 0
+Load command 2
+      cmd LC_LINKER_OPTIMIZATION_HINT
+  cmdsize 16
+  dataoff 632
+ datasize 8
+Load command 3
+     cmd LC_SYMTAB
+ cmdsize 24
+  symoff 640
+   nsyms 7
+  stroff 752
+ strsize 48
+Load command 4
+            cmd LC_DYSYMTAB
+        cmdsize 80
+      ilocalsym 0
+      nlocalsym 5
+     iextdefsym 5
+     nextdefsym 1
+      iundefsym 6
+      nundefsym 1
+         tocoff 0
+           ntoc 0
+      modtaboff 0
+        nmodtab 0
+   extrefsymoff 0
+    nextrefsyms 0
+ indirectsymoff 0
+  nindirectsyms 0
+      extreloff 0
+        nextrel 0
+      locreloff 0
+        nlocrel 0
+Table of contents (0 entries)
+module name      symbol name
+Module table (0 entries)
+Reference table (0 entries)
+Two-level namespace hints table (0 hints)
+index  isub  itoc
+Linker optimiztion hints (8 total bytes)
+    identifier 7 AdrpAdd
+    narguments 2
+	value 0x1c
+	value 0x20
+    identifier 7 AdrpAdd
+    narguments 2
+	value 0x8
+	value 0xc
+Data in code table (0 entries)
+offset     length kind
+Relocation information (__TEXT,__text) 5 entries
+address  pcrel length extern type    scattered symbolnum/value
+00000020 False long   True   PAGOF12 False     l_.str.1
+0000001c True  long   True   PAGE21  False     l_.str.1
+00000014 True  long   True   BR26    False     _dlsym
+0000000c False long   True   PAGOF12 False     l_.str
+00000008 True  long   True   PAGE21  False     l_.str
+Relocation information (__LD,__compact_unwind) 1 entries
+address  pcrel length extern type    scattered symbolnum/value
+00000000 False quad   False  UNSIGND False     1 (__TEXT,__text)
+(__TEXT,__text) section
+_main:
+0000000000000000	a9bf7bfd	stp	x29, x30, [sp, #-0x10]!
+0000000000000004	910003fd	mov	x29, sp
+0000000000000008	90000001	adrp	x1, l_.str@PAGE
+000000000000000c	91000021	add	x1, x1, l_.str@PAGEOFF
+0000000000000010	92800020	mov	x0, #-0x2
+0000000000000014	94000000	bl	_dlsym
+0000000000000018	aa0003e8	mov	x8, x0
+000000000000001c	90000000	adrp	x0, l_.str.1@PAGE
+0000000000000020	91000000	add	x0, x0, l_.str.1@PAGEOFF
+0000000000000024	d63f0100	blr	x8
+0000000000000028	52800000	mov	w0, #0x0
+000000000000002c	a8c17bfd	ldp	x29, x30, [sp], #0x10
+0000000000000030	d65f03c0	ret

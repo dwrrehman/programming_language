@@ -1,0 +1,73 @@
+1202507255.031805
+
+
+	we need to    revise label offset computation    to allow math on labels!!!
+
+
+
+basically, if you ever want to add an offset afterrr a given label,   to get a new pc rel offset.. we cant do that currently.. 
+
+
+hmmm
+
+
+
+
+
+
+
+
+
+
+
+
+
+1202507255.154350
+
+heres the solution i came up with!!  this morning, while waking up:
+
+
+
+
+202507255.150429:
+this morning while waking up i heard a piece in my head, or in my dreams that i wanted to write down, and i think i got written all the parts i thought of! all by ear, no touching the keyboard, only using my relative ear! wrote on score paper i had laying around. i'm really curious what it sounds like! it's for piano and soprano! 
+
+and then now i am thinking through how i might redo the label system in the assembler to allow you to put pc relative offsets directly if you want to lol. the main problem is that i want to be able to do math on the of relative offset, like any other ct variables, but because we are modeling a label position as something not known until after CTE, (because it isn't known until after we finish generating the instructions...) then therefore ther needs to be two levels of computation. one for cte arithmetic, then another for branch arithmetic...
+
+i think the best way i can imagine doing this, is to make a load instruction which performs the label pc rel offset calculation code, and then the cringey part is that this instruction takes an immediate argument too..? hmmm yikes.. basically, im quite sure we need provide an immediate along side a label that is usually zero, that we can give as a nonzero value when we want to. this feels so complex though.. :/ hmmmm 
+
+so first off.. i don't even know that we want to use at label instructions..? 
+
+because like technically, if we just did the cte math to manipulate our  pc rel offset directly, then we won't even need the del cte code!!  maybe we go with that!!! that allows for more control, i think!!?  the only thing now is that we need a way of making code able to get the difference between two labels?.. hmmmm idk. that should be doable just by subtracting the labels though? 
+then, to account for cte generation  i think we can just have a check of the current rt ins count!! 
+we'll see how it works lol. 
+
+oh except for forward branches... that doesn't work. crap. oof it wasn't for forwards branches, then we could do this using pc rel offsets. 
+
+no, yeah we need to use the   label + immediate approach.... dang. it's just required. that's dumb lol..
+
+WAIT A GOSH DARN SECOND
+
+
+no
+
+we can do this!!! we just need to store the computed value as a 64 bit nat which has the top half containing a 32 bit pc rel addition immediate, and then bottom 32 bits containing a level reference!! 
+and then we just need to detect if the at instruction has already been encountered!! 
+if so, then it's a backwards branch, and trivial, and if not, then we'll store the label reference, and fix it up later!!! before code gen lol. nice! then we just need rt "at" instructions to store their value as a rt ins count. then we read that after!!  nice!!  
+
+so we can do this in basically two (one and a half ish) passes!! embedding p.r.o data for all backwards branches! and embedding the pro addition data, for forwards branches!! and the label index for those too. 
+
+wow this could actually work!!! treating backwards and forwards branches so differently is such a cool idea!! i love it lol. it also means we should easily be able to put a literal in for a bel now, and have it mean the actual offfset now!! cool lol: 
+
+
+
+
+
+
+
+
+
+
+
+
+

@@ -1,0 +1,199 @@
+// current state:  we are looking at the parser, and realized that we need   rtat?  maybeee????
+
+
+
+
+
+
+
+/*
+
+1202507174.221709
+
+we need to sort out exactly how labels will work in this language. 
+
+	first, i feel like we should just get   compiletime arguments working perfectly, 
+
+	because really, the only difference between    labels   and pc rel offsets  
+
+			is the branch offset calculation, which we can just expose to the programmer, to allow them to use it in anyway they see fit! 
+
+
+	basically, you'll compute the appropriate pc-rel offset, 
+
+		ie, you pretty much have fullllll control over the actual data that is stored in that immediate possition, 
+
+			meaning that generation of the machine code doesnt even really need to deal or now about that logic. it can just emit each immediate argument  one by one    simply    
+			
+
+		and then user level code needs to handle the computations involved in taking a label, and turning it into a compiletime argument lol. 
+
+
+			and for that, we are going to use the fact that 
+
+
+				first of all,  we are      NOT     going to emit any   rt_at  statements. 
+
+				instead, we are going to consider  "at"      FULLYYYY CT. 
+
+										
+
+				ANDDD that even simplifies the mental model about the branches, because now, we can just consider the pc rel offsets    in actual instructions! not generated instructionssss
+
+
+
+						which 
+
+			hm
+
+				yeah i mean
+				actually wait is  this   a dumb idea to do lol 
+
+
+
+				because now  generated instructions don't work 
+
+
+			or like, i mean, branching over a sequence of generated instructions lolll 
+
+
+
+				ie, to calculate the branch offsets, we need to      firsttt generate the instructions??
+
+
+					CRAP
+
+
+
+
+
+	hmm 
+
+	okay nevermind uhh
+
+
+	hmmmmmm crapppp
+
+
+
+this just got wayyy harderrr than i thought it would be loll
+
+
+
+
+
+
+i feeelllllll like we mightttttt need the    rt_at   mechanism idk hmm
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+1202507185.015937
+
+	so after some thought, i think the only possible solution is to store the reference to the labels in the instruction, and populate the  PRO (pc-relative offset)  during code gen    using the calculate_offset   instructin. we can't really provide a user level way of doing that lol. if you want offset level control, then you should just use emit lol. 
+
+		so yeah. using instructions allows you to do use PRO's   in a way that is nice 
+
+					....oh, and finally,   then we just note in the parser whether a given variable has been used as the branch label destination for a  CT LT or CT EQ or CT DO.   thennnn we know it musttt be a CT label. 
+
+	
+
+
+		the problem with allowing the user to manually specify PROs   is that    ct execution happens 
+
+			and completely changes up what those PROs would validly be. 
+
+
+				...at least, i think they do lol. 
+
+
+
+					we could try to adjust for that, but i feel like thats basically futile lol. 
+
+
+
+					hmm
+
+			yeah, because like, all branches need to know how many instructions are between you and the destination pc address, 
+
+
+							AFTERRR CTE       we only care about the number of instructions AFTERRR cte lol 
+
+
+
+
+								and like,    yeah the user doesnt reallyyyy want to be knowing that information, becuase it would involve them  mentally running their CTE program  to just obtain a single number, which is the number of instructions between the jump and the destination pc  address lol. 
+
+
+
+						so yeah, pretty interestingg
+
+
+
+
+basically we just need a thing that doesnt move as a result of cte    as our branch information. because    
+
+		if you think about it, 
+
+			generating runtime instructions is kind of a form of      editing the code lol 
+
+				like,   basically lol        cte execution can result in   large portions of code being deleted, right, so yeah it is a modification process lol 
+
+
+				and whenver you edit   PRO (pc rel offset)     code      
+							code that uses pc rel offsets,      it ends poorly lol 
+
+
+
+								it just takes a crappp ton of changes to make that edit lol 
+
+
+
+								thats the wholeeeee reason we use labels in the first place  lol
+
+
+								its becuase they don't move    when edits happen lol 
+
+
+
+		but now, we  just need to know    when do we generate labels,  and it sounds like we also have that one covered i thinkk 
+
+	so yeah  			just by looking at labels used in ct branches, while we are parsing the code lol 
+					so yah cool! lets implement this lol. we'll probably need the   del system, as well, to play into this, but we'll cross that bridge when we get there lollll
+
+lets try to implement this!  :)
+
+
+
+
+
+
+
+
+
+
+					
+
+*/
+
+
+
+
+
+
+
+
+
+
+
+

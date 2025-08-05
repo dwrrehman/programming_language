@@ -1,52 +1,6 @@
 // simpler cte assembler, written on 1202507174.162611 by dwrr
 // 1202507255.154607 rewritten to use pc-rel offset immediates instead of labels in rt ins.
 // unified target system on 1202508037.194442
-
-
-/*	1202508052.033642
-	todo:
-
-	risc-v isa:
-
-		- switch the arguments source2.5 and immediate.12 in the "rs" instruction.
-			make the immediate be close to the source1 (the address)!!!!
-			this helps with readability more.
-
-
-	arm64 isa:
-
-		- Q: can the arm64 encoding listing be simplified?..
-
-
-	risc-v compressed extension:
-
-		- add C extension to risc-v backend of this assembler!
-		- - after that:  edit the disassembler to take into account  the C extension
-		- - after that:  edit the virtual machine to take into account  the C extension
-
-
-	assembler printing errors:
-
-		- add more error checking on the arguments for msp430 and arm64 instructions. 
-	
-		- completely overhaul how errors are printed:
-
-			1. store fileoffset information per argument and opcode for each instruction.
-
-			2. print out errors using a new function, which knows how to 
-				map a argument index and instruction index to a fileoffset, 
-				and print out the source code surrounding the bug in a very readable way. 
-					handle tabs and line wrappings, fix the output line length to 50 characters, 
-
-			3. make the assembler's errors extremely descriptive, for every error: 
-				show the values involved, have a dynamic way of giving multiple values 
-				to this error function. this function also exit(1)'s on error. 
-
-
-
-
-*/
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
