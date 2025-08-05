@@ -14,25 +14,26 @@ incr x set msp430_arch x
 incr x set arm64_arch x 
 
 zero x set no_output x
-incr x set macho_executable x 
-incr x set macho_object x 
-incr x set elf_executable x 
-incr x set elf_object x 
-incr x set ti_txt_executable x 
-incr x set uf2_executable x 
-incr x set hex_array x 
 incr x set bin_output x
+incr x set hex_array x
+incr x set macho_executable x
+incr x set macho_object x
+incr x set elf_executable x
+incr x set elf_object x
+incr x set ti_txt_executable x
+incr x set uf2_executable x
 
 zero x set return_address x
-incr x set set_output_format x 
+incr x set output_format x 
 incr x set executable_stack_size x 
 incr x set uf2_family_id x 
 incr x set overwrite_output x 
 incr x set assembler_pass x 
 incr x set assembler_putc x 
 
-
 del x
+
+
 
 
 (risc-v op codes)
@@ -124,8 +125,9 @@ set r_write 11
 
 
 
+(macos specific, for macho files lol)
 
-
+set min_stack_size_macos 1000_0000_0000_001
 
 
 
@@ -138,8 +140,11 @@ set mov_type_zero 01
 
 (arm64 hardware registers)
 
-set a6_zero_reg 11111
-set a6_link_reg 01111
+
+set a6_link 01111
+
+set a6_sp 11111
+set a6_zero 11111
 
 
 
@@ -159,6 +164,31 @@ set a6_fork 01
 set a6_read 11
 set a6_write 001
 
+
+
+
+(conditions for bc branches and ccmp)
+
+
+set cond_always 0111
+set cond_never 1111
+
+set is_equal 0
+set is_not_equal 1
+set is_negative 001
+set is_nonnegative 101
+set has_overflow_set 011
+set has_overflow_clear 111
+		
+set is_signed_less 1101
+set is_signed_greater 0011
+set is_signed_less_or_equal 1011
+set is_signed_greater_or_equal 0101
+			
+set is_unsigned_less 11
+set is_unsigned_greater 0001
+set is_unsigned_less_or_equal 1001
+set is_unsigned_greater_or_equal 01
 
 
 

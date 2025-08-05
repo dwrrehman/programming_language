@@ -49,7 +49,7 @@ enum all_output_formats {
 };
 enum memory_mapped_addresses {
 	return_address,
-	set_output_format,
+	output_format,
 	executable_stack_size,
 	uf2_family_id,
 	overwrite_output,
@@ -123,7 +123,7 @@ struct file {
 static const char* output_filename = "output_from_assembler";
 
 static nat target_arch = (nat) -1;
-static nat output_format = no_output;
+static nat format = no_output;
 static nat should_overwrite = false;
 static nat stack_size = min_stack_size;
 static nat family_id = 0xE48BFF5A; // rp2350-riscv family ID, by default
@@ -441,20 +441,25 @@ static void print_disassembly(void) {
 static void write_output(byte* string, nat count) {
 
 	if (not access(output_filename, F_OK)) {
-		printf("file exists. do you wish to remove the previous one? (y/n) ");
-		fflush(stdout);
+
+		if (not should_overwrite) {
+			printf("warning: file exists. do you wish to remove the previous one? (y/n) ");
+			fflush(stdout);
+		}
+
 		if (should_overwrite or getchar() == 'y') {
-			printf("file %s was removed.\n", output_filename);
+			if (not should_overwrite) 
+				printf("info: file %s was removed\n", output_filename);
 			int r = remove(output_filename);
 			if (r < 0) { perror("remove"); exit(1); }
 		} else {
-			puts("not removed, compilation aborted.");
+			puts("info: file not removed, assembly process aborted.");
 		}
 	}
 	int file = open(
 		output_filename, 
 		O_WRONLY | O_CREAT | O_EXCL,
-		output_format == macho_executable ? 0777 : 0666
+		format == macho_executable ? 0777 : 0666
 	);
 	if (file < 0) { 
 		perror("open: could not create output file"); 
@@ -462,7 +467,12 @@ static void write_output(byte* string, nat count) {
 	}
 	write(file, string, count);
 	close(file); 
-	printf("write_output: wrote %llu bytes to file %s.\n", output_count, output_filename);
+
+	if (debug) {
+		printf("debug: write_output: wrote %llu bytes to file %s.\n", 
+			output_count, output_filename
+		);
+	}
 }
 
 int main(int argc, const char** argv) {
@@ -720,7 +730,7 @@ process_file:;
 	memcpy(ins, rt_ins, rt_ins_count * sizeof(struct instruction));
 	ins_count = rt_ins_count;
 	for (nat i = 0; i < ins_count; i++) ins[i].imm = (nat) -1;
-	output_format = memory[set_output_format];
+	format = memory[output_format];
 	family_id = memory[uf2_family_id];
 	should_overwrite = memory[overwrite_output];
 	stack_size = memory[executable_stack_size]; }
@@ -729,10 +739,11 @@ process_file:;
 
 
 	if (not ins_count) exit(0);
-	if (target_arch == arm64_arch and stack_size < min_stack_size) 
-		puts("warning: stack size less than the minimum size for arm64");
-
-	if (output_format == uf2_executable) output_filename = "output_from_assembler.uf2";
+	if (target_arch == arm64_arch and stack_size < min_stack_size) {
+		puts("warning: stack size less than the minimum size for arm64, setting to minimum stack size.");
+		stack_size = min_stack_size;
+	}
+	if (format == uf2_executable) output_filename = "output_from_assembler.uf2";
 
 	if (debug) {
 		print_dictionary();
@@ -828,13 +839,13 @@ riscv_generate_machine_code:;
 
 			insert_u32((u32) word);
 
-		} else if (op == rr) {	
-			if (a0 >= (1LLU << 7LLU)) { puts("error"); abort(); } 
-			if (a1 >= (1LLU << 3LLU)) { puts("error"); abort(); } 
-			if (a2 >= (1LLU << 5LLU)) { puts("error"); abort(); } 
-			if (a3 >= (1LLU << 5LLU)) { puts("error"); abort(); } 
-			if (a4 >= (1LLU << 5LLU)) { puts("error"); abort(); } 
-			if (a5 >= (1LLU << 7LLU)) { puts("error"); abort(); } 
+		} else if (op == rr) {
+			if (a0 >= (1LLU << 7LLU)) { puts("rr error"); abort(); } 
+			if (a1 >= (1LLU << 3LLU)) { puts("rr error"); abort(); } 
+			if (a2 >= (1LLU << 5LLU)) { puts("rr error"); abort(); } 
+			if (a3 >= (1LLU << 5LLU)) { puts("rr error"); abort(); } 
+			if (a4 >= (1LLU << 5LLU)) { puts("rr error"); abort(); } 
+			if (a5 >= (1LLU << 7LLU)) { puts("rr error"); abort(); } 
 
 			const nat word = 
 				(a5 << 25U) | 
@@ -847,17 +858,11 @@ riscv_generate_machine_code:;
 
 		} else if (op == rs) {
 
-			if (a0 >= (1LLU << 7LLU)) { puts("error"); abort(); } 
-			if (a1 >= (1LLU << 3LLU)) { puts("error"); abort(); } 
-			if (a2 >= (1LLU << 5LLU)) { puts("error"); abort(); } 
-			if (a3 >= (1LLU << 5LLU)) { puts("error"); abort(); } 
-			if (a4 >= (1LLU << 12LLU)) { puts("error"); abort(); } 
-
-			/*nat k = a4;
-			if (k & is_label) {
-				const nat im = calculate_offset(lengths, i - 1, k) & 0xffff; // TODO: error???
-				k = im;
-			} puts("fix me"); abort(); */
+			if (a0 >= (1LLU << 7LLU)) { puts("rs error"); abort(); } 
+			if (a1 >= (1LLU << 3LLU)) { puts("rs error"); abort(); } 
+			if (a2 >= (1LLU << 5LLU)) { puts("rs error"); abort(); } 
+			if (a3 >= (1LLU << 5LLU)) { puts("rs error"); abort(); } 
+			if (a4 >= (1LLU << 12LLU)) { puts("rs error"); abort(); } 
 
 			const nat word = 
 				(((a4 >> 5) & 0x3f) << 25U) | 
@@ -870,9 +875,9 @@ riscv_generate_machine_code:;
 
 		} else if (op == ru) {
 
-			if (a0 >= (1LLU << 7LLU)) { puts("error"); abort(); } 
-			if (a1 >= (1LLU << 5LLU)) { puts("error"); abort(); } 
-			if (a2 >= (1LLU << 20LLU)) { puts("error"); abort(); } 
+			if (a0 >= (1LLU << 7LLU)) { puts("ru error"); abort(); } 
+			if (a1 >= (1LLU << 5LLU)) { puts("ru error"); abort(); } 
+			if (a2 >= (1LLU << 20LLU)) { puts("ru error"); abort(); } 
 			
 			nat im = (a2 << 12) & 0xFFFFF000;
 			const nat word =
@@ -883,11 +888,11 @@ riscv_generate_machine_code:;
 
 		} else if (op == rb) {
 
-			if (a0 >= (1LLU << 7LLU)) { puts("error"); abort(); } 
-			if (a1 >= (1LLU << 3LLU)) { puts("error"); abort(); } 
-			if (a2 >= (1LLU << 5LLU)) { puts("error"); abort(); } 
-			if (a3 >= (1LLU << 5LLU)) { puts("error"); abort(); } 
-			if (a4 >= (1LLU << 12LLU)) { puts("error"); abort(); } 
+			if (a0 >= (1LLU << 7LLU)) { puts("rb error"); abort(); } 
+			if (a1 >= (1LLU << 3LLU)) { puts("rb error"); abort(); } 
+			if (a2 >= (1LLU << 5LLU)) { puts("rb error"); abort(); } 
+			if (a3 >= (1LLU << 5LLU)) { puts("rb error"); abort(); } 
+			if (a4 >= (1LLU << 12LLU)) { puts("rb error"); abort(); } 
 			
 			nat im = (a4 - output_count) & 0x1fff;
 			const nat bit4_1  = (im >> 1) & 0xF;
@@ -908,9 +913,9 @@ riscv_generate_machine_code:;
 
 		} else if (op == rj) {
 
-			if (a0 >= (1LLU << 7LLU)) { puts("error"); abort(); } 
-			if (a1 >= (1LLU << 5LLU)) { puts("error"); abort(); } 
-			if (a2 >= (1LLU << 21LLU)) { puts("error"); abort(); } // TODO: this check isnt pc-relative...
+			if (a0 >= (1LLU << 7LLU)) { puts("rj error"); abort(); } 
+			if (a1 >= (1LLU << 5LLU)) { puts("rj error"); abort(); } 
+			if (a2 >= (1LLU << 21LLU)) { puts("rj error"); abort(); } // TODO: this check isnt pc-relative...
 
 			nat im = (a2 - output_count) & 0x1fffff;			
 
@@ -1076,18 +1081,23 @@ arm64_generate_machine_code:;
 			insert_u32((u32) word);
 
 		} else if (op == mov) {
+			if (a4 >= (1LLU << 1LLU)) { puts("mov a4 error"); print_instruction_window_around(i, 1, ""); abort(); }
+			if (a3 >= (1LLU << 2LLU)) { puts("mov a3 error"); print_instruction_window_around(i, 1, ""); abort(); }
+			if (a2 >= (1LLU << 2LLU)) { puts("mov a2 error"); print_instruction_window_around(i, 1, ""); abort(); }
+			if (a1 >= (1LLU << 16LLU)) { puts("mov a1 error"); print_instruction_window_around(i, 1, ""); abort(); }
+			if (a0 >= (1LLU << 5LLU)) { puts("mov a0 error"); print_instruction_window_around(i, 1, ""); abort(); }
 			const nat word = 
 				(a4 << 31U) | (a3 << 29U) | (0x25U << 23U) |
 				(a2 << 21U) | (a1 << 5U) | (a0);
 			insert_u32((u32) word);
 
 		} else if (op == bc) {
-			const nat offset = 0x7ffff & (a1 - output_count);
+			const nat offset = 0x7ffff & (((int64_t) a1 - (int64_t) output_count) >> 2LL);
 			const nat word = (0x54U << 24U) | (offset << 5U) | (a0);
 			insert_u32((u32) word);
 
 		} else if (op == jmp) {
-			const nat offset = 0x3ffffff & (a1 - output_count);
+			const nat offset = 0x3ffffff & (((int64_t) a1 - (int64_t) output_count) >> 2LL);
 			const nat word = (a0 << 31U) | (0x5U << 26U) | (offset);
 			insert_u32((u32) word);
 
@@ -1126,6 +1136,15 @@ arm64_generate_machine_code:;
 			insert_u32((u32) word);
 
 		} else if (op == addi) {
+
+			if (a6 >= (1LLU << 1LLU)) { puts("addi a6 error"); print_instruction_window_around(i, 1, ""); abort(); }
+			if (a5 >= (1LLU << 1LLU)) { puts("addi a5 error"); print_instruction_window_around(i, 1, ""); abort(); }
+			if (a4 >= (1LLU << 1LLU)) { puts("addi a4 error"); print_instruction_window_around(i, 1, ""); abort(); }
+			if (a3 >= (1LLU << 1LLU)) { puts("addi a3 error"); print_instruction_window_around(i, 1, ""); abort(); }
+			if (a2 >= (1LLU << 12LLU)) { puts("addi a2 error"); print_instruction_window_around(i, 1, ""); abort(); }
+			if (a1 >= (1LLU << 5LLU)) { puts("addi a1 error"); print_instruction_window_around(i, 1, ""); abort(); }
+			if (a0 >= (1LLU << 5LLU)) { puts("addi a0 error"); print_instruction_window_around(i, 1, ""); abort(); }
+
 			const nat word = 
 				(a6 << 31U) | (a5 << 30U) | (a4 << 29U) | 
 				(0x22 << 23U) | (a3 << 22U) | (a2 << 10U) |
@@ -1133,6 +1152,16 @@ arm64_generate_machine_code:;
 			insert_u32((u32) word);
 
 		} else if (op == addr) {
+
+			if (a7 >= (1LLU << 1LLU)) { puts("addr error"); abort(); }
+			if (a6 >= (1LLU << 1LLU)) { puts("addr error"); abort(); }
+			if (a5 >= (1LLU << 1LLU)) { puts("addr error"); abort(); }
+			if (a3 >= (1LLU << 2LLU)) { puts("addr error"); abort(); }
+			if (a4 >= (1LLU << 6LLU)) { puts("addr error"); abort(); }
+			if (a2 >= (1LLU << 5LLU)) { puts("addr error"); abort(); }
+			if (a1 >= (1LLU << 5LLU)) { puts("addr error"); abort(); }
+			if (a0 >= (1LLU << 5LLU)) { puts("addr error"); abort(); }
+
 			const nat word = 
 				(a7 << 31U) | (a6 << 30U) | (a5 << 29U) | 
 				(0xB << 24U) | (a3 << 22U) | (a2 << 16U) |
@@ -1268,18 +1297,18 @@ finished_generation:;
 		puts("done: byte generation successful.");
 		puts("final_bytes:");
 		dump_hex(output_bytes, output_count);
-		printf("info: generating output file with format #%llu...\n", output_format);
+		printf("info: generating output file with format #%llu...\n", format);
 	}
 
-	if (output_format == no_output) goto generate_no_output;
-	if (output_format == bin_output) goto generate_raw_binary_output;
-	if (output_format == hex_array) goto generate_hex_array_output;
-	if (output_format == ti_txt_executable) goto generate_ti_txt_executable;
-	if (output_format == uf2_executable) goto generate_uf2_executable;
-	if (output_format == macho_executable) goto generate_macho_executable;
-	if (output_format == macho_object) goto generate_macho_object;	
-	if (output_format == elf_executable) abort();
-	if (output_format == elf_object) abort();
+	if (format == no_output) goto generate_no_output;
+	if (format == bin_output) goto generate_raw_binary_output;
+	if (format == hex_array) goto generate_hex_array_output;
+	if (format == ti_txt_executable) goto generate_ti_txt_executable;
+	if (format == uf2_executable) goto generate_uf2_executable;
+	if (format == macho_executable) goto generate_macho_executable;
+	if (format == macho_object) goto generate_macho_object;	
+	if (format == elf_executable) abort();
+	if (format == elf_object) abort();
 	puts("unknown outputformat"); abort();
 
 
