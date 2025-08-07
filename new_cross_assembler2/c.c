@@ -16,6 +16,8 @@
 	arm64 isa:
 
 		- Q: can the arm64 encoding listing be simplified?..
+			https://en.wikipedia.org/wiki/AArch64
+
 
 
 	risc-v compressed extension:
