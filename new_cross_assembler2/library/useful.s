@@ -40,7 +40,12 @@ at rem
 	eq 0 0 ra del ra
 	lt 0 0 rem
 
-at ctprint
+
+at ctabort 
+	eq 0 0 -1 
+	lt 0 0 ctabort
+
+at ctprintbinary
 	ld ra 0
 	set n c0
 	at loop

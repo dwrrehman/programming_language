@@ -140,13 +140,11 @@ int main(int argc, const char** argv) {
 		text[2] == '2' and 
 		text[3] == '\n'
 	) { 
-		printf("loading uf2 executable...\n");
 		for (nat i = 0; i < text_length; i++) {
 			if (i % 512 < 32 or i % 512 >= 508) continue;
 			memory[count++] = (byte) text[i];
 		}
-	} else { 
-		printf("loading hex array executable...\n");
+	} else {
 		for (nat i = 0; i < text_length; i++) {
 			if (text[i] == '0') {
 				unsigned long n = strtoul(text + i, 0, 16);
