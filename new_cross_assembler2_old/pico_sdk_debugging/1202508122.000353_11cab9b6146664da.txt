@@ -1,0 +1,30 @@
+the pico sdk program to do the equivalent thing:
+1202508122.000750
+
+// Define SPI pins (adjust as needed for your specific setup)
+
+#define SPI_PORT spi0
+
+#define PIN_MISO 16
+#define PIN_CS   17
+#define PIN_SCK  18
+#define PIN_MOSI 19
+
+int main() {
+
+    stdio_init_all();
+
+    spi_init(SPI_PORT, 1000 * 1000); // Initialize SPI at 1 MHz
+
+    gpio_set_function(PIN_MISO, GPIO_FUNC_SPI);
+    gpio_set_function(PIN_CS,   GPIO_FUNC_SPI);
+    gpio_set_function(PIN_SCK,  GPIO_FUNC_SPI);
+    gpio_set_function(PIN_MOSI, GPIO_FUNC_SPI);
+
+    uint8_t tx_data = 0xAA;
+    spi_write_blocking(SPI_PORT, &tx_data, 1);
+
+    while (1) tight_loop_contents(); 
+}
+
+

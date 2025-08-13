@@ -1,0 +1,384 @@
+1202507104.005606 documentation on the arm64 isa, to be able to write the instruction selection for it, eventually:
+------------------------
+
+	here are the encoding formats that we are going to use from the isa:
+
+---------------------------------------
+
+	a6_nop, a6_svc, a6_mov, a6_bfm,
+	a6_adc, a6_addx, a6_addi, a6_addr, a6_adr, 
+	a6_shv, a6_clz, a6_rev, a6_jmp, a6_bc, a6_br, 
+	a6_cbz, a6_tbz, a6_ccmp, a6_csel, 
+	a6_ori, a6_orr, a6_extr, a6_ldrl, 
+	a6_memp, a6_memia, a6_memi, a6_memr, 
+	a6_madd, a6_divr, 
+
+
+lets break down all of them, and how they work:
+
+-------------------------------------------------------------------------
+-------------------------------------------------------------------------
+
+	a6_nop : description: no operation. [inaccessible from the language isa]
+
+	a6_svc : description: system call instruction. 
+
+
+-------------------------------------------------------------------------
+	a6_mov  Rd.5  imm.16  shift_amount.2  mov_type.2  is_64bit.1 : 
+-------------------------------------------------------------------------
+
+		description: register immediate load.
+
+		shift_amount == 0 means no shift, 1 means shift up by 16 bits, 
+		2 means shift up by 32 bits, 3 means shift up by 64 bits. 
+
+		mov_type == 2 means movz, which zeros all bits except 
+		for the ones used by the already-shifted 16 bit immediate.
+
+		mov_type == 0 means movn, which does the same thing as movz, 
+		except for the result is inverted after doing the movz. 
+
+		mov_type == 3 means movk, which does the same thing as movz, 
+		except that it keeps all existing bits already present in the destination
+		besides the ones used by the shifted immediate.
+		
+
+-------------------------------------------------------------------------
+	a6_adc   Rd.5  Rn.5  Rm.5  should_setflags.1  
+		should_subtract.1   is_64bit.1 : 
+-------------------------------------------------------------------------
+
+		description: add two source registers with carry flag, 
+			and store into destination register.
+
+
+
+-------------------------------------------------------------------------
+	a6_adr  Rd.5 label.21  is_page_addressed.1 :
+-------------------------------------------------------------------------
+
+		description: load pc-rel address into register
+		
+
+
+-------------------------------------------------------------------------
+	a6_addi   Rd.5  Rn.5  imm.12  should_imm_shift12.1  
+		should_setflags.1  should_subtract.1  is_64bit.1 : 
+-------------------------------------------------------------------------
+	
+		description: add source register with immediate and 
+			store into destination register. 
+	
+		if should_setflags is 0, and Rd == 31, then Rd is the stack pointer, instead of the zero register.
+		if should_setflags is 0, and Rn == 31, then Rn is the stack pointer, instead of the zero register.
+
+		if should_setflags is 1, and Rn == 31, then Rn is the stack pointer, instead of the zero register. 
+
+
+
+
+-------------------------------------------------------------------------
+	a6_addr    Rd.5  Rn.5  Rm.5  imm.6   shift_type.2   
+		should_setflags.1  should_subtract.1  is_64bit.1  : 
+-------------------------------------------------------------------------
+		
+		description: add source register with optionally 
+			immediate-amount-shifted source register and 
+			store into destination register.
+
+		shift_type == 0 means logical left shift, 
+		shift_type == 1 means logical right shift, 
+		shift_type == 2 means arithmetic right shift.
+		
+
+
+-------------------------------------------------------------------------
+	a6_jmp   should_link.1   label.26   : 
+-------------------------------------------------------------------------
+
+		description unconditional branch to a pc-relative-offset label. 
+
+
+
+
+-------------------------------------------------------------------------
+	a6_bc    cond.4   label.19   : 
+-------------------------------------------------------------------------
+
+		description conditional branch based on the condition 
+			and flags register state to a pc-rel label.
+
+		cond == 15 means always false
+		cond == 14 means always true
+
+		cond == 0 means is equal (zero flag is set)
+		cond == 1 means is not equal (zero flag is set)
+
+		cond == 4 means is negative (negative flag is set)
+		cond == 5 means is non-negative (negative flag is clear)
+
+		cond == 6 means the overflow flag is set
+		cond == 7 means the overflow flag is clear
+		
+		cond == 11 means is signed less than
+		cond == 12 means is signed greater than
+		cond == 13 means is signed less than or equal
+		cond == 10 means is signed greater than or equal
+
+		cond == 3 means is unsigned less than (carry set)
+		cond == 8 means is unsigned greater than
+		cond == 9 means is unsigned less than or equal
+		cond == 2 means is unsigned greater than or equal (carry clear)
+
+
+		see also, the stdlib code which declares the conditions:
+
+			set cond_always 0111
+			set cond_never 1111
+	
+			set is_equal 0
+			set is_not_equal 1
+			set is_negative 001
+			set is_nonnegative 101
+			set has_overflow_set 011
+			set has_overflow_clear 111
+			
+			set is_signed_less 1101
+			set is_signed_greater 0011
+			set is_signed_less_or_equal 1011
+			set is_signed_greater_or_equal 0101
+			
+			set is_unsigned_less 11
+			set is_unsigned_greater 0001
+			set is_unsigned_less_or_equal 1001
+			set is_unsigned_greater_or_equal 01
+			
+
+-------------------------------------------------------------------------
+
+
+
+
+	a6_shv
+
+
+
+
+
+	a6_cbz
+
+	a6_tbz
+
+
+
+	a6_ori
+
+	a6_orr
+
+
+
+		
+
+	a6_memia
+
+	a6_memi
+
+	a6_memr
+
+
+
+	a6_memp
+
+	a6_madd
+
+	a6_divr
+
+
+
+
+	a6_csel
+
+	a6_ldrl
+
+	a6_clz
+
+
+
+i'll do these later:
+
+	a6_extr  	... : not documented yet
+	a6_ccmp  	... : not documented yet
+	a6_br  		... : not documented yet
+	a6_rev  	... : not documented yet
+	a6_addx  	... : not documented yet
+	a6_bfm  	... : not documented yet
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+previous code which i wrote  that could help too:
+
+
+
+
+
+
+
+(arm64 machine instruction constants)
+
+
+
+constant width64 	set width64 1
+constant width32 	set width32 0
+
+
+constant type_zero set type_zero 01
+constant type_neg  set type_neg  0
+constant type_keep set type_keep 11
+
+constant shift_none set shift_none 0
+constant shift_16   set shift_16   1
+constant shift_32   set shift_32   01
+constant shift_48   set shift_48   11
+
+. register indexes .
+constant linkregister set linkregister 01111
+constant stackpointer set stackpointer 11111
+constant zeroregister set zeroregister 11111
+
+. branch conditions .
+constant is_equal set is_equal 0
+constant is_not_equal set is_not_equal 1
+constant is_unsigned_higher_or_same set is_unsigned_higher_or_same 01
+constant is_unsigned_greater_or_equal set is_unsigned_greater_or_equal 01
+constant is_unsigned_lower set is_unsigned_lower 11
+constant is_unsigned_less set is_unsigned_less 11
+constant is_minus set is_minus 001
+constant is_negative set is_negative 001
+constant is_nonnegative set is_nonnegative 101
+constant has_overflow_set set has_overflow_set 011
+constant has_overflow_clear set has_overflow_clear 111
+constant is_unsigned_greater set is_unsigned_greater 0001
+constant is_unsigned_lower_or_same set is_unsigned_lower_or_same 1001
+constant is_signed_greater_or_equal set is_signed_greater_or_equal 0101
+constant is_signed_less set is_signed_less 1101
+constant is_signed_greater set is_signed_greater 0011
+constant is_signed_less_or_equal set is_signed_less_or_equal 1011
+constant cond_always set cond_always 0111
+constant cond_never set cond_never 1111
+
+constant with_register set with_register 0
+constant with_immediate set with_immediate 1
+
+constant is_zero set is_zero 0           . valid with cond arguments .
+constant is_nonzero set is_nonzero 1     . valid with cond arguments .
+
+constant type_byteoffset set type_byteoffset 0
+constant type_pageoffset set type_pageoffset 1
+
+constant isreturn set isreturn 1
+constant isnotreturn set isnotreturn 0
+constant nolink set nolink 0
+constant jumplink set jumplink 1
+
+constant shift_increase set shift_increase 0
+constant shift_decrease set shift_decrease 1
+constant shift_signed_decrease set shift_signed_decrease 01
+constant rotate_decrease set rotate_decrease 11
+
+constant positive set positive 0
+constant subtract set subtract 1
+
+constant noflags  set noflags  0
+constant setflags set setflags 1
+
+constant shift_12 set shift_12 1
+
+constant cmp_negative set cmp_negative 0
+constant cmp_positive set cmp_positive 1
+
+constant extend_uxtb set extend_uxtb 0
+constant extend_uxth set extend_uxth 1
+constant extend_uxtw set extend_uxtw 01
+constant extend_uxtx set extend_uxtx 11
+constant addx_sp_lsl set addx_sp_lsl 11
+constant extend_sxtb set extend_sxtb 001
+constant extend_sxth set extend_sxth 101
+constant extend_sxtw set extend_sxtw 011
+constant extend_sxtx set extend_sxtx 111
+
+constant csel_incr set csel_incr 1
+constant csel_not set csel_not 1
+constant csel_set set csel_set 0
+
+constant divr_unsigned set divr_unsigned 0
+constant divr_signed set divr_signed 1
+
+constant maddl_unsigned set maddl_unsigned 1
+constant maddl_signed set maddl_signed 0
+constant type_maddl set type_maddl 1
+constant type_madd set type_madd 0
+
+constant bfm_signed_zero set bfm_signed_zero 0
+constant bfm_keep set bfm_keep 1
+constant bfm_unsigned_zero set bfm_unsigned_zero 01
+
+constant regular_second set regular_second 0
+constant invert_second set invert_second 1
+
+constant bitwise_and set bitwise_and 0
+constant bitwise_or set bitwise_or 1
+constant bitwise_eor set bitwise_eor 01
+constant bitwise_and_setflags set bitwise_and_setflags 11
+
+constant store set store 0
+constant load_width32 set load_width32 001
+constant load_width64 set load_width64 101
+constant load_signed_width32 set load_signed_width32 011
+constant load_signed_width64 set load_signed_width64 111
+
+constant 1_byte  set 1_byte  0
+constant 2_bytes set 2_bytes 1
+constant 4_bytes set 4_bytes 01
+constant 8_bytes set 8_bytes 11
+
+constant zero_extend_second32 set zero_extend_second32 0
+constant use_second64 set use_second64 1
+constant sign_extend_second32 set sign_extend_second32 01
+constant sign_extend_second64 set sign_extend_second64 01      (todo: is this one right?...)
+constant scale_then_zero_extend_second32 set scale_then_zero_extend_second32 001
+constant scale_second64 set scale_second64 101
+constant scale_then_sign_extend_second32 set scale_then_sign_extend_second32 011
+constant scale_then_sign_extend_second64 set scale_then_sign_extend_second64 111
+
+constant store_pair set store_pair 0
+constant load_pair set load_pair 1
+constant pair_width32 set pair_width32 0
+constant pair_width64 set pair_width64 01
+constant nontemporal_pair set nontemporal_pair 0
+constant post_advance_pair set post_advance_pair 1
+constant offset_pair set offset_pair 01
+constant pre_advance_pair set pre_advance_pair 11
+
+constant pre_advance  set pre_advance  1
+constant post_advance set post_advance 0
+
+
+

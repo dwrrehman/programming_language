@@ -1,11 +1,12 @@
 file library/core.s
 
-st output_format hex_array
-st overwrite_output true
+st compiler_target rv32_arch
+st compiler_format hex_array
+st compiler_should_overwrite true
 
-ri r_imm r_add r_number 0 r_exit
-ri r_imm r_add r_arg0 0 10001
-ri r_ecall 0 0 0 0
+ri rv_imm rv_add rv_system_number 0 rv_system_exit
+ri rv_imm rv_add rv_system_arg0 0 10001
+ri rv_ecall 0 0 0 0
 
 eoi
 
