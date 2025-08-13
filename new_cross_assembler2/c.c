@@ -25,7 +25,7 @@ typedef uint32_t u32;
 typedef uint16_t u16;
 typedef uint8_t byte;
 
-static nat debug = 1;
+static nat debug = 0;
 
 #define max_variable_count	(1 << 20)
 #define max_instruction_count	(1 << 20)
@@ -249,6 +249,12 @@ static void write_output(byte* string, nat count) {
 	);
 }
 
+
+static bool within(nat a, nat b, nat k) { 
+	if (a < b) return b - a < k;
+	else return a - b < k;
+}
+
 static void print_source_at(	
 	const char* text, 
 	const nat text_length, 
@@ -256,62 +262,91 @@ static void print_source_at(
 	const char* note
 ) {
 	const nat window_width = 60;
-	while (end and isspace(text[end])) end--;
+	const nat error_radius = 4;
+	while (end and end < text_length and isspace(text[end])) end--;
+
+	if (begin >= text_length or end >= text_length) {
+		printf("(error was not contained in the source?..)\n");
+		return;
+	}
+
 	nat row_count = 0, column_count = 0;
+	for (nat i = 0; i < begin; i++) {
+		const char c = text[i];
+		
+		if (c == 10) { row_count++; column_count = 0; }
+		else if (c == 9) { column_count += (8 - column_count % 8); }
+		else column_count++;
+
+		if (column_count >= window_width - 1) { row_count++; column_count = 0; }
+	}
+
+	const nat error_row = row_count; row_count = 0;
+	const nat error_column = column_count; column_count = 0;
 
 	printf("\033[38;5;240m__________");
 	for (nat i = 0; i < window_width; i++) putchar('_');
 	printf("___\033[0m");
 	puts("");
-	printf("\n\033[38;5;240m%6u\033[0m \033[32m│\033[0m ", 1);
+	puts("");
 
-	nat found_at_column = (nat) -1;
+	nat line_count = 1;
 
 	for (nat i = 0; i < text_length; i++) {
 
 		const char c = text[i];
-
-		if (i == begin) { 
-			printf("\033[31;1m");
-			found_at_column = column_count;
+		const bool near = within(row_count, error_row, error_radius);
+		
+		if ((i == 0 or text[i - 1] == 10) and near) {
+			printf("\033[38;5;240m%6llu\033[0m \033[32m│\033[0m ", line_count); 
 		}
-
-		if ((c == 10 or column_count >= window_width) and 
-			found_at_column != (nat) -1
-		) { 
-			
-			//printf("\n       \033[31m→\033[0m ");
-			printf("\n         ");
-			for (nat e = 0; e < found_at_column; e++) putchar(' ');
-			printf("\033[32;1m^");
-			for (nat e = 0; e < end - begin; e++) putchar('~');
-			printf("\033[38;5;240m     (%s) \033[0m ", note);
-			found_at_column = (nat) -1;
-		}
-
-		if (column_count >= window_width) {
-			puts("");
-			row_count++; column_count = 0;
-			printf("       \033[32m│\033[0m ");
-		}
+		
+		if (i == begin) printf("\033[31;1m");
 
 		if (c == 10) {
-			puts("");
-			row_count++; column_count = 0;
-			printf("\033[38;5;240m%6llu\033[0m \033[32m│\033[0m ", row_count + 1);
+			line_count++;
+			newline: 
+			if (near) puts("");
+
+			if (row_count == error_row) { 
+				//printf("       \033[31m→\033[0m ");
+				printf("         ");
+				for (nat e = 0; e < error_column; e++) putchar(' ');
+				printf("\033[32;1m^");
+				for (nat e = 0; e < end - begin; e++) putchar('~');
+				printf("\033[38;5;240m     (%s) \033[0m \n", note);
+			} 
+
+			column_count = 0;
+			row_count++; 
 
 		} else if (c == 9) {
 			const nat width = (8 - column_count % 8);
-			printf("%.*s", (int) width, "        ");
+			if (near) printf("%.*s", (int) width, "        "); 
 			column_count += width;
 		} else {
-			putchar(c);
+			if (near) putchar(c);
 			column_count++;
 		}
 
 		if (i == end) printf("\033[0m");
-	}
 
+
+		if (column_count >= window_width - 1) { 
+			if (near) puts("");
+			if (row_count == error_row) { 
+				//printf("       \033[31m→\033[0m ");
+				printf("         ");
+				for (nat e = 0; e < error_column; e++) putchar(' ');
+				printf("\033[32;1m^");
+				for (nat e = 0; e < end - begin; e++) putchar('~');
+				printf("\033[38;5;240m     (%s) \033[0m \n", note);
+			} 
+			column_count = 0;
+			row_count++;
+			if (near) printf("\033[38;5;233m%6llu\033[0m \033[32m│\033[0m ", line_count);
+		} 
+	}
 	puts("");
 	printf("\033[38;5;240m__________");
 	for (nat i = 0; i < window_width; i++) putchar('_');
@@ -430,7 +465,7 @@ static void print_instruction(nat* in) {
 	printf(" %4s  ", operations[op]);
 
 	if (op == str) {
-		printf("\"%s\"", strings[in[2]]);
+		printf("\"%.*s\"", (int) in[1], strings[in[2]]);
 		return;
 	} 
 
@@ -613,7 +648,7 @@ static void print_disassembly(const nat arch) {
 
 
 int main(int argc, const char** argv) {
-	if (argc != 2) exit(puts("error: exactly one source file must be specified."));	
+	if (argc != 2) exit(puts("assembler: \033[31;1merror:\033[0m exactly one source file must be specified."));	
 
 	{ nat index_stack[max_file_count] = {0};
 	nat file_stack[max_file_count] = {0};
@@ -637,26 +672,12 @@ process_file:;
 	const nat text_length = file_length[this_file];
 	const char* text = file_text[this_file];
 
-	nat length = 0, start = 0, is_immediate = 0;
-	byte arg_count = 0, in_string = 0;
+	nat length = 0, start = 0, is_immediate = 0, arg_count = 0;
 
 	nat args[16] = {0};
 	nat offsets[16] = {0};
 
-	for (nat pc = index; pc < text_length; pc++) {
-
-		if (in_string) {
-			in_string = 0;
-			while (isspace(text[pc])) pc++; 
-			const char delim = text[pc];
-			nat n = ++pc, len = 0;
-			while (text[pc] != delim) { pc++; len++; }
-			strings[string_count++] = text + n;
-			ins[ins_count + 0] = str | (3LLU << 32LLU);
-			ins[ins_count + 1] = len;
-			ins[ins_count + 2] = string_count - 1;
-			goto next_word;
-		}
+	for (nat var = 0, pc = index; pc < text_length; pc++) {
 
 		if (not isspace(text[pc])) {
 			if (not length) start = pc;
@@ -666,7 +687,7 @@ process_file:;
 
 		const char* word = text + start;
 
-		const nat op = args[0];
+		nat op = args[0];
 
 		if (not arg_count) {
 
@@ -686,13 +707,11 @@ process_file:;
 				goto next_word;
 			}
 
-			if (equals(word, "eoi", length, 3)) break;
-
 			for (nat i = 0; i < isa_count; i++) {
 				if (equals(word, operations[i], length, strlen(operations[i]))) { 
-					args[arg_count] = i;
+					args[arg_count] = i; op = i;
 					offsets[arg_count++] = start;
-					goto next_word;
+					goto process_op; 
 				}
 			}
 
@@ -715,7 +734,6 @@ process_file:;
 			);
 		}
 
-		nat var = 0;
 		if (op == file) goto define_name;
 		for (var = var_count; var--;) {
 			if (not (types[var] & is_undefined) and
@@ -760,12 +778,11 @@ process_file:;
 		args[arg_count] = var;
 		offsets[arg_count++] = start;
 
-		if (op == str) { in_string = 1; goto next_word; }
-
+	process_op:
+		if (op == str) goto parse_string;
 		else if (op < isa_count and arg_count - 1 < arity[op]) goto next_word;
-
+		else if (op == eoi) break;
 		else if (op == del) types[args[1]] |= is_undefined;
-
 		else if (op == file) {
 			for (nat i = 0; i < included_count; i++) {
 				if (not equals(
@@ -779,7 +796,6 @@ process_file:;
 				);
 			}
 			included_filepaths[included_count++] = var;
-
 			nat len = 0;
 			index_stack[stack_count - 1] = pc;
 			file_names[file_count] = word;
@@ -793,7 +809,7 @@ process_file:;
 			goto process_file;
 
 		} else {
-			if (op == at) values[args[1]] = ins_count / 16;
+			if (op == at) values[args[1]] = ins_count;
 			else if (op == lt or op == eq) types[args[3]] |= is_ct_label;
 			args[0] |= is_immediate << 32LLU; is_immediate = 0;
 			memcpy(ins + ins_count, args, sizeof args);
@@ -801,8 +817,26 @@ process_file:;
 			ins_count += 16;
 		}
 
-		finish_operation: arg_count = 0;
-		next_word: length = 0;
+	finish_operation: 
+		arg_count = 0;
+
+	next_word: 
+		length = 0;
+		continue;
+
+	parse_string:
+		while (isspace(text[pc])) pc++; 
+		const char delim = text[pc];
+		nat n = ++pc, len = 0;
+		while (text[pc] != delim) { pc++; len++; }
+		strings[string_count++] = text + n;
+		ins[ins_count + 0] = str | (3LLU << 32LLU);
+		ins[ins_count + 1] = len;
+		ins[ins_count + 2] = string_count - 1;
+		file_offset[ins_count + 0] = length;
+		file_offset[ins_count + 1] = n;
+		ins_count += 16;
+		goto finish_operation;
 	}
 	stack_count--;
 	if (stack_count) goto process_file; }
@@ -867,19 +901,24 @@ process_file:;
 	
 		if (op == str) {
 			for (nat s = 0; s < arg0; s++) { 
+
 				rt_ins[rt_ins_count + 0] = emit | (3LLU << 32LLU);
 				rt_ins[rt_ins_count + 1] = 1;
 				rt_ins[rt_ins_count + 2] = (nat) strings[arg1][s];
+
+				rt_offsets[rt_ins_count + 0] = file_offset[pc + 0];
+				rt_offsets[rt_ins_count + 1] = file_offset[pc + 1];
+				rt_offsets[rt_ins_count + 2] = file_offset[pc + 2];
+
 				rt_ins_count += 16;
 				total_byte_count++;
 			}
 
-		} else if (op > eoi or op == emit or op == sect) {
+		} else if ((op > eoi and op < isa_count) or op == emit or op == sect) {
 			rt_ins[rt_ins_count + 0] = op | (0xffffLLU << 32LLU);
 			for (nat a = 0; a < arity[op]; a++) {
 				const nat arg = ins[pc + a + 1];
-				rt_ins[rt_ins_count + a + 1] =
-					(imm >> a) & 1 ? arg : values[arg];
+				rt_ins[rt_ins_count + a + 1] = (imm >> a) & 1 ? arg : values[arg];
 			}
 			total_byte_count += get_length(rt_ins + rt_ins_count);
 			memcpy(rt_offsets + rt_ins_count, file_offset + pc, 16 * sizeof(nat));
@@ -897,13 +936,14 @@ process_file:;
 		else if (op == at)   values[arg0] = (types[arg0] & is_ct_label) ? pc : total_byte_count;
 		else if (op == lt) { if (val0  < val1) { *memory = pc; pc = val2; } }
 		else if (op == eq) { if (val0 == val1) { *memory = pc; pc = val2; } }
+
 		else { 
 			printf("CTE: fatal internal error: "
-				"unknown instruction executed: \"%s\", (opcode %llu).\n", 
-				operations[op], op
+				"unknown instruction executed: opcode %llu \n", op
 			); 
-			abort(); 
+			print_error("invalid CTE operation executed", op, pc, 0);
 		}
+
 		if (op == st and val0 == assembler_putc) { char c = (char) val1; write(1, &c, 1); } 
 	}}
 

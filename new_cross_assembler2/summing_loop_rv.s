@@ -1,7 +1,7 @@
 file library/core.s
 file library/useful.s
 
-rv32_hex
+riscv_hex
 
 set var 1
 set c0 var set c1 0000_0000_0000_0000_0001  li
