@@ -212,10 +212,6 @@ at li
 		ri r_imm r_add destination source b
 	at s del s
 
-	lt 0 immediate s
-		ri r_imm r_add destination source b
-	at s del s
-
 	del source del a del b del bit
 	del destination del immediate
 	eq 0 0 ra del ra

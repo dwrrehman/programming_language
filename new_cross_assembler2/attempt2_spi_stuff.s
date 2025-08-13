@@ -26,6 +26,24 @@ set io_bank0_base 	0000_0000_0000_0001__0100_0000_0000_0010
 set pads_bank0_base 	0000_0000_0000_0001__1100_0000_0000_0010
 set accessctrl_base	0000_0000_0000_0000__0110_0000_0000_0010
 
+
+
+set spi0_base		0000_0000_0000_0000__0001_0000_0000_0010
+
+(clock stuff)
+set clock_ref_control 	0000_1100
+set clock_ref_div 	0010_1100
+set rosc_div 		0010_1000
+
+(spi peripheral registers)
+set spi0_control0 	0
+set spi0_control1 	001
+set spi0_data 		0001
+set spi0_status 	0011
+set spi0_prescale 	0000_1
+
+
+
 (powman registers:  ones for the alarm and low power mode configuration)
 set powman_password 	0000_0000_0000_0000___0111_1111_0101_1010
 set last_swcore_pwrup	0000_0101
@@ -161,6 +179,21 @@ at processor_sleep
 	lt 0 0 processor_sleep
 
 
+at decrement
+	ld ra 0 
+	ri r_imm r_add c0 c0 1111_1111_1111
+	eq 0 0 ra del ra
+	lt 0 0 decrement
+	
+at increment
+	ld ra 0 
+	ri r_imm r_add c0 c0 1
+	eq 0 0 ra del ra
+	lt 0 0 increment
+	
+
+
+
 at skip_macros del skip_macros
 
 
@@ -178,54 +211,51 @@ emit  001  1001_1110_1010_1100__0100_1000_1101_0101
 
 at skip del skip
 
-
-set c0 address set c1 reset_clear li
-set c0 data set c1 0000_0010_01 li
+set c0 address set c1 reset_base
+set c0 data set c1 1111_1101_1011_1111____1100_1111_1111_1111 li
 rs r_store r_sw address data 0
 
 
-(set sleep_en0 0010_1101
-set sleep_en1 0001_1101
 
 set c0 address set c1 clocks_base li
-(set c0 data set c1 0 li)
-rs r_store r_sw address 0 sleep_en0
+set c0 data set c1 11 li
+rs r_store r_sw address data clock_ref_control
 
 set c0 address set c1 clocks_base li
-set c0 data set c1 0000_1111_1111_1100__0000_0000_0000_0000 li
-rs r_store r_sw address data sleep_en1)
-
-set c0 0 setup_output
-set c0 11101 setup_output
-
-
-(
-	current state:
-
-		1202508041.202313
-
-			apparently setting all pins to outputs wasnt the current draw problem, 
-			which means we have to look through the datasheet to see if we missed anything that is causing there to be 400uA of excess current draw lol... apparently the shmid triggers and pulldowns are enabled for all inputs, on reset, so thats not the problem... hmmm
-
-
-)
+set c0 data set c1 0000_0000_0000_0000___1111_1111 li
+rs r_store r_sw address data clock_ref_div
 
 
 
 
+set c0 address set c1 io_bank0_base li
+set c0 data set c1 101 li
+rs r_store r_sw address data io_gpio4_ctrl
+rs r_store r_sw address data io_gpio23_ctrl
+set c0 address set c1 pads_bank0_base li
+set c0 data set c1 0100_111 li
+rs r_store r_sw address data pads_gpio4
+rs r_store r_sw address data pads_gpio23
 
-(set i 0
-at loop
-	set c0 i setup_output
-	add i 1
-	lt i 01111 loop del loop del i)
+
+set c0 address set c1 io_bank0_base li
+set c0 data set c1 1 li
+rs r_store r_sw address data io_gpio0_ctrl
+rs r_store r_sw address data io_gpio1_ctrl
+rs r_store r_sw address data io_gpio2_ctrl
+rs r_store r_sw address data io_gpio3_ctrl
+
+set c0 address set c1 pads_bank0_base li
+set c0 data set c1 01 li
+rs r_store r_sw address data pads_gpio0
+rs r_store r_sw address data pads_gpio1
+rs r_store r_sw address data pads_gpio2
+rs r_store r_sw address data pads_gpio3
 
 
 set c0 address set c1 sio_base li
-set c0 data set c1 1 (1111_1111__1111_1111__1111_1111__1111_1100) li
+set c0 data set c1 0000_1000_0000_0000___0000_0001_0000_0000 li
 rs r_store r_sw address data sio_gpio_oe
-
-(set c0 data set c1 0 li)
 rs r_store r_sw address 0 sio_gpio_out
 
 set c0 ram set c1 sram_start li
@@ -238,69 +268,94 @@ rb r_branch r_bne data temp skip_boot
 	rs r_store r_sw ram led_state 0
 
 	set c0 address set c1 sio_base li
+
 	set j 00001
 	set c0 j set c1 0001 li
 	at times
-	set c0 data set c1 1 li
+
+	set c0 data set c1 0000_1 li
 	rs r_store r_sw address data sio_gpio_out
 
 	set i temp
-	set c0 i set c1 0000_0000_0000_0000_0001 li
+	set c0 i set c1 0000_001 li
 	at l
-		ri r_imm r_add i i 1111_1111_1111
+		set c0 i decrement
 		rb r_branch r_bne i 0 l
 	del l del i
 
-	(set c0 data set c1 0 li)
 	rs r_store r_sw address 0 sio_gpio_out
 
 	set i temp
-	set c0 i set c1 0000_0000_0000_0000_0001 li
+	set c0 i set c1 0000_001 li  (0000_0000_0000_0000_001)
 	at l
-		ri r_imm r_add i i 1111_1111_1111
+		set c0 i decrement
 		rb r_branch r_bne i 0 l
 	del l del i
 	
-	ri r_imm r_add j j 1111_1111_1111
-	rb r_branch r_bne j 0 times
+	set c0 j decrement
+	rb r_branch r_bne j 0 times del times
+
+
+
+	(test out the spi controller...)
+
+	set c0 j set c1 000_1 li
+	at times
+
+
+	set c0 address set c1 spi0_base li
+	
+	set c0 data set c1 1111_1111_1111_1110 li
+	rs r_store r_sw address data spi0_data
+	
+	set c0 data set c1 1111_0000_1111_1111 li
+	rs r_store r_sw address data spi0_control0
+	
+	set c0 data set c1 01 li
+	rs r_store r_sw address data spi0_prescale
+	
+	set c0 data set c1 01 li
+	rs r_store r_sw address data spi0_control1
+
+
+	set i temp
+	set c0 i set c1 0000_001 li  (0000_0000_0000_0000_001)
+	at l
+		set c0 i decrement
+		rb r_branch r_bne i 0 l
+	del l del i
+
+	
+	set c0 j decrement
+	rb r_branch r_bne j 0 times del times
+
+
+
 	
 at skip_boot del skip_boot
 
 ri r_load r_lw led_state ram 0
-ri r_imm r_xor led_state led_state 1
-ri r_imm r_and led_state led_state 1
+ri r_imm r_xor led_state led_state 0000_1
+ri r_imm r_and led_state led_state 0000_1
 
 set c0 address set c1 sio_base li
 rs r_store r_sw address led_state sio_gpio_out
 rs r_store r_sw ram led_state 0
 
 set c0 address set c1 powman_base li
-
-	(set initial the timer config, allow nonsecure writes)
 set n 1000_0110_1000_0000 add n powman_password 
 set c0 data set c1 n li
 rs r_store r_sw address data powman_timer
-
-
-	(set the alarm duration of time, after which we will wake up  :   1000 milliseconds, == 1 second)
-	(on reset, all the other alarm value registers are 0)
 set n 0000_0000_001 add n powman_password 
 set c0 data set c1 n li
 rs r_store r_sw address data alarm_time_15to0
-
-	(start the alarm timer to wake up in that amount of time)
 set n 1110_1110_1000_0000 add n powman_password 
-
 set c0 data set c1 n li
 rs r_store r_sw address data powman_timer
-
-	(request the new low power state P1.4, write password protected state register)
 set n 0000_0011_0000_0000  add n powman_password
 set c0 data set c1 n li
 rs r_store r_sw address data powman_state
 processor_sleep
-
-
 
 eoi
 
@@ -314,15 +369,42 @@ it still consumes 0.68mA  ie  680 microamps, so we still have some additional wo
 
 
 
+	(set initial the timer config, allow nonsecure writes)
+
+	(request the new low power state P1.4, write password protected state register)
+
+
+	(set the alarm duration of time, after which we will wake up  :   1000 milliseconds, == 1 second)
+	(on reset, all the other alarm value registers are 0)
 
 
 
 
+	(start the alarm timer to wake up in that amount of time)
 
 
+(set sleep_en0 0010_1101
+set sleep_en1 0001_1101
+
+set c0 address set c1 clocks_base li
+(set c0 data set c1 0 li)
+rs r_store r_sw address 0 sleep_en0
+
+set c0 address set c1 clocks_base li
+set c0 data set c1 0000_1111_1111_1100__0000_0000_0000_0000 li
+rs r_store r_sw address data sleep_en1)
 
 
+(
+	current state:
 
+		1202508041.202313
+
+			apparently setting all pins to outputs wasnt the current draw problem, 
+			which means we have to look through the datasheet to see if we missed anything that is causing there to be 400uA of excess current draw lol... apparently the shmid triggers and pulldowns are enabled for all inputs, on reset, so thats not the problem... hmmm
+
+
+)
 
 
 

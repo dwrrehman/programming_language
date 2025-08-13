@@ -52,8 +52,8 @@ set alarm_time_47to32	0011_1110
 set alarm_time_63to48	0001_1110
 
 (useful thingy)
-(set reset_clear reset_base)
-(add reset_clear clear_on_write)
+set reset_clear reset_base
+add reset_clear clear_on_write
 
 (pad and gpio registers)
 
@@ -121,14 +121,15 @@ set pads_gpio28  00_1011_1
 set pads_gpio29  00_0111_1
 set pads_gpio30  00_1111_1
 
-(set sio_gpio_oe 	0000_11
+set sio_gpio_oe 	0000_11
 set sio_gpio_out 	0000_1
-set sio_gpio_in 	001)
+set sio_gpio_in 	001
 
 (program register allocations)
 
 set data 	01
 set address 	001
+
 
 sect flash_start
 
@@ -143,18 +144,19 @@ emit  001  1001_1110_1010_1100__0100_1000_1101_0101
 at skip del skip
 
 set c0 address set c1 reset_base li
-set c0 data set c1 1111_1101_1011_1111____1100_1111_1111_1111 li
+set c0 data set c1 1111_1101_1011_1111____1111_1111_1111_1111 li
 rs r_store r_sw address data 0
 
 set c0 address set c1 clocks_base li
 set c0 data set c1 11 li
 rs r_store r_sw address data clock_ref_control
+
 set c0 address set c1 clocks_base li
 set c0 data set c1 0000_0000_0000_0000___1111_1111 li
 rs r_store r_sw address data clock_ref_div
 
 set c0 address set c1 io_bank0_base li
-set c0 data set c1 1 li
+set c0 data set c1 101 li
 rs r_store r_sw address data io_gpio0_ctrl
 rs r_store r_sw address data io_gpio1_ctrl
 rs r_store r_sw address data io_gpio2_ctrl
@@ -162,34 +164,39 @@ rs r_store r_sw address data io_gpio3_ctrl
 rs r_store r_sw address data io_gpio23_ctrl
 
 set c0 address set c1 pads_bank0_base li
-set c0 data set c1 01 li
+set c0 data set c1 0100_11_100 li
 rs r_store r_sw address data pads_gpio0
 rs r_store r_sw address data pads_gpio1
 rs r_store r_sw address data pads_gpio2
 rs r_store r_sw address data pads_gpio3
 rs r_store r_sw address data pads_gpio23
 
+set c0 address set c1 sio_base li
+
+set c0 data set c1 
+	1111_0000_0000_0000__0000_0001_0000_000 
+li
+rs r_store r_sw address data sio_gpio_oe
+rs r_store r_sw address 0 sio_gpio_out
+
 at mainloop
 
-set c0 address set c1 spi0_base li
+	rs r_store r_sw address 0 sio_gpio_out
 
-set c0 data set c1 1111_1111_1111_1110 li
-rs r_store r_sw address data spi0_data
+	ri r_imm r_add 0 0 0
+	ri r_imm r_add 0 0 0
+	ri r_imm r_add 0 0 0
+	ri r_imm r_add 0 0 0
 
-set c0 data set c1 1111_0000_1111_1111 li
-rs r_store r_sw address data spi0_control0
+	set c0 data set c1 1 li
+	rs r_store r_sw address data sio_gpio_out
 
-set c0 data set c1 01 li
-rs r_store r_sw address data spi0_prescale
+	ri r_imm r_add 0 0 0
+	ri r_imm r_add 0 0 0
+	ri r_imm r_add 0 0 0
+	ri r_imm r_add 0 0 0
 
-set c0 data set c1 01 li
-rs r_store r_sw address data spi0_control1
-
-
-
-
-rj r_jal 0 mainloop
-
+	rj r_jal 0 mainloop
 
 eoi
 
@@ -226,6 +233,20 @@ on 1202508111.234213
 
 
 
+
+set c0 address set c1 spi0_base li
+
+set c0 data set c1 1111_1111_1111_1110 li
+rs r_store r_sw address data spi0_data
+
+set c0 data set c1 1111_0000_1111_1111 li
+rs r_store r_sw address data spi0_control0
+
+set c0 data set c1 01 li
+rs r_store r_sw address data spi0_prescale
+
+set c0 data set c1 01 li
+rs r_store r_sw address data spi0_control1
 
 
 

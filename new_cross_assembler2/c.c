@@ -80,8 +80,7 @@ static nat debug = 0;
 #define max_memory_size		(1 << 16)
 #define max_string_count	(1 << 12)
 #define max_file_count		(1 << 12)
-#define max_section_count 	(1 << 7)
-#define max_arg_count		(1 << 3)
+#define max_section_count 	(1 << 12)
 #define min_stack_size		(16384 + 1)
 
 enum all_architectures { riscv_arch, arm64_arch, msp430_arch };
@@ -108,7 +107,6 @@ enum memory_mapped_addresses {
 };
 
 enum isa {
-	unused_ins,
 	zero, incr, set, add, sub, mul, div_, 
 	ld, st, lt, eq, at, emit, sect, 
 	file, del, str, eoi, 
@@ -125,7 +123,6 @@ enum isa {
 };
 
 static const char* operations[isa_count] = {
-	"",
 	"zero", "incr", "set", "add", "sub", "mul", "div", 
 	"ld", "st", "lt", "eq", "at", "emit", "sect", 
 	"file", "del", "str", "eoi",
@@ -141,7 +138,6 @@ static const char* operations[isa_count] = {
 };
 
 static const nat arity[isa_count] = {
-	0,
 	1, 1, 2, 2, 2, 2, 2,
 	2, 2, 3, 3, 1, 2, 1, 
 	1, 1, 0, 0, 
@@ -157,17 +153,10 @@ static const nat arity[isa_count] = {
 };
 
 struct instruction {
-	nat op;
-	nat imm;
-	nat state;
-	nat args[max_arg_count];
-};
-
-struct file {
-	nat index;
-	nat text_length;
-	char* text;
-	const char* filename;
+	nat op;    // byte
+	nat imm;   // byte
+	nat state; // bit
+	nat args[8];
 };
 
 static const char* output_filename = "output_from_assembler";
@@ -175,8 +164,15 @@ static const char* output_filename = "output_from_assembler";
 static nat target_arch = (nat) -1;
 static nat format = no_output;
 static nat should_overwrite = false;
-static nat stack_size = 0; //min_stack_size;
-static nat family_id = 0; // 0xE48BFF5A; // rp2350-riscv family ID, by default
+static nat stack_size = 0;
+static nat family_id = 0;
+
+static nat file_count = 0;
+static const char* file_names[max_file_count] = {0};
+static const char* file_text[max_file_count] = {0};
+static nat file_length[max_file_count] = {0};
+static nat file_offset[max_instruction_count * 9] = {0};
+static nat file_mapping[max_instruction_count] = {0};
 
 static uint8_t* output_bytes = NULL;
 static nat output_count = 0;
@@ -186,8 +182,7 @@ static nat ins_count = 0;
 
 static char* variables[max_variable_count] = {0};
 static nat values[max_variable_count] = {0};
-static nat is_ct_label[max_variable_count] = {0};
-static nat is_undefined[max_variable_count] = {0};
+static byte type[max_variable_count] = {0};
 static nat var_count = 0;
 
 static char* string_list[max_string_count] = {0};
@@ -218,8 +213,8 @@ static void print_dictionary(void) {
 	puts("dictionary: ");
 	for (nat i = 0; i < var_count; i++) {
 		if (i % 2 == 0) puts("");
-		printf("[0x%5llx/%5lld]:%lld:%24s:%016llx(%4lld)\t",
-			i, i, is_undefined[i], variables[i], values[i], values[i]
+		printf("[0x%5llx/%5lld]:%24s:%016llx(%4lld)\t",
+			i, i, variables[i], values[i], values[i]
 		);
 	}
 	puts("");
@@ -256,7 +251,7 @@ static void print_instructions(void) {
 	}
 }
 
-static void print_index(const char* text, nat text_length, nat begin, nat end) {
+/*static void print_index(const char* text, nat text_length, nat begin, nat end) {
 	printf("\n\t@%llu..%llu: ", begin, end); 
 	while (end and isspace(text[end])) end--;
 	const nat max_width = 100;
@@ -270,9 +265,9 @@ static void print_index(const char* text, nat text_length, nat begin, nat end) {
 	}	
 	printf("\033[0m");
 	puts("\n");
-}
+}*/
 
-noreturn static void print_error(
+/*noreturn static void print_error(
 	const char* message, 
 	const char* filename, 
 	char* text, nat text_length, 
@@ -281,7 +276,7 @@ noreturn static void print_error(
 	printf("%s:%llu:%llu: error: %s\n", filename, begin, end, message);  
 	print_index(text, text_length, begin, end);
 	abort();
-}
+}*/
 
 static void dump_hex(uint8_t* memory, nat count) {
 	puts("second debug output:    debugging executable bytes:\n");
@@ -457,9 +452,9 @@ read_loop:
 		if (strlen(input)) input[strlen(input) - 1] = 0;
 		for (nat i = 0; i < var_count; i++) {
 			if (strcmp(variables[i], input)) continue;
-			printf("[0x%5llx/%5lld]:%lld:"
+			printf("[0x%5llx/%5lld]:"
 				"%24s:%016llx(%4lld)\n",
-				i, i, is_undefined[i], 
+				i, i, 
 				variables[i], values[i], 
 				values[i]
 			);
@@ -525,45 +520,93 @@ static void write_output(byte* string, nat count) {
 	}
 }
 
+
+static void print_error(const char* message, nat value, nat pc, nat arg) {
+	puts("err");
+	abort();
+}
+static void parse_error(const char* message, nat this, nat begin, nat end) {
+	puts("parse err");
+	abort();
+}
+
+static const nat is_undefined = 1;
+static const nat is_ct_label = 2;
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+				// we need a  print_parse_error(file, begin, end) function, 
+
+				// which will be seperate from  print_error(bad, pc, arg) function, which accepts the instruction index, and argument index. and also the value that was erroneous
+
+				// we will call ppe  while parsing, and call pe everywhere else. 
+
+				// we still need to store the fileoffset information of each op/arg for each ins, while parsing. along with args, we need an offsets[] array. i think. we then push this to the master file_offsets and file_mappings array once we push the isntruction. 
+
+static bool equals(const char* a, const char* b, a_length, b_length) {
+	if (a_length != b_length) return false;	
+	for (nat i = 0; i < a_length; i++) {
+		if (a[i] != b[i]) return false;
+	}
+	return true;
+}
+
+
 int main(int argc, const char** argv) {
 	if (argc != 2) exit(puts("error: exactly one source file must be specified."));	
 
-{ 	struct file files[max_file_count] = {0};
-	nat file_count = 1;
-	const char* included_files[max_file_count] = {0};
-	nat included_file_count = 0;
+	{ nat index_stack[max_file_count] = {0};
+	nat file_stack[max_file_count] = {0};
+	nat stack_count = 1;
 
-	{ nat text_length = 0;
-	char* text = load_file(argv[1], &text_length);
-	files[0].filename = argv[1];
-	files[0].text = text;
-	files[0].text_length = text_length;
-	files[0].index = 0; }
+	const char* included_filepaths[max_file_count] = {0};
+	nat included_filepath_count = 0;
+
+	nat first_file_text_length = 0;
+	file_names[file_count] = argv[1];
+	file_text[file_count] = load_file(argv[1], &first_length);
+	file_length[file_count] = first_length;
+	file_count++;
 
 process_file:;
-	const nat starting_index = files[file_count - 1].index;
-	const nat text_length = files[file_count - 1].text_length;
-	char* text = files[file_count - 1].text;
-	const char* filename = files[file_count - 1].filename;
 
-	nat word_length = 0, word_start = 0, arg_count = 0, is_immediate = 0;
-	byte in_string = 0;
+	const nat index = index_stack[stack_count - 1];
+	const nat this = file_stack[stack_count - 1];
 
-	nat args[max_arg_count] = {0}; 
+	const nat text_length = file_length[this];
+	const char* text = file_text[this];
 
-	for (nat var = 0, op = 0, pc = starting_index; pc < text_length; pc++) {
+	nat
+		length = 0, 
+		start = 0,
+	byte
+		arg_count = 0,
+		is_immediate = 0,
+		in_string = 0;
+
+	nat args[9] = {0};
+	nat offsets[9] = {0};
+
+	for (nat pc = index; pc < text_length; pc++) {
 
 		if (in_string) {
-			op = 0; in_string = 0;
+			in_string = 0;
 			while (isspace(text[pc])) pc++; 
 			const char delim = text[pc];
 			nat string_at = ++pc, string_length = 0;
 			while (text[pc] != delim) { pc++; string_length++; }
-			nat label = (nat) -1;
-			if (ins_count and ins[ins_count - 1].op == at) 
-				label = ins[ins_count - 1].args[0];
-			string_label[string_list_count] = label;
-			string_list[string_list_count++] = strndup(text + string_at, string_length);
+			string_list[string_list_count++] = text + string_at;
 			struct instruction new = { .op = str, .imm = 0xff };
 			new.args[0] = string_length;
 			new.args[1] = string_list_count - 1;
@@ -572,59 +615,64 @@ process_file:;
 		}
 
 		if (not isspace(text[pc])) {
-			if (not word_length) word_start = pc;
-			word_length++; 
+			if (not length) start = pc;
+			length++;
 			if (pc + 1 < text_length) continue;
-		} else if (not word_length) continue;
- 
-		char* word = strndup(text + word_start, word_length);
+		} else if (not length) continue; 
 
-		if (not op) {
+		const char* word = text + start
+
+		nat op = *args;
+
+		if (not arg_count) {
+
 			if (*word == '(') {
-				nat i = word_start + 1, comment = 1;
+				nat i = start + 1, comment = 1;
 				while (comment and i < text_length) {
 					if (text[i] == '(') comment++;
 					if (text[i] == ')') comment--;
 					i++;
 				}
-				if (comment) print_error(
-					"unterminated comment",
-					filename, text, text_length, 
-					word_start, pc
-				);
+				if (comment) parse_error("unterminated comment", this, start, pc);
 				pc = i;
 				goto next_word;
 			}
 
-			for (op = 0; op < isa_count; op++) 
-				if (not strcmp(word, operations[op])) goto process_op;
+			if (equal(word, "eoi", length, 3)) break;
 
-			for (var = var_count; var--;) {
-				if (not is_ct_label[var]) continue;
-				if (not strcmp(word, variables[var])) {
+			for (nat i = 0; i < isa_count; i++) {
+				if (equals(word, operations[i], length, strlen(operations[i]))) { 
+					args[arg_count++] = i;
+					offsets[arg_count++] = start;
+					goto next_word;
+				}
+			}
+
+			for (nat i = var_count; i--;) {
+				if (not (flags[i] & is_ct_label)) continue;
+				if (not strcmp(word, variables[i])) {
 					ins[ins_count++] = (struct instruction) { 
-						.op = eq, .imm = 3, .args = { 0, 0, var }
+						.op = eq, .imm = 3, .args = { 0, 0, i }
 					};
 					goto finish_operation;
 				}
 			}
-			print_error(
-				"nonexistent operation",
-				filename, text, text_length, word_start, pc
-			);
+
+			parse_error("nonexistent operation", this, start, pc);
 		}
+
 		else if (op == file) goto define_name;
 		for (var = var_count; var--;) {
 			if (not is_undefined[var] and 
 			    not strcmp(word, variables[var])) goto push_argument;
-		} 
+		}
 
-		if ( (op == at or op == zero or op == set or op == ld) and arg_count == 0 or
-			(op == lt or op == eq) and arg_count == 2
+		if ( (op == at or op == zero or op == set or op == ld) and arg_count == 1 or
+			(op == lt or op == eq) and arg_count == 3
 		) goto define_name;
 
 		nat r = 0, s = 1;
-		for (nat i = 0; i < strlen(word); i++) {
+		for (nat i = 0; i < length; i++) {
 			if (word[i] == '0') s <<= 1;
 			else if (word[i] == '1') { r += s; s <<= 1; }
 			else if (word[i] == '_') continue;
@@ -634,46 +682,52 @@ process_file:;
 		var = r;
 		goto push_argument;
 	undefined_var:
-		if (	op == set and arg_count == 1 or
-			op == st  and arg_count == 1 or
+		if (	op == set and arg_count == 2 or
+			op == st  and arg_count == 2 or
 			(op > eoi and op < isa_count)
 		) goto define_name;
-		print_error(
-			"undefined variable",
-			filename, text, text_length, word_start, pc
-		);
+
+		print_error("undefined variable", this, start, pc);
+
 	define_name:
 		var = var_count;
 		variables[var] = word;
 		values[var] = (nat) -1;
 		var_count++;
+
 	push_argument: 
-		args[arg_count++] = var;
+		args[arg_count] = var;
+		offsets[arg_count++] = start;
+
 	process_op:
-		if (op == eoi) break;
 		if (op == str) { in_string = 1; goto next_word; }
+
 		else if (op < isa_count and arg_count < arity[op]) goto next_word;
-		else if (op == del) is_undefined[*args] = 1;
+
+		else if (op == del) flags[*args] |= is_undefined;
+
 		else if (op == file) {
+
 			for (nat i = 0; i < included_file_count; i++) {
 				if (strcmp(included_files[i], word)) continue;
-				print_error("file has already been included", 
-					filename, text, text_length, word_start, pc
-					);
+				print_error("file has already been included", this, start, pc);
 			}
-			included_files[included_file_count++] = word;
+			included_filepaths[included_filepath_count++] = word;
+
 			nat len = 0;
 			char* string = load_file(word, &len);
-			files[file_count - 1].index = pc;
-			files[file_count].filename = word;
-			files[file_count].text = string;
-			files[file_count].text_length = len;
-			files[file_count++].index = 0;
-			var_count--;
+			index_stack[stack_count - 1] = pc;
+			file_names[file_count] = word;
+			file_text[file_count] = string;
+			file_length[file_count] = len;
+			file_stack[stack_count] = file_count;
+			index_stack[stack_count].index = 0;
+			stack_count++; file_count++; var_count--;
 			goto process_file;
+
 		} else {
 			if (op == at) values[*args] = ins_count;
-			else if (op == lt or op == eq) is_ct_label[args[2]] = 1;
+			else if (op == lt or op == eq) flags[args[2]] |= is_ct_label;
 			struct instruction new = { .op = op, .imm = is_immediate };
 			is_immediate = 0;
 			memcpy(new.args, args, sizeof args);
@@ -683,8 +737,8 @@ process_file:;
 		finish_operation: arg_count = 0; op = 0;
 		next_word: word_length = 0;
 	}
-	file_count--;
-	if (file_count) goto process_file; }
+	stack_count--;
+	if (stack_count) goto process_file; }
 
 	if (debug) {
 		print_instructions();
@@ -712,7 +766,7 @@ process_file:;
 		if ((op == lt or op == eq) and val2 >= ins_count) {
 			printf("error: at pc %llu invalid jump address: 0x%016llx\n", pc, val2);
 			print_instruction_window_around(pc, 1, "error");
-			abort();
+			print_error("invalid jump address", val2, pc, 2);
 		}
 
 		if (op == st and val0 >= max_memory_size) {

@@ -1,3 +1,6 @@
+(a program to control a gpio expander using hardware spi peripheral!
+written on 1202508111.234507 by dwrr)
+
 file library/core.s
 file library/useful.s
 
@@ -5,10 +8,8 @@ set target riscv_arch
 st output_format uf2_executable
 st overwrite_output true
 
-
-set rp2350_riscv   0101_1010_1111_1111__1101_0001_0010_0111    ( ie, 0xE48BFF5A )   (rp2350-riscv family ID)
+set rp2350_riscv   0101_1010_1111_1111__1101_0001_0010_0111
 st uf2_family_id rp2350_riscv
-
 
 (address atomic bitmasks) 
 set clear_on_write 	0000_0000_0000_11
@@ -20,11 +21,25 @@ set flash_start 	0000_0000_0000_0000__0000_0000_0000_1000
 set sram_start 		0000_0000_0000_0000__0000_0000_0000_0100
 set powman_base		0000_0000_0000_0000__0000_1000_0000_0010
 set clocks_base		0000_0000_0000_0000__1000_0000_0000_0010
+set rosc_base 		0000_0000_0000_0001__0111_0000_0000_0010
 set sio_base		0000_0000_0000_0000__0000_0000_0000_1011
 set reset_base 		0000_0000_0000_0000__0100_0000_0000_0010
 set io_bank0_base 	0000_0000_0000_0001__0100_0000_0000_0010
 set pads_bank0_base 	0000_0000_0000_0001__1100_0000_0000_0010
 set accessctrl_base	0000_0000_0000_0000__0110_0000_0000_0010
+set spi0_base		0000_0000_0000_0000__0001_0000_0000_0010
+
+(clock stuff)
+set clock_ref_control 	0000_1100
+set clock_ref_div 	0010_1100
+set rosc_div 		0010_1000
+
+(spi peripheral registers)
+set spi0_control0 	0
+set spi0_control1 	001
+set spi0_data 		0001
+set spi0_status 	0011
+set spi0_prescale 	0000_1
 
 (powman registers:  ones for the alarm and low power mode configuration)
 set powman_password 	0000_0000_0000_0000___0111_1111_0101_1010
@@ -36,12 +51,12 @@ set alarm_time_31to16	0000_0001
 set alarm_time_47to32	0011_1110
 set alarm_time_63to48	0001_1110
 
-
 (useful thingy)
-set reset_clear reset_base 
-add reset_clear clear_on_write
+(set reset_clear reset_base)
+(add reset_clear clear_on_write)
 
 (pad and gpio registers)
+
 set io_gpio0_ctrl  001
 set io_gpio1_ctrl  001_1
 set io_gpio2_ctrl  001_01
@@ -106,65 +121,14 @@ set pads_gpio28  00_1011_1
 set pads_gpio29  00_0111_1
 set pads_gpio30  00_1111_1
 
-set sio_gpio_oe 	0000_11
+(set sio_gpio_oe 	0000_11
 set sio_gpio_out 	0000_1
-set sio_gpio_in 	001
-
-
+set sio_gpio_in 	001)
 
 (program register allocations)
 
-set led_state 	1
 set data 	01
-set ram 	11
 set address 	001
-set temp	101
-
-eq 0 0 skip_macros
-
-at setif
-	ld ra 0 lt 0 0 setif
-	set a c0 set b c1 
-	set c c2 set d c3
-	lt a b l lt b a l st c d
-	at l del l del a del b  
-	del c del d eq 0 0 ra del ra 
-
-at setup_output
-	ld ra 0
-	set n c0
-
-	set control n
-	mul control 0001
-	add control 001
-
-	set pads n 
-	add pads 1
-	mul pads 001
-
-	set c0 address set c1 io_bank0_base li
-	set c0 data set c1 101 li
-	rs r_store r_sw address data control
-
-	set c0 address set c1 pads_bank0_base li
-	set c0 data set c1 0_1_0_0_11_1_0_0 li
-	rs r_store r_sw address data pads
-
-	del pads del control 
-	eq 0 0 ra del ra
-	lt 0 0 setup_output	
-
-at processor_sleep
-	ld ra 0 
-	rr r_reg r_slt 0 0 0 0
-	eq 0 0 ra del ra
-	lt 0 0 processor_sleep
-
-
-at skip_macros del skip_macros
-
-
-
 
 sect flash_start
 
@@ -178,57 +142,623 @@ emit  001  1001_1110_1010_1100__0100_1000_1101_0101
 
 at skip del skip
 
-
-set c0 address set c1 reset_clear li
-set c0 data set c1 0000_0010_01 li
+set c0 address set c1 reset_base li
+set c0 data set c1 1111_1101_1011_1111____1100_1111_1111_1111 li
 rs r_store r_sw address data 0
 
+set c0 address set c1 clocks_base li
+set c0 data set c1 11 li
+rs r_store r_sw address data clock_ref_control
+set c0 address set c1 clocks_base li
+set c0 data set c1 0000_0000_0000_0000___1111_1111 li
+rs r_store r_sw address data clock_ref_div
 
-(set sleep_en0 0010_1101
-set sleep_en1 0001_1101
+set c0 address set c1 io_bank0_base li
+set c0 data set c1 1 li
+rs r_store r_sw address data io_gpio0_ctrl
+rs r_store r_sw address data io_gpio1_ctrl
+rs r_store r_sw address data io_gpio2_ctrl
+rs r_store r_sw address data io_gpio3_ctrl
+rs r_store r_sw address data io_gpio23_ctrl
+
+set c0 address set c1 pads_bank0_base li
+set c0 data set c1 01 li
+rs r_store r_sw address data pads_gpio0
+rs r_store r_sw address data pads_gpio1
+rs r_store r_sw address data pads_gpio2
+rs r_store r_sw address data pads_gpio3
+rs r_store r_sw address data pads_gpio23
+
+at mainloop
+
+set c0 address set c1 spi0_base li
+
+set c0 data set c1 1111_1111_1111_1110 li
+rs r_store r_sw address data spi0_data
+
+set c0 data set c1 1111_0000_1111_1111 li
+rs r_store r_sw address data spi0_control0
+
+set c0 data set c1 01 li
+rs r_store r_sw address data spi0_prescale
+
+set c0 data set c1 01 li
+rs r_store r_sw address data spi0_control1
+
+
+
+
+rj r_jal 0 mainloop
+
+
+eoi
+
+reworked the whole program!
+on 1202508111.234213
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+	set c0 address set c1 io_bank0_base li
+	set c0 data set c1 101 li
+	rs r_store r_sw address data control
+
+	set c0 address set c1 pads_bank0_base li
+	set c0 data set c1 0_1_0_0_11_1_0_0 li
+	rs r_store r_sw address data pads
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 set c0 address set c1 clocks_base li
-(set c0 data set c1 0 li)
-rs r_store r_sw address 0 sleep_en0
-
+set c0 data set c1 11 li
+rs r_store r_sw address data clock_ref_control
 set c0 address set c1 clocks_base li
-set c0 data set c1 0000_1111_1111_1100__0000_0000_0000_0000 li
-rs r_store r_sw address data sleep_en1)
+set c0 data set c1 0000_0000_0000_0000___1111_1111 li
+rs r_store r_sw address data clock_ref_div
 
-set c0 0 setup_output
-set c0 11101 setup_output
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 (
-	current state:
-
-		1202508041.202313
-
-			apparently setting all pins to outputs wasnt the current draw problem, 
-			which means we have to look through the datasheet to see if we missed anything that is causing there to be 400uA of excess current draw lol... apparently the shmid triggers and pulldowns are enabled for all inputs, on reset, so thats not the problem... hmmm
 
 
+	we need to take  the   spi  peripheral out of reset!
+	for spi0, bit 18 in the reset register is 1, set this to 0 i think?
+
+
+	gpio0_ctrl[0:4] = 1000_0        for spi0_rx
+
+	//gpio1_ctrl[0:4] = 1000_0        for spi0_ssn   we are going to control CS via SIO.
+
+	gpio2_ctrl[0:4] = 1000_0        for spi0_sck
+	gpio3_ctrl[0:4] = 1000_0        for spi0_tx
+
+
+	control1 = 0100
+	control0 = 1111_0000_1111_1111
+
+
+
+	then we just read and write    spi0_data    a bunch lol 
+	i think 
+
+		oh  we also check the   busy_flag  
+
+			in the spi0_status register!
+
+
+
+	
+
+
+
+)
+
+
+(set led_state 	1)
+(set ram 	11)
+(set temp	101)
+
+
+
+
+
+
+(delay
+
+set c0 address set c1 sio_base li
+set c0 data set c1 0000_0 li
+rs r_store r_sw address data sio_gpio_out
+
+delay
+
+set c0 address set c1 sio_base li
+set c0 data set c1 0000_1 li
+rs r_store r_sw address data sio_gpio_out
+
+delay)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+eq 0 0 skip_macros
+
+
+
+
+
+
+
+
+
+(at setup_output
+	ld ra 0
+	set n c0
+	set control n
+	mul control 0001
+	add control 001
+	set pads n 
+	incr pads
+	mul pads 001
+	del n
+
+	set c0 address set c1 io_bank0_base li
+	set c0 data set c1 101 li
+	rs r_store r_sw address data control
+
+	set c0 address set c1 pads_bank0_base li
+	set c0 data set c1 0_1_0_0_11_1_0_0 li
+	rs r_store r_sw address data pads
+
+	del pads del control 
+	eq 0 0 ra del ra
+	lt 0 0 setup_output	
+)
+
+
+at setup_spi_pin
+	ld ra 0
+
+	set n c0
+	set control n
+	mul control 0001
+	add control 001
+	set pads n incr pads
+	mul pads 001
+
+	del n
+
+	set c0 address set c1 io_bank0_base li
+	set c0 data set c1 1 li
+	rs r_store r_sw address data control
+
+	set c0 address set c1 pads_bank0_base li
+	set c0 data set c1 01 li
+	rs r_store r_sw address data pads
+
+	del pads del control
+	eq 0 0 ra del ra
+	lt 0 0 setup_spi_pin
+
+
+(at processor_sleep
+	ld ra 0
+	rr r_reg r_slt 0 0 0 0
+	eq 0 0 ra del ra
+	lt 0 0 processor_sleep
+
+
+at delay
+	ld ra 0
+	set i temp
+	set c0 i set c1 0000_001 li
+	at l
+		ri r_imm r_add i i 1111_1111_1111
+		rb r_branch r_bne i 0 l
+	del l del i
+	eq 0 0 ra del ra
+	lt 0 0 delay
+
+)
+at skip_macros del skip_macros
+
+(sect flash_start
+
+rj r_jal 0 skip
+			(rp2350 image_def marker)
+emit  001  1100_1011_0111_1011__1111_1111_1111_1111
+emit  001  0100_0010_1000_0000__1000_0000_1000_1000
+emit  001  1111_1111_1000_0000__0000_0000_0000_0000
+emit  001  0000_0000_0000_0000__0000_0000_0000_0000
+emit  001  1001_1110_1010_1100__0100_1000_1101_0101
+
+at skip del skip
+
+set c0 address set c1 reset_base li
+set c0 data set c1 1111_1101_1011_1111____1100_1111_1111_1111 li
+rs r_store r_sw address data 0
+
+set c0 address set c1 io_bank0_base li
+set c0 data set c1 1 li
+rs r_store r_sw address data io_gpio0_ctrl
+rs r_store r_sw address data io_gpio1_ctrl
+rs r_store r_sw address data io_gpio2_ctrl
+rs r_store r_sw address data io_gpio3_ctrl
+
+set c0 address set c1 pads_bank0_base li
+set c0 data set c1 01 li
+rs r_store r_sw address data pads_gpio0
+rs r_store r_sw address data pads_gpio1
+rs r_store r_sw address data pads_gpio2
+rs r_store r_sw address data pads_gpio3
+
+)
+
+
+
+(set c0 address set c1 clocks_base li
+set c0 data set c1 11 li
+rs r_store r_sw address data clock_ref_control
+set c0 address set c1 clocks_base li
+set c0 data set c1 0000_0000_0000_0000___1111_1111 li
+rs r_store r_sw address data clock_ref_div)
+
+(set c0 11101 setup_output  (wifi chip power disable))
+
+(set c0 0  setup_spi_pin
+set c0 1  setup_spi_pin
+set c0 01 setup_spi_pin
+set c0 11 setup_spi_pin)
+
+(set c0 001 setup_output)
+
+
+(	set c0 address set c1 io_bank0_base li
+	set c0 data set c1 1 li
+	rs r_store r_sw address data io_gpio0_ctrl
+	rs r_store r_sw address data io_gpio1_ctrl
+	rs r_store r_sw address data io_gpio2_ctrl
+	rs r_store r_sw address data io_gpio3_ctrl
+
+	set c0 address set c1 pads_bank0_base li
+	set c0 data set c1 01 li
+	rs r_store r_sw address data pads_gpio0
+	rs r_store r_sw address data pads_gpio1
+	rs r_store r_sw address data pads_gpio2
+	rs r_store r_sw address data pads_gpio3
+)
+
+(set c0 address set c1 sio_base li
+set c0 data set c1 0000_1000_0000_0000__0000_0001 li
+rs r_store r_sw address data sio_gpio_oe
+set c0 data set c1 0000_1 li
+rs r_store r_sw address data sio_gpio_out)
+
+set c0 address set c1 spi0_base li
+
+set c0 data set c1 1111_1111_1111_1110 li
+rs r_store r_sw address data spi0_data
+
+set c0 data set c1 1111_0000_1111_1111 li
+rs r_store r_sw address data spi0_control0
+
+set c0 data set c1 01 li
+rs r_store r_sw address data spi0_prescale
+
+set c0 data set c1 01 li
+rs r_store r_sw address data spi0_control1
+
+(delay
+
+set c0 address set c1 sio_base li
+set c0 data set c1 0000_0 li
+rs r_store r_sw address data sio_gpio_out
+
+delay
+
+set c0 address set c1 sio_base li
+set c0 data set c1 0000_1 li
+rs r_store r_sw address data sio_gpio_out
+
+delay)
+
+
+at mainloop
+
+(set c0 data set c1 00001 li
+rs r_store r_sw address data sio_gpio_out
+
+set c0 data set c1 00000 li
+rs r_store r_sw address data sio_gpio_out)
+
+rj r_jal 0 mainloop
+
+
+
+
+eoi
+
+
+
+(set c0 data set c1 0000_0000_0000_0010 li
+rs r_store r_sw address data spi0_data
+
+set c0 data set c1 0000_0000_0000_0000 li
+rs r_store r_sw address data spi0_data
+
+set c0 data set c1 0010_1000_0000_0010 li
+rs r_store r_sw address data spi0_data)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+(at setif
+	ld ra 0 lt 0 0 setif
+	set a c0 set b c1 
+	set c c2 set d c3
+	lt a b l lt b a l st c d
+	at l del l del a del b  
+	del c del d eq 0 0 ra del ra
+)
+
+(
+set c0 address set c1 spi0_base li
+
+set c0 data set c1 1111_0000_1111_1111 li
+rs r_store r_sw address data spi0_control0
+set c0 data set c1 01 li
+rs r_store r_sw address data spi0_control1
+set c0 data set c1 01 li
+rs r_store r_sw address data spi0_prescale
+
+
+delay
+
+(set c0 address set c1 sio_base li
+set c0 data set c1 00 li
+rs r_store r_sw address data sio_gpio_out
+
+set c0 address set c1 spi0_base li)
+
+
+
+set c0 data set c1 0000_0000_0000_0010 li
+rs r_store r_sw address data spi0_data
+set c0 data set c1 0000_0000_0000_0000 li
+rs r_store r_sw address data spi0_data
+
+delay
+
+set c0 data set c1 0010_1000_0000_0010 li
+rs r_store r_sw address data spi0_data
+set c0 data set c1 1111_1111_1111_1111 li
+rs r_store r_sw address data spi0_data
+
+
+delay
+
+(set c0 address set c1 sio_base li
+set c0 data set c1 01 li
+rs r_store r_sw address data sio_gpio_out)
+
+
+delay
 )
 
 
 
 
 
-(set i 0
-at loop
-	set c0 i setup_output
-	add i 1
-	lt i 01111 loop del loop del i)
 
 
-set c0 address set c1 sio_base li
-set c0 data set c1 1 (1111_1111__1111_1111__1111_1111__1111_1100) li
-rs r_store r_sw address data sio_gpio_oe
 
-(set c0 data set c1 0 li)
-rs r_store r_sw address 0 sio_gpio_out
+((decrease the rosc frequency so we can see the transmission using LEDs!)
+(rosc divider = 127)
+set c0 address set c1 rosc_base li
+set c0 data set c1 1111_1110_0101_0101 li
+rs r_store r_sw address data rosc_div)
 
-set c0 ram set c1 sram_start li
+(switch to the lposc clock as the system clock, its slower lol)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+(set c0 ram set c1 sram_start li
 set c0 address set c1 powman_base li
 ri r_load r_lw data address last_swcore_pwrup
 ri r_imm r_add temp 0 1
@@ -251,8 +781,8 @@ rb r_branch r_bne data temp skip_boot
 		rb r_branch r_bne i 0 l
 	del l del i
 
-	(set c0 data set c1 0 li)
-	rs r_store r_sw address 0 sio_gpio_out
+	set c0 data set c1 0 li
+	rs r_store r_sw address data sio_gpio_out
 
 	set i temp
 	set c0 i set c1 0000_0000_0000_0000_0001 li
@@ -300,7 +830,7 @@ set c0 data set c1 n li
 rs r_store r_sw address data powman_state
 processor_sleep
 
-
+)
 
 eoi
 
@@ -313,6 +843,94 @@ it still consumes 0.68mA  ie  680 microamps, so we still have some additional wo
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+(set sleep_en0 0010_1101
+set sleep_en1 0001_1101
+
+set c0 address set c1 clocks_base li
+set c0 data set c1 0 li
+rs r_store r_sw address data sleep_en0
+
+set c0 address set c1 clocks_base li
+set c0 data set c1 0000_1111_1111_1100__0000_0000_0000_0000 li
+rs r_store r_sw address data sleep_en1)
+
+
+
+
+(
+	current state:
+
+		1202508041.202313
+
+			apparently setting all pins to outputs wasnt the current draw problem, 
+			which means we have to look through the datasheet to see if we missed anything that is causing there to be 400uA of excess current draw lol... apparently the shmid triggers and pulldowns are enabled for all inputs, on reset, so thats not the problem... hmmm
+
+
+)
+
+
+
+
+
+(set i 0
+at loop
+	set c0 i setup_output
+	add i 1
+	lt i 01111 loop del loop del i)
 
 
 
