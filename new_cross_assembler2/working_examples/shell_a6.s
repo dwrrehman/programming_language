@@ -4,14 +4,9 @@ written on 1202508041.175448 by dwrr)
 file library/core.s
 file library/useful.s
 
-set target arm64_arch
-st output_format macho_executable
-st executable_stack_size min_stack_size_macos
-st overwrite_output true
-
+arm64
 
 addi a6_sp a6_sp 0000_01 0 0 1 1     (allocate 32 bytes of stack memory)
-
 
 mov a6_number a6_write 0 mov_type_zero 1
 mov a6_arg0 stdout 0 mov_type_zero 1
@@ -25,8 +20,10 @@ mov input_length 0 0 mov_type_zero 1
 
 at loop
 
-addi a6_zero input_length 10000    0 1 1 1
+
+addi a6_zero input_length 10000   0 1 1 1
 bc is_equal terminateprogram
+
 
 mov a6_number a6_write 0 mov_type_zero 1
 mov a6_arg0 stdout 0 mov_type_zero 1
@@ -37,10 +34,12 @@ svc
 mov a6_number a6_read 0 mov_type_zero 1
 mov a6_arg0 stdin 0 mov_type_zero 1
 addi a6_arg1 a6_sp 0 0 0 0 1
-mov a6_arg2 0001 0 mov_type_zero 1
+mov a6_arg2 00001 0 mov_type_zero 1
 svc
 
+
 addi input_length a6_arg0 0 0 0 0 1
+
 
 mov a6_number a6_write 0 mov_type_zero 1
 mov a6_arg0 stdout 0 mov_type_zero 1
@@ -69,7 +68,6 @@ svc
 
 
 jmp 0 loop
-
 
 
 at terminateprogram

@@ -359,7 +359,25 @@ processor_sleep
 
 eoi
 
-1202507292.234007  got this working!!! YAYYYYY
+1202508133.234841
+this is a rewrite that tries to use the spi hardware periheral unsuccessfully again lol... 
+
+	i can get it so that the spi peri is able to control the CSn line, and probably also the clock and data lines too, but those are silent so they dont do anything... 
+
+	i must be not understanding how to intiate a spi transfer basically.. the arm documentation is not clear at all. 
+
+
+	
+
+
+
+
+
+
+
+
+
+1202507292.234007  got the low power modes working!!! YAYYYYY
 it still consumes 0.68mA  ie  680 microamps, so we still have some additional work to do, 
 
 	but we are getting there :)

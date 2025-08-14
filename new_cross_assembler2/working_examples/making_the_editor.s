@@ -4,14 +4,13 @@ file library/ascii.s
 
 riscv_hex
 
-
-set c0 1 
+(set c0 1 
 set c1 1111_0111_1011_0011__1101_0101_1001_0001 
 li
 
 rr r_reg r_add 0 0 0 0 
 
-eoi
+eoi)
 
 set textlength 1001 (should be called end)
 set text 0001 (should be called begin)
@@ -49,7 +48,6 @@ at assign
 	eq 0 0 ra del ra 
 	lt 0 0 assign
 	
-
 
 at display
 	ld ra 0 
@@ -112,7 +110,8 @@ at loop
 	(set c0 cursor increment)
 	set c0 textlength increment
 
-	del c del command	
+	del c del command
+
 	rj r_jal 0 loop
 
 at delete del delete

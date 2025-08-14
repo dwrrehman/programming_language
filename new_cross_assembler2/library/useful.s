@@ -70,9 +70,13 @@ at arm64
 	ld ra 0
 	set c0 ra function_begin
 
+
 	set target arm64_arch
 	st output_format macho_executable
 	st overwrite_output true
+
+	st executable_stack_size min_stack_size_macos
+
 
 	function_end
 	eq 0 0 ra del ra lt 0 0 arm64
@@ -439,6 +443,31 @@ at stringsequal
 
 	function_end
 	eq 0 0 ra del ra
+
+
+at decrement
+	ld ra 0
+	set d c0
+	set c0 ra function_begin
+	ri r_imm r_add d d 1111_1111_1111
+	del d
+	function_end
+	eq 0 0 ra del ra
+	lt 0 0 decrement
+	
+
+at increment
+	ld ra 0
+	set d c0
+	set c0 ra function_begin
+	
+	ri r_imm r_add d d 1
+	del d
+
+	function_end
+	eq 0 0 ra del ra
+	lt 0 0 increment
+	
 
 
 at skip_all_routines del skip_all_routines

@@ -2,6 +2,8 @@
 // 1202507255.154607 rewritten to use pc-rel offset immediates instead of labels in rt ins.
 // unified target system on 1202508037.194442
 // rewritten on 1202508133.024130 by dwrr
+// finished errors on 1202508133.185450 
+
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -601,14 +603,6 @@ static void print_disassembly(const nat arch) {
 
 
 
-
-
-
-
-
-
-
-
 static void generate_machine_instruction(nat* in, nat pc) {
 
 		const nat op = get_op(in[0]);
@@ -1057,15 +1051,9 @@ static void generate_machine_instruction(nat* in, nat pc) {
 			
 			print_error("code generation: invalid machine instruction op code", op, pc, 0);
 		}
-
-
 }
 
-
-
-
 static nat get_length(nat* in) {
-
 	const nat op = get_op(in[0]);
 	const nat a0 = in[1];
 	const nat a1 = in[2];
@@ -1082,11 +1070,8 @@ static nat get_length(nat* in) {
 	else if (op == sect) length = 0;
 	else if (op == emit) length = a0;
 	else length = 4;
-
 	return length;
 }
-
-
 
 int main(int argc, const char** argv) {
 	if (argc != 2) exit(puts("assembler: \033[31;1merror:\033[0m exactly one source file must be specified."));	
@@ -1740,17 +1725,17 @@ generate_ti_txt_executable:; {
 			i == section_starts[this_section]
 		) {
 			if (this_section) { out = realloc(out, len + 1); out[len++] = 10; } 
-			out = realloc(out, len + 5);
+			out = realloc(out, len + 6);
 			len += (nat) snprintf(out + len, 6, "@%04llx", section_addresses[this_section]);
 			this_section++; 
 			section_byte_count = 0;
 		}
 		if (section_byte_count % 16 == 0) { out = realloc(out, len + 1); out[len++] = 10; } 
-		out = realloc(out, len + 3);
+		out = realloc(out, len + 4);
 		len += (nat) snprintf(out + len, 4, "%02hhX ", output_bytes[i]);
 		section_byte_count++;
 	}
-	out = realloc(out, len + 3);
+	out = realloc(out, len + 4);
 	len += (nat) snprintf(out + len, 4, "\nq\n");
 
 	write_output((byte*) out, len);

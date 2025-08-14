@@ -4,14 +4,11 @@ file library/core.s
 st output_format hex_array
 st overwrite_output true
 
-str "hi lol"
-
 ri r_imm r_add r_number 0 r_exit
 ri r_imm r_add r_arg0 0 10001
 ri r_ecall 0 0 0 0
 
-
-
+str "hi lol"
 
 eoi
 
