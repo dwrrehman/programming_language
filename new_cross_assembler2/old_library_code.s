@@ -72,7 +72,7 @@ at not
 	eq 0 0 ra del ra 
 	lt 0 0 not
 
-(at si
+at si
 	ld ra 0
 	set value c0
 	set shift_amount c1
@@ -158,7 +158,7 @@ at or    (a = a | b    in 64 bits)
 	set c0 c del c
 	eq 0 0 ra del ra 
 	lt 0 0 or
-)
+
 
 
 at la
@@ -202,9 +202,11 @@ at li
 		eq 0 0 -1 str "error: argument to li did not fit in a 32-bit number."
 	at skip_abort del skip_abort
 
-	set bit immediate and bit 0000_0000_0001 sd bit 1101
-	set a immediate sd a 0011 add a bit and a 1111_1111_1111_1111_1111 
-	set b immediate and b 1111_1111_1111
+	set c0 immediate set c1 0000_0000_0001 and set bit c0
+	set c0 bit set c1 1101 sd set bit c0
+	set c0 immediate set c1 0011 sd set a c0 add a bit 
+	set c0 a set c1 1111_1111_1111_1111_1111 and set a c0
+	set c0 immediate set c1 1111_1111_1111 and set b c0
 
 	set source 0
 	eq 0 a s

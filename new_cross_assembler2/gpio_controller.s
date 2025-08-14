@@ -163,7 +163,7 @@ rs r_store r_sw address data io_gpio2_ctrl
 rs r_store r_sw address data io_gpio3_ctrl
 rs r_store r_sw address data io_gpio23_ctrl
 
-set c0 address set c1 pads_bank0_base li
+set c0 addressXXXXXX set c1 pads_bank0_base li
 set c0 data set c1 0100_11_100 li
 rs r_store r_sw address data pads_gpio0
 rs r_store r_sw address data pads_gpio1

@@ -24,12 +24,14 @@ incr x set ti_txt_executable x
 incr x set uf2_executable x
 
 zero x set return_address x
+incr x set ctstackpointer x
 incr x set output_format x 
 incr x set executable_stack_size x 
 incr x set uf2_family_id x 
 incr x set overwrite_output x 
-incr x set assembler_pass x 
-incr x set assembler_putc x 
+incr x set assembler_pass x
+incr x set assembler_putc x
+incr x set ctcallstack x
 
 del x
 

@@ -50,16 +50,19 @@ enum all_output_formats {
 };
 enum memory_mapped_addresses {
 	return_address,
+	ctstackpointer,
 	output_format,
 	executable_stack_size,
 	uf2_family_id,
 	overwrite_output,
 	assembler_pass,
-	assembler_putc
+	assembler_putc,
+	ctcallstack,
 };
 
 enum isa {
 	zero, incr, set, add, sub, mul, div_, 
+	and_, or_, eor, si, sd, 
 	ld, st, lt, eq, at, emit, sect, 
 	file, del, str, eoi, 
 	rr, ri, rs, rb, ru, rj,
@@ -76,6 +79,7 @@ enum isa {
 
 static const char* operations[isa_count] = {
 	"zero", "incr", "set", "add", "sub", "mul", "div", 
+	"and", "or", "eor", "si", "sd", 
 	"ld", "st", "lt", "eq", "at", "emit", "sect", 
 	"file", "del", "str", "eoi",
 	"rr", "ri", "rs", "rb", "ru", "rj",
@@ -91,6 +95,7 @@ static const char* operations[isa_count] = {
 
 static const nat arity[isa_count] = {
 	1, 1, 2, 2, 2, 2, 2,
+	2, 2, 2, 2, 2, 
 	2, 2, 3, 3, 1, 2, 1, 
 	1, 1, 0, 0, 
 	6, 5, 5, 5, 3, 3,
@@ -116,6 +121,8 @@ static nat family_id = 0;
 
 static uint8_t* output_bytes = NULL;
 static nat output_count = 0;
+
+static nat memory[max_memory_size] = {0};
 
 static nat file_count = 0;
 static const char* file_names[max_file_count] = {0};
@@ -259,7 +266,10 @@ static void print_source_at(
 	const char* text, 
 	const nat text_length, 
 	nat begin, nat end,
-	const char* note
+
+	const char* note,
+	nat value,
+	byte mode
 ) {
 	const nat window_width = 60;
 	const nat error_radius = 4;
@@ -305,7 +315,6 @@ static void print_source_at(
 
 		if (c == 10) {
 			line_count++;
-			newline: 
 			if (near) puts("");
 
 			if (row_count == error_row) { 
@@ -314,7 +323,10 @@ static void print_source_at(
 				for (nat e = 0; e < error_column; e++) putchar(' ');
 				printf("\033[32;1m^");
 				for (nat e = 0; e < end - begin; e++) putchar('~');
-				printf("\033[38;5;240m     (%s) \033[0m \n", note);
+
+				if (mode == 0) printf("\033[38;5;240m     (%s) \033[0m \n", note);
+				else if (mode == 1) printf("\033[38;5;240m     (has value 0x%llx) \033[0m \n", value);
+				else if (mode == 2) printf("\033[38;5;240m     (call at pc 0x%llx) \033[0m \n", value);
 			} 
 
 			column_count = 0;
@@ -340,14 +352,17 @@ static void print_source_at(
 				for (nat e = 0; e < error_column; e++) putchar(' ');
 				printf("\033[32;1m^");
 				for (nat e = 0; e < end - begin; e++) putchar('~');
-				printf("\033[38;5;240m     (%s) \033[0m \n", note);
+
+				if (mode == 0) printf("\033[38;5;240m     (%s) \033[0m \n", note);
+				else if (mode == 1) printf("\033[38;5;240m     (has value 0x%llx) \033[0m \n", value);
+				else if (mode == 2) printf("\033[38;5;240m     (pc 0x%llx) \033[0m \n", value);
 			} 
 			column_count = 0;
 			row_count++;
 			if (near) printf("\033[38;5;233m%6llu\033[0m \033[32m│\033[0m ", line_count);
 		} 
 	}
-	puts("");
+	if (column_count) puts("");
 	printf("\033[38;5;240m__________");
 	for (nat i = 0; i < window_width; i++) putchar('_');
 	printf("___\033[0m");
@@ -355,6 +370,57 @@ static void print_source_at(
 }
 
 
+
+static void dump_hex(uint8_t* m, nat count) {
+	puts("second debug output:    debugging executable bytes:\n");
+	for (nat i = 0; i < count; i++) {
+		if (i % 16 == 0) puts("");
+		if (i % 64 == 0) puts("");
+		if (i % 4 == 0) putchar(32);
+		if (m[i]) printf("\033[32;1m");
+		printf("%02hhx ", m[i]);
+		if (m[i]) printf("\033[0m");
+	}
+	puts("\n");
+}
+
+
+
+static void print_stack_trace(void) {
+
+	//dump_hex((uint8_t*) memory, 256);
+
+	const nat sp = memory[ctstackpointer];
+	if (ctcallstack > sp) {
+		puts("ERROR: could not print call stack, stack pointer invalid!");
+		return;
+	}
+	const nat count = sp - ctcallstack;
+	for (nat i = count; i--;) {
+
+		const nat pc = memory[ctcallstack + i];
+		const nat value = pc;
+		const nat arg = 0;
+
+		const nat begin = file_offset[pc + arg];
+		const nat this_file = file_mapping[pc / 16];
+	
+		const char* filename = file_names[this_file];
+		nat filename_length = file_name_lengths[this_file];
+		const char* text = file_text[this_file];
+		const nat text_length = file_length[this_file];
+	
+		nat end = begin;
+		while(end < text_length and not isspace(text[end])) end++;
+
+		puts("\n");
+		printf("%.*s:%llu:%llu: 0x%llx:a%llu: \033[36;1minfo:\033[0m %s, pc 0x%llx(%lld)\n", 
+			(int) filename_length, filename, begin, end, pc, arg, "called from here", value, value
+		);
+
+		print_source_at(text, text_length, begin, end, "", value, 2);
+	}
+}
 
 noreturn static void print_error(
 	const char* message, nat value, nat pc, nat arg
@@ -371,11 +437,13 @@ noreturn static void print_error(
 	nat end = begin;
 	while(end < text_length and not isspace(text[end])) end++;
 
-	printf("%.*s:%llu:%llu: arg%llu: \033[31;1merror:\033[0m %s\n\tfound 0x%llx(%lld)\n", 
-		(int) filename_length, filename, begin, end, arg, message, value, value
+	printf("%.*s:%llu:%llu: 0x%llx:a%llu: \033[31;1merror:\033[0m %s\n\tfound 0x%llx(%lld)\n", 
+		(int) filename_length, filename, begin, end, pc, arg, message, value, value
 	);
 
-	print_source_at(text, text_length, begin, end, "invalid value error");
+	print_source_at(text, text_length, begin, end, "", value, 1);
+
+	print_stack_trace();
 
 	abort();
 }
@@ -392,7 +460,7 @@ noreturn static void parse_error(
 		begin, end, message, 
 		(int) length, string
 	);
-	print_source_at(file_text[this_file], file_length[this_file], begin, end, note);
+	print_source_at(file_text[this_file], file_length[this_file], begin, end, note, 0, 0);
 	abort();
 }
 
@@ -408,43 +476,8 @@ static bool equals(
 }
 
 
-
 #define get_op(n) (n & 0xffffffff)
-
 #define get_imm(n) (n >> 32LLU)
-
-
-static nat get_length(nat* in) {
-
-	const nat op = get_op(in[0]);
-	const nat a0 = ins[1];
-	const nat a1 = ins[2];
-	const nat a4 = ins[5];
-	const nat a5 = ins[6];
-
-	nat length = 4;
-	if (op == mo) {
-		length = 2;
-		if ((a4 == 1 and (a5 != 2 and a5 != 3)) or (a4 == 3 and not a5)) length += 2;
-		if (a1 == 1) length += 2;
-	}
-	else if (op == mb) length = 2;
-	else if (op == sect) length = 0;
-	else if (op == emit) length = a0;
-	else length = 4;
-
-	return length;
-}
-
-
-
-
-
-
-
-
-
-
 
 static void print_dictionary(void) {
 	puts("dictionary: ");
@@ -509,20 +542,6 @@ static void print_instructions(void) {
 	}
 }
 
-static void dump_hex(uint8_t* memory, nat count) {
-	puts("second debug output:    debugging executable bytes:\n");
-	for (nat i = 0; i < count; i++) {
-		if (i % 16 == 0) puts("");
-		if (i % 64 == 0) puts("");
-		if (i % 4 == 0) putchar(32);
-		if (memory[i]) printf("\033[32;1m");
-		printf("%02hhx ", memory[i]);
-		if (memory[i]) printf("\033[0m");
-	}
-	puts("\n");
-}
-
-
 
 static void print_instruction_window_around(
 	nat this,
@@ -569,12 +588,7 @@ static void print_instruction_window_around(
 	}
 }
 
-static void cte_debugger(
-	nat pc, nat pass, 
-	nat rt_ins_count, 
-	nat* rt_ins,
-	nat* memory
-) {
+static void cte_debugger(nat pc, nat pass) {
 
 	print_instruction_window_around(pc, 0, "");
 	printf("\033[32;1m [ PASS = %llu ] \033[0m \n", pass);
@@ -588,11 +602,11 @@ read_loop:
 
 	if (not strcmp(input, "\n")) goto done;
 
-	else if (not strcmp(input, ":this\n")) {
-		print_instruction(ins + pc * 16); 
+	else if (not strcmp(input, ":here\n")) {
+		print_instruction(ins + pc * 16);
 		puts("");
 
-	} else if (not strcmp(input, ":inputlist\n")) {
+	} else if (not strcmp(input, ":instructions\n")) {
 		print_instructions();
 		puts("");
 
@@ -600,12 +614,8 @@ read_loop:
 		print_dictionary(); 
 		puts("");
 
-	} else if (not strcmp(input, ":list\n")) {
-		for (nat i = 0; i < rt_ins_count; i += 16) {
-			putchar(9);
-			print_instruction(rt_ins + i); 
-			puts("");
-		}
+	} else if (not strcmp(input, ":output\n")) {
+		dump_hex(output_bytes, output_count);
 
 	} else if (not strcmp(input, ":memory\n")) {
 		dump_hex((uint8_t*) memory, 256);
@@ -647,355 +657,25 @@ static void print_disassembly(const nat arch) {
 
 
 
-int main(int argc, const char** argv) {
-	if (argc != 2) exit(puts("assembler: \033[31;1merror:\033[0m exactly one source file must be specified."));	
-
-	{ nat index_stack[max_file_count] = {0};
-	nat file_stack[max_file_count] = {0};
-	nat stack_count = 1;
-
-	nat included_filepaths[max_file_count] = {0};
-	nat included_count = 0;
-
-	nat first_length = 0;
-	file_names[file_count] = argv[1];
-	file_name_lengths[file_count] = strlen(argv[1]);
-	file_text[file_count] = load_file(argv[1], strlen(argv[1]), &first_length);
-	file_length[file_count] = first_length;
-	file_count++;
-
-process_file:;
-
-	const nat index = index_stack[stack_count - 1];
-	const nat this_file = file_stack[stack_count - 1];
-
-	const nat text_length = file_length[this_file];
-	const char* text = file_text[this_file];
-
-	nat length = 0, start = 0, is_immediate = 0, arg_count = 0;
-
-	nat args[16] = {0};
-	nat offsets[16] = {0};
-
-	for (nat var = 0, pc = index; pc < text_length; pc++) {
-
-		if (not isspace(text[pc])) {
-			if (not length) start = pc;
-			length++;
-			if (pc + 1 < text_length) continue;
-		} else if (not length) continue; 
-
-		const char* word = text + start;
-
-		nat op = args[0];
-
-		if (not arg_count) {
-
-			if (word[0] == '(') {
-				nat i = start + 1, comment = 1;
-				while (comment and i < text_length) {
-					if (text[i] == '(') comment++;
-					if (text[i] == ')') comment--;
-					i++;
-				}
-				if (comment) parse_error(
-					"unterminated comment", 
-					"comment started here", 
-					"", 0, this_file, start, pc
-				);
-				pc = i;
-				goto next_word;
-			}
-
-			for (nat i = 0; i < isa_count; i++) {
-				if (equals(word, operations[i], length, strlen(operations[i]))) { 
-					args[arg_count] = i; op = i;
-					offsets[arg_count++] = start;
-					goto process_op; 
-				}
-			}
-
-			for (nat i = var_count; i--;) {
-				if (not (types[i] & is_ct_label)) continue;
-				if (equals(word, variables[i], length, variable_length[i])) {
-					ins[ins_count + 0] = eq | (3LLU << 32LLU);
-					ins[ins_count + 1] = 0;
-					ins[ins_count + 2] = 0;
-					ins[ins_count + 3] = i;
-					ins_count += 16;
-					goto finish_operation;
-				}
-			}
-
-			parse_error(
-				"nonexistent operation", 
-				"expected valid operation name here", 
-				word, length, this_file, start, pc
-			);
-		}
-
-		if (op == file) goto define_name;
-		for (var = var_count; var--;) {
-			if (not (types[var] & is_undefined) and
-			    equals(word, variables[var], length, variable_length[var])) goto push_argument;
-		}
-
-		if ( (op == at or op == zero or op == set or op == ld) and arg_count == 1 or
-			(op == lt or op == eq) and arg_count == 3
-		) goto define_name;
-
-		nat r = 0, s = 1;
-		for (nat i = 0; i < length; i++) {
-			if (word[i] == '0') s <<= 1;
-			else if (word[i] == '1') { r += s; s <<= 1; }
-			else if (word[i] == '_') continue;
-			else goto undefined_var;
-		}
-		is_immediate |= 1 << (arg_count - 1);
-		var = r;
-		goto push_argument;
-
-	undefined_var:
-		if (	op == set and arg_count == 2 or
-			op == st  and arg_count == 2 or
-			(op > eoi and op < isa_count)
-		) goto define_name;
-
-		parse_error(
-			"undefined variable", 
-			"no variable defined with this name", 
-			word, length, this_file, start, pc
-		);
-
-	define_name:
-		var = var_count;
-		variables[var] = word;
-		variable_length[var] = length;
-		values[var] = (nat) -1;
-		var_count++;
-
-	push_argument:
-		args[arg_count] = var;
-		offsets[arg_count++] = start;
-
-	process_op:
-		if (op == str) goto parse_string;
-		else if (op < isa_count and arg_count - 1 < arity[op]) goto next_word;
-		else if (op == eoi) break;
-		else if (op == del) types[args[1]] |= is_undefined;
-		else if (op == file) {
-			for (nat i = 0; i < included_count; i++) {
-				if (not equals(
-					word, variables[included_filepaths[i]], 
-					length, variable_length[included_filepaths[i]])
-				) continue;
-				parse_error(
-					"redundant file inclusion",
-					"this file path has already been included once",
-					word, length, this_file, start, pc
-				);
-			}
-			included_filepaths[included_count++] = var;
-			nat len = 0;
-			index_stack[stack_count - 1] = pc;
-			file_names[file_count] = word;
-			file_name_lengths[file_count] = length;
-			file_text[file_count] = load_file(word, length, &len);
-			file_length[file_count] = len;
-			file_stack[stack_count] = file_count;
-			index_stack[stack_count] = 0;
-			stack_count++; file_count++; 
-			types[args[1]] |= is_undefined;
-			goto process_file;
-
-		} else {
-			if (op == at) values[args[1]] = ins_count;
-			else if (op == lt or op == eq) types[args[3]] |= is_ct_label;
-			args[0] |= is_immediate << 32LLU; is_immediate = 0;
-			memcpy(ins + ins_count, args, sizeof args);
-			memcpy(file_offset + ins_count, offsets, sizeof offsets);
-			ins_count += 16;
-		}
-
-	finish_operation: 
-		arg_count = 0;
-
-	next_word: 
-		length = 0;
-		continue;
-
-	parse_string:
-		while (isspace(text[pc])) pc++; 
-		const char delim = text[pc];
-		nat n = ++pc, len = 0;
-		while (text[pc] != delim) { pc++; len++; }
-		strings[string_count++] = text + n;
-		ins[ins_count + 0] = str | (3LLU << 32LLU);
-		ins[ins_count + 1] = len;
-		ins[ins_count + 2] = string_count - 1;
-		file_offset[ins_count + 0] = length;
-		file_offset[ins_count + 1] = n;
-		ins_count += 16;
-		goto finish_operation;
-	}
-	stack_count--;
-	if (stack_count) goto process_file; }
-
-	if (debug) {
-		print_instructions();
-		print_dictionary();
-		puts("parsing finished.");
-		getchar();
-	}
-
-	{ 
-	nat memory[max_memory_size] = {0};
-	nat* rt_ins = calloc(max_instruction_count * 16, sizeof(nat));
-	nat* rt_offsets = calloc(max_instruction_count * 16, sizeof(nat));
-	nat rt_ins_count = 0, total_byte_count = 0;
-
-	for (nat pass = 0; pass < 2; pass++) {
-
-	memory[assembler_pass] = pass;
-	if (pass == 1) { rt_ins_count = 0; total_byte_count = 0; } 
 
 
-	for (nat pc = 0; pc < ins_count; pc += 16) {
-
-		const nat op = get_op(ins[pc + 0]);
-		const nat imm = get_imm(ins[pc + 0]);
-
-		if (debug == 2) cte_debugger(pc / 16, pass, rt_ins_count, rt_ins, memory);
-
-		nat arg0 = ins[pc + 1];
-		nat arg1 = ins[pc + 2];
-		nat arg2 = ins[pc + 3];
-
-		nat val0 = imm & 1 ? arg0 : values[arg0];
-		nat val1 = imm & 2 ? arg1 : values[arg1];
-		nat val2 = imm & 4 ? arg2 : values[arg2];
-
-		if ((op == lt or op == eq) and val2 >= ins_count) {
-			printf("error: at pc %llu invalid jump address: 0x%016llx\n", pc, val2);
-			print_instruction_window_around(pc, 1, "error");
-			print_error("invalid jump address", val2, pc, 2);
-		}
-
-		if (op == st and val0 >= max_memory_size) {
-			printf("error: at pc %llu invalid address given to "
-				"store to compiletime memory: 0x%016llx\n", 
-				pc, val0
-			);
-			print_instruction_window_around(pc, 1, "error");
-			abort();
-		}
-
-		if (op == ld and val1 >= max_memory_size) {
-			printf("error: at pc %llu invalid address given to "
-				"load from compiletime memory: 0x%016llx\n", 
-				pc, val1
-			);
-			print_instruction_window_around(pc, 1, "error");
-			abort();
-		}
-	
-		if (op == str) {
-			for (nat s = 0; s < arg0; s++) { 
-
-				rt_ins[rt_ins_count + 0] = emit | (3LLU << 32LLU);
-				rt_ins[rt_ins_count + 1] = 1;
-				rt_ins[rt_ins_count + 2] = (nat) strings[arg1][s];
-
-				rt_offsets[rt_ins_count + 0] = file_offset[pc + 0];
-				rt_offsets[rt_ins_count + 1] = file_offset[pc + 1];
-				rt_offsets[rt_ins_count + 2] = file_offset[pc + 2];
-
-				rt_ins_count += 16;
-				total_byte_count++;
-			}
-
-		} else if ((op > eoi and op < isa_count) or op == emit or op == sect) {
-			rt_ins[rt_ins_count + 0] = op | (0xffffLLU << 32LLU);
-			for (nat a = 0; a < arity[op]; a++) {
-				const nat arg = ins[pc + a + 1];
-				rt_ins[rt_ins_count + a + 1] = (imm >> a) & 1 ? arg : values[arg];
-			}
-			total_byte_count += get_length(rt_ins + rt_ins_count);
-			memcpy(rt_offsets + rt_ins_count, file_offset + pc, 16 * sizeof(nat));
-			rt_ins_count += 16;
-		}
-		else if (op == zero) values[arg0] = 0;
-		else if (op == incr) values[arg0] += 1;
-		else if (op == set)  values[arg0] = val1;
-		else if (op == add)  values[arg0] += val1;
-		else if (op == sub)  values[arg0] -= val1;
-		else if (op == mul)  values[arg0] *= val1;
-		else if (op == div_) values[arg0] /= val1;
-		else if (op == ld)   values[arg0] = memory[val1];
-		else if (op == st)   memory[val0] = val1;
-		else if (op == at)   values[arg0] = (types[arg0] & is_ct_label) ? pc : total_byte_count;
-		else if (op == lt) { if (val0  < val1) { *memory = pc; pc = val2; } }
-		else if (op == eq) { if (val0 == val1) { *memory = pc; pc = val2; } }
-
-		else { 
-			printf("CTE: fatal internal error: "
-				"unknown instruction executed: opcode %llu \n", op
-			); 
-			print_error("invalid CTE operation executed", op, pc, 0);
-		}
-
-		if (op == st and val0 == assembler_putc) { char c = (char) val1; write(1, &c, 1); } 
-	}}
 
 
-	memcpy(ins, rt_ins, rt_ins_count * 16 * sizeof(nat));
-	memcpy(file_offset, rt_offsets, rt_ins_count * 16 * sizeof(nat));
-
-	ins_count = rt_ins_count;
-
-	free(rt_ins);
-	free(rt_offsets);
-
-	format = memory[output_format];
-	family_id = memory[uf2_family_id];
-	should_overwrite = memory[overwrite_output];
-	stack_size = memory[executable_stack_size]; }
 
 
-	if (not ins_count) exit(0);
-	if (format == macho_executable and stack_size < min_stack_size) {
-		puts("warning: stack size less than minimum for format macho_executable, overwriting");
-		stack_size = min_stack_size;
-	}
-	if (format == uf2_executable) output_filename = "output_from_assembler.uf2";
 
-	if (debug) {
-		print_dictionary();
-		print_instructions();
-		puts("CTE finished.");
-		puts("generating final machine code binary...");
-	}
 
-	for (nat pc = 0; pc < ins_count; pc += 16) {
+static void generate_machine_instruction(nat* in, nat pc) {
 
-		if (debug) {
-			print_instruction_window_around(pc / 16, 0, "");
-			puts("");
-			dump_hex(output_bytes, output_count);
-			getchar();
-		}
-
-		const nat op = get_op(ins[pc + 0]);
-
-		const nat a0 = ins[pc + 1];
-		const nat a1 = ins[pc + 2];
-		const nat a2 = ins[pc + 3];
-		const nat a3 = ins[pc + 4];
-		const nat a4 = ins[pc + 5];
-		const nat a5 = ins[pc + 6];
-		const nat a6 = ins[pc + 7];
-		const nat a7 = ins[pc + 8];
-
+		const nat op = get_op(in[0]);
+		const nat a0 = in[1];
+		const nat a1 = in[2];
+		const nat a2 = in[3];
+		const nat a3 = in[4];
+		const nat a4 = in[5];
+		const nat a5 = in[6];
+		const nat a6 = in[7];
+		const nat a7 = in[8];
 
 		if (op == emit) {
 
@@ -1020,12 +700,10 @@ process_file:;
 			} 
 
 
-
 		} else if (op == sect) {
 
 			section_addresses[section_count] = a0;
 			section_starts[section_count++] = output_count;
-
 
 
 		} else if (op == ri) {
@@ -1069,11 +747,11 @@ process_file:;
 
 		} else if (op == rs) {
 
-			if (a0 >= (1LLU << 7LLU)) { puts("rs error"); abort(); } 
-			if (a1 >= (1LLU << 3LLU)) { puts("rs error"); abort(); } 
-			if (a2 >= (1LLU << 5LLU)) { puts("rs error"); abort(); } 
-			if (a3 >= (1LLU << 5LLU)) { puts("rs error"); abort(); } 
-			if (a4 >= (1LLU << 12LLU)) { puts("rs error"); abort(); } 
+			if (a0 >= (1LLU <<  7LLU)) print_error("rs: invalid 7-bit major op code", a0, pc, 1);
+			if (a1 >= (1LLU <<  3LLU)) print_error("rs: invalid 3-bit minor op code", a1, pc, 2);
+			if (a2 >= (1LLU <<  5LLU)) print_error("rs: invalid register", a2, pc, 3);
+			if (a3 >= (1LLU <<  5LLU)) print_error("rs: invalid register", a3, pc, 4);
+			if (a4 >= (1LLU << 12LLU)) print_error("rs: invalid 12-bit immediate", a4, pc, 5);
 
 			const nat word = 
 				(((a4 >> 5) & 0x3f) << 25U) | 
@@ -1086,12 +764,11 @@ process_file:;
 
 
 
-
 		} else if (op == ru) {
 
-			if (a0 >= (1LLU << 7LLU)) { puts("ru error"); abort(); } 
-			if (a1 >= (1LLU << 5LLU)) { puts("ru error"); abort(); } 
-			if (a2 >= (1LLU << 20LLU)) { puts("ru error"); abort(); } 
+			if (a0 >= (1LLU <<  7LLU)) print_error("ru: invalid 7-bit major op code", a0, pc, 1);
+			if (a1 >= (1LLU <<  5LLU)) print_error("ru: invalid destination register", a1, pc, 2);
+			if (a2 >= (1LLU << 20LLU)) print_error("ru: invalid 20-bit immediate", a2, pc, 3);
 			
 			nat im = (a2 << 12) & 0xFFFFF000;
 			const nat word =
@@ -1105,7 +782,7 @@ process_file:;
 
 		} else if (op == rb) {
 
-			if (a0 >= (1LLU << 7LLU)) { puts("rb error"); abort(); } 
+			if (a0 >= (1LLU << 7LLU)) print_error("rb: invalid 7-bit major op code", a0, pc, 1);
 			if (a1 >= (1LLU << 3LLU)) { puts("rb error"); abort(); } 
 			if (a2 >= (1LLU << 5LLU)) { puts("rb error"); abort(); } 
 			if (a3 >= (1LLU << 5LLU)) { puts("rb error"); abort(); } 
@@ -1441,6 +1118,327 @@ process_file:;
 			print_error("code generation: invalid machine instruction op code", op, pc, 0);
 		}
 
+
+}
+
+
+
+int main(int argc, const char** argv) {
+	if (argc != 2) exit(puts("assembler: \033[31;1merror:\033[0m exactly one source file must be specified."));	
+
+	{ nat index_stack[max_file_count] = {0};
+	nat file_stack[max_file_count] = {0};
+	nat stack_count = 1;
+
+	nat included_filepaths[max_file_count] = {0};
+	nat included_count = 0;
+
+	nat first_length = 0;
+	file_names[file_count] = argv[1];
+	file_name_lengths[file_count] = strlen(argv[1]);
+	file_text[file_count] = load_file(argv[1], strlen(argv[1]), &first_length);
+	file_length[file_count] = first_length;
+	file_count++;
+
+process_file:;
+
+	const nat index = index_stack[stack_count - 1];
+	const nat this_file = file_stack[stack_count - 1];
+
+	const nat text_length = file_length[this_file];
+	const char* text = file_text[this_file];
+
+	nat length = 0, start = 0, is_immediate = 0, arg_count = 0;
+
+	nat args[16] = {0};
+	nat offsets[16] = {0};
+
+	for (nat var = 0, pc = index; pc < text_length; pc++) {
+
+		if (not isspace(text[pc])) {
+			if (not length) start = pc;
+			length++;
+			if (pc + 1 < text_length) continue;
+		} else if (not length) continue; 
+
+		const char* word = text + start;
+
+		nat op = args[0];
+
+		if (not arg_count) {
+
+			if (word[0] == '(') {
+				nat i = start + 1, comment = 1;
+				while (comment and i < text_length) {
+					if (text[i] == '(') comment++;
+					if (text[i] == ')') comment--;
+					i++;
+				}
+				if (comment) parse_error(
+					"unterminated comment", 
+					"comment started here", 
+					"", 0, this_file, start, pc
+				);
+				pc = i;
+				goto next_word;
+			}
+
+			for (nat i = 0; i < isa_count; i++) {
+				if (equals(word, operations[i], length, strlen(operations[i]))) { 
+					args[arg_count] = i; op = i;
+					offsets[arg_count++] = start;
+					goto process_op; 
+				}
+			}
+
+			for (nat i = var_count; i--;) {
+				if (not (types[i] & is_ct_label)) continue;
+				if (equals(word, variables[i], length, variable_length[i])) {
+					ins[ins_count + 0] = eq | (3LLU << 32LLU);
+
+					ins[ins_count + 1] = 0;
+					ins[ins_count + 2] = 0;
+					ins[ins_count + 3] = i;
+
+					file_offset[ins_count + 0] = start;
+					file_offset[ins_count + 1] = start;
+					file_offset[ins_count + 2] = start;
+					file_offset[ins_count + 3] = start;
+
+					file_mapping[ins_count / 16] = this_file;
+
+					ins_count += 16;
+
+					goto finish_operation;
+				}
+			}
+
+			parse_error(
+				"nonexistent operation", 
+				"expected valid operation name here", 
+				word, length, this_file, start, pc
+			);
+		}
+
+		if (op == file) goto define_name;
+		for (var = var_count; var--;) {
+			if (not (types[var] & is_undefined) and
+			    equals(word, variables[var], length, variable_length[var])) goto push_argument;
+		}
+
+		if ( (op == at or op == zero or op == set or op == ld) and arg_count == 1 or
+			(op == lt or op == eq) and arg_count == 3
+		) goto define_name;
+
+		nat r = 0, s = 1;
+		for (nat i = 0; i < length; i++) {
+			if (word[i] == '0') s <<= 1;
+			else if (word[i] == '1') { r += s; s <<= 1; }
+			else if (word[i] == '_') continue;
+			else goto undefined_var;
+		}
+		is_immediate |= 1 << (arg_count - 1);
+		var = r;
+		goto push_argument;
+
+	undefined_var:
+		if (	op == set and arg_count == 2 or
+			op == st  and arg_count == 2 or
+			(op > eoi and op < isa_count)
+		) goto define_name;
+
+		parse_error(
+			"undefined variable", 
+			"no variable defined with this name", 
+			word, length, this_file, start, pc
+		);
+
+	define_name:
+		var = var_count;
+		variables[var] = word;
+		variable_length[var] = length;
+		values[var] = (nat) -1;
+		var_count++;
+
+	push_argument:
+		args[arg_count] = var;
+		offsets[arg_count++] = start;
+
+	process_op:
+		if (op == str) goto parse_string;
+		else if (op < isa_count and arg_count - 1 < arity[op]) goto next_word;
+		else if (op == eoi) break;
+		else if (op == del) types[args[1]] |= is_undefined;
+		else if (op == file) {
+			for (nat i = 0; i < included_count; i++) {
+				if (not equals(
+					word, variables[included_filepaths[i]], 
+					length, variable_length[included_filepaths[i]])
+				) continue;
+				parse_error(
+					"redundant file inclusion",
+					"this file path has already been included once",
+					word, length, this_file, start, pc
+				);
+			}
+			included_filepaths[included_count++] = var;
+			nat len = 0;
+			index_stack[stack_count - 1] = pc;
+			file_names[file_count] = word;
+			file_name_lengths[file_count] = length;
+			file_text[file_count] = load_file(word, length, &len);
+			file_length[file_count] = len;
+			file_stack[stack_count] = file_count;
+			index_stack[stack_count] = 0;
+			stack_count++; file_count++; 
+			types[args[1]] |= is_undefined;
+			goto process_file;
+
+		} else {
+			if (op == at) values[args[1]] = ins_count;
+			else if (op == lt or op == eq) types[args[3]] |= is_ct_label;
+			args[0] |= is_immediate << 32LLU; is_immediate = 0;
+			memcpy(ins + ins_count, args, sizeof args);
+			memcpy(file_offset + ins_count, offsets, sizeof offsets);
+			file_mapping[ins_count / 16] = this_file;
+			ins_count += 16;
+		}
+
+	finish_operation: 
+		arg_count = 0;
+
+	next_word: 
+		length = 0;
+		continue;
+
+	parse_string:
+		while (isspace(text[pc])) pc++; 
+		const char delim = text[pc];
+		nat n = ++pc, len = 0;
+		while (text[pc] != delim) { pc++; len++; }
+		strings[string_count++] = text + n;
+		ins[ins_count + 0] = str | (3LLU << 32LLU);
+		ins[ins_count + 1] = len;
+		ins[ins_count + 2] = string_count - 1;
+		file_offset[ins_count + 0] = length;
+		file_offset[ins_count + 1] = n;
+		file_mapping[ins_count / 16] = this_file;
+		ins_count += 16;
+		goto finish_operation;
+	}
+	stack_count--;
+	if (stack_count) goto process_file; }
+
+	if (debug) {
+		print_instructions();
+		print_dictionary();
+		puts("parsing finished.");
+		getchar();
+	}
+
+
+	nat in[16] = {0};
+	for (nat pass = 0; pass < 2; pass++) {
+	memory[assembler_pass] = pass;
+	if (pass == 1) output_count = 0;
+	for (nat pc = 0; pc < ins_count; pc += 16) {
+
+		if (debug == 2) cte_debugger(pc / 16, pass);
+
+		const nat op = get_op(ins[pc + 0]);
+		const nat imm = get_imm(ins[pc + 0]);
+		const nat arg0 = ins[pc + 1];
+		const nat arg1 = ins[pc + 2];
+		const nat arg2 = ins[pc + 3];
+
+		const nat val0 = (imm & 1) or 0 >= arity[op] ? arg0 : values[arg0];
+		const nat val1 = (imm & 2) or 1 >= arity[op] ? arg1 : values[arg1];
+		const nat val2 = (imm & 4) or 2 >= arity[op] ? arg2 : values[arg2];
+
+		if ((op == lt or op == eq) and val2 >= ins_count) {
+			printf("error: at pc %llu invalid jump address: 0x%016llx\n", pc, val2);
+			print_instruction_window_around(pc, 1, "error");
+			print_error("invalid jump address", val2, pc, 2);
+		}
+
+		if (op == st and val0 >= max_memory_size) {
+			printf("error: at pc %llu invalid address given to "
+				"store to compiletime memory: 0x%016llx\n", 
+				pc, val0
+			);
+			print_instruction_window_around(pc, 1, "error");
+			print_error("invalid store address", val2, pc, 2);
+		}
+
+		if (op == ld and val1 >= max_memory_size) {
+			printf("error: at pc %llu invalid address given to "
+				"load from compiletime memory: 0x%016llx\n", 
+				pc, val1
+			);
+			print_instruction_window_around(pc, 1, "error");
+			print_error("invalid memory address", val2, pc, 2);
+		}
+	
+		if (op == str) {
+			for (nat s = 0; s < arg0; s++) {
+				in[0] = emit | (3LLU << 32LLU);
+				in[1] = 1;
+				in[2] = (nat) strings[arg1][s];
+				generate_machine_instruction(in, pc);
+			}
+
+		} else if ((op > eoi and op < isa_count) or op == emit or op == sect) {
+			in[0] = op | (0xffffLLU << 32LLU);
+			for (nat a = 0; a < arity[op]; a++) {
+				const nat arg = ins[pc + a + 1];
+				in[a + 1] = (imm >> a) & 1 ? arg : values[arg];
+			}
+			generate_machine_instruction(in, pc);
+		}
+		else if (op == zero) values[arg0] = 0;
+		else if (op == incr) values[arg0] += 1;
+		else if (op == set)  values[arg0] = val1;
+		else if (op == add)  values[arg0] += val1;
+		else if (op == sub)  values[arg0] -= val1;
+		else if (op == mul)  values[arg0] *= val1;
+		else if (op == div_) values[arg0] /= val1;
+		else if (op == and_) values[arg0] &= val1;
+		else if (op == or_)  values[arg0] |= val1;
+		else if (op == eor)  values[arg0] ^= val1;
+		else if (op == si)   values[arg0] <<= val1;
+		else if (op == sd)   values[arg0] >>= val1;
+		else if (op == ld)   values[arg0] = memory[val1];
+		else if (op == st)   memory[val0] = val1;
+		else if (op == at)   values[arg0] = (types[arg0] & is_ct_label) ? pc : output_count;
+		else if (op == lt) { if (val0  < val1) { *memory = pc; pc = val2; } }
+		else if (op == eq) { if (val0 == val1) { *memory = pc; pc = val2; } }
+		else { 
+			printf("CTE: fatal internal error: "
+				"unknown instruction executed: opcode %llu \n", op
+			); 
+			print_error("invalid CTE operation executed", op, pc, 0);
+		}
+
+		if (op == st and val0 == assembler_putc) { char c = (char) val1; write(1, &c, 1); } 
+	}
+
+	format = memory[output_format];
+	family_id = memory[uf2_family_id];
+	should_overwrite = memory[overwrite_output];
+	stack_size = memory[executable_stack_size]; }
+
+	if (not ins_count) exit(0);
+	if (format == macho_executable and stack_size < min_stack_size) {
+		puts("warning: stack size less than minimum for format macho_executable, overwriting");
+		stack_size = min_stack_size;
+	}
+	if (format == uf2_executable) output_filename = "output_from_assembler.uf2";
+
+	if (debug) {
+		print_dictionary();
+		print_instructions();
+		puts("CTE finished.");
+		puts("generating final machine code binary...");
 	}
 
 	if (debug) {
@@ -1879,6 +1877,16 @@ finished_outputting:
 
 
 
+
+
+
+
+
+
+
+
+
+
 /*	1202508052.033642
 	todo:
 
@@ -1997,7 +2005,22 @@ actaully the instructions which we will add will be specically:
 
 
 
-*/  
+
+
+
+
+
+
+	//nat* rt_ins = calloc(max_instruction_count * 16, sizeof(nat));
+	//nat* rt_offsets = calloc(max_instruction_count * 16, sizeof(nat));
+	//nat* rt_mapping = calloc(max_instruction_count, sizeof(nat));
+	//nat rt_ins_count = 0
+	//memcpy(ins, rt_ins, rt_ins_count * sizeof(nat));
+	//memcpy(file_offset, rt_offsets, rt_ins_count * sizeof(nat));
+	//memcpy(file_mapping, rt_mapping, rt_ins_count / 2);
+	//ins_count = rt_ins_count;
+	//free(rt_ins);
+	//free(rt_offsets);
 
 
 
@@ -2006,6 +2029,67 @@ actaully the instructions which we will add will be specically:
 
 
 
+
+
+
+
+
+static nat get_length(nat* in) {
+
+	const nat op = get_op(in[0]);
+	const nat a0 = ins[1];
+	const nat a1 = ins[2];
+	const nat a4 = ins[5];
+	const nat a5 = ins[6];
+
+	nat length = 4;
+	if (op == mo) {
+		length = 2;
+		if ((a4 == 1 and (a5 != 2 and a5 != 3)) or (a4 == 3 and not a5)) length += 2;
+		if (a1 == 1) length += 2;
+	}
+	else if (op == mb) length = 2;
+	else if (op == sect) length = 0;
+	else if (op == emit) length = a0;
+	else length = 4;
+
+	return length;
+}
+
+static void check_for_errors(nat* in, nat at_pc) {
+
+	const nat op = get_op(ins[pc + 0]);
+	const nat a0 = ins[pc + 1];
+	const nat a1 = ins[pc + 2];
+	const nat a2 = ins[pc + 3];
+	const nat a3 = ins[pc + 4];
+	const nat a4 = ins[pc + 5];
+	const nat a5 = ins[pc + 6];
+	const nat a6 = ins[pc + 7];
+	const nat a7 = ins[pc + 8];
+
+	if (op == emit) {
+		if (a0 == 8) {
+		} else if (a0 == 4) {
+			if (a1 >= (1LLU << 32LLU)) print_error("invalid emit u32 data argument", a1, pc, 2);
+		} else if (a0 == 2) {
+			if (a1 >= (1LLU << 16LLU)) print_error("invalid emit u16 data argument", a1, pc, 2); 
+		} else if (a0 == 1) {
+			if (a1 >= (1LLU <<  8LLU)) print_error("invalid emit u8 data argument", a1, pc, 2);
+		} else print_error("invalid emit size, must be 1, 2, 4, or 8", a0, pc, 1);
+		
+	} else if (op == sect) {
+
+
+	} else if (op == rr) {
+
+
+	}
+
+}
+
+
+*/
 
 
 
